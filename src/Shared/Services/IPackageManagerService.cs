@@ -29,6 +29,21 @@ public interface IPackageManagerService
     /// <summary>列出所有源（<c>winget source list</c>）。</summary>
     Task<(bool Ok, string Message, IReadOnlyList<PackageSourceInfo> Items)> ListSourcesAsync(CancellationToken ct = default);
 
+    // ==================== 源的增删（v1.33：直接改系统 winget，与它共用一套数据） ====================
+    //
+    // ⚠️ 这三项会写**系统级**的 winget 配置（等价于用户在终端里敲 winget source …），
+    //    是"改到整台机器"的操作。删除 / 重置属于破坏性操作 → 内部走 ConfirmHandler 二次确认
+    //    （与卸载同理；没接上钩子时一律返回 false，宁可什么都不做）。
+
+    /// <summary>添加一个源（<c>winget source add --name … --arg …</c>）。</summary>
+    Task<(bool Ok, string Message)> AddSourceAsync(string name, string argument, string? type = null, CancellationToken ct = default);
+
+    /// <summary>删除一个源（<c>winget source remove</c>）—— 内部二次确认。</summary>
+    Task<(bool Ok, string Message)> RemoveSourceAsync(string name, CancellationToken ct = default);
+
+    /// <summary>把系统的源恢复为默认（<c>winget source reset --force</c>）—— 内部二次确认。</summary>
+    Task<(bool Ok, string Message)> ResetSourcesAsync(CancellationToken ct = default);
+
     /// <summary>已安装的包（<c>winget list</c>）。</summary>
     Task<(bool Ok, string Message, IReadOnlyList<PackageInfo> Items)> ListInstalledAsync(CancellationToken ct = default);
 

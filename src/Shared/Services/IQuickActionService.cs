@@ -36,7 +36,10 @@ public interface IQuickActionService
     /// <summary>配置文件全路径（页面上显示给用户看）。</summary>
     string FilePath { get; }
 
-    /// <summary>新建一条（带默认标题），归入指定页面（<see cref="QuickActionPage"/>），加入列表并落盘，返回它。</summary>
+    /// <summary>脚本目录（生效值）：「设置与脚本」页里的脚本文件都从这里找；配置为空时是 <c>&lt;应用根&gt;\scripts</c>。</summary>
+    string ScriptsDirectory { get; }
+
+    /// <summary>新建一条（带默认标题与默认类型），归入指定页面（<see cref="QuickActionPage"/>），加入列表并落盘，返回它。</summary>
     QuickAction Add(string page);
 
     /// <summary>把改动落盘（编辑属性后调用；属性本身就是同一个对象，不需要拷贝）。</summary>
@@ -49,9 +52,10 @@ public interface IQuickActionService
     void ToggleFavorite(QuickAction item);
 
     /// <summary>
-    /// 运行一条命令：Windows 下经 <c>cmd /c</c> 执行；<see cref="QuickAction.NeedAdmin"/> 为真时用 UAC 提权
-    /// （提权后新开一个控制台窗口，输出直接可见）。
-    /// <para>普通命令隐藏窗口并捕获输出，返回「是否成功 + 可读的结果 / 失败原因」，供页面状态行显示。</para>
+    /// 运行一条项目：命令行命令直接执行；脚本文件按扩展名 / <see cref="QuickAction.Interpreter"/> 挑解释器
+    /// （python / pwsh / powershell 5.1 / cmd，路径见「设置 → 路径配置」），统一经 <c>cmd</c> 跑；
+    /// <see cref="QuickAction.NeedAdmin"/> 为真时用 UAC 提权（提权后新开一个控制台窗口，输出直接可见）。
+    /// <para>普通情况下隐藏窗口并捕获输出，返回「是否成功 + 可读的结果 / 失败原因」，供页面状态行显示。</para>
     /// </summary>
     Task<(bool Ok, string Message)> RunAsync(QuickAction item, CancellationToken ct = default);
 

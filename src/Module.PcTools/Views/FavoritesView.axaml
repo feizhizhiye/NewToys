@@ -21,7 +21,7 @@
       </Grid>
     </Border>
 
-    <!-- 收藏卡片 -->
+    <!-- 收藏按钮墙：收藏 = 常用功能 → 只给一个按钮，点一下就跑，不放任何卡片信息。 -->
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="16" Spacing="12">
 
@@ -37,37 +37,15 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <!-- 右键 = 「✕ 取消固定」；菜单在 code-behind 里现场构造并直接挂命令（弹出树取不到父级 DataContext，见规范 3.6）。 -->
-              <Border Classes="card" Width="312" Margin="6" Padding="16"
-                      ContextRequested="OnCardContextRequested"
-                      ToolTip.Tip="右键：运行 / 取消固定">
-                <StackPanel Spacing="8">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="★" FontSize="14" VerticalAlignment="Center"
-                               Foreground="{DynamicResource AccentBrush}"/>
-                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
-                               VerticalAlignment="Center" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                  </StackPanel>
-
-                  <TextBlock Text="{Binding Category}" FontSize="11"
-                             Foreground="{DynamicResource AccentBrush}"/>
-                  <TextBlock Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
-                             Foreground="{DynamicResource SecondaryTextBrush}"/>
-
-                  <Border Background="{DynamicResource CodeBlockBrush}" CornerRadius="6" Padding="8">
-                    <TextBlock Text="{Binding Command}" FontFamily="Consolas" FontSize="11"
-                               TextWrapping="Wrap" MaxHeight="64"
-                               Foreground="{DynamicResource PrimaryTextBrush}"/>
-                  </Border>
-
-                  <!-- 简化后只留最基础的「▶ 运行」；取消固定走右键菜单。 -->
-                  <Button Classes="primary" Content="▶ 运行" HorizontalAlignment="Left"
-                          Command="{Binding $parent[UserControl].DataContext.RunCommand}"
-                          CommandParameter="{Binding}"
-                          IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
-                          ToolTip.Tip="用 cmd 执行这条命令；勾选过「需要管理员权限」的会弹 UAC"/>
-                </StackPanel>
-              </Border>
+              <!-- 只要名称、点了就跑；右键 = 「运行 / 取消固定」（菜单在 code-behind 现场构造，
+                   弹出树取不到父级 DataContext，见规范 3.6）。 -->
+              <Button Classes="ghost"
+                      Content="{Binding Title}"
+                      FontSize="13" Padding="16,9" Margin="6"
+                      Command="{Binding $parent[UserControl].DataContext.RunCommand}"
+                      CommandParameter="{Binding}"
+                      IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
+                      ContextRequested="OnItemContextRequested"/>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>

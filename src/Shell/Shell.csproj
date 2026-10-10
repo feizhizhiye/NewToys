@@ -19,6 +19,17 @@
     <ProjectReference Include="../Core/Core.csproj" />
   </ItemGroup>
 
+  <!--  默认数据：随程序发布到 <程序目录>\defaults\（首次运行时由 Core 复制成
+        config\quickactions.json 与 <应用根>\scripts\*）。
+        为什么要它有：QuickAction 的命令清单**不写死在 C# 里**（v1.33），默认内容就是这些本地 JSON / 脚本文件。
+        ⚠️ 用 None Update（不是 Content/None Include）：这些文件本来就在 SDK 的默认 None 通配里，
+           Update 只改"要不要复制到输出"，再加一条 Include 会撞 NETSDK1022 重复项。
+        ⚠️ 放在 Shell 而不是 Core：Shell 是被引用的终点（模块不会引用它），
+           默认数据只会在程序根目录出现一份，不会连带复制进 Release 的 Modules\。  -->
+  <ItemGroup>
+    <None Update="defaults\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!--  Debug 才引用模块项目：支持断点与热重载，并与 App.axaml.cs 的 #if DEBUG 显式类型清单配套。
         Release 下 Shell 不引用模块，模块 DLL 由 src\Directory.Build.props 直接产出到
         artifacts\release\Modules\，运行时由 ModuleLoader 扫描该目录。

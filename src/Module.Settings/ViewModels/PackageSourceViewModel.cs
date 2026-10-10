@@ -15,18 +15,22 @@ namespace NewToys.Settings.ViewModels;
 /// <summary>
 /// 「软件源」设置页 —— 软件包管理模块的源设置都在这。
 /// <para>
-/// <b>落点</b>：<c>&lt;应用根&gt;\config\package.json</c>。放在 <c>config\</c> 下的唯一目的就是
-/// **能被「数据管理」页备份 / 导入**（"设置里的数据可以备份，模块读取设置里的数据"，规范 3.9）；
-/// 模块侧（PC 工具箱 → 软件包管理）只通过 <see cref="IPackageSettingsService"/> 读，不自己另存。
+/// <b>v1.33 起本页直接操作系统 winget 的源</b>（"与系统共用一套数据"）：
+/// 列表读的是 <c>winget source list</c> 的真实结果，「停用」= <c>winget source remove</c>，
+/// 「添加源」= <c>winget source add</c>，「恢复默认源」= <c>winget source reset --force</c>。
+/// 也就是说：在这里改完，用户在终端里敲 <c>winget source list</c> 看到的是一模一样的东西。
 /// </para>
 /// <para>
-/// <b>全部即时生效、无保存按钮</b>（规范 3.7）：勾一下开关就写盘，状态行立刻反馈。
+/// ⚠️ 这是**会动到整台机器**的操作（不是"只影响本应用"）。删除源 / 恢复默认都走 Core 的二次确认钩子
+/// （<c>PackageManagerService.ConfirmHandler</c> → Shell 的模态框），与卸载软件包同一套机制。
 /// </para>
 /// <para>
-/// ⚠️ <b>刻意不提供"增删源"</b>：那要改系统级的包管理器配置（<c>winget source add/remove/reset</c>），
-/// 属于会动到机器全局状态的破坏性操作。本页只做两件安全的事：
-/// ① 读出现有源；② 决定**本应用查询时**用哪些源（关掉 Store 源 = 我们的搜索不再带 <c>--source msstore</c>）。
-/// 想真正增删源，请自己在终端里用 winget 命令。
+/// <b>落点</b>：<c>&lt;应用根&gt;\config\package.json</c> —— 但那里只存"界面偏好"
+/// （默认查询源 / 静默安装），源的增删不落本地文件（真相源就是系统 winget）。
+/// 放 <c>config\</c> 下是为了能被「数据管理」页备份 / 导入（规范 3.9）。
+/// </para>
+/// <para>
+/// <b>全部即时生效、无保存按钮</b>（规范 3.7）：勾一下开关 / 点一下按钮就执行，状态行立刻反馈。
 /// </para>
 /// </summary>
 public partial class PackageSourceViewModel : ObservableObject
@@ -34,22 +38,31 @@ public partial class PackageSourceViewModel : ObservableObject
     private readonly IPackageManagerService? _pkg;
     private readonly IPackageSettingsService? _settings;
 
-    private readonly List<PackageSourceInfo> _allSources = new();
     private bool _syncing;
 
-    /// <summary>界面上显示的源（<c>IsEnabled</c> 已按「是否启用 Store 源」算好）。</summary>
+    /// <summary>系统 winget 里的源（`winget source list` 的原始结果）。</summary>
     public ObservableCollection<PackageSourceInfo> Sources { get; } = new();
 
-    /// <summary>「默认查询源」下拉的选项（第一项 = 全部已启用的源）。</summary>
+    /// <summary>「默认查询源」下拉的选项（第一项 = 全部源）。</summary>
     public ObservableCollection<PackageSourceOption> SourceOptions { get; } = new();
 
-    [ObservableProperty] private bool _storeSourceEnabled = true;
     [ObservableProperty] private bool _silentInstall = true;
     [ObservableProperty] private PackageSourceOption? _defaultSourceOption;
     [ObservableProperty] private bool _isBusy;
-    [ObservableProperty] private string _statusText = "正在读取包管理器源……";
+    [ObservableProperty] private string _statusText = "正在读取系统 winget 的源……";
+
+    /// <summary>给界面用的反向属性（<c>{Binding IsEnabled}</c> 绑它，Avalonia 的 <c>!</c> 前缀在模板里不好用）。</summary>
+    public bool IsNotBusy => !IsBusy;
+
+    partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
+
     [ObservableProperty] private string _filePath = "";
     [ObservableProperty] private string _summaryText = "";
+
+    // ---- 添加源表单（点「➕ 添加」才提交） ----
+
+    [ObservableProperty] private string _newSourceName = "";
+    [ObservableProperty] private string _newSourceArgument = "";
 
     public PackageSourceViewModel() { }
 
@@ -72,45 +85,33 @@ public partial class PackageSourceViewModel : ObservableObject
         {
             IsBusy = true;
             _syncing = true;
-            var s = _settings.Settings;
-            StoreSourceEnabled = s.StoreSourceEnabled;
-            SilentInstall = s.SilentInstall;
+            SilentInstall = _settings.Settings.SilentInstall;
             _syncing = false;
 
-            StatusText = "正在读取包管理器源列表……";
+            StatusText = "正在读取系统 winget 的源列表……";
             var (ok, msg, items) = await _pkg.ListSourcesAsync();
 
-            _allSources.Clear();
-            _allSources.AddRange(items);
+            Sources.Clear();
+            foreach (var s in items) Sources.Add(s);
             Rebuild();
 
             if (!ok) StatusText = "读取源列表失败：" + msg;
-            else if (_allSources.Count == 0) StatusText = "winget 未返回任何源（可能尚未初始化，可执行一次任意 winget 命令让它自动生成）。";
-            else StatusText = $"系统里共 {_allSources.Count} 个源；本应用当前查询 {EnabledSourceCount()} 个。";
+            else if (Sources.Count == 0) StatusText = "winget 未返回任何源（可能尚未初始化，可先执行一次任意 winget 命令，或点「↺ 恢复默认源」）。";
+            else StatusText = $"系统 winget 里共 {Sources.Count} 个源（本页与系统共用同一份数据）。";
         }
         finally { IsBusy = false; }
     }
 
-    private int EnabledSourceCount()
-        => StoreSourceEnabled ? _allSources.Count : _allSources.Count(x => !IsStore(x.Name));
-
-    /// <summary>按「是否启用 Store 源」重算列表与下拉（只读快照，不写盘）。</summary>
+    /// <summary>重建「默认查询源」下拉（源列表变了就跟着变）。</summary>
     private void Rebuild()
     {
         _syncing = true;
         try
         {
-            Sources.Clear();
-            foreach (var s in _allSources)
-            {
-                s.IsEnabled = StoreSourceEnabled || !IsStore(s.Name);
-                Sources.Add(s);
-            }
-
             var keep = DefaultSourceOption?.Value ?? _settings?.Settings.DefaultSource ?? "";
             SourceOptions.Clear();
-            SourceOptions.Add(new PackageSourceOption { Label = "全部源（已启用的）", Value = null });
-            foreach (var s in _allSources.Where(x => StoreSourceEnabled || !IsStore(x.Name)))
+            SourceOptions.Add(new PackageSourceOption { Label = "全部源", Value = null });
+            foreach (var s in Sources)
                 SourceOptions.Add(new PackageSourceOption { Label = s.Name, Value = s.Name });
 
             DefaultSourceOption = SourceOptions.FirstOrDefault(o => string.Equals(o.Value ?? "", keep, StringComparison.OrdinalIgnoreCase))
@@ -118,24 +119,67 @@ public partial class PackageSourceViewModel : ObservableObject
         }
         finally { _syncing = false; }
 
-        SummaryText = $"系统里 {_allSources.Count} 个源 · 本应用启用 {EnabledSourceCount()} 个";
+        SummaryText = $"系统里 {Sources.Count} 个源";
         OnPropertyChanged(nameof(SummaryText));
     }
 
-    private static bool IsStore(string name) => name.Contains("msstore", StringComparison.OrdinalIgnoreCase);
+    // ==================== 源的增删（改的就是系统 winget） ====================
 
-    // ==================== 即时生效（写 package.json） ====================
-
-    partial void OnStoreSourceEnabledChanged(bool value)
+    /// <summary>添加源（<c>winget source add</c>）。名称 + 地址必填。</summary>
+    [RelayCommand]
+    private async Task AddSourceAsync()
     {
-        if (_syncing || _settings == null) return;
-        _settings.Settings.StoreSourceEnabled = value;
-        _settings.Save();
-        Rebuild();
-        StatusText = value
-            ? "已启用 Store 源：搜索 / 安装可命中 msstore（Microsoft Store 分发）的包。"
-            : "已关闭 Store 源：本应用的搜索与安装**不再查询 msstore**。已写入 package.json，即时生效。";
+        if (_pkg == null || IsBusy) return;
+
+        var name = (NewSourceName ?? "").Trim();
+        var arg = (NewSourceArgument ?? "").Trim();
+        if (name.Length == 0) { StatusText = "请先填写源名称（例如 my-source）。"; return; }
+        if (arg.Length == 0) { StatusText = "请先填写源地址（URL 或以 \\\\ 开头的 UNC 路径）。"; return; }
+
+        try
+        {
+            IsBusy = true;
+            StatusText = $"正在添加源 {name} ……";
+            var (ok, msg) = await _pkg.AddSourceAsync(name, arg);
+            StatusText = msg;
+            if (ok) { NewSourceName = ""; NewSourceArgument = ""; await LoadAsync(); }
+        }
+        finally { IsBusy = false; }
     }
+
+    /// <summary>删除某个源（<c>winget source remove</c>，内部二次确认）。行内「✕ 停用」按钮传的就是这一行。</summary>
+    [RelayCommand]
+    private async Task RemoveSourceAsync(PackageSourceInfo? source)
+    {
+        if (_pkg == null || source == null || IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+            var (ok, msg) = await _pkg.RemoveSourceAsync(source.Name);
+            StatusText = msg;
+            if (ok) await LoadAsync();
+        }
+        finally { IsBusy = false; }
+    }
+
+    /// <summary>恢复默认源（<c>winget source reset --force</c>，内部二次确认）。</summary>
+    [RelayCommand]
+    private async Task ResetSourcesAsync()
+    {
+        if (_pkg == null || IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+            var (ok, msg) = await _pkg.ResetSourcesAsync();
+            StatusText = msg;
+            if (ok) await LoadAsync();
+        }
+        finally { IsBusy = false; }
+    }
+
+    // ==================== 即时生效（写 package.json 的"界面偏好"） ====================
 
     partial void OnSilentInstallChanged(bool value)
     {
@@ -153,7 +197,7 @@ public partial class PackageSourceViewModel : ObservableObject
         _settings.Settings.DefaultSource = value.Value ?? "";
         _settings.Save();
         StatusText = value.Value == null
-            ? "默认查询源 = 全部已启用的源（搜索时逐个源查一遍再合并）。"
+            ? "默认查询源 = 全部源（搜索时逐个源查一遍再合并）。"
             : $"默认查询源 = {value.Value}（搜索与安装都会优先用它）。";
     }
 

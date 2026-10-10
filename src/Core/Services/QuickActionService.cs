@@ -15,15 +15,17 @@ namespace NewToys.Core.Services;
 /// <summary>
 /// <see cref="IQuickActionService"/> 实现：落到 <c>&lt;应用根&gt;\config\quickactions.json</c>。
 /// <para>
-/// 首次运行（文件不存在）灌入一组**内置的常用「系统设置 / 脚本」种子**，开箱即用；之后用户改动直接覆盖该文件。
-/// 落点选在 <c>config\</c>：「设置 → 数据管理」的备份 / 导入（<see cref="ConfigStoreService"/>）天然覆盖它。
+/// <b>命令内容不写死在代码里</b>（v1.33）：默认清单随程序发布在
+/// <c>&lt;程序目录&gt;\defaults\quickactions.default.json</c>，首次运行复制成
+/// <c>config\quickactions.json</c>；之后一切以用户那份为准（改文件即改清单，删条目不会被"复活"）。
 /// </para>
 /// <para>
-/// 「设置与脚本 / 快捷设置」两页共用这一份清单，只按 <see cref="QuickAction.Page"/> 分栏；
-/// 运行命令经 <c>cmd.exe</c> 执行（<see cref="RunAsync"/>），提权走 ShellExecute + <c>runas</c>。
+/// 两页分工 = <see cref="QuickAction.Page"/>（显示在哪一页）+ <see cref="QuickAction.Kind"/>（怎么跑）：
+/// 「快捷设置」= 命令行命令；「设置与脚本」= 脚本文件。脚本文件放 <see cref="ScriptsDirectory"/>，
+/// 解释器路径（python / pwsh / powershell 5.1）在「设置 → 路径配置」里配，留空 = 用系统 PATH 里的。
 /// </para>
 /// <para>
-/// 删除的二次确认通过静态钩子 <see cref="ConfirmHandler"/> 外抛 —— <c>Core</c> 不引用 Avalonia，
+/// 删除 / 破坏性操作的二次确认通过静态钩子 <see cref="ConfirmHandler"/> 外抛 —— <c>Core</c> 不引用 Avalonia，
 /// 由宿主（<c>App.axaml.cs</c>）接到模态框上，与 <see cref="PackageManagerService"/> 同款做法。
 /// </para>
 /// </summary>
@@ -31,21 +33,24 @@ public class QuickActionService : IQuickActionService
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
-    /// <summary>普通命令的运行上限：超时即连子进程一起结束（防 <c>sfc /scannow</c> 这类长命令把「运行中」挂死）。</summary>
+    /// <summary>普通命令 / 脚本的运行上限：超时即连子进程一起结束（防长命令把「运行中」挂死）。</summary>
     private static readonly TimeSpan RunTimeout = TimeSpan.FromMinutes(5);
 
     private readonly ConfigStoreService _cfg;
+    private readonly IAppConfigService? _app;
     private readonly List<QuickAction> _items;
 
     /// <summary>删除前的二次确认钩子（宿主注入；为 null 时直接删除）。</summary>
     public static Func<string, Task<bool>>? ConfirmHandler { get; set; }
 
-    public QuickActionService(ConfigStoreService cfg)
+    public QuickActionService(ConfigStoreService cfg, IAppConfigService app)
     {
         _cfg = cfg;
+        _app = app;
         var (items, needPersist) = Load();
         _items = items;
-        if (needPersist) Persist();   // 首次运行灌种子 / 老文件回填 Page：落盘，让文件与界面一致
+        EnsureScriptsDirectory();
+        if (needPersist) Persist();   // 首次运行灌默认清单 / 老文件回填 Page、Kind：落盘，让文件与界面一致
     }
 
     public IReadOnlyList<QuickAction> Items => _items;
@@ -54,18 +59,39 @@ public class QuickActionService : IQuickActionService
     public IReadOnlyList<QuickAction> Favorites => _items.Where(i => i.IsFavorite).ToList();
     public string FilePath => Path.Combine(_cfg.ConfigDir, "quickactions.json");
 
+    /// <summary>随程序发布的默认清单（首次运行的来源）。</summary>
+    public static string DefaultsFilePath
+        => Path.Combine(AppContext.BaseDirectory, "defaults", "quickactions.default.json");
+
+    /// <summary>脚本目录（生效值）：配置为空时用 <c>&lt;应用根&gt;\scripts</c>。</summary>
+    public string ScriptsDirectory
+    {
+        get
+        {
+            var custom = (_app?.ScriptFolder ?? "").Trim();
+            if (custom.Length > 0) return custom;
+            var def = _app?.DefaultScriptFolder ?? "";
+            return def.Length > 0 ? def : Path.Combine(AppContext.BaseDirectory, "scripts");
+        }
+    }
+
     public event Action? Changed;
 
     public QuickAction Add(string page)
     {
+        var quick = page == QuickActionPage.Quick;
         var item = new QuickAction
         {
             Id = Guid.NewGuid().ToString("N"),
             Page = string.IsNullOrWhiteSpace(page) ? QuickActionPage.Shortcuts : page,
-            Title = "新的设置项",
+            // 页面默认类型：快捷设置页加的是命令行命令，设置与脚本页加的是脚本文件（可在详情里改回）。
+            Kind = quick ? QuickActionKind.Command : QuickActionKind.Script,
+            Title = quick ? "新的命令" : "新的脚本",
             Category = "未分类",
             Description = "",
             Command = "",
+            ScriptFile = "",
+            Interpreter = ScriptInterpreter.Auto,
             NeedAdmin = false,
             IsFavorite = false
         };
@@ -101,11 +127,11 @@ public class QuickActionService : IQuickActionService
     public async Task<(bool Ok, string Message)> RunAsync(QuickAction item, CancellationToken ct = default)
     {
         if (item == null) return (false, "未选择项目。");
-
-        var cmd = (item.Command ?? "").Trim();
-        if (cmd.Length == 0) return (false, "这条还没有命令内容。");
         if (!OperatingSystem.IsWindows())
-            return (false, "「运行」目前只在 Windows 上可用（经 cmd 执行）。");
+            return (false, "「运行」目前只在 Windows 上可用。");
+
+        var (ok, cmdLine, workDir, err) = BuildRunPlan(item);
+        if (!ok) return (false, err);
 
         // 需要管理员：只能用 ShellExecute + runas（弹 UAC），此时**无法重定向输出** ——
         // 于是让 cmd 在新控制台窗口里跑，命令的原始输出 / 报错用户直接看得到（比在状态行里转述更可靠）。
@@ -116,7 +142,7 @@ public class QuickActionService : IQuickActionService
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = "/c " + cmd,
+                    Arguments = "/c " + cmdLine,
                     Verb = "runas",
                     UseShellExecute = true
                 });
@@ -132,19 +158,19 @@ public class QuickActionService : IQuickActionService
             }
         }
 
-        // 普通命令：隐藏窗口 + 捕获输出，把结果 / 报错压成一行给页面状态行。
+        // 普通命令 / 脚本：隐藏窗口 + 捕获输出，把结果 / 报错压成一行给页面状态行。
         // ⚠️ 前置 chcp 65001：重定向成管道时 cmd 及其子程序按控制台编码写字节，不切到 UTF-8 中文会读成乱码。
         var psi = new ProcessStartInfo
         {
             FileName = "cmd.exe",
-            Arguments = "/d /c chcp 65001>nul & " + cmd,
+            Arguments = "/d /c chcp 65001>nul & " + cmdLine,
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
-            WorkingDirectory = SafeWorkingDir()
+            WorkingDirectory = workDir
         };
 
         using var proc = new Process { StartInfo = psi };
@@ -169,7 +195,7 @@ public class QuickActionService : IQuickActionService
         catch (OperationCanceledException)
         {
             try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
-            return (false, ct.IsCancellationRequested ? "已取消。" : $"命令执行超过 {RunTimeout.TotalMinutes:0} 分钟，已中止。");
+            return (false, ct.IsCancellationRequested ? "已取消。" : $"执行超过 {RunTimeout.TotalMinutes:0} 分钟，已中止。");
         }
 
         var stdout = await outTask.ConfigureAwait(false);
@@ -181,6 +207,99 @@ public class QuickActionService : IQuickActionService
         return (false, detail.Length == 0
             ? $"运行失败（退出码 {proc.ExitCode}）：{item.Title}"
             : $"运行失败（退出码 {proc.ExitCode}）：{detail}");
+    }
+
+    /// <summary>
+    /// 把一条项目翻译成"要给 cmd 执行的命令行 + 工作目录"。
+    /// <list type="bullet">
+    /// <item><see cref="QuickActionKind.Command"/>：命令行本身就是参数。</item>
+    /// <item><see cref="QuickActionKind.Script"/>：拼出 <c>解释器 [开关] "脚本路径"</c>；工作目录取脚本所在目录（脚本里的相对路径才好使）。</item>
+    /// </list>
+    /// </summary>
+    private (bool Ok, string CmdLine, string WorkDir, string Error) BuildRunPlan(QuickAction item)
+    {
+        var kind = string.IsNullOrWhiteSpace(item.Kind) ? QuickActionKind.Command : item.Kind;
+
+        if (kind != QuickActionKind.Script)
+        {
+            var cmd = (item.Command ?? "").Trim();
+            if (cmd.Length == 0) return (false, "", "", "这条还没有命令内容。");
+            return (true, cmd, SafeWorkingDir(), "");
+        }
+
+        // ---------- 脚本文件 ----------
+        var file = (item.ScriptFile ?? "").Trim();
+        if (file.Length == 0) return (false, "", "", "这条还没有指定脚本文件。");
+
+        var path = Path.IsPathRooted(file) ? file : Path.Combine(ScriptsDirectory, file);
+        if (!File.Exists(path))
+            return (false, "", "", $"找不到脚本文件：{path}（脚本目录可在「设置 → 路径配置」里改）");
+
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        var interp = string.IsNullOrWhiteSpace(item.Interpreter) ? AutoInterpreter(ext) : item.Interpreter.Trim();
+
+        var exe = ResolveInterpreter(interp, out var err);
+        if (exe == null) return (false, "", "", err);
+
+        var scriptDir = Path.GetDirectoryName(path);
+        var workDir = string.IsNullOrEmpty(scriptDir) ? SafeWorkingDir() : scriptDir;
+
+        var cmdLine = interp switch
+        {
+            // -X utf8：python 在管道里默认按本地代码页写字节，强制 UTF-8 才不会把中文输出读成乱码
+            ScriptInterpreter.Python => $"\"{exe}\" -X utf8 \"{path}\"",
+            // -ExecutionPolicy Bypass：绕过执行策略，避免"脚本被禁跑"（本工具就是给用户跑自己脚本用的）
+            ScriptInterpreter.Pwsh or ScriptInterpreter.PowerShell51
+                => $"\"{exe}\" -NoProfile -ExecutionPolicy Bypass -File \"{path}\"",
+            // call：批处理要 call 起来，否则会顶替掉外层 cmd（后面的收尾命令就不执行了）
+            _ => $"call \"{path}\"",
+        };
+        return (true, cmdLine, workDir, "");
+    }
+
+    /// <summary>按扩展名挑默认解释器（<c>.ps1</c> 配了 pwsh 就用 pwsh，否则退回系统自带的 5.1）。</summary>
+    private string AutoInterpreter(string ext) => ext switch
+    {
+        ".py" => ScriptInterpreter.Python,
+        ".ps1" => string.IsNullOrWhiteSpace(_app?.PwshPath) ? ScriptInterpreter.PowerShell51 : ScriptInterpreter.Pwsh,
+        ".bat" or ".cmd" => ScriptInterpreter.Cmd,
+        _ => ""      // 交给 ResolveInterpreter 报"不认识的类型"，消息里带上扩展名更好懂
+    };
+
+    /// <summary>解释器 → 可执行文件（配置里填了就用配置，否则用命令名走 PATH）。</summary>
+    private string? ResolveInterpreter(string interp, out string error)
+    {
+        error = "";
+        string configured;
+        string fallback;
+        switch (interp)
+        {
+            case ScriptInterpreter.Python:
+                configured = (_app?.PythonPath ?? "").Trim(); fallback = "python"; break;
+            case ScriptInterpreter.Pwsh:
+                configured = (_app?.PwshPath ?? "").Trim(); fallback = "pwsh"; break;
+            case ScriptInterpreter.PowerShell51:
+                configured = (_app?.PowerShell51Path ?? "").Trim(); fallback = "powershell"; break;
+            case ScriptInterpreter.Cmd:
+                return "cmd.exe";
+            default:
+                error = string.IsNullOrWhiteSpace(interp)
+                    ? "认不出这个脚本类型（支持 .py / .ps1 / .bat / .cmd），可在详情里手动选解释器。"
+                    : $"未知的解释器：{interp}";
+                return null;
+        }
+
+        var exe = configured.Length > 0 ? configured : fallback;
+        // 只有填了"看起来像路径"的值才检查存在性；纯命令名（python / pwsh）交给 PATH 去解析
+        if (exe.IndexOf('\\') >= 0 || exe.IndexOf('/') >= 0)
+        {
+            if (!File.Exists(exe))
+            {
+                error = $"配置的解释器路径不存在：{exe}（可在「设置 → 路径配置」里改，留空则用系统默认）";
+                return null;
+            }
+        }
+        return exe;
     }
 
     /// <summary>从命令输出里挑一行「最有信息量的」给状态行（优先 stderr 的最后一行，再退到 stdout）。</summary>
@@ -225,27 +344,48 @@ public class QuickActionService : IQuickActionService
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// 加载顺序：① 用户的 <c>config\quickactions.json</c>；② 首次运行 → 用随程序发布的
+    /// <c>defaults\quickactions.default.json</c> 播种；③ 两者都没有 → 空清单（不硬编码任何命令）。
+    /// </summary>
     private (List<QuickAction> items, bool needPersist) Load()
+    {
+        if (File.Exists(FilePath))
+        {
+            var list = TryRead(FilePath);
+            // 文件损坏（反序列化失败）→ 退到默认清单重新播种，避免页面毫无提示地空掉
+            if (list != null) return Migrate(list);
+        }
+
+        var seed = TryRead(DefaultsFilePath);
+        return seed == null ? (new List<QuickAction>(), false) : Migrate(seed);
+    }
+
+    private static List<QuickAction>? TryRead(string path)
     {
         try
         {
-            if (File.Exists(FilePath))
-            {
-                var list = JsonSerializer.Deserialize<List<QuickAction>>(File.ReadAllText(FilePath));
-                if (list != null)
-                {
-                    var migrated = false;
-                    foreach (var i in list)
-                    {
-                        if (string.IsNullOrEmpty(i.Id)) i.Id = Guid.NewGuid().ToString("N");   // 老文件兜底
-                        if (string.IsNullOrEmpty(i.Page)) { i.Page = InferPage(i.Category); migrated = true; }
-                    }
-                    return (list, migrated);
-                }
-            }
+            if (!File.Exists(path)) return null;
+            return JsonSerializer.Deserialize<List<QuickAction>>(File.ReadAllText(path));
         }
-        catch { /* 配置损坏 → 回落到默认种子，不阻断启动 */ }
-        return (BuildSeed(), true);
+        catch { return null; }
+    }
+
+    /// <summary>
+    /// 老文件 / 默认清单的字段回填：
+    /// <c>Id</c> 缺失 → 生成；<c>Page</c> 缺失 → 按分类回填（「打开」→ 快捷设置，其余 → 设置与脚本）；
+    /// <c>Kind</c> 缺失 → 命令行命令（旧版全是命令）。
+    /// </summary>
+    private static (List<QuickAction>, bool) Migrate(List<QuickAction> list)
+    {
+        var migrated = false;
+        foreach (var i in list)
+        {
+            if (string.IsNullOrEmpty(i.Id)) { i.Id = Guid.NewGuid().ToString("N"); migrated = true; }
+            if (string.IsNullOrEmpty(i.Page)) { i.Page = InferPage(i.Category); migrated = true; }
+            if (string.IsNullOrEmpty(i.Kind)) { i.Kind = QuickActionKind.Command; migrated = true; }
+        }
+        return (list, migrated);
     }
 
     /// <summary>
@@ -258,105 +398,29 @@ public class QuickActionService : IQuickActionService
             : QuickActionPage.Shortcuts;
 
     /// <summary>
-    /// 内置种子：常用「系统设置项 + 脚本」（→ 设置与脚本页）与「系统自带设置入口」（→ 快捷设置页）。
-    /// 首次运行写入 <c>config\quickactions.json</c>，之后以用户文件为准。
+    /// 首次运行把随程序发布的示例脚本（<c>defaults\scripts\*</c>）复制到脚本目录。
+    /// <para>
+    /// ⚠️ 仅当脚本目录**还不存在**时才做：目录已存在说明用户已经在用了，
+    /// 此时把"被删掉的示例脚本"再塞回去就成了"删不掉的幽灵文件"（v1.33 的有意取舍）。
+    /// </para>
     /// </summary>
-    private static List<QuickAction> BuildSeed()
+    private void EnsureScriptsDirectory()
     {
-        static QuickAction A(string title, string category, string desc, string cmd,
-                             bool admin = false, string page = QuickActionPage.Shortcuts) => new()
+        try
         {
-            Id = Guid.NewGuid().ToString("N"),
-            Page = page,
-            Title = title,
-            Category = category,
-            Description = desc,
-            Command = cmd,
-            NeedAdmin = admin,
-            IsFavorite = false
-        };
+            var dir = ScriptsDirectory;
+            if (Directory.Exists(dir)) return;
 
-        return new List<QuickAction>
-        {
-            // ==================== 设置与脚本页：较复杂的设置 / 脚本（靠命令执行） ====================
-            // ---------- 系统设置（注册表 / 电源等） ----------
-            A("显示文件扩展名", "系统设置", "在资源管理器里显示已知文件类型的扩展名",
-              @"reg add ""HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"" /v HideFileExt /t REG_DWORD /d 0 /f"),
-            A("隐藏文件扩展名", "系统设置", "恢复为不显示已知文件的扩展名",
-              @"reg add ""HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"" /v HideFileExt /t REG_DWORD /d 1 /f"),
-            A("显示隐藏文件", "系统设置", "资源管理器里显示隐藏的文件与文件夹",
-              @"reg add ""HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"" /v Hidden /t REG_DWORD /d 1 /f"),
-            A("任务栏时钟显示秒", "系统设置", "在任务栏时钟里显示秒数",
-              @"reg add ""HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"" /v ShowSecondsInSystemClock /t REG_DWORD /d 1 /f"),
-            A("启用休眠", "系统设置", "开启系统休眠（会生成 hiberfil.sys）",
-              "powercfg /hibernate on", admin: true),
-            A("关闭休眠", "系统设置", "关闭系统休眠并删除休眠文件（释放磁盘空间）",
-              "powercfg /hibernate off", admin: true),
-            A("切换到高性能电源计划", "系统设置", "把当前电源计划切到「高性能」",
-              "powercfg /setactive SCHEME_MIN"),
-            A("切换到平衡电源计划", "系统设置", "把当前电源计划切回「平衡」",
-              "powercfg /setactive SCHEME_BALANCED"),
+            Directory.CreateDirectory(dir);
+            var src = Path.Combine(AppContext.BaseDirectory, "defaults", "scripts");
+            if (!Directory.Exists(src)) return;
 
-            // ---------- 网络 ----------
-            A("刷新 DNS 缓存", "网络", "清空本机 DNS 解析缓存（域名解析异常时常用）",
-              "ipconfig /flushdns"),
-            A("释放并重新获取 IP", "网络", "ipconfig /release 后再 /renew，重连 DHCP",
-              "ipconfig /release & ipconfig /renew", admin: true),
-            A("查看网络配置", "网络", "显示全部网卡的 IP / 网关 / DNS 明细",
-              "ipconfig /all"),
-
-            // ---------- 维护 ----------
-            A("重启资源管理器", "维护", "结束并重启 explorer.exe（任务栏 / 桌面卡死时用）",
-              "taskkill /f /im explorer.exe & start explorer.exe"),
-            A("清理用户临时文件", "维护", "清空当前用户的 %TEMP% 目录",
-              @"del /q /f ""%TEMP%\*"" & rd /s /q ""%TEMP%"""),
-            A("系统文件检查", "维护", "sfc /scannow，扫描并修复系统文件（较慢）",
-              "sfc /scannow", admin: true),
-            A("检查磁盘（C:）", "维护", "chkdsk C: /scan，在线扫描磁盘错误",
-              "chkdsk C: /scan", admin: true),
-
-            // ==================== 快捷设置页：系统自带设置 / 管理工具入口（点一下即打开） ====================
-            // ---------- 系统设置（Windows 设置面板） ----------
-            A("显示设置", "系统设置", "打开「显示」设置（分辨率 / 缩放 / 多显示器）",
-              "start ms-settings:display", page: QuickActionPage.Quick),
-            A("个性化", "系统设置", "打开「个性化」设置（背景 / 颜色 / 主题）",
-              "start ms-settings:personalization", page: QuickActionPage.Quick),
-            A("网络和 Internet", "系统设置", "打开网络状态设置（WLAN / 以太网 / 代理）",
-              "start ms-settings:network-status", page: QuickActionPage.Quick),
-            A("蓝牙和其他设备", "系统设置", "打开蓝牙与设备设置",
-              "start ms-settings:bluetooth", page: QuickActionPage.Quick),
-            A("电源和睡眠", "系统设置", "打开电源与睡眠超时设置",
-              "start ms-settings:powersleep", page: QuickActionPage.Quick),
-            A("存储感知", "系统设置", "打开存储设置，清理临时文件",
-              "start ms-settings:storagesense", page: QuickActionPage.Quick),
-            A("应用和功能", "系统设置", "打开「应用和功能」（默认应用 / 启动项）",
-              "start ms-settings:appsfeatures", page: QuickActionPage.Quick),
-            A("Windows 更新", "系统设置", "打开 Windows 更新检查页",
-              "start ms-settings:windowsupdate", page: QuickActionPage.Quick),
-            A("日期和时间", "系统设置", "打开日期与时间设置（时区 / 自动校时）",
-              "start ms-settings:dateandtime", page: QuickActionPage.Quick),
-            A("声音", "系统设置", "打开声音设置（输出设备 / 音量）",
-              "start ms-settings:sound", page: QuickActionPage.Quick),
-            A("任务栏", "系统设置", "打开任务栏设置",
-              "start ms-settings:taskbar", page: QuickActionPage.Quick),
-            A("关于本机", "系统设置", "打开「关于」页（设备规格 / 重命名此电脑）",
-              "start ms-settings:about", page: QuickActionPage.Quick),
-
-            // ---------- 打开（经典管理工具入口） ----------
-            A("打开控制面板", "打开", "启动经典控制面板",
-              "control", page: QuickActionPage.Quick),
-            A("打开系统属性", "打开", "系统属性（计算机名 / 高级 / 环境变量）",
-              "sysdm.cpl", page: QuickActionPage.Quick),
-            A("打开程序和功能", "打开", "卸载或更改已安装的程序",
-              "appwiz.cpl", page: QuickActionPage.Quick),
-            A("打开设备管理器", "打开", "查看与管理硬件设备",
-              "devmgmt.msc", page: QuickActionPage.Quick),
-            A("打开服务", "打开", "查看与管理 Windows 服务",
-              "services.msc", page: QuickActionPage.Quick),
-            A("打开磁盘清理", "打开", "清理系统盘临时文件与旧更新",
-              "cleanmgr", page: QuickActionPage.Quick),
-            A("打开任务管理器", "打开", "启动任务管理器",
-              "taskmgr", page: QuickActionPage.Quick),
-        };
+            foreach (var f in Directory.GetFiles(src))
+            {
+                try { File.Copy(f, Path.Combine(dir, Path.GetFileName(f)), overwrite: false); }
+                catch { /* 单个文件失败不影响其它 */ }
+            }
+        }
+        catch { /* 建目录失败不阻断启动：运行时会给出"找不到脚本文件"的明确提示 */ }
     }
 }

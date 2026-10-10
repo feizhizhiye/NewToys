@@ -16,11 +16,50 @@ public static class QuickActionPage
 }
 
 /// <summary>
+/// 条目**执行类型**（<see cref="QuickAction.Kind"/> 的合法取值）。
+/// <para>
+/// 两页的分工就落在这里：「快捷设置」放<b>命令行命令</b>（<see cref="Command"/>，一行命令直接跑）；
+/// 「设置与脚本」放<b>脚本文件</b>（<see cref="Script"/>，引用脚本目录下的 .py / .ps1 / .bat）。
+/// </para>
+/// </summary>
+public static class QuickActionKind
+{
+    /// <summary>命令行命令：直接执行 <see cref="QuickAction.Command"/>。</summary>
+    public const string Command = "command";
+
+    /// <summary>脚本文件：执行 <see cref="QuickAction.ScriptFile"/> 指向的文件（解释器见 <see cref="ScriptInterpreter"/>）。</summary>
+    public const string Script = "script";
+}
+
+/// <summary>
+/// 脚本文件用哪个解释器（<see cref="QuickAction.Interpreter"/> 的取值）。
+/// <para>
+/// <see cref="Auto"/>（空串）= 按扩展名自动：<c>.py</c>→python、<c>.ps1</c>→pwsh（没配就退回 5.1）、
+/// <c>.bat/.cmd</c>→cmd。各解释器的**路径**在「设置 → 路径配置」里配，留空 = 用系统 PATH 里的。
+/// </para>
+/// </summary>
+public static class ScriptInterpreter
+{
+    /// <summary>按扩展名自动挑（默认）。</summary>
+    public const string Auto = "";
+
+    public const string Python = "python";
+
+    /// <summary>PowerShell 7+（pwsh）。</summary>
+    public const string Pwsh = "pwsh";
+
+    /// <summary>Windows PowerShell 5.1（powershell.exe，系统自带）。</summary>
+    public const string PowerShell51 = "powershell";
+
+    public const string Cmd = "cmd";
+}
+
+/// <summary>
 /// 「设置与脚本」/「快捷设置」里的一条项目：一条<b>系统设置项</b>（注册表开关 / 电源计划 / 控制面板入口 …）
-/// 或一段常用<b>脚本</b>命令。
+/// 或一段常用<b>脚本</b>。
 /// <para>
 /// ⚠️ 这里的「设置」指 <b>操作系统设置</b>，<b>不是本软件自己的设置项</b>（那种在「设置」模块里）。
-/// 两者在本模型里统一成「一条命令 + 元信息」，贴合本工程「个人工具 ≈ 带 GUI 的脚本管理器」的定位。
+/// 两者在本模型里统一成「要跑的东西 + 元信息」，贴合本工程「个人工具 ≈ 带 GUI 的脚本管理器」的定位。
 /// </para>
 /// <para>
 /// <b>归属</b>由 <see cref="Page"/> 决定：<see cref="QuickActionPage.Shortcuts"/> 出现在「设置与脚本」页、
@@ -28,7 +67,13 @@ public static class QuickActionPage
 /// 收藏（<see cref="IsFavorite"/>）也是同一条记录上的标记 —— 单一真相源，收藏夹页据此汇总两页的收藏项。
 /// </para>
 /// <para>
-/// <see cref="Command"/> 可由「▶ 运行」直接执行（<c>cmd /c</c>；<see cref="NeedAdmin"/> 为真时走 UAC 提权）。
+/// <b>怎么跑</b>由 <see cref="Kind"/> 决定：命令行命令直接执行 <see cref="Command"/>；
+/// 脚本文件执行脚本目录下的 <see cref="ScriptFile"/>（解释器按 <see cref="Interpreter"/> 或扩展名挑）。
+/// <see cref="NeedAdmin"/> 为真时统一走 UAC 提权。
+/// </para>
+/// <para>
+/// ⛔ 默认清单<b>不写在代码里</b>：随程序发布 <c>&lt;程序目录&gt;\defaults\quickactions.default.json</c>，
+/// 首次运行复制成 <c>config\quickactions.json</c>，之后改本地文件即可（见 <c>QuickActionService</c>）。
 /// </para>
 /// </summary>
 public partial class QuickAction : ObservableObject
@@ -42,6 +87,12 @@ public partial class QuickAction : ObservableObject
     /// </summary>
     public string Page { get; set; } = "";
 
+    /// <summary>
+    /// 执行类型（取值见 <see cref="QuickActionKind"/>）。
+    /// <para>空串 = 旧版本文件没有这一列 → 按「命令行命令」处理（旧条目全是命令）。</para>
+    /// </summary>
+    [ObservableProperty] private string _kind = QuickActionKind.Command;
+
     /// <summary>名称（列表第一列）。</summary>
     [ObservableProperty] private string _title = "";
 
@@ -51,8 +102,16 @@ public partial class QuickAction : ObservableObject
     /// <summary>简介（一句话说明这条做什么）。</summary>
     [ObservableProperty] private string _description = "";
 
-    /// <summary>命令内容（cmd / PowerShell / 程序 / 网址），「▶ 运行」执行的就是它。</summary>
+    /// <summary>命令行命令（<see cref="QuickActionKind.Command"/> 时执行它）。</summary>
     [ObservableProperty] private string _command = "";
+
+    /// <summary>
+    /// 脚本文件（<see cref="QuickActionKind.Script"/> 时执行它）：相对「脚本目录」的文件名，或绝对路径。
+    /// </summary>
+    [ObservableProperty] private string _scriptFile = "";
+
+    /// <summary>脚本解释器（取值见 <see cref="ScriptInterpreter"/>）；空 = 按扩展名自动。</summary>
+    [ObservableProperty] private string _interpreter = ScriptInterpreter.Auto;
 
     /// <summary>执行时是否需要管理员权限（为真则用 UAC 提权运行）。</summary>
     [ObservableProperty] private bool _needAdmin;
@@ -64,5 +123,25 @@ public partial class QuickAction : ObservableObject
     [JsonIgnore]
     public string FavoriteMark => IsFavorite ? "★" : "";
 
+    /// <summary>这条到底跑什么（命令内容 / 脚本文件），界面上提示用。派生，不写盘。</summary>
+    [JsonIgnore]
+    public string TargetText
+        => Kind == QuickActionKind.Script ? ScriptFile : Command;
+
+    /// <summary>类型的中文名（界面提示用）。派生，不写盘。</summary>
+    [JsonIgnore]
+    public string KindText
+        => Kind == QuickActionKind.Script ? "脚本文件" : "命令行命令";
+
     partial void OnIsFavoriteChanged(bool value) => OnPropertyChanged(nameof(FavoriteMark));
+
+    partial void OnKindChanged(string value)
+    {
+        OnPropertyChanged(nameof(KindText));
+        OnPropertyChanged(nameof(TargetText));
+    }
+
+    partial void OnScriptFileChanged(string value) => OnPropertyChanged(nameof(TargetText));
+
+    partial void OnCommandChanged(string value) => OnPropertyChanged(nameof(TargetText));
 }

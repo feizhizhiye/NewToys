@@ -35,14 +35,20 @@
         <Button Classes="primary" Content="➕ 新增" Margin="0,0,8,0"
                 Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
                 ToolTip.Tip="追加一条系统设置项 / 脚本，改好后点右侧「💾 保存」"/>
+
+        <!-- 右栏属性卡开合：默认收起（列表占满宽度，一屏多看几行）；点选会记住（config\columnlayout.json）。 -->
+        <Button Classes="ghost" Content="{Binding DetailButtonText}" Command="{Binding ToggleDetailCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧属性卡；收起时列表占满宽度。默认收起，你的选择会被记住。"/>
       </WrapPanel>
     </Border>
 
-    <!--  ==================== 主区：左列表 + 右属性卡  ====================  -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,340" Margin="16">
+    <!--  ==================== 主区：左列表 + 右属性卡  ====================
+          右栏宽度写在 Border 上（不是 Grid 列上）：列用 Auto，收起时右栏不占位 →
+          列表自动铺满。⛔ 不能把 340 写进 ColumnDefinitions：那是 CLR 属性，绑不了 / 也改不了。 -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="16">
 
       <!-- 左：可排序表头（左键点表头排序） + 列表（右键出更多功能） -->
-      <Border Grid.Column="0" Classes="card" Padding="0" Margin="0,0,12,0">
+      <Border Grid.Column="0" Classes="card" Padding="0">
         <Grid RowDefinitions="Auto,*">
 
           <Border Grid.Row="0" Classes="list-header" Height="36">
@@ -126,7 +132,7 @@
                           CommandParameter="{Binding}"
                           IsEnabled="{Binding $parent[ListBox].DataContext.IsNotBusy}"
                           IsVisible="{Binding $parent[ListBox].DataContext.IsActionVisible}"
-                          ToolTip.Tip="用 cmd 执行这条命令"/>
+                          ToolTip.Tip="按条目类型运行：命令行命令 / 脚本文件（.py / .ps1 / .bat）"/>
                 </v:ColumnGrid>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -134,8 +140,9 @@
         </Grid>
       </Border>
 
-      <!-- 右：选中项的属性卡（可编辑 = CRUD 的 U/C） -->
-      <Border Grid.Column="1" Classes="card" Padding="16">
+      <!-- 右：选中项的属性卡（可编辑 = CRUD 的 U/C）；宽度写在这里 → 收起时整列不占位 -->
+      <Border Grid.Column="1" Classes="card" Padding="16" Width="340" Margin="12,0,0,0"
+              IsVisible="{Binding IsDetailVisible}">
         <Grid RowDefinitions="Auto,*">
 
           <StackPanel Grid.Row="0" Spacing="10" IsVisible="{Binding HasSelection}">
@@ -144,7 +151,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Button Classes="primary" Content="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
                       IsEnabled="{Binding IsNotBusy}"
-                      ToolTip.Tip="用 cmd 执行「命令」里的内容；勾选「需要管理员权限」时会弹 UAC"/>
+                      ToolTip.Tip="运行选中项：命令行命令按 cmd 执行，脚本文件按扩展名挑解释器；勾了「需要管理员权限」时会弹 UAC"/>
               <Button Classes="ghost" Content="{Binding FavoriteButtonText}" Command="{Binding ToggleFavoriteCommand}"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -159,7 +166,7 @@
               <StackPanel Spacing="2" IsVisible="{Binding !HasSelection}">
                 <TextBlock Text="在左侧列表里选中一条" FontSize="13" TextWrapping="Wrap"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="选中后可在这里编辑名称 / 分类 / 简介 / 命令，并点「▶ 运行」执行；右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。"
+                <TextBlock Text="选中后可在这里编辑名称 / 分类 / 简介与「命令」或「脚本文件」，并点「▶ 运行」执行；右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。本页默认放脚本文件，脚本目录可在「设置 → 路径配置」里改。"
                            FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
               </StackPanel>
 
@@ -180,12 +187,49 @@
                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52"/>
               </StackPanel>
 
-              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
-                <TextBlock Text="命令" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBox Text="{Binding EditCommand, Mode=TwoWay}" FontSize="12" FontFamily="Consolas"
-                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84"/>
-                <TextBlock Text="▶ 运行 = 用 cmd 执行这条命令；勾选「需要管理员权限」时会弹 UAC（输出见新开的命令行窗口）。成功 / 失败原因显示在顶部状态行。"
-                           FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <!-- 类型 / 命令 / 脚本文件：这一页默认放"脚本文件"，但两种类型都能改（v1.33）。 -->
+              <StackPanel Spacing="10" IsVisible="{Binding HasSelection}">
+
+                <StackPanel Spacing="2">
+                  <TextBlock Text="类型" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  <ComboBox ItemsSource="{Binding KindOptions}" SelectedItem="{Binding SelectedKind, Mode=TwoWay}"
+                            FontSize="12" HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Text="{Binding Label}" FontSize="12"/>
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                </StackPanel>
+
+                <!-- ① 命令行命令 -->
+                <StackPanel Spacing="2" IsVisible="{Binding IsCommandKind}">
+                  <TextBlock Text="命令" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  <TextBox Text="{Binding EditCommand, Mode=TwoWay}" FontSize="12" FontFamily="Consolas"
+                           AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84"/>
+                  <TextBlock Text="▶ 运行 = 用 cmd 执行这条命令；勾选「需要管理员权限」时会弹 UAC（输出见新开的命令行窗口）。成功 / 失败原因显示在顶部状态行。"
+                             FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </StackPanel>
+
+                <!-- ② 脚本文件 -->
+                <StackPanel Spacing="2" IsVisible="{Binding IsScriptKind}">
+                  <TextBlock Text="脚本文件" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  <TextBox Text="{Binding EditScriptFile, Mode=TwoWay}" FontSize="12" FontFamily="Consolas"
+                           PlaceholderText="如 sysinfo.ps1（相对脚本目录）或 D:\my\script.py"/>
+
+                  <TextBlock Text="解释器" FontSize="11" Margin="0,6,0,0" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  <ComboBox ItemsSource="{Binding InterpreterOptions}" SelectedItem="{Binding SelectedInterpreter, Mode=TwoWay}"
+                            FontSize="12" HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Text="{Binding Label}" FontSize="12"/>
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+
+                  <TextBlock Text="{Binding ScriptHint}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                             Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </StackPanel>
               </StackPanel>
 
               <CheckBox Content="需要管理员权限" FontSize="12" IsVisible="{Binding HasSelection}"

@@ -20,13 +20,23 @@ public class ActionCategoryOption
     public string? Value { get; set; }
 }
 
+/// <summary>「类型 / 解释器」下拉项（<see cref="Value"/> = 存进配置的值）。</summary>
+public class ActionKindOption
+{
+    public string Label { get; set; } = "";
+    public string Value { get; set; } = "";
+}
+
 /// <summary>
 /// 「电脑工具」里两个<b>同类列表页</b>（「设置与脚本」与「快捷设置」）共用的 ViewModel。
 /// <para>
 /// 两页的布局 / 交互<b>完全一致</b>（规范 3.6）：左「可排序表头 + 列表 + 行内「▶ 运行」」，右「选中项属性卡」，
-/// 列表上挂右键菜单（运行 / 收藏 / 复制命令 / 删除）。差别只有两点，由派生类给出：
+/// 列表上挂右键菜单（运行 / 收藏 / 复制命令 / 删除）。差别只有三点，由派生类给出：
 /// ① <see cref="PageKind"/>：本页显示哪一批条目（同属 <c>config\quickactions.json</c>，按 <see cref="QuickAction.Page"/> 分栏）；
-/// ② <see cref="ColumnLayoutKey"/>：列显隐偏好落 <c>config\columnlayout.json</c> 时用的页键。
+/// ② <see cref="ColumnLayoutKey"/>：列显隐偏好落 <c>config\columnlayout.json</c> 时用的页键；
+/// ③ 页面名字 <see cref="PageDisplayName"/>（提示文案用）。
+/// <b>新增项的默认类型</b>由 <see cref="PageKind"/> 推出（见 <c>IQuickActionService.Add</c>）：
+/// 「快捷设置」= 命令行命令、「设置与脚本」= 脚本文件（v1.33）。
 /// </para>
 /// <para>
 /// ⚠️ 这里的「设置」是<b>操作系统设置项</b>，不是本软件自己的设置（后者在「设置」模块，见规范 3.9）。
@@ -166,6 +176,28 @@ public abstract partial class QuickActionListViewModel : ObservableObject
         if (saved.TryGetValue("Action", out var a)) IsActionVisible = a;
     }
 
+    // ==================== 右栏详情开合（默认收起 → 列表占满宽度） ====================
+
+    /// <summary>
+    /// 是否显示右侧属性卡。<b>默认收起</b>（空列表也能多看几行）；用户的点选会落
+    /// <c>config\columnlayout.json</c>，下次进本页保持上次的选择。
+    /// </summary>
+    [ObservableProperty] private bool _isDetailVisible;
+
+    /// <summary>切换按钮上的文字（收起时提示"详情"，展开时提示"收起"）。</summary>
+    public string DetailButtonText => IsDetailVisible ? "▤ 收起详情" : "▤ 详情";
+
+    partial void OnIsDetailVisibleChanged(bool value) => OnPropertyChanged(nameof(DetailButtonText));
+
+    /// <summary>点一下展开 / 收起右栏详情（"点一下就看到结果"的轻偏好 → 立即落盘）。</summary>
+    [RelayCommand]
+    private void ToggleDetail()
+    {
+        IsDetailVisible = !IsDetailVisible;
+        _cols?.SaveFlag(_columnLayoutKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
+        OnPropertyChanged(nameof(DetailButtonText));
+    }
+
     // ==================== 属性卡的编辑缓冲（多字段文本表单 → 显式「💾 保存」，规范 3.5） ====================
 
     [ObservableProperty] private string _editTitle = "";
@@ -173,6 +205,66 @@ public abstract partial class QuickActionListViewModel : ObservableObject
     [ObservableProperty] private string _editDescription = "";
     [ObservableProperty] private string _editCommand = "";
     [ObservableProperty] private bool _editNeedAdmin;
+
+    // ---- 类型 / 脚本（v1.33）----
+
+    /// <summary>编辑缓冲里的条目类型（取值见 <see cref="QuickActionKind"/>）。</summary>
+    [ObservableProperty] private string _editKind = QuickActionKind.Command;
+
+    /// <summary>编辑缓冲里的脚本文件（相对脚本目录的文件名，或绝对路径）。</summary>
+    [ObservableProperty] private string _editScriptFile = "";
+
+    /// <summary>编辑缓冲里的解释器（取值见 <see cref="ScriptInterpreter"/>，空 = 自动）。</summary>
+    [ObservableProperty] private string _editInterpreter = ScriptInterpreter.Auto;
+
+    /// <summary>「类型」下拉的选项。</summary>
+    public ObservableCollection<ActionKindOption> KindOptions { get; } = new()
+    {
+        new ActionKindOption { Label = "命令行命令（直接跑一行命令）", Value = QuickActionKind.Command },
+        new ActionKindOption { Label = "脚本文件（跑脚本目录里的文件）", Value = QuickActionKind.Script },
+    };
+
+    /// <summary>「解释器」下拉的选项（空 = 按扩展名自动）。</summary>
+    public ObservableCollection<ActionKindOption> InterpreterOptions { get; } = new()
+    {
+        new ActionKindOption { Label = "自动（按扩展名）", Value = ScriptInterpreter.Auto },
+        new ActionKindOption { Label = "Python（.py）", Value = ScriptInterpreter.Python },
+        new ActionKindOption { Label = "PowerShell 7+ / pwsh（.ps1）", Value = ScriptInterpreter.Pwsh },
+        new ActionKindOption { Label = "Windows PowerShell 5.1（.ps1）", Value = ScriptInterpreter.PowerShell51 },
+        new ActionKindOption { Label = "cmd（.bat / .cmd）", Value = ScriptInterpreter.Cmd },
+    };
+
+    [ObservableProperty] private ActionKindOption? _selectedKind;
+    [ObservableProperty] private ActionKindOption? _selectedInterpreter;
+
+    partial void OnSelectedKindChanged(ActionKindOption? value)
+    {
+        if (value != null) EditKind = value.Value;
+    }
+
+    partial void OnSelectedInterpreterChanged(ActionKindOption? value)
+    {
+        if (value != null) EditInterpreter = value.Value;
+    }
+
+    partial void OnEditKindChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsScriptKind));
+        OnPropertyChanged(nameof(IsCommandKind));
+    }
+
+    /// <summary>当前编辑的是"脚本文件"类型 → 详情卡显示脚本字段、隐藏命令框（反之亦然）。</summary>
+    public bool IsScriptKind => string.Equals(EditKind, QuickActionKind.Script, StringComparison.Ordinal);
+
+    public bool IsCommandKind => !IsScriptKind;
+
+    /// <summary>脚本目录（生效值），详情卡里提示"文件放哪"。</summary>
+    public string ScriptsDirectory => _svc?.ScriptsDirectory ?? "";
+
+    /// <summary>脚本字段下方的提示（解释器怎么挑 + 脚本目录在哪）。</summary>
+    public string ScriptHint =>
+        $"脚本文件 = 脚本目录里的 .py / .ps1 / .bat（可填相对文件名，也可填绝对路径）。\n脚本目录：{ScriptsDirectory}\n" +
+        "解释器留「自动」即可：.py→python、.ps1→pwsh（没配则退回 5.1）、.bat/.cmd→cmd；三个解释器路径在「设置 → 路径配置」里配，留空 = 用系统默认。";
 
     // ==================== 派生显示 ====================
 
@@ -207,6 +299,7 @@ public abstract partial class QuickActionListViewModel : ObservableObject
         _pageKind = PageKind;
         _columnLayoutKey = ColumnLayoutKey;
         LoadColumnVisibility();
+        IsDetailVisible = cols.LoadFlag(_columnLayoutKey, IColumnLayoutService.FlagDetailPanel);   // 默认收起
         RebuildCategories();
         ApplyView();
     }
@@ -296,6 +389,15 @@ public abstract partial class QuickActionListViewModel : ObservableObject
         EditDescription = value?.Description ?? "";
         EditCommand = value?.Command ?? "";
         EditNeedAdmin = value?.NeedAdmin ?? false;
+        EditScriptFile = value?.ScriptFile ?? "";
+
+        // 类型 / 解释器用下拉的选中项承载（赋值会经 OnSelected*Changed 回写上面两个缓冲字段）。
+        var kind = value?.Kind ?? QuickActionKind.Command;
+        var interp = value?.Interpreter ?? ScriptInterpreter.Auto;
+        SelectedKind = KindOptions.FirstOrDefault(o => string.Equals(o.Value, kind, StringComparison.OrdinalIgnoreCase))
+                       ?? KindOptions[0];
+        SelectedInterpreter = InterpreterOptions.FirstOrDefault(o => string.Equals(o.Value ?? "", interp ?? "", StringComparison.OrdinalIgnoreCase))
+                              ?? InterpreterOptions[0];
 
         UpdateFavoriteUi();
         OnPropertyChanged(nameof(HasSelection));
@@ -361,7 +463,7 @@ public abstract partial class QuickActionListViewModel : ObservableObject
         RebuildCategories();
         ApplyView();
         Selected = Items.FirstOrDefault(i => ReferenceEquals(i, item)) ?? item;
-        StatusText = $"已在「{PageDisplayName}」新增一条「新的设置项」，请在右侧改名 / 填分类与命令后点「💾 保存」。";
+        StatusText = $"已在「{PageDisplayName}」新增一条「{item.Title}」，请在右侧改名 / 选类型 / 填命令或脚本文件后点「💾 保存」。";
     }
 
     /// <summary>保存：把编辑缓冲写回选中对象并落盘。</summary>
@@ -378,11 +480,18 @@ public abstract partial class QuickActionListViewModel : ObservableObject
         Selected.Description = (EditDescription ?? "").Trim();
         Selected.Command = (EditCommand ?? "").Trim();
         Selected.NeedAdmin = EditNeedAdmin;
+        Selected.Kind = string.IsNullOrWhiteSpace(EditKind) ? QuickActionKind.Command : EditKind;
+        Selected.ScriptFile = (EditScriptFile ?? "").Trim();
+        Selected.Interpreter = EditInterpreter ?? ScriptInterpreter.Auto;
 
         _svc.Save();
         RebuildCategories();
         ApplyView();
-        StatusText = $"已保存到 {FilePath}";
+
+        var warn = Selected.Kind == QuickActionKind.Script && Selected.ScriptFile.Length == 0
+            ? "（还没填脚本文件，运行时会被提示）"
+            : "";
+        StatusText = $"已保存到 {FilePath}{warn}";
     }
 
     /// <summary>删除：内部走二次确认（钩子在宿主接到模态框上）。</summary>

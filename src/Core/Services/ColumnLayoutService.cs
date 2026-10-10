@@ -65,4 +65,26 @@ public class ColumnLayoutService : IColumnLayoutService
         all[pageKey] = visibility;
         WriteAll(all);
     }
+
+    // ==================== 页面级开关（详情栏开合等） ====================
+    //
+    // 复用同一份文件、同一个「页面 → 键 → bool」结构，靠**保留前缀**把开关与列键区分开：
+    // 好处是 ① 文件格式不变（老文件照读）、② 不必新增配置文件、③ 开关照样进「数据管理」的备份。
+    // 列键永远取不到这个前缀（列键是 Title/Name/Id… 这类业务名）。
+
+    /// <summary>页面级开关在文件里的前缀（列键不会以此开头 → 不会撞键）。</summary>
+    private const string FlagPrefix = "__";
+
+    public bool LoadFlag(string pageKey, string name, bool defaultValue = false)
+    {
+        var page = LoadPage(pageKey);
+        return page.TryGetValue(FlagPrefix + name, out var v) ? v : defaultValue;
+    }
+
+    public void SaveFlag(string pageKey, string name, bool value)
+    {
+        var page = LoadPage(pageKey);          // 先取整页（含列显隐），只改这一个键再整体写回
+        page[FlagPrefix + name] = value;
+        SavePage(pageKey, page);
+    }
 }

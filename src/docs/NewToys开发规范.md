@@ -1,6 +1,6 @@
 # NewToys 开发规范
 
-> v1.31 · 2026-10-10 · 「开发需求（宪法）」的技术解读 + 编程规范
+> v1.32 · 2026-10-10 · 「开发需求（宪法）」的技术解读 + 编程规范
 > 工程：NewToys（Avalonia 12 + CommunityToolkit.Mvvm + .NET 10）
 >
 > **约束分两类**：
@@ -124,7 +124,11 @@
 
 ### 3.6 列表页布局 〔A〕
 
-凡是「一堆条目+对条目操作」的页面一律用此布局，不创第二套：主区 `ColumnDefinitions="*,340"`（右列详情固定 340px）；上为工具条+可排序表头（`Button.col-header`），左为 `ListBox.list-page`（`ContextMenu` 行菜单），右为选中项详情。
+凡是「一堆条目+对条目操作」的页面一律用此布局，不创第二套：主区 `ColumnDefinitions="*,Auto"`（右列详情**固定 340px 写在 Border 上**）；上为工具条+可排序表头（`Button.col-header`），左为 `ListBox.list-page`（`ContextMenu` 行菜单），右为选中项详情。
+
+> **右列宽度写在 Border 而不是 Grid 列上**（v1.33）：`ColumnDefinitions` 第二列用 `Auto`，详情 Border 自己 `Width="340" IsVisible="{Binding IsDetailVisible}"`；收起时该列不占位 → 列表自动铺满。
+> ⛔ 不要写回 `"*,340"`：那样即使 `IsVisible=false` 也仍占 340px 空白。
+> **详情栏默认收起**（`IsDetailVisible` 初值 false，`<pageKey>` 读 `IColumnLayoutService.LoadFlag(..., FlagDetailPanel)`），工具条上放一个「▤ 详情 / ▤ 收起详情」按钮（`DetailButtonText` + `ToggleDetailCommand`），点选落 `SaveFlag` 记住。⛔ `Grid.ColumnDefinitions` 是 CLR 属性，XAML 里不能绑定 / 也写不了 `IsVisible`（`AVLN3000`）。
 
 **五条硬规则**：
 1. 表头与行模板**完全相同的星号列定义**（逐字一致）；动态列用 `<v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">`。
@@ -136,8 +140,8 @@
 行右键菜单提供该条目全部可执行动作（与详情按钮一一对应）。
 
 - ⭐ `ContextMenu` 挂在独立弹出树，不保证继承宿主 DataContext → 必须在 View 的 code-behind `OnDataContextChanged` 里手工同步（行菜单+表头菜单都要）。
-- **例外的卡片页（`pc-favorites`）**：条目以卡片网格（`ItemsControl`+`WrapPanel`）而非列表呈现；卡片的右键菜单在 code-behind 的 `ContextRequested` 里**现场构造**（`new ContextMenu`+`MenuItem` 直接挂 `Command`/`CommandParameter`，`menu.Open(card)`）—— 模板内的 `ContextMenu` 与 `$parent[UserControl]` 在弹出树里都会断链，现场构造最稳。
-- 列显隐：元数据 `Shared/Models/ListColumn`、服务 `IColumnLayoutService/ColumnLayoutService`（落 `config/columnlayout.json`，自动进备份）；⛔ 禁把 `ColumnDefinitions` 绑 `{Binding}`（`AVLN3000`）、禁 WPF 的 `IsCheckable`（`AVLN2000`）。
+- **例外的按钮页（`pc-favorites`）**：收藏 = 常用功能 → **不用卡片也不用列表**，就是一排按钮（`ItemsControl` + `WrapPanel`，模板里只有一个 `Button Content="{Binding Title}"`，点一下即跑），⛔ 不放版本/来源/简介等复杂信息。按钮的右键菜单在 code-behind 的 `ContextRequested` 里**现场构造**（`new ContextMenu`+`MenuItem` 直接挂 `Command`/`CommandParameter`，`menu.Open(button)`）—— 模板内的 `ContextMenu` 与 `$parent[UserControl]` 在弹出树里都会断链，现场构造最稳。
+- 列显隐 + **页面级开关**：元数据 `Shared/Models/ListColumn`、服务 `IColumnLayoutService/ColumnLayoutService`（落 `config/columnlayout.json`，自动进备份）。同一个文件里存两类：① 列显隐 `LoadPage/SavePage`（键 = 列键）；② 页面级开关 `LoadFlag/SaveFlag(FlagDetailPanel)`（内部加保留前缀 `__`，与列键不会撞）。⛔ 禁把 `ColumnDefinitions` 绑 `{Binding}`（`AVLN3000`）、禁 WPF 的 `IsCheckable`（`AVLN2000`）。
 
 ---
 
@@ -398,17 +402,22 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | 文件 | 归属 | 内容 |
 |---|---|---|
 | `theme.json` | 软件设置 | 主题模式+强调色 id |
-| `app.json` | 软件设置 | ffmpeg/播放器/视频目录/DNS 开关 |
+| `app.json` | 软件设置 | ffmpeg/播放器/视频目录/DNS 开关/**脚本运行环境**（python、pwsh、PS5.1 路径 + 脚本目录） |
 | `launch.json` | 软件设置 | 三个一键按钮+4 个通用开关 |
-| `package.json` | 软件设置 | 软件源策略（兼容旧 winget.json） |
+| `package.json` | 软件设置 | 软件包查询偏好（默认源/静默安装/排序列；兼容旧 winget.json）。⚠️ v1.33 起**源本身不在这里**——源的增删直接作用于系统 winget |
 | `favorites.json` | 用户功能数据 | 首页收藏夹 |
 | `quickactions.json` | 用户功能数据 | 设置项/脚本清单（「设置与脚本」+「快捷设置」两页共用，按 `Page` 分栏） |
-| `columnlayout.json` | 用户功能数据 | 列表页列显隐偏好 |
+| `columnlayout.json` | 用户功能数据 | 列表页列显隐偏好 **+ 页面级开关**（详情栏开合，键带保留前缀 `__`） |
 
 **硬约束**：
 - 设置类数据一律落 `<应用根>\config\*.json`（才能被数据管理页备份/导入）。
 - **模块只读设置**，唯一写入点在该设置的设置页；功能入口页**只读**（⛔ 不许回写→双真相源）。
 - 用户功能数据由对应功能页读写，同样落 `config\`、一样进备份。
+- ⛔ **不许把"内容清单"写死在 C# 里**（v1.33）：默认内容一律做成文件，随程序发布在 `<程序目录>\defaults\*`，**首次运行**复制/播种成 `config\` 下的用户文件；此后一切以用户那份为准（用户删掉的条目不会被"复活"）。当前：`defaults\quickactions.default.json` → `config\quickactions.json`；`defaults\scripts\*` → 脚本目录（仅当目录不存在时才播种）。
+  - 发布方式：`Shell.csproj` 用 `<None Update="defaults\**" CopyToOutputDirectory="PreserveNewest" />`（⛔ 用 `Update` 不用 `Include`，否则撞 `NETSDK1022`）。默认数据放 `Shell` 而不是 `Core`：Shell 是被引用终点，保证程序根目录只有一份。
+  - **脚本目录**：默认 `<应用根>\scripts`（= config/data 同级；由 `IAppConfigService.DefaultScriptFolder` 推出），可在「设置 → 路径配置」改。脚本目录里的 `.py/.ps1/.bat` 就是「设置与脚本」页的条目目标。
+  - **解释器路径**（python / pwsh / PowerShell 5.1）留空 = 用系统 PATH 里的；只有填了"看起来像路径"的值才校验存在性。`.ps1` 未配 pwsh 时自动退回系统自带的 5.1。
+- **改系统级配置的页面必须二次确认**（v1.33）：如「设置 → 软件源」的增删源 / 恢复默认直接改系统 winget（与系统共用一套数据），破坏性操作走 `Core` 静态钩子 `PackageManagerService.ConfirmHandler` → Shell 模态框；⛔ 没接钩子时一律返回 false（宁可什么都不做）。
 
 ---
 
@@ -436,9 +445,9 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 6. 框架层冻结，新功能只在 `Module.*`；改框架层须先获用户同意。
 7. 代码是唯一真相源，写「现状」前先读源码，冲突以代码为准回写。
 8. 动 `ShellView.axaml/.axaml.cs` 两文件必须同步。
-9. 列表页按 3.6：可排序表头+`ListBox.list-page`+右侧 340px 详情+行右键菜单；表头与行同套列定义、内边距一致；`ContextMenu.DataContext` 在 code-behind 手工同步；表头支持右键增删列。
-10. 设置数据必落 `config\*.json` 且可备份；模块只读，唯一写入点在设置页。
-11. 规范与代码同步更新；文档版本号齐步递增。
+9. 列表页按 3.6：可排序表头+`ListBox.list-page`+右侧详情（宽 340 写在 Border 且**默认收起、可开合**，工具条按钮切换，状态记忆）+行右键菜单；表头与行同套列定义、内边距一致；`ContextMenu.DataContext` 在 code-behind 手工同步；表头支持右键增删列。
+10. 设置数据必落 `config\*.json` 且可备份；模块只读，唯一写入点在设置页；内容清单不写死在 C#，默认值随程序发布在 `<程序目录>\defaults\*` 并首次运行播种（§9）。
+11. 规范与代码同步更新；各文档版本号**独立递增**（不再齐步）。
 12. 复杂功能先给可运行的最小实现。
 13. 新增模块登记三处：`slnx` + `Shell.csproj`（Debug 条件组）+ `App.axaml.cs` 的 `#if DEBUG` 清单。
 14. 热加载只从本地 `Modules\` 取 DLL，逐个 `try-catch` 隔离；加载后刷新两侧菜单并复用 `UpdatePanelVisibility()`。
@@ -468,6 +477,9 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 22. `src/` 之外新增业务代码。
 23. **热加载联网下载模块，或从 `Modules\` 以外任意路径加载 DLL**（会滑向插件市场）。
 24. **热加载失败让宿主崩溃、或整列菜单消失**（必须逐个隔离）。
+25. **把内容清单硬编码进 C#**（应用默认内容一律落 `<程序目录>\defaults\*` 并首次运行播种，§9）。
+26. **应用侧类型名与所用库的重名**（如自己定义 `MenuItem`/`Grid`/`Panel` → `CS0104`；应用侧菜单模型已改名 `AppMenuGroup`/`AppMenuItem`，铁律见 §6.2）。
+27. **默认数据用 `None Include` 而非 `None Update`**（后者才是"只改复制属性"，`Include` 会撞 `NETSDK1022` 重复项）。
 
 ---
 
@@ -506,3 +518,8 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | 侧栏菜单重复 N 次 | 模块被重复注册 | ModuleLoader 用同一实例/跳过已加载同名程序集 |
 | 切主题后二级菜单仍旧配色 | code-behind new 出的行是本地值 | 订阅 `ThemeChanged` 后重建；优先 Classes+样式 |
 | 点刷新没反应 | 只扫目录没重建菜单；或容器已 build 无法注册服务 | 加载后重建两侧菜单；页面型模块可不注册服务（6.6） |
+| CS0104「Xxx」不明确引用 | 应用侧类型与所用库同名（自己定义了 `MenuItem`，与 `Avalonia.Controls.MenuItem` 撞） | 给应用侧类型换名（`AppMenuItem`）；⛔ 别用 `using X = ...` 别名掩盖，改名才是根治 |
+| NETSDK1022 重复项 | `defaults\**` 用了 `None Include`（已含在 SDK 默认通配里） | 改 `None Update`，只调 `CopyToOutputDirectory` |
+| 软件包列表页空白（0 行） | winget 表头**本地化**（中文 Windows 打 `名称/ID/版本/可用`），解析器只认英文 → 找不到表头 | 列标签按「英文+中文别名」映射到规范名再切片 |
+| 已安装列表少一大截 | `IdLike` 正则不认 `\`，`ARP\…` / `MSIX\…` 条目被整批丢掉 | 正则加 `\\`（`^[A-Za-z0-9][A-Za-z0-9._+\\-]*$`） |
+| `winget show` 的「发布者」里带了 URL | `发布服务器 URL:` 被当成上一条多行值的续行 | 把不认识的 `标签:` 显式**终结**上一个字段并丢弃 |

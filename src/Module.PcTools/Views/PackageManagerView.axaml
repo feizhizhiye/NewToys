@@ -47,16 +47,21 @@
 
         <CheckBox Content="仅看已安装" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding InstalledOnly, Mode=TwoWay}"/>
         <CheckBox Content="静默安装 (--silent)" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding SilentInstall, Mode=TwoWay}"/>
+
+        <!-- 右栏详情开合：默认收起（列表占满宽度）；点选会记住（config\columnlayout.json）。 -->
+        <Button Classes="ghost" Content="{Binding DetailButtonText}" Command="{Binding ToggleDetailCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情栏；收起时列表占满宽度。默认收起，你的选择会被记住。"/>
         <TextBlock Text="{Binding ModeText}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,6"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
       </WrapPanel>
     </Border>
 
-    <!--  ==================== 主区：左列表 + 右详情  ==================== -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,340" Margin="16">
+    <!--  ==================== 主区：左列表 + 右详情  ====================
+          右栏宽度写在 Border 上（不是 Grid 列上）：列用 Auto，收起时右栏不占位 → 列表自动铺满。 -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="16">
 
       <!-- 左：可排序表头 + 列表（右键出更多功能） -->
-      <Border Grid.Column="0" Classes="card" Padding="0" Margin="0,0,12,0">
+      <Border Grid.Column="0" Classes="card" Padding="0">
         <Grid RowDefinitions="Auto,*">
 
           <Border Grid.Row="0" Classes="list-header" Height="36">
@@ -146,8 +151,9 @@
         </Grid>
       </Border>
 
-      <!-- 右：选中包的详细信息 -->
-      <Border Grid.Column="1" Classes="card" Padding="16">
+      <!-- 右：选中包的详细信息；宽度写在这里 → 收起时整列不占位 -->
+      <Border Grid.Column="1" Classes="card" Padding="16" Width="340" Margin="12,0,0,0"
+              IsVisible="{Binding IsDetailVisible}">
         <Grid RowDefinitions="Auto,*">
 
           <!-- 有选中：动作按钮 + 字段 -->

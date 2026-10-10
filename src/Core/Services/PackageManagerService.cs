@@ -29,8 +29,15 @@ public class PackageManagerService : IPackageManagerService
 {
     private static string? _exePath;
 
-    /// <summary>包 Id 的形状（Publisher.Package 或 msstore 的 9XXXXXXX）。用来滤掉表格尾部的"统计行"。</summary>
-    private static readonly Regex IdLike = new(@"^[A-Za-z0-9][A-Za-z0-9._+-]*$", RegexOptions.Compiled);
+    /// <summary>
+    /// 包 Id 的形状，用来滤掉表格尾部的"统计行"。
+    /// <para>
+    /// ⚠️ 必须允许**反斜杠**：MSI/ARP 安装的条目 Id 形如
+    /// <c>ARP\Machine\X86\AMD_Chipset_IODrivers</c>、<c>MSIX\Microsoft.AV1VideoExtension_…</c>，
+    /// 旧正则不认 <c>\</c> 会把这类已安装条目整批丢掉（v1.33 修正，也是"列表少东西"的原因之一）。
+    /// </para>
+    /// </summary>
+    private static readonly Regex IdLike = new(@"^[A-Za-z0-9][A-Za-z0-9._+\\-]*$", RegexOptions.Compiled);
 
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(180);
     private static readonly TimeSpan WriteTimeout = TimeSpan.FromMinutes(30);
@@ -166,6 +173,57 @@ public class PackageManagerService : IPackageManagerService
                 detail.Name = found[..found.IndexOf('[')].Replace("Found", "").Replace("找到", "").Trim();
         }
         return (true, "详情已更新", detail);
+    }
+
+    // ==================== 源的增删（直接改系统 winget，与它共用一套数据） ====================
+
+    public async Task<(bool Ok, string Message)> AddSourceAsync(string name, string argument, string? type = null, CancellationToken ct = default)
+    {
+        if (!IsSupported) return (false, Fallback.Msg);
+        if (string.IsNullOrWhiteSpace(name)) return (false, "请先填写源名称。");
+        if (string.IsNullOrWhiteSpace(argument)) return (false, "请先填写源地址（URL 或 UNC 路径）。");
+
+        var args = new List<string> { "source", "add", "--name", name.Trim(), "--arg", argument.Trim() };
+        if (!string.IsNullOrWhiteSpace(type)) { args.Add("--type"); args.Add(type.Trim()); }
+
+        var r = await RunAsync(args, ct, ReadTimeout).ConfigureAwait(false);
+        return r.Code == 0
+            ? (true, $"已添加源 {name}（写到系统 winget 的配置里）")
+            : (false, Explain(r, $"添加源 {name} 失败"));
+    }
+
+    public async Task<(bool Ok, string Message)> RemoveSourceAsync(string name, CancellationToken ct = default)
+    {
+        if (!IsSupported) return (false, Fallback.Msg);
+        if (string.IsNullOrWhiteSpace(name)) return (false, "未指定源。");
+
+        // ⚠️ 破坏性操作：动的是**整台机器**的包管理器源（等同于用户在终端敲 winget source remove）
+        if (!await ConfirmAsync(
+                $"确定要从系统 winget 里删除源「{name}」吗？\n" +
+                "这会改掉整台机器的包管理器源配置（等价于 winget source remove），之后搜索与安装都会少一个来源。")
+            .ConfigureAwait(false))
+            return (false, "已取消。");
+
+        var r = await RunAsync(new[] { "source", "remove", "--name", name.Trim() }, ct, ReadTimeout).ConfigureAwait(false);
+        return r.Code == 0
+            ? (true, $"已从系统 winget 删除源 {name}")
+            : (false, Explain(r, $"删除源 {name} 失败"));
+    }
+
+    public async Task<(bool Ok, string Message)> ResetSourcesAsync(CancellationToken ct = default)
+    {
+        if (!IsSupported) return (false, Fallback.Msg);
+
+        if (!await ConfirmAsync(
+                "确定把系统 winget 的源恢复为默认吗？\n" +
+                "自定义添加的源会被移除，默认源（winget / msstore）会被重新加回来。")
+            .ConfigureAwait(false))
+            return (false, "已取消。");
+
+        var r = await RunAsync(new[] { "source", "reset", "--force" }, ct, ReadTimeout).ConfigureAwait(false);
+        return r.Code == 0
+            ? (true, "已把系统 winget 的源恢复为默认")
+            : (false, Explain(r, "恢复默认源失败"));
     }
 
     // ==================== 写操作 ====================

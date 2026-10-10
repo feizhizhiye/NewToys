@@ -148,6 +148,25 @@ public partial class VideoListViewModel : ObservableObject
     public bool HasSelection => Selected != null;
     public bool HasItems => Videos.Count > 0;
 
+    // ==================== 右栏详情开合（默认收起 → 列表占满宽度） ====================
+
+    /// <summary>是否显示右侧详情栏。<b>默认收起</b>；点选结果落 <c>config\columnlayout.json</c>，下次进本页保持。</summary>
+    [ObservableProperty] private bool _isDetailVisible;
+
+    /// <summary>切换按钮上的文字。</summary>
+    public string DetailButtonText => IsDetailVisible ? "▤ 收起详情" : "▤ 详情";
+
+    partial void OnIsDetailVisibleChanged(bool value) => OnPropertyChanged(nameof(DetailButtonText));
+
+    /// <summary>点一下展开 / 收起右栏详情（轻偏好 → 立即落盘）。</summary>
+    [RelayCommand]
+    private void ToggleDetail()
+    {
+        IsDetailVisible = !IsDetailVisible;
+        _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
+        OnPropertyChanged(nameof(DetailButtonText));
+    }
+
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public VideoListViewModel() { }
 
@@ -156,6 +175,7 @@ public partial class VideoListViewModel : ObservableObject
         _cfg = cfg;
         _cols = cols;
         LoadColumnVisibility();
+        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);   // 默认收起
         Folder = cfg.DefaultVideoFolder;
         if (string.IsNullOrWhiteSpace(Folder))
             Folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "NewToys");

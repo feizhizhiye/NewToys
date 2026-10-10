@@ -62,9 +62,6 @@ public class PackageSourceInfo
     /// <summary>类型或 Explicit 标记（winget 不同版本列头不同，两者都收）。</summary>
     public string Type { get; set; } = "";
 
-    /// <summary>是否在应用内启用（由 <see cref="PackageSettings.StoreSourceEnabled"/> 决定 msstore 的取值）。</summary>
-    public bool IsEnabled { get; set; } = true;
-
     public string TypeText => Type switch
     {
         "true" or "True" => "自定义（explicit）",
@@ -72,9 +69,6 @@ public class PackageSourceInfo
         "" => "—",
         _ => Type
     };
-
-    /// <summary>列表「状态」列：本应用查询时是否用它。</summary>
-    public string EnabledText => IsEnabled ? "启用" : "已停用";
 }
 
 /// <summary>
@@ -99,14 +93,15 @@ public class PackageSourceOption
 /// 才能被「数据管理」页备份 / 导入 —— 所以**不要**把源设置散落到模块自己的目录里
 /// （见规范 3.9「设置数据可备份，模块只读设置」）。
 /// </para>
+/// <para>
+/// ⚠️ v1.33 起<b>源本身不在这里</b>：源的增删直接作用于**系统 winget**（一套数据，见「设置 → 软件源」页），
+/// 本文件只剩"界面偏好"（默认源 / 静默安装 / 排序列）。
+/// </para>
 /// </summary>
 public class PackageSettings
 {
     /// <summary>默认查询源（对应 <c>--source</c> 的取值）；空串表示「全部已启用的源」。</summary>
     public string DefaultSource { get; set; } = "";
-
-    /// <summary>是否在应用内启用 Microsoft Store 源。关掉后「全部源」只查 winget，msstore 不出现在下拉里。</summary>
-    public bool StoreSourceEnabled { get; set; } = true;
 
     /// <summary>安装 / 升级时追加 <c>--silent</c>（不弹安装器交互）。</summary>
     public bool SilentInstall { get; set; } = true;

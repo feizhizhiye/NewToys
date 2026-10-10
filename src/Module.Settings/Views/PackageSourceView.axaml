@@ -2,27 +2,94 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Settings.Views.PackageSourceView">
   <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：原页头右侧「状态提示」迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。
-         ⚠️ 刻意**不放保存按钮** —— 本页全是开关 / 下拉，点一下立即写 config\package.json（规范 3.7）。 -->
+    <!-- 操作行：状态提示右对齐；页名由左侧二级菜单体现，内容区不再重复标题页头。
+         ⚠️ 本页**除「添加源」表单外全是开关/下拉 + 即时执行的按钮**，点一下就写系统 winget 或 config\package.json（规范 3.7）。 -->
     <TextBlock Grid.Row="0" Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
-               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="24,16,24,0" MaxWidth="420"
-               Foreground="{DynamicResource SecondaryTextBrush}"/>
+               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="24,16,24,0" MaxWidth="520"
+               Foreground="{DynamicResource AccentBrush}"/>
 
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
-      <StackPanel Spacing="16" MaxWidth="960" HorizontalAlignment="Left">
+      <StackPanel Spacing="16" MaxWidth="1000" HorizontalAlignment="Left">
 
-        <!-- ============ 源策略 ============ -->
+        <!-- ============ 主体：系统 winget 的源（本页 = 一套数据，改完终端里看到的一模一样） ============ -->
+        <Border Classes="card" Padding="0">
+          <StackPanel>
+            <Grid ColumnDefinitions="*,Auto" Margin="18,14,18,10">
+              <StackPanel Grid.Column="0" Spacing="2">
+                <TextBlock Text="系统 winget 的源" FontWeight="SemiBold" FontSize="14"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <TextBlock Text="{Binding SummaryText}" FontSize="12"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
+              <Button Grid.Column="1" Classes="ghost" Content="🔄 重新读取" Command="{Binding RefreshCommand}"
+                      IsEnabled="{Binding IsNotBusy}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <Border Classes="list-header" Height="36">
+              <Grid ColumnDefinitions="1.2*,4*,1.2*,88">
+                <TextBlock Grid.Column="0" Classes="list-cell" Text="名称" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Grid.Column="1" Classes="list-cell" Text="地址（Argument）" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Grid.Column="2" Classes="list-cell" Text="类型" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="操作" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </Grid>
+            </Border>
+
+            <ListBox Classes="list-page" ItemsSource="{Binding Sources}" MaxHeight="260" SelectionMode="Single">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="1.2*,4*,1.2*,88">
+                    <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Name}"
+                               Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Argument}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TypeText}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <Button Grid.Column="3" Classes="ghost" Content="✕ 停用"
+                            Padding="8,3" FontSize="12" VerticalAlignment="Center"
+                            ToolTip.Tip="从系统 winget 里删除这个源（等价于 winget source remove）"
+                            Command="{Binding $parent[UserControl].DataContext.RemoveSourceCommand}"
+                            CommandParameter="{Binding}"
+                            IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"/>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- 添加源（唯一"填完再点"的表单） -->
+            <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,0"/>
+            <StackPanel Margin="18,12,18,16" Spacing="8">
+              <TextBlock Text="添加源" FontWeight="SemiBold" FontSize="13"
+                         Foreground="{DynamicResource PrimaryTextBrush}"/>
+              <TextBlock Text="等价于 winget source add —— 会真的写进系统 winget 的源配置，对所有 winget 使用生效。"
+                         FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <Grid ColumnDefinitions="220,*,Auto" Margin="0,4,0,0">
+                <TextBox Grid.Column="0" Watermark="源名称（如 my-source）" Margin="0,0,8,0"
+                         Text="{Binding NewSourceName, Mode=TwoWay}"/>
+                <TextBox Grid.Column="1" Watermark="地址（URL 或以 \\ 开头的 UNC 路径）" Margin="0,0,8,0"
+                         Text="{Binding NewSourceArgument, Mode=TwoWay}"/>
+                <Button Grid.Column="2" Classes="ghost" Content="➕ 添加" Command="{Binding AddSourceCommand}"
+                        IsEnabled="{Binding IsNotBusy}"/>
+              </Grid>
+              <Button Classes="ghost" Content="↺ 恢复默认源" HorizontalAlignment="Left" Margin="0,4,0,0"
+                      ToolTip.Tip="等价于 winget source reset --force：移除自定义源，重新加回 winget / msstore"
+                      Command="{Binding ResetSourcesCommand}" IsEnabled="{Binding IsNotBusy}"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- ============ 本应用的查询偏好（只影响「软件包管理」页怎么调 winget） ============ -->
         <Border Classes="card">
           <StackPanel Spacing="12">
             <StackPanel Spacing="2">
-              <TextBlock Text="应用内源策略" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
-              <TextBlock Text="这里改的是「本应用查询时用哪些源」，不会改动系统的包管理器源配置。"
+              <TextBlock Text="本应用的查询偏好" FontWeight="SemiBold" FontSize="14"
+                         Foreground="{DynamicResource PrimaryTextBrush}"/>
+              <TextBlock Text="下面两项只影响本应用怎么调 winget，不改系统配置。"
                          FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
             </StackPanel>
-
-            <CheckBox Content="启用 Microsoft Store 源（msstore）" IsChecked="{Binding StoreSourceEnabled, Mode=TwoWay}"/>
-            <TextBlock Text="关掉后：「软件包管理」的搜索与安装**不再带 --source msstore**（也就查不到 Store 分发的包）；下拉里也不再出现它。"
-                       FontSize="12" TextWrapping="Wrap" Margin="24,0,0,0" Foreground="{DynamicResource SecondaryTextBrush}"/>
 
             <CheckBox Content="安装 / 升级使用 --silent（静默）" IsChecked="{Binding SilentInstall, Mode=TwoWay}"/>
 
@@ -43,65 +110,19 @@
           </StackPanel>
         </Border>
 
-        <!-- ============ 实际存在的源 ============ -->
-        <Border Classes="card" Padding="0">
-          <Grid RowDefinitions="Auto,Auto,*">
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="18,14,18,10">
-              <StackPanel Grid.Column="0" Spacing="2">
-                <TextBlock Text="系统里已检测到的源" FontWeight="SemiBold" FontSize="14"
-                           Foreground="{DynamicResource PrimaryTextBrush}"/>
-                <TextBlock Text="{Binding SummaryText}" FontSize="12"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-              </StackPanel>
-              <Button Grid.Column="1" Classes="ghost" Content="🔄 重新读取" Command="{Binding RefreshCommand}"
-                      IsEnabled="{Binding !IsBusy}" VerticalAlignment="Center"/>
-            </Grid>
-
-            <Border Grid.Row="1" Classes="list-header" Height="36">
-              <Grid ColumnDefinitions="1.2*,4*,1.2*,1*">
-                <TextBlock Grid.Column="0" Classes="list-cell" Text="名称" FontWeight="SemiBold"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell" Text="地址（Argument）" FontWeight="SemiBold"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell" Text="类型" FontWeight="SemiBold"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="本应用" FontWeight="SemiBold"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-              </Grid>
-            </Border>
-
-            <ListBox Grid.Row="2" Classes="list-page" ItemsSource="{Binding Sources}" MaxHeight="260" SelectionMode="Single">
-              <ListBox.ItemTemplate>
-                <DataTemplate>
-                  <Grid ColumnDefinitions="1.2*,4*,1.2*,1*">
-                    <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Name}"
-                               Foreground="{DynamicResource PrimaryTextBrush}"/>
-                    <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Argument}"
-                               Foreground="{DynamicResource SecondaryTextBrush}"/>
-                    <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TypeText}"
-                               Foreground="{DynamicResource SecondaryTextBrush}"/>
-                    <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding EnabledText}"
-                               Foreground="{DynamicResource AccentBrush}"/>
-                  </Grid>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </Grid>
-        </Border>
-
         <!-- ============ 说明 ============ -->
         <Border Classes="card">
           <StackPanel Spacing="8">
-            <TextBlock Text="⚠️ 本页不会改系统的包管理器源" FontWeight="SemiBold" FontSize="13"
+            <TextBlock Text="⚠️ 本页改的是整台机器的 winget 源" FontWeight="SemiBold" FontSize="13"
                        Foreground="{DynamicResource PrimaryTextBrush}"/>
             <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"
-                       Text="新增 / 删除 / 重置源会动到整台机器的包管理器配置，属于破坏性操作，所以这里刻意不提供按钮。要改请在终端里执行 winget source add / remove / reset，改完回到本页点「🔄 重新读取」即可看到。"/>
+                       Text="本页与系统 winget 共用一套数据：删除源 / 恢复默认会动到整台机器的包管理器配置，因此都带二次确认。改完在终端里敲 winget source list，看到的与这里完全一致。"/>
 
-            <TextBlock Text="配置文件" FontWeight="SemiBold" FontSize="13" Margin="0,6,0,0"
+            <TextBlock Text="配置文件（只存本应用的查询偏好）" FontWeight="SemiBold" FontSize="13" Margin="0,6,0,0"
                        Foreground="{DynamicResource PrimaryTextBrush}"/>
             <TextBlock Text="{Binding FilePath}" FontSize="12" TextWrapping="Wrap" FontFamily="Consolas"
                        Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Text="它就在 config 目录下 —— 因此「设置 → 数据管理」的「备份到文件」会**一并备份**它，「从备份导入」也会恢复它。"
+            <TextBlock Text="它就在 config 目录下 —— 因此「设置 → 数据管理」的「备份到文件」会一并备份它，「从备份导入」也会恢复它。"
                        FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
             <Button Classes="ghost" Content="📂 打开配置目录" Command="{Binding OpenConfigDirCommand}"
                     HorizontalAlignment="Left" Margin="0,4,0,0"/>

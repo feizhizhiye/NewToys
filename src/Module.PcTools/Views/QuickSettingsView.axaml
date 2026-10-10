@@ -35,14 +35,19 @@
         <Button Classes="primary" Content="➕ 新增" Margin="0,0,8,0"
                 Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
                 ToolTip.Tip="追加一条系统自带设置入口，改好后点右侧「💾 保存」"/>
+
+        <!-- 右栏属性卡开合：默认收起（列表占满宽度）；点选会记住（config\columnlayout.json）。 -->
+        <Button Classes="ghost" Content="{Binding DetailButtonText}" Command="{Binding ToggleDetailCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧属性卡；收起时列表占满宽度。默认收起，你的选择会被记住。"/>
       </WrapPanel>
     </Border>
 
-    <!--  ==================== 主区：左列表 + 右属性卡  ==================== -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,340" Margin="16">
+    <!--  ==================== 主区：左列表 + 右属性卡  ====================
+          右栏宽度写在 Border 上（不是 Grid 列上）：列用 Auto，收起时右栏不占位 → 列表自动铺满。 -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="16">
 
       <!-- 左：可排序表头（左键点表头排序） + 列表（右键出更多功能） -->
-      <Border Grid.Column="0" Classes="card" Padding="0" Margin="0,0,12,0">
+      <Border Grid.Column="0" Classes="card" Padding="0">
         <Grid RowDefinitions="Auto,*">
 
           <Border Grid.Row="0" Classes="list-header" Height="36">
@@ -134,8 +139,9 @@
         </Grid>
       </Border>
 
-      <!-- 右：选中项的属性卡（可编辑 = CRUD 的 U/C） -->
-      <Border Grid.Column="1" Classes="card" Padding="16">
+      <!-- 右：选中项的属性卡（可编辑 = CRUD 的 U/C）；宽度写在这里 → 收起时整列不占位 -->
+      <Border Grid.Column="1" Classes="card" Padding="16" Width="340" Margin="12,0,0,0"
+              IsVisible="{Binding IsDetailVisible}">
         <Grid RowDefinitions="Auto,*">
 
           <StackPanel Grid.Row="0" Spacing="10" IsVisible="{Binding HasSelection}">
@@ -184,7 +190,7 @@
                 <TextBlock Text="命令" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
                 <TextBox Text="{Binding EditCommand, Mode=TwoWay}" FontSize="12" FontFamily="Consolas"
                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84"/>
-                <TextBlock Text="例：start ms-settings:display 打开「显示」设置；control 打开控制面板。▶ 运行 = 用 cmd 执行这条命令。"
+                <TextBlock Text="本页条目都是命令行命令：例：start ms-settings:display 打开「显示」设置；control 打开控制面板。▶ 运行 = 用 cmd 执行它。要跑脚本文件（.py / .ps1 / .bat）请去「设置与脚本」页。"
                            FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
               </StackPanel>
 

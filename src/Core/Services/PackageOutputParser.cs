@@ -13,6 +13,12 @@ namespace NewToys.Core.Services;
 /// 远好过"按两个以上空格 split"：后者会被包名里的连续空格、以及被截断成 `…` 的长名称搞崩。
 /// </para>
 /// <para>
+/// ⚠️ <b>表头是本地化的</b>（v1.33 修正的认知）：中文 Windows 上 <c>winget list</c> 打印的是
+/// <c>名称 / ID / 版本 / 可用</c>，<c>source list</c> 是 <c>名称 / 参数 / 显式</c>，
+/// <c>pin list</c> 是 <c>… / 包钉类型</c>。旧版只认英文标签 → 找不到表头 → 一行都解析不出来
+/// （表现：列表页**空白**）。现在所有标签都按「英文 + 中文别名」映射到**规范名**再切片。
+/// </para>
+/// <para>
 /// 会被滤掉的行：① ANSI 颜色转义；② 进度条 / 转轮（含 <c>\r</c>、<c>\b</c> 与 <c>█ ▒ ░ \) | / -</c> 填充）；
 /// ③ 分隔线（整行只有 <c>-</c>）；④ 表头之上的提示行（"已配置的源需要更新"之类）。
 /// </para>
@@ -20,13 +26,67 @@ namespace NewToys.Core.Services;
 internal static class PackageOutputParser
 {
     private static readonly Regex Ansi = new(@"\x1B\[[0-9;?]*[A-Za-z]", RegexOptions.Compiled);
-    private static readonly Regex LabelRegex = new(
-        @"(Name|Id|Version|Available|Source|Match|Moniker|Tag|Argument|Type|Explicit|Last Updated)",
-        RegexOptions.Compiled);
 
-    /// <summary>表头列标签（winget 的列标题是英文硬编码，不随系统语言本地化）。</summary>
-    private static readonly string[] ColumnLabels =
-        { "Name", "Id", "Version", "Available", "Source", "Match", "Moniker", "Tag", "Argument", "Type", "Explicit", "Last Updated" };
+    /// <summary>
+    /// 表格列标签：**规范名 + 该列在输出里可能出现的写法**（英文 + 简体中文）。
+    /// <para>
+    /// 顺序无关（切列时按实际起始下标排序），但同一规范名只取首次命中；
+    /// 别名里最长的要放在前面（如 <c>Last Updated</c> 先于任何短词），避免被短别名截断。
+    /// </para>
+    /// </summary>
+    private static readonly (string Canonical, string[] Aliases)[] LabelDefs =
+    {
+        ("Name",        new[] { "Name", "名称" }),
+        ("Id",          new[] { "Id", "ID", "程序包 ID" }),
+        ("Version",     new[] { "Version", "版本" }),
+        ("Available",   new[] { "Available", "可用", "可用版本" }),
+        ("Source",      new[] { "Source", "源" }),
+        ("Match",       new[] { "Match", "匹配" }),
+        ("Moniker",     new[] { "Moniker", "绰号", "标记" }),
+        ("Tag",         new[] { "Tag", "标签" }),
+        ("Argument",    new[] { "Argument", "参数" }),
+        ("Type",        new[] { "Type" }),   // ⚠️ 不收中文"类型"：pin list 的表头是"包钉类型"，会被当成两个列
+        ("Explicit",    new[] { "Explicit", "显式" }),
+        ("LastUpdated", new[] { "Last Updated", "上次更新", "最后更新" }),
+    };
+
+    /// <summary>在表头行里定位「列标签」用的正则（长别名优先，避免短词先命中）。</summary>
+    private static readonly Regex LabelRegex = BuildLabelRegex();
+
+    /// <summary>
+    /// 认识但**不装进模型**的 <c>winget show</c> 字段。
+    /// <para>
+    /// 这些行必须显式「终结上一个字段」，否则会被当成上一条多行值的续行 ——
+    /// 例如 <c>发布服务器 URL: …</c> 会粘进「发布者」里（v1.33 前就是这个毛病）。
+    /// </para>
+    /// </summary>
+    private static readonly HashSet<string> IgnoredLabels = new(StringComparer.Ordinal)
+    {
+        "发布服务器 URL", "发布服务器支持 URL", "作者", "绰号", "版权", "版权所有",
+        "许可证 URL", "安装程序类型", "安装程序 URL", "安装程序 SHA256", "安装程序区域设置",
+        "发布日期", "协议", "文档", "安装范围", "最低操作系统版本", "标签", "依赖项",
+        "Copyright", "Copyright Url", "Author", "Installer Type", "Installer Url",
+        "Installer SHA256", "Release Date", "License Url", "Agreements", "Documentations",
+    };
+
+    private static Regex BuildLabelRegex()
+    {
+        // 别名按长度倒序拼装：正则的交替是「先匹配先赢」，短别名放前面会截断长别名
+        // （如 "Available" 被 "Av"… 之类误伤，或 "Last Updated" 被 "Last" 抢先）。
+        var aliases = LabelDefs
+            .SelectMany(d => d.Aliases)
+            .OrderByDescending(a => a.Length)
+            .Select(Regex.Escape);
+        return new Regex(string.Join("|", aliases), RegexOptions.Compiled);
+    }
+
+    /// <summary>别名 → 规范名（表头行里所有出现的列标签）。</summary>
+    private static string? ToCanonical(string alias)
+    {
+        foreach (var (canonical, list) in LabelDefs)
+            if (list.Contains(alias, StringComparer.Ordinal)) return canonical;
+        return null;
+    }
 
     /// <summary>去掉 ANSI 转义、统一换行、去掉退格符 —— 后续一律按 <c>\n</c> 切行。</summary>
     public static string Clean(string? raw)
@@ -42,24 +102,26 @@ internal static class PackageOutputParser
     /// </summary>
     /// <param name="raw">原始 stdout。</param>
     /// <param name="requiredHeaderLabels">
-    /// 判定"这一行是表头"所需的标签（全部命中才算）。
+    /// 判定"这一行是表头"所需的**规范列名**（全部命中才算）。
     /// 例：<c>list</c> / <c>search</c> 用 <c>Name+Id</c>；<c>source list</c> 用 <c>Name+Argument</c>。
+    /// （规范名与输出语言无关，调用方不必关心中文还是英文表头。）
     /// </param>
-    /// <returns>每行一个字典（列标签 → 单元格文本），保持输出顺序。</returns>
+    /// <returns>每行一个字典（**规范列名** → 单元格文本），保持输出顺序。</returns>
     public static List<Dictionary<string, string>> ParseTable(string? raw, params string[] requiredHeaderLabels)
     {
         var rows = new List<Dictionary<string, string>>();
         var lines = Clean(raw).Split('\n');
         if (lines.Length == 0) return rows;
 
-        // ---- 1. 找表头 ----
+        // ---- 1. 找表头（用规范名判定，与输出语言无关） ----
         var headerIndex = -1;
         for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
             if (line.Length == 0) continue;
             if (IsNoiseLine(line)) continue;
-            if (requiredHeaderLabels.All(l => Regex.IsMatch(line, $@"(^|\s){Regex.Escape(l)}(\s|$)")))
+            var labels = FindLabels(line);
+            if (requiredHeaderLabels.All(r => labels.Any(l => l.Label == r)))
             {
                 headerIndex = i;
                 break;
@@ -67,14 +129,8 @@ internal static class PackageOutputParser
         }
         if (headerIndex < 0) return rows;
 
-        // ---- 2. 用表头标签的起始下标算出每列的 [start, end) ----
-        var columns = LabelRegex.Matches(lines[headerIndex])
-            .Select(m => (Label: m.Value, Start: m.Index))
-            .Where(c => ColumnLabels.Contains(c.Label))
-            .GroupBy(c => c.Label)
-            .Select(g => g.First())                 // 同一标签只取首次出现
-            .OrderBy(c => c.Start)
-            .ToList();
+        // ---- 2. 用列标签的起始下标算出每列的 [start, end) ----
+        var columns = FindLabels(lines[headerIndex]);
         if (columns.Count == 0) return rows;
 
         // ---- 3. 逐行切片 ----
@@ -95,11 +151,24 @@ internal static class PackageOutputParser
                 row[columns[c].Label] = line.Substring(start, end - start).Trim();
             }
 
-            // 再切一次兜底：某些行整行只有第一个单元格（长名称换行）→ 丢弃
+            // 整行只剩第一个单元格（长名称换行那种残行）→ 丢弃
             if (!row.TryGetValue("Name", out var name) || name.Length == 0) continue;
             rows.Add(row);
         }
         return rows;
+    }
+
+    /// <summary>把一行里的列标签解析成「规范名 + 起始下标」，按出现顺序排列。</summary>
+    private static List<(string Label, int Start)> FindLabels(string line)
+    {
+        return LabelRegex.Matches(line)
+            .Select(m => (Label: ToCanonical(m.Value), Start: m.Index))
+            .Where(c => c.Label != null)
+            .Select(c => (Label: c.Label!, c.Start))
+            .GroupBy(c => c.Label)
+            .Select(g => g.First())                 // 同一规范名只取首次出现
+            .OrderBy(c => c.Start)
+            .ToList();
     }
 
     /// <summary>
@@ -125,7 +194,8 @@ internal static class PackageOutputParser
 
     /// <summary>
     /// 解析 <c>winget show</c> 的 <c>标签: 值</c> 输出（字段名可能中英混排，两种都认）。
-    /// 多行字段（说明 / 协议）会把后续不含标签的行接上。
+    /// 多行字段（说明 / 协议）会把后续不含标签的行接上；
+    /// 命中 <see cref="IgnoredLabels"/> 的字段会**终结**上一个字段并被丢弃（不再污染它）。
     /// </summary>
     public static Dictionary<string, string> ParseKeyValues(string? raw)
     {
@@ -150,7 +220,12 @@ internal static class PackageOutputParser
             var idx = line.IndexOf(':');
             if (idx > 0 && idx < 64)
             {
-                var key = NormalizeLabel(line[..idx].Trim());
+                var rawKey = line[..idx].Trim();
+
+                // 认识但不装进模型的字段（发布服务器 URL / 作者 / 版权 …）→ 结束当前字段后丢弃
+                if (IgnoredLabels.Contains(rawKey)) { Flush(); current = null; continue; }
+
+                var key = NormalizeLabel(rawKey);
                 if (key != null)
                 {
                     Flush();
@@ -174,6 +249,7 @@ internal static class PackageOutputParser
         "Homepage" or "主页" or "主页 URL" or "主页 Url" or "项目主页" => "Homepage",
         "License" or "许可证" or "许可" => "License",
         "Install Location" or "安装位置" or "安装路径" => "InstallLocation",
+        "Name" or "名称" => "Name",
         _ => null
     };
 

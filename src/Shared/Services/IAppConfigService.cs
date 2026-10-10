@@ -42,6 +42,26 @@ namespace NewToys.Shared.Services
         // （见「设置 → 一键按钮」页）。理由：同一个按钮的字段必须同源，
         // 否则会出现"路径配置改了 exe、一键按钮还用旧 exe"这种双真相源问题（v1.19 收敛）。
 
+        // ==================== 运行环境（脚本解释器 + 脚本目录，v1.33） ====================
+        // 用途：「电脑工具 → 设置与脚本」页里的**脚本文件**（.py / .ps1 / .bat）靠这几个路径跑起来。
+        // 前三个**留空 = 用系统默认**（从 PATH 里找 python / pwsh / powershell）；
+        // 不填也能跑，只是机器上得真有那个解释器。
+
+        /// <summary>Python 解释器路径（exe 全路径，也可只写命令名）。留空 = 用 PATH 里的 python。</summary>
+        string PythonPath { get; set; }
+
+        /// <summary>PowerShell 7+（pwsh）路径。留空 = 用 PATH 里的 pwsh（找不到时 .ps1 退到 5.1）。</summary>
+        string PwshPath { get; set; }
+
+        /// <summary>Windows PowerShell 5.1（powershell.exe）路径。留空 = 用系统自带的 powershell.exe。</summary>
+        string PowerShell51Path { get; set; }
+
+        /// <summary>脚本目录（「设置与脚本」页引用的脚本文件都放这里；留空 = <see cref="DefaultScriptFolder"/>）。</summary>
+        string ScriptFolder { get; set; }
+
+        /// <summary>脚本目录的默认值：<c>&lt;应用根&gt;\scripts</c>（即 config / data 的同级）。</summary>
+        string DefaultScriptFolder { get; }
+
         void Save();
         void Load();
     }

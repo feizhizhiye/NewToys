@@ -16,8 +16,9 @@ namespace NewToys.PcTools.ViewModels;
 /// 这里重新进入即是最新状态（页面 VM 是瞬态，每次导航都重建，见规范 6.5）。
 /// </para>
 /// <para>
-/// 卡片只保留最基础的「▶ 运行」按钮；「✕ 取消固定」放右键菜单（菜单在 View 的 code-behind 里
-/// 现场构造并直接挂命令，避免弹出树取不到 DataContext，见规范 3.6 的 ContextMenu 注）。
+/// 界面是**一排按钮**（不是卡片）：收藏 = 常用功能，点一下就跑，不放复杂信息。
+/// 「✕ 取消固定」放右键菜单（菜单在 View 的 code-behind 里现场构造并直接挂命令，
+/// 避免弹出树取不到 DataContext，见规范 3.6 的 ContextMenu 注）。
 /// </para>
 /// </summary>
 public partial class FavoritesViewModel : ObservableObject
@@ -36,7 +37,7 @@ public partial class FavoritesViewModel : ObservableObject
 
     public string Hint =>
         "★ 收藏来自「设置与脚本」「快捷设置」两页：选中一条后右键「★ 添加到收藏夹」，或点右侧「☆ 收藏」。\n" +
-        "卡片点「▶ 运行」直接执行；右键卡片可「✕ 取消固定」移出收藏夹。";
+        "点按钮直接执行；右键按钮可「✕ 取消固定」移出收藏夹。";
 
     public string FilePath => _svc?.FilePath ?? "";
 

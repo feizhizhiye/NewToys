@@ -64,7 +64,6 @@ public partial class PackageManagerViewModel : ObservableObject
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _installedOnly;
     [ObservableProperty] private bool _silentInstall = true;
-    [ObservableProperty] private bool _storeSourceEnabled = true;
     [ObservableProperty] private PackageInfo? _selected;
     [ObservableProperty] private PackageSourceOption? _selectedSource;
     [ObservableProperty] private string _detailExtra = "";
@@ -162,6 +161,25 @@ public partial class PackageManagerViewModel : ObservableObject
         if (saved.TryGetValue("Status", out var st)) IsStatusVisible = st;
     }
 
+    // ==================== 右栏详情开合（默认收起 → 列表占满宽度） ====================
+
+    /// <summary>是否显示右侧详情栏。<b>默认收起</b>；点选结果落 <c>config\columnlayout.json</c>，下次进本页保持。</summary>
+    [ObservableProperty] private bool _isDetailVisible;
+
+    /// <summary>切换按钮上的文字。</summary>
+    public string DetailButtonText => IsDetailVisible ? "▤ 收起详情" : "▤ 详情";
+
+    partial void OnIsDetailVisibleChanged(bool value) => OnPropertyChanged(nameof(DetailButtonText));
+
+    /// <summary>点一下展开 / 收起右栏详情（轻偏好 → 立即落盘）。</summary>
+    [RelayCommand]
+    private void ToggleDetail()
+    {
+        IsDetailVisible = !IsDetailVisible;
+        _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
+        OnPropertyChanged(nameof(DetailButtonText));
+    }
+
     public bool HasSelection => Selected != null;
     public bool HasItems => Packages.Count > 0;
 
@@ -175,12 +193,12 @@ public partial class PackageManagerViewModel : ObservableObject
         _cols = cols;
 
         LoadColumnVisibility();
+        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);   // 默认收起
         _syncing = true;
         var s = settings.Settings;
         _sortColumn = string.IsNullOrWhiteSpace(s.SortColumn) ? "Name" : s.SortColumn;
         _sortDescending = s.SortDescending;
         SilentInstall = s.SilentInstall;
-        StoreSourceEnabled = s.StoreSourceEnabled;
         _syncing = false;
         UpdateHeaders();
 
@@ -213,7 +231,13 @@ public partial class PackageManagerViewModel : ObservableObject
         }
     }
 
-    /// <summary>源下拉 = 「全部（已启用的）」+ 各已启用源；被关掉的 Store 源不出现。</summary>
+    /// <summary>
+    /// 源下拉 = 「全部（系统 winget 里的）」+ 各源。
+    /// <para>
+    /// ⚠️ v1.33 起源完全来自**系统 winget**（<c>winget source list</c>），本应用不再自己维护
+    /// "启用 / 关闭某个源"的开关 —— 要增删源请去「设置 → 软件源」页（那里改的也是系统 winget）。
+    /// </para>
+    /// </summary>
     private async Task LoadSourcesAsync()
     {
         if (_pkg == null) return;
@@ -221,15 +245,12 @@ public partial class PackageManagerViewModel : ObservableObject
         var (ok, _, items) = await _pkg.ListSourcesAsync();
 
         SourceOptions.Clear();
-        SourceOptions.Add(new PackageSourceOption { Label = "全部源（已启用的）", Value = null });
+        SourceOptions.Add(new PackageSourceOption { Label = "全部源", Value = null });
 
         if (ok)
         {
             foreach (var s in items)
-            {
-                if (!StoreSourceEnabled && IsStore(s.Name)) continue;
                 SourceOptions.Add(new PackageSourceOption { Label = s.Name, Value = s.Name });
-            }
         }
         else SourceOptions.Add(new PackageSourceOption { Label = "winget", Value = "winget" });
 
@@ -239,10 +260,6 @@ public partial class PackageManagerViewModel : ObservableObject
                          ?? SourceOptions[0];
         _syncing = false;
     }
-
-    /// <summary>Store 源判定：winget 的商店源固定叫 msstore（大小写不敏感）。</summary>
-    private static bool IsStore(string name)
-        => name.Contains("msstore", StringComparison.OrdinalIgnoreCase);
 
     // ==================== 加载列表 ====================
 
@@ -645,7 +662,6 @@ public partial class PackageManagerViewModel : ObservableObject
         StatusText = value ? "安装 / 升级将使用 --silent（静默）。" : "安装 / 升级会保留安装器界面。";
     }
 
-    // 注：StoreSourceEnabled 在本页只是**只读快照**（用来过滤源下拉），
-    // 开关本身归「设置 → 软件源」页管 —— 所以这里刻意没有 OnStoreSourceEnabledChanged 回写，
-    // 避免两个页面同时写同一个设置项（双真相源，见规范 3.9）。
+    // 注：源的下拉只是**只读快照**（进入本页读一次系统 winget 的源）。
+    // 要增删源请去「设置 → 软件源」页 —— 那里改的也是系统 winget，两边共用一套数据（v1.33）。
 }

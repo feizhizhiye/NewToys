@@ -40,6 +40,35 @@
           </StackPanel>
         </Border>
 
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Text="脚本运行环境（「电脑工具 → 设置与脚本」页用）" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+
+            <TextBlock Text="Python 路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <TextBox Text="{Binding PythonPath, Mode=TwoWay}"
+                     PlaceholderText="python.exe 全路径（留空 = 用 PATH 里的 python）"/>
+
+            <TextBlock Text="PowerShell 7+（pwsh）路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding PwshPath, Mode=TwoWay}"
+                     PlaceholderText="pwsh.exe 全路径（留空 = 用 PATH 里的 pwsh）"/>
+
+            <TextBlock Text="Windows PowerShell 5.1 路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding PowerShell51Path, Mode=TwoWay}"
+                     PlaceholderText="powershell.exe 全路径（留空 = 用系统自带的）"/>
+
+            <TextBlock Text="脚本目录" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox Grid.Column="0" Text="{Binding ScriptFolder, Mode=TwoWay}"
+                       PlaceholderText="{Binding DefaultScriptFolder}"/>
+              <Button Grid.Column="1" Classes="ghost" Content="📂 打开目录" Margin="8,0,0,0"
+                      Command="{Binding OpenScriptFolderCommand}"/>
+            </Grid>
+
+            <TextBlock Text="「设置与脚本」页里的条目 = 脚本目录下的 .py / .ps1 / .bat 文件；解释器按扩展名自动挑（.ps1 配了 pwsh 就用 pwsh，否则退回系统自带的 5.1）。三个路径都留空也能跑 —— 就是用系统默认的。首次运行会把自带示例脚本复制进脚本目录。"
+                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+          </StackPanel>
+        </Border>
+
         <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
                    Foreground="{DynamicResource AccentBrush}"/>
       </StackPanel>

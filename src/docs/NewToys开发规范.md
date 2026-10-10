@@ -29,7 +29,8 @@
 | **仅修报错/错别字/格式** | — | 视情 | **不回写正文**，并入下次功能更新追记 | — |
 | 协作流程变化 | — | 视情 | — | ✅改 |
 
-- 版本号同步递增；提交信息格式 `<type>: <简述>`，type∈{feat,fix,docs,refactor,chore,style}。
+- 🔒 **指导性文件不乱改**（需求/规范/提示词）：不为单个任务的措辞/微调而改，仅当内容真的过时或与代码冲突才改；**《开发需求》为基石，冻结**——非定位/边界变化不动（其版本号也不随之递增）。
+- **各文档版本号相互独立**：仅当该文档内容真的变化才自增，⛔ 不做「四份齐步递增」。提交信息格式 `<type>: <简述>`，type∈{feat,fix,docs,refactor,chore,style}。
 - Git 仓库根=能看到 `src/` 的那一级（已 `git init`，分支 `main`）；`.gitignore` 忽略 `artifacts/ production/ bin/ obj/ Modules/ *.patch /.workbuddy/`；两个 props 必须入 git。
 
 ---

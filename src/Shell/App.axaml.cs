@@ -169,8 +169,9 @@ public class App : Application
     {
         try
         {
-            var show = new NativeMenuItem("显示 / 隐藏窗口");
-            var exit = new NativeMenuItem("退出 NewToys");
+            // ⚠️ 用对象初始化器而不是带参构造：Header 是确定存在的可写属性，ctor 重载各版本不完全一致
+            var show = new NativeMenuItem { Header = "显示 / 隐藏窗口" };
+            var exit = new NativeMenuItem { Header = "退出 NewToys" };
 
             show.Click += (_, _) =>
             {
@@ -199,7 +200,7 @@ public class App : Application
                 Icon = CreateTrayIcon(),
                 ToolTipText = "NewToys",
                 IsVisible = true,
-                Menu = new NativeMenu { Items = { show, new NativeMenuItemSeparator(), exit } }
+                Menu = new NativeMenu { Items = { show, exit } }
             };
 
             var icons = TrayIcon.GetIcons(this);

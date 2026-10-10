@@ -128,8 +128,8 @@ public class VideoMediaIndex
     /// <summary>已缓存的记录条数（页面提示用）。</summary>
     public int CachedCount => EnsureLoaded()?.Count ?? 0;
 
-    /// <summary>读全表到内存（只读一次）。失败返回 null。</summary>
-    private Dictionary<string, Row> EnsureLoaded()
+    /// <summary>读全表到内存（只读一次）。数据库不可用或读取失败时返回 <c>null</c>（调用方按"缓存不可用"处理）。</summary>
+    private Dictionary<string, Row>? EnsureLoaded()
     {
         if (_cache != null) return _cache;
         if (!IsAvailable) return null;

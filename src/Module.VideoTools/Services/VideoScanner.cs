@@ -110,9 +110,12 @@ public static class VideoScanner
                      fullPath
                  }) psi.ArgumentList.Add(a);
 
+        // ⚠️ proc 必须在 try 之外声明：catch 里要收掉子进程，不能是 try 块的局部变量（CS0103）。
+        //    释放交给 finally，保证每个出口都能 Dispose。
+        Process? proc = null;
         try
         {
-            using var proc = new Process { StartInfo = psi };
+            proc = new Process { StartInfo = psi };
             if (!proc.Start()) return (false, "无法启动 ffprobe。", null);
             var outTask = proc.StandardOutput.ReadToEndAsync();
             var errTask = proc.StandardError.ReadToEndAsync();
@@ -132,13 +135,26 @@ public static class VideoScanner
         }
         catch (OperationCanceledException)
         {
-            try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { /* 进程已退出 */ }
+            // 超时 / 取消：得把子进程收掉，否则它会一直挂着，管道读任务也就永远等下去
+            TryKill(proc);
             return (false, "ffprobe 超时或已取消。", null);
         }
         catch (Exception ex)
         {
+            TryKill(proc);
             return (false, $"ffprobe 调用失败：{ex.Message}（可在「设置 → 路径配置」里指定 ffmpeg 路径）", null);
         }
+        finally
+        {
+            proc?.Dispose();
+        }
+    }
+
+    /// <summary>尽力结束子进程：没起来过 / 已退出 / 已释放都算成功，绝不外抛。</summary>
+    private static void TryKill(Process? p)
+    {
+        try { if (p is { HasExited: false }) p.Kill(entireProcessTree: true); }
+        catch { /* 进程已退出或已释放 */ }
     }
 
     /// <summary>

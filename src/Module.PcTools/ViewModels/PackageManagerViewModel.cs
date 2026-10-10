@@ -30,7 +30,7 @@ namespace NewToys.PcTools.ViewModels;
 /// 页面 VM 是瞬态，订阅了就会把每次进入页面的 VM 都挂在单例上（内存泄漏 + 重复回调）。
 /// </para>
 /// </summary>
-public partial class PackageManagerViewModel : ObservableObject
+public partial class PackageManagerViewModel : ListPageViewModelBase
 {
     private enum ListMode { None, Search, Installed, Upgrades }
 
@@ -44,9 +44,6 @@ public partial class PackageManagerViewModel : ObservableObject
 
     /// <summary>已安装包 Id 的缓存（搜索结果要靠它把「状态」列标准）。</summary>
     private HashSet<string>? _installedIds;
-
-    private string _sortColumn = "Name";
-    private bool _sortDescending;
 
     /// <summary>抑制"改属性 → 回写设置"的开关（批量灌值时用，避免无谓写盘与递归）。</summary>
     private bool _syncing;
@@ -77,20 +74,22 @@ public partial class PackageManagerViewModel : ObservableObject
     [ObservableProperty] private string _statusHeader = "状态";
     [ObservableProperty] private string _pinnedHeader = "Pin";
 
-    // ==================== 列显隐（右键表头增删列，规范 3.6） ====================
-    private const string PageKey = "pc-package";
+    // ==================== 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ====================
+
     private readonly IColumnLayoutService? _cols;
 
-    [ObservableProperty] private bool _isNameVisible = true;
-    [ObservableProperty] private bool _isIdVisible = true;
-    [ObservableProperty] private bool _isVersionVisible = true;
-    [ObservableProperty] private bool _isSourceVisible = true;
-    [ObservableProperty] private bool _isStatusVisible = true;
-    [ObservableProperty] private bool _isPinnedVisible = true;
+    // XAML 只能绑具名属性 → 每列给一个直通属性（真正的状态在基类里）
+    public bool IsNameVisible => Vis("Name");
+    public bool IsIdVisible => Vis("Id");
+    public bool IsVersionVisible => Vis("Version");
+    public bool IsSourceVisible => Vis("Source");
+    public bool IsStatusVisible => Vis("Status");
+    public bool IsPinnedVisible => Vis("Pinned");
 
-    /// <summary>列的元数据（键 / 标题 / 宽度 / 是否可排序）；顺序即表头与行的列顺序。
-    /// <para>最后一列 <c>Detail</c> 是**表头右侧那个无文字小按钮**用的固定窄列（规范 3.6），不进列显隐菜单。</para></summary>
-    public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    protected override string PageKey => "pc-package";
+
+    /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
+    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Name", "名称", "3*"),
         new("Id", "Id", "3.6*"),
@@ -101,102 +100,25 @@ public partial class PackageManagerViewModel : ObservableObject
         new("Detail", "", "36", sortable: false),
     };
 
-    /// <summary>列宽规格串（可绑定）：可见列写星号宽度，隐藏列写 "0"（列索引保持不动 → 表头与行永不错位）。
-    /// ⚠️ 必须做成字符串而不是 <c>ColumnDefinitions</c>：<c>Grid.ColumnDefinitions</c> 是 CLR 属性，
-    /// Avalonia XAML 不允许在它上面写 {Binding}（编译期 AVLN3000），故由 <c>ColumnGrid</c> 控件解析（规范 3.8.5）。</summary>
-    public string VisibleColumnSpecs
-    {
-        get
-        {
-            var parts = new string[Columns.Count];
-            for (var i = 0; i < Columns.Count; i++)
-                parts[i] = IsVisibleFor(Columns[i].Key) ? Columns[i].Width : "0";
-            return string.Join(",", parts);
-        }
-    }
+    /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
+    protected override void RefreshView() => ApplyView();
 
-    private bool IsVisibleFor(string key) => key switch
-    {
-        "Name" => IsNameVisible,
-        "Id" => IsIdVisible,
-        "Version" => IsVersionVisible,
-        "Source" => IsSourceVisible,
-        "Status" => IsStatusVisible,
-        "Pinned" => IsPinnedVisible,
-        _ => true,
-    };
-
-    /// <summary>右键表头勾选 / 取消勾选某列（增删表头项）。</summary>
-    [RelayCommand]
-    private void ToggleColumn(string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return;
-        switch (key)
-        {
-            case "Name": IsNameVisible = !IsNameVisible; break;
-            case "Id": IsIdVisible = !IsIdVisible; break;
-            case "Version": IsVersionVisible = !IsVersionVisible; break;
-            case "Source": IsSourceVisible = !IsSourceVisible; break;
-            case "Status": IsStatusVisible = !IsStatusVisible; break;
-            case "Pinned": IsPinnedVisible = !IsPinnedVisible; break;
-            default: return;
-        }
-        SaveColumnVisibility();
-        OnPropertyChanged(nameof(VisibleColumnSpecs));   // 列宽规格串随之刷新（隐藏列变 0 / 恢复）
-    }
-
-    /// <summary>把当前列显隐偏好落盘（config\columnlayout.json，会被数据管理一起备份）。</summary>
-    private void SaveColumnVisibility()
-    {
-        if (_cols == null) return;
-        _cols.SavePage(PageKey, new Dictionary<string, bool>
-        {
-            ["Name"] = IsNameVisible, ["Id"] = IsIdVisible, ["Version"] = IsVersionVisible,
-            ["Source"] = IsSourceVisible, ["Status"] = IsStatusVisible, ["Pinned"] = IsPinnedVisible,
-        });
-    }
-
-    /// <summary>进入页面时读回上次保存的列显隐偏好（未保存过的列保持默认「可见」）。</summary>
-    private void LoadColumnVisibility()
-    {
-        if (_cols == null) return;
-        var saved = _cols.LoadPage(PageKey);
-        if (saved.TryGetValue("Name", out var n)) IsNameVisible = n;
-        if (saved.TryGetValue("Id", out var id)) IsIdVisible = id;
-        if (saved.TryGetValue("Version", out var v)) IsVersionVisible = v;
-        if (saved.TryGetValue("Source", out var src)) IsSourceVisible = src;
-        if (saved.TryGetValue("Status", out var st)) IsStatusVisible = st;
-        if (saved.TryGetValue("Pinned", out var pin)) IsPinnedVisible = pin;
-    }
-
-    // ==================== 右栏详情开合（默认收起 → 列表占满宽度） ====================
-
-    /// <summary>是否显示右侧详情栏。<b>默认收起</b>；点选结果落 <c>config\columnlayout.json</c>，下次进本页保持。</summary>
-    [ObservableProperty] private bool _isDetailVisible;
-
-    /// <summary>点一下展开 / 收起右栏详情（轻偏好 → 立即落盘）。
-    /// 展开且当前没有选中项时自动选中第一项 —— 表头右侧那个无文字小按钮就调它（规范 3.6）。</summary>
-    [RelayCommand]
-    private void ToggleDetail()
-    {
-        IsDetailVisible = !IsDetailVisible;
-        if (IsDetailVisible && Selected == null && Packages.Count > 0) Selected = Packages[0];
-        SaveDetailFlag();
-    }
-
-    /// <summary>右键「显示详情栏」：确保展开并定位到当前选中项（没选中就选第一项）。</summary>
-    [RelayCommand]
-    private void ShowDetail()
+    protected override void EnsureDetailSelection()
     {
         if (Selected == null && Packages.Count > 0) Selected = Packages[0];
-        IsDetailVisible = true;
-        SaveDetailFlag();
     }
 
-    private void SaveDetailFlag()
+    /// <summary>筛选取值（多项筛选用）：按列键拿这一行该列的文本。</summary>
+    protected override string? FieldText(object row, string columnKey) => columnKey switch
     {
-        _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
-    }
+        "Name" => ((PackageInfo)row).Name,
+        "Id" => ((PackageInfo)row).Id,
+        "Version" => ((PackageInfo)row).Version,
+        "Source" => ((PackageInfo)row).Source,
+        "Status" => ((PackageInfo)row).StatusText,
+        "Pinned" => ((PackageInfo)row).PinnedMark,
+        _ => null
+    };
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Packages.Count > 0;
@@ -205,17 +127,16 @@ public partial class PackageManagerViewModel : ObservableObject
     public PackageManagerViewModel() { }
 
     public PackageManagerViewModel(IPackageManagerService pkg, IPackageSettingsService settings, IColumnLayoutService cols)
+        : base(cols)
     {
         _pkg = pkg;
         _settings = settings;
         _cols = cols;
 
-        LoadColumnVisibility();
-        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);   // 默认收起
+        LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         _syncing = true;
         var s = settings.Settings;
-        _sortColumn = string.IsNullOrWhiteSpace(s.SortColumn) ? "Name" : s.SortColumn;
-        _sortDescending = s.SortDescending;
+        SetSort(string.IsNullOrWhiteSpace(s.SortColumn) ? "Name" : s.SortColumn, s.SortDescending);
         SilentInstall = s.SilentInstall;
         _syncing = false;
         UpdateHeaders();
@@ -436,25 +357,6 @@ public partial class PackageManagerViewModel : ObservableObject
         OnPropertyChanged(nameof(HasSelection));
     }
 
-    /// <summary>点表头：同一列再点一次 = 反向；换列 = 升序。排序是"点一下就看到结果"的轻设置 → 立即落盘。</summary>
-    [RelayCommand]
-    private void Sort(string? column)
-    {
-        if (string.IsNullOrWhiteSpace(column)) return;
-
-        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase))
-            _sortDescending = !_sortDescending;
-        else { _sortColumn = column; _sortDescending = false; }
-
-        if (_settings != null)
-        {
-            _settings.Settings.SortColumn = _sortColumn;
-            _settings.Settings.SortDescending = _sortDescending;
-            _settings.Save();
-        }
-        ApplyView();
-    }
-
     private void ApplyView()
     {
         IEnumerable<PackageInfo> q = _all;
@@ -467,22 +369,35 @@ public partial class PackageManagerViewModel : ObservableObject
             q = q.Where(p => p.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
                           || p.Id.Contains(text, StringComparison.OrdinalIgnoreCase));
 
+        // 多项筛选（基类）：多条条件之间取「且」
+        q = ApplyFilters(q);
+
+        // 排序是"点一下就看到结果"的轻设置 → 变了就落盘（config\package.json）
+        if (_settings != null && !_syncing
+            && (!string.Equals(_settings.Settings.SortColumn, SortColumn, StringComparison.OrdinalIgnoreCase)
+                || _settings.Settings.SortDescending != SortDescending))
+        {
+            _settings.Settings.SortColumn = SortColumn;
+            _settings.Settings.SortDescending = SortDescending;
+            _settings.Save();
+        }
+
         var byVersion = Comparer<string>.Create(CompareVersion);
         var byText = StringComparer.CurrentCultureIgnoreCase;
 
-        q = _sortColumn switch
+        q = SortColumn switch
         {
-            "Id" => _sortDescending ? q.OrderByDescending(p => p.Id, StringComparer.OrdinalIgnoreCase)
+            "Id" => SortDescending ? q.OrderByDescending(p => p.Id, StringComparer.OrdinalIgnoreCase)
                                     : q.OrderBy(p => p.Id, StringComparer.OrdinalIgnoreCase),
-            "Version" => _sortDescending ? q.OrderByDescending(p => p.Version, byVersion)
+            "Version" => SortDescending ? q.OrderByDescending(p => p.Version, byVersion)
                                          : q.OrderBy(p => p.Version, byVersion),
-            "Source" => _sortDescending ? q.OrderByDescending(p => p.Source, byText)
+            "Source" => SortDescending ? q.OrderByDescending(p => p.Source, byText)
                                         : q.OrderBy(p => p.Source, byText),
-            "Status" => _sortDescending ? q.OrderByDescending(p => p.StatusText, byText)
+            "Status" => SortDescending ? q.OrderByDescending(p => p.StatusText, byText)
                                         : q.OrderBy(p => p.StatusText, byText),
-            "Pinned" => _sortDescending ? q.OrderByDescending(p => p.IsPinned)
+            "Pinned" => SortDescending ? q.OrderByDescending(p => p.IsPinned)
                                         : q.OrderBy(p => p.IsPinned),
-            _ => _sortDescending ? q.OrderByDescending(p => p.Name, byText)
+            _ => SortDescending ? q.OrderByDescending(p => p.Name, byText)
                                  : q.OrderBy(p => p.Name, byText)
         };
 
@@ -503,13 +418,12 @@ public partial class PackageManagerViewModel : ObservableObject
 
     private void UpdateHeaders()
     {
-        var arrow = _sortDescending ? " ▼" : " ▲";
-        NameHeader = "名称" + (_sortColumn == "Name" ? arrow : "");
-        IdHeader = "Id" + (_sortColumn == "Id" ? arrow : "");
-        VersionHeader = "版本" + (_sortColumn == "Version" ? arrow : "");
-        SourceHeader = "源" + (_sortColumn == "Source" ? arrow : "");
-        StatusHeader = "状态" + (_sortColumn == "Status" ? arrow : "");
-        PinnedHeader = "Pin" + (_sortColumn == "Pinned" ? arrow : "");
+        NameHeader = "名称" + SortArrow("Name");
+        IdHeader = "Id" + SortArrow("Id");
+        VersionHeader = "版本" + SortArrow("Version");
+        SourceHeader = "源" + SortArrow("Source");
+        StatusHeader = "状态" + SortArrow("Status");
+        PinnedHeader = "Pin" + SortArrow("Pinned");
     }
 
     /// <summary>版本比较：能解析成 <see cref="System.Version"/> 就按版本比（1.10 &gt; 1.9），否则退回字符串比较。</summary>

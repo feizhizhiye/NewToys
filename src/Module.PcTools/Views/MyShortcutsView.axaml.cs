@@ -1,21 +1,87 @@
 using System;
+using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Platform.Storage;
+using NewToys.PcTools.ViewModels;
 
 namespace NewToys.PcTools.Views;
 
 public partial class MyShortcutsView : UserControl
 {
-    public MyShortcutsView() { InitializeComponent(); }
+    public MyShortcutsView()
+    {
+        InitializeComponent();
+        // 「📂 选择」脚本目录 / 「📂」选脚本文件：都要用到平台文件选择器，
+        // 而 VM 不能引用 Avalonia（规范：业务不碰 UI 类型），所以在这一层选完再把结果交给 VM。
+        PickScriptFolderBtn.Click += (_, _) => _ = PickScriptFolderAsync();
+        PickScriptFileBtn.Click += (_, _) => _ = PickScriptFileAsync();
+    }
 
     /// <summary>
     /// ⚠️ <c>ContextMenu</c> 挂在**独立的弹出树**上，DataContext 不保证随宿主继承 ——
-    /// 不显式同步的话，菜单项里的 <c>{Binding XxxCommand}</c> 解析不到，右键点了没反应（见规范 3.8）。
+    /// 不显式同步的话，菜单项里的 <c>{Binding XxxCommand}</c> 解析不到，右键点了没反应（见规范 3.6）。
     /// </summary>
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
         if (ActionList?.ContextMenu is { } menu) menu.DataContext = DataContext;
-        // 表头右键「显示 / 隐藏列」菜单同样挂在独立弹出树，必须手工同步 DataContext（见规范 3.8）。
+        // 表头右键「显示 / 隐藏列」菜单同样挂在独立弹出树，必须手工同步 DataContext（见规范 3.6）。
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+    }
+
+    /// <summary>顶部「📂 选择」：换脚本目录（选完立即生效并写 app.json）。</summary>
+    private async System.Threading.Tasks.Task PickScriptFolderAsync()
+    {
+        if (DataContext is not QuickActionListViewModel vm) return;
+
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var folders = await sp.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "选择脚本目录",
+                AllowMultiple = false
+            });
+            var dir = folders?.FirstOrDefault()?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(dir)) vm.ApplyPickedScriptFolder(dir);
+        }
+        catch (Exception ex)
+        {
+            vm.StatusText = "选择脚本目录失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>详情卡「📂」：为当前选中项挑一个脚本文件（.py / .ps1 / .bat）。</summary>
+    private async System.Threading.Tasks.Task PickScriptFileAsync()
+    {
+        if (DataContext is not QuickActionListViewModel vm) return;
+        if (vm.Selected == null) { vm.StatusText = "先在左侧选中一条。"; return; }
+
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var options = new FilePickerOpenOptions
+            {
+                Title = "选择脚本文件",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("脚本文件") { Patterns = new[] { "*.py", "*.ps1", "*.bat", "*.cmd" } },
+                    new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+                }
+            };
+
+            var files = await sp.OpenFilePickerAsync(options);
+            var picked = files?.FirstOrDefault()?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(picked)) vm.ApplyPickedScriptFile(picked);
+        }
+        catch (Exception ex)
+        {
+            vm.StatusText = "选择脚本文件失败：" + ex.Message;
+        }
     }
 }

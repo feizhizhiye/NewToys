@@ -1,3 +1,5 @@
+using NewToys.PcTools.Models;
+using NewToys.PcTools.Services;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -27,5 +29,6 @@ public partial class QuickSettingsViewModel : QuickActionListViewModel
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public QuickSettingsViewModel() { }
 
-    public QuickSettingsViewModel(IQuickActionService svc, IColumnLayoutService cols) : base(svc, cols) { }
+    public QuickSettingsViewModel(IQuickActionService svc, IColumnLayoutService cols, IAppConfigService app)
+        : base(svc, cols, app) { }
 }

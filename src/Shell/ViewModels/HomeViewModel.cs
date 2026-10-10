@@ -26,6 +26,16 @@ public class FavCard
     public string Desc { get; set; } = "";
     public string Key { get; set; } = "";
     public string Icon { get; set; } = "";
+
+    /// <summary>所属模块分组的 key（<c>pc</c> / <c>web</c> / <c>video</c> / <c>settings</c>）；按钮颜色按它决定。</summary>
+    public string GroupKey { get; set; } = "";
+
+    /// <summary>
+    /// 按钮底色（<c>#RRGGBB</c>）。
+    /// <para>⚠️ 首页按钮是**有底色的按钮**（不是卡片），颜色按**所属模块**给 —— 同一个模块的入口一眼归为一类，
+    /// 且颜色只依赖分组，不随"取消固定后其它卡片往前挪"而变（避免颜色乱跳）。</para>
+    /// </summary>
+    public string Color { get; set; } = "#07C160";
 }
 
 public partial class HomeViewModel : ViewModelBase
@@ -54,12 +64,23 @@ public partial class HomeViewModel : ViewModelBase
             shell.SelectGroupCommand.Execute(item.GroupKey);
             shell.SelectItemCommand.Execute(k);
         });
+        // 右键「✕ 取消固定」：与「电脑工具 → 收藏夹」按钮墙同一个操作逻辑
+        // （收藏 = IFavoritesService 单一真相源，取消后首页与功能清单页同时更新）。
+        UnpinCommand = new RelayCommand<string?>(k =>
+        {
+            if (string.IsNullOrEmpty(k)) return;
+            _fav.Unpin(k);
+            BuildFavorites();
+        });
         // 收藏夹变化（来自「设置 → 功能清单」右键固定/取消）→ 实时刷新首页卡片。
         // 订阅放在 HomeView 的 VisualTree 挂接/卸载时，避免瞬态 VM 被单例 FavoritesService 长期持有。
         BuildContent();
     }
 
     public ICommand NavigateCommand { get; }
+
+    /// <summary>右键菜单里的「✕ 取消固定」（参数 = 功能 key）。</summary>
+    public ICommand UnpinCommand { get; }
 
     /// <summary>收藏夹卡片：key 来自 <see cref="IFavoritesService"/>，标题/图标/简介现从菜单取 —— 单一真相源。</summary>
     internal void BuildFavorites()
@@ -74,10 +95,29 @@ public partial class HomeViewModel : ViewModelBase
                 Title = item.Title,
                 Desc = item.Desc,
                 Key = item.Key,
-                Icon = item.Icon
+                Icon = item.Icon,
+                GroupKey = item.GroupKey,
+                Color = ColorOfGroup(item.GroupKey)
             });
         }
+        OnPropertyChanged(nameof(HasFavorites));
     }
+
+    /// <summary>常用功能是否为空（空态提示用）。</summary>
+    public bool HasFavorites => Favorites.Count > 0;
+
+    /// <summary>
+    /// 按所属模块给按钮一个底色（同一模块 = 同一颜色，稳定不跳变）。
+    /// 颜色取自 <see cref="AccentPalette"/> 的同族色号，保证与主题色卡同源。
+    /// </summary>
+    private static string ColorOfGroup(string groupKey) => (groupKey ?? "").Trim().ToLowerInvariant() switch
+    {
+        "pc" => "#2E9FFF",
+        "web" => "#00ACC1",
+        "video" => "#7C4DFF",
+        "settings" => "#FF8F00",
+        _ => AccentPalette.Default.Color
+    };
 
     private void BuildContent()
     {

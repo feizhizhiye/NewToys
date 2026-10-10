@@ -8,35 +8,42 @@
         <StackPanel>
           <TextBlock Text="欢迎使用 NewToys" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
           <TextBlock Text="个人高强度使用工具集 · Avalonia 12 + CommunityToolkit.Mvvm + .NET 10" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14"/>
-          <TextBlock Text="这里是你的常用功能区，点击收藏卡可直达对应二级页面；底部三个一键按钮的设置统一在「设置 → 一键按钮」一页里，点右上角「⚙ 一键按钮设置」直达。"
+          <TextBlock Text="这里是你的常用功能区，点按钮直达对应页面；在「设置 → 功能清单」里右键可固定更多功能，右键这里的按钮可「✕ 取消固定」。底部三个一键按钮的设置统一在「设置 → 一键按钮」一页里。"
                      Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0"/>
         </StackPanel>
       </Border>
 
-      <!-- 常用功能 -->
+      <!--  常用功能：与「电脑工具 → 收藏夹」**同一套交互** —— 一排按钮、点即跳转、右键「✕ 取消固定」。
+            按钮按所属模块着色（电脑蓝 / 网络青 / 视频紫 / 设置橙），颜色只跟模块走，取消固定后不会乱跳。  -->
       <StackPanel>
-        <StackPanel Orientation="Horizontal">
+        <StackPanel Orientation="Horizontal" Spacing="4">
           <TextBlock Text="★" FontSize="18" Foreground="#FFB300" VerticalAlignment="Center"/>
           <TextBlock Text="常用功能  " FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
-          <TextBlock Text="点击卡片快速进入对应二级页面 · 在「设置 → 功能清单」右键可固定 / 取消" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+          <TextBlock Text="点击按钮进入页面 · 右键「✕ 取消固定」移出" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
         </StackPanel>
-        <ItemsControl ItemsSource="{Binding Favorites}">
+
+        <TextBlock Classes="empty-hint" Margin="8,8" Text="还没有固定任何功能 —— 去「设置 → 功能清单」里右键一个功能，选「📌 固定到首页」。"
+                   IsVisible="{Binding !HasFavorites}"/>
+
+        <ItemsControl ItemsSource="{Binding Favorites}" Margin="0,6,0,0">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <UniformGrid Rows="2" Columns="3"/>
+              <WrapPanel Orientation="Horizontal"/>
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <Button Margin="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0"
-                      Classes="ghost" Command="{Binding $parent[UserControl].DataContext.NavigateCommand}"
-                      CommandParameter="{Binding Key}">
-                <Border Classes="card" Margin="-1" Padding="20,18" HorizontalAlignment="Stretch">
-                  <StackPanel>
-                    <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                    <TextBlock Text="{Binding Desc}" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Border>
+              <!--  只有名称 + 图标，点了就走；右键菜单在 code-behind 现场构造
+                    （ContextMenu 挂在独立弹出树里，模板内声明取不到页面 VM，见规范 3.6）。  -->
+              <Button Classes="fav-btn" Background="{Binding Color}"
+                      Command="{Binding $parent[UserControl].DataContext.NavigateCommand}"
+                      CommandParameter="{Binding Key}"
+                      ContextRequested="OnFavContextRequested"
+                      ToolTip.Tip="{Binding Desc}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
               </Button>
             </DataTemplate>
           </ItemsControl.ItemTemplate>

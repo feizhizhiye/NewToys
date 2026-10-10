@@ -17,10 +17,39 @@ public partial class ShellView : Window
 {
     private ShellViewModel? _vm;
 
+    /// <summary>
+    /// 真·退出开关。「关闭按钮最小化到托盘」开启后，<see cref="OnClosing"/> 会把关闭拦下来；
+    /// 托盘菜单里的「退出 NewToys」必须把它置 true，否则<see cref="Window.Close"/> 会被自己拦住、永远退不掉。
+    /// </summary>
+    public bool ForceClose { get; set; }
+
     public ShellView()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+    }
+
+    /// <summary>
+    /// 「关闭按钮最小化到托盘」的落点（「设置 → 通用」里那个开关）。
+    /// <para>拦下来的方式：勾了开关 → <c>e.Cancel = true</c> 并 <see cref="Window.Hide"/>；
+    /// 没勾 / 托盘「退出」置了 <see cref="ForceClose"/> → 正常关，并收掉托盘图标。</para>
+    /// </summary>
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        if (!ForceClose && CloseToTrayEnabled())
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+        App.ShutdownTray();
+        base.OnClosing(e);
+    }
+
+    private static bool CloseToTrayEnabled()
+    {
+        try { return App.GetService<ILaunchConfigService>()?.Config.CloseToTray == true; }
+        catch { return false; }
     }
 
     protected override void OnLoaded(RoutedEventArgs e)

@@ -117,8 +117,9 @@ public partial class ShellViewModel : ViewModelBase
     /// <summary>
     /// 按约定定位 View：XxxView → XxxViewModel。
     /// 约定：<c>NewToys.&lt;模块&gt;.Views.XxxView</c> ↔ <c>NewToys.&lt;模块&gt;.ViewModels.XxxViewModel</c>。
-    /// ⚠️ 必须在 **View 自己所在的程序集** 里先找 —— 不同模块允许出现同名 View
-    /// （例如 Module.Settings 与 Module.WebTools 都有 DnsView），全 AppDomain 按类名扫会撞车。
+    /// ⚠️ 必须在 **View 自己所在的程序集** 里先找 —— 不同模块允许出现同名 View，
+    /// 全 AppDomain 按类名扫会撞车（曾经有 Module.Settings 与 Module.WebTools 两份 DnsView，
+    /// v1.35 起 WebTools 的 DNS 检测页已删，同名撞车风险解除，但解析逻辑仍按程序集逐个找）。
     /// </summary>
     private Control? ResolveView(AppMenuItem it)
     {

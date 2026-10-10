@@ -2,11 +2,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Settings.Views.GeneralView">
   <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：原页头右侧「状态提示」迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。
-         ⚠️ 刻意**不放"保存"按钮** —— 勾选即写盘（见 GeneralViewModel 类注释）。 -->
-    <TextBlock Grid.Row="0" Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
-               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="24,16,24,0"
-               Foreground="{DynamicResource SecondaryTextBrush}"/>
+    <!-- 操作行：页名由左侧二级菜单体现，这里只放状态文字。
+         ⚠️ 刻意**不放"保存"按钮** —— 四个开关勾选即写盘（更新地址是自由文本，单独一个 💾）。 -->
+    <TextBlock Grid.Row="0" Classes="status-text" Text="{Binding StatusText}"
+               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="24,16,24,0" MaxWidth="520"/>
 
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
       <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
@@ -15,17 +14,43 @@
           <StackPanel Spacing="10">
             <TextBlock Text="启动与退出" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
             <CheckBox Content="开机时启动 NewToys" IsChecked="{Binding StartWithSystem, Mode=TwoWay}"/>
+            <TextBlock Classes="hint-text" Margin="26,0,0,4" Text="{Binding StartupStateText}"/>
             <CheckBox Content="启动时最小化到托盘" IsChecked="{Binding StartMinimized, Mode=TwoWay}"/>
             <CheckBox Content="关闭按钮最小化到托盘" IsChecked="{Binding CloseToTray, Mode=TwoWay}"/>
             <CheckBox Content="启动时检查更新" IsChecked="{Binding CheckUpdateOnStartup, Mode=TwoWay}"/>
+            <TextBlock Classes="hint-text" Text="{Binding TrayHint}"/>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="ghost" Content="🗂 系统启动项管理" Command="{Binding OpenStartupSettingsCommand}"
+                      ToolTip.Tip="打开任务管理器的「启动」页，可自行核对 / 禁用"/>
+              <Button Classes="ghost" Content="🔄 重读启动状态" Command="{Binding RefreshStartupCommand}"
+                      ToolTip.Tip="重新读一次注册表，看开机启动项到底在不在"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Text="更新" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <StackPanel Classes="field">
+              <TextBlock Classes="field-label" Text="版本文件地址（纯文本，内容里含形如 1.20261010.00.10 的版本号）"/>
+              <TextBox Classes="code" Text="{Binding UpdateUrl, Mode=TwoWay}"
+                       PlaceholderText="留空 = 不检查更新"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="primary" Content="💾 保存地址" Command="{Binding SaveUpdateUrlCommand}"/>
+              <Button Classes="ghost" Content="🔎 立即检查更新" Command="{Binding CheckUpdateCommand}"
+                      IsEnabled="{Binding IsNotBusy}"/>
+            </StackPanel>
+            <TextBlock Classes="hint-text"
+                       Text="检查结果只做提示：NewToys 不会自己下载、也不会替换自己。没填地址就真的不检查（不会假装在检查）。"/>
           </StackPanel>
         </Border>
 
         <Border Classes="card">
           <StackPanel Spacing="6">
-            <TextBlock Text="⚠️ 实现状态" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"
-                       Text="以上开关当前只做「持久化」（写入 &lt;应用根&gt;\config\launch.json），系统级行为（注册开机启动项、托盘图标驻留、拦截关闭按钮、联网检查更新）尚未实现。此处如实标注，避免误以为已经生效。"/>
+            <TextBlock Text="✅ 实现状态（v1.35）" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Classes="hint-text"
+                       Text="① 开机启动 = 写 HKCU\Software\Microsoft\Windows\CurrentVersion\Run，勾选即改注册表（不用管理员权限）；② 关闭到托盘 = 主窗口关闭时实时读开关并隐藏到托盘，托盘右键可「显示 / 隐藏」与「退出」；③ 启动时最小化 = Shell 启动时按开关决定是否显示主窗口（下次启动生效）；④ 检查更新 = GET 上面那个地址取版本号比对，只提示不自动更新。非 Windows 平台的开机启动会如实标注为不支持。"/>
           </StackPanel>
         </Border>
 

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -8,6 +10,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.PcTools.Models;
+using NewToys.PcTools.Services;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -32,11 +36,15 @@ public class ActionKindOption
 /// <para>
 /// 两页的布局 / 交互<b>完全一致</b>（规范 3.6）：左「可排序表头 + 列表 + 行内「▶ 运行」」，右「选中项属性卡」，
 /// 列表上挂右键菜单（运行 / 收藏 / 复制命令 / 删除）。差别只有三点，由派生类给出：
-/// ① <see cref="PageKind"/>：本页显示哪一批条目（**每页一份清单文件**，见 <see cref="FilePath"/>）；
+/// ① <see cref="PageKind"/>：本页显示哪一批条目（**每页一份清单文件**，见 <c>FilePath</c>）；
 /// ② <see cref="ColumnLayoutKey"/>：列显隐偏好落 <c>config\columnlayout.json</c> 时用的页键；
 /// ③ 页面名字 <see cref="PageDisplayName"/>（提示文案用）。
 /// <b>新增项的默认类型</b>由 <see cref="PageKind"/> 推出（见 <c>IQuickActionService.Add</c>）：
 /// 「快捷设置」= 命令行命令、「设置与脚本」= 脚本文件（v1.33）。
+/// </para>
+/// <para>
+/// 列显隐 / 详情栏开合 / 排序 / 多项筛选继承自 <see cref="ListPageViewModelBase"/>（v1.35 收口），
+/// 本类只留「两页共有的业务」：分类过滤、运行、增删改查、属性卡编辑缓冲。
 /// </para>
 /// <para>
 /// ⚠️ 这里的「设置」是<b>操作系统设置项</b>，不是本软件自己的设置（后者在「设置」模块，见规范 3.9）。
@@ -46,19 +54,13 @@ public class ActionKindOption
 /// 「收藏夹」页读的是同一批对象，因此这里右键收藏后那边天然一致。
 /// </para>
 /// </summary>
-public abstract partial class QuickActionListViewModel : ObservableObject
+public abstract partial class QuickActionListViewModel : ListPageViewModelBase
 {
     private readonly IQuickActionService? _svc;
-    private readonly IColumnLayoutService? _cols;
+    private readonly IAppConfigService? _app;
 
     /// <summary>本页归属的 <see cref="QuickAction.Page"/>（<see cref="QuickActionPage"/> 之一）。</summary>
     private readonly string _pageKind;
-
-    /// <summary>列显隐偏好在 <c>config\columnlayout.json</c> 里的键（如 <c>"pc-shortcuts"</c>）。</summary>
-    private readonly string _columnLayoutKey;
-
-    private string _sortColumn = "Title";
-    private bool _sortDescending;
 
     /// <summary>灌值 / 改过滤项时抑制「属性变化 → 立即重排」的开关，避免构造期重复计算。</summary>
     private bool _suppress;
@@ -92,18 +94,20 @@ public abstract partial class QuickActionListViewModel : ObservableObject
     [ObservableProperty] private string _categoryHeader = "分类";
     [ObservableProperty] private string _favoriteHeader = "★";
 
-    // ==================== 列显隐（右键表头增删列，规范 3.6） ====================
+    // ==================== 列显隐（基类管状态，这里只给 XAML 提供具名属性） ====================
 
-    [ObservableProperty] private bool _isTitleVisible = true;
-    [ObservableProperty] private bool _isCategoryVisible = true;
-    [ObservableProperty] private bool _isDescriptionVisible = true;
-    [ObservableProperty] private bool _isFavoriteVisible = true;
-    [ObservableProperty] private bool _isActionVisible = true;
+    public bool IsTitleVisible => Vis("Title");
+    public bool IsCategoryVisible => Vis("Category");
+    public bool IsDescriptionVisible => Vis("Description");
+    public bool IsFavoriteVisible => Vis("Favorite");
+    public bool IsActionVisible => Vis("Action");
+
+    protected override string PageKey => ColumnLayoutKey;
 
     /// <summary>列的元数据（键 / 标题 / 宽度 / 是否可排序）；顺序即表头与行的列顺序。
     /// <para>最后一列 <c>Detail</c> 是**表头右侧的那个无文字小按钮**用的固定窄列（规范 3.6）：
     /// 不参与列显隐菜单、也不进 <c>columnlayout.json</c>，它只是把表头与行的最后一格对齐留出来。</para></summary>
-    public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Title", "名称", "3*"),
         new("Category", "分类", "1.3*"),
@@ -112,104 +116,6 @@ public abstract partial class QuickActionListViewModel : ObservableObject
         new("Action", "操作", "1.5*", sortable: false),
         new("Detail", "", "36", sortable: false),
     };
-
-    /// <summary>列宽规格串（可绑定）：可见列写星号宽度，隐藏列写 "0"（列索引保持不动 → 表头与行永不错位）。
-    /// ⚠️ 必须做成字符串而不是 <c>ColumnDefinitions</c>：<c>Grid.ColumnDefinitions</c> 是 CLR 属性，
-    /// Avalonia XAML 不允许在它上面写 {Binding}（编译期 AVLN3000），故由 <c>ColumnGrid</c> 控件解析（规范 3.6）。</summary>
-    public string VisibleColumnSpecs
-    {
-        get
-        {
-            var parts = new string[Columns.Count];
-            for (var i = 0; i < Columns.Count; i++)
-                parts[i] = IsVisibleFor(Columns[i].Key) ? Columns[i].Width : "0";
-            return string.Join(",", parts);
-        }
-    }
-
-    private bool IsVisibleFor(string key) => key switch
-    {
-        "Title" => IsTitleVisible,
-        "Category" => IsCategoryVisible,
-        "Description" => IsDescriptionVisible,
-        "Favorite" => IsFavoriteVisible,
-        "Action" => IsActionVisible,
-        _ => true,
-    };
-
-    /// <summary>右键表头勾选 / 取消勾选某列（增删表头项）。</summary>
-    [RelayCommand]
-    private void ToggleColumn(string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return;
-        switch (key)
-        {
-            case "Title": IsTitleVisible = !IsTitleVisible; break;
-            case "Category": IsCategoryVisible = !IsCategoryVisible; break;
-            case "Description": IsDescriptionVisible = !IsDescriptionVisible; break;
-            case "Favorite": IsFavoriteVisible = !IsFavoriteVisible; break;
-            case "Action": IsActionVisible = !IsActionVisible; break;
-            default: return;
-        }
-        SaveColumnVisibility();
-        OnPropertyChanged(nameof(VisibleColumnSpecs));
-    }
-
-    /// <summary>把当前列显隐偏好落盘（config\columnlayout.json，会被数据管理一起备份）。</summary>
-    private void SaveColumnVisibility()
-    {
-        if (_cols == null) return;
-        _cols.SavePage(_columnLayoutKey, new Dictionary<string, bool>
-        {
-            ["Title"] = IsTitleVisible, ["Category"] = IsCategoryVisible,
-            ["Description"] = IsDescriptionVisible, ["Favorite"] = IsFavoriteVisible,
-            ["Action"] = IsActionVisible,
-        });
-    }
-
-    /// <summary>进入页面时读回上次保存的列显隐偏好（未保存过的列保持默认「可见」）。</summary>
-    private void LoadColumnVisibility()
-    {
-        if (_cols == null) return;
-        var saved = _cols.LoadPage(_columnLayoutKey);
-        if (saved.TryGetValue("Title", out var t)) IsTitleVisible = t;
-        if (saved.TryGetValue("Category", out var c)) IsCategoryVisible = c;
-        if (saved.TryGetValue("Description", out var d)) IsDescriptionVisible = d;
-        if (saved.TryGetValue("Favorite", out var f)) IsFavoriteVisible = f;
-        if (saved.TryGetValue("Action", out var a)) IsActionVisible = a;
-    }
-
-    // ==================== 右栏详情开合（默认收起 → 列表占满宽度） ====================
-
-    /// <summary>
-    /// 是否显示右侧属性卡。<b>默认收起</b>（空列表也能多看几行）；用户的点选会落
-    /// <c>config\columnlayout.json</c>，下次进本页保持上次的选择。
-    /// </summary>
-    [ObservableProperty] private bool _isDetailVisible;
-
-    /// <summary>点一下展开 / 收起右栏详情（"点一下就看到结果"的轻偏好 → 立即落盘）。
-    /// 展开且当前没有选中项时，自动选中列表第一项 —— 这就是表头右侧那个小按钮的行为（规范 3.6）。</summary>
-    [RelayCommand]
-    private void ToggleDetail()
-    {
-        IsDetailVisible = !IsDetailVisible;
-        if (IsDetailVisible && Selected == null && Items.Count > 0) Selected = Items[0];
-        SaveDetailFlag();
-    }
-
-    /// <summary>右键「显示详情栏」：确保展开并定位到当前选中项（没选中就选第一项）。</summary>
-    [RelayCommand]
-    private void ShowDetail()
-    {
-        if (Selected == null && Items.Count > 0) Selected = Items[0];
-        IsDetailVisible = true;
-        SaveDetailFlag();
-    }
-
-    private void SaveDetailFlag()
-    {
-        _cols?.SaveFlag(_columnLayoutKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
-    }
 
     // ==================== 属性卡的编辑缓冲（多字段文本表单 → 显式「💾 保存」，规范 3.5） ====================
 
@@ -271,12 +177,80 @@ public abstract partial class QuickActionListViewModel : ObservableObject
 
     public bool IsCommandKind => !IsScriptKind;
 
+    // ==================== 脚本目录（v1.35：顶部可切换） ====================
+
     /// <summary>脚本目录（生效值），详情卡里提示"文件放哪"。</summary>
     public string ScriptsDirectory => _svc?.ScriptsDirectory ?? "";
 
+    /// <summary>脚本目录的默认值（配置留空时用的那个）。</summary>
+    public string DefaultScriptFolder => _app?.DefaultScriptFolder ?? "";
+
+    /// <summary>脚本目录当前是不是"用默认值"。</summary>
+    public bool IsDefaultScriptFolder
+        => string.IsNullOrWhiteSpace(_app?.ScriptFolder);
+
+    /// <summary>
+    /// 顶部「脚本目录」用文件选择器选完之后由 View 的 code-behind 调用：这是**明确的动作** → 立即生效并落盘
+    /// （不用再点保存；避免"选了却没生效"的困惑，与「设置 → 路径配置」同一条规则）。
+    /// </summary>
+    public void ApplyPickedScriptFolder(string path)
+    {
+        if (_app == null || string.IsNullOrWhiteSpace(path)) return;
+
+        _app.ScriptFolder = path.Trim();
+        StatusText = $"脚本目录已设为：{ScriptsDirectory}（写入 app.json，立即生效）";
+        OnPropertyChanged(nameof(ScriptsDirectory));
+        OnPropertyChanged(nameof(IsDefaultScriptFolder));
+        OnPropertyChanged(nameof(ScriptHint));
+    }
+
+    /// <summary>恢复成默认脚本目录（<c>&lt;应用根&gt;\scripts</c>）。</summary>
+    [RelayCommand]
+    private void ResetScriptFolder()
+    {
+        if (_app == null) return;
+        _app.ScriptFolder = "";
+        StatusText = $"已恢复默认脚本目录：{DefaultScriptFolder}";
+        OnPropertyChanged(nameof(ScriptsDirectory));
+        OnPropertyChanged(nameof(IsDefaultScriptFolder));
+        OnPropertyChanged(nameof(ScriptHint));
+    }
+
+    /// <summary>在资源管理器里打开脚本目录（没有就先建出来）。</summary>
+    [RelayCommand]
+    private void OpenScriptsFolder()
+    {
+        var dir = ScriptsDirectory;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dir)) { StatusText = "脚本目录未配置。"; return; }
+            Directory.CreateDirectory(dir);
+            Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+            StatusText = "已打开脚本目录：" + dir;
+        }
+        catch (Exception ex) { StatusText = "打开失败：" + ex.Message; }
+    }
+
+    /// <summary>
+    /// 详情卡「📂」按钮选好脚本文件后调用：把路径填进编辑缓冲。
+    /// <para>落在脚本目录里的文件<b>存相对文件名</b>（换机器 / 换目录也能跑），目录外的存绝对路径。</para>
+    /// </summary>
+    public void ApplyPickedScriptFile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        var dir = ScriptsDirectory;
+        EditScriptFile = !string.IsNullOrWhiteSpace(dir)
+                         && path.StartsWith(dir, StringComparison.OrdinalIgnoreCase)
+            ? path[dir.Length..].TrimStart('\\', '/')
+            : path;
+        StatusText = $"已选择脚本文件：{EditScriptFile}（点「💾 保存」写盘）";
+    }
+
     /// <summary>脚本字段下方的提示（解释器怎么挑 + 脚本目录在哪）。</summary>
     public string ScriptHint =>
-        $"脚本文件 = 脚本目录里的 .py / .ps1 / .bat（可填相对文件名，也可填绝对路径）。\n脚本目录：{ScriptsDirectory}\n" +
+        $"脚本文件 = 脚本目录里的 .py / .ps1 / .bat（可填相对文件名，也可填绝对路径）；点「📂」可以直接选文件。\n脚本目录：{ScriptsDirectory}" +
+        (IsDefaultScriptFolder ? "（默认值）\n" : "\n") +
         "解释器留「自动」即可：.py→python、.ps1→pwsh（没配则退回 5.1）、.bat/.cmd→cmd；三个解释器路径在「设置 → 路径配置」里配，留空 = 用系统默认。";
 
     // ==================== 派生显示 ====================
@@ -312,23 +286,39 @@ public abstract partial class QuickActionListViewModel : ObservableObject
     protected QuickActionListViewModel()
     {
         _pageKind = QuickActionPage.Shortcuts;
-        _columnLayoutKey = "pc-shortcuts";
     }
 
-    protected QuickActionListViewModel(IQuickActionService svc, IColumnLayoutService cols)
+    protected QuickActionListViewModel(IQuickActionService svc, IColumnLayoutService cols, IAppConfigService app)
+        : base(cols)
     {
         _svc = svc;
-        _cols = cols;
+        _app = app;
         // 抽象属性在基类构造里读一次存字段：避免「构造期虚调用」反复触发，也让后续逻辑读到稳定值。
         _pageKind = PageKind;
-        _columnLayoutKey = ColumnLayoutKey;
-        LoadColumnVisibility();
-        IsDetailVisible = cols.LoadFlag(_columnLayoutKey, IColumnLayoutService.FlagDetailPanel);   // 默认收起
+        LoadLayout();
         RebuildCategories();
         ApplyView();
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
+
+    /// <summary>排序列 / 筛选条件变化后重算列表（基类的 <c>SortCommand</c> 与筛选都走这里）。</summary>
+    protected override void RefreshView() => ApplyView();
+
+    protected override void EnsureDetailSelection()
+    {
+        if (Selected == null && Items.Count > 0) Selected = Items[0];
+    }
+
+    /// <summary>筛选取值：按列键拿这一行该列显示的文本（多项筛选用）。</summary>
+    protected override string? FieldText(object row, string columnKey) => columnKey switch
+    {
+        "Title" => ((QuickAction)row).Title,
+        "Category" => ((QuickAction)row).Category,
+        "Description" => ((QuickAction)row).Description,
+        "Favorite" => ((QuickAction)row).FavoriteMark,
+        _ => null
+    };
 
     // ==================== 列表构建 ====================
 
@@ -373,12 +363,15 @@ public abstract partial class QuickActionListViewModel : ObservableObject
                           || i.Category.Contains(text, StringComparison.CurrentCultureIgnoreCase)
                           || i.Description.Contains(text, StringComparison.CurrentCultureIgnoreCase));
 
+        // 多项筛选（基类）：多条条件之间取「且」
+        q = ApplyFilters(q);
+
         var byText = StringComparer.CurrentCultureIgnoreCase;
-        q = _sortColumn switch
+        q = SortColumn switch
         {
-            "Category" => _sortDescending ? q.OrderByDescending(i => i.Category, byText) : q.OrderBy(i => i.Category, byText),
-            "Favorite" => _sortDescending ? q.OrderByDescending(i => i.IsFavorite) : q.OrderBy(i => i.IsFavorite),
-            _ => _sortDescending ? q.OrderByDescending(i => i.Title, byText) : q.OrderBy(i => i.Title, byText),
+            "Category" => SortDescending ? q.OrderByDescending(i => i.Category, byText) : q.OrderBy(i => i.Category, byText),
+            "Favorite" => SortDescending ? q.OrderByDescending(i => i.IsFavorite) : q.OrderBy(i => i.IsFavorite),
+            _ => SortDescending ? q.OrderByDescending(i => i.Title, byText) : q.OrderBy(i => i.Title, byText),
         };
 
         Items.Clear();
@@ -393,13 +386,12 @@ public abstract partial class QuickActionListViewModel : ObservableObject
 
     private void UpdateHeaders()
     {
-        var arrow = _sortDescending ? " ▼" : " ▲";
-        TitleHeader = "名称" + (_sortColumn == "Title" ? arrow : "");
-        CategoryHeader = "分类" + (_sortColumn == "Category" ? arrow : "");
-        FavoriteHeader = "★" + (_sortColumn == "Favorite" ? arrow : "");
+        TitleHeader = "名称" + SortArrow("Title");
+        CategoryHeader = "分类" + SortArrow("Category");
+        FavoriteHeader = "★" + SortArrow("Favorite");
     }
 
-    // ==================== 过滤 / 排序（左键点表头） ====================
+    // ==================== 过滤 ====================
 
     partial void OnSearchTextChanged(string value) { if (!_suppress) ApplyView(); }
 
@@ -425,22 +417,6 @@ public abstract partial class QuickActionListViewModel : ObservableObject
 
         UpdateFavoriteUi();
         OnPropertyChanged(nameof(HasSelection));
-    }
-
-    /// <summary>点表头：同一列再点一次 = 反向；换列 = 升序（★ 列例外，一上来就「收藏在前」）。</summary>
-    [RelayCommand]
-    private void Sort(string? column)
-    {
-        if (string.IsNullOrWhiteSpace(column)) return;
-
-        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase))
-            _sortDescending = !_sortDescending;
-        else
-        {
-            _sortColumn = column;
-            _sortDescending = column == "Favorite";   // ★ 列默认降序 = 收藏的排在前面
-        }
-        ApplyView();
     }
 
     // ==================== 运行 ====================
@@ -482,6 +458,7 @@ public abstract partial class QuickActionListViewModel : ObservableObject
         SearchText = "";
         if (CategoryOptions.Count > 0) SelectedCategory = CategoryOptions[0];
         _suppress = false;
+        ResetFilters();   // 清掉筛选，保证新项一定看得见
 
         var item = _svc.Add(_pageKind);
         RebuildCategories();

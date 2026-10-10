@@ -26,16 +26,11 @@ namespace NewToys.Settings.ViewModels;
 /// 写死一个"默认目录"只会误导；「视频工具 → 视频库」改成每次手动选目录，与设置彻底解绑。
 /// </para>
 /// </summary>
-public partial class PathViewModel : ObservableObject
+public partial class PathViewModel : ListPageViewModelBase
 {
     private readonly IAppConfigService? _cfg;
     private readonly ConfigStoreService? _store;
 
-    /// <summary>列显隐偏好落盘用的页键。</summary>
-    private const string PageKey = "settings-path";
-
-    private string _sortColumn = "Name";
-    private bool _sortDescending;
     private bool _syncing;
 
     public ObservableCollection<PathSettingItem> Items { get; } = new();
@@ -53,19 +48,20 @@ public partial class PathViewModel : ObservableObject
     [ObservableProperty] private string _kindHeader = "类型";
     [ObservableProperty] private string _descriptionHeader = "说明";
 
-    // ==================== 列显隐 ====================
+    // ==================== 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ====================
+    //
+    // XAML 只能绑具名属性 → 每列给一个直通属性（真正的状态在基类里，落 config\columnlayout.json）。
 
-    private readonly IColumnLayoutService? _cols;
+    public bool IsNameVisible => Vis("Name");
+    public bool IsValueVisible => Vis("Value");
+    public bool IsKindVisible => Vis("Kind");
+    public bool IsDescriptionVisible => Vis("Description");
+    public bool IsActionVisible => Vis("Action");
 
-    [ObservableProperty] private bool _isNameVisible = true;
-    [ObservableProperty] private bool _isValueVisible = true;
-    [ObservableProperty] private bool _isKindVisible = true;
-    [ObservableProperty] private bool _isDescriptionVisible = true;
-    [ObservableProperty] private bool _isActionVisible = true;
+    protected override string PageKey => "settings-path";
 
-    /// <summary>列的元数据（键 / 标题 / 宽度 / 是否可排序）；顺序即表头与行的列顺序。
-    /// <para>最后一列 <c>Detail</c> 是**表头右侧那个无文字小按钮**用的固定窄列（规范 3.6），不进列显隐菜单。</para></summary>
-    public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
+    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Name", "名称", "2.2*"),
         new("Value", "当前值", "5*"),
@@ -75,84 +71,11 @@ public partial class PathViewModel : ObservableObject
         new("Detail", "", "36", sortable: false),
     };
 
-    public string VisibleColumnSpecs
-    {
-        get
-        {
-            var parts = new string[Columns.Count];
-            for (var i = 0; i < Columns.Count; i++)
-                parts[i] = IsVisibleFor(Columns[i].Key) ? Columns[i].Width : "0";
-            return string.Join(",", parts);
-        }
-    }
+    // ==================== 详情栏开合（基类管状态；这里只补"没选中就选第一项"） ====================
 
-    private bool IsVisibleFor(string key) => key switch
-    {
-        "Name" => IsNameVisible,
-        "Value" => IsValueVisible,
-        "Kind" => IsKindVisible,
-        "Description" => IsDescriptionVisible,
-        "Action" => IsActionVisible,
-        _ => true,
-    };
-
-    [RelayCommand]
-    private void ToggleColumn(string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return;
-        switch (key)
-        {
-            case "Name": IsNameVisible = !IsNameVisible; break;
-            case "Value": IsValueVisible = !IsValueVisible; break;
-            case "Kind": IsKindVisible = !IsKindVisible; break;
-            case "Description": IsDescriptionVisible = !IsDescriptionVisible; break;
-            case "Action": IsActionVisible = !IsActionVisible; break;
-            default: return;
-        }
-        _cols?.SavePage(PageKey, new Dictionary<string, bool>
-        {
-            ["Name"] = IsNameVisible, ["Value"] = IsValueVisible, ["Kind"] = IsKindVisible,
-            ["Description"] = IsDescriptionVisible, ["Action"] = IsActionVisible,
-        });
-        OnPropertyChanged(nameof(VisibleColumnSpecs));
-    }
-
-    private void LoadColumnVisibility()
-    {
-        if (_cols == null) return;
-        var saved = _cols.LoadPage(PageKey);
-        if (saved.TryGetValue("Name", out var n)) IsNameVisible = n;
-        if (saved.TryGetValue("Value", out var v)) IsValueVisible = v;
-        if (saved.TryGetValue("Kind", out var k)) IsKindVisible = k;
-        if (saved.TryGetValue("Description", out var d)) IsDescriptionVisible = d;
-        if (saved.TryGetValue("Action", out var a)) IsActionVisible = a;
-    }
-
-    // ==================== 详情栏开合 ====================
-
-    [ObservableProperty] private bool _isDetailVisible;
-
-    /// <summary>表头右侧小按钮：展开 / 收起详情；展开且没选中时自动选中第一项（规范 3.6）。</summary>
-    [RelayCommand]
-    private void ToggleDetail()
-    {
-        IsDetailVisible = !IsDetailVisible;
-        if (IsDetailVisible && Selected == null && Items.Count > 0) Selected = Items[0];
-        SaveDetailFlag();
-    }
-
-    /// <summary>右键「显示详情栏」：确保展开并定位到当前选中项（没选中就选第一项）。</summary>
-    [RelayCommand]
-    private void ShowDetail()
+    protected override void EnsureDetailSelection()
     {
         if (Selected == null && Items.Count > 0) Selected = Items[0];
-        IsDetailVisible = true;
-        SaveDetailFlag();
-    }
-
-    private void SaveDetailFlag()
-    {
-        _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
     }
 
     public bool HasSelection => Selected != null;
@@ -183,13 +106,12 @@ public partial class PathViewModel : ObservableObject
     public PathViewModel() { }
 
     public PathViewModel(IAppConfigService cfg, ConfigStoreService store, IColumnLayoutService cols)
+        : base(cols)
     {
         _cfg = cfg;
         _store = store;
-        _cols = cols;
 
-        LoadColumnVisibility();
-        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);
+        LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         BuildItems();
         ApplyView();
     }
@@ -250,16 +172,32 @@ public partial class PathViewModel : ObservableObject
         });
     }
 
+    /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
+    protected override void RefreshView() => ApplyView();
+
+    /// <summary>筛选取值（多项筛选用）。</summary>
+    protected override string? FieldText(object row, string columnKey) => columnKey switch
+    {
+        "Name" => ((PathSettingItem)row).Name,
+        "Value" => ((PathSettingItem)row).ValueDisplay,
+        "Kind" => ((PathSettingItem)row).KindText,
+        "Description" => ((PathSettingItem)row).Description,
+        _ => null
+    };
+
     private void ApplyView()
     {
         IEnumerable<PathSettingItem> q = Items;
 
+        // 多项筛选（基类）：多条条件之间取「且」
+        q = ApplyFilters(q);
+
         var byText = StringComparer.CurrentCultureIgnoreCase;
-        q = _sortColumn switch
+        q = SortColumn switch
         {
-            "Value" => _sortDescending ? q.OrderByDescending(i => i.Value, byText) : q.OrderBy(i => i.Value, byText),
-            "Kind" => _sortDescending ? q.OrderByDescending(i => i.KindText, byText) : q.OrderBy(i => i.KindText, byText),
-            _ => _sortDescending ? q.OrderByDescending(i => i.Name, byText) : q.OrderBy(i => i.Name, byText)
+            "Value" => SortDescending ? q.OrderByDescending(i => i.Value, byText) : q.OrderBy(i => i.Value, byText),
+            "Kind" => SortDescending ? q.OrderByDescending(i => i.KindText, byText) : q.OrderBy(i => i.KindText, byText),
+            _ => SortDescending ? q.OrderByDescending(i => i.Name, byText) : q.OrderBy(i => i.Name, byText)
         };
 
         var ordered = q.ToList();
@@ -274,21 +212,9 @@ public partial class PathViewModel : ObservableObject
 
     private void UpdateHeaders()
     {
-        var arrow = _sortDescending ? " ▼" : " ▲";
-        NameHeader = "名称" + (_sortColumn == "Name" ? arrow : "");
-        ValueHeader = "当前值" + (_sortColumn == "Value" ? arrow : "");
-        KindHeader = "类型" + (_sortColumn == "Kind" ? arrow : "");
-    }
-
-    /// <summary>点表头：同一列再点一次 = 反向；换列 = 升序。</summary>
-    [RelayCommand]
-    private void Sort(string? column)
-    {
-        if (string.IsNullOrWhiteSpace(column)) return;
-        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase))
-            _sortDescending = !_sortDescending;
-        else { _sortColumn = column; _sortDescending = false; }
-        ApplyView();
+        NameHeader = "名称" + SortArrow("Name");
+        ValueHeader = "当前值" + SortArrow("Value");
+        KindHeader = "类型" + SortArrow("Kind");
     }
 
     // ==================== 增删改查 ====================

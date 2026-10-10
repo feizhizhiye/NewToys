@@ -1,17 +1,186 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.PcTools.Views"
              x:Class="NewToys.PcTools.Views.PcInfoView">
-  <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+  <Grid RowDefinitions="Auto,Auto,Auto,*">
+
+    <!-- 操作行：页名由左侧二级菜单体现，这里只放统计与状态 -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="8">
-      <Button Classes="primary" Content="🔄 刷新"/>
-      <Button Classes="ghost" Content="📋 复制到剪贴板"/>
+                Margin="24,16,24,0" Spacing="10">
+      <TextBlock Classes="info-text" Text="{Binding SummaryText}" VerticalAlignment="Center"/>
+      <TextBlock Classes="status-text" Text="{Binding StatusText}" VerticalAlignment="Center" MaxWidth="420"/>
     </StackPanel>
-    <Border Grid.Row="1" Margin="24,8,24,16">
-      <Border Classes="card">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="4"><Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="120,*" Margin="16"><TextBlock Text="操作系统" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Column="1" Text="检测中……" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Grid.Row="1" Text="CPU" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Row="1" Grid.Column="1" Text="—" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Grid.Row="2" Text="内存" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Row="2" Grid.Column="1" Text="—" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Grid.Row="3" Text="磁盘" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Row="3" Grid.Column="1" Text="—" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Grid.Row="4" Text="网络" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Row="4" Grid.Column="1" Text="—" Foreground="{DynamicResource PrimaryTextBrush}"/></Grid></StackPanel></ScrollViewer>
-      </Border>
+
+    <!-- 工具条 -->
+    <Border Grid.Row="1" Classes="toolbar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Classes="primary" Content="🔄 重新检测" Margin="0,0,8,6"
+                Command="{Binding DetectCommand}" IsEnabled="{Binding !IsBusy}"/>
+        <TextBox Width="220" Margin="0,0,8,6" Text="{Binding SearchText, Mode=TwoWay}"
+                 PlaceholderText="搜索分类 / 项目 / 值…"/>
+        <Button Classes="ghost" Content="📋 复制全部" Margin="0,0,8,6" Command="{Binding CopyAllCommand}"/>
+        <Button Classes="ghost" Content="📂 打开配置目录" Margin="0,0,8,6" Command="{Binding OpenConfigDirCommand}"/>
+        <Button Classes="ghost" Content="⚙ 路径配置" Margin="0,0,8,6" Command="{Binding OpenPathSettingsCommand}"
+                ToolTip.Tip="跳到「设置 → 路径配置」改这些默认路径"/>
+      </WrapPanel>
     </Border>
+
+    <!--  多项筛选：可任意加多条「列 + 运算符 + 值」，全部满足才显示（条件之间是「且」）  -->
+    <Border Grid.Row="2" Classes="filter-bar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Classes="filter-btn" Content="＋ 条件" Command="{Binding AddFilterCommand}"/>
+        <Button Classes="filter-btn" Content="🧹 清空" Command="{Binding ClearFiltersCommand}"
+                IsVisible="{Binding HasFilters}"/>
+        <TextBlock Classes="hint-text" Text="{Binding FilterSummary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+        <ItemsControl ItemsSource="{Binding Filters}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,10,4" VerticalAlignment="Center">
+                <CheckBox IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"
+                          ToolTip.Tip="临时停用这条（不删掉）"/>
+                <ComboBox Classes="filter-combo"
+                          ItemsSource="{Binding $parent[UserControl].DataContext.FilterableColumns}"
+                          SelectedItem="{Binding Column, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Header}" FontSize="12"/></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <ComboBox Classes="filter-combo" ItemsSource="{Binding Operators}"
+                          SelectedItem="{Binding OperatorItem, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBox Classes="filter-value" Text="{Binding Value, Mode=TwoWay}"
+                         IsVisible="{Binding NeedsValue}" PlaceholderText="值…"/>
+                <Button Classes="filter-btn" Content="✕" Padding="6,2"
+                        Command="{Binding $parent[UserControl].DataContext.RemoveFilterCommand}"
+                        CommandParameter="{Binding}" ToolTip.Tip="删掉这条条件"/>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </WrapPanel>
+    </Border>
+
+    <!-- 主区：左列表 + 右详情 -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="16">
+
+      <Border Grid.Column="0" Classes="card" Padding="0">
+        <Grid RowDefinitions="Auto,*">
+
+          <Border Grid.Row="0" Classes="list-header">
+            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <Button Grid.Column="0" Classes="col-header" Content="{Binding CategoryHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Category"
+                      IsVisible="{Binding IsCategoryVisible}"/>
+              <Button Grid.Column="1" Classes="col-header" Content="{Binding NameHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Name"
+                      IsVisible="{Binding IsNameVisible}"/>
+              <Button Grid.Column="2" Classes="col-header" Content="{Binding ValueHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Value"
+                      IsVisible="{Binding IsValueVisible}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" Text="说明" FontWeight="SemiBold"
+                         IsVisible="{Binding IsNoteVisible}"/>
+              <Button Grid.Column="4" Classes="header-toggle" Content="▤"
+                      Command="{Binding ToggleDetailCommand}"
+                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）"/>
+
+              <v:ColumnGrid.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
+                  <Separator/>
+                  <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsCategoryVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Category"/>
+                  <MenuItem Header="项目" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
+                  <MenuItem Header="值" ToggleType="CheckBox" IsChecked="{Binding IsValueVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Value"/>
+                  <MenuItem Header="说明" ToggleType="CheckBox" IsChecked="{Binding IsNoteVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Note"/>
+                </ContextMenu>
+              </v:ColumnGrid.ContextMenu>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="1" x:Name="InfoList" Classes="list-page"
+                   ItemsSource="{Binding Items}"
+                   SelectedItem="{Binding Selected, Mode=TwoWay}"
+                   SelectionMode="Single">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
+                <Separator/>
+                <MenuItem Header="📋 复制这一行" Command="{Binding CopySelectedCommand}"/>
+                <MenuItem Header="📋 复制全部" Command="{Binding CopyAllCommand}"/>
+                <Separator/>
+                <MenuItem Header="🔄 重新检测" Command="{Binding DetectCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="📂 打开配置目录" Command="{Binding OpenConfigDirCommand}"/>
+                <MenuItem Header="⚙ 路径配置" Command="{Binding OpenPathSettingsCommand}"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                  <TextBlock Grid.Column="0" Classes="list-cell accent" Text="{Binding Category}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsCategoryVisible}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell primary" Text="{Binding Name}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell primary" Text="{Binding Value}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsValueVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Note}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsNoteVisible}"/>
+                </v:ColumnGrid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- 右：选中项详情（值可能很长，这里可以整段看 / 复制） -->
+      <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
+        <Grid RowDefinitions="Auto,*">
+          <StackPanel Grid.Row="0" Spacing="8" IsVisible="{Binding HasSelection}">
+            <TextBlock Classes="section-title" Text="选中项"/>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="primary" Content="📋 复制" Command="{Binding CopySelectedCommand}"/>
+              <Button Classes="ghost" Content="📂 配置目录" Command="{Binding OpenConfigDirCommand}"/>
+            </StackPanel>
+          </StackPanel>
+
+          <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="empty-hint" IsVisible="{Binding !HasSelection}"
+                         Text="在左侧选中一行，这里显示它的分类、项目、值与说明；右键列表可复制单行 / 全部。"/>
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="分类"/>
+                <TextBlock Classes="field-value" Text="{Binding Selected.Category}"/>
+              </StackPanel>
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="项目"/>
+                <TextBlock Classes="field-value" Text="{Binding Selected.Name}" FontWeight="SemiBold"/>
+              </StackPanel>
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="值"/>
+                <SelectableTextBlock Classes="field-value" Text="{Binding Selected.Value}"/>
+              </StackPanel>
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="说明"/>
+                <TextBlock Classes="field-value" Text="{Binding Selected.Note}"/>
+              </StackPanel>
+              <TextBlock Classes="hint-text" Margin="0,8,0,0"
+                         Text="「应用路径」分类里的就是「设置 → 路径配置」那几项的**生效值**（留空表示用系统默认）。"/>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
   </Grid>
 </UserControl>

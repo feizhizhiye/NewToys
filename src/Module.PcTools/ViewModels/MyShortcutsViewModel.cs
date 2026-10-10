@@ -1,3 +1,5 @@
+using NewToys.PcTools.Models;
+using NewToys.PcTools.Services;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -24,5 +26,6 @@ public partial class MyShortcutsViewModel : QuickActionListViewModel
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public MyShortcutsViewModel() { }
 
-    public MyShortcutsViewModel(IQuickActionService svc, IColumnLayoutService cols) : base(svc, cols) { }
+    public MyShortcutsViewModel(IQuickActionService svc, IColumnLayoutService cols, IAppConfigService app)
+        : base(svc, cols, app) { }
 }

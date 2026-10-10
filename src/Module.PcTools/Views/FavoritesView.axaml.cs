@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using NewToys.PcTools.ViewModels;
+using NewToys.PcTools.Models;
 using NewToys.Shared.Models;
 
 namespace NewToys.PcTools.Views;

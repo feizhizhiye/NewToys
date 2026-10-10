@@ -2,7 +2,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Shell.App">
     <Application.Styles>
+
+        <!--  复用样式表（工具条 / 状态行 / 详情卡 / 表头 / 筛选条 …）
+              v1.35：把各列表页反复抄写的那段 XAML 收成 Class，页面里只写 Classes="…"；
+              「表头点击区太小」的修复（Button.col-header 撑满整行）也在里面。  -->
+        <StyleInclude Source="avares://NewToys/Styles/Controls.axaml"/>
+
         <FluentTheme/>
+
         <Style Selector="Button.nav-btn">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource SiderIconBrush}"/>
@@ -66,36 +73,7 @@
             <Setter Property="Padding" Value="18"/>
         </Style>
 
-        <!--  ===== 列表页（软件包管理 / 视频库）通用样式  =====
-              两页共用同一套「可排序表头 + 列表 + 右侧详情」布局，见规范 3.8。
-              这两页的类名必须成对出现：Button.col-header ↔ TextBlock.list-cell（左右内边距一致才对得齐）。 -->
-        <Style Selector="Button.col-header">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.col-header:pointerover">
-            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-        </Style>
-        <Style Selector="Border.list-header">
-            <Setter Property="Background" Value="{DynamicResource SubSiderHeaderBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-        </Style>
-        <Style Selector="TextBlock.list-cell">
-            <Setter Property="Padding" Value="12,9"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-        </Style>
+        <!--  列表本体（行高 / 悬停 / 选中底色）；表头与单元格的样式见 Styles/Controls.axaml  -->
         <Style Selector="ListBox.list-page">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -104,7 +82,7 @@
         <Style Selector="ListBox.list-page ListBoxItem">
             <Setter Property="Padding" Value="0"/>
             <Setter Property="MinHeight" Value="0"/>
-            <!-- ⚠️ 必须 Stretch：行模板用星号列跟表头对齐，不拉伸就永远错位（见规范 3.8） -->
+            <!-- ⚠️ 必须 Stretch：行模板用星号列跟表头对齐，不拉伸就永远错位 -->
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         </Style>
@@ -113,6 +91,16 @@
         </Style>
         <Style Selector="ListBox.list-page ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+        </Style>
+
+        <!--  收藏按钮墙（首页常用功能 / PcTools 收藏夹）：一排按钮，点即执行  -->
+        <Style Selector="Button.fav-btn">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="Margin" Value="6"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
         </Style>
     </Application.Styles>
 </Application>

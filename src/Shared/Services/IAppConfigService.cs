@@ -59,6 +59,13 @@ namespace NewToys.Shared.Services
         /// <summary>Windows PowerShell 5.1（powershell.exe）路径。留空 = 用系统自带的 powershell.exe。</summary>
         string PowerShell51Path { get; set; }
 
+        /// <summary>
+        /// 更新检查用的**纯文本版本文件地址**（「设置 → 通用 → 启动时检查更新」用它）。
+        /// 留空 = 不检查（页面会如实显示「未配置更新地址」，不假装检查过）。
+        /// 内容期望是形如 <c>1.20261010.00.10</c> 的版本号（任意文本里有这么一串即可）。
+        /// </summary>
+        string UpdateUrl { get; set; }
+
         /// <summary>脚本目录（「设置与脚本」页引用的脚本文件都放这里；留空 = <see cref="DefaultScriptFolder"/>）。</summary>
         string ScriptFolder { get; set; }
 

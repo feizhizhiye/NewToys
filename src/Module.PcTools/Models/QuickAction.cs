@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace NewToys.Shared.Models;
+namespace NewToys.PcTools.Models;
 
 /// <summary>
 /// 「设置与脚本 / 快捷设置」两页的<b>归属标识</b>（<see cref="QuickAction.Page"/> 的合法取值）。

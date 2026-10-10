@@ -1,6 +1,6 @@
 # NewToys 项目现状与进度
 
-> v1.34 · 最后更新 2026-10-10 · 台账（4 份文档中最"活"）
+> v1.35 · 最后更新 2026-10-11 · 台账（4 份文档中最"活"）
 > **更新纪律**：
 > - **更新单位 = 一个功能/一次交付**。完成后动「当前基线/已完成/待办」三节。
 > - **仅修报错/错别字/格式，不回写正文**，并入下次功能更新追记。
@@ -15,9 +15,9 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v1.30（🔒冻结）｜规范 v1.33 ｜ 提示词 v1.30 ｜ 本台账 v1.34 |
+| 文档版本 | 需求 v1.30（🔒冻结）｜规范 v1.33 ｜ 提示词 v1.30 ｜ 本台账 v1.35 |
 | 技术栈 | .NET 10 + Avalonia 12.1.3 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
-| 代码规模 | 7 项目 / 136 个 `.cs+.axaml+.csproj`（103 cs + 26 axaml + 7 csproj）/ 约 12400 行 |
+| 代码规模 | 7 项目 / 154 个 `.cs+.axaml+.csproj`（121 cs + 26 axaml + 7 csproj）/ 约 19400 行 |
 | 仓库根 | 能看到 `src/` 的那一级；两个 props 在 `src/` 内 |
 | 版本控制 | ✅ **已 `git init`**（分支 `main`，首次提交 `cf96b8a`）；`.gitignore` 忽略 `artifacts/ production/ bin/ obj/ Modules/ *.patch /.workbuddy/` |
 | 构建分工 | 🧑‍💻 构建/发布由用户本地执行；AI 只改 `src/` |
@@ -25,10 +25,10 @@
 **编译状态**：
 - ✅ v1.14 用户本地 Debug/Release 均 0/0；v1.16 本地 Debug 0/0。
 - ❌ v1.20 首次失败（`INavigationService` 缺 Navigated、元组元素名不一致）→ 已修复。
-- ⚠️ **v1.21 / v1.25 / v1.32 / v1.33 / v1.34 改动后尚未由用户本地复跑** → 待跑 `build.ps1`。
+- ⚠️ **v1.21 / v1.25 / v1.32 / v1.33 / v1.34 / v1.35 改动后尚未由用户本地复跑** → 待跑 `build.ps1`。
 
 **基线演进脉络**：
-v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.16 修复二级菜单列 → v1.17 补🏠首页 → v1.18 主题三态+强调色+即时生效 → v1.19 软件包管理+视频库+软件源+一键按钮收敛 → v1.20 类型中立化 Package* → v1.21 功能清单+收藏夹服务化 → v1.22 删除全部二级页头 → v1.24 电脑工具模块改造 → v1.25 列表页右键增删列 → v1.26 文档体系优化（无代码）→ v1.27 增补模块热加载（文档层待实装）→ **v1.28 面向本地执行 AI 客户端精简四份文档（无代码）** → **v1.29 优化 AI 协作流程：分级读档/变更声明/分型预检/停手规则（无代码）** → **v1.30 启用 git 版本管理（无代码）** → **v1.31 修订文档更新纪律：不逐次改、独立版本、需求冻结（无代码）** → **v1.32 设置与脚本可运行 + 快捷设置改为系统自带设置列表页 + 收窄两页分工 + 收藏夹简化** → **v1.33 列表页详情栏可开合 + 收藏夹改按钮墙 + 两页命令改本地配置化（defaults/ + 脚本目录 + 解释器路径）+ 软件源页直接操作系统 winget + 修 winget 中文表头解析（列表空白）** → **v1.34 引入 SQLite（`data\newtoys.db`）+ 引入 Microsoft.Data.Sqlite；路径配置页改列表页；视频库加媒体信息（ffprobe 并发 + SQLite 缓存）并与设置解绑；两页清单拆成两个配置文件；软件包管理器加 Pin 列；全部列表页统一「表头右侧无文字 ▤ 按钮 + 右键增删改查」**。
+v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.16 修复二级菜单列 → v1.17 补🏠首页 → v1.18 主题三态+强调色+即时生效 → v1.19 软件包管理+视频库+软件源+一键按钮收敛 → v1.20 类型中立化 Package* → v1.21 功能清单+收藏夹服务化 → v1.22 删除全部二级页头 → v1.24 电脑工具模块改造 → v1.25 列表页右键增删列 → v1.26 文档体系优化（无代码）→ v1.27 增补模块热加载（文档层待实装）→ **v1.28 面向本地执行 AI 客户端精简四份文档（无代码）** → **v1.29 优化 AI 协作流程：分级读档/变更声明/分型预检/停手规则（无代码）** → **v1.30 启用 git 版本管理（无代码）** → **v1.31 修订文档更新纪律：不逐次改、独立版本、需求冻结（无代码）** → **v1.32 设置与脚本可运行 + 快捷设置改为系统自带设置列表页 + 收窄两页分工 + 收藏夹简化** → **v1.33 列表页详情栏可开合 + 收藏夹改按钮墙 + 两页命令改本地配置化（defaults/ + 脚本目录 + 解释器路径）+ 软件源页直接操作系统 winget + 修 winget 中文表头解析（列表空白）** → **v1.34 引入 SQLite（`data\newtoys.db`）+ 引入 Microsoft.Data.Sqlite；路径配置页改列表页；视频库加媒体信息（ffprobe 并发 + SQLite 缓存）并与设置解绑；两页清单拆成两个配置文件；软件包管理器加 Pin 列；全部列表页统一「表头右侧无文字 ▤ 按钮 + 右键增删改查」** → **v1.35 全局样式表（Styles/Controls.axaml，表头点击区撑满整行）+ Shared 列表页 VM 基类（列显隐 / 详情开合 / 排序 / **多项筛选**）+ 通用设置四项系统级行为真正生效（开机启动写注册表、托盘图标与关闭拦截、启动最小化、启动时检查更新）+ 首页常用功能改按钮墙（按模块着色、右键取消固定）+ 系统信息页实装（含路径配置里的默认路径）+ 设置与脚本支持脚本文件选择 / 顶部脚本目录 + 视频列表（改名）支持多选发送到转码 / 剪切 + 视频剪切页（关键帧预览 + 任务暂存批量运行）+ 转码页（批量任务 / 单独改参数 / 前后对比 / 批量运行）**。
 
 ---
 
@@ -57,25 +57,26 @@ v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.
 - 可先注册菜单、后补页面。
 
 ### 2.5 已实现服务
-`ConfigStoreService`（配置目录/备份/导入，路径穿越防御）、`AppConfigService`（app.json；v1.33 增脚本运行环境 python/pwsh/ps5.1 路径 + 脚本目录；v1.34 **删掉视频库目录**）、`LaunchConfigService`（launch.json）、`EncryptedDnsService`（DoH）、`DohProviders`（5 家）、`ThemeService`（三态+强调色）、`AppServices`（服务定位器）、`LaunchRunner`（批量启动）、`PackageManagerService`+`PackageOutputParser`（winget；v1.33 支持源的增删重置 + 中英表头解析）、`PackageSettingsService`、`ColumnLayoutService`（列显隐 + **页面级开关**如详情栏开合）、`SqliteDatabase`（**v1.34 新增**：`data\newtoys.db` 唯一入口）、`DialogHooks`（**v1.34 新增**：公共确认 / 输入对话框钩子，Shell 注入）、`VideoScanner`（视频扫描 + **ffprobe 探测，纯函数可并发**）、`VideoMediaIndex`（**v1.34 新增**：SQLite 媒体信息缓存，`size + mtime` 判命中）、`VideoFileService`（**v1.34 新增**：重命名 / 删除到回收站）、`QuickActionService`（**两页各一份清单** `pc-scripts.json`/`pc-quick.json`，v1.34 从单文件迁移；默认清单随程序发布在 `defaults\`；**运行**：命令 / 脚本，cmd 执行 + UAC 提权 + 输出摘要）。
+`ConfigStoreService`（配置目录/备份/导入，路径穿越防御）、`AppConfigService`（app.json；v1.33 增脚本运行环境 python/pwsh/ps5.1 路径 + 脚本目录；v1.34 **删掉视频库目录**）、`LaunchConfigService`（launch.json）、`EncryptedDnsService`（DoH）、`DohProviders`（5 家）、`ThemeService`（三态+强调色）、`AppServices`（服务定位器）、`LaunchRunner`（批量启动）、`PackageManagerService`+`PackageOutputParser`（winget；v1.33 支持源的增删重置 + 中英表头解析）、`PackageSettingsService`、`ColumnLayoutService`（列显隐 + **页面级开关**如详情栏开合）、`SqliteDatabase`（**v1.34 新增**：`data\newtoys.db` 唯一入口）、`DialogHooks`（**v1.34 新增**：公共确认 / 输入对话框钩子，Shell 注入）、`VideoScanner`（视频扫描 + **ffprobe 探测，纯函数可并发**）、`VideoMediaIndex`（**v1.34 新增**：SQLite 媒体信息缓存，`size + mtime` 判命中）、`VideoFileService`（**v1.34 新增**：重命名 / 删除到回收站）、`StartupService`（**v1.35 新增**：HKCU\\…\\Run 开机启动项，读写真实状态）、`UpdateService`（**v1.35 新增**：GET 纯文本版本地址比对，只提示不自动更新）、`VideoTaskStore`（**v1.35 新增**：剪切 / 转码任务清单单例，落 `config\video-tasks.json`）、`FfmpegService`（**v1.35 新增**：关键帧读取 / 抽帧 / 剪切 / 转码命令行与进度解析）、`QuickActionService`（**两页各一份清单** `pc-scripts.json`/`pc-quick.json`，v1.34 从单文件迁移；默认清单随程序发布在 `defaults\`；**运行**：命令 / 脚本，cmd 执行 + UAC 提权 + 输出摘要）。
 
 ### 2.6 页面全景
 
 | 模块 | 页面数 | 真实逻辑 | 骨架 |
 |---|---|---|---|
 | 系统设置 | 9 | **9** | 0 |
-| PC 工具箱 | 5 | **4** | 1 |
-| Web 工具箱 | 6 | 0 | **6** |
-| 视频工具箱 | 3 | **1** | 2 |
-| **合计** | **23** | **14** | **9** |
+| PC 工具箱 | 5 | **5** | 0 |
+| Web 工具箱 | 5 | **4** | 1 |
+| 视频工具箱 | 3 | **3** | 0 |
+| **合计** | **22** | **21** | **1** |
 
-> **9 骨架** = Web 全 6 页 + `pc-info` + `video-cut` + `video-transcode`。
+> **唯一剩下的骨架** = Web 的 `web-http`（HTTP 测试页）。
+> v1.35 收尾：`pc-info`（系统信息，含「设置 → 路径配置」里的默认路径）、`video-cut`（关键帧预览 + 任务暂存批量剪切）、`video-transcode`（批量任务 + 单独改参数 + 前后对比 + 批量运行）全部实装。
 > 骨架判据：VM 仅有 Title/Description/StatusText/IsBusy 与 PrimaryAction/Refresh 样板命令。
-> **14 真实页**：设置 9 页（通用/主题/路径/一键按钮/加密DNS/软件源/数据管理/关于/功能清单）+ `pc-package`+`pc-shortcuts`+`pc-quicksettings`+`pc-favorites`+`video-list`。
+> **18 真实页**：设置 9 页（通用/主题/路径/一键按钮/加密DNS/软件源/数据管理/关于/功能清单）+ `pc-package`+`pc-shortcuts`+`pc-quicksettings`+`pc-favorites`+`video-list` + `web-bookmark`+`web-ping`+`web-scrape`+`web-hosts`。
 >
 > **PC 工具箱两页分工（v1.33 / v1.34 拆文件）**：`pc-quicksettings`「快捷设置」= **命令行命令**（系统自带设置 / 工具入口：`ms-settings:`、控制面板、管理工具，点「▶ 打开」即用）→ `config\pc-quick.json`；`pc-shortcuts`「设置与脚本」= **有脚本文件的脚本**（脚本目录下的 .py / .ps1 / .bat，解释器路径在「设置 → 路径配置」配）→ `config\pc-scripts.json`。两页逻辑共用 `ViewModels/QuickActionListViewModel.cs` 基类；**清单内容不写死在代码里**，默认值随程序发布在 `Shell\defaults\`。⛔ 「设置与脚本」只收「有脚本文件的脚本」，不满足的条目会在保存时自动挪回「快捷设置」。
 >
-> **列表页右栏详情（v1.34 统一）**：**五页**（`pc-package`/`video-list`/`pc-shortcuts`/`pc-quicksettings`/`settings-path`）统一 —— **表头最右侧一个无文字的 `▤` 小按钮**开合详情（点它自动选中第一项），**默认收起**（列表占满宽度），选择落 `config\columnlayout.json` 并记住；每个列表页**右键菜单「增删改查」齐全**，首项统一为「▤ 显示详情栏」。
+> **列表页（v1.35 统一）**：**多项筛选** —— 每个列表页工具条下多一条「筛选条」，可任意添加多条「列 + 运算符（包含/不包含/等于/不等于/大于/小于/为空/不为空）+ 值」，条件之间取**且**；空值条件自动不生效。**列表页右栏详情（v1.34 统一）**：**五页**（`pc-package`/`video-list`/`pc-shortcuts`/`pc-quicksettings`/`settings-path`）统一 —— **表头最右侧一个无文字的 `▤` 小按钮**开合详情（点它自动选中第一项），**默认收起**（列表占满宽度），选择落 `config\columnlayout.json` 并记住；每个列表页**右键菜单「增删改查」齐全**，首项统一为「▤ 显示详情栏」。
 
 ---
 
@@ -87,9 +88,9 @@ v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.
 | 分组 | Key | Order | 图标 | 二级菜单（Key 标题/View/Order/度） |
 |---|---|---|---|---|
 | 首页 | — | — | 🏠 | （无二级，第一列顶部 `BtnHome→GoHomeCommand`） |
-| 电脑工具 | pc | 20 | 🖥 | `pc-favorites`收藏夹★FavoritesView/0/✅ ｜ `pc-shortcuts`设置与脚本▤MyShortcutsView/1/✅ ｜ `pc-quicksettings`快捷设置⚙QuickSettingsView/2/✅ ｜ `pc-package`软件包📦PackageManagerView/3/✅ ｜ `pc-info`系统信息💻PcInfoView/99/🔧 |
-| 网络工具 | web | 30 | 🌐 | `web-home`首页🏠WebHomeView/0/🔧 ｜ `web-http`HTTP测试🧪WebHttpView/1/🔧 ｜ `web-bookmark`书签🔖BookmarkView/2/🔧 ｜ `web-ping`Ping📡PingView/3/🔧 ｜ `web-scrape`抓取🕷ScrapeView/4/🔧 ｜ `web-dns`DNS🛡DnsView/5/🔧 |
-| 视频工具 | video | 40 | 🎬 | `video-list`视频库📁VideoListView/0/✅ ｜ `video-cut`剪辑✂VideoCutView/1/🔧 ｜ `video-transcode`转码🔄TranscodeView/2/🔧 |
+| 电脑工具 | pc | 20 | 🖥 | `pc-favorites`收藏夹★FavoritesView/0/✅ ｜ `pc-shortcuts`设置与脚本▤MyShortcutsView/1/✅ ｜ `pc-quicksettings`快捷设置⚙QuickSettingsView/2/✅ ｜ `pc-package`软件包📦PackageManagerView/3/✅ ｜ `pc-info`系统信息💻PcInfoView/99/✅ |
+| 网络工具 | web | 30 | 🌐 | `web-http`HTTP测试🧪WebHttpView/1/🔧 ｜ `web-bookmark`书签🔖BookmarkView/2/✅ ｜ `web-ping`网络Ping📡PingView/3/✅ ｜ `web-scrape`网页抓取🕷ScrapeView/4/✅ ｜ `web-hosts`Hosts管理🗂HostsView/5/✅ |
+| 视频工具 | video | 40 | 🎬 | `video-list`视频列表📁VideoListView/0/✅ ｜ `video-cut`视频剪辑✂VideoCutView/1/✅ ｜ `video-transcode`格式转码🔄TranscodeView/2/✅ |
 | 设置 | settings | 999（底） | ⚙ | `settings-general`通用⚙GeneralView/0/✅ ｜ `settings-theme`主题🎨ThemeView/1/✅ ｜ `settings-path`路径📁PathView/2/✅ ｜ `settings-launch`一键按钮🚀LaunchConfigView/3/✅ ｜ `settings-dns`加密DNS🛡DnsView/4/✅ ｜ `settings-package`软件源📦PackageSourceView/5/✅ ｜ `settings-data`数据管理💾DataView/6/✅ ｜ `settings-about`关于ℹAboutView/7/✅ ｜ `settings-all`功能清单📋AllFunctionsView/8/✅ |
 
 ---
@@ -109,10 +110,10 @@ v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.
 | 5 | 仓库根残留旧 `NewToys.slnx` | 删除，唯一入口 `src/NewToys.slnx`（B6） |
 
 ### P2 · 功能待办
-1. **`web-dns` 接线**：复用 `IEncryptedDnsService.ResolveAsync`（骨架已就绪）。
-2. **通用设置「系统级行为」**：开机启动/托盘/拦截关闭/联网检查（当前只持久化）。
-3. **模块页面逐个实装**：按节奏推（"贴一个页面源码 → 出一个补丁"）。
-4. **视频工具箱**：`video-cut`/`video-transcode`，依赖 `FfmpegService` 落地。
+1. ~~`web-dns` 检测页已移除（v1.35）~~：DNS 相关能力保留在「设置 → 加密 DNS」（`settings-dns`，复用 `IEncryptedDnsService`）。
+2. ~~**通用设置「系统级行为」**：开机启动 / 托盘 / 拦截关闭 / 联网检查~~ ✅ v1.35 全部真正生效（仅"检查更新"需要一个版本文件地址才生效，没配就如实跳过）。
+3. **模块页面逐个实装**：只剩 `web-http` 一个骨架。
+4. ~~**视频工具箱**：`video-cut`/`video-transcode`~~ ✅ v1.35 已落地（依赖 ffmpeg / ffprobe，路径在「设置 → 路径配置」）。
 5. **`pc-package` 收尾**：`PackageOutputParser` 实机验证（v1.33 已修中文表头 + `ARP\`/`MSIX\` 类 Id，待跑）；批量勾选+队列评估。
 6. **`settings-package` 软件源**：已改为**直接操作系统 winget**（增删源 / 恢复默认，二次确认），需实机验证 `source list` 解析与 `source add/remove/reset` 的退出码。
 7. **`defaults\` 与脚本目录**：确认**发布产物**里 `defaults\**` 被复制到程序目录（Release 走 `artifacts\release\defaults\`），以及首次运行时 `%LocalAppData%\NewToys\scripts\` 的示例脚本播种。

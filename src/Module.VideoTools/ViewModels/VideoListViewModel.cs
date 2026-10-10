@@ -20,14 +20,19 @@ using NewToys.VideoTools.Services;
 namespace NewToys.VideoTools.ViewModels;
 
 /// <summary>
-/// 视频库页 —— 一个「比资源管理器显示更多信息的视频查看器」，用来快速判断哪些片子该剪辑 / 该转码。
+/// 视频列表页 —— 一个「比资源管理器显示更多信息的视频查看器」，用来快速判断哪些片子该剪辑 / 该转码。
 /// <para>
 /// 布局遵循规范 <b>3.6 列表页</b>（与「PC 工具箱 → 软件包管理」同款）：左侧可排序表头 + 列表、
 /// 右侧选中项详情、列表挂右键菜单；表头最右侧还有一个无文字小按钮，点一下展开详情（并自动选中第一项）。
+/// 列显隐 / 详情开合 / 排序 / 多项筛选全部继承自 <see cref="ListPageViewModelBase"/>（v1.35 收口）。
 /// </para>
 /// <para>
 /// <b>目录每次手动选</b>（v1.34）：本页与设置彻底解绑 —— 不再有"视频库默认目录"，也不回写 <c>app.json</c>
 /// （视频 / 音乐这类库常常分散在好几个文件夹，写死一个默认目录只会误导）。只在**本次程序运行内**记住上次选的目录。
+/// </para>
+/// <para>
+/// <b>多选</b>（v1.35）：行首的勾选框用来挑一批文件，然后「➡ 发送到转码」/「➡ 发送到剪切」
+/// —— 两页的任务清单由单例 <see cref="VideoTaskStore"/> 持有，切页不丢。
 /// </para>
 /// <para>
 /// <b>媒体信息</b>（分辨率 / 编码 / 码率 / 时长）走 ffprobe：
@@ -36,19 +41,18 @@ namespace NewToys.VideoTools.ViewModels;
 /// </para>
 /// <para><b>没有「保存」按钮</b>：这里没有任何"设置项"，全是动作按钮（规范 3.5）。</para>
 /// </summary>
-public partial class VideoListViewModel : ObservableObject
+public partial class VideoListViewModel : ListPageViewModelBase
 {
     /// <summary>上次选的目录（**只在本次运行内**记住；不写配置，见类注释）。</summary>
     private static string _lastFolder = "";
 
     private readonly IAppConfigService? _cfg;
-    private readonly IColumnLayoutService? _cols;
     private readonly VideoMediaIndex? _index;
+    private readonly VideoTaskStore? _store;
+    private readonly INavigationService? _nav;
 
     private readonly List<VideoItem> _all = new();
 
-    private string _sortColumn = "Name";
-    private bool _sortDescending;
     private bool _syncing;
 
     /// <summary>扫描 / 探测取消用（重复点先取消上一次）。</summary>
@@ -78,22 +82,28 @@ public partial class VideoListViewModel : ObservableObject
     [ObservableProperty] private string _bitrateHeader = "码率";
     [ObservableProperty] private string _modifiedHeader = "修改时间";
 
-    // ==================== 列显隐（右键表头增删列，规范 3.6） ====================
-    private const string PageKey = "video-list";
+    // ==================== 列显隐（基类管状态；这里只给 XAML 提供具名属性） ====================
 
-    [ObservableProperty] private bool _isNameVisible = true;
-    [ObservableProperty] private bool _isTypeVisible = true;
-    [ObservableProperty] private bool _isSizeVisible = true;
-    [ObservableProperty] private bool _isDurationVisible = true;
-    [ObservableProperty] private bool _isResolutionVisible = true;
-    [ObservableProperty] private bool _isCodecVisible = true;
-    [ObservableProperty] private bool _isBitrateVisible = true;
-    [ObservableProperty] private bool _isModifiedVisible = true;
+    public bool IsNameVisible => Vis("Name");
+    public bool IsTypeVisible => Vis("Type");
+    public bool IsSizeVisible => Vis("Size");
+    public bool IsDurationVisible => Vis("Duration");
+    public bool IsResolutionVisible => Vis("Resolution");
+    public bool IsCodecVisible => Vis("Codec");
+    public bool IsBitrateVisible => Vis("Bitrate");
+    public bool IsModifiedVisible => Vis("Modified");
+    public bool IsPickVisible => Vis("Pick");
 
-    /// <summary>列的元数据（键 / 标题 / 宽度 / 是否可排序）；顺序即表头与行的列顺序。
-    /// <para>最后一列 <c>Detail</c> 是**表头右侧那个无文字小按钮**用的固定窄列（规范 3.6），不进列显隐菜单。</para></summary>
-    public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    protected override string PageKey => "video-list";
+
+    /// <summary>
+    /// 列的元数据（顺序即表头与行的列顺序）。
+    /// <para>第一列 <c>Pick</c> = 行首勾选框（多选，用来「发送到转码 / 剪切」）；
+    /// 最后一列 <c>Detail</c> 是表头右侧那个无文字小按钮的固定窄列。</para>
+    /// </summary>
+    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
+        new("Pick", "", "34", sortable: false),
         new("Name", "名称", "3.2*"),
         new("Type", "类型", "0.9*"),
         new("Size", "大小", "1*"),
@@ -105,120 +115,26 @@ public partial class VideoListViewModel : ObservableObject
         new("Detail", "", "36", sortable: false),
     };
 
-    /// <summary>列宽规格串（可绑定）：可见列写星号宽度，隐藏列写 "0"（列索引保持不动 → 表头与行永不错位）。
-    /// ⚠️ 必须做成字符串而不是 <c>ColumnDefinitions</c>：<c>Grid.ColumnDefinitions</c> 是 CLR 属性，
-    /// Avalonia XAML 不允许在它上面写 {Binding}（编译期 AVLN3000），故由 <c>ColumnGrid</c> 控件解析（规范 3.6）。</summary>
-    public string VisibleColumnSpecs
-    {
-        get
-        {
-            var parts = new string[Columns.Count];
-            for (var i = 0; i < Columns.Count; i++)
-                parts[i] = IsVisibleFor(Columns[i].Key) ? Columns[i].Width : "0";
-            return string.Join(",", parts);
-        }
-    }
-
-    private bool IsVisibleFor(string key) => key switch
-    {
-        "Name" => IsNameVisible,
-        "Type" => IsTypeVisible,
-        "Size" => IsSizeVisible,
-        "Duration" => IsDurationVisible,
-        "Resolution" => IsResolutionVisible,
-        "Codec" => IsCodecVisible,
-        "Bitrate" => IsBitrateVisible,
-        "Modified" => IsModifiedVisible,
-        _ => true,
-    };
-
-    /// <summary>右键表头勾选 / 取消勾选某列（增删表头项）。</summary>
-    [RelayCommand]
-    private void ToggleColumn(string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return;
-        switch (key)
-        {
-            case "Name": IsNameVisible = !IsNameVisible; break;
-            case "Type": IsTypeVisible = !IsTypeVisible; break;
-            case "Size": IsSizeVisible = !IsSizeVisible; break;
-            case "Duration": IsDurationVisible = !IsDurationVisible; break;
-            case "Resolution": IsResolutionVisible = !IsResolutionVisible; break;
-            case "Codec": IsCodecVisible = !IsCodecVisible; break;
-            case "Bitrate": IsBitrateVisible = !IsBitrateVisible; break;
-            case "Modified": IsModifiedVisible = !IsModifiedVisible; break;
-            default: return;
-        }
-        SaveColumnVisibility();
-        OnPropertyChanged(nameof(VisibleColumnSpecs));
-    }
-
-    private void SaveColumnVisibility()
-    {
-        if (_cols == null) return;
-        _cols.SavePage(PageKey, new Dictionary<string, bool>
-        {
-            ["Name"] = IsNameVisible, ["Type"] = IsTypeVisible, ["Size"] = IsSizeVisible,
-            ["Duration"] = IsDurationVisible, ["Resolution"] = IsResolutionVisible,
-            ["Codec"] = IsCodecVisible, ["Bitrate"] = IsBitrateVisible, ["Modified"] = IsModifiedVisible,
-        });
-    }
-
-    private void LoadColumnVisibility()
-    {
-        if (_cols == null) return;
-        var saved = _cols.LoadPage(PageKey);
-        if (saved.TryGetValue("Name", out var n)) IsNameVisible = n;
-        if (saved.TryGetValue("Type", out var t)) IsTypeVisible = t;
-        if (saved.TryGetValue("Size", out var s)) IsSizeVisible = s;
-        if (saved.TryGetValue("Duration", out var d)) IsDurationVisible = d;
-        if (saved.TryGetValue("Resolution", out var r)) IsResolutionVisible = r;
-        if (saved.TryGetValue("Codec", out var c)) IsCodecVisible = c;
-        if (saved.TryGetValue("Bitrate", out var b)) IsBitrateVisible = b;
-        if (saved.TryGetValue("Modified", out var m)) IsModifiedVisible = m;
-    }
-
     public bool HasSelection => Selected != null;
     public bool HasItems => Videos.Count > 0;
 
-    // ==================== 右栏详情开合 ====================
+    /// <summary>已勾选的文件数（工具条上的「发送到…」按钮据此启用 / 显示数量）。</summary>
+    public int CheckedCount => _all.Count(v => v.IsChecked);
 
-    /// <summary>是否显示右侧详情栏。<b>默认收起</b>；点选结果落 <c>config\columnlayout.json</c>，下次进本页保持。</summary>
-    [ObservableProperty] private bool _isDetailVisible;
-
-    /// <summary>表头右侧小按钮：展开 / 收起详情；展开且没选中时自动选中第一项（规范 3.6）。</summary>
-    [RelayCommand]
-    private void ToggleDetail()
-    {
-        IsDetailVisible = !IsDetailVisible;
-        if (IsDetailVisible && Selected == null && Videos.Count > 0) Selected = Videos[0];
-        SaveDetailFlag();
-    }
-
-    /// <summary>右键「显示详情栏」：确保展开并定位到当前选中项（没选中就选第一项）。</summary>
-    [RelayCommand]
-    private void ShowDetail()
-    {
-        if (Selected == null && Videos.Count > 0) Selected = Videos[0];
-        IsDetailVisible = true;
-        SaveDetailFlag();
-    }
-
-    private void SaveDetailFlag()
-    {
-        _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
-    }
+    public bool HasChecked => CheckedCount > 0;
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public VideoListViewModel() { }
 
-    public VideoListViewModel(IAppConfigService cfg, IColumnLayoutService cols, VideoMediaIndex index)
+    public VideoListViewModel(IAppConfigService cfg, IColumnLayoutService cols, VideoMediaIndex index,
+                              VideoTaskStore store, INavigationService nav)
+        : base(cols)
     {
         _cfg = cfg;
-        _cols = cols;
         _index = index;
-        LoadColumnVisibility();
-        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);   // 默认收起
+        _store = store;
+        _nav = nav;
+        LoadLayout();
         Folder = _lastFolder;                                                            // 本次运行内记住上次选的目录
         UpdateHeaders();
 
@@ -263,6 +179,11 @@ public partial class VideoListViewModel : ObservableObject
                     if (_index.TryApplyCached(v)) cached++;
             }
 
+            // 保留上次的勾选状态（重扫不该把用户挑好的一批弄丢）
+            var checkedPaths = new HashSet<string>(_all.Where(v => v.IsChecked).Select(v => v.FullPath),
+                                                   StringComparer.OrdinalIgnoreCase);
+            foreach (var v in items) v.IsChecked = checkedPaths.Contains(v.FullPath);
+
             _all.Clear();
             _all.AddRange(items);
             ApplyView();
@@ -295,14 +216,40 @@ public partial class VideoListViewModel : ObservableObject
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
 
-    [RelayCommand]
-    private void Sort(string? column)
+    /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
+    protected override void RefreshView() => ApplyView();
+
+    protected override void EnsureDetailSelection()
     {
-        if (string.IsNullOrWhiteSpace(column)) return;
-        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase))
-            _sortDescending = !_sortDescending;
-        else { _sortColumn = column; _sortDescending = false; }
-        ApplyView();
+        if (Selected == null && Videos.Count > 0) Selected = Videos[0];
+    }
+
+    /// <summary>筛选取值（多项筛选用）：按列键拿这一行的文本。</summary>
+    protected override string? FieldText(object row, string columnKey) => columnKey switch
+    {
+        "Name" => ((VideoItem)row).Name,
+        "Type" => ((VideoItem)row).Extension,
+        "Size" => ((VideoItem)row).SizeDisplay,
+        "Duration" => ((VideoItem)row).DurationDisplay,
+        "Resolution" => ((VideoItem)row).ResolutionDisplay,
+        "Codec" => ((VideoItem)row).CodecDisplay,
+        "Bitrate" => ((VideoItem)row).BitRateDisplay,
+        "Modified" => ((VideoItem)row).ModifiedDisplay,
+        _ => null
+    };
+
+    /// <summary>筛选取值（数值比较用）：大小按字节、时长按秒、分辨率按像素数。</summary>
+    protected override double? FieldNumber(object row, string columnKey)
+    {
+        var v = (VideoItem)row;
+        return columnKey switch
+        {
+            "Size" => v.SizeBytes,
+            "Duration" => v.Duration,
+            "Resolution" => (v.Width ?? 0) * (double)(v.Height ?? 0),
+            "Modified" => v.Modified.ToOADate(),
+            _ => null
+        };
     }
 
     private void ApplyView()
@@ -314,19 +261,22 @@ public partial class VideoListViewModel : ObservableObject
             q = q.Where(v => v.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
                           || v.Extension.Contains(text, StringComparison.OrdinalIgnoreCase));
 
+        // 多项筛选（基类）：多条条件之间取「且」
+        q = ApplyFilters(q);
+
         var byText = StringComparer.CurrentCultureIgnoreCase;
-        q = _sortColumn switch
+        q = SortColumn switch
         {
-            "Type" => _sortDescending ? q.OrderByDescending(v => v.Extension, byText) : q.OrderBy(v => v.Extension, byText),
-            "Size" => _sortDescending ? q.OrderByDescending(v => v.SizeBytes) : q.OrderBy(v => v.SizeBytes),
-            "Modified" => _sortDescending ? q.OrderByDescending(v => v.Modified) : q.OrderBy(v => v.Modified),
+            "Type" => SortDescending ? q.OrderByDescending(v => v.Extension, byText) : q.OrderBy(v => v.Extension, byText),
+            "Size" => SortDescending ? q.OrderByDescending(v => v.SizeBytes) : q.OrderBy(v => v.SizeBytes),
+            "Modified" => SortDescending ? q.OrderByDescending(v => v.Modified) : q.OrderBy(v => v.Modified),
             // 未读取媒体信息的排最后（-1），而不是当成 0 秒排最前
-            "Duration" => _sortDescending ? q.OrderByDescending(v => v.Duration ?? -1) : q.OrderBy(v => v.Duration ?? -1),
-            "Resolution" => _sortDescending ? q.OrderByDescending(v => (v.Width ?? 0) * (long)(v.Height ?? 0))
+            "Duration" => SortDescending ? q.OrderByDescending(v => v.Duration ?? -1) : q.OrderBy(v => v.Duration ?? -1),
+            "Resolution" => SortDescending ? q.OrderByDescending(v => (v.Width ?? 0) * (long)(v.Height ?? 0))
                                             : q.OrderBy(v => (v.Width ?? 0) * (long)(v.Height ?? 0)),
-            "Codec" => _sortDescending ? q.OrderByDescending(v => v.Codec, byText) : q.OrderBy(v => v.Codec, byText),
-            "Bitrate" => _sortDescending ? q.OrderByDescending(v => v.BitRate ?? -1) : q.OrderBy(v => v.BitRate ?? -1),
-            _ => _sortDescending ? q.OrderByDescending(v => v.Name, byText) : q.OrderBy(v => v.Name, byText)
+            "Codec" => SortDescending ? q.OrderByDescending(v => v.Codec, byText) : q.OrderBy(v => v.Codec, byText),
+            "Bitrate" => SortDescending ? q.OrderByDescending(v => v.BitRate ?? -1) : q.OrderBy(v => v.BitRate ?? -1),
+            _ => SortDescending ? q.OrderByDescending(v => v.Name, byText) : q.OrderBy(v => v.Name, byText)
         };
 
         _syncing = true;
@@ -344,22 +294,24 @@ public partial class VideoListViewModel : ObservableObject
         SummaryText = _all.Count == 0
             ? "尚未扫描"
             : $"共 {Videos.Count} / {_all.Count} 个视频 · 合计 {FormatSize(total)}"
+              + (CheckedCount > 0 ? $" · 已勾选 {CheckedCount}" : "")
               + (Selected != null ? $" · 已选：{Selected.Name}" : "");
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(CheckedCount));
+        OnPropertyChanged(nameof(HasChecked));
     }
 
     private void UpdateHeaders()
     {
-        var arrow = _sortDescending ? " ▼" : " ▲";
-        NameHeader = "名称" + (_sortColumn == "Name" ? arrow : "");
-        TypeHeader = "类型" + (_sortColumn == "Type" ? arrow : "");
-        SizeHeader = "大小" + (_sortColumn == "Size" ? arrow : "");
-        DurationHeader = "时长" + (_sortColumn == "Duration" ? arrow : "");
-        ResolutionHeader = "分辨率" + (_sortColumn == "Resolution" ? arrow : "");
-        CodecHeader = "编码" + (_sortColumn == "Codec" ? arrow : "");
-        BitrateHeader = "码率" + (_sortColumn == "Bitrate" ? arrow : "");
-        ModifiedHeader = "修改时间" + (_sortColumn == "Modified" ? arrow : "");
+        NameHeader = "名称" + SortArrow("Name");
+        TypeHeader = "类型" + SortArrow("Type");
+        SizeHeader = "大小" + SortArrow("Size");
+        DurationHeader = "时长" + SortArrow("Duration");
+        ResolutionHeader = "分辨率" + SortArrow("Resolution");
+        CodecHeader = "编码" + SortArrow("Codec");
+        BitrateHeader = "码率" + SortArrow("Bitrate");
+        ModifiedHeader = "修改时间" + SortArrow("Modified");
     }
 
     private static string FormatSize(long bytes) => bytes switch
@@ -369,6 +321,76 @@ public partial class VideoListViewModel : ObservableObject
         < 1024L * 1024 * 1024 => $"{bytes / 1024.0 / 1024.0:0.0} MB",
         _ => $"{bytes / 1024.0 / 1024.0 / 1024.0:0.00} GB"
     };
+
+    // ==================== 多选 / 发送到任务页 ====================
+
+    /// <summary>勾选状态变了 → 刷新「已勾选几个」与统计行。</summary>
+    public void OnItemCheckedChanged()
+    {
+        OnPropertyChanged(nameof(CheckedCount));
+        OnPropertyChanged(nameof(HasChecked));
+        SummaryText = _all.Count == 0
+            ? "尚未扫描"
+            : $"共 {Videos.Count} / {_all.Count} 个视频 · 合计 {FormatSize(_all.Sum(v => v.SizeBytes))}"
+              + (CheckedCount > 0 ? $" · 已勾选 {CheckedCount}" : "");
+    }
+
+    /// <summary>行首勾选框被点了一下（只刷新"已勾选几个"，不重排列表 —— 重排会把正在勾的那行挪走）。</summary>
+    [RelayCommand]
+    private void ItemChecked() => OnItemCheckedChanged();
+
+    /// <summary>☑ 全选（当前列表里显示的全部勾上）。</summary>
+    [RelayCommand]
+    private void CheckAll()
+    {
+        foreach (var v in Videos) v.IsChecked = true;
+        OnItemCheckedChanged();
+        StatusText = $"已勾选 {CheckedCount} 个文件。";
+    }
+
+    /// <summary>☑ 反选。</summary>
+    [RelayCommand]
+    private void InvertChecked()
+    {
+        foreach (var v in Videos) v.IsChecked = !v.IsChecked;
+        OnItemCheckedChanged();
+        StatusText = $"反选后已勾选 {CheckedCount} 个文件。";
+    }
+
+    /// <summary>☐ 取消全部勾选。</summary>
+    [RelayCommand]
+    private void UncheckAll()
+    {
+        foreach (var v in _all) v.IsChecked = false;
+        OnItemCheckedChanged();
+        StatusText = "已取消全部勾选。";
+    }
+
+    /// <summary>➡ 发送到转码：把勾选的文件交给转码页批量生成任务。</summary>
+    [RelayCommand]
+    private void SendToTranscode()
+    {
+        var paths = _all.Where(v => v.IsChecked).Select(v => v.FullPath).ToList();
+        if (paths.Count == 0) { StatusText = "先勾几个文件（行首的勾选框）。"; return; }
+
+        if (_store == null) { StatusText = "任务服务未就绪。"; return; }
+        _store.EnqueueForTranscode(paths);
+        StatusText = $"已把 {paths.Count} 个文件送去转码页……";
+        _nav?.NavigateTo("video-transcode");
+    }
+
+    /// <summary>➡ 发送到剪切：把勾选的文件交给剪切页。</summary>
+    [RelayCommand]
+    private void SendToCut()
+    {
+        var paths = _all.Where(v => v.IsChecked).Select(v => v.FullPath).ToList();
+        if (paths.Count == 0) { StatusText = "先勾几个文件（行首的勾选框）。"; return; }
+
+        if (_store == null) { StatusText = "任务服务未就绪。"; return; }
+        _store.EnqueueForCut(paths);
+        StatusText = $"已把 {paths.Count} 个文件送去剪切页……";
+        _nav?.NavigateTo("video-cut");
+    }
 
     // ==================== 媒体信息（ffprobe + 多线程） ====================
 

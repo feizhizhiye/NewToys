@@ -55,6 +55,12 @@ public partial class VideoItem : ObservableObject
     /// <summary>媒体信息的读取状态（给详情栏显示：成功摘要 / 失败原因 / 未读取）。</summary>
     [ObservableProperty] private string _mediaStatus = "未读取媒体信息";
 
+    /// <summary>
+    /// 列表行首那个勾选框（**派生、不写盘**）：勾上后可以用工具条上的
+    /// 「➡ 发送到转码」/「➡ 发送到剪切」把一批文件一次性变成任务。
+    /// </summary>
+    [ObservableProperty] private bool _isChecked;
+
     public string Folder => System.IO.Path.GetDirectoryName(FullPath) ?? "";
 
     public string SizeDisplay => SizeBytes switch
@@ -130,7 +136,13 @@ public partial class VideoItem : ObservableObject
         OnPropertyChanged(nameof(BitRateDisplay));
     }
 
-    /// <summary>ffprobe 的 <c>codec_name</c> → 常见写法（不认识的编码原样返回）。</summary>
+    /// <summary>
+    /// ffprobe 的 <c>codec_name</c> → 常见写法（不认识的编码原样返回）。
+    /// <para>公开版本：转码页填「前 / 后」编码时也要用同一套叫法，避免同一个编码两种写法。</para>
+    /// </summary>
+    public static string FriendlyCodecName(string? codec)
+        => string.IsNullOrWhiteSpace(codec) ? "—" : FriendlyCodec(codec);
+
     private static string FriendlyCodec(string codec) => codec.ToLowerInvariant() switch
     {
         "h264" => "H.264/AVC",

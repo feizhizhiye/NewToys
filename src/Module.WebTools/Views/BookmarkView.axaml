@@ -1,18 +1,145 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.WebTools.Views"
+             xmlns:conv="using:Avalonia.Data.Converters"
              x:Class="NewToys.WebTools.Views.BookmarkView">
-  <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+  <Grid RowDefinitions="Auto,Auto,*">
+
+    <!-- 状态行 -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="8">
-      <Button Classes="primary" Content="📥 导入书签"/>
-      <Button Classes="ghost" Content="▶ 检测可用性"/>
-      <Button Classes="ghost" Content="📤 导出清单"/>
+                Margin="24,16,24,0" Spacing="10">
+      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="560"
+                 Foreground="{DynamicResource AccentBrush}"/>
     </StackPanel>
-    <Border Grid.Row="1" Margin="24,8,24,16">
-      <Border Classes="card">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="4"><StackPanel Spacing="8"><TextBox PlaceholderText="粘贴浏览器导出的书签 html / 纯文本网址，一行一个" Height="120" AcceptsReturn="True" TextWrapping="Wrap"/><TextBlock Text="支持批量检测链接可用性（200/超时/404）" Foreground="{DynamicResource SecondaryTextBrush}"/></StackPanel></StackPanel></ScrollViewer>
-      </Border>
+
+    <!-- 工具条 -->
+    <Border Grid.Row="1" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="BtnImport" Classes="primary" Content="📥 导入书签" Margin="0,0,8,0" ToolTip.Tip="选择浏览器导出的书签 HTML 文件"/>
+        <Button Classes="ghost" Content="➕ 新建" Margin="0,0,8,0" Command="{Binding NewBookmarkCommand}"/>
+        <Button Classes="ghost" Content="🔗 检测全部" Margin="0,0,8,0" Command="{Binding CheckAllCommand}" IsEnabled="{Binding !IsBusy}"/>
+        <Button Classes="ghost" Content="🚀 批量打开" Margin="0,0,8,0" Command="{Binding OpenBatchCommand}"/>
+        <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"/>
+        <TextBox Width="220" Margin="0,0,8,0" Text="{Binding SearchText, Mode=TwoWay}"
+                 PlaceholderText="搜索标题 / 网址 / 分组…"/>
+        <TextBlock Text="右键列表项：联通检测 · 批量打开 · 打开 · 发送到抓取 · 编辑 · 删除" FontSize="11"
+                   VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </WrapPanel>
     </Border>
+
+    <!-- 主区：左列表 + 右详情 -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="16">
+
+      <Border Grid.Column="0" Classes="card" Padding="0">
+        <Grid RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Classes="list-header" Height="36">
+            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <Button Grid.Column="0" Classes="col-header" Content="{Binding TitleHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Title" IsVisible="{Binding IsTitleVisible}"/>
+              <Button Grid.Column="1" Classes="col-header" Content="{Binding UrlHeader}"
+                      IsVisible="{Binding IsUrlVisible}"/>
+              <Button Grid.Column="2" Classes="col-header" Content="{Binding FolderHeader}"
+                      IsVisible="{Binding IsFolderVisible}"/>
+              <Button Grid.Column="3" Classes="col-header" Content="{Binding StatusHeader}"
+                      IsVisible="{Binding IsStatusVisible}"/>
+              <Button Grid.Column="4" Classes="ghost" Content="▤" FontSize="11" Padding="6,2" Margin="0,0,6,0"
+                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                      Command="{Binding ToggleDetailCommand}" ToolTip.Tip="显示 / 隐藏右侧详情"/>
+              <v:ColumnGrid.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="标题" ToggleType="CheckBox" IsChecked="{Binding IsTitleVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Title"/>
+                  <MenuItem Header="网址" ToggleType="CheckBox" IsChecked="{Binding IsUrlVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Url"/>
+                  <MenuItem Header="分组" ToggleType="CheckBox" IsChecked="{Binding IsFolderVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Folder"/>
+                  <MenuItem Header="状态" ToggleType="CheckBox" IsChecked="{Binding IsStatusVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Status"/>
+                </ContextMenu>
+              </v:ColumnGrid.ContextMenu>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="1" x:Name="BookmarkList" Classes="list-page"
+                   ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                   SelectionMode="Single">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
+                <Separator/>
+                <MenuItem Header="🔗 联通检测" Command="{Binding CheckCommand}"/>
+                <MenuItem Header="📌 加入 / 移出批量打开" Command="{Binding ToggleBatchCommand}"/>
+                <MenuItem Header="🌐 打开" Command="{Binding OpenCommand}"/>
+                <MenuItem Header="🕷 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
+                <Separator/>
+                <MenuItem Header="✏ 编辑" Command="{Binding ShowDetailCommand}"/>
+                <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                  <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Title}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsTitleVisible}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Url}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsUrlVisible}"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Folder}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsFolderVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding CheckStatus}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"/>
+                </v:ColumnGrid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- 右：详情（编辑） -->
+      <Border Grid.Column="1" Classes="card" Padding="16" Width="340" Margin="12,0,0,0"
+              IsVisible="{Binding IsDetailVisible}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="12">
+            <StackPanel Spacing="2" IsVisible="{Binding !HasSelection}">
+              <TextBlock Text="在左侧列表里选中一条书签" FontSize="13" TextWrapping="Wrap"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+            </StackPanel>
+
+            <StackPanel Spacing="6" IsVisible="{Binding HasSelection}">
+              <TextBlock Text="标题" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBox Text="{Binding Selected.Title, Mode=TwoWay}"/>
+
+              <TextBlock Text="网址" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBox Text="{Binding Selected.Url, Mode=TwoWay}"/>
+
+              <TextBlock Text="分组" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBox Text="{Binding Selected.Folder, Mode=TwoWay}" PlaceholderText="如：工作 / 学习"/>
+
+              <TextBlock Text="备注" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBox Text="{Binding Selected.Notes, Mode=TwoWay}" AcceptsReturn="True" Height="80"
+                       TextWrapping="Wrap" FontSize="12"/>
+
+              <CheckBox Content="加入「批量打开」" IsChecked="{Binding Selected.IsBatchOpen, Mode=TwoWay}"/>
+
+              <!-- ⚠️ Avalonia 的 WrapPanel **没有** Spacing 属性（StackPanel 才有）→ 用按钮 Margin 做间距 -->
+              <WrapPanel Orientation="Horizontal">
+                <Button Classes="primary" Content="💾 保存" Margin="0,0,6,0" Command="{Binding SaveCommand}"/>
+                <Button Classes="ghost" Content="🌐 打开" Margin="0,0,6,0" Command="{Binding OpenCommand}"/>
+                <Button Classes="ghost" Content="🔗 检测" Margin="0,0,6,0" Command="{Binding CheckCommand}"/>
+                <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}"/>
+              </WrapPanel>
+
+              <StackPanel Spacing="2"
+                          IsVisible="{Binding Selected.CheckStatus, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                <TextBlock Text="最近检测" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <SelectableTextBlock Text="{Binding Selected.CheckStatus}" FontSize="12" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Selected.CheckedAt, StringFormat='检测时间：{0:yyyy-MM-dd HH:mm}'}"
+                           FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
   </Grid>
 </UserControl>

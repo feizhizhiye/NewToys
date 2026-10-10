@@ -7,10 +7,11 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using NewToys.Shared.Models;
+using NewToys.Core.Services;
+using NewToys.PcTools.Models;
 using NewToys.Shared.Services;
 
-namespace NewToys.Core.Services;
+namespace NewToys.PcTools.Services;
 
 /// <summary>
 /// <see cref="IQuickActionService"/> 实现：两个页面 = 两个配置文件。

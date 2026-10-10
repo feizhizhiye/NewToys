@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using NewToys.Shared.Models;
+using NewToys.PcTools.Models;
 
-namespace NewToys.Shared.Services;
+namespace NewToys.PcTools.Services;
 
 /// <summary>
 /// 「电脑工具 → 设置与脚本 / 快捷设置」的存取 + 执行。

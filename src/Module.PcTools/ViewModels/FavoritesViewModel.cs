@@ -3,6 +3,8 @@ using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.PcTools.Models;
+using NewToys.PcTools.Services;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 

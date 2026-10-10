@@ -1,18 +1,282 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.VideoTools.Views"
              x:Class="NewToys.VideoTools.Views.TranscodeView">
-  <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+  <Grid RowDefinitions="Auto,Auto,Auto,*">
+
+    <!-- 操作行：页名由左侧二级菜单体现，这里只放统计与状态 -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="8">
-      <Button Classes="primary" Content="▶ 开始转码"/>
-      <Button Classes="ghost" Content="⏹ 停止"/>
+                Margin="24,16,24,0" Spacing="10">
+      <TextBlock Classes="info-text" Text="{Binding SummaryText}" VerticalAlignment="Center"/>
+      <TextBlock Classes="status-text" Text="{Binding StatusText}" VerticalAlignment="Center" MaxWidth="420"/>
     </StackPanel>
 
-    <Border Grid.Row="1" Margin="24,8,24,16">
-      <Border Classes="card">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="4"><StackPanel Spacing="8"><TextBox PlaceholderText="输入文件/目录（可多选）" Height="60" AcceptsReturn="True" TextWrapping="Wrap"/><ComboBox SelectedIndex="0" HorizontalAlignment="Left" Width="260"><ComboBoxItem Content="H.264 MP4（通用）"/><ComboBoxItem Content="H.265 MP4（更小）"/><ComboBoxItem Content="仅提取音频 MP3"/><ComboBoxItem Content="压缩到指定大小"/></ComboBox></StackPanel></StackPanel></ScrollViewer>
-      </Border>
+    <!--  ==================== 工具条  ====================  -->
+    <Border Grid.Row="1" Classes="toolbar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="PickFilesBtn" Classes="primary" Content="📂 添加文件（可多选）" Margin="0,0,8,6"
+                ToolTip.Tip="选一批视频，每个文件生成一条转码任务（只是建任务，不立刻跑）"/>
+
+        <TextBlock Text="新建预设" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <ComboBox Width="230" Margin="0,0,8,6" ItemsSource="{Binding Presets}"
+                  SelectedValue="{Binding DefaultPresetId, Mode=TwoWay}"
+                  SelectedValueBinding="{Binding Id}"
+                  ToolTip.Tip="只影响随后加入的任务；已存在的任务在右侧详情卡里单独改">
+          <ComboBox.ItemTemplate>
+            <DataTemplate><TextBlock Text="{Binding Name}" FontSize="12"/></DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+
+        <TextBlock Text="最大高度" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <TextBox Width="70" Margin="0,0,8,6" Classes="code" Text="{Binding DefaultMaxHeight, Mode=TwoWay}"
+                 ToolTip.Tip="0 = 不改分辨率；720 = 缩到 720p"/>
+
+        <TextBox Width="200" Margin="0,0,8,6" Text="{Binding SearchText, Mode=TwoWay}"
+                 PlaceholderText="按文件名 / 输出过滤…"/>
+
+        <Border Classes="divider-line" Width="1" Height="20" Margin="0,0,8,0"/>
+        <Button Classes="primary" Content="▶▶ 批量运行" Margin="0,0,4,6"
+                Command="{Binding RunAllCommand}" IsEnabled="{Binding IsNotBusy}"
+                ToolTip.Tip="按列表顺序依次转码，跑完自动探测输出文件填「转码后」那一列"/>
+        <Button Classes="ghost" Content="▶ 只跑选中" Margin="0,0,4,6"
+                Command="{Binding RunSelectedCommand}" IsEnabled="{Binding IsNotBusy}"/>
+        <Button Classes="ghost" Content="⏹ 停止" Margin="0,0,4,6" Command="{Binding StopCommand}"
+                IsEnabled="{Binding IsRunning}"/>
+        <Button Classes="ghost" Content="🧹 清理已结束" Margin="0,0,8,6" Command="{Binding ClearFinishedCommand}"
+                IsEnabled="{Binding IsNotBusy}"/>
+      </WrapPanel>
     </Border>
+
+    <!--  ==================== 多项筛选  ====================  -->
+    <Border Grid.Row="2" Classes="filter-bar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Classes="filter-btn" Content="＋ 条件" Command="{Binding AddFilterCommand}"/>
+        <Button Classes="filter-btn" Content="🧹 清空" Command="{Binding ClearFiltersCommand}"
+                IsVisible="{Binding HasFilters}"/>
+        <TextBlock Classes="hint-text" Text="{Binding FilterSummary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+        <ItemsControl ItemsSource="{Binding Filters}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,10,4" VerticalAlignment="Center">
+                <CheckBox IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"/>
+                <ComboBox Classes="filter-combo"
+                          ItemsSource="{Binding $parent[UserControl].DataContext.FilterableColumns}"
+                          SelectedItem="{Binding Column, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Header}" FontSize="12"/></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <ComboBox Classes="filter-combo" ItemsSource="{Binding Operators}"
+                          SelectedItem="{Binding OperatorItem, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBox Classes="filter-value" Text="{Binding Value, Mode=TwoWay}"
+                         IsVisible="{Binding NeedsValue}" PlaceholderText="值…"/>
+                <Button Classes="filter-btn" Content="✕" Padding="6,2"
+                        Command="{Binding $parent[UserControl].DataContext.RemoveFilterCommand}"
+                        CommandParameter="{Binding}"/>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </WrapPanel>
+    </Border>
+
+    <!--  ==================== 主区：左任务列表 + 右详情（参数 + 前后对比）  ====================  -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="16">
+
+      <Border Grid.Column="0" Classes="card" Padding="0">
+        <Grid RowDefinitions="Auto,*">
+
+          <Border Grid.Row="0" Classes="list-header">
+            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Name"
+                      IsVisible="{Binding IsNameVisible}"/>
+              <Button Grid.Column="1" Classes="col-header" Content="{Binding PresetHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Preset"
+                      IsVisible="{Binding IsPresetVisible}"/>
+              <Button Grid.Column="2" Classes="col-header" Content="{Binding BeforeHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Before"
+                      IsVisible="{Binding IsBeforeVisible}"/>
+              <Button Grid.Column="3" Classes="col-header" Content="{Binding AfterHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="After"
+                      IsVisible="{Binding IsAfterVisible}"/>
+              <Button Grid.Column="4" Classes="col-header" Content="{Binding StatusHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Status"
+                      IsVisible="{Binding IsStatusVisible}"/>
+              <TextBlock Grid.Column="5" Classes="list-cell" Text="进度" FontWeight="SemiBold"
+                         IsVisible="{Binding IsProgressVisible}"/>
+              <Button Grid.Column="6" Classes="header-toggle" Content="▤"
+                      Command="{Binding ToggleDetailCommand}"
+                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）"/>
+
+              <v:ColumnGrid.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
+                  <Separator/>
+                  <MenuItem Header="文件" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
+                  <MenuItem Header="预设" ToggleType="CheckBox" IsChecked="{Binding IsPresetVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Preset"/>
+                  <MenuItem Header="转码前" ToggleType="CheckBox" IsChecked="{Binding IsBeforeVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Before"/>
+                  <MenuItem Header="转码后" ToggleType="CheckBox" IsChecked="{Binding IsAfterVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="After"/>
+                  <MenuItem Header="状态" ToggleType="CheckBox" IsChecked="{Binding IsStatusVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Status"/>
+                  <MenuItem Header="进度" ToggleType="CheckBox" IsChecked="{Binding IsProgressVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Progress"/>
+                </ContextMenu>
+              </v:ColumnGrid.ContextMenu>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="1" x:Name="TaskList" Classes="list-page"
+                   ItemsSource="{Binding Items}"
+                   SelectedItem="{Binding Selected, Mode=TwoWay}"
+                   SelectionMode="Single">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
+                <Separator/>
+                <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}"/>
+                <MenuItem Header="▶ 只跑选中" Command="{Binding RunSelectedCommand}" IsEnabled="{Binding IsNotBusy}"/>
+                <Separator/>
+                <MenuItem Header="🗑 删除任务" Command="{Binding DeleteCommand}" IsEnabled="{Binding IsNotBusy}"/>
+                <MenuItem Header="📂 打开输出目录" Command="{Binding OpenOutputFolderCommand}"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding PresetName}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsPresetVisible}"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SourceSizeDisplay}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsBeforeVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell accent" Text="{Binding OutputSizeDisplay}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsAfterVisible}"/>
+                  <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding StatusDisplay}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"/>
+                  <ProgressBar Grid.Column="5" Classes="task-progress" Value="{Binding Progress}" Maximum="100"
+                               IsVisible="{Binding $parent[ListBox].DataContext.IsProgressVisible}"/>
+                </v:ColumnGrid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- 右：参数 + 前后对比 -->
+      <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
+        <Grid RowDefinitions="Auto,*">
+          <StackPanel Grid.Row="0" Spacing="8">
+            <TextBlock Classes="section-title" Text="任务参数"/>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="primary" Content="💾 保存" Command="{Binding SaveCommand}"/>
+              <Button Classes="ghost" Content="▶ 跑这条" Command="{Binding RunSelectedCommand}"
+                      IsEnabled="{Binding IsNotBusy}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}"/>
+              <Button Classes="ghost" Content="📂 输出目录" Command="{Binding OpenOutputFolderCommand}"/>
+            </StackPanel>
+          </StackPanel>
+
+          <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="10">
+
+              <TextBlock Classes="empty-hint" IsVisible="{Binding !HasSelection}"
+                         Text="在左侧选中一个任务：这里可以单独改它的预设 / CRF / 缩放 / 输出文件，改完点「💾 保存」。"/>
+
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="文件"/>
+                <TextBlock Classes="field-value" Text="{Binding Selected.Name}" FontWeight="SemiBold"/>
+              </StackPanel>
+
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="预设（转码成什么）"/>
+                <ComboBox ItemsSource="{Binding Presets}"
+                          SelectedValue="{Binding EditPresetId, Mode=TwoWay}"
+                          SelectedValueBinding="{Binding Id}"
+                          HorizontalAlignment="Stretch" FontSize="12">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Name}" FontSize="12"/></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </StackPanel>
+
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="CRF（0 = 用预设的值；18~28 常用，越小越清晰）"/>
+                <TextBox Classes="code" Text="{Binding EditCrf, Mode=TwoWay}"/>
+              </StackPanel>
+
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="最大高度（0 = 不改分辨率；720 = 缩到 720p）"/>
+                <TextBox Classes="code" Text="{Binding EditMaxHeight, Mode=TwoWay}"/>
+              </StackPanel>
+
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="输出文件"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox Grid.Column="0" Classes="code" Text="{Binding EditOutput, Mode=TwoWay}"/>
+                  <Button Grid.Column="1" x:Name="PickOutputBtn" Classes="ghost" Content="📂" Margin="4,0,0,0"
+                          Padding="8,4"/>
+                </Grid>
+              </StackPanel>
+
+              <Border Classes="divider-line"/>
+
+              <!--  ==================== 前后对比  ====================  -->
+              <StackPanel Spacing="6" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="section-title" Text="转码前 → 转码后"/>
+                <Grid ColumnDefinitions="80,*,*">
+                  <TextBlock Grid.Column="0" Classes="field-label" Text="项目"/>
+                  <TextBlock Grid.Column="1" Classes="field-label" Text="前"/>
+                  <TextBlock Grid.Column="2" Classes="field-label" Text="后"/>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding CompareRows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid ColumnDefinitions="80,*,*">
+                        <TextBlock Grid.Column="0" Classes="field-value" Text="{Binding Label}"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+                        <TextBlock Grid.Column="1" Classes="field-value" Text="{Binding Before}"/>
+                        <TextBlock Grid.Column="2" Classes="field-value" Text="{Binding After}"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Classes="hint-text"
+                           Text="「后」这一列在转码完成后才有值（跑完会自动用 ffprobe 探测输出文件）。"/>
+              </StackPanel>
+
+              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                <TextBlock Classes="field-label" Text="任务状态"/>
+                <TextBlock Classes="field-value" Text="{Binding Selected.StatusDisplay}"/>
+                <TextBlock Classes="hint-text" Text="{Binding Selected.Message}" Margin="0,4,0,0"/>
+              </StackPanel>
+
+              <TextBlock Classes="hint-text"
+                         Text="任务只在这里排队：改完参数点「💾 保存」，要跑的时候点「▶▶ 批量运行」。任务清单存在 config\video-tasks.json，关掉软件再回来还在。"/>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
   </Grid>
 </UserControl>

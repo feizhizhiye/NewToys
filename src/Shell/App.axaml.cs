@@ -1,10 +1,12 @@
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -57,17 +59,17 @@ public class App : Application
             // 首页收藏夹：落 config\favorites.json（可被数据管理备份），单一真相源，标题/图标/简介现从菜单取。
             services.AddSingleton<IFavoritesService, FavoritesService>();
 
-            // 「电脑工具 → 设置与脚本 / 快捷设置」的清单：两页各一份文件（v1.34）——config\pc-scripts.json 与 config\pc-quick.json
-            // （都在 config\ 下、可被数据管理备份）。
-            // 「收藏夹」页读的是同一批对象上的 IsFavorite 标记，不是另一份清单（单一真相源，见规范 3.9）。
-            services.AddSingleton<IQuickActionService, QuickActionService>();
-
             // 列表页「列显隐」偏好（右键表头增删列，规范 3.8）：落 config\columnlayout.json（会被数据管理备份）。
             services.AddSingleton<IColumnLayoutService, ColumnLayoutService>();
 
             // 工程内唯一的本地数据库（data\newtoys.db）：当前给「视频工具 → 视频库」的媒体信息索引用；
             // 后续更多结构化数据也走它（见 SqliteDatabase 的类注释）。
             services.AddSingleton<SqliteDatabase>();
+
+            // 「设置 → 通用」的系统级行为：开机启动项（注册表）+ 启动时检查更新。
+            // 两者都不碰 Avalonia，所以能放在 Core 里；这里只是把它们挂进 DI。
+            services.AddSingleton<StartupService>();
+            services.AddSingleton<UpdateService>();
 
             services.AddSingleton<ShellViewModel>();
             services.AddTransient<HomeView>();
@@ -92,14 +94,42 @@ public class App : Application
             // 卸载 / 删除前的二次确认：Core 里的服务不能引用 Avalonia，
             // 所以由宿主在这里把「怎么问」接上去（弹窗在下面实现）。
             PackageManagerService.ConfirmHandler = msg => ConfirmAsync(win, msg);
-            QuickActionService.ConfirmHandler = msg => ConfirmAsync(win, msg);
 
             // 公共对话框钩子（Core.DialogHooks）：给各模块用（视频工具的重命名 / 删除文件 / 清空缓存 …）。
             // ⛔ 模块不能反向引用 Shell，所以只能由这里注入；没注入时钩子一律按"用户取消"处理。
             DialogHooks.ConfirmHandler = msg => ConfirmAsync(win, msg);
             DialogHooks.InputHandler = (title, initial) => InputAsync(win, title, initial);
 
-            win.Show();
+            // ==================== 「设置 → 通用」的三项系统级行为（v1.35 真正生效） ====================
+            // ① 开机启动：以注册表为准做一次静默对账（用户在系统别处改了也不会两边打架）；
+            // ② 启动时最小化到托盘：托盘就绪时不显示主窗口（否则会闪一下再消失）；
+            // ③ 启动时检查更新：后台跑，只提示、绝不自己替换自己。
+            var launchCfg = _sp.GetRequiredService<ILaunchConfigService>();
+            var startup = _sp.GetRequiredService<StartupService>();
+            if (startup.IsSupported)
+            {
+                var want = launchCfg.Config.StartWithSystem;
+                if (want != startup.IsEnabled) startup.SetEnabled(want);
+            }
+
+            var trayOk = SetupTrayIcon(win);
+            var startHidden = launchCfg.Config.StartMinimized && trayOk;
+
+            if (startHidden)
+            {
+                // 不 Show：直接留在托盘（Show 完再 Hide 会看到窗口闪一下）
+                win.WindowState = Avalonia.Controls.WindowState.Minimized;
+            }
+            else
+            {
+                win.Show();
+            }
+
+            if (launchCfg.Config.CheckUpdateOnStartup)
+            {
+                var updateUrl = _sp.GetRequiredService<IAppConfigService>().UpdateUrl;
+                _ = CheckUpdateAsync(win, updateUrl);
+            }
         }
         catch (Exception ex)
         {
@@ -121,6 +151,212 @@ public class App : Application
             w.Show();
         }
         base.OnFrameworkInitializationCompleted();
+    }
+
+    // ==================== 托盘图标（「关闭按钮最小化到托盘」的落点） ====================
+
+    private static TrayIcon? _tray;
+
+    /// <summary>
+    /// 建托盘图标并挂上菜单（显示 / 隐藏窗口、退出）。
+    /// <para>
+    /// ⚠️ 托盘是 Avalonia 的原生控件，必须落在 Shell 这一层（<c>Core</c> 不引用 Avalonia）。
+    /// 图标是**代码画出来的**（32×32 位图，不依赖任何打包资源），所以发布产物里不会漏文件。
+    /// </para>
+    /// </summary>
+    /// <returns>托盘是否创建成功（失败时「最小化到托盘 / 关闭到托盘」会退化成普通最小化，并如实提示）。</returns>
+    private bool SetupTrayIcon(Window win)
+    {
+        try
+        {
+            var show = new NativeMenuItem("显示 / 隐藏窗口");
+            var exit = new NativeMenuItem("退出 NewToys");
+
+            show.Click += (_, _) =>
+            {
+                if (win.IsVisible)
+                {
+                    if (win.WindowState == WindowState.Minimized) { win.WindowState = WindowState.Normal; win.Show(); }
+                    else win.Hide();
+                }
+                else
+                {
+                    win.Show();
+                    win.WindowState = WindowState.Normal;
+                    win.Activate();
+                }
+            };
+
+            exit.Click += (_, _) =>
+            {
+                // ⚠️ 必须走 ForceClose：否则 ShellView.OnClosing 会按「关闭到托盘」把它拦下来，永远退不掉
+                if (win is ShellView shell) shell.ForceClose = true;
+                win.Close();
+            };
+
+            var icon = new TrayIcon
+            {
+                Icon = CreateTrayIcon(),
+                ToolTipText = "NewToys",
+                IsVisible = true,
+                Menu = new NativeMenu { Items = { show, new NativeMenuItemSeparator(), exit } }
+            };
+
+            var icons = TrayIcon.GetIcons(this);
+            if (icons == null)
+            {
+                icons = new TrayIcons();
+                TrayIcon.SetIcons(this, icons);
+            }
+            icons.Add(icon);
+            _tray = icon;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // 托盘建不起来（平台不支持 / 无托盘环境）不该让程序起不来
+            System.Diagnostics.Debug.WriteLine("托盘图标创建失败：" + ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>代码画一个 32×32 的托盘图标（强调色圆角底 + 白色 N），不依赖任何资源文件。</summary>
+    private static WindowIcon? CreateTrayIcon()
+    {
+        try
+        {
+            const int size = 32;
+            var bmp = new WriteableBitmap(new PixelSize(size, size), new Vector(96, 96),
+                                          PixelFormat.Bgra8888, AlphaFormat.Premul);
+            using var fb = bmp.Lock();
+
+            const uint back = 0xFF07C160u;   // 强调色（微信绿）
+            const uint white = 0xFFFFFFFFu;
+            const uint transparent = 0x00000000u;
+
+            void Put(int x, int y, uint argb)
+            {
+                if (x < 0 || y < 0 || x >= size || y >= size) return;
+                Marshal.WriteInt32(fb.Address, y * fb.RowBytes + x * 4, unchecked((int)argb));
+            }
+
+            // 圆角：四角 6px 以内且落在圆外的像素留透明
+            for (var y = 0; y < size; y++)
+                for (var x = 0; x < size; x++)
+                {
+                    var dx = Math.Min(x, size - 1 - x);
+                    var dy = Math.Min(y, size - 1 - y);
+                    if (dx < 6 && dy < 6)
+                    {
+                        var cx = 6 - dx; var cy = 6 - dy;
+                        if (cx * cx + cy * cy > 36) { Put(x, y, transparent); continue; }
+                    }
+                    Put(x, y, back);
+                }
+
+            // 白色 "N"：两根竖条 + 一条斜杠
+            for (var y = 8; y <= 23; y++)
+            {
+                for (var w = 0; w < 3; w++)
+                {
+                    Put(9 + w, y, white);
+                    Put(20 + w, y, white);
+                }
+            }
+            for (var t = 0; t <= 14; t++)
+            {
+                var x = 9 + t;
+                var y = 8 + t;
+                for (var w = 0; w < 3; w++) Put(x + w, y, white);
+            }
+
+            return new WindowIcon(bmp);
+        }
+        catch
+        {
+            return null;   // 画不出来就用系统默认图标（托盘照样可用）
+        }
+    }
+
+    /// <summary>真正的退出（托盘「退出」走这里）：收掉托盘图标，免得进程退了图标还挂着。</summary>
+    public static void ShutdownTray()
+    {
+        try
+        {
+            if (_tray == null) return;
+            var icons = TrayIcon.GetIcons(_current);
+            icons?.Remove(_tray);
+            _tray.Dispose();
+            _tray = null;
+        }
+        catch { /* 收不掉也无所谓：进程马上就退了 */ }
+    }
+
+    // ==================== 启动时检查更新 ====================
+
+    /// <summary>
+    /// 后台检查一次更新。<b>只提示，不自动下载 / 替换自己</b>；失败与「没配地址」都如实告知。
+    /// </summary>
+    private static async Task CheckUpdateAsync(Window win, string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;   // 没配地址就别打扰用户
+
+        try
+        {
+            var svc = _current?._sp?.GetService<UpdateService>();
+            if (svc == null) return;
+
+            var (hasUpdate, remote, message) = await svc.CheckAsync(url).ConfigureAwait(true);
+            if (!hasUpdate)
+            {
+                System.Diagnostics.Debug.WriteLine("检查更新：" + message);
+                return;
+            }
+            await NotifyAsync(win, "发现新版本", message + "\n\n（NewToys 不会自动替换自己，请手动更新。）");
+        }
+        catch { /* 检查更新失败绝不影响启动 */ }
+    }
+
+    /// <summary>单按钮提示框（与 <see cref="ConfirmAsync"/> 同款：纯代码构造 + 只取主题资源色）。</summary>
+    private static async Task NotifyAsync(Window owner, string title, string message)
+    {
+        IBrush? Res(string key) => owner.FindResource(key) as IBrush;
+
+        var ok = new Button { Content = "知道了", Width = 96, Classes = { "primary" } };
+        var dlg = new Window
+        {
+            Width = 460,
+            Height = 220,
+            Title = title,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Res("ContentBrush") ?? Brushes.Transparent,
+            Content = new Border
+            {
+                Padding = new Thickness(20),
+                Background = Res("PanelBrush") ?? Brushes.Transparent,
+                Child = new StackPanel
+                {
+                    Spacing = 16,
+                    Children =
+                    {
+                        new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.SemiBold,
+                                        Foreground = Res("PrimaryTextBrush") },
+                        new TextBlock { Text = message, FontSize = 13, TextWrapping = TextWrapping.Wrap,
+                                        Foreground = Res("PrimaryTextBrush") },
+                        new StackPanel
+                        {
+                            Orientation = Avalonia.Layout.Orientation.Horizontal,
+                            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                            Children = { ok }
+                        }
+                    }
+                }
+            }
+        };
+        ok.Click += (_, _) => dlg.Close();
+        try { await dlg.ShowDialog(owner); }
+        catch { /* 主窗口已关等情况：放弃提示 */ }
     }
 
     /// <summary>

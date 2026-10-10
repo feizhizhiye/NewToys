@@ -3,12 +3,16 @@
              x:Class="NewToys.Shell.App">
     <Application.Styles>
 
+        <!--  ⚠️ 顺序：主题在前、应用样式在后。
+             Avalonia 的 Styles 是**有序**集合，同一个属性被多个样式命中时"后写的赢"。
+             FluentTheme 必须排在最前面（它是底座），本应用的 StyleInclude 与内联 <Style>
+             都要排在它后面 —— 否则将来 FluentTheme 里任何一个同属性 setter 都会顶掉我们的配色。  -->
+        <FluentTheme/>
+
         <!--  复用样式表（工具条 / 状态行 / 详情卡 / 表头 / 筛选条 …）
               v1.35：把各列表页反复抄写的那段 XAML 收成 Class，页面里只写 Classes="…"；
               「表头点击区太小」的修复（Button.col-header 撑满整行）也在里面。  -->
         <StyleInclude Source="avares://NewToys/Styles/Controls.axaml"/>
-
-        <FluentTheme/>
 
         <Style Selector="Button.nav-btn">
             <Setter Property="Background" Value="Transparent"/>

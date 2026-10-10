@@ -144,6 +144,8 @@ public partial class ShellView : Window
     {
         if (DataContext is not ShellViewModel vm) return;
         _vm = vm;
+        // 🩺 临时诊断：把「应用级样式有没有生效」写进 logs\ui-diag.log（定位完可整体删除）
+        Diagnostics.UiStyleDiag.Startup(Avalonia.Application.Current);
         vm.PropertyChanged += (s, a) =>
         {
             // ⚠️ 二级菜单列的「可见性」由 UpdatePanelVisibility() 统一负责，
@@ -163,6 +165,10 @@ public partial class ShellView : Window
                     break;
                 case nameof(ShellViewModel.CurrentItem):
                     UpdateSubSelection();
+                    break;
+                // 🩺 临时诊断：每次切页采样一次「这一页吃到了什么样式」（定位完可整体删除）
+                case nameof(ShellViewModel.CurrentContent):
+                    Diagnostics.UiStyleDiag.ProbeContent(ContentArea, _vm?.CurrentContent);
                     break;
             }
         };

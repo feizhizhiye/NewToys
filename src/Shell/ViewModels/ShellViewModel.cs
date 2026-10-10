@@ -70,12 +70,18 @@ public partial class ShellViewModel : ViewModelBase
         if (view is not Control ctrl) return;
         var it = _menu.FindItem(key);
         if (it == null) return;
+
+        if (ctrl.DataContext == null)
+            ctrl.DataContext = ResolveViewModel(ctrl.GetType(), it.ViewTypeName);
+
+        // ⚠️ 顺序：**先落内容，再动导航状态**。
+        // 视图层是按 CurrentItem / CurrentGroup / IsHomePage 三个属性算"侧栏高亮"的，
+        // 若先把 CurrentItem 挪到新页、而 CurrentContent 还停在旧页（中间任何一步抛异常都会这样），
+        // 屏幕上就是"二级菜单高亮着 B、内容区还是 A"——看着像页面串了，其实只是状态提交顺序反了。
+        CurrentContent = ctrl;
         CurrentItem = it;
         CurrentGroup = _menu.FindGroup(it.GroupKey) ?? CurrentGroup;
         IsHomePage = false;
-        if (ctrl.DataContext == null)
-            ctrl.DataContext = ResolveViewModel(ctrl.GetType(), it.ViewTypeName);
-        CurrentContent = ctrl;
     }
 
     public ICommand SelectGroupCommand { get; }
@@ -107,11 +113,15 @@ public partial class ShellViewModel : ViewModelBase
     {
         var it = _menu.FindItem(key);
         if (it == null) return;
+
+        // ⚠️ 先解析页面，再提交导航状态（理由同 OnNavigated）：
+        // ResolveView 中途出任何问题，都不该让侧栏高亮先跑一步、留下"高亮 B、内容 A"的错位。
+        var view = ResolveView(it);
+
+        CurrentContent = view;
         CurrentItem = it;
         CurrentGroup = _menu.FindGroup(it.GroupKey) ?? CurrentGroup;
         IsHomePage = false;
-        // DI 解析 View
-        CurrentContent = ResolveView(it);
     }
 
     /// <summary>
@@ -127,7 +137,7 @@ public partial class ShellViewModel : ViewModelBase
         foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
         {
             if (asm.IsDynamic) continue;
-            var t = asm.GetTypes().FirstOrDefault(x =>
+            var t = SafeTypes(asm).FirstOrDefault(x =>
                 x.Name == it.ViewTypeName
                 && !x.IsAbstract && x.IsClass
                 && typeof(Control).IsAssignableFrom(x));
@@ -140,8 +150,29 @@ public partial class ShellViewModel : ViewModelBase
         catch (Exception ex) { return BuildErrorView($"视图 {it.ViewTypeName} 创建失败：{ex.Message}"); }
         if (view == null) return BuildErrorView($"视图 {it.ViewTypeName} 实例化返回 null");
 
-        view.DataContext = ResolveViewModel(viewType, it.ViewTypeName);
+        // DataContext 解析失败不应该把整次导航也搭进去 —— 顶多这一页没数据，不能连页面都不给。
+        try { view.DataContext = ResolveViewModel(viewType, it.ViewTypeName); }
+        catch (Exception ex) { return BuildErrorView($"视图 {it.ViewTypeName} 的 ViewModel 解析失败：{ex.Message}"); }
         return view;
+    }
+
+    /// <summary>
+    /// 安全枚举程序集里的类型。
+    /// <para>
+    /// <see cref="System.Reflection.Assembly.GetTypes"/> 只要**任意一个**类型依赖加载不了，
+    /// 就会整体抛 <see cref="System.Reflection.ReflectionTypeLoadException"/>；
+    /// 直接调用会把"点一下菜单"变成一次未处理异常（整个程序退出）。这里退化成用异常的
+    /// <c>Types</c> 数组（里面允许有 null 洞）继续找，能找着就找着。
+    /// </para>
+    /// </summary>
+    private static IEnumerable<Type> SafeTypes(System.Reflection.Assembly asm)
+    {
+        try { return asm.GetTypes(); }
+        catch (System.Reflection.ReflectionTypeLoadException ex)
+        {
+            return ex.Types.Where(t => t != null).Select(t => t!);
+        }
+        catch { return Array.Empty<Type>(); }
     }
 
     /// <summary>按「命名空间 .Views → .ViewModels + 类名 View→ViewModel」的约定解析 VM。</summary>
@@ -160,7 +191,7 @@ public partial class ShellViewModel : ViewModelBase
         // 兜底：全程序集按类名找（用于 View 命名空间不合规的历史页面）
         candidates.Add(AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => !a.IsDynamic)
-            .Select(a => a.GetTypes().FirstOrDefault(t => t.Name == vmName && !t.IsAbstract && t.IsClass))
+            .Select(a => SafeTypes(a).FirstOrDefault(t => t.Name == vmName && !t.IsAbstract && t.IsClass))
             .FirstOrDefault(t => t != null));
 
         foreach (var vmType in candidates)

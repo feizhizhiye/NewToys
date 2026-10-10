@@ -284,7 +284,8 @@ public class App : Application
     {
         try
         {
-            if (_tray == null) return;
+            // ⚠️ TrayIcon.GetIcons(Application o) 的形参不可为空：_current 是 App?，先判一次（CS8604）
+            if (_tray == null || _current == null) return;
             var icons = TrayIcon.GetIcons(_current);
             icons?.Remove(_tray);
             _tray.Dispose();

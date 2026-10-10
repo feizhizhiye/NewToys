@@ -1,6 +1,6 @@
 # NewToys 开发规范
 
-> v1.29 · 2026-10-10 · 「开发需求（宪法）」的技术解读 + 编程规范
+> v1.30 · 2026-10-10 · 「开发需求（宪法）」的技术解读 + 编程规范
 > 工程：NewToys（Avalonia 12 + CommunityToolkit.Mvvm + .NET 10）
 >
 > **约束分两类**：
@@ -30,7 +30,7 @@
 | 协作流程变化 | — | 视情 | — | ✅改 |
 
 - 版本号同步递增；提交信息格式 `<type>: <简述>`，type∈{feat,fix,docs,refactor,chore,style}。
-- Git 仓库根=能看到 `src/` 的那一级；`.gitignore` 忽略 `artifacts/ production/ bin/ obj/ Modules/ *.patch`；两个 props 必须入 git。
+- Git 仓库根=能看到 `src/` 的那一级（已 `git init`，分支 `main`）；`.gitignore` 忽略 `artifacts/ production/ bin/ obj/ Modules/ *.patch /.workbuddy/`；两个 props 必须入 git。
 
 ---
 

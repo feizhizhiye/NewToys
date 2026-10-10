@@ -85,8 +85,18 @@
                       Command="{Binding SortCommand}" CommandParameter="Roundtrip" IsVisible="{Binding IsRoundtripVisible}"/>
               <Button Grid.Column="4" Classes="col-header" Content="{Binding DnsHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Dns" IsVisible="{Binding IsDnsVisible}"/>
-              <Button Grid.Column="5" Classes="header-toggle" Content="▤"
-                      Command="{Binding ToggleDetailCommand}" ToolTip.Tip="显示 / 隐藏右侧详情"/>
+              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
+              <Border Grid.Column="5" Classes="detail-hotspot">
+                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
+                        ToolTip.Tip="显示 / 隐藏右侧详情">
+                  <Panel>
+                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsDetailVisible}"/>
+                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding IsDetailVisible}"/>
+                  </Panel>
+                </Button>
+              </Border>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="主机" ToggleType="CheckBox" IsChecked="{Binding IsHostVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Host"/>

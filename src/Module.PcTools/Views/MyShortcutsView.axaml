@@ -45,6 +45,12 @@
         <Button Classes="ghost" Content="↗ 打开" Margin="0,0,4,6" Command="{Binding OpenScriptsFolderCommand}"/>
         <Button Classes="ghost" Content="↩ 默认" Margin="0,0,8,6" Command="{Binding ResetScriptFolderCommand}"
                 ToolTip.Tip="{Binding DefaultScriptFolder}"/>
+
+        <!--  📥 批量导入：选一个目录，把它里面的 .py / .ps1 / .bat / .cmd 一次性全建成条目  -->
+        <Button x:Name="ImportFolderBtn" Classes="primary" Content="📥 批量导入脚本" Margin="0,0,6,6"
+                ToolTip.Tip="选一个目录，把它里的脚本文件一次性全部建成条目（已存在的会跳过）"/>
+        <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,6"
+                  IsChecked="{Binding ImportSubFolders, Mode=TwoWay}"/>
       </WrapPanel>
     </Border>
 
@@ -115,10 +121,18 @@
                       IsVisible="{Binding IsFavoriteVisible}"/>
               <TextBlock Grid.Column="4" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
-              <!-- 表头最右侧的**无文字小按钮**：点一下就展开右栏详情（并自动选中第一项）。 -->
-              <Button Grid.Column="5" Classes="header-toggle" Content="▤"
-                      Command="{Binding ToggleDetailCommand}"
-                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住"/>
+              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
+              <Border Grid.Column="5" Classes="detail-hotspot">
+                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
+                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住">
+                  <Panel>
+                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsDetailVisible}"/>
+                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding IsDetailVisible}"/>
+                  </Panel>
+                </Button>
+              </Border>
 
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>

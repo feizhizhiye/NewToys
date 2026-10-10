@@ -90,11 +90,19 @@
                          IsVisible="{Binding IsDescriptionVisible}"/>
               <TextBlock Grid.Column="4" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
-              <!-- 表头最右侧的**无文字小按钮**：点一下就展开右栏详情（并自动选中第一项）。
                    所有带详情卡的列表页统一这个交互。 -->
-              <Button Grid.Column="5" Classes="header-toggle" Content="▤"
-                      Command="{Binding ToggleDetailCommand}"
-                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住"/>
+              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
+              <Border Grid.Column="5" Classes="detail-hotspot">
+                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
+                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住">
+                  <Panel>
+                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsDetailVisible}"/>
+                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding IsDetailVisible}"/>
+                  </Panel>
+                </Button>
+              </Border>
 
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>

@@ -80,8 +80,18 @@
                       IsVisible="{Binding IsRuleVisible}"/>
               <Button Grid.Column="3" Classes="col-header" Content="{Binding LastRunHeader}"
                       IsVisible="{Binding IsLastRunVisible}"/>
-              <Button Grid.Column="4" Classes="header-toggle" Content="▤"
-                      Command="{Binding ToggleDetailCommand}" ToolTip.Tip="显示 / 隐藏右侧详情"/>
+              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
+              <Border Grid.Column="4" Classes="detail-hotspot">
+                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
+                        ToolTip.Tip="显示 / 隐藏右侧详情">
+                  <Panel>
+                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsDetailVisible}"/>
+                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding IsDetailVisible}"/>
+                  </Panel>
+                </Button>
+              </Border>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="名称" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>

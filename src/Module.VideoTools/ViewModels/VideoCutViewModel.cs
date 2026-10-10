@@ -71,8 +71,78 @@ public partial class VideoCutViewModel : ListPageViewModelBase
     [ObservableProperty] private CutTask? _selected;
     [ObservableProperty] private string _summaryText = "还没有任务";
 
-    /// <summary>预览缩略图。</summary>
+    /// <summary>预览缩略图（关键帧条）。</summary>
     public ObservableCollection<FrameThumb> Frames { get; } = new();
+
+    // ==================== 播放器式预览（v1.35） ====================
+
+    /// <summary>当前预览的时间点（秒）—— 时间轴滑块就绑它，拖动即时抽帧。</summary>
+    [ObservableProperty] private double _previewTime;
+
+    /// <summary>当前预览的大图（时间轴拖到哪就抽哪一帧）。</summary>
+    [ObservableProperty] private Bitmap? _previewImage;
+
+    /// <summary>是否正在抽帧（拖动时丢帧用：只保留最后一次请求）。</summary>
+    private bool _extracting;
+    private double _pendingPreview = -1;
+
+    /// <summary>预览图的落盘序号（避免同一个文件被反复覆盖时读半截）。</summary>
+    private int _previewIndex;
+
+    /// <summary>预设 / 自定义参数的编辑缓冲（详情卡）。</summary>
+    [ObservableProperty] private string _editPresetId = CutPresets.Copy;
+    [ObservableProperty] private string _editExtraArgs = "";
+
+    /// <summary>
+    /// 「开始时间」滑块绑它（秒）。
+    /// <para>⚠️ 为什么要单独一层：直接绑 <c>Selected.Start</c> 的话，拖动只改了任务对象、
+    /// 不会同步时间码文本框 <see cref="EditStart"/>，随后点「💾 保存」会被那个旧文本覆盖回去。
+    /// 这里改一处 → 任务对象与时间码一起更新。</para>
+    /// </summary>
+    public double StartSeconds
+    {
+        get => Selected?.Start ?? 0;
+        set
+        {
+            if (Selected == null) return;
+            Selected.Start = value;
+            EditStart = CutTask.FormatTime(value);
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>「结束时间」滑块绑它（秒；0 = 到末尾）。同上，与时间码文本框双向同步。</summary>
+    public double EndSeconds
+    {
+        get => Selected?.End ?? 0;
+        set
+        {
+            if (Selected == null) return;
+            Selected.End = value;
+            EditEnd = value > 0 ? CutTask.FormatTime(value) : "";
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>剪切预设下拉框的数据源（不写死在 XAML 里）。</summary>
+    public IReadOnlyList<CutPresetOption> CutPresetOptions => CutPresets.All;
+
+    /// <summary>
+    /// **将要执行的完整 ffmpeg 命令行**（详情卡里显示，改参数即时刷新）。
+    /// 与真正跑的那条同源 —— 界面上看到的就是会执行的东西，不含"隐藏参数"。
+    /// </summary>
+    public string CommandPreview
+    {
+        get
+        {
+            var t = Selected;
+            if (t == null) return "（先在左侧选中一个任务）";
+            var output = string.IsNullOrWhiteSpace(t.OutputPath)
+                ? FfmpegService.DefaultOutputPath(t.SourcePath, "_cut", ".mp4")
+                : t.OutputPath;
+            return FfmpegService.DescribeCutCommand(t, FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath), output);
+        }
+    }
 
     public bool IsNotBusy => !IsBusy && !IsRunning;
     public bool HasSelection => Selected != null;
@@ -228,6 +298,12 @@ public partial class VideoCutViewModel : ListPageViewModelBase
             EditOutput = value.OutputPath;
             EditReEncode = value.ReEncode;
             EditCrf = value.Crf;
+            EditPresetId = string.IsNullOrWhiteSpace(value.PresetId) ? CutPresets.Copy : value.PresetId;
+            EditExtraArgs = value.ExtraArgs ?? "";
+            PreviewTime = value.Start;   // 时间轴从开始点起
+            OnPropertyChanged(nameof(CommandPreview));
+            OnPropertyChanged(nameof(StartSeconds));   // 区间滑块是手动属性，选中项变了要手动通知
+            OnPropertyChanged(nameof(EndSeconds));
 
             // 换成另一条任务 → 清掉上一批缩略图（那是另一个视频的帧，留着会误导）
             if (!string.Equals(_previewedTaskId, value.Id, StringComparison.Ordinal))
@@ -244,6 +320,114 @@ public partial class VideoCutViewModel : ListPageViewModelBase
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
     partial void OnIsRunningChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
 
+    /// <summary>编辑缓冲 / 选中项变了 → 命令行预览要跟着刷新。</summary>
+    partial void OnEditPresetIdChanged(string value) => OnPropertyChanged(nameof(CommandPreview));
+    partial void OnEditExtraArgsChanged(string value) => OnPropertyChanged(nameof(CommandPreview));
+
+    /// <summary>时间轴被拖动 → 抽这一帧（拖动中会丢帧，只认最后一次位置）。</summary>
+    partial void OnPreviewTimeChanged(double value) => _ = UpdatePreviewAsync(value);
+
+    /// <summary>
+    /// 抽 <paramref name="time"/> 这一帧当预览大图。
+    /// <para>拖动滑块会连发很多次，ffmpeg 每次要几十~几百毫秒 —— 这里做**最新值优先**：
+    /// 正在抽就把新位置记为 pending，抽完再补最后一次，中间的丢弃。</para>
+    /// </summary>
+    private async Task UpdatePreviewAsync(double time)
+    {
+        var src = SourcePath;
+        if (string.IsNullOrWhiteSpace(src) || !File.Exists(src)) return;
+
+        if (_extracting) { _pendingPreview = time; return; }
+
+        _extracting = true;
+        try
+        {
+            do
+            {
+                _pendingPreview = -1;
+                var dir = Path.Combine(Path.GetTempPath(), "NewToys", "preview");
+                Directory.CreateDirectory(dir);
+                var file = Path.Combine(dir, $"p{_previewIndex:00}.jpg");
+                _previewIndex = (_previewIndex + 1) % 4;
+
+                var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
+                if (await FfmpegService.ExtractFrameAsync(ffmpeg, src, time, file) && File.Exists(file))
+                {
+                    try
+                    {
+                        var bmp = new Bitmap(file);
+                        PreviewImage = bmp;
+                    }
+                    catch { /* 图坏了就保留上一帧 */ }
+                }
+                time = _pendingPreview;
+            } while (time >= 0);
+        }
+        finally { _extracting = false; }
+    }
+
+    /// <summary>⏪ / ⏩：按秒步进（delta 可为负）。</summary>
+    [RelayCommand]
+    private void Step(double delta)
+    {
+        var t = PreviewTime + delta;
+        if (t < 0) t = 0;
+        if (Duration > 0 && t > Duration) t = Duration;
+        PreviewTime = t;
+    }
+
+    /// <summary>⏮：跳到开始点。</summary>
+    [RelayCommand]
+    private void JumpStart() => PreviewTime = Selected?.Start ?? 0;
+
+    /// <summary>⏭：跳到结束点（没设就到末尾）。</summary>
+    [RelayCommand]
+    private void JumpEnd()
+        => PreviewTime = (Selected != null && Selected.End > 0) ? Selected.End : (Duration > 0 ? Duration : 0);
+
+    /// <summary>把当前预览位置设为**开始时间**。</summary>
+    [RelayCommand]
+    private void SetStartHere()
+    {
+        if (Selected == null) { StatusText = "先在左侧选中一个任务。"; return; }
+        Selected.Start = PreviewTime;
+        EditStart = CutTask.FormatTime(PreviewTime);
+        if (Selected.End > 0 && Selected.End <= Selected.Start) { Selected.End = 0; EditEnd = ""; }
+        OnPropertyChanged(nameof(StartSeconds));
+        OnPropertyChanged(nameof(EndSeconds));
+        MarkFrames();
+        StatusText = $"开始时间 = {EditStart}";
+    }
+
+    /// <summary>把当前预览位置设为**结束时间**。</summary>
+    [RelayCommand]
+    private void SetEndHere()
+    {
+        if (Selected == null) { StatusText = "先在左侧选中一个任务。"; return; }
+        Selected.End = PreviewTime;
+        EditEnd = CutTask.FormatTime(PreviewTime);
+        OnPropertyChanged(nameof(StartSeconds));
+        OnPropertyChanged(nameof(EndSeconds));
+        MarkFrames();
+        StatusText = $"结束时间 = {EditEnd}";
+    }
+
+    /// <summary>📋 复制将要执行的 ffmpeg 命令行。</summary>
+    [RelayCommand]
+    private async Task CopyCommandLineAsync()
+    {
+        var text = CommandPreview;
+        if (text.StartsWith("（", StringComparison.Ordinal)) { StatusText = text; return; }
+        try
+        {
+            var win = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if (win?.Clipboard == null) { StatusText = "剪贴板不可用。"; return; }
+            await win.Clipboard.SetTextAsync(text);
+            StatusText = "已复制 ffmpeg 命令行。";
+        }
+        catch (Exception ex) { StatusText = "复制失败：" + ex.Message; }
+    }
+
     // ==================== 加任务 ====================
 
     /// <summary>为一个源文件建一条剪切任务（默认整段，等用户抽帧后定区间）。</summary>
@@ -257,6 +441,7 @@ public partial class VideoCutViewModel : ListPageViewModelBase
             SourcePath = path,
             Start = 0,
             End = 0,
+            PresetId = CutPresets.Copy,
             OutputPath = FfmpegService.DefaultOutputPath(path, "_cut", ".mp4")
         };
         _store.AddCut(task);
@@ -299,7 +484,10 @@ public partial class VideoCutViewModel : ListPageViewModelBase
         Selected.OutputPath = (EditOutput ?? "").Trim();
         Selected.ReEncode = EditReEncode;
         Selected.Crf = EditCrf;
+        Selected.PresetId = string.IsNullOrWhiteSpace(EditPresetId) ? CutPresets.Copy : EditPresetId;
+        Selected.ExtraArgs = (EditExtraArgs ?? "").Trim();
         if (Selected.Status != VideoTaskStatus.Running) Selected.Reset();   // 改了参数 → 回到等待（下次会按新参数跑）
+        OnPropertyChanged(nameof(CommandPreview));
 
         _store?.Save();
         RefreshView();
@@ -400,9 +588,16 @@ public partial class VideoCutViewModel : ListPageViewModelBase
 
             OnPropertyChanged(nameof(HasFrames));
             MarkFrames();
+
+            // 抽完关键帧顺手把第一帧（或当前开始点）填进大预览区，省得用户再点一次
+            if (Frames.Count > 0)
+            {
+                PreviewTime = Selected?.Start > 0 ? Selected!.Start : Frames[0].Time;
+            }
+
             StatusText = Frames.Count == 0
                 ? "一帧都没抽出来 —— 可能是 ffmpeg 不可用或文件损坏。"
-                : $"已抽出 {Frames.Count} 个关键帧（点图设为开始，点图下的「止」设为结束）";
+                : $"已抽出 {Frames.Count} 个关键帧：拖时间轴看画面，「设为起点 / 终点」定区间";
         }
         catch (Exception ex)
         {

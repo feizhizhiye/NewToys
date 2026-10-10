@@ -117,9 +117,18 @@
                       IsVisible="{Binding IsStatusVisible}"/>
               <TextBlock Grid.Column="5" Classes="list-cell" Text="进度" FontWeight="SemiBold"
                          IsVisible="{Binding IsProgressVisible}"/>
-              <Button Grid.Column="6" Classes="header-toggle" Content="▤"
-                      Command="{Binding ToggleDetailCommand}"
-                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）"/>
+              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
+              <Border Grid.Column="6" Classes="detail-hotspot">
+                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
+                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+                  <Panel>
+                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsDetailVisible}"/>
+                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding IsDetailVisible}"/>
+                  </Panel>
+                </Button>
+              </Border>
 
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>

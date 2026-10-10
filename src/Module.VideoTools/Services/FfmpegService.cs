@@ -181,7 +181,8 @@ public static class FfmpegService
         if (task.End > task.Start)
             args.AddRange(new[] { "-to", (task.End - task.Start).ToString("0.###", CultureInfo.InvariantCulture) });
 
-        if (task.ReEncode)
+        // ① 预设
+        if (string.Equals(task.PresetId, CutPresets.ReEncode, StringComparison.OrdinalIgnoreCase) || task.ReEncode)
         {
             args.AddRange(new[] { "-c:v", "libx264", "-crf", task.Crf.ToString(CultureInfo.InvariantCulture),
                                   "-preset", "veryfast", "-c:a", "aac", "-b:a", "192k" });
@@ -191,8 +192,56 @@ public static class FfmpegService
             args.AddRange(new[] { "-c", "copy" });
         }
 
+        // ② 自定义参数**追加在预设之后** —— ffmpeg 里后出现的同名参数覆盖前面的，
+        //    所以用户填 `-c:v libx265` 之类能直接顶掉预设，不用另做一套"覆盖模式"。
+        var extra = (task.ExtraArgs ?? "").Trim();
+        if (extra.Length > 0)
+        {
+            foreach (var a in SplitArgs(extra)) args.Add(a);
+        }
+
         args.Add(output);
         return args;
+    }
+
+    /// <summary>把一行自定义参数拆成参数数组（支持英文双引号包起来的带空格参数）。</summary>
+    public static List<string> SplitArgs(string text)
+    {
+        var list = new List<string>();
+        if (string.IsNullOrWhiteSpace(text)) return list;
+
+        var cur = new System.Text.StringBuilder();
+        var inQuote = false;
+        foreach (var ch in text)
+        {
+            if (ch == '"') { inQuote = !inQuote; continue; }
+            if (!inQuote && char.IsWhiteSpace(ch))
+            {
+                if (cur.Length > 0) { list.Add(cur.ToString()); cur.Clear(); }
+                continue;
+            }
+            cur.Append(ch);
+        }
+        if (cur.Length > 0) list.Add(cur.ToString());
+        return list;
+    }
+
+    /// <summary>
+    /// 把一条剪切任务拼成**完整的 ffmpeg 命令行文本**（给界面预览 / 复制用，不执行）。
+    /// 与 <see cref="BuildCutArgs"/> 同源，界面上看到的就是真正要跑的那条。
+    /// </summary>
+    public static string DescribeCutCommand(CutTask task, string ffmpeg, string output)
+    {
+        var args = BuildCutArgs(task, output);
+        var sb = new System.Text.StringBuilder();
+        sb.Append('"').Append(ffmpeg).Append('"');
+        foreach (var a in args)
+        {
+            sb.Append(' ');
+            if (a.Length > 0 && !a.Contains(' ') && a != output) sb.Append(a);
+            else sb.Append('"').Append(a).Append('"');
+        }
+        return sb.ToString();
     }
 
     /// <summary>拼转码命令的参数（不含 <c>ffmpeg</c> 本身）。</summary>

@@ -446,6 +446,88 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         finally { IsBusy = false; }
     }
 
+    // ==================== 批量导入脚本目录（v1.35） ====================
+
+    /// <summary>认得的脚本扩展名（小写，带点）。批量导入时只挑这些。</summary>
+    public static readonly string[] ScriptExtensions = { ".py", ".ps1", ".bat", ".cmd" };
+
+    /// <summary>导入子目录里的脚本吗（View 上的勾选框直接读它）。</summary>
+    [ObservableProperty] private bool _importSubFolders = true;
+
+    /// <summary>上一次导入的结论（状态行就是它）。</summary>
+    public string ImportResultText { get; private set; } = "";
+
+    private static string ScriptExtensionsList => string.Join(" / ", ScriptExtensions);
+
+    /// <summary>
+    /// 批量导入：把一个目录里的脚本文件**全部建成条目**。
+    /// <para>
+    /// 规则（都写进状态行，绝不"悄悄跳过"）：
+    /// ① 只收 <see cref="ScriptExtensions"/> 里的扩展名；
+    /// ② 清单里已有的（按脚本文件名字比对）**跳过**，不重复建；
+    /// ③ 落在脚本目录内的存**相对文件名**、目录外的存绝对路径 —— 与手动「📂」选文件保持一致；
+    /// ④ 名称取文件名（去扩展名）、分类填「导入」，方便之后批量改。
+    /// </para>
+    /// </summary>
+    /// <returns>(新增几条, 跳过几条)。</returns>
+    public (int Added, int Skipped) ImportScriptFolder(string folder, bool includeSubFolders = true)
+    {
+        if (_svc == null) return (0, 0);
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder)) return (0, 0);
+
+        IEnumerable<string> files;
+        try
+        {
+            files = Directory.EnumerateFiles(folder, "*",
+                        includeSubFolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                    .ToList();   // 先固化，避免枚举中途目录变动
+        }
+        catch { return (0, 0); }
+
+        var scriptsDir = ScriptsDirectory;
+        var existing = new HashSet<string>(
+            _svc.Items.Select(i => (i.ScriptFile ?? "").Trim()).Where(s => s.Length > 0),
+            StringComparer.OrdinalIgnoreCase);
+
+        var added = 0;
+        var skipped = 0;
+
+        foreach (var file in files)
+        {
+            if (!ScriptExtensions.Contains(Path.GetExtension(file).ToLowerInvariant())) continue;
+
+            var stored = !string.IsNullOrWhiteSpace(scriptsDir)
+                         && file.StartsWith(scriptsDir, StringComparison.OrdinalIgnoreCase)
+                ? file[scriptsDir.Length..].TrimStart('\\', '/')
+                : file;
+
+            if (existing.Contains(stored)) { skipped++; continue; }
+
+            var item = _svc.Add(_pageKind);
+            item.Kind = QuickActionKind.Script;
+            item.Title = Path.GetFileNameWithoutExtension(file);
+            item.Category = "导入";
+            item.Description = $"从目录导入：{Path.GetFileName(file)}";
+            item.ScriptFile = stored;
+            item.Interpreter = ScriptInterpreter.Auto;
+            existing.Add(stored);
+            added++;
+        }
+
+        if (added > 0) _svc.Save();
+        RebuildCategories();
+        ResetFilters();          // 新导入的脚本可能正被筛选条件挡着 → 清掉筛选，保证看得见
+        ApplyView();
+
+        ImportResultText = added == 0
+            ? $"「{folder}」里没有可导入的新脚本（只认 {ScriptExtensionsList}）"
+              + (skipped > 0 ? $"；{skipped} 个已在清单里，已跳过" : "")
+            : $"已导入 {added} 个脚本"
+              + (skipped > 0 ? $"；{skipped} 个已存在，已跳过" : "");
+        StatusText = ImportResultText;
+        return (added, skipped);
+    }
+
     // ==================== 增删改查 ====================
 
     /// <summary>新增：先清掉过滤（保证新项一定可见），追加一条并选中它，改好后点「💾 保存」。</summary>

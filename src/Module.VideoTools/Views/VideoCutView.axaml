@@ -102,9 +102,18 @@
                          IsVisible="{Binding IsProgressVisible}"/>
               <TextBlock Grid.Column="5" Classes="list-cell" Text="输出" FontWeight="SemiBold"
                          IsVisible="{Binding IsOutputVisible}"/>
-              <Button Grid.Column="6" Classes="header-toggle" Content="▤"
-                      Command="{Binding ToggleDetailCommand}"
-                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）"/>
+              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
+              <Border Grid.Column="6" Classes="detail-hotspot">
+                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
+                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+                  <Panel>
+                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsDetailVisible}"/>
+                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding IsDetailVisible}"/>
+                  </Panel>
+                </Button>
+              </Border>
 
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -166,8 +175,8 @@
         </Grid>
       </Border>
 
-      <!-- 右：预览 + 区间设置 -->
-      <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
+      <!-- 右：播放器式预览 + 区间 + 命令（这一页要放预览画面，卡片比别处宽一点） -->
+      <Border Grid.Column="1" Classes="detail-card" Width="420" IsVisible="{Binding IsDetailVisible}">
         <Grid RowDefinitions="Auto,*">
           <StackPanel Grid.Row="0" Spacing="8">
             <TextBlock Classes="section-title" Text="预览与区间"/>
@@ -190,11 +199,53 @@
               <TextBlock Classes="empty-hint" IsVisible="{Binding !HasSelection}"
                          Text="先在左侧选一个任务（或点「📂 选择视频」新建一条），再点「🎞 抽帧」—— 缩略图来自视频的关键帧。"/>
 
-              <TextBlock Classes="empty-hint" IsVisible="{Binding HasSelection}"
-                         Text="点缩略图 = 设为开始；点图下的「止」= 设为结束。"
-                         Margin="0,0,0,4"/>
+              <!--  ==================== 播放器式预览（v1.35） ====================
+                    大画面 + 时间轴：拖时间轴即时抽帧；⏮ ⏪ ⏩ ⏭ 步进/跳转；
+                    「设为起点 / 终点」把当前画面所在时刻写进区间。  -->
+              <Border CornerRadius="8" ClipToBounds="True" Background="{DynamicResource CodeBlockBrush}"
+                      MinHeight="190" IsVisible="{Binding HasSelection}">
+                <Image Source="{Binding PreviewImage}" Stretch="Uniform" MinHeight="190"/>
+              </Border>
 
-              <!-- 关键帧缩略图 -->
+              <TextBlock Classes="hint-text" IsVisible="{Binding HasSelection}"
+                         Text="还没有预览画面 —— 点上面的「🎞 抽帧」或拖动下面的时间轴。" 
+                         Margin="0,2,0,0"/>
+
+              <StackPanel Spacing="4" IsVisible="{Binding HasSelection}">
+                <Grid ColumnDefinitions="*,Auto">
+                  <Slider Grid.Column="0" Minimum="0" Maximum="{Binding Duration}" Value="{Binding PreviewTime, Mode=TwoWay}"
+                          TickFrequency="0.5" IsSnapToTickEnabled="False" VerticalAlignment="Center"
+                          ToolTip.Tip="拖动时间轴：松手/移动即抽这一帧（拖动中会丢帧，只认最后位置）"/>
+                  <TextBlock Grid.Column="1" Classes="field-value" Margin="8,0,0,0" VerticalAlignment="Center"
+                             Text="{Binding PreviewTime, StringFormat={}{0:0.00}s}"/>
+                </Grid>
+
+                <!-- 传输按钮：跳起点 / 后退 1 秒 / 前进 1 秒 / 跳终点 / 定点 -->
+                <WrapPanel Orientation="Horizontal">
+                  <Button Classes="filter-btn" Content="⏮ 起点" Command="{Binding JumpStartCommand}"/>
+                  <Button Classes="filter-btn" Content="⏪ -1s" Command="{Binding StepCommand}" CommandParameter="-1"/>
+                  <Button Classes="filter-btn" Content="⏩ +1s" Command="{Binding StepCommand}" CommandParameter="1"/>
+                  <Button Classes="filter-btn" Content="终点 ⏭" Command="{Binding JumpEndCommand}"/>
+                  <Button Classes="filter-btn" Content="◧ 设为起点" Command="{Binding SetStartHereCommand}"/>
+                  <Button Classes="filter-btn" Content="◨ 设为终点" Command="{Binding SetEndHereCommand}"/>
+                </WrapPanel>
+
+                <!-- 区间也能直接拖：上条 = 开始，下条 = 结束 -->
+                <StackPanel Classes="field">
+                  <TextBlock Classes="field-label" Text="开始（可拖）"/>
+                  <Slider Minimum="0" Maximum="{Binding Duration}" Value="{Binding StartSeconds, Mode=TwoWay}"
+                          TickFrequency="0.5"/>
+                </StackPanel>
+                <StackPanel Classes="field">
+                  <TextBlock Classes="field-label" Text="结束（可拖；拖到最左 = 到末尾）"/>
+                  <Slider Minimum="0" Maximum="{Binding Duration}" Value="{Binding EndSeconds, Mode=TwoWay}"
+                          TickFrequency="0.5"/>
+                </StackPanel>
+              </StackPanel>
+
+              <Border Classes="divider-line"/>
+
+              <!-- 关键帧缩略图（点一下也能定点） -->
               <ItemsControl ItemsSource="{Binding Frames}">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>
@@ -243,12 +294,33 @@
                 </Grid>
               </StackPanel>
 
-              <CheckBox Content="重新编码（起止点不在关键帧上时必须勾，慢但精确）"
-                        FontSize="12" IsChecked="{Binding EditReEncode, Mode=TwoWay}"/>
+              <!--  ==================== ffmpeg 命令：预设 + 自定义 + 预览  ====================  -->
+              <StackPanel Classes="field">
+                <TextBlock Classes="field-label" Text="剪切预设"/>
+                <ComboBox ItemsSource="{Binding CutPresetOptions}"
+                          SelectedValue="{Binding EditPresetId, Mode=TwoWay}"
+                          SelectedValueBinding="{Binding Id}"
+                          HorizontalAlignment="Stretch" FontSize="12">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Name}" FontSize="12" TextWrapping="Wrap"/></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding EditReEncode}">
-                <TextBlock Classes="field-label" Text="CRF（18~28，越小越清晰越大）"/>
-                <TextBox Classes="code" Text="{Binding EditCrf, Mode=TwoWay}"/>
+              <StackPanel Classes="field">
+                <TextBlock Classes="field-label" Text="自定义 ffmpeg 参数（追加在预设之后，可覆盖预设）"/>
+                <TextBox Classes="code" Text="{Binding EditExtraArgs, Mode=TwoWay}" AcceptsReturn="True"
+                         TextWrapping="Wrap" MinHeight="46"
+                         PlaceholderText="例：-vf scale=1280:-2    或    -c:v libx265 -crf 26"/>
+                <TextBlock Classes="hint-text" Margin="0,4,0,0"
+                           Text="ffmpeg 里后写的同名参数会覆盖前面的，所以这里填 -c:v/-crf 之类能直接顶掉预设；填完记得点「💾 保存」。"/>
+              </StackPanel>
+
+              <StackPanel Classes="field">
+                <TextBlock Classes="field-label" Text="将要执行的命令（改参数即时刷新，与真正跑的那条同源）"/>
+                <SelectableTextBlock Classes="field-value" Text="{Binding CommandPreview}" TextWrapping="Wrap"/>
+                <Button Classes="filter-btn" Content="📋 复制命令" Command="{Binding CopyCommandLineCommand}"
+                        HorizontalAlignment="Left" Margin="0,4,0,0"/>
               </StackPanel>
 
               <Border Classes="divider-line"/>
@@ -260,7 +332,7 @@
               </StackPanel>
 
               <TextBlock Classes="hint-text"
-                         Text="默认 -c copy：不重新编码，秒级完成、画质无损，但起止点会被挪到最近的关键帧上；要精确到帧就勾「重新编码」。任务只在这里排队，点「▶▶ 批量运行」才真正开始。"/>
+                         Text="默认预设 -c copy：不重新编码，秒级完成、画质无损，但起止点会被挪到最近的关键帧上；要精确到帧就选「重新编码」。任务只在这里排队，点「▶▶ 批量运行」才真正开始。"/>
             </StackPanel>
           </ScrollViewer>
         </Grid>

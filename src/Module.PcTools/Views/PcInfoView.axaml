@@ -88,9 +88,18 @@
                       IsVisible="{Binding IsValueVisible}"/>
               <TextBlock Grid.Column="3" Classes="list-cell" Text="说明" FontWeight="SemiBold"
                          IsVisible="{Binding IsNoteVisible}"/>
-              <Button Grid.Column="4" Classes="header-toggle" Content="▤"
-                      Command="{Binding ToggleDetailCommand}"
-                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）"/>
+              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
+              <Border Grid.Column="4" Classes="detail-hotspot">
+                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
+                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+                  <Panel>
+                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsDetailVisible}"/>
+                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding IsDetailVisible}"/>
+                  </Panel>
+                </Button>
+              </Border>
 
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.VideoTools.Models;
@@ -112,10 +114,49 @@ public abstract partial class VideoTaskBase : ObservableObject
 /// 默认 <c>-c copy</c>（不重新编码，秒出、无损）；勾了「重新编码」才走编码（首尾不在关键帧上时必须重编码才准）。
 /// </para>
 /// </summary>
+/// <summary>剪切预设下拉项。</summary>
+public sealed class CutPresetOption
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+}
+
+/// <summary>
+/// 剪切预设表（**不写死在 XAML 里**）。
+/// <para>预设决定"默认怎么切"，用户在详情卡里填的<b>自定义参数</b>会**追加在预设之后**
+/// —— ffmpeg 后出现的同名参数会覆盖前面的，所以自定义参数天然能覆盖预设。</para>
+/// </summary>
+public static class CutPresets
+{
+    /// <summary>直接剪切：<c>-c copy</c>，秒级完成、无损，但起止点会被挪到最近的关键帧。</summary>
+    public const string Copy = "copy";
+
+    /// <summary>重新编码：精确到帧，慢。</summary>
+    public const string ReEncode = "reencode";
+
+    public static IReadOnlyList<CutPresetOption> All { get; } = new List<CutPresetOption>
+    {
+        new CutPresetOption { Id = Copy,     Name = "直接剪切（-c copy，秒完成、无损，起止会就近对齐关键帧）" },
+        new CutPresetOption { Id = ReEncode, Name = "重新编码（H.264，精确到帧，慢）" },
+    };
+
+    public static CutPresetOption Find(string? id)
+        => All.FirstOrDefault(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase)) ?? All[0];
+}
+
 public partial class CutTask : VideoTaskBase
 {
     /// <summary>源视频总时长（秒）；0 = 还没探测。</summary>
     [ObservableProperty] private double _duration;
+
+    /// <summary>剪切预设（取值见 <see cref="CutPresets"/>）。</summary>
+    [ObservableProperty] private string _presetId = CutPresets.Copy;
+
+    /// <summary>
+    /// **自定义 ffmpeg 参数**（追加在预设之后，留空 = 只用预设）。
+    /// 例：<c>-vf scale=1280:-2</c>、<c>-c:v libx264 -crf 18</c>（会覆盖预设的编码设置）。
+    /// </summary>
+    [ObservableProperty] private string _extraArgs = "";
 
     /// <summary>开始时间（秒）。</summary>
     [ObservableProperty] private double _start;
@@ -137,6 +178,11 @@ public partial class CutTask : VideoTaskBase
     public string LengthDisplay => Length > 0 ? FormatTime(Length) : "—";
 
     public string DurationDisplay => Duration > 0 ? FormatTime(Duration) : "未读取";
+
+    /// <summary>预设名（列表 / 详情卡显示）。</summary>
+    public string PresetName => CutPresets.Find(PresetId).Name;
+
+    partial void OnPresetIdChanged(string value) => OnPropertyChanged(nameof(PresetName));
 
     partial void OnStartChanged(double value) => NotifyRange();
     partial void OnEndChanged(double value) => NotifyRange();

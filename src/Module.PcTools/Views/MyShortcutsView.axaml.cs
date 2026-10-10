@@ -15,6 +15,7 @@ public partial class MyShortcutsView : UserControl
         // 而 VM 不能引用 Avalonia（规范：业务不碰 UI 类型），所以在这一层选完再把结果交给 VM。
         PickScriptFolderBtn.Click += (_, _) => _ = PickScriptFolderAsync();
         PickScriptFileBtn.Click += (_, _) => _ = PickScriptFileAsync();
+        ImportFolderBtn.Click += (_, _) => _ = PickImportFolderAsync();
     }
 
     /// <summary>
@@ -50,6 +51,35 @@ public partial class MyShortcutsView : UserControl
         catch (Exception ex)
         {
             vm.StatusText = "选择脚本目录失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>📥 批量导入：选一个目录 → 把里面的脚本文件一次性全建成条目。</summary>
+    private async System.Threading.Tasks.Task PickImportFolderAsync()
+    {
+        if (DataContext is not QuickActionListViewModel vm) return;
+
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var folders = await sp.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "选择要导入的脚本目录",
+                AllowMultiple = false
+            });
+            var dir = folders?.FirstOrDefault()?.TryGetLocalPath();
+            if (string.IsNullOrWhiteSpace(dir)) return;
+
+            var (added, skipped) = vm.ImportScriptFolder(dir, vm.ImportSubFolders);
+            if (added == 0 && skipped == 0)
+                vm.StatusText = $"「{dir}」里没有 {string.Join(" / ", QuickActionListViewModel.ScriptExtensions)} 这类脚本文件。";
+            // 有结果时结论已经写进 StatusText（ImportScriptFolder 内部负责）
+        }
+        catch (Exception ex)
+        {
+            vm.StatusText = "批量导入失败：" + ex.Message;
         }
     }
 

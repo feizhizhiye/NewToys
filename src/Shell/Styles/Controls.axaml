@@ -120,12 +120,16 @@
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
   </Style>
 
-  <!--  ⑨ 表头最右侧那个**无文字的 ▤ 小按钮**（展开 / 收起详情栏）
-        ⚠️ 同样要撑满高度，并给足最小点击区（34×28），别再只有字形那么点大。 -->
+  <!--  ⑨ 详情栏开关：**贴在表头右缘、默认几乎不占地方、鼠标靠近才弹出**（v1.35 二次优化）
+        之前的 ▤ 常驻按钮会一直占着表头最后一格；现在改成：
+          默认 → 只露一条 8px 窄边（Opacity 0、不可点），表头看起来是干净的；
+          鼠标进入右侧热区 → 平滑弹出成 34px 的完整按钮（带边框 + 方向图标）。
+        图标也换了：收起态 ❯（点它展开右侧详情），展开态 ❮（点它收起），一眼知道当前是哪种。  -->
   <Style Selector="Button.header-toggle">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="13"/>
     <Setter Property="Padding" Value="0"/>
-    <Setter Property="Margin" Value="0,0,6,0"/>
+    <Setter Property="Margin" Value="0,4,6,4"/>
+    <Setter Property="Width" Value="34"/>
     <Setter Property="MinWidth" Value="34"/>
     <Setter Property="MinHeight" Value="28"/>
     <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -133,16 +137,53 @@
     <Setter Property="HorizontalContentAlignment" Value="Center"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
     <Setter Property="Cursor" Value="Hand"/>
-    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
     <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.12"/>
+        <DoubleTransition Property="Width" Duration="0:0:0.12"/>
+      </Transitions>
+    </Setter>
   </Style>
   <Style Selector="Button.header-toggle:pointerover">
     <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+
+  <!--  ⑨-a 右缘热区（透明，宽 64px，负责"鼠标靠近"这件事）  -->
+  <Style Selector="Border.detail-hotspot">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Width" Value="64"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="VerticalAlignment" Value="Stretch"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+
+  <!--  ⑨-b 收起态：只露一条窄边，且不吃鼠标事件（否则"看不见却能点到"很怪）  -->
+  <Style Selector="Border.detail-hotspot Button.header-toggle">
+    <Setter Property="Opacity" Value="0"/>
+    <Setter Property="Width" Value="8"/>
+    <Setter Property="MinWidth" Value="8"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Margin" Value="0,6,2,6"/>
+    <Setter Property="IsHitTestVisible" Value="False"/>
+  </Style>
+
+  <!--  ⑨-c 鼠标进入热区 → 弹出  -->
+  <Style Selector="Border.detail-hotspot:pointerover Button.header-toggle">
+    <Setter Property="Opacity" Value="1"/>
+    <Setter Property="Width" Value="34"/>
+    <Setter Property="MinWidth" Value="34"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+    <Setter Property="Margin" Value="0,4,6,4"/>
+    <Setter Property="IsHitTestVisible" Value="True"/>
   </Style>
 
   <!--  ⑩ 表头容器（高度固定 36，内部按钮靠 ⑧/⑨ 撑满 —— 点击区 = 整格）  -->

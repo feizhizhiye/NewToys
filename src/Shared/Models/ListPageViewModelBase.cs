@@ -53,8 +53,25 @@ public abstract partial class ListPageViewModelBase : ObservableObject
     /// <summary>排序列 / 筛选条件变化后重算列表（派生类的 ApplyView / ApplyFilters）。</summary>
     protected abstract void RefreshView();
 
-    /// <summary>取某行某列的文本（给筛选用）。不需要筛选的列表页可以不管（默认返回 null）。</summary>
-    protected virtual string? FieldText(object row, string columnKey) => null;
+    /// <summary>
+    /// 取某行某列的文本（给筛选用）。
+    /// <para>
+    /// <b>默认实现 = 反射取同名属性</b>：列键（<c>"Name"</c>/<c>"Url"</c>…）通常就是模型上的属性名，
+    /// 于是新列表页只要继承基类就自动能筛选，不必再写一遍取值 switch；
+    /// 列键与属性名不一致时返回 <c>null</c>，<see cref="ApplyFilters"/> 会把这条条件当"不生效"跳过（不会误筛掉行）。
+    /// 需要更精确的值（派生显示串 / 数值）时由派生类重写。
+    /// </para>
+    /// </summary>
+    protected virtual string? FieldText(object row, string columnKey)
+    {
+        if (row == null || string.IsNullOrEmpty(columnKey)) return null;
+        try
+        {
+            var p = row.GetType().GetProperty(columnKey);
+            return p?.GetValue(row)?.ToString();
+        }
+        catch { return null; }
+    }
 
     /// <summary>取某行某列的数值（给「大于 / 小于」筛选用）。默认不支持数值比较。</summary>
     protected virtual double? FieldNumber(object row, string columnKey) => null;
@@ -164,7 +181,8 @@ public abstract partial class ListPageViewModelBase : ObservableObject
         SaveDetailFlag();
     }
 
-    private void SaveDetailFlag()
+    /// <summary>把「详情栏是否展开」落盘（派生类在构造函数 / 建任务后想直接记住状态时用）。</summary>
+    protected void SaveDetailFlag()
         => _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
 
     // ==================== 排序 ====================
@@ -286,7 +304,12 @@ public abstract partial class ListPageViewModelBase : ObservableObject
         if (active.Count == 0) return rows;
 
         return rows.Where(row => active.All(f =>
-            f.Matches(FieldText(row!, f.ColumnKey), FieldNumber(row!, f.ColumnKey))));
+        {
+            var text = FieldText(row!, f.ColumnKey);
+            // 这一列取不到值（列键与模型属性对不上）→ 这条条件不生效，而不是把所有行都筛掉
+            if (text == null) return true;
+            return f.Matches(text, FieldNumber(row!, f.ColumnKey));
+        }));
     }
 
     /// <summary>筛选 + 关键字搜索之后剩下的行数（派生类拼统计文案时用）。</summary>

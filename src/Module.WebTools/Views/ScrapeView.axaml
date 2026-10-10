@@ -3,7 +3,7 @@
              xmlns:v="using:NewToys.WebTools.Views"
              xmlns:conv="using:Avalonia.Data.Converters"
              x:Class="NewToys.WebTools.Views.ScrapeView">
-  <Grid RowDefinitions="Auto,Auto,*">
+  <Grid RowDefinitions="Auto,Auto,Auto,*">
 
     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
                 Margin="24,16,24,0" Spacing="10">
@@ -11,8 +11,7 @@
                  Foreground="{DynamicResource AccentBrush}"/>
     </StackPanel>
 
-    <Border Grid.Row="1" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
-            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+    <Border Grid.Row="1" Classes="toolbar">
       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
         <Button Classes="primary" Content="➕ 新建任务" Margin="0,0,8,0" Command="{Binding NewTaskCommand}"/>
         <Button Classes="ghost" Content="▶ 运行全部" Margin="0,0,8,0" Command="{Binding RunAllCommand}" IsEnabled="{Binding !IsBusy}"/>
@@ -23,11 +22,55 @@
       </WrapPanel>
     </Border>
 
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="16">
+    
+    <!--  ==================== 多项筛选  ====================  -->
+    <Border Grid.Row="2" Classes="filter-bar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Classes="filter-btn" Content="＋ 条件" Command="{Binding AddFilterCommand}"/>
+        <Button Classes="filter-btn" Content="🧹 清空" Command="{Binding ClearFiltersCommand}"
+                IsVisible="{Binding HasFilters}"/>
+        <TextBlock Classes="hint-text" Text="{Binding FilterSummary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+        <ItemsControl ItemsSource="{Binding Filters}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,10,4" VerticalAlignment="Center">
+                <CheckBox IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"/>
+                <ComboBox Classes="filter-combo"
+                          ItemsSource="{Binding $parent[UserControl].DataContext.FilterableColumns}"
+                          SelectedItem="{Binding Column, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Header}" FontSize="12"/></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <ComboBox Classes="filter-combo" ItemsSource="{Binding Operators}"
+                          SelectedItem="{Binding OperatorItem, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBox Classes="filter-value" Text="{Binding Value, Mode=TwoWay}"
+                         IsVisible="{Binding NeedsValue}" PlaceholderText="值…"/>
+                <Button Classes="filter-btn" Content="✕" Padding="6,2"
+                        Command="{Binding $parent[UserControl].DataContext.RemoveFilterCommand}"
+                        CommandParameter="{Binding}"/>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </WrapPanel>
+    </Border>
+
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="16">
 
       <Border Grid.Column="0" Classes="card" Padding="0">
         <Grid RowDefinitions="Auto,*">
-          <Border Grid.Row="0" Classes="list-header" Height="36">
+          <Border Grid.Row="0" Classes="list-header">
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
               <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
@@ -37,8 +80,7 @@
                       IsVisible="{Binding IsRuleVisible}"/>
               <Button Grid.Column="3" Classes="col-header" Content="{Binding LastRunHeader}"
                       IsVisible="{Binding IsLastRunVisible}"/>
-              <Button Grid.Column="4" Classes="ghost" Content="▤" FontSize="11" Padding="6,2" Margin="0,0,6,0"
-                      HorizontalAlignment="Right" VerticalAlignment="Center"
+              <Button Grid.Column="4" Classes="header-toggle" Content="▤"
                       Command="{Binding ToggleDetailCommand}" ToolTip.Tip="显示 / 隐藏右侧详情"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -89,7 +131,8 @@
       </Border>
 
       <!-- 右：详情（配置 + 输出） -->
-      <Border Grid.Column="1" Classes="card" Padding="16" Width="420" Margin="12,0,0,0"
+      <!-- 这一页详情卡更宽（要放规则 / 脚本），所以只覆盖 Width，其余沿用 detail-card -->
+      <Border Grid.Column="1" Classes="detail-card" Width="420"
               IsVisible="{Binding IsDetailVisible}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Spacing="10">

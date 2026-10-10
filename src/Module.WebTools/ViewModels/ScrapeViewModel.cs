@@ -19,16 +19,12 @@ namespace NewToys.WebTools.ViewModels;
 /// 列表管理多个任务；右键「运行 / 发送到书签」。列显隐 / 详情开合偏好落 <c>config\columnlayout.json</c>。
 /// </para>
 /// </summary>
-public partial class ScrapeViewModel : ObservableObject
+public partial class ScrapeViewModel : ListPageViewModelBase
 {
-    private const string PageKey = "web-scrape";
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly ScrapeService _svc = null!;
-    private readonly IColumnLayoutService? _cols;
     private readonly WebTransferService _transfer = null!;
     private readonly List<ScrapeTask> _all = new();
-    private string _sortColumn = "Name";
-    private bool _sortDescending;
 
     public IReadOnlyList<string> RuleTypes { get; } = new List<string> { "Css", "Regex" };
 
@@ -44,12 +40,19 @@ public partial class ScrapeViewModel : ObservableObject
     [ObservableProperty] private string _ruleHeader = "规则";
     [ObservableProperty] private string _lastRunHeader = "最近运行";
 
-    [ObservableProperty] private bool _isNameVisible = true;
-    [ObservableProperty] private bool _isUrlVisible = true;
-    [ObservableProperty] private bool _isRuleVisible = true;
-    [ObservableProperty] private bool _isLastRunVisible = true;
+    // ============ 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ============
+    //
+    // XAML 只能绑具名属性 → 每列给一个直通属性（真正的状态在基类里，落 config\columnlayout.json）。
 
-    public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    public bool IsNameVisible => Vis("Name");
+    public bool IsUrlVisible => Vis("Url");
+    public bool IsRuleVisible => Vis("Rule");
+    public bool IsLastRunVisible => Vis("LastRun");
+
+    protected override string PageKey => "web-scrape";
+
+    /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
+    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Name", "名称", "2*"),
         new("Url", "起始网址", "3*"),
@@ -58,75 +61,13 @@ public partial class ScrapeViewModel : ObservableObject
         new("Detail", "", "36", sortable: false),
     };
 
-    public string VisibleColumnSpecs
-    {
-        get
-        {
-            var parts = new string[Columns.Count];
-            for (var i = 0; i < Columns.Count; i++)
-                parts[i] = IsVisibleFor(Columns[i].Key) ? Columns[i].Width : "0";
-            return string.Join(",", parts);
-        }
-    }
+    /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
+    protected override void RefreshView() => ApplyView();
 
-    private bool IsVisibleFor(string key) => key switch
-    {
-        "Name" => IsNameVisible, "Url" => IsUrlVisible, "Rule" => IsRuleVisible, "LastRun" => IsLastRunVisible, _ => true
-    };
-
-    [RelayCommand]
-    private void ToggleColumn(string? key)
-    {
-        if (key == null) return;
-        switch (key)
-        {
-            case "Name": IsNameVisible = !IsNameVisible; break;
-            case "Url": IsUrlVisible = !IsUrlVisible; break;
-            case "Rule": IsRuleVisible = !IsRuleVisible; break;
-            case "LastRun": IsLastRunVisible = !IsLastRunVisible; break;
-            default: return;
-        }
-        SaveColumnVisibility();
-        OnPropertyChanged(nameof(VisibleColumnSpecs));
-    }
-
-    private void SaveColumnVisibility()
-    {
-        _cols?.SavePage(PageKey, new Dictionary<string, bool>
-        {
-            ["Name"] = IsNameVisible, ["Url"] = IsUrlVisible, ["Rule"] = IsRuleVisible, ["LastRun"] = IsLastRunVisible
-        });
-    }
-
-    private void LoadColumnVisibility()
-    {
-        var saved = _cols?.LoadPage(PageKey);
-        if (saved == null) return;
-        if (saved.TryGetValue("Name", out var n)) IsNameVisible = n;
-        if (saved.TryGetValue("Url", out var u)) IsUrlVisible = u;
-        if (saved.TryGetValue("Rule", out var r)) IsRuleVisible = r;
-        if (saved.TryGetValue("LastRun", out var l)) IsLastRunVisible = l;
-    }
-
-    [ObservableProperty] private bool _isDetailVisible;
-
-    [RelayCommand]
-    private void ToggleDetail()
-    {
-        IsDetailVisible = !IsDetailVisible;
-        if (IsDetailVisible && Selected == null && Items.Count > 0) Selected = Items[0];
-        SaveDetailFlag();
-    }
-
-    [RelayCommand]
-    private void ShowDetail()
+    protected override void EnsureDetailSelection()
     {
         if (Selected == null && Items.Count > 0) Selected = Items[0];
-        IsDetailVisible = true;
-        SaveDetailFlag();
     }
-
-    private void SaveDetailFlag() => _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
@@ -134,12 +75,11 @@ public partial class ScrapeViewModel : ObservableObject
     public ScrapeViewModel() { }
 
     public ScrapeViewModel(ScrapeService svc, IColumnLayoutService cols, WebTransferService transfer)
+        : base(cols)
     {
         _svc = svc;
-        _cols = cols;
         _transfer = transfer;
-        LoadColumnVisibility();
-        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);
+        LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         Refresh();
 
         // 跨页「发送到此页」：消费待处理 URL，建一条以它为起始网址的任务并打开详情。
@@ -244,15 +184,6 @@ public partial class ScrapeViewModel : ObservableObject
         StatusText = "已暂存起始网址，切到书签页即可保存。";
     }
 
-    [RelayCommand]
-    private void Sort(string? column)
-    {
-        if (string.IsNullOrWhiteSpace(column)) return;
-        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase)) _sortDescending = !_sortDescending;
-        else { _sortColumn = column; _sortDescending = false; }
-        ApplyView();
-    }
-
     private void ApplyView()
     {
         IEnumerable<ScrapeTask> q = _all;
@@ -262,7 +193,10 @@ public partial class ScrapeViewModel : ObservableObject
                           || t.StartUrl.Contains(text, StringComparison.OrdinalIgnoreCase)
                           || t.Rule.Contains(text, StringComparison.OrdinalIgnoreCase));
 
-        q = _sortDescending
+        // 多项筛选（基类）：多条条件之间取「且」
+        q = ApplyFilters(q);
+
+        q = SortDescending
             ? q.OrderByDescending(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
             : q.OrderBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase);
 
@@ -278,8 +212,7 @@ public partial class ScrapeViewModel : ObservableObject
 
     private void UpdateHeaders()
     {
-        var arrow = _sortDescending ? " ▼" : " ▲";
-        NameHeader = "名称" + (_sortColumn == "Name" ? arrow : "");
+        NameHeader = "名称" + SortArrow("Name");
     }
 
     partial void OnSelectedChanged(ScrapeTask? value) => OnPropertyChanged(nameof(HasSelection));

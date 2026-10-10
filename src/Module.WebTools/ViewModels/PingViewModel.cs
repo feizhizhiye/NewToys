@@ -20,17 +20,13 @@ namespace NewToys.WebTools.ViewModels;
 /// 右键「发送到书签 / 网页抓取」跨页传 URL。列显隐 / 详情开合偏好落 <c>config\columnlayout.json</c>。
 /// </para>
 /// </summary>
-public partial class PingViewModel : ObservableObject
+public partial class PingViewModel : ListPageViewModelBase
 {
-    private const string PageKey = "web-ping";
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly PingService _svc = null!;
-    private readonly IColumnLayoutService? _cols;
     private readonly INavigationService? _nav;
     private readonly WebTransferService _transfer = null!;
     private readonly List<PingTarget> _all = new();
-    private string _sortColumn = "Host";
-    private bool _sortDescending;
 
     /// <summary>DNS 预设（"系统默认" 表示回退系统解析）。</summary>
     public IReadOnlyList<string> DnsPresets { get; } = new List<string>
@@ -58,14 +54,20 @@ public partial class PingViewModel : ObservableObject
     [ObservableProperty] private string _roundtripHeader = "时延(ms)";
     [ObservableProperty] private string _dnsHeader = "DNS";
 
-    // ============ 列显隐 ============
-    [ObservableProperty] private bool _isHostVisible = true;
-    [ObservableProperty] private bool _isIpVisible = true;
-    [ObservableProperty] private bool _isStatusVisible = true;
-    [ObservableProperty] private bool _isRoundtripVisible = true;
-    [ObservableProperty] private bool _isDnsVisible = true;
+    // ============ 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ============
+    //
+    // XAML 只能绑具名属性 → 每列给一个直通属性（真正的状态在基类里，落 config\columnlayout.json）。
 
-    public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    public bool IsHostVisible => Vis("Host");
+    public bool IsIpVisible => Vis("Ip");
+    public bool IsStatusVisible => Vis("Status");
+    public bool IsRoundtripVisible => Vis("Roundtrip");
+    public bool IsDnsVisible => Vis("Dns");
+
+    protected override string PageKey => "web-ping";
+
+    /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
+    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Host", "主机", "2.4*"),
         new("Ip", "解析 IP", "1.6*"),
@@ -75,80 +77,13 @@ public partial class PingViewModel : ObservableObject
         new("Detail", "", "36", sortable: false),
     };
 
-    public string VisibleColumnSpecs
-    {
-        get
-        {
-            var parts = new string[Columns.Count];
-            for (var i = 0; i < Columns.Count; i++)
-                parts[i] = IsVisibleFor(Columns[i].Key) ? Columns[i].Width : "0";
-            return string.Join(",", parts);
-        }
-    }
+    /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
+    protected override void RefreshView() => ApplyView();
 
-    private bool IsVisibleFor(string key) => key switch
-    {
-        "Host" => IsHostVisible, "Ip" => IsIpVisible, "Status" => IsStatusVisible,
-        "Roundtrip" => IsRoundtripVisible, "Dns" => IsDnsVisible, _ => true
-    };
-
-    [RelayCommand]
-    private void ToggleColumn(string? key)
-    {
-        if (key == null) return;
-        switch (key)
-        {
-            case "Host": IsHostVisible = !IsHostVisible; break;
-            case "Ip": IsIpVisible = !IsIpVisible; break;
-            case "Status": IsStatusVisible = !IsStatusVisible; break;
-            case "Roundtrip": IsRoundtripVisible = !IsRoundtripVisible; break;
-            case "Dns": IsDnsVisible = !IsDnsVisible; break;
-            default: return;
-        }
-        SaveColumnVisibility();
-        OnPropertyChanged(nameof(VisibleColumnSpecs));
-    }
-
-    private void SaveColumnVisibility()
-    {
-        _cols?.SavePage(PageKey, new Dictionary<string, bool>
-        {
-            ["Host"] = IsHostVisible, ["Ip"] = IsIpVisible, ["Status"] = IsStatusVisible,
-            ["Roundtrip"] = IsRoundtripVisible, ["Dns"] = IsDnsVisible
-        });
-    }
-
-    private void LoadColumnVisibility()
-    {
-        var saved = _cols?.LoadPage(PageKey);
-        if (saved == null) return;
-        if (saved.TryGetValue("Host", out var h)) IsHostVisible = h;
-        if (saved.TryGetValue("Ip", out var ip)) IsIpVisible = ip;
-        if (saved.TryGetValue("Status", out var s)) IsStatusVisible = s;
-        if (saved.TryGetValue("Roundtrip", out var r)) IsRoundtripVisible = r;
-        if (saved.TryGetValue("Dns", out var d)) IsDnsVisible = d;
-    }
-
-    // ============ 详情开合 ============
-    [ObservableProperty] private bool _isDetailVisible;
-
-    [RelayCommand]
-    private void ToggleDetail()
-    {
-        IsDetailVisible = !IsDetailVisible;
-        if (IsDetailVisible && Selected == null && Items.Count > 0) Selected = Items[0];
-        SaveDetailFlag();
-    }
-
-    [RelayCommand]
-    private void ShowDetail()
+    protected override void EnsureDetailSelection()
     {
         if (Selected == null && Items.Count > 0) Selected = Items[0];
-        IsDetailVisible = true;
-        SaveDetailFlag();
     }
-
-    private void SaveDetailFlag() => _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
@@ -156,13 +91,12 @@ public partial class PingViewModel : ObservableObject
     public PingViewModel() { }
 
     public PingViewModel(PingService svc, IColumnLayoutService cols, INavigationService? nav, WebTransferService transfer)
+        : base(cols)
     {
         _svc = svc;
-        _cols = cols;
         _nav = nav;
         _transfer = transfer;
-        LoadColumnVisibility();
-        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);
+        LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         Refresh();
 
         // 跨页「发送到此页」：消费待处理 URL，直接建一条待 ping 的目标并打开详情。
@@ -321,15 +255,6 @@ public partial class PingViewModel : ObservableObject
     }
 
     // ============ 排序 ============
-    [RelayCommand]
-    private void Sort(string? column)
-    {
-        if (string.IsNullOrWhiteSpace(column)) return;
-        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase)) _sortDescending = !_sortDescending;
-        else { _sortColumn = column; _sortDescending = false; }
-        ApplyView();
-    }
-
     private void ApplyView()
     {
         IEnumerable<PingTarget> q = _all;
@@ -337,13 +262,16 @@ public partial class PingViewModel : ObservableObject
         if (text.Length > 0)
             q = q.Where(t => t.Host.Contains(text, StringComparison.OrdinalIgnoreCase));
 
-        q = _sortColumn switch
+        // 多项筛选（基类）：多条条件之间取「且」
+        q = ApplyFilters(q);
+
+        q = SortColumn switch
         {
-            "Ip" => _sortDescending ? q.OrderByDescending(t => t.LastIp) : q.OrderBy(t => t.LastIp),
-            "Status" => _sortDescending ? q.OrderByDescending(t => t.LastOk) : q.OrderBy(t => t.LastOk),
-            "Roundtrip" => _sortDescending ? q.OrderByDescending(t => t.LastRoundtripMs) : q.OrderBy(t => t.LastRoundtripMs),
-            "Dns" => _sortDescending ? q.OrderByDescending(t => t.DnsOverride) : q.OrderBy(t => t.DnsOverride),
-            _ => _sortDescending ? q.OrderByDescending(t => t.Host, StringComparer.CurrentCultureIgnoreCase)
+            "Ip" => SortDescending ? q.OrderByDescending(t => t.LastIp) : q.OrderBy(t => t.LastIp),
+            "Status" => SortDescending ? q.OrderByDescending(t => t.LastOk) : q.OrderBy(t => t.LastOk),
+            "Roundtrip" => SortDescending ? q.OrderByDescending(t => t.LastRoundtripMs) : q.OrderBy(t => t.LastRoundtripMs),
+            "Dns" => SortDescending ? q.OrderByDescending(t => t.DnsOverride) : q.OrderBy(t => t.DnsOverride),
+            _ => SortDescending ? q.OrderByDescending(t => t.Host, StringComparer.CurrentCultureIgnoreCase)
                                  : q.OrderBy(t => t.Host, StringComparer.CurrentCultureIgnoreCase)
         };
 
@@ -359,12 +287,11 @@ public partial class PingViewModel : ObservableObject
 
     private void UpdateHeaders()
     {
-        var arrow = _sortDescending ? " ▼" : " ▲";
-        HostHeader = "主机" + (_sortColumn == "Host" ? arrow : "");
-        IpHeader = "解析 IP" + (_sortColumn == "Ip" ? arrow : "");
-        StatusHeader = "状态" + (_sortColumn == "Status" ? arrow : "");
-        RoundtripHeader = "时延(ms)" + (_sortColumn == "Roundtrip" ? arrow : "");
-        DnsHeader = "DNS" + (_sortColumn == "Dns" ? arrow : "");
+        HostHeader = "主机" + SortArrow("Host");
+        IpHeader = "解析 IP" + SortArrow("Ip");
+        StatusHeader = "状态" + SortArrow("Status");
+        RoundtripHeader = "时延(ms)" + SortArrow("Roundtrip");
+        DnsHeader = "DNS" + SortArrow("Dns");
     }
 
     partial void OnSelectedChanged(PingTarget? value) => OnPropertyChanged(nameof(HasSelection));

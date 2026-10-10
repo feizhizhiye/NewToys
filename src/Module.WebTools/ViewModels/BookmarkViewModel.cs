@@ -21,17 +21,13 @@ namespace NewToys.WebTools.ViewModels;
 /// <c>config\columnlayout.json</c>（规范 3.6 / 3.8）。
 /// </para>
 /// </summary>
-public partial class BookmarkViewModel : ObservableObject
+public partial class BookmarkViewModel : ListPageViewModelBase
 {
-    private const string PageKey = "web-bookmark";
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly BookmarkService _svc = null!;
-    private readonly IColumnLayoutService? _cols;
     private readonly INavigationService? _nav;
     private readonly WebTransferService _transfer = null!;
     private readonly List<BookmarkItem> _all = new();
-    private string _sortColumn = "Title";
-    private bool _sortDescending;
 
     public ObservableCollection<BookmarkItem> Items { get; } = new();
 
@@ -46,13 +42,19 @@ public partial class BookmarkViewModel : ObservableObject
     [ObservableProperty] private string _folderHeader = "分组";
     [ObservableProperty] private string _statusHeader = "状态";
 
-    // ============ 列显隐 ============
-    [ObservableProperty] private bool _isTitleVisible = true;
-    [ObservableProperty] private bool _isUrlVisible = true;
-    [ObservableProperty] private bool _isFolderVisible = true;
-    [ObservableProperty] private bool _isStatusVisible = true;
+    // ============ 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ============
+    //
+    // XAML 只能绑具名属性 → 每列给一个直通属性（真正的状态在基类里，落 config\columnlayout.json）。
 
-    public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    public bool IsTitleVisible => Vis("Title");
+    public bool IsUrlVisible => Vis("Url");
+    public bool IsFolderVisible => Vis("Folder");
+    public bool IsStatusVisible => Vis("Status");
+
+    protected override string PageKey => "web-bookmark";
+
+    /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
+    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Title", "标题", "2.6*"),
         new("Url", "网址", "3*"),
@@ -61,76 +63,13 @@ public partial class BookmarkViewModel : ObservableObject
         new("Detail", "", "36", sortable: false),
     };
 
-    public string VisibleColumnSpecs
-    {
-        get
-        {
-            var parts = new string[Columns.Count];
-            for (var i = 0; i < Columns.Count; i++)
-                parts[i] = IsVisibleFor(Columns[i].Key) ? Columns[i].Width : "0";
-            return string.Join(",", parts);
-        }
-    }
+    /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
+    protected override void RefreshView() => ApplyView();
 
-    private bool IsVisibleFor(string key) => key switch
-    {
-        "Title" => IsTitleVisible, "Url" => IsUrlVisible, "Folder" => IsFolderVisible, "Status" => IsStatusVisible, _ => true
-    };
-
-    [RelayCommand]
-    private void ToggleColumn(string? key)
-    {
-        if (key == null) return;
-        switch (key)
-        {
-            case "Title": IsTitleVisible = !IsTitleVisible; break;
-            case "Url": IsUrlVisible = !IsUrlVisible; break;
-            case "Folder": IsFolderVisible = !IsFolderVisible; break;
-            case "Status": IsStatusVisible = !IsStatusVisible; break;
-            default: return;
-        }
-        SaveColumnVisibility();
-        OnPropertyChanged(nameof(VisibleColumnSpecs));
-    }
-
-    private void SaveColumnVisibility()
-    {
-        _cols?.SavePage(PageKey, new Dictionary<string, bool>
-        {
-            ["Title"] = IsTitleVisible, ["Url"] = IsUrlVisible, ["Folder"] = IsFolderVisible, ["Status"] = IsStatusVisible
-        });
-    }
-
-    private void LoadColumnVisibility()
-    {
-        var saved = _cols?.LoadPage(PageKey);
-        if (saved == null) return;
-        if (saved.TryGetValue("Title", out var t)) IsTitleVisible = t;
-        if (saved.TryGetValue("Url", out var u)) IsUrlVisible = u;
-        if (saved.TryGetValue("Folder", out var f)) IsFolderVisible = f;
-        if (saved.TryGetValue("Status", out var s)) IsStatusVisible = s;
-    }
-
-    // ============ 详情开合 ============
-    [ObservableProperty] private bool _isDetailVisible;
-
-    [RelayCommand]
-    private void ToggleDetail()
-    {
-        IsDetailVisible = !IsDetailVisible;
-        if (IsDetailVisible && Selected == null && Items.Count > 0) Selected = Items[0];
-        SaveDetailFlag();
-    }
-
-    [RelayCommand]
-    private void ShowDetail()
+    protected override void EnsureDetailSelection()
     {
         if (Selected == null && Items.Count > 0) Selected = Items[0];
-        IsDetailVisible = true;
-        SaveDetailFlag();
     }
-
-    private void SaveDetailFlag() => _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
@@ -138,13 +77,12 @@ public partial class BookmarkViewModel : ObservableObject
     public BookmarkViewModel() { }
 
     public BookmarkViewModel(BookmarkService svc, IColumnLayoutService cols, INavigationService? nav, WebTransferService transfer)
+        : base(cols)
     {
         _svc = svc;
-        _cols = cols;
         _nav = nav;
         _transfer = transfer;
-        LoadColumnVisibility();
-        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);
+        LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         Refresh();
 
         // 跨页「发送到书签」：消费待处理 URL，直接建一条待补全的书签并打开详情。
@@ -306,15 +244,6 @@ public partial class BookmarkViewModel : ObservableObject
     }
 
     // ============ 排序 ============
-    [RelayCommand]
-    private void Sort(string? column)
-    {
-        if (string.IsNullOrWhiteSpace(column)) return;
-        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase)) _sortDescending = !_sortDescending;
-        else { _sortColumn = column; _sortDescending = false; }
-        ApplyView();
-    }
-
     private void ApplyView()
     {
         IEnumerable<BookmarkItem> q = _all;
@@ -324,7 +253,10 @@ public partial class BookmarkViewModel : ObservableObject
                           || b.Url.Contains(text, StringComparison.OrdinalIgnoreCase)
                           || b.Folder.Contains(text, StringComparison.OrdinalIgnoreCase));
 
-        q = _sortDescending
+        // 多项筛选（基类）：多条条件之间取「且」
+        q = ApplyFilters(q);
+
+        q = SortDescending
             ? q.OrderByDescending(b => b.Title, StringComparer.CurrentCultureIgnoreCase)
             : q.OrderBy(b => b.Title, StringComparer.CurrentCultureIgnoreCase);
 
@@ -340,8 +272,7 @@ public partial class BookmarkViewModel : ObservableObject
 
     private void UpdateHeaders()
     {
-        var arrow = _sortDescending ? " ▼" : " ▲";
-        TitleHeader = "标题" + (_sortColumn == "Title" ? arrow : "");
+        TitleHeader = "标题" + SortArrow("Title");
     }
 
     partial void OnSelectedChanged(BookmarkItem? value) => OnPropertyChanged(nameof(HasSelection));

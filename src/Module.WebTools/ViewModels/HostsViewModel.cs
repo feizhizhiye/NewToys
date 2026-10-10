@@ -16,14 +16,10 @@ namespace NewToys.WebTools.ViewModels;
 /// hosts 管理页：多套方案（列表）+ 右侧详情（编辑条目 / 应用到系统 hosts / 网络导入）。
 /// 布局遵循规范 3.8 列表页规范；列显隐 / 详情开合偏好落在 <c>config\columnlayout.json</c>。
 /// </summary>
-public partial class HostsViewModel : ObservableObject
+public partial class HostsViewModel : ListPageViewModelBase
 {
-    private const string PageKey = "web-hosts";
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly HostsService _svc = null!;
-    private readonly IColumnLayoutService? _cols;
-    private string _sortColumn = "Name";
-    private bool _sortDescending;
 
     public ObservableCollection<HostsProfile> Profiles { get; } = new();
 
@@ -39,12 +35,18 @@ public partial class HostsViewModel : ObservableObject
     [ObservableProperty] private string _entriesHeader = "条目数";
     [ObservableProperty] private string _sourceHeader = "来源";
 
-    // ============ 列显隐 ============
-    [ObservableProperty] private bool _isNameVisible = true;
-    [ObservableProperty] private bool _isEntriesVisible = true;
-    [ObservableProperty] private bool _isSourceVisible = true;
+    // ============ 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ============
+    //
+    // XAML 只能绑具名属性 → 每列给一个直通属性（真正的状态在基类里，落 config\columnlayout.json）。
 
-    public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    public bool IsNameVisible => Vis("Name");
+    public bool IsEntriesVisible => Vis("Entries");
+    public bool IsSourceVisible => Vis("Source");
+
+    protected override string PageKey => "web-hosts";
+
+    /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
+    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Name", "名称", "3*"),
         new("Entries", "条目数", "1.2*"),
@@ -52,74 +54,13 @@ public partial class HostsViewModel : ObservableObject
         new("Detail", "", "36", sortable: false),
     };
 
-    public string VisibleColumnSpecs
-    {
-        get
-        {
-            var parts = new string[Columns.Count];
-            for (var i = 0; i < Columns.Count; i++)
-                parts[i] = IsVisibleFor(Columns[i].Key) ? Columns[i].Width : "0";
-            return string.Join(",", parts);
-        }
-    }
+    /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
+    protected override void RefreshView() => ApplyView();
 
-    private bool IsVisibleFor(string key) => key switch
-    {
-        "Name" => IsNameVisible, "Entries" => IsEntriesVisible, "Source" => IsSourceVisible, _ => true
-    };
-
-    [RelayCommand]
-    private void ToggleColumn(string? key)
-    {
-        if (key == null) return;
-        switch (key)
-        {
-            case "Name": IsNameVisible = !IsNameVisible; break;
-            case "Entries": IsEntriesVisible = !IsEntriesVisible; break;
-            case "Source": IsSourceVisible = !IsSourceVisible; break;
-            default: return;
-        }
-        SaveColumnVisibility();
-        OnPropertyChanged(nameof(VisibleColumnSpecs));
-    }
-
-    private void SaveColumnVisibility()
-    {
-        _cols?.SavePage(PageKey, new Dictionary<string, bool>
-        {
-            ["Name"] = IsNameVisible, ["Entries"] = IsEntriesVisible, ["Source"] = IsSourceVisible
-        });
-    }
-
-    private void LoadColumnVisibility()
-    {
-        var saved = _cols?.LoadPage(PageKey);
-        if (saved == null) return;
-        if (saved.TryGetValue("Name", out var n)) IsNameVisible = n;
-        if (saved.TryGetValue("Entries", out var e)) IsEntriesVisible = e;
-        if (saved.TryGetValue("Source", out var s)) IsSourceVisible = s;
-    }
-
-    // ============ 详情开合 ============
-    [ObservableProperty] private bool _isDetailVisible;
-
-    [RelayCommand]
-    private void ToggleDetail()
-    {
-        IsDetailVisible = !IsDetailVisible;
-        if (IsDetailVisible && Selected == null && Profiles.Count > 0) Selected = Profiles[0];
-        SaveDetailFlag();
-    }
-
-    [RelayCommand]
-    private void ShowDetail()
+    protected override void EnsureDetailSelection()
     {
         if (Selected == null && Profiles.Count > 0) Selected = Profiles[0];
-        IsDetailVisible = true;
-        SaveDetailFlag();
     }
-
-    private void SaveDetailFlag() => _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Profiles.Count > 0;
@@ -127,11 +68,10 @@ public partial class HostsViewModel : ObservableObject
     public HostsViewModel() { }
 
     public HostsViewModel(HostsService svc, IColumnLayoutService cols)
+        : base(cols)
     {
         _svc = svc;
-        _cols = cols;
-        LoadColumnVisibility();
-        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);
+        LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         Refresh();
     }
 
@@ -148,20 +88,14 @@ public partial class HostsViewModel : ObservableObject
     }
 
     // ============ 排序 ============
-    [RelayCommand]
-    private void Sort(string? column)
-    {
-        if (string.IsNullOrWhiteSpace(column)) return;
-        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase)) _sortDescending = !_sortDescending;
-        else { _sortColumn = column; _sortDescending = false; }
-        ApplyView();
-    }
-
     private void ApplyView()
     {
-        var q = _sortDescending
-            ? Profiles.OrderByDescending(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-            : Profiles.OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase);
+        // 多项筛选（基类）：多条条件之间取「且」
+        IEnumerable<HostsProfile> q = ApplyFilters(Profiles);
+
+        q = SortDescending
+            ? q.OrderByDescending(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+            : q.OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase);
         var ordered = q.ToList();
         Profiles.Clear();
         foreach (var p in ordered) Profiles.Add(p);
@@ -171,8 +105,7 @@ public partial class HostsViewModel : ObservableObject
 
     private void UpdateHeaders()
     {
-        var arrow = _sortDescending ? " ▼" : " ▲";
-        NameHeader = "名称" + (_sortColumn == "Name" ? arrow : "");
+        NameHeader = "名称" + SortArrow("Name");
     }
 
     // ============ 选中 → 同步详情编辑区 ============

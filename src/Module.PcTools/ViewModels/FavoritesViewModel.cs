@@ -39,10 +39,8 @@ public partial class FavoritesViewModel : ObservableObject
         "★ 收藏来自「设置与脚本」「快捷设置」两页：选中一条后右键「★ 添加到收藏夹」，或点右侧「☆ 收藏」。\n" +
         "点按钮直接执行；右键按钮可「✕ 取消固定」移出收藏夹。";
 
-    public string FilePath => _svc?.FilePath ?? "";
-
     public string DataFileHint =>
-        $"数据文件：{FilePath}（放在 config\\ 下，会被「设置 → 数据管理」的备份 / 导入一起覆盖）";
+        $"数据文件：{_svc?.ScriptsFilePath}\n　　　　　{_svc?.QuickFilePath}\n（两个页面各一份，都在 config\\ 下，会被「设置 → 数据管理」的备份 / 导入一起覆盖）";
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public FavoritesViewModel() { }

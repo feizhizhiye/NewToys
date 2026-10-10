@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NewToys.VideoTools.Models;
@@ -14,7 +16,9 @@ namespace NewToys.VideoTools.Services;
 /// 视频库的目录扫描与媒体信息探测。
 /// <para>
 /// 扫描**只读文件系统元信息**（名称 / 大小 / 修改时间），保证几百个文件的目录也是瞬间出列表；
-/// 时长 / 分辨率 / 编码走 ffprobe，且**只在用户显式点「读取媒体信息」时对单个文件跑一次**。
+/// 时长 / 分辨率 / 编码 / 码率走 ffprobe，由调用方决定单个读还是并发批量读
+/// （<see cref="ProbeAsync"/> 本身**不碰 UI、不改模型**，只把结果返回 —— 这样多任务并发调用是线程安全的，
+/// 界面更新统一由 ViewModel 在 UI 线程上做）。
 /// </para>
 /// </summary>
 public static class VideoScanner
@@ -76,12 +80,14 @@ public static class VideoScanner
     }
 
     /// <summary>
-    /// 跑一次 ffprobe 拿时长 / 分辨率 / 视频编码。失败返回 null（界面显示「—」，不报错）。
+    /// 跑一次 ffprobe 拿时长 / 分辨率 / 编码 / 码率（JSON 输出，比 <c>key=value</c> 稳：字段可能重复、可能有嵌套）。
+    /// <para><b>线程安全、不碰 UI</b>：可以放心地并发调用（见 <c>VideoListViewModel</c> 的批量读取）。</para>
     /// </summary>
-    public static async Task<(bool Ok, string Message)> ProbeAsync(VideoItem item, string ffprobe, CancellationToken ct = default)
+    public static async Task<(bool Ok, string Message, VideoMediaInfo? Info)> ProbeAsync(
+        string fullPath, string ffprobe, CancellationToken ct = default)
     {
-        if (item == null) return (false, "未选择文件。");
-        if (!File.Exists(item.FullPath)) return (false, "文件已不存在。");
+        if (string.IsNullOrWhiteSpace(fullPath)) return (false, "未指定文件。", null);
+        if (!File.Exists(fullPath)) return (false, "文件已不存在。", null);
 
         var psi = new ProcessStartInfo
         {
@@ -96,17 +102,18 @@ public static class VideoScanner
         foreach (var a in new[]
                  {
                      "-v", "error",
+                     "-hide_banner",
                      "-select_streams", "v:0",
-                     "-show_entries", "stream=width,height,codec_name",
-                     "-show_entries", "format=duration",
-                     "-of", "default=noprint_wrappers=1",
-                     item.FullPath
+                     "-show_format",
+                     "-show_streams",
+                     "-of", "json",
+                     fullPath
                  }) psi.ArgumentList.Add(a);
 
         try
         {
             using var proc = new Process { StartInfo = psi };
-            if (!proc.Start()) return (false, "无法启动 ffprobe。");
+            if (!proc.Start()) return (false, "无法启动 ffprobe。", null);
             var outTask = proc.StandardOutput.ReadToEndAsync();
             var errTask = proc.StandardError.ReadToEndAsync();
 
@@ -117,34 +124,88 @@ public static class VideoScanner
             var stdout = await outTask.ConfigureAwait(false);
             var stderr = await errTask.ConfigureAwait(false);
 
-            foreach (var line in stdout.Split('\n'))
-            {
-                var kv = line.Trim().Split('=', 2);
-                if (kv.Length != 2) continue;
-                switch (kv[0])
-                {
-                    case "width": if (int.TryParse(kv[1], out var w)) item.Width = w; break;
-                    case "height": if (int.TryParse(kv[1], out var h)) item.Height = h; break;
-                    case "codec_name": item.Codec = kv[1].Trim(); break;
-                    case "duration":
-                        if (double.TryParse(kv[1], System.Globalization.NumberStyles.Float,
-                                            System.Globalization.CultureInfo.InvariantCulture, out var d))
-                            item.Duration = d;
-                        break;
-                }
-            }
+            var info = ParseProbeJson(stdout);
+            if (info == null)
+                return (false, stderr.Trim().Length > 0 ? stderr.Trim() : "ffprobe 未返回可识别的信息。", null);
 
-            if (item.Duration is null && item.Width is null)
-                return (false, stderr.Trim().Length > 0 ? stderr.Trim() : "ffprobe 未返回可识别的信息。");
-            return (true, $"已读取：{item.DurationDisplay} · {item.ResolutionDisplay} · {item.Codec}");
+            return (true, "已读取媒体信息。", info);
         }
         catch (OperationCanceledException)
         {
-            return (false, "ffprobe 超时或已取消。");
+            try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { /* 进程已退出 */ }
+            return (false, "ffprobe 超时或已取消。", null);
         }
         catch (Exception ex)
         {
-            return (false, $"ffprobe 调用失败：{ex.Message}（可在「设置 → 路径配置」里指定 ffmpeg 路径）");
+            return (false, $"ffprobe 调用失败：{ex.Message}（可在「设置 → 路径配置」里指定 ffmpeg 路径）", null);
         }
+    }
+
+    /// <summary>
+    /// 解析 ffprobe 的 JSON（<c>-of json</c>）。字段可能是数字也可能被写成字符串，两种都收。
+    /// </summary>
+    private static VideoMediaInfo? ParseProbeJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            string codec = "";
+            int? width = null, height = null;
+
+            if (root.TryGetProperty("streams", out var streams)
+                && streams.ValueKind == JsonValueKind.Array && streams.GetArrayLength() > 0)
+            {
+                var s = streams[0];
+                codec = GetString(s, "codec_name");
+                width = GetInt(s, "width");
+                height = GetInt(s, "height");
+            }
+
+            double? duration = null;
+            long? bitRate = null;
+
+            if (root.TryGetProperty("format", out var fmt) && fmt.ValueKind == JsonValueKind.Object)
+            {
+                duration = GetDouble(fmt, "duration");
+                bitRate = GetLong(fmt, "bit_rate");
+            }
+
+            if (width is null && height is null && duration is null && codec.Length == 0) return null;
+            return new VideoMediaInfo(duration, width, height, codec, bitRate);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string GetString(JsonElement obj, string name)
+        => obj.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? (v.GetString() ?? "") : "";
+
+    private static int? GetInt(JsonElement obj, string name)
+    {
+        var l = GetLong(obj, name);
+        return l is null ? null : (int)Math.Clamp(l.Value, int.MinValue, int.MaxValue);
+    }
+
+    private static long? GetLong(JsonElement obj, string name)
+    {
+        if (!obj.TryGetProperty(name, out var v)) return null;
+        if (v.ValueKind == JsonValueKind.Number && v.TryGetInt64(out var n)) return n;
+        if (v.ValueKind == JsonValueKind.String
+            && long.TryParse(v.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var s)) return s;
+        return null;
+    }
+
+    private static double? GetDouble(JsonElement obj, string name)
+    {
+        if (!obj.TryGetProperty(name, out var v)) return null;
+        if (v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var n)) return n;
+        if (v.ValueKind == JsonValueKind.String
+            && double.TryParse(v.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var s)) return s;
+        return null;
     }
 }

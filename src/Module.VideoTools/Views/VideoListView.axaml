@@ -4,38 +4,39 @@
              x:Class="NewToys.VideoTools.Views.VideoListView">
   <Grid RowDefinitions="Auto,Auto,*">
 
-    <!-- 操作行：原页头右侧「统计 / 状态」迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。
-         本页与「PC 工具箱 → 软件包管理」共用同一套列表页布局（规范 3.8）；同样没有「保存」按钮。 -->
+    <!-- 操作行：原页头右侧「统计 / 状态」迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
                 Margin="24,16,24,0" Spacing="10">
       <TextBlock Text="{Binding SummaryText}" FontSize="12" VerticalAlignment="Center"
                  Foreground="{DynamicResource SecondaryTextBrush}"/>
-      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
+      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420"
                  Foreground="{DynamicResource AccentBrush}"/>
     </StackPanel>
 
     <!--  ==================== 工具条  ====================
-          改用 WrapPanel：窗口变窄时控件自动换行，避免原先「水平 StackPanel 溢出压到右侧」导致的按钮重叠（规范 3.8 仅约束主区与右键菜单，工具条内部以不重叠、可响应式为准）。 -->
+          目录**不来自设置**：每次手动选（v1.34 与视频模块解绑）；选过的目录只在本次运行内记住。 -->
     <Border Grid.Row="1" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
             BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
         <TextBlock Text="目录" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <TextBox x:Name="FolderBox" Width="300" Margin="0,0,8,0"
+        <TextBox x:Name="FolderBox" Width="300" Margin="0,0,8,6"
                  Text="{Binding Folder, Mode=TwoWay}"
                  PlaceholderText="如 D:\Videos（回车即扫描）"/>
-        <Button x:Name="BrowseBtn" Classes="ghost" Content="📂 浏览…" Margin="0,0,8,0"/>
-        <Button Classes="primary" Content="🔍 扫描" Margin="0,0,8,0" Command="{Binding ScanCommand}"
+        <Button x:Name="BrowseBtn" Classes="ghost" Content="📂 浏览…" Margin="0,0,8,6"/>
+        <Button Classes="primary" Content="🔍 扫描" Margin="0,0,8,6" Command="{Binding ScanCommand}"
                 IsEnabled="{Binding !IsBusy}"/>
-        <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"
+        <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,6" Command="{Binding RefreshCommand}"
                 IsEnabled="{Binding !IsBusy}"/>
-        <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding Recursive, Mode=TwoWay}"/>
-        <TextBox Width="200" Margin="0,0,8,6" Text="{Binding SearchText, Mode=TwoWay}"
+        <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,6" IsChecked="{Binding Recursive, Mode=TwoWay}"/>
+        <TextBox Width="180" Margin="0,0,8,6" Text="{Binding SearchText, Mode=TwoWay}"
                  PlaceholderText="按文件名 / 类型过滤…"/>
-
-        <!-- 右栏详情开合：默认收起（列表占满宽度）；点选会记住（config\columnlayout.json）。 -->
-        <Button Classes="ghost" Content="{Binding DetailButtonText}" Command="{Binding ToggleDetailCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情栏；收起时列表占满宽度。默认收起，你的选择会被记住。"/>
+        <Button Classes="ghost" Content="🔎 读取全部媒体信息" Margin="0,0,8,6"
+                Command="{Binding LoadAllMediaInfoCommand}" IsEnabled="{Binding !IsBusy}"
+                ToolTip.Tip="对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 data\newtoys.db 缓存，下次扫描直接命中"/>
+        <Button Classes="ghost" Content="🧹 清空媒体缓存" Margin="0,0,8,6"
+                Command="{Binding ClearMediaCacheCommand}"
+                ToolTip.Tip="清掉 SQLite 里的媒体信息缓存；下次扫描会重新探测（较慢），不影响视频文件"/>
       </WrapPanel>
     </Border>
 
@@ -49,7 +50,7 @@
           <Border Grid.Row="0" Classes="list-header" Height="36">
             <!-- ⚠️ 列宽规格绑 VM 的 VisibleColumnSpecs（隐藏列 = "0"，列索引保持不动）。
                  ⚠️ 必须用 ColumnGrid 而不是 Grid：Grid.ColumnDefinitions 是 CLR 属性、XAML 里不能 {Binding}（AVLN3000）。
-                 右键表头任意位置弹出「显示 / 隐藏列」菜单（规范 3.8 右键增删表头项）。 -->
+                 右键表头任意位置弹出「显示 / 隐藏列」菜单（规范 3.6 右键增删表头项）。 -->
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
               <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Name" ToolTip.Tip="点一下按名称排序（同一列再点一次反向）"
@@ -60,12 +61,27 @@
               <Button Grid.Column="2" Classes="col-header" Content="{Binding SizeHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Size"
                       IsVisible="{Binding IsSizeVisible}"/>
-              <Button Grid.Column="3" Classes="col-header" Content="{Binding ModifiedHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Modified"
-                      IsVisible="{Binding IsModifiedVisible}"/>
-              <Button Grid.Column="4" Classes="col-header" Content="{Binding DurationHeader}"
+              <Button Grid.Column="3" Classes="col-header" Content="{Binding DurationHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Duration"
                       IsVisible="{Binding IsDurationVisible}"/>
+              <Button Grid.Column="4" Classes="col-header" Content="{Binding ResolutionHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Resolution"
+                      IsVisible="{Binding IsResolutionVisible}"/>
+              <Button Grid.Column="5" Classes="col-header" Content="{Binding CodecHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Codec"
+                      IsVisible="{Binding IsCodecVisible}"/>
+              <Button Grid.Column="6" Classes="col-header" Content="{Binding BitrateHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Bitrate"
+                      IsVisible="{Binding IsBitrateVisible}"/>
+              <Button Grid.Column="7" Classes="col-header" Content="{Binding ModifiedHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Modified"
+                      IsVisible="{Binding IsModifiedVisible}"/>
+              <!-- 表头最右侧的**无文字小按钮**：点一下就展开右栏详情（并自动选中第一项）。
+                   所有带详情卡的列表页统一这个交互，不再在工具条上放「▤ 详情」文字按钮。 -->
+              <Button Grid.Column="8" Classes="ghost" Content="▤" FontSize="11" Padding="6,2" Margin="0,0,6,0"
+                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                      Command="{Binding ToggleDetailCommand}"
+                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住"/>
 
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -77,10 +93,16 @@
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
                   <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
-                  <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
                   <MenuItem Header="时长" ToggleType="CheckBox" IsChecked="{Binding IsDurationVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Duration"/>
+                  <MenuItem Header="分辨率" ToggleType="CheckBox" IsChecked="{Binding IsResolutionVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Resolution"/>
+                  <MenuItem Header="编码" ToggleType="CheckBox" IsChecked="{Binding IsCodecVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Codec"/>
+                  <MenuItem Header="码率" ToggleType="CheckBox" IsChecked="{Binding IsBitrateVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Bitrate"/>
+                  <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
                 </ContextMenu>
               </v:ColumnGrid.ContextMenu>
             </v:ColumnGrid>
@@ -90,21 +112,28 @@
                    ItemsSource="{Binding Videos}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
-            <!-- 双击 = 播放；右键 = 更多功能 -->
+            <!-- 双击 = 播放；右键 = 更多功能（增删改查：▤ 详情 / ▶ 播放 / 🔎 信息 / ✏ 重命名 / 🗑 删除） -->
             <ListBox.ContextMenu>
               <ContextMenu>
+                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
+                <Separator/>
                 <MenuItem Header="▶ 播放" Command="{Binding PlayCommand}"/>
                 <MenuItem Header="📂 在文件管理器中定位" Command="{Binding RevealInExplorerCommand}"/>
                 <MenuItem Header="📋 复制完整路径" Command="{Binding CopyPathCommand}"/>
+                <MenuItem Header="🧪 复制 ffmpeg 转码命令" Command="{Binding CopyFfmpegCommand}"/>
                 <Separator/>
                 <MenuItem Header="🔎 读取媒体信息（ffprobe）" Command="{Binding LoadMediaInfoCommand}"/>
-                <MenuItem Header="📁 打开所在目录" Command="{Binding OpenFolderCommand}"/>
+                <MenuItem Header="🔎 读取全部媒体信息（多线程）" Command="{Binding LoadAllMediaInfoCommand}"
+                          IsEnabled="{Binding IsNotBusy}"/>
+                <Separator/>
+                <MenuItem Header="✏ 重命名…" Command="{Binding RenameCommand}"/>
+                <MenuItem Header="🗑 删除（移入回收站）…" Command="{Binding DeleteCommand}"/>
               </ContextMenu>
             </ListBox.ContextMenu>
 
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <!-- 行与表头共用同一份 VisibleColumnSpecs（规范 3.8 对齐铁律①）；每格 IsVisible 跟随列显隐。 -->
+                <!-- 行与表头共用同一份 VisibleColumnSpecs（规范 3.6 对齐铁律①）；每格 IsVisible 跟随列显隐。 -->
                 <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
                   <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Name}"
                              Foreground="{DynamicResource PrimaryTextBrush}"
@@ -115,12 +144,21 @@
                   <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SizeDisplay}"
                              Foreground="{DynamicResource PrimaryTextBrush}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding ModifiedDisplay}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
-                  <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding DurationDisplay}"
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding DurationDisplay}"
                              Foreground="{DynamicResource AccentBrush}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsDurationVisible}"/>
+                  <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding ResolutionDisplay}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsResolutionVisible}"/>
+                  <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding CodecDisplay}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsCodecVisible}"/>
+                  <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding BitRateDisplay}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsBitrateVisible}"/>
+                  <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding ModifiedDisplay}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
                 </v:ColumnGrid>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -133,7 +171,7 @@
               IsVisible="{Binding IsDetailVisible}">
         <Grid RowDefinitions="Auto,*">
 
-          <StackPanel Grid.Row="0" Spacing="12" IsVisible="{Binding HasSelection}">
+          <StackPanel Grid.Row="0" Spacing="8" IsVisible="{Binding HasSelection}">
             <TextBlock Text="选中视频" FontSize="12" FontWeight="SemiBold"
                        Foreground="{DynamicResource SecondaryTextBrush}"/>
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -141,8 +179,12 @@
               <Button Classes="ghost" Content="📂 定位" Command="{Binding RevealInExplorerCommand}"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="ghost" Content="🔎 媒体信息" Command="{Binding LoadMediaInfoCommand}"/>
-              <Button Classes="ghost" Content="📋 复制路径" Command="{Binding CopyPathCommand}"/>
+              <Button Classes="ghost" Content="🔎 信息" Command="{Binding LoadMediaInfoCommand}"/>
+              <Button Classes="ghost" Content="📋 路径" Command="{Binding CopyPathCommand}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="ghost" Content="✏ 重命名" Command="{Binding RenameCommand}"/>
+              <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}"/>
             </StackPanel>
           </StackPanel>
 
@@ -152,7 +194,7 @@
               <StackPanel Spacing="2" IsVisible="{Binding !HasSelection}">
                 <TextBlock Text="扫描一个目录后，在左侧列表里选中视频" FontSize="13" TextWrapping="Wrap"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="这里会显示完整路径、大小、修改时间、时长 / 分辨率 / 编码。时长等信息需要 ffprobe —— 点「🔎 媒体信息」才会去读（扫目录时不逐个探测，否则几百个文件会卡死）。"
+                <TextBlock Text="这里会显示完整路径、大小、修改时间，以及分辨率 / 编码 / 码率 / 时长 —— 足够判断要不要剪辑或转码。媒体信息用 ffprobe 读取：扫描时先吃 SQLite 缓存，没缓存的点「🔎 读取全部媒体信息」并发探测。"
                            FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
               </StackPanel>
 
@@ -179,12 +221,6 @@
               </StackPanel>
 
               <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
-                <TextBlock Text="修改时间" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="{Binding Selected.ModifiedDisplay}" FontSize="12"
-                           Foreground="{DynamicResource PrimaryTextBrush}"/>
-              </StackPanel>
-
-              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
                 <TextBlock Text="时长" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
                 <TextBlock Text="{Binding Selected.DurationDisplay}" FontSize="12"
                            Foreground="{DynamicResource AccentBrush}"/>
@@ -197,14 +233,26 @@
               </StackPanel>
 
               <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
-                <TextBlock Text="视频编码" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="{Binding Selected.Codec}" FontSize="12" TextWrapping="Wrap"
+                <TextBlock Text="编码格式" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.CodecDisplay}" FontSize="12" TextWrapping="Wrap"
                            Foreground="{DynamicResource PrimaryTextBrush}"/>
               </StackPanel>
 
               <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
-                <TextBlock Text="媒体信息状态" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="{Binding Selected.StatusText}" FontSize="12" TextWrapping="Wrap"
+                <TextBlock Text="码率" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.BitRateDisplay}" FontSize="12"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="修改时间" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.ModifiedDisplay}" FontSize="12"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="媒体信息" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.MediaStatus}" FontSize="12" TextWrapping="Wrap"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
               </StackPanel>
 

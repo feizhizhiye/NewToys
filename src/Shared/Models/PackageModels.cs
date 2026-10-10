@@ -48,6 +48,9 @@ public class PackageInfo
         : !IsInstalled ? "未安装"
         : HasUpgrade ? "可升级"
         : "已安装";
+
+    /// <summary>列表「Pin」列的显示文本（被 pin 住 = 📌）。派生，不写盘。</summary>
+    public string PinnedMark => IsPinned ? "📌" : "";
 }
 
 /// <summary>包管理器的一个源（`winget source list` 的一行）。</summary>

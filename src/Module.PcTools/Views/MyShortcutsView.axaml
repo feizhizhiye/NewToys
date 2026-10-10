@@ -34,11 +34,7 @@
 
         <Button Classes="primary" Content="➕ 新增" Margin="0,0,8,0"
                 Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
-                ToolTip.Tip="追加一条系统设置项 / 脚本，改好后点右侧「💾 保存」"/>
-
-        <!-- 右栏属性卡开合：默认收起（列表占满宽度，一屏多看几行）；点选会记住（config\columnlayout.json）。 -->
-        <Button Classes="ghost" Content="{Binding DetailButtonText}" Command="{Binding ToggleDetailCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧属性卡；收起时列表占满宽度。默认收起，你的选择会被记住。"/>
+                ToolTip.Tip="追加一条脚本项，改好后点右侧「💾 保存」。本页只放**有脚本文件**的脚本，没有脚本文件的会自动归到「快捷设置」"/>
       </WrapPanel>
     </Border>
 
@@ -71,6 +67,12 @@
               <TextBlock Grid.Column="4" Text="操作" Padding="12,0" FontSize="12" FontWeight="SemiBold"
                          VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"
                          IsVisible="{Binding IsActionVisible}"/>
+              <!-- 表头最右侧的**无文字小按钮**：点一下就展开右栏详情（并自动选中第一项）。
+                   所有带详情卡的列表页统一这个交互，不再在工具条上放「▤ 详情」文字按钮。 -->
+              <Button Grid.Column="5" Classes="ghost" Content="▤" FontSize="11" Padding="6,2" Margin="0,0,6,0"
+                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                      Command="{Binding ToggleDetailCommand}"
+                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住"/>
 
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -95,15 +97,22 @@
                    ItemsSource="{Binding Items}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
-            <!-- 右键 = 「选中项更多功能」的主入口（作用对象 = 当前选中行） -->
+            <!-- 右键 = 「选中项更多功能」的主入口（作用对象 = 当前选中行）：
+                 增（➕ 新增）/ 删（🗑 删除）/ 改（💾 保存 + 移到另一页）/ 查（▤ 详情栏 + 📋 复制）。 -->
             <ListBox.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
                           IsEnabled="{Binding IsNotBusy}"/>
                 <Separator/>
+                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
+                <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
+                <MenuItem Header="{Binding MoveMenuLabel}" Command="{Binding MoveToOtherPageCommand}"
+                          IsEnabled="{Binding HasSelection}"/>
+                <Separator/>
                 <MenuItem Header="{Binding FavoriteMenuLabel}" Command="{Binding ToggleFavoriteCommand}"/>
                 <MenuItem Header="📋 复制命令" Command="{Binding CopyCommand}"/>
                 <Separator/>
+                <MenuItem Header="➕ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <MenuItem Header="🗑 删除…" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
               </ContextMenu>
             </ListBox.ContextMenu>

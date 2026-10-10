@@ -4,7 +4,10 @@ namespace NewToys.Shared.Services
     {
         // 注：**主题不属于这里**。明暗模式 / 强调色统一由 IThemeService 管（theme.json），
         // 本服务只管与主题无关的应用配置，避免出现两份"当前是不是深色"的真相。
-        string DefaultVideoFolder { get; set; }
+        //
+        // 注：也**没有"视频库默认目录"**（v1.34 移除）。视频库 / 音乐库这类库可能分散在多个文件夹，
+        // 写死一个"默认目录"只会误导；「视频工具 → 视频库」页改成每次手动选目录（本次会话内记住），
+        // 与设置彻底解绑。
         string FfmpegPath { get; set; }
 
         /// <summary>
@@ -21,7 +24,7 @@ namespace NewToys.Shared.Services
 
         /// <summary>
         /// 应用数据根目录（媒体库 library.json、缩略图、各模块自己的数据都放这里）。
-        /// 默认 <c>%LocalAppData%\NewToys\data</c>，可用环境变量 <c>NEWTOYS_DATA_DIR</c> 覆盖（便携版/测试），
+        /// 默认 <c>%LocalAppData%\NewToys\data</c>；环境变量 <c>NEWTOYS_HOME</c> 可把整个应用根（config/data/logs）一起换掉（便携版/测试），
         /// 用户目录不可写时兜底到程序目录的 <c>Data\</c>。放在用户目录是为了**跨 Debug/Release、跨清理输出目录都不丢数据**。
         /// </summary>
         string DataDirectory { get; }

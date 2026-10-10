@@ -32,7 +32,7 @@ public class ActionKindOption
 /// <para>
 /// 两页的布局 / 交互<b>完全一致</b>（规范 3.6）：左「可排序表头 + 列表 + 行内「▶ 运行」」，右「选中项属性卡」，
 /// 列表上挂右键菜单（运行 / 收藏 / 复制命令 / 删除）。差别只有三点，由派生类给出：
-/// ① <see cref="PageKind"/>：本页显示哪一批条目（同属 <c>config\quickactions.json</c>，按 <see cref="QuickAction.Page"/> 分栏）；
+/// ① <see cref="PageKind"/>：本页显示哪一批条目（**每页一份清单文件**，见 <see cref="FilePath"/>）；
 /// ② <see cref="ColumnLayoutKey"/>：列显隐偏好落 <c>config\columnlayout.json</c> 时用的页键；
 /// ③ 页面名字 <see cref="PageDisplayName"/>（提示文案用）。
 /// <b>新增项的默认类型</b>由 <see cref="PageKind"/> 推出（见 <c>IQuickActionService.Add</c>）：
@@ -100,7 +100,9 @@ public abstract partial class QuickActionListViewModel : ObservableObject
     [ObservableProperty] private bool _isFavoriteVisible = true;
     [ObservableProperty] private bool _isActionVisible = true;
 
-    /// <summary>列的元数据（键 / 标题 / 宽度 / 是否可排序）；顺序即表头与行的列顺序。</summary>
+    /// <summary>列的元数据（键 / 标题 / 宽度 / 是否可排序）；顺序即表头与行的列顺序。
+    /// <para>最后一列 <c>Detail</c> 是**表头右侧的那个无文字小按钮**用的固定窄列（规范 3.6）：
+    /// 不参与列显隐菜单、也不进 <c>columnlayout.json</c>，它只是把表头与行的最后一格对齐留出来。</para></summary>
     public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Title", "名称", "3*"),
@@ -108,6 +110,7 @@ public abstract partial class QuickActionListViewModel : ObservableObject
         new("Description", "简介", "4*", sortable: false),
         new("Favorite", "★", "0.9*"),
         new("Action", "操作", "1.5*", sortable: false),
+        new("Detail", "", "36", sortable: false),
     };
 
     /// <summary>列宽规格串（可绑定）：可见列写星号宽度，隐藏列写 "0"（列索引保持不动 → 表头与行永不错位）。
@@ -184,18 +187,28 @@ public abstract partial class QuickActionListViewModel : ObservableObject
     /// </summary>
     [ObservableProperty] private bool _isDetailVisible;
 
-    /// <summary>切换按钮上的文字（收起时提示"详情"，展开时提示"收起"）。</summary>
-    public string DetailButtonText => IsDetailVisible ? "▤ 收起详情" : "▤ 详情";
-
-    partial void OnIsDetailVisibleChanged(bool value) => OnPropertyChanged(nameof(DetailButtonText));
-
-    /// <summary>点一下展开 / 收起右栏详情（"点一下就看到结果"的轻偏好 → 立即落盘）。</summary>
+    /// <summary>点一下展开 / 收起右栏详情（"点一下就看到结果"的轻偏好 → 立即落盘）。
+    /// 展开且当前没有选中项时，自动选中列表第一项 —— 这就是表头右侧那个小按钮的行为（规范 3.6）。</summary>
     [RelayCommand]
     private void ToggleDetail()
     {
         IsDetailVisible = !IsDetailVisible;
+        if (IsDetailVisible && Selected == null && Items.Count > 0) Selected = Items[0];
+        SaveDetailFlag();
+    }
+
+    /// <summary>右键「显示详情栏」：确保展开并定位到当前选中项（没选中就选第一项）。</summary>
+    [RelayCommand]
+    private void ShowDetail()
+    {
+        if (Selected == null && Items.Count > 0) Selected = Items[0];
+        IsDetailVisible = true;
+        SaveDetailFlag();
+    }
+
+    private void SaveDetailFlag()
+    {
         _cols?.SaveFlag(_columnLayoutKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
-        OnPropertyChanged(nameof(DetailButtonText));
     }
 
     // ==================== 属性卡的编辑缓冲（多字段文本表单 → 显式「💾 保存」，规范 3.5） ====================
@@ -277,12 +290,23 @@ public abstract partial class QuickActionListViewModel : ObservableObject
     /// <summary>属性卡里收藏按钮的文案。</summary>
     public string FavoriteButtonText => Selected?.IsFavorite == true ? "★ 取消收藏" : "☆ 收藏";
 
-    /// <summary>底部提示：数据落在哪、会不会被备份（规范 3.9）。</summary>
+    /// <summary>底部提示：数据落在哪、会不会被备份（规范 §9）。
+    /// 两页各有自己的文件（v1.34）：「设置与脚本」= <c>pc-scripts.json</c>、「快捷设置」= <c>pc-quick.json</c>。</summary>
     public string DataFileHint =>
-        $"数据文件：{FilePath}\n（放在 config\\ 下，会被「设置 → 数据管理」的备份 / 导入一起覆盖）";
+        $"本页数据文件：{FilePath}\n（两个页面的文件都在 config\\ 下，会被「设置 → 数据管理」的备份 / 导入一起覆盖）";
 
-    /// <summary>配置文件全路径。</summary>
-    public string FilePath => _svc?.FilePath ?? "";
+    /// <summary>本页的配置文件全路径（两页各一份，v1.34 拆文件）。</summary>
+    public string FilePath => _pageKind == QuickActionPage.Quick
+        ? _svc?.QuickFilePath ?? ""
+        : _svc?.ScriptsFilePath ?? "";
+
+    /// <summary>另一个页面的名字（右键「移动到…」的提示文案用）。</summary>
+    public string OtherPageName => _pageKind == QuickActionPage.Quick ? "设置与脚本" : "快捷设置";
+
+    /// <summary>右键菜单里「移到另一页」的动态文案。</summary>
+    public string MoveMenuLabel => _pageKind == QuickActionPage.Quick
+        ? "➡ 移到「设置与脚本」"
+        : "➡ 移到「快捷设置」（本页只放有脚本文件的脚本）";
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     protected QuickActionListViewModel()
@@ -485,13 +509,38 @@ public abstract partial class QuickActionListViewModel : ObservableObject
         Selected.Interpreter = EditInterpreter ?? ScriptInterpreter.Auto;
 
         _svc.Save();
+
+        // 归属铁律（v1.34）：「设置与脚本」只放**有脚本文件的脚本**。
+        // 本页保存后若它不满足条件（类型不是脚本 / 没填脚本文件），自动挪去「快捷设置」并如实告知。
+        var moved = false;
+        if (_pageKind != QuickActionPage.Quick
+            && (Selected.Kind != QuickActionKind.Script || Selected.ScriptFile.Length == 0))
+        {
+            var movedTitle = Selected.Title;
+            _svc.Move(Selected, QuickActionPage.Quick);
+            Selected = null;
+            moved = true;
+            StatusText = $"「{movedTitle}」没有脚本文件 → 已归入「快捷设置」（本页只放有脚本文件的脚本）。";
+        }
+
         RebuildCategories();
         ApplyView();
 
-        var warn = Selected.Kind == QuickActionKind.Script && Selected.ScriptFile.Length == 0
-            ? "（还没填脚本文件，运行时会被提示）"
-            : "";
-        StatusText = $"已保存到 {FilePath}{warn}";
+        if (!moved) StatusText = $"已保存到 {FilePath}";
+    }
+
+    /// <summary>把选中项移到另一个页面（「设置与脚本」↔「快捷设置」，各写各的文件）。</summary>
+    [RelayCommand]
+    private void MoveToOtherPage()
+    {
+        var item = Selected;
+        if (item == null || _svc == null) return;
+
+        _svc.Move(item, _pageKind == QuickActionPage.Quick ? QuickActionPage.Shortcuts : QuickActionPage.Quick);
+        Selected = null;
+        RebuildCategories();
+        ApplyView();
+        StatusText = $"已把「{item.Title}」移到「{OtherPageName}」。";
     }
 
     /// <summary>删除：内部走二次确认（钩子在宿主接到模态框上）。</summary>

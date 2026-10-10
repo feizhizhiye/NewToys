@@ -11,6 +11,8 @@
     <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.3" />
     <!-- MVVM 工具包 -->
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <!-- 本地数据库（视频库媒体信息索引；后续更多配置项复用同一个 newtoys.db） -->
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.0" />
     <!-- 微软扩展 -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />

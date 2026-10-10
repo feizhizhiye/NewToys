@@ -13,19 +13,23 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// <see cref="IQuickActionService"/> 实现：落到 <c>&lt;应用根&gt;\config\quickactions.json</c>。
+/// <see cref="IQuickActionService"/> 实现：两个页面 = 两个配置文件。
+/// <list type="bullet">
+///   <item>「设置与脚本」→ <c>&lt;应用根&gt;\config\pc-scripts.json</c>（有脚本文件的脚本）；</item>
+///   <item>「快捷设置」→ <c>&lt;应用根&gt;\config\pc-quick.json</c>（命令行命令）。</item>
+/// </list>
 /// <para>
-/// <b>命令内容不写死在代码里</b>（v1.33）：默认清单随程序发布在
-/// <c>&lt;程序目录&gt;\defaults\quickactions.default.json</c>，首次运行复制成
-/// <c>config\quickactions.json</c>；之后一切以用户那份为准（改文件即改清单，删条目不会被"复活"）。
+/// <b>命令内容不写死在代码里</b>（v1.33 起的铁律）：默认清单随程序发布在
+/// <c>&lt;程序目录&gt;\defaults\pc-scripts.default.json</c> 与 <c>...\pc-quick.default.json</c>，
+/// 首次运行播种成上面两个用户文件；之后一切以用户那份为准（删条目不会被"复活"）。
 /// </para>
 /// <para>
-/// 两页分工 = <see cref="QuickAction.Page"/>（显示在哪一页）+ <see cref="QuickAction.Kind"/>（怎么跑）：
-/// 「快捷设置」= 命令行命令；「设置与脚本」= 脚本文件。脚本文件放 <see cref="ScriptsDirectory"/>，
-/// 解释器路径（python / pwsh / powershell 5.1）在「设置 → 路径配置」里配，留空 = 用系统 PATH 里的。
+/// 旧版（v1.33 及以前）只有一个 <c>quickactions.json</c>：首次运行本服务会把它**按 <see cref="QuickAction.Page"/>
+/// 拆成两个新文件**，然后把旧文件改名成 <c>quickactions.json.migrated</c>（改名而不是删除 —— 不丢数据，
+/// 且 <c>*.json</c> 的备份扫描不会再带上它）。
 /// </para>
 /// <para>
-/// 删除 / 破坏性操作的二次确认通过静态钩子 <see cref="ConfirmHandler"/> 外抛 —— <c>Core</c> 不引用 Avalonia，
+/// 删除等破坏性操作的二次确认通过静态钩子 <see cref="ConfirmHandler"/> 外抛 —— <c>Core</c> 不引用 Avalonia，
 /// 由宿主（<c>App.axaml.cs</c>）接到模态框上，与 <see cref="PackageManagerService"/> 同款做法。
 /// </para>
 /// </summary>
@@ -38,7 +42,9 @@ public class QuickActionService : IQuickActionService
 
     private readonly ConfigStoreService _cfg;
     private readonly IAppConfigService? _app;
-    private readonly List<QuickAction> _items;
+
+    private readonly List<QuickAction> _shortcuts = new();
+    private readonly List<QuickAction> _quick = new();
 
     /// <summary>删除前的二次确认钩子（宿主注入；为 null 时直接删除）。</summary>
     public static Func<string, Task<bool>>? ConfirmHandler { get; set; }
@@ -47,21 +53,32 @@ public class QuickActionService : IQuickActionService
     {
         _cfg = cfg;
         _app = app;
-        var (items, needPersist) = Load();
-        _items = items;
+        var needPersist = Load();
         EnsureScriptsDirectory();
-        if (needPersist) Persist();   // 首次运行灌默认清单 / 老文件回填 Page、Kind：落盘，让文件与界面一致
+        // 首次运行播种新文件 / 从旧单文件迁移 / 归一化归属：都落盘，让磁盘上的文件与界面完全一致
+        if (needPersist) Persist();
     }
 
-    public IReadOnlyList<QuickAction> Items => _items;
-    public IReadOnlyList<QuickAction> Shortcuts => _items.Where(i => i.Page != QuickActionPage.Quick).ToList();
-    public IReadOnlyList<QuickAction> QuickSettings => _items.Where(i => i.Page == QuickActionPage.Quick).ToList();
-    public IReadOnlyList<QuickAction> Favorites => _items.Where(i => i.IsFavorite).ToList();
-    public string FilePath => Path.Combine(_cfg.ConfigDir, "quickactions.json");
+    // ==================== 读取 ====================
 
-    /// <summary>随程序发布的默认清单（首次运行的来源）。</summary>
-    public static string DefaultsFilePath
-        => Path.Combine(AppContext.BaseDirectory, "defaults", "quickactions.default.json");
+    public IReadOnlyList<QuickAction> Items => _shortcuts.Concat(_quick).ToList();
+    public IReadOnlyList<QuickAction> Shortcuts => _shortcuts;
+    public IReadOnlyList<QuickAction> QuickSettings => _quick;
+    public IReadOnlyList<QuickAction> Favorites => _shortcuts.Concat(_quick).Where(i => i.IsFavorite).ToList();
+
+    public string ScriptsFilePath => Path.Combine(_cfg.ConfigDir, "pc-scripts.json");
+    public string QuickFilePath => Path.Combine(_cfg.ConfigDir, "pc-quick.json");
+
+    /// <summary>旧版单文件（v1.33 及以前）；只用于一次性迁移。</summary>
+    private string LegacyFilePath => Path.Combine(_cfg.ConfigDir, "quickactions.json");
+
+    /// <summary>随程序发布的默认清单：设置与脚本。</summary>
+    public static string ScriptsDefaultsFile
+        => Path.Combine(AppContext.BaseDirectory, "defaults", "pc-scripts.default.json");
+
+    /// <summary>随程序发布的默认清单：快捷设置。</summary>
+    public static string QuickDefaultsFile
+        => Path.Combine(AppContext.BaseDirectory, "defaults", "pc-quick.default.json");
 
     /// <summary>脚本目录（生效值）：配置为空时用 <c>&lt;应用根&gt;\scripts</c>。</summary>
     public string ScriptsDirectory
@@ -77,13 +94,15 @@ public class QuickActionService : IQuickActionService
 
     public event Action? Changed;
 
+    // ==================== 增删改 ====================
+
     public QuickAction Add(string page)
     {
         var quick = page == QuickActionPage.Quick;
         var item = new QuickAction
         {
             Id = Guid.NewGuid().ToString("N"),
-            Page = string.IsNullOrWhiteSpace(page) ? QuickActionPage.Shortcuts : page,
+            Page = quick ? QuickActionPage.Quick : QuickActionPage.Shortcuts,
             // 页面默认类型：快捷设置页加的是命令行命令，设置与脚本页加的是脚本文件（可在详情里改回）。
             Kind = quick ? QuickActionKind.Command : QuickActionKind.Script,
             Title = quick ? "新的命令" : "新的脚本",
@@ -95,7 +114,7 @@ public class QuickActionService : IQuickActionService
             NeedAdmin = false,
             IsFavorite = false
         };
-        _items.Add(item);
+        (quick ? _quick : _shortcuts).Add(item);
         Persist();
         return item;
     }
@@ -104,13 +123,16 @@ public class QuickActionService : IQuickActionService
 
     public async Task<bool> RemoveAsync(QuickAction item)
     {
-        if (item == null || !_items.Contains(item)) return false;
+        if (item == null) return false;
+        if (!_shortcuts.Contains(item) && !_quick.Contains(item)) return false;
+
         if (ConfirmHandler != null)
         {
             var ok = await ConfirmHandler($"确定删除「{item.Title}」吗？此操作不可撤销。").ConfigureAwait(false);
             if (!ok) return false;
         }
-        _items.Remove(item);
+        _shortcuts.Remove(item);
+        _quick.Remove(item);
         Persist();
         return true;
     }
@@ -119,6 +141,32 @@ public class QuickActionService : IQuickActionService
     {
         if (item == null) return;
         item.IsFavorite = !item.IsFavorite;
+        Persist();
+    }
+
+    /// <summary>
+    /// 在两页之间移动一条（改 <see cref="QuickAction.Page"/> + 挪到另一个列表 + 落盘）。
+    /// 目标页是「设置与脚本」时顺带把类型标成脚本（否则它下次又会被移回快捷设置）。
+    /// </summary>
+    public void Move(QuickAction item, string page)
+    {
+        if (item == null) return;
+
+        var toQuick = page != QuickActionPage.Shortcuts;
+        _shortcuts.Remove(item);
+        _quick.Remove(item);
+
+        item.Page = toQuick ? QuickActionPage.Quick : QuickActionPage.Shortcuts;
+        if (!toQuick)
+        {
+            item.Kind = QuickActionKind.Script;
+        }
+        else if (item.Kind == QuickActionKind.Script && string.IsNullOrWhiteSpace(item.ScriptFile))
+        {
+            item.Kind = QuickActionKind.Command;   // 没有脚本文件又放到快捷设置 → 就是一行命令
+        }
+
+        (toQuick ? _quick : _shortcuts).Add(item);
         Persist();
     }
 
@@ -333,32 +381,98 @@ public class QuickActionService : IQuickActionService
 
     // ==================== 落盘 / 加载 ====================
 
+    /// <summary>两个文件各写各的（顺序稳定 = 界面顺序稳定）。</summary>
     private void Persist()
     {
         try
         {
             Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(_items, JsonOpts));
+            File.WriteAllText(ScriptsFilePath, JsonSerializer.Serialize(_shortcuts, JsonOpts));
+            File.WriteAllText(QuickFilePath, JsonSerializer.Serialize(_quick, JsonOpts));
         }
         catch { /* 保存失败不打断 UI；下一次改动会再试 */ }
         Changed?.Invoke();
     }
 
     /// <summary>
-    /// 加载顺序：① 用户的 <c>config\quickactions.json</c>；② 首次运行 → 用随程序发布的
-    /// <c>defaults\quickactions.default.json</c> 播种；③ 两者都没有 → 空清单（不硬编码任何命令）。
+    /// 加载顺序：
+    /// ① 两个用户文件（<c>pc-scripts.json</c> / <c>pc-quick.json</c>）各自读；
+    /// ② 缺哪个 → 用随程序发布的同名默认清单播种；
+    /// ③ 两个都不存在、但旧的单文件 <c>quickactions.json</c> 在 → 按 <c>Page</c> 拆开迁移，旧文件改名 <c>.migrated</c>。
+    /// 最后做一次**归属归一化**（没脚本文件的一律进「快捷设置」）。
     /// </summary>
-    private (List<QuickAction> items, bool needPersist) Load()
+    /// <returns>是否需要立即回写磁盘（有播种 / 迁移 / 归一化发生）。</returns>
+    private bool Load()
     {
-        if (File.Exists(FilePath))
+        var dirty = false;
+
+        var scriptItems = TryRead(ScriptsFilePath);
+        var quickItems = TryRead(QuickFilePath);
+
+        // ---- ③ 从旧单文件迁移（仅当两个新文件都还没有时） ----
+        if (scriptItems == null && quickItems == null && File.Exists(LegacyFilePath))
         {
-            var list = TryRead(FilePath);
-            // 文件损坏（反序列化失败）→ 退到默认清单重新播种，避免页面毫无提示地空掉
-            if (list != null) return Migrate(list);
+            var legacy = TryRead(LegacyFilePath) ?? new List<QuickAction>();
+            // 先按旧文件里的 Page 分栏（缺失的按分类推断），随后统一走下面的归属归一化 ——
+            // 这样"设置与脚本里没有脚本文件的老条目"也会被挪到「快捷设置」，不会既跑不起来又看不见。
+            scriptItems = legacy.Where(i => InferPage(i.Page, i.Category) != QuickActionPage.Quick).ToList();
+            quickItems = legacy.Where(i => InferPage(i.Page, i.Category) == QuickActionPage.Quick).ToList();
+            TryRetireLegacyFile();
+            dirty = true;
         }
 
-        var seed = TryRead(DefaultsFilePath);
-        return seed == null ? (new List<QuickAction>(), false) : Migrate(seed);
+        // ---- ② 播种默认清单 ----
+        if (scriptItems == null)
+        {
+            scriptItems = TryRead(ScriptsDefaultsFile) ?? new List<QuickAction>();
+            dirty = true;
+        }
+        if (quickItems == null)
+        {
+            quickItems = TryRead(QuickDefaultsFile) ?? new List<QuickAction>();
+            dirty = true;
+        }
+
+        // ---- 字段回填（老文件缺 Id / Page / Kind） ----
+        if (Migrate(scriptItems, QuickActionPage.Shortcuts)) dirty = true;
+        if (Migrate(quickItems, QuickActionPage.Quick)) dirty = true;
+
+        _shortcuts.Clear();
+        _quick.Clear();
+        _shortcuts.AddRange(scriptItems);
+        _quick.AddRange(quickItems);
+
+        // ---- ④ 归属归一化：没有脚本文件的，不属于「设置与脚本」 ----
+        var stray = _shortcuts.Where(i => !QualifiesForShortcuts(i)).ToList();
+        foreach (var item in stray)
+        {
+            _shortcuts.Remove(item);
+            item.Page = QuickActionPage.Quick;
+            if (string.IsNullOrWhiteSpace(item.Kind) || item.Kind == QuickActionKind.Script)
+                item.Kind = item.Command.Trim().Length > 0 ? QuickActionKind.Command : item.Kind;
+            _quick.Add(item);
+            dirty = true;
+        }
+
+        return dirty;
+    }
+
+    /// <summary>一条是否够格待在「设置与脚本」：必须是脚本类型**且**填了脚本文件。</summary>
+    private static bool QualifiesForShortcuts(QuickAction item)
+        => string.Equals(item.Kind, QuickActionKind.Script, StringComparison.OrdinalIgnoreCase)
+           && !string.IsNullOrWhiteSpace(item.ScriptFile);
+
+    /// <summary>
+    /// 推断一条旧数据该属于哪一页：<c>Page</c> 有值就用它；没有（v1.32 及更早的单文件）按分类判断 ——
+    /// 「打开」类是系统自带入口 → 快捷设置，其余（reg / powercfg / 网络 / 维护脚本）→ 设置与脚本。
+    /// </summary>
+    private static string InferPage(string? page, string? category)
+    {
+        if (string.Equals(page, QuickActionPage.Quick, StringComparison.OrdinalIgnoreCase)) return QuickActionPage.Quick;
+        if (string.Equals(page, QuickActionPage.Shortcuts, StringComparison.OrdinalIgnoreCase)) return QuickActionPage.Shortcuts;
+        return string.Equals((category ?? "").Trim(), "打开", StringComparison.Ordinal)
+            ? QuickActionPage.Quick
+            : QuickActionPage.Shortcuts;
     }
 
     private static List<QuickAction>? TryRead(string path)
@@ -366,36 +480,44 @@ public class QuickActionService : IQuickActionService
         try
         {
             if (!File.Exists(path)) return null;
-            return JsonSerializer.Deserialize<List<QuickAction>>(File.ReadAllText(path));
+            var list = JsonSerializer.Deserialize<List<QuickAction>>(File.ReadAllText(path));
+            return list ?? new List<QuickAction>();
         }
         catch { return null; }
     }
 
+    /// <summary>旧单文件改名成 <c>quickactions.json.migrated</c>（不删除；改名后不会再进备份 / 加载）。</summary>
+    private void TryRetireLegacyFile()
+    {
+        try
+        {
+            var target = LegacyFilePath + ".migrated";
+            if (File.Exists(target)) File.Delete(target);
+            File.Move(LegacyFilePath, target);
+        }
+        catch { /* 改不动就留着：它已经不参与加载，最多是多占几 KB */ }
+    }
+
     /// <summary>
     /// 老文件 / 默认清单的字段回填：
-    /// <c>Id</c> 缺失 → 生成；<c>Page</c> 缺失 → 按分类回填（「打开」→ 快捷设置，其余 → 设置与脚本）；
-    /// <c>Kind</c> 缺失 → 命令行命令（旧版全是命令）。
+    /// <c>Id</c> 缺失 → 生成；<c>Kind</c> 缺失 → 按页推断（快捷设置默认命令行命令、设置与脚本默认脚本）；
+    /// <c>Page</c> 统一按它所在的文件写死（文件才是归属的真相）。
     /// </summary>
-    private static (List<QuickAction>, bool) Migrate(List<QuickAction> list)
+    private static bool Migrate(List<QuickAction> list, string page)
     {
         var migrated = false;
         foreach (var i in list)
         {
             if (string.IsNullOrEmpty(i.Id)) { i.Id = Guid.NewGuid().ToString("N"); migrated = true; }
-            if (string.IsNullOrEmpty(i.Page)) { i.Page = InferPage(i.Category); migrated = true; }
-            if (string.IsNullOrEmpty(i.Kind)) { i.Kind = QuickActionKind.Command; migrated = true; }
+            if (string.IsNullOrEmpty(i.Kind))
+            {
+                i.Kind = page == QuickActionPage.Quick ? QuickActionKind.Command : QuickActionKind.Script;
+                migrated = true;
+            }
+            if (!string.Equals(i.Page, page, StringComparison.Ordinal)) { i.Page = page; migrated = true; }
         }
-        return (list, migrated);
+        return migrated;
     }
-
-    /// <summary>
-    /// 旧文件（v1.32 之前）没有 <c>Page</c> 列，按分类回填：
-    /// 「打开」类是系统自带入口 → 快捷设置，其余（reg / powercfg / 网络 / 维护等脚本）→ 设置与脚本。
-    /// </summary>
-    private static string InferPage(string? category)
-        => string.Equals((category ?? "").Trim(), "打开", StringComparison.Ordinal)
-            ? QuickActionPage.Quick
-            : QuickActionPage.Shortcuts;
 
     /// <summary>
     /// 首次运行把随程序发布的示例脚本（<c>defaults\scripts\*</c>）复制到脚本目录。

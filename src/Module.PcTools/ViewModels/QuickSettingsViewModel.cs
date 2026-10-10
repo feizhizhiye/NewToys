@@ -14,7 +14,8 @@ namespace NewToys.PcTools.ViewModels;
 /// 与「设置与脚本」页的分工（v1.33）：这里放<b>命令行命令</b>（<see cref="QuickActionKind.Command"/>，
 /// 如 <c>start ms-settings:display</c>、<c>ipconfig /flushdns</c>）；
 /// <b>有脚本文件的脚本</b>（.py / .ps1 / .bat）放「设置与脚本」页。
-/// 两页共享同一份 <c>config\quickactions.json</c>，收藏也是同一批标记。
+/// 两页**各有自己的清单文件**（v1.34）：本页 = <c>config\pc-quick.json</c>，
+/// 「设置与脚本」= <c>config\pc-scripts.json</c>；收藏是同一批 <c>IsFavorite</c> 标记。
 /// </para>
 /// </summary>
 public partial class QuickSettingsViewModel : QuickActionListViewModel

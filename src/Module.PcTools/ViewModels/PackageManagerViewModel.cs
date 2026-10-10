@@ -75,8 +75,9 @@ public partial class PackageManagerViewModel : ObservableObject
     [ObservableProperty] private string _versionHeader = "版本";
     [ObservableProperty] private string _sourceHeader = "源";
     [ObservableProperty] private string _statusHeader = "状态";
+    [ObservableProperty] private string _pinnedHeader = "Pin";
 
-    // ==================== 列显隐（右键表头增删列，规范 3.8） ====================
+    // ==================== 列显隐（右键表头增删列，规范 3.6） ====================
     private const string PageKey = "pc-package";
     private readonly IColumnLayoutService? _cols;
 
@@ -85,15 +86,19 @@ public partial class PackageManagerViewModel : ObservableObject
     [ObservableProperty] private bool _isVersionVisible = true;
     [ObservableProperty] private bool _isSourceVisible = true;
     [ObservableProperty] private bool _isStatusVisible = true;
+    [ObservableProperty] private bool _isPinnedVisible = true;
 
-    /// <summary>列的元数据（键 / 标题 / 宽度 / 是否可排序）；顺序即表头与行的列顺序。</summary>
+    /// <summary>列的元数据（键 / 标题 / 宽度 / 是否可排序）；顺序即表头与行的列顺序。
+    /// <para>最后一列 <c>Detail</c> 是**表头右侧那个无文字小按钮**用的固定窄列（规范 3.6），不进列显隐菜单。</para></summary>
     public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Name", "名称", "3*"),
-        new("Id", "Id", "4*"),
-        new("Version", "版本", "1.4*"),
-        new("Source", "源", "1.2*"),
-        new("Status", "状态", "1.6*"),
+        new("Id", "Id", "3.6*"),
+        new("Version", "版本", "1.3*"),
+        new("Source", "源", "1.1*"),
+        new("Status", "状态", "1.5*"),
+        new("Pinned", "Pin", "0.8*"),
+        new("Detail", "", "36", sortable: false),
     };
 
     /// <summary>列宽规格串（可绑定）：可见列写星号宽度，隐藏列写 "0"（列索引保持不动 → 表头与行永不错位）。
@@ -117,6 +122,7 @@ public partial class PackageManagerViewModel : ObservableObject
         "Version" => IsVersionVisible,
         "Source" => IsSourceVisible,
         "Status" => IsStatusVisible,
+        "Pinned" => IsPinnedVisible,
         _ => true,
     };
 
@@ -132,6 +138,7 @@ public partial class PackageManagerViewModel : ObservableObject
             case "Version": IsVersionVisible = !IsVersionVisible; break;
             case "Source": IsSourceVisible = !IsSourceVisible; break;
             case "Status": IsStatusVisible = !IsStatusVisible; break;
+            case "Pinned": IsPinnedVisible = !IsPinnedVisible; break;
             default: return;
         }
         SaveColumnVisibility();
@@ -145,7 +152,7 @@ public partial class PackageManagerViewModel : ObservableObject
         _cols.SavePage(PageKey, new Dictionary<string, bool>
         {
             ["Name"] = IsNameVisible, ["Id"] = IsIdVisible, ["Version"] = IsVersionVisible,
-            ["Source"] = IsSourceVisible, ["Status"] = IsStatusVisible,
+            ["Source"] = IsSourceVisible, ["Status"] = IsStatusVisible, ["Pinned"] = IsPinnedVisible,
         });
     }
 
@@ -159,6 +166,7 @@ public partial class PackageManagerViewModel : ObservableObject
         if (saved.TryGetValue("Version", out var v)) IsVersionVisible = v;
         if (saved.TryGetValue("Source", out var src)) IsSourceVisible = src;
         if (saved.TryGetValue("Status", out var st)) IsStatusVisible = st;
+        if (saved.TryGetValue("Pinned", out var pin)) IsPinnedVisible = pin;
     }
 
     // ==================== 右栏详情开合（默认收起 → 列表占满宽度） ====================
@@ -166,18 +174,28 @@ public partial class PackageManagerViewModel : ObservableObject
     /// <summary>是否显示右侧详情栏。<b>默认收起</b>；点选结果落 <c>config\columnlayout.json</c>，下次进本页保持。</summary>
     [ObservableProperty] private bool _isDetailVisible;
 
-    /// <summary>切换按钮上的文字。</summary>
-    public string DetailButtonText => IsDetailVisible ? "▤ 收起详情" : "▤ 详情";
-
-    partial void OnIsDetailVisibleChanged(bool value) => OnPropertyChanged(nameof(DetailButtonText));
-
-    /// <summary>点一下展开 / 收起右栏详情（轻偏好 → 立即落盘）。</summary>
+    /// <summary>点一下展开 / 收起右栏详情（轻偏好 → 立即落盘）。
+    /// 展开且当前没有选中项时自动选中第一项 —— 表头右侧那个无文字小按钮就调它（规范 3.6）。</summary>
     [RelayCommand]
     private void ToggleDetail()
     {
         IsDetailVisible = !IsDetailVisible;
+        if (IsDetailVisible && Selected == null && Packages.Count > 0) Selected = Packages[0];
+        SaveDetailFlag();
+    }
+
+    /// <summary>右键「显示详情栏」：确保展开并定位到当前选中项（没选中就选第一项）。</summary>
+    [RelayCommand]
+    private void ShowDetail()
+    {
+        if (Selected == null && Packages.Count > 0) Selected = Packages[0];
+        IsDetailVisible = true;
+        SaveDetailFlag();
+    }
+
+    private void SaveDetailFlag()
+    {
         _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
-        OnPropertyChanged(nameof(DetailButtonText));
     }
 
     public bool HasSelection => Selected != null;
@@ -462,6 +480,8 @@ public partial class PackageManagerViewModel : ObservableObject
                                         : q.OrderBy(p => p.Source, byText),
             "Status" => _sortDescending ? q.OrderByDescending(p => p.StatusText, byText)
                                         : q.OrderBy(p => p.StatusText, byText),
+            "Pinned" => _sortDescending ? q.OrderByDescending(p => p.IsPinned)
+                                        : q.OrderBy(p => p.IsPinned),
             _ => _sortDescending ? q.OrderByDescending(p => p.Name, byText)
                                  : q.OrderBy(p => p.Name, byText)
         };
@@ -489,6 +509,7 @@ public partial class PackageManagerViewModel : ObservableObject
         VersionHeader = "版本" + (_sortColumn == "Version" ? arrow : "");
         SourceHeader = "源" + (_sortColumn == "Source" ? arrow : "");
         StatusHeader = "状态" + (_sortColumn == "Status" ? arrow : "");
+        PinnedHeader = "Pin" + (_sortColumn == "Pinned" ? arrow : "");
     }
 
     /// <summary>版本比较：能解析成 <see cref="System.Version"/> 就按版本比（1.10 &gt; 1.9），否则退回字符串比较。</summary>

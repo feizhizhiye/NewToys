@@ -57,12 +57,17 @@ public class App : Application
             // 首页收藏夹：落 config\favorites.json（可被数据管理备份），单一真相源，标题/图标/简介现从菜单取。
             services.AddSingleton<IFavoritesService, FavoritesService>();
 
-            // 「电脑工具 → 设置与脚本」的系统设置 / 脚本清单：落 config\quickactions.json（可被数据管理备份）。
+            // 「电脑工具 → 设置与脚本 / 快捷设置」的清单：两页各一份文件（v1.34）——config\pc-scripts.json 与 config\pc-quick.json
+            // （都在 config\ 下、可被数据管理备份）。
             // 「收藏夹」页读的是同一批对象上的 IsFavorite 标记，不是另一份清单（单一真相源，见规范 3.9）。
             services.AddSingleton<IQuickActionService, QuickActionService>();
 
             // 列表页「列显隐」偏好（右键表头增删列，规范 3.8）：落 config\columnlayout.json（会被数据管理备份）。
             services.AddSingleton<IColumnLayoutService, ColumnLayoutService>();
+
+            // 工程内唯一的本地数据库（data\newtoys.db）：当前给「视频工具 → 视频库」的媒体信息索引用；
+            // 后续更多结构化数据也走它（见 SqliteDatabase 的类注释）。
+            services.AddSingleton<SqliteDatabase>();
 
             services.AddSingleton<ShellViewModel>();
             services.AddTransient<HomeView>();
@@ -88,6 +93,11 @@ public class App : Application
             // 所以由宿主在这里把「怎么问」接上去（弹窗在下面实现）。
             PackageManagerService.ConfirmHandler = msg => ConfirmAsync(win, msg);
             QuickActionService.ConfirmHandler = msg => ConfirmAsync(win, msg);
+
+            // 公共对话框钩子（Core.DialogHooks）：给各模块用（视频工具的重命名 / 删除文件 / 清空缓存 …）。
+            // ⛔ 模块不能反向引用 Shell，所以只能由这里注入；没注入时钩子一律按"用户取消"处理。
+            DialogHooks.ConfirmHandler = msg => ConfirmAsync(win, msg);
+            DialogHooks.InputHandler = (title, initial) => InputAsync(win, title, initial);
 
             win.Show();
         }
@@ -276,5 +286,73 @@ public class App : Application
         cancel.Click += (_, _) => dlg.Close(false);
         ok.Click += (_, _) => dlg.Close(true);
         return await dlg.ShowDialog<bool>(owner);
+    }
+
+    /// <summary>
+    /// 通用单行输入对话框（当前给「视频库 → 重命名文件」用）。
+    /// <para>同样是纯代码构造 + 只取主题资源色，浅色主题下不会变成黑框。</para>
+    /// </summary>
+    private static async Task<string?> InputAsync(Window owner, string title, string initialValue)
+    {
+        IBrush? Res(string key) => owner.FindResource(key) as IBrush;
+
+        var box = new TextBox
+        {
+            Text = initialValue ?? "",
+            FontSize = 13,
+            Foreground = Res("PrimaryTextBrush"),
+            Background = Res("PanelBrush")
+        };
+        var cancel = new Button { Content = "取消", Width = 88, Classes = { "ghost" } };
+        var ok = new Button { Content = "确定", Width = 96, Classes = { "primary" } };
+
+        var dlg = new Window
+        {
+            Width = 460,
+            Height = 190,
+            Title = title,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Res("ContentBrush") ?? Brushes.Transparent,
+            Content = new Border
+            {
+                Padding = new Thickness(20),
+                Background = Res("PanelBrush") ?? Brushes.Transparent,
+                Child = new StackPanel
+                {
+                    Spacing = 14,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = title,
+                            FontSize = 13,
+                            Foreground = Res("PrimaryTextBrush")
+                        },
+                        box,
+                        new StackPanel
+                        {
+                            Orientation = Avalonia.Layout.Orientation.Horizontal,
+                            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                            Spacing = 10,
+                            Children = { cancel, ok }
+                        }
+                    }
+                }
+            }
+        };
+
+        // 回车 = 确定（Avalonia 的 TextBox 没有 AcceptButton，只能自己接键盘）
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key != Avalonia.Input.Key.Enter) return;
+            dlg.Close(box.Text ?? "");
+            e.Handled = true;
+        };
+        cancel.Click += (_, _) => dlg.Close(null);
+        ok.Click += (_, _) => dlg.Close(box.Text ?? "");
+
+        dlg.Opened += (_, _) => box.Focus();
+        return await dlg.ShowDialog<string?>(owner);
     }
 }

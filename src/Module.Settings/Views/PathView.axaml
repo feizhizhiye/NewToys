@@ -1,77 +1,200 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.Settings.Views"
              x:Class="NewToys.Settings.Views.PathView">
-  <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。
-         本页是**复杂文本输入**，按规范保留「保存」（对比：主题/通用/加密 DNS/软件源 都是即时生效，无保存按钮）。 -->
+  <Grid RowDefinitions="Auto,Auto,*">
+
+    <!-- 操作行（右对齐、无背景条）：页名由左侧二级菜单体现，这里只放状态文字。 -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="8">
-      <Button Classes="ghost" Content="📂 打开配置目录" Command="{Binding OpenConfigDirCommand}"/>
-      <Button Classes="primary" Content="💾 保存" Command="{Binding SaveCommand}"/>
+                Margin="24,16,24,0" Spacing="10">
+      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="560"
+                 Foreground="{DynamicResource AccentBrush}"/>
     </StackPanel>
 
-    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
-      <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+    <!--  ==================== 工具条  ====================  -->
+    <Border Grid.Row="1" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Classes="ghost" Content="📂 打开配置目录" Margin="0,0,8,0"
+                Command="{Binding OpenConfigDirCommand}"/>
+        <Button Classes="primary" Content="💾 保存" Margin="0,0,8,0"
+                Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"
+                ToolTip.Tip="把右侧详情里改过的值写进 app.json（路径是自由文本，不适合边打边存）"/>
+        <TextBlock Text="留空的项 = 用系统默认（PATH 里的 python / pwsh 等）；「📂 浏览…」选出来的路径会立即生效。"
+                   FontSize="12" VerticalAlignment="Center" Margin="0,0,0,6"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </WrapPanel>
+    </Border>
 
-        <Border Classes="card">
-          <StackPanel Spacing="10">
-            <TextBlock Text="多媒体" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+    <!--  ==================== 主区：左列表 + 右详情  ====================
+          右栏宽度写在 Border 上（不是 Grid 列上）：列用 Auto，收起时右栏不占位 → 列表自动铺满。 -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="16">
 
-            <TextBlock Text="ffmpeg 路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
-            <TextBox Text="{Binding FfmpegPath, Mode=TwoWay}"
-                     PlaceholderText="ffmpeg 路径（留空或写 ffmpeg 则走 PATH）"/>
-            <TextBlock Text="视频库的「读取媒体信息」会用同目录下的 ffprobe 探测时长/分辨率；路径填错时该项显示「—」并给出提示。"
-                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+      <Border Grid.Column="0" Classes="card" Padding="0">
+        <Grid RowDefinitions="Auto,*">
 
-            <TextBlock Text="外部播放器路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
-            <TextBox Text="{Binding PlayerPath, Mode=TwoWay}"
-                     PlaceholderText="播放器 exe 全路径（留空 = 用系统默认关联程序）"/>
+          <Border Grid.Row="0" Classes="list-header" Height="36">
+            <!-- ⚠️ 表头与行模板用同一份列宽规格（规范 3.6 对齐铁律①）；列宽绑 VM 的 VisibleColumnSpecs。
+                 ⚠️ 必须用 ColumnGrid 而不是 Grid：Grid.ColumnDefinitions 是 CLR 属性、XAML 里不能 {Binding}（AVLN3000）。 -->
+            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Name" ToolTip.Tip="点一下按名称排序"
+                      IsVisible="{Binding IsNameVisible}"/>
+              <Button Grid.Column="1" Classes="col-header" Content="{Binding ValueHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Value" ToolTip.Tip="点一下按当前值排序"
+                      IsVisible="{Binding IsValueVisible}"/>
+              <Button Grid.Column="2" Classes="col-header" Content="{Binding KindHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Kind"
+                      IsVisible="{Binding IsKindVisible}"/>
+              <TextBlock Grid.Column="3" Text="说明" Padding="12,0" FontSize="12" FontWeight="SemiBold"
+                         VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding IsDescriptionVisible}"/>
+              <TextBlock Grid.Column="4" Text="操作" Padding="12,0" FontSize="12" FontWeight="SemiBold"
+                         VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding IsActionVisible}"/>
+              <!-- 表头最右侧的**无文字小按钮**：点一下就展开右栏详情（并自动选中第一项）。
+                   所有带详情卡的列表页统一这个交互。 -->
+              <Button Grid.Column="5" Classes="ghost" Content="▤" FontSize="11" Padding="6,2" Margin="0,0,6,0"
+                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                      Command="{Binding ToggleDetailCommand}"
+                      ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住"/>
+
+              <v:ColumnGrid.ContextMenu>
+                <ContextMenu>
+                  <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：勾选只负责"显示当前状态"，
+                       真正的翻转由 ToggleColumnCommand 独家负责（默认双向会写回 VM 造成二次翻转）。 -->
+                  <MenuItem Header="名称" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
+                  <MenuItem Header="当前值" ToggleType="CheckBox" IsChecked="{Binding IsValueVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Value"/>
+                  <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsKindVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Kind"/>
+                  <MenuItem Header="说明" ToggleType="CheckBox" IsChecked="{Binding IsDescriptionVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Description"/>
+                  <MenuItem Header="操作（浏览 / 打开）" ToggleType="CheckBox" IsChecked="{Binding IsActionVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Action"/>
+                </ContextMenu>
+              </v:ColumnGrid.ContextMenu>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="1" x:Name="PathList" Classes="list-page"
+                   ItemsSource="{Binding Items}"
+                   SelectedItem="{Binding Selected, Mode=TwoWay}"
+                   SelectionMode="Single">
+            <!-- 右键 = 「选中项更多功能」的主入口：查（▤ 详情栏）/ 改（📂 浏览 / 💾 保存 / ↩ 还原默认）/ 打开 -->
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
+                <Separator/>
+                <MenuItem Header="📂 浏览…" Click="OnBrowseMenuClick"/>
+                <MenuItem Header="↗ 打开位置" Command="{Binding OpenCommand}" CommandParameter="{Binding Selected}"/>
+                <Separator/>
+                <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
+                <MenuItem Header="↩ 还原默认" Command="{Binding RestoreDefaultCommand}" IsEnabled="{Binding HasSelection}"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <!-- 行与表头共用同一份 VisibleColumnSpecs（规范 3.6 对齐铁律①）；每格 IsVisible 跟随列显隐。 -->
+                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                  <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Name}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding ValueDisplay}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsValueVisible}"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding KindText}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsKindVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Description}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
+                  <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" Margin="12,4"
+                              VerticalAlignment="Center"
+                              IsVisible="{Binding $parent[ListBox].DataContext.IsActionVisible}">
+                    <Button Classes="ghost" Content="📂 浏览" FontSize="11" Padding="8,2"
+                            IsEnabled="{Binding IsEditable}"
+                            Click="OnBrowseRowClick" ToolTip.Tip="选文件 / 选目录（选完立即生效）"/>
+                    <Button Classes="ghost" Content="↗" FontSize="11" Padding="8,2"
+                            Command="{Binding $parent[ListBox].DataContext.OpenCommand}"
+                            CommandParameter="{Binding}" ToolTip.Tip="打开所在目录 / 定位该文件"/>
+                  </StackPanel>
+                </v:ColumnGrid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- 右：选中项的详情（可编辑 = CRUD 的 U/C）；宽度写在这里 → 收起时整列不占位 -->
+      <Border Grid.Column="1" Classes="card" Padding="16" Width="340" Margin="12,0,0,0"
+              IsVisible="{Binding IsDetailVisible}">
+        <Grid RowDefinitions="Auto,*">
+
+          <StackPanel Grid.Row="0" Spacing="8" IsVisible="{Binding HasSelection}">
+            <TextBlock Text="选中项" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="primary" Content="💾 保存" Command="{Binding SaveCommand}"/>
+              <Button Classes="ghost" Content="↩ 还原默认" Command="{Binding RestoreDefaultCommand}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button x:Name="BrowseDetailBtn" Classes="ghost" Content="📂 浏览…"/>
+              <Button Classes="ghost" Content="↗ 打开" Command="{Binding OpenCommand}"
+                      CommandParameter="{Binding Selected}"/>
+            </StackPanel>
           </StackPanel>
-        </Border>
 
-        <Border Classes="card">
-          <StackPanel Spacing="10">
-            <TextBlock Text="视频库" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+          <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="10">
 
-            <TextBlock Text="视频库默认目录" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
-            <TextBox Text="{Binding VideoFolder, Mode=TwoWay}" PlaceholderText="例如 D:/Videos/NewToys"/>
-            <TextBlock Text="「视频工具 → 视频库」打开时会扫这个目录；在那一页换目录并扫描，也会写回这里。"
-                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
-          </StackPanel>
-        </Border>
+              <StackPanel Spacing="2" IsVisible="{Binding !HasSelection}">
+                <TextBlock Text="在左侧列表里选中一项" FontSize="13" TextWrapping="Wrap"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="这些是「运行环境」相关的路径：ffmpeg / 播放器 / 三个解释器 / 脚本目录。留空 = 用系统默认。数据目录与配置目录是只读展示项。"
+                           FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
 
-        <Border Classes="card">
-          <StackPanel Spacing="10">
-            <TextBlock Text="脚本运行环境（「电脑工具 → 设置与脚本」页用）" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="名称" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.Name}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
 
-            <TextBlock Text="Python 路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
-            <TextBox Text="{Binding PythonPath, Mode=TwoWay}"
-                     PlaceholderText="python.exe 全路径（留空 = 用 PATH 里的 python）"/>
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="当前值" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBox Text="{Binding EditValue, Mode=TwoWay}" FontSize="12" FontFamily="Consolas"
+                         TextWrapping="Wrap" AcceptsReturn="False"
+                         IsReadOnly="{Binding Selected.IsReadOnly}"
+                         IsEnabled="{Binding Selected.IsEditable}"/>
+                <TextBlock Text="改完点「💾 保存」；点「📂 浏览…」选的路径会立即生效。"
+                           FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
 
-            <TextBlock Text="PowerShell 7+（pwsh）路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
-            <TextBox Text="{Binding PwshPath, Mode=TwoWay}"
-                     PlaceholderText="pwsh.exe 全路径（留空 = 用 PATH 里的 pwsh）"/>
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="类型" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.KindText}" FontSize="12"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
 
-            <TextBlock Text="Windows PowerShell 5.1 路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
-            <TextBox Text="{Binding PowerShell51Path, Mode=TwoWay}"
-                     PlaceholderText="powershell.exe 全路径（留空 = 用系统自带的）"/>
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="说明" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.Description}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
 
-            <TextBlock Text="脚本目录" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBox Grid.Column="0" Text="{Binding ScriptFolder, Mode=TwoWay}"
-                       PlaceholderText="{Binding DefaultScriptFolder}"/>
-              <Button Grid.Column="1" Classes="ghost" Content="📂 打开目录" Margin="8,0,0,0"
-                      Command="{Binding OpenScriptFolderCommand}"/>
-            </Grid>
+              <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,4"/>
 
-            <TextBlock Text="「设置与脚本」页里的条目 = 脚本目录下的 .py / .ps1 / .bat 文件；解释器按扩展名自动挑（.ps1 配了 pwsh 就用 pwsh，否则退回系统自带的 5.1）。三个路径都留空也能跑 —— 就是用系统默认的。首次运行会把自带示例脚本复制进脚本目录。"
-                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
-          </StackPanel>
-        </Border>
+              <TextBlock Text="配置文件：%LocalAppData%\NewToys\config\app.json（会被「设置 → 数据管理」的备份一起覆盖）"
+                         FontSize="11" TextWrapping="Wrap"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
 
-        <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
-                   Foreground="{DynamicResource AccentBrush}"/>
-      </StackPanel>
-    </ScrollViewer>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
   </Grid>
 </UserControl>

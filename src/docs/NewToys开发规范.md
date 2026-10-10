@@ -1,6 +1,6 @@
 # NewToys 开发规范
 
-> v1.32 · 2026-10-10 · 「开发需求（宪法）」的技术解读 + 编程规范
+> v1.33 · 2026-10-10 · 「开发需求（宪法）」的技术解读 + 编程规范
 > 工程：NewToys（Avalonia 12 + CommunityToolkit.Mvvm + .NET 10）
 >
 > **约束分两类**：
@@ -59,6 +59,9 @@
 | UI | Avalonia | 12.1.3 |
 | MVVM | CommunityToolkit.Mvvm | 8.4.2 |
 | DI | Microsoft.Extensions.DependencyInjection | 9.0.0 |
+| 本地数据库 | Microsoft.Data.Sqlite | 9.0.0 |
+
+> **SQLite（v1.34 引入）**：库文件 `<应用根>\data\newtoys.db`。**放 `data\` 不放 `config\`** —— `config\` 会被数据管理页整体备份/导入，而库里的内容（如视频媒体信息索引）是**可随时重建的缓存**，不该进备份。唯一入口 `Core/Services/SqliteDatabase.cs`（单例；`IsAvailable/LastError`，打不开只置位不抛）。既有栈版本一律不动。
 
 **硬规则**：
 - ⛔ 禁止升级/降级栈版本；`csproj` 不写 `<PackageVersion>`（`NU1010`）。
@@ -128,20 +131,20 @@
 
 > **右列宽度写在 Border 而不是 Grid 列上**（v1.33）：`ColumnDefinitions` 第二列用 `Auto`，详情 Border 自己 `Width="340" IsVisible="{Binding IsDetailVisible}"`；收起时该列不占位 → 列表自动铺满。
 > ⛔ 不要写回 `"*,340"`：那样即使 `IsVisible=false` 也仍占 340px 空白。
-> **详情栏默认收起**（`IsDetailVisible` 初值 false，`<pageKey>` 读 `IColumnLayoutService.LoadFlag(..., FlagDetailPanel)`），工具条上放一个「▤ 详情 / ▤ 收起详情」按钮（`DetailButtonText` + `ToggleDetailCommand`），点选落 `SaveFlag` 记住。⛔ `Grid.ColumnDefinitions` 是 CLR 属性，XAML 里不能绑定 / 也写不了 `IsVisible`（`AVLN3000`）。
+> **详情栏默认收起**（`IsDetailVisible` 初值 false，`<pageKey>` 读 `IColumnLayoutService.LoadFlag(..., FlagDetailPanel)`）。**开合入口 = 表头最右侧一个无文字的 `▤` 小按钮**（`Content="▤"`，绑 `ToggleDetailCommand`；v1.34 起⛔ 工具条上不再放「▤ 详情」文字按钮），点它 = 展开/收起 + **自动选中列表第一项**；右键菜单首项「▤ 显示详情栏」调 `ShowDetailCommand`（不切换、只确保展开并定位）。点选结果落 `SaveFlag` 记住。⛔ `Grid.ColumnDefinitions` 是 CLR 属性，XAML 里不能绑定 / 也写不了 `IsVisible`（`AVLN3000`）。
 
 **五条硬规则**：
 1. 表头与行模板**完全相同的星号列定义**（逐字一致）；动态列用 `<v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">`。
 2. 表头与行单元格左右内边距一致（12px），行里不写 `Padding/Margin`。
 3. `ListBoxItem` 拉伸（已在 App.axaml 设 `HorizontalAlignment=Stretch`），页面不覆盖。
-4. 表头双交互：① 左键点→切换排序（`SortCommand`+CommandParameter，VM 追加▲▼）；② 右键点→`ContextMenu` 勾选列显隐（`ToggleType=CheckBox`，`IsChecked` 显式 `Mode=OneWay`）。⛔ 四处列表页（pc-package/video-list/pc-shortcuts/pc-quicksettings）必须都支持；隐藏列用宽度 0（不删列保一致）。
+4. 表头双交互：① 左键点→切换排序（`SortCommand`+CommandParameter，VM 追加▲▼）；② 右键点→`ContextMenu` 勾选列显隐（`ToggleType=CheckBox`，`IsChecked` 显式 `Mode=OneWay`）。⛔ **五处列表页**（pc-package / video-list / pc-shortcuts / pc-quicksettings / **settings-path**）必须都支持；隐藏列用宽度 0（不删列保一致）。
 5. 空态与选中态显式处理：无选中显示引导；有选中显示详情；空列表用居中 StatusText，不留白。
 
 行右键菜单提供该条目全部可执行动作（与详情按钮一一对应）。
 
 - ⭐ `ContextMenu` 挂在独立弹出树，不保证继承宿主 DataContext → 必须在 View 的 code-behind `OnDataContextChanged` 里手工同步（行菜单+表头菜单都要）。
 - **例外的按钮页（`pc-favorites`）**：收藏 = 常用功能 → **不用卡片也不用列表**，就是一排按钮（`ItemsControl` + `WrapPanel`，模板里只有一个 `Button Content="{Binding Title}"`，点一下即跑），⛔ 不放版本/来源/简介等复杂信息。按钮的右键菜单在 code-behind 的 `ContextRequested` 里**现场构造**（`new ContextMenu`+`MenuItem` 直接挂 `Command`/`CommandParameter`，`menu.Open(button)`）—— 模板内的 `ContextMenu` 与 `$parent[UserControl]` 在弹出树里都会断链，现场构造最稳。
-- 列显隐 + **页面级开关**：元数据 `Shared/Models/ListColumn`、服务 `IColumnLayoutService/ColumnLayoutService`（落 `config/columnlayout.json`，自动进备份）。同一个文件里存两类：① 列显隐 `LoadPage/SavePage`（键 = 列键）；② 页面级开关 `LoadFlag/SaveFlag(FlagDetailPanel)`（内部加保留前缀 `__`，与列键不会撞）。⛔ 禁把 `ColumnDefinitions` 绑 `{Binding}`（`AVLN3000`）、禁 WPF 的 `IsCheckable`（`AVLN2000`）。
+- 列显隐 + **页面级开关**：元数据 `Shared/Models/ListColumn`、服务 `IColumnLayoutService/ColumnLayoutService`（落 `config/columnlayout.json`，自动进备份）。同一个文件里存两类：① 列显隐 `LoadPage/SavePage`（键 = 列键）；② 页面级开关 `LoadFlag/SaveFlag(FlagDetailPanel)`（内部加保留前缀 `__`，与列键不会撞）。⛔ 禁把 `ColumnDefinitions` 绑 `{Binding}`（`AVLN3000`）、禁 WPF 的 `IsCheckable`（`AVLN2000`）。⚠️ `Views/ColumnGrid.cs` 因**模块间禁互引**而在 `Module.PcTools` / `Module.VideoTools` / `Module.Settings` **各存一份，改动必须同步三份**。
 
 ---
 
@@ -402,18 +405,19 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | 文件 | 归属 | 内容 |
 |---|---|---|
 | `theme.json` | 软件设置 | 主题模式+强调色 id |
-| `app.json` | 软件设置 | ffmpeg/播放器/视频目录/DNS 开关/**脚本运行环境**（python、pwsh、PS5.1 路径 + 脚本目录） |
+| `app.json` | 软件设置 | ffmpeg/播放器/DNS 开关/**脚本运行环境**（python、pwsh、PS5.1 路径 + 脚本目录）。⚠️ v1.34 起**没有视频库目录**（与视频模块解绑，每次手动选） |
 | `launch.json` | 软件设置 | 三个一键按钮+4 个通用开关 |
 | `package.json` | 软件设置 | 软件包查询偏好（默认源/静默安装/排序列；兼容旧 winget.json）。⚠️ v1.33 起**源本身不在这里**——源的增删直接作用于系统 winget |
 | `favorites.json` | 用户功能数据 | 首页收藏夹 |
-| `quickactions.json` | 用户功能数据 | 设置项/脚本清单（「设置与脚本」+「快捷设置」两页共用，按 `Page` 分栏） |
+| `pc-scripts.json` | 用户功能数据 | 「设置与脚本」页清单（**只有带脚本文件的脚本**，v1.34 起独立成文件） |
+| `pc-quick.json` | 用户功能数据 | 「快捷设置」页清单（命令行命令，v1.34 起独立成文件） |
 | `columnlayout.json` | 用户功能数据 | 列表页列显隐偏好 **+ 页面级开关**（详情栏开合，键带保留前缀 `__`） |
 
 **硬约束**：
 - 设置类数据一律落 `<应用根>\config\*.json`（才能被数据管理页备份/导入）。
 - **模块只读设置**，唯一写入点在该设置的设置页；功能入口页**只读**（⛔ 不许回写→双真相源）。
 - 用户功能数据由对应功能页读写，同样落 `config\`、一样进备份。
-- ⛔ **不许把"内容清单"写死在 C# 里**（v1.33）：默认内容一律做成文件，随程序发布在 `<程序目录>\defaults\*`，**首次运行**复制/播种成 `config\` 下的用户文件；此后一切以用户那份为准（用户删掉的条目不会被"复活"）。当前：`defaults\quickactions.default.json` → `config\quickactions.json`；`defaults\scripts\*` → 脚本目录（仅当目录不存在时才播种）。
+- ⛔ **不许把"内容清单"写死在 C# 里**（v1.33）：默认内容一律做成文件，随程序发布在 `<程序目录>\defaults\*`，**首次运行**复制/播种成 `config\` 下的用户文件；此后一切以用户那份为准（用户删掉的条目不会被"复活"）。当前：`defaults\pc-quick.default.json` → `config\pc-quick.json`、`defaults\pc-scripts.default.json` → `config\pc-scripts.json`；`defaults\scripts\*` → 脚本目录（仅当目录不存在时才播种）。
   - 发布方式：`Shell.csproj` 用 `<None Update="defaults\**" CopyToOutputDirectory="PreserveNewest" />`（⛔ 用 `Update` 不用 `Include`，否则撞 `NETSDK1022`）。默认数据放 `Shell` 而不是 `Core`：Shell 是被引用终点，保证程序根目录只有一份。
   - **脚本目录**：默认 `<应用根>\scripts`（= config/data 同级；由 `IAppConfigService.DefaultScriptFolder` 推出），可在「设置 → 路径配置」改。脚本目录里的 `.py/.ps1/.bat` 就是「设置与脚本」页的条目目标。
   - **解释器路径**（python / pwsh / PowerShell 5.1）留空 = 用系统 PATH 里的；只有填了"看起来像路径"的值才校验存在性。`.ps1` 未配 pwsh 时自动退回系统自带的 5.1。
@@ -445,7 +449,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 6. 框架层冻结，新功能只在 `Module.*`；改框架层须先获用户同意。
 7. 代码是唯一真相源，写「现状」前先读源码，冲突以代码为准回写。
 8. 动 `ShellView.axaml/.axaml.cs` 两文件必须同步。
-9. 列表页按 3.6：可排序表头+`ListBox.list-page`+右侧详情（宽 340 写在 Border 且**默认收起、可开合**，工具条按钮切换，状态记忆）+行右键菜单；表头与行同套列定义、内边距一致；`ContextMenu.DataContext` 在 code-behind 手工同步；表头支持右键增删列。
+9. 列表页按 3.6：可排序表头+`ListBox.list-page`+右侧详情（宽 340 写在 Border 且**默认收起、可开合**，**表头右侧无文字 `▤` 小按钮**切换，状态记忆）+行右键菜单（**增删改查齐全**）；表头与行同套列定义、内边距一致；`ContextMenu.DataContext` 在 code-behind 手工同步；表头支持右键增删列。
 10. 设置数据必落 `config\*.json` 且可备份；模块只读，唯一写入点在设置页；内容清单不写死在 C#，默认值随程序发布在 `<程序目录>\defaults\*` 并首次运行播种（§9）。
 11. 规范与代码同步更新；各文档版本号**独立递增**（不再齐步）。
 12. 复杂功能先给可运行的最小实现。

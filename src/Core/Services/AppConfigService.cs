@@ -11,7 +11,7 @@ public class AppConfigService : IAppConfigService
     {
         // 主题（深色/浅色/强调色）不在这里 —— 统一由 ThemeService 落到 theme.json，
         // 避免出现两份"当前是不是深色"的真相（v1.18 移除历史字段 IsDarkTheme）。
-        public string DefaultVideoFolder { get; set; } = "";
+        // 注：**没有 DefaultVideoFolder**（v1.34 移除）：视频库页改成每次手动选目录，不再有"默认目录"。
         public string FfmpegPath { get; set; } = "ffmpeg";
         public string PlayerPath { get; set; } = "";
         public int MaxConcurrency { get; set; } = 2;
@@ -39,7 +39,6 @@ public class AppConfigService : IAppConfigService
     public string ConfigFilePath => ConfigFile;
     public string DataDirectory => _cfg.DataDir;
 
-    public string DefaultVideoFolder { get => _data.DefaultVideoFolder; set { _data.DefaultVideoFolder = value; Save(); } }
     public string FfmpegPath { get => _data.FfmpegPath; set { _data.FfmpegPath = value; Save(); } }
     public string PlayerPath { get => _data.PlayerPath; set { _data.PlayerPath = value; Save(); } }
     public int MaxConcurrency { get => _data.MaxConcurrency; set { _data.MaxConcurrency = value; Save(); } }
@@ -76,10 +75,6 @@ public class AppConfigService : IAppConfigService
                 var json = File.ReadAllText(ConfigFile);
                 var d = JsonSerializer.Deserialize<ConfigData>(json);
                 if (d != null) _data = d;
-            }
-            if (string.IsNullOrEmpty(_data.DefaultVideoFolder))
-            {
-                _data.DefaultVideoFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "NewToys");
             }
         }
         catch { }

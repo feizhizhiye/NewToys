@@ -63,8 +63,9 @@ public static class ScriptInterpreter
 /// </para>
 /// <para>
 /// <b>归属</b>由 <see cref="Page"/> 决定：<see cref="QuickActionPage.Shortcuts"/> 出现在「设置与脚本」页、
-/// <see cref="QuickActionPage.Quick"/> 出现在「快捷设置」页。两页共用同一份清单文件（<c>config\quickactions.json</c>），
-/// 收藏（<see cref="IsFavorite"/>）也是同一条记录上的标记 —— 单一真相源，收藏夹页据此汇总两页的收藏项。
+/// <see cref="QuickActionPage.Quick"/> 出现在「快捷设置」页。两页**各有一份清单文件**（v1.34）：
+/// 「设置与脚本」=<c>config\pc-scripts.json</c>、「快捷设置」=<c>config\pc-quick.json</c>；
+/// 收藏（<see cref="IsFavorite"/>）是同一条记录上的标记 —— 单一真相源，收藏夹页据此汇总两页的收藏项。
 /// </para>
 /// <para>
 /// <b>怎么跑</b>由 <see cref="Kind"/> 决定：命令行命令直接执行 <see cref="Command"/>；
@@ -72,8 +73,9 @@ public static class ScriptInterpreter
 /// <see cref="NeedAdmin"/> 为真时统一走 UAC 提权。
 /// </para>
 /// <para>
-/// ⛔ 默认清单<b>不写在代码里</b>：随程序发布 <c>&lt;程序目录&gt;\defaults\quickactions.default.json</c>，
-/// 首次运行复制成 <c>config\quickactions.json</c>，之后改本地文件即可（见 <c>QuickActionService</c>）。
+/// ⛔ 默认清单<b>不写在代码里</b>：随程序发布 <c>&lt;程序目录&gt;\defaults\pc-scripts.default.json</c> 与
+/// <c>pc-quick.default.json</c>，首次运行分别复制成 <c>config\pc-scripts.json</c> / <c>config\pc-quick.json</c>，
+/// 之后改本地文件即可（见 <c>QuickActionService</c>）。
 /// </para>
 /// </summary>
 public partial class QuickAction : ObservableObject

@@ -1,24 +1,29 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
+using NewToys.Settings.Models;
+using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
 namespace NewToys.Settings.ViewModels;
 
 /// <summary>
-/// 路径配置页。
+/// 「设置 → 路径配置」页 —— v1.34 起是一张**列表**（布局仿「电脑工具 → 快捷设置」，规范 3.6）：
+/// 左边可排序表头 + 列表 + 行内「📂 浏览 / ↗ 打开」，右边选中项的详情卡（改值 → 💾 保存），
+/// 表头最右侧还有一个无文字小按钮，点一下就展开详情（并自动选中第一项）。
 /// <para>
-/// <b>本页保留「💾 保存」按钮</b>（符合规范 3.7 的分界）：这里是若干自由文本字段（程序路径 + 启动参数），
-/// 属于"复杂输入"—— 边打边落盘没有意义，也可能写进半截路径，所以由用户显式确认一次性提交。
+/// 本页**保留「💾 保存」**（规范 3.5 的分界）：路径是自由文本的复杂输入，边打边落盘没有意义，
+/// 也可能把半截路径写进配置。例外是「📂 浏览…」选出来的路径 —— 那是明确的动作，**选完立即生效**。
 /// </para>
 /// <para>
-/// ⚠️ v1.19 起**浏览器路径与参数已移出本页**：它们与按钮名、网址清单同属"一键按钮"的配置，
-/// 统一在 <b>「设置 → 一键按钮」</b> 页维护（落 <c>launch.json</c>）。
-/// 本页管与"运行环境"有关的项：ffmpeg、外部播放器、视频库目录，
-/// 以及 v1.33 新增的<b>脚本运行环境</b>（python / pwsh / PowerShell 5.1 路径 + 脚本目录）。
+/// ⚠️ v1.34 **去掉了"视频库默认目录"**：视频库 / 音乐库这类库常常分散在多个文件夹，
+/// 写死一个"默认目录"只会误导；「视频工具 → 视频库」改成每次手动选目录，与设置彻底解绑。
 /// </para>
 /// </summary>
 public partial class PathViewModel : ObservableObject
@@ -26,74 +31,341 @@ public partial class PathViewModel : ObservableObject
     private readonly IAppConfigService? _cfg;
     private readonly ConfigStoreService? _store;
 
-    [ObservableProperty] private string _ffmpegPath = "";
-    [ObservableProperty] private string _playerPath = "";
-    [ObservableProperty] private string _videoFolder = "";
-    [ObservableProperty] private string _statusText = "改完点右上角「保存」写入配置。";
+    /// <summary>列显隐偏好落盘用的页键。</summary>
+    private const string PageKey = "settings-path";
 
-    // ==================== 脚本运行环境（v1.33：「设置与脚本」页的脚本靠它们跑起来） ====================
+    private string _sortColumn = "Name";
+    private bool _sortDescending;
+    private bool _syncing;
 
-    [ObservableProperty] private string _pythonPath = "";
-    [ObservableProperty] private string _pwshPath = "";
-    [ObservableProperty] private string _powerShell51Path = "";
-    [ObservableProperty] private string _scriptFolder = "";
+    public ObservableCollection<PathSettingItem> Items { get; } = new();
 
-    /// <summary>脚本目录的默认值（提示文案用）：<c>&lt;应用根&gt;\scripts</c>。</summary>
-    public string DefaultScriptFolder => _cfg?.DefaultScriptFolder ?? "";
+    [ObservableProperty] private string _statusText = "选中一行改路径，改完点「💾 保存」；点「📂 浏览…」选的路径会立即生效。";
+    [ObservableProperty] private bool _isBusy;
+    [ObservableProperty] private PathSettingItem? _selected;
 
+    public bool IsNotBusy => !IsBusy;
+
+    // ==================== 表头 ====================
+
+    [ObservableProperty] private string _nameHeader = "名称 ▲";
+    [ObservableProperty] private string _valueHeader = "当前值";
+    [ObservableProperty] private string _kindHeader = "类型";
+    [ObservableProperty] private string _descriptionHeader = "说明";
+
+    // ==================== 列显隐 ====================
+
+    private readonly IColumnLayoutService? _cols;
+
+    [ObservableProperty] private bool _isNameVisible = true;
+    [ObservableProperty] private bool _isValueVisible = true;
+    [ObservableProperty] private bool _isKindVisible = true;
+    [ObservableProperty] private bool _isDescriptionVisible = true;
+    [ObservableProperty] private bool _isActionVisible = true;
+
+    /// <summary>列的元数据（键 / 标题 / 宽度 / 是否可排序）；顺序即表头与行的列顺序。
+    /// <para>最后一列 <c>Detail</c> 是**表头右侧那个无文字小按钮**用的固定窄列（规范 3.6），不进列显隐菜单。</para></summary>
+    public IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    {
+        new("Name", "名称", "2.2*"),
+        new("Value", "当前值", "5*"),
+        new("Kind", "类型", "1*"),
+        new("Description", "说明", "4*", sortable: false),
+        new("Action", "操作", "1.8*", sortable: false),
+        new("Detail", "", "36", sortable: false),
+    };
+
+    public string VisibleColumnSpecs
+    {
+        get
+        {
+            var parts = new string[Columns.Count];
+            for (var i = 0; i < Columns.Count; i++)
+                parts[i] = IsVisibleFor(Columns[i].Key) ? Columns[i].Width : "0";
+            return string.Join(",", parts);
+        }
+    }
+
+    private bool IsVisibleFor(string key) => key switch
+    {
+        "Name" => IsNameVisible,
+        "Value" => IsValueVisible,
+        "Kind" => IsKindVisible,
+        "Description" => IsDescriptionVisible,
+        "Action" => IsActionVisible,
+        _ => true,
+    };
+
+    [RelayCommand]
+    private void ToggleColumn(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return;
+        switch (key)
+        {
+            case "Name": IsNameVisible = !IsNameVisible; break;
+            case "Value": IsValueVisible = !IsValueVisible; break;
+            case "Kind": IsKindVisible = !IsKindVisible; break;
+            case "Description": IsDescriptionVisible = !IsDescriptionVisible; break;
+            case "Action": IsActionVisible = !IsActionVisible; break;
+            default: return;
+        }
+        _cols?.SavePage(PageKey, new Dictionary<string, bool>
+        {
+            ["Name"] = IsNameVisible, ["Value"] = IsValueVisible, ["Kind"] = IsKindVisible,
+            ["Description"] = IsDescriptionVisible, ["Action"] = IsActionVisible,
+        });
+        OnPropertyChanged(nameof(VisibleColumnSpecs));
+    }
+
+    private void LoadColumnVisibility()
+    {
+        if (_cols == null) return;
+        var saved = _cols.LoadPage(PageKey);
+        if (saved.TryGetValue("Name", out var n)) IsNameVisible = n;
+        if (saved.TryGetValue("Value", out var v)) IsValueVisible = v;
+        if (saved.TryGetValue("Kind", out var k)) IsKindVisible = k;
+        if (saved.TryGetValue("Description", out var d)) IsDescriptionVisible = d;
+        if (saved.TryGetValue("Action", out var a)) IsActionVisible = a;
+    }
+
+    // ==================== 详情栏开合 ====================
+
+    [ObservableProperty] private bool _isDetailVisible;
+
+    /// <summary>表头右侧小按钮：展开 / 收起详情；展开且没选中时自动选中第一项（规范 3.6）。</summary>
+    [RelayCommand]
+    private void ToggleDetail()
+    {
+        IsDetailVisible = !IsDetailVisible;
+        if (IsDetailVisible && Selected == null && Items.Count > 0) Selected = Items[0];
+        SaveDetailFlag();
+    }
+
+    /// <summary>右键「显示详情栏」：确保展开并定位到当前选中项（没选中就选第一项）。</summary>
+    [RelayCommand]
+    private void ShowDetail()
+    {
+        if (Selected == null && Items.Count > 0) Selected = Items[0];
+        IsDetailVisible = true;
+        SaveDetailFlag();
+    }
+
+    private void SaveDetailFlag()
+    {
+        _cols?.SaveFlag(PageKey, IColumnLayoutService.FlagDetailPanel, IsDetailVisible);
+    }
+
+    public bool HasSelection => Selected != null;
+    public bool HasItems => Items.Count > 0;
+
+    // ==================== 编辑缓冲 ====================
+
+    /// <summary>详情卡里正在编辑的值（点「💾 保存」才写回对象并落盘）。</summary>
+    [ObservableProperty] private string _editValue = "";
+
+    partial void OnSelectedChanged(PathSettingItem? value)
+    {
+        _syncing = true;
+        EditValue = value?.Value ?? "";
+        _syncing = false;
+        OnPropertyChanged(nameof(HasSelection));
+    }
+
+    partial void OnEditValueChanged(string value)
+    {
+        // 绑定到 TextBox 时不要反过来打扰输入；这里只是把"是否改过"反映到提示上
+        if (!_syncing) StatusText = "改完点「💾 保存」写入 app.json。";
+    }
+
+    // ==================== 构造 ====================
+
+    /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public PathViewModel() { }
 
-    public PathViewModel(IAppConfigService cfg, ConfigStoreService store)
+    public PathViewModel(IAppConfigService cfg, ConfigStoreService store, IColumnLayoutService cols)
     {
         _cfg = cfg;
         _store = store;
+        _cols = cols;
 
-        FfmpegPath = cfg.FfmpegPath;
-        PlayerPath = cfg.PlayerPath;
-        VideoFolder = cfg.DefaultVideoFolder;
-
-        PythonPath = cfg.PythonPath;
-        PwshPath = cfg.PwshPath;
-        PowerShell51Path = cfg.PowerShell51Path;
-        ScriptFolder = cfg.ScriptFolder;
+        LoadColumnVisibility();
+        IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel);
+        BuildItems();
+        ApplyView();
     }
 
+    private void BuildItems()
+    {
+        Items.Clear();
+        if (_cfg == null) return;
+
+        Items.Add(new PathSettingItem
+        {
+            Key = "FfmpegPath", Name = "ffmpeg 路径", Kind = PathItemKind.File, DefaultValue = "ffmpeg",
+            Description = "视频库的媒体信息（时长 / 分辨率 / 编码 / 码率）用它旁边的 ffprobe 读取；留空或写 ffmpeg 则走 PATH",
+            Value = _cfg.FfmpegPath
+        });
+        Items.Add(new PathSettingItem
+        {
+            Key = "PlayerPath", Name = "外部播放器路径", Kind = PathItemKind.File,
+            Description = "视频库「▶ 播放」用它打开；留空 = 系统默认关联程序",
+            Value = _cfg.PlayerPath
+        });
+        Items.Add(new PathSettingItem
+        {
+            Key = "PythonPath", Name = "Python 路径", Kind = PathItemKind.File,
+            Description = "「设置与脚本」里 .py 的解释器；留空 = 用 PATH 里的 python",
+            Value = _cfg.PythonPath
+        });
+        Items.Add(new PathSettingItem
+        {
+            Key = "PwshPath", Name = "PowerShell 7+（pwsh）路径", Kind = PathItemKind.File,
+            Description = ".ps1 优先用它；留空 = 用 PATH 里的 pwsh，找不到则退回系统自带的 5.1",
+            Value = _cfg.PwshPath
+        });
+        Items.Add(new PathSettingItem
+        {
+            Key = "PowerShell51Path", Name = "Windows PowerShell 5.1 路径", Kind = PathItemKind.File,
+            Description = "没配 pwsh 时 .ps1 用它；留空 = 系统自带的 powershell.exe",
+            Value = _cfg.PowerShell51Path
+        });
+        Items.Add(new PathSettingItem
+        {
+            Key = "ScriptFolder", Name = "脚本目录", Kind = PathItemKind.Folder,
+            DefaultValue = _cfg.DefaultScriptFolder,
+            Description = "「设置与脚本」页引用的 .py / .ps1 / .bat 都放这里；首次运行会把示例脚本复制进去",
+            Value = _cfg.ScriptFolder
+        });
+        Items.Add(new PathSettingItem
+        {
+            Key = "DataDir", Name = "数据目录", Kind = PathItemKind.ReadOnly,
+            Description = "本地数据库 newtoys.db（视频媒体信息缓存）等数据放这里；由应用决定，可用环境变量 NEWTOYS_HOME 整根切换",
+            Value = _cfg.DataDirectory
+        });
+        Items.Add(new PathSettingItem
+        {
+            Key = "ConfigDir", Name = "配置目录", Kind = PathItemKind.ReadOnly,
+            Description = "app.json / launch.json / theme.json / pc-quick.json / pc-scripts.json / columnlayout.json 等都在这里，可整体备份",
+            Value = _store?.ConfigDir ?? ""
+        });
+    }
+
+    private void ApplyView()
+    {
+        IEnumerable<PathSettingItem> q = Items;
+
+        var byText = StringComparer.CurrentCultureIgnoreCase;
+        q = _sortColumn switch
+        {
+            "Value" => _sortDescending ? q.OrderByDescending(i => i.Value, byText) : q.OrderBy(i => i.Value, byText),
+            "Kind" => _sortDescending ? q.OrderByDescending(i => i.KindText, byText) : q.OrderBy(i => i.KindText, byText),
+            _ => _sortDescending ? q.OrderByDescending(i => i.Name, byText) : q.OrderBy(i => i.Name, byText)
+        };
+
+        var ordered = q.ToList();
+        Items.Clear();
+        foreach (var i in ordered) Items.Add(i);
+
+        if (Selected != null && !Items.Contains(Selected)) Selected = null;
+        UpdateHeaders();
+        OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(HasSelection));
+    }
+
+    private void UpdateHeaders()
+    {
+        var arrow = _sortDescending ? " ▼" : " ▲";
+        NameHeader = "名称" + (_sortColumn == "Name" ? arrow : "");
+        ValueHeader = "当前值" + (_sortColumn == "Value" ? arrow : "");
+        KindHeader = "类型" + (_sortColumn == "Kind" ? arrow : "");
+    }
+
+    /// <summary>点表头：同一列再点一次 = 反向；换列 = 升序。</summary>
+    [RelayCommand]
+    private void Sort(string? column)
+    {
+        if (string.IsNullOrWhiteSpace(column)) return;
+        if (string.Equals(_sortColumn, column, StringComparison.OrdinalIgnoreCase))
+            _sortDescending = !_sortDescending;
+        else { _sortColumn = column; _sortDescending = false; }
+        ApplyView();
+    }
+
+    // ==================== 增删改查 ====================
+
+    /// <summary>💾 保存：把当前选中项的值写回 <c>app.json</c>。</summary>
     [RelayCommand]
     private void Save()
     {
-        if (_cfg == null) { StatusText = "配置服务未就绪。"; return; }
-        try
-        {
-            _cfg.FfmpegPath = FfmpegPath.Trim();
-            _cfg.PlayerPath = PlayerPath.Trim();
-            _cfg.DefaultVideoFolder = VideoFolder.Trim();
-            _cfg.PythonPath = PythonPath.Trim();
-            _cfg.PwshPath = PwshPath.Trim();
-            _cfg.PowerShell51Path = PowerShell51Path.Trim();
-            _cfg.ScriptFolder = ScriptFolder.Trim();
-            _cfg.Save();                                     // 上面每个 setter 已各自落盘，这里是收口
-            StatusText = $"已保存 · {DateTime.Now:HH:mm:ss}（下一轮启动/调用即生效）";
-        }
-        catch (Exception ex)
-        {
-            StatusText = "保存失败：" + ex.Message;
-        }
+        var item = Selected;
+        if (item == null || _cfg == null) { StatusText = "先在左侧选中一项。"; return; }
+
+        if (item.IsReadOnly) { StatusText = $"「{item.Name}」是只读项，不能改。"; return; }
+
+        item.Value = (EditValue ?? "").Trim();
+        WriteBack();
+        StatusText = $"已保存「{item.Name}」→ {item.ValueDisplay}（下一轮启动 / 调用即生效）";
     }
 
-    /// <summary>打开脚本目录（不存在就先建出来）—— 「设置与脚本」页里引用的脚本文件都放这里。</summary>
+    /// <summary>↩ 还原默认：只**预填**默认值，还要点「💾 保存」才生效（规范 3.5）。</summary>
     [RelayCommand]
-    private void OpenScriptFolder()
+    private void RestoreDefault()
     {
+        var item = Selected;
+        if (item == null) { StatusText = "先在左侧选中一项。"; return; }
+        if (item.IsReadOnly) { StatusText = "只读项没有默认值可还原。"; return; }
+
+        EditValue = item.DefaultValue;
+        StatusText = item.DefaultValue.Length > 0
+            ? $"已预填默认值「{item.DefaultValue}」，点「💾 保存」生效。"
+            : "默认值就是留空（用系统默认），点「💾 保存」生效。";
+    }
+
+    /// <summary>
+    /// 「📂 浏览…」选完之后由 View 的 code-behind 调用：选路径是**明确的动作** → 立即生效并落盘
+    /// （不用再点保存；这也避免了"选了却没生效"的困惑）。
+    /// </summary>
+    public void ApplyPickedValue(PathSettingItem item, string path)
+    {
+        if (item == null || item.IsReadOnly || string.IsNullOrWhiteSpace(path)) return;
+
+        item.Value = path.Trim();
+        if (ReferenceEquals(item, Selected)) EditValue = item.Value;
+        WriteBack();
+        StatusText = $"已设置「{item.Name}」→ {item.Value}";
+    }
+
+    /// <summary>↗ 打开：目录项打开目录；文件项在资源管理器里定位（文件不存在就退到它的上级目录）。
+    /// 不传参就用当前选中项（行内按钮 / 详情卡按钮都可用）。</summary>
+    [RelayCommand]
+    private void Open(PathSettingItem? item)
+    {
+        var target = item ?? Selected;
+        if (target == null) { StatusText = "先在左侧选中一项。"; return; }
+
+        var value = (target.Value.Length > 0 ? target.Value : target.DefaultValue).Trim();
+        if (value.Length == 0) { StatusText = "这一项还是空的，没有可打开的位置。"; return; }
+
         try
         {
-            var dir = (_cfg?.ScriptFolder ?? "").Trim();
-            if (dir.Length == 0) dir = _cfg?.DefaultScriptFolder ?? "";
-            if (dir.Length == 0) { StatusText = "找不到脚本目录。"; return; }
-
-            Directory.CreateDirectory(dir);
-            Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+            if (target.Kind == PathItemKind.Folder || Directory.Exists(value))
+            {
+                Directory.CreateDirectory(value);
+                Process.Start(new ProcessStartInfo("explorer.exe", value) { UseShellExecute = true });
+            }
+            else if (File.Exists(value))
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{value}\"") { UseShellExecute = true });
+            }
+            else
+            {
+                var dir = Path.GetDirectoryName(value) ?? "";
+                if (dir.Length == 0 || !Directory.Exists(dir)) { StatusText = $"找不到这个位置：{value}"; return; }
+                Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+            }
+            StatusText = "已打开：" + value;
         }
-        catch (Exception ex) { StatusText = "无法打开脚本目录：" + ex.Message; }
+        catch (Exception ex) { StatusText = "打开失败：" + ex.Message; }
     }
 
     [RelayCommand]
@@ -105,6 +377,30 @@ public partial class PathViewModel : ObservableObject
             Directory.CreateDirectory(dir);
             Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
         }
-        catch { StatusText = "无法打开目录。"; }
+        catch { StatusText = "无法打开配置目录。"; }
     }
+
+    /// <summary>把列表里每个可编辑项的值写回 <see cref="IAppConfigService"/>（每个 setter 各自落盘，这里收口存储根）。</summary>
+    private void WriteBack()
+    {
+        if (_cfg == null) return;
+        foreach (var it in Items)
+        {
+            var v = it.Value.Trim();
+            switch (it.Key)
+            {
+                case "FfmpegPath": _cfg.FfmpegPath = v; break;
+                case "PlayerPath": _cfg.PlayerPath = v; break;
+                case "PythonPath": _cfg.PythonPath = v; break;
+                case "PwshPath": _cfg.PwshPath = v; break;
+                case "PowerShell51Path": _cfg.PowerShell51Path = v; break;
+                case "ScriptFolder": _cfg.ScriptFolder = v; break;
+                // DataDir / ConfigDir 是只读展示项，不写
+            }
+        }
+        _cfg.Save();
+    }
+
+    /// <summary>脚本目录的默认值（详情卡提示用）。</summary>
+    public string DefaultScriptFolder => _cfg?.DefaultScriptFolder ?? "";
 }

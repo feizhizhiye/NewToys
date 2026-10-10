@@ -1,6 +1,6 @@
 # NewToys 项目现状与进度
 
-> v1.31 · 最后更新 2026-10-10 · 台账（4 份文档中最"活"）
+> v1.32 · 最后更新 2026-10-10 · 台账（4 份文档中最"活"）
 > **更新纪律**：
 > - **更新单位 = 一个功能/一次交付**。完成后动「当前基线/已完成/待办」三节。
 > - **仅修报错/错别字/格式，不回写正文**，并入下次功能更新追记。
@@ -15,9 +15,9 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v1.30（🔒冻结）｜规范 · 提示词 · 本台账 v1.31 |
+| 文档版本 | 需求 v1.30（🔒冻结）｜规范 v1.31 ｜ 提示词 v1.30 ｜ 本台账 v1.32 |
 | 技术栈 | .NET 10 + Avalonia 12.1.3 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 |
-| 代码规模 | 7 项目 / 130 个 `.cs+.axaml+.csproj`（97 cs + 26 axaml + 7 csproj）/ 约 9234 行 |
+| 代码规模 | 7 项目 / 131 个 `.cs+.axaml+.csproj`（98 cs + 26 axaml + 7 csproj）/ 约 9781 行 |
 | 仓库根 | 能看到 `src/` 的那一级；两个 props 在 `src/` 内 |
 | 版本控制 | ✅ **已 `git init`**（分支 `main`，首次提交 `cf96b8a`）；`.gitignore` 忽略 `artifacts/ production/ bin/ obj/ Modules/ *.patch /.workbuddy/` |
 | 构建分工 | 🧑‍💻 构建/发布由用户本地执行；AI 只改 `src/` |
@@ -25,10 +25,10 @@
 **编译状态**：
 - ✅ v1.14 用户本地 Debug/Release 均 0/0；v1.16 本地 Debug 0/0。
 - ❌ v1.20 首次失败（`INavigationService` 缺 Navigated、元组元素名不一致）→ 已修复。
-- ⚠️ **v1.21 / v1.25 改动后尚未由用户本地复跑** → 待跑 `build.ps1`。
+- ⚠️ **v1.21 / v1.25 / v1.32 改动后尚未由用户本地复跑** → 待跑 `build.ps1`。
 
 **基线演进脉络**：
-v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.16 修复二级菜单列 → v1.17 补🏠首页 → v1.18 主题三态+强调色+即时生效 → v1.19 软件包管理+视频库+软件源+一键按钮收敛 → v1.20 类型中立化 Package* → v1.21 功能清单+收藏夹服务化 → v1.22 删除全部二级页头 → v1.24 电脑工具模块改造 → v1.25 列表页右键增删列 → v1.26 文档体系优化（无代码）→ v1.27 增补模块热加载（文档层待实装）→ **v1.28 面向本地执行 AI 客户端精简四份文档（无代码）** → **v1.29 优化 AI 协作流程：分级读档/变更声明/分型预检/停手规则（无代码）** → **v1.30 启用 git 版本管理（无代码）** → **v1.31 修订文档更新纪律：不逐次改、独立版本、需求冻结（无代码）**。
+v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.16 修复二级菜单列 → v1.17 补🏠首页 → v1.18 主题三态+强调色+即时生效 → v1.19 软件包管理+视频库+软件源+一键按钮收敛 → v1.20 类型中立化 Package* → v1.21 功能清单+收藏夹服务化 → v1.22 删除全部二级页头 → v1.24 电脑工具模块改造 → v1.25 列表页右键增删列 → v1.26 文档体系优化（无代码）→ v1.27 增补模块热加载（文档层待实装）→ **v1.28 面向本地执行 AI 客户端精简四份文档（无代码）** → **v1.29 优化 AI 协作流程：分级读档/变更声明/分型预检/停手规则（无代码）** → **v1.30 启用 git 版本管理（无代码）** → **v1.31 修订文档更新纪律：不逐次改、独立版本、需求冻结（无代码）** → **v1.32 设置与脚本可运行 + 快捷设置改为系统自带设置列表页 + 收窄两页分工 + 收藏夹简化**。
 
 ---
 
@@ -57,21 +57,23 @@ v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.
 - 可先注册菜单、后补页面。
 
 ### 2.5 已实现服务
-`ConfigStoreService`（配置目录/备份/导入，路径穿越防御）、`AppConfigService`（app.json）、`LaunchConfigService`（launch.json）、`EncryptedDnsService`（DoH）、`DohProviders`（5 家）、`ThemeService`（三态+强调色）、`AppServices`（服务定位器）、`LaunchRunner`（批量启动）、`PackageManagerService`+`PackageOutputParser`（winget）、`PackageSettingsService`、`ColumnLayoutService`（列显隐）、`VideoScanner`（视频扫描）、`QuickActionService`（设置与脚本）。
+`ConfigStoreService`（配置目录/备份/导入，路径穿越防御）、`AppConfigService`（app.json）、`LaunchConfigService`（launch.json）、`EncryptedDnsService`（DoH）、`DohProviders`（5 家）、`ThemeService`（三态+强调色）、`AppServices`（服务定位器）、`LaunchRunner`（批量启动）、`PackageManagerService`+`PackageOutputParser`（winget）、`PackageSettingsService`、`ColumnLayoutService`（列显隐）、`VideoScanner`（视频扫描）、`QuickActionService`（两页设置/脚本清单，含**运行命令**：cmd 执行 + UAC 提权 + 输出摘要）。
 
 ### 2.6 页面全景
 
 | 模块 | 页面数 | 真实逻辑 | 骨架 |
 |---|---|---|---|
 | 系统设置 | 9 | **9** | 0 |
-| PC 工具箱 | 5 | **3** | 2 |
+| PC 工具箱 | 5 | **4** | 1 |
 | Web 工具箱 | 6 | 0 | **6** |
 | 视频工具箱 | 3 | **1** | 2 |
-| **合计** | **23** | **13** | **10** |
+| **合计** | **23** | **14** | **9** |
 
-> **10 骨架** = Web 全 6 页 + `pc-info`+`pc-quicksettings`+`video-cut`+`video-transcode`。
+> **9 骨架** = Web 全 6 页 + `pc-info` + `video-cut` + `video-transcode`。
 > 骨架判据：VM 仅有 Title/Description/StatusText/IsBusy 与 PrimaryAction/Refresh 样板命令。
-> **13 真实页**：设置 9 页（通用/主题/路径/一键按钮/加密DNS/软件源/数据管理/关于/功能清单）+ `pc-package`+`video-list`+`pc-shortcuts`+`pc-favorites`。
+> **14 真实页**：设置 9 页（通用/主题/路径/一键按钮/加密DNS/软件源/数据管理/关于/功能清单）+ `pc-package`+`pc-shortcuts`+`pc-quicksettings`+`pc-favorites`+`video-list`。
+>
+> **PC 工具箱两页分工（v1.32）**：`pc-quicksettings`「快捷设置」= 系统自带设置 / 工具入口（Windows 设置面板 `ms-settings:`、控制面板、管理工具），点「▶ 打开」即用；`pc-shortcuts`「设置与脚本」= 需要脚本 / 命令执行的较复杂设置。两页**共用** `config\quickactions.json`（按 `QuickAction.Page` 分栏），逻辑共用 `ViewModels/QuickActionListViewModel.cs` 基类。
 
 ---
 
@@ -83,7 +85,7 @@ v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.
 | 分组 | Key | Order | 图标 | 二级菜单（Key 标题/View/Order/度） |
 |---|---|---|---|---|
 | 首页 | — | — | 🏠 | （无二级，第一列顶部 `BtnHome→GoHomeCommand`） |
-| 电脑工具 | pc | 20 | 🖥 | `pc-shortcuts`设置与脚本▤MyShortcutsView/0/✅ ｜ `pc-favorites`收藏夹★FavoritesView/1/✅ ｜ `pc-package`软件包📦PackageManagerView/2/✅ ｜ `pc-info`系统信息💻PcInfoView/3/🔧 ｜ `pc-quicksettings`快捷设置⚙QuickSettingsView/99/🔧 |
+| 电脑工具 | pc | 20 | 🖥 | `pc-favorites`收藏夹★FavoritesView/0/✅ ｜ `pc-shortcuts`设置与脚本▤MyShortcutsView/1/✅ ｜ `pc-quicksettings`快捷设置⚙QuickSettingsView/2/✅ ｜ `pc-package`软件包📦PackageManagerView/3/✅ ｜ `pc-info`系统信息💻PcInfoView/99/🔧 |
 | 网络工具 | web | 30 | 🌐 | `web-home`首页🏠WebHomeView/0/🔧 ｜ `web-http`HTTP测试🧪WebHttpView/1/🔧 ｜ `web-bookmark`书签🔖BookmarkView/2/🔧 ｜ `web-ping`Ping📡PingView/3/🔧 ｜ `web-scrape`抓取🕷ScrapeView/4/🔧 ｜ `web-dns`DNS🛡DnsView/5/🔧 |
 | 视频工具 | video | 40 | 🎬 | `video-list`视频库📁VideoListView/0/✅ ｜ `video-cut`剪辑✂VideoCutView/1/🔧 ｜ `video-transcode`转码🔄TranscodeView/2/🔧 |
 | 设置 | settings | 999（底） | ⚙ | `settings-general`通用⚙GeneralView/0/✅ ｜ `settings-theme`主题🎨ThemeView/1/✅ ｜ `settings-path`路径📁PathView/2/✅ ｜ `settings-launch`一键按钮🚀LaunchConfigView/3/✅ ｜ `settings-dns`加密DNS🛡DnsView/4/✅ ｜ `settings-package`软件源📦PackageSourceView/5/✅ ｜ `settings-data`数据管理💾DataView/6/✅ ｜ `settings-about`关于ℹAboutView/7/✅ ｜ `settings-all`功能清单📋AllFunctionsView/8/✅ |
@@ -129,6 +131,7 @@ v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.
 | 主题服务/强调色 | `Core/Services/ThemeService.cs`+`Shared/Services/AccentPalette.cs` |
 | 配置存储（目录/备份/导入/穿越防御） | `src/Core/Services/ConfigStoreService.cs` |
 | 列显隐 | `Core/Services/ColumnLayoutService.cs`+`Shared/Models/ListColumn.cs`+模块内 `Views/ColumnGrid.cs` |
+| 设置与脚本 / 快捷设置（两页共用基类 + 运行） | `Core/Services/QuickActionService.cs`+`Shared/Models/QuickAction.cs`+`Module.PcTools/ViewModels/QuickActionListViewModel.cs`+`Views/MyShortcutsView.axaml`/`Views/QuickSettingsView.axaml`/`Views/FavoritesView.axaml` |
 | winget | `Core/Services/PackageManagerService.cs`+`PackageOutputParser.cs`+`PackageSettingsService.cs` |
 | 加密 DNS（DoH+ConnectCallback） | `src/Core/Services/EncryptedDnsService.cs` |
 | 模块菜单注册（Key权威源） | 各模块 `XxxModule.cs` |
@@ -148,6 +151,7 @@ v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.
 | 2026-10-10 | **v1.29** | **优化 AI 协作流程（降 token + 提成功率）**：① 提示词 [0] 改「分型+分级读档」（只读任务相关章节，不整篇读）；② 删 [3] 与规范的重复速记，改为精简「高频易错」+ 章节指针；③ 新增 [2] 变更声明闸门、[4] 分型静态预检、[5]⑤ 停手规则；④ 规范 §11.1-1 由「完整读 4 份」改为「分级读档」。**无代码**。 |
 | 2026-10-10 | **v1.30** | **启用 git 版本管理**：`git init`（`main`）+ 首次提交 `cf96b8a`（源码 + v1.29 文档）；`.gitignore` 补忽略 `/.workbuddy/`；协作流程改为「git 提交记录变更」取代 md 日志（提示词 [5]③ + 规范 §0）；台账 P0 结项。**无代码**。 |
 | 2026-10-10 | **v1.31** | **修订文档更新纪律**：指导性文件（需求/规范/提示词）不再逐次改；各文档独立版本号、取消「四份齐步」；《开发需求》冻结；逐次变更历史交由 git。**无代码**。 |
+| 2026-10-10 | **v1.32** | **电脑工具两页分工 + 运行能力 + 收藏夹收窄**：①「设置与脚本」「快捷设置」行内 + 详情卡 + 右键均可「▶ 运行」（`cmd /c`，需管理员走 UAC）；②`pc-quicksettings` 从骨架改为**列表页**，内容=系统自带设置/工具入口（`ms-settings:` / 控制面板 / 管理工具），布局与「设置与脚本」一致（抽出共用基类 `QuickActionListViewModel` + 新增「操作」列，两页共用 `quickactions.json`，按 `QuickAction.Page` 分栏、旧文件按分类回填）；③两页右键可「★ 添加到收藏夹」；④收藏夹卡片只留「▶ 运行」，右键菜单「运行 / ✕ 取消固定」。 |
 
 ---
 

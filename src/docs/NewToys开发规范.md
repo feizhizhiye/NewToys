@@ -1,6 +1,6 @@
 # NewToys 开发规范
 
-> v1.30 · 2026-10-10 · 「开发需求（宪法）」的技术解读 + 编程规范
+> v1.31 · 2026-10-10 · 「开发需求（宪法）」的技术解读 + 编程规范
 > 工程：NewToys（Avalonia 12 + CommunityToolkit.Mvvm + .NET 10）
 >
 > **约束分两类**：
@@ -130,12 +130,13 @@
 1. 表头与行模板**完全相同的星号列定义**（逐字一致）；动态列用 `<v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">`。
 2. 表头与行单元格左右内边距一致（12px），行里不写 `Padding/Margin`。
 3. `ListBoxItem` 拉伸（已在 App.axaml 设 `HorizontalAlignment=Stretch`），页面不覆盖。
-4. 表头双交互：① 左键点→切换排序（`SortCommand`+CommandParameter，VM 追加▲▼）；② 右键点→`ContextMenu` 勾选列显隐（`ToggleType=CheckBox`，`IsChecked` 显式 `Mode=OneWay`）。⛔ 三处列表页（pc-package/video-list/pc-shortcuts）必须都支持；隐藏列用宽度 0（不删列保一致）。
+4. 表头双交互：① 左键点→切换排序（`SortCommand`+CommandParameter，VM 追加▲▼）；② 右键点→`ContextMenu` 勾选列显隐（`ToggleType=CheckBox`，`IsChecked` 显式 `Mode=OneWay`）。⛔ 四处列表页（pc-package/video-list/pc-shortcuts/pc-quicksettings）必须都支持；隐藏列用宽度 0（不删列保一致）。
 5. 空态与选中态显式处理：无选中显示引导；有选中显示详情；空列表用居中 StatusText，不留白。
 
 行右键菜单提供该条目全部可执行动作（与详情按钮一一对应）。
 
 - ⭐ `ContextMenu` 挂在独立弹出树，不保证继承宿主 DataContext → 必须在 View 的 code-behind `OnDataContextChanged` 里手工同步（行菜单+表头菜单都要）。
+- **例外的卡片页（`pc-favorites`）**：条目以卡片网格（`ItemsControl`+`WrapPanel`）而非列表呈现；卡片的右键菜单在 code-behind 的 `ContextRequested` 里**现场构造**（`new ContextMenu`+`MenuItem` 直接挂 `Command`/`CommandParameter`，`menu.Open(card)`）—— 模板内的 `ContextMenu` 与 `$parent[UserControl]` 在弹出树里都会断链，现场构造最稳。
 - 列显隐：元数据 `Shared/Models/ListColumn`、服务 `IColumnLayoutService/ColumnLayoutService`（落 `config/columnlayout.json`，自动进备份）；⛔ 禁把 `ColumnDefinitions` 绑 `{Binding}`（`AVLN3000`）、禁 WPF 的 `IsCheckable`（`AVLN2000`）。
 
 ---
@@ -400,7 +401,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | `launch.json` | 软件设置 | 三个一键按钮+4 个通用开关 |
 | `package.json` | 软件设置 | 软件源策略（兼容旧 winget.json） |
 | `favorites.json` | 用户功能数据 | 首页收藏夹 |
-| `quickactions.json` | 用户功能数据 | 系统设置项/脚本清单 |
+| `quickactions.json` | 用户功能数据 | 设置项/脚本清单（「设置与脚本」+「快捷设置」两页共用，按 `Page` 分栏） |
 | `columnlayout.json` | 用户功能数据 | 列表页列显隐偏好 |
 
 **硬约束**：
@@ -483,7 +484,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B6 仓库根 slnx** | 唯一入口 `src/NewToys.slnx` | 仓库根残留旧 `NewToys.slnx` 副本 | 直接删除即可 | 仓库 |
 | **B7 Modules 冗余 DLL** | `Modules\` 仅含模块 DLL | 会多出 `NewToys.Shared.dll`/`NewToys.Core.dll` | 无害暂留（加载器跳过） | Release 产物 |
 | **B8 闲置转换器** | 不留无用文件 | `Shell/Converters/BoolInversionConverter` 未被引用 | 保留或删除均可 | Shell |
-| **B9 骨架页面** | 全部页面落地真实逻辑 | 10/23 页仍为骨架 | 按节奏实装（见台账 P2） | 各模块 |
+| **B9 骨架页面** | 全部页面落地真实逻辑 | 9/23 页仍为骨架 | 按节奏实装（见台账 P2） | 各模块 |
 | **B10 运行期热加载** | 任意模块随时加载/卸载/替换，服务随模块可扩 | 仅支持「新增未加载过的模块」；同名不卸载不替换；容器已 build，模块不能注册新服务（优先页面型模块） | 引入可卸载 ALC+模块级容器（或可扩展容器）后升级 | ModuleLoader+Shell |
 | **B11 反射使用** | 最小魔法、少反射 | 模块装配/热加载/视图解析三处用反射枚举 IModule 与 View/VM | 机制必需暂不改；⛔ 仅限这三处，不得扩散 | ModuleLoader/ShellViewModel |
 

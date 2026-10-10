@@ -62,6 +62,9 @@
               <Button Grid.Column="3" Classes="col-header" Content="{Binding FavoriteHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Favorite" ToolTip.Tip="点一下把收藏的排在前面"
                       IsVisible="{Binding IsFavoriteVisible}"/>
+              <TextBlock Grid.Column="4" Text="操作" Padding="12,0" FontSize="12" FontWeight="SemiBold"
+                         VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding IsActionVisible}"/>
 
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -75,6 +78,8 @@
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Description"/>
                   <MenuItem Header="★" ToggleType="CheckBox" IsChecked="{Binding IsFavoriteVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Favorite"/>
+                  <MenuItem Header="操作（▶ 运行）" ToggleType="CheckBox" IsChecked="{Binding IsActionVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Action"/>
                 </ContextMenu>
               </v:ColumnGrid.ContextMenu>
             </v:ColumnGrid>
@@ -87,6 +92,9 @@
             <!-- 右键 = 「选中项更多功能」的主入口（作用对象 = 当前选中行） -->
             <ListBox.ContextMenu>
               <ContextMenu>
+                <MenuItem Header="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
+                          IsEnabled="{Binding IsNotBusy}"/>
+                <Separator/>
                 <MenuItem Header="{Binding FavoriteMenuLabel}" Command="{Binding ToggleFavoriteCommand}"/>
                 <MenuItem Header="📋 复制命令" Command="{Binding CopyCommand}"/>
                 <Separator/>
@@ -110,6 +118,15 @@
                   <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding FavoriteMark}"
                              Foreground="{DynamicResource AccentBrush}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsFavoriteVisible}"/>
+                  <!-- 行内「▶ 运行」：每行可直接运行（规范 3.6 ⑤ 行右键菜单 ↔ 行内动作一一对应） -->
+                  <Button Grid.Column="4" Classes="ghost" Content="▶ 运行"
+                          FontSize="11" Padding="10,3" Margin="12,0"
+                          HorizontalAlignment="Left" VerticalAlignment="Center"
+                          Command="{Binding $parent[ListBox].DataContext.RunCommand}"
+                          CommandParameter="{Binding}"
+                          IsEnabled="{Binding $parent[ListBox].DataContext.IsNotBusy}"
+                          IsVisible="{Binding $parent[ListBox].DataContext.IsActionVisible}"
+                          ToolTip.Tip="用 cmd 执行这条命令"/>
                 </v:ColumnGrid>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -125,8 +142,13 @@
             <TextBlock Text="选中项" FontSize="12" FontWeight="SemiBold"
                        Foreground="{DynamicResource SecondaryTextBrush}"/>
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="primary" Content="💾 保存" Command="{Binding SaveCommand}"/>
+              <Button Classes="primary" Content="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
+                      IsEnabled="{Binding IsNotBusy}"
+                      ToolTip.Tip="用 cmd 执行「命令」里的内容；勾选「需要管理员权限」时会弹 UAC"/>
               <Button Classes="ghost" Content="{Binding FavoriteButtonText}" Command="{Binding ToggleFavoriteCommand}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveCommand}"/>
               <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
             </StackPanel>
           </StackPanel>
@@ -137,7 +159,7 @@
               <StackPanel Spacing="2" IsVisible="{Binding !HasSelection}">
                 <TextBlock Text="在左侧列表里选中一条" FontSize="13" TextWrapping="Wrap"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="选中后可在这里编辑名称 / 分类 / 简介 / 命令；右键列表还有「收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。"
+                <TextBlock Text="选中后可在这里编辑名称 / 分类 / 简介 / 命令，并点「▶ 运行」执行；右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。"
                            FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
               </StackPanel>
 
@@ -162,7 +184,7 @@
                 <TextBlock Text="命令" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
                 <TextBox Text="{Binding EditCommand, Mode=TwoWay}" FontSize="12" FontFamily="Consolas"
                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84"/>
-                <TextBlock Text="⚠️ 本轮只做列表与增删改查，命令暂不执行（「运行」在后续版本提供）。"
+                <TextBlock Text="▶ 运行 = 用 cmd 执行这条命令；勾选「需要管理员权限」时会弹 UAC（输出见新开的命令行窗口）。成功 / 失败原因显示在顶部状态行。"
                            FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
               </StackPanel>
 

@@ -6,7 +6,7 @@
     <!-- 操作行（右对齐、无背景条）：页名由左侧二级菜单体现，这里只放状态文字。 -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
                 Margin="24,16,24,0" Spacing="10">
-      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center"
+      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="460"
                  Foreground="{DynamicResource AccentBrush}"/>
     </StackPanel>
 
@@ -25,7 +25,7 @@
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="16" Spacing="12">
 
-        <TextBlock Text="还没有收藏任何项 —— 去「设置与脚本」里选中一条，右键「★ 添加到收藏夹」。"
+        <TextBlock Text="还没有收藏任何项 —— 去「设置与脚本」或「快捷设置」里选中一条，右键「★ 添加到收藏夹」。"
                    IsVisible="{Binding IsEmpty}" Margin="8" TextWrapping="Wrap"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
 
@@ -37,7 +37,10 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <Border Classes="card" Width="312" Margin="6" Padding="16">
+              <!-- 右键 = 「✕ 取消固定」；菜单在 code-behind 里现场构造并直接挂命令（弹出树取不到父级 DataContext，见规范 3.6）。 -->
+              <Border Classes="card" Width="312" Margin="6" Padding="16"
+                      ContextRequested="OnCardContextRequested"
+                      ToolTip.Tip="右键：运行 / 取消固定">
                 <StackPanel Spacing="8">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="★" FontSize="14" VerticalAlignment="Center"
@@ -57,14 +60,12 @@
                                Foreground="{DynamicResource PrimaryTextBrush}"/>
                   </Border>
 
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Button Classes="ghost" Content="📋 复制命令"
-                            Command="{Binding $parent[UserControl].DataContext.CopyCommand}"
-                            CommandParameter="{Binding}"/>
-                    <Button Classes="ghost" Content="✕ 取消收藏"
-                            Command="{Binding $parent[UserControl].DataContext.UnfavoriteCommand}"
-                            CommandParameter="{Binding}"/>
-                  </StackPanel>
+                  <!-- 简化后只留最基础的「▶ 运行」；取消固定走右键菜单。 -->
+                  <Button Classes="primary" Content="▶ 运行" HorizontalAlignment="Left"
+                          Command="{Binding $parent[UserControl].DataContext.RunCommand}"
+                          CommandParameter="{Binding}"
+                          IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
+                          ToolTip.Tip="用 cmd 执行这条命令；勾选过「需要管理员权限」的会弹 UAC"/>
                 </StackPanel>
               </Border>
             </DataTemplate>

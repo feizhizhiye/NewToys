@@ -1,43 +1,205 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.PcTools.Views"
              x:Class="NewToys.PcTools.Views.QuickSettingsView">
-  <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+  <Grid RowDefinitions="Auto,Auto,*">
+
+    <!-- 操作行（右对齐、无背景条）：页名由左侧二级菜单体现，这里只放状态文字。 -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="8">
-      <Button Classes="primary" Content="🔄 刷新" Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"/>
-      <Button Classes="ghost" Content="{Binding PrimaryButtonText}" Command="{Binding PrimaryActionCommand}"/>
+                Margin="24,16,24,0" Spacing="10">
+      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="460"
+                 Foreground="{DynamicResource AccentBrush}"/>
     </StackPanel>
 
-    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-      <StackPanel Margin="24,16" Spacing="16">
+    <!--  ==================== 工具条  ====================  -->
+    <Border Grid.Row="1" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock Text="分类" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <ComboBox x:Name="CategoryBox" Width="150" Margin="0,0,8,0"
+                  ItemsSource="{Binding CategoryOptions}"
+                  SelectedItem="{Binding SelectedCategory, Mode=TwoWay}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Label}" FontSize="12"/>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
 
-        <!-- 主内容卡片 -->
-        <Border Classes="card" Padding="24">
-          <StackPanel Spacing="16">
-            <TextBlock Text="🚧 功能开发中" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Text="本页面已完成 UI 骨架搭建，具体业务逻辑将在后续版本迭代中实现。"
-                       FontSize="13" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
-            <Separator/>
-            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto" RowSpacing="10">
-              <TextBlock Grid.Row="0" Text="页面状态" FontSize="13" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-              <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding StatusText}" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
-              <TextBlock Grid.Row="1" Text="是否加载中" FontSize="13" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-              <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding IsBusy}" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
-            </Grid>
+        <TextBox x:Name="SearchBox" Width="240" Margin="0,0,8,0"
+                 Text="{Binding SearchText, Mode=TwoWay}"
+                 PlaceholderText="搜索名称 / 分类 / 简介…"
+                 ToolTip.Tip="即时过滤（本地）"/>
+
+        <Button Classes="primary" Content="➕ 新增" Margin="0,0,8,0"
+                Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
+                ToolTip.Tip="追加一条系统自带设置入口，改好后点右侧「💾 保存」"/>
+      </WrapPanel>
+    </Border>
+
+    <!--  ==================== 主区：左列表 + 右属性卡  ==================== -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,340" Margin="16">
+
+      <!-- 左：可排序表头（左键点表头排序） + 列表（右键出更多功能） -->
+      <Border Grid.Column="0" Classes="card" Padding="0" Margin="0,0,12,0">
+        <Grid RowDefinitions="Auto,*">
+
+          <Border Grid.Row="0" Classes="list-header" Height="36">
+            <!-- ⚠️ 表头与行模板必须用同一份列宽规格（规范 3.6 对齐铁律①）；列宽绑 VM 的 VisibleColumnSpecs。
+                 ⚠️ 必须用 ColumnGrid 而不是 Grid：Grid.ColumnDefinitions 是 CLR 属性、XAML 里不能 {Binding}（AVLN3000）。
+                 右键表头任意位置弹出「显示 / 隐藏列」菜单（规范 3.6 右键增删表头项）。 -->
+            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <Button Grid.Column="0" Classes="col-header" Content="{Binding TitleHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Title" ToolTip.Tip="点一下按名称排序"
+                      IsVisible="{Binding IsTitleVisible}"/>
+              <Button Grid.Column="1" Classes="col-header" Content="{Binding CategoryHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Category" ToolTip.Tip="点一下按分类排序"
+                      IsVisible="{Binding IsCategoryVisible}"/>
+              <TextBlock Grid.Column="2" Text="简介" Padding="12,0" FontSize="12" FontWeight="SemiBold"
+                         VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding IsDescriptionVisible}"/>
+              <Button Grid.Column="3" Classes="col-header" Content="{Binding FavoriteHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Favorite" ToolTip.Tip="点一下把收藏的排在前面"
+                      IsVisible="{Binding IsFavoriteVisible}"/>
+              <TextBlock Grid.Column="4" Text="操作" Padding="12,0" FontSize="12" FontWeight="SemiBold"
+                         VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding IsActionVisible}"/>
+
+              <v:ColumnGrid.ContextMenu>
+                <ContextMenu>
+                  <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：勾选只负责"显示当前状态"，
+                       真正的翻转由 ToggleColumnCommand 独家负责（默认双向会写回 VM 造成二次翻转）。 -->
+                  <MenuItem Header="名称" ToggleType="CheckBox" IsChecked="{Binding IsTitleVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Title"/>
+                  <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsCategoryVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Category"/>
+                  <MenuItem Header="简介" ToggleType="CheckBox" IsChecked="{Binding IsDescriptionVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Description"/>
+                  <MenuItem Header="★" ToggleType="CheckBox" IsChecked="{Binding IsFavoriteVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Favorite"/>
+                  <MenuItem Header="操作（▶ 运行）" ToggleType="CheckBox" IsChecked="{Binding IsActionVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Action"/>
+                </ContextMenu>
+              </v:ColumnGrid.ContextMenu>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="1" x:Name="ActionList" Classes="list-page"
+                   ItemsSource="{Binding Items}"
+                   SelectedItem="{Binding Selected, Mode=TwoWay}"
+                   SelectionMode="Single">
+            <!-- 右键 = 「选中项更多功能」的主入口（作用对象 = 当前选中行） -->
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
+                          IsEnabled="{Binding IsNotBusy}"/>
+                <Separator/>
+                <MenuItem Header="{Binding FavoriteMenuLabel}" Command="{Binding ToggleFavoriteCommand}"/>
+                <MenuItem Header="📋 复制命令" Command="{Binding CopyCommand}"/>
+                <Separator/>
+                <MenuItem Header="🗑 删除…" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <!-- 行与表头共用同一份 VisibleColumnSpecs（规范 3.6 对齐铁律①）；每格 IsVisible 跟随列显隐。 -->
+                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                  <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Title}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsTitleVisible}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Category}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsCategoryVisible}"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Description}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding FavoriteMark}"
+                             Foreground="{DynamicResource AccentBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsFavoriteVisible}"/>
+                  <!-- 行内「▶ 运行」：点一下即打开该设置页面 -->
+                  <Button Grid.Column="4" Classes="ghost" Content="▶ 打开"
+                          FontSize="11" Padding="10,3" Margin="12,0"
+                          HorizontalAlignment="Left" VerticalAlignment="Center"
+                          Command="{Binding $parent[ListBox].DataContext.RunCommand}"
+                          CommandParameter="{Binding}"
+                          IsEnabled="{Binding $parent[ListBox].DataContext.IsNotBusy}"
+                          IsVisible="{Binding $parent[ListBox].DataContext.IsActionVisible}"
+                          ToolTip.Tip="用 cmd 打开这个系统设置 / 工具"/>
+                </v:ColumnGrid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- 右：选中项的属性卡（可编辑 = CRUD 的 U/C） -->
+      <Border Grid.Column="1" Classes="card" Padding="16">
+        <Grid RowDefinitions="Auto,*">
+
+          <StackPanel Grid.Row="0" Spacing="10" IsVisible="{Binding HasSelection}">
+            <TextBlock Text="选中项" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="primary" Content="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
+                      IsEnabled="{Binding IsNotBusy}"
+                      ToolTip.Tip="用 cmd 执行「命令」里的内容；勾选「需要管理员权限」时会弹 UAC"/>
+              <Button Classes="ghost" Content="{Binding FavoriteButtonText}" Command="{Binding ToggleFavoriteCommand}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveCommand}"/>
+              <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
+            </StackPanel>
           </StackPanel>
-        </Border>
 
-        <!-- 提示卡片 -->
-        <Border Classes="card" Padding="20">
-          <StackPanel Spacing="6">
-            <TextBlock Text="💡 提示" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Text="所有页面严格遵循 MVVM 模式：View（axaml）只负责展示，ViewModel 暴露可绑定属性与命令，业务逻辑由 Service 层承担。"
-                       FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
-          </StackPanel>
-        </Border>
+          <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="10">
 
-      </StackPanel>
-    </ScrollViewer>
+              <StackPanel Spacing="2" IsVisible="{Binding !HasSelection}">
+                <TextBlock Text="在左侧列表里选中一条" FontSize="13" TextWrapping="Wrap"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="这里放的是系统自带的设置入口（Windows 设置面板 / 控制面板 / 管理工具），选中后点「▶ 运行」即打开；右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。"
+                           FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="名称" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBox Text="{Binding EditTitle, Mode=TwoWay}" FontSize="13"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="分类" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBox Text="{Binding EditCategory, Mode=TwoWay}" FontSize="12"
+                         PlaceholderText="系统设置 / 打开…"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="简介" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBox Text="{Binding EditDescription, Mode=TwoWay}" FontSize="12"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="命令" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBox Text="{Binding EditCommand, Mode=TwoWay}" FontSize="12" FontFamily="Consolas"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84"/>
+                <TextBlock Text="例：start ms-settings:display 打开「显示」设置；control 打开控制面板。▶ 运行 = 用 cmd 执行这条命令。"
+                           FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
+
+              <CheckBox Content="需要管理员权限" FontSize="12" IsVisible="{Binding HasSelection}"
+                        IsChecked="{Binding EditNeedAdmin, Mode=TwoWay}"/>
+
+              <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,4"/>
+
+              <TextBlock Text="{Binding DataFileHint}" FontSize="11" TextWrapping="Wrap"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
   </Grid>
 </UserControl>

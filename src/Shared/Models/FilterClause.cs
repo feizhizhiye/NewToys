@@ -12,8 +12,11 @@ public static class FilterOperators
 {
     public const string Contains = "contains";
     public const string NotContains = "notcontains";
-    public const string Equals = "eq";
-    public const string NotEquals = "ne";
+
+    // ⚠️ 别叫 `Equals` —— 那会隐藏 `object.Equals(object?)` 并触发 CS0108；
+    //    加 `new` 只是压警告，改名更干净（Key 只是个字符串常量，改名不影响落盘格式）。
+    public const string Equal = "eq";
+    public const string NotEqual = "ne";
     public const string Greater = "gt";
     public const string Less = "lt";
     public const string Empty = "empty";
@@ -33,8 +36,8 @@ public sealed class FilterOperatorItem
     {
         new FilterOperatorItem { Key = FilterOperators.Contains,    Label = "包含" },
         new FilterOperatorItem { Key = FilterOperators.NotContains, Label = "不包含" },
-        new FilterOperatorItem { Key = FilterOperators.Equals,      Label = "等于" },
-        new FilterOperatorItem { Key = FilterOperators.NotEquals,   Label = "不等于" },
+        new FilterOperatorItem { Key = FilterOperators.Equal,      Label = "等于" },
+        new FilterOperatorItem { Key = FilterOperators.NotEqual,   Label = "不等于" },
         new FilterOperatorItem { Key = FilterOperators.Greater,     Label = "大于" },
         new FilterOperatorItem { Key = FilterOperators.Less,        Label = "小于" },
         new FilterOperatorItem { Key = FilterOperators.Empty,       Label = "为空", NoValue = true },
@@ -131,8 +134,8 @@ public partial class FilterClause : ObservableObject
             {
                 FilterOperators.Greater => fieldNumber.Value > num,
                 FilterOperators.Less => fieldNumber.Value < num,
-                FilterOperators.Equals => Math.Abs(fieldNumber.Value - num) < 1e-9,
-                FilterOperators.NotEquals => Math.Abs(fieldNumber.Value - num) >= 1e-9,
+                FilterOperators.Equal => Math.Abs(fieldNumber.Value - num) < 1e-9,
+                FilterOperators.NotEqual => Math.Abs(fieldNumber.Value - num) >= 1e-9,
                 _ => TextMatch(text, input)
             };
         }
@@ -147,8 +150,8 @@ public partial class FilterClause : ObservableObject
         {
             FilterOperators.Contains => text.Contains(input, cmp),
             FilterOperators.NotContains => !text.Contains(input, cmp),
-            FilterOperators.Equals => string.Equals(text, input, cmp),
-            FilterOperators.NotEquals => !string.Equals(text, input, cmp),
+            FilterOperators.Equal => string.Equals(text, input, cmp),
+            FilterOperators.NotEqual => !string.Equals(text, input, cmp),
             FilterOperators.Greater => string.Compare(text, input, cmp) > 0,
             FilterOperators.Less => string.Compare(text, input, cmp) < 0,
             _ => true

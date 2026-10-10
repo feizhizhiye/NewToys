@@ -80,7 +80,8 @@ public class StartupService
                             ?? Registry.CurrentUser.CreateSubKey(RunKeyPath);
             key.SetValue(ValueName, $"\"{exe}\"");
             LastError = "";
-            return (true, $"已写入开机启动项（{RunKeyPath}\{ValueName}）");
+            // ⚠️ 别在插值串里写 `\{` —— 那是非法转义序列（CS8087/CS1009）。注册表路径用文字描述即可。
+            return (true, $"已写入开机启动项（{RunKeyPath} 下的 {ValueName}）");
         }
         catch (Exception ex)
         {

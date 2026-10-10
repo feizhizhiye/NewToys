@@ -67,9 +67,9 @@
               <TextBlock Text="等价于 winget source add —— 会真的写进系统 winget 的源配置，对所有 winget 使用生效。"
                          FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
               <Grid ColumnDefinitions="220,*,Auto" Margin="0,4,0,0">
-                <TextBox Grid.Column="0" Watermark="源名称（如 my-source）" Margin="0,0,8,0"
+                <TextBox Grid.Column="0" PlaceholderText="源名称（如 my-source）" Margin="0,0,8,0"
                          Text="{Binding NewSourceName, Mode=TwoWay}"/>
-                <TextBox Grid.Column="1" Watermark="地址（URL 或以 \\ 开头的 UNC 路径）" Margin="0,0,8,0"
+                <TextBox Grid.Column="1" PlaceholderText="地址（URL 或以 \\ 开头的 UNC 路径）" Margin="0,0,8,0"
                          Text="{Binding NewSourceArgument, Mode=TwoWay}"/>
                 <Button Grid.Column="2" Classes="ghost" Content="➕ 添加" Command="{Binding AddSourceCommand}"
                         IsEnabled="{Binding IsNotBusy}"/>

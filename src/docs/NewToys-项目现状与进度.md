@@ -42,7 +42,7 @@ v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.
 - 命名统一（v1.14）：命名空间 `NewToys.*`，`.Module` 段已清除。
 
 ### 2.2 UI（仿微信）
-- 三栏 `60,210,*`，行定义 `40,*`（标题栏 40px）。
+- 三栏 `60,140,*`（v1.34 第二列 210→140），行定义 `40,*`（标题栏 40px）。
 - 一级菜单无二级项时第二列收 0（`UpdatePanelVisibility()` 唯一出口）。
 - ⚙ 设置最底；🏠 首页最顶（v1.17 补回）。
 - 自定义标题栏（最小化/最大化/关闭、拖拽、双击最大化）。
@@ -144,7 +144,7 @@ v1.14 工程约定统一 → v1.15 清除外部参照+构建职责移交 → v1.
 | 配置存储（目录/备份/导入/穿越防御） | `src/Core/Services/ConfigStoreService.cs` |
 | 列显隐 + 页面级开关（详情栏开合） | `Core/Services/ColumnLayoutService.cs`+`Shared/Services/IColumnLayoutService.cs`+`Shared/Models/ListColumn.cs`+模块内 `Views/ColumnGrid.cs` |
 | 设置与脚本 / 快捷设置（两页共用基类 + 运行） | `Core/Services/QuickActionService.cs`+`Shared/Models/QuickAction.cs`+`Module.PcTools/ViewModels/QuickActionListViewModel.cs`+`Views/MyShortcutsView.axaml`/`Views/QuickSettingsView.axaml`/`Views/FavoritesView.axaml` |
-| **默认数据（不清算在代码里）** | `src/Shell/defaults/pc-quick.default.json` + `pc-scripts.default.json` + `defaults/scripts/*`（发布到 `<程序目录>\defaults\`，首次运行播种到 `config\` 与 `<应用根>\scripts\`；`Shell.csproj` 用 `None Update` 复制）。⚠️ 旧 `quickactions.default.json` 已废弃、待删 |
+| **默认数据（不清算在代码里）** | `src/Shell/defaults/pc-quick.default.json` + `pc-scripts.default.json` + `defaults/scripts/*`（发布到 `<程序目录>\defaults\`，首次运行播种到 `config\` 与 `<应用根>\scripts\`；`Shell.csproj` 用 `None Update` 复制） |
 | 本地数据库（SQLite） | `Core/Services/SqliteDatabase.cs`（唯一入口，`data\newtoys.db`）+ `IColumnLayoutService` 同目录的 `Module.VideoTools/Services/VideoMediaIndex.cs`（媒体信息索引缓存） |
 | 会话/运行钩子 | `Core/Services/DialogHooks.cs`（确认 / 输入模态框，`Shell/App.axaml.cs` 注入）+ `Module.VideoTools/Services/VideoFileService.cs`（重命名 / 移回收站） |
 | 路径配置页（列表页） | `Module.Settings/Views/PathView.axaml(+cs)` + `ViewModels/PathViewModel.cs` + `Models/PathSettingItem.cs` |

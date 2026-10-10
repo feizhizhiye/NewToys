@@ -1,95 +1,202 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="NewToys.Shell.Views.ShellView"
-        Title="NewToys" Width="1180" Height="760" MinWidth="900" MinHeight="600"
-        WindowState="Normal"
-        WindowDecorations="None"
-        ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaTitleBarHeightHint="40"
-        Background="{DynamicResource ContentBrush}">
-  <Grid RowDefinitions="40,*" ColumnDefinitions="60,210,*">
-    <!-- 自定义标题栏（重写窗口装饰，支持明暗主题） -->
-    <Grid Grid.Row="0" Grid.ColumnSpan="3" x:Name="TitleBarGrid"
-          Background="{DynamicResource TitleBarBrush}"
-          ColumnDefinitions="Auto,*,Auto">
-      <!-- 左：图标 + 标题（拖拽区，设背景保证命中测试） -->
-      <Panel Grid.Column="0" Height="40" Margin="14,0,0,0" Background="Transparent">
-        <TextBlock Text="NewToys" VerticalAlignment="Center"
-                   Foreground="{DynamicResource TitleBarTextBrush}" FontSize="13" FontWeight="SemiBold"/>
-      </Panel>
-      <!-- 中：空白拖拽区（必须设透明背景，否则鼠标穿透收不到事件） -->
-      <Panel Grid.Column="1" Height="40" Background="Transparent"/>
-      <!-- 右：窗口按钮 -->
-      <StackPanel Grid.Column="2" Orientation="Horizontal" Height="40">
-        <!-- 主题即时开关：直接改 IThemeService，无需进设置页、无需重启 -->
-        <Button x:Name="BtnTheme" Width="46" Height="40" Classes="win-btn"
-                Command="{Binding ToggleThemeCommand}"
-                ToolTip.Tip="切换深色 / 浅色（立即生效）">
-          <TextBlock x:Name="ThemeIcon" Text="🌓" FontSize="14"
-                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Button>
-        <Button x:Name="BtnMin" Width="46" Height="40" Classes="win-btn"
-                ToolTip.Tip="最小化">
-          <Path Data="M0,5 L10,5" StrokeThickness="1.5" Stroke="{DynamicResource TitleBarTextBrush}" StrokeLineCap="Round" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-        </Button>
-        <Button x:Name="BtnMax" Width="46" Height="40" Classes="win-btn"
-                ToolTip.Tip="最大化">
-          <Path x:Name="MaxIcon" Data="M0,0 L10,0 L10,10 L0,10 Z" StrokeThickness="1.5" Stroke="{DynamicResource TitleBarTextBrush}" Fill="Transparent" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-        </Button>
-        <!-- class 必须是 win-btn + close：App.axaml 里定义的是 Button.win-btn.close:pointerover（关闭变红） -->
-        <Button x:Name="BtnClose" Width="46" Height="40" Classes="win-btn close"
-                ToolTip.Tip="关闭">
-          <Path Data="M0,0 L10,10 M10,0 L0,10" StrokeThickness="1.5" Stroke="{DynamicResource TitleBarTextBrush}" StrokeLineCap="Round" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-        </Button>
-      </StackPanel>
-    </Grid>
-
-    <!-- 第一列：主菜单（60px） -->
-    <Grid Grid.Row="1" Grid.Column="0" Background="{DynamicResource SiderBrush}">
-      <!-- 行0=首页 🏠 行1=模块图标区(*) 行2=分隔线 行3=底部 Dock（设置） -->
-      <Grid RowDefinitions="Auto,*,Auto,Auto">
-        <!-- 首页入口：必须常驻！否则进了模块就再也回不到首页（GoHomeCommand 会变成死代码） -->
-        <Button Grid.Row="0" x:Name="BtnHome" Height="56"
-                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                VerticalContentAlignment="Center" Classes="nav-btn"
-                Command="{Binding GoHomeCommand}"
-                ToolTip.Tip="首页">
-          <TextBlock Text="🏠" FontSize="20"
-                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Button>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <!-- NavPanel 由 ShellView.axaml.cs 的 BuildNavButtons() 动态填充 -->
-          <StackPanel x:Name="NavPanel" Spacing="0"/>
-        </ScrollViewer>
-        <Grid Grid.Row="2" Height="1" Background="{DynamicResource SiderDividerBrush}" Margin="0,0,0,0"/>
-        <Button Grid.Row="3" x:Name="BtnSettings" Height="56"
-                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                VerticalContentAlignment="Center" Classes="nav-btn"
-                Command="{Binding SelectGroupCommand}"
-                CommandParameter="settings"
-                ToolTip.Tip="设置">
-          <TextBlock Text="⚙" FontSize="20"
-                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Button>
-      </Grid>
-    </Grid>
-
-    <!-- 第二列：二级菜单（210px） -->
-    <Grid x:Name="SubPanel" Grid.Row="1" Grid.Column="1" Background="{DynamicResource SubSiderBrush}" IsVisible="False">
-      <Grid RowDefinitions="56,*">
-        <Grid Grid.Row="0" Background="{DynamicResource SubSiderHeaderBrush}">
-          <TextBlock x:Name="PanelTitle" Margin="20,0,0,0" VerticalAlignment="Center"
-                     Foreground="{DynamicResource PrimaryTextBrush}" FontSize="15" FontWeight="SemiBold"/>
+<Window
+    x:Class="NewToys.Shell.Views.ShellView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="NewToys"
+    Width="1180"
+    Height="760"
+    MinWidth="900"
+    MinHeight="600"
+    Background="{DynamicResource ContentBrush}"
+    ExtendClientAreaTitleBarHeightHint="40"
+    ExtendClientAreaToDecorationsHint="True"
+    WindowDecorations="None"
+    WindowState="Normal">
+    <Grid ColumnDefinitions="60,140,*" RowDefinitions="40,*">
+        <!--  自定义标题栏（重写窗口装饰，支持明暗主题）  -->
+        <Grid
+            x:Name="TitleBarGrid"
+            Grid.Row="0"
+            Grid.ColumnSpan="3"
+            Background="{DynamicResource TitleBarBrush}"
+            ColumnDefinitions="Auto,*,Auto">
+            <!--  左：图标 + 标题（拖拽区，设背景保证命中测试）  -->
+            <Panel
+                Grid.Column="0"
+                Height="40"
+                Margin="14,0,0,0"
+                Background="Transparent">
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Foreground="{DynamicResource TitleBarTextBrush}"
+                    Text="NewToys" />
+            </Panel>
+            <!--  中：空白拖拽区（必须设透明背景，否则鼠标穿透收不到事件）  -->
+            <Panel
+                Grid.Column="1"
+                Height="40"
+                Background="Transparent" />
+            <!--  右：窗口按钮  -->
+            <StackPanel
+                Grid.Column="2"
+                Height="40"
+                Orientation="Horizontal">
+                <!--  主题即时开关：直接改 IThemeService，无需进设置页、无需重启  -->
+                <Button
+                    x:Name="BtnTheme"
+                    Width="46"
+                    Height="40"
+                    Classes="win-btn"
+                    Command="{Binding ToggleThemeCommand}"
+                    ToolTip.Tip="切换深色 / 浅色（立即生效）">
+                    <TextBlock
+                        x:Name="ThemeIcon"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Text="🌓" />
+                </Button>
+                <Button
+                    x:Name="BtnMin"
+                    Width="46"
+                    Height="40"
+                    Classes="win-btn"
+                    ToolTip.Tip="最小化">
+                    <Path
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Data="M0,5 L10,5"
+                        Stroke="{DynamicResource TitleBarTextBrush}"
+                        StrokeLineCap="Round"
+                        StrokeThickness="1.5" />
+                </Button>
+                <Button
+                    x:Name="BtnMax"
+                    Width="46"
+                    Height="40"
+                    Classes="win-btn"
+                    ToolTip.Tip="最大化">
+                    <Path
+                        x:Name="MaxIcon"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Data="M0,0 L10,0 L10,10 L0,10 Z"
+                        Fill="Transparent"
+                        Stroke="{DynamicResource TitleBarTextBrush}"
+                        StrokeThickness="1.5" />
+                </Button>
+                <!--  class 必须是 win-btn + close：App.axaml 里定义的是 Button.win-btn.close:pointerover（关闭变红）  -->
+                <Button
+                    x:Name="BtnClose"
+                    Width="46"
+                    Height="40"
+                    Classes="win-btn close"
+                    ToolTip.Tip="关闭">
+                    <Path
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Data="M0,0 L10,10 M10,0 L0,10"
+                        Stroke="{DynamicResource TitleBarTextBrush}"
+                        StrokeLineCap="Round"
+                        StrokeThickness="1.5" />
+                </Button>
+            </StackPanel>
         </Grid>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <!-- SubMenu 由 ShellView.axaml.cs 的 UpdateSubMenu() 动态填充 -->
-          <StackPanel x:Name="SubMenu" Spacing="2" Margin="8,8"/>
-        </ScrollViewer>
-      </Grid>
-    </Grid>
 
-    <!-- 第三列：内容区（一级菜单无二级项时，由 UpdatePanelVisibility() 把它左移到第 1 列并跨 2 列） -->
-    <ContentControl x:Name="ContentArea" Grid.Row="1" Grid.Column="2"
-                    Background="{DynamicResource ContentBrush}" Content="{Binding CurrentContent}"/>
-  </Grid>
+        <!--  第一列：主菜单（60px）  -->
+        <Grid
+            Grid.Row="1"
+            Grid.Column="0"
+            Background="{DynamicResource SiderBrush}">
+            <!--  行0=首页 🏠 行1=模块图标区(*) 行2=分隔线 行3=底部 Dock（设置）  -->
+            <Grid RowDefinitions="Auto,*,Auto,Auto">
+                <!--  首页入口：必须常驻！否则进了模块就再也回不到首页（GoHomeCommand 会变成死代码）  -->
+                <Button
+                    x:Name="BtnHome"
+                    Grid.Row="0"
+                    Height="56"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Classes="nav-btn"
+                    Command="{Binding GoHomeCommand}"
+                    ToolTip.Tip="首页">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="20"
+                        Text="🏠" />
+                </Button>
+                <ScrollViewer
+                    Grid.Row="1"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+                    <!--  NavPanel 由 ShellView.axaml.cs 的 BuildNavButtons() 动态填充  -->
+                    <StackPanel x:Name="NavPanel" Spacing="0" />
+                </ScrollViewer>
+                <Grid
+                    Grid.Row="2"
+                    Height="1"
+                    Margin="0,0,0,0"
+                    Background="{DynamicResource SiderDividerBrush}" />
+                <Button
+                    x:Name="BtnSettings"
+                    Grid.Row="3"
+                    Height="56"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Classes="nav-btn"
+                    Command="{Binding SelectGroupCommand}"
+                    CommandParameter="settings"
+                    ToolTip.Tip="设置">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="20"
+                        Text="⚙" />
+                </Button>
+            </Grid>
+        </Grid>
+
+        <!--  第二列：二级菜单（140px）  -->
+        <Grid
+            x:Name="SubPanel"
+            Grid.Row="1"
+            Grid.Column="1"
+            Background="{DynamicResource SubSiderBrush}"
+            IsVisible="False">
+            <Grid RowDefinitions="56,*">
+                <Grid Grid.Row="0" Background="{DynamicResource SubSiderHeaderBrush}">
+                    <TextBlock
+                        x:Name="PanelTitle"
+                        Margin="20,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="15"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource PrimaryTextBrush}" />
+                </Grid>
+                <ScrollViewer
+                    Grid.Row="1"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+                    <!--  SubMenu 由 ShellView.axaml.cs 的 UpdateSubMenu() 动态填充  -->
+                    <StackPanel
+                        x:Name="SubMenu"
+                        Margin="8,8"
+                        Spacing="2" />
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!--  第三列：内容区（一级菜单无二级项时，由 UpdatePanelVisibility() 把它左移到第 1 列并跨 2 列）  -->
+        <ContentControl
+            x:Name="ContentArea"
+            Grid.Row="1"
+            Grid.Column="2"
+            Background="{DynamicResource ContentBrush}"
+            Content="{Binding CurrentContent}" />
+    </Grid>
 </Window>

@@ -75,12 +75,12 @@
 
 ### 3.1 三栏仿微信 PC 版 〔A〕
 
-主窗口 **1180×760**，最小 900×600；`ColumnDefinitions="60,210,*"` / `RowDefinitions="40,*"`。
+主窗口 **1180×760**，最小 900×600；`ColumnDefinitions="60,140,*"` / `RowDefinitions="40,*"`。
 
 | 列 | 宽 | 内容 |
 |---|---|---|
 | 第一列 | 60px | 深色主菜单：**顶部🏠首页(BtnHome)** + 中部模块图标(48×48, `nav-btn`) + 底部⚙(BtnSettings) |
-| 第二列 | 210px | 二级菜单面板（头56px，行高40px） |
+| 第二列 | 140px | 二级菜单面板（头56px，行高40px）。⚠️ v1.34 由 210 收窄到 140 |
 | 第三列 | * | 内容区（`ContentControl` 承载 `CurrentContent`） |
 
 自定义标题栏 40px（`WindowDecorations=None` + `ExtendClientAreaToDecorationsHint=True` + `ExtendClientAreaTitleBarHeightHint=40`），按钮 46×40；不使用过的 `SystemDecorations`。

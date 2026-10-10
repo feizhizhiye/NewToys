@@ -396,14 +396,40 @@ public partial class VideoCutViewModel : ListPageViewModelBase
         finally { _extracting = false; }
     }
 
-    /// <summary>⏪ / ⏩：按秒步进（delta 可为负）。</summary>
+    /// <summary>⏪ / ⏩：按秒步进（delta 可为负，见 <see cref="TryParseSeconds"/> 的说明）。</summary>
+    /// <remarks>
+    /// 🔴 <b>参数必须收 <c>object?</c>，绝不能写成 <c>double</c></b>：
+    /// XAML 里 <c>CommandParameter="-1"</c> 交给 <c>object</c> 属性的是<b>字符串</b>；
+    /// 若签名是 <c>double</c>，源生成器产出的 <c>RelayCommand&lt;double&gt;.CanExecute</c> 会直接抛
+    /// <c>ArgumentException</c>（"cannot be of type System.String"），而 Avalonia 的 Button
+    /// <b>在「附加到逻辑树」时就会调一次 CanExecute</b>（见 <c>Button.OnAttachedToLogicalTree</c>）。
+    /// 更阴的是：这一步发生在「内容区 Content 绑定」更新里，异常会被绑定机制吞掉 —— 程序不崩、不报错，
+    /// 但整次切页半途而废：旧页面先被解除样式、又没被换下去，于是继续留在屏幕上<b>无样式重绘</b>
+    /// （卡片底色/列宽/断行全丢 → 列表被挤成一字一行、详情卡无限宽），而侧栏高亮已经跑到新页，
+    /// 看起来就像「剪辑页样式不对 / 页面串了」。收 object 自己转，这一整类坑就没了。
+    /// </remarks>
     [RelayCommand]
-    private void Step(double delta)
+    private void Step(object? delta)
     {
-        var t = PreviewTime + delta;
+        if (!TryParseSeconds(delta, out var step)) return;
+        var t = PreviewTime + step;
         if (t < 0) t = 0;
         if (Duration > 0 && t > Duration) t = Duration;
         PreviewTime = t;
+    }
+
+    /// <summary>把 XAML 传来的 <c>string</c>（"1" / "-1"）与代码传来的 <c>double</c> 统一成秒数。</summary>
+    private static bool TryParseSeconds(object? value, out double seconds)
+    {
+        switch (value)
+        {
+            case double d: seconds = d; return true;
+            case float f: seconds = f; return true;
+            case int i: seconds = i; return true;
+            case string s when double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v):
+                seconds = v; return true;
+            default: seconds = 0; return false;
+        }
     }
 
     /// <summary>⏮：跳到开始点。</summary>

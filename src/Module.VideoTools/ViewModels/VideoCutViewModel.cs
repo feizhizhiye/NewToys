@@ -174,6 +174,22 @@ public partial class VideoCutViewModel : ListPageViewModelBase
 
     public string DurationDisplay => Duration > 0 ? CutTask.FormatTime(Duration) : "—";
 
+    /// <summary>
+    /// 时间轴 / 区间滑块的 <c>Maximum</c>。
+    /// <para>⚠️ **必须恒大于** <c>Minimum=0</c>：时长还没探测出来时（<see cref="Duration"/> = 0），
+    /// 若直接把 <c>Maximum</c> 绑到 <c>Duration</c> 就得到 <c>Maximum == Minimum == 0</c>，
+    /// Slider 内部按 <c>(Value-Min)/(Max-Min)</c> 取值 → <c>0/0</c> = <b>NaN</b>，
+    /// Avalonia 的布局一旦拿到 NaN 就会整趟算不过去（这一页表现成"乱了、样式像没生效"）。
+    /// 所以时长未知时给个占位 1。</para>
+    /// </summary>
+    public double TimelineMax => Duration > 0 ? Duration : 1;
+
+    /// <summary>时长是否已知（未知就不显示时间轴 / 区间滑块 —— 没时长没得拖）。</summary>
+    public bool HasDuration => Duration > 0;
+
+    /// <summary>是否已经有预览大图（决定首页那条"还没有预览画面"提示的显隐）。</summary>
+    public bool HasPreviewImage => PreviewImage != null;
+
     /// <summary>预览一次抽多少帧。</summary>
     public int FrameCount { get; set; } = 12;
 
@@ -322,6 +338,17 @@ public partial class VideoCutViewModel : ListPageViewModelBase
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
     partial void OnIsRunningChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
+
+    /// <summary>时长变了 → 时间轴上限、能否拖动、时长显示都要跟着刷新。</summary>
+    partial void OnDurationChanged(double value)
+    {
+        OnPropertyChanged(nameof(TimelineMax));
+        OnPropertyChanged(nameof(HasDuration));
+        OnPropertyChanged(nameof(DurationDisplay));
+    }
+
+    /// <summary>预览大图出现 / 被清 → 「还没有预览画面」那条提示要跟着切。</summary>
+    partial void OnPreviewImageChanged(Bitmap? value) => OnPropertyChanged(nameof(HasPreviewImage));
 
     /// <summary>编辑缓冲 / 选中项变了 → 命令行预览要跟着刷新。</summary>
     partial void OnEditPresetIdChanged(string value) => OnPropertyChanged(nameof(CommandPreview));

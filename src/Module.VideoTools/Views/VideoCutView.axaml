@@ -207,13 +207,14 @@
                 <Image Source="{Binding PreviewImage}" Stretch="Uniform" MinHeight="190"/>
               </Border>
 
-              <TextBlock Classes="hint-text" IsVisible="{Binding HasSelection}"
+              <TextBlock Classes="hint-text" IsVisible="{Binding !HasPreviewImage}"
                          Text="还没有预览画面 —— 点上面的「🎞 抽帧」或拖动下面的时间轴。" 
                          Margin="0,2,0,0"/>
 
-              <StackPanel Spacing="4" IsVisible="{Binding HasSelection}">
+              <!--  播放器控件：必须**已知时长**才显示 —— 没有时长，滑块的上限算不出来（见 VM 的 TimelineMax）  -->
+              <StackPanel Spacing="4" IsVisible="{Binding HasDuration}">
                 <Grid ColumnDefinitions="*,Auto">
-                  <Slider Grid.Column="0" Minimum="0" Maximum="{Binding Duration}" Value="{Binding PreviewTime, Mode=TwoWay}"
+                  <Slider Grid.Column="0" Minimum="0" Maximum="{Binding TimelineMax}" Value="{Binding PreviewTime, Mode=TwoWay}"
                           TickFrequency="0.5" IsSnapToTickEnabled="False" VerticalAlignment="Center"
                           ToolTip.Tip="拖动时间轴：松手/移动即抽这一帧（拖动中会丢帧，只认最后位置）"/>
                   <TextBlock Grid.Column="1" Classes="field-value" Margin="8,0,0,0" VerticalAlignment="Center"
@@ -233,12 +234,12 @@
                 <!-- 区间也能直接拖：上条 = 开始，下条 = 结束 -->
                 <StackPanel Classes="field">
                   <TextBlock Classes="field-label" Text="开始（可拖）"/>
-                  <Slider Minimum="0" Maximum="{Binding Duration}" Value="{Binding StartSeconds, Mode=TwoWay}"
+                  <Slider Minimum="0" Maximum="{Binding TimelineMax}" Value="{Binding StartSeconds, Mode=TwoWay}"
                           TickFrequency="0.5"/>
                 </StackPanel>
                 <StackPanel Classes="field">
                   <TextBlock Classes="field-label" Text="结束（可拖；拖到最左 = 到末尾）"/>
-                  <Slider Minimum="0" Maximum="{Binding Duration}" Value="{Binding EndSeconds, Mode=TwoWay}"
+                  <Slider Minimum="0" Maximum="{Binding TimelineMax}" Value="{Binding EndSeconds, Mode=TwoWay}"
                           TickFrequency="0.5"/>
                 </StackPanel>
               </StackPanel>

@@ -9,9 +9,9 @@ namespace NewToys.Core.Services;
 
 public class MenuService : IMenuService
 {
-    private readonly List<MenuGroup> _groups = new();
+    private readonly List<AppMenuGroup> _groups = new();
 
-    public IReadOnlyList<MenuGroup> Groups
+    public IReadOnlyList<AppMenuGroup> Groups
     {
         get
         {
@@ -26,8 +26,8 @@ public class MenuService : IMenuService
         }
     }
 
-    public MenuGroup RegisterModule(string key, string title, string icon, int order,
-                                     bool isBottom = false, bool isHome = false)
+    public AppMenuGroup RegisterModule(string key, string title, string icon, int order,
+                                       bool isBottom = false, bool isHome = false)
     {
         lock (_groups)
         {
@@ -41,7 +41,7 @@ public class MenuService : IMenuService
                 existing.IsHome = isHome;
                 return existing;
             }
-            var g = new MenuGroup
+            var g = new AppMenuGroup
             {
                 Key = key,
                 Title = title,
@@ -58,7 +58,7 @@ public class MenuService : IMenuService
     public void RegisterFunction(string moduleKey, string key, string title, string icon,
                                   string viewName, int order = 0, string desc = "")
     {
-        MenuGroup? g;
+        AppMenuGroup? g;
         lock (_groups)
         {
             g = _groups.FirstOrDefault(x => x.Key == moduleKey);
@@ -76,7 +76,7 @@ public class MenuService : IMenuService
             if (!string.IsNullOrEmpty(desc)) existing.Desc = desc;
             return;
         }
-        g.Items.Add(new MenuItem
+        g.Items.Add(new AppMenuItem
         {
             Key = key,
             GroupKey = moduleKey,
@@ -91,7 +91,7 @@ public class MenuService : IMenuService
         foreach (var it in sorted) g.Items.Add(it);
     }
 
-    public MenuItem? FindItem(string key)
+    public AppMenuItem? FindItem(string key)
     {
         foreach (var g in Groups)
         {
@@ -101,5 +101,5 @@ public class MenuService : IMenuService
         return null;
     }
 
-    public MenuGroup? FindGroup(string key) => Groups.FirstOrDefault(g => g.Key == key);
+    public AppMenuGroup? FindGroup(string key) => Groups.FirstOrDefault(g => g.Key == key);
 }

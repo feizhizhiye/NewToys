@@ -77,7 +77,7 @@ public partial class AllFunctionsViewModel : ViewModelBase
 
         [ObservableProperty] private bool _isFavorite;
 
-        public FunctionItem(MenuItem m, bool isFavorite)
+        public FunctionItem(AppMenuItem m, bool isFavorite)
         {
             Key = m.Key;
             Icon = m.Icon;

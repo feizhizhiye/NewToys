@@ -256,20 +256,21 @@ public interface IModule {
 ### 6.2 菜单注册 API
 
 ```csharp
-MenuGroup RegisterModule(string key, string title, string icon, int order,
-                         bool isBottom=false, bool isHome=false);
+AppMenuGroup RegisterModule(string key, string title, string icon, int order,
+                           bool isBottom=false, bool isHome=false);
 void RegisterFunction(string moduleKey, string key, string title, string icon,
                       string viewName, int order=0, string desc="");
 ```
 
 - 先 `RegisterModule` 拿分组，再 `RegisterFunction`（找不到分组抛 `InvalidOperationException`）。
 - `viewName` 传**视图类名**（如 `"PcInfoView"`），不是 VM 名、不是程序集限定名。
+- ⭐ **命名铁律：`Shared/Models` 里的模型名不得与所用库（Avalonia / CommunityToolkit / BCL）的公开类型重名。** 菜单模型即因此定名 `AppMenuGroup`/`AppMenuItem`（若叫 `MenuGroup`/`MenuItem`，凡同时 `using Avalonia.Controls` 与 `NewToys.Shared.Models` 的 code-behind 裸写该名会 `CS0104` 不明确引用，v1.32 已踩过一次）。新增模型先查一次库内同名。
 - 菜单**只能在 `Initialize` 注册**，`RegisterServices` 禁注册。
 - 菜单 Key：`<模块缩写>-<页面名>` 全小写连字符（`pc-shortcuts`/`settings-theme`/`video-list`）。
 - 分组 Order 现状：`pc`=20 ｜ `web`=30 ｜ `video`=40 ｜ **`settings`=999, isBottom:true**（永远最底）。新增分组**必须显式给 `Order`**，否则顺序随程序集加载漂移。
 - 排序：`OrderBy(IsBottom?1:0).ThenBy(Order)`；分组内 `Items` 按 `Order` 重排。
 - `desc`（功能简介）务必填写：功能清单页展示、首页收藏卡复用。
-- 首页入口 = 第一列顶部 `BtnHome→GoHomeCommand`；`MenuGroup.IsHome` 契约预留，4 个模块均未用。
+- 首页入口 = 第一列顶部 `BtnHome→GoHomeCommand`；`AppMenuGroup.IsHome` 契约预留，4 个模块均未用。
 - 菜单点击路径：`SelectGroupCommand`/`SelectItemCommand`（参数=菜单Key）→ VM 内 `ResolveView` 写 `CurrentContent`，**全程不经过 `NavigationService`**（见 B4）。
 
 ### 6.3 模块加载（启动双轨）

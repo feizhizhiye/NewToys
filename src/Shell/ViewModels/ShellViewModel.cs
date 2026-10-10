@@ -9,7 +9,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using NewToys.Shared.Models;
-using MenuItem = NewToys.Shared.Models.MenuItem;
 using NewToys.Shared.Services;
 using NewToys.Shell.Views;
 
@@ -23,12 +22,12 @@ public partial class ShellViewModel : ViewModelBase
     private readonly INavigationService _nav;
 
     [ObservableProperty] private bool _isHomePage = true;
-    [ObservableProperty] private MenuGroup? _currentGroup;
-    [ObservableProperty] private MenuItem? _currentItem;
+    [ObservableProperty] private AppMenuGroup? _currentGroup;
+    [ObservableProperty] private AppMenuItem? _currentItem;
     [ObservableProperty] private object? _currentContent;
     [ObservableProperty] private string _statusText = "NewToys · 已就绪";
 
-    public IReadOnlyList<MenuGroup> Groups => _menu.Groups;
+    public IReadOnlyList<AppMenuGroup> Groups => _menu.Groups;
 
     public ShellViewModel(IServiceProvider sp, IMenuService menu, IThemeService theme, INavigationService nav)
     {
@@ -121,7 +120,7 @@ public partial class ShellViewModel : ViewModelBase
     /// ⚠️ 必须在 **View 自己所在的程序集** 里先找 —— 不同模块允许出现同名 View
     /// （例如 Module.Settings 与 Module.WebTools 都有 DnsView），全 AppDomain 按类名扫会撞车。
     /// </summary>
-    private Control? ResolveView(MenuItem it)
+    private Control? ResolveView(AppMenuItem it)
     {
         Type? viewType = null;
         foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())

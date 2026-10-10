@@ -8,10 +8,8 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
-using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.Shell.ViewModels;
-using MenuItem = NewToys.Shared.Models.MenuItem;
 
 namespace NewToys.Shell.Views;
 

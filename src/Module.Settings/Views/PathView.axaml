@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Settings.Views.PathView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。
+         本页是**复杂文本输入**，按规范保留「保存」（对比：主题/通用/加密 DNS/软件源 都是即时生效，无保存按钮）。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="8">
+      <Button Classes="ghost" Content="📂 打开配置目录" Command="{Binding OpenConfigDirCommand}"/>
+      <Button Classes="primary" Content="💾 保存" Command="{Binding SaveCommand}"/>
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
+      <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Text="多媒体" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+
+            <TextBlock Text="ffmpeg 路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <TextBox Text="{Binding FfmpegPath, Mode=TwoWay}"
+                     PlaceholderText="ffmpeg 路径（留空或写 ffmpeg 则走 PATH）"/>
+            <TextBlock Text="视频库的「读取媒体信息」会用同目录下的 ffprobe 探测时长/分辨率；路径填错时该项显示「—」并给出提示。"
+                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+            <TextBlock Text="外部播放器路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding PlayerPath, Mode=TwoWay}"
+                     PlaceholderText="播放器 exe 全路径（留空 = 用系统默认关联程序）"/>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Text="视频库" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+
+            <TextBlock Text="视频库默认目录" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <TextBox Text="{Binding VideoFolder, Mode=TwoWay}" PlaceholderText="例如 D:/Videos/NewToys"/>
+            <TextBlock Text="「视频工具 → 视频库」打开时会扫这个目录；在那一页换目录并扫描，也会写回这里。"
+                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+          </StackPanel>
+        </Border>
+
+        <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
+                   Foreground="{DynamicResource AccentBrush}"/>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

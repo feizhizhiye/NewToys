@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Settings.Views.GeneralView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧「状态提示」迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。
+         ⚠️ 刻意**不放"保存"按钮** —— 勾选即写盘（见 GeneralViewModel 类注释）。 -->
+    <TextBlock Grid.Row="0" Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
+               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="24,16,24,0"
+               Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
+      <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Text="启动与退出" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <CheckBox Content="开机时启动 NewToys" IsChecked="{Binding StartWithSystem, Mode=TwoWay}"/>
+            <CheckBox Content="启动时最小化到托盘" IsChecked="{Binding StartMinimized, Mode=TwoWay}"/>
+            <CheckBox Content="关闭按钮最小化到托盘" IsChecked="{Binding CloseToTray, Mode=TwoWay}"/>
+            <CheckBox Content="启动时检查更新" IsChecked="{Binding CheckUpdateOnStartup, Mode=TwoWay}"/>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="6">
+            <TextBlock Text="⚠️ 实现状态" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"
+                       Text="以上开关当前只做「持久化」（写入 &lt;应用根&gt;\config\launch.json），系统级行为（注册开机启动项、托盘图标驻留、拦截关闭按钮、联网检查更新）尚未实现。此处如实标注，避免误以为已经生效。"/>
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

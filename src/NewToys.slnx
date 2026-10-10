@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="Shared/Shared.csproj" Type="C#" />
+    <Project Path="Core/Core.csproj" Type="C#" />
+    <Project Path="Shell/Shell.csproj" Type="C#" />
+    <Project Path="Module.PcTools/Module.PcTools.csproj" Type="C#" />
+    <Project Path="Module.WebTools/Module.WebTools.csproj" Type="C#" />
+    <Project Path="Module.VideoTools/Module.VideoTools.csproj" Type="C#" />
+    <Project Path="Module.Settings/Module.Settings.csproj" Type="C#" />
+  </Folder>
+  <Folder Name="/src/Properties/">
+    <File Path="Directory.Packages.props" />
+    <File Path="Directory.Build.props" />
+  </Folder>
+</Solution>

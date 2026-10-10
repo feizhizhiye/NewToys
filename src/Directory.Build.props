@@ -1,0 +1,81 @@
+<Project>
+
+  <!--  仓库根 = 本文件所在目录的上一级（NewToys\），src\ 是纯净源码区  -->
+  <PropertyGroup>
+    <RepoRoot>$(MSBuildThisFileDirectory)..\</RepoRoot>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <!--  ===== 版本号：编译时自动生成，禁止手写  =====
+        显示版本 1.<yyyyMMdd>.<HH>.<mm 取整到十位>   例：1.20261010.00.10
+        文件版本 1.<yyyy>.<MMdd>.<HHmm>           例：1.2026.1010.0015
+        AssemblyVersion 固定 1.0.0.0（避免绑定重定向）                       -->
+  <PropertyGroup>
+    <_NtNow>$([System.DateTime]::Now)</_NtNow>
+    <NewToysDate>$([System.DateTime]::Now.ToString('yyyyMMdd'))</NewToysDate>
+    <NewToysYear>$([System.DateTime]::Now.ToString('yyyy'))</NewToysYear>
+    <NewToysMonthDay>$([System.DateTime]::Now.ToString('MMdd'))</NewToysMonthDay>
+    <NewToysHour>$([System.DateTime]::Now.ToString('HH'))</NewToysHour>
+    <NewToysHourMin>$([System.DateTime]::Now.ToString('HHmm'))</NewToysHourMin>
+    <NewToysMinuteTens>$([System.DateTime]::Now.ToString('mm').Substring(0,1))0</NewToysMinuteTens>
+
+    <NewToysVersion>1.$(NewToysDate).$(NewToysHour).$(NewToysMinuteTens)</NewToysVersion>
+    <NewToysFileVersion>1.$(NewToysYear).$(NewToysMonthDay).$(NewToysHourMin)</NewToysFileVersion>
+
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>$(NewToysFileVersion)</FileVersion>
+    <InformationalVersion>$(NewToysVersion)</InformationalVersion>
+  </PropertyGroup>
+
+  <!--  ===== Debug：产物落在 artifacts\bin\<项目>\Debug\net10.0\  ===== -->
+  <PropertyGroup Condition="'$(Configuration)'!='Release'">
+    <BaseOutputPath>$(RepoRoot)artifacts\bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(RepoRoot)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!--  ===== Release：统一落到 artifacts\release\，模块直接产出到它的 Modules\  =====
+        遵守「Modules\ 是模块产物的唯一去处，全程无任何拷贝步骤」的铁律。
+        ⛔ 禁止在 csproj / 脚本里再加任何「把 DLL 拷进 Modules」的目标——
+           那正是「页面一直是旧的、拷了两份」这类事故的根因。                     -->
+  <!--  Release 输出根目录，可用 /p:NewToysReleaseDir=D:\NewToys\ 覆盖（必须带结尾反斜杠）。
+        模块 DLL 会自动进它的 Modules\ 子目录，全程零拷贝。                              -->
+  <PropertyGroup>
+    <NewToysReleaseDir Condition="'$(NewToysReleaseDir)'==''">$(RepoRoot)artifacts\release\</NewToysReleaseDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <BaseOutputPath>$(RepoRoot)artifacts\release\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(RepoRoot)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <OutDir>$(NewToysReleaseDir)</OutDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release' And $(MSBuildProjectName.StartsWith('Module.'))">
+    <OutDir>$(NewToysReleaseDir)Modules\</OutDir>
+  </PropertyGroup>
+
+  <!--  Release 下模块**不把 Shared / Core 复制进 Modules\**：它们由 Shell 复制到程序根目录一份即可。
+        ⛔ 必须这么做，否则 4 个模块项目会**并发写同一份 NewToys.Core.(dll|pdb)**，
+           出现 MSB3026「文件被另一进程占用」——这就是「多个目标抢写 Modules\」的隐患，
+           也是"页面一直是旧的"的根因。
+        （另：ModuleLoader 也会跳过已加载的同名程序集，双重保险。）  -->
+  <!--  已知限制：`Private=false` / `ExcludeAssets=runtime` 都压不住 ProjectReference 的复制行为，
+        所以 Modules\ 里除了模块 DLL 还会多出 NewToys.Shared / NewToys.Core。可接受，因为：
+        ① ModuleLoader 会跳过「已加载的同名程序集」，不会把它们加载成第二份副本；
+        ② 为了消除 4 个模块并发写同一份 Core/Shared 的 MSB3026 争用，Release 不开 pdb。  -->
+
+  <!--  Release 不生成 pdb：模块目录是 4 个项目共用的输出目录，并发写同一份 pdb 会偶发
+        MSB3026「文件被另一进程占用」。Release 产物本也不需要调试符号。  -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <DebugType>none</DebugType>
+    <IncludeSymbols>false</IncludeSymbols>
+  </PropertyGroup>
+
+</Project>

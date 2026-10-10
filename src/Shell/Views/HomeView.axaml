@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Shell.Views.HomeView">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
+    <StackPanel Margin="36,28,36,28" Spacing="24">
+      <!-- 欢迎卡 -->
+      <Border Classes="card" Padding="28">
+        <StackPanel>
+          <TextBlock Text="欢迎使用 NewToys" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+          <TextBlock Text="个人高强度使用工具集 · Avalonia 12 + CommunityToolkit.Mvvm + .NET 10" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14"/>
+          <TextBlock Text="这里是你的常用功能区，点击收藏卡可直达对应二级页面；底部三个一键按钮的设置统一在「设置 → 一键按钮」一页里，点右上角「⚙ 一键按钮设置」直达。"
+                     Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0"/>
+        </StackPanel>
+      </Border>
+
+      <!-- 常用功能 -->
+      <StackPanel>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="★" FontSize="18" Foreground="#FFB300" VerticalAlignment="Center"/>
+          <TextBlock Text="常用功能  " FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+          <TextBlock Text="点击卡片快速进入对应二级页面 · 在「设置 → 功能清单」右键可固定 / 取消" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+        </StackPanel>
+        <ItemsControl ItemsSource="{Binding Favorites}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Rows="2" Columns="3"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Button Margin="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0"
+                      Classes="ghost" Command="{Binding $parent[UserControl].DataContext.NavigateCommand}"
+                      CommandParameter="{Binding Key}">
+                <Border Classes="card" Margin="-1" Padding="20,18" HorizontalAlignment="Stretch">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBlock Text="{Binding Desc}" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- 一键操作 -->
+      <StackPanel>
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+          <TextBlock Grid.Column="0" Text="⚡" FontSize="18" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="1" Text="一键操作" FontSize="16" FontWeight="SemiBold"
+                     Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+          <!-- 三个按钮的设置**统一在一页**（设置 → 一键按钮），所以这里只留一个入口，
+               不再给每个按钮右上角挂 ⚙（那样等于把同一件事拆成三处，见规范 3.8 / 4.5.1）。 -->
+          <Button Grid.Column="3" Classes="ghost" Content="⚙ 一键按钮设置"
+                  Command="{Binding NavigateCommand}" CommandParameter="settings-launch"
+                  ToolTip.Tip="改按钮名称、浏览器程序与参数、网址清单、批量启动的软件清单"/>
+        </Grid>
+        <Grid ColumnDefinitions="*,*,*">
+          <ItemsControl ItemsSource="{Binding QuickButtons}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <UniformGrid Rows="1" Columns="3"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Margin="6" HorizontalAlignment="Stretch" Height="76" Padding="20,0"
+                        HorizontalContentAlignment="Left" Background="{Binding Color}"
+                        CornerRadius="10" BorderThickness="0"
+                        Command="{Binding RunCommand}"
+                        ToolTip.Tip="点击执行；设置请用右上角「⚙ 一键按钮设置」">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding Icon}" FontSize="26" VerticalAlignment="Center" Foreground="White"/>
+                    <StackPanel VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
+                      <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="#B0FFFFFF"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Grid>
+      </StackPanel>
+
+      <!-- 状态栏 -->
+      <Border Height="36" Margin="0,8,0,0">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentBrush}"/>
+          <TextBlock Text="NewToys 工具箱 · 三栏仿微信布局 · 跨平台 (Windows / macOS / Linux)"
+                     Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

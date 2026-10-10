@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Settings.Views.DataView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="8">
+      <Button x:Name="BtnRefresh" Classes="ghost" Content="🔄 刷新"/>
+      <Button x:Name="BtnBackup" Classes="primary" Content="📤 备份到文件"/>
+      <Button x:Name="BtnImport" Classes="ghost" Content="📥 从备份导入"/>
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24">
+      <StackPanel Spacing="16">
+        <Border Classes="card" Padding="20">
+          <StackPanel Spacing="8">
+            <TextBlock Text="当前配置文件" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+            <ItemsControl ItemsSource="{Binding ConfigFiles}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Padding="10,8" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                    <Grid ColumnDefinitions="*,120,180">
+                      <TextBlock Grid.Column="0" Text="{Binding Name}" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="{Binding SizeDisplay}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="2" Text="{Binding LastWrite, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card" Padding="20">
+          <StackPanel Spacing="6">
+            <TextBlock Text="📤 备份" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Text="把 &lt;应用根&gt;\config 下所有 .json 打包为单个 JSON 备份文件，便于跨机迁移。" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card" Padding="20">
+          <StackPanel Spacing="6">
+            <TextBlock Text="📥 导入" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Text="导入前会自动把当前所有配置备份到 &lt;应用根&gt;\config\.bak-时间戳\ 目录；导入后建议重启应用。" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

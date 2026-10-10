@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.VideoTools.Views.VideoCutView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="8">
+      <Button Classes="ghost" Content="🎞 抽帧预览"/>
+      <Button Classes="primary" Content="✂ 开始剪切"/>
+    </StackPanel>
+
+    <Border Grid.Row="1" Margin="24,8,24,16">
+      <Border Classes="card">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="4"><StackPanel Spacing="8"><TextBox PlaceholderText="源视频文件路径"/><Grid ColumnDefinitions="*,*,*"><TextBox PlaceholderText="起始时间 (HH:MM:SS.fff)"/><TextBox Grid.Column="1" PlaceholderText="结束时间"/><TextBox Grid.Column="2" PlaceholderText="输出文件"/></Grid></StackPanel></StackPanel></ScrollViewer>
+      </Border>
+    </Border>
+  </Grid>
+</UserControl>

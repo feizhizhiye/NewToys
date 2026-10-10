@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Settings.Views.LaunchConfigView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。
+         多字段 + 多行自由文本 = 复杂输入，按规范保留「保存」；「还原默认」只预填输入框，仍需保存才落盘。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="8">
+      <Button Classes="ghost" Content="🔄 还原默认" Command="{Binding RestoreDefaultsCommand}"
+              ToolTip.Tip="仅把默认示例填进输入框，点保存才生效"/>
+      <Button Classes="primary" Content="💾 保存" Command="{Binding SaveCommand}"/>
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
+      <StackPanel Spacing="16" MaxWidth="860" HorizontalAlignment="Left">
+
+        <!-- ============ 按钮 1 ============ -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <TextBlock Text="🌐" FontSize="18" VerticalAlignment="Center"/>
+              <TextBlock Text="按钮 1 · 浏览器批量开网址" FontWeight="SemiBold" FontSize="14"
+                         VerticalAlignment="Center" Foreground="{DynamicResource PrimaryTextBrush}"/>
+              <TextBlock Text="（首页上的颜色：蓝）" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+            </StackPanel>
+
+            <TextBlock Text="按钮名称（显示在首页按钮上）" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <TextBox Text="{Binding Btn1Name, Mode=TwoWay}" PlaceholderText="浏览器1 批量开网址"/>
+
+            <TextBlock Text="浏览器程序路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding Btn1Path, Mode=TwoWay}"
+                     PlaceholderText="C:/Program Files/Google/Chrome/Application/chrome.exe（留空 = 用系统默认浏览器）"/>
+
+            <TextBlock Text="启动参数" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding Btn1Args, Mode=TwoWay}"
+                     PlaceholderText="留空即可；网址会自动追加到后面（可用 {url} 占位）"/>
+
+            <TextBlock Text="网址清单（一行一个，# 开头为注释）" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding Btn1Urls, Mode=TwoWay}" Height="110" AcceptsReturn="True"
+                     TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"/>
+          </StackPanel>
+        </Border>
+
+        <!-- ============ 按钮 2 ============ -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <TextBlock Text="🌐" FontSize="18" VerticalAlignment="Center"/>
+              <TextBlock Text="按钮 2 · 浏览器批量开网址" FontWeight="SemiBold" FontSize="14"
+                         VerticalAlignment="Center" Foreground="{DynamicResource PrimaryTextBrush}"/>
+              <TextBlock Text="（首页上的颜色：绿）" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+            </StackPanel>
+
+            <TextBlock Text="按钮名称" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <TextBox Text="{Binding Btn2Name, Mode=TwoWay}" PlaceholderText="浏览器2 批量开网址"/>
+
+            <TextBlock Text="浏览器程序路径" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding Btn2Path, Mode=TwoWay}" PlaceholderText="Edge / Firefox 路径；留空 = 系统默认浏览器"/>
+
+            <TextBlock Text="启动参数" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding Btn2Args, Mode=TwoWay}" PlaceholderText="启动参数"/>
+
+            <TextBlock Text="网址清单（留空则该按钮点了也不做事）" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBox Text="{Binding Btn2Urls, Mode=TwoWay}" Height="100" AcceptsReturn="True"
+                     TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"/>
+          </StackPanel>
+        </Border>
+
+        <!-- ============ 按钮 3 ============ -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <TextBlock Text="📦" FontSize="18" VerticalAlignment="Center"/>
+              <TextBlock Text="按钮 3 · 批量打开软件" FontWeight="SemiBold" FontSize="14"
+                         VerticalAlignment="Center" Foreground="{DynamicResource PrimaryTextBrush}"/>
+              <TextBlock Text="（首页上的颜色：橙）" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+            </StackPanel>
+
+            <TextBlock Text="按钮名称" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <TextBox Text="{Binding Btn3Name, Mode=TwoWay}" PlaceholderText="批量打开软件"/>
+
+            <TextBlock Text="软件清单" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,0"/>
+            <TextBlock Text="一行一个，格式：显示名 = 程序路径 参数（路径含空格请用英文双引号包住）；空行与 # 注释被忽略。不存在的路径会被自动跳过。"
+                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <TextBox Text="{Binding ProgramsText, Mode=TwoWay}" Height="120" AcceptsReturn="True"
+                     TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"
+                     PlaceholderText="记事本 = notepad.exe&#x0a;计算器 = &quot;C:/Windows/System32/calc.exe&quot;"/>
+          </StackPanel>
+        </Border>
+
+        <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
+                   Foreground="{DynamicResource AccentBrush}"/>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

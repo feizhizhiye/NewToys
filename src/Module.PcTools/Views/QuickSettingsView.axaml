@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.PcTools.Views.QuickSettingsView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="8">
+      <Button Classes="primary" Content="🔄 刷新" Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"/>
+      <Button Classes="ghost" Content="{Binding PrimaryButtonText}" Command="{Binding PrimaryActionCommand}"/>
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="24,16" Spacing="16">
+
+        <!-- 主内容卡片 -->
+        <Border Classes="card" Padding="24">
+          <StackPanel Spacing="16">
+            <TextBlock Text="🚧 功能开发中" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Text="本页面已完成 UI 骨架搭建，具体业务逻辑将在后续版本迭代中实现。"
+                       FontSize="13" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+            <Separator/>
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto" RowSpacing="10">
+              <TextBlock Grid.Row="0" Text="页面状态" FontSize="13" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding StatusText}" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="1" Text="是否加载中" FontSize="13" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding IsBusy}" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- 提示卡片 -->
+        <Border Classes="card" Padding="20">
+          <StackPanel Spacing="6">
+            <TextBlock Text="💡 提示" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Text="所有页面严格遵循 MVVM 模式：View（axaml）只负责展示，ViewModel 暴露可绑定属性与命令，业务逻辑由 Service 层承担。"
+                       FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

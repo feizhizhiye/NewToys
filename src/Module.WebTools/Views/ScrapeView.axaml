@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.WebTools.Views.ScrapeView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="8">
+      <Button Classes="primary" Content="▶ 开始抓取"/>
+      <Button Classes="ghost" Content="📋 复制结果"/>
+      <Button Classes="ghost" Content="📤 导出"/>
+    </StackPanel>
+    <Border Grid.Row="1" Margin="24,8,24,16">
+      <Border Classes="card">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="4"><StackPanel Spacing="8"><TextBox PlaceholderText="起始 URL（页面 / sitemap.xml / JSON 都行）"/><ComboBox SelectedIndex="0" HorizontalAlignment="Left"><ComboBoxItem Content="XPath"/><ComboBoxItem Content="CSS 选择器"/><ComboBoxItem Content="正则表达式"/></ComboBox><TextBox PlaceholderText="表达式，如 //loc/text()"/></StackPanel></StackPanel></ScrollViewer>
+      </Border>
+    </Border>
+  </Grid>
+</UserControl>

@@ -1,0 +1,257 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.PcTools.Views"
+             x:Class="NewToys.PcTools.Views.PackageManagerView">
+  <Grid RowDefinitions="Auto,Auto,*">
+
+    <!-- 操作行：原页头右侧「支持 / 状态」迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。
+         本页**刻意没有「保存」按钮**：源 / 静默安装 / 排序列都是点一下立即写 config\package.json（规范 3.7）。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="10">
+      <TextBlock Text="{Binding SupportText}" FontSize="12" VerticalAlignment="Center"
+                 Foreground="{DynamicResource SecondaryTextBrush}"/>
+      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
+                 Foreground="{DynamicResource AccentBrush}"/>
+    </StackPanel>
+
+    <!--  ==================== 工具条  ====================
+          改用 WrapPanel：窗口变窄时控件自动换行，避免原先「水平 StackPanel 溢出压到右侧」导致的按钮重叠（规范 3.8 仅约束主区与右键菜单，工具条内部以不重叠、可响应式为准）。 -->
+    <Border Grid.Row="1" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock Text="源" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <ComboBox x:Name="SourceBox" Width="180" Margin="0,0,8,0" IsEnabled="{Binding IsSupported}"
+                  ItemsSource="{Binding SourceOptions}"
+                  SelectedItem="{Binding SelectedSource, Mode=TwoWay}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Label}" FontSize="12"/>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+
+        <TextBox x:Name="SearchBox" Width="230" Margin="0,0,8,0" IsEnabled="{Binding IsSupported}"
+                 Text="{Binding SearchText, Mode=TwoWay}"
+                 PlaceholderText="关键字：git / Docker / ffmpeg…"
+                 ToolTip.Tip="已安装 / 可升级列表里，这里就是本地过滤器；点「🔍 联网搜索」才去查 winget 源"/>
+
+        <Button Classes="primary" Content="🔍 联网搜索" Margin="0,0,8,0" Command="{Binding SearchCommand}"
+                IsEnabled="{Binding !IsBusy}"/>
+        <Button Classes="ghost" Content="📥 已安装" Margin="0,0,8,0" Command="{Binding LoadInstalledCommand}"
+                IsEnabled="{Binding !IsBusy}"/>
+        <Button Classes="ghost" Content="⬆ 可升级" Margin="0,0,8,0" Command="{Binding LoadUpgradesCommand}"
+                IsEnabled="{Binding !IsBusy}"/>
+        <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"
+                IsEnabled="{Binding !IsBusy}"/>
+
+        <CheckBox Content="仅看已安装" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding InstalledOnly, Mode=TwoWay}"/>
+        <CheckBox Content="静默安装 (--silent)" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding SilentInstall, Mode=TwoWay}"/>
+        <TextBlock Text="{Binding ModeText}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,6"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </WrapPanel>
+    </Border>
+
+    <!--  ==================== 主区：左列表 + 右详情  ==================== -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,340" Margin="16">
+
+      <!-- 左：可排序表头 + 列表（右键出更多功能） -->
+      <Border Grid.Column="0" Classes="card" Padding="0" Margin="0,0,12,0">
+        <Grid RowDefinitions="Auto,*">
+
+          <Border Grid.Row="0" Classes="list-header" Height="36">
+            <!-- ⚠️ 列宽规格绑 VM 的 VisibleColumnSpecs（隐藏列 = "0"，列索引保持不动）。
+                 ⚠️ 必须用 ColumnGrid 而不是 Grid：Grid.ColumnDefinitions 是 CLR 属性、XAML 里不能 {Binding}（AVLN3000）。
+                 右键表头任意位置弹出「显示 / 隐藏列」菜单（规范 3.8 右键增删表头项）。 -->
+            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Name" ToolTip.Tip="点一下按名称排序"
+                      IsVisible="{Binding IsNameVisible}"/>
+              <Button Grid.Column="1" Classes="col-header" Content="{Binding IdHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Id" ToolTip.Tip="点一下按 Id 排序"
+                      IsVisible="{Binding IsIdVisible}"/>
+              <Button Grid.Column="2" Classes="col-header" Content="{Binding VersionHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Version" ToolTip.Tip="点一下按版本排序（同一列再点一次反向）"
+                      IsVisible="{Binding IsVersionVisible}"/>
+              <Button Grid.Column="3" Classes="col-header" Content="{Binding SourceHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Source"
+                      IsVisible="{Binding IsSourceVisible}"/>
+              <Button Grid.Column="4" Classes="col-header" Content="{Binding StatusHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Status"
+                      IsVisible="{Binding IsStatusVisible}"/>
+
+              <v:ColumnGrid.ContextMenu>
+                <ContextMenu>
+                  <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：勾选只负责"显示当前状态"，
+                       真正的翻转由 ToggleColumnCommand 独家负责（默认双向会写回 VM 造成二次翻转）。 -->
+                  <MenuItem Header="名称" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
+                  <MenuItem Header="Id" ToggleType="CheckBox" IsChecked="{Binding IsIdVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Id"/>
+                  <MenuItem Header="版本" ToggleType="CheckBox" IsChecked="{Binding IsVersionVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Version"/>
+                  <MenuItem Header="源" ToggleType="CheckBox" IsChecked="{Binding IsSourceVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Source"/>
+                  <MenuItem Header="状态" ToggleType="CheckBox" IsChecked="{Binding IsStatusVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Status"/>
+                </ContextMenu>
+              </v:ColumnGrid.ContextMenu>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="1" x:Name="PkgList" Classes="list-page"
+                   ItemsSource="{Binding Packages}"
+                   SelectedItem="{Binding Selected, Mode=TwoWay}"
+                   SelectionMode="Single">
+            <!-- 右键菜单：这是「选中后更多功能」的主入口（菜单项作用对象 = 当前选中行） -->
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="⬇ 安装" Command="{Binding InstallCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="⬆ 升级到最新" Command="{Binding UpgradeCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="🗑 卸载…" Command="{Binding UninstallCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <Separator/>
+                <MenuItem Header="📌 Pin（暂停更新）" Command="{Binding PinCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="📌 取消 Pin" Command="{Binding UnpinCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <Separator/>
+                <MenuItem Header="🔎 读取详情（winget show）" Command="{Binding LoadDetailCommand}"/>
+                <MenuItem Header="📋 复制 Id" Command="{Binding CopyIdCommand}"/>
+                <MenuItem Header="🌐 打开主页" Command="{Binding OpenHomepageCommand}"/>
+                <MenuItem Header="🔗 在 winget.run 查看" Command="{Binding OpenInWingetRunCommand}"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <!-- 行与表头共用同一份 VisibleColumnSpecs（规范 3.8 对齐铁律①）；每格 IsVisible 跟随列显隐。 -->
+                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                  <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Name}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Id}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsIdVisible}"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Version}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsVersionVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Source}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsSourceVisible}"/>
+                  <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding StatusText}"
+                             Foreground="{DynamicResource AccentBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"/>
+                </v:ColumnGrid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- 右：选中包的详细信息 -->
+      <Border Grid.Column="1" Classes="card" Padding="16">
+        <Grid RowDefinitions="Auto,*">
+
+          <!-- 有选中：动作按钮 + 字段 -->
+          <StackPanel Grid.Row="0" Spacing="12" IsVisible="{Binding HasSelection}">
+            <TextBlock Text="选中包" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="primary" Content="⬇ 安装" Command="{Binding InstallCommand}" IsEnabled="{Binding !IsBusy}"/>
+              <Button Classes="ghost" Content="⬆ 升级" Command="{Binding UpgradeCommand}" IsEnabled="{Binding !IsBusy}"/>
+              <Button Classes="ghost" Content="🔎 详情" Command="{Binding LoadDetailCommand}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="ghost" Content="📌 Pin" Command="{Binding PinCommand}" IsEnabled="{Binding !IsBusy}"
+                      ToolTip.Tip="Pin 住 = 暂停更新，winget upgrade 会跳过它"/>
+              <Button Classes="ghost" Content="📌 取消" Command="{Binding UnpinCommand}" IsEnabled="{Binding !IsBusy}"/>
+              <Button Classes="ghost" Content="🗑 卸载" Command="{Binding UninstallCommand}" IsEnabled="{Binding !IsBusy}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Classes="ghost" Content="📋 复制 Id" Command="{Binding CopyIdCommand}"/>
+              <Button Classes="ghost" Content="🌐 主页" Command="{Binding OpenHomepageCommand}"/>
+            </StackPanel>
+          </StackPanel>
+
+          <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="10">
+
+              <StackPanel Spacing="2" IsVisible="{Binding !HasSelection}">
+                <TextBlock Text="在左侧列表里选中一个包" FontSize="13" TextWrapping="Wrap"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="选中后这里显示版本、源、状态、发布者、主页、协议与描述；右键列表还有安装 / 升级 / 卸载 / Pin 等操作。"
+                           FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="名称" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.Name}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="Id" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <SelectableTextBlock Text="{Binding Selected.Id}" FontSize="12" TextWrapping="Wrap"
+                                     Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="版本 / 可升级到" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{Binding Selected.Version}" FontSize="12"
+                             Foreground="{DynamicResource PrimaryTextBrush}"/>
+                  <TextBlock Text="→" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  <TextBlock Text="{Binding Selected.Available}" FontSize="12"
+                             Foreground="{DynamicResource AccentBrush}"/>
+                </StackPanel>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="状态" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.StatusText}" FontSize="12"
+                           Foreground="{DynamicResource AccentBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="源" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.Source}" FontSize="12"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="发布者" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.Publisher}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="协议 / 许可证" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.License}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="安装位置" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.InstallLocation}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="主页" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <SelectableTextBlock Text="{Binding Selected.Homepage}" FontSize="12" TextWrapping="Wrap"
+                                     Foreground="{DynamicResource PrimaryTextBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="2" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="描述" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <TextBlock Text="{Binding Selected.Description}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+                <TextBlock Text="（描述等信息来自「🔎 详情」，点一下才会去跑 winget show）" FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
+
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

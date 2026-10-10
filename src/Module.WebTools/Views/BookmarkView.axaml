@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.WebTools.Views.BookmarkView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="8">
+      <Button Classes="primary" Content="📥 导入书签"/>
+      <Button Classes="ghost" Content="▶ 检测可用性"/>
+      <Button Classes="ghost" Content="📤 导出清单"/>
+    </StackPanel>
+    <Border Grid.Row="1" Margin="24,8,24,16">
+      <Border Classes="card">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="4"><StackPanel Spacing="8"><TextBox PlaceholderText="粘贴浏览器导出的书签 html / 纯文本网址，一行一个" Height="120" AcceptsReturn="True" TextWrapping="Wrap"/><TextBlock Text="支持批量检测链接可用性（200/超时/404）" Foreground="{DynamicResource SecondaryTextBrush}"/></StackPanel></StackPanel></ScrollViewer>
+      </Border>
+    </Border>
+  </Grid>
+</UserControl>

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>NewToys.Shell</RootNamespace>
+    <AssemblyName>NewToys</AssemblyName>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Shared/Shared.csproj" />
+    <ProjectReference Include="../Core/Core.csproj" />
+  </ItemGroup>
+
+  <!--  Debug 才引用模块项目：支持断点与热重载，并与 App.axaml.cs 的 #if DEBUG 显式类型清单配套。
+        Release 下 Shell 不引用模块，模块 DLL 由 src\Directory.Build.props 直接产出到
+        artifacts\release\Modules\，运行时由 ModuleLoader 扫描该目录。
+        ⛔ 跳过某个模块要同时注释这里和 App.axaml.cs 的 typeof(...) 两处。  -->
+  <ItemGroup Condition="'$(Configuration)'=='Debug'">
+    <ProjectReference Include="../Module.PcTools/Module.PcTools.csproj" />
+    <ProjectReference Include="../Module.WebTools/Module.WebTools.csproj" />
+    <ProjectReference Include="../Module.VideoTools/Module.VideoTools.csproj" />
+    <ProjectReference Include="../Module.Settings/Module.Settings.csproj" />
+  </ItemGroup>
+</Project>

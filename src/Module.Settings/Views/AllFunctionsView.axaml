@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Settings.Views.AllFunctionsView">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <ItemsControl ItemsSource="{Binding Groups}" Margin="24,16">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Margin="0,0,0,20">
+            <!-- 模块分组标题：图标 + 名称 -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
+              <TextBlock Text="{Binding Icon}" FontSize="18" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold"
+                         Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <!-- 该模块下的二级功能：可换行卡片，点击跳转，右键固定到首页收藏夹 -->
+            <ItemsControl ItemsSource="{Binding Items}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Margin="0,0,10,10" Classes="ghost"
+                          Tag="{Binding Key}"
+                          PointerPressed="OnCardPointerPressed"
+                          Command="{Binding $parent[UserControl].DataContext.NavigateCommand}"
+                          CommandParameter="{Binding Key}"
+                          ToolTip.Tip="{Binding Title}">
+                    <Border Classes="card" Padding="14,10" MinWidth="180">
+                      <StackPanel Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center"/>
+                          <TextBlock Text="{Binding Title}" FontSize="14"
+                                     Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                          <!-- ★ 已固定标记：固定到首页收藏夹后显示 -->
+                          <TextBlock Text="★" FontSize="12" Foreground="#FFB300" VerticalAlignment="Center">
+                            <TextBlock.IsVisible>
+                              <Binding Path="IsFavorite"/>
+                            </TextBlock.IsVisible>
+                          </TextBlock>
+                        </StackPanel>
+                        <TextBlock Text="{Binding Desc}" FontSize="11"
+                                   Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"
+                                   MaxWidth="220"/>
+                      </StackPanel>
+                    </Border>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </ScrollViewer>
+</UserControl>

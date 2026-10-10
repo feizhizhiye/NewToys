@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.WebTools.Views.DnsView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="8">
+      <Button Classes="primary" Content="✅ 启用加密 DNS"/>
+      <Button Classes="ghost" Content="🧹 清除 DNS 缓存"/>
+    </StackPanel>
+    <Border Grid.Row="1" Margin="24,8,24,16">
+      <Border Classes="card">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="4"><StackPanel Spacing="10"><RadioButton Content="腾讯 DNSPod (1.12.12.12)" GroupName="dns" IsChecked="True"/><RadioButton Content="阿里 DNS (223.5.5.5)" GroupName="dns"/><RadioButton Content="Cloudflare (1.1.1.1)" GroupName="dns"/><RadioButton Content="Google (8.8.8.8)" GroupName="dns"/><RadioButton Content="自定义" GroupName="dns"/><TextBox PlaceholderText="自定义 DoH URL（https://…）" IsEnabled="False"/></StackPanel></StackPanel></ScrollViewer>
+      </Border>
+    </Border>
+  </Grid>
+</UserControl>

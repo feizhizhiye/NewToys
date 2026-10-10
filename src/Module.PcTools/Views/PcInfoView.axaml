@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.PcTools.Views.PcInfoView">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="24,16,24,0" Spacing="8">
+      <Button Classes="primary" Content="🔄 刷新"/>
+      <Button Classes="ghost" Content="📋 复制到剪贴板"/>
+    </StackPanel>
+    <Border Grid.Row="1" Margin="24,8,24,16">
+      <Border Classes="card">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="4"><Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="120,*" Margin="16"><TextBlock Text="操作系统" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Column="1" Text="检测中……" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Grid.Row="1" Text="CPU" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Row="1" Grid.Column="1" Text="—" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Grid.Row="2" Text="内存" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Row="2" Grid.Column="1" Text="—" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Grid.Row="3" Text="磁盘" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Row="3" Grid.Column="1" Text="—" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Grid.Row="4" Text="网络" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock Grid.Row="4" Grid.Column="1" Text="—" Foreground="{DynamicResource PrimaryTextBrush}"/></Grid></StackPanel></ScrollViewer>
+      </Border>
+    </Border>
+  </Grid>
+</UserControl>

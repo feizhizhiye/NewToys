@@ -175,8 +175,12 @@
         </Grid>
       </Border>
 
-      <!-- 右：播放器式预览 + 区间 + 命令（这一页要放预览画面，卡片比别处宽一点） -->
-      <Border Grid.Column="1" Classes="detail-card" Width="420" IsVisible="{Binding IsDetailVisible}">
+      <!-- 右：播放器式预览 + 区间 + 命令（这一页要放预览画面，卡片比别处宽一点）
+           ⚠️ Padding 右侧**故意只留 8**（本页局部覆盖 detail-card 的 16）：Avalonia 的滚动条是**浮在内容之上**的，
+              且它的槽以 ScrollViewer 右缘为中心（左右各 8px）。这里把 ScrollViewer 往右推 8px、
+              内容再用 Margin 让 8px —— 于是滚动条整条槽正好落在卡片右缘内侧，贴着详情卡右侧，
+              不再压在大预览图上。 -->
+      <Border Grid.Column="1" Classes="detail-card" Width="420" Padding="16,16,8,16" IsVisible="{Binding IsDetailVisible}">
         <Grid RowDefinitions="Auto,*">
           <StackPanel Grid.Row="0" Spacing="8">
             <TextBlock Classes="section-title" Text="预览与区间"/>
@@ -194,7 +198,8 @@
           </StackPanel>
 
           <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="10">
+            <!-- Margin 右侧 8px = 给贴在卡片右缘的滚动条让位（见上面 Border 的说明） -->
+            <StackPanel Spacing="10" Margin="0,0,8,0">
 
               <TextBlock Classes="empty-hint" IsVisible="{Binding !HasSelection}"
                          Text="先在左侧选一个任务（或点「📂 选择视频」新建一条），再点「🎞 抽帧」—— 缩略图来自视频的关键帧。"/>

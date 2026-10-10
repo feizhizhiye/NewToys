@@ -125,7 +125,6 @@
               <Button Grid.Column="5" Classes="col-header" Content="{Binding PinnedHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Pinned" ToolTip.Tip="点一下把已 Pin 的排在前面"
                       IsVisible="{Binding IsPinnedVisible}"/>
-                   所有带详情卡的列表页统一这个交互，不再在工具条上放「▤ 详情」文字按钮。 -->
               <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
               <Border Grid.Column="6" Classes="detail-hotspot">
                 <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"

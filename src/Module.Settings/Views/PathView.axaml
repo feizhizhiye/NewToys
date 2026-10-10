@@ -90,7 +90,6 @@
                          IsVisible="{Binding IsDescriptionVisible}"/>
               <TextBlock Grid.Column="4" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
-                   所有带详情卡的列表页统一这个交互。 -->
               <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
               <Border Grid.Column="5" Classes="detail-hotspot">
                 <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"

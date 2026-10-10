@@ -52,8 +52,10 @@ public partial class TranscodeView : UserControl
                 }
             });
 
+            // ⚠️ TryGetLocalPath() 返回 string? → 过滤完还要 `p!` 收紧成非空串，否则 CS8604/CS8620
             var paths = files?.Select(f => f.TryGetLocalPath())
                               .Where(p => !string.IsNullOrWhiteSpace(p))
+                              .Select(p => p!)
                               .ToList();
             if (paths == null || paths.Count == 0) return;
 

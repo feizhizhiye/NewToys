@@ -87,7 +87,7 @@ public class VideoTaskStore
     /// <summary>清掉已经跑完 / 失败 / 取消的任务（保留还没跑的）。</summary>
     public int ClearFinishedCut()
     {
-        var done = CutTasks.Where(t => TaskStatus.IsFinished(t.Status)).ToList();
+        var done = CutTasks.Where(t => VideoTaskStatus.IsFinished(t.Status)).ToList();
         foreach (var t in done) CutTasks.Remove(t);
         if (done.Count > 0) Save();
         return done.Count;
@@ -95,7 +95,7 @@ public class VideoTaskStore
 
     public int ClearFinishedTranscode()
     {
-        var done = TranscodeTasks.Where(t => TaskStatus.IsFinished(t.Status)).ToList();
+        var done = TranscodeTasks.Where(t => VideoTaskStatus.IsFinished(t.Status)).ToList();
         foreach (var t in done) TranscodeTasks.Remove(t);
         if (done.Count > 0) Save();
         return done.Count;
@@ -127,12 +127,12 @@ public class VideoTaskStore
             // 磁盘上可能还留着"运行中"的状态（上次是被强杀的）→ 如实标成失败，别假装还在跑
             foreach (var t in data.Cut ?? new List<CutTask>())
             {
-                if (t.Status == TaskStatus.Running) { t.Status = TaskStatus.Failed; t.Message = "上次没有跑完（程序退出）"; }
+                if (t.Status == VideoTaskStatus.Running) { t.Status = VideoTaskStatus.Failed; t.Message = "上次没有跑完（程序退出）"; }
                 CutTasks.Add(t);
             }
             foreach (var t in data.Transcode ?? new List<TranscodeTask>())
             {
-                if (t.Status == TaskStatus.Running) { t.Status = TaskStatus.Failed; t.Message = "上次没有跑完（程序退出）"; }
+                if (t.Status == VideoTaskStatus.Running) { t.Status = VideoTaskStatus.Failed; t.Message = "上次没有跑完（程序退出）"; }
                 TranscodeTasks.Add(t);
             }
         }

@@ -178,9 +178,9 @@ public partial class VideoCutViewModel : ListPageViewModelBase
         OnPropertyChanged(nameof(HasItems));
         SummaryText = CutTasks.Count == 0
             ? "还没有任务"
-            : $"共 {CutTasks.Count} 个任务 · 已完成 {CutTasks.Count(t => t.Status == TaskStatus.Done)}"
-              + (CutTasks.Count(t => t.Status == TaskStatus.Failed) > 0
-                  ? $" · 失败 {CutTasks.Count(t => t.Status == TaskStatus.Failed)}" : "");
+            : $"共 {CutTasks.Count} 个任务 · 已完成 {CutTasks.Count(t => t.Status == VideoTaskStatus.Done)}"
+              + (CutTasks.Count(t => t.Status == VideoTaskStatus.Failed) > 0
+                  ? $" · 失败 {CutTasks.Count(t => t.Status == VideoTaskStatus.Failed)}" : "");
     }
 
     /// <summary>列表真正绑定的集合（排序 / 过滤后的视图）。</summary>
@@ -299,7 +299,7 @@ public partial class VideoCutViewModel : ListPageViewModelBase
         Selected.OutputPath = (EditOutput ?? "").Trim();
         Selected.ReEncode = EditReEncode;
         Selected.Crf = EditCrf;
-        if (Selected.Status != TaskStatus.Running) Selected.Reset();   // 改了参数 → 回到等待（下次会按新参数跑）
+        if (Selected.Status != VideoTaskStatus.Running) Selected.Reset();   // 改了参数 → 回到等待（下次会按新参数跑）
 
         _store?.Save();
         RefreshView();
@@ -470,7 +470,7 @@ public partial class VideoCutViewModel : ListPageViewModelBase
     /// <summary>▶▶ 批量运行：按顺序跑全部「还没成功」的任务。</summary>
     [RelayCommand]
     private async Task RunAllAsync()
-        => await RunTasksAsync(CutTasks.Where(t => t.Status != TaskStatus.Done).ToList());
+        => await RunTasksAsync(CutTasks.Where(t => t.Status != VideoTaskStatus.Done).ToList());
 
     private async Task RunTasksAsync(List<CutTask> targets)
     {
@@ -494,7 +494,7 @@ public partial class VideoCutViewModel : ListPageViewModelBase
                 if (_runCts.IsCancellationRequested) break;
 
                 StatusText = $"正在剪切（{i + 1}/{targets.Count}）：{t.Name}";
-                t.Status = TaskStatus.Running;
+                t.Status = VideoTaskStatus.Running;
                 t.Progress = 0;
                 t.Message = "";
 
@@ -516,7 +516,7 @@ public partial class VideoCutViewModel : ListPageViewModelBase
                     t.End > t.Start ? t.End - t.Start : (t.Duration > 0 ? t.Duration - t.Start : 0),
                     progress, _runCts.Token);
 
-                t.Status = ok ? TaskStatus.Done : (message == "已取消。" ? TaskStatus.Canceled : TaskStatus.Failed);
+                t.Status = ok ? VideoTaskStatus.Done : (message == "已取消。" ? VideoTaskStatus.Canceled : VideoTaskStatus.Failed);
                 t.Message = message;
                 t.OutputSize = size;
                 if (ok) okCount++;

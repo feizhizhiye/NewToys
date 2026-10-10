@@ -6,8 +6,12 @@ namespace NewToys.VideoTools.Models;
 
 /// <summary>
 /// 任务的运行状态（剪切 / 转码两页共用）。
+/// <para>
+/// ⚠️ 类名**不能**叫 <c>TaskStatus</c>：项目开了隐式 using，<c>System.Threading.Tasks.TaskStatus</c>
+/// 也在作用域里，同名会到处 CS0104（"不明确的引用"）。命名铁律：模型名避开 BCL 公开类型名。
+/// </para>
 /// </summary>
-public static class TaskStatus
+public static class VideoTaskStatus
 {
     /// <summary>排队等待（还没跑）。</summary>
     public const string Pending = "等待中";
@@ -45,7 +49,7 @@ public abstract partial class VideoTaskBase : ObservableObject
     /// <summary>输出文件全路径（留空 = 在源目录旁边自动命名）。</summary>
     public string OutputPath { get; set; } = "";
 
-    [ObservableProperty] private string _status = TaskStatus.Pending;
+    [ObservableProperty] private string _status = VideoTaskStatus.Pending;
 
     /// <summary>进度 0~100（ffmpeg 的 -progress 输出解析得到；跑完置 100）。</summary>
     [ObservableProperty] private int _progress;
@@ -62,8 +66,8 @@ public abstract partial class VideoTaskBase : ObservableObject
     /// <summary>输出文件名（详情卡显示）。</summary>
     public string OutputName => string.IsNullOrEmpty(OutputPath) ? "（自动命名）" : Path.GetFileName(OutputPath);
 
-    public bool IsFinished => TaskStatus.IsFinished(Status);
-    public bool IsRunning => Status == TaskStatus.Running;
+    public bool IsFinished => VideoTaskStatus.IsFinished(Status);
+    public bool IsRunning => Status == VideoTaskStatus.Running;
 
     /// <summary>
     /// 输出大小变化的挂钩（由 <see cref="OutputSize"/> 的分部方法转调）。
@@ -75,18 +79,18 @@ public abstract partial class VideoTaskBase : ObservableObject
     partial void OnOutputSizeChanged(long value) => NotifyOutputSizeChanged();
 
     /// <summary>是否在等待（可再次加入批量运行）。</summary>
-    public bool IsPending => Status == TaskStatus.Pending;
+    public bool IsPending => Status == VideoTaskStatus.Pending;
 
     /// <summary>输出大小（人类可读）。</summary>
     public string OutputSizeDisplay => FormatSize(OutputSize);
 
     /// <summary>状态 + 进度（列表「状态」列显示）。</summary>
-    public string StatusDisplay => Status == TaskStatus.Running ? $"{Status} {Progress}%" : Status;
+    public string StatusDisplay => Status == VideoTaskStatus.Running ? $"{Status} {Progress}%" : Status;
 
     /// <summary>把任务恢复到"等待中"（改了参数后重新跑）。</summary>
     public void Reset()
     {
-        Status = TaskStatus.Pending;
+        Status = VideoTaskStatus.Pending;
         Progress = 0;
         Message = "";
         OutputSize = 0;

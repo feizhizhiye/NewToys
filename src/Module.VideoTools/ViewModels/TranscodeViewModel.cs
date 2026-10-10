@@ -157,9 +157,9 @@ public partial class TranscodeViewModel : ListPageViewModelBase
         OnPropertyChanged(nameof(HasItems));
         SummaryText = TranscodeTasks.Count == 0
             ? "还没有任务"
-            : $"共 {TranscodeTasks.Count} 个任务 · 已完成 {TranscodeTasks.Count(t => t.Status == TaskStatus.Done)}"
-              + (TranscodeTasks.Count(t => t.Status == TaskStatus.Failed) > 0
-                  ? $" · 失败 {TranscodeTasks.Count(t => t.Status == TaskStatus.Failed)}" : "");
+            : $"共 {TranscodeTasks.Count} 个任务 · 已完成 {TranscodeTasks.Count(t => t.Status == VideoTaskStatus.Done)}"
+              + (TranscodeTasks.Count(t => t.Status == VideoTaskStatus.Failed) > 0
+                  ? $" · 失败 {TranscodeTasks.Count(t => t.Status == VideoTaskStatus.Failed)}" : "");
     }
 
     protected override string? FieldText(object row, string columnKey) => columnKey switch
@@ -315,7 +315,7 @@ public partial class TranscodeViewModel : ListPageViewModelBase
         Selected.OutputPath = output;
         EditOutput = output;
 
-        if (Selected.Status != TaskStatus.Running) Selected.Reset();
+        if (Selected.Status != VideoTaskStatus.Running) Selected.Reset();
         _store?.Save();
         RefreshView();
         BuildCompareRows();
@@ -345,7 +345,7 @@ public partial class TranscodeViewModel : ListPageViewModelBase
     /// <summary>▶▶ 批量运行：按顺序跑全部「还没成功」的任务。</summary>
     [RelayCommand]
     private async Task RunAllAsync()
-        => await RunTasksAsync(TranscodeTasks.Where(t => t.Status != TaskStatus.Done).ToList());
+        => await RunTasksAsync(TranscodeTasks.Where(t => t.Status != VideoTaskStatus.Done).ToList());
 
     private async Task RunTasksAsync(List<TranscodeTask> targets)
     {
@@ -368,7 +368,7 @@ public partial class TranscodeViewModel : ListPageViewModelBase
                 if (_runCts.IsCancellationRequested) break;
 
                 StatusText = $"正在转码（{i + 1}/{targets.Count}）：{t.Name}";
-                t.Status = TaskStatus.Running;
+                t.Status = VideoTaskStatus.Running;
                 t.Progress = 0;
                 t.Message = "";
 
@@ -377,7 +377,7 @@ public partial class TranscodeViewModel : ListPageViewModelBase
                     ffmpeg, FfmpegService.BuildTranscodeArgs(t, t.OutputPath), t.OutputPath,
                     t.SourceDuration, progress, _runCts.Token);
 
-                t.Status = ok ? TaskStatus.Done : (message == "已取消。" ? TaskStatus.Canceled : TaskStatus.Failed);
+                t.Status = ok ? VideoTaskStatus.Done : (message == "已取消。" ? VideoTaskStatus.Canceled : VideoTaskStatus.Failed);
                 t.Message = message;
                 t.OutputSize = size;
 

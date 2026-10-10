@@ -51,7 +51,9 @@ public class StartupService
     {
         get
         {
-            if (!IsSupported) return false;
+            // ⚠️ 平台守卫必须写**直接的** OperatingSystem.IsWindows()：
+            //    CA1416 只认这种内联判断，间接的 IsSupported 属性它看不懂（会报"可在所有平台访问"）
+            if (!OperatingSystem.IsWindows()) return false;
             try
             {
                 using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, false);
@@ -69,7 +71,7 @@ public class StartupService
     /// <summary>写入开机启动项。</summary>
     public (bool Ok, string Message) Enable()
     {
-        if (!IsSupported) return (false, "开机启动目前只支持 Windows。");
+        if (!OperatingSystem.IsWindows()) return (false, "开机启动目前只支持 Windows。");
 
         var exe = ExePath;
         if (string.IsNullOrWhiteSpace(exe)) return (false, "取不到本程序的路径，无法写开机启动项。");
@@ -93,7 +95,7 @@ public class StartupService
     /// <summary>删除开机启动项（本来就没有也算成功）。</summary>
     public (bool Ok, string Message) Disable()
     {
-        if (!IsSupported) return (false, "开机启动目前只支持 Windows。");
+        if (!OperatingSystem.IsWindows()) return (false, "开机启动目前只支持 Windows。");
 
         try
         {

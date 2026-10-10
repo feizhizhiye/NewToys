@@ -65,6 +65,15 @@ public abstract partial class VideoTaskBase : ObservableObject
     public bool IsFinished => TaskStatus.IsFinished(Status);
     public bool IsRunning => Status == TaskStatus.Running;
 
+    /// <summary>
+    /// 输出大小变化的挂钩（由 <see cref="OutputSize"/> 的分部方法转调）。
+    /// 派生类（如 <see cref="TranscodeTask"/> 的「省了多少」）在这里补发自己的通知 ——
+    /// ⚠️ 分部方法只能声明在**定义该属性**的类里，所以跨类只能靠虚方法转一手。
+    /// </summary>
+    protected virtual void NotifyOutputSizeChanged() { }
+
+    partial void OnOutputSizeChanged(long value) => NotifyOutputSizeChanged();
+
     /// <summary>是否在等待（可再次加入批量运行）。</summary>
     public bool IsPending => Status == TaskStatus.Pending;
 
@@ -276,7 +285,13 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(PresetName));
     }
 
-    partial void OnOutputSizeChanged(long value) => OnPropertyChanged(nameof(SavingDisplay));
-
     partial void OnSourceSizeChanged(long value) => OnPropertyChanged(nameof(SavingDisplay));
+
+    /// <summary>
+    /// 「输出大小变了」的回调。
+    /// <para>⚠️ <see cref="VideoTaskBase.OutputSize"/> 是<b>基类</b>里的 <c>[ObservableProperty]</c>，
+    /// 所以它的分部方法 <c>OnOutputSizeChanged</c> 只能在基类里声明（写在这里会 CS0759：找不到定义声明）。
+    /// 基类那边会转调这个虚方法，让派生类照样能补发自己的派生属性通知。</para>
+    /// </summary>
+    protected override void NotifyOutputSizeChanged() => OnPropertyChanged(nameof(SavingDisplay));
 }

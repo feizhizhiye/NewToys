@@ -1,15 +1,15 @@
 # NewToys 项目现状与进度
 
-> v3.12 · 2026-10-11 · 台账
+> v3.16 · 2026-10-12 · 台账
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
 > ⛔ **评估结论不写进本台账**——评估在会话里讨论，用户拍板后才转为需求。
 > 配套：开发需求（宪法）/ 开发规范 / AI 协作提示词
 
 **最近三次变更**
-- **v3.12**：🎨 **视频工具两页详情卡统一 + 全局密度收紧 + 详情开关上移（代码已落盘，待本地 `build.ps1`）** —— ① 修 bug：送到已打开页面的视频要刷新才生效（取件点从 `OnDataContextChanged` 改到 `OnAttachedToVisualTree`，⚠️ 必须 `protected override`）；② 「命令生成」页更名「**视频预览**」（**View/VM 类名与文件名同步改为 `VideoPreview*`**，菜单 key 仍保留 `video-cut`）；③ 两页详情卡统一为「剪辑 → 转码 → 输出 → 命令」，类型勾选并入分区标题、按钮全移到工具条、批量页补上命令生成区；④ 详情开关从表头右缘挪到**工具条右上角**（11 个列表页 + 基类 `Detail` 特判清理）；⑤ 全局留白收紧（行高 32→28、卡片 14→12、工具条/筛选条/按钮内边距下调）。
-- **v3.11**：📝 **文档重构（无功能改动）** —— 《开发需求》删版本流水与附录、需求融进功能章节、§4.0 布局总览按「左菜单栏 / 标题栏 / 主内容区 / 详情卡 / 状态栏」重写；评估内容（多段剪辑、命令生成函数）撤出文档改为会话讨论；台账只留最近三次。
-- **v3.10**：📝 **视频工具「命令生成」页再设计（只写需求 / 规范，代码下一批）** —— 改「类播放器预览 + 三条时间条 ｜ 详情卡」两列；删抽帧缩略图墙 + 工具条任务类型单选；任务类型移入详情卡（剪辑 / 转码可多选、两套设置可折叠）；命令可手动编辑；转码参数补足「格式 / 编码器(CPU·GPU) / 分辨率 / 码率」；视频列表送来默认预览。
+- **v3.16**：🧰 **视频工具六项（代码已落盘，待本地 `build.ps1`）** —— ① 视频库导入从「📂 导入」下拉里**独立成「🗄 导入视频库(.db)」按钮**（点即选、默认定位「导入导出默认目录」、⛔ 无输入框）；② 修 bug「导入 .db 后列表没反应」：`VideoCatalogService.ReadFile` 改为**回传失败原因**（无 `video_catalog` 表 / 缺列 / 打不开 / 取不到本地路径）+ `PRAGMA table_info` **兼容旧库**（缺 `tags`/`modified` 按默认读）+ 构造期 `ALTER TABLE` **补列** + 库里存 `modified`（以前读回一整库，修改时间全是导入那一刻）；③ 视频预览页**状态栏常驻当前视频信息**（`StatusText` 的 setter 统一拼「🎬 文件名 · 时长 · 路径」前缀，动作反馈冲不掉）；④ **两页详情卡完全一致**：批量页两个 `Expander.Header` 补上**可交互勾选框**，勾/取消 = 任务在 剪辑 ⇄ 转码 ⇄ 剪辑+转码 间转换（`VideoTaskStore.Replace` 保队列位置，`TranscodeTask.UseTrim` 让"结束留空=到末尾"也能勾住），转码段内重复的那组「剪辑区间」输入删掉、`最大高度` 移到与预览页同一位置并在预览页补同一字段；⑤ **表头 ☑ 右键菜单**（全选 / 取消选择 / 反选）取代工具条那三个按钮，批量页也加行首勾选列（列索引整体后移一位，`Pick` 进列显隐）；⑥ 两页工具条各加「🧹 清除列表 / 清除队列」（二次确认，⛔ 不动视频文件）。
+- **v3.15**：🎬 **视频工具增强（默认目录 / 标签 / 改名 / 表头 / 收藏）（代码已写完，待本地 `build.ps1` 验证）** —— ① 设置「导入导出默认目录」`VideoDbFolder` 全局；② `video_catalog.tags` + 详情卡编辑；③ 详情卡改名（`VideoFileService.RenameToAsync` + `catalog.MovePath`）；④ 视频列表 +7 列 / 批量 +3 列；⑤ 📸 取帧；⑥ `video-fav` 收藏页。
+- **v3.14**：📂 **视频列表「📂 导入」拆分按钮（代码已落盘，本地编译通过 ✅）**
 
 ---
 
@@ -18,14 +18,14 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.12 ｜ 规范 v3.12 ｜ 提示词 v3.12 ｜ 本台账 v3.12 |
+| 文档版本 | 需求 v3.16 ｜ 规范 v3.13 ｜ 提示词 v3.13 ｜ 本台账 v3.16 |
 | 技术栈 | .NET 10 + Avalonia 12.1.3 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
 | 代码规模 | 7 项目 / 约 154 个 `.cs+.axaml+.csproj` / 约 19400 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |
 | 版本控制 | ✅ git（分支 `main`） |
 | 构建分工 | 🧑‍💻 构建 / 发布由用户本地执行（`pwsh -File .\scripts\build.ps1`）；AI 只改 `src/` |
 
-**编译状态**：✅ v1.14 / v1.16 本地 0 错；⚠️ **v1.21 起（含 v3.x 全部批次）尚未由用户本地复跑** → 待跑 `build.ps1`。
+**编译状态**：✅ v1.14 / v1.16 本地 0 错；⚠️ v1.21~v3.12 尚未由用户本地复跑 → 待跑；**v3.13 / v3.14 已于 2026-10-12 本地编译通过 ✅**。
 
 **当前主线**：UI 从仿微信三栏重构为**仿浏览器标签页 + 树状左菜单栏**（v3.0 起）→ 视频工具三页重构（v3.8）→ 状态栏下沉（v3.9）→ **视频预览页 + 两页详情卡统一 + 密度收紧（v3.12）**。更早脉络看 `git log`。
 
@@ -74,6 +74,7 @@
 ## 三、待办与优先级
 
 > 本轮范围外的项（详情卡上提 / 搜索框 / 历史栈 / 图标矢量化）见**需求 §4.11**，此处不重复登记。
+> **待办来源（准备期产出）**：每次新需求，由 AI 对比《开发需求》应然 vs 本节「一、基线」生成；逐条可验收、带分级（P0/P1…），执行期逐条勾选 [x]。
 
 ### P0 · 视频工具两页详情卡统一 + 全局密度收紧 🚧 代码已落盘，待本地 `build.ps1`
 
@@ -90,6 +91,52 @@
 - [x] **全局密度收紧**（需求 §4.10.2 新基线）：表格行高 32→28、表头 36→32、单元格内边距 12→8、卡片内边距 14→12、`primary/ghost` 16,8 / 12,7 → 12,6 / 10,5、树行 32→30、页面根 `Margin 16→12`、工具条 / 筛选条内边距下调、详情卡 `Margin 12→8`。
 - [x] **详情卡滚动条**：视频预览页与批量处理页都改成 `Padding="12,12,4,12"` + 滚动内容 `Margin="0,0,4,0"`（覆盖式滚动条的槽收在卡内）。
 
+### P0 · v3.13 视频工具精细化 ✅ 代码已落盘 + 本地编译通过
+
+**v3.13**
+- [x] **视频预览页 UI 重构**：预览窗口 + 三条时间条常显（未载入 / 未勾剪辑也占位，不整块隐藏）；压缩三条时间条纵向 `Spacing`；预览区 `MinHeight` 抬高（200→340）、上下留白收紧；源时长从工具条删掉、载入时在状态栏显示；工具条新增**类播放器**按钮（`▶ 播放预览` / `⏸ 停止`，播放符号图标），点击切换 scrub 手动拖 / 自动播放预览（`DispatcherTimer` 逐帧推进）。
+- [x] **两页详情卡对齐**：预览页与批量页详情卡统一为「折叠不影响宽度（卡片固定 `Width=340`）、所有控件左对齐同宽、`ComboBox` 展开不挤出其它控件（`Border.detail-card ComboBox` 集中样式：`HorizontalAlignment=Stretch` + `MaxDropDownHeight=260`）」；两页同一套分区结构（剪辑 → 转码 → 输出 → 命令）。
+- [x] **批量页 → 预览反向发送**：批量页工具条「➡ 送预览」把选中任务源文件送入预览页（复用 `EnqueueForCut` 取件通道；预览页一次只编一个，多送只取首条并提示）。
+- [x] **视频数据库**：新增模块内 `VideoCatalogService`（表 `video_catalog`，沿用 `SqliteDatabase` 同库）；视频列表工具条「💾 加入视频库」把当前列表全部文件写入（只存列表已有信息，未读字段留空，同地址 `INSERT OR REPLACE`）；工具条新增「📑 读取视频库」按钮选 `.db` 文件，把其 `video_catalog` 记录读回为列表项。
+- [x] **批量任务导入/导出**：批量页工具条「📤 导出任务」「📥 导入任务」，复用 `VideoTaskStore.TaskFile` 结构做 JSON 序列化 / 追加导入；走 `TopLevel.StorageProvider`。
+
+### P0 · v3.14 视频列表「📂 导入」拆分按钮（合并文件夹 / 视频文件 / 视频库）✅ 代码已落盘 + 本地编译通过
+
+**v3.14**
+- [x] **工具条「📂 导入」拆分按钮替代原「读取文件夹 / 读取视频库」**：`VideoListView.axaml` 删除 `📂 浏览…` 与 `📑 读取视频库` 两个按钮，改为一个 `SplitButton`（主按钮 = 文件夹…；`Flyout` 内 `MenuFlyout` 三项：文件夹… / 视频文件… / 视频库(.db)…）；`App.axaml` 补 `SplitButton.ghost` 样式沿用 ghost 外观。
+- [x] **VM 新增 `ImportVideoFiles(IEnumerable<string> paths)`**：由路径直接建 `VideoItem` **追加**进 `_all` + `ApplyView`（媒体信息留空、不扫描整目录、同路径去重）；「视频文件…」调它，「视频库(.db)…」复用现有 `LoadCatalog(path)`（替换整列，逻辑不变）。
+- [x] **「视频文件…」多选**：`OpenFilePickerAsync`（`AllowMultiple=true`，视频扩展名筛选）；`OnPickVideoFiles` 收集路径 → `ImportVideoFiles`。
+- [x] **「视频库(.db)…」**：`OpenFilePickerAsync`（`*.db`）→ 复用现有 `vm.LoadCatalog(path)`（已实现，不改）；导入后已勾选状态清零、`ApplyView` 刷新。
+- [x] **「文件夹…」**：`OpenFolderPickerAsync` → 现有 `ScanAsync`（逻辑不变，主按钮直接走这条）。
+- ⚠️ **已本地 `build.ps1` 验证通过（2026-10-12）**：① `SplitButton`/`MenuFlyout` 在 Avalonia 12 默认 xmlns 下可解析；② 三入口都把条目汇入同一列表；③「视频文件…」可多选且单文件可用；④ 主按钮点一下 = 选文件夹、下拉箭头展开三项菜单；⑤ 不破坏 v3.13 已通过的编译。
+
+### P0 · v3.15 视频工具增强（默认目录 / 标签 / 改名 / 表头 / 收藏）✅ 代码已写完，待本地 `build.ps1` 验证
+
+**v3.15**
+- [x] **设置：导入导出默认目录（全局）** —— `IAppConfigService.VideoDbFolder` + `settings-path` 新增「导入导出默认目录」(`PathItemKind.Folder`)；`VideoListView` 的 `.db` 选择器与 `VideoBatchView` 的 `.json` 导入 / 导出都用 `SuggestedStartAsync()`（`TryGetFolderFromPathAsync` → `SuggestedStartLocation`）。
+- [x] **视频标签** —— `video_catalog` 加 `tags` 列（`Upsert` 写、`ReadFile` 读）；`VideoCatalogService` 新增 `UpdateTags` / `GetTags` / `HasPath`；视频列表详情卡「标签」可编辑（`EditTags` + `SaveTagsCommand`，回车 / 失焦提交）；表头「标签」列；筛选走 `FieldText("Tags")`。⛔ 未入视频库的项提示先「💾 加入视频库」，不静默丢。
+- [x] **详情卡内改名 + 同步磁盘** —— 新增 `VideoFileService.RenameToAsync`（不弹框版，防穿越 / 同名检查同 `RenameAsync`，返回新全路径）；详情卡「文件名」可编辑（`EditName` + `SaveNameCommand`）→ 更新 `VideoItem.Name/FullPath` + `catalog.MovePath` + `fav.MovePath`；⛔ 只重渲染列表，**不整目录重扫**（保住勾选与已读媒体信息）。
+- [x] **表头扩充** —— 视频列表 7 列（标签 / 帧率 / 容器格式 / 音频编码 / 路径 / 创建时间 / 已收藏），批量列表 3 列（源文件 / 命令摘要 / 创建时间）；均复用 `ListPageViewModelBase` 列显隐 + `columnlayout.json`。新增模型字段：`VideoItem.Fps/ContainerFormat/AudioCodec/Created`、`VideoTaskBase.Created/CommandSummaryDisplay`。⛔ `Container`/`Audio`/`Path`/`Command` 列键与模型属性名不一致 → 已显式写进 `FieldText`，不能靠基类反射兜底。
+- [x] **预览 / 批量页详情卡统一复查** —— 已比对两页详情卡控件构成。
+  - ⚠️ **发现漂移 1 处（转 P1 #6）**：预览页两个 `Expander.Header` 是「勾选框 + 标题」（需求 §6.4.1 第 2 条），**批量页只有标题、没有勾选框**；批量页要补就得先给 `VideoBatchViewModel` 加"该段是否参与命令"的可写标志（与 §6.4.1 第 5 条"批量页类型由选中任务决定"存在语义张力）→ **停手待用户定夺**，未擅自改。命令区（最后一块）两页结构一致，无漂移。
+- [x] **视频预览页「📸 取当前帧」** —— 工具条新增按钮 → `FfmpegService.ExtractFrameAsync` 抽当前帧 → 落 `data\thumbs\{sha1(path)}.jpg`（先写 `.tmp.jpg` 再替换，避开收藏页 Bitmap 占用）→ `_fav.Add` + `VideoTaskStore.EnqueueFrame`。
+  - ⚠️ **与需求 §6.4.2 的一处偏差**：需求写"经任务通道**送**视频收藏页建卡"，实现为**登记后不自动跳转**（用户正在拖着看画面，拽走体验差）；卡片由收藏页在 `OnAttachedToVisualTree` 取件时建好（规范 §4.8 硬规则 8）。若想改成"抽完立刻跳到收藏页"，改一行 `NavigateTo("video-fav")` 即可。
+- [x] **视频收藏页（新）** —— `video-fav`；`VideoFavoritesService`（表 `video_favorites(path,thumb,added_at)`，缩略图磁盘 `data\thumbs`，含 `MovePath` 跟住改名）；`VideoFavoritesView` = `ItemsControl` + `WrapPanel` 卡片网格（⛔ 不是列表页，不继承 `ListPageViewModelBase`）；详情卡与视频列表同套字段（含标签 / 文件名编辑 / 💾入视频库）；视频列表工具条「★ 收藏」为唯一来源（要求已在 `video_catalog` 里）。
+- ⚠️ **验收点**：① 视频库 `.db` **与**批量任务 `.json` 的导入/导出对话框启动即定位到设置的默认目录；② 打标签后详情卡 / 表头 / 收藏页三处一致；③ 详情卡改名磁盘文件同步、视频库路径同步、不重扫；④ 表头右键能显隐新增列；⑤ 预览取帧 → 收藏页出现带缩略图卡片；⑥ 收藏页详情卡与视频列表详情卡同结构。
+- ⚠️ **全部改动只做了静态自查，尚未跑 `build.ps1`**（编译由用户本地验证）。
+
+### P0 · v3.16 视频工具六项（导入独立 / 状态栏 / 详情卡一致 / 表头 ☑ / 清除）🚧 代码已落盘，待本地 `build.ps1`
+
+**v3.16**（用户本轮提的 6 条，逐条可验收）
+- [x] **①「🗄 导入视频库(.db)」独立按钮**（需求 §6.4.3）—— 从「📂 导入」的 `SplitButton` 下拉里拿掉第三项；工具条新增独立按钮（点即弹选择器、`SuggestedStartLocation` = 「导入导出默认目录」、⛔ 无输入框）；code-behind `OnPickCatalogDb` 改挂到 `ImportCatalogBtn`；**文件夹输入框 `FolderBox` 保留**（用户明确要留）。
+- [x] **② 修 bug「导入视频库后列表没反应」** —— `VideoCatalogService.ReadFile` 返回 `CatalogReadResult`（`Items` + `Error`）：无 `video_catalog` 表时报"该文件里的表：…"、`PRAGMA table_info` 拿实际列缺列用 `NULL AS xxx` 顶上（⛔ 不再因缺 `tags` 整表读不出来）、打开/查询异常回传 SQLite 原文；构造期 `EnsureColumn("tags"/"modified")` 给老库补列；`Upsert` 写 `modified`、`ReadFile` 读它（⛔ 不再一律 `DateTime.Now`），顺带按路径补 `Extension`；`FilePicker` 取不到本地路径 / 没选文件也给提示（⛔ 不许静默 return）。
+- [x] **③ 视频预览页状态栏常驻当前视频信息**（需求 §6.4.2）—— `StatusText` 改手写 setter：写入动作消息、读出「🎬 文件名 · 时长 · 完整路径 · 消息」；未载入时不加前缀；换文件 / 探测到时长后 `RefreshStatusPrefix()` 刷新；"已载入"那条消息去掉与前缀重复的冗余文案。
+- [x] **④ 两页详情卡完全一致**（需求 §6.4.1，P1 #6 由此关闭）—— 批量页两 `Expander` 改 `IsVisible="{Binding HasSelection}"` **常显**、标题行补 `CheckBox`（`EditIsCut` / `EditIsTranscode`，**可交互**）；`ApplyTaskKind()` 按勾选组合切任务类型（`VideoTaskStore.Replace` 保队列位置，`_converting` 防递归，两段都不勾 → 强制保留转码）；`TranscodeTask.UseTrim` 新增（`HasTrim = UseTrim || TrimEnd > TrimStart`，兼容老数据），`Save` 里区间以勾选框为准写 `UseTrim`；`FfmpegService.BuildTranscodeArgs` 终点留空时不再拼负的 `-to`；转码段内重复的「剪辑区间」整块删除、`最大高度` 移到同位置，预览页补 `EditMaxHeight` 字段（两页字段集合一致）。
+- [x] **⑤ 表头 ☑ 的勾选菜单**（需求 §6.4.10）—— 两页表头 ☑ 各挂 `ContextMenu`（全选 / 取消选择 / 反选），code-behind `OnDataContextChanged` 同步它的 DataContext（⛔ 弹出树不继承）；视频列表删掉工具条「☑ 全选 / 🔄 反选 / ☐ 清空」；批量页新增行首勾选列（`VideoTaskBase.IsChecked` + `Columns` 首项 `Pick("34")` + `IsPickVisible`，表头/行模板列索引 0~9 → 1~10）。
+- [x] **⑥ 清除列表 / 清除队列**（需求 §6.4.11）—— 视频列表 `ClearListAsync`（清 `_all`/`Videos`/筛选/搜索/选中，二次确认，⛔ 不动磁盘与库）；批量页 `ClearQueueAsync`（`VideoTaskStore.ClearAll()` 清两类 + 落盘，运行中先提示停止，二次确认）；两页工具条各一个按钮。
+- ⚠️ **验收点**：① 点「🗄 导入视频库(.db)」直接弹选择器且定位到默认目录；② 挑一个**非视频库的 .db**（或老库）导入 → 状态栏给出**具体原因**而不是没反应；③ 预览页随便点几个按钮，状态栏始终能看出当前是哪个文件；④ 批量页详情卡勾/取消剪辑、转码 → 任务类型随之变化且不崩；⑤ 表头 ☑ 右键三项都生效；⑥ 清除按钮二次确认后列表/队列清空、文件没删。
+- ⚠️ **全部改动只做了静态自查，尚未跑 `build.ps1`**（编译由用户本地验证）。
+
 ### P1 · 技术债
 | # | 问题 | 建议 |
 |---|---|---|
@@ -98,6 +145,7 @@
 | 3 | `NavigationService` 主流程闲置 | 删闲置服务或改用它（属框架层需同意，B4） |
 | 4 | `BoolInversionConverter` 未使用 | 保留 / 删除均可（B8） |
 | 5 | 仓库根残留旧 `NewToys.slnx` | 删除（B6） |
+| 6 | ~~v3.15 复查发现：批量页详情卡两个分区标题行缺勾选框~~ **v3.16 已解决**：用户拍板"勾选框可交互、勾即改任务类型"，已落地（`EditIsCut` / `EditIsTranscode` + `VideoTaskStore.Replace`） |
 
 ### P2 · 功能待办
 1. **`web-http` 实装**：唯一剩下的骨架页。
@@ -146,5 +194,5 @@
 
 | 日期 | 版本 | 内容 |
 |---|---|---|
-| 2026-10-11 | **v3.11** | **文档瘦身（无功能改动）**：《开发需求》删版本流水与附录、变更融进功能章节、布局总览按五区职责重写；评估内容撤出文档改为会话讨论；台账只留最近三次 |
-| 2026-10-11 | **v3.12** | **视频工具两页详情卡统一 + 全局密度收紧 + 详情开关上移**：修「跨页投递要刷新才生效」（取件点改 `OnAttachedToVisualTree`，`protected override`）；「命令生成」更名「视频预览」（类名/文件名 → `VideoPreview*`，菜单 key 仍为 `video-cut`）；两页详情卡按 ffmpeg 命令顺序统一（剪辑/转码/输出/命令）、类型勾选并入标题、按钮全上移工具条、批量页补命令生成区；详情开关从表头挪到工具条右上角（11 页 + 基类清理）；全局留白按新密度基线收紧 |
+| 2026-10-12 | **v3.15** | **视频工具增强**：设置「导入导出默认目录」（`VideoDbFolder` 全局，覆盖 `.db` 与 `.json` 选择器）；`video_catalog.tags` + 详情卡编辑标签；详情卡内改名同步磁盘/视频库（`RenameToAsync` + `MovePath`，不重扫）；视频列表 +7 列 / 批量 +3 列（列显隐 + `columnlayout.json`）；预览页「📸 取当前帧」；`video-fav` 收藏页（`VideoFavoritesService` + 卡片网格） |
+| 2026-10-12 | **v3.16** | **视频工具六项**：「🗄 导入视频库(.db)」独立成按钮（点即选、定位默认目录）；修「导入 .db 后没反应」（读库回传原因 + 兼容缺列老库 + 补 `modified` 列）；预览页状态栏常驻「🎬 当前文件」；两页详情卡一致（批量页补**可交互**勾选框 → 勾即改任务类型，`UseTrim`，删重复区间输入，两页都带「最大高度」）；表头 ☑ 右键（全选/取消/反选）取代工具条三按钮 + 批量页加勾选列；两页工具条加「🧹 清除列表 / 清除队列」（二次确认） |

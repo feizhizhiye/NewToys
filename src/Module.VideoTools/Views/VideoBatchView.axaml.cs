@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using NewToys.VideoTools.ViewModels;
@@ -26,8 +27,18 @@ public partial class VideoBatchView : UserControl
         base.OnDataContextChanged(e);
         if (TaskList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+    }
 
-        // 「视频列表」页送过来的待处理文件：进本页时取走建任务（取一次就清空，重复调安全）
+    /// <summary>
+    /// 🔴 **取件点必须在这里，不能只在 <see cref="OnDataContextChanged"/>**（需求 §4.8 硬规则 8）。
+    /// <para>标签页**已存在**时从「视频列表」跳过来，Shell 只是把缓存的 View 重新挂回内容区 ——
+    /// <c>DataContext</c> 没变，<c>OnDataContextChanged</c> **不再触发**，送过来的文件就没人建任务。
+    /// <c>TakePendingCut/TakePendingTranscode</c> 取一次即清空，重复调安全。</para>
+    /// </summary>
+    public override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
         if (DataContext is VideoBatchViewModel vm)
             _ = vm.ConsumePendingAsync();
     }

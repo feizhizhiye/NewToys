@@ -1,12 +1,13 @@
 # NewToys · AI 协作提示词
 
-> v3.11 · 2026-10-11 · 会话启动包（面向**本地执行型** AI 客户端：可直接读写 `src/`、跑命令）
+> v3.12 · 2026-10-11 · 会话启动包（面向**本地执行型** AI 客户端：可直接读写 `src/`、跑命令）
 > 用法：新会话开头贴「正文」，末尾写本次需求。
 > 本文件只管**流程 + 索引 + 自检**；细则一律引用另三份，⛔ 不在此复述。
 > 流程设计目标：**分级读档省 token、中段闸门提成功率**。
 >
 > ⛔ **只保留最近三次变更**，更早的逐次记录看 `git log`。
 > 🔴 **读档第一落点 = 《开发需求》**（唯一权威规格）；它**只写「当前应然」**，版本流水与附录已删，本轮范围外项看需求 §4.11。
+> **v3.12**：视频工具两页详情卡**统一**（分区按 ffmpeg 命令顺序：剪辑→转码→输出→命令；类型勾选在分区标题上；**详情卡里不放按钮**）；「命令生成」页显示名改「**视频预览**」（key 仍是 `video-cut`）；**详情开关从表头挪到工具条右上角**（`Button.detail-toggle`）；全局密度收紧（行高 28 / 卡片内边距 12）；🔴 **跨页投递的数据要在 `OnAttachedToVisualTree` 取**（不是 `OnDataContextChanged`）。
 > **v3.11**：随《开发需求》v3.11 瘦身同步 —— 需求 §4 重排（**4.5 详情卡 / 4.6 状态栏 / 4.7 主题 / 4.8 列表页 / 4.9 设置页 / 4.10 视觉规范 / 4.11 未实装**）；⛔ **评估结论不进文档**（用户在会话里问评估 → 直接讨论，不写文件）。
 > **v3.10**：视频工具「命令生成」页再设计 —— 中间类播放器预览（大画面 + 三条可拖时间条，⛔ 无缩略图墙）｜ 右侧详情卡（任务类型**可多选**、剪辑/转码设置区**可折叠**、**命令可编辑**）；工具条只留三项。
 > **v3.9**：**底部状态栏**（Shell 承载，横贯内容区+详情区；`IStatusProvider` 契约，列表页由 `ListPageViewModelBase` 统一实现，**页面删掉顶部状态行**）；**左菜单栏底部版本号区**（占位 `1.26.10`，与「关于」无关，折叠隐藏）；**收藏夹按钮**改「透明底 + 强调色描边，悬停实心」。
@@ -58,8 +59,11 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 · .axaml 扩展名；编译绑定关→写 {Binding}、不写 x:DataType；改 .axaml 必同步 .axaml.cs；⛔ WPF 写法。
 · 颜色一律 DynamicResource；主题键只用 *Brush 语义键(32个，不新增)；code-behind 不写死 #RRGGBB。
 · 图标：**一级菜单 = 矢量**（`App.axaml` 的 `Application.Resources` 里 `Icon*` Geometry，24 网格**描边型**，用 `<Path Stroke=… Stretch="Uniform"/>` 而非 `PathIcon`）；**二级菜单不显示图标**；**标签页无图标**；仅标题栏 4 个工具按钮仍是 emoji（放大到 18px）。模块 `RegisterModule` 的 icon 传几何键；VM 解析用 `Application.Current.TryFindResource(key, out var v)`（**Try 模式**，需 `using Avalonia.Controls;`）。
-· v3.8 视频工具三页：`video-list`（列表）/ `video-cut`（**命令生成**：去列表、单任务编辑卡、支持剪辑+转码两类、自带选文件）/ `video-batch`（**批量处理**：列表=剪辑+转码混排统一队列 + 详情卡）。⛔ 原 `video-transcode` 已并入 `video-batch`。
+· v3.8 视频工具三页：`video-list`（列表）/ `video-cut`（显示名「**视频预览**」，key 不变：单任务编辑 + 预览画面 + 三条时间条、剪辑+转码两类、自带选文件）/ `video-batch`（**批量处理**：列表=剪辑+转码混排统一队列 + 详情卡）。⛔ 原 `video-transcode` 已并入 `video-batch`。
+· **v3.12 两页详情卡是同一套结构**：分区顺序=ffmpeg 命令书写顺序（剪辑→转码→输出→命令）；剪辑/转码的勾选框在 `Expander.Header` 里，⛔ 不另设「任务类型」块；⛔ **详情卡内不放任何操作按钮**（保存/跑/删/复制/重置全在工具条）；命令区同名属性 `CommandPreview` / `EditArgs` / `IsArgsEdited`，两页可照抄。
+· **详情开关在工具条末位**（`Button.detail-toggle`，❯展开/❮收起），⛔ 不再放表头；`Columns` 里⛔不要追加 `Detail` 占位列。
 · v3.7 布局：**标题栏 40px（含标签页；底色 = 主题背景 `ContentBrush`）** + 左树 **180/48** + 内容 + 右详情 340；主窗口 1280×800，最小 960×640。标签页**只有标题 13px**、`✕` **不占位**（悬停才现）；列表页**三列布局**（工具条收进列表列、详情卡从顶到底）。
+· **v3.12 密度基线**：表格行高 **28**、表头 32、单元格内边距 **8**、卡片内边距 **12**、工具条 `12,6` / 筛选条 `12,4`、`primary` `12,6` / `ghost` `10,5`、树行 30、页面根 `Margin="12"`。改样式前先对这张表。
 · v3.5 数据：用户数据在 `<应用根>\profiles\<配置名>\{config,data,logs}`，当前配置名在 `<应用根>\active-profile.txt`；**多配置切换 = 重启应用**（`IProfileService`，⛔ 不热切换）。
   ⚠️ **标题栏配色成套**：底色 `ContentBrush`（浅）→ 文字/图标用 `PrimaryTextBrush`；若改回深色底则整体切 `Sider*` 系。
 · v3.0 导航：ShellViewModel.OpenTab(key) 单例打开/激活；TabItemViewModel 缓存 View+VM；关闭时才销毁。
@@ -72,7 +76,8 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 [4] 分型静态预检（交付前必跑；不能本地编译 → 把编译错消灭在这）
 · 通用：.axaml ↔ .axaml.cs 同步？using/类型/命名空间对得上？引用的主题键都在 32 键内？引用的 Icon* 键都在 App.axaml 里？改动的 VM 字段名全仓搜过旧名(含 nameof)？
 · 加模块：slnx + Shell.csproj(Debug 条件) + App.axaml.cs #if DEBUG 三处都登了？
-· 改列表页：表头与行同套星号列定义？内边距一致？ContextMenu.DataContext 行菜单+表头菜单都在 code-behind 同步了？隐藏列用宽度 0？VM 实现 IDetailPanelProvider 了吗？
+· 改列表页：表头与行同套星号列定义？内边距一致？ContextMenu.DataContext 行菜单+表头菜单都在 code-behind 同步了？隐藏列用宽度 0？改 `Columns` 后表头/行模板的 `Grid.Column` 逐字核对了？
+· 改跨页投递：取件点是不是在 `OnAttachedToVisualTree`（`OnDataContextChanged` 在标签页已存在时不触发）？
 · 改标签/树/导航：OpenTab 做了单例判定？首页 CanClose=false？关闭最后一个自动回首页？Shell 订阅 IDetailPanelProvider/IHistoryProvider 前解绑旧 Tab？
 
 [5] 交付
@@ -93,7 +98,8 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 ☐ 改动真实落盘？                 ☐ 框架层动过已先问？
 ☐ .axaml 同步 .cs？               ☐ 新增模块三处登记？
 ☐ 主题键只 *Brush、无旧键？       ☐ 图标：本轮沿用 emoji（矢量化按需求 §4.10.1）？
-☐ 列表页 VM 实现 IDetailPanelProvider、Shell 右列承载详情？
+☐ 列表页详情开关在工具条末位、`Columns` 无 `Detail` 占位列？
+☐ 跨页投递的数据在 `OnAttachedToVisualTree` 取？
 ☐ 标签页 OpenTab 单例？关首页被拒？关最后自动回首页？
 ☐ 设置落 config\、模块只读？      ☐ 模块 DLL 无拷贝、OutDir 直出？
 ☐ 未谎报编译、写清用户命令？      ☐ 台账按功能级更新、版本号独立？

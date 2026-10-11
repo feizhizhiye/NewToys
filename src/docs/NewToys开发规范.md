@@ -1,11 +1,12 @@
 # NewToys 开发规范
 
-> v3.11 · 2026-10-11 · 技术实现指南
+> v3.12 · 2026-10-11 · 技术实现指南
 > 权威源：需求（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕折衷约束（本文件台账）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
 > ⛔ **只保留最近三次变更**，更早的逐次记录看 `git log`；需求侧章节号见《开发需求》目录（v3.11 起 §4 重排：4.5 详情卡 / 4.6 状态栏 / 4.7 主题 / 4.8 列表页 / 4.9 设置页 / 4.10 视觉规范 / 4.11 未实装）。
+> **v3.12 变更**：§2.1 密度基线按需求 v3.12 收紧（表格行高 32→28、卡片内边距 14→12、工具条/筛选条内边距下调）；**§3.6 详情开关从表头移到工具条末位**（列元数据不再有 `Detail` 占位列）；**§3.9 重写为「视频预览」页 + 两页详情卡统一规格**，并记下"跨页投递的数据要在 `OnAttachedToVisualTree` 取"。
 > **v3.11 变更**：随《开发需求》瘦身同步——修正章节引用（列表页 → §4.8、视觉基线 → §4.10）；**§3.9 撤下"命令生成纯函数库"与"多段剪辑"**（属评估结论，不入文档）；补 `IStatusProvider` 相关引用。
 > **v3.10 变更**：新增 **§3.9 视频工具「命令生成」页实现细则**（类播放器预览 + 三条时间条的布局与滑条同步、详情卡的任务类型多选 / 可折叠设置区 / 可编辑命令）。⚠️ **只写需求与规范，代码下一批。**
 > **v3.9 变更**：**底部状态栏**（Shell 承载，横贯内容区 + 详情区）+ `IStatusProvider` 契约（`Shared/Services/`；`ListPageViewModelBase` 统一实现；**各页删除顶部状态行**）；**左树底部版本号区**（占位 `1.26.10`，折叠态隐藏）；**收藏夹按钮**改「透明底 + 强调色描边，悬停实心」（§2.2 / §2.1 样式类）。
@@ -68,19 +69,21 @@
 
 | 元素 | 尺寸 |
 |---|---|
-| 卡片 `Border.card` | 圆角 8px、内边距 14px |
-| 按钮 `primary`/`ghost` | 圆角 6px |
+| 卡片 `Border.card` | 圆角 8px、内边距 **12px** |
+| 按钮 `primary`/`ghost` | 圆角 6px；内边距 **12,6** / **10,5** |
 | 输入框 | 圆角 4px |
-| 标签页项 | 圆角 4px、内边距 水平 **10px** / 垂直 **4px**；**只有标题**（无图标）、**文字 13px**（v3.7） |
+| 标签页项 | 圆角 4px、内边距 水平 **8px** / 垂直 **3px**；**只有标题**（无图标）、**文字 13px**（v3.7） |
 | 左树展开宽 | **180px**（折叠 48px）（v3.7 由 240 收窄） |
 | 标签关闭按钮 | 22×22、**叠在标题上层贴右端（不参与布局宽度 → 标签只按文字算宽）**；默认 `Opacity=0` + `IsHitTestVisible=False`，`Border.tab-item:pointerover` 时才显形（v3.6） |
-| 树节点行高 | 32px；缩进每级 16px |
-| 内容区外边距 | `Margin="20,16"` |
-| 表格行高 | 32px |
+| 树节点行高 | **30px**；缩进每级 16px |
+| 内容区外边距 | 列表页根 `Grid` **`Margin="12"`**（v3.12 由 16 收窄） |
+| 工具条 / 筛选条内边距 | `12,6` / `12,4` |
+| 表头行高 / 表格行高 | **32px / 28px**；单元格左右内边距 **8px**（表头与行必须一致） |
+| 详情卡 | 宽 340px、内边距 **12px**；本页覆盖 `Padding="12,12,4,12"` + 滚动内容 `Margin="0,0,4,0"`（给覆盖式滚动条留位，见 §3.6） |
 | 标题栏按钮 | 高 32px、**图标 18px**（v3.4 由 16 放大）；窗口控制按钮沿用 46×40 |
 
 **全局样式位置**：`Shell/App.axaml`（+ 复用样式表 `Shell/Styles/Controls.axaml`）。当前样式类：
-`Button.title-btn`（标题栏工具按钮）、`Border.tab-item`/`.active`（标签项）、`Button.tab-btn`（标签）、`Button.tab-close`（标签关闭）、`Button.tree-row`/`.active`/`.sub`（左树行）、`Border.tree-panel.collapsed`（左树折叠态）、**`Border.tree-version`（左树底部版本号，v3.9）**、`Button.win-btn`/`.close`（窗口控制）、**`Border.status-bar` + `TextBlock.status-bar-text`（Shell 底部状态栏，v3.9）**、`Button.primary`/`.ghost`/`.fav-btn`、`Border.card`、`Button.col-header`、`Border.list-header`、`TextBlock.list-cell`、`ListBox.list-page`。
+`Button.title-btn`（标题栏工具按钮）、`Border.tab-item`/`.active`（标签项）、`Button.tab-btn`（标签）、`Button.tab-close`（标签关闭）、`Button.tree-row`/`.active`/`.sub`（左树行）、`Border.tree-panel.collapsed`（左树折叠态）、**`Border.tree-version`（左树底部版本号，v3.9）**、`Button.win-btn`/`.close`（窗口控制）、**`Border.status-bar` + `TextBlock.status-bar-text`（Shell 底部状态栏，v3.9）**、`Button.primary`/`.ghost`/`.fav-btn`、`Border.card`、`Button.col-header`、`Border.list-header`、`TextBlock.list-cell`、`ListBox.list-page`、**`Button.detail-toggle`（工具条末位的详情开关，v3.12；取代 v1.35 的 `Border.detail-hotspot` + `Button.header-toggle`）**。
 
 > ⚠️ **已废弃（v3.3）**：`Button.nav-btn`（旧第一列图标）、`TreeView.tree-nav`。左树现在用 `ItemsControl` + `Button.tree-row` 自绘，**不用 `TreeView`**。
 
@@ -218,12 +221,28 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 
 **列表页内的硬规则（保留）**：
 1. 表头与行模板**完全相同的星号列定义**（逐字一致）；动态列用 `<v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">`。
-2. 表头与行单元格左右内边距一致（12px），行里不写 `Padding/Margin`。
+2. 表头与行单元格左右内边距一致（8px），行里不写 `Padding/Margin`。
 3. `ListBoxItem` 拉伸（已在 App.axaml 设 `HorizontalAlignment=Stretch`），页面不覆盖。
 4. 表头双交互：① 左键点→切换排序（`SortCommand`+CommandParameter，VM 追加▲▼）；② 右键点→`ContextMenu` 勾选列显隐（`ToggleType=CheckBox`，`IsChecked` 显式 `Mode=OneWay`）。
-5. 空态与选中态显式处理：无选中显示引导；有选中显示详情（由 Shell 右列承载）；空列表用居中 StatusText，不留白。
+5. 空态与选中态显式处理：无选中显示引导；有选中显示详情；空列表用居中 StatusText，不留白。
 6. `ContextMenu` 挂在独立弹出树，不保证继承宿主 DataContext → 必须在 View 的 code-behind `OnDataContextChanged` 里手工同步（行菜单+表头菜单都要）。
 7. 列显隐：元数据 `Shared/Models/ListColumn`、服务 `IColumnLayoutService/ColumnLayoutService`（落 `config/columnlayout.json`）。隐藏列用宽度 0（不删列保一致）。
+8. 🔴 **跨页投递的数据在 `OnAttachedToVisualTree` 取**（不是 `OnDataContextChanged`）：标签页已存在时切回来只重新挂可视树，`DataContext` 不变 → 后者**不再触发**，症状是"送过去的文件 / 任务要刷新页面才出现"。`VideoTaskStore.TakePendingCut/TakePendingTranscode` 是取一次即清空的，重复调安全。
+
+**详情开关的位置（v3.12：表头 → 工具条末位）**
+
+- 旧做法：表头最后一列 `Border.detail-hotspot`（64px 透明热区）套 `Button.header-toggle`，收起态只露 8px、鼠标靠近才弹出 34px。
+  **已废除** —— 它① 占掉一整列表头宽度（`Columns` 里还得追加一个 `Detail` 占位列，宽度 36）；② 不把鼠标移过去就点不到；③ 和表头"排序 / 列显隐"两种交互挤在一处。
+- 现做法（需求 §4.5 / §4.8 硬规则 8）：**工具条末位一个常驻小按钮** `Button.detail-toggle`，图标 `❯` = 展开右侧详情、`❮` = 收起。
+- 工具条布局：`Border.toolbar` 内换成 `Grid ColumnDefinitions="*,Auto"` —— 左列放原来的 `WrapPanel`（命令区），右列放开关（`HorizontalAlignment="Right"`）。
+- 相应地，`ListPageViewModelBase.Columns` 里**不再追加** `new("Detail","","36")`；基类里 `if (c.Key != "Detail")` 这类特判**全部删掉**（`SaveVisibility` / `NotifyColumnsChanged` / `EnsureFilterColumns` 各一处）。
+- ⛔ **别删 `Border.detail-card` 的宽度**；改它的内边距会波及 12 个列表页的滚动条位置（见下一条）。
+
+**详情卡滚动条（覆盖式，v3.12 记法）**
+
+- Avalonia 12 的 `ScrollBar` 浮在内容之上，**槽落在 `ScrollViewer` 右缘之外 8px**（偏移写死在 Fluent 模板的 `Margin` 里，改不动）。
+- 于是只能二选一：① `ScrollViewer` 顶到卡片边 → 槽探出卡片 8px、拇指压在边框上；② 正常收在卡内 → 本页 `Border.detail-card` 覆盖 `Padding="12,12,4,12"`、滚动内容 `Margin="0,0,4,0"`。
+- **统一走 ②**：需要滚动条的详情卡都按这两处写（`video-cut` 从 v3.10 起就这么做，v3.12 推广到 `video-batch`）。
 
 **v3.0 列表页右列改动**：
 
@@ -231,6 +250,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - **详情内容抽成独立 `UserControl`**，放 `Views/Detail/<Xxx>DetailView.axaml`（模块内），由 VM 通过 `IDetailPanelProvider.DetailContent` 暴露。
 - **VM 实现 `IDetailPanelProvider`**（契约见 §3.8）。
 - **表头 `▤` 按钮**：绑 `ToggleDetailCommand` → 调 `IDetailPanelProvider.ToggleDetail()`。
+  ⚠️ **v3.12 已改**：不再放表头，改为**工具条末位的 `Button.detail-toggle`**（见 §3.6）。
 - **右键菜单首项「▤ 显示详情栏」**：调 `IDetailPanelProvider.OpenDetail()`。
 - **详情开合状态**：由 Shell 统一落 `config/columnlayout.json`（`FlagDetailPanel`，**按页面 Key 分别记忆**），列表页 VM 不再直接读写。
 - 涉及页面（5 个）：`pc-package` / `video-list` / `pc-shortcuts` / `pc-quicksettings` / `settings-path`。
@@ -307,26 +327,41 @@ public interface IHistoryProvider
 
 **页面 VM 侧**：`video-list` 是唯一有实际页内导航语义的页（目录切换）；其他页不需要实现。
 
-### 3.9 视频工具「命令生成」页实现细则（v3.10，需求 §6.4.1）
+### 3.9 视频工具「视频预览」页与两页详情卡（v3.12 重写，需求 §6.4）
 
-> ⚠️ **只写规范，代码下一批**（与需求 v3.10 同步）。本节记**目标形态**；现状仍是"左预览 + 右参数卡 400px"。
+> 页面 key / 类名仍是 `video-cut` / `VideoCutView` / `VideoCutViewModel`（历史命名，见需求 §6.4 表下注），**只有显示名与文案叫「视频预览」**。
 
 **布局（页内两列 + 左树 = 三列）**
-- 页根 Grid：`ColumnDefinitions="*,Auto"`；左列 = **预览列**（类播放器：大画面 + 三条时间条），右列 = **详情卡** `Border.detail-card`（340px、`VerticalAlignment="Stretch"`、可开合）。
-- 顶部工具条**只留三项**：`📂 选择视频` / `➡ 发送到批处理` / `↺ 区间重置`；**删掉**原来的「剪辑 / 转码」单选。
-- VM 仍**不继承 `ListPageViewModelBase`**（不是列表页）→ `ObservableObject, IStatusProvider`；**预留** `IDetailPanelProvider`（`HasDetailPanel` 暂 `false` → 先用**页内右列**；待列表页统一上提时，再随大流迁到 Shell 右栏）。
+- 页根 Grid：`ColumnDefinitions="*,Auto"`；左列 = **预览列**（大画面 + 三条时间条），右列 = **详情卡** `Border.detail-card`（340px、`VerticalAlignment="Stretch"`、可开合）。
+- 顶部工具条（**所有动作按钮都归这里**，详情卡里一个都不放）：`📂 选择视频` / `➡ 发送到批处理` / `↺ 区间重置` / `❮❯ 详情`。
+- VM 仍**不继承 `ListPageViewModelBase`**（不是列表页）→ `ObservableObject, IStatusProvider`；**预留** `IDetailPanelProvider`（`HasDetailPanel` 暂 `false` → 先用**页内右列**）。
 
 **三条时间条（预览位置 / 开始 / 结束）**
-- ⛔ **滑条别直接绑模型属性** —— 一律走 VM 的**手动属性**（`PreviewTime` / `StartSeconds` / `EndSeconds`），setter 里改一处 → 时间码文本 + 大画面 + 命令预览**一起刷新**（沿用现有 VM 写法，避免"拖了滑条、时间码没跟上 → 保存被旧值覆盖"）。
-- `Maximum` 绑 `TimelineMax`（时长未知时给**占位 1**）：⛔ 别在 `Maximum==Minimum==0` 时把 `Maximum` 直绑 `Duration` → `(Value-Min)/(Max-Min)=0/0=NaN` → **整页布局算不过去**（附录 A 有案）。
-- 大画面 `Image Source="{Binding PreviewImage}"`（`Bitmap`），抽帧走 `FfmpegService.ExtractFrameAsync`；拖滑条用**"最新值优先"节流**（复用现有 `_extracting` + `_pendingPreview` 模式）。⛔ **不再铺 `ItemsControl` 缩略图墙**（删 `FrameThumb` 那一条）—— 只保留"当前帧"一张大图。
+- ⛔ **滑条别直接绑模型属性** —— 一律走 VM 的**手动属性**（`PreviewTime` / `StartSeconds` / `EndSeconds`），setter 里改一处 → 时间码文本 + 大画面 + 命令预览**一起刷新**（避免"拖了滑条、时间码没跟上 → 保存被旧值覆盖"）。
+- `Maximum` 绑 `TimelineMax`（时长未知时给**占位 1**）：⛔ 别在 `Maximum==Minimum==0` 时把 `Maximum` 直绑 `Duration` → `(Value-Min)/(Max-Min)=0/0=NaN` → **整页布局算不过去**。
+- 大画面 `Image Source="{Binding PreviewImage}"`（`Bitmap`），抽帧走 `FfmpegService.ExtractFrameAsync`；拖滑条用**"最新值优先"节流**（`_extracting` + `_pendingPreview` 模式）。⛔ **不铺 `ItemsControl` 缩略图墙** —— 只保留"当前帧"一张大图。
 
-**详情卡（任务类型 + 可折叠设置区 + 可编辑命令）**
-- **任务类型 = 两个独立 bool**（`IsCut` / `IsTranscode`，勾选框），**不是单选组**（允许既剪又转）；两者皆 false 时给提示并**禁止发送**。
-- 两套设置区各用一个 `Expander`：`IsExpanded` 绑 VM 的 `IsCutSectionExpanded` / `IsTranscodeSectionExpanded`；**勾选联动**——取消勾转码 → 折叠转码区，只勾转码 → 折叠剪辑区。折叠只影响界面，**是否执行由勾选决定**。
-- 转码参数补足四组：**格式/容器**、**编码器(CPU·GPU)**、**分辨率**、**码率**（CRF 或目标码率）。
-- **命令可编辑**：VM 里把「参数生成值」与「可编辑文本」**分成两个属性**——`CommandPreview`（只读合成，参数变即刷新）与 `EditableCommand`（可写）+ `IsCommandManuallyEdited` 标记。手改后**参数变化不得覆盖** `EditableCommand`；`↺ 重置为自动` = `EditableCommand = CommandPreview` 并清标记。⛔ 手改后的命令必须**原样执行**。
-- 从「视频列表」送来 → 载入后**自动触发一次预览**（探测时长 + 抽当前/首帧），不再让用户手点「抽帧」。
+**两页详情卡 = 同一套结构（需求 §6.4.1）**
+
+分区**严格按 ffmpeg 命令的书写顺序**排，⛔ 不另起"任务类型"块：
+
+| 顺序 | 分区 | 内容 | 勾选框语义 |
+|---|---|---|---|
+| 1 | `Expander`「✂ 剪辑」 | 开始 / 结束、剪切预设、重新编码 CRF、自定义参数 | `IsCut`：勾上 → 命令里带 `-ss/-to` |
+| 2 | `Expander`「🔁 转码」 | 预设、编码器(CPU·GPU)、容器、分辨率宽高、码率(CRF/目标) | `IsTranscode`：勾上 → 命令里带编码参数 |
+| 3 | 输出 | 输出文件（留空自动命名，绝不覆盖已有文件） | — |
+| 4 | 命令 | 完整命令行（`SelectableTextBlock`）+ 可编辑参数框 + `↺ 重置为自动` + `📋 复制命令` | — |
+
+实现要点：
+- **勾选框放在 `Expander` 的 `Header` 里**（`Header` 用 `StackPanel Orientation="Horizontal"` 装 `CheckBox` + 文字），不用单独分区 —— 勾选与折叠合成一处，`取消勾选 → 自动折叠`（`OnIsCutChanged` / `OnIsTranscodeChanged` 里改 `IsXxxSectionExpanded`）。折叠只影响界面，**是否执行由勾选决定**。
+- **两页的 VM 属性刻意对齐**（同名同义），这样同一段 XAML 结构可以照抄：`EditStart/EditEnd`、`EditExtraArgs`、`EditOutput`、`EditArgs`（可编辑命令）、`IsArgsEdited`、`CommandPreview`、`CopyCommandLineCommand`、`ResetCommandCommand`。
+  - 批量页的转码参数属性名用 `EditPresetId/EditCrf/EditMaxHeight`（它本来就是列表页、属性名已定型），⛔ 不要为了对齐去改名 —— 改名要全仓搜旧名。
+- **命令可编辑**：`CommandPreview`（只读合成，参数变即刷新）与 `EditArgs`（可写）分离 + `IsArgsEdited` 标记。手改后参数变化**不得覆盖** `EditArgs`；`↺ 重置为自动` = 清标记并重新赋自动值。⛔ 手改后的命令必须**原样执行**（存进 `VideoTaskBase.RawArgs`，批量运行时优先用它）。
+  - 自动值怎么算：⛔ 别直接给 `EditArgs` 赋自动串再靠比较反推"是否手改"（赋值即相等 → 永远判不出手改）。做法是 `EditArgs` 只在**用户真改了**时偏离，`IsArgsEdited` 由「用户输入 vs 当前自动串」的比较得出，见 `VideoCutViewModel.OnEditArgsChanged`。
+- **批量页的命令区**：选中任务变了要重算 `CommandPreview` / `EditArgs`；`RawArgs` 非空时 `CommandPreview` 直接显示 `RawArgs` 拼出来的那条。
+- 从「视频列表」送来 → 载入后**自动触发一次预览**（探测时长 + 抽当前帧）。
+
+**"两页其实一样"到什么程度**：只有**区间来源**与**类型决定方式**不同 —— 预览页区间由时间条驱动、类型由两个勾选框决定（可同时勾 → 剪辑+转码一条命令）；批量页区间与类型都由**选中任务**决定（`CutTask` 只有区间段、`TranscodeTask` 只有编码段）。分区顺序、折叠、命令区形态必须一致。
 
 ---
 
@@ -441,3 +476,5 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **树节点点击无反应**（v3.0） | `TreeView` 的 `SelectedItem` 未绑定或二级节点未用 `HierarchicalDataTemplate` | 检查 `ItemsSource`/`SelectedItem` 双向绑定，叶子节点绑 `OpenTabCommand` |
 | **标签页重复打开**（v3.0） | `OpenTab` 未做单例判定 | `Tabs` 中按 `Key` 查重，存在则激活 |
 | **关闭首页标签失败**（v3.0） | 未设 `CanClose=false` | `TabItemViewModel` 构造时首页 `CanClose=false`，`CloseTab` 检查 |
+| **跨页投递的数据要刷新页面才出现**（v3.12） | 只在 `OnDataContextChanged` 里取件；标签页已存在时切回来 `DataContext` 不变 → 该回调不再触发 | 取件放 `OnAttachedToVisualTree`（每次进页面都会跑） |
+| **表头与行错位**（v3.12） | 改了 `Columns` 元数据但表头 / 行模板的 `Grid.Column` 没逐字同步 | 改列元数据后核对表头与行模板的列序列（需求 §4.8 硬规则 2） |

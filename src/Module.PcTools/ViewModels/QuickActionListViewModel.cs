@@ -114,7 +114,6 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         new("Description", "简介", "4*", sortable: false),
         new("Favorite", "★", "0.9*"),
         new("Action", "操作", "1.5*", sortable: false),
-        new("Detail", "", "36", sortable: false),
     };
 
     // ==================== 属性卡的编辑缓冲（多字段文本表单 → 显式「💾 保存」，规范 3.5） ====================

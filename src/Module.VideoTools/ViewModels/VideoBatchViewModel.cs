@@ -6,6 +6,9 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
@@ -71,6 +74,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     /// <summary>预设下拉框的数据源（不写死在 XAML 里）。</summary>
     public IReadOnlyList<TranscodePreset> Presets => TranscodePreset.All;
     public IReadOnlyList<CutPresetOption> CutPresetOptions => CutPresets.All;
+    public IReadOnlyList<string> ContainerOptions => FfmpegService.Containers;
 
     /// <summary>「＋ 添加文件」时新建哪一类任务。</summary>
     [ObservableProperty] private bool _newAsCut;
@@ -97,9 +101,56 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     [ObservableProperty] private string _editStart = "";
     [ObservableProperty] private string _editEnd = "";
     [ObservableProperty] private string _editExtraArgs = "";
+    [ObservableProperty] private int _editCutCrf = 20;
 
     // 公共
     [ObservableProperty] private string _editOutput = "";
+
+    /// <summary>转码的容器扩展名（带点）；留空 = 用预设的。</summary>
+    [ObservableProperty] private string _editContainer = "";
+
+    /// <summary>是否走 GPU 编码器（NVENC）。</summary>
+    [ObservableProperty] private bool _editUseGpu;
+
+    /// <summary>目标宽 / 高（0 = 不约束）。</summary>
+    [ObservableProperty] private int _editTargetWidth;
+    [ObservableProperty] private int _editTargetHeight;
+
+    /// <summary>码率模式：<c>crf</c> / <c>bitrate</c>。</summary>
+    [ObservableProperty] private string _editBitrateMode = "crf";
+
+    /// <summary>目标码率文本（<c>bitrate</c> 模式才用）。</summary>
+    [ObservableProperty] private string _editTargetBitrate = "";
+
+    /// <summary>
+    /// CPU / GPU 下拉框绑它（0 = CPU、1 = GPU）。
+    /// <para>⚠️ 与「视频预览」页同名同义：不直接绑 <c>bool</c>，<c>ComboBox.SelectedIndex</c> 绑 <c>int</c> 最可靠
+    /// （XAML 里的字面量其实是字符串，绑 <c>bool</c> 容易踩转换坑）。</para>
+    /// </summary>
+    public int EncoderIndex
+    {
+        get => EditUseGpu ? 1 : 0;
+        set { EditUseGpu = value == 1; OnPropertyChanged(); }
+    }
+
+    /// <summary>码率模式下拉框绑它（0 = CRF、1 = 目标码率），理由同 <see cref="EncoderIndex"/>。</summary>
+    public int BitrateModeIndex
+    {
+        get => string.Equals(EditBitrateMode, "bitrate", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        set { EditBitrateMode = value == 1 ? "bitrate" : "crf"; OnPropertyChanged(); }
+    }
+
+    /// <summary>CRF 输入框是否用得上（crf 模式下才显示）。</summary>
+    public bool UseCrf => !string.Equals(EditBitrateMode, "bitrate", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>剪切分区里 CRF 输入框是否用得上（选了「重新编码」才有意义）。</summary>
+    public bool IsCutReEncode => string.Equals(EditCutPresetId, CutPresets.ReEncode, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>当前会用的视频编码器名（CPU / GPU 一眼可见，避免以为用了 GPU 其实没用）。</summary>
+    public string SelectedEncoder
+        => Selected is TranscodeTask t
+            ? FfmpegService.ResolveEncoder(TranscodePreset.Find(EditPresetId).VideoCodec, EditUseGpu)
+            : "—";
 
     /// <summary>新建转码任务时用的预设 / 最大高度（工具条上选，只影响随后加入的条目）。</summary>
     [ObservableProperty] private string _defaultPresetId = "h264";
@@ -108,6 +159,156 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     /// <summary>当前选中项是不是剪辑任务（详情卡据此切换两套参数区）。</summary>
     public bool SelectedIsCut => Selected is CutTask;
     public bool SelectedIsTranscode => Selected is TranscodeTask;
+
+    // ==================== 详情卡折叠态（与「视频预览」页同名同义，两页可照抄同一段 XAML） ====================
+
+    /// <summary>「剪辑」分区是否展开。</summary>
+    [ObservableProperty] private bool _isCutSectionExpanded = true;
+
+    /// <summary>「转码」分区是否展开。</summary>
+    [ObservableProperty] private bool _isTranscodeSectionExpanded = true;
+
+    /// <summary>选中的是不是"既剪又转"的任务（决定剪辑分区的开始 / 结束要不要显示）。</summary>
+    public bool SelectedHasTrim => Selected is TranscodeTask { HasTrim: true };
+
+    // ==================== 命令：与「视频预览」页同源（自动生成 + 可手改） ====================
+
+    /// <summary>
+    /// **选中任务将要执行的完整 ffmpeg 命令行**（自动生成；改参数即时刷新）。
+    /// <para>⚠️ 手改过（<see cref="IsArgsEdited"/>）时这里显示的**就是手改那条** —— 界面看到的就是会跑的东西。</para>
+    /// </summary>
+    public string CommandPreview
+    {
+        get
+        {
+            if (Selected == null) return "（在左侧选中一个任务）";
+
+            var args = BuildArgs(Selected);
+            if (args.Count == 0) return "（无法生成 ffmpeg 参数）";
+
+            var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
+            return FfmpegService.DescribeCommand(ffmpeg, args);
+        }
+    }
+
+    /// <summary>
+    /// 可编辑的**参数部分**（⛔ 不含 ffmpeg.exe、也不含输出路径）。
+    /// <para>与「视频预览」页同名同义 → 两页详情卡的命令区可以照抄同一段 XAML。</para>
+    /// </summary>
+    [ObservableProperty] private string _editArgs = "";
+
+    /// <summary>命令是否被手改过（true = 以手改文本为准执行）。</summary>
+    [ObservableProperty] private bool _isArgsEdited;
+
+    /// <summary>当前自动生成的参数文本（与手改文本比较的基准）。</summary>
+    private string AutoArgsText
+    {
+        get
+        {
+            if (Selected == null) return "";
+            return string.Join(" ", BuildArgs(Selected, includeRaw: false));
+        }
+    }
+
+    /// <summary>
+    /// 按选中任务拼参数。<paramref name="includeRaw"/> 为 true 时优先用手改的 <c>RawArgs</c>（= 真正会执行的那条）。
+    /// </summary>
+    private List<string> BuildArgs(VideoTaskBase t, bool includeRaw = true)
+    {
+        var output = ResolveOutputOf(t);
+
+        if (includeRaw && !string.IsNullOrWhiteSpace(t.RawArgs))
+        {
+            var raw = FfmpegService.SplitArgs(t.RawArgs);
+            raw.Add(output);
+            return raw;
+        }
+        return t switch
+        {
+            CutTask c => FfmpegService.BuildCutArgs(c, output),
+            TranscodeTask x => FfmpegService.BuildTranscodeArgs(x, output),
+            _ => new List<string>()
+        };
+    }
+
+    /// <summary>任务输出路径：空 = 按类型自动命名（绝不覆盖已有文件）。</summary>
+    private static string ResolveOutputOf(VideoTaskBase t)
+    {
+        if (!string.IsNullOrWhiteSpace(t.OutputPath)) return t.OutputPath;
+        return t switch
+        {
+            CutTask c => FfmpegService.DefaultOutputPath(c.SourcePath, "_cut", ".mp4"),
+            TranscodeTask x => FfmpegService.DefaultOutputPath(x.SourcePath, "_" + x.PresetId, x.ContainerDisplay),
+            _ => ""
+        };
+    }
+
+    partial void OnEditArgsChanged(string value)
+    {
+        var edited = !string.IsNullOrWhiteSpace(value)
+                     && !string.Equals(value.Trim(), AutoArgsText, StringComparison.Ordinal);
+        if (IsArgsEdited != edited) IsArgsEdited = edited;
+    }
+
+    /// <summary>刷新命令（未手改过 → 参数文本始终跟随参数走）。</summary>
+    private void RefreshCommand()
+    {
+        if (!IsArgsEdited) EditArgs = AutoArgsText;
+        OnPropertyChanged(nameof(CommandPreview));
+    }
+
+    partial void OnEditPresetIdChanged(string value) => RefreshCommand();
+    partial void OnEditCrfChanged(int value) => RefreshCommand();
+    partial void OnEditMaxHeightChanged(int value) => RefreshCommand();
+    partial void OnEditContainerChanged(string value) => RefreshCommand();
+    partial void OnEditUseGpuChanged(bool value)
+    {
+        OnPropertyChanged(nameof(EncoderIndex));
+        OnPropertyChanged(nameof(SelectedEncoder));
+        RefreshCommand();
+    }
+    partial void OnEditTargetWidthChanged(int value) => RefreshCommand();
+    partial void OnEditTargetHeightChanged(int value) => RefreshCommand();
+    partial void OnEditBitrateModeChanged(string value) => RefreshCommand();
+    partial void OnEditTargetBitrateChanged(string value) => RefreshCommand();
+    partial void OnEditCutPresetIdChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsCutReEncode));
+        RefreshCommand();
+    }
+    partial void OnEditStartChanged(string value) => RefreshCommand();
+    partial void OnEditEndChanged(string value) => RefreshCommand();
+    partial void OnEditExtraArgsChanged(string value) => RefreshCommand();
+    partial void OnEditCutCrfChanged(int value) => RefreshCommand();
+    partial void OnEditOutputChanged(string value) => RefreshCommand();
+
+    /// <summary>📋 复制选中任务的 ffmpeg 命令行（手改过就选手改的那条）。</summary>
+    [RelayCommand]
+    private async Task CopyCommandLineAsync()
+    {
+        var text = CommandPreview;
+        if (Selected == null) { StatusText = "先在左侧选中一个任务。"; return; }
+
+        try
+        {
+            var win = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if (win?.Clipboard == null) { StatusText = "剪贴板不可用。"; return; }
+            await win.Clipboard.SetTextAsync(text);
+            StatusText = "已复制 ffmpeg 命令行。";
+        }
+        catch (Exception ex) { StatusText = "复制失败：" + ex.Message; }
+    }
+
+    /// <summary>↺ 把命令恢复成「由参数自动生成」（丢弃手改）。</summary>
+    [RelayCommand]
+    private void ResetCommand()
+    {
+        if (Selected == null) return;
+        IsArgsEdited = false;
+        Selected.RawArgs = "";
+        RefreshCommand();
+        StatusText = "命令已恢复为由参数自动生成。";
+    }
 
     // ==================== 列表 ====================
 
@@ -137,7 +338,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         new("After", "处理后", "1.5*"),
         new("Status", "状态", "1.2*"),
         new("Progress", "进度", "1.1*", sortable: false),
-        new("Detail", "", "36", sortable: false),
     };
 
     public VideoBatchViewModel() { }
@@ -267,6 +467,14 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             EditPresetId = x.PresetId;
             EditCrf = x.Crf;
             EditMaxHeight = x.MaxHeight;
+            EditContainer = x.Container;
+            EditUseGpu = x.UseGpuEncoder;
+            EditTargetWidth = x.TargetWidth;
+            EditTargetHeight = x.TargetHeight;
+            EditBitrateMode = x.BitrateMode;
+            EditTargetBitrate = x.TargetBitrate;
+            EditStart = x.HasTrim ? CutTask.FormatTime(x.TrimStart) : "";
+            EditEnd = x.TrimEnd > 0 ? CutTask.FormatTime(x.TrimEnd) : "";
         }
         else if (value is CutTask c)
         {
@@ -274,14 +482,23 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             EditStart = CutTask.FormatTime(c.Start);
             EditEnd = c.End > 0 ? CutTask.FormatTime(c.End) : "";
             EditExtraArgs = c.ExtraArgs;
+            EditCutCrf = c.Crf;
         }
         EditOutput = value?.OutputPath ?? "";
+
+        // 手改过的命令按原样载入编辑框（否则用户会看到"参数生成值"覆盖了自己的手改）
+        IsArgsEdited = !string.IsNullOrWhiteSpace(value?.RawArgs);
+        EditArgs = IsArgsEdited ? value!.RawArgs : AutoArgsText;
+        OnPropertyChanged(nameof(CommandPreview));
 
         BuildCompareRows();
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(SelectedIsCut));
         OnPropertyChanged(nameof(SelectedIsTranscode));
+        OnPropertyChanged(nameof(SelectedHasTrim));
         OnPropertyChanged(nameof(SelectedKind));
+        OnPropertyChanged(nameof(SelectedEncoder));
+        OnPropertyChanged(nameof(IsCutReEncode));
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
@@ -426,24 +643,42 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     }
 
     /// <summary>💾 保存：把详情卡里的参数写回任务（改完自动回到"等待中"，下次按新参数跑）。</summary>
+    /// <para>⚠️ 「显式改参数 ⇒ 丢弃手改命令」这条规则**只对参数生效**：命令区是详情卡里最下面那一块，
+    /// 用户在那里手改的参数串（<see cref="IsArgsEdited"/>）**原样写回 <c>RawArgs</c>**，不会被这里顶掉。</para>
     [RelayCommand]
     private void Save()
     {
         if (Selected == null) { StatusText = "先在左侧选中一个任务。"; return; }
 
         var output = (EditOutput ?? "").Trim();
+        var raw = IsArgsEdited ? (EditArgs ?? "").Trim() : "";
 
         if (Selected is TranscodeTask x)
         {
             x.PresetId = string.IsNullOrWhiteSpace(EditPresetId) ? "h264" : EditPresetId;
             x.Crf = EditCrf;
             x.MaxHeight = EditMaxHeight;
-            x.RawArgs = "";                    // 显式改参数 ⇒ 丢弃手改命令，改由参数生成
+            x.Container = NormalizeExt(EditContainer, x.Preset.Extension);
+            x.UseGpuEncoder = EditUseGpu;
+            x.TargetWidth = EditTargetWidth;
+            x.TargetHeight = EditTargetHeight;
+            x.BitrateMode = string.IsNullOrWhiteSpace(EditBitrateMode) ? "crf" : EditBitrateMode;
+            x.TargetBitrate = (EditTargetBitrate ?? "").Trim();
+
+            // 区间：结束留空 / 不大于开始 = 不裁剪（HasTrim 由 TrimEnd > TrimStart 决定）
+            var tStart = CutTask.ParseTime(EditStart) ?? 0;
+            var tEnd = string.IsNullOrWhiteSpace(EditEnd) ? 0 : (CutTask.ParseTime(EditEnd) ?? 0);
+            if (tEnd <= tStart) tEnd = 0;
+            x.TrimStart = tStart;
+            x.TrimEnd = tEnd;
+
+            x.RawArgs = raw;                  // 手改的命令原样保留；没手改就交给参数生成
             var preset = x.Preset;
             if (output.Length == 0) output = FfmpegService.DefaultOutputPath(x.SourcePath, "_" + preset.Id, preset.Extension);
             x.OutputPath = output;
             if (x.Status != VideoTaskStatus.Running) x.Reset();
             StatusText = $"已保存「{x.Name}」：{preset.Name}"
+                         + (x.HasTrim ? $" · 区间 {x.TrimDisplay}" : "")
                          + (x.MaxHeight > 0 ? $" · 缩到 {x.MaxHeight}p" : "")
                          + (x.Crf > 0 ? $" · CRF {x.Crf}" : "");
         }
@@ -459,7 +694,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             c.PresetId = string.IsNullOrWhiteSpace(EditCutPresetId) ? CutPresets.Copy : EditCutPresetId;
             c.ExtraArgs = EditExtraArgs ?? "";
             c.ReEncode = c.PresetId == CutPresets.ReEncode;
-            c.RawArgs = "";                    // 同上
+            c.Crf = EditCutCrf;
+            c.RawArgs = raw;                    // 同上
 
             if (output.Length == 0) output = FfmpegService.DefaultOutputPath(c.SourcePath, "_cut", ".mp4");
             c.OutputPath = output;
@@ -471,6 +707,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         _store?.Save();
         RefreshView();
         BuildCompareRows();
+        RefreshCommand();
+    }
+
+    /// <summary>容器扩展名：确保带点，空则回退到预设值。</summary>
+    private static string NormalizeExt(string? raw, string fallback)
+    {
+        var s = (raw ?? "").Trim();
+        if (s.Length == 0) return fallback;
+        return s.StartsWith('.') ? s : "." + s;
     }
 
     /// <summary>🧹 清掉已结束的任务（两类一起清）。</summary>
@@ -522,29 +767,12 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
                 t.Message = "";
 
                 // 按类型分派：剪辑 → BuildCutArgs；转码 → BuildTranscodeArgs
-                var output = string.IsNullOrWhiteSpace(t.OutputPath)
-                    ? (t is CutTask cu
-                        ? FfmpegService.DefaultOutputPath(cu.SourcePath, "_cut", ".mp4")
-                        : FfmpegService.DefaultOutputPath(t.SourcePath, "_h264", ".mp4"))
-                    : t.OutputPath;
+                // 🔴 手改过命令 → **原样执行**（RawArgs 按约定不含输出路径，这里补在末尾）
+                var output = ResolveOutputOf(t);
                 t.OutputPath = output;
 
-                // 🔴 手改过命令 → **原样执行**（RawArgs 按约定不含输出路径，这里补在末尾）
-                List<string> args;
-                if (!string.IsNullOrWhiteSpace(t.RawArgs))
-                {
-                    args = FfmpegService.SplitArgs(t.RawArgs);
-                    args.Add(output);
-                }
-                else
-                {
-                    args = t switch
-                    {
-                        CutTask c => FfmpegService.BuildCutArgs(c, output),
-                        TranscodeTask x => FfmpegService.BuildTranscodeArgs(x, output),
-                        _ => new List<string>()
-                    };
-                }
+                // 与详情卡的命令区**同一个方法** → 界面上看到的就是真正会跑的那条
+                var args = BuildArgs(t);
                 if (args.Count == 0) { t.Status = VideoTaskStatus.Failed; t.Message = "无法生成 ffmpeg 参数。"; continue; }
 
                 // 进度基准时长：剪辑=区间长度；转码带区间=区间长度，否则=源时长

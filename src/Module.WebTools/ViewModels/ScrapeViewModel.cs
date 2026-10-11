@@ -58,7 +58,6 @@ public partial class ScrapeViewModel : ListPageViewModelBase
         new("Url", "起始网址", "3*"),
         new("Rule", "规则", "2*"),
         new("LastRun", "最近运行", "1.4*"),
-        new("Detail", "", "36", sortable: false),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>

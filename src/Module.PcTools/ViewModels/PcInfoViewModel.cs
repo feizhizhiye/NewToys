@@ -76,7 +76,6 @@ public partial class PcInfoViewModel : ListPageViewModelBase
         new("Name", "项目", "2.2*"),
         new("Value", "值", "5*"),
         new("Note", "说明", "2.4*"),
-        new("Detail", "", "36", sortable: false),
     };
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>

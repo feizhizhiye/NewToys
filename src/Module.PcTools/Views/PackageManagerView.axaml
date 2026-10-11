@@ -4,7 +4,7 @@
              x:Class="NewToys.PcTools.Views.PackageManagerView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="16">
+  <Grid ColumnDefinitions="*,Auto" Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -17,39 +17,51 @@
     <!--  ==================== 工具条  ====================
           改用 WrapPanel：窗口变窄时控件自动换行，避免原先「水平 StackPanel 溢出压到右侧」导致的按钮重叠（规范 3.8 仅约束主区与右键菜单，工具条内部以不重叠、可响应式为准）。 -->
     <Border Grid.Row="1" Classes="toolbar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <TextBlock Text="源" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <ComboBox x:Name="SourceBox" Width="180" Margin="0,0,8,0" IsEnabled="{Binding IsSupported}"
-                  ItemsSource="{Binding SourceOptions}"
-                  SelectedItem="{Binding SelectedSource, Mode=TwoWay}">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Label}" FontSize="12"/>
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="源" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
+          <ComboBox x:Name="SourceBox" Width="180" Margin="0,0,8,0" IsEnabled="{Binding IsSupported}"
+                    ItemsSource="{Binding SourceOptions}"
+                    SelectedItem="{Binding SelectedSource, Mode=TwoWay}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Label}" FontSize="12"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
 
-        <TextBox x:Name="SearchBox" Width="230" Margin="0,0,8,0" IsEnabled="{Binding IsSupported}"
-                 Text="{Binding SearchText, Mode=TwoWay}"
-                 PlaceholderText="关键字：git / Docker / ffmpeg…"
-                 ToolTip.Tip="已安装 / 可升级列表里，这里就是本地过滤器；点「🔍 联网搜索」才去查 winget 源"/>
+          <TextBox x:Name="SearchBox" Width="230" Margin="0,0,8,0" IsEnabled="{Binding IsSupported}"
+                   Text="{Binding SearchText, Mode=TwoWay}"
+                   PlaceholderText="关键字：git / Docker / ffmpeg…"
+                   ToolTip.Tip="已安装 / 可升级列表里，这里就是本地过滤器；点「🔍 联网搜索」才去查 winget 源"/>
 
-        <Button Classes="primary" Content="🔍 联网搜索" Margin="0,0,8,0" Command="{Binding SearchCommand}"
-                IsEnabled="{Binding !IsBusy}"/>
-        <Button Classes="ghost" Content="📥 已安装" Margin="0,0,8,0" Command="{Binding LoadInstalledCommand}"
-                IsEnabled="{Binding !IsBusy}"/>
-        <Button Classes="ghost" Content="⬆ 可升级" Margin="0,0,8,0" Command="{Binding LoadUpgradesCommand}"
-                IsEnabled="{Binding !IsBusy}"/>
-        <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"
-                IsEnabled="{Binding !IsBusy}"/>
+          <Button Classes="primary" Content="🔍 联网搜索" Margin="0,0,8,0" Command="{Binding SearchCommand}"
+                  IsEnabled="{Binding !IsBusy}"/>
+          <Button Classes="ghost" Content="📥 已安装" Margin="0,0,8,0" Command="{Binding LoadInstalledCommand}"
+                  IsEnabled="{Binding !IsBusy}"/>
+          <Button Classes="ghost" Content="⬆ 可升级" Margin="0,0,8,0" Command="{Binding LoadUpgradesCommand}"
+                  IsEnabled="{Binding !IsBusy}"/>
+          <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"
+                  IsEnabled="{Binding !IsBusy}"/>
 
-        <CheckBox Content="仅看已安装" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding InstalledOnly, Mode=TwoWay}"/>
-        <CheckBox Content="静默安装 (--silent)" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding SilentInstall, Mode=TwoWay}"/>
+          <CheckBox Content="仅看已安装" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding InstalledOnly, Mode=TwoWay}"/>
+          <CheckBox Content="静默安装 (--silent)" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding SilentInstall, Mode=TwoWay}"/>
 
-        <TextBlock Text="{Binding ModeText}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,6"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-      </WrapPanel>
+          <TextBlock Text="{Binding ModeText}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,6"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
+        </WrapPanel>
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Command="{Binding ToggleDetailCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+          <Panel>
+            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsDetailVisible}"/>
+            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsDetailVisible}"/>
+          </Panel>
+        </Button>
+      </Grid>
     </Border>
 
 
@@ -123,19 +135,6 @@
               <Button Grid.Column="5" Classes="col-header" Content="{Binding PinnedHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Pinned" ToolTip.Tip="点一下把已 Pin 的排在前面"
                       IsVisible="{Binding IsPinnedVisible}"/>
-              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
-              <Border Grid.Column="6" Classes="detail-hotspot">
-                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
-                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住">
-                  <Panel>
-                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding !IsDetailVisible}"/>
-                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding IsDetailVisible}"/>
-                  </Panel>
-                </Button>
-              </Border>
-
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>

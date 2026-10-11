@@ -112,14 +112,14 @@
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         </Style>
 
-        <!--  左树行：一级 = 图标 + **加粗**；行高 32、缩进由子级 ItemsControl 的 Margin 给（每级 16）  -->
+        <!--  左树行：一级 = 图标 + **加粗**；行高 30（v3.12 由 32 收紧）、缩进由子级 ItemsControl 的 Margin 给（每级 16）  -->
         <Style Selector="Button.tree-row">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="8,0"/>
-            <Setter Property="Height" Value="32"/>
+            <Setter Property="Height" Value="30"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -188,7 +188,7 @@
             <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
             <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Padding" Value="12,6"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
@@ -199,18 +199,18 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Padding" Value="10,5"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
         </Style>
         <Style Selector="Button.ghost:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
-        <!--  v3.1 密度基线：卡片圆角 8、内边距 14（由 10/18 收紧）  -->
+        <!--  v3.12 密度：卡片圆角 8、内边距 14 → 12  -->
         <Style Selector="Border.card">
             <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Padding" Value="12"/>
         </Style>
 
         <!--  列表本体（行高 / 悬停 / 选中底色）；表头与单元格的样式见 Styles/Controls.axaml  -->

@@ -4,7 +4,7 @@
              x:Class="NewToys.PcTools.Views.MyShortcutsView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="16">
+  <Grid ColumnDefinitions="*,Auto" Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -14,46 +14,58 @@
 
     <!--  ==================== 工具条  ====================  -->
     <Border Grid.Row="1" Classes="toolbar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <TextBlock Text="分类" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <ComboBox x:Name="CategoryBox" Width="150" Margin="0,0,8,6"
-                  ItemsSource="{Binding CategoryOptions}"
-                  SelectedItem="{Binding SelectedCategory, Mode=TwoWay}">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Label}" FontSize="12"/>
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="分类" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
+          <ComboBox x:Name="CategoryBox" Width="150" Margin="0,0,8,6"
+                    ItemsSource="{Binding CategoryOptions}"
+                    SelectedItem="{Binding SelectedCategory, Mode=TwoWay}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Label}" FontSize="12"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
 
-        <TextBox x:Name="SearchBox" Width="240" Margin="0,0,8,6"
-                 Text="{Binding SearchText, Mode=TwoWay}"
-                 PlaceholderText="搜索名称 / 分类 / 简介…"
-                 ToolTip.Tip="即时过滤（本地）"/>
+          <TextBox x:Name="SearchBox" Width="240" Margin="0,0,8,6"
+                   Text="{Binding SearchText, Mode=TwoWay}"
+                   PlaceholderText="搜索名称 / 分类 / 简介…"
+                   ToolTip.Tip="即时过滤（本地）"/>
 
-        <Button Classes="primary" Content="➕ 新增" Margin="0,0,8,6"
-                Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
-                ToolTip.Tip="追加一条脚本项，改好后点右侧「💾 保存」。本页只放**有脚本文件**的脚本，没有脚本文件的会自动归到「快捷设置」"/>
+          <Button Classes="primary" Content="➕ 新增" Margin="0,0,8,6"
+                  Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="追加一条脚本项，改好后点右侧「💾 保存」。本页只放**有脚本文件**的脚本，没有脚本文件的会自动归到「快捷设置」"/>
 
-        <!--  脚本目录（v1.35）：选了就立即生效并写 app.json —— 选目录是明确的动作，不该再点保存  -->
-        <TextBlock Text="脚本目录" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <TextBox Width="260" Margin="0,0,4,6" IsReadOnly="True"
-                 Text="{Binding ScriptsDirectory, Mode=OneWay}"
-                 ToolTip.Tip="{Binding ScriptHint}"/>
-        <Button x:Name="PickScriptFolderBtn" Classes="ghost" Content="📂 选择" Margin="0,0,4,6"
-                ToolTip.Tip="选一个目录作为脚本目录（立即生效，写入 app.json）"/>
-        <Button Classes="ghost" Content="↗ 打开" Margin="0,0,4,6" Command="{Binding OpenScriptsFolderCommand}"/>
-        <Button Classes="ghost" Content="↩ 默认" Margin="0,0,8,6" Command="{Binding ResetScriptFolderCommand}"
-                ToolTip.Tip="{Binding DefaultScriptFolder}"/>
+          <!--  脚本目录（v1.35）：选了就立即生效并写 app.json —— 选目录是明确的动作，不该再点保存  -->
+          <TextBlock Text="脚本目录" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
+          <TextBox Width="260" Margin="0,0,4,6" IsReadOnly="True"
+                   Text="{Binding ScriptsDirectory, Mode=OneWay}"
+                   ToolTip.Tip="{Binding ScriptHint}"/>
+          <Button x:Name="PickScriptFolderBtn" Classes="ghost" Content="📂 选择" Margin="0,0,4,6"
+                  ToolTip.Tip="选一个目录作为脚本目录（立即生效，写入 app.json）"/>
+          <Button Classes="ghost" Content="↗ 打开" Margin="0,0,4,6" Command="{Binding OpenScriptsFolderCommand}"/>
+          <Button Classes="ghost" Content="↩ 默认" Margin="0,0,8,6" Command="{Binding ResetScriptFolderCommand}"
+                  ToolTip.Tip="{Binding DefaultScriptFolder}"/>
 
-        <!--  📥 批量导入：选一个目录，把它里面的 .py / .ps1 / .bat / .cmd 一次性全建成条目  -->
-        <Button x:Name="ImportFolderBtn" Classes="primary" Content="📥 批量导入脚本" Margin="0,0,6,6"
-                ToolTip.Tip="选一个目录，把它里的脚本文件一次性全部建成条目（已存在的会跳过）"/>
-        <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,6"
-                  IsChecked="{Binding ImportSubFolders, Mode=TwoWay}"/>
-      </WrapPanel>
+          <!--  📥 批量导入：选一个目录，把它里面的 .py / .ps1 / .bat / .cmd 一次性全建成条目  -->
+          <Button x:Name="ImportFolderBtn" Classes="primary" Content="📥 批量导入脚本" Margin="0,0,6,6"
+                  ToolTip.Tip="选一个目录，把它里的脚本文件一次性全部建成条目（已存在的会跳过）"/>
+          <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,6"
+                    IsChecked="{Binding ImportSubFolders, Mode=TwoWay}"/>
+        </WrapPanel>
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Command="{Binding ToggleDetailCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+          <Panel>
+            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsDetailVisible}"/>
+            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsDetailVisible}"/>
+          </Panel>
+        </Button>
+      </Grid>
     </Border>
 
     <!--  ==================== 多项筛选  ====================  -->
@@ -119,19 +131,6 @@
                       IsVisible="{Binding IsFavoriteVisible}"/>
               <TextBlock Grid.Column="4" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
-              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
-              <Border Grid.Column="5" Classes="detail-hotspot">
-                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
-                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住">
-                  <Panel>
-                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding !IsDetailVisible}"/>
-                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding IsDetailVisible}"/>
-                  </Panel>
-                </Button>
-              </Border>
-
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>

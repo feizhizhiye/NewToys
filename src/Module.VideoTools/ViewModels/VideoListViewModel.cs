@@ -112,7 +112,6 @@ public partial class VideoListViewModel : ListPageViewModelBase
         new("Codec", "编码", "1.1*"),
         new("Bitrate", "码率", "1.1*"),
         new("Modified", "修改时间", "1.5*"),
-        new("Detail", "", "36", sortable: false),
     };
 
     public bool HasSelection => Selected != null;
@@ -379,7 +378,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         _nav?.NavigateTo("video-batch");
     }
 
-    /// <summary>✂ 命令生成·剪辑：把勾选的文件送进「命令生成」页的剪辑任务编辑器。</summary>
+    /// <summary>✂ 视频预览·剪辑：把勾选的文件送进「视频预览」页的剪辑任务编辑器。</summary>
     [RelayCommand]
     private void SendToCut()
     {
@@ -388,7 +387,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
 
         if (_store == null) { StatusText = "任务服务未就绪。"; return; }
         _store.EnqueueForCut(paths);
-        StatusText = $"已把 {paths.Count} 个文件送去「命令生成」页……";
+        StatusText = $"已把 {paths.Count} 个文件送去「视频预览」页……";
         _nav?.NavigateTo("video-cut");
     }
 

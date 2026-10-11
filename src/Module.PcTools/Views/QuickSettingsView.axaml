@@ -4,7 +4,7 @@
              x:Class="NewToys.PcTools.Views.QuickSettingsView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="16">
+  <Grid ColumnDefinitions="*,Auto" Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -14,28 +14,40 @@
 
     <!--  ==================== 工具条  ====================  -->
     <Border Grid.Row="1" Classes="toolbar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <TextBlock Text="分类" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <ComboBox x:Name="CategoryBox" Width="150" Margin="0,0,8,0"
-                  ItemsSource="{Binding CategoryOptions}"
-                  SelectedItem="{Binding SelectedCategory, Mode=TwoWay}">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Label}" FontSize="12"/>
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="分类" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
+          <ComboBox x:Name="CategoryBox" Width="150" Margin="0,0,8,0"
+                    ItemsSource="{Binding CategoryOptions}"
+                    SelectedItem="{Binding SelectedCategory, Mode=TwoWay}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Label}" FontSize="12"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
 
-        <TextBox x:Name="SearchBox" Width="240" Margin="0,0,8,0"
-                 Text="{Binding SearchText, Mode=TwoWay}"
-                 PlaceholderText="搜索名称 / 分类 / 简介…"
-                 ToolTip.Tip="即时过滤（本地）"/>
+          <TextBox x:Name="SearchBox" Width="240" Margin="0,0,8,0"
+                   Text="{Binding SearchText, Mode=TwoWay}"
+                   PlaceholderText="搜索名称 / 分类 / 简介…"
+                   ToolTip.Tip="即时过滤（本地）"/>
 
-        <Button Classes="primary" Content="➕ 新增" Margin="0,0,8,0"
-                Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
-                ToolTip.Tip="追加一条系统自带设置入口，改好后点右侧「💾 保存」"/>
-      </WrapPanel>
+          <Button Classes="primary" Content="➕ 新增" Margin="0,0,8,0"
+                  Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="追加一条系统自带设置入口，改好后点右侧「💾 保存」"/>
+        </WrapPanel>
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Command="{Binding ToggleDetailCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+          <Panel>
+            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsDetailVisible}"/>
+            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsDetailVisible}"/>
+          </Panel>
+        </Button>
+      </Grid>
     </Border>
 
 
@@ -104,19 +116,6 @@
                       IsVisible="{Binding IsFavoriteVisible}"/>
               <TextBlock Grid.Column="4" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
-              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
-              <Border Grid.Column="5" Classes="detail-hotspot">
-                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
-                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住">
-                  <Panel>
-                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding !IsDetailVisible}"/>
-                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding IsDetailVisible}"/>
-                  </Panel>
-                </Button>
-              </Border>
-
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>

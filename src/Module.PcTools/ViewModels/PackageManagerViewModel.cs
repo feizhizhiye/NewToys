@@ -97,7 +97,6 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         new("Source", "源", "1.1*"),
         new("Status", "状态", "1.5*"),
         new("Pinned", "Pin", "0.8*"),
-        new("Detail", "", "36", sortable: false),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>

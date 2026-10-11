@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using NewToys.VideoTools.ViewModels;
@@ -7,8 +8,10 @@ using NewToys.VideoTools.ViewModels;
 namespace NewToys.VideoTools.Views;
 
 /// <summary>
-/// 「命令生成」页（v3.10 再设计）：只负责**制定一个**任务（剪辑 / 转码 / 剪辑+转码），
-/// 编好后「➡ 发送到批处理」。列表与批量运行都搬到了「批量处理」页，所以这里没有 ContextMenu 需要同步。
+/// 「视频工具 → 视频预览」页（v3.12 由「命令生成」页更名；key 与类名仍是 <c>video-cut</c> / <c>VideoCutView</c>）：
+/// 只负责**制定一个**任务（剪辑 / 转码 / 剪辑+转码），编好后「➡ 发送到批处理」。
+/// <para>列表与批量运行都搬到了「批量处理」页，所以这里没有 ContextMenu 需要同步。
+/// 详情卡结构与批量处理页**一致**（见《开发规范》§3.9）。</para>
 /// <para>平台文件选择器（源文件 / 输出文件）在这一层调用 —— VM 不引用 Avalonia 的 UI 类型。</para>
 /// </summary>
 public partial class VideoCutView : UserControl
@@ -21,11 +24,16 @@ public partial class VideoCutView : UserControl
         PickOutputBtn.Click += (_, _) => _ = PickOutputFileAsync();
     }
 
-    protected override void OnDataContextChanged(EventArgs e)
+    /// <summary>
+    /// 🔴 **取件点必须在这里，不能只在 <see cref="OnDataContextChanged"/>**（需求 §4.8 硬规则 8）。
+    /// <para>标签页**已存在**时从别的页跳过来，Shell 只是把缓存的 View 重新挂回内容区 ——
+    /// <c>DataContext</c> 没变，<c>OnDataContextChanged</c> **不会再触发**，于是送过来的文件一直没人取，
+    /// 表现就是「必须刷新页面才看到预览」。<c>OnAttachedToVisualTree</c> 每次进页面都会跑，取一次即清空，重复调安全。</para>
+    /// </summary>
+    public override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        base.OnDataContextChanged(e);
+        base.OnAttachedToVisualTree(e);
 
-        // 「视频列表」页送过来的文件：进本页时取走并载入编辑器（取一次就清空，重复调安全）
         if (DataContext is VideoCutViewModel vm)
             vm.ConsumePending();
     }

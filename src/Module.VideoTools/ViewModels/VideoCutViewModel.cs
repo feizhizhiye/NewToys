@@ -16,11 +16,15 @@ using NewToys.VideoTools.Services;
 namespace NewToys.VideoTools.ViewModels;
 
 /// <summary>
-/// 「视频工具 → 命令生成」页（v3.10 再设计：由 v3.9 的「左预览 + 右参数卡」改为「类播放器 + 详情卡」）。
+/// 「视频工具 → 视频预览」页（v3.12 由「命令生成」页更名；页面 key / 类名不变，仍是 <c>video-cut</c>）。
 /// <para>
-/// 一句话职责：**制定一个任务的 ffmpeg 命令**。选文件 → 预览 / 拖三条时间条定区间 → 在详情卡里配参数
+/// 一句话职责：**边看边制定一个任务的 ffmpeg 命令**。选文件 → 预览 / 拖三条时间条定区间 → 在详情卡里配参数
 /// → 看（或改）命令 → 「➡ 发送到批处理」入队。真正「跑」由「批量处理」页负责。
-/// </summary>
+/// </para>
+/// <para>
+/// ⚠️ **详情卡结构与「批量处理」页一致**（需求 §6.4.1 / 规范 §3.9）：分区按 ffmpeg 命令书写顺序
+/// （剪辑 → 转码 → 输出 → 命令）；两个分区的**勾选框就在标题行上**；⛔ 详情卡里不放任何操作按钮，全在工具条。
+/// </para>
 /// <para>
 /// ⚠️ **不是列表页**：不继承 <c>ListPageViewModelBase</c>，改 <c>ObservableObject, IStatusProvider</c>
 /// （状态文本交给 Shell 底部状态栏）。
@@ -33,6 +37,7 @@ namespace NewToys.VideoTools.ViewModels;
 /// 🔴 **命令可编辑**：自动生成值 <see cref="CommandPreview"/> 与手改值 <see cref="EditArgs"/> 分离 ——
 /// 手改后参数变化**不覆盖**手改，⛔ 手改后的命令必须**原样执行**。
 /// </para>
+/// </summary>
 public partial class VideoCutViewModel : ObservableObject, IStatusProvider
 {
     private const string PageKey = "video-cut";
@@ -239,6 +244,9 @@ public partial class VideoCutViewModel : ObservableObject, IStatusProvider
     /// <summary>剪切预设下拉框的数据源（不写死在 XAML 里）。</summary>
     public IReadOnlyList<CutPresetOption> CutPresetOptions => CutPresets.All;
 
+    /// <summary>当前剪切预设是不是「重新编码」（决定 CRF 输入框显不显示）。</summary>
+    public bool IsReEncode => string.Equals(EditPresetId, CutPresets.ReEncode, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// 「开始」时间条绑它（秒）。
     /// <para>⚠️ 单独一层的原因：直接绑时间码文本的话，拖动只会改文本、和时间条值互相打架；
@@ -277,7 +285,12 @@ public partial class VideoCutViewModel : ObservableObject, IStatusProvider
         RefreshCommand();
     }
 
-    partial void OnEditPresetIdChanged(string value) => RefreshCommand();
+    partial void OnEditPresetIdChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsReEncode));
+        RefreshCommand();
+    }
+
     partial void OnEditExtraArgsChanged(string value) => RefreshCommand();
 
     // ==================== 转码参数（v3.10 补足：格式 / 编码器(CPU·GPU) / 分辨率 / 码率） ====================

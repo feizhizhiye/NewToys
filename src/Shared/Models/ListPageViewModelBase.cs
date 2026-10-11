@@ -64,7 +64,9 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// <summary>本页在 <c>config\columnlayout.json</c> 里的页键（如 <c>"video-list"</c>）。</summary>
     protected abstract string PageKey { get; }
 
-    /// <summary>列元数据（顺序即表头与行的列顺序）。最后一列通常是给「▤」按钮留的窄列 Detail。</summary>
+    /// <summary>列元数据（顺序即表头与行的列顺序）。</summary>
+    /// <para>⛔ **不要追加 <c>Detail</c> 占位列**（v3.12）：详情开关已从表头挪到工具条末位
+    /// （<c>Button.detail-toggle</c>，见规范 §3.6），表头因此不再有那一格。</para>
     protected abstract IReadOnlyList<ListColumn> Columns { get; }
 
     /// <summary>排序列 / 筛选条件变化后重算列表（派生类的 ApplyView / ApplyFilters）。</summary>
@@ -119,16 +121,14 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     {
         if (_cols == null) return;
         var map = new Dictionary<string, bool>();
-        foreach (var c in Columns)
-            if (c.Key != "Detail") map[c.Key] = Vis(c.Key);
+        foreach (var c in Columns) map[c.Key] = Vis(c.Key);
         _cols.SavePage(PageKey, map);
     }
 
     /// <summary>把「IsXxxVisible」这批具名属性整体发一次通知（加载 / 复位后让 XAML 跟上）。</summary>
     protected void NotifyColumnsChanged()
     {
-        foreach (var c in Columns)
-            if (c.Key != "Detail") OnPropertyChanged("Is" + c.Key + "Visible");
+        foreach (var c in Columns) OnPropertyChanged("Is" + c.Key + "Visible");
         OnPropertyChanged(nameof(VisibleColumnSpecs));
     }
 
@@ -180,7 +180,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// <summary>展开详情前给派生类一次「没选中就选第一项」的机会。</summary>
     protected virtual void EnsureDetailSelection() { }
 
-    /// <summary>表头右侧「▤」按钮：展开 / 收起详情。</summary>
+    /// <summary>工具条末位的详情开关调它：展开 / 收起详情。</summary>
     [RelayCommand]
     private void ToggleDetail()
     {
@@ -241,7 +241,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// <summary>筛选条件（可任意添加多条，全部满足才显示）。</summary>
     public ObservableCollection<FilterClause> Filters { get; } = new();
 
-    /// <summary>可筛选的列（排除「▤」窄列与无标题的列）；给条件里的下拉框用。</summary>
+    /// <summary>可筛选的列（排除无标题的列）；给条件里的下拉框用。</summary>
     public ObservableCollection<ListColumn> FilterableColumns { get; } = new();
 
     /// <summary>供 XAML 里「＋ 条件」按钮与筛选摘要显示用。</summary>
@@ -309,7 +309,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     {
         if (FilterableColumns.Count > 0) return;
         foreach (var c in Columns)
-            if (c.Key != "Detail" && c.Header.Length > 0) FilterableColumns.Add(c);
+            if (c.Header.Length > 0) FilterableColumns.Add(c);
     }
 
     /// <summary>

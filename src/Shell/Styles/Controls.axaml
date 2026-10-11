@@ -17,7 +17,7 @@
   <!--  ① 工具条：列表页顶部那条（背景 + 底部分隔线 + 内边距），页面里套 WrapPanel 即可  -->
   <Style Selector="Border.toolbar">
     <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
-    <Setter Property="Padding" Value="16,8"/>
+    <Setter Property="Padding" Value="12,6"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
   </Style>
@@ -67,13 +67,15 @@
   </Style>
 
   <!--  ⑤ 右侧详情卡（宽度 / 外边距 / 圆角统一；收起时整列不占位）
-       v3.1 密度基线：圆角 10→8、内边距 16→14  -->
+       v3.12 密度：内边距 14 → 12。
+       ⚠️ **宽度 340 是硬约定（需求 §4.5），别动**；滚动条是覆盖式的、需要右侧留位的那两页
+          （video-cut / video-batch）在**本页 XAML 里覆盖 Padding**，不要改这里 —— 会波及 12 个列表页。  -->
   <Style Selector="Border.detail-card">
     <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
     <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="Padding" Value="14"/>
+    <Setter Property="Padding" Value="12"/>
     <Setter Property="Width" Value="340"/>
-    <Setter Property="Margin" Value="12,0,0,0"/>
+    <Setter Property="Margin" Value="8,0,0,0"/>
   </Style>
 
   <!--  ⑥ 分隔线  -->
@@ -106,14 +108,14 @@
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="CornerRadius" Value="3"/>
-    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="Padding" Value="8,0"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="HorizontalAlignment" Value="Stretch"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Stretch"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
-    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="MinHeight" Value="30"/>
     <Setter Property="Cursor" Value="Hand"/>
   </Style>
   <Style Selector="Button.col-header:pointerover">
@@ -121,85 +123,49 @@
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
   </Style>
 
-  <!--  ⑨ 详情栏开关：**贴在表头右缘、默认几乎不占地方、鼠标靠近才弹出**（v1.35 二次优化）
-        之前的 ▤ 常驻按钮会一直占着表头最后一格；现在改成：
-          默认 → 只露一条 8px 窄边（Opacity 0、不可点），表头看起来是干净的；
-          鼠标进入右侧热区 → 平滑弹出成 34px 的完整按钮（带边框 + 方向图标）。
-        图标也换了：收起态 ❯（点它展开右侧详情），展开态 ❮（点它收起），一眼知道当前是哪种。  -->
-  <Style Selector="Button.header-toggle">
+  <!--  ⑨ 详情栏开关（v3.12：**从表头右缘挪到工具条末位**）
+        旧做法 `Border.detail-hotspot` + `Button.header-toggle`（64px 透明热区、收起态只露 8px、鼠标靠近才弹）
+        已**整体废除**：它占掉一整列表头宽度（列元数据里还得挂一个 `Detail` 占位列）、不把鼠标移过去就点不到、
+        还和表头的"排序 / 列显隐"两种交互挤在一处。
+        现做法：工具条右侧（`Grid ColumnDefinitions="*,Auto"` 的右列）放一个**常驻**小按钮，
+        图标 ❯ = 展开右侧详情、❮ = 收起 —— 一眼知道当前是哪种。  -->
+  <Style Selector="Button.detail-toggle">
     <Setter Property="FontSize" Value="13"/>
     <Setter Property="Padding" Value="0"/>
-    <Setter Property="Margin" Value="0,4,6,4"/>
-    <Setter Property="Width" Value="34"/>
-    <Setter Property="MinWidth" Value="34"/>
-    <Setter Property="MinHeight" Value="28"/>
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="Width" Value="26"/>
+    <Setter Property="MinWidth" Value="26"/>
+    <Setter Property="Height" Value="26"/>
     <Setter Property="HorizontalAlignment" Value="Right"/>
-    <Setter Property="VerticalAlignment" Value="Stretch"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="HorizontalContentAlignment" Value="Center"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
     <Setter Property="Cursor" Value="Hand"/>
-    <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+    <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
     <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
-    <Setter Property="Transitions">
-      <Transitions>
-        <DoubleTransition Property="Opacity" Duration="0:0:0.12"/>
-        <DoubleTransition Property="Width" Duration="0:0:0.12"/>
-      </Transitions>
-    </Setter>
   </Style>
-  <Style Selector="Button.header-toggle:pointerover">
+  <Style Selector="Button.detail-toggle:pointerover">
     <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
   </Style>
 
-  <!--  ⑨-a 右缘热区（透明，宽 64px，负责"鼠标靠近"这件事）  -->
-  <Style Selector="Border.detail-hotspot">
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Width" Value="64"/>
-    <Setter Property="HorizontalAlignment" Value="Right"/>
-    <Setter Property="VerticalAlignment" Value="Stretch"/>
-    <Setter Property="Cursor" Value="Hand"/>
-  </Style>
-
-  <!--  ⑨-b 收起态：只露一条窄边，且不吃鼠标事件（否则"看不见却能点到"很怪）  -->
-  <Style Selector="Border.detail-hotspot Button.header-toggle">
-    <Setter Property="Opacity" Value="0"/>
-    <Setter Property="Width" Value="8"/>
-    <Setter Property="MinWidth" Value="8"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Margin" Value="0,6,2,6"/>
-    <Setter Property="IsHitTestVisible" Value="False"/>
-  </Style>
-
-  <!--  ⑨-c 鼠标进入热区 → 弹出  -->
-  <Style Selector="Border.detail-hotspot:pointerover Button.header-toggle">
-    <Setter Property="Opacity" Value="1"/>
-    <Setter Property="Width" Value="34"/>
-    <Setter Property="MinWidth" Value="34"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-    <Setter Property="Margin" Value="0,4,6,4"/>
-    <Setter Property="IsHitTestVisible" Value="True"/>
-  </Style>
-
-  <!--  ⑩ 表头容器（高度固定 36，内部按钮靠 ⑧/⑨ 撑满 —— 点击区 = 整格）  -->
+  <!--  ⑩ 表头容器（高度固定 32，内部按钮靠 ⑧ 撑满 —— 点击区 = 整格；v3.12 由 36 收紧）  -->
   <Style Selector="Border.list-header">
     <Setter Property="Background" Value="{DynamicResource SubSiderHeaderBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
-    <Setter Property="Height" Value="36"/>
+    <Setter Property="Height" Value="32"/>
   </Style>
 
   <!--  ⑪ 表格单元格：默认次要色；加 .primary / .accent 切换字的颜色。
-       v3.1 密度基线：行高统一 32（MinHeight + 垂直居中）。  -->
+       v3.12 密度：行高 32→28、左右内边距 12→8（**表头 ⑧ 的 Padding 必须同步改，否则表头与行错位**）。  -->
   <Style Selector="TextBlock.list-cell">
-    <Setter Property="Padding" Value="12,0"/>
-    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Padding" Value="8,0"/>
+    <Setter Property="MinHeight" Value="28"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -222,7 +188,7 @@
     <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
-    <Setter Property="Padding" Value="16,6"/>
+    <Setter Property="Padding" Value="12,4"/>
   </Style>
   <Style Selector="ComboBox.filter-combo">
     <Setter Property="FontSize" Value="12"/>

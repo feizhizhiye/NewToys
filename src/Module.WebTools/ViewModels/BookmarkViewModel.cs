@@ -60,7 +60,6 @@ public partial class BookmarkViewModel : ListPageViewModelBase
         new("Url", "网址", "3*"),
         new("Folder", "分组", "1.4*"),
         new("Status", "状态", "1.2*"),
-        new("Detail", "", "36", sortable: false),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>

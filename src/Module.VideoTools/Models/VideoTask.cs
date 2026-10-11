@@ -53,7 +53,7 @@ public abstract partial class VideoTaskBase : ObservableObject
     public string OutputPath { get; set; } = "";
 
     /// <summary>
-    /// 用户在「命令生成」页**手动改写过**的 ffmpeg 参数串（⛔ **不含** ffmpeg.exe，也**不含**输出路径 ——
+    /// 用户在「视频预览」页**手动改写过**的 ffmpeg 参数串（⛔ **不含** ffmpeg.exe，也**不含**输出路径 ——
     /// 输出由 <see cref="OutputPath"/> 自动补在末尾）。
     /// <para>非空 ⇒ 批量处理运行时**原样执行**它，不再按任务参数重新拼装（手改不被悄悄覆盖）。</para>
     /// </summary>

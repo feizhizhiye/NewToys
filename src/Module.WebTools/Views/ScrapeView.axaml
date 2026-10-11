@@ -5,7 +5,7 @@
              x:Class="NewToys.WebTools.Views.ScrapeView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="16">
+  <Grid ColumnDefinitions="*,Auto" Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -14,14 +14,26 @@
          Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
 
     <Border Grid.Row="1" Classes="toolbar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <Button Classes="primary" Content="➕ 新建任务" Margin="0,0,8,0" Command="{Binding NewTaskCommand}"/>
-        <Button Classes="ghost" Content="▶ 运行全部" Margin="0,0,8,0" Command="{Binding RunAllCommand}" IsEnabled="{Binding !IsBusy}"/>
-        <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"/>
-        <TextBox Width="220" Margin="0,0,8,0" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索名称 / 网址 / 规则…"/>
-        <TextBlock Text="右键列表项：运行 / 发送到书签 / 编辑 / 删除" FontSize="11"
-                   VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
-      </WrapPanel>
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button Classes="primary" Content="➕ 新建任务" Margin="0,0,8,0" Command="{Binding NewTaskCommand}"/>
+          <Button Classes="ghost" Content="▶ 运行全部" Margin="0,0,8,0" Command="{Binding RunAllCommand}" IsEnabled="{Binding !IsBusy}"/>
+          <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"/>
+          <TextBox Width="220" Margin="0,0,8,0" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索名称 / 网址 / 规则…"/>
+          <TextBlock Text="右键列表项：运行 / 发送到书签 / 编辑 / 删除" FontSize="11"
+                     VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
+        </WrapPanel>
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Command="{Binding ToggleDetailCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+          <Panel>
+            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsDetailVisible}"/>
+            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsDetailVisible}"/>
+          </Panel>
+        </Button>
+      </Grid>
     </Border>
 
     
@@ -81,18 +93,6 @@
                       IsVisible="{Binding IsRuleVisible}"/>
               <Button Grid.Column="3" Classes="col-header" Content="{Binding LastRunHeader}"
                       IsVisible="{Binding IsLastRunVisible}"/>
-              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
-              <Border Grid.Column="4" Classes="detail-hotspot">
-                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
-                        ToolTip.Tip="显示 / 隐藏右侧详情">
-                  <Panel>
-                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding !IsDetailVisible}"/>
-                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding IsDetailVisible}"/>
-                  </Panel>
-                </Button>
-              </Border>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="名称" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>

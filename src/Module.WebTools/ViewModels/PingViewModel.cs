@@ -74,7 +74,6 @@ public partial class PingViewModel : ListPageViewModelBase
         new("Status", "状态", "1.4*"),
         new("Roundtrip", "时延(ms)", "1*"),
         new("Dns", "DNS", "1.2*"),
-        new("Detail", "", "36", sortable: false),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>

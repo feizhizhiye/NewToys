@@ -4,7 +4,7 @@
              x:Class="NewToys.VideoTools.Views.VideoListView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="16">
+  <Grid ColumnDefinitions="*,Auto" Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -15,43 +15,55 @@
     <!--  ==================== 工具条  ====================
           目录**不来自设置**：每次手动选（v1.34 与设置解绑）；选过的目录只在本次运行内记住。 -->
     <Border Grid.Row="1" Classes="toolbar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <TextBlock Text="目录" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <TextBox x:Name="FolderBox" Width="300" Margin="0,0,8,6"
-                 Text="{Binding Folder, Mode=TwoWay}"
-                 PlaceholderText="如 D:\Videos（回车即扫描）"/>
-        <Button x:Name="BrowseBtn" Classes="ghost" Content="📂 浏览…" Margin="0,0,8,6"/>
-        <Button Classes="primary" Content="🔍 扫描" Margin="0,0,8,6" Command="{Binding ScanCommand}"
-                IsEnabled="{Binding !IsBusy}"/>
-        <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,6" Command="{Binding RefreshCommand}"
-                IsEnabled="{Binding !IsBusy}"/>
-        <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,6" IsChecked="{Binding Recursive, Mode=TwoWay}"/>
-        <TextBox Width="180" Margin="0,0,8,6" Text="{Binding SearchText, Mode=TwoWay}"
-                 PlaceholderText="按文件名 / 类型过滤…"/>
-        <Button Classes="ghost" Content="🔎 读取全部媒体信息" Margin="0,0,8,6"
-                Command="{Binding LoadAllMediaInfoCommand}" IsEnabled="{Binding !IsBusy}"
-                ToolTip.Tip="对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 data\newtoys.db 缓存，下次扫描直接命中"/>
-        <Button Classes="ghost" Content="🧹 清空媒体缓存" Margin="0,0,8,6"
-                Command="{Binding ClearMediaCacheCommand}"
-                ToolTip.Tip="清掉 SQLite 里的媒体信息缓存；下次扫描会重新探测（较慢），不影响视频文件"/>
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="目录" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
+          <TextBox x:Name="FolderBox" Width="300" Margin="0,0,8,6"
+                   Text="{Binding Folder, Mode=TwoWay}"
+                   PlaceholderText="如 D:\Videos（回车即扫描）"/>
+          <Button x:Name="BrowseBtn" Classes="ghost" Content="📂 浏览…" Margin="0,0,8,6"/>
+          <Button Classes="primary" Content="🔍 扫描" Margin="0,0,8,6" Command="{Binding ScanCommand}"
+                  IsEnabled="{Binding !IsBusy}"/>
+          <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,6" Command="{Binding RefreshCommand}"
+                  IsEnabled="{Binding !IsBusy}"/>
+          <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,6" IsChecked="{Binding Recursive, Mode=TwoWay}"/>
+          <TextBox Width="180" Margin="0,0,8,6" Text="{Binding SearchText, Mode=TwoWay}"
+                   PlaceholderText="按文件名 / 类型过滤…"/>
+          <Button Classes="ghost" Content="🔎 读取全部媒体信息" Margin="0,0,8,6"
+                  Command="{Binding LoadAllMediaInfoCommand}" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 data\newtoys.db 缓存，下次扫描直接命中"/>
+          <Button Classes="ghost" Content="🧹 清空媒体缓存" Margin="0,0,8,6"
+                  Command="{Binding ClearMediaCacheCommand}"
+                  ToolTip.Tip="清掉 SQLite 里的媒体信息缓存；下次扫描会重新探测（较慢），不影响视频文件"/>
 
-        <!--  多选 → 批量送进任务页（v1.35）  -->
-        <Border Classes="divider-line" Width="1" Height="20" Margin="0,0,8,0"/>
-        <Button Classes="ghost" Content="☑ 全选" Margin="0,0,4,6" Command="{Binding CheckAllCommand}"/>
-        <Button Classes="ghost" Content="🔄 反选" Margin="0,0,4,6" Command="{Binding InvertCheckedCommand}"/>
-        <Button Classes="ghost" Content="☐ 清空" Margin="0,0,8,6" Command="{Binding UncheckAllCommand}"/>
-        <Button Classes="primary" Margin="0,0,4,6" Command="{Binding SendToTranscodeCommand}"
-                IsEnabled="{Binding HasChecked}"
-                ToolTip.Tip="把勾选的文件批量生成**转码**任务，送到「批量处理」页（只是建任务，不立刻跑）">
-          <TextBlock Text="{Binding CheckedCount, StringFormat='➡ 批量处理·转码 ({0})'}"/>
+          <!--  多选 → 批量送进任务页（v1.35）  -->
+          <Border Classes="divider-line" Width="1" Height="20" Margin="0,0,8,0"/>
+          <Button Classes="ghost" Content="☑ 全选" Margin="0,0,4,6" Command="{Binding CheckAllCommand}"/>
+          <Button Classes="ghost" Content="🔄 反选" Margin="0,0,4,6" Command="{Binding InvertCheckedCommand}"/>
+          <Button Classes="ghost" Content="☐ 清空" Margin="0,0,8,6" Command="{Binding UncheckAllCommand}"/>
+          <Button Classes="primary" Margin="0,0,4,6" Command="{Binding SendToTranscodeCommand}"
+                  IsEnabled="{Binding HasChecked}"
+                  ToolTip.Tip="把勾选的文件批量生成**转码**任务，送到「批量处理」页（只是建任务，不立刻跑）">
+            <TextBlock Text="{Binding CheckedCount, StringFormat='➡ 批量处理·转码 ({0})'}"/>
+          </Button>
+          <Button Classes="ghost" Margin="0,0,8,6" Command="{Binding SendToCutCommand}"
+                  IsEnabled="{Binding HasChecked}"
+                  ToolTip.Tip="把勾选的文件送进「视频预览」页，边看画面边定剪辑区间">
+            <TextBlock Text="{Binding CheckedCount, StringFormat='✂ 视频预览·剪辑 ({0})'}"/>
+          </Button>
+        </WrapPanel>
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Command="{Binding ToggleDetailCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+          <Panel>
+            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsDetailVisible}"/>
+            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsDetailVisible}"/>
+          </Panel>
         </Button>
-        <Button Classes="ghost" Margin="0,0,8,6" Command="{Binding SendToCutCommand}"
-                IsEnabled="{Binding HasChecked}"
-                ToolTip.Tip="把勾选的文件送进「命令生成」页，制定单个剪辑任务">
-          <TextBlock Text="{Binding CheckedCount, StringFormat='✂ 命令生成·剪辑 ({0})'}"/>
-        </Button>
-      </WrapPanel>
+      </Grid>
     </Border>
 
     <!--  ==================== 多项筛选  ====================  -->
@@ -130,19 +142,6 @@
               <Button Grid.Column="8" Classes="col-header" Content="{Binding ModifiedHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Modified"
                       IsVisible="{Binding IsModifiedVisible}"/>
-              <!--  详情栏开关：贴在表头右缘，默认只露一条窄边；鼠标靠近右侧热区才弹出  -->
-              <Border Grid.Column="9" Classes="detail-hotspot">
-                <Button Classes="header-toggle" Command="{Binding ToggleDetailCommand}"
-                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）；你的选择会被记住">
-                  <Panel>
-                    <TextBlock Text="❯" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding !IsDetailVisible}"/>
-                    <TextBlock Text="❮" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                               IsVisible="{Binding IsDetailVisible}"/>
-                  </Panel>
-                </Button>
-              </Border>
-
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>

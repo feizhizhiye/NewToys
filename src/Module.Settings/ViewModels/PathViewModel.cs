@@ -68,7 +68,6 @@ public partial class PathViewModel : ListPageViewModelBase
         new("Kind", "类型", "1*"),
         new("Description", "说明", "4*", sortable: false),
         new("Action", "操作", "1.8*", sortable: false),
-        new("Detail", "", "36", sortable: false),
     };
 
     // ==================== 详情栏开合（基类管状态；这里只补"没选中就选第一项"） ====================

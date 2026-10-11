@@ -51,7 +51,6 @@ public partial class HostsViewModel : ListPageViewModelBase
         new("Name", "名称", "3*"),
         new("Entries", "条目数", "1.2*"),
         new("Source", "来源", "2*"),
-        new("Detail", "", "36", sortable: false),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>

@@ -329,7 +329,7 @@ public interface IHistoryProvider
 
 ### 3.9 视频工具「视频预览」页与两页详情卡（v3.12 重写，需求 §6.4）
 
-> 页面 key / 类名仍是 `video-cut` / `VideoCutView` / `VideoCutViewModel`（历史命名，见需求 §6.4 表下注），**只有显示名与文案叫「视频预览」**。
+> 页面 key 仍是 `video-cut`（落 `columnlayout.json` 页键，改名会丢用户偏好）；**View / VM 的类名与文件名 v3.12 起已改为 `VideoPreviewView` / `VideoPreviewViewModel`**。
 
 **布局（页内两列 + 左树 = 三列）**
 - 页根 Grid：`ColumnDefinitions="*,Auto"`；左列 = **预览列**（大画面 + 三条时间条），右列 = **详情卡** `Border.detail-card`（340px、`VerticalAlignment="Stretch"`、可开合）。
@@ -357,7 +357,8 @@ public interface IHistoryProvider
 - **两页的 VM 属性刻意对齐**（同名同义），这样同一段 XAML 结构可以照抄：`EditStart/EditEnd`、`EditExtraArgs`、`EditOutput`、`EditArgs`（可编辑命令）、`IsArgsEdited`、`CommandPreview`、`CopyCommandLineCommand`、`ResetCommandCommand`。
   - 批量页的转码参数属性名用 `EditPresetId/EditCrf/EditMaxHeight`（它本来就是列表页、属性名已定型），⛔ 不要为了对齐去改名 —— 改名要全仓搜旧名。
 - **命令可编辑**：`CommandPreview`（只读合成，参数变即刷新）与 `EditArgs`（可写）分离 + `IsArgsEdited` 标记。手改后参数变化**不得覆盖** `EditArgs`；`↺ 重置为自动` = 清标记并重新赋自动值。⛔ 手改后的命令必须**原样执行**（存进 `VideoTaskBase.RawArgs`，批量运行时优先用它）。
-  - 自动值怎么算：⛔ 别直接给 `EditArgs` 赋自动串再靠比较反推"是否手改"（赋值即相等 → 永远判不出手改）。做法是 `EditArgs` 只在**用户真改了**时偏离，`IsArgsEdited` 由「用户输入 vs 当前自动串」的比较得出，见 `VideoCutViewModel.OnEditArgsChanged`。
+  - 自动值怎么算：⛔ 别直接给 `EditArgs` 赋自动串再靠比较反推"是否手改"（赋值即相等 → 永远判不出手改）。做法是 `EditArgs` 只在**用户真改了**时偏离，`IsArgsEdited` 由「用户输入 vs 当前自动串」的比较得出，见 `VideoPreviewViewModel.OnEditArgsChanged`。
+- 🔴 **覆写可视树回调要写 `protected override`**：`Visual.OnAttachedToVisualTree` / `OnDetachedFromVisualTree` 都是 **protected**，写成 `public override` → **CS0507「当重写 protected 继承成员时，无法更改访问修饰符」**。
 - **批量页的命令区**：选中任务变了要重算 `CommandPreview` / `EditArgs`；`RawArgs` 非空时 `CommandPreview` 直接显示 `RawArgs` 拼出来的那条。
 - 从「视频列表」送来 → 载入后**自动触发一次预览**（探测时长 + 抽当前帧）。
 
@@ -476,5 +477,5 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **树节点点击无反应**（v3.0） | `TreeView` 的 `SelectedItem` 未绑定或二级节点未用 `HierarchicalDataTemplate` | 检查 `ItemsSource`/`SelectedItem` 双向绑定，叶子节点绑 `OpenTabCommand` |
 | **标签页重复打开**（v3.0） | `OpenTab` 未做单例判定 | `Tabs` 中按 `Key` 查重，存在则激活 |
 | **关闭首页标签失败**（v3.0） | 未设 `CanClose=false` | `TabItemViewModel` 构造时首页 `CanClose=false`，`CloseTab` 检查 |
-| **跨页投递的数据要刷新页面才出现**（v3.12） | 只在 `OnDataContextChanged` 里取件；标签页已存在时切回来 `DataContext` 不变 → 该回调不再触发 | 取件放 `OnAttachedToVisualTree`（每次进页面都会跑） |
+| **跨页投递的数据要刷新页面才出现**（v3.12） | 只在 `OnDataContextChanged` 里取件；标签页已存在时切回来 `DataContext` 不变 → 该回调不再触发 | 取件放 `OnAttachedToVisualTree`（每次进页面都会跑）；⚠️ 必须写 `protected override`（基类是 protected，写 public 报 CS0507） |
 | **表头与行错位**（v3.12） | 改了 `Columns` 元数据但表头 / 行模板的 `Grid.Column` 没逐字同步 | 改列元数据后核对表头与行模板的列序列（需求 §4.8 硬规则 2） |

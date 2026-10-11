@@ -7,7 +7,7 @@
 > 配套：开发需求（宪法）/ 开发规范 / AI 协作提示词
 
 **最近三次变更**
-- **v3.12**：🎨 **视频工具两页详情卡统一 + 全局密度收紧 + 详情开关上移（代码已落盘，待本地 `build.ps1`）** —— ① 修 bug：送到已打开页面的视频要刷新才生效（取件点从 `OnDataContextChanged` 改到 `OnAttachedToVisualTree`）；② 「命令生成」页更名「**视频预览**」（key / 类名不变）；③ 两页详情卡统一为「剪辑 → 转码 → 输出 → 命令」，类型勾选并入分区标题、按钮全移到工具条、批量页补上命令生成区；④ 详情开关从表头右缘挪到**工具条右上角**（10 个列表页 + 基类 `Detail` 特判清理）；⑤ 全局留白收紧（行高 32→28、卡片 14→12、工具条/筛选条/按钮内边距下调）。
+- **v3.12**：🎨 **视频工具两页详情卡统一 + 全局密度收紧 + 详情开关上移（代码已落盘，待本地 `build.ps1`）** —— ① 修 bug：送到已打开页面的视频要刷新才生效（取件点从 `OnDataContextChanged` 改到 `OnAttachedToVisualTree`，⚠️ 必须 `protected override`）；② 「命令生成」页更名「**视频预览**」（**View/VM 类名与文件名同步改为 `VideoPreview*`**，菜单 key 仍保留 `video-cut`）；③ 两页详情卡统一为「剪辑 → 转码 → 输出 → 命令」，类型勾选并入分区标题、按钮全移到工具条、批量页补上命令生成区；④ 详情开关从表头右缘挪到**工具条右上角**（11 个列表页 + 基类 `Detail` 特判清理）；⑤ 全局留白收紧（行高 32→28、卡片 14→12、工具条/筛选条/按钮内边距下调）。
 - **v3.11**：📝 **文档重构（无功能改动）** —— 《开发需求》删版本流水与附录、需求融进功能章节、§4.0 布局总览按「左菜单栏 / 标题栏 / 主内容区 / 详情卡 / 状态栏」重写；评估内容（多段剪辑、命令生成函数）撤出文档改为会话讨论；台账只留最近三次。
 - **v3.10**：📝 **视频工具「命令生成」页再设计（只写需求 / 规范，代码下一批）** —— 改「类播放器预览 + 三条时间条 ｜ 详情卡」两列；删抽帧缩略图墙 + 工具条任务类型单选；任务类型移入详情卡（剪辑 / 转码可多选、两套设置可折叠）；命令可手动编辑；转码参数补足「格式 / 编码器(CPU·GPU) / 分辨率 / 码率」；视频列表送来默认预览。
 
@@ -27,7 +27,7 @@
 
 **编译状态**：✅ v1.14 / v1.16 本地 0 错；⚠️ **v1.21 起（含 v3.x 全部批次）尚未由用户本地复跑** → 待跑 `build.ps1`。
 
-**当前主线**：UI 从仿微信三栏重构为**仿浏览器标签页 + 树状左菜单栏**（v3.0 起）→ 视频工具三页重构（v3.8）→ 状态栏下沉（v3.9）→ **命令生成页再设计（v3.10/v3.11，代码待做）**。更早脉络看 `git log`。
+**当前主线**：UI 从仿微信三栏重构为**仿浏览器标签页 + 树状左菜单栏**（v3.0 起）→ 视频工具三页重构（v3.8）→ 状态栏下沉（v3.9）→ **视频预览页 + 两页详情卡统一 + 密度收紧（v3.12）**。更早脉络看 `git log`。
 
 ---
 
@@ -78,8 +78,8 @@
 ### P0 · 视频工具两页详情卡统一 + 全局密度收紧 🚧 代码已落盘，待本地 `build.ps1`
 
 **v3.12**
-- [x] **修 bug：跨页投递的视频要刷新页面才生效** —— `VideoCutView` / `VideoBatchView` 的取件点从 `OnDataContextChanged` 移到 `OnAttachedToVisualTree`（标签页已存在时 `DataContext` 不变，前者不再触发）。
-- [x] **「命令生成」页更名「视频预览」**：菜单标题 + 文案 + 文档；**key（`video-cut`）与 View/VM 类名保持不变**（改名会波及 `columnlayout.json` 页键与 `VideoTaskStore` 投递目标）。
+- [x] **修 bug：跨页投递的视频要刷新页面才生效** —— `VideoPreviewView` / `VideoBatchView` 的取件点从 `OnDataContextChanged` 移到 `OnAttachedToVisualTree`（标签页已存在时 `DataContext` 不变，前者不再触发）。⚠️ 基类该回调是 **protected**，必须写 `protected override`（写 `public override` 报 CS0507）。
+- [x] **「命令生成」页更名「视频预览」**：菜单标题 + 文案 + 文档；**View / VM 的类名与文件名一并改成 `VideoPreviewView` / `VideoPreviewViewModel`**（`RegisterFunction` 的 `viewName` 同步）；**菜单 key 仍保留 `video-cut`**（它落 `columnlayout.json` 页键，改名会让已有用户的详情栏开合 / 列显隐偏好失效）。
 - [x] **两页详情卡统一**（需求 §6.4.1）：
   - 分区按 ffmpeg 命令书写顺序重排为「剪辑 → 转码 → 输出 → 命令」；⛔ 删掉顶部独立的「任务类型」块。
   - 剪辑 / 转码两个分区的**勾选框移到 `Expander.Header` 里**；取消勾选自动折叠（预览页 VM 已有联动）。
@@ -134,7 +134,7 @@
 | 默认数据 | `src/Shell/defaults/*.default.json` + `defaults/scripts/*`（`None Update` 复制） |
 | 本地数据库 | `Core/Services/SqliteDatabase.cs` + `Module.VideoTools/Services/VideoMediaIndex.cs` |
 | 会话 / 运行钩子 | `Core/Services/DialogHooks.cs` + `Module.VideoTools/Services/VideoFileService.cs` |
-| 视频工具 | `Module.VideoTools/Views/{VideoList,VideoCut,VideoBatch}View.axaml` + `Services/{VideoScanner,FfmpegService,VideoTaskStore}.cs` |
+| 视频工具 | `Module.VideoTools/Views/{VideoList,VideoPreview,VideoBatch}View.axaml` + `Services/{VideoScanner,FfmpegService,VideoTaskStore}.cs` |
 | 运行环境 | `Shared/Services/IAppConfigService.cs` + `Core/Services/AppConfigService.cs` |
 | winget | `Core/Services/PackageManagerService.cs` + `PackageOutputParser.cs` + `PackageSettingsService.cs` |
 | 加密 DNS | `src/Core/Services/EncryptedDnsService.cs` |
@@ -147,4 +147,4 @@
 | 日期 | 版本 | 内容 |
 |---|---|---|
 | 2026-10-11 | **v3.11** | **文档瘦身（无功能改动）**：《开发需求》删版本流水与附录、变更融进功能章节、布局总览按五区职责重写；评估内容撤出文档改为会话讨论；台账只留最近三次 |
-| 2026-10-11 | **v3.12** | **视频工具两页详情卡统一 + 全局密度收紧 + 详情开关上移**：修「跨页投递要刷新才生效」；「命令生成」更名「视频预览」（key 不变）；两页详情卡按 ffmpeg 命令顺序统一（剪辑/转码/输出/命令）、类型勾选并入标题、按钮全上移工具条、批量页补命令生成区；详情开关从表头挪到工具条右上角（11 页 + 基类清理）；全局留白按新密度基线收紧 |
+| 2026-10-11 | **v3.12** | **视频工具两页详情卡统一 + 全局密度收紧 + 详情开关上移**：修「跨页投递要刷新才生效」（取件点改 `OnAttachedToVisualTree`，`protected override`）；「命令生成」更名「视频预览」（类名/文件名 → `VideoPreview*`，菜单 key 仍为 `video-cut`）；两页详情卡按 ffmpeg 命令顺序统一（剪辑/转码/输出/命令）、类型勾选并入标题、按钮全上移工具条、批量页补命令生成区；详情开关从表头挪到工具条右上角（11 页 + 基类清理）；全局留白按新密度基线收紧 |

@@ -8,15 +8,16 @@ using NewToys.VideoTools.ViewModels;
 namespace NewToys.VideoTools.Views;
 
 /// <summary>
-/// 「视频工具 → 视频预览」页（v3.12 由「命令生成」页更名；key 与类名仍是 <c>video-cut</c> / <c>VideoCutView</c>）：
+/// 「视频工具 → 视频预览」页（v3.12 由「命令生成」页更名，View / VM 类名与文件名同步改为<code>VideoPreview*</code>；
+/// 菜单 key 仍是 <c>video-cut</c>，它落 config\columnlayout.json 的页键，改名会丢用户偏好）：
 /// 只负责**制定一个**任务（剪辑 / 转码 / 剪辑+转码），编好后「➡ 发送到批处理」。
 /// <para>列表与批量运行都搬到了「批量处理」页，所以这里没有 ContextMenu 需要同步。
 /// 详情卡结构与批量处理页**一致**（见《开发规范》§3.9）。</para>
 /// <para>平台文件选择器（源文件 / 输出文件）在这一层调用 —— VM 不引用 Avalonia 的 UI 类型。</para>
 /// </summary>
-public partial class VideoCutView : UserControl
+public partial class VideoPreviewView : UserControl
 {
-    public VideoCutView()
+    public VideoPreviewView()
     {
         InitializeComponent();
         // 选源文件 / 输出文件都要走平台选择器 —— VM 不引用 Avalonia 的 UI 类型，所以在这一层选完交给 VM。
@@ -29,19 +30,21 @@ public partial class VideoCutView : UserControl
     /// <para>标签页**已存在**时从别的页跳过来，Shell 只是把缓存的 View 重新挂回内容区 ——
     /// <c>DataContext</c> 没变，<c>OnDataContextChanged</c> **不会再触发**，于是送过来的文件一直没人取，
     /// 表现就是「必须刷新页面才看到预览」。<c>OnAttachedToVisualTree</c> 每次进页面都会跑，取一次即清空，重复调安全。</para>
+    /// <para>⚠️ 基类 <c>Visual.OnAttachedToVisualTree</c> 是 **protected**，这里必须写 <c>protected override</c>，
+    /// 写成 <c>public override</c> → <b>CS0507「无法更改访问修饰符」</b>。</para>
     /// </summary>
-    public override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
 
-        if (DataContext is VideoCutViewModel vm)
+        if (DataContext is VideoPreviewViewModel vm)
             vm.ConsumePending();
     }
 
     /// <summary>📂 选择视频：本页一次只编一个任务，所以单选。</summary>
     private async System.Threading.Tasks.Task PickSourceFileAsync()
     {
-        if (DataContext is not VideoCutViewModel vm) return;
+        if (DataContext is not VideoPreviewViewModel vm) return;
 
         try
         {
@@ -79,7 +82,7 @@ public partial class VideoCutView : UserControl
     /// <summary>📂 给当前任务挑输出文件（另存为）。</summary>
     private async System.Threading.Tasks.Task PickOutputFileAsync()
     {
-        if (DataContext is not VideoCutViewModel vm) return;
+        if (DataContext is not VideoPreviewViewModel vm) return;
         if (string.IsNullOrWhiteSpace(vm.SourcePath)) { vm.StatusText = "先点「📂 选择视频」挑一个文件。"; return; }
 
         try

@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="NewToys.VideoTools.Views.VideoCutView">
+             x:Class="NewToys.VideoTools.Views.VideoPreviewView">
   <!--  v3.12：「命令生成」页更名为「视频预览」；详情卡与「批量处理」页**同一套结构**
         （分区按 ffmpeg 命令书写顺序：剪辑 → 转码 → 输出 → 命令；详情卡内不放任何操作按钮，全在工具条）。 -->
 

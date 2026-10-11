@@ -16,7 +16,9 @@ using NewToys.VideoTools.Services;
 namespace NewToys.VideoTools.ViewModels;
 
 /// <summary>
-/// 「视频工具 → 视频预览」页（v3.12 由「命令生成」页更名；页面 key / 类名不变，仍是 <c>video-cut</c>）。
+/// 「视频工具 → 视频预览」页（v3.12 由「命令生成」页更名；View / VM 类名与文件名同步改为
+/// <c>VideoPreviewView</c> / <c>VideoPreviewViewModel</c>，**菜单 key 仍是 <c>video-cut</c>** —— 它落
+/// config\columnlayout.json 的页键，改名会让已有用户的详情栏开合 / 列显隐偏好失效）。
 /// <para>
 /// 一句话职责：**边看边制定一个任务的 ffmpeg 命令**。选文件 → 预览 / 拖三条时间条定区间 → 在详情卡里配参数
 /// → 看（或改）命令 → 「➡ 发送到批处理」入队。真正「跑」由「批量处理」页负责。
@@ -38,7 +40,7 @@ namespace NewToys.VideoTools.ViewModels;
 /// 手改后参数变化**不覆盖**手改，⛔ 手改后的命令必须**原样执行**。
 /// </para>
 /// </summary>
-public partial class VideoCutViewModel : ObservableObject, IStatusProvider
+public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
 {
     private const string PageKey = "video-cut";
 
@@ -560,9 +562,9 @@ public partial class VideoCutViewModel : ObservableObject, IStatusProvider
 
     // ==================== 生命周期 ====================
 
-    public VideoCutViewModel() { }
+    public VideoPreviewViewModel() { }
 
-    public VideoCutViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService? cols = null)
+    public VideoPreviewViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService? cols = null)
     {
         _store = store;
         _cfg = cfg;

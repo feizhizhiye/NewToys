@@ -34,8 +34,10 @@ public partial class VideoBatchView : UserControl
     /// <para>标签页**已存在**时从「视频列表」跳过来，Shell 只是把缓存的 View 重新挂回内容区 ——
     /// <c>DataContext</c> 没变，<c>OnDataContextChanged</c> **不再触发**，送过来的文件就没人建任务。
     /// <c>TakePendingCut/TakePendingTranscode</c> 取一次即清空，重复调安全。</para>
+    /// <para>⚠️ 基类 <c>Visual.OnAttachedToVisualTree</c> 是 **protected**，这里必须写 <c>protected override</c>，
+    /// 写成 <c>public override</c> → <b>CS0507「无法更改访问修饰符」</b>。</para>
     /// </summary>
-    public override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
 

@@ -360,10 +360,12 @@ Module.*（功能模块，只引 Shared + Core）
 | 页面 | 菜单 key | View / VM | 说明 |
 |---|---|---|---|
 | **视频列表** | `video-list` | `VideoListView` / `VideoListViewModel` | 本地视频浏览 + ffprobe 媒体信息 + SQLite 缓存；重命名 / 删除到回收站 / 多选**发送到批量处理**或**送到视频预览** |
-| **视频预览** | `video-cut` | `VideoCutView` / `VideoCutViewModel` | **单任务编辑器**（**非列表页**）：主内容区 = 预览画面 + 三条时间条；右侧详情卡与批量页**同一套结构**，只是多了"边看边定区间" |
+| **视频预览** | `video-cut` | `VideoPreviewView` / `VideoPreviewViewModel` | **单任务编辑器**（**非列表页**）：主内容区 = 预览画面 + 三条时间条；右侧详情卡与批量页**同一套结构**，只是多了"边看边定区间" |
 | **批量处理** | `video-batch` | `VideoBatchView` / `VideoBatchViewModel` | **列表 = 剪辑 + 转码混排的统一队列**；详情卡按任务类型显示参数 + 命令；支持新增 / 删除 / 清空 / 排序 / 逐条跑 / 批量跑 / 停止 |
 
-> ⚠️ **key 仍是 `video-cut`**（类名 `VideoCutView`/`VideoCutViewModel` 不改）：菜单 key 与类名是历史命名，重命名要动 `columnlayout.json` 的页键与 `VideoTaskStore` 的投递目标，收益不抵风险。**只有显示名与文案叫「视频预览」**。
+> ⚠️ **只有菜单 key 还叫 `video-cut`**（v3.12 起 View / VM 的**类名与文件名已一并改成 `VideoPreview*`**）。
+> key 不改是因为它落进 `config/columnlayout.json` 的页键（详情栏开合 / 列显隐都按它记），改名会让已有用户的偏好失效；
+> 类名/文件名改名则零成本 —— 只影响 `RegisterFunction` 的 `viewName` 与 Shell 按 `XxxView→XxxViewModel` 的推导。
 
 #### 6.4.1 两页详情卡（同一套规格）
 

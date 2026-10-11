@@ -248,6 +248,8 @@
             <!-- ⚠️ 必须 Stretch：行模板用星号列跟表头对齐，不拉伸就永远错位 -->
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <!-- v3.16.1：垂直也要 Stretch —— Fluent 默认 Top，行里出现比文字高的控件（勾选框）后文字整体偏上 -->
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
         </Style>
         <Style Selector="ListBox.list-page ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>

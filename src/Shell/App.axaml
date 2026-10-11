@@ -244,7 +244,9 @@
         </Style>
         <Style Selector="ListBox.list-page ListBoxItem">
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="MinHeight" Value="0"/>
+            <!-- v3.16.1：行高基线 28 从 TextBlock.list-cell 挪到这里 —— TextBlock 的 MinHeight 只会把
+                 元素框撑高、文本还是画在框顶（文字偏上）；行高由容器兜底，文字才能真正垂直居中。 -->
+            <Setter Property="MinHeight" Value="28"/>
             <!-- ⚠️ 必须 Stretch：行模板用星号列跟表头对齐，不拉伸就永远错位 -->
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>

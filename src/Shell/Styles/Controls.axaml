@@ -171,10 +171,12 @@
   </Style>
 
   <!--  ⑪ 表格单元格：默认次要色；加 .primary / .accent 切换字的颜色。
-       v3.12 密度：行高 32→28、左右内边距 12→8（**表头 ⑧ 的 Padding 必须同步改，否则表头与行错位**）。  -->
+       v3.12 密度：行高 32→28、左右内边距 12→8（**表头 ⑧ 的 Padding 必须同步改，否则表头与行错位**）。
+       v3.16.1：⛔ 删掉 MinHeight=28 —— TextBlock 的文本永远绘制在**元素框顶部**，框被 MinHeight 撑高后
+       文字就整体偏上（勾选列把行撑高后尤其明显）。行高基线改由 `ListBox.list-page ListBoxItem` 的
+       MinHeight=28 兜底（见 App.axaml），元素高度=文本高度，VerticalAlignment=Center 才是真居中。  -->
   <Style Selector="TextBlock.list-cell">
     <Setter Property="Padding" Value="8,0"/>
-    <Setter Property="MinHeight" Value="28"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextTrimming" Value="CharacterEllipsis"/>

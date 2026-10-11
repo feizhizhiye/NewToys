@@ -267,15 +267,21 @@
                                 v3.16 §6.4.10：第一列 = 行首勾选框；这个 ☑ 就是**勾选菜单**的入口 ——
                                 右键弹出 全选 / 取消选择 / 反选（与「视频列表」页同一套）。
                                 ⚠️ 它自带 ContextMenu，就不会再冒泡到下面的「列显隐」菜单。
+                                v3.16.1：Stretch = 整格都是右键热区；字号 15、去左内边距，字符居中。
                             -->
                             <TextBlock
                                 x:Name="HeaderCheck"
                                 Grid.Column="0"
-                                HorizontalAlignment="Center"
+                                Padding="0"
+                                HorizontalAlignment="Stretch"
                                 VerticalAlignment="Center"
                                 Classes="list-cell"
+                                Cursor="Hand"
+                                FontSize="15"
+                                Foreground="{DynamicResource PrimaryTextBrush}"
                                 IsVisible="{Binding IsPickVisible}"
                                 Text="☑"
+                                TextAlignment="Center"
                                 ToolTip.Tip="右键：全选 / 取消选择 / 反选">
                                 <TextBlock.ContextMenu>
                                     <ContextMenu>

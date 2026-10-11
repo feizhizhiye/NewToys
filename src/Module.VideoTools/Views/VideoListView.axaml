@@ -269,15 +269,22 @@
                                 v3.16 §6.4.10：这个 ☑ 就是**勾选菜单**的入口 —— 右键弹出
                                 全选 / 取消选择 / 反选（工具条上原来那三个按钮已删除）。
                                 ⚠️ 它自己有 ContextMenu，就不会再冒泡到 ColumnGrid 的「列显隐」菜单。
+                                v3.16.1：HorizontalAlignment=Stretch 把**整格**变成右键热区（列宽只有 34，
+                                字符本身太小不好点）；字号提到 15、去掉 list-cell 的 8px 左内边距，让 ☑ 真正居中。
                             -->
                             <TextBlock
                                 x:Name="HeaderCheck"
                                 Grid.Column="0"
-                                HorizontalAlignment="Center"
+                                Padding="0"
+                                HorizontalAlignment="Stretch"
                                 VerticalAlignment="Center"
                                 Classes="list-cell"
+                                Cursor="Hand"
+                                FontSize="15"
+                                Foreground="{DynamicResource PrimaryTextBrush}"
                                 IsVisible="{Binding IsPickVisible}"
                                 Text="☑"
+                                TextAlignment="Center"
                                 ToolTip.Tip="右键：全选 / 取消选择 / 反选">
                                 <TextBlock.ContextMenu>
                                     <ContextMenu>

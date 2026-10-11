@@ -42,6 +42,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 {
     private readonly VideoTaskStore? _store;
     private readonly IAppConfigService? _cfg;
+    private readonly INavigationService? _nav;
 
     private CancellationTokenSource? _runCts;
 
@@ -54,6 +55,9 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 
     public bool IsNotBusy => !IsBusy && !IsRunning;
     public bool HasSelection => Selected != null;
+
+    /// <summary>全局导入/导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.15 全局，覆盖 .db 与 .json 选择器）。</summary>
+    public string ImportExportDefaultDir => _cfg?.VideoDbFolder ?? "";
 
     /// <summary>队列里有没有任务。
     /// ⚠️ <see cref="ItemsRaw"/> 是 <c>IEnumerable</c>，只有 LINQ 的 <c>Count()</c> 方法、**没有** <c>Count</c> 属性
@@ -159,6 +163,158 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     /// <summary>当前选中项是不是剪辑任务（详情卡据此切换两套参数区）。</summary>
     public bool SelectedIsCut => Selected is CutTask;
     public bool SelectedIsTranscode => Selected is TranscodeTask;
+
+    // ==================== 勾选（v3.16 §6.4.10：行首勾选框 + 表头 ☑ 的右键菜单） ====================
+
+    /// <summary>已勾选的任务数（勾选只做**多选标记**，⛔ 不参与命令生成）。</summary>
+    public int CheckedCount => ItemsRaw.Count(t => t.IsChecked);
+
+    public bool HasChecked => CheckedCount > 0;
+
+    /// <summary>行首勾选框点了一下：只刷新计数与摘要，⛔ 不重排列表（重排会把正在勾的那行挪走）。</summary>
+    [RelayCommand]
+    private void ItemChecked()
+    {
+        OnPropertyChanged(nameof(CheckedCount));
+        OnPropertyChanged(nameof(HasChecked));
+        UpdateSummaryText();
+    }
+
+    /// <summary>☑ 全选（当前列表里显示出来的全部勾上）。</summary>
+    [RelayCommand]
+    private void CheckAll()
+    {
+        foreach (var t in Items) t.IsChecked = true;
+        ItemChecked();
+        StatusText = $"已勾选 {CheckedCount} 个任务。";
+    }
+
+    /// <summary>🔄 反选（同样作用于当前视图）。</summary>
+    [RelayCommand]
+    private void InvertChecked()
+    {
+        foreach (var t in Items) t.IsChecked = !t.IsChecked;
+        ItemChecked();
+        StatusText = $"反选后已勾选 {CheckedCount} 个任务。";
+    }
+
+    /// <summary>☐ 取消选择（连被筛掉的一起清，不留隐藏的勾选）。</summary>
+    [RelayCommand]
+    private void UncheckAll()
+    {
+        foreach (var t in ItemsRaw) t.IsChecked = false;
+        ItemChecked();
+        StatusText = "已取消全部勾选。";
+    }
+
+    // ==================== 详情卡两分区的勾选框（v3.16：与「视频预览」页一致，**可交互**） ====================
+
+    /// <summary>「✂ 剪辑（截区间）」那段是否参与命令。</summary>
+    [ObservableProperty] private bool _editIsCut;
+
+    /// <summary>「🔁 转码（换编码 / 格式）」那段是否参与命令。</summary>
+    [ObservableProperty] private bool _editIsTranscode;
+
+    /// <summary>转换任务类型时关掉勾选回调（避免"改勾选 → 换任务 → 重填勾选"来回递归）。</summary>
+    private bool _converting;
+
+    partial void OnEditIsCutChanged(bool value)
+    {
+        IsCutSectionExpanded = value;              // 取消勾选即折叠（与预览页同一套联动）
+        ApplyTaskKind();
+    }
+
+    partial void OnEditIsTranscodeChanged(bool value)
+    {
+        IsTranscodeSectionExpanded = value;
+        ApplyTaskKind();
+    }
+
+    /// <summary>
+    /// 勾选框变了 → 任务在「剪辑 / 转码 / 剪辑+转码」之间转换（需求 §6.4.1 第 5 条）。
+    /// <para>两段都取消 = 空任务，⛔ 不允许 → 自动保留「转码」并提示。</para>
+    /// </summary>
+    private void ApplyTaskKind()
+    {
+        if (_converting || Selected == null || _store == null) return;
+
+        if (!EditIsCut && !EditIsTranscode)
+        {
+            _converting = true;
+            EditIsTranscode = true;
+            _converting = false;
+            StatusText = "任务至少要有一段参与 —— 已保留「转码」。";
+            return;
+        }
+
+        var wantBoth = EditIsCut && EditIsTranscode;
+        var wantCutOnly = EditIsCut && !EditIsTranscode;
+
+        VideoTaskBase? fresh = null;
+        var kind = "";
+
+        if (Selected is CutTask c)
+        {
+            if (wantCutOnly) return;                       // 已经是纯剪辑，不用动
+            fresh = new TranscodeTask
+            {
+                Id = c.Id,
+                Created = c.Created,
+                SourcePath = c.SourcePath,
+                SourceDuration = c.Duration,
+                UseTrim = true,                            // 区间带过来，任务变成"剪辑+转码"
+                TrimStart = c.Start,
+                TrimEnd = c.End
+            };
+            kind = "剪辑+转码";
+        }
+        else if (Selected is TranscodeTask x)
+        {
+            if (wantCutOnly)
+            {
+                fresh = new CutTask
+                {
+                    Id = x.Id,
+                    Created = x.Created,
+                    SourcePath = x.SourcePath,
+                    Duration = x.SourceDuration,
+                    Start = x.TrimStart,
+                    End = x.TrimEnd
+                };
+                kind = "剪辑";
+            }
+            else
+            {
+                if (x.UseTrim == wantBoth) return;         // 已经是想要的组合
+                x.UseTrim = wantBoth;
+                if (!wantBoth) { x.TrimStart = 0; x.TrimEnd = 0; }   // 取消剪辑段 → 区间归零
+                if (x.Status != VideoTaskStatus.Running) x.Reset();
+                kind = wantBoth ? "剪辑+转码" : "转码";
+                FinishKindChange(null, x, kind);
+                return;
+            }
+        }
+
+        if (fresh == null) return;
+        FinishKindChange(Selected, fresh, kind);
+    }
+
+    /// <summary>收尾：替换队列里的任务、重选它、重建对比表与命令预览。</summary>
+    private void FinishKindChange(VideoTaskBase? old, VideoTaskBase fresh, string kind)
+    {
+        if (old != null) _store!.Replace(old, fresh);
+
+        _converting = true;
+        Selected = fresh;                 // 触发 OnSelectedChanged → 重填编辑缓冲与两个勾选框
+        _converting = false;
+
+        IsCutSectionExpanded = EditIsCut;
+        IsTranscodeSectionExpanded = EditIsTranscode;
+        RefreshView();
+        BuildCompareRows();
+        RefreshCommand();
+        StatusText = $"「{fresh.Name}」已改为「{kind}」任务 —— 参数回到该类型的默认值，改完点「💾 保存修改」。";
+    }
 
     // ==================== 详情卡折叠态（与「视频预览」页同名同义，两页可照抄同一段 XAML） ====================
 
@@ -318,6 +474,13 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     [ObservableProperty] private string _beforeHeader = "处理前";
     [ObservableProperty] private string _afterHeader = "处理后";
     [ObservableProperty] private string _statusHeader = "状态";
+    // v3.15 扩充列（§6.4.8）
+    [ObservableProperty] private string _sourceHeader = "源文件";
+    [ObservableProperty] private string _commandHeader = "命令摘要";
+    [ObservableProperty] private string _createdHeader = "创建时间";
+
+    /// <summary>v3.16：行首勾选列是否显示（表头右键「列显隐」可关）。</summary>
+    public bool IsPickVisible => Vis("Pick");
 
     public bool IsKindVisible => Vis("Kind");
     public bool IsNameVisible => Vis("Name");
@@ -326,11 +489,17 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     public bool IsAfterVisible => Vis("After");
     public bool IsStatusVisible => Vis("Status");
     public bool IsProgressVisible => Vis("Progress");
+    // v3.15 扩充列
+    public bool IsSourceVisible => Vis("Source");
+    public bool IsCommandVisible => Vis("Command");
+    public bool IsCreatedVisible => Vis("Created");
 
     protected override string PageKey => "video-batch";
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
+        // v3.16 §6.4.10：行首勾选框（表头 ☑ 的 全选 / 取消选择 / 反选 改它）
+        new("Pick", "", "34", sortable: false),
         new("Kind", "类型", "1.0*"),
         new("Name", "文件", "2.6*"),
         new("Param", "参数", "2.2*"),
@@ -338,15 +507,20 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         new("After", "处理后", "1.5*"),
         new("Status", "状态", "1.2*"),
         new("Progress", "进度", "1.1*", sortable: false),
+        // v3.15 §6.4.8 扩充（源文件 / 命令摘要 / 创建时间；类型 / 状态 / 进度 / 输出大小已有）
+        new("Source", "源文件", "2.2*"),
+        new("Command", "命令摘要", "2.4*"),
+        new("Created", "创建时间", "1.3*"),
     };
 
     public VideoBatchViewModel() { }
 
-    public VideoBatchViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService cols)
+    public VideoBatchViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService cols, INavigationService nav)
         : base(cols)
     {
         _store = store;
         _cfg = cfg;
+        _nav = nav;
         LoadLayout();
         RefreshView();
     }
@@ -388,22 +562,26 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             "Before" => SortDescending ? q.OrderByDescending(BeforeSizeOf) : q.OrderBy(BeforeSizeOf),
             "After" => SortDescending ? q.OrderByDescending(t => t.OutputSize) : q.OrderBy(t => t.OutputSize),
             "Status" => SortDescending ? q.OrderByDescending(t => t.Status, byText) : q.OrderBy(t => t.Status, byText),
+            // v3.15 扩充列
+            "Source" => SortDescending ? q.OrderByDescending(t => t.SourcePath, byText) : q.OrderBy(t => t.SourcePath, byText),
+            "Command" => SortDescending ? q.OrderByDescending(CommandSummaryOf, byText) : q.OrderBy(CommandSummaryOf, byText),
+            "Created" => SortDescending ? q.OrderByDescending(t => t.Created) : q.OrderBy(t => t.Created),
             _ => SortDescending ? q.OrderByDescending(t => t.Name, byText) : q.OrderBy(t => t.Name, byText)
         };
 
         Items.Clear();
-        foreach (var t in q) Items.Add(t);
+        foreach (var t in q)
+        {
+            // v3.15「命令摘要」列：模型自己拼不出 ffmpeg 参数（拿不到 ffmpeg 路径），由 VM 填一次
+            t.CommandSummaryDisplay = CommandSummaryOf(t);
+            Items.Add(t);
+        }
 
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
-
-        var all = ItemsRaw.ToList();
-        SummaryText = all.Count == 0
-            ? "还没有任务"
-            : $"共 {all.Count} 个任务（剪辑 {all.Count(t => t is CutTask)} · 转码 {all.Count(t => t is TranscodeTask)}）"
-              + $" · 已完成 {all.Count(t => t.Status == VideoTaskStatus.Done)}"
-              + (all.Count(t => t.Status == VideoTaskStatus.Failed) > 0
-                  ? $" · 失败 {all.Count(t => t.Status == VideoTaskStatus.Failed)}" : "");
+        UpdateSummaryText();
+        OnPropertyChanged(nameof(CheckedCount));
+        OnPropertyChanged(nameof(HasChecked));
     }
 
     /// <summary>任务类型（列表「类型」列 / 排序用）：剪辑 / 转码 / 剪辑+转码。</summary>
@@ -416,6 +594,18 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         TranscodeTask x => x.PresetName,
         _ => ""
     };
+
+    /// <summary>
+    /// v3.15「命令摘要」列：手改过就显示手改的那条，否则显示自动生成的参数串。
+    /// <para>⛔ 只放**摘要**（超长截断）—— 完整命令行在详情卡的命令区看，列表格子里塞不下也不该塞。</para>
+    /// </summary>
+    private string CommandSummaryOf(VideoTaskBase t)
+    {
+        var raw = (t.RawArgs ?? "").Trim();
+        var text = raw.Length > 0 ? raw : string.Join(" ", BuildArgs(t, includeRaw: false));
+        if (text.Length == 0) return "—";
+        return text.Length <= 100 ? text : string.Concat(text.AsSpan(0, 100), "…");
+    }
 
     private static long BeforeSizeOf(VideoTaskBase t) => t switch
     {
@@ -432,6 +622,11 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         "Status" => ((VideoTaskBase)row).Status,
         "Before" => ((VideoTaskBase)row) is TranscodeTask x ? x.SourceSizeDisplay : ((VideoTaskBase)row).OutputSize <= 0 ? "" : "",
         "After" => ((VideoTaskBase)row).OutputSizeDisplay,
+        // v3.15 扩充列（列键与模型属性名不一致的 Command 必须显式映射，否则基类反射取不到 → 该条筛选静默失效）
+        "Source" => ((VideoTaskBase)row).SourcePath,
+        "Command" => CommandSummaryOf((VideoTaskBase)row),
+        "Created" => ((VideoTaskBase)row).CreatedDisplay,
+        "Progress" => ((VideoTaskBase)row).Progress.ToString(),
         _ => null
     };
 
@@ -439,6 +634,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     {
         "Before" => BeforeSizeOf((VideoTaskBase)row),
         "After" => ((VideoTaskBase)row).OutputSize,
+        "Progress" => ((VideoTaskBase)row).Progress,
+        "Created" => ((VideoTaskBase)row).Created.ToOADate(),
         _ => null
     };
 
@@ -455,6 +652,9 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         BeforeHeader = "处理前" + SortArrow("Before");
         AfterHeader = "处理后" + SortArrow("After");
         StatusHeader = "状态" + SortArrow("Status");
+        SourceHeader = "源文件" + SortArrow("Source");
+        CommandHeader = "命令摘要" + SortArrow("Command");
+        CreatedHeader = "创建时间" + SortArrow("Created");
     }
 
     partial void OnSearchTextChanged(string value) => RefreshView();
@@ -499,6 +699,25 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         OnPropertyChanged(nameof(SelectedKind));
         OnPropertyChanged(nameof(SelectedEncoder));
         OnPropertyChanged(nameof(IsCutReEncode));
+
+        // v3.16 §6.4.1：两个分区的勾选框跟着任务类型走（剪辑任务 = 只勾剪辑；转码任务 = 勾转码，带区间时两段都勾）
+        _converting = true;
+        EditIsCut = value is CutTask || value is TranscodeTask { HasTrim: true };
+        EditIsTranscode = value is TranscodeTask;
+        _converting = false;
+    }
+
+    /// <summary>重算底部摘要（队列构成 + 已勾选数；勾选变化与刷新列表共用）。</summary>
+    private void UpdateSummaryText()
+    {
+        var all = ItemsRaw.ToList();
+        SummaryText = all.Count == 0
+            ? "还没有任务"
+            : $"共 {all.Count} 个任务（剪辑 {all.Count(t => t is CutTask)} · 转码 {all.Count(t => t is TranscodeTask)}）"
+              + $" · 已完成 {all.Count(t => t.Status == VideoTaskStatus.Done)}"
+              + (all.Count(t => t.Status == VideoTaskStatus.Failed) > 0
+                  ? $" · 失败 {all.Count(t => t.Status == VideoTaskStatus.Failed)}" : "")
+              + (CheckedCount > 0 ? $" · 已勾选 {CheckedCount}" : "");
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
@@ -665,12 +884,14 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             x.BitrateMode = string.IsNullOrWhiteSpace(EditBitrateMode) ? "crf" : EditBitrateMode;
             x.TargetBitrate = (EditTargetBitrate ?? "").Trim();
 
-            // 区间：结束留空 / 不大于开始 = 不裁剪（HasTrim 由 TrimEnd > TrimStart 决定）
+            // 区间（v3.16）：**以「✂ 剪辑」勾选框为准** —— 没勾就把区间归零，
+            // ⛔ 否则会出现"框上没勾、命令里却带着 -ss"这种对不上的情况（HasTrim 以前只看终点>起点）。
             var tStart = CutTask.ParseTime(EditStart) ?? 0;
             var tEnd = string.IsNullOrWhiteSpace(EditEnd) ? 0 : (CutTask.ParseTime(EditEnd) ?? 0);
             if (tEnd <= tStart) tEnd = 0;
-            x.TrimStart = tStart;
-            x.TrimEnd = tEnd;
+            x.UseTrim = EditIsCut;
+            x.TrimStart = EditIsCut ? tStart : 0;
+            x.TrimEnd = EditIsCut ? tEnd : 0;
 
             x.RawArgs = raw;                  // 手改的命令原样保留；没手改就交给参数生成
             var preset = x.Preset;
@@ -727,6 +948,27 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         Selected = null;
         RefreshView();
         StatusText = n == 0 ? "没有已结束的任务可清。" : $"已清掉 {n} 个已结束的任务。";
+    }
+
+    /// <summary>🧹 清除队列（v3.16 §6.4.11）：清空**整个任务清单**（含落盘的 <c>video-tasks.json</c>）。</summary>
+    [RelayCommand]
+    private async Task ClearQueueAsync()
+    {
+        if (_store == null) { StatusText = "任务服务未就绪。"; return; }
+
+        var n = ItemsRaw.Count();
+        if (n == 0) { StatusText = "队列已经是空的。"; return; }
+        if (IsRunning) { StatusText = "正在跑任务 —— 先「⏹ 停止」再清除。"; return; }
+
+        var msg = $"清除队列里的全部 {n} 个任务？" + Environment.NewLine
+                + "只清任务清单（含 config\\video-tasks.json）—— ⛔ 不会删除任何已经生成的视频文件。";
+        if (!await NewToys.Core.Services.DialogHooks.ConfirmAsync(msg)) { StatusText = "已取消清除。"; return; }
+
+        _runCts?.Cancel();
+        var cleared = _store.ClearAll();
+        Selected = null;
+        RefreshView();
+        StatusText = $"已清除队列（{cleared} 个任务）；已经生成的输出文件没动 —— 点「＋ 添加文件」重新建任务。";
     }
 
     // ==================== 运行 ====================
@@ -858,6 +1100,37 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
         }
         catch (Exception ex) { StatusText = "打开失败：" + ex.Message; }
+    }
+
+    // ==================== 反向发送 / 导入导出 ====================
+
+    /// <summary>➡ 把选中的一条任务送进「视频预览」页（复用 EnqueueForCut 取件通道；预览页一次只编一个）。</summary>
+    [RelayCommand]
+    private void SendToPreview()
+    {
+        if (Selected == null) { StatusText = "先在列表里选中一个任务。"; return; }
+        if (_store == null) { StatusText = "任务服务未就绪。"; return; }
+        _store.EnqueueForCut(new[] { Selected.SourcePath });
+        _nav?.NavigateTo("video-cut");
+        StatusText = $"已把「{Selected.Name}」送去视频预览页（本页一次只编一个，进入后自动载入）。";
+    }
+
+    /// <summary>📤 导出任务：把当前队列（剪辑 + 转码）序列化成 JSON 文件。</summary>
+    public void ExportTasks(string filePath)
+    {
+        if (_store == null) { StatusText = "任务服务未就绪。"; return; }
+        StatusText = _store.ExportToFile(filePath)
+            ? $"已导出任务到：{filePath}"
+            : "导出任务失败（文件写不进去？）。";
+    }
+
+    /// <summary>📥 导入任务：从导出的 JSON 里追加任务进当前队列。</summary>
+    public void ImportTasks(string filePath)
+    {
+        if (_store == null) { StatusText = "任务服务未就绪。"; return; }
+        var n = _store.ImportFromFile(filePath);
+        RefreshView();
+        StatusText = n > 0 ? $"已导入 {n} 个任务（追加到队列末尾）。" : "没有可导入的任务（文件为空或格式不对）。";
     }
 }
 

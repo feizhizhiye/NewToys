@@ -16,6 +16,19 @@ public partial class VideoBatchView : UserControl
         // 平台文件选择器只能在 View 层用（VM 不引 Avalonia），选完把结果交给 VM
         PickFilesBtn.Click += (_, _) => _ = PickFilesAsync();
         PickOutputBtn.Click += (_, _) => _ = PickOutputAsync();
+        ExportBtn.Click += (_, _) => _ = ExportTasksAsync();
+        ImportBtn.Click += (_, _) => _ = ImportTasksAsync();
+    }
+
+    /// <summary>
+    /// 把"导入/导出默认目录"（v3.15 全局）解析成 <see cref="IStorageFolder"/>，作为文件选择器的 <see cref="FilePickerOpenOptions.SuggestedStartLocation"/>。
+    /// 目录为空 / 解析失败 → 返回 <c>null</c>（选择器回退到系统默认）。
+    /// </summary>
+    private static async Task<IStorageFolder?> SuggestedStartAsync(IStorageProvider sp, string dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir)) return null;
+        try { return await sp.TryGetFolderFromPathAsync(dir); }
+        catch { return null; }
     }
 
     /// <summary>
@@ -27,6 +40,8 @@ public partial class VideoBatchView : UserControl
         base.OnDataContextChanged(e);
         if (TaskList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+        // v3.16 §6.4.10：表头 ☑ 的「全选 / 取消选择 / 反选」菜单同理（不同步的话右键点了没反应）。
+        if (HeaderCheck?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
     }
 
     /// <summary>
@@ -107,6 +122,66 @@ public partial class VideoBatchView : UserControl
         catch (Exception ex)
         {
             vm.StatusText = "选择输出失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>📤 导出任务：把当前队列（剪辑 + 转码）序列化成 JSON 文件，可用外部脚本批量加工后再导入。</summary>
+    private async System.Threading.Tasks.Task ExportTasksAsync()
+    {
+        if (DataContext is not VideoBatchViewModel vm) return;
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "导出任务为 JSON 文件",
+                SuggestedFileName = "video-tasks.json",
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("JSON 文件") { Patterns = new[] { "*.json" } },
+                    new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+                }
+            });
+
+            var path = file?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(path)) vm.ExportTasks(path);
+        }
+        catch (Exception ex)
+        {
+            vm.StatusText = "导出任务失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>📥 导入任务：从导出的 JSON 里追加任务进当前队列（不覆盖已有）。</summary>
+    private async System.Threading.Tasks.Task ImportTasksAsync()
+    {
+        if (DataContext is not VideoBatchViewModel vm) return;
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "导入任务 JSON 文件",
+                AllowMultiple = false,
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("JSON 文件") { Patterns = new[] { "*.json" } },
+                    new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+                }
+            });
+
+            var path = files?.FirstOrDefault()?.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(path)) vm.ImportTasks(path);
+        }
+        catch (Exception ex)
+        {
+            vm.StatusText = "导入任务失败：" + ex.Message;
         }
     }
 }

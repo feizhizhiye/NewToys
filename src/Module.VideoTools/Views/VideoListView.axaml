@@ -1,321 +1,783 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:v="using:NewToys.VideoTools.Views"
-             x:Class="NewToys.VideoTools.Views.VideoListView">
-  <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
-        详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="12">
+<UserControl
+    x:Class="NewToys.VideoTools.Views.VideoListView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:v="using:NewToys.VideoTools.Views">
+    <!--
+        v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
+        详情卡在右列、从页面顶到底（加上左树就是三列）。
+    -->
+    <Grid Margin="12" ColumnDefinitions="*,Auto">
 
-    <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
-    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
+        <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
 
-    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
-         Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
+            <!--
+                操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
+                Row0 保持空着（Auto → 高度 0），不动下面各行的行号。
+            -->
 
-    <!--  ==================== 工具条  ====================
-          目录**不来自设置**：每次手动选（v1.34 与设置解绑）；选过的目录只在本次运行内记住。 -->
-    <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <TextBlock Text="目录" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
-                     Foreground="{DynamicResource SecondaryTextBrush}"/>
-          <TextBox x:Name="FolderBox" Width="300" Margin="0,0,8,6"
-                   Text="{Binding Folder, Mode=TwoWay}"
-                   PlaceholderText="如 D:\Videos（回车即扫描）"/>
-          <Button x:Name="BrowseBtn" Classes="ghost" Content="📂 浏览…" Margin="0,0,8,6"/>
-          <Button Classes="primary" Content="🔍 扫描" Margin="0,0,8,6" Command="{Binding ScanCommand}"
-                  IsEnabled="{Binding !IsBusy}"/>
-          <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,6" Command="{Binding RefreshCommand}"
-                  IsEnabled="{Binding !IsBusy}"/>
-          <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,6" IsChecked="{Binding Recursive, Mode=TwoWay}"/>
-          <TextBox Width="180" Margin="0,0,8,6" Text="{Binding SearchText, Mode=TwoWay}"
-                   PlaceholderText="按文件名 / 类型过滤…"/>
-          <Button Classes="ghost" Content="🔎 读取全部媒体信息" Margin="0,0,8,6"
-                  Command="{Binding LoadAllMediaInfoCommand}" IsEnabled="{Binding !IsBusy}"
-                  ToolTip.Tip="对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 data\newtoys.db 缓存，下次扫描直接命中"/>
-          <Button Classes="ghost" Content="🧹 清空媒体缓存" Margin="0,0,8,6"
-                  Command="{Binding ClearMediaCacheCommand}"
-                  ToolTip.Tip="清掉 SQLite 里的媒体信息缓存；下次扫描会重新探测（较慢），不影响视频文件"/>
+            <!--
+                ==================== 工具条  ====================
+                目录**不来自设置**：每次手动选（v1.34 与设置解绑）；选过的目录只在本次运行内记住。
+            -->
+            <Border Grid.Row="1" Classes="toolbar">
+                <Grid ColumnDefinitions="*,Auto">
+                    <WrapPanel
+                        Grid.Column="0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
 
-          <!--  多选 → 批量送进任务页（v1.35）  -->
-          <Border Classes="divider-line" Width="1" Height="20" Margin="0,0,8,0"/>
-          <Button Classes="ghost" Content="☑ 全选" Margin="0,0,4,6" Command="{Binding CheckAllCommand}"/>
-          <Button Classes="ghost" Content="🔄 反选" Margin="0,0,4,6" Command="{Binding InvertCheckedCommand}"/>
-          <Button Classes="ghost" Content="☐ 清空" Margin="0,0,8,6" Command="{Binding UncheckAllCommand}"/>
-          <Button Classes="primary" Margin="0,0,4,6" Command="{Binding SendToTranscodeCommand}"
-                  IsEnabled="{Binding HasChecked}"
-                  ToolTip.Tip="把勾选的文件批量生成**转码**任务，送到「批量处理」页（只是建任务，不立刻跑）">
-            <TextBlock Text="{Binding CheckedCount, StringFormat='➡ 批量处理·转码 ({0})'}"/>
-          </Button>
-          <Button Classes="ghost" Margin="0,0,8,6" Command="{Binding SendToCutCommand}"
-                  IsEnabled="{Binding HasChecked}"
-                  ToolTip.Tip="把勾选的文件送进「视频预览」页，边看画面边定剪辑区间">
-            <TextBlock Text="{Binding CheckedCount, StringFormat='✂ 视频预览·剪辑 ({0})'}"/>
-          </Button>
-        </WrapPanel>
-        <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
+                        <TextBox
+                            x:Name="FolderBox"
+                            Width="300"
+                            Margin="0,0,8,6"
+                            PlaceholderText="如 D:\Videos（回车即扫描）"
+                            Text="{Binding Folder, Mode=TwoWay}" />
+                        <!--
+                            v3.16：「视频库(.db)…」从本下拉里拿掉，独立成右边的「🗄 导入视频库(.db)」按钮
+                            —— 文件夹路径天天变、库文件路径相对固定，两者不该共用一个入口。
+                        -->
+                        <SplitButton
+                            x:Name="ImportSplit"
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Content="📂 导入"
+                            ToolTip.Tip="导入视频：选文件夹扫描 / 选单个视频文件追加；读视频库(.db) 用右边的「🗄 导入视频库(.db)」">
+                            <SplitButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuItem
+                                        x:Name="ImportFolderItem"
+                                        Header="📁 文件夹…"
+                                        ToolTip.Tip="选一个目录扫描（替换当前列表）" />
+                                    <MenuItem
+                                        x:Name="ImportFilesItem"
+                                        Header="🎞 视频文件…"
+                                        ToolTip.Tip="选一个或多个视频文件，追加进当前列表" />
+                                </MenuFlyout>
+                            </SplitButton.Flyout>
+                        </SplitButton>
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="primary"
+                            Command="{Binding ScanCommand}"
+                            Content="🔍 扫描"
+                            IsEnabled="{Binding !IsBusy}" />
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Command="{Binding RefreshCommand}"
+                            Content="🔄 刷新"
+                            IsEnabled="{Binding !IsBusy}" />
+                        <CheckBox
+                            Margin="0,0,8,6"
+                            Content="含子目录"
+                            FontSize="12"
+                            IsChecked="{Binding Recursive, Mode=TwoWay}" />
+                        <TextBox
+                            Width="180"
+                            Margin="0,0,8,6"
+                            PlaceholderText="按文件名 / 类型过滤…"
+                            Text="{Binding SearchText, Mode=TwoWay}" />
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Command="{Binding LoadAllMediaInfoCommand}"
+                            Content="🔎 读取全部媒体信息"
+                            IsEnabled="{Binding !IsBusy}"
+                            ToolTip.Tip="对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 data\newtoys.db 缓存，下次扫描直接命中" />
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Command="{Binding ClearMediaCacheCommand}"
+                            Content="🧹 清空媒体缓存"
+                            ToolTip.Tip="清掉 SQLite 里的媒体信息缓存；下次扫描会重新探测（较慢），不影响视频文件" />
 
-    <!--  ==================== 多项筛选  ====================  -->
-    <Border Grid.Row="2" Classes="filter-bar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <Button Classes="filter-btn" Content="＋ 条件" Command="{Binding AddFilterCommand}"/>
-        <Button Classes="filter-btn" Content="🧹 清空" Command="{Binding ClearFiltersCommand}"
-                IsVisible="{Binding HasFilters}"/>
-        <TextBlock Classes="hint-text" Text="{Binding FilterSummary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <!--  视频数据库（§6.4.3）：读外部 .db / 当前列表入库  -->
+                        <Border
+                            Width="1"
+                            Height="20"
+                            Margin="0,0,8,0"
+                            Classes="divider-line" />
+                        <Button
+                            x:Name="ImportCatalogBtn"
+                            Margin="0,0,4,6"
+                            Classes="ghost"
+                            Content="🗄 导入视频库(.db)"
+                            ToolTip.Tip="点一下就挑一个视频库 .db 文件，把里面的记录读回列表（替换当前列表）；对话框默认定位到「设置 → 路径配置 → 导入导出默认目录」" />
+                        <Button
+                            Margin="0,0,4,6"
+                            Classes="ghost"
+                            Command="{Binding AddToCatalogCommand}"
+                            Content="💾 加入视频库"
+                            ToolTip.Tip="把当前列表（整个扫描结果）写进 SQLite 视频库；只存列表已有信息，未读的字段留空" />
 
-        <ItemsControl ItemsSource="{Binding Filters}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel Orientation="Horizontal"/>
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,10,4" VerticalAlignment="Center">
-                <CheckBox IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"/>
-                <ComboBox Classes="filter-combo"
-                          ItemsSource="{Binding $parent[UserControl].DataContext.FilterableColumns}"
-                          SelectedItem="{Binding Column, Mode=TwoWay}">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate><TextBlock Text="{Binding Header}" FontSize="12"/></DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-                <ComboBox Classes="filter-combo" ItemsSource="{Binding Operators}"
-                          SelectedItem="{Binding OperatorItem, Mode=TwoWay}">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-                <TextBox Classes="filter-value" Text="{Binding Value, Mode=TwoWay}"
-                         IsVisible="{Binding NeedsValue}" PlaceholderText="值…"/>
-                <Button Classes="filter-btn" Content="✕" Padding="6,2"
-                        Command="{Binding $parent[UserControl].DataContext.RemoveFilterCommand}"
-                        CommandParameter="{Binding}"/>
-              </StackPanel>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </WrapPanel>
-    </Border>
+                        <!--  多选 → 批量送进任务页（v1.35）  -->
+                        <Border
+                            Width="1"
+                            Height="20"
+                            Margin="0,0,8,0"
+                            Classes="divider-line" />
+                        <Button
+                            Margin="0,0,4,6"
+                            Classes="primary"
+                            Command="{Binding SendToTranscodeCommand}"
+                            IsEnabled="{Binding HasChecked}"
+                            ToolTip.Tip="把勾选的文件批量生成**转码**任务，送到「批量处理」页（只是建任务，不立刻跑）">
+                            <TextBlock Text="{Binding CheckedCount, StringFormat='➡ 批量处理·转码 ({0})'}" />
+                        </Button>
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Command="{Binding SendToCutCommand}"
+                            IsEnabled="{Binding HasChecked}"
+                            ToolTip.Tip="把勾选的文件送进「视频预览」页，边看画面边定剪辑区间">
+                            <TextBlock Text="{Binding CheckedCount, StringFormat='✂ 视频预览·剪辑 ({0})'}" />
+                        </Button>
 
-      <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
-      <Border Grid.Row="3" Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,*">
+                        <!--  v3.15 §6.4.9：收藏只从本页送过去（先入视频库的才能收藏）  -->
+                        <Border
+                            Width="1"
+                            Height="20"
+                            Margin="0,0,8,0"
+                            Classes="divider-line" />
+                        <Button
+                            Margin="0,0,4,6"
+                            Classes="ghost"
+                            Command="{Binding AddToFavoritesCommand}"
+                            Content="★ 收藏"
+                            IsEnabled="{Binding HasSelection}"
+                            ToolTip.Tip="把勾选的（一个都没勾就用当前选中的）加入「视频收藏」页；收藏必须来自视频库 —— 还没入库的会提示先点「💾 加入视频库」" />
 
-          <Border Grid.Row="0" Classes="list-header">
-            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <!-- 第一列 = 行首勾选框（多选，用来「发送到转码 / 剪切」） -->
-              <TextBlock Grid.Column="0" Classes="list-cell" Text="☑" HorizontalAlignment="Center"
-                         IsVisible="{Binding IsPickVisible}"/>
-              <Button Grid.Column="1" Classes="col-header" Content="{Binding NameHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Name" ToolTip.Tip="点一下按名称排序（同一列再点一次反向）"
-                      IsVisible="{Binding IsNameVisible}"/>
-              <Button Grid.Column="2" Classes="col-header" Content="{Binding TypeHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Type"
-                      IsVisible="{Binding IsTypeVisible}"/>
-              <Button Grid.Column="3" Classes="col-header" Content="{Binding SizeHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Size"
-                      IsVisible="{Binding IsSizeVisible}"/>
-              <Button Grid.Column="4" Classes="col-header" Content="{Binding DurationHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Duration"
-                      IsVisible="{Binding IsDurationVisible}"/>
-              <Button Grid.Column="5" Classes="col-header" Content="{Binding ResolutionHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Resolution"
-                      IsVisible="{Binding IsResolutionVisible}"/>
-              <Button Grid.Column="6" Classes="col-header" Content="{Binding CodecHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Codec"
-                      IsVisible="{Binding IsCodecVisible}"/>
-              <Button Grid.Column="7" Classes="col-header" Content="{Binding BitrateHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Bitrate"
-                      IsVisible="{Binding IsBitrateVisible}"/>
-              <Button Grid.Column="8" Classes="col-header" Content="{Binding ModifiedHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Modified"
-                      IsVisible="{Binding IsModifiedVisible}"/>
-              <v:ColumnGrid.ContextMenu>
-                <ContextMenu>
-                  <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
-                  <Separator/>
-                  <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：翻转由 ToggleColumnCommand 独家负责 -->
-                  <MenuItem Header="勾选框" ToggleType="CheckBox" IsChecked="{Binding IsPickVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Pick"/>
-                  <MenuItem Header="名称" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
-                  <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
-                  <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
-                  <MenuItem Header="时长" ToggleType="CheckBox" IsChecked="{Binding IsDurationVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Duration"/>
-                  <MenuItem Header="分辨率" ToggleType="CheckBox" IsChecked="{Binding IsResolutionVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Resolution"/>
-                  <MenuItem Header="编码" ToggleType="CheckBox" IsChecked="{Binding IsCodecVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Codec"/>
-                  <MenuItem Header="码率" ToggleType="CheckBox" IsChecked="{Binding IsBitrateVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Bitrate"/>
-                  <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
-                </ContextMenu>
-              </v:ColumnGrid.ContextMenu>
-            </v:ColumnGrid>
-          </Border>
+                        <!--  v3.16 §6.4.11：清除列表（≈ 浏览器的无缓存刷新）  -->
+                        <Border
+                            Width="1"
+                            Height="20"
+                            Margin="0,0,8,0"
+                            Classes="divider-line" />
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Command="{Binding ClearListCommand}"
+                            Content="🧹 清除列表"
+                            ToolTip.Tip="清空当前列表（含勾选 / 筛选），回到空态；⛔ 不删除任何视频文件、不动视频库" />
+                    </WrapPanel>
+                    <Button
+                        Grid.Column="1"
+                        Classes="detail-toggle"
+                        Command="{Binding ToggleDetailCommand}"
+                        ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+                        <Panel>
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                IsVisible="{Binding !IsDetailVisible}"
+                                Text="❯" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                IsVisible="{Binding IsDetailVisible}"
+                                Text="❮" />
+                        </Panel>
+                    </Button>
+                </Grid>
+            </Border>
 
-          <ListBox Grid.Row="1" x:Name="VideoList" Classes="list-page"
-                   ItemsSource="{Binding Videos}"
-                   SelectedItem="{Binding Selected, Mode=TwoWay}"
-                   SelectionMode="Single">
-            <!-- 双击 = 播放；右键 = 更多功能 -->
-            <ListBox.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
-                <Separator/>
-                <MenuItem Header="▶ 播放" Command="{Binding PlayCommand}"/>
-                <MenuItem Header="📂 在文件管理器中定位" Command="{Binding RevealInExplorerCommand}"/>
-                <MenuItem Header="📋 复制完整路径" Command="{Binding CopyPathCommand}"/>
-                <MenuItem Header="🧪 复制 ffmpeg 转码命令" Command="{Binding CopyFfmpegCommand}"/>
-                <Separator/>
-                <MenuItem Header="➡ 发送到转码（勾选的）" Command="{Binding SendToTranscodeCommand}"
-                          IsEnabled="{Binding HasChecked}"/>
-                <MenuItem Header="➡ 发送到剪切（勾选的）" Command="{Binding SendToCutCommand}"
-                          IsEnabled="{Binding HasChecked}"/>
-                <Separator/>
-                <MenuItem Header="🔎 读取媒体信息（ffprobe）" Command="{Binding LoadMediaInfoCommand}"/>
-                <MenuItem Header="🔎 读取全部媒体信息（多线程）" Command="{Binding LoadAllMediaInfoCommand}"
-                          IsEnabled="{Binding IsNotBusy}"/>
-                <Separator/>
-                <MenuItem Header="✏ 重命名…" Command="{Binding RenameCommand}"/>
-                <MenuItem Header="🗑 删除（移入回收站）…" Command="{Binding DeleteCommand}"/>
-              </ContextMenu>
-            </ListBox.ContextMenu>
+            <!--  ==================== 多项筛选  ====================  -->
+            <Border Grid.Row="2" Classes="filter-bar">
+                <WrapPanel VerticalAlignment="Center" Orientation="Horizontal">
+                    <Button
+                        Classes="filter-btn"
+                        Command="{Binding AddFilterCommand}"
+                        Content="＋ 条件" />
+                    <Button
+                        Classes="filter-btn"
+                        Command="{Binding ClearFiltersCommand}"
+                        Content="🧹 清空"
+                        IsVisible="{Binding HasFilters}" />
+                    <TextBlock
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Classes="hint-text"
+                        Text="{Binding FilterSummary}" />
 
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <!-- 行与表头共用同一份 VisibleColumnSpecs（规范 3.6 对齐铁律①）；每格 IsVisible 跟随列显隐。 -->
-                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                  <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Command="{Binding $parent[ListBox].DataContext.ItemCheckedCommand}"
-                            ToolTip.Tip="勾上后可以批量「发送到转码 / 剪切」"
-                            IsVisible="{Binding $parent[ListBox].DataContext.IsPickVisible}"/>
-                  <TextBlock Grid.Column="1" Classes="list-cell primary" Text="{Binding Name}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Extension}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell primary" Text="{Binding SizeDisplay}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
-                  <TextBlock Grid.Column="4" Classes="list-cell accent" Text="{Binding DurationDisplay}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsDurationVisible}"/>
-                  <TextBlock Grid.Column="5" Classes="list-cell primary" Text="{Binding ResolutionDisplay}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsResolutionVisible}"/>
-                  <TextBlock Grid.Column="6" Classes="list-cell primary" Text="{Binding CodecDisplay}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsCodecVisible}"/>
-                  <TextBlock Grid.Column="7" Classes="list-cell primary" Text="{Binding BitRateDisplay}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsBitrateVisible}"/>
-                  <TextBlock Grid.Column="8" Classes="list-cell" Text="{Binding ModifiedDisplay}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
-                </v:ColumnGrid>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
+                    <ItemsControl ItemsSource="{Binding Filters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel
+                                    Margin="0,0,10,4"
+                                    VerticalAlignment="Center"
+                                    Orientation="Horizontal"
+                                    Spacing="4">
+                                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding Enabled, Mode=TwoWay}" />
+                                    <ComboBox
+                                        Classes="filter-combo"
+                                        ItemsSource="{Binding $parent[UserControl].DataContext.FilterableColumns}"
+                                        SelectedItem="{Binding Column, Mode=TwoWay}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock FontSize="12" Text="{Binding Header}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <ComboBox
+                                        Classes="filter-combo"
+                                        ItemsSource="{Binding Operators}"
+                                        SelectedItem="{Binding OperatorItem, Mode=TwoWay}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock FontSize="12" Text="{Binding Label}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBox
+                                        Classes="filter-value"
+                                        IsVisible="{Binding NeedsValue}"
+                                        PlaceholderText="值…"
+                                        Text="{Binding Value, Mode=TwoWay}" />
+                                    <Button
+                                        Padding="6,2"
+                                        Classes="filter-btn"
+                                        Command="{Binding $parent[UserControl].DataContext.RemoveFilterCommand}"
+                                        CommandParameter="{Binding}"
+                                        Content="✕" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </WrapPanel>
+            </Border>
+
+            <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
+            <Border
+                Grid.Row="3"
+                Padding="0"
+                Classes="card">
+                <Grid RowDefinitions="Auto,*">
+
+                    <Border Grid.Row="0" Classes="list-header">
+                        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+                            <!--
+                                第一列 = 行首勾选框（多选，用来「发送到转码 / 剪切」）。
+                                v3.16 §6.4.10：这个 ☑ 就是**勾选菜单**的入口 —— 右键弹出
+                                全选 / 取消选择 / 反选（工具条上原来那三个按钮已删除）。
+                                ⚠️ 它自己有 ContextMenu，就不会再冒泡到 ColumnGrid 的「列显隐」菜单。
+                            -->
+                            <TextBlock
+                                x:Name="HeaderCheck"
+                                Grid.Column="0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Classes="list-cell"
+                                IsVisible="{Binding IsPickVisible}"
+                                Text="☑"
+                                ToolTip.Tip="右键：全选 / 取消选择 / 反选">
+                                <TextBlock.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Command="{Binding CheckAllCommand}" Header="☑ 全选（当前列表）" />
+                                        <MenuItem Command="{Binding UncheckAllCommand}" Header="☐ 取消选择" />
+                                        <MenuItem Command="{Binding InvertCheckedCommand}" Header="🔄 反选" />
+                                    </ContextMenu>
+                                </TextBlock.ContextMenu>
+                            </TextBlock>
+                            <Button
+                                Grid.Column="1"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Name"
+                                Content="{Binding NameHeader}"
+                                IsVisible="{Binding IsNameVisible}"
+                                ToolTip.Tip="点一下按名称排序（同一列再点一次反向）" />
+                            <Button
+                                Grid.Column="2"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Type"
+                                Content="{Binding TypeHeader}"
+                                IsVisible="{Binding IsTypeVisible}" />
+                            <Button
+                                Grid.Column="3"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Size"
+                                Content="{Binding SizeHeader}"
+                                IsVisible="{Binding IsSizeVisible}" />
+                            <Button
+                                Grid.Column="4"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Duration"
+                                Content="{Binding DurationHeader}"
+                                IsVisible="{Binding IsDurationVisible}" />
+                            <Button
+                                Grid.Column="5"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Resolution"
+                                Content="{Binding ResolutionHeader}"
+                                IsVisible="{Binding IsResolutionVisible}" />
+                            <Button
+                                Grid.Column="6"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Codec"
+                                Content="{Binding CodecHeader}"
+                                IsVisible="{Binding IsCodecVisible}" />
+                            <Button
+                                Grid.Column="7"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Bitrate"
+                                Content="{Binding BitrateHeader}"
+                                IsVisible="{Binding IsBitrateVisible}" />
+                            <Button
+                                Grid.Column="8"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Modified"
+                                Content="{Binding ModifiedHeader}"
+                                IsVisible="{Binding IsModifiedVisible}" />
+                            <!--  v3.15 §6.4.8 扩充列（列索引 9~15，与 Columns 元数据一一对应）  -->
+                            <Button
+                                Grid.Column="9"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Tags"
+                                Content="{Binding TagsHeader}"
+                                IsVisible="{Binding IsTagsVisible}" />
+                            <Button
+                                Grid.Column="10"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Fps"
+                                Content="{Binding FpsHeader}"
+                                IsVisible="{Binding IsFpsVisible}" />
+                            <Button
+                                Grid.Column="11"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Container"
+                                Content="{Binding ContainerHeader}"
+                                IsVisible="{Binding IsContainerVisible}" />
+                            <Button
+                                Grid.Column="12"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Audio"
+                                Content="{Binding AudioHeader}"
+                                IsVisible="{Binding IsAudioVisible}" />
+                            <Button
+                                Grid.Column="13"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Path"
+                                Content="{Binding PathHeader}"
+                                IsVisible="{Binding IsPathVisible}" />
+                            <Button
+                                Grid.Column="14"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Created"
+                                Content="{Binding CreatedHeader}"
+                                IsVisible="{Binding IsCreatedVisible}" />
+                            <Button
+                                Grid.Column="15"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Favorite"
+                                Content="{Binding FavoriteHeader}"
+                                IsVisible="{Binding IsFavoriteVisible}"
+                                ToolTip.Tip="★ = 已收藏（真值在 video_favorites 表）" />
+                            <v:ColumnGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Command="{Binding ShowDetailCommand}" Header="▤ 显示详情栏" />
+                                    <Separator />
+                                    <!--  ⚠️ IsChecked 必须显式 Mode=OneWay：翻转由 ToggleColumnCommand 独家负责  -->
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Pick"
+                                        Header="勾选框"
+                                        IsChecked="{Binding IsPickVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Name"
+                                        Header="名称"
+                                        IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Type"
+                                        Header="类型"
+                                        IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Size"
+                                        Header="大小"
+                                        IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Duration"
+                                        Header="时长"
+                                        IsChecked="{Binding IsDurationVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Resolution"
+                                        Header="分辨率"
+                                        IsChecked="{Binding IsResolutionVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Codec"
+                                        Header="编码"
+                                        IsChecked="{Binding IsCodecVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Bitrate"
+                                        Header="码率"
+                                        IsChecked="{Binding IsBitrateVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Modified"
+                                        Header="修改时间"
+                                        IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <!--  v3.15 §6.4.8 扩充列  -->
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Tags"
+                                        Header="标签"
+                                        IsChecked="{Binding IsTagsVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Fps"
+                                        Header="帧率"
+                                        IsChecked="{Binding IsFpsVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Container"
+                                        Header="容器格式"
+                                        IsChecked="{Binding IsContainerVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Audio"
+                                        Header="音频编码"
+                                        IsChecked="{Binding IsAudioVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Path"
+                                        Header="路径"
+                                        IsChecked="{Binding IsPathVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Created"
+                                        Header="创建时间"
+                                        IsChecked="{Binding IsCreatedVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Favorite"
+                                        Header="已收藏"
+                                        IsChecked="{Binding IsFavoriteVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
+                                </ContextMenu>
+                            </v:ColumnGrid.ContextMenu>
+                        </v:ColumnGrid>
+                    </Border>
+
+                    <ListBox
+                        x:Name="VideoList"
+                        Grid.Row="1"
+                        Classes="list-page"
+                        ItemsSource="{Binding Videos}"
+                        SelectedItem="{Binding Selected, Mode=TwoWay}"
+                        SelectionMode="Single">
+                        <!--  双击 = 播放；右键 = 更多功能  -->
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Command="{Binding ShowDetailCommand}" Header="▤ 显示详情栏" />
+                                <Separator />
+                                <MenuItem Command="{Binding PlayCommand}" Header="▶ 播放" />
+                                <MenuItem Command="{Binding RevealInExplorerCommand}" Header="📂 在文件管理器中定位" />
+                                <MenuItem Command="{Binding CopyPathCommand}" Header="📋 复制完整路径" />
+                                <MenuItem Command="{Binding CopyFfmpegCommand}" Header="🧪 复制 ffmpeg 转码命令" />
+                                <Separator />
+                                <MenuItem
+                                    Command="{Binding SendToTranscodeCommand}"
+                                    Header="➡ 发送到转码（勾选的）"
+                                    IsEnabled="{Binding HasChecked}" />
+                                <MenuItem
+                                    Command="{Binding SendToCutCommand}"
+                                    Header="➡ 发送到剪切（勾选的）"
+                                    IsEnabled="{Binding HasChecked}" />
+                                <Separator />
+                                <MenuItem Command="{Binding LoadMediaInfoCommand}" Header="🔎 读取媒体信息（ffprobe）" />
+                                <MenuItem
+                                    Command="{Binding LoadAllMediaInfoCommand}"
+                                    Header="🔎 读取全部媒体信息（多线程）"
+                                    IsEnabled="{Binding IsNotBusy}" />
+                                <Separator />
+                                <MenuItem Command="{Binding RenameCommand}" Header="✏ 重命名…" />
+                                <MenuItem Command="{Binding DeleteCommand}" Header="🗑 删除（移入回收站）…" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <!--  行与表头共用同一份 VisibleColumnSpecs（规范 3.6 对齐铁律①）；每格 IsVisible 跟随列显隐。  -->
+                                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                                    <CheckBox
+                                        Grid.Column="0"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Command="{Binding $parent[ListBox].DataContext.ItemCheckedCommand}"
+                                        IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsPickVisible}"
+                                        ToolTip.Tip="勾上后可以批量「发送到转码 / 剪切」" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        Classes="list-cell primary"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"
+                                        Text="{Binding Name}" />
+                                    <TextBlock
+                                        Grid.Column="2"
+                                        Classes="list-cell"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"
+                                        Text="{Binding Extension}" />
+                                    <TextBlock
+                                        Grid.Column="3"
+                                        Classes="list-cell primary"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"
+                                        Text="{Binding SizeDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="4"
+                                        Classes="list-cell accent"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsDurationVisible}"
+                                        Text="{Binding DurationDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="5"
+                                        Classes="list-cell primary"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsResolutionVisible}"
+                                        Text="{Binding ResolutionDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="6"
+                                        Classes="list-cell primary"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsCodecVisible}"
+                                        Text="{Binding CodecDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="7"
+                                        Classes="list-cell primary"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsBitrateVisible}"
+                                        Text="{Binding BitRateDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="8"
+                                        Classes="list-cell"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"
+                                        Text="{Binding ModifiedDisplay}" />
+                                    <!--  v3.15 §6.4.8 扩充列  -->
+                                    <TextBlock
+                                        Grid.Column="9"
+                                        Classes="list-cell"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsTagsVisible}"
+                                        Text="{Binding Tags}" />
+                                    <TextBlock
+                                        Grid.Column="10"
+                                        Classes="list-cell primary"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsFpsVisible}"
+                                        Text="{Binding FpsDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="11"
+                                        Classes="list-cell"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsContainerVisible}"
+                                        Text="{Binding ContainerDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="12"
+                                        Classes="list-cell"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsAudioVisible}"
+                                        Text="{Binding AudioCodecDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="13"
+                                        Classes="list-cell"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsPathVisible}"
+                                        Text="{Binding FullPath}" />
+                                    <TextBlock
+                                        Grid.Column="14"
+                                        Classes="list-cell"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsCreatedVisible}"
+                                        Text="{Binding CreatedDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="15"
+                                        Classes="list-cell accent"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsFavoriteVisible}"
+                                        Text="{Binding FavoriteDisplay}" />
+                                </v:ColumnGrid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
         </Grid>
-      </Border>
 
-    </Grid>
+        <!--  右：选中视频的详情；宽度由共享样式 Border.detail-card 给 → 收起时整列不占位  -->
+        <Border
+            Grid.Column="1"
+            Classes="detail-card"
+            IsVisible="{Binding IsDetailVisible}">
+            <Grid RowDefinitions="Auto,*">
 
-    <!--  右：选中视频的详情；宽度由共享样式 Border.detail-card 给 → 收起时整列不占位  -->
-    <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
-        <Grid RowDefinitions="Auto,*">
-
-          <StackPanel Grid.Row="0" Spacing="8" IsVisible="{Binding HasSelection}">
-            <TextBlock Classes="section-title" Text="选中视频"/>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="primary" Content="▶ 播放" Command="{Binding PlayCommand}"/>
-              <Button Classes="ghost" Content="📂 定位" Command="{Binding RevealInExplorerCommand}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="ghost" Content="🔎 信息" Command="{Binding LoadMediaInfoCommand}"/>
-              <Button Classes="ghost" Content="📋 路径" Command="{Binding CopyPathCommand}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="ghost" Content="➡ 转码" Command="{Binding SendToTranscodeCommand}"
-                      IsEnabled="{Binding HasChecked}"/>
-              <Button Classes="ghost" Content="➡ 剪切" Command="{Binding SendToCutCommand}"
-                      IsEnabled="{Binding HasChecked}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="ghost" Content="✏ 重命名" Command="{Binding RenameCommand}"/>
-              <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}"/>
-            </StackPanel>
-          </StackPanel>
-
-          <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="10">
-
-              <TextBlock Classes="empty-hint" IsVisible="{Binding !HasSelection}"
-                         Text="扫描一个目录后，在左侧列表里选中视频：这里会显示完整路径、大小、修改时间，以及分辨率 / 编码 / 码率 / 时长 —— 足够判断要不要剪辑或转码。勾上几行还能批量「发送到转码 / 剪切」。"/>
-
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                <TextBlock Classes="field-label" Text="文件名"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.Name}" FontWeight="SemiBold"/>
-              </StackPanel>
-
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                <TextBlock Classes="field-label" Text="完整路径"/>
-                <SelectableTextBlock Classes="field-value" Text="{Binding Selected.FullPath}"/>
-              </StackPanel>
-
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                <TextBlock Classes="field-label" Text="类型 / 大小"/>
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                  <TextBlock Classes="field-value" Text="{Binding Selected.Extension}"/>
-                  <TextBlock Classes="field-value" Text="{Binding Selected.SizeDisplay}"/>
+                <StackPanel
+                    Grid.Row="0"
+                    IsVisible="{Binding HasSelection}"
+                    Spacing="8">
+                    <TextBlock Classes="section-title" Text="选中视频" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button
+                            Classes="primary"
+                            Command="{Binding PlayCommand}"
+                            Content="▶ 播放" />
+                        <Button
+                            Classes="ghost"
+                            Command="{Binding RevealInExplorerCommand}"
+                            Content="📂 定位" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button
+                            Classes="ghost"
+                            Command="{Binding LoadMediaInfoCommand}"
+                            Content="🔎 信息" />
+                        <Button
+                            Classes="ghost"
+                            Command="{Binding CopyPathCommand}"
+                            Content="📋 路径" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button
+                            Classes="ghost"
+                            Command="{Binding SendToTranscodeCommand}"
+                            Content="➡ 转码"
+                            IsEnabled="{Binding HasChecked}" />
+                        <Button
+                            Classes="ghost"
+                            Command="{Binding SendToCutCommand}"
+                            Content="➡ 剪切"
+                            IsEnabled="{Binding HasChecked}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button
+                            Classes="ghost"
+                            Command="{Binding RenameCommand}"
+                            Content="✏ 重命名" />
+                        <Button
+                            Classes="ghost"
+                            Command="{Binding DeleteCommand}"
+                            Content="🗑 删除" />
+                    </StackPanel>
                 </StackPanel>
-              </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                <TextBlock Classes="field-label" Text="时长"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.DurationDisplay}"/>
-              </StackPanel>
+                <ScrollViewer
+                    Grid.Row="1"
+                    Margin="0,12,0,0"
+                    VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="10">
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                <TextBlock Classes="field-label" Text="分辨率"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.ResolutionDisplay}"/>
-              </StackPanel>
+                        <TextBlock
+                            Classes="empty-hint"
+                            IsVisible="{Binding !HasSelection}"
+                            Text="扫描一个目录后，在左侧列表里选中视频：这里会显示完整路径、大小、修改时间，以及分辨率 / 编码 / 码率 / 时长 —— 足够判断要不要剪辑或转码。勾上几行还能批量「发送到转码 / 剪切」。" />
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                <TextBlock Classes="field-label" Text="编码格式"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.CodecDisplay}"/>
-              </StackPanel>
+                        <!--
+                            §6.4.7 文件名**可编辑**：回车 / 失焦提交 → VideoFileService.RenameToAsync
+                            （复用防穿越 + 同名检查）→ 同步 video_catalog / video_favorites 的 path；⛔ 不整目录重扫。
+                            提交由代码后置（NameBox 的 KeyDown / LostFocus）触发，详情卡里不放按钮（规范 §6.4.1 第 3 条）。
+                        -->
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="文件名（可改 · 回车 / 失焦提交）" />
+                            <TextBox
+                                x:Name="NameBox"
+                                FontSize="12"
+                                Text="{Binding EditName, Mode=TwoWay}" />
+                        </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                <TextBlock Classes="field-label" Text="码率"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.BitRateDisplay}"/>
-              </StackPanel>
+                        <!--
+                            §6.4.6 标签**可编辑**：回车 / 失焦提交 → VideoCatalogService.UpdateTags（落 video_catalog.tags）。
+                            没入视频库的项会提示先点工具条「💾 加入视频库」。
+                        -->
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="标签（逗号分隔 · 回车 / 失焦提交）" />
+                            <TextBox
+                                x:Name="TagsBox"
+                                FontSize="12"
+                                PlaceholderText="如：收藏,待剪"
+                                Text="{Binding EditTags, Mode=TwoWay}" />
+                        </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                <TextBlock Classes="field-label" Text="修改时间"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.ModifiedDisplay}"/>
-              </StackPanel>
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="完整路径" />
+                            <SelectableTextBlock Classes="field-value" Text="{Binding Selected.FullPath}" />
+                        </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                <TextBlock Classes="field-label" Text="媒体信息"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.MediaStatus}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-              </StackPanel>
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="类型 / 大小" />
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Classes="field-value" Text="{Binding Selected.Extension}" />
+                                <TextBlock Classes="field-value" Text="{Binding Selected.SizeDisplay}" />
+                            </StackPanel>
+                        </StackPanel>
 
-            </StackPanel>
-          </ScrollViewer>
-        </Grid>
-      </Border>
-  </Grid>
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="时长" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.DurationDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="分辨率" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.ResolutionDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="编码格式" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.CodecDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="码率" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.BitRateDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="修改时间" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.ModifiedDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                            <TextBlock Classes="field-label" Text="媒体信息" />
+                            <TextBlock
+                                Classes="field-value"
+                                Foreground="{DynamicResource SecondaryTextBrush}"
+                                Text="{Binding Selected.MediaStatus}" />
+                        </StackPanel>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
 </UserControl>

@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Services;
@@ -48,16 +49,77 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
     private readonly IAppConfigService? _cfg;
     private readonly IColumnLayoutService? _cols;
 
+    /// <summary>v3.15 §6.4.2：「📸 取当前帧」抽出来的图要落 <c>data\thumbs</c>（缩略图目录由它管）。</summary>
+    private readonly VideoFavoritesService? _fav;
+
     private bool _extracting;
     private double _pendingPreview = -1;
     private int _previewIndex;
 
+    // ==================== 类播放器「拖拽快览 / 自动播放预览」 ====================
+
+    private bool _isPlaying;
+    private DispatcherTimer? _playTimer;
+
+    /// <summary>是否正在自动播放预览（抽帧模拟播放）。</summary>
+    public bool IsPlaying
+    {
+        get => _isPlaying;
+        private set
+        {
+            if (_isPlaying == value) return;
+            _isPlaying = value;
+            OnPropertyChanged();
+        }
+    }
+
     // ==================== 状态栏（v3.9：Shell 底部状态栏契约） ====================
 
-    [ObservableProperty] private string _statusText = "点「📂 选择视频」挑一个文件 → 拖三条时间条定区间 → 在右侧详情卡里配参数 → 「➡ 发送到批处理」。";
-
+    private string _statusText = "点「📂 选择视频」挑一个文件 → 拖三条时间条定区间 → 在右侧详情卡里配参数 → 「➡ 发送到批处理」。";
     public event EventHandler? StatusChanged;
-    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// 状态栏文本（v3.16 §6.4.2）：**已载入视频时，每一行都带「当前文件」前缀** ——
+    /// 动作反馈（复制 / 发送 / 播放…）⛔ 不许把"现在预览的是哪个文件"冲掉。
+    /// <para>
+    /// 写进来的是**动作消息**（各处照旧 `StatusText = "…"`），读出去的是拼好前缀的那一行；
+    /// 未载入文件时前缀为空串，原样输出消息（不出现"未载入 · …"这种废话）。
+    /// </para>
+    /// </summary>
+    public string StatusText
+    {
+        get => _statusText;
+        private set
+        {
+            var prefix = SourceBrief;
+            var text = string.IsNullOrWhiteSpace(value) ? prefix
+                     : prefix.Length == 0 ? value
+                     : prefix + " · " + value;
+            if (_statusText == text) return;
+            _statusText = text;
+            OnPropertyChanged();
+            StatusChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>状态栏前缀：🎬 文件名 · 时长 · 完整路径（未载入 = 空串）。</summary>
+    private string SourceBrief
+    {
+        get
+        {
+            if (!HasSource) return "";
+            var name = Path.GetFileName(SourcePath);
+            var dur = Duration > 0 ? DurationDisplay : "时长未知";
+            return $"🎬 {name} · {dur} · {SourcePath}";
+        }
+    }
+
+    /// <summary>刷新状态栏前缀（换文件 / 探测到时长后，让"当前文件"立刻出现在状态栏上）。</summary>
+    private void RefreshStatusPrefix()
+    {
+        if (!HasSource) return;
+        StatusText = "";
+    }
 
     // ==================== 右侧详情卡（可开合） ====================
 
@@ -124,13 +186,16 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
 
     partial void OnSourcePathChanged(string value)
     {
-        // 换文件 → 上一张预览图 / 时长 / 输出 / 手改过的命令全部作废
+        // 换文件 → 上一张预览图 / 时长 / 输出 / 手改过的命令全部作废；顺手停掉播放预览
+        StopPlayTimer();
+        IsPlaying = false;
         PreviewImage = null;
         Duration = 0;
         EditOutput = "";
         IsArgsEdited = false;
         OnPropertyChanged(nameof(HasSource));
         RefreshCommand();
+        RefreshStatusPrefix();     // v3.16：换文件 → 状态栏前缀立刻跟上
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
@@ -140,6 +205,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
         OnPropertyChanged(nameof(TimelineMax));
         OnPropertyChanged(nameof(HasDuration));
         OnPropertyChanged(nameof(DurationDisplay));
+        RefreshStatusPrefix();     // v3.16：探测到时长 → 状态栏前缀里的时长补上
     }
 
     // ==================== 预览（一张大画面 + 三条时间条） ====================
@@ -198,6 +264,56 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
     }
 
     /// <summary>
+    /// 📸 取当前帧（需求 §6.4.2）：把当前拖到的这一帧用 ffmpeg 抽成 jpg，落
+    /// <c>data\thumbs\{sha1(源路径)}.jpg</c>，再经 <see cref="VideoTaskStore"/> 的任务通道送「视频收藏」页建卡。
+    /// <para>
+    /// ⛔ **不自动跳转**：用户正在拖着看画面，别把他拽走 —— 卡片由收藏页在下次挂载时建好
+    /// （取件点在 <c>VideoFavoritesView.OnAttachedToVisualTree</c>，见规范 §4.8 硬规则 8）。
+    /// </para>
+    /// </summary>
+    [RelayCommand]
+    private async Task CaptureFrameAsync()
+    {
+        var src = SourcePath;
+        if (string.IsNullOrWhiteSpace(src) || !File.Exists(src)) { StatusText = "先「📂 选择视频」挑一个文件。"; return; }
+        if (_fav == null || !_fav.IsAvailable) { StatusText = "收藏不可用（数据库未就绪）。"; return; }
+
+        try
+        {
+            Directory.CreateDirectory(_fav.ThumbsDir);
+            var name = VideoFavoritesService.ThumbFileName(src);
+            var target = Path.Combine(_fav.ThumbsDir, name);
+
+            // ⚠️ 先写临时文件再替换：目标 jpg 可能正被收藏页的 Bitmap 占着，直接覆盖会写失败
+            var tmp = target + ".tmp.jpg";
+            var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
+            if (!await FfmpegService.ExtractFrameAsync(ffmpeg, src, PreviewTime, tmp) || !File.Exists(tmp))
+            {
+                StatusText = "抽帧失败：ffmpeg 没跑成功（检查「设置 → 路径」里的 ffmpeg 路径）。";
+                return;
+            }
+
+            try
+            {
+                if (File.Exists(target)) File.Delete(target);
+                File.Move(tmp, target);
+            }
+            catch
+            {
+                try { File.Delete(tmp); } catch { /* 清不掉就算了 */ }
+                StatusText = "抽帧成功，但缩略图写不进去（文件被占用？）。";
+                return;
+            }
+
+            _fav.Add(src, name);                   // 没收藏过就顺手建一条（同一路径永远同一张图）
+            _store?.EnqueueFrame(src, name);       // 交给收藏页建卡
+            StatusText = $"已取第 {CutTask.FormatTime(PreviewTime)} 这一帧 → 收藏页（{name}）；"
+                         + "标签要存得住，还得在收藏页里点「💾 加入视频库」。";
+        }
+        catch (Exception ex) { StatusText = "取当前帧失败：" + ex.Message; }
+    }
+
+    /// <summary>
     /// 载入源文件后**自动进入预览**（v3.10 要求：不用再手点抽帧）—— 探时长 + 抽首帧。
     /// </summary>
     private async Task PreparePreviewAsync()
@@ -226,7 +342,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
             var start = StartSeconds > 0 ? StartSeconds : 0;
             PreviewTime = start;
             await UpdatePreviewAsync(start);
-            StatusText = $"已载入：{Path.GetFileName(path)}（{DurationDisplay}）—— 拖时间条选画面，开始 / 结束两条定区间。";
+            StatusText = "已载入 —— 拖「预览位置」条选画面，「开始 / 结束」两条定区间。";
         }
         catch (Exception ex)
         {
@@ -311,6 +427,12 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
 
     /// <summary>目标高（0 = 不约束高，按宽度等比）。</summary>
     [ObservableProperty] private int _editTargetHeight;
+
+    /// <summary>
+    /// 缩到的**最大高度**（0 = 不改；例 720 = 缩到 720p）。
+    /// v3.16：两页详情卡字段集合要一致 —— 「批量处理」页早就有这一项，这边补上。
+    /// </summary>
+    [ObservableProperty] private int _editMaxHeight;
 
     /// <summary>码率模式：<c>crf</c>（恒定质量）/ <c>bitrate</c>（目标码率）。</summary>
     [ObservableProperty] private string _editBitrateMode = "crf";
@@ -480,6 +602,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
             Container = NormalizeExt(EditContainer, preset.Extension),
             TargetWidth = EditTargetWidth,
             TargetHeight = EditTargetHeight,
+            MaxHeight = EditMaxHeight,
             BitrateMode = string.IsNullOrWhiteSpace(EditBitrateMode) ? "crf" : EditBitrateMode,
             Crf = EditTranscodeCrf,
             TargetBitrate = (EditTargetBitrate ?? "").Trim(),
@@ -560,15 +683,71 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
         StatusText = "命令已恢复为由参数自动生成。";
     }
 
+    // ==================== 类播放器：拖拽快览 / 自动播放预览 ====================
+
+    /// <summary>▶/⏸ 切换「自动播放预览」：开 = 按时间轴逐帧推进（抽帧模拟播放），关 = 仅手动拖时间条。</summary>
+    [RelayCommand]
+    private void TogglePlay()
+    {
+        if (!HasSource || !HasDuration) { StatusText = "先载入一个有时长的视频才能播放预览。"; return; }
+        IsPlaying = !IsPlaying;
+        if (IsPlaying)
+        {
+            if (PreviewTime >= TimelineMax - 0.05) PreviewTime = 0;   // 已到末尾 → 从头播
+            StartPlayTimer();
+            StatusText = "正在播放预览（抽帧模拟）… 再点一次停止。";
+        }
+        else
+        {
+            StopPlayTimer();
+            StatusText = "已停止播放预览。";
+        }
+    }
+
+    private void StartPlayTimer()
+    {
+        StopPlayTimer();
+        _playTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _playTimer.Tick += OnPlayTick;
+        _playTimer.Start();
+    }
+
+    private void StopPlayTimer()
+    {
+        if (_playTimer != null)
+        {
+            _playTimer.Tick -= OnPlayTick;
+            _playTimer.Stop();
+            _playTimer = null;
+        }
+    }
+
+    private void OnPlayTick(object? sender, EventArgs e)
+    {
+        if (!IsPlaying) { StopPlayTimer(); return; }
+        var next = PreviewTime + 0.1;
+        if (next >= TimelineMax)
+        {
+            PreviewTime = TimelineMax;
+            IsPlaying = false;
+            StopPlayTimer();
+            StatusText = "播放预览结束。";
+            return;
+        }
+        PreviewTime = next;
+    }
+
     // ==================== 生命周期 ====================
 
     public VideoPreviewViewModel() { }
 
-    public VideoPreviewViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService? cols = null)
+    public VideoPreviewViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService? cols = null,
+                                 VideoFavoritesService? fav = null)
     {
         _store = store;
         _cfg = cfg;
         _cols = cols;
+        _fav = fav;
         if (cols != null)
             IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel, true);
     }

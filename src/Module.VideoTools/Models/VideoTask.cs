@@ -46,6 +46,18 @@ public abstract partial class VideoTaskBase : ObservableObject
     /// <summary>稳定标识（新建时生成）。</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
+    /// <summary>任务创建时间（v3.15「创建时间」列）。⚠️ 老任务（本字段落盘之前建的）反序列化后是**载入时刻**，可接受。</summary>
+    public DateTime Created { get; set; } = DateTime.Now;
+
+    public string CreatedDisplay => Created.ToString("yyyy-MM-dd HH:mm");
+
+    /// <summary>
+    /// v3.15「命令摘要」列要显示的文本 —— **由批量处理页的 VM 在刷新列表时写入**。
+    /// <para>为什么不能由模型自己算：拼 ffmpeg 参数需要 <c>FfmpegService</c> 与配置里的 ffmpeg 路径，
+    /// 模型层拿不到（也不该拿）。VM 每次 <c>RefreshView</c> 填一次，行绑定时读它。</para>
+    /// </summary>
+    public string CommandSummaryDisplay { get; set; } = "";
+
     /// <summary>源视频全路径。</summary>
     public string SourcePath { get; set; } = "";
 
@@ -58,6 +70,12 @@ public abstract partial class VideoTaskBase : ObservableObject
     /// <para>非空 ⇒ 批量处理运行时**原样执行**它，不再按任务参数重新拼装（手改不被悄悄覆盖）。</para>
     /// </summary>
     [ObservableProperty] private string _rawArgs = "";
+
+    /// <summary>
+    /// v3.16：批量处理列表**行首勾选框**（表头 ☑ 的「全选 / 取消选择 / 反选」改它）。
+    /// <para>⛔ 只是界面上的多选标记，**不参与命令生成**（跑哪些任务由「▶ 跑选中 / ▶▶ 批量运行」决定）。</para>
+    /// </summary>
+    [ObservableProperty] private bool _isChecked;
 
     [ObservableProperty] private string _status = VideoTaskStatus.Pending;
 
@@ -341,6 +359,13 @@ public partial class TranscodeTask : VideoTaskBase
     /// <summary>目标码率文本（如 <c>5000k</c> / <c>5M</c>）；仅 <c>bitrate</c> 模式生效。</summary>
     [ObservableProperty] private string _targetBitrate = "";
 
+    /// <summary>
+    /// v3.16：**是否带"剪辑区间"**（详情卡转码分区上方那个「✂ 剪辑」勾选框绑它）。
+    /// <para>以前只看"终点 &gt; 起点"，导致"勾了剪辑但结束留空（= 到末尾）"被判成不剪辑、勾选框显示不出来。
+    /// 现在勾了就是勾了：终点留空 = 从起点到文件末尾。</para>
+    /// </summary>
+    [ObservableProperty] private bool _useTrim;
+
     /// <summary>**既剪辑又转码**时的起点（秒）；<see cref="HasTrim"/> 为真才生效。</summary>
     [ObservableProperty] private double _trimStart;
 
@@ -370,8 +395,8 @@ public partial class TranscodeTask : VideoTaskBase
 
     // ==================== v3.10：参数摘要（详情卡 / 批量列表显示） ====================
 
-    /// <summary>是否带"剪辑区间"（既剪辑又转码的任务）。终点 0 = 到末尾。</summary>
-    public bool HasTrim => TrimEnd > TrimStart;
+    /// <summary>是否带"剪辑区间"（既剪辑又转码的任务）。终点 0 / 留空 = 到末尾。</summary>
+    public bool HasTrim => UseTrim || TrimEnd > TrimStart;
 
     /// <summary>区间文本（<c>00:01:02.000 → 00:01:30.000</c>）；没设返回空串。</summary>
     public string TrimDisplay => HasTrim

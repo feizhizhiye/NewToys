@@ -44,6 +44,12 @@ public class VideoTaskStore
     /// <summary>「视频列表」页多选后要送过来的文件（剪切页进来时取走）。</summary>
     private readonly List<string> _pendingCut = new();
 
+    /// <summary>
+    /// v3.15：「视频预览」页「📸 取当前帧」抽出来的帧（<b>源文件路径 + 缩略图文件名</b>），
+    /// 由「视频收藏」页取走建卡（需求 §6.4.2 / §6.4.9）。⛔ 不落盘（只是页面间的一次性交接）。
+    /// </summary>
+    private readonly List<(string Path, string Thumb)> _pendingFrames = new();
+
     public VideoTaskStore(ConfigStoreService cfg)
     {
         _cfg = cfg;
@@ -76,6 +82,17 @@ public class VideoTaskStore
         return list;
     }
 
+    /// <summary>v3.15：登记一张抽出来的帧（「📸 取当前帧」用）。</summary>
+    public void EnqueueFrame(string sourcePath, string thumbFileName) => _pendingFrames.Add((sourcePath, thumbFileName));
+
+    /// <summary>v3.15：取走待建卡的帧（取一次就清空）。收藏页在 <c>OnAttachedToVisualTree</c> 里调。</summary>
+    public List<(string Path, string Thumb)> TakePendingFrames()
+    {
+        var list = _pendingFrames.ToList();
+        _pendingFrames.Clear();
+        return list;
+    }
+
     // ==================== 增删改 ====================
 
     public void AddCut(CutTask task) { CutTasks.Add(task); Save(); }
@@ -83,6 +100,41 @@ public class VideoTaskStore
 
     public void RemoveCut(CutTask task) { CutTasks.Remove(task); Save(); }
     public void RemoveTranscode(TranscodeTask task) { TranscodeTasks.Remove(task); Save(); }
+
+    /// <summary>
+    /// v3.16：把一条任务**换成另一条**（详情卡两个分区的勾选框改任务类型时用：剪辑 ⇄ 转码 ⇄ 剪辑+转码）。
+    /// <para>保住队列里的位置：删掉旧的、把新的插到**同一个下标**（两个集合分开存，跨类型时退化为加到末尾）。</para>
+    /// </summary>
+    public void Replace(VideoTaskBase old, VideoTaskBase fresh)
+    {
+        if (old is CutTask oc && CutTasks.Contains(oc))
+        {
+            var i = CutTasks.IndexOf(oc);
+            CutTasks.RemoveAt(i);
+            if (fresh is CutTask nc) CutTasks.Insert(Math.Min(i, CutTasks.Count), nc);
+            else TranscodeTasks.Add((TranscodeTask)fresh);
+        }
+        else if (old is TranscodeTask ot && TranscodeTasks.Contains(ot))
+        {
+            var i = TranscodeTasks.IndexOf(ot);
+            TranscodeTasks.RemoveAt(i);
+            if (fresh is TranscodeTask nt) TranscodeTasks.Insert(Math.Min(i, TranscodeTasks.Count), nt);
+            else CutTasks.Add((CutTask)fresh);
+        }
+        else return;
+        Save();
+    }
+
+    /// <summary>v3.16 §6.4.11：清掉**整个队列**（两类一起清，含落盘的 <c>video-tasks.json</c>）；返回清掉条数。</summary>
+    public int ClearAll()
+    {
+        var n = CutTasks.Count + TranscodeTasks.Count;
+        if (n == 0) return 0;
+        CutTasks.Clear();
+        TranscodeTasks.Clear();
+        Save();
+        return n;
+    }
 
     /// <summary>清掉已经跑完 / 失败 / 取消的任务（保留还没跑的）。</summary>
     public int ClearFinishedCut()
@@ -114,6 +166,52 @@ public class VideoTaskStore
             File.WriteAllText(FilePath, JsonSerializer.Serialize(data, JsonOpts));
         }
         catch { /* 存不下不打断 UI：任务照样能跑，只是关掉软件后不保留 */ }
+    }
+
+    // ==================== 导出 / 导入（批量页「转出命令文件用其他脚本批处理」用） ====================
+
+    /// <summary>把当前队列（剪辑 + 转码两类）序列化成 JSON 文件（复用内部 <see cref="TaskFile"/> 结构）。</summary>
+    public bool ExportToFile(string path)
+    {
+        try
+        {
+            var data = new TaskFile
+            {
+                Cut = CutTasks.ToList(),
+                Transcode = TranscodeTasks.ToList()
+            };
+            File.WriteAllText(path, JsonSerializer.Serialize(data, JsonOpts));
+            return true;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>从导出的 JSON 里**追加**任务进当前队列（⛔ 不覆盖已有）；返回新增条数。</summary>
+    public int ImportFromFile(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return 0;
+            var data = JsonSerializer.Deserialize<TaskFile>(File.ReadAllText(path));
+            if (data == null) return 0;
+
+            var added = 0;
+            foreach (var t in data.Cut ?? new List<CutTask>())
+            {
+                if (t == null || string.IsNullOrWhiteSpace(t.SourcePath)) continue;
+                CutTasks.Add(t);
+                added++;
+            }
+            foreach (var t in data.Transcode ?? new List<TranscodeTask>())
+            {
+                if (t == null || string.IsNullOrWhiteSpace(t.SourcePath)) continue;
+                TranscodeTasks.Add(t);
+                added++;
+            }
+            if (added > 0) Save();
+            return added;
+        }
+        catch { return 0; }
     }
 
     private void Load()

@@ -12,6 +12,18 @@
         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <Button x:Name="PickFileBtn" Classes="primary" Content="📂 选择视频" Margin="0,0,6,4"
                   ToolTip.Tip="挑一个视频文件载入编辑器（这一页一次只编一个任务；载入后自动预览）"/>
+          <Button Classes="ghost" Command="{Binding TogglePlayCommand}"
+                  ToolTip.Tip="类播放器：点一下自动逐帧播放预览（抽帧模拟），再点停止；也可直接拖动下面「预览位置」条手动快览">
+            <Panel>
+              <TextBlock Text="▶ 播放预览" IsVisible="{Binding !IsPlaying}" VerticalAlignment="Center"/>
+              <TextBlock Text="⏸ 停止" IsVisible="{Binding IsPlaying}" VerticalAlignment="Center"/>
+            </Panel>
+          </Button>
+          <!--  v3.15 §6.4.2：取当前帧 → 抽成 jpg 落 data\thumbs → 经任务通道送「视频收藏」页建卡  -->
+          <Button Classes="ghost" Content="📸 取当前帧" Margin="0,0,6,4"
+                  Command="{Binding CaptureFrameCommand}"
+                  IsEnabled="{Binding HasSource}"
+                  ToolTip.Tip="把当前拖到的这一帧抽成图片，存进「视频收藏」页当缩略图（同一视频永远同一张图）"/>
           <Button Classes="ghost" Content="➡ 发送到批处理" Margin="0,0,6,4"
                   Command="{Binding SendToBatchCommand}"
                   ToolTip.Tip="把当前这一条任务加入「批量处理」的队列（不立刻运行）"/>
@@ -24,8 +36,6 @@
                   Command="{Binding ResetCommandCommand}"
                   IsVisible="{Binding IsArgsEdited}"
                   ToolTip.Tip="丢弃手改的命令，恢复成由参数自动生成"/>
-          <TextBlock Classes="hint-text" Text="{Binding DurationDisplay, StringFormat='源时长 {0}'}"
-                     VerticalAlignment="Center" Margin="4,0,0,4"/>
         </WrapPanel>
         <Button Grid.Column="1" Classes="detail-toggle"
                 Command="{Binding ToggleDetailCommand}"
@@ -43,48 +53,48 @@
     <!--  ==================== 主体：预览列 ｜ 详情卡  ==================== -->
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
 
-      <!--  ==================== 左：预览画面 + 三条时间条  ==================== -->
-      <Border Grid.Column="0" Classes="card" Padding="10">
+      <!--  ==================== 左：预览画面 + 三条时间条（均常显）  ==================== -->
+      <Border Grid.Column="0" Classes="card" Padding="8">
         <Grid RowDefinitions="*,Auto">
 
           <Border Grid.Row="0" CornerRadius="6" ClipToBounds="True"
-                  Background="{DynamicResource CodeBlockBrush}" MinHeight="200">
-            <Image Source="{Binding PreviewImage}" Stretch="Uniform" MinHeight="200"/>
+                  Background="{DynamicResource CodeBlockBrush}" MinHeight="340">
+            <Image Source="{Binding PreviewImage}" Stretch="Uniform" MinHeight="340"/>
           </Border>
 
           <TextBlock Grid.Row="0" Classes="empty-hint" HorizontalAlignment="Center"
                      VerticalAlignment="Center" IsVisible="{Binding !HasSource}"
                      Text="点「📂 选择视频」挑一个文件；也可以从「视频列表」页多选后点「✂ 视频预览·剪辑」把文件送过来（会自动预览）。"/>
 
-          <!--  三条时间条：预览位置 / 开始 / 结束  -->
-          <StackPanel Grid.Row="1" Margin="0,8,0,0" Spacing="4" IsVisible="{Binding HasDuration}">
+          <!--  三条时间条：预览位置 / 开始 / 结束（始终显示；开始/结束仅在勾选「剪辑」时可操作，未勾选灰显但仍占位）  -->
+          <StackPanel Grid.Row="1" Margin="0,6,0,0" Spacing="2">
 
-            <Grid ColumnDefinitions="64,*,56">
+            <Grid ColumnDefinitions="56,*,52">
               <TextBlock Grid.Column="0" Classes="field-label" Text="预览位置" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding PreviewTime, Mode=TwoWay}"
                       TickFrequency="0.5" IsSnapToTickEnabled="False" VerticalAlignment="Center"
-                      ToolTip.Tip="拖动：移动即抽这一帧（拖动中会丢帧，只认最后位置）"/>
+                      ToolTip.Tip="拖动：移动即抽这一帧（拖动中会丢帧，只认最后位置）；点「▶ 播放预览」可自动逐帧播放"/>
               <TextBlock Grid.Column="2" Classes="field-value" HorizontalAlignment="Right"
                          VerticalAlignment="Center" Text="{Binding PreviewTimeDisplay}"/>
             </Grid>
 
-            <Grid ColumnDefinitions="64,*,56" IsVisible="{Binding RangeEnabled}">
+            <Grid ColumnDefinitions="56,*,52" IsEnabled="{Binding IsCut}">
               <TextBlock Grid.Column="0" Classes="field-label" Text="开始" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding StartSeconds, Mode=TwoWay}"
                       TickFrequency="0.5" VerticalAlignment="Center"
-                      ToolTip.Tip="剪辑区间的起点"/>
+                      ToolTip.Tip="剪辑区间的起点（勾选「剪辑」才可调）"/>
               <TextBlock Grid.Column="2" Classes="field-value" HorizontalAlignment="Right"
                          VerticalAlignment="Center" Text="{Binding EditStart}"/>
             </Grid>
 
-            <Grid ColumnDefinitions="64,*,56" IsVisible="{Binding RangeEnabled}">
+            <Grid ColumnDefinitions="56,*,52" IsEnabled="{Binding IsCut}">
               <TextBlock Grid.Column="0" Classes="field-label" Text="结束" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding EndSeconds, Mode=TwoWay}"
                       TickFrequency="0.5" VerticalAlignment="Center"
-                      ToolTip.Tip="剪辑区间的终点；拖到最左 = 到末尾"/>
+                      ToolTip.Tip="剪辑区间的终点；拖到最左 = 到末尾（勾选「剪辑」才可调）"/>
               <TextBlock Grid.Column="2" Classes="field-value" HorizontalAlignment="Right"
                          VerticalAlignment="Center" Text="{Binding EditEnd}"/>
             </Grid>
@@ -204,6 +214,11 @@
                     <TextBox Classes="code" Text="{Binding EditTargetHeight, Mode=TwoWay}"/>
                   </StackPanel>
                 </Grid>
+
+                <StackPanel Classes="field">
+                  <TextBlock Classes="field-label" Text="最大高度（0 = 不改；与上面的宽高二选一，优先用宽高）"/>
+                  <TextBox Classes="code" Text="{Binding EditMaxHeight, Mode=TwoWay}"/>
+                </StackPanel>
 
                 <StackPanel Classes="field">
                   <TextBlock Classes="field-label" Text="码率模式"/>

@@ -49,6 +49,8 @@ public partial class VideoListViewModel : ListPageViewModelBase
     private readonly IAppConfigService? _cfg;
     private readonly VideoMediaIndex? _index;
     private readonly VideoTaskStore? _store;
+    private readonly VideoCatalogService? _catalog;
+    private readonly VideoFavoritesService? _fav;
     private readonly INavigationService? _nav;
 
     private readonly List<VideoItem> _all = new();
@@ -81,6 +83,18 @@ public partial class VideoListViewModel : ListPageViewModelBase
     [ObservableProperty] private string _codecHeader = "编码";
     [ObservableProperty] private string _bitrateHeader = "码率";
     [ObservableProperty] private string _modifiedHeader = "修改时间";
+    // v3.15 扩充列（§6.4.8）
+    [ObservableProperty] private string _tagsHeader = "标签";
+    [ObservableProperty] private string _fpsHeader = "帧率";
+    [ObservableProperty] private string _containerHeader = "容器格式";
+    [ObservableProperty] private string _audioHeader = "音频编码";
+    [ObservableProperty] private string _pathHeader = "路径";
+    [ObservableProperty] private string _createdHeader = "创建时间";
+    [ObservableProperty] private string _favoriteHeader = "已收藏";
+
+    // 详情卡里两个**可编辑**字段（§6.4.6 标签 / §6.4.7 文件名）：提交时才动磁盘 / 数据库。
+    [ObservableProperty] private string _editName = "";
+    [ObservableProperty] private string _editTags = "";
 
     // ==================== 列显隐（基类管状态；这里只给 XAML 提供具名属性） ====================
 
@@ -93,6 +107,14 @@ public partial class VideoListViewModel : ListPageViewModelBase
     public bool IsBitrateVisible => Vis("Bitrate");
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsPickVisible => Vis("Pick");
+    // v3.15 扩充列
+    public bool IsTagsVisible => Vis("Tags");
+    public bool IsFpsVisible => Vis("Fps");
+    public bool IsContainerVisible => Vis("Container");
+    public bool IsAudioVisible => Vis("Audio");
+    public bool IsPathVisible => Vis("Path");
+    public bool IsCreatedVisible => Vis("Created");
+    public bool IsFavoriteVisible => Vis("Favorite");
 
     protected override string PageKey => "video-list";
 
@@ -112,10 +134,22 @@ public partial class VideoListViewModel : ListPageViewModelBase
         new("Codec", "编码", "1.1*"),
         new("Bitrate", "码率", "1.1*"),
         new("Modified", "修改时间", "1.5*"),
+        // v3.15 扩充（表头右键均可隐藏）：标签 / 帧率 / 容器格式 / 音频编码 / 路径 / 创建时间
+        new("Tags", "标签", "1.2*"),
+        new("Fps", "帧率", "0.8*"),
+        new("Container", "容器格式", "1*"),
+        new("Audio", "音频编码", "1*"),
+        new("Path", "路径", "2.5*"),
+        new("Created", "创建时间", "1.5*"),
+        // 「已收藏」列：真值在 video_favorites 表（v3.15 §6.4.9）；基类 Sort 对它首点即降序 → ★ 排前面
+        new("Favorite", "已收藏", "0.7*"),
     };
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Videos.Count > 0;
+
+    /// <summary>全局导入/导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.15 全局，覆盖 .db 与 .json 选择器）。</summary>
+    public string ImportExportDefaultDir => _cfg?.VideoDbFolder ?? "";
 
     /// <summary>已勾选的文件数（工具条上的「发送到…」按钮据此启用 / 显示数量）。</summary>
     public int CheckedCount => _all.Count(v => v.IsChecked);
@@ -126,20 +160,23 @@ public partial class VideoListViewModel : ListPageViewModelBase
     public VideoListViewModel() { }
 
     public VideoListViewModel(IAppConfigService cfg, IColumnLayoutService cols, VideoMediaIndex index,
-                              VideoTaskStore store, INavigationService nav)
+                              VideoTaskStore store, VideoCatalogService catalog, INavigationService nav,
+                              VideoFavoritesService? fav = null)
         : base(cols)
     {
         _cfg = cfg;
         _index = index;
         _store = store;
+        _catalog = catalog;
         _nav = nav;
+        _fav = fav;
         LoadLayout();
         Folder = _lastFolder;                                                            // 本次运行内记住上次选的目录
         UpdateHeaders();
 
-        // 目录**不来自设置**（v1.34 解绑）：没选过就如实提示，由用户点「📂 浏览…」选
+        // 目录**不来自设置**（v1.34 解绑）：没选过就如实提示，由用户点「📂 导入」选
         if (string.IsNullOrWhiteSpace(Folder))
-            StatusText = "点「📂 浏览…」选一个视频目录（每次都手动选，不与设置绑定）；扫描后可从表头看到分辨率 / 编码 / 码率 / 时长。";
+            StatusText = "点「📂 导入」选一个视频目录（每次都手动选，不与设置绑定）；扫描后可从表头看到分辨率 / 编码 / 码率 / 时长。";
         else if (!Directory.Exists(Folder))
             StatusText = $"上次的目录已经不在了：{Folder} —— 重新选一个。";
         else _ = ScanAsync();
@@ -185,6 +222,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
 
             _all.Clear();
             _all.AddRange(items);
+            RefreshFavoriteFlags();     // v3.15：★ 标记（一次查库，不逐行查）
             ApplyView();
 
             var missing = items.Count - items.Count(v => v.HasMedia);
@@ -211,7 +249,13 @@ public partial class VideoListViewModel : ListPageViewModelBase
 
     partial void OnSearchTextChanged(string value) => ApplyView();
 
-    partial void OnSelectedChanged(VideoItem? value) => OnPropertyChanged(nameof(HasSelection));
+    partial void OnSelectedChanged(VideoItem? value)
+    {
+        OnPropertyChanged(nameof(HasSelection));
+        // 详情卡两个可编辑字段跟着选中项走：切换选中即丢弃**未提交**的改动（提交要显式点保存 / 回车 / 失焦）
+        EditName = value?.Name ?? "";
+        EditTags = value?.Tags ?? "";
+    }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
 
@@ -234,6 +278,15 @@ public partial class VideoListViewModel : ListPageViewModelBase
         "Codec" => ((VideoItem)row).CodecDisplay,
         "Bitrate" => ((VideoItem)row).BitRateDisplay,
         "Modified" => ((VideoItem)row).ModifiedDisplay,
+        // v3.15 扩充列：列键与模型属性名不一致的（Container/Audio/Path）在这里显式映射，
+        // 不能靠基类的反射兜底（反射按列键找属性，找不着会整条筛选条件失效）。
+        "Tags" => ((VideoItem)row).Tags,
+        "Fps" => ((VideoItem)row).FpsDisplay,
+        "Container" => ((VideoItem)row).ContainerDisplay,
+        "Audio" => ((VideoItem)row).AudioCodecDisplay,
+        "Path" => ((VideoItem)row).FullPath,
+        "Created" => ((VideoItem)row).CreatedDisplay,
+        "Favorite" => ((VideoItem)row).FavoriteDisplay,
         _ => null
     };
 
@@ -247,6 +300,9 @@ public partial class VideoListViewModel : ListPageViewModelBase
             "Duration" => v.Duration,
             "Resolution" => (v.Width ?? 0) * (double)(v.Height ?? 0),
             "Modified" => v.Modified.ToOADate(),
+            "Fps" => v.Fps,
+            "Created" => v.Created == default ? null : v.Created.ToOADate(),
+            "Favorite" => v.IsFavorite ? 1 : 0,
             _ => null
         };
     }
@@ -275,6 +331,15 @@ public partial class VideoListViewModel : ListPageViewModelBase
                                             : q.OrderBy(v => (v.Width ?? 0) * (long)(v.Height ?? 0)),
             "Codec" => SortDescending ? q.OrderByDescending(v => v.Codec, byText) : q.OrderBy(v => v.Codec, byText),
             "Bitrate" => SortDescending ? q.OrderByDescending(v => v.BitRate ?? -1) : q.OrderBy(v => v.BitRate ?? -1),
+            // v3.15 扩充列
+            "Tags" => SortDescending ? q.OrderByDescending(v => v.Tags, byText) : q.OrderBy(v => v.Tags, byText),
+            "Fps" => SortDescending ? q.OrderByDescending(v => v.Fps ?? -1) : q.OrderBy(v => v.Fps ?? -1),
+            "Container" => SortDescending ? q.OrderByDescending(v => v.ContainerFormat, byText) : q.OrderBy(v => v.ContainerFormat, byText),
+            "Audio" => SortDescending ? q.OrderByDescending(v => v.AudioCodec, byText) : q.OrderBy(v => v.AudioCodec, byText),
+            "Path" => SortDescending ? q.OrderByDescending(v => v.FullPath, byText) : q.OrderBy(v => v.FullPath, byText),
+            "Created" => SortDescending ? q.OrderByDescending(v => v.Created) : q.OrderBy(v => v.Created),
+            // ★ 排前面（基类 Sort 对 "Favorite" 首点即降序）
+            "Favorite" => SortDescending ? q.OrderByDescending(v => v.IsFavorite) : q.OrderBy(v => v.IsFavorite),
             _ => SortDescending ? q.OrderByDescending(v => v.Name, byText) : q.OrderBy(v => v.Name, byText)
         };
 
@@ -311,6 +376,13 @@ public partial class VideoListViewModel : ListPageViewModelBase
         CodecHeader = "编码" + SortArrow("Codec");
         BitrateHeader = "码率" + SortArrow("Bitrate");
         ModifiedHeader = "修改时间" + SortArrow("Modified");
+        TagsHeader = "标签" + SortArrow("Tags");
+        FpsHeader = "帧率" + SortArrow("Fps");
+        ContainerHeader = "容器格式" + SortArrow("Container");
+        AudioHeader = "音频编码" + SortArrow("Audio");
+        PathHeader = "路径" + SortArrow("Path");
+        CreatedHeader = "创建时间" + SortArrow("Created");
+        FavoriteHeader = "已收藏" + SortArrow("Favorite");
     }
 
     private static string FormatSize(long bytes) => bytes switch
@@ -492,6 +564,111 @@ public partial class VideoListViewModel : ListPageViewModelBase
             : "清空缓存失败：" + (_index.IsAvailable ? "写入被拒绝" : "数据库不可用");
     }
 
+    // ==================== 视频数据库（catalog，需求 §6.4.3） ====================
+
+    /// <summary>💾 加入视频库：把**当前列表（整个扫描结果 _all）**写进 SQLite 视频库（video_catalog 表）。
+    /// ⛔ 只写列表已有信息 —— 没读取媒体信息的行对应字段留空（NULL），不强行跑 ffprobe。</summary>
+    [RelayCommand]
+    private void AddToCatalog()
+    {
+        if (_catalog == null) { StatusText = "视频库服务未就绪。"; return; }
+        if (!_catalog.IsAvailable) { StatusText = $"视频库不可用（数据库未就绪）：{_catalog.DatabasePath}"; return; }
+        if (_all.Count == 0) { StatusText = "先扫描一个目录，列表里有东西才能入库。"; return; }
+
+        var n = 0;
+        var withMedia = 0;
+        foreach (var v in _all)
+        {
+            _catalog.Upsert(v);
+            n++;
+            if (v.HasMedia) withMedia++;
+        }
+        StatusText = $"已写入视频库：{n} 个文件（其中 {withMedia} 个带媒体信息，未读的字段留空待补）；库文件 = {_catalog.DatabasePath}";
+    }
+
+    /// <summary>📑 从外部 .db 读回视频库（需求 §6.4.3「读取文件夹功能扩展支持读取数据库文件」）。
+    /// 由 VideoListView 的文件选择器挑完 .db 后调用，直接把记录灌进当前列表。</summary>
+    public void LoadCatalog(string dbPath)
+    {
+        if (_catalog == null) { StatusText = "视频库服务未就绪。"; return; }
+
+        // v3.16：读不出来必须把**原因**说出来（以前是静默返回空列表，表现为"点了没反应"）。
+        var r = _catalog.ReadFile(dbPath);
+        if (r.Error != null) { StatusText = "导入视频库失败 —— " + r.Error; return; }
+        if (r.IsEmptyLibrary)
+        {
+            StatusText = $"「{Path.GetFileName(dbPath)}」里的 video_catalog 表是空的（0 条记录）—— 先在列表里点「💾 加入视频库」再导入。";
+            return;
+        }
+
+        // ⛔ 不覆盖 Folder：读库只是临时替换列表，Folder 仍是真实目录，便于回头点「🔍 扫描」重扫
+        var items = r.Items;
+        _all.Clear();
+        _all.AddRange(items);
+        foreach (var v in _all) v.IsChecked = false;   // 新来源，勾选状态重置
+        Selected = null;                               // 旧的选中项已不在新列表里，别让详情卡留在消失的行上
+        RefreshFavoriteFlags();
+        ApplyView();
+
+        StatusText = $"已从视频库读入 {items.Count} 个记录（来自 {dbPath}）：文件可能已移动，选中后可点「🔎 读取媒体信息」刷新。";
+    }
+
+    /// <summary>🧹 清除列表（≈ 浏览器无缓存刷新）：只清界面上的列表，⛔ 不动磁盘文件、不动视频库、不重扫目录。</summary>
+    [RelayCommand]
+    private async Task ClearListAsync()
+    {
+        var n = _all.Count;
+        if (n == 0 && Videos.Count == 0) { StatusText = "列表已经是空的。"; return; }
+
+        var msg = $"清除当前列表里的 {n} 个视频条目？" + Environment.NewLine
+                + "只清界面上的列表 —— 不会删除任何视频文件，也不会动视频库；清完可以重新导入 / 扫描。";
+        if (!await NewToys.Core.Services.DialogHooks.ConfirmAsync(msg)) { StatusText = "已取消清除。"; return; }
+
+        _scanCts?.Cancel();
+        ClearFiltersCommand.Execute(null);   // 筛选条件一并归零（否则清完看着像"还有条件挡着"）
+        SearchText = "";
+        _all.Clear();
+        Videos.Clear();
+        Selected = null;
+        ApplyView();
+        StatusText = $"已清除列表（{n} 个条目）；视频文件与视频库都没动 —— 点「📂 导入」或「🔍 扫描」重新载入。";
+    }
+
+    /// <summary>📂 导入 → 视频文件…：把所选的一个 / 多个视频文件**追加**进当前列表（不扫描整目录、媒体信息留空待按需读）。
+    /// 与「文件夹…」（替换整列）不同，这里是累加；同路径去重，避免重复条目。</summary>
+    public void ImportVideoFiles(IEnumerable<string> paths)
+    {
+        var existing = new HashSet<string>(_all.Select(v => v.FullPath), StringComparer.OrdinalIgnoreCase);
+        var added = 0;
+        foreach (var p in paths)
+        {
+            if (string.IsNullOrWhiteSpace(p)) continue;
+            var ext = Path.GetExtension(p).ToLowerInvariant();
+            if (!VideoScanner.Extensions.Contains(ext)) continue;   // 只收认得的视频，挡掉误选
+            if (existing.Contains(p)) continue;
+            existing.Add(p);
+            _all.Add(new VideoItem
+            {
+                Name = Path.GetFileName(p),
+                FullPath = p,
+                Extension = ext,
+                SizeBytes = File.Exists(p) ? new FileInfo(p).Length : 0,
+                Modified = File.Exists(p) ? File.GetLastWriteTime(p) : default
+            });
+            added++;
+        }
+
+        if (added == 0)
+        {
+            StatusText = "没有可导入的视频文件（仅支持 " + string.Join(" / ", VideoScanner.Extensions) + "）。";
+            return;
+        }
+
+        RefreshFavoriteFlags();
+        ApplyView();
+        StatusText = $"已导入 {added} 个视频文件（追加到当前列表；媒体信息留空，选中后可点「🔎 读取信息」）。";
+    }
+
     // ==================== 右键菜单 / 详情列的动作 ====================
 
     /// <summary>▶ 播放：配了外部播放器就用它，否则走系统默认关联程序。</summary>
@@ -604,5 +781,98 @@ public partial class VideoListViewModel : ListPageViewModelBase
             Selected = null;
             ApplyView();
         }
+    }
+
+    // ==================== v3.15：详情卡内改名 / 标签 / 收藏 ====================
+
+    /// <summary>把 <c>video_favorites</c> 里的路径一次性映射回列表行的 <c>IsFavorite</c>（⛔ 别每行查一次库）。</summary>
+    private void RefreshFavoriteFlags()
+    {
+        if (_fav == null || !_fav.IsAvailable) return;
+        var set = new HashSet<string>(_fav.All().Select(f => f.Path), StringComparer.OrdinalIgnoreCase);
+        foreach (var v in _all) v.IsFavorite = set.Contains(v.FullPath);
+    }
+
+    /// <summary>
+    /// ✏ 详情卡内直接改名（需求 §6.4.7）：提交 → <see cref="VideoFileService.RenameToAsync"/>
+    /// （复用现有**防穿越 / 同名**检查）→ 更新内存里的 <see cref="VideoItem"/>、同步视频库与收藏的 path。
+    /// <para>⛔ **不触发整目录重扫**：重扫会把勾选状态和已读的媒体信息一起冲掉，这里只重渲染列表。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task SaveNameAsync()
+    {
+        var v = Selected;
+        if (v == null) return;
+
+        var newName = (EditName ?? "").Trim();
+        if (newName.Length == 0) { StatusText = "文件名不能为空。"; return; }
+        if (string.Equals(newName, v.Name, StringComparison.Ordinal)) { StatusText = "名字没变。"; return; }
+
+        var oldPath = v.FullPath;
+        var (ok, msg, newPath) = await VideoFileService.RenameToAsync(oldPath, newName);
+        StatusText = msg;
+        if (!ok || newPath == null) return;
+
+        v.Name = Path.GetFileName(newPath);
+        v.FullPath = newPath;
+        if (_catalog != null && _catalog.HasPath(oldPath)) _catalog.MovePath(oldPath, newPath, v.Name);
+        _fav?.MovePath(oldPath, newPath);          // 收藏按路径记，改名后旧路径就失效了
+
+        // Name / FullPath / Tags 都是普通属性（不是 [ObservableProperty]），改了不会自动通知：
+        // 主动发一次 Selected 变更，让详情卡的绑定重拉一遍。
+        OnPropertyChanged(nameof(Selected));
+        ApplyView();                                // 列表重渲染（同一批对象引用 → 选中、勾选都不丢）
+    }
+
+    /// <summary>
+    /// 🏷 详情卡内改标签（需求 §6.4.6）：提交 → <see cref="VideoCatalogService.UpdateTags"/>（落 <c>video_catalog.tags</c>）。
+    /// 标签随视频库走 —— **没入视频库的项**提示先点「💾 加入视频库」，不静默丢掉。
+    /// </summary>
+    [RelayCommand]
+    private void SaveTags()
+    {
+        var v = Selected;
+        if (v == null) return;
+
+        var tags = (EditTags ?? "").Trim();
+        if (string.Equals(tags, v.Tags ?? "", StringComparison.Ordinal)) { StatusText = "标签没变。"; return; }
+
+        if (_catalog == null || !_catalog.HasPath(v.FullPath))
+        {
+            StatusText = $"「{v.Name}」还没进视频库 —— 先点工具条的「💾 加入视频库」，标签才能存下来。";
+            return;
+        }
+
+        v.Tags = tags;
+        _catalog.UpdateTags(v.FullPath, tags);
+        OnPropertyChanged(nameof(Selected));
+        ApplyView();
+        StatusText = "已更新标签：" + (tags.Length > 0 ? tags : "（已清空）");
+    }
+
+    /// <summary>
+    /// ★ 收藏（需求 §6.4.9）：把**勾选的**加入 <c>video_favorites</c>（一个都没勾就用当前选中的那个）。
+    /// 收藏必须来自视频库 —— 不在 <c>video_catalog</c> 里的拒绝并提示先入库。
+    /// </summary>
+    [RelayCommand]
+    private void AddToFavorites()
+    {
+        var targets = _all.Where(v => v.IsChecked).ToList();
+        if (targets.Count == 0 && Selected != null) targets.Add(Selected);
+        if (targets.Count == 0) { StatusText = "先勾几个文件（行首的勾选框），或选中一个。"; return; }
+        if (_fav == null) { StatusText = "收藏服务未就绪。"; return; }
+        if (!_fav.IsAvailable) { StatusText = "收藏不可用（数据库未就绪）。"; return; }
+
+        var added = 0;
+        var skipped = 0;
+        foreach (var v in targets)
+        {
+            if (_catalog != null && !_catalog.HasPath(v.FullPath)) { skipped++; continue; }
+            if (_fav.Add(v.FullPath)) { v.IsFavorite = true; added++; }
+        }
+
+        ApplyView();
+        StatusText = (added > 0 ? $"已收藏 {added} 个视频（缩略图在「视频预览」页点「📸 取当前帧」生成）。" : "")
+                     + (skipped > 0 ? $" {skipped} 个还没进视频库 —— 先点「💾 加入视频库」。" : "");
     }
 }

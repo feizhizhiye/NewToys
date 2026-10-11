@@ -264,13 +264,16 @@ public static class FfmpegService
     /// </summary>
     public static string ResolveEncoder(string cpuCodec, bool useGpu)
     {
-        if (!useGpu) return cpuCodec;
-        return (cpuCodec ?? "") switch
+        // 先兜底再判断：写成 `(cpuCodec ?? "") switch { ... _ => cpuCodec }` 会让编译器
+        // 把 cpuCodec 的 null-state 推断成 maybe-null，兜底臂反而报 CS8603。
+        var codec = cpuCodec ?? "";
+        if (!useGpu) return codec;
+        return codec switch
         {
             "libx264"   => "h264_nvenc",
             "libx265"   => "hevc_nvenc",
             "libsvtav1" => "av1_nvenc",
-            _           => cpuCodec
+            _           => codec
         };
     }
 

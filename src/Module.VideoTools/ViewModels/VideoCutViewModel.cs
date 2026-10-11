@@ -408,8 +408,9 @@ public partial class VideoCutViewModel : ObservableObject, IStatusProvider
     {
         if (!IsArgsEdited)
         {
-            _editArgs = AutoArgsText;
-            OnPropertyChanged(nameof(EditArgs));
+            // ⛔ 别直接写该属性背后的私有字段（MVVMTK0034）。走属性 → 由 OnEditArgsChanged 统一判定"已手改"：
+            // 这里赋的就是 AutoArgsText，比较结果必然是 false，不会把自动刷新误标成手改。
+            EditArgs = AutoArgsText;
         }
         OnPropertyChanged(nameof(CommandPreview));
     }

@@ -86,10 +86,13 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
     /// 未载入文件时前缀为空串，原样输出消息（不出现"未载入 · …"这种废话）。
     /// </para>
     /// </summary>
+    /// ⚠️ setter 必须是 **public**：View（文件选择器失败提示等）会直接给它赋值，
+    /// 写成 `private set` → 调用方报 CS0272「set 访问器不可访问」。
+    /// </summary>
     public string StatusText
     {
         get => _statusText;
-        private set
+        set
         {
             var prefix = SourceBrief;
             var text = string.IsNullOrWhiteSpace(value) ? prefix

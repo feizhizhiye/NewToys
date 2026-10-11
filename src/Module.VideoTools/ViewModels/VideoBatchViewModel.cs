@@ -171,12 +171,33 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 
     public bool HasChecked => CheckedCount > 0;
 
+    /// <summary>表头勾选框的三态（v3.16.1）：null = 部分勾选（显示为实心方块）。</summary>
+    public bool? AllCheckedState
+    {
+        get
+        {
+            var total = ItemsRaw.Count();
+            if (total == 0) return false;
+            var c = CheckedCount;
+            return c == 0 ? false : (c >= total ? true : null);
+        }
+    }
+
+    /// <summary>点表头勾选框：已全勾 → 取消；否则 → 全选。</summary>
+    [RelayCommand]
+    private void ToggleAll()
+    {
+        if (HasChecked && CheckedCount >= ItemsRaw.Count()) UncheckAll();
+        else CheckAll();
+    }
+
     /// <summary>行首勾选框点了一下：只刷新计数与摘要，⛔ 不重排列表（重排会把正在勾的那行挪走）。</summary>
     [RelayCommand]
     private void ItemChecked()
     {
         OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(HasChecked));
+        OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：表头三态勾选框跟着走
         UpdateSummaryText();
     }
 
@@ -579,6 +600,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：清队列 / 导入任务后表头三态刷新
         UpdateSummaryText();
         OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(HasChecked));

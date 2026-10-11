@@ -40,8 +40,9 @@ public partial class VideoBatchView : UserControl
         base.OnDataContextChanged(e);
         if (TaskList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
-        // v3.16 §6.4.10：表头 ☑ 的「全选 / 取消选择 / 反选」菜单同理（不同步的话右键点了没反应）。
-        if (HeaderCheck?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
+        // v3.16 §6.4.10：表头勾选框的「全选 / 取消选择 / 反选」菜单同理（不同步的话右键点了没反应）。
+        // v3.16.1：菜单挪到 HeaderCheckHost（透明 Border = 整格热区）上。
+        if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
     }
 
     /// <summary>

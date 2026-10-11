@@ -266,34 +266,33 @@
                         <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
                             <!--
                                 第一列 = 行首勾选框（多选，用来「发送到转码 / 剪切」）。
-                                v3.16 §6.4.10：这个 ☑ 就是**勾选菜单**的入口 —— 右键弹出
-                                全选 / 取消选择 / 反选（工具条上原来那三个按钮已删除）。
-                                ⚠️ 它自己有 ContextMenu，就不会再冒泡到 ColumnGrid 的「列显隐」菜单。
-                                v3.16.1：HorizontalAlignment=Stretch 把**整格**变成右键热区（列宽只有 34，
-                                字符本身太小不好点）；字号提到 15、去掉 list-cell 的 8px 左内边距，让 ☑ 真正居中。
+                                v3.16.1：表头改用**原生 CheckBox**（三态：全勾 ✓ / 部分 ■ / 没勾）——
+                                之前用字符"☑"，字体渲染成一坨深色块，跟行内勾选框风格完全不搭。
+                                点它 = 全选/取消（已全勾则取消）；右键 = 菜单（全选 / 取消选择 / 反选）。
+                                外面套一层透明 Border：整个 34px 列格都是右键热区（列太窄，框本身不好点）。
+                                ⚠️ ContextMenu 挂在 Border 上，code-behind 同步 DataContext 用 HeaderCheckHost。
                             -->
-                            <TextBlock
-                                x:Name="HeaderCheck"
+                            <Border
+                                x:Name="HeaderCheckHost"
                                 Grid.Column="0"
-                                Padding="0"
-                                HorizontalAlignment="Stretch"
-                                VerticalAlignment="Center"
-                                Classes="list-cell"
+                                Background="Transparent"
                                 Cursor="Hand"
-                                FontSize="15"
-                                Foreground="{DynamicResource PrimaryTextBrush}"
+                                IsEnabled="{Binding HasItems}"
                                 IsVisible="{Binding IsPickVisible}"
-                                Text="☑"
-                                TextAlignment="Center"
-                                ToolTip.Tip="右键：全选 / 取消选择 / 反选">
-                                <TextBlock.ContextMenu>
+                                ToolTip.Tip="点 = 全选 / 取消；右键 = 全选 / 取消选择 / 反选">
+                                <CheckBox
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding ToggleAllCommand}"
+                                    IsChecked="{Binding AllCheckedState, Mode=OneWay}" />
+                                <Border.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Command="{Binding CheckAllCommand}" Header="☑ 全选（当前列表）" />
                                         <MenuItem Command="{Binding UncheckAllCommand}" Header="☐ 取消选择" />
                                         <MenuItem Command="{Binding InvertCheckedCommand}" Header="🔄 反选" />
                                     </ContextMenu>
-                                </TextBlock.ContextMenu>
-                            </TextBlock>
+                                </Border.ContextMenu>
+                            </Border>
                             <Button
                                 Grid.Column="1"
                                 Classes="col-header"

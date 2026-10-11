@@ -364,6 +364,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(HasChecked));
+        OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：导入 / 清除 / 重扫后表头三态刷新
     }
 
     private void UpdateHeaders()
@@ -400,6 +401,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
     {
         OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(HasChecked));
+        OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：表头三态勾选框跟着走
         SummaryText = _all.Count == 0
             ? "尚未扫描"
             : $"共 {Videos.Count} / {_all.Count} 个视频 · 合计 {FormatSize(_all.Sum(v => v.SizeBytes))}"
@@ -409,6 +411,28 @@ public partial class VideoListViewModel : ListPageViewModelBase
     /// <summary>行首勾选框被点了一下（只刷新"已勾选几个"，不重排列表 —— 重排会把正在勾的那行挪走）。</summary>
     [RelayCommand]
     private void ItemChecked() => OnItemCheckedChanged();
+
+    /// <summary>
+    /// 表头勾选框的三态（v3.16.1）：null = 部分勾选（显示为实心方块）。
+    /// ⚠️ 行勾选变化 / 列表刷新后要 `OnPropertyChanged(AllCheckedState)`，否则表头不跟着走。
+    /// </summary>
+    public bool? AllCheckedState
+    {
+        get
+        {
+            if (_all.Count == 0) return false;
+            var c = CheckedCount;
+            return c == 0 ? false : (c >= _all.Count ? true : null);
+        }
+    }
+
+    /// <summary>点表头勾选框：已全勾 → 取消；否则 → 全选。</summary>
+    [RelayCommand]
+    private void ToggleAll()
+    {
+        if (CheckedCount >= _all.Count && _all.Count > 0) UncheckAll();
+        else CheckAll();
+    }
 
     /// <summary>☑ 全选（当前列表里显示的全部勾上）。</summary>
     [RelayCommand]

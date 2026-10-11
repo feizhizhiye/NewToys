@@ -71,7 +71,7 @@
               v3.16.1 二次调：Spacing 6、Slider 高 26（22 太扁、0 间距太挤）；右侧时间列加宽到 84 ——
               "00:00:00.000" 12 个字符 @12px 字号 ≈ 78px，52px 会折行，折行后行高忽大忽小更难看。
           -->
-          <StackPanel Grid.Row="1" Margin="0,4,0,0" Spacing="6">
+          <StackPanel Grid.Row="1" Margin="0,4,0,0" Spacing="10">
 
             <Grid ColumnDefinitions="56,*,84">
               <TextBlock Grid.Column="0" Classes="field-label" Text="预览位置" VerticalAlignment="Center"/>
@@ -98,7 +98,7 @@
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding EndSeconds, Mode=TwoWay}"
                       Height="26" Padding="0" TickFrequency="0.5" VerticalAlignment="Center"
-                      ToolTip.Tip="剪辑区间的终点；拖到最左 = 到末尾（勾选「剪辑」才可调）"/>
+                      ToolTip.Tip="剪辑区间的终点；拖到最右 = 到文件末尾（勾选「剪辑」才可调）"/>
               <TextBlock Grid.Column="2" Classes="field-value" HorizontalAlignment="Right"
                          VerticalAlignment="Center" Text="{Binding EditEnd}"/>
             </Grid>

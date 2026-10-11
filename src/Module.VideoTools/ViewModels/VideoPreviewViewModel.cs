@@ -195,6 +195,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
         PreviewImage = null;
         Duration = 0;
         EditOutput = "";
+        EditEnd = "";              // v3.16.1：换文件 → 结束归零，探测到新时长后自动填成"整段末尾"（停最右）
         IsArgsEdited = false;
         OnPropertyChanged(nameof(HasSource));
         RefreshCommand();
@@ -209,6 +210,10 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
         OnPropertyChanged(nameof(HasDuration));
         OnPropertyChanged(nameof(DurationDisplay));
         RefreshStatusPrefix();     // v3.16：探测到时长 → 状态栏前缀里的时长补上
+
+        // v3.16.1：没手填过结束 → 结束滑块**停在最右**（= 整段末尾）。
+        // 以前它和上面两条一样停在 0，三条滑块全挤在最左边，看着像没对齐、也读不出"结束=片尾"这层意思。
+        if (value > 0 && string.IsNullOrWhiteSpace(EditEnd)) EndSeconds = value;
     }
 
     // ==================== 预览（一张大画面 + 三条时间条） ====================
@@ -616,12 +621,12 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
 
     // ==================== 操作 ====================
 
-    /// <summary>↺ 区间重置（开始归零、结束留空 = 到末尾）。</summary>
+    /// <summary>↺ 区间重置（开始归零、结束 = 整段末尾 → 滑块停最右）。</summary>
     [RelayCommand]
     private void ResetRange()
     {
         EditStart = CutTask.FormatTime(0);
-        EditEnd = "";
+        EndSeconds = Duration > 0 ? Duration : 0;   // v3.16.1：整段 = 结束在片尾，滑块停最右（不再留空停最左）
         StatusText = "区间已重置（整段）。";
     }
 

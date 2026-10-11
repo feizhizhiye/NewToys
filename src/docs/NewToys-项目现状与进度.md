@@ -133,7 +133,10 @@
 - [x] **③ 视频预览页状态栏常驻当前视频信息**（需求 §6.4.2）—— `StatusText` 改手写 setter：写入动作消息、读出「🎬 文件名 · 时长 · 完整路径 · 消息」；未载入时不加前缀；换文件 / 探测到时长后 `RefreshStatusPrefix()` 刷新；"已载入"那条消息去掉与前缀重复的冗余文案。
 - [x] **④ 两页详情卡完全一致**（需求 §6.4.1，P1 #6 由此关闭）—— 批量页两 `Expander` 改 `IsVisible="{Binding HasSelection}"` **常显**、标题行补 `CheckBox`（`EditIsCut` / `EditIsTranscode`，**可交互**）；`ApplyTaskKind()` 按勾选组合切任务类型（`VideoTaskStore.Replace` 保队列位置，`_converting` 防递归，两段都不勾 → 强制保留转码）；`TranscodeTask.UseTrim` 新增（`HasTrim = UseTrim || TrimEnd > TrimStart`，兼容老数据），`Save` 里区间以勾选框为准写 `UseTrim`；`FfmpegService.BuildTranscodeArgs` 终点留空时不再拼负的 `-to`；转码段内重复的「剪辑区间」整块删除、`最大高度` 移到同位置，预览页补 `EditMaxHeight` 字段（两页字段集合一致）。
 - [x] **⑤ 表头 ☑ 的勾选菜单**（需求 §6.4.10）—— 两页表头 ☑ 各挂 `ContextMenu`（全选 / 取消选择 / 反选），code-behind `OnDataContextChanged` 同步它的 DataContext（⛔ 弹出树不继承）；视频列表删掉工具条「☑ 全选 / 🔄 反选 / ☐ 清空」；批量页新增行首勾选列（`VideoTaskBase.IsChecked` + `Columns` 首项 `Pick("34")` + `IsPickVisible`，表头/行模板列索引 0~9 → 1~10）。
-- [x] **⑥ 清除列表 / 清除队列**（需求 §6.4.11）—— 视频列表 `ClearListAsync`（清 `_all`/`Videos`/筛选/搜索/选中，二次确认，⛔ 不动磁盘与库）；批量页 `ClearQueueAsync`（`VideoTaskStore.ClearAll()` 清两类 + 落盘，运行中先提示停止，二次确认）；两页工具条各一个按钮。
+- [x] **⑥ 清除列表 / 清除缓存**（需求 §6.4.11）—— 视频列表 `ClearListAsync`（清 `_all`/`Videos`/筛选/搜索/选中，二次确认，⛔ 不动磁盘与库）；批量页 `ClearCacheAsync`（`VideoTaskStore.ClearCache()` 清两类，**⛔ 不落盘**，运行中先提示停止，二次确认）；两页工具条各一个按钮。
+  - **v3.16.1 更名改语义**（用户提）：按钮从「🧹 清除队列」改「**🧹 清除缓存**」—— 只不再显示这些任务，`video-tasks.json` **原样留着**，与旁边「清理已结束」区分开。
+  - **v3.16.1 启动不自动载入**：`VideoTaskStore` 构造**不再 `Load()`**（json 只是缓存 / 备份，不是工作现场），批处理页刚打开就是空白；原来的 `Load` 改成 public `LoadFromFile()` 留着手动调用（需求 §6.4.4）。
+- [x] **⑦ 预览页三条时间条再收紧**（v3.16.1）—— `Spacing 2→0`、每条 `Slider` `Height=22`+`Padding=0`（Fluent 默认留白太大）、组上方外边距 `6→4`，纵向空间还给预览画面。
 - ⚠️ **验收点**：① 点「🗄 导入视频库(.db)」直接弹选择器且定位到默认目录；② 挑一个**非视频库的 .db**（或老库）导入 → 状态栏给出**具体原因**而不是没反应；③ 预览页随便点几个按钮，状态栏始终能看出当前是哪个文件；④ 批量页详情卡勾/取消剪辑、转码 → 任务类型随之变化且不崩；⑤ 表头 ☑ 右键三项都生效；⑥ 清除按钮二次确认后列表/队列清空、文件没删。
 - ⚠️ **全部改动只做了静态自查，尚未跑 `build.ps1`**（编译由用户本地验证）。
 
@@ -196,3 +199,4 @@
 |---|---|---|
 | 2026-10-12 | **v3.15** | **视频工具增强**：设置「导入导出默认目录」（`VideoDbFolder` 全局，覆盖 `.db` 与 `.json` 选择器）；`video_catalog.tags` + 详情卡编辑标签；详情卡内改名同步磁盘/视频库（`RenameToAsync` + `MovePath`，不重扫）；视频列表 +7 列 / 批量 +3 列（列显隐 + `columnlayout.json`）；预览页「📸 取当前帧」；`video-fav` 收藏页（`VideoFavoritesService` + 卡片网格） |
 | 2026-10-12 | **v3.16** | **视频工具六项**：「🗄 导入视频库(.db)」独立成按钮（点即选、定位默认目录）；修「导入 .db 后没反应」（读库回传原因 + 兼容缺列老库 + 补 `modified` 列）；预览页状态栏常驻「🎬 当前文件」；两页详情卡一致（批量页补**可交互**勾选框 → 勾即改任务类型，`UseTrim`，删重复区间输入，两页都带「最大高度」）；表头 ☑ 右键（全选/取消/反选）取代工具条三按钮 + 批量页加勾选列；两页工具条加「🧹 清除列表 / 清除队列」（二次确认） |
+| 2026-10-12 | **v3.16.1** | **体验修正**：表头勾选改**原生 CheckBox 三态**（弃用字符 ☑，点=全选切换、右键=菜单）；行内文字真正垂直居中（`list-cell` 删 `MinHeight`——TextBlock 文本恒绘于框顶，行高基线挪到 `ListBoxItem`）+ `ListBoxItem` 垂直 Stretch；**启动不再自动载入 `video-tasks.json`**（批处理页初次打开是空白，json 定位为缓存/备份）；「清除队列」更名「**清除缓存**」且**不落盘**（json 原样留着）；预览页三条时间条再收紧（Spacing 0、Slider 高 22） |

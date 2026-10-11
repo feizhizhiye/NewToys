@@ -1,0 +1,288 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Microsoft.Data.Sqlite;
+using NewToys.Core.Services;
+using NewToys.VideoTools.Models;
+
+namespace NewToys.VideoTools.Services;
+
+/// <summary>
+/// 视频数据库（目录索引，与 <see cref="VideoMediaIndex"/> 的扫描缓存**不同**）：
+/// 这是用户**主动沉淀**的目录清单，可写、可再读回，落同一个 <c>data\newtoys.db</c> 的 <c>video_catalog</c> 表。
+/// <para>
+/// 字段（需求 §6.4.3）：文件名 / 编码格式 / 时长 / 大小 / 码率 / 文件地址 / 分辨率。
+/// 「💾 加入视频库」只写**列表已有**信息；没读取媒体信息的行对应字段留空（NULL），⛔ 不强行跑 ffprobe。
+/// </para>
+/// <para>读别的库文件（顶部「读取数据库文件」）：<see cref="ReadFile"/> 直接以只读方式打开选中的 <c>.db</c>。</para>
+/// </summary>
+public class VideoCatalogService
+{
+    private const string Table = "video_catalog";
+
+    private readonly SqliteDatabase _db;
+
+    public VideoCatalogService(SqliteDatabase db)
+    {
+        _db = db;
+        _db.EnsureTable(
+            $"CREATE TABLE IF NOT EXISTS {Table} (" +
+            "  path      TEXT PRIMARY KEY," +
+            "  name      TEXT NOT NULL," +
+            "  size      INTEGER," +
+            "  duration  REAL," +
+            "  width     INTEGER," +
+            "  height    INTEGER," +
+            "  codec     TEXT," +
+            "  bit_rate  INTEGER," +
+            "  tags      TEXT" +
+            ");");
+        // v3.16：老库（v3.15 之前建的）可能没有 tags / modified 列 —— 补列，
+        // ⛔ 不做数据回填，读的时候缺什么按默认处理（见 ReadFile 的列探测）。
+        EnsureColumn("tags", "TEXT");
+        EnsureColumn("modified", "INTEGER");
+    }
+
+    /// <summary>
+    /// 给已有表补一列（幂等）：列已存在时 SQLite 报 <c>duplicate column name</c>，直接忽略。
+    /// ⛔ 只加**可空**列（带 NOT NULL + 默认值会让老版本 SQLite 拒绝）。
+    /// </summary>
+    private void EnsureColumn(string column, string type)
+    {
+        if (!IsAvailable) return;
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"ALTER TABLE {Table} ADD COLUMN {column} {type};";
+            cmd.ExecuteNonQuery();
+        }
+        catch { /* 已存在 / 库只读：都不影响使用 */ }
+    }
+
+    /// <summary>数据库可用性（false = 视频库不可用，功能降级但页面照常）。</summary>
+    public bool IsAvailable => _db.IsAvailable;
+
+    /// <summary>数据库文件全路径（页面提示用）。</summary>
+    public string DatabasePath => _db.DatabasePath;
+
+    /// <summary>把一条视频写进视频库（同地址 <c>INSERT OR REPLACE</c>）。⛔ 只写已有信息，未读的字段留空。</summary>
+    public void Upsert(VideoItem item)
+    {
+        if (!IsAvailable || item == null) return;
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                $"INSERT OR REPLACE INTO {Table} (path, name, size, duration, width, height, codec, bit_rate, tags, modified) " +
+                "VALUES ($path, $name, $size, $duration, $width, $height, $codec, $bitRate, $tags, $modified);";
+            cmd.Parameters.AddWithValue("$path", item.FullPath ?? "");
+            cmd.Parameters.AddWithValue("$name", item.Name ?? "");
+            cmd.Parameters.AddWithValue("$size", item.SizeBytes);
+            cmd.Parameters.AddWithValue("$duration", (object?)item.Duration ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$width", (object?)item.Width ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$height", (object?)item.Height ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$codec", item.Codec ?? "");
+            cmd.Parameters.AddWithValue("$bitRate", (object?)item.BitRate ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$tags", item.Tags ?? "");
+            // v3.16：修改时间也存下来 —— 以前读回一整库，列表里的"修改时间"全是导入那一刻，没意义。
+            cmd.Parameters.AddWithValue("$modified", item.Modified == default ? (object?)DBNull.Value : item.Modified.Ticks);
+            cmd.ExecuteNonQuery();
+        }
+        catch
+        {
+            // 落库失败不影响界面（下次还能再写）
+        }
+    }
+
+    /// <summary>v3.15：该路径是否已在视频库里（标签 / 收藏都要求"先入视频库"，见需求 §6.4.6 / §6.4.9）。</summary>
+    public bool HasPath(string path)
+    {
+        if (!IsAvailable || string.IsNullOrWhiteSpace(path)) return false;
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT 1 FROM {Table} WHERE path = $path LIMIT 1;";
+            cmd.Parameters.AddWithValue("$path", path);
+            return cmd.ExecuteScalar() != null;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>v3.15：取某条记录的标签（收藏页卡片直接读它；不在库里 / 出错返回空串）。</summary>
+    public string GetTags(string path)
+    {
+        if (!IsAvailable || string.IsNullOrWhiteSpace(path)) return "";
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT tags FROM {Table} WHERE path = $path LIMIT 1;";
+            cmd.Parameters.AddWithValue("$path", path);
+            var v = cmd.ExecuteScalar();
+            return v is null or DBNull ? "" : (v as string ?? "");
+        }
+        catch { return ""; }
+    }
+
+    /// <summary>v3.15：更新某条记录的标签（逗号分隔）。路径不存在时静默忽略。</summary>
+    public void UpdateTags(string path, string tags)
+    {
+        if (!IsAvailable || string.IsNullOrWhiteSpace(path)) return;
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"UPDATE {Table} SET tags = $tags WHERE path = $path;";
+            cmd.Parameters.AddWithValue("$path", path);
+            cmd.Parameters.AddWithValue("$tags", (tags ?? "").Trim());
+            cmd.ExecuteNonQuery();
+        }
+        catch { /* 标签更新失败不影响界面 */ }
+    }
+
+    /// <summary>v3.15：详情卡内改名后，按旧路径把视频库里的 path / name 同步成新的（不重扫）。</summary>
+    public void MovePath(string oldPath, string newPath, string newName)
+    {
+        if (!IsAvailable || string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath)) return;
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"UPDATE {Table} SET path = $new, name = $name WHERE path = $old;";
+            cmd.Parameters.AddWithValue("$old", oldPath);
+            cmd.Parameters.AddWithValue("$new", newPath);
+            cmd.Parameters.AddWithValue("$name", newName ?? Path.GetFileName(newPath));
+            cmd.ExecuteNonQuery();
+        }
+        catch { /* 同步失败不影响界面 */ }
+    }
+
+    /// <summary>
+    /// 读另一个 <c>.db</c> 文件的 <c>video_catalog</c> 表，返回视频项 + 失败原因（文件可能已不存在，照常显示）。
+    /// <para>
+    /// v3.16：以前读不到就**静默返回空列表**（异常被 <c>catch</c> 吞掉），界面上只表现为"列表没反应"，
+    /// 查不出是"文件挑错了 / 表里没数据 / 老库缺列"。现在按下面三条给**可诊断的原因**：
+    /// ① 文件打不开；② 没有 <c>video_catalog</c> 表；③ 查询报错（含 SQLite 原文）。
+    /// </para>
+    /// <para>
+    /// **兼容旧库**：先用 <c>PRAGMA table_info</c> 拿到实际列名，再按列取值 —— 缺 <c>tags</c> / <c>modified</c>
+    /// 这类后加的列时按默认值读，⛔ 不整表读不出来。
+    /// </para>
+    /// </summary>
+    public CatalogReadResult ReadFile(string dbPath)
+    {
+        var result = new CatalogReadResult();
+        if (!File.Exists(dbPath))
+        {
+            result.Error = "文件不存在：" + dbPath;
+            return result;
+        }
+
+        try
+        {
+            var builder = new SqliteConnectionStringBuilder { DataSource = dbPath, Mode = SqliteOpenMode.ReadOnly };
+            using var conn = new SqliteConnection(builder.ToString());
+            conn.Open();
+
+            if (!TableExists(conn))
+            {
+                // 挑错文件是最常见的原因 —— 直接说清它里面有哪些表，比干说"不是视频库"有用。
+                result.Error = $"「{Path.GetFileName(dbPath)}」里没有 {Table} 表（不是本程序导出的视频库）；"
+                             + "该文件里的表：" + string.Join(" / ", ListTables(conn));
+                return result;
+            }
+
+            var cols = new HashSet<string>(ListColumns(conn), StringComparer.OrdinalIgnoreCase);
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT {string.Join(", ", ColNames.Select(c => cols.Contains(c) ? c : "NULL AS " + c))} FROM {Table};";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var path = NullOrString(reader, 0);
+                var item = new VideoItem
+                {
+                    FullPath = path,
+                    Name = NullOrString(reader, 1) is { Length: > 0 } n
+                        ? n
+                        : (string.IsNullOrEmpty(path) ? "" : Path.GetFileName(path)),
+                    SizeBytes = reader.IsDBNull(2) ? 0 : reader.GetInt64(2),
+                    Extension = string.IsNullOrEmpty(path) ? "" : Path.GetExtension(path).ToLowerInvariant()
+                };
+                if (!reader.IsDBNull(3)) item.Duration = reader.GetDouble(3);
+                if (!reader.IsDBNull(4)) item.Width = reader.GetInt32(4);
+                if (!reader.IsDBNull(5)) item.Height = reader.GetInt32(5);
+                item.Codec = NullOrString(reader, 6);
+                if (!reader.IsDBNull(7)) item.BitRate = reader.GetInt64(7);
+                item.Tags = NullOrString(reader, 8);
+
+                // 修改时间：库里存了就用库里的；没有（老库）就看文件还在不在；都没有才退到"现在"
+                if (!reader.IsDBNull(9)) item.Modified = new DateTime(reader.GetInt64(9));
+                else item.Modified = File.Exists(path) ? File.GetLastWriteTime(path) : DateTime.Now;
+
+                if (item.Width is > 0 || item.Duration is > 0 || !string.IsNullOrWhiteSpace(item.Codec))
+                    item.MediaStatus = $"{item.ResolutionDisplay} · {item.CodecDisplay} · {item.BitRateDisplay} · {item.DurationDisplay}";
+
+                result.Items.Add(item);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Error = "读不了这个 .db：" + ex.Message;
+            result.Items.Clear();
+        }
+        return result;
+    }
+
+    /// <summary>读取时按固定顺序取的列（缺的列用 <c>NULL AS xxx</c> 顶上，保证列序稳定）。</summary>
+    private static readonly string[] ColNames =
+        { "path", "name", "size", "duration", "width", "height", "codec", "bit_rate", "tags", "modified" };
+
+    private static string NullOrString(Microsoft.Data.Sqlite.SqliteDataReader reader, int i)
+        => reader.IsDBNull(i) ? "" : reader.GetString(i);
+
+    private bool TableExists(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '{Table}' LIMIT 1;";
+        return cmd.ExecuteScalar() != null;
+    }
+
+    private static List<string> ListTables(SqliteConnection conn)
+    {
+        var names = new List<string>();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name;";
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) names.Add(r.IsDBNull(0) ? "?" : r.GetString(0));
+        return names.Count == 0 ? new List<string> { "（空）" } : names;
+    }
+
+    private static List<string> ListColumns(SqliteConnection conn)
+    {
+        var names = new List<string>();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"PRAGMA table_info({Table});";
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) names.Add(r.IsDBNull(1) ? "" : r.GetString(1));   // 第 2 列 = 列名
+        return names;
+    }
+}
+
+/// <summary>读外部视频库的结果：<see cref="CatalogReadResult.Items"/> = 记录，<see cref="CatalogReadResult.Error"/> = 失败原因（正常时为 <c>null</c>）。</summary>
+public sealed class CatalogReadResult
+{
+    /// <summary>读到的记录（可能为空：库是空的）。</summary>
+    public List<VideoItem> Items { get; } = new();
+
+    /// <summary>读不出来时的原因（⛔ 不许静默失败：界面必须把它显示出来）。</summary>
+    public string? Error { get; set; }
+
+    /// <summary>是不是"读成功了，但库里一条记录都没有"。</summary>
+    public bool IsEmptyLibrary => Error == null && Items.Count == 0;
+}
+

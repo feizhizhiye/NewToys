@@ -12,7 +12,12 @@ namespace NewToys.VideoTools.Models;
 /// <param name="Height">视频高（像素）。</param>
 /// <param name="Codec">视频编码名（ffprobe 的 <c>codec_name</c>，如 <c>h264</c> / <c>hevc</c>）。</param>
 /// <param name="BitRate">总码率（bit/s，取容器 format 的 bit_rate；容器没写时为 null）。</param>
-public sealed record VideoMediaInfo(double? Duration, int? Width, int? Height, string Codec, long? BitRate);
+/// <param name="Fps">平均帧率（fps，解析自视频流 avg_frame_rate 的 "num/den"）。</param>
+/// <param name="ContainerFormat">容器格式（format.format_name 第一段，如 mp4 / matroska）。</param>
+/// <param name="AudioCodec">音频编码名（音频流 codec_name，无音频流为 null）。</param>
+public sealed record VideoMediaInfo(
+    double? Duration, int? Width, int? Height, string Codec, long? BitRate,
+    double? Fps = null, string? ContainerFormat = null, string? AudioCodec = null);
 
 /// <summary>
 /// 视频库列表的一行（= 磁盘上的一个视频文件）。
@@ -52,6 +57,21 @@ public partial class VideoItem : ObservableObject
     /// <summary>总码率（bit/s）。</summary>
     [ObservableProperty] private long? _bitRate;
 
+    /// <summary>帧率（fps，由 ffprobe 的 avg_frame_rate 解析；未探测为 null）。v3.15 表头列。</summary>
+    [ObservableProperty] private double? _fps;
+
+    /// <summary>容器格式（ffprobe 的 format.format_name 第一段，如 mp4 / matroska）。v3.15 表头列。</summary>
+    [ObservableProperty] private string _containerFormat = "";
+
+    /// <summary>音频编码名（ffprobe 音频流 codec_name）。v3.15 表头列。</summary>
+    [ObservableProperty] private string _audioCodec = "";
+
+    /// <summary>个人标签（逗号分隔，如 收藏,待剪）；落 video_catalog.tags。v3.15。</summary>
+    public string Tags { get; set; } = "";
+
+    /// <summary>文件创建时间（v3.15 表头「创建时间」列；扫描时取，不重扫不丢）。</summary>
+    public DateTime Created { get; set; }
+
     /// <summary>媒体信息的读取状态（给详情栏显示：成功摘要 / 失败原因 / 未读取）。</summary>
     [ObservableProperty] private string _mediaStatus = "未读取媒体信息";
 
@@ -60,6 +80,11 @@ public partial class VideoItem : ObservableObject
     /// 「➡ 发送到转码」/「➡ 发送到剪切」把一批文件一次性变成任务。
     /// </summary>
     [ObservableProperty] private bool _isChecked;
+
+    /// <summary>是否已收藏（v3.15「已收藏」列；真值在 <c>video_favorites</c> 表，这里是界面用的镜像）。</summary>
+    [ObservableProperty] private bool _isFavorite;
+
+    public string FavoriteDisplay => IsFavorite ? "★" : "";
 
     public string Folder => System.IO.Path.GetDirectoryName(FullPath) ?? "";
 
@@ -103,6 +128,17 @@ public partial class VideoItem : ObservableObject
         }
     }
 
+    /// <summary>帧率显示（如 29.97；未探测为 —）。</summary>
+    public string FpsDisplay => Fps is > 0 ? $"{Fps.Value:0.##}" : "—";
+
+    /// <summary>容器格式显示（取 format_name 第一段并转大写，如 MP4 / MKV；未探测为 —）。</summary>
+    public string ContainerDisplay => string.IsNullOrWhiteSpace(ContainerFormat) ? "—" : ContainerFormat.ToUpperInvariant();
+
+    /// <summary>音频编码显示（与视频编码同款友好叫法；未探测为 —）。</summary>
+    public string AudioCodecDisplay => string.IsNullOrWhiteSpace(AudioCodec) ? "—" : FriendlyCodec(AudioCodec);
+
+    public string CreatedDisplay => Created == default ? "—" : Created.ToString("yyyy-MM-dd HH:mm");
+
     // ==================== 缓存用 ====================
 
     /// <summary>用于判断缓存是否过期的修改时间（UTC Ticks）。</summary>
@@ -117,6 +153,9 @@ public partial class VideoItem : ObservableObject
         Height = info.Height;
         Codec = info.Codec ?? "";
         BitRate = info.BitRate;
+        Fps = info.Fps;
+        ContainerFormat = info.ContainerFormat ?? "";
+        AudioCodec = info.AudioCodec ?? "";
         MediaStatus = $"{ResolutionDisplay} · {CodecDisplay} · {BitRateDisplay} · {DurationDisplay}";
     }
 
@@ -126,6 +165,9 @@ public partial class VideoItem : ObservableObject
     partial void OnHeightChanged(int? value) => NotifyDerived();
     partial void OnCodecChanged(string value) => NotifyDerived();
     partial void OnBitRateChanged(long? value) => NotifyDerived();
+    partial void OnFpsChanged(double? value) => NotifyDerived();
+    partial void OnContainerFormatChanged(string value) => NotifyDerived();
+    partial void OnAudioCodecChanged(string value) => NotifyDerived();
 
     private void NotifyDerived()
     {
@@ -134,6 +176,9 @@ public partial class VideoItem : ObservableObject
         OnPropertyChanged(nameof(ResolutionDisplay));
         OnPropertyChanged(nameof(CodecDisplay));
         OnPropertyChanged(nameof(BitRateDisplay));
+        OnPropertyChanged(nameof(FpsDisplay));
+        OnPropertyChanged(nameof(ContainerDisplay));
+        OnPropertyChanged(nameof(AudioCodecDisplay));
     }
 
     /// <summary>

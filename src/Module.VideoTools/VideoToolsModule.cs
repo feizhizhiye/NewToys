@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
+using NewToys.VideoTools.Services;
 using NewToys.VideoTools.ViewModels;
 namespace NewToys.VideoTools;
 public class VideoToolsModule : IModule
@@ -10,14 +11,30 @@ public class VideoToolsModule : IModule
         // 媒体信息缓存（SQLite，库文件在 <应用根>\data\newtoys.db；SqliteDatabase 由 Shell 注册）
         services.AddSingleton<Services.VideoMediaIndex>();
 
+        // 视频数据库（用户主动沉淀的目录索引，表 video_catalog，同库不同表）
+        services.AddSingleton<Services.VideoCatalogService>();
+
         // 剪切 / 转码的**任务清单**（单例）：页面 VM 是瞬态的，任务挂在 VM 上切一次页就没了。
         // 落 config\video-tasks.json（会被「设置 → 数据管理」一起备份）。
         services.AddSingleton<Services.VideoTaskStore>();
 
-        services.AddTransient<Views.VideoListView>();    services.AddTransient<VideoListViewModel>();
+        // v3.15：视频收藏（表 video_favorites，缩略图落 data\thumbs，需求 §6.4.9）
+        services.AddSingleton<Services.VideoFavoritesService>();
+
+        services.AddTransient<Views.VideoListView>();    services.AddTransient<VideoListViewModel>(s =>
+            new VideoListViewModel(
+                s.GetRequiredService<IAppConfigService>(),
+                s.GetRequiredService<IColumnLayoutService>(),
+                s.GetRequiredService<VideoMediaIndex>(),
+                s.GetRequiredService<VideoTaskStore>(),
+                s.GetRequiredService<VideoCatalogService>(),
+                s.GetRequiredService<INavigationService>(),
+                s.GetRequiredService<VideoFavoritesService>()));
         services.AddTransient<Views.VideoPreviewView>(); services.AddTransient<VideoPreviewViewModel>();
         // v3.8：原「格式转码」页改名改造为「批量处理」页（列表 = 剪辑 + 转码混排的统一队列）
         services.AddTransient<Views.VideoBatchView>();  services.AddTransient<VideoBatchViewModel>();
+        // v3.15 §6.4.9：视频收藏页（卡片网格，⛔ 不是列表页）
+        services.AddTransient<Views.VideoFavoritesView>(); services.AddTransient<VideoFavoritesViewModel>();
     }
     public void Initialize(IServiceProvider services)
     {
@@ -33,5 +50,7 @@ public class VideoToolsModule : IModule
         menu.RegisterFunction("video", "video-cut",   "视频预览", "✂",  "VideoPreviewView", 1, "边预览画面边制定单个剪辑 / 转码任务，生成 ffmpeg 命令后发送到批量处理");
         // v3.8：原「格式转码」→「批量处理」（剪辑 + 转码混排的任务队列）
         menu.RegisterFunction("video", "video-batch", "批量处理", "🧺", "VideoBatchView", 2, "剪辑 + 转码混排的任务队列：逐条改参数 / 编辑命令、批量运行");
+        // v3.15 §6.4.9：视频收藏（缩略图卡片网格；只从「视频列表」页「★ 收藏」或预览页「📸 取当前帧」进来）
+        menu.RegisterFunction("video", "video-fav", "视频收藏", "★", "VideoFavoritesView", 3, "收藏夹式卡片网格：缩略图 + 文件名 + 标签；只收已在视频库里的文件");
     }
 }

@@ -1,0 +1,288 @@
+<UserControl
+    x:Class="NewToys.VideoTools.Views.VideoFavoritesView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        v3.15 §6.4.9 视频收藏页：主显示区是 **ItemsControl + WrapPanel 的卡片网格**（⛔ 不是列表页），
+        右侧详情卡与「视频列表」页同一套字段（路径 / 大小 / 修改时间 / 分辨率 / 编码 / 码率 / 时长 / 标签 / 文件名编辑）。
+    -->
+    <Grid Margin="12" ColumnDefinitions="*,Auto">
+
+        <!--  ==================== 左：工具条 + 卡片网格  ====================  -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+
+            <Border Grid.Row="0" Classes="toolbar">
+                <Grid ColumnDefinitions="*,Auto">
+                    <WrapPanel
+                        Grid.Column="0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Command="{Binding RefreshCommand}"
+                            Content="🔄 刷新"
+                            ToolTip.Tip="重新读一遍 video_favorites 表（缩略图 / 标签 / 文件信息都是现读的）" />
+
+                        <Border
+                            Width="1"
+                            Height="20"
+                            Margin="0,0,8,0"
+                            Classes="divider-line" />
+                        <Button
+                            Margin="0,0,4,6"
+                            Classes="primary"
+                            Command="{Binding AddToCatalogCommand}"
+                            Content="💾 加入视频库"
+                            IsEnabled="{Binding HasSelection}"
+                            ToolTip.Tip="把选中项写进 video_catalog（收藏与标签都以视频库为准）" />
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Command="{Binding RemoveFavoriteCommand}"
+                            Content="✕ 取消收藏"
+                            IsEnabled="{Binding HasSelection}"
+                            ToolTip.Tip="从 video_favorites 里删掉，同时删掉它的缩略图文件" />
+
+                        <Border
+                            Width="1"
+                            Height="20"
+                            Margin="0,0,8,0"
+                            Classes="divider-line" />
+                        <Button
+                            Margin="0,0,4,6"
+                            Classes="ghost"
+                            Command="{Binding SendToPreviewCommand}"
+                            Content="✂ 送预览"
+                            IsEnabled="{Binding HasSelection}"
+                            ToolTip.Tip="送进「视频预览」页（在那儿还能点「📸 取当前帧」重抽缩略图）" />
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Command="{Binding SendToTranscodeCommand}"
+                            Content="➡ 送批量"
+                            IsEnabled="{Binding HasSelection}"
+                            ToolTip.Tip="送进「批量处理」页建转码任务" />
+                    </WrapPanel>
+
+                    <Button
+                        Grid.Column="1"
+                        Classes="detail-toggle"
+                        Command="{Binding ToggleDetailCommand}"
+                        ToolTip.Tip="显示 / 隐藏右侧详情">
+                        <Panel>
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                IsVisible="{Binding !IsDetailVisible}"
+                                Text="❯" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                IsVisible="{Binding IsDetailVisible}"
+                                Text="❮" />
+                        </Panel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border
+                Grid.Row="1"
+                Padding="8"
+                Classes="card">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="8">
+                        <TextBlock
+                            Classes="empty-hint"
+                            IsVisible="{Binding !HasCards}"
+                            Text="还没有收藏：在「视频列表」页勾几个文件点「★ 收藏」（必须先「💾 加入视频库」）；缩略图在「视频预览」页点「📸 取当前帧」生成。" />
+
+                        <ItemsControl ItemsSource="{Binding Cards}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <!--
+                                        整张卡就是一个按钮（点一下选中）：ItemsControl 没有 SelectedItem，
+                                        ⛔ 别为此换成 ListBox（本页按需求是「卡片网格」，不是列表页）。
+                                        CommandParameter 传的是 **卡对象本身**（不是字面量），所以 VM 侧收 object? 自己转。
+                                    -->
+                                    <Button
+                                        Margin="0,0,8,8"
+                                        Padding="0"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Command="{Binding $parent[ItemsControl].DataContext.SelectCardCommand}"
+                                        CommandParameter="{Binding}">
+                                        <Border
+                                            Width="180"
+                                            Padding="8"
+                                            Classes="card">
+                                            <StackPanel Spacing="4">
+                                                <Border
+                                                    Height="100"
+                                                    Background="{DynamicResource PanelBrush}"
+                                                    ClipToBounds="True">
+                                                    <Panel>
+                                                        <Image
+                                                            IsVisible="{Binding HasThumb}"
+                                                            Source="{Binding Thumb}"
+                                                            Stretch="UniformToFill" />
+                                                        <TextBlock
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            Classes="hint-text"
+                                                            IsVisible="{Binding !HasThumb}"
+                                                            Text="🎞 无缩略图" />
+                                                    </Panel>
+                                                </Border>
+                                                <TextBlock
+                                                    Classes="field-value"
+                                                    FontWeight="SemiBold"
+                                                    MaxLines="2"
+                                                    Text="{Binding Item.Name}"
+                                                    TextTrimming="CharacterEllipsis"
+                                                    TextWrapping="Wrap" />
+                                                <TextBlock
+                                                    Classes="hint-text"
+                                                    MaxLines="1"
+                                                    Text="{Binding Item.Tags}"
+                                                    TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!--  ==================== 右：详情卡（与「视频列表」页同一套字段）  ====================  -->
+        <Border
+            Grid.Column="1"
+            Classes="detail-card"
+            IsVisible="{Binding IsDetailVisible}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="10">
+
+                    <TextBlock
+                        Classes="empty-hint"
+                        IsVisible="{Binding !HasSelection}"
+                        Text="在左边点一张卡：这里显示完整路径、大小、修改时间，以及分辨率 / 编码 / 码率 / 时长 —— 与「视频列表」页的详情卡同一套。" />
+
+                    <StackPanel IsVisible="{Binding HasSelection}" Spacing="10">
+
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Button
+                                Classes="primary"
+                                Command="{Binding PlayCommand}"
+                                Content="▶ 播放" />
+                            <Button
+                                Classes="ghost"
+                                Command="{Binding RevealInExplorerCommand}"
+                                Content="📂 定位" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Button
+                                Classes="ghost"
+                                Command="{Binding CopyPathCommand}"
+                                Content="📋 路径" />
+                            <Button
+                                Classes="ghost"
+                                Command="{Binding AddToCatalogCommand}"
+                                Content="💾 入库" />
+                        </StackPanel>
+
+                        <!--  §6.4.7 同名同义：文件名可编辑，回车 / 失焦提交  -->
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="文件名（可改 · 回车 / 失焦提交）" />
+                            <TextBox
+                                x:Name="NameBox"
+                                FontSize="12"
+                                Text="{Binding EditName, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <!--  §6.4.6 同名同义：标签可编辑，回车 / 失焦提交（落 video_catalog.tags）  -->
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="标签（逗号分隔 · 回车 / 失焦提交）" />
+                            <TextBox
+                                x:Name="TagsBox"
+                                FontSize="12"
+                                PlaceholderText="如：收藏,待剪"
+                                Text="{Binding EditTags, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="完整路径" />
+                            <SelectableTextBlock Classes="field-value" Text="{Binding Selected.Item.FullPath}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="类型 / 大小" />
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Classes="field-value" Text="{Binding Selected.Item.Extension}" />
+                                <TextBlock Classes="field-value" Text="{Binding Selected.Item.SizeDisplay}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="时长" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.Item.DurationDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="分辨率" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.Item.ResolutionDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="编码格式" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.Item.CodecDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="码率" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.Item.BitRateDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="修改时间" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.Item.ModifiedDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="收藏时间" />
+                            <TextBlock Classes="field-value" Text="{Binding Selected.AddedAtDisplay}" />
+                        </StackPanel>
+
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="媒体信息" />
+                            <TextBlock
+                                Classes="field-value"
+                                Foreground="{DynamicResource SecondaryTextBrush}"
+                                Text="{Binding Selected.Item.MediaStatus}" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Button
+                                Classes="ghost"
+                                Command="{Binding RemoveFavoriteCommand}"
+                                Content="✕ 取消收藏" />
+                            <Button
+                                Classes="ghost"
+                                Command="{Binding SendToPreviewCommand}"
+                                Content="✂ 送预览" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

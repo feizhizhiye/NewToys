@@ -22,9 +22,9 @@ namespace NewToys.Settings.ViewModels;
 /// 也可能把半截路径写进配置。例外是「📂 浏览…」选出来的路径 —— 那是明确的动作，**选完立即生效**。
 /// </para>
 /// <para>
-/// ⚠️ v1.34 **去掉了"视频库默认目录"**：视频库 / 音乐库这类库常常分散在多个文件夹，
-/// 写死一个"默认目录"只会误导；「视频工具 → 视频库」改成每次手动选目录，与设置彻底解绑。
-/// </para>
+    /// ⚠️ v1.34 曾去掉"视频库默认目录"；v3.15 重新引入为**「导入导出默认目录」**（全局，覆盖视频库 .db 与批量任务 .json 的导入/导出对话框定位），
+    /// 不回写扫描目录，不影响"每次手动选目录"的扫描逻辑。
+    /// </para>
 /// </summary>
 public partial class PathViewModel : ListPageViewModelBase
 {
@@ -156,6 +156,12 @@ public partial class PathViewModel : ListPageViewModelBase
             DefaultValue = _cfg.DefaultScriptFolder,
             Description = "「设置与脚本」页引用的 .py / .ps1 / .bat 都放这里；首次运行会把示例脚本复制进去",
             Value = _cfg.ScriptFolder
+        });
+        Items.Add(new PathSettingItem
+        {
+            Key = "VideoDbFolder", Name = "导入导出默认目录", Kind = PathItemKind.Folder,
+            Description = "视频库 .db 与批量任务 .json 的导入/导出对话框打开时直接定位到这里；留空 = 用系统默认",
+            Value = _cfg.VideoDbFolder
         });
         Items.Add(new PathSettingItem
         {
@@ -320,6 +326,7 @@ public partial class PathViewModel : ListPageViewModelBase
                 case "PwshPath": _cfg.PwshPath = v; break;
                 case "PowerShell51Path": _cfg.PowerShell51Path = v; break;
                 case "ScriptFolder": _cfg.ScriptFolder = v; break;
+                case "VideoDbFolder": _cfg.VideoDbFolder = v; break;
                 // DataDir / ConfigDir 是只读展示项，不写
             }
         }

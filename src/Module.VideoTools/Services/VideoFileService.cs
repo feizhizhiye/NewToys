@@ -49,6 +49,39 @@ public static class VideoFileService
     }
 
     /// <summary>
+    /// v3.15：详情卡内**直接改名**（不弹输入框，新名字由调用方给）。校验同 <see cref="RenameAsync"/>，
+    /// 成功返回新完整路径（调用方据此同步内存里的 <c>VideoItem</c> 与视频库 path）。
+    /// </summary>
+    public static async Task<(bool Ok, string Message, string? NewPath)> RenameToAsync(string fullPath, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(fullPath) || !File.Exists(fullPath)) return (false, "文件已不存在。", null);
+
+        var name = (newName ?? "").Trim();
+        if (name.Length == 0) return (false, "新文件名不能为空。", null);
+        if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return (false, "新文件名里有非法字符。", null);
+
+        var currentName = Path.GetFileName(fullPath);
+        if (string.Equals(name, currentName, StringComparison.Ordinal)) return (false, "名字没变。", null);
+
+        var dir = Path.GetDirectoryName(fullPath) ?? "";
+        var target = Path.Combine(dir, name);
+
+        // 防路径穿越：必须还在同一个目录里
+        var full = Path.GetFullPath(target);
+        if (!string.Equals(Path.GetDirectoryName(full), Path.GetFullPath(dir), StringComparison.OrdinalIgnoreCase))
+            return (false, "只能在同一目录内改名。", null);
+
+        if (File.Exists(full)) return (false, $"已存在同名文件：{name}", null);
+
+        try
+        {
+            File.Move(fullPath, full);
+            return (true, $"已重命名为：{name}", full);
+        }
+        catch (Exception ex) { return (false, "重命名失败：" + ex.Message, null); }
+    }
+
+    /// <summary>
     /// 删除视频文件 —— **送进回收站**（不是永久删除），并且必须先过二次确认。
     /// <para>
     /// 用 <c>SHFileOperationW</c>（<c>FO_DELETE | FOF_ALLOWUNDO</c>）而不是 <c>File.Delete</c>：

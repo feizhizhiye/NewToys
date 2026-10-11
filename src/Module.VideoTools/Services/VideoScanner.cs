@@ -170,6 +170,9 @@ public static class VideoScanner
 
             string codec = "";
             int? width = null, height = null;
+            double? fps = null;
+            string? containerFormat = null;
+            string? audioCodec = null;
 
             if (root.TryGetProperty("streams", out var streams)
                 && streams.ValueKind == JsonValueKind.Array && streams.GetArrayLength() > 0)
@@ -178,6 +181,21 @@ public static class VideoScanner
                 codec = GetString(s, "codec_name");
                 width = GetInt(s, "width");
                 height = GetInt(s, "height");
+                fps = ParseFrameRate(GetString(s, "avg_frame_rate"));
+            }
+
+            // 音频流编码（第一个音频流）
+            if (root.TryGetProperty("streams", out var streams2)
+                && streams2.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var st in streams2.EnumerateArray())
+                {
+                    if (GetString(st, "codec_type") == "audio")
+                    {
+                        audioCodec = GetString(st, "codec_name");
+                        break;
+                    }
+                }
             }
 
             double? duration = null;
@@ -187,15 +205,37 @@ public static class VideoScanner
             {
                 duration = GetDouble(fmt, "duration");
                 bitRate = GetLong(fmt, "bit_rate");
+                containerFormat = GetString(fmt, "format_name");
+                if (!string.IsNullOrWhiteSpace(containerFormat))
+                    containerFormat = containerFormat.Split(',')[0];   // "mov,mp4,m4a,…" → "mov"
             }
 
             if (width is null && height is null && duration is null && codec.Length == 0) return null;
-            return new VideoMediaInfo(duration, width, height, codec, bitRate);
+            return new VideoMediaInfo(duration, width, height, codec, bitRate, fps, containerFormat, audioCodec);
         }
         catch
         {
             return null;
         }
+    }
+
+    /// <summary>解析 ffprobe 的 avg_frame_rate（"30000/1001" → 29.97；空 / 非分数 / 除零 → null）。</summary>
+    private static double? ParseFrameRate(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var parts = text.Split('/');
+        try
+        {
+            if (parts.Length == 2)
+            {
+                var num = double.Parse(parts[0], CultureInfo.InvariantCulture);
+                var den = double.Parse(parts[1], CultureInfo.InvariantCulture);
+                return den > 0 ? num / den : null;
+            }
+            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0) return v;
+        }
+        catch { /* 解析失败：当作没有帧率 */ }
+        return null;
     }
 
     private static string GetString(JsonElement obj, string name)

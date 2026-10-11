@@ -5,9 +5,9 @@ namespace NewToys.Shared.Services
         // 注：**主题不属于这里**。明暗模式 / 强调色统一由 IThemeService 管（theme.json），
         // 本服务只管与主题无关的应用配置，避免出现两份"当前是不是深色"的真相。
         //
-        // 注：也**没有"视频库默认目录"**（v1.34 移除）。视频库 / 音乐库这类库可能分散在多个文件夹，
-        // 写死一个"默认目录"只会误导；「视频工具 → 视频库」页改成每次手动选目录（本次会话内记住），
-        // 与设置彻底解绑。
+        // 注：v1.34 曾移除"视频库默认目录"（库常分散在多文件夹，写死默认目录会误导）；
+        // v3.15 重新引入为**全局导入/导出默认目录**（VideoDbFolder）：只用于"导入/导出对话框打开时定位到它"，
+        // 不回写扫描目录、不影响"每次手动选目录"的逻辑。
         string FfmpegPath { get; set; }
 
         /// <summary>
@@ -71,6 +71,18 @@ namespace NewToys.Shared.Services
 
         /// <summary>脚本目录的默认值：<c>&lt;应用根&gt;\scripts</c>（即 config / data 的同级）。</summary>
         string DefaultScriptFolder { get; }
+
+        // ==================== 导入 / 导出默认目录（v3.15，全局） ====================
+        //
+        // ⚠️ 字段名沿用 <c>VideoDbFolder</c> 仅为向后兼容（早期只管视频库 .db）；v3.15 升为**全局导入/导出默认目录**：
+        // 视频库 .db 与批量任务 .json 的导入/导出文件选择器打开时直接定位到它
+        // （StorageProvider.TryGetFolderFromPathAsync + SuggestedStartLocation）。留空 = 用系统默认。
+
+        /// <summary>
+        /// 导入 / 导出默认目录：视频库 <c>.db</c> 与批量任务 <c>.json</c> 的导入/导出文件选择器打开时定位到它。
+        /// 留空 = 用系统默认（系统文档 / 视频目录）。后续新增的导入/导出对话框也应复用它。
+        /// </summary>
+        string VideoDbFolder { get; set; }
 
         void Save();
         void Load();

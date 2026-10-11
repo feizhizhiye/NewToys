@@ -206,6 +206,29 @@
         <Style Selector="Button.ghost:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
+        <!--  视频列表「📂 导入」拆分按钮：沿用 ghost 外观，主钮 + 下拉两半都透明、悬停同卡片色  -->
+        <Style Selector="SplitButton.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+        </Style>
+        <Style Selector="SplitButton.ghost:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+        <Style Selector="SplitButton.ghost /template/ Button#PART_PrimaryButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
+        <Style Selector="SplitButton.ghost /template/ Button#PART_SecondaryButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
+        <Style Selector="SplitButton.ghost:pointerover /template/ Button#PART_PrimaryButton">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
         <!--  v3.12 密度：卡片圆角 8、内边距 14 → 12  -->
         <Style Selector="Border.card">
             <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>

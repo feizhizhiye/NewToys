@@ -78,6 +78,15 @@
     <Setter Property="Margin" Value="8,0,0,0"/>
   </Style>
 
+  <!--  ⑤-b 详情卡里的下拉框（需求 §6.4.1 规则 6）：
+        ① 宽度拉满 → 与同卡里其它控件（TextBox 等）左对齐、同样宽；
+        ② 限制弹出高度 → 长列表不会盖住 / 顶到别处控件（Popup 是浮层，本就不挤布局，这里只做视觉收敛）。
+        ⚠️ 只作用于 detail-card 内的 ComboBox，不影响筛选条等其它下拉。  -->
+  <Style Selector="Border.detail-card ComboBox">
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="MaxDropDownHeight" Value="260"/>
+  </Style>
+
   <!--  ⑥ 分隔线  -->
   <Style Selector="Border.divider-line">
     <Setter Property="Height" Value="1"/>

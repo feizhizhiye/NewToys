@@ -972,25 +972,30 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         StatusText = n == 0 ? "没有已结束的任务可清。" : $"已清掉 {n} 个已结束的任务。";
     }
 
-    /// <summary>🧹 清除队列（v3.16 §6.4.11）：清空**整个任务清单**（含落盘的 <c>video-tasks.json</c>）。</summary>
+    /// <summary>
+    /// 🧹 清除缓存（v3.16.1 更名 + 改语义，需求 §6.4.11）：**只清页面上的这条缓存** ——
+    /// 内存里的队列清空回到空白，⛔ 磁盘上的 `video-tasks.json` **不动**（不删、也不把空队列写回去），
+    /// 想再要回来就点「📥 导入任务」。⛔ 别叫"清除队列"，那是"连备份一起清"的口径。
+    /// </summary>
     [RelayCommand]
-    private async Task ClearQueueAsync()
+    private async Task ClearCacheAsync()
     {
         if (_store == null) { StatusText = "任务服务未就绪。"; return; }
 
         var n = ItemsRaw.Count();
-        if (n == 0) { StatusText = "队列已经是空的。"; return; }
+        if (n == 0) { StatusText = "列表已经是空的。"; return; }
         if (IsRunning) { StatusText = "正在跑任务 —— 先「⏹ 停止」再清除。"; return; }
 
-        var msg = $"清除队列里的全部 {n} 个任务？" + Environment.NewLine
-                + "只清任务清单（含 config\\video-tasks.json）—— ⛔ 不会删除任何已经生成的视频文件。";
+        var msg = $"清除页面上的 {n} 个任务（只是不再显示它们）？" + Environment.NewLine
+                + "⛔ 磁盘上的 video-tasks.json 不会动、已生成的视频文件也不会删 —— 想再要回来点「📥 导入任务」。";
         if (!await NewToys.Core.Services.DialogHooks.ConfirmAsync(msg)) { StatusText = "已取消清除。"; return; }
 
         _runCts?.Cancel();
-        var cleared = _store.ClearAll();
+        var cleared = _store.ClearCache();
         Selected = null;
         RefreshView();
-        StatusText = $"已清除队列（{cleared} 个任务）；已经生成的输出文件没动 —— 点「＋ 添加文件」重新建任务。";
+        StatusText = $"已清除页面缓存（{cleared} 个任务）—— 磁盘上的 video-tasks.json 没动，点「📥 导入任务」可以再读回来；"
+                   + "下次打开程序也不会自动载入它。";
     }
 
     // ==================== 运行 ====================

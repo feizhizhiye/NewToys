@@ -66,14 +66,17 @@
                      VerticalAlignment="Center" IsVisible="{Binding !HasSource}"
                      Text="点「📂 选择视频」挑一个文件；也可以从「视频列表」页多选后点「✂ 视频预览·剪辑」把文件送过来（会自动预览）。"/>
 
-          <!--  三条时间条：预览位置 / 开始 / 结束（始终显示；开始/结束仅在勾选「剪辑」时可操作，未勾选灰显但仍占位）  -->
-          <StackPanel Grid.Row="1" Margin="0,6,0,0" Spacing="2">
+          <!--
+              三条时间条：预览位置 / 开始 / 结束（始终显示；开始/结束仅在勾选「剪辑」时可操作，未勾选灰显但仍占位）
+              v3.16.1 再收紧：Spacing 2→0、每条 Slider 高度压到 22（Fluent 默认留白太大）、组上方外边距 6→4。
+          -->
+          <StackPanel Grid.Row="1" Margin="0,4,0,0" Spacing="0">
 
             <Grid ColumnDefinitions="56,*,52">
               <TextBlock Grid.Column="0" Classes="field-label" Text="预览位置" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding PreviewTime, Mode=TwoWay}"
-                      TickFrequency="0.5" IsSnapToTickEnabled="False" VerticalAlignment="Center"
+                      Height="22" Padding="0" TickFrequency="0.5" IsSnapToTickEnabled="False" VerticalAlignment="Center"
                       ToolTip.Tip="拖动：移动即抽这一帧（拖动中会丢帧，只认最后位置）；点「▶ 播放预览」可自动逐帧播放"/>
               <TextBlock Grid.Column="2" Classes="field-value" HorizontalAlignment="Right"
                          VerticalAlignment="Center" Text="{Binding PreviewTimeDisplay}"/>
@@ -83,7 +86,7 @@
               <TextBlock Grid.Column="0" Classes="field-label" Text="开始" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding StartSeconds, Mode=TwoWay}"
-                      TickFrequency="0.5" VerticalAlignment="Center"
+                      Height="22" Padding="0" TickFrequency="0.5" VerticalAlignment="Center"
                       ToolTip.Tip="剪辑区间的起点（勾选「剪辑」才可调）"/>
               <TextBlock Grid.Column="2" Classes="field-value" HorizontalAlignment="Right"
                          VerticalAlignment="Center" Text="{Binding EditStart}"/>
@@ -93,7 +96,7 @@
               <TextBlock Grid.Column="0" Classes="field-label" Text="结束" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding EndSeconds, Mode=TwoWay}"
-                      TickFrequency="0.5" VerticalAlignment="Center"
+                      Height="22" Padding="0" TickFrequency="0.5" VerticalAlignment="Center"
                       ToolTip.Tip="剪辑区间的终点；拖到最左 = 到末尾（勾选「剪辑」才可调）"/>
               <TextBlock Grid.Column="2" Classes="field-value" HorizontalAlignment="Right"
                          VerticalAlignment="Center" Text="{Binding EditEnd}"/>

@@ -53,7 +53,9 @@ public class VideoTaskStore
     public VideoTaskStore(ConfigStoreService cfg)
     {
         _cfg = cfg;
-        Load();
+        // v3.16.1：⛔ 构造时**不自动载入** video-tasks.json —— 那个 json 只是"缓存 / 备份"，
+        // 批处理列表在程序刚打开时就是空白的（需求 §6.4.4）；要恢复上一次的任务显式点「📥 导入任务」。
+        // ⛔ 偷偷自动恢复会让用户莫名其妙："我明明清空了，怎么一开机又有一堆旧任务"。
     }
 
     public string FilePath => Path.Combine(_cfg.ConfigDir, FileName);
@@ -125,15 +127,17 @@ public class VideoTaskStore
         Save();
     }
 
-    /// <summary>v3.16 §6.4.11：清掉**整个队列**（两类一起清，含落盘的 <c>video-tasks.json</c>）；返回清掉条数。</summary>
-    public int ClearAll()
+    /// <summary>v3.16.1 §6.4.11：清掉**页面上的这条缓存**（两类一起清，⛔ **不落盘**）；返回清掉条数。
+    /// <para>磁盘上的 <c>video-tasks.json</c> 原样留着 —— 那是缓存 / 备份，不是"工作现场"；
+    /// 想再要回来点「📥 导入任务」读它（或 <see cref="LoadFromFile"/> 直接读本应用的那份）。</para>
+    /// </summary>
+    public int ClearCache()
     {
         var n = CutTasks.Count + TranscodeTasks.Count;
         if (n == 0) return 0;
         CutTasks.Clear();
         TranscodeTasks.Clear();
-        Save();
-        return n;
+        return n;                 // ⛔ 故意不 Save()：清的是页面缓存，不是那份备份
     }
 
     /// <summary>清掉已经跑完 / 失败 / 取消的任务（保留还没跑的）。</summary>
@@ -214,30 +218,40 @@ public class VideoTaskStore
         catch { return 0; }
     }
 
-    private void Load()
+    /// <summary>
+    /// 从 <c>video-tasks.json</c> 把任务**读回**当前队列（追加，⛔ 不清空已有）。
+    /// <para>v3.16.1：⛔ **构造时不再自动调它** —— 那个 json 只是缓存，批处理页刚打开时列表是空的；
+    /// 想恢复上一次的任务，由用户显式点「📥 导入任务」（走 <see cref="ImportFromFile"/>，那个是挑任意 json 文件）。</para>
+    /// </summary>
+    /// <returns>读入的条数。</returns>
+    public int LoadFromFile()
     {
+        var n = 0;
         try
         {
-            if (!File.Exists(FilePath)) return;
+            if (!File.Exists(FilePath)) return 0;
             var data = JsonSerializer.Deserialize<TaskFile>(File.ReadAllText(FilePath));
-            if (data == null) return;
+            if (data == null) return 0;
 
             // 磁盘上可能还留着"运行中"的状态（上次是被强杀的）→ 如实标成失败，别假装还在跑
             foreach (var t in data.Cut ?? new List<CutTask>())
             {
                 if (t.Status == VideoTaskStatus.Running) { t.Status = VideoTaskStatus.Failed; t.Message = "上次没有跑完（程序退出）"; }
                 CutTasks.Add(t);
+                n++;
             }
             foreach (var t in data.Transcode ?? new List<TranscodeTask>())
             {
                 if (t.Status == VideoTaskStatus.Running) { t.Status = VideoTaskStatus.Failed; t.Message = "上次没有跑完（程序退出）"; }
                 TranscodeTasks.Add(t);
+                n++;
             }
         }
         catch
         {
-            // 文件损坏：空手启动即可，下次保存会重写
+            // 文件损坏：读不出来就算了，下次保存会重写
         }
+        return n;
     }
 
     private sealed class TaskFile

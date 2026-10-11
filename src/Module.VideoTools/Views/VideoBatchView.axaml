@@ -140,14 +140,14 @@
                             Command="{Binding ClearFinishedCommand}"
                             Content="🧹 清理已结束"
                             IsEnabled="{Binding IsNotBusy}" />
-                        <!--  v3.16 §6.4.11：清除整个队列（≈ 无缓存刷新；与「清理已结束」区分开）  -->
+                        <!--  v3.16.1 §6.4.11：只清页面缓存（⛔ 不叫"清除队列"，不动磁盘上的 json）  -->
                         <Button
                             Margin="0,0,4,4"
                             Classes="ghost"
-                            Command="{Binding ClearQueueCommand}"
-                            Content="🧹 清除队列"
+                            Command="{Binding ClearCacheCommand}"
+                            Content="🧹 清除缓存"
                             IsEnabled="{Binding IsNotBusy}"
-                            ToolTip.Tip="清空整个任务清单（含 config\video-tasks.json），会先二次确认；⛔ 不删除已生成的视频文件" />
+                            ToolTip.Tip="只清页面上的这条列表（不再显示它们）：⛔ 磁盘上的 config\video-tasks.json 不会动，点「📥 导入任务」可以再读回来" />
                         <Border
                             Width="1"
                             Height="18"

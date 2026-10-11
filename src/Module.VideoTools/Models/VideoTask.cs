@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using NewToys.VideoTools.Services;
 
 namespace NewToys.VideoTools.Models;
 
@@ -51,6 +52,13 @@ public abstract partial class VideoTaskBase : ObservableObject
     /// <summary>输出文件全路径（留空 = 在源目录旁边自动命名）。</summary>
     public string OutputPath { get; set; } = "";
 
+    /// <summary>
+    /// 用户在「命令生成」页**手动改写过**的 ffmpeg 参数串（⛔ **不含** ffmpeg.exe，也**不含**输出路径 ——
+    /// 输出由 <see cref="OutputPath"/> 自动补在末尾）。
+    /// <para>非空 ⇒ 批量处理运行时**原样执行**它，不再按任务参数重新拼装（手改不被悄悄覆盖）。</para>
+    /// </summary>
+    [ObservableProperty] private string _rawArgs = "";
+
     [ObservableProperty] private string _status = VideoTaskStatus.Pending;
 
     /// <summary>进度 0~100（ffmpeg 的 -progress 输出解析得到；跑完置 100）。</summary>
@@ -88,6 +96,18 @@ public abstract partial class VideoTaskBase : ObservableObject
 
     /// <summary>状态 + 进度（列表「状态」列显示）。</summary>
     public string StatusDisplay => Status == VideoTaskStatus.Running ? $"{Status} {Progress}%" : Status;
+
+    // ==================== 「批量处理」页的列表列（v3.8） ====================
+    // 两类任务混排在同一个列表里，所以这三列由**模型自己**给（⛔ 不能让 XAML 去调 VM 的静态方法）。
+
+    /// <summary>任务类型名（剪辑 / 转码）。</summary>
+    public virtual string KindDisplay => "任务";
+
+    /// <summary>参数摘要：剪辑看区间，转码看预设。</summary>
+    public virtual string ParamDisplay => "";
+
+    /// <summary>「处理前」列：转码 = 源大小，剪辑 = 源时长。</summary>
+    public virtual string BeforeDisplay => "";
 
     /// <summary>把任务恢复到"等待中"（改了参数后重新跑）。</summary>
     public void Reset()
@@ -182,7 +202,15 @@ public partial class CutTask : VideoTaskBase
     /// <summary>预设名（列表 / 详情卡显示）。</summary>
     public string PresetName => CutPresets.Find(PresetId).Name;
 
-    partial void OnPresetIdChanged(string value) => OnPropertyChanged(nameof(PresetName));
+    public override string KindDisplay => "剪辑";
+    public override string ParamDisplay => RangeDisplay;
+    public override string BeforeDisplay => DurationDisplay;
+
+    partial void OnPresetIdChanged(string value)
+    {
+        OnPropertyChanged(nameof(PresetName));
+        OnPropertyChanged(nameof(ParamDisplay));
+    }
 
     partial void OnStartChanged(double value) => NotifyRange();
     partial void OnEndChanged(double value) => NotifyRange();
@@ -194,6 +222,8 @@ public partial class CutTask : VideoTaskBase
         OnPropertyChanged(nameof(RangeDisplay));
         OnPropertyChanged(nameof(LengthDisplay));
         OnPropertyChanged(nameof(DurationDisplay));
+        OnPropertyChanged(nameof(ParamDisplay));
+        OnPropertyChanged(nameof(BeforeDisplay));
     }
 
     /// <summary>秒 → <c>HH:MM:SS.mmm</c>（ffmpeg 认的时间码格式）。</summary>
@@ -277,7 +307,7 @@ public sealed class TranscodePreset
 /// </summary>
 public partial class TranscodeTask : VideoTaskBase
 {
-    /// <summary>预设 id（<see cref="TranscodePreset.Id"/>）。</summary>
+    /// <summary>预设 id（<see cref="TranscodePreset.Id"/>）—— 决定**编码族**与默认容器。</summary>
     [ObservableProperty] private string _presetId = "h264";
 
     /// <summary>单独改过的 CRF（0 = 用预设的值）。</summary>
@@ -285,6 +315,37 @@ public partial class TranscodeTask : VideoTaskBase
 
     /// <summary>缩放到的最大边（0 = 不改分辨率）。例：720 = 缩到 720p。</summary>
     [ObservableProperty] private int _maxHeight;
+
+    // ==================== v3.10 补足：格式 / 编码器(CPU·GPU) / 分辨率 / 码率 ====================
+
+    /// <summary>
+    /// 是否用 **GPU 编码器**（`h264_nvenc` / `hevc_nvenc` / `av1_nvenc`）。
+    /// <para>⚠️ 机器没有对应显卡时 ffmpeg 会直接报错 —— 如实显示错误即可，⛔ 不做"悄悄回退"。</para>
+    /// </summary>
+    [ObservableProperty] private bool _useGpuEncoder;
+
+    /// <summary>输出容器扩展名（带点）。ffmpeg 靠输出文件扩展名判断容器，所以它同时决定默认输出名后缀。</summary>
+    [ObservableProperty] private string _container = ".mp4";
+
+    /// <summary>缩放到的**宽**（像素）；0 = 不约束宽（配合 <see cref="TargetHeight"/> 按比例算）。</summary>
+    [ObservableProperty] private int _targetWidth;
+
+    /// <summary>缩放到的**高**（像素）；0 = 不约束高。</summary>
+    [ObservableProperty] private int _targetHeight;
+
+    /// <summary>
+    /// 码率模式：<c>crf</c> = 恒定质量（<see cref="Crf"/>）；<c>bitrate</c> = 目标码率（<see cref="TargetBitrate"/>）。
+    /// </summary>
+    [ObservableProperty] private string _bitrateMode = "crf";
+
+    /// <summary>目标码率文本（如 <c>5000k</c> / <c>5M</c>）；仅 <c>bitrate</c> 模式生效。</summary>
+    [ObservableProperty] private string _targetBitrate = "";
+
+    /// <summary>**既剪辑又转码**时的起点（秒）；<see cref="HasTrim"/> 为真才生效。</summary>
+    [ObservableProperty] private double _trimStart;
+
+    /// <summary>**既剪辑又转码**时的终点（秒）；0 = 到末尾。</summary>
+    [ObservableProperty] private double _trimEnd;
 
     // ==================== 转码前（源） ====================
 
@@ -306,6 +367,41 @@ public partial class TranscodeTask : VideoTaskBase
     public string PresetName => Preset.Name;
 
     public string SourceSizeDisplay => FormatSize(SourceSize);
+
+    // ==================== v3.10：参数摘要（详情卡 / 批量列表显示） ====================
+
+    /// <summary>是否带"剪辑区间"（既剪辑又转码的任务）。终点 0 = 到末尾。</summary>
+    public bool HasTrim => TrimEnd > TrimStart;
+
+    /// <summary>区间文本（<c>00:01:02.000 → 00:01:30.000</c>）；没设返回空串。</summary>
+    public string TrimDisplay => HasTrim
+        ? $"{CutTask.FormatTime(TrimStart)} → {(TrimEnd > 0 ? CutTask.FormatTime(TrimEnd) : "末尾")}"
+        : "";
+
+    /// <summary>实际会用的视频编码器名（CPU / GPU 由 <see cref="UseGpuEncoder"/> 决定）。</summary>
+    public string EncoderDisplay => FfmpegService.ResolveEncoder(Preset.VideoCodec, UseGpuEncoder);
+
+    /// <summary>容器（格式）显示文本。</summary>
+    public string ContainerDisplay => string.IsNullOrWhiteSpace(Container) ? Preset.Extension : Container;
+
+    /// <summary>分辨率设置显示；两个都为 0 = 保持原分辨率。</summary>
+    public string ResolutionDisplay =>
+        TargetWidth > 0 && TargetHeight > 0 ? $"{TargetWidth}×{TargetHeight}"
+      : TargetHeight > 0 ? $"自适应 × 高 {TargetHeight}"
+      : TargetWidth > 0 ? $"宽 {TargetWidth} × 自适应"
+      : (MaxHeight > 0 ? $"限高 {MaxHeight}p" : "原分辨率");
+
+    /// <summary>码率设置显示。</summary>
+    public string RateDisplay
+    {
+        get
+        {
+            if (string.Equals(BitrateMode, "bitrate", StringComparison.OrdinalIgnoreCase))
+                return string.IsNullOrWhiteSpace(TargetBitrate) ? "—" : "目标 " + TargetBitrate;
+            var crf = Crf > 0 ? Crf : Preset.Crf;
+            return crf > 0 ? $"CRF {crf}" : "—";
+        }
+    }
 
     public string SourceDurationDisplay => SourceDuration > 0 ? CutTask.FormatTime(SourceDuration) : "—";
 
@@ -329,10 +425,15 @@ public partial class TranscodeTask : VideoTaskBase
 
     public bool HasResult => OutputSize > 0;
 
+    public override string KindDisplay => HasTrim ? "剪辑+转码" : "转码";
+    public override string ParamDisplay => HasTrim ? TrimDisplay + " · " + PresetName : PresetName;
+    public override string BeforeDisplay => SourceSizeDisplay;
+
     partial void OnPresetIdChanged(string value)
     {
         OnPropertyChanged(nameof(Preset));
         OnPropertyChanged(nameof(PresetName));
+        OnPropertyChanged(nameof(ParamDisplay));
     }
 
     partial void OnSourceSizeChanged(long value) => OnPropertyChanged(nameof(SavingDisplay));

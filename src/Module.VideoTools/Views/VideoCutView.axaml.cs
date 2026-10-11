@@ -6,29 +6,32 @@ using NewToys.VideoTools.ViewModels;
 
 namespace NewToys.VideoTools.Views;
 
+/// <summary>
+/// 「命令生成」页（v3.10 再设计）：只负责**制定一个**任务（剪辑 / 转码 / 剪辑+转码），
+/// 编好后「➡ 发送到批处理」。列表与批量运行都搬到了「批量处理」页，所以这里没有 ContextMenu 需要同步。
+/// <para>平台文件选择器（源文件 / 输出文件）在这一层调用 —— VM 不引用 Avalonia 的 UI 类型。</para>
+/// </summary>
 public partial class VideoCutView : UserControl
 {
     public VideoCutView()
     {
         InitializeComponent();
         // 选源文件 / 输出文件都要走平台选择器 —— VM 不引用 Avalonia 的 UI 类型，所以在这一层选完交给 VM。
-        PickFileBtn.Click += (_, _) => _ = PickSourceFilesAsync();
+        PickFileBtn.Click += (_, _) => _ = PickSourceFileAsync();
         PickOutputBtn.Click += (_, _) => _ = PickOutputFileAsync();
     }
 
-    /// <summary>
-    /// ⚠️ <c>ContextMenu</c> 挂在**独立的弹出树**上，DataContext 不保证随宿主继承 ——
-    /// 不显式同步的话，菜单项里的 <c>{Binding XxxCommand}</c> 解析不到，右键点了没反应（规范 3.6）。
-    /// </summary>
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (TaskList?.ContextMenu is { } menu) menu.DataContext = DataContext;
-        if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+
+        // 「视频列表」页送过来的文件：进本页时取走并载入编辑器（取一次就清空，重复调安全）
+        if (DataContext is VideoCutViewModel vm)
+            vm.ConsumePending();
     }
 
-    /// <summary>📂 选择视频：可多选，每个文件建一条剪切任务。</summary>
-    private async System.Threading.Tasks.Task PickSourceFilesAsync()
+    /// <summary>📂 选择视频：本页一次只编一个任务，所以单选。</summary>
+    private async System.Threading.Tasks.Task PickSourceFileAsync()
     {
         if (DataContext is not VideoCutViewModel vm) return;
 
@@ -39,8 +42,8 @@ public partial class VideoCutView : UserControl
 
             var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "选择要剪切的视频（可多选）",
-                AllowMultiple = true,
+                Title = "选择视频",
+                AllowMultiple = false,
                 FileTypeFilter = new[]
                 {
                     new FilePickerFileType("视频文件")
@@ -53,14 +56,11 @@ public partial class VideoCutView : UserControl
             });
 
             // ⚠️ TryGetLocalPath() 返回 string? → 过滤完还要 `p!` 收紧成非空串，否则 CS8604/CS8620
-            var paths = files?.Select(f => f.TryGetLocalPath())
-                              .Where(p => !string.IsNullOrWhiteSpace(p))
-                              .Select(p => p!)
-                              .ToList();
-            if (paths == null || paths.Count == 0) return;
+            var path = files?.Select(f => f.TryGetLocalPath())
+                            .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p));
+            if (string.IsNullOrWhiteSpace(path)) return;
 
-            foreach (var p in paths) vm.AddTaskFor(p);
-            vm.StatusText = $"已加入 {paths.Count} 条剪切任务 —— 选一条点「🎞 抽帧」定区间，再点「▶▶ 批量运行」。";
+            vm.LoadSource(path!);
         }
         catch (Exception ex)
         {
@@ -72,21 +72,20 @@ public partial class VideoCutView : UserControl
     private async System.Threading.Tasks.Task PickOutputFileAsync()
     {
         if (DataContext is not VideoCutViewModel vm) return;
-        if (vm.Selected == null) { vm.StatusText = "先在左侧选中一个任务。"; return; }
+        if (string.IsNullOrWhiteSpace(vm.SourcePath)) { vm.StatusText = "先点「📂 选择视频」挑一个文件。"; return; }
 
         try
         {
             var top = TopLevel.GetTopLevel(this);
             if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
 
-            var dir = System.IO.Path.GetDirectoryName(vm.Selected.SourcePath) ?? "";
-            var suggested = string.IsNullOrWhiteSpace(vm.Selected.OutputPath)
-                ? System.IO.Path.GetFileNameWithoutExtension(vm.Selected.SourcePath) + "_cut.mp4"
-                : System.IO.Path.GetFileName(vm.Selected.OutputPath);
+            var suggested = string.IsNullOrWhiteSpace(vm.EditOutput)
+                ? System.IO.Path.GetFileNameWithoutExtension(vm.SourcePath) + "_cut.mp4"
+                : System.IO.Path.GetFileName(vm.EditOutput);
 
             var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "剪切结果保存到",
+                Title = "输出文件保存到",
                 SuggestedFileName = suggested,
                 DefaultExtension = ".mp4",
                 FileTypeChoices = new[]
@@ -100,7 +99,7 @@ public partial class VideoCutView : UserControl
             if (!string.IsNullOrWhiteSpace(path))
             {
                 vm.EditOutput = path;
-                vm.StatusText = "已选择输出文件：" + path + "（点「💾 保存」写回任务）";
+                vm.StatusText = "已选择输出文件：" + path;
             }
         }
         catch (Exception ex)

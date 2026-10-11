@@ -65,7 +65,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
     [ObservableProperty] private bool _recursive;
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _isBusy;
-    [ObservableProperty] private string _statusText = "就绪";
+    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private string _summaryText = "尚未扫描";
     [ObservableProperty] private VideoItem? _selected;
 
@@ -366,7 +366,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         StatusText = "已取消全部勾选。";
     }
 
-    /// <summary>➡ 发送到转码：把勾选的文件交给转码页批量生成任务。</summary>
+    /// <summary>➡ 批量处理·转码：把勾选的文件交给「批量处理」页批量生成转码任务（v3.8：原"发送到转码页"）。</summary>
     [RelayCommand]
     private void SendToTranscode()
     {
@@ -375,11 +375,11 @@ public partial class VideoListViewModel : ListPageViewModelBase
 
         if (_store == null) { StatusText = "任务服务未就绪。"; return; }
         _store.EnqueueForTranscode(paths);
-        StatusText = $"已把 {paths.Count} 个文件送去转码页……";
-        _nav?.NavigateTo("video-transcode");
+        StatusText = $"已把 {paths.Count} 个文件送去「批量处理」建转码任务……";
+        _nav?.NavigateTo("video-batch");
     }
 
-    /// <summary>➡ 发送到剪切：把勾选的文件交给剪切页。</summary>
+    /// <summary>✂ 命令生成·剪辑：把勾选的文件送进「命令生成」页的剪辑任务编辑器。</summary>
     [RelayCommand]
     private void SendToCut()
     {
@@ -388,7 +388,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
 
         if (_store == null) { StatusText = "任务服务未就绪。"; return; }
         _store.EnqueueForCut(paths);
-        StatusText = $"已把 {paths.Count} 个文件送去剪切页……";
+        StatusText = $"已把 {paths.Count} 个文件送去「命令生成」页……";
         _nav?.NavigateTo("video-cut");
     }
 

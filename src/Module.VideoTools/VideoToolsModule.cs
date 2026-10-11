@@ -16,16 +16,19 @@ public class VideoToolsModule : IModule
 
         services.AddTransient<Views.VideoListView>();   services.AddTransient<VideoListViewModel>();
         services.AddTransient<Views.VideoCutView>();    services.AddTransient<VideoCutViewModel>();
-        services.AddTransient<Views.TranscodeView>();   services.AddTransient<TranscodeViewModel>();
+        // v3.8：原「格式转码」页改名改造为「批量处理」页（列表 = 剪辑 + 转码混排的统一队列）
+        services.AddTransient<Views.VideoBatchView>();  services.AddTransient<VideoBatchViewModel>();
     }
     public void Initialize(IServiceProvider services)
     {
         var menu = services.GetRequiredService<IMenuService>();
-        menu.RegisterModule("video", "视频工具", "🎬", 40);
+        menu.RegisterModule("video", "视频工具", "IconVideo", 40);
         // 「视频库」→「视频列表」（v1.35）：本页不是"库"（没有默认目录、不做登记），
         // 只是一个"比资源管理器显示更多信息"的查看器，名字照实改。
-        menu.RegisterFunction("video", "video-list",      "视频列表", "📁", "VideoListView", 0, "本地视频查看器：分辨率 / 编码 / 码率 / 时长，可多选发送到转码 / 剪切");
-        menu.RegisterFunction("video", "video-cut",       "视频剪辑", "✂",  "VideoCutView",  1, "关键帧预览定区间，任务可暂存后批量剪切");
-        menu.RegisterFunction("video", "video-transcode", "格式转码", "🔄", "TranscodeView", 2, "批量生成转码任务、单独改参数、前后对比后批量运行");
+        menu.RegisterFunction("video", "video-list",  "视频列表", "📁", "VideoListView",  0, "本地视频查看器：分辨率 / 编码 / 码率 / 时长，可多选发送到批量处理");
+        // v3.8：「视频剪辑」→「命令生成」（去列表，单任务编辑卡，支持剪辑 / 转码两类）
+        menu.RegisterFunction("video", "video-cut",   "命令生成", "✂",  "VideoCutView",   1, "制定单个剪辑 / 转码任务，生成 ffmpeg 命令后发送到批量处理");
+        // v3.8：原「格式转码」→「批量处理」（剪辑 + 转码混排的任务队列）
+        menu.RegisterFunction("video", "video-batch", "批量处理", "🧺", "VideoBatchView", 2, "剪辑 + 转码混排的任务队列：逐条改参数 / 编辑命令、批量运行");
     }
 }

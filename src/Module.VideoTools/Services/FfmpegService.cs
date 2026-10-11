@@ -170,8 +170,12 @@ public static class FfmpegService
 
     // ==================== 命令行拼装 ====================
 
-    /// <summary>拼剪切命令的参数（不含 <c>ffmpeg</c> 本身）。</summary>
-    public static List<string> BuildCutArgs(CutTask task, string output)
+    /// <summary>
+    /// 拼剪切命令的参数（不含 <c>ffmpeg</c> 本身）。
+    /// <para><paramref name="output"/> 传 <c>null</c> → **只拼参数、不追加输出路径**（给"命令预览"用，
+    /// 输出由调用方统一补在末尾，保证"看到的"和"执行的"是同一套）。</para>
+    /// </summary>
+    public static List<string> BuildCutArgs(CutTask task, string? output)
     {
         var args = new List<string> { "-hide_banner", "-loglevel", "error", "-y" };
 
@@ -200,8 +204,14 @@ public static class FfmpegService
             foreach (var a in SplitArgs(extra)) args.Add(a);
         }
 
-        args.Add(output);
+        AppendOutput(args, output);
         return args;
+    }
+
+    /// <summary>输出路径非空才追加（拼"纯参数"时传 null）。</summary>
+    private static void AppendOutput(List<string> args, string? output)
+    {
+        if (!string.IsNullOrWhiteSpace(output)) args.Add(output);
     }
 
     /// <summary>把一行自定义参数拆成参数数组（支持英文双引号包起来的带空格参数）。</summary>
@@ -244,19 +254,65 @@ public static class FfmpegService
         return sb.ToString();
     }
 
-    /// <summary>拼转码命令的参数（不含 <c>ffmpeg</c> 本身）。</summary>
-    public static List<string> BuildTranscodeArgs(TranscodeTask task, string output)
+    /// <summary>常见输出容器（ffmpeg **靠输出文件的扩展名**判断容器，所以它同时决定默认输出名后缀）。</summary>
+    public static IReadOnlyList<string> Containers { get; } = new[] { ".mp4", ".mkv", ".mov", ".webm", ".avi" };
+
+    /// <summary>
+    /// CPU 编码器 → GPU 编码器映射（NVIDIA NVENC 系）。
+    /// <para>映射不上（copy / 纯音频 / 未知编码器）就**保持原样** —— ⛔ 不做"悄悄换一个"，
+    /// 跑不起来就让 ffmpeg 自己报错，页面如实显示。</para>
+    /// </summary>
+    public static string ResolveEncoder(string cpuCodec, bool useGpu)
+    {
+        if (!useGpu) return cpuCodec;
+        return (cpuCodec ?? "") switch
+        {
+            "libx264"   => "h264_nvenc",
+            "libx265"   => "hevc_nvenc",
+            "libsvtav1" => "av1_nvenc",
+            _           => cpuCodec
+        };
+    }
+
+    /// <summary>质量参数名：NVENC 系列是 <c>-cq</c>，其余（x264/x265/svtav1）是 <c>-crf</c>。</summary>
+    private static string QualityArg(string codec)
+        => codec.EndsWith("_nvenc", StringComparison.Ordinal) ? "-cq" : "-crf";
+
+    /// <summary>秒数 → ffmpeg 认的定点文本（不写 ToString() 默认格式，避免文化差异出逗号小数）。</summary>
+    private static string Sec(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+    /// <summary>缩放过滤器：宽 / 高任一为 0 就按另一边等比（-2 保证偶数）。调用方保证至少一个 &gt; 0。</summary>
+    public static string ScaleFilter(int width, int height)
+        => width > 0 && height > 0 ? $"scale={width}:{height}"
+         : height > 0 ? $"scale=-2:{height}"
+         : $"scale={width}:-2";
+
+    /// <summary>拼转码命令的参数（不含 <c>ffmpeg</c> 本身）。支持"既剪辑又转码"（<see cref="TranscodeTask.HasTrim"/>）。</summary>
+    public static List<string> BuildTranscodeArgs(TranscodeTask task, string? output)
     {
         var preset = task.Preset;
-        var args = new List<string> { "-hide_banner", "-loglevel", "error", "-y", "-i", task.SourcePath };
+        var args = new List<string> { "-hide_banner", "-loglevel", "error", "-y" };
 
-        var crf = task.Crf > 0 ? task.Crf : preset.Crf;
+        // ① 区间（"既剪辑又转码"）：-ss 放在 -i **前面** = 关键帧快速定位；-to 是相对时长
+        if (task.HasTrim)
+        {
+            args.AddRange(new[] { "-ss", Sec(task.TrimStart) });
+            args.AddRange(new[] { "-i", task.SourcePath });
+            args.AddRange(new[] { "-to", Sec(task.TrimEnd - task.TrimStart) });
+        }
+        else
+        {
+            args.AddRange(new[] { "-i", task.SourcePath });
+        }
 
-        if (string.Equals(preset.VideoCodec, "copy", StringComparison.OrdinalIgnoreCase))
+        var baseCodec = preset.VideoCodec ?? "";
+        var codec = ResolveEncoder(baseCodec, task.UseGpuEncoder);
+
+        if (string.Equals(baseCodec, "copy", StringComparison.OrdinalIgnoreCase))
         {
             args.AddRange(new[] { "-c", "copy" });
         }
-        else if (preset.VideoCodec.Length == 0)
+        else if (baseCodec.Length == 0)
         {
             // 纯音频（只提取音轨）
             args.AddRange(new[] { "-vn" });
@@ -266,23 +322,34 @@ public static class FfmpegService
         }
         else
         {
-            args.AddRange(new[] { "-c:v", preset.VideoCodec });
-            if (crf > 0)
+            args.AddRange(new[] { "-c:v", codec });
+
+            // ② 码率：目标码率 或 恒定质量
+            if (string.Equals(task.BitrateMode, "bitrate", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(task.TargetBitrate))
             {
-                // libsvtav1 用 -crf；libx264 / libx265 也是 -crf（这里统一）
-                args.AddRange(new[] { "-crf", crf.ToString(CultureInfo.InvariantCulture) });
+                args.AddRange(new[] { "-b:v", task.TargetBitrate.Trim() });
             }
-            if (!string.IsNullOrWhiteSpace(preset.Speed))
+            else
             {
-                args.AddRange(preset.VideoCodec == "libsvtav1"
-                    ? new[] { "-preset", preset.Speed }
-                    : new[] { "-preset", preset.Speed });
+                var quality = task.Crf > 0 ? task.Crf : preset.Crf;
+                if (quality > 0) args.AddRange(new[] { QualityArg(codec), quality.ToString(CultureInfo.InvariantCulture) });
             }
 
-            // 缩放：只约束最大高度，宽度按比例（-2 保证偶数）
-            if (task.MaxHeight > 0)
+            // ③ 速度档：只给 CPU 编码器（nvenc 的 -preset 取值语义不同，不猜）
+            if (!task.UseGpuEncoder && !string.IsNullOrWhiteSpace(preset.Speed))
+            {
+                // libsvtav1 的 -preset 取数字档（如 8），libx264/265 取 veryfast~veryslow；预设里已经按编码器配好
+                args.AddRange(new[] { "-preset", preset.Speed });
+            }
+
+            // ④ 分辨率：优先用显式宽高，没有再看"最大高度"
+            if (task.TargetWidth > 0 || task.TargetHeight > 0)
+                args.AddRange(new[] { "-vf", ScaleFilter(task.TargetWidth, task.TargetHeight) });
+            else if (task.MaxHeight > 0)
                 args.AddRange(new[] { "-vf", $"scale=-2:{task.MaxHeight}" });
 
+            // ⑤ 音频
             if (string.IsNullOrWhiteSpace(preset.AudioCodec))
                 args.AddRange(new[] { "-an" });
             else
@@ -293,8 +360,25 @@ public static class FfmpegService
             }
         }
 
-        args.Add(output);
+        AppendOutput(args, output);
         return args;
+    }
+
+    /// <summary>
+    /// 把 <c>ffmpeg</c> + 参数拼成**一行完整命令行文本**（给界面预览 / 复制用，不执行）。
+    /// 含空格的参数自动加引号；输出路径通常在调用方的参数列表末尾。
+    /// </summary>
+    public static string DescribeCommand(string ffmpeg, IEnumerable<string> args)
+    {
+        var sb = new StringBuilder();
+        sb.Append('"').Append(ffmpeg).Append('"');
+        foreach (var a in args)
+        {
+            sb.Append(' ');
+            if (a.Length > 0 && !a.Contains(' ')) sb.Append(a);
+            else sb.Append('"').Append(a).Append('"');
+        }
+        return sb.ToString();
     }
 
     /// <summary>给"输出路径留空"的任务算一个默认输出名（源目录旁边 + 后缀）。</summary>

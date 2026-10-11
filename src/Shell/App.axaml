@@ -1,6 +1,23 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Shell.App">
+
+    <!--  ==================== v3.2 矢量图标（Geometry） ====================
+          一级菜单图标 + 首页图标。24×24 网格、描边型路径；使用时用 <Path Stroke=... Stretch="Uniform"/>。
+          ⚠️ 需求 §3.2：模块 RegisterModule 的 icon 传的就是这里的键名（不再是 emoji）。  -->
+    <Application.Resources>
+        <!--  首页：房子  -->
+        <StreamGeometry x:Key="IconHome">M3,10 L12,3 L21,10 L21,21 L14,21 L14,15 L10,15 L10,21 L3,21 Z</StreamGeometry>
+        <!--  电脑工具：显示器  -->
+        <StreamGeometry x:Key="IconPc">M3,5 L21,5 L21,17 L3,17 Z M8,21 L16,21 M12,17 L12,21</StreamGeometry>
+        <!--  网络工具：地球  -->
+        <StreamGeometry x:Key="IconWeb">M2,12 A10,10 0 1,1 22,12 A10,10 0 1,1 2,12 Z M2,12 L22,12 M12,2 A6,10 0 0,0 12,22 A6,10 0 0,0 12,2 Z</StreamGeometry>
+        <!--  视频工具：摄像机  -->
+        <StreamGeometry x:Key="IconVideo">M3,6 L15,6 L15,18 L3,18 Z M15,10 L21,7 L21,17 L15,14 Z</StreamGeometry>
+        <!--  系统设置：滑块  -->
+        <StreamGeometry x:Key="IconSettings">M21,4 L14,4 M10,4 L3,4 M21,12 L12,12 M8,12 L3,12 M21,20 L16,20 M12,20 L3,20 M14,2 L14,6 M8,10 L8,14 M16,18 L16,22</StreamGeometry>
+    </Application.Resources>
+
     <Application.Styles>
 
         <!--  ⚠️ 顺序：主题在前、应用样式在后。
@@ -9,39 +26,154 @@
              都要排在它后面 —— 否则将来 FluentTheme 里任何一个同属性 setter 都会顶掉我们的配色。  -->
         <FluentTheme/>
 
-        <!--  复用样式表（工具条 / 状态行 / 详情卡 / 表头 / 筛选条 …）
-              v1.35：把各列表页反复抄写的那段 XAML 收成 Class，页面里只写 Classes="…"；
-              「表头点击区太小」的修复（Button.col-header 撑满整行）也在里面。  -->
+        <!--  复用样式表（工具条 / 状态行 / 详情卡 / 表头 / 筛选条 …）  -->
         <StyleInclude Source="avares://NewToys/Styles/Controls.axaml"/>
 
-        <Style Selector="Button.nav-btn">
+        <!--  ==================== v3.1 仿浏览器外壳 ====================  -->
+
+        <!--  标题栏工具按钮（≡ ◀ ▶ ⟳）：高 32、无边框、图标 18px。
+             ⚠️ v3.4：标题栏底色 = ContentBrush（跟随主题明暗）→ 文字/图标必须用主题色 PrimaryTextBrush，
+                 ⛔ 不要再用 Sider* 系（那是深色侧栏专用，浅底白字会看不见）。  -->
+        <Style Selector="Button.title-btn">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource SiderIconBrush}"/>
-            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-        <Style Selector="Button.nav-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SiderSelectedBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource SiderIconActiveBrush}"/>
+        <Style Selector="Button.title-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
-        <!-- 选中态用 class 切换（而不是 code-behind 写 Background 本地值）：
-             本地值优先级高于样式，写了本地值后 :pointerover 就再也不生效了。
-             ShellView.UpdateSelection() 只负责增删 active class。 -->
-        <!-- 一级菜单选中态：背景用强调色派生（CardSelectedBrush），图标用强调色（AccentBrush），
-             让侧栏也跟随主题强调色；这两个键都是 DynamicResource，换肤时自动更新（无需 code-behind）。 -->
-        <Style Selector="Button.nav-btn.active">
+        <Style Selector="Button.title-btn:disabled">
+            <Setter Property="Opacity" Value="0.35"/>
+        </Style>
+
+        <!--  标签项容器：激活态 = 强调色派生底 + 下方 2px 强调色指示条。
+             ⚠️ v3.4：标签栏在标题栏内（底色 = ContentBrush 跟随主题），文字/底色一律用主题色系。  -->
+        <Style Selector="Border.tab-item">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2,4,2,4"/>
+        </Style>
+        <Style Selector="Border.tab-item:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+        <Style Selector="Border.tab-item.active">
+            <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button.tab-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.tab-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+        <!--  激活标签的文字提亮  -->
+        <Style Selector="Border.tab-item.active Button.tab-btn">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
+
+        <!--  关闭标签按钮：**默认隐藏，鼠标悬停本标签时才出现**（v3.4）。
+             用 Opacity 而不是 IsVisible —— 宽度不变，鼠标扫过时标签不会抖动。  -->
+        <Style Selector="Button.tab-close">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.tab-item:pointerover Button.tab-close">
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="IsHitTestVisible" Value="True"/>
+        </Style>
+        <Style Selector="Button.tab-close:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
+
+        <!--  左树行：一级 = 图标 + **加粗**；行高 32、缩进由子级 ItemsControl 的 Margin 给（每级 16）  -->
+        <Style Selector="Button.tree-row">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.tree-row:pointerover">
+            <Setter Property="Background" Value="{DynamicResource ContentBrush}"/>
+        </Style>
+        <Style Selector="Button.tree-row.active">
             <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
+
+        <!--  二级行（.sub）：常规字重 + 次要色，与一级区分（v3.4）。
+             ⚠️ 定义在 .active 之后，保证二级激活时仍取强调色。  -->
+        <Style Selector="Button.tree-row.sub">
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+        </Style>
+        <Style Selector="Button.tree-row.sub.active">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <!--  一级分组/首页的**矢量图标**颜色（v3.5）。
+             ⚠️ 必须由样式给，不能在 XAML 里写本地值 —— 本地值优先级高于样式，写了 active 就永远不变色。
+             折叠态（48px）时文字被隐藏，只剩这个图标 → 靠它显示"当前在哪个模块"的主题色。  -->
+        <Style Selector="Button.tree-row Path">
+            <Setter Property="Stroke" Value="{DynamicResource SecondaryTextBrush}"/>
+        </Style>
+        <Style Selector="Button.tree-row.active Path">
+            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <!--  左树折叠态（48px）：只留一级图标，隐藏展开指示符 / 标题 / 子级  -->
+        <Style Selector="Border.tree-panel.collapsed TextBlock.tree-glyph">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.tree-panel.collapsed TextBlock.tree-title">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.tree-panel.collapsed ItemsControl.tree-children">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+
+        <!--  窗口控制按钮（标题栏底色 = ContentBrush，配色随主题）  -->
         <Style Selector="Button.win-btn">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TitleBarTextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
         </Style>
         <Style Selector="Button.win-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource TitleBarButtonHoverBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
         <Style Selector="Button.win-btn.close:pointerover">
             <Setter Property="Background" Value="{DynamicResource TitleBarCloseHoverBrush}"/>
@@ -49,6 +181,9 @@
         <Style Selector="Button.win-btn.close:pointerover Path">
             <Setter Property="Stroke" Value="{DynamicResource TitleBarCloseHoverTextBrush}"/>
         </Style>
+
+        <!--  ==================== 通用（沿用） ====================  -->
+
         <Style Selector="Button.primary">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
@@ -71,10 +206,11 @@
         <Style Selector="Button.ghost:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
+        <!--  v3.1 密度基线：卡片圆角 8、内边距 14（由 10/18 收紧）  -->
         <Style Selector="Border.card">
             <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="18"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14"/>
         </Style>
 
         <!--  列表本体（行高 / 悬停 / 选中底色）；表头与单元格的样式见 Styles/Controls.axaml  -->
@@ -105,6 +241,55 @@
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+        </Style>
+
+        <!--  收藏夹页（PcTools）的按钮（v3.9）：透明底 + **强调色描边**；悬停 / 按下变**强调色实心**。
+             ⚠️ 单独做一个 .accent 变体 —— 首页「常用功能」那排按钮用的是**模块底色**（本地 Background，优先级高于样式），
+                直接改基础 .fav-btn 会把首页一起带偏，所以这个变体只给收藏夹页用。  -->
+        <Style Selector="Button.fav-btn.accent">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="Button.fav-btn.accent:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+        </Style>
+        <Style Selector="Button.fav-btn.accent:pressed">
+            <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+        </Style>
+
+        <!--  左树底部版本号（v3.9）：低调一行小字；折叠态整体隐藏。
+             ⚠️ 这是**独立占位值**（ShellViewModel.TreeVersionText），与「设置 → 关于」的版本号无关。  -->
+        <Style Selector="Border.tree-version">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+            <Setter Property="BorderThickness" Value="0,1,0,0"/>
+            <Setter Property="Padding" Value="10,6"/>
+        </Style>
+        <Style Selector="TextBlock.tree-version-text">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+        </Style>
+        <Style Selector="Border.tree-panel.collapsed Border.tree-version">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+
+        <!--  底部状态栏（v3.9）：横贯「内容区 + 详情区」，由 Shell 统一承载（内容来自 IStatusProvider）。  -->
+        <Style Selector="Border.status-bar">
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+            <Setter Property="BorderThickness" Value="0,1,0,0"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Height" Value="26"/>
+        </Style>
+        <Style Selector="TextBlock.status-bar-text">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
         </Style>
     </Application.Styles>
 </Application>

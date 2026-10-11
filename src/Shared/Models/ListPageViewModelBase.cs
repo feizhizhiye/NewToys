@@ -28,7 +28,7 @@ namespace NewToys.Shared.Models;
 /// 为 <c>"Is" + key + "Visible"</c> 发一次通知，所以列键必须与该属性名对得上。
 /// </para>
 /// </summary>
-public abstract partial class ListPageViewModelBase : ObservableObject
+public abstract partial class ListPageViewModelBase : ObservableObject, IStatusProvider
 {
     private readonly IColumnLayoutService? _cols;
 
@@ -41,6 +41,23 @@ public abstract partial class ListPageViewModelBase : ObservableObject
     protected ListPageViewModelBase() { }
 
     protected ListPageViewModelBase(IColumnLayoutService? cols) => _cols = cols;
+
+    // ==================== 底部状态栏（v3.9：提到基类，Shell 统一承载） ====================
+
+    /// <summary>
+    /// 页面状态文本。
+    /// <para>
+    /// ⚠️ v3.9 起**提到基类**：各列表页**不要再自己声明** <c>[ObservableProperty] private string _statusText</c>
+    /// （同名会隐藏基类属性、且事件不会触发）—— 页面里继续正常写 <c>StatusText = "…"</c> 即可。
+    /// </para>
+    /// <para>Shell 的底部状态栏通过 <see cref="IStatusProvider"/> 消费它。</para>
+    /// </summary>
+    [ObservableProperty] private string _statusText = "就绪";
+
+    /// <summary>状态文本变化 → 通知 Shell 刷新底栏。</summary>
+    public event EventHandler? StatusChanged;
+
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 
     // ==================== 派生类必须给出的东西 ====================
 

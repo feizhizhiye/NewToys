@@ -16,54 +16,193 @@ public class ConfigFileEntry
     [JsonIgnore] public string? Content { get; set; }
 }
 
+/// <summary>
+/// 「应用根 → 配置（profile）→ config/data/logs」三级路径的唯一决定者。
+/// <para>
+/// v3.5 起支持**多配置**：<c>&lt;应用根&gt;\profiles\&lt;配置名&gt;\{config,data,logs}</c>；
+/// 当前配置名写在 <c>&lt;应用根&gt;\active-profile.txt</c>（**故意放在 profiles 之外** ——
+/// 否则切换配置时会把自己也换掉）。
+/// </para>
+/// <para>
+/// ⚠️ 全工程的服务都只向本类要路径（<see cref="ConfigDir"/> / <see cref="DataDir"/> /
+/// <see cref="LogsDirectory"/>），所以「换配置」只需改变这里的计算 —— 不必逐个服务改造。
+/// </para>
+/// <para>
+/// 环境变量 <c>NEWTOYS_HOME</c> 可把**整个应用根**换掉（测试 / 便携版），且不做迁移。
+/// </para>
+/// </summary>
 public class ConfigStoreService
 {
-    public string ConfigDir => EnsureDir();
-    public string DataDir
+    private const string ProfilesFolderName = "profiles";
+    private const string ActiveProfileFileName = "active-profile.txt";
+
+    /// <summary>默认配置名（旧结构迁移后就叫它）。</summary>
+    public const string DefaultProfileName = "default";
+
+    private readonly string _appRoot;
+    private readonly string _profileRoot;
+
+    public ConfigStoreService()
+    {
+        _appRoot = ResolveAppRoot();
+        _profileRoot = ResolveProfileRoot(_appRoot);
+    }
+
+    // ==================== 路径 ====================
+
+    /// <summary>应用根（`NEWTOYS_HOME` 可覆盖）；`profiles\` 与 `active-profile.txt` 都在这层。</summary>
+    public string AppRootDirectory => _appRoot;
+
+    /// <summary>所有配置的父目录 <c>&lt;应用根&gt;\profiles</c>。</summary>
+    public string ProfilesRootDirectory
     {
         get
         {
-            var d = Path.Combine(HomeDir, "data");
+            var d = Path.Combine(_appRoot, ProfilesFolderName);
             Directory.CreateDirectory(d);
             return d;
         }
     }
 
-    private string HomeDir
-    {
-        get
-        {
-            // 环境变量 NEWTOYS_HOME 可把「应用根」整体换掉（测试环境 / 便携版 / 只要换数据），
-            // 设了它 config / data / logs 三层一起隔离，且不做任何迁移。
-            var env = Environment.GetEnvironmentVariable("NEWTOYS_HOME");
-            if (!string.IsNullOrEmpty(env)) return env;
-            var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NewToys");
-            Directory.CreateDirectory(root);
-            return root;
-        }
-    }
+    /// <summary>当前生效的配置名（读 `active-profile.txt`；缺失 / 非法 → `default`）。</summary>
+    public string ActiveProfileName => ReadActiveProfileName(_appRoot);
 
-    private string EnsureDir()
+    /// <summary>当前配置的根目录 <c>&lt;应用根&gt;\profiles\&lt;当前配置&gt;</c>。</summary>
+    public string ProfileRootDirectory => _profileRoot;
+
+    /// <summary>旧结构迁移失败时的原因（非 null → 本次退回旧结构运行，仅在「设置 → 配置」提示）。</summary>
+    public string? ProfileMigrationError { get; private set; }
+
+    /// <summary>&lt;配置根&gt;\config —— 应用级配置（app.json / theme.json / launch.json …）。</summary>
+    public string ConfigDir => EnsureDir("config");
+
+    /// <summary>&lt;配置根&gt;\data —— 可重建的缓存（`newtoys.db` 等），不进备份。</summary>
+    public string DataDir => EnsureDir("data");
+
+    /// <summary>&lt;配置根&gt;\logs —— 崩溃日志等。</summary>
+    public string LogsDirectory => EnsureDir("logs");
+
+    private string EnsureDir(string name)
     {
-        // <应用根>\config —— 应用级配置（app.json / theme.json / launch.json …）
-        var d = Path.Combine(HomeDir, "config");
+        var d = Path.Combine(_profileRoot, name);
         Directory.CreateDirectory(d);
         return d;
     }
 
-    /// <summary>应用根目录（NEWTOYS_HOME 可覆盖）。</summary>
-    public string AppRootDirectory => HomeDir;
+    // ==================== 配置管理（供 IProfileService 用） ====================
 
-    /// <summary>日志目录 <c>&lt;应用根&gt;\logs</c>。</summary>
-    public string LogsDirectory
+    /// <summary>列出全部配置名（`profiles\` 下的目录名）。</summary>
+    public List<string> ListProfiles()
     {
-        get
-        {
-            var d = Path.Combine(HomeDir, "logs");
-            Directory.CreateDirectory(d);
-            return d;
-        }
+        var root = Path.Combine(_appRoot, ProfilesFolderName);
+        var list = new List<string>();
+        if (Directory.Exists(root))
+            foreach (var d in new DirectoryInfo(root).GetDirectories())
+                if (!d.Name.StartsWith('.')) list.Add(d.Name);
+        if (list.Count == 0) list.Add(ActiveProfileName);
+        list.Sort(StringComparer.OrdinalIgnoreCase);
+        return list;
     }
+
+    /// <summary>把当前配置指向 <paramref name="name"/>（**只写指针文件**，不重启、不迁移）。</summary>
+    public void SetActiveProfile(string name)
+    {
+        if (!IsValidProfileName(name)) throw new ArgumentException("非法的配置名", nameof(name));
+        Directory.CreateDirectory(Path.Combine(_appRoot, ProfilesFolderName, name));
+        File.WriteAllText(Path.Combine(_appRoot, ActiveProfileFileName), name);
+    }
+
+    /// <summary>某个配置的根目录（不依赖“当前”）。</summary>
+    public string GetProfileDirectory(string name)
+        => Path.Combine(_appRoot, ProfilesFolderName, name);
+
+    /// <summary>
+    /// 配置名合法性：非空、非 `.`/`..`、不含路径非法字符。
+    /// ⚠️ 这是**防路径穿越**的第一道闸（`profiles\..\..` 这种名字必须被挡住）。
+    /// </summary>
+    public static bool IsValidProfileName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        var t = name.Trim();
+        if (t == "." || t == "..") return false;
+        if (t != name) return false;                       // 首尾空格直接判非法，避免出现两个"看起来一样"的配置
+        if (t.Contains('\\') || t.Contains('/')) return false;
+        foreach (var c in Path.GetInvalidFileNameChars())
+            if (t.IndexOf(c) >= 0) return false;
+        return true;
+    }
+
+    // ==================== 内部：根目录 / 配置目录 / 迁移 ====================
+
+    private static string ResolveAppRoot()
+    {
+        // 环境变量 NEWTOYS_HOME 可把「应用根」整体换掉（测试环境 / 便携版 / 只要换数据）。
+        var env = Environment.GetEnvironmentVariable("NEWTOYS_HOME");
+        if (!string.IsNullOrEmpty(env)) return env;
+
+        var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NewToys");
+        Directory.CreateDirectory(root);
+        return root;
+    }
+
+    /// <summary>
+    /// 决定本次用哪个配置目录；并在**首次升级**那一次，把旧的
+    /// <c>&lt;应用根&gt;\config|data|logs</c> 整体搬进 <c>profiles\default\</c>。
+    /// <para>
+    /// ⚠️ 迁移失败**绝不删数据**：退回旧结构继续跑，并在「设置 → 配置」提示；
+    /// 且**不创建 `profiles\` 目录**，以便下次启动重试（自愈）。
+    /// </para>
+    /// </summary>
+    private string ResolveProfileRoot(string appRoot)
+    {
+        var profilesRoot = Path.Combine(appRoot, ProfilesFolderName);
+        var legacyConfig = Path.Combine(appRoot, "config");
+
+        if (!Directory.Exists(profilesRoot) && Directory.Exists(legacyConfig))
+        {
+            try
+            {
+                var target = Path.Combine(profilesRoot, DefaultProfileName);
+                Directory.CreateDirectory(target);
+                foreach (var sub in new[] { "config", "data", "logs" })
+                {
+                    var src = Path.Combine(appRoot, sub);
+                    if (!Directory.Exists(src)) continue;
+                    var dst = Path.Combine(target, sub);
+                    if (Directory.Exists(dst)) continue;   // 目标已有 → 不覆盖
+                    Directory.Move(src, dst);              // 同盘 rename，秒级
+                }
+                File.WriteAllText(Path.Combine(appRoot, ActiveProfileFileName), DefaultProfileName);
+            }
+            catch (Exception ex)
+            {
+                ProfileMigrationError = ex.Message;
+                return appRoot;                            // 退回旧结构（config/data/logs 就在应用根下）
+            }
+        }
+
+        var name = ReadActiveProfileName(appRoot);
+        var dir = Path.Combine(profilesRoot, name);
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
+    private static string ReadActiveProfileName(string appRoot)
+    {
+        try
+        {
+            var f = Path.Combine(appRoot, ActiveProfileFileName);
+            if (File.Exists(f))
+            {
+                var name = File.ReadAllText(f).Trim();
+                if (IsValidProfileName(name)) return name;
+            }
+        }
+        catch { /* 读不到就用默认 */ }
+        return DefaultProfileName;
+    }
+
+    // ==================== 备份 / 导入（沿用 v1.x） ====================
 
     public List<ConfigFileEntry> ListConfigFiles()
     {

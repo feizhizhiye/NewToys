@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using Avalonia.Controls;      // ← TryFindResource 是这里的扩展方法（挂在 IResourceHost 上）
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
@@ -51,7 +53,7 @@ public partial class AllFunctionsViewModel : ViewModelBase
         Groups.Clear();
         foreach (var g in _menu.Groups)
         {
-            var fg = new FunctionGroup(g.Title, g.Icon);
+            var fg = new FunctionGroup(g.Title, g.Icon) { IconGeometry = ResolveIcon(g.Icon) };
             foreach (var it in g.Items)
             {
                 fg.Items.Add(new FunctionItem(it, _fav.Contains(it.Key)));
@@ -87,11 +89,16 @@ public partial class AllFunctionsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>模块分组（图标 + 名称 + 若干功能项）。</summary>
+    /// <summary>
+    /// 模块分组（图标 + 名称 + 若干功能项）。
+    /// <para>v3.2：一级分组图标改为矢量几何键，这里解析成 <see cref="Geometry"/>；取不到则回退文本。</para>
+    /// </summary>
     public class FunctionGroup
     {
         public string Title { get; }
         public string Icon { get; }
+        public Geometry? IconGeometry { get; init; }
+        public bool HasVectorIcon => IconGeometry != null;
         public ObservableCollection<FunctionItem> Items { get; }
 
         public FunctionGroup(string title, string icon)
@@ -100,5 +107,22 @@ public partial class AllFunctionsViewModel : ViewModelBase
             Icon = icon;
             Items = new ObservableCollection<FunctionItem>();
         }
+    }
+
+    /// <summary>
+    /// 把菜单里的图标键解析成 Geometry（v3.2）；取不到（旧 emoji / 未知键）返回 null。
+    /// <para>⚠️ Avalonia 12 的 <c>TryFindResource</c> 是 Try 模式（<c>out</c> 参数），不是直接返回。</para>
+    /// </summary>
+    private static Geometry? ResolveIcon(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        try
+        {
+            var app = Avalonia.Application.Current;
+            if (app != null && app.TryFindResource(key, out var value) && value is Geometry g)
+                return g;
+        }
+        catch { }
+        return null;
     }
 }

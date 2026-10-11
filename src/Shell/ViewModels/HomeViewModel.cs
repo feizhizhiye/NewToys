@@ -58,11 +58,9 @@ public partial class HomeViewModel : ViewModelBase
         NavigateCommand = new RelayCommand<string?>(k =>
         {
             if (string.IsNullOrEmpty(k)) return;
+            // v3.1：导航统一走标签页（打开或激活对应 key 的标签）。
             var shell = sp.GetRequiredService<ShellViewModel>();
-            var item = menu.FindItem(k);
-            if (item == null) return;
-            shell.SelectGroupCommand.Execute(item.GroupKey);
-            shell.SelectItemCommand.Execute(k);
+            shell.OpenTabCommand.Execute(k);
         });
         // 右键「✕ 取消固定」：与「电脑工具 → 收藏夹」按钮墙同一个操作逻辑
         // （收藏 = IFavoritesService 单一真相源，取消后首页与功能清单页同时更新）。

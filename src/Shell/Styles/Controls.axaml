@@ -17,7 +17,7 @@
   <!--  ① 工具条：列表页顶部那条（背景 + 底部分隔线 + 内边距），页面里套 WrapPanel 即可  -->
   <Style Selector="Border.toolbar">
     <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
-    <Setter Property="Padding" Value="24,10"/>
+    <Setter Property="Padding" Value="16,8"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
   </Style>
@@ -66,11 +66,12 @@
     <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
   </Style>
 
-  <!--  ⑤ 右侧详情卡（宽度 / 外边距 / 圆角统一；收起时整列不占位）  -->
+  <!--  ⑤ 右侧详情卡（宽度 / 外边距 / 圆角统一；收起时整列不占位）
+       v3.1 密度基线：圆角 10→8、内边距 16→14  -->
   <Style Selector="Border.detail-card">
     <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-    <Setter Property="CornerRadius" Value="10"/>
-    <Setter Property="Padding" Value="16"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="14"/>
     <Setter Property="Width" Value="340"/>
     <Setter Property="Margin" Value="12,0,0,0"/>
   </Style>
@@ -194,9 +195,11 @@
     <Setter Property="Height" Value="36"/>
   </Style>
 
-  <!--  ⑪ 表格单元格：默认次要色；加 .primary / .accent 切换字的颜色  -->
+  <!--  ⑪ 表格单元格：默认次要色；加 .primary / .accent 切换字的颜色。
+       v3.1 密度基线：行高统一 32（MinHeight + 垂直居中）。  -->
   <Style Selector="TextBlock.list-cell">
-    <Setter Property="Padding" Value="12,9"/>
+    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="MinHeight" Value="32"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -219,7 +222,7 @@
     <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
-    <Setter Property="Padding" Value="24,6"/>
+    <Setter Property="Padding" Value="16,6"/>
   </Style>
   <Style Selector="ComboBox.filter-combo">
     <Setter Property="FontSize" Value="12"/>

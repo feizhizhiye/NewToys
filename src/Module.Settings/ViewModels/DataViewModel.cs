@@ -5,11 +5,15 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace NewToys.Settings.ViewModels;
 
-public partial class DataViewModel : ObservableObject
+public partial class DataViewModel : ObservableObject, NewToys.Shared.Services.IStatusProvider
 {
     public ObservableCollection<ConfigFileDisplay> ConfigFiles { get; } = new();
 
     [ObservableProperty] private string _statusText = "就绪";
+
+    // v3.9：接入 Shell 底部状态栏契约（状态文本由 Shell 统一显示）
+    public event EventHandler? StatusChanged;
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
     [ObservableProperty] private string _lastBackupPath = "";
     [ObservableProperty] private bool _isBusy;
 

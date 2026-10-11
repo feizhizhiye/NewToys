@@ -3,13 +3,15 @@
              xmlns:v="using:NewToys.WebTools.Views"
              xmlns:conv="using:Avalonia.Data.Converters"
              x:Class="NewToys.WebTools.Views.ScrapeView">
-  <Grid RowDefinitions="Auto,Auto,Auto,*">
+  <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
+        详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
+  <Grid ColumnDefinitions="*,Auto" Margin="16">
 
-    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="10">
-      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="560"
-                 Foreground="{DynamicResource AccentBrush}"/>
-    </StackPanel>
+    <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
+    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
+
+    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
+         Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
 
     <Border Grid.Row="1" Classes="toolbar">
       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -66,9 +68,8 @@
       </WrapPanel>
     </Border>
 
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="16">
-
-      <Border Grid.Column="0" Classes="card" Padding="0">
+      <!--  ==================== 列表本体  ====================  -->
+      <Border Grid.Row="3" Classes="card" Padding="0">
         <Grid RowDefinitions="Auto,*">
           <Border Grid.Row="0" Classes="list-header">
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
@@ -140,9 +141,10 @@
         </Grid>
       </Border>
 
-      <!-- 右：详情（配置 + 输出） -->
-      <!-- 这一页详情卡更宽（要放规则 / 脚本），所以只覆盖 Width，其余沿用 detail-card -->
-      <Border Grid.Column="1" Classes="detail-card" Width="420"
+    </Grid>
+
+    <!--  右：详情（配置 + 输出）；这一页更宽（要放规则 / 脚本），只覆盖 Width，其余沿用共享样式  -->
+    <Border Grid.Column="1" Classes="detail-card" Width="420"
               IsVisible="{Binding IsDetailVisible}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Spacing="10">
@@ -193,6 +195,5 @@
           </StackPanel>
         </ScrollViewer>
       </Border>
-    </Grid>
   </Grid>
 </UserControl>

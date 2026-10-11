@@ -3,12 +3,8 @@
              x:Class="NewToys.PcTools.Views.FavoritesView">
   <Grid RowDefinitions="Auto,Auto,*">
 
-    <!-- 操作行（右对齐、无背景条）：页名由左侧二级菜单体现，这里只放状态文字。 -->
-    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="10">
-      <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="460"
-                 Foreground="{DynamicResource AccentBrush}"/>
-    </StackPanel>
+    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
+         Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
 
     <!-- 说明条 + 入口 -->
     <Border Grid.Row="1" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
@@ -39,9 +35,8 @@
             <DataTemplate>
               <!-- 只要名称、点了就跑；右键 = 「运行 / 取消固定」（菜单在 code-behind 现场构造，
                    弹出树取不到父级 DataContext，见规范 3.6）。 -->
-              <Button Classes="ghost"
+              <Button Classes="fav-btn accent"
                       Content="{Binding Title}"
-                      FontSize="13" Padding="16,9" Margin="6"
                       Command="{Binding $parent[UserControl].DataContext.RunCommand}"
                       CommandParameter="{Binding}"
                       IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"

@@ -4,9 +4,7 @@
   <Grid RowDefinitions="Auto,*">
     <!-- 操作行：状态提示右对齐；页名由左侧二级菜单体现，内容区不再重复标题页头。
          ⚠️ 本页**除「添加源」表单外全是开关/下拉 + 即时执行的按钮**，点一下就写系统 winget 或 config\package.json（规范 3.7）。 -->
-    <TextBlock Grid.Row="0" Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
-               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="24,16,24,0" MaxWidth="520"
-               Foreground="{DynamicResource AccentBrush}"/>
+    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。 -->
 
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
       <StackPanel Spacing="16" MaxWidth="1000" HorizontalAlignment="Left">

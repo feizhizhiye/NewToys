@@ -33,7 +33,7 @@ namespace NewToys.Settings.ViewModels;
 /// <b>全部即时生效、无保存按钮</b>（规范 3.7）：勾一下开关 / 点一下按钮就执行，状态行立刻反馈。
 /// </para>
 /// </summary>
-public partial class PackageSourceViewModel : ObservableObject
+public partial class PackageSourceViewModel : ObservableObject, IStatusProvider
 {
     private readonly IPackageManagerService? _pkg;
     private readonly IPackageSettingsService? _settings;
@@ -50,6 +50,10 @@ public partial class PackageSourceViewModel : ObservableObject
     [ObservableProperty] private PackageSourceOption? _defaultSourceOption;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _statusText = "正在读取系统 winget 的源……";
+
+    // v3.9：接入 Shell 底部状态栏契约（状态文本由 Shell 统一显示）
+    public event EventHandler? StatusChanged;
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 
     /// <summary>给界面用的反向属性（<c>{Binding IsEnabled}</c> 绑它，Avalonia 的 <c>!</c> 前缀在模板里不好用）。</summary>
     public bool IsNotBusy => !IsBusy;

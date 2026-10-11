@@ -20,7 +20,7 @@ namespace NewToys.Settings.ViewModels;
 /// 托盘 / 最小化这类**要下一次启动才看得到**的，也在界面上标注清楚。
 /// </para>
 /// </summary>
-public partial class GeneralViewModel : ObservableObject
+public partial class GeneralViewModel : ObservableObject, IStatusProvider
 {
     private readonly ILaunchConfigService? _launch;
     private readonly IAppConfigService? _app;
@@ -39,6 +39,10 @@ public partial class GeneralViewModel : ObservableObject
     [ObservableProperty] private string _updateUrl = "";
 
     [ObservableProperty] private string _statusText = "";
+
+    // v3.9：接入 Shell 底部状态栏契约（状态文本由 Shell 统一显示）
+    public event EventHandler? StatusChanged;
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 
     /// <summary>开机启动项的**真实状态**（读注册表，不是读配置）—— 让"配置勾了但没写进去"这种偏差一眼可见。</summary>
     [ObservableProperty] private string _startupStateText = "";

@@ -94,7 +94,7 @@
       <Border Height="36" Margin="0,8,0,0">
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
           <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentBrush}"/>
-          <TextBlock Text="NewToys 工具箱 · 三栏仿微信布局 · 跨平台 (Windows / macOS / Linux)"
+          <TextBlock Text="NewToys 工具箱 · 仿浏览器标签页布局 · 跨平台 (Windows / macOS / Linux)"
                      Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
         </StackPanel>
       </Border>

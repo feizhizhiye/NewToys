@@ -67,6 +67,9 @@ public class App : Application
             // 列表页「列显隐」偏好（右键表头增删列，规范 3.8）：落 config\columnlayout.json（会被数据管理备份）。
             services.AddSingleton<IColumnLayoutService, ColumnLayoutService>();
 
+            // v3.5：多配置（一个配置 = 一套独立的 config+data+logs）；切换 = 重启应用。
+            services.AddSingleton<IProfileService, ProfileService>();
+
             // 工程内唯一的本地数据库（data\newtoys.db）：当前给「视频工具 → 视频库」的媒体信息索引用；
             // 后续更多结构化数据也走它（见 SqliteDatabase 的类注释）。
             services.AddSingleton<SqliteDatabase>();
@@ -199,11 +202,22 @@ public class App : Application
         if (ex == null) return;
         try
         {
-            var root = Environment.GetEnvironmentVariable("NEWTOYS_HOME");
-            if (string.IsNullOrEmpty(root))
-                root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NewToys");
+            // v3.5：优先用 ConfigStoreService 给的日志目录（只有它知道当前是哪个「配置」）；
+            // 启动早期（服务还没建好）崩溃时，退回「应用根\logs」的兜底算法。
+            string dir;
+            var store = AppServices.Get<ConfigStoreService>();
+            if (store != null)
+            {
+                dir = store.LogsDirectory;
+            }
+            else
+            {
+                var root = Environment.GetEnvironmentVariable("NEWTOYS_HOME");
+                if (string.IsNullOrEmpty(root))
+                    root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NewToys");
+                dir = Path.Combine(root, "logs");
+            }
 
-            var dir = Path.Combine(root, "logs");
             Directory.CreateDirectory(dir);
 
             var file = Path.Combine(dir, $"crash-{DateTime.Now:yyyyMMdd}.log");

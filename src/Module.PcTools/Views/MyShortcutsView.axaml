@@ -2,13 +2,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.PcTools.Views"
              x:Class="NewToys.PcTools.Views.MyShortcutsView">
-  <Grid RowDefinitions="Auto,Auto,Auto,*">
+  <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
+        详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
+  <Grid ColumnDefinitions="*,Auto" Margin="16">
 
-    <!-- 操作行（右对齐、无背景条）：页名由左侧二级菜单体现，这里只放状态文字。 -->
-    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="10">
-      <TextBlock Classes="status-text" Text="{Binding StatusText}" MaxWidth="460"/>
-    </StackPanel>
+    <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
+    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
+
+    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
+         Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
 
     <!--  ==================== 工具条  ====================  -->
     <Border Grid.Row="1" Classes="toolbar">
@@ -97,12 +99,8 @@
       </WrapPanel>
     </Border>
 
-    <!--  ==================== 主区：左列表 + 右属性卡  ====================
-          右栏宽度写在 Border 上（不是 Grid 列上）：列用 Auto，收起时右栏不占位 → 列表自动铺满。 -->
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="16">
-
-      <!-- 左：可排序表头（左键点表头排序） + 列表（右键出更多功能） -->
-      <Border Grid.Column="0" Classes="card" Padding="0">
+      <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
+      <Border Grid.Row="3" Classes="card" Padding="0">
         <Grid RowDefinitions="Auto,*">
 
           <Border Grid.Row="0" Classes="list-header">
@@ -202,8 +200,10 @@
         </Grid>
       </Border>
 
-      <!-- 右：选中项的属性卡（可编辑 = CRUD 的 U/C）；宽度写在这里 → 收起时整列不占位 -->
-      <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
+    </Grid>
+
+    <!--  右：选中项的属性卡（可编辑 = CRUD 的 U/C）；宽度由共享样式 Border.detail-card 给 → 收起时整列不占位  -->
+    <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
         <Grid RowDefinitions="Auto,*">
 
           <StackPanel Grid.Row="0" Spacing="10" IsVisible="{Binding HasSelection}">
@@ -302,6 +302,5 @@
           </ScrollViewer>
         </Grid>
       </Border>
-    </Grid>
   </Grid>
 </UserControl>

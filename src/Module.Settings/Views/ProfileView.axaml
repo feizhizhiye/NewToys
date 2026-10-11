@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Settings.Views.ProfileView">
+  <Grid RowDefinitions="Auto,*">
+
+    <!-- 顶部：说明 + 状态 -->
+    <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
+      <TextBlock Classes="section-title" Text="配置（多套独立数据）"/>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 Text="一个配置 = 一套独立的 config + data + logs。切换配置需要重启应用（配置在启动时就被读取）。"/>
+      <TextBlock Classes="info-text" Text="{Binding ProfilesHint}" TextWrapping="Wrap"/>
+      <!-- 状态行已取消（v3.9）：改由 Shell 底部状态栏统一显示。 -->
+    </StackPanel>
+
+    <!-- 列表 + 操作 -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="24,12,24,16">
+
+      <Border Grid.Column="0" Classes="card" Padding="0">
+        <Grid RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Classes="list-header">
+            <Grid ColumnDefinitions="*,2*">
+              <TextBlock Grid.Column="0" Classes="list-cell" Text="配置名" FontWeight="SemiBold"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" Text="数据目录" FontWeight="SemiBold"/>
+            </Grid>
+          </Border>
+          <ListBox Grid.Row="1" Classes="list-page"
+                   ItemsSource="{Binding Items}"
+                   SelectedItem="{Binding Selected, Mode=TwoWay}"
+                   SelectionMode="Single">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="*,2*">
+                  <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                    <TextBlock Classes="list-cell primary" Text="{Binding Name}"/>
+                    <TextBlock Classes="list-cell accent" Text="{Binding Mark}"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Directory}"/>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <StackPanel Grid.Column="1" Width="160" Margin="12,0,0,0" Spacing="8"
+                  VerticalAlignment="Top">
+        <Button Classes="primary" Content="⇄ 切换到此配置" HorizontalAlignment="Stretch"
+                Command="{Binding SwitchCommand}" IsEnabled="{Binding HasSelection}"
+                ToolTip.Tip="切换后会提示并自动重启应用"/>
+        <Button Classes="ghost" Content="＋ 新建配置" HorizontalAlignment="Stretch"
+                Command="{Binding NewProfileCommand}"/>
+        <Button Classes="ghost" Content="✏ 重命名" HorizontalAlignment="Stretch"
+                Command="{Binding RenameCommand}" IsEnabled="{Binding HasSelection}"/>
+        <Button Classes="ghost" Content="🗑 删除" HorizontalAlignment="Stretch"
+                Command="{Binding DeleteCommand}" IsEnabled="{Binding HasSelection}"
+                ToolTip.Tip="会永久删除该配置的全部数据；不能删除当前配置"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                   Text="⚠️ 删除不可撤销；当前正在使用的配置不能删除。"/>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

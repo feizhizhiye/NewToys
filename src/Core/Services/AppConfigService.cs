@@ -57,17 +57,12 @@ public class AppConfigService : IAppConfigService
     public string ScriptFolder { get => _data.ScriptFolder; set { _data.ScriptFolder = value; Save(); } }
     public string UpdateUrl { get => _data.UpdateUrl; set { _data.UpdateUrl = value; Save(); } }
 
-    /// <summary>脚本目录的默认值：<c>&lt;应用根&gt;\scripts</c>（config / data 的同级，跨 Debug/Release 不丢）。</summary>
-    public string DefaultScriptFolder
-    {
-        get
-        {
-            var root = Path.GetDirectoryName(_cfg.ConfigDir);
-            return string.IsNullOrEmpty(root)
-                ? Path.Combine(AppContext.BaseDirectory, "scripts")
-                : Path.Combine(root, "scripts");
-        }
-    }
+    /// <summary>
+    /// 脚本目录的默认值：<c>&lt;应用根&gt;\scripts</c>。
+    /// <para>⚠️ 用**应用根**而不是配置根：脚本是用户自己的文件，v3.5 起多配置**共享同一份脚本目录**
+    /// （「配置」只隔离 config / data / logs）。</para>
+    /// </summary>
+    public string DefaultScriptFolder => Path.Combine(_cfg.AppRootDirectory, "scripts");
 
     public void Load()
     {

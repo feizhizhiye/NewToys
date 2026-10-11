@@ -23,7 +23,7 @@ namespace NewToys.PcTools.ViewModels;
 /// 避免弹出树取不到 DataContext，见规范 3.6 的 ContextMenu 注）。
 /// </para>
 /// </summary>
-public partial class FavoritesViewModel : ObservableObject
+public partial class FavoritesViewModel : ObservableObject, IStatusProvider
 {
     private readonly IQuickActionService? _svc;
     private readonly INavigationService? _nav;
@@ -31,6 +31,10 @@ public partial class FavoritesViewModel : ObservableObject
     public ObservableCollection<QuickAction> Items { get; } = new();
 
     [ObservableProperty] private string _statusText = "";
+
+    // v3.9：接入 Shell 底部状态栏契约（状态文本由 Shell 统一显示）
+    public event EventHandler? StatusChanged;
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
     [ObservableProperty] private bool _isEmpty = true;
     [ObservableProperty] private bool _isBusy;
 

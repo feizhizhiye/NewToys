@@ -25,7 +25,7 @@ namespace NewToys.Settings.ViewModels;
 /// 否则会把「通用设置」页维护的四个开关（开机启动 / 最小化 / 关闭到托盘 / 更新检查）冲掉。
 /// </para>
 /// </summary>
-public partial class LaunchConfigViewModel : ObservableObject
+public partial class LaunchConfigViewModel : ObservableObject, IStatusProvider
 {
     private readonly ILaunchConfigService? _launch;
 
@@ -46,6 +46,10 @@ public partial class LaunchConfigViewModel : ObservableObject
     [ObservableProperty] private string _programsText = "";
 
     [ObservableProperty] private string _statusText = "改完点右上角「保存」写入 launch.json。";
+
+    // v3.9：接入 Shell 底部状态栏契约（状态文本由 Shell 统一显示）
+    public event EventHandler? StatusChanged;
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 
     public LaunchConfigViewModel() { }
 

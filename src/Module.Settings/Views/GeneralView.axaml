@@ -4,8 +4,7 @@
   <Grid RowDefinitions="Auto,*">
     <!-- 操作行：页名由左侧二级菜单体现，这里只放状态文字。
          ⚠️ 刻意**不放"保存"按钮** —— 四个开关勾选即写盘（更新地址是自由文本，单独一个 💾）。 -->
-    <TextBlock Grid.Row="0" Classes="status-text" Text="{Binding StatusText}"
-               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="24,16,24,0" MaxWidth="520"/>
+    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。 -->
 
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
       <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">

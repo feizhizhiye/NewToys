@@ -56,7 +56,7 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     [ObservableProperty] private bool _isSupported = true;
     [ObservableProperty] private string _supportText = "正在检测包管理器……";
     [ObservableProperty] private bool _isBusy;
-    [ObservableProperty] private string _statusText = "就绪";
+    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private string _modeText = "尚未加载 —— 点「📥 已安装」或直接联网搜索";
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _installedOnly;

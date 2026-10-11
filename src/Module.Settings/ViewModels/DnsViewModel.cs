@@ -17,7 +17,7 @@ namespace NewToys.Settings.ViewModels;
 /// </para>
 /// 自定义 URL 是文本框，但只有一项、且改完立刻能"测试解析"验证，因此同样即时写盘（不为它单独设保存按钮）。
 /// </summary>
-public partial class DnsViewModel : ObservableObject
+public partial class DnsViewModel : ObservableObject, IStatusProvider
 {
     private readonly IAppConfigService? _cfg;
     private readonly IEncryptedDnsService? _dns;
@@ -29,6 +29,10 @@ public partial class DnsViewModel : ObservableObject
     [ObservableProperty] private string _customUrl = "";
     [ObservableProperty] private string _testHost = "www.baidu.com";
     [ObservableProperty] private string _statusText = "";
+
+    // v3.9：接入 Shell 底部状态栏契约（状态文本由 Shell 统一显示）
+    public event EventHandler? StatusChanged;
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
     [ObservableProperty] private string _testResult = "";
     [ObservableProperty] private bool _isBusy;
 

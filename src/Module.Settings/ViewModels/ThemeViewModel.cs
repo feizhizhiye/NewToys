@@ -16,7 +16,7 @@ namespace NewToys.Settings.ViewModels;
 /// </para>
 /// 规律（已写进开发规范）：**能立即看到反馈的开关 / 单选 → 立即生效；只有多字段文本表单才留"保存"。**
 /// </summary>
-public partial class ThemeViewModel : ObservableObject
+public partial class ThemeViewModel : ObservableObject, IStatusProvider
 {
     private readonly IThemeService? _theme;
 
@@ -28,6 +28,10 @@ public partial class ThemeViewModel : ObservableObject
     [ObservableProperty] private bool _isSystemMode;
     [ObservableProperty] private AccentOption? _selectedAccent;
     [ObservableProperty] private string _statusText = "";
+
+    // v3.9：接入 Shell 底部状态栏契约（状态文本由 Shell 统一显示）
+    public event EventHandler? StatusChanged;
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 
     /// <summary>强调色色卡数据源（直接取自 <see cref="AccentPalette"/>，与 Shell 注入用的是同一份表）。</summary>
     public ObservableCollection<AccentOption> Accents { get; } = new();

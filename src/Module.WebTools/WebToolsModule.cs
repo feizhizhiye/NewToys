@@ -25,7 +25,7 @@ public class WebToolsModule : IModule
     public void Initialize(IServiceProvider services)
     {
         var menu = services.GetRequiredService<IMenuService>();
-        menu.RegisterModule("web", "网络工具", "🌐", 30);
+        menu.RegisterModule("web", "网络工具", "IconWeb", 30);
         menu.RegisterFunction("web", "web-http",     "HTTP 测试",  "🧪", "WebHttpView", 1, "构造请求并查看响应");
         menu.RegisterFunction("web", "web-bookmark", "书签管理",   "🔖", "BookmarkView", 2, "收藏与整理常用网址、导入浏览器书签");
         menu.RegisterFunction("web", "web-ping",     "网络 Ping",  "📡", "PingView",     3, "测试主机连通性与延迟，支持切 DNS");

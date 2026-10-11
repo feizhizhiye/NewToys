@@ -31,7 +31,7 @@ public partial class ScrapeViewModel : ListPageViewModelBase
     public ObservableCollection<ScrapeTask> Items { get; } = new();
 
     [ObservableProperty] private bool _isBusy;
-    [ObservableProperty] private string _statusText = "就绪";
+    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private ScrapeTask? _selected;
     [ObservableProperty] private string _searchText = "";
 

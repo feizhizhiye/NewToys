@@ -32,7 +32,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase
     public ObservableCollection<BookmarkItem> Items { get; } = new();
 
     [ObservableProperty] private bool _isBusy;
-    [ObservableProperty] private string _statusText = "就绪";
+    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private BookmarkItem? _selected;
     [ObservableProperty] private string _searchText = "";
 

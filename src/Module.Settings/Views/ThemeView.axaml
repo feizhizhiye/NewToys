@@ -65,8 +65,7 @@
           </StackPanel>
         </Border>
 
-        <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
-                   Foreground="{DynamicResource AccentBrush}"/>
+        <!-- 状态行已取消（v3.9）：改由 Shell 底部状态栏统一显示。 -->
       </StackPanel>
     </ScrollViewer>
   </Grid>

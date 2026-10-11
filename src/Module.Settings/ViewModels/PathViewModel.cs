@@ -35,7 +35,7 @@ public partial class PathViewModel : ListPageViewModelBase
 
     public ObservableCollection<PathSettingItem> Items { get; } = new();
 
-    [ObservableProperty] private string _statusText = "选中一行改路径，改完点「💾 保存」；点「📂 浏览…」选的路径会立即生效。";
+    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private PathSettingItem? _selected;
 

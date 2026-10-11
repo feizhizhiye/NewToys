@@ -3,200 +3,293 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="NewToys"
-    Width="1180"
-    Height="760"
-    MinWidth="900"
-    MinHeight="600"
+    Width="1280"
+    Height="800"
+    MinWidth="960"
+    MinHeight="640"
     Background="{DynamicResource ContentBrush}"
     ExtendClientAreaTitleBarHeightHint="40"
     ExtendClientAreaToDecorationsHint="True"
     WindowDecorations="None"
     WindowState="Normal">
-    <Grid ColumnDefinitions="60,140,*" RowDefinitions="40,*">
-        <!--  自定义标题栏（重写窗口装饰，支持明暗主题）  -->
-        <Grid
-            x:Name="TitleBarGrid"
+    <Grid RowDefinitions="40,*">
+
+        <!--  ==================== ① 标题栏（40px，底色 = 主题背景）  ====================
+              左：≡折叠 ｜ ⟳刷新
+              中：标签页 + ＋（**左右各 16px 固定留白**，留白处可拖拽窗口）
+              右：窗口按钮
+              ⛔ v3.4 已删：🏠 主页按钮 / ⚙ 设置按钮 / 🌓 主题开关
+              ⛔ v3.5 已删：◀ ▶ 前进/后退按钮
+              ⚠️ 拖拽过滤按「命中祖先是不是 Button」通用判定，新增按钮无需登记。 -->
+        <Border
             Grid.Row="0"
-            Grid.ColumnSpan="3"
-            Background="{DynamicResource TitleBarBrush}"
-            ColumnDefinitions="Auto,*,Auto">
-            <!--  左：图标 + 标题（拖拽区，设背景保证命中测试）  -->
-            <Panel
-                Grid.Column="0"
-                Height="40"
-                Margin="14,0,0,0"
-                Background="Transparent">
-                <TextBlock
-                    VerticalAlignment="Center"
-                    FontSize="13"
-                    FontWeight="SemiBold"
-                    Foreground="{DynamicResource TitleBarTextBrush}"
-                    Text="NewToys" />
-            </Panel>
-            <!--  中：空白拖拽区（必须设透明背景，否则鼠标穿透收不到事件）  -->
-            <Panel
-                Grid.Column="1"
-                Height="40"
-                Background="Transparent" />
-            <!--  右：窗口按钮  -->
-            <StackPanel
-                Grid.Column="2"
-                Height="40"
-                Orientation="Horizontal">
-                <!--  主题即时开关：直接改 IThemeService，无需进设置页、无需重启  -->
-                <Button
-                    x:Name="BtnTheme"
-                    Width="46"
-                    Height="40"
-                    Classes="win-btn"
-                    Command="{Binding ToggleThemeCommand}"
-                    ToolTip.Tip="切换深色 / 浅色（立即生效）">
-                    <TextBlock
-                        x:Name="ThemeIcon"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        Text="🌓" />
-                </Button>
-                <Button
-                    x:Name="BtnMin"
-                    Width="46"
-                    Height="40"
-                    Classes="win-btn"
-                    ToolTip.Tip="最小化">
-                    <Path
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Data="M0,5 L10,5"
-                        Stroke="{DynamicResource TitleBarTextBrush}"
-                        StrokeLineCap="Round"
-                        StrokeThickness="1.5" />
-                </Button>
-                <Button
-                    x:Name="BtnMax"
-                    Width="46"
-                    Height="40"
-                    Classes="win-btn"
-                    ToolTip.Tip="最大化">
-                    <Path
-                        x:Name="MaxIcon"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Data="M0,0 L10,0 L10,10 L0,10 Z"
-                        Fill="Transparent"
-                        Stroke="{DynamicResource TitleBarTextBrush}"
-                        StrokeThickness="1.5" />
-                </Button>
-                <!--  class 必须是 win-btn + close：App.axaml 里定义的是 Button.win-btn.close:pointerover（关闭变红）  -->
-                <Button
-                    x:Name="BtnClose"
-                    Width="46"
-                    Height="40"
-                    Classes="win-btn close"
-                    ToolTip.Tip="关闭">
-                    <Path
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Data="M0,0 L10,10 M10,0 L0,10"
-                        Stroke="{DynamicResource TitleBarTextBrush}"
-                        StrokeLineCap="Round"
-                        StrokeThickness="1.5" />
-                </Button>
-            </StackPanel>
-        </Grid>
-
-        <!--  第一列：主菜单（60px）  -->
-        <Grid
-            Grid.Row="1"
-            Grid.Column="0"
-            Background="{DynamicResource SiderBrush}">
-            <!--  行0=首页 🏠 行1=模块图标区(*) 行2=分隔线 行3=底部 Dock（设置）  -->
-            <Grid RowDefinitions="Auto,*,Auto,Auto">
-                <!--  首页入口：必须常驻！否则进了模块就再也回不到首页（GoHomeCommand 会变成死代码）  -->
-                <Button
-                    x:Name="BtnHome"
-                    Grid.Row="0"
-                    Height="56"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Center"
-                    VerticalContentAlignment="Center"
-                    Classes="nav-btn"
-                    Command="{Binding GoHomeCommand}"
-                    ToolTip.Tip="首页">
-                    <TextBlock
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        FontSize="20"
-                        Text="🏠" />
-                </Button>
-                <ScrollViewer
-                    Grid.Row="1"
-                    HorizontalScrollBarVisibility="Disabled"
-                    VerticalScrollBarVisibility="Auto">
-                    <!--  NavPanel 由 ShellView.axaml.cs 的 BuildNavButtons() 动态填充  -->
-                    <StackPanel x:Name="NavPanel" Spacing="0" />
-                </ScrollViewer>
-                <Grid
-                    Grid.Row="2"
-                    Height="1"
-                    Margin="0,0,0,0"
-                    Background="{DynamicResource SiderDividerBrush}" />
-                <Button
-                    x:Name="BtnSettings"
-                    Grid.Row="3"
-                    Height="56"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Center"
-                    VerticalContentAlignment="Center"
-                    Classes="nav-btn"
-                    Command="{Binding SelectGroupCommand}"
-                    CommandParameter="settings"
-                    ToolTip.Tip="设置">
-                    <TextBlock
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        FontSize="20"
-                        Text="⚙" />
-                </Button>
-            </Grid>
-        </Grid>
-
-        <!--  第二列：二级菜单（140px）  -->
-        <Grid
-            x:Name="SubPanel"
-            Grid.Row="1"
-            Grid.Column="1"
-            Background="{DynamicResource SubSiderBrush}"
-            IsVisible="False">
-            <Grid RowDefinitions="56,*">
-                <Grid Grid.Row="0" Background="{DynamicResource SubSiderHeaderBrush}">
-                    <TextBlock
-                        x:Name="PanelTitle"
-                        Margin="20,0,0,0"
-                        VerticalAlignment="Center"
-                        FontSize="15"
-                        FontWeight="SemiBold"
-                        Foreground="{DynamicResource PrimaryTextBrush}" />
-                </Grid>
-                <ScrollViewer
-                    Grid.Row="1"
-                    HorizontalScrollBarVisibility="Disabled"
-                    VerticalScrollBarVisibility="Auto">
-                    <!--  SubMenu 由 ShellView.axaml.cs 的 UpdateSubMenu() 动态填充  -->
-                    <StackPanel
-                        x:Name="SubMenu"
-                        Margin="8,8"
-                        Spacing="2" />
-                </ScrollViewer>
-            </Grid>
-        </Grid>
-
-        <!--  第三列：内容区（一级菜单无二级项时，由 UpdatePanelVisibility() 把它左移到第 1 列并跨 2 列）  -->
-        <ContentControl
-            x:Name="ContentArea"
-            Grid.Row="1"
-            Grid.Column="2"
             Background="{DynamicResource ContentBrush}"
-            Content="{Binding CurrentContent}" />
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="0,0,0,1">
+            <Grid
+                x:Name="TitleBarGrid"
+                Background="Transparent"
+                ColumnDefinitions="Auto,*,Auto">
+
+                <!--  左：窗口功能按钮  -->
+                <StackPanel
+                    Grid.Column="0"
+                    Margin="6,0"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <Button Classes="title-btn" Command="{Binding ToggleTreeCommand}" ToolTip.Tip="折叠 / 展开左侧菜单">
+                        <TextBlock Text="≡" FontSize="18" />
+                    </Button>
+                    <Button Classes="title-btn" Command="{Binding RefreshCommand}" ToolTip.Tip="刷新当前页（重建视图）">
+                        <TextBlock Text="⟳" FontSize="18" />
+                    </Button>
+                </StackPanel>
+
+                <!--  中：标签页。**左右各留 24px 固定空白**（独立占位列，标签再多也挤不掉），空白处可拖拽窗口；滚轮可切换标签  -->
+                <Grid Grid.Column="1" ColumnDefinitions="24,*,24">
+                    <Panel Grid.Column="0" Background="Transparent" />
+                    <Grid
+                        x:Name="TabStrip"
+                        Grid.Column="1"
+                        VerticalAlignment="Stretch"
+                        Background="Transparent"
+                        ColumnDefinitions="*,Auto">
+                        <ScrollViewer
+                            Grid.Column="0"
+                            HorizontalScrollBarVisibility="Hidden"
+                            VerticalScrollBarVisibility="Disabled">
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                            <ItemsControl x:Name="TabsControl" ItemsSource="{Binding Tabs}" VerticalAlignment="Center">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <!--  标签项 = 纯标题（无图标）；✕ 仅在鼠标悬停本标签时显示（样式控制）  -->
+                                        <Border Classes="tab-item" Classes.active="{Binding IsActive}">
+                                            <!--  单格 Grid：标题按钮撑开标签宽度，关闭按钮**叠在上层贴右端**（不占位 → 标签更窄）  -->
+                                            <Grid>
+                                                <Button
+                                                    Classes="tab-btn"
+                                                    Command="{Binding $parent[Window].DataContext.ActivateTabCommand}"
+                                                    CommandParameter="{Binding}">
+                                                    <TextBlock
+                                                        VerticalAlignment="Center"
+                                                        Text="{Binding Title}" />
+                                                </Button>
+                                                <Button
+                                                    Classes="tab-close"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center"
+                                                    Command="{Binding $parent[Window].DataContext.CloseTabCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding CanClose}"
+                                                    ToolTip.Tip="关闭标签">
+                                                    <TextBlock
+                                                        VerticalAlignment="Center"
+                                                        FontSize="11"
+                                                        Text="✕" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <!--  ＋ 打开「功能清单」页（当选择器用；已打开则激活）  -->
+                            <Button
+                                Classes="tab-btn"
+                                Command="{Binding OpenFunctionListCommand}"
+                                Margin="4,0,0,0"
+                                ToolTip.Tip="功能清单（打开新页面）">
+                                <TextBlock Text="＋" FontSize="14" />
+                            </Button>
+                        </StackPanel>
+                    </ScrollViewer>
+                    </Grid>
+                    <Panel Grid.Column="2" Background="Transparent" />
+                </Grid>
+
+                <!--  右：窗口按钮  -->
+                <StackPanel
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <Button
+                        x:Name="BtnMin"
+                        Width="46"
+                        Height="40"
+                        Classes="win-btn"
+                        ToolTip.Tip="最小化">
+                        <Path
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Data="M0,5 L10,5"
+                            Stroke="{DynamicResource PrimaryTextBrush}"
+                            StrokeLineCap="Round"
+                            StrokeThickness="1.5" />
+                    </Button>
+                    <Button
+                        x:Name="BtnMax"
+                        Width="46"
+                        Height="40"
+                        Classes="win-btn"
+                        ToolTip.Tip="最大化">
+                        <Path
+                            x:Name="MaxIcon"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Data="M0,0 L10,0 L10,10 L0,10 Z"
+                            Fill="Transparent"
+                            Stroke="{DynamicResource PrimaryTextBrush}"
+                            StrokeThickness="1.5" />
+                    </Button>
+                    <!--  class 必须是 win-btn + close：App.axaml 里定义的是 Button.win-btn.close:pointerover（关闭变红）  -->
+                    <Button
+                        x:Name="BtnClose"
+                        Width="46"
+                        Height="40"
+                        Classes="win-btn close"
+                        ToolTip.Tip="关闭">
+                        <Path
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Data="M0,0 L10,10 M10,0 L0,10"
+                            Stroke="{DynamicResource PrimaryTextBrush}"
+                            StrokeLineCap="Round"
+                            StrokeThickness="1.5" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!--  ==================== ②③④⑤ 左树 + (内容 + 右详情 + 底部状态栏)  ==================== -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+
+            <!--  左树（240px / 折叠 48px）：首页 + 一级分组（矢量图标、加粗、默认折叠）+ 二级功能（缩进、次要色、无图标）  -->
+            <Border
+                x:Name="TreePanel"
+                Grid.Column="0"
+                Width="{Binding TreePanelWidth}"
+                Background="{DynamicResource PanelBrush}"
+                BorderBrush="{DynamicResource DividerBrush}"
+                BorderThickness="0,0,1,0"
+                Classes="tree-panel"
+                Classes.collapsed="{Binding IsTreeCollapsed}">
+              <Grid RowDefinitions="*,Auto">
+                <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding TreeNodes}" Margin="8,8">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <!--  一级：分组（可展开）/ 首页（叶子）；图标为矢量图、文字加粗  -->
+                                    <Button
+                                        Classes="tree-row"
+                                        Classes.active="{Binding IsActive}"
+                                        Command="{Binding $parent[Window].DataContext.TreeClickCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="{Binding Title}">
+                                        <Grid ColumnDefinitions="Auto,Auto,*">
+                                            <TextBlock
+                                                Grid.Column="0"
+                                                Width="12"
+                                                VerticalAlignment="Center"
+                                                Classes="tree-glyph"
+                                                FontSize="10"
+                                                Foreground="{DynamicResource SecondaryTextBrush}"
+                                                Text="{Binding Glyph}" />
+                                            <!--  颜色由样式给（Button.tree-row Path / .active Path）→ 折叠态也能显主题色  -->
+                                            <Path
+                                                Grid.Column="1"
+                                                Width="16"
+                                                Height="16"
+                                                VerticalAlignment="Center"
+                                                Data="{Binding VectorIcon}"
+                                                IsVisible="{Binding HasVectorIcon}"
+                                                Stretch="Uniform"
+                                                StrokeThickness="1.5" />
+                                            <!--  回退：尚未给矢量图的节点仍显示原文本图标  -->
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                VerticalAlignment="Center"
+                                                FontSize="14"
+                                                Text="{Binding Icon}"
+                                                IsVisible="{Binding !HasVectorIcon}" />
+                                            <TextBlock
+                                                Grid.Column="2"
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Classes="tree-title"
+                                                FontSize="13"
+                                                Text="{Binding Title}" />
+                                        </Grid>
+                                    </Button>
+                                    <!--  二级：功能叶子（缩进 + 次要色，无图标）  -->
+                                    <ItemsControl
+                                        Classes="tree-children"
+                                        ItemsSource="{Binding Children}"
+                                        IsVisible="{Binding IsExpanded}"
+                                        Margin="16,0,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button
+                                                    Classes="tree-row sub"
+                                                    Classes.active="{Binding IsActive}"
+                                                    Command="{Binding $parent[Window].DataContext.TreeClickCommand}"
+                                                    CommandParameter="{Binding}">
+                                                    <TextBlock
+                                                        VerticalAlignment="Center"
+                                                        Classes="tree-title"
+                                                        FontSize="13"
+                                                        Text="{Binding Title}" />
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!--  左树底部：版本号区（v3.9；**折叠态隐藏**）。⚠️ 独立占位值，与「设置 → 关于」的版本号无关。  -->
+                <Border Grid.Row="1" Classes="tree-version">
+                  <TextBlock Classes="tree-version-text" Text="{Binding TreeVersionText}" />
+                </Border>
+              </Grid>
+            </Border>
+
+            <!--  中右区：内容 + 右详情 + **底部状态栏**（状态栏横贯内容区与详情区）  -->
+            <Grid Grid.Column="1" RowDefinitions="*,Auto">
+
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+
+                <!--  内容区：绑定当前激活标签页缓存的 View 实例  -->
+                <ContentControl
+                    x:Name="ContentArea"
+                    Grid.Column="0"
+                    Background="{DynamicResource ContentBrush}"
+                    Content="{Binding ActiveTab.Content}" />
+
+                <!--  右详情面板（340px，可开合）：由 Shell 统一承载，内容来自 IDetailPanelProvider  -->
+                <Border
+                    x:Name="DetailPanel"
+                    Grid.Column="1"
+                    Width="340"
+                    IsVisible="{Binding IsDetailPanelVisible}"
+                    Background="{DynamicResource PanelBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="1,0,0,0">
+                    <ContentControl Content="{Binding DetailPanelContent}" />
+                </Border>
+              </Grid>
+
+              <!--  底部状态栏（v3.9）：Shell 统一承载，内容来自当前页的 IStatusProvider；页面没接契约就为空  -->
+              <Border Grid.Row="1" Classes="status-bar">
+                <TextBlock Classes="status-bar-text" Text="{Binding StatusBarText}" />
+              </Border>
+            </Grid>
+        </Grid>
     </Grid>
 </Window>

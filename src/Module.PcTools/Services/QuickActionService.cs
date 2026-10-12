@@ -276,8 +276,8 @@ public class QuickActionService : IQuickActionService
     /// <list type="bullet">
     /// <item><see cref="QuickActionKind.Command"/>：优先 pwsh（<c>-NoExit -EncodedCommand</c> 跑原始命令、窗口留着），
     /// 拿不到 pwsh 就 <c>cmd /k</c>；命令本身原样透传，不做引号转义（用 base64 避开特殊字符）。</item>
-    /// <item><see cref="QuickActionKind.Script"/>：拼出 <c>解释器 [开关] "脚本路径"</c>，外面再套 <c>cmd /k</c> 把窗口留住
-    /// （python / .bat 跑完窗口不会瞬间消失）；工作目录取脚本所在目录（脚本里的相对路径才好使）。</item>
+    /// <item><see cref="QuickActionKind.Script"/>：**运行如双击**（v3.19 / NT-007，需求 §6.2.2）—— 直接用系统文件关联
+    /// 启动脚本文件（<c>UseShellExecute</c>），像在资源管理器里双击它；工作目录取脚本所在目录（相对路径才好使）。</item>
     /// </list>
     /// </summary>
     private (bool Ok, string Exe, string Args, string WorkDir, string Error) BuildRunPlan(QuickAction item)
@@ -312,72 +312,12 @@ public class QuickActionService : IQuickActionService
         if (!File.Exists(path))
             return (false, "", "", "", $"找不到脚本文件：{path}（脚本目录可在「设置 → 路径配置」里改）");
 
-        var ext = Path.GetExtension(path).ToLowerInvariant();
-        var interp = string.IsNullOrWhiteSpace(item.Interpreter) ? AutoInterpreter(ext) : item.Interpreter.Trim();
-
-        var exe = ResolveInterpreter(interp, out var err);
-        if (exe == null) return (false, "", "", "", err);
-
+        // 运行如双击（v3.19 / NT-007，需求 §6.2.2）：直接用**系统文件关联**启动该脚本文件（UseShellExecute），
+        // 像在资源管理器里双击它一样；不再用 cmd /k 包解释器。.py 若无关联会弹"如何打开"，与双击行为一致。
+        // 工作目录取脚本所在目录（脚本里的相对路径才好使）。
         var scriptDir = Path.GetDirectoryName(path);
         var workDir = string.IsNullOrEmpty(scriptDir) ? SafeWorkingDir() : scriptDir;
-
-        var inner = interp switch
-        {
-            // -X utf8：python 在管道里默认按本地代码页写字节，强制 UTF-8 才不会把中文输出读成乱码
-            ScriptInterpreter.Python => $"\"{exe}\" -X utf8 \"{path}\"",
-            // -ExecutionPolicy Bypass：绕过执行策略，避免"脚本被禁跑"（本工具就是给用户跑自己脚本用的）
-            ScriptInterpreter.Pwsh or ScriptInterpreter.PowerShell51
-                => $"\"{exe}\" -NoProfile -ExecutionPolicy Bypass -File \"{path}\"",
-            // call：批处理要 call 起来，否则会顶替掉外层 cmd（后面的收尾命令就不执行了）
-            _ => $"call \"{path}\"",
-        };
-        // 套一层 cmd /k：让脚本也在可见窗口里跑、且窗口跑完留着（python / .bat 不会一闪而过）。
-        return (true, "cmd.exe", $"/k {inner}", workDir, "");
-    }
-
-    /// <summary>按扩展名挑默认解释器（<c>.ps1</c> 配了 pwsh 就用 pwsh，否则退回系统自带的 5.1）。</summary>
-    private string AutoInterpreter(string ext) => ext switch
-    {
-        ".py" => ScriptInterpreter.Python,
-        ".ps1" => string.IsNullOrWhiteSpace(_app?.PwshPath) ? ScriptInterpreter.PowerShell51 : ScriptInterpreter.Pwsh,
-        ".bat" or ".cmd" => ScriptInterpreter.Cmd,
-        _ => ""      // 交给 ResolveInterpreter 报"不认识的类型"，消息里带上扩展名更好懂
-    };
-
-    /// <summary>解释器 → 可执行文件（配置里填了就用配置，否则用命令名走 PATH）。</summary>
-    private string? ResolveInterpreter(string interp, out string error)
-    {
-        error = "";
-        string configured;
-        string fallback;
-        switch (interp)
-        {
-            case ScriptInterpreter.Python:
-                configured = (_app?.PythonPath ?? "").Trim(); fallback = "python"; break;
-            case ScriptInterpreter.Pwsh:
-                configured = (_app?.PwshPath ?? "").Trim(); fallback = "pwsh"; break;
-            case ScriptInterpreter.PowerShell51:
-                configured = (_app?.PowerShell51Path ?? "").Trim(); fallback = "powershell"; break;
-            case ScriptInterpreter.Cmd:
-                return "cmd.exe";
-            default:
-                error = string.IsNullOrWhiteSpace(interp)
-                    ? "认不出这个脚本类型（支持 .py / .ps1 / .bat / .cmd），可在详情里手动选解释器。"
-                    : $"未知的解释器：{interp}";
-                return null;
-        }
-
-        var exe = configured.Length > 0 ? configured : fallback;
-        // 只有填了"看起来像路径"的值才检查存在性；纯命令名（python / pwsh）交给 PATH 去解析
-        if (exe.IndexOf('\\') >= 0 || exe.IndexOf('/') >= 0)
-        {
-            if (!File.Exists(exe))
-            {
-                error = $"配置的解释器路径不存在：{exe}（可在「设置 → 路径配置」里改，留空则用系统默认）";
-                return null;
-            }
-        }
-        return exe;
+        return (true, path, "", workDir, "");
     }
 
     /// <summary>本机能不能拿到 pwsh（PowerShell 7+）：配置里填了用配置（存在才用），否则探常见安装位、再退回 PATH 里的 pwsh。</summary>

@@ -14,7 +14,7 @@
 
     <!--  ==================== 工具条  ====================  -->
     <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock Text="分类" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
                      Foreground="{DynamicResource SecondaryTextBrush}"/>
@@ -55,7 +55,24 @@
           <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,6"
                     IsChecked="{Binding ImportSubFolders, Mode=TwoWay}"/>
         </WrapPanel>
-        <Button Grid.Column="1" Classes="detail-toggle"
+        <!--  导入 / 导出 + 清空本页（v3.19 / NT-007）：与快捷设置页同一套 io-bar/io-btn、danger-btn；
+              导入 = 合并 / 整页替换，文件选择在 code-behind。  -->
+        <StackPanel Grid.Column="1" Classes="io-bar" Margin="0,0,8,6">
+          <Button Classes="io-btn" Content="📤 导出" Click="OnExportClick"
+                  ToolTip.Tip="把本页全条目导出为 json 文件"/>
+          <Button Classes="io-btn" Content="📥 导入" ToolTip.Tip="从 json 文件导入（合并 / 整页替换）">
+            <Button.Flyout>
+              <MenuFlyout Placement="Bottom">
+                <MenuItem Header="🔀 合并导入（按 Id 去重，同 Id 覆盖）" Click="OnImportMergeClick"/>
+                <MenuItem Header="♻ 整页替换（先清空本页再导入）" Click="OnImportReplaceClick"/>
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+        </StackPanel>
+        <Button Grid.Column="2" Classes="danger-btn" Content="🧹 清空本页" Margin="0,0,8,6"
+                Command="{Binding ClearPageCommand}" IsEnabled="{Binding !IsBusy}"
+                ToolTip.Tip="删掉本页全部条目并写盘（真删除，二次确认；建议先导出备份）"/>
+        <Button Grid.Column="3" Classes="detail-toggle"
                 Command="{Binding ToggleDetailCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>
@@ -160,6 +177,8 @@
               <ContextMenu>
                 <MenuItem Header="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
                           IsEnabled="{Binding IsNotBusy}"/>
+                <MenuItem Header="📝 编辑（记事本）" Command="{Binding EditWithNotepadCommand}" IsEnabled="{Binding CanEditScript}"/>
+                <MenuItem Header="🧰 打开方式…" Command="{Binding OpenWithCommand}" IsEnabled="{Binding CanEditScript}"/>
                 <Separator/>
                 <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
@@ -210,7 +229,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Button Classes="primary" Content="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
                       IsEnabled="{Binding IsNotBusy}"
-                      ToolTip.Tip="运行选中项：命令行命令按 cmd 执行，脚本文件按扩展名挑解释器；勾了「需要管理员权限」时会弹 UAC"/>
+                      ToolTip.Tip="运行选中项：命令行命令开终端执行（Shell 可选），脚本文件按系统关联「如双击」打开；勾了「需要管理员权限」时会弹 UAC"/>
               <Button Classes="ghost" Content="{Binding FavoriteButtonText}" Command="{Binding ToggleFavoriteCommand}"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="6">

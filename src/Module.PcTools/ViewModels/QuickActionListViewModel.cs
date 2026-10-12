@@ -444,6 +444,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         UpdateFavoriteUi();
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(ShowCommandRunOptions));
+        OnPropertyChanged(nameof(CanEditScript));
     }
 
     // ==================== 运行 ====================
@@ -728,6 +729,54 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
             StatusText = "已复制命令到剪贴板。";
         }
         catch (Exception ex) { StatusText = "复制失败：" + ex.Message; }
+    }
+
+    // ==================== 右键「编辑」脚本（v3.19 / NT-007，需求 §6.2.2） ====================
+
+    /// <summary>选中项是否可「编辑」：是脚本类型且脚本文件已在磁盘上。</summary>
+    public bool CanEditScript => Selected != null
+        && string.Equals(Selected.Kind, QuickActionKind.Script, StringComparison.OrdinalIgnoreCase)
+        && File.Exists(ResolveScriptPath(Selected.ScriptFile));
+
+    /// <summary>把脚本文件字段（相对脚本目录或绝对路径）解析成磁盘全路径；空则返回空串。</summary>
+    private string ResolveScriptPath(string? scriptFile)
+    {
+        var file = (scriptFile ?? "").Trim();
+        if (file.Length == 0) return "";
+        return Path.IsPathRooted(file) ? file : Path.Combine(ScriptsDirectory, file);
+    }
+
+    /// <summary>📝 用记事本编辑选中脚本文件。</summary>
+    [RelayCommand]
+    private void EditWithNotepad()
+    {
+        var item = Selected;
+        if (item == null) { StatusText = "先选中一条。"; return; }
+        var path = ResolveScriptPath(item.ScriptFile);
+        if (!File.Exists(path)) { StatusText = $"找不到脚本文件：{(path.Length > 0 ? path : "（未填）")}"; return; }
+        try
+        {
+            Process.Start(new ProcessStartInfo("notepad.exe", "\"" + path + "\"") { UseShellExecute = true });
+            StatusText = $"已用记事本打开：{path}";
+        }
+        catch (Exception ex) { StatusText = "打开失败：" + ex.Message; }
+    }
+
+    /// <summary>🧰 用系统「打开方式」打开选中脚本文件（选外部程序）。</summary>
+    [RelayCommand]
+    private void OpenWith()
+    {
+        var item = Selected;
+        if (item == null) { StatusText = "先选中一条。"; return; }
+        var path = ResolveScriptPath(item.ScriptFile);
+        if (!File.Exists(path)) { StatusText = $"找不到脚本文件：{(path.Length > 0 ? path : "（未填）")}"; return; }
+        try
+        {
+            // verb=openas：弹出系统「打开方式」对话框，让用户选用哪个程序打开。
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true, Verb = "openas" });
+            StatusText = $"已弹出「打开方式」：{path}";
+        }
+        catch (Exception ex) { StatusText = "打开失败：" + ex.Message; }
     }
 
     private void UpdateFavoriteUi()

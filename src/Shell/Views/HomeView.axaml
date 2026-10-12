@@ -1,68 +1,76 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Shell.Views.HomeView">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
-    <StackPanel Margin="36,28,36,28" Spacing="24">
-      <!-- 欢迎卡 -->
-      <Border Classes="card" Padding="28">
+  <!--  v3.19 / NT-009（需求 §6.1）：根改 Grid 两行 —— 上行滚动（欢迎卡 + 常用功能），
+        下行「一键操作」**固定底部**、不随收藏增删滚动；原「NewToys工具箱*」状态行删除（首页多余标识）。  -->
+  <Grid RowDefinitions="*,Auto">
+
+    <!--  ==================== 可滚动区：欢迎卡 + 常用功能  ==================== -->
+    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
+      <StackPanel Margin="36,28,36,16" Spacing="24">
+        <!-- 欢迎卡 -->
+        <Border Classes="card" Padding="28">
+          <StackPanel>
+            <TextBlock Text="欢迎使用 NewToys" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Text="个人高强度使用工具集 · Avalonia 12 + CommunityToolkit.Mvvm + .NET 10" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14"/>
+            <TextBlock Text="这里是你的常用功能区，点按钮直达对应页面；在「设置 → 功能清单」里右键可固定更多功能，右键这里的按钮可「✕ 取消固定」。底部三个一键按钮的设置统一在「设置 → 一键按钮」一页里。"
+                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0"/>
+          </StackPanel>
+        </Border>
+
+        <!--  常用功能：收藏按钮墙（v3.19 / NT-009 统一用主题强调色，去模块多色）。右键菜单在 code-behind 现场构造。  -->
         <StackPanel>
-          <TextBlock Text="欢迎使用 NewToys" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-          <TextBlock Text="个人高强度使用工具集 · Avalonia 12 + CommunityToolkit.Mvvm + .NET 10" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14"/>
-          <TextBlock Text="这里是你的常用功能区，点按钮直达对应页面；在「设置 → 功能清单」里右键可固定更多功能，右键这里的按钮可「✕ 取消固定」。底部三个一键按钮的设置统一在「设置 → 一键按钮」一页里。"
-                     Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0"/>
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="★" FontSize="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+            <TextBlock Text="常用功能  " FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+            <TextBlock Text="点击按钮进入页面 · 右键「✕ 取消固定」移出" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+          </StackPanel>
+
+          <TextBlock Classes="empty-hint" Margin="8,8" Text="还没有固定任何功能 —— 去「设置 → 功能清单」里右键一个功能，选「📌 固定到首页」。"
+                     IsVisible="{Binding !HasFavorites}"/>
+
+          <ItemsControl ItemsSource="{Binding Favorites}" Margin="0,6,0,0">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <!--  只有名称 + 图标，点了就走；右键菜单在 code-behind 现场构造
+                      （ContextMenu 挂在独立弹出树里，模板内声明取不到页面 VM，见规范 3.6）。
+                      v3.19 / NT-009：用 .fav-btn.accent（透明底 + 强调色描边，悬停 / 按下变强调色实心），
+                      ⛔ 不再按模块给多色底色（原 Background="{Binding Color}" 已去）。  -->
+                <Button Classes="fav-btn accent"
+                        Command="{Binding $parent[UserControl].DataContext.NavigateCommand}"
+                        CommandParameter="{Binding Key}"
+                        ContextRequested="OnFavContextRequested"
+                        ToolTip.Tip="{Binding Desc}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
-      </Border>
-
-      <!--  常用功能：与「电脑工具 → 收藏夹」**同一套交互** —— 一排按钮、点即跳转、右键「✕ 取消固定」。
-            按钮按所属模块着色（电脑蓝 / 网络青 / 视频紫 / 设置橙），颜色只跟模块走，取消固定后不会乱跳。  -->
-      <StackPanel>
-        <StackPanel Orientation="Horizontal" Spacing="4">
-          <TextBlock Text="★" FontSize="18" Foreground="#FFB300" VerticalAlignment="Center"/>
-          <TextBlock Text="常用功能  " FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
-          <TextBlock Text="点击按钮进入页面 · 右键「✕ 取消固定」移出" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-        </StackPanel>
-
-        <TextBlock Classes="empty-hint" Margin="8,8" Text="还没有固定任何功能 —— 去「设置 → 功能清单」里右键一个功能，选「📌 固定到首页」。"
-                   IsVisible="{Binding !HasFavorites}"/>
-
-        <ItemsControl ItemsSource="{Binding Favorites}" Margin="0,6,0,0">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel Orientation="Horizontal"/>
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <!--  只有名称 + 图标，点了就走；右键菜单在 code-behind 现场构造
-                    （ContextMenu 挂在独立弹出树里，模板内声明取不到页面 VM，见规范 3.6）。  -->
-              <Button Classes="fav-btn" Background="{Binding Color}"
-                      Command="{Binding $parent[UserControl].DataContext.NavigateCommand}"
-                      CommandParameter="{Binding Key}"
-                      ContextRequested="OnFavContextRequested"
-                      ToolTip.Tip="{Binding Desc}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center"/>
-                  <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </StackPanel>
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
       </StackPanel>
+    </ScrollViewer>
 
-      <!-- 一键操作 -->
+    <!--  ==================== 一键操作：固定页面最底部，收藏增删时不随动（需求 §6.1）  ==================== -->
+    <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="24,12,24,16">
       <StackPanel>
         <Grid ColumnDefinitions="Auto,Auto,*,Auto">
           <TextBlock Grid.Column="0" Text="⚡" FontSize="18" VerticalAlignment="Center"/>
           <TextBlock Grid.Column="1" Text="一键操作" FontSize="16" FontWeight="SemiBold"
                      Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-          <!-- 三个按钮的设置**统一在一页**（设置 → 一键按钮），所以这里只留一个入口，
-               不再给每个按钮右上角挂 ⚙（那样等于把同一件事拆成三处，见规范 3.8 / 4.5.1）。 -->
+          <!--  三个按钮的设置**统一在一页**（设置 → 一键按钮），这里只留一个入口。  -->
           <Button Grid.Column="3" Classes="ghost" Content="⚙ 一键按钮设置"
                   Command="{Binding NavigateCommand}" CommandParameter="settings-launch"
                   ToolTip.Tip="改按钮名称、浏览器程序与参数、网址清单、批量启动的软件清单"/>
         </Grid>
-        <Grid ColumnDefinitions="*,*,*">
+        <Grid ColumnDefinitions="*,*,*" Margin="0,8,0,0">
           <ItemsControl ItemsSource="{Binding QuickButtons}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -89,15 +97,6 @@
           </ItemsControl>
         </Grid>
       </StackPanel>
-
-      <!-- 状态栏 -->
-      <Border Height="36" Margin="0,8,0,0">
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentBrush}"/>
-          <TextBlock Text="NewToys 工具箱 · 仿浏览器标签页布局 · 跨平台 (Windows / macOS / Linux)"
-                     Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
-        </StackPanel>
-      </Border>
-    </StackPanel>
-  </ScrollViewer>
+    </Border>
+  </Grid>
 </UserControl>

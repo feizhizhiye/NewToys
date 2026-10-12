@@ -285,9 +285,14 @@
                 </Border>
               </Grid>
 
-              <!--  底部状态栏（v3.9）：Shell 统一承载，内容来自当前页的 IStatusProvider；页面没接契约就为空  -->
+              <!--  底部状态栏（v3.9）：Shell 统一承载；左 = 当前页 IStatusProvider 状态文本，
+                    右 = 已加载模块/功能数（v3.19 / NT-009，需求 §6.1）。  -->
               <Border Grid.Row="1" Classes="status-bar">
-                <TextBlock Classes="status-bar-text" Text="{Binding StatusBarText}" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Classes="status-bar-text" Text="{Binding StatusBarText}" />
+                  <TextBlock Grid.Column="1" Classes="status-bar-text" Text="{Binding LoadedSummary}"
+                             Margin="16,0,0,0" HorizontalAlignment="Right" />
+                </Grid>
               </Border>
             </Grid>
         </Grid>

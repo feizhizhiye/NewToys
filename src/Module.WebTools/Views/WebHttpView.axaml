@@ -1,18 +1,60 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.WebTools.Views.WebHttpView">
-  <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
-    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="8">
-      <Button Classes="primary" Content="▶ 发送 GET"/>
-      <Button Classes="ghost" Content="▶ POST"/>
-      <Button Classes="ghost" Content="🗑 清空"/>
-    </StackPanel>
-    <Border Grid.Row="1" Margin="24,8,24,16">
-      <Border Classes="card">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="4"><StackPanel Spacing="8"><TextBox PlaceholderText="输入 URL，如 https://api.example.com/v1/test"/><TextBox PlaceholderText="请求头（Key: Value 一行一个）" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/><TextBox PlaceholderText="请求体" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/></StackPanel></StackPanel></ScrollViewer>
+  <!--  v3.19 / NT-001：HTTP 测试页实装 —— 方法 + URL + 请求头/请求体 → 发送 → 状态码 / 耗时 / 响应头 / 响应体。  -->
+  <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="12">
+
+    <!--  请求行  -->
+    <Border Grid.Row="0" Classes="toolbar">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <ComboBox Grid.Column="0" Width="110" Margin="0,0,8,0" FontSize="12"
+                  ItemsSource="{Binding Methods}" SelectedItem="{Binding Method, Mode=TwoWay}"/>
+        <TextBox Grid.Column="1" Margin="0,0,8,0" PlaceholderText="https://api.example.com/v1/test"
+                 Text="{Binding Url, Mode=TwoWay}"/>
+        <Button Grid.Column="2" Classes="primary" Content="▶ 发送" Margin="0,0,8,0"
+                Command="{Binding SendCommand}" IsEnabled="{Binding IsNotBusy}"/>
+        <Button Grid.Column="3" Classes="ghost" Content="🗑 清空" Command="{Binding ClearCommand}"/>
+      </Grid>
+    </Border>
+
+    <!--  请求头 / 请求体  -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,8,0,0">
+      <Border Grid.Column="0" Classes="card" Margin="0,0,6,0" Padding="12">
+        <StackPanel>
+          <TextBlock Classes="field-label" Text="请求头（Key: Value 一行一个）"/>
+          <TextBox Classes="code" Height="90" AcceptsReturn="True" TextWrapping="Wrap"
+                   Text="{Binding HeadersText, Mode=TwoWay}"/>
+        </StackPanel>
       </Border>
+      <Border Grid.Column="1" Classes="card" Margin="6,0,0,0" Padding="12">
+        <StackPanel>
+          <TextBlock Classes="field-label" Text="请求体（GET / HEAD 会被忽略）"/>
+          <TextBox Classes="code" Height="90" AcceptsReturn="True" TextWrapping="Wrap"
+                   Text="{Binding BodyText, Mode=TwoWay}"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!--  响应状态行  -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="2,10,0,0" IsVisible="{Binding HasResponse}">
+      <TextBlock Classes="section-title" VerticalAlignment="Center" Text="{Binding ResponseStatus}"/>
+      <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="{Binding ElapsedText, StringFormat='耗时：{0}'}"/>
+    </StackPanel>
+
+    <!--  响应头 + 响应体  -->
+    <Border Grid.Row="3" Classes="card" Margin="0,8,0,0" Padding="12">
+      <Grid RowDefinitions="Auto,*">
+        <Expander Grid.Row="0" Header="响应头" IsVisible="{Binding HasResponse}">
+          <SelectableTextBlock Classes="field-value" Text="{Binding ResponseHeaders}" TextWrapping="Wrap"/>
+        </Expander>
+        <ScrollViewer Grid.Row="1" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto"
+                      IsVisible="{Binding HasResponse}">
+          <SelectableTextBlock Classes="field-value" Text="{Binding ResponseBody}" TextWrapping="Wrap"/>
+        </ScrollViewer>
+        <TextBlock Grid.Row="1" Classes="empty-hint" TextWrapping="Wrap"
+                   IsVisible="{Binding !HasResponse}"
+                   Text="填好 URL 点「▶ 发送」，状态码 / 耗时 / 响应头 / 响应体会显示在这里。请求头一行一个「Key: Value」；请求体填 JSON 文本即可。"/>
+      </Grid>
     </Border>
   </Grid>
 </UserControl>

@@ -16,26 +16,11 @@
     <Border Grid.Row="1" Classes="toolbar">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <TextBlock Text="分类" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
-                     Foreground="{DynamicResource SecondaryTextBrush}"/>
-          <ComboBox x:Name="CategoryBox" Width="150" Margin="0,0,8,6"
-                    ItemsSource="{Binding CategoryOptions}"
-                    SelectedItem="{Binding SelectedCategory, Mode=TwoWay}">
-            <ComboBox.ItemTemplate>
-              <DataTemplate>
-                <TextBlock Text="{Binding Label}" FontSize="12"/>
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-
+          <!--  v3.19 / NT-006：原「分类」下拉 + 「➕ 新增」按钮移入表头右键菜单（分类→🔎筛选子菜单；新增→表头右键项）。  -->
           <TextBox x:Name="SearchBox" Width="240" Margin="0,0,8,6"
                    Text="{Binding SearchText, Mode=TwoWay}"
                    PlaceholderText="搜索名称 / 分类 / 简介…"
                    ToolTip.Tip="即时过滤（本地）"/>
-
-          <Button Classes="primary" Content="➕ 新增" Margin="0,0,8,6"
-                  Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
-                  ToolTip.Tip="追加一条脚本项，改好后点右侧「💾 保存」。本页只放**有脚本文件**的脚本，没有脚本文件的会自动归到「快捷设置」"/>
 
           <!--  脚本目录（v1.35）：选了就立即生效并写 app.json —— 选目录是明确的动作，不该再点保存  -->
           <TextBlock Text="脚本目录" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
@@ -108,6 +93,7 @@
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
+                  <MenuItem Header="➕ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
                   <MenuItem Header="⇔ 自动调整全部列宽" Command="{Binding AutoFitColumnsCommand}" ToolTip.Tip="在星号比例与按内容自适应之间切换"/>
                   <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
                     <MenuItem.ItemContainerTheme>

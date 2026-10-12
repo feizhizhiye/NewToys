@@ -361,6 +361,9 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
                                 .OrderBy(c => c, StringComparer.CurrentCulture))
             CategoryOptions.Add(new ActionCategoryOption { Label = c, Value = c });
         SelectedCategory = CategoryOptions.FirstOrDefault(o => o.Value == keep) ?? CategoryOptions[0];
+
+        // v3.19 / NT-006：分类也进表头右键「🔎 筛选」子菜单（原工具条「分类筛选框」移入这里）
+        SetQuickFilters(CategoryOptions.Where(o => !string.IsNullOrEmpty(o.Value)).Select(o => (o.Label, "Category", o.Value!)));
         _suppress = false;
     }
 

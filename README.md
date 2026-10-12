@@ -31,6 +31,7 @@ NewToys/
 | 指定平台构建（框架依赖） | `pwsh -File .\scripts\build.ps1 -Configuration Release -Runtime linux-x64` |
 | 指定平台构建（自包含） | `pwsh -File .\scripts\build.ps1 -Configuration Release -Runtime osx-x64 -SelfContained` |
 | 构建并启动 | `pwsh -File .\scripts\run.ps1 [-Configuration Debug] [-Env test]` |
+| 直接运行（已构建，缺失提醒先构建） | `pwsh -File .\scripts\run-NewToys.ps1 [-Configuration Debug] [-Env test]` |
 | 查看 / 切换 测试·生产环境 | `pwsh -File .\scripts\env.ps1 [test\|prod]` |
 | 发布到目录 | `pwsh -File .\scripts\publish.ps1 [-Target D:\NewToys]` |
 | 清理产物 | `pwsh -File .\scripts\clean.ps1` |

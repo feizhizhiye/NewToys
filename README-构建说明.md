@@ -14,11 +14,23 @@
 pwsh ./scripts/run.ps1
 
 # 2. Release构建（自动复制模块DLL到Modules/）
-pwsh ./scripts/build.ps1 -Release
+pwsh ./scripts/build.ps1 -Configuration Release
 
-# 3. Release运行
-pwsh ./scripts/run.ps1 -Release
+# 3. Release运行（构建并启动）
+pwsh ./scripts/run.ps1 -Configuration Release
 ```
+
+> 若只想**直接运行已构建**的产物（不触发编译，缺失时提醒先构建），用 `run-NewToys.ps1`：
+>
+> ```powershell
+> # 直接运行 Debug 产物（默认）
+> pwsh ./scripts/run-NewToys.ps1
+>
+> # 直接运行 Release 产物
+> pwsh ./scripts/run-NewToys.ps1 -Configuration Release
+> ```
+>
+> 它与 `run.ps1`（构建并启动）的区别：永远不编译，仅当 `NewToys.exe` 不存在时提示先构建并以退出码 1 结束。
 
 ## 目标平台（默认 win-x64）
 

@@ -393,7 +393,6 @@
                                 ToolTip.Tip="★ = 已收藏（真值在 video_favorites 表）" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
-                                    <MenuItem Command="{Binding ShowDetailCommand}" Header="▤ 显示详情栏" />
                                     <Separator />
                                     <!--  ⚠️ IsChecked 必须显式 Mode=OneWay：翻转由 ToggleColumnCommand 独家负责  -->
                                     <MenuItem
@@ -514,7 +513,6 @@
                         <!--  双击 = 播放；右键 = 更多功能  -->
                         <ListBox.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Command="{Binding ShowDetailCommand}" Header="▤ 显示详情栏" />
                                 <Separator />
                                 <MenuItem Command="{Binding PlayCommand}" Header="▶ 播放" />
                                 <MenuItem Command="{Binding RevealInExplorerCommand}" Header="📂 在文件管理器中定位" />

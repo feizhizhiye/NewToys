@@ -363,7 +363,6 @@
                                 IsVisible="{Binding IsCreatedVisible}" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
-                                    <MenuItem Command="{Binding ShowDetailCommand}" Header="▤ 显示详情栏" />
                                     <Separator />
                                     <!--  v3.16：勾选列也进「列显隐」（⛔ IsChecked 必须 Mode=OneWay，翻转由 ToggleColumnCommand 独家负责）  -->
                                     <MenuItem
@@ -447,7 +446,6 @@
                         SelectionMode="Single">
                         <ListBox.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Command="{Binding ShowDetailCommand}" Header="▤ 显示详情栏" />
                                 <Separator />
                                 <MenuItem Command="{Binding SaveCommand}" Header="💾 保存修改" />
                                 <MenuItem

@@ -150,7 +150,6 @@
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
-                  <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                   <Separator/>
                   <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：翻转由 ToggleColumnCommand 独家负责（默认双向会二次翻转）。 -->
                   <MenuItem Header="名称" ToggleType="CheckBox" IsChecked="{Binding IsTitleVisible, Mode=OneWay}"
@@ -180,7 +179,6 @@
                 <MenuItem Header="📝 编辑（记事本）" Command="{Binding EditWithNotepadCommand}" IsEnabled="{Binding CanEditScript}"/>
                 <MenuItem Header="🧰 打开方式…" Command="{Binding OpenWithCommand}" IsEnabled="{Binding CanEditScript}"/>
                 <Separator/>
-                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
                 <Separator/>
                 <MenuItem Header="{Binding FavoriteMenuLabel}" Command="{Binding ToggleFavoriteCommand}"/>

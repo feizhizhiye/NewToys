@@ -114,7 +114,6 @@
                    SelectionMode="Single">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <Separator/>
                 <MenuItem Header="🔗 联通检测" Command="{Binding CheckCommand}"/>
                 <MenuItem Header="📌 加入 / 移出批量打开" Command="{Binding ToggleBatchCommand}"/>

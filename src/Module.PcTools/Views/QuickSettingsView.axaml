@@ -136,7 +136,6 @@
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
-                  <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                   <Separator/>
                   <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：勾选只负责"显示当前状态"，
                        真正的翻转由 ToggleColumnCommand 独家负责（默认双向会写回 VM 造成二次翻转）。 -->
@@ -166,7 +165,6 @@
                 <MenuItem Header="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
                           IsEnabled="{Binding IsNotBusy}"/>
                 <Separator/>
-                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
                 <Separator/>
                 <MenuItem Header="{Binding FavoriteMenuLabel}" Command="{Binding ToggleFavoriteCommand}"/>

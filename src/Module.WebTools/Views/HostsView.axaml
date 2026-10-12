@@ -115,7 +115,6 @@
                    SelectionMode="Single">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <Separator/>
                 <MenuItem Header="✅ 应用到系统 hosts" Command="{Binding ApplyCommand}"/>
                 <MenuItem Header="📤 导出受管块" Command="{Binding ExportCommand}"/>

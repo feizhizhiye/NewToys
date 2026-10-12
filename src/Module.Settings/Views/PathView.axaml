@@ -103,7 +103,6 @@
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
-                  <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                   <Separator/>
                   <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：勾选只负责"显示当前状态"，
                        真正的翻转由 ToggleColumnCommand 独家负责（默认双向会写回 VM 造成二次翻转）。 -->
@@ -129,7 +128,6 @@
             <!-- 右键 = 「选中项更多功能」的主入口：查（▤ 详情栏）/ 改（📂 浏览 / 💾 保存 / ↩ 还原默认）/ 打开 -->
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <Separator/>
                 <MenuItem Header="📂 浏览…" Click="OnBrowseMenuClick"/>
                 <MenuItem Header="↗ 打开位置" Command="{Binding OpenCommand}" CommandParameter="{Binding Selected}"/>

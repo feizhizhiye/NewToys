@@ -144,7 +144,6 @@
                       IsVisible="{Binding IsPinnedVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
-                  <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                   <Separator/>
                   <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：勾选只负责"显示当前状态"，
                        真正的翻转由 ToggleColumnCommand 独家负责（默认双向会写回 VM 造成二次翻转）。 -->
@@ -173,7 +172,6 @@
                  查（▤ 详情栏 / 🔎 详情 / 🌐 主页 / 🔗 winget.run）/ 增（⬇ 安装）/ 改（⬆ 升级 / 📌 Pin）/ 删（🗑 卸载）。 -->
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <Separator/>
                 <MenuItem Header="⬇ 安装" Command="{Binding InstallCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <MenuItem Header="⬆ 升级到最新" Command="{Binding UpgradeCommand}" IsEnabled="{Binding !IsBusy}"/>

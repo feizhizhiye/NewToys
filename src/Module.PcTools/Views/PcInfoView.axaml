@@ -101,7 +101,6 @@
                          IsVisible="{Binding IsNoteVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
-                  <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                   <Separator/>
                   <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsCategoryVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Category"/>
@@ -122,7 +121,6 @@
                    SelectionMode="Single">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <Separator/>
                 <MenuItem Header="📋 复制这一行" Command="{Binding CopySelectedCommand}"/>
                 <MenuItem Header="📋 复制全部" Command="{Binding CopyAllCommand}"/>

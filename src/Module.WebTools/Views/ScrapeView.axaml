@@ -109,7 +109,6 @@
                    SelectionMode="Single">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <Separator/>
                 <MenuItem Header="▶ 运行" Command="{Binding RunCommand}"/>
                 <MenuItem Header="🔖 发送到书签" Command="{Binding SendToBookmarkCommand}"/>

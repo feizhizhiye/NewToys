@@ -86,7 +86,7 @@ function Get-AvailableModules {
     Get-ChildItem -LiteralPath $SrcDir -Directory -Filter "Module.*" | Sort-Object Name | ForEach-Object {
         [PSCustomObject]@{
             Name   = $_.Name -replace '^Module\.', ''
-            Dir    = $_.FullName
+            Dir    = $_
             Csproj = Join-Path $_.FullName ("{0}.csproj" -f $_.Name)
         }
     }
@@ -119,7 +119,7 @@ function Select-ModulesInteractive {
         if ($raw -imatch '^(a|all|\*)$') { return @($Modules) }
         if ($raw -eq '0') { Write-Host "已取消。" -ForegroundColor Yellow; return @() }
 
-        $picked = New-Object System.Collections.Generic.List[object]
+        $picked = @()
         $bad    = New-Object System.Collections.Generic.List[string]
         $ok     = $true
         foreach ($tok in ($raw -split '[,\s;，、]+' | Where-Object { $_ -ne '' })) {
@@ -127,13 +127,13 @@ function Select-ModulesInteractive {
                 $a = [int]$matches[1]; $b = [int]$matches[2]
                 if ($a -gt $b) { $t = $a; $a = $b; $b = $t }
                 for ($k = $a; $k -le $b; $k++) {
-                    if ($k -ge 1 -and $k -le $Modules.Count) { [void]$picked.Add($Modules[$k - 1]) }
+                    if ($k -ge 1 -and $k -le $Modules.Count) { $picked += $Modules[$k - 1] }
                     else { [void]$bad.Add("$k"); $ok = $false }
                 }
             }
             elseif ($tok -match '^\d+$') {
                 $n = [int]$tok
-                if ($n -ge 1 -and $n -le $Modules.Count) { [void]$picked.Add($Modules[$n - 1]) }
+                if ($n -ge 1 -and $n -le $Modules.Count) { $picked += $Modules[$n - 1] }
                 else { [void]$bad.Add($tok); $ok = $false }
             }
             else { [void]$bad.Add($tok); $ok = $false }
@@ -149,7 +149,7 @@ function Select-ModulesInteractive {
 
 function Resolve-ModulesByName {
     param([object[]]$Available, [string[]]$Names)
-    $resolved = New-Object System.Collections.Generic.List[object]
+    $resolved = @()
     foreach ($n in $Names) {
         if ([string]::IsNullOrWhiteSpace($n)) { continue }
         $hit = $Available | Where-Object { $_.Name -ieq "$n".Trim() } | Select-Object -First 1
@@ -157,9 +157,9 @@ function Resolve-ModulesByName {
             $avail = ($Available | ForEach-Object { $_.Name }) -join ', '
             throw "找不到模块：Module.$n（可用模块：$avail）"
         }
-        [void]$resolved.Add($hit)
+        $resolved += $hit
     }
-    return @($resolved)
+    return $resolved
 }
 
 # ---------- 主流程 ----------

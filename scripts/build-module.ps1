@@ -82,7 +82,7 @@ function Get-AvailableModules {
     Get-ChildItem -LiteralPath $SrcDir -Directory -Filter "Module.*" | Sort-Object Name | ForEach-Object {
         [PSCustomObject]@{
             Name   = $_.Name -replace '^Module\.', ''
-            Dir    = $_.FullName
+            Dir    = $_
             Csproj = Join-Path $_.FullName ("{0}.csproj" -f $_.Name)
         }
     }

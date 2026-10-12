@@ -52,6 +52,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+trap { Write-Host ("❌ 执行出错: " + $_) -ForegroundColor Red; Read-Host "按 Enter 关闭窗口"; exit 1 }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot  = Split-Path -Parent $ScriptDir
@@ -181,3 +182,5 @@ Write-Host "✅ 清理完成" -ForegroundColor Green
 if ($Deep -or $All) {
     Write-Host "提示：构建产物已清空，运行前请先执行 ./scripts/build.ps1 重新生成。" -ForegroundColor Yellow
 }
+
+exit 0

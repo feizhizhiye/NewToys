@@ -15,6 +15,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+trap { Write-Host ("❌ 执行出错: " + $_) -ForegroundColor Red; Read-Host "按 Enter 关闭窗口"; exit 1 }
+
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 if (-not $NoBuild) {
@@ -44,3 +46,5 @@ if (-not (Test-Path $exe)) { throw "找不到可执行文件: $exe" }
 
 Write-Host "==> 启动 $exe" -ForegroundColor Cyan
 Start-Process -FilePath $exe -WorkingDirectory (Split-Path -Parent $exe)
+
+exit 0

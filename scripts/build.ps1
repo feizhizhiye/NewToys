@@ -19,6 +19,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+trap { Write-Host ("❌ 执行出错: " + $_) -ForegroundColor Red; Read-Host "按 Enter 关闭窗口"; exit 1 }
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $Sln      = Join-Path $RepoRoot "src\NewToys.slnx"
@@ -70,3 +71,5 @@ if ($Configuration -eq "Release") {
 else {
     Write-Host "`nDebug 产物: $(Join-Path $RepoRoot 'artifacts\bin\Shell\Debug\net10.0')" -ForegroundColor Green
 }
+
+exit 0

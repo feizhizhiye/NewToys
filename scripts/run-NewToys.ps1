@@ -9,7 +9,6 @@
     - -Configuration Release：artifacts\release\NewToys.exe
     静默启动优先：exe 存在则直接拉起并退出，不残留提示。仅当 exe 不存在或启动失败时，
     才打印原因并暂停（Read-Host）等待人工确认，随后以退出码 1 结束（不抛异常、不自动编译）。
-    经 scripts\launch.ps1 启动时由启动器统一暂停（本脚本跳过自身暂停，避免双重暂停）。
 
 .PARAMETER Configuration
     Debug（默认）/ Release。
@@ -36,6 +35,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+trap { Write-Host ("❌ 执行出错: " + $_) -ForegroundColor Red; Read-Host "按 Enter 关闭窗口"; exit 1 }
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # -Env 只作用于本进程（测试不需要污染用户级环境变量）
@@ -63,7 +63,7 @@ if (-not (Test-Path -LiteralPath $exe)) {
     Write-Host ("     pwsh ./scripts/build.ps1 -Configuration " + $Configuration) -ForegroundColor Cyan
     Write-Host "   或  pwsh ./scripts/run.ps1 -Configuration $Configuration  （构建并启动）" -ForegroundColor Cyan
     Write-Host ""
-    if (-not $env:NEWTOYS_LAUNCHER) { Read-Host "按 Enter 键退出" }   # 经启动器启动时由启动器统一暂停
+    Read-Host "按 Enter 键退出"   # 暂停以便阅读，随后窗口随启动方式关闭
     exit 1
 }
 
@@ -73,7 +73,8 @@ try {
 }
 catch {
     Write-Host "✋ 启动失败：$_" -ForegroundColor Red
-    if (-not $env:NEWTOYS_LAUNCHER) { Read-Host "按 Enter 键退出" }   # 经启动器启动时由启动器统一暂停
+    Read-Host "按 Enter 键退出"
     exit 1
 }
-# 成功：直接返回；经 launch.ps1 启动时窗口由启动器自动关闭
+# 成功：直接返回，窗口随启动方式自动关闭
+exit 0

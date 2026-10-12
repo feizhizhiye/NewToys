@@ -16,7 +16,7 @@ namespace NewToys.Shell.Behaviors;
 /// 菜单外观走 Fluent 默认 <see cref="ContextMenu"/>（随明暗主题，符合整体配色）。
 /// </para>
 /// <para>
-/// 剪贴板操作用 <see cref="IClipboard"/>（<c>SetTextAsync</c>/<c>GetTextAsync</c> 扩展自
+/// 剪贴板操作用 <see cref="IClipboard"/>（<c>SetTextAsync</c>/<c>TryGetTextAsync</c> 扩展自
 /// <c>Avalonia.Input.Platform</c>）+ <see cref="TextBox.SelectedText"/>/<see cref="TextBox.CaretIndex"/>，
 /// 不依赖 TextBox 是否暴露 Copy/Cut/Paste 方法。
 /// </para>
@@ -25,7 +25,7 @@ public static class TextBoxMenu
 {
     /// <summary>挂载开关：在样式里设 True 即给该 TextBox 加右键编辑菜单。</summary>
     public static readonly AttachedProperty<bool> AttachProperty =
-        AvaloniaProperty.Register<TextBoxMenu, TextBox, bool>("Attach");
+        AvaloniaProperty.RegisterAttached<TextBoxMenu, TextBox, bool>("Attach");
 
     public static void SetAttach(TextBox obj, bool value) => obj.SetValue(AttachProperty, value);
     public static bool GetAttach(TextBox obj) => obj.GetValue(AttachProperty);
@@ -72,23 +72,25 @@ public static class TextBoxMenu
 
     private static async void DoCopy(TextBox tb)
     {
-        if (string.IsNullOrEmpty(tb.SelectedText)) return;
+        var sel = tb.SelectedText;
+        if (string.IsNullOrEmpty(sel)) return;
         var clip = ClipboardOf(tb);
-        if (clip != null) await clip.SetTextAsync(tb.SelectedText);
+        if (clip != null) await clip.SetTextAsync(sel);
     }
 
     private static async void DoCut(TextBox tb)
     {
-        if (string.IsNullOrEmpty(tb.SelectedText)) return;
+        var sel = tb.SelectedText;
+        if (string.IsNullOrEmpty(sel)) return;
         var clip = ClipboardOf(tb);
-        if (clip != null) await clip.SetTextAsync(tb.SelectedText);
+        if (clip != null) await clip.SetTextAsync(sel);
         DeleteSelection(tb);
     }
 
     private static async Task DoPasteAsync(TextBox tb)
     {
         var clip = ClipboardOf(tb);
-        var text = clip == null ? null : await clip.GetTextAsync();
+        var text = clip == null ? null : await clip.TryGetTextAsync();
         if (string.IsNullOrEmpty(text)) return;
 
         var t = tb.Text ?? "";

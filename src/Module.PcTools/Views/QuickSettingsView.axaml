@@ -274,8 +274,9 @@
                   </ComboBox.ItemTemplate>
                 </ComboBox>
               </StackPanel>
-              <CheckBox Content="隐藏终端窗口（GUI 启动类：不弹终端，静默打开目标程序）" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding ShowCommandRunOptions}"
-                      IsChecked="{Binding EditRunHidden, Mode=TwoWay}"/>
+              <CheckBox IsVisible="{Binding ShowCommandRunOptions}" IsChecked="{Binding EditRunHidden, Mode=TwoWay}">
+                <TextBlock Text="隐藏终端窗口（GUI 启动类：不弹终端，静默打开目标程序）" FontSize="12" TextWrapping="Wrap"/>
+              </CheckBox>
 
               <Border Classes="divider-line"/>
 

@@ -10,6 +10,11 @@
 param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Debug",
+    # 目标 RID；省略则用 Directory.Build.props 的默认 win-x64。
+    # 例：-Runtime linux-x64 / osx-x64 / win-arm64
+    [string]$Runtime = "",
+    # 自包含：带上 .NET 运行时，目标机无需预装 .NET 10。默认关（框架依赖）。
+    [switch]$SelfContained,
     [switch]$Restore
 )
 
@@ -29,7 +34,16 @@ if ($Restore) {
 }
 
 Write-Host "`n==> 编译..." -ForegroundColor Cyan
-dotnet build $Sln -c $Configuration --nologo -v q
+$buildArgs = @($Sln, "-c", $Configuration, "--nologo", "-v", "q")
+if ($Runtime) {
+    Write-Host "    目标平台: $Runtime" -ForegroundColor Cyan
+    $buildArgs += "-r"
+    $buildArgs += $Runtime
+    if (-not $SelfContained) {
+        $buildArgs += "-p:SelfContained=false"
+    }
+}
+& dotnet build @buildArgs
 if ($LASTEXITCODE -ne 0) { throw "编译失败" }
 
 Write-Host "`n编译完成（以 build 输出的 error/warning 计数为准）。" -ForegroundColor Green

@@ -10,6 +10,14 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
+  <!--  ===== 目标平台：默认只产出当前 Windows x64（框架依赖，运行机自带 .NET 10）=====
+        跨平台构建见 scripts\build.ps1 -Runtime <rid>（如 linux-x64 / osx-x64）。
+        ⛔ 删除本段即恢复「拷贝全部 RID 原生资产（约 28 个 / 580MB）」的旧行为。     -->
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+
   <!--  ===== 版本号：编译时自动生成，禁止手写  =====
         显示版本 1.<yyyyMMdd>.<HH>.<mm 取整到十位>   例：1.20261010.00.10
         文件版本 1.<yyyy>.<MMdd>.<HHmm>           例：1.2026.1010.0015

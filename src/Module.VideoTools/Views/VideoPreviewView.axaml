@@ -80,11 +80,12 @@
             <!--  v3.19 / NT-012：改用 LayoutTransformControl 承载 RotateTransform ——
                  原先 RenderTransform + MinHeight=340，转 90° 后画面超出容器被 ClipToBounds 裁掉（表现为"视频消失"）；
                  LayoutTransform 在**布局期**变换，容器随旋转重排，画面始终完整可见。  -->
-            <LayoutTransformControl>
+            <LayoutTransformControl HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
               <LayoutTransformControl.LayoutTransform>
                 <RotateTransform Angle="{Binding PreviewRotation}"/>
               </LayoutTransformControl.LayoutTransform>
-              <Image Source="{Binding PreviewImage}" Stretch="Uniform"/>
+              <Image Source="{Binding PreviewImage}" Stretch="Uniform"
+                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
             </LayoutTransformControl>
           </Border>
 
@@ -111,7 +112,7 @@
                          VerticalAlignment="Center" Text="{Binding PreviewTimeDisplay}"/>
             </Grid>
 
-            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}" Margin="0,-8,0,0">
+            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}" Margin="0,-14,0,0">
               <TextBlock Grid.Column="0" Classes="field-label" Text="开始" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding StartSeconds, Mode=TwoWay}"
@@ -121,7 +122,7 @@
                          VerticalAlignment="Center" Text="{Binding EditStart}"/>
             </Grid>
 
-            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}" Margin="0,-8,0,0">
+            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}" Margin="0,-14,0,0">
               <TextBlock Grid.Column="0" Classes="field-label" Text="结束" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding EndSeconds, Mode=TwoWay}"

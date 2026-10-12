@@ -54,7 +54,7 @@
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
 
       <!--  ==================== 左：预览画面 + 三条时间条（均常显）  ==================== -->
-      <Border Grid.Column="0" Classes="card" Padding="8">
+      <Border Grid.Column="0" Classes="card" Padding="4">
         <Grid RowDefinitions="*,Auto">
 
           <Border Grid.Row="0" CornerRadius="6" ClipToBounds="True"
@@ -73,7 +73,7 @@
               thumb 骑在轨道端点、半边突出是滑块的标准形态（0=左端、满=右端），三条一致。
               右侧时间列 84："00:00:00.000" 12 字符 @12px ≈78px，52 会折行。
           -->
-          <StackPanel Grid.Row="1" Margin="0,4,0,0" Spacing="4">
+          <StackPanel Grid.Row="1" Margin="0,4,0,0" Spacing="0">
 
             <Grid ColumnDefinitions="56,*,84">
               <TextBlock Grid.Column="0" Classes="field-label" Text="预览位置" VerticalAlignment="Center"/>

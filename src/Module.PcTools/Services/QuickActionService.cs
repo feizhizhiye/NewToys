@@ -168,6 +168,56 @@ public class QuickActionService : IQuickActionService
         Persist();
     }
 
+    // ==================== 导入 / 导出（v3.19 / NT-006、NT-007） ====================
+
+    /// <summary>导出某页**全条目**为 json 文本（<see cref="QuickActionPage.Quick"/> / <see cref="QuickActionPage.Shortcuts"/>）。</summary>
+    public string ExportPage(string page)
+    {
+        var list = page == QuickActionPage.Quick ? _quick : _shortcuts;
+        return JsonSerializer.Serialize(list, JsonOpts);
+    }
+
+    /// <summary>
+    /// 导入某页条目（v3.19）：<paramref name="replace"/>=true 整页替换、false 合并
+    /// （按 <see cref="QuickAction.Id"/> 去重，同 Id 覆盖字段、保留列表顺序）。
+    /// </summary>
+    /// <returns>(新增, 更新, 跳过/无效)；<c>Skipped=-1</c> 表示 json 解析失败。</returns>
+    public (int Added, int Updated, int Skipped) ImportPage(string page, string json, bool replace)
+    {
+        List<QuickAction>? incoming;
+        try { incoming = JsonSerializer.Deserialize<List<QuickAction>>(json); }
+        catch { return (0, 0, -1); }
+        if (incoming == null) return (0, 0, -1);
+
+        var isQuick = page == QuickActionPage.Quick;
+        var target = isQuick ? _quick : _shortcuts;
+        if (replace) target.Clear();
+
+        var added = 0; var updated = 0; var skipped = 0;
+        foreach (var it in incoming)
+        {
+            if (it == null) { skipped++; continue; }
+            it.Page = page;
+            if (string.IsNullOrWhiteSpace(it.Id)) it.Id = Guid.NewGuid().ToString("N");
+            if (string.IsNullOrWhiteSpace(it.Kind))
+                it.Kind = isQuick ? QuickActionKind.Command : QuickActionKind.Script;
+            it.Shell = QuickActionShell.Normalize(it.Shell);
+
+            var exist = target.FirstOrDefault(x => string.Equals(x.Id, it.Id, StringComparison.OrdinalIgnoreCase));
+            if (exist != null)
+            {
+                exist.Title = it.Title; exist.Category = it.Category; exist.Description = it.Description;
+                exist.Command = it.Command; exist.ScriptFile = it.ScriptFile; exist.Interpreter = it.Interpreter;
+                exist.NeedAdmin = it.NeedAdmin; exist.IsFavorite = it.IsFavorite;
+                exist.RunHidden = it.RunHidden; exist.Shell = it.Shell; exist.Kind = it.Kind;
+                updated++;
+            }
+            else { target.Add(it); added++; }
+        }
+        Persist();
+        return (added, updated, skipped);
+    }
+
     // ==================== 运行 ====================
 
     public Task<(bool Ok, string Message)> RunAsync(QuickAction item, CancellationToken ct = default)

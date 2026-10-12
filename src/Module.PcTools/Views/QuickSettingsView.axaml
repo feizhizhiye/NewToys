@@ -14,7 +14,7 @@
 
     <!--  ==================== 工具条  ====================  -->
     <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto">
         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock Text="分类" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
                      Foreground="{DynamicResource SecondaryTextBrush}"/>
@@ -37,7 +37,21 @@
                   Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="追加一条系统自带设置入口，改好后点右侧「💾 保存」"/>
         </WrapPanel>
-        <Button Grid.Column="1" Classes="detail-toggle"
+        <!--  导入 / 导出（v3.19 / NT-006）：用 NT-010 的 io-bar/io-btn 共享控件；
+              导入 = 合并 / 整页替换（Flyout 二选一），导出 = 全条目 json；文件选择在 code-behind。  -->
+        <StackPanel Grid.Column="1" Classes="io-bar" Margin="0,0,8,0">
+          <Button Classes="io-btn" Content="📤 导出" Click="OnExportClick"
+                  ToolTip.Tip="把本页全条目导出为 json 文件"/>
+          <Button Classes="io-btn" Content="📥 导入" ToolTip.Tip="从 json 文件导入（合并 / 整页替换）">
+            <Button.Flyout>
+              <MenuFlyout Placement="Bottom">
+                <MenuItem Header="🔀 合并导入（按 Id 去重，同 Id 覆盖）" Click="OnImportMergeClick"/>
+                <MenuItem Header="♻ 整页替换（先清空本页再导入）" Click="OnImportReplaceClick"/>
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+        </StackPanel>
+        <Button Grid.Column="2" Classes="detail-toggle"
                 Command="{Binding ToggleDetailCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>

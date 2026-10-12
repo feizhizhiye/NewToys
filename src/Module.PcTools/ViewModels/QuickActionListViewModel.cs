@@ -555,6 +555,30 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         return (added, skipped);
     }
 
+    // ==================== 整页导入 / 导出（v3.19 / NT-006、NT-007；控件样式见 NT-010 的 io-bar/io-btn） ====================
+
+    /// <summary>导出本页**全条目** json 文本（供 View「📤 导出」存盘）。</summary>
+    public string ExportPageJson() => _svc?.ExportPage(_pageKind) ?? "[]";
+
+    /// <summary>导入本页（View「📥 导入」读文件后调用）；<paramref name="replace"/>=true 整页替换、false 合并。</summary>
+    public string ImportPageJson(string json, bool replace)
+    {
+        if (_svc == null) return "服务不可用。";
+        var (added, updated, skipped) = _svc.ImportPage(_pageKind, json, replace);
+        if (skipped < 0) return "⚠ 导入失败：选中的文件不是有效的清单 json。";
+
+        RebuildCategories();
+        ResetFilters();
+        ApplyView();
+
+        var parts = new List<string>();
+        if (added > 0) parts.Add($"新增 {added} 条");
+        if (updated > 0) parts.Add($"更新 {updated} 条");
+        if (skipped > 0) parts.Add($"跳过 {skipped} 条无效");
+        var summary = parts.Count > 0 ? string.Join("，", parts) : "没有可导入的条目";
+        return (replace ? "已整页替换：" : "已合并导入：") + summary + $"（写入 {FilePath}）";
+    }
+
     // ==================== 增删改查 ====================
 
     /// <summary>新增：先清掉过滤（保证新项一定可见），追加一条并选中它，改好后点「💾 保存」。</summary>

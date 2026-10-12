@@ -9,7 +9,7 @@
     - -Configuration Release：artifacts\release\NewToys.exe
     静默启动优先：exe 存在则直接拉起并退出，不残留提示。仅当 exe 不存在或启动失败时，
     才打印原因并暂停（Read-Host）等待人工确认，随后以退出码 1 结束（不抛异常、不自动编译）。
-    配合 `cmd /c pwsh -File 本脚本` 形式的快捷方式，可实现「成功自动关窗、出错留窗」。
+    建议通过 scripts\launch.cmd 启动（统一「成功自动关窗、出错暂停留窗」，避免终端窗口堆积）。
 
 .PARAMETER Configuration
     Debug（默认）/ Release。
@@ -63,7 +63,6 @@ if (-not (Test-Path -LiteralPath $exe)) {
     Write-Host ("     pwsh ./scripts/build.ps1 -Configuration " + $Configuration) -ForegroundColor Cyan
     Write-Host "   或  pwsh ./scripts/run.ps1 -Configuration $Configuration  （构建并启动）" -ForegroundColor Cyan
     Write-Host ""
-    Read-Host "按 Enter 键退出"   # 暂停以便阅读，随后窗口随启动方式关闭
     exit 1
 }
 
@@ -73,7 +72,6 @@ try {
 }
 catch {
     Write-Host "✋ 启动失败：$_" -ForegroundColor Red
-    Read-Host "按 Enter 键退出"
     exit 1
 }
 # 成功：直接返回，终端窗口是否关闭由启动方式决定（建议用 cmd /c 包装的快捷方式）

@@ -15,9 +15,10 @@ agent_created: true
 
 ## 目录
 
-- `references/collab-method.md` —— **通用协作方法论（跨项目母本）**：铁律、两阶段工作流、变更声明、静态自检、交付要求、分级读档
+- `references/collab-method.md` —— **通用协作方法论（跨项目母本）**：铁律、**规划 / 执行双模式**、草稿闸门、变更声明、静态自检、交付要求、分级读档
 - `references/newtoys-spec.md` —— **NewToys 特定约束**：项目事实、密度基线、高频坑、任务型→规范章节、四文档路由
 - `scripts/check.ps1` —— 交付前静态自检（axaml 合法性、`.axaml`↔`.cs` 配对、主题键白名单核对）
+- `src/docs/backlog/` —— **可执行待办明细（NT-xxx）**：规划期只写、执行期只读；`README.md` 定义格式、双模式与批量协议，台账三、为索引
 
 ## 执行流程
 

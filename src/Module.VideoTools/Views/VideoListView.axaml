@@ -645,54 +645,13 @@
             IsVisible="{Binding IsDetailVisible}">
             <Grid RowDefinitions="Auto,*">
 
-                <StackPanel
+                <!--  v3.19 / NT-011：详情卡操作按钮整排删除 —— 播放/定位/信息/路径/发送/重命名/删除都与工具条 + 右键菜单重复，
+                      详情卡只留「只读信息 + 可编辑标签」（标签管理见台账待办）。  -->
+                <TextBlock
                     Grid.Row="0"
-                    IsVisible="{Binding HasSelection}"
-                    Spacing="8">
-                    <TextBlock Classes="section-title" Text="选中视频" />
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button
-                            Classes="primary"
-                            Command="{Binding PlayCommand}"
-                            Content="▶ 播放" />
-                        <Button
-                            Classes="ghost"
-                            Command="{Binding RevealInExplorerCommand}"
-                            Content="📂 定位" />
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button
-                            Classes="ghost"
-                            Command="{Binding LoadMediaInfoCommand}"
-                            Content="🔎 信息" />
-                        <Button
-                            Classes="ghost"
-                            Command="{Binding CopyPathCommand}"
-                            Content="📋 路径" />
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button
-                            Classes="ghost"
-                            Command="{Binding SendToTranscodeCommand}"
-                            Content="➡ 转码"
-                            IsEnabled="{Binding HasChecked}" />
-                        <Button
-                            Classes="ghost"
-                            Command="{Binding SendToCutCommand}"
-                            Content="➡ 剪切"
-                            IsEnabled="{Binding HasChecked}" />
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button
-                            Classes="ghost"
-                            Command="{Binding RenameCommand}"
-                            Content="✏ 重命名" />
-                        <Button
-                            Classes="ghost"
-                            Command="{Binding DeleteCommand}"
-                            Content="🗑 删除" />
-                    </StackPanel>
-                </StackPanel>
+                    Classes="section-title"
+                    Text="选中视频"
+                    IsVisible="{Binding HasSelection}" />
 
                 <ScrollViewer
                     Grid.Row="1"

@@ -168,3 +168,16 @@ public partial class FilterClause : ObservableObject
         return IsNoValueOp ? $"{col} {label}" : $"{col} {label} “{Value}”";
     }
 }
+
+/// <summary>
+/// 表头右键「🔎 筛选」子菜单里的一个快捷筛选项（v3.19 / NT-006）：点一下即按「某列 = 某值」过滤。
+/// <para>⚠️ <see cref="Command"/> 由 <c>ListPageViewModelBase</c> 填 —— 菜单项在**弹出树**里取不到页面 VM 的命令，
+/// 故把命令挂到数据项自己身上，XAML 子菜单项直接绑 <c>{Binding Command}</c>（相对项自身的 DataContext）。</para>
+/// </summary>
+public sealed class FilterQuickItem
+{
+    public string Label { get; set; } = "";
+    public string ColumnKey { get; set; } = "";
+    public string Value { get; set; } = "";
+    public System.Windows.Input.ICommand? Command { get; set; }
+}

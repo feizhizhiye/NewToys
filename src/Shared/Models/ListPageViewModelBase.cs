@@ -105,6 +105,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     {
         LoadVisibility();
         IsDetailVisible = _cols?.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel) ?? false;
+        SeedStandardQuickFilters();   // v3.19 / NT-006：表头右键「筛选」子菜单的标准项（页有分类再 SetQuickFilters 覆盖）
     }
 
     private void LoadVisibility()
@@ -315,6 +316,74 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     private void ClearFilters()
     {
         ResetFilters();
+        RefreshView();
+    }
+
+    // ==================== 表头右键「🔎 筛选」子菜单的快捷项（v3.19 / NT-006） ====================
+
+    /// <summary>表头右键「🔎 筛选」子菜单的快捷项（统一项：添加列 / 清空 + 本页分类值或占位）。</summary>
+    public ObservableCollection<FilterQuickItem> QuickFilters { get; } = new();
+
+    /// <summary>是否有快捷筛选项（XAML 据此在「占位提示」与「列表」间切换）。</summary>
+    public bool HasQuickFilters => QuickFilters.Count > 0;
+
+    /// <summary>没有分类的页，种子一次性建「＋ 添加筛选列 / 🧹 清空 / （占位）」三项。</summary>
+    private void SeedStandardQuickFilters()
+    {
+        if (QuickFilters.Count > 0) return;
+        QuickFilters.Add(new FilterQuickItem { Label = "＋ 添加筛选列…", Command = AddFilterCommand });
+        QuickFilters.Add(new FilterQuickItem { Label = "🧹 清空筛选（全部列）", Command = ClearFiltersCommand });
+        QuickFilters.Add(new FilterQuickItem { Label = "（本页暂无分类筛选）" });
+        OnPropertyChanged(nameof(HasQuickFilters));
+    }
+
+    /// <summary>标准两项（各页通用）。</summary>
+    private void AddStandardQuickFilters()
+    {
+        QuickFilters.Add(new FilterQuickItem { Label = "＋ 添加筛选列…", Command = AddFilterCommand });
+        QuickFilters.Add(new FilterQuickItem { Label = "🧹 清空筛选（全部列）", Command = ClearFiltersCommand });
+    }
+
+    /// <summary>
+    /// 派生类用：设置「筛选」子菜单的**分类**快捷项（如本页各分类 / 类别值）。
+    /// 会连同标准两项（添加列 / 清空）一起重建。每项自带命令 —— 菜单项在弹出树里取不到页面 VM 的命令。
+    /// </summary>
+    protected void SetQuickFilters(IEnumerable<(string Label, string ColumnKey, string Value)> items)
+    {
+        QuickFilters.Clear();
+        AddStandardQuickFilters();
+        foreach (var (label, key, value) in items)
+        {
+            var k = key; var v = value;
+            QuickFilters.Add(new FilterQuickItem
+            {
+                Label = label,
+                ColumnKey = k,
+                Value = v,
+                Command = new RelayCommand(() => ApplyQuickFilterValue(k, v))
+            });
+        }
+        OnPropertyChanged(nameof(HasQuickFilters));
+    }
+
+    /// <summary>应用一条快捷筛选：清掉同列旧条件后加一条「等于 value」（分类值用等于最准）。</summary>
+    private void ApplyQuickFilterValue(string columnKey, string value)
+    {
+        EnsureFilterColumns();
+        for (var i = Filters.Count - 1; i >= 0; i--)
+            if (string.Equals(Filters[i].ColumnKey, columnKey, StringComparison.OrdinalIgnoreCase))
+            {
+                Filters[i].PropertyChanged -= OnClauseChanged;
+                Filters.RemoveAt(i);
+            }
+
+        var col = FilterableColumns.FirstOrDefault(c => string.Equals(c.Key, columnKey, StringComparison.OrdinalIgnoreCase));
+        if (col == null) { NotifyFilterUi(); RefreshView(); return; }
+
+        var clause = new FilterClause { Column = col, Op = FilterOperators.Equal, Value = value, Enabled = true };
+        clause.PropertyChanged += OnClauseChanged;
+        Filters.Add(clause);
+        NotifyFilterUi();
         RefreshView();
     }
 

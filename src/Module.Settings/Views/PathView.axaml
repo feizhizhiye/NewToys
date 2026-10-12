@@ -37,48 +37,6 @@
       </Grid>
     </Border>
 
-    <!--  ==================== 多项筛选  ====================  -->
-    <Border Grid.Row="2" Classes="filter-bar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <Button Classes="filter-btn" Content="＋ 条件" Command="{Binding AddFilterCommand}"/>
-        <Button Classes="filter-btn" Content="🧹 清空" Command="{Binding ClearFiltersCommand}"
-                IsVisible="{Binding HasFilters}"/>
-        <TextBlock Classes="hint-text" Text="{Binding FilterSummary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-        <ItemsControl ItemsSource="{Binding Filters}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel Orientation="Horizontal"/>
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,10,4" VerticalAlignment="Center">
-                <CheckBox IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"/>
-                <ComboBox Classes="filter-combo"
-                          ItemsSource="{Binding $parent[UserControl].DataContext.FilterableColumns}"
-                          SelectedItem="{Binding Column, Mode=TwoWay}">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate><TextBlock Text="{Binding Header}" FontSize="12"/></DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-                <ComboBox Classes="filter-combo" ItemsSource="{Binding Operators}"
-                          SelectedItem="{Binding OperatorItem, Mode=TwoWay}">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-                <TextBox Classes="filter-value" Text="{Binding Value, Mode=TwoWay}"
-                         IsVisible="{Binding NeedsValue}" PlaceholderText="值…"/>
-                <Button Classes="filter-btn" Content="✕" Padding="6,2"
-                        Command="{Binding $parent[UserControl].DataContext.RemoveFilterCommand}"
-                        CommandParameter="{Binding}"/>
-              </StackPanel>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </WrapPanel>
-    </Border>
 
       <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
       <Border Grid.Row="3" Classes="card" Padding="0">
@@ -103,10 +61,19 @@
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
+                  <MenuItem Header="⇔ 自动调整全部列宽" Command="{Binding AutoFitColumnsCommand}" ToolTip.Tip="在星号比例与按内容自适应之间切换"/>
+                  <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                    <MenuItem.ItemContainerTheme>
+                      <ControlTheme TargetType="MenuItem">
+                        <Setter Property="Header" Value="{Binding Label}"/>
+                        <Setter Property="Command" Value="{Binding Command}"/>
+                      </ControlTheme>
+                    </MenuItem.ItemContainerTheme>
+                  </MenuItem>
                   <Separator/>
                   <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：勾选只负责"显示当前状态"，
                        真正的翻转由 ToggleColumnCommand 独家负责（默认双向会写回 VM 造成二次翻转）。 -->
-                  <MenuItem Header="名称" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                  <MenuItem Header="名称" IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
                   <MenuItem Header="当前值" ToggleType="CheckBox" IsChecked="{Binding IsValueVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Value"/>

@@ -184,75 +184,6 @@
                 </Grid>
             </Border>
 
-            <!--  ==================== 多项筛选  ====================  -->
-            <Border Grid.Row="2" Classes="filter-bar">
-                <WrapPanel VerticalAlignment="Center" Orientation="Horizontal">
-                    <Button
-                        Classes="filter-btn"
-                        Command="{Binding AddFilterCommand}"
-                        Content="＋ 条件" />
-                    <Button
-                        Classes="filter-btn"
-                        Command="{Binding ClearFiltersCommand}"
-                        Content="🧹 清空"
-                        IsVisible="{Binding HasFilters}" />
-                    <TextBlock
-                        Margin="0,0,8,0"
-                        VerticalAlignment="Center"
-                        Classes="hint-text"
-                        Text="{Binding FilterSummary}" />
-
-                    <ItemsControl ItemsSource="{Binding Filters}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel
-                                    Margin="0,0,10,4"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal"
-                                    Spacing="4">
-                                    <CheckBox VerticalAlignment="Center" IsChecked="{Binding Enabled, Mode=TwoWay}" />
-                                    <ComboBox
-                                        Classes="filter-combo"
-                                        ItemsSource="{Binding $parent[UserControl].DataContext.FilterableColumns}"
-                                        SelectedItem="{Binding Column, Mode=TwoWay}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <TextBlock FontSize="12" Text="{Binding Header}" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                    <ComboBox
-                                        Classes="filter-combo"
-                                        ItemsSource="{Binding Operators}"
-                                        SelectedItem="{Binding OperatorItem, Mode=TwoWay}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <TextBlock FontSize="12" Text="{Binding Label}" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                    <TextBox
-                                        Classes="filter-value"
-                                        IsVisible="{Binding NeedsValue}"
-                                        PlaceholderText="值…"
-                                        Text="{Binding Value, Mode=TwoWay}" />
-                                    <Button
-                                        Padding="6,2"
-                                        Classes="filter-btn"
-                                        Command="{Binding $parent[UserControl].DataContext.RemoveFilterCommand}"
-                                        CommandParameter="{Binding}"
-                                        Content="✕" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </WrapPanel>
-            </Border>
 
             <!--  ==================== 列表本体：剪辑 + 转码混排的统一队列  ====================  -->
             <Border
@@ -363,6 +294,15 @@
                                 IsVisible="{Binding IsCreatedVisible}" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
+                                <MenuItem Header="⇔ 自动调整全部列宽" Command="{Binding AutoFitColumnsCommand}" ToolTip.Tip="在星号比例与按内容自适应之间切换"/>
+                                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                                  <MenuItem.ItemContainerTheme>
+                                    <ControlTheme TargetType="MenuItem">
+                                      <Setter Property="Header" Value="{Binding Label}"/>
+                                      <Setter Property="Command" Value="{Binding Command}"/>
+                                    </ControlTheme>
+                                  </MenuItem.ItemContainerTheme>
+                                </MenuItem>
                                     <Separator />
                                     <!--  v3.16：勾选列也进「列显隐」（⛔ IsChecked 必须 Mode=OneWay，翻转由 ToggleColumnCommand 独家负责）  -->
                                     <MenuItem
@@ -381,7 +321,7 @@
                                         Command="{Binding ToggleColumnCommand}"
                                         CommandParameter="Name"
                                         Header="文件"
-                                        IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                                        IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
                                         ToggleType="CheckBox" />
                                     <MenuItem
                                         Command="{Binding ToggleColumnCommand}"

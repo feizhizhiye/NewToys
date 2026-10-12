@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:b="using:NewToys.Shell.Behaviors">
 
   <!--  =====================================================================
         NewToys 复用样式表（v1.35）
@@ -250,29 +251,37 @@
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
   </Style>
 
-  <!--  ⑯ 导入导出控件条（列表页通用：快捷设置 / 设置与脚本 / 视频列表 / 软件包已装导出 同一套）
-        容器 = io-bar（与筛选条同款底，但独立键避免和筛选条语义混），按钮 = io-btn（与 filter-btn 同款外观）。
-        各列表页直接用 Classes="io-bar" / Classes="io-btn"，不各自造配色（需求 §4.10.4）。  -->
-  <Style Selector="Border.io-bar">
-    <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-    <Setter Property="Padding" Value="12,6"/>
+  <!--  ⑯ 列表页「导入 / 导出」组（v3.19 / 需求 §4.10.4「导入导出控件一致」）：
+        有导入导出需求的列表页（快捷设置 / 设置与脚本 / 视频列表 / 软件包已装导出）用**同一套**容器 + 按钮，
+        ⛔ 不再各页自造。用法：工具条右侧放 <StackPanel Classes="io-bar">，内含若干 <Button Classes="io-btn">。
+        （「清除缓存」这类破坏性按钮另用 danger 语义，别混进本组。）  -->
+  <Style Selector="StackPanel.io-bar">
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="Spacing" Value="6"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style Selector="Button.io-btn">
     <Setter Property="FontSize" Value="11"/>
-    <Setter Property="Padding" Value="8,4"/>
-    <Setter Property="Margin" Value="0,0,6,0"/>
-    <Setter Property="VerticalAlignment" Value="Center"/>
-    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="10,4"/>
+    <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style Selector="Button.io-btn:pointerover">
     <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+
+  <!--  ⑰ 全局 TextBox 右键编辑菜单（v3.19 / 需求 §4.10.4「文本框右键 paste/copy/cut 符合配色」）：
+        Avalonia 的 TextBox 默认**没有**右键菜单（键盘 Ctrl+X/C/V 仍可用），这里用挂载属性统一挂上
+        「剪切 / 复制 / 粘贴 / 全选」，外观走 Fluent 默认 ContextMenu（随明暗主题）。
+        实现见 Shell/Behaviors/TextBoxContextMenu.cs。  -->
+  <Style Selector="TextBox">
+    <Setter Property="(b:TextBoxMenu.Attach)" Value="True"/>
   </Style>
 
 </Styles>

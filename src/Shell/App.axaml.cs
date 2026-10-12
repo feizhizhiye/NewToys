@@ -505,9 +505,10 @@ public class App : Application
             S("SiderBrush","#202020"); S("SiderTextBrush","#FFFFFF"); S("SiderIconBrush","#9A9A9A"); S("SiderIconActiveBrush","#FFFFFF"); S("SiderSelectedBrush","#2E2E2E"); S("SiderDividerBrush","#2E2E2E");
             S("SubSiderBrush","#262626"); S("SubSiderHeaderBrush","#2B2B2B");
             // 「选中的卡片」用强调色派生：底 ≈ 强调色压暗到深色面板上，字 ≈ 强调色提亮（深色底上才看得清）
-            // v3.19（NT-010）：原 0.22/0.25 太淡 → 提到 0.34/0.42，菜单栏 / 标签页激活项对比更明显（仍 AccentPalette 单源，不写死）
+            // v3.19（NT-010 / 需求 §4.10.4「激活态加深」）：原强调色占比 22% 太淡，菜单/标签/列表选中不凸显；
+            //   加深到 34%（选中 vs 悬停/常规对比更明显），字色同步提亮到 34% 保证深色底上可读。
             S("CardSelectedBrush", Hex(Blend(accentColor, Color.Parse("#262626"), 0.34)));
-            S("CardSelectedTextBrush", Hex(Blend(accentColor, Colors.White, 0.42)));
+            S("CardSelectedTextBrush", Hex(Blend(accentColor, Colors.White, 0.34)));
             S("ContentBrush","#191919"); S("ContentHeaderBrush","#1F1F1F"); S("StatusBarBrush","#1F1F1F");
             S("PanelBrush","#262626"); S("CardHoverBrush","#333333"); S("DividerBrush","#333333"); S("DangerBrush","#F85149"); S("LoadingOverlayBrush","#80000000");
             S("PrimaryTextBrush","#E5E5E5"); S("SecondaryTextBrush","#9E9E9E"); S("SiderIconHoverBrush","#3A3A3A");
@@ -521,7 +522,7 @@ public class App : Application
             S("SiderBrush","#2E2E2E"); S("SiderTextBrush","#FFFFFF"); S("SiderIconBrush","#B7B7B7"); S("SiderIconActiveBrush","#FFFFFF"); S("SiderSelectedBrush","#444444"); S("SiderDividerBrush","#3F3F3F");
             S("SubSiderBrush","#F3F3F3"); S("SubSiderHeaderBrush","#F7F7F7");
             // 浅色底上的选中卡片：底 ≈ 强调色冲淡到接近白，字 = 强调色本身
-            // v3.19（NT-010）：选中底从 0.16 提到 0.26，激活项更易辨认
+            // v3.19（NT-010）：浅色选中底同样加深（16%→26%），选中态更清晰、不易被忽略。
             S("CardSelectedBrush", Hex(Blend(accentColor, Colors.White, 0.26)));
             S("CardSelectedTextBrush", accent.Color);
             S("ContentBrush","#FFFFFF"); S("ContentHeaderBrush","#FFFFFF"); S("StatusBarBrush","#FAFBFC");

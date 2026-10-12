@@ -25,6 +25,8 @@ NewToys/
 |---|---|
 | 编译 Debug | `pwsh -File .\scripts\build.ps1` |
 | 编译 Release | `pwsh -File .\scripts\build.ps1 -Configuration Release` |
+| 全量 Release | `pwsh -File .\scripts\release.ps1` |
+| 指定模块 Release | `pwsh -File .\scripts\release-module.ps1 -Module VideoTools` |
 | 清过包 / 改过版本后先还原 | `pwsh -File .\scripts\build.ps1 -Restore` |
 | 指定平台构建（框架依赖） | `pwsh -File .\scripts\build.ps1 -Configuration Release -Runtime linux-x64` |
 | 指定平台构建（自包含） | `pwsh -File .\scripts\build.ps1 -Configuration Release -Runtime osx-x64 -SelfContained` |

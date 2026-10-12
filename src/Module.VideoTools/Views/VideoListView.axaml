@@ -151,6 +151,12 @@
                             Command="{Binding ClearListCommand}"
                             Content="🧹 清除列表"
                             ToolTip.Tip="清空当前列表（含勾选 / 筛选），回到空态；⛔ 不删除任何视频文件、不动视频库" />
+                        <Button
+                            Margin="0,0,8,6"
+                            Classes="ghost"
+                            Command="{Binding OpenTagManagerCommand}"
+                            Content="🏷 管理标签"
+                            ToolTip.Tip="弹出的「管理标签」卡：查看全部标签、改名、删除、新建（v3.19 / NT-011）" />
                     </WrapPanel>
                     <Button
                         Grid.Column="1"
@@ -678,5 +684,46 @@
                 </ScrollViewer>
             </Grid>
         </Border>
+
+        <!--  v3.19 / NT-011：标签管理弹层（遮罩 + 居中卡片），盖在列表 + 详情之上  -->
+        <Grid Grid.Column="0" Grid.ColumnSpan="2" Background="#99000000" IsVisible="{Binding IsTagManagerOpen}">
+            <Border Classes="card" Width="430" MaxHeight="540" Padding="20" CornerRadius="12"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="🏷 管理标签" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                               Text="改名 / 删除会作用到所有用到该标签的视频；「新建」只是先占个名字，给视频打上后才会存进库。"/>
+                    <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding TagManagerItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="{Binding CountDisplay}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Classes="ghost" Content="✏ 改名" Margin="0,0,6,0"
+                                                Command="{Binding $parent[UserControl].DataContext.RenameTagCommand}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Grid.Column="2" Classes="danger-btn" Content="🗑" Padding="8,3"
+                                                Command="{Binding $parent[UserControl].DataContext.DeleteTagCommand}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Margin="0,0,8,0" PlaceholderText="新标签名…"
+                                 Text="{Binding NewTagInput, Mode=TwoWay}"/>
+                        <Button Grid.Column="1" Classes="primary" Content="＋ 新建" Command="{Binding CreateTagCommand}"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Button Grid.Column="0" Classes="ghost" Content="🔄 刷新" Command="{Binding RefreshTagManagerCommand}"/>
+                        <Button Grid.Column="2" Classes="ghost" Content="关闭" Command="{Binding CloseTagManagerCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

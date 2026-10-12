@@ -144,6 +144,83 @@ public class VideoCatalogService
         catch { /* 标签更新失败不影响界面 */ }
     }
 
+    // ==================== v3.19 / NT-011：标签管理（弹层卡） ====================
+
+    /// <summary>取全部标签 + 出现次数（按次数降序）。</summary>
+    public List<(string Tag, int Count)> GetAllTags()
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (!IsAvailable) return new();
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT tags FROM {Table} WHERE tags IS NOT NULL AND tags <> '';";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var raw = r.IsDBNull(0) ? "" : r.GetString(0);
+                foreach (var t in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    counts[t] = counts.TryGetValue(t, out var c) ? c + 1 : 1;
+            }
+        }
+        catch { }
+        return counts.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                     .Select(kv => (kv.Key, kv.Value)).ToList();
+    }
+
+    /// <summary>把所有条目里的 <paramref name="oldTag"/> 改写为 <paramref name="newTag"/>（与已有重名则合并去重）。返回受影响行数。</summary>
+    public int RenameTag(string oldTag, string newTag) => RewriteTags(tags =>
+    {
+        var i = tags.FindIndex(t => string.Equals(t, oldTag, StringComparison.OrdinalIgnoreCase));
+        if (i < 0) return false;
+        tags[i] = newTag;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var j = tags.Count - 1; j >= 0; j--) if (!seen.Add(tags[j])) tags.RemoveAt(j);
+        return true;
+    });
+
+    /// <summary>把所有条目里的 <paramref name="tag"/> 删掉。返回受影响行数。</summary>
+    public int DeleteTag(string tag) => RewriteTags(tags =>
+        tags.RemoveAll(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)) > 0);
+
+    /// <summary>批量改写标签：读出全部 (path, tags)、对每个标签表应用 <paramref name="transform"/>、变了就 UPDATE。</summary>
+    private int RewriteTags(Func<List<string>, bool> transform)
+    {
+        if (!IsAvailable) return 0;
+        var affected = 0;
+        try
+        {
+            using var conn = _db.Open();
+            var rows = new List<(string Path, List<string> Tags)>();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = $"SELECT path, tags FROM {Table};";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                {
+                    var p = r.IsDBNull(0) ? "" : r.GetString(0);
+                    var raw = r.IsDBNull(1) ? "" : r.GetString(1);
+                    rows.Add((p, raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()));
+                }
+            }
+            foreach (var (p, tags) in rows)
+            {
+                var before = string.Join(",", tags);
+                if (!transform(tags)) continue;
+                var after = string.Join(",", tags);
+                if (after == before) continue;
+                using var upd = conn.CreateCommand();
+                upd.CommandText = $"UPDATE {Table} SET tags = $t WHERE path = $p;";
+                upd.Parameters.AddWithValue("$t", after);
+                upd.Parameters.AddWithValue("$p", p);
+                affected += upd.ExecuteNonQuery();
+            }
+        }
+        catch { }
+        return affected;
+    }
+
     /// <summary>v3.15：详情卡内改名后，按旧路径把视频库里的 path / name 同步成新的（不重扫）。</summary>
     public void MovePath(string oldPath, string newPath, string newName)
     {

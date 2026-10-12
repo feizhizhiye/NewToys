@@ -884,4 +884,76 @@ public partial class VideoListViewModel : ListPageViewModelBase
         StatusText = (added > 0 ? $"已收藏 {added} 个视频（缩略图在「视频预览」页点「📸 取当前帧」生成）。" : "")
                      + (skipped > 0 ? $" {skipped} 个还没进视频库 —— 先点「💾 加入视频库」。" : "");
     }
+
+    // ==================== v3.19 / NT-011：标签管理（弹层卡） ====================
+
+    /// <summary>标签管理弹层是否打开。</summary>
+    [ObservableProperty] private bool _isTagManagerOpen;
+
+    /// <summary>「新建标签」输入框。</summary>
+    [ObservableProperty] private string _newTagInput = "";
+
+    /// <summary>标签管理的行（名称 + 使用数）。</summary>
+    public ObservableCollection<TagManagerItem> TagManagerItems { get; } = new();
+
+    [RelayCommand]
+    private void OpenTagManager()
+    {
+        RefreshTagManager();
+        IsTagManagerOpen = true;
+    }
+
+    [RelayCommand]
+    private void CloseTagManager() => IsTagManagerOpen = false;
+
+    [RelayCommand]
+    private void RefreshTagManager()
+    {
+        TagManagerItems.Clear();
+        if (_catalog == null) return;
+        foreach (var (tag, count) in _catalog.GetAllTags())
+            TagManagerItems.Add(new TagManagerItem { Name = tag, Count = count });
+    }
+
+    [RelayCommand]
+    private async Task RenameTagAsync(TagManagerItem? item)
+    {
+        if (item == null || _catalog == null) return;
+        var nn = await DialogHooks.InputAsync("重命名标签", item.Name);
+        if (string.IsNullOrWhiteSpace(nn)) return;
+        var n = _catalog.RenameTag(item.Name, nn.Trim());
+        StatusText = n > 0 ? $"已把标签「{item.Name}」改为「{nn.Trim()}」（{n} 个视频）" : $"没有改动（没找到「{item.Name}」）。";
+        RefreshTagManager();
+    }
+
+    [RelayCommand]
+    private async Task DeleteTagAsync(TagManagerItem? item)
+    {
+        if (item == null || _catalog == null) return;
+        var ok = await DialogHooks.ConfirmAsync($"删除标签「{item.Name}」？\n会从 {item.Count} 个视频上移除该标签（不影响视频文件）。");
+        if (!ok) return;
+        var n = _catalog.DeleteTag(item.Name);
+        StatusText = $"已删除标签「{item.Name}」（{n} 个视频）。";
+        RefreshTagManager();
+    }
+
+    [RelayCommand]
+    private void CreateTag()
+    {
+        var name = (NewTagInput ?? "").Trim();
+        if (name.Length == 0) { StatusText = "先输入标签名。"; return; }
+        if (TagManagerItems.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
+        { StatusText = $"标签「{name}」已存在。"; return; }
+        TagManagerItems.Insert(0, new TagManagerItem { Name = name, Count = 0 });
+        NewTagInput = "";
+        StatusText = $"已新建标签「{name}」（还没用到任何视频；在视频列表里给它打上后才会存进库）。";
+    }
+
+    /// <summary>标签管理弹层的一行。</summary>
+    public sealed class TagManagerItem
+    {
+        public string Name { get; set; } = "";
+        public int Count { get; set; }
+        public string CountDisplay => Count > 0 ? $"{Count} 个视频" : "尚未使用";
+    }
 }

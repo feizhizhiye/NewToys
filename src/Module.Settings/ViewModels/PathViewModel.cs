@@ -29,6 +29,9 @@ namespace NewToys.Settings.ViewModels;
 public partial class PathViewModel : ListPageViewModelBase
 {
     private readonly IAppConfigService? _cfg;
+
+    /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
+    public string ImportExportDefaultDir => _cfg?.VideoDbFolder ?? "";
     private readonly ConfigStoreService? _store;
 
     private bool _syncing;

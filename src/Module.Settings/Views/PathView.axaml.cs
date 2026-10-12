@@ -63,6 +63,7 @@ public partial class PathView : UserControl
                 var folders = await sp.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
                     Title = $"选择{item.Name}",
+                    SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
                     AllowMultiple = false
                 });
                 var dir = folders?.FirstOrDefault()?.TryGetLocalPath();
@@ -73,6 +74,7 @@ public partial class PathView : UserControl
             var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = $"选择{item.Name}",
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
                 AllowMultiple = false,
                 FileTypeFilter = new[]
                 {
@@ -91,5 +93,13 @@ public partial class PathView : UserControl
         {
             vm.StatusText = "选择路径失败：" + ex.Message;
         }
+    }
+
+    /// <summary>把文件选择器定位到「导入导出默认目录」（v3.19 / NT-006 全页统一）。</summary>
+    private static async System.Threading.Tasks.Task<IStorageFolder?> SuggestedStartAsync(IStorageProvider sp, string dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir)) return null;
+        try { return await sp.TryGetFolderFromPathAsync(dir); }
+        catch { return null; }
     }
 }

@@ -23,6 +23,7 @@ public partial class BookmarkView : UserControl
 
             var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
+                SuggestedStartLocation = await SuggestedStartAsync(topLevel.StorageProvider, vm.ImportExportDefaultDir),
                 AllowMultiple = false,
                 FileTypeFilter = new[]
                 {
@@ -46,5 +47,13 @@ public partial class BookmarkView : UserControl
         base.OnDataContextChanged(e);
         if (BookmarkList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+    }
+
+    /// <summary>把文件选择器定位到「导入导出默认目录」（v3.19 / NT-006 全页统一）。</summary>
+    private static async Task<IStorageFolder?> SuggestedStartAsync(IStorageProvider sp, string dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir)) return null;
+        try { return await sp.TryGetFolderFromPathAsync(dir); }
+        catch { return null; }
     }
 }

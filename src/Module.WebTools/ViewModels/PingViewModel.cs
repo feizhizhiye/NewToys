@@ -87,14 +87,20 @@ public partial class PingViewModel : ListPageViewModelBase
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
 
+    private readonly IAppConfigService? _app;
+
+    /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
+    public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
+
     public PingViewModel() { }
 
-    public PingViewModel(PingService svc, IColumnLayoutService cols, INavigationService? nav, WebTransferService transfer)
+    public PingViewModel(PingService svc, IColumnLayoutService cols, INavigationService? nav, WebTransferService transfer, IAppConfigService app)
         : base(cols)
     {
         _svc = svc;
         _nav = nav;
         _transfer = transfer;
+        _app = app;
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         Refresh();
 

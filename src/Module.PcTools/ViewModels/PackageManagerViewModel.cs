@@ -384,6 +384,10 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         if (ShowPinned)   // v3.19 / NT-008：只看已 Pin 的（表头 Pin 列已删，改由这个过滤看）
             q = q.Where(p => p.IsPinned);
 
+        // v3.19 / NT-008：可升级列表**不显示已 Pin 的**（winget 会跳过它们 —— 需求 §6.2.3；也让它更贴近终端 winget upgrade 的条数）
+        if (_mode == ListMode.Upgrades)
+            q = q.Where(p => !p.IsPinned);
+
         var text = (SearchText ?? "").Trim();
         if (text.Length > 0 && _mode != ListMode.Search)
             q = q.Where(p => p.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
@@ -546,7 +550,9 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         if (!ok || detail == null) { StatusText = msg; return; }
 
         if (!string.IsNullOrWhiteSpace(detail.Name)) p.Name = detail.Name;
-        if (!string.IsNullOrWhiteSpace(detail.Version)) p.Version = detail.Version;
+        // ⛔ 不覆盖 Version：winget show 的 Version 是「最新可用版」——覆盖已安装项会把「⬆ 升级到 X」错显成「已安装」
+        //    （v3.19 / NT-008 修的 bug：点一下详情，状态就从"升级"变"已安装"）。只在原本为空时才补。
+        if (string.IsNullOrWhiteSpace(p.Version) && !string.IsNullOrWhiteSpace(detail.Version)) p.Version = detail.Version;
         p.Publisher = detail.Publisher;
         p.Description = detail.Description;
         p.Homepage = detail.Homepage;

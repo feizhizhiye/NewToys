@@ -20,6 +20,26 @@ pwsh ./scripts/build.ps1 -Release
 pwsh ./scripts/run.ps1 -Release
 ```
 
+## 目标平台（默认 win-x64）
+
+`src/Directory.Build.props` 已锁定默认只产出 **Windows x64** 且为**框架依赖**（`RuntimeIdentifier=win-x64` + `SelfContained=false`）：
+
+- 原生资产（Skia / HarfBuzz / SQLite 等）只拷 `runtimes/win-x64`，不再拷贝 linux / osx / 其他架构。
+- 运行依赖本机已装的 **.NET 10 桌面运行时**（系统默认已具备）。
+
+跨平台 / 其他架构构建用 `-Runtime`（仍是框架依赖，目标机也需装 .NET 10）：
+
+```powershell
+# Debug 构建 linux-x64
+pwsh ./scripts/build.ps1 -Runtime linux-x64
+
+# Release 构建 osx-x64（自包含，目标机无需预装 .NET）
+pwsh ./scripts/build.ps1 -Configuration Release -Runtime osx-x64 -SelfContained
+```
+
+> `-Runtime` 只覆盖本次构建的 RID，不动 `Directory.Build.props` 的默认 win-x64。
+> 跨平台产物需在对应系统运行；本机 Windows 调试用不带 `-Runtime` 的默认命令即可。
+
 ## 减少Debug编译时间
 
 打开 `src/Shell/Shell.csproj`，注释掉不需要调试的模块：

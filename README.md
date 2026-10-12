@@ -26,6 +26,8 @@ NewToys/
 | 编译 Debug | `pwsh -File .\scripts\build.ps1` |
 | 编译 Release | `pwsh -File .\scripts\build.ps1 -Configuration Release` |
 | 清过包 / 改过版本后先还原 | `pwsh -File .\scripts\build.ps1 -Restore` |
+| 指定平台构建（框架依赖） | `pwsh -File .\scripts\build.ps1 -Configuration Release -Runtime linux-x64` |
+| 指定平台构建（自包含） | `pwsh -File .\scripts\build.ps1 -Configuration Release -Runtime osx-x64 -SelfContained` |
 | 构建并启动 | `pwsh -File .\scripts\run.ps1 [-Configuration Debug] [-Env test]` |
 | 查看 / 切换 测试·生产环境 | `pwsh -File .\scripts\env.ps1 [test\|prod]` |
 | 发布到目录 | `pwsh -File .\scripts\publish.ps1 [-Target D:\NewToys]` |
@@ -33,6 +35,8 @@ NewToys/
 | 打包源码快照（喂 AI / 转发） | `pwsh -File .\scripts\pack.ps1` |
 
 等价原始命令：`dotnet build src\NewToys.slnx -c Debug`。
+
+> 默认目标平台为 **win-x64（框架依赖，运行机需装 .NET 10）**；`src/Directory.Build.props` 中锁定。跨平台构建见上表 `-Runtime`。
 
 ## 产物路径
 

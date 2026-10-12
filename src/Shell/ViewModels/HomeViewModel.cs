@@ -153,7 +153,7 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
             Title = cfg.Browser1.Name,
             Subtitle = "自定义网址列表",
             Icon = "🌐",
-            Color = "#2E9FFF",
+            Color = "#07C160",
             RunCommand = new RelayCommand(() => RunBrowser(cfg.Browser1))
         });
         QuickButtons.Add(new QuickBtn
@@ -170,7 +170,7 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
             Title = cfg.Programs.FirstOrDefault()?.Name is { Length: > 0 } n ? n : "批量打开软件",
             Subtitle = "常用软件一键启动",
             Icon = "📦",
-            Color = "#FF8C00",
+            Color = "#07C160",
             RunCommand = new RelayCommand(RunPrograms)
         });
     }

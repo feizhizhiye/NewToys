@@ -57,21 +57,6 @@ public partial class ShellViewModel : ViewModelBase
     [ObservableProperty] private string _statusBarText = "";
 
     /// <summary>
-    /// 底部状态栏右侧：已加载**模块数 / 功能数**（v3.19 / NT-009，需求 §6.1）。
-    /// 菜单（<see cref="IMenuService.Groups"/>）是单一真相源；「首页」分组不算模块。
-    /// </summary>
-    public string LoadedSummary
-    {
-        get
-        {
-            var groups = _menu?.Groups?.Where(g => !g.IsHome).ToList();
-            var modules = groups?.Count ?? 0;
-            var funcs = groups?.Sum(g => g.Items?.Count ?? 0) ?? 0;
-            return $"已加载 {modules} 个模块 / {funcs} 个功能";
-        }
-    }
-
-    /// <summary>
     /// 左树底部的版本号（v3.9）。
     /// ⚠️ 这是**独立占位值**，与「设置 → 关于」里那个 `UpdateService.CurrentVersion` **无关**。
     /// </summary>

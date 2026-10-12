@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -38,7 +40,7 @@ public class FavCard
     public string Color { get; set; } = "#07C160";
 }
 
-public partial class HomeViewModel : ViewModelBase
+public partial class HomeViewModel : ViewModelBase, IStatusProvider
 {
     private readonly IServiceProvider _sp;
     private readonly IMenuService _menu;
@@ -50,6 +52,27 @@ public partial class HomeViewModel : ViewModelBase
 
     public ObservableCollection<FavCard> Favorites { get; } = new();
     public ObservableCollection<QuickBtn> QuickButtons { get; } = new();
+
+    // ==================== 底部状态栏（IStatusProvider，v3.19 / NT-009）：仅首页显示模块/功能数 ====================
+
+    /// <summary>
+    /// 首页底部状态栏文本：已加载**模块数 / 功能数**（需求 §6.1）。
+    /// 菜单（<see cref="IMenuService.Groups"/>）是单一真相源；「首页」分组不算模块。
+    /// ⚠️ 仅首页显示——其它页面各自实现 IStatusProvider 显示本页状态，Shell 状态栏随标签切换。
+    /// </summary>
+    public string StatusText
+    {
+        get
+        {
+            var groups = _menu?.Groups?.Where(g => !g.IsHome).ToList();
+            var modules = groups?.Count ?? 0;
+            var funcs = groups?.Sum(g => g.Items?.Count ?? 0) ?? 0;
+            return $"已加载 {modules} 个模块 / {funcs} 个功能";
+        }
+    }
+
+    /// <summary>模块/功能数为静态值（运行期不变），故不触发；保留事件以满足 <see cref="IStatusProvider"/>。</summary>
+    public event EventHandler? StatusChanged;
 
     public HomeViewModel(IServiceProvider sp, IMenuService menu, LaunchRunner runner,
                          ILaunchConfigService launch, IFavoritesService fav)

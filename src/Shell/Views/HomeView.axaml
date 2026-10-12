@@ -12,7 +12,7 @@
         <Border Classes="card" Padding="28">
           <StackPanel>
             <TextBlock Text="欢迎使用 NewToys" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Text="个人高强度使用工具集 · Avalonia 12 + CommunityToolkit.Mvvm + .NET 10" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14"/>
+            <TextBlock Text="个人高强度使用工具集 · Avalonia 12 + CommunityToolkit.Mvvm + .NET 10" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14" TextWrapping="Wrap"/>
             <TextBlock Text="这里是你的常用功能区，点按钮直达对应页面；在「设置 → 功能清单」里右键可固定更多功能，右键这里的按钮可「✕ 取消固定」。底部三个一键按钮的设置统一在「设置 → 一键按钮」一页里。"
                        Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0"/>
           </StackPanel>
@@ -65,13 +65,13 @@
           <TextBlock Grid.Column="0" Text="⚡" FontSize="18" VerticalAlignment="Center"/>
           <TextBlock Grid.Column="1" Text="一键操作" FontSize="16" FontWeight="SemiBold"
                      Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-          <!--  三个按钮的设置**统一在一页**（设置 → 一键按钮），这里只留一个入口。  -->
-          <Button Grid.Column="3" Classes="ghost" Content="⚙ 一键按钮设置"
+          <!--  三个按钮的设置**统一在一页**（设置 → 一键按钮），这里只留一个⚙图标入口。  -->
+          <Button Grid.Column="3" Classes="ghost" Content="⚙" Padding="10,5" MinWidth="36"
                   Command="{Binding NavigateCommand}" CommandParameter="settings-launch"
-                  ToolTip.Tip="改按钮名称、浏览器程序与参数、网址清单、批量启动的软件清单"/>
+                  ToolTip.Tip="一键按钮设置：改按钮名称、浏览器程序与参数、网址清单、批量启动的软件清单"/>
         </Grid>
         <Grid ColumnDefinitions="*,*,*" Margin="0,8,0,0">
-          <ItemsControl ItemsSource="{Binding QuickButtons}">
+          <ItemsControl Grid.ColumnSpan="3" ItemsSource="{Binding QuickButtons}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <UniformGrid Rows="1" Columns="3"/>

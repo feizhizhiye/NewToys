@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -12,6 +14,14 @@ using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
 namespace NewToys.PcTools.ViewModels;
+
+/// <summary>导入 / 导出用的最小包记录（只要 <see cref="Id"/> 就能重装；Name / Version 仅供人看）。v3.19 / NT-008。</summary>
+public class PackageExportItem
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+}
 
 /// <summary>
 /// 软件包管理页。
@@ -280,7 +290,8 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
             BuildInstalledCache();
             await ApplyPinnedAsync();
             ApplyView();
-            StatusText = msg;
+            // v3.19 / NT-008：明确「已 Pin 的不出现在可升级列表」是 winget 行为、非漏报（需求 §6.2.3）。
+            StatusText = $"{msg} · 已 Pin 的不会出现在此列表（winget 行为）";
         }
         finally { IsBusy = false; }
     }
@@ -532,10 +543,44 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         p.License = detail.License;
         p.InstallLocation = detail.InstallLocation;
 
-        // 列表项不是 ObservableObject（只有 Id 等快照字段）→ 整体重建最省事
-        ApplyView();
+        // v3.19 / NT-008：PackageInfo 已是 ObservableObject → 上面的赋值直接通知详情卡 / 列表行刷新，
+        // ⛔ 不用再整体重建列表（以前是普通类才需要 ApplyView，且重建会重置滚动位）。
         DetailExtra = detail.Description;
         StatusText = msg;
+    }
+
+    // ==================== 导入 / 导出（v3.19 / NT-008：换机恢复） ====================
+
+    /// <summary>📤 导出：把当前列表导成 json（换机恢复用；只留 Id / Name / Version）。建议先在「📥 已安装」后再导。</summary>
+    public string ExportPackagesJson()
+    {
+        var list = _all.Where(p => !string.IsNullOrWhiteSpace(p.Id))
+                       .Select(p => new PackageExportItem { Id = p.Id, Name = p.Name, Version = p.Version })
+                       .ToList();
+        return JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    /// <summary>📥 导入：把导出的 json 变成 winget 批量安装脚本（.bat）文本；解析失败 / 无有效条目返回空串。</summary>
+    public static string BuildInstallScript(string json)
+    {
+        List<PackageExportItem>? items = null;
+        try { items = JsonSerializer.Deserialize<List<PackageExportItem>>(json); }
+        catch { return ""; }
+        if (items == null || items.Count == 0) return "";
+
+        var sb = new StringBuilder();
+        sb.AppendLine("@echo off");
+        sb.AppendLine("rem NewToys 生成的 winget 批量安装脚本（换机恢复；建议以管理员运行）");
+        var n = 0;
+        foreach (var it in items)
+        {
+            if (string.IsNullOrWhiteSpace(it.Id)) continue;
+            sb.AppendLine($"winget install --id {it.Id} --exact --accept-package-agreements --accept-source-agreements --disable-interactivity");
+            n++;
+        }
+        if (n == 0) return "";
+        sb.AppendLine("echo Done.");
+        return sb.ToString();
     }
 
     [RelayCommand]

@@ -1,4 +1,5 @@
 using System;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.Shared.Models;
 
@@ -8,35 +9,39 @@ namespace NewToys.Shared.Models;
 /// 为什么共用：列表页的表头排序、右键菜单、右侧详情三处都只认它，各写一份必然漂移
 /// （见规范 3.8「列表页布局规范」）。
 /// </para>
+/// <para>
+/// v3.19 / NT-008：改成 <see cref="ObservableObject"/> —— 详情卡绑 <c>Selected.Publisher</c> 等，
+/// 「🔎 读取详情」回填字段后**必须通知 UI 才会补充显示**（以前是普通类，改了不刷新 = 详情不补充）。
+/// </para>
 /// </summary>
-public class PackageInfo
+public partial class PackageInfo : ObservableObject
 {
-    public string Name { get; set; } = "";
-    public string Id { get; set; } = "";
+    [ObservableProperty] private string _name = "";
+    [ObservableProperty] private string _id = "";
 
     /// <summary>已安装版本；在「搜索结果」里是**最新可用版本**（winget search 的语义）。</summary>
-    public string Version { get; set; } = "";
+    [ObservableProperty] private string _version = "";
 
     /// <summary>可升级到的版本（`winget list` / `winget upgrade` 的 Available 列）。</summary>
-    public string Available { get; set; } = "";
+    [ObservableProperty] private string _available = "";
 
     /// <summary>来源（winget / msstore …）。</summary>
-    public string Source { get; set; } = "";
+    [ObservableProperty] private string _source = "";
 
-    public bool IsInstalled { get; set; }
+    [ObservableProperty] private bool _isInstalled;
 
     /// <summary>是否被 pin（pin = 暂停更新，winget upgrade 会跳过它）。</summary>
-    public bool IsPinned { get; set; }
+    [ObservableProperty] private bool _isPinned;
 
     /// <summary>被 pin 住的版本（来自 <c>winget pin list</c>，可能为空）。</summary>
-    public string PinnedVersion { get; set; } = "";
+    [ObservableProperty] private string _pinnedVersion = "";
 
     // ---------- 以下字段按需补：只有点「读取详情」跑一次 winget show 才填 ----------
-    public string Description { get; set; } = "";
-    public string Publisher { get; set; } = "";
-    public string Homepage { get; set; } = "";
-    public string License { get; set; } = "";
-    public string InstallLocation { get; set; } = "";
+    [ObservableProperty] private string _description = "";
+    [ObservableProperty] private string _publisher = "";
+    [ObservableProperty] private string _homepage = "";
+    [ObservableProperty] private string _license = "";
+    [ObservableProperty] private string _installLocation = "";
 
     /// <summary>有可用更新（Available 存在且与当前版本不同）。</summary>
     public bool HasUpgrade => !string.IsNullOrEmpty(Available)
@@ -51,6 +56,28 @@ public class PackageInfo
 
     /// <summary>列表「Pin」列的显示文本（被 pin 住 = 📌）。派生，不写盘。</summary>
     public string PinnedMark => IsPinned ? "📌" : "";
+
+    // ---- 派生属性随依赖变化刷新（详情卡 / 状态列 / Pin 列都绑这些）----
+
+    partial void OnIsPinnedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(PinnedMark));
+    }
+
+    partial void OnIsInstalledChanged(bool value) => OnPropertyChanged(nameof(StatusText));
+
+    partial void OnVersionChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasUpgrade));
+        OnPropertyChanged(nameof(StatusText));
+    }
+
+    partial void OnAvailableChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasUpgrade));
+        OnPropertyChanged(nameof(StatusText));
+    }
 }
 
 /// <summary>包管理器的一个源（`winget source list` 的一行）。</summary>

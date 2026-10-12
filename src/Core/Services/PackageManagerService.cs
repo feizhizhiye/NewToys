@@ -105,7 +105,7 @@ public class PackageManagerService : IPackageManagerService
     public async Task<(bool Ok, string Message, IReadOnlyList<PackageInfo> Items)> ListUpgradesAsync(CancellationToken ct = default)
     {
         if (!IsSupported) return (false, Fallback.Msg, Array.Empty<PackageInfo>());
-        var r = await RunAsync(new[] { "upgrade", "--accept-source-agreements" }, ct, ReadTimeout).ConfigureAwait(false);
+        var r = await RunAsync(new[] { "upgrade", "--accept-source-agreements", "--include-unknown" }, ct, ReadTimeout).ConfigureAwait(false);
         var items = Map(r.Out, installed: true);
         if (items.Count == 0 && r.Code != 0) return (false, Explain(r, "读取可升级列表失败"), items);
 
@@ -164,13 +164,20 @@ public class PackageManagerService : IPackageManagerService
             License = kv.GetValueOrDefault("License", ""),
             InstallLocation = kv.GetValueOrDefault("InstallLocation", "")
         };
-        // 首行 "Found Xxx [Id]" 里有显示名
+        // 首行 "已找到 <名称> [<Id>]"（中文）/ "Found <名称> [<Id>]"（英文）里有显示名
         var found = FirstLineContaining(r.Out, "Found") ?? FirstLineContaining(r.Out, "找到");
         if (found != null)
         {
             var m = Regex.Match(found, @"\[(.+?)\]");
             if (m.Success && m.Groups[1].Value.Replace(" ", "") == id.Replace(" ", ""))
-                detail.Name = found[..found.IndexOf('[')].Replace("Found", "").Replace("找到", "").Trim();
+            {
+                // 取 '[' 前部分，再去掉开头提示词（长的在前：⛔ 不能只 Replace"找到"——"已找到"会残留"已"，v3.19 修的包名多字 bug）
+                var namePart = found[..found.IndexOf('[')].Trim();
+                foreach (var prefix in new[] { "已找到", "找到", "Found" })
+                    if (namePart.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    { namePart = namePart[prefix.Length..].Trim(); break; }
+                detail.Name = namePart;
+            }
         }
         return (true, "详情已更新", detail);
     }

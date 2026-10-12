@@ -290,6 +290,13 @@ public static class FfmpegService
          : height > 0 ? $"scale=-2:{height}"
          : $"scale={width}:-2";
 
+    /// <summary>
+    /// 「不超 WxH」过滤器（v3.19 / NT-013 默认宽高）：源**大于** WxH 才缩到框内、**小于等于**保持原始大小，
+    /// 且保持宽高比 —— <c>force_original_aspect_ratio=decrease</c> 只缩不放。
+    /// </summary>
+    public static string FitFilter(int width, int height)
+        => $"scale={width}:{height}:force_original_aspect_ratio=decrease";
+
     /// <summary>拼转码命令的参数（不含 <c>ffmpeg</c> 本身）。支持"既剪辑又转码"（<see cref="TranscodeTask.HasTrim"/>）。</summary>
     public static List<string> BuildTranscodeArgs(TranscodeTask task, string? output)
     {
@@ -357,6 +364,8 @@ public static class FfmpegService
                 filters.Add(ScaleFilter(task.TargetWidth, task.TargetHeight));
             else if (task.MaxHeight > 0)
                 filters.Add($"scale=-2:{task.MaxHeight}");
+            else if (task.DefaultWidth > 0 && task.DefaultHeight > 0)
+                filters.Add(FitFilter(task.DefaultWidth, task.DefaultHeight));
             if (filters.Count > 0)
                 args.AddRange(new[] { "-vf", string.Join(",", filters) });
 

@@ -303,13 +303,16 @@ public sealed class TranscodePreset
     /// <summary>附加快慢预设（preset）。</summary>
     public string Speed { get; set; } = "medium";
 
+    /// <summary>输出文件名后缀（v3.19 / NT-013：默认 H.265 转码加 <c>_H265</c>）。空 = 不加。</summary>
+    public string OutputSuffix { get; set; } = "";
+
     public static System.Collections.Generic.List<TranscodePreset> All { get; } = new()
     {
-        new TranscodePreset { Id = "h264",   Name = "H.264 MP4（通用，兼容性最好）", VideoCodec = "libx264", Crf = 20, Extension = ".mp4" },
-        new TranscodePreset { Id = "h265",   Name = "H.265 MP4（体积更小，编码更慢）", VideoCodec = "libx265", Crf = 26, Extension = ".mp4", Speed = "medium" },
-        new TranscodePreset { Id = "av1",    Name = "AV1 MP4（最小，最慢）",          VideoCodec = "libsvtav1", Crf = 32, Extension = ".mp4", Speed = "8" },
-        new TranscodePreset { Id = "copy",   Name = "只换容器（不重编码，秒完成）",     VideoCodec = "copy",      AudioCodec = "copy", Extension = ".mp4" },
-        new TranscodePreset { Id = "audio",  Name = "仅提取音频 MP3",                 VideoCodec = "",          AudioCodec = "libmp3lame", AudioBitrate = "192k", Extension = ".mp3" },
+        new TranscodePreset { Id = "h264",   Name = "H.264 MP4（通用，兼容性最好）", VideoCodec = "libx264", Crf = 20, Extension = ".mp4", OutputSuffix = "_H264" },
+        new TranscodePreset { Id = "h265",   Name = "H.265 MP4（体积更小，编码更慢）", VideoCodec = "libx265", Crf = 23, Extension = ".mp4", Speed = "medium", OutputSuffix = "_H265" },
+        new TranscodePreset { Id = "av1",    Name = "AV1 MP4（最小，最慢）",          VideoCodec = "libsvtav1", Crf = 32, Extension = ".mp4", Speed = "8", OutputSuffix = "_AV1" },
+        new TranscodePreset { Id = "copy",   Name = "只换容器（不重编码，秒完成）",     VideoCodec = "copy",      AudioCodec = "copy", Extension = ".mp4", OutputSuffix = "_copy" },
+        new TranscodePreset { Id = "audio",  Name = "仅提取音频 MP3",                 VideoCodec = "",          AudioCodec = "libmp3lame", AudioBitrate = "192k", Extension = ".mp3", OutputSuffix = "_audio" },
     };
 
     public static TranscodePreset Find(string? id)
@@ -386,8 +389,8 @@ public static class RotateOptions
 /// </summary>
 public partial class TranscodeTask : VideoTaskBase
 {
-    /// <summary>预设 id（<see cref="TranscodePreset.Id"/>）—— 决定**编码族**与默认容器。</summary>
-    [ObservableProperty] private string _presetId = "h264";
+    /// <summary>预设 id（<see cref="TranscodePreset.Id"/>）—— 决定**编码族**与默认容器。v3.19 默认改 H.265。</summary>
+    [ObservableProperty] private string _presetId = "h265";
 
     /// <summary>单独改过的 CRF（0 = 用预设的值）。</summary>
     [ObservableProperty] private int _crf;
@@ -411,6 +414,16 @@ public partial class TranscodeTask : VideoTaskBase
 
     /// <summary>缩放到的**高**（像素）；0 = 不约束高。</summary>
     [ObservableProperty] private int _targetHeight;
+
+    /// <summary>
+    /// **默认宽 / 高上限**（v3.19 / NT-013；0 = 不启用）：源宽高**大于**它才缩到它，**小于等于**则保持原始大小
+    /// （ffmpeg <c>scale=W:H:force_original_aspect_ratio=decrease</c>，只缩不放、保比例）。
+    /// 与 <see cref="TargetWidth"/>/<see cref="TargetHeight"/>（显式宽高）二选一，优先用显式宽高。
+    /// </summary>
+    [ObservableProperty] private int _defaultWidth;
+
+    /// <summary>默认高度上限（配合 <see cref="DefaultWidth"/>；0 = 不启用）。</summary>
+    [ObservableProperty] private int _defaultHeight;
 
     /// <summary>
     /// 码率模式：<c>crf</c> = 恒定质量（<see cref="Crf"/>）；<c>bitrate</c> = 目标码率（<see cref="TargetBitrate"/>）。
@@ -484,7 +497,8 @@ public partial class TranscodeTask : VideoTaskBase
         TargetWidth > 0 && TargetHeight > 0 ? $"{TargetWidth}×{TargetHeight}"
       : TargetHeight > 0 ? $"自适应 × 高 {TargetHeight}"
       : TargetWidth > 0 ? $"宽 {TargetWidth} × 自适应"
-      : (MaxHeight > 0 ? $"限高 {MaxHeight}p" : "原分辨率");
+      : (MaxHeight > 0 ? $"限高 {MaxHeight}p"
+      : (DefaultWidth > 0 && DefaultHeight > 0 ? $"不超 {DefaultWidth}×{DefaultHeight}" : "原分辨率"));
 
     /// <summary>码率设置显示。</summary>
     public string RateDisplay

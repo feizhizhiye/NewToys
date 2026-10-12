@@ -426,8 +426,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
 
     // ==================== 转码参数（v3.10 补足：格式 / 编码器(CPU·GPU) / 分辨率 / 码率） ====================
 
-    /// <summary>编码族 + 默认容器（取值见 <see cref="TranscodePreset"/>）。</summary>
-    [ObservableProperty] private string _editTranscodePresetId = "h264";
+    /// <summary>编码族 + 默认容器（取值见 <see cref="TranscodePreset"/>）。v3.19 默认改 H.265。</summary>
+    [ObservableProperty] private string _editTranscodePresetId = "h265";
 
     /// <summary>是否走 GPU 编码器（<c>h264_nvenc</c> / <c>hevc_nvenc</c> / <c>av1_nvenc</c>）。</summary>
     [ObservableProperty] private bool _editUseGpu;
@@ -440,6 +440,12 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
 
     /// <summary>目标高（0 = 不约束高，按宽度等比）。</summary>
     [ObservableProperty] private int _editTargetHeight;
+
+    /// <summary>默认宽上限（0 = 不用；源更宽才缩到它，否则保原始，v3.19 / NT-013）。</summary>
+    [ObservableProperty] private int _editDefaultWidth;
+
+    /// <summary>默认高上限（0 = 不用；配合 <see cref="EditDefaultWidth"/>）。</summary>
+    [ObservableProperty] private int _editDefaultHeight;
 
     /// <summary>
     /// 缩到的**最大高度**（0 = 不改；例 720 = 缩到 720p）。
@@ -475,6 +481,39 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
         // 旋转值 → 回带预览角度（命令卡改值 / ↻↺ 都走这里；翻转无角度 → 0）
         PreviewRotation = RotateOptions.ToAngle(value);
     }
+
+    // ---- 转码参数变化 → 刷新命令预览（v3.19 / NT-013 补齐预览页缺口，与「批量处理」页一致）----
+    // ⚠️ 预览页此前缺这些 On*Changed：改预设 / 编码器 / 分辨率 / CRF / 码率 / 容器时命令预览不刷新（批量页一直有）。
+
+    partial void OnEditTranscodePresetIdChanged(string value)
+    {
+        OnPropertyChanged(nameof(EncoderPreview));
+        RefreshCommand();
+    }
+
+    partial void OnEditUseGpuChanged(bool value)
+    {
+        OnPropertyChanged(nameof(EncoderIndex));
+        OnPropertyChanged(nameof(EncoderPreview));
+        RefreshCommand();
+    }
+
+    partial void OnEditContainerChanged(string value) => RefreshCommand();
+
+    partial void OnEditBitrateModeChanged(string value)
+    {
+        OnPropertyChanged(nameof(BitrateModeIndex));
+        OnPropertyChanged(nameof(UseCrf));
+        RefreshCommand();
+    }
+
+    partial void OnEditTargetWidthChanged(int value) => RefreshCommand();
+    partial void OnEditTargetHeightChanged(int value) => RefreshCommand();
+    partial void OnEditMaxHeightChanged(int value) => RefreshCommand();
+    partial void OnEditDefaultWidthChanged(int value) => RefreshCommand();
+    partial void OnEditDefaultHeightChanged(int value) => RefreshCommand();
+    partial void OnEditTranscodeCrfChanged(int value) => RefreshCommand();
+    partial void OnEditTargetBitrateChanged(string value) => RefreshCommand();
 
     public IReadOnlyList<TranscodePreset> TranscodePresets => TranscodePreset.All;
     public IReadOnlyList<string> ContainerOptions => FfmpegService.Containers;
@@ -607,7 +646,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
         if (IsTranscode)
         {
             var preset = TranscodePreset.Find(EditTranscodePresetId);
-            return FfmpegService.DefaultOutputPath(SourcePath, "_tc", NormalizeExt(EditContainer, preset.Extension));
+            return FfmpegService.DefaultOutputPath(SourcePath, preset.OutputSuffix, NormalizeExt(EditContainer, preset.Extension));
         }
         return FfmpegService.DefaultOutputPath(SourcePath, "_cut", ".mp4");
     }
@@ -639,6 +678,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
             TargetWidth = EditTargetWidth,
             TargetHeight = EditTargetHeight,
             MaxHeight = EditMaxHeight,
+            DefaultWidth = EditDefaultWidth,
+            DefaultHeight = EditDefaultHeight,
             Rotate = EditRotate,
             BitrateMode = string.IsNullOrWhiteSpace(EditBitrateMode) ? "crf" : EditBitrateMode,
             Crf = EditTranscodeCrf,

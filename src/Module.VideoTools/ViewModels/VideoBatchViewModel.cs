@@ -96,9 +96,13 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     // ==================== 编辑缓冲（两套，按选中任务类型生效） ====================
 
     // 转码
-    [ObservableProperty] private string _editPresetId = "h264";
+    [ObservableProperty] private string _editPresetId = "h265";
     [ObservableProperty] private int _editCrf;
     [ObservableProperty] private int _editMaxHeight;
+
+    // 默认宽 / 高上限（v3.19 / NT-013；0 = 不用，源更大才缩、否则保原始）
+    [ObservableProperty] private int _editDefaultWidth;
+    [ObservableProperty] private int _editDefaultHeight;
 
     // 剪辑
     [ObservableProperty] private string _editCutPresetId = CutPresets.Copy;
@@ -175,7 +179,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             : "—";
 
     /// <summary>新建转码任务时用的预设 / 最大高度（工具条上选，只影响随后加入的条目）。</summary>
-    [ObservableProperty] private string _defaultPresetId = "h264";
+    [ObservableProperty] private string _defaultPresetId = "h265";
     [ObservableProperty] private int _defaultMaxHeight;
 
     /// <summary>当前选中项是不是剪辑任务（详情卡据此切换两套参数区）。</summary>
@@ -455,6 +459,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     partial void OnEditPresetIdChanged(string value) => RefreshCommand();
     partial void OnEditCrfChanged(int value) => RefreshCommand();
     partial void OnEditMaxHeightChanged(int value) => RefreshCommand();
+    partial void OnEditDefaultWidthChanged(int value) => RefreshCommand();
+    partial void OnEditDefaultHeightChanged(int value) => RefreshCommand();
     partial void OnEditContainerChanged(string value) => RefreshCommand();
     partial void OnEditUseGpuChanged(bool value)
     {
@@ -711,6 +717,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             EditUseGpu = x.UseGpuEncoder;
             EditTargetWidth = x.TargetWidth;
             EditTargetHeight = x.TargetHeight;
+            EditDefaultWidth = x.DefaultWidth;
+            EditDefaultHeight = x.DefaultHeight;
             EditBitrateMode = x.BitrateMode;
             EditTargetBitrate = x.TargetBitrate;
             EditRotate = x.Rotate;
@@ -916,13 +924,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 
         if (Selected is TranscodeTask x)
         {
-            x.PresetId = string.IsNullOrWhiteSpace(EditPresetId) ? "h264" : EditPresetId;
+            x.PresetId = string.IsNullOrWhiteSpace(EditPresetId) ? "h265" : EditPresetId;
             x.Crf = EditCrf;
             x.MaxHeight = EditMaxHeight;
             x.Container = NormalizeExt(EditContainer, x.Preset.Extension);
             x.UseGpuEncoder = EditUseGpu;
             x.TargetWidth = EditTargetWidth;
             x.TargetHeight = EditTargetHeight;
+            x.DefaultWidth = EditDefaultWidth;
+            x.DefaultHeight = EditDefaultHeight;
             x.BitrateMode = string.IsNullOrWhiteSpace(EditBitrateMode) ? "crf" : EditBitrateMode;
             x.TargetBitrate = (EditTargetBitrate ?? "").Trim();
             x.Rotate = EditRotate ?? "";
@@ -938,7 +948,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 
             x.RawArgs = raw;                  // 手改的命令原样保留；没手改就交给参数生成
             var preset = x.Preset;
-            if (output.Length == 0) output = FfmpegService.DefaultOutputPath(x.SourcePath, "_" + preset.Id, preset.Extension);
+            if (output.Length == 0) output = FfmpegService.DefaultOutputPath(x.SourcePath, preset.OutputSuffix, preset.Extension);
             x.OutputPath = output;
             if (x.Status != VideoTaskStatus.Running) x.Reset();
             StatusText = $"已保存「{x.Name}」：{preset.Name}"

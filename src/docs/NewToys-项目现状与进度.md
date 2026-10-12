@@ -89,7 +89,7 @@
 | NT-003 | settings-package 软件源（退出码验证） | P2 | 📝 草稿 | backlog/NT-003.md |
 | NT-004 | defaults\ 与脚本目录播种确认 | P2 | 📝 草稿 | backlog/NT-004.md |
 | NT-005 | 模块热加载实装（规范 §3.7） | P2 | 📝 草稿 | backlog/NT-005.md |
-| NT-006 | 快捷设置：运行改造（可见 pwsh+回显 / GUI 隐藏 / 切换 shell）+ 导入导出 / 清除缓存 | P1 | 📝 草稿 | backlog/NT-006.md |
+| NT-006 | 快捷设置：运行改造（可见 pwsh+回显 / GUI 隐藏 / 切换 shell）+ 导入导出 / 清除缓存 | P1 | 🔄 执行中 | backlog/NT-006.md |
 | NT-007 | 设置与脚本：导入导出 + 右键编辑 / 打开方式 + 运行如双击 | P1 | 📝 草稿 | backlog/NT-007.md |
 | NT-008 | 软件包：可升级对齐 winget update + Pin 显示 + 已装移状态栏 + 详情 bug + 已装导入导出 | P1 | 📝 草稿 | backlog/NT-008.md |
 | NT-009 | 首页：收藏配色 / 一键操作固定底部 / 删工具箱行 / 状态栏模块功能数 | P2 | 📝 草稿 | backlog/NT-009.md |

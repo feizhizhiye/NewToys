@@ -182,8 +182,6 @@
                 <Separator/>
                 <MenuItem Header="▤ 显示详情栏" Command="{Binding ShowDetailCommand}"/>
                 <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
-                <MenuItem Header="{Binding MoveMenuLabel}" Command="{Binding MoveToOtherPageCommand}"
-                          IsEnabled="{Binding HasSelection}"/>
                 <Separator/>
                 <MenuItem Header="{Binding FavoriteMenuLabel}" Command="{Binding ToggleFavoriteCommand}"/>
                 <MenuItem Header="📋 复制命令" Command="{Binding CopyCommand}"/>

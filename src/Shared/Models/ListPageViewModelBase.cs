@@ -132,13 +132,47 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         OnPropertyChanged(nameof(VisibleColumnSpecs));
     }
 
-    /// <summary>读某列当前是否可见（未在字典里 = 默认可见）。供派生类的具名属性直通。</summary>
-    protected bool Vis(string key) => !_visibility.TryGetValue(key, out var v) || v;
+    /// <summary>
+    /// v3.19 / NT-006：**必须始终可见的列**（右键菜单里不可隐藏、<see cref="VisibleColumnSpecs"/> 恒给它宽度）。
+    /// 默认自动识别「名称 / 标题 / 主机」这类标识列；派生类可 override 明确指定。
+    /// </summary>
+    protected virtual string? MandatoryColumnKey
+    {
+        get
+        {
+            foreach (var c in Columns)
+                if (c.Key is "Name" or "Title" or "Host"
+                    || c.Header.Contains("名称") || c.Header.Contains("标题"))
+                    return c.Key;
+            return null;
+        }
+    }
+
+    /// <summary>读某列当前是否可见（未在字典里 = 默认可见；标识列恒可见）。供派生类的具名属性直通。</summary>
+    protected bool Vis(string key)
+        => key == MandatoryColumnKey || !_visibility.TryGetValue(key, out var v) || v;
 
     // ==================== 列宽规格（表头与行共用同一份） ====================
 
+    private bool _autoFit;
+
+    /// <summary>「自动调整全部列宽」当前是否开启（v3.19 / NT-006）。</summary>
+    public bool IsAutoFit => _autoFit;
+
     /// <summary>
-    /// 列宽规格串：可见列写它的星号宽度，隐藏列写 <c>"0"</c>（列索引保持不动 → 表头与行永不错位）。
+    /// 右键表头「⇔ 自动调整全部列宽」：在「星号比例（默认）」与「按内容自适应（Auto）」之间一键切换。
+    /// 折中方案：不逐列手调，只在整体比例与内容自适应间切换（可见列用 <c>Auto</c>，隐藏列仍 <c>0</c>）。
+    /// </summary>
+    [RelayCommand]
+    private void AutoFitColumns()
+    {
+        _autoFit = !_autoFit;
+        OnPropertyChanged(nameof(IsAutoFit));
+        OnPropertyChanged(nameof(VisibleColumnSpecs));
+    }
+
+    /// <summary>
+    /// 列宽规格串：可见列写它的星号宽度（或自动列宽时的 <c>Auto</c>），隐藏列写 <c>"0"</c>（列索引保持不动 → 表头与行永不错位）。
     /// ⚠️ 必须做成字符串：<c>Grid.ColumnDefinitions</c> 是 CLR 属性，XAML 里不能写 {Binding}（AVLN3000），
     /// 故由各模块的 <c>ColumnGrid</c> 控件解析。
     /// </summary>
@@ -148,16 +182,17 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         {
             var parts = new string[Columns.Count];
             for (var i = 0; i < Columns.Count; i++)
-                parts[i] = Vis(Columns[i].Key) ? Columns[i].Width : "0";
+                parts[i] = !Vis(Columns[i].Key) ? "0" : (_autoFit ? "Auto" : Columns[i].Width);
             return string.Join(",", parts);
         }
     }
 
-    /// <summary>右键表头勾选 / 取消勾选某列（增删表头项）；结果落 <c>config\columnlayout.json</c>。</summary>
+    /// <summary>右键表头勾选 / 取消勾选某列（增删表头项）；结果落 <c>config\columnlayout.json</c>。标识列（名称）不可隐藏。</summary>
     [RelayCommand]
     private void ToggleColumn(string? key)
     {
         if (string.IsNullOrWhiteSpace(key)) return;
+        if (key == MandatoryColumnKey) return;   // v3.19 / NT-006：标识列（名称）必须显示，忽略隐藏请求
         _visibility[key] = !Vis(key);
         SaveVisibility();
         OnPropertyChanged("Is" + key + "Visible");

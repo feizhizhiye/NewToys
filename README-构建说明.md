@@ -117,3 +117,5 @@ launch.ps1 clean -Deep
 脚本名省略 `.ps1`；后面的参数原样透传。启动器会以子进程方式运行目标脚本并继承环境；目标脚本检测到由启动器拉起（`$env:NEWTOYS_LAUNCHER`）时会跳过自身暂停，统一由启动器在出错时暂停一次。
 
 **推荐**：为常用命令各建一个快捷方式，目标填 `"<仓库根>\scripts\launch.ps1" build`（或 `clean -Deep` 等），双击即跑、成功自动关窗。错误时窗口会停留供查看，无需改任何脚本逻辑——各脚本已用 `throw` 把失败转成非零退出码，启动器据此判断。
+
+**嫌敲命令麻烦？** 跑一次 `pwsh -File scripts/install-shortcuts.ps1`，会在 `scripts\Shortcuts\` 下直接生成 7 个双击即用的 `.lnk`（构建/发布/清理/运行 各 Debug·Release），无需任何手敲；`.lnk` 含本机绝对路径已写入 `.gitignore`，换机重跑该脚本即可重建。

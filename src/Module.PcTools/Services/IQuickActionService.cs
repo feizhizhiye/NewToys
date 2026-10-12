@@ -63,6 +63,18 @@ public interface IQuickActionService
     /// <summary>把一条在两个页面之间移动（改归属 + 落盘）。</summary>
     void Move(QuickAction item, string page);
 
+    /// <summary>导出某页**全条目**为 json 文本（<see cref="QuickActionPage.Quick"/> / <see cref="QuickActionPage.Shortcuts"/>；v3.19 NT-006/007）。</summary>
+    string ExportPage(string page);
+
+    /// <summary>
+    /// 导入某页条目（v3.19）：<paramref name="replace"/>=true 整页替换、false 合并（按 <see cref="QuickAction.Id"/> 去重，同 Id 覆盖）。
+    /// </summary>
+    /// <returns>(新增, 更新, 跳过/无效)；<c>Skipped=-1</c> 表示 json 解析失败。</returns>
+    (int Added, int Updated, int Skipped) ImportPage(string page, string json, bool replace);
+
+    /// <summary>清空某页**全部条目**并落盘（v3.19「🧹 清空本页」= 真删除，NT-006）。</summary>
+    void ClearPage(string page);
+
     /// <summary>
     /// 运行一条项目：命令行命令直接执行；脚本文件按扩展名 / <see cref="QuickAction.Interpreter"/> 挑解释器
     /// （python / pwsh / powershell 5.1 / cmd，路径见「设置 → 路径配置」），统一经 <c>cmd</c> 跑；

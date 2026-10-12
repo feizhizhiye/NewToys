@@ -84,7 +84,7 @@
 
 | NT | 标题 | 优先级 | 状态 | 详情 |
 |---|---|---|---|---|
-| NT-001 | web-http 实装（唯一剩余骨架页） | P2 | 📝 草稿 | backlog/NT-001.md |
+| NT-001 | web-http 实装（唯一剩余骨架页） | P2 | ✔ 已完成（待验收） | backlog/NT-001.md |
 | NT-002 | pc-package 收尾（Parser 实机 + 批量队列） | P2 | 📝 草稿 | backlog/NT-002.md |
 | NT-003 | settings-package 软件源（退出码验证） | P2 | 📝 草稿 | backlog/NT-003.md |
 | NT-004 | defaults\ 与脚本目录播种确认 | P2 | 📝 草稿 | backlog/NT-004.md |

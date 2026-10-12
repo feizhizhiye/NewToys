@@ -72,7 +72,9 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
     }
 
     /// <summary>模块/功能数为静态值（运行期不变），故不触发；保留事件以满足 <see cref="IStatusProvider"/>。</summary>
+#pragma warning disable CS0067 // 事件是 IStatusProvider 契约要求，但本页状态静态、永不触发——不是遗漏
     public event EventHandler? StatusChanged;
+#pragma warning restore CS0067
 
     public HomeViewModel(IServiceProvider sp, IMenuService menu, LaunchRunner runner,
                          ILaunchConfigService launch, IFavoritesService fav)

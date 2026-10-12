@@ -1,7 +1,7 @@
 # AGENTS.md — NewToys 项目协作入口
 
 > v1.0 · 2026-10-12
-> 深度约束 / 坑点 / 静态自检脚本在仓库根 `skill/` 目录（`references/newtoys-constraints.md` + `scripts/check.ps1`）；WorkBuddy 经 `.workbuddy/skills/newtoys/` 指针、Hermes(DeepSeek Harness) 经本文件路由读取。
+> 深度约束 / 坑点 / 静态自检脚本在仓库根 `skill/` 目录（`references/collab-method.md` 通用方法论 + `references/newtoys-spec.md` NewToys 专属约束 + `scripts/check.ps1`）；WorkBuddy 经 `.workbuddy/skills/newtoys/` 指针、Hermes(DeepSeek Harness) 经本文件路由读取。
 > 本文件是**跨 AI 工具的通用入口**（Codex / Cursor / Devin / Jules / Amp 等自动读取 AGENTS.md）。
 > 权威规格在 `src/docs/`，本文件只做「定位 + 铁律 + 路由」；**冲突时以 src/docs 与 src/ 源码为准**。
 > WorkBuddy 用户：本文件内容已同步为项目级技能 `.workbuddy/skills/newtoys/`，会被自动触发，无需重复维护。

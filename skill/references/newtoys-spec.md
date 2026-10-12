@@ -1,6 +1,6 @@
-# NewToys 约束细则（skill/references，跨 AI 共享）
+# NewToys 特定约束（skill/references）
 
-> 本文件是 `AGENTS.md` 的深度版，供需要细则时读取。权威源仍是 `src/docs/` 四份文档。
+> 与 NewToys 项目绑定；通用协作纪律见 `collab-method.md`。
 > v1.0 · 2026-10-12
 
 ---
@@ -10,25 +10,21 @@
 - 程序集：`NewToys.Shared/Core`、`NewToys`(=Shell→NewToys.exe)、`Module.<名>`；命名空间一律 `NewToys.*`
 - 分层单向：`Shared ← Core ← Shell ← Module.*`；模块禁引 Shell、禁互引；`Shared/Core` 不引 Avalonia
 - 栈：.NET 10 / Avalonia 12.1.3 / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0；版本只在 `src/Directory.Packages.props`
-- 编译绑定关闭 → XAML 不写 `x:DataType`；包版本只在 `Directory.Packages.props`；禁第三方 UI 库 / 图标字体
+- 编译绑定关闭 → XAML 不写 `x:DataType`；禁第三方 UI 库 / 图标字体
 - 数据落 `%LocalAppData%\NewToys\{config,data,logs}`，`NEWTOYS_HOME` 可整根切换；路径一律 `Path.Combine`
-- SQLite 唯一入口 `Core/Services/SqliteDatabase.cs`：库 = `<应用根>\data\newtoys.db`（data 非 config）；失败不抛（IsAvailable/LastError）
-- 版本号编译时生成 `1.<yyyyMMdd>.<HH>.<m0>`，禁手写
+- SQLite 唯一入口 `Core/Services/SqliteDatabase.cs`：库 = `&lt;应用根&gt;\data\newtoys.db`（data 非 config）；失败不抛（IsAvailable/LastError）
+- 版本号编译时生成 `1.&lt;yyyyMMdd&gt;.&lt;HH&gt;.&lt;m0&gt;`，禁手写
 
 ---
 
-## 二、铁律（不可协商）
+## 二、铁律（项目特定）
 
-1. **只改 `src/`**；不读写 Downloads；不碰项目目录外。
+1. **只改 `src/`**；不读写 Downloads；不碰项目目录外的任何位置。
 2. **不代跑编译**：构建由用户本地 `pwsh -File .\scripts\build.ps1`；AI 只静态自检，⛔ 不谎称通过。
-3. **变更顺序**：需求 → 先写《开发需求》→ 再改代码 → 最后台账；⛔ 先改代码后补文档。
-4. **框架层冻结**；停手仅 5 种，其余按假设推进并标注。
-5. **git commit**（`<type>: <简述>`），⛔ 不写 md 日志；文档仅过时/冲突才改；**代码 > 文档**。
-6. **评估/讨论不进文档**。
 
 ---
 
-## 三、四份权威文档（src/docs/）与路由
+## 三、四份权威文档（src/docs/）路由
 
 | 文档 | 角色 | 何时读 |
 |---|---|---|
@@ -83,7 +79,7 @@
 - `.axaml` 改动必同步 `.axaml.cs`；编译绑定关闭 → 只写 `{Binding}`，⛔ 不写 `x:DataType`、⛔ WPF 写法。
 - 颜色一律 DynamicResource；主题键只用 32 个 `*Brush` 语义键（不新增、不用旧键 `AppBg/AppBackground/TextPrimary`）；code-behind ⛔ 写死 `#RRGGBB`。
 - `App.ApplyTheme` 幂等，⛔ 禁 `MergedDictionaries.Clear()`。
-- 菜单：`icon` 传几何资源键（24 网格描边型，`<Path Stroke=… Stretch="Uniform"/>`），不是 emoji；Key = 小写连字符；viewName = View 类名。
+- 菜单：`icon` 传几何资源键（24 网格描边型，`&lt;Path Stroke=… Stretch="Uniform"/&gt;`），不是 emoji；Key = 小写连字符；viewName = View 类名。
 - 跨页投递数据在 `OnAttachedToVisualTree` 取（⛔ 不是 `OnDataContextChanged`；必须 `protected override`，public 报 CS0507）。
 - 设置类 `config\*.json` 模块只读，唯一写入点 = 设置页；功能数据由功能页读写。
 
@@ -93,12 +89,12 @@
 
 - `TaskStatus` 撞 `System.Threading.Tasks.TaskStatus` → 改名 `VideoTaskStatus`；`MenuGroup/MenuItem` → `AppMenuGroup/AppMenuItem`。新增模型先 grep avalonia ref 的 `T:`。
 - CA1416 只认**内联** `OperatingSystem.IsWindows()`；间接属性不认。
-- `Where(p=>!string.IsNullOrWhiteSpace(p))` 不收窄 `string?` → 仍需 `.Select(p=>p!)`。
+- `Where(p=&gt;!string.IsNullOrWhiteSpace(p))` 不收窄 `string?` → 仍需 `.Select(p=&gt;p!)`。
 - 插值串禁单个 `\`（CS8087+CS1009）；要反斜杠写 `\\`。
 - `[ObservableProperty]` 的 `partial void OnXxxChanged` 只能写在定义类（派生→CS0759）；派生类靠基类 `protected virtual NotifyXxx()` override。
 - `MVVMTK0034` 只构造/字段初始化器外报；改字段名须全仓搜（属性 + `_字段` + nameof）。
 - `[RelayCommand]` 的 `Async` 后缀被剥再拼 `Command`（CopyFfmpegAsync → CopyFfmpegCommand）。
-- 🔴 `CommandParameter` 字面量是 string，别喂 `RelayCommand<T>`（T≠string）：Avalonia 在 `CanExecute` 类型不匹配**直接抛 ArgumentException**，被绑定机制吞掉（不崩不报，但切页半途而废）。→ 参数收 `object?` 自己转。
+- 🔴 `CommandParameter` 字面量是 string，别喂 `RelayCommand&lt;T&gt;`（T≠string）：Avalonia 在 `CanExecute` 类型不匹配**直接抛 ArgumentException**，被绑定机制吞掉（不崩不报，但切页半途而废）。→ 参数收 `object?` 自己转。
 - `SetTextAsync/GetTextAsync` 是 `Avalonia.Input.Platform.ClipboardExtensions` → 须 `using Avalonia.Input.Platform;` + `using Avalonia;` + `Avalonia.Controls.ApplicationLifetimes`。
 - Avalonia≠WPF：无 IsCheckable（用 ToggleType=CheckBox）；IsChecked 须 Mode=OneWay；Watermark 废弃 → PlaceholderText。
 - 🔴 **可视树回调是 `protected`**：`OnAttachedToVisualTree`/`OnDetachedFromVisualTree` 写 `public override` → CS0507。
@@ -109,9 +105,6 @@
 
 ---
 
-## 八、交付要求
+## 八、触发词
 
-- 变更清单（增/改/删逐条一句话）+ 前置基线 + 用户本地验证命令（`pwsh -File .\scripts\build.ps1`）。
-- 直接写工作区，用 read/ls 确认落盘；⛔ 不打 zip、不列下载链接、不做 sources md 快照。
-- 功能级交付 git commit（`<type>: <简述>`）；纯修报错不回写台账。
-- 摸底用 grep/read 定向检索，⛔ 不整读、⛔ 不读 `artifacts/ bin/ obj/`。
+NewToys、src/、视频工具、PcTools、WebTools、开发需求、开发规范、台账、build.ps1

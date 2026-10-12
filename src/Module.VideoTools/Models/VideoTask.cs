@@ -420,10 +420,10 @@ public partial class TranscodeTask : VideoTaskBase
     /// （ffmpeg <c>scale=W:H:force_original_aspect_ratio=decrease</c>，只缩不放、保比例）。
     /// 与 <see cref="TargetWidth"/>/<see cref="TargetHeight"/>（显式宽高）二选一，优先用显式宽高。
     /// </summary>
-    [ObservableProperty] private int _defaultWidth;
+    [ObservableProperty] private int _defaultWidth = 1920;
 
     /// <summary>默认高度上限（配合 <see cref="DefaultWidth"/>；0 = 不启用）。</summary>
-    [ObservableProperty] private int _defaultHeight;
+    [ObservableProperty] private int _defaultHeight = 1080;
 
     /// <summary>
     /// 码率模式：<c>crf</c> = 恒定质量（<see cref="Crf"/>）；<c>bitrate</c> = 目标码率（<see cref="TargetBitrate"/>）。

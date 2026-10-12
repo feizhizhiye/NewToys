@@ -101,8 +101,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     [ObservableProperty] private int _editMaxHeight;
 
     // 默认宽 / 高上限（v3.19 / NT-013；0 = 不用，源更大才缩、否则保原始）
-    [ObservableProperty] private int _editDefaultWidth;
-    [ObservableProperty] private int _editDefaultHeight;
+    [ObservableProperty] private int _editDefaultWidth = 1920;
+    [ObservableProperty] private int _editDefaultHeight = 1080;
 
     // 剪辑
     [ObservableProperty] private string _editCutPresetId = CutPresets.Copy;

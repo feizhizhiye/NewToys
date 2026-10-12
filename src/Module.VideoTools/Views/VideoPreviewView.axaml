@@ -66,6 +66,17 @@
 
           <Border Grid.Row="0" CornerRadius="6" ClipToBounds="True"
                   Background="{DynamicResource CodeBlockBrush}" MinHeight="340">
+            <!--  v3.19 / NT-013：右键画面 = 直接看当前视频信息（名称/大小/编码/时长/码率/容器/分辨率/旋转），
+                  编辑命令时快速核对，不用来回切页  -->
+            <Border.ContextMenu>
+              <ContextMenu>
+                <MenuItem>
+                  <MenuItem.Header>
+                    <TextBlock Text="{Binding VideoInfoText}" FontSize="12" LineHeight="17"/>
+                  </MenuItem.Header>
+                </MenuItem>
+              </ContextMenu>
+            </Border.ContextMenu>
             <!--  v3.19 / NT-012：RenderTransformOrigin=中心 + RotateTransform 绑 PreviewRotation —— ↻/↺ 纯视觉旋转预览  -->
             <Image Source="{Binding PreviewImage}" Stretch="Uniform" MinHeight="340" RenderTransformOrigin="0.5,0.5">
               <Image.RenderTransform>
@@ -97,7 +108,7 @@
                          VerticalAlignment="Center" Text="{Binding PreviewTimeDisplay}"/>
             </Grid>
 
-            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}">
+            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}" Margin="0,-8,0,0">
               <TextBlock Grid.Column="0" Classes="field-label" Text="开始" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding StartSeconds, Mode=TwoWay}"
@@ -107,7 +118,7 @@
                          VerticalAlignment="Center" Text="{Binding EditStart}"/>
             </Grid>
 
-            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}">
+            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}" Margin="0,-8,0,0">
               <TextBlock Grid.Column="0" Classes="field-label" Text="结束" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding EndSeconds, Mode=TwoWay}"
@@ -233,20 +244,18 @@
                   </StackPanel>
                 </Grid>
 
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="最大高度（0 = 不改；与上面的宽高二选一，优先用宽高）"/>
-                  <TextBox Classes="code" Text="{Binding EditMaxHeight, Mode=TwoWay}"/>
-                </StackPanel>
-
-                <!--  v3.19 / NT-013：默认宽 / 高上限（源**大于**它才缩到它、**小于等于**保原始；与显式宽高二选一，优先用显式宽高）  -->
+                <!--  v3.19 / NT-013：默认宽 / 高上限（源**大于**它才缩到它、**小于等于**保原始；与显式宽高二选一，优先用显式宽高）。
+                      ⛔ 已删「最大高度」字段（反馈：冗余，与默认宽高重复）；默认值 1920×1080，可手改。  -->
+                <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                           Text="{Binding SourceResolutionDisplay, StringFormat='原视频宽高：{0}'}"/>
                 <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="4">
                   <StackPanel Grid.Column="0" Classes="field">
-                    <TextBlock Classes="field-label" Text="默认宽上限（0 = 不用）"/>
+                    <TextBlock Classes="field-label" Text="默认宽上限"/>
                     <TextBox Classes="code" Text="{Binding EditDefaultWidth, Mode=TwoWay}"/>
                   </StackPanel>
                   <TextBlock Grid.Column="1" Text="×" VerticalAlignment="Center" Margin="0,16,0,0"/>
                   <StackPanel Grid.Column="2" Classes="field">
-                    <TextBlock Classes="field-label" Text="默认高上限（0 = 不用）"/>
+                    <TextBlock Classes="field-label" Text="默认高上限"/>
                     <TextBox Classes="code" Text="{Binding EditDefaultHeight, Mode=TwoWay}"/>
                   </StackPanel>
                 </Grid>

@@ -342,7 +342,17 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
             {
                 var ffprobe = VideoScanner.DeriveFfprobe(_cfg?.FfmpegPath);
                 var (ok, _, info) = await VideoScanner.ProbeAsync(path, ffprobe);
-                if (ok && info?.Duration != null) Duration = info.Duration.Value;
+                if (ok && info != null)
+                {
+                    if (info.Duration != null) Duration = info.Duration.Value;
+                    if (info.Width is > 0) SourceWidth = info.Width.Value;    // v3.19 / NT-013：顺手记下源宽高供参考
+                    if (info.Height is > 0) SourceHeight = info.Height.Value;
+                    if (info.Codec is { Length: > 0 }) SourceCodec = info.Codec;
+                    if (info.BitRate is > 0) SourceBitRate = info.BitRate;
+                    if (!string.IsNullOrWhiteSpace(info.ContainerFormat)) SourceContainerFormat = info.ContainerFormat!;
+                    try { var fi = new System.IO.FileInfo(path); if (fi.Exists) SourceSize = fi.Length; } catch { /* 忽略 */ }
+                }
+                NotifyVideoInfo();
             }
 
             if (Duration <= 0)
@@ -442,10 +452,61 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
     [ObservableProperty] private int _editTargetHeight;
 
     /// <summary>默认宽上限（0 = 不用；源更宽才缩到它，否则保原始，v3.19 / NT-013）。</summary>
-    [ObservableProperty] private int _editDefaultWidth;
+    [ObservableProperty] private int _editDefaultWidth = 1920;
 
     /// <summary>默认高上限（0 = 不用；配合 <see cref="EditDefaultWidth"/>）。</summary>
-    [ObservableProperty] private int _editDefaultHeight;
+    [ObservableProperty] private int _editDefaultHeight = 1080;
+
+    /// <summary>源视频宽 / 高（v3.19 / NT-013：探测后显示，供设「默认宽高上限」时参考）。</summary>
+    [ObservableProperty] private int _sourceWidth;
+    [ObservableProperty] private int _sourceHeight;
+    partial void OnSourceWidthChanged(int value) => OnPropertyChanged(nameof(SourceResolutionDisplay));
+    partial void OnSourceHeightChanged(int value) => OnPropertyChanged(nameof(SourceResolutionDisplay));
+
+    /// <summary>「原视频宽高」显示文本（未探测到则提示）。</summary>
+    public string SourceResolutionDisplay =>
+        SourceWidth > 0 && SourceHeight > 0 ? $"{SourceWidth}×{SourceHeight}" : "未读取（载入后自动探测）";
+
+    /// <summary>v3.19 / NT-013：源视频编码 / 码率 / 容器（探测时填充，供右键「视频信息」）。</summary>
+    [ObservableProperty] private string _sourceCodec = "";
+    [ObservableProperty] private long? _sourceBitRate;
+    [ObservableProperty] private string _sourceContainerFormat = "";
+
+    /// <summary>源文件大小（探测时顺手取）。</summary>
+    [ObservableProperty] private long _sourceSize;
+
+    /// <summary>
+    /// 预览画面右键「视频信息」的多行文本（v3.19 / NT-013：编辑命令时快速查看名称/大小/编码/时长/码率/容器/分辨率/旋转）。
+    /// </summary>
+    public string VideoInfoText
+    {
+        get
+        {
+            var name = string.IsNullOrEmpty(SourcePath) ? "（未载入）" : System.IO.Path.GetFileName(SourcePath);
+            var size = SourceSize > 0 ? VideoTaskBase.FormatSize(SourceSize) : "—";
+            var codec = string.IsNullOrWhiteSpace(SourceCodec) ? "—" : SourceCodec;
+            var dur = Duration > 0 ? CutTask.FormatTime(Duration) : "—";
+            var rate = SourceBitRate is > 0 ? $"{SourceBitRate.Value / 1000.0:0} kbps" : "—";
+            var cont = !string.IsNullOrWhiteSpace(SourceContainerFormat)
+                ? SourceContainerFormat
+                : (string.IsNullOrEmpty(SourcePath) ? "—" : System.IO.Path.GetExtension(SourcePath).TrimStart('.').ToLowerInvariant());
+            var rot = SelectedRotate?.Label ?? "不旋转";
+            return string.Join("\n", new[]
+            {
+                $"名称：{name}",
+                $"大小：{size}",
+                $"编码：{codec}",
+                $"时长：{dur}",
+                $"码率：{rate}",
+                $"容器：{cont}",
+                $"分辨率：{SourceResolutionDisplay}",
+                $"旋转：{rot}",
+                $"路径：{SourcePath}",
+            });
+        }
+    }
+
+    private void NotifyVideoInfo() => OnPropertyChanged(nameof(VideoInfoText));
 
     /// <summary>
     /// 缩到的**最大高度**（0 = 不改；例 720 = 缩到 720p）。
@@ -473,6 +534,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
     partial void OnSelectedRotateChanged(RotateOption? value)
     {
         if (value != null) EditRotate = value.Value;
+        NotifyVideoInfo();   // v3.19 / NT-013：旋转方向进了右键「视频信息」
     }
 
     partial void OnEditRotateChanged(string value)

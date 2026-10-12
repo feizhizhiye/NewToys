@@ -714,24 +714,16 @@
                                 </StackPanel>
                             </Grid>
 
-                            <!--
-                                v3.16：段内的"剪辑区间"输入整块删掉 —— 区间归上面「✂ 剪辑」分区
-                                （两页详情卡字段集合一致，禁止同一份参数在两处各放一套）。
-                            -->
-                            <StackPanel Classes="field">
-                                <TextBlock Classes="field-label" Text="最大高度（0 = 不改；与上面的宽高二选一，优先用宽高）" />
-                                <TextBox Classes="code" Text="{Binding EditMaxHeight, Mode=TwoWay}" />
-                            </StackPanel>
-
-                            <!--  v3.19 / NT-013：默认宽 / 高上限（源更大才缩、否则保原始；与显式宽高二选一）  -->
+                            <!--  v3.19 / NT-013：默认宽 / 高上限（源更大才缩、否则保原始；与显式宽高二选一）。
+                                  ⛔ 已删「最大高度」字段（反馈：冗余）；默认值 1920×1080，可手改。  -->
                             <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="4">
                                 <StackPanel Grid.Column="0" Classes="field">
-                                    <TextBlock Classes="field-label" Text="默认宽上限（0 = 不用）" />
+                                    <TextBlock Classes="field-label" Text="默认宽上限" />
                                     <TextBox Classes="code" Text="{Binding EditDefaultWidth, Mode=TwoWay}" />
                                 </StackPanel>
                                 <TextBlock Grid.Column="1" Text="×" VerticalAlignment="Center" Margin="0,16,0,0" />
                                 <StackPanel Grid.Column="2" Classes="field">
-                                    <TextBlock Classes="field-label" Text="默认高上限（0 = 不用）" />
+                                    <TextBlock Classes="field-label" Text="默认高上限" />
                                     <TextBox Classes="code" Text="{Binding EditDefaultHeight, Mode=TwoWay}" />
                                 </StackPanel>
                             </Grid>

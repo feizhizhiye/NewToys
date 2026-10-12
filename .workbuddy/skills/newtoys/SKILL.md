@@ -1,10 +1,20 @@
 ---
 name: newtoys
-description: NewToys 项目（.NET 10 + Avalonia 12.1.3 Windows 桌面工具管理器）的开发协作技能。凡涉及本仓库的任务——新增/修改页面（列表页、设置页、视频预览/批处理页）、新增模块、VideoTools/PcTools/WebTools/Settings 改动、主题与样式、编译报错修复、开发需求/规范/台账更新——动手前必须先加载本技能，按「先文档后代码」流程与分级读档路由执行。触发词：NewToys、src/、Module.VideoTools、视频工具、PcTools、WebTools、开发需求、开发规范、台账、build.ps1。
+description: NewToys 项目（.NET 10 + Avalonia 12.1.3 Windows 桌面工具管理器）的开发协作技能（指针）。实际知识与深度路由表在仓库根 `skill/` 目录，跨 AI 共享（WorkBuddy 与 Hermes/DeepSeek Harness 共用）。涉及本仓库任务——页面/列表页/设置页、Module.VideoTools/PcTools/WebTools/Settings 改动、主题样式、编译报错、文档台账——动手前先加载本技能，按其指引读仓库根 AGENTS.md 与 skill/SKILL.md。触发词：NewToys、src/、视频工具、PcTools、WebTools、开发需求、开发规范、台账、build.ps1。
 agent_created: true
 ---
 
-# NewToys 开发协作
+# NewToys 开发协作（指针）
+
+实际知识库与路由表在仓库根的 `skill/` 目录（跨 AI 中立载体，WorkBuddy 与 Hermes 共用）：
+
+1. 读 `AGENTS.md`（仓库根，定位 + 铁律 + 四文档路由表）
+2. 读 `skill/SKILL.md`（执行流程 + 目录说明）
+3. 按 `skill/references/newtoys-constraints.md` 的「任务型→规范章节」读 `src/docs/NewToys开发规范.md`
+
+权威源仍是 `src/docs/`；本项目只改 `src/`。
+
+
 
 ## 用途
 

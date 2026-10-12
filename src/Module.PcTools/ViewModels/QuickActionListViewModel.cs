@@ -124,6 +124,25 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
     [ObservableProperty] private string _editCommand = "";
     [ObservableProperty] private bool _editNeedAdmin;
 
+    // ---- 运行窗口行为（v3.19 / NT-006，仅命令行命令有意义）----
+
+    /// <summary>编辑缓冲：是否「隐藏终端窗口」（GUI 启动类静默跑、不弹终端；管理员时失效）。</summary>
+    [ObservableProperty] private bool _editRunHidden;
+
+    /// <summary>编辑缓冲：命令行宿主（取值见 <see cref="QuickActionShell"/>，旧数据缺省 = Auto）。</summary>
+    [ObservableProperty] private string _editShell = QuickActionShell.Auto;
+
+    /// <summary>「Shell」下拉的选项（来自 <see cref="QuickActionShell.Options"/>）。</summary>
+    public ObservableCollection<ActionKindOption> ShellOptions { get; } = new(
+        QuickActionShell.Options.Select(o => new ActionKindOption { Label = o.Label, Value = o.Value }));
+
+    [ObservableProperty] private ActionKindOption? _selectedShell;
+
+    partial void OnSelectedShellChanged(ActionKindOption? value)
+    {
+        if (value != null) EditShell = value.Value;
+    }
+
     // ---- 类型 / 脚本（v1.33）----
 
     /// <summary>编辑缓冲里的条目类型（取值见 <see cref="QuickActionKind"/>）。</summary>
@@ -169,12 +188,16 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
     {
         OnPropertyChanged(nameof(IsScriptKind));
         OnPropertyChanged(nameof(IsCommandKind));
+        OnPropertyChanged(nameof(ShowCommandRunOptions));
     }
 
     /// <summary>当前编辑的是"脚本文件"类型 → 详情卡显示脚本字段、隐藏命令框（反之亦然）。</summary>
     public bool IsScriptKind => string.Equals(EditKind, QuickActionKind.Script, StringComparison.Ordinal);
 
     public bool IsCommandKind => !IsScriptKind;
+
+    /// <summary>是否显示 Shell / 隐藏终端窗口 两个运行选项（有选中且是命令行命令时，v3.19 / NT-006）。</summary>
+    public bool ShowCommandRunOptions => HasSelection && IsCommandKind;
 
     // ==================== 脚本目录（v1.35：顶部可切换） ====================
 
@@ -405,6 +428,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         EditCommand = value?.Command ?? "";
         EditNeedAdmin = value?.NeedAdmin ?? false;
         EditScriptFile = value?.ScriptFile ?? "";
+        EditRunHidden = value?.RunHidden ?? false;
 
         // 类型 / 解释器用下拉的选中项承载（赋值会经 OnSelected*Changed 回写上面两个缓冲字段）。
         var kind = value?.Kind ?? QuickActionKind.Command;
@@ -413,16 +437,20 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
                        ?? KindOptions[0];
         SelectedInterpreter = InterpreterOptions.FirstOrDefault(o => string.Equals(o.Value ?? "", interp ?? "", StringComparison.OrdinalIgnoreCase))
                               ?? InterpreterOptions[0];
+        SelectedShell = ShellOptions.FirstOrDefault(o => string.Equals(o.Value, QuickActionShell.Normalize(value?.Shell), StringComparison.OrdinalIgnoreCase))
+                        ?? ShellOptions[0];
 
         UpdateFavoriteUi();
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowCommandRunOptions));
     }
 
     // ==================== 运行 ====================
 
     /// <summary>
     /// 运行一条命令（行内「▶ 运行」传本行、详情卡与右键菜单传当前选中项）。
-    /// <para>命令经 <c>cmd /c</c> 执行；需要管理员权限的走 UAC 提权。结果 / 报错压成一行写进 StatusText。</para>
+    /// <para>命令经可见终端窗口执行（优先 pwsh，需要管理员权限的走 UAC 提权，窗口同样可见）。
+    /// 输出直接显示在弹出的窗口里，状态行只回报「已打开窗口运行」。</para>
     /// </summary>
     [RelayCommand]
     private async Task RunAsync(QuickAction? item)
@@ -562,6 +590,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         Selected.Description = (EditDescription ?? "").Trim();
         Selected.Command = (EditCommand ?? "").Trim();
         Selected.NeedAdmin = EditNeedAdmin;
+        Selected.RunHidden = EditRunHidden;
+        Selected.Shell = QuickActionShell.Normalize(EditShell);
         Selected.Kind = string.IsNullOrWhiteSpace(EditKind) ? QuickActionKind.Command : EditKind;
         Selected.ScriptFile = (EditScriptFile ?? "").Trim();
         Selected.Interpreter = EditInterpreter ?? ScriptInterpreter.Auto;

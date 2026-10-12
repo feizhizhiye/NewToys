@@ -38,9 +38,6 @@ public class QuickActionService : IQuickActionService
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
-    /// <summary>普通命令 / 脚本的运行上限：超时即连子进程一起结束（防长命令把「运行中」挂死）。</summary>
-    private static readonly TimeSpan RunTimeout = TimeSpan.FromMinutes(5);
-
     private readonly ConfigStoreService _cfg;
     private readonly IAppConfigService? _app;
 
@@ -173,127 +170,100 @@ public class QuickActionService : IQuickActionService
 
     // ==================== 运行 ====================
 
-    public async Task<(bool Ok, string Message)> RunAsync(QuickAction item, CancellationToken ct = default)
+    public Task<(bool Ok, string Message)> RunAsync(QuickAction item, CancellationToken ct = default)
     {
-        if (item == null) return (false, "未选择项目。");
+        if (item == null) return Task.FromResult((false, "未选择项目。"));
         if (!OperatingSystem.IsWindows())
-            return (false, "「运行」目前只在 Windows 上可用。");
+            return Task.FromResult((false, "「运行」目前只在 Windows 上可用。"));
 
-        var (ok, cmdLine, workDir, err) = BuildRunPlan(item);
-        if (!ok) return (false, err);
+        var isCommand = !string.Equals(item.Kind, QuickActionKind.Script, StringComparison.OrdinalIgnoreCase);
+        var verb = item.NeedAdmin ? "runas" : "";
 
-        // 需要管理员：只能用 ShellExecute + runas（弹 UAC），此时**无法重定向输出** ——
-        // 于是让 cmd 在新控制台窗口里跑，命令的原始输出 / 报错用户直接看得到（比在状态行里转述更可靠）。
-        if (item.NeedAdmin)
+        // 「隐藏终端窗口」（RunHidden，v3.19 / NT-006）：GUI 启动类命令用 cmd /c 静默跑、不弹终端，
+        // 目标 GUI 正常打开。仅对命令行命令生效；**需要管理员时忽略本开关**（仍走下面 runas + 可见 UAC）。
+        if (item.RunHidden && !item.NeedAdmin && isCommand && !string.IsNullOrWhiteSpace(item.Command))
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = "/c " + cmdLine,
-                    Verb = "runas",
-                    UseShellExecute = true
-                });
-                return (true, $"已请求以管理员身份运行「{item.Title}」：请在 UAC 弹窗确认，结果见新打开的命令行窗口。");
-            }
-            catch (Exception ex)
-            {
-                // 1223 = 用户在 UAC 弹窗里点了「否」
-                var msg = ex is System.ComponentModel.Win32Exception w && w.NativeErrorCode == 1223
-                    ? "已取消（未获得管理员权限）。"
-                    : "无法提权运行：" + ex.Message;
-                return (false, msg);
-            }
+            if (StartHidden("cmd.exe", "/c " + item.Command.Trim(), SafeWorkingDir(), out var hideErr))
+                return Task.FromResult((true, $"已静默启动「{item.Title}」：目标程序应已打开（未弹终端窗口）。"));
+            return Task.FromResult((false, hideErr ?? "无法静默启动。"));
         }
 
-        // 普通命令 / 脚本：隐藏窗口 + 捕获输出，把结果 / 报错压成一行给页面状态行。
-        // ⚠️ 前置 chcp 65001：重定向成管道时 cmd 及其子程序按控制台编码写字节，不切到 UTF-8 中文会读成乱码。
-        var psi = new ProcessStartInfo
-        {
-            FileName = "cmd.exe",
-            Arguments = "/d /c chcp 65001>nul & " + cmdLine,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-            WorkingDirectory = workDir
-        };
+        var (ok, exe, args, workDir, err) = BuildRunPlan(item);
+        if (!ok) return Task.FromResult((false, err));
 
-        using var proc = new Process { StartInfo = psi };
-        try
+        // 「快捷设置 / 设置与脚本」的定位 = 把常用命令 / 脚本攒起来、点一下就跑、还能收藏。
+        // 普通命令**开一个可见终端窗口**直接跑（不隐藏、不捕获，输出用户直接看），窗口跑完留着方便读结果；
+        // 优先用 pwsh（中文 / UTF-8 支持好，且先回显命令本身，见 <see cref="BuildEchoScript"/>），本机没 pwsh 才退回 cmd。
+        // 需要管理员：同样的可见窗口 + <c>runas</c> 弹 UAC，窗口也保留（不闪退）。
+        if (StartVisible(exe, args, workDir, verb, out var launchError))
+            return Task.FromResult((true, SuccessMessage(item)));
+
+        // 选了 pwsh 却起不来（本机没装 / PATH 没有）→ 退化成 cmd /k 跑同一条命令，至少还能看到窗口。
+        if (IsPwshExe(exe) && isCommand && !string.IsNullOrWhiteSpace(item.Command))
         {
-            if (!proc.Start()) return (false, "无法启动 cmd.exe。");
+            if (StartVisible("cmd.exe", "/k " + item.Command, workDir, verb, out _))
+                return Task.FromResult((true, $"已用 cmd 打开窗口运行「{item.Title}」（本机未找到可用的 pwsh）：结果见弹出的命令行窗口。"));
         }
-        catch (Exception ex)
-        {
-            return (false, "运行失败：" + ex.Message);
-        }
-
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(RunTimeout);
-
-        var outTask = proc.StandardOutput.ReadToEndAsync();
-        var errTask = proc.StandardError.ReadToEndAsync();
-        try
-        {
-            await proc.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
-            return (false, ct.IsCancellationRequested ? "已取消。" : $"执行超过 {RunTimeout.TotalMinutes:0} 分钟，已中止。");
-        }
-
-        var stdout = await outTask.ConfigureAwait(false);
-        var stderr = await errTask.ConfigureAwait(false);
-        var detail = Summarize(stderr, stdout);
-
-        if (proc.ExitCode == 0)
-            return (true, detail.Length == 0 ? $"已运行：{item.Title}" : $"已运行：{item.Title} —— {detail}");
-        return (false, detail.Length == 0
-            ? $"运行失败（退出码 {proc.ExitCode}）：{item.Title}"
-            : $"运行失败（退出码 {proc.ExitCode}）：{detail}");
+        return Task.FromResult((false, launchError ?? "无法启动进程。"));
     }
 
+    /// <summary>成功时的状态行文案（管理员 / 普通两种口径）。</summary>
+    private static string SuccessMessage(QuickAction item)
+        => item.NeedAdmin
+            ? $"已请求以管理员身份打开窗口运行「{item.Title}」：请在 UAC 弹窗确认，结果见新打开的窗口。"
+            : $"已打开终端窗口运行「{item.Title}」：结果见弹出的窗口（关闭即可结束）。";
+
     /// <summary>
-    /// 把一条项目翻译成"要给 cmd 执行的命令行 + 工作目录"。
+    /// 把一条项目翻译成"要启动的宿主 exe + 它的参数 + 工作目录"。
     /// <list type="bullet">
-    /// <item><see cref="QuickActionKind.Command"/>：命令行本身就是参数。</item>
-    /// <item><see cref="QuickActionKind.Script"/>：拼出 <c>解释器 [开关] "脚本路径"</c>；工作目录取脚本所在目录（脚本里的相对路径才好使）。</item>
+    /// <item><see cref="QuickActionKind.Command"/>：优先 pwsh（<c>-NoExit -EncodedCommand</c> 跑原始命令、窗口留着），
+    /// 拿不到 pwsh 就 <c>cmd /k</c>；命令本身原样透传，不做引号转义（用 base64 避开特殊字符）。</item>
+    /// <item><see cref="QuickActionKind.Script"/>：拼出 <c>解释器 [开关] "脚本路径"</c>，外面再套 <c>cmd /k</c> 把窗口留住
+    /// （python / .bat 跑完窗口不会瞬间消失）；工作目录取脚本所在目录（脚本里的相对路径才好使）。</item>
     /// </list>
     /// </summary>
-    private (bool Ok, string CmdLine, string WorkDir, string Error) BuildRunPlan(QuickAction item)
+    private (bool Ok, string Exe, string Args, string WorkDir, string Error) BuildRunPlan(QuickAction item)
     {
         var kind = string.IsNullOrWhiteSpace(item.Kind) ? QuickActionKind.Command : item.Kind;
 
         if (kind != QuickActionKind.Script)
         {
             var cmd = (item.Command ?? "").Trim();
-            if (cmd.Length == 0) return (false, "", "", "这条还没有命令内容。");
-            return (true, cmd, SafeWorkingDir(), "");
+            if (cmd.Length == 0) return (false, "", "", "", "这条还没有命令内容。");
+
+            // 宿主选择（Shell，v3.19 / NT-006）：Auto=优先 pwsh、Cmd=强制 cmd /k、Pwsh=强制 pwsh。
+            var shell = QuickActionShell.Normalize(item.Shell);
+            var hasPwsh = TryGetPwsh(out var pwsh);
+            if (shell == QuickActionShell.Pwsh || (shell == QuickActionShell.Auto && hasPwsh))
+            {
+                if (!hasPwsh)
+                    return (false, "", "", "", "本机未找到可用的 pwsh，无法按「Pwsh」运行（可把 Shell 改回「自动」或「cmd」）。");
+                // -EncodedCommand：先回显命令本身（PS> <命令>）再执行，像用户手动在 pwsh 里输入；
+                // 整段脚本按 UTF-16LE 转 base64，避开命令里的引号 / & / | 破坏参数解析。
+                var b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes(BuildEchoScript(cmd)));
+                return (true, pwsh, $"-NoExit -NoProfile -EncodedCommand {b64}", SafeWorkingDir(), "");
+            }
+            return (true, "cmd.exe", $"/k {cmd}", SafeWorkingDir(), "");
         }
 
         // ---------- 脚本文件 ----------
         var file = (item.ScriptFile ?? "").Trim();
-        if (file.Length == 0) return (false, "", "", "这条还没有指定脚本文件。");
+        if (file.Length == 0) return (false, "", "", "", "这条还没有指定脚本文件。");
 
         var path = Path.IsPathRooted(file) ? file : Path.Combine(ScriptsDirectory, file);
         if (!File.Exists(path))
-            return (false, "", "", $"找不到脚本文件：{path}（脚本目录可在「设置 → 路径配置」里改）");
+            return (false, "", "", "", $"找不到脚本文件：{path}（脚本目录可在「设置 → 路径配置」里改）");
 
         var ext = Path.GetExtension(path).ToLowerInvariant();
         var interp = string.IsNullOrWhiteSpace(item.Interpreter) ? AutoInterpreter(ext) : item.Interpreter.Trim();
 
         var exe = ResolveInterpreter(interp, out var err);
-        if (exe == null) return (false, "", "", err);
+        if (exe == null) return (false, "", "", "", err);
 
         var scriptDir = Path.GetDirectoryName(path);
         var workDir = string.IsNullOrEmpty(scriptDir) ? SafeWorkingDir() : scriptDir;
 
-        var cmdLine = interp switch
+        var inner = interp switch
         {
             // -X utf8：python 在管道里默认按本地代码页写字节，强制 UTF-8 才不会把中文输出读成乱码
             ScriptInterpreter.Python => $"\"{exe}\" -X utf8 \"{path}\"",
@@ -303,7 +273,8 @@ public class QuickActionService : IQuickActionService
             // call：批处理要 call 起来，否则会顶替掉外层 cmd（后面的收尾命令就不执行了）
             _ => $"call \"{path}\"",
         };
-        return (true, cmdLine, workDir, "");
+        // 套一层 cmd /k：让脚本也在可见窗口里跑、且窗口跑完留着（python / .bat 不会一闪而过）。
+        return (true, "cmd.exe", $"/k {inner}", workDir, "");
     }
 
     /// <summary>按扩展名挑默认解释器（<c>.ps1</c> 配了 pwsh 就用 pwsh，否则退回系统自带的 5.1）。</summary>
@@ -351,23 +322,98 @@ public class QuickActionService : IQuickActionService
         return exe;
     }
 
-    /// <summary>从命令输出里挑一行「最有信息量的」给状态行（优先 stderr 的最后一行，再退到 stdout）。</summary>
-    private static string Summarize(string? stderr, string? stdout)
+    /// <summary>本机能不能拿到 pwsh（PowerShell 7+）：配置里填了用配置（存在才用），否则探常见安装位、再退回 PATH 里的 pwsh。</summary>
+    private bool TryGetPwsh(out string exe)
     {
-        foreach (var src in new[] { stderr, stdout })
+        var cfg = (_app?.PwshPath ?? "").Trim();
+        if (cfg.Length > 0)
         {
-            var lines = (src ?? "")
-                .Replace("\r", "")
-                .Split('\n')
-                .Select(x => x.Trim())
-                .Where(x => x.Length > 0)
-                .ToList();
-            if (lines.Count > 0) return Truncate(lines[^1]);
+            if (File.Exists(cfg)) { exe = cfg; return true; }
+            exe = ""; return false;   // 配了却不存在 → 交给调用方退回 cmd
         }
-        return "";
+        // 没配置：先探常见安装位，再退回 PATH 里的 pwsh（PATH 没有则由 StartVisible 兜底成 cmd /k）。
+        foreach (var cand in new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "PowerShell", "7", "pwsh.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "PowerShell", "7", "pwsh.exe"),
+        })
+        {
+            if (File.Exists(cand)) { exe = cand; return true; }
+        }
+        exe = "pwsh";
+        return true;
     }
 
-    private static string Truncate(string s, int max = 160) => s.Length <= max ? s : s[..max] + "…";
+    private static bool IsPwshExe(string exe)
+        => exe.Equals("pwsh", StringComparison.OrdinalIgnoreCase)
+        || exe.EndsWith("pwsh.exe", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>开一个可见终端窗口跑命令（不隐藏、不重定向、窗口留着）；<paramref name="verb"/>=<c>runas</c> 即提权。</summary>
+    private static bool StartVisible(string exe, string args, string workDir, string verb, out string? error)
+    {
+        error = null;
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = exe,
+                Arguments = args,
+                UseShellExecute = true,
+                WorkingDirectory = workDir,
+                Verb = verb
+            };
+            return Process.Start(psi) != null;
+        }
+        catch (System.ComponentModel.Win32Exception w) when (w.NativeErrorCode is 2 or 3 or 5)
+        {
+            error = w.Message;
+            return false;   // 文件不存在 / 路径非法 / 拒绝访问 → 交给调用方兜底
+        }
+    }
+
+    /// <summary>
+    /// 包一层 pwsh 脚本：先回显命令本身（形如 <c>PS> &lt;命令&gt;</c>）再执行，
+    /// 让可见终端里的显示像用户手动输入命令一样完整（v3.19 / NT-006，需求 §6.2.1）。
+    /// <para>用户命令用 here-string 字面量（<c>@' … '@</c>）装，避开引号 / <c>$</c> / 反引杠被 pwsh 二次解析；
+    /// 唯一禁忌是命令里出现**单独一行且内容恰为 <c>'@</c>**（会提前终结 here-string），真实命令不会触发。</para>
+    /// </summary>
+    private static string BuildEchoScript(string cmd)
+    {
+        var sb = new StringBuilder();
+        sb.Append("$__c = @'\n");
+        sb.Append(cmd);
+        sb.Append("\n'@\n");
+        sb.Append("Write-Host \"PS> $__c\"\n");
+        sb.Append("Invoke-Expression $__c\n");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 静默启动（不弹终端窗口）：给「隐藏终端窗口」的 GUI 启动类命令用（v3.19 / NT-006）。
+    /// <para>用 <c>UseShellExecute=true</c>（协议 / 文件关联才解析得动，如 <c>ms-settings:</c>、<c>explorer</c>）
+    /// + <c>WindowStyle=Hidden</c> 藏掉 cmd 控制台窗口；目标 GUI 仍正常显示。</para>
+    /// </summary>
+    private static bool StartHidden(string exe, string args, string workDir, out string? error)
+    {
+        error = null;
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = exe,
+                Arguments = args,
+                UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                WorkingDirectory = workDir,
+            };
+            return Process.Start(psi) != null;
+        }
+        catch (System.ComponentModel.Win32Exception w) when (w.NativeErrorCode is 2 or 3 or 5)
+        {
+            error = w.Message;
+            return false;
+        }
+    }
 
     /// <summary>命令的工作目录取用户主目录（比程序目录更"像"用户自己开 cmd），取不到就用默认。</summary>
     private static string SafeWorkingDir()

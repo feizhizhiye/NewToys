@@ -244,6 +244,21 @@
               <CheckBox Content="需要管理员权限" FontSize="12" IsVisible="{Binding HasSelection}"
                         IsChecked="{Binding EditNeedAdmin, Mode=TwoWay}"/>
 
+              <!--  命令行宿主 / 隐藏终端窗口（v3.19 / NT-006，仅命令行命令显示）。
+                    Shell=Auto 有输出用 pwsh 弹终端并回显命令、GUI 启动类静默；Cmd/Pwsh 强制宿主。
+                    「隐藏终端窗口」勾上 = GUI 启动类语义，不弹终端、cmd /c 静默打开目标程序（管理员时失效）。  -->
+              <StackPanel Spacing="2" IsVisible="{Binding ShowCommandRunOptions}">
+                <TextBlock Classes="field-label" Text="Shell（命令行宿主）"/>
+                <ComboBox ItemsSource="{Binding ShellOptions}"
+                          SelectedItem="{Binding SelectedShell, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </StackPanel>
+              <CheckBox Content="隐藏终端窗口（GUI 启动类：不弹终端，静默打开目标程序）" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding ShowCommandRunOptions}"
+                      IsChecked="{Binding EditRunHidden, Mode=TwoWay}"/>
+
               <Border Classes="divider-line"/>
 
               <TextBlock Classes="hint-text" Text="{Binding DataFileHint}"/>

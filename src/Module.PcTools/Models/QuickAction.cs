@@ -55,6 +55,39 @@ public static class ScriptInterpreter
 }
 
 /// <summary>
+/// 「快捷设置」命令行的**宿主 / 窗口行为**（<see cref="QuickAction.Shell"/> 的取值，v3.19 / NT-006）。
+/// <para>
+/// <see cref="Auto"/>（默认）= 当前智能行为：有输出的命令用 pwsh 弹可见终端并回显命令、GUI 启动类命令静默；
+/// 显式 <see cref="Cmd"/> / <see cref="Pwsh"/> 覆盖 Auto，强制用哪个宿主跑。
+/// </para>
+/// </summary>
+public static class QuickActionShell
+{
+    /// <summary>自动：有输出→pwsh 可见终端（回显命令）；GUI 启动类→cmd 静默。默认。</summary>
+    public const string Auto = "Auto";
+
+    /// <summary>强制用 cmd（<c>cmd /k</c> 可见窗口）。</summary>
+    public const string Cmd = "Cmd";
+
+    /// <summary>强制用 pwsh（可见终端 + 回显命令）。</summary>
+    public const string Pwsh = "Pwsh";
+
+    /// <summary>详情卡「Shell」下拉的选项（顺序即显示顺序）。</summary>
+    public static IReadOnlyList<(string Value, string Label)> Options { get; } = new[]
+    {
+        (Auto, "自动（有输出用 pwsh / GUI 用 cmd）"),
+        (Cmd, "cmd（/k 可见窗口）"),
+        (Pwsh, "pwsh（可见终端 + 回显命令）"),
+    };
+
+    /// <summary>归一化：认得的返回值，其余（含 null / 空 / 旧数据缺省）一律回退 <see cref="Auto"/>。</summary>
+    public static string Normalize(string? shell)
+        => string.Equals(shell, Cmd, StringComparison.OrdinalIgnoreCase) ? Cmd
+         : string.Equals(shell, Pwsh, StringComparison.OrdinalIgnoreCase) ? Pwsh
+         : Auto;
+}
+
+/// <summary>
 /// 「设置与脚本」/「快捷设置」里的一条项目：一条<b>系统设置项</b>（注册表开关 / 电源计划 / 控制面板入口 …）
 /// 或一段常用<b>脚本</b>。
 /// <para>
@@ -120,6 +153,19 @@ public partial class QuickAction : ObservableObject
 
     /// <summary>是否已收藏到「本模块 → 收藏夹」。</summary>
     [ObservableProperty] private bool _isFavorite;
+
+    /// <summary>
+    /// 「隐藏终端窗口」（v3.19 / NT-006，仅对<b>命令行命令</b>有意义）：
+    /// 勾上 = GUI 启动类语义，运行时不弹终端窗口（<c>cmd /c</c> + 隐藏窗口静默跑，目标 GUI 正常打开）。
+    /// 默认 false（弹窗看输出）。<b>需要管理员时本开关失效</b>（仍 runas + 可见 UAC）。
+    /// </summary>
+    [ObservableProperty] private bool _runHidden;
+
+    /// <summary>
+    /// 命令行宿主选择（取值见 <see cref="QuickActionShell"/>，v3.19 / NT-006）：
+    /// Auto / Cmd / Pwsh；旧数据缺省 = <see cref="QuickActionShell.Auto"/>（行为不变）。
+    /// </summary>
+    [ObservableProperty] private string _shell = QuickActionShell.Auto;
 
     /// <summary>列表「★」列的显示文本（收藏即 ★）。派生自 <see cref="IsFavorite"/>，不写盘。</summary>
     [JsonIgnore]

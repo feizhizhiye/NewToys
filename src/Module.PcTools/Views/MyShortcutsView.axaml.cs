@@ -135,6 +135,7 @@ public partial class MyShortcutsView : UserControl
             var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "导出清单",
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
                 SuggestedFileName = "pc-scripts-export.json",
                 FileTypeChoices = new[]
                 {
@@ -162,6 +163,7 @@ public partial class MyShortcutsView : UserControl
             var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = replace ? "选择要整页替换导入的清单" : "选择要合并导入的清单",
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
                 AllowMultiple = false,
                 FileTypeFilter = new[]
                 {
@@ -176,5 +178,13 @@ public partial class MyShortcutsView : UserControl
             vm.StatusText = vm.ImportPageJson(json, replace);
         }
         catch (Exception ex) { vm.StatusText = "导入失败：" + ex.Message; }
+    }
+
+    /// <summary>把文件选择器定位到「导入导出默认目录」（v3.19 / NT-006 全页统一，与视频列表同款）。</summary>
+    private static async System.Threading.Tasks.Task<IStorageFolder?> SuggestedStartAsync(IStorageProvider sp, string dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir)) return null;
+        try { return await sp.TryGetFolderFromPathAsync(dir); }
+        catch { return null; }
     }
 }

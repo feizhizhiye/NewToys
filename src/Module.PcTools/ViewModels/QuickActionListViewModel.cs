@@ -60,6 +60,9 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
     private readonly IQuickActionService? _svc;
     private readonly IAppConfigService? _app;
 
+    /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
+    public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
+
     /// <summary>本页归属的 <see cref="QuickAction.Page"/>（<see cref="QuickActionPage"/> 之一）。</summary>
     private readonly string _pageKind;
 

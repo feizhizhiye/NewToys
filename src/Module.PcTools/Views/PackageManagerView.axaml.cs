@@ -55,6 +55,7 @@ public partial class PackageManagerView : UserControl
             var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "导出已安装包清单",
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
                 SuggestedFileName = "packages.json",
                 FileTypeChoices = new[] { new FilePickerFileType("JSON 清单") { Patterns = new[] { "*.json" } } }
             });
@@ -79,6 +80,7 @@ public partial class PackageManagerView : UserControl
             var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "选择要恢复的包清单 json",
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
                 AllowMultiple = false,
                 FileTypeFilter = new[]
                 {
@@ -95,6 +97,7 @@ public partial class PackageManagerView : UserControl
             var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "保存批量安装脚本",
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
                 SuggestedFileName = "install-packages.bat",
                 FileTypeChoices = new[] { new FilePickerFileType("批处理脚本") { Patterns = new[] { "*.bat" } } }
             });
@@ -105,5 +108,13 @@ public partial class PackageManagerView : UserControl
             vm.StatusText = $"已生成批量安装脚本：{dst}（在新系统上运行它即可恢复）";
         }
         catch (Exception ex) { vm.StatusText = "导入失败：" + ex.Message; }
+    }
+
+    /// <summary>把文件选择器定位到「导入导出默认目录」（v3.19 / NT-006 全页统一）。</summary>
+    private static async Task<IStorageFolder?> SuggestedStartAsync(IStorageProvider sp, string dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir)) return null;
+        try { return await sp.TryGetFolderFromPathAsync(dir); }
+        catch { return null; }
     }
 }

@@ -52,6 +52,11 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
 
     private ListMode _mode = ListMode.None;
 
+    private readonly IAppConfigService? _app;
+
+    /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
+    public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
+
     /// <summary>已安装包 Id 的缓存（搜索结果要靠它把「状态」列标准）。</summary>
     private HashSet<string>? _installedIds;
 
@@ -135,9 +140,10 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public PackageManagerViewModel() { }
 
-    public PackageManagerViewModel(IPackageManagerService pkg, IPackageSettingsService settings, IColumnLayoutService cols)
+    public PackageManagerViewModel(IPackageManagerService pkg, IPackageSettingsService settings, IColumnLayoutService cols, IAppConfigService app)
         : base(cols)
     {
+        _app = app;
         _pkg = pkg;
         _settings = settings;
         _cols = cols;

@@ -1,15 +1,15 @@
 # NewToys 项目现状与进度
 
-> v3.17.1 · 2026-10-12 · 台账
+> v3.17.2 · 2026-10-12 · 台账
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
 > ⛔ **评估结论不写进本台账**——评估在会话里讨论，用户拍板后才转为需求。
 > 配套：开发需求（宪法）/ 开发规范 / AI 协作提示词 / AGENTS.md（跨 AI 入口）/ skill/（跨 AI 知识库）
 
 **最近三次变更**
+- **v3.17.2**：🗂 **台账瘦身** —— §三 旧版本(v3.12–v3.14)完整 `[x]` 验收清单折叠为一行式摘要（v3.12 密度基线已入规范 §2.1、v3.13/v3.14 已本地编译通过），保留 v3.15/v3.16 完整；最高频读取的台账减重约 25 行，跨 AI 每次状态加载更省 token。
 - **v3.17.1**：📂 **AI 协作体系重构为「中立 skill/ + 双客户端」** —— 仓库根新增中立 `skill/` 目录（`SKILL.md` 路由表 + `references/` 下 `collab-method.md`(通用方法论)+`newtoys-spec.md`(NewToys 专属约束) 深度约束 + `scripts/check.ps1` 静态自检），作为 **WorkBuddy 与 Hermes(DeepSeek Harness) 共享知识库**；`AGENTS.md` 退为路由入口（指向 skill/）；`.workbuddy/skills/newtoys/` 改为**薄指针**指向 `skill/`；`src/docs` 四份仍唯一权威。跨 AI 知识全部进仓库，私有记忆仅留进行态。
 - **v3.17**：📄 **文档体系新增 AI 协作双入口** —— 仓库根 `AGENTS.md`（跨 AI 开放标准，Codex/Cursor/Devin/Jules 等自动读取：定位 + 8 条铁律 + 四份文档路由表 + 分级读档 + 任务型→规范章节表 + 高频硬约束）+ `.workbuddy/skills/newtoys/` 项目级技能（WorkBuddy 按触发词自动加载，与 AGENTS.md 同源）；`src/docs` 四份一字未改、继续为唯一权威源，入口仅做摘要并声明「冲突以 src/docs 与 src/ 为准」；需求 §10 登记，`.gitignore` 放行 `.workbuddy/skills/` 使技能随仓库分发。
-- **v3.16**：🧰 **视频工具六项（代码已落盘，待本地 `build.ps1`）** —— ① 视频库导入从「📂 导入」下拉里**独立成「🗄 导入视频库(.db)」按钮**（点即选、默认定位「导入导出默认目录」、⛔ 无输入框）；② 修 bug「导入 .db 后列表没反应」：`VideoCatalogService.ReadFile` 改为**回传失败原因**（无 `video_catalog` 表 / 缺列 / 打不开 / 取不到本地路径）+ `PRAGMA table_info` **兼容旧库**（缺 `tags`/`modified` 按默认读）+ 构造期 `ALTER TABLE` **补列** + 库里存 `modified`（以前读回一整库，修改时间全是导入那一刻）；③ 视频预览页**状态栏常驻当前视频信息**（`StatusText` 的 setter 统一拼「🎬 文件名 · 时长 · 路径」前缀，动作反馈冲不掉）；④ **两页详情卡完全一致**：批量页两个 `Expander.Header` 补上**可交互勾选框**，勾/取消 = 任务在 剪辑 ⇄ 转码 ⇄ 剪辑+转码 间转换（`VideoTaskStore.Replace` 保队列位置，`TranscodeTask.UseTrim` 让"结束留空=到末尾"也能勾住），转码段内重复的那组「剪辑区间」输入删掉、`最大高度` 移到与预览页同一位置并在预览页补同一字段；⑤ **表头 ☑ 右键菜单**（全选 / 取消选择 / 反选）取代工具条那三个按钮，批量页也加行首勾选列（列索引整体后移一位，`Pick` 进列显隐）；⑥ 两页工具条各加「🧹 清除列表 / 清除队列」（二次确认，⛔ 不动视频文件）。
 
 ---
 
@@ -18,7 +18,7 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.17.1 ｜ 规范 v3.13 ｜ 提示词 v3.13 ｜ 本台账 v3.17.1 |
+| 文档版本 | 需求 v3.17.1 ｜ 规范 v3.13 ｜ 提示词 v3.13 ｜ 本台账 v3.17.2 |
 | 技术栈 | .NET 10 + Avalonia 12.1.3 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
 | 代码规模 | 7 项目 / 约 154 个 `.cs+.axaml+.csproj` / 约 19400 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |
@@ -76,39 +76,14 @@
 > 本轮范围外的项（详情卡上提 / 搜索框 / 历史栈 / 图标矢量化）见**需求 §4.11**，此处不重复登记。
 > **待办来源（准备期产出）**：每次新需求，由 AI 对比《开发需求》应然 vs 本节「一、基线」生成；逐条可验收、带分级（P0/P1…），执行期逐条勾选 [x]。
 
-### P0 · 视频工具两页详情卡统一 + 全局密度收紧 🚧 代码已落盘，待本地 `build.ps1`
-
-**v3.12**
-- [x] **修 bug：跨页投递的视频要刷新页面才生效** —— `VideoPreviewView` / `VideoBatchView` 的取件点从 `OnDataContextChanged` 移到 `OnAttachedToVisualTree`（标签页已存在时 `DataContext` 不变，前者不再触发）。⚠️ 基类该回调是 **protected**，必须写 `protected override`（写 `public override` 报 CS0507）。
-- [x] **「命令生成」页更名「视频预览」**：菜单标题 + 文案 + 文档；**View / VM 的类名与文件名一并改成 `VideoPreviewView` / `VideoPreviewViewModel`**（`RegisterFunction` 的 `viewName` 同步）；**菜单 key 仍保留 `video-cut`**（它落 `columnlayout.json` 页键，改名会让已有用户的详情栏开合 / 列显隐偏好失效）。
-- [x] **两页详情卡统一**（需求 §6.4.1）：
-  - 分区按 ffmpeg 命令书写顺序重排为「剪辑 → 转码 → 输出 → 命令」；⛔ 删掉顶部独立的「任务类型」块。
-  - 剪辑 / 转码两个分区的**勾选框移到 `Expander.Header` 里**；取消勾选自动折叠（预览页 VM 已有联动）。
-  - ⛔ 详情卡内**不再有任何操作按钮**：保存 / 删除 / 输出目录 / 复制命令 / 重置为自动 / 清理全部上移到工具条。
-  - **批量处理页补上命令生成区**（此前只有参数、没有命令）：`CommandPreview` + 可编辑 `EditArgs` + `IsArgsEdited` + `↺ 重置为自动`；运行时改走同一个 `BuildArgs`，保证「看到的就是跑的」。
-  - 批量页转码参数补齐「编码器 CPU·GPU / 容器 / 分辨率宽高 / 码率模式 / 目标码率」+ 剪辑区间（`TrimStart/TrimEnd`）。
-- [x] **详情开关从表头挪到工具条右上角**：11 个列表页（10 个 `ListPageViewModelBase` 页 + 视频预览页）表头删掉 `detail-hotspot` 那一格，工具条改 `Grid ColumnDefinitions="*,Auto"`，右列放常驻 `Button.detail-toggle`；10 个 VM 的 `Columns` 删掉 `Detail` 占位列；`ListPageViewModelBase` 三处 `c.Key != "Detail"` 特判清掉；`Controls.axaml` 删掉 `Border.detail-hotspot` / `Button.header-toggle`，新增 `Button.detail-toggle`。
-- [x] **全局密度收紧**（需求 §4.10.2 新基线）：表格行高 32→28、表头 36→32、单元格内边距 12→8、卡片内边距 14→12、`primary/ghost` 16,8 / 12,7 → 12,6 / 10,5、树行 32→30、页面根 `Margin 16→12`、工具条 / 筛选条内边距下调、详情卡 `Margin 12→8`。
-- [x] **详情卡滚动条**：视频预览页与批量处理页都改成 `Padding="12,12,4,12"` + 滚动内容 `Margin="0,0,4,0"`（覆盖式滚动条的槽收在卡内）。
+### P0 · 视频工具两页详情卡统一 + 全局密度收紧（v3.12）✅ 已落盘
+> v3.12 完整验收清单已折叠：跨页投递改 `OnAttachedToVisualTree` 取件（修"刷新才生效"）；「命令生成」更名「视频预览」(菜单 key 留 `video-cut`)；两页详情卡统一(分区 剪辑→转码→输出→命令、勾选框进 `Expander.Header`、详情卡零操作按钮)；详情开关移工具条末位 `Button.detail-toggle`；全局密度收紧(行 28/表头 32/卡片 12，基线见规范 §2.1)。逐项见 `git log` / 变更流水。
 
 ### P0 · v3.13 视频工具精细化 ✅ 代码已落盘 + 本地编译通过
-
-**v3.13**
-- [x] **视频预览页 UI 重构**：预览窗口 + 三条时间条常显（未载入 / 未勾剪辑也占位，不整块隐藏）；压缩三条时间条纵向 `Spacing`；预览区 `MinHeight` 抬高（200→340）、上下留白收紧；源时长从工具条删掉、载入时在状态栏显示；工具条新增**类播放器**按钮（`▶ 播放预览` / `⏸ 停止`，播放符号图标），点击切换 scrub 手动拖 / 自动播放预览（`DispatcherTimer` 逐帧推进）。
-- [x] **两页详情卡对齐**：预览页与批量页详情卡统一为「折叠不影响宽度（卡片固定 `Width=340`）、所有控件左对齐同宽、`ComboBox` 展开不挤出其它控件（`Border.detail-card ComboBox` 集中样式：`HorizontalAlignment=Stretch` + `MaxDropDownHeight=260`）」；两页同一套分区结构（剪辑 → 转码 → 输出 → 命令）。
-- [x] **批量页 → 预览反向发送**：批量页工具条「➡ 送预览」把选中任务源文件送入预览页（复用 `EnqueueForCut` 取件通道；预览页一次只编一个，多送只取首条并提示）。
-- [x] **视频数据库**：新增模块内 `VideoCatalogService`（表 `video_catalog`，沿用 `SqliteDatabase` 同库）；视频列表工具条「💾 加入视频库」把当前列表全部文件写入（只存列表已有信息，未读字段留空，同地址 `INSERT OR REPLACE`）；工具条新增「📑 读取视频库」按钮选 `.db` 文件，把其 `video_catalog` 记录读回为列表项。
-- [x] **批量任务导入/导出**：批量页工具条「📤 导出任务」「📥 导入任务」，复用 `VideoTaskStore.TaskFile` 结构做 JSON 序列化 / 追加导入；走 `TopLevel.StorageProvider`。
+> v3.13 完整验收清单已折叠：预览页 UI 重构(三条时间条常显 + 类播放器按钮 + 预览区 MinHeight 340)；两页详情卡对齐(宽 340 / `ComboBox` 不挤出)；批量→预览反向发送；`VideoCatalogService`(表 `video_catalog`) + 批量任务导入导出。逐项见 `git log` / 变更流水。
 
 ### P0 · v3.14 视频列表「📂 导入」拆分按钮（合并文件夹 / 视频文件 / 视频库）✅ 代码已落盘 + 本地编译通过
-
-**v3.14**
-- [x] **工具条「📂 导入」拆分按钮替代原「读取文件夹 / 读取视频库」**：`VideoListView.axaml` 删除 `📂 浏览…` 与 `📑 读取视频库` 两个按钮，改为一个 `SplitButton`（主按钮 = 文件夹…；`Flyout` 内 `MenuFlyout` 三项：文件夹… / 视频文件… / 视频库(.db)…）；`App.axaml` 补 `SplitButton.ghost` 样式沿用 ghost 外观。
-- [x] **VM 新增 `ImportVideoFiles(IEnumerable<string> paths)`**：由路径直接建 `VideoItem` **追加**进 `_all` + `ApplyView`（媒体信息留空、不扫描整目录、同路径去重）；「视频文件…」调它，「视频库(.db)…」复用现有 `LoadCatalog(path)`（替换整列，逻辑不变）。
-- [x] **「视频文件…」多选**：`OpenFilePickerAsync`（`AllowMultiple=true`，视频扩展名筛选）；`OnPickVideoFiles` 收集路径 → `ImportVideoFiles`。
-- [x] **「视频库(.db)…」**：`OpenFilePickerAsync`（`*.db`）→ 复用现有 `vm.LoadCatalog(path)`（已实现，不改）；导入后已勾选状态清零、`ApplyView` 刷新。
-- [x] **「文件夹…」**：`OpenFolderPickerAsync` → 现有 `ScanAsync`（逻辑不变，主按钮直接走这条）。
-- ⚠️ **已本地 `build.ps1` 验证通过（2026-10-12）**：① `SplitButton`/`MenuFlyout` 在 Avalonia 12 默认 xmlns 下可解析；② 三入口都把条目汇入同一列表；③「视频文件…」可多选且单文件可用；④ 主按钮点一下 = 选文件夹、下拉箭头展开三项菜单；⑤ 不破坏 v3.13 已通过的编译。
+> v3.14 完整验收清单已折叠：工具条「📂 导入」改 `SplitButton`(文件夹 / 视频文件 / 视频库.db 三项)；`ImportVideoFiles` 由路径建 `VideoItem` 追加去重；已本地 `build.ps1` 验证通过。逐项见 `git log` / 变更流水。
 
 ### P0 · v3.15 视频工具增强（默认目录 / 标签 / 改名 / 表头 / 收藏）✅ 代码已写完，待本地 `build.ps1` 验证
 
@@ -197,6 +172,6 @@
 
 | 日期 | 版本 | 内容 |
 |---|---|---|
-| 2026-10-12 | **v3.16.1** | **体验修正**：表头勾选改**原生 CheckBox 三态**（弃用字符 ☑，点=全选切换、右键=菜单）；行内文字真正垂直居中（`list-cell` 删 `MinHeight`——TextBlock 文本恒绘于框顶，行高基线挪到 `ListBoxItem`）+ `ListBoxItem` 垂直 Stretch；**启动不再自动载入 `video-tasks.json`**（批处理页初次打开是空白，json 定位为缓存/备份）；「清除队列」更名「**清除缓存**」且**不落盘**（json 原样留着）；预览页三条时间条再收紧（Spacing 0、Slider 高 22） |
-| 2026-10-12 | **v3.17** | **文档体系新增 AI 协作双入口**：仓库根 `AGENTS.md`（跨 AI 开放标准，Codex/Cursor/Devin/Jules 等自动读；内容=定位 + 8 条铁律 + 四份文档路由表 + 分级读档 + 任务型→规范章节表 + 高频硬约束 + 交付要求）+ `.workbuddy/skills/newtoys/` 项目级技能（WorkBuddy 自动触发，与 AGENTS.md 同源）；`src/docs` 四份一字未改、继续为唯一权威源，入口仅摘要并声明「冲突以 src/docs 与 src/ 为准」；需求 §10 登记（含「入口例外」条款）；`.gitignore` 放行 `.workbuddy/skills/` 使技能随仓库分发 |
+| 2026-10-12 | **v3.17.2** | **台账瘦身**：§三 旧版本(v3.12–v3.14)完整 `[x]` 验收清单折叠为一行式摘要（v3.12 密度基线已入规范 §2.1、v3.13/v3.14 已本地编译通过），保留 v3.15/v3.16 完整清单；最高频读取的台账减重约 25 行，跨 AI 每次状态加载更省 token |
 | 2026-10-12 | **v3.17.1** | **AI 协作体系重构为中立 skill/ + 双客户端**：仓库根新增 `skill/`（`SKILL.md` 路由表 + `references/` 下 `collab-method.md`(通用)+`newtoys-spec.md`(专属) 约束 + `scripts/check.ps1` 静态自检），WorkBuddy 与 Hermes(DeepSeek Harness) 共享；`AGENTS.md` 指向 skill/；`.workbuddy/skills/newtoys/` 改薄指针；跨 AI 知识全进仓库，私有记忆仅留进行态 |
+| 2026-10-12 | **v3.17** | **文档体系新增 AI 协作双入口**：仓库根 `AGENTS.md`（跨 AI 开放标准，Codex/Cursor/Devin/Jules 等自动读；内容=定位 + 8 条铁律 + 四份文档路由表 + 分级读档 + 任务型→规范章节表 + 高频硬约束 + 交付要求）+ `.workbuddy/skills/newtoys/` 项目级技能（WorkBuddy 自动触发，与 AGENTS.md 同源）；`src/docs` 四份一字未改、继续为唯一权威源，入口仅摘要并声明「冲突以 src/docs 与 src/ 为准」；需求 §10 登记（含「入口例外」条款）；`.gitignore` 放行 `.workbuddy/skills/` 使技能随仓库分发 |

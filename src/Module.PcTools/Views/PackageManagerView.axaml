@@ -21,15 +21,22 @@
         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock Text="源" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
                      Foreground="{DynamicResource SecondaryTextBrush}"/>
-          <ComboBox x:Name="SourceBox" Width="180" Margin="0,0,8,0" IsEnabled="{Binding IsSupported}"
-                    ItemsSource="{Binding SourceOptions}"
-                    SelectedItem="{Binding SelectedSource, Mode=TwoWay}">
-            <ComboBox.ItemTemplate>
+          <!--  v3.19 / NT-008：源下拉框改按钮（选中态强调色实心；不强制互斥，可多源同时查）  -->
+          <ItemsControl Margin="0,0,8,0" VerticalAlignment="Center" ItemsSource="{Binding SourceOptions}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="4"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <TextBlock Text="{Binding Label}" FontSize="12"/>
+                <Button Classes="src-btn" Classes.selected="{Binding IsSelected}"
+                        Content="{Binding Label}"
+                        Command="{Binding $parent[UserControl].DataContext.SelectSourceCommand}"
+                        CommandParameter="{Binding}"/>
               </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
 
           <TextBox x:Name="SearchBox" Width="230" Margin="0,0,8,0" IsEnabled="{Binding IsSupported}"
                    Text="{Binding SearchText, Mode=TwoWay}"
@@ -46,6 +53,8 @@
                   IsEnabled="{Binding !IsBusy}"/>
 
           <CheckBox Content="仅看已安装" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding InstalledOnly, Mode=TwoWay}"/>
+          <CheckBox Content="仅看 Pin" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding ShowPinned, Mode=TwoWay}"
+                    ToolTip.Tip="只看已 Pin（暂停更新）的包（v3.19 / NT-008：表头 Pin 列已删，改由这里看）"/>
           <CheckBox Content="静默安装 (--silent)" FontSize="12" Margin="0,0,8,0" IsChecked="{Binding SilentInstall, Mode=TwoWay}"/>
 
           <!--  v3.19 / NT-008：原顶部的「已安装（本机全部包）/ 可升级 / 搜索结果」ModeText 指示移除——
@@ -139,9 +148,6 @@
               <Button Grid.Column="4" Classes="col-header" Content="{Binding StatusHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Status"
                       IsVisible="{Binding IsStatusVisible}"/>
-              <Button Grid.Column="5" Classes="col-header" Content="{Binding PinnedHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Pinned" ToolTip.Tip="点一下把已 Pin 的排在前面"
-                      IsVisible="{Binding IsPinnedVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
                   <Separator/>
@@ -157,8 +163,6 @@
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Source"/>
                   <MenuItem Header="状态" ToggleType="CheckBox" IsChecked="{Binding IsStatusVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Status"/>
-                  <MenuItem Header="Pin（是否暂停更新）" ToggleType="CheckBox" IsChecked="{Binding IsPinnedVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Pinned"/>
                 </ContextMenu>
               </v:ColumnGrid.ContextMenu>
             </v:ColumnGrid>
@@ -201,8 +205,6 @@
                              IsVisible="{Binding $parent[ListBox].DataContext.IsSourceVisible}"/>
                   <TextBlock Grid.Column="4" Classes="list-cell accent" Text="{Binding StatusText}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"/>
-                  <TextBlock Grid.Column="5" Classes="list-cell accent" Text="{Binding PinnedMark}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsPinnedVisible}"/>
                 </v:ColumnGrid>
               </DataTemplate>
             </ListBox.ItemTemplate>

@@ -70,6 +70,9 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     [ObservableProperty] private string _modeText = "尚未加载 —— 点「📥 已安装」或直接联网搜索";
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _installedOnly;
+
+    /// <summary>v3.19 / NT-008：只看已 Pin 的包（表头 Pin 列已删，改用工具条按钮过滤）。</summary>
+    [ObservableProperty] private bool _showPinned;
     [ObservableProperty] private bool _silentInstall = true;
     [ObservableProperty] private PackageInfo? _selected;
     [ObservableProperty] private PackageSourceOption? _selectedSource;
@@ -94,7 +97,6 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     public bool IsVersionVisible => Vis("Version");
     public bool IsSourceVisible => Vis("Source");
     public bool IsStatusVisible => Vis("Status");
-    public bool IsPinnedVisible => Vis("Pinned");
 
     protected override string PageKey => "pc-package";
 
@@ -106,7 +108,6 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         new("Version", "版本", "1.3*"),
         new("Source", "源", "1.1*"),
         new("Status", "状态", "1.5*"),
-        new("Pinned", "Pin", "0.8*"),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
@@ -125,7 +126,6 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         "Version" => ((PackageInfo)row).Version,
         "Source" => ((PackageInfo)row).Source,
         "Status" => ((PackageInfo)row).StatusText,
-        "Pinned" => ((PackageInfo)row).PinnedMark,
         _ => null
     };
 
@@ -360,6 +360,7 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     }
 
     partial void OnInstalledOnlyChanged(bool value) => ApplyView();
+    partial void OnShowPinnedChanged(bool value) => ApplyView();
 
     partial void OnSelectedChanged(PackageInfo? value)
     {
@@ -373,6 +374,9 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
 
         if (InstalledOnly && _mode == ListMode.Search)
             q = q.Where(p => p.IsInstalled);
+
+        if (ShowPinned)   // v3.19 / NT-008：只看已 Pin 的（表头 Pin 列已删，改由这个过滤看）
+            q = q.Where(p => p.IsPinned);
 
         var text = (SearchText ?? "").Trim();
         if (text.Length > 0 && _mode != ListMode.Search)
@@ -623,8 +627,16 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
 
     // ==================== 即时写盘（无保存按钮，规范 3.7） ====================
 
+    /// <summary>v3.19 / NT-008：点「源」按钮切换当前源（原下拉框改按钮）。</summary>
+    [RelayCommand]
+    private void SelectSource(PackageSourceOption? opt)
+    {
+        if (opt != null) SelectedSource = opt;
+    }
+
     partial void OnSelectedSourceChanged(PackageSourceOption? value)
     {
+        foreach (var o in SourceOptions) o.IsSelected = ReferenceEquals(o, value);   // v3.19 / NT-008：源按钮高亮
         if (_syncing || _settings == null || value == null) return;
         _settings.Settings.DefaultSource = value.Value ?? "";
         _settings.Save();

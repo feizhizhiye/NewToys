@@ -292,6 +292,27 @@
     <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
   </Style>
 
+  <!--  源选择按钮（v3.19 / NT-008）：源下拉框改按钮；选中态（.selected）用强调色实心。  -->
+  <Style Selector="Button.src-btn">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Padding" Value="10,4"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.src-btn:pointerover">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+  <Style Selector="Button.src-btn.selected">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+  </Style>
+
   <!--  ⑰ 全局 TextBox 右键编辑菜单（v3.19 / 需求 §4.10.4「文本框右键 paste/copy/cut 符合配色」）：
         Avalonia 的 TextBox 默认**没有**右键菜单（键盘 Ctrl+X/C/V 仍可用），这里用挂载属性统一挂上
         「剪切 / 复制 / 粘贴 / 全选」，外观走 Fluent 默认 ContextMenu（随明暗主题）。

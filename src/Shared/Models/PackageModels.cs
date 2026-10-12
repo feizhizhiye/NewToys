@@ -109,10 +109,14 @@ public class PackageSourceInfo
 /// </para>
 /// <para><see cref="Value"/> 为 <c>null</c> 表示「全部已启用的源」。</para>
 /// </summary>
-public class PackageSourceOption
+public partial class PackageSourceOption : ObservableObject
 {
     public string Label { get; set; } = "";
     public string? Value { get; set; }
+
+    /// <summary>v3.19 / NT-008：是否当前选中的源（源选择框改按钮后，按钮靠它高亮）。</summary>
+    [ObservableProperty] private bool _isSelected;
+
     public override string ToString() => Label;
 }
 

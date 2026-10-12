@@ -10,6 +10,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Core.Services;
 using NewToys.PcTools.Models;
 using NewToys.PcTools.Services;
 using NewToys.Shared.Models;
@@ -577,6 +578,31 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         if (skipped > 0) parts.Add($"跳过 {skipped} 条无效");
         var summary = parts.Count > 0 ? string.Join("，", parts) : "没有可导入的条目";
         return (replace ? "已整页替换：" : "已合并导入：") + summary + $"（写入 {FilePath}）";
+    }
+
+    /// <summary>🧹 清空本页（v3.19 / NT-006，方案③：**真删除并落盘**）：删掉本页全部条目，二次确认。</summary>
+    [RelayCommand]
+    private async Task ClearPageAsync()
+    {
+        if (_svc == null) return;
+
+        var count = _svc.Items.Count(BelongsToThisPage);
+        if (count == 0) { StatusText = $"「{PageDisplayName}」已经是空的。"; return; }
+
+        var ok = await DialogHooks.ConfirmAsync(
+            $"确定清空「{PageDisplayName}」全部 {count} 条吗？\n会写入 {FilePath}（真删除，不可撤销；建议先「📤 导出」备份）。").ConfigureAwait(true);
+        if (!ok) { StatusText = "已取消清空。"; return; }
+
+        IsBusy = true;
+        try
+        {
+            _svc.ClearPage(_pageKind);
+            Selected = null;
+            RebuildCategories();
+            ApplyView();
+            StatusText = $"已清空「{PageDisplayName}」{count} 条（写入 {FilePath}）。";
+        }
+        finally { IsBusy = false; }
     }
 
     // ==================== 增删改查 ====================

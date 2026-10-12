@@ -14,7 +14,7 @@
 
     <!--  ==================== 工具条  ====================  -->
     <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock Text="分类" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
                      Foreground="{DynamicResource SecondaryTextBrush}"/>
@@ -51,7 +51,11 @@
             </Button.Flyout>
           </Button>
         </StackPanel>
-        <Button Grid.Column="2" Classes="detail-toggle"
+        <!--  🧹 清空本页（v3.19 / NT-006 方案③：真删除并落盘）：danger 语义，与导入导出分开  -->
+        <Button Grid.Column="2" Classes="danger-btn" Content="🧹 清空本页" Margin="8,0,8,0"
+                Command="{Binding ClearPageCommand}" IsEnabled="{Binding !IsBusy}"
+                ToolTip.Tip="删掉本页全部条目并写盘（真删除，二次确认；建议先导出备份）"/>
+        <Button Grid.Column="3" Classes="detail-toggle"
                 Command="{Binding ToggleDetailCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>

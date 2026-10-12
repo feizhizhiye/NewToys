@@ -218,6 +218,14 @@ public class QuickActionService : IQuickActionService
         return (added, updated, skipped);
     }
 
+    /// <summary>清空某页**全部条目**并落盘（v3.19 / NT-006「🧹 清空本页」= 真删除，会写空列表进 json）。</summary>
+    public void ClearPage(string page)
+    {
+        if (page == QuickActionPage.Quick) _quick.Clear();
+        else _shortcuts.Clear();
+        Persist();
+    }
+
     // ==================== 运行 ====================
 
     public Task<(bool Ok, string Message)> RunAsync(QuickAction item, CancellationToken ct = default)

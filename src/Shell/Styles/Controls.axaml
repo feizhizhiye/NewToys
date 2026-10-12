@@ -275,6 +275,22 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
   </Style>
+  <!--  ⛔ 破坏性按钮（如「🧹 清空本页」，v3.19 / NT-006）：danger 语义（红），
+        与导入导出(io-btn)分开、别混进 io-bar 组（需求 §4.10.4）。  -->
+  <Style Selector="Button.danger-btn">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Padding" Value="10,4"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.danger-btn:pointerover">
+    <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+  </Style>
 
   <!--  ⑰ 全局 TextBox 右键编辑菜单（v3.19 / 需求 §4.10.4「文本框右键 paste/copy/cut 符合配色」）：
         Avalonia 的 TextBox 默认**没有**右键菜单（键盘 Ctrl+X/C/V 仍可用），这里用挂载属性统一挂上

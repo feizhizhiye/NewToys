@@ -57,12 +57,8 @@
                                 </MenuFlyout>
                             </SplitButton.Flyout>
                         </SplitButton>
-                        <Button
-                            Margin="0,0,8,6"
-                            Classes="primary"
-                            Command="{Binding ScanCommand}"
-                            Content="🔍 扫描"
-                            IsEnabled="{Binding !IsBusy}" />
+                        <!--  v3.19 / NT-011：删「🔍 扫描」按钮 —— 选中文件夹（📂 导入 → 文件夹…）或目录框回车即扫描，
+                              独立扫描按钮冗余；「🔄 刷新」仍在（强制重扫）。  -->
                         <Button
                             Margin="0,0,8,6"
                             Classes="ghost"
@@ -86,12 +82,6 @@
                             Content="🔎 读取全部媒体信息"
                             IsEnabled="{Binding !IsBusy}"
                             ToolTip.Tip="对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 data\newtoys.db 缓存，下次扫描直接命中" />
-                        <Button
-                            Margin="0,0,8,6"
-                            Classes="ghost"
-                            Command="{Binding ClearMediaCacheCommand}"
-                            Content="🧹 清空媒体缓存"
-                            ToolTip.Tip="清掉 SQLite 里的媒体信息缓存；下次扫描会重新探测（较慢），不影响视频文件" />
 
                         <!--  视频数据库（§6.4.3）：读外部 .db / 当前列表入库  -->
                         <Border
@@ -515,6 +505,12 @@
                         ItemsSource="{Binding Videos}"
                         SelectedItem="{Binding Selected, Mode=TwoWay}"
                         SelectionMode="Single">
+                        <!--  v3.19 / NT-011：显式虚拟化 —— 数千视频只实例化可见行，滚动不卡（默认即是，这里写明意图）。  -->
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
                         <!--  双击 = 播放；右键 = 更多功能  -->
                         <ListBox.ContextMenu>
                             <ContextMenu>

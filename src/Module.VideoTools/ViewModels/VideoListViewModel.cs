@@ -573,21 +573,6 @@ public partial class VideoListViewModel : ListPageViewModelBase
         finally { IsBusy = false; }
     }
 
-    /// <summary>清空 SQLite 里的媒体信息缓存（下次扫描会重新探测）。</summary>
-    [RelayCommand]
-    private async Task ClearMediaCacheAsync()
-    {
-        if (_index == null) { StatusText = "缓存服务未就绪。"; return; }
-
-        var ok = await DialogHooks.ConfirmAsync(
-            "确定清空媒体信息缓存吗？\n下次扫描这些视频时要重新跑 ffprobe（会比较慢），不影响视频文件本身。");
-        if (!ok) { StatusText = "已取消。"; return; }
-
-        StatusText = _index.Clear()
-            ? $"已清空媒体信息缓存（{_index.DatabasePath}）。"
-            : "清空缓存失败：" + (_index.IsAvailable ? "写入被拒绝" : "数据库不可用");
-    }
-
     // ==================== 视频数据库（catalog，需求 §6.4.3） ====================
 
     /// <summary>💾 加入视频库：把**当前列表（整个扫描结果 _all）**写进 SQLite 视频库（video_catalog 表）。

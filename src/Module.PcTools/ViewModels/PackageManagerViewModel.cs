@@ -640,6 +640,14 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         if (opt != null) SelectedSource = opt;
     }
 
+    /// <summary>v3.19 / NT-008：「仅看已安装」从工具条勾选并入表头右键菜单（切换过滤）。</summary>
+    [RelayCommand]
+    private void ToggleInstalledOnly()
+    {
+        InstalledOnly = !InstalledOnly;
+        StatusText = InstalledOnly ? "仅看已安装（搜索结果里只留本机已装的）。" : "已取消「仅看已安装」。";
+    }
+
     partial void OnSelectedSourceChanged(PackageSourceOption? value)
     {
         foreach (var o in SourceOptions) o.IsSelected = ReferenceEquals(o, value);   // v3.19 / NT-008：源按钮高亮

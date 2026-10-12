@@ -316,6 +316,67 @@ public sealed class TranscodePreset
         => All.Find(p => string.Equals(p.Id, id, System.StringComparison.OrdinalIgnoreCase)) ?? All[0];
 }
 
+/// <summary>「旋转 / 翻转」下拉项（<see cref="Value"/> = 存进 <see cref="TranscodeTask.Rotate"/> 的值）。</summary>
+public sealed class RotateOption
+{
+    public string Value { get; set; } = "";
+    public string Label { get; set; } = "";
+}
+
+/// <summary>
+/// 视频「旋转 / 翻转」选项（v3.19 / NT-012，需求 §6.4.13）：命令卡旋转字段 + 预览旋转按钮共用这一份。
+/// <para>值存进 <see cref="TranscodeTask.Rotate"/>，<see cref="ToFilter"/> 映射到 ffmpeg <c>-vf</c> 过滤器；
+/// 预览的 ↻/↺ 按钮经 <see cref="FromAngle"/> / <see cref="ToAngle"/> 与角度互转，实现"转预览 → 同步字段"。</para>
+/// </summary>
+public static class RotateOptions
+{
+    /// <summary>不旋转（默认）。</summary>
+    public const string None = "";
+    /// <summary>顺时针 90°。</summary>
+    public const string Cw90 = "cw90";
+    /// <summary>逆时针 90°（= 顺时针 270°）。</summary>
+    public const string Ccw90 = "ccw90";
+    /// <summary>180°。</summary>
+    public const string R180 = "r180";
+    /// <summary>水平翻转（镜像）。</summary>
+    public const string FlipH = "fliph";
+
+    public static IReadOnlyList<RotateOption> All { get; } = new[]
+    {
+        new RotateOption { Value = None,   Label = "不旋转" },
+        new RotateOption { Value = Cw90,   Label = "顺时针 90°" },
+        new RotateOption { Value = Ccw90,  Label = "逆时针 90°" },
+        new RotateOption { Value = R180,   Label = "180°" },
+        new RotateOption { Value = FlipH,  Label = "水平翻转" },
+    };
+
+    public static RotateOption Find(string? value)
+        => All.FirstOrDefault(o => string.Equals(o.Value, value ?? "", StringComparison.OrdinalIgnoreCase)) ?? All[0];
+
+    /// <summary>旋转值 → ffmpeg <c>-vf</c> 过滤器片段；不旋转 / 未知返回空串。</summary>
+    public static string ToFilter(string? rotate) => (rotate ?? "").ToLowerInvariant() switch
+    {
+        Cw90 => "transpose=clock",
+        Ccw90 => "transpose=cclock",
+        R180 => "hflip,vflip",
+        FlipH => "hflip",
+        _ => ""
+    };
+
+    /// <summary>预览旋转角度（0/90/180/270）→ 旋转值（预览按钮同步命令卡字段用）。</summary>
+    public static string FromAngle(double angle)
+    {
+        var a = ((int)Math.Round(angle) % 360 + 360) % 360;
+        return a switch { 90 => Cw90, 180 => R180, 270 => Ccw90, _ => None };
+    }
+
+    /// <summary>旋转值 → 预览旋转角度（命令卡改值时回带预览；翻转无角度→0，由调用方决定是否保留）。</summary>
+    public static double ToAngle(string? rotate) => (rotate ?? "").ToLowerInvariant() switch
+    {
+        Cw90 => 90, Ccw90 => 270, R180 => 180, _ => 0
+    };
+}
+
 /// <summary>
 /// 一条<b>转码任务</b>：源 → 目标（按预设）。
 /// <para>
@@ -371,6 +432,15 @@ public partial class TranscodeTask : VideoTaskBase
 
     /// <summary>**既剪辑又转码**时的终点（秒）；0 = 到末尾。</summary>
     [ObservableProperty] private double _trimEnd;
+
+    /// <summary>
+    /// 旋转 / 翻转（v3.19 / NT-012，取值见 <see cref="RotateOptions"/>；空 = 不旋转）。
+    /// 映射到 ffmpeg <c>-vf</c>（<c>transpose</c> / <c>hflip</c>），保证转码后视频方向正确。
+    /// </summary>
+    [ObservableProperty] private string _rotate = "";
+
+    /// <summary>旋转的中文名（详情卡 / 命令摘要显示）。</summary>
+    public string RotateLabel => RotateOptions.Find(Rotate).Label;
 
     // ==================== 转码前（源） ====================
 
@@ -460,6 +530,8 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(PresetName));
         OnPropertyChanged(nameof(ParamDisplay));
     }
+
+    partial void OnRotateChanged(string value) => OnPropertyChanged(nameof(RotateLabel));
 
     partial void OnSourceSizeChanged(long value) => OnPropertyChanged(nameof(SavingDisplay));
 

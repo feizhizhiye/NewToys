@@ -196,6 +196,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
         Duration = 0;
         EditOutput = "";
         EditEnd = "";              // v3.16.1：换文件 → 结束归零，探测到新时长后自动填成"整段末尾"（停最右）
+        PreviewRotation = 0;       // v3.19 / NT-012：换文件 → 预览旋转角度与「旋转」字段归零
+        EditRotate = "";
         IsArgsEdited = false;
         OnPropertyChanged(nameof(HasSource));
         RefreshCommand();
@@ -223,6 +225,9 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
 
     /// <summary>当前预览的大画面。</summary>
     [ObservableProperty] private Bitmap? _previewImage;
+
+    /// <summary>预览画面旋转角度（0 / 90 / 180 / 270；纯视觉 <c>RenderTransform</c>，⛔ 不改文件）。v3.19 / NT-012。</summary>
+    [ObservableProperty] private double _previewRotation;
 
     public bool HasPreviewImage => PreviewImage != null;
     public string PreviewTimeDisplay => CutTask.FormatTime(PreviewTime);
@@ -448,6 +453,29 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
     [ObservableProperty] private int _editTranscodeCrf;
     [ObservableProperty] private string _editTargetBitrate = "";
 
+    // ---- 旋转 / 翻转（v3.19 / NT-012）----
+
+    /// <summary>旋转 / 翻转编辑缓冲（取值见 <see cref="RotateOptions"/>；空 = 不旋转）。</summary>
+    [ObservableProperty] private string _editRotate = "";
+
+    /// <summary>「旋转」下拉的选项（不写死在 XAML 里）。</summary>
+    public IReadOnlyList<RotateOption> RotateChoices => RotateOptions.All;
+
+    /// <summary>「旋转」下拉选中项（变化经 <see cref="OnSelectedRotateChanged"/> 回写 <see cref="EditRotate"/> 并同步预览角度）。</summary>
+    [ObservableProperty] private RotateOption? _selectedRotate;
+
+    partial void OnSelectedRotateChanged(RotateOption? value)
+    {
+        if (value != null) EditRotate = value.Value;
+    }
+
+    partial void OnEditRotateChanged(string value)
+    {
+        RefreshCommand();
+        // 旋转值 → 回带预览角度（命令卡改值 / ↻↺ 都走这里；翻转无角度 → 0）
+        PreviewRotation = RotateOptions.ToAngle(value);
+    }
+
     public IReadOnlyList<TranscodePreset> TranscodePresets => TranscodePreset.All;
     public IReadOnlyList<string> ContainerOptions => FfmpegService.Containers;
 
@@ -611,6 +639,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
             TargetWidth = EditTargetWidth,
             TargetHeight = EditTargetHeight,
             MaxHeight = EditMaxHeight,
+            Rotate = EditRotate,
             BitrateMode = string.IsNullOrWhiteSpace(EditBitrateMode) ? "crf" : EditBitrateMode,
             Crf = EditTranscodeCrf,
             TargetBitrate = (EditTargetBitrate ?? "").Trim(),
@@ -628,6 +657,24 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
         EditStart = CutTask.FormatTime(0);
         EndSeconds = Duration > 0 ? Duration : 0;   // v3.16.1：整段 = 结束在片尾，滑块停最右（不再留空停最左）
         StatusText = "区间已重置（整段）。";
+    }
+
+    /// <summary>↻ 预览顺时针旋转 90°（纯视觉 <c>RenderTransform</c>；经 <see cref="SelectedRotate"/> 同步命令卡「旋转」字段）。v3.19 / NT-012。</summary>
+    [RelayCommand]
+    private void RotatePreviewCw()
+    {
+        var next = (PreviewRotation + 90) % 360;
+        SelectedRotate = RotateOptions.Find(RotateOptions.FromAngle(next));
+        StatusText = $"预览已旋转到 {next}°，命令卡「旋转」= {RotateOptions.Find(EditRotate).Label}。";
+    }
+
+    /// <summary>↺ 预览逆时针旋转 90°（纯视觉；同步命令卡「旋转」字段）。</summary>
+    [RelayCommand]
+    private void RotatePreviewCcw()
+    {
+        var next = (PreviewRotation + 270) % 360;
+        SelectedRotate = RotateOptions.Find(RotateOptions.FromAngle(next));
+        StatusText = $"预览已旋转到 {next}°，命令卡「旋转」= {RotateOptions.Find(EditRotate).Label}。";
     }
 
     /// <summary>➡ 发送到批处理：把当前这一条任务入队（剪辑 / 转码 / 剪辑+转码）。</summary>

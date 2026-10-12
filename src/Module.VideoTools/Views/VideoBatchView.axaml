@@ -723,6 +723,20 @@
                                 <TextBox Classes="code" Text="{Binding EditMaxHeight, Mode=TwoWay}" />
                             </StackPanel>
 
+                            <!--  v3.19 / NT-012：旋转 / 翻转（映射 ffmpeg -vf；与「视频预览」页同字段，两页一致）  -->
+                            <StackPanel Classes="field">
+                                <TextBlock Classes="field-label" Text="旋转 / 翻转（视频方向不对时用）" />
+                                <ComboBox
+                                    HorizontalAlignment="Stretch"
+                                    FontSize="12"
+                                    ItemsSource="{Binding RotateChoices}"
+                                    SelectedItem="{Binding SelectedRotate, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12" /></DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
                             <StackPanel Classes="field">
                                 <TextBlock Classes="field-label" Text="码率模式" />
                                 <ComboBox

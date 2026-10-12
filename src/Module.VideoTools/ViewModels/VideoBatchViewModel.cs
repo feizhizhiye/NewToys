@@ -126,6 +126,24 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     /// <summary>目标码率文本（<c>bitrate</c> 模式才用）。</summary>
     [ObservableProperty] private string _editTargetBitrate = "";
 
+    // ---- 旋转 / 翻转（v3.19 / NT-012）----
+
+    /// <summary>旋转 / 翻转编辑缓冲（取值见 <see cref="RotateOptions"/>；空 = 不旋转）。</summary>
+    [ObservableProperty] private string _editRotate = "";
+
+    /// <summary>「旋转」下拉的选项（不写死在 XAML 里）。</summary>
+    public IReadOnlyList<RotateOption> RotateChoices => RotateOptions.All;
+
+    /// <summary>「旋转」下拉选中项（变化经 <see cref="OnSelectedRotateChanged"/> 回写 <see cref="EditRotate"/>）。</summary>
+    [ObservableProperty] private RotateOption? _selectedRotate;
+
+    partial void OnSelectedRotateChanged(RotateOption? value)
+    {
+        if (value != null) EditRotate = value.Value;
+    }
+
+    partial void OnEditRotateChanged(string value) => RefreshCommand();
+
     /// <summary>
     /// CPU / GPU 下拉框绑它（0 = CPU、1 = GPU）。
     /// <para>⚠️ 与「视频预览」页同名同义：不直接绑 <c>bool</c>，<c>ComboBox.SelectedIndex</c> 绑 <c>int</c> 最可靠
@@ -695,6 +713,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             EditTargetHeight = x.TargetHeight;
             EditBitrateMode = x.BitrateMode;
             EditTargetBitrate = x.TargetBitrate;
+            EditRotate = x.Rotate;
+            SelectedRotate = RotateOptions.Find(x.Rotate);
             EditStart = x.HasTrim ? CutTask.FormatTime(x.TrimStart) : "";
             EditEnd = x.TrimEnd > 0 ? CutTask.FormatTime(x.TrimEnd) : "";
         }
@@ -905,6 +925,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             x.TargetHeight = EditTargetHeight;
             x.BitrateMode = string.IsNullOrWhiteSpace(EditBitrateMode) ? "crf" : EditBitrateMode;
             x.TargetBitrate = (EditTargetBitrate ?? "").Trim();
+            x.Rotate = EditRotate ?? "";
 
             // 区间（v3.16）：**以「✂ 剪辑」勾选框为准** —— 没勾就把区间归零，
             // ⛔ 否则会出现"框上没勾、命令里却带着 -ss"这种对不上的情况（HasTrim 以前只看终点>起点）。

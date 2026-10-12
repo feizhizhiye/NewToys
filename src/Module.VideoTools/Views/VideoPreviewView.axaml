@@ -24,6 +24,13 @@
                   Command="{Binding CaptureFrameCommand}"
                   IsEnabled="{Binding HasSource}"
                   ToolTip.Tip="把当前拖到的这一帧抽成图片，存进「视频收藏」页当缩略图（同一视频永远同一张图）"/>
+          <!--  v3.19 / NT-012：预览旋转（纯视觉 RenderTransform，不改文件；同步命令卡「旋转」字段，保证转码后方向正确）  -->
+          <Button Classes="ghost" Content="↻ 90°" Margin="0,0,6,4"
+                  Command="{Binding RotatePreviewCwCommand}" IsEnabled="{Binding HasSource}"
+                  ToolTip.Tip="预览画面顺时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步"/>
+          <Button Classes="ghost" Content="↺ 90°" Margin="0,0,6,4"
+                  Command="{Binding RotatePreviewCcwCommand}" IsEnabled="{Binding HasSource}"
+                  ToolTip.Tip="预览画面逆时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步"/>
           <Button Classes="ghost" Content="➡ 发送到批处理" Margin="0,0,6,4"
                   Command="{Binding SendToBatchCommand}"
                   ToolTip.Tip="把当前这一条任务加入「批量处理」的队列（不立刻运行）"/>
@@ -59,7 +66,12 @@
 
           <Border Grid.Row="0" CornerRadius="6" ClipToBounds="True"
                   Background="{DynamicResource CodeBlockBrush}" MinHeight="340">
-            <Image Source="{Binding PreviewImage}" Stretch="Uniform" MinHeight="340"/>
+            <!--  v3.19 / NT-012：RenderTransformOrigin=中心 + RotateTransform 绑 PreviewRotation —— ↻/↺ 纯视觉旋转预览  -->
+            <Image Source="{Binding PreviewImage}" Stretch="Uniform" MinHeight="340" RenderTransformOrigin="0.5,0.5">
+              <Image.RenderTransform>
+                <RotateTransform Angle="{Binding PreviewRotation}"/>
+              </Image.RenderTransform>
+            </Image>
           </Border>
 
           <TextBlock Grid.Row="0" Classes="empty-hint" HorizontalAlignment="Center"
@@ -224,6 +236,18 @@
                 <StackPanel Classes="field">
                   <TextBlock Classes="field-label" Text="最大高度（0 = 不改；与上面的宽高二选一，优先用宽高）"/>
                   <TextBox Classes="code" Text="{Binding EditMaxHeight, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <!--  v3.19 / NT-012：旋转 / 翻转（映射 ffmpeg -vf transpose/hflip；工具条 ↻/↺ 转预览会同步到这）  -->
+                <StackPanel Classes="field">
+                  <TextBlock Classes="field-label" Text="旋转 / 翻转（视频方向不对时用；也可点工具条 ↻ / ↺ 转预览自动同步）"/>
+                  <ComboBox ItemsSource="{Binding RotateChoices}"
+                            SelectedItem="{Binding SelectedRotate, Mode=TwoWay}"
+                            HorizontalAlignment="Stretch" FontSize="12">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
                 </StackPanel>
 
                 <StackPanel Classes="field">

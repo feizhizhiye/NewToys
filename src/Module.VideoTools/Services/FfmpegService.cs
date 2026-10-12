@@ -348,11 +348,17 @@ public static class FfmpegService
                 args.AddRange(new[] { "-preset", preset.Speed });
             }
 
-            // ④ 分辨率：优先用显式宽高，没有再看"最大高度"
+            // ④ 视频过滤器：旋转 / 翻转（v3.19 / NT-012）+ 分辨率，合并进同一个 -vf（逗号分隔、按序生效；
+            //    旋转放前面——transpose 会交换宽高，之后的 scale 作用在旋转后的尺寸上）
+            var filters = new List<string>();
+            var rotate = RotateOptions.ToFilter(task.Rotate);
+            if (rotate.Length > 0) filters.Add(rotate);
             if (task.TargetWidth > 0 || task.TargetHeight > 0)
-                args.AddRange(new[] { "-vf", ScaleFilter(task.TargetWidth, task.TargetHeight) });
+                filters.Add(ScaleFilter(task.TargetWidth, task.TargetHeight));
             else if (task.MaxHeight > 0)
-                args.AddRange(new[] { "-vf", $"scale=-2:{task.MaxHeight}" });
+                filters.Add($"scale=-2:{task.MaxHeight}");
+            if (filters.Count > 0)
+                args.AddRange(new[] { "-vf", string.Join(",", filters) });
 
             // ⑤ 音频
             if (string.IsNullOrWhiteSpace(preset.AudioCodec))

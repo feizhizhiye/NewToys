@@ -250,4 +250,29 @@
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
   </Style>
 
+  <!--  ⑯ 导入导出控件条（列表页通用：快捷设置 / 设置与脚本 / 视频列表 / 软件包已装导出 同一套）
+        容器 = io-bar（与筛选条同款底，但独立键避免和筛选条语义混），按钮 = io-btn（与 filter-btn 同款外观）。
+        各列表页直接用 Classes="io-bar" / Classes="io-btn"，不各自造配色（需求 §4.10.4）。  -->
+  <Style Selector="Border.io-bar">
+    <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="Padding" Value="12,6"/>
+  </Style>
+  <Style Selector="Button.io-btn">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Padding" Value="8,4"/>
+    <Setter Property="Margin" Value="0,0,6,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+  </Style>
+  <Style Selector="Button.io-btn:pointerover">
+    <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+
 </Styles>

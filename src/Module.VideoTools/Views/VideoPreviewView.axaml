@@ -286,6 +286,9 @@
               </StackPanel>
             </Expander>
 
+            <!--  v3.19 / NT-013：下方「输出 / 命令」几行包一层，左缘对齐 Expander 内容
+                  （Fluent Expander 内容 Padding=16，故这里补同量左内边距；原本下方几行贴左、比上面缩进少 16px 不齐）  -->
+            <StackPanel Margin="16,0,0,0" Spacing="6">
             <!--  ③ 输出  -->
             <StackPanel Classes="field">
               <TextBlock Classes="field-label" Text="输出文件（留空 = 自动命名，绝不覆盖已有文件）"/>
@@ -317,6 +320,7 @@
                        Text="本页只负责「制定一条任务」：编好点「➡ 发送到批处理」入队，真正运行在「批量处理」页。剪辑默认 -c copy 不重编码（秒级、无损，但起止会就近对齐关键帧）；要精确到帧就选「重新编码」。"/>
             <TextBlock Classes="hint-text" TextWrapping="Wrap"
                        Text="⚠️ GPU 编码需要 N 卡 + 支持 NVENC 的 ffmpeg；机器不支持时 ffmpeg 会直接报错，页面会如实显示原因。"/>
+            </StackPanel>
 
           </StackPanel>
         </ScrollViewer>

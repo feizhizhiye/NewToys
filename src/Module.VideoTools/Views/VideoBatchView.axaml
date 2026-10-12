@@ -777,6 +777,8 @@
                         </StackPanel>
                     </Expander>
 
+                    <!--  v3.19 / NT-013：③④ 包一层，左缘对齐 Expander 内容（Fluent Expander 内容 Padding=16）  -->
+                    <StackPanel Margin="16,0,0,0">
                     <!--  ③ 输出  -->
                     <StackPanel
                         Margin="0,2,0,0"
@@ -825,6 +827,7 @@
                             IsVisible="{Binding IsArgsEdited}"
                             Text="✎ 已手改：运行时以这里为准（工具条上「↺ 重置为自动」可撤销）。"
                             TextWrapping="Wrap" />
+                    </StackPanel>
                     </StackPanel>
 
                     <!--  处理前 → 处理后（结果信息，不属于命令）  -->

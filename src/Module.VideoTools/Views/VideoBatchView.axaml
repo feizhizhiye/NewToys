@@ -769,8 +769,8 @@
                         </StackPanel>
                     </Expander>
 
-                    <!--  v3.19 / NT-013：③④ 包一层，左缘对齐 Expander 内容（Fluent Expander 内容 Padding=16）  -->
-                    <StackPanel Margin="16,0,0,0">
+                    <!--  v3.19 / NT-013：③④ 包一层，左右各 16 与 Expander 内容（Padding=16）两侧对齐  -->
+                    <StackPanel Margin="16,0,16,0">
                     <!--  ③ 输出  -->
                     <StackPanel
                         Margin="0,2,0,0"

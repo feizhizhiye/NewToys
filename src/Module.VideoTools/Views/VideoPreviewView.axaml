@@ -77,12 +77,15 @@
                 </MenuItem>
               </ContextMenu>
             </Border.ContextMenu>
-            <!--  v3.19 / NT-012：RenderTransformOrigin=中心 + RotateTransform 绑 PreviewRotation —— ↻/↺ 纯视觉旋转预览  -->
-            <Image Source="{Binding PreviewImage}" Stretch="Uniform" MinHeight="340" RenderTransformOrigin="0.5,0.5">
-              <Image.RenderTransform>
+            <!--  v3.19 / NT-012：改用 LayoutTransformControl 承载 RotateTransform ——
+                 原先 RenderTransform + MinHeight=340，转 90° 后画面超出容器被 ClipToBounds 裁掉（表现为"视频消失"）；
+                 LayoutTransform 在**布局期**变换，容器随旋转重排，画面始终完整可见。  -->
+            <LayoutTransformControl>
+              <LayoutTransformControl.LayoutTransform>
                 <RotateTransform Angle="{Binding PreviewRotation}"/>
-              </Image.RenderTransform>
-            </Image>
+              </LayoutTransformControl.LayoutTransform>
+              <Image Source="{Binding PreviewImage}" Stretch="Uniform"/>
+            </LayoutTransformControl>
           </Border>
 
           <TextBlock Grid.Row="0" Classes="empty-hint" HorizontalAlignment="Center"
@@ -297,7 +300,7 @@
 
             <!--  v3.19 / NT-013：下方「输出 / 命令」几行包一层，左缘对齐 Expander 内容
                   （Fluent Expander 内容 Padding=16，故这里补同量左内边距；原本下方几行贴左、比上面缩进少 16px 不齐）  -->
-            <StackPanel Margin="16,0,0,0" Spacing="6">
+            <StackPanel Margin="16,0,16,0" Spacing="6">
             <!--  ③ 输出  -->
             <StackPanel Classes="field">
               <TextBlock Classes="field-label" Text="输出文件（留空 = 自动命名，绝不覆盖已有文件）"/>

@@ -6,7 +6,10 @@
   <Grid RowDefinitions="*,Auto">
 
     <!--  ==================== 可滚动区：欢迎卡 + 常用功能  ==================== -->
-    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Hidden">
+    <!--  ⚠️ 横向必须 Disabled（不是 Hidden）：Hidden 仍允许内容横向溢出、不把宽度夹到视口，
+          欢迎卡的长文本即便 TextWrapping=Wrap 也不换行、整行顶超窗口（2026-10-13 截图反馈）。
+          Disabled = 禁用横向滚动、内容宽约束到视口 → 长文本真正换行；本页只应纵向滚动。  -->
+    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
       <StackPanel Margin="36,28,36,16" Spacing="24">
         <!-- 欢迎卡 -->
         <Border Classes="card" Padding="28">

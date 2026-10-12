@@ -91,3 +91,29 @@ git commit -m "init: NewToys v0.1.7"
 ```
 
 所有生成物（artifacts/ production/ Modules/*.dll var/ 等）都已在 `.gitignore` 中忽略，提交只会包含纯净源码。
+
+## 终端窗口管理（launch.ps1）
+
+频繁 `build` / `clean` / `release` 时，若每个脚本都单独开一个终端窗口，会很烦人（要手动逐个关）。仓库根 `scripts\launch.ps1` 是统一启动器（纯 .ps1，符合「禁止 .cmd」铁律），解决窗口堆积：
+
+| 行为 | 说明 |
+|------|------|
+| 成功 | 子脚本退出码 0 → 启动器所在窗口**自动关闭**，不留残窗 |
+| 失败 | 子脚本退出码非 0 → **暂停**等待查看原因，按任意键再关 |
+
+用法（把 `pwsh -File .\scripts\xxx.ps1` 换成 `launch.ps1 xxx`）：
+
+```powershell
+# 原来：pwsh -File .\scripts\build.ps1 -Configuration Release
+launch.ps1 build -Configuration Release
+
+# 原来：pwsh -File .\scripts\run-NewToys.ps1 -Configuration Release
+launch.ps1 run-NewToys -Configuration Release
+
+# 原来：pwsh -File .\scripts\clean.ps1 -Deep
+launch.ps1 clean -Deep
+```
+
+脚本名省略 `.ps1`；后面的参数原样透传。启动器会以子进程方式运行目标脚本并继承环境；目标脚本检测到由启动器拉起（`$env:NEWTOYS_LAUNCHER`）时会跳过自身暂停，统一由启动器在出错时暂停一次。
+
+**推荐**：为常用命令各建一个快捷方式，目标填 `"<仓库根>\scripts\launch.ps1" build`（或 `clean -Deep` 等），双击即跑、成功自动关窗。错误时窗口会停留供查看，无需改任何脚本逻辑——各脚本已用 `throw` 把失败转成非零退出码，启动器据此判断。

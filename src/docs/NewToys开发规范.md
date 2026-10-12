@@ -407,7 +407,7 @@ public interface IHistoryProvider
 - 构建/发布/环境切换**由用户本地执行**（`scripts/build.ps1 -Configuration Debug|Release`）；AI 改完 `src/` 后列出需用户验证的点，不代跑构建。
 - ⛔ 禁止声称「已编译通过」；没跑过写「未编译，请用户本地执行 `build.ps1` 验证」。
 - 纯文档变更注明「不涉及编译」。
-- ⛔ **脚本只用 PowerShell 7（`.ps1`），禁止 `.cmd` / `.bat`**：cmd 对中文支持差、出错难排查；如确有不可替代理由必须用，须在文件头注释写明**为何不能用 `.ps1` 替代**，否则视为违规。
+- ⛔ **脚本只用 PowerShell 7（`.ps1`），禁止 `.cmd` / `.bat`**：cmd 对中文支持差、出错难排查；如确有不可替代理由必须用，须在文件头注释写明**为何不能用 `.ps1` 替代**，否则视为违规。统一启动器用 `scripts/launch.ps1`（纯 .ps1），勿以 `.cmd` 重写。
 
 **版本号**（`src/Directory.Build.props` 编译时自动生成，⛔ 禁止手写）：
 - `InformationalVersion` = `1.<yyyyMMdd>.<HH>.<mm取整到十位>`（显示用）

@@ -41,6 +41,8 @@ NewToys/
 
 > 默认目标平台为 **win-x64（框架依赖，运行机需装 .NET 10）**；`src/Directory.Build.props` 中锁定。跨平台构建见上表 `-Runtime`。
 
+> **避免终端窗口堆积**：上表命令若每次都单独开一个终端窗口，会很烦人。改用统一启动器 `scripts\launch.ps1`（纯 .ps1，合规）即可——成功自动关窗、失败才暂停留窗：`launch.ps1 build`、`launch.ps1 run-NewToys -Configuration Release`、`launch.ps1 clean -Deep`。详见 `README-构建说明.md` 末尾「终端窗口管理」。
+
 ## 产物路径
 
 | 产物 | 路径 |

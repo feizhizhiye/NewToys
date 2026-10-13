@@ -174,7 +174,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 `App.OnFrameworkInitializationCompleted()` 顺序（不可颠倒）：
 
 1. 建 `ServiceCollection` 注册核心服务；
-2. `ModuleLoader.LoadAll(services, GetDebugModuleTypes())`：Debug 用 `#if DEBUG` 显式清单；Release（传 null）扫 `<程序目录>\Modules\`，跳过已加载同名；
+2. `ModuleLoader.LoadAll(services, GetMandatoryModuleTypes())`：**必载清单**（`Module.Settings` 置顶 + Debug 追加其余模块）始终加载，**再扫** `<程序目录>\Modules\` 补功能模块（跳过已加载同名——Release 下 `Modules\` 里的 `Module.Settings.dll` 冗余副本即由此跳过）；
 3. `BuildServiceProvider()` → `AppServices.Initialize(sp)`；
 4. `ModuleLoader.InitializeAll(sp)`（**必须在 3 之后**）；
 5. 应用主题（订阅 `ThemeChanged`）；
@@ -184,24 +184,25 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 | | Debug | Release |
 |---|---|---|
 | 模块源 | `Shell.csproj` Debug 条件 `ProjectReference` | `<程序目录>\Modules\` DLL |
+| **`Module.Settings`（例外 = 框架组件）** | **无条件 `ProjectReference`，随 `NewToys.exe` 出根目录** | 同左（根目录那份生效；`Modules\` 冗余副本被跳过） |
 | 需要 `Modules\` | 否 | 是（无则兜底程序目录） |
 | MSBuild 拷贝 | 否 | 否（OutDir 直出） |
 
 **硬规则**：
-- Debug 必须用显式类型清单（⛔ 不能只靠 `AppDomain.GetAssemblies()`）。
-- 跳过某模块改两处：`App.axaml.cs` 的 `typeof(XxxModule)` + `Shell.csproj` 的 `ProjectReference`。
+- Debug 的功能模块必须走显式类型清单（⛔ 不能只靠 `AppDomain.GetAssemblies()`）。
+- 跳过**功能模块**改两处：`App.axaml.cs` 的 `typeof(XxxModule)` + `Shell.csproj` 的 `ProjectReference`。⛔ `Module.Settings` 不适用此条——它是无条件引用 + 必载清单置顶，跳过它 = 卸框架。
 - Release 路径用 `AppContext.BaseDirectory` 拼绝对路径。
 - 模块 DLL 命名 `Module.<模块名>.dll`。
 - ⛔ **`Modules\` 是模块产物唯一去处，全程零拷贝**：`src/Directory.Build.props` 把模块 Release `OutDir` 直设为 `$(NewToysReleaseDir)Modules\`。
 - Release 关 pdb（`DebugType=none`）消除并发写 `MSB3026`。
-- **必备模块 + 降级（v3.20，需求 §3.4）**：`Module.Settings` 是**必备模块**（与 Shared/Core/Shell 同级的"必须在"——随构建必产出于 `Modules\`；⛔ 不改成 Shell 直接引用，那会破坏 `Modules\` 布局铁律）。`InitializeAll` 完成后做**健全性检查**：`settings` 分组不存在 → 写日志 + Shell 状态栏一行警告，**继续启动不中断**——框架自给（首页 / 一键启动 / 收藏 / 主题 / 多配置不依赖任何功能模块），仅设置不可用。
+- **必备模块（物理必备，v3.25 用户拍板；需求 §3.4）**：`Module.Settings` = **框架组件**——`Shell.csproj` **无条件** `ProjectReference`（⛔ 不再走 Debug 条件组），Release 随 `NewToys.exe` 产出到**程序根目录**（生效那份），启动**第一个加载**；缺失 = 启动失败（同 Shared/Core 硬依赖，⛔ 不做降级）。`Modules\` 冗余副本（项目自身 OutDir）被 `IsAlreadyLoaded` 跳过；⛔ **不用 props 把它排除出 `Modules\`**——根目录 `build.ps1` 按 `src/Module.*` 目录数校验 `Modules\` DLL 数，排除会每次误报（改 build.ps1 属根目录越界）。`InitializeAll` 后**健全性检查**：`settings` 分组仍不存在（典型 = `SettingsModule.Initialize` 自身抛异常被逐模块 try-catch 吞了）→ 日志 + Shell 状态栏一行警告，⛔ 不静默。
 
 ### 3.4 新增模块步骤
 
 1. 建 `src/Module.Xxx/Module.Xxx.csproj`：`RootNamespace=NewToys.<Xxx>`、`AvaloniaUseCompiledBindingsByDefault=false`，引 `Shared+Core`。
 2. 写 `XxxModule.cs : IModule`，命名空间 `NewToys.<Xxx>`。
 3. `src/NewToys.slnx` 加 `<Project Path="Module.Xxx/Module.Xxx.csproj" Type="C#" />`。
-4. **Debug 链路两处登记**：`Shell.csproj` Debug 条件 `ProjectReference` + `App.axaml.cs` 的 `#if DEBUG` 清单。Release 不需登记。
+4. **Debug 链路两处登记**：`Shell.csproj` Debug 条件 `ProjectReference` + `App.axaml.cs` 的 `#if DEBUG` 清单。Release 不需登记。（`Module.Settings` 是框架组件，不走本条——见 §3.3 必备模块。）
 5. `Initialize` 里 `RegisterModule`+`RegisterFunction` 注册菜单，`viewName`=View 类名，`icon`=Geometry 键。
 6. **（有设置页时，v3.20）** 设置 View/VM 放**本模块** `Views/SettingsXxxView.axaml(+.cs)` + `ViewModels/SettingsXxxViewModel.cs`；`Initialize` 里 `RegisterFunction("settings", "settings-<模块键>", …, Order)` 注册进 `settings` 分组——**Order 从 100 起、每模块独占一段（+10）**，0~99 保留给框架设置（跨组注册走延迟补登，§3.2）。设置模型类被两模块共用时放 `Shared`（⛔ 双真相源）；设置落 `config\*.json`，模块只读、唯一写入点 = 该设置页。
 

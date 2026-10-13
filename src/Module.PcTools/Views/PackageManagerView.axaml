@@ -86,7 +86,7 @@
 
       <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
       <Border Grid.Row="3" Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,Auto,*">
 
           <Border Grid.Row="0" Classes="list-header">
             <!-- ⚠️ 列宽规格绑 VM 的 VisibleColumnSpecs（隐藏列 = "0"，列索引保持不动）。
@@ -137,7 +137,19 @@
             </v:ColumnGrid>
           </Border>
 
-          <ListBox Grid.Row="1" x:Name="PkgList" Classes="list-page"
+          <!--  v3.32 §4.8.3：示例行（列表为空时显示；有真实数据后整条消失，⛔ 不参与统计 / 筛选 / 排序）  -->
+          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
+                  ToolTip.Tip="这是示例数据（列宽就按它判定）；查到真实包后这一行会消失">
+            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[0]}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsIdVisible}" Text="{Binding SampleRowTexts[1]}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsVersionVisible}" Text="{Binding SampleRowTexts[2]}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsSourceVisible}" Text="{Binding SampleRowTexts[3]}"/>
+              <TextBlock Grid.Column="4" Classes="list-cell accent" IsVisible="{Binding IsStatusVisible}" Text="{Binding SampleRowTexts[4]}"/>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="2" x:Name="PkgList" Classes="list-page"
                    ItemsSource="{Binding Packages}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
@@ -187,7 +199,7 @@
     <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
         <Grid RowDefinitions="Auto,*">
 
-          <!-- 有选中：动作按钮 + 字段 -->
+          <!-- 有选中：动作按钮 + 字段（示例态下不显示动作条，⛔ 免得像能操作） -->
           <StackPanel Grid.Row="0" Spacing="12" IsVisible="{Binding HasSelection}">
             <TextBlock Classes="section-title" Text="选中包"/>
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -208,77 +220,83 @@
           </StackPanel>
 
           <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="10">
+            <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户误以为能操作  -->
+            <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
 
-              <StackPanel Classes="field" IsVisible="{Binding !HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding !ShowDetailBody}">
                 <TextBlock Text="在左侧列表里选中一个包" FontSize="13" TextWrapping="Wrap"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
                 <TextBlock Text="选中后这里显示版本、源、状态、发布者、主页、协议与描述；右键列表还有安装 / 升级 / 卸载 / Pin 等操作。"
                            FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <!--  v3.32 §4.8.3：示例态标识（下面是示例数据）  -->
+              <TextBlock Text="（示例数据）在左侧选中一个包后，这里显示它的真实信息；示例态下操作按钮不可用。"
+                         FontSize="12" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="名称"/>
-                <TextBlock Text="{Binding Selected.Name}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                <TextBlock Text="{Binding DetailItem.Name}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
                            Foreground="{DynamicResource PrimaryTextBrush}"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="Id"/>
-                <SelectableTextBlock Text="{Binding Selected.Id}" FontSize="12" TextWrapping="Wrap"
+                <SelectableTextBlock Text="{Binding DetailItem.Id}" FontSize="12" TextWrapping="Wrap"
                                      Foreground="{DynamicResource PrimaryTextBrush}"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="版本 / 可升级到"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <TextBlock Text="{Binding Selected.Version}" FontSize="12"
+                  <TextBlock Text="{Binding DetailItem.Version}" FontSize="12"
                              Foreground="{DynamicResource PrimaryTextBrush}"/>
                   <TextBlock Text="→" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                  <TextBlock Text="{Binding Selected.Available}" FontSize="12"
+                  <TextBlock Text="{Binding DetailItem.Available}" FontSize="12"
                              Foreground="{DynamicResource AccentBrush}"/>
                 </StackPanel>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="状态"/>
-                <TextBlock Text="{Binding Selected.StatusText}" FontSize="12"
+                <TextBlock Text="{Binding DetailItem.StatusText}" FontSize="12"
                            Foreground="{DynamicResource AccentBrush}"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="源"/>
-                <TextBlock Text="{Binding Selected.Source}" FontSize="12"
+                <TextBlock Text="{Binding DetailItem.Source}" FontSize="12"
                            Foreground="{DynamicResource PrimaryTextBrush}"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="发布者"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.Publisher}"
+                <TextBlock Classes="field-value" Text="{Binding DetailItem.Publisher}"
                            Foreground="{DynamicResource PrimaryTextBrush}"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="协议 / 许可证"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.License}"
+                <TextBlock Classes="field-value" Text="{Binding DetailItem.License}"
                            Foreground="{DynamicResource PrimaryTextBrush}"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="安装位置"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.InstallLocation}"
+                <TextBlock Classes="field-value" Text="{Binding DetailItem.InstallLocation}"
                            Foreground="{DynamicResource PrimaryTextBrush}"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="主页"/>
-                <SelectableTextBlock Text="{Binding Selected.Homepage}" FontSize="12" TextWrapping="Wrap"
+                <SelectableTextBlock Text="{Binding DetailItem.Homepage}" FontSize="12" TextWrapping="Wrap"
                                      Foreground="{DynamicResource PrimaryTextBrush}"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="描述"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.Description}"
+                <TextBlock Classes="field-value" Text="{Binding DetailItem.Description}"
                            Foreground="{DynamicResource PrimaryTextBrush}"/>
                 <TextBlock Text="（描述等信息来自「🔎 详情」，点一下才会去跑 winget show）" FontSize="11" TextWrapping="Wrap"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>

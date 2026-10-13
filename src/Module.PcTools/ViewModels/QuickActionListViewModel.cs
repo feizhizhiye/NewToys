@@ -113,10 +113,11 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
     /// 不参与列显隐菜单、也不进 <c>columnlayout.json</c>，它只是把表头与行的最后一格对齐留出来。</para></summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        new("Title", "名称", "3*"),
-        new("Category", "类型", "1.3*"),
-        new("Description", "简介", "4*", sortable: false),
-        new("Favorite", "★", "0.9*"),
+        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）；「操作」是按钮列 → 不给
+        new("Title", "名称", "3*", sample: "清理临时文件"),
+        new("Category", "类型", "1.3*", sample: "维护"),
+        new("Description", "简介", "4*", sortable: false, sample: "删除 %TEMP% 下的临时文件"),
+        new("Favorite", "★", "0.9*", sample: "★"),
         new("Action", "操作", "1.5*", sortable: false),
     };
 
@@ -200,8 +201,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
 
     public bool IsCommandKind => !IsScriptKind;
 
-    /// <summary>是否显示 Shell / 隐藏终端窗口 两个运行选项（有选中且是命令行命令时，v3.19 / NT-006）。</summary>
-    public bool ShowCommandRunOptions => HasSelection && IsCommandKind;
+    /// <summary>是否显示 Shell / 隐藏终端窗口 两个运行选项（v3.32：详情卡正文显示时且是命令行命令）。</summary>
+    public bool ShowCommandRunOptions => ShowDetailBody && IsCommandKind;
 
     // ==================== 脚本目录（v1.35：顶部可切换） ====================
 
@@ -287,8 +288,33 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
 
+    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+
+    /// <summary>详情卡 / 列表示例行用的**示例条目**（两页共用一条通用示例）。</summary>
+    private static readonly QuickAction SampleItem = new()
+    {
+        Title = "清理临时文件",
+        Category = "维护",
+        Description = "删除 %TEMP% 下的临时文件（示例数据）",
+        Command = "del /q %TEMP%\\*",
+        Kind = QuickActionKind.Command,
+        Shell = QuickActionShell.Auto,
+        IsFavorite = true
+    };
+
+    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Items</c>、不参与统计 / 筛选 / 排序）。</summary>
+    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
+
+    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例条目**（示例态下卡片整体禁用）。</summary>
+    public QuickAction DetailItem => Selected ?? SampleItem;
+
+    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
+    public bool ShowDetailBody => HasSelection || IsDetailSample;
+
+    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
     /// <summary>属性卡里收藏按钮的文案。</summary>
-    public string FavoriteButtonText => Selected?.IsFavorite == true ? "★ 取消收藏" : "☆ 收藏";
+    public string FavoriteButtonText => DetailItem.IsFavorite ? "★ 取消收藏" : "☆ 收藏";
 
     /// <summary>底部提示：数据落在哪、会不会被备份（规范 §9）。
     /// 两页各有自己的文件（v1.34）：「设置与脚本」= <c>pc-scripts.json</c>、「快捷设置」= <c>pc-quick.json</c>。</summary>
@@ -312,6 +338,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
     protected QuickActionListViewModel()
     {
         _pageKind = QuickActionPage.Shortcuts;
+        UpdateDetailSample(false);   // v3.32 §4.8.3：设计期也进示例态（XAML 设计器能看出结构）
+        FillEditors(SampleItem);
     }
 
     protected QuickActionListViewModel(IQuickActionService svc, IColumnLayoutService cols, IAppConfigService app)
@@ -324,6 +352,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         LoadLayout();
         RebuildCategories();
         ApplyView();
+        UpdateDetailSample(false);   // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
+        FillEditors(SampleItem);
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
@@ -411,6 +441,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSampleRow));    // v3.32：有真实数据后示例行消失
+        UpdateDetailSample(Selected != null);
     }
 
     private void UpdateHeaders()
@@ -428,7 +460,21 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
 
     partial void OnSelectedChanged(QuickAction? value)
     {
-        // 选中项变了 → 把字段灌进编辑缓冲（点「💾 保存」才写回对象并落盘）。
+        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例条目（并整卡禁用）
+        OnPropertyChanged(nameof(DetailItem));
+        FillEditors(DetailItem);             // 真值 / 示例值走同一条填充路径
+        OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowCommandRunOptions));
+        OnPropertyChanged(nameof(CanEditScript));
+    }
+
+    /// <summary>
+    /// 把一条条目（**真正的选中项**，或没选中时的**示例条目**）灌进编辑缓冲。
+    /// <para>v3.32 §4.8.3：抽成方法，好让"示例态"复用同一条填充路径 —— 否则示例卡里全是空格子。</para>
+    /// </summary>
+    private void FillEditors(QuickAction? value)
+    {
+        // 点「💾 保存」才写回对象并落盘
         EditTitle = value?.Title ?? "";
         EditCategory = value?.Category ?? "";
         EditDescription = value?.Description ?? "";
@@ -447,10 +493,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         SelectedShell = ShellOptions.FirstOrDefault(o => string.Equals(o.Value, QuickActionShell.Normalize(value?.Shell), StringComparison.OrdinalIgnoreCase))
                         ?? ShellOptions[0];
 
-        UpdateFavoriteUi();
-        OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(ShowCommandRunOptions));
-        OnPropertyChanged(nameof(CanEditScript));
+        UpdateFavoriteUi(value);
     }
 
     // ==================== 运行 ====================
@@ -716,7 +759,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         if (item == null || _svc == null) return;
 
         _svc.ToggleFavorite(item);
-        UpdateFavoriteUi();
+        UpdateFavoriteUi(item);
         ApplyView();
         StatusText = item.IsFavorite ? $"已收藏：{item.Title}" : $"已取消收藏：{item.Title}";
     }
@@ -785,9 +828,9 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         catch (Exception ex) { StatusText = "打开失败：" + ex.Message; }
     }
 
-    private void UpdateFavoriteUi()
+    private void UpdateFavoriteUi(QuickAction? item)
     {
-        var fav = Selected?.IsFavorite == true;
+        var fav = item?.IsFavorite == true;
         FavoriteMenuLabel = fav ? "✕ 取消收藏" : "★ 添加到收藏夹";
         OnPropertyChanged(nameof(FavoriteButtonText));
     }

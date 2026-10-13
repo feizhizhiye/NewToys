@@ -73,7 +73,7 @@
 
       <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
       <Border Grid.Row="3" Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,Auto,*">
 
           <Border Grid.Row="0" Classes="list-header">
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
@@ -119,7 +119,17 @@
             </v:ColumnGrid>
           </Border>
 
-          <ListBox Grid.Row="1" x:Name="ActionList" Classes="list-page"
+          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
+                  ToolTip.Tip="这是示例数据（列宽就按它判定）；新增 / 导入条目后这一行会消失">
+            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsTitleVisible}" Text="{Binding SampleRowTexts[0]}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsCategoryVisible}" Text="{Binding SampleRowTexts[1]}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsDescriptionVisible}" Text="{Binding SampleRowTexts[2]}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell accent" IsVisible="{Binding IsFavoriteVisible}" Text="{Binding SampleRowTexts[3]}"/>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="2" x:Name="ActionList" Classes="list-page"
                    ItemsSource="{Binding Items}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
@@ -187,30 +197,35 @@
           </StackPanel>
 
           <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="10">
+            <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户去改 / 保存一份假数据  -->
+            <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
 
-              <TextBlock Classes="empty-hint" IsVisible="{Binding !HasSelection}"
+              <TextBlock Classes="empty-hint" IsVisible="{Binding !ShowDetailBody}"
                          Text="在左侧列表里选中一条，可在这里编辑名称 / 分类 / 简介与「命令」或「脚本文件」，并点「▶ 运行」执行；右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。"/>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <!--  v3.32 §4.8.3：示例态标识（下面是示例数据，不可编辑）  -->
+              <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
+                         Text="（示例数据）在左侧选中一条后，这里显示它的真实内容；示例态下卡片不可编辑。"/>
+
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="名称"/>
                 <TextBox Text="{Binding EditTitle, Mode=TwoWay}" FontSize="13"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="分类"/>
                 <TextBox Text="{Binding EditCategory, Mode=TwoWay}" FontSize="12"
                          PlaceholderText="系统设置 / 网络 / 维护 / 打开…"/>
               </StackPanel>
 
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="简介"/>
                 <TextBox Text="{Binding EditDescription, Mode=TwoWay}" FontSize="12"
                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52"/>
               </StackPanel>
 
               <!-- 类型 / 命令 / 脚本文件：这一页默认放"脚本文件"，但两种类型都能改（v1.33）。 -->
-              <StackPanel Spacing="10" IsVisible="{Binding HasSelection}">
+              <StackPanel Spacing="10" IsVisible="{Binding ShowDetailBody}">
 
                 <StackPanel Classes="field">
                   <TextBlock Classes="field-label" Text="类型"/>
@@ -257,7 +272,7 @@
                 </StackPanel>
               </StackPanel>
 
-              <CheckBox Content="需要管理员权限" FontSize="12" IsVisible="{Binding HasSelection}"
+              <CheckBox Content="需要管理员权限" FontSize="12" IsVisible="{Binding ShowDetailBody}"
                         IsChecked="{Binding EditNeedAdmin, Mode=TwoWay}"/>
 
               <Border Classes="divider-line"/>

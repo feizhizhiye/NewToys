@@ -41,7 +41,7 @@
 
       <!--  ==================== 列表本体：可排序表头 + 列表  ====================  -->
       <Border Grid.Row="3" Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,Auto,*">
 
           <Border Grid.Row="0" Classes="list-header">
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
@@ -80,7 +80,18 @@
             </v:ColumnGrid>
           </Border>
 
-          <ListBox Grid.Row="1" x:Name="InfoList" Classes="list-page"
+          <!--  v3.32 §4.8.3：示例行（列表为空时显示；采集到真实信息后整条消失，⛔ 不参与统计 / 筛选 / 排序）  -->
+          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
+                  ToolTip.Tip="这是示例数据（列宽就按它判定）；采集到真实信息后这一行会消失">
+            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsCategoryVisible}" Text="{Binding SampleRowTexts[0]}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[1]}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsValueVisible}" Text="{Binding SampleRowTexts[2]}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsNoteVisible}" Text="{Binding SampleRowTexts[3]}"/>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="2" x:Name="InfoList" Classes="list-page"
                    ItemsSource="{Binding Items}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
@@ -119,6 +130,7 @@
     <!--  右：选中项详情（值可能很长，这里可以整段看 / 复制）；宽度由共享样式 Border.detail-card 给  -->
     <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
         <Grid RowDefinitions="Auto,*">
+          <!--  有选中：动作条（示例态下不显示，⛔ 免得像能操作）  -->
           <StackPanel Grid.Row="0" Spacing="8" IsVisible="{Binding HasSelection}">
             <TextBlock Classes="section-title" Text="选中项"/>
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -128,24 +140,28 @@
           </StackPanel>
 
           <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="10">
-              <TextBlock Classes="empty-hint" IsVisible="{Binding !HasSelection}"
+            <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用  -->
+            <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
+              <TextBlock Classes="empty-hint" IsVisible="{Binding !ShowDetailBody}"
                          Text="在左侧选中一行，这里显示它的分类、项目、值与说明；右键列表可复制单行 / 全部。"/>
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <!--  v3.32 §4.8.3：示例态标识（下面是示例数据）  -->
+              <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
+                         Text="（示例数据）在左侧选中一行后，这里显示它的真实内容；示例态下不可复制。"/>
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="分类"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.Category}"/>
+                <TextBlock Classes="field-value" Text="{Binding DetailItem.Category}"/>
               </StackPanel>
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="项目"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.Name}" FontWeight="SemiBold"/>
+                <TextBlock Classes="field-value" Text="{Binding DetailItem.Name}" FontWeight="SemiBold"/>
               </StackPanel>
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="值"/>
-                <SelectableTextBlock Classes="field-value" Text="{Binding Selected.Value}"/>
+                <SelectableTextBlock Classes="field-value" Text="{Binding DetailItem.Value}"/>
               </StackPanel>
-              <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                 <TextBlock Classes="field-label" Text="说明"/>
-                <TextBlock Classes="field-value" Text="{Binding Selected.Note}"/>
+                <TextBlock Classes="field-value" Text="{Binding DetailItem.Note}"/>
               </StackPanel>
               <TextBlock Classes="hint-text" Margin="0,8,0,0"
                          Text="「应用路径」分类里的就是「设置 → 路径配置」那几项的**生效值**（留空表示用系统默认）。"/>

@@ -107,11 +107,12 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        new("Name", "名称", "3*"),
-        new("Id", "Id", "3.6*"),
-        new("Version", "版本", "1.3*"),
-        new("Source", "源", "1.1*"),
-        new("Status", "状态", "1.5*"),
+        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）
+        new("Name", "名称", "3*", sample: "7-Zip 24.08"),
+        new("Id", "Id", "3.6*", sample: "7zip.7zip"),
+        new("Version", "版本", "1.3*", sample: "24.08"),
+        new("Source", "源", "1.1*", sample: "winget"),
+        new("Status", "状态", "1.5*", sample: "可升级"),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
@@ -136,6 +137,35 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     public bool HasSelection => Selected != null;
     public bool HasItems => Packages.Count > 0;
 
+    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+
+    /// <summary>详情卡 / 列表示例行用的**示例包**。</summary>
+    private static readonly PackageInfo SampleItem = new()
+    {
+        Name = "7-Zip 24.08",
+        Id = "7zip.7zip",
+        Version = "24.07",
+        Available = "24.08",
+        Source = "winget",
+        IsInstalled = true,
+        Publisher = "Igor Pavlov",
+        License = "GNU LGPL",
+        Homepage = "https://www.7-zip.org/",
+        InstallLocation = @"C:\Program Files\7-Zip",
+        Description = "开源的高压缩率文件归档工具（示例数据）。"
+    };
+
+    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Packages</c>、不参与统计 / 筛选 / 排序 / 勾选）。</summary>
+    public bool ShowSampleRow => HasSampleRow && Packages.Count == 0;
+
+    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例包**。</summary>
+    public PackageInfo DetailItem => Selected ?? SampleItem;
+
+    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
+    public bool ShowDetailBody => HasSelection || IsDetailSample;
+
+    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public PackageManagerViewModel() { }
 
@@ -154,6 +184,7 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         SilentInstall = s.SilentInstall;
         _syncing = false;
         UpdateHeaders();
+        UpdateDetailSample(false);   // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
 
         _ = InitAsync();
     }
@@ -410,6 +441,8 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     partial void OnSelectedChanged(PackageInfo? value)
     {
         DetailExtra = "";
+        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例包（并整卡禁用）
+        OnPropertyChanged(nameof(DetailItem));
         OnPropertyChanged(nameof(HasSelection));
     }
 
@@ -474,6 +507,8 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSampleRow));   // v3.32：有真实数据后示例行消失
+        UpdateDetailSample(Selected != null);
     }
 
     private void UpdateHeaders()

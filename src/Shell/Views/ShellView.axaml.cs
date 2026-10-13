@@ -28,8 +28,11 @@ public partial class ShellView : Window
     /// <summary>窗口大小 / 位置记忆（v3.26，需求 §四）：落本配置 <c>config\window.json</c>；解析不到就纯用默认。</summary>
     private readonly WindowBoundsService? _bounds;
 
-    /// <summary>待补设的位置（v3.28 实测：构造期设的 <c>Position</c> 可能被首次 Show 覆盖 → 在 OnOpened 再补一次）。</summary>
-    private PixelPoint? _pendingPosition;
+    /// <summary>
+    /// 待补设的**外框**（物理像素；v3.29 起连同尺寸一起补）。
+    /// 原因：构造期设的位置 / 尺寸可能被首次 Show 覆盖 → 在 <c>OnOpened</c> 再补一次。
+    /// </summary>
+    private PixelRect? _pendingFrame;
 
     /// <summary>
     /// 真·退出开关。「关闭按钮最小化到托盘」开启后，<see cref="OnClosing"/> 会把关闭拦下来；
@@ -70,8 +73,25 @@ public partial class ShellView : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
-        if (_pendingPosition is { } p && Position != p) Position = p;
-        _pendingPosition = null;
+
+        // v3.29：句柄到这一刻才稳 → 在这里装窗口过程钩子（贴靠缝隙的根治）
+        InstallSnapFrameFix();
+
+        if (_pendingFrame is { } frame) ApplyWindowFrame(frame);
+        _pendingFrame = null;
+    }
+
+    /// <summary>
+    /// 直接按**外框物理像素**摆放窗口。
+    /// ⛔ 不走 <c>Width</c>/<c>Height</c>：Avalonia 的 <c>Resize()</c> 会再给外框加一圈边框
+    /// （它以为边框在客户区外面）—— 用它做"存取闭环"会让窗口一次比一次大。
+    /// </summary>
+    private void ApplyWindowFrame(PixelRect frame)
+    {
+        var h = TryGetPlatformHandle()?.Handle;
+        if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
+        SetWindowPos(hwnd, IntPtr.Zero, frame.X, frame.Y, frame.Width, frame.Height,
+                     SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
     }
 
     private static bool CloseToTrayEnabled()
@@ -201,10 +221,13 @@ public partial class ShellView : Window
             var b = _bounds?.Load();
             if (b == null) return;
 
-            var w = Math.Max(MinWidth, b.Width);
-            var h = Math.Max(MinHeight, b.Height);
-            Width = w;
-            Height = h;
+            // ⚠️ v3.29：window.json 存的是**外框物理像素**（⛔ 不是 DIP、也不是客户区）。
+            //    见 SaveWindowBounds 的注释：零内缩之后「客户区 == 外框」，再按客户区存取会一次比一次大。
+            var scale = RenderScaling > 0 ? RenderScaling : 1;
+            var minW = (int)Math.Ceiling(MinWidth * scale);
+            var minH = (int)Math.Ceiling(MinHeight * scale);
+            var size = new PixelSize(Math.Max(minW, (int)Math.Round(b.Width)),
+                                     Math.Max(minH, (int)Math.Round(b.Height)));
 
             if (string.Equals(b.State, "Maximized", StringComparison.OrdinalIgnoreCase))
             {
@@ -212,14 +235,12 @@ public partial class ShellView : Window
                 return;
             }
 
-            // 位置是物理像素、尺寸是逻辑单位 → 乘渲染缩放后再和工作区比
-            var scale = RenderScaling > 0 ? RenderScaling : 1;
             var pt = new PixelPoint((int)b.X, (int)b.Y);
-            var rect = new PixelRect(pt, new PixelSize((int)Math.Ceiling(w * scale), (int)Math.Ceiling(h * scale)));
-            if (IsVisibleOnAnyScreen(rect))
+            var frame = new PixelRect(pt, size);
+            if (IsVisibleOnAnyScreen(frame))
             {
-                Position = pt;
-                _pendingPosition = pt;   // OnOpened 再补一次（首次 Show 可能覆盖构造期设的位置）
+                ApplyWindowFrame(frame);
+                _pendingFrame = frame;   // OnOpened 再补一次（首次 Show 可能覆盖构造期设的值）
             }
         }
         catch { /* 恢复失败就用默认窗口（1280×800） */ }
@@ -249,17 +270,41 @@ public partial class ShellView : Window
             if (_bounds == null) return;
             if (WindowState == WindowState.Minimized) return;
 
-            // ⚠️ 位置必须走 GetWindowRect 读真值：`Window.Position` 在句柄已销毁时会退化成 (0,0)，
-            //    而 v3.28 实测正是踩到这个（存出来 X=0,Y=0 → 下次启动落在屏幕左上）。
-            var pos = TryGetWindowTopLeft() ?? Position;
+            var h = TryGetPlatformHandle()?.Handle;
+            if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
+
+            // 🔴 v3.29：**存外框物理像素**（⛔ 不再存 ClientSize）。
+            //    零内缩之后客户区 == 外框，而 Avalonia 的 Resize() 仍按「外框 = 客户区 + 边框」申请 →
+            //    若继续存客户区，恢复时会被再加一圈边框，**窗口每次启动都变大一圈**（实测 16px）。
+            //    存外框 + 用 SetWindowPos 直接设外框 = 绕开 Avalonia 那层换算，闭环稳定。
+            //
+            // ⚠️ 最大化时要存「还原后的矩形」（rcNormalPosition），
+            //    否则存下来的是比屏幕还大一圈的最大化外框，下次还原会偏。
+            int x, y, w2, h2;
+            if (WindowState == WindowState.Maximized)
+            {
+                var pl = new WINDOWPLACEMENT { Length = Marshal.SizeOf<WINDOWPLACEMENT>() };
+                if (!GetWindowPlacement(hwnd, ref pl)) return;
+                x = pl.RcNormalPosition.Left;
+                y = pl.RcNormalPosition.Top;
+                w2 = pl.RcNormalPosition.Right - pl.RcNormalPosition.Left;
+                h2 = pl.RcNormalPosition.Bottom - pl.RcNormalPosition.Top;
+            }
+            else
+            {
+                if (!GetWindowRect(hwnd, out var r)) return;
+                x = r.Left;
+                y = r.Top;
+                w2 = r.Right - r.Left;
+                h2 = r.Bottom - r.Top;
+            }
 
             _bounds.Save(new WindowBoundsService.WindowBounds
             {
-                X = pos.X,
-                Y = pos.Y,
-                // ⚠️ 尺寸存 ClientSize：OS 拖拽改的是实际尺寸，Width/Height 可能还停在初始请求值
-                Width = ClientSize.Width,
-                Height = ClientSize.Height,
+                X = x,
+                Y = y,
+                Width = w2,
+                Height = h2,
                 State = WindowState == WindowState.Maximized ? "Maximized" : "Normal"
             });
         }
@@ -268,21 +313,6 @@ public partial class ShellView : Window
 
     // ==================== Win32 平台细节（v3.28）：真实位置 + 贴靠资格 ====================
 
-    /// <summary>
-    /// 读窗口真实左上角（物理像素）。比 <c>Window.Position</c> 可靠：后者在句柄失效后返回 (0,0)。
-    /// 读不到 → null（调用方退回 <c>Position</c>）。
-    /// </summary>
-    private PixelPoint? TryGetWindowTopLeft()
-    {
-        try
-        {
-            var h = TryGetPlatformHandle()?.Handle;
-            if (h is { } hwnd && hwnd != IntPtr.Zero && GetWindowRect(hwnd, out var r))
-                return new PixelPoint(r.Left, r.Top);
-        }
-        catch { /* 拿不到就算了 */ }
-        return null;
-    }
 
     /// <summary>
     /// 给窗口补「可缩放窗口」标准样式（<c>WS_THICKFRAME</c> + <c>WS_CAPTION</c> + 最小 / 最大化 / 系统菜单）。
@@ -319,6 +349,77 @@ public partial class ShellView : Window
         catch { /* 补样式失败就维持现状（只是没有系统贴靠，手动拖拽缩放仍可用） */ }
     }
 
+    /// <summary>
+    /// v3.29 贴靠缝隙的**根治**：接管窗口过程，在 <c>WM_NCCALCSIZE</c> 上把 Avalonia 的回答
+    /// 「客户区 = 外框 − 边框」改回「客户区 = 整个外框」。
+    /// <para>
+    /// 🔴 为什么必须在这层动手：那圈被扣掉 ~8px 的厚度是按**窗口样式**算的，而样式里的
+    /// <c>WS_THICKFRAME|WS_CAPTION</c> 是我们为**贴靠资格**补的（去掉它 = 失去贴靠，回归更糟）。
+    /// 平时 DWM 在那圈上画标准窗框所以看不出来；**贴靠后 DWM 不画了** → 左右下露缝
+    /// （顶部被 40px 标题栏盖住，所以只有三边看得到）。
+    /// </para>
+    /// <para>⚠️ 装不上就什么都不做 —— 这类代码出错的代价是"窗口完全不响应消息"，失败路径必须保守。</para>
+    /// </summary>
+    private void InstallSnapFrameFix()
+    {
+        try
+        {
+            var h = TryGetPlatformHandle()?.Handle;
+            if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
+            if (_originalWndProc != IntPtr.Zero) return;              // 只装一次
+
+            // ⛔ 委托必须挂在静态字段上：局部变量会被 GC 回收 → 回调时进程直接崩
+            _snapFixProc = SnapFrameWndProc;
+            var ptr = Marshal.GetFunctionPointerForDelegate(_snapFixProc);
+            var old = SetWindowLongPtr(hwnd, GWLP_WNDPROC, ptr);
+            if (old == IntPtr.Zero) { _snapFixProc = null; return; }   // 装失败 → 保持原样
+            _originalWndProc = old;
+        }
+        catch { /* 装不上就维持现状 */ }
+    }
+
+    private static IntPtr SnapFrameWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        if (_originalWndProc == IntPtr.Zero)
+            return DefWindowProc(hWnd, msg, wParam, lParam);
+
+        // wParam == 1 → lParam 指向 NCCALCSIZE_PARAMS；rgrc[0] 就在 lParam 的开头 16 字节
+        if (msg == WM_NCCALCSIZE && wParam.ToInt64() == 1)
+        {
+            // ① 抄下系统送进来的"新外框"
+            var l0 = Marshal.ReadInt32(lParam, 0);
+            var t0 = Marshal.ReadInt32(lParam, 4);
+            var r0 = Marshal.ReadInt32(lParam, 8);
+            var b0 = Marshal.ReadInt32(lParam, 12);
+
+            // ② 先转给 Avalonia：它按自己的逻辑算完客户区、写回 rgrc[0]
+            CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
+
+            // ③ 最大化**不**覆盖：最大化时外框本来就比屏幕大一圈（边框被甩到屏幕外），
+            //    此时若零内缩，内容会伸出屏幕 8px、标题栏顶边被切掉。
+            if (!IsWindowMaximized(hWnd))
+            {
+                Marshal.WriteInt32(lParam, 0, l0);
+                Marshal.WriteInt32(lParam, 4, t0);
+                Marshal.WriteInt32(lParam, 8, r0);
+                Marshal.WriteInt32(lParam, 12, b0);
+            }
+            return IntPtr.Zero;      // 返回 0 = 已处理，系统拿 rgrc[0] 当客户区
+        }
+
+        return CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
+    }
+
+    private static bool IsWindowMaximized(IntPtr hwnd)
+    {
+        try
+        {
+            var pl = new WINDOWPLACEMENT { Length = Marshal.SizeOf<WINDOWPLACEMENT>() };
+            return GetWindowPlacement(hwnd, ref pl) && pl.ShowCmd == SW_SHOWMAXIMIZED;
+        }
+        catch { return false; }
+    }
+
     private const int GWL_STYLE = -16;
     private const long WS_THICKFRAME = 0x00040000L;
     private const long WS_CAPTION = 0x00C00000L;   // = WS_BORDER | WS_DLGFRAME，贴靠资格的关键位
@@ -343,10 +444,13 @@ public partial class ShellView : Window
     [DllImport("user32.dll", SetLastError = false)]
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
-    // ===== v3.29 贴靠缝隙修补：读真实客户区与显示器工作区（全程**物理像素**，⛔ 不做 DPI 换算） =====
+    // ===== v3.29 贴靠缝隙根治：接管 WM_NCCALCSIZE（原理见 InstallSnapFrameFix 的注释） =====
 
     private const uint SWP_NOOWNERZORDER = 0x0200;
-    private const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+
+    private const int GWLP_WNDPROC = -4;
+    private const uint WM_NCCALCSIZE = 0x0083;
+    private const int SW_SHOWMAXIMIZED = 3;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT
@@ -356,26 +460,30 @@ public partial class ShellView : Window
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct MONITORINFO
+    private struct WINDOWPLACEMENT
     {
-        public int CbSize;
-        public RECT RcMonitor;
-        public RECT RcWork;
-        public uint DwFlags;
+        public int Length;
+        public int Flags;
+        public int ShowCmd;
+        public POINT PtMinPosition;
+        public POINT PtMaxPosition;
+        public RECT RcNormalPosition;
     }
 
     [DllImport("user32.dll", SetLastError = false)]
-    private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
-
-    /// <summary>把客户区坐标 (0,0) 换成屏幕坐标 —— 用它反推「客户区左上角离外框多远」。</summary>
-    [DllImport("user32.dll", SetLastError = false)]
-    private static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+    private static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
 
     [DllImport("user32.dll", SetLastError = false)]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+    private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll", SetLastError = false)]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+    private static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    /// <summary>窗口过程委托。⛔ **必须常驻静态字段** —— 委托被 GC 回收后窗口会直接崩。</summary>
+    private delegate IntPtr WndProcFunc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private static WndProcFunc? _snapFixProc;
+    private static IntPtr _originalWndProc;
 
     // ⚠️ 本项目锁定 win-x64（见 src/Directory.Build.props）→ 用 Ptr 版导出 ✓（32 位 Windows 上导出名不同）
     [DllImport("user32.dll", SetLastError = true)]
@@ -434,92 +542,8 @@ public partial class ShellView : Window
             UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
             ApplySnapEligibleStyles();   // v3.28：状态变化时 Avalonia 会重算样式 → 把贴靠资格位补回去
         }
-        else if (change.Property == TopLevel.ClientSizeProperty)
-        {
-            FixSnappedBounds();   // v3.29：Win+←/→ 贴靠后补掉左右下的缝隙
-        }
     }
 
-    // ==================== 贴靠缝隙修补（v3.29） ====================
-    //
-    // 🔴 **根因（读 Avalonia 12.1.3 源码定论，不是猜的）**：
-    //    `WindowImpl.AppWndProc` 的 `WM_NCCALCSIZE` 在「客户区已扩展到装饰区」时，会按**当前窗口样式**
-    //    算出边框厚度，再把它**留在客户区之外**：
-    //        rect.left   -= borderThickness.left;      // 左右下保留
-    //        rect.right  -= borderThickness.right;
-    //        rect.bottom -= borderThickness.bottom;
-    //        rect.top    -= 0;                          // 顶部因为我们的标题栏被清零
-    //    平时 DWM 会在那 ~8px 上画标准窗框（所以看着正常、验收「外观 ✅」）；
-    //    但 **Win+←/→ 贴靠后 DWM 不再画这圈框**，而客户区仍被扣掉它 → 左右下露出缝隙（顶部被 40px 标题栏盖住看不出来）。
-    //
-    // ✅ **修法**：贴靠后把**窗口外框**按这圈厚度向外撑（最大化窗口本来就是这么处理的 —— 外框比屏幕大一圈、边框在屏外）。
-    //    厚度**实测得来**（GetWindowRect 外框 vs ClientToScreen+GetClientRect 客户区），⛔ 不查表、不猜 8px、不碰 DPI 换算（全程物理像素）。
-    //
-    // ⚠️ 只在「外框**正好等于**半个屏幕工作区」时动手 —— 手工拖到半屏大小几乎不可能精确到 ±2px，
-    //    所以不会误伤手动调整；校正完外框就不再等于半屏 → 不会来回抖。
-
-    /// <summary>上次校正的时间戳（防同一帧重复校正）。</summary>
-    private long _lastSnapFixTick;
-
-    private void FixSnappedBounds()
-    {
-        if (WindowState != WindowState.Normal) return;          // 最大化由系统自己管（那条路径没问题）
-
-        var now = Environment.TickCount64;
-        if (now - _lastSnapFixTick < 300) return;               // 刚校正过，等窗口稳定
-
-        var h = TryGetPlatformHandle()?.Handle;
-        if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
-
-        if (!GetWindowRect(hwnd, out var outer)) return;
-
-        // ① 实测四边的"被扣掉"厚度（外框 vs 客户区）
-        if (!GetClientRect(hwnd, out var client)) return;
-        var origin = new POINT { X = 0, Y = 0 };
-        if (!ClientToScreen(hwnd, ref origin)) return;
-
-        var insetLeft = origin.X - outer.Left;
-        var insetTop = origin.Y - outer.Top;
-        var insetRight = outer.Right - (origin.X + client.Right);
-        var insetBottom = outer.Bottom - (origin.Y + client.Bottom);
-
-        if (insetLeft == 0 && insetRight == 0 && insetBottom == 0 && insetTop == 0) return;   // 没有留边 → 没事可做
-
-        // ② 该显示器的工作区（贴靠的目标矩形）
-        var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-        if (monitor == IntPtr.Zero) return;
-        var info = new MONITORINFO { CbSize = Marshal.SizeOf<MONITORINFO>() };
-        if (!GetMonitorInfo(monitor, ref info)) return;
-        var wa = info.RcWork;
-
-        // ③ 当前外框是否"正好"是左半屏 / 右半屏
-        var half = (wa.Right - wa.Left) / 2;
-        if (half <= 0) return;
-
-        var isLeftHalf = Near(outer.Left, wa.Left) && Near(outer.Right, wa.Left + half)
-                         && Near(outer.Top, wa.Top) && Near(outer.Bottom, wa.Bottom);
-        var isRightHalf = Near(outer.Left, wa.Right - half) && Near(outer.Right, wa.Right)
-                          && Near(outer.Top, wa.Top) && Near(outer.Bottom, wa.Bottom);
-        if (!isLeftHalf && !isRightHalf) return;
-
-        // ④ 把外框向外撑：让**客户区**正好等于半屏（缝隙就没了）
-        var targetLeft = isLeftHalf ? wa.Left : wa.Right - half;
-        var targetRight = isLeftHalf ? wa.Left + half : wa.Right;
-
-        var x = targetLeft - insetLeft;
-        var y = wa.Top - insetTop;
-        // ⚠️ 别叫 w / h：本方法开头已有 `var h = TryGetPlatformHandle()?.Handle`（句柄）→ 同名会撞 CS0128
-        var newWidth = (targetRight + insetRight) - x;
-        var newHeight = (wa.Bottom + insetBottom) - y;
-        if (newWidth <= 0 || newHeight <= 0) return;
-
-        _lastSnapFixTick = now;
-        SetWindowPos(hwnd, IntPtr.Zero, x, y, newWidth, newHeight,
-                     SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
-    }
-
-    /// <summary>两px 内算"正好"（贴靠矩形是系统给的，取整误差在这范围内）。</summary>
-    private static bool Near(int a, int b) => Math.Abs(a - b) <= 2;
 
     private void ToggleMaxRestore()
         => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;

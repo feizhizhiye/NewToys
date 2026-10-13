@@ -17,26 +17,17 @@ public partial class AssetAllView : UserControl
     {
         InitializeComponent();
 
-        // ① 导入文件夹：选一个目录 → 登记为存储源并扫描（**会**做丢失校准）
-        BtnImportFolder.Click += async (_, _) =>
+        // ① 「📁 扫描文件夹」：选一个目录 → **预览**（只进内存，⛔ 不入库）
+        BtnPreviewFolder.Click += async (_, _) =>
         {
             if (DataContext is not AssetAllViewModel vm) return;
-            var topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel?.StorageProvider == null) return;
-
-            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                SuggestedStartLocation = await SuggestedStartAsync(topLevel.StorageProvider, vm.ImportExportDefaultDir),
-                AllowMultiple = false
-            }).ConfigureAwait(false);
-
-            var path = folders?.Count > 0 ? folders[0].TryGetLocalPath() : null;
-            if (string.IsNullOrEmpty(path)) return;
-            await vm.ImportFolderAsync(path!).ConfigureAwait(false);
+            var dir = await PickFolderAsync(vm).ConfigureAwait(false);
+            if (dir == null) return;
+            await vm.PreviewFolderAsync(dir).ConfigureAwait(false);
         };
 
-        // ② 导入文件：只导入选中的几个（**不做**丢失校准 —— 同目录其它文件没被选上，不能判丢）
-        BtnImportFiles.Click += async (_, _) =>
+        // ② 「📄 扫描文件」：只预览选中的几个（⛔ 同样不入库）
+        BtnPreviewFiles.Click += async (_, _) =>
         {
             if (DataContext is not AssetAllViewModel vm) return;
             var topLevel = TopLevel.GetTopLevel(this);
@@ -56,25 +47,34 @@ public partial class AssetAllView : UserControl
                 if (!string.IsNullOrEmpty(p)) paths.Add(p);
             }
             if (paths.Count == 0) return;
-            await vm.ImportFilesAsync(paths).ConfigureAwait(false);
+            await vm.PreviewFilesAsync(paths).ConfigureAwait(false);
         };
 
-        // ③ 路径输入框回车 = 执行扫描（省得再去点按钮）
+        // ③ 「➕ 登记文件夹」：加入待扫列表（⛔ 不扫描，等「🔄 扫描全部」）
+        BtnRegisterFolder.Click += async (_, _) =>
+        {
+            if (DataContext is not AssetAllViewModel vm) return;
+            var dir = await PickFolderAsync(vm).ConfigureAwait(false);
+            if (dir == null) return;
+            vm.RegisterFolder(dir);
+        };
+
+        // ④ 路径输入框回车 = 预览扫描（省得再去点按钮）
         ImportPathBox.KeyDown += (_, e) =>
         {
             if (e.Key != Avalonia.Input.Key.Enter) return;
-            if (DataContext is AssetAllViewModel vm) vm.ImportPathCommand.Execute(null);
+            if (DataContext is AssetAllViewModel vm) vm.PreviewPathCommand.Execute(null);
             e.Handled = true;
         };
 
-        // ④ 拖表头列边界 → 转给 VM（Grid.ColumnDefinitions 不能绑，只能这样转）
+        // ⑤ 拖表头列边界 → 转给 VM（Grid.ColumnDefinitions 不能绑，只能这样转）
         HeaderGrid.ColumnResize += (_, e) =>
         {
             if (DataContext is AssetAllViewModel vm)
                 vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
         };
 
-        // ⑤ 表头首次测量完 → 让 VM 按「示例宽 ≤ 表头宽」锁列宽（v3.22 §4.8.1）
+        // ⑥ 表头首次测量完 → 让 VM 按「示例宽 ≤ 表头宽」锁列宽（v3.22 §4.8.1）
         HeaderGrid.HeaderMeasured += (_, e) =>
         {
             if (DataContext is AssetAllViewModel vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
@@ -86,6 +86,22 @@ public partial class AssetAllView : UserControl
     {
         base.OnDataContextChanged(e);
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+    }
+
+    /// <summary>弹目录选择框，返回选中的本地路径（取消 / 拿不到 → null）。</summary>
+    private async Task<string?> PickFolderAsync(AssetAllViewModel vm)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider == null) return null;
+
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            SuggestedStartLocation = await SuggestedStartAsync(topLevel.StorageProvider, vm.ImportExportDefaultDir),
+            AllowMultiple = false
+        }).ConfigureAwait(false);
+
+        var path = folders?.Count > 0 ? folders[0].TryGetLocalPath() : null;
+        return string.IsNullOrEmpty(path) ? null : path;
     }
 
     /// <summary>把文件 / 目录选择器定位到「导入导出默认目录」（v3.19 / NT-006 全页统一）。</summary>

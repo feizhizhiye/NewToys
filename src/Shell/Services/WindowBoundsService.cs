@@ -25,7 +25,14 @@ public class WindowBoundsService
 
     private string FilePath => Path.Combine(_cfg.ConfigDir, "window.json");
 
-    /// <summary>窗口边界（逻辑坐标 = Avalonia 的 Position / ClientSize；<see cref="State"/> 存字符串）。</summary>
+    /// <summary>
+    /// 窗口边界。
+    /// ⚠️ v3.29 起单位统一为**外框物理像素**（X / Y / Width / Height 都是 <c>GetWindowRect</c> 那一套）：
+    /// 窗口装了 <c>WM_NCCALCSIZE</c> 钩子后「客户区 == 外框」，而 Avalonia 的 <c>Resize()</c>
+    /// 仍按「外框 = 客户区 + 边框」申请 → 若继续存 ClientSize，恢复时会被再套一圈边框、
+    /// **窗口每次启动都变大**。存外框 + 用 <c>SetWindowPos</c> 直接设外框 = 闭合且稳定。
+    /// <see cref="State"/> 存字符串。
+    /// </summary>
     public sealed class WindowBounds
     {
         public double X { get; set; }

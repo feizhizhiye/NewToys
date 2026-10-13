@@ -45,6 +45,56 @@ public class ScanService
 
     public ScanService(AssetService assets) => _assets = assets;
 
+    /// <summary>
+    /// **预览扫描**（v3.29，用户要的操作逻辑：先扫出来看看 → 满意再「💾 加入库」、不满意「🧹 清除列表」换文件夹重来）。
+    /// <para>
+    /// 🔴 与 <see cref="ScanAsync"/> 的根本差别：**一个字节都不写库**（⛔ 不建 assets / file_locations、
+    /// ⛔ 不算任何哈希）→ 纯元数据遍历，最快，且随时可以丢弃。落库由 <c>AssetService.CommitRows</c> 显式做。
+    /// </para>
+    /// </summary>
+    public Task<List<AssetRow>> PreviewAsync(string rootPath, bool recursive,
+                                             IProgress<string>? progress, CancellationToken ct)
+        => Task.Run(() =>
+        {
+            var rows = new List<AssetRow>();
+            var sw = Stopwatch.StartNew();
+            var lastReport = 0L;
+            var rootName = Path.GetFileName(rootPath.TrimEnd('\\', '/'));
+            if (string.IsNullOrEmpty(rootName)) rootName = rootPath;
+
+            foreach (var file in EnumerateFiles(rootPath, ct, recursive))
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    var info = new FileInfo(file);
+                    var name = Path.GetFileNameWithoutExtension(info.Name);
+                    rows.Add(new AssetRow
+                    {
+                        Name = name,
+                        Title = name,
+                        FileName = info.Name,
+                        FilePath = file,
+                        Type = GuessAssetType(info.Extension),
+                        Size = info.Length,
+                        Mtime = info.LastWriteTime.ToString(TimeFormat),
+                        Status = AssetStatuses.Active,
+                        LocationStatus = LocationStatuses.Active,
+                        // ⚠️ ModifiedText / SizeText / TypeText 都是**只读派生属性**，⛔ 不能在这里赋值
+                        StorageName = rootName
+                    });
+                }
+                catch { /* 单个文件读不了 → 跳过，不中断整次预览 */ }
+
+                if (sw.ElapsedMilliseconds - lastReport >= ProgressIntervalMs)
+                {
+                    lastReport = sw.ElapsedMilliseconds;
+                    progress?.Report($"已扫描 {rows.Count} 个…");
+                }
+            }
+            return rows;
+        }, ct);
+
     /// <summary>扫描时跳过的目录名（用户可配，见 NT-021 设置页）。</summary>
     public HashSet<string> IgnoreDirectoryNames { get; } = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -524,7 +574,7 @@ public class ScanService
     /// 比 <c>GetDirectories</c> + <c>GetFiles</c> 少一半系统调用（大目录上很明显）。
     /// </para>
     /// </summary>
-    private IEnumerable<string> EnumerateFiles(string root, CancellationToken ct)
+    private IEnumerable<string> EnumerateFiles(string root, CancellationToken ct, bool recursive = true)
     {
         var stack = new Stack<string>();
         stack.Push(root);
@@ -553,7 +603,7 @@ public class ScanService
                 if (isDir)
                 {
                     if (IgnoreDirectoryNames.Contains(Path.GetFileName(entry))) continue;
-                    stack.Push(entry);
+                    if (recursive) stack.Push(entry);   // v3.29：关掉「含子目录」就只取当前这一层
                 }
                 else
                 {

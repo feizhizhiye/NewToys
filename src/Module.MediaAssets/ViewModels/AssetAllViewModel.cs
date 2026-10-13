@@ -194,49 +194,164 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     // ==================== 导入：文件夹 / 文件（由 View 弹选择框后调用） ====================
 
     /// <summary>
-    /// 工具条的路径输入框（可**手输 / 粘贴**，也可由「📁 导入文件夹」的选择框回填）。
-    /// 为什么要有它：NAS / 网络路径、以及已知路径反复重扫时，弹选择框很难用。
+    /// v3.29 草稿态：列表里装的**不是库里的数据**，而是「预览扫描」的结果（还没入库）。
+    /// 用户看完决定：💾 加入库（<see cref="CommitDraftCommand"/>）或 🧹 清除列表（<see cref="ClearListCommand"/>）。
+    /// </summary>
+    [ObservableProperty] private bool _isDraft;
+
+    /// <summary>扫描是否**含子目录**（默认开；与视频列表页一致）。</summary>
+    [ObservableProperty] private bool _recursive = true;
+
+    /// <summary>
+    /// 工具条的路径输入框（可**手输 / 粘贴**，也可由「📁 扫描文件夹」的选择框回填）。
+    /// 为什么要有它：NAS / 网络路径、以及反复重扫同一个目录时，弹选择框很难用。
     /// </summary>
     [ObservableProperty] private string _importPath = "";
 
-    /// <summary>扫描输入框里的路径（手输入口；回车 / 点「⤓」都走这里）。</summary>
+    /// <summary>「➕ 登记文件夹」攒下来的待扫目录（登记**不**扫描，等「🔄 扫描全部」一起扫）。</summary>
+    public ObservableCollection<string> PendingFolders { get; } = new();
+
+    public bool HasPendingFolders => PendingFolders.Count > 0;
+
+    // ==================== ① 预览扫描（📁 / 📄）：只进内存，⛔ 不写库 ====================
+
+    /// <summary>按工具条输入框里的路径预览扫描（手输入口；回车 / 点「⤓」都走这里）。</summary>
     [RelayCommand]
-    private async Task ImportPathAsync()
+    private async Task PreviewPathAsync()
     {
         var dir = (ImportPath ?? "").Trim().Trim('"');
         if (dir.Length == 0) { StatusText = "先填一个文件夹路径。"; return; }
         if (!Directory.Exists(dir)) { StatusText = $"目录不存在：{dir}"; return; }
-        await ImportFolderAsync(dir).ConfigureAwait(false);
+        await PreviewFolderAsync(dir).ConfigureAwait(false);
     }
 
-    /// <summary>导入一个目录：登记为存储源后扫描它（**会**做 missing 校准 —— 整库视角）。</summary>
-    public async Task ImportFolderAsync(string dir)
+    /// <summary>预览扫一个文件夹 → 进草稿态。</summary>
+    public async Task PreviewFolderAsync(string dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir) || IsBusy) return;
+        ImportPath = dir;
+        try
+        {
+            IsBusy = true;
+            StatusText = $"正在预览扫描「{dir}」（只读文件信息，不写库）…";
+            var progress = PostProgress();
+            var rows = await _scan.PreviewAsync(dir, Recursive, progress, CancellationToken.None).ConfigureAwait(false);
+            LoadDraft(rows);
+            StatusText = $"预览到 {Items.Count} 个：点「💾 加入库」保存，或「🧹 清除列表」换文件夹重扫。";
+        }
+        catch (Exception ex) { StatusText = "预览失败：" + ex.Message; }
+        finally { IsBusy = false; }
+    }
+
+    /// <summary>预览选中的若干文件（不遍历目录）→ 进草稿态。</summary>
+    public Task PreviewFilesAsync(IReadOnlyList<string> files)
+    {
+        if (files == null || files.Count == 0) return Task.CompletedTask;
+
+        var rows = new List<AssetRow>();
+        foreach (var f in files)
+        {
+            try
+            {
+                if (!File.Exists(f)) continue;
+                var info = new FileInfo(f);
+                var name = Path.GetFileNameWithoutExtension(info.Name);
+                var dir = Path.GetDirectoryName(f) ?? "";
+                rows.Add(new AssetRow
+                {
+                    Name = name,
+                    Title = name,
+                    FileName = info.Name,
+                    FilePath = f,
+                    Type = ScanService.GuessAssetType(info.Extension),
+                    Size = info.Length,
+                    Mtime = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                    StorageName = Path.GetFileName(dir.TrimEnd('\\', '/'))
+                });
+            }
+            catch { /* 单个文件读不了 → 跳过 */ }
+        }
+        LoadDraft(rows);
+        StatusText = $"预览到 {Items.Count} 个文件：点「💾 加入库」保存，或「🧹 清除列表」放弃。";
+        return Task.CompletedTask;
+    }
+
+    /// <summary>把一批预览行装进列表并进入草稿态。</summary>
+    private void LoadDraft(List<AssetRow> rows)
+    {
+        _all.Clear();
+        foreach (var r in rows) _all.Add(r);
+        Selected = null;
+        IsDraft = true;
+        ApplyView();
+    }
+
+    // ==================== ② 加入库 / 清除列表（草稿态专用） ====================
+
+    [RelayCommand]
+    private void CommitDraft()
+    {
+        if (!IsDraft || _all.Count == 0) { StatusText = "没有待入库的预览结果。"; return; }
+
+        var n = _assets.CommitRows(_all);
+        IsDraft = false;
+        Reload();
+        StatusText = n == 0 ? "入库失败（数据库不可用？）。" : $"已把 {n} 个加入资产库。";
+    }
+
+    [RelayCommand]
+    private void ClearList()
+    {
+        if (!IsDraft) return;
+        _all.Clear();
+        Selected = null;
+        IsDraft = false;
+        Reload();                       // 回到库视图
+        StatusText = "已清除预览结果，可以换个文件夹重新扫描。";
+    }
+
+    // ==================== ③ 登记文件夹 + 扫描全部（直接入库） ====================
+
+    /// <summary>登记一个文件夹到「待扫列表」（⛔ 不扫描、⛔ 不入库）。</summary>
+    public void RegisterFolder(string dir)
     {
         if (string.IsNullOrWhiteSpace(dir)) return;
-        ImportPath = dir;                       // 回填输入框（选择框选的也让用户看得见）
+        if (!Directory.Exists(dir)) { StatusText = $"目录不存在：{dir}"; return; }
+
         var name = Path.GetFileName(dir.TrimEnd('\\', '/'));
         if (string.IsNullOrEmpty(name)) name = dir;
 
         var storage = new StorageSource { Name = name, RootPath = dir, Type = StorageTypes.Local };
         _assets.UpsertStorage(storage);
-        if (storage.Id == 0) { StatusText = "存储源登记失败（数据库不可用？）。"; return; }
+        if (!PendingFolders.Contains(dir)) PendingFolders.Add(dir);
 
-        await RunJobAsync($"正在扫描「{name}」……",
-            (ct, progress) => _scan.ScanAsync(storage.Id, progress, ct)).ConfigureAwait(false);
+        OnPropertyChanged(nameof(HasPendingFolders));
+        StatusText = $"已登记「{name}」（共 {PendingFolders.Count} 个待扫）——继续添加，然后点「🔄 扫描全部」。";
     }
 
-    /// <summary>导入指定的若干文件（**不**做 missing 校准 —— 只选了几个，不能把同目录其它文件判丢）。</summary>
-    public async Task ImportFilesAsync(IReadOnlyList<string> files)
+    /// <summary>把已登记的存储源**全部**扫一遍并直接入库（`ScanAsync(null)` 扫所有在线存储源）。</summary>
+    [RelayCommand]
+    private async Task ScanAllAsync()
     {
-        if (files == null || files.Count == 0) return;
-        await RunJobAsync($"正在导入 {files.Count} 个文件……",
-            (ct, progress) => _scan.IndexFilesAsync(files, progress, ct)).ConfigureAwait(false);
+        PendingFolders.Clear();
+        OnPropertyChanged(nameof(HasPendingFolders));
+        await RunJobAsync("正在扫描全部存储源……", (ct, progress) => _scan.ScanAsync(null, progress, ct)).ConfigureAwait(false);
     }
+
+    // ==================== ④ 通用：进度上报 / 任务外壳 ====================
 
     /// <summary>
-    /// 跑一个扫描类任务：进度 → 状态栏（⚠️ ScanService 的进度回调在**后台线程**，
-    /// 所以一律 <c>Dispatcher.UIThread.Post</c> 回 UI 线程再写 StatusText），结束后重读列表。
+    /// 造一个进度报告器：把后台线程的进度文本 **Post 回 UI 线程**再写 <c>StatusText</c>
+    /// （⛔ 直接在后台线程写界面状态会出线程问题；本项目之前没有从后台推进度的先例）。
     /// </summary>
+    private IProgress<string> PostProgress()
+        => new Progress<string>(text =>
+        {
+            try { Dispatcher.UIThread.Post(() => StatusText = text); }
+            catch { /* 还没有 UI 线程（设计期 / 已关闭）→ 忽略 */ }
+        });
+
+
     private async Task RunJobAsync(string startText,
         Func<CancellationToken, IProgress<string>, Task<ScanJob>> work)
     {

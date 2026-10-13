@@ -32,16 +32,18 @@
                 ColumnDefinitions="Auto,*,Auto">
 
                 <!--  左：窗口功能按钮  -->
+                <!--  v3.22：≡ / ⟳ 以前只有 36×32（在 40px 标题栏里悬空、图标 18px 偏小）
+                     现在**撑满标题栏整高**、图标放大到 22px，充分利用空间。 -->
                 <StackPanel
                     Grid.Column="0"
-                    Margin="6,0"
-                    VerticalAlignment="Center"
+                    Margin="4,0"
+                    VerticalAlignment="Stretch"
                     Orientation="Horizontal">
                     <Button Classes="title-btn" Command="{Binding ToggleTreeCommand}" ToolTip.Tip="折叠 / 展开左侧菜单">
-                        <TextBlock Text="≡" FontSize="18" />
+                        <TextBlock Text="≡" FontSize="22" />
                     </Button>
                     <Button Classes="title-btn" Command="{Binding RefreshCommand}" ToolTip.Tip="刷新当前页（重建视图）">
-                        <TextBlock Text="⟳" FontSize="18" />
+                        <TextBlock Text="⟳" FontSize="22" />
                     </Button>
                 </StackPanel>
 
@@ -117,61 +119,52 @@
                 </Grid>
 
                 <!--  右：窗口按钮  -->
-                <!--  v3.22：按钮撑满标题栏整高（40）、彼此无间隙、无圆角；图标放大到 14px 充分利用空间  -->
+                <!--  v3.22：最小化 / 最大化 / 关闭**尺寸维持原样**（本来就撑满标题栏），只去掉圆角；关闭图标加粗  -->
                 <StackPanel
                     Grid.Column="2"
                     VerticalAlignment="Stretch"
                     Orientation="Horizontal">
                     <Button
                         x:Name="BtnMin"
-                        Width="48"
+                        Width="46"
                         Height="40"
                         Classes="win-btn"
                         ToolTip.Tip="最小化">
                         <Path
-                            Width="14"
-                            Height="14"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             Data="M0,5 L10,5"
-                            Stretch="Uniform"
                             Stroke="{DynamicResource PrimaryTextBrush}"
                             StrokeLineCap="Round"
                             StrokeThickness="1.5" />
                     </Button>
                     <Button
                         x:Name="BtnMax"
-                        Width="48"
+                        Width="46"
                         Height="40"
                         Classes="win-btn"
                         ToolTip.Tip="最大化">
                         <Path
                             x:Name="MaxIcon"
-                            Width="14"
-                            Height="14"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             Data="M0,0 L10,0 L10,10 L0,10 Z"
                             Fill="Transparent"
-                            Stretch="Uniform"
                             Stroke="{DynamicResource PrimaryTextBrush}"
                             StrokeThickness="1.5" />
                     </Button>
                     <!--  class 必须是 win-btn + close：App.axaml 里定义的是 Button.win-btn.close:pointerover（关闭变红）  -->
                     <Button
                         x:Name="BtnClose"
-                        Width="48"
+                        Width="46"
                         Height="40"
                         Classes="win-btn close"
                         ToolTip.Tip="关闭">
-                        <!--  v3.22：关闭图标**加粗**（描边 2）+ 放大到 14px，悬停转红由 Button.win-btn.close:pointerover 给  -->
+                        <!--  v3.22：关闭图标**加粗**（描边 2）；悬停转红由 Button.win-btn.close:pointerover 给  -->
                         <Path
-                            Width="14"
-                            Height="14"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             Data="M0,0 L10,10 M10,0 L0,10"
-                            Stretch="Uniform"
                             Stroke="{DynamicResource PrimaryTextBrush}"
                             StrokeLineCap="Round"
                             StrokeThickness="2" />

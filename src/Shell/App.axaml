@@ -56,14 +56,16 @@
         <!--  标题栏工具按钮（≡ ◀ ▶ ⟳）：高 32、无边框、图标 18px。
              ⚠️ v3.4：标题栏底色 = ContentBrush（跟随主题明暗）→ 文字/图标必须用主题色 PrimaryTextBrush，
                  ⛔ 不要再用 Sider* 系（那是深色侧栏专用，浅底白字会看不见）。  -->
+        <!--  v3.22：≡ / ⟳ **撑满标题栏整高**（40）、点击区放大到 40×40、无圆角（容器不要圆角）  -->
         <Style Selector="Button.title-btn">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="Width" Value="36"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
@@ -82,7 +84,8 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Margin" Value="2,4,2,4"/>
+            <!--  v3.22：上下留白 4→2 —— 标签项长高，充分利用 40px 标题栏 -->
+            <Setter Property="Margin" Value="2,2,2,2"/>
         </Style>
         <Style Selector="Border.tab-item:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
@@ -94,14 +97,17 @@
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
 
+        <!--  v3.22：标签按钮**撑满标签项高度**（以前 Padding 10,4 + Center → 只占 24px，标题栏空一大截）  -->
         <Style Selector="Button.tab-btn">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Padding" Value="12,0"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
         </Style>
         <Style Selector="Button.tab-btn:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>

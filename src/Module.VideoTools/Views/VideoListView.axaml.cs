@@ -47,6 +47,11 @@ public partial class VideoListView : UserControl
             if (DataContext is ListPageViewModelBase vm)
                 vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
         };
+        // v3.21 §4.8.1：表头首次布局后把实测表头宽交给 VM —— FixedToHeader 的列据此锁宽
+        HeaderGrid.HeaderMeasured += (_, e) =>
+        {
+            if (DataContext is ListPageViewModelBase vm) vm.LockColumnsToHeader(e.Widths);
+        };
     }
 
     /// <summary>提交详情卡里改过的**文件名**（改名走 <c>VideoFileService.RenameToAsync</c>）。</summary>

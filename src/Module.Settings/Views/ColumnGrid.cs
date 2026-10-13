@@ -72,8 +72,27 @@ public class ColumnGrid : Grid
         set => SetValue(IsResizableProperty, value);
     }
 
+    /// <summary>
+    /// 锁定列的掩码串（v3.21，需求 §4.8.1）：每位 '1' = 该列宽已锁成「表头文字宽」→ **边界不放拖拽把手**。
+    /// 由 VM 的 <c>LockedColumnMask</c> 给（`ListColumn.FixedToHeader` 的列）。
+    /// </summary>
+    public static readonly StyledProperty<string?> LockedColumnsProperty =
+        AvaloniaProperty.Register<ColumnGrid, string?>(nameof(LockedColumns));
+
+    /// <summary>见 <see cref="LockedColumnsProperty"/>。</summary>
+    public string? LockedColumns
+    {
+        get => GetValue(LockedColumnsProperty);
+        set => SetValue(LockedColumnsProperty, value);
+    }
+
     /// <summary>拖动列宽把手后抛出（左列索引 + 新宽、右列索引 + 新宽，均为像素）。</summary>
     public event EventHandler<ColumnResizeEventArgs>? ColumnResize;
+
+    /// <summary>首次布局后抛出一次：每列表头内容的期望宽（像素，已含单元格左右 padding）。</summary>
+    public event EventHandler<HeaderMeasuredEventArgs>? HeaderMeasured;
+
+    private bool _measured;
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
@@ -84,9 +103,9 @@ public class ColumnGrid : Grid
             Rebuild();
             RebuildGrips();
         }
-        else if (change.Property == IsResizableProperty)
+        else if (change.Property is IsResizableProperty or LockedColumnsProperty)
         {
-            _gripMask = "";   // 强制重建（从无到开 / 从开到无）
+            _gripMask = "";   // 强制重建（开关变了 / 锁定集合变了）
             RebuildGrips();
         }
     }
@@ -105,7 +124,37 @@ public class ColumnGrid : Grid
     protected override Size MeasureOverride(Size constraint)
     {
         EnsureEnoughColumns();
-        return base.MeasureOverride(constraint);
+        var size = base.MeasureOverride(constraint);
+        MeasureHeaderOnce();   // v3.21：测出「表头宽」抛给 VM（只做一次）
+        return size;
+    }
+
+    /// <summary>
+    /// 只测一次：把每列表头内容的**期望宽**（<c>DesiredSize.Width</c>，已含 col-header / list-cell 的左右 padding）
+    /// 抛给 VM —— 供 <c>ListColumn.FixedToHeader</c> 的列把宽度锁成表头宽。
+    /// <para>⛔ 只在 <see cref="IsResizable"/>（表头那一个）上做；行模板的 ColumnGrid 不测。</para>
+    /// </summary>
+    private void MeasureHeaderOnce()
+    {
+        if (_measured || !IsResizable) return;
+        if (ColumnDefinitions.Count == 0) return;
+
+        var widths = new double[ColumnDefinitions.Count];
+        var any = false;
+        foreach (var child in Children)
+        {
+            if (child is not Control c || !c.IsVisible) continue;   // 隐藏列不测
+            var i = GetColumn(c);
+            if (i < 0 || i >= widths.Length) continue;
+            var w = c.DesiredSize.Width;
+            if (w <= 0) continue;
+            if (w > widths[i]) widths[i] = w;
+            any = true;
+        }
+        if (!any) return;      // 首帧还没测出来 → 等下一次布局
+
+        _measured = true;
+        HeaderMeasured?.Invoke(this, new HeaderMeasuredEventArgs(widths));
     }
 
     private void Rebuild() => ColumnDefinitions = ParseSpecs(ColumnSpecs, RequiredColumnCount());
@@ -192,6 +241,7 @@ public class ColumnGrid : Grid
         for (var i = 0; i + 1 < ColumnDefinitions.Count; i++)
         {
             if (!ColVisible(i) || !ColVisible(i + 1)) continue;   // 隐藏列（宽 0）的边界不放把手
+            if (IsLockedCol(i) || IsLockedCol(i + 1)) continue;   // v3.21：锁定列（表头宽）不可拖
 
             var grip = new Border
             {
@@ -224,13 +274,21 @@ public class ColumnGrid : Grid
         _grips.Clear();
     }
 
-    /// <summary>当前每列「可见（宽 ≠ 0）」的掩码串。</summary>
+    /// <summary>当前「可见性掩码 + 锁定掩码」：任一变化都要重建把手。</summary>
     private string CurrentMask()
     {
-        var sb = new System.Text.StringBuilder(ColumnDefinitions.Count);
+        var sb = new System.Text.StringBuilder(ColumnDefinitions.Count + 8);
         for (var i = 0; i < ColumnDefinitions.Count; i++)
             sb.Append(ColVisible(i) ? '1' : '0');
+        sb.Append('|').Append(LockedColumns ?? "");
         return sb.ToString();
+    }
+
+    /// <summary>该列是否被 VM 锁成「表头宽」（见 <see cref="LockedColumnsProperty"/>）。</summary>
+    private bool IsLockedCol(int i)
+    {
+        var m = LockedColumns;
+        return !string.IsNullOrEmpty(m) && i < m!.Length && m[i] == '1';
     }
 
     private bool ColVisible(int i)
@@ -282,6 +340,14 @@ public class ColumnGrid : Grid
     }
 
     private void OnGripCaptureLost(object? sender, PointerCaptureLostEventArgs e) => _dragIndex = -1;
+}
+
+/// <summary>表头首次布局后的实测宽度（每列一个；够不到 / 隐藏列 = 0）。</summary>
+public sealed class HeaderMeasuredEventArgs : EventArgs
+{
+    public IReadOnlyList<double> Widths { get; }
+
+    public HeaderMeasuredEventArgs(IReadOnlyList<double> widths) => Widths = widths;
 }
 
 /// <summary>拖动表头列边界的参数：左列索引 + 新宽、右列索引 + 新宽（像素）。</summary>

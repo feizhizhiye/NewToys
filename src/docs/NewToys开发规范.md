@@ -263,6 +263,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - **详情开合状态**：由 Shell 统一落 `config/columnlayout.json`（`FlagDetailPanel`，**按页面 Key 分别记忆**），列表页 VM 不再直接读写。
 - 涉及页面（5 个）：`pc-package` / `video-list` / `pc-shortcuts` / `pc-quicksettings` / `settings-path`。
 
+- **固定表头宽列（v3.21）**：`ListColumn.FixedToHeader` 的列 → 表头 `ColumnGrid` 首次布局后测出各列表头内容的 `DesiredSize.Width`，经 `HeaderMeasured` 事件交 VM `LockColumnsToHeader()` 写进「锁定列宽」（`VisibleColumnSpecs` 输出像素，优先级高于手动/星号）；VM 的 `LockedColumnMask` 回传给 `ColumnGrid.LockedColumns` → 锁定列边界**不生成拖拽把手**、`ResizeColumns` 也拒绝。表头 XAML 要绑 `LockedColumns="{Binding LockedColumnMask}"`，code-behind 要接 `HeaderMeasured`。
 - ⚠️ `Views/ColumnGrid.cs` 因**模块间禁互引**而在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` **各存一份，改动必须同步四份**。
 
 ### 3.7 热加载实现

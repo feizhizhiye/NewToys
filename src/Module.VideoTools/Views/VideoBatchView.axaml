@@ -194,7 +194,11 @@
 
                     <Border Grid.Row="0" Classes="list-header">
                         <!--  v3.20 §6.4.15：IsResizable = 表头列边界可拖动手动调列宽（事件在 code-behind 转给 VM）  -->
-                        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}" IsResizable="True">
+                        <v:ColumnGrid
+                            x:Name="HeaderGrid"
+                            ColumnSpecs="{Binding VisibleColumnSpecs}"
+                            IsResizable="True"
+                            LockedColumns="{Binding LockedColumnMask}">
                             <!--
                                 v3.16.1：第一列 = 行首勾选框；表头改用**原生 CheckBox**（三态：全勾 ✓ / 部分 ■ / 没勾）
                                 —— 之前用字符"☑"，字体渲染成一坨深色块，跟行内勾选框风格不搭。

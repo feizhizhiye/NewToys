@@ -22,11 +22,19 @@ public sealed class ListColumn
     /// <summary>该列是否参与「左键点表头排序」。纯展示列（如简介）设为 <c>false</c>。</summary>
     public bool Sortable { get; }
 
-    public ListColumn(string key, string header, string width, bool sortable = true)
+    /// <summary>
+    /// v3.21：该列**内容天然不会超过表头文字宽** → 宽度锁成「表头文字宽」，**不可拖拽、不可自动调整**。
+    /// <para>判定是**声明式**的（⛔ 不做运行时逐行测宽：列表虚拟化只 measure 可见行，滚动会让最大内容宽变化 → 列宽抖动）。
+    /// 只给「定长短值」的列标（如 ★ / 帧率 / 类型），⛔ 名称 / 路径 / 命令摘要这类变长内容<b>不能标</b>。</para>
+    /// </summary>
+    public bool FixedToHeader { get; }
+
+    public ListColumn(string key, string header, string width, bool sortable = true, bool fixedToHeader = false)
     {
         Key = key;
         Header = header;
         Width = width;
         Sortable = sortable;
+        FixedToHeader = fixedToHeader;
     }
 }

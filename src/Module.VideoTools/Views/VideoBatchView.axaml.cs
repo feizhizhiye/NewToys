@@ -26,6 +26,11 @@ public partial class VideoBatchView : UserControl
             if (DataContext is ListPageViewModelBase vm)
                 vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
         };
+        // v3.21 §4.8.1：表头实测宽 → VM（本页暂无 FixedToHeader 列，预留接线）
+        HeaderGrid.HeaderMeasured += (_, e) =>
+        {
+            if (DataContext is ListPageViewModelBase vm) vm.LockColumnsToHeader(e.Widths);
+        };
     }
 
     /// <summary>

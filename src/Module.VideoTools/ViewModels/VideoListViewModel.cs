@@ -127,7 +127,8 @@ public partial class VideoListViewModel : ListPageViewModelBase
     {
         new("Pick", "", "34", sortable: false),
         new("Name", "名称", "3.2*"),
-        new("Type", "类型", "0.9*"),
+        // v3.21 §4.8.1：内容天然短于表头文字 → 宽锁成表头宽、不可拖（.mp4 < 「类型」）
+        new("Type", "类型", "0.9*", fixedToHeader: true),
         new("Size", "大小", "1*"),
         new("Duration", "时长", "0.9*"),
         new("Resolution", "分辨率", "1.1*"),
@@ -136,13 +137,15 @@ public partial class VideoListViewModel : ListPageViewModelBase
         new("Modified", "修改时间", "1.5*"),
         // v3.15 扩充（表头右键均可隐藏）：标签 / 帧率 / 容器格式 / 音频编码 / 路径 / 创建时间
         new("Tags", "标签", "1.2*"),
-        new("Fps", "帧率", "0.8*"),
+        // v3.21：29.97 < 「帧率」
+        new("Fps", "帧率", "0.8*", fixedToHeader: true),
         new("Container", "容器格式", "1*"),
         new("Audio", "音频编码", "1*"),
         new("Path", "路径", "2.5*"),
         new("Created", "创建时间", "1.5*"),
         // 「已收藏」列：真值在 video_favorites 表（v3.15 §6.4.9）；基类 Sort 对它首点即降序 → ★ 排前面
-        new("Favorite", "已收藏", "0.7*"),
+        // v3.21：只有一个 ★ < 「已收藏」
+        new("Favorite", "已收藏", "0.7*", fixedToHeader: true),
     };
 
     public bool HasSelection => Selected != null;

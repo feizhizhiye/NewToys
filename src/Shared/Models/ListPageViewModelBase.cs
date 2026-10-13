@@ -163,6 +163,53 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     private readonly Dictionary<string, double> _manualWidths = new();
 
     /// <summary>
+    /// 「锁定列宽」（v3.21，需求 §4.8.1）：`ListColumn.FixedToHeader` 的列，宽 = **表头文字宽**（实测）→ 锁定。
+    /// 锁定的列**不可拖拽**、不参与任何自动调整。
+    /// </summary>
+    private readonly Dictionary<string, double> _lockedWidths = new();
+
+    /// <summary>
+    /// 把表头实测宽度写进「锁定列宽」—— **只认 <c>FixedToHeader</c> 的列**（其余列传进来也忽略）。
+    /// 由 View 的 <c>ColumnGrid.HeaderMeasured</c> 事件转调（首次布局后一次性）。
+    /// </summary>
+    public void LockColumnsToHeader(IReadOnlyList<double>? widths)
+    {
+        if (widths == null) return;
+
+        var changed = false;
+        for (var i = 0; i < Columns.Count && i < widths.Count; i++)
+        {
+            if (!Columns[i].FixedToHeader) continue;
+            var w = widths[i];
+            if (w <= 0) continue;                       // 隐藏列 / 还没测到 → 不动
+            if (_lockedWidths.TryGetValue(Columns[i].Key, out var old) && Math.Abs(old - w) <= 0.5) continue;
+            _lockedWidths[Columns[i].Key] = w;
+            changed = true;
+        }
+        if (!changed) return;
+
+        OnPropertyChanged(nameof(VisibleColumnSpecs));
+        OnPropertyChanged(nameof(LockedColumnMask));
+    }
+
+    /// <summary>
+    /// 锁定列的掩码串（给表头 <c>ColumnGrid.LockedColumns</c> 用）：每位 '1' = 该列已锁定（边界不放拖拽把手）。
+    /// </summary>
+    public string LockedColumnMask
+    {
+        get
+        {
+            var chars = new char[Columns.Count];
+            for (var i = 0; i < Columns.Count; i++)
+                chars[i] = _lockedWidths.ContainsKey(Columns[i].Key) ? '1' : '0';
+            return new string(chars);
+        }
+    }
+
+    private bool IsLocked(int index)
+        => index >= 0 && index < Columns.Count && _lockedWidths.ContainsKey(Columns[index].Key);
+
+    /// <summary>
     /// 拖动表头列边界 → 改这一列的像素宽（由 View 的 <c>ColumnGrid.ColumnResize</c> 事件转调）。
     /// <para>索引越界 / 同一列自己拖自己 → 忽略；改完只发 <see cref="VisibleColumnSpecs"/> 通知，
     /// 表头与所有行同规格重建（列索引永不错位）。</para>
@@ -172,6 +219,8 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         if (leftIndex < 0 || rightIndex != leftIndex + 1) return;
         if (leftIndex >= Columns.Count || rightIndex >= Columns.Count) return;
         if (leftWidthPx < 0 || rightWidthPx < 0) return;
+        // v3.21：锁定列（内容没超过表头宽）**不可拖拽** —— 两侧任一被锁就拒绝
+        if (IsLocked(leftIndex) || IsLocked(rightIndex)) return;
 
         _manualWidths[Columns[leftIndex].Key] = leftWidthPx;
         _manualWidths[Columns[rightIndex].Key] = rightWidthPx;
@@ -191,7 +240,10 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
             for (var i = 0; i < Columns.Count; i++)
             {
                 var key = Columns[i].Key;
+                // 优先级：隐藏 0 → 锁定（表头宽）→ 手动（拖出来的）→ 星号元数据
                 parts[i] = !Vis(key) ? "0"
+                    : _lockedWidths.TryGetValue(key, out var lw)
+                        ? ((int)Math.Round(lw)).ToString(CultureInfo.InvariantCulture)
                     : _manualWidths.TryGetValue(key, out var w)
                         ? ((int)Math.Round(w)).ToString(CultureInfo.InvariantCulture)
                         : Columns[i].Width;

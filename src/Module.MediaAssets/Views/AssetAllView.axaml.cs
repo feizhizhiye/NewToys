@@ -8,8 +8,8 @@ using NewToys.MediaAssets.ViewModels;
 namespace NewToys.MediaAssets.Views;
 
 /// <summary>
-/// 「全部资产」页的 code-behind：只做**三件 View 才做得了的事**
-/// （弹选择器 / 转发表头拖拽事件 / 给 ContextMenu 补 DataContext），业务逻辑一律在 VM。
+/// 「全部资产」页的 code-behind：只做**四件 View 才做得了的事**
+/// （弹选择器 / 转发表头拖拽事件 / 给 ContextMenu 补 DataContext / 取跨页投递的件），业务逻辑一律在 VM。
 /// </summary>
 public partial class AssetAllView : UserControl
 {
@@ -54,6 +54,27 @@ public partial class AssetAllView : UserControl
         {
             if (DataContext is AssetAllViewModel vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
         };
+
+        // ⑦ v3.34 / NT-018：表头 ☑ 上的右键菜单（全选 / 取消选择 / 反选）
+        //    ⚠️ 必须是**原生三态 CheckBox**（⛔ 别用字符"☑"画 —— 字体会渲染成深色块，v3.16 连踩两轮）；
+        //    右键菜单挂在外层透明 Border（HeaderCheckHost）上，整格都能右键。
+        HeaderCheckHost.PointerPressed += (_, e) =>
+        {
+            if (e.GetCurrentPoint(HeaderCheckHost).Properties.IsRightButtonPressed != true) return;
+            if (HeaderCheckHost.ContextMenu is { } menu) menu.Open(HeaderCheckHost);
+            e.Handled = true;
+        };
+    }
+
+    /// <summary>
+    /// 🔴 跨页取件点（NT-018，规范 §4.8 硬规则 8）：别的页面（标签管理 / 分类管理）请求"打开某个资产"时，
+    /// 在这里取件并选中。⛔ 不能放 `OnDataContextChanged` —— 标签已存在、切回来的那次只有可视树重挂，
+    /// DataContext 不变、那个回调**不会触发**。
+    /// </summary>
+    protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (DataContext is AssetAllViewModel vm) vm.ConsumePendingAsset();
     }
 
     /// <summary>⚠️ ContextMenu 挂在独立弹出树上，DataContext 不随宿主继承，必须手工同步（规范 §3.8）。</summary>
@@ -62,6 +83,7 @@ public partial class AssetAllView : UserControl
         base.OnDataContextChanged(e);
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
         if (AssetList?.ContextMenu is { } amenu) amenu.DataContext = DataContext;
+        if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
     }
 
     /// <summary>「📁 扫描 → 文件夹…」：选一个目录 → **预览**（只进内存，⛔ 不入库）。</summary>

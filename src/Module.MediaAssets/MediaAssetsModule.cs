@@ -29,6 +29,13 @@ public class MediaAssetsModule : IModule
         services.AddSingleton<Services.AssetService>();
         services.AddSingleton<Services.ScanService>();
         services.AddSingleton<Services.TaskQueue>();
+        // NT-018：逻辑操作 / 标签 / 分类 / 集合 / 关联 / 操作日志 / 跨页投递（全部模块内单例，页面共享一份）
+        services.AddSingleton<Services.TagService>();
+        services.AddSingleton<Services.CategoryService>();
+        services.AddSingleton<Services.CollectionService>();
+        services.AddSingleton<Services.RelationService>();
+        services.AddSingleton<Services.OperationLogService>();
+        services.AddSingleton<Services.AssetNavigationStore>();
 
         // ===== 页面 View / VM（NT-014 骨架：全是空页面；页面实现 NT-016~022 依次落地） =====
         services.AddTransient<Views.AssetAllView>();        services.AddTransient<ViewModels.AssetAllViewModel>();

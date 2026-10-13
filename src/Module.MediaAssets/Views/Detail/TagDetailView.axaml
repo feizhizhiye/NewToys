@@ -1,0 +1,126 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.MediaAssets.Views.Detail.TagDetailView">
+  <!--
+    NT-018 标签详情卡。
+    ⚠️ 外壳（340px 宽 / 背景 / 左边线）由 **Shell 的右详情列**提供，这里 ⛔ 不套 Border.detail-card（否则双层卡片）。
+    🔴 v3.29 用户定调：卡内**允许**「编辑 + 💾 保存」（覆盖旧"零操作按钮"规则），⛔ 只是别放无关的全局动作。
+    🔴 色板是**数据色**（VM 给的 ColorSwatch），⛔ XAML 不写死色值。
+  -->
+  <UserControl.Styles>
+    <!--  色块按钮：本页专用样式，按规范 §2 写在这里（⛔ 不往全局样式里加）  -->
+    <Style Selector="Button.swatch">
+      <Setter Property="Width" Value="28"/>
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.swatch:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+    <!--  「用了这个标签的资产」行：整行可点的链接按钮  -->
+    <Style Selector="Button.asset-link">
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+    <Style Selector="Button.asset-link:pointerover">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="12" Spacing="10">
+
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !ShowDetailBody}"
+                 Text="在左侧列表里选中一个标签，这里显示它的详情。"/>
+
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
+                 Text="（示例数据）在左侧选中一个标签后，这里显示它的真实信息；示例态下卡片不可编辑。"/>
+
+      <StackPanel Spacing="10" IsVisible="{Binding ShowDetailBody}" IsEnabled="{Binding !IsDetailSample}">
+
+        <!--  ===== 可编辑：名称 / 命名空间 / 颜色（💾 保存落库） =====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="名称"/>
+          <TextBox x:Name="NameBox" Text="{Binding EditName, Mode=TwoWay}" PlaceholderText="标签名（不能为空）"/>
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="命名空间（留空 = 默认）"/>
+          <TextBox Text="{Binding EditNamespace, Mode=TwoWay}" PlaceholderText="如 影视 / 音乐（可留空）"/>
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="颜色（点一下即改，立即落库）"/>
+          <ItemsControl ItemsSource="{Binding Palette}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <!--  横向流式容器必须给 ItemSpacing + LineSpacing（需求 §4.10.4）  -->
+                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="4"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="swatch"
+                        Command="{Binding $parent[UserControl].DataContext.SetColorCommand}"
+                        CommandParameter="{Binding Hex}"
+                        ToolTip.Tip="{Binding Hex}">
+                  <Border Width="18" Height="18" CornerRadius="4" Background="{Binding Brush}"/>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <Button Classes="primary" Content="💾 保存" Command="{Binding SaveDetailCommand}"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="把名称 / 命名空间 / 颜色写进标签库（⛔ 不动磁盘文件）"/>
+
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 只读信息 =====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="使用数"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailTag.UsageText}"/>
+
+          <TextBlock Classes="field-label" Text="当前颜色"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailTag.ColorHexText}"/>
+
+          <TextBlock Classes="field-label" Text="创建时间"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailTag.CreatedText}"/>
+        </StackPanel>
+
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 用了这个标签的资产（点一下跳到「全部资产」并选中它） =====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="使用了这个标签的资产（点一下打开）"/>
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasDetailAssets}"
+                     Text="（还没有资产用这个标签）"/>
+          <ItemsControl ItemsSource="{Binding DetailAssets}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="asset-link"
+                        Command="{Binding $parent[UserControl].DataContext.OpenAssetCommand}"
+                        CommandParameter="{Binding}"
+                        Content="{Binding Name}"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

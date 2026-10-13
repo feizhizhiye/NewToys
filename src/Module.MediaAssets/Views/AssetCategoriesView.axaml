@@ -1,17 +1,178 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.MediaAssets.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetCategoriesView">
-  <!--  NT-014 骨架占位：本页真正的列表 / 详情 / 工具条 / 筛选在后续待办（NT-016~022）依次落地。  -->
-  <Grid RowDefinitions="Auto,*">
-    <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
-      <TextBlock Classes="section-title" Text="分类管理"/>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="分类树 + 成员列表（本模块唯一的非列表页）"/>
-    </StackPanel>
-    <Border Grid.Row="1" Margin="24,12,24,16" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="🚧 骨架占位（NT-014）"/>
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="页面实现在后续待办落地"/>
-      </StackPanel>
+  <!--
+    NT-018「分类管理」页 —— 本模块**唯一的非列表页**：左树 + 右成员列表。
+    🔴 本页**不实现** IDetailPanelProvider（HasDetailPanel=false）→ Shell 不会显示右详情列（需求 §6.6 页面清单）。
+    🔴 树是**自绘**（ItemsControl + Button.tree-row，规范 §2.1 ⛔ 不用 TreeView）；节点由 VM 按 Depth 扁平化。
+    ⛔ 往分类里加资产的入口在**详情卡**（全部资产页选中资产 → 勾分类 → 💾 保存），本页只做「摘出」。
+  -->
+  <UserControl.Styles>
+    <!--  本页专用：树节点行（规范 §2：页面专用样式写 UserControl.Styles，⛔ 不往全局加）  -->
+    <Style Selector="Button.tree-row">
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Padding" Value="6,3"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+    <Style Selector="Button.tree-row:pointerover">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
+    <!--  🔴 选中态用「强调色文字 + 加粗 + 淡底」，⛔ 不用已删除的 CardSelectedBrush（v3.22 已移除）  -->
+    <Style Selector="Button.tree-row.selected">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid ColumnDefinitions="280,*" Margin="12">
+
+    <!--  ==================== 左：分类树 ====================  -->
+    <Border Grid.Column="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1" CornerRadius="8" Padding="8">
+      <Grid RowDefinitions="Auto,Auto,*">
+        <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
+          <Button Classes="primary" Content="➕ 新建分类" Command="{Binding NewRootCommand}"
+                  ToolTip.Tip="新建一个**根**分类"/>
+          <Button Classes="ghost" Content="➕ 子分类" Command="{Binding NewChildCommand}"
+                  ToolTip.Tip="在选中的分类下新建子分类"/>
+        </WrapPanel>
+
+        <WrapPanel Grid.Row="1" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4" Margin="0,6,0,0">
+          <Button Classes="ghost" Content="↕ 展开全部" Command="{Binding ExpandAllCommand}"/>
+          <Button Classes="ghost" Content="↕ 折叠全部" Command="{Binding CollapseAllCommand}"/>
+          <Button Classes="ghost" Content="🔄 重读分类" Command="{Binding RefreshCategoriesCommand}"
+                  ToolTip.Tip="重新读取分类树（⛔ 不扫盘）"/>
+        </WrapPanel>
+
+        <ScrollViewer Grid.Row="2" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasNodes}"
+                       Text="还没有分类。点上面「➕ 新建分类」开一个根分类。"/>
+            <ItemsControl ItemsSource="{Binding TreeNodes}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Classes="tree-row" Classes.selected="{Binding IsSelected}"
+                          Margin="{Binding Indent}"
+                          Command="{Binding $parent[UserControl].DataContext.SelectNodeCommand}"
+                          CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <TextBlock Text="{Binding Arrow}" FontSize="11" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding MemberText}" FontSize="10" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
     </Border>
+
+    <!--  ==================== 右：成员列表 ====================  -->
+    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="8,0,0,0">
+
+      <Border Grid.Row="0" Classes="toolbar">
+        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" ItemSpacing="8" LineSpacing="4">
+          <TextBox Width="240" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索成员名称…"/>
+          <Button Classes="danger-btn" Content="⛔ 摘出选中" Command="{Binding RemoveMembersCommand}"
+                  ToolTip.Tip="把选中的资产从当前分类摘出（⛔ 不删资产、⛔ 不动磁盘文件）"/>
+        </WrapPanel>
+      </Border>
+
+      <Border Grid.Row="1" Classes="filter-bar">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding FilterSummary}" FontSize="11"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
+          <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"
+                     Text="往这个分类里加资产：到「全部资产」选中资产 → 详情卡里勾选分类 → 💾 保存。"/>
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Row="2" Padding="0" Margin="0,0,0,0" Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
+        <Border Classes="list-header">
+          <v:ColumnGrid x:Name="HeaderGrid"
+                        ColumnSpecs="{Binding VisibleColumnSpecs}"
+                        IsResizable="True"
+                        LockedColumns="{Binding LockedColumnMask}"
+                        SampleSpecs="{Binding SampleSpecs}">
+            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
+            <Button Grid.Column="1" Classes="col-header" Content="{Binding TypeHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Type" IsVisible="{Binding IsTypeVisible}"/>
+            <Button Grid.Column="2" Classes="col-header" Content="{Binding SizeHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Size" IsVisible="{Binding IsSizeVisible}"/>
+            <Button Grid.Column="3" Classes="col-header" Content="{Binding ModifiedHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Modified" IsVisible="{Binding IsModifiedVisible}"/>
+            <Button Grid.Column="4" Classes="col-header" Content="{Binding StorageHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Storage" IsVisible="{Binding IsStorageVisible}"/>
+
+            <v:ColumnGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                  <MenuItem.ItemContainerTheme>
+                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                      <Setter Property="Header" Value="{Binding Label}"/>
+                      <Setter Property="Command" Value="{Binding Command}"/>
+                    </ControlTheme>
+                  </MenuItem.ItemContainerTheme>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
+                          IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
+                <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
+                <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
+                <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
+                <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Storage"/>
+              </ContextMenu>
+            </v:ColumnGrid.ContextMenu>
+          </v:ColumnGrid>
+        </Border>
+      </Border>
+
+      <ListBox Grid.Row="3" x:Name="MemberList" Classes="list-page" Margin="0,6,0,0"
+               ItemsSource="{Binding Members}" SelectionMode="Single"
+               SelectedItem="{Binding SelectedMember, Mode=TwoWay}">
+        <ListBox.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="⛔ 摘出选中" Command="{Binding RemoveMembersCommand}"
+                      ToolTip.Tip="把选中的资产从当前分类摘出（⛔ 不删资产）"/>
+          </ContextMenu>
+        </ListBox.ContextMenu>
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+              <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                         Foreground="{DynamicResource PrimaryTextBrush}"
+                         IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeText}"
+                         Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SizeText}"
+                         Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding ModifiedText}"
+                         Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
+              <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding StorageName}"
+                         Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
+            </v:ColumnGrid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
   </Grid>
 </UserControl>

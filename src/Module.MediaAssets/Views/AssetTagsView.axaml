@@ -1,17 +1,159 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.MediaAssets.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetTagsView">
-  <!--  NT-014 骨架占位：本页真正的列表 / 详情 / 工具条 / 筛选在后续待办（NT-016~022）依次落地。  -->
-  <Grid RowDefinitions="Auto,*">
-    <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
-      <TextBlock Classes="section-title" Text="标签管理"/>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="标签：名称 / 命名空间 / 颜色 / 使用数；支持合并与清理未使用"/>
-    </StackPanel>
-    <Border Grid.Row="1" Margin="24,12,24,16" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="🚧 骨架占位（NT-014）"/>
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="页面实现在后续待办落地"/>
-      </StackPanel>
+  <!--
+    NT-018「标签管理」页：列表（名称 / 命名空间 / 颜色 / 使用数 / 创建时间）+ 详情卡（由 **Shell** 承载）。
+    🔴 与「全部资产」页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，DetailContent 返回 TagDetailView）。
+    逻辑操作（新建 / 改名 / 改色 / 合并 / 删除 / 清理未使用）都在工具条与**行右键菜单**；
+    ⛔ 单条动作不上工具条（需求 §4.8 硬规则 9）。
+  -->
+  <Grid RowDefinitions="Auto,Auto,*" Margin="12">
+
+    <!--  ==================== ① 工具条（页面级功能） ====================  -->
+    <Border Grid.Row="0" Classes="toolbar">
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                   ItemSpacing="8" LineSpacing="4">
+          <Button Classes="primary" Content="➕ 新建标签" Command="{Binding NewTagCommand}"
+                  ToolTip.Tip="新建一个标签（重名会被拒）"/>
+          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}"
+                   PlaceholderText="搜索标签名 / 命名空间…"/>
+          <Button Classes="ghost" Content="🧹 清理未使用" Command="{Binding DeleteUnusedCommand}"
+                  ToolTip.Tip="删掉使用数为 0 的标签（二次确认）"/>
+          <!--  🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库 -->
+          <Button Classes="ghost" Content="🔄 重读标签" Command="{Binding RefreshTagsCommand}"
+                  ToolTip.Tip="重新读取标签表（⛔ 不扫盘）"/>
+        </WrapPanel>
+
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Command="{Binding ToggleDetailPanelCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一个标签）">
+          <Panel>
+            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsDetailVisible}"/>
+            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsDetailVisible}"/>
+          </Panel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!--  ==================== ② 筛选条 ====================  -->
+    <Border Grid.Row="1" Classes="filter-bar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
+        <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <TextBlock Text="左键表头排序 · 右键表头选列 / 筛选" FontSize="11" VerticalAlignment="Center"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </WrapPanel>
+    </Border>
+
+    <!--  ==================== ③ 列表本体 ====================  -->
+    <Border Grid.Row="2" Padding="0" Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
+      <Grid RowDefinitions="Auto,Auto,*">
+
+        <Border Grid.Row="0" Classes="list-header">
+          <v:ColumnGrid x:Name="HeaderGrid"
+                        ColumnSpecs="{Binding VisibleColumnSpecs}"
+                        IsResizable="True"
+                        LockedColumns="{Binding LockedColumnMask}"
+                        SampleSpecs="{Binding SampleSpecs}">
+            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
+            <Button Grid.Column="1" Classes="col-header" Content="{Binding NamespaceHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Namespace" IsVisible="{Binding IsNamespaceVisible}"/>
+            <Button Grid.Column="2" Classes="col-header" Content="{Binding ColorHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Color" IsVisible="{Binding IsColorVisible}"/>
+            <Button Grid.Column="3" Classes="col-header" Content="{Binding UsageHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Usage" IsVisible="{Binding IsUsageVisible}"/>
+            <Button Grid.Column="4" Classes="col-header" Content="{Binding CreatedHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Created" IsVisible="{Binding IsCreatedVisible}"/>
+
+            <v:ColumnGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                  <MenuItem.ItemContainerTheme>
+                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                      <Setter Property="Header" Value="{Binding Label}"/>
+                      <Setter Property="Command" Value="{Binding Command}"/>
+                    </ControlTheme>
+                  </MenuItem.ItemContainerTheme>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
+                          IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
+                <MenuItem Header="命名空间" ToggleType="CheckBox" IsChecked="{Binding IsNamespaceVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Namespace"/>
+                <MenuItem Header="颜色" ToggleType="CheckBox" IsChecked="{Binding IsColorVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Color"/>
+                <MenuItem Header="使用数" ToggleType="CheckBox" IsChecked="{Binding IsUsageVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Usage"/>
+                <MenuItem Header="创建时间" ToggleType="CheckBox" IsChecked="{Binding IsCreatedVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Created"/>
+              </ContextMenu>
+            </v:ColumnGrid.ContextMenu>
+          </v:ColumnGrid>
+        </Border>
+
+        <!--  示例行（v3.32 §4.8.3：空列表时给一条半透明占位，顺便判定列宽）  -->
+        <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
+                ToolTip.Tip="这是示例数据（列宽就按它判定）；新建标签后这一行会消失">
+          <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+            <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding SampleRowTexts[0]}"
+                       Foreground="{DynamicResource PrimaryTextBrush}" IsVisible="{Binding IsNameVisible}"/>
+            <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SampleRowTexts[1]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsNamespaceVisible}"/>
+            <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SampleRowTexts[2]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsColorVisible}"/>
+            <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding SampleRowTexts[3]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsUsageVisible}"/>
+            <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding SampleRowTexts[4]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCreatedVisible}"/>
+          </v:ColumnGrid>
+        </Border>
+
+        <ListBox Grid.Row="2" x:Name="TagList" Classes="list-page"
+                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                 SelectionMode="Single">
+          <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；ContextMenu 的 DataContext 由 code-behind 同步  -->
+          <ListBox.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="✏ 重命名…" Command="{Binding RenameTagCommand}"/>
+              <MenuItem Header="🎨 改颜色…" Command="{Binding ChangeColorCommand}" ToolTip.Tip="输入 #RRGGBB；也可以在详情卡点色板"/>
+              <MenuItem Header="🔗 合并到…" Command="{Binding MergeTagCommand}" ToolTip.Tip="把当前标签的资产转给另一个标签，然后删掉自己"/>
+              <Separator/>
+              <MenuItem Header="🗑 删除标签" Command="{Binding DeleteTagCommand}"/>
+            </ContextMenu>
+          </ListBox.ContextMenu>
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding NamespaceText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsNamespaceVisible}"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                            IsVisible="{Binding $parent[ListBox].DataContext.IsColorVisible}">
+                  <Border Width="12" Height="12" CornerRadius="3" Background="{Binding ChipBrush}"
+                          VerticalAlignment="Center"/>
+                  <TextBlock Classes="list-cell" Text="{Binding ColorHexText}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </StackPanel>
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding UsageText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsUsageVisible}"/>
+                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding CreatedText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsCreatedVisible}"/>
+              </v:ColumnGrid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
     </Border>
   </Grid>
 </UserControl>

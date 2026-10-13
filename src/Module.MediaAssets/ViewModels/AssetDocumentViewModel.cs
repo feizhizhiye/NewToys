@@ -14,8 +14,11 @@ public class AssetDocumentViewModel : AssetAllViewModel
     /// <summary>设计期 / DI 未注册时兜底。</summary>
     public AssetDocumentViewModel() { }
 
-    public AssetDocumentViewModel(AssetService assets, ScanService scan, IColumnLayoutService cols, IAppConfigService? app = null)
-        : base(assets, scan, cols, app)
+    public AssetDocumentViewModel(AssetService assets, ScanService scan, IColumnLayoutService cols,
+        IAppConfigService? app = null, TagService? tagSvc = null, CategoryService? catSvc = null,
+        CollectionService? colSvc = null, RelationService? relationSvc = null,
+        OperationLogService? opLog = null, AssetNavigationStore? navStore = null)
+        : base(assets, scan, cols, app, tagSvc, catSvc, colSvc, relationSvc, opLog, navStore)
         => SetPresetType(AssetTypes.Document);
 
     /// <inheritdoc/>

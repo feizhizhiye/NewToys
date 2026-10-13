@@ -17,8 +17,14 @@ namespace NewToys.MediaAssets.Models;
 /// <c>Storage</c>→<see cref="StorageName"/>。
 /// </para>
 /// </summary>
-public class AssetRow
+public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableObject
 {
+    /// <summary>
+    /// v3.34 / NT-018：**勾选列**的状态（「🏷 加标签」「🗂 加集合」按勾选批量操作）。
+    /// ⚠️ 只是界面态，⛔ 不落库、⛔ 不参与筛选 / 排序 / 导入导出。
+    /// </summary>
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private bool _isChecked;
+
     // ===== 资产本体 =====
     public long Id { get; set; }
 

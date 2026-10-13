@@ -9,6 +9,27 @@
     🔴 卡内**零操作按钮**（需求 §6.6 / NT-016 验收）：所有动作都在工具条 / 右键菜单。
        显示名的保存方式 = 输入框**失焦**即存（code-behind 转调 VM 的 SaveDisplayNameCommand）。
   -->
+  <UserControl.Styles>
+    <!--  本页专用：可选色片按钮（NT-018）。选中 = 强调色描边 + 强调色文字（⛔ 不用已删除的 CardSelectedBrush）  -->
+    <Style Selector="Button.pick-chip">
+      <Setter Property="Padding" Value="8,3"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+    </Style>
+    <Style Selector="Button.pick-chip:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+    <Style Selector="Button.pick-chip.selected">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+  </UserControl.Styles>
+
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="12" Spacing="10">
 
@@ -62,16 +83,122 @@
 
         <Border Classes="divider-line"/>
 
-        <!--  ===== 组织信息（NT-018 才有数据可改；现在先如实显示，没有就写"（无）"）=====  -->
+        <!--  ===== 评分 / 描述（NT-018 可编辑，「💾 保存」落库） =====  -->
         <StackPanel Spacing="4">
-          <TextBlock Classes="field-label" Text="标签"/>
-          <TextBlock Classes="field-value" Text="{Binding DetailRow.TagsText}" TextWrapping="Wrap"/>
+          <TextBlock Classes="field-label" Text="评分（0~5）"/>
+          <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding RatingChoices}"
+                    SelectedItem="{Binding EditRating, Mode=TwoWay}"/>
 
-          <TextBlock Classes="field-label" Text="分类"/>
-          <TextBlock Classes="field-value" Text="{Binding DetailRow.CategoriesText}" TextWrapping="Wrap"/>
+          <TextBlock Classes="field-label" Text="描述"/>
+          <TextBox AcceptsReturn="True" MinHeight="52" TextWrapping="Wrap"
+                   Text="{Binding EditDescription, Mode=TwoWay}"
+                   PlaceholderText="随手记点什么（可留空）"/>
+        </StackPanel>
 
-          <TextBlock Classes="field-label" Text="集合"/>
-          <TextBlock Classes="field-value" Text="{Binding DetailRow.CollectionsText}" TextWrapping="Wrap"/>
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 组织信息（NT-018：点色片即打上 / 取消，最后「💾 保存」统一落库） =====  -->
+        <StackPanel Spacing="6">
+          <TextBlock Classes="field-label" Text="标签（点一下打上 / 取消）"/>
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasTagPicks}"
+                     Text="（还没有标签：到「标签管理」页新建，或用工具条的「🏷 加标签」）"/>
+          <ItemsControl ItemsSource="{Binding TagPicks}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="pick-chip" Classes.selected="{Binding IsSelected}"
+                        Command="{Binding $parent[UserControl].DataContext.ToggleTagCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Border Width="8" Height="8" CornerRadius="2" Background="{Binding Brush}"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Name}" FontSize="11"/>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <TextBlock Classes="field-label" Text="分类（点一下加 / 去掉）"/>
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasCategoryPicks}"
+                     Text="（还没有分类：到「分类管理」页新建）"/>
+          <ItemsControl ItemsSource="{Binding CategoryPicks}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="pick-chip" Classes.selected="{Binding IsSelected}"
+                        Command="{Binding $parent[UserControl].DataContext.ToggleCategoryCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Border Width="8" Height="8" CornerRadius="2" Background="{Binding Brush}"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Name}" FontSize="11"/>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <TextBlock Classes="field-label" Text="集合（点一下加 / 去掉；⚡ 智能集合不参与手工设置）"/>
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasCollectionPicks}"
+                     Text="（还没有集合：到「集合管理」页新建）"/>
+          <ItemsControl ItemsSource="{Binding CollectionPicks}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="pick-chip" Classes.selected="{Binding IsSelected}"
+                        Command="{Binding $parent[UserControl].DataContext.ToggleCollectionCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Border Width="8" Height="8" CornerRadius="2" Background="{Binding Brush}"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Name}" FontSize="11"/>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 保存 / 移入回收站（v3.29 定调：卡内允许「编辑 + 保存」） =====  -->
+        <Button Classes="primary" Content="💾 保存" Command="{Binding SaveAssetDetailCommand}"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="把显示名 / 评分 / 描述 / 标签 / 分类 / 集合写进资产库（⛔ 不动磁盘文件）"/>
+        <Button Classes="danger-btn" Content="🗑 移入回收站" Command="{Binding MoveToTrashCommand}"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="软删除：只改库里的状态（⛔ 不动磁盘文件；在「回收站」页能恢复）"/>
+
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 关联（NT-018：只读列出；增删归后续） =====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="关联（字幕 / 封面 / 版本…）"/>
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasRelations}"
+                     Text="（暂无关联；关联的增删在本轮之后落地）"/>
+          <ItemsControl ItemsSource="{Binding Relations}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="0,0,0,4">
+                  <TextBlock Classes="field-value" Text="{Binding TypeText}"/>
+                  <TextBlock Classes="hint-text" Text="{Binding TargetName}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
 
         <Border Classes="divider-line"/>

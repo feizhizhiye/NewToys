@@ -1,17 +1,188 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.MediaAssets.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetCollectionsView">
-  <!--  NT-014 骨架占位：本页真正的列表 / 详情 / 工具条 / 筛选在后续待办（NT-016~022）依次落地。  -->
-  <Grid RowDefinitions="Auto,*">
-    <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
-      <TextBlock Classes="section-title" Text="集合管理"/>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="手动 / 智能集合；成员可拖拽排序"/>
-    </StackPanel>
-    <Border Grid.Row="1" Margin="24,12,24,16" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="🚧 骨架占位（NT-014）"/>
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="页面实现在后续待办落地"/>
-      </StackPanel>
+  <!--
+    NT-018「集合管理」页：左集合列表（📦 手动 / ⚡ 智能）+ 右成员列表。
+    🔴 成员顺序 = `collection_assets.sort_order`，用「⬆ 上移 / ⬇ 下移」写（⛔ 未做鼠标拖放，见 NT-018 执行记录）。
+    ⛔ 本页不实现 IDetailPanelProvider（两栏都在页内，Shell 不再显示右详情列）。
+  -->
+  <UserControl.Styles>
+    <Style Selector="Button.coll-row">
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Padding" Value="8,5"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="Button.coll-row:pointerover">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
+    <!--  🔴 选中态：强调色文字 + 加粗 + 淡底（⛔ 不用已删除的 CardSelectedBrush）  -->
+    <Style Selector="Button.coll-row.selected">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid ColumnDefinitions="260,*" Margin="12">
+
+    <!--  ==================== 左：集合列表 ====================  -->
+    <Border Grid.Column="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1" CornerRadius="8" Padding="8">
+      <Grid RowDefinitions="Auto,Auto,*">
+        <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
+          <Button Classes="primary" Content="➕ 新建集合" Command="{Binding NewCollectionCommand}"
+                  ToolTip.Tip="新建一个手动集合（成员靠手工加 / 排序）"/>
+          <Button Classes="ghost" Content="⚡ 新建智能" Command="{Binding NewSmartCommand}"
+                  ToolTip.Tip="新建智能集合（⚠️ 本轮只存规则文本，规则求值未实装）"/>
+        </WrapPanel>
+
+        <WrapPanel Grid.Row="1" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4" Margin="0,6,0,0">
+          <Button Classes="ghost" Content="✏ 改名" Command="{Binding RenameCollectionCommand}"/>
+          <Button Classes="danger-btn" Content="🗑 删除" Command="{Binding DeleteCollectionCommand}"/>
+          <Button Classes="ghost" Content="🔄 重读集合" Command="{Binding RefreshCollectionsCommand}"
+                  ToolTip.Tip="重新读取集合表（⛔ 不扫盘）"/>
+        </WrapPanel>
+
+        <ScrollViewer Grid.Row="2" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasCollections}"
+                       Text="还没有集合。点上面「➕ 新建集合」开一个。"/>
+            <ItemsControl ItemsSource="{Binding Collections}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Classes="coll-row" Classes.selected="{Binding IsSelected}"
+                          Command="{Binding $parent[UserControl].DataContext.SelectCollectionItemCommand}"
+                          CommandParameter="{Binding}"
+                          ToolTip.Tip="{Binding Description}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Border Width="4" Height="14" CornerRadius="2" Background="{Binding AccentBrush}"
+                              VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding TypeIcon}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding MemberText}" FontSize="10" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
     </Border>
+
+    <!--  ==================== 右：成员列表 ====================  -->
+    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Margin="8,0,0,0">
+
+      <Border Grid.Row="0" Classes="toolbar">
+        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" ItemSpacing="8" LineSpacing="4">
+          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索成员名称…"/>
+          <Button Classes="ghost" Content="⬆ 上移" Command="{Binding MoveUpCommand}"
+                  IsEnabled="{Binding !IsSmartSelected}" ToolTip.Tip="上移一位（写 sort_order，与拖拽同效）"/>
+          <Button Classes="ghost" Content="⬇ 下移" Command="{Binding MoveDownCommand}"
+                  IsEnabled="{Binding !IsSmartSelected}" ToolTip.Tip="下移一位（写 sort_order）"/>
+          <Button Classes="danger-btn" Content="⛔ 移出选中" Command="{Binding RemoveMemberCommand}"
+                  IsEnabled="{Binding !IsSmartSelected}"
+                  ToolTip.Tip="把选中的资产移出本集合（⛔ 不删资产、⛔ 不动磁盘文件）"/>
+        </WrapPanel>
+      </Border>
+
+      <Border Grid.Row="1" Classes="filter-bar">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding CollectionHint}" FontSize="11" TextWrapping="Wrap"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
+          <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"
+                     Text="往集合里加资产：到「全部资产」选中资产 → 详情卡里勾选集合 → 💾 保存。"/>
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Row="2" Padding="0" Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
+        <Grid RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Classes="list-header">
+            <v:ColumnGrid x:Name="HeaderGrid"
+                          ColumnSpecs="{Binding VisibleColumnSpecs}"
+                          IsResizable="True"
+                          LockedColumns="{Binding LockedColumnMask}"
+                          SampleSpecs="{Binding SampleSpecs}">
+              <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
+              <Button Grid.Column="1" Classes="col-header" Content="{Binding TypeHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Type" IsVisible="{Binding IsTypeVisible}"/>
+              <Button Grid.Column="2" Classes="col-header" Content="{Binding SizeHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Size" IsVisible="{Binding IsSizeVisible}"/>
+              <Button Grid.Column="3" Classes="col-header" Content="{Binding ModifiedHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Modified" IsVisible="{Binding IsModifiedVisible}"/>
+              <Button Grid.Column="4" Classes="col-header" Content="{Binding StorageHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Storage" IsVisible="{Binding IsStorageVisible}"/>
+
+              <v:ColumnGrid.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                    <MenuItem.ItemContainerTheme>
+                      <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                        <Setter Property="Header" Value="{Binding Label}"/>
+                        <Setter Property="Command" Value="{Binding Command}"/>
+                      </ControlTheme>
+                    </MenuItem.ItemContainerTheme>
+                  </MenuItem>
+                  <Separator/>
+                  <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
+                            IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
+                  <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
+                  <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
+                  <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
+                  <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Storage"/>
+                </ContextMenu>
+              </v:ColumnGrid.ContextMenu>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="1" x:Name="MemberList" Classes="list-page"
+                   ItemsSource="{Binding Members}" SelectionMode="Single"
+                   SelectedItem="{Binding SelectedMember, Mode=TwoWay}">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="⬆ 上移" Command="{Binding MoveUpCommand}"/>
+                <MenuItem Header="⬇ 下移" Command="{Binding MoveDownCommand}"/>
+                <Separator/>
+                <MenuItem Header="⛔ 移出本集合" Command="{Binding RemoveMemberCommand}"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeText}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SizeText}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding ModifiedText}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
+                  <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding StorageName}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
+                </v:ColumnGrid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+    </Grid>
   </Grid>
 </UserControl>

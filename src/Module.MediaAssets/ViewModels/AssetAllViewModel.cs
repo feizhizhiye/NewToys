@@ -6,9 +6,11 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Core.Services;
 using NewToys.MediaAssets.Models;
 using NewToys.MediaAssets.Services;
 using NewToys.MediaAssets.Views.Detail;
@@ -36,6 +38,12 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly AssetService _assets = null!;
     private readonly ScanService _scan = null!;
+    private readonly TagService _tagSvc = null!;
+    private readonly CategoryService _catSvc = null!;
+    private readonly CollectionService _colSvc = null!;
+    private readonly RelationService _relationSvc = null!;
+    private readonly OperationLogService _opLog = null!;
+    private readonly AssetNavigationStore _navStore = null!;
     private readonly IAppConfigService? _app;
     private readonly List<AssetRow> _all = new();
     private AssetDetailView? _detailView;
@@ -80,6 +88,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     // ==================== 列显隐（XAML 只能绑具名属性；状态在基类，落 config\columnlayout.json） ====================
 
+    /// <summary>勾选列（Pick）恒可见 —— 它是批量操作的前提。</summary>
+    public bool IsPickVisible => true;
+
     public bool IsNameVisible => Vis("Name");
     public bool IsTypeVisible => Vis("Type");
     public bool IsTagsVisible => Vis("Tags");
@@ -93,6 +104,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
+        // 🔴 v3.34 / NT-018：首列 = **勾选列**（Pick）——
+        //    加了首列后，表头 / 示例行 / 行模板里**所有 Grid.Column 索引都要 +1**（⛔ 别漏一处）。
+        new("Pick", "", "34", sortable: false),
         // Sample 要给"典型内容宽度"（v3.22）：示例宽 ≤ 表头宽的列会被锁成表头宽、不可拖
         new("Name", "名称", "2.6*", sample: "The.Matrix.1999.1080p.mkv"),
         new("Type", "类型", "0.8*", sample: "视频"),
@@ -183,12 +197,21 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     public AssetAllViewModel() { }
 
-    public AssetAllViewModel(AssetService assets, ScanService scan, IColumnLayoutService cols, IAppConfigService? app = null)
+    public AssetAllViewModel(AssetService assets, ScanService scan, IColumnLayoutService cols,
+        IAppConfigService? app = null,
+        TagService? tagSvc = null, CategoryService? catSvc = null, CollectionService? colSvc = null,
+        RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null)
         : base(cols)
     {
         _assets = assets;
         _scan = scan;
         _app = app;
+        _tagSvc = tagSvc!;
+        _catSvc = catSvc!;
+        _colSvc = colSvc!;
+        _relationSvc = relationSvc!;
+        _opLog = opLog!;
+        _navStore = navStore!;
 
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
         BuildStaticOptions();               // 类型 / 状态（固定值）
@@ -251,7 +274,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         _all.Clear();
         if (!IsDbAvailable) { _truncated = false; ApplyView(); return; }
-        foreach (var r in _assets.QueryRows(limit: QueryLimit)) _all.Add(r);
+        AddRows(_assets.QueryRows(limit: QueryLimit));
         _truncated = _all.Count >= QueryLimit;   // v3.34：截断了就明说（⛔ 不再静默少显示）
         RebuildStorageOptions();
         RebuildTagOptions();
@@ -347,7 +370,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private void LoadDraft(List<AssetRow> rows)
     {
         _all.Clear();
-        foreach (var r in rows) _all.Add(r);
+        AddRows(rows);
         Selected = null;
         IsDraft = true;
         ApplyView();
@@ -518,6 +541,262 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         finally { IsBusy = false; }
     }
 
+    // ==================== v3.34 / NT-018：勾选列 + 批量逻辑操作 ====================
+
+    /// <summary>行被勾了几条（工具条「🏷 加标签」「🗂 加集合」按它操作）。</summary>
+    public int CheckedCount => _all.Count(r => r.IsChecked);
+
+    public bool HasChecked => CheckedCount > 0;
+
+    public string CheckedText => CheckedCount == 0 ? "未勾选" : $"已勾选 {CheckedCount} 个";
+
+    /// <summary>
+    /// 表头 ☑ 的三态（🔴 用**原生三态 CheckBox**，⛔ 别用字符"☑"画 —— 字体会渲染成深色块，v3.16 连踩两轮）：
+    /// <c>true</c> = 全选、<c>false</c> = 全不选、<c>null</c> = 部分选中。
+    /// </summary>
+    [ObservableProperty] private bool? _allCheckedState = false;
+
+    /// <summary>表头 ☑ 点一下：当前不是"全选"就全选，否则全不选。</summary>
+    [RelayCommand]
+    private void ToggleAll()
+    {
+        var target = AllCheckedState != true;
+        foreach (var r in _all) r.IsChecked = target;
+        RefreshChecked();
+        StatusText = target ? $"已全选 {_all.Count} 条。" : "已取消全选。";
+    }
+
+    /// <summary>表头右键：取消选择。</summary>
+    [RelayCommand]
+    private void SelectNone()
+    {
+        foreach (var r in _all) r.IsChecked = false;
+        RefreshChecked();
+        StatusText = "已取消选择。";
+    }
+
+    /// <summary>表头右键：反选。</summary>
+    [RelayCommand]
+    private void InvertSelection()
+    {
+        foreach (var r in _all) r.IsChecked = !r.IsChecked;
+        RefreshChecked();
+        StatusText = $"已反选，当前勾选 {CheckedCount} 条。";
+    }
+
+    /// <summary>重算勾选计数与表头三态（行的 IsChecked 一变就会被调）。</summary>
+    public void RefreshChecked()
+    {
+        var total = _all.Count;
+        var n = _all.Count(r => r.IsChecked);
+        AllCheckedState = total == 0 ? false : n == 0 ? false : n == total ? true : null;
+
+        OnPropertyChanged(nameof(CheckedCount));
+        OnPropertyChanged(nameof(HasChecked));
+        OnPropertyChanged(nameof(CheckedText));
+    }
+
+    private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AssetRow.IsChecked)) RefreshChecked();
+    }
+
+    /// <summary>把一批行装进 <c>_all</c> 并挂上勾选监听（⛔ 别直接 `_all.Add`，否则计数不更新）。</summary>
+    private void AddRows(IEnumerable<AssetRow> rows)
+    {
+        foreach (var r in rows)
+        {
+            r.PropertyChanged += OnRowPropertyChanged;
+            _all.Add(r);
+        }
+    }
+
+    /// <summary>工具条「🏷 加标签」：给**勾选的行**打一个标签（输入标签名，不存在就建）。</summary>
+    [RelayCommand]
+    private async Task AddTagToCheckedAsync()
+    {
+        var ids = _all.Where(r => r.IsChecked).Select(r => r.Id).ToList();
+        if (ids.Count == 0) { StatusText = "先在左边勾选要打标签的资产。"; return; }
+
+        var name = await DialogHooks.InputAsync($"给勾选的 {ids.Count} 个资产打什么标签？", "").ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
+
+        var tagId = _tagSvc.Ensure(name.Trim());
+        if (tagId <= 0) { StatusText = "打标签失败（库不可用？）。"; return; }
+
+        var n = _tagSvc.AddTagToAssets(ids, tagId);
+        _opLog.Log("tag", "tag", tagId, afterJson: $"{{\"assets\":{ids.Count},\"added\":{n},\"name\":\"{name.Trim()}\"}}");
+        Reload();
+        StatusText = $"已给 {n} 个资产打上标签「{name.Trim()}」（原本已有该标签的不重复）。";
+    }
+
+    /// <summary>工具条「🗂 加集合」：把**勾选的行**加进一个集合（输入集合名，不存在就建一个手动集合）。</summary>
+    [RelayCommand]
+    private async Task AddToCollectionCheckedAsync()
+    {
+        var ids = _all.Where(r => r.IsChecked).Select(r => r.Id).ToList();
+        if (ids.Count == 0) { StatusText = "先在左边勾选要加入集合的资产。"; return; }
+
+        var name = await DialogHooks.InputAsync($"把勾选的 {ids.Count} 个资产加进哪个集合？（没有就新建）", "").ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
+
+        var hit = _colSvc.List().FirstOrDefault(c => string.Equals(c.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
+        var colId = hit?.Id ?? _colSvc.Create(name.Trim(), CollectionTypes.Manual);
+        if (colId <= 0) { StatusText = "加入集合失败（库不可用？）。"; return; }
+        if (hit != null && hit.IsSmart) { StatusText = $"「{hit.Name}」是智能集合，成员由规则决定，⛔ 不能手工加。"; return; }
+
+        var n = _colSvc.AddAssets(colId, ids);
+        _opLog.Log("collection", "collection", colId, afterJson: $"{{\"assets\":{ids.Count},\"added\":{n},\"name\":\"{name.Trim()}\"}}");
+        Reload();
+        StatusText = hit == null
+            ? $"已新建手动集合「{name.Trim()}」并加入 {n} 个资产。"
+            : $"已把 {n} 个资产加进集合「{name.Trim()}」。";
+    }
+
+    // ==================== v3.34 / NT-018：详情卡编辑（显示名 / 评分 / 描述 / 标签 / 分类 / 集合） ====================
+
+    /// <summary>详情卡的标签色片（点一下即选；「💾 保存」统一落库）。</summary>
+    public ObservableCollection<PickItem> TagPicks { get; } = new();
+
+    /// <summary>详情卡的分类色片。</summary>
+    public ObservableCollection<PickItem> CategoryPicks { get; } = new();
+
+    /// <summary>详情卡的集合色片。</summary>
+    public ObservableCollection<PickItem> CollectionPicks { get; } = new();
+
+    /// <summary>评分（0~5）可选项。</summary>
+    public int[] RatingChoices { get; } = { 0, 1, 2, 3, 4, 5 };
+
+    [ObservableProperty] private int _editRating;
+    [ObservableProperty] private string _editDescription = "";
+
+    /// <summary>该资产的关联（只读列出；增删归后续——本轮只在详情卡展示）。</summary>
+    public ObservableCollection<Relation> Relations { get; } = new();
+
+    public bool HasRelations => Relations.Count > 0;
+
+    /// <summary>三种色片有没有内容（详情卡给"还没有…"提示用）。</summary>
+    public bool HasTagPicks => TagPicks.Count > 0;
+    public bool HasCategoryPicks => CategoryPicks.Count > 0;
+    public bool HasCollectionPicks => CollectionPicks.Count > 0;
+
+    /// <summary>点一下色片 = 打上 / 取消（⛔ 不立即落库，等「💾 保存」）。</summary>
+    [RelayCommand]
+    private void ToggleTag(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
+
+    [RelayCommand]
+    private void ToggleCategory(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
+
+    [RelayCommand]
+    private void ToggleCollection(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
+
+    private void BuildPicks(AssetRow target)
+    {
+        TagPicks.Clear();
+        CategoryPicks.Clear();
+        CollectionPicks.Clear();
+        Relations.Clear();
+
+        if (target.Id <= 0) return;   // 示例行：不给色片（卡片整体禁用）
+
+        var tagIds = _tagSvc.ListTagIdsOfAsset(target.Id);
+        foreach (var t in _tagSvc.List())
+            TagPicks.Add(new PickItem(t.Id, t.Name, t.ChipBrush, tagIds.Contains(t.Id)));
+
+        var catIds = _catSvc.ListCategoryIdsOfAsset(target.Id);
+        foreach (var c in _catSvc.List())
+            CategoryPicks.Add(new PickItem(c.Id, c.Name, new SolidColorBrush(Color.Parse(AssetPalette.For(c.Name))), catIds.Contains(c.Id)));
+
+        var colIds = _colSvc.ListCollectionIdsOfAsset(target.Id);
+        foreach (var c in _colSvc.List())
+            CollectionPicks.Add(new PickItem(c.Id, c.Name, new SolidColorBrush(Color.Parse(AssetPalette.For(c.Name))), colIds.Contains(c.Id)));
+
+        foreach (var rel in _relationSvc.ListFor(target.Id)) Relations.Add(rel);
+        OnPropertyChanged(nameof(HasRelations));
+        OnPropertyChanged(nameof(HasTagPicks));
+        OnPropertyChanged(nameof(HasCategoryPicks));
+        OnPropertyChanged(nameof(HasCollectionPicks));
+    }
+
+    /// <summary>
+    /// 详情卡「💾 保存」：一次把**显示名 / 评分 / 描述 / 标签 / 分类 / 集合**全部落库，并写一条 `operation_logs`。
+    /// ⛔ 不动磁盘文件（物理重命名是 NT-019 的「↗ 应用到文件」）。
+    /// </summary>
+    [RelayCommand]
+    private void SaveAssetDetail()
+    {
+        if (_loadingDetail || Selected == null) { StatusText = "先在左侧选中一个资产。"; return; }
+
+        var row = Selected;
+        var before = $"{{\"name\":\"{row.Name}\",\"rating\":{row.Rating}}}";
+
+        var name = (DetailDisplayName ?? "").Trim();
+        _assets.SetDisplayName(row.Id, name.Length == 0 ? null : name);
+        row.DisplayName = name.Length == 0 ? null : name;
+        row.Name = name.Length == 0 ? (row.Title ?? $"资产 #{row.Id}") : name;
+
+        _assets.SetRatingAndDescription(row.Id, EditRating, string.IsNullOrWhiteSpace(EditDescription) ? null : EditDescription);
+        row.Rating = EditRating;
+        row.Description = string.IsNullOrWhiteSpace(EditDescription) ? null : EditDescription;
+
+        var tagIds = TagPicks.Where(p => p.IsSelected).Select(p => p.Id).ToList();
+        var catIds = CategoryPicks.Where(p => p.IsSelected).Select(p => p.Id).ToList();
+        var colIds = CollectionPicks.Where(p => p.IsSelected).Select(p => p.Id).ToList();
+        _tagSvc.SetAssetTags(row.Id, tagIds);
+        _catSvc.SetAssetCategories(row.Id, catIds);
+        _colSvc.SetAssetCollections(row.Id, colIds);
+
+        _opLog.Log("display_name", "asset", row.Id, beforeJson: before,
+            afterJson: $"{{\"name\":\"{row.Name}\",\"rating\":{EditRating},\"tags\":{tagIds.Count},\"categories\":{catIds.Count},\"collections\":{colIds.Count}}}");
+
+        ApplyView();
+        StatusText = $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。";
+    }
+
+    /// <summary>详情卡「🗑 移入回收站」= **软删除**（只改 `status`，⛔ 不删行、⛔ 不动磁盘文件）。</summary>
+    [RelayCommand]
+    private async Task MoveToTrashAsync()
+    {
+        if (Selected == null) { StatusText = "先选中一个资产。"; return; }
+
+        var row = Selected;
+        if (!await DialogHooks.ConfirmAsync($"把「{row.Name}」移入回收站？（⛔ 只改库里的状态，**不动磁盘文件**；回收站里能恢复）").ConfigureAwait(false))
+        { StatusText = "已取消。"; return; }
+
+        _assets.SetAssetStatus(row.Id, AssetStatuses.Trashed);
+        _opLog.Log("trash", "asset", row.Id, beforeJson: "{\"status\":\"active\"}", afterJson: "{\"status\":\"trashed\"}");
+        Reload();
+        StatusText = $"已把「{row.Name}」移入回收站（磁盘文件没动）。";
+    }
+
+    // ==================== 跨页取件（NT-018：标签 / 分类页点资产 → 跳到这里并选中） ====================
+
+    /// <summary>
+    /// 取件点（由 View 在 <c>OnAttachedToVisualTree</c> 调 —— 🔴 **不是** `OnDataContextChanged`，规范 §4.8 硬规则 8）：
+    /// 别的页面请求"打开某个资产"时，在这里选中它。
+    /// </summary>
+    public void ConsumePendingAsset()
+    {
+        var req = _navStore?.Take();
+        if (req == null) return;
+
+        var hit = Items.FirstOrDefault(r => r.Id == req.Value.AssetId);
+        if (hit == null)
+        {
+            StatusText = "目标资产不在当前列表（可能已移入回收站）。";
+            return;
+        }
+
+        Selected = hit;
+        if (!IsDetailVisible)
+        {
+            IsDetailVisible = true;
+            SaveDetailFlag();
+            RaiseDetailChanged();
+        }
+        StatusText = $"已定位到资产「{hit.Name}」。";
+    }
+
     // ==================== 详情面板（由 Shell 的 ContentControl 承载） ====================
 
     public bool HasDetailPanel => true;
@@ -588,6 +867,10 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             DetailDisplayName = target == null
                 ? ""
                 : target.DisplayName ?? target.Title ?? target.Name;
+            EditRating = target?.Rating ?? 0;
+            EditDescription = target?.Description ?? "";
+
+            if (target != null && target.Id > 0) BuildPicks(target);
 
             if (ReferenceEquals(target, SampleRow))
                 Locations.Add(new FileLocation { Path = SampleRow.FilePath, Status = "（示例位置）" });
@@ -715,6 +998,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         if (Selected != null && !Items.Contains(Selected)) Selected = null;
         UpdateHeaders();
+        RefreshChecked();                          // 列表重建 → 勾选计数 / 表头三态跟上
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(ShowSampleRow));   // v3.22：有真实数据后示例行消失

@@ -80,15 +80,19 @@
           <CheckBox Content="含子目录" IsChecked="{Binding Recursive, Mode=TwoWay}"
                     ToolTip.Tip="关掉就只扫当前这一层"/>
 
-          <!--  NT-018 落地前先灰掉：⛔ 不做假按钮（能点却没反应最伤）。
-                🔴 命名规则（用户定调）：列表加**勾选框列**后，按钮就叫「加标签 / 加集合」（**去掉"批量"二字**）
-                —— 勾了几个就操作几个，语义天然就是批量。  -->
-          <Button Classes="ghost" Content="🏷 加标签" IsEnabled="False"
-                  ToolTip.Tip="对勾选的行打标签（勾选框列与标签数据随 NT-018 落地）"/>
-          <Button Classes="ghost" Content="🗂 加集合" IsEnabled="False"
-                  ToolTip.Tip="把勾选的行加入集合（勾选框列与集合数据随 NT-018 落地）"/>
+          <!--  NT-018 逻辑操作（按勾选批量）：命名规则见 v3.29 增补 —— 列表有勾选框后，
+                按钮就叫「加标签 / 加集合」（**去掉"批量"二字**），语义天然就是批量。
+                ⛔ 「💾 存为智能集合」仍留灰（智能集合的规则求值未实装）。  -->
+          <Button Classes="ghost" Content="🏷 加标签"
+                  Command="{Binding AddTagToCheckedCommand}" IsEnabled="{Binding HasChecked}"
+                  ToolTip.Tip="给勾选的行打标签（输入标签名，不存在就新建）"/>
+          <Button Classes="ghost" Content="🗂 加集合"
+                  Command="{Binding AddToCollectionCheckedCommand}" IsEnabled="{Binding HasChecked}"
+                  ToolTip.Tip="把勾选的行加进集合（输入集合名，不存在就新建一个手动集合）"/>
+          <TextBlock Text="{Binding CheckedText}" FontSize="11" VerticalAlignment="Center"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
           <Button Classes="ghost" Content="💾 存为智能集合" IsEnabled="False"
-                  ToolTip.Tip="NT-018 落地"/>
+                  ToolTip.Tip="智能集合需要规则求值（未实装）"/>
 
           <!--  ⚠️ 「🔄 重读资产库」= **重读数据库**重建列表：⛔ 不扫盘、不读目录、不重新索引。
                 要重新扫一个文件夹，用左边的「📁 扫描」；要把登记的都扫一遍，用「🔄 扫描全部」；
@@ -153,28 +157,44 @@
                         IsResizable="True"
                         LockedColumns="{Binding LockedColumnMask}"
                         SampleSpecs="{Binding SampleSpecs}">
-            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+            <!--  v3.34 / NT-018：勾选列表头 —— 🔴 **原生三态 CheckBox**（⛔ 别用字符"☑"画，字体会渲染成深色块）；
+                  右键菜单挂在外层透明 Border 上（整格都能右键）。  -->
+            <Border Grid.Column="0" x:Name="HeaderCheckHost" Background="Transparent"
+                    ToolTip.Tip="勾选的行由「🏷 加标签 / 🗂 加集合」批量操作（右键：全选 / 取消 / 反选）">
+              <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center" IsThreeState="True"
+                        IsChecked="{Binding AllCheckedState, Mode=TwoWay}">
+                <CheckBox.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="☑ 全选" Command="{Binding ToggleAllCommand}"/>
+                    <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
+                    <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
+                  </ContextMenu>
+                </CheckBox.ContextMenu>
+              </CheckBox>
+            </Border>
+
+            <Button Grid.Column="1" Classes="col-header" Content="{Binding NameHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Name"
                     IsVisible="{Binding IsNameVisible}"/>
-            <Button Grid.Column="1" Classes="col-header" Content="{Binding TypeHeader}"
+            <Button Grid.Column="2" Classes="col-header" Content="{Binding TypeHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Type"
                     IsVisible="{Binding IsTypeVisible}"/>
-            <Button Grid.Column="2" Classes="col-header" Content="{Binding TagsHeader}"
+            <Button Grid.Column="3" Classes="col-header" Content="{Binding TagsHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Tags"
                     IsVisible="{Binding IsTagsVisible}"/>
-            <Button Grid.Column="3" Classes="col-header" Content="{Binding CategoriesHeader}"
+            <Button Grid.Column="4" Classes="col-header" Content="{Binding CategoriesHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Categories"
                     IsVisible="{Binding IsCategoriesVisible}"/>
-            <Button Grid.Column="4" Classes="col-header" Content="{Binding CollectionsHeader}"
+            <Button Grid.Column="5" Classes="col-header" Content="{Binding CollectionsHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Collections"
                     IsVisible="{Binding IsCollectionsVisible}"/>
-            <Button Grid.Column="5" Classes="col-header" Content="{Binding SizeHeader}"
+            <Button Grid.Column="6" Classes="col-header" Content="{Binding SizeHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Size"
                     IsVisible="{Binding IsSizeVisible}"/>
-            <Button Grid.Column="6" Classes="col-header" Content="{Binding ModifiedHeader}"
+            <Button Grid.Column="7" Classes="col-header" Content="{Binding ModifiedHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Modified"
                     IsVisible="{Binding IsModifiedVisible}"/>
-            <Button Grid.Column="7" Classes="col-header" Content="{Binding StorageHeader}"
+            <Button Grid.Column="8" Classes="col-header" Content="{Binding StorageHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Storage"
                     IsVisible="{Binding IsStorageVisible}"/>
 
@@ -218,21 +238,24 @@
         <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
                 ToolTip.Tip="这是示例数据（列宽就按它判定）；导入 / 扫描到真实资产后这一行会消失">
           <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-            <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding SampleRowTexts[0]}"
-                       Foreground="{DynamicResource PrimaryTextBrush}" IsVisible="{Binding IsNameVisible}"/>
+            <!--  勾选列（示例行不给勾选框，保持"占位"语义）  -->
+            <TextBlock Grid.Column="0" Classes="list-cell" Text=""
+                       Foreground="{DynamicResource SecondaryTextBrush}"/>
             <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SampleRowTexts[1]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTypeVisible}"/>
+                       Foreground="{DynamicResource PrimaryTextBrush}" IsVisible="{Binding IsNameVisible}"/>
             <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SampleRowTexts[2]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTagsVisible}"/>
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTypeVisible}"/>
             <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding SampleRowTexts[3]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCategoriesVisible}"/>
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTagsVisible}"/>
             <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding SampleRowTexts[4]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCollectionsVisible}"/>
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCategoriesVisible}"/>
             <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding SampleRowTexts[5]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsSizeVisible}"/>
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCollectionsVisible}"/>
             <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding SampleRowTexts[6]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsModifiedVisible}"/>
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsSizeVisible}"/>
             <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding SampleRowTexts[7]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsModifiedVisible}"/>
+            <TextBlock Grid.Column="8" Classes="list-cell" Text="{Binding SampleRowTexts[8]}"
                        Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsStorageVisible}"/>
           </v:ColumnGrid>
         </Border>
@@ -257,29 +280,33 @@
           <ListBox.ItemTemplate>
             <DataTemplate>
               <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                <!--  v3.34 / NT-018：勾选列（行首；勾了几个就是几个，语义天然是批量）  -->
+                <CheckBox Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                          IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                          IsVisible="{Binding $parent[ListBox].DataContext.IsPickVisible}"/>
+                <TextBlock Grid.Column="1" Classes="list-cell primary" Text="{Binding Name}"
                            Foreground="{DynamicResource PrimaryTextBrush}"
                            ToolTip.Tip="{Binding FilePath}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeText}"
+                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TypeText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TagsText}"
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding TagsText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsTagsVisible}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding CategoriesText}"
+                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding CategoriesText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsCategoriesVisible}"/>
-                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding CollectionsText}"
+                <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding CollectionsText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsCollectionsVisible}"/>
-                <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding SizeText}"
+                <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding SizeText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
-                <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding ModifiedText}"
+                <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding ModifiedText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
-                <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding StorageName}"
+                <TextBlock Grid.Column="8" Classes="list-cell" Text="{Binding StorageName}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
               </v:ColumnGrid>

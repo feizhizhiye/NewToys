@@ -242,6 +242,27 @@ public class AssetService
         catch { /* 忽略 */ }
     }
 
+    /// <summary>
+    /// NT-018：改**评分 + 描述**（详情卡的逻辑操作；两者一起写，避免两次 UPDATE）。
+    /// ⛔ 不动磁盘、⛔ 不动显示名（显示名走 <see cref="SetDisplayName"/>）。
+    /// </summary>
+    public bool SetRatingAndDescription(long assetId, int rating, string? description)
+    {
+        if (assetId <= 0 || !IsAvailable) return false;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE assets SET rating=$r, description=$d, updated_at=$u WHERE id=$id;";
+            cmd.Parameters.AddWithValue("$r", Math.Clamp(rating, 0, 5));
+            cmd.Parameters.AddWithValue("$d", (object?)description ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$u", Now());
+            cmd.Parameters.AddWithValue("$id", assetId);
+            return cmd.ExecuteNonQuery() > 0;
+        }
+        catch { return false; }
+    }
+
     /// <summary>软删除 / 恢复 / 标丢失（只改状态，⛔ 不删行）。</summary>
     public void SetAssetStatus(long id, string status)
     {

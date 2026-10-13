@@ -53,7 +53,7 @@ public partial class DataView : UserControl
         }
         catch (Exception ex)
         {
-            if (DataContext is DataViewModel vm) vm.StatusText = $"刷新失败：{ex.Message}";
+            if (DataContext is DataViewModel vm) vm.StatusText = $"重列配置失败：{ex.Message}";
         }
     }
 

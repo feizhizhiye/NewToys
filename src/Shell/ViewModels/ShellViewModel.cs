@@ -204,7 +204,7 @@ public partial class ShellViewModel : ViewModelBase
         if (rebuilt == null) return;
         tab.Replace(rebuilt.Content, rebuilt.ViewModel);
         BindContracts(tab);
-        StatusText = $"已刷新：{tab.Title}";
+        StatusText = $"已重建：{tab.Title}";
     }
 
     // ==================== 标题栏 / 左树 ====================

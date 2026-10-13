@@ -18,7 +18,8 @@
       <Grid ColumnDefinitions="*,Auto">
         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <Button Classes="primary" Content="➕ 新建方案" Margin="0,0,8,0" Command="{Binding NewProfileCommand}"/>
-          <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"/>
+          <Button Classes="ghost" Content="🔄 重读方案" Margin="0,0,8,0" Command="{Binding RefreshCommand}"
+                  ToolTip.Tip="重新读一遍本地的 hosts 方案清单（⛔ 不动系统 hosts、不导入）"/>
           <TextBox Width="300" Margin="0,0,8,0" Text="{Binding ImportUrl, Mode=TwoWay}"
                    PlaceholderText="网络 hosts 文件 URL…" ToolTip.Tip="粘贴一份 hosts 文本文件的网址，点「导入」下载并解析"/>
           <Button Classes="ghost" Content="🌐 导入" Margin="0,0,8,0" Command="{Binding ImportCommand}"

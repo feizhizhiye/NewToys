@@ -49,8 +49,9 @@
                   IsEnabled="{Binding !IsBusy}"/>
           <Button Classes="ghost" Content="⬆ 可升级" Margin="0,0,8,6" Command="{Binding LoadUpgradesCommand}"
                   IsEnabled="{Binding !IsBusy}"/>
-          <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,6" Command="{Binding RefreshCommand}"
-                  IsEnabled="{Binding !IsBusy}"/>
+          <Button Classes="ghost" Content="🔄 重新查询" Margin="0,0,8,6" Command="{Binding RefreshCommand}"
+                  IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="按当前所在的列表重跑一次（搜索 / 已安装 / 可升级）—— 走 winget 联网查询，要等几秒"/>
           <!--  v3.22 §6.2.3：常用 winget 命令封成按钮 —— pin list 的结果**并入 winget list 列表**一起显示  -->
           <Button Classes="ghost" Content="📌 Pin 列表" Margin="0,0,8,6" Command="{Binding LoadPinnedCommand}"
                   IsEnabled="{Binding !IsBusy}"

@@ -58,13 +58,14 @@
                             </SplitButton.Flyout>
                         </SplitButton>
                         <!--  v3.19 / NT-011：删「🔍 扫描」按钮 —— 选中文件夹（📂 导入 → 文件夹…）或目录框回车即扫描，
-                              独立扫描按钮冗余；「🔄 刷新」仍在（强制重扫）。  -->
+                              独立扫描按钮冗余；「🔄 重扫目录」仍在（强制重扫）。  -->
                         <Button
                             Margin="0,0,8,6"
                             Classes="ghost"
                             Command="{Binding RefreshCommand}"
-                            Content="🔄 刷新"
-                            IsEnabled="{Binding !IsBusy}" />
+                            Content="🔄 重扫目录"
+                            IsEnabled="{Binding !IsBusy}"
+                            ToolTip.Tip="重新枚举当前目录（按左边「含子目录」决定深不深扫）；勾选状态保留，媒体信息优先走 SQLite 缓存" />
                         <CheckBox
                             Margin="0,0,8,6"
                             Content="含子目录"
@@ -807,7 +808,8 @@
                         <Button Grid.Column="1" Classes="primary" Content="＋ 新建" Command="{Binding CreateTagCommand}"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*,Auto">
-                        <Button Grid.Column="0" Classes="ghost" Content="🔄 刷新" Command="{Binding RefreshTagManagerCommand}"/>
+                        <Button Grid.Column="0" Classes="ghost" Content="🔄 重读标签" Command="{Binding RefreshTagManagerCommand}"
+                                ToolTip.Tip="重新读一遍视频库里的标签清单"/>
                         <Button Grid.Column="2" Classes="ghost" Content="关闭" Command="{Binding CloseTagManagerCommand}"/>
                     </Grid>
                 </StackPanel>

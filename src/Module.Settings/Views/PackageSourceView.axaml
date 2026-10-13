@@ -19,8 +19,9 @@
                 <TextBlock Text="{Binding SummaryText}" FontSize="12"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
               </StackPanel>
-              <Button Grid.Column="1" Classes="ghost" Content="🔄 重新读取" Command="{Binding RefreshCommand}"
-                      IsEnabled="{Binding IsNotBusy}" VerticalAlignment="Center"/>
+              <Button Grid.Column="1" Classes="ghost" Content="🔄 重读源列表" Command="{Binding RefreshCommand}"
+                      IsEnabled="{Binding IsNotBusy}" VerticalAlignment="Center"
+                      ToolTip.Tip="重新读一遍系统 winget 的源列表（联网）"/>
             </Grid>
 
             <Border Classes="list-header" Height="36">

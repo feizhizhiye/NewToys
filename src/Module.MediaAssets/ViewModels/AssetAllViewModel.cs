@@ -178,7 +178,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private void Refresh()
     {
         Reload();
-        StatusText = IsDbAvailable ? $"已刷新：共 {Items.Count} 个资产" : "资产库不可用（数据库打不开）。";
+        StatusText = IsDbAvailable ? $"已重读资产库：共 {Items.Count} 个资产" : "资产库不可用（数据库打不开）。";
     }
 
     private void Reload()
@@ -314,12 +314,12 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             return;
         }
 
-        // 库视图 = 只清**当前显示**（数据仍在库里，「🔄 刷新」即找回）—— 对齐视频列表的同名按钮（§6.4.11）
+        // 库视图 = 只清**当前显示**（数据仍在库里，「🔄 重读资产库」即找回）—— 对齐视频列表的同名按钮（§6.4.11）
         Items.Clear();
         Selected = null;
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(ShowSampleRow));
-        StatusText = "已清空列表显示（数据仍在库里，点「🔄 刷新」找回）。";
+        StatusText = "已清空列表显示（数据仍在库里，点「🔄 重读资产库」找回）。";
     }
 
     /// <summary>库文件全路径（右键「🗄 打开库文件」的 ToolTip 用）。</summary>

@@ -70,7 +70,7 @@
                   Command="{Binding CommitDraftCommand}" IsEnabled="{Binding IsDraft}"
                   ToolTip.Tip="把当前预览结果写入资产库（⛔ 不动磁盘文件）"/>
           <!--  🔴 清除列表**任何状态都可用**（v3.29 用户反馈：库视图下置灰像坏了）：
-                草稿态 = 丢弃预览；库视图 = 只清当前显示（数据仍在库里，「🔄 刷新」找回）—— 对齐视频列表的同名按钮  -->
+                草稿态 = 丢弃预览；库视图 = 只清当前显示（数据仍在库里，「🔄 重读资产库」找回）—— 对齐视频列表的同名按钮  -->
           <Button Classes="ghost" Content="🧹 清除列表"
                   Command="{Binding ClearListCommand}"
                   ToolTip.Tip="草稿态：丢弃预览结果；库视图：清空当前显示（数据仍在库里，刷新即找回）"/>
@@ -90,10 +90,10 @@
           <Button Classes="ghost" Content="💾 存为智能集合" IsEnabled="False"
                   ToolTip.Tip="NT-018 落地"/>
 
-          <!--  ⚠️ 刷新 = **重读数据库**重建列表：⛔ 不扫盘、不读目录、不重新索引。
+          <!--  ⚠️ 「🔄 重读资产库」= **重读数据库**重建列表：⛔ 不扫盘、不读目录、不重新索引。
                 要重新扫一个文件夹，用左边的「📁 扫描」；要把登记的都扫一遍，用「🔄 扫描全部」；
                 要"回到刚打开时的状态"（丢排序 / 筛选 / 草稿），用**标题栏的 ⟳**。  -->
-          <Button Classes="ghost" Content="🔄 刷新"
+          <Button Classes="ghost" Content="🔄 重读资产库"
                   Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="重新读取资产库（⛔ 不扫描磁盘）"/>
         </WrapPanel>

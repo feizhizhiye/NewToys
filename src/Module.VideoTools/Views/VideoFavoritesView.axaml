@@ -21,7 +21,7 @@
                             Margin="0,0,8,6"
                             Classes="ghost"
                             Command="{Binding RefreshCommand}"
-                            Content="🔄 刷新"
+                            Content="🔄 重读收藏"
                             ToolTip.Tip="重新读一遍 video_favorites 表（缩略图 / 标签 / 文件信息都是现读的）" />
 
                         <Border
@@ -391,7 +391,8 @@
                         <Button Grid.Column="1" Classes="primary" Content="＋ 新建" Command="{Binding CreateTagCommand}"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*,Auto">
-                        <Button Grid.Column="0" Classes="ghost" Content="🔄 刷新" Command="{Binding RefreshTagManagerCommand}"/>
+                        <Button Grid.Column="0" Classes="ghost" Content="🔄 重读标签" Command="{Binding RefreshTagManagerCommand}"
+                                ToolTip.Tip="重新读一遍视频库里的标签清单"/>
                         <Button Grid.Column="2" Classes="ghost" Content="关闭" Command="{Binding CloseTagManagerCommand}"/>
                     </Grid>
                 </StackPanel>

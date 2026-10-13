@@ -28,7 +28,7 @@ public partial class DataViewModel : ObservableObject, NewToys.Shared.Services.I
         // 真正的文件枚举由 DataView.axaml.cs 在加载时调用 Refresh 命令完成；
         // 这里先清空展示，等待 code-behind 填充。
         ConfigFiles.Clear();
-        StatusText = $"配置列表已刷新 · {DateTime.Now:HH:mm:ss}";
+        StatusText = $"配置列表已重列 · {DateTime.Now:HH:mm:ss}";
     }
 
     [RelayCommand]

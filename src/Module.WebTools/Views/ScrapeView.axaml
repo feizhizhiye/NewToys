@@ -18,7 +18,8 @@
         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <Button Classes="primary" Content="➕ 新建任务" Margin="0,0,8,0" Command="{Binding NewTaskCommand}"/>
           <Button Classes="ghost" Content="▶ 运行全部" Margin="0,0,8,0" Command="{Binding RunAllCommand}" IsEnabled="{Binding !IsBusy}"/>
-          <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"/>
+          <Button Classes="ghost" Content="🔄 重读任务" Margin="0,0,8,0" Command="{Binding RefreshCommand}"
+                  ToolTip.Tip="重新读一遍本地的抓取任务配置（⛔ 不开始抓取）"/>
           <TextBox Width="220" Margin="0,0,8,0" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索名称 / 网址 / 规则…"/>
           <TextBlock Text="右键列表项：运行 / 发送到书签 / 编辑 / 删除" FontSize="11"
                      VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>

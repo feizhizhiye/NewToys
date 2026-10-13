@@ -5,7 +5,8 @@
     <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
                 Margin="24,16,24,0" Spacing="8">
-      <Button x:Name="BtnRefresh" Classes="ghost" Content="🔄 刷新"/>
+      <Button x:Name="BtnRefresh" Classes="ghost" Content="🔄 重列配置"
+              ToolTip.Tip="重新列一遍 config 目录下的配置文件（⛔ 不备份、不修改）"/>
       <Button x:Name="BtnBackup" Classes="primary" Content="📤 备份到文件"/>
       <Button x:Name="BtnImport" Classes="ghost" Content="📥 从备份导入"/>
     </StackPanel>

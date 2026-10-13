@@ -19,7 +19,8 @@
           <Button x:Name="BtnImport" Classes="primary" Content="📥 导入文件" Margin="0,0,8,0" ToolTip.Tip="选择一行一个主机的文本文件"/>
           <Button Classes="ghost" Content="➕ 新建" Margin="0,0,8,0" Command="{Binding NewTargetCommand}"/>
           <Button Classes="ghost" Content="📡 批量 Ping" Margin="0,0,8,0" Command="{Binding PingAllCommand}" IsEnabled="{Binding !IsBusy}"/>
-          <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0" Command="{Binding RefreshCommand}"/>
+          <Button Classes="ghost" Content="🔄 重读目标" Margin="0,0,8,0" Command="{Binding RefreshCommand}"
+                  ToolTip.Tip="重新读一遍本地的目标清单（⛔ 不发起 Ping）"/>
           <ComboBox ItemsSource="{Binding DnsPresets}" SelectedItem="{Binding SelectedDns, Mode=TwoWay}"
                     Width="200" Margin="0,0,8,0" ToolTip.Tip="切换 DNS：批量 Ping 与未单独设置 DNS 的目标都按此解析"/>
           <TextBox Width="200" Margin="0,0,8,0" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索主机…"/>

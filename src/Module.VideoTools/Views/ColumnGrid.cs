@@ -103,7 +103,8 @@ public class ColumnGrid : Grid
             Rebuild();
             RebuildGrips();
         }
-        else if (change.Property is IsResizableProperty or LockedColumnsProperty)
+        // ⛔ 别写成 `is A or B` —— Avalonia 分析器要求这里必须是**常量比较**（CS9135），用 == 逐个比。
+        else if (change.Property == IsResizableProperty || change.Property == LockedColumnsProperty)
         {
             _gripMask = "";   // 强制重建（开关变了 / 锁定集合变了）
             RebuildGrips();

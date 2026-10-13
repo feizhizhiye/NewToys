@@ -263,7 +263,7 @@ public class VideoCatalogService
                 cmd.Parameters.AddWithValue("$old", (oldTag ?? "").Trim());
                 cmd.Parameters.AddWithValue("$new", nn);
                 cmd.ExecuteNonQuery();
-                DeleteTagIndex(oldTag);
+                DeleteTagIndex((oldTag ?? "").Trim());
             }
             catch { }
         }

@@ -24,6 +24,12 @@ public class ScanJob
     public string? StartedAt { get; set; }
     public string? FinishedAt { get; set; }
     public string CreatedAt { get; set; } = "";
+
+    /// <summary>任务中心「计数」列的一行说明（⛔ 别在 XAML 里拼多段 StringFormat —— 只支持一个绑定）。</summary>
+    public string CountText => $"新增 {AddedFiles} / 更新 {UpdatedFiles} / 丢失 {MissingFiles} / 失败 {ErrorCount}";
+
+    /// <summary>目标存储源的显示串（空 = 全部在线存储源）。</summary>
+    public string StorageText => StorageId.HasValue ? $"#{StorageId}" : "全部";
 }
 
 /// <summary>扫描过程中单个文件的错误（`scan_errors`）：权限 / 占用 / 读失败等，⛔ 不中断整次扫描。</summary>

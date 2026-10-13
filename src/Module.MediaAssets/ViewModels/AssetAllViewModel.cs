@@ -44,6 +44,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private readonly RelationService _relationSvc = null!;
     private readonly OperationLogService _opLog = null!;
     private readonly AssetNavigationStore _navStore = null!;
+    private readonly FileOperationService _fileOps = null!;
     private readonly IAppConfigService? _app;
     private readonly List<AssetRow> _all = new();
     private AssetDetailView? _detailView;
@@ -200,7 +201,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public AssetAllViewModel(AssetService assets, ScanService scan, IColumnLayoutService cols,
         IAppConfigService? app = null,
         TagService? tagSvc = null, CategoryService? catSvc = null, CollectionService? colSvc = null,
-        RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null)
+        RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null,
+        FileOperationService? fileOps = null)
         : base(cols)
     {
         _assets = assets;
@@ -212,6 +214,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _relationSvc = relationSvc!;
         _opLog = opLog!;
         _navStore = navStore!;
+        _fileOps = fileOps!;
 
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
         BuildStaticOptions();               // 类型 / 状态（固定值）
@@ -751,6 +754,45 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         ApplyView();
         StatusText = $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。";
+    }
+
+    /// <summary>
+    /// 详情卡「↗ 应用到文件」（NT-019）：⚠️ 与「💾 保存」完全不同 ——
+    /// 「保存」只写**库里的显示名**（⛔ 不动磁盘）；这个才是**把名字真写到磁盘文件上**。
+    /// <para>物理操作 → 走任务队列 + 日志先行；同名冲突按「追加序号」处理（⛔ 不覆盖，覆盖会丢文件）。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task ApplyToFileAsync()
+    {
+        if (Selected == null) { StatusText = "先在左侧选中一个资产。"; return; }
+
+        var row = Selected;
+        var loc = _assets.FindPrimaryLocation(row.Id) ?? _assets.ListLocations(row.Id).FirstOrDefault();
+        if (loc == null) { StatusText = "这个资产没有登记文件位置，没法应用到文件。"; return; }
+        if (!IsDbAvailable) { StatusText = "资产库不可用。"; return; }
+
+        var current = Path.GetFileName(loc.Path);
+        var suggested = row.DisplayName ?? row.Title ?? Path.GetFileNameWithoutExtension(current);
+        var newName = await DialogHooks.InputAsync(
+            $"把磁盘文件改成什么名字？\n当前：{current}\n（这是**真改磁盘文件名**；只改库里的显示名请用「💾 保存」）",
+            suggested).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(newName)) { StatusText = "已取消（没改磁盘文件）。"; return; }
+
+        var name = newName.Trim();
+        _fileOps.Queue.Enqueue($"重命名 {current}", async (ct, p) =>
+        {
+            await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                p.Report($"正在把「{current}」改成「{name}」…");
+                var r = _fileOps.Rename(loc, name, ConflictPolicy.AppendNumber);
+                p.Report(r.Message);
+            }, ct).ConfigureAwait(false);
+
+            try { Dispatcher.UIThread.Post(Reload); } catch { /* 已关闭 */ }
+        });
+
+        StatusText = $"已把「{current}」的重命名排进任务队列（进度看「任务中心」）。";
     }
 
     /// <summary>详情卡「🗑 移入回收站」= **软删除**（只改 `status`，⛔ 不删行、⛔ 不动磁盘文件）。</summary>

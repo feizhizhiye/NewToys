@@ -33,4 +33,12 @@ public class OperationLog
 
     public string CreatedAt { get; set; } = "";
     public string? FinishedAt { get; set; }
+
+    /// <summary>任务中心「对象」列：`asset #12` 这类（⛔ 别在 XAML 里拼多段 StringFormat）。</summary>
+    public string EntityText => EntityId.HasValue ? $"{EntityType} #{EntityId}" : EntityType;
+
+    /// <summary>「错误 / 备注」列：失败看 <see cref="Error"/>，成功看 after_json 的摘要。</summary>
+    public string NoteText => !string.IsNullOrWhiteSpace(Error)
+        ? Error!
+        : (Reversible ? "可逆" : "");
 }

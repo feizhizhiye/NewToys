@@ -174,10 +174,13 @@
 
         <Border Classes="divider-line"/>
 
-        <!--  ===== 保存 / 移入回收站（v3.29 定调：卡内允许「编辑 + 保存」） =====  -->
+        <!--  ===== 保存 / 应用到文件 / 移入回收站（v3.29 定调：卡内允许「编辑 + 保存」） =====  -->
         <Button Classes="primary" Content="💾 保存" Command="{Binding SaveAssetDetailCommand}"
                 HorizontalAlignment="Stretch"
                 ToolTip.Tip="把显示名 / 评分 / 描述 / 标签 / 分类 / 集合写进资产库（⛔ 不动磁盘文件）"/>
+        <Button Classes="ghost" Content="↗ 应用到文件" Command="{Binding ApplyToFileCommand}"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="把名字**真写到磁盘文件上**（物理重命名：走任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）"/>
         <Button Classes="danger-btn" Content="🗑 移入回收站" Command="{Binding MoveToTrashCommand}"
                 HorizontalAlignment="Stretch"
                 ToolTip.Tip="软删除：只改库里的状态（⛔ 不动磁盘文件；在「回收站」页能恢复）"/>

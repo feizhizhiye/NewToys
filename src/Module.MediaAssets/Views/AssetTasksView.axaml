@@ -1,17 +1,179 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.MediaAssets.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetTasksView">
-  <!--  NT-014 骨架占位：本页真正的列表 / 详情 / 工具条 / 筛选在后续待办（NT-016~022）依次落地。  -->
-  <Grid RowDefinitions="Auto,*">
-    <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
-      <TextBlock Classes="section-title" Text="任务中心"/>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图任务：取消 / 重试 / 日志"/>
-    </StackPanel>
-    <Border Grid.Row="1" Margin="24,12,24,16" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="🚧 骨架占位（NT-014）"/>
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="页面实现在后续待办落地"/>
-      </StackPanel>
+  <!--
+    NT-019「任务中心」页：三块 —— ① 运行态任务队列（可取消）② 最近扫描任务（可重扫）③ 操作日志。
+    ⚠️ 队列不持久化（进程退出即清）；长期记录看下面两块（`scan_jobs` / `operation_logs`）。
+    ⚠️ 本页**不是** ListPageViewModelBase：三块数据来源不同、列也不同，用固定列宽的 ColumnGrid 直渲。
+    ⛔ 不实现 IDetailPanelProvider（没有右详情列）。
+  -->
+  <Grid RowDefinitions="Auto,*" Margin="12">
+
+    <Border Grid.Row="0" Classes="toolbar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" ItemSpacing="8" LineSpacing="4">
+        <Button Classes="ghost" Content="✖ 取消选中任务" Command="{Binding CancelTaskCommand}"
+                CommandParameter="{Binding SelectedTask}"
+                ToolTip.Tip="取消选中的那件任务（排队中的直接取消；正在跑的会请求取消）"/>
+        <Button Classes="ghost" Content="⛔ 全部取消" Command="{Binding CancelAllTasksCommand}"
+                ToolTip.Tip="取消所有**排队中**的任务"/>
+        <Button Classes="ghost" Content="🧹 清理已结束" Command="{Binding ClearFinishedCommand}"
+                ToolTip.Tip="清掉已完成 / 失败 / 已取消的历史项（⛔ 不动排队中与在跑的）"/>
+        <Button Classes="ghost" Content="🔄 重读任务" Command="{Binding RefreshTasksCommand}"
+                ToolTip.Tip="重新读取任务队列 / 扫描记录 / 操作日志（⛔ 不扫盘）"/>
+      </WrapPanel>
     </Border>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="12">
+
+        <!--  ==================== ① 任务队列（运行态） ====================  -->
+        <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="section-title" Text="任务队列（本次运行）"/>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasTasks}"
+                       Text="队列是空的。扫描 / 永久删除这类会动磁盘的活会排进这里，可在「任务中心」看进度与取消。"/>
+
+            <v:ColumnGrid ColumnSpecs="2.6*,1*,2.4*,1.2*,1.2*" IsVisible="{Binding HasTasks}">
+              <TextBlock Grid.Column="0" Classes="list-cell" Text="任务"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" Text="状态"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" Text="进度 / 错误"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" Text="开始"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="4" Classes="list-cell" Text="结束"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+            </v:ColumnGrid>
+
+            <ListBox ItemsSource="{Binding Tasks}" SelectedItem="{Binding SelectedTask, Mode=TwoWay}"
+                     SelectionMode="Single" MaxHeight="260" Background="Transparent">
+              <ListBox.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="✖ 取消任务" Command="{Binding CancelTaskCommand}"
+                            CommandParameter="{Binding $parent[ListBox].SelectedItem}"/>
+                </ContextMenu>
+              </ListBox.ContextMenu>
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <v:ColumnGrid ColumnSpecs="2.6*,1*,2.4*,1.2*,1.2*">
+                    <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Title}"
+                               Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding StatusText}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding ProgressText}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="3" Classes="list-cell"
+                               Text="{Binding StartedAt, StringFormat='{}{0:HH:mm:ss}'}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="4" Classes="list-cell"
+                               Text="{Binding FinishedAt, StringFormat='{}{0:HH:mm:ss}'}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  </v:ColumnGrid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+        </Border>
+
+        <!--  ==================== ② 最近扫描任务（可重扫） ====================  -->
+        <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="section-title" Text="最近扫描任务（scan_jobs）"/>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasScanJobs}"
+                       Text="还没有扫描记录。在「全部资产」页点「📁 扫描」或「🔄 扫描全部」就会留下记录。"/>
+
+            <v:ColumnGrid ColumnSpecs="0.8*,1*,1.4*,1.6*,1.2*,1.2*" IsVisible="{Binding HasScanJobs}">
+              <TextBlock Grid.Column="0" Classes="list-cell" Text="ID"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" Text="状态"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" Text="存储源"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" Text="计数"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="4" Classes="list-cell" Text="开始"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="5" Classes="list-cell" Text="结束"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+            </v:ColumnGrid>
+
+            <ListBox ItemsSource="{Binding ScanJobs}" SelectedItem="{Binding SelectedScanJob, Mode=TwoWay}"
+                     SelectionMode="Single" MaxHeight="240" Background="Transparent">
+              <ListBox.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="↻ 重扫（重试）" Command="{Binding RetryScanCommand}"
+                            CommandParameter="{Binding $parent[ListBox].SelectedItem}"
+                            ToolTip.Tip="对同一个存储源再扫一遍（排进任务队列）"/>
+                </ContextMenu>
+              </ListBox.ContextMenu>
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <v:ColumnGrid ColumnSpecs="0.8*,1*,1.4*,1.6*,1.2*,1.2*">
+                    <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Id}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Status}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding StorageText}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding CountText}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding StartedAt}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding FinishedAt}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  </v:ColumnGrid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+        </Border>
+
+        <!--  ==================== ③ 操作日志（含物理操作的日志先行） ====================  -->
+        <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="section-title" Text="操作日志（operation_logs）"/>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasLogs}"
+                       Text="还没有日志。打标签 / 改显示名 / 物理操作都会写一条（物理操作是「先写 pending 再动磁盘」）。"/>
+
+            <v:ColumnGrid ColumnSpecs="1.2*,1.2*,1*,2.4*,1.4*" IsVisible="{Binding HasLogs}">
+              <TextBlock Grid.Column="0" Classes="list-cell" Text="类型"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" Text="对象"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" Text="状态"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" Text="错误 / 备注"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="4" Classes="list-cell" Text="时间"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+            </v:ColumnGrid>
+
+            <ItemsControl ItemsSource="{Binding Logs}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <v:ColumnGrid ColumnSpecs="1.2*,1.2*,1*,2.4*,1.4*">
+                    <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding OpType}"
+                               Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding EntityText}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Status}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding NoteText}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding CreatedAt}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  </v:ColumnGrid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
   </Grid>
 </UserControl>

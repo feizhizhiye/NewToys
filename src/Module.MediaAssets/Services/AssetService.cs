@@ -263,6 +263,57 @@ public class AssetService
         catch { return false; }
     }
 
+    /// <summary>
+    /// NT-019：删掉一条文件位置（**永久删除**流程用 —— 磁盘文件已经真删了，库里这条索引就没意义了）。
+    /// ⛔ 只删索引行，⛔ 不碰磁盘。
+    /// </summary>
+    public bool DeleteLocation(long locationId)
+    {
+        if (locationId <= 0 || !IsAvailable) return false;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM file_locations WHERE id=$id;";
+            cmd.Parameters.AddWithValue("$id", locationId);
+            return cmd.ExecuteNonQuery() > 0;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// NT-019：删掉资产本体（**永久删除**流程用）—— 连带它的文件位置 / 标签 / 分类 / 集合挂接 / 关联。
+    /// ⛔ 只删索引，⛔ 不碰磁盘（磁盘文件的删除由 <c>FileOperationService</c> 负责）。
+    /// </summary>
+    public bool DeleteAsset(long assetId)
+    {
+        if (assetId <= 0 || !IsAvailable) return false;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var tx = conn.BeginTransaction();
+            foreach (var sql in new[]
+                     {
+                         "DELETE FROM file_locations WHERE asset_id=$id;",
+                         "DELETE FROM asset_tags WHERE asset_id=$id;",
+                         "DELETE FROM asset_categories WHERE asset_id=$id;",
+                         "DELETE FROM collection_assets WHERE asset_id=$id;",
+                         "DELETE FROM relations WHERE source_asset_id=$id OR target_asset_id=$id;",
+                         "DELETE FROM assets WHERE id=$id;"
+                     })
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = sql;
+                cmd.Parameters.AddWithValue("$id", assetId);
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+            return true;
+        }
+        catch { return false; }
+    }
+
     /// <summary>软删除 / 恢复 / 标丢失（只改状态，⛔ 不删行）。</summary>
     public void SetAssetStatus(long id, string status)
     {

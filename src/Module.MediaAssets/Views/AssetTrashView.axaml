@@ -1,17 +1,152 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.MediaAssets.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetTrashView">
-  <!--  NT-014 骨架占位：本页真正的列表 / 详情 / 工具条 / 筛选在后续待办（NT-016~022）依次落地。  -->
-  <Grid RowDefinitions="Auto,*">
-    <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
-      <TextBlock Classes="section-title" Text="回收站"/>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="已软删除资产：恢复 / 永久删除 / 清空"/>
-    </StackPanel>
-    <Border Grid.Row="1" Margin="24,12,24,16" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="🚧 骨架占位（NT-014）"/>
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="页面实现在后续待办落地"/>
-      </StackPanel>
+  <!--
+    NT-019「回收站」页：`assets.status='trashed'` 的资产列表（右详情卡由 **Shell** 承载，⛔ 本页不自带右栏）。
+    ⚠️ 「♻ 恢复」= 只改库状态（逻辑操作）；「🗑 永久删除 / 清空」= 真删磁盘 + 删索引（物理操作 → 任务中心可见）。
+  -->
+  <Grid RowDefinitions="Auto,Auto,*" Margin="12">
+
+    <Border Grid.Row="0" Classes="toolbar">
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                   ItemSpacing="8" LineSpacing="4">
+          <Button Classes="primary" Content="♻ 恢复" Command="{Binding RestoreCommand}"
+                  IsEnabled="{Binding HasSelection}"
+                  ToolTip.Tip="恢复回「正常」状态（⛔ 只改库里的状态，磁盘文件本来就还在）"/>
+          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索名称 / 路径…"/>
+          <Button Classes="danger-btn" Content="🗑 永久删除选中" Command="{Binding PurgeSelectedCommand}"
+                  IsEnabled="{Binding HasSelection}"
+                  ToolTip.Tip="真删磁盘文件 + 删索引行（二次确认；⛔ 不进回收站、无法还原）"/>
+          <Button Classes="danger-btn" Content="🧹 清空回收站" Command="{Binding EmptyTrashCommand}"
+                  ToolTip.Tip="把回收站里所有资产永久删除（二次确认）"/>
+          <Button Classes="ghost" Content="🔄 重读回收站" Command="{Binding RefreshTrashCommand}"
+                  ToolTip.Tip="重新读取资产库里的回收站状态行（⛔ 不扫盘）"/>
+        </WrapPanel>
+
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Command="{Binding ToggleDetailPanelCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一个）">
+          <Panel>
+            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsDetailVisible}"/>
+            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsDetailVisible}"/>
+          </Panel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Classes="filter-bar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
+        <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <TextBlock Text="左键表头排序 · 右键表头选列 / 筛选" FontSize="11" VerticalAlignment="Center"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </WrapPanel>
+    </Border>
+
+    <Border Grid.Row="2" Padding="0" Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
+      <Grid RowDefinitions="Auto,Auto,*">
+
+        <Border Grid.Row="0" Classes="list-header">
+          <v:ColumnGrid x:Name="HeaderGrid"
+                        ColumnSpecs="{Binding VisibleColumnSpecs}"
+                        IsResizable="True"
+                        LockedColumns="{Binding LockedColumnMask}"
+                        SampleSpecs="{Binding SampleSpecs}">
+            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
+            <Button Grid.Column="1" Classes="col-header" Content="{Binding TypeHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Type" IsVisible="{Binding IsTypeVisible}"/>
+            <Button Grid.Column="2" Classes="col-header" Content="{Binding SizeHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Size" IsVisible="{Binding IsSizeVisible}"/>
+            <Button Grid.Column="3" Classes="col-header" Content="{Binding ModifiedHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Modified" IsVisible="{Binding IsModifiedVisible}"/>
+            <Button Grid.Column="4" Classes="col-header" Content="{Binding StorageHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Storage" IsVisible="{Binding IsStorageVisible}"/>
+
+            <v:ColumnGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                  <MenuItem.ItemContainerTheme>
+                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                      <Setter Property="Header" Value="{Binding Label}"/>
+                      <Setter Property="Command" Value="{Binding Command}"/>
+                    </ControlTheme>
+                  </MenuItem.ItemContainerTheme>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
+                          IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
+                <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
+                <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
+                <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
+                <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Storage"/>
+              </ContextMenu>
+            </v:ColumnGrid.ContextMenu>
+          </v:ColumnGrid>
+        </Border>
+
+        <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
+                ToolTip.Tip="这是示例数据；回收站里有资产后这一行会消失">
+          <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+            <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding SampleRowTexts[0]}"
+                       Foreground="{DynamicResource PrimaryTextBrush}" IsVisible="{Binding IsNameVisible}"/>
+            <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SampleRowTexts[1]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTypeVisible}"/>
+            <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SampleRowTexts[2]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsSizeVisible}"/>
+            <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding SampleRowTexts[3]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsModifiedVisible}"/>
+            <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding SampleRowTexts[4]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsStorageVisible}"/>
+          </v:ColumnGrid>
+        </Border>
+
+        <ListBox Grid.Row="2" x:Name="TrashList" Classes="list-page"
+                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                 SelectionMode="Single">
+          <ListBox.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="♻ 恢复" Command="{Binding RestoreCommand}"
+                        ToolTip.Tip="改回「正常」状态（库操作，磁盘文件没动）"/>
+              <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderCommand}"/>
+              <Separator/>
+              <MenuItem Header="🗑 永久删除" Command="{Binding PurgeSelectedCommand}"
+                        ToolTip.Tip="真删磁盘文件（二次确认；无法还原）"/>
+            </ContextMenu>
+          </ListBox.ContextMenu>
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           ToolTip.Tip="{Binding FilePath}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
+                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SizeText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding ModifiedText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
+                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding StorageName}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
+              </v:ColumnGrid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
     </Border>
   </Grid>
 </UserControl>

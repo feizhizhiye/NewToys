@@ -25,8 +25,8 @@ public class AssetVideoViewModel : AssetAllViewModel
     public AssetVideoViewModel(AssetService assets, ScanService scan, IColumnLayoutService cols,
         IAppConfigService? app = null, TagService? tagSvc = null, CategoryService? catSvc = null,
         CollectionService? colSvc = null, RelationService? relationSvc = null,
-        OperationLogService? opLog = null, AssetNavigationStore? navStore = null)
-        : base(assets, scan, cols, app, tagSvc, catSvc, colSvc, relationSvc, opLog, navStore)
+        OperationLogService? opLog = null, AssetNavigationStore? navStore = null, FileOperationService? fileOps = null)
+        : base(assets, scan, cols, app, tagSvc, catSvc, colSvc, relationSvc, opLog, navStore, fileOps)
         => SetPresetType(AssetTypes.Video);
 
     /// <inheritdoc/>

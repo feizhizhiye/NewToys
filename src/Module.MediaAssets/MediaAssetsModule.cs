@@ -47,6 +47,8 @@ public class MediaAssetsModule : IModule
         // NT-022：资产列表 JSON 导入 / 导出 + 用户数据（标签/分类/集合/关联）导出 / 恢复
         services.AddSingleton<Services.AssetImportExport>();
         services.AddSingleton<Services.UserDataExport>();
+        // NT-026：多库融合（ATTACH 只读合并 + VACUUM INTO 另存）
+        services.AddSingleton<Services.AssetMergeService>();
 
         // ===== 页面 View / VM（NT-014 骨架：全是空页面；页面实现 NT-016~022 依次落地） =====
         services.AddTransient<Views.AssetAllView>();        services.AddTransient<ViewModels.AssetAllViewModel>();

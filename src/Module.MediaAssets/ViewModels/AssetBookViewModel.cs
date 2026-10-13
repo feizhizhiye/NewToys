@@ -17,8 +17,9 @@ public class AssetBookViewModel : AssetAllViewModel
     public AssetBookViewModel(AssetService assets, ScanService scan, IColumnLayoutService cols,
         IAppConfigService? app = null, TagService? tagSvc = null, CategoryService? catSvc = null,
         CollectionService? colSvc = null, RelationService? relationSvc = null,
-        OperationLogService? opLog = null, AssetNavigationStore? navStore = null, FileOperationService? fileOps = null)
-        : base(assets, scan, cols, app, tagSvc, catSvc, colSvc, relationSvc, opLog, navStore, fileOps)
+        OperationLogService? opLog = null, AssetNavigationStore? navStore = null, FileOperationService? fileOps = null,
+        AssetImportExport? impExp = null, AssetMergeService? merge = null, TaskQueue? queue = null)
+        : base(assets, scan, cols, app, tagSvc, catSvc, colSvc, relationSvc, opLog, navStore, fileOps, impExp, merge, queue)
         => SetPresetType(AssetTypes.Book);
 
     /// <inheritdoc/>

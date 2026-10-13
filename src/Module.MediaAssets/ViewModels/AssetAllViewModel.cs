@@ -46,6 +46,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private readonly AssetNavigationStore _navStore = null!;
     private readonly FileOperationService _fileOps = null!;
     private readonly AssetImportExport _impExp = null!;
+    private readonly AssetMergeService _merge = null!;
+    private readonly TaskQueue _queue = null!;
     private readonly IAppConfigService? _app;
     private readonly List<AssetRow> _all = new();
     private AssetDetailView? _detailView;
@@ -216,6 +218,93 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         return (ok, msg);
     }
 
+    // ==================== NT-026：多库融合（并库 / 另存 / 勾选删除） ====================
+
+    /// <summary>
+    /// 「🗄 并入库文件」：预览 → 确认摘要 → 合并进主库（走任务队列，进度在「任务中心」看）。
+    /// 🔴 源库**只读**：ATTACH 后只 SELECT，⛔ 一个字节都不改源文件。
+    /// </summary>
+    [RelayCommand]
+    private async Task MergeLibraryAsync(string? dbPath)
+    {
+        if (string.IsNullOrWhiteSpace(dbPath)) { StatusText = "未选择库文件。"; return; }
+        if (!IsDbAvailable) { StatusText = "资产库不可用。"; return; }
+
+        var preview = _merge.Preview(dbPath);
+        if (!preview.Ok) { StatusText = preview.Message; return; }
+
+        var missing = preview.MissingTables.Count > 0
+            ? $"\n⚠️ 源库缺 {preview.MissingTables.Count} 张表（{string.Join("、", preview.MissingTables)}）——按老库兼容处理，缺的跳过。"
+            : "";
+        if (!await DialogHooks.ConfirmAsync(
+                $"把库文件合并进当前资产库？\n{dbPath}\n\n该库规模：{preview.SummaryText}{missing}\n\n" +
+                "按路径 / 内容去重（重复并入第二次基本全跳过）；源库不会被修改。").ConfigureAwait(false))
+        {
+            StatusText = "已取消合并。";
+            return;
+        }
+
+        _queue.Enqueue($"合并库 {Path.GetFileName(dbPath)}", async (ct, p) =>
+        {
+            var result = await Task.Run(() => _merge.Merge(dbPath, p, ct), ct).ConfigureAwait(false);
+            try { Dispatcher.UIThread.Post(Reload); } catch { /* 已关闭 */ }
+            p.Report(result.Ok ? result.Message : "失败：" + result.Message);
+        });
+        StatusText = "已把合并任务排进队列——正在打开「任务中心」看进度。";
+        _navStore.NavigateTo("assets-tasks");
+    }
+
+    /// <summary>
+    /// 「💾 保存」：把当前主库**另存为**一个新 .db（VACUUM INTO 在线备份，一致快照）。
+    /// 目标已存在 → 二次确认后覆盖（⛔ 不静默覆盖）。
+    /// </summary>
+    [RelayCommand]
+    private async Task SaveLibraryAsAsync(string? targetPath)
+    {
+        if (string.IsNullOrWhiteSpace(targetPath)) { StatusText = "未指定保存位置。"; return; }
+        if (!IsDbAvailable) { StatusText = "资产库不可用。"; return; }
+
+        if (File.Exists(targetPath))
+        {
+            if (!await DialogHooks.ConfirmAsync($"「{targetPath}」已存在——覆盖它？（⛔ 不可恢复）").ConfigureAwait(false))
+            {
+                StatusText = "已取消保存（换个文件名即可）。";
+                return;
+            }
+            try { File.Delete(targetPath); }
+            catch (Exception ex) { StatusText = "无法覆盖旧文件：" + ex.Message; return; }
+        }
+
+        var (ok, msg) = _merge.SaveAs(targetPath);
+        StatusText = msg;
+    }
+
+    /// <summary>
+    /// 「🗑 移入回收站（选中 N）」：NT-026 的"减"——勾选行批量软删除（进回收站可恢复；⛔ 不动磁盘）。
+    /// </summary>
+    [RelayCommand]
+    private async Task TrashCheckedAsync()
+    {
+        var rows = _all.Where(r => r.IsChecked).ToList();
+        if (rows.Count == 0) { StatusText = "先勾选要移除的资产（行首勾选框，或表头 ☑ 全选）。"; return; }
+
+        if (!await DialogHooks.ConfirmAsync(
+                $"把勾选的 {rows.Count} 个资产移入回收站？\n" +
+                "⛔ 只改库里的状态，**不动磁盘文件**；回收站里能恢复，也能永久删除。").ConfigureAwait(false))
+        {
+            StatusText = "已取消。";
+            return;
+        }
+
+        foreach (var r in rows)
+        {
+            _assets.SetAssetStatus(r.Id, AssetStatuses.Trashed);
+            _opLog.Log("trash", "asset", r.Id, beforeJson: "{\"status\":\"active\"}", afterJson: "{\"status\":\"trashed\"}");
+        }
+        Reload();
+        StatusText = $"已把 {rows.Count} 个资产移入回收站（磁盘文件没动）。";
+    }
+
     /// <summary>资产库是否可用（不可用时页面照常显示 + 状态栏提示，⛔ 不崩）。</summary>
     public bool IsDbAvailable => _assets?.IsAvailable ?? false;
 
@@ -225,7 +314,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         IAppConfigService? app = null,
         TagService? tagSvc = null, CategoryService? catSvc = null, CollectionService? colSvc = null,
         RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null,
-        FileOperationService? fileOps = null, AssetImportExport? impExp = null)
+        FileOperationService? fileOps = null, AssetImportExport? impExp = null, AssetMergeService? merge = null,
+        TaskQueue? queue = null)
         : base(cols)
     {
         _assets = assets;
@@ -239,6 +329,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _navStore = navStore!;
         _fileOps = fileOps!;
         _impExp = impExp!;
+        _merge = merge!;
+        _queue = queue!;
 
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
         BuildStaticOptions();               // 类型 / 状态（固定值）

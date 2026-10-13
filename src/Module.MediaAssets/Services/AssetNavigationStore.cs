@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NewToys.MediaAssets.Models;
+using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.Services;
 
@@ -12,9 +13,16 @@ namespace NewToys.MediaAssets.Services;
 /// 目标页在 <c>OnAttachedToVisualTree</c>（🔴 **不是** `OnDataContextChanged`，规范 §4.8 硬规则 8）
 /// 调 <see cref="Take"/> 取件；取完即清空（⛔ 不重复消费）。
 /// </para>
+/// <para>NT-020 / NT-026 起也承担「跳到某页（不选资产）」——合并 / 扫描任务入队后跳「任务中心」看进度。</para>
 /// </summary>
 public class AssetNavigationStore
 {
+    private readonly INavigationService? _nav;
+
+    public AssetNavigationStore() { }
+
+    public AssetNavigationStore(INavigationService? nav) => _nav = nav;
+
     private readonly object _gate = new();
     private (string MenuKey, long AssetId)? _pending;
 
@@ -23,6 +31,12 @@ public class AssetNavigationStore
     {
         if (string.IsNullOrWhiteSpace(menuKey) || assetId <= 0) return;
         lock (_gate) _pending = (menuKey, assetId);
+    }
+
+    /// <summary>跳到某页（⛔ 不选资产；任务入队后看进度用）。</summary>
+    public void NavigateTo(string menuKey)
+    {
+        if (!string.IsNullOrWhiteSpace(menuKey)) _nav?.NavigateTo(menuKey);
     }
 
     /// <summary>取件（取完即清空）；没有待处理项时返回 <c>null</c>。</summary>

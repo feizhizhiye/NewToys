@@ -26,6 +26,9 @@ public partial class AssetAllView : UserControl
         ScanFolderItem.Click += (_, _) => _ = ScanFolderAsync();
         ScanFilesItem.Click += (_, _) => _ = ScanFilesAsync();
 
+        // ② NT-026：「🗄 并入库文件…」主按钮 = 选一个外部 .db 并入当前库（预览 + 确认在 VM 里做）。
+        MergeSplit.Click += (_, _) => _ = PickMergeDbAsync();
+
         // ③ 「➕ 登记文件夹」：加入待扫列表（⛔ 不扫描，等「🔄 扫描全部」）
         BtnRegisterFolder.Click += async (_, _) =>
         {
@@ -119,6 +122,50 @@ public partial class AssetAllView : UserControl
         }
         if (paths.Count == 0) return;
         await vm.PreviewFilesAsync(paths).ConfigureAwait(false);
+    }
+
+    /// <summary>NT-026：「🗄 并入库文件…」：选一个外部 .db → VM 预览 + 确认 + 入队合并。</summary>
+    private async Task PickMergeDbAsync()
+    {
+        if (DataContext is not AssetAllViewModel vm) return;
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+        var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "选择要并入当前库的 newtoys.db",
+            SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("SQLite 数据库") { Patterns = new[] { "*.db", "*.db3", "*.sqlite" } },
+                new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+            }
+        }).ConfigureAwait(false);
+
+        var path = files?.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (string.IsNullOrWhiteSpace(path)) return;
+        vm.MergeLibraryCommand.Execute(path);
+    }
+
+    /// <summary>NT-026：「💾 保存」：选一个目标 .db → VM 另存（已存在会问覆盖）。</summary>
+    private async void OnSaveLibraryAsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not AssetAllViewModel vm) return;
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+        var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "保存资产库为",
+            SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
+            SuggestedFileName = "newtoys.db",
+            FileTypeChoices = new[] { new FilePickerFileType("SQLite 数据库") { Patterns = new[] { "*.db" } } }
+        }).ConfigureAwait(false);
+
+        var path = file?.TryGetLocalPath();
+        if (string.IsNullOrWhiteSpace(path)) return;
+        vm.SaveLibraryAsCommand.Execute(path);
     }
 
     /// <summary>弹目录选择框，返回选中的本地路径（取消 / 拿不到 → null）。</summary>

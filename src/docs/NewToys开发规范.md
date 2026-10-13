@@ -1,6 +1,6 @@
 # NewToys 开发规范
 
-> v3.20 · 2026-10-13 · 技术实现指南
+> v3.21 · 2026-10-13 · 技术实现指南
 > 🔴 **工作流不在此定义**：`规划 / 执行双模式` + 状态机 + 验收清理的唯一定义处 = 《AI协作提示词》；本文件只管「怎么具体实现」。
 > 权威源：需求（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕折衷约束（本文件台账）
@@ -10,6 +10,7 @@
 > **v3.17 变更**：§3.6 列宽判定改为**示例值（Sample）**（列表空时显示一条水印示例行；示例宽 ≤ 表头宽 → 锁表头宽且 ≥34px 保证把手可拖）；补两个 Avalonia 坑：**MenuItem 子菜单的 `ItemContainerTheme` 必须写 `BasedOn`**（否则子项没模板 → 子菜单打不开）、**Button 伪类样式要用后代选择器**（单选择器会被 Fluent 主题的 `:pointerover` 盖掉）。
 > **v3.16 变更**：§3.6 列宽改为**表头拖拽手动调**（`ColumnGrid.IsResizable` + VM `ResizeColumns`；⛔ 删「自动调整列宽」开关——整体 `Auto` 时长内容列按未截断全文测宽、把其余列挤没，表头文字被裁没）；`ColumnGrid` 副本 **三份→四份**（WebTools 亦有一份，旧注释漏记）。
 > **v3.15 变更**：§6 删除「统一启动器 `scripts/launch.ps1`」说法（已弃用）；脚本改为 fail-loud（成功 `exit 0` 自关窗口、失败 `trap` 暂停），禁止 `.cmd/.bat` 铁律保留。
+> **v3.21 变更**：新增**多实例**（`--profile` 启动参数 + 每配置单例 mutex + 切换不写全局默认 + 「设为默认」/「🚀 新开」）与**窗口自绘缩放**（四边 5px / 四角 10px 抓取区 + `BeginResizeDrag`）规格（需求 §3.5 / §4.1 / §6.5）；§2.1 / §4 同步；附录 A 补三条 Avalonia 12 实测坑（`ExtendClientAreaChromeHints` 已移除、托管装饰 Win32 不可用、`VisualRoot as Window` 恒 null）。
 > **v3.20 变更**：落地用户新需求「**模块设置页归本模块 + 自注册进 settings 组**」——§3.2 增**跨组注册延迟补登**规则（分组未注册时暂存、`RegisterModule` 建组时补登，⛔ 不抛异常）；§3.3 增**必备模块**（`Module.Settings`）与启动健全性检查 / 降级；§3.4 新增模块步骤补第 6 步（设置页落点 + Order 100 起）；§7 **删 B15**（原「设置页归 Module.Settings」折衷被新机制取代）；附录 A「菜单项静默丢失」行换解法。
 > **v3.19 变更**：§3.6 `ColumnGrid` 副本**四份→五份**（新增 `Module.MediaAssets`，需求 §6.6）；§7 增 **B14**（媒体资产用户手动数据落 `newtoys.db` 的 R1 例外）与 **B15**（模块设置页归属：`settings-media-assets` 的 View/VM 与注册都在 `Module.Settings`）；附录 A 补坑「跨组 `RegisterFunction` 抛异常且被 `InitializeAll` 吞 → Release 下菜单项静默丢失」。
 > **v3.18 变更**：协作流程已收敛为**规划 / 执行双模式**（🔴 唯一定义见《AI协作提示词》，本文件不重复定义）—— 规划模式只动《开发需求》+《现状》待办项 + `src/docs/backlog/NT-xxx.md` 细节、⛔ 不改 `src/`；执行模式按 `✅ 就绪` 待办 + 本文件做法改代码；本文件不被执行模式改动。
@@ -66,7 +67,7 @@
 
 ### 2.1 具体尺寸与样式（需求 §4.10 的实现基线）
 
-**主窗口**：`1280×800`，最小 `960×640`。
+**主窗口**：`1280×800`，最小 `960×640`。**可自由缩放**：四边 5px + 四角 10px 自绘抓取区（`BeginResizeDrag`，八向光标，最大化时关闭）——Avalonia 12.1.3 的 `WindowDecorations` / `ExtendClientArea*` 托管装饰在 Win32 上**不可用**（附录 A），⛔ 别走托管路线。
 **全局布局**：**标题栏 40px（标签栏并入其中段，v3.3）**、左树 **180px**（折叠 48px）、右详情 340px。
 
 > **v3.4 落地**：本节尺寸为实施基线；图标见 §2.3（一级菜单已矢量）。
@@ -401,7 +402,11 @@ public interface IHistoryProvider
   - **v3.5 起**：应用根之下再分一层「配置」—— `<应用根>\profiles\<配置名>\` → 其下才是 `config/data/logs`；当前配置名记在 **`<应用根>\active-profile.txt`**（在 `profiles\` 之外，否则切换会把自己也换掉）。
   - `ConfigStoreService` 在构造时：① 确保 `profiles\<active>\` 存在（首次还要跑旧结构迁移）；② 暴露 `ConfigDir` / `DataDirectory` / `LogsDir` 指向该配置；③ `ProfilesRoot` / `ActiveProfileName` 供「设置 → 配置」使用。
   - ⛔ 模块不自己拼路径，向 `IAppConfigService.DataDirectory`/`ConfigStoreService` 取值。
-- **配置切换**：`IProfileService`（`Core`）负责列出 / 新增 / 重命名 / 删除 / 切换；**切换只写 `active-profile.txt`，然后重启进程**（`Process.Start(Environment.ProcessPath)` + 退出）。⛔ 不做运行时热切换。
+- **配置切换（v3.26 改语义）**：`IProfileService`（`Core`）负责列出 / 新增 / 重命名 / 删除 / 切换 / **设为默认**；**切换 = 重启进程并显式传 `--profile <名>`**（`Process.Start(Environment.ProcessPath + " --profile " + name)` + `Environment.Exit(0)`），⛔ **不写 `active-profile.txt`**（多实例下写它会偷改别的实例下次无参启动的默认）；**设为默认**才写指针。⛔ 不做运行时热切换。
+- **启动参数（v3.26）**：`NewToys.exe [--profile <配置名>]`——`App` 启动最早处解析，交给 `ConfigStoreService` 的 profileOverride；`ActiveProfileName` 解析顺序 = **参数 > `active-profile.txt` > `default`**；参数非法 / 配置不存在 → 用默认 + 状态栏一行提示（⛔ 不崩、不静默）。
+- **每配置单例（v3.26）**：命名互斥 `Local\NewToys_Profile_<配置名小写>`（`new Mutex(false, name)` + `WaitOne(0)`）；已占用 → 提示「该配置已在运行」后 `Environment.Exit(0)`，⛔ 不静默、⛔ 不抢焦点。⛔ 别用 `Global\`（多会话 / 终端服务场景误伤）；配置名大小写不敏感 → mutex 名统一小写。
+- **新开实例（v3.26）**：「设置 → 配置」页每行「🚀 新开」= `Process.Start(Environment.ProcessPath, $"--profile {name}")`（`UseShellExecute=true`）；窗口标题 = `NewToys · <配置名>`（Shell 启动时按当前配置名设 `Title`，任务栏区分）。
+- **窗口 bounds 记忆（v3.26）**：`config\window.json`（`X/Y/Width/Height/WindowState`），按配置各存各的；关闭时存、最小化态不存位置；还原时夹进当前屏幕工作区（防离屏 / 超小）；多实例各记各的、⛔ 不共享。
 - 平台相关能力（winget/`ms-settings:`/ffmpeg）集中封装。
 - 路径穿越防御：外部相对路径 `Path.GetFullPath` 后校验落在目标目录内。
 
@@ -510,3 +515,6 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **跨页投递的数据要刷新页面才出现**（v3.12） | 只在 `OnDataContextChanged` 里取件；标签页已存在时切回来 `DataContext` 不变 → 该回调不再触发 | 取件放 `OnAttachedToVisualTree`（每次进页面都会跑）；⚠️ 必须写 `protected override`（基类是 protected，写 public 报 CS0507） |
 | **表头与行错位**（v3.12） | 改了 `Columns` 元数据但表头 / 行模板的 `Grid.Column` 没逐字同步 | 改列元数据后核对表头与行模板的列序列（需求 §4.8 硬规则 2） |
 | **菜单项静默丢失**（v3.19 记，v3.20 换解法） | 模块 A 在 `Initialize` 里 `RegisterFunction` 到模块 B 的分组：B 尚未注册 → 旧实现抛 `InvalidOperationException`，被 `ModuleLoader.InitializeAll` 的逐模块 try-catch **吞掉** → Release（`Modules\` 目录扫描，`Directory.EnumerateFiles` 顺序不保证）下该项**静默消失**，Debug 显式清单反而可能正常 | v3.20 起 `MenuService` **延迟补登**（§3.2）：分组未注册时暂存、`RegisterModule` 建立分组时补登，⛔ 不抛异常；分组始终未建立（如 `Module.Settings` 缺失）→ 启动健全性检查报一行（§3.3），暂存项不显示 |
+| **窗口不能拖边框缩放**（v3.26 记） | Avalonia 12.1.3 **没有 `ExtendClientAreaChromeHints`**（11 时代 API 已移除——运行时程序集探针实证，ref xml 也查不到）；`WindowDecorations` 托管装饰在 Win32 上不可用：`BorderOnly` 丢 `WS_CAPTION`（HTCAPTION 拖动 / 最小化动画失效）、`ElementRole` 拦截标题栏输入（Avalonia GitHub #21202，12.x 实测） | 保持 `WindowDecorations="None"`，**自绘抓取区**：四边 5px + 四角 10px 透明热区 → `BeginResizeDrag(WindowEdge, e)`（八向枚举 + 方法均已实证存在）；光标 `StandardCursorType`（`SizeWestEast`/`SizeNorthSouth`/`TopLeftCorner`… 均已实证）；最大化时抓取区 `IsHitTestVisible=False` |
+| **`VisualRoot as Window` 恒为 null**（v3.26 记，Avalonia 12.x） | 视觉根是 `TopLevelHost`，`VisualRoot as Window` 永远转不成功（12.x 实测项目结论） | 取窗走逻辑树 `FindLogicalAncestorOfType<Window>()`（`includeSelf: true`） |
+| **同配置多开互相踩数据**（v3.26 防） | 两实例同配置 → 共享 `config/*.json`（后写覆盖）+ 同一 `newtoys.db` 并发写 | **每配置单例**：命名互斥 `Local\NewToys_Profile_<小写配置名>`，`WaitOne(0)` 占不住就提示退出；SQLite 已有 `busy_timeout=3000` 兜底（`SqliteDatabase.cs`） |

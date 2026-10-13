@@ -1,12 +1,13 @@
 # AGENTS.md — NewToys 项目协作入口
 
-> v1.2 · 2026-10-13
+> v1.3 · 2026-10-14
+> v1.3：入口去重——本文件为**唯一自包含入口**（必须全文可独立读懂）；`skill/SKILL.md` 与 `.workbuddy/skills/newtoys/SKILL.md` 降为**导航 / 指针**，不再重复正文；原「高频硬约束」节整节下沉至 `skill/references/newtoys-spec.md`。
 > v1.2：铁律 1 加例外——`scripts/` 构建脚本**经用户明确授权可改**（2026-10-13 授权：Settings 物理必备改造，NT-023）。
 > 深度约束 / 坑点 / 静态自检脚本在仓库根 `skill/` 目录（`references/collab-method.md` 通用方法论 + `references/newtoys-spec.md` NewToys 专属约束 + `scripts/check.ps1`）；WorkBuddy 经 `.workbuddy/skills/newtoys/` 指针、Hermes(DeepSeek Harness) 经本文件路由读取。
 > 本文件是**跨 AI 工具的通用入口**（Codex / Cursor / Devin / Jules / Amp 等自动读取 AGENTS.md）。
 > 权威规格在 `src/docs/`，本文件只做「定位 + 铁律 + 路由」；**冲突时以 src/docs 与 src/ 源码为准**。
 > 🔴 **工作流不在此定义**：`规划 / 执行双模式` + 状态机 + 验收清理的**唯一定义处** = `src/docs/NewToys-AI协作提示词.md`【规划 / 执行双模式工作流】节。本文件与 `skill/` 只做定位 / 路由 / 约束，⛔ 不另写一份流程——保证不同 AI 读任一入口都落到同一套工作流。
-> WorkBuddy 用户：本文件内容已同步为项目级技能 `.workbuddy/skills/newtoys/`，会被自动触发，无需重复维护。
+> WorkBuddy 用户：项目级技能 `.workbuddy/skills/newtoys/SKILL.md` 仅为**薄指针**（触发后指回本文件与 `skill/`），⛔ 不重复正文——避免同一内容多份注入、多份漂移。
 
 ## 这个项目是什么
 
@@ -62,16 +63,11 @@ NewToys = 带 GUI 的 Windows 桌面工具管理器（脚本管理器定位，�
 | 修编译报错 | 规范 附录A |
 | 纯文档改动 | — |
 
-## 高频硬约束（摘要，细则以规范/需求为准）
+## 高频硬约束
 
-- 命名空间 `NewToys.*`；View 与 VM 成对；`.axaml` 改必同步 `.axaml.cs`；编译绑定关闭 → 只写 `{Binding}`，⛔ 不写 `x:DataType`、⛔ WPF 写法。
-- 颜色一律 DynamicResource；主题键只用 32 个 `*Brush` 语义键，不新增、不用旧键；code-behind ⛔ 写死 `#RRGGBB`。
-- 数据落 `%LocalAppData%\NewToys\{config,data,logs}`，`NEWTOYS_HOME` 可整根切换；路径一律 `Path.Combine`；设置类 `config\*.json` 模块只读，唯一写入点 = 设置页。
-- v3.12 密度基线：行高 28 / 表头 32 / 单元格内边距 8 / 卡片内边距 12 / 页面根 Margin 12 / 右详情卡宽 340。
-- 列表页约定：左键排序、右键列显隐；详情开关在工具条末位（`Button.detail-toggle`）；⛔ `Columns` 不加 `Detail` 占位列。
-- 跨页投递的数据在 `OnAttachedToVisualTree` 取（⛔ 不是 `OnDataContextChange`；必须 `protected override`，public 报 CS0507）。
-- 易错：`[ObservableProperty]` 的 `OnXxxChanged` 只能写在定义类；`CommandParameter` 字面量是 string，别喂 `RelayCommand<T>`（T≠string 会静默失败）；插值串禁单个 `\`。
-- 摸底用 grep/read 定向检索，⛔ 不整读、⛔ 不读 `artifacts/ bin/ obj/`。
+🔴 **不在此重复正文**：命名空间 / View-VM 成对 / 主题键 / 密度基线 / 列表页约定 / 分析器坑等，唯一源 = `skill/references/newtoys-spec.md`（§一 项目事实 · §五 密度基线 · §六 高频硬约束 · §七 分析器坑）。
+
+- 摸底一律 grep/read **定向检索**：⛔ 不整读文档、⛔ 不读 `artifacts/` `bin/` `obj/`。
 
 ## 交付要求
 

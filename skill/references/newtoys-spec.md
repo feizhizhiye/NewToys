@@ -14,8 +14,8 @@
 - 栈：.NET 10 / Avalonia 12.1.3 / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0；版本只在 `src/Directory.Packages.props`
 - 编译绑定关闭 → XAML 不写 `x:DataType`；禁第三方 UI 库 / 图标字体
 - 数据落 `%LocalAppData%\NewToys\{config,data,logs}`，`NEWTOYS_HOME` 可整根切换；路径一律 `Path.Combine`
-- SQLite 唯一入口 `Core/Services/SqliteDatabase.cs`：库 = `&lt;应用根&gt;\data\newtoys.db`（data 非 config）；失败不抛（IsAvailable/LastError）
-- 版本号编译时生成 `1.&lt;yyyyMMdd&gt;.&lt;HH&gt;.&lt;m0&gt;`，禁手写
+- SQLite 唯一入口 `Core/Services/SqliteDatabase.cs`：库 = `<应用根>\data\newtoys.db`（data 非 config）；失败不抛（IsAvailable/LastError）
+- 版本号编译时生成 `1.<yyyyMMdd>.<HH>.<m0>`，禁手写
 
 ---
 
@@ -82,9 +82,10 @@
 - `.axaml` 改动必同步 `.axaml.cs`；编译绑定关闭 → 只写 `{Binding}`，⛔ 不写 `x:DataType`、⛔ WPF 写法。
 - 颜色一律 DynamicResource；主题键只用 32 个 `*Brush` 语义键（不新增、不用旧键 `AppBg/AppBackground/TextPrimary`）；code-behind ⛔ 写死 `#RRGGBB`。
 - `App.ApplyTheme` 幂等，⛔ 禁 `MergedDictionaries.Clear()`。
-- 菜单：`icon` 传几何资源键（24 网格描边型，`&lt;Path Stroke=… Stretch="Uniform"/&gt;`），不是 emoji；Key = 小写连字符；viewName = View 类名。
+- 菜单：`icon` 传几何资源键（24 网格描边型，`<Path Stroke=… Stretch="Uniform"/>`），不是 emoji；Key = 小写连字符；viewName = View 类名。
 - 跨页投递数据在 `OnAttachedToVisualTree` 取（⛔ 不是 `OnDataContextChanged`；必须 `protected override`，public 报 CS0507）。
 - 设置类 `config\*.json` 模块只读，唯一写入点 = 设置页；功能数据由功能页读写。
+- 摸底一律 grep/read **定向检索**：⛔ 不整读文档、⛔ 不读 `artifacts/` `bin/` `obj/`（省 token、提速）。
 
 ---
 
@@ -92,12 +93,12 @@
 
 - `TaskStatus` 撞 `System.Threading.Tasks.TaskStatus` → 改名 `VideoTaskStatus`；`MenuGroup/MenuItem` → `AppMenuGroup/AppMenuItem`。新增模型先 grep avalonia ref 的 `T:`。
 - CA1416 只认**内联** `OperatingSystem.IsWindows()`；间接属性不认。
-- `Where(p=&gt;!string.IsNullOrWhiteSpace(p))` 不收窄 `string?` → 仍需 `.Select(p=&gt;p!)`。
+- `Where(p=>!string.IsNullOrWhiteSpace(p))` 不收窄 `string?` → 仍需 `.Select(p=>p!)`。
 - 插值串禁单个 `\`（CS8087+CS1009）；要反斜杠写 `\\`。
 - `[ObservableProperty]` 的 `partial void OnXxxChanged` 只能写在定义类（派生→CS0759）；派生类靠基类 `protected virtual NotifyXxx()` override。
 - `MVVMTK0034` 只构造/字段初始化器外报；改字段名须全仓搜（属性 + `_字段` + nameof）。
 - `[RelayCommand]` 的 `Async` 后缀被剥再拼 `Command`（CopyFfmpegAsync → CopyFfmpegCommand）。
-- 🔴 `CommandParameter` 字面量是 string，别喂 `RelayCommand&lt;T&gt;`（T≠string）：Avalonia 在 `CanExecute` 类型不匹配**直接抛 ArgumentException**，被绑定机制吞掉（不崩不报，但切页半途而废）。→ 参数收 `object?` 自己转。
+- 🔴 `CommandParameter` 字面量是 string，别喂 `RelayCommand<T>`（T≠string）：Avalonia 在 `CanExecute` 类型不匹配**直接抛 ArgumentException**，被绑定机制吞掉（不崩不报，但切页半途而废）。→ 参数收 `object?` 自己转。
 - `SetTextAsync/GetTextAsync` 是 `Avalonia.Input.Platform.ClipboardExtensions` → 须 `using Avalonia.Input.Platform;` + `using Avalonia;` + `Avalonia.Controls.ApplicationLifetimes`。
 - Avalonia≠WPF：无 IsCheckable（用 ToggleType=CheckBox）；IsChecked 须 Mode=OneWay；Watermark 废弃 → PlaceholderText。
 - 🔴 **可视树回调是 `protected`**：`OnAttachedToVisualTree`/`OnDetachedFromVisualTree` 写 `public override` → CS0507。

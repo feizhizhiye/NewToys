@@ -88,10 +88,10 @@
 | NT | 标题 | 优先级 | 状态 | 详情 |
 |---|---|---|---|---|
 | NT-001 | web-http 实装（唯一剩余骨架页） | P2 | ✔ 已完成（待验收） | backlog/NT-001.md |
-| NT-002 | pc-package 收尾（Parser 实机 + 批量队列） | P2 | 📝 草稿 | backlog/NT-002.md |
-| NT-003 | settings-package 软件源（退出码验证） | P2 | 📝 草稿 | backlog/NT-003.md |
-| NT-004 | defaults\ 与脚本目录播种确认 | P2 | 📝 草稿 | backlog/NT-004.md |
-| NT-005 | 模块热加载实装（规范 §3.7） | P2 | 📝 草稿 | backlog/NT-005.md |
+| NT-002 | pc-package 收尾（Parser 实机 + 批量队列） | P2 | ✅ 就绪 | backlog/NT-002.md |
+| NT-003 | settings-package 软件源（退出码验证） | P2 | ✅ 就绪 | backlog/NT-003.md |
+| NT-004 | defaults\ 与脚本目录播种确认 | P2 | ✅ 就绪 | backlog/NT-004.md |
+| NT-005 | 模块热加载实装（规范 §3.7） | P2 | ✅ 就绪 | backlog/NT-005.md |
 | NT-006 | 快捷设置：运行改造（可见 pwsh+回显 / GUI 隐藏 / 切换 shell）+ 导入导出 / 清除缓存 | P1 | ✔ 已完成（待验收） | backlog/NT-006.md |
 | NT-007 | 设置与脚本：导入导出 + 右键编辑 / 打开方式 + 运行如双击 | P1 | ✔ 已完成（待验收） | backlog/NT-007.md |
 | NT-008 | 软件包：可升级对齐 winget update + Pin 显示 + 已装移状态栏 + 详情 bug + 已装导入导出 | P1 | ✔ 已完成（待验收） | backlog/NT-008.md |
@@ -106,12 +106,12 @@
 | NT-017 | 5 个类型页（视频 / 音乐 / 书籍 / 图片 / 文档）= **薄壳 + 预设类型**，共用 `assets-all` 实现（v3.34；⛔ 网格视图不做、类型专属列延后） | P1 | ✔ 已完成（已验收） | backlog/NT-017.md |
 | NT-018 | 标签 / 分类 / 集合三页 + 逻辑操作 + `operation_logs`（⚠️ 含 2 处偏差：集合排序用 ⬆⬇ 按钮、智能集合规则未实装） | P1 | ✔ 已完成（已验收） | backlog/NT-018.md |
 | NT-019 | 物理操作（`FileOperationService` 日志先行 + 防穿越 + 冲突策略 + 回收站）+ 任务中心 + 回收站页（⚠️ 含 3 处偏差：移动/复制无 UI 入口、删除时间未显示、重试仅扫描任务） | P1 | ✔ 已完成（已验收） | backlog/NT-019.md |
-| NT-020 | 存储源页 + 移动硬盘离线 / 上线 + 外部变更校准 | P2 | 📝 草稿 | backlog/NT-020.md |
-| NT-021 | 媒体资产设置页（`settings-media-assets`，View/VM 归本模块、自注册进 settings 组）+ 元数据 + 缩略图 | P2 | 📝 草稿 | backlog/NT-021.md |
-| NT-022 | 列表 JSON 导入 / 导出 + 用户数据导出（R1 缓解） | P2 | 📝 草稿 | backlog/NT-022.md |
+| NT-020 | 存储源页 + 移动硬盘离线 / 上线 + 外部变更校准 | P2 | ✅ 就绪 | backlog/NT-020.md |
+| NT-021 | 媒体资产设置页（`settings-media-assets`，View/VM 归本模块、自注册进 settings 组）+ 元数据 + 缩略图 | P2 | ✅ 就绪 | backlog/NT-021.md |
+| NT-022 | 列表 JSON 导入 / 导出 + 用户数据导出（R1 缓解） | P2 | ✅ 就绪 | backlog/NT-022.md |
 | NT-023 | 框架：MenuService 跨组延迟补登 + Settings 必备化 + 启动健全性检查 / 无模块降级 | P1 | ✔ 已完成（已验收） | backlog/NT-023.md |
 | NT-024 | 多实例：`--profile` 启动参数 + 每配置单例 + 切换新语义（不写全局默认）+「设为默认」/「🚀 新开」+ 标题带配置名 | P1 | ✔ 已完成（已验收） | backlog/NT-024.md |
-| NT-026 | 媒体资产：多库融合（工作副本模型 = 打开库 A → 再打开库 B → 💾 保存；「减」= 勾选后删除；合并走 `ATTACH DATABASE`） | P1 | 📝 草稿 | backlog/NT-026.md |
+| NT-026 | 媒体资产：多库融合（工作副本模型 = 打开库 A → 再打开库 B → 💾 保存；「减」= 勾选后删除；合并走 `ATTACH DATABASE`） | P1 | ✅ 就绪 | backlog/NT-026.md |
 | NT-025 | 窗口：自绘缩放抓取区（四边 5px/四角 10px，BeginResizeDrag 八向）+ 分屏贴靠验证 + bounds 按配置记忆 | P1 | ✔ 已完成（已验收） | backlog/NT-025.md |
 | NT-027 | 视频工具精简：删视频库(.db) / 标签 / 收藏页 → 收窄为「简易查看器 + 送批量任务」（含旧表一次性清理） | P0 | ✔ 已完成（已验收） | backlog/NT-027.md |
 | NT-028 | 示例数据 + 详情卡默认示例态（批次 1~4 已落：视频两页 / `assets-all` / PcTools 4 页 / WebTools 4 页 / `settings-path`；批次 5 类型页随 NT-017；含框架层 `ListPageViewModelBase` 授权改动） | P1 | ✔ 已完成（待验收） | backlog/NT-028.md |

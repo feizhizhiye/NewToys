@@ -1,6 +1,6 @@
 # NewToys 开发规范
 
-> v3.19 · 2026-10-13 · 技术实现指南
+> v3.20 · 2026-10-13 · 技术实现指南
 > 🔴 **工作流不在此定义**：`规划 / 执行双模式` + 状态机 + 验收清理的唯一定义处 = 《AI协作提示词》；本文件只管「怎么具体实现」。
 > 权威源：需求（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕折衷约束（本文件台账）
@@ -10,6 +10,7 @@
 > **v3.17 变更**：§3.6 列宽判定改为**示例值（Sample）**（列表空时显示一条水印示例行；示例宽 ≤ 表头宽 → 锁表头宽且 ≥34px 保证把手可拖）；补两个 Avalonia 坑：**MenuItem 子菜单的 `ItemContainerTheme` 必须写 `BasedOn`**（否则子项没模板 → 子菜单打不开）、**Button 伪类样式要用后代选择器**（单选择器会被 Fluent 主题的 `:pointerover` 盖掉）。
 > **v3.16 变更**：§3.6 列宽改为**表头拖拽手动调**（`ColumnGrid.IsResizable` + VM `ResizeColumns`；⛔ 删「自动调整列宽」开关——整体 `Auto` 时长内容列按未截断全文测宽、把其余列挤没，表头文字被裁没）；`ColumnGrid` 副本 **三份→四份**（WebTools 亦有一份，旧注释漏记）。
 > **v3.15 变更**：§6 删除「统一启动器 `scripts/launch.ps1`」说法（已弃用）；脚本改为 fail-loud（成功 `exit 0` 自关窗口、失败 `trap` 暂停），禁止 `.cmd/.bat` 铁律保留。
+> **v3.20 变更**：落地用户新需求「**模块设置页归本模块 + 自注册进 settings 组**」——§3.2 增**跨组注册延迟补登**规则（分组未注册时暂存、`RegisterModule` 建组时补登，⛔ 不抛异常）；§3.3 增**必备模块**（`Module.Settings`）与启动健全性检查 / 降级；§3.4 新增模块步骤补第 6 步（设置页落点 + Order 100 起）；§7 **删 B15**（原「设置页归 Module.Settings」折衷被新机制取代）；附录 A「菜单项静默丢失」行换解法。
 > **v3.19 变更**：§3.6 `ColumnGrid` 副本**四份→五份**（新增 `Module.MediaAssets`，需求 §6.6）；§7 增 **B14**（媒体资产用户手动数据落 `newtoys.db` 的 R1 例外）与 **B15**（模块设置页归属：`settings-media-assets` 的 View/VM 与注册都在 `Module.Settings`）；附录 A 补坑「跨组 `RegisterFunction` 抛异常且被 `InitializeAll` 吞 → Release 下菜单项静默丢失」。
 > **v3.18 变更**：协作流程已收敛为**规划 / 执行双模式**（🔴 唯一定义见《AI协作提示词》，本文件不重复定义）—— 规划模式只动《开发需求》+《现状》待办项 + `src/docs/backlog/NT-xxx.md` 细节、⛔ 不改 `src/`；执行模式按 `✅ 就绪` 待办 + 本文件做法改代码；本文件不被执行模式改动。
 > **v3.11 变更**：随《开发需求》瘦身同步——修正章节引用（列表页 → §4.8、视觉基线 → §4.10）；**§3.9 撤下"命令生成纯函数库"与"多段剪辑"**（属评估结论，不入文档）；补 `IStatusProvider` 相关引用。
@@ -164,6 +165,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - **`icon` 字段（v3.3 起实际启用）**：**一级分组** `RegisterModule` 的 `icon` 传 **Geometry 资源键**（如 `"IconPc"` / `"IconWeb"` / `"IconVideo"` / `"IconSettings"`）；**二级功能** `RegisterFunction` 的 `icon` **仍是 emoji**（左树不显示；首页收藏卡 / 功能清单页继续用它）。
 - 分组 Order 现状：`pc`=20 ｜ `web`=30 ｜ `video`=40 ｜ **`settings`=999, isBottom:true**。`isBottom` 现仅语义标记「设置组」，**不再影响视觉位置**（v3.0 标题栏 ⚙ 直接打开设置页；树里设置组排在末尾）。新增分组**必须显式给 Order**。
 - 排序：`OrderBy(Order)`；分组内 `Items` 按 `Order` 重排。
+- 🔴 **跨组注册 + 延迟补登（v3.20，需求 §3.4）**：模块可把菜单项注册进**别的模块的分组**（典型 = 模块设置页进 `settings` 组）。`RegisterFunction` 发现分组未注册时**暂存**该菜单项（⛔ 不抛 `InvalidOperationException`——`ModuleLoader.InitializeAll` 的逐模块 try-catch 会把它吞掉，Release 目录扫描顺序不保证 → 菜单项**静默丢失**）；待 `RegisterModule` 建立该分组时**补登**（去重 + 按 Order 重排）。分组始终未建立（如 `Module.Settings` 缺失）→ 暂存项不显示，由启动健全性检查报一行兜底（§3.3）。
 - `desc`（功能简介）务必填写。
 - 菜单点击路径：`ShellViewModel.OpenTab(key)` → 新建/激活 `TabItemViewModel` → View 解析 → 写入 Tab 的 `Content`。
 
@@ -192,6 +194,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - 模块 DLL 命名 `Module.<模块名>.dll`。
 - ⛔ **`Modules\` 是模块产物唯一去处，全程零拷贝**：`src/Directory.Build.props` 把模块 Release `OutDir` 直设为 `$(NewToysReleaseDir)Modules\`。
 - Release 关 pdb（`DebugType=none`）消除并发写 `MSB3026`。
+- **必备模块 + 降级（v3.20，需求 §3.4）**：`Module.Settings` 是**必备模块**（与 Shared/Core/Shell 同级的"必须在"——随构建必产出于 `Modules\`；⛔ 不改成 Shell 直接引用，那会破坏 `Modules\` 布局铁律）。`InitializeAll` 完成后做**健全性检查**：`settings` 分组不存在 → 写日志 + Shell 状态栏一行警告，**继续启动不中断**——框架自给（首页 / 一键启动 / 收藏 / 主题 / 多配置不依赖任何功能模块），仅设置不可用。
 
 ### 3.4 新增模块步骤
 
@@ -200,6 +203,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 3. `src/NewToys.slnx` 加 `<Project Path="Module.Xxx/Module.Xxx.csproj" Type="C#" />`。
 4. **Debug 链路两处登记**：`Shell.csproj` Debug 条件 `ProjectReference` + `App.axaml.cs` 的 `#if DEBUG` 清单。Release 不需登记。
 5. `Initialize` 里 `RegisterModule`+`RegisterFunction` 注册菜单，`viewName`=View 类名，`icon`=Geometry 键。
+6. **（有设置页时，v3.20）** 设置 View/VM 放**本模块** `Views/SettingsXxxView.axaml(+.cs)` + `ViewModels/SettingsXxxViewModel.cs`；`Initialize` 里 `RegisterFunction("settings", "settings-<模块键>", …, Order)` 注册进 `settings` 分组——**Order 从 100 起、每模块独占一段（+10）**，0~99 保留给框架设置（跨组注册走延迟补登，§3.2）。设置模型类被两模块共用时放 `Shared`（⛔ 双真相源）；设置落 `config\*.json`，模块只读、唯一写入点 = 该设置页。
 
 ### 3.5 页面开发与 VM 定位
 
@@ -474,7 +478,6 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B12 前进/后退**（v3.0 新增） | 所有页面都有丰富页内导航 | 现状仅 `video-list` 有目录语义；多数标签页前进/后退**灰显** | 各页逐步实现 `IHistoryProvider` 后自然改善 | 各模块页面 |
 | **B13 详情面板上提**（v3.2 新增） | 详情由 Shell 右面板统一承载 | 契约与 Shell 容器已实装，但**页面迁移暂缓**——12 个页面仍用页内自绘右列 | 下一版迁移（改 `ListPageViewModelBase` 一处 + 每页抽 DetailView） | Shared + 各模块页面 |
 | **B14 媒体资产用户数据落库**（v3.19 新增） | 用户手动数据落 `config\`、进备份（需求 §3.5） | 标签 / 分类 / 集合 / 关联暂存 `data\newtoys.db`（需求 §3.5 称其"可随时重建"）——与 §3.5 定位冲突，以「导出用户数据 JSON」缓解（需求 §6.6 R1） | 用户拍板独立库 / 纳入备份策略时 | Module.MediaAssets + 数据管理 |
-| **B15 模块设置页归属**（v3.19 新增） | 模块自有设置页由本模块注册进 `settings` 组 | `settings-media-assets` 的 View/VM 与注册**都在 `Module.Settings`**（用户拍板"设置都放进 settings 里"）；单个模块设置与 `settings` 分组的沟通机制留待后续设计 | 用户后续设计模块↔settings 沟通机制时 | Module.Settings + 未来模块 |
 
 ---
 
@@ -505,4 +508,4 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **关闭首页标签失败**（v3.0） | 未设 `CanClose=false` | `TabItemViewModel` 构造时首页 `CanClose=false`，`CloseTab` 检查 |
 | **跨页投递的数据要刷新页面才出现**（v3.12） | 只在 `OnDataContextChanged` 里取件；标签页已存在时切回来 `DataContext` 不变 → 该回调不再触发 | 取件放 `OnAttachedToVisualTree`（每次进页面都会跑）；⚠️ 必须写 `protected override`（基类是 protected，写 public 报 CS0507） |
 | **表头与行错位**（v3.12） | 改了 `Columns` 元数据但表头 / 行模板的 `Grid.Column` 没逐字同步 | 改列元数据后核对表头与行模板的列序列（需求 §4.8 硬规则 2） |
-| **菜单项静默丢失**（v3.19 记） | 模块 A 在 `Initialize` 里 `RegisterFunction` 到模块 B 的分组：B 尚未注册 → 抛 `InvalidOperationException`，被 `ModuleLoader.InitializeAll` 的逐模块 try-catch **吞掉** → Release（`Modules\` 目录扫描，`Directory.EnumerateFiles` 顺序不保证）下该项**静默消失**，Debug 显式清单反而可能正常 | 跨组注册须先确保分组已注册（或改 `MenuService` 暂存补登——框架层需用户同意）；当前 `settings` 组子项一律由 `Module.Settings` 自己注册 |
+| **菜单项静默丢失**（v3.19 记，v3.20 换解法） | 模块 A 在 `Initialize` 里 `RegisterFunction` 到模块 B 的分组：B 尚未注册 → 旧实现抛 `InvalidOperationException`，被 `ModuleLoader.InitializeAll` 的逐模块 try-catch **吞掉** → Release（`Modules\` 目录扫描，`Directory.EnumerateFiles` 顺序不保证）下该项**静默消失**，Debug 显式清单反而可能正常 | v3.20 起 `MenuService` **延迟补登**（§3.2）：分组未注册时暂存、`RegisterModule` 建立分组时补登，⛔ 不抛异常；分组始终未建立（如 `Module.Settings` 缺失）→ 启动健全性检查报一行（§3.3），暂存项不显示 |

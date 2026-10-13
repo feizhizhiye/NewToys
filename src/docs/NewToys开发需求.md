@@ -1,6 +1,6 @@
 # NewToys 开发需求（宪法 + 框架规格）
 
-> v3.24 · 2026-10-13 · 项目唯一权威规格
+> v3.25 · 2026-10-13 · 项目唯一权威规格
 > 层级：本文件 ＞ 开发规范 ＞ 项目现状与进度 ＞ AI协作提示词
 > 配套：`开发规范.md`（怎么具体实现）｜`项目现状与进度.md`（做到哪了）｜`AI协作提示词.md`（会话启动）｜`AGENTS.md`（仓库根，跨 AI 通用入口）
 >
@@ -81,6 +81,12 @@ Module.*（功能模块，只引 Shared + Core）
   - 每个 DLL 用独立 `AssemblyLoadContext`（`isCollectible:true`）；`NewToys.Shared/Core` 由默认 ALC 共享。
   - 逐个 `try-catch` 隔离：单 DLL 失败不影响宿主与其他模块。
   - 只做「新增」，同名不替换不卸载。
+
+- **模块自包含（硬约束）**：模块所需的一切（View / VM / 服务 / 设置页）都在**自己的 DLL** 里；加载时只往界面注册（菜单、设置页），⛔ 不把模块代码搬进 Shell 或其他模块，⛔ 不靠其他模块代持页面。
+- **模块设置页归本模块**：每个模块把自己的设置页（View/VM）放在本模块 `Views/` + `ViewModels/`，在 `Initialize` 里注册进 **`settings` 分组**（`RegisterFunction("settings", "settings-<模块键>", …)`，Order 从 **100** 起、每模块独占一段 +10；**0~99 保留给框架设置**）。跨组注册由框架**延迟补登**保障（规范 §3.2）：分组尚未注册时暂存，待其建立时补登，⛔ 不抛异常。
+- **框架设置归 `Module.Settings`**：主题 / 路径 / 一键按钮 / 加密 DNS / 软件源 / 配置 / 数据管理 / 关于 / 功能清单等**框架级设置**留在 `Module.Settings`。
+- **必备模块**：`Module.Settings` 与 Shared/Core/Shell 同属**必备**——随解决方案必然构建、Debug 显式清单与 Release `Modules\` 必含其 DLL；加载完成后做**健全性检查**，缺失时**降级运行**（⛔ 不阻止启动）：首页 / 一键启动 / 各功能模块照常，仅设置不可用，日志 + 状态栏各一行提示。
+- **框架自给（硬约束）**：一个功能模块都不加载时，框架本身必须完整可用——**首页 / 一键启动 / 收藏夹 / 主题 / 多配置**均不依赖任何功能模块（现状已满足：首页与一键启动的全部依赖在 Shared/Core；新增框架功能时保持此性质）。
 
 ### 3.5 配置与数据
 
@@ -660,7 +666,7 @@ Module.*（功能模块，只引 Shared + Core）
 | 二级 | `assets-tasks` | 任务中心 | 10 | `AssetTasksView` |
 | 二级 | `assets-trash` | 回收站 | 11 | `AssetTrashView` |
 
-- **设置项并入软件设置**：`settings-media-assets`（「媒体资产」，Order 10，排在 `settings-all`=9 之后）由 **`Module.Settings`** 注册，View/VM 归 `Module.Settings`。⛔ 本模块一级菜单下不放设置子页；⛔ 不跨模块自注册进 `settings` 组（分组未注册会抛异常且被模块加载器吞掉 → Release 下静默丢失，规范 附录A）。**单个模块的设置如何与 `settings` 分组沟通**（归属 / 注册机制）留待用户后续设计，本轮不实现。
+- **模块设置页归本模块**：`settings-media-assets`（「媒体资产」，Order 100）的 View/VM 放 `Module.MediaAssets`（`Views/SettingsMediaAssetsView` + `ViewModels/SettingsMediaAssetsViewModel`），由 `MediaAssetsModule.Initialize` **自行注册**进 `settings` 分组（跨组注册由框架延迟补登保障，规范 §3.2）。⛔ 本模块一级菜单下不放设置子页；⛔ 不由 `Module.Settings` 代持页面。
 - 二级菜单 `icon` 照规范传 emoji 占位（首页收藏卡 / 功能清单页要用它）。
 
 **页面清单**（12 页在本模块 + 1 设置页在 `Module.Settings`）：

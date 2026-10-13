@@ -88,7 +88,7 @@
 | 标题栏按钮 | 高 32px、**图标 18px**（v3.4 由 16 放大）；窗口控制按钮沿用 46×40 |
 
 **全局样式位置**：`Shell/App.axaml`（+ 复用样式表 `Shell/Styles/Controls.axaml`）。当前样式类：
-`Button.title-btn`（标题栏工具按钮）、`Border.tab-item`/`.active`（标签项）、`Button.tab-btn`（标签）、`Button.tab-close`（标签关闭）、`Button.tree-row`/`.active`/`.sub`（左树行）、`Border.tree-panel.collapsed`（左树折叠态）、**`Border.tree-version`（左树底部版本号，v3.9）**、`Button.win-btn`/`.close`（窗口控制）、**`Border.status-bar` + `TextBlock.status-bar-text`（Shell 底部状态栏，v3.9）**、`Button.primary`/`.ghost`/`.fav-btn`、`Border.card`、`Button.col-header`、`Border.list-header`、`TextBlock.list-cell`、`ListBox.list-page`、**`Button.detail-toggle`（工具条末位的详情开关，v3.12；取代 v1.35 的 `Border.detail-hotspot` + `Button.header-toggle`）**。
+`Button.title-btn`（标题栏工具按钮）、`Border.tab-item`/`.active`（标签项）、`Button.tab-btn`（标签）、`Button.tab-close`（标签关闭）、`Button.tree-row`/`.active`/`.sub`（左树行）、`Border.tree-panel.collapsed`（左树折叠态）、**`Border.tree-version`（左树底部「配置 · 版本」，v3.9 / v3.28 改）**、`Button.win-btn`/`.close`（窗口控制）、**`Border.status-bar` + `TextBlock.status-bar-text`（Shell 底部状态栏，v3.9）**、`Button.primary`/`.ghost`/`.fav-btn`、`Border.card`、`Button.col-header`、`Border.list-header`、`TextBlock.list-cell`、`ListBox.list-page`、**`Button.detail-toggle`（工具条末位的详情开关，v3.12；取代 v1.35 的 `Border.detail-hotspot` + `Button.header-toggle`）**。
 
 > ⚠️ **已废弃（v3.3）**：`Button.nav-btn`（旧第一列图标）、`TreeView.tree-nav`。左树现在用 `ItemsControl` + `Button.tree-row` 自绘，**不用 `TreeView`**。
 

@@ -144,4 +144,60 @@ public partial class AssetAllView : UserControl
         try { return await sp.TryGetFolderFromPathAsync(dir); }
         catch { return null; }
     }
+
+    // ==================== NT-022：资产列表 JSON 导入 / 导出 ====================
+
+    private async void OnExportAssetsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not AssetAllViewModel vm) return;
+        try
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "导出资产列表",
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
+                SuggestedFileName = "media-assets.json",
+                FileTypeChoices = new[] { new FilePickerFileType("JSON 清单") { Patterns = new[] { "*.json" } } }
+            }).ConfigureAwait(false);
+
+            var path = file?.TryGetLocalPath();
+            if (string.IsNullOrWhiteSpace(path)) return;
+
+            File.WriteAllText(path, vm.ExportAssetsJson());
+            vm.StatusText = $"已导出当前列表到：{path}";
+        }
+        catch (Exception ex) { vm.StatusText = "导出失败：" + ex.Message; }
+    }
+
+    private async void OnImportAssetsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not AssetAllViewModel vm) return;
+        try
+        {
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "选择要导入的资产 json",
+                SuggestedStartLocation = await SuggestedStartAsync(sp, vm.ImportExportDefaultDir),
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("JSON 清单") { Patterns = new[] { "*.json" } },
+                    new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+                }
+            }).ConfigureAwait(false);
+
+            var src = files?.Count > 0 ? files[0].TryGetLocalPath() : null;
+            if (string.IsNullOrWhiteSpace(src)) return;
+
+            var (ok, msg) = vm.ImportAssetsJson(File.ReadAllText(src));
+            vm.StatusText = msg;
+        }
+        catch (Exception ex) { vm.StatusText = "导入失败：" + ex.Message; }
+    }
 }

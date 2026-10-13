@@ -45,6 +45,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private readonly OperationLogService _opLog = null!;
     private readonly AssetNavigationStore _navStore = null!;
     private readonly FileOperationService _fileOps = null!;
+    private readonly AssetImportExport _impExp = null!;
     private readonly IAppConfigService? _app;
     private readonly List<AssetRow> _all = new();
     private AssetDetailView? _detailView;
@@ -193,6 +194,28 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
     public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
 
+    // ==================== NT-022：列表 JSON 导入 / 导出 ====================
+
+    /// <summary>
+    /// 📤 导出**当前列表**（<c>_all</c>，即当前模式的全量、⛔ 不含筛选后的可见集）为 JSON 文本。
+    /// 组织信息（标签 / 分类 / 集合）按**名字**导出（⛔ 不存内部 id）——换机 / 合并都能用。
+    /// </summary>
+    public string ExportAssetsJson()
+    {
+        var scope = IsDraft ? "draft-preview" : "library";
+        return _impExp.Export(_all, scope);
+    }
+
+    /// <summary>
+    /// 📥 导入 JSON：**追加合并**（按路径去重，⛔ 不静默覆盖）。完成后刷新列表。
+    /// </summary>
+    public (bool Ok, string Message) ImportAssetsJson(string json)
+    {
+        var (ok, msg, _, _, _) = _impExp.Import(json);
+        if (ok) Reload();
+        return (ok, msg);
+    }
+
     /// <summary>资产库是否可用（不可用时页面照常显示 + 状态栏提示，⛔ 不崩）。</summary>
     public bool IsDbAvailable => _assets?.IsAvailable ?? false;
 
@@ -202,7 +225,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         IAppConfigService? app = null,
         TagService? tagSvc = null, CategoryService? catSvc = null, CollectionService? colSvc = null,
         RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null,
-        FileOperationService? fileOps = null)
+        FileOperationService? fileOps = null, AssetImportExport? impExp = null)
         : base(cols)
     {
         _assets = assets;
@@ -215,6 +238,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _opLog = opLog!;
         _navStore = navStore!;
         _fileOps = fileOps!;
+        _impExp = impExp!;
 
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
         BuildStaticOptions();               // 类型 / 状态（固定值）

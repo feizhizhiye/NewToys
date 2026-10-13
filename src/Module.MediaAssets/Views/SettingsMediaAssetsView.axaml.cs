@@ -32,4 +32,34 @@ public partial class SettingsMediaAssetsView : UserControl
         if (string.IsNullOrEmpty(path)) return;
         vm.SetThumbsDirectory(path);
     }
+
+    /// <summary>「📥 恢复用户数据…」：选一个导出的 json → 合并恢复（VM 做合并，这里只选文件）。</summary>
+    private async void OnRestoreUserDataClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not SettingsMediaAssetsViewModel vm) return;
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+        var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "选择要恢复的用户数据 json",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("用户数据 JSON") { Patterns = new[] { "*.json" } },
+                new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+            }
+        }).ConfigureAwait(false);
+
+        var src = files?.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (string.IsNullOrWhiteSpace(src)) return;
+
+        try
+        {
+            var (ok, msg) = vm.RestoreUserData(File.ReadAllText(src));
+            vm.StatusText = msg;
+        }
+        catch (Exception ex) { vm.StatusText = "恢复失败：" + ex.Message; }
+    }
 }

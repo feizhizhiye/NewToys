@@ -17,7 +17,7 @@
         ItemSpacing（元素间水平距）+ LineSpacing（换行后行与行的上下距）—— ⛔ 别让换行后的
         两行按钮贴在一起（实测踩过：按钮一多换行，第二行顶死第一行）。  -->
     <Border Grid.Row="0" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto">
         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
                    ItemSpacing="8" LineSpacing="4">
 
@@ -102,9 +102,17 @@
                   ToolTip.Tip="重新读取资产库（⛔ 不扫描磁盘）"/>
         </WrapPanel>
 
+        <!--  NT-022：资产列表 JSON 导入 / 导出（控件同 PcTools / 视频工具的 io-bar）  -->
+        <StackPanel Grid.Column="1" Classes="io-bar" Margin="0,0,8,0">
+          <Button Classes="io-btn" Content="📤 导出" Click="OnExportAssetsClick"
+                  ToolTip.Tip="把当前列表导成 json（含标签 / 分类 / 集合的名字）"/>
+          <Button Classes="io-btn" Content="📥 导入" Click="OnImportAssetsClick"
+                  ToolTip.Tip="选一个导出的 json 追加合并进库（按路径去重，⛔ 不静默覆盖）"/>
+        </StackPanel>
+
         <!--  末位：详情开关（v3.12 起从表头挪到工具条）
               ⛔ 绑 ToggleDetailPanelCommand —— 基类的 ToggleDetailCommand 不通知 Shell，右列不会出现  -->
-        <Button Grid.Column="1" Classes="detail-toggle"
+        <Button Grid.Column="2" Classes="detail-toggle"
                 Command="{Binding ToggleDetailPanelCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>

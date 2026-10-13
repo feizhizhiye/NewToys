@@ -179,6 +179,24 @@
                        Text="{Binding ImportExportDefaultDir, StringFormat='默认目录：{0}'}"/>
             <TextBlock Classes="hint-text" TextWrapping="Wrap"
                        Text="列表的 JSON 导入 / 导出、「导出用户数据」的文件选择器都会定位到这个目录。"/>
+
+            <Border Classes="divider-line"/>
+
+            <!--  NT-022：用户手动数据（标签 / 分类 / 集合 / 关联）—— 它们落在"不进备份"的 newtoys.db，
+                  导出成 config\media-assets-user-data.json 才能进「数据管理」的备份（R1 缓解）。  -->
+            <StackPanel Spacing="4">
+              <TextBlock Classes="field-label" Text="用户手动数据（标签 / 分类 / 集合 / 关联）"/>
+              <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                         Text="这些是手工维护的数据，却存在会被重建的资产库里——导出后即使删掉 newtoys.db 也能找回来（按名字 / 路径恢复，⛔ 不清空已有数据）。"/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Content="📤 导出用户数据" Command="{Binding ExportUserDataCommand}"
+                        ToolTip.Tip="写到 config\media-assets-user-data.json（随「数据管理」备份一起走）"/>
+                <Button Classes="ghost" Content="📥 恢复用户数据…" Click="OnRestoreUserDataClick"
+                        ToolTip.Tip="选一个导出的 json 合并恢复（缺的才建，⛔ 不覆盖）"/>
+              </StackPanel>
+              <TextBlock Classes="hint-text" TextWrapping="Wrap" FontFamily="Consolas"
+                         Text="{Binding UserDataFilePath}"/>
+            </StackPanel>
           </StackPanel>
         </Border>
 

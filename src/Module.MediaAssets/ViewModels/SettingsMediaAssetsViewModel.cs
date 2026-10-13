@@ -33,6 +33,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
     private readonly MediaAssetsSettingsIO _io;
     private readonly ScanService _scan;
     private readonly FileOperationService _fileOps;
+    private readonly UserDataExport _userData;
     private readonly IAppConfigService? _app;
 
     /// <summary>批量灌值时抑制"改属性 → 回写设置"（防递归 + 无谓写盘）。</summary>
@@ -41,11 +42,12 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
     public SettingsMediaAssetsViewModel() { }
 
     public SettingsMediaAssetsViewModel(MediaAssetsSettingsIO io, ScanService scan, FileOperationService fileOps,
-        IAppConfigService? app = null)
+        UserDataExport userData, IAppConfigService? app = null)
     {
         _io = io;
         _scan = scan;
         _fileOps = fileOps;
+        _userData = userData;
         _app = app;
 
         _syncing = true;
@@ -232,6 +234,25 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
 
     /// <summary>📂 选缩略图目录（留空 = 恢复默认 <c>data\thumbs</c>）。</summary>
     public void SetThumbsDirectory(string dir) => ThumbsDirectory = dir ?? "";
+
+    // ==================== NT-022：用户数据导出 / 恢复（R1 缓解） ====================
+
+    /// <summary>用户数据导出文件全路径（<c>config\media-assets-user-data.json</c>）。</summary>
+    public string UserDataFilePath => _userData.FilePath;
+
+    /// <summary>📤 导出用户数据：标签 / 分类 / 集合 / 关联 4 类 → <see cref="UserDataFilePath"/>（进「数据管理」备份）。</summary>
+    [RelayCommand]
+    private void ExportUserData()
+    {
+        var (ok, msg) = _userData.ExportToFile();
+        StatusText = msg;
+    }
+
+    /// <summary>
+    /// 📥 恢复用户数据：从一段 JSON **合并**恢复（⛔ 不清空、不覆盖已有数据）。
+    /// 典型场景：删了 <c>newtoys.db</c> 之后，用手工数据备份把标签 / 分类 / 集合 / 关联找回来。
+    /// </summary>
+    public (bool Ok, string Message) RestoreUserData(string json) => _userData.RestoreFromJson(json);
 
     /// <summary>↺ 恢复默认：把全部设置回默认值并保存（即时生效项同步应用）。</summary>
     [RelayCommand]

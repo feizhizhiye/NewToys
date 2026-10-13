@@ -2,6 +2,7 @@
     x:Class="NewToys.Shell.Views.ShellView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:chrome="using:Avalonia.Controls.Chrome"
     Title="NewToys"
     Width="1280"
     Height="800"
@@ -10,7 +11,7 @@
     Background="{DynamicResource ContentBrush}"
     ExtendClientAreaTitleBarHeightHint="40"
     ExtendClientAreaToDecorationsHint="True"
-    WindowDecorations="None"
+    WindowDecorations="Full"
     CanResize="True"
     WindowState="Normal">
     <Grid RowDefinitions="40,*">
@@ -27,9 +28,14 @@
             Background="{DynamicResource ContentBrush}"
             BorderBrush="{DynamicResource DividerBrush}"
             BorderThickness="0,0,0,1">
+            <!--  v3.28 修贴靠：标题栏标成 **TitleBar** 角色 → 由**系统**处理拖动（含拖到边缘贴靠、拖到顶边最大化、
+                  双击最大化）；⛔ 不再依赖我们自己的 BeginMoveDrag（它发 WM_SYSCOMMAND/SC_MOUSEMOVE，
+                  系统不认作"拖标题栏"→ 不触发贴靠，这正是之前贴靠失效的根因）。
+                  ⚠️ 角色要在 ExtendClientAreaToDecorationsHint=True 下才生效；区域内的交互控件（按钮）仍正常收输入。  -->
             <Grid
                 x:Name="TitleBarGrid"
                 Background="Transparent"
+                chrome:WindowDecorationProperties.ElementRole="TitleBar"
                 ColumnDefinitions="Auto,*,Auto">
 
                 <!--  左：窗口功能按钮  -->
@@ -358,22 +364,21 @@
             </Grid>
         </Grid>
 
-        <!--  ==================== 窗口缩放抓取区（v3.26，需求 §4.1） ====================
-              四边 5px + 四角 10px 透明热区 → code-behind 调 BeginResizeDrag（八向）。
-              🔴 Avalonia 12.1.3 的托管装饰（WindowDecorations / ExtendClientArea*）在 Win32 上不可用
-                 （`ExtendClientAreaChromeHints` 已移除、BorderOnly 丢 WS_CAPTION、ElementRole 拦截标题栏输入，
-                  实证见规范 附录A / GitHub Avalonia#21202）→ 只能自绘。
+        <!--  ==================== 窗口缩放抓取区（v3.26，需求 §4.1；v3.28 改走系统命中测试） ====================
+              四边 5px + 四角 10px 透明热区，标成 `ResizeN/S/E/W/NE/NW/SE/SW` 角色 → 由**系统**处理缩放
+              （光标 / 吸附 / 贴靠一并由系统给）。code-behind 的 BeginResizeDrag 作为角色失效时的兜底保留。
+              🔴 Avalonia 12 的托管装饰在 Win32 上不可用（规范 附录A）→ 自绘 + 角色标注是唯一路线。
               ⚠️ 承装 Grid **不设 Background**（否则整层吃掉所有点击）；8 个 Border 必须 Background="Transparent"
-                 才有命中测试（同标题栏拖拽那套）。最大化时整层 IsHitTestVisible=False（见 code-behind）。  -->
+                 才有命中测试。最大化时整层 IsHitTestVisible=False（见 code-behind）。  -->
         <Grid x:Name="ResizeGrips" Grid.Row="0" Grid.RowSpan="2">
-          <Border x:Name="GripTop" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Top" Background="Transparent" />
-          <Border x:Name="GripBottom" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Background="Transparent" />
-          <Border x:Name="GripLeft" Width="5" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" />
-          <Border x:Name="GripRight" Width="5" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" />
-          <Border x:Name="GripTopLeft" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" />
-          <Border x:Name="GripTopRight" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" />
-          <Border x:Name="GripBottomLeft" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="Transparent" />
-          <Border x:Name="GripBottomRight" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" />
+          <Border x:Name="GripTop" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Top" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeN" />
+          <Border x:Name="GripBottom" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeS" />
+          <Border x:Name="GripLeft" Width="5" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeW" />
+          <Border x:Name="GripRight" Width="5" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeE" />
+          <Border x:Name="GripTopLeft" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeNW" />
+          <Border x:Name="GripTopRight" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeNE" />
+          <Border x:Name="GripBottomLeft" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeSW" />
+          <Border x:Name="GripBottomRight" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeSE" />
         </Grid>
     </Grid>
 </Window>

@@ -285,15 +285,13 @@ public partial class ShellView : Window
     }
 
     /// <summary>
-    /// 给无边框窗口补回「可缩放窗口」标准样式（<c>WS_THICKFRAME</c> + 最小 / 最大化 / 系统菜单）。
+    /// 给窗口补「可缩放窗口」标准样式（<c>WS_THICKFRAME</c> + 最小 / 最大化 / 系统菜单）——**保险丝**。
     /// <para>
-    /// 为什么需要：Windows 的贴靠（Win+方向键、拖到屏幕边缘贴半屏、拖到顶边最大化）**由系统执行**，
-    /// 但只对带这些标准样式的顶层窗口生效；我们为无边框（<c>WindowDecorations="None"</c>）把它们去掉了
-    /// → 系统不认 → 贴靠全失效（v3.28 实测：拖到顶边 / Win+左右 都没反应）。
-    /// </para>
-    /// <para>
-    /// ⚠️ 客户区仍由 Avalonia 自绘：<c>WindowDecorations=None</c> 下 <c>WM_NCCALCSIZE</c> 归零 →
-    /// 不会画出系统标题栏 / 边框。若实机出现细边框等副作用，删掉 <see cref="OnLoaded"/> 里的这一行调用即可回滚。
+    /// 背景（v3.28 查源码后定论）：Windows 的贴靠由**系统**执行，前提是窗口具备标准样式 +
+    /// 拖动走系统"拖标题栏"路径；我们之前的组合两条都不满足 → 贴靠全失效。现在的正解是
+    /// XAML 侧 <c>WindowDecorations="Full"</c>（Avalonia 会自行设好这些样式）+ 标题栏/抓取区标
+    /// <c>WindowDecorationProperties.ElementRole</c>（由系统命中测试）。本方法保留作兜底：
+    /// 若某天装饰模式改回 <c>None</c>（Avalonia 就不设 <c>WS_THICKFRAME</c> 了）也能有基本资格。
     /// </para>
     /// </summary>
     private void ApplySnapEligibleStyles()

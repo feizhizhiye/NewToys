@@ -215,7 +215,9 @@
             <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
-        <!--  左树行：一级 = 图标 + **加粗**；行高 30（v3.12 由 32 收紧）、缩进由子级 ItemsControl 的 Margin 给（每级 16）  -->
+        <!--  左树行：一级 = 图标 + **加粗**；行高 30（v3.12 由 32 收紧）、缩进由子级 ItemsControl 的 Margin 给（每级 16）
+              + **层级间距 4**（同上 Margin 的第二段，见 ShellView.axaml：一级行↔其下第一个二级行之间留缝，
+              避免两行同时激活时圆角背景块贴合连成一片）。  -->
         <Style Selector="Button.tree-row">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>

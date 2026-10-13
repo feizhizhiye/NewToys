@@ -304,11 +304,13 @@
                                         </Grid>
                                     </Button>
                                     <!--  二级：功能叶子（缩进 + 次要色，无图标）  -->
+                                    <!--  Margin 上边距 4：一级行与其下第一个二级行之间留出层级间隔
+                                          （否则两行都激活时圆角背景块贴合、看着连成一整块）。⛔ 不是行高、别改 Height。  -->
                                     <ItemsControl
                                         Classes="tree-children"
                                         ItemsSource="{Binding Children}"
                                         IsVisible="{Binding IsExpanded}"
-                                        Margin="16,0,0,0">
+                                        Margin="16,4,0,0">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Button

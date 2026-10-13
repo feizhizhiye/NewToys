@@ -1,15 +1,15 @@
 # NewToys 项目现状与进度
 
-> v3.28 · 2026-10-13 · 台账
+> v3.29 · 2026-10-13 · 台账
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
 > ⛔ **评估结论不写进本台账**——评估在会话里讨论，用户拍板后才转为需求。
 > 配套：开发需求（宪法）/ 开发规范 / AI 协作提示词 / AGENTS.md（跨 AI 入口）/ skill/（跨 AI 知识库）
 
 **最近三次变更**
+- **v3.29**：🆕 **执行 NT-014（模块骨架）+ NT-015（数据层）（⚠️ 待本地编译 + 实机验收）** —— **NT-014**：新建 `Module.MediaAssets`（csproj + `MediaAssetsModule.cs`）+ **三处登记**（slnx / Shell.csproj / App 必载清单）+ 一级分组 `assets`（「媒体资产」🗂，Order 50）+ **12 个二级项 / 12 组空页面**（View+VM 成对，`ObservableObject + IStatusProvider`）。页面数 23 → **35**（骨架 13）。**NT-015**：落 `data\newtoys.db`（与视频工具共库、表级隔离）的 **13 表 + 10 索引**（`AssetDatabase` 幂等建表 + 老库补 10 个可空列）+ `AssetService`（CRUD + **四级匹配**：相对路径 → quick_hash+size → inode+device → 完整 hash+size）+ `ScanService`（手写目录遍历 + 忽略规则 + 五级匹配入库 + 收尾标 missing，**⛔ 不删 Asset**）+ `TaskQueue`（串行异步队列 + 取消 + 进度）；模型 `Storage` → **`StorageSource`**（`Storage` 撞 Avalonia 的 `Avalonia.Platform.Storage`）。自查修掉 3 处缺陷：`UpsertStorage` 更新分支 `ExecuteScalar` 把 id 覆盖成 0 / `Cancel` 误杀在跑任务 / `TaskItem` 非可观测导致进度不刷新
 - **v3.28**：🛠 **NT-023 / NT-024 验收通过 ✅ + 执行 NT-025（⚠️ 待本地编译 + 实机验收）** —— **NT-025 窗口缩放**：根 Grid 叠加 `ResizeGrips`（四边 5px + 四角 10px 透明热区）→ `BeginResizeDrag` 八向缩放 + `StandardCursorType` 光标；最大化时整层关命中测试；`WindowBoundsService` 按配置记 `config\window.json`（关闭存 `ClientSize`、最小化态不覆盖、离屏位置夹回、尺寸不小于 960×640）。自检修掉 1 处 `OnPropertyChanged` **重复 override**（CS0111）。分屏贴靠 / Win+方向键为**实机验证项**（⛔ 不做 Snap Layouts 钩子）。**NT-023/024 已由用户本地编译 + 实机验收通过**（`0ded557`）。**实机复验（同日）**：缩放 / 回归 / 大小记忆 ✅；**位置记忆** ✅；**系统贴靠**改走官方装饰路线后**已可用** ✅（`WindowDecorations="Full"` + 标题栏/抓取区标 `ElementRole`）；随之的副作用（Avalonia 自绘窗框导致**标题文字重叠 + 多一个会破坏状态的按钮**）已修（`WindowDecorationsTheme` 指向**空装饰主题**）；并按用户要求把**配置名**挪到**左树底部与版本号同显**（`TreeVersionText` = `<配置名> · <版本号>`，版本与「关于」同源，复验 ✅）。**第四轮**：`Full` 下 Avalonia 自绘窗框（标题文字重叠 + 多一个点坏状态的按钮）改 `WindowDecorations="BorderOnly"`（读 `Window.cs::ComputeDecorationParts()` 定论：TitleBar 部件只在 `Full` 时加入 → BorderOnly 部件集合为 None、Avalonia 不画）＋ code-behind 手工补 `WS_CAPTION` 保贴靠资格（状态变化时重补）——复验：**外观 ✅ / 贴靠 ✅**；但 `TitleBar` 角色让整块标题栏按系统标题栏处理 → 里面的按钮与标签条收不到点击，**已修**：交互容器（左按钮组 / 标签条 / 右窗口按钮组）补 `ElementRole="User"`（放行点击），24px 留白仍保持 `TitleBar`（保住贴靠拖动）。
 - **v3.27**：🛠 **执行 NT-023 + NT-024（✅ 已验收通过）** —— **NT-023 框架**：`Module.Settings` 升**框架组件/物理必备**（Shell.csproj 无条件引用 + props OutDir 开例外只出根目录 + **必载清单置顶**启动首个加载）；`scripts/build.ps1` 计数校验改只数功能模块（用户授权改脚本）；`ModuleLoader.LoadAll` 语义改「必载清单 + 扫 `Modules\` 补全」；`InitializeAll` 后**健全性检查**；`MenuService` 加**跨组延迟补登**。**NT-024 多实例**：`--profile` 启动参数；**每配置单例**（`Local\NewToys_Profile_<小写名>`）；`active-profile.txt` 只写「首次迁移 / 设为默认」；**切换 = 本窗重启显式传参**；标题 `NewToys · <配置名>`；配置页「🚀 新开一个」「⭐ 设为默认」。commit `0ded557`。
-- **v3.26**：📝 **多实例 + 窗口缩放需求整理（规划期）** —— ① **多配置同时启动**：`--profile` 启动参数 + **每配置单例**（命名互斥，第二例提示退出）+ 数据隔离三层模型（目录天然隔离 / `NEWTOYS_HOME` 整根 / `active-profile.txt` 只写「首次迁移」与「设为默认」）；**切换配置语义改** = 本窗重启显式传参、⛔ 不写全局默认；标题 `NewToys · <配置名>`；配置页加「🚀 新开」。② **窗口可缩放 + 分屏**：Avalonia 12.1.3 托管装饰 Win32 **不可用**（实证：`ExtendClientAreaChromeHints` 已移除、GitHub #21202）→ **自绘抓取区**（四边 5px / 四角 10px，`BeginResizeDrag` 八向）+ 拖拽贴靠半屏（实机验证项，⛔ 不做 Snap Layouts 钩子）+ 窗口 bounds 按配置记忆（`config\window.json`）。拆 **NT-024 / NT-025**（📝 草稿）。⛔ 未碰代码。
 
 ---
 
@@ -53,11 +53,12 @@
 | PC 工具箱 | 5 | **5** | 0 |
 | Web 工具箱 | 5 | **4** | 1 |
 | 视频工具箱 | 3 | **3** | 0 |
-| **合计** | **23** | **22** | **1** |
+| 媒体资产 | 12 | 0 | **12** |
+| **合计** | **35** | **22** | **13** |
 
-> **唯一剩下的骨架** = Web 的 `web-http`（判据：VM 仅有 Title/Description/StatusText/IsBusy 与 PrimaryAction/Refresh 样板命令）。
+> **骨架页**：Web 的 `web-http`（判据：VM 仅有 Title/Description/StatusText/IsBusy 与 PrimaryAction/Refresh 样板命令）+ **新增的媒体资产 12 页**（NT-014 骨架，NT-016~022 逐页落地）。
 
-### 2.4 菜单清单（24 项）
+### 2.4 菜单清单（36 项）
 
 > 权威来源 = 各模块 `Initialize()` 的 `RegisterModule/RegisterFunction`；冲突以代码为准。
 
@@ -67,6 +68,7 @@
 | 电脑工具 | pc | 20 | `IconPc` | `pc-favorites`收藏夹/0/✅ ｜ `pc-shortcuts`设置与脚本/1/✅ ｜ `pc-quicksettings`快捷设置/2/✅ ｜ `pc-package`软件包/3/✅ ｜ `pc-info`系统信息/99/✅ |
 | 网络工具 | web | 30 | `IconWeb` | `web-http`HTTP测试/1/🔧 ｜ `web-bookmark`书签/2/✅ ｜ `web-ping`网络Ping/3/✅ ｜ `web-scrape`网页抓取/4/✅ ｜ `web-hosts`Hosts管理/5/✅ |
 | 视频工具 | video | 40 | `IconVideo` | `video-list`视频列表/0/✅ ｜ `video-cut`**视频预览**/1/✅ ｜ `video-batch`**批量处理**/2/✅ |
+| 媒体资产 | assets | 50 | 🗂 emoji（矢量键留白） | `assets-all`全部资产/0/🚧 ｜ `assets-video`视频/1/🚧 ｜ `assets-music`音乐/2/🚧 ｜ `assets-book`书籍/3/🚧 ｜ `assets-image`图片/4/🚧 ｜ `assets-document`文档/5/🚧 ｜ `assets-tags`标签管理/6/🚧 ｜ `assets-categories`分类管理/7/🚧 ｜ `assets-collections`集合管理/8/🚧 ｜ `assets-storages`存储源/9/🚧 ｜ `assets-tasks`任务中心/10/🚧 ｜ `assets-trash`回收站/11/🚧 |
 | 设置 | settings | 999 | `IconSettings` | `settings-general`通用/0/✅ ｜ `settings-theme`主题/1/✅ ｜ `settings-path`路径/2/✅ ｜ `settings-launch`一键按钮/3/✅ ｜ `settings-dns`加密DNS/4/✅ ｜ `settings-package`软件源/5/✅ ｜ `settings-profile`配置/6/✅ ｜ `settings-data`数据管理/7/✅ ｜ `settings-about`关于/8/✅ ｜ `settings-all`功能清单/9/✅ |
 
 ---
@@ -97,8 +99,8 @@
 | NT-011 | 视频列表：删扫描按钮 / 数千视频优化 / 入库去重 / 删清空媒体缓存 | P1 | ✔ 已完成（待验收） | backlog/NT-011.md |
 | NT-012 | 视频预览：旋转播放按钮 + 命令卡旋转 + 按钮标题去后缀 | P2 | ✔ 已完成（待验收） | backlog/NT-012.md |
 | NT-013 | ffmpeg 卡：剪辑转码输入对齐 + 转码默认 H.265/CRF23/_H265/默认宽高 | P2 | ✔ 已完成（待验收） | backlog/NT-013.md |
-| NT-014 | 媒体资产模块骨架（Module.MediaAssets 项目 + 三处登记 + 12 菜单 + 12 空页面；一级图标暂 emoji 占位） | P1 | 📝 草稿 | backlog/NT-014.md |
-| NT-015 | 媒体资产数据层（13 表 + 索引）+ AssetService + ScanService + TaskQueue | P1 | 📝 草稿 | backlog/NT-015.md |
+| NT-014 | 媒体资产模块骨架（Module.MediaAssets 项目 + 三处登记 + 12 菜单 + 12 空页面；一级图标暂 emoji 占位） | P1 | ✔ 已完成（待验收） | backlog/NT-014.md |
+| NT-015 | 媒体资产数据层（13 表 + 索引）+ AssetService + ScanService + TaskQueue | P1 | ✔ 已完成（待验收） | backlog/NT-015.md |
 | NT-016 | AssetAllView 落地（列表 + 详情 + 工具条 + 筛选 + 排序 + 列显隐） | P1 | 📝 草稿 | backlog/NT-016.md |
 | NT-017 | 5 个类型页（视频 / 音乐 / 书籍 / 图片 / 文档；图片页可切网格） | P1 | 📝 草稿 | backlog/NT-017.md |
 | NT-018 | 标签 / 分类 / 集合三页 + 逻辑操作 + operation_logs | P1 | 📝 草稿 | backlog/NT-018.md |
@@ -243,11 +245,10 @@
 | 模块菜单注册（Key 权威源） | 各模块 `XxxModule.cs` |
 
 ---
-
 ## 五、变更流水（只留最近三次；逐次历史看 git）
 
 | 日期 | 版本 | 内容 |
 |---|---|---|
-| 2026-10-13 | **v3.28** | **NT-023/024 验收通过 ✅ + 执行 NT-025（⚠️ 待本地编译 + 实机验收）**：窗口缩放抓取区（四边 5px / 四角 10px 自绘透明热区 → `BeginResizeDrag` 八向 + 光标；最大化整层关命中测试）+ `WindowBoundsService` 按配置记 `config\window.json`（关闭存 ClientSize、最小化不覆盖、离屏夹回、尺寸 ≥960×640）。自检修掉 1 处 `OnPropertyChanged` 重复 override（CS0111）。分屏贴靠 / Win+方向键列为实机验证项 |
+| 2026-10-13 | **v3.29** | **执行 NT-014 + NT-015（⚠️ 待本地编译 + 实机验收）**：媒体资产模块骨架（新模块 + 三处登记 + 12 菜单 + 12 空页面，页面 23→35）+ 数据层（13 表 / 10 索引 + `AssetService` 四级匹配 + `ScanService` 扫描闭环 + `TaskQueue` 串行队列）；模型 `Storage`→`StorageSource` 避 Avalonia 命名空间撞名 |
+| 2026-10-13 | **v3.28** | **NT-023/024 验收通过 ✅ + NT-025 窗口缩放（✅ 已实机验收）**：窗口缩放抓取区（四边 5px / 四角 10px 自绘透明热区 → `BeginResizeDrag` 八向 + 光标；最大化整层关命中测试）+ `WindowBoundsService` 按配置记 `config\window.json`（关闭存 ClientSize、最小化不覆盖、离屏夹回、尺寸 ≥960×640）。自检修掉 1 处 `OnPropertyChanged` 重复 override（CS0111）。分屏贴靠 / Win+方向键列为实机验证项 |
 | 2026-10-13 | **v3.27** | **执行 NT-023 + NT-024（✅ 已验收通过）**：Settings 升框架组件/物理必备（Shell 无条件引用 + props 例外只出根目录 + 必载清单置顶）+ build.ps1 计数改只数功能模块 + ModuleLoader「必载 + 扫描」+ 启动健全性检查 + MenuService 跨组延迟补登；多实例（`--profile` / 每配置单例 / 切换不写全局默认 / 「设为默认」「🚀 新开」/ 标题带配置名） |
-| 2026-10-13 | **v3.26** | **多实例 + 窗口缩放需求整理（规划期）**：`--profile` 启动参数 + 每配置单例 + 切换语义改（不写全局默认，「设为默认」才写）+ 标题带配置名 + 配置页「🚀 新开」；Avalonia 12.1.3 托管装饰 Win32 不可用（实证）→ 自绘抓取区缩放 + 拖拽贴靠验证 + bounds 按配置记忆。拆 NT-024 / NT-025（📝 草稿）。未碰代码 |

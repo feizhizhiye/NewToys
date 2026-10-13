@@ -88,14 +88,17 @@
 
         <!--  关闭标签按钮：**默认隐藏，鼠标悬停本标签时才出现**（v3.4）。
              用 Opacity 而不是 IsVisible —— 宽度不变，鼠标扫过时标签不会抖动。  -->
+        <!--  v3.21 §4.2：悬停 = **更大 + 透明底 + 红色 ✕**（红 = 删除类动作的通用提示；
+              ⛔ 不画灰底——贴一个方块在标签上很难看）  -->
         <Style Selector="Button.tab-close">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="Width" Value="20"/>
             <Setter Property="Height" Value="20"/>
-            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Margin" Value="0,0,2,0"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -108,8 +111,12 @@
             <Setter Property="IsHitTestVisible" Value="True"/>
         </Style>
         <Style Selector="Button.tab-close:pointerover">
-            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="0"/>
         </Style>
 
         <!--  左树行：一级 = 图标 + **加粗**；行高 30（v3.12 由 32 收紧）、缩进由子级 ItemsControl 的 Margin 给（每级 16）  -->

@@ -361,25 +361,32 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// 会连同标准两项（添加列 / 清空）一起重建。每项自带命令 —— 菜单项在弹出树里取不到页面 VM 的命令。
     /// </summary>
     protected void SetQuickFilters(IEnumerable<(string Label, string ColumnKey, string Value)> items)
+        => SetQuickFilters(items.Select(i => (i.Label, i.ColumnKey, i.Value, (string?)null)));
+
+    /// <summary>
+    /// 带**比较方式**的版本（v3.21）：`op` 传 <c>null</c> = 等于；标签这类"逗号分隔串里含某个值"的
+    /// 必须传 <see cref="FilterOperators.Contains"/>（用"等于"会把打了多个标签的行全筛掉）。
+    /// </summary>
+    protected void SetQuickFilters(IEnumerable<(string Label, string ColumnKey, string Value, string? Op)> items)
     {
         QuickFilters.Clear();
         AddStandardQuickFilters();
-        foreach (var (label, key, value) in items)
+        foreach (var (label, key, value, op) in items)
         {
-            var k = key; var v = value;
+            var k = key; var v = value; var o = op;
             QuickFilters.Add(new FilterQuickItem
             {
                 Label = label,
                 ColumnKey = k,
                 Value = v,
-                Command = new RelayCommand(() => ApplyQuickFilterValue(k, v))
+                Command = new RelayCommand(() => ApplyQuickFilterValue(k, v, o))
             });
         }
         OnPropertyChanged(nameof(HasQuickFilters));
     }
 
-    /// <summary>应用一条快捷筛选：清掉同列旧条件后加一条「等于 value」（分类值用等于最准）。</summary>
-    private void ApplyQuickFilterValue(string columnKey, string value)
+    /// <summary>应用一条快捷筛选：清掉同列旧条件后加一条「比较方式 = 等于 / 包含」（分类值用等于最准）。</summary>
+    private void ApplyQuickFilterValue(string columnKey, string value, string? op = null)
     {
         EnsureFilterColumns();
         for (var i = Filters.Count - 1; i >= 0; i--)
@@ -392,7 +399,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         var col = FilterableColumns.FirstOrDefault(c => string.Equals(c.Key, columnKey, StringComparison.OrdinalIgnoreCase));
         if (col == null) { NotifyFilterUi(); RefreshView(); return; }
 
-        var clause = new FilterClause { Column = col, Op = FilterOperators.Equal, Value = value, Enabled = true };
+        var clause = new FilterClause { Column = col, Op = op ?? FilterOperators.Equal, Value = value, Enabled = true };
         clause.PropertyChanged += OnClauseChanged;
         Filters.Add(clause);
         NotifyFilterUi();

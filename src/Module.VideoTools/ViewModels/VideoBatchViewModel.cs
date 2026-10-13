@@ -567,6 +567,13 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         _cfg = cfg;
         _nav = nav;
         LoadLayout();
+        // v3.21 §4.8.2：类型（剪辑 / 转码 / 剪辑+转码，与 VideoTask.KindDisplay 同字面量）进表头右键「筛选」
+        SetQuickFilters(new[]
+        {
+            (Label: "类型：剪辑", ColumnKey: "Kind", Value: "剪辑"),
+            (Label: "类型：转码", ColumnKey: "Kind", Value: "转码"),
+            (Label: "类型：剪辑+转码", ColumnKey: "Kind", Value: "剪辑+转码")
+        });
         RefreshView();
     }
 

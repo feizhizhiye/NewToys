@@ -115,8 +115,16 @@ public partial class PathViewModel : ListPageViewModelBase
 
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         BuildItems();
+        RebuildQuickFilters();            // v3.21 §4.8.2：类型（文件 / 目录 / 只读）进表头右键「筛选」
         ApplyView();
     }
+
+    private void RebuildQuickFilters()
+        => SetQuickFilters(Items.Select(i => i.KindText)
+                                .Where(k => k.Length > 0)
+                                .Distinct(StringComparer.CurrentCultureIgnoreCase)
+                                .OrderBy(k => k, StringComparer.CurrentCultureIgnoreCase)
+                                .Select(k => (Label: "类型：" + k, ColumnKey: "Kind", Value: k)));
 
     private void BuildItems()
     {

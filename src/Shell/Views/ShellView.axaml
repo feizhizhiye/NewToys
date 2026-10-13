@@ -87,9 +87,9 @@
                                                     CommandParameter="{Binding}"
                                                     IsVisible="{Binding CanClose}"
                                                     ToolTip.Tip="关闭标签">
+                                                    <!--  ⛔ 字号由 Button.tab-close 样式给（悬停会放大），这里别写死  -->
                                                     <TextBlock
                                                         VerticalAlignment="Center"
-                                                        FontSize="11"
                                                         Text="✕" />
                                                 </Button>
                                             </Grid>

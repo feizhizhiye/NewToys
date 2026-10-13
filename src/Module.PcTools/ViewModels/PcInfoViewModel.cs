@@ -72,7 +72,7 @@ public partial class PcInfoViewModel : ListPageViewModelBase
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        new("Category", "分类", "1.2*"),
+        new("Category", "类型", "1.2*"),
         new("Name", "项目", "2.2*"),
         new("Value", "值", "5*"),
         new("Note", "说明", "2.4*"),
@@ -91,8 +91,16 @@ public partial class PcInfoViewModel : ListPageViewModelBase
         _nav = nav;
         LoadLayout();
         Collect();
+        RebuildQuickFilters();   // v3.21 §4.8.2：类型（信息分组）进表头右键「筛选」
         RefreshView();
     }
+
+    private void RebuildQuickFilters()
+        => SetQuickFilters(_all.Select(i => i.Category)
+                               .Where(c => c.Length > 0)
+                               .Distinct(StringComparer.CurrentCultureIgnoreCase)
+                               .OrderBy(c => c, StringComparer.CurrentCultureIgnoreCase)
+                               .Select(c => (Label: "类型：" + c, ColumnKey: "Category", Value: c)));
 
     protected override void RefreshView()
     {
@@ -144,7 +152,7 @@ public partial class PcInfoViewModel : ListPageViewModelBase
 
     private void UpdateHeaders()
     {
-        CategoryHeader = "分类" + SortArrow("Category");
+        CategoryHeader = "类型" + SortArrow("Category");
         NameHeader = "项目" + SortArrow("Name");
         ValueHeader = "值" + SortArrow("Value");
     }
@@ -167,6 +175,7 @@ public partial class PcInfoViewModel : ListPageViewModelBase
         try
         {
             await Task.Run(Collect).ConfigureAwait(true);
+            RebuildQuickFilters();
             RefreshView();
             StatusText = $"已重新检测 · {DateTime.Now:HH:mm:ss} · 共 {_all.Count} 项";
         }

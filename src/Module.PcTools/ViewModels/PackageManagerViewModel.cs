@@ -366,7 +366,29 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     }
 
     partial void OnInstalledOnlyChanged(bool value) => ApplyView();
-    partial void OnShowPinnedChanged(bool value) => ApplyView();
+
+    /// <summary>
+    /// 🐞 v3.21 修正（需求 §6.2.3）：「仅看 Pin」= **已安装包里被 Pin 住的那几个**。
+    /// 旧实现只是在"当前这份列表"（搜索结果 / 可升级）上再筛一次 `IsPinned` ——
+    /// 搜索模式下那不是"已安装"集合；可升级模式更糟（上面已把 Pin 的排除掉）→ 永远空。
+    /// 现在：只要不在已安装列表上，先切到已安装列表（顺带刷新 pin 状态），再筛。
+    /// </summary>
+    partial void OnShowPinnedChanged(bool value)
+    {
+        if (!value) { ApplyView(); return; }
+        if (_mode != ListMode.Installed) { _ = LoadInstalledForPinnedAsync(); return; }
+        ApplyView();
+    }
+
+    private async Task LoadInstalledForPinnedAsync()
+    {
+        if (_pkg == null) { ApplyView(); return; }
+        await LoadInstalledAsync();   // 内部：BuildInstalledCache + ApplyPinnedAsync + ApplyView
+        var n = _all.Count(p => p.IsPinned);
+        StatusText = n > 0
+            ? $"「仅看 Pin」：已安装包里被 Pin 住的 {n} 个（Pin = 暂停更新）。"
+            : "「仅看 Pin」：已安装包里没有被 Pin 住的。";
+    }
 
     partial void OnSelectedChanged(PackageInfo? value)
     {
@@ -381,7 +403,8 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         if (InstalledOnly && _mode == ListMode.Search)
             q = q.Where(p => p.IsInstalled);
 
-        if (ShowPinned)   // v3.19 / NT-008：只看已 Pin 的（表头 Pin 列已删，改由这个过滤看）
+        // v3.21：「仅看 Pin」只在**已安装**列表上有意义（语义 = 已安装包里被 Pin 住的；见 OnShowPinnedChanged）
+        if (ShowPinned && _mode == ListMode.Installed)
             q = q.Where(p => p.IsPinned);
 
         // v3.19 / NT-008：可升级列表**不显示已 Pin 的**（winget 会跳过它们 —— 需求 §6.2.3；也让它更贴近终端 winget upgrade 的条数）

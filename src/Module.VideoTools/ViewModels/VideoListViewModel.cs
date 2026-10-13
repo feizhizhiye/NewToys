@@ -223,6 +223,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
             _all.Clear();
             _all.AddRange(items);
             RefreshFavoriteFlags();     // v3.15：★ 标记（一次查库，不逐行查）
+            RebuildQuickFilters();      // v3.21：类型 / 标签值进表头右键「筛选」
             ApplyView();
 
             var missing = items.Count - items.Count(v => v.HasMedia);
@@ -365,6 +366,27 @@ public partial class VideoListViewModel : ListPageViewModelBase
         OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(HasChecked));
         OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：导入 / 清除 / 重扫后表头三态刷新
+    }
+
+    /// <summary>
+    /// v3.21 §4.8.2：表头右键「🔎 筛选」的分类项 = **类型（扩展名）+ 标签**。
+    /// ⚠️ 标签是逗号分隔串 → 必须用 `Contains`（用"等于"会把打了多个标签的行全筛掉）。
+    /// </summary>
+    private void RebuildQuickFilters()
+    {
+        var items = new List<(string Label, string ColumnKey, string Value, string? Op)>();
+
+        foreach (var ext in _all.Select(v => v.Extension)
+                                .Where(e => e.Length > 0)
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .OrderBy(e => e, StringComparer.OrdinalIgnoreCase))
+            items.Add(($"类型：{ext}", "Type", ext, null));
+
+        if (_catalog != null)
+            foreach (var (tag, count) in _catalog.GetAllTags())
+                items.Add(($"标签：{tag}（{count}）", "Tags", tag, FilterOperators.Contains));
+
+        SetQuickFilters(items);
     }
 
     private void UpdateHeaders()
@@ -617,6 +639,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         foreach (var v in _all) v.IsChecked = false;   // 新来源，勾选状态重置
         Selected = null;                               // 旧的选中项已不在新列表里，别让详情卡留在消失的行上
         RefreshFavoriteFlags();
+        RebuildQuickFilters();
         ApplyView();
 
         StatusText = $"已从视频库读入 {items.Count} 个记录（来自 {dbPath}）：文件可能已移动，选中后可点「🔎 读取媒体信息」刷新。";
@@ -639,6 +662,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         _all.Clear();
         Videos.Clear();
         Selected = null;
+        RebuildQuickFilters();
         ApplyView();
         StatusText = $"已清除列表（{n} 个条目）；视频文件与视频库都没动 —— 点「📂 导入」或「🔍 扫描」重新载入。";
     }
@@ -674,6 +698,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         }
 
         RefreshFavoriteFlags();
+        RebuildQuickFilters();
         ApplyView();
         StatusText = $"已导入 {added} 个视频文件（追加到当前列表；媒体信息留空，选中后可点「🔎 读取信息」）。";
     }
@@ -963,6 +988,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
             if (_catalog.HasPath(v.FullPath))
                 v.Tags = _catalog.GetTags(v.FullPath);
         }
+        RebuildQuickFilters();   // 标签改名 / 删除后筛选项跟着变
         ApplyView();
     }
 }

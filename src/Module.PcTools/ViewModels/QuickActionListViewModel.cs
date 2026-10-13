@@ -95,7 +95,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
     // ==================== 表头（左键点一下切换排序） ====================
 
     [ObservableProperty] private string _titleHeader = "名称 ▲";
-    [ObservableProperty] private string _categoryHeader = "分类";
+    [ObservableProperty] private string _categoryHeader = "类型";
     [ObservableProperty] private string _favoriteHeader = "★";
 
     // ==================== 列显隐（基类管状态，这里只给 XAML 提供具名属性） ====================
@@ -114,7 +114,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Title", "名称", "3*"),
-        new("Category", "分类", "1.3*"),
+        new("Category", "类型", "1.3*"),
         new("Description", "简介", "4*", sortable: false),
         new("Favorite", "★", "0.9*"),
         new("Action", "操作", "1.5*", sortable: false),
@@ -357,7 +357,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
 
         _suppress = true;
         CategoryOptions.Clear();
-        CategoryOptions.Add(new ActionCategoryOption { Label = "全部分类", Value = null });
+        CategoryOptions.Add(new ActionCategoryOption { Label = "全部类型", Value = null });
         foreach (var c in source.Select(i => i.Category)
                                 .Where(c => !string.IsNullOrWhiteSpace(c))
                                 .Distinct()
@@ -416,7 +416,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
     private void UpdateHeaders()
     {
         TitleHeader = "名称" + SortArrow("Title");
-        CategoryHeader = "分类" + SortArrow("Category");
+        CategoryHeader = "类型" + SortArrow("Category");
         FavoriteHeader = "★" + SortArrow("Favorite");
     }
 

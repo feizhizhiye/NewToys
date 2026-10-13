@@ -29,6 +29,14 @@
                   IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="只导入选中的几个文件（不做丢失校准）"/>
 
+          <!--  手输 / 粘贴路径：NAS 与网络路径、以及反复重扫同一个目录时比选择框好用  -->
+          <TextBox x:Name="ImportPathBox" Width="260" Margin="0,0,6,0"
+                   Text="{Binding ImportPath, Mode=TwoWay}"
+                   PlaceholderText="或直接填文件夹路径（回车执行）"/>
+          <Button Classes="ghost" Content="⤓ 登记扫描" Margin="0,0,8,0"
+                  Command="{Binding ImportPathCommand}" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="把上面的路径登记为存储源并扫描"/>
+
           <!--  NT-018（标签 / 分类 / 集合 + 逻辑操作）落地前先灰掉：⛔ 不做假按钮（能点却没反应最伤）  -->
           <Button Classes="ghost" Content="🏷 批量加标签" Margin="0,0,8,0" IsEnabled="False"
                   ToolTip.Tip="NT-018 落地"/>

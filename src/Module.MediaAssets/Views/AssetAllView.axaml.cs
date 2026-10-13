@@ -59,14 +59,22 @@ public partial class AssetAllView : UserControl
             await vm.ImportFilesAsync(paths).ConfigureAwait(false);
         };
 
-        // ③ 拖表头列边界 → 转给 VM（Grid.ColumnDefinitions 不能绑，只能这样转）
+        // ③ 路径输入框回车 = 执行扫描（省得再去点按钮）
+        ImportPathBox.KeyDown += (_, e) =>
+        {
+            if (e.Key != Avalonia.Input.Key.Enter) return;
+            if (DataContext is AssetAllViewModel vm) vm.ImportPathCommand.Execute(null);
+            e.Handled = true;
+        };
+
+        // ④ 拖表头列边界 → 转给 VM（Grid.ColumnDefinitions 不能绑，只能这样转）
         HeaderGrid.ColumnResize += (_, e) =>
         {
             if (DataContext is AssetAllViewModel vm)
                 vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
         };
 
-        // ④ 表头首次测量完 → 让 VM 按「示例宽 ≤ 表头宽」锁列宽（v3.22 §4.8.1）
+        // ⑤ 表头首次测量完 → 让 VM 按「示例宽 ≤ 表头宽」锁列宽（v3.22 §4.8.1）
         HeaderGrid.HeaderMeasured += (_, e) =>
         {
             if (DataContext is AssetAllViewModel vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);

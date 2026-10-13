@@ -342,6 +342,40 @@ public partial class ShellView : Window
     [DllImport("user32.dll", SetLastError = false)]
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
+    // ===== v3.29 贴靠缝隙修补：读真实客户区与显示器工作区（全程**物理像素**，⛔ 不做 DPI 换算） =====
+
+    private const uint SWP_NOOWNERZORDER = 0x0200;
+    private const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int CbSize;
+        public RECT RcMonitor;
+        public RECT RcWork;
+        public uint DwFlags;
+    }
+
+    [DllImport("user32.dll", SetLastError = false)]
+    private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+    /// <summary>把客户区坐标 (0,0) 换成屏幕坐标 —— 用它反推「客户区左上角离外框多远」。</summary>
+    [DllImport("user32.dll", SetLastError = false)]
+    private static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+
+    [DllImport("user32.dll", SetLastError = false)]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll", SetLastError = false)]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
     // ⚠️ 本项目锁定 win-x64（见 src/Directory.Build.props）→ 用 Ptr 版导出 ✓（32 位 Windows 上导出名不同）
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
@@ -399,7 +433,91 @@ public partial class ShellView : Window
             UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
             ApplySnapEligibleStyles();   // v3.28：状态变化时 Avalonia 会重算样式 → 把贴靠资格位补回去
         }
+        else if (change.Property == TopLevel.ClientSizeProperty)
+        {
+            FixSnappedBounds();   // v3.29：Win+←/→ 贴靠后补掉左右下的缝隙
+        }
     }
+
+    // ==================== 贴靠缝隙修补（v3.29） ====================
+    //
+    // 🔴 **根因（读 Avalonia 12.1.3 源码定论，不是猜的）**：
+    //    `WindowImpl.AppWndProc` 的 `WM_NCCALCSIZE` 在「客户区已扩展到装饰区」时，会按**当前窗口样式**
+    //    算出边框厚度，再把它**留在客户区之外**：
+    //        rect.left   -= borderThickness.left;      // 左右下保留
+    //        rect.right  -= borderThickness.right;
+    //        rect.bottom -= borderThickness.bottom;
+    //        rect.top    -= 0;                          // 顶部因为我们的标题栏被清零
+    //    平时 DWM 会在那 ~8px 上画标准窗框（所以看着正常、验收「外观 ✅」）；
+    //    但 **Win+←/→ 贴靠后 DWM 不再画这圈框**，而客户区仍被扣掉它 → 左右下露出缝隙（顶部被 40px 标题栏盖住看不出来）。
+    //
+    // ✅ **修法**：贴靠后把**窗口外框**按这圈厚度向外撑（最大化窗口本来就是这么处理的 —— 外框比屏幕大一圈、边框在屏外）。
+    //    厚度**实测得来**（GetWindowRect 外框 vs ClientToScreen+GetClientRect 客户区），⛔ 不查表、不猜 8px、不碰 DPI 换算（全程物理像素）。
+    //
+    // ⚠️ 只在「外框**正好等于**半个屏幕工作区」时动手 —— 手工拖到半屏大小几乎不可能精确到 ±2px，
+    //    所以不会误伤手动调整；校正完外框就不再等于半屏 → 不会来回抖。
+
+    /// <summary>上次校正的时间戳（防同一帧重复校正）。</summary>
+    private long _lastSnapFixTick;
+
+    private void FixSnappedBounds()
+    {
+        if (WindowState != WindowState.Normal) return;          // 最大化由系统自己管（那条路径没问题）
+
+        var now = Environment.TickCount64;
+        if (now - _lastSnapFixTick < 300) return;               // 刚校正过，等窗口稳定
+
+        var h = TryGetPlatformHandle()?.Handle;
+        if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
+
+        if (!GetWindowRect(hwnd, out var outer)) return;
+
+        // ① 实测四边的"被扣掉"厚度（外框 vs 客户区）
+        if (!GetClientRect(hwnd, out var client)) return;
+        var origin = new POINT { X = 0, Y = 0 };
+        if (!ClientToScreen(hwnd, ref origin)) return;
+
+        var insetLeft = origin.X - outer.Left;
+        var insetTop = origin.Y - outer.Top;
+        var insetRight = outer.Right - (origin.X + client.Right);
+        var insetBottom = outer.Bottom - (origin.Y + client.Bottom);
+
+        if (insetLeft == 0 && insetRight == 0 && insetBottom == 0 && insetTop == 0) return;   // 没有留边 → 没事可做
+
+        // ② 该显示器的工作区（贴靠的目标矩形）
+        var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if (monitor == IntPtr.Zero) return;
+        var info = new MONITORINFO { CbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(monitor, ref info)) return;
+        var wa = info.RcWork;
+
+        // ③ 当前外框是否"正好"是左半屏 / 右半屏
+        var half = (wa.Right - wa.Left) / 2;
+        if (half <= 0) return;
+
+        var isLeftHalf = Near(outer.Left, wa.Left) && Near(outer.Right, wa.Left + half)
+                         && Near(outer.Top, wa.Top) && Near(outer.Bottom, wa.Bottom);
+        var isRightHalf = Near(outer.Left, wa.Right - half) && Near(outer.Right, wa.Right)
+                          && Near(outer.Top, wa.Top) && Near(outer.Bottom, wa.Bottom);
+        if (!isLeftHalf && !isRightHalf) return;
+
+        // ④ 把外框向外撑：让**客户区**正好等于半屏（缝隙就没了）
+        var targetLeft = isLeftHalf ? wa.Left : wa.Right - half;
+        var targetRight = isLeftHalf ? wa.Left + half : wa.Right;
+
+        var x = targetLeft - insetLeft;
+        var y = wa.Top - insetTop;
+        var w = (targetRight + insetRight) - x;
+        var h = (wa.Bottom + insetBottom) - y;
+        if (w <= 0 || h <= 0) return;
+
+        _lastSnapFixTick = now;
+        SetWindowPos(hwnd, IntPtr.Zero, x, y, w, h,
+                     SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    }
+
+    /// <summary>两px 内算"正好"（贴靠矩形是系统给的，取整误差在这范围内）。</summary>
+    private static bool Near(int a, int b) => Math.Abs(a - b) <= 2;
 
     private void ToggleMaxRestore()
         => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;

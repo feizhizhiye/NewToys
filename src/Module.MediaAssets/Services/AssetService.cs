@@ -392,6 +392,81 @@ public class AssetService
         catch { return 0; }
     }
 
+    /// <summary>取某个存储源下的**全部**文件位置（扫描前一次性建内存索引用；⛔ 别在遍历里 per-file 调）。</summary>
+    public List<FileLocation> ListStorageLocations(long storageId)
+    {
+        var list = new List<FileLocation>();
+        if (!IsAvailable) return list;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT " + LocationColumns + " FROM file_locations WHERE storage_id=$sid;";
+            cmd.Parameters.AddWithValue("$sid", storageId);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) list.Add(MapLocation(r));
+        }
+        catch { /* 返回已读到的部分 */ }
+        return list;
+    }
+
+    /// <summary>
+    /// **一个事务**批量写入新位置并回填 Id（扫描性能的关键之一）。
+    /// 逐条 INSERT 时每条都要等一次 WAL 提交；成批提交通常快一个数量级。
+    /// </summary>
+    public void InsertLocations(IReadOnlyList<FileLocation> list)
+    {
+        if (!IsAvailable || list.Count == 0) return;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var tx = conn.BeginTransaction();
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText =
+                "INSERT INTO file_locations(asset_id,storage_id,path,relative_path,file_name,ext,mime_type,size,mtime," +
+                "hash,quick_hash,inode,device,is_primary,status,last_seen_at,created_at,updated_at) " +
+                "VALUES($aid,$sid,$path,$rel,$fn,$ext,$mime,$size,$mtime,$hash,$qhash,$inode,$dev,$prim,$st,$seen,$c,$u); " +
+                "SELECT last_insert_rowid();";
+            foreach (var l in list)
+            {
+                cmd.Parameters.Clear();
+                BindLocation(cmd, l);
+                l.Id = Convert.ToInt64(cmd.ExecuteScalar());
+            }
+            tx.Commit();
+        }
+        catch { /* 出错时这批的 Id 保持原值（0）→ 调用方跳过即可 */ }
+    }
+
+    /// <summary>
+    /// 批量刷新「本次见到了」：只更新 <c>last_seen_at</c>（扫描收尾据此判 missing）。
+    /// 分批用 <c>IN (...)</c>，⛔ 不逐条 UPDATE（1 万条逐条 = 1 万次写事务）。
+    /// </summary>
+    public void TouchLocations(IReadOnlyList<long> ids, string seenAt)
+    {
+        if (!IsAvailable || ids.Count == 0) return;
+        const int chunk = 500;                  // SQLite 的参数上限远大于此，500 是语句长度与事务成本的折中
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var tx = conn.BeginTransaction();
+            for (var i = 0; i < ids.Count; i += chunk)
+            {
+                var batch = ids.Skip(i).Take(chunk).ToList();
+                var marks = string.Join(",", batch.Select((_, k) => "$p" + k));
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = $"UPDATE file_locations SET last_seen_at=$seen, status='active' WHERE id IN ({marks});";
+                cmd.Parameters.AddWithValue("$seen", seenAt);
+                for (var k = 0; k < batch.Count; k++) cmd.Parameters.AddWithValue("$p" + k, batch[k]);
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+        }
+        catch { /* 忽略：最坏结果是这些位置被判 missing，下次扫描会回来 */ }
+    }
+
     // ==================== 列表页行查询（NT-016） ====================
 
     /// <summary>

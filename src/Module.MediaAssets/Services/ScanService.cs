@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -10,12 +11,26 @@ using NewToys.MediaAssets.Models;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 扫描服务（需求 §6.6 核心流程·扫描）：目录遍历 → 忽略规则 → 四级匹配 → 建 / 更新资产与位置 →
+/// 扫描服务（需求 §6.6 核心流程·扫描）：目录遍历 → 忽略规则 → 分级匹配 → 建 / 更新资产与位置 →
 /// 本次未出现的旧位置标 <c>missing</c>（⛔ 不删资产）。
 /// <para>
-/// 匹配顺序：① 存储源+相对路径 → ② quick_hash+size → ③ inode+device → ④ 完整 hash+size → ⑤ 全不中 = 新建。
-/// ⚠️ 步骤 ③ 的 inode 读取**暂未实现**（存 null）：Windows 上要 <c>GetFileInformationByHandle</c> 的 P/Invoke，
-/// 留待物理操作需要识别「移动」时再补（NT-019）；前三步已覆盖绝大多数场景。
+/// <b>🔴 性能策略（v3.29 重写，实测教训：第一版扫一个目录几分钟不动、硬盘狂响）</b>
+/// <list type="number">
+///   <item><b>零 IO 优先</b>：① 存储源+相对路径 → ② size + mtime，两级都**不读文件内容**；</item>
+///   <item><b>quick_hash（读前 N MB）只在"库里存在同大小且已有 quick_hash 的位置"时才算</b>
+///         —— 否则算了也没处匹配。**首次扫描因此完全不读文件内容**（纯元数据遍历）；</item>
+///   <item><b>新文件⛔ 不算完整内容哈希</b>（那会把每个文件整读一遍，是之前慢的根因）。
+///         完整哈希与元数据一起归 NT-021 的「补全哈希」任务；需要立即算可开
+///         <see cref="ComputeFullHashForNewFiles"/>；</item>
+///   <item><b>匹配全在内存做</b>：扫描前把该存储源的现有位置**一次**读进 <see cref="StorageIndex"/>，
+///         ⛔ 不 per-file SELECT（1 万文件 = 4 万次查询 → 4 次）；</item>
+///   <item><b>批量落库</b>：新位置攒够 <see cref="BatchSize"/> 条用一个事务提交；没变化的位置
+///         只记 id、批量 <c>UPDATE last_seen_at</c>，⛔ 不逐条写。</item>
+/// </list>
+/// </para>
+/// <para>
+/// ⚠️ <b>已知降级</b>：首次入库的位置没有 quick_hash → 之后若文件被移动**且** mtime 也变了，
+/// ①② 都不命中，会当成新资产（旧的留 missing）。内容完全一样的重复由将来「补全哈希」校准。
 /// </para>
 /// <para>
 /// ⚠️ 元数据 / 缩略图**不在本项**（NT-021）：本类只留 <c>enricher</c> 回调挂钩，扫描到新文件时调用它。
@@ -24,6 +39,9 @@ namespace NewToys.MediaAssets.Services;
 public class ScanService
 {
     private readonly AssetService _assets;
+
+    /// <summary>时间戳格式（可排序文本；与 <see cref="AssetService.Now"/> 一致）。</summary>
+    private const string TimeFormat = "yyyy-MM-dd HH:mm:ss";
 
     public ScanService(AssetService assets) => _assets = assets;
 
@@ -43,8 +61,25 @@ public class ScanService
     /// <summary>quick_hash 采样大小（MB）：默认 1 MB，配得越大越准、扫描越慢。</summary>
     public int QuickHashSampleMb { get; set; } = 1;
 
-    /// <summary>单个存储源扫描完成后才做 missing 校准；进度文本交给调用方显示。</summary>
+    /// <summary>
+    /// 新入库的文件是否**立即**算完整内容哈希。默认 <c>false</c>。
+    /// 🔴 打开它会把每个新文件整读一遍 —— 首次扫描立刻退化成"几分钟扫不完一个目录 + 硬盘狂响"。
+    /// 正式用途 = 需要立刻得到内容指纹做去重时；常规索引交给 NT-021 的异步「补全哈希」。
+    /// </summary>
+    public bool ComputeFullHashForNewFiles { get; set; }
+
+    /// <summary>新位置的批量提交阈值（条）。事务提交比逐条 INSERT 快一个数量级。</summary>
+    public int BatchSize { get; set; } = 200;
+
+    /// <summary>
+    /// 进度上报的最小间隔（毫秒）。
+    /// ⛔ **别按文件数上报**：大文件一个就卡住几十秒，状态栏看着像死机（用户实测踩到）。
+    /// </summary>
+    public int ProgressIntervalMs { get; set; } = 200;
+
     public bool IsAvailable => _assets.IsAvailable;
+
+    // ==================== 扫描（可指定存储源 / 全部在线） ====================
 
     /// <summary>
     /// 扫描（异步 / 可取消 / 带进度文本）。<paramref name="storageId"/> = null 表示**全部在线存储源**。
@@ -74,8 +109,9 @@ public class ScanService
 
         // 目标存储源：指定的那一个 / 全部在线的
         var storages = _assets.ListStorages();
-        if (storageId is { } sid) storages = storages.Where(s => s.Id == sid).ToList();
-        else storages = storages.Where(s => s.Online).ToList();
+        storages = storageId is { } sid
+            ? storages.Where(s => s.Id == sid).ToList()
+            : storages.Where(s => s.Online).ToList();
 
         if (storages.Count == 0)
         {
@@ -107,35 +143,7 @@ public class ScanService
                     continue;
                 }
 
-                // ⚠️ 先取「本次开始时刻」：扫描收尾用它判「本次没见到」→ missing
-                var scannedFrom = AssetService.Now();
-
-                await Task.Run(() =>
-                {
-                    foreach (var file in EnumerateFiles(storage.RootPath, ct))
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        job.TotalFiles++;
-                        try
-                        {
-                            IndexOne(storage, file, job, enricher, ct);
-                        }
-                        catch (OperationCanceledException) { throw; }
-                        catch (Exception ex)
-                        {
-                            job.ErrorCount++;
-                            _assets.AddScanError(job.Id, file, "io", ex.Message);
-                        }
-
-                        if (job.TotalFiles % 50 == 0)
-                            progress?.Report($"「{storage.Name}」已扫描 {job.TotalFiles} 个文件（新增 {job.AddedFiles} / 更新 {job.UpdatedFiles}）");
-                    }
-                }, ct).ConfigureAwait(false);
-
-                // 收尾：本次没见到的旧位置 → missing（⛔ 不删资产）
-                var missing = _assets.MarkMissingLocations(storage.Id, scannedFrom);
-                job.MissingFiles += missing;
-                progress?.Report($"「{storage.Name}」完成：新增 {job.AddedFiles} / 更新 {job.UpdatedFiles} / 丢失 {missing}");
+                await ScanOneStorageAsync(storage, job, progress, ct, enricher).ConfigureAwait(false);
             }
 
             job.Status = ScanStatuses.Success;
@@ -160,8 +168,66 @@ public class ScanService
         return job;
     }
 
+    /// <summary>扫单个存储源：载入内存索引 → 遍历 → 批量落库 → 收尾 missing 校准。</summary>
+    private async Task ScanOneStorageAsync(StorageSource storage, ScanJob job, IProgress<string>? progress,
+                                           CancellationToken ct, Func<FileLocation, CancellationToken, Task>? enricher)
+    {
+        // ⚠️ 先取「本次开始时刻」：扫描收尾用它判「本次没见到」→ missing
+        var startedAt = AssetService.Now();
+
+        // 🔴 一次查询把该存储源的现有位置读进内存 → 之后**匹配全在内存做**（⛔ 不 per-file SELECT）
+        var index = LoadStorageIndex(storage.Id);
+        progress?.Report(index.Count == 0
+            ? $"「{storage.Name}」首次扫描：只读文件信息，不读内容（很快）"
+            : $"「{storage.Name}」已在库 {index.Count} 个位置，开始校准…");
+
+        await Task.Run(() =>
+        {
+            var pending = new List<FileLocation>();
+            var touched = new List<long>();
+            var sw = Stopwatch.StartNew();
+            var lastReport = 0L;
+
+            foreach (var file in EnumerateFiles(storage.RootPath, ct))
+            {
+                ct.ThrowIfCancellationRequested();
+                job.TotalFiles++;
+                try
+                {
+                    IndexOne(storage, file, index, job, pending, touched);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    job.ErrorCount++;
+                    _assets.AddScanError(job.Id, file, "io", ex.Message);
+                }
+
+                if (pending.Count >= BatchSize) FlushNew(pending, index, enricher, ct);
+                if (touched.Count >= BatchSize) FlushTouched(touched, startedAt);
+
+                // 进度按**时间**节流（⛔ 不按文件数：大文件会卡住状态栏）
+                if (sw.ElapsedMilliseconds - lastReport >= ProgressIntervalMs)
+                {
+                    lastReport = sw.ElapsedMilliseconds;
+                    progress?.Report($"「{storage.Name}」已扫描 {job.TotalFiles} 个（新增 {job.AddedFiles} / 更新 {job.UpdatedFiles}）");
+                }
+            }
+
+            FlushNew(pending, index, enricher, ct);
+            FlushTouched(touched, startedAt);
+        }, ct).ConfigureAwait(false);
+
+        // 收尾：本次没见到的旧位置 → missing（⛔ 不删资产）
+        var missing = _assets.MarkMissingLocations(storage.Id, startedAt);
+        job.MissingFiles += missing;
+        progress?.Report($"「{storage.Name}」完成：新增 {job.AddedFiles} / 更新 {job.UpdatedFiles} / 丢失 {missing} / 失败 {job.ErrorCount}");
+    }
+
+    // ==================== 导入指定的一批文件 ====================
+
     /// <summary>
-    /// 导入**指定的一批文件**（工具条「📂 导入 → 文件…」）：按所在目录各自登记 / 复用存储源后逐个入库。
+    /// 导入**指定的一批文件**（工具条「📄 导入文件」）：按所在目录各自登记 / 复用存储源后逐个入库。
     /// <para>
     /// 🔴 与 <see cref="ScanAsync"/> 的关键差别：**不做 missing 校准** —— 用户只选了几个文件，
     /// 同目录的其它文件没被选上，不能把它们判成「丢失」。
@@ -181,7 +247,7 @@ public class ScanService
             progress?.Report("资产库不可用（数据库打不开）——导入未执行。");
             return job;
         }
-        if (files.Count == 0)
+        if (files == null || files.Count == 0)
         {
             job.Status = ScanStatuses.Success;
             job.FinishedAt = AssetService.Now();
@@ -204,9 +270,13 @@ public class ScanService
                     list.Add(f);
                 }
 
+                var sw = Stopwatch.StartNew();
+                var lastReport = 0L;
+
                 foreach (var (dir, list) in byDir)
                 {
                     ct.ThrowIfCancellationRequested();
+
                     var trimmed = dir.TrimEnd('\\', '/');
                     // 盘根目录（如 C:\）取不到目录名 → 回退用路径本身，⛔ 别让存储源名为空
                     var dirName = Path.GetFileName(trimmed);
@@ -226,15 +296,18 @@ public class ScanService
                         continue;
                     }
 
+                    var index = LoadStorageIndex(storage.Id);
+                    var pending = new List<FileLocation>();
+                    var touched = new List<long>();
+
                     foreach (var f in list)
                     {
                         ct.ThrowIfCancellationRequested();
                         job.TotalFiles++;
                         try
                         {
-                            var info = new FileInfo(f);
-                            if (!info.Exists) { job.ErrorCount++; continue; }
-                            IndexOne(storage, f, job, enricher, ct);
+                            if (!File.Exists(f)) { job.ErrorCount++; continue; }
+                            IndexOne(storage, f, index, job, pending, touched);
                         }
                         catch (OperationCanceledException) { throw; }
                         catch (Exception ex)
@@ -242,8 +315,16 @@ public class ScanService
                             job.ErrorCount++;
                             _assets.AddScanError(job.Id, f, "io", ex.Message);
                         }
-                        progress?.Report($"已导入 {job.TotalFiles} / {files.Count}（新增 {job.AddedFiles} / 更新 {job.UpdatedFiles}）");
+
+                        if (sw.ElapsedMilliseconds - lastReport >= ProgressIntervalMs)
+                        {
+                            lastReport = sw.ElapsedMilliseconds;
+                            progress?.Report($"已导入 {job.TotalFiles} / {files.Count}（新增 {job.AddedFiles} / 更新 {job.UpdatedFiles}）");
+                        }
                     }
+
+                    FlushNew(pending, index, enricher, ct);
+                    FlushTouched(touched, AssetService.Now());
                 }
             }, ct).ConfigureAwait(false);
 
@@ -269,75 +350,69 @@ public class ScanService
         return job;
     }
 
-    // ==================== 内部：单个文件入库 ====================
+    // ==================== 单个文件：分级匹配 ====================
 
-    private void IndexOne(StorageSource storage, string fullPath, ScanJob job,
-                          Func<FileLocation, CancellationToken, Task>? enricher, CancellationToken ct)
+    /// <summary>
+    /// 处理一个文件：① 相对路径（零 IO） → ② size+mtime（零 IO） → ③ quick_hash（读前 N MB，
+    /// 仅当库里有同大小**且带 quick_hash** 的位置时才算） → ④ 全新（⛔ 不读内容）。
+    /// </summary>
+    private void IndexOne(StorageSource storage, string fullPath, StorageIndex index, ScanJob job,
+                          List<FileLocation> pending, List<long> touched)
     {
         var info = new FileInfo(fullPath);
         var size = info.Length;
-        var mtime = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss");
+        var mtime = info.LastWriteTime.ToString(TimeFormat);
         var relative = MakeRelative(storage.RootPath, fullPath);
         var ext = info.Extension;
-        var quickHash = ComputeQuickHash(fullPath, size, info.LastWriteTimeUtc.Ticks);
 
-        // ① 存储源 + 相对路径（同存储源内最可靠）
-        var loc = _assets.FindLocationByRelativePath(storage.Id, relative);
-        if (loc != null)
+        // ① 存储源 + 相对路径（同存储源内最可靠；零 IO）
+        if (index.ByRelPath.TryGetValue(relative, out var loc))
         {
-            // 命中：刷新文件属性（大小 / mtime / 哈希），资产本身不动
-            loc.Path = fullPath;
-            loc.FileName = info.Name;
-            loc.Size = size;
-            loc.Mtime = mtime;
-            loc.QuickHash = quickHash;
-            loc.Ext = ext;
-            loc.Status = LocationStatuses.Active;
-            loc.LastSeenAt = AssetService.Now();
+            job.ScannedFiles++;
+            if (TouchOrUpdate(loc, fullPath, relative, info, size, mtime, ext, touched)) job.UpdatedFiles++;
+            return;
+        }
+
+        // ② size + mtime（零 IO）：内容没动、路径变了 → 视为**移动**
+        if (index.BySizeMtime.TryGetValue((size, mtime), out loc))
+        {
+            job.ScannedFiles++;
+            ApplyMove(loc, storage, fullPath, relative, info, size, mtime, ext, null);
             _assets.UpdateLocation(loc);
-            job.ScannedFiles++;
+            index.Reindex(loc);
             job.UpdatedFiles++;
             return;
         }
 
-        // ② quick_hash + size：同内容出现在新路径 → 视为**移动**（⛔ 不新建 + 不丢旧）
-        loc = _assets.FindLocationByQuickHash(quickHash, size);
-        if (loc != null)
+        // ③ quick_hash + size（**只读前 N MB**）
+        //    ⛔ 守卫：库里没有"同大小且已带 quick_hash"的位置时**直接跳过** —— 算了也无处匹配。
+        //    这一条守卫就是首次扫描**完全不读文件内容**的关键。
+        if (index.HasQuickHashForSize(size))
         {
-            ApplyMove(loc, storage, fullPath, relative, info, size, mtime, quickHash, ext);
-            job.ScannedFiles++;
-            job.UpdatedFiles++;
-            return;
+            var quickHash = ComputeQuickHash(fullPath, size, info.LastWriteTimeUtc.Ticks);
+            if (quickHash.Length > 0 && index.ByQuickHash.TryGetValue((size, quickHash), out loc))
+            {
+                job.ScannedFiles++;
+                ApplyMove(loc, storage, fullPath, relative, info, size, mtime, ext, quickHash);
+                _assets.UpdateLocation(loc);
+                index.Reindex(loc);
+                job.UpdatedFiles++;
+                return;
+            }
         }
 
-        // ③ inode + device：暂未实现（见类注释）——保留判断位置，将来补上即可
-        //    loc = _assets.FindLocationByInode(inode, device);
-
-        // ④ 无匹配 → 算完整 hash 再匹配一次（同内容、不同前缀的极端情况）
-        var fullHash = ComputeFullHash(fullPath);
-        loc = _assets.FindLocationByHash(fullHash, size);
-        if (loc != null)
-        {
-            ApplyMove(loc, storage, fullPath, relative, info, size, mtime, quickHash, ext);
-            loc.Hash = fullHash;
-            _assets.UpdateLocation(loc);
-            job.ScannedFiles++;
-            job.UpdatedFiles++;
-            return;
-        }
-
-        // ⑤ 全新文件：建资产 + 建主位置
-        var type = GuessAssetType(ext);
+        // ④ 全新文件：建资产 + 排队等批量写入
+        //    ⛔ **不读文件内容**（完整哈希延后到 NT-021）—— 这是 v3.29 性能重修的核心。
         var asset = new Asset
         {
-            Type = type,
+            Type = GuessAssetType(ext),
             Title = Path.GetFileNameWithoutExtension(info.Name),
             Status = AssetStatuses.Active
         };
         var assetId = _assets.InsertAsset(asset);
         if (assetId == 0) throw new IOException("资产写入失败（数据库不可用？）");
 
-        var newLoc = new FileLocation
+        pending.Add(new FileLocation
         {
             AssetId = assetId,
             StorageId = storage.Id,
@@ -348,25 +423,51 @@ public class ScanService
             MimeType = GuessMimeType(ext),
             Size = size,
             Mtime = mtime,
-            Hash = fullHash,
-            QuickHash = quickHash,
+            Hash = ComputeFullHashForNewFiles ? ComputeFullHash(fullPath) : null,
+            QuickHash = null,
             IsPrimary = true,
             Status = LocationStatuses.Active,
             LastSeenAt = AssetService.Now()
-        };
-        newLoc.Id = _assets.InsertLocation(newLoc);
+        });
 
         job.ScannedFiles++;
         job.AddedFiles++;
+    }
 
-        // 元数据 / 缩略图挂钩（NT-021 注入；传 null 即不做事）
-        if (enricher != null && newLoc.Id != 0)
-            enricher(newLoc, ct).GetAwaiter().GetResult();
+    /// <summary>
+    /// 位置还在原处：字段**全没变**就只记 id（批量 touch，⛔ 不写库）；有变化才 UPDATE。
+    /// 返回是否有实际改动（给 <c>UpdatedFiles</c> 计数用）。
+    /// </summary>
+    private bool TouchOrUpdate(FileLocation loc, string fullPath, string relative, FileInfo info,
+                               long size, string mtime, string ext, List<long> touched)
+    {
+        var unchanged = loc.Size == size
+                        && string.Equals(loc.Mtime, mtime, StringComparison.Ordinal)
+                        && string.Equals(loc.FileName, info.Name, StringComparison.Ordinal)
+                        && string.Equals(loc.RelativePath, relative, StringComparison.Ordinal)
+                        && loc.Status == LocationStatuses.Active;
+
+        if (unchanged)
+        {
+            touched.Add(loc.Id);
+            return false;
+        }
+
+        loc.Path = fullPath;
+        loc.FileName = info.Name;
+        loc.RelativePath = relative;
+        loc.Ext = ext;
+        loc.Size = size;
+        loc.Mtime = mtime;
+        loc.Status = LocationStatuses.Active;
+        loc.LastSeenAt = AssetService.Now();
+        _assets.UpdateLocation(loc);
+        return true;
     }
 
     /// <summary>把已有位置改到新路径（识别为移动 / 改名）：更新路径字段 + 复位 missing。</summary>
-    private void ApplyMove(FileLocation loc, StorageSource storage, string fullPath, string relative,
-                           FileInfo info, long size, string mtime, string quickHash, string ext)
+    private static void ApplyMove(FileLocation loc, StorageSource storage, string fullPath, string relative,
+                                  FileInfo info, long size, string mtime, string ext, string? quickHash)
     {
         loc.StorageId = storage.Id;
         loc.Path = fullPath;
@@ -375,10 +476,42 @@ public class ScanService
         loc.Ext = ext;
         loc.Size = size;
         loc.Mtime = mtime;
-        loc.QuickHash = quickHash;
+        if (quickHash != null) loc.QuickHash = quickHash;
         loc.Status = LocationStatuses.Active;
         loc.LastSeenAt = AssetService.Now();
-        _assets.UpdateLocation(loc);
+    }
+
+    // ==================== 批量落库 ====================
+
+    private void FlushNew(List<FileLocation> pending, StorageIndex index,
+                          Func<FileLocation, CancellationToken, Task>? enricher, CancellationToken ct)
+    {
+        if (pending.Count == 0) return;
+
+        _assets.InsertLocations(pending);                       // 一个事务写完，回填 Id
+        foreach (var l in pending) if (l.Id != 0) index.Add(l); // 立刻进内存索引（同批里的重复不会重复建）
+
+        if (enricher != null)
+            foreach (var l in pending)
+                if (l.Id != 0) enricher(l, ct).GetAwaiter().GetResult();
+
+        pending.Clear();
+    }
+
+    private void FlushTouched(List<long> touched, string seenAt)
+    {
+        if (touched.Count == 0) return;
+        _assets.TouchLocations(touched, seenAt);
+        touched.Clear();
+    }
+
+    /// <summary>把一个存储源的现有位置**一次**读进内存索引（⛔ 不 per-file 查库）。</summary>
+    private StorageIndex LoadStorageIndex(long storageId)
+    {
+        var index = new StorageIndex();
+        if (!_assets.IsAvailable) return index;
+        foreach (var l in _assets.ListStorageLocations(storageId)) index.Add(l);
+        return index;
     }
 
     // ==================== 内部：遍历 / 忽略 / 哈希 ====================
@@ -386,6 +519,10 @@ public class ScanService
     /// <summary>
     /// 手写遍历（⛔ 不用 <c>Directory.EnumerateFiles(..., AllDirectories)</c>：它遇到**一个**没权限的
     /// 子目录就整体抛异常，整次扫描会断）。这里逐目录 try-catch：读不了的目录跳过，其余照常。
+    /// <para>
+    /// ⚠️ 用 <c>EnumerateFileSystemEntries</c> 一次拿**全部条目**再自己分流目录 / 文件：
+    /// 比 <c>GetDirectories</c> + <c>GetFiles</c> 少一半系统调用（大目录上很明显）。
+    /// </para>
     /// </summary>
     private IEnumerable<string> EnumerateFiles(string root, CancellationToken ct)
     {
@@ -397,32 +534,32 @@ public class ScanService
             ct.ThrowIfCancellationRequested();
             var dir = stack.Pop();
 
-            string[] subDirs;
-            try { subDirs = Directory.GetDirectories(dir); }
+            string[] entries;
+            try { entries = Directory.GetFileSystemEntries(dir); }
             catch { continue; }                       // 目录读不了 → 跳过
 
-            foreach (var sub in subDirs)
+            foreach (var entry in entries)
             {
-                var name = Path.GetFileName(sub);
-                if (IgnoreDirectoryNames.Contains(name)) continue;
-                // 隐藏 / 系统目录跳过（回收站、卷影等）
+                var isDir = false;
                 try
                 {
-                    var attrs = File.GetAttributes(sub);
+                    var attrs = File.GetAttributes(entry);
+                    // 隐藏 / 系统目录跳过（回收站、卷影等）；⛔ 不停在这类目录上浪费时间
                     if (attrs.HasFlag(FileAttributes.System)) continue;
+                    isDir = attrs.HasFlag(FileAttributes.Directory);
                 }
                 catch { continue; }
-                stack.Push(sub);
-            }
 
-            string[] files;
-            try { files = Directory.GetFiles(dir); }
-            catch { continue; }
-
-            foreach (var f in files)
-            {
-                if (IgnoreExtensions.Contains(Path.GetExtension(f))) continue;
-                yield return f;
+                if (isDir)
+                {
+                    if (IgnoreDirectoryNames.Contains(Path.GetFileName(entry))) continue;
+                    stack.Push(entry);
+                }
+                else
+                {
+                    if (IgnoreExtensions.Contains(Path.GetExtension(entry))) continue;
+                    yield return entry;
+                }
             }
         }
     }
@@ -440,11 +577,8 @@ public class ScanService
 
     /// <summary>
     /// quick_hash = **前 N MB 采样** + 文件长度 + 最后写入时间（UTC ticks）的 SHA1。
-    /// 为什么采样：整库扫描时全量读盘不可接受；同内容文件只要前缀一致就必然撞上（采样大小可配）。
-    /// <para>
-    /// ⚠️ 采样缓冲与 SHA1 实例**复用**（字段）：整库扫描动辄几万文件，每文件 new 一个 1MB 数组
-    /// 会给 GC 添无谓压力。⚠️ 因此**只在单线程扫描里用**（<see cref="ScanAsync"/> 已串在 <c>Task.Run</c> 里）。
-    /// </para>
+    /// 采样缓冲与 SHA1 实例**复用**（字段）：整库扫描动辄几万文件，每文件 new 一个 1MB 数组
+    /// 会给 GC 添无谓压力。⚠️ 因此**只在单线程扫描里用**（扫描已串在 <c>Task.Run</c> 里）。
     /// </summary>
     private string ComputeQuickHash(string path, long size, long mtimeUtcTicks)
     {
@@ -455,7 +589,7 @@ public class ScanService
             if (wanted > 0)
             {
                 EnsureSampleBuffer();
-                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, SampleBytes, FileOptions.SequentialScan);
                 var read = 0;
                 while (read < wanted)
                 {
@@ -486,7 +620,7 @@ public class ScanService
     private byte[]? _sampleBuffer;
     private readonly SHA1 _sha1 = SHA1.Create();
 
-    /// <summary>完整内容哈希（SHA1，前缀 <c>sha1:</c>）：只在 ①②③ 都没命中时算，代价高。</summary>
+    /// <summary>完整内容哈希（SHA1，前缀 <c>sha1:</c>）：只有显式打开 <see cref="ComputeFullHashForNewFiles"/> 才用。</summary>
     private static string ComputeFullHash(string path)
     {
         try
@@ -518,4 +652,43 @@ public class ScanService
         ".pdf" => "application/pdf", ".epub" => "application/epub+zip",
         _ => null
     };
+}
+
+/// <summary>
+/// 一个存储源的**内存匹配索引**（扫描前一次性建好，之后所有匹配都在内存里做）。
+/// <para>⛔ 没有它就得每个文件查 3~4 次库 —— 1 万文件 = 4 万次查询，是上一版慢的另一半原因。</para>
+/// </summary>
+internal sealed class StorageIndex
+{
+    /// <summary>相对路径 → 位置（同存储源内的主匹配键）。</summary>
+    public Dictionary<string, FileLocation> ByRelPath { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>（大小, 修改时间）→ 位置（零 IO 的"移动"识别）。</summary>
+    public Dictionary<(long Size, string Mtime), FileLocation> BySizeMtime { get; } = new();
+
+    /// <summary>（大小, quick_hash）→ 位置（需要读前 N MB 才能匹配）。</summary>
+    public Dictionary<(long Size, string QuickHash), FileLocation> ByQuickHash { get; } = new();
+
+    /// <summary>哪些**大小**在库里已有带 quick_hash 的位置（决定要不要花那 1MB 读盘）。</summary>
+    private readonly HashSet<long> _sizesWithQuickHash = new();
+
+    /// <summary>库里这个存储源已有多少位置（0 = 首次扫描）。</summary>
+    public int Count => ByRelPath.Count;
+
+    public void Add(FileLocation l)
+    {
+        if (!string.IsNullOrEmpty(l.RelativePath)) ByRelPath[l.RelativePath] = l;
+        if (!string.IsNullOrEmpty(l.Mtime)) BySizeMtime[(l.Size, l.Mtime!)] = l;
+        if (!string.IsNullOrEmpty(l.QuickHash))
+        {
+            ByQuickHash[(l.Size, l.QuickHash!)] = l;
+            _sizesWithQuickHash.Add(l.Size);
+        }
+    }
+
+    /// <summary>位置被改写后（移动 / 更新）→ 重建它涉及的索引项。</summary>
+    public void Reindex(FileLocation l) => Add(l);
+
+    /// <summary>这个大小在库里有"带 quick_hash"的位置吗（没有就别读那 1MB）。</summary>
+    public bool HasQuickHashForSize(long size) => _sizesWithQuickHash.Contains(size);
 }

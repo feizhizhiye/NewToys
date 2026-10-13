@@ -193,10 +193,27 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     // ==================== 导入：文件夹 / 文件（由 View 弹选择框后调用） ====================
 
+    /// <summary>
+    /// 工具条的路径输入框（可**手输 / 粘贴**，也可由「📁 导入文件夹」的选择框回填）。
+    /// 为什么要有它：NAS / 网络路径、以及已知路径反复重扫时，弹选择框很难用。
+    /// </summary>
+    [ObservableProperty] private string _importPath = "";
+
+    /// <summary>扫描输入框里的路径（手输入口；回车 / 点「⤓」都走这里）。</summary>
+    [RelayCommand]
+    private async Task ImportPathAsync()
+    {
+        var dir = (ImportPath ?? "").Trim().Trim('"');
+        if (dir.Length == 0) { StatusText = "先填一个文件夹路径。"; return; }
+        if (!Directory.Exists(dir)) { StatusText = $"目录不存在：{dir}"; return; }
+        await ImportFolderAsync(dir).ConfigureAwait(false);
+    }
+
     /// <summary>导入一个目录：登记为存储源后扫描它（**会**做 missing 校准 —— 整库视角）。</summary>
     public async Task ImportFolderAsync(string dir)
     {
         if (string.IsNullOrWhiteSpace(dir)) return;
+        ImportPath = dir;                       // 回填输入框（选择框选的也让用户看得见）
         var name = Path.GetFileName(dir.TrimEnd('\\', '/'));
         if (string.IsNullOrEmpty(name)) name = dir;
 

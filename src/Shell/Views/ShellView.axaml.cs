@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -14,9 +15,10 @@ namespace NewToys.Shell.Views;
 /// <summary>
 /// 主窗口（v3.6：标题栏（含标签栏）/ 左树 / 内容区 / 右详情）。
 /// <para>
-/// 标签栏与左树是**纯数据驱动**（ItemsControl + 绑定），code-behind 只剩五件事：
+/// 标签栏与左树是**纯数据驱动**（ItemsControl + 绑定），code-behind 只剩这几件事：
 /// ① 关闭拦截（「关闭到托盘」）；② 窗口按钮；③ 标题栏拖拽 + 双击最大化；
-/// ④ 标签页区域滚轮切换标签；⑤ 切换后把当前标签**滚进视野**（v3.6）。
+/// ④ 标签页区域滚轮切换标签；⑤ 切换后把当前标签**滚进视野**（v3.6）；
+/// ⑥ 窗口缩放抓取区 + 大小 / 位置记忆（v3.26）；⑦ 贴靠资格样式补丁（v3.28）。
 /// </para>
 /// </summary>
 public partial class ShellView : Window
@@ -25,6 +27,9 @@ public partial class ShellView : Window
 
     /// <summary>窗口大小 / 位置记忆（v3.26，需求 §四）：落本配置 <c>config\window.json</c>；解析不到就纯用默认。</summary>
     private readonly WindowBoundsService? _bounds;
+
+    /// <summary>待补设的位置（v3.28 实测：构造期设的 <c>Position</c> 可能被首次 Show 覆盖 → 在 OnOpened 再补一次）。</summary>
+    private PixelPoint? _pendingPosition;
 
     /// <summary>
     /// 真·退出开关。「关闭按钮最小化到托盘」开启后，<see cref="OnClosing"/> 会把关闭拦下来；
@@ -38,7 +43,6 @@ public partial class ShellView : Window
 
         _bounds = App.GetService<WindowBoundsService>();
         RestoreWindowBounds();
-        Closed += (_, _) => SaveWindowBounds();
     }
 
     /// <summary>
@@ -54,8 +58,20 @@ public partial class ShellView : Window
             Hide();
             return;
         }
+
+        // v3.28：**趁窗口句柄还在**存边界 —— Closed 时句柄已销毁，Position 会退化成 (0,0)（实测踩过）
+        SaveWindowBounds();
+
         App.ShutdownTray();
         base.OnClosing(e);
+    }
+
+    /// <summary>首次显示后再补一次位置（构造期设的 Position 可能被首次 Show 覆盖）。</summary>
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        if (_pendingPosition is { } p && Position != p) Position = p;
+        _pendingPosition = null;
     }
 
     private static bool CloseToTrayEnabled()
@@ -91,6 +107,10 @@ public partial class ShellView : Window
         // 窗口缩放抓取区（v3.26）：四边 5px + 四角 10px 透明热区 → BeginResizeDrag（八向）+ 对应光标。
         WireResizeGrips();
         UpdateResizeGrips();
+
+        // v3.28：给无边框窗口补回「可缩放」标准样式 —— Windows 的贴靠（Win+方向键 / 拖到屏幕边缘 /
+        // 拖到顶边最大化）只认带 WS_THICKFRAME 等标准样式的窗口。
+        ApplySnapEligibleStyles();
 
         // 标签页区域滚轮 = 切换标签。用 **隧道** 方式注册：滚动容器（ScrollViewer）会先把
         // 滚轮当成横向滚动吃掉，隧道阶段拦下来才能变成"切标签"。
@@ -194,9 +214,13 @@ public partial class ShellView : Window
 
             // 位置是物理像素、尺寸是逻辑单位 → 乘渲染缩放后再和工作区比
             var scale = RenderScaling > 0 ? RenderScaling : 1;
-            var rect = new PixelRect(new PixelPoint((int)b.X, (int)b.Y),
-                                     new PixelSize((int)Math.Ceiling(w * scale), (int)Math.Ceiling(h * scale)));
-            if (IsVisibleOnAnyScreen(rect)) Position = new PixelPoint((int)b.X, (int)b.Y);
+            var pt = new PixelPoint((int)b.X, (int)b.Y);
+            var rect = new PixelRect(pt, new PixelSize((int)Math.Ceiling(w * scale), (int)Math.Ceiling(h * scale)));
+            if (IsVisibleOnAnyScreen(rect))
+            {
+                Position = pt;
+                _pendingPosition = pt;   // OnOpened 再补一次（首次 Show 可能覆盖构造期设的位置）
+            }
         }
         catch { /* 恢复失败就用默认窗口（1280×800） */ }
     }
@@ -225,11 +249,15 @@ public partial class ShellView : Window
             if (_bounds == null) return;
             if (WindowState == WindowState.Minimized) return;
 
+            // ⚠️ 位置必须走 GetWindowRect 读真值：`Window.Position` 在句柄已销毁时会退化成 (0,0)，
+            //    而 v3.28 实测正是踩到这个（存出来 X=0,Y=0 → 下次启动落在屏幕左上）。
+            var pos = TryGetWindowTopLeft() ?? Position;
+
             _bounds.Save(new WindowBoundsService.WindowBounds
             {
-                X = Position.X,
-                Y = Position.Y,
-                // ⚠️ 存 ClientSize：OS 拖拽改的是实际尺寸，Width/Height 可能还停在初始请求值
+                X = pos.X,
+                Y = pos.Y,
+                // ⚠️ 尺寸存 ClientSize：OS 拖拽改的是实际尺寸，Width/Height 可能还停在初始请求值
                 Width = ClientSize.Width,
                 Height = ClientSize.Height,
                 State = WindowState == WindowState.Maximized ? "Maximized" : "Normal"
@@ -237,6 +265,88 @@ public partial class ShellView : Window
         }
         catch { /* 记不下来不影响关闭 */ }
     }
+
+    // ==================== Win32 平台细节（v3.28）：真实位置 + 贴靠资格 ====================
+
+    /// <summary>
+    /// 读窗口真实左上角（物理像素）。比 <c>Window.Position</c> 可靠：后者在句柄失效后返回 (0,0)。
+    /// 读不到 → null（调用方退回 <c>Position</c>）。
+    /// </summary>
+    private PixelPoint? TryGetWindowTopLeft()
+    {
+        try
+        {
+            var h = TryGetPlatformHandle()?.Handle;
+            if (h is { } hwnd && hwnd != IntPtr.Zero && GetWindowRect(hwnd, out var r))
+                return new PixelPoint(r.Left, r.Top);
+        }
+        catch { /* 拿不到就算了 */ }
+        return null;
+    }
+
+    /// <summary>
+    /// 给无边框窗口补回「可缩放窗口」标准样式（<c>WS_THICKFRAME</c> + 最小 / 最大化 / 系统菜单）。
+    /// <para>
+    /// 为什么需要：Windows 的贴靠（Win+方向键、拖到屏幕边缘贴半屏、拖到顶边最大化）**由系统执行**，
+    /// 但只对带这些标准样式的顶层窗口生效；我们为无边框（<c>WindowDecorations="None"</c>）把它们去掉了
+    /// → 系统不认 → 贴靠全失效（v3.28 实测：拖到顶边 / Win+左右 都没反应）。
+    /// </para>
+    /// <para>
+    /// ⚠️ 客户区仍由 Avalonia 自绘：<c>WindowDecorations=None</c> 下 <c>WM_NCCALCSIZE</c> 归零 →
+    /// 不会画出系统标题栏 / 边框。若实机出现细边框等副作用，删掉 <see cref="OnLoaded"/> 里的这一行调用即可回滚。
+    /// </para>
+    /// </summary>
+    private void ApplySnapEligibleStyles()
+    {
+        try
+        {
+            var h = TryGetPlatformHandle()?.Handle;
+            if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
+
+            var style = GetWindowLongPtr(hwnd, GWL_STYLE).ToInt64();
+            var want = style | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU;
+            if (want == style) return;
+
+            SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(want));
+            // 样式变更要 SWP_FRAMECHANGED 才重新算非客户区（否则系统不认这次改动）
+            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        }
+        catch { /* 补样式失败就维持现状（只是没有系统贴靠，手动拖拽缩放仍可用） */ }
+    }
+
+    private const int GWL_STYLE = -16;
+    private const long WS_THICKFRAME = 0x00040000L;
+    private const long WS_MINIMIZEBOX = 0x00020000L;
+    private const long WS_MAXIMIZEBOX = 0x00010000L;
+    private const long WS_SYSMENU = 0x00080000L;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOMOVE = 0x0002;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_FRAMECHANGED = 0x0020;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [DllImport("user32.dll", SetLastError = false)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    // ⚠️ 本项目锁定 win-x64（见 src/Directory.Build.props）→ 用 Ptr 版导出 ✓（32 位 Windows 上导出名不同）
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
+                                            int x, int y, int cx, int cy, uint uFlags);
 
     // ==================== 标题栏：拖拽 / 双击最大化 ====================
 

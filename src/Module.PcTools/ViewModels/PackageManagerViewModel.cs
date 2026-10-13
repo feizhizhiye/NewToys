@@ -102,11 +102,17 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     public bool IsSourceVisible => Vis("Source");
     public bool IsStatusVisible => Vis("Status");
 
+    /// <summary>v3.37 / NT-002：勾选列（Pick）恒可见 —— 它是批量操作的前提。</summary>
+    public bool IsPickVisible => true;
+
     protected override string PageKey => "pc-package";
 
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
+        // v3.37 / NT-002：首列 = **勾选列**（Pick）——
+        //    加了首列后，表头 / 示例行 / 行模板里**所有 Grid.Column 索引都要 +1**（⛔ 别漏一处）。
+        new("Pick", "", "34", sortable: false),
         // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）
         new("Name", "名称", "3*", sample: "7-Zip 24.08"),
         new("Id", "Id", "3.6*", sample: "7zip.7zip"),
@@ -346,7 +352,10 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
 
     private void BeginList(List<PackageInfo> items, ListMode mode)
     {
+        // v3.37 / NT-002：旧行先解绑勾选监听，新行挂上（⛔ 别直接 AddRange，否则计数不更新）
+        foreach (var p in _all) p.PropertyChanged -= OnRowPropertyChanged;
         _all.Clear();
+        foreach (var p in items) p.PropertyChanged += OnRowPropertyChanged;
         _all.AddRange(items);
         _mode = mode;
         ModeText = mode switch
@@ -357,6 +366,7 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
             _ => "尚未加载"
         };
         if (mode != ListMode.Search && SearchText.Length > 0) SearchText = "";
+        RefreshChecked();
     }
 
     /// <summary>搜索结果没有"是否已安装"的信息 → 用已安装集合补上，让「状态」列说实话。</summary>
@@ -426,7 +436,9 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
             {
                 var hit = _all.FirstOrDefault(x => string.Equals(x.Id, p.Id, StringComparison.OrdinalIgnoreCase));
                 if (hit != null) { hit.IsPinned = true; marked++; continue; }
-                _all.Add(new PackageInfo { Id = p.Id, Name = p.Name, IsPinned = true });
+                var row = new PackageInfo { Id = p.Id, Name = p.Name, IsPinned = true };
+                row.PropertyChanged += OnRowPropertyChanged;
+                _all.Add(row);
                 added++;
             }
 
@@ -505,6 +517,7 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         if (Selected != null && !Packages.Contains(Selected)) Selected = null;
 
         UpdateHeaders();
+        RefreshChecked();                         // v3.37 / NT-002：列表重建 → 勾选计数 / 表头三态跟上
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(ShowSampleRow));   // v3.32：有真实数据后示例行消失
@@ -634,6 +647,152 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
         // ⛔ 不用再整体重建列表（以前是普通类才需要 ApplyView，且重建会重置滚动位）。
         DetailExtra = detail.Description;
         StatusText = msg;
+    }
+
+    // ==================== v3.37 / NT-002：勾选列 + 批量安装 / 升级队列 ====================
+
+    /// <summary>行被勾了几条（工具条「⬇ 安装选中」「⬆ 升级选中」按它操作）。</summary>
+    public int CheckedCount => _all.Count(p => p.IsChecked);
+
+    public bool HasChecked => CheckedCount > 0;
+
+    public string CheckedText => CheckedCount == 0 ? "未勾选" : $"已勾选 {CheckedCount} 个";
+
+    /// <summary>批量按钮的可用态：有勾选且不在忙（Avalonia 绑定不支逻辑运算符，⛔ 别在 XAML 里写 And）。</summary>
+    public bool CanRunBatch => HasChecked && !IsBusy;
+
+    partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(CanRunBatch));
+
+    /// <summary>
+    /// 表头 ☑ 的三态（🔴 用**原生三态 CheckBox**，⛔ 别用字符"☑"画 —— 字体会渲染成深色块）：
+    /// <c>true</c> = 全选、<c>false</c> = 全不选、<c>null</c> = 部分选中。
+    /// </summary>
+    [ObservableProperty] private bool? _allCheckedState = false;
+
+    /// <summary>表头 ☑ 点一下：当前不是"全选"就全选，否则全不选。</summary>
+    [RelayCommand]
+    private void ToggleAll()
+    {
+        var target = AllCheckedState != true;
+        foreach (var p in _all) p.IsChecked = target;
+        RefreshChecked();
+        StatusText = target ? $"已全选 {_all.Count} 条。" : "已取消全选。";
+    }
+
+    /// <summary>表头右键：取消选择。</summary>
+    [RelayCommand]
+    private void SelectNone()
+    {
+        foreach (var p in _all) p.IsChecked = false;
+        RefreshChecked();
+        StatusText = "已取消选择。";
+    }
+
+    /// <summary>表头右键：反选。</summary>
+    [RelayCommand]
+    private void InvertSelection()
+    {
+        foreach (var p in _all) p.IsChecked = !p.IsChecked;
+        RefreshChecked();
+        StatusText = $"已反选，当前勾选 {CheckedCount} 条。";
+    }
+
+    /// <summary>重算勾选计数与表头三态（行的 IsChecked 一变就会被调）。</summary>
+    public void RefreshChecked()
+    {
+        var total = _all.Count;
+        var n = _all.Count(p => p.IsChecked);
+        AllCheckedState = total == 0 ? false : n == 0 ? false : n == total ? true : null;
+
+        OnPropertyChanged(nameof(CheckedCount));
+        OnPropertyChanged(nameof(HasChecked));
+        OnPropertyChanged(nameof(CheckedText));
+        OnPropertyChanged(nameof(CanRunBatch));
+    }
+
+    private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PackageInfo.IsChecked)) RefreshChecked();
+    }
+
+    /// <summary>
+    /// 「⬇ 安装选中」：把勾选的包**逐条串行**安装（winget 自身会争用源，⛔ 不并行）。
+    /// <para>单条失败不影响其余（失败隔离）；结束汇总成功 / 失败明细。已安装的包 winget 会自行跳过。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task InstallCheckedAsync()
+    {
+        if (_pkg == null || IsBusy) return;
+
+        var targets = _all.Where(p => p.IsChecked).ToList();
+        if (targets.Count == 0) { StatusText = "先勾选要安装的包（行首勾选框，或表头 ☑ 全选）。"; return; }
+
+        try
+        {
+            IsBusy = true;
+            var ok = 0;
+            var fails = new List<string>();
+            for (var i = 0; i < targets.Count; i++)
+            {
+                var p = targets[i];
+                StatusText = $"正在安装 {i + 1}/{targets.Count}：{p.Id} …（较大的包会久一点，请勿关闭窗口）";
+                var (success, msg) = await _pkg.InstallAsync(p.Id,
+                    string.IsNullOrEmpty(p.Source) ? SelectedSource?.Value : p.Source, SilentInstall);
+                if (success) ok++;
+                else fails.Add($"{p.Id}（{msg}）");
+            }
+
+            _installedIds = null;
+            await MarkInstalledAsync();
+            ApplyView();
+            StatusText = fails.Count == 0
+                ? $"批量安装完成：{ok} 个全部成功。"
+                : $"批量安装完成：成功 {ok} / 失败 {fails.Count}；失败明细 —— {string.Join("；", fails)}";
+        }
+        finally { IsBusy = false; }
+    }
+
+    /// <summary>
+    /// 「⬆ 升级选中」：勾选的包里**有可升级版本**的逐条升级；没有的跳过并计数（⛔ 不拿没有新版本的包去试）。
+    /// </summary>
+    [RelayCommand]
+    private async Task UpgradeCheckedAsync()
+    {
+        if (_pkg == null || IsBusy) return;
+
+        var checkedAll = _all.Where(p => p.IsChecked).ToList();
+        if (checkedAll.Count == 0) { StatusText = "先勾选要升级的包（行首勾选框，或表头 ☑ 全选）。"; return; }
+
+        var targets = checkedAll.Where(p => p.HasUpgrade).ToList();
+        var skipped = checkedAll.Count - targets.Count;
+        if (targets.Count == 0)
+        {
+            StatusText = $"勾选的 {checkedAll.Count} 个都没有可升级版本（已是最新）。";
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            var ok = 0;
+            var fails = new List<string>();
+            for (var i = 0; i < targets.Count; i++)
+            {
+                var p = targets[i];
+                StatusText = $"正在升级 {i + 1}/{targets.Count}：{p.Id} {p.Version} → {p.Available} …";
+                var (success, msg) = await _pkg.UpgradeAsync(p.Id, SilentInstall);
+                if (success) ok++;
+                else fails.Add($"{p.Id}（{msg}）");
+            }
+
+            if (_mode == ListMode.Upgrades) await LoadUpgradesAsync();
+            else { await ApplyPinnedAsync(); ApplyView(); }
+            StatusText = (fails.Count == 0
+                    ? $"批量升级完成：{ok} 个全部成功"
+                    : $"批量升级完成：成功 {ok} / 失败 {fails.Count}；失败明细 —— {string.Join("；", fails)}")
+                + (skipped > 0 ? $"；跳过 {skipped} 个无可升级版本" : "");
+        }
+        finally { IsBusy = false; }
     }
 
     // ==================== 导入 / 导出（v3.19 / NT-008：换机恢复） ====================

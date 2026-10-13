@@ -57,6 +57,16 @@
                   IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="跑 winget pin list，把被 Pin 的包并入「已安装」列表（已存在的贴 📌，缺的补一行）"/>
 
+          <!--  v3.37 / NT-002：批量队列（按勾选执行；逐条串行、失败隔离、进度进状态栏）  -->
+          <Button Classes="ghost" Content="⬇ 安装选中" Margin="0,0,8,6" Command="{Binding InstallCheckedCommand}"
+                  IsEnabled="{Binding CanRunBatch}"
+                  ToolTip.Tip="把勾选的包逐条安装（winget 会跳过已安装的；单个失败不影响其余）"/>
+          <Button Classes="ghost" Content="⬆ 升级选中" Margin="0,0,8,6" Command="{Binding UpgradeCheckedCommand}"
+                  IsEnabled="{Binding CanRunBatch}"
+                  ToolTip.Tip="把勾选的包逐条升级（没有可升级版本的自动跳过）"/>
+          <TextBlock Text="{Binding CheckedText}" FontSize="11" Margin="0,0,8,6" VerticalAlignment="Center"
+                     Foreground="{DynamicResource SecondaryTextBrush}"/>
+
           <CheckBox Content="静默安装 (--silent)" FontSize="12" Margin="0,0,8,6" IsChecked="{Binding SilentInstall, Mode=TwoWay}"/>
 
           <!--  v3.19 / NT-008：原顶部的「已安装（本机全部包）/ 可升级 / 搜索结果」ModeText 指示移除——
@@ -93,19 +103,35 @@
                  ⚠️ 必须用 ColumnGrid 而不是 Grid：Grid.ColumnDefinitions 是 CLR 属性、XAML 里不能 {Binding}（AVLN3000）。
                  右键表头任意位置弹出「显示 / 隐藏列」菜单（规范 3.8 右键增删表头项）。 -->
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+              <!--  v3.37 / NT-002：勾选列表头 —— 🔴 **原生三态 CheckBox**（⛔ 别用字符"☑"画，字体会渲染成深色块）；
+                    右键菜单挂在外层透明 Border 上（整格都能右键）。  -->
+              <Border Grid.Column="0" x:Name="HeaderCheckHost" Background="Transparent"
+                      ToolTip.Tip="勾选的行由「⬇ 安装选中 / ⬆ 升级选中」批量执行（右键：全选 / 取消 / 反选）">
+                <CheckBox x:Name="HeaderCheckBox" HorizontalAlignment="Center" VerticalAlignment="Center" IsThreeState="True"
+                          IsChecked="{Binding AllCheckedState, Mode=TwoWay}">
+                  <CheckBox.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="☑ 全选" Command="{Binding ToggleAllCommand}"/>
+                      <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
+                      <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
+                    </ContextMenu>
+                  </CheckBox.ContextMenu>
+                </CheckBox>
+              </Border>
+
+              <Button Grid.Column="1" Classes="col-header" Content="{Binding NameHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Name" ToolTip.Tip="点一下按名称排序"
                       IsVisible="{Binding IsNameVisible}"/>
-              <Button Grid.Column="1" Classes="col-header" Content="{Binding IdHeader}"
+              <Button Grid.Column="2" Classes="col-header" Content="{Binding IdHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Id" ToolTip.Tip="点一下按 Id 排序"
                       IsVisible="{Binding IsIdVisible}"/>
-              <Button Grid.Column="2" Classes="col-header" Content="{Binding VersionHeader}"
+              <Button Grid.Column="3" Classes="col-header" Content="{Binding VersionHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Version" ToolTip.Tip="点一下按版本排序（同一列再点一次反向）"
                       IsVisible="{Binding IsVersionVisible}"/>
-              <Button Grid.Column="3" Classes="col-header" Content="{Binding SourceHeader}"
+              <Button Grid.Column="4" Classes="col-header" Content="{Binding SourceHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Source"
                       IsVisible="{Binding IsSourceVisible}"/>
-              <Button Grid.Column="4" Classes="col-header" Content="{Binding StatusHeader}"
+              <Button Grid.Column="5" Classes="col-header" Content="{Binding StatusHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Status"
                       IsVisible="{Binding IsStatusVisible}"/>
               <v:ColumnGrid.ContextMenu>
@@ -141,11 +167,14 @@
           <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
                   ToolTip.Tip="这是示例数据（列宽就按它判定）；查到真实包后这一行会消失">
             <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[0]}"/>
-              <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsIdVisible}" Text="{Binding SampleRowTexts[1]}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsVersionVisible}" Text="{Binding SampleRowTexts[2]}"/>
-              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsSourceVisible}" Text="{Binding SampleRowTexts[3]}"/>
-              <TextBlock Grid.Column="4" Classes="list-cell accent" IsVisible="{Binding IsStatusVisible}" Text="{Binding SampleRowTexts[4]}"/>
+              <!--  勾选列（示例行不给勾选框，保持"占位"语义）  -->
+              <TextBlock Grid.Column="0" Classes="list-cell" Text=""
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[1]}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsIdVisible}" Text="{Binding SampleRowTexts[2]}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsVersionVisible}" Text="{Binding SampleRowTexts[3]}"/>
+              <TextBlock Grid.Column="4" Classes="list-cell" IsVisible="{Binding IsSourceVisible}" Text="{Binding SampleRowTexts[4]}"/>
+              <TextBlock Grid.Column="5" Classes="list-cell accent" IsVisible="{Binding IsStatusVisible}" Text="{Binding SampleRowTexts[5]}"/>
             </v:ColumnGrid>
           </Border>
 
@@ -176,15 +205,19 @@
               <DataTemplate>
                 <!-- 行与表头共用同一份 VisibleColumnSpecs（规范 3.8 对齐铁律①）；每格 IsVisible 跟随列显隐。 -->
                 <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                  <!--  v3.37 / NT-002：勾选列（行首；勾了几个就是几个，语义天然是批量）  -->
+                  <CheckBox Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                            IsVisible="{Binding $parent[ListBox].DataContext.IsPickVisible}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell primary" Text="{Binding Name}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Id}"
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Id}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsIdVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell primary" Text="{Binding Version}"
+                  <TextBlock Grid.Column="3" Classes="list-cell primary" Text="{Binding Version}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsVersionVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Source}"
+                  <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding Source}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsSourceVisible}"/>
-                  <TextBlock Grid.Column="4" Classes="list-cell accent" Text="{Binding StatusText}"
+                  <TextBlock Grid.Column="5" Classes="list-cell accent" Text="{Binding StatusText}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"/>
                 </v:ColumnGrid>
               </DataTemplate>

@@ -30,6 +30,12 @@ public partial class PackageInfo : ObservableObject
 
     [ObservableProperty] private bool _isInstalled;
 
+    /// <summary>
+    /// v3.37 / NT-002：**勾选列**状态（「⬇ 安装选中」「⬆ 升级选中」按勾选批量执行）。
+    /// ⚠️ 只是界面态，⛔ 不落库、不参与筛选 / 排序 / 导入导出。
+    /// </summary>
+    [ObservableProperty] private bool _isChecked;
+
     /// <summary>是否被 pin（pin = 暂停更新，winget upgrade 会跳过它）。</summary>
     [ObservableProperty] private bool _isPinned;
 

@@ -36,8 +36,16 @@ public class PackageManagerService : IPackageManagerService
     /// <c>ARP\Machine\X86\AMD_Chipset_IODrivers</c>、<c>MSIX\Microsoft.AV1VideoExtension_…</c>，
     /// 旧正则不认 <c>\</c> 会把这类已安装条目整批丢掉（v1.33 修正，也是"列表少东西"的原因之一）。
     /// </para>
+    /// <para>
+    /// 🔴 v3.37 / NT-002 实测再修正（winget 1.29 真实 <c>winget list</c> 输出）：合法 Id 远不止"点分命名"——
+    /// 实测存在 <b>带空格</b>的 <c>ARP\Machine\X64\Steam App 570</c>、<b>带花括号</b>的
+    /// <c>ARP\Machine\X86\{{GUID}}</c>、乃至 <b>带中文</b>的 <c>ARP\Machine\X86\天翼云盘</c>，
+    /// 旧白名单把它们全误杀了。现将空格 / 花括号 / 方括号 / 圆括号 / 中文块加入白名单；
+    /// 统计行 / 提示行（如 <c>winget upgrade</c> 尾部的"1 程序包拥有阻止升级的包钉。使用 'winget pin'…"）
+    /// 都是**短行或含句子标点**（<c>'</c> <c>。</c> 等不在白名单）→ 仍被滤掉。
+    /// </para>
     /// </summary>
-    private static readonly Regex IdLike = new(@"^[A-Za-z0-9][A-Za-z0-9._+\\-]*$", RegexOptions.Compiled);
+    private static readonly Regex IdLike = new(@"^[A-Za-z0-9\u4e00-\u9fff][A-Za-z0-9._+\\\-{}\[\]() \u4e00-\u9fff]*$", RegexOptions.Compiled);
 
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(180);
     private static readonly TimeSpan WriteTimeout = TimeSpan.FromMinutes(30);

@@ -328,6 +328,7 @@ public partial class ShellView : Window
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;   // v3.29：贴靠校正时⛔别抢焦点
     private const uint SWP_FRAMECHANGED = 0x0020;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -507,12 +508,13 @@ public partial class ShellView : Window
 
         var x = targetLeft - insetLeft;
         var y = wa.Top - insetTop;
-        var w = (targetRight + insetRight) - x;
-        var h = (wa.Bottom + insetBottom) - y;
-        if (w <= 0 || h <= 0) return;
+        // ⚠️ 别叫 w / h：本方法开头已有 `var h = TryGetPlatformHandle()?.Handle`（句柄）→ 同名会撞 CS0128
+        var newWidth = (targetRight + insetRight) - x;
+        var newHeight = (wa.Bottom + insetBottom) - y;
+        if (newWidth <= 0 || newHeight <= 0) return;
 
         _lastSnapFixTick = now;
-        SetWindowPos(hwnd, IntPtr.Zero, x, y, w, h,
+        SetWindowPos(hwnd, IntPtr.Zero, x, y, newWidth, newHeight,
                      SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
     }
 

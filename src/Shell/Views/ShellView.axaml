@@ -11,7 +11,7 @@
     Background="{DynamicResource ContentBrush}"
     ExtendClientAreaTitleBarHeightHint="40"
     ExtendClientAreaToDecorationsHint="True"
-    WindowDecorations="Full"
+    WindowDecorations="BorderOnly"
     WindowDecorationsTheme="{StaticResource NoDrawnWindowDecorations}"
     CanResize="True"
     WindowState="Normal">

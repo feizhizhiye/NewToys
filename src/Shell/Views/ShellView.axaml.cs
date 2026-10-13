@@ -285,13 +285,19 @@ public partial class ShellView : Window
     }
 
     /// <summary>
-    /// 给窗口补「可缩放窗口」标准样式（<c>WS_THICKFRAME</c> + 最小 / 最大化 / 系统菜单）——**保险丝**。
+    /// 给窗口补「可缩放窗口」标准样式（<c>WS_THICKFRAME</c> + <c>WS_CAPTION</c> + 最小 / 最大化 / 系统菜单）。
     /// <para>
-    /// 背景（v3.28 查源码后定论）：Windows 的贴靠由**系统**执行，前提是窗口具备标准样式 +
-    /// 拖动走系统"拖标题栏"路径；我们之前的组合两条都不满足 → 贴靠全失效。现在的正解是
-    /// XAML 侧 <c>WindowDecorations="Full"</c>（Avalonia 会自行设好这些样式）+ 标题栏/抓取区标
-    /// <c>WindowDecorationProperties.ElementRole</c>（由系统命中测试）。本方法保留作兜底：
-    /// 若某天装饰模式改回 <c>None</c>（Avalonia 就不设 <c>WS_THICKFRAME</c> 了）也能有基本资格。
+    /// 为什么需要（v3.28 查两个源码后定论）：
+    /// ① Windows 的贴靠（Win+方向键 / 拖到边缘贴半屏 / 拖到顶边最大化）**由系统执行**，前提是窗口具备标准样式；
+    /// ② `WindowDecorations="BorderOnly"` 时 Avalonia 只设 `WS_BORDER`（+ `IsResizable` 时的 `WS_THICKFRAME`）——
+    ///    ⛔ **不设 `WS_CAPTION`**，而 `Full` 又会触发 Avalonia 自己画一套窗框（`Window.cs::ComputeDecorationParts`
+    ///    里 TitleBar 部件只在 `WindowDecorations == Full` 时才加）→ 两难。折中 = **BorderOnly（Avalonia 不画）+ 这里手工补 `WS_CAPTION`（贴靠资格）**。
+    /// ③ 客户区仍归我们自绘（BorderOnly + `ExtendClientAreaToDecorationsHint` → `WM_NCCALCSIZE` 把边框算进客户区、
+    ///    DWM 的 NCRenderingPolicy 交给应用画 → ⛔ 不会画出系统标题栏）。
+    /// </para>
+    /// <para>
+    /// ⚠️ Avalonia 在窗口状态变化时会**重算样式**（`UpdateWindowProperties`），把这里补的位抹掉 →
+    /// 所以除了开机调用，`WindowState` 变化时也要再补一次（见 <see cref="OnPropertyChanged"/>）。
     /// </para>
     /// </summary>
     private void ApplySnapEligibleStyles()
@@ -302,7 +308,7 @@ public partial class ShellView : Window
             if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
 
             var style = GetWindowLongPtr(hwnd, GWL_STYLE).ToInt64();
-            var want = style | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU;
+            var want = style | WS_THICKFRAME | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU;
             if (want == style) return;
 
             SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(want));
@@ -315,6 +321,7 @@ public partial class ShellView : Window
 
     private const int GWL_STYLE = -16;
     private const long WS_THICKFRAME = 0x00040000L;
+    private const long WS_CAPTION = 0x00C00000L;   // = WS_BORDER | WS_DLGFRAME，贴靠资格的关键位
     private const long WS_MINIMIZEBOX = 0x00020000L;
     private const long WS_MAXIMIZEBOX = 0x00010000L;
     private const long WS_SYSMENU = 0x00080000L;
@@ -390,6 +397,7 @@ public partial class ShellView : Window
         {
             UpdateMaxIcon();
             UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
+            ApplySnapEligibleStyles();   // v3.28：状态变化时 Avalonia 会重算样式 → 把贴靠资格位补回去
         }
     }
 

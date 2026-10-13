@@ -46,15 +46,14 @@
         </ControlTheme>
 
         <!--  ==================== 窗口装饰：空主题（v3.28） ====================
-              背景：为了拿到**系统级贴靠**（Win+方向键 / 拖到边缘贴半屏 / 拖到顶边最大化），
-                    ShellView 改成了 `WindowDecorations="Full"` + `ExtendClientAreaToDecorationsHint="True"`
-                    （Avalonia 才会设好 WS_CAPTION/WS_THICKFRAME 并启用 DWM 扩展）。
-              问题：这种组合下 Avalonia 会**自己画一套窗框**（`WindowDrawnDecorations` 带 Title/Content/阴影/边框/
-                    标题栏/缩放抓取区）→ 实测把窗口标题文字画进标题栏左侧、右侧多一个按钮，点它还破坏状态。
-              修法：给它一个**不做任何绘制的 ControlTheme**（不设 Template = 无模板 = 不画），
-                    拖动 / 缩放 / 贴靠仍由 `WindowDecorationProperties.ElementRole` 的系统命中测试负责，
-                    界面上只保留我们自绘的标题栏与抓取区。
-              ⚠️ 若哪天把 WindowDecorations 改回 "None"，这个主题不会再被用到（可留着）。  -->
+              背景：为了拿到**系统级贴靠**（Win+方向键 / 拖到边缘贴半屏 / 拖到顶边最大化），ShellView 走的是
+                    「`ExtendClientAreaToDecorationsHint="True"` + `WindowDecorationProperties.ElementRole`」官方路线
+                    （系统负责拖动 / 缩放 / 命中测试，我们自绘标题栏与抓取区）。
+              问题：`WindowDecorations="Full"` 会让 Avalonia **自己画一套窗框**（`Window.cs::ComputeDecorationParts`
+                    里 TitleBar 部件只在 `== Full` 时加入）→ 实测标题文字重叠、右侧多一个点坏状态的按钮。
+              修法：装饰模式改 `BorderOnly`（那时 Avalonia 的部件集合为 None → 什么都不画）**并**给他一个不绘制任何
+                    内容的 ControlTheme 兜底（不设 Template = 无模板 = 不画），双保险。
+              ⚠️ 真正的贴靠资格由 code-behind 的 `ApplySnapEligibleStyles()` 补 `WS_CAPTION/WS_THICKFRAME` 等位保证。  -->
         <ControlTheme x:Key="NoDrawnWindowDecorations" TargetType="chrome:WindowDrawnDecorations" />
     </Application.Resources>
 

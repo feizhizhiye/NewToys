@@ -18,7 +18,7 @@
     <Grid RowDefinitions="40,*">
 
         <!--  ==================== ① 标题栏（40px，底色 = 主题背景）  ====================
-              左：≡折叠 ｜ ⟳刷新
+              左：≡折叠 ｜ ⟳重建当前页
               中：标签页 + ＋（**左右各 16px 固定留白**，留白处可拖拽窗口）
               右：窗口按钮
               ⛔ v3.4 已删：🏠 主页按钮 / ⚙ 设置按钮 / 🌓 主题开关
@@ -60,7 +60,7 @@
                             StrokeLineCap="Round"
                             Data="M3,6 L21,6 M3,12 L21,12 M3,18 L21,18" />
                     </Button>
-                    <Button Classes="title-btn" Command="{Binding RefreshCommand}" ToolTip.Tip="刷新当前页（重建视图）">
+                    <Button Classes="title-btn" Command="{Binding RefreshCommand}" ToolTip.Tip="重建当前页（丢掉筛选 / 排序 / 未保存的编辑，回到刚打开时的状态）">
                         <Path
                             Width="16"
                             Height="16"

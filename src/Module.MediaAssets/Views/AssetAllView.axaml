@@ -22,23 +22,30 @@
                    ItemSpacing="8" LineSpacing="4">
 
           <!--
-            ⚠️ 用两个按钮而不是需求里写的 SplitButton：SplitButton 的主按钮只接受 Command（无 Click），
-            而「选目录 / 选文件」必须走 View 的 TopLevel.StorageProvider —— 由 View 的 Click 里完成；
-            走 VM 命令还得再搭一层"请求弹框"的事件管道。功能等价，先省掉这层复杂度。
-          -->
-          <!--
-            v3.29 两条并行的路：
-            ① **预览**（📁 / 📄）：只扫进内存，看完决定「💾 加入库」还是「🧹 清除列表」换文件夹重来
+            v3.30（用户定调）：把「扫描文件夹」+「扫描文件」**并成一条 SplitButton**，样式对齐视频列表的
+            「📂 导入」（主按钮直接点 = 选文件夹；右侧箭头 = 下拉选文件夹 / 选文件）。
+            ⚠️ 更正旧注释：SplitButton **有** Click 事件（VideoTools 的「📂 导入」就是这么接的），
+               「选目录 / 选文件」照旧走 View 的 TopLevel.StorageProvider，⛔ 不必再走 VM 命令管道。
+            ⚠️ Classes 必须写 **ghost**：全局只定义了 `SplitButton.ghost`（App.axaml），
+               ⛔ 没有 `SplitButton.primary` —— 写 primary 会掉回 Fluent 默认外观（与页面其他按钮打架）。
+            v3.29 两条并行的路保持不变：
+            ① **预览**（📁 本按钮）：只扫进内存，看完决定「💾 加入库」还是「🧹 清除列表」换文件夹重来
             ② **批量**（➕ / 🔄）：先登记若干文件夹（不扫描），攒够了「🔄 扫描全部」一次扫完并直接入库
           -->
-          <Button x:Name="BtnPreviewFolder" Classes="primary" Content="📁 扫描文件夹"
-                  IsEnabled="{Binding !IsBusy}"
-                  ToolTip.Tip="扫一个目录到列表（⛔ 只进内存、不入库）"/>
-          <Button x:Name="BtnPreviewFiles" Classes="ghost" Content="📄 扫描文件"
-                  IsEnabled="{Binding !IsBusy}"
-                  ToolTip.Tip="只扫选中的几个文件（⛔ 只进内存、不入库）"/>
+          <SplitButton x:Name="ScanSplit" Classes="ghost" Content="📁 扫描"
+                       IsEnabled="{Binding !IsBusy}"
+                       ToolTip.Tip="扫目录 / 扫文件到列表（⛔ 只进内存、不入库）">
+            <SplitButton.Flyout>
+              <MenuFlyout>
+                <MenuItem x:Name="ScanFolderItem" Header="📁 文件夹…"
+                          ToolTip.Tip="扫一个目录到列表（⛔ 只进内存、不入库）"/>
+                <MenuItem x:Name="ScanFilesItem" Header="📄 文件…"
+                          ToolTip.Tip="只扫选中的几个文件（⛔ 只进内存、不入库）"/>
+              </MenuFlyout>
+            </SplitButton.Flyout>
+          </SplitButton>
 
-          <!--  按钮在前、输入框在后（v3.29 用户定调）：📁 / 📄 → 路径框 → 搜索框 → 其余按钮依次排列。
+          <!--  按钮在前、输入框在后（v3.29 用户定调）：📁 扫描 → 路径框 → 搜索框 → 其余按钮依次排列。
                 ⛔ 「⤓ 预览扫描」按钮已删（用户：没用）—— 路径框里**回车**即预览扫描。
                 手输路径的用处：NAS / 网络路径、以及反复重扫同一个目录时比选择框好用。  -->
           <TextBox x:Name="ImportPathBox" Width="240"
@@ -84,7 +91,7 @@
                   ToolTip.Tip="NT-018 落地"/>
 
           <!--  ⚠️ 刷新 = **重读数据库**重建列表：⛔ 不扫盘、不读目录、不重新索引。
-                要重新扫一个文件夹，用左边的「📁 扫描文件夹」；要把登记的都扫一遍，用「🔄 扫描全部」；
+                要重新扫一个文件夹，用左边的「📁 扫描」；要把登记的都扫一遍，用「🔄 扫描全部」；
                 要"回到刚打开时的状态"（丢排序 / 筛选 / 草稿），用**标题栏的 ⟳**。  -->
           <Button Classes="ghost" Content="🔄 刷新"
                   Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"

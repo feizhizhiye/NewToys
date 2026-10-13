@@ -17,38 +17,13 @@ public partial class AssetAllView : UserControl
     {
         InitializeComponent();
 
-        // ① 「📁 扫描文件夹」：选一个目录 → **预览**（只进内存，⛔ 不入库）
-        BtnPreviewFolder.Click += async (_, _) =>
-        {
-            if (DataContext is not AssetAllViewModel vm) return;
-            var dir = await PickFolderAsync(vm).ConfigureAwait(false);
-            if (dir == null) return;
-            await vm.PreviewFolderAsync(dir).ConfigureAwait(false);
-        };
-
-        // ② 「📄 扫描文件」：只预览选中的几个（⛔ 同样不入库）
-        BtnPreviewFiles.Click += async (_, _) =>
-        {
-            if (DataContext is not AssetAllViewModel vm) return;
-            var topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel?.StorageProvider == null) return;
-
-            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                SuggestedStartLocation = await SuggestedStartAsync(topLevel.StorageProvider, vm.ImportExportDefaultDir),
-                AllowMultiple = true
-            }).ConfigureAwait(false);
-
-            if (files == null || files.Count == 0) return;
-            var paths = new List<string>();
-            foreach (var f in files)
-            {
-                var p = f.TryGetLocalPath();
-                if (!string.IsNullOrEmpty(p)) paths.Add(p);
-            }
-            if (paths.Count == 0) return;
-            await vm.PreviewFilesAsync(paths).ConfigureAwait(false);
-        };
+        // ① 「📁 扫描」SplitButton：主按钮直接点 = 选文件夹；下拉 = 选文件夹 / 选文件。
+        //    v3.30（用户定调）：原先「📁 扫描文件夹」+「📄 扫描文件」两个独立按钮**合并**成这一条，
+        //    样式与接线都对齐 VideoTools 的「📂 导入」。
+        //    两条路都是**预览**（只进内存、⛔ 不入库）：看完决定「💾 加入库」还是「🧹 清除列表」换目录重来。
+        ScanSplit.Click += (_, _) => ScanFolderAsync();
+        ScanFolderItem.Click += (_, _) => ScanFolderAsync();
+        ScanFilesItem.Click += (_, _) => ScanFilesAsync();
 
         // ③ 「➕ 登记文件夹」：加入待扫列表（⛔ 不扫描，等「🔄 扫描全部」）
         BtnRegisterFolder.Click += async (_, _) =>
@@ -87,6 +62,39 @@ public partial class AssetAllView : UserControl
         base.OnDataContextChanged(e);
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
         if (AssetList?.ContextMenu is { } amenu) amenu.DataContext = DataContext;
+    }
+
+    /// <summary>「📁 扫描 → 文件夹…」：选一个目录 → **预览**（只进内存，⛔ 不入库）。</summary>
+    private async Task ScanFolderAsync()
+    {
+        if (DataContext is not AssetAllViewModel vm) return;
+        var dir = await PickFolderAsync(vm).ConfigureAwait(false);
+        if (dir == null) return;
+        await vm.PreviewFolderAsync(dir).ConfigureAwait(false);
+    }
+
+    /// <summary>「📁 扫描 → 文件…」：只预览选中的几个文件（⛔ 同样不入库）。</summary>
+    private async Task ScanFilesAsync()
+    {
+        if (DataContext is not AssetAllViewModel vm) return;
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider == null) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            SuggestedStartLocation = await SuggestedStartAsync(topLevel.StorageProvider, vm.ImportExportDefaultDir),
+            AllowMultiple = true
+        }).ConfigureAwait(false);
+
+        if (files == null || files.Count == 0) return;
+        var paths = new List<string>();
+        foreach (var f in files)
+        {
+            var p = f.TryGetLocalPath();
+            if (!string.IsNullOrEmpty(p)) paths.Add(p);
+        }
+        if (paths.Count == 0) return;
+        await vm.PreviewFilesAsync(paths).ConfigureAwait(false);
     }
 
     /// <summary>弹目录选择框，返回选中的本地路径（取消 / 拿不到 → null）。</summary>

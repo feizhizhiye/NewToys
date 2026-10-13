@@ -1,14 +1,14 @@
 # NewToys 开发规范
 
-> v3.15 · 2026-10-12 · 技术实现指南
+> v3.16 · 2026-10-13 · 技术实现指南
 > 权威源：需求（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕折衷约束（本文件台账）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
 > ⛔ **只保留最近三次变更**，更早的逐次记录看 `git log`；需求侧章节号见《开发需求》目录（v3.11 起 §4 重排：4.5 详情卡 / 4.6 状态栏 / 4.7 主题 / 4.8 列表页 / 4.9 设置页 / 4.10 视觉规范 / 4.11 未实装）。
+> **v3.16 变更**：§3.6 列宽改为**表头拖拽手动调**（`ColumnGrid.IsResizable` + VM `ResizeColumns`；⛔ 删「自动调整列宽」开关——整体 `Auto` 时长内容列按未截断全文测宽、把其余列挤没，表头文字被裁没）；`ColumnGrid` 副本 **三份→四份**（WebTools 亦有一份，旧注释漏记）。
 > **v3.15 变更**：§6 删除「统一启动器 `scripts/launch.ps1`」说法（已弃用）；脚本改为 fail-loud（成功 `exit 0` 自关窗口、失败 `trap` 暂停），禁止 `.cmd/.bat` 铁律保留。
 > **v3.13 变更**：协作两阶段固化（《AI协作提示词》）—— 准备期只动《开发需求》+《现状》、生成待办；执行期按《现状》待办 + 本文件做法改代码；本文件不被执行期改动。
-> **v3.12 变更**：§2.1 密度基线按需求 v3.12 收紧（表格行高 32→28、卡片内边距 14→12、工具条/筛选条内边距下调）；**§3.6 详情开关从表头移到工具条末位**（列元数据不再有 `Detail` 占位列）；**§3.9 重写为「视频预览」页 + 两页详情卡统一规格**，并记下"跨页投递的数据要在 `OnAttachedToVisualTree` 取"。
 > **v3.11 变更**：随《开发需求》瘦身同步——修正章节引用（列表页 → §4.8、视觉基线 → §4.10）；**§3.9 撤下"命令生成纯函数库"与"多段剪辑"**（属评估结论，不入文档）；补 `IStatusProvider` 相关引用。
 
 ---
@@ -227,6 +227,14 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 5. 空态与选中态显式处理：无选中显示引导；有选中显示详情；空列表用居中 StatusText，不留白。
 6. `ContextMenu` 挂在独立弹出树，不保证继承宿主 DataContext → 必须在 View 的 code-behind `OnDataContextChanged` 里手工同步（行菜单+表头菜单都要）。
 7. 列显隐：元数据 `Shared/Models/ListColumn`、服务 `IColumnLayoutService/ColumnLayoutService`（落 `config/columnlayout.json`）。隐藏列用宽度 0（不删列保一致）。
+
+**列宽三态 + 手动拖拽（v3.20，需求 §6.4.15）**：
+
+- 三态：**星号比例**（`Columns` 元数据默认值，如 `3.2*`）→ **手动像素**（拖表头边界产生，规格串写 `NNN`）→ **隐藏**（`0`，列索引保持不动）。
+- 表头两列交界处 5px 透明把手：`ColumnGrid.IsResizable="True"` 时自动生成（**只生成在相邻两个可见列之间**，隐藏列边界没有）；`Cursor = new Cursor(StandardCursorType.SizeWestEast)`；拖动经 `ColumnResize` 事件 → VM `ResizeColumns(i, w, i+1, w)`（基类 `ListPageViewModelBase` 提供）→ `VisibleColumnSpecs` 重出 → 表头与行**同规格重建**。每列 ≥24px、左右列总宽守恒；⛔ 不拖最后一列右缘。
+- ⛔ **没有「自动调整列宽」开关**（v3.20 全模块删除：可见列整体切 `Auto` 时，长内容列按**未截断全文**测宽，把其余列挤到接近 0 → 表头文字被裁没，像"整行消失"）。
+- 手调列宽**只存会话**（⛔ 不落 `columnlayout.json`）：切标签页不丢、重启还原；列显隐切换不影响已手调宽度。
+- 🔴 `Views/ColumnGrid.cs` 因**模块间禁互引**在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` **各存一份（共四份），改动必须同步四处**。
 8. 🔴 **跨页投递的数据在 `OnAttachedToVisualTree` 取**（不是 `OnDataContextChanged`）：标签页已存在时切回来只重新挂可视树，`DataContext` 不变 → 后者**不再触发**，症状是"送过去的文件 / 任务要刷新页面才出现"。`VideoTaskStore.TakePendingCut/TakePendingTranscode` 是取一次即清空的，重复调安全。
 
 **详情开关的位置（v3.12：表头 → 工具条末位）**
@@ -255,7 +263,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - **详情开合状态**：由 Shell 统一落 `config/columnlayout.json`（`FlagDetailPanel`，**按页面 Key 分别记忆**），列表页 VM 不再直接读写。
 - 涉及页面（5 个）：`pc-package` / `video-list` / `pc-shortcuts` / `pc-quicksettings` / `settings-path`。
 
-- ⚠️ `Views/ColumnGrid.cs` 因**模块间禁互引**而在 `Module.PcTools` / `Module.VideoTools` / `Module.Settings` **各存一份，改动必须同步三份**。
+- ⚠️ `Views/ColumnGrid.cs` 因**模块间禁互引**而在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` **各存一份，改动必须同步四份**。
 
 ### 3.7 热加载实现
 

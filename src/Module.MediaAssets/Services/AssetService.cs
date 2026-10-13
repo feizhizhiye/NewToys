@@ -239,6 +239,33 @@ public class AssetService
         catch { return ""; }
     }
 
+    /// <summary>
+    /// NT-021：回收站里**过期**的资产（<c>status='trashed'</c> 且 <c>updated_at</c> 早于 cutoff）。
+    /// 供「到期自动清理」用；只读 id + 名字（⛔ 不读位置——删除时再按需取）。
+    /// </summary>
+    public List<(long Id, string Name)> ListExpiredTrashedAssets(string cutoffText)
+    {
+        var list = new List<(long, string)>();
+        if (!IsAvailable) return list;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                "SELECT id, IFNULL(display_name, IFNULL(title,'')) FROM assets " +
+                "WHERE status='trashed' AND (updated_at IS NULL OR updated_at < $cut) ORDER BY updated_at;";
+            cmd.Parameters.AddWithValue("$cut", cutoffText);
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var name = r.GetString(1);
+                list.Add((r.GetInt64(0), name.Length > 0 ? name : "资产 #" + r.GetInt64(0).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            }
+        }
+        catch { /* 返回已读到的 */ }
+        return list;
+    }
+
     // ==================== 资产 ====================
 
     public Asset? FindAsset(long id)

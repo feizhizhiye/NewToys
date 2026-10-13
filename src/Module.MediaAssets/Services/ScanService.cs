@@ -96,17 +96,44 @@ public class ScanService
         }, ct);
 
     /// <summary>扫描时跳过的目录名（用户可配，见 NT-021 设置页）。</summary>
-    public HashSet<string> IgnoreDirectoryNames { get; } = new(StringComparer.OrdinalIgnoreCase)
+    public HashSet<string> IgnoreDirectoryNames { get; private set; } = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git", ".svn", ".hg", "node_modules", "$RECYCLE.BIN", "System Volume Information",
         ".cache", "AppData", ".thumbnails"
     };
 
-    /// <summary>扫描时跳过的扩展名（临时 / 系统文件）。</summary>
-    public HashSet<string> IgnoreExtensions { get; } = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>扫描时跳过的扩展名（临时 / 系统文件；用户可配，见 NT-021 设置页）。</summary>
+    public HashSet<string> IgnoreExtensions { get; private set; } = new(StringComparer.OrdinalIgnoreCase)
     {
         ".tmp", ".part", ".crdownload", ".partial", ".lnk", ".ini", ".db", ".db-wal", ".db-shm"
     };
+
+    /// <summary>NT-021：忽略隐藏文件 / 目录（文件属性 Hidden；用户可配）。</summary>
+    public bool IgnoreHiddenFiles { get; private set; } = true;
+
+    /// <summary>NT-021：忽略临时文件（<c>~$*</c> Office 临时副本等；用户可配）。</summary>
+    public bool IgnoreTempFiles { get; private set; } = true;
+
+    /// <summary>
+    /// NT-021：新文件入库后的**增强回调**（元数据提取 + 缩略图生成）。
+    /// 由模块初始化时接线（读设置的自动开关）；传 null 即跳过。
+    /// ⚠️ 只在**新位置**批量落库后调（⛔ 不对"已见过"的位置重复跑）。
+    /// </summary>
+    public Func<FileLocation, CancellationToken, Task>? Enricher { get; set; }
+
+    /// <summary>
+    /// NT-021：把模块设置应用到扫描器（忽略规则 / 采样大小）。设置页保存后由调用方调一次。
+    /// </summary>
+    public void ApplySettings(MediaAssetsSettings s)
+    {
+        IgnoreDirectoryNames = new HashSet<string>(MediaAssetsSettings.ParseList(s.IgnoreDirectories), StringComparer.OrdinalIgnoreCase);
+        IgnoreExtensions = new HashSet<string>(
+            MediaAssetsSettings.ParseList(s.IgnoreExtensions).Select(MediaAssetsSettings.NormalizeExtension),
+            StringComparer.OrdinalIgnoreCase);
+        IgnoreHiddenFiles = s.IgnoreHiddenFiles;
+        IgnoreTempFiles = s.IgnoreTempFiles;
+        QuickHashSampleMb = Math.Clamp(s.QuickHashSampleMb, 0, 64);
+    }
 
     /// <summary>quick_hash 采样大小（MB）：默认 1 MB，配得越大越准、扫描越慢。</summary>
     public int QuickHashSampleMb { get; set; } = 1;
@@ -541,12 +568,42 @@ public class ScanService
         _assets.InsertLocations(pending);                       // 一个事务写完，回填 Id
         foreach (var l in pending) if (l.Id != 0) index.Add(l); // 立刻进内存索引（同批里的重复不会重复建）
 
-        if (enricher != null)
-            foreach (var l in pending)
-                if (l.Id != 0) enricher(l, ct).GetAwaiter().GetResult();
+        // NT-021：调用方没传 enricher 时用模块接线的那个（元数据 + 缩略图）
+        var en = enricher ?? Enricher;
+        if (en != null)
+        {
+            // 🔴 增强是**进程密集型**（每个文件一次 ffprobe / ffmpeg）——串行跑大目录要几分钟。
+            //    这里有界并发（4）折中：⛔ 不全并行（一批 200 个会同时起几百个进程）。
+            //    单个文件失败 ⛔ 不影响扫描本身（失败只是没有元数据 / 缩略图，下次重扫会补上）。
+            EnrichBatchAsync(pending, en, ct).GetAwaiter().GetResult();
+        }
 
         pending.Clear();
     }
+
+    /// <summary>一批新位置的有界并发增强（默认 4 路；⛔ 别调大——进程数是硬资源）。</summary>
+    private static async Task EnrichBatchAsync(List<FileLocation> pending,
+                                               Func<FileLocation, CancellationToken, Task> enricher,
+                                               CancellationToken ct)
+    {
+        using var gate = new SemaphoreSlim(EnrichConcurrency);
+        var tasks = pending
+            .Where(l => l.Id != 0)
+            .Select(async l =>
+            {
+                await gate.WaitAsync(ct).ConfigureAwait(false);
+                try { await enricher(l, ct).ConfigureAwait(false); }
+                catch (OperationCanceledException) { throw; }
+                catch { /* 单个文件增强失败：跳过，不中断整批 */ }
+                finally { gate.Release(); }
+            })
+            .ToList();
+        try { await Task.WhenAll(tasks).ConfigureAwait(false); }
+        catch (OperationCanceledException) { /* 扫描被取消：剩余增强不再等 */ }
+    }
+
+    /// <summary>增强并发度（进程密集型任务的折中值）。</summary>
+    private const int EnrichConcurrency = 4;
 
     private void FlushTouched(List<long> touched, string seenAt)
     {
@@ -596,6 +653,7 @@ public class ScanService
                     var attrs = File.GetAttributes(entry);
                     // 隐藏 / 系统目录跳过（回收站、卷影等）；⛔ 不停在这类目录上浪费时间
                     if (attrs.HasFlag(FileAttributes.System)) continue;
+                    if (IgnoreHiddenFiles && attrs.HasFlag(FileAttributes.Hidden)) continue;
                     isDir = attrs.HasFlag(FileAttributes.Directory);
                 }
                 catch { continue; }
@@ -608,6 +666,8 @@ public class ScanService
                 else
                 {
                     if (IgnoreExtensions.Contains(Path.GetExtension(entry))) continue;
+                    // NT-021：Office 等程序的临时副本（~$开头）—— 扩展名管不到它
+                    if (IgnoreTempFiles && Path.GetFileName(entry).StartsWith("~$", StringComparison.Ordinal)) continue;
                     yield return entry;
                 }
             }

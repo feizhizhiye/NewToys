@@ -13,7 +13,7 @@ namespace NewToys.MediaAssets;
 /// </para>
 /// <para>
 /// ⚠️ 本模块的设置页 <c>settings-media-assets</c> 由本模块 <c>Initialize</c> **自注册**进 <c>settings</c> 分组
-/// （跨组注册由框架**延迟补登**保障，规范 §3.2）——落点在后续待办 NT-021。
+/// （跨组注册由框架**延迟补登**保障，规范 §3.2）——NT-021 已落地：View/VM 均在本模块（⛔ 不在 Module.Settings）。
 /// </para>
 /// </summary>
 public class MediaAssetsModule : IModule
@@ -40,6 +40,10 @@ public class MediaAssetsModule : IModule
         services.AddSingleton<Services.FileOperationService>();
         // NT-020：存储源（在线探测 + 统计编排）
         services.AddSingleton<Services.StorageService>();
+        // NT-021：模块设置（config\media-assets.json）+ 元数据 / 缩略图（ffprobe / ffmpeg 最小封装）
+        services.AddSingleton<Services.MediaAssetsSettingsIO>();
+        services.AddSingleton<Services.MetadataService>();
+        services.AddSingleton<Services.ThumbnailService>();
 
         // ===== 页面 View / VM（NT-014 骨架：全是空页面；页面实现 NT-016~022 依次落地） =====
         services.AddTransient<Views.AssetAllView>();        services.AddTransient<ViewModels.AssetAllViewModel>();
@@ -54,6 +58,10 @@ public class MediaAssetsModule : IModule
         services.AddTransient<Views.AssetStoragesView>();   services.AddTransient<ViewModels.AssetStoragesViewModel>();
         services.AddTransient<Views.AssetTasksView>();      services.AddTransient<ViewModels.AssetTasksViewModel>();
         services.AddTransient<Views.AssetTrashView>();      services.AddTransient<ViewModels.AssetTrashViewModel>();
+
+        // NT-021：模块设置页（View/VM 归本模块，自注册进 settings 分组 —— 见 Initialize）
+        services.AddTransient<Views.SettingsMediaAssetsView>();
+        services.AddTransient<ViewModels.SettingsMediaAssetsViewModel>();
     }
 
     public void Initialize(IServiceProvider services)
@@ -78,5 +86,35 @@ public class MediaAssetsModule : IModule
         menu.RegisterFunction(GroupKey, "assets-storages",    "存储源",   "💾", "AssetStoragesView",    9, "local / removable / nas；在线状态；移除只移索引、不删磁盘文件");
         menu.RegisterFunction(GroupKey, "assets-tasks",       "任务中心", "⏳", "AssetTasksView",      10, "扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图任务：取消 / 重试 / 日志");
         menu.RegisterFunction(GroupKey, "assets-trash",       "回收站",   "🗑", "AssetTrashView",      11, "已软删除资产：恢复 / 永久删除（二次确认）/ 清空");
+
+        // NT-021：模块设置页**自行注册进 settings 分组**（需求 §6.6「模块设置页归本模块」；
+        // 跨组注册由框架延迟补登保障——Module.Settings 后初始化也能补上，规范 §3.2）。
+        // Order 100 = 模块设置页起始段（0~99 保留给框架设置）。
+        // ⚠️ 图标用 🎬 而非 NT 细节里写的 🧩：后者已被 settings-profile「配置」占用（同组两个 🧩 会看混）。
+        menu.RegisterFunction("settings", "settings-media-assets", "媒体资产", "🎬", "SettingsMediaAssetsView", 100,
+            "扫描忽略规则 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据提取");
+
+        // ===== NT-021：把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====
+        var io = services.GetRequiredService<Services.MediaAssetsSettingsIO>();
+        var scan = services.GetRequiredService<Services.ScanService>();
+        scan.ApplySettings(io.Settings);
+
+        var meta = services.GetRequiredService<Services.MetadataService>();
+        var thumbs = services.GetRequiredService<Services.ThumbnailService>();
+        scan.Enricher = async (loc, ct) =>
+        {
+            var s = io.Settings;
+            if (s.AutoExtractMetadata) await meta.ApplyAsync(loc, ct).ConfigureAwait(false);
+            if (s.AutoGenerateThumbnails) await thumbs.GenerateAsync(loc, ct).ConfigureAwait(false);
+        };
+
+        // 回收站「到期自动清理」默认关；开了才在启动时把过期资产排进永久删除队列（任务中心可见、可取消）
+        if (io.Settings.AutoCleanupTrash)
+        {
+            var fileOps = services.GetRequiredService<Services.FileOperationService>();
+            var n = fileOps.EnqueueExpiredTrashPurge(io.Settings.TrashRetentionDays);
+            if (n > 0)
+                System.Diagnostics.Debug.WriteLine($"[NewToys] 回收站到期清理：启动时入队 {n} 个资产。");
+        }
     }
 }

@@ -720,7 +720,7 @@ Module.*（功能模块，只引 Shared + Core）
 - **模块设置页归本模块**：`settings-media-assets`（「媒体资产」，Order 100）的 View/VM 放 `Module.MediaAssets`（`Views/SettingsMediaAssetsView` + `ViewModels/SettingsMediaAssetsViewModel`），由 `MediaAssetsModule.Initialize` **自行注册**进 `settings` 分组（跨组注册由框架延迟补登保障，规范 §3.2）。⛔ 本模块一级菜单下不放设置子页；⛔ 不由 `Module.Settings` 代持页面。
 - 二级菜单 `icon` 照规范传 emoji 占位（首页收藏卡 / 功能清单页要用它）。
 
-**页面清单**（12 页在本模块 + 1 设置页在 `Module.Settings`）：
+**页面清单**（13 页全在本模块；其中 `settings-media-assets` 由本模块自注册进 `settings` 分组，⛔ 不经 `Module.Settings` 代持）：
 
 | 页面 | Key | 页型 | 说明 |
 |---|---|---|---|
@@ -732,7 +732,7 @@ Module.*（功能模块，只引 Shared + Core）
 | 存储源 | `assets-storages` | 列表页 | local / removable / nas；在线状态；移除仅移索引、⛔ 不删磁盘文件 |
 | 任务中心 | `assets-tasks` | 列表页 | Scan / Rename / Move / Copy / Delete / ExtractMeta / Thumbnail；取消 / 重试 / 日志 |
 | 回收站 | `assets-trash` | 列表页 | `status='trashed'`；恢复 / 永久删除（二次确认）/ 清空 |
-| 模块设置 | `settings-media-assets` | 设置页（`Module.Settings`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（复用全局 `VideoDbFolder`） |
+| 模块设置 | `settings-media-assets` | 设置页（`Module.MediaAssets`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（复用全局 `VideoDbFolder`）；由本模块 `Initialize` 自注册进 `settings` 分组（Order 100） |
 
 - **类型页 = 薄壳 + 预设类型**（v3.34 定调，用户拍板）：
   - **实现只有一份**：`AssetAllView` / `AssetAllViewModel` 是**共用实现**；5 个类型页的 View 是**薄壳**（`AssetVideoView.axaml` 内容 = 一行 `<views:AssetAllView/>`，code-behind 只 `InitializeComponent()`），VM 继承 `AssetAllViewModel` 并只写自己的 `PageKey`（= 各自菜单 key，如 `assets-video`）与**预设类型**。
@@ -746,7 +746,7 @@ Module.*（功能模块，只引 Shared + Core）
 `storages`（存储源）/ `assets`（资产主表）/ `file_locations`（一资产多位置）/ `tags`+`asset_tags` / `categories`+`asset_categories` / `collections`+`collection_assets` / `relations`（关联）/ `operation_logs`（操作日志）/ `scan_jobs`+`scan_errors`（扫描任务）。完整 DDL 与索引见 `backlog/NT-015.md`。类型扩展表（video_meta 等）**不预拆**，先塞 `assets.metadata_json`。
 
 - 缩略图：`data\thumbs\{sha1(path)}.jpg`（复用视频工具约定）。
-- 模块设置：`config\media-assets.json`（设置模型类放 `Shared`——媒体资产读 + 设置页写，两模块共用，⛔ 双真相源）。
+- 模块设置：`config\media-assets.json`（设置模型类 `MediaAssetsSettings` 放**本模块** `Models/`——读者（扫描 / 元数据 / 缩略图服务）与写者（本模块设置页）都在 `Module.MediaAssets`，没有跨模块共用，按规范 §3.4「被两模块共用时才放 Shared」；⛔ 双真相源）。
 - 列显隐 / 详情开合：`config\columnlayout.json`（页键 = 菜单 key）。
 - ⚠️ **R1（记例外）**：标签 / 分类 / 集合 / 关联是**用户手动数据**，与 §3.5「本地数据库 = 可随时重建的缓存，不进备份」冲突——重建数据库会丢这些数据。本轮接受；缓解 = 设置页提供「导出用户数据为 JSON」（4 类表）；长期独立库 / 纳入备份留待后续。
 

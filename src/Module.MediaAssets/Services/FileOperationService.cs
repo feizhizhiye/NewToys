@@ -271,6 +271,50 @@ public class FileOperationService
         return (true, "已永久删除（不进回收站，无法还原）。");
     }
 
+    /// <summary>
+    /// NT-021：把「回收站里超过保留天数」的资产排进**永久删除**队列（真删磁盘 + 删索引行）。
+    /// <para>
+    /// 调用方：① 设置页「🧹 立即清理」（用户显式点）；② 模块启动时（设置了「到期自动清理」才跑）。
+    /// ⚠️ 走任务队列 → 任务中心可见、可取消；⛔ 不静默删。
+    /// </para>
+    /// </summary>
+    /// <returns>入队的资产数（0 = 没有到期的）。</returns>
+    public int EnqueueExpiredTrashPurge(int retentionDays)
+    {
+        if (!IsAvailable) return 0;
+
+        var cutoff = DateTime.Now.AddDays(-Math.Clamp(retentionDays, 1, 3650));
+        var rows = _assets.ListExpiredTrashedAssets(cutoff.ToString("yyyy-MM-dd HH:mm:ss"));
+        if (rows.Count == 0) return 0;
+
+        Queue.Enqueue($"清理过期回收站（{rows.Count} 个资产）", async (ct, p) =>
+        {
+            await Task.Run(() =>
+            {
+                var done = 0;
+                var failed = 0;
+                foreach (var (id, name) in rows)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    p.Report($"永久删除 {name} …");
+
+                    foreach (var l in _assets.ListLocations(id))
+                    {
+                        if (l.Status == LocationStatuses.Deleted) continue;
+                        var r = PermanentDelete(l);
+                        if (r.Ok) { _assets.DeleteLocation(l.Id); done++; }
+                        else failed++;
+                    }
+                    _assets.DeleteAsset(id);
+                    _opLog.Log("purge", "asset", id, afterJson: $"{{\"expired\":true,\"name\":\"{name}\"}}");
+                }
+                p.Report($"完成：删除 {done} 个文件，失败 {failed} 个");
+            }, ct).ConfigureAwait(false);
+        });
+
+        return rows.Count;
+    }
+
     // ==================== 内部 ====================
 
     private void MarkDeleted(FileLocation loc)

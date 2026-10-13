@@ -27,12 +27,12 @@ agent_created: true
 2. 读 `src/docs/NewToys-项目现状与进度.md` 的「一、当前基线」。
 3. 先读 `references/collab-method.md`（通用纪律），再按 `references/newtoys-spec.md` 的「任务型→规范章节」读 `src/docs/NewToys开发规范.md` 对应节。
 4. 动手前给变更声明：① 文件清单（增/改/删逐条）② 验收标准 ③ 已知风险/待用户拍板点。
-5. 只改 `src/`；只做静态自检。⛔ 不代跑编译、不谎称「已编译通过」。
+5. 只改 `src/`（例外：`scripts/` 构建脚本经用户明确授权可改）；只做静态自检。⛔ 不代跑编译、不谎称「已编译通过」。
 6. 交付前跑 `pwsh skill/scripts/check.ps1`，或人工等价检查。
 
 ## 铁律（通用见 `references/collab-method.md`，项目特定见 `references/newtoys-spec.md`）
 
-1. **只改 `src/`**；不读写 Downloads；不碰项目目录外的任何位置。
+1. **只改 `src/`**（例外：`scripts/` 构建脚本经用户明确授权可改）；不读写 Downloads；不碰项目目录外的任何位置。
 2. **规划 / 执行双模式 + 变更顺序**（🔴 工作流唯一定义见《AI协作提示词》，本目录只引用）：新需求 → 先写《开发需求》→ 台账三、登记待办项 + `src/docs/backlog/NT-xxx.md` 写细节 → 升 `✅ 就绪` → 再改代码 → 最后更新台账 → 验收后清理细节（默认删 / 留最近 3）。默认规划模式只写文档、⛔ 不改 `src/`；仅当用户发「执行全部就绪待办」才进执行模式；`📝 草稿` 不执行。
 3. **框架层（Shared/Core/Shell）冻结**，新功能只在 Module.*。停手仅 5 种；其余按最合理假设推进并标注。
 4. **git commit**（`&lt;type&gt;: &lt;简述&gt;`），⛔ 不写 md 日志；**代码 &gt; 文档**。

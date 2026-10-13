@@ -174,7 +174,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 `App.OnFrameworkInitializationCompleted()` 顺序（不可颠倒）：
 
 1. 建 `ServiceCollection` 注册核心服务；
-2. `ModuleLoader.LoadAll(services, GetMandatoryModuleTypes())`：**必载清单**（`Module.Settings` 置顶 + Debug 追加其余模块）始终加载，**再扫** `<程序目录>\Modules\` 补功能模块（跳过已加载同名——Release 下 `Modules\` 里的 `Module.Settings.dll` 冗余副本即由此跳过）；
+2. `ModuleLoader.LoadAll(services, GetMandatoryModuleTypes())`：**必载清单**（`Module.Settings` 置顶 + Debug 追加其余功能模块）始终加载，**再扫** `<程序目录>\Modules\` 补功能模块（跳过已加载同名，如 Shared/Core）；
 3. `BuildServiceProvider()` → `AppServices.Initialize(sp)`；
 4. `ModuleLoader.InitializeAll(sp)`（**必须在 3 之后**）；
 5. 应用主题（订阅 `ThemeChanged`）；
@@ -184,7 +184,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 | | Debug | Release |
 |---|---|---|
 | 模块源 | `Shell.csproj` Debug 条件 `ProjectReference` | `<程序目录>\Modules\` DLL |
-| **`Module.Settings`（例外 = 框架组件）** | **无条件 `ProjectReference`，随 `NewToys.exe` 出根目录** | 同左（根目录那份生效；`Modules\` 冗余副本被跳过） |
+| **`Module.Settings`（例外 = 框架组件）** | **无条件 `ProjectReference`，随 `NewToys.exe` 出根目录** | 同左；props 开例外，⛔ 不进 `Modules\` |
 | 需要 `Modules\` | 否 | 是（无则兜底程序目录） |
 | MSBuild 拷贝 | 否 | 否（OutDir 直出） |
 
@@ -193,9 +193,9 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - 跳过**功能模块**改两处：`App.axaml.cs` 的 `typeof(XxxModule)` + `Shell.csproj` 的 `ProjectReference`。⛔ `Module.Settings` 不适用此条——它是无条件引用 + 必载清单置顶，跳过它 = 卸框架。
 - Release 路径用 `AppContext.BaseDirectory` 拼绝对路径。
 - 模块 DLL 命名 `Module.<模块名>.dll`。
-- ⛔ **`Modules\` 是模块产物唯一去处，全程零拷贝**：`src/Directory.Build.props` 把模块 Release `OutDir` 直设为 `$(NewToysReleaseDir)Modules\`。
+- ⛔ **`Modules\` 是模块产物唯一去处，全程零拷贝**：`src/Directory.Build.props` 把模块 Release `OutDir` 直设为 `$(NewToysReleaseDir)Modules\`。（`Module.Settings` 例外：框架组件直出根目录，见下条。）
 - Release 关 pdb（`DebugType=none`）消除并发写 `MSB3026`。
-- **必备模块（物理必备，v3.25 用户拍板；需求 §3.4）**：`Module.Settings` = **框架组件**——`Shell.csproj` **无条件** `ProjectReference`（⛔ 不再走 Debug 条件组），Release 随 `NewToys.exe` 产出到**程序根目录**（生效那份），启动**第一个加载**；缺失 = 启动失败（同 Shared/Core 硬依赖，⛔ 不做降级）。`Modules\` 冗余副本（项目自身 OutDir）被 `IsAlreadyLoaded` 跳过；⛔ **不用 props 把它排除出 `Modules\`**——根目录 `build.ps1` 按 `src/Module.*` 目录数校验 `Modules\` DLL 数，排除会每次误报（改 build.ps1 属根目录越界）。`InitializeAll` 后**健全性检查**：`settings` 分组仍不存在（典型 = `SettingsModule.Initialize` 自身抛异常被逐模块 try-catch 吞了）→ 日志 + Shell 状态栏一行警告，⛔ 不静默。
+- **必备模块（物理必备，v3.25 用户拍板；需求 §3.4）**：`Module.Settings` = **框架组件**——`Shell.csproj` **无条件** `ProjectReference`（⛔ 不再走 Debug 条件组）；`src/Directory.Build.props` 的模块 `OutDir` 规则对它**开例外**（Release ⛔ 不进 `Modules\`，只随 `NewToys.exe` 出**程序根目录**）；启动**第一个加载**（必载清单置顶）；缺失 = 启动失败（同 Shared/Core 硬依赖，⛔ 不做降级）。`scripts/build.ps1` 的产物计数校验**同步改为只数功能模块**（2026-10-13 用户授权改构建脚本；`Modules\` 自此只含功能模块 DLL）。`InitializeAll` 后**健全性检查**：`settings` 分组仍不存在（典型 = `SettingsModule.Initialize` 自身抛异常被逐模块 try-catch 吞了）→ 日志 + Shell 状态栏一行警告，⛔ 不静默。
 
 ### 3.4 新增模块步骤
 

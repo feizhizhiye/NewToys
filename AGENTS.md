@@ -1,6 +1,7 @@
 # AGENTS.md — NewToys 项目协作入口
 
-> v1.1 · 2026-10-13
+> v1.2 · 2026-10-13
+> v1.2：铁律 1 加例外——`scripts/` 构建脚本**经用户明确授权可改**（2026-10-13 授权：Settings 物理必备改造，NT-023）。
 > 深度约束 / 坑点 / 静态自检脚本在仓库根 `skill/` 目录（`references/collab-method.md` 通用方法论 + `references/newtoys-spec.md` NewToys 专属约束 + `scripts/check.ps1`）；WorkBuddy 经 `.workbuddy/skills/newtoys/` 指针、Hermes(DeepSeek Harness) 经本文件路由读取。
 > 本文件是**跨 AI 工具的通用入口**（Codex / Cursor / Devin / Jules / Amp 等自动读取 AGENTS.md）。
 > 权威规格在 `src/docs/`，本文件只做「定位 + 铁律 + 路由」；**冲突时以 src/docs 与 src/ 源码为准**。
@@ -18,7 +19,7 @@ NewToys = 带 GUI 的 Windows 桌面工具管理器（脚本管理器定位，�
 
 ## 铁律（不可协商）
 
-1. **只改 `src/`**；不读写 Downloads；不碰项目目录外的任何位置。
+1. **只改 `src/`**（例外：`scripts/` 构建脚本经用户明确授权可改）；不读写 Downloads；不碰项目目录外的任何位置。
 2. **不代跑编译**。构建由用户本地执行 `pwsh -File .\scripts\build.ps1`；AI 只做静态自检，⛔ 不谎称「已编译通过」。
 3. **规划 / 执行双模式 + 变更顺序**（🔴 工作流唯一定义见《AI协作提示词》，本文件只引用）：新需求 → 先写《开发需求》→ 在《现状》三、登记待办项 + `src/docs/backlog/NT-xxx.md` 写细节 → 升 `✅ 就绪` → **再改代码** → 最后更新台账 → 用户验收后清理细节（默认删 / 留最近 3）。默认**规划模式**只写文档、⛔ 不改 `src/`；仅当用户发「执行全部就绪待办」/「执行 NT-xxx」才进执行模式；`📝 草稿` 不执行。⛔ 不先改代码后补文档。
 4. **框架层（Shared/Core/Shell）冻结**，新功能只在 Module.*。

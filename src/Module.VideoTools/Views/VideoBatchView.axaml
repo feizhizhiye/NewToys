@@ -193,7 +193,8 @@
                 <Grid RowDefinitions="Auto,*">
 
                     <Border Grid.Row="0" Classes="list-header">
-                        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+                        <!--  v3.20 §6.4.15：IsResizable = 表头列边界可拖动手动调列宽（事件在 code-behind 转给 VM）  -->
+                        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}" IsResizable="True">
                             <!--
                                 v3.16.1：第一列 = 行首勾选框；表头改用**原生 CheckBox**（三态：全勾 ✓ / 部分 ■ / 没勾）
                                 —— 之前用字符"☑"，字体渲染成一坨深色块，跟行内勾选框风格不搭。
@@ -294,7 +295,6 @@
                                 IsVisible="{Binding IsCreatedVisible}" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
-                                <MenuItem Header="⇔ 自动调整全部列宽" Command="{Binding AutoFitColumnsCommand}" ToolTip.Tip="在星号比例与按内容自适应之间切换"/>
                                 <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
                                   <MenuItem.ItemContainerTheme>
                                     <ControlTheme TargetType="MenuItem">

@@ -3,6 +3,7 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using NewToys.Shared.Models;
 using NewToys.VideoTools.ViewModels;
 
 namespace NewToys.VideoTools.Views;
@@ -18,6 +19,13 @@ public partial class VideoBatchView : UserControl
         PickOutputBtn.Click += (_, _) => _ = PickOutputAsync();
         ExportBtn.Click += (_, _) => _ = ExportTasksAsync();
         ImportBtn.Click += (_, _) => _ = ImportTasksAsync();
+
+        // v3.20 §6.4.15：拖动表头列边界 → VM 改「手动列宽」→ 表头与所有行同规格重建
+        HeaderGrid.ColumnResize += (_, e) =>
+        {
+            if (DataContext is ListPageViewModelBase vm)
+                vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
+        };
     }
 
     /// <summary>

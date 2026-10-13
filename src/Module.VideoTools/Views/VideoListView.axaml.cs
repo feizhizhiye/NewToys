@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using NewToys.Shared.Models;
 using NewToys.VideoTools.Services;
 using NewToys.VideoTools.ViewModels;
 
@@ -39,6 +40,13 @@ public partial class VideoListView : UserControl
         VideoList.DoubleTapped += (_, _) =>
         {
             if (DataContext is VideoListViewModel vm) vm.PlayCommand.Execute(null);
+        };
+
+        // v3.20 §6.4.15：拖动表头列边界 → VM 改「手动列宽」→ 表头与所有行同规格重建
+        HeaderGrid.ColumnResize += (_, e) =>
+        {
+            if (DataContext is ListPageViewModelBase vm)
+                vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
         };
     }
 

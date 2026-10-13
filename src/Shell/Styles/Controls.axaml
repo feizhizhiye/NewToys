@@ -190,6 +190,21 @@
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
   </Style>
 
+  <!--  ⑪-2 标签色片（v3.20 视频工具 tags；⛔ 颜色不在这里——来自数据色板 Module.VideoTools/Services/TagPalette.cs，
+             这里只定形状：淡底 + 同色描边 + 同色文字由chip 数据绑定给）  -->
+  <Style Selector="Border.tag-chip">
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Padding" Value="6,1"/>
+    <Setter Property="Margin" Value="0,0,4,2"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Height" Value="18"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="TextBlock.tag-chip-text">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
   <!--  ⑫ 等宽输入（命令 / 脚本文件 / 时间码）  -->
   <Style Selector="TextBox.code">
     <Setter Property="FontFamily" Value="Consolas"/>

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -155,25 +156,30 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
 
     // ==================== 列宽规格（表头与行共用同一份） ====================
 
-    private bool _autoFit;
-
-    /// <summary>「自动调整全部列宽」当前是否开启（v3.19 / NT-006）。</summary>
-    public bool IsAutoFit => _autoFit;
+    /// <summary>
+    /// 「手动列宽」（v3.20，需求 §6.4.15）：列键 → 像素宽。拖表头边界产生，只存会话（⛔ 不落盘）。
+    /// 不在这里的列 = 用 <see cref="Columns"/> 元数据里的星号宽度。
+    /// </summary>
+    private readonly Dictionary<string, double> _manualWidths = new();
 
     /// <summary>
-    /// 右键表头「⇔ 自动调整全部列宽」：在「星号比例（默认）」与「按内容自适应（Auto）」之间一键切换。
-    /// 折中方案：不逐列手调，只在整体比例与内容自适应间切换（可见列用 <c>Auto</c>，隐藏列仍 <c>0</c>）。
+    /// 拖动表头列边界 → 改这一列的像素宽（由 View 的 <c>ColumnGrid.ColumnResize</c> 事件转调）。
+    /// <para>索引越界 / 同一列自己拖自己 → 忽略；改完只发 <see cref="VisibleColumnSpecs"/> 通知，
+    /// 表头与所有行同规格重建（列索引永不错位）。</para>
     /// </summary>
-    [RelayCommand]
-    private void AutoFitColumns()
+    public void ResizeColumns(int leftIndex, double leftWidthPx, int rightIndex, double rightWidthPx)
     {
-        _autoFit = !_autoFit;
-        OnPropertyChanged(nameof(IsAutoFit));
+        if (leftIndex < 0 || rightIndex != leftIndex + 1) return;
+        if (leftIndex >= Columns.Count || rightIndex >= Columns.Count) return;
+        if (leftWidthPx < 0 || rightWidthPx < 0) return;
+
+        _manualWidths[Columns[leftIndex].Key] = leftWidthPx;
+        _manualWidths[Columns[rightIndex].Key] = rightWidthPx;
         OnPropertyChanged(nameof(VisibleColumnSpecs));
     }
 
     /// <summary>
-    /// 列宽规格串：可见列写它的星号宽度（或自动列宽时的 <c>Auto</c>），隐藏列写 <c>"0"</c>（列索引保持不动 → 表头与行永不错位）。
+    /// 列宽规格串：可见列写它的宽度（手动像素优先，否则星号比例），隐藏列写 <c>"0"</c>（列索引保持不动 → 表头与行永不错位）。
     /// ⚠️ 必须做成字符串：<c>Grid.ColumnDefinitions</c> 是 CLR 属性，XAML 里不能写 {Binding}（AVLN3000），
     /// 故由各模块的 <c>ColumnGrid</c> 控件解析。
     /// </summary>
@@ -183,7 +189,13 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         {
             var parts = new string[Columns.Count];
             for (var i = 0; i < Columns.Count; i++)
-                parts[i] = !Vis(Columns[i].Key) ? "0" : (_autoFit ? "Auto" : Columns[i].Width);
+            {
+                var key = Columns[i].Key;
+                parts[i] = !Vis(key) ? "0"
+                    : _manualWidths.TryGetValue(key, out var w)
+                        ? ((int)Math.Round(w)).ToString(CultureInfo.InvariantCulture)
+                        : Columns[i].Width;
+            }
             return string.Join(",", parts);
         }
     }

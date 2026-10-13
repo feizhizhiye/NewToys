@@ -855,7 +855,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         v.Tags = tags;
         _catalog.UpdateTags(v.FullPath, tags);
         OnPropertyChanged(nameof(Selected));
-        ApplyView();
+        ApplyView();   // Tags setter 已连带重建色片（列表列 / 详情卡同源同实例）
         StatusText = "已更新标签：" + (tags.Length > 0 ? tags : "（已清空）");
     }
 
@@ -885,7 +885,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
                      + (skipped > 0 ? $" {skipped} 个还没进视频库 —— 先点「💾 加入视频库」。" : "");
     }
 
-    // ==================== v3.19 / NT-011：标签管理（弹层卡） ====================
+    // ==================== v3.19 / NT-011：标签管理（弹层卡；v3.20 入口改在详情卡） ====================
 
     /// <summary>标签管理弹层是否打开。</summary>
     [ObservableProperty] private bool _isTagManagerOpen;
@@ -893,7 +893,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
     /// <summary>「新建标签」输入框。</summary>
     [ObservableProperty] private string _newTagInput = "";
 
-    /// <summary>标签管理的行（名称 + 使用数）。</summary>
+    /// <summary>标签管理的行（名称 + 使用数 + 色点笔刷；类型在 Models，收藏页弹层共用）。</summary>
     public ObservableCollection<TagManagerItem> TagManagerItems { get; } = new();
 
     [RelayCommand]
@@ -924,6 +924,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         var n = _catalog.RenameTag(item.Name, nn.Trim());
         StatusText = n > 0 ? $"已把标签「{item.Name}」改为「{nn.Trim()}」（{n} 个视频）" : $"没有改动（没找到「{item.Name}」）。";
         RefreshTagManager();
+        RefreshTagsInMemory();   // v3.20：列表行 / 详情卡色片跟着新名字走
     }
 
     [RelayCommand]
@@ -935,6 +936,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         var n = _catalog.DeleteTag(item.Name);
         StatusText = $"已删除标签「{item.Name}」（{n} 个视频）。";
         RefreshTagManager();
+        RefreshTagsInMemory();
     }
 
     [RelayCommand]
@@ -949,11 +951,18 @@ public partial class VideoListViewModel : ListPageViewModelBase
         StatusText = $"已新建标签「{name}」（还没用到任何视频；在视频列表里给它打上后才会存进库）。";
     }
 
-    /// <summary>标签管理弹层的一行。</summary>
-    public sealed class TagManagerItem
+    /// <summary>
+    /// v3.20：标签被改名 / 删除后，把**内存里的列表行**也刷一遍（⛔ 不整目录重扫）。
+    /// 在库里的行按新 tags 重设（setter 会连带重建色片）；收藏页那边由用户进去时现读。
+    /// </summary>
+    private void RefreshTagsInMemory()
     {
-        public string Name { get; set; } = "";
-        public int Count { get; set; }
-        public string CountDisplay => Count > 0 ? $"{Count} 个视频" : "尚未使用";
+        if (_catalog == null) return;
+        foreach (var v in _all)
+        {
+            if (_catalog.HasPath(v.FullPath))
+                v.Tags = _catalog.GetTags(v.FullPath);
+        }
+        ApplyView();
     }
 }

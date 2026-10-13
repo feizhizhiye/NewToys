@@ -58,7 +58,6 @@
                       Command="{Binding SortCommand}" CommandParameter="Dns" IsVisible="{Binding IsDnsVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
-                  <MenuItem Header="⇔ 自动调整全部列宽" Command="{Binding AutoFitColumnsCommand}" ToolTip.Tip="在星号比例与按内容自适应之间切换"/>
                   <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
                     <MenuItem.ItemContainerTheme>
                       <ControlTheme TargetType="MenuItem">

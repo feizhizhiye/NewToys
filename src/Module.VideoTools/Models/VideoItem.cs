@@ -67,7 +67,38 @@ public partial class VideoItem : ObservableObject
     [ObservableProperty] private string _audioCodec = "";
 
     /// <summary>个人标签（逗号分隔，如 收藏,待剪）；落 video_catalog.tags。v3.15。</summary>
-    public string Tags { get; set; } = "";
+    /// <remarks>setter 里顺带重建 <see cref="TagChips"/>（v3.20 标签色片）—— Tags 是普通属性，
+    /// 各处（扫描 / 读库 / 详情卡提交 / 标签管理）都是直接赋值，色片必须跟着走。</remarks>
+    public string Tags
+    {
+        get => _tags;
+        set
+        {
+            _tags = value ?? "";
+            RebuildTagChips();
+        }
+    }
+
+    private string _tags = "";
+
+    /// <summary>标签色片（v3.20）：列表「标签」列 / 详情卡 / 收藏页卡片直接绑它。</summary>
+    public System.Collections.ObjectModel.ObservableCollection<TagChip> TagChips { get; } = new();
+
+    /// <summary>按 <see cref="Tags"/> 重建色片：逗号拆分、去空、最多 8 个 + 「+N」灰片。</summary>
+    private void RebuildTagChips()
+    {
+        TagChips.Clear();
+        var parts = (_tags ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var shown = 0;
+        foreach (var p in parts)
+        {
+            if (shown >= 8) break;
+            TagChips.Add(TagChip.Of(p));
+            shown++;
+        }
+        if (parts.Length > 8)
+            TagChips.Add(TagChip.Overflow(parts.Length - 8));
+    }
 
     /// <summary>文件创建时间（v3.15 表头「创建时间」列；扫描时取，不重扫不丢）。</summary>
     public DateTime Created { get; set; }

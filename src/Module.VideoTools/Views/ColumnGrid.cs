@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
+using Avalonia.LogicalTree;
+using Avalonia.Media;
 
 namespace NewToys.VideoTools.Views;
 
@@ -15,7 +19,7 @@ namespace NewToys.VideoTools.Views;
 /// 所以「列显隐」不能绑 <c>ColumnDefinitions</c>，只能改成「绑一个字符串规格 → 控件自己解析」。
 /// </para>
 /// <para>
-/// <b>规格串规则</b>：逗号分隔，<b>可见列写它的星号宽度</b>（如 <c>3*</c>）、<b>隐藏列写 <c>0</c></b>。
+/// <b>规格串规则</b>：逗号分隔，<b>可见列写它的宽度</b>（星号如 <c>3*</c> / 手调像素如 <c>180</c>）、<b>隐藏列写 <c>0</c></b>。
 /// 用 <c>0</c> 而不是「真删列」，是为了让<b>列索引保持不动</b> ——
 /// 表头与行模板永远共用同一份列定义（规范 3.8.2 对齐铁律①）。
 /// </para>
@@ -33,8 +37,8 @@ namespace NewToys.VideoTools.Views;
 /// <c>Grid.MeasureCell → Grid.MeasureCellsGroup → Grid.MeasureOverride → VirtualizingStackPanel.RealizeElements</c>。
 /// </para>
 /// <para>
-/// 📌 本控件在 <c>Module.PcTools</c> 有一份同名同实现的副本（模块之间禁止互相引用，见规范 4.1.1）。
-/// 两份必须保持一致；改动时同步改。
+/// 📌 本控件在 <c>Module.PcTools</c> / <c>Module.WebTools</c> / <c>Module.Settings</c> 各有一份
+/// 同名同实现的副本（模块之间禁止互相引用，见规范 4.1.1）。四份必须保持一致；改动时同步改。
 /// </para>
 /// </summary>
 public class ColumnGrid : Grid
@@ -44,8 +48,8 @@ public class ColumnGrid : Grid
         AvaloniaProperty.Register<ColumnGrid, string?>(nameof(ColumnSpecs));
 
     /// <summary>
-    /// 列宽规格串：可见列写星号宽度（<c>3*</c>），隐藏列写 <c>0</c>。
-    /// 由 VM 的 <c>VisibleColumnSpecs</c> 提供（见 <c>VideoListViewModel</c>）。
+    /// 列宽规格串：可见列写星号宽度（<c>3*</c>）或手调像素（<c>180</c>），隐藏列写 <c>0</c>。
+    /// 由 VM 的 <c>VisibleColumnSpecs</c> 提供（见各列表页 ViewModel）。
     /// </summary>
     public string? ColumnSpecs
     {
@@ -53,12 +57,44 @@ public class ColumnGrid : Grid
         set => SetValue(ColumnSpecsProperty, value);
     }
 
+    /// <summary>
+    /// 是否开启「拖动表头列边界调列宽」（v3.20，需求 §6.4.15）。默认 <c>false</c>（行模板不开）。
+    /// <para>开启后自动在**相邻两个可见列**的交界处放 5px 透明把手；拖动经
+    /// <see cref="ColumnResize"/> 事件把新宽度（像素）抛给 VM 改规格串，表头与所有行同规格重建。</para>
+    /// </summary>
+    public static readonly StyledProperty<bool> IsResizableProperty =
+        AvaloniaProperty.Register<ColumnGrid, bool>(nameof(IsResizable));
+
+    /// <summary>见 <see cref="IsResizableProperty"/>。只给**表头**那一个 ColumnGrid 开。</summary>
+    public bool IsResizable
+    {
+        get => GetValue(IsResizableProperty);
+        set => SetValue(IsResizableProperty, value);
+    }
+
+    /// <summary>拖动列宽把手后抛出（左列索引 + 新宽、右列索引 + 新宽，均为像素）。</summary>
+    public event EventHandler<ColumnResizeEventArgs>? ColumnResize;
+
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
 
         if (change.Property == ColumnSpecsProperty)
+        {
             Rebuild();
+            RebuildGrips();
+        }
+        else if (change.Property == IsResizableProperty)
+        {
+            _gripMask = "";   // 强制重建（从无到开 / 从开到无）
+            RebuildGrips();
+        }
+    }
+
+    protected override void OnAttachedToLogicalTree(LogicalTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToLogicalTree(e);
+        RebuildGrips();
     }
 
     /// <summary>
@@ -121,5 +157,144 @@ public class ColumnGrid : Grid
             defs.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         return defs;
+    }
+
+    // ==================== 表头列宽拖拽把手（v3.20，需求 §6.4.15） ====================
+
+    /// <summary>拖动时每列至少保留的宽度（px）。</summary>
+    private const double MinColWidth = 24;
+
+    /// <summary>把手宽（px）：贴在列右缘，半在左列半在右列上方。</summary>
+    private const double GripWidth = 5;
+
+    /// <summary>当前把手布局对应的「可见性掩码」（如 <c>"01110"</c>）；没变就不重建把手。</summary>
+    private string _gripMask = "";
+
+    /// <summary>已生成的把手（拖拽中⛔ 不许重建：会弄丢指针捕获）。</summary>
+    private readonly List<Border> _grips = new();
+
+    // 拖动状态
+    private int _dragIndex = -1;
+    private double _dragStartX;
+    private double _dragLeft0;
+    private double _dragRight0;
+
+    /// <summary>按当前「可见性掩码」重建把手；掩码没变（只是宽度变了）→ 什么都不做。</summary>
+    private void RebuildGrips()
+    {
+        if (!IsResizable) { RemoveGrips(); return; }
+
+        var mask = CurrentMask();
+        if (mask == _gripMask) return;   // 宽度变化时把手靠 Grid 布局自动跟随，⛔ 不重建
+        _gripMask = mask;
+
+        RemoveGrips();
+        for (var i = 0; i + 1 < ColumnDefinitions.Count; i++)
+        {
+            if (!ColVisible(i) || !ColVisible(i + 1)) continue;   // 隐藏列（宽 0）的边界不放把手
+
+            var grip = new Border
+            {
+                Width = GripWidth,
+                Background = Brushes.Transparent,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                Cursor = new Cursor(StandardCursorType.SizeWestEast)
+            };
+            SetColumn(grip, i);
+            grip.PointerPressed += OnGripPressed;
+            grip.PointerMoved += OnGripMoved;
+            grip.PointerReleased += OnGripReleased;
+            grip.PointerCaptureLost += OnGripCaptureLost;
+            Children.Add(grip);   // 后加 = 画在上层，把手才吃得到鼠标
+            _grips.Add(grip);
+        }
+    }
+
+    private void RemoveGrips()
+    {
+        foreach (var g in _grips)
+        {
+            g.PointerPressed -= OnGripPressed;
+            g.PointerMoved -= OnGripMoved;
+            g.PointerReleased -= OnGripReleased;
+            g.PointerCaptureLost -= OnGripCaptureLost;
+            Children.Remove(g);
+        }
+        _grips.Clear();
+    }
+
+    /// <summary>当前每列「可见（宽 ≠ 0）」的掩码串。</summary>
+    private string CurrentMask()
+    {
+        var sb = new System.Text.StringBuilder(ColumnDefinitions.Count);
+        for (var i = 0; i < ColumnDefinitions.Count; i++)
+            sb.Append(ColVisible(i) ? '1' : '0');
+        return sb.ToString();
+    }
+
+    private bool ColVisible(int i)
+    {
+        if (i < 0 || i >= ColumnDefinitions.Count) return false;
+        var w = ColumnDefinitions[i].Width;
+        // 像素 0 = 隐藏列；星号 / Auto 都算可见
+        return w.GridUnitType == GridUnitType.Pixel ? w.Value != 0 : true;
+    }
+
+    private void OnGripPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Border g) return;
+        var i = GetColumn(g);
+        if (i < 0 || i + 1 >= ColumnDefinitions.Count) return;
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed != true) return;   // 只要左键
+
+        _dragIndex = i;
+        _dragStartX = e.GetPosition(this).X;
+        _dragLeft0 = ColumnDefinitions[i].ActualWidth;
+        _dragRight0 = ColumnDefinitions[i + 1].ActualWidth;
+        e.Pointer.Capture(g);
+        e.Handled = true;
+    }
+
+    private void OnGripMoved(object? sender, PointerMovedEventArgs e)
+    {
+        if (_dragIndex < 0) return;
+
+        var total = _dragLeft0 + _dragRight0;
+        if (total < MinColWidth * 2) return;   // 两列加起来都塞不下两个最小宽 → 没得让，不拖
+
+        // 左列目标宽：夹在 [Min, total-Min] → 右列等宽变窄，总宽守恒
+        var target = Math.Clamp(_dragLeft0 + (e.GetPosition(this).X - _dragStartX), MinColWidth, total - MinColWidth);
+        var applied = target - _dragLeft0;
+        if (Math.Abs(applied) < 0.5) return;   // 亚像素抖动不发事件（免得每动一像素就全表重建）
+
+        ColumnResize?.Invoke(this, new ColumnResizeEventArgs(_dragIndex, target, _dragIndex + 1, _dragRight0 - applied));
+        e.Handled = true;
+    }
+
+    private void OnGripReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _dragIndex = -1;
+        e.Pointer.Capture(null);
+        e.Handled = true;
+    }
+
+    private void OnGripCaptureLost(object? sender, PointerCaptureLostEventArgs e) => _dragIndex = -1;
+}
+
+/// <summary>拖动表头列边界的参数：左列索引 + 新宽、右列索引 + 新宽（像素）。</summary>
+public sealed class ColumnResizeEventArgs : EventArgs
+{
+    public int LeftIndex { get; }
+    public double LeftWidth { get; }
+    public int RightIndex { get; }
+    public double RightWidth { get; }
+
+    public ColumnResizeEventArgs(int leftIndex, double leftWidth, int rightIndex, double rightWidth)
+    {
+        LeftIndex = leftIndex;
+        LeftWidth = leftWidth;
+        RightIndex = rightIndex;
+        RightWidth = rightWidth;
     }
 }

@@ -46,7 +46,7 @@
 
       <!--  ==================== 列表本体  ====================  -->
       <Border Grid.Row="3" Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,Auto,*">
           <Border Grid.Row="0" Classes="list-header">
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
               <Button Grid.Column="0" Classes="col-header" Content="{Binding TitleHeader}"
@@ -77,7 +77,18 @@
             </v:ColumnGrid>
           </Border>
 
-          <ListBox Grid.Row="1" x:Name="BookmarkList" Classes="list-page"
+          <!--  v3.32 §4.8.3：示例行（列表为空时显示；有真实数据后整条消失，⛔ 不参与统计 / 筛选 / 排序）  -->
+          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
+                  ToolTip.Tip="这是示例数据（列宽就按它判定）；导入 / 新增书签后这一行会消失">
+            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsTitleVisible}" Text="{Binding SampleRowTexts[0]}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsUrlVisible}" Text="{Binding SampleRowTexts[1]}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsFolderVisible}" Text="{Binding SampleRowTexts[2]}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell accent" IsVisible="{Binding IsStatusVisible}" Text="{Binding SampleRowTexts[3]}"/>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="2" x:Name="BookmarkList" Classes="list-page"
                    ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
             <ListBox.ContextMenu>
@@ -120,27 +131,33 @@
     <Border Grid.Column="1" Classes="detail-card"
               IsVisible="{Binding IsDetailVisible}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Spacing="12">
-            <StackPanel Spacing="2" IsVisible="{Binding !HasSelection}">
+          <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户去改 / 保存一份假数据  -->
+          <StackPanel Spacing="12" IsEnabled="{Binding !IsDetailSample}">
+            <StackPanel Spacing="2" IsVisible="{Binding !ShowDetailBody}">
               <TextBlock Text="在左侧列表里选中一条书签" FontSize="13" TextWrapping="Wrap"
                          Foreground="{DynamicResource SecondaryTextBrush}"/>
             </StackPanel>
 
-            <StackPanel Spacing="6" IsVisible="{Binding HasSelection}">
+            <!--  v3.32 §4.8.3：示例态标识（下面是示例数据，不可编辑）  -->
+            <TextBlock Text="（示例数据）在左侧选中一条书签后，这里显示它的真实内容；示例态下不可编辑。"
+                       FontSize="12" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
+                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+            <StackPanel Spacing="6" IsVisible="{Binding ShowDetailBody}">
               <TextBlock Text="标题" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding Selected.Title, Mode=TwoWay}"/>
+              <TextBox Text="{Binding DetailItem.Title, Mode=TwoWay}"/>
 
               <TextBlock Text="网址" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding Selected.Url, Mode=TwoWay}"/>
+              <TextBox Text="{Binding DetailItem.Url, Mode=TwoWay}"/>
 
               <TextBlock Text="分组" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding Selected.Folder, Mode=TwoWay}" PlaceholderText="如：工作 / 学习"/>
+              <TextBox Text="{Binding DetailItem.Folder, Mode=TwoWay}" PlaceholderText="如：工作 / 学习"/>
 
               <TextBlock Text="备注" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding Selected.Notes, Mode=TwoWay}" AcceptsReturn="True" Height="80"
+              <TextBox Text="{Binding DetailItem.Notes, Mode=TwoWay}" AcceptsReturn="True" Height="80"
                        TextWrapping="Wrap" FontSize="12"/>
 
-              <CheckBox Content="加入「批量打开」" IsChecked="{Binding Selected.IsBatchOpen, Mode=TwoWay}"/>
+              <CheckBox Content="加入「批量打开」" IsChecked="{Binding DetailItem.IsBatchOpen, Mode=TwoWay}"/>
 
               <!-- ⚠️ Avalonia 的 WrapPanel **没有** Spacing 属性（StackPanel 才有）→ 用按钮 Margin 做间距 -->
               <WrapPanel Orientation="Horizontal">
@@ -151,10 +168,10 @@
               </WrapPanel>
 
               <StackPanel Spacing="2"
-                          IsVisible="{Binding Selected.CheckStatus, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                          IsVisible="{Binding DetailItem.CheckStatus, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                 <TextBlock Text="最近检测" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <SelectableTextBlock Text="{Binding Selected.CheckStatus}" FontSize="12" TextWrapping="Wrap"/>
-                <TextBlock Text="{Binding Selected.CheckedAt, StringFormat='检测时间：{0:yyyy-MM-dd HH:mm}'}"
+                <SelectableTextBlock Text="{Binding DetailItem.CheckStatus}" FontSize="12" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding DetailItem.CheckedAt, StringFormat='检测时间：{0:yyyy-MM-dd HH:mm}'}"
                            FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
               </StackPanel>
             </StackPanel>

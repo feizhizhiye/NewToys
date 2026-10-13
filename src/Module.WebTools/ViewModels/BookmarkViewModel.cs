@@ -56,10 +56,11 @@ public partial class BookmarkViewModel : ListPageViewModelBase
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        new("Title", "标题", "2.6*"),
-        new("Url", "网址", "3*"),
-        new("Folder", "分组", "1.4*"),
-        new("Status", "状态", "1.2*"),
+        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）
+        new("Title", "标题", "2.6*", sample: "NewToys 项目主页"),
+        new("Url", "网址", "3*", sample: "https://example.com/newtoys"),
+        new("Folder", "分组", "1.4*", sample: "工作"),
+        new("Status", "状态", "1.2*", sample: "HTTP 200"),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
@@ -72,6 +73,32 @@ public partial class BookmarkViewModel : ListPageViewModelBase
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
+
+    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+
+    /// <summary>详情卡 / 列表示例行用的**示例书签**。</summary>
+    private static readonly BookmarkItem SampleItem = new()
+    {
+        Title = "NewToys 项目主页",
+        Url = "https://example.com/newtoys",
+        Folder = "工作",
+        Notes = "（示例数据）这里可以放备注。",
+        IsBatchOpen = true,
+        CheckStatus = "HTTP 200",
+        CheckOk = true,
+        CheckedAt = new DateTime(2026, 10, 13, 15, 0, 0)
+    };
+
+    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Items</c>、不参与统计 / 筛选 / 排序）。</summary>
+    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
+
+    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例书签**。</summary>
+    public BookmarkItem DetailItem => Selected ?? SampleItem;
+
+    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
+    public bool ShowDetailBody => HasSelection || IsDetailSample;
+
+    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
 
     private readonly IAppConfigService? _app;
 
@@ -88,6 +115,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase
         _transfer = transfer;
         _app = app;
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
+        UpdateDetailSample(false);        // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
         Refresh();
 
         // 跨页「发送到书签」：消费待处理 URL，直接建一条待补全的书签并打开详情。
@@ -273,6 +301,8 @@ public partial class BookmarkViewModel : ListPageViewModelBase
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSampleRow));   // v3.32：有真实数据后示例行消失
+        UpdateDetailSample(Selected != null);
     }
 
     private void UpdateHeaders()
@@ -280,6 +310,11 @@ public partial class BookmarkViewModel : ListPageViewModelBase
         TitleHeader = "标题" + SortArrow("Title");
     }
 
-    partial void OnSelectedChanged(BookmarkItem? value) => OnPropertyChanged(nameof(HasSelection));
+    partial void OnSelectedChanged(BookmarkItem? value)
+    {
+        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例书签
+        OnPropertyChanged(nameof(DetailItem));
+        OnPropertyChanged(nameof(HasSelection));
+    }
     partial void OnSearchTextChanged(string value) => ApplyView();
 }

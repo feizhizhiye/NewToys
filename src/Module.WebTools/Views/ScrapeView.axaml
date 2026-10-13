@@ -41,7 +41,7 @@
 
       <!--  ==================== 列表本体  ====================  -->
       <Border Grid.Row="3" Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,Auto,*">
           <Border Grid.Row="0" Classes="list-header">
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
               <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
@@ -72,7 +72,18 @@
             </v:ColumnGrid>
           </Border>
 
-          <ListBox Grid.Row="1" x:Name="TaskList" Classes="list-page"
+          <!--  v3.32 §4.8.3：示例行（列表为空时显示；有真实数据后整条消失，⛔ 不参与统计 / 筛选 / 排序）  -->
+          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
+                  ToolTip.Tip="这是示例数据（列宽就按它判定）；新增 / 导入任务后这一行会消失">
+            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[0]}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsUrlVisible}" Text="{Binding SampleRowTexts[1]}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsRuleVisible}" Text="{Binding SampleRowTexts[2]}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsLastRunVisible}" Text="{Binding SampleRowTexts[3]}"/>
+            </v:ColumnGrid>
+          </Border>
+
+          <ListBox Grid.Row="2" x:Name="TaskList" Classes="list-page"
                    ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
             <ListBox.ContextMenu>
@@ -114,30 +125,36 @@
     <Border Grid.Column="1" Classes="detail-card" Width="420"
               IsVisible="{Binding IsDetailVisible}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Spacing="10">
-            <StackPanel Spacing="2" IsVisible="{Binding !HasSelection}">
+          <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户去改 / 保存一份假任务  -->
+          <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
+            <StackPanel Spacing="2" IsVisible="{Binding !ShowDetailBody}">
               <TextBlock Text="在左侧列表里选中一个任务" FontSize="13" TextWrapping="Wrap"
                          Foreground="{DynamicResource SecondaryTextBrush}"/>
             </StackPanel>
 
-            <StackPanel Spacing="6" IsVisible="{Binding HasSelection}">
+            <!--  v3.32 §4.8.3：示例态标识（下面是示例数据，不可编辑）  -->
+            <TextBlock Text="（示例数据）在左侧选中一个任务后，这里显示它的真实配置；示例态下不可编辑。"
+                       FontSize="12" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
+                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+            <StackPanel Spacing="6" IsVisible="{Binding ShowDetailBody}">
               <TextBlock Text="任务名" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding Selected.Name, Mode=TwoWay}"/>
+              <TextBox Text="{Binding DetailItem.Name, Mode=TwoWay}"/>
 
               <TextBlock Text="起始网址" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding Selected.StartUrl, Mode=TwoWay}"/>
+              <TextBox Text="{Binding DetailItem.StartUrl, Mode=TwoWay}"/>
 
               <TextBlock Text="抓取规则类型" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <ComboBox ItemsSource="{Binding RuleTypes}" SelectedItem="{Binding Selected.RuleType, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
+              <ComboBox ItemsSource="{Binding RuleTypes}" SelectedItem="{Binding DetailItem.RuleType, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
 
               <TextBlock Text="抓取规则（CSS 选择器如 div.news a；或正则）" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding Selected.Rule, Mode=TwoWay}"/>
+              <TextBox Text="{Binding DetailItem.Rule, Mode=TwoWay}"/>
 
               <TextBlock Text="User-Agent（留空用默认）" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding Selected.UserAgent, Mode=TwoWay}"/>
+              <TextBox Text="{Binding DetailItem.UserAgent, Mode=TwoWay}"/>
 
               <TextBlock Text="整合脚本（JavaScript）：变量 items 为抓取到的字符串数组，返回最终文本" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding Selected.JsScript, Mode=TwoWay}" AcceptsReturn="True" Height="90"
+              <TextBox Text="{Binding DetailItem.JsScript, Mode=TwoWay}" AcceptsReturn="True" Height="90"
                        TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"
                        PlaceholderText="留空 = 直接拼接。示例：items.map(s=>s.trim()).filter(Boolean).join('\n')"/>
 
@@ -149,13 +166,13 @@
               </WrapPanel>
 
               <StackPanel Spacing="2"
-                          IsVisible="{Binding Selected.LastOutput, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-                <TextBlock Text="{Binding Selected.LastCount, StringFormat='最近运行：{0} 条'}" FontSize="11"
+                          IsVisible="{Binding DetailItem.LastOutput, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                <TextBlock Text="{Binding DetailItem.LastCount, StringFormat='最近运行：{0} 条'}" FontSize="11"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="{Binding Selected.LastRunAt, StringFormat='运行时间：{0:yyyy-MM-dd HH:mm}'}" FontSize="11"
+                <TextBlock Text="{Binding DetailItem.LastRunAt, StringFormat='运行时间：{0:yyyy-MM-dd HH:mm}'}" FontSize="11"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
                 <TextBlock Text="输出" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <SelectableTextBlock Text="{Binding Selected.LastOutput}" FontFamily="Consolas" FontSize="11"
+                <SelectableTextBlock Text="{Binding DetailItem.LastOutput}" FontFamily="Consolas" FontSize="11"
                                     TextWrapping="Wrap" MaxHeight="240"/>
               </StackPanel>
             </StackPanel>

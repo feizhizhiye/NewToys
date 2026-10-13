@@ -69,11 +69,12 @@ public partial class PingViewModel : ListPageViewModelBase
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        new("Host", "主机", "2.4*"),
-        new("Ip", "解析 IP", "1.6*"),
-        new("Status", "状态", "1.4*"),
-        new("Roundtrip", "时延(ms)", "1*"),
-        new("Dns", "DNS", "1.2*"),
+        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）
+        new("Host", "主机", "2.4*", sample: "github.com"),
+        new("Ip", "解析 IP", "1.6*", sample: "20.205.243.166"),
+        new("Status", "状态", "1.4*", sample: "可达"),
+        new("Roundtrip", "时延(ms)", "1*", sample: "38"),
+        new("Dns", "DNS", "1.2*", sample: "系统默认"),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
@@ -86,6 +87,30 @@ public partial class PingViewModel : ListPageViewModelBase
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
+
+    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+
+    /// <summary>详情卡 / 列表示例行用的**示例目标**。</summary>
+    private static readonly PingTarget SampleItem = new()
+    {
+        Host = "github.com",
+        LastIp = "20.205.243.166",
+        LastStatus = "可达（HTTP/ICMP 通）",
+        LastOk = true,
+        LastRoundtripMs = 38,
+        LastTime = new DateTime(2026, 10, 13, 15, 0, 0)
+    };
+
+    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Items</c>、不参与统计 / 筛选 / 排序）。</summary>
+    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
+
+    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例目标**。</summary>
+    public PingTarget DetailItem => Selected ?? SampleItem;
+
+    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
+    public bool ShowDetailBody => HasSelection || IsDetailSample;
+
+    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
 
     private readonly IAppConfigService? _app;
 
@@ -102,6 +127,7 @@ public partial class PingViewModel : ListPageViewModelBase
         _transfer = transfer;
         _app = app;
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
+        UpdateDetailSample(false);        // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
         Refresh();
 
         // 跨页「发送到此页」：消费待处理 URL，直接建一条待 ping 的目标并打开详情。
@@ -288,6 +314,8 @@ public partial class PingViewModel : ListPageViewModelBase
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSampleRow));   // v3.32：有真实数据后示例行消失
+        UpdateDetailSample(Selected != null);
     }
 
     private void UpdateHeaders()
@@ -299,7 +327,12 @@ public partial class PingViewModel : ListPageViewModelBase
         DnsHeader = "DNS" + SortArrow("Dns");
     }
 
-    partial void OnSelectedChanged(PingTarget? value) => OnPropertyChanged(nameof(HasSelection));
+    partial void OnSelectedChanged(PingTarget? value)
+    {
+        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例目标
+        OnPropertyChanged(nameof(DetailItem));
+        OnPropertyChanged(nameof(HasSelection));
+    }
     partial void OnSearchTextChanged(string value) => ApplyView();
 
     private static string StripScheme(string url)

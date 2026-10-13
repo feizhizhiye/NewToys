@@ -54,10 +54,11 @@ public partial class ScrapeViewModel : ListPageViewModelBase
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        new("Name", "名称", "2*"),
-        new("Url", "起始网址", "3*"),
-        new("Rule", "规则", "2*"),
-        new("LastRun", "最近运行", "1.4*"),
+        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）
+        new("Name", "名称", "2*", sample: "示例抓取任务"),
+        new("Url", "起始网址", "3*", sample: "https://example.com/list"),
+        new("Rule", "规则", "2*", sample: "Css · .item > a"),
+        new("LastRun", "最近运行", "1.4*", sample: "2026-10-13 15:00 · 18 条"),
     };
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
@@ -71,6 +72,31 @@ public partial class ScrapeViewModel : ListPageViewModelBase
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
 
+    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+
+    /// <summary>详情卡 / 列表示例行用的**示例任务**。</summary>
+    private static readonly ScrapeTask SampleItem = new()
+    {
+        Name = "示例抓取任务",
+        StartUrl = "https://example.com/list",
+        RuleType = "Css",
+        Rule = ".item > a",
+        LastOutput = "（示例）https://example.com/a\nhttps://example.com/b",
+        LastRunAt = new DateTime(2026, 10, 13, 15, 0, 0),
+        LastCount = 18
+    };
+
+    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Items</c>、不参与统计 / 筛选 / 排序）。</summary>
+    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
+
+    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例任务**。</summary>
+    public ScrapeTask DetailItem => Selected ?? SampleItem;
+
+    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
+    public bool ShowDetailBody => HasSelection || IsDetailSample;
+
+    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
     public ScrapeViewModel() { }
 
     public ScrapeViewModel(ScrapeService svc, IColumnLayoutService cols, WebTransferService transfer)
@@ -79,6 +105,7 @@ public partial class ScrapeViewModel : ListPageViewModelBase
         _svc = svc;
         _transfer = transfer;
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
+        UpdateDetailSample(false);        // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
         Refresh();
 
         // 跨页「发送到此页」：消费待处理 URL，建一条以它为起始网址的任务并打开详情。
@@ -207,6 +234,8 @@ public partial class ScrapeViewModel : ListPageViewModelBase
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSampleRow));   // v3.32：有真实数据后示例行消失
+        UpdateDetailSample(Selected != null);
     }
 
     private void UpdateHeaders()
@@ -214,6 +243,11 @@ public partial class ScrapeViewModel : ListPageViewModelBase
         NameHeader = "名称" + SortArrow("Name");
     }
 
-    partial void OnSelectedChanged(ScrapeTask? value) => OnPropertyChanged(nameof(HasSelection));
+    partial void OnSelectedChanged(ScrapeTask? value)
+    {
+        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例任务
+        OnPropertyChanged(nameof(DetailItem));
+        OnPropertyChanged(nameof(HasSelection));
+    }
     partial void OnSearchTextChanged(string value) => ApplyView();
 }

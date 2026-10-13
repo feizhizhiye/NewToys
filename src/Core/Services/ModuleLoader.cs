@@ -5,15 +5,17 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using NewToys.Shared.Models;
+using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// 模块加载器。两种模式：
+/// 模块加载器（v3.26 起，需求 §3.4）：**必载清单 + 目录扫描**两步——
 /// <list type="bullet">
-///   <item><b>Debug</b>：由调用方传入<b>显式类型清单</b>（Shell.csproj 用 Debug 条件 ProjectReference）。
-///         程序集是<b>延迟加载</b>的，纯扫描一个都扫不到，表现为「左侧菜单全空」。</item>
-///   <item><b>Release</b>：不传清单，改为扫描 <c>&lt;程序目录&gt;\Modules\</c> 下的 DLL。</item>
+///   <item><b>必载清单</b>：框架组件（<c>Module.Settings</c>，物理必备）由调用方传入，先加载；
+///         Debug 同时把功能模块也放进清单（程序集延迟加载，纯扫描一个都扫不到 →「左侧菜单全空」）。</item>
+///   <item><b>目录扫描</b>：随后扫 <c>&lt;程序目录&gt;\Modules\</c> 下的 DLL 补功能模块，
+///         跳过已加载同名（Shared/Core、以及清单里已加载的模块由此跳过）。</item>
 /// </list>
 /// </summary>
 public static class ModuleLoader
@@ -24,14 +26,14 @@ public static class ModuleLoader
     public const string ModulesSubDirectory = "Modules";
 
     /// <param name="services">DI 容器</param>
-    /// <param name="explicitModuleTypes">Debug 的显式类型清单；传 null 表示 Release 走目录扫描。</param>
-    public static IReadOnlyList<IModule> LoadAll(IServiceCollection services, IEnumerable<Type>? explicitModuleTypes)
+    /// <param name="mandatoryModuleTypes">必载清单（框架组件置顶 + Debug 的功能模块）；⛔ 非 null。</param>
+    public static IReadOnlyList<IModule> LoadAll(IServiceCollection services, IEnumerable<Type> mandatoryModuleTypes)
     {
         _modules.Clear();
 
-        var types = explicitModuleTypes != null
-            ? explicitModuleTypes.ToList()
-            : ScanModulesDirectory();
+        // 必载清单先加载；再扫 Modules\ 补功能模块（跳过已加载同名）。
+        var types = mandatoryModuleTypes.ToList();
+        types.AddRange(ScanModulesDirectory());
 
         foreach (var t in types)
         {
@@ -59,6 +61,18 @@ public static class ModuleLoader
             try { m.Initialize(sp); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"模块 {m.GetType().Name} 初始化失败: {ex.Message}"); }
         }
+
+        // 健全性检查（v3.26，需求 §3.4）：必备的 settings 分组没注册上（Module.Settings 缺失 /
+        // 它的 Initialize 抛异常被上面的逐模块 try-catch 吞了）→ 报一行，⛔ 不静默。
+        // 启动不中断——框架自给（首页 / 一键启动不依赖任何功能模块），仅设置不可用。
+        var menu = sp.GetService<IMenuService>();
+        if (menu?.FindGroup("settings") == null)
+            System.Diagnostics.Debug.WriteLine(
+                "[NewToys] 健全性检查：settings 分组未注册——Module.Settings 缺失或初始化失败，设置不可用（框架其余功能不受影响）。");
+        else if (menu is MenuService ms && ms.PendingCount > 0)
+            // 暂存区还有孤儿项 = 有模块往一个始终没建立的分组注册过（典型 = 分组 key 打错）
+            System.Diagnostics.Debug.WriteLine(
+                $"[NewToys] 健全性检查：{ms.PendingCount} 个跨组菜单项的目标分组始终未注册（分组 key 打错？），这些项不显示。");
     }
 
     /// <summary>

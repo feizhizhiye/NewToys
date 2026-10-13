@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -25,6 +27,11 @@ public class App : Application
     private static App? _current;
     private ResourceDictionary? _themeDictionary;
 
+    /// <summary>每配置单例的互斥体（v3.26，需求 §3.5）——⛔ 必须静态持有整个进程生命周期，回收 = 释放。</summary>
+#pragma warning disable CS0414 // 字段只为进程级持有防 GC 回收，本进程不读取
+    private static Mutex? _profileMutex;
+#pragma warning restore CS0414
+
     public static T? GetService<T>() where T : class
         => _current?._sp?.GetService<T>();
 
@@ -43,8 +50,11 @@ public class App : Application
         {
             var services = new ServiceCollection();
 
+            // v3.26：多实例启动参数 --profile <配置名>（需求 §3.5）——最早处解析，交给 ConfigStoreService。
+            var profileOverride = ParseProfileOverride(Environment.GetCommandLineArgs());
+
             // Core services
-            services.AddSingleton<ConfigStoreService>();
+            services.AddSingleton(sp => new ConfigStoreService(profileOverride));
             services.AddSingleton<IAppConfigService, AppConfigService>();
             services.AddSingleton<ILaunchConfigService, LaunchConfigService>();
             services.AddSingleton<IMenuService, MenuService>();
@@ -67,7 +77,7 @@ public class App : Application
             // 列表页「列显隐」偏好（右键表头增删列，规范 3.8）：落 config\columnlayout.json（会被数据管理备份）。
             services.AddSingleton<IColumnLayoutService, ColumnLayoutService>();
 
-            // v3.5：多配置（一个配置 = 一套独立的 config+data+logs）；切换 = 重启应用。
+            // v3.5：多配置（一个配置 = 一套独立的 config+data+logs）；v3.26 起切换 = 本窗重启到目标配置（显式传 --profile）。
             services.AddSingleton<IProfileService, ProfileService>();
 
             // 工程内唯一的本地数据库（data\newtoys.db）：当前给「视频工具 → 视频库」的媒体信息索引用；
@@ -83,13 +93,22 @@ public class App : Application
             services.AddTransient<HomeView>();
             services.AddTransient<HomeViewModel>();
 
-            // 模块加载：Debug 走显式类型清单（避免程序集延迟加载扫不到），Release 走 Modules 目录扫描。
-            // 新增模块时两处都要登记：Shell.csproj 的 Debug ProjectReference + 下面的 #if DEBUG 清单。
-            Core.Services.ModuleLoader.LoadAll(services, GetDebugModuleTypes());
+            // 模块加载（v3.26，需求 §3.4）：必载清单（Module.Settings = 框架组件，置顶先加载）
+            // + ModuleLoader 扫 Modules\ 补功能模块。新增功能模块两处登记：Shell.csproj 的 Debug ProjectReference
+            // + 下面 GetMandatoryModuleTypes 的 #if DEBUG 追加。
+            Core.Services.ModuleLoader.LoadAll(services, GetMandatoryModuleTypes());
 
             _sp = services.BuildServiceProvider();
             _current = this;
             AppServices.Initialize(_sp);
+
+            // v3.26：每配置单例 + --profile 诊断（需求 §3.5）——同一配置只允许一个实例，
+            // 第二例提示后退出（数据隔离：不同配置各跑各的目录，同配置共享会互相覆盖）。
+            var store = _sp.GetRequiredService<ConfigStoreService>();
+            if (store.ProfileOverrideError != null)
+                WriteStartupLog($"{store.ProfileOverrideError} —— 已回退到配置「{store.ActiveProfileName}」");
+            if (!AcquireProfileMutex(store)) return;
+
             Core.Services.ModuleLoader.InitializeAll(_sp);
 
             var theme = _sp.GetRequiredService<IThemeService>();
@@ -98,6 +117,9 @@ public class App : Application
             theme.ThemeChanged += () => ApplyTheme(theme);
 
             var win = new ShellView { DataContext = _sp.GetRequiredService<ShellViewModel>() };
+
+            // v3.26：标题带配置名（多实例在任务栏里可区分，需求 §3.5）
+            win.Title = $"NewToys · {store.ActiveProfileName}";
 
             // 卸载 / 删除前的二次确认：Core 里的服务不能引用 Avalonia，
             // 所以由宿主在这里把「怎么问」接上去（弹窗在下面实现）。
@@ -229,6 +251,84 @@ public class App : Application
         }
         catch { /* 记不下来也不影响主流程 */ }
     }
+
+    // ==================== 多实例：--profile 参数 + 每配置单例（v3.26，需求 §3.5） ====================
+
+    /// <summary>从命令行取 <c>--profile &lt;配置名&gt;</c>；没有该参数 → null（走 active-profile.txt 全局默认）。</summary>
+    private static string? ParseProfileOverride(string[] args)
+    {
+        for (var i = 0; i < args.Length - 1; i++)
+            if (string.Equals(args[i], "--profile", StringComparison.OrdinalIgnoreCase))
+                return args[i + 1];
+        return null;
+    }
+
+    /// <summary>
+    /// 每配置单例：同一配置同时只允许一个实例（数据隔离——同配置共享 config/db 会互相覆盖）。
+    /// 返回 false = 配置已在运行（已弹系统提示并退出进程）。
+    /// </summary>
+    private static bool AcquireProfileMutex(ConfigStoreService store)
+    {
+        // ⛔ 别用 Global\（多会话 / 终端服务场景误伤）；配置名大小写不敏感 → 统一小写
+        var name = "Local\\NewToys_Profile_" + store.ActiveProfileName.ToLowerInvariant();
+        try
+        {
+            var m = new Mutex(false, name, out var createdNew);
+            if (createdNew)
+            {
+                _profileMutex = m;   // ⛔ 必须进程级持有：回收 = 互斥体立刻释放
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            // 互斥体建不出来（异常名等）→ 放行，⛔ 不让诊断机制挡住启动
+            WriteStartupLog($"配置互斥体创建失败，已放行：{ex.Message}");
+            return true;
+        }
+
+        MessageBoxW(IntPtr.Zero,
+            $"配置「{store.ActiveProfileName}」已在运行。\n\n"
+            + "同一个配置同时只允许一个窗口（否则两边的设置与数据会互相覆盖）。\n"
+            + "请切换到已打开的窗口，或换一个配置启动。",
+            "NewToys",
+            MB_OK | MB_ICONINFORMATION);
+        Environment.Exit(0);
+        return false; // 到不了（Exit 不返回），写上防流程分析报警
+    }
+
+    /// <summary>追加一行启动诊断到当天的启动日志（v3.26：--profile 被拒 / 互斥体异常等；写盘失败静默吞掉）。</summary>
+    private static void WriteStartupLog(string message)
+    {
+        try
+        {
+            string dir;
+            var store = AppServices.Get<ConfigStoreService>();
+            if (store != null)
+            {
+                dir = store.LogsDirectory;
+            }
+            else
+            {
+                var root = Environment.GetEnvironmentVariable("NEWTOYS_HOME");
+                if (string.IsNullOrEmpty(root))
+                    root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NewToys");
+                dir = Path.Combine(root, "logs");
+            }
+
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, $"startup-{DateTime.Now:yyyyMMdd}.log"),
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}\n");
+            System.Diagnostics.Debug.WriteLine($"[startup] {message}");
+        }
+        catch { /* 记不下来也不影响主流程 */ }
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "MessageBoxW")]
+    private static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
+
+    private const uint MB_OK = 0x00000000;
+    private const uint MB_ICONINFORMATION = 0x00000040;
 
     // ==================== 托盘图标（「关闭按钮最小化到托盘」的落点） ====================
 
@@ -439,22 +539,22 @@ public class App : Application
     }
 
     /// <summary>
-    /// Debug 下的模块<b>显式类型清单</b>。Release 返回 null，改走 Modules 目录扫描。
-    /// ⚠️ Debug 不能用 AppDomain 扫描：Debug 的程序集是延迟加载的，纯扫描经常一个模块都扫不到。
+    /// 必载模块清单（v3.26，需求 §3.4）：<see cref="NewToys.Settings.SettingsModule"/> = 框架组件
+    /// （物理必备，随 NewToys.exe 出根目录），**置顶先于一切功能模块**加载——settings 分组先存在，
+    /// 功能模块的设置页自注册（RegisterFunction("settings", …)）才能命中（延迟补登兜底，规范 §3.2）。
+    /// <para>Release 只传它，其余功能模块由 ModuleLoader 扫 Modules\ 补全。</para>
     /// </summary>
-    private static Type[]? GetDebugModuleTypes()
+    private static Type[] GetMandatoryModuleTypes()
     {
+        var list = new List<Type> { typeof(NewToys.Settings.SettingsModule) };
 #if DEBUG
-        return new[]
-        {
-            typeof(NewToys.PcTools.PcToolsModule),
-            typeof(NewToys.WebTools.WebToolsModule),
-            typeof(NewToys.VideoTools.VideoToolsModule),
-            typeof(NewToys.Settings.SettingsModule),
-        };
-#else
-        return null;
+        // Debug 的显式清单：程序集延迟加载，纯扫描一个都扫不到（表现为「左侧菜单全空」）。
+        // 新增功能模块：这里追加 + Shell.csproj 的 Debug ProjectReference，两处都要改。
+        list.Add(typeof(NewToys.PcTools.PcToolsModule));
+        list.Add(typeof(NewToys.WebTools.WebToolsModule));
+        list.Add(typeof(NewToys.VideoTools.VideoToolsModule));
 #endif
+        return list.ToArray();
     }
 
     /// <summary>

@@ -7,7 +7,7 @@
     <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
       <TextBlock Classes="section-title" Text="配置（多套独立数据）"/>
       <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                 Text="一个配置 = 一套独立的 config + data + logs。切换配置需要重启应用（配置在启动时就被读取）。"/>
+                 Text="一个配置 = 一套独立的 config + data + logs。可同时打开多个配置的窗口（各跑各的数据）；「切换」只重启本窗口，不影响其它窗口与默认配置。「⭐ 设为默认」决定以后直接启动哪个配置。"/>
       <TextBlock Classes="info-text" Text="{Binding ProfilesHint}" TextWrapping="Wrap"/>
       <!-- 状态行已取消（v3.9）：改由 Shell 底部状态栏统一显示。 -->
     </StackPanel>
@@ -46,7 +46,13 @@
                   VerticalAlignment="Top">
         <Button Classes="primary" Content="⇄ 切换到此配置" HorizontalAlignment="Stretch"
                 Command="{Binding SwitchCommand}" IsEnabled="{Binding HasSelection}"
-                ToolTip.Tip="切换后会提示并自动重启应用"/>
+                ToolTip.Tip="本窗口重启到目标配置（不影响其它窗口和默认配置）"/>
+        <Button Classes="ghost" Content="🚀 新开一个" HorizontalAlignment="Stretch"
+                Command="{Binding LaunchNewCommand}" IsEnabled="{Binding HasSelection}"
+                ToolTip.Tip="以该配置再启动一个窗口（多实例；同一配置只能开一个）"/>
+        <Button Classes="ghost" Content="⭐ 设为默认" HorizontalAlignment="Stretch"
+                Command="{Binding SetAsDefaultCommand}" IsEnabled="{Binding HasSelection}"
+                ToolTip.Tip="写全局默认：以后直接启动 NewToys（不带参数）就是它"/>
         <Button Classes="ghost" Content="＋ 新建配置" HorizontalAlignment="Stretch"
                 Command="{Binding NewProfileCommand}"/>
         <Button Classes="ghost" Content="✏ 重命名" HorizontalAlignment="Stretch"

@@ -65,7 +65,9 @@
     <OutDir>$(NewToysReleaseDir)</OutDir>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)'=='Release' And $(MSBuildProjectName.StartsWith('Module.'))">
+  <!--  Module.Settings = 框架组件（物理必备，需求 §3.4）：Release 直出程序根目录、⛔ 不进 Modules\
+        （build.ps1 的产物计数校验同步排除它；缺失 = 启动失败，同 Shared/Core 硬依赖）。  -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release' And $(MSBuildProjectName.StartsWith('Module.')) And $(MSBuildProjectName)!='Module.Settings'">
     <OutDir>$(NewToysReleaseDir)Modules\</OutDir>
   </PropertyGroup>
 

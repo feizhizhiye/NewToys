@@ -12,7 +12,9 @@ namespace NewToys.Settings.ViewModels;
 /// 「设置 → 配置」页（v3.5 新增）：多配置管理。
 /// <para>一个配置 = 一套**独立的 config + data + logs**（落 <c>&lt;应用根&gt;\profiles\&lt;名称&gt;</c>）。</para>
 /// <para>⚠️ **切换配置 = 重启应用** —— 配置在启动时就被大量单例服务读进内存了，热切换极易留下
-/// "一半新配置一半旧配置"的状态（见规范 §4）。</para>
+/// "一半新配置一半旧配置"的状态（见规范 §4）。v3.26 起：切换只重启**本窗口**（显式传 --profile），
+/// ⛔ 不改全局默认；「⭐ 设为默认」才写 active-profile.txt；「🚀 新开一个」以别的配置再起一个窗口
+/// （多实例，各跑各的数据目录；同一配置单例）。</para>
 /// </summary>
 public partial class ProfileViewModel : ObservableObject, IStatusProvider
 {
@@ -152,18 +154,56 @@ public partial class ProfileViewModel : ObservableObject, IStatusProvider
         var dir = _profiles.GetDirectory(name);
         var ok = await DialogHooks.ConfirmAsync(
             $"切换到配置「{name}」？\n\n" +
-            "应用会自动重启，之后所有设置与功能数据都来自：\n" +
-            $"{dir}");
+            "本窗口会自动重启，之后所有设置与功能数据都来自：\n" +
+            $"{dir}\n\n" +
+            "（只影响本窗口——其它已打开的窗口和全局默认配置都不变）");
         if (!ok) return;
 
         try
         {
             _profiles.SwitchTo(name);
-            StatusText = $"已切到「{name}」，正在重启…";
-            _profiles.RestartApp();   // 起新实例 + 退出自己；新实例起不来时这里会返回（不退出）
+            _profiles.RestartApp(name);   // 起新实例（带 --profile）+ 退出自己；新实例起不来时这里会返回（不退出）
             StatusText = $"已切到「{name}」，但自动重启失败 —— 请手动重启 NewToys 使配置生效。";
         }
         catch (Exception ex) { StatusText = "切换失败：" + ex.Message; }
+    }
+
+    /// <summary>把选中配置设为**全局默认**（v3.26）：写 active-profile.txt，影响以后无参启动的实例。</summary>
+    [RelayCommand]
+    private void SetAsDefault()
+    {
+        if (_profiles == null) return;
+        if (Selected == null) { StatusText = "先在列表里选中一个配置。"; return; }
+
+        var name = Selected.Name;
+        try
+        {
+            _profiles.SetAsDefault(name);
+            StatusText = $"已将「{name}」设为默认配置 —— 以后直接启动 NewToys（不带参数）就是它。";
+        }
+        catch (Exception ex) { StatusText = "设置默认失败：" + ex.Message; }
+    }
+
+    /// <summary>以选中配置**新开一个窗口**（v3.26 多实例）：不退出当前窗口。</summary>
+    [RelayCommand]
+    private void LaunchNew()
+    {
+        if (_profiles == null) return;
+        if (Selected == null) { StatusText = "先在列表里选中一个配置。"; return; }
+
+        var name = Selected.Name;
+        if (string.Equals(name, _profiles.ActiveProfile, StringComparison.OrdinalIgnoreCase))
+        {
+            StatusText = $"「{name}」就是当前窗口正在用的配置 —— 同一配置同时只允许一个窗口（数据会互相覆盖）。";
+            return;
+        }
+
+        try
+        {
+            _profiles.LaunchNewInstance(name);
+            StatusText = $"已新开一个「{name}」窗口（任务栏里能看到，标题带配置名）。";
+        }
+        catch (Exception ex) { StatusText = "新开失败：" + ex.Message; }
     }
 }
 

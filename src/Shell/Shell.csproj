@@ -17,6 +17,9 @@
   <ItemGroup>
     <ProjectReference Include="../Shared/Shared.csproj" />
     <ProjectReference Include="../Core/Core.csproj" />
+    <!--  Module.Settings = 框架组件（物理必备，需求 §3.4）：无条件引用，Release 随 NewToys.exe
+          出根目录（Directory.Build.props 对它开 OutDir 例外）；⛔ 不走 Debug 条件组。  -->
+    <ProjectReference Include="../Module.Settings/Module.Settings.csproj" />
   </ItemGroup>
 
   <!--  默认数据：随程序发布到 <程序目录>\defaults\（首次运行时由 Core 复制成
@@ -30,14 +33,14 @@
     <None Update="defaults\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!--  Debug 才引用模块项目：支持断点与热重载，并与 App.axaml.cs 的 #if DEBUG 显式类型清单配套。
-        Release 下 Shell 不引用模块，模块 DLL 由 src\Directory.Build.props 直接产出到
+  <!--  Debug 才引用**功能模块**项目：支持断点与热重载，并与 App.axaml.cs 的 #if DEBUG 显式类型清单配套。
+        Release 下 Shell 不引用功能模块，模块 DLL 由 src\Directory.Build.props 直接产出到
         artifacts\release\Modules\，运行时由 ModuleLoader 扫描该目录。
-        ⛔ 跳过某个模块要同时注释这里和 App.axaml.cs 的 typeof(...) 两处。  -->
+        ⛔ Module.Settings 不在此列——它是框架组件（无条件引用，见上）。
+        ⛔ 跳过某个功能模块要同时注释这里和 App.axaml.cs 的 typeof(...) 两处。  -->
   <ItemGroup Condition="'$(Configuration)'=='Debug'">
     <ProjectReference Include="../Module.PcTools/Module.PcTools.csproj" />
     <ProjectReference Include="../Module.WebTools/Module.WebTools.csproj" />
     <ProjectReference Include="../Module.VideoTools/Module.VideoTools.csproj" />
-    <ProjectReference Include="../Module.Settings/Module.Settings.csproj" />
   </ItemGroup>
 </Project>

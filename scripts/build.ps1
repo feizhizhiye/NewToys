@@ -6,6 +6,7 @@
     · Release 的模块 DLL 由 src\Directory.Build.props 直接产出到
       artifacts\release\Modules\ ——⛔ 脚本里禁止再加任何拷贝步骤
       （那正是「页面一直是旧的」这类事故的根因）。
+      例外：Module.Settings = 框架组件（物理必备，需求 §3.4），直出根目录、不进 Modules\。
 #>
 param(
     [ValidateSet("Debug", "Release")]
@@ -54,14 +55,18 @@ if ($Configuration -eq "Release") {
     $modules = Join-Path $release "Modules"
     $exe     = Join-Path $release "NewToys.exe"
     Write-Host "`nRelease 产物: $release" -ForegroundColor Green
-    if (Test-Path $exe) { Write-Host "  主程序: NewToys.exe" -ForegroundColor Gray }
+    if (Test-Path $exe) {
+        Write-Host "  主程序: NewToys.exe" -ForegroundColor Gray
+        Write-Host "  框架组件: Module.Settings.dll → 根目录（物理必备，需求 §3.4）" -ForegroundColor Gray
+    }
 
     if (Test-Path $modules) {
         $dlls = @(Get-ChildItem $modules -Filter "Module.*.dll" -File)
         Write-Host "  模块 DLL: $($dlls.Count) 个 → Modules\" -ForegroundColor Gray
-        $expected = @(Get-ChildItem $SrcDir -Directory -Filter "Module.*").Count
+        # Module.Settings = 框架组件：Release 直出根目录、不进 Modules\（src\Directory.Build.props 开例外）→ 只数功能模块
+        $expected = @(Get-ChildItem $SrcDir -Directory -Filter "Module.*" | Where-Object { $_.Name -ne 'Module.Settings' }).Count
         if ($expected -gt 0 -and $dlls.Count -ne $expected) {
-            Write-Host "  [警告] 期望 $expected 个模块 DLL，实际 $($dlls.Count) 个" -ForegroundColor Yellow
+            Write-Host "  [警告] 期望 $expected 个功能模块 DLL，实际 $($dlls.Count) 个" -ForegroundColor Yellow
         }
     }
     else {

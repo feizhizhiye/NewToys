@@ -42,10 +42,32 @@ public class ConfigStoreService
     private readonly string _appRoot;
     private readonly string _profileRoot;
 
-    public ConfigStoreService()
+    /// <summary>启动参数 <c>--profile</c> 的覆盖值（v3.26，需求 §3.5）：合法且配置目录已存在时才生效。</summary>
+    public string? ProfileOverride { get; }
+
+    /// <summary><c>--profile</c> 参数被拒绝的原因（非 null = 启动日志记一行；实际生效配置看 <see cref="ActiveProfileName"/>）。</summary>
+    public string? ProfileOverrideError { get; }
+
+    public ConfigStoreService() : this(null) { }
+
+    /// <param name="profileOverride">启动参数 <c>--profile</c> 的值；非法 / 配置不存在 → 忽略并回退默认。</param>
+    public ConfigStoreService(string? profileOverride)
     {
         _appRoot = ResolveAppRoot();
+        var (overrideName, error) = ValidateProfileOverride(_appRoot, profileOverride);
+        ProfileOverride = overrideName;
+        ProfileOverrideError = error;
         _profileRoot = ResolveProfileRoot(_appRoot);
+    }
+
+    /// <summary>--profile 覆盖校验：名字合法 + 配置目录已存在，两个都满足才生效（防手滑打错名建出空配置）。</summary>
+    private static (string? Override, string? Error) ValidateProfileOverride(string appRoot, string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return (null, null);
+        if (!IsValidProfileName(raw)) return (null, $"--profile 参数非法：{raw}");
+        if (!Directory.Exists(Path.Combine(appRoot, ProfilesFolderName, raw)))
+            return (null, $"--profile 指定的配置不存在：{raw}");
+        return (raw, null);
     }
 
     // ==================== 路径 ====================
@@ -64,8 +86,11 @@ public class ConfigStoreService
         }
     }
 
-    /// <summary>当前生效的配置名（读 `active-profile.txt`；缺失 / 非法 → `default`）。</summary>
-    public string ActiveProfileName => ReadActiveProfileName(_appRoot);
+    /// <summary>当前生效的配置名（v3.26：启动参数 --profile 优先；其次读 active-profile.txt；缺失 / 非法 → default）。</summary>
+    public string ActiveProfileName => ProfileOverride ?? ReadActiveProfileName(_appRoot);
+
+    /// <summary>全局默认指针（`active-profile.txt`）指向的配置名；⛔ 不受 --profile 覆盖影响（给重命名判指针用）。</summary>
+    public string PointerProfileName => ReadActiveProfileName(_appRoot);
 
     /// <summary>当前配置的根目录 <c>&lt;应用根&gt;\profiles\&lt;当前配置&gt;</c>。</summary>
     public string ProfileRootDirectory => _profileRoot;
@@ -181,7 +206,7 @@ public class ConfigStoreService
             }
         }
 
-        var name = ReadActiveProfileName(appRoot);
+        var name = ProfileOverride ?? ReadActiveProfileName(appRoot);
         var dir = Path.Combine(profilesRoot, name);
         Directory.CreateDirectory(dir);
         return dir;

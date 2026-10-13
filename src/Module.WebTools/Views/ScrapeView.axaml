@@ -55,7 +55,7 @@
                 <ContextMenu>
                   <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
                     <MenuItem.ItemContainerTheme>
-                      <ControlTheme TargetType="MenuItem">
+                      <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                         <Setter Property="Header" Value="{Binding Label}"/>
                         <Setter Property="Command" Value="{Binding Command}"/>
                       </ControlTheme>

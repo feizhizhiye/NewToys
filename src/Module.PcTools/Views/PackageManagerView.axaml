@@ -110,7 +110,7 @@
                   <MenuItem Header="仅看已安装" Command="{Binding ToggleInstalledOnlyCommand}" ToolTip.Tip="只留本机已安装的（原工具条勾选，v3.19 / NT-008 并入表头右键）"/>
                   <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
                     <MenuItem.ItemContainerTheme>
-                      <ControlTheme TargetType="MenuItem">
+                      <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                         <Setter Property="Header" Value="{Binding Label}"/>
                         <Setter Property="Command" Value="{Binding Command}"/>
                       </ControlTheme>

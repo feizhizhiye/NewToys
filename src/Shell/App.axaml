@@ -110,6 +110,19 @@
             <Setter Property="Opacity" Value="1"/>
             <Setter Property="IsHitTestVisible" Value="True"/>
         </Style>
+        <!--
+            ⚠️ 必须用**后代选择器**写：单写 `Button.tab-close:pointerover` 会被 Fluent 主题的
+            `Button:pointerover`（灰底 + 前景色）盖掉 —— 实测表现为"白图标 + 能看出背景"。
+            后代选择器优先级更高，红图标 + 透明底才真正生效。
+        -->
+        <Style Selector="Border.tab-item Button.tab-close:pointerover">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Margin" Value="0"/>
+        </Style>
         <Style Selector="Button.tab-close:pointerover">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>

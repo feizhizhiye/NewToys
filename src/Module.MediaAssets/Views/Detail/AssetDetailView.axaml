@@ -13,10 +13,15 @@
     <StackPanel Margin="12" Spacing="10">
 
       <!--  没选中时给一句引导  -->
-      <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasSelection}"
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !ShowDetailBody}"
                  Text="在左侧列表里选中一个资产，这里显示它的详情。"/>
 
-      <StackPanel Spacing="10" IsVisible="{Binding HasSelection}">
+      <!--  v3.32 §4.8.3：示例态标识（下面是示例数据，不可编辑）  -->
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
+                 Text="（示例数据）在左侧选中一个资产后，这里显示它的真实信息；示例态下卡片不可编辑。"/>
+
+      <!--  v3.32 §4.8.3：示例态整卡禁用，⛔ 不让用户去改 / 保存一份假数据  -->
+      <StackPanel Spacing="10" IsVisible="{Binding ShowDetailBody}" IsEnabled="{Binding !IsDetailSample}">
 
         <!--  ===== 显示名（唯一可编辑项）=====  -->
         <StackPanel Spacing="4">
@@ -30,19 +35,19 @@
         <!--  ===== 基本信息（只读）=====  -->
         <StackPanel Spacing="4">
           <TextBlock Classes="field-label" Text="类型"/>
-          <TextBlock Classes="field-value" Text="{Binding Selected.TypeText}"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailRow.TypeText}"/>
 
           <TextBlock Classes="field-label" Text="状态"/>
-          <TextBlock Classes="field-value" Text="{Binding Selected.StatusText}"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailRow.StatusText}"/>
 
           <TextBlock Classes="field-label" Text="大小"/>
-          <TextBlock Classes="field-value" Text="{Binding Selected.SizeText}"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailRow.SizeText}"/>
 
           <TextBlock Classes="field-label" Text="修改时间"/>
-          <TextBlock Classes="field-value" Text="{Binding Selected.ModifiedText}"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailRow.ModifiedText}"/>
 
           <TextBlock Classes="field-label" Text="存储源"/>
-          <TextBlock Classes="field-value" Text="{Binding Selected.StorageName}"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailRow.StorageName}"/>
         </StackPanel>
 
         <Border Classes="divider-line"/>
@@ -50,7 +55,7 @@
         <!--  ===== 文件路径（可复制）=====  -->
         <StackPanel Spacing="4">
           <TextBlock Classes="field-label" Text="文件路径"/>
-          <SelectableTextBlock Classes="field-value" Text="{Binding Selected.FilePath}" TextWrapping="Wrap"/>
+          <SelectableTextBlock Classes="field-value" Text="{Binding DetailRow.FilePath}" TextWrapping="Wrap"/>
           <TextBlock Classes="hint-text" TextWrapping="Wrap"
                      Text="重命名 / 移动 / 复制 / 删除**磁盘上的文件**是显式操作，在 NT-019 落地。"/>
         </StackPanel>
@@ -60,13 +65,13 @@
         <!--  ===== 组织信息（NT-018 才有数据可改；现在先如实显示，没有就写"（无）"）=====  -->
         <StackPanel Spacing="4">
           <TextBlock Classes="field-label" Text="标签"/>
-          <TextBlock Classes="field-value" Text="{Binding Selected.TagsText}" TextWrapping="Wrap"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailRow.TagsText}" TextWrapping="Wrap"/>
 
           <TextBlock Classes="field-label" Text="分类"/>
-          <TextBlock Classes="field-value" Text="{Binding Selected.CategoriesText}" TextWrapping="Wrap"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailRow.CategoriesText}" TextWrapping="Wrap"/>
 
           <TextBlock Classes="field-label" Text="集合"/>
-          <TextBlock Classes="field-value" Text="{Binding Selected.CollectionsText}" TextWrapping="Wrap"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailRow.CollectionsText}" TextWrapping="Wrap"/>
         </StackPanel>
 
         <Border Classes="divider-line"/>
@@ -86,7 +91,7 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding Selected.IsMissing}"
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding DetailRow.IsMissing}"
                      Text="⚠ 这个文件在磁盘上找不到了（最近一次扫描没见到它）。"/>
         </StackPanel>
 

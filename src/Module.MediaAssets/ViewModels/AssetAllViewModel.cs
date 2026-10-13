@@ -148,6 +148,33 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// </summary>
     public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
 
+    // ==================== v3.32 §4.8.3：详情卡示例态 ====================
+
+    /// <summary>详情卡的**示例行**（与列表示例行同一批数据）。</summary>
+    private static readonly AssetRow SampleRow = new()
+    {
+        Name = "The.Matrix.1999.1080p.mkv",
+        Title = "The.Matrix.1999.1080p.mkv",
+        Type = AssetTypes.Video,
+        Status = AssetStatuses.Active,
+        FileName = "The.Matrix.1999.1080p.mkv",
+        FilePath = @"D:\Movies\The.Matrix.1999.1080p.mkv",
+        Size = 4_509_715_660,                       // ≈ 4.2 GB
+        Mtime = "2026-10-13 21:04:00",
+        StorageName = "移动硬盘 D",
+        TagsText = "科幻, 收藏",
+        CategoriesText = "电影 / 动作",
+        CollectionsText = "周末片单"
+    };
+
+    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例行**（示例态下卡片整体禁用）。</summary>
+    public AssetRow DetailRow => Selected ?? SampleRow;
+
+    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
+    public bool ShowDetailBody => HasSelection || IsDetailSample;
+
+    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
     /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
     public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
 
@@ -166,6 +193,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
         BuildStaticOptions();               // 类型 / 状态（固定值）
         Reload();                           // 存储源 / 标签下拉要读库 → 放在读库之后
+        UpdateDetailSample(false);          // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
+        LoadDetail(null);
 
         StatusText = IsDbAvailable
             ? $"共 {Items.Count} 个资产" + (Items.Count == 0 ? "（点「📂 导入」添加存储源或文件）" : "")
@@ -503,6 +532,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     partial void OnSelectedChanged(AssetRow? value)
     {
+        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例行（并整卡禁用）
+        OnPropertyChanged(nameof(DetailRow));
         LoadDetail(value);
         OnPropertyChanged(nameof(HasSelection));
         RaiseDetailChanged();
@@ -514,11 +545,16 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         try
         {
             Locations.Clear();
-            DetailDisplayName = row == null
+            // v3.32 §4.8.3：没选中项 → 用示例行（示例态），否则用真值
+            var target = row ?? (HasSampleRow ? SampleRow : null);
+            DetailDisplayName = target == null
                 ? ""
-                : row.DisplayName ?? row.Title ?? row.Name;
-            if (row != null)
-                foreach (var l in _assets.ListLocations(row.Id)) Locations.Add(l);
+                : target.DisplayName ?? target.Title ?? target.Name;
+
+            if (ReferenceEquals(target, SampleRow))
+                Locations.Add(new FileLocation { Path = SampleRow.FilePath, Status = "（示例位置）" });
+            else if (target != null)
+                foreach (var l in _assets.ListLocations(target.Id)) Locations.Add(l);
         }
         finally { _loadingDetail = false; }
     }

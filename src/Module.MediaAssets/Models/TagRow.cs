@@ -31,8 +31,12 @@ public class TagRow
     /// <summary>该标签的最终色（库值优先，否则稳定散列）。</summary>
     public string ColorHex => AssetPalette.Resolve(Color, Name);
 
-    /// <summary>列表里的色片（数据色 → 画刷；⛔ XAML 不写死色值）。</summary>
-    public IBrush ChipBrush => new SolidColorBrush(Color.Parse(ColorHex));
+    /// <summary>
+    /// 列表里的色片（数据色 → 画刷；⛔ XAML 不写死色值）。
+    /// ⚠️ 必须写 `Avalonia.Media.Color` 全名：本类有个 `Color` 属性（string），
+    /// 会**遮蔽**同名的 `Avalonia.Media.Color` 类型 → 简写会被解析成 `string.Parse`（CS1061）。
+    /// </summary>
+    public IBrush ChipBrush => new SolidColorBrush(Avalonia.Media.Color.Parse(ColorHex));
 
     public string ColorHexText => ColorHex.ToUpperInvariant();
 

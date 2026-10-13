@@ -108,6 +108,9 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
 
+    /// <summary>详情卡里"用了这个标签的资产"有没有内容（空 → 显示提示）。</summary>
+    public bool HasDetailAssets => DetailAssets.Count > 0;
+
     /// <summary>详情卡当前显示的标签（没选中 → 示例行）。</summary>
     public TagRow DetailTag => Selected ?? SampleTag;
 

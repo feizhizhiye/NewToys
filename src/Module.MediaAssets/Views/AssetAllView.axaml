@@ -161,7 +161,7 @@
                   右键菜单挂在外层透明 Border 上（整格都能右键）。  -->
             <Border Grid.Column="0" x:Name="HeaderCheckHost" Background="Transparent"
                     ToolTip.Tip="勾选的行由「🏷 加标签 / 🗂 加集合」批量操作（右键：全选 / 取消 / 反选）">
-              <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center" IsThreeState="True"
+              <CheckBox x:Name="HeaderCheckBox" HorizontalAlignment="Center" VerticalAlignment="Center" IsThreeState="True"
                         IsChecked="{Binding AllCheckedState, Mode=TwoWay}">
                 <CheckBox.ContextMenu>
                   <ContextMenu>

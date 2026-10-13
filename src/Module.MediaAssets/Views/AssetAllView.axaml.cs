@@ -21,9 +21,10 @@ public partial class AssetAllView : UserControl
         //    v3.30（用户定调）：原先「📁 扫描文件夹」+「📄 扫描文件」两个独立按钮**合并**成这一条，
         //    样式与接线都对齐 VideoTools 的「📂 导入」。
         //    两条路都是**预览**（只进内存、⛔ 不入库）：看完决定「💾 加入库」还是「🧹 清除列表」换目录重来。
-        ScanSplit.Click += (_, _) => ScanFolderAsync();
-        ScanFolderItem.Click += (_, _) => ScanFolderAsync();
-        ScanFilesItem.Click += (_, _) => ScanFilesAsync();
+        //    用 `_ =` 显式丢弃返回的 Task：事件处理器是 void 语义，这里就是"点火即忘"（CS4014 的规范写法）。
+        ScanSplit.Click += (_, _) => _ = ScanFolderAsync();
+        ScanFolderItem.Click += (_, _) => _ = ScanFolderAsync();
+        ScanFilesItem.Click += (_, _) => _ = ScanFilesAsync();
 
         // ③ 「➕ 登记文件夹」：加入待扫列表（⛔ 不扫描，等「🔄 扫描全部」）
         BtnRegisterFolder.Click += async (_, _) =>
@@ -57,11 +58,12 @@ public partial class AssetAllView : UserControl
 
         // ⑦ v3.34 / NT-018：表头 ☑ 上的右键菜单（全选 / 取消选择 / 反选）
         //    ⚠️ 必须是**原生三态 CheckBox**（⛔ 别用字符"☑"画 —— 字体会渲染成深色块，v3.16 连踩两轮）；
-        //    右键菜单挂在外层透明 Border（HeaderCheckHost）上，整格都能右键。
+        //    ⚠️ ContextMenu 挂在 **CheckBox** 上（不是外层 Border）→ 这里要读 HeaderCheckBox，
+        //       整格热区由外层透明 Border 的右键手动开菜单。
         HeaderCheckHost.PointerPressed += (_, e) =>
         {
             if (e.GetCurrentPoint(HeaderCheckHost).Properties.IsRightButtonPressed != true) return;
-            if (HeaderCheckHost.ContextMenu is { } menu) menu.Open(HeaderCheckHost);
+            if (HeaderCheckBox?.ContextMenu is { } menu) menu.Open(HeaderCheckHost);
             e.Handled = true;
         };
     }
@@ -83,7 +85,7 @@ public partial class AssetAllView : UserControl
         base.OnDataContextChanged(e);
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
         if (AssetList?.ContextMenu is { } amenu) amenu.DataContext = DataContext;
-        if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
+        if (HeaderCheckBox?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
     }
 
     /// <summary>「📁 扫描 → 文件夹…」：选一个目录 → **预览**（只进内存，⛔ 不入库）。</summary>

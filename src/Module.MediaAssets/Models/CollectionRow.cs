@@ -31,8 +31,8 @@ public partial class CollectionRow : CommunityToolkit.Mvvm.ComponentModel.Observ
 
     public string MemberText => MemberCount == 0 ? "（空）" : $"{MemberCount} 个";
 
-    /// <summary>左侧列表的色条（数据色板，按名字稳定取）。</summary>
-    public IBrush AccentBrush => new SolidColorBrush(Color.Parse(AssetPalette.For(Name)));
+    /// <summary>左侧列表的色条（数据色板，按名字稳定取；⛔ 全名限定 `Avalonia.Media.Color` 防遮蔽）。</summary>
+    public IBrush AccentBrush => new SolidColorBrush(Avalonia.Media.Color.Parse(AssetPalette.For(Name)));
 
     public string CreatedText
         => DateTime.TryParse(CreatedAt, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : CreatedAt;

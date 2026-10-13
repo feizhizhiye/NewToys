@@ -16,6 +16,28 @@
         <StreamGeometry x:Key="IconVideo">M3,6 L15,6 L15,18 L3,18 Z M15,10 L21,7 L21,17 L15,14 Z</StreamGeometry>
         <!--  系统设置：滑块  -->
         <StreamGeometry x:Key="IconSettings">M21,4 L14,4 M10,4 L3,4 M21,12 L12,12 M8,12 L3,12 M21,20 L16,20 M12,20 L3,20 M14,2 L14,6 M8,10 L8,14 M16,18 L16,22</StreamGeometry>
+
+        <!--
+            v3.22：「裸按钮」主题 —— 只有内容、没有 Fluent 的任何状态绘制。
+            用途：像标签页关闭 ✕ 这种"要自己完全控制底色 / 图标颜色"的小按钮。
+            🔴 为什么需要：Fluent 的 Button 模板在 :pointerover 会自己画背景并把前景改成主题色，
+            **Style setter 压不过模板状态**（实测：写了红 ✕ + Transparent 仍是白图标 + 有底）。
+            → 给按钮套 Theme="{StaticResource BareButtonTheme}"，状态绘制全没了，样式才真正说了算。
+        -->
+        <ControlTheme x:Key="BareButtonTheme" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter
+                        HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                        VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                        Content="{TemplateBinding Content}"
+                        ContentTemplate="{TemplateBinding ContentTemplate}" />
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
     </Application.Resources>
 
     <Application.Styles>
@@ -64,8 +86,9 @@
         <Style Selector="Border.tab-item:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
+        <!--  v3.22：激活态**只用强调色**（下方 2px 强调色条 + 强调色文字）——
+             ⛔ 不再垫一层 CardSelectedBrush 背景：那块底色会盖住关闭按钮、也让激活/悬停两种状态分不清。  -->
         <Style Selector="Border.tab-item.active">
-            <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
@@ -81,9 +104,9 @@
         <Style Selector="Button.tab-btn:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
-        <!--  激活标签的文字提亮  -->
+        <!--  激活标签：**文字用强调色**（v3.22 简化：激活 = 强调色条 + 强调色字，没有底色）  -->
         <Style Selector="Border.tab-item.active Button.tab-btn">
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <!--  关闭标签按钮：**默认隐藏，鼠标悬停本标签时才出现**（v3.4）。

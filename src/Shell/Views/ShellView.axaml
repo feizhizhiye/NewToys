@@ -79,8 +79,13 @@
                                                         VerticalAlignment="Center"
                                                         Text="{Binding Title}" />
                                                 </Button>
+                                                <!--
+                                                    v3.22：套 **裸按钮主题** —— Fluent 的 Button 模板会在 :pointerover
+                                                    自己画背景、把前景改成主题色（表现为"白 ✕ + 能看出底"），Style 压不过它。
+                                                -->
                                                 <Button
                                                     Classes="tab-close"
+                                                    Theme="{StaticResource BareButtonTheme}"
                                                     HorizontalAlignment="Right"
                                                     VerticalAlignment="Center"
                                                     Command="{Binding $parent[Window].DataContext.CloseTabCommand}"

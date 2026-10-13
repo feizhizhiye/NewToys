@@ -66,10 +66,11 @@ public partial class PathViewModel : ListPageViewModelBase
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        new("Name", "名称", "2.2*"),
-        new("Value", "当前值", "5*"),
-        new("Kind", "类型", "1*"),
-        new("Description", "说明", "4*", sortable: false),
+        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）；「操作」是按钮列 → 不给
+        new("Name", "名称", "2.2*", sample: "ffmpeg 路径"),
+        new("Value", "当前值", "5*", sample: @"C:\ffmpeg\bin\ffmpeg.exe"),
+        new("Kind", "类型", "1*", sample: "文件"),
+        new("Description", "说明", "4*", sortable: false, sample: "视频的媒体信息用它旁边的 ffprobe 读取"),
         new("Action", "操作", "1.8*", sortable: false),
     };
 
@@ -83,6 +84,29 @@ public partial class PathViewModel : ListPageViewModelBase
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
 
+    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+
+    /// <summary>详情卡 / 列表示例行用的**示例项**。</summary>
+    private static readonly PathSettingItem SampleItem = new()
+    {
+        Key = "FfmpegPath",
+        Name = "ffmpeg 路径",
+        Kind = PathItemKind.File,
+        Description = "视频的媒体信息（时长 / 分辨率 / 编码 / 码率）用它旁边的 ffprobe 读取（示例数据）",
+        Value = @"C:\ffmpeg\bin\ffmpeg.exe"
+    };
+
+    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Items</c>、不参与统计 / 筛选 / 排序）。</summary>
+    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
+
+    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例项**。</summary>
+    public PathSettingItem DetailItem => Selected ?? SampleItem;
+
+    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
+    public bool ShowDetailBody => HasSelection || IsDetailSample;
+
+    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
     // ==================== 编辑缓冲 ====================
 
     /// <summary>详情卡里正在编辑的值（点「💾 保存」才写回对象并落盘）。</summary>
@@ -90,8 +114,10 @@ public partial class PathViewModel : ListPageViewModelBase
 
     partial void OnSelectedChanged(PathSettingItem? value)
     {
+        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例项
+        OnPropertyChanged(nameof(DetailItem));
         _syncing = true;
-        EditValue = value?.Value ?? "";
+        EditValue = (value ?? (HasSampleRow ? SampleItem : null))?.Value ?? "";
         _syncing = false;
         OnPropertyChanged(nameof(HasSelection));
     }
@@ -117,6 +143,8 @@ public partial class PathViewModel : ListPageViewModelBase
         BuildItems();
         RebuildQuickFilters();            // v3.21 §4.8.2：类型（文件 / 目录 / 只读）进表头右键「筛选」
         ApplyView();
+        UpdateDetailSample(false);        // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
+        EditValue = SampleItem.Value;
     }
 
     private void RebuildQuickFilters()
@@ -224,6 +252,8 @@ public partial class PathViewModel : ListPageViewModelBase
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSampleRow));   // v3.32：有真实数据后示例行消失
+        UpdateDetailSample(Selected != null);
     }
 
     private void UpdateHeaders()

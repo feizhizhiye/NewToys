@@ -32,7 +32,10 @@
             <!--  v3.28 修贴靠：标题栏标成 **TitleBar** 角色 → 由**系统**处理拖动（含拖到边缘贴靠、拖到顶边最大化、
                   双击最大化）；⛔ 不再依赖我们自己的 BeginMoveDrag（它发 WM_SYSCOMMAND/SC_MOUSEMOVE，
                   系统不认作"拖标题栏"→ 不触发贴靠，这正是之前贴靠失效的根因）。
-                  ⚠️ 角色要在 ExtendClientAreaToDecorationsHint=True 下才生效；区域内的交互控件（按钮）仍正常收输入。  -->
+                  🔴 **TitleBar 区域内的交互控件必须另标 `User`**（放行点击）——否则整块按"标题栏"处理，
+                     里面的按钮 / 标签页收不到点击（v3.28 实测：外观正常但五个按钮与标签栏全部不可用）。
+                     标在三处容器上：左按钮组 / 标签条（含 ＋）/ 右窗口按钮组；中间的 24px 留白保持 TitleBar
+                     → 那里仍是系统拖动（贴靠有效）。  -->
             <Grid
                 x:Name="TitleBarGrid"
                 Background="Transparent"
@@ -46,7 +49,8 @@
                     Grid.Column="0"
                     Margin="4,0"
                     VerticalAlignment="Stretch"
-                    Orientation="Horizontal">
+                    Orientation="Horizontal"
+                    chrome:WindowDecorationProperties.ElementRole="User">
                     <Button Classes="title-btn" Command="{Binding ToggleTreeCommand}" ToolTip.Tip="折叠 / 展开左侧菜单">
                         <Path
                             Width="16"
@@ -75,6 +79,7 @@
                         Grid.Column="1"
                         VerticalAlignment="Stretch"
                         Background="Transparent"
+                        chrome:WindowDecorationProperties.ElementRole="User"
                         ColumnDefinitions="*,Auto">
                         <ScrollViewer
                             Grid.Column="0"
@@ -155,7 +160,8 @@
                 <StackPanel
                     Grid.Column="2"
                     VerticalAlignment="Stretch"
-                    Orientation="Horizontal">
+                    Orientation="Horizontal"
+                    chrome:WindowDecorationProperties.ElementRole="User">
                     <Button
                         x:Name="BtnMin"
                         Width="46"

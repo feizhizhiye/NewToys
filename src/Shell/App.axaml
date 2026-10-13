@@ -30,11 +30,16 @@
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Template">
                 <ControlTemplate>
-                    <ContentPresenter
-                        HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                        VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                        Content="{TemplateBinding Content}"
-                        ContentTemplate="{TemplateBinding ContentTemplate}" />
+                    <!--  ⚠️ 必须包一层 Border 接住 Background —— 否则样式里写的 Background 画不出来
+                          （ContentPresenter 自身不渲染 Background；这正是"关闭按钮 hover 背景不变色"的根因）。  -->
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}" />
+                    </Border>
                 </ControlTemplate>
             </Setter>
         </ControlTheme>
@@ -75,6 +80,11 @@
         <Style Selector="Button.title-btn:disabled">
             <Setter Property="Opacity" Value="0.35"/>
         </Style>
+        <!--  v3.22（第三轮）：≡ / ⟳ 由 TextBlock 改为 Path 后，描边颜色必须显式给（Path 走 Stroke、不继承 Foreground，否则图标不可见）。
+              ⚠️ 由样式给，⛔ 不写本地 Stroke —— 本地值会压过 :pointerover 状态切换。  -->
+        <Style Selector="Button.title-btn Path">
+            <Setter Property="Stroke" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
 
         <!--  标签项容器：激活态 = 强调色派生底 + 下方 2px 强调色指示条。
              ⚠️ v3.4：标签栏在标题栏内（底色 = ContentBrush 跟随主题），文字/底色一律用主题色系。  -->
@@ -103,7 +113,8 @@
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <!--  v3.22：字号 = 13，与左侧二级菜单（Button.tree-row.sub）同大  -->
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="MinHeight" Value="30"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -115,12 +126,13 @@
         <!--  激活标签：**文字用强调色**（v3.22 简化：激活 = 强调色条 + 强调色字，没有底色）  -->
         <Style Selector="Border.tab-item.active Button.tab-btn">
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
         </Style>
 
         <!--  关闭标签按钮：**默认隐藏，鼠标悬停本标签时才出现**（v3.4）。
              用 Opacity 而不是 IsVisible —— 宽度不变，鼠标扫过时标签不会抖动。  -->
-        <!--  v3.21 §4.2：悬停 = **更大 + 透明底 + 红色 ✕**（红 = 删除类动作的通用提示；
-              ⛔ 不画灰底——贴一个方块在标签上很难看）  -->
+        <!--  v3.21 §4.2 + 本轮：悬停 = **更大 + 红底(DangerBrush) + 白 ✕**（红 = 删除类动作的警示色；
+              背景要生效需 BareButtonTheme 的 ControlTemplate 用 Border 接住 Background —— 否则背景画不出来）。  -->
         <Style Selector="Button.tab-close">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
@@ -129,7 +141,7 @@
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Width" Value="20"/>
             <Setter Property="Height" Value="20"/>
-            <Setter Property="Margin" Value="0,0,2,0"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
             <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -143,8 +155,12 @@
         </Style>
         <!--
             ⚠️ 必须用**后代选择器**写：单写 `Button.tab-close:pointerover` 会被 Fluent 主题的
-            `Button:pointerover`（灰底 + 前景色）盖掉 —— 实测表现为"白图标 + 能看出背景"。
-            后代选择器优先级更高，红图标 + 透明底才真正生效。
+            `Button:pointerover`（灰底 + 前景色）盖掉。后代选择器优先级更高，红底 + 白 ✕ 才真正生效。
+        -->
+        <!--
+            v3.22（第三轮）：悬停 = **透明底 + 红 ✕**（用户明确要求"标签页栏的关闭按钮就要透明的"）。
+            ⚠️ 仍走 BareButtonTheme（Background 由 Border 接住），只是把红底撤掉；红 ✕ 作警示色保留。
+            错开：Margin 0,0,4,0；放大到 24×24 悬停态更易命中，多标签聚拢时利用标签间空白。
         -->
         <Style Selector="Border.tab-item Button.tab-close:pointerover">
             <Setter Property="Background" Value="Transparent"/>
@@ -152,7 +168,7 @@
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Width" Value="24"/>
             <Setter Property="Height" Value="24"/>
-            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
         </Style>
         <Style Selector="Button.tab-close:pointerover">
             <Setter Property="Background" Value="Transparent"/>
@@ -160,7 +176,31 @@
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Width" Value="24"/>
             <Setter Property="Height" Value="24"/>
-            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+        </Style>
+
+        <!--  新建标签页「＋」按钮：图标用 Path 十字（天然居中、比文字清晰），竖直/水平都居中、略微放大；
+              颜色走样式（⛔ 不写本地 Stroke —— 本地值会压过 :pointerover 样式，红/强调色切换失效）。  -->
+        <Style Selector="Button.tab-new">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="MinWidth" Value="28"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.tab-new:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+        <Style Selector="Button.tab-new Path">
+            <Setter Property="Stroke" Value="{DynamicResource SecondaryTextBrush}"/>
+        </Style>
+        <Style Selector="Button.tab-new:pointerover Path">
+            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <!--  左树行：一级 = 图标 + **加粗**；行高 30（v3.12 由 32 收紧）、缩进由子级 ItemsControl 的 Margin 给（每级 16）  -->
@@ -171,7 +211,7 @@
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="Height" Value="30"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -231,10 +271,15 @@
         </Style>
         <Style Selector="Button.win-btn.close:pointerover">
             <Setter Property="Background" Value="{DynamicResource TitleBarCloseHoverBrush}"/>
+            <!--  ✕ 是 TextBlock、前景色靠**属性继承**（⛔ 不写本地值、也不用后代选择器）——
+                  这里直接改 Button 自己的 Foreground，子元素自动跟着变白。继承不受模板影响，可靠。  -->
+            <Setter Property="Foreground" Value="{DynamicResource TitleBarCloseHoverTextBrush}"/>
         </Style>
-        <Style Selector="Button.win-btn.close:pointerover Path">
-            <Setter Property="Stroke" Value="{DynamicResource TitleBarCloseHoverTextBrush}"/>
-        </Style>
+        <!--  🔴 窗口按钮图标（最小化 Rectangle / 最大化·还原 Border / 关闭 TextBlock）颜色：
+              最小化用本地 Fill、最大化·还原用本地 BorderBrush（Border 不受 Shape 渲染问题影响）；
+              ⛔ **不用 Path** —— 实测 Path（尤其带 Stretch=Uniform）在裸按钮主题 BareButtonTheme 的
+              ContentPresenter 里渲染不出来（不报错、图标直接消失），v3.22 连踩三轮才定位。
+              关闭 ✕ 的前景色走继承（Button.win-btn 普通态 / .close:pointerover 白），见上面的样式。  -->
 
         <!--  ==================== 通用（沿用） ====================  -->
 
@@ -348,11 +393,13 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
             <Setter Property="BorderThickness" Value="0,1,0,0"/>
-            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Height" Value="26"/>
         </Style>
         <Style Selector="TextBlock.tree-version-text">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style Selector="Border.tree-panel.collapsed Border.tree-version">
             <Setter Property="IsVisible" Value="False"/>

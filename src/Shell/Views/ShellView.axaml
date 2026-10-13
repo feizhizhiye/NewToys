@@ -32,18 +32,30 @@
                 ColumnDefinitions="Auto,*,Auto">
 
                 <!--  左：窗口功能按钮  -->
-                <!--  v3.22：≡ / ⟳ 以前只有 36×32（在 40px 标题栏里悬空、图标 18px 偏小）
-                     现在**撑满标题栏整高**、图标放大到 22px，充分利用空间。 -->
+                <!--  本轮：≡ / ⟳ 由文字字形改为**矢量 Path**（16×16、Stretch=Uniform、描边 1.6），
+                     与右侧 — □ ✕ 同规格 → 标题栏五个图标尺寸统一。图标颜色走样式，⛔ 不写本地 Stroke。 -->
                 <StackPanel
                     Grid.Column="0"
                     Margin="4,0"
                     VerticalAlignment="Stretch"
                     Orientation="Horizontal">
                     <Button Classes="title-btn" Command="{Binding ToggleTreeCommand}" ToolTip.Tip="折叠 / 展开左侧菜单">
-                        <TextBlock Text="≡" FontSize="22" />
+                        <Path
+                            Width="16"
+                            Height="16"
+                            Stretch="Uniform"
+                            StrokeThickness="1.6"
+                            StrokeLineCap="Round"
+                            Data="M3,6 L21,6 M3,12 L21,12 M3,18 L21,18" />
                     </Button>
                     <Button Classes="title-btn" Command="{Binding RefreshCommand}" ToolTip.Tip="刷新当前页（重建视图）">
-                        <TextBlock Text="⟳" FontSize="22" />
+                        <Path
+                            Width="16"
+                            Height="16"
+                            Stretch="Uniform"
+                            StrokeThickness="1.6"
+                            StrokeLineCap="Round"
+                            Data="M23,4 L23,10 L17,10 M1,20 L1,14 L7,14 M3.51,9 A9,9 0 0,1 18.36,5.64 L23,10 M1,14 L5.64,18.36 A9,9 0 0,0 20.49,15" />
                     </Button>
                 </StackPanel>
 
@@ -104,13 +116,21 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <!--  ＋ 打开「功能清单」页（当选择器用；已打开则激活）  -->
+                            <!--  ＋ 打开「功能清单」页（当选择器用；已打开则激活）。
+                                 图标用 Path 十字：自带 16×16 方框、水平/竖直都居中，比文字 ＋ 更清晰且不跑偏。  -->
                             <Button
-                                Classes="tab-btn"
+                                Classes="tab-new"
                                 Command="{Binding OpenFunctionListCommand}"
                                 Margin="4,0,0,0"
                                 ToolTip.Tip="功能清单（打开新页面）">
-                                <TextBlock Text="＋" FontSize="14" />
+                                <Path
+                                    Data="M0,6.5 L13,6.5 M6.5,0 L6.5,13"
+                                    StrokeThickness="1.5"
+                                    StrokeLineCap="Round"
+                                    Width="13"
+                                    Height="13"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
                             </Button>
                         </StackPanel>
                     </ScrollViewer>
@@ -120,6 +140,10 @@
 
                 <!--  右：窗口按钮  -->
                 <!--  v3.22：最小化 / 最大化 / 关闭**尺寸维持原样**（本来就撑满标题栏），只去掉圆角；关闭图标加粗  -->
+                <!--  🔴 图标**只能用 Rectangle / Border / TextBlock**：实测 `Path`（尤其带 Stretch=Uniform）
+                      在裸按钮主题 BareButtonTheme 的 ContentPresenter 里**渲染不出来**（不报错、图标直接消失），
+                      v3.22 连踩三轮才定位。最小化=Rectangle 填充横线；最大化/还原=Border 描边空心方；
+                      关闭=TextBlock ✕（与标签关闭按钮同机制，已验证可见）。  -->
                 <StackPanel
                     Grid.Column="2"
                     VerticalAlignment="Stretch"
@@ -129,29 +153,57 @@
                         Width="46"
                         Height="40"
                         Classes="win-btn"
+                        Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="最小化">
-                        <Path
+                        <Rectangle
+                            Width="12"
+                            Height="1.4"
+                            RadiusX="0.7"
+                            RadiusY="0.7"
+                            Fill="{DynamicResource PrimaryTextBrush}"
                             HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Data="M0,5 L10,5"
-                            Stroke="{DynamicResource PrimaryTextBrush}"
-                            StrokeLineCap="Round"
-                            StrokeThickness="1.5" />
+                            VerticalAlignment="Center" />
                     </Button>
                     <Button
                         x:Name="BtnMax"
                         Width="46"
                         Height="40"
                         Classes="win-btn"
+                        Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="最大化">
-                        <Path
-                            x:Name="MaxIcon"
+                        <Grid
+                            Width="16"
+                            Height="16"
                             HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Data="M0,0 L10,0 L10,10 L0,10 Z"
-                            Fill="Transparent"
-                            Stroke="{DynamicResource PrimaryTextBrush}"
-                            StrokeThickness="1.5" />
+                            VerticalAlignment="Center">
+                            <!--  最大化：单个空心方  -->
+                            <Border
+                                x:Name="MaxIconSquare"
+                                Width="11"
+                                Height="11"
+                                BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                BorderThickness="1.2"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                            <!--  还原：后方小方 + 前方**带底色**小方（挡住后方右下角 → 形成"两个方"）  -->
+                            <Grid x:Name="RestoreIcon" Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Border
+                                    Width="8"
+                                    Height="8"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="1.1"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top" />
+                                <Border
+                                    Width="8"
+                                    Height="8"
+                                    Background="{DynamicResource ContentBrush}"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="1.1"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Bottom" />
+                            </Grid>
+                        </Grid>
                     </Button>
                     <!--  class 必须是 win-btn + close：App.axaml 里定义的是 Button.win-btn.close:pointerover（关闭变红）  -->
                     <Button
@@ -159,15 +211,18 @@
                         Width="46"
                         Height="40"
                         Classes="win-btn close"
+                        Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="关闭">
-                        <!--  v3.22：关闭图标**加粗**（描边 2）；悬停转红由 Button.win-btn.close:pointerover 给  -->
-                        <Path
+                        <!--  ⚠️ 套 BareButtonTheme：Fluent 模板在 :pointerover 于模板子元素上自己画背景，
+                             Style 压不过 → 悬停红底画不出来。裸主题用 Border 接 Background 才生效。
+                             🔴 用 TextBlock ✕（⛔ 不用 Path：Path 在裸主题里渲染不出来）。
+                             前景色**不写本地值** —— 由 Button.win-btn 的 Foreground 向下继承（普通态=PrimaryTextBrush，
+                             悬停时 Button.win-btn.close:pointerover 改成白）。属性继承不受模板影响，比后代选择器可靠。  -->
+                        <TextBlock
+                            Text="✕"
+                            FontSize="16"
                             HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Data="M0,0 L10,10 M10,0 L0,10"
-                            Stroke="{DynamicResource PrimaryTextBrush}"
-                            StrokeLineCap="Round"
-                            StrokeThickness="2" />
+                            VerticalAlignment="Center" />
                     </Button>
                 </StackPanel>
             </Grid>
@@ -230,7 +285,7 @@
                                                 Margin="8,0,0,0"
                                                 VerticalAlignment="Center"
                                                 Classes="tree-title"
-                                                FontSize="13"
+                                                FontSize="15"
                                                 Text="{Binding Title}" />
                                         </Grid>
                                     </Button>

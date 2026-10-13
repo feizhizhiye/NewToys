@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using Avalonia.Threading;
 using NewToys.Shared.Services;
 using NewToys.Shell.ViewModels;
@@ -170,8 +169,10 @@ public partial class ShellView : Window
 
     private void UpdateMaxIcon()
     {
-        MaxIcon.Data = WindowState == WindowState.Maximized
-            ? PathGeometry.Parse("M1,2 L9,2 L9,8 L1,8 Z")
-            : PathGeometry.Parse("M0,0 L10,0 L10,10 L0,10 Z");
+        // v3.22：最大化 = 单个空心方；还原 = 两个错位方。
+        // ⚠️ 图标是 Border（不是 Path）—— Path 在 BareButtonTheme 里渲染不出来，见 ShellView 注释。
+        var maximized = WindowState == WindowState.Maximized;
+        MaxIconSquare.IsVisible = !maximized;
+        RestoreIcon.IsVisible = maximized;
     }
 }

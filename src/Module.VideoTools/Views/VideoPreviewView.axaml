@@ -151,7 +151,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="4">
                   <CheckBox IsChecked="{Binding IsCut, Mode=TwoWay}" VerticalAlignment="Center"
                             ToolTip.Tip="勾上 = 命令里带 -ss / -to 截取这段"/>
-                  <TextBlock Text="✂ 剪辑（截区间）" VerticalAlignment="Center" FontSize="12"
+                  <TextBlock Text="✂ 剪切" VerticalAlignment="Center" FontSize="12"
                              FontWeight="SemiBold"/>
                 </StackPanel>
               </Expander.Header>
@@ -200,7 +200,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="4">
                   <CheckBox IsChecked="{Binding IsTranscode, Mode=TwoWay}" VerticalAlignment="Center"
                             ToolTip.Tip="勾上 = 命令里带编码 / 画质参数"/>
-                  <TextBlock Text="🔁 转码（换编码 / 格式）" VerticalAlignment="Center" FontSize="12"
+                  <TextBlock Text="🔁 转码" VerticalAlignment="Center" FontSize="12"
                              FontWeight="SemiBold"/>
                 </StackPanel>
               </Expander.Header>

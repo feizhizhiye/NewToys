@@ -35,6 +35,32 @@ public sealed class TagChip
 }
 
 /// <summary>
+/// 详情卡「标签选择器」里的一枚（v3.21）：点一下 = 给当前视频**打上 / 取消**这个标签。
+/// <para>⛔ 详情卡不再手动输入标签文本（需求 §6.4.6）—— 只能从标签库里挑。</para>
+/// </summary>
+public sealed class TagPick
+{
+    public string Name { get; set; } = "";
+    public bool IsApplied { get; set; }
+
+    /// <summary>主色（已打上 = 描边 + 文字；未打上 = 整体淡显）。</summary>
+    public SolidColorBrush Brush { get; set; } = null!;
+
+    /// <summary>淡底（已打上的底色）。</summary>
+    public SolidColorBrush SoftBrush { get; set; } = null!;
+
+    public SolidColorBrush? Background => IsApplied ? SoftBrush : null;
+
+    public static TagPick Of(string name, bool applied) => new()
+    {
+        Name = name,
+        IsApplied = applied,
+        Brush = Services.TagPalette.BrushOf(name),
+        SoftBrush = Services.TagPalette.SoftBrushOf(name)
+    };
+}
+
+/// <summary>
 /// 标签管理弹层的一行（名称 + 使用数 + 色点笔刷）。
 /// <para>v3.20 从 <c>VideoListViewModel</c> 嵌套类提到 Models —— 收藏页弹层也要用。</para>
 /// </summary>

@@ -92,9 +92,9 @@ public partial class VideoListViewModel : ListPageViewModelBase
     [ObservableProperty] private string _createdHeader = "创建时间";
     [ObservableProperty] private string _favoriteHeader = "已收藏";
 
-    // 详情卡里两个**可编辑**字段（§6.4.6 标签 / §6.4.7 文件名）：提交时才动磁盘 / 数据库。
+    // 详情卡里的**可编辑**字段（§6.4.7 文件名）：提交时才动磁盘 / 数据库。
+    // v3.21：标签不再手动输入 —— 改成详情卡里点色片选择（见 TagPicks / ToggleTagCommand）。
     [ObservableProperty] private string _editName = "";
-    [ObservableProperty] private string _editTags = "";
 
     // ==================== 列显隐（基类管状态；这里只给 XAML 提供具名属性） ====================
 
@@ -255,7 +255,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
         OnPropertyChanged(nameof(HasSelection));
         // 详情卡两个可编辑字段跟着选中项走：切换选中即丢弃**未提交**的改动（提交要显式点保存 / 回车 / 失焦）
         EditName = value?.Name ?? "";
-        EditTags = value?.Tags ?? "";
+        RefreshTagPicks();   // v3.21：详情卡标签选择器跟着选中项
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
@@ -859,17 +859,15 @@ public partial class VideoListViewModel : ListPageViewModelBase
     }
 
     /// <summary>
-    /// 🏷 详情卡内改标签（需求 §6.4.6）：提交 → <see cref="VideoCatalogService.UpdateTags"/>（落 <c>video_catalog.tags</c>）。
-    /// 标签随视频库走 —— **没入视频库的项**提示先点「💾 加入视频库」，不静默丢掉。
+    /// 🏷 详情卡**点色片**打上 / 取消一个标签（v3.21 需求 §6.4.6：⛔ 不再手动输入）。
+    /// 即时写 <see cref="VideoCatalogService.UpdateTags"/>（落 <c>video_catalog.tags</c>），⛔ 没有保存按钮。
+    /// 标签随视频库走 —— **没入视频库的项**提示先点「💾 加入视频库」，不静默丢。
     /// </summary>
     [RelayCommand]
-    private void SaveTags()
+    private void ToggleTag(TagPick? pick)
     {
         var v = Selected;
-        if (v == null) return;
-
-        var tags = (EditTags ?? "").Trim();
-        if (string.Equals(tags, v.Tags ?? "", StringComparison.Ordinal)) { StatusText = "标签没变。"; return; }
+        if (pick == null || v == null) return;
 
         if (_catalog == null || !_catalog.HasPath(v.FullPath))
         {
@@ -877,11 +875,32 @@ public partial class VideoListViewModel : ListPageViewModelBase
             return;
         }
 
-        v.Tags = tags;
-        _catalog.UpdateTags(v.FullPath, tags);
+        var tags = (v.Tags ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var i = tags.FindIndex(t => string.Equals(t, pick.Name, StringComparison.OrdinalIgnoreCase));
+        var adding = i < 0;
+        if (adding) tags.Add(pick.Name); else tags.RemoveAt(i);
+
+        var joined = string.Join(",", tags);
+        v.Tags = joined;                     // setter 连带重建色片（列表列 / 收藏卡片同源同实例）
+        _catalog.UpdateTags(v.FullPath, joined);
         OnPropertyChanged(nameof(Selected));
-        ApplyView();   // Tags setter 已连带重建色片（列表列 / 详情卡同源同实例）
-        StatusText = "已更新标签：" + (tags.Length > 0 ? tags : "（已清空）");
+        RefreshTagPicks();
+        RebuildQuickFilters();
+        ApplyView();
+        StatusText = $"{(adding ? "已打上" : "已取消")}标签「{pick.Name}」—— 现在是：{(joined.Length > 0 ? joined : "（无标签）")}";
+    }
+
+    /// <summary>详情卡标签选择器的数据源：标签库全部标签 + 当前视频是否已打上。</summary>
+    public ObservableCollection<TagPick> TagPicks { get; } = new();
+
+    private void RefreshTagPicks()
+    {
+        TagPicks.Clear();
+        if (Selected == null || _catalog == null) return;
+
+        var applied = (Selected.Tags ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        foreach (var (tag, _) in _catalog.GetAllTags())
+            TagPicks.Add(TagPick.Of(tag, applied.Any(a => string.Equals(a, tag, StringComparison.OrdinalIgnoreCase))));
     }
 
     /// <summary>
@@ -915,11 +934,16 @@ public partial class VideoListViewModel : ListPageViewModelBase
     /// <summary>标签管理弹层是否打开。</summary>
     [ObservableProperty] private bool _isTagManagerOpen;
 
-    /// <summary>「新建标签」输入框。</summary>
+    /// <summary>「新建标签」输入框（v3.21：新建即**入库** `video_tags`）。</summary>
     [ObservableProperty] private string _newTagInput = "";
+
+    /// <summary>弹层里的标签搜索框（v3.21）：按名称过滤，空 = 全部。</summary>
+    [ObservableProperty] private string _tagManagerFilter = "";
 
     /// <summary>标签管理的行（名称 + 使用数 + 色点笔刷；类型在 Models，收藏页弹层共用）。</summary>
     public ObservableCollection<TagManagerItem> TagManagerItems { get; } = new();
+
+    partial void OnTagManagerFilterChanged(string value) => RefreshTagManager();
 
     [RelayCommand]
     private void OpenTagManager()
@@ -936,8 +960,12 @@ public partial class VideoListViewModel : ListPageViewModelBase
     {
         TagManagerItems.Clear();
         if (_catalog == null) return;
+        var filter = (TagManagerFilter ?? "").Trim();
         foreach (var (tag, count) in _catalog.GetAllTags())
+        {
+            if (filter.Length > 0 && !tag.Contains(filter, StringComparison.CurrentCultureIgnoreCase)) continue;
             TagManagerItems.Add(new TagManagerItem { Name = tag, Count = count });
+        }
     }
 
     [RelayCommand]
@@ -964,16 +992,20 @@ public partial class VideoListViewModel : ListPageViewModelBase
         RefreshTagsInMemory();
     }
 
+    /// <summary>v3.21：新建标签 —— **真写进 `video_tags` 表**（未用到任何视频也留着，标签因此"能保存"）。</summary>
     [RelayCommand]
     private void CreateTag()
     {
         var name = (NewTagInput ?? "").Trim();
         if (name.Length == 0) { StatusText = "先输入标签名。"; return; }
-        if (TagManagerItems.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
-        { StatusText = $"标签「{name}」已存在。"; return; }
-        TagManagerItems.Insert(0, new TagManagerItem { Name = name, Count = 0 });
+
+        if (_catalog == null) { StatusText = "视频库服务未就绪。"; return; }
+        if (!_catalog.CreateTag(name)) { StatusText = $"标签「{name}」已存在（或写入失败）。"; return; }
+
         NewTagInput = "";
-        StatusText = $"已新建标签「{name}」（还没用到任何视频；在视频列表里给它打上后才会存进库）。";
+        RefreshTagManager();
+        RefreshTagPicks();   // 详情卡选择器里立刻能选到它
+        StatusText = $"已新建标签「{name}」—— 已保存进标签库；在详情卡点它的色片就能打给视频。";
     }
 
     /// <summary>
@@ -989,6 +1021,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
                 v.Tags = _catalog.GetTags(v.FullPath);
         }
         RebuildQuickFilters();   // 标签改名 / 删除后筛选项跟着变
+        RefreshTagPicks();
         ApplyView();
     }
 }

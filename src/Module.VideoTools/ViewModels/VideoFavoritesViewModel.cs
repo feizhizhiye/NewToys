@@ -61,11 +61,21 @@ public partial class VideoFavoritesViewModel : ObservableObject, IStatusProvider
     [ObservableProperty] private bool _isDetailVisible = true;
     [ObservableProperty] private string _summaryText = "还没有收藏";
 
-    /// <summary>详情卡里的「标签」编辑框（§6.4.6 同一套：提交才落 <c>video_catalog.tags</c>）。</summary>
-    [ObservableProperty] private string _editTags = "";
-
     /// <summary>详情卡里的「文件名」编辑框（§6.4.7 同一套：提交才动磁盘）。</summary>
     [ObservableProperty] private string _editName = "";
+
+    /// <summary>详情卡「标签选择器」的数据源（v3.21：⛔ 不再手动输入，点色片打上 / 取消）。</summary>
+    public ObservableCollection<TagPick> TagPicks { get; } = new();
+
+    private void RefreshTagPicks()
+    {
+        TagPicks.Clear();
+        if (Selected == null || _catalog == null) return;
+
+        var applied = (Selected.Item.Tags ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        foreach (var (tag, _) in _catalog.GetAllTags())
+            TagPicks.Add(TagPick.Of(tag, applied.Any(a => string.Equals(a, tag, StringComparison.OrdinalIgnoreCase))));
+    }
 
     public bool HasSelection => Selected != null;
     public bool HasCards => Cards.Count > 0;
@@ -77,8 +87,8 @@ public partial class VideoFavoritesViewModel : ObservableObject, IStatusProvider
     partial void OnSelectedChanged(VideoFavoriteCard? value)
     {
         OnPropertyChanged(nameof(HasSelection));
-        EditTags = value?.Item.Tags ?? "";
         EditName = value?.Item.Name ?? "";
+        RefreshTagPicks();   // v3.21：标签选择器（不再有输入框）
     }
 
     public VideoFavoritesViewModel() { }
@@ -233,25 +243,33 @@ public partial class VideoFavoritesViewModel : ObservableObject, IStatusProvider
         StatusText = $"已取消收藏：{name}";
     }
 
-    /// <summary>🏷 提交标签（落 <c>video_catalog.tags</c>）；没入库的提示先「💾 加入视频库」。</summary>
+    /// <summary>
+    /// 🏷 详情卡**点色片**打上 / 取消一个标签（v3.21 §6.4.6：⛔ 不再手动输入，与视频列表页同款）。
+    /// 即时写 <c>video_catalog.tags</c>；没入库的提示先「💾 加入视频库」。
+    /// </summary>
     [RelayCommand]
-    private void SaveTags()
+    private void ToggleTag(TagPick? pick)
     {
         var c = Selected;
-        if (c == null) return;
+        if (pick == null || c == null) return;
 
-        var tags = (EditTags ?? "").Trim();
-        if (string.Equals(tags, c.Item.Tags ?? "", StringComparison.Ordinal)) { StatusText = "标签没变。"; return; }
         if (_catalog == null || !_catalog.HasPath(c.Path))
         {
             StatusText = $"「{c.Item.Name}」还没进视频库 —— 先点「💾 加入视频库」，标签才能存下来。";
             return;
         }
 
-        c.Item.Tags = tags;
-        _catalog.UpdateTags(c.Path, tags);
+        var tags = (c.Item.Tags ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var i = tags.FindIndex(t => string.Equals(t, pick.Name, StringComparison.OrdinalIgnoreCase));
+        var adding = i < 0;
+        if (adding) tags.Add(pick.Name); else tags.RemoveAt(i);
+
+        var joined = string.Join(",", tags);
+        c.Item.Tags = joined;                    // setter 连带重建色片（卡片上的色片同源同实例）
+        _catalog.UpdateTags(c.Path, joined);
         OnPropertyChanged(nameof(Selected));
-        StatusText = "已更新标签：" + (tags.Length > 0 ? tags : "（已清空）");
+        RefreshTagPicks();
+        StatusText = $"{(adding ? "已打上" : "已取消")}标签「{pick.Name}」—— 现在是：{(joined.Length > 0 ? joined : "（无标签）")}";
     }
 
     // ==================== v3.20：标签管理（与「视频列表」页同一套；入口在详情卡标签区） ====================
@@ -259,11 +277,16 @@ public partial class VideoFavoritesViewModel : ObservableObject, IStatusProvider
     /// <summary>标签管理弹层是否打开。</summary>
     [ObservableProperty] private bool _isTagManagerOpen;
 
-    /// <summary>「新建标签」输入框。</summary>
+    /// <summary>「新建标签」输入框（v3.21：新建即入库 `video_tags`）。</summary>
     [ObservableProperty] private string _newTagInput = "";
+
+    /// <summary>弹层里的标签搜索框（v3.21）。</summary>
+    [ObservableProperty] private string _tagManagerFilter = "";
 
     /// <summary>标签管理的行（名称 + 使用数 + 色点笔刷）。</summary>
     public ObservableCollection<TagManagerItem> TagManagerItems { get; } = new();
+
+    partial void OnTagManagerFilterChanged(string value) => RefreshTagManager();
 
     [RelayCommand]
     private void OpenTagManager()
@@ -280,8 +303,12 @@ public partial class VideoFavoritesViewModel : ObservableObject, IStatusProvider
     {
         TagManagerItems.Clear();
         if (_catalog == null) return;
+        var filter = (TagManagerFilter ?? "").Trim();
         foreach (var (tag, count) in _catalog.GetAllTags())
+        {
+            if (filter.Length > 0 && !tag.Contains(filter, StringComparison.CurrentCultureIgnoreCase)) continue;
             TagManagerItems.Add(new TagManagerItem { Name = tag, Count = count });
+        }
     }
 
     [RelayCommand]
@@ -308,16 +335,20 @@ public partial class VideoFavoritesViewModel : ObservableObject, IStatusProvider
         Load();
     }
 
+    /// <summary>v3.21：新建标签 —— **真写进 `video_tags` 表**（与视频列表页同一套）。</summary>
     [RelayCommand]
     private void CreateTag()
     {
         var name = (NewTagInput ?? "").Trim();
         if (name.Length == 0) { StatusText = "先输入标签名。"; return; }
-        if (TagManagerItems.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
-        { StatusText = $"标签「{name}」已存在。"; return; }
-        TagManagerItems.Insert(0, new TagManagerItem { Name = name, Count = 0 });
+
+        if (_catalog == null) { StatusText = "视频库服务未就绪。"; return; }
+        if (!_catalog.CreateTag(name)) { StatusText = $"标签「{name}」已存在（或写入失败）。"; return; }
+
         NewTagInput = "";
-        StatusText = $"已新建标签「{name}」（还没用到任何视频；在视频列表里给它打上后才会存进库）。";
+        RefreshTagManager();
+        RefreshTagPicks();
+        StatusText = $"已新建标签「{name}」—— 已保存进标签库；点它的色片就能打给视频。";
     }
 
     /// <summary>✏ 提交改名（复用 <see cref="VideoFileService.RenameToAsync"/> 的防穿越 / 同名检查）。</summary>

@@ -21,11 +21,22 @@ public class VideoCatalogService
 {
     private const string Table = "video_catalog";
 
+    /// <summary>
+    /// v3.21：标签库 —— 标签是**一等公民**，能单独保存（新建了还没用到任何视频的也留着），
+    /// ⛔ 不再是"扫 tags 列反推出来的临时名单"（需求 §6.4.6）。
+    /// </summary>
+    private const string TagTable = "video_tags";
+
     private readonly SqliteDatabase _db;
 
     public VideoCatalogService(SqliteDatabase db)
     {
         _db = db;
+        _db.EnsureTable(
+            $"CREATE TABLE IF NOT EXISTS {TagTable} (" +
+            "  name       TEXT PRIMARY KEY," +
+            "  created_at INTEGER" +
+            ");");
         _db.EnsureTable(
             $"CREATE TABLE IF NOT EXISTS {Table} (" +
             "  path      TEXT PRIMARY KEY," +
@@ -144,13 +155,34 @@ public class VideoCatalogService
         catch { /* 标签更新失败不影响界面 */ }
     }
 
-    // ==================== v3.19 / NT-011：标签管理（弹层卡） ====================
+    // ==================== v3.19 / NT-011：标签管理（弹层卡；v3.21 加标签库表） ====================
 
-    /// <summary>取全部标签 + 出现次数（按次数降序）。</summary>
+    /// <summary>
+    /// v3.21：取全部标签 + 出现次数（**标签库 ∪ 已使用标签**，按次数降序、名称升序）。
+    /// 标签库里新建但还没用到的也会出现（次数 0，界面显示「尚未使用」）。
+    /// </summary>
     public List<(string Tag, int Count)> GetAllTags()
     {
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         if (!IsAvailable) return new();
+
+        // ① 标签库（含新建未用的）
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT name FROM {TagTable};";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var n = r.IsDBNull(0) ? "" : r.GetString(0);
+                if (n.Length == 0) continue;
+                if (!counts.ContainsKey(n)) counts[n] = 0;
+            }
+        }
+        catch { }
+
+        // ② 各条目 tags 列里实际用到的（次数以它为准）
         try
         {
             using var conn = _db.Open();
@@ -165,24 +197,89 @@ public class VideoCatalogService
             }
         }
         catch { }
+
         return counts.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
                      .Select(kv => (kv.Key, kv.Value)).ToList();
     }
 
-    /// <summary>把所有条目里的 <paramref name="oldTag"/> 改写为 <paramref name="newTag"/>（与已有重名则合并去重）。返回受影响行数。</summary>
-    public int RenameTag(string oldTag, string newTag) => RewriteTags(tags =>
+    /// <summary>v3.21：新建一个标签（**真入库**，未用到任何视频也留着）。返回 false = 已存在 / 库不可用。</summary>
+    public bool CreateTag(string name)
     {
-        var i = tags.FindIndex(t => string.Equals(t, oldTag, StringComparison.OrdinalIgnoreCase));
-        if (i < 0) return false;
-        tags[i] = newTag;
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        for (var j = tags.Count - 1; j >= 0; j--) if (!seen.Add(tags[j])) tags.RemoveAt(j);
-        return true;
-    });
+        name = (name ?? "").Trim();
+        if (!IsAvailable || name.Length == 0) return false;
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"INSERT OR IGNORE INTO {TagTable} (name, created_at) VALUES ($name, $at);";
+            cmd.Parameters.AddWithValue("$name", name);
+            cmd.Parameters.AddWithValue("$at", DateTime.Now.Ticks);
+            return cmd.ExecuteNonQuery() > 0;
+        }
+        catch { return false; }
+    }
 
-    /// <summary>把所有条目里的 <paramref name="tag"/> 删掉。返回受影响行数。</summary>
-    public int DeleteTag(string tag) => RewriteTags(tags =>
-        tags.RemoveAll(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)) > 0);
+    /// <summary>v3.21：从标签库里删掉一个名字（⛔ 只删库里的名字，不动各行已打的标签 —— 那由 <see cref="DeleteTag"/> 负责）。</summary>
+    public void DeleteTagIndex(string name)
+    {
+        name = (name ?? "").Trim();
+        if (!IsAvailable || name.Length == 0) return;
+        try
+        {
+            using var conn = _db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DELETE FROM {TagTable} WHERE name = $name;";
+            cmd.Parameters.AddWithValue("$name", name);
+            cmd.ExecuteNonQuery();
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// 把所有条目里的 <paramref name="oldTag"/> 改写为 <paramref name="newTag"/>（与已有重名则合并去重）。返回受影响行数。
+    /// v3.21：顺带把**标签库里的名字**也改掉（新名已存在 → 删掉旧的那条，避免重名）。
+    /// </summary>
+    public int RenameTag(string oldTag, string newTag)
+    {
+        var n = RewriteTags(tags =>
+        {
+            var i = tags.FindIndex(t => string.Equals(t, oldTag, StringComparison.OrdinalIgnoreCase));
+            if (i < 0) return false;
+            tags[i] = newTag;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var j = tags.Count - 1; j >= 0; j--) if (!seen.Add(tags[j])) tags.RemoveAt(j);
+            return true;
+        });
+
+        var nn = (newTag ?? "").Trim();
+        if (nn.Length > 0 && IsAvailable)
+        {
+            try
+            {
+                using var conn = _db.Open();
+                using var cmd = conn.CreateCommand();
+                // 新名已在库里 → 旧名那条直接删（主键冲突，IGNORE 掉）；否则改名为新名
+                cmd.CommandText = $"UPDATE OR IGNORE {TagTable} SET name = $new WHERE name = $old;";
+                cmd.Parameters.AddWithValue("$old", (oldTag ?? "").Trim());
+                cmd.Parameters.AddWithValue("$new", nn);
+                cmd.ExecuteNonQuery();
+                DeleteTagIndex(oldTag);
+            }
+            catch { }
+        }
+        return n;
+    }
+
+    /// <summary>
+    /// 把所有条目里的 <paramref name="tag"/> 删掉，并把**标签库里的名字**一并删掉（v3.21）。返回受影响行数。
+    /// </summary>
+    public int DeleteTag(string tag)
+    {
+        var n = RewriteTags(tags =>
+            tags.RemoveAll(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)) > 0);
+        DeleteTagIndex(tag);
+        return n;
+    }
 
     /// <summary>批量改写标签：读出全部 (path, tags)、对每个标签表应用 <paramref name="transform"/>、变了就 UPDATE。</summary>
     private int RewriteTags(Func<List<string>, bool> transform)

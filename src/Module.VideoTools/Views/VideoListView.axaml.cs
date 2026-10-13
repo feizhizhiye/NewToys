@@ -24,12 +24,11 @@ public partial class VideoListView : UserControl
             e.Handled = true;
         };
 
-        // v3.15 §6.4.6 / §6.4.7：详情卡两个可编辑字段 —— **回车 / 失焦即提交**（详情卡内不放按钮）。
-        // ⚠️ 命令里自带"名字没变 / 标签没变"的短路，所以"切换选中项时顺带触发一次失焦"只会空转，不会误改磁盘文件。
+        // §6.4.7：详情卡「文件名」**回车 / 失焦即提交**（详情卡内不放按钮）。
+        // ⚠️ 命令里自带"名字没变"的短路，所以"切换选中项时顺带触发一次失焦"只会空转，不会误改磁盘文件。
+        // v3.21：标签**不再手打**（改成点色片选择）→ 这里的 TagsBox 提交逻辑整体删除。
         NameBox.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitName(); e.Handled = true; } };
         NameBox.LostFocus += (_, _) => CommitName();
-        TagsBox.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitTags(); e.Handled = true; } };
-        TagsBox.LostFocus += (_, _) => CommitTags();
 
         ImportSplit.Click += OnBrowseFolder;
         ImportFolderItem.Click += OnBrowseFolder;
@@ -54,12 +53,6 @@ public partial class VideoListView : UserControl
     private void CommitName()
     {
         if (DataContext is VideoListViewModel vm) vm.SaveNameCommand.Execute(null);
-    }
-
-    /// <summary>提交详情卡里改过的**标签**（落 <c>video_catalog.tags</c>）。</summary>
-    private void CommitTags()
-    {
-        if (DataContext is VideoListViewModel vm) vm.SaveTagsCommand.Execute(null);
     }
 
     /// <summary>

@@ -223,11 +223,10 @@
                                 Text="{Binding EditName, Mode=TwoWay}" />
                         </StackPanel>
 
-                        <!--  §6.4.6 同名同义：标签可编辑，回车 / 失焦提交（落 video_catalog.tags）。
-                              v3.20：「🏷 管理标签」按钮 + 标签色片与「视频列表」页详情卡同款。  -->
+                        <!--  §6.4.6 / v3.21：与「视频列表」页同款 —— 标签**只能选**（点色片打上 / 取消），⛔ 没有输入框  -->
                         <StackPanel Classes="field">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Classes="field-label" Text="标签（逗号分隔 · 回车 / 失焦提交）" VerticalAlignment="Center" />
+                                <TextBlock Classes="field-label" Text="标签（点色片打上 / 取消）" VerticalAlignment="Center" />
                                 <Button
                                     Grid.Column="1"
                                     Classes="ghost"
@@ -235,13 +234,44 @@
                                     Padding="6,2"
                                     Content="🏷 管理标签"
                                     Command="{Binding OpenTagManagerCommand}"
-                                    ToolTip.Tip="查看全部标签、改名、删除、新建（改名 / 删除会作用到所有用到该标签的视频）" />
+                                    ToolTip.Tip="标签库：搜索 / 改名 / 删除 / 新建（新建会存进标签库，改名或删除会作用到所有用到该标签的视频）" />
                             </Grid>
-                            <TextBox
-                                x:Name="TagsBox"
-                                FontSize="12"
-                                PlaceholderText="如：收藏,待剪"
-                                Text="{Binding EditTags, Mode=TwoWay}" />
+                            <ItemsControl Margin="0,4,0,0" ItemsSource="{Binding TagPicks}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button
+                                            Margin="0,0,4,4"
+                                            Padding="0"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Command="{Binding $parent[UserControl].DataContext.ToggleTagCommand}"
+                                            CommandParameter="{Binding}"
+                                            Cursor="Hand"
+                                            ToolTip.Tip="点一下打上 / 取消这个标签">
+                                            <Border
+                                                Classes="tag-chip"
+                                                Classes.off="{Binding !IsApplied}"
+                                                Background="{Binding SoftBrush}"
+                                                BorderBrush="{Binding Brush}">
+                                                <TextBlock
+                                                    Classes="tag-chip-text"
+                                                    Classes.off="{Binding !IsApplied}"
+                                                    Foreground="{Binding Brush}"
+                                                    Text="{Binding Name}" />
+                                            </Border>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                        <!--  当前这张卡的已打标签（只读展示）  -->
+                        <StackPanel Classes="field">
+                            <TextBlock Classes="field-label" Text="已打标签" />
                             <ItemsControl Margin="0,4,0,0" ItemsSource="{Binding Selected.Item.TagChips}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -331,7 +361,9 @@
                 <StackPanel Spacing="12">
                     <TextBlock Text="🏷 管理标签" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
                     <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                               Text="改名 / 删除会作用到所有用到该标签的视频；「新建」只是先占个名字，给视频打上后才会存进库。"/>
+                               Text="改名 / 删除会作用到所有用到该标签的视频；「新建」直接存进标签库（还没用到任何视频也会留着）。"/>
+                    <!--  v3.21：按名称过滤（空 = 全部）  -->
+                    <TextBox PlaceholderText="搜索标签…" Text="{Binding TagManagerFilter, Mode=TwoWay}"/>
                     <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding TagManagerItems}">
                             <ItemsControl.ItemTemplate>

@@ -1,6 +1,6 @@
 # NewToys 开发需求（宪法 + 框架规格）
 
-> v3.32 · 2026-10-14 · 项目唯一权威规格
+> v3.34 · 2026-10-14 · 项目唯一权威规格
 > 层级：本文件 ＞ 开发规范 ＞ 项目现状与进度 ＞ AI协作提示词
 > 配套：`开发规范.md`（怎么具体实现）｜`项目现状与进度.md`（做到哪了）｜`AI协作提示词.md`（会话启动）｜`AGENTS.md`（仓库根，跨 AI 通用入口）
 >
@@ -725,7 +725,7 @@ Module.*（功能模块，只引 Shared + Core）
 | 页面 | Key | 页型 | 说明 |
 |---|---|---|---|
 | 全部资产 | `assets-all` | 列表页 | 混合视图；列：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源 |
-| 视频 / 音乐 / 书籍 / 图片 / 文档 | `assets-video` … `assets-document` | 列表页（图片可切网格） | 按 `Asset.type` 过滤；类型专属列（视频：时长 / 分辨率 / 编码；音乐：艺术家 / 专辑；书籍：作者 / ISBN；图片：尺寸 / 相机；文档：页数）。**布局一律参照「全部资产」页**（v3.32 用户定调，`assets-video` 首当其冲） |
+| 视频 / 音乐 / 书籍 / 图片 / 文档 | `assets-video` … `assets-document` | 列表页（**同一份实现**） | 🔴 **v3.34 定调：5 页 = 薄壳 + 预设类型**，页面本体一律复用 `AssetAllView` / `AssetAllViewModel`（各页 axaml 只放一行引用、对应 VM 只写自己的 `PageKey` + 预设类型），**工具条 / 筛选条 / 列表 / 详情卡与「全部资产」页完全一致**。⛔ 不再各写一套列表页（v3.15 那种"各页各写 → 静默漂移"要杜绝）。⛔ **卡片 / 网格视图不做**（v3.34 定调，原"图片可切网格"作废） |
 | 标签管理 | `assets-tags` | 列表页 | 名称 / 命名空间 / 颜色 / 使用数；合并、删未使用 |
 | 分类管理 | `assets-categories` | **树形页**（非列表页） | 左树 + 右成员列表；本模块唯一非列表内容页，不实现 `IDetailPanelProvider` |
 | 集合管理 | `assets-collections` | 列表页（左集合 + 右成员） | 手动 + 智能集合；成员可拖拽排序 |
@@ -733,6 +733,14 @@ Module.*（功能模块，只引 Shared + Core）
 | 任务中心 | `assets-tasks` | 列表页 | Scan / Rename / Move / Copy / Delete / ExtractMeta / Thumbnail；取消 / 重试 / 日志 |
 | 回收站 | `assets-trash` | 列表页 | `status='trashed'`；恢复 / 永久删除（二次确认）/ 清空 |
 | 模块设置 | `settings-media-assets` | 设置页（`Module.Settings`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（复用全局 `VideoDbFolder`） |
+
+- **类型页 = 薄壳 + 预设类型**（v3.34 定调，用户拍板）：
+  - **实现只有一份**：`AssetAllView` / `AssetAllViewModel` 是**共用实现**；5 个类型页的 View 是**薄壳**（`AssetVideoView.axaml` 内容 = 一行 `<views:AssetAllView/>`，code-behind 只 `InitializeComponent()`），VM 继承 `AssetAllViewModel` 并只写自己的 `PageKey`（= 各自菜单 key，如 `assets-video`）与**预设类型**。
+  - **零框架依赖**：`ShellViewModel.ResolveView/ResolveViewModel` 按 `AssetVideoView → AssetVideoViewModel` 命名约定解析，继承即命中；`AssetAllView.axaml.cs` 的接线用 `DataContext is AssetAllViewModel`（`is` 对派生类成立）。⇒ ⛔ 不需要动框架层。
+  - **菜单 / Key / 图标 / 页面清单不变**（5 个类型菜单照旧注册 `AssetVideoView`…`AssetDocumentView`），因此**零迁移**：`columnlayout.json` 各类型页键原样沿用，每类型**独立记住**列显隐 / 排序 / 详情开合。
+  - **筛选条的「类型」下拉保留可切**（v3.34 用户原话）：类型页默认选中本类型，用户仍可再切 —— 切类型时**表头与列显隐同步跟着变**；状态栏显示当前类型。⚠️ 副作用（已知接受）：标签页标题仍是入口名（如「视频」页被切到音乐后标题不变）。
+  - ⚠️ **类型专属列**（视频 时长 / 分辨率 / 编码；音乐 艺术家 / 专辑；书籍 作者 / ISBN；图片 尺寸 / 相机；文档 页数）**暂不做**：它们的数据源是 `assets.metadata_json`，而**元数据提取尚未实装**（现在该列恒为 `{}`）→ 做了也是空列。待元数据落地（NT-021 或其后）再加，本轮 5 个类型页用**通用列** + 预设类型。
+  - 列的**默认显隐**由各类型 VM 构造时设定（⛔ 不落盘）；用户右键改过的偏好落各自页键，二者不互相覆盖。
 
 **数据模型**（13 张表，落 `data\newtoys.db`，与视频工具共库、表级隔离）：
 `storages`（存储源）/ `assets`（资产主表）/ `file_locations`（一资产多位置）/ `tags`+`asset_tags` / `categories`+`asset_categories` / `collections`+`collection_assets` / `relations`（关联）/ `operation_logs`（操作日志）/ `scan_jobs`+`scan_errors`（扫描任务）。完整 DDL 与索引见 `backlog/NT-015.md`。类型扩展表（video_meta 等）**不预拆**，先塞 `assets.metadata_json`。
@@ -801,11 +809,11 @@ Module.*（功能模块，只引 Shared + Core）
 | **AI协作提示词** | 本次会话怎么开工（🔴 **规划 / 执行双模式工作流唯一定义处**，含状态机与验收清理） | 协作流程变化时 |
 | **src/docs/backlog/NT-xxx.md** | 待办**细节**：验收标准 / 技术要点 / 依赖 / 范围（执行模式工作稿，随 `src/` 更新） | 新增 / 展开 / 验收清理待办时 |
 | **AGENTS.md**（仓库根） | 跨 AI 通用入口：定位 + 铁律 + 四份文档路由表 | 定位 / 铁律 / 文档体系变化时 |
-| **.workbuddy/skills/newtoys/**（项目级技能） | WorkBuddy 自动触发的**薄指针**（指向仓库根 `skill/`） | 同上 |
-| **skill/**（仓库根，跨 AI 中立载体） | 深度知识库：`references/`（铁律/密度/坑点/四文档路由）+ `scripts/check.ps1`（静态自检），WorkBuddy 与 Hermes(DeepSeek Harness) 共用 | 铁律 / 坑点 / 路由变化时 |
+| **.workbuddy/skills/newtoys/**（项目级技能） | WorkBuddy 自动触发的**薄指针**（指向仓库根 `AGENTS.md` 与 `skill/SKILL.md`），⛔ 不复制正文 | 同上 |
+| **skill/**（仓库根，跨 AI 中立载体） | 深度知识库：`SKILL.md`（导航 + 客户端接入表）+ `references/`（铁律/密度/坑点/四文档路由）+ `scripts/check.ps1`（静态自检），WorkBuddy 与 Hermes(DeepSeek Harness) 共用 | 铁律 / 坑点 / 路由变化时 |
 
 - **单一权威**：同一条规则只在权威文档定义一次，其余引用不复制。**工作流（`规划 / 执行双模式` + 状态机 + 验收清理）只在《AI协作提示词》定义一次**；本文件 / 《开发规范》/ 《现状与进度》/ `AGENTS.md` / `skill/` 一律只引用，⛔ 不再各写一份流程（避免双源漂移、不同模型读到不同版本）。
-- **入口例外**：`AGENTS.md` 与项目级技能属**入口摘要**，允许复制铁律与路由表——必须自包含（外部 AI 读不到 `src/docs` 时也能开工）；细则仍只在四份文档各定义一次；入口与四份文档冲突时，以四份文档和 `src/` 源码为准。
+- **入口例外**：`AGENTS.md`（仓库根）为**唯一自包含入口**，允许复制铁律与路由表——必须自包含（外部 AI 读不到 `src/docs` 时也能开工）；`skill/SKILL.md` 与 `.workbuddy/skills/newtoys/SKILL.md` **只做导航 / 指针**，⛔ 不复制正文（避免同内容多份漂移、多份注入）。细则仍只在四份文档各定义一次；入口与四份文档冲突时，以四份文档和 `src/` 源码为准。
 - **代码 > 文档**：冲突以 `src/` 源码为准并回写文档。
 - ⛔ **本文件不写版本变更流水**，只写「当前应然」；变更历史一律 `git log`。
 - **变更顺序**（与《AI协作提示词》一致，细则以其为准）：用户提出新需求 → **先整理写入本文件**（必要时同步规范）→ 在《现状与进度》三、登记待办项 + `src/docs/backlog/NT-xxx.md` 写细节 → 升 `✅ 就绪` → **再改代码** → 最后更新台账 → 用户验收后清理细节（默认删 / 留最近 3）。⛔ 不得先改代码后补文档。

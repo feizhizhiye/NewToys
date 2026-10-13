@@ -81,7 +81,7 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="Margin" Value="2,4,2,4"/>
         </Style>
         <Style Selector="Border.tab-item:pointerover">
@@ -98,7 +98,7 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -124,7 +124,7 @@
             <Setter Property="Width" Value="20"/>
             <Setter Property="Height" Value="20"/>
             <Setter Property="Margin" Value="0,0,2,0"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -211,11 +211,14 @@
         </Style>
 
         <!--  窗口控制按钮（标题栏底色 = ContentBrush，配色随主题）  -->
+        <!--  v3.22：窗口按钮**不要圆角**、垂直撑满标题栏（容器不设圆角，最大化利用空间）  -->
         <Style Selector="Button.win-btn">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="Padding" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
         </Style>
         <Style Selector="Button.win-btn:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>

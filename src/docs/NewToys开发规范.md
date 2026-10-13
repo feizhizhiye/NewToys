@@ -1,11 +1,12 @@
 # NewToys 开发规范
 
-> v3.16 · 2026-10-13 · 技术实现指南
+> v3.17 · 2026-10-13 · 技术实现指南
 > 权威源：需求（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕折衷约束（本文件台账）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
 > ⛔ **只保留最近三次变更**，更早的逐次记录看 `git log`；需求侧章节号见《开发需求》目录（v3.11 起 §4 重排：4.5 详情卡 / 4.6 状态栏 / 4.7 主题 / 4.8 列表页 / 4.9 设置页 / 4.10 视觉规范 / 4.11 未实装）。
+> **v3.17 变更**：§3.6 列宽判定改为**示例值（Sample）**（列表空时显示一条水印示例行；示例宽 ≤ 表头宽 → 锁表头宽且 ≥34px 保证把手可拖）；补两个 Avalonia 坑：**MenuItem 子菜单的 `ItemContainerTheme` 必须写 `BasedOn`**（否则子项没模板 → 子菜单打不开）、**Button 伪类样式要用后代选择器**（单选择器会被 Fluent 主题的 `:pointerover` 盖掉）。
 > **v3.16 变更**：§3.6 列宽改为**表头拖拽手动调**（`ColumnGrid.IsResizable` + VM `ResizeColumns`；⛔ 删「自动调整列宽」开关——整体 `Auto` 时长内容列按未截断全文测宽、把其余列挤没，表头文字被裁没）；`ColumnGrid` 副本 **三份→四份**（WebTools 亦有一份，旧注释漏记）。
 > **v3.15 变更**：§6 删除「统一启动器 `scripts/launch.ps1`」说法（已弃用）；脚本改为 fail-loud（成功 `exit 0` 自关窗口、失败 `trap` 暂停），禁止 `.cmd/.bat` 铁律保留。
 > **v3.13 变更**：协作两阶段固化（《AI协作提示词》）—— 准备期只动《开发需求》+《现状》、生成待办；执行期按《现状》待办 + 本文件做法改代码；本文件不被执行期改动。
@@ -219,6 +220,11 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - ⛔ 工具条**不再横贯整页宽**；⛔ 不要改共享样式 `Border.detail-card`（宽度 / 内边距仍由它给）；
 - ✅ 已改 **10 页**（样板 `video-list` / `pc-package` + `pc-shortcuts` / `pc-quicksettings` / `pc-info` / `web-bookmark` / `web-ping` / `web-scrape` / `web-hosts` / `settings-path`）；⏳ `video-cut` / `video-transcode` 待视频工具重构后再定。
 
+**两个 Avalonia 样式坑（v3.22 实测）**：
+
+1. **`MenuItem` 用 `ItemsSource` 生成子菜单时，`ItemContainerTheme` 必须写 `BasedOn="{StaticResource {x:Type MenuItem}}"`** —— 不写就是一份**没有模板**的全新 ControlTheme，子项画不出来 → 表现为「点了不弹出子菜单」。全仓 11 处筛选子菜单都犯过这个错。
+2. **给控件覆写 `:pointerover` 等伪类样式，若被 Fluent 主题盖掉（实测表现为"图标还是白的、背景还在"），就改用**后代选择器**提优先级**：`Border.tab-item Button.tab-close:pointerover` 能压过主题的 `Button:pointerover`。
+
 **列表页内的硬规则（保留）**：
 1. 表头与行模板**完全相同的星号列定义**（逐字一致）；动态列用 `<v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">`。
 2. 表头与行单元格左右内边距一致（8px），行里不写 `Padding/Margin`。
@@ -263,7 +269,12 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - **详情开合状态**：由 Shell 统一落 `config/columnlayout.json`（`FlagDetailPanel`，**按页面 Key 分别记忆**），列表页 VM 不再直接读写。
 - 涉及页面（5 个）：`pc-package` / `video-list` / `pc-shortcuts` / `pc-quicksettings` / `settings-path`。
 
-- **固定表头宽列（v3.21）**：`ListColumn.FixedToHeader` 的列 → 表头 `ColumnGrid` 首次布局后测出各列表头内容的 `DesiredSize.Width`，经 `HeaderMeasured` 事件交 VM `LockColumnsToHeader()` 写进「锁定列宽」（`VisibleColumnSpecs` 输出像素，优先级高于手动/星号）；VM 的 `LockedColumnMask` 回传给 `ColumnGrid.LockedColumns` → 锁定列边界**不生成拖拽把手**、`ResizeColumns` 也拒绝。表头 XAML 要绑 `LockedColumns="{Binding LockedColumnMask}"`，code-behind 要接 `HeaderMeasured`。
+- **示例值 + 固定表头宽列（v3.22）**：
+  - 每列给 `ListColumn.Sample`（示例值）；基类暴露 `SampleRowTexts`（示例行文本数组）/ `SampleSpecs`（';' 分隔，⛔ 不用逗号——示例值里可能有）/ `ShowSampleRow`（`HasSampleRow && 列表为空`）。
+  - 表头 `ColumnGrid` 绑 `SampleSpecs="{Binding SampleSpecs}"`；首次布局测出 **表头宽**（各表头子元素 `DesiredSize`）与**示例宽**（临时 `TextBlock` 建来 `Measure(∞)`，字号 12 + 单元格内边距 16；测不到记 `double.MaxValue` 免得误锁）→ `HeaderMeasured` 事件 → VM `LockColumnsBySample(header, sample)`：**示例宽 ≤ 表头宽 → 锁成表头宽，且不小于 `MinLockedWidth = 34`**（表头文字很短的列也留得下拖拽把手）。
+  - 锁定列的边界**不生成把手**、`ResizeColumns` 也拒绝（两侧任一被锁）；VM 的 `LockedColumnMask` → `ColumnGrid.LockedColumns`。
+  - **示例行（水印）**：列表区上方单独一条 `Border + ColumnGrid`（⛔ **不进** `Items/Videos`，不参与统计 / 排序 / 筛选 / 勾选 / 导入导出），`IsVisible="{Binding ShowSampleRow}"`、`Opacity="0.5"`，逐列 `Text="{Binding SampleRowTexts[i]}"`。
+  - 本轮只在**视频两页**落地；别的页要用：给列填 `Sample` + 加示例行 XAML + 绑 `SampleSpecs` + code-behind 接 `HeaderMeasured` 四步。
 - ⚠️ `Views/ColumnGrid.cs` 因**模块间禁互引**而在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` **各存一份，改动必须同步四份**。
 
 ### 3.7 热加载实现

@@ -12,13 +12,14 @@ agent_created: true
 - **Hermes / DeepSeek Harness**：选仓库根为工作区后，由根目录 `AGENTS.md` 路由读取本目录
 
 权威源仍是 `src/docs/` 四份文档；本目录是**摘要 + 路由表**。冲突以 `src/docs` 与 `src/` 代码为准。
+🔴 **本目录不定义工作流**：`规划 / 执行双模式` + 状态机 + 验收清理的**唯一定义处** = `src/docs/NewToys-AI协作提示词.md`【规划 / 执行双模式工作流】节；本目录只做路由与约束，⛔ 不另写一份（避免与 `src/docs` 漂移、不同 AI 读到不同版本）。
 
 ## 目录
 
 - `references/collab-method.md` —— **通用协作方法论（跨项目母本）**：铁律、**规划 / 执行双模式**、草稿闸门、变更声明、静态自检、交付要求、分级读档
 - `references/newtoys-spec.md` —— **NewToys 特定约束**：项目事实、密度基线、高频坑、任务型→规范章节、四文档路由
 - `scripts/check.ps1` —— 交付前静态自检（axaml 合法性、`.axaml`↔`.cs` 配对、主题键白名单核对）
-- `src/docs/backlog/` —— **可执行待办明细（NT-xxx）**：规划期只写、执行期只读；`README.md` 定义格式、双模式与批量协议，台账三、为索引
+- `src/docs/backlog/` —— **可执行待办明细（NT-xxx）**：规划模式只写、执行模式随 `src/` 更新；`README.md` 定义格式与生命周期，台账三、为索引
 
 ## 执行流程
 
@@ -32,7 +33,7 @@ agent_created: true
 ## 铁律（通用见 `references/collab-method.md`，项目特定见 `references/newtoys-spec.md`）
 
 1. **只改 `src/`**；不读写 Downloads；不碰项目目录外的任何位置。
-2. **变更顺序**：新需求 → 先写《开发需求》→ 再改代码 → 最后更新台账。⛔ 先改代码后补文档。
+2. **规划 / 执行双模式 + 变更顺序**（🔴 工作流唯一定义见《AI协作提示词》，本目录只引用）：新需求 → 先写《开发需求》→ 台账三、登记待办项 + `src/docs/backlog/NT-xxx.md` 写细节 → 升 `✅ 就绪` → 再改代码 → 最后更新台账 → 验收后清理细节（默认删 / 留最近 3）。默认规划模式只写文档、⛔ 不改 `src/`；仅当用户发「执行全部就绪待办」才进执行模式；`📝 草稿` 不执行。
 3. **框架层（Shared/Core/Shell）冻结**，新功能只在 Module.*。停手仅 5 种；其余按最合理假设推进并标注。
 4. **git commit**（`&lt;type&gt;: &lt;简述&gt;`），⛔ 不写 md 日志；**代码 &gt; 文档**。
 5. **评估/讨论不进文档**。

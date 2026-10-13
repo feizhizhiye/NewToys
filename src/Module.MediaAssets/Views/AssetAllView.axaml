@@ -38,20 +38,25 @@
                   IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="只扫选中的几个文件（⛔ 只进内存、不入库）"/>
 
-          <!--  手输 / 粘贴路径：NAS 与网络路径、以及反复重扫同一个目录时比选择框好用  -->
-          <TextBox x:Name="ImportPathBox" Width="240" Margin="0,0,6,0"
+          <!--  按钮在前、输入框在后（v3.29 用户定调）：📁 / 📄 → 路径框 → 搜索框 → 其余按钮依次排列。
+                ⛔ 「⤓ 预览扫描」按钮已删（用户：没用）—— 路径框里**回车**即预览扫描。
+                手输路径的用处：NAS / 网络路径、以及反复重扫同一个目录时比选择框好用。  -->
+          <TextBox x:Name="ImportPathBox" Width="240"
                    Text="{Binding ImportPath, Mode=TwoWay}"
-                   PlaceholderText="或直接填文件夹路径（回车预览）"/>
-          <Button Classes="ghost" Content="⤓ 预览扫描"
-                  Command="{Binding PreviewPathCommand}" IsEnabled="{Binding !IsBusy}"
-                  ToolTip.Tip="按上面的路径预览扫描（不入库）"/>
+                   PlaceholderText="填文件夹路径（回车即预览扫描）"/>
+          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}"
+                   PlaceholderText="搜索名称 / 路径 / 标签…"/>
 
+          <!--  库级操作（作用于整个库，⛔ 与"单条操作走右键"不冲突，见 §4.8 硬规则 9）  -->
           <Button x:Name="BtnRegisterFolder" Classes="ghost" Content="➕ 登记文件夹"
                   IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="加入待扫列表（⛔ 不扫描），攒几个后点「🔄 扫描全部」"/>
           <Button Classes="ghost" Content="🔄 扫描全部"
                   Command="{Binding ScanAllCommand}" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="把所有已登记的存储源扫一遍，直接入库"/>
+          <Button Classes="ghost" Content="🗄 打开库文件"
+                  Command="{Binding OpenDbFileCommand}" IsEnabled="{Binding IsDbAvailable}"
+                  ToolTip.Tip="{Binding DatabasePath}"/>
 
           <!--  草稿态专属：非草稿时置灰（⛔ 不做能点没反应的按钮）  -->
           <Button Classes="primary" Content="💾 加入库"
@@ -62,7 +67,8 @@
           <Button Classes="ghost" Content="🧹 清除列表"
                   Command="{Binding ClearListCommand}"
                   ToolTip.Tip="草稿态：丢弃预览结果；库视图：清空当前显示（数据仍在库里，刷新即找回）"/>
-          <!--  ⛔ 「打开（文件 / 库文件）」这类**针对单条**的动作不放工具条 —— 归列表右键菜单（§4.8 硬规则 9）  -->
+          <!--  ⛔ 「📂 打开 / 📁 打开所在文件夹」是针对**单条**的动作 → 归列表右键菜单（§4.8 硬规则 9）；
+                「🗄 打开库文件」是**库级**操作 → 在工具条（见上）。  -->
 
           <CheckBox Content="含子目录" IsChecked="{Binding Recursive, Mode=TwoWay}"
                     ToolTip.Tip="关掉就只扫当前这一层"/>
@@ -78,12 +84,11 @@
                   ToolTip.Tip="NT-018 落地"/>
 
           <!--  ⚠️ 刷新 = **重读数据库**重建列表：⛔ 不扫盘、不读目录、不重新索引。
-                要重新扫一个文件夹，用左边的「📁 扫描文件夹」；要把登记的都扫一遍，用「🔄 扫描全部」。  -->
+                要重新扫一个文件夹，用左边的「📁 扫描文件夹」；要把登记的都扫一遍，用「🔄 扫描全部」；
+                要"回到刚打开时的状态"（丢排序 / 筛选 / 草稿），用**标题栏的 ⟳**。  -->
           <Button Classes="ghost" Content="🔄 刷新"
                   Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="重新读取资产库（⛔ 不扫描磁盘）"/>
-          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}"
-                   PlaceholderText="搜索名称 / 路径 / 标签…"/>
         </WrapPanel>
 
         <!--  末位：详情开关（v3.12 起从表头挪到工具条）
@@ -239,9 +244,7 @@
                         ToolTip.Tip="用系统默认程序打开（视频=播放 / 书=阅读 / 图=看图）"/>
               <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderCommand}"
                         ToolTip.Tip="在资源管理器里选中这个文件"/>
-              <Separator/>
-              <MenuItem Header="🗄 打开库文件…" Command="{Binding OpenDbFileCommand}"
-                        ToolTip.Tip="{Binding DatabasePath}"/>
+              <!--  「🗄 打开库文件」是**库级**操作 → 回工具条（§4.8 硬规则 9），⛔ 不放这儿重复一份  -->
             </ContextMenu>
           </ListBox.ContextMenu>
           <ListBox.ItemTemplate>

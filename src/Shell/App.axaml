@@ -76,9 +76,10 @@
 
         <!--  标签项容器：激活态 = 强调色派生底 + 下方 2px 强调色指示条。
              ⚠️ v3.4：标签栏在标题栏内（底色 = ContentBrush 跟随主题），文字/底色一律用主题色系。  -->
+        <!--  v3.22：不再有"下方指示条"（BorderThickness 归 0）—— 那条线被误认成阴影；激活只看文字颜色。  -->
         <Style Selector="Border.tab-item">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Margin" Value="2,4,2,4"/>
@@ -86,10 +87,11 @@
         <Style Selector="Border.tab-item:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
-        <!--  v3.22：激活态**只用强调色**（下方 2px 强调色条 + 强调色文字）——
-             ⛔ 不再垫一层 CardSelectedBrush 背景：那块底色会盖住关闭按钮、也让激活/悬停两种状态分不清。  -->
+        <!--  v3.22：激活态 = **只有文字变强调色**，就跟普通按钮一样 ——
+             ⛔ 不垫背景色（会盖住关闭按钮、激活/悬停分不清）；⛔ 也不画下方指示条（看着像阴影）。  -->
         <Style Selector="Border.tab-item.active">
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
         </Style>
 
         <Style Selector="Button.tab-btn">

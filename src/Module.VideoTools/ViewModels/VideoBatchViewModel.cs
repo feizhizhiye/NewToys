@@ -90,8 +90,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         set => NewAsCut = !value;
     }
 
-    /// <summary>当前选中任务的类型名（详情卡显示）。</summary>
-    public string SelectedKind => Selected == null ? "—" : KindOf(Selected);
+    /// <summary>当前任务的类型名（详情卡显示；v3.32：没选中项时给示例任务的类型）。</summary>
+    public string SelectedKind => DetailTask == null ? "—" : KindOf(DetailTask);
 
     // ==================== 编辑缓冲（两套，按选中任务类型生效） ====================
 
@@ -174,7 +174,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 
     /// <summary>当前会用的视频编码器名（CPU / GPU 一眼可见，避免以为用了 GPU 其实没用）。</summary>
     public string SelectedEncoder
-        => Selected is TranscodeTask t
+        => DetailTask is TranscodeTask
             ? FfmpegService.ResolveEncoder(TranscodePreset.Find(EditPresetId).VideoCodec, EditUseGpu)
             : "—";
 
@@ -562,6 +562,34 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     /// <summary>v3.22：队列为空时显示那条示例行（⛔ 不进 Items、不参与统计 / 导入导出）。</summary>
     public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
 
+    // ==================== v3.32 §4.8.3：详情卡示例态 ====================
+
+    /// <summary>详情卡的**示例任务**（带剪辑区间的转码任务 → 剪辑 / 转码两段分区都有内容可看）。</summary>
+    private static readonly TranscodeTask SampleTask = new()
+    {
+        SourcePath = @"D:\Videos\示例视频 2026.mp4",
+        OutputPath = @"D:\Videos\示例视频 2026_H265.mp4",
+        PresetId = "h265",
+        Crf = 23,
+        UseTrim = true,
+        TrimStart = 10,
+        TrimEnd = 90,
+        SourceSize = 1_610_612_736,
+        SourceCodec = "hevc",
+        SourceResolution = "1920×1080",
+        SourceBitRate = "8.5 Mbps",
+        SourceDuration = 3723,
+        Created = new DateTime(2026, 10, 13, 15, 0, 0)
+    };
+
+    /// <summary>详情卡的数据源：有选中任务用真值，没选中用**示例任务**（示例态下卡片整体禁用）。</summary>
+    public VideoTaskBase? DetailTask => Selected ?? (HasSampleRow ? SampleTask : null);
+
+    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
+    public bool ShowDetailBody => HasSelection || IsDetailSample;
+
+    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
     public VideoBatchViewModel() { }
 
     public VideoBatchViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService cols, INavigationService nav)
@@ -579,6 +607,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
             (Label: "类型：剪辑+转码", ColumnKey: "Kind", Value: "剪辑+转码")
         });
         RefreshView();
+        UpdateDetailSample(false);      // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
+        FillEditors(DetailTask);
     }
 
     /// <summary>
@@ -720,6 +750,25 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 
     partial void OnSelectedChanged(VideoTaskBase? value)
     {
+        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例任务（并整卡禁用）
+        OnPropertyChanged(nameof(DetailTask));
+        FillEditors(DetailTask);             // 真值 / 示例值走同一条填充路径
+
+        OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(SelectedIsCut));
+        OnPropertyChanged(nameof(SelectedIsTranscode));
+        OnPropertyChanged(nameof(SelectedHasTrim));
+        OnPropertyChanged(nameof(SelectedKind));
+        OnPropertyChanged(nameof(SelectedEncoder));
+        OnPropertyChanged(nameof(IsCutReEncode));
+    }
+
+    /// <summary>
+    /// 把一条任务（**真正的选中项**，或没选中时的**示例任务**）填进详情卡的编辑缓冲。
+    /// <para>v3.32 §4.8.3：抽成方法，好让"示例态"复用同一条填充路径 —— 否则示例卡里会全是空格子。</para>
+    /// </summary>
+    private void FillEditors(VideoTaskBase? value)
+    {
         if (value is TranscodeTask x)
         {
             EditPresetId = x.PresetId;
@@ -754,13 +803,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
         OnPropertyChanged(nameof(CommandPreview));
 
         BuildCompareRows();
-        OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(SelectedIsCut));
-        OnPropertyChanged(nameof(SelectedIsTranscode));
-        OnPropertyChanged(nameof(SelectedHasTrim));
-        OnPropertyChanged(nameof(SelectedKind));
-        OnPropertyChanged(nameof(SelectedEncoder));
-        OnPropertyChanged(nameof(IsCutReEncode));
 
         // v3.16 §6.4.1：两个分区的勾选框跟着任务类型走（剪辑任务 = 只勾剪辑；转码任务 = 勾转码，带区间时两段都勾）
         _converting = true;
@@ -789,9 +831,9 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     private void BuildCompareRows()
     {
         CompareRows.Clear();
-        CompareRows.Add(new CompareRow { Label = "类型", Before = Selected == null ? "—" : KindOf(Selected), After = "—" });
+        CompareRows.Add(new CompareRow { Label = "类型", Before = DetailTask == null ? "—" : KindOf(DetailTask), After = "—" });
 
-        switch (Selected)
+        switch (DetailTask)
         {
             case TranscodeTask t:
                 CompareRows.Add(new CompareRow { Label = "大小", Before = t.SourceSizeDisplay, After = t.HasResult ? t.OutputSizeDisplay : "—" });

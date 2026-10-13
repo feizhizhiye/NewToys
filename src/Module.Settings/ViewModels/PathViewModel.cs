@@ -134,13 +134,13 @@ public partial class PathViewModel : ListPageViewModelBase
         Items.Add(new PathSettingItem
         {
             Key = "FfmpegPath", Name = "ffmpeg 路径", Kind = PathItemKind.File, DefaultValue = "ffmpeg",
-            Description = "视频库的媒体信息（时长 / 分辨率 / 编码 / 码率）用它旁边的 ffprobe 读取；留空或写 ffmpeg 则走 PATH",
+            Description = "视频的媒体信息（时长 / 分辨率 / 编码 / 码率）用它旁边的 ffprobe 读取；留空或写 ffmpeg 则走 PATH",
             Value = _cfg.FfmpegPath
         });
         Items.Add(new PathSettingItem
         {
             Key = "PlayerPath", Name = "外部播放器路径", Kind = PathItemKind.File,
-            Description = "视频库「▶ 播放」用它打开；留空 = 系统默认关联程序",
+            Description = "视频「▶ 播放」用它打开；留空 = 系统默认关联程序",
             Value = _cfg.PlayerPath
         });
         Items.Add(new PathSettingItem
@@ -171,7 +171,7 @@ public partial class PathViewModel : ListPageViewModelBase
         Items.Add(new PathSettingItem
         {
             Key = "VideoDbFolder", Name = "导入导出默认目录", Kind = PathItemKind.Folder,
-            Description = "视频库 .db 与批量任务 .json 的导入/导出对话框打开时直接定位到这里；留空 = 用系统默认",
+            Description = "批量任务 .json（及媒体资产库文件）的导入/导出对话框打开时直接定位到这里；留空 = 用系统默认",
             Value = _cfg.VideoDbFolder
         });
         Items.Add(new PathSettingItem

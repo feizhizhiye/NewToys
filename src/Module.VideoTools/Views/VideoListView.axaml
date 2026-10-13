@@ -34,16 +34,12 @@
                             Margin="0,0,8,6"
                             PlaceholderText="如 D:\Videos（回车即扫描）"
                             Text="{Binding Folder, Mode=TwoWay}" />
-                        <!--
-                            v3.16：「视频库(.db)…」从本下拉里拿掉，独立成右边的「🗄 导入视频库(.db)」按钮
-                            —— 文件夹路径天天变、库文件路径相对固定，两者不该共用一个入口。
-                        -->
                         <SplitButton
                             x:Name="ImportSplit"
                             Margin="0,0,8,6"
                             Classes="ghost"
                             Content="📂 导入"
-                            ToolTip.Tip="导入视频：选文件夹扫描 / 选单个视频文件追加；读视频库(.db) 用右边的「🗄 导入视频库(.db)」">
+                            ToolTip.Tip="导入视频：选文件夹扫描（替换当前列表）/ 选单个视频文件追加；目录框里回车也等于「选文件夹」">
                             <SplitButton.Flyout>
                                 <MenuFlyout>
                                     <MenuItem
@@ -84,25 +80,6 @@
                             IsEnabled="{Binding !IsBusy}"
                             ToolTip.Tip="对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 data\newtoys.db 缓存，下次扫描直接命中" />
 
-                        <!--  视频数据库（§6.4.3）：读外部 .db / 当前列表入库  -->
-                        <Border
-                            Width="1"
-                            Height="20"
-                            Margin="0,0,8,0"
-                            Classes="divider-line" />
-                        <Button
-                            x:Name="ImportCatalogBtn"
-                            Margin="0,0,4,6"
-                            Classes="ghost"
-                            Content="🗄 导入视频库(.db)"
-                            ToolTip.Tip="点一下就挑一个视频库 .db 文件，把里面的记录读回列表（替换当前列表）；对话框默认定位到「设置 → 路径配置 → 导入导出默认目录」" />
-                        <Button
-                            Margin="0,0,4,6"
-                            Classes="ghost"
-                            Command="{Binding AddToCatalogCommand}"
-                            Content="💾 加入视频库"
-                            ToolTip.Tip="把当前列表（整个扫描结果）写进 SQLite 视频库；只存列表已有信息，未读的字段留空" />
-
                         <!--  多选 → 批量送进任务页（v1.35）  -->
                         <Border
                             Width="1"
@@ -126,20 +103,6 @@
                             <TextBlock Text="{Binding CheckedCount, StringFormat='➡ 视频预览 ({0})'}" />
                         </Button>
 
-                        <!--  v3.15 §6.4.9：收藏只从本页送过去（先入视频库的才能收藏）  -->
-                        <Border
-                            Width="1"
-                            Height="20"
-                            Margin="0,0,8,0"
-                            Classes="divider-line" />
-                        <Button
-                            Margin="0,0,4,6"
-                            Classes="ghost"
-                            Command="{Binding AddToFavoritesCommand}"
-                            Content="★ 收藏"
-                            IsEnabled="{Binding HasSelection}"
-                            ToolTip.Tip="把勾选的（一个都没勾就用当前选中的）加入「视频收藏」页；收藏必须来自视频库 —— 还没入库的会提示先点「💾 加入视频库」" />
-
                         <!--  v3.16 §6.4.11：清除列表（≈ 浏览器的无缓存刷新）  -->
                         <Border
                             Width="1"
@@ -151,8 +114,7 @@
                             Classes="ghost"
                             Command="{Binding ClearListCommand}"
                             Content="🧹 清除列表"
-                            ToolTip.Tip="清空当前列表（含勾选 / 筛选），回到空态；⛔ 不删除任何视频文件、不动视频库" />
-                        <!--  v3.20 §6.4.6：「🏷 管理标签」从工具条移入**详情卡**（标签编辑区同行右侧）  -->
+                            ToolTip.Tip="清空当前列表（含勾选 / 筛选），回到空态；⛔ 不删除任何视频文件、不重扫目录" />
                     </WrapPanel>
                     <Button
                         Grid.Column="1"
@@ -279,57 +241,42 @@
                                 CommandParameter="Modified"
                                 Content="{Binding ModifiedHeader}"
                                 IsVisible="{Binding IsModifiedVisible}" />
-                            <!--  v3.15 §6.4.8 扩充列（列索引 9~15，与 Columns 元数据一一对应）  -->
+                            <!--  v3.15 §6.4.8 扩充列（列索引 9~13，与 Columns 元数据一一对应）  -->
                             <Button
                                 Grid.Column="9"
-                                Classes="col-header"
-                                Command="{Binding SortCommand}"
-                                CommandParameter="Tags"
-                                Content="{Binding TagsHeader}"
-                                IsVisible="{Binding IsTagsVisible}" />
-                            <Button
-                                Grid.Column="10"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Fps"
                                 Content="{Binding FpsHeader}"
                                 IsVisible="{Binding IsFpsVisible}" />
                             <Button
-                                Grid.Column="11"
+                                Grid.Column="10"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Container"
                                 Content="{Binding ContainerHeader}"
                                 IsVisible="{Binding IsContainerVisible}" />
                             <Button
-                                Grid.Column="12"
+                                Grid.Column="11"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Audio"
                                 Content="{Binding AudioHeader}"
                                 IsVisible="{Binding IsAudioVisible}" />
                             <Button
-                                Grid.Column="13"
+                                Grid.Column="12"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Path"
                                 Content="{Binding PathHeader}"
                                 IsVisible="{Binding IsPathVisible}" />
                             <Button
-                                Grid.Column="14"
+                                Grid.Column="13"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Created"
                                 Content="{Binding CreatedHeader}"
                                 IsVisible="{Binding IsCreatedVisible}" />
-                            <Button
-                                Grid.Column="15"
-                                Classes="col-header"
-                                Command="{Binding SortCommand}"
-                                CommandParameter="Favorite"
-                                Content="{Binding FavoriteHeader}"
-                                IsVisible="{Binding IsFavoriteVisible}"
-                                ToolTip.Tip="★ = 已收藏（真值在 video_favorites 表）" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
                                 <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
@@ -399,12 +346,6 @@
                                     <!--  v3.15 §6.4.8 扩充列  -->
                                     <MenuItem
                                         Command="{Binding ToggleColumnCommand}"
-                                        CommandParameter="Tags"
-                                        Header="标签"
-                                        IsChecked="{Binding IsTagsVisible, Mode=OneWay}"
-                                        ToggleType="CheckBox" />
-                                    <MenuItem
-                                        Command="{Binding ToggleColumnCommand}"
                                         CommandParameter="Fps"
                                         Header="帧率"
                                         IsChecked="{Binding IsFpsVisible, Mode=OneWay}"
@@ -433,12 +374,6 @@
                                         Header="创建时间"
                                         IsChecked="{Binding IsCreatedVisible, Mode=OneWay}"
                                         ToggleType="CheckBox" />
-                                    <MenuItem
-                                        Command="{Binding ToggleColumnCommand}"
-                                        CommandParameter="Favorite"
-                                        Header="已收藏"
-                                        IsChecked="{Binding IsFavoriteVisible, Mode=OneWay}"
-                                        ToggleType="CheckBox" />
                                 </ContextMenu>
                             </v:ColumnGrid.ContextMenu>
                         </v:ColumnGrid>
@@ -464,13 +399,11 @@
                             <TextBlock Grid.Column="6" Classes="list-cell" IsVisible="{Binding IsCodecVisible}" Text="{Binding SampleRowTexts[6]}" />
                             <TextBlock Grid.Column="7" Classes="list-cell" IsVisible="{Binding IsBitrateVisible}" Text="{Binding SampleRowTexts[7]}" />
                             <TextBlock Grid.Column="8" Classes="list-cell" IsVisible="{Binding IsModifiedVisible}" Text="{Binding SampleRowTexts[8]}" />
-                            <TextBlock Grid.Column="9" Classes="list-cell" IsVisible="{Binding IsTagsVisible}" Text="{Binding SampleRowTexts[9]}" />
-                            <TextBlock Grid.Column="10" Classes="list-cell" IsVisible="{Binding IsFpsVisible}" Text="{Binding SampleRowTexts[10]}" />
-                            <TextBlock Grid.Column="11" Classes="list-cell" IsVisible="{Binding IsContainerVisible}" Text="{Binding SampleRowTexts[11]}" />
-                            <TextBlock Grid.Column="12" Classes="list-cell" IsVisible="{Binding IsAudioVisible}" Text="{Binding SampleRowTexts[12]}" />
-                            <TextBlock Grid.Column="13" Classes="list-cell" IsVisible="{Binding IsPathVisible}" Text="{Binding SampleRowTexts[13]}" />
-                            <TextBlock Grid.Column="14" Classes="list-cell" IsVisible="{Binding IsCreatedVisible}" Text="{Binding SampleRowTexts[14]}" />
-                            <TextBlock Grid.Column="15" Classes="list-cell accent" IsVisible="{Binding IsFavoriteVisible}" Text="{Binding SampleRowTexts[15]}" />
+                            <TextBlock Grid.Column="9" Classes="list-cell" IsVisible="{Binding IsFpsVisible}" Text="{Binding SampleRowTexts[9]}" />
+                            <TextBlock Grid.Column="10" Classes="list-cell" IsVisible="{Binding IsContainerVisible}" Text="{Binding SampleRowTexts[10]}" />
+                            <TextBlock Grid.Column="11" Classes="list-cell" IsVisible="{Binding IsAudioVisible}" Text="{Binding SampleRowTexts[11]}" />
+                            <TextBlock Grid.Column="12" Classes="list-cell" IsVisible="{Binding IsPathVisible}" Text="{Binding SampleRowTexts[12]}" />
+                            <TextBlock Grid.Column="13" Classes="list-cell" IsVisible="{Binding IsCreatedVisible}" Text="{Binding SampleRowTexts[13]}" />
                         </v:ColumnGrid>
                     </Border>
 
@@ -569,56 +502,31 @@
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"
                                         Text="{Binding ModifiedDisplay}" />
                                     <!--  v3.15 §6.4.8 扩充列  -->
-                                    <!--  v3.20 §6.4.6：标签列改**色片（chip）**横排；超宽裁剪不换行（⛔ 不撑高行）  -->
-                                    <ItemsControl
-                                        Grid.Column="9"
-                                        VerticalAlignment="Center"
-                                        ClipToBounds="True"
-                                        IsVisible="{Binding $parent[ListBox].DataContext.IsTagsVisible}"
-                                        ItemsSource="{Binding TagChips}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Classes="tag-chip" Background="{Binding SoftBrush}" BorderBrush="{Binding Brush}">
-                                                    <TextBlock Classes="tag-chip-text" Foreground="{Binding Brush}" Text="{Binding Name}" />
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
                                     <TextBlock
-                                        Grid.Column="10"
+                                        Grid.Column="9"
                                         Classes="list-cell primary"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsFpsVisible}"
                                         Text="{Binding FpsDisplay}" />
                                     <TextBlock
-                                        Grid.Column="11"
+                                        Grid.Column="10"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsContainerVisible}"
                                         Text="{Binding ContainerDisplay}" />
                                     <TextBlock
-                                        Grid.Column="12"
+                                        Grid.Column="11"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsAudioVisible}"
                                         Text="{Binding AudioCodecDisplay}" />
                                     <TextBlock
-                                        Grid.Column="13"
+                                        Grid.Column="12"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsPathVisible}"
                                         Text="{Binding FullPath}" />
                                     <TextBlock
-                                        Grid.Column="14"
+                                        Grid.Column="13"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsCreatedVisible}"
                                         Text="{Binding CreatedDisplay}" />
-                                    <TextBlock
-                                        Grid.Column="15"
-                                        Classes="list-cell accent"
-                                        IsVisible="{Binding $parent[ListBox].DataContext.IsFavoriteVisible}"
-                                        Text="{Binding FavoriteDisplay}" />
                                 </v:ColumnGrid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -636,30 +544,38 @@
             <Grid RowDefinitions="Auto,*">
 
                 <!--  v3.19 / NT-011：详情卡操作按钮整排删除 —— 播放/定位/信息/路径/发送/重命名/删除都与工具条 + 右键菜单重复，
-                      详情卡只留「只读信息 + 可编辑标签 + 标签管理（v3.20 移入）」。  -->
+                      详情卡只留「只读信息 + 可改文件名」。  -->
                 <TextBlock
                     Grid.Row="0"
                     Classes="section-title"
                     Text="选中视频"
-                    IsVisible="{Binding HasSelection}" />
+                    IsVisible="{Binding ShowDetailBody}" />
 
                 <ScrollViewer
                     Grid.Row="1"
                     Margin="0,12,0,0"
                     VerticalScrollBarVisibility="Auto">
-                    <StackPanel Spacing="10">
+                    <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户去改 / 保存一份假数据  -->
+                    <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
 
                         <TextBlock
                             Classes="empty-hint"
-                            IsVisible="{Binding !HasSelection}"
+                            IsVisible="{Binding !ShowDetailBody}"
                             Text="扫描一个目录后，在左侧列表里选中视频：这里会显示完整路径、大小、修改时间，以及分辨率 / 编码 / 码率 / 时长 —— 足够判断要不要剪辑或转码。勾上几行还能批量「发送到转码 / 剪切」。" />
+
+                        <!--  v3.32 §4.8.3：示例态标识（下面的值是示例数据，不可编辑）  -->
+                        <TextBlock
+                            Classes="hint-text"
+                            TextWrapping="Wrap"
+                            IsVisible="{Binding IsDetailSample}"
+                            Text="（示例数据）在左侧选中一个视频后，这里显示它的真实信息；示例态下卡片不可编辑。" />
 
                         <!--
                             §6.4.7 文件名**可编辑**：回车 / 失焦提交 → VideoFileService.RenameToAsync
-                            （复用防穿越 + 同名检查）→ 同步 video_catalog / video_favorites 的 path；⛔ 不整目录重扫。
+                            （复用防穿越 + 同名检查）；⛔ 不整目录重扫。
                             提交由代码后置（NameBox 的 KeyDown / LostFocus）触发，详情卡里不放按钮（规范 §6.4.1 第 3 条）。
                         -->
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                             <TextBlock Classes="field-label" Text="文件名（可改 · 回车 / 失焦提交）" />
                             <TextBox
                                 x:Name="NameBox"
@@ -667,102 +583,50 @@
                                 Text="{Binding EditName, Mode=TwoWay}" />
                         </StackPanel>
 
-                        <!--
-                            §6.4.6 / v3.21：标签**只能选，不能手打** —— 色片来源 = 标签库（video_tags），
-                            点一下 = 给当前视频打上 / 取消（即时写 video_catalog.tags，⛔ 没有保存按钮、⛔ 没有输入框）。
-                            已打上 = 本色彩片；未打上 = 淡显（点它就打上）。
-                            没入视频库的项会提示先点工具条「💾 加入视频库」。
-                        -->
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Classes="field-label" Text="标签（点色片打上 / 取消）" VerticalAlignment="Center" />
-                                <Button
-                                    Grid.Column="1"
-                                    Classes="ghost"
-                                    FontSize="11"
-                                    Padding="6,2"
-                                    Content="🏷 管理标签"
-                                    Command="{Binding OpenTagManagerCommand}"
-                                    ToolTip.Tip="标签库：搜索 / 改名 / 删除 / 新建（新建会存进标签库，改名或删除会作用到所有用到该标签的视频）" />
-                            </Grid>
-                            <ItemsControl Margin="0,4,0,0" ItemsSource="{Binding TagPicks}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button
-                                            Margin="0,0,4,4"
-                                            Padding="0"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Command="{Binding $parent[UserControl].DataContext.ToggleTagCommand}"
-                                            CommandParameter="{Binding}"
-                                            Cursor="Hand"
-                                            ToolTip.Tip="点一下打上 / 取消这个标签">
-                                            <Border
-                                                Classes="tag-chip"
-                                                Classes.off="{Binding !IsApplied}"
-                                                Background="{Binding SoftBrush}"
-                                                BorderBrush="{Binding Brush}">
-                                                <TextBlock
-                                                    Classes="tag-chip-text"
-                                                    Classes.off="{Binding !IsApplied}"
-                                                    Foreground="{Binding Brush}"
-                                                    Text="{Binding Name}" />
-                                            </Border>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                             <TextBlock Classes="field-label" Text="完整路径" />
-                            <SelectableTextBlock Classes="field-value" Text="{Binding Selected.FullPath}" />
+                            <SelectableTextBlock Classes="field-value" Text="{Binding DetailItem.FullPath}" />
                         </StackPanel>
 
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                             <TextBlock Classes="field-label" Text="类型 / 大小" />
                             <StackPanel Orientation="Horizontal" Spacing="10">
-                                <TextBlock Classes="field-value" Text="{Binding Selected.Extension}" />
-                                <TextBlock Classes="field-value" Text="{Binding Selected.SizeDisplay}" />
+                                <TextBlock Classes="field-value" Text="{Binding DetailItem.Extension}" />
+                                <TextBlock Classes="field-value" Text="{Binding DetailItem.SizeDisplay}" />
                             </StackPanel>
                         </StackPanel>
 
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                             <TextBlock Classes="field-label" Text="时长" />
-                            <TextBlock Classes="field-value" Text="{Binding Selected.DurationDisplay}" />
+                            <TextBlock Classes="field-value" Text="{Binding DetailItem.DurationDisplay}" />
                         </StackPanel>
 
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                             <TextBlock Classes="field-label" Text="分辨率" />
-                            <TextBlock Classes="field-value" Text="{Binding Selected.ResolutionDisplay}" />
+                            <TextBlock Classes="field-value" Text="{Binding DetailItem.ResolutionDisplay}" />
                         </StackPanel>
 
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                             <TextBlock Classes="field-label" Text="编码格式" />
-                            <TextBlock Classes="field-value" Text="{Binding Selected.CodecDisplay}" />
+                            <TextBlock Classes="field-value" Text="{Binding DetailItem.CodecDisplay}" />
                         </StackPanel>
 
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                             <TextBlock Classes="field-label" Text="码率" />
-                            <TextBlock Classes="field-value" Text="{Binding Selected.BitRateDisplay}" />
+                            <TextBlock Classes="field-value" Text="{Binding DetailItem.BitRateDisplay}" />
                         </StackPanel>
 
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                             <TextBlock Classes="field-label" Text="修改时间" />
-                            <TextBlock Classes="field-value" Text="{Binding Selected.ModifiedDisplay}" />
+                            <TextBlock Classes="field-value" Text="{Binding DetailItem.ModifiedDisplay}" />
                         </StackPanel>
 
-                        <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                             <TextBlock Classes="field-label" Text="媒体信息" />
                             <TextBlock
                                 Classes="field-value"
                                 Foreground="{DynamicResource SecondaryTextBrush}"
-                                Text="{Binding Selected.MediaStatus}" />
+                                Text="{Binding DetailItem.MediaStatus}" />
                         </StackPanel>
 
                     </StackPanel>
@@ -770,50 +634,5 @@
             </Grid>
         </Border>
 
-        <!--  v3.19 / NT-011：标签管理弹层（遮罩 + 居中卡片），盖在列表 + 详情之上  -->
-        <Grid Grid.Column="0" Grid.ColumnSpan="2" Background="#99000000" IsVisible="{Binding IsTagManagerOpen}">
-            <Border Classes="card" Width="430" MaxHeight="540" Padding="20" CornerRadius="12"
-                    HorizontalAlignment="Center" VerticalAlignment="Center">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="🏷 管理标签" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                    <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                               Text="改名 / 删除会作用到所有用到该标签的视频；「新建」直接存进标签库（还没用到任何视频也会留着）。"/>
-                    <!--  v3.21：标签多了要能找 —— 按名称过滤（空 = 全部）  -->
-                    <TextBox PlaceholderText="搜索标签…" Text="{Binding TagManagerFilter, Mode=TwoWay}"/>
-                    <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding TagManagerItems}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                            <!--  v3.20：行首色点与列表 / 详情卡 chip 同源同色  -->
-                                            <Ellipse Width="10" Height="10" Fill="{Binding DotBrush}" VerticalAlignment="Center" />
-                                            <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                            <TextBlock Text="{Binding CountDisplay}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <Button Grid.Column="1" Classes="ghost" Content="✏ 改名" Margin="0,0,6,0"
-                                                Command="{Binding $parent[UserControl].DataContext.RenameTagCommand}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button Grid.Column="2" Classes="danger-btn" Content="🗑" Padding="8,3"
-                                                Command="{Binding $parent[UserControl].DataContext.DeleteTagCommand}"
-                                                CommandParameter="{Binding}"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBox Grid.Column="0" Margin="0,0,8,0" PlaceholderText="新标签名…"
-                                 Text="{Binding NewTagInput, Mode=TwoWay}"/>
-                        <Button Grid.Column="1" Classes="primary" Content="＋ 新建" Command="{Binding CreateTagCommand}"/>
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <Button Grid.Column="0" Classes="ghost" Content="🔄 重读标签" Command="{Binding RefreshTagManagerCommand}"
-                                ToolTip.Tip="重新读一遍视频库里的标签清单"/>
-                        <Button Grid.Column="2" Classes="ghost" Content="关闭" Command="{Binding CloseTagManagerCommand}"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-        </Grid>
     </Grid>
 </UserControl>

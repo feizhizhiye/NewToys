@@ -19,11 +19,6 @@
               <TextBlock Text="⏸ 停止" IsVisible="{Binding IsPlaying}" VerticalAlignment="Center"/>
             </Panel>
           </Button>
-          <!--  v3.15 §6.4.2：取当前帧 → 抽成 jpg 落 data\thumbs → 经任务通道送「视频收藏」页建卡  -->
-          <Button Classes="ghost" Content="📸 取当前帧" Margin="0,0,6,4"
-                  Command="{Binding CaptureFrameCommand}"
-                  IsEnabled="{Binding HasSource}"
-                  ToolTip.Tip="把当前拖到的这一帧抽成图片，存进「视频收藏」页当缩略图（同一视频永远同一张图）"/>
           <!--  v3.19 / NT-012：预览旋转（纯视觉 RenderTransform，不改文件；同步命令卡「旋转」字段，保证转码后方向正确）  -->
           <Button Classes="ghost" Content="↻ 90°" Margin="0,0,6,4"
                   Command="{Binding RotatePreviewCwCommand}" IsEnabled="{Binding HasSource}"

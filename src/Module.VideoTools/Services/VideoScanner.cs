@@ -13,7 +13,7 @@ using NewToys.VideoTools.Models;
 namespace NewToys.VideoTools.Services;
 
 /// <summary>
-/// 视频库的目录扫描与媒体信息探测。
+/// 视频列表的目录扫描与媒体信息探测。
 /// <para>
 /// 扫描**只读文件系统元信息**（名称 / 大小 / 修改时间），保证几百个文件的目录也是瞬间出列表；
 /// 时长 / 分辨率 / 编码 / 码率走 ffprobe，由调用方决定单个读还是并发批量读

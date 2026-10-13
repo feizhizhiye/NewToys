@@ -50,7 +50,7 @@ public static class VideoFileService
 
     /// <summary>
     /// v3.15：详情卡内**直接改名**（不弹输入框，新名字由调用方给）。校验同 <see cref="RenameAsync"/>，
-    /// 成功返回新完整路径（调用方据此同步内存里的 <c>VideoItem</c> 与视频库 path）。
+    /// 成功返回新完整路径（调用方据此同步内存里的 <c>VideoItem</c>）。
     /// </summary>
     public static async Task<(bool Ok, string Message, string? NewPath)> RenameToAsync(string fullPath, string newName)
     {

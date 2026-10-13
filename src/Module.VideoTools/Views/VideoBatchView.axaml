@@ -515,19 +515,27 @@
             Classes="detail-card"
             IsVisible="{Binding IsDetailVisible}">
             <ScrollViewer Margin="0,0,8,0" VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="0,0,0,0" Spacing="6">
+                <!--  v3.32 §4.8.3：示例态（没选中任务）时整卡禁用，⛔ 不让用户去改 / 保存一份假任务  -->
+                <StackPanel Margin="0,0,0,0" Spacing="6" IsEnabled="{Binding !IsDetailSample}">
 
                     <TextBlock
                         Classes="empty-hint"
-                        IsVisible="{Binding !HasSelection}"
+                        IsVisible="{Binding !ShowDetailBody}"
                         Text="在左侧选中一个任务：这里可以改它的参数（剪辑 = 区间 / 预设；转码 = 预设 / 编码器 / CRF / 分辨率），改完点工具条上的「💾 保存修改」。" />
 
-                    <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                    <!--  v3.32 §4.8.3：示例态标识（下面是示例任务，不可编辑）  -->
+                    <TextBlock
+                        Classes="hint-text"
+                        TextWrapping="Wrap"
+                        IsVisible="{Binding IsDetailSample}"
+                        Text="（示例数据）在左侧选中一个任务后，这里显示它的真实参数；示例态下卡片不可编辑。" />
+
+                    <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                         <TextBlock Classes="field-label" Text="类型 / 文件" />
                         <TextBlock
                             Classes="field-value"
                             FontWeight="SemiBold"
-                            Text="{Binding Selected.Name}" />
+                            Text="{Binding DetailTask.Name}" />
                     </StackPanel>
 
                     <!--
@@ -535,7 +543,7 @@
                         v3.16 §6.4.1：勾选框在两页都**可交互** —— 批量页勾 / 取消 = 切换任务类型
                         （剪辑 ⇄ 转码 ⇄ 剪辑+转码），所以这里不再用 IsVisible 按类型藏整段。
                     -->
-                    <Expander IsExpanded="{Binding IsCutSectionExpanded, Mode=TwoWay}" IsVisible="{Binding HasSelection}">
+                    <Expander IsExpanded="{Binding IsCutSectionExpanded, Mode=TwoWay}" IsVisible="{Binding ShowDetailBody}">
                         <Expander.Header>
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <CheckBox IsChecked="{Binding EditIsCut, Mode=TwoWay}" VerticalAlignment="Center"
@@ -606,7 +614,7 @@
                         v3.16 §6.4.1：勾选框可交互 —— 取消 = 变成纯剪辑任务；两段都勾 = "剪辑+转码"一条命令。
                         ⛔ 段内不再单独放一组"剪辑区间"输入（区间归剪辑分区，两页一致）。
                     -->
-                    <Expander IsExpanded="{Binding IsTranscodeSectionExpanded, Mode=TwoWay}" IsVisible="{Binding HasSelection}">
+                    <Expander IsExpanded="{Binding IsTranscodeSectionExpanded, Mode=TwoWay}" IsVisible="{Binding ShowDetailBody}">
                         <Expander.Header>
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <CheckBox IsChecked="{Binding EditIsTranscode, Mode=TwoWay}" VerticalAlignment="Center"
@@ -739,7 +747,7 @@
                     <StackPanel
                         Margin="0,2,0,0"
                         Classes="field"
-                        IsVisible="{Binding HasSelection}">
+                        IsVisible="{Binding ShowDetailBody}">
                         <TextBlock Classes="field-label" Text="输出文件（留空 = 自动命名，绝不覆盖已有文件）" />
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox
@@ -757,8 +765,8 @@
                     </StackPanel>
 
                     <!--  ④ 命令（自动生成 + 可手改；与「视频预览」页同一段结构）  -->
-                    <Border Classes="divider-line" IsVisible="{Binding HasSelection}" />
-                    <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                    <Border Classes="divider-line" IsVisible="{Binding ShowDetailBody}" />
+                    <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                         <TextBlock Classes="field-label" Text="将要执行的命令（改参数即时刷新，实际跑的就是这条）" />
                         <SelectableTextBlock
                             Classes="field-value"
@@ -769,7 +777,7 @@
                     <StackPanel
                         Margin="0,0,8,0"
                         Classes="field"
-                        IsVisible="{Binding HasSelection}">
+                        IsVisible="{Binding ShowDetailBody}">
                         <TextBlock Classes="field-label" Text="ffmpeg 参数（可手动编辑；不含 ffmpeg.exe 与输出路径）" />
                         <TextBox
                             MinHeight="44"
@@ -790,10 +798,10 @@
                     <Border
                         Margin="0,0,8,0"
                         Classes="divider-line"
-                        IsVisible="{Binding HasSelection}" />
+                        IsVisible="{Binding ShowDetailBody}" />
                     <StackPanel
                         Margin="0,0,8,0"
-                        IsVisible="{Binding HasSelection}"
+                        IsVisible="{Binding ShowDetailBody}"
                         Spacing="4">
                         <TextBlock Classes="section-title" Text="处理前 → 处理后" />
                         <ItemsControl ItemsSource="{Binding CompareRows}">
@@ -826,13 +834,13 @@
                         <TextBlock Classes="hint-text" Text="「后」这一列在跑完之后才有值（转码会自动用 ffprobe 探测输出文件）。" />
                     </StackPanel>
 
-                    <StackPanel Classes="field" IsVisible="{Binding HasSelection}">
+                    <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
                         <TextBlock Classes="field-label" Text="任务状态" />
-                        <TextBlock Classes="field-value" Text="{Binding Selected.StatusDisplay}" />
+                        <TextBlock Classes="field-value" Text="{Binding DetailTask.StatusDisplay}" />
                         <TextBlock
                             Margin="0,2,0,0"
                             Classes="hint-text"
-                            Text="{Binding Selected.Message}"
+                            Text="{Binding DetailTask.Message}"
                             TextWrapping="Wrap" />
                     </StackPanel>
 

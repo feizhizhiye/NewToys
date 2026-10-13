@@ -49,9 +49,6 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
     private readonly IAppConfigService? _cfg;
     private readonly IColumnLayoutService? _cols;
 
-    /// <summary>v3.15 §6.4.2：「📸 取当前帧」抽出来的图要落 <c>data\thumbs</c>（缩略图目录由它管）。</summary>
-    private readonly VideoFavoritesService? _fav;
-
     private bool _extracting;
     private double _pendingPreview = -1;
     private int _previewIndex;
@@ -274,56 +271,6 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
             } while (time >= 0);
         }
         finally { _extracting = false; }
-    }
-
-    /// <summary>
-    /// 📸 取当前帧（需求 §6.4.2）：把当前拖到的这一帧用 ffmpeg 抽成 jpg，落
-    /// <c>data\thumbs\{sha1(源路径)}.jpg</c>，再经 <see cref="VideoTaskStore"/> 的任务通道送「视频收藏」页建卡。
-    /// <para>
-    /// ⛔ **不自动跳转**：用户正在拖着看画面，别把他拽走 —— 卡片由收藏页在下次挂载时建好
-    /// （取件点在 <c>VideoFavoritesView.OnAttachedToVisualTree</c>，见规范 §4.8 硬规则 8）。
-    /// </para>
-    /// </summary>
-    [RelayCommand]
-    private async Task CaptureFrameAsync()
-    {
-        var src = SourcePath;
-        if (string.IsNullOrWhiteSpace(src) || !File.Exists(src)) { StatusText = "先「📂 选择视频」挑一个文件。"; return; }
-        if (_fav == null || !_fav.IsAvailable) { StatusText = "收藏不可用（数据库未就绪）。"; return; }
-
-        try
-        {
-            Directory.CreateDirectory(_fav.ThumbsDir);
-            var name = VideoFavoritesService.ThumbFileName(src);
-            var target = Path.Combine(_fav.ThumbsDir, name);
-
-            // ⚠️ 先写临时文件再替换：目标 jpg 可能正被收藏页的 Bitmap 占着，直接覆盖会写失败
-            var tmp = target + ".tmp.jpg";
-            var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
-            if (!await FfmpegService.ExtractFrameAsync(ffmpeg, src, PreviewTime, tmp) || !File.Exists(tmp))
-            {
-                StatusText = "抽帧失败：ffmpeg 没跑成功（检查「设置 → 路径」里的 ffmpeg 路径）。";
-                return;
-            }
-
-            try
-            {
-                if (File.Exists(target)) File.Delete(target);
-                File.Move(tmp, target);
-            }
-            catch
-            {
-                try { File.Delete(tmp); } catch { /* 清不掉就算了 */ }
-                StatusText = "抽帧成功，但缩略图写不进去（文件被占用？）。";
-                return;
-            }
-
-            _fav.Add(src, name);                   // 没收藏过就顺手建一条（同一路径永远同一张图）
-            _store?.EnqueueFrame(src, name);       // 交给收藏页建卡
-            StatusText = $"已取第 {CutTask.FormatTime(PreviewTime)} 这一帧 → 收藏页（{name}）；"
-                         + "标签要存得住，还得在收藏页里点「💾 加入视频库」。";
-        }
-        catch (Exception ex) { StatusText = "取当前帧失败：" + ex.Message; }
     }
 
     /// <summary>
@@ -899,13 +846,11 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider
 
     public VideoPreviewViewModel() { }
 
-    public VideoPreviewViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService? cols = null,
-                                 VideoFavoritesService? fav = null)
+    public VideoPreviewViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService? cols = null)
     {
         _store = store;
         _cfg = cfg;
         _cols = cols;
-        _fav = fav;
         if (cols != null)
             IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel, true);
     }

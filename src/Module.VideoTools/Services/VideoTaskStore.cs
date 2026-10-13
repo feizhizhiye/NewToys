@@ -44,12 +44,6 @@ public class VideoTaskStore
     /// <summary>「视频列表」页多选后要送过来的文件（剪切页进来时取走）。</summary>
     private readonly List<string> _pendingCut = new();
 
-    /// <summary>
-    /// v3.15：「视频预览」页「📸 取当前帧」抽出来的帧（<b>源文件路径 + 缩略图文件名</b>），
-    /// 由「视频收藏」页取走建卡（需求 §6.4.2 / §6.4.9）。⛔ 不落盘（只是页面间的一次性交接）。
-    /// </summary>
-    private readonly List<(string Path, string Thumb)> _pendingFrames = new();
-
     public VideoTaskStore(ConfigStoreService cfg)
     {
         _cfg = cfg;
@@ -81,17 +75,6 @@ public class VideoTaskStore
     {
         var list = _pendingCut.ToList();
         _pendingCut.Clear();
-        return list;
-    }
-
-    /// <summary>v3.15：登记一张抽出来的帧（「📸 取当前帧」用）。</summary>
-    public void EnqueueFrame(string sourcePath, string thumbFileName) => _pendingFrames.Add((sourcePath, thumbFileName));
-
-    /// <summary>v3.15：取走待建卡的帧（取一次就清空）。收藏页在 <c>OnAttachedToVisualTree</c> 里调。</summary>
-    public List<(string Path, string Thumb)> TakePendingFrames()
-    {
-        var list = _pendingFrames.ToList();
-        _pendingFrames.Clear();
         return list;
     }
 

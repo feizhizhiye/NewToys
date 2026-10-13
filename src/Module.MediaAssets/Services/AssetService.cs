@@ -153,6 +153,92 @@ public class AssetService
         catch { /* 忽略 */ }
     }
 
+    // ==================== 存储源统计 / 错误（NT-020 存储源页） ====================
+
+    /// <summary>
+    /// 一个存储源的统计：文件位置数 / 已用大小 / 缺失位置数 / 按资产类型分布。
+    /// ⛔ 三次查询封一个方法（页面临时刷新用，⛔ 不 per-row 查）。
+    /// </summary>
+    public StorageStats GetStorageStats(long storageId)
+    {
+        var stats = new StorageStats { StorageId = storageId };
+        if (!IsAvailable) return stats;
+        try
+        {
+            using var conn = _db.Db.Open();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText =
+                    "SELECT COUNT(*), IFNULL(SUM(size),0) FROM file_locations WHERE storage_id=$sid;";
+                cmd.Parameters.AddWithValue("$sid", storageId);
+                using var r = cmd.ExecuteReader();
+                if (r.Read()) { stats.FileCount = r.GetInt32(0); stats.TotalSize = r.GetInt64(1); }
+            }
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText =
+                    "SELECT COUNT(*) FROM file_locations WHERE storage_id=$sid AND status='missing';";
+                cmd.Parameters.AddWithValue("$sid", storageId);
+                stats.MissingCount = Convert.ToInt32(cmd.ExecuteScalar());
+            }
+            using (var cmd = conn.CreateCommand())
+            {
+                // 按类型分布要 join assets（位置表本身没有类型）—— 一次 GROUP BY 拿全
+                cmd.CommandText =
+                    "SELECT a.type, COUNT(*), IFNULL(SUM(l.size),0) " +
+                    "FROM file_locations l JOIN assets a ON a.id = l.asset_id " +
+                    "WHERE l.storage_id=$sid GROUP BY a.type ORDER BY COUNT(*) DESC;";
+                cmd.Parameters.AddWithValue("$sid", storageId);
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    stats.ByType.Add((r.GetString(0), r.GetInt32(1), r.GetInt64(2)));
+            }
+        }
+        catch { /* 返回已读到的部分 */ }
+        return stats;
+    }
+
+    /// <summary>一个存储源最近的扫描错误（`scan_errors` ⋈ `scan_jobs` 按 storage_id 过滤；新的在前）。</summary>
+    public List<(string Path, string Message, string CreatedAt)> ListStorageScanErrors(long storageId, int limit = 5)
+    {
+        var list = new List<(string, string, string)>();
+        if (!IsAvailable) return list;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                "SELECT IFNULL(e.path,''), e.message, e.created_at " +
+                "FROM scan_errors e JOIN scan_jobs j ON j.id = e.scan_job_id " +
+                "WHERE j.storage_id=$sid ORDER BY e.id DESC LIMIT $lim;";
+            cmd.Parameters.AddWithValue("$sid", storageId);
+            cmd.Parameters.AddWithValue("$lim", limit);
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+                list.Add((r.GetString(0), r.GetString(1), r.GetString(2)));
+        }
+        catch { /* 返回已读到的 */ }
+        return list;
+    }
+
+    /// <summary>某存储源最近一次扫描的开始时间（列表「最近扫描」列；没有过扫描 → 空串）。</summary>
+    public string LastScanText(long storageId)
+    {
+        if (!IsAvailable) return "";
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                "SELECT IFNULL(MAX(started_at),'') FROM scan_jobs WHERE storage_id=$sid;";
+            cmd.Parameters.AddWithValue("$sid", storageId);
+            var v = cmd.ExecuteScalar();
+            return v is string s ? s : "";
+        }
+        catch { return ""; }
+    }
+
     // ==================== 资产 ====================
 
     public Asset? FindAsset(long id)

@@ -1,17 +1,176 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.MediaAssets.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetStoragesView">
-  <!--  NT-014 骨架占位：本页真正的列表 / 详情 / 工具条 / 筛选在后续待办（NT-016~022）依次落地。  -->
-  <Grid RowDefinitions="Auto,*">
-    <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
-      <TextBlock Classes="section-title" Text="存储源"/>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="local / removable / nas；在线状态；移除只移索引、不删磁盘文件"/>
-    </StackPanel>
-    <Border Grid.Row="1" Margin="24,12,24,16" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="🚧 骨架占位（NT-014）"/>
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="页面实现在后续待办落地"/>
-      </StackPanel>
+  <!--
+    NT-020「存储源」页：列表（名称 / 根路径 / 类型 / 状态 / 文件数 / 最近扫描）+ 详情卡（由 **Shell** 承载）。
+    🔴 与其它媒体资产列表页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，DetailContent 返回 StorageDetailView）。
+    工具条 = 页面级功能（添加 / 扫描）；行右键 = 针对单条的动作（重命名 / 切类型 / 上下线 / 移除）。
+  -->
+  <Grid RowDefinitions="Auto,Auto,*" Margin="12">
+
+    <!--  ==================== ① 工具条（页面级功能） ====================  -->
+    <Border Grid.Row="0" Classes="toolbar">
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                   ItemSpacing="8" LineSpacing="4">
+          <Button Classes="primary" Content="➕ 添加存储源" Click="OnAddStorageClick"
+                  IsEnabled="{Binding IsDbAvailable}"
+                  ToolTip.Tip="登记一个目录为存储源（⛔ 不扫描；扫描是下面的显式动作）"/>
+          <Button Classes="ghost" Content="🔍 扫描选中" Command="{Binding ScanSelectedCommand}"
+                  IsEnabled="{Binding CanScanSelected}"
+                  ToolTip.Tip="把选中的存储源扫一遍并直接入库（进度在「任务中心」看）"/>
+          <Button Classes="ghost" Content="🔍 扫描全部" Command="{Binding ScanAllCommand}"
+                  IsEnabled="{Binding IsDbAvailable}"
+                  ToolTip.Tip="所有存储源扫一遍（离线的自动跳过）"/>
+          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}"
+                   PlaceholderText="搜索名称 / 根路径…"/>
+          <!--  🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库 + 逐个体探测在线状态  -->
+          <Button Classes="ghost" Content="🔄 重读存储源" Command="{Binding RefreshStoragesCommand}"
+                  ToolTip.Tip="重新读取存储源表，并逐个探测根目录是否可访问（在线 / 离线）"/>
+        </WrapPanel>
+
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Command="{Binding ToggleDetailPanelCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一个存储源）">
+          <Panel>
+            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsDetailVisible}"/>
+            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsDetailVisible}"/>
+          </Panel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!--  ==================== ② 筛选条 ====================  -->
+    <Border Grid.Row="1" Classes="filter-bar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
+        <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <TextBlock Text="左键表头排序 · 右键表头选列 / 筛选" FontSize="11" VerticalAlignment="Center"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </WrapPanel>
+    </Border>
+
+    <!--  ==================== ③ 列表本体 ====================  -->
+    <Border Grid.Row="2" Padding="0" Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
+      <Grid RowDefinitions="Auto,Auto,*">
+
+        <Border Grid.Row="0" Classes="list-header">
+          <v:ColumnGrid x:Name="HeaderGrid"
+                        ColumnSpecs="{Binding VisibleColumnSpecs}"
+                        IsResizable="True"
+                        LockedColumns="{Binding LockedColumnMask}"
+                        SampleSpecs="{Binding SampleSpecs}">
+            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
+            <Button Grid.Column="1" Classes="col-header" Content="{Binding RootHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Root" IsVisible="{Binding IsRootVisible}"/>
+            <Button Grid.Column="2" Classes="col-header" Content="{Binding TypeHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Type" IsVisible="{Binding IsTypeVisible}"/>
+            <Button Grid.Column="3" Classes="col-header" Content="{Binding StatusHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Status" IsVisible="{Binding IsStatusVisible}"/>
+            <Button Grid.Column="4" Classes="col-header" Content="{Binding FilesHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Files" IsVisible="{Binding IsFilesVisible}"/>
+            <Button Grid.Column="5" Classes="col-header" Content="{Binding LastScanHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="LastScan" IsVisible="{Binding IsLastScanVisible}"/>
+
+            <v:ColumnGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                  <MenuItem.ItemContainerTheme>
+                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                      <Setter Property="Header" Value="{Binding Label}"/>
+                      <Setter Property="Command" Value="{Binding Command}"/>
+                    </ControlTheme>
+                  </MenuItem.ItemContainerTheme>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
+                          IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
+                <MenuItem Header="根路径" ToggleType="CheckBox" IsChecked="{Binding IsRootVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Root"/>
+                <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
+                <MenuItem Header="状态" ToggleType="CheckBox" IsChecked="{Binding IsStatusVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Status"/>
+                <MenuItem Header="文件数" ToggleType="CheckBox" IsChecked="{Binding IsFilesVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Files"/>
+                <MenuItem Header="最近扫描" ToggleType="CheckBox" IsChecked="{Binding IsLastScanVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="LastScan"/>
+              </ContextMenu>
+            </v:ColumnGrid.ContextMenu>
+          </v:ColumnGrid>
+        </Border>
+
+        <!--  示例行（v3.32 §4.8.3：空列表时给一条半透明占位，顺便判定列宽）  -->
+        <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
+                ToolTip.Tip="这是示例数据（列宽就按它判定）；登记存储源后这一行会消失">
+          <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+            <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding SampleRowTexts[0]}"
+                       Foreground="{DynamicResource PrimaryTextBrush}" IsVisible="{Binding IsNameVisible}"/>
+            <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SampleRowTexts[1]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsRootVisible}"/>
+            <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SampleRowTexts[2]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTypeVisible}"/>
+            <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding SampleRowTexts[3]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsStatusVisible}"/>
+            <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding SampleRowTexts[4]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsFilesVisible}"/>
+            <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding SampleRowTexts[5]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsLastScanVisible}"/>
+          </v:ColumnGrid>
+        </Border>
+
+        <ListBox Grid.Row="2" x:Name="StorageList" Classes="list-page"
+                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                 SelectionMode="Single">
+          <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；ContextMenu 的 DataContext 由 code-behind 同步  -->
+          <ListBox.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="🔍 重新扫描" Command="{Binding ScanSelectedCommand}"
+                        ToolTip.Tip="把这个存储源再扫一遍（进度在「任务中心」看）"/>
+              <Separator/>
+              <MenuItem Header="✏ 重命名…" Command="{Binding RenameStorageCommand}"
+                        ToolTip.Tip="只改库里的名称，⛔ 不动磁盘"/>
+              <MenuItem Header="🔁 切换类型" Command="{Binding CycleTypeCommand}"
+                        ToolTip.Tip="本地 → 移动 → NAS 循环"/>
+              <MenuItem Header="⬆ 上线 / ⬇ 下线" Command="{Binding ToggleOnlineCommand}"
+                        ToolTip.Tip="下线 = 扫描跳过它（其下文件不会被标成丢失）"/>
+              <Separator/>
+              <MenuItem Header="🗑 移除存储源…" Command="{Binding RemoveStorageCommand}"
+                        ToolTip.Tip="只删索引，⛔ 不删磁盘文件"/>
+            </ContextMenu>
+          </ListBox.ContextMenu>
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           ToolTip.Tip="{Binding RootPath}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding RootPath}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsRootVisible}"/>
+                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TypeText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StatusText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"/>
+                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding FileCountText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsFilesVisible}"/>
+                <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding LastScanText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsLastScanVisible}"/>
+              </v:ColumnGrid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
     </Border>
   </Grid>
 </UserControl>

@@ -38,6 +38,8 @@ public class MediaAssetsModule : IModule
         services.AddSingleton<Services.AssetNavigationStore>();
         // NT-019：物理操作（唯一动磁盘的地方）+ 任务队列已在上面注册
         services.AddSingleton<Services.FileOperationService>();
+        // NT-020：存储源（在线探测 + 统计编排）
+        services.AddSingleton<Services.StorageService>();
 
         // ===== 页面 View / VM（NT-014 骨架：全是空页面；页面实现 NT-016~022 依次落地） =====
         services.AddTransient<Views.AssetAllView>();        services.AddTransient<ViewModels.AssetAllViewModel>();

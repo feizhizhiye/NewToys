@@ -1,17 +1,223 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.MediaAssets.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetAllView">
-  <!--  NT-014 骨架占位：本页真正的列表 / 详情 / 工具条 / 筛选在后续待办（NT-016~022）依次落地。  -->
-  <Grid RowDefinitions="Auto,*">
-    <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
-      <TextBlock Classes="section-title" Text="全部资产"/>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="混合视图：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源"/>
-    </StackPanel>
-    <Border Grid.Row="1" Margin="24,12,24,16" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="🚧 骨架占位（NT-014）"/>
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="页面实现在后续待办落地"/>
-      </StackPanel>
+  <!--
+    NT-016「全部资产」样板列表页。
+    🔴 与旧列表页（Ping / 视频列表）最大的不同：**本页没有右栏详情卡** —— 详情面板改由 **Shell**
+       承载（VM 实现 IDetailPanelProvider，DetailContent 返回 AssetDetailView）。
+       ⛔ 若本页再自带一栏，右列会出现两个详情卡（Shell 一个、页面一个）。
+
+    布局：工具条 / 筛选条 / 列表 三行（右列由 Shell 补上，凑成三列）。
+  -->
+  <Grid RowDefinitions="Auto,Auto,*" Margin="12">
+
+    <!--  ==================== ① 工具条  ====================  -->
+    <Border Grid.Row="0" Classes="toolbar">
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+
+          <!--
+            ⚠️ 用两个按钮而不是需求里写的 SplitButton：SplitButton 的主按钮只接受 Command（无 Click），
+            而「选目录 / 选文件」必须走 View 的 TopLevel.StorageProvider —— 由 View 的 Click 里完成；
+            走 VM 命令还得再搭一层"请求弹框"的事件管道。功能等价，先省掉这层复杂度。
+          -->
+          <Button x:Name="BtnImportFolder" Classes="primary" Content="📁 导入文件夹" Margin="0,0,8,0"
+                  IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="选择一个目录登记为存储源并扫描（会做丢失校准）"/>
+          <Button x:Name="BtnImportFiles" Classes="ghost" Content="📄 导入文件" Margin="0,0,8,0"
+                  IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="只导入选中的几个文件（不做丢失校准）"/>
+
+          <!--  NT-018（标签 / 分类 / 集合 + 逻辑操作）落地前先灰掉：⛔ 不做假按钮（能点却没反应最伤）  -->
+          <Button Classes="ghost" Content="🏷 批量加标签" Margin="0,0,8,0" IsEnabled="False"
+                  ToolTip.Tip="NT-018 落地"/>
+          <Button Classes="ghost" Content="🗂 批量加集合" Margin="0,0,8,0" IsEnabled="False"
+                  ToolTip.Tip="NT-018 落地"/>
+          <Button Classes="ghost" Content="💾 存为智能集合" Margin="0,0,8,0" IsEnabled="False"
+                  ToolTip.Tip="NT-018 落地"/>
+
+          <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,0"
+                  Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"/>
+          <TextBox Width="220" Margin="0,0,8,0" Text="{Binding SearchText, Mode=TwoWay}"
+                   PlaceholderText="搜索名称 / 路径 / 标签…"/>
+        </WrapPanel>
+
+        <!--  末位：详情开关（v3.12 起从表头挪到工具条）
+              ⛔ 绑 ToggleDetailPanelCommand —— 基类的 ToggleDetailCommand 不通知 Shell，右列不会出现  -->
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Command="{Binding ToggleDetailPanelCommand}"
+                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+          <Panel>
+            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsDetailVisible}"/>
+            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsDetailVisible}"/>
+          </Panel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <!--  ==================== ② 筛选条（改任一条件即时重算：VM 的 OnFilterXxxChanged → ApplyView）  ====================  -->
+    <Border Grid.Row="1" Classes="filter-bar">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock Text="类型" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <ComboBox Classes="filter-combo" Width="110" Margin="0,0,10,0"
+                  ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding FilterType, Mode=TwoWay}"/>
+
+        <TextBlock Text="存储源" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <ComboBox Classes="filter-combo" Width="150" Margin="0,0,10,0"
+                  ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding FilterStorage, Mode=TwoWay}"/>
+
+        <TextBlock Text="状态" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <ComboBox Classes="filter-combo" Width="110" Margin="0,0,10,0"
+                  ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding FilterStatus, Mode=TwoWay}"/>
+
+        <TextBlock Text="标签" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <ComboBox Classes="filter-combo" Width="140" Margin="0,0,10,0"
+                  ItemsSource="{Binding TagOptions}" SelectedItem="{Binding FilterTag, Mode=TwoWay}"/>
+
+        <TextBlock Text="左键表头排序 · 右键表头选列 / 筛选" FontSize="11" VerticalAlignment="Center"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </WrapPanel>
+    </Border>
+
+    <!--  ==================== ③ 列表本体  ====================  -->
+    <Border Grid.Row="2" Padding="0" Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
+      <Grid RowDefinitions="Auto,Auto,*">
+
+        <!--  表头（IsResizable = 列边界可拖；LockedColumns / SampleSpecs 供"示例宽 ≤ 表头宽就锁宽"用）  -->
+        <Border Grid.Row="0" Classes="list-header">
+          <v:ColumnGrid x:Name="HeaderGrid"
+                        ColumnSpecs="{Binding VisibleColumnSpecs}"
+                        IsResizable="True"
+                        LockedColumns="{Binding LockedColumnMask}"
+                        SampleSpecs="{Binding SampleSpecs}">
+            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Name"
+                    IsVisible="{Binding IsNameVisible}"/>
+            <Button Grid.Column="1" Classes="col-header" Content="{Binding TypeHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Type"
+                    IsVisible="{Binding IsTypeVisible}"/>
+            <Button Grid.Column="2" Classes="col-header" Content="{Binding TagsHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Tags"
+                    IsVisible="{Binding IsTagsVisible}"/>
+            <Button Grid.Column="3" Classes="col-header" Content="{Binding CategoriesHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Categories"
+                    IsVisible="{Binding IsCategoriesVisible}"/>
+            <Button Grid.Column="4" Classes="col-header" Content="{Binding CollectionsHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Collections"
+                    IsVisible="{Binding IsCollectionsVisible}"/>
+            <Button Grid.Column="5" Classes="col-header" Content="{Binding SizeHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Size"
+                    IsVisible="{Binding IsSizeVisible}"/>
+            <Button Grid.Column="6" Classes="col-header" Content="{Binding ModifiedHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Modified"
+                    IsVisible="{Binding IsModifiedVisible}"/>
+            <Button Grid.Column="7" Classes="col-header" Content="{Binding StorageHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Storage"
+                    IsVisible="{Binding IsStorageVisible}"/>
+
+            <v:ColumnGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                  <MenuItem.ItemContainerTheme>
+                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                      <Setter Property="Header" Value="{Binding Label}"/>
+                      <Setter Property="Command" Value="{Binding Command}"/>
+                    </ControlTheme>
+                  </MenuItem.ItemContainerTheme>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
+                          IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                          ToolTip.Tip="标识列固定显示，不可隐藏"/>
+                <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
+                <MenuItem Header="标签" ToggleType="CheckBox" IsChecked="{Binding IsTagsVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Tags"/>
+                <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsCategoriesVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Categories"/>
+                <MenuItem Header="集合" ToggleType="CheckBox" IsChecked="{Binding IsCollectionsVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Collections"/>
+                <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
+                <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
+                <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Storage"/>
+              </ContextMenu>
+            </v:ColumnGrid.ContextMenu>
+          </v:ColumnGrid>
+        </Border>
+
+        <!--
+          v3.22 §4.8.1 **示例行**（空态水印）：列表为空时显示一条，让用户先看清每列是什么；
+          有真实数据后整条消失。⛔ 它不在 Items 里：不参与筛选 / 排序 / 统计。
+        -->
+        <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
+                ToolTip.Tip="这是示例数据（列宽就按它判定）；导入 / 扫描到真实资产后这一行会消失">
+          <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+            <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding SampleRowTexts[0]}"
+                       Foreground="{DynamicResource PrimaryTextBrush}" IsVisible="{Binding IsNameVisible}"/>
+            <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SampleRowTexts[1]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTypeVisible}"/>
+            <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SampleRowTexts[2]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTagsVisible}"/>
+            <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding SampleRowTexts[3]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCategoriesVisible}"/>
+            <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding SampleRowTexts[4]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCollectionsVisible}"/>
+            <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding SampleRowTexts[5]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsSizeVisible}"/>
+            <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding SampleRowTexts[6]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsModifiedVisible}"/>
+            <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding SampleRowTexts[7]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsStorageVisible}"/>
+          </v:ColumnGrid>
+        </Border>
+
+        <ListBox Grid.Row="2" x:Name="AssetList" Classes="list-page"
+                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                 SelectionMode="Single">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           ToolTip.Tip="{Binding FilePath}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
+                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TagsText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsTagsVisible}"/>
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding CategoriesText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsCategoriesVisible}"/>
+                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding CollectionsText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsCollectionsVisible}"/>
+                <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding SizeText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
+                <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding ModifiedText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
+                <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding StorageName}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
+              </v:ColumnGrid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
     </Border>
   </Grid>
 </UserControl>

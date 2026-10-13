@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.MediaAssets.Views.Detail.AssetDetailView">
+  <!--
+    NT-016 资产详情卡。
+    ⚠️ 外壳（340px 宽 / 背景 / 左边线）由 **Shell 的右详情列**提供（见 ShellView 的 DetailPanel），
+       所以这里**⛔ 不再套 Border.detail-card**（否则双层卡片 + 双重内边距）。
+
+    🔴 卡内**零操作按钮**（需求 §6.6 / NT-016 验收）：所有动作都在工具条 / 右键菜单。
+       显示名的保存方式 = 输入框**失焦**即存（code-behind 转调 VM 的 SaveDisplayNameCommand）。
+  -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="12" Spacing="10">
+
+      <!--  没选中时给一句引导  -->
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasSelection}"
+                 Text="在左侧列表里选中一个资产，这里显示它的详情。"/>
+
+      <StackPanel Spacing="10" IsVisible="{Binding HasSelection}">
+
+        <!--  ===== 显示名（唯一可编辑项）=====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="显示名（只改库里的名字，⛔ 不动磁盘文件）"/>
+          <TextBox x:Name="DisplayNameBox" Text="{Binding DetailDisplayName, Mode=TwoWay}"
+                   PlaceholderText="留空 = 用扫描时得到的标题"/>
+        </StackPanel>
+
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 基本信息（只读）=====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="类型"/>
+          <TextBlock Classes="field-value" Text="{Binding Selected.TypeText}"/>
+
+          <TextBlock Classes="field-label" Text="状态"/>
+          <TextBlock Classes="field-value" Text="{Binding Selected.StatusText}"/>
+
+          <TextBlock Classes="field-label" Text="大小"/>
+          <TextBlock Classes="field-value" Text="{Binding Selected.SizeText}"/>
+
+          <TextBlock Classes="field-label" Text="修改时间"/>
+          <TextBlock Classes="field-value" Text="{Binding Selected.ModifiedText}"/>
+
+          <TextBlock Classes="field-label" Text="存储源"/>
+          <TextBlock Classes="field-value" Text="{Binding Selected.StorageName}"/>
+        </StackPanel>
+
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 文件路径（可复制）=====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="文件路径"/>
+          <SelectableTextBlock Classes="field-value" Text="{Binding Selected.FilePath}" TextWrapping="Wrap"/>
+          <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                     Text="重命名 / 移动 / 复制 / 删除**磁盘上的文件**是显式操作，在 NT-019 落地。"/>
+        </StackPanel>
+
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 组织信息（NT-018 才有数据可改；现在先如实显示，没有就写"（无）"）=====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="标签"/>
+          <TextBlock Classes="field-value" Text="{Binding Selected.TagsText}" TextWrapping="Wrap"/>
+
+          <TextBlock Classes="field-label" Text="分类"/>
+          <TextBlock Classes="field-value" Text="{Binding Selected.CategoriesText}" TextWrapping="Wrap"/>
+
+          <TextBlock Classes="field-label" Text="集合"/>
+          <TextBlock Classes="field-value" Text="{Binding Selected.CollectionsText}" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 文件位置（一个资产可能有多份拷贝 / 多个路径）=====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="文件位置"/>
+          <ItemsControl ItemsSource="{Binding Locations}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="0,0,0,6">
+                  <!--  ⚠️ FileLocation 的属性就叫 Path → **必须写 `Path=Path`**：
+                        简写的 `{Binding Path}` 会被解析成"给 Binding 的 Path 属性赋值"，绑不出东西。  -->
+                  <SelectableTextBlock Classes="field-value" Text="{Binding Path=Path}" TextWrapping="Wrap"/>
+                  <TextBlock Classes="hint-text" Text="{Binding Status}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding Selected.IsMissing}"
+                     Text="⚠ 这个文件在磁盘上找不到了（最近一次扫描没见到它）。"/>
+        </StackPanel>
+
+        <Border Classes="divider-line"/>
+
+        <!--  ===== 操作日志入口（NT-018 逻辑操作 / NT-019 物理操作 才会产生记录）=====  -->
+        <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                   Text="操作日志（谁在什么时候改了什么）随 NT-018 / NT-019 一起落地，届时会在这里给出入口。"/>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

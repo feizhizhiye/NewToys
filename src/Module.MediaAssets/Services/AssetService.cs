@@ -392,6 +392,161 @@ public class AssetService
         catch { return 0; }
     }
 
+    // ==================== 列表页行查询（NT-016） ====================
+
+    /// <summary>
+    /// 一次查询拼出列表页的行（**资产 + 主位置 + 存储源名**），再把标签 / 分类 / 集合**批量**补齐。
+    /// <para>
+    /// ⛔ 为什么不在 VM 里对每个资产再查位置：那是 N+1（500 行 = 500 次查询）。这里主位置用
+    /// <c>LEFT JOIN (子查询取 is_primary 优先的第一条)</c> 一次带出；三类组织信息各用**一条**查询
+    /// 拉回全部映射再拼，总查询数恒定 = 4。
+    /// </para>
+    /// </summary>
+    public List<AssetRow> QueryRows(string? type = null, bool includeTrashed = false, int limit = 500)
+    {
+        var rows = new List<AssetRow>();
+        if (!IsAvailable) return rows;
+
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            var sql =
+                "SELECT a.id, a.type, a.title, a.display_name, a.status, a.rating, a.description, " +
+                "       IFNULL(l.file_name,''), IFNULL(l.path,''), IFNULL(l.size,0), l.mtime, " +
+                "       IFNULL(l.status,'active'), IFNULL(l.storage_id,0), IFNULL(s.name,'') " +
+                "FROM assets a " +
+                "LEFT JOIN file_locations l ON l.id = (SELECT f.id FROM file_locations f " +
+                "    WHERE f.asset_id = a.id ORDER BY f.is_primary DESC, f.id LIMIT 1) " +
+                "LEFT JOIN storages s ON s.id = l.storage_id " +
+                "WHERE 1=1";
+            if (!string.IsNullOrWhiteSpace(type)) { sql += " AND a.type=$t"; cmd.Parameters.AddWithValue("$t", type); }
+            if (!includeTrashed) sql += " AND a.status <> 'trashed'";
+            sql += " ORDER BY a.updated_at DESC LIMIT $lim;";
+            cmd.Parameters.AddWithValue("$lim", limit);
+            cmd.CommandText = sql;
+
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                rows.Add(new AssetRow
+                {
+                    Id = r.GetInt64(0),
+                    Type = r.IsDBNull(1) ? AssetTypes.Other : r.GetString(1),
+                    Title = r.IsDBNull(2) ? null : r.GetString(2),
+                    DisplayName = r.IsDBNull(3) ? null : r.GetString(3),
+                    Status = r.IsDBNull(4) ? AssetStatuses.Active : r.GetString(4),
+                    Rating = r.IsDBNull(5) ? 0 : r.GetInt32(5),
+                    Description = r.IsDBNull(6) ? null : r.GetString(6),
+                    FileName = r.GetString(7),
+                    FilePath = r.GetString(8),
+                    Size = r.GetInt64(9),
+                    Mtime = r.IsDBNull(10) ? null : r.GetString(10),
+                    LocationStatus = r.IsDBNull(11) ? LocationStatuses.Active : r.GetString(11),
+                    StorageId = r.GetInt64(12),
+                    StorageName = r.GetString(13),
+                    Name = !r.IsDBNull(3) && r.GetString(3).Length > 0 ? r.GetString(3)
+                        : !r.IsDBNull(2) && r.GetString(2).Length > 0 ? r.GetString(2)
+                        : "资产 #" + r.GetInt64(0).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                });
+            }
+        }
+        catch { return rows; }
+
+        // 三类组织信息：各一条查询拉全量映射（行数有限，⛔ 不 per-row 查）
+        var tags = LoadNameMap("asset_tags", "tags");
+        var cats = LoadNameMap("asset_categories", "categories");
+        var cols = LoadNameMap("collection_assets", "collections");
+        foreach (var row in rows)
+        {
+            if (tags.TryGetValue(row.Id, out var t)) row.TagsText = t;
+            if (cats.TryGetValue(row.Id, out var c)) row.CategoriesText = c;
+            if (cols.TryGetValue(row.Id, out var k)) row.CollectionsText = k;
+        }
+        return rows;
+    }
+
+    /// <summary>
+    /// 取「资产 id → 逗号分隔的名字串」（标签 / 分类 / 集合通用）。
+    /// <paramref name="linkTable"/> 必须有 <c>asset_id</c> 与 <c>{tag|category|collection}_id</c> 两列。
+    /// </summary>
+    private Dictionary<long, string> LoadNameMap(string linkTable, string nameTable)
+    {
+        var map = new Dictionary<long, string>();
+        if (!IsAvailable) return map;
+
+        // 三类链接表的外键列名各不相同（tag_id / category_id / collection_id）→ 由名字表单数推出
+        var fk = nameTable switch
+        {
+            "tags" => "tag_id",
+            "categories" => "category_id",
+            "collections" => "collection_id",
+            _ => "tag_id"
+        };
+
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            // ⛔ 表名 / 列名来自上面的固定映射（⛔ 不接受外部输入），不是用户数据 → 拼接安全
+            cmd.CommandText = $"SELECT l.asset_id, n.name FROM {linkTable} l JOIN {nameTable} n ON n.id = l.{fk} ORDER BY n.name;";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var id = r.GetInt64(0);
+                var name = r.GetString(1);
+                map[id] = map.TryGetValue(id, out var old) ? old + ", " + name : name;
+            }
+        }
+        catch { /* 表还没数据 / 库只读 → 返回已读到的 */ }
+        return map;
+    }
+
+    /// <summary>筛选下拉用：全部标签（id + 名字）。NT-018 建好标签后才有内容，之前为空列表。</summary>
+    public List<(long Id, string Name)> ListTagOptions() => LoadOptions("tags");
+
+    /// <summary>筛选下拉用：全部分类（id + 名字）。</summary>
+    public List<(long Id, string Name)> ListCategoryOptions() => LoadOptions("categories");
+
+    /// <summary>筛选下拉用：全部集合（id + 名字）。</summary>
+    public List<(long Id, string Name)> ListCollectionOptions() => LoadOptions("collections");
+
+    private List<(long Id, string Name)> LoadOptions(string table)
+    {
+        var list = new List<(long, string)>();
+        if (!IsAvailable) return list;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT id, name FROM {table} ORDER BY name;";
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) list.Add((r.GetInt64(0), r.GetString(1)));
+        }
+        catch { /* 忽略 */ }
+        return list;
+    }
+
+    /// <summary>
+    /// 只改显示名（`display_name`）—— 详情卡改名走这里。
+    /// ⛔ **绝不动磁盘文件**：物理改名是显式操作，归 NT-019。
+    /// </summary>
+    public void SetDisplayName(long assetId, string? name)
+    {
+        if (!IsAvailable) return;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE assets SET display_name=$n, updated_at=$u WHERE id=$id;";
+            cmd.Parameters.AddWithValue("$n", string.IsNullOrWhiteSpace(name) ? DBNull.Value : name.Trim());
+            cmd.Parameters.AddWithValue("$u", Now());
+            cmd.Parameters.AddWithValue("$id", assetId);
+            cmd.ExecuteNonQuery();
+        }
+        catch { /* 忽略 */ }
+    }
+
     // ==================== 扫描任务 / 错误 ====================
 
     public long CreateScanJob(long? storageId, string mode)

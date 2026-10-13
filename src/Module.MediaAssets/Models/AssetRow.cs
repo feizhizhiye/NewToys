@@ -1,0 +1,132 @@
+using System;
+
+namespace NewToys.MediaAssets.Models;
+
+/// <summary>
+/// 「资产列表」的一行 = **资产 + 它的主文件位置 + 组织信息**（标签 / 分类 / 集合的显示串）。
+/// <para>
+/// 为什么要单独一行模型：`assets` 表里**没有**文件名 / 大小 / 路径（一个资产可有多份位置，
+/// 见 <see cref="FileLocation"/>），列表页却要显示它们 —— 由数据层一次查询拼好，
+/// ⛔ 别在 VM 里对每个资产再查一次位置（N+1，500 行就是 500 次查询）。
+/// </para>
+/// <para>
+/// 🔴 **列键 ≠ 属性名的列，必须在 <c>ViewModel</c> 的 <c>FieldText</c> 里显式映射**（v3.15 教训：
+/// 基类靠**反射取同名属性**，取不到就返回 null → 该条筛选**静默失效**、不报错）：
+/// <c>Tags</c>→<see cref="TagsText"/>、<c>Categories</c>→<see cref="CategoriesText"/>、
+/// <c>Collections</c>→<see cref="CollectionsText"/>、<c>Modified</c>→<see cref="ModifiedText"/>、
+/// <c>Storage</c>→<see cref="StorageName"/>。
+/// </para>
+/// </summary>
+public class AssetRow
+{
+    // ===== 资产本体 =====
+    public long Id { get; set; }
+
+    /// <summary>显示名：优先 <c>display_name</c> → <c>title</c> → 「资产 #id」（与 <see cref="Asset.EffectiveName"/> 同源）。</summary>
+    public string Name { get; set; } = "";
+
+    /// <summary>类型（<see cref="AssetTypes"/> 的原始值，如 <c>video</c>）—— 排序用它，显示用 <see cref="TypeText"/>。</summary>
+    public string Type { get; set; } = AssetTypes.Other;
+
+    /// <summary>状态（<see cref="AssetStatuses"/>）。</summary>
+    public string Status { get; set; } = AssetStatuses.Active;
+
+    public int Rating { get; set; }
+
+    /// <summary>用户在库里改的显示名（<c>display_name</c>；可能为空 → 与 <see cref="Title"/> 分开存，详情卡要能改它）。</summary>
+    public string? DisplayName { get; set; }
+
+    /// <summary>扫描时由文件名推出的标题。</summary>
+    public string? Title { get; set; }
+
+    public string? Description { get; set; }
+
+    // ===== 主文件位置 =====
+    public string FileName { get; set; } = "";
+    public string FilePath { get; set; } = "";
+    public long Size { get; set; }
+
+    /// <summary>文件最后修改时间（ISO 文本，来自 <see cref="FileLocation.Mtime"/>）。</summary>
+    public string? Mtime { get; set; }
+
+    /// <summary>位置状态（<see cref="LocationStatuses"/>）：文件被外部删掉 = <c>missing</c>。</summary>
+    public string LocationStatus { get; set; } = LocationStatuses.Active;
+
+    public long StorageId { get; set; }
+    public string StorageName { get; set; } = "";
+
+    // ===== 组织信息（逗号分隔的显示串） =====
+    public string TagsText { get; set; } = "";
+    public string CategoriesText { get; set; } = "";
+    public string CollectionsText { get; set; } = "";
+
+    // ===== 界面派生显示（⛔ 不落库） =====
+
+    /// <summary>类型的中文显示名。</summary>
+    public string TypeText => AssetTypeTexts.Of(Type);
+
+    public string StatusText => Status switch
+    {
+        AssetStatuses.Active => "正常",
+        AssetStatuses.Trashed => "回收站",
+        AssetStatuses.Missing => "已丢失",
+        AssetStatuses.Archived => "已归档",
+        _ => Status
+    };
+
+    /// <summary>大小的可读串（1.2 GB / 3.4 MB …）。</summary>
+    public string SizeText => FormatSize(Size);
+
+    /// <summary>修改时间的显示串（拿不到就空串）。</summary>
+    public string ModifiedText
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Mtime)) return "";
+            return DateTime.TryParse(Mtime, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : Mtime;
+        }
+    }
+
+    /// <summary>行是否"文件已不在磁盘上"（列表里给它一个提示色）。</summary>
+    public bool IsMissing => LocationStatus == LocationStatuses.Missing || Status == AssetStatuses.Missing;
+
+    /// <summary>字节数 → 可读串（1024 进制，与资源管理器一致）。</summary>
+    public static string FormatSize(long bytes)
+    {
+        if (bytes < 0) return "";
+        if (bytes < 1024) return $"{bytes} B";
+        string[] units = { "KB", "MB", "GB", "TB" };
+        var v = bytes / 1024.0;
+        var i = 0;
+        while (v >= 1024 && i < units.Length - 1) { v /= 1024; i++; }
+        return $"{v:0.##} {units[i]}";
+    }
+}
+
+/// <summary>资产类型 ↔ 中文显示名（列表 / 详情 / 筛选下拉共用；⛔ 别在各处各写一份）。</summary>
+public static class AssetTypeTexts
+{
+    public const string All = "全部";
+
+    public static string Of(string type) => type switch
+    {
+        AssetTypes.Video => "视频",
+        AssetTypes.Music => "音乐",
+        AssetTypes.Book => "书籍",
+        AssetTypes.Image => "图片",
+        AssetTypes.Document => "文档",
+        _ => "其它"
+    };
+
+    /// <summary>筛选下拉的候选项：全部 + 六种类型（值取 <see cref="AssetTypes"/>）。</summary>
+    public static (string Label, string Value)[] Choices { get; } =
+    {
+        (All, ""),
+        ("视频", AssetTypes.Video),
+        ("音乐", AssetTypes.Music),
+        ("书籍", AssetTypes.Book),
+        ("图片", AssetTypes.Image),
+        ("文档", AssetTypes.Document),
+        ("其它", AssetTypes.Other)
+    };
+}

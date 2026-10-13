@@ -1,6 +1,7 @@
 # NewToys 开发规范
 
-> v3.17 · 2026-10-13 · 技术实现指南
+> v3.19 · 2026-10-13 · 技术实现指南
+> 🔴 **工作流不在此定义**：`规划 / 执行双模式` + 状态机 + 验收清理的唯一定义处 = 《AI协作提示词》；本文件只管「怎么具体实现」。
 > 权威源：需求（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕折衷约束（本文件台账）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
@@ -9,7 +10,8 @@
 > **v3.17 变更**：§3.6 列宽判定改为**示例值（Sample）**（列表空时显示一条水印示例行；示例宽 ≤ 表头宽 → 锁表头宽且 ≥34px 保证把手可拖）；补两个 Avalonia 坑：**MenuItem 子菜单的 `ItemContainerTheme` 必须写 `BasedOn`**（否则子项没模板 → 子菜单打不开）、**Button 伪类样式要用后代选择器**（单选择器会被 Fluent 主题的 `:pointerover` 盖掉）。
 > **v3.16 变更**：§3.6 列宽改为**表头拖拽手动调**（`ColumnGrid.IsResizable` + VM `ResizeColumns`；⛔ 删「自动调整列宽」开关——整体 `Auto` 时长内容列按未截断全文测宽、把其余列挤没，表头文字被裁没）；`ColumnGrid` 副本 **三份→四份**（WebTools 亦有一份，旧注释漏记）。
 > **v3.15 变更**：§6 删除「统一启动器 `scripts/launch.ps1`」说法（已弃用）；脚本改为 fail-loud（成功 `exit 0` 自关窗口、失败 `trap` 暂停），禁止 `.cmd/.bat` 铁律保留。
-> **v3.13 变更**：协作两阶段固化（《AI协作提示词》）—— 准备期只动《开发需求》+《现状》、生成待办；执行期按《现状》待办 + 本文件做法改代码；本文件不被执行期改动。
+> **v3.19 变更**：§3.6 `ColumnGrid` 副本**四份→五份**（新增 `Module.MediaAssets`，需求 §6.6）；§7 增 **B14**（媒体资产用户手动数据落 `newtoys.db` 的 R1 例外）与 **B15**（模块设置页归属：`settings-media-assets` 的 View/VM 与注册都在 `Module.Settings`）；附录 A 补坑「跨组 `RegisterFunction` 抛异常且被 `InitializeAll` 吞 → Release 下菜单项静默丢失」。
+> **v3.18 变更**：协作流程已收敛为**规划 / 执行双模式**（🔴 唯一定义见《AI协作提示词》，本文件不重复定义）—— 规划模式只动《开发需求》+《现状》待办项 + `src/docs/backlog/NT-xxx.md` 细节、⛔ 不改 `src/`；执行模式按 `✅ 就绪` 待办 + 本文件做法改代码；本文件不被执行模式改动。
 > **v3.11 变更**：随《开发需求》瘦身同步——修正章节引用（列表页 → §4.8、视觉基线 → §4.10）；**§3.9 撤下"命令生成纯函数库"与"多段剪辑"**（属评估结论，不入文档）；补 `IStatusProvider` 相关引用。
 
 ---
@@ -241,7 +243,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - 表头两列交界处 5px 透明把手：`ColumnGrid.IsResizable="True"` 时自动生成（**只生成在相邻两个可见列之间**，隐藏列边界没有）；`Cursor = new Cursor(StandardCursorType.SizeWestEast)`；拖动经 `ColumnResize` 事件 → VM `ResizeColumns(i, w, i+1, w)`（基类 `ListPageViewModelBase` 提供）→ `VisibleColumnSpecs` 重出 → 表头与行**同规格重建**。每列 ≥24px、左右列总宽守恒；⛔ 不拖最后一列右缘。
 - ⛔ **没有「自动调整列宽」开关**（v3.20 全模块删除：可见列整体切 `Auto` 时，长内容列按**未截断全文**测宽，把其余列挤到接近 0 → 表头文字被裁没，像"整行消失"）。
 - 手调列宽**只存会话**（⛔ 不落 `columnlayout.json`）：切标签页不丢、重启还原；列显隐切换不影响已手调宽度。
-- 🔴 `Views/ColumnGrid.cs` 因**模块间禁互引**在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` **各存一份（共四份），改动必须同步四处**。
+- 🔴 `Views/ColumnGrid.cs` 因**模块间禁互引**在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` / `Module.MediaAssets` **各存一份（共五份），改动必须同步五处**。
 8. 🔴 **跨页投递的数据在 `OnAttachedToVisualTree` 取**（不是 `OnDataContextChanged`）：标签页已存在时切回来只重新挂可视树，`DataContext` 不变 → 后者**不再触发**，症状是"送过去的文件 / 任务要刷新页面才出现"。`VideoTaskStore.TakePendingCut/TakePendingTranscode` 是取一次即清空的，重复调安全。
 
 **详情开关的位置（v3.12：表头 → 工具条末位）**
@@ -276,7 +278,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
   - 锁定列的边界**不生成把手**、`ResizeColumns` 也拒绝（两侧任一被锁）；VM 的 `LockedColumnMask` → `ColumnGrid.LockedColumns`。
   - **示例行（水印）**：列表区上方单独一条 `Border + ColumnGrid`（⛔ **不进** `Items/Videos`，不参与统计 / 排序 / 筛选 / 勾选 / 导入导出），`IsVisible="{Binding ShowSampleRow}"`、`Opacity="0.5"`，逐列 `Text="{Binding SampleRowTexts[i]}"`。
   - 本轮只在**视频两页**落地；别的页要用：给列填 `Sample` + 加示例行 XAML + 绑 `SampleSpecs` + code-behind 接 `HeaderMeasured` 四步。
-- ⚠️ `Views/ColumnGrid.cs` 因**模块间禁互引**而在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` **各存一份，改动必须同步四份**。
+- ⚠️ `Views/ColumnGrid.cs` 因**模块间禁互引**而在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` / `Module.MediaAssets` **各存一份（共五份），改动必须同步五处**。
 
 ### 3.7 热加载实现
 
@@ -471,6 +473,8 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B11 反射使用** | 最小魔法、少反射 | 模块装配/热加载/视图解析三处用反射枚举 IModule 与 View/VM | 机制必需暂不改；⛔ 仅限这三处 | ModuleLoader/ShellViewModel |
 | **B12 前进/后退**（v3.0 新增） | 所有页面都有丰富页内导航 | 现状仅 `video-list` 有目录语义；多数标签页前进/后退**灰显** | 各页逐步实现 `IHistoryProvider` 后自然改善 | 各模块页面 |
 | **B13 详情面板上提**（v3.2 新增） | 详情由 Shell 右面板统一承载 | 契约与 Shell 容器已实装，但**页面迁移暂缓**——12 个页面仍用页内自绘右列 | 下一版迁移（改 `ListPageViewModelBase` 一处 + 每页抽 DetailView） | Shared + 各模块页面 |
+| **B14 媒体资产用户数据落库**（v3.19 新增） | 用户手动数据落 `config\`、进备份（需求 §3.5） | 标签 / 分类 / 集合 / 关联暂存 `data\newtoys.db`（需求 §3.5 称其"可随时重建"）——与 §3.5 定位冲突，以「导出用户数据 JSON」缓解（需求 §6.6 R1） | 用户拍板独立库 / 纳入备份策略时 | Module.MediaAssets + 数据管理 |
+| **B15 模块设置页归属**（v3.19 新增） | 模块自有设置页由本模块注册进 `settings` 组 | `settings-media-assets` 的 View/VM 与注册**都在 `Module.Settings`**（用户拍板"设置都放进 settings 里"）；单个模块设置与 `settings` 分组的沟通机制留待后续设计 | 用户后续设计模块↔settings 沟通机制时 | Module.Settings + 未来模块 |
 
 ---
 
@@ -501,3 +505,4 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **关闭首页标签失败**（v3.0） | 未设 `CanClose=false` | `TabItemViewModel` 构造时首页 `CanClose=false`，`CloseTab` 检查 |
 | **跨页投递的数据要刷新页面才出现**（v3.12） | 只在 `OnDataContextChanged` 里取件；标签页已存在时切回来 `DataContext` 不变 → 该回调不再触发 | 取件放 `OnAttachedToVisualTree`（每次进页面都会跑）；⚠️ 必须写 `protected override`（基类是 protected，写 public 报 CS0507） |
 | **表头与行错位**（v3.12） | 改了 `Columns` 元数据但表头 / 行模板的 `Grid.Column` 没逐字同步 | 改列元数据后核对表头与行模板的列序列（需求 §4.8 硬规则 2） |
+| **菜单项静默丢失**（v3.19 记） | 模块 A 在 `Initialize` 里 `RegisterFunction` 到模块 B 的分组：B 尚未注册 → 抛 `InvalidOperationException`，被 `ModuleLoader.InitializeAll` 的逐模块 try-catch **吞掉** → Release（`Modules\` 目录扫描，`Directory.EnumerateFiles` 顺序不保证）下该项**静默消失**，Debug 显式清单反而可能正常 | 跨组注册须先确保分组已注册（或改 `MenuService` 暂存补登——框架层需用户同意）；当前 `settings` 组子项一律由 `Module.Settings` 自己注册 |

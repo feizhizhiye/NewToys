@@ -1,13 +1,14 @@
 # NewToys 开发需求（宪法 + 框架规格）
 
-> v3.22 · 2026-10-13 · 项目唯一权威规格
+> v3.24 · 2026-10-13 · 项目唯一权威规格
 > 层级：本文件 ＞ 开发规范 ＞ 项目现状与进度 ＞ AI协作提示词
 > 配套：`开发规范.md`（怎么具体实现）｜`项目现状与进度.md`（做到哪了）｜`AI协作提示词.md`（会话启动）｜`AGENTS.md`（仓库根，跨 AI 通用入口）
 >
 > **承载**：定位与边界 / 技术框架 / UI 框架 / 导航模型 / 功能域 / 设计原则 / 验收底线。
 > **不承载**：像素值、类名、API 签名、高频错误、折衷项 → 归规范；**版本变更流水一律看 `git log`**。
 > ⛔ 本文件**只写「当前应然」，不写「某版改了什么」**；需求变更直接融进对应功能章节。
-> **两阶段角色**：准备期用户需求先整理进本文件（唯一验收基线）；执行期待办在《现状与进度》三、生成，本文件不被执行期改动。
+> **规划 / 执行双模式**（🔴 流程唯一定义见《AI协作提示词》【规划 / 执行双模式工作流】，本文件不重复定义）：
+> 规划模式用户需求先整理进本文件（唯一验收基线），并在《现状与进度》三、登记**待办项**、细节写进 `src/docs/backlog/NT-xxx.md`；执行模式按 `✅ 就绪` 待办改代码，本文件不被执行模式改动。
 
 ---
 
@@ -630,6 +631,70 @@ Module.*（功能模块，只引 Shared + Core）
 
 - **「配置」**：多配置管理（新增 / 切换 / 重命名 / 删除）。每个配置**隔离整个数据根**（config + data + logs）；**切换 = 二次确认后自动重启应用**；删除前二次确认，且**不允许删除当前正在使用的配置**；数据落 `<应用根>\profiles\<配置名>\`，当前配置名记在 `active-profile.txt`。
 
+### 6.6 媒体资产（`Module.MediaAssets`）
+
+**定位**：把本地视频 / 音乐 / 文档 / 书籍 / 图片等文件索引进 SQLite，并在库里完成标签、分类、集合、关联、重命名 / 移动 / 复制 / 删除管理的**通用文件资产库**（视频只是其中一类）。
+
+- 与**视频工具**定位不同：视频工具 = ffmpeg 命令制定 + 批量执行；本模块 = 资产库。两模块**共库（`data\newtoys.db`）表级隔离、互不引用**，视频工具的 `video_catalog` / `video_media` / `video_favorites` / `video_tags` 保持独立；未来统一方向仅记、本轮不做。
+- 与**系统设置·数据管理**不同：数据管理管配置文件；本模块管**用户文件本体**（仅索引 + 显式物理操作）。
+- 与**首页·收藏夹**不同：首页收藏 = 常用功能按钮；本模块的"常用文件"语义由**集合**承担。
+
+**做**：扫描目录建索引（哈希 / 元数据 / 缩略图）；库里改显示名、打标签、划分类、加集合、建关联；物理重命名 / 移动 / 复制 / 删除走任务队列 + 操作日志；按类型分视图 + 混合视图。
+**不做**：在线播放 / 转码（视频工具已有，不重复）；多用户 / 权限 / 账号；AI 自动打标 / 分类；**推荐**（§二 边界；`user_actions` / `asset_embeddings` 仅记方向、不建表）；移动端 / 多端同步；替换视频工具的 `video_catalog`。
+
+**菜单挂载**（`MediaAssetsModule.Initialize`；Key 铁律见规范 §3.2）：
+
+| 层级 | Key | 标题 | Order | 说明 |
+|---|---|---|---|---|
+| 一级分组 | `assets` | 媒体资产 | 50 | `video`=40 之后、`settings`=999 之前；图标暂用 emoji 占位（矢量 `IconAsset` 留待后续，§4.10.1） |
+| 二级 | `assets-all` | 全部资产 | 0 | `AssetAllView` |
+| 二级 | `assets-video` | 视频 | 1 | `AssetVideoView` |
+| 二级 | `assets-music` | 音乐 | 2 | `AssetMusicView` |
+| 二级 | `assets-book` | 书籍 | 3 | `AssetBookView` |
+| 二级 | `assets-image` | 图片 | 4 | `AssetImageView` |
+| 二级 | `assets-document` | 文档 | 5 | `AssetDocumentView` |
+| 二级 | `assets-tags` | 标签管理 | 6 | `AssetTagsView` |
+| 二级 | `assets-categories` | 分类管理 | 7 | `AssetCategoriesView` |
+| 二级 | `assets-collections` | 集合管理 | 8 | `AssetCollectionsView` |
+| 二级 | `assets-storages` | 存储源 | 9 | `AssetStoragesView` |
+| 二级 | `assets-tasks` | 任务中心 | 10 | `AssetTasksView` |
+| 二级 | `assets-trash` | 回收站 | 11 | `AssetTrashView` |
+
+- **设置项并入软件设置**：`settings-media-assets`（「媒体资产」，Order 10，排在 `settings-all`=9 之后）由 **`Module.Settings`** 注册，View/VM 归 `Module.Settings`。⛔ 本模块一级菜单下不放设置子页；⛔ 不跨模块自注册进 `settings` 组（分组未注册会抛异常且被模块加载器吞掉 → Release 下静默丢失，规范 附录A）。**单个模块的设置如何与 `settings` 分组沟通**（归属 / 注册机制）留待用户后续设计，本轮不实现。
+- 二级菜单 `icon` 照规范传 emoji 占位（首页收藏卡 / 功能清单页要用它）。
+
+**页面清单**（12 页在本模块 + 1 设置页在 `Module.Settings`）：
+
+| 页面 | Key | 页型 | 说明 |
+|---|---|---|---|
+| 全部资产 | `assets-all` | 列表页 | 混合视图；列：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源 |
+| 视频 / 音乐 / 书籍 / 图片 / 文档 | `assets-video` … `assets-document` | 列表页（图片可切网格） | 按 `Asset.type` 过滤；类型专属列（视频：时长 / 分辨率 / 编码；音乐：艺术家 / 专辑；书籍：作者 / ISBN；图片：尺寸 / 相机；文档：页数） |
+| 标签管理 | `assets-tags` | 列表页 | 名称 / 命名空间 / 颜色 / 使用数；合并、删未使用 |
+| 分类管理 | `assets-categories` | **树形页**（非列表页） | 左树 + 右成员列表；本模块唯一非列表内容页，不实现 `IDetailPanelProvider` |
+| 集合管理 | `assets-collections` | 列表页（左集合 + 右成员） | 手动 + 智能集合；成员可拖拽排序 |
+| 存储源 | `assets-storages` | 列表页 | local / removable / nas；在线状态；移除仅移索引、⛔ 不删磁盘文件 |
+| 任务中心 | `assets-tasks` | 列表页 | Scan / Rename / Move / Copy / Delete / ExtractMeta / Thumbnail；取消 / 重试 / 日志 |
+| 回收站 | `assets-trash` | 列表页 | `status='trashed'`；恢复 / 永久删除（二次确认）/ 清空 |
+| 模块设置 | `settings-media-assets` | 设置页（`Module.Settings`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（复用全局 `VideoDbFolder`） |
+
+**数据模型**（13 张表，落 `data\newtoys.db`，与视频工具共库、表级隔离）：
+`storages`（存储源）/ `assets`（资产主表）/ `file_locations`（一资产多位置）/ `tags`+`asset_tags` / `categories`+`asset_categories` / `collections`+`collection_assets` / `relations`（关联）/ `operation_logs`（操作日志）/ `scan_jobs`+`scan_errors`（扫描任务）。完整 DDL 与索引见 `backlog/NT-015.md`。类型扩展表（video_meta 等）**不预拆**，先塞 `assets.metadata_json`。
+
+- 缩略图：`data\thumbs\{sha1(path)}.jpg`（复用视频工具约定）。
+- 模块设置：`config\media-assets.json`（设置模型类放 `Shared`——媒体资产读 + 设置页写，两模块共用，⛔ 双真相源）。
+- 列显隐 / 详情开合：`config\columnlayout.json`（页键 = 菜单 key）。
+- ⚠️ **R1（记例外）**：标签 / 分类 / 集合 / 关联是**用户手动数据**，与 §3.5「本地数据库 = 可随时重建的缓存，不进备份」冲突——重建数据库会丢这些数据。本轮接受；缓解 = 设置页提供「导出用户数据为 JSON」（4 类表）；长期独立库 / 纳入备份留待后续。
+
+**核心流程**（细节见 `backlog/NT-015~022.md`）：
+
+- **扫描**（异步任务）：忽略规则 → quick_hash（前 N MB + size + mtime）→ 依次按 `storage+relative_path` / `hash+size` / `inode+device` 匹配 → 无匹配算 full_hash 再匹配 → 建 / 更新 `assets`+`file_locations`（事务内）→ 提取元数据 + 生成缩略图 → 本次未出现的旧 location 标 `missing`（⛔ 不删 Asset）。
+- **逻辑操作**（直接改库 + 写 `operation_logs`，reversible=1）：显示名 / 标签 / 分类 / 集合 / 关联 / 软删除 / 恢复 / 评分描述。
+- **物理操作**（⛔ 先写 `operation_logs`(pending) 再动磁盘；成功改 success、失败改 failed 并留 `before_json`）：重命名 / 移动 / 复制 / 删除；默认送**系统回收站**（`SHFileOperationW`，视频工具先例）且**二次确认**；防穿越 + 冲突检查；⛔ 失败不自动回滚磁盘，下次扫描按 hash/inode 校准。
+- **外部变更**：文件不见 → `missing`；新路径 → hash 匹配视为移动；⛔ 移动硬盘离线（Storage `online=0`）时**不动**其下 file_locations，重新上线再扫描校准。
+- **跨页投递**：模块内单例 Store（仿 `VideoTaskStore`）；🔴 取件点在 `OnAttachedToVisualTree`（§4.8 硬规则 8）。
+
+**复用硬约束**（不在此复述，指向权威）：列表页一律继承 `ListPageViewModelBase`（`Shared/Models`）+ 三列布局 + 工具条 / 筛选条收进列表列 + 详情开关在工具条末位；`Views/ColumnGrid.cs` 本模块自建**第五份**副本（规范 §3.6，改动同步五处）；详情卡内容由 VM 实现 `IDetailPanelProvider.DetailContent` 提供（目标形态，规范 §3.8 / B13），详情卡内零操作按钮；状态栏由基类统一实现、每页 ≥1 行 `StatusText`；单元格内边距 8 / 表头 32 / 行 28（§4.10.2）。
+
 ---
 
 ## 七、设计原则（六条）
@@ -668,13 +733,14 @@ Module.*（功能模块，只引 Shared + Core）
 | **本文件**（需求） | 做什么 / 为什么 + 技术框架 + UI 框架 + 导航模型 + 功能域 | 定位 / 边界 / 框架 / 职责变化时 |
 | **开发规范** | 怎么具体做（编码模式 + 实现细节 + 折衷项 + 高频错误） | 实现方式变化时 |
 | **项目现状与进度** | 做到哪了 / 还差什么（**只留最近三次变更**） | 每完成一个功能更新一次 |
-| **AI协作提示词** | 本次会话怎么开工 | 协作流程变化时 |
+| **AI协作提示词** | 本次会话怎么开工（🔴 **规划 / 执行双模式工作流唯一定义处**，含状态机与验收清理） | 协作流程变化时 |
+| **src/docs/backlog/NT-xxx.md** | 待办**细节**：验收标准 / 技术要点 / 依赖 / 范围（执行模式工作稿，随 `src/` 更新） | 新增 / 展开 / 验收清理待办时 |
 | **AGENTS.md**（仓库根） | 跨 AI 通用入口：定位 + 铁律 + 四份文档路由表 | 定位 / 铁律 / 文档体系变化时 |
 | **.workbuddy/skills/newtoys/**（项目级技能） | WorkBuddy 自动触发的**薄指针**（指向仓库根 `skill/`） | 同上 |
 | **skill/**（仓库根，跨 AI 中立载体） | 深度知识库：`references/`（铁律/密度/坑点/四文档路由）+ `scripts/check.ps1`（静态自检），WorkBuddy 与 Hermes(DeepSeek Harness) 共用 | 铁律 / 坑点 / 路由变化时 |
 
-- **单一权威**：同一条规则只在权威文档定义一次，其余引用不复制。
+- **单一权威**：同一条规则只在权威文档定义一次，其余引用不复制。**工作流（`规划 / 执行双模式` + 状态机 + 验收清理）只在《AI协作提示词》定义一次**；本文件 / 《开发规范》/ 《现状与进度》/ `AGENTS.md` / `skill/` 一律只引用，⛔ 不再各写一份流程（避免双源漂移、不同模型读到不同版本）。
 - **入口例外**：`AGENTS.md` 与项目级技能属**入口摘要**，允许复制铁律与路由表——必须自包含（外部 AI 读不到 `src/docs` 时也能开工）；细则仍只在四份文档各定义一次；入口与四份文档冲突时，以四份文档和 `src/` 源码为准。
 - **代码 > 文档**：冲突以 `src/` 源码为准并回写文档。
 - ⛔ **本文件不写版本变更流水**，只写「当前应然」；变更历史一律 `git log`。
-- **变更顺序**：用户提出新需求 → **先整理写入本文件**（必要时同步规范）→ **再改代码** → 最后更新台账。
+- **变更顺序**（与《AI协作提示词》一致，细则以其为准）：用户提出新需求 → **先整理写入本文件**（必要时同步规范）→ 在《现状与进度》三、登记待办项 + `src/docs/backlog/NT-xxx.md` 写细节 → 升 `✅ 就绪` → **再改代码** → 最后更新台账 → 用户验收后清理细节（默认删 / 留最近 3）。⛔ 不得先改代码后补文档。

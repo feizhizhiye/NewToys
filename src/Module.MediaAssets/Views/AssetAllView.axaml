@@ -62,11 +62,7 @@
           <Button Classes="ghost" Content="🧹 清除列表"
                   Command="{Binding ClearListCommand}"
                   ToolTip.Tip="草稿态：丢弃预览结果；库视图：清空当前显示（数据仍在库里，刷新即找回）"/>
-
-          <!--  用系统默认程序打开 newtoys.db（装了 DB Browser / SQLite 工具就能直接看表）  -->
-          <Button Classes="ghost" Content="📂 打开库文件"
-                  Command="{Binding OpenDbFileCommand}" IsEnabled="{Binding IsDbAvailable}"
-                  ToolTip.Tip="{Binding DatabasePath}"/>
+          <!--  ⛔ 「打开（文件 / 库文件）」这类**针对单条**的动作不放工具条 —— 归列表右键菜单（§4.8 硬规则 9）  -->
 
           <CheckBox Content="含子目录" IsChecked="{Binding Recursive, Mode=TwoWay}"
                     ToolTip.Tip="关掉就只扫当前这一层"/>
@@ -232,6 +228,22 @@
         <ListBox Grid.Row="2" x:Name="AssetList" Classes="list-page"
                  ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                  SelectionMode="Single">
+          <!--
+            行右键菜单 = **针对单条**的动作（§4.8 硬规则 9）：打开 / 定位 / 打开库文件。
+            ⛔ 这些⛔ 不上工具条（工具条只放页面级功能：扫描 / 筛选 / 入库 / 清除…）。
+            ⚠️ ContextMenu 在独立弹出树 → DataContext 由 code-behind 手工同步（硬规则 3）。
+          -->
+          <ListBox.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="📂 打开" Command="{Binding OpenFileCommand}"
+                        ToolTip.Tip="用系统默认程序打开（视频=播放 / 书=阅读 / 图=看图）"/>
+              <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderCommand}"
+                        ToolTip.Tip="在资源管理器里选中这个文件"/>
+              <Separator/>
+              <MenuItem Header="🗄 打开库文件…" Command="{Binding OpenDbFileCommand}"
+                        ToolTip.Tip="{Binding DatabasePath}"/>
+            </ContextMenu>
+          </ListBox.ContextMenu>
           <ListBox.ItemTemplate>
             <DataTemplate>
               <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">

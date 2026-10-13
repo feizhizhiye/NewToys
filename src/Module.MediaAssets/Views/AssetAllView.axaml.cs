@@ -86,6 +86,7 @@ public partial class AssetAllView : UserControl
     {
         base.OnDataContextChanged(e);
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+        if (AssetList?.ContextMenu is { } amenu) amenu.DataContext = DataContext;
     }
 
     /// <summary>弹目录选择框，返回选中的本地路径（取消 / 拿不到 → null）。</summary>

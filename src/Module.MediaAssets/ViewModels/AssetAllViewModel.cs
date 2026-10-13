@@ -322,28 +322,61 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = "已清空列表显示（数据仍在库里，点「🔄 刷新」找回）。";
     }
 
-    /// <summary>库文件全路径（「📂 打开库文件」用）。</summary>
+    /// <summary>库文件全路径（右键「🗄 打开库文件」的 ToolTip 用）。</summary>
     public string DatabasePath => _assets.DatabasePath;
+
+    /// <summary>
+    /// 用**系统默认程序**打开选中的文件（视频 = 播放、书 = 阅读、图 = 看图）。
+    /// 🔴 这类"针对某一条"的动作为什么不在工具条：工具条只放**页面级**功能（扫描 / 筛选 / 入库…），
+    /// 单条操作归右键菜单（用户 v3.29 定调，需求 §4.8 硬规则 9）。
+    /// </summary>
+    [RelayCommand]
+    private void OpenFile()
+    {
+        if (Selected == null) return;
+        Launch(Selected.FilePath, false, "文件");
+    }
+
+    /// <summary>在资源管理器里**选中**该文件（右键「📁 打开所在文件夹」）。</summary>
+    [RelayCommand]
+    private void OpenFolder()
+    {
+        if (Selected == null) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
+            {
+                UseShellExecute = true,
+                Arguments = $"/select,\"{Selected.FilePath}\""
+            });
+            StatusText = "已在资源管理器中定位该文件。";
+        }
+        catch (Exception ex) { StatusText = "打开文件夹失败：" + ex.Message; }
+    }
+
+    /// <summary>用系统默认程序打开一个路径（<paramref name="isDb"/> 只影响提示文案）。</summary>
+    private void Launch(string path, bool isDb, string what)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path)) { StatusText = $"{what}不存在：{path}"; return; }
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+            StatusText = isDb
+                ? "已用系统默认程序打开库文件（没反应多半是没装能开 .db 的工具）。"
+                : $"已用系统默认程序打开{what}。";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"打开{what}失败：" + ex.Message + (isDb ? " —— 需要先装一个能打开 .db 的工具（如 DB Browser for SQLite）。" : "");
+        }
+    }
 
     /// <summary>
     /// 用**系统默认程序**打开 <c>newtoys.db</c>（装了 DB Browser for SQLite 之类的工具就能直接看表）。
     /// ⛔ 打开的是只读副本视角：别的程序占用时 SQLite 的 WAL 模式仍允许我们继续写，但**别在工具里改数据**。
     /// </summary>
     [RelayCommand]
-    private void OpenDbFile()
-    {
-        var path = _assets.DatabasePath;
-        if (string.IsNullOrEmpty(path) || !File.Exists(path)) { StatusText = "找不到数据库文件：" + path; return; }
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
-            StatusText = "已用系统默认程序打开库文件（若没反应，多半是没装能开 .db 的工具）。";
-        }
-        catch (Exception ex)
-        {
-            StatusText = "打开失败：" + ex.Message + " —— 需要先装一个能打开 .db 的工具（如 DB Browser for SQLite）。";
-        }
-    }
+    private void OpenDbFile() => Launch(_assets.DatabasePath, true, "库文件");
 
     // ==================== ③ 登记文件夹 + 扫描全部（直接入库） ====================
 

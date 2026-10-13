@@ -1,16 +1,27 @@
-using System;
-using CommunityToolkit.Mvvm.ComponentModel;
+using NewToys.MediaAssets.Models;
+using NewToys.MediaAssets.Services;
 using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>「图片」页（NT-014 骨架占位；列表页后续统一升级为 <c>ListPageViewModelBase</c>）。</summary>
-public partial class AssetImageViewModel : ObservableObject, IStatusProvider
+/// <summary>
+/// 「图片」页（NT-017 / v3.34）—— **薄壳页**：实现全部复用 <see cref="AssetAllViewModel"/>，
+/// 只声明本页专属的 <c>PageKey</c>（<c>"assets-image"</c>）、预设类型（图片）与状态栏前缀（<c>"图片："</c>）。
+/// <para>⛔ 卡片 / 网格视图不做（v3.34 用户定调）—— 本页与其余四个类型页**完全同构**。</para>
+/// 详见 <see cref="AssetVideoViewModel"/> 的说明（含「必须常量表达式」的原因）。
+/// </summary>
+public class AssetImageViewModel : AssetAllViewModel
 {
-    /// <summary>Shell 底部状态栏文本（由 Shell 底栏统一显示；setter 保持 public，页面可直接赋值）。</summary>
-    [ObservableProperty] private string _statusText = "图片 · 骨架占位（后续待办落地）";
+    /// <summary>设计期 / DI 未注册时兜底。</summary>
+    public AssetImageViewModel() { }
 
-    public event EventHandler? StatusChanged;
+    public AssetImageViewModel(AssetService assets, ScanService scan, IColumnLayoutService cols, IAppConfigService? app = null)
+        : base(assets, scan, cols, app)
+        => SetPresetType(AssetTypes.Image);
 
-    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
+    /// <inheritdoc/>
+    protected override string PageKey => "assets-image";
+
+    /// <inheritdoc/>
+    protected override string StatusPrefix => "图片：";
 }

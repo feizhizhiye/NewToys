@@ -56,11 +56,11 @@ public class MediaAssetsModule : IModule
 
         // 二级项：Order 0~11，与需求 §6.6 的菜单表逐条对应；二级用 emoji 占位（功能清单页 / 首页收藏卡要用它）。
         menu.RegisterFunction(GroupKey, "assets-all",         "全部资产", "🗂", "AssetAllView",         0, "混合视图：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源");
-        menu.RegisterFunction(GroupKey, "assets-video",       "视频",     "🎬", "AssetVideoView",       1, "按类型过滤：视频（时长 / 分辨率 / 编码等专属列）");
-        menu.RegisterFunction(GroupKey, "assets-music",       "音乐",     "🎵", "AssetMusicView",       2, "按类型过滤：音乐（艺术家 / 专辑等专属列）");
-        menu.RegisterFunction(GroupKey, "assets-book",        "书籍",     "📚", "AssetBookView",        3, "按类型过滤：书籍（作者 / ISBN 等专属列）");
-        menu.RegisterFunction(GroupKey, "assets-image",       "图片",     "🖼", "AssetImageView",       4, "按类型过滤：图片（尺寸 / 相机等专属列；可切网格视图）");
-        menu.RegisterFunction(GroupKey, "assets-document",    "文档",     "📄", "AssetDocumentView",    5, "按类型过滤：文档（页数等专属列）");
+        menu.RegisterFunction(GroupKey, "assets-video",       "视频",     "🎬", "AssetVideoView",       1, "视频（共用「全部资产」页实现，v3.34；专属列待元数据落地）");
+        menu.RegisterFunction(GroupKey, "assets-music",       "音乐",     "🎵", "AssetMusicView",       2, "音乐（共用「全部资产」页实现，v3.34；专属列待元数据落地）");
+        menu.RegisterFunction(GroupKey, "assets-book",        "书籍",     "📚", "AssetBookView",        3, "书籍（共用「全部资产」页实现，v3.34；专属列待元数据落地）");
+        menu.RegisterFunction(GroupKey, "assets-image",       "图片",     "🖼", "AssetImageView",       4, "图片（共用「全部资产」页实现，v3.34；⛔ 不做网格视图）");
+        menu.RegisterFunction(GroupKey, "assets-document",    "文档",     "📄", "AssetDocumentView",    5, "文档（共用「全部资产」页实现，v3.34；专属列待元数据落地）");
         menu.RegisterFunction(GroupKey, "assets-tags",        "标签管理", "🏷", "AssetTagsView",        6, "标签：名称 / 命名空间 / 颜色 / 使用数；支持合并与清理未使用");
         menu.RegisterFunction(GroupKey, "assets-categories",  "分类管理", "🗃", "AssetCategoriesView",  7, "分类树 + 成员列表（本模块唯一的非列表页）");
         menu.RegisterFunction(GroupKey, "assets-collections", "集合管理", "📦", "AssetCollectionsView", 8, "手动 / 智能集合；成员可拖拽排序");

@@ -1,17 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:NewToys.MediaAssets.Views"
              x:Class="NewToys.MediaAssets.Views.AssetDocumentView">
-  <!--  NT-014 骨架占位：本页真正的列表 / 详情 / 工具条 / 筛选在后续待办（NT-016~022）依次落地。  -->
-  <Grid RowDefinitions="Auto,*">
-    <StackPanel Grid.Row="0" Margin="24,16,24,0" Spacing="4">
-      <TextBlock Classes="section-title" Text="文档"/>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="文档资产：页数等专属列"/>
-    </StackPanel>
-    <Border Grid.Row="1" Margin="24,12,24,16" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="🚧 骨架占位（NT-014）"/>
-        <TextBlock Classes="hint-text" HorizontalAlignment="Center" Text="页面实现在后续待办落地"/>
-      </StackPanel>
-    </Border>
-  </Grid>
+  <!--
+    NT-017 / v3.34：「文档」页 = **薄壳**（与「视频」页同构，见 AssetVideoView.axaml 的说明）。
+    页面本体复用 AssetAllView / AssetAllViewModel；差异只在 VM：PageKey = "assets-document" + 预设类型 = 文档。
+  -->
+  <views:AssetAllView/>
 </UserControl>

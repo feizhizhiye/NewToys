@@ -196,9 +196,44 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         UpdateDetailSample(false);          // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
         LoadDetail(null);
 
-        StatusText = IsDbAvailable
-            ? $"共 {Items.Count} 个资产" + (Items.Count == 0 ? "（点「📂 导入」添加存储源或文件）" : "")
-            : "资产库不可用（数据库打不开）——本页只读，不会崩。";
+        StatusText = StatusSummary();
+    }
+
+    // ==================== v3.34：类型页「薄壳」共用的两处缝 ====================
+
+    /// <summary>
+    /// 状态栏前缀（v3.34）：5 个类型页（<c>AssetVideoViewModel</c> 等）覆写成 <c>"视频："</c> 之类；默认空串。
+    /// <para>🔴 覆写**必须写成常量表达式**（<c>protected override string StatusPrefix =&gt; "视频：";</c>），
+    /// ⛔ 别用字段 / 构造期赋的值 —— 基类构造函数里就会读它写状态栏，那一刻派生类的字段还没初始化。</para>
+    /// </summary>
+    protected virtual string StatusPrefix => "";
+
+    /// <summary>一次读库的最大行数（v3.34）：超过时状态栏**显式提示**，⛔ 不再静默截断。</summary>
+    public const int QueryLimit = 2000;
+
+    /// <summary>库里资产数 ≥ <see cref="QueryLimit"/> → 列表只显示前 N 条（状态栏提示）。</summary>
+    private bool _truncated;
+
+    /// <summary>截断提示后缀（没截断时为空串）。</summary>
+    private string TruncatedHint => _truncated ? $"（库中超过 {QueryLimit} 条，仅显示前 {QueryLimit} 条）" : "";
+
+    /// <summary>列表概况文案（状态栏用）：类型前缀 + 条数 + 截断提示。派生类构造末尾可调它刷新文案。</summary>
+    protected string StatusSummary() => IsDbAvailable
+        ? $"{StatusPrefix}共 {Items.Count} 个资产" + (Items.Count == 0 ? "（点「📂 导入」添加存储源或文件）" : "") + TruncatedHint
+        : $"{StatusPrefix}资产库不可用（数据库打不开）——本页只读，不会崩。";
+
+    /// <summary>
+    /// v3.34：把筛选条的「类型」预设为某个类型（**类型页薄壳**构造末尾调一次）。
+    /// <para>基类构造已把全量行装进内存 → 这里只**重算视图**（<c>FilterType</c> 一变即触发
+    /// <c>OnFilterTypeChanged → ApplyView</c>），⛔ **不重查库**。</para>
+    /// <para>🔴 「类型」是**页面属性**（筛选条下拉），不在基类 <c>Filters</c> 里 ——
+    /// 所以点「🧹 清除筛选（全部列）」或表头右键快捷筛选**不会把它清掉**（这正是类型页要的语义）。</para>
+    /// </summary>
+    protected void SetPresetType(string type)
+    {
+        var hit = TypeOptions.FirstOrDefault(o => string.Equals(o.Value, type, StringComparison.Ordinal));
+        if (hit != null) FilterType = hit;      // → OnFilterTypeChanged → ApplyView
+        StatusText = StatusSummary();           // 条数文案跟上（基类构造里写的是"全部"的条数）
     }
 
     // ==================== 加载 ====================
@@ -207,14 +242,17 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private void Refresh()
     {
         Reload();
-        StatusText = IsDbAvailable ? $"已重读资产库：共 {Items.Count} 个资产" : "资产库不可用（数据库打不开）。";
+        StatusText = IsDbAvailable
+            ? $"{StatusPrefix}已重读资产库：共 {Items.Count} 个资产" + TruncatedHint
+            : $"{StatusPrefix}资产库不可用（数据库打不开）。";
     }
 
     private void Reload()
     {
         _all.Clear();
-        if (!IsDbAvailable) { ApplyView(); return; }
-        foreach (var r in _assets.QueryRows(limit: 2000)) _all.Add(r);
+        if (!IsDbAvailable) { _truncated = false; ApplyView(); return; }
+        foreach (var r in _assets.QueryRows(limit: QueryLimit)) _all.Add(r);
+        _truncated = _all.Count >= QueryLimit;   // v3.34：截断了就明说（⛔ 不再静默少显示）
         RebuildStorageOptions();
         RebuildTagOptions();
         ApplyView();

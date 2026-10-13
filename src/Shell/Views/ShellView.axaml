@@ -12,6 +12,7 @@
     ExtendClientAreaTitleBarHeightHint="40"
     ExtendClientAreaToDecorationsHint="True"
     WindowDecorations="Full"
+    WindowDecorationsTheme="{StaticResource NoDrawnWindowDecorations}"
     CanResize="True"
     WindowState="Normal">
     <Grid RowDefinitions="40,*">
@@ -325,7 +326,7 @@
                 </ScrollViewer>
 
                 <!--  左树底部：版本号区（v3.9；**折叠态隐藏**）。⚠️ 独立占位值，与「设置 → 关于」的版本号无关。  -->
-                <Border Grid.Row="1" Classes="tree-version">
+                <Border Grid.Row="1" Classes="tree-version" ToolTip.Tip="当前配置 · 版本号">
                   <TextBlock Classes="tree-version-text" Text="{Binding TreeVersionText}" />
                 </Border>
               </Grid>

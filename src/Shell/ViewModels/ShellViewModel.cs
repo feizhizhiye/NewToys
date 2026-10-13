@@ -7,6 +7,7 @@ using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
+using NewToys.Core.Services;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.Shell.Models;
@@ -36,6 +37,7 @@ public partial class ShellViewModel : ViewModelBase
     private readonly IMenuService _menu;
     private readonly INavigationService _nav;
     private readonly IColumnLayoutService _cols;
+    private readonly IProfileService _profiles;
 
     private IDetailPanelProvider? _detailProvider;
     private IHistoryProvider? _historyProvider;
@@ -57,10 +59,19 @@ public partial class ShellViewModel : ViewModelBase
     [ObservableProperty] private string _statusBarText = "";
 
     /// <summary>
-    /// 左树底部的版本号（v3.9）。
-    /// ⚠️ 这是**独立占位值**，与「设置 → 关于」里那个 `UpdateService.CurrentVersion` **无关**。
+    /// 左树底部的「当前配置 · 版本号」（v3.28）。
+    /// 版本取 <see cref="UpdateService.CurrentVersion"/>（编译时自动生成的 `1.yyyyMMdd.HH.mm0`，⛔ 禁手写）；
+    /// 配置名取 <see cref="IProfileService.ActiveProfile"/>（多实例时每窗口可不同 → 一眼看出这个窗口在用哪套数据）。
     /// </summary>
-    public string TreeVersionText => "1.26.10";
+    public string TreeVersionText
+    {
+        get
+        {
+            var version = UpdateService.CurrentVersion;
+            var profile = _profiles?.ActiveProfile;
+            return string.IsNullOrWhiteSpace(profile) ? version : $"{profile} · {version}";
+        }
+    }
 
     /// <summary>左树是否展开（= 未折叠）。UI 用它控制标题/子级显隐。</summary>
     public bool IsTreeExpanded => !IsTreeCollapsed;
@@ -69,9 +80,10 @@ public partial class ShellViewModel : ViewModelBase
     public double TreePanelWidth => IsTreeCollapsed ? 48d : 180d;
 
     public ShellViewModel(IServiceProvider sp, IMenuService menu,
-                          INavigationService nav, IColumnLayoutService cols)
+                          INavigationService nav, IColumnLayoutService cols,
+                          IProfileService profiles)
     {
-        _sp = sp; _menu = menu; _nav = nav; _cols = cols;
+        _sp = sp; _menu = menu; _nav = nav; _cols = cols; _profiles = profiles;
 
         // 左树折叠态从壳级 Flag 恢复。
         _isTreeCollapsed = _cols.LoadFlag(ShellPageKey, "treeCollapsed", false);

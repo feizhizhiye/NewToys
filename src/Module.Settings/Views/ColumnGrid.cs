@@ -74,7 +74,7 @@ public class ColumnGrid : Grid
 
     /// <summary>
     /// 锁定列的掩码串（v3.21，需求 §4.8.1）：每位 '1' = 该列宽已锁成「表头文字宽」→ **边界不放拖拽把手**。
-    /// 由 VM 的 <c>LockedColumnMask</c> 给（`ListColumn.FixedToHeader` 的列）。
+    /// 由 VM 的 <c>LockedColumnMask</c> 给（`ListColumn.Sample`（示例值）判定为"内容不超表头"的列）。
     /// </summary>
     public static readonly StyledProperty<string?> LockedColumnsProperty =
         AvaloniaProperty.Register<ColumnGrid, string?>(nameof(LockedColumns));
@@ -84,6 +84,21 @@ public class ColumnGrid : Grid
     {
         get => GetValue(LockedColumnsProperty);
         set => SetValue(LockedColumnsProperty, value);
+    }
+
+    /// <summary>
+    /// v3.22：各列的**示例值文本**（';' 分隔，来自 VM 的 <c>SampleSpecs</c>）——
+    /// 用它测出"一行内容大概多宽"，与表头宽比较后决定该列要不要锁成表头宽。
+    /// ⛔ 分隔符用 ';'（示例值里可能有逗号，如标签 `收藏,待剪`）。
+    /// </summary>
+    public static readonly StyledProperty<string?> SampleSpecsProperty =
+        AvaloniaProperty.Register<ColumnGrid, string?>(nameof(SampleSpecs));
+
+    /// <summary>见 <see cref="SampleSpecsProperty"/>。</summary>
+    public string? SampleSpecs
+    {
+        get => GetValue(SampleSpecsProperty);
+        set => SetValue(SampleSpecsProperty, value);
     }
 
     /// <summary>拖动列宽把手后抛出（左列索引 + 新宽、右列索引 + 新宽，均为像素）。</summary>
@@ -132,7 +147,7 @@ public class ColumnGrid : Grid
 
     /// <summary>
     /// 只测一次：把每列表头内容的**期望宽**（<c>DesiredSize.Width</c>，已含 col-header / list-cell 的左右 padding）
-    /// 抛给 VM —— 供 <c>ListColumn.FixedToHeader</c> 的列把宽度锁成表头宽。
+    /// 抛给 VM —— 供 <c>ListColumn.Sample（示例值判定列宽）</c> 的列把宽度锁成表头宽。
     /// <para>⛔ 只在 <see cref="IsResizable"/>（表头那一个）上做；行模板的 ColumnGrid 不测。</para>
     /// </summary>
     private void MeasureHeaderOnce()
@@ -155,7 +170,32 @@ public class ColumnGrid : Grid
         if (!any) return;      // 首帧还没测出来 → 等下一次布局
 
         _measured = true;
-        HeaderMeasured?.Invoke(this, new HeaderMeasuredEventArgs(widths));
+        HeaderMeasured?.Invoke(this, new HeaderMeasuredEventArgs(widths, MeasureSampleWidths(widths.Length)));
+    }
+
+    /// <summary>
+    /// 测示例值文本的宽（行内容字号 12 + 单元格左右内边距 8+8），供 VM 与表头宽比较。
+    /// <para>⛔ 测不出来（0）或该列没给示例值 → 记 <c>double.MaxValue</c>（视为"比表头宽" → 不锁），
+    /// 免得因为测不到就把所有列都锁死。</para>
+    /// </summary>
+    private double[]? MeasureSampleWidths(int count)
+    {
+        var specs = SampleSpecs;
+        if (string.IsNullOrEmpty(specs)) return null;
+
+        var parts = specs!.Split(';');
+        var widths = new double[count];
+        for (var i = 0; i < count; i++)
+        {
+            var text = i < parts.Length ? parts[i].Trim() : "";
+            if (text.Length == 0) { widths[i] = double.MaxValue; continue; }
+
+            var tb = new TextBlock { Text = text, FontSize = 12 };
+            tb.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var w = tb.DesiredSize.Width;
+            widths[i] = w <= 0 ? double.MaxValue : w + 16;   // +16 = 单元格左右各 8
+        }
+        return widths;
     }
 
     private void Rebuild() => ColumnDefinitions = ParseSpecs(ColumnSpecs, RequiredColumnCount());
@@ -343,12 +383,20 @@ public class ColumnGrid : Grid
     private void OnGripCaptureLost(object? sender, PointerCaptureLostEventArgs e) => _dragIndex = -1;
 }
 
-/// <summary>表头首次布局后的实测宽度（每列一个；够不到 / 隐藏列 = 0）。</summary>
+/// <summary>表头首次布局后的实测宽度（每列一个；够不到 / 隐藏列 = 0）+ 示例值文本宽（可为 null）。</summary>
 public sealed class HeaderMeasuredEventArgs : EventArgs
 {
+    /// <summary>每列表头内容的实测宽（已含单元格内边距）。</summary>
     public IReadOnlyList<double> Widths { get; }
 
-    public HeaderMeasuredEventArgs(IReadOnlyList<double> widths) => Widths = widths;
+    /// <summary>每列**示例值**的文本宽（没给示例 / 测不到 = <see cref="double.MaxValue"/>）。</summary>
+    public IReadOnlyList<double>? SampleWidths { get; }
+
+    public HeaderMeasuredEventArgs(IReadOnlyList<double> widths, IReadOnlyList<double>? sampleWidths)
+    {
+        Widths = widths;
+        SampleWidths = sampleWidths;
+    }
 }
 
 /// <summary>拖动表头列边界的参数：左列索引 + 新宽、右列索引 + 新宽（像素）。</summary>

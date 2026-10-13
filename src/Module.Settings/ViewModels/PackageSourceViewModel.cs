@@ -103,6 +103,11 @@ public partial class PackageSourceViewModel : ObservableObject, IStatusProvider
             else if (Sources.Count == 0) StatusText = "winget 未返回任何源（可能尚未初始化，可先执行一次任意 winget 命令，或点「↺ 恢复默认源」）。";
             else StatusText = $"系统 winget 里共 {Sources.Count} 个源（本页与系统共用同一份数据）。";
         }
+        catch (Exception ex)
+        {
+            // 防御：服务层设计上不抛（内部全 catch），真抛了也让用户看到原因（⛔ 不静默）
+            StatusText = "读取源列表出错：" + ex.Message;
+        }
         finally { IsBusy = false; }
     }
 

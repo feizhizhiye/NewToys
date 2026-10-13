@@ -256,7 +256,9 @@ public class ColumnGrid : Grid
         e.Handled = true;
     }
 
-    private void OnGripMoved(object? sender, PointerMovedEventArgs e)
+    // ⚠️ Avalonia 12 的 PointerMoved 事件用的是**普通 PointerEventArgs**（没有 PointerMovedEventArgs 这个类型；
+    //    只有 PointerPressed / PointerReleased / PointerCaptureLost 有专用参数类）。
+    private void OnGripMoved(object? sender, PointerEventArgs e)
     {
         if (_dragIndex < 0) return;
 

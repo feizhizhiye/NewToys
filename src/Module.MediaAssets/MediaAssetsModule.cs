@@ -1,0 +1,71 @@
+using Microsoft.Extensions.DependencyInjection;
+using NewToys.Shared.Models;
+using NewToys.Shared.Services;
+
+namespace NewToys.MediaAssets;
+
+/// <summary>
+/// 媒体资产模块（需求 §6.6）：把本地视频 / 音乐 / 文档 / 书籍 / 图片等文件索引进 SQLite，
+/// 并在库里完成标签、分类、集合、关联与重命名 / 移动 / 复制 / 删除管理的**通用文件资产库**。
+/// <para>
+/// 与「视频工具」共库（<c>data\newtoys.db</c>）但**表级隔离、互不引用**（对方是 ffmpeg 命令 + 批量执行）；
+/// 与「设置 → 数据管理」的区别：那边管配置文件，这边管**用户文件本体**（只建索引 + 显式物理操作）。
+/// </para>
+/// <para>
+/// ⚠️ 本模块的设置页 <c>settings-media-assets</c> 由本模块 <c>Initialize</c> **自注册**进 <c>settings</c> 分组
+/// （跨组注册由框架**延迟补登**保障，规范 §3.2）——落点在后续待办 NT-021。
+/// </para>
+/// </summary>
+public class MediaAssetsModule : IModule
+{
+    /// <summary>一级分组 key（同时是菜单一级的标识与左树分组键）。</summary>
+    private const string GroupKey = "assets";
+
+    public void RegisterServices(IServiceCollection services)
+    {
+        // ===== 数据层（NT-015）：13 张表落同一个 data\newtoys.db（与视频工具共库、表级隔离） =====
+        // AssetDatabase 负责建表 / 补列；三个服务都是**单例**（库是全局资源，任务队列要跨页共享）。
+        services.AddSingleton<Services.AssetDatabase>();
+        services.AddSingleton<Services.AssetService>();
+        services.AddSingleton<Services.ScanService>();
+        services.AddSingleton<Services.TaskQueue>();
+
+        // ===== 页面 View / VM（NT-014 骨架：全是空页面；页面实现 NT-016~022 依次落地） =====
+        services.AddTransient<Views.AssetAllView>();        services.AddTransient<ViewModels.AssetAllViewModel>();
+        services.AddTransient<Views.AssetVideoView>();      services.AddTransient<ViewModels.AssetVideoViewModel>();
+        services.AddTransient<Views.AssetMusicView>();      services.AddTransient<ViewModels.AssetMusicViewModel>();
+        services.AddTransient<Views.AssetBookView>();       services.AddTransient<ViewModels.AssetBookViewModel>();
+        services.AddTransient<Views.AssetImageView>();      services.AddTransient<ViewModels.AssetImageViewModel>();
+        services.AddTransient<Views.AssetDocumentView>();   services.AddTransient<ViewModels.AssetDocumentViewModel>();
+        services.AddTransient<Views.AssetTagsView>();       services.AddTransient<ViewModels.AssetTagsViewModel>();
+        services.AddTransient<Views.AssetCategoriesView>(); services.AddTransient<ViewModels.AssetCategoriesViewModel>();
+        services.AddTransient<Views.AssetCollectionsView>(); services.AddTransient<ViewModels.AssetCollectionsViewModel>();
+        services.AddTransient<Views.AssetStoragesView>();   services.AddTransient<ViewModels.AssetStoragesViewModel>();
+        services.AddTransient<Views.AssetTasksView>();      services.AddTransient<ViewModels.AssetTasksViewModel>();
+        services.AddTransient<Views.AssetTrashView>();      services.AddTransient<ViewModels.AssetTrashViewModel>();
+    }
+
+    public void Initialize(IServiceProvider services)
+    {
+        var menu = services.GetRequiredService<IMenuService>();
+
+        // 一级分组：Order 50（视频工具 40 之后、系统设置 999 之前）。
+        // ⚠️ 图标暂用 emoji 占位：矢量 IconAsset **留白**（用户拍板不加框架层图标，需求 §4.10.1）；
+        //    左树本就有「矢量键取不到 → 回退 emoji 文本」机制，将来补几何键只改这一行。
+        menu.RegisterModule(GroupKey, "媒体资产", "🗂", 50);
+
+        // 二级项：Order 0~11，与需求 §6.6 的菜单表逐条对应；二级用 emoji 占位（功能清单页 / 首页收藏卡要用它）。
+        menu.RegisterFunction(GroupKey, "assets-all",         "全部资产", "🗂", "AssetAllView",         0, "混合视图：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源");
+        menu.RegisterFunction(GroupKey, "assets-video",       "视频",     "🎬", "AssetVideoView",       1, "按类型过滤：视频（时长 / 分辨率 / 编码等专属列）");
+        menu.RegisterFunction(GroupKey, "assets-music",       "音乐",     "🎵", "AssetMusicView",       2, "按类型过滤：音乐（艺术家 / 专辑等专属列）");
+        menu.RegisterFunction(GroupKey, "assets-book",        "书籍",     "📚", "AssetBookView",        3, "按类型过滤：书籍（作者 / ISBN 等专属列）");
+        menu.RegisterFunction(GroupKey, "assets-image",       "图片",     "🖼", "AssetImageView",       4, "按类型过滤：图片（尺寸 / 相机等专属列；可切网格视图）");
+        menu.RegisterFunction(GroupKey, "assets-document",    "文档",     "📄", "AssetDocumentView",    5, "按类型过滤：文档（页数等专属列）");
+        menu.RegisterFunction(GroupKey, "assets-tags",        "标签管理", "🏷", "AssetTagsView",        6, "标签：名称 / 命名空间 / 颜色 / 使用数；支持合并与清理未使用");
+        menu.RegisterFunction(GroupKey, "assets-categories",  "分类管理", "🗃", "AssetCategoriesView",  7, "分类树 + 成员列表（本模块唯一的非列表页）");
+        menu.RegisterFunction(GroupKey, "assets-collections", "集合管理", "📦", "AssetCollectionsView", 8, "手动 / 智能集合；成员可拖拽排序");
+        menu.RegisterFunction(GroupKey, "assets-storages",    "存储源",   "💾", "AssetStoragesView",    9, "local / removable / nas；在线状态；移除只移索引、不删磁盘文件");
+        menu.RegisterFunction(GroupKey, "assets-tasks",       "任务中心", "⏳", "AssetTasksView",      10, "扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图任务：取消 / 重试 / 日志");
+        menu.RegisterFunction(GroupKey, "assets-trash",       "回收站",   "🗑", "AssetTrashView",      11, "已软删除资产：恢复 / 永久删除（二次确认）/ 清空");
+    }
+}

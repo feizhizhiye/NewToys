@@ -6,6 +6,7 @@
     <Project Path="Module.PcTools/Module.PcTools.csproj" Type="C#" />
     <Project Path="Module.WebTools/Module.WebTools.csproj" Type="C#" />
     <Project Path="Module.VideoTools/Module.VideoTools.csproj" Type="C#" />
+    <Project Path="Module.MediaAssets/Module.MediaAssets.csproj" Type="C#" />
     <Project Path="Module.Settings/Module.Settings.csproj" Type="C#" />
   </Folder>
   <Folder Name="/src/Properties/">

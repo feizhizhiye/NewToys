@@ -556,6 +556,7 @@ public class App : Application
         list.Add(typeof(NewToys.PcTools.PcToolsModule));
         list.Add(typeof(NewToys.WebTools.WebToolsModule));
         list.Add(typeof(NewToys.VideoTools.VideoToolsModule));
+        list.Add(typeof(NewToys.MediaAssets.MediaAssetsModule));
 #endif
         return list.ToArray();
     }

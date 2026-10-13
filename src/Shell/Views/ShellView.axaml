@@ -11,6 +11,7 @@
     ExtendClientAreaTitleBarHeightHint="40"
     ExtendClientAreaToDecorationsHint="True"
     WindowDecorations="None"
+    CanResize="True"
     WindowState="Normal">
     <Grid RowDefinitions="40,*">
 
@@ -355,6 +356,24 @@
                 <TextBlock Classes="status-bar-text" Text="{Binding StatusBarText}" />
               </Border>
             </Grid>
+        </Grid>
+
+        <!--  ==================== 窗口缩放抓取区（v3.26，需求 §4.1） ====================
+              四边 5px + 四角 10px 透明热区 → code-behind 调 BeginResizeDrag（八向）。
+              🔴 Avalonia 12.1.3 的托管装饰（WindowDecorations / ExtendClientArea*）在 Win32 上不可用
+                 （`ExtendClientAreaChromeHints` 已移除、BorderOnly 丢 WS_CAPTION、ElementRole 拦截标题栏输入，
+                  实证见规范 附录A / GitHub Avalonia#21202）→ 只能自绘。
+              ⚠️ 承装 Grid **不设 Background**（否则整层吃掉所有点击）；8 个 Border 必须 Background="Transparent"
+                 才有命中测试（同标题栏拖拽那套）。最大化时整层 IsHitTestVisible=False（见 code-behind）。  -->
+        <Grid x:Name="ResizeGrips" Grid.Row="0" Grid.RowSpan="2">
+          <Border x:Name="GripTop" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Top" Background="Transparent" />
+          <Border x:Name="GripBottom" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Background="Transparent" />
+          <Border x:Name="GripLeft" Width="5" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" />
+          <Border x:Name="GripRight" Width="5" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" />
+          <Border x:Name="GripTopLeft" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" />
+          <Border x:Name="GripTopRight" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" />
+          <Border x:Name="GripBottomLeft" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="Transparent" />
+          <Border x:Name="GripBottomRight" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" />
         </Grid>
     </Grid>
 </Window>

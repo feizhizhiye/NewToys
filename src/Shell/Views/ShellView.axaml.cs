@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using NewToys.Shared.Services;
+using NewToys.Shell.Services;
 using NewToys.Shell.ViewModels;
 
 namespace NewToys.Shell.Views;
@@ -22,6 +23,9 @@ public partial class ShellView : Window
 {
     private ShellViewModel? _vm;
 
+    /// <summary>窗口大小 / 位置记忆（v3.26，需求 §四）：落本配置 <c>config\window.json</c>；解析不到就纯用默认。</summary>
+    private readonly WindowBoundsService? _bounds;
+
     /// <summary>
     /// 真·退出开关。「关闭按钮最小化到托盘」开启后，<see cref="OnClosing"/> 会把关闭拦下来；
     /// 托盘菜单里的「退出 NewToys」必须把它置 true，否则 <see cref="Window.Close"/> 会被自己拦住。
@@ -31,6 +35,10 @@ public partial class ShellView : Window
     public ShellView()
     {
         InitializeComponent();
+
+        _bounds = App.GetService<WindowBoundsService>();
+        RestoreWindowBounds();
+        Closed += (_, _) => SaveWindowBounds();
     }
 
     /// <summary>
@@ -80,6 +88,10 @@ public partial class ShellView : Window
         //    否则 Avalonia 不做命中测试，鼠标事件直接穿透，拖不动。
         TitleBarGrid.PointerPressed += OnTitleBarPointerPressed;
 
+        // 窗口缩放抓取区（v3.26）：四边 5px + 四角 10px 透明热区 → BeginResizeDrag（八向）+ 对应光标。
+        WireResizeGrips();
+        UpdateResizeGrips();
+
         // 标签页区域滚轮 = 切换标签。用 **隧道** 方式注册：滚动容器（ScrollViewer）会先把
         // 滚轮当成横向滚动吃掉，隧道阶段拦下来才能变成"切标签"。
         TabStrip.AddHandler(InputElement.PointerWheelChangedEvent, OnTabStripWheel, RoutingStrategies.Tunnel);
@@ -121,6 +133,111 @@ public partial class ShellView : Window
             container.BringIntoView();
     }
 
+    // ==================== 窗口缩放抓取区 + 大小/位置记忆（v3.26，需求 §4.1 / §四） ====================
+
+    /// <summary>
+    /// 把 8 个抓取热区接到 <see cref="Window.BeginResizeDrag"/>（八向）。
+    /// 🔴 Avalonia 12 的托管装饰在 Win32 上不可用（规范 附录A）→ 自绘是唯一路线。
+    /// </summary>
+    private void WireResizeGrips()
+    {
+        AddGrip(GripTop, WindowEdge.North, StandardCursorType.SizeNorthSouth);
+        AddGrip(GripBottom, WindowEdge.South, StandardCursorType.SizeNorthSouth);
+        AddGrip(GripLeft, WindowEdge.West, StandardCursorType.SizeWestEast);
+        AddGrip(GripRight, WindowEdge.East, StandardCursorType.SizeWestEast);
+        AddGrip(GripTopLeft, WindowEdge.NorthWest, StandardCursorType.TopLeftCorner);
+        AddGrip(GripTopRight, WindowEdge.NorthEast, StandardCursorType.TopRightCorner);
+        AddGrip(GripBottomLeft, WindowEdge.SouthWest, StandardCursorType.BottomLeftCorner);
+        AddGrip(GripBottomRight, WindowEdge.SouthEast, StandardCursorType.BottomRightCorner);
+    }
+
+    private void AddGrip(Control grip, WindowEdge edge, StandardCursorType cursor)
+    {
+        grip.Cursor = new Cursor(cursor);
+        grip.PointerPressed += (_, e) =>
+        {
+            if (WindowState == WindowState.Maximized) return;    // 整层门控之外再判一次，防边缘态
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+            BeginResizeDrag(edge, e);
+            e.Handled = true;
+        };
+    }
+
+    /// <summary>最大化时整层关掉命中测试（⛔ 不只视觉隐藏——热区必须真关，否则最大化后还能拖出缩放）。</summary>
+    private void UpdateResizeGrips()
+    {
+        if (ResizeGrips == null) return;
+        ResizeGrips.IsHitTestVisible = WindowState != WindowState.Maximized;
+    }
+
+    /// <summary>
+    /// 恢复上次的窗口大小 / 位置（v3.26）。离屏 / 超小值兜底：尺寸不小于 MinWidth/MinHeight；
+    /// 位置在所有屏幕工作区外 → 只用尺寸、位置留给系统默认（⛔ 不让窗口跑到看不见的地方）。
+    /// </summary>
+    private void RestoreWindowBounds()
+    {
+        try
+        {
+            var b = _bounds?.Load();
+            if (b == null) return;
+
+            var w = Math.Max(MinWidth, b.Width);
+            var h = Math.Max(MinHeight, b.Height);
+            Width = w;
+            Height = h;
+
+            if (string.Equals(b.State, "Maximized", StringComparison.OrdinalIgnoreCase))
+            {
+                WindowState = WindowState.Maximized;
+                return;
+            }
+
+            // 位置是物理像素、尺寸是逻辑单位 → 乘渲染缩放后再和工作区比
+            var scale = RenderScaling > 0 ? RenderScaling : 1;
+            var rect = new PixelRect(new PixelPoint((int)b.X, (int)b.Y),
+                                     new PixelSize((int)Math.Ceiling(w * scale), (int)Math.Ceiling(h * scale)));
+            if (IsVisibleOnAnyScreen(rect)) Position = new PixelPoint((int)b.X, (int)b.Y);
+        }
+        catch { /* 恢复失败就用默认窗口（1280×800） */ }
+    }
+
+    private bool IsVisibleOnAnyScreen(PixelRect rect)
+    {
+        try
+        {
+            foreach (var s in Screens.All)
+            {
+                var wa = s.WorkingArea;
+                var iw = Math.Min(rect.Right, wa.Right) - Math.Max(rect.X, wa.X);
+                var ih = Math.Min(rect.Bottom, wa.Bottom) - Math.Max(rect.Y, wa.Y);
+                if (iw > 0 && ih > 0) return true;
+            }
+        }
+        catch { return true; }   // 拿不到屏幕信息 → 不拦，按原值恢复
+        return false;
+    }
+
+    /// <summary>关闭时记窗口大小 / 位置；最小化态**不覆盖**（保留上次正常位置）。</summary>
+    private void SaveWindowBounds()
+    {
+        try
+        {
+            if (_bounds == null) return;
+            if (WindowState == WindowState.Minimized) return;
+
+            _bounds.Save(new WindowBoundsService.WindowBounds
+            {
+                X = Position.X,
+                Y = Position.Y,
+                // ⚠️ 存 ClientSize：OS 拖拽改的是实际尺寸，Width/Height 可能还停在初始请求值
+                Width = ClientSize.Width,
+                Height = ClientSize.Height,
+                State = WindowState == WindowState.Maximized ? "Maximized" : "Normal"
+            });
+        }
+        catch { /* 记不下来不影响关闭 */ }
+    }
+
     // ==================== 标题栏：拖拽 / 双击最大化 ====================
 
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs ev)
@@ -156,12 +273,16 @@ public partial class ShellView : Window
         return false;
     }
 
-    /// <summary>同步最大化 / 还原按钮图标（Win+↑↓、双击、拖到顶边吸附等操作不会通知我们，必须监听）。</summary>
+    /// <summary>同步最大化 / 还原按钮图标 + 窗口缩放抓取区门控（Win+↑↓、双击、拖到顶边吸附等操作不会通知我们，必须监听）。</summary>
+    // ⚠️ 判断属性一律用 == 逐个比（分析器要求常量比较，⛔ 别用 is A or B）
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
         if (change.Property == WindowStateProperty)
+        {
             UpdateMaxIcon();
+            UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
+        }
     }
 
     private void ToggleMaxRestore()

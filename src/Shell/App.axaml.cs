@@ -93,6 +93,9 @@ public class App : Application
             services.AddTransient<HomeView>();
             services.AddTransient<HomeViewModel>();
 
+            // v3.26：主窗口大小 / 位置记忆（落本配置 config\window.json；多实例各记各的，需求 §四）
+            services.AddSingleton<NewToys.Shell.Services.WindowBoundsService>();
+
             // 模块加载（v3.26，需求 §3.4）：必载清单（Module.Settings = 框架组件，置顶先加载）
             // + ModuleLoader 扫 Modules\ 补功能模块。新增功能模块两处登记：Shell.csproj 的 Debug ProjectReference
             // + 下面 GetMandatoryModuleTypes 的 #if DEBUG 追加。

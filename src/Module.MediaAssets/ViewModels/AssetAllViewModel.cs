@@ -302,12 +302,47 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [RelayCommand]
     private void ClearList()
     {
-        if (!IsDraft) return;
-        _all.Clear();
+        // 🔴 任何状态都可用（v3.29 用户反馈：库视图下置灰看着像坏了）。两种语义：
+        if (IsDraft)
+        {
+            // 草稿态 = 丢弃预览结果，回库视图
+            _all.Clear();
+            Selected = null;
+            IsDraft = false;
+            Reload();
+            StatusText = "已清除预览结果，可以换个文件夹重新扫描。";
+            return;
+        }
+
+        // 库视图 = 只清**当前显示**（数据仍在库里，「🔄 刷新」即找回）—— 对齐视频列表的同名按钮（§6.4.11）
+        Items.Clear();
         Selected = null;
-        IsDraft = false;
-        Reload();                       // 回到库视图
-        StatusText = "已清除预览结果，可以换个文件夹重新扫描。";
+        OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(ShowSampleRow));
+        StatusText = "已清空列表显示（数据仍在库里，点「🔄 刷新」找回）。";
+    }
+
+    /// <summary>库文件全路径（「📂 打开库文件」用）。</summary>
+    public string DatabasePath => _assets.DatabasePath;
+
+    /// <summary>
+    /// 用**系统默认程序**打开 <c>newtoys.db</c>（装了 DB Browser for SQLite 之类的工具就能直接看表）。
+    /// ⛔ 打开的是只读副本视角：别的程序占用时 SQLite 的 WAL 模式仍允许我们继续写，但**别在工具里改数据**。
+    /// </summary>
+    [RelayCommand]
+    private void OpenDbFile()
+    {
+        var path = _assets.DatabasePath;
+        if (string.IsNullOrEmpty(path) || !File.Exists(path)) { StatusText = "找不到数据库文件：" + path; return; }
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+            StatusText = "已用系统默认程序打开库文件（若没反应，多半是没装能开 .db 的工具）。";
+        }
+        catch (Exception ex)
+        {
+            StatusText = "打开失败：" + ex.Message + " —— 需要先装一个能打开 .db 的工具（如 DB Browser for SQLite）。";
+        }
     }
 
     // ==================== ③ 登记文件夹 + 扫描全部（直接入库） ====================

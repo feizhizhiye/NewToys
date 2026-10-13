@@ -329,6 +329,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 - **圆角**：卡片 8 / 按钮 6 / 输入框 4；⛔ **标题栏域一律**`CornerRadius=0`（标签项、窗口按钮、标题栏容器）—— v3.22：容器不要圆角，最大化利用空间。
 - **间距**：用 4 的倍数（4/8/12/16），⛔ 不用奇数；**默认取小值**（相邻控件间距 4~8，容器内边距 12）。
+- **横向流式容器的换行间距**（v3.29，用户定调"后续所有类似的容器都这样做"）：工具条 / 筛选条等用 `WrapPanel` 装按钮 / 输入框的容器，**必须**设 `ItemSpacing`（元素间水平距，8）+ `LineSpacing`（换行后行与行的上下距，4）—— ⛔ 别让换行后的第二行贴死第一行（按钮一多就换行，必踩）。有了 `ItemSpacing` 就**别再给每个元素写右 Margin**（两套间距会叠加）。
 - **分割线**：`DividerBrush` 1px。**选中态**：统一用 `active` class，⛔ 不用本地值写 `Background`。
 - **主题强调色（激活态）加深**：菜单栏 / 标签页**激活项**的强调色当前太淡 → 提高对比（仍用 `AccentPalette` 单一强调源，⛔ 写死色值）。
 - **按钮样式 / 颜色全局统一**：所有按钮统一用共享样式（`Button.primary` / `Button.ghost` / `Button.row-btn` 等），⛔ 页面自造配色；颜色一律 DynamicResource 主题键。
@@ -712,7 +713,7 @@ Module.*（功能模块，只引 Shared + Core）
 - **外部变更**：文件不见 → `missing`；新路径 → hash 匹配视为移动；⛔ 移动硬盘离线（Storage `online=0`）时**不动**其下 file_locations，重新上线再扫描校准。
 - **跨页投递**：模块内单例 Store（仿 `VideoTaskStore`）；🔴 取件点在 `OnAttachedToVisualTree`（§4.8 硬规则 8）。
 
-**复用硬约束**（不在此复述，指向权威）：列表页一律继承 `ListPageViewModelBase`（`Shared/Models`）+ 三列布局 + 工具条 / 筛选条收进列表列 + 详情开关在工具条末位；`Views/ColumnGrid.cs` 本模块自建**第五份**副本（规范 §3.6，改动同步五处）；详情卡内容由 VM 实现 `IDetailPanelProvider.DetailContent` 提供（目标形态，规范 §3.8 / B13），详情卡内零操作按钮；状态栏由基类统一实现、每页 ≥1 行 `StatusText`；单元格内边距 8 / 表头 32 / 行 28（§4.10.2）。
+**复用硬约束**（不在此复述，指向权威）：列表页一律继承 `ListPageViewModelBase`（`Shared/Models`）+ 三列布局 + 工具条 / 筛选条收进列表列 + 详情开关在工具条末位；`Views/ColumnGrid.cs` 本模块自建**第五份**副本（规范 §3.6，改动同步五处）；详情卡内容由 VM 实现 `IDetailPanelProvider.DetailContent` 提供（目标形态，规范 §3.8 / B13），详情卡内允许**编辑 + 「💾 保存」+「↗ 应用到文件」**（v3.29 用户定调，覆盖旧"零操作按钮"规则；⛔ 别放无关的全局动作）；状态栏由基类统一实现、每页 ≥1 行 `StatusText`；单元格内边距 8 / 表头 32 / 行 28（§4.10.2）。
 
 ---
 

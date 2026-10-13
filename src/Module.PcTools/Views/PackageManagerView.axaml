@@ -51,9 +51,11 @@
                   IsEnabled="{Binding !IsBusy}"/>
           <Button Classes="ghost" Content="🔄 刷新" Margin="0,0,8,6" Command="{Binding RefreshCommand}"
                   IsEnabled="{Binding !IsBusy}"/>
+          <!--  v3.22 §6.2.3：常用 winget 命令封成按钮 —— pin list 的结果**并入 winget list 列表**一起显示  -->
+          <Button Classes="ghost" Content="📌 Pin 列表" Margin="0,0,8,6" Command="{Binding LoadPinnedCommand}"
+                  IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="跑 winget pin list，把被 Pin 的包并入「已安装」列表（已存在的贴 📌，缺的补一行）"/>
 
-          <CheckBox Content="仅看 Pin" FontSize="12" Margin="0,0,8,6" IsChecked="{Binding ShowPinned, Mode=TwoWay}"
-                    ToolTip.Tip="只看已 Pin（暂停更新）的包（v3.19 / NT-008：表头 Pin 列已删，改由这里看）"/>
           <CheckBox Content="静默安装 (--silent)" FontSize="12" Margin="0,0,8,6" IsChecked="{Binding SilentInstall, Mode=TwoWay}"/>
 
           <!--  v3.19 / NT-008：原顶部的「已安装（本机全部包）/ 可升级 / 搜索结果」ModeText 指示移除——

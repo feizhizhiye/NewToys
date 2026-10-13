@@ -541,22 +541,26 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 
     protected override string PageKey => "video-batch";
 
+    /// <summary>v3.22 §4.8.1：每列一条示例值（列表为空时拼成水印示例行；同时用于列宽判定）。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         // v3.16 §6.4.10：行首勾选框（表头 ☑ 的 全选 / 取消选择 / 反选 改它）
         new("Pick", "", "34", sortable: false),
-        new("Kind", "类型", "1.0*"),
-        new("Name", "文件", "2.6*"),
-        new("Param", "参数", "2.2*"),
-        new("Before", "处理前", "1.5*"),
-        new("After", "处理后", "1.5*"),
-        new("Status", "状态", "1.2*"),
-        new("Progress", "进度", "1.1*", sortable: false),
+        new("Kind", "类型", "1.0*", sample: "剪辑+转码"),
+        new("Name", "文件", "2.6*", sample: "示例视频 2026.mp4"),
+        new("Param", "参数", "2.2*", sample: "00:00:10 - 00:01:30"),
+        new("Before", "处理前", "1.5*", sample: "1.5 GB"),
+        new("After", "处理后", "1.5*", sample: "820.5 MB"),
+        new("Status", "状态", "1.2*", sample: "已完成"),
+        new("Progress", "进度", "1.1*", sample: "100%", sortable: false),
         // v3.15 §6.4.8 扩充（源文件 / 命令摘要 / 创建时间；类型 / 状态 / 进度 / 输出大小已有）
-        new("Source", "源文件", "2.2*"),
-        new("Command", "命令摘要", "2.4*"),
-        new("Created", "创建时间", "1.3*"),
+        new("Source", "源文件", "2.2*", sample: @"D:\Videos\示例视频 2026.mp4"),
+        new("Command", "命令摘要", "2.4*", sample: "-c:v libx265 -crf 23"),
+        new("Created", "创建时间", "1.3*", sample: "2026-10-13 15:00"),
     };
+
+    /// <summary>v3.22：队列为空时显示那条示例行（⛔ 不进 Items、不参与统计 / 导入导出）。</summary>
+    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
 
     public VideoBatchViewModel() { }
 
@@ -631,6 +635,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
 
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(ShowSampleRow));   // v3.22：有真实任务后示例行消失
         OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：清队列 / 导入任务后表头三态刷新
         UpdateSummaryText();
         OnPropertyChanged(nameof(CheckedCount));

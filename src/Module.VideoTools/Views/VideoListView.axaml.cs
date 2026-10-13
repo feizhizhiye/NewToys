@@ -47,10 +47,10 @@ public partial class VideoListView : UserControl
             if (DataContext is ListPageViewModelBase vm)
                 vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
         };
-        // v3.21 §4.8.1：表头首次布局后把实测表头宽交给 VM —— FixedToHeader 的列据此锁宽
+        // v3.22 §4.8.1：表头首次布局后把「表头宽 + 示例值宽」交给 VM —— 示例 ≤ 表头的列锁成表头宽
         HeaderGrid.HeaderMeasured += (_, e) =>
         {
-            if (DataContext is ListPageViewModelBase vm) vm.LockColumnsToHeader(e.Widths);
+            if (DataContext is ListPageViewModelBase vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
         };
     }
 

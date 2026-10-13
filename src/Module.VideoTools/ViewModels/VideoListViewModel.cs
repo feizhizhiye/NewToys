@@ -125,28 +125,30 @@ public partial class VideoListViewModel : ListPageViewModelBase
     /// </summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
+        // v3.22 §4.8.1：每列给一条**示例值** —— ① 列表为空时拼成一条水印示例行；
+        // ② 用「示例宽 ≤ 表头宽」判定该列是否锁成表头宽（锁了就不可拖，且不低于 MinLockedWidth=34 保证把手可拖）。
         new("Pick", "", "34", sortable: false),
-        new("Name", "名称", "3.2*"),
-        // v3.21 §4.8.1：内容天然短于表头文字 → 宽锁成表头宽、不可拖（.mp4 < 「类型」）
-        new("Type", "类型", "0.9*", fixedToHeader: true),
-        new("Size", "大小", "1*"),
-        new("Duration", "时长", "0.9*"),
-        new("Resolution", "分辨率", "1.1*"),
-        new("Codec", "编码", "1.1*"),
-        new("Bitrate", "码率", "1.1*"),
-        new("Modified", "修改时间", "1.5*"),
+        new("Name", "名称", "3.2*", sample: "示例视频 2026.mp4"),
+        new("Type", "类型", "0.9*", sample: ".mp4"),
+        new("Size", "大小", "1*", sample: "1.5 GB"),
+        new("Duration", "时长", "0.9*", sample: "1:02:03"),
+        new("Resolution", "分辨率", "1.1*", sample: "1920×1080"),
+        new("Codec", "编码", "1.1*", sample: "H.265/HEVC"),
+        new("Bitrate", "码率", "1.1*", sample: "8.5 Mbps"),
+        new("Modified", "修改时间", "1.5*", sample: "2026-10-13 15:00"),
         // v3.15 扩充（表头右键均可隐藏）：标签 / 帧率 / 容器格式 / 音频编码 / 路径 / 创建时间
-        new("Tags", "标签", "1.2*"),
-        // v3.21：29.97 < 「帧率」
-        new("Fps", "帧率", "0.8*", fixedToHeader: true),
-        new("Container", "容器格式", "1*"),
-        new("Audio", "音频编码", "1*"),
-        new("Path", "路径", "2.5*"),
-        new("Created", "创建时间", "1.5*"),
+        new("Tags", "标签", "1.2*", sample: "收藏,待剪"),
+        new("Fps", "帧率", "0.8*", sample: "29.97"),
+        new("Container", "容器格式", "1*", sample: "MP4"),
+        new("Audio", "音频编码", "1*", sample: "AAC"),
+        new("Path", "路径", "2.5*", sample: @"D:\Videos\示例视频 2026.mp4"),
+        new("Created", "创建时间", "1.5*", sample: "2026-10-13 15:00"),
         // 「已收藏」列：真值在 video_favorites 表（v3.15 §6.4.9）；基类 Sort 对它首点即降序 → ★ 排前面
-        // v3.21：只有一个 ★ < 「已收藏」
-        new("Favorite", "已收藏", "0.7*", fixedToHeader: true),
+        new("Favorite", "已收藏", "0.7*", sample: "★"),
     };
+
+    /// <summary>v3.22：列表为空时显示那条**示例行**（⛔ 不进 <c>Videos</c>、不参与统计 / 导入导出）。</summary>
+    public bool ShowSampleRow => HasSampleRow && Videos.Count == 0;
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Videos.Count > 0;
@@ -366,6 +368,7 @@ public partial class VideoListViewModel : ListPageViewModelBase
               + (Selected != null ? $" · 已选：{Selected.Name}" : "");
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSampleRow));   // v3.22：有真实数据后示例行消失
         OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(HasChecked));
         OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：导入 / 清除 / 重扫后表头三态刷新

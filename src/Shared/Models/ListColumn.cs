@@ -23,18 +23,21 @@ public sealed class ListColumn
     public bool Sortable { get; }
 
     /// <summary>
-    /// v3.21：该列**内容天然不会超过表头文字宽** → 宽度锁成「表头文字宽」，**不可拖拽、不可自动调整**。
-    /// <para>判定是**声明式**的（⛔ 不做运行时逐行测宽：列表虚拟化只 measure 可见行，滚动会让最大内容宽变化 → 列宽抖动）。
-    /// 只给「定长短值」的列标（如 ★ / 帧率 / 类型），⛔ 名称 / 路径 / 命令摘要这类变长内容<b>不能标</b>。</para>
+    /// v3.22：**示例值**（一条"设计时数据 / 水印行"在这一列显示什么，如 `★` / `29.97` / `.mp4` / `1:02:03`）。
+    /// <list type="bullet">
+    ///   <item>列表**没有真实数据**时，把这些示例值拼成一条**示例行**显示（半透明占位，⛔ 不参与数据 / 统计 / 导入导出）；有真实数据后整条消失。</item>
+    ///   <item>它同时是**列宽判定的依据**：示例文本宽 ≤ 表头文字宽 → 该列锁成表头宽（不可拖、不自动调）；否则不锁。</item>
+    /// </list>
+    /// ⛔ 绝不按真实行逐行测宽（虚拟化只 measure 可见行 → 滚动会让最大内容宽变化 → 列宽抖动）。
     /// </summary>
-    public bool FixedToHeader { get; }
+    public string? Sample { get; }
 
-    public ListColumn(string key, string header, string width, bool sortable = true, bool fixedToHeader = false)
+    public ListColumn(string key, string header, string width, bool sortable = true, string? sample = null)
     {
         Key = key;
         Header = header;
         Width = width;
         Sortable = sortable;
-        FixedToHeader = fixedToHeader;
+        Sample = sample;
     }
 }

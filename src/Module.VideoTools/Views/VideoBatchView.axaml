@@ -190,7 +190,7 @@
                 Grid.Row="3"
                 Padding="0"
                 Classes="card">
-                <Grid RowDefinitions="Auto,*">
+                <Grid RowDefinitions="Auto,Auto,*">
 
                     <Border Grid.Row="0" Classes="list-header">
                         <!--  v3.20 §6.4.15：IsResizable = 表头列边界可拖动手动调列宽（事件在 code-behind 转给 VM）  -->
@@ -198,7 +198,8 @@
                             x:Name="HeaderGrid"
                             ColumnSpecs="{Binding VisibleColumnSpecs}"
                             IsResizable="True"
-                            LockedColumns="{Binding LockedColumnMask}">
+                            LockedColumns="{Binding LockedColumnMask}"
+                            SampleSpecs="{Binding SampleSpecs}">
                             <!--
                                 v3.16.1：第一列 = 行首勾选框；表头改用**原生 CheckBox**（三态：全勾 ✓ / 部分 ■ / 没勾）
                                 —— 之前用字符"☑"，字体渲染成一坨深色块，跟行内勾选框风格不搭。
@@ -381,9 +382,30 @@
                         </v:ColumnGrid>
                     </Border>
 
+                    <!--  v3.22 §4.8.1：示例行（水印）—— 队列为空时显示，有真实任务后消失；⛔ 不进 Items  -->
+                    <Border
+                        Grid.Row="1"
+                        Classes="list-header"
+                        IsVisible="{Binding ShowSampleRow}"
+                        Opacity="0.5"
+                        ToolTip.Tip="这是示例数据（列宽就按它判定）；加入任务后这一行会消失">
+                        <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
+                            <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsKindVisible}" Text="{Binding SampleRowTexts[1]}" />
+                            <TextBlock Grid.Column="2" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[2]}" />
+                            <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsParamVisible}" Text="{Binding SampleRowTexts[3]}" />
+                            <TextBlock Grid.Column="4" Classes="list-cell" IsVisible="{Binding IsBeforeVisible}" Text="{Binding SampleRowTexts[4]}" />
+                            <TextBlock Grid.Column="5" Classes="list-cell" IsVisible="{Binding IsAfterVisible}" Text="{Binding SampleRowTexts[5]}" />
+                            <TextBlock Grid.Column="6" Classes="list-cell" IsVisible="{Binding IsStatusVisible}" Text="{Binding SampleRowTexts[6]}" />
+                            <TextBlock Grid.Column="7" Classes="list-cell" IsVisible="{Binding IsProgressVisible}" Text="{Binding SampleRowTexts[7]}" />
+                            <TextBlock Grid.Column="8" Classes="list-cell" IsVisible="{Binding IsSourceVisible}" Text="{Binding SampleRowTexts[8]}" />
+                            <TextBlock Grid.Column="9" Classes="list-cell" IsVisible="{Binding IsCommandVisible}" Text="{Binding SampleRowTexts[9]}" />
+                            <TextBlock Grid.Column="10" Classes="list-cell" IsVisible="{Binding IsCreatedVisible}" Text="{Binding SampleRowTexts[10]}" />
+                        </v:ColumnGrid>
+                    </Border>
+
                     <ListBox
                         x:Name="TaskList"
-                        Grid.Row="1"
+                        Grid.Row="2"
                         Classes="list-page"
                         ItemsSource="{Binding Items}"
                         SelectedItem="{Binding Selected, Mode=TwoWay}"

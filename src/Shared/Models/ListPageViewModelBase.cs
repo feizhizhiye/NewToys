@@ -163,27 +163,34 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     private readonly Dictionary<string, double> _manualWidths = new();
 
     /// <summary>
-    /// 「锁定列宽」（v3.21，需求 §4.8.1）：`ListColumn.FixedToHeader` 的列，宽 = **表头文字宽**（实测）→ 锁定。
+    /// 「锁定列宽」（v3.22，需求 §4.8.1）：`ListColumn.Sample` 的示例文本宽 ≤ 表头宽 → 该列锁成表头宽（且不窄于 34px）。
     /// 锁定的列**不可拖拽**、不参与任何自动调整。
     /// </summary>
     private readonly Dictionary<string, double> _lockedWidths = new();
 
     /// <summary>
-    /// 把表头实测宽度写进「锁定列宽」—— **只认 <c>FixedToHeader</c> 的列**（其余列传进来也忽略）。
+    /// v3.22：按「示例值宽 ≤ 表头宽」把列锁成表头宽（不可拖、不自动调）。
     /// 由 View 的 <c>ColumnGrid.HeaderMeasured</c> 事件转调（首次布局后一次性）。
+    /// <para>锁定的宽度**不小于 <see cref="MinLockedWidth"/>** —— 表头文字很短的列也要留出空间，
+    /// 让**边界把手始终显示、能拖**（用户要求：最小列宽也要能拖）。</para>
     /// </summary>
-    public void LockColumnsToHeader(IReadOnlyList<double>? widths)
+    public void LockColumnsBySample(IReadOnlyList<double>? headerWidths, IReadOnlyList<double>? sampleWidths)
     {
-        if (widths == null) return;
+        if (headerWidths == null) return;
 
         var changed = false;
-        for (var i = 0; i < Columns.Count && i < widths.Count; i++)
+        for (var i = 0; i < Columns.Count && i < headerWidths.Count; i++)
         {
-            if (!Columns[i].FixedToHeader) continue;
-            var w = widths[i];
-            if (w <= 0) continue;                       // 隐藏列 / 还没测到 → 不动
-            if (_lockedWidths.TryGetValue(Columns[i].Key, out var old) && Math.Abs(old - w) <= 0.5) continue;
-            _lockedWidths[Columns[i].Key] = w;
+            var col = Columns[i];
+            if (string.IsNullOrEmpty(col.Sample)) continue;          // 没给示例值 → 不参与判定
+            var hw = headerWidths[i];
+            if (hw <= 0) continue;                                   // 隐藏列 / 还没测到
+            var sw = sampleWidths != null && i < sampleWidths.Count ? sampleWidths[i] : double.MaxValue;
+            if (sw > hw) continue;                                   // 示例比表头还宽 → 不锁
+
+            var w = Math.Max(hw, MinLockedWidth);
+            if (_lockedWidths.TryGetValue(col.Key, out var old) && Math.Abs(old - w) <= 0.5) continue;
+            _lockedWidths[col.Key] = w;
             changed = true;
         }
         if (!changed) return;
@@ -191,6 +198,31 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         OnPropertyChanged(nameof(VisibleColumnSpecs));
         OnPropertyChanged(nameof(LockedColumnMask));
     }
+
+    /// <summary>锁定的最小列宽（px）—— 保证「已收藏」这类表头很短的列也留得下拖拽把手。</summary>
+    public const double MinLockedWidth = 34;
+
+    /// <summary>
+    /// 示例行的文本（按列顺序，与 <see cref="Columns"/> 一一对齐）：给 View 的「水印行」绑
+    /// <c>{Binding SampleRowTexts[i]}</c> 用；⛔ 不进 <c>Items</c>、不参与统计 / 导入导出。
+    /// </summary>
+    public string[] SampleRowTexts
+    {
+        get
+        {
+            var arr = new string[Columns.Count];
+            for (var i = 0; i < Columns.Count; i++) arr[i] = Columns[i].Sample ?? "";
+            return arr;
+        }
+    }
+
+    /// <summary>有没有给任何列填过示例值（View 据此决定要不要画那条水印行）。</summary>
+    public bool HasSampleRow => Columns.Any(c => !string.IsNullOrEmpty(c.Sample));
+
+    /// <summary>
+    /// 示例值文本串（';' 分隔，给表头 <c>ColumnGrid.SampleSpecs</c> 测量用；⛔ 别用逗号 —— 示例值里可能有逗号）。
+    /// </summary>
+    public string SampleSpecs => string.Join(';', Columns.Select(c => (c.Sample ?? "").Replace(';', ' ')));
 
     /// <summary>
     /// 锁定列的掩码串（给表头 <c>ColumnGrid.LockedColumns</c> 用）：每位 '1' = 该列已锁定（边界不放拖拽把手）。

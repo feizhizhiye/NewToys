@@ -76,8 +76,7 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _installedOnly;
 
-    /// <summary>v3.19 / NT-008：只看已 Pin 的包（表头 Pin 列已删，改用工具条按钮过滤）。</summary>
-    [ObservableProperty] private bool _showPinned;
+    // v3.22：原「仅看 Pin」勾选框（`_showPinned`）已删除 —— pin 改成一条真命令「📌 Pin 列表」（见 LoadPinnedAsync）。
     [ObservableProperty] private bool _silentInstall = true;
     [ObservableProperty] private PackageInfo? _selected;
     [ObservableProperty] private PackageSourceOption? _selectedSource;
@@ -368,26 +367,44 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     partial void OnInstalledOnlyChanged(bool value) => ApplyView();
 
     /// <summary>
-    /// 🐞 v3.21 修正（需求 §6.2.3）：「仅看 Pin」= **已安装包里被 Pin 住的那几个**。
-    /// 旧实现只是在"当前这份列表"（搜索结果 / 可升级）上再筛一次 `IsPinned` ——
-    /// 搜索模式下那不是"已安装"集合；可升级模式更糟（上面已把 Pin 的排除掉）→ 永远空。
-    /// 现在：只要不在已安装列表上，先切到已安装列表（顺带刷新 pin 状态），再筛。
+    /// 📌 Pin 列表（v3.22，需求 §6.2.3）：跑 `winget pin list`，把结果**并入 `winget list` 的已安装列表**一起显示。
+    /// <list type="bullet">
+    ///   <item>不在已安装列表上时，先跑一次 <see cref="LoadInstalledAsync"/>（拿 `winget list` 当底子）；</item>
+    ///   <item>pin 项已在列表里 → 贴 📌（`IsPinned = true`）；不在 → 追加成一行（pin list 只给包名，版本/名称可能空）。</item>
+    /// </list>
+    /// ⛔ 本页**没有「仅看 Pin」勾选框**（v3.22 去掉：过滤语义说不清，改成"把 pin 项加进列表"这个真命令）。
     /// </summary>
-    partial void OnShowPinnedChanged(bool value)
+    [RelayCommand]
+    private async Task LoadPinnedAsync()
     {
-        if (!value) { ApplyView(); return; }
-        if (_mode != ListMode.Installed) { _ = LoadInstalledForPinnedAsync(); return; }
-        ApplyView();
-    }
+        if (_pkg == null || IsBusy) return;
 
-    private async Task LoadInstalledForPinnedAsync()
-    {
-        if (_pkg == null) { ApplyView(); return; }
-        await LoadInstalledAsync();   // 内部：BuildInstalledCache + ApplyPinnedAsync + ApplyView
-        var n = _all.Count(p => p.IsPinned);
-        StatusText = n > 0
-            ? $"「仅看 Pin」：已安装包里被 Pin 住的 {n} 个（Pin = 暂停更新）。"
-            : "「仅看 Pin」：已安装包里没有被 Pin 住的。";
+        if (_mode != ListMode.Installed)
+            await LoadInstalledAsync();     // 先有 winget list 的底子（内部会 ApplyView）
+
+        try
+        {
+            IsBusy = true;
+            StatusText = "正在读取 Pin 列表（winget pin list）……";
+            var (ok, msg, pinned) = await _pkg.ListPinnedAsync();
+            if (!ok) { StatusText = "读取 Pin 列表失败：" + msg; return; }
+
+            var marked = 0;
+            var added = 0;
+            foreach (var p in pinned)
+            {
+                var hit = _all.FirstOrDefault(x => string.Equals(x.Id, p.Id, StringComparison.OrdinalIgnoreCase));
+                if (hit != null) { hit.IsPinned = true; marked++; continue; }
+                _all.Add(new PackageInfo { Id = p.Id, Name = p.Name, IsPinned = true });
+                added++;
+            }
+
+            ApplyView();
+            StatusText = pinned.Count == 0
+                ? "没有被 Pin 的包（winget pin list 为空）。"
+                : $"Pin 列表 {pinned.Count} 项已并入已安装列表：{marked} 个已存在的贴上 📌、{added} 个新加入（Pin = 暂停更新）。";
+        }
+        finally { IsBusy = false; }
     }
 
     partial void OnSelectedChanged(PackageInfo? value)
@@ -402,10 +419,6 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
 
         if (InstalledOnly && _mode == ListMode.Search)
             q = q.Where(p => p.IsInstalled);
-
-        // v3.21：「仅看 Pin」只在**已安装**列表上有意义（语义 = 已安装包里被 Pin 住的；见 OnShowPinnedChanged）
-        if (ShowPinned && _mode == ListMode.Installed)
-            q = q.Where(p => p.IsPinned);
 
         // v3.19 / NT-008：可升级列表**不显示已 Pin 的**（winget 会跳过它们 —— 需求 §6.2.3；也让它更贴近终端 winget upgrade 的条数）
         if (_mode == ListMode.Upgrades)

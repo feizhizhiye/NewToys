@@ -370,7 +370,7 @@ public class AssetMergeService
                                                            Dictionary<long, long> storageMap, Dictionary<long, long> assetMap,
                                                            IProgress<string>? progress, CancellationToken ct)
     {
-        if (!have.Contains("file_locations")) return (0, 0);
+        if (!have.Contains("file_locations")) return (0, 0, new HashSet<long>());
         progress?.Report("正在合并文件位置…");
 
         // 主库已有的去重键

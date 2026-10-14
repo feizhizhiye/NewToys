@@ -55,7 +55,9 @@
                     里 TitleBar 部件只在 `== Full` 时加入）→ 实测标题文字重叠、右侧多一个点坏状态的按钮。
               修法：装饰模式改 `BorderOnly`（那时 Avalonia 的部件集合为 None → 什么都不画）**并**给他一个不绘制任何
                     内容的 ControlTheme 兜底（不设 Template = 无模板 = 不画），双保险。
-              ⚠️ 真正的贴靠资格由 code-behind 的 `ApplySnapEligibleStyles()` 补 `WS_CAPTION/WS_THICKFRAME` 等位保证。  -->
+              ⚠️ 该段为**历史注释**（v3.28 的 `BorderOnly` 路线，已被下方 NT-040 官方 CSD 主题取代，仅作留档）。
+                 贴靠资格曾由 code-behind 的 `ApplySnapEligibleStyles()` 手工补 `WS_CAPTION/WS_THICKFRAME`；
+                 NT-040 改回官方 `Full` 装饰后 Avalonia 自带这些样式位，该补丁已于 NT-041 删除。  -->
         <!--
             ==================== 窗口装饰：官方 CSD 主题（NT-040，需求 §4.1.1 ①） ====================
             背景：为了拿系统级贴靠，窗口走 `ExtendClientAreaToDecorationsHint="True"` + `WindowDecorations="Full"`。

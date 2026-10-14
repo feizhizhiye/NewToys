@@ -19,7 +19,9 @@ namespace NewToys.Shell.Views;
 /// 标签栏与左树是**纯数据驱动**（ItemsControl + 绑定），code-behind 只剩这几件事：
 /// ① 关闭拦截（「关闭到托盘」）；② 窗口按钮；③ 标题栏拖拽 + 双击最大化；
 /// ④ 标签页区域滚轮切换标签；⑤ 切换后把当前标签**滚进视野**（v3.6）；
-/// ⑥ 窗口缩放抓取区 + 大小 / 位置记忆（v3.26）；⑦ 贴靠资格样式补丁（v3.28）。
+/// ⑥ 窗口缩放抓取区 + 大小 / 位置记忆（v3.26）；
+/// ⑦ 贴靠缝隙根治（v3.29，接管 <c>WM_NCCALCSIZE</c>）+ DWM 圆角压制（NT-034）
+/// —— v3.28 那套「手工补 <c>WS_CAPTION</c> 换贴靠资格」已在 NT-041 删除：官方 <c>Full</c> 装饰自带这些样式位。
 /// </para>
 /// </summary>
 public partial class ShellView : Window
@@ -146,10 +148,6 @@ public partial class ShellView : Window
 
         // NT-039：窗口外框（厚度 / 颜色由样式给，这里只切 .maximized / .inactive 两个伪类）
         UpdateWindowFrame();
-
-        // v3.28：给无边框窗口补回「可缩放」标准样式 —— Windows 的贴靠（Win+方向键 / 拖到屏幕边缘 /
-        // 拖到顶边最大化）只认带 WS_THICKFRAME 等标准样式的窗口。
-        ApplySnapEligibleStyles();
 
         // 标签页区域滚轮 = 切换标签。用 **隧道** 方式注册：滚动容器（ScrollViewer）会先把
         // 滚轮当成横向滚动吃掉，隧道阶段拦下来才能变成"切标签"。
@@ -367,44 +365,6 @@ public partial class ShellView : Window
         catch { /* 记不下来不影响关闭 */ }
     }
 
-    // ==================== Win32 平台细节（v3.28）：真实位置 + 贴靠资格 ====================
-
-
-    /// <summary>
-    /// 给窗口补「可缩放窗口」标准样式（<c>WS_THICKFRAME</c> + <c>WS_CAPTION</c> + 最小 / 最大化 / 系统菜单）。
-    /// <para>
-    /// 为什么需要（v3.28 查两个源码后定论）：
-    /// ① Windows 的贴靠（Win+方向键 / 拖到边缘贴半屏 / 拖到顶边最大化）**由系统执行**，前提是窗口具备标准样式；
-    /// ② `WindowDecorations="BorderOnly"` 时 Avalonia 只设 `WS_BORDER`（+ `IsResizable` 时的 `WS_THICKFRAME`）——
-    ///    ⛔ **不设 `WS_CAPTION`**，而 `Full` 又会触发 Avalonia 自己画一套窗框（`Window.cs::ComputeDecorationParts`
-    ///    里 TitleBar 部件只在 `WindowDecorations == Full` 时才加）→ 两难。折中 = **BorderOnly（Avalonia 不画）+ 这里手工补 `WS_CAPTION`（贴靠资格）**。
-    /// ③ 客户区仍归我们自绘（BorderOnly + `ExtendClientAreaToDecorationsHint` → `WM_NCCALCSIZE` 把边框算进客户区、
-    ///    DWM 的 NCRenderingPolicy 交给应用画 → ⛔ 不会画出系统标题栏）。
-    /// </para>
-    /// <para>
-    /// ⚠️ Avalonia 在窗口状态变化时会**重算样式**（`UpdateWindowProperties`），把这里补的位抹掉 →
-    /// 所以除了开机调用，`WindowState` 变化时也要再补一次（见 <see cref="OnPropertyChanged"/>）。
-    /// </para>
-    /// </summary>
-    private void ApplySnapEligibleStyles()
-    {
-        try
-        {
-            var h = TryGetPlatformHandle()?.Handle;
-            if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
-
-            var style = GetWindowLongPtr(hwnd, GWL_STYLE).ToInt64();
-            var want = style | WS_THICKFRAME | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU;
-            if (want == style) return;
-
-            SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(want));
-            // 样式变更要 SWP_FRAMECHANGED 才重新算非客户区（否则系统不认这次改动）
-            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-        }
-        catch { /* 补样式失败就维持现状（只是没有系统贴靠，手动拖拽缩放仍可用） */ }
-    }
-
     // ==================== DWM 圆角（NT-034，需求 §4.1） ====================
 
     /// <summary>
@@ -568,8 +528,9 @@ public partial class ShellView : Window
     /// v3.29 贴靠缝隙的**根治**：接管窗口过程，在 <c>WM_NCCALCSIZE</c> 上把 Avalonia 的回答
     /// 「客户区 = 外框 − 边框」改回「客户区 = 整个外框」。
     /// <para>
-    /// 🔴 为什么必须在这层动手：那圈被扣掉 ~8px 的厚度是按**窗口样式**算的，而样式里的
-    /// <c>WS_THICKFRAME|WS_CAPTION</c> 是我们为**贴靠资格**补的（去掉它 = 失去贴靠，回归更糟）。
+    /// 🔴 为什么必须在这层动手：那圈被扣掉 ~8px 的厚度是按**窗口样式**算的，而 <c>WS_THICKFRAME|WS_CAPTION</c>
+    ///    是**贴靠资格**的来源（NT-040 起由官方 `WindowDecorations="Full"` 提供；更早是 v3.28 手工补的，
+    ///    已在 NT-041 删除）→ ⛔ 去掉样式位 = 失去贴靠，回归更糟。
     /// 平时 DWM 在那圈上画标准窗框所以看不出来；**贴靠后 DWM 不画了** → 左右下露缝
     /// （顶部被 40px 标题栏盖住，所以只有三边看得到）。
     /// </para>
@@ -644,12 +605,11 @@ public partial class ShellView : Window
         catch { return false; }
     }
 
-    private const int GWL_STYLE = -16;
-    private const long WS_THICKFRAME = 0x00040000L;
-    private const long WS_CAPTION = 0x00C00000L;   // = WS_BORDER | WS_DLGFRAME，贴靠资格的关键位
-    private const long WS_MINIMIZEBOX = 0x00020000L;
-    private const long WS_MAXIMIZEBOX = 0x00010000L;
-    private const long WS_SYSMENU = 0x00080000L;
+    // 🔴 NT-041：以下 6 个样式位常量 + `GetWindowLongPtr` 曾用于 v3.28 的「手工补贴靠资格样式」
+    //    （`ApplySnapEligibleStyles`）。NT-040 把 `WindowDecorations` 改回官方 `Full` 后，
+    //    Avalonia 自己就会设 `WS_CAPTION` / `WS_THICKFRAME` / `WS_SYSMENU` 等 → 该补丁已删除、常量随之清理。
+    //    ⛔ 若日后贴靠再失效，**先怀疑是不是装饰被改回 BorderOnly / None**，⛔ 别直接把手工补位抄回来
+    //    （补位会与 Avalonia 的重算互相打架：状态变化时它把你补的位抹掉，你再补 → 无谓拉锯）。
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOZORDER = 0x0004;
@@ -714,9 +674,8 @@ public partial class ShellView : Window
     private static IntPtr _originalWndProc;
 
     // ⚠️ 本项目锁定 win-x64（见 src/Directory.Build.props）→ 用 Ptr 版导出 ✓（32 位 Windows 上导出名不同）
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
-
+    //    NT-041：`GetWindowLongPtr`（读样式位）随 `ApplySnapEligibleStyles` 一并删除；
+    //    `SetWindowLongPtr` 仍是 `InstallSnapFrameFix`（挂 WndProc）的必需品 → 保留。
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
@@ -769,7 +728,6 @@ public partial class ShellView : Window
             UpdateMaxIcon();
             UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
             UpdateWindowFrame();   // NT-039：最大化时收掉外框
-            ApplySnapEligibleStyles();   // v3.28：状态变化时 Avalonia 会重算样式 → 把贴靠资格位补回去
             ApplyNoRoundCorners();       // NT-034：状态变化时也重设 DWM 圆角偏好（防被重算抹掉）
         }
         else if (change.Property == IsActiveProperty)

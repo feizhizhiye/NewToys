@@ -213,31 +213,34 @@ Module.*（功能模块，只引 Shared + Core）
 
 #### 4.1.1 窗口装饰与窗框（**走 Avalonia 12 官方 CSD 路线**）
 
-> v3.38 新立。起因：标题栏反复修补（v3.28 贴靠资格 / v3.29 贴靠缝隙 / NT-034 方角）共叠了 4 层 Win32 P/Invoke 补丁，越改越脆。本小节锁死方向：**框架能做的交给框架，⛔ 不重复造轮子。**
+> v3.38 立「官方 CSD」。🔴 **2026-10-15 同日两次反转后定案**：先按 NT-034 基线（Win32 补丁）回退，随后据**跨平台评估**（Wayland / Debian 13 只有官方 CSD 接得上 —— Linux 无 DWM / `WS_*` 样式位 / GDI region 概念）**重新采纳官方 CSD**。
+> ⇒ 口径：**框架能做的交给框架**；Win32 侧仅保留「方角」两处（② 与技术债 §7 **B16 / B17**）。
 
-**① 官方路线四件套（唯一实现方式）**
+**① 官方路线（唯一实现方式）**
 
 | 机制 | 用途 |
 |---|---|
 | `ExtendClientAreaToDecorationsHint="True"` | 激活客户区扩展（也是 `ElementRole` 生效的前提） |
 | `ExtendClientAreaTitleBarHeightHint="40"` | 声明自绘标题栏高度 |
-| `WindowDecorations` | `None` / `BorderOnly`（有边框无标题栏）/ `Full`（完整装饰） |
-| `WindowDecorationProperties.ElementRole` | 给自绘元素标角色：`TitleBar`（系统拖动 + 双击最大化 + 贴靠）/ `User`（放行点击）/ `ResizeN…SW`（八向缩放）/ `CloseButton` 等 |
-| `WindowDecorationsTheme` | **应用画窗框的正门**：一个 `ControlTheme`（`TargetType="chrome:WindowDrawnDecorations"`），模板分 Underlay（边框 / 背景 / 阴影，在内容**下**）→ 用户内容 → Overlay（caption 按钮，在内容**上**）→ FullscreenPopover 三层 |
+| `WindowDecorations="Full"` | 只为拿**完整标准窗口样式**（贴靠资格 / 系统菜单 / 最小化动画）；⛔ 不等于让 Avalonia 画默认窗框 |
+| `WindowDecorationsTheme` | 顶掉默认装饰的正门：`App.axaml` 里以**隐式键** `{x:Type chrome:WindowDrawnDecorations}` 注册空 `ControlTheme`（**不设 Template** → 框架不生成装饰视觉），引用用 `DynamicResource` |
+| `WindowDecorationProperties.ElementRole` | 给自绘元素标角色：`TitleBar`（系统拖动 + 双击最大化 + 贴靠）/ `User`（放行点击）/ `ResizeN…SW`（八向缩放） |
 
-- 拖动 / 双击最大化 / 拖到边缘贴靠 / `Win+方向键` / 缩放光标 **全部由系统提供**，⛔ 不自实现（`BeginMoveDrag` / `BeginResizeDrag` 仅作兜底，能删则删）。
-- ⛔ **`WindowDecorations="Full"` 不等于「让 Avalonia 画默认那套窗框」**：默认主题会画标题文字与 caption 按钮 → 与自绘标题栏重叠（v3.28 实测）。解药是**给 `WindowDecorationsTheme` 提供一个自定义 ControlTheme，只保留需要的 PART**，而不是把装饰关空再从 Win32 侧补丁。
+- 客户区扩展记账**交 Avalonia 12 官方接管**（⛔ 不自接管 `WM_NCCALCSIZE`）。
+- `WindowDecorationProperties` / `ElementRole` 由系统负责拖动 / 缩放 / 命中测试（`BeginMoveDrag` / `BeginResizeDrag` 仅作兜底）。
 
-**② ⛔ 禁止把 Win32 P/Invoke 当常规手段**
+**② Win32 仅保留「方角」，其余一律禁止**
 
-以下均属**技术债**，仅在「官方路线实测确实做不到」时才可用，且必须在规范 §7 技术债台账登记（写明：为什么官方不行 / 复现步骤 / 移除条件）：
+| 补丁 | 现状 |
+|---|---|
+| `Win32Properties.SetWindowCornerPreference` + `DwmSetWindowAttribute(33,1)` + `SetWindowRgn` 矩形区域 | ✅ **保留**（NT-034 三保险 / NT-042 裁决；技术债 §7 **B16**） |
+| 手工补 `WS_CAPTION` / `WS_THICKFRAME` 样式位 | ⛔ **已删**（NT-041）：官方 `Full` 自带这些位 |
+| 接管 `WndProc` 改 `WM_NCCALCSIZE`「零内缩」 | ✅ **保留（Windows 独有的例外）**：消灭 ≈8px **非客户区**边框（Avalonia CSD 按 `WS_CAPTION|WS_THICKFRAME` 扣出，贴靠态系统不画那圈 → 露缝）；钩子只在 Windows 装得上，Linux 不走此路径 |
+| 贴靠几何外部纠偏（比对 / 屏幕几何自检） | ⛔ **已删**（NT-048）：首次偏宽是**系统行为**（第三方 Firefox 同复现）⇒ 方向错误 |
 
-| 补丁 | 曾用于 | 现状 |
-|---|---|---|
-| 手工补 `WS_CAPTION` / `WS_THICKFRAME` 样式位 | v3.28 贴靠资格 | 应由 `WindowDecorations` 提供 |
-| 接管 `WndProc` 改 `WM_NCCALCSIZE` 零内缩 | v3.29 贴靠缝隙 | Avalonia 12 PR #20067 已修复该属性在 Windows 的全部场景，官方明确要求**移除早期 workaround** |
-| `SetWindowRgn` 矩形区域 + `DWMWA_WINDOW_CORNER_PREFERENCE` | NT-034 方角 | ✅ **保留**（NT-042 实测裁决）：⚠️ 原判「矩形区域连带取消 DWM 阴影」**已被证伪** —— 完全不套 region 时阴影同样没有 ⇒ 阴影缺失是客户区扩展的固有结果，与 region 无关。技术债见规范 §7 **B16** |
-| `BeginMoveDrag` / `BeginResizeDrag` 自实现 | v3.26 拖动与缩放 | 仅作 `ElementRole` 失效时的兜底 |
+- ℹ️ **残留分两种，别混**（2026-10-15 实测：贴靠第 1 次缝小 ~1px、第 2 次变大 ~8px）：
+  - **≈8px**（左右下）= 非客户区那圈边框 → 由 **零内缩** 消除（Windows-only 例外）✅ 已验收（2026-10-15 实机：连续贴靠 8px 消失）；
+  - **≈1~2px**（**仅第一次分屏、左右下偏大**；常规态为左右不对称：左半屏重叠 / 右半屏缝隙）= **系统取整 / 动画帧落位**，Firefox 同复现 ⇒ **接受**，⛔ 不做外部几何纠偏。
 
 **③ 窗口外框（自绘 1px）+ 激活 / 失焦两态**（P0，见 NT-039）
 

@@ -147,10 +147,12 @@
 
 ---
 
-### 2.4 窗口装饰（CSD）实现基线（v3.22 · 需求 §4.1.1）
+### 2.4 窗口装饰（CSD）实现基线（v3.22 立 · NT-040 · 🔴 2026-10-15 定案采纳官方 CSD）
 
-> 立项背景：标题栏在 v3.28 / v3.29 / NT-034 三轮里叠了 4 层 Win32 P/Invoke 补丁，越改越脆。本轮（NT-039~042）回归框架正门。
-> 🔴 口径：**框架能做的交给框架，⛔ 不重复造轮子**（用户 2026-10-14 定调）。
+> 立项背景：标题栏在 v3.28 / v3.29 / NT-034 三轮里叠了 4 层 Win32 P/Invoke 补丁，越改越脆 ⇒ NT-039~042 回归框架正门。
+> 🔴 **2026-10-15 定案**：当日曾短暂回退 NT-034 基线（`BorderOnly` + 样式位 + 零内缩），随后据**跨平台评估**（目标 Debian 13）重新采纳官方 CSD ——
+> Wayland **无服务端装饰**、装饰要么合成器画要么客户端 CSD，贴靠 / 平铺由 Mutter / KWin 管，且**没有 DWM / `WS_*` 样式位 / GDI region** 这些概念
+> ⇒ Win32 补丁路线在 Linux 上整体作废，官方 CSD 是唯一能对接的路线。口径：**框架能做的交给框架**（用户定调）。
 
 **① 官方四件套（本机 12.1.3 已核实存在）**
 
@@ -158,7 +160,7 @@
 |---|---|
 | `Window.ExtendClientAreaToDecorationsHint` | 激活客户区扩展；也是 `ElementRole` 生效的前提 |
 | `Window.ExtendClientAreaTitleBarHeightHint` | 自绘标题栏高度（-1 = 用 OS 默认） |
-| `Window.WindowDecorations` | 枚举实测只有 `None` / **`BorderOnly`（有边框无标题栏）** / `Full` |
+| `Window.WindowDecorations` | 枚举实测只有 `None` / `BorderOnly`（有边框无标题栏）/ **`Full`** |
 | `Window.WindowDecorationsTheme` | 应用画窗框的正门（`ControlTheme` `TargetType="chrome:WindowDrawnDecorations"`） |
 | `Window.WindowDecorationMargin` | 边框 + 标题栏占掉的厚度（内容应 inset 的 margin） |
 | `Window.OffScreenMargin` | 最大化时被甩到屏幕外的边框厚度 |
@@ -167,50 +169,50 @@
 
 **② Win32 硬契约（踩过坑，别再试）**
 
-- Win32 上 `RequestedDrawnDecorations` **只有 `TitleBar`** → **`:has-border` / `:has-shadow` 恒 `false`**；边框 / 阴影 / resize 抓手由 **DWM** 提供。
+- Win32 上 `RequestedDrawnDecorations` **只有 `TitleBar`** → **`:has-border` / `:has-shadow` 恒 `false`**；边框 / 阴影 / resize 抓手归 **DWM**（或应用自绘）。
 - ⇒ 任何依赖这两个伪类的样式在 Windows **不会触发**；要阴影 / 边框必须写**无条件选择器**。
 - ⇒ 开了客户区扩展后 **DWM 把边框交给应用画** → **应用不画就没有边界**（NT-039 自绘 1px 外框的由来）。
-- 模板 PART 缺失会在 `OnApplyTemplate` **抛 NRE** → 稳妥做法是 7 个按钮 PART 全给、不需要的 `IsVisible="False"`。
+- ⇒ DWM 窗口阴影在客户区扩展下**本来就不存在**（NT-042 基准实测：不套 region 时同样没有）→ ⛔ 别把它算作 `SetWindowRgn` 的代价。
+- 模板 PART 缺失会在 `OnApplyTemplate` **抛 NRE** → 前提是**有模板**；本配置不设 `Template`，该风险不成立。
+- 🔴 **贴靠残留分两种，别混**（2026-10-15 实测：贴靠第 1 次缝小 ~1px、第 2 次变大 ~8px）：
+  - **≈8px（左右下）= 非客户区那圈边框**：Avalonia CSD 按 `WS_CAPTION|WS_THICKFRAME` 扣出 ≈8px 非客户区，贴靠态系统不画那圈 → 露缝；**由「零内缩」消除**（Windows-only 例外）✅ **2026-10-15 已验收**（连续贴靠 8px 消失）。第 2 次才变大 ⇒ 是 Avalonia 按「外框 = 客户区 + 边框」的记账回写了几何、赢过系统的贴靠矩形。
+  - **≈1~2px（仅第一次分屏、左右下偏大；常规态 = 左半屏重叠 / 右半屏缝隙）= 系统取整 / 动画帧落位**，**Firefox 同复现** ⇒ **接受**，⛔ 不做外部几何纠偏（NT-048 那套已证伪并删除）；「首次贴靠偏宽」同属系统行为。
 
-**③ 允许的 Win32 手段（其余一律登记为技术债）**
-
-| 手段 | 判定 |
-|---|---|
-| `Win32Properties.SetWindowCornerPreference` | ✅ 官方通道，优先用它 |
-| `DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE=33)` | ⚠️ 兜底；`DONOTROUND=1`（写成 2 = 强制圆角，踩过） |
-| `SetWindowRgn` 矩形区域 | 🔴 硬手段；**代价 = DWM 阴影消失**（NT-042 复核去留） |
-| 手工补 `WS_CAPTION` / 接管 `WM_NCCALCSIZE` | 🔴 技术债；官方 PR #20067 要求移除早期 workaround（NT-041） |
-| `DwmGetWindowAttribute(33)` | ⛔ **不支持读**，永远 -1，别当判据 |
-| 诊断写 `Window.Title` | ⛔ 无边框自绘窗口标题栏不显示 Title |
-
-**④ 跨平台门控**：判据 = **`WindowDecorationMargin.Top > 0`**（详见需求 §3.7）；⛔ 不用 `OperatingSystem.IsWindows()` / `#if` / `x:OnPlatform`（加载期一次性求值，响应不了运行期切换）。
-
-**⑤ 当前配置（NT-040 落地后，`ShellView.axaml`）**
+**③ 现役配置（`ShellView.axaml`）**
 
 ```
 WindowDecorations="Full"
 ExtendClientAreaToDecorationsHint="True"
 ExtendClientAreaTitleBarHeightHint="40"
-WindowDecorationsTheme="{DynamicResource NewToysWindowDecorations}"
+WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}"
 ```
 
 - `Full` 只为了拿到**完整标准窗口样式**（贴靠资格 / 系统菜单 / 最小化动画）；可见 UI 仍是自绘标题栏。
 - 主题 = `App.axaml` 的 `ControlTheme`（`TargetType="chrome:WindowDrawnDecorations"`）：**只顶掉默认主题，🔴 故意不给 `Template`**（无模板 → 框架不应用 → 不画任何装饰视觉）。
-- 🔴 **键必须是隐式键 `{x:Type chrome:WindowDrawnDecorations}`**（⛔ 自定义字符串键 + `WindowDecorationsTheme` 指它 **不生效**，
-  Fluent 默认装饰主题照画 —— 2026-10-14 实测：标题文字 / 窗口图标 / caption 按钮全叠上来）。
-  Fluent 的默认装饰主题就注册在 `{x:Type}` 隐式键下，同键定义在 `Application.Resources` 里才能**覆盖**它（查找先 Resources 后各 Style）。
-  `Window.WindowDecorationsTheme` 也指同一个键：`{DynamicResource {x:Type chrome:WindowDrawnDecorations}}`。
-- 🔴 **12.1.3 版本事实（2026-10-14 编译实测，⛔ 别再试）**：`Avalonia.Controls.Chrome` 的**公共类型只有 6 个** ——
-  `WindowDrawnDecorations` / `WindowDrawnDecorationsContent` / `IWindowDrawnDecorationsTemplate` /
-  `DrawnWindowDecorationParts` / `WindowDecorationProperties` / `ResizeGripLayer`。
-  ⛔ **没有 `WindowDrawnDecorationsTemplate` 具体类**（internal），且 `Template` 属性是**接口**
-  → XAML 写不出模板元素、也实例化不了接口；硬写报 `AVLN2000: Unable to resolve type …`
-  + `ResolveContentPropertyTransformer` 内部错误（Index out of range）。
-  ⇒ **12.1.3 上不存在「自定义装饰模板」这条路**。AtomUI 那份指南对应它的 6.0 分支，**不适用于本版本**。
-- ⚠️ 同理，「缺 PART 抛 NRE」那条风险**在本配置下不成立** —— 它的前提是**有模板**（`OnApplyTemplate` 才去按名找 PART）。
-- 主题引用用 **`DynamicResource`**：窗口装饰主题在合并字典完成前就可能被解析，`StaticResource` 那一刻取不到（AtomUI 指南 §15 的已知坑）。
-- ✅ `ApplySnapEligibleStyles()`（手工补 `WS_CAPTION`）**已删除并验收通过**（NT-041，commit `d607a89`）—— 官方 `Full` 装饰自带贴靠所需的样式位，实机验证（贴半屏 / 四分屏 / `Win+方向键`）无回归。
-- 🔴 同批的另两处补丁**仍然被需要，⛔ 不再追删**（首轮一次性删三处实测：贴靠 OK 但露缝 / 八向缩放渲染异常）：① `InstallSnapFrameFix`（`WM_NCCALCSIZE` 零内缩，治贴靠后三边露缝）② `WireResizeGrips`（八向缩放兜底）。PR #20067 的「移除早期 workaround」**不适用于本项目**。
+- 🔴 **键必须是隐式键 `{x:Type chrome:WindowDrawnDecorations}`**（⛔ 自定义字符串键 + `WindowDecorationsTheme` 指它 **不生效**，Fluent 默认装饰主题照画 —— 2026-10-14 实测：标题文字 / 窗口图标 / caption 按钮全叠上来）。
+- 🔴 **12.1.3 版本事实（编译实测，⛔ 别再试）**：`Avalonia.Controls.Chrome` 公共类型只有 6 个（`WindowDrawnDecorations` / `WindowDrawnDecorationsContent` / `IWindowDrawnDecorationsTemplate` / `DrawnWindowDecorationParts` / `WindowDecorationProperties` / `ResizeGripLayer`）；⛔ **没有 `WindowDrawnDecorationsTemplate` 具体类**（internal），`Template` 属性是**接口** ⇒ 写自定义装饰模板必报 `AVLN2000`。⇒ **12.1.3 上「自定义装饰模板」这条路不存在**。
+- 主题引用用 **`DynamicResource`**：装饰主题在合并字典完成前就可能被解析，`StaticResource` 那一刻取不到（AtomUI 指南 §15 的已知坑）。
+
+**④ Win32 手段清单（其余一律删除）**
+
+| 手段 | 现状 |
+|---|---|
+| `Win32Properties.SetWindowCornerPreference`（官方通道） | ✅ 保留（NT-034 ①） |
+| `DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE=33)` = `DONOTROUND`(**1**)；写成 2 = 强制圆角（踩过） | ✅ 保留（NT-034 ②；必须在 Avalonia **处理完之后**压，见 `SnapFrameWndProc`） |
+| `SetWindowRgn` 矩形区域（真正保证方角那一环） | ✅ 保留（NT-034 ③ / NT-042 裁决；技术债 **B16**） |
+| 手工补 `WS_CAPTION` / `WS_THICKFRAME` 样式位（`ApplySnapEligibleStyles`） | ⛔ **已删**（NT-041）：官方 `Full` 自带贴靠所需样式位 |
+| 接管 `WM_NCCALCSIZE` 做「零内缩」 | ✅ **保留（Windows 独有的例外）**：Avalonia CSD 扣掉 ≈8px 非客户区，贴靠态系统不画那圈 → 第 2 次贴靠起露 ≈8px 缝；零内缩让「客户区 = 外框」消除之（钩子仅在 Windows 装得上，Linux 自然不走） |
+| 贴靠几何外部纠偏（期望比对 / 屏幕几何自检） | ⛔ **已删**（NT-048）：「首次偏宽」是系统行为（Firefox 同复现） |
+| `DwmGetWindowAttribute(33)` | ⛔ **不支持读**，永远 -1，别当判据 |
+| 诊断写 `Window.Title` | ⛔ 无边框自绘窗口标题栏不显示 Title |
+
+**⑤ 跨平台（Debian 13 / Wayland）注意 —— 迁 Linux 前必修**
+
+- 官方 CSD 是**唯一**能对接 Wayland 的路线（Linux 无 DWM / `WS_*` / GDI region）；Windows 侧保留的方角三保险在 Linux 上**整体无效**（会走 `DllNotFoundException` 被吞）。
+- 🔴 **自绘 1px 外框必须门控**：框架已画边框时（`WindowDecorationMargin.Top > 0`，见 §3.7 / 需求 §4.1.1 ③）⛔ 不重复画 —— ⚠️ **当前未实装**（全仓无 `WindowDecorationMargin` 引用，`Border.window-frame` 无条件绘制）⇒ 迁 Linux 前必须补。
+- 🔴 **窗口位置 / 大小记忆**现走 user32（`SetWindowPos` / `GetWindowRect` / `GetWindowPlacement`）→ 非 Windows 抛异常被吞 ⇒ **记忆失效**；迁 Linux 前需回退 Avalonia 的 `Position` / `ClientSize` / `Resize()`（并重算「外框 vs 客户区」）。
+
+**⑥ 跨平台门控**：判据 = **`WindowDecorationMargin.Top > 0`**（详见需求 §3.7）；⛔ 不用 `OperatingSystem.IsWindows()` / `#if` / `x:OnPlatform`（加载期一次性求值，响应不了运行期切换）。
 
 ---
 
@@ -599,6 +601,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B14 媒体资产用户数据落库**（v3.19 新增） | 用户手动数据落 `config\`、进备份（需求 §3.5） | 标签 / 分类 / 集合 / 关联暂存 `data\newtoys.db`（需求 §3.5 称其"可随时重建"）——与 §3.5 定位冲突，以「导出用户数据 JSON」缓解（需求 §6.6 R1） | 用户拍板独立库 / 纳入备份策略时 | Module.MediaAssets + 数据管理 |
 | **B15 数据驱动图标**（v3.22 新增） | 所有图标位都是矢量 `Geometry`（`App.axaml` 的 `Icon*` 键） | 二级功能菜单 `icon` / 首页一键按钮 / 模块页内数据行仍是 **emoji 字符串**（用户 2026-10-15「其他没改的以后再改」） | 收敛工作项 **NT-047**（键名不存在就地没图标，⛔ 不做 emoji 回退） | 各模块注册 + 首页 / 功能清单 / 资产集合页 |
 | **B16 `SetWindowRgn` 方角硬手段**（v3.23 新增） | 方角由官方 `DWMWA_WINDOW_CORNER_PREFERENCE` 稳定生效 | 保留 `ShellView.ApplySquareRegion()`（矩形窗口区域）+ `SetCornerPreferenceNoRound()` 双保险 | 🔴 **NT-042 已裁决保留**：基准测试（完全不套 region）实测阴影**同样没有** ⇒ 原「代价 = 阴影消失」证伪，代价不成立、方角收益仍在。移除条件 = 官方 corner preference 在本窗口上能稳定生效（普通窗 + 分屏两态都不复发圆角） | `Shell/Views/ShellView.axaml.cs` |
+| **B17 窗口装饰 Win32 补丁残留**（2026-10-15 新增） | 装饰全走 Avalonia 官方 CSD，Win32 侧零补丁 | 残留 = **方角两处**（官方开关 + `DwmSetWindowAttribute(33,1)` + `SetWindowRgn`，见 B16）+ **`WM_NCCALCSIZE` 零内缩一处**（Windows 独有例外，消 ≈8px 非客户区缝；靠"钩子只在 Windows 装得上"天然门控）；⛔ 样式位补位（NT-041）/ 贴靠几何纠偏（NT-048）**已删除** | 移除条件 = ① B16 满足一并清零 ② 零内缩在「官方 CSD 不再扣非客户区」（或 Avalonia 提供等价开关）时移除；另：迁非 Windows 平台前须补「自绘外框门控（`WindowDecorationMargin`）」与「窗口记忆回退 Avalonia API」（规范 §2.4 ⑤） | `Shell/Views/ShellView.axaml(.cs)` + `App.axaml` |
 
 ---
 

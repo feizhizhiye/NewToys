@@ -451,12 +451,15 @@ public class ScanService
         }
 
         // ② size + mtime（零 IO）：内容没动、路径变了 → 视为**移动**
-        if (index.BySizeMtime.TryGetValue((size, mtime), out loc))
+        //    ⛔ 守卫：相同 (size,mtime) 可能是不同文件（复制且保留时间戳）→ 只认**唯一**候选；
+        //    多候选视为歧义，回落到"新文件"，避免把原文件位置误改写到副本上（NT-032）。
+        var bySizeMtime = index.TryGetSingleBySizeMtime(size, mtime);
+        if (bySizeMtime != null)
         {
             job.ScannedFiles++;
-            ApplyMove(loc, storage, fullPath, relative, info, size, mtime, ext, null);
-            _assets.UpdateLocation(loc);
-            index.Reindex(loc);
+            ApplyMove(bySizeMtime, storage, fullPath, relative, info, size, mtime, ext, null);
+            _assets.UpdateLocation(bySizeMtime);
+            index.Reindex(bySizeMtime);
             job.UpdatedFiles++;
             return;
         }
@@ -773,8 +776,8 @@ internal sealed class StorageIndex
     /// <summary>相对路径 → 位置（同存储源内的主匹配键）。</summary>
     public Dictionary<string, FileLocation> ByRelPath { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>（大小, 修改时间）→ 位置（零 IO 的"移动"识别）。</summary>
-    public Dictionary<(long Size, string Mtime), FileLocation> BySizeMtime { get; } = new();
+    /// <summary>（大小, 修改时间）→ 位置列表（零 IO 的"移动"识别；⛔ 多值，相同 (size,mtime) 可能是不同文件 → 不覆盖）。</summary>
+    public Dictionary<(long Size, string Mtime), List<FileLocation>> BySizeMtime { get; } = new();
 
     /// <summary>（大小, quick_hash）→ 位置（需要读前 N MB 才能匹配）。</summary>
     public Dictionary<(long Size, string QuickHash), FileLocation> ByQuickHash { get; } = new();
@@ -788,7 +791,12 @@ internal sealed class StorageIndex
     public void Add(FileLocation l)
     {
         if (!string.IsNullOrEmpty(l.RelativePath)) ByRelPath[l.RelativePath] = l;
-        if (!string.IsNullOrEmpty(l.Mtime)) BySizeMtime[(l.Size, l.Mtime!)] = l;
+        if (!string.IsNullOrEmpty(l.Mtime))
+        {
+            var key = (l.Size, l.Mtime!);
+            if (!BySizeMtime.TryGetValue(key, out var list)) BySizeMtime[key] = list = new List<FileLocation>();
+            list.Add(l);
+        }
         if (!string.IsNullOrEmpty(l.QuickHash))
         {
             ByQuickHash[(l.Size, l.QuickHash!)] = l;
@@ -801,4 +809,14 @@ internal sealed class StorageIndex
 
     /// <summary>这个大小在库里有"带 quick_hash"的位置吗（没有就别读那 1MB）。</summary>
     public bool HasQuickHashForSize(long size) => _sizesWithQuickHash.Contains(size);
+
+    /// <summary>
+    /// 按 (大小, 修改时间) 取**唯一**候选；碰撞（同一 (size,mtime) 有多条位置，常见于复制且保留时间戳）或缺失 → null。
+    /// ⛔ 多候选时一律不当作"移动"，回落到"新文件"，避免把原文件的位置误改写到副本上。
+    /// </summary>
+    public FileLocation? TryGetSingleBySizeMtime(long size, string mtime)
+    {
+        if (string.IsNullOrEmpty(mtime)) return null;
+        return BySizeMtime.TryGetValue((size, mtime), out var list) && list.Count == 1 ? list[0] : null;
+    }
 }

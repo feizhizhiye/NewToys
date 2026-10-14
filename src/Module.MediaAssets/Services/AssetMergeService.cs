@@ -35,6 +35,7 @@ public sealed class MergeResult
     public int NewAssets { get; init; }
     public int NewLocations { get; init; }
     public int Skipped { get; init; }
+    public int SkippedAssets { get; init; }
 }
 
 /// <summary>
@@ -44,7 +45,7 @@ public sealed class MergeResult
 /// ① <b>源库只读</b>——<c>ATTACH</c> 挂载后只 <c>SELECT</c>，⛔ 绝不写 src.*（源文件一个字节都不改）；
 /// ② <b>ATTACH 必须在事务外</b>（SQLite 不允许事务中 ATTACH）→ 顺序 = ATTACH → BEGIN → 合并 → COMMIT → DETACH；
 /// ③ <b>一个事务</b>：全部成功或全部不写（⛔ 不写一半）；
-/// ④ 幂等：重复并入同一个库第二次基本全跳过（位置按 storage+relative_path / hash+size 去重）。
+/// ④ 幂等：重复并入同一个库第二次不产生孤儿资产——零文件位置的重复资产（含其标签 / 分类 / 集合挂接 / 关联）在事务内一并清除；位置按 storage+relative_path / hash+size 去重。
 /// </para>
 /// </summary>
 public class AssetMergeService
@@ -159,7 +160,7 @@ public class AssetMergeService
             var assetMap = MergeAssets(conn, tx, have, progress, ct, out var newAssets);
 
             // file_locations：asset_id 重映射 + 去重（storage+relative_path / hash+size）
-            var (newLocations, skipped) = MergeLocations(conn, tx, have, storageMap, assetMap, progress, ct);
+            var (newLocations, skipped, locatedAssetIds) = MergeLocations(conn, tx, have, storageMap, assetMap, progress, ct);
 
             // tags / categories / collections：按名字去重
             var tagMap = MergeByName(conn, tx, have, "tags", "namespace", "name", progress);
@@ -174,6 +175,11 @@ public class AssetMergeService
 
             // relations：两端重映射（同向同类型已存在 → 跳过）
             var rels = MergeRelations(conn, tx, have, assetMap, progress);
+
+            // ② 修正（NT-033）：本次并入、却没有任何文件位置落到主库（重复并入同一库 / 与现有库共享文件）的资产是孤儿，
+            //    连同其标签 / 分类 / 集合挂接 / 关联一并清除，避免主库堆积零位置资产、计数虚高。
+            SweepOrphanAssets(conn, tx, assetMap, locatedAssetIds, out var sweptAssets, progress);
+            newAssets = locatedAssetIds.Count;
 
             tx.Commit();
 
@@ -195,14 +201,15 @@ public class AssetMergeService
             };
             _assets.UpdateScanJob(job);
 
-            progress?.Report($"完成：新增资产 {newAssets} / 新增位置 {newLocations} / 跳过 {skipped} / 组织挂接 {linked} / 关联 {rels}");
+            progress?.Report($"完成：新增资产 {newAssets} / 新增位置 {newLocations} / 跳过 {skipped} / 清除孤儿 {sweptAssets} / 组织挂接 {linked} / 关联 {rels}");
             return new MergeResult
             {
                 Ok = true,
-                Message = $"合并完成：新增资产 {newAssets} / 新增位置 {newLocations} / 跳过重复 {skipped} / 组织挂接 {linked} / 关联 {rels}（源库未改动）。",
+                Message = $"合并完成：新增资产 {newAssets} / 新增位置 {newLocations} / 跳过重复位置 {skipped} / 清除孤儿资产 {sweptAssets} / 组织挂接 {linked} / 关联 {rels}（源库未改动）。",
                 NewAssets = newAssets,
                 NewLocations = newLocations,
-                Skipped = skipped
+                Skipped = skipped,
+                SkippedAssets = sweptAssets
             };
         }
         catch (Exception ex)
@@ -359,7 +366,7 @@ public class AssetMergeService
     }
 
     /// <summary>file_locations：asset_id 重映射 + 去重（storage+relative_path 或 hash+size 已存在 → 跳过）。</summary>
-    private (int NewLocations, int Skipped) MergeLocations(SqliteConnection conn, SqliteTransaction tx, HashSet<string> have,
+    private (int NewLocations, int Skipped, HashSet<long> LocatedAssetIds) MergeLocations(SqliteConnection conn, SqliteTransaction tx, HashSet<string> have,
                                                            Dictionary<long, long> storageMap, Dictionary<long, long> assetMap,
                                                            IProgress<string>? progress, CancellationToken ct)
     {
@@ -416,6 +423,7 @@ public class AssetMergeService
 
         var added = 0;
         var skipped = 0;
+        var located = new HashSet<long>();   // 本次实际落到主库位置的资产 id（用于事务内清除孤儿资产，NT-033）
         foreach (var l in srcRows)
         {
             ct.ThrowIfCancellationRequested();
@@ -456,9 +464,42 @@ public class AssetMergeService
 
             byRel.Add(relKey);
             if (!string.IsNullOrEmpty(l.Hash)) byHash.Add($"{l.Hash}|{l.Size}");
+            located.Add(newAssetId);
             added++;
         }
-        return (added, skipped);
+        return (added, skipped, located);
+    }
+
+    /// <summary>
+    /// 清除本次合并产生的孤儿资产（零文件位置）：删资产 + 其标签 / 分类 / 集合挂接 / 关联。
+    /// <para>只删 <paramref name="assetMap"/> 中"本次新建却没落到任何位置"的资产 id（⛔ 不动合并前已存在的主库资产）。</para>
+    /// </summary>
+    private static void SweepOrphanAssets(SqliteConnection conn, SqliteTransaction tx,
+                                          Dictionary<long, long> assetMap, HashSet<long> located,
+                                          out int swept, IProgress<string>? progress)
+    {
+        swept = 0;
+        if (assetMap.Count == 0) return;
+        var orphans = assetMap.Values.Where(id => !located.Contains(id)).ToList();
+        if (orphans.Count == 0) return;
+
+        // id 全为 long（本次合并新建的主键），非任何外部输入 → IN 串拼接无注入风险
+        var ids = string.Join(",", orphans);
+        void Exec(string sql)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
+        }
+        Exec($"DELETE FROM main.asset_tags WHERE asset_id IN ({ids});");
+        Exec($"DELETE FROM main.asset_categories WHERE asset_id IN ({ids});");
+        Exec($"DELETE FROM main.collection_assets WHERE asset_id IN ({ids});");
+        Exec($"DELETE FROM main.relations WHERE source_asset_id IN ({ids}) OR target_asset_id IN ({ids});");
+        Exec($"DELETE FROM main.assets WHERE id IN ({ids});");
+
+        swept = orphans.Count;
+        progress?.Report($"清除重复并入产生的孤儿资产 {swept} 个。");
     }
 
     /// <summary>tags / categories / collections：按名字去重（tags 用 namespace+name），返回 src_id → main_id 映射。</summary>

@@ -94,6 +94,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
     [ObservableProperty] private double _thumbFramePercent = 25;
     [ObservableProperty] private double _thumbFrameSeconds = 5;
     [ObservableProperty] private string _thumbsDirectory = "";
+    [ObservableProperty] private string _conflictPolicy = "append";
 
     partial void OnIgnoreHiddenFilesChanged(bool value) => SaveScanSetting(s => s.IgnoreHiddenFiles = value, "忽略隐藏文件");
     partial void OnIgnoreTempFilesChanged(bool value) => SaveScanSetting(s => s.IgnoreTempFiles = value, "忽略临时文件");

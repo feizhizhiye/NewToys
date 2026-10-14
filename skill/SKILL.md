@@ -24,13 +24,14 @@ agent_created: true
 2. `src/docs/NewToys-项目现状与进度.md`「一、当前基线」
 3. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型→规范章节）
 4. 按「任务型→规范章节」读 `src/docs/NewToys开发规范.md` 对应节
-5. 交付前 `pwsh skill/scripts/check.ps1`
+5. 交付前 `pwsh skill/scripts/check.ps1` + `pwsh skill/scripts/check-axaml-props.ps1`
 
 ## 目录
 
 - `references/collab-method.md` —— 通用协作方法论（跨项目母本）
 - `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / 任务型→章节 / 四文档路由）
 - `scripts/check.ps1` —— 交付前静态自检（axaml 合法性、`.axaml`↔`.cs` 配对、主题键白名单）
+- `scripts/check-axaml-props.ps1` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异，如 `SelectedValuePath` / `StrokeLineJoin`）
 - `../src/docs/backlog/` —— 可执行待办明细（NT-xxx）
 
 🔴 权威源 = `src/docs/` 四份 + `src/` 源码，冲突以源码为准；**规划 / 执行双模式**工作流唯一定义处 = `src/docs/NewToys-AI协作提示词.md`【规划 / 执行双模式工作流】节。

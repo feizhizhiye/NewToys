@@ -1,6 +1,6 @@
 # NewToys · AI 协作提示词
 
-> v3.15 · 2026-10-13 · 会话启动包（面向**本地执行型** AI 客户端：可直接读写 `src/`、跑命令）
+> v3.16 · 2026-10-14 · 会话启动包（面向**本地执行型** AI 客户端：可直接读写 `src/`、跑命令）
 > 🔴 **本文件是工作流唯一定义处**（【规划 / 执行双模式工作流】节，含状态机与验收清理）；《开发需求》《开发规范》《现状与进度》《AGENTS.md》《skill/` 一律只引用，不另写流程。
 > 用法：新会话开头贴「正文」，末尾写本次需求。
 > 本文件只管**流程 + 索引 + 自检**；细则一律引用另三份，⛔ 不在此复述。
@@ -36,7 +36,7 @@ A. 规划模式（默认，只写文档，可多轮）：
    ⛔ 规划模式**绝不改 `src/` 代码**，无论讨论几轮。
 B. 执行模式（显式触发才碰代码）：
    ④ 仅当用户发「**执行全部就绪待办**」/「执行 NT-xxx」时进入；筛 `✅ 就绪` 且依赖已完成的条目，按 依赖→优先级 排序；
-   ⑤ 逐条按 `NT-xxx.md` 细节 + 《开发规范》改 src/ → 静态自检（`skill/scripts/check.ps1`）→ 标 `🔄 执行中` → 落地标 `✔ 已完成（待验收）` + git commit + 回写《现状》+ 细节追加「执行记录」。
+   ⑤ 逐条按 `NT-xxx.md` 细节 + 《开发规范》改 src/ → 静态自检（`skill/scripts/check.ps1` + `skill/scripts/check-axaml-props.ps1`）→ 标 `🔄 执行中` → 落地标 `✔ 已完成（待验收）` + git commit + 回写《现状》+ 细节追加「执行记录」。
    🔴 遇 5 种停手情形之一立即停并报，不偷偷跳过、不扩范围。
 C. 状态机（单个待办项）：
    📝 草稿（细节未展开，**不执行**）→ ✅ 就绪（可批量跑）→ 🔄 执行中 → ✔ 已完成（待验收）→ 用户验收后：台账翻 ✔、细节按清理策略处理。
@@ -104,6 +104,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 · 改列表页：表头与行同套星号列定义？内边距一致？ContextMenu.DataContext 行菜单+表头菜单都在 code-behind 同步了？隐藏列用宽度 0？改 `Columns` 后表头/行模板的 `Grid.Column` 逐字核对了？
 · 改跨页投递：取件点是不是在 `OnAttachedToVisualTree`（`OnDataContextChanged` 在标签页已存在时不触发）？
 · 改标签/树/导航：OpenTab 做了单例判定？首页 CanClose=false？关闭最后一个自动回首页？Shell 订阅 IDetailPanelProvider/IHistoryProvider 前解绑旧 Tab？
+· 🔴 新增 / 改 `.axaml` 属性：跑 `pwsh skill/scripts/check-axaml-props.ps1` —— **Avalonia ≠ WPF 的属性名差异**（实测踩过 `SelectedValuePath` / `StrokeLineJoin`，编译期直接 AVLN2000）；⛔ 别凭记忆写，脚本会到 Avalonia ref 程序集里核对名字。
 
 [5] 交付
 ① 变更清单（增/改/删逐条一句话）+ 前置基线 + 用户需本地执行的验证命令（build.ps1 等）。

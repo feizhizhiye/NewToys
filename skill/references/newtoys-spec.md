@@ -1,7 +1,8 @@
 # NewToys 特定约束（skill/references）
 
 > 与 NewToys 项目绑定；通用协作纪律见 `collab-method.md`。
-> v1.2 · 2026-10-13
+> v1.3 · 2026-10-14
+> v1.3：§七 新增「Avalonia ≠ WPF 的 XAML 属性名」坑 + 指向 `scripts/check-axaml-props.ps1`。
 > v1.2：铁律 1 加例外——`scripts/` 构建脚本经用户明确授权可改（2026-10-13，Settings 物理必备改造，NT-023）。
 > 🔴 **本文件不定义工作流**：`规划 / 执行双模式` 唯一定义处 = 《AI协作提示词》；本文件只做约束 + 路由。
 
@@ -105,6 +106,8 @@
 - 🔴 **⛔ 别用 MinHeight 给 TextBlock 撑行高**：文本恒绘于元素框顶部，框被撑高文字贴顶。行高基线放 `ListBox.list-page ListBoxItem MinHeight=28`，`ListBoxItem` 还要 `Horizontal/VerticalContentAlignment=Stretch`（Fluent 默认垂直 Top）。
 - **手写属性 setter 别写 `private set`**：View 常直接 `vm.StatusText = "…"` 报状态 → 写 private 即 CS0272。
 - 🔴 **表头勾选一律用原生 CheckBox 三态**（点=切换全选、右键=菜单），⛔ 别用字符 "☑" 画（字体渲染成深色块，与行内框不搭）。
+- 🔴 **Avalonia ≠ WPF 的 XAML 属性名**（2026-10-14 实测两连踩，编译期 AVLN2000）：`ComboBox` **没有** `SelectedValue`/`SelectedValuePath`（改绑 `SelectedItem` 到**选项对象**）；`Path` 描边连接叫 **`StrokeJoin`**（不是 `StrokeLineJoin`）；`TextBox` 用 `PlaceholderText`（不是 `Watermark`）；⛔ 也没有 `DisplayMemberPath`/`SharedSizeGroup`/`ValidatesOnExceptions`。
+  👉 新增/改 XAML 前先跑 `pwsh skill/scripts/check-axaml-props.ps1`（把属性名逐个到 Avalonia ref 程序集里核对存在性；⛔ 别凭记忆）。
 - 给列表插首列 = `Columns` 加 `Pick("34")` + 表头/行模板**所有 `Grid.Column` 索引 +1**。
 
 ---

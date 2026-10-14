@@ -3,7 +3,7 @@
 > v1.3 · 2026-10-14
 > v1.3：入口去重——本文件为**唯一自包含入口**（必须全文可独立读懂）；`skill/SKILL.md` 与 `.workbuddy/skills/newtoys/SKILL.md` 降为**导航 / 指针**，不再重复正文；原「高频硬约束」节整节下沉至 `skill/references/newtoys-spec.md`。
 > v1.2：铁律 1 加例外——`scripts/` 构建脚本**经用户明确授权可改**（2026-10-13 授权：Settings 物理必备改造，NT-023）。
-> 深度约束 / 坑点 / 静态自检脚本在仓库根 `skill/` 目录（`references/collab-method.md` 通用方法论 + `references/newtoys-spec.md` NewToys 专属约束 + `scripts/check.ps1`）；WorkBuddy 经 `.workbuddy/skills/newtoys/` 指针、Hermes(DeepSeek Harness) 经本文件路由读取。
+> 深度约束 / 坑点 / 静态自检脚本在仓库根 `skill/` 目录（`references/collab-method.md` 通用方法论 + `references/newtoys-spec.md` NewToys 专属约束 + `scripts/check.ps1` + `scripts/check-axaml-props.ps1`）；WorkBuddy 经 `.workbuddy/skills/newtoys/` 指针、Hermes(DeepSeek Harness) 经本文件路由读取。
 > 本文件是**跨 AI 工具的通用入口**（Codex / Cursor / Devin / Jules / Amp 等自动读取 AGENTS.md）。
 > 权威规格在 `src/docs/`，本文件只做「定位 + 铁律 + 路由」；**冲突时以 src/docs 与 src/ 源码为准**。
 > 🔴 **工作流不在此定义**：`规划 / 执行双模式` + 状态机 + 验收清理的**唯一定义处** = `src/docs/NewToys-AI协作提示词.md`【规划 / 执行双模式工作流】节。本文件与 `skill/` 只做定位 / 路由 / 约束，⛔ 不另写一份流程——保证不同 AI 读任一入口都落到同一套工作流。
@@ -80,4 +80,4 @@ NewToys = 带 GUI 的 Windows 桌面工具管理器（脚本管理器定位，�
 - [ ] 已读本文件 + 《项目现状与进度》「一、当前基线」
 - [ ] 已按路由表读本次任务相关章节
 - [ ] 动手前已给变更声明（文件清单 + 验收标准 + 风险/待拍板点）
-- [ ] 交付前过静态自检（详见《AI协作提示词》[4][6]）
+- [ ] 交付前过静态自检（`pwsh skill/scripts/check.ps1` + `pwsh skill/scripts/check-axaml-props.ps1`，详见《AI协作提示词》[4][6]）

@@ -129,7 +129,7 @@
 | NT-038 | 三配置档（debug/default/release）：运行时永久驻留（debug=复制 default 播种；商店版转远期） | P1 | ✔ 已完成（已验收） | backlog/NT-038.md |
 | NT-039 | 窗口外框（自绘 1px）+ 激活 / 失焦两态（主题键 32→34；最大化收边框） | P0 | ✔ 已完成（已验收） | backlog/NT-039.md |
 | NT-040 | 窗口装饰回归 Avalonia 12 官方 CSD 路线（`WindowDecorations="Full"` + 隐式键同键覆盖默认主题） | P0 | ✔ 已完成（已验收） | backlog/NT-040.md |
-| NT-041 | 清理 Win32 窗口补丁（贴靠样式位 / `WM_NCCALCSIZE` / resize 兜底），逐处删 + 逐处回归 | P1 | ✅ 就绪 | backlog/NT-041.md |
+| NT-041 | 清理 Win32 窗口补丁（贴靠样式位 / `WM_NCCALCSIZE` / resize 兜底），逐处删 + 逐处回归 | P1 | ✔ 已完成（待验收） | backlog/NT-041.md |
 | NT-042 | DWM 阴影与方角方案复核（`SetWindowRgn` 去留；阴影优先） | P1 | ✅ 就绪 | backlog/NT-042.md |
 | NT-043 | 标题栏是否改用 `TitleBarBrush`（⛔ 待拍板：会推翻「标题栏 = `ContentBrush`」约定） | P2 | 📝 草稿 | backlog/NT-043.md |
 | NT-044 | 标题栏加全屏按钮（⛶）+ `F11` / `Esc` 快捷键（⛔ 依赖 NT-041：全屏退出会整体覆盖窗口样式） | P2 | ✅ 就绪 | backlog/NT-044.md |

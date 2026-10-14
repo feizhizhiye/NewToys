@@ -78,9 +78,6 @@ public partial class ShellView : Window
     {
         base.OnOpened(e);
 
-        // v3.29：句柄到这一刻才稳 → 在这里装窗口过程钩子（贴靠缝隙的根治）
-        InstallSnapFrameFix();
-
         // NT-034：关闭 DWM 圆角（Win11 顶部两个圆角 → 最大化 / 分屏时露缝）
         ApplyCornerPreference();
         ApplyNoRoundCorners();
@@ -140,16 +137,12 @@ public partial class ShellView : Window
         //    否则 Avalonia 不做命中测试，鼠标事件直接穿透，拖不动。
         TitleBarGrid.PointerPressed += OnTitleBarPointerPressed;
 
-        // 窗口缩放抓取区（v3.26）：四边 5px + 四角 10px 透明热区 → BeginResizeDrag（八向）+ 对应光标。
-        WireResizeGrips();
-        UpdateResizeGrips();
-
         // NT-039：窗口外框（厚度 / 颜色由样式给，这里只切 .maximized / .inactive 两个伪类）
         UpdateWindowFrame();
 
-        // v3.28：给无边框窗口补回「可缩放」标准样式 —— Windows 的贴靠（Win+方向键 / 拖到屏幕边缘 /
-        // 拖到顶边最大化）只认带 WS_THICKFRAME 等标准样式的窗口。
-        ApplySnapEligibleStyles();
+        // 🔴 NT-041：原「resize 兜底」（`WireResizeGrips` + `BeginResizeDrag`）已删 ——
+        //    缩放改由 XAML 里 8 个热区的 `ElementRole=ResizeN…SW` 交给系统处理（验证项见任务卡）。
+        UpdateResizeGrips();   // 仅保留「最大化时关闭热区」
 
         // 标签页区域滚轮 = 切换标签。用 **隧道** 方式注册：滚动容器（ScrollViewer）会先把
         // 滚轮当成横向滚动吃掉，隧道阶段拦下来才能变成"切标签"。
@@ -208,35 +201,10 @@ public partial class ShellView : Window
             container.BringIntoView();
     }
 
-    // ==================== 窗口缩放抓取区 + 大小/位置记忆（v3.26，需求 §4.1 / §四） ====================
-
-    /// <summary>
-    /// 把 8 个抓取热区接到 <see cref="Window.BeginResizeDrag"/>（八向）。
-    /// 🔴 Avalonia 12 的托管装饰在 Win32 上不可用（规范 附录A）→ 自绘是唯一路线。
-    /// </summary>
-    private void WireResizeGrips()
-    {
-        AddGrip(GripTop, WindowEdge.North, StandardCursorType.SizeNorthSouth);
-        AddGrip(GripBottom, WindowEdge.South, StandardCursorType.SizeNorthSouth);
-        AddGrip(GripLeft, WindowEdge.West, StandardCursorType.SizeWestEast);
-        AddGrip(GripRight, WindowEdge.East, StandardCursorType.SizeWestEast);
-        AddGrip(GripTopLeft, WindowEdge.NorthWest, StandardCursorType.TopLeftCorner);
-        AddGrip(GripTopRight, WindowEdge.NorthEast, StandardCursorType.TopRightCorner);
-        AddGrip(GripBottomLeft, WindowEdge.SouthWest, StandardCursorType.BottomLeftCorner);
-        AddGrip(GripBottomRight, WindowEdge.SouthEast, StandardCursorType.BottomRightCorner);
-    }
-
-    private void AddGrip(Control grip, WindowEdge edge, StandardCursorType cursor)
-    {
-        grip.Cursor = new Cursor(cursor);
-        grip.PointerPressed += (_, e) =>
-        {
-            if (WindowState == WindowState.Maximized) return;    // 整层门控之外再判一次，防边缘态
-            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-            BeginResizeDrag(edge, e);
-            e.Handled = true;
-        };
-    }
+    // ==================== 大小/位置记忆（v3.26，需求 §四） ====================
+    // 🔴 NT-041：原「resize 兜底」（`WireResizeGrips` / `AddGrip` / `BeginResizeDrag` 八向）已删除 ——
+    //    缩放改由 XAML 里 8 个热区上的 `ElementRole=ResizeN…SW` 交给**系统**处理（光标与吸附一并给）。
+    //    若本地实测 ElementRole 不生效 → `git revert` 本 commit 即可恢复兜底。
 
     /// <summary>最大化时整层关掉命中测试（⛔ 不只视觉隐藏——热区必须真关，否则最大化后还能拖出缩放）。</summary>
     private void UpdateResizeGrips()
@@ -367,44 +335,6 @@ public partial class ShellView : Window
         catch { /* 记不下来不影响关闭 */ }
     }
 
-    // ==================== Win32 平台细节（v3.28）：真实位置 + 贴靠资格 ====================
-
-
-    /// <summary>
-    /// 给窗口补「可缩放窗口」标准样式（<c>WS_THICKFRAME</c> + <c>WS_CAPTION</c> + 最小 / 最大化 / 系统菜单）。
-    /// <para>
-    /// 为什么需要（v3.28 查两个源码后定论）：
-    /// ① Windows 的贴靠（Win+方向键 / 拖到边缘贴半屏 / 拖到顶边最大化）**由系统执行**，前提是窗口具备标准样式；
-    /// ② `WindowDecorations="BorderOnly"` 时 Avalonia 只设 `WS_BORDER`（+ `IsResizable` 时的 `WS_THICKFRAME`）——
-    ///    ⛔ **不设 `WS_CAPTION`**，而 `Full` 又会触发 Avalonia 自己画一套窗框（`Window.cs::ComputeDecorationParts`
-    ///    里 TitleBar 部件只在 `WindowDecorations == Full` 时才加）→ 两难。折中 = **BorderOnly（Avalonia 不画）+ 这里手工补 `WS_CAPTION`（贴靠资格）**。
-    /// ③ 客户区仍归我们自绘（BorderOnly + `ExtendClientAreaToDecorationsHint` → `WM_NCCALCSIZE` 把边框算进客户区、
-    ///    DWM 的 NCRenderingPolicy 交给应用画 → ⛔ 不会画出系统标题栏）。
-    /// </para>
-    /// <para>
-    /// ⚠️ Avalonia 在窗口状态变化时会**重算样式**（`UpdateWindowProperties`），把这里补的位抹掉 →
-    /// 所以除了开机调用，`WindowState` 变化时也要再补一次（见 <see cref="OnPropertyChanged"/>）。
-    /// </para>
-    /// </summary>
-    private void ApplySnapEligibleStyles()
-    {
-        try
-        {
-            var h = TryGetPlatformHandle()?.Handle;
-            if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
-
-            var style = GetWindowLongPtr(hwnd, GWL_STYLE).ToInt64();
-            var want = style | WS_THICKFRAME | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU;
-            if (want == style) return;
-
-            SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(want));
-            // 样式变更要 SWP_FRAMECHANGED 才重新算非客户区（否则系统不认这次改动）
-            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
-                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-        }
-        catch { /* 补样式失败就维持现状（只是没有系统贴靠，手动拖拽缩放仍可用） */ }
-    }
-
     // ==================== DWM 圆角（NT-034，需求 §4.1） ====================
 
     /// <summary>
@@ -420,7 +350,9 @@ public partial class ShellView : Window
     /// <para>
     /// 仍然走官方开关的理由：它是 Avalonia 自己认可的下发通道（写进 WindowImpl 的偏好字段），
     /// 比我们单方面 P/Invoke 更不容易被后续重算抹掉。真正的存疑点是「下发是否成功 / DWM 是否重算」，
-    /// 见 <see cref="ApplyNoRoundCorners"/> 的 <c>SWP_FRAMECHANGED</c> 与 <see cref="ReassertWindowChrome"/>。
+    /// 见 <see cref="ApplyNoRoundCorners"/> 的 <c>SWP_FRAMECHANGED</c>。
+    /// ⚠️ NT-041：原「窗口过程里转发后再压一次」的 `ReassertWindowChrome` 已随 WndProc 钩子一并删除，
+    ///    现在只剩启动时 + 窗口状态变化时的两次下发（是否足够由 NT-042 复核）。
     /// </para>
     /// <para>
     /// 🔴 两个调用纪律（来自 <c>Win32Properties.cs</c> 静态构造里的 <c>Changed.AddClassHandler</c>）：
@@ -515,8 +447,10 @@ public partial class ShellView : Window
     /// <para>
     /// 🔴 为什么单独拆出来：Avalonia 12.1.3 的 <c>ShowWindow</c> → <c>ExtendClientArea()</c> →
     /// <c>UpdateWindowCornerPreference()</c> 会**重算并回写**圆角偏好，把我们设的 DONOTROUND 冲掉
-    /// （窗口状态变化 / 全屏 / 贴靠都会触发）→ 必须在**它处理完之后**再压一次（见 <see cref="SnapFrameWndProc"/>）。
-    /// ⛔ 从窗口过程里调的这个版本**绝不能带 SWP_FRAMECHANGED**：消息处理中再发消息会递归。
+    /// （窗口状态变化 / 全屏 / 贴靠都会触发）。
+    /// ⚠️ NT-041：原「窗口过程里转发后再压一次」（`SnapFrameWndProc` → `ReassertWindowChrome`）已删除，
+    ///    现在靠 `OnOpened` + `WindowState` 变化时各下发一次 —— **是否足够由 NT-042 复核**；
+    ///    若实测圆角复发，恢复点在 `git log` 本 commit 的父提交里。
     /// </para>
     /// </summary>
     private static void SetCornerPreferenceNoRound(IntPtr hwnd)
@@ -528,26 +462,6 @@ public partial class ShellView : Window
             DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
         }
         catch { /* 非 Win11 / 调用失败 → 维持系统默认 */ }
-    }
-
-    /// <summary>窗口过程里同步窗口外框的**重入闸门**（<see cref="ReassertWindowChrome"/>）。</summary>
-    private static bool _inChromeSync;
-
-    /// <summary>
-    /// 窗口尺寸 / 位置 / 样式变化后，把「方角」相关的两件事重做一遍：DWM 圆角偏好 + 矩形窗口区域。
-    /// <para>🔴 重入防护：这两个调用本身都可能再触发同类消息 → 没有闸门会无限递归。</para>
-    /// </summary>
-    private static void ReassertWindowChrome(IntPtr hwnd)
-    {
-        if (_inChromeSync) return;
-        _inChromeSync = true;
-        try
-        {
-            SetCornerPreferenceNoRound(hwnd);
-            ApplySquareRegion(hwnd);
-        }
-        catch { /* 同步失败不影响现有外观 */ }
-        finally { _inChromeSync = false; }
     }
 
     private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
@@ -564,75 +478,6 @@ public partial class ShellView : Window
     //    ② `DwmGetWindowAttribute` **不支持读** `DWMWA_WINDOW_CORNER_PREFERENCE`(33)（该属性只用于 Set）
     //       → 永远读到失败值，不能当"下发是否成功"的判据。
 
-    /// <summary>
-    /// v3.29 贴靠缝隙的**根治**：接管窗口过程，在 <c>WM_NCCALCSIZE</c> 上把 Avalonia 的回答
-    /// 「客户区 = 外框 − 边框」改回「客户区 = 整个外框」。
-    /// <para>
-    /// 🔴 为什么必须在这层动手：那圈被扣掉 ~8px 的厚度是按**窗口样式**算的，而样式里的
-    /// <c>WS_THICKFRAME|WS_CAPTION</c> 是我们为**贴靠资格**补的（去掉它 = 失去贴靠，回归更糟）。
-    /// 平时 DWM 在那圈上画标准窗框所以看不出来；**贴靠后 DWM 不画了** → 左右下露缝
-    /// （顶部被 40px 标题栏盖住，所以只有三边看得到）。
-    /// </para>
-    /// <para>⚠️ 装不上就什么都不做 —— 这类代码出错的代价是"窗口完全不响应消息"，失败路径必须保守。</para>
-    /// </summary>
-    private void InstallSnapFrameFix()
-    {
-        try
-        {
-            var h = TryGetPlatformHandle()?.Handle;
-            if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
-            if (_originalWndProc != IntPtr.Zero) return;              // 只装一次
-
-            // ⛔ 委托必须挂在静态字段上：局部变量会被 GC 回收 → 回调时进程直接崩
-            _snapFixProc = SnapFrameWndProc;
-            var ptr = Marshal.GetFunctionPointerForDelegate(_snapFixProc);
-            var old = SetWindowLongPtr(hwnd, GWLP_WNDPROC, ptr);
-            if (old == IntPtr.Zero) { _snapFixProc = null; return; }   // 装失败 → 保持原样
-            _originalWndProc = old;
-        }
-        catch { /* 装不上就维持现状 */ }
-    }
-
-    private static IntPtr SnapFrameWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
-    {
-        if (_originalWndProc == IntPtr.Zero)
-            return DefWindowProc(hWnd, msg, wParam, lParam);
-
-        // wParam == 1 → lParam 指向 NCCALCSIZE_PARAMS；rgrc[0] 就在 lParam 的开头 16 字节
-        if (msg == WM_NCCALCSIZE && wParam.ToInt64() == 1)
-        {
-            // ① 抄下系统送进来的"新外框"
-            var l0 = Marshal.ReadInt32(lParam, 0);
-            var t0 = Marshal.ReadInt32(lParam, 4);
-            var r0 = Marshal.ReadInt32(lParam, 8);
-            var b0 = Marshal.ReadInt32(lParam, 12);
-
-            // ② 先转给 Avalonia：它按自己的逻辑算完客户区、写回 rgrc[0]
-            CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
-
-            // ③ 最大化**不**覆盖：最大化时外框本来就比屏幕大一圈（边框被甩到屏幕外），
-            //    此时若零内缩，内容会伸出屏幕 8px、标题栏顶边被切掉。
-            if (!IsWindowMaximized(hWnd))
-            {
-                Marshal.WriteInt32(lParam, 0, l0);
-                Marshal.WriteInt32(lParam, 4, t0);
-                Marshal.WriteInt32(lParam, 8, r0);
-                Marshal.WriteInt32(lParam, 12, b0);
-            }
-            return IntPtr.Zero;      // 返回 0 = 已处理，系统拿 rgrc[0] 当客户区
-        }
-
-        var result = CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
-
-        // NT-034：**Avalonia 处理完之后**再压一次 DONOTROUND ——
-        // 它会在 ShowWindow → ExtendClientArea → UpdateWindowCornerPreference 里把偏好回写成 Default，
-        // 窗口状态变化 / 全屏 / 贴靠都会触发。先转发、后压，顺序不能反。
-        // ⛔ 这里只能用「只设属性」的版本（SetCornerPreferenceNoRound），带 SWP_FRAMECHANGED 会递归。
-        if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE || msg == WM_STYLECHANGED || msg == WM_SHOWWINDOW)
-            ReassertWindowChrome(hWnd);
-
-        return result;
-    }
 
     private static bool IsWindowMaximized(IntPtr hwnd)
     {
@@ -644,12 +489,6 @@ public partial class ShellView : Window
         catch { return false; }
     }
 
-    private const int GWL_STYLE = -16;
-    private const long WS_THICKFRAME = 0x00040000L;
-    private const long WS_CAPTION = 0x00C00000L;   // = WS_BORDER | WS_DLGFRAME，贴靠资格的关键位
-    private const long WS_MINIMIZEBOX = 0x00020000L;
-    private const long WS_MAXIMIZEBOX = 0x00010000L;
-    private const long WS_SYSMENU = 0x00080000L;
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOZORDER = 0x0004;
@@ -667,18 +506,6 @@ public partial class ShellView : Window
 
     [DllImport("user32.dll", SetLastError = false)]
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    // ===== v3.29 贴靠缝隙根治：接管 WM_NCCALCSIZE（原理见 InstallSnapFrameFix 的注释） =====
-
-    private const uint SWP_NOOWNERZORDER = 0x0200;
-
-    private const int GWLP_WNDPROC = -4;
-    private const uint WM_NCCALCSIZE = 0x0083;
-    private const uint WM_SIZE = 0x0005;
-    private const uint WM_SHOWWINDOW = 0x0018;
-    private const uint WM_WINDOWPOSCHANGED = 0x0047;
-    private const uint WM_STYLECHANGED = 0x007D;
-    private const int SW_SHOWMAXIMIZED = 3;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT
@@ -701,24 +528,6 @@ public partial class ShellView : Window
     [DllImport("user32.dll", SetLastError = false)]
     private static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
 
-    [DllImport("user32.dll", SetLastError = false)]
-    private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = false)]
-    private static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    /// <summary>窗口过程委托。⛔ **必须常驻静态字段** —— 委托被 GC 回收后窗口会直接崩。</summary>
-    private delegate IntPtr WndProcFunc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    private static WndProcFunc? _snapFixProc;
-    private static IntPtr _originalWndProc;
-
-    // ⚠️ 本项目锁定 win-x64（见 src/Directory.Build.props）→ 用 Ptr 版导出 ✓（32 位 Windows 上导出名不同）
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
@@ -769,7 +578,6 @@ public partial class ShellView : Window
             UpdateMaxIcon();
             UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
             UpdateWindowFrame();   // NT-039：最大化时收掉外框
-            ApplySnapEligibleStyles();   // v3.28：状态变化时 Avalonia 会重算样式 → 把贴靠资格位补回去
             ApplyNoRoundCorners();       // NT-034：状态变化时也重设 DWM 圆角偏好（防被重算抹掉）
         }
         else if (change.Property == IsActiveProperty)

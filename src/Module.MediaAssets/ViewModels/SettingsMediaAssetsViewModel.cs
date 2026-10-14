@@ -74,6 +74,10 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
         NameTemplateMusic = s.NameTemplateMusic;
         NameTemplateBook = s.NameTemplateBook;
         NameTemplateImage = s.NameTemplateImage;
+
+        // 两个下拉的选中项（⛔ 在 _syncing 里做：只同步显示，别触发写盘）
+        SelectedFrameModeOption = FrameModeOptions.FirstOrDefault(o => o.Value == ThumbFrameMode) ?? FrameModeOptions[0];
+        SelectedConflictOption = ConflictOptions.FirstOrDefault(o => o.Value == ConflictPolicy) ?? ConflictOptions[0];
         _syncing = false;
 
         StatusText = Summary();
@@ -95,6 +99,15 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
     [ObservableProperty] private double _thumbFrameSeconds = 5;
     [ObservableProperty] private string _thumbsDirectory = "";
     [ObservableProperty] private string _conflictPolicy = "append";
+
+    /// <summary>
+    /// 下拉选中项（🔴 Avalonia 的 <c>ComboBox</c> **没有** <c>SelectedValue</c>/<c>SelectedValuePath</c>（那是 WPF），
+    /// 只能绑 <c>SelectedItem</c> 到**选项对象**；写回时再由下面的 partial 同步到字符串设置值）。
+    /// </summary>
+    [ObservableProperty] private ChoiceOption? _selectedFrameModeOption;
+
+    /// <inheritdoc cref="_selectedFrameModeOption"/>
+    [ObservableProperty] private ChoiceOption? _selectedConflictOption;
 
     partial void OnIgnoreHiddenFilesChanged(bool value) => SaveScanSetting(s => s.IgnoreHiddenFiles = value, "忽略隐藏文件");
     partial void OnIgnoreTempFilesChanged(bool value) => SaveScanSetting(s => s.IgnoreTempFiles = value, "忽略临时文件");
@@ -146,6 +159,18 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
 
     partial void OnConflictPolicyChanged(string value)
         => SaveSetting(s => s.ConflictPolicy = value ?? "append", "重命名冲突策略");
+
+    /// <summary>下拉选择 → 写回字符串设置值（再触发上面的 OnXxxChanged 落盘）。</summary>
+    partial void OnSelectedFrameModeOptionChanged(ChoiceOption? value)
+    {
+        if (value != null) ThumbFrameMode = value.Value;
+    }
+
+    /// <inheritdoc cref="OnSelectedFrameModeOptionChanged"/>
+    partial void OnSelectedConflictOptionChanged(ChoiceOption? value)
+    {
+        if (value != null) ConflictPolicy = value.Value;
+    }
 
     // ==================== 显式保存：多行文本 ====================
 
@@ -283,6 +308,10 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
             NameTemplateMusic = fresh.NameTemplateMusic;
             NameTemplateBook = fresh.NameTemplateBook;
             NameTemplateImage = fresh.NameTemplateImage;
+
+            // 两个下拉也要跟着回默认（⛔ 同 _syncing 内，只同步显示）
+            SelectedFrameModeOption = FrameModeOptions.FirstOrDefault(o => o.Value == fresh.ThumbFrameMode) ?? FrameModeOptions[0];
+            SelectedConflictOption = ConflictOptions.FirstOrDefault(o => o.Value == fresh.ConflictPolicy) ?? ConflictOptions[0];
         }
         finally { _syncing = false; }
 

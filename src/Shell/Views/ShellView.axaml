@@ -1,8 +1,11 @@
-<!--  NT-034：`BorderOnly` 是**必须保留**的（⛔ 别改成 None）。
-      2026-10-14 实测：改成 `None` 后 ① 圆角没改善 ② **分屏（贴靠）时漏背景更明显**
-      ③ 全屏一次后 Avalonia 用 SetStyle 整体覆盖样式 → 贴靠资格位被抹、不能再贴靠。
-      反向证明了关键事实：**圆角就是 WS_THICKFRAME / WS_CAPTION 这几个"标准窗口"样式位带来的**，
-      而贴靠资格也依赖同一批位 —— 两者绑死，只能靠 DWM 关圆角（见 ShellView.axaml.cs）。  -->
+<!--  NT-040：窗口装饰回归 Avalonia 12 官方 CSD（需求 §4.1.1 ①）。
+      `WindowDecorations="Full"` 只是为了拿到**完整的标准窗口样式**（贴靠资格 / 系统菜单 / 最小化动画），
+      ⛔ **不等于让 Avalonia 画默认那套窗框** —— 窗框由 `WindowDecorationsTheme` 指定，
+      我们给的是 `NewToysWindowDecorations`（完整但全隐藏的 ControlTheme），可见的 UI 仍是本文件自绘的标题栏。
+      ⛔ **不要改回 `BorderOnly`**：那时 Avalonia 不设 `WS_CAPTION`，就要靠 code-behind 手工补样式位（v3.28 的野路子）。
+      ⛔ **不要改成 `None`**：不设 `WS_THICKFRAME` → 贴靠后尺寸偏、露桌面背景（NT-034 已实测踩过）。
+      主题引用用 **`DynamicResource`**（⛔ 不用 StaticResource）：窗口装饰主题在合并字典完成前就可能被解析，
+      StaticResource 那一刻会取不到（AtomUI 实战指南 §15 的已知坑）。  -->
 <Window
     x:Class="NewToys.Shell.Views.ShellView"
     xmlns="https://github.com/avaloniaui"
@@ -16,11 +19,15 @@
     Background="{DynamicResource ContentBrush}"
     ExtendClientAreaTitleBarHeightHint="40"
     ExtendClientAreaToDecorationsHint="True"
-    WindowDecorations="BorderOnly"
-    WindowDecorationsTheme="{StaticResource NoDrawnWindowDecorations}"
+    WindowDecorations="Full"
+    WindowDecorationsTheme="{DynamicResource NewToysWindowDecorations}"
     CanResize="True"
     WindowState="Normal">
-    <Grid RowDefinitions="40,*">
+    <!--  外层 Grid 无 RowDefinitions：装「内容层 + 窗口外框 + 缩放热区」三层叠加。  -->
+    <Grid>
+
+        <!--  ==================== 内容层  ==================== -->
+        <Grid RowDefinitions="40,*">
 
         <!--  ==================== ① 标题栏（40px，底色 = 主题背景）  ====================
               左：≡折叠 ｜ ⟳重建当前页
@@ -390,13 +397,29 @@
             </Grid>
         </Grid>
 
+        </Grid>
+
+        <!--  ==================== 窗口外框（NT-039） ====================
+              根因：开了客户区扩展后 DWM 把边框交给应用画，而 Avalonia 在 Win32 上只接管标题栏
+              （`:has-border` 恒 false）→ 应用不画就没有边界，窗口叠在同色窗口上完全混淆（需求 §4.1.1 ③）。
+              🔴 三个要点：
+              ① **叠在最上层、不占布局**（外层 Grid 无行列定义，它是覆盖层）→ ⛔ 不会把内容 inset 1px；
+              ② `IsHitTestVisible="False"` → ⛔ 不吃鼠标，下方的缩放热区 / 标题栏按钮照常工作；
+              ③ 最大化时收掉外框（Win11 最大化本就无边框，留着贴屏幕边很脏）。
+              🔴 **颜色 / 厚度一律由 `App.axaml` 的 `Border.window-frame` 样式给**（⛔ 这里不写本地值）——
+                 本地值会压过样式，也就压死了「失焦切淡色」和主题切换。code-behind 只切 Classes。  -->
+        <Border
+            x:Name="WindowFrameBorder"
+            Classes="window-frame"
+            IsHitTestVisible="False" />
+
         <!--  ==================== 窗口缩放抓取区（v3.26，需求 §4.1；v3.28 改走系统命中测试） ====================
               四边 5px + 四角 10px 透明热区，标成 `ResizeN/S/E/W/NE/NW/SE/SW` 角色 → 由**系统**处理缩放
               （光标 / 吸附 / 贴靠一并由系统给）。code-behind 的 BeginResizeDrag 作为角色失效时的兜底保留。
               🔴 Avalonia 12 的托管装饰在 Win32 上不可用（规范 附录A）→ 自绘 + 角色标注是唯一路线。
               ⚠️ 承装 Grid **不设 Background**（否则整层吃掉所有点击）；8 个 Border 必须 Background="Transparent"
                  才有命中测试。最大化时整层 IsHitTestVisible=False（见 code-behind）。  -->
-        <Grid x:Name="ResizeGrips" Grid.Row="0" Grid.RowSpan="2">
+        <Grid x:Name="ResizeGrips">
           <Border x:Name="GripTop" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Top" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeN" />
           <Border x:Name="GripBottom" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeS" />
           <Border x:Name="GripLeft" Width="5" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" chrome:WindowDecorationProperties.ElementRole="ResizeW" />

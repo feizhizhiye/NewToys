@@ -608,6 +608,9 @@ public class App : Application
         if (dark)
         {
             S("ContentBrush","#191919"); S("TitleBarBrush","#1F1F1F"); S("TitleBarTextBrush","#E5E5E5");
+            // NT-039：窗口外框（自绘 1px）。激活态要能在同色窗口上分辨出来 → 比 DividerBrush(#333) 更亮；
+            // 失焦态压暗到接近底色，形成「哪个窗口在前台」的直接视觉信号。
+            S("WindowBorderBrush","#4A4A4A"); S("WindowBorderInactiveBrush","#2A2A2A");
             S("TitleBarButtonHoverBrush","#333333"); S("TitleBarCloseHoverBrush","#E81123"); S("TitleBarCloseHoverTextBrush","#FFFFFF");
             S("SiderBrush","#202020"); S("SiderTextBrush","#FFFFFF"); S("SiderIconBrush","#9A9A9A"); S("SiderIconActiveBrush","#FFFFFF"); S("SiderSelectedBrush","#2E2E2E"); S("SiderDividerBrush","#2E2E2E");
             S("SubSiderBrush","#262626"); S("SubSiderHeaderBrush","#2B2B2B");
@@ -625,6 +628,9 @@ public class App : Application
         else
         {
             S("ContentBrush","#FFFFFF"); S("TitleBarBrush","#FFFFFF"); S("TitleBarTextBrush","#1F1F1F");
+            // NT-039：浅色下窗口底色就是白的 → 边框必须够深才看得见（比 DividerBrush(#E6E8EC) 深一档）；
+            // 失焦态退回 DividerBrush 同档，几乎融进白底。
+            S("WindowBorderBrush","#C8CCD2"); S("WindowBorderInactiveBrush","#E6E8EC");
             S("TitleBarButtonHoverBrush","#E5E5E5"); S("TitleBarCloseHoverBrush","#E81123"); S("TitleBarCloseHoverTextBrush","#FFFFFF");
             S("SiderBrush","#2E2E2E"); S("SiderTextBrush","#FFFFFF"); S("SiderIconBrush","#B7B7B7"); S("SiderIconActiveBrush","#FFFFFF"); S("SiderSelectedBrush","#444444"); S("SiderDividerBrush","#3F3F3F");
             S("SubSiderBrush","#F3F3F3"); S("SubSiderHeaderBrush","#F7F7F7");

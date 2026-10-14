@@ -144,6 +144,9 @@ public partial class ShellView : Window
         WireResizeGrips();
         UpdateResizeGrips();
 
+        // NT-039：窗口外框（厚度 / 颜色由样式给，这里只切 .maximized / .inactive 两个伪类）
+        UpdateWindowFrame();
+
         // v3.28：给无边框窗口补回「可缩放」标准样式 —— Windows 的贴靠（Win+方向键 / 拖到屏幕边缘 /
         // 拖到顶边最大化）只认带 WS_THICKFRAME 等标准样式的窗口。
         ApplySnapEligibleStyles();
@@ -240,6 +243,27 @@ public partial class ShellView : Window
     {
         if (ResizeGrips == null) return;
         ResizeGrips.IsHitTestVisible = WindowState != WindowState.Maximized;
+    }
+
+    // ==================== 窗口外框（NT-039，需求 §4.1.1 ③） ====================
+
+    /// <summary>
+    /// 同步窗口外框的两个状态：**最大化**（收掉外框）与**激活 / 失焦**（切淡色）。
+    /// <para>
+    /// 🔴 这里**只切 Classes**，厚度与颜色一律由 `App.axaml` 的 `Border.window-frame` 样式给 ——
+    /// 在代码里直接写 `BorderBrush` 会变成本地值，压死样式里的状态切换，且主题切换后不会跟着变。
+    /// </para>
+    /// <para>
+    /// ⚠️ `IsActive` 走 `OnPropertyChanged`（与 `WindowState` 同一套路，见 <see cref="OnPropertyChanged"/>）；
+    ///    若本地实测该属性在 Win32 不触发，退路是订阅 <c>Activated</c> / <c>Deactivated</c> 事件。
+    /// </para>
+    /// </summary>
+    private void UpdateWindowFrame()
+    {
+        if (WindowFrameBorder == null) return;
+
+        WindowFrameBorder.Classes.Set("maximized", WindowState == WindowState.Maximized);
+        WindowFrameBorder.Classes.Set("inactive", !IsActive);
     }
 
     /// <summary>
@@ -744,8 +768,13 @@ public partial class ShellView : Window
         {
             UpdateMaxIcon();
             UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
+            UpdateWindowFrame();   // NT-039：最大化时收掉外框
             ApplySnapEligibleStyles();   // v3.28：状态变化时 Avalonia 会重算样式 → 把贴靠资格位补回去
             ApplyNoRoundCorners();       // NT-034：状态变化时也重设 DWM 圆角偏好（防被重算抹掉）
+        }
+        else if (change.Property == IsActiveProperty)
+        {
+            UpdateWindowFrame();   // NT-039：失焦 → 外框切 WindowBorderInactiveBrush
         }
     }
 

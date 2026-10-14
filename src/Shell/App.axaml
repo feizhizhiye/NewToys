@@ -56,7 +56,66 @@
               修法：装饰模式改 `BorderOnly`（那时 Avalonia 的部件集合为 None → 什么都不画）**并**给他一个不绘制任何
                     内容的 ControlTheme 兜底（不设 Template = 无模板 = 不画），双保险。
               ⚠️ 真正的贴靠资格由 code-behind 的 `ApplySnapEligibleStyles()` 补 `WS_CAPTION/WS_THICKFRAME` 等位保证。  -->
-        <ControlTheme x:Key="NoDrawnWindowDecorations" TargetType="chrome:WindowDrawnDecorations" />
+        <!--
+            ==================== 窗口装饰：官方 CSD 主题（NT-040，需求 §4.1.1 ①） ====================
+            背景：为了拿系统级贴靠，窗口走 `ExtendClientAreaToDecorationsHint="True"` + `WindowDecorations="Full"`。
+                  但 `Full` 会让 Avalonia **真的去画一套窗框**（默认主题含标题文字 + caption 按钮）
+                  → 与自绘标题栏重叠（v3.28 实测：标题文字重叠、右侧多点一个按钮）。
+            旧解法（⛔ 已废）：给一个**空 ControlTheme** 把装饰关掉，再从 Win32 侧补样式位 —— 那就是
+                  v3.28 / v3.29 / NT-034 三层补丁的起因，越改越脆。
+            ✅ 正解：**给一个完整但全隐藏的主题**。框架要的 PART 一个不少（缺了 `OnApplyTemplate` 会抛 NRE），
+                  但全部不可见 —— 标题栏 / 按钮仍是我们自绘的那套，拖动与缩放由 `ElementRole` + 系统承担。
+            🔴 三条纪律：
+                ① 所有槽 / 按钮一律 `IsHitTestVisible="False"`（透明覆盖层，绝不吃内容区的点击）；
+                ② 按钮一律 `IsVisible="False"`，⚠️ 但**不能删**——删了就是缺 PART；
+                ③ `DefaultFrameThickness` / `DefaultShadowThickness` 在 Win32 上无效（边框 / 阴影归 DWM，
+                   `:has-border` / `:has-shadow` 恒 false），这里写 0 只为跨平台一致性；窗口边界由
+                   `Border.window-frame`（NT-039 自绘 1px 外框）负责，⛔ 不要在这里再画一遍。
+        -->
+        <ControlTheme x:Key="NewToysWindowDecorations" TargetType="chrome:WindowDrawnDecorations">
+            <Setter Property="DefaultTitleBarHeight" Value="40"/>
+            <Setter Property="DefaultFrameThickness" Value="0"/>
+            <Setter Property="DefaultShadowThickness" Value="0"/>
+            <Setter Property="Template">
+                <chrome:WindowDrawnDecorationsTemplate>
+                    <chrome:WindowDrawnDecorationsContent>
+                        <!--  Underlay：用户内容**下方**（边框 / 背景 / 阴影）。Win32 上这些归 DWM → 留空。  -->
+                        <chrome:WindowDrawnDecorationsContent.Underlay>
+                            <Panel x:Name="PART_UnderlayWrapper" IsHitTestVisible="False"/>
+                        </chrome:WindowDrawnDecorationsContent.Underlay>
+
+                        <!--  Overlay：用户内容**上方**（标题栏 + caption 按钮）。
+                              🔴 七个 PART 必须全在（NRE 红线），但全部隐藏：功能由自绘标题栏承担。  -->
+                        <chrome:WindowDrawnDecorationsContent.Overlay>
+                            <Panel x:Name="PART_OverlayWrapper" IsHitTestVisible="False">
+                                <Border
+                                    x:Name="PART_TitleBar"
+                                    Height="{TemplateBinding TitleBarHeight}"
+                                    VerticalAlignment="Top"
+                                    IsVisible="False"
+                                    chrome:WindowDecorationProperties.ElementRole="TitleBar"/>
+                                <Button x:Name="PART_MinimizeButton" IsVisible="False"
+                                        chrome:WindowDecorationProperties.ElementRole="MinimizeButton"/>
+                                <Button x:Name="PART_MaximizeButton" IsVisible="False"
+                                        chrome:WindowDecorationProperties.ElementRole="MaximizeButton"/>
+                                <Button x:Name="PART_FullScreenButton" IsVisible="False"
+                                        chrome:WindowDecorationProperties.ElementRole="FullScreenButton"/>
+                                <Button x:Name="PART_CloseButton" IsVisible="False"
+                                        chrome:WindowDecorationProperties.ElementRole="CloseButton"/>
+                            </Panel>
+                        </chrome:WindowDrawnDecorationsContent.Overlay>
+
+                        <!--  FullscreenPopover：全屏时从顶部下拉的浮层（本应用不做全屏 → 隐藏但保留 PART）。  -->
+                        <chrome:WindowDrawnDecorationsContent.FullscreenPopover>
+                            <Panel x:Name="PART_FullscreenPopoverWrapper" IsHitTestVisible="False">
+                                <Button x:Name="PART_PopoverCloseButton" IsVisible="False"/>
+                                <Button x:Name="PART_PopoverFullScreenButton" IsVisible="False"/>
+                            </Panel>
+                        </chrome:WindowDrawnDecorationsContent.FullscreenPopover>
+                    </chrome:WindowDrawnDecorationsContent>
+                </chrome:WindowDrawnDecorationsTemplate>
+            </Setter>
+        </ControlTheme>
     </Application.Resources>
 
     <Application.Styles>
@@ -71,6 +130,24 @@
         <StyleInclude Source="avares://NewToys/Styles/Controls.axaml"/>
 
         <!--  ==================== v3.1 仿浏览器外壳 ====================  -->
+
+        <!--  ==================== 窗口外框（NT-039，需求 §4.1.1 ③） ====================
+              只画 1px 描边；厚度 / 颜色全在这里给（⛔ XAML 那边不许写本地值，否则压死状态切换）。
+              两个伪类由 `ShellView.axaml.cs` 的 `UpdateWindowFrame()` 切：
+                `.maximized` → 收掉外框（Win11 最大化本就无边框）
+                `.inactive`  → 窗口失焦，边框切淡色（回答「哪个窗口在前台」）  -->
+        <Style Selector="Border.window-frame">
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WindowBorderBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.window-frame.maximized">
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Border.window-frame.inactive">
+            <Setter Property="BorderBrush" Value="{DynamicResource WindowBorderInactiveBrush}"/>
+        </Style>
 
         <!--  标题栏工具按钮（≡ ◀ ▶ ⟳）：高 32、无边框、图标 18px。
              ⚠️ v3.4：标题栏底色 = ContentBrush（跟随主题明暗）→ 文字/图标必须用主题色 PrimaryTextBrush，

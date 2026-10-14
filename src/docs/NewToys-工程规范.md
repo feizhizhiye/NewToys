@@ -103,9 +103,11 @@
 
 主题资源键一律 `*Brush` 语义键，共 **34 个**（`ContentBrush/PanelBrush/SubSiderBrush/SiderBrush/PrimaryTextBrush/SecondaryTextBrush/AccentBrush/AccentHoverBrush/DangerBrush/DividerBrush/InputBorderBrush…`，完整清单以源码为准；白名单同步在 `skill/scripts/check.ps1`）。
 
-> **v3.38 增补 2 个键**（需求 §4.1.1 ③ / §4.7，工作项 NT-039）：
+> ⚠️ **v3.38 增补 2 个键**（需求 §4.1.1 ③ / §4.7，工作项 NT-039）：
 > `WindowBorderBrush`（窗口外框 · **激活态**）｜`WindowBorderInactiveBrush`（窗口外框 · **失焦态**，更淡）。
 > ⚠️ 明暗两套必须**同时补齐**；⛔ 除这两个键外不得再新增 —— 需要新色先想「能不能复用现有键」。
+> ✅ **白名单免维护**：`skill/scripts/check.ps1` 是**动态扫描**（`x:Key="*Brush"` + 代码里 `S("*Brush")` 调用），
+>    在 `ApplyTheme()` 里补了色值就算入白名单，**⛔ 不需要改脚本**。
 
 **v3.0 新元素映射（不新增键，复用现有）**：
 
@@ -122,6 +124,7 @@
 | 树节点（激活） | `CardSelectedBrush` 背景 + `AccentBrush` 文字；**二级激活时其父级一级同用此态**（v3.4） |
 | 树节点（hover） | `ContentBrush` 背景 |
 | 右详情面板背景 | `PanelBrush`；与内容区之间用 `DividerBrush` 1px 竖线 |
+| **窗口外框**（NT-039） | 激活 = `WindowBorderBrush`｜**失焦 = `WindowBorderInactiveBrush`**；厚度 1px，**最大化时收掉**。样式选择器 `Border.window-frame`（+ `.maximized` / `.inactive` 两个伪类），⛔ XAML 里不写本地值 |
 
 > ⚠️ **v3.4 起标题栏底色跟随主题（`ContentBrush`）** → 标题栏上的文字 / 图标必须用 `PrimaryTextBrush` 等**主题色**，
 > ⛔ **不要再用 `Sider*` 系**（那是深色侧栏专用；浅色主题下标题栏是浅底，白字会看不见）。
@@ -181,6 +184,21 @@
 | 诊断写 `Window.Title` | ⛔ 无边框自绘窗口标题栏不显示 Title |
 
 **④ 跨平台门控**：判据 = **`WindowDecorationMargin.Top > 0`**（详见需求 §3.7）；⛔ 不用 `OperatingSystem.IsWindows()` / `#if` / `x:OnPlatform`（加载期一次性求值，响应不了运行期切换）。
+
+**⑤ 当前配置（NT-040 落地后，`ShellView.axaml`）**
+
+```
+WindowDecorations="Full"
+ExtendClientAreaToDecorationsHint="True"
+ExtendClientAreaTitleBarHeightHint="40"
+WindowDecorationsTheme="{DynamicResource NewToysWindowDecorations}"
+```
+
+- `Full` 只为了拿到**完整标准窗口样式**（贴靠资格 / 系统菜单 / 最小化动画）；可见 UI 仍是自绘标题栏。
+- 主题 = `App.axaml` 的 `NewToysWindowDecorations`：**完整但全隐藏**（7 个 PART 一个不少、全部 `IsVisible="False"`、所有槽 `IsHitTestVisible="False"`）。
+  🔴 ⛔ **不要退化成空 ControlTheme**（`<ControlTheme TargetType="…"/>` 无 Template）—— `OnApplyTemplate` 找不到 PART 会抛 NRE（AtomUI 指南 §15）。
+- 主题引用用 **`DynamicResource`**：窗口装饰主题在合并字典完成前就可能被解析，`StaticResource` 那一刻取不到（同一份指南的已知坑）。
+- ⚠️ `ApplySnapEligibleStyles()`（手工补 `WS_CAPTION`）**当前仍保留作保险** —— `Full` 下样式位本就齐了，该函数走 `if (want == style) return` 直接返回。删除动作归 **NT-041**（需先本地验证贴靠不回归）。
 
 ---
 

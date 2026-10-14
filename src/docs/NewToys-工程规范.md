@@ -195,7 +195,11 @@ WindowDecorationsTheme="{DynamicResource NewToysWindowDecorations}"
 ```
 
 - `Full` 只为了拿到**完整标准窗口样式**（贴靠资格 / 系统菜单 / 最小化动画）；可见 UI 仍是自绘标题栏。
-- 主题 = `App.axaml` 的 `NewToysWindowDecorations`：**只顶掉默认主题，🔴 故意不给 `Template`**（无模板 → 框架不应用 → 不画任何装饰视觉）。
+- 主题 = `App.axaml` 的 `ControlTheme`（`TargetType="chrome:WindowDrawnDecorations"`）：**只顶掉默认主题，🔴 故意不给 `Template`**（无模板 → 框架不应用 → 不画任何装饰视觉）。
+- 🔴 **键必须是隐式键 `{x:Type chrome:WindowDrawnDecorations}`**（⛔ 自定义字符串键 + `WindowDecorationsTheme` 指它 **不生效**，
+  Fluent 默认装饰主题照画 —— 2026-10-14 实测：标题文字 / 窗口图标 / caption 按钮全叠上来）。
+  Fluent 的默认装饰主题就注册在 `{x:Type}` 隐式键下，同键定义在 `Application.Resources` 里才能**覆盖**它（查找先 Resources 后各 Style）。
+  `Window.WindowDecorationsTheme` 也指同一个键：`{DynamicResource {x:Type chrome:WindowDrawnDecorations}}`。
 - 🔴 **12.1.3 版本事实（2026-10-14 编译实测，⛔ 别再试）**：`Avalonia.Controls.Chrome` 的**公共类型只有 6 个** ——
   `WindowDrawnDecorations` / `WindowDrawnDecorationsContent` / `IWindowDrawnDecorationsTemplate` /
   `DrawnWindowDecorationParts` / `WindowDecorationProperties` / `ResizeGripLayer`。

@@ -1,8 +1,9 @@
 <!--  NT-040：窗口装饰回归 Avalonia 12 官方 CSD（需求 §4.1.1 ①）。
       `WindowDecorations="Full"` 只是为了拿到**完整的标准窗口样式**（贴靠资格 / 系统菜单 / 最小化动画），
-      ⛔ **不等于让 Avalonia 画默认那套窗框** —— 窗框由 `WindowDecorationsTheme` 指定，
-      我们给的是 `NewToysWindowDecorations`（**只顶掉默认主题、不给模板** → 框架无模板可应用 → 不画任何装饰），
-      可见的 UI 仍是本文件自绘的标题栏。
+      ⛔ **不等于让 Avalonia 画默认那套窗框** —— 顶掉默认主题靠的是 `App.axaml` 里以**隐式键**
+      `{x:Type chrome:WindowDrawnDecorations}` 注册的 ControlTheme（无 Template → 框架无模板可应用 → 不画任何装饰）。
+      🔴 首版用自定义字符串键 + `WindowDecorationsTheme` 指它 **没生效**（默认主题照画：标题文字 / 窗口图标 /
+          caption 按钮全叠上来）→ 键必须是 `{x:Type}`，`WindowDecorationsTheme` 也指同一个键。
       🔴 12.1.3 里**没有可用的装饰模板类型**（`WindowDrawnDecorationsTemplate` 是 internal，
           `Template` 属性是接口）→ ⛔ 别试图写自定义模板，会报 AVLN2000。详见 `App.axaml` 的注释。
       ⛔ **不要改回 `BorderOnly`**：那时 Avalonia 不设 `WS_CAPTION`，就要靠 code-behind 手工补样式位（v3.28 的野路子）。
@@ -23,7 +24,7 @@
     ExtendClientAreaTitleBarHeightHint="40"
     ExtendClientAreaToDecorationsHint="True"
     WindowDecorations="Full"
-    WindowDecorationsTheme="{DynamicResource NewToysWindowDecorations}"
+    WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}"
     CanResize="True"
     WindowState="Normal">
     <!--  外层 Grid 无 RowDefinitions：装「内容层 + 窗口外框 + 缩放热区」三层叠加。  -->

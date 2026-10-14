@@ -129,10 +129,10 @@
 | NT-038 | 三配置档（debug/default/release）：运行时永久驻留（debug=复制 default 播种；商店版转远期） | P1 | ✔ 已完成（已验收） | backlog/NT-038.md |
 | NT-039 | 窗口外框（自绘 1px）+ 激活 / 失焦两态（主题键 32→34；最大化收边框） | P0 | ✔ 已完成（已验收） | backlog/NT-039.md |
 | NT-040 | 窗口装饰回归 Avalonia 12 官方 CSD 路线（`WindowDecorations="Full"` + 隐式键同键覆盖默认主题） | P0 | ✔ 已完成（已验收） | backlog/NT-040.md |
-| NT-041 | 清理 Win32 窗口补丁（贴靠样式位 / `WM_NCCALCSIZE` / resize 兜底），逐处删 + 逐处回归 | P1 | ✅ 就绪 | backlog/NT-041.md |
+| NT-041 | 清理 Win32 窗口补丁（贴靠样式位 / `WM_NCCALCSIZE` / resize 兜底），逐处删 + 逐处回归 | P1 | ✔ 已完成（待验收） | backlog/NT-041.md |
 | NT-042 | DWM 阴影与方角方案复核（`SetWindowRgn` 去留；阴影优先） | P1 | ✅ 就绪 | backlog/NT-042.md |
 | NT-043 | 标题栏是否改用 `TitleBarBrush`（⛔ 待拍板：会推翻「标题栏 = `ContentBrush`」约定） | P2 | 📝 草稿 | backlog/NT-043.md |
-| NT-044 | 标题栏加全屏按钮（⛶）+ `F11` / `Esc` 快捷键（⛔ 依赖 NT-041：全屏退出会整体覆盖窗口样式） | P2 | ✅ 就绪 | backlog/NT-044.md |
+| NT-044 | 标题栏加全屏按钮（⛶）+ `F11` / `Esc` 快捷键（⛔ 依赖 NT-041：全屏退出会整体覆盖窗口样式） | P2 | ✔ 已完成（待验收） | backlog/NT-044.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡保留、⛔ 不删）。已落盘待编译的项见下方 P0 v3.15 / v3.16。
 > NT-041 / NT-042 **依赖 NT-040**（先确认官方路线能顶上，才能删补丁）；NT-039 独立，可先行。
@@ -270,6 +270,7 @@
 
 | 日期 | 版本 | 内容 |
 |---|---|---|
+| 2026-10-14 | **NT-041 / NT-044** | **NT-041 第二次尝试（只删样式位补丁，🟡 已落盘 · 待本地编译）** —— 删 `ApplySnapEligibleStyles()` + 两处调用 + 6 个样式位常量 + `GetWindowLongPtr`；`WM_NCCALCSIZE`（贴靠缝隙）与 resize 兜底**保留**（首轮一次性删三处实测：贴靠 OK 但**露缝**、八向缩放渲染异常 → 已回滚 `f132687`）。**NT-044 全屏按钮**（🟡 已落盘 · 待本地编译）—— 标题栏加 `⛶`（`BtnMin` 左边，46×40，`Border` 四角括弧图标：朝外=进入 / 朝内=退出）+ `F11` 切 / `Esc` 仅全屏态退出（**隧道**注册 `KeyDown`）；⛔ **未设** `ElementRole="FullScreenButton"`（父 `StackPanel` 已标 `User`，切换走我们的 `Click`，避免与框架重复触发）。🔴 顺带两处必须修正：① `ApplySquareRegion` 加 `_isFullScreen`（全屏时 `showCmd` 未必是 `SW_SHOWMAXIMIZED`，沿用旧判定 → **旧矩形区域裁掉内容**）② `SaveWindowBounds` 全屏态按最大化存 `rcNormalPosition`（否则下次启动是「铺满屏的普通窗口」）。**NT-042** 基准测试开关 `UseSquareRegionHack` 已备（置 `false` 即可 A/B：圆角复发 vs DWM 阴影回归；⛔ 刻意不用 `const`，防 CS0162 + TreatWarningsAsErrors），结论待用户本地测。静态自检 `check.ps1` + `check-axaml-props.ps1` 全过。 |
 | 2026-10-14 | **UI/配置批** | **NT-034~038（5 项就绪待办批量执行，🟡 已落盘 · 待本地编译）** —— **NT-034** 窗口圆角（✅ 已验收；**6 轮定位后定案**：`SetWindowRgn` 矩形窗口区域强制方角 + DWM 偏好压制 + Avalonia 官方开关三保险。🔴 排查结论：① 圆角 = `WS_THICKFRAME|WS_CAPTION` 样式位带来的，与贴靠资格**绑死**，删样式位走不通（改 `WindowDecorations=None` 反使分屏露背景更明显，已回滚）② Avalonia 每次 `ShowWindow`→`ExtendClientArea()` 会回写圆角偏好 → 必须在**它处理完之后**再压 ③ 两条死诊断：`Window.Title`（无边框自绘不显示）、`DwmGetWindowAttribute(33)`（不支持读）；**NT-035** 媒体资产一级图标矢量化（`App.axaml` 加 `IconMediaAssets`，注册改传键名，去 emoji）；**NT-036** 标签关闭 ✕ 不再压字（`tab-btn` 右侧预留 28px，文字左移、✕ 落入右侧空白、宽度常驻不跳）；**NT-037** 左树一级展开整组 `BringIntoView`（VM 抛 `TreeNodeExpanded` → ShellView 滚入视野，防底部子项被裁）；**NT-038** 内置三配置档（`ConfigStoreService.EnsureBuiltInProfiles/ResetBuiltInProfile`，debug=复制 default 的 `config`、只增不覆盖，启动播种 + 设置页「♻ 重置为初始态」；🔴 框架层 Core/Shared 改动）。需求 §3.5 / §2.1（远期规划）/ §6.2 同步（v3.37）。静态自检 `check.ps1`（44 axaml，0 非法）+ `check-axaml-props.ps1`（6365 属性名，0 问题）全过。**NT-034~038 全部 ✅ 已验收**（用户本地编译通过 + 逐条实机确认；NT-038 于 2026-10-14 20:31 确认通过）。 |
 | 2026-10-14 | **fix** | **NT-032 + NT-033（深入审查两项 P1 逻辑缺陷修复，✅ 已落盘 + 本地编译通过 ✅）** —— 扫描"大小+修改时间"移动识别键改多值字典、仅**唯一候选**认作移动（修"复制且保留时间戳"误把原文件位置改写到副本、原文件变 missing）；多库融合在事务内清除"零文件位置"的重复资产（含其标签/分类/集合/关联），修重合并同一库 / 合并共享文件两库产生的孤儿资产，类注释"幂等"表述同步修正。静态自查 check.ps1 + check-axaml-props.ps1 全过；**用户本地 `build.ps1` 编译通过，按本轮约定视为验收通过 ✔** |
 | 2026-10-14 | **v3.36** | **NT-019 物理操作 + 任务中心 + 回收站（✅ 已验收）** —— 新增 `FileOperationService`（全模块唯一动磁盘：`Rename`/`Move`/`Copy`/`DeleteToRecycle`/`PermanentDelete` + `ConflictPolicy` + `IsInside` 防穿越；🔴 日志先行 `pending→磁盘→file_locations→success/failed`，⛔ 失败不回滚；删除默认送 `SHFileOperationW` 系统回收站）；`assets-tasks`（运行态队列可取消 + 扫描记录可重扫 + 操作日志）；`assets-trash`（`status='trashed'` + `TrashDetailView` 含受影响文件位置，恢复=逻辑 / 永久删除·清空=真删磁盘并排进队列）；全部资产页新增「↗ 应用到文件」（把名字真写到磁盘）。⚠️ 3 处偏差：移动/复制无 UI 入口、删除时间未显示、重试仅扫描任务 |

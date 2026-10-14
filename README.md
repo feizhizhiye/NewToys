@@ -3,7 +3,7 @@
 个人高强度使用工具集。**Avalonia 12 + .NET 10** 版本。
 
 > 技术栈：**Avalonia 12 + .NET 10**（不是 WPF，XAML 语法有差异）。
-> 全部约定见 `src/docs/` 下 3 份文档，速查表在 `src/docs/NewToys开发规范.md` **第 0.5 章**。
+> 全部约定见 `src/docs/` 下 3 份文档，速查表在 `src/docs/NewToys-工程规范.md` **第 0.5 章**。
 
 ## 目录地图
 
@@ -61,4 +61,4 @@ NewToys/
 
 - ✅ Debug / Release **均 0 Error / 0 Warning**
 - ⚠️ 仓库**尚未 `git init`**，补丁工作流暂不可用，交付走 sources md 快照
-- 详细基线与待办见 `src/docs/NewToys-项目现状与进度.md`
+- 详细基线与待办见 `src/docs/NewToys-项目状态与路线图.md`

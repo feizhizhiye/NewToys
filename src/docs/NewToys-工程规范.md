@@ -1,30 +1,33 @@
-# NewToys 开发规范
+# NewToys 工程规范
 
-> v3.21 · 2026-10-13 · 技术实现指南
-> 🔴 **工作流不在此定义**：`规划 / 执行双模式` + 状态机 + 验收清理的唯一定义处 = 《AI协作提示词》；本文件只管「怎么具体实现」。
-> 权威源：需求（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
-> 约束分两类：〔A〕硬约束（引需求）｜〔B〕折衷约束（本文件台账）
+> v3.22 · 2026-10-14 · 技术实现指南
+> **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
+> 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
+> 权威源：需求规格（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
+> 约束分两类：〔A〕硬约束（引需求）｜〔B〕技术债（本文件台账，原「折衷约束」）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
-> ⛔ **只保留最近三次变更**，更早的逐次记录看 `git log`；需求侧章节号见《开发需求》目录（v3.11 起 §4 重排：4.5 详情卡 / 4.6 状态栏 / 4.7 主题 / 4.8 列表页 / 4.9 设置页 / 4.10 视觉规范 / 4.11 未实装）。
+> **v3.22 变更**：① 主题键 **32 → 34**（新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`，需求 §4.1.1 ③ / §4.7）；② §7「折衷约束台账」改名 **技术债台账**（术语标准化）；③ 附录 A **修正「Avalonia 12.1.3 托管装饰在 Win32 上不可用」这条过时结论** → 正确结论见 §2.4「窗口装饰（CSD）」；④ 新增 §2.4 窗口装饰（CSD）实现基线。
+>
+> ⛔ **只保留最近三次变更**，更早的逐次记录看 `git log`；需求侧章节号见《需求规格》目录（v3.11 起 §4 重排：4.5 详情卡 / 4.6 状态栏 / 4.7 主题 / 4.8 列表页 / 4.9 设置页 / 4.10 视觉规范 / 4.11 未实装）。
 > **v3.17 变更**：§3.6 列宽判定改为**示例值（Sample）**（列表空时显示一条水印示例行；示例宽 ≤ 表头宽 → 锁表头宽且 ≥34px 保证把手可拖）；补两个 Avalonia 坑：**MenuItem 子菜单的 `ItemContainerTheme` 必须写 `BasedOn`**（否则子项没模板 → 子菜单打不开）、**Button 伪类样式要用后代选择器**（单选择器会被 Fluent 主题的 `:pointerover` 盖掉）。
 > **v3.16 变更**：§3.6 列宽改为**表头拖拽手动调**（`ColumnGrid.IsResizable` + VM `ResizeColumns`；⛔ 删「自动调整列宽」开关——整体 `Auto` 时长内容列按未截断全文测宽、把其余列挤没，表头文字被裁没）；`ColumnGrid` 副本 **三份→四份**（WebTools 亦有一份，旧注释漏记）。
 > **v3.15 变更**：§6 删除「统一启动器 `scripts/launch.ps1`」说法（已弃用）；脚本改为 fail-loud（成功 `exit 0` 自关窗口、失败 `trap` 暂停），禁止 `.cmd/.bat` 铁律保留。
-> **v3.21 变更**：新增**多实例**（`--profile` 启动参数 + 每配置单例 mutex + 切换不写全局默认 + 「设为默认」/「🚀 新开」）与**窗口自绘缩放**（四边 5px / 四角 10px 抓取区 + `BeginResizeDrag`）规格（需求 §3.5 / §4.1 / §6.5）；§2.1 / §4 同步；附录 A 补三条 Avalonia 12 实测坑（`ExtendClientAreaChromeHints` 已移除、托管装饰 Win32 不可用、`VisualRoot as Window` 恒 null）。
+> **v3.21 变更**：新增**多实例**（`--profile` 启动参数 + 每配置单例 mutex + 切换不写全局默认 + 「设为默认」/「🚀 新开」）与**窗口自绘缩放**（四边 5px / 四角 10px 抓取区 + `BeginResizeDrag`）规格（需求 §3.5 / §4.1 / §6.5）；§2.1 / §4 同步；附录 A 补三条 Avalonia 12 实测坑（`ExtendClientAreaChromeHints` 已移除、托管装饰 Win32 不可用 **← v3.22 已修正，见 §2.4**、`VisualRoot as Window` 恒 null）。
 > **v3.20 变更**：落地用户新需求「**模块设置页归本模块 + 自注册进 settings 组**」——§3.2 增**跨组注册延迟补登**规则（分组未注册时暂存、`RegisterModule` 建组时补登，⛔ 不抛异常）；§3.3 增**必备模块**（`Module.Settings`）与启动健全性检查 / 降级；§3.4 新增模块步骤补第 6 步（设置页落点 + Order 100 起）；§7 **删 B15**（原「设置页归 Module.Settings」折衷被新机制取代）；附录 A「菜单项静默丢失」行换解法。
 > **v3.19 变更**：§3.6 `ColumnGrid` 副本**四份→五份**（新增 `Module.MediaAssets`，需求 §6.6）；§7 增 **B14**（媒体资产用户手动数据落 `newtoys.db` 的 R1 例外）与 **B15**（模块设置页归属：`settings-media-assets` 的 View/VM 与注册都在 `Module.Settings`）；附录 A 补坑「跨组 `RegisterFunction` 抛异常且被 `InitializeAll` 吞 → Release 下菜单项静默丢失」。
-> **v3.18 变更**：协作流程已收敛为**规划 / 执行双模式**（🔴 唯一定义见《AI协作提示词》，本文件不重复定义）—— 规划模式只动《开发需求》+《现状》待办项 + `src/docs/backlog/NT-xxx.md` 细节、⛔ 不改 `src/`；执行模式按 `✅ 就绪` 待办 + 本文件做法改代码；本文件不被执行模式改动。
-> **v3.11 变更**：随《开发需求》瘦身同步——修正章节引用（列表页 → §4.8、视觉基线 → §4.10）；**§3.9 撤下"命令生成纯函数库"与"多段剪辑"**（属评估结论，不入文档）；补 `IStatusProvider` 相关引用。
+> **v3.18 变更**：协作流程已收敛为**规划 / 执行双模式**（🔴 唯一定义见《AI协作手册》，本文件不重复定义）—— 规划模式只动《需求规格》+《状态与路线图》待办项 + `src/docs/backlog/NT-xxx.md` 细节、⛔ 不改 `src/`；执行模式按 `✅ 就绪` 待办 + 本文件做法改代码；本文件不被执行模式改动。
+> **v3.11 变更**：随《需求规格》瘦身同步——修正章节引用（列表页 → §4.8、视觉基线 → §4.10）；**§3.9 撤下"命令生成纯函数库"与"多段剪辑"**（属评估结论，不入文档）；补 `IStatusProvider` 相关引用。
 
 ---
 
 ## §0 文档体系与更新纪律
 
-**四份文档**（不得删除/移动/改名）：
-- `NewToys开发需求.md`（宪法）：定位/边界/**技术框架/UI 框架/导航模型/功能域**。极少改。
-- `NewToys开发规范.md`（本文件）：编码模式/实现细节/折衷台账/高频错误。
-- `NewToys-项目现状与进度.md`（台账）：当前基线/已完成/待办。
-- `NewToys-AI协作提示词.md`：会话启动包。
+**四份文档**（不得删除/移动/改名；括号内为**标准角色**）：
+- `NewToys-需求规格.md`（**需求规格** · 宪法）：定位/边界/**技术框架/UI 框架/导航模型/功能域**。极少改。
+- `NewToys-工程规范.md`（本文件 · **工程规范**）：编码模式/实现细节/**技术债台账**/高频错误。
+- `NewToys-项目状态与路线图.md`（**项目状态与路线图** · 含 Backlog 工作项台账）：当前基线/已完成/工作项。
+- `NewToys-AI协作手册.md`（**AI 协作手册**）：会话启动包 + 🔴 流程与术语唯一定义处。
 
 **更新节奏**：
 
@@ -67,7 +70,8 @@
 
 ### 2.1 具体尺寸与样式（需求 §4.10 的实现基线）
 
-**主窗口**：`1280×800`，最小 `960×640`。**可自由缩放**：四边 5px + 四角 10px 自绘抓取区（`BeginResizeDrag`，八向光标，最大化时关闭）——Avalonia 12.1.3 的 `WindowDecorations` / `ExtendClientArea*` 托管装饰在 Win32 上**不可用**（附录 A），⛔ 别走托管路线。
+**主窗口**：`1280×800`，最小 `960×640`。**可自由缩放**：走官方 `ElementRole=ResizeN…SW`（系统处理，见 **§2.4**）；自绘抓取区（四边 5px + 四角 10px + `BeginResizeDrag`，八向光标，最大化时关闭）**降级为兜底**，NT-041 验证后删除。
+🔴 v3.22 修正：旧结论「Avalonia 12.1.3 托管装饰在 Win32 上不可用 → ⛔ 别走托管路线」**已过时**，正确结论见 §2.4（Win32 上框架只接管标题栏，边框 / 阴影归 DWM）。
 **全局布局**：**标题栏 40px（标签栏并入其中段，v3.3）**、左树 **180px**（折叠 48px）、右详情 340px。
 
 > **v3.4 落地**：本节尺寸为实施基线；图标见 §2.3（一级菜单已矢量）。
@@ -95,9 +99,13 @@
 - ⛔ 页面里不复制同名样式；本页专用样式写 `UserControl.Styles` 里加更具体选择器。
 - ⛔ 除标题栏图标外所有颜色绑 `DynamicResource`。
 
-### 2.2 主题键（32 个，⛔ 不新增）
+### 2.2 主题键（34 个，⛔ 除白名单外不新增）
 
-主题资源键一律 `*Brush` 语义键，共 **32 个**（`ContentBrush/PanelBrush/SubSiderBrush/SiderBrush/PrimaryTextBrush/SecondaryTextBrush/AccentBrush/AccentHoverBrush/DangerBrush/DividerBrush/InputBorderBrush…`，完整清单以源码为准）。
+主题资源键一律 `*Brush` 语义键，共 **34 个**（`ContentBrush/PanelBrush/SubSiderBrush/SiderBrush/PrimaryTextBrush/SecondaryTextBrush/AccentBrush/AccentHoverBrush/DangerBrush/DividerBrush/InputBorderBrush…`，完整清单以源码为准；白名单同步在 `skill/scripts/check.ps1`）。
+
+> **v3.38 增补 2 个键**（需求 §4.1.1 ③ / §4.7，工作项 NT-039）：
+> `WindowBorderBrush`（窗口外框 · **激活态**）｜`WindowBorderInactiveBrush`（窗口外框 · **失焦态**，更淡）。
+> ⚠️ 明暗两套必须**同时补齐**；⛔ 除这两个键外不得再新增 —— 需要新色先想「能不能复用现有键」。
 
 **v3.0 新元素映射（不新增键，复用现有）**：
 
@@ -133,6 +141,46 @@
 - 尺寸基线：**一级菜单 / 首页 16px**；（下一版）标题栏 16px ｜ 树节点 14px ｜ 标签页 14px ｜ 标签关闭 10px。
 - 颜色：由 `Foreground` 继承，⛔ 不写死色值。
 - **来源**：从公开线性图标集（如 Lucide / Feather，MIT 许可）取路径数据，**只取路径数据不引依赖**。风格统一（线性、同笔画粗细）。
+
+---
+
+### 2.4 窗口装饰（CSD）实现基线（v3.22 · 需求 §4.1.1）
+
+> 立项背景：标题栏在 v3.28 / v3.29 / NT-034 三轮里叠了 4 层 Win32 P/Invoke 补丁，越改越脆。本轮（NT-039~042）回归框架正门。
+> 🔴 口径：**框架能做的交给框架，⛔ 不重复造轮子**（用户 2026-10-14 定调）。
+
+**① 官方四件套（本机 12.1.3 已核实存在）**
+
+| API | 说明 |
+|---|---|
+| `Window.ExtendClientAreaToDecorationsHint` | 激活客户区扩展；也是 `ElementRole` 生效的前提 |
+| `Window.ExtendClientAreaTitleBarHeightHint` | 自绘标题栏高度（-1 = 用 OS 默认） |
+| `Window.WindowDecorations` | 枚举实测只有 `None` / **`BorderOnly`（有边框无标题栏）** / `Full` |
+| `Window.WindowDecorationsTheme` | 应用画窗框的正门（`ControlTheme` `TargetType="chrome:WindowDrawnDecorations"`） |
+| `Window.WindowDecorationMargin` | 边框 + 标题栏占掉的厚度（内容应 inset 的 margin） |
+| `Window.OffScreenMargin` | 最大化时被甩到屏幕外的边框厚度 |
+| `WindowDecorationProperties.ElementRole` | `TitleBar` / `User` / `ResizeN…SW` / `CloseButton` / `MinimizeButton` / `MaximizeButton` / `FullScreenButton` / `DecorationsElement` |
+| `chrome:WindowDrawnDecorations` | `Template` / `DefaultFrameThickness` / `DefaultShadowThickness` / `DefaultTitleBarHeight` / 运行时 `FrameThickness` / `ShadowThickness` / `HasBorder` / `HasShadow` / `HasTitleBar` / `EnabledParts` / `EffectiveGeometryChanged` |
+
+**② Win32 硬契约（踩过坑，别再试）**
+
+- Win32 上 `RequestedDrawnDecorations` **只有 `TitleBar`** → **`:has-border` / `:has-shadow` 恒 `false`**；边框 / 阴影 / resize 抓手由 **DWM** 提供。
+- ⇒ 任何依赖这两个伪类的样式在 Windows **不会触发**；要阴影 / 边框必须写**无条件选择器**。
+- ⇒ 开了客户区扩展后 **DWM 把边框交给应用画** → **应用不画就没有边界**（NT-039 自绘 1px 外框的由来）。
+- 模板 PART 缺失会在 `OnApplyTemplate` **抛 NRE** → 稳妥做法是 7 个按钮 PART 全给、不需要的 `IsVisible="False"`。
+
+**③ 允许的 Win32 手段（其余一律登记为技术债）**
+
+| 手段 | 判定 |
+|---|---|
+| `Win32Properties.SetWindowCornerPreference` | ✅ 官方通道，优先用它 |
+| `DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE=33)` | ⚠️ 兜底；`DONOTROUND=1`（写成 2 = 强制圆角，踩过） |
+| `SetWindowRgn` 矩形区域 | 🔴 硬手段；**代价 = DWM 阴影消失**（NT-042 复核去留） |
+| 手工补 `WS_CAPTION` / 接管 `WM_NCCALCSIZE` | 🔴 技术债；官方 PR #20067 要求移除早期 workaround（NT-041） |
+| `DwmGetWindowAttribute(33)` | ⛔ **不支持读**，永远 -1，别当判据 |
+| 诊断写 `Window.Title` | ⛔ 无边框自绘窗口标题栏不显示 Title |
+
+**④ 跨平台门控**：判据 = **`WindowDecorationMargin.Top > 0`**（详见需求 §3.7）；⛔ 不用 `OperatingSystem.IsWindows()` / `#if` / `x:OnPlatform`（加载期一次性求值，响应不了运行期切换）。
 
 ---
 
@@ -464,9 +512,10 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 
 ---
 
-## §7 折衷约束台账（B 类）
+## §7 技术债台账（B 类 · 原「折衷约束台账」）
 
-> 当前做法为「需求 vs 工程现实」妥协，非永久铁律。**变更条件满足+用户同意+本表登记**后可调；未登记不得擅改。
+> 🔴 **术语**：本表 = **技术债（Tech Debt）** —— 当前做法为「需求 vs 工程现实」妥协，非永久铁律。**变更条件满足 + 用户同意 + 本表登记**后可调；未登记不得擅改。
+> 窗口装饰相关的 Win32 补丁（补样式位 / `WM_NCCALCSIZE` / `SetWindowRgn`）**若保留也必须登记在此**，写明：官方为什么不行 / 复现步骤 / 移除条件（需求 §4.1.1 ②）。
 
 | 项 | 理想 | 当前折衷 | 变更条件 | 影响面 |
 |---|---|---|---|---|
@@ -515,6 +564,6 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **跨页投递的数据要刷新页面才出现**（v3.12） | 只在 `OnDataContextChanged` 里取件；标签页已存在时切回来 `DataContext` 不变 → 该回调不再触发 | 取件放 `OnAttachedToVisualTree`（每次进页面都会跑）；⚠️ 必须写 `protected override`（基类是 protected，写 public 报 CS0507） |
 | **表头与行错位**（v3.12） | 改了 `Columns` 元数据但表头 / 行模板的 `Grid.Column` 没逐字同步 | 改列元数据后核对表头与行模板的列序列（需求 §4.8 硬规则 2） |
 | **菜单项静默丢失**（v3.19 记，v3.20 换解法） | 模块 A 在 `Initialize` 里 `RegisterFunction` 到模块 B 的分组：B 尚未注册 → 旧实现抛 `InvalidOperationException`，被 `ModuleLoader.InitializeAll` 的逐模块 try-catch **吞掉** → Release（`Modules\` 目录扫描，`Directory.EnumerateFiles` 顺序不保证）下该项**静默消失**，Debug 显式清单反而可能正常 | v3.20 起 `MenuService` **延迟补登**（§3.2）：分组未注册时暂存、`RegisterModule` 建立分组时补登，⛔ 不抛异常；分组始终未建立（如 `Module.Settings` 缺失）→ 启动健全性检查报一行（§3.3），暂存项不显示 |
-| **窗口不能拖边框缩放**（v3.26 记） | Avalonia 12.1.3 **没有 `ExtendClientAreaChromeHints`**（11 时代 API 已移除——运行时程序集探针实证，ref xml 也查不到）；`WindowDecorations` 托管装饰在 Win32 上不可用：`BorderOnly` 丢 `WS_CAPTION`（HTCAPTION 拖动 / 最小化动画失效）、`ElementRole` 拦截标题栏输入（Avalonia GitHub #21202，12.x 实测） | 保持 `WindowDecorations="None"`，**自绘抓取区**：四边 5px + 四角 10px 透明热区 → `BeginResizeDrag(WindowEdge, e)`（八向枚举 + 方法均已实证存在）；光标 `StandardCursorType`（`SizeWestEast`/`SizeNorthSouth`/`TopLeftCorner`… 均已实证）；最大化时抓取区 `IsHitTestVisible=False` |
+| **窗口不能拖边框缩放**（v3.26 记；🔴 **v3.22 修正结论**） | 12 时代 `ExtendClientAreaChromeHints` 已移除（11 的 API，运行时程序集探针实证）；`ElementRole` 在 12 上**确实生效**（前提是 `ExtendClientAreaToDecorationsHint="True"`，官方明确、issue #21202 已确认） | ✅ **正确解法 = 官方 CSD**：`WindowDecorations` + `ElementRole=ResizeN…SW` 由系统处理缩放，见 **§2.4**。⛔ v3.26 那条「托管装饰在 Win32 不可用 → 保持 `WindowDecorations="None"` 自绘」的结论**已过时**——它只实测到 `ElementRole` 早期版本的 bug，且漏了 `WindowDecorationsTheme` 这条正门。自绘抓取区（四边 5px + 四角 10px + `BeginResizeDrag`）降级为**兜底**，NT-041 验证后删除 |
 | **`VisualRoot as Window` 恒为 null**（v3.26 记，Avalonia 12.x） | 视觉根是 `TopLevelHost`，`VisualRoot as Window` 永远转不成功（12.x 实测项目结论） | 取窗走逻辑树 `FindLogicalAncestorOfType<Window>()`（`includeSelf: true`） |
 | **同配置多开互相踩数据**（v3.26 防） | 两实例同配置 → 共享 `config/*.json`（后写覆盖）+ 同一 `newtoys.db` 并发写 | **每配置单例**：命名互斥 `Local\NewToys_Profile_<小写配置名>`，`WaitOne(0)` 占不住就提示退出；SQLite 已有 `busy_timeout=3000` 兜底（`SqliteDatabase.cs`） |

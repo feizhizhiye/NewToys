@@ -1,10 +1,11 @@
 # NewToys 特定约束（skill/references）
 
 > 与 NewToys 项目绑定；通用协作纪律见 `collab-method.md`。
-> v1.3 · 2026-10-14
+> v1.4 · 2026-10-14
+> v1.4：术语标准化（工作项 / 任务卡 / 立项 / 就绪闸门 DoR / 完成定义 DoD / 技术债 …）+ 主题键 32→34（新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`）；🔴 术语唯一定义处 = 《AI协作手册》【术语对照】，本文件只引用、不另立。
 > v1.3：§七 新增「Avalonia ≠ WPF 的 XAML 属性名」坑 + 指向 `scripts/check-axaml-props.ps1`。
 > v1.2：铁律 1 加例外——`scripts/` 构建脚本经用户明确授权可改（2026-10-13，Settings 物理必备改造，NT-023）。
-> 🔴 **本文件不定义工作流**：`规划 / 执行双模式` 唯一定义处 = 《AI协作提示词》；本文件只做约束 + 路由。
+> 🔴 **本文件不定义工作流**：`研发流程（规划期 / 实施期）` 唯一定义处 = 《AI协作手册》（《AI协作手册》）；本文件只做约束 + 路由。
 
 ---
 
@@ -29,19 +30,19 @@
 
 ## 三、四份权威文档（src/docs/）路由
 
-| 文档 | 角色 | 何时读 |
+| 文档 | 角色（**标准角色**） | 何时读 |
 |---|---|---|
-| NewToys开发需求.md | WHAT：唯一权威规格、验收基线 | 涉及功能/框架/边界，至少读相关章节 |
-| NewToys开发规范.md | HOW：实现细节、类名/像素/API/易错点 | 编码前按「任务型→章节」读 |
-| NewToys-项目现状与进度.md | 台账：基线 + **待办项索引**（细节见 `src/docs/backlog/NT-xxx.md`）+ 已完成 | 会话开始读「一、当前基线」；执行模式逐条勾待办 |
-| NewToys-AI协作提示词.md | 流程：**规划 / 执行双模式**（🔴 **工作流唯一定义处**，含状态机与验收清理）+ 静态自检 | 流程权威，必读其【规划 / 执行双模式工作流】节 |
-| src/docs/backlog/NT-xxx.md | 待办**细节**：验收标准 / 技术要点 / 依赖 / 范围（执行模式工作稿，随 `src/` 更新） | 新增 / 展开 / 验收清理待办时 |
+| NewToys-需求规格.md | WHAT：唯一权威规格、验收基线（**需求规格** PRD+SRS） | 涉及功能/框架/边界，至少读相关章节 |
+| NewToys-工程规范.md | HOW：实现细节、类名/像素/API/易错点 + 技术债台账（**工程规范**） | 编码前按「任务型→章节」读 |
+| NewToys-项目状态与路线图.md | STATUS + **Backlog 工作项索引**（任务卡见 `src/docs/backlog/NT-xxx.md`）+ 已完成（**项目状态与路线图**） | 会话开始读「一、当前基线」；实施期逐条勾工作项 |
+| NewToys-AI协作手册.md | 流程 + 术语：**研发流程（规划期 / 实施期）**（🔴 **唯一定义处**，含状态机、验收清理、Glossary）+ 静态自检（**AI 协作手册**） | 流程 / 术语权威，必读其【研发流程】与【术语对照】节 |
+| src/docs/backlog/NT-xxx.md | **任务卡**：验收标准 / 技术要点 / 依赖 / 范围（实施期工作稿，随 `src/` 更新） | 立项 / 展开 / 验收归档时 |
 
 ---
 
 ## 四、任务型 → 规范章节
 
-| 任务 | 读《开发规范》 |
+| 任务 | 读《工程规范》 |
 |---|---|
 | 改/加页面 | §2 §3.5 §3.6 |
 | 设置类页面 | §2 §3.5 §4 |
@@ -81,7 +82,7 @@
 ## 六、高频硬约束
 
 - `.axaml` 改动必同步 `.axaml.cs`；编译绑定关闭 → 只写 `{Binding}`，⛔ 不写 `x:DataType`、⛔ WPF 写法。
-- 颜色一律 DynamicResource；主题键只用 32 个 `*Brush` 语义键（不新增、不用旧键 `AppBg/AppBackground/TextPrimary`）；code-behind ⛔ 写死 `#RRGGBB`。
+- 颜色一律 DynamicResource；主题键只用 **34 个** `*Brush` 语义键（v3.38 由 32 增至 34：`WindowBorderBrush` / `WindowBorderInactiveBrush`；⛔ 除此之外不新增、不用旧键 `AppBg/AppBackground/TextPrimary`）；code-behind ⛔ 写死 `#RRGGBB`。
 - `App.ApplyTheme` 幂等，⛔ 禁 `MergedDictionaries.Clear()`。
 - 菜单：`icon` 传几何资源键（24 网格描边型，`<Path Stroke=… Stretch="Uniform"/>`），不是 emoji；Key = 小写连字符；viewName = View 类名。
 - 跨页投递数据在 `OnAttachedToVisualTree` 取（⛔ 不是 `OnDataContextChanged`；必须 `protected override`，public 报 CS0507）。
@@ -114,4 +115,4 @@
 
 ## 八、触发词
 
-NewToys、src/、视频工具、PcTools、WebTools、开发需求、开发规范、台账、build.ps1
+NewToys、src/、视频工具、PcTools、WebTools、需求规格、工程规范、Backlog、任务卡、立项、build.ps1

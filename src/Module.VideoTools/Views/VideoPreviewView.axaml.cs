@@ -12,7 +12,7 @@ namespace NewToys.VideoTools.Views;
 /// 菜单 key 仍是 <c>video-cut</c>，它落 config\columnlayout.json 的页键，改名会丢用户偏好）：
 /// 只负责**制定一个**任务（剪辑 / 转码 / 剪辑+转码），编好后「➡ 发送到批处理」。
 /// <para>列表与批量运行都搬到了「批量处理」页，所以这里没有 ContextMenu 需要同步。
-/// 详情卡结构与批量处理页**一致**（见《开发规范》§3.9）。</para>
+/// 详情卡结构与批量处理页**一致**（见《工程规范》§3.9）。</para>
 /// <para>平台文件选择器（源文件 / 输出文件）在这一层调用 —— VM 不引用 Avalonia 的 UI 类型。</para>
 /// </summary>
 public partial class VideoPreviewView : UserControl

@@ -1,6 +1,6 @@
 ---
 name: newtoys
-description: NewToys 项目（.NET 10 + Avalonia 12.1.3 Windows 桌面工具管理器）协作技能，跨 AI 中立载体，供 WorkBuddy 与 Hermes(DeepSeek Harness) 等可读本地文件的 AI 客户端按路由表使用。涉及 Module.VideoTools/PcTools/WebTools/Settings 改动、页面/列表页/设置页、主题样式、编译报错、文档台账——动手前先读仓库根 AGENTS.md，再按 references 取细则。触发词：NewToys、src/、视频工具、PcTools、WebTools、开发需求、开发规范、台账、build.ps1。
+description: NewToys 项目（.NET 10 + Avalonia 12.1.3 Windows 桌面工具管理器）协作技能，跨 AI 中立载体，供 WorkBuddy 与 Hermes(DeepSeek Harness) 等可读本地文件的 AI 客户端按路由表使用。涉及 Module.VideoTools/PcTools/WebTools/Settings 改动、页面/列表页/设置页、主题样式、编译报错、文档台账——动手前先读仓库根 AGENTS.md，再按 references 取细则。触发词：NewToys、src/、视频工具、PcTools、WebTools、需求规格、工程规范、Backlog、任务卡、立项、build.ps1。
 agent_created: true
 ---
 
@@ -21,17 +21,18 @@ agent_created: true
 ## 读取顺序
 
 1. 仓库根 `AGENTS.md`（定位 + 铁律 + 四文档路由表）
-2. `src/docs/NewToys-项目现状与进度.md`「一、当前基线」
+2. `src/docs/NewToys-项目状态与路线图.md`「一、当前基线」
 3. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型→规范章节）
-4. 按「任务型→规范章节」读 `src/docs/NewToys开发规范.md` 对应节
-5. 交付前 `pwsh skill/scripts/check.ps1` + `pwsh skill/scripts/check-axaml-props.ps1`
+4. 按「任务型→规范章节」读 `src/docs/NewToys-工程规范.md` 对应节
+5. 术语 / 流程有疑问 → `src/docs/NewToys-AI协作手册.md`【术语对照】【研发流程】
+6. 交付前 `pwsh skill/scripts/check.ps1` + `pwsh skill/scripts/check-axaml-props.ps1`
 
 ## 目录
 
 - `references/collab-method.md` —— 通用协作方法论（跨项目母本）
-- `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / 任务型→章节 / 四文档路由）
-- `scripts/check.ps1` —— 交付前静态自检（axaml 合法性、`.axaml`↔`.cs` 配对、主题键白名单）
+- `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / **34 个主题键** / 任务型→章节 / 四文档路由）
+- `scripts/check.ps1` —— 交付前静态检查 / Lint（axaml 合法性、`.axaml`↔`.cs` 配对、主题键白名单）
 - `scripts/check-axaml-props.ps1` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异，如 `SelectedValuePath` / `StrokeLineJoin`）
-- `../src/docs/backlog/` —— 可执行待办明细（NT-xxx）
+- `../src/docs/backlog/` —— **任务卡**（NT-xxx）：验收标准 / 技术要点 / 依赖 / 范围
 
-🔴 权威源 = `src/docs/` 四份 + `src/` 源码，冲突以源码为准；**规划 / 执行双模式**工作流唯一定义处 = `src/docs/NewToys-AI协作提示词.md`【规划 / 执行双模式工作流】节。
+🔴 权威源 = `src/docs/` 四份 + `src/` 源码，冲突以源码为准；**研发流程（规划期 / 实施期）与术语对照（Glossary）** 唯一定义处 = `src/docs/NewToys-AI协作手册.md`【研发流程】+【术语对照】节。

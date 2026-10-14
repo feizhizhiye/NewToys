@@ -14,7 +14,7 @@ namespace NewToys.Settings.ViewModels;
 /// 直接写 <see cref="IThemeService"/>（内部立即落盘 + 广播 <c>ThemeChanged</c>），Shell 收到后重建资源字典
 /// —— 全程无需确认、无需重启。
 /// </para>
-/// 规律（已写进开发规范）：**能立即看到反馈的开关 / 单选 → 立即生效；只有多字段文本表单才留"保存"。**
+/// 规律（已写进《工程规范》）：**能立即看到反馈的开关 / 单选 → 立即生效；只有多字段文本表单才留"保存"。**
 /// </summary>
 public partial class ThemeViewModel : ObservableObject, IStatusProvider
 {

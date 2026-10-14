@@ -16,15 +16,20 @@ public partial class TreeMenuItem : ObservableObject
 
     public string Title { get; init; } = "";
 
-    /// <summary>图标文本（emoji 回退；一级分组已改走 <see cref="VectorIcon"/>）。</summary>
+    /// <summary>图标文本（历史字段：v3.2 前用 emoji 占位；一级图标已全走 <see cref="VectorIcon"/>）。</summary>
+    /// <remarks>
+    /// ⚠️ 当前**不参与渲染**：NT-045 删掉了视图里的 emoji 回退分支，NT-046 又去掉了行首展开箭头，
+    /// 一/二级行的图标位置都只认 <see cref="VectorIcon"/>。保留字段是因为模块注册仍带 icon 值
+    /// （数据驱动图标属技术债，见《工程规范》§2 末条）。
+    /// </remarks>
     public string Icon { get; init; } = "";
 
-    /// <summary>矢量图标（v3.2）：一级菜单/首页用；为 null 时回退显示 <see cref="Icon"/> 文本。</summary>
+    /// <summary>矢量图标（v3.2）：一级菜单/首页用；为 null 时不显示图标（已无文本回退）。</summary>
     public Geometry? VectorIcon { get; init; }
 
     public bool HasVectorIcon => VectorIcon != null;
 
-    /// <summary>是否为一级分组（可展开）。</summary>
+    /// <summary>是否为一级分组（可展开、点击只展开/折叠不打开标签页）。</summary>
     public bool IsGroup { get; init; }
 
     [ObservableProperty] private bool _isExpanded = true;
@@ -32,20 +37,4 @@ public partial class TreeMenuItem : ObservableObject
     [ObservableProperty] private bool _isActive;
 
     public ObservableCollection<TreeMenuItem> Children { get; } = new();
-
-    /// <summary>
-    /// 展开指示（NT-045 起改**矢量箭头**）：分组展开时显示「▾ 图标」，折叠时显示「▸ 图标」；叶子两个都不显示。
-    /// <para>⚠️ 原来是一个返回字符 `▾ / ▸` 的 <c>Glyph</c> 属性 —— 框架层图标统一为矢量后，
-    /// 改由视图按状态显隐两个 <c>Path</c>，所以这里给两个布尔而不是字符（折叠态由外层 `Panel.tree-glyph` 整体隐藏）。</para>
-    /// </summary>
-    public bool ShowChevronDown => IsGroup && IsExpanded;
-
-    /// <inheritdoc cref="ShowChevronDown"/>
-    public bool ShowChevronRight => IsGroup && !IsExpanded;
-
-    partial void OnIsExpandedChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShowChevronDown));
-        OnPropertyChanged(nameof(ShowChevronRight));
-    }
 }

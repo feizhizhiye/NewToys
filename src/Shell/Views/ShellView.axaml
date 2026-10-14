@@ -82,8 +82,9 @@
                             Stretch="Uniform"
                             Data="{StaticResource IconRefresh}" />
                     </Button>
-                    <!--  NT-005：重载模块。图标 = **拼图块**（浏览器扩展那个），比原来的等距立方体更贴近"模块 / 插件"语义；
-                         数据取自 Lucide `puzzle`（ISC，公开图标集，摘路径数据 —— 符合《需求规格》「只可手工摘取公开图标集」）。
+                    <!--  NT-005：重载模块。图标 = **拼图块**（浏览器扩展那个）—— 语义上比等距立方体更贴「模块 / 插件」。
+                         NT-046：原用 Lucide `puzzle` 的路径数据（8 段弧），16px 下糊成一团 → 改**自绘简洁拼图**
+                         （方身 + 三凸块，`App.axaml` 的 `IconPuzzle`，直线为主）。
                          规范 §3.7：只做「新增」、失败 DLL 隔离。  -->
                     <Button Classes="title-btn" Command="{Binding ReloadModulesCommand}"
                             ToolTip.Tip="重载模块：重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）">
@@ -187,8 +188,10 @@
                      形状与 WinUI `Symbol` 同款但**不再依赖 `Segoe MDL2 Assets` 图标字体**。
                      ⛔ 不再用 `Rectangle` 画横线、`Border` 拼方框、`TextBlock` 字形 —— 框架层只剩一种载体。
                      颜色由 `Button.win-btn Path` 样式给（关闭悬停转白由 `.close:pointerover Path` 给）。
-                     ⚠️ 旧结论「`Path` 在裸主题里渲染不出来」已定位真因并修掉（模板 ∞ 约束 → NaN 尺寸），
-                        见 `App.axaml` 里 `BareButtonTheme` / `Button.win-btn Path` 的注释。  -->
+                     ✅ 旧结论「`Path` 在裸主题里渲染不出来」的真因（模板 ∞ 约束 → NaN 尺寸）NT-045 已修、
+                         **NT-046 实机截图取证确认**（方框 / ✕ 正常显示）。
+                     🔴 NT-046：原先的最小化图标是**零高度几何**（`M4,12 H20`）+ `Stretch=Uniform` → 缩放退化成一个点；
+                         现已改闭合细矩形（`IconWinMinimize`）—— 框架层几何**必须有非零宽高**（见 `App.axaml` 资源区注释）。  -->
                 <StackPanel
                     Grid.Column="2"
                     VerticalAlignment="Stretch"
@@ -209,14 +212,14 @@
                             Height="16"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">
-                            <!--  进入全屏：四角朝外  -->
+                            <!--  进入全屏 NT-046 改型：**两个朝外的斜箭头**（Lucide `maximize-2`）  -->
                             <Path
                                 x:Name="FullScreenIcon"
                                 Width="16"
                                 Height="16"
                                 Stretch="Uniform"
                                 Data="{StaticResource IconFullScreen}" />
-                            <!--  退出全屏：四角朝内  -->
+                            <!--  退出全屏：**两个朝内的斜箭头**（Lucide `minimize-2`）  -->
                             <Path
                                 x:Name="ExitFullScreenIcon"
                                 Width="16"
@@ -315,37 +318,15 @@
                                         Command="{Binding $parent[Window].DataContext.TreeClickCommand}"
                                         CommandParameter="{Binding}"
                                         ToolTip.Tip="{Binding Title}">
-                                        <Grid ColumnDefinitions="Auto,Auto,*">
-                                            <!--  NT-045：展开指示由 `▾ / ▸` 字符改**矢量箭头**。
-                                                 ⚠️ 外面必须包一层 Panel 承载 `IsVisible` —— 内层 Path 自己绑了 IsVisible（本地值，
-                                                    样式压不过），折叠态（48px）要隐藏就必须由外层 `Panel.tree-glyph` 承担。  -->
-                                            <Panel
-                                                Grid.Column="0"
-                                                Width="12"
-                                                Classes="tree-glyph"
-                                                VerticalAlignment="Center">
-                                                <Path
-                                                    Width="12"
-                                                    Height="12"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    Stretch="Uniform"
-                                                    Data="{StaticResource IconChevronDown}"
-                                                    IsVisible="{Binding ShowChevronDown}" />
-                                                <Path
-                                                    Width="12"
-                                                    Height="12"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    Stretch="Uniform"
-                                                    Data="{StaticResource IconChevronRight}"
-                                                    IsVisible="{Binding ShowChevronRight}" />
-                                            </Panel>
+                                        <Grid ColumnDefinitions="Auto,*">
                                             <!--  一级图标 = 矢量（`VectorIcon` 由 VM 按几何键解析）。颜色由样式给
                                                  （`Button.tree-row Path` / `.active Path`）→ 折叠态也能显主题色。
-                                                 ⛔ NT-045 起**不再有 emoji 回退**：键名必须在 `App.axaml` 定义。  -->
+                                                 ⛔ 不再有 emoji 回退：键名必须在 `App.axaml` 定义。
+                                                 🔴 NT-046：行首**展开箭头已去掉** —— 左树只有一级有图标，
+                                                    行首再占 12px 会让一级 / 二级行不对齐（`IconChevronDown/Right`
+                                                    两个键留在资源库里备后续可折叠区块用）。  -->
                                             <Path
-                                                Grid.Column="1"
+                                                Grid.Column="0"
                                                 Width="16"
                                                 Height="16"
                                                 VerticalAlignment="Center"
@@ -353,7 +334,7 @@
                                                 IsVisible="{Binding HasVectorIcon}"
                                                 Stretch="Uniform" />
                                             <TextBlock
-                                                Grid.Column="2"
+                                                Grid.Column="1"
                                                 Margin="8,0,0,0"
                                                 VerticalAlignment="Center"
                                                 Classes="tree-title"

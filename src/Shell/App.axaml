@@ -20,37 +20,51 @@
         <!--  媒体资产：层叠（资产库）—— NT-035：补齐一级分组矢量键，去掉 emoji 占位  -->
         <StreamGeometry x:Key="IconMediaAssets">M12,3 L21,8 L12,13 L3,8 Z M3,12 L12,17 L21,12 M3,16 L12,21 L21,16</StreamGeometry>
 
-        <!--  ==================== NT-045：框架层图标（窗口 / 标题栏 / 标签 / 左树 / 首页） ====================
-              统一口径（规范 §2）：
+        <!--  ==================== 框架层图标（窗口 / 标题栏 / 标签 / 左树 / 首页） ====================
+              🔴 **硬约束（规范 §2「框架层图标只用 `Path`」）**：Shell 框架层的图标**一律**是
+                 `<Path Data="{StaticResource IconXxx}" …/>` + 本文件的 `StreamGeometry` 键；
+                 ⛔ 不用图标字体（`Segoe MDL2 Assets` 那套已废）/ 字符（≡ ✕ ▾ ＋）/ emoji；
+                 ⛔ 不用 `Rectangle` / `Border` 拼几何。
               ① 几何**一律 24×24 网格**（与 Lucide / Feather 同网格，摘公开图标集路径不用换算）；
               ② 使用方式固定 = <Path Data="{StaticResource IconXxx}" Width="16" Height="16" Stretch="Uniform"/>；
               ③ 颜色**一律由样式给 Stroke**（Path 不继承 Foreground；写本地值会压过 :pointerover / .active），
                  例外只有「无状态装饰图标」（首页 ★ / ⚡ / ⚙，用 Path.icon-accent / Path.icon-primary 类）；
               ④ 键名必须在**本文件**定义 —— 模块 RegisterModule 的一级 icon、左树 `ResolveIcon()`、
                  设置页「功能清单」都按键名来这里取，⛔ 键名不存在就地没图标（不再有 emoji 回退）。
-              ⚠️ 数据驱动的图标（首页「常用功能」按钮 / 「一键按钮」的可配置 Icon 字段）不在本口径内 —— 仍是字符串（技术债）。  -->
+              🔴 **几何必须有非零宽高**（NT-046 踩坑）：`Stretch="Uniform"` 靠 2D 包围盒算等比缩放，
+                 高度或宽度为 0 的几何（如原先的最小化「一根水平线」）会退化成一个点。
+                 要画「线」就用**闭合细矩形**（例：`IconWinMinimize`）。
+              ⚠️ 数据驱动的图标（首页「常用功能」按钮 / 「一键按钮」的可配置 Icon 字段）**不在本约束内** ——
+                 仍是字符串 / emoji，按用户要求「其他没改的以后再改」（技术债，见规范 §2 末条）。  -->
 
         <!--  折叠 / 展开左侧菜单：面板 + 左栏（Lucide `panel-left`，ISC）  -->
         <StreamGeometry x:Key="IconMenuPanel">M5,3 H19 A2,2 0 0 1 21,5 V19 A2,2 0 0 1 19,21 H5 A2,2 0 0 1 3,19 V5 A2,2 0 0 1 5,3 Z M9,3 V21</StreamGeometry>
         <!--  重建当前页：循环箭头（NT-045 由 ShellView 内联数据收进资源库）  -->
         <StreamGeometry x:Key="IconRefresh">M23,4 L23,10 L17,10 M1,20 L1,14 L7,14 M3.51,9 A9,9 0 0 1 18.36,5.64 L23,10 M1,14 L5.64,18.36 A9,9 0 0 0 20.49,15</StreamGeometry>
-        <!--  重载模块：拼图块（Lucide `puzzle`，ISC；浏览器扩展那个图案）。规范 §3.7：只做「新增」、失败 DLL 隔离  -->
-        <StreamGeometry x:Key="IconPuzzle">M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z</StreamGeometry>
+        <!--  重载模块：拼图块（浏览器扩展那个图案）。规范 §3.7：只做「新增」、失败 DLL 隔离
+              NT-046：原用 Lucide `puzzle`（8 段弧 + 1.4 描边）在 16px 下糊成一团 → 改**自绘**：
+              方身 + 上 / 右 / 下三凸块（直线为主、仅 3 段半圆），16px 下轮廓清楚。  -->
+        <StreamGeometry x:Key="IconPuzzle">M5,8 H8.5 A2.5,2.5 0 0 1 13.5,8 H17 V11.5 A2.5,2.5 0 0 1 17,16.5 V20 H13.5 A2.5,2.5 0 0 1 8.5,20 H5 Z</StreamGeometry>
 
-        <!--  窗口控制（NT-045：由图标字体字形改为矢量 —— 与 WinUI `Symbol` 同形，但不再依赖 `Segoe MDL2 Assets`）  -->
-        <StreamGeometry x:Key="IconWinMinimize">M4,12 H20</StreamGeometry>
+        <!--  窗口控制（矢量；形状与 WinUI `Symbol` 同款，但不依赖 `Segoe MDL2 Assets` 图标字体）  -->
+        <!--  🔴 NT-046：原先写成 `M4,12 H20`（一根水平线）—— **零高度包围盒** + `Stretch=Uniform`
+              → 等比缩放退化，实机渲染成一个**点**。改闭合细矩形：描边上下重叠成一根横杠，包围盒非零。  -->
+        <StreamGeometry x:Key="IconWinMinimize">M4,11.5 H20 V12.5 H4 Z</StreamGeometry>
         <StreamGeometry x:Key="IconWinMaximize">M4.5,4.5 H19.5 V19.5 H4.5 Z</StreamGeometry>
         <StreamGeometry x:Key="IconWinRestore">M9,4.5 H19.5 V15 M4.5,9 H15 V19.5 H4.5 Z</StreamGeometry>
         <StreamGeometry x:Key="IconWinClose">M6,6 L18,18 M18,6 L6,18</StreamGeometry>
-        <!--  全屏 / 退出全屏：四角括弧（朝外 = 进入全屏；朝内 = 退出全屏）  -->
-        <StreamGeometry x:Key="IconFullScreen">M9,3 H3 V9 M15,3 H21 V9 M21,15 V21 H15 M9,21 H3 V15</StreamGeometry>
-        <StreamGeometry x:Key="IconExitFullScreen">M3,9 H9 V3 M21,9 H15 V3 M15,21 V15 H21 M3,15 V9 H9</StreamGeometry>
+        <!--  全屏 / 退出全屏（NT-046 改型）：**两个斜对箭头** —— 朝外 = 进入全屏，朝内 = 退出全屏
+              （Lucide `maximize-2` / `minimize-2`，ISC）。原「四角括弧」已弃用（用户要求两个箭头样式）。  -->
+        <StreamGeometry x:Key="IconFullScreen">M15,3 H21 V9 M21,3 L14,10 M9,21 H3 V15 M3,21 L10,14</StreamGeometry>
+        <StreamGeometry x:Key="IconExitFullScreen">M4,14 H10 V20 M20,10 H14 V4 M14,10 L21,3 M3,21 L10,14</StreamGeometry>
 
         <!--  标签：新建（＋）/ 关闭（✕）  -->
         <StreamGeometry x:Key="IconPlus">M12,5 V19 M5,12 H19</StreamGeometry>
         <StreamGeometry x:Key="IconTabClose">M7,7 L17,17 M17,7 L7,17</StreamGeometry>
 
-        <!--  左树展开指示：展开（▾）/ 折叠（▸）  -->
+        <!--  左树展开指示：展开（▾）/ 折叠（▸）
+              ⚠️ NT-046 起**当前无引用** —— 左树只有一级有图标，行首展开箭头已按用户要求去掉
+                 （见 backlog/NT-046.md）。两个键留备后续可折叠区块，⛔ 不要因为"没人用"就删（要用直接绑）。  -->
         <StreamGeometry x:Key="IconChevronDown">M6,9 L12,15 L18,9</StreamGeometry>
         <StreamGeometry x:Key="IconChevronRight">M9,18 L15,12 L9,6</StreamGeometry>
 
@@ -76,13 +90,13 @@
                           （ContentPresenter 自身不渲染 Background；这正是"关闭按钮 hover 背景不变色"的根因）。  -->
                     <Border Background="{TemplateBinding Background}"
                             CornerRadius="{TemplateBinding CornerRadius}">
-                        <!--  ⚠️ NT-045：这里的写法**按推断**改造，目的是让裸主题里也能渲染 `Path`（未实机验证）：
+                        <!--  ⚠️ NT-045 改造、**NT-046 实机确认**：这里换成与 Fluent 模板一致的写法，裸主题里也能渲染 `Path`。
                              旧写法把 Button 的 `HorizontalContentAlignment` 绑到 ContentPresenter **自身**的
                              `HorizontalAlignment` → Presenter 不再撑满、改用**无限约束**测量内容，
                              推断 `Path`（`Stretch=Uniform`）在 ∞ 约束下会算出 NaN 尺寸 → 图标整个不渲染
-                             （能解释 v3.22「TextBlock / Rectangle 正常、唯独 Path 消失」，但无实机复现证据）。
-                             ✅ 现改成与 Fluent 模板一致的写法：Presenter 自身撑满，对齐交给 ContentAlignment 属性。
-                             🔴 兜底：若图标仍不显示 → 窗口按钮 / 标签 ✕ 的 `Path` 改 `Stretch="None"`，或退回图标字体方案。  -->
+                             （能解释 v3.22「TextBlock / Rectangle 正常、唯独 Path 消失」）。
+                             ✅ 2026-10-15 用户实机截图取证：本模板下窗口按钮的方框 / ✕ 等 `Path` 图标**正常显示** → 推断成立，
+                                兜底条款（改 `Stretch="None"`）不必启用，保留备查。  -->
                         <ContentPresenter
                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                             VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
@@ -400,12 +414,8 @@
             <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
-        <!--  左树折叠态（48px）：只留一级图标，隐藏展开箭头 / 标题 / 子级
-              NT-045：箭头由 TextBlock 字符改矢量 Path，外面包一层 Panel.tree-glyph —— 用 Panel 承载 IsVisible，
-              因为内部的 Path 自己绑了 IsVisible（本地值，样式压不过）。  -->
-        <Style Selector="Border.tree-panel.collapsed Panel.tree-glyph">
-            <Setter Property="IsVisible" Value="False"/>
-        </Style>
+        <!--  左树折叠态（48px）：只留一级图标，隐藏标题 / 子级
+              ⚠️ NT-046：行首展开箭头已去掉 → 原 `Panel.tree-glyph` 的折叠态隐藏样式一并删除。  -->
         <Style Selector="Border.tree-panel.collapsed TextBlock.tree-title">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
@@ -432,10 +442,11 @@
                   这里直接改 Button 自己的 Foreground，子元素自动跟着变白。继承不受模板影响，可靠。  -->
             <Setter Property="Foreground" Value="{DynamicResource TitleBarCloseHoverTextBrush}"/>
         </Style>
-        <!--  NT-045：窗口按钮图标改**矢量 `Path`**（原先用 `Rectangle` / `Border` / 图标字体三种混用）。
+        <!--  窗口按钮图标 = 矢量 `Path`（NT-045 由「Rectangle / Border / 图标字体」三种混用统一而来）。
               🔴 `Path` **不继承 Foreground** → 必须显式给 Stroke；⛔ 仍不写本地值（本地值会压过关闭的悬停态）。
-              ⚠️「Path 在裸主题里渲染不出来」的旧结论已按**推断**改造模板（见 `BareButtonTheme` 内注释），
-                 并有兜底（改 `Stretch="None"` 或退回图标字体）—— 本地验证时优先看这几个图标。  -->
+              ✅ NT-046 实机取证：本组 `Path` 在裸主题里**正常渲染**（最大化方框 / 关闭 ✕ 都显示）
+                 ⇒ NT-045 对「Path 在裸主题里渲染不出来 = ∞ 约束 NaN」的推断成立。
+              ⚠️ 唯一真出问题的是 `IconWinMinimize` 的**零高度几何**（不是 Path 本身）—— 已改闭合细矩形，见资源区。  -->
         <Style Selector="Button.win-btn Path">
             <Setter Property="Stroke" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="StrokeThickness" Value="1.5"/>

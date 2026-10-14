@@ -811,12 +811,12 @@ public partial class ShellView : Window
     private void UpdateMaxIcon()
     {
         // NT-045：四个图标都是矢量 `Path`（几何键见 App.axaml 的 Icon* 资源），两组各显其一。
-        // 最大化态 → 显示「还原」双框；全屏态 → 显示「四角朝内」的退出图标。
+        // 最大化态 → 显示「还原」双框；全屏态 → 显示「退出全屏」图标。
         var maximized = WindowState == WindowState.Maximized;
         MaximizeIcon.IsVisible = !maximized;
         RestoreIcon.IsVisible = maximized;
 
-        // NT-044：全屏按钮图标随状态切换（进入 = 四角朝外 / 退出 = 四角朝内）。
+        // NT-044 全屏按钮图标随状态切换；NT-046 改型：进入 = 两箭头朝外 / 退出 = 两箭头朝内。
         FullScreenIcon.IsVisible = WindowState != WindowState.FullScreen;
         ExitFullScreenIcon.IsVisible = WindowState == WindowState.FullScreen;
     }

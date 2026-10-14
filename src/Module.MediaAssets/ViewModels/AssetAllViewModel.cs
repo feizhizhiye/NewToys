@@ -60,6 +60,10 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>当前选中资产的**全部文件位置**（详情卡列出；一个资产可能有多份拷贝）。</summary>
     public ObservableCollection<FileLocation> Locations { get; } = new();
 
+    // ===== NT-030：移动 / 复制目标存储源（防穿越由 FileOperationService 保证） =====
+    public ObservableCollection<StorageSource> TargetStorages { get; } = new();
+    [ObservableProperty] private long _selectedTargetStorageId;
+
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private AssetRow? _selected;
     [ObservableProperty] private string _searchText = "";
@@ -90,6 +94,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [ObservableProperty] private string _modifiedHeader = "修改时间";
     [ObservableProperty] private string _storageHeader = "存储源";
 
+    // NT-031：视频专属列表头（带排序箭头）
+    [ObservableProperty] private string _durationHeader = "时长";
+    [ObservableProperty] private string _resolutionHeader = "分辨率";
+    [ObservableProperty] private string _codecHeader = "编码";
+
     // ==================== 列显隐（XAML 只能绑具名属性；状态在基类，落 config\columnlayout.json） ====================
 
     /// <summary>勾选列（Pick）恒可见 —— 它是批量操作的前提。</summary>
@@ -103,6 +112,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool IsSizeVisible => Vis("Size");
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsStorageVisible => Vis("Storage");
+
+    // NT-031：视频专属列可见性（默认隐藏，仅视频页开启）
+    public bool IsDurationVisible => Vis("Duration");
+    public bool IsResolutionVisible => Vis("Resolution");
+    public bool IsCodecVisible => Vis("Codec");
 
     protected override string PageKey => "assets-all";
 
@@ -119,7 +133,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         new("Collections", "集合", "1.2*", sample: "周末片单"),
         new("Size", "大小", "0.9*", sample: "4.2 GB"),
         new("Modified", "修改时间", "1.3*", sample: "2026-10-13 21:04"),
-        new("Storage", "存储源", "1.2*", sample: "移动硬盘 D")
+        new("Storage", "存储源", "1.2*", sample: "移动硬盘 D"),
+
+        // 🔴 NT-031：视频专属列（试点）—— 默认隐藏，仅视频页（assets-video）经构造显隐逻辑开启。
+        //    键名 ≠ 属性名（Duration→DurationText），已在 FieldText / SortColumn 显式映射。
+        new("Duration", "时长", "0.9*", sample: "02:14:33"),
+        new("Resolution", "分辨率", "0.9*", sample: "1920×1080"),
+        new("Codec", "编码", "0.9*", sample: "h264")
     };
 
     protected override void RefreshView() => ApplyView();
@@ -148,6 +168,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             "Modified" => a.ModifiedText,
             "Storage" => a.StorageName,
             "Status" => a.StatusText,
+            "Duration" => a.DurationText,
+            "Resolution" => a.ResolutionText,
+            "Codec" => a.CodecText,
             _ => base.FieldText(row, columnKey)
         };
     }
@@ -332,6 +355,15 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _merge = merge!;
         _queue = queue!;
 
+        // NT-031：视频专属列默认显隐 —— 视频页（assets-video）默认可见（不进字典 = 默认可见），
+        // 其余页默认隐藏（显式置 false）。LoadLayout 之后读回用户已保存的偏好会覆盖这里的默认。
+        if (PageKey != "assets-video")
+        {
+            SetColumnVisible("Duration", false);
+            SetColumnVisible("Resolution", false);
+            SetColumnVisible("Codec", false);
+        }
+
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
         BuildStaticOptions();               // 类型 / 状态（固定值）
         Reload();                           // 存储源 / 标签下拉要读库 → 放在读库之后
@@ -397,6 +429,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _truncated = _all.Count >= QueryLimit;   // v3.34：截断了就明说（⛔ 不再静默少显示）
         RebuildStorageOptions();
         RebuildTagOptions();
+        RebuildTargetStorages();
         ApplyView();
     }
 
@@ -927,6 +960,63 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = $"已把「{row.Name}」移入回收站（磁盘文件没动）。";
     }
 
+    // ==================== NT-030：移动 / 复制（目标 = 已登记存储源根；防穿越由 FileOperationService 保证） ====================
+
+    private FileLocation? PrimaryLocationOf(AssetRow row)
+        => _assets.FindPrimaryLocation(row.Id) ?? _assets.ListLocations(row.Id).FirstOrDefault();
+
+    [RelayCommand]
+    private async Task MoveToTargetAsync()
+    {
+        if (Selected == null) { StatusText = "先在左侧选中一个资产。"; return; }
+        var loc = PrimaryLocationOf(Selected);
+        if (loc == null) { StatusText = "这个资产没有登记文件位置，没法移动 / 复制。"; return; }
+        var target = TargetStorages.FirstOrDefault(s => s.Id == SelectedTargetStorageId);
+        if (target == null) { StatusText = "先选一个目标存储源。"; return; }
+        if (!target.Online) { StatusText = $"目标存储源「{target.Name}」当前离线。"; return; }
+        if (!await DialogHooks.ConfirmAsync(
+                $"把「{Path.GetFileName(loc.Path)}」移动到「{target.Name}」？\n⛔ 只移到已登记存储源根内（不越界写盘）；同名按「追加序号」处理。").ConfigureAwait(false))
+        { StatusText = "已取消。"; return; }
+
+        _fileOps.Queue.Enqueue($"移动到 {target.Name}", async (ct, p) =>
+        {
+            await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                p.Report($"正在移动到「{target.Name}」…");
+                p.Report(_fileOps.Move(loc, target.RootPath, ConflictPolicy.AppendNumber).Message);
+            }, ct).ConfigureAwait(false);
+            try { Dispatcher.UIThread.Post(Reload); } catch { /* 已关闭 */ }
+        });
+        StatusText = $"已把移动排进任务队列（进度看「任务中心」）。";
+    }
+
+    [RelayCommand]
+    private async Task CopyToTargetAsync()
+    {
+        if (Selected == null) { StatusText = "先在左侧选中一个资产。"; return; }
+        var loc = PrimaryLocationOf(Selected);
+        if (loc == null) { StatusText = "这个资产没有登记文件位置，没法复制。"; return; }
+        var target = TargetStorages.FirstOrDefault(s => s.Id == SelectedTargetStorageId);
+        if (target == null) { StatusText = "先选一个目标存储源。"; return; }
+        if (!target.Online) { StatusText = $"目标存储源「{target.Name}」当前离线。"; return; }
+        if (!await DialogHooks.ConfirmAsync(
+                $"把「{Path.GetFileName(loc.Path)}」复制到「{target.Name}」？\n⛔ 只复制到已登记存储源根内；同名按「追加序号」处理。").ConfigureAwait(false))
+        { StatusText = "已取消。"; return; }
+
+        _fileOps.Queue.Enqueue($"复制到 {target.Name}", async (ct, p) =>
+        {
+            await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                p.Report($"正在复制到「{target.Name}」…");
+                p.Report(_fileOps.Copy(loc, target.RootPath, ConflictPolicy.AppendNumber).Message);
+            }, ct).ConfigureAwait(false);
+            try { Dispatcher.UIThread.Post(Reload); } catch { /* 已关闭 */ }
+        });
+        StatusText = $"已把复制排进任务队列（进度看「任务中心」）。";
+    }
+
     // ==================== 跨页取件（NT-018：标签 / 分类页点资产 → 跳到这里并选中） ====================
 
     /// <summary>
@@ -1097,6 +1187,15 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         FilterTag = TagOptions.FirstOrDefault(o => o.Value == keep) ?? TagOptions[0];
     }
 
+    private void RebuildTargetStorages()
+    {
+        TargetStorages.Clear();
+        if (!IsDbAvailable) { SelectedTargetStorageId = 0; return; }
+        foreach (var s in _assets.ListStorages()) TargetStorages.Add(s);
+        SelectedTargetStorageId = TargetStorages.FirstOrDefault(s => s.Online)?.Id
+                                  ?? TargetStorages.FirstOrDefault()?.Id ?? 0;
+    }
+
     partial void OnSearchTextChanged(string value) => ApplyView();
     partial void OnFilterTypeChanged(FilterOption? value) => ApplyView();
     partial void OnFilterStorageChanged(FilterOption? value) => ApplyView();
@@ -1147,6 +1246,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             "Size" => Order(q, r => r.Size),
             "Modified" => Order(q, r => r.Mtime ?? ""),
             "Storage" => Order(q, r => r.StorageName),
+            "Duration" => Order(q, r => r.DurationSeconds),
+            "Resolution" => Order(q, r => r.ResolutionText),
+            "Codec" => Order(q, r => r.CodecText),
             _ => Order(q, r => r.Name)
         };
 
@@ -1175,5 +1277,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         SizeHeader = "大小" + SortArrow("Size");
         ModifiedHeader = "修改时间" + SortArrow("Modified");
         StorageHeader = "存储源" + SortArrow("Storage");
+        DurationHeader = "时长" + SortArrow("Duration");
+        ResolutionHeader = "分辨率" + SortArrow("Resolution");
+        CodecHeader = "编码" + SortArrow("Codec");
     }
 }

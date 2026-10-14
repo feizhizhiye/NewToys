@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using NewToys.MediaAssets.Models;
 
@@ -675,7 +676,7 @@ public class AssetService
             var sql =
                 "SELECT a.id, a.type, a.title, a.display_name, a.status, a.rating, a.description, " +
                 "       IFNULL(l.file_name,''), IFNULL(l.path,''), IFNULL(l.size,0), l.mtime, " +
-                "       IFNULL(l.status,'active'), IFNULL(l.storage_id,0), IFNULL(s.name,''), a.updated_at " +
+                "       IFNULL(l.status,'active'), IFNULL(l.storage_id,0), IFNULL(s.name,''), a.updated_at, a.metadata_json " +
                 "FROM assets a " +
                 "LEFT JOIN file_locations l ON l.id = (SELECT f.id FROM file_locations f " +
                 "    WHERE f.asset_id = a.id ORDER BY f.is_primary DESC, f.id LIMIT 1) " +
@@ -690,7 +691,8 @@ public class AssetService
             using var r = cmd.ExecuteReader();
             while (r.Read())
             {
-                rows.Add(new AssetRow
+                var meta = r.IsDBNull(15) ? "{}" : r.GetString(15);
+                var row = new AssetRow
                 {
                     Id = r.GetInt64(0),
                     Type = r.IsDBNull(1) ? AssetTypes.Other : r.GetString(1),
@@ -710,7 +712,9 @@ public class AssetService
                     Name = !r.IsDBNull(3) && r.GetString(3).Length > 0 ? r.GetString(3)
                         : !r.IsDBNull(2) && r.GetString(2).Length > 0 ? r.GetString(2)
                         : "资产 #" + r.GetInt64(0).ToString(System.Globalization.CultureInfo.InvariantCulture)
-                });
+                };
+                ApplyVideoMeta(row, meta);   // 逐行独立解析（损坏的 metadata_json 不影响整批）
+                rows.Add(row);
             }
         }
         catch { return rows; }
@@ -726,6 +730,29 @@ public class AssetService
             if (cols.TryGetValue(row.Id, out var k)) row.CollectionsText = k;
         }
         return rows;
+    }
+
+    /// <summary>
+    /// NT-031：把 <c>metadata_json</c> 里的视频元数据填进 <see cref="AssetRow"/> 的视频专属字段。
+    /// <para>逐行独立解析、吞掉一切异常（JSON 损坏 / 缺键 / 类型不符都不影响列表其余行）。
+    /// 键名沿用 <see cref="MetadataService"/> 的写入：<c>duration_seconds</c> / <c>width</c> / <c>height</c> / <c>video_codec</c>。</para>
+    /// </summary>
+    private static void ApplyVideoMeta(AssetRow row, string json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "{}") return;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("duration_seconds", out var d) && d.ValueKind == JsonValueKind.Number)
+                row.DurationSeconds = d.GetDouble();
+            if (root.TryGetProperty("width", out var w) && w.ValueKind == JsonValueKind.Number
+                && root.TryGetProperty("height", out var h) && h.ValueKind == JsonValueKind.Number)
+                row.ResolutionText = $"{w.GetInt32()}×{h.GetInt32()}";
+            if (root.TryGetProperty("video_codec", out var c) && c.ValueKind == JsonValueKind.String)
+                row.CodecText = c.GetString() ?? "";
+        }
+        catch { /* 元数据损坏：本行视频列留空，不拖垮整批 */ }
     }
 
     /// <summary>

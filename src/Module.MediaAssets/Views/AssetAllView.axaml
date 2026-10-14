@@ -223,6 +223,17 @@
                     Command="{Binding SortCommand}" CommandParameter="Storage"
                     IsVisible="{Binding IsStorageVisible}"/>
 
+            <!--  NT-031：视频专属列表头（仅视频页可见；非视频页 IsVisible=false 自动隐藏）  -->
+            <Button Grid.Column="9" Classes="col-header" Content="{Binding DurationHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Duration"
+                    IsVisible="{Binding IsDurationVisible}"/>
+            <Button Grid.Column="10" Classes="col-header" Content="{Binding ResolutionHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Resolution"
+                    IsVisible="{Binding IsResolutionVisible}"/>
+            <Button Grid.Column="11" Classes="col-header" Content="{Binding CodecHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Codec"
+                    IsVisible="{Binding IsCodecVisible}"/>
+
             <v:ColumnGrid.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
@@ -251,6 +262,12 @@
                           Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
                 <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
                           Command="{Binding ToggleColumnCommand}" CommandParameter="Storage"/>
+                <MenuItem Header="时长" ToggleType="CheckBox" IsChecked="{Binding IsDurationVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Duration"/>
+                <MenuItem Header="分辨率" ToggleType="CheckBox" IsChecked="{Binding IsResolutionVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Resolution"/>
+                <MenuItem Header="编码" ToggleType="CheckBox" IsChecked="{Binding IsCodecVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Codec"/>
               </ContextMenu>
             </v:ColumnGrid.ContextMenu>
           </v:ColumnGrid>
@@ -282,6 +299,12 @@
                        Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsModifiedVisible}"/>
             <TextBlock Grid.Column="8" Classes="list-cell" Text="{Binding SampleRowTexts[8]}"
                        Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsStorageVisible}"/>
+            <TextBlock Grid.Column="9" Classes="list-cell" Text="{Binding SampleRowTexts[9]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsDurationVisible}"/>
+            <TextBlock Grid.Column="10" Classes="list-cell" Text="{Binding SampleRowTexts[10]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsResolutionVisible}"/>
+            <TextBlock Grid.Column="11" Classes="list-cell" Text="{Binding SampleRowTexts[11]}"
+                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCodecVisible}"/>
           </v:ColumnGrid>
         </Border>
 
@@ -334,6 +357,15 @@
                 <TextBlock Grid.Column="8" Classes="list-cell" Text="{Binding StorageName}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
+                <TextBlock Grid.Column="9" Classes="list-cell" Text="{Binding DurationText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsDurationVisible}"/>
+                <TextBlock Grid.Column="10" Classes="list-cell" Text="{Binding ResolutionText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsResolutionVisible}"/>
+                <TextBlock Grid.Column="11" Classes="list-cell" Text="{Binding CodecText}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsCodecVisible}"/>
               </v:ColumnGrid>
             </DataTemplate>
           </ListBox.ItemTemplate>

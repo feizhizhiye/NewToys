@@ -50,6 +50,16 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
     /// <summary>最后更新时间（ISO 文本，来自 <c>assets.updated_at</c>）；回收站里 ≈ 软删除时刻。</summary>
     public string? UpdatedAt { get; set; }
 
+    // ===== 视频元数据（来自 metadata_json；非视频 / 未扫描 → 默认空，列表列空而不崩） =====
+    /// <summary>视频时长（秒，来自 <c>metadata_json.duration_seconds</c>）；排序用原始秒数。</summary>
+    public double DurationSeconds { get; set; }
+
+    /// <summary>分辨率文本（"1920×1080"，来自 <c>metadata_json.width/height</c>）；无则空串。</summary>
+    public string ResolutionText { get; set; } = "";
+
+    /// <summary>视频编码（"h264"，来自 <c>metadata_json.video_codec</c>）；无则空串。</summary>
+    public string CodecText { get; set; } = "";
+
     // ===== 主文件位置 =====
     public string FileName { get; set; } = "";
     public string FilePath { get; set; } = "";
@@ -106,6 +116,9 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
         }
     }
 
+    /// <summary>时长的人类可读串（HH:MM:SS / MM:SS；拿不到就空串）。</summary>
+    public string DurationText => FormatDuration(DurationSeconds);
+
     /// <summary>行是否"文件已不在磁盘上"（列表里给它一个提示色）。</summary>
     public bool IsMissing => LocationStatus == LocationStatuses.Missing || Status == AssetStatuses.Missing;
 
@@ -119,6 +132,17 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
         var i = 0;
         while (v >= 1024 && i < units.Length - 1) { v /= 1024; i++; }
         return $"{v:0.##} {units[i]}";
+    }
+
+    /// <summary>秒数 → HH:MM:SS（≥1h，如 02:14:33）或 MM:SS（&lt;1h，如 14:33）；≤0 返回空串。</summary>
+    public static string FormatDuration(double seconds)
+    {
+        if (seconds <= 0) return "";
+        var ts = TimeSpan.FromSeconds(seconds);
+        var h = (int)ts.TotalHours;
+        return h >= 1
+            ? $"{h:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}"
+            : $"{ts.Minutes:D2}:{ts.Seconds:D2}";
     }
 }
 

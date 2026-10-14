@@ -187,6 +187,23 @@
 
         <Border Classes="divider-line"/>
 
+        <!--  ===== NT-030：移动 / 复制（目标 = 已登记存储源；防穿越由服务保证） =====  -->
+        <StackPanel Spacing="4">
+          <TextBlock Classes="field-label" Text="移动到 / 复制到（目标存储源）"/>
+          <ComboBox HorizontalAlignment="Stretch"
+                    ItemsSource="{Binding TargetStorages}"
+                    SelectedValue="{Binding SelectedTargetStorageId, Mode=TwoWay}"
+                    SelectedValueBinding="{Binding Id}" DisplayMemberBinding="{Binding Name}"/>
+          <Button Classes="ghost" Content="📁 移动到此源" Command="{Binding MoveToTargetCommand}"
+                  HorizontalAlignment="Stretch"
+                  ToolTip.Tip="把主文件位置移到选定的已登记存储源根内（⛔ 不越界写盘）"/>
+          <Button Classes="ghost" Content="📋 复制到此源" Command="{Binding CopyToTargetCommand}"
+                  HorizontalAlignment="Stretch"
+                  ToolTip.Tip="复制一份到选定的已登记存储源根内（原文件不动）"/>
+        </StackPanel>
+
+        <Border Classes="divider-line"/>
+
         <!--  ===== 关联（NT-018：只读列出；增删归后续） =====  -->
         <StackPanel Spacing="4">
           <TextBlock Classes="field-label" Text="关联（字幕 / 封面 / 版本…）"/>

@@ -449,15 +449,19 @@ public partial class ShellView : Window
     private static bool _isFullScreen;
 
     /// <summary>
-    /// NT-042 **基准测试开关**：置 <c>false</c> = 完全不套矩形窗口区域（等价于把两处调用都注掉）。
+    /// 🔴 **保留开关，且恒为 <c>true</c>**（NT-042 结论，2026-10-15 实测）：
     /// <para>
-    /// 用法：改成 <c>false</c> 后本地跑一次，看 **普通窗 / 最大化 / 分屏** 三态 ——
-    /// ① 圆角是否复发 ② DWM 阴影是否回来。结论出来后本开关与 <see cref="ApplySquareRegion"/> 一并处置（见任务卡 NT-042）。
+    /// 基准测试（置 <c>false</c> = 不套矩形区域）实测结果：
+    /// ① **DWM 阴影没有回来** → 阴影消失**不是** `SetWindowRgn` 的代价，而是客户区扩展（CSD 官方路线）的固有结果；
+    /// ② 圆角在普通窗 / 分屏下复发。
+    /// ⇒ **代价证伪、收益仍在** → 保留硬手段（开关回 <c>true</c>），技术债见《工程规范》§7 B16。
     /// </para>
+    /// <para>
+    /// ⚠️ 想再复核时把它改 <c>false</c> 即可（等价于把 <see cref="ApplySquareRegion"/> 两处调用都注掉）。
     /// </summary>
     // ⚠️ 刻意**不用 const**：置 false 时若用 const，编译器会判后面的代码不可达 →
     //    CS0162 警告（本项目开 TreatWarningsAsErrors → 直接编译失败），基准测试就跑不起来了。
-    private static bool UseSquareRegionHack = false;   // NT-042 基准测试：2026-10-15 置 false
+    private static bool UseSquareRegionHack = true;    // NT-042 结论：保留（阴影与 region 无关）
 
     /// <summary>
     /// NT-034 兜底（硬手段）：给窗口套一个**矩形窗口区域**（<c>SetWindowRgn</c>）。
@@ -469,14 +473,15 @@ public partial class ShellView : Window
     /// </para>
     /// <para>
     /// ⚠️ 最大化 / 全屏**必须清掉 region**（传 NULL）—— 否则矩形区域会跟最大化几何打架（露边 / 裁内容）。
-    /// ⚠️ 代价：DWM 窗口阴影会一起消失（矩形区域窗口没有圆角也就没有圆角阴影）。
+    /// ✅ **原「代价 = DWM 阴影消失」已被 NT-042 实测证伪**：置 <c>false</c> 完全不套 region 时阴影同样没有
+    ///    → 阴影消失是客户区扩展（CSD）的固有结果，与本 region 无关。边界层次由 NT-039 自绘 1px 外框补。
     /// </para>
     /// </summary>
     private static void ApplySquareRegion(IntPtr hwnd)
     {
         try
         {
-            if (!UseSquareRegionHack) return;    // NT-042：基准测试时置 false
+            if (!UseSquareRegionHack) return;    // NT-042 复核开关；置 false = 完全不套 region（仅复核用）
             if (hwnd == IntPtr.Zero) return;
 
             // NT-044：全屏与最大化一视同仁 → 清 region

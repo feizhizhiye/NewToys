@@ -99,9 +99,9 @@
 - ⛔ 页面里不复制同名样式；本页专用样式写 `UserControl.Styles` 里加更具体选择器。
 - ⛔ 除标题栏图标外所有颜色绑 `DynamicResource`。
 
-### 2.2 主题键（34 个，⛔ 除白名单外不新增）
+### 2.2 主题键（31 个，⛔ 除白名单外不新增）
 
-主题资源键一律 `*Brush` 语义键，共 **34 个**（`ContentBrush/PanelBrush/SubSiderBrush/SiderBrush/PrimaryTextBrush/SecondaryTextBrush/AccentBrush/AccentHoverBrush/DangerBrush/DividerBrush/InputBorderBrush…`，完整清单以源码为准；白名单同步在 `skill/scripts/check.ps1`）。
+主题资源键一律 `*Brush` 语义键，共 **31 个**（NT-049 删除零引用的 `TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`；`ContentBrush/PanelBrush/SubSiderBrush/SiderBrush/PrimaryTextBrush/SecondaryTextBrush/AccentBrush/AccentHoverBrush/DangerBrush/DividerBrush/InputBorderBrush…`，完整清单以源码为准；白名单同步在 `skill/scripts/check.ps1`）。
 
 > ⚠️ **v3.38 增补 2 个键**（需求 §4.1.1 ③ / §4.7，工作项 NT-039）：
 > `WindowBorderBrush`（窗口外框 · **激活态**）｜`WindowBorderInactiveBrush`（窗口外框 · **失焦态**，更淡）。

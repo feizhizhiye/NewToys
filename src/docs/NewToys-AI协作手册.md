@@ -86,7 +86,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 · 命名空间 NewToys.<模块>.Views/.ViewModels（无 .Module 段）；View 与 VM 成对。
 · IModule{RegisterServices,Initialize}；菜单只在 Initialize 注册；viewName=View 类名；icon=Geometry 资源键（不是 emoji）；Key=小写连字符。
 · .axaml 扩展名；编译绑定关→写 {Binding}、不写 x:DataType；改 .axaml 必同步 .axaml.cs；⛔ WPF 写法。
-· 颜色一律 DynamicResource；主题键只用 *Brush 语义键(**34 个**，⛔ 除白名单外不新增)；code-behind 不写死 #RRGGBB。
+· 颜色一律 DynamicResource；主题键只用 *Brush 语义键(**31 个**，⛔ 除白名单外不新增)；code-behind 不写死 #RRGGBB。
 · 图标：**一级菜单 = 矢量**（`App.axaml` 的 `Application.Resources` 里 `Icon*` Geometry，24 网格**描边型**，用 `<Path Stroke=… Stretch="Uniform"/>` 而非 `PathIcon`）；**二级菜单不显示图标**；**标签页无图标**；仅标题栏 4 个工具按钮仍是 emoji（放大到 18px）。模块 `RegisterModule` 的 icon 传几何键；VM 解析用 `Application.Current.TryFindResource(key, out var v)`（**Try 模式**，需 `using Avalonia.Controls;`）。
 · v3.8 视频工具三页：`video-list`（列表）/ `video-cut`（显示名与类名均为「**视频预览**`VideoPreviewView`」，**key 不变**：单任务编辑 + 预览画面 + 三条时间条、剪辑+转码两类、自带选文件）/ `video-batch`（**批量处理**：列表=剪辑+转码混排统一队列 + 详情卡）。⛔ 原 `video-transcode` 已并入 `video-batch`。
 · **v3.12 两页详情卡是同一套结构**：分区顺序=ffmpeg 命令书写顺序（剪辑→转码→输出→命令）；剪辑/转码的勾选框在 `Expander.Header` 里，⛔ 不另设「任务类型」块；⛔ **详情卡内不放任何操作按钮**（保存/跑/删/复制/重置全在工具条）；命令区同名属性 `CommandPreview` / `EditArgs` / `IsArgsEdited`，两页可照抄。

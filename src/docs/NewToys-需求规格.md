@@ -250,7 +250,7 @@ Module.*（功能模块，只引 Shared + Core）
 **④ 标题栏配色**
 
 - 底色 **`ContentBrush`**（与窗口背景一致），底部 1px `DividerBrush` 分割线；文字 / 图标 `PrimaryTextBrush`。
-  ⚠️ `TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush` 三键**已在 `App.axaml.cs` 定义但未被引用**（XAML 用的仍是 `ContentBrush`）；是否启用另立工作项（NT-043），⛔ 不在本轮顺手改。
+  - ✅ `TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush` 三键经 **NT-043 拍板「不启用」**，已由 **NT-049** 从 `App.axaml.cs` 删除；标题栏底色 / 文字 / 按钮 hover 统一走现有键（`ContentBrush` / `PrimaryTextBrush` / `CardHoverBrush`），关闭按钮 hover 仍用 `TitleBarCloseHover*`。
 
 ### 4.2 标签栏（并入标题栏中段）
 
@@ -313,7 +313,7 @@ Module.*（功能模块，只引 Shared + Core）
 ### 4.7 主题
 
 - 三模式（Light / Dark / System）+ 强调色，落 `config/theme.json`，**默认深色**。
-- 主题键只 `*Brush`（**34 个**：原 32 + v3.38 新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`），颜色一律 `DynamicResource`；`ApplyTheme` 纯代码构建字典注入（⛔ 禁 `MergedDictionaries.Clear()`、⛔ 禁写死 `#RRGGBB`）。完整清单与映射见规范 §2.2。
+- 主题键只 `*Brush`（**31 个**：原 32 + v3.38 新增 `WindowBorderBrush` / `WindowBorderInactiveBrush` − NT-049 删除 `TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`），颜色一律 `DynamicResource`；`ApplyTheme` 纯代码构建字典注入（⛔ 禁 `MergedDictionaries.Clear()`、⛔ 禁写死 `#RRGGBB`）。完整清单与映射见规范 §2.2。
 - **新增元素必须走既有样式体系**（`Classes` + 全局样式），⛔ 不在页面里复制样式。
 
 ### 4.8 列表页

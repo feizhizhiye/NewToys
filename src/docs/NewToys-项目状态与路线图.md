@@ -44,7 +44,7 @@
 
 ### 2.2 UI
 - 三栏 `60,140,*` → **标题栏 40px（含标签页）+ 左树 180 / 折叠 48 + 主内容区 + 右详情 340 + 底部状态栏 26px**。
-- 明暗主题全局切换，键一律 `*Brush`（**34 个**：v3.38 由 32 增至 34，新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`），默认深色。
+- 明暗主题全局切换，键一律 `*Brush`（**31 个**：v3.38 由 32 增至 34，新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`；NT-049 再删 3 个零引用键 → 31），默认深色。
 - **视觉规范**：共享样式已按 **v3.12 密度基线**收紧（表格行高 28、卡片内边距 12、工具条 12,6、筛选条 12,4）；**一级菜单矢量图标**已落地，标题栏 / 标签页图标仍为 emoji。
 
 ### 2.3 页面全景
@@ -131,13 +131,13 @@
 | NT-040 | 窗口装饰回归 Avalonia 12 官方 CSD 路线（`WindowDecorations="Full"` + 隐式键同键覆盖默认主题） | P0 | ✔ 已完成（已验收） | backlog/NT-040.md |
 | NT-041 | 清理 Win32 窗口补丁（贴靠样式位 / `WM_NCCALCSIZE` / resize 兜底），逐处删 + 逐处回归 | P1 | ✔ 已完成（已验收） | backlog/NT-041.md |
 | NT-042 | DWM 阴影与方角方案复核（`SetWindowRgn` 去留；阴影优先） | P1 | ✔ 已完成（**已验收** 2026-10-15 · 裁决：**保留** region，阴影代价已证伪） | backlog/NT-042.md |
-| NT-043 | 标题栏是否改用 `TitleBarBrush`（⛔ 待拍板：会推翻「标题栏 = `ContentBrush`」约定） | P2 | 📝 草稿 · **已拍板不启用** → 清理转 **NT-049** | backlog/NT-043.md |
+| NT-043 | 标题栏是否改用 `TitleBarBrush`（⛔ 待拍板：会推翻「标题栏 = `ContentBrush`」约定） | P2 | ✔ 已完成（已验收 · **拍板不启用**，清理并入 NT-049） | backlog/NT-043.md |
 | NT-044 | 标题栏加全屏按钮（⛶）+ `F11` / `Esc` 快捷键（⛔ 依赖 NT-041：全屏退出会整体覆盖窗口样式） | P2 | ✔ 已完成（已验收） | backlog/NT-044.md |
 | NT-045 | 图标实现方式统一（C 方案：全框架矢量 `Geometry` 库；窗口按钮弃图标字体 / 标签 ✕ 与树展开符弃字符；折叠菜单→panel-left、模块加载→拼图） | P2 | ✔ 已完成（已验收） | backlog/NT-045.md |
 | NT-046 | 图标收尾：最小化退化与居中修复 / 拼图与全屏改型（两箭头）/ 左树去展开符 / 「框架层图标只用 `Path`」写进规范 | P2 | ✔ 已完成（已验收） | backlog/NT-046.md |
 | NT-047 | 数据驱动图标矢量化（二级功能菜单 34 项 / 首页一键按钮 / 模块页内数据行；⛔ 静态装饰 emoji 不动） | P2 | 📝 草稿 | backlog/NT-047.md |
 | NT-048 | 修复**分屏贴靠首次几何不收敛**（初次偏宽 / 不贴靠，之后正常） | P1 | 🔄 执行中（已改，待本地验证） | backlog/NT-048.md |
-| NT-049 | 清理 3 个未引用标题栏主题键（`TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`） | P2 | ✅ 就绪 | backlog/NT-049.md |
+| NT-049 | 清理 3 个未引用标题栏主题键（`TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`；主题键 34 → 31） | P2 | ✔ 已完成（待本地编译 + 验收） | backlog/NT-049.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡保留、⛔ 不删）。已落盘待编译的项见下方 P0 v3.15 / v3.16。
 > NT-041 / NT-042 **依赖 NT-040**（先确认官方路线能顶上，才能删补丁）；NT-039 独立，可先行。

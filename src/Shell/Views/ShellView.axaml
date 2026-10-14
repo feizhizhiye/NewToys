@@ -85,7 +85,9 @@
                             StrokeLineCap="Round"
                             Data="M23,4 L23,10 L17,10 M1,20 L1,14 L7,14 M3.51,9 A9,9 0 0,1 18.36,5.64 L23,10 M1,14 L5.64,18.36 A9,9 0 0,0 20.49,15" />
                     </Button>
-                    <!--  NT-005：重载模块（等距立方体 = 模块；规范 §3.7：只做「新增」、失败 DLL 隔离）  -->
+                    <!--  NT-005：重载模块。图标 = **拼图块**（浏览器扩展那个），比原来的等距立方体更贴近"模块 / 插件"语义；
+                         数据取自 Lucide `puzzle`（ISC，公开图标集，摘路径数据 —— 符合《需求规格》「只可手工摘取公开图标集」）。
+                         规范 §3.7：只做「新增」、失败 DLL 隔离。  -->
                     <Button Classes="title-btn" Command="{Binding ReloadModulesCommand}"
                             ToolTip.Tip="重载模块：重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）">
                         <Path
@@ -95,7 +97,7 @@
                             StrokeThickness="1.6"
                             StrokeLineCap="Round"
                             StrokeJoin="Round"
-                            Data="M8,1.5 L14.5,5 L14.5,11 L8,14.5 L1.5,11 L1.5,5 Z M8,1.5 L8,14.5 M1.5,5 L14.5,5 M1.5,11 L14.5,11" />
+                            Data="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" />
                     </Button>
                 </StackPanel>
 
@@ -180,11 +182,12 @@
                 </Grid>
 
                 <!--  右：窗口按钮  -->
-                <!--  v3.22：最小化 / 最大化 / 关闭**尺寸维持原样**（本来就撑满标题栏），只去掉圆角；关闭图标加粗  -->
-                <!--  🔴 图标**只能用 Rectangle / Border / TextBlock**：实测 `Path`（尤其带 Stretch=Uniform）
-                      在裸按钮主题 BareButtonTheme 的 ContentPresenter 里**渲染不出来**（不报错、图标直接消失），
-                      v3.22 连踩三轮才定位。最小化=Rectangle 填充横线；最大化/还原=Border 描边空心方；
-                      关闭=TextBlock ✕（与标签关闭按钮同机制，已验证可见）。  -->
+                <!--  NT-044 统一：右侧窗口按钮图标**一律** `TextBlock` + 系统图标字体 `Segoe MDL2 Assets`（Windows / WinUI 官方那套）：
+                     最小化 `U+E921` / 最大化 `U+E922` / 还原 `U+E923` / 关闭 `U+E8BB` / 全屏 `U+E740` / 退出全屏 `U+E73F`。
+                     ⛔ 不再用 `Rectangle` 画横线、`Border` 拼方框 —— 自绘几何观感抽象，且和官方字形风格不统一。
+                     ⛔ 也**不能用** `Path`：实测在裸按钮主题 `BareButtonTheme` 的 ContentPresenter 里
+                     渲染不出来（不报错、图标直接消失，v3.22 连踩三轮才定位）。
+                     前景色一律由 `Button.win-btn` 继承（关闭悬停变白照旧生效），⛔ 不写本地 Foreground。  -->
                 <StackPanel
                     Grid.Column="2"
                     VerticalAlignment="Stretch"
@@ -236,12 +239,11 @@
                         Classes="win-btn"
                         Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="最小化">
-                        <Rectangle
-                            Width="12"
-                            Height="1.4"
-                            RadiusX="0.7"
-                            RadiusY="0.7"
-                            Fill="{DynamicResource PrimaryTextBrush}"
+                        <!--  U+E921 = ChromeMinimize  -->
+                        <TextBlock
+                            Text="&#xE921;"
+                            FontSize="16"
+                            FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center" />
                     </Button>
@@ -257,33 +259,23 @@
                             Height="16"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">
-                            <!--  最大化：单个空心方  -->
-                            <Border
-                                x:Name="MaxIconSquare"
-                                Width="11"
-                                Height="11"
-                                BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                BorderThickness="1.2"
+                            <!--  最大化：U+E922 = ChromeMaximize  -->
+                            <TextBlock
+                                x:Name="MaximizeIcon"
+                                Text="&#xE922;"
+                                FontSize="16"
+                                FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
-                            <!--  还原：后方小方 + 前方**带底色**小方（挡住后方右下角 → 形成"两个方"）  -->
-                            <Grid x:Name="RestoreIcon" Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Border
-                                    Width="8"
-                                    Height="8"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="1.1"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Top" />
-                                <Border
-                                    Width="8"
-                                    Height="8"
-                                    Background="{DynamicResource ContentBrush}"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="1.1"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Bottom" />
-                            </Grid>
+                            <!--  还原：U+E923 = ChromeRestore  -->
+                            <TextBlock
+                                x:Name="RestoreIcon"
+                                Text="&#xE923;"
+                                FontSize="16"
+                                FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
+                                IsVisible="False"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
                         </Grid>
                     </Button>
                     <!--  class 必须是 win-btn + close：App.axaml 里定义的是 Button.win-btn.close:pointerover（关闭变红）  -->
@@ -296,12 +288,13 @@
                         ToolTip.Tip="关闭">
                         <!--  ⚠️ 套 BareButtonTheme：Fluent 模板在 :pointerover 于模板子元素上自己画背景，
                              Style 压不过 → 悬停红底画不出来。裸主题用 Border 接 Background 才生效。
-                             🔴 用 TextBlock ✕（⛔ 不用 Path：Path 在裸主题里渲染不出来）。
+                             🔴 用 TextBlock 字形 `U+E8BB`（ChromeClose，与最小/最大化/全屏同一套官方字形）。
                              前景色**不写本地值** —— 由 Button.win-btn 的 Foreground 向下继承（普通态=PrimaryTextBrush，
                              悬停时 Button.win-btn.close:pointerover 改成白）。属性继承不受模板影响，比后代选择器可靠。  -->
                         <TextBlock
-                            Text="✕"
+                            Text="&#xE8BB;"
                             FontSize="16"
+                            FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center" />
                     </Button>

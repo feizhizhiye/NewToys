@@ -810,13 +810,13 @@ public partial class ShellView : Window
 
     private void UpdateMaxIcon()
     {
-        // v3.22：最大化 = 单个空心方；还原 = 两个错位方。
-        // ⚠️ 图标是 Border（不是 Path）—— Path 在 BareButtonTheme 里渲染不出来，见 ShellView 注释。
+        // NT-044 统一：两个图标都是 `TextBlock` + 系统图标字形的两个码位（最大化 / 还原），
+        // ⚠️ 不是 Path —— Path 在 BareButtonTheme 里渲染不出来，见 ShellView 注释。
         var maximized = WindowState == WindowState.Maximized;
-        MaxIconSquare.IsVisible = !maximized;
+        MaximizeIcon.IsVisible = !maximized;
         RestoreIcon.IsVisible = maximized;
 
-        // NT-044：全屏按钮图标随状态切换（进入 = 四角朝外 / 退出 = 四角朝内）。
+        // NT-044：全屏按钮图标随状态切换（U+E740 进入 / U+E73F 退出）。
         FullScreenIcon.IsVisible = WindowState != WindowState.FullScreen;
         ExitFullScreenIcon.IsVisible = WindowState == WindowState.FullScreen;
     }

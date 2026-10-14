@@ -29,7 +29,7 @@ agent_created: true
 
 ## 目录
 
-- `references/collab-method.md` —— 通用协作方法论（跨项目母本）
+- `references/collab-method.md` —— 通用协作方法论（跨项目母本；**§七 回复格式（编号段落）与会话成本管控 · 长会话提醒** —— 每次回复前对照）
 - `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / **34 个主题键** / 任务型→章节 / 四文档路由）
 - `scripts/check.ps1` —— 交付前静态检查 / Lint（axaml 合法性、`.axaml`↔`.cs` 配对、主题键白名单）
 - `scripts/check-axaml-props.ps1` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异，如 `SelectedValuePath` / `StrokeLineJoin`）

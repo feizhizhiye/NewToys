@@ -314,6 +314,9 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 4. 🔴 **裸主题（`BareButtonTheme`）里的图标只能用 `Rectangle` / `Border` / `TextBlock`** —— `Path`（尤其带 `Stretch=Uniform`）在它的 `ContentPresenter` 里**渲染不出来**（不报错、图标直接消失，v3.22 连踩三轮）。
    需要"标准系统图标"时（如 NT-044 全屏按钮）：用 `TextBlock` + **系统自带**图标字体 `Segoe MDL2 Assets` 的字形（WinUI `Symbol` 枚举同款：`U+E740` FullScreen / `U+E73F` BackToWindow），
    `FontFamily` 写回退链 `Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol`。⛔ 这是**系统字体**，不违反《需求规格》「禁第三方图标字体 / 包」（没引入任何包）。
+   ✅ **NT-044 起右侧窗口按钮已全部统一为这套官方字形**：最小化 `U+E921` / 最大化 `U+E922` / 还原 `U+E923` / 关闭 `U+E8BB` / 全屏 `U+E740` / 退出全屏 `U+E73F`
+   （旧的 `Rectangle` 横线、`Border` 拼方框、`TextBlock ✕` 三种做法**已废弃** —— 自绘几何观感抽象、风格不统一）。
+   ⚠️ 左侧 `Button.title-btn`（≡ / ⟳ / 重载模块）**仍用矢量 `Path`**（不套裸主题，Path 正常渲染；描边 1.6、16×16）—— 那组是描边线性风格，⛔ 别混进图标字体。
 
 **列表页内的硬规则（保留）**：
 1. 表头与行模板**完全相同的星号列定义**（逐字一致）；动态列用 `<v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">`。

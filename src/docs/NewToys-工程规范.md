@@ -209,7 +209,7 @@ WindowDecorationsTheme="{DynamicResource NewToysWindowDecorations}"
   ⇒ **12.1.3 上不存在「自定义装饰模板」这条路**。AtomUI 那份指南对应它的 6.0 分支，**不适用于本版本**。
 - ⚠️ 同理，「缺 PART 抛 NRE」那条风险**在本配置下不成立** —— 它的前提是**有模板**（`OnApplyTemplate` 才去按名找 PART）。
 - 主题引用用 **`DynamicResource`**：窗口装饰主题在合并字典完成前就可能被解析，`StaticResource` 那一刻取不到（AtomUI 指南 §15 的已知坑）。
-- ⚠️ `ApplySnapEligibleStyles()`（手工补 `WS_CAPTION`）**当前仍保留作保险** —— `Full` 下样式位本就齐了，该函数走 `if (want == style) return` 直接返回。删除动作归 **NT-041**（需先本地验证贴靠不回归）。
+- ⚠️ `ApplySnapEligibleStyles()`（手工补 `WS_CAPTION`）**已于 NT-041 第二次尝试删除**（commit `d607a89`，仅删样式位补丁一处，`WM_NCCALCSIZE` 与 resize 兜底保留）—— 官方 `Full` 装饰自带这些样式位。**待本地验证贴靠不回归**；若回归 → 回滚该 commit 并恢复本条描述（详见 `backlog/NT-041.md`）。
 
 ---
 

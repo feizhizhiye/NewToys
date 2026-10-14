@@ -236,7 +236,7 @@ Module.*（功能模块，只引 Shared + Core）
 |---|---|---|
 | 手工补 `WS_CAPTION` / `WS_THICKFRAME` 样式位 | v3.28 贴靠资格 | 应由 `WindowDecorations` 提供 |
 | 接管 `WndProc` 改 `WM_NCCALCSIZE` 零内缩 | v3.29 贴靠缝隙 | Avalonia 12 PR #20067 已修复该属性在 Windows 的全部场景，官方明确要求**移除早期 workaround** |
-| `SetWindowRgn` 矩形区域 / `DWMWA_WINDOW_CORNER_PREFERENCE` | NT-034 方角 | ⚠️ 矩形区域会**连带取消 DWM 阴影**，代价过大；优先级低于「找回阴影」 |
+| `SetWindowRgn` 矩形区域 + `DWMWA_WINDOW_CORNER_PREFERENCE` | NT-034 方角 | ✅ **保留**（NT-042 实测裁决）：⚠️ 原判「矩形区域连带取消 DWM 阴影」**已被证伪** —— 完全不套 region 时阴影同样没有 ⇒ 阴影缺失是客户区扩展的固有结果，与 region 无关。技术债见规范 §7 **B16** |
 | `BeginMoveDrag` / `BeginResizeDrag` 自实现 | v3.26 拖动与缩放 | 仅作 `ElementRole` 失效时的兜底 |
 
 **③ 窗口外框（自绘 1px）+ 激活 / 失焦两态**（P0，见 NT-039）

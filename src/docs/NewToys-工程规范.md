@@ -598,6 +598,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B13 详情面板上提**（v3.2 新增） | 详情由 Shell 右面板统一承载 | 契约与 Shell 容器已实装，但**页面迁移暂缓**——12 个页面仍用页内自绘右列 | 下一版迁移（改 `ListPageViewModelBase` 一处 + 每页抽 DetailView） | Shared + 各模块页面 |
 | **B14 媒体资产用户数据落库**（v3.19 新增） | 用户手动数据落 `config\`、进备份（需求 §3.5） | 标签 / 分类 / 集合 / 关联暂存 `data\newtoys.db`（需求 §3.5 称其"可随时重建"）——与 §3.5 定位冲突，以「导出用户数据 JSON」缓解（需求 §6.6 R1） | 用户拍板独立库 / 纳入备份策略时 | Module.MediaAssets + 数据管理 |
 | **B15 数据驱动图标**（v3.22 新增） | 所有图标位都是矢量 `Geometry`（`App.axaml` 的 `Icon*` 键） | 二级功能菜单 `icon` / 首页一键按钮 / 模块页内数据行仍是 **emoji 字符串**（用户 2026-10-15「其他没改的以后再改」） | 收敛工作项 **NT-047**（键名不存在就地没图标，⛔ 不做 emoji 回退） | 各模块注册 + 首页 / 功能清单 / 资产集合页 |
+| **B16 `SetWindowRgn` 方角硬手段**（v3.23 新增） | 方角由官方 `DWMWA_WINDOW_CORNER_PREFERENCE` 稳定生效 | 保留 `ShellView.ApplySquareRegion()`（矩形窗口区域）+ `SetCornerPreferenceNoRound()` 双保险 | 🔴 **NT-042 已裁决保留**：基准测试（完全不套 region）实测阴影**同样没有** ⇒ 原「代价 = 阴影消失」证伪，代价不成立、方角收益仍在。移除条件 = 官方 corner preference 在本窗口上能稳定生效（普通窗 + 分屏两态都不复发圆角） | `Shell/Views/ShellView.axaml.cs` |
 
 ---
 

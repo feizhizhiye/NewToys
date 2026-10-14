@@ -130,14 +130,14 @@
 | NT-039 | 窗口外框（自绘 1px）+ 激活 / 失焦两态（主题键 32→34；最大化收边框） | P0 | ✔ 已完成（已验收） | backlog/NT-039.md |
 | NT-040 | 窗口装饰回归 Avalonia 12 官方 CSD 路线（`WindowDecorations="Full"` + 隐式键同键覆盖默认主题） | P0 | ✔ 已完成（已验收） | backlog/NT-040.md |
 | NT-041 | 清理 Win32 窗口补丁（贴靠样式位 / `WM_NCCALCSIZE` / resize 兜底），逐处删 + 逐处回归 | P1 | ✔ 已完成（已验收） | backlog/NT-041.md |
-| NT-042 | DWM 阴影与方角方案复核（`SetWindowRgn` 去留；阴影优先） | P1 | ✔ 已完成（待验收 · 裁决：**保留** region，阴影代价已证伪） | backlog/NT-042.md |
+| NT-042 | DWM 阴影与方角方案复核（`SetWindowRgn` 去留；阴影优先） | P1 | ✔ 已完成（**已验收** 2026-10-15 · 裁决：**保留** region，阴影代价已证伪） | backlog/NT-042.md |
 | NT-043 | 标题栏是否改用 `TitleBarBrush`（⛔ 待拍板：会推翻「标题栏 = `ContentBrush`」约定） | P2 | 📝 草稿 · **已拍板不启用** → 清理转 **NT-049** | backlog/NT-043.md |
 | NT-044 | 标题栏加全屏按钮（⛶）+ `F11` / `Esc` 快捷键（⛔ 依赖 NT-041：全屏退出会整体覆盖窗口样式） | P2 | ✔ 已完成（已验收） | backlog/NT-044.md |
 | NT-045 | 图标实现方式统一（C 方案：全框架矢量 `Geometry` 库；窗口按钮弃图标字体 / 标签 ✕ 与树展开符弃字符；折叠菜单→panel-left、模块加载→拼图） | P2 | ✔ 已完成（已验收） | backlog/NT-045.md |
 | NT-046 | 图标收尾：最小化退化与居中修复 / 拼图与全屏改型（两箭头）/ 左树去展开符 / 「框架层图标只用 `Path`」写进规范 | P2 | ✔ 已完成（已验收） | backlog/NT-046.md |
 | NT-047 | 数据驱动图标矢量化（二级功能菜单 34 项 / 首页一键按钮 / 模块页内数据行；⛔ 静态装饰 emoji 不动） | P2 | 📝 草稿 | backlog/NT-047.md |
-| NT-048 | 修复**分屏贴靠初次失效**（首次拖边不贴靠，最大化一次后恢复；⛔ 已证与 `SetWindowRgn` 无关） | P1 | 📝 草稿 | backlog/NT-048.md |
-| NT-049 | 清理 3 个未引用标题栏主题键（`TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`） | P2 | 📝 草稿 | backlog/NT-049.md |
+| NT-048 | 修复**分屏贴靠首次几何不收敛**（初次偏宽 / 不贴靠，之后正常） | P1 | 🔄 执行中（已改，待本地验证） | backlog/NT-048.md |
+| NT-049 | 清理 3 个未引用标题栏主题键（`TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`） | P2 | ✅ 就绪 | backlog/NT-049.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡保留、⛔ 不删）。已落盘待编译的项见下方 P0 v3.15 / v3.16。
 > NT-041 / NT-042 **依赖 NT-040**（先确认官方路线能顶上，才能删补丁）；NT-039 独立，可先行。

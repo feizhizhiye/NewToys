@@ -494,6 +494,10 @@ public partial class ShellView : Window
     private const uint SWP_NOZORDER = 0x0004;
     private const uint SWP_NOACTIVATE = 0x0010;   // v3.29：贴靠校正时⛔别抢焦点
     private const uint SWP_FRAMECHANGED = 0x0020;
+    private const uint SWP_NOOWNERZORDER = 0x0200;   // 仍被 ApplyWindowFrame 使用（NT-041 误删后补回）
+
+    /// <summary><c>WINDOWPLACEMENT.showCmd</c> 的最大值（仍被 <see cref="IsWindowMaximized"/> 使用）。</summary>
+    private const int SW_SHOWMAXIMIZED = 3;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT

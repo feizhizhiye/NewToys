@@ -311,6 +311,9 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 1. **`MenuItem` 用 `ItemsSource` 生成子菜单时，`ItemContainerTheme` 必须写 `BasedOn="{StaticResource {x:Type MenuItem}}"`** —— 不写就是一份**没有模板**的全新 ControlTheme，子项画不出来 → 表现为「点了不弹出子菜单」。全仓 11 处筛选子菜单都犯过这个错。
 2. **给控件覆写 `:pointerover` 等伪类样式，若被 Fluent 主题盖掉（实测表现为"图标还是白的、背景还在"），就改用**后代选择器**提优先级**：`Border.tab-item Button.tab-close:pointerover` 能压过主题的 `Button:pointerover`。
 3. 🔴 **后代选择器也压不住时（Fluent 的 `Button` 会在模板状态里自己画背景 + 改前景），就换"裸控件主题"**：`App.axaml` 的 `BareButtonTheme`（只有 `ContentPresenter`，零状态绘制）→ 控件上写 `Theme="{StaticResource BareButtonTheme}"`。标签页关闭 ✕ 就是这样才真正做到"透明底 + 红图标"。**以后凡是要完全自绘的小按钮，一律套它。**
+4. 🔴 **裸主题（`BareButtonTheme`）里的图标只能用 `Rectangle` / `Border` / `TextBlock`** —— `Path`（尤其带 `Stretch=Uniform`）在它的 `ContentPresenter` 里**渲染不出来**（不报错、图标直接消失，v3.22 连踩三轮）。
+   需要"标准系统图标"时（如 NT-044 全屏按钮）：用 `TextBlock` + **系统自带**图标字体 `Segoe MDL2 Assets` 的字形（WinUI `Symbol` 枚举同款：`U+E740` FullScreen / `U+E73F` BackToWindow），
+   `FontFamily` 写回退链 `Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol`。⛔ 这是**系统字体**，不违反《需求规格》「禁第三方图标字体 / 包」（没引入任何包）。
 
 **列表页内的硬规则（保留）**：
 1. 表头与行模板**完全相同的星号列定义**（逐字一致）；动态列用 `<v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">`。

@@ -54,10 +54,10 @@
 | PC 工具箱 | 5 | **5** | 0 |
 | Web 工具箱 | 5 | **4** | 1 |
 | 视频工具箱 | 3 | **3** | 0 |
-| 媒体资产 | 12 | **1** | **11** |
+| 媒体资产 | 12 | **12** | **0** |
 | **合计** | **35** | **23** | **12** |
 
-> **骨架页**：Web 的 `web-http`（判据：VM 仅有 Title/Description/StatusText/IsBusy 与 PrimaryAction/Refresh 样板命令）+ **媒体资产 11 页**（NT-014 骨架，NT-017~022 逐页落地；`assets-all` 已由 NT-016 落成真实列表页）。
+> **骨架页**：无（web-http 已由 NT-001 落成真实页；媒体资产 11 页已由 NT-017~022 逐页落地 + NT-016 `assets-all` 真实列表页，零骨架）。
 
 ### 2.4 菜单清单（36 项）
 
@@ -69,7 +69,7 @@
 | 电脑工具 | pc | 20 | `IconPc` | `pc-favorites`收藏夹/0/✅ ｜ `pc-shortcuts`设置与脚本/1/✅ ｜ `pc-quicksettings`快捷设置/2/✅ ｜ `pc-package`软件包/3/✅ ｜ `pc-info`系统信息/99/✅ |
 | 网络工具 | web | 30 | `IconWeb` | `web-http`HTTP测试/1/🔧 ｜ `web-bookmark`书签/2/✅ ｜ `web-ping`网络Ping/3/✅ ｜ `web-scrape`网页抓取/4/✅ ｜ `web-hosts`Hosts管理/5/✅ |
 | 视频工具 | video | 40 | `IconVideo` | `video-list`视频列表/0/✅ ｜ `video-cut`**视频预览**/1/✅ ｜ `video-batch`**批量处理**/2/✅ |
-| 媒体资产 | assets | 50 | 🗂 emoji（矢量键留白） | `assets-all`全部资产/0/✅ ｜ `assets-video`视频/1/🚧 ｜ `assets-music`音乐/2/🚧 ｜ `assets-book`书籍/3/🚧 ｜ `assets-image`图片/4/🚧 ｜ `assets-document`文档/5/🚧 ｜ `assets-tags`标签管理/6/🚧 ｜ `assets-categories`分类管理/7/🚧 ｜ `assets-collections`集合管理/8/🚧 ｜ `assets-storages`存储源/9/🚧 ｜ `assets-tasks`任务中心/10/🚧 ｜ `assets-trash`回收站/11/🚧 |
+| 媒体资产 | assets | 50 | 🗂 emoji（矢量键留白） | `assets-all`全部资产/0/✅ ｜ `assets-video`视频/1/✅ ｜ `assets-music`音乐/2/✅ ｜ `assets-book`书籍/3/✅ ｜ `assets-image`图片/4/✅ ｜ `assets-document`文档/5/✅ ｜ `assets-tags`标签管理/6/✅ ｜ `assets-categories`分类管理/7/✅ ｜ `assets-collections`集合管理/8/✅ ｜ `assets-storages`存储源/9/✅ ｜ `assets-tasks`任务中心/10/✅ ｜ `assets-trash`回收站/11/✅ |
 | 设置 | settings | 999 | `IconSettings` | `settings-general`通用/0/✅ ｜ `settings-theme`主题/1/✅ ｜ `settings-path`路径/2/✅ ｜ `settings-launch`一键按钮/3/✅ ｜ `settings-dns`加密DNS/4/✅ ｜ `settings-package`软件源/5/✅ ｜ `settings-profile`配置/6/✅ ｜ `settings-data`数据管理/7/✅ ｜ `settings-about`关于/8/✅ ｜ `settings-all`功能清单/9/✅ |
 
 ---

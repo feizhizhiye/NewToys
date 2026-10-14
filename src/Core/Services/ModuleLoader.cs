@@ -176,7 +176,10 @@ public static class ModuleLoader
             catch (ReflectionTypeLoadException ex)
             {
                 failed++;
-                System.Diagnostics.Debug.WriteLine($"热加载 {name} 失败（依赖缺失？）：{string.Join("; ", ex.LoaderExceptions.Take(3).Select(e => e.Message))}");
+                // ⚠️ LoaderExceptions 是 IList<Exception?>——元素可能为 null，⛔ 直接 e.Message 会报 CS8602；
+                //    OfType<Exception>() 顺带滤 null + 收窄类型。
+                var why = string.Join("; ", ex.LoaderExceptions.OfType<Exception>().Take(3).Select(e => e.Message));
+                System.Diagnostics.Debug.WriteLine($"热加载 {name} 失败（依赖缺失？）：{why}");
             }
             catch (Exception ex)
             {

@@ -112,6 +112,9 @@ public class App : Application
                 WriteStartupLog($"{store.ProfileOverrideError} —— 已回退到配置「{store.ActiveProfileName}」");
             if (!AcquireProfileMutex(store)) return;
 
+            // NT-038：播种内置配置档（debug / default / release）—— 只增不覆盖、永久驻留（需求 §3.5）
+            store.EnsureBuiltInProfiles();
+
             Core.Services.ModuleLoader.InitializeAll(_sp);
 
             var theme = _sp.GetRequiredService<IThemeService>();

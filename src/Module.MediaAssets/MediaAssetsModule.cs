@@ -74,9 +74,9 @@ public class MediaAssetsModule : IModule
         var menu = services.GetRequiredService<IMenuService>();
 
         // 一级分组：Order 50（视频工具 40 之后、系统设置 999 之前）。
-        // ⚠️ 图标暂用 emoji 占位：矢量 IconAsset **留白**（用户拍板不加框架层图标，需求 §4.10.1）；
-        //    左树本就有「矢量键取不到 → 回退 emoji 文本」机制，将来补几何键只改这一行。
-        menu.RegisterModule(GroupKey, "媒体资产", "🗂", 50);
+        // NT-035：一级图标已矢量化（IconMediaAssets）——与其他一级分组同为 24 网格描边 Path；
+        //    左树仍保留「矢量键取不到 → 回退 emoji 文本」机制作兜底。
+        menu.RegisterModule(GroupKey, "媒体资产", "IconMediaAssets", 50);
 
         // 二级项：Order 0~11，与需求 §6.6 的菜单表逐条对应；二级用 emoji 占位（功能清单页 / 首页收藏卡要用它）。
         menu.RegisterFunction(GroupKey, "assets-all",         "全部资产", "🗂", "AssetAllView",         0, "混合视图：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源");

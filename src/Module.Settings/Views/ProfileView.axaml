@@ -60,6 +60,9 @@
         <Button Classes="ghost" Content="🗑 删除" HorizontalAlignment="Stretch"
                 Command="{Binding DeleteCommand}" IsEnabled="{Binding HasSelection}"
                 ToolTip.Tip="会永久删除该配置的全部数据；不能删除当前配置"/>
+        <Button Classes="ghost" Content="♻ 重置为初始态" HorizontalAlignment="Stretch"
+                Command="{Binding ResetCommand}" IsEnabled="{Binding HasSelection}"
+                ToolTip.Tip="清空该配置回初始态（debug 会重新复制当前 default 的配置）；不能重置 default 或当前配置"/>
         <TextBlock Classes="hint-text" TextWrapping="Wrap"
                    Text="⚠️ 删除不可撤销；当前正在使用的配置不能删除。"/>
       </StackPanel>

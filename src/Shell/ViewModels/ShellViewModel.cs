@@ -50,6 +50,9 @@ public partial class ShellViewModel : ViewModelBase
     /// <summary>左树节点（首页叶子 + 一级分组 + 二级功能叶子）。</summary>
     public ObservableCollection<TreeMenuItem> TreeNodes { get; } = new();
 
+    /// <summary>一级分组**展开**时触发（NT-037）：ShellView 据此把整组滚入视野（⛔ 收起不触发）。</summary>
+    public event EventHandler<TreeMenuItem>? TreeNodeExpanded;
+
     [ObservableProperty] private bool _isTreeCollapsed;
     [ObservableProperty] private bool _isDetailPanelVisible;
     [ObservableProperty] private object? _detailPanelContent;
@@ -266,6 +269,8 @@ public partial class ShellViewModel : ViewModelBase
             _cols.SaveFlag(ShellPageKey, "treeGroup:" + node.Key, node.IsExpanded);   // v3.6：手动展开态落盘
             // 折叠态下点分组 → 先展开整棵树（简化实现，不做浮出面板）
             if (IsTreeCollapsed) IsTreeCollapsed = false;
+            // NT-037：展开后通知 ShellView 把整组滚入视野（靠底部的分组展开后子项会被 ScrollViewer 裁掉）
+            if (node.IsExpanded) TreeNodeExpanded?.Invoke(this, node);
             return;
         }
 

@@ -1,3 +1,8 @@
+<!--  NT-034：`BorderOnly` 是**必须保留**的（⛔ 别改成 None）。
+      2026-10-14 实测：改成 `None` 后 ① 圆角没改善 ② **分屏（贴靠）时漏背景更明显**
+      ③ 全屏一次后 Avalonia 用 SetStyle 整体覆盖样式 → 贴靠资格位被抹、不能再贴靠。
+      反向证明了关键事实：**圆角就是 WS_THICKFRAME / WS_CAPTION 这几个"标准窗口"样式位带来的**，
+      而贴靠资格也依赖同一批位 —— 两者绑死，只能靠 DWM 关圆角（见 ShellView.axaml.cs）。  -->
 <Window
     x:Class="NewToys.Shell.Views.ShellView"
     xmlns="https://github.com/avaloniaui"
@@ -269,7 +274,7 @@
                 Classes.collapsed="{Binding IsTreeCollapsed}">
               <Grid RowDefinitions="*,Auto">
                 <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding TreeNodes}" Margin="8,8">
+                    <ItemsControl x:Name="TreeControl" ItemsSource="{Binding TreeNodes}" Margin="8,8">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel>

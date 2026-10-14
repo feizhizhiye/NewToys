@@ -17,6 +17,8 @@
         <StreamGeometry x:Key="IconVideo">M3,6 L15,6 L15,18 L3,18 Z M15,10 L21,7 L21,17 L15,14 Z</StreamGeometry>
         <!--  系统设置：滑块  -->
         <StreamGeometry x:Key="IconSettings">M21,4 L14,4 M10,4 L3,4 M21,12 L12,12 M8,12 L3,12 M21,20 L16,20 M12,20 L3,20 M14,2 L14,6 M8,10 L8,14 M16,18 L16,22</StreamGeometry>
+        <!--  媒体资产：层叠（资产库）—— NT-035：补齐一级分组矢量键，去掉 emoji 占位  -->
+        <StreamGeometry x:Key="IconMediaAssets">M12,3 L21,8 L12,13 L3,8 Z M3,12 L12,17 L21,12 M3,16 L12,21 L21,16</StreamGeometry>
 
         <!--
             v3.22：「裸按钮」主题 —— 只有内容、没有 Fluent 的任何状态绘制。
@@ -120,12 +122,14 @@
         </Style>
 
         <!--  v3.22：标签按钮**撑满标签项高度**（以前 Padding 10,4 + Center → 只占 24px，标题栏空一大截）  -->
+        <!--  NT-036：右侧**预留 ✕ 宽度**（padding 右 28）—— 文字随之左移，悬停出现的 ✕ 落在文字右侧的
+             空白处（不再压在文字上）；宽度常驻、显隐用 Opacity → 悬停不引起标签宽度跳动。  -->
         <Style Selector="Button.tab-btn">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Padding" Value="8,0,28,0"/>
             <!--  v3.22：字号 = 13，与左侧二级菜单（Button.tree-row.sub）同大  -->
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="MinHeight" Value="30"/>

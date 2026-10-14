@@ -138,6 +138,29 @@ public partial class ProfileViewModel : ObservableObject, IStatusProvider
         catch (Exception ex) { StatusText = "删除失败：" + ex.Message; }
     }
 
+    /// <summary>把选中配置**重置为初始态**（NT-038）：debug = 重新复制 default 的 config；release = 清空。⛔ 不能重置 default 或当前配置。</summary>
+    [RelayCommand]
+    private async Task ResetAsync()
+    {
+        if (_profiles == null) return;
+        if (Selected == null) { StatusText = "先在列表里选中一个配置。"; return; }
+
+        var name = Selected.Name;
+        var ok = await DialogHooks.ConfirmAsync(
+            $"把配置「{name}」重置为初始态？\n\n" +
+            "会清空它的 config / data / logs（debug 会重新复制当前 default 的配置）。\n" +
+            "此操作不可撤销；不能重置 default 或当前正在使用的配置。");
+        if (!ok) return;
+
+        try
+        {
+            _profiles.ResetToInitial(name);
+            StatusText = $"已重置配置：{name}";
+            Refresh();
+        }
+        catch (Exception ex) { StatusText = "重置失败：" + ex.Message; }
+    }
+
     [RelayCommand]
     private async Task SwitchAsync()
     {

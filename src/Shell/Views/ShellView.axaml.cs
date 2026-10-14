@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using NewToys.Shared.Services;
+using NewToys.Shell.Models;
 using NewToys.Shell.Services;
 using NewToys.Shell.ViewModels;
 
@@ -46,6 +47,9 @@ public partial class ShellView : Window
 
         _bounds = App.GetService<WindowBoundsService>();
         RestoreWindowBounds();
+        // ⛔ NT-034 的圆角开关**不在这里调**：它靠「属性 Changed」下发，且要求 PlatformImpl 已就绪；
+        //    构造期调一次若没下发成功，OnOpened 再设同一个值就不会再触发 Changed（值没变）→ 永久失效。
+        //    统一放到 OnOpened（句柄已稳）。
     }
 
     /// <summary>
@@ -77,6 +81,10 @@ public partial class ShellView : Window
         // v3.29：句柄到这一刻才稳 → 在这里装窗口过程钩子（贴靠缝隙的根治）
         InstallSnapFrameFix();
 
+        // NT-034：关闭 DWM 圆角（Win11 顶部两个圆角 → 最大化 / 分屏时露缝）
+        ApplyCornerPreference();
+        ApplyNoRoundCorners();
+
         if (_pendingFrame is { } frame) ApplyWindowFrame(frame);
         _pendingFrame = null;
     }
@@ -105,9 +113,17 @@ public partial class ShellView : Window
     {
         base.OnDataContextChanged(e);
 
-        if (_vm != null) _vm.PropertyChanged -= OnVmPropertyChanged;
+        if (_vm != null)
+        {
+            _vm.PropertyChanged -= OnVmPropertyChanged;
+            _vm.TreeNodeExpanded -= OnTreeNodeExpanded;
+        }
         _vm = DataContext as ShellViewModel;
-        if (_vm != null) _vm.PropertyChanged += OnVmPropertyChanged;
+        if (_vm != null)
+        {
+            _vm.PropertyChanged += OnVmPropertyChanged;
+            _vm.TreeNodeExpanded += OnTreeNodeExpanded;   // NT-037：展开一级分组后把整组滚入视野
+        }
     }
 
     protected override void OnLoaded(RoutedEventArgs e)
@@ -156,6 +172,22 @@ public partial class ShellView : Window
 
         // 延后到本帧布局跑完再滚 —— 否则容器可能还没生成 / 尺寸还没定，BringIntoView 会算错。
         Dispatcher.UIThread.Post(ScrollActiveTabIntoView, DispatcherPriority.Background);
+    }
+
+    /// <summary>
+    /// NT-037：一级分组展开后，把**整组（分组头 + 子项）**滚入视野 ——
+    /// 否则靠底部的分组展开后，子项被左树 ScrollViewer 裁掉、看不见。
+    /// 收起时不触发（只在展开时滚）；延后到本帧布局跑完，容器才存在、尺寸才定。
+    /// </summary>
+    private void OnTreeNodeExpanded(object? sender, TreeMenuItem node)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            var idx = _vm?.TreeNodes.IndexOf(node) ?? -1;
+            if (idx < 0) return;
+            if (TreeControl.ContainerFromIndex(idx) is Control container)
+                container.BringIntoView();
+        }, DispatcherPriority.Background);
     }
 
     /// <summary>
@@ -349,6 +381,165 @@ public partial class ShellView : Window
         catch { /* 补样式失败就维持现状（只是没有系统贴靠，手动拖拽缩放仍可用） */ }
     }
 
+    // ==================== DWM 圆角（NT-034，需求 §4.1） ====================
+
+    /// <summary>
+    /// NT-034：走 Avalonia 官方圆角开关（<c>Win32Properties.WindowCornerPreference</c>）。
+    /// <para>
+    /// 🔴 **版本事实**（2026-10-14 用本地 <c>avalonia.win32\12.1.3</c> 二进制核实，⛔ 别再照抄旧源码结论）：
+    /// 12.1.3 **没有** <c>HintsToCornerPreference</c> / <c>_cornerHints</c> / <c>SetWindowCornerHints</c>
+    /// （那是旧提交 b9548146 的实现，会把「无 hint」默认成 <c>DWMWCP_ROUND</c>）；
+    /// 12.1.3 只有 <c>UpdateWindowCornerPreference</c> + <c>SetWindowCornerPreference</c>，
+    /// 默认 = <c>Default(0)</c>（让系统决定 = Win11 圆角）。
+    /// ⇒ 「Avalonia 每次 ShowWindow 把 DONOTROUND 覆盖成 ROUND、所以要压帧」**在本版本不成立**（压帧那两轮本就无效）。
+    /// </para>
+    /// <para>
+    /// 仍然走官方开关的理由：它是 Avalonia 自己认可的下发通道（写进 WindowImpl 的偏好字段），
+    /// 比我们单方面 P/Invoke 更不容易被后续重算抹掉。真正的存疑点是「下发是否成功 / DWM 是否重算」，
+    /// 见 <see cref="ApplyNoRoundCorners"/> 的 <c>SWP_FRAMECHANGED</c> 与 <see cref="ReassertWindowChrome"/>。
+    /// </para>
+    /// <para>
+    /// 🔴 两个调用纪律（来自 <c>Win32Properties.cs</c> 静态构造里的 <c>Changed.AddClassHandler</c>）：
+    /// ① 只在 **属性真的变化** 时下发 → ⛔ 别在构造期先调一次「占位」，否则 <c>OnOpened</c> 再设同值
+    ///    不再触发 Changed，就永远下发不出去；② 下发要求 <c>window.PlatformImpl</c> 已就绪
+    ///    （→ 所以放 <c>OnOpened</c>，不放构造函数）。
+    /// </para>
+    /// </summary>
+    private void ApplyCornerPreference()
+    {
+        try
+        {
+            // 内联 IsWindows()：CA1416 只认这种写法（规范「分析器坑」）
+            if (OperatingSystem.IsWindows())
+                Win32Properties.SetWindowCornerPreference(this, Win32Properties.WindowCornerPreference.DoNotRound);
+        }
+        catch { /* 非 Win32 平台 / API 缺失 → 退回到下面的手动 DwmSetWindowAttribute */ }
+    }
+
+    /// <summary>
+    /// 兜底：直接调 DWM 关圆角（Win11 顶部两个圆角）。
+    /// <para>⚠️ Win10 无圆角、该属性被忽略；失败一律吞掉。状态变化时 Avalonia 会重算 → 需重设（见 <see cref="OnPropertyChanged"/>）。</para>
+    /// </summary>
+    private void ApplyNoRoundCorners()
+    {
+        try
+        {
+            var h = TryGetPlatformHandle()?.Handle;
+            if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
+
+            SetCornerPreferenceNoRound(hwnd);
+
+            // NT-034：设完必须**让 DWM 重算非客户区**，否则典型症状就是"属性设进去了、画面没变"。
+            // 只重算边框（不动位置 / 尺寸 / 层级 / 焦点），对窗口状态无副作用。
+            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+
+            ApplySquareRegion(hwnd);   // NT-034 兜底：矩形窗口区域 → 强制方角
+        }
+        catch { /* 非 Win11 / 调用失败 → 维持系统默认（仅观感，不影响功能） */ }
+    }
+
+    /// <summary>
+    /// NT-034 兜底（硬手段）：给窗口套一个**矩形窗口区域**（<c>SetWindowRgn</c>）。
+    /// <para>
+    /// 🔴 为什么需要它：corner preference 在本窗口上试了 5 轮都没稳定生效（普通窗 / 分屏仍圆角；
+    /// 而「最大化没圆角」是 Win11 的固有行为，⛔ 不能算我们的功劳）。
+    /// MS 文档《应用圆角》明确：**使用了「窗口区域」的应用，系统不会对其应用圆角** →
+    /// 这是绕过 DWM 偏好的硬手段，不依赖 DWM 是否尊重我们。
+    /// </para>
+    /// <para>
+    /// ⚠️ 最大化 / 全屏**必须清掉 region**（传 NULL）—— 否则矩形区域会跟最大化几何打架（露边 / 裁内容）。
+    /// ⚠️ 代价：DWM 窗口阴影会一起消失（矩形区域窗口没有圆角也就没有圆角阴影）。
+    /// </para>
+    /// </summary>
+    private static void ApplySquareRegion(IntPtr hwnd)
+    {
+        try
+        {
+            if (hwnd == IntPtr.Zero) return;
+
+            if (IsWindowMaximized(hwnd))
+            {
+                SetWindowRgn(hwnd, IntPtr.Zero, true);
+                return;
+            }
+
+            if (!GetWindowRect(hwnd, out var r)) return;
+            var w = r.Right - r.Left;
+            var h = r.Bottom - r.Top;
+            if (w <= 0 || h <= 0) return;
+
+            var rgn = CreateRectRgn(0, 0, w, h);
+            if (rgn == IntPtr.Zero) return;
+            SetWindowRgn(hwnd, rgn, true);
+            DeleteObject(rgn);      // 系统已复制该区域 → 原对象可以删
+        }
+        catch { /* 设区域失败就退回系统默认外观 */ }
+    }
+
+    [DllImport("gdi32.dll", SetLastError = false)]
+    private static extern IntPtr CreateRectRgn(int x1, int y1, int x2, int y2);
+
+    [DllImport("user32.dll", SetLastError = false)]
+    private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
+
+    [DllImport("gdi32.dll", SetLastError = false)]
+    private static extern bool DeleteObject(IntPtr hObject);
+
+    /// <summary>
+    /// 只写 DWM 圆角属性（**不发任何消息**）。
+    /// <para>
+    /// 🔴 为什么单独拆出来：Avalonia 12.1.3 的 <c>ShowWindow</c> → <c>ExtendClientArea()</c> →
+    /// <c>UpdateWindowCornerPreference()</c> 会**重算并回写**圆角偏好，把我们设的 DONOTROUND 冲掉
+    /// （窗口状态变化 / 全屏 / 贴靠都会触发）→ 必须在**它处理完之后**再压一次（见 <see cref="SnapFrameWndProc"/>）。
+    /// ⛔ 从窗口过程里调的这个版本**绝不能带 SWP_FRAMECHANGED**：消息处理中再发消息会递归。
+    /// </para>
+    /// </summary>
+    private static void SetCornerPreferenceNoRound(IntPtr hwnd)
+    {
+        try
+        {
+            if (hwnd == IntPtr.Zero) return;
+            int pref = DWMWCP_DONOTROUND;
+            DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
+        }
+        catch { /* 非 Win11 / 调用失败 → 维持系统默认 */ }
+    }
+
+    /// <summary>窗口过程里同步窗口外框的**重入闸门**（<see cref="ReassertWindowChrome"/>）。</summary>
+    private static bool _inChromeSync;
+
+    /// <summary>
+    /// 窗口尺寸 / 位置 / 样式变化后，把「方角」相关的两件事重做一遍：DWM 圆角偏好 + 矩形窗口区域。
+    /// <para>🔴 重入防护：这两个调用本身都可能再触发同类消息 → 没有闸门会无限递归。</para>
+    /// </summary>
+    private static void ReassertWindowChrome(IntPtr hwnd)
+    {
+        if (_inChromeSync) return;
+        _inChromeSync = true;
+        try
+        {
+            SetCornerPreferenceNoRound(hwnd);
+            ApplySquareRegion(hwnd);
+        }
+        catch { /* 同步失败不影响现有外观 */ }
+        finally { _inChromeSync = false; }
+    }
+
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    /// <summary>⚠️ 枚举值抄自 dwmapi.h：DEFAULT=0 / **DONOTROUND=1** / ROUND=2 / ROUNDSMALL=3。
+    /// 写反（用 2）= 变成"强制圆角"，反而制造圆角 —— 2026-10-14 实测踩过。</summary>
+    private const int DWMWCP_DONOTROUND = 1;
+
+    [DllImport("dwmapi.dll", SetLastError = false)]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
+    // 🔴 NT-034 排查期曾在此处挂过一段诊断（读回 DWM 圆角值 + 写 corner-probe.txt）——
+    //    2026-10-14 验证通过后已删除。两条结论留档，⛔ 以后再排查别再走这两条死路：
+    //    ① 输出到 `Window.Title` 无效：本窗口无边框自绘，标题栏是自己画的 Grid，根本不显示 Title；
+    //    ② `DwmGetWindowAttribute` **不支持读** `DWMWA_WINDOW_CORNER_PREFERENCE`(33)（该属性只用于 Set）
+    //       → 永远读到失败值，不能当"下发是否成功"的判据。
+
     /// <summary>
     /// v3.29 贴靠缝隙的**根治**：接管窗口过程，在 <c>WM_NCCALCSIZE</c> 上把 Avalonia 的回答
     /// 「客户区 = 外框 − 边框」改回「客户区 = 整个外框」。
@@ -407,7 +598,16 @@ public partial class ShellView : Window
             return IntPtr.Zero;      // 返回 0 = 已处理，系统拿 rgrc[0] 当客户区
         }
 
-        return CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
+        var result = CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
+
+        // NT-034：**Avalonia 处理完之后**再压一次 DONOTROUND ——
+        // 它会在 ShowWindow → ExtendClientArea → UpdateWindowCornerPreference 里把偏好回写成 Default，
+        // 窗口状态变化 / 全屏 / 贴靠都会触发。先转发、后压，顺序不能反。
+        // ⛔ 这里只能用「只设属性」的版本（SetCornerPreferenceNoRound），带 SWP_FRAMECHANGED 会递归。
+        if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE || msg == WM_STYLECHANGED || msg == WM_SHOWWINDOW)
+            ReassertWindowChrome(hWnd);
+
+        return result;
     }
 
     private static bool IsWindowMaximized(IntPtr hwnd)
@@ -450,6 +650,10 @@ public partial class ShellView : Window
 
     private const int GWLP_WNDPROC = -4;
     private const uint WM_NCCALCSIZE = 0x0083;
+    private const uint WM_SIZE = 0x0005;
+    private const uint WM_SHOWWINDOW = 0x0018;
+    private const uint WM_WINDOWPOSCHANGED = 0x0047;
+    private const uint WM_STYLECHANGED = 0x007D;
     private const int SW_SHOWMAXIMIZED = 3;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -541,6 +745,7 @@ public partial class ShellView : Window
             UpdateMaxIcon();
             UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
             ApplySnapEligibleStyles();   // v3.28：状态变化时 Avalonia 会重算样式 → 把贴靠资格位补回去
+            ApplyNoRoundCorners();       // NT-034：状态变化时也重设 DWM 圆角偏好（防被重算抹掉）
         }
     }
 

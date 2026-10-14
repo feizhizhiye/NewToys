@@ -52,4 +52,13 @@ public interface IProfileService
 
     /// <summary>以指定配置**新开一个实例**（不退出当前窗口；同一配置已被单例互斥挡住时会提示）。</summary>
     void LaunchNewInstance(string profile);
+
+    /// <summary>内置配置档名（v3.37，需求 §3.5）：debug / default / release，随程序内置、永久驻留。</summary>
+    IReadOnlyList<string> BuiltInProfiles { get; }
+
+    /// <summary>播种内置三档（v3.37）：只增不覆盖；debug = 复制 default 的 config；release = 干净初始态。启动时调一次。</summary>
+    void EnsureBuiltInProfiles();
+
+    /// <summary>把内置档重置为初始态（v3.37）：debug 重置为「default 的 config 副本」、release 清空。⛔ 拒绝 default 与当前活动档。</summary>
+    void ResetToInitial(string name);
 }

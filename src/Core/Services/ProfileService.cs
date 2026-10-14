@@ -57,6 +57,24 @@ public class ProfileService : IProfileService
         Directory.CreateDirectory(_cfg.GetProfileDirectory(name));
     }
 
+    // ==================== 内置配置档（NT-038，需求 §3.5） ====================
+
+    public IReadOnlyList<string> BuiltInProfiles => ConfigStoreService.BuiltInProfiles;
+
+    public void EnsureBuiltInProfiles() => _cfg.EnsureBuiltInProfiles();
+
+    /// <summary>
+    /// 把内置档（debug / release）重置为初始态：debug = 复制 default 的 config；release = 清空。
+    /// ⛔ 拒绝 default（真实数据）与当前活动档（本实例在用）；具体校验在 <see cref="ConfigStoreService.ResetBuiltInProfile"/>。
+    /// </summary>
+    public void ResetToInitial(string name)
+    {
+        if (!IsValidName(name)) throw new ArgumentException("非法的配置名", nameof(name));
+        if (!_cfg.ListProfiles().Any(p => string.Equals(p, name, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"配置不存在：{name}");
+        _cfg.ResetBuiltInProfile(name);
+    }
+
     public void Rename(string oldName, string newName)
     {
         if (!IsValidName(newName)) throw new ArgumentException("非法的配置名", nameof(newName));

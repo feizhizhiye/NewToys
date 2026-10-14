@@ -76,12 +76,13 @@
                           （ContentPresenter 自身不渲染 Background；这正是"关闭按钮 hover 背景不变色"的根因）。  -->
                     <Border Background="{TemplateBinding Background}"
                             CornerRadius="{TemplateBinding CornerRadius}">
-                        <!--  🔴 NT-045 **根因修复**（解释 v3.22「Path 在裸主题里渲染不出来」）：
-                             ⛔ 不要把 Button 的 `HorizontalContentAlignment` 绑到 ContentPresenter **自身**的
-                                `HorizontalAlignment` —— 那样 Presenter 不再撑满，改用**无限约束**测量内容，
-                                而 `Path`（`Stretch=Uniform`）在 ∞ 约束下会算出 NaN 尺寸 → **图标整个不渲染**
-                                （不报错、直接消失；`TextBlock` / `Rectangle` 不受影响，当年只怀疑主题）。
-                             ✅ 改成与 Fluent 模板一致的写法：Presenter 自身撑满，对齐交给 ContentAlignment 属性。  -->
+                        <!--  ⚠️ NT-045：这里的写法**按推断**改造，目的是让裸主题里也能渲染 `Path`（未实机验证）：
+                             旧写法把 Button 的 `HorizontalContentAlignment` 绑到 ContentPresenter **自身**的
+                             `HorizontalAlignment` → Presenter 不再撑满、改用**无限约束**测量内容，
+                             推断 `Path`（`Stretch=Uniform`）在 ∞ 约束下会算出 NaN 尺寸 → 图标整个不渲染
+                             （能解释 v3.22「TextBlock / Rectangle 正常、唯独 Path 消失」，但无实机复现证据）。
+                             ✅ 现改成与 Fluent 模板一致的写法：Presenter 自身撑满，对齐交给 ContentAlignment 属性。
+                             🔴 兜底：若图标仍不显示 → 窗口按钮 / 标签 ✕ 的 `Path` 改 `Stretch="None"`，或退回图标字体方案。  -->
                         <ContentPresenter
                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                             VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
@@ -433,8 +434,8 @@
         </Style>
         <!--  NT-045：窗口按钮图标改**矢量 `Path`**（原先用 `Rectangle` / `Border` / 图标字体三种混用）。
               🔴 `Path` **不继承 Foreground** → 必须显式给 Stroke；⛔ 仍不写本地值（本地值会压过关闭的悬停态）。
-              ⚠️「Path 在裸主题里渲染不出来」的旧结论已定位并修掉（见 `BareButtonTheme` 内的根因注释）：
-                 真因是模板把 ContentAlignment 绑到了 Presenter 自身对齐 → ∞ 约束下 `Stretch=Uniform` 算出 NaN。  -->
+              ⚠️「Path 在裸主题里渲染不出来」的旧结论已按**推断**改造模板（见 `BareButtonTheme` 内注释），
+                 并有兜底（改 `Stretch="None"` 或退回图标字体）—— 本地验证时优先看这几个图标。  -->
         <Style Selector="Button.win-btn Path">
             <Setter Property="Stroke" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="StrokeThickness" Value="1.5"/>

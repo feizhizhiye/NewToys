@@ -311,14 +311,15 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 1. **`MenuItem` 用 `ItemsSource` 生成子菜单时，`ItemContainerTheme` 必须写 `BasedOn="{StaticResource {x:Type MenuItem}}"`** —— 不写就是一份**没有模板**的全新 ControlTheme，子项画不出来 → 表现为「点了不弹出子菜单」。全仓 11 处筛选子菜单都犯过这个错。
 2. **给控件覆写 `:pointerover` 等伪类样式，若被 Fluent 主题盖掉（实测表现为"图标还是白的、背景还在"），就改用**后代选择器**提优先级**：`Border.tab-item Button.tab-close:pointerover` 能压过主题的 `Button:pointerover`。
 3. 🔴 **后代选择器也压不住时（Fluent 的 `Button` 会在模板状态里自己画背景 + 改前景），就换"裸控件主题"**：`App.axaml` 的 `BareButtonTheme`（只有 `ContentPresenter`，零状态绘制）→ 控件上写 `Theme="{StaticResource BareButtonTheme}"`。标签页关闭 ✕ 就是这样才真正做到"透明底 + 红图标"。**以后凡是要完全自绘的小按钮，一律套它。**
-4. 🔴 **「裸主题里 `Path` 渲染不出来」是**∞ 约束**问题，NT-045 已定位并修掉**（旧结论见下方历史）：
-   `BareButtonTheme` 原模板把 Button 的 `HorizontalContentAlignment` 绑到 `ContentPresenter` **自身**的 `HorizontalAlignment`
-   → Presenter 不再撑满、改用**无限约束**测量内容 → `Path`（`Stretch=Uniform`）在 ∞ 下算出 NaN 尺寸 → 图标整个不渲染
-   （`TextBlock` / `Rectangle` 不受影响，所以 v3.22 误判成"主题问题"）。
-   ✅ 修法 = 与 Fluent 模板对齐：Presenter 自身撑满，对齐交给 `HorizontalContentAlignment` / `VerticalContentAlignment` 属性。
-   ⇒ **裸主题里同样可以放心用 `Path`**（窗口按钮、标签关闭 ✕ 都已改回矢量）。
-   ⚠️ 历史留档：v3.22~NT-044 期间该位曾用 `TextBlock` + 系统图标字体 `Segoe MDL2 Assets` 字形规避（`U+E921/E922/E923/E8BB/E740/E73F`）；
-   NT-045 起**图标字体已全部弃用**，见下条「框架层图标统一口径」。
+4. 🔴 **「裸主题里 `Path` 渲染不出来」（v3.22 旧结论）NT-045 按**推断**处理 —— 真因未实机验证，但已改成与 Fluent 等价的模板 + 留了兜底**：
+   - 推断：原模板把 Button 的 `HorizontalContentAlignment` 绑到 `ContentPresenter` **自身**的 `HorizontalAlignment`
+     → Presenter 不再撑满、改用**无限约束**测量内容 → `Path`（`Stretch=Uniform`）在 ∞ 约束下算出 NaN 尺寸 → 图标整个不渲染
+     （能解释「`TextBlock` / `Rectangle` 正常、唯独 `Path` 消失」，但**尚未实机复现验证**）。
+   - 改法（低风险，与 Fluent 模板对齐）：Presenter 自身撑满，对齐交给 `HorizontalContentAlignment` / `VerticalContentAlignment` 属性。
+   - 🔴 **兜底**：若窗口按钮 / 标签 ✕ 图标仍不显示 → 把那几个 `Path` 的 `Stretch="Uniform"` 改成 `Stretch="None"`
+     （几何已按 24×24 网格就地可读，显式 `Width`/`Height` 已给），再不行就回到 NT-044 的 `TextBlock` + `Segoe MDL2 Assets` 方案并登记技术债。
+   - ⚠️ 历史留档：v3.22~NT-044 期间该位曾用 `TextBlock` + 系统图标字体 `Segoe MDL2 Assets` 字形规避（`U+E921/E922/E923/E8BB/E740/E73F`）；
+     NT-045 起**图标字体已全部弃用**，见下条「框架层图标统一口径」。
 5. 🔴 **框架层图标统一口径（NT-045 起，C 方案 —— 整个 Shell 只用一种载体）**：`Path` + `App.axaml` 的 `Icon*` `StreamGeometry` 键。
    - 几何**一律 24×24 网格**（与 Lucide / Feather 同网格，摘公开图标集路径数据不用换算）。
    - 使用方式固定：`<Path Data="{StaticResource IconXxx}" Width="16" Height="16" Stretch="Uniform"/>`；

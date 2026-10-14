@@ -3,7 +3,7 @@
 个人高强度使用工具集。**Avalonia 12 + .NET 10** 版本。
 
 > 技术栈：**Avalonia 12 + .NET 10**（不是 WPF，XAML 语法有差异）。
-> 全部约定见 `src/docs/` 下 3 份文档，速查表在 `src/docs/NewToys-工程规范.md` **第 0.5 章**。
+> 全部约定见 `src/docs/` 下 **4 份**文档（需求规格 / 工程规范 / 项目状态与路线图 / AI协作手册）；**任务型 → 规范章节速查表**见 `AGENTS.md`。
 
 ## 目录地图
 
@@ -13,7 +13,7 @@ NewToys/
 ├── scripts/              构建 / 环境 / 发布 / 打包脚本
 ├── artifacts/            产物区（忽略）：bin\ release\ env\ context\
 ├── production/           publish.ps1 的输出目标（忽略）
-└── src/docs/             3 份规范文档（宪法）
+└── src/docs/             4 份规范文档（宪法）
 ```
 
 ## 常用命令（PowerShell 7 / pwsh）

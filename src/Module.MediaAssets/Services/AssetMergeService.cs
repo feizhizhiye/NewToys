@@ -159,7 +159,7 @@ public class AssetMergeService
             var assetMap = MergeAssets(conn, tx, have, progress, ct, out var newAssets);
 
             // file_locations：asset_id 重映射 + 去重（storage+relative_path / hash+size）
-            var (newLocations, skipped) = MergeLocations(conn, tx, have, storageMap, assetMap, progress);
+            var (newLocations, skipped) = MergeLocations(conn, tx, have, storageMap, assetMap, progress, ct);
 
             // tags / categories / collections：按名字去重
             var tagMap = MergeByName(conn, tx, have, "tags", "namespace", "name", progress);
@@ -361,7 +361,7 @@ public class AssetMergeService
     /// <summary>file_locations：asset_id 重映射 + 去重（storage+relative_path 或 hash+size 已存在 → 跳过）。</summary>
     private (int NewLocations, int Skipped) MergeLocations(SqliteConnection conn, SqliteTransaction tx, HashSet<string> have,
                                                            Dictionary<long, long> storageMap, Dictionary<long, long> assetMap,
-                                                           IProgress<string>? progress)
+                                                           IProgress<string>? progress, CancellationToken ct)
     {
         if (!have.Contains("file_locations")) return (0, 0);
         progress?.Report("正在合并文件位置…");

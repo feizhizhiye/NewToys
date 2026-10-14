@@ -306,7 +306,7 @@ public class FileOperationService
                         else failed++;
                     }
                     _assets.DeleteAsset(id);
-                    _opLog.Log("purge", "asset", id, afterJson: $"{{\"expired\":true,\"name\":\"{name}\"}}");
+                    _log.Log("purge", "asset", id, afterJson: $"{{\"expired\":true,\"name\":\"{name}\"}}");
                 }
                 p.Report($"完成：删除 {done} 个文件，失败 {failed} 个");
             }, ct).ConfigureAwait(false);

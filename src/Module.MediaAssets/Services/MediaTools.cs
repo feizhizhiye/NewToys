@@ -75,7 +75,7 @@ internal static class MediaTools
             TryKill(proc);
             return (-2, "", ct.IsCancellationRequested ? "已取消。" : $"{exe} 执行超时，已中止。");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             TryKill(proc);
             return (-1, "", $"{exe} 无法启动（可在「设置 → 路径配置」里指定 ffmpeg 路径）");

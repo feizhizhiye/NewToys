@@ -30,10 +30,10 @@ public sealed class ChoiceOption
 /// </summary>
 public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusProvider
 {
-    private readonly MediaAssetsSettingsIO _io;
-    private readonly ScanService _scan;
-    private readonly FileOperationService _fileOps;
-    private readonly UserDataExport _userData;
+    private readonly MediaAssetsSettingsIO _io = null!;
+    private readonly ScanService _scan = null!;
+    private readonly FileOperationService _fileOps = null!;
+    private readonly UserDataExport _userData = null!;
     private readonly IAppConfigService? _app;
 
     /// <summary>批量灌值时抑制"改属性 → 回写设置"（防递归 + 无谓写盘）。</summary>

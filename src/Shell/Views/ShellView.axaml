@@ -191,8 +191,11 @@
                     Orientation="Horizontal"
                     chrome:WindowDecorationProperties.ElementRole="User">
                     <!--  NT-044：全屏按钮（⛶）—— 位置在最小化左边。
-                          ⚠️ 图标同样**只能用 Border**（⛔ 不用 Path：BareButtonTheme 里渲染不出来，见上方注释；
-                             也不用 TextBlock ⛶：U+26F6 在 Segoe UI 下可能是豆腐块）。
+                          🔴 图标 = **Windows / WinUI 官方那套**（`Segoe MDL2 Assets`）：
+                             `U+E740` = FullScreen（进入）、`U+E73F` = BackToWindow（退出），与 WinUI `Symbol` 枚举一致。
+                             ⛔ 不用 `Path` 画（BareButtonTheme 里渲染不出来，见上方注释）；
+                             字体用**系统自带**图标字体（Win10/11 均有 `segmdl2.ttf`），⛔ 非第三方图标库。
+                             `FontFamily` 写了回退链，缺字体时退 `Segoe UI Symbol`。
                           ⚠️ **不单设** `ElementRole="FullScreenButton"` —— 切换一律由 code-behind 的 Click 处理；
                              父 StackPanel 已标 `User`（点击照常放行）。若框架也自动切一次，就会和我们重复触发。  -->
                     <Button
@@ -207,74 +210,23 @@
                             Height="16"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">
-                            <!--  进入全屏：四角**朝外**的括弧  -->
-                            <Grid x:Name="FullScreenIcon">
-                                <Border
-                                    Width="6"
-                                    Height="6"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="1.4,1.4,0,0" />
-                                <Border
-                                    Width="6"
-                                    Height="6"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="1.4,0,0,1.4" />
-                                <Border
-                                    Width="6"
-                                    Height="6"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Bottom"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="0,0,1.4,1.4" />
-                                <Border
-                                    Width="6"
-                                    Height="6"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Bottom"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="0,1.4,1.4,0" />
-                            </Grid>
-                            <!--  退出全屏：四角**朝内**的括弧（整体内缩到 10×10 → 尖角朝向中心）  -->
-                            <Grid
+                            <!--  进入全屏：U+E740（Segoe MDL2 Assets · FullScreen）  -->
+                            <TextBlock
+                                x:Name="FullScreenIcon"
+                                Text="&#xE740;"
+                                FontSize="16"
+                                FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                            <!--  退出全屏：U+E73F（BackToWindow）  -->
+                            <TextBlock
                                 x:Name="ExitFullScreenIcon"
-                                Width="10"
-                                Height="10"
+                                Text="&#xE73F;"
+                                FontSize="16"
+                                FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
                                 IsVisible="False"
                                 HorizontalAlignment="Center"
-                                VerticalAlignment="Center">
-                                <Border
-                                    Width="6"
-                                    Height="6"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="0,0,1.4,1.4" />
-                                <Border
-                                    Width="6"
-                                    Height="6"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="0,1.4,1.4,0" />
-                                <Border
-                                    Width="6"
-                                    Height="6"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Bottom"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="1.4,0,0,1.4" />
-                                <Border
-                                    Width="6"
-                                    Height="6"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Bottom"
-                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
-                                    BorderThickness="1.4,1.4,0,0" />
-                            </Grid>
+                                VerticalAlignment="Center" />
                         </Grid>
                     </Button>
                     <Button

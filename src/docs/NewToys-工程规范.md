@@ -327,7 +327,11 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
    - 几何**一律 24×24 网格**（与 Lucide / Feather 同网格，摘公开图标集路径数据不用换算）。
    - 🔴 **几何必须有非零宽高**（NT-046 实机踩坑）：`Stretch="Uniform"` 靠 2D 包围盒算等比缩放，
      **零高度 / 零宽度**的几何会退化成一个点（最小化图标原写作 `M4,12 H20` 就是这样变成"一个点"的）。
-     要画「一根线」用**闭合细矩形**（范例：`IconWinMinimize` = `M4,11.5 H20 V12.5 H4 Z`）。
+   - 🔴 **等比缩放还会把"扁几何"贴到方框顶部**（NT-046 第二坑）：包围盒只有 1~2 单位高的几何（横杠）用 `Stretch="Uniform"`
+     时缩放后**顶边对齐方框顶边** → 图标偏上（实机偏上约 7px）。
+     ⇒ **唯一的例外**：`IconWinMinimize`（横杠）几何写在 **16×16 控件坐标**里（`M2,8 H14`，`y=8` 居中），
+     用法是 `<Path Width="16" Height="16" Stretch="None" …/>` —— 不做缩放、坐标即像素，居中由数据本身保证。
+     ⛔ 其余图标仍一律 24×24 网格 + `Stretch="Uniform"`。
    - 使用方式固定：`<Path Data="{StaticResource IconXxx}" Width="16" Height="16" Stretch="Uniform"/>`；
      粗细 / 端帽 / 拐角 / 颜色**全由各自按钮的后代选择器样式给**（`Button.title-btn Path` / `Button.win-btn Path` /
      `Button.tab-new Path` / `Button.tab-close Path` / `Button.tree-row Path`）→ XAML 里只留 `Data` + 尺寸，⛔ 不逐处写描边。

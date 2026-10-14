@@ -20,8 +20,10 @@ namespace NewToys.Shell.Views;
 /// ① 关闭拦截（「关闭到托盘」）；② 窗口按钮；③ 标题栏拖拽 + 双击最大化；
 /// ④ 标签页区域滚轮切换标签；⑤ 切换后把当前标签**滚进视野**（v3.6）；
 /// ⑥ 窗口缩放抓取区 + 大小 / 位置记忆（v3.26）；
-/// ⑦ 贴靠缝隙根治（v3.29，接管 <c>WM_NCCALCSIZE</c>）+ DWM 圆角压制（NT-034）
-/// —— v3.28 那套「手工补 <c>WS_CAPTION</c> 换贴靠资格」已在 NT-041 删除：官方 <c>Full</c> 装饰自带这些样式位；
+/// ⑦ DWM 圆角 / 矩形区域压制（NT-034 三保险）+ 零内缩（消灭 ≈8px 非客户区边框）+ 接管窗口过程做「转发后置」压制
+/// —— 贴靠资格由官方 `WindowDecorations="Full"` 自带（手工补 `WS_CAPTION` 的 `ApplySnapEligibleStyles` 已删，NT-041）；
+/// —— `WM_NCCALCSIZE` 零内缩是**Windows 独有的例外**（钩子只在 Windows 装得上，Linux 自然不走）；
+/// —— 🔴 2026-10-15 定案：**官方 CSD 路线 + 这一处零内缩**（跨平台只有官方 CSD 能对接，需求 §4.1.1）。
 /// ⑧ 全屏按钮 + <c>F11</c> / <c>Esc</c>（NT-044）。
 /// </para>
 /// </summary>
@@ -103,22 +105,7 @@ public partial class ShellView : Window
         if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
         SetWindowPos(hwnd, IntPtr.Zero, frame.X, frame.Y, frame.Width, frame.Height,
                      SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
-
-        // NT-048 第二轮：把「我们要求的矩形」钉成校正基准，并**锁 300ms 不许 WM_WINDOWPOSCHANGING 覆盖** ——
-        // 否则 Avalonia 随后的回写会顺便把基准也顶偏（基准 == 偏后的实际值 → 判不出偏差）。
-        _wantedFrame = new RECT
-        {
-            Left = frame.X,
-            Top = frame.Y,
-            Right = frame.X + frame.Width,
-            Bottom = frame.Y + frame.Height
-        };
-        _wantedFrameValid = true;
-        _frameLockUntil = Environment.TickCount64 + 300;
     }
-
-    /// <summary>NT-048 第二轮：<see cref="ApplyWindowFrame"/> 之后，基准矩形的锁定时长（ms）。</summary>
-    private static long _frameLockUntil;
 
     private static bool CloseToTrayEnabled()
     {
@@ -303,7 +290,7 @@ public partial class ShellView : Window
             if (b == null) return;
 
             // ⚠️ v3.29：window.json 存的是**外框物理像素**（⛔ 不是 DIP、也不是客户区）。
-            //    见 SaveWindowBounds 的注释：零内缩之后「客户区 == 外框」，再按客户区存取会一次比一次大。
+            //    见 SaveWindowBounds 的注释：一律按外框存取，避免 Avalonia 的「外框 = 客户区 + 边框」换算把窗口撑大。
             var scale = RenderScaling > 0 ? RenderScaling : 1;
             var minW = (int)Math.Ceiling(MinWidth * scale);
             var minH = (int)Math.Ceiling(MinHeight * scale);
@@ -354,10 +341,10 @@ public partial class ShellView : Window
             var h = TryGetPlatformHandle()?.Handle;
             if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
 
-            // 🔴 v3.29：**存外框物理像素**（⛔ 不再存 ClientSize）。
-            //    零内缩之后客户区 == 外框，而 Avalonia 的 Resize() 仍按「外框 = 客户区 + 边框」申请 →
-            //    若继续存客户区，恢复时会被再加一圈边框，**窗口每次启动都变大一圈**（实测 16px）。
-            //    存外框 + 用 SetWindowPos 直接设外框 = 绕开 Avalonia 那层换算，闭环稳定。
+            // 🔴 v3.29：**存外框物理像素**（⛔ 不存 ClientSize）。恢复一律用 `SetWindowPos` 直接设外框
+            //    = 绕开 Avalonia「外框 = 客户区 + 边框」那层换算，存取同一坐标系 → 闭环稳定。
+            //    （早期存客户区时恢复会被再加一圈边框 → **窗口每次启动变大一圈**，实测 16px。客户区内外缩与
+            //      存取口径无关：官方 CSD 下客户区被内缩，但这里进出的都是**外框**，仍然自洽。）
             //
             // ⚠️ 最大化时要存「还原后的矩形」（rcNormalPosition），
             //    否则存下来的是比屏幕还大一圈的最大化外框，下次还原会偏。
@@ -519,193 +506,6 @@ public partial class ShellView : Window
         catch { /* 设区域失败就退回系统默认外观 */ }
     }
 
-    /// <summary>
-    /// NT-048：**只摘不套** —— 临时清掉矩形窗口区域。
-    /// <para>
-    /// 🔴 为什么需要它：贴靠（分屏）/ 缩放这类「尺寸即将变化」的场景，系统要在**转发之后**按窗口矩形重算几何；
-    /// 而此刻若还挂着一个按「变化前尺寸」建的矩形 region，系统会**沿用旧 region 的边界** →
-    /// **初次贴靠偏宽**（region 随后才被更新，所以「之后再贴就正常」）。
-    /// ⇒ 转发前先清掉，由随后的 <see cref="ReassertWindowChrome"/>（<c>WM_WINDOWPOSCHANGED</c>）按新尺寸重新套上。
-    /// </para>
-    /// </summary>
-    private static void ClearSquareRegion(IntPtr hwnd)
-    {
-        try
-        {
-            if (!UseSquareRegionHack) return;
-            if (hwnd == IntPtr.Zero) return;
-            SetWindowRgn(hwnd, IntPtr.Zero, true);
-        }
-        catch { /* 清不掉就退回系统默认外观 */ }
-    }
-
-    /// <summary>NT-048 第二轮：系统**要求**的外框（抄自 <c>WM_WINDOWPOSCHANGING</c> 的 WINDOWPOS）。</summary>
-    private static RECT _wantedFrame;
-    private static bool _wantedFrameValid;
-
-    /// <summary><see cref="CorrectSnapFrame"/> 的重入闸门（它内部会再 <c>SetWindowPos</c>）。</summary>
-    private static bool _inSnapCorrection;
-
-    /// <summary>
-    /// 震荡闸门：500ms 内最多纠 3 次。
-    /// <para>🔴 必要性：纠偏本身是「我们改回去」，若 Avalonia 每次都回写，两边会无限拉锯（同步消息 → 递归）。</para>
-    /// </summary>
-    private static long _correctionWindowStart;
-    private static int _correctionBurst;
-
-    /// <summary>
-    /// NT-048 第二轮：**贴靠后几何自校正**（⛔ 不依赖任何"差多少 px"的经验值）。
-    /// <para>
-    /// 🔴 为什么换打法：第一轮假设「旧 region 参与贴靠几何」，实测**仍然首次不收敛** ⇒ 根因不在 region。
-    ///    留下的实证是「第一次偏一点 / 不行，之后就正常」= **某一方的期望尺寸在第一轮没对齐**：
-    ///    我们启动时用 <c>SetWindowPos</c> 直接设外框（绕开 Avalonia），而 Avalonia 在
-    ///    <c>WM_NCCALCSIZE</c> 里被我们改过答案（零内缩）→ 它记的窗口尺寸与实际外框有差；
-    ///    首次贴靠时它按自己那份记录回写一次 → 窗口脱离系统给的贴靠矩形；随后两边同步 ⇒ 之后正常。
-    /// </para>
-    /// <para>
-    /// ⇒ 不再猜差值，改为**以系统要求的矩形为准**：<c>WM_WINDOWPOSCHANGING</c> 抄下期望外框，
-    ///    <c>WM_WINDOWPOSCHANGED</c>（转发、Avalonia 处理完之后）比对实际外框，偏离就按期望值纠回。
-    ///    正常拖动 / 缩放 / 最大化时两者天然相等 → 本函数不动手，零副作用。
-    /// </para>
-    /// </summary>
-    private static void RememberWantedFrame(IntPtr hwnd, IntPtr lParam)
-    {
-        try
-        {
-            if (hwnd == IntPtr.Zero || lParam == IntPtr.Zero) return;
-            if (Environment.TickCount64 < _frameLockUntil) return;   // 基准刚被钉住 → 不许覆盖
-
-            // WINDOWPOS 布局：hwnd(1 ptr) / hwndInsertAfter(1 ptr) / x / y / cx / cy / flags —— 全是 int
-            var off = IntPtr.Size * 2;
-            var x = Marshal.ReadInt32(lParam, off);
-            var y = Marshal.ReadInt32(lParam, off + 4);
-            var cx = Marshal.ReadInt32(lParam, off + 8);
-            var cy = Marshal.ReadInt32(lParam, off + 12);
-            var flags = Marshal.ReadInt32(lParam, off + 16);
-
-            // NOMOVE / NOSIZE 时对应字段无效 → 用当前外框补齐，保证四个值都可比
-            if (((flags & (int)SWP_NOMOVE) != 0 || (flags & (int)SWP_NOSIZE) != 0) &&
-                GetWindowRect(hwnd, out var cur))
-            {
-                if ((flags & (int)SWP_NOMOVE) != 0) { x = cur.Left; y = cur.Top; }
-                if ((flags & (int)SWP_NOSIZE) != 0) { cx = cur.Right - cur.Left; cy = cur.Bottom - cur.Top; }
-            }
-
-            _wantedFrame = new RECT { Left = x, Top = y, Right = x + cx, Bottom = y + cy };
-            _wantedFrameValid = true;
-        }
-        catch { /* 抄不到就放弃本轮校正 */ }
-    }
-
-    /// <summary>比对实际外框与 <see cref="_wantedFrame"/>，偏离（≤64px，排除最大化 / 全屏这类状态切换）就纠回。</summary>
-    private static bool CorrectSnapFrame(IntPtr hwnd)
-    {
-        if (_inSnapCorrection || !_wantedFrameValid) return false;
-
-        var now = Environment.TickCount64;
-        if (now - _correctionWindowStart > 500) { _correctionWindowStart = now; _correctionBurst = 0; }
-        if (_correctionBurst >= 3) return false;      // 震荡保护：已纠 3 次还没收敛 → 放手
-
-        _inSnapCorrection = true;
-        try
-        {
-            if (hwnd == IntPtr.Zero) return false;
-            if (!GetWindowRect(hwnd, out var r)) return false;
-
-            var w = _wantedFrame;
-            var dx = r.Left - w.Left;
-            var dy = r.Top - w.Top;
-            var dw = (r.Right - r.Left) - (w.Right - w.Left);
-            var dh = (r.Bottom - r.Top) - (w.Bottom - w.Top);
-
-            // 已经对齐 → 什么都不做（正常拖动 / 缩放 / 最大化都走这条）
-            var aligned = Math.Abs(dx) <= 1 && Math.Abs(dy) <= 1 && Math.Abs(dw) <= 1 && Math.Abs(dh) <= 1;
-            // 差太大 = 状态切换（普通 ↔ 最大化 ↔ 全屏）造成的正常几何差 → ⛔ 别插手
-            var tooBig = Math.Abs(dw) > 64 || Math.Abs(dh) > 64;
-            if (!aligned && !tooBig)
-            {
-                _correctionBurst++;
-                SetWindowPos(hwnd, IntPtr.Zero, w.Left, w.Top, w.Right - w.Left, w.Bottom - w.Top,
-                             SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
-
-                // 尺寸被改回期望值 → 之前按「偏掉的尺寸」建的 region / 圆角偏好要重做
-                ReassertWindowChrome(hwnd);
-                return true;
-            }
-
-            // 🔴 兜底（方案 B）：若偏差是 Avalonia **自己再发一次 SetWindowPos** 造成的，
-            //    上面那份「期望」会被它一起带偏（期望 == 实际 → 判不出来）→ 改用**屏幕几何**自检：
-            //    「贴着左/右边缘 + 精确等于工作区高」只可能是贴靠态，宽度就该是某个标准贴靠宽度。
-            if (CorrectSnapGeometry(hwnd)) { _correctionBurst++; return true; }
-            return false;
-        }
-        catch { return false; /* 纠不回来就维持现状，不影响可用性 */ }
-        finally { _inSnapCorrection = false; }
-    }
-
-    /// <summary>
-    /// NT-048 第二轮·方案 B：按**屏幕几何**纠偏（⛔ 不依赖任何 Avalonia 内部状态）。
-    /// <para>
-    /// 判据（同时成立才动手，避免误伤手动布局）：① 非最大化 / 非全屏；② 高度精确等于工作区高；
-    /// ③ 左边缘或右边缘贴住工作区；④ 宽度**接近但不等于**某个标准贴靠宽度（半屏 / 1/3 / 2/3，容差 64px）。
-    /// 手动拖出来的窗口很难同时满足 ②③，即便满足、宽度也多半不在容差内 → 不会被执行。
-    /// </para>
-    /// </summary>
-    private static bool CorrectSnapGeometry(IntPtr hwnd)
-    {
-        if (hwnd == IntPtr.Zero) return false;
-        if (IsWindowMaximized(hwnd) || _isFullScreen) return false;
-        if (!GetWindowRect(hwnd, out var r)) return false;
-
-        var mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-        if (mon == IntPtr.Zero) return false;
-
-        var mi = new MONITORINFO { CbSize = Marshal.SizeOf<MONITORINFO>() };
-        if (!GetMonitorInfo(mon, ref mi)) return false;
-
-        var wa = mi.RcWork;
-        var waW = wa.Right - wa.Left;
-        var waH = wa.Bottom - wa.Top;
-        var rw = r.Right - r.Left;
-        var rh = r.Bottom - r.Top;
-
-        if (Math.Abs(rh - waH) > 2 || Math.Abs(r.Top - wa.Top) > 2) return false;    // 不是「满高」→ 不是贴靠
-        var onLeft = Math.Abs(r.Left - wa.Left) <= 2;
-        var onRight = Math.Abs(r.Right - wa.Right) <= 2;
-        if (!onLeft && !onRight) return false;
-
-        // 贴靠宽度候选：半屏 / 三分之一 / 三分之二（Win11 贴靠布局的常见档）
-        foreach (var cand in new[] { waW / 2, waW / 3, waW * 2 / 3 })
-        {
-            if (cand <= 0 || rw == cand) continue;
-            if (Math.Abs(rw - cand) > 64) continue;
-
-            var left = onLeft ? wa.Left : wa.Right - cand;
-            SetWindowPos(hwnd, IntPtr.Zero, left, wa.Top, cand, waH,
-                         SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
-            ReassertWindowChrome(hwnd);      // 尺寸变了 → region / 圆角按新尺寸重做
-            return true;
-        }
-        return false;
-    }
-
-    private const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MONITORINFO
-    {
-        public int CbSize;
-        public RECT RcMonitor;
-        public RECT RcWork;
-        public uint DwFlags;
-    }
-
-    [DllImport("user32.dll", SetLastError = false)]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
-
-    [DllImport("user32.dll", SetLastError = false)]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
-
     [DllImport("gdi32.dll", SetLastError = false)]
     private static extern IntPtr CreateRectRgn(int x1, int y1, int x2, int y2);
 
@@ -770,14 +570,21 @@ public partial class ShellView : Window
     //       → 永远读到失败值，不能当"下发是否成功"的判据。
 
     /// <summary>
-    /// v3.29 贴靠缝隙的**根治**：接管窗口过程，在 <c>WM_NCCALCSIZE</c> 上把 Avalonia 的回答
-    /// 「客户区 = 外框 − 边框」改回「客户区 = 整个外框」。
+    /// 接管窗口过程：① `WM_NCCALCSIZE` **零内缩**（客户区 = 整个外框，消灭那圈 ≈8px 的非客户区边框）
+    /// ② 在 Avalonia **处理完之后**压 DWM 圆角偏好 / 重套矩形区域。
     /// <para>
-    /// 🔴 为什么必须在这层动手：那圈被扣掉 ~8px 的厚度是按**窗口样式**算的，而 <c>WS_THICKFRAME|WS_CAPTION</c>
-    ///    是**贴靠资格**的来源（NT-040 起由官方 `WindowDecorations="Full"` 提供；更早是 v3.28 手工补的，
-    ///    已在 NT-041 删除）→ ⛔ 去掉样式位 = 失去贴靠，回归更糟。
-    /// 平时 DWM 在那圈上画标准窗框所以看不出来；**贴靠后 DWM 不画了** → 左右下露缝
-    /// （顶部被 40px 标题栏盖住，所以只有三边看得到）。
+    /// 🔴 为什么必须留 ①（2026-10-15 实测规律）：贴靠**第 1 次缝小(~1px)、第 2 次变大(~8px)** —— 8px 正是
+    /// Avalonia CSD 按 `WS_CAPTION/WS_THICKFRAME` 扣出来的边框厚度；第 2 次它按「外框 = 客户区 + 边框」的记账
+    /// 回写了几何、赢过系统给的贴靠矩形 ⇒ 只有让**客户区与外框同尺寸**，两边的记账才会一致。
+    /// </para>
+    /// <para>
+    /// 🔴 为什么必须留 ②：Avalonia 每次 <c>ShowWindow</c> → <c>ExtendClientArea()</c> →
+    /// <c>UpdateWindowCornerPreference()</c> 都会重算并**回写**圆角偏好（窗口状态变化 / 全屏 / 贴靠都触发）
+    /// → 必须在它处理完之后再压（⛔ 顺序不能反）。
+    /// </para>
+    /// <para>
+    /// 🔴 历史留档（⛔ 别再加回来）：此处还曾有过 NT-048 的「贴靠几何外部纠偏」（比对系统矩形 / 按屏幕自检纠偏）。
+    /// 已删除：「首次偏宽」是**系统行为**（第三方 Firefox 同复现）⇒ 在系统正常行为上打补丁方向错误。
     /// </para>
     /// <para>⚠️ 装不上就什么都不做 —— 这类代码出错的代价是"窗口完全不响应消息"，失败路径必须保守。</para>
     /// </summary>
@@ -804,6 +611,13 @@ public partial class ShellView : Window
         if (_originalWndProc == IntPtr.Zero)
             return DefWindowProc(hWnd, msg, wParam, lParam);
 
+        // 🔴 零内缩（Windows-only 例外，2026-10-15 复归）：把 Avalonia 算好的客户区改回「客户区 = 整个外框」。
+        //    为什么必须留这一处：Avalonia 的 CSD 会按 WS_CAPTION/WS_THICKFRAME 扣掉一圈 ≈8px 的**非客户区**，
+        //    那圈归系统画；贴靠态 Windows 对靠屏边那几边不画框 → 露出 ≈8px 的缝（左右下明显）。
+        //    ⚠️ 实测规律（用户 2026-10-15）：**贴靠第 1 次缝小(~1px)、第 2 次变大(~8px)** —— 说明第 2 次是
+        //    Avalonia 按自己那套「外框 = 客户区 + 边框」的记账回写了几何、赢了系统给的贴靠矩形 ⇒ 零内缩让
+        //    客户区与外框同尺寸，两边记账才会一致。
+        //    ⚠️ 平台门控：本钩子只在 Windows 装得上（`SetWindowLongPtr` 成功才进来），Linux/macOS 自然不走这条路径。
         // wParam == 1 → lParam 指向 NCCALCSIZE_PARAMS；rgrc[0] 就在 lParam 的开头 16 字节
         if (msg == WM_NCCALCSIZE && wParam.ToInt64() == 1)
         {
@@ -828,22 +642,6 @@ public partial class ShellView : Window
             return IntPtr.Zero;      // 返回 0 = 已处理，系统拿 rgrc[0] 当客户区
         }
 
-        // 🔴 NT-048：**贴靠几何是系统在「转发之后」算的** —— 只要这次位置变化会改尺寸（`SWP_NOSIZE` 未设），
-        //    转发前先摘掉矩形 region（它还是按「变化前尺寸」建的），否则系统会沿用旧 region 边界
-        //    → **初次贴靠偏宽**，而 region 随后才更新 ⇒ 表现成「第一次不行 / 偏宽，之后就正常」。
-        //    摘掉后由下面的 `WM_WINDOWPOSCHANGED` → `ReassertWindowChrome` 按**新尺寸**重新套上。
-        //    ⛔ 只在尺寸会变时摘：纯拖动窗口（`SWP_NOSIZE`）不动 region，避免拖动全程无 region（圆角闪）。
-        if (msg == WM_WINDOWPOSCHANGING && lParam != IntPtr.Zero)
-        {
-            // NT-048 第二轮：先抄下「系统要求的几何」（校正的基准，见 CorrectSnapFrame）
-            RememberWantedFrame(hWnd, lParam);
-
-            // WINDOWPOS 布局：hwnd(1 ptr) / hwndInsertAfter(1 ptr) / x / y / cx / cy / flags —— flags 在尾部
-            var winposFlags = Marshal.ReadInt32(lParam, IntPtr.Size * 2 + 16);
-            if ((winposFlags & (int)SWP_NOSIZE) == 0)
-                ClearSquareRegion(hWnd);
-        }
-
         var result = CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
 
         // NT-034：**Avalonia 处理完之后**再压一次 DONOTROUND ——
@@ -851,11 +649,7 @@ public partial class ShellView : Window
         // 窗口状态变化 / 全屏 / 贴靠都会触发。先转发、后压，顺序不能反。
         // ⛔ 这里只能用「只设属性」的版本（SetCornerPreferenceNoRound），带 SWP_FRAMECHANGED 会递归。
         if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE || msg == WM_STYLECHANGED || msg == WM_SHOWWINDOW)
-        {
-            // NT-048 第二轮：先纠偏（内部已含一次 Reassert），再按最终尺寸压圆角 / region
-            CorrectSnapFrame(hWnd);
             ReassertWindowChrome(hWnd);
-        }
 
         return result;
     }
@@ -870,11 +664,9 @@ public partial class ShellView : Window
         catch { return false; }
     }
 
-    // 🔴 NT-041：以下 6 个样式位常量 + `GetWindowLongPtr` 曾用于 v3.28 的「手工补贴靠资格样式」
-    //    （`ApplySnapEligibleStyles`）。NT-040 把 `WindowDecorations` 改回官方 `Full` 后，
-    //    Avalonia 自己就会设 `WS_CAPTION` / `WS_THICKFRAME` / `WS_SYSMENU` 等 → 该补丁已删除、常量随之清理。
-    //    ⛔ 若日后贴靠再失效，**先怀疑是不是装饰被改回 BorderOnly / None**，⛔ 别直接把手工补位抄回来
-    //    （补位会与 Avalonia 的重算互相打架：状态变化时它把你补的位抹掉，你再补 → 无谓拉锯）。
+    // 🔴 NT-041：样式位常量（`GWL_STYLE` / `WS_*`）与 `GetWindowLongPtr` 曾用于 v3.28 的「手工补贴靠资格样式」
+    //    （`ApplySnapEligibleStyles`）。官方 `WindowDecorations="Full"` 自带这些样式位 ⇒ 补丁与常量随之清理。
+    //    ⛔ 若日后贴靠再失效，**先怀疑装饰是不是被改成 `BorderOnly` / `None`**，⛔ 别把手工补位抄回来。
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOZORDER = 0x0004;
@@ -893,7 +685,7 @@ public partial class ShellView : Window
     [DllImport("user32.dll", SetLastError = false)]
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
-    // ===== v3.29 贴靠缝隙根治：接管 WM_NCCALCSIZE（原理见 InstallSnapFrameFix 的注释） =====
+    // ===== v3.29 贴靠缝隙根治：接管窗口过程做贴靠纠偏 / 圆角压制（原理见 InstallSnapFrameFix 的注释） =====
 
     private const uint SWP_NOOWNERZORDER = 0x0200;
 
@@ -902,7 +694,6 @@ public partial class ShellView : Window
     private const uint WM_SIZE = 0x0005;
     private const uint WM_SHOWWINDOW = 0x0018;
     private const uint WM_WINDOWPOSCHANGED = 0x0047;
-    private const uint WM_WINDOWPOSCHANGING = 0x0046;
     private const uint WM_STYLECHANGED = 0x007D;
     private const int SW_SHOWMAXIMIZED = 3;
 
@@ -994,7 +785,7 @@ public partial class ShellView : Window
             _isFullScreen = WindowState == WindowState.FullScreen;   // NT-044：先记状态，下面 region 要用
             UpdateMaxIcon();
             UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
-            UpdateWindowFrame();   // NT-039：最大化时收掉外框
+            UpdateWindowFrame();   // NT-039：最大化 / 全屏时收掉外框
             ApplyNoRoundCorners();       // NT-034：状态变化时也重设 DWM 圆角偏好（防被重算抹掉）
         }
         else if (change.Property == IsActiveProperty)

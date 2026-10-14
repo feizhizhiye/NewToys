@@ -110,40 +110,24 @@
             </Setter>
         </ControlTheme>
 
-        <!--  ==================== 窗口装饰：空主题（v3.28） ====================
-              背景：为了拿到**系统级贴靠**（Win+方向键 / 拖到边缘贴半屏 / 拖到顶边最大化），ShellView 走的是
-                    「`ExtendClientAreaToDecorationsHint="True"` + `WindowDecorationProperties.ElementRole`」官方路线
-                    （系统负责拖动 / 缩放 / 命中测试，我们自绘标题栏与抓取区）。
-              问题：`WindowDecorations="Full"` 会让 Avalonia **自己画一套窗框**（`Window.cs::ComputeDecorationParts`
-                    里 TitleBar 部件只在 `== Full` 时加入）→ 实测标题文字重叠、右侧多一个点坏状态的按钮。
-              修法：装饰模式改 `BorderOnly`（那时 Avalonia 的部件集合为 None → 什么都不画）**并**给他一个不绘制任何
-                    内容的 ControlTheme 兜底（不设 Template = 无模板 = 不画），双保险。
-              ⚠️ 该段为**历史注释**（v3.28 的 `BorderOnly` 路线，已被下方 NT-040 官方 CSD 主题取代，仅作留档）。
-                 贴靠资格曾由 code-behind 的 `ApplySnapEligibleStyles()` 手工补 `WS_CAPTION/WS_THICKFRAME`；
-                 NT-040 改回官方 `Full` 装饰后 Avalonia 自带这些样式位，该补丁已于 NT-041 删除。  -->
-        <!--
-            ==================== 窗口装饰：官方 CSD 主题（NT-040，需求 §4.1.1 ①） ====================
-            背景：为了拿系统级贴靠，窗口走 `ExtendClientAreaToDecorationsHint="True"` + `WindowDecorations="Full"`。
-                  但 `Full` 会让 Avalonia **真的去画一套窗框**（默认主题含标题文字 + 窗口图标 + caption 按钮）
-                  → 与自绘标题栏重叠（2026-10-14 首版实测：左上 "NewToys default" 叠在标签栏上、右侧多一个全屏按钮）。
-
-            解法 = 两件事，缺一不可：
-            ① **键必须是隐式键 `{x:Type chrome:WindowDrawnDecorations}`** —— Fluent 默认装饰主题就注册在这个键下，
-               用同键定义在 `Application.Resources` 里才能**覆盖**它（资源查找先 Application.Resources 后各 Style）。
-               🔴 首版用自定义字符串键 `NewToysWindowDecorations` + `WindowDecorationsTheme` 指它 —— 没生效
-                  （框架按类型查主题，字符串键的显式指定在 12.1.3 不被吃），出现上述重叠。
-            ② **不给 `Template`** → 无模板可应用 → 框架不生成任何装饰视觉，可见 UI 全部来自自绘标题栏。
-
-            🔴 **12.1.3 版本事实（2026-10-14 编译实测，⛔ 别再试）**：
-               `Avalonia.Controls.Chrome` 的**公共类型只有 6 个**：
-               `WindowDrawnDecorations` / `WindowDrawnDecorationsContent` / `IWindowDrawnDecorationsTemplate` /
-               `DrawnWindowDecorationParts` / `WindowDecorationProperties` / `ResizeGripLayer`。
-               ⛔ **没有 `WindowDrawnDecorationsTemplate` 具体类**（它是 internal），且 `Template` 属性是
-               **接口** `IWindowDrawnDecorationsTemplate` → XAML 里既写不出模板元素、也实例化不了接口。
-               硬写会报 `AVLN2000: Unable to resolve type WindowDrawnDecorationsTemplate`
-               + `ResolveContentPropertyTransformer` 内部错误（Index out of range）。
-               ⇒ **12.1.3 上「自定义装饰模板」这条路不存在**。AtomUI 那份指南对应的是它的 6.0 分支，不适用于本版本。
-        -->
+        <!--  ==================== 窗口装饰：官方 CSD 主题（NT-040 · 需求 §4.1.1 ①） ====================
+              背景：为了拿系统级贴靠，窗口走 `ExtendClientAreaToDecorationsHint="True"` + `WindowDecorations="Full"`。
+                    但 `Full` 会让 Avalonia **真的去画一套窗框**（默认主题含标题文字 + 窗口图标 + caption 按钮）
+                    → 与自绘标题栏重叠（2026-10-14 实测：左上 "NewToys default" 叠在标签栏上、右侧多一个按钮）。
+              解法 = 两件事，缺一不可：
+              ① **键必须是隐式键 `{x:Type chrome:WindowDrawnDecorations}`** —— Fluent 默认装饰主题就注册在这个键下，
+                 同键定义在 `Application.Resources` 里才能**覆盖**它（资源查找先 Application.Resources 后各 Style）。
+                 🔴 首版用自定义字符串键 `NewToysWindowDecorations` + `WindowDecorationsTheme` 指它 —— **没生效**。
+              ② **不给 `Template`** → 无模板可应用 → 框架不生成任何装饰视觉，可见 UI 全部来自自绘标题栏。
+              🔴 **12.1.3 版本事实（2026-10-14 编译实测，⛔ 别再试）**：`Avalonia.Controls.Chrome` 公共类型只有 6 个
+                 （`WindowDrawnDecorations` / `WindowDrawnDecorationsContent` / `IWindowDrawnDecorationsTemplate` /
+                 `DrawnWindowDecorationParts` / `WindowDecorationProperties` / `ResizeGripLayer`）——
+                 ⛔ **没有 `WindowDrawnDecorationsTemplate` 具体类**（internal），`Template` 属性是**接口** →
+                 XAML 写不出模板元素也实例化不了接口，硬写报 `AVLN2000` + `ResolveContentPropertyTransformer` 内部错误。
+                 ⇒ **12.1.3 上「自定义装饰模板」这条路不存在**（AtomUI 指南对应其 6.0 分支，不适用）。
+              🔴 2026-10-15 定案：本条路线**重新采纳**（曾短暂回退 `BorderOnly` 基线，见需求 §4.1.1 变更注）。
+                 理由：跨平台（Wayland / Debian 13）只有官方 CSD 能对接（Linux 无 DWM / `WS_*` / GDI region 概念），
+                 且「贴靠态 1px 残差」已证为系统级（Firefox 同复现）⇒ 不再为它堆 Win32 补丁。  -->
         <ControlTheme x:Key="{x:Type chrome:WindowDrawnDecorations}" TargetType="chrome:WindowDrawnDecorations">
             <!--  与 `ExtendClientAreaTitleBarHeightHint="40"` 保持一致：告诉框架标题栏占多高。  -->
             <Setter Property="DefaultTitleBarHeight" Value="40"/>

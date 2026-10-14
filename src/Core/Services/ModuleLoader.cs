@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
 using Microsoft.Extensions.DependencyInjection;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
@@ -115,4 +116,88 @@ public static class ModuleLoader
 
     private static bool IsAlreadyLoaded(string simpleName)
         => AppDomain.CurrentDomain.GetAssemblies().Any(a => !a.IsDynamic && a.GetName().Name == simpleName);
+
+    // ==================== 运行期热加载（NT-005，规范 §3.7） ====================
+
+    /// <summary>
+    /// 热加载：重扫 <c>&lt;程序目录&gt;\Modules\</c>，把**新**的模块 DLL 装进来（注册菜单）。
+    /// <para>
+    /// 🔴 设计约束（规范 §3.7 / B10）：
+    /// ① 只认 <c>Module.&lt;名&gt;.dll</c>；② ⛔ 跳过已加载同名程序集 → 本版**只做「新增」**（移除模块要重启）；
+    /// ③ 每个 DLL 用**独立 collectible ALC**，契约程序集（Shared/Core 等已加载的）转交默认 ALC——
+    ///    否则 <c>IModule</c> 强转必失败、菜单全空；④ 已 <c>BuildServiceProvider()</c> 的容器
+    ///    **无法再追加服务** → 热加载模块的 <c>RegisterServices</c> 跳过（优先**页面型**模块：
+    ///    页面 VM 走 <c>ActivatorUtilities.GetServiceOrCreateInstance</c> 现造，只依赖已注册的框架服务）；
+    /// ⑤ 单个 DLL 失败被 try-catch 隔离（⛔ 不拖垮宿主）；⑥ ⛔ 只读本地目录、不联网；
+    /// ⑦ collectible 只是"允许"卸载——本版加载后**不主动 Unload**（类型被菜单引用着，进程退出随进程释放）。
+    /// </para>
+    /// </summary>
+    /// <returns>新增 N / 跳过 M / 失败 K。</returns>
+    public static (int Added, int Skipped, int Failed) HotReload(IServiceProvider sp)
+    {
+        var added = 0;
+        var skipped = 0;
+        var failed = 0;
+
+        var baseDir = AppContext.BaseDirectory;
+        var dir = Path.Combine(baseDir, ModulesSubDirectory);
+        if (!Directory.Exists(dir)) return (0, 0, 0);
+        var dirFull = Path.GetFullPath(dir);
+
+        foreach (var dll in Directory.EnumerateFiles(dir, "*.dll"))
+        {
+            var name = Path.GetFileNameWithoutExtension(dll);
+            if (!name.StartsWith("Module.", StringComparison.OrdinalIgnoreCase)) { skipped++; continue; }
+            if (IsAlreadyLoaded(name)) { skipped++; continue; }
+
+            // 路径必须在 Modules\ 内（防符号链接 / 相对路径把戏）
+            var full = Path.GetFullPath(dll);
+            if (!full.StartsWith(dirFull + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            { skipped++; continue; }
+
+            try
+            {
+                var alc = new ModuleAlc(name);
+                var asm = alc.LoadFromAssemblyPath(full);
+                var types = asm.GetTypes()
+                    .Where(t => !t.IsAbstract && !t.IsInterface && typeof(IModule).IsAssignableFrom(t))
+                    .ToList();
+                if (types.Count == 0) { skipped++; continue; }
+
+                foreach (var t in types)
+                {
+                    if (Activator.CreateInstance(t) is not IModule m) continue;
+                    // ⛔ RegisterServices 跳过（容器已构建）；Initialize 内部逐项 try-catch 由调用方约定
+                    m.Initialize(sp);
+                    _modules.Add(m);
+                    added++;
+                }
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                failed++;
+                System.Diagnostics.Debug.WriteLine($"热加载 {name} 失败（依赖缺失？）：{string.Join("; ", ex.LoaderExceptions.Take(3).Select(e => e.Message))}");
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                System.Diagnostics.Debug.WriteLine($"热加载 {name} 失败: {ex.Message}");
+            }
+        }
+
+        if (added > 0 || failed > 0)
+            System.Diagnostics.Debug.WriteLine($"[NewToys] 热加载完成：新增 {added} / 跳过 {skipped} / 失败 {failed}");
+        return (added, skipped, failed);
+    }
+
+    /// <summary>
+    /// 模块专用 ALC：collectible + 依赖一律转交默认 ALC（返回 null = 交给默认上下文解析）。
+    /// 默认 ALC 里已有 Shared / Core / Avalonia / 工具包 —— 转交过去 <c>IModule</c> 才是同一个类型。
+    /// </summary>
+    private sealed class ModuleAlc : AssemblyLoadContext
+    {
+        public ModuleAlc(string name) : base(name, isCollectible: true) { }
+
+        protected override Assembly? Load(AssemblyName assemblyName) => null;
+    }
 }

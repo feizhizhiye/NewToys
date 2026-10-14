@@ -69,6 +69,18 @@
                             StrokeLineCap="Round"
                             Data="M23,4 L23,10 L17,10 M1,20 L1,14 L7,14 M3.51,9 A9,9 0 0,1 18.36,5.64 L23,10 M1,14 L5.64,18.36 A9,9 0 0,0 20.49,15" />
                     </Button>
+                    <!--  NT-005：重载模块（等距立方体 = 模块；规范 §3.7：只做「新增」、失败 DLL 隔离）  -->
+                    <Button Classes="title-btn" Command="{Binding ReloadModulesCommand}"
+                            ToolTip.Tip="重载模块：重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）">
+                        <Path
+                            Width="16"
+                            Height="16"
+                            Stretch="Uniform"
+                            StrokeThickness="1.6"
+                            StrokeLineCap="Round"
+                            StrokeLineJoin="Round"
+                            Data="M8,1.5 L14.5,5 L14.5,11 L8,14.5 L1.5,11 L1.5,5 Z M8,1.5 L8,14.5 M1.5,5 L14.5,5 M1.5,11 L14.5,11" />
+                    </Button>
                 </StackPanel>
 
                 <!--  中：标签页。**左右各留 24px 固定空白**（独立占位列，标签再多也挤不掉），空白处可拖拽窗口；滚轮可切换标签  -->

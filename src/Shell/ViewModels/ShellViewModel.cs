@@ -272,6 +272,27 @@ public partial class ShellViewModel : ViewModelBase
         OpenTab(node.Key);
     }
 
+    /// <summary>
+    /// 「🔄 重载模块」（NT-005，标题栏）：重扫 <c>&lt;程序目录&gt;\Modules\</c> 把**新**模块装进来 + 重建左树。
+    /// <para>
+    /// 规范 §3.7：只做「新增」（移除模块要重启）；单个 DLL 失败被隔离（⛔ 不拖垮宿主）；
+    /// 已构建的 DI 容器无法追加服务 → 热加载模块的 RegisterServices 跳过，优先页面型模块。
+    /// </para>
+    /// </summary>
+    [RelayCommand]
+    private void ReloadModules()
+    {
+        var (added, skipped, failed) = Core.Services.ModuleLoader.HotReload(_sp);
+        BuildTree();   // 左树重建：新增 / 移除的模块菜单反映出来
+
+        var msg = failed > 0
+            ? $"模块重载：新增 {added} / 跳过 {skipped} / 失败 {failed}（失败不影响使用，详情见 Debug 输出）"
+            : $"模块重载：新增 {added} / 跳过 {skipped} / 失败 0。";
+        StatusText = msg;
+        // 壳级 StatusText 没有 UI 消费 → 直接写底栏（瞬态；切标签页会被页面状态覆盖，符合预期）
+        StatusBarText = msg;
+    }
+
     // ==================== 历史栈（v3.5：契约保留、UI 已移除） ====================
     // 标题栏的「前进 / 后退」按钮已在 v3.5 删除（各页几乎全程灰显、无实际意义）。
     // IHistoryProvider 契约与下面的订阅**保留** —— 将来要恢复按钮，把命令接回来即可。
@@ -341,7 +362,8 @@ public partial class ShellViewModel : ViewModelBase
 
     // ==================== 左树构建 / 高亮 ====================
 
-    private void BuildTree()
+    /// <summary>左树构建 / 高亮（NT-005 起 public：热加载重扫后要能重建）。</summary>
+    public void BuildTree()
     {
         TreeNodes.Clear();
 

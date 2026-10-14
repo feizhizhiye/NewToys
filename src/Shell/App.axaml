@@ -47,9 +47,12 @@
         <StreamGeometry x:Key="IconPuzzle">M5,8 H8.5 A2.5,2.5 0 0 1 13.5,8 H17 V11.5 A2.5,2.5 0 0 1 17,16.5 V20 H13.5 A2.5,2.5 0 0 1 8.5,20 H5 Z</StreamGeometry>
 
         <!--  窗口控制（矢量；形状与 WinUI `Symbol` 同款，但不依赖 `Segoe MDL2 Assets` 图标字体）  -->
-        <!--  🔴 NT-046：原先写成 `M4,12 H20`（一根水平线）—— **零高度包围盒** + `Stretch=Uniform`
-              → 等比缩放退化，实机渲染成一个**点**。改闭合细矩形：描边上下重叠成一根横杠，包围盒非零。  -->
-        <StreamGeometry x:Key="IconWinMinimize">M4,11.5 H20 V12.5 H4 Z</StreamGeometry>
+        <!--  🔴 NT-046：最小化横杠是**唯一不走「24×24 网格 + `Stretch=Uniform`」**的图标 ——
+              几何直接写在 **16×16 控件坐标**里（`y=8` 即竖直居中，`x=2~14` 即水平居中），
+              用法固定为 `<Path … Width="16" Height="16" Stretch="None" Data="{StaticResource IconWinMinimize}"/>`。
+              原因：横杠包围盒**只有 1 单位高**，`Stretch="Uniform"` 等比缩放后会被**贴到方框顶部**
+              （首版 `M4,11.5 H20 V12.5 H4 Z` 实机偏上约 7px）。`Stretch="None"` 不做缩放、坐标即最终像素 → 居中可控。  -->
+        <StreamGeometry x:Key="IconWinMinimize">M2,8 H14</StreamGeometry>
         <StreamGeometry x:Key="IconWinMaximize">M4.5,4.5 H19.5 V19.5 H4.5 Z</StreamGeometry>
         <StreamGeometry x:Key="IconWinRestore">M9,4.5 H19.5 V15 M4.5,9 H15 V19.5 H4.5 Z</StreamGeometry>
         <StreamGeometry x:Key="IconWinClose">M6,6 L18,18 M18,6 L6,18</StreamGeometry>

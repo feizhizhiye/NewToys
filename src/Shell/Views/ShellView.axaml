@@ -190,8 +190,9 @@
                      颜色由 `Button.win-btn Path` 样式给（关闭悬停转白由 `.close:pointerover Path` 给）。
                      ✅ 旧结论「`Path` 在裸主题里渲染不出来」的真因（模板 ∞ 约束 → NaN 尺寸）NT-045 已修、
                          **NT-046 实机截图取证确认**（方框 / ✕ 正常显示）。
-                     🔴 NT-046：原先的最小化图标是**零高度几何**（`M4,12 H20`）+ `Stretch=Uniform` → 缩放退化成一个点；
-                         现已改闭合细矩形（`IconWinMinimize`）—— 框架层几何**必须有非零宽高**（见 `App.axaml` 资源区注释）。  -->
+                     🔴 NT-046：最小化图标几何上"只有 1 单位高"，`Stretch="Uniform"` 等比缩放后会被**贴到方框顶部**（实机偏上约 7px）
+                         ⇒ 它是本组**唯一**用 `Stretch="None"` 的图标（几何写成 16×16 控件坐标，`y=8` 居中）。
+                         其余图标仍一律 24×24 网格 + `Stretch="Uniform"`（框架层几何必须有非零宽高，见 `App.axaml` 资源区注释）。  -->
                 <StackPanel
                     Grid.Column="2"
                     VerticalAlignment="Stretch"
@@ -236,11 +237,20 @@
                         Classes="win-btn"
                         Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="最小化">
-                        <Path
+                        <!--  🔴 NT-046 收尾：横杠**必须** `Stretch="None"` —— 几何是 16×16 控件坐标（`y=8` = 竖直居中）。
+                              ⛔ 用 `Stretch="Uniform"` 会因"包围盒只有 1 单位高"被等比缩放贴到方框顶部（实机偏上约 7px）。
+                              外层 Grid（16×16 居中）与最大化 / 全屏按钮同结构，保证与 □ ✕ ⛶ 落在同一水平线。  -->
+                        <Grid
                             Width="16"
                             Height="16"
-                            Stretch="Uniform"
-                            Data="{StaticResource IconWinMinimize}" />
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                            <Path
+                                Width="16"
+                                Height="16"
+                                Stretch="None"
+                                Data="{StaticResource IconWinMinimize}" />
+                        </Grid>
                     </Button>
                     <Button
                         x:Name="BtnMax"

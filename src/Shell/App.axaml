@@ -61,60 +61,31 @@
             背景：为了拿系统级贴靠，窗口走 `ExtendClientAreaToDecorationsHint="True"` + `WindowDecorations="Full"`。
                   但 `Full` 会让 Avalonia **真的去画一套窗框**（默认主题含标题文字 + caption 按钮）
                   → 与自绘标题栏重叠（v3.28 实测：标题文字重叠、右侧多点一个按钮）。
-            旧解法（⛔ 已废）：给一个**空 ControlTheme** 把装饰关掉，再从 Win32 侧补样式位 —— 那就是
-                  v3.28 / v3.29 / NT-034 三层补丁的起因，越改越脆。
-            ✅ 正解：**给一个完整但全隐藏的主题**。框架要的 PART 一个不少（缺了 `OnApplyTemplate` 会抛 NRE），
-                  但全部不可见 —— 标题栏 / 按钮仍是我们自绘的那套，拖动与缩放由 `ElementRole` + 系统承担。
-            🔴 三条纪律：
-                ① 所有槽 / 按钮一律 `IsHitTestVisible="False"`（透明覆盖层，绝不吃内容区的点击）；
-                ② 按钮一律 `IsVisible="False"`，⚠️ 但**不能删**——删了就是缺 PART；
-                ③ `DefaultFrameThickness` / `DefaultShadowThickness` 在 Win32 上无效（边框 / 阴影归 DWM，
-                   `:has-border` / `:has-shadow` 恒 false），这里写 0 只为跨平台一致性；窗口边界由
-                   `Border.window-frame`（NT-039 自绘 1px 外框）负责，⛔ 不要在这里再画一遍。
+            解法：给一个**不含 Template 的 ControlTheme** 顶掉默认主题 → 框架没有模板可应用，
+                  也就不会生成任何装饰视觉；可见 UI 全部来自本窗口自绘的标题栏。
+
+            🔴 **12.1.3 版本事实（2026-10-14 编译实测，⛔ 别再试）**：
+               `Avalonia.Controls.Chrome` 的**公共类型只有 6 个**：
+               `WindowDrawnDecorations` / `WindowDrawnDecorationsContent` / `IWindowDrawnDecorationsTemplate` /
+               `DrawnWindowDecorationParts` / `WindowDecorationProperties` / `ResizeGripLayer`。
+               ⛔ **没有 `WindowDrawnDecorationsTemplate` 具体类**（它是 internal），且 `Template` 属性是
+               **接口** `IWindowDrawnDecorationsTemplate` → XAML 里既写不出模板元素、也实例化不了接口。
+               硬写会报 `AVLN2000: Unable to resolve type WindowDrawnDecorationsTemplate`
+               + `ResolveContentPropertyTransformer` 内部错误（Index out of range）。
+               ⇒ **12.1.3 上「自定义装饰模板」这条路不存在**。AtomUI 那份指南对应的是它的 6.0 分支，
+                  不适用于本版本。正确做法就是本文件这样：**只顶掉默认主题，不提供模板**。
+
+            ⚠️ 因此也不存在「缺 PART 抛 NRE」的风险 —— 那条风险的前提是**有模板**
+               （`OnApplyTemplate` 才会去按名找 PART）。没模板 → 不应用 → 不查找。
         -->
         <ControlTheme x:Key="NewToysWindowDecorations" TargetType="chrome:WindowDrawnDecorations">
+            <!--  与 `ExtendClientAreaTitleBarHeightHint="40"` 保持一致：告诉框架标题栏占多高。  -->
             <Setter Property="DefaultTitleBarHeight" Value="40"/>
+            <!--  Win32 上边框 / 阴影归 DWM（`:has-border` / `:has-shadow` 恒 false），这两个值不生效；
+                 写 0 只为跨平台一致。窗口边界由 `Border.window-frame`（NT-039 自绘 1px 外框）负责。  -->
             <Setter Property="DefaultFrameThickness" Value="0"/>
             <Setter Property="DefaultShadowThickness" Value="0"/>
-            <Setter Property="Template">
-                <chrome:WindowDrawnDecorationsTemplate>
-                    <chrome:WindowDrawnDecorationsContent>
-                        <!--  Underlay：用户内容**下方**（边框 / 背景 / 阴影）。Win32 上这些归 DWM → 留空。  -->
-                        <chrome:WindowDrawnDecorationsContent.Underlay>
-                            <Panel x:Name="PART_UnderlayWrapper" IsHitTestVisible="False"/>
-                        </chrome:WindowDrawnDecorationsContent.Underlay>
-
-                        <!--  Overlay：用户内容**上方**（标题栏 + caption 按钮）。
-                              🔴 七个 PART 必须全在（NRE 红线），但全部隐藏：功能由自绘标题栏承担。  -->
-                        <chrome:WindowDrawnDecorationsContent.Overlay>
-                            <Panel x:Name="PART_OverlayWrapper" IsHitTestVisible="False">
-                                <Border
-                                    x:Name="PART_TitleBar"
-                                    Height="{TemplateBinding TitleBarHeight}"
-                                    VerticalAlignment="Top"
-                                    IsVisible="False"
-                                    chrome:WindowDecorationProperties.ElementRole="TitleBar"/>
-                                <Button x:Name="PART_MinimizeButton" IsVisible="False"
-                                        chrome:WindowDecorationProperties.ElementRole="MinimizeButton"/>
-                                <Button x:Name="PART_MaximizeButton" IsVisible="False"
-                                        chrome:WindowDecorationProperties.ElementRole="MaximizeButton"/>
-                                <Button x:Name="PART_FullScreenButton" IsVisible="False"
-                                        chrome:WindowDecorationProperties.ElementRole="FullScreenButton"/>
-                                <Button x:Name="PART_CloseButton" IsVisible="False"
-                                        chrome:WindowDecorationProperties.ElementRole="CloseButton"/>
-                            </Panel>
-                        </chrome:WindowDrawnDecorationsContent.Overlay>
-
-                        <!--  FullscreenPopover：全屏时从顶部下拉的浮层（本应用不做全屏 → 隐藏但保留 PART）。  -->
-                        <chrome:WindowDrawnDecorationsContent.FullscreenPopover>
-                            <Panel x:Name="PART_FullscreenPopoverWrapper" IsHitTestVisible="False">
-                                <Button x:Name="PART_PopoverCloseButton" IsVisible="False"/>
-                                <Button x:Name="PART_PopoverFullScreenButton" IsVisible="False"/>
-                            </Panel>
-                        </chrome:WindowDrawnDecorationsContent.FullscreenPopover>
-                    </chrome:WindowDrawnDecorationsContent>
-                </chrome:WindowDrawnDecorationsTemplate>
-            </Setter>
+            <!--  🔴 故意**不设 Template**：见上方版本事实说明。⛔ 不要试图在这里补模板。  -->
         </ControlTheme>
     </Application.Resources>
 

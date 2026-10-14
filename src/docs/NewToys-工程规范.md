@@ -195,9 +195,16 @@ WindowDecorationsTheme="{DynamicResource NewToysWindowDecorations}"
 ```
 
 - `Full` 只为了拿到**完整标准窗口样式**（贴靠资格 / 系统菜单 / 最小化动画）；可见 UI 仍是自绘标题栏。
-- 主题 = `App.axaml` 的 `NewToysWindowDecorations`：**完整但全隐藏**（7 个 PART 一个不少、全部 `IsVisible="False"`、所有槽 `IsHitTestVisible="False"`）。
-  🔴 ⛔ **不要退化成空 ControlTheme**（`<ControlTheme TargetType="…"/>` 无 Template）—— `OnApplyTemplate` 找不到 PART 会抛 NRE（AtomUI 指南 §15）。
-- 主题引用用 **`DynamicResource`**：窗口装饰主题在合并字典完成前就可能被解析，`StaticResource` 那一刻取不到（同一份指南的已知坑）。
+- 主题 = `App.axaml` 的 `NewToysWindowDecorations`：**只顶掉默认主题，🔴 故意不给 `Template`**（无模板 → 框架不应用 → 不画任何装饰视觉）。
+- 🔴 **12.1.3 版本事实（2026-10-14 编译实测，⛔ 别再试）**：`Avalonia.Controls.Chrome` 的**公共类型只有 6 个** ——
+  `WindowDrawnDecorations` / `WindowDrawnDecorationsContent` / `IWindowDrawnDecorationsTemplate` /
+  `DrawnWindowDecorationParts` / `WindowDecorationProperties` / `ResizeGripLayer`。
+  ⛔ **没有 `WindowDrawnDecorationsTemplate` 具体类**（internal），且 `Template` 属性是**接口**
+  → XAML 写不出模板元素、也实例化不了接口；硬写报 `AVLN2000: Unable to resolve type …`
+  + `ResolveContentPropertyTransformer` 内部错误（Index out of range）。
+  ⇒ **12.1.3 上不存在「自定义装饰模板」这条路**。AtomUI 那份指南对应它的 6.0 分支，**不适用于本版本**。
+- ⚠️ 同理，「缺 PART 抛 NRE」那条风险**在本配置下不成立** —— 它的前提是**有模板**（`OnApplyTemplate` 才去按名找 PART）。
+- 主题引用用 **`DynamicResource`**：窗口装饰主题在合并字典完成前就可能被解析，`StaticResource` 那一刻取不到（AtomUI 指南 §15 的已知坑）。
 - ⚠️ `ApplySnapEligibleStyles()`（手工补 `WS_CAPTION`）**当前仍保留作保险** —— `Full` 下样式位本就齐了，该函数走 `if (want == style) return` 直接返回。删除动作归 **NT-041**（需先本地验证贴靠不回归）。
 
 ---

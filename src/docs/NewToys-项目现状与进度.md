@@ -1,16 +1,16 @@
 # NewToys 项目现状与进度
 
-> v3.36 · 2026-10-14 · 台账
+> v3.37 · 2026-10-14 · 台账
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
 > ⛔ **评估结论不写进本台账**——评估在会话里讨论，用户拍板后才转为需求。
 > 配套：开发需求（宪法）/ 开发规范 / AI 协作提示词 / AGENTS.md（跨 AI 入口）/ skill/（跨 AI 知识库）
 
 **最近三次变更**
+- **v3.37（⏳ 待本地编译 2026-10-14）**：🌙 **批量执行 8 个就绪待办**（用户睡前授权「逐项全部执行、无需确认、回来统一批量确认」）。**NT-004** 恢复被 v1.35 误删的 `defaults\` 播种文件（5 个）；**NT-003** 软件源页实机验证通过（`winget source list` 中文表头解析无误）+ 防御性 catch；**NT-002** pc-package 批量勾选队列（Pick 列 + 三态表头 ☑ + 「⬇ 安装选中 / ⬆ 升级选中」逐条串行、失败隔离）+ 修 `IdLike` 白名单误杀（实测合法 Id 带空格 / 花括号 / 中文）；**NT-020** 存储源页落地（在线探测 + 统计 + 扫描入队跳任务中心 + 移除仅移索引）；**NT-021** 模块设置页 `settings-media-assets`（自注册 settings 组 Order 100）+ `MetadataService`（ffprobe / 图片头尺寸）+ `ThumbnailService`（ffmpeg 抽帧缩放，有界并发 4）+ 回收站到期清理；**NT-022** 资产列表 JSON 导入导出 + 用户数据（标签/分类/集合/关联）导出恢复（R1 缓解）；**NT-026** 多库融合（ATTACH 只读合并 + VACUUM INTO 另存 + 勾选软删除，未决 1 按"主库即工作副本"裁决）；**NT-005** 模块运行期热加载（collectible ALC + 左树重建 + 标题栏入口，🔴 框架层改动 = 本批首审项）。需求 §6.6 三处过时表述同步修正（→ v3.35）。
 - **v3.36（✅ 已验收 2026-10-14）**：🗂 **NT-019 物理操作 + 任务中心 + 回收站**。新增 `FileOperationService` —— **全模块唯一动磁盘的地方**：`Rename` / `Move` / `Copy` / `DeleteToRecycle` / `PermanentDelete` + `ConflictPolicy{AppendNumber,ShortHash,Skip,Overwrite}` + `IsInside()` 防穿越；🔴 **日志先行**（`operation_logs(pending)` → 动磁盘 → 更新 `file_locations` → 校验 → success/failed，⛔ 失败不自动回滚）；🔴 防穿越（重命名只改文件名；移动/复制要求目标落在**已登记存储源**根内）；删除默认送**系统回收站**（`SHFileOperationW`，视频工具同款）。**`assets-tasks`（任务中心）** 三块 = 运行态队列（可取消 / 清理已结束）+ 最近扫描记录（右键**重扫=重试**）+ 操作日志。**`assets-trash`（回收站）** = `status='trashed'` 列表 + `TrashDetailView`（资产信息 + **受影响文件位置** + 恢复 / 永久删除）；「♻ 恢复」= 只改库状态，「🗑 永久删除 / 🧹 清空」= 真删磁盘 + 删索引行（二次确认 → 排进队列）。**全部资产页新增「↗ 应用到文件」**（= 把名字真写到磁盘；与「💾 保存」分工明确）。⚠️ **3 处偏差待拍板**：① 移动 / 复制的**服务已实现但无 UI 入口**（缺"选目标目录"对话框）；② 回收站详情未显示「删除时间」（`AssetRow` 无该字段）；③ **重试只对扫描任务开放**，物理操作不做通用重试。自查 `check.ps1` 通过（42 个 `.axaml`）；✅ **用户本地编译通过（= 按本轮约定视为验收通过）**。
 - **v3.35（✅ 已验收 2026-10-14）**：🏷 **NT-018 标签 / 分类 / 集合三页 + 逻辑操作 + `operation_logs`** —— 6 新服务 + 5 新模型；`assets-tags`（列表 + `TagDetailView`）/ `assets-categories`（**树形页**，⛔ 不实现 `IDetailPanelProvider`）/ `assets-collections`（左集合 📦/⚡ + 右成员，⬆⬇ 排序）；全部资产页详情卡新增编辑（显示名 / 评分 / 描述 / 标签 / 分类 / 集合）+「💾 保存」+「🗑 移入回收站」+ 工具条批量「🏷 加标签」「🗂 加集合」+ **勾选列**（`Pick("34")` 首列 + 原生三态表头 ☑ + 右键全选/取消/反选，三处 `Grid.Column` 0~7 → 1~8）。⚠️ 2 处偏差（拖拽排序→⬆⬇、智能集合规则未实装）。**用户反馈「本地验证通过」**（编译首轮报错已修：`Color` 遮蔽 / `HasDetailAssets` 漏声明 / CS4014 / 表头 ☑ 菜单宿主）。
-- **v3.34（✅ 已验收 2026-10-14）**：🧩 **NT-017 方案改判 + 执行 —— 5 个类型页 = 「薄壳 + 预设类型」**（用户拍板"C 方案"）：`AssetAllView`/`AssetAllViewModel` 升格**共用实现**，类型页 View = 一行 `<views:AssetAllView/>`、VM 继承基类只写 `PageKey` / `StatusPrefix` / `SetPresetType`；**零框架改动**、**零迁移**（菜单 / Key 不变，每类型独立偏好）；筛选条「类型」下拉保留可切；⛔ 网格视图不做；⚠️ 类型专属列延后（`metadata_json` 恒为 `{}`，无提取实现）；`QueryLimit` 截断提示（不再静默）。需求 §6.6 → v3.34。
-- **v3.32 / v3.31 / v3.30 / v3.29**（归档）：视频工具精简 + 全列表页示例数据 / 页面内「🔄 刷新」更名（需求 §4.8 硬规则 10）/ NT-016 工具条收口 + NT-026 重写 / NT-014·015·016 三件落地 —— 明细见 `git log`。
+- **v3.34 / v3.33 / v3.32**（归档）：NT-017 薄壳类型页 / 媒体资产数据层与骨架 / 视频工具精简 + 示例数据 —— 明细见 `git log`。
 
 ---
 
@@ -19,9 +19,9 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.34 ｜ 规范 v3.21 ｜ 提示词 v3.15 ｜ 本台账 v3.36 |
+| 文档版本 | 需求 v3.35 ｜ 规范 v3.21 ｜ 提示词 v3.15 ｜ 本台账 v3.37 |
 | 技术栈 | .NET 10 + Avalonia 12.1.3 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
-| 代码规模 | 7 项目 / 约 156 个 `.cs+.axaml+.csproj` / 约 20400 行 |
+| 代码规模 | 7 项目 / 251 个 `.cs+.axaml+.csproj` / 约 42600 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |
 | 版本控制 | ✅ git（分支 `main`） |
 | 构建分工 | 🧑‍💻 构建 / 发布由用户本地执行（`pwsh -File .\scripts\build.ps1`）；AI 只改 `src/`（**例外：`scripts/` 构建脚本经用户明确授权可改**——2026-10-13 授权，Settings 物理必备改造） |
@@ -88,10 +88,10 @@
 | NT | 标题 | 优先级 | 状态 | 详情 |
 |---|---|---|---|---|
 | NT-001 | web-http 实装（唯一剩余骨架页） | P2 | ✔ 已完成（待验收） | backlog/NT-001.md |
-| NT-002 | pc-package 收尾（Parser 实机 + 批量队列） | P2 | ✅ 就绪 | backlog/NT-002.md |
-| NT-003 | settings-package 软件源（退出码验证） | P2 | ✅ 就绪 | backlog/NT-003.md |
-| NT-004 | defaults\ 与脚本目录播种确认 | P2 | ✅ 就绪 | backlog/NT-004.md |
-| NT-005 | 模块热加载实装（规范 §3.7） | P2 | ✅ 就绪 | backlog/NT-005.md |
+| NT-002 | pc-package 收尾（Parser 实机 + 批量队列） | P2 | ✔ 已完成（待验收） | backlog/NT-002.md |
+| NT-003 | settings-package 软件源（退出码验证） | P2 | ✔ 已完成（待验收） | backlog/NT-003.md |
+| NT-004 | defaults\ 与脚本目录播种确认 | P2 | ✔ 已完成（待验收） | backlog/NT-004.md |
+| NT-005 | 模块热加载实装（规范 §3.7） | P2 | ✔ 已完成（待验收） | backlog/NT-005.md |
 | NT-006 | 快捷设置：运行改造（可见 pwsh+回显 / GUI 隐藏 / 切换 shell）+ 导入导出 / 清除缓存 | P1 | ✔ 已完成（待验收） | backlog/NT-006.md |
 | NT-007 | 设置与脚本：导入导出 + 右键编辑 / 打开方式 + 运行如双击 | P1 | ✔ 已完成（待验收） | backlog/NT-007.md |
 | NT-008 | 软件包：可升级对齐 winget update + Pin 显示 + 已装移状态栏 + 详情 bug + 已装导入导出 | P1 | ✔ 已完成（待验收） | backlog/NT-008.md |
@@ -106,12 +106,12 @@
 | NT-017 | 5 个类型页（视频 / 音乐 / 书籍 / 图片 / 文档）= **薄壳 + 预设类型**，共用 `assets-all` 实现（v3.34；⛔ 网格视图不做、类型专属列延后） | P1 | ✔ 已完成（已验收） | backlog/NT-017.md |
 | NT-018 | 标签 / 分类 / 集合三页 + 逻辑操作 + `operation_logs`（⚠️ 含 2 处偏差：集合排序用 ⬆⬇ 按钮、智能集合规则未实装） | P1 | ✔ 已完成（已验收） | backlog/NT-018.md |
 | NT-019 | 物理操作（`FileOperationService` 日志先行 + 防穿越 + 冲突策略 + 回收站）+ 任务中心 + 回收站页（⚠️ 含 3 处偏差：移动/复制无 UI 入口、删除时间未显示、重试仅扫描任务） | P1 | ✔ 已完成（已验收） | backlog/NT-019.md |
-| NT-020 | 存储源页 + 移动硬盘离线 / 上线 + 外部变更校准 | P2 | ✅ 就绪 | backlog/NT-020.md |
-| NT-021 | 媒体资产设置页（`settings-media-assets`，View/VM 归本模块、自注册进 settings 组）+ 元数据 + 缩略图 | P2 | ✅ 就绪 | backlog/NT-021.md |
-| NT-022 | 列表 JSON 导入 / 导出 + 用户数据导出（R1 缓解） | P2 | ✅ 就绪 | backlog/NT-022.md |
+| NT-020 | 存储源页 + 移动硬盘离线 / 上线 + 外部变更校准 | P2 | ✔ 已完成（待验收） | backlog/NT-020.md |
+| NT-021 | 媒体资产设置页（`settings-media-assets`，View/VM 归本模块、自注册进 settings 组）+ 元数据 + 缩略图 | P2 | ✔ 已完成（待验收） | backlog/NT-021.md |
+| NT-022 | 列表 JSON 导入 / 导出 + 用户数据导出（R1 缓解） | P2 | ✔ 已完成（待验收） | backlog/NT-022.md |
 | NT-023 | 框架：MenuService 跨组延迟补登 + Settings 必备化 + 启动健全性检查 / 无模块降级 | P1 | ✔ 已完成（已验收） | backlog/NT-023.md |
 | NT-024 | 多实例：`--profile` 启动参数 + 每配置单例 + 切换新语义（不写全局默认）+「设为默认」/「🚀 新开」+ 标题带配置名 | P1 | ✔ 已完成（已验收） | backlog/NT-024.md |
-| NT-026 | 媒体资产：多库融合（工作副本模型 = 打开库 A → 再打开库 B → 💾 保存；「减」= 勾选后删除；合并走 `ATTACH DATABASE`） | P1 | ✅ 就绪 | backlog/NT-026.md |
+| NT-026 | 媒体资产：多库融合（工作副本模型 = 打开库 A → 再打开库 B → 💾 保存；「减」= 勾选后删除；合并走 `ATTACH DATABASE`） | P1 | ✔ 已完成（待验收） | backlog/NT-026.md |
 | NT-025 | 窗口：自绘缩放抓取区（四边 5px/四角 10px，BeginResizeDrag 八向）+ 分屏贴靠验证 + bounds 按配置记忆 | P1 | ✔ 已完成（已验收） | backlog/NT-025.md |
 | NT-027 | 视频工具精简：删视频库(.db) / 标签 / 收藏页 → 收窄为「简易查看器 + 送批量任务」（含旧表一次性清理） | P0 | ✔ 已完成（已验收） | backlog/NT-027.md |
 | NT-028 | 示例数据 + 详情卡默认示例态（批次 1~4 已落：视频两页 / `assets-all` / PcTools 4 页 / WebTools 4 页 / `settings-path`；批次 5 类型页随 NT-017；含框架层 `ListPageViewModelBase` 授权改动） | P1 | ✔ 已完成（待验收） | backlog/NT-028.md |
@@ -209,11 +209,7 @@
 | 6 | ~~v3.15 复查发现：批量页详情卡两个分区标题行缺勾选框~~ **v3.16 已解决**：用户拍板"勾选框可交互、勾即改任务类型"，已落地（`EditIsCut` / `EditIsTranscode` + `VideoTaskStore.Replace`） |
 
 ### P2 · 功能待办
-1. **`web-http` 实装**：唯一剩下的骨架页。
-2. **`pc-package` 收尾**：`PackageOutputParser` 实机验证；批量勾选 + 队列评估。
-3. **`settings-package` 软件源**：需实机验证 `source list/add/remove/reset` 的退出码。
-4. **`defaults\` 与脚本目录**：确认发布产物里 `defaults\**` 被复制；首次运行 `scripts\` 播种。
-5. **模块热加载**：参照规范 §3.7 实装；刷新点为重建左树。
+（原 5 项已于 v3.37 全部落地：web-http = NT-001、pc-package = NT-002、settings-package = NT-003、defaults 播种 = NT-004、模块热加载 = NT-005 —— 明细见上方待办索引与 `git log`。）
 
 ### P3 · 待验证（本地 `build.ps1` 后逐项过）
 1. **`Microsoft.Data.Sqlite 9.0.0` 能否还原**。

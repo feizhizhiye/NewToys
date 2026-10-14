@@ -504,6 +504,26 @@ public partial class ShellView : Window
         catch { /* 设区域失败就退回系统默认外观 */ }
     }
 
+    /// <summary>
+    /// NT-048：**只摘不套** —— 临时清掉矩形窗口区域。
+    /// <para>
+    /// 🔴 为什么需要它：贴靠（分屏）/ 缩放这类「尺寸即将变化」的场景，系统要在**转发之后**按窗口矩形重算几何；
+    /// 而此刻若还挂着一个按「变化前尺寸」建的矩形 region，系统会**沿用旧 region 的边界** →
+    /// **初次贴靠偏宽**（region 随后才被更新，所以「之后再贴就正常」）。
+    /// ⇒ 转发前先清掉，由随后的 <see cref="ReassertWindowChrome"/>（<c>WM_WINDOWPOSCHANGED</c>）按新尺寸重新套上。
+    /// </para>
+    /// </summary>
+    private static void ClearSquareRegion(IntPtr hwnd)
+    {
+        try
+        {
+            if (!UseSquareRegionHack) return;
+            if (hwnd == IntPtr.Zero) return;
+            SetWindowRgn(hwnd, IntPtr.Zero, true);
+        }
+        catch { /* 清不掉就退回系统默认外观 */ }
+    }
+
     [DllImport("gdi32.dll", SetLastError = false)]
     private static extern IntPtr CreateRectRgn(int x1, int y1, int x2, int y2);
 
@@ -626,6 +646,19 @@ public partial class ShellView : Window
             return IntPtr.Zero;      // 返回 0 = 已处理，系统拿 rgrc[0] 当客户区
         }
 
+        // 🔴 NT-048：**贴靠几何是系统在「转发之后」算的** —— 只要这次位置变化会改尺寸（`SWP_NOSIZE` 未设），
+        //    转发前先摘掉矩形 region（它还是按「变化前尺寸」建的），否则系统会沿用旧 region 边界
+        //    → **初次贴靠偏宽**，而 region 随后才更新 ⇒ 表现成「第一次不行 / 偏宽，之后就正常」。
+        //    摘掉后由下面的 `WM_WINDOWPOSCHANGED` → `ReassertWindowChrome` 按**新尺寸**重新套上。
+        //    ⛔ 只在尺寸会变时摘：纯拖动窗口（`SWP_NOSIZE`）不动 region，避免拖动全程无 region（圆角闪）。
+        if (msg == WM_WINDOWPOSCHANGING && lParam != IntPtr.Zero)
+        {
+            // WINDOWPOS 布局：hwnd(1 ptr) / hwndInsertAfter(1 ptr) / x / y / cx / cy / flags —— flags 在尾部
+            var winposFlags = Marshal.ReadInt32(lParam, IntPtr.Size * 2 + 16);
+            if ((winposFlags & (int)SWP_NOSIZE) == 0)
+                ClearSquareRegion(hWnd);
+        }
+
         var result = CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
 
         // NT-034：**Avalonia 处理完之后**再压一次 DONOTROUND ——
@@ -680,6 +713,7 @@ public partial class ShellView : Window
     private const uint WM_SIZE = 0x0005;
     private const uint WM_SHOWWINDOW = 0x0018;
     private const uint WM_WINDOWPOSCHANGED = 0x0047;
+    private const uint WM_WINDOWPOSCHANGING = 0x0046;
     private const uint WM_STYLECHANGED = 0x007D;
     private const int SW_SHOWMAXIMIZED = 3;
 

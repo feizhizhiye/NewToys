@@ -59,8 +59,9 @@
                 ColumnDefinitions="Auto,*,Auto">
 
                 <!--  左：窗口功能按钮  -->
-                <!--  本轮：≡ / ⟳ 由文字字形改为**矢量 Path**（16×16、Stretch=Uniform、描边 1.6），
-                     与右侧 — □ ✕ 同规格 → 标题栏五个图标尺寸统一。图标颜色走样式，⛔ 不写本地 Stroke。 -->
+                <!--  NT-045：图标**一律矢量 `Path` + `App.axaml` 的 `Icon*` 几何键**（24×24 网格），
+                     粗细 / 端帽 / 拐角 / 颜色全由 `Button.title-btn Path` 样式给，XAML 里只写 Data + 尺寸。
+                     折叠按钮的图案 = 面板 + 左栏（Lucide `panel-left`）；重载模块 = 拼图（`IconPuzzle`）。  -->
                 <StackPanel
                     Grid.Column="0"
                     Margin="4,0"
@@ -72,18 +73,14 @@
                             Width="16"
                             Height="16"
                             Stretch="Uniform"
-                            StrokeThickness="1.6"
-                            StrokeLineCap="Round"
-                            Data="M3,6 L21,6 M3,12 L21,12 M3,18 L21,18" />
+                            Data="{StaticResource IconMenuPanel}" />
                     </Button>
                     <Button Classes="title-btn" Command="{Binding RefreshCommand}" ToolTip.Tip="重建当前页（丢掉筛选 / 排序 / 未保存的编辑，回到刚打开时的状态）">
                         <Path
                             Width="16"
                             Height="16"
                             Stretch="Uniform"
-                            StrokeThickness="1.6"
-                            StrokeLineCap="Round"
-                            Data="M23,4 L23,10 L17,10 M1,20 L1,14 L7,14 M3.51,9 A9,9 0 0,1 18.36,5.64 L23,10 M1,14 L5.64,18.36 A9,9 0 0,0 20.49,15" />
+                            Data="{StaticResource IconRefresh}" />
                     </Button>
                     <!--  NT-005：重载模块。图标 = **拼图块**（浏览器扩展那个），比原来的等距立方体更贴近"模块 / 插件"语义；
                          数据取自 Lucide `puzzle`（ISC，公开图标集，摘路径数据 —— 符合《需求规格》「只可手工摘取公开图标集」）。
@@ -94,10 +91,7 @@
                             Width="16"
                             Height="16"
                             Stretch="Uniform"
-                            StrokeThickness="1.6"
-                            StrokeLineCap="Round"
-                            StrokeJoin="Round"
-                            Data="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" />
+                            Data="{StaticResource IconPuzzle}" />
                     </Button>
                 </StackPanel>
 
@@ -140,6 +134,8 @@
                                                     v3.22：套 **裸按钮主题** —— Fluent 的 Button 模板会在 :pointerover
                                                     自己画背景、把前景改成主题色（表现为"白 ✕ + 能看出底"），Style 压不过它。
                                                 -->
+                                                <!--  NT-045：✕ 改**矢量 Path**（原为 TextBlock 字符）——
+                                                     颜色走 `Button.tab-close Path` 样式、悬停变红 + 放大（ScaleTransform）。  -->
                                                 <Button
                                                     Classes="tab-close"
                                                     Theme="{StaticResource BareButtonTheme}"
@@ -149,10 +145,13 @@
                                                     CommandParameter="{Binding}"
                                                     IsVisible="{Binding CanClose}"
                                                     ToolTip.Tip="关闭标签">
-                                                    <!--  ⛔ 字号由 Button.tab-close 样式给（悬停会放大），这里别写死  -->
-                                                    <TextBlock
+                                                    <Path
+                                                        Width="12"
+                                                        Height="12"
+                                                        Stretch="Uniform"
+                                                        HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
-                                                        Text="✕" />
+                                                        Data="{StaticResource IconTabClose}" />
                                                 </Button>
                                             </Grid>
                                         </Border>
@@ -160,20 +159,20 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <!--  ＋ 打开「功能清单」页（当选择器用；已打开则激活）。
-                                 图标用 Path 十字：自带 16×16 方框、水平/竖直都居中，比文字 ＋ 更清晰且不跑偏。  -->
+                                 NT-045：图标改矢量 `IconPlus`（24×24 网格，等比缩到 14px），颜色 / 粗细走
+                                 `Button.tab-new Path` 样式。  -->
                             <Button
                                 Classes="tab-new"
                                 Command="{Binding OpenFunctionListCommand}"
                                 Margin="4,0,0,0"
                                 ToolTip.Tip="功能清单（打开新页面）">
                                 <Path
-                                    Data="M0,6.5 L13,6.5 M6.5,0 L6.5,13"
-                                    StrokeThickness="1.5"
-                                    StrokeLineCap="Round"
-                                    Width="13"
-                                    Height="13"
+                                    Width="14"
+                                    Height="14"
+                                    Stretch="Uniform"
                                     HorizontalAlignment="Center"
-                                    VerticalAlignment="Center" />
+                                    VerticalAlignment="Center"
+                                    Data="{StaticResource IconPlus}" />
                             </Button>
                         </StackPanel>
                     </ScrollViewer>
@@ -182,25 +181,22 @@
                 </Grid>
 
                 <!--  右：窗口按钮  -->
-                <!--  NT-044 统一：右侧窗口按钮图标**一律** `TextBlock` + 系统图标字体 `Segoe MDL2 Assets`（Windows / WinUI 官方那套）：
-                     最小化 `U+E921` / 最大化 `U+E922` / 还原 `U+E923` / 关闭 `U+E8BB` / 全屏 `U+E740` / 退出全屏 `U+E73F`。
-                     ⛔ 不再用 `Rectangle` 画横线、`Border` 拼方框 —— 自绘几何观感抽象，且和官方字形风格不统一。
-                     ⛔ 也**不能用** `Path`：实测在裸按钮主题 `BareButtonTheme` 的 ContentPresenter 里
-                     渲染不出来（不报错、图标直接消失，v3.22 连踩三轮才定位）。
-                     前景色一律由 `Button.win-btn` 继承（关闭悬停变白照旧生效），⛔ 不写本地 Foreground。  -->
+                <!--  NT-045 统一：窗口按钮图标**一律矢量 `Path` + `App.axaml` 的 `Icon*` 几何键**
+                     （最小化 `IconWinMinimize` / 最大化 `IconWinMaximize` / 还原 `IconWinRestore` /
+                      关闭 `IconWinClose` / 全屏 `IconFullScreen` / 退出全屏 `IconExitFullScreen`），
+                     形状与 WinUI `Symbol` 同款但**不再依赖 `Segoe MDL2 Assets` 图标字体**。
+                     ⛔ 不再用 `Rectangle` 画横线、`Border` 拼方框、`TextBlock` 字形 —— 框架层只剩一种载体。
+                     颜色由 `Button.win-btn Path` 样式给（关闭悬停转白由 `.close:pointerover Path` 给）。
+                     ⚠️ 旧结论「`Path` 在裸主题里渲染不出来」已定位真因并修掉（模板 ∞ 约束 → NaN 尺寸），
+                        见 `App.axaml` 里 `BareButtonTheme` / `Button.win-btn Path` 的注释。  -->
                 <StackPanel
                     Grid.Column="2"
                     VerticalAlignment="Stretch"
                     Orientation="Horizontal"
                     chrome:WindowDecorationProperties.ElementRole="User">
                     <!--  NT-044：全屏按钮（⛶）—— 位置在最小化左边。
-                          🔴 图标 = **Windows / WinUI 官方那套**（`Segoe MDL2 Assets`）：
-                             `U+E740` = FullScreen（进入）、`U+E73F` = BackToWindow（退出），与 WinUI `Symbol` 枚举一致。
-                             ⛔ 不用 `Path` 画（BareButtonTheme 里渲染不出来，见上方注释）；
-                             字体用**系统自带**图标字体（Win10/11 均有 `segmdl2.ttf`），⛔ 非第三方图标库。
-                             `FontFamily` 写了回退链，缺字体时退 `Segoe UI Symbol`。
-                          ⚠️ **不单设** `ElementRole="FullScreenButton"` —— 切换一律由 code-behind 的 Click 处理；
-                             父 StackPanel 已标 `User`（点击照常放行）。若框架也自动切一次，就会和我们重复触发。  -->
+                         ⚠️ **不单设** `ElementRole="FullScreenButton"` —— 切换一律由 code-behind 的 Click 处理；
+                            父 StackPanel 已标 `User`（点击照常放行）。若框架也自动切一次，就会和我们重复触发。  -->
                     <Button
                         x:Name="BtnFullScreen"
                         Width="46"
@@ -213,23 +209,21 @@
                             Height="16"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">
-                            <!--  进入全屏：U+E740（Segoe MDL2 Assets · FullScreen）  -->
-                            <TextBlock
+                            <!--  进入全屏：四角朝外  -->
+                            <Path
                                 x:Name="FullScreenIcon"
-                                Text="&#xE740;"
-                                FontSize="16"
-                                FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center" />
-                            <!--  退出全屏：U+E73F（BackToWindow）  -->
-                            <TextBlock
+                                Width="16"
+                                Height="16"
+                                Stretch="Uniform"
+                                Data="{StaticResource IconFullScreen}" />
+                            <!--  退出全屏：四角朝内  -->
+                            <Path
                                 x:Name="ExitFullScreenIcon"
-                                Text="&#xE73F;"
-                                FontSize="16"
-                                FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
+                                Width="16"
+                                Height="16"
+                                Stretch="Uniform"
                                 IsVisible="False"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center" />
+                                Data="{StaticResource IconExitFullScreen}" />
                         </Grid>
                     </Button>
                     <Button
@@ -239,13 +233,11 @@
                         Classes="win-btn"
                         Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="最小化">
-                        <!--  U+E921 = ChromeMinimize  -->
-                        <TextBlock
-                            Text="&#xE921;"
-                            FontSize="16"
-                            FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center" />
+                        <Path
+                            Width="16"
+                            Height="16"
+                            Stretch="Uniform"
+                            Data="{StaticResource IconWinMinimize}" />
                     </Button>
                     <Button
                         x:Name="BtnMax"
@@ -259,23 +251,21 @@
                             Height="16"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">
-                            <!--  最大化：U+E922 = ChromeMaximize  -->
-                            <TextBlock
+                            <!--  最大化：单个方框  -->
+                            <Path
                                 x:Name="MaximizeIcon"
-                                Text="&#xE922;"
-                                FontSize="16"
-                                FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center" />
-                            <!--  还原：U+E923 = ChromeRestore  -->
-                            <TextBlock
+                                Width="16"
+                                Height="16"
+                                Stretch="Uniform"
+                                Data="{StaticResource IconWinMaximize}" />
+                            <!--  还原：前后两个错位方框  -->
+                            <Path
                                 x:Name="RestoreIcon"
-                                Text="&#xE923;"
-                                FontSize="16"
-                                FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
+                                Width="16"
+                                Height="16"
+                                Stretch="Uniform"
                                 IsVisible="False"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center" />
+                                Data="{StaticResource IconWinRestore}" />
                         </Grid>
                     </Button>
                     <!--  class 必须是 win-btn + close：App.axaml 里定义的是 Button.win-btn.close:pointerover（关闭变红）  -->
@@ -288,15 +278,12 @@
                         ToolTip.Tip="关闭">
                         <!--  ⚠️ 套 BareButtonTheme：Fluent 模板在 :pointerover 于模板子元素上自己画背景，
                              Style 压不过 → 悬停红底画不出来。裸主题用 Border 接 Background 才生效。
-                             🔴 用 TextBlock 字形 `U+E8BB`（ChromeClose，与最小/最大化/全屏同一套官方字形）。
-                             前景色**不写本地值** —— 由 Button.win-btn 的 Foreground 向下继承（普通态=PrimaryTextBrush，
-                             悬停时 Button.win-btn.close:pointerover 改成白）。属性继承不受模板影响，比后代选择器可靠。  -->
-                        <TextBlock
-                            Text="&#xE8BB;"
-                            FontSize="16"
-                            FontFamily="Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center" />
+                             🔴 图标是 `Path`：描边色走样式（普通态 `PrimaryTextBrush`、悬停 `TitleBarCloseHoverTextBrush` = 白）。  -->
+                        <Path
+                            Width="16"
+                            Height="16"
+                            Stretch="Uniform"
+                            Data="{StaticResource IconWinClose}" />
                     </Button>
                 </StackPanel>
             </Grid>
@@ -329,15 +316,34 @@
                                         CommandParameter="{Binding}"
                                         ToolTip.Tip="{Binding Title}">
                                         <Grid ColumnDefinitions="Auto,Auto,*">
-                                            <TextBlock
+                                            <!--  NT-045：展开指示由 `▾ / ▸` 字符改**矢量箭头**。
+                                                 ⚠️ 外面必须包一层 Panel 承载 `IsVisible` —— 内层 Path 自己绑了 IsVisible（本地值，
+                                                    样式压不过），折叠态（48px）要隐藏就必须由外层 `Panel.tree-glyph` 承担。  -->
+                                            <Panel
                                                 Grid.Column="0"
                                                 Width="12"
-                                                VerticalAlignment="Center"
                                                 Classes="tree-glyph"
-                                                FontSize="10"
-                                                Foreground="{DynamicResource SecondaryTextBrush}"
-                                                Text="{Binding Glyph}" />
-                                            <!--  颜色由样式给（Button.tree-row Path / .active Path）→ 折叠态也能显主题色  -->
+                                                VerticalAlignment="Center">
+                                                <Path
+                                                    Width="12"
+                                                    Height="12"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Stretch="Uniform"
+                                                    Data="{StaticResource IconChevronDown}"
+                                                    IsVisible="{Binding ShowChevronDown}" />
+                                                <Path
+                                                    Width="12"
+                                                    Height="12"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Stretch="Uniform"
+                                                    Data="{StaticResource IconChevronRight}"
+                                                    IsVisible="{Binding ShowChevronRight}" />
+                                            </Panel>
+                                            <!--  一级图标 = 矢量（`VectorIcon` 由 VM 按几何键解析）。颜色由样式给
+                                                 （`Button.tree-row Path` / `.active Path`）→ 折叠态也能显主题色。
+                                                 ⛔ NT-045 起**不再有 emoji 回退**：键名必须在 `App.axaml` 定义。  -->
                                             <Path
                                                 Grid.Column="1"
                                                 Width="16"
@@ -345,15 +351,7 @@
                                                 VerticalAlignment="Center"
                                                 Data="{Binding VectorIcon}"
                                                 IsVisible="{Binding HasVectorIcon}"
-                                                Stretch="Uniform"
-                                                StrokeThickness="1.5" />
-                                            <!--  回退：尚未给矢量图的节点仍显示原文本图标  -->
-                                            <TextBlock
-                                                Grid.Column="1"
-                                                VerticalAlignment="Center"
-                                                FontSize="14"
-                                                Text="{Binding Icon}"
-                                                IsVisible="{Binding !HasVectorIcon}" />
+                                                Stretch="Uniform" />
                                             <TextBlock
                                                 Grid.Column="2"
                                                 Margin="8,0,0,0"

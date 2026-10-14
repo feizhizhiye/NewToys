@@ -33,8 +33,19 @@ public partial class TreeMenuItem : ObservableObject
 
     public ObservableCollection<TreeMenuItem> Children { get; } = new();
 
-    /// <summary>展开指示符：分组用 ▾ / ▸，叶子为空。</summary>
-    public string Glyph => IsGroup ? (IsExpanded ? "▾" : "▸") : " ";
+    /// <summary>
+    /// 展开指示（NT-045 起改**矢量箭头**）：分组展开时显示「▾ 图标」，折叠时显示「▸ 图标」；叶子两个都不显示。
+    /// <para>⚠️ 原来是一个返回字符 `▾ / ▸` 的 <c>Glyph</c> 属性 —— 框架层图标统一为矢量后，
+    /// 改由视图按状态显隐两个 <c>Path</c>，所以这里给两个布尔而不是字符（折叠态由外层 `Panel.tree-glyph` 整体隐藏）。</para>
+    /// </summary>
+    public bool ShowChevronDown => IsGroup && IsExpanded;
 
-    partial void OnIsExpandedChanged(bool value) => OnPropertyChanged(nameof(Glyph));
+    /// <inheritdoc cref="ShowChevronDown"/>
+    public bool ShowChevronRight => IsGroup && !IsExpanded;
+
+    partial void OnIsExpandedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowChevronDown));
+        OnPropertyChanged(nameof(ShowChevronRight));
+    }
 }

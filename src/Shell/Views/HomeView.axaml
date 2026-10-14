@@ -24,7 +24,14 @@
         <!--  常用功能：收藏按钮墙（v3.19 / NT-009 统一用主题强调色，去模块多色）。右键菜单在 code-behind 现场构造。  -->
         <StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="4">
-            <TextBlock Text="★" FontSize="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+            <!--  NT-045：★ 字符 → 矢量 `IconStar`（Lucide star），颜色走 `Path.icon-accent` 类  -->
+            <Path
+              Width="18"
+              Height="18"
+              Classes="icon-accent"
+              VerticalAlignment="Center"
+              Stretch="Uniform"
+              Data="{StaticResource IconStar}" />
             <TextBlock Text="常用功能  " FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
             <TextBlock Text="点击按钮进入页面 · 右键「✕ 取消固定」移出" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
           </StackPanel>
@@ -65,13 +72,31 @@
     <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="24,12,24,16">
       <StackPanel>
         <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-          <TextBlock Grid.Column="0" Text="⚡" FontSize="18" VerticalAlignment="Center"/>
+          <!--  NT-045：⚡ 字符 → 矢量 `IconZap`  -->
+          <Path
+            Grid.Column="0"
+            Width="18"
+            Height="18"
+            Classes="icon-primary"
+            VerticalAlignment="Center"
+            Stretch="Uniform"
+            Data="{StaticResource IconZap}" />
           <TextBlock Grid.Column="1" Text="一键操作" FontSize="16" FontWeight="SemiBold"
                      Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-          <!--  三个按钮的设置**统一在一页**（设置 → 一键按钮），这里只留一个⚙图标入口。  -->
-          <Button Grid.Column="3" Classes="ghost" Content="⚙" Padding="10,5" MinWidth="36"
+          <!--  三个按钮的设置**统一在一页**（设置 → 一键按钮），这里只留一个齿轮图标入口。
+               NT-045：`⚙` 字符 → 矢量 `IconGear`。  -->
+          <Button Grid.Column="3" Classes="ghost" Padding="10,5" MinWidth="36"
                   Command="{Binding NavigateCommand}" CommandParameter="settings-launch"
-                  ToolTip.Tip="一键按钮设置：改按钮名称、浏览器程序与参数、网址清单、批量启动的软件清单"/>
+                  ToolTip.Tip="一键按钮设置：改按钮名称、浏览器程序与参数、网址清单、批量启动的软件清单">
+            <Path
+              Width="16"
+              Height="16"
+              Classes="icon-primary"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Stretch="Uniform"
+              Data="{StaticResource IconGear}" />
+          </Button>
         </Grid>
         <Grid ColumnDefinitions="*,*,*" Margin="0,8,0,0">
           <ItemsControl Grid.ColumnSpan="3" ItemsSource="{Binding QuickButtons}">

@@ -20,6 +20,45 @@
         <!--  媒体资产：层叠（资产库）—— NT-035：补齐一级分组矢量键，去掉 emoji 占位  -->
         <StreamGeometry x:Key="IconMediaAssets">M12,3 L21,8 L12,13 L3,8 Z M3,12 L12,17 L21,12 M3,16 L12,21 L21,16</StreamGeometry>
 
+        <!--  ==================== NT-045：框架层图标（窗口 / 标题栏 / 标签 / 左树 / 首页） ====================
+              统一口径（规范 §2）：
+              ① 几何**一律 24×24 网格**（与 Lucide / Feather 同网格，摘公开图标集路径不用换算）；
+              ② 使用方式固定 = <Path Data="{StaticResource IconXxx}" Width="16" Height="16" Stretch="Uniform"/>；
+              ③ 颜色**一律由样式给 Stroke**（Path 不继承 Foreground；写本地值会压过 :pointerover / .active），
+                 例外只有「无状态装饰图标」（首页 ★ / ⚡ / ⚙，用 Path.icon-accent / Path.icon-primary 类）；
+              ④ 键名必须在**本文件**定义 —— 模块 RegisterModule 的一级 icon、左树 `ResolveIcon()`、
+                 设置页「功能清单」都按键名来这里取，⛔ 键名不存在就地没图标（不再有 emoji 回退）。
+              ⚠️ 数据驱动的图标（首页「常用功能」按钮 / 「一键按钮」的可配置 Icon 字段）不在本口径内 —— 仍是字符串（技术债）。  -->
+
+        <!--  折叠 / 展开左侧菜单：面板 + 左栏（Lucide `panel-left`，ISC）  -->
+        <StreamGeometry x:Key="IconMenuPanel">M5,3 H19 A2,2 0 0 1 21,5 V19 A2,2 0 0 1 19,21 H5 A2,2 0 0 1 3,19 V5 A2,2 0 0 1 5,3 Z M9,3 V21</StreamGeometry>
+        <!--  重建当前页：循环箭头（NT-045 由 ShellView 内联数据收进资源库）  -->
+        <StreamGeometry x:Key="IconRefresh">M23,4 L23,10 L17,10 M1,20 L1,14 L7,14 M3.51,9 A9,9 0 0 1 18.36,5.64 L23,10 M1,14 L5.64,18.36 A9,9 0 0 0 20.49,15</StreamGeometry>
+        <!--  重载模块：拼图块（Lucide `puzzle`，ISC；浏览器扩展那个图案）。规范 §3.7：只做「新增」、失败 DLL 隔离  -->
+        <StreamGeometry x:Key="IconPuzzle">M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z</StreamGeometry>
+
+        <!--  窗口控制（NT-045：由图标字体字形改为矢量 —— 与 WinUI `Symbol` 同形，但不再依赖 `Segoe MDL2 Assets`）  -->
+        <StreamGeometry x:Key="IconWinMinimize">M4,12 H20</StreamGeometry>
+        <StreamGeometry x:Key="IconWinMaximize">M4.5,4.5 H19.5 V19.5 H4.5 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconWinRestore">M9,4.5 H19.5 V15 M4.5,9 H15 V19.5 H4.5 Z</StreamGeometry>
+        <StreamGeometry x:Key="IconWinClose">M6,6 L18,18 M18,6 L6,18</StreamGeometry>
+        <!--  全屏 / 退出全屏：四角括弧（朝外 = 进入全屏；朝内 = 退出全屏）  -->
+        <StreamGeometry x:Key="IconFullScreen">M9,3 H3 V9 M15,3 H21 V9 M21,15 V21 H15 M9,21 H3 V15</StreamGeometry>
+        <StreamGeometry x:Key="IconExitFullScreen">M3,9 H9 V3 M21,9 H15 V3 M15,21 V15 H21 M3,15 V9 H9</StreamGeometry>
+
+        <!--  标签：新建（＋）/ 关闭（✕）  -->
+        <StreamGeometry x:Key="IconPlus">M12,5 V19 M5,12 H19</StreamGeometry>
+        <StreamGeometry x:Key="IconTabClose">M7,7 L17,17 M17,7 L7,17</StreamGeometry>
+
+        <!--  左树展开指示：展开（▾）/ 折叠（▸）  -->
+        <StreamGeometry x:Key="IconChevronDown">M6,9 L12,15 L18,9</StreamGeometry>
+        <StreamGeometry x:Key="IconChevronRight">M9,18 L15,12 L9,6</StreamGeometry>
+
+        <!--  首页装饰图标：收藏（★）/ 一键操作（⚡）/ 设置入口（⚙）—— 一律 Lucide（ISC）  -->
+        <StreamGeometry x:Key="IconStar">M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z</StreamGeometry>
+        <StreamGeometry x:Key="IconZap">M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5.5 0 0 1 .471.666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5.5 0 0 1-.472-.667z</StreamGeometry>
+        <StreamGeometry x:Key="IconGear">M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915 M12,9 A3,3 0 1 1 12,15 A3,3 0 1 1 12,9 Z</StreamGeometry>
+
         <!--
             v3.22：「裸按钮」主题 —— 只有内容、没有 Fluent 的任何状态绘制。
             用途：像标签页关闭 ✕ 这种"要自己完全控制底色 / 图标颜色"的小按钮。
@@ -37,9 +76,15 @@
                           （ContentPresenter 自身不渲染 Background；这正是"关闭按钮 hover 背景不变色"的根因）。  -->
                     <Border Background="{TemplateBinding Background}"
                             CornerRadius="{TemplateBinding CornerRadius}">
+                        <!--  🔴 NT-045 **根因修复**（解释 v3.22「Path 在裸主题里渲染不出来」）：
+                             ⛔ 不要把 Button 的 `HorizontalContentAlignment` 绑到 ContentPresenter **自身**的
+                                `HorizontalAlignment` —— 那样 Presenter 不再撑满，改用**无限约束**测量内容，
+                                而 `Path`（`Stretch=Uniform`）在 ∞ 约束下会算出 NaN 尺寸 → **图标整个不渲染**
+                                （不报错、直接消失；`TextBlock` / `Rectangle` 不受影响，当年只怀疑主题）。
+                             ✅ 改成与 Fluent 模板一致的写法：Presenter 自身撑满，对齐交给 ContentAlignment 属性。  -->
                         <ContentPresenter
-                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
                             Content="{TemplateBinding Content}"
                             ContentTemplate="{TemplateBinding ContentTemplate}" />
                     </Border>
@@ -146,9 +191,28 @@
             <Setter Property="Opacity" Value="0.35"/>
         </Style>
         <!--  v3.22（第三轮）：≡ / ⟳ 由 TextBlock 改为 Path 后，描边颜色必须显式给（Path 走 Stroke、不继承 Foreground，否则图标不可见）。
-              ⚠️ 由样式给，⛔ 不写本地 Stroke —— 本地值会压过 :pointerover 状态切换。  -->
+              ⚠️ 由样式给，⛔ 不写本地 Stroke —— 本地值会压过 :pointerover 状态切换。
+              NT-045：粗细 / 端帽 / 拐角一并收进样式（XAML 里只留 Data + 尺寸），图标之间不再各写一套。  -->
         <Style Selector="Button.title-btn Path">
             <Setter Property="Stroke" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="StrokeThickness" Value="1.6"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
+        </Style>
+
+        <!--  NT-045：无状态**装饰**图标（首页 ★ / ⚡ / ⚙ 这类不参与 hover / active 的）—— 允许用类给死颜色。
+              ⚠️ 有状态的图标（标题栏 / 标签 / 左树）一律走各自按钮的后代选择器，⛔ 别用这两个类。  -->
+        <Style Selector="Path.icon-accent">
+            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
+        </Style>
+        <Style Selector="Path.icon-primary">
+            <Setter Property="Stroke" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
         </Style>
 
         <!--  标签项容器：激活态 = 强调色派生底 + 下方 2px 强调色指示条。
@@ -205,7 +269,6 @@
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="FontSize" Value="11"/>
             <Setter Property="Width" Value="20"/>
             <Setter Property="Height" Value="20"/>
             <Setter Property="Margin" Value="0,0,4,0"/>
@@ -228,11 +291,16 @@
             v3.22（第三轮）：悬停 = **透明底 + 红 ✕**（用户明确要求"标签页栏的关闭按钮就要透明的"）。
             ⚠️ 仍走 BareButtonTheme（Background 由 Border 接住），只是把红底撤掉；红 ✕ 作警示色保留。
             错开：Margin 0,0,4,0；放大到 24×24 悬停态更易命中，多标签聚拢时利用标签间空白。
+            NT-045：✕ 由 `TextBlock` 字符改**矢量 Path** —— 原来的"字号 11→14 放大"改由 `ScaleTransform` 承担。
         -->
+        <Style Selector="Button.tab-close Path">
+            <Setter Property="Stroke" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="StrokeThickness" Value="1.6"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+        </Style>
         <Style Selector="Border.tab-item Button.tab-close:pointerover">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
-            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Width" Value="24"/>
             <Setter Property="Height" Value="24"/>
             <Setter Property="Margin" Value="0,0,4,0"/>
@@ -240,10 +308,22 @@
         <Style Selector="Button.tab-close:pointerover">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
-            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Width" Value="24"/>
             <Setter Property="Height" Value="24"/>
             <Setter Property="Margin" Value="0,0,4,0"/>
+        </Style>
+        <!--  Path **不继承 Foreground** → 红 ✕ 必须直接给 Path 的 Stroke（用后代选择器，两级都写以覆盖两种命中路径）  -->
+        <Style Selector="Border.tab-item Button.tab-close:pointerover Path">
+            <Setter Property="Stroke" Value="{DynamicResource DangerBrush}"/>
+            <Setter Property="RenderTransform">
+                <ScaleTransform ScaleX="1.15" ScaleY="1.15" />
+            </Setter>
+        </Style>
+        <Style Selector="Button.tab-close:pointerover Path">
+            <Setter Property="Stroke" Value="{DynamicResource DangerBrush}"/>
+            <Setter Property="RenderTransform">
+                <ScaleTransform ScaleX="1.15" ScaleY="1.15" />
+            </Setter>
         </Style>
 
         <!--  新建标签页「＋」按钮：图标用 Path 十字（天然居中、比文字清晰），竖直/水平都居中、略微放大；
@@ -265,6 +345,8 @@
         </Style>
         <Style Selector="Button.tab-new Path">
             <Setter Property="Stroke" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
         </Style>
         <Style Selector="Button.tab-new:pointerover Path">
             <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
@@ -309,13 +391,18 @@
              折叠态（48px）时文字被隐藏，只剩这个图标 → 靠它显示"当前在哪个模块"的主题色。  -->
         <Style Selector="Button.tree-row Path">
             <Setter Property="Stroke" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
         </Style>
         <Style Selector="Button.tree-row.active Path">
             <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
-        <!--  左树折叠态（48px）：只留一级图标，隐藏展开指示符 / 标题 / 子级  -->
-        <Style Selector="Border.tree-panel.collapsed TextBlock.tree-glyph">
+        <!--  左树折叠态（48px）：只留一级图标，隐藏展开箭头 / 标题 / 子级
+              NT-045：箭头由 TextBlock 字符改矢量 Path，外面包一层 Panel.tree-glyph —— 用 Panel 承载 IsVisible，
+              因为内部的 Path 自己绑了 IsVisible（本地值，样式压不过）。  -->
+        <Style Selector="Border.tree-panel.collapsed Panel.tree-glyph">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
         <Style Selector="Border.tree-panel.collapsed TextBlock.tree-title">
@@ -344,11 +431,19 @@
                   这里直接改 Button 自己的 Foreground，子元素自动跟着变白。继承不受模板影响，可靠。  -->
             <Setter Property="Foreground" Value="{DynamicResource TitleBarCloseHoverTextBrush}"/>
         </Style>
-        <!--  🔴 窗口按钮图标（最小化 Rectangle / 最大化·还原 Border / 关闭 TextBlock）颜色：
-              最小化用本地 Fill、最大化·还原用本地 BorderBrush（Border 不受 Shape 渲染问题影响）；
-              ⛔ **不用 Path** —— 实测 Path（尤其带 Stretch=Uniform）在裸按钮主题 BareButtonTheme 的
-              ContentPresenter 里渲染不出来（不报错、图标直接消失），v3.22 连踩三轮才定位。
-              关闭 ✕ 的前景色走继承（Button.win-btn 普通态 / .close:pointerover 白），见上面的样式。  -->
+        <!--  NT-045：窗口按钮图标改**矢量 `Path`**（原先用 `Rectangle` / `Border` / 图标字体三种混用）。
+              🔴 `Path` **不继承 Foreground** → 必须显式给 Stroke；⛔ 仍不写本地值（本地值会压过关闭的悬停态）。
+              ⚠️「Path 在裸主题里渲染不出来」的旧结论已定位并修掉（见 `BareButtonTheme` 内的根因注释）：
+                 真因是模板把 ContentAlignment 绑到了 Presenter 自身对齐 → ∞ 约束下 `Stretch=Uniform` 算出 NaN。  -->
+        <Style Selector="Button.win-btn Path">
+            <Setter Property="Stroke" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
+        </Style>
+        <Style Selector="Button.win-btn.close:pointerover Path">
+            <Setter Property="Stroke" Value="{DynamicResource TitleBarCloseHoverTextBrush}"/>
+        </Style>
 
         <!--  ==================== 通用（沿用） ====================  -->
 

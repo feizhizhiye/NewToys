@@ -47,6 +47,9 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
 
     public string? Description { get; set; }
 
+    /// <summary>最后更新时间（ISO 文本，来自 <c>assets.updated_at</c>）；回收站里 ≈ 软删除时刻。</summary>
+    public string? UpdatedAt { get; set; }
+
     // ===== 主文件位置 =====
     public string FileName { get; set; } = "";
     public string FilePath { get; set; } = "";
@@ -90,6 +93,16 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
         {
             if (string.IsNullOrEmpty(Mtime)) return "";
             return DateTime.TryParse(Mtime, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : Mtime;
+        }
+    }
+
+    /// <summary>删除时间（≈软删除时刻）的显示串，拿不到就空串。</summary>
+    public string UpdatedAtText
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(UpdatedAt)) return "";
+            return DateTime.TryParse(UpdatedAt, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : UpdatedAt;
         }
     }
 

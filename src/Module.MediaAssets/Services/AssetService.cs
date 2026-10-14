@@ -675,7 +675,7 @@ public class AssetService
             var sql =
                 "SELECT a.id, a.type, a.title, a.display_name, a.status, a.rating, a.description, " +
                 "       IFNULL(l.file_name,''), IFNULL(l.path,''), IFNULL(l.size,0), l.mtime, " +
-                "       IFNULL(l.status,'active'), IFNULL(l.storage_id,0), IFNULL(s.name,'') " +
+                "       IFNULL(l.status,'active'), IFNULL(l.storage_id,0), IFNULL(s.name,''), a.updated_at " +
                 "FROM assets a " +
                 "LEFT JOIN file_locations l ON l.id = (SELECT f.id FROM file_locations f " +
                 "    WHERE f.asset_id = a.id ORDER BY f.is_primary DESC, f.id LIMIT 1) " +
@@ -706,6 +706,7 @@ public class AssetService
                     LocationStatus = r.IsDBNull(11) ? LocationStatuses.Active : r.GetString(11),
                     StorageId = r.GetInt64(12),
                     StorageName = r.GetString(13),
+                    UpdatedAt = r.IsDBNull(14) ? null : r.GetString(14),
                     Name = !r.IsDBNull(3) && r.GetString(3).Length > 0 ? r.GetString(3)
                         : !r.IsDBNull(2) && r.GetString(2).Length > 0 ? r.GetString(2)
                         : "资产 #" + r.GetInt64(0).ToString(System.Globalization.CultureInfo.InvariantCulture)

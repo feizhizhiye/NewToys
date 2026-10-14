@@ -31,6 +31,9 @@
 
           <TextBlock Classes="field-label" Text="存储源"/>
           <TextBlock Classes="field-value" Text="{Binding DetailRow.StorageName}"/>
+
+          <TextBlock Classes="field-label" Text="删除时间"/>
+          <TextBlock Classes="field-value" Text="{Binding DetailRow.UpdatedAtText}"/>
         </StackPanel>
 
         <Border Classes="divider-line"/>

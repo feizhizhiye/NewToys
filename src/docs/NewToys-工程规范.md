@@ -179,7 +179,7 @@
 | `Win32Properties.SetWindowCornerPreference` | ✅ 官方通道，优先用它 |
 | `DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE=33)` | ⚠️ 兜底；`DONOTROUND=1`（写成 2 = 强制圆角，踩过） |
 | `SetWindowRgn` 矩形区域 | 🔴 硬手段；**代价 = DWM 阴影消失**（NT-042 复核去留） |
-| 手工补 `WS_CAPTION` / 接管 `WM_NCCALCSIZE` / `BeginResizeDrag` 兜底 | 🔴 **已于 NT-041 删除**（2026-10-14）：官方 PR #20067 要求移除早期 workaround；贴靠资格改由 `WindowDecorations="Full"` 提供，缩放改由 `ElementRole=ResizeN…SW` 提供。若本地验证回归 → `git revert` 恢复并在本表登记 |
+| 手工补 `WS_CAPTION` / 接管 `WM_NCCALCSIZE` | 🔴 技术债；官方 PR #20067 要求移除早期 workaround（NT-041） |
 | `DwmGetWindowAttribute(33)` | ⛔ **不支持读**，永远 -1，别当判据 |
 | 诊断写 `Window.Title` | ⛔ 无边框自绘窗口标题栏不显示 Title |
 

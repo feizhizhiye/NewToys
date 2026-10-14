@@ -60,5 +60,5 @@ NewToys/
 ## 当前状态
 
 - ✅ Debug / Release **均 0 Error / 0 Warning**
-- ⚠️ 仓库**尚未 `git init`**，补丁工作流暂不可用，交付走 sources md 快照
-- 详细基线与待办见 `src/docs/NewToys-项目状态与路线图.md`
+- **版本记录走 git commit**（`<type>: 简述`），⛔ 不写 md 变更日志；完整约定详见 `AGENTS.md`
+- 详细基线与工作项见 `src/docs/NewToys-项目状态与路线图.md`

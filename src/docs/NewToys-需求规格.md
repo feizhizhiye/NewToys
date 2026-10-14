@@ -189,7 +189,15 @@ Module.*（功能模块，只引 Shared + Core）
 
 ### 4.1 标题栏（40px，窗口级）
 
-- 元素从左到右：`≡` **折叠左菜单栏**（状态落 `config/columnlayout.json`，壳级页 Key `"shell"`）｜ `⟳` **重建当前页**（销毁并重建当前标签页 View+VM；⚠️ 与页面内「🔄 重读…」不是一回事，见 §4.8 硬规则 10）｜ **标签页区** ｜ `—` `□` `✕` 窗口控制。
+- 元素从左到右：`≡` **折叠左菜单栏**（状态落 `config/columnlayout.json`，壳级页 Key `"shell"`）｜ `⟳` **重建当前页**（销毁并重建当前标签页 View+VM；⚠️ 与页面内「🔄 重读…」不是一回事，见 §4.8 硬规则 10）｜ **标签页区** ｜ `⛶` **全屏** ｜ `—` `□` `✕` 窗口控制。
+- **全屏按钮（v3.38 新立，见 NT-044）**：
+  - 点击 = `WindowState.FullScreen` ↔ `Normal`。**与最大化的唯一区别 = 铺满屏幕并覆盖任务栏**（最大化保留任务栏）。
+  - 角色标注 `WindowDecorationProperties.ElementRole="FullScreenButton"` → 切换行为由**框架**执行，我们只画图标（⛶ / 退出全屏，`ElementRole` 只在 `ExtendClientAreaToDecorationsHint="True"` 时生效）。
+  - 🔴 **快捷键必须一并做**：`F11` 切换、`Esc` 退出。12.1.3 **没有** `ToggleFullScreen` / `ExitFullScreen` 内建方法，也没有内建按键处理；
+    顶部下拉浮层（`FullscreenPopover` / `PART_PopoverFullScreenButton`）**只存在于装饰模板里、本版本给不了模板**（§4.1.1）→ **快捷键是「用户被困全屏」的唯一兜底**，⛔ 不能省。
+  - 🔴 **已知风险（NT-034 实证）**：**全屏退出时 Avalonia 会用 `SetStyle(_savedWindowInfo.Style)` 整体覆盖窗口样式** → 可能抹掉贴靠资格位。
+    因此本工作项**必须排在 NT-041（清理 Win32 样式补丁）之后**，且验收清单里要有「全屏进→出→再拖边贴靠是否仍可用」这一条。
+  - 联动：全屏时**关闭八向缩放热区**、**收掉 1px 外框**（§4.1.1 ③）；最大化 / 还原图标的状态判定要一并覆盖全屏态。
 - **底色 = `ContentBrush`**（与窗口背景一致），底部 1px `DividerBrush` 分割线；文字 / 图标用 `PrimaryTextBrush`。
   ⚠️ 若改回深色底 → 标签项 / 窗口按钮**成套**切 `Sider*` 系。
 - 图标尺寸 **18px**；区域可拖拽移动窗口、双击最大化。

@@ -35,7 +35,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-trap { Write-Host ("❌ 执行出错: " + $_) -ForegroundColor Red; Read-Host "按 Enter 关闭窗口"; exit 1 }
+trap {
+    Write-Host ("❌ 执行出错: " + $_) -ForegroundColor Red
+    Read-Host "按 Enter 关闭窗口"
+    exit 1
+}
+
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # -Env 只作用于本进程（测试不需要污染用户级环境变量）
@@ -63,7 +68,7 @@ if (-not (Test-Path -LiteralPath $exe)) {
     Write-Host ("     pwsh ./scripts/build.ps1 -Configuration " + $Configuration) -ForegroundColor Cyan
     Write-Host "   或  pwsh ./scripts/run.ps1 -Configuration $Configuration  （构建并启动）" -ForegroundColor Cyan
     Write-Host ""
-    Read-Host "按 Enter 键退出"   # 暂停以便阅读，随后窗口随启动方式关闭
+    Read-Host "按 Enter 键退出"
     exit 1
 }
 
@@ -76,5 +81,6 @@ catch {
     Read-Host "按 Enter 键退出"
     exit 1
 }
-# 成功：直接返回，窗口随启动方式自动关闭
+
+# 启动成功，直接退出终端窗口
 exit 0

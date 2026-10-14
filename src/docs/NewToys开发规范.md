@@ -470,14 +470,14 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 
 | 项 | 理想 | 当前折衷 | 变更条件 | 影响面 |
 |---|---|---|---|---|
-| **B1 编译绑定** | 开启编译绑定，性能更好 | 全工程关闭，不写 `x:DataType` | 用户拍板统一开启并补 `x:DataType` | 全部 View |
+| **B1 编译绑定** | 开启编译绑定，性能更好 | 全工程关闭，不写 `x:DataType` | **保持关闭**（用户拍板：运行期暴露绑定错误，统一开启待定） | 全部 View |
 | **B2 VM 基类** | 统一继承 `Shared/ViewModelBase` | 模块内多直接继承 `ObservableObject`，仅 Shell/Home 用 `ViewModelBase` | 某模块改造时逐模块统一 | 各模块 VM |
 | **B3 全局样式** | 显式 `x:Key` 样式键 | 用 `Classes` 隐式样式 | 收益足够大时整体改造 | `App.axaml` |
 | **B4 导航服务** | 导航统一走 `INavigationService` | 主流程（侧栏 / 菜单点选）由 `ShellViewModel` 自解析；`NavigationService` 仅被**模块内跳转**（功能清单页、模块首页）经 `Navigated` 事件复用，**未成为统一入口** | 删闲置服务或改用它（属框架层需同意） | Shell/Core |
 | **B5 平台后端** | 完全跨平台 | 后端仍调 winget/ffmpeg 命令行，类型已中立为 `Package*` | 迁 Debian 时替换 | Core 服务 |
 | **B6 仓库根 slnx** | 唯一入口 `src/NewToys.slnx` | 仓库根残留旧 `NewToys.slnx` 副本 | 直接删除即可 | 仓库 |
 | **B7 Modules 冗余 DLL** | `Modules\` 仅含模块 DLL | 会多出 `NewToys.Shared.dll`/`NewToys.Core.dll` | 无害暂留 | Release 产物 |
-| **B8 闲置转换器** | 不留无用文件 | `Shell/Converters/BoolInversionConverter` 未被引用 | 保留或删除均可 | Shell |
+| **B8 闲置转换器** | 不留无用文件 | `Shell/Converters/BoolInversionConverter` 未被引用 | **已删除**（2026-10-14，无任何 XAML/CS 引用） | Shell |
 | **B9 骨架页面** | 全部页面落地真实逻辑 | 仅剩 `web-http` 一个骨架 | 按节奏实装 | Module.WebTools |
 | **B10 运行期热加载** | 任意模块随时加载/卸载/替换，服务随模块可扩 | 仅支持「新增未加载过的模块」；同名不卸载不替换；容器已 build，模块不能注册新服务 | 引入可卸载 ALC+模块级容器后升级 | ModuleLoader+Shell |
 | **B11 反射使用** | 最小魔法、少反射 | 模块装配/热加载/视图解析三处用反射枚举 IModule 与 View/VM | 机制必需暂不改；⛔ 仅限这三处 | ModuleLoader/ShellViewModel |

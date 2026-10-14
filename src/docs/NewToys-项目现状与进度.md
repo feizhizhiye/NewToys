@@ -115,6 +115,9 @@
 | NT-025 | 窗口：自绘缩放抓取区（四边 5px/四角 10px，BeginResizeDrag 八向）+ 分屏贴靠验证 + bounds 按配置记忆 | P1 | ✔ 已完成（已验收） | backlog/NT-025.md |
 | NT-027 | 视频工具精简：删视频库(.db) / 标签 / 收藏页 → 收窄为「简易查看器 + 送批量任务」（含旧表一次性清理） | P0 | ✔ 已完成（已验收） | backlog/NT-027.md |
 | NT-028 | 示例数据 + 详情卡默认示例态（批次 1~4 已落：视频两页 / `assets-all` / PcTools 4 页 / WebTools 4 页 / `settings-path`；批次 5 类型页随 NT-017；含框架层 `ListPageViewModelBase` 授权改动） | P1 | ✔ 已完成（已验收） | backlog/NT-028.md |
+| NT-029 | 回收站显示删除时间（NT-019 偏差②闭合） | P1 | ✔ 已完成（待验收） | backlog/NT-029.md |
+| NT-030 | 移动/复制 UI 入口（NT-019 偏差①） | P1 | ✅ 就绪 | backlog/NT-030.md |
+| NT-031 | 视频类型专属列（NT-017 试点） | P2 | ✅ 就绪 | backlog/NT-031.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（细节文件保留、⛔ 不删）。已落盘待编译的项见下方 P0 v3.15 / v3.16。
 
@@ -201,10 +204,10 @@
 ### P1 · 技术债
 | # | 问题 | 建议 |
 |---|---|---|
-| 1 | 编译绑定逐项目关闭（View 无 `x:DataType`） | 二选一写进规范（B1） |
+| 1 | 编译绑定逐项目关闭（View 无 `x:DataType`） | **已写入规范 B1：保持关闭**（2026-10-14） |
 | 2 | 全局样式键用 `Classes` 隐式样式 | 收益有限暂挂（B3） |
 | 3 | `NavigationService` 主流程闲置 | 删闲置服务或改用它（属框架层需同意，B4） |
-| 4 | `BoolInversionConverter` 未使用 | 保留 / 删除均可（B8） |
+| 4 | `BoolInversionConverter` 未使用 | **已删除**（2026-10-14，无引用） |
 | 5 | 仓库根残留旧 `NewToys.slnx` | 删除（B6） |
 | 6 | ~~v3.15 复查发现：批量页详情卡两个分区标题行缺勾选框~~ **v3.16 已解决**：用户拍板"勾选框可交互、勾即改任务类型"，已落地（`EditIsCut` / `EditIsTranscode` + `VideoTaskStore.Replace`） |
 

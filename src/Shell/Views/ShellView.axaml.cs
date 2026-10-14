@@ -457,7 +457,7 @@ public partial class ShellView : Window
     /// </summary>
     // ⚠️ 刻意**不用 const**：置 false 时若用 const，编译器会判后面的代码不可达 →
     //    CS0162 警告（本项目开 TreatWarningsAsErrors → 直接编译失败），基准测试就跑不起来了。
-    private static bool UseSquareRegionHack = true;
+    private static bool UseSquareRegionHack = false;   // NT-042 基准测试：2026-10-15 置 false
 
     /// <summary>
     /// NT-034 兜底（硬手段）：给窗口套一个**矩形窗口区域**（<c>SetWindowRgn</c>）。

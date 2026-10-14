@@ -190,6 +190,93 @@
                     VerticalAlignment="Stretch"
                     Orientation="Horizontal"
                     chrome:WindowDecorationProperties.ElementRole="User">
+                    <!--  NT-044：全屏按钮（⛶）—— 位置在最小化左边。
+                          ⚠️ 图标同样**只能用 Border**（⛔ 不用 Path：BareButtonTheme 里渲染不出来，见上方注释；
+                             也不用 TextBlock ⛶：U+26F6 在 Segoe UI 下可能是豆腐块）。
+                          ⚠️ **不单设** `ElementRole="FullScreenButton"` —— 切换一律由 code-behind 的 Click 处理；
+                             父 StackPanel 已标 `User`（点击照常放行）。若框架也自动切一次，就会和我们重复触发。  -->
+                    <Button
+                        x:Name="BtnFullScreen"
+                        Width="46"
+                        Height="40"
+                        Classes="win-btn"
+                        Theme="{StaticResource BareButtonTheme}"
+                        ToolTip.Tip="全屏 (F11)">
+                        <Grid
+                            Width="16"
+                            Height="16"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                            <!--  进入全屏：四角**朝外**的括弧  -->
+                            <Grid x:Name="FullScreenIcon">
+                                <Border
+                                    Width="6"
+                                    Height="6"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="1.4,1.4,0,0" />
+                                <Border
+                                    Width="6"
+                                    Height="6"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="1.4,0,0,1.4" />
+                                <Border
+                                    Width="6"
+                                    Height="6"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Bottom"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="0,0,1.4,1.4" />
+                                <Border
+                                    Width="6"
+                                    Height="6"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Bottom"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="0,1.4,1.4,0" />
+                            </Grid>
+                            <!--  退出全屏：四角**朝内**的括弧（整体内缩到 10×10 → 尖角朝向中心）  -->
+                            <Grid
+                                x:Name="ExitFullScreenIcon"
+                                Width="10"
+                                Height="10"
+                                IsVisible="False"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                                <Border
+                                    Width="6"
+                                    Height="6"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="0,0,1.4,1.4" />
+                                <Border
+                                    Width="6"
+                                    Height="6"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="0,1.4,1.4,0" />
+                                <Border
+                                    Width="6"
+                                    Height="6"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Bottom"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="1.4,0,0,1.4" />
+                                <Border
+                                    Width="6"
+                                    Height="6"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Bottom"
+                                    BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                    BorderThickness="1.4,1.4,0,0" />
+                            </Grid>
+                        </Grid>
+                    </Button>
                     <Button
                         x:Name="BtnMin"
                         Width="46"

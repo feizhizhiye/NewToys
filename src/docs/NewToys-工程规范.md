@@ -311,12 +311,26 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 1. **`MenuItem` 用 `ItemsSource` 生成子菜单时，`ItemContainerTheme` 必须写 `BasedOn="{StaticResource {x:Type MenuItem}}"`** —— 不写就是一份**没有模板**的全新 ControlTheme，子项画不出来 → 表现为「点了不弹出子菜单」。全仓 11 处筛选子菜单都犯过这个错。
 2. **给控件覆写 `:pointerover` 等伪类样式，若被 Fluent 主题盖掉（实测表现为"图标还是白的、背景还在"），就改用**后代选择器**提优先级**：`Border.tab-item Button.tab-close:pointerover` 能压过主题的 `Button:pointerover`。
 3. 🔴 **后代选择器也压不住时（Fluent 的 `Button` 会在模板状态里自己画背景 + 改前景），就换"裸控件主题"**：`App.axaml` 的 `BareButtonTheme`（只有 `ContentPresenter`，零状态绘制）→ 控件上写 `Theme="{StaticResource BareButtonTheme}"`。标签页关闭 ✕ 就是这样才真正做到"透明底 + 红图标"。**以后凡是要完全自绘的小按钮，一律套它。**
-4. 🔴 **裸主题（`BareButtonTheme`）里的图标只能用 `Rectangle` / `Border` / `TextBlock`** —— `Path`（尤其带 `Stretch=Uniform`）在它的 `ContentPresenter` 里**渲染不出来**（不报错、图标直接消失，v3.22 连踩三轮）。
-   需要"标准系统图标"时（如 NT-044 全屏按钮）：用 `TextBlock` + **系统自带**图标字体 `Segoe MDL2 Assets` 的字形（WinUI `Symbol` 枚举同款：`U+E740` FullScreen / `U+E73F` BackToWindow），
-   `FontFamily` 写回退链 `Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol`。⛔ 这是**系统字体**，不违反《需求规格》「禁第三方图标字体 / 包」（没引入任何包）。
-   ✅ **NT-044 起右侧窗口按钮已全部统一为这套官方字形**：最小化 `U+E921` / 最大化 `U+E922` / 还原 `U+E923` / 关闭 `U+E8BB` / 全屏 `U+E740` / 退出全屏 `U+E73F`
-   （旧的 `Rectangle` 横线、`Border` 拼方框、`TextBlock ✕` 三种做法**已废弃** —— 自绘几何观感抽象、风格不统一）。
-   ⚠️ 左侧 `Button.title-btn`（≡ / ⟳ / 重载模块）**仍用矢量 `Path`**（不套裸主题，Path 正常渲染；描边 1.6、16×16）—— 那组是描边线性风格，⛔ 别混进图标字体。
+4. 🔴 **「裸主题里 `Path` 渲染不出来」是**∞ 约束**问题，NT-045 已定位并修掉**（旧结论见下方历史）：
+   `BareButtonTheme` 原模板把 Button 的 `HorizontalContentAlignment` 绑到 `ContentPresenter` **自身**的 `HorizontalAlignment`
+   → Presenter 不再撑满、改用**无限约束**测量内容 → `Path`（`Stretch=Uniform`）在 ∞ 下算出 NaN 尺寸 → 图标整个不渲染
+   （`TextBlock` / `Rectangle` 不受影响，所以 v3.22 误判成"主题问题"）。
+   ✅ 修法 = 与 Fluent 模板对齐：Presenter 自身撑满，对齐交给 `HorizontalContentAlignment` / `VerticalContentAlignment` 属性。
+   ⇒ **裸主题里同样可以放心用 `Path`**（窗口按钮、标签关闭 ✕ 都已改回矢量）。
+   ⚠️ 历史留档：v3.22~NT-044 期间该位曾用 `TextBlock` + 系统图标字体 `Segoe MDL2 Assets` 字形规避（`U+E921/E922/E923/E8BB/E740/E73F`）；
+   NT-045 起**图标字体已全部弃用**，见下条「框架层图标统一口径」。
+5. 🔴 **框架层图标统一口径（NT-045 起，C 方案 —— 整个 Shell 只用一种载体）**：`Path` + `App.axaml` 的 `Icon*` `StreamGeometry` 键。
+   - 几何**一律 24×24 网格**（与 Lucide / Feather 同网格，摘公开图标集路径数据不用换算）。
+   - 使用方式固定：`<Path Data="{StaticResource IconXxx}" Width="16" Height="16" Stretch="Uniform"/>`；
+     粗细 / 端帽 / 拐角 / 颜色**全由各自按钮的后代选择器样式给**（`Button.title-btn Path` / `Button.win-btn Path` /
+     `Button.tab-new Path` / `Button.tab-close Path` / `Button.tree-row Path`）→ XAML 里只留 `Data` + 尺寸，⛔ 不逐处写描边。
+   - ⛔ 不再用字符（`≡ ⟳ ✕ ▾ ▸ ＋ ★ ⚡ ⚙`）、emoji、图标字体作图标载体；⛔ 不写本地 `Stroke`（本地值会压过 `:pointerover` / `.active`）。
+     例外只有**无状态装饰图标**（首页 ★ / ⚡ / ⚙ 这类不参与状态的），可用 `Path.icon-accent` / `Path.icon-primary` 类给死色。
+   - 状态图标（最大化 / 还原 / 全屏 / 退出全屏、树展开箭头）用**两个 `Path` 叠放 + `IsVisible` 切换**，状态属性由 VM 暴露
+     （如 `TreeMenuItem.ShowChevronDown` / `ShowChevronRight`）。
+   - 键名必须在本仓 `App.axaml` 定义 —— 模块 `RegisterModule` 的一级 `icon`、左树 `ResolveIcon()`、设置页「功能清单」都按键名取；
+     **键名不存在就地没图标**（emoji 回退分支已删）。
+   - 范围外（登记技术债）：**数据驱动图标** —— 首页「常用功能」按钮（`AppMenuItem.Icon`）与「一键按钮」（用户在设置页配置的 `Icon`）仍是字符串 / emoji。
 
 **列表页内的硬规则（保留）**：
 1. 表头与行模板**完全相同的星号列定义**（逐字一致）；动态列用 `<v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">`。

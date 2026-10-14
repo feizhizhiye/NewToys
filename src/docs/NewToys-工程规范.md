@@ -209,7 +209,8 @@ WindowDecorationsTheme="{DynamicResource NewToysWindowDecorations}"
   ⇒ **12.1.3 上不存在「自定义装饰模板」这条路**。AtomUI 那份指南对应它的 6.0 分支，**不适用于本版本**。
 - ⚠️ 同理，「缺 PART 抛 NRE」那条风险**在本配置下不成立** —— 它的前提是**有模板**（`OnApplyTemplate` 才去按名找 PART）。
 - 主题引用用 **`DynamicResource`**：窗口装饰主题在合并字典完成前就可能被解析，`StaticResource` 那一刻取不到（AtomUI 指南 §15 的已知坑）。
-- ⚠️ `ApplySnapEligibleStyles()`（手工补 `WS_CAPTION`）**已于 NT-041 第二次尝试删除**（commit `d607a89`，仅删样式位补丁一处，`WM_NCCALCSIZE` 与 resize 兜底保留）—— 官方 `Full` 装饰自带这些样式位。**待本地验证贴靠不回归**；若回归 → 回滚该 commit 并恢复本条描述（详见 `backlog/NT-041.md`）。
+- ✅ `ApplySnapEligibleStyles()`（手工补 `WS_CAPTION`）**已删除并验收通过**（NT-041，commit `d607a89`）—— 官方 `Full` 装饰自带贴靠所需的样式位，实机验证（贴半屏 / 四分屏 / `Win+方向键`）无回归。
+- 🔴 同批的另两处补丁**仍然被需要，⛔ 不再追删**（首轮一次性删三处实测：贴靠 OK 但露缝 / 八向缩放渲染异常）：① `InstallSnapFrameFix`（`WM_NCCALCSIZE` 零内缩，治贴靠后三边露缝）② `WireResizeGrips`（八向缩放兜底）。PR #20067 的「移除早期 workaround」**不适用于本项目**。
 
 ---
 

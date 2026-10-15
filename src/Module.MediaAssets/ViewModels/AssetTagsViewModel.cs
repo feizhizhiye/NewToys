@@ -8,7 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
 using NewToys.MediaAssets.Models;
 using NewToys.MediaAssets.Services;
-using NewToys.MediaAssets.Views.Detail;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -22,14 +22,13 @@ namespace NewToys.MediaAssets.ViewModels;
 /// </para>
 /// <para>⚠️ 标签是用户手动数据（R1 例外）：重建库会丢，靠 NT-022 的「导出用户数据」兜底。</para>
 /// </summary>
-public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelProvider
+public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly TagService _tags = null!;
     private readonly OperationLogService _log = null!;
     private readonly AssetNavigationStore _store = null!;
     private readonly INavigationService? _nav;
     private readonly List<TagRow> _all = new();
-    private TagDetailView? _detailView;
 
     /// <summary>详情卡回填中（保存要跳过这一次，⛔ 别把"显示"当成"用户改了"）。</summary>
     private bool _loadingDetail;
@@ -398,18 +397,93 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    public object? DetailContent
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（NT-054 迁移：原来的 <c>TagDetailView</c> 已停用）。</summary>
+    public object? DetailContent => null;
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（NT-054 / 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的 <c>TagDetailView</c> 1:1 对应：名称 / 命名空间可编辑 + **色板**（色块 chips，点一下即改）
+    /// + 只读信息 + 「用了这个标签的资产」（**可点击行**，跳「全部资产」并选中）。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
     {
-        get
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧列表里选中一个标签，这里显示它的详情。",
+        SampleText = "（示例数据）在左侧选中一个标签后，这里显示它的真实信息；示例态下卡片不可编辑。",
+        Sections =
         {
-            if (_detailView == null)
+            new DetailSection
             {
-                _detailView = new TagDetailView();
-                _detailView.DataContext = this;
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "名称",
+                        ValuePath = nameof(EditName),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Placeholder = "标签名（不能为空）"
+                    },
+                    new DetailField
+                    {
+                        Label = "命名空间（留空 = 默认）",
+                        ValuePath = nameof(EditNamespace),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Placeholder = "如 影视 / 音乐（可留空）"
+                    },
+                    // 色板：只有色块、点一下即改（命令参数取候选项的 Hex，不是整项）
+                    new DetailField
+                    {
+                        Label = "颜色（点一下即改，立即落库）",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(Palette),
+                        ChipTextPath = "",
+                        ChipBrushPath = "Brush",
+                        ChipToolTipPath = "Hex",
+                        ChipCommandPath = nameof(SetColorCommand),
+                        ChipCommandArgPath = "Hex"
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField { Label = "使用数", ValuePath = "DetailTag.UsageText", Kind = FieldKind.Text },
+                    new DetailField { Label = "当前颜色", ValuePath = "DetailTag.ColorHexText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "创建时间", ValuePath = "DetailTag.CreatedText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Kind = FieldKind.Divider },
+                    // 「用了这个标签的资产」：每行可点 → 打开「全部资产」并选中它
+                    new DetailField
+                    {
+                        Label = "使用了这个标签的资产（点一下打开）",
+                        Kind = FieldKind.List,
+                        OptionsPath = nameof(DetailAssets),
+                        ItemTextPath = "Name",
+                        ItemCommandPath = nameof(OpenAssetCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有资产用这个标签）",
+                        VisibleWhen = "!" + nameof(HasDetailAssets)
+                    }
+                }
             }
-            return _detailView;
+        },
+        Actions =
+        {
+            new DetailAction
+            {
+                Text = "💾 保存",
+                Classes = "primary",
+                ToolTip = "把名称 / 命名空间 / 颜色写进标签库（⛔ 不动磁盘文件）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = SaveDetailCommand
+            }
         }
-    }
+    };
 
     public event EventHandler? DetailChanged;
 

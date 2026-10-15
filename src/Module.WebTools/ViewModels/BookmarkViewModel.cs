@@ -4,8 +4,10 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.WebTools.Models;
@@ -21,7 +23,7 @@ namespace NewToys.WebTools.ViewModels;
 /// <c>config\columnlayout.json</c>（规范 3.6 / 3.8）。
 /// </para>
 /// </summary>
-public partial class BookmarkViewModel : ListPageViewModelBase
+public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly BookmarkService _svc = null!;
@@ -99,6 +101,163 @@ public partial class BookmarkViewModel : ListPageViewModelBase
     public bool ShowDetailBody => HasSelection || IsDetailSample;
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
+    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+
+    /// <summary>
+    /// 「最近检测」块是否要显示（原 XAML 用 <c>ObjectConverters.IsNotNull</c>，描述符只认布尔路径）。
+    /// </summary>
+    public bool HasCheckStatus => !string.IsNullOrWhiteSpace(DetailItem.CheckStatus);
+
+    /// <summary>检测时间的展示串（原 XAML 走 <c>StringFormat</c>，描述符不支持格式化 ⇒ 这里先拼好）。</summary>
+    public string CheckedAtDisplay => DetailItem.CheckedAt is { } t ? t.ToString("yyyy-MM-dd HH:mm") : "";
+
+    private void NotifyCheckInfo()
+    {
+        OnPropertyChanged(nameof(HasCheckStatus));
+        OnPropertyChanged(nameof(CheckedAtDisplay));
+    }
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>工具条末位的详情开关 → 走本命令（⛔ 基类 <c>ToggleDetailCommand</c> 不通知 Shell，右列不会跟着开合）。</summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的页内自绘卡片对应：标题 / 网址 / 分组 / 备注 / 加入批量打开 + 最近检测块 + 四个卡内动作。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
+    {
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧列表里选中一条书签",
+        SampleText = "（示例数据）在左侧选中一条书签后，这里显示它的真实内容；示例态下不可编辑。",
+        Sections =
+        {
+            new DetailSection
+            {
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "标题",
+                        ValuePath = "DetailItem.Title",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur
+                    },
+                    new DetailField
+                    {
+                        Label = "网址",
+                        ValuePath = "DetailItem.Url",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur
+                    },
+                    new DetailField
+                    {
+                        Label = "分组",
+                        ValuePath = "DetailItem.Folder",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Placeholder = "如：工作 / 学习"
+                    },
+                    new DetailField
+                    {
+                        Label = "备注",
+                        ValuePath = "DetailItem.Notes",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        MultiLine = true,
+                        Rows = 80
+                    },
+                    new DetailField
+                    {
+                        Label = "加入「批量打开」",
+                        ValuePath = "DetailItem.IsBatchOpen",
+                        Kind = FieldKind.Check
+                    },
+                    new DetailField
+                    {
+                        Label = "最近检测",
+                        ValuePath = "DetailItem.CheckStatus",
+                        Kind = FieldKind.Text,
+                        Selectable = true,
+                        VisibleWhen = nameof(HasCheckStatus)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Prefix = "检测时间：",
+                        ValuePath = nameof(CheckedAtDisplay),
+                        VisibleWhen = nameof(HasCheckStatus)
+                    }
+                }
+            }
+        },
+        Actions =
+        {
+            // 原来这四个按钮是页内卡里的 WrapPanel（只在有选中 / 示例态之外显示）；声明式卡里进 Actions 区。
+            new DetailAction
+            {
+                Text = "💾 保存",
+                Classes = "primary",
+                ToolTip = "把当前内容写回书签文件",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = SaveCommand
+            },
+            new DetailAction
+            {
+                Text = "🌐 打开",
+                Classes = "ghost",
+                ToolTip = "在默认浏览器里打开这条书签",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = OpenCommand
+            },
+            new DetailAction
+            {
+                Text = "🔗 检测",
+                Classes = "ghost",
+                ToolTip = "检测这条书签的连通性（HTTP 状态）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = CheckCommand
+            },
+            new DetailAction
+            {
+                Text = "🗑 删除",
+                Classes = "ghost",
+                ToolTip = "删除这条书签",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = DeleteCommand
+            }
+        }
+    };
 
     private readonly IAppConfigService? _app;
 
@@ -208,6 +367,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase
         if (Selected == null) return;
         await CheckOneAsync(Selected);
         ApplyView();
+        NotifyCheckInfo();
     }
 
     [RelayCommand]
@@ -227,7 +387,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase
             }));
             StatusText = "批量检测完成。";
         }
-        finally { IsBusy = false; ApplyView(); }
+        finally { IsBusy = false; ApplyView(); NotifyCheckInfo(); }
     }
 
     private async Task CheckOneAsync(BookmarkItem b)
@@ -314,6 +474,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase
     {
         UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例书签
         OnPropertyChanged(nameof(DetailItem));
+        NotifyCheckInfo();      // 切选中项 / 示例态 → 「最近检测」块跟着换
         OnPropertyChanged(nameof(HasSelection));
     }
     partial void OnSearchTextChanged(string value) => ApplyView();

@@ -4,7 +4,7 @@
              x:Class="NewToys.MediaAssets.Views.AssetTagsView">
   <!--
     NT-018「标签管理」页：列表（名称 / 命名空间 / 颜色 / 使用数 / 创建时间）+ 详情卡（由 **Shell** 承载）。
-    🔴 与「全部资产」页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，DetailContent 返回 TagDetailView）。
+    🔴 与「全部资产」页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，详情卡已改由 Shell 声明式渲染（NT-054））。
     逻辑操作（新建 / 改名 / 改色 / 合并 / 删除 / 清理未使用）都在工具条与**行右键菜单**；
     ⛔ 单条动作不上工具条（需求 §4.8 硬规则 9）。
   -->

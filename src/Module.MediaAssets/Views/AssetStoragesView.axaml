@@ -4,7 +4,7 @@
              x:Class="NewToys.MediaAssets.Views.AssetStoragesView">
   <!--
     NT-020「存储源」页：列表（名称 / 根路径 / 类型 / 状态 / 文件数 / 最近扫描）+ 详情卡（由 **Shell** 承载）。
-    🔴 与其它媒体资产列表页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，DetailContent 返回 StorageDetailView）。
+    🔴 与其它媒体资产列表页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，详情卡已改由 Shell 声明式渲染（NT-054））。
     工具条 = 页面级功能（添加 / 扫描）；行右键 = 针对单条的动作（重命名 / 切类型 / 上下线 / 移除）。
   -->
   <Grid RowDefinitions="Auto,Auto,*" Margin="12">

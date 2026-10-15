@@ -5,7 +5,7 @@
   <!--
     NT-016「全部资产」样板列表页。
     🔴 与旧列表页（Ping / 视频列表）最大的不同：**本页没有右栏详情卡** —— 详情面板改由 **Shell**
-       承载（VM 实现 IDetailPanelProvider，DetailContent 返回 AssetDetailView）。
+       承载（VM 实现 IDetailPanelProvider，详情卡已改由 Shell 声明式渲染（NT-054））。
        ⛔ 若本页再自带一栏，右列会出现两个详情卡（Shell 一个、页面一个）。
 
     布局：工具条 / 筛选条 / 列表 三行（右列由 Shell 补上，凑成三列）。

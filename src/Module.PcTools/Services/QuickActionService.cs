@@ -20,9 +20,9 @@ namespace NewToys.PcTools.Services;
 ///   <item>「快捷设置」→ <c>&lt;应用根&gt;\config\pc-quick.json</c>（命令行命令）。</item>
 /// </list>
 /// <para>
-/// <b>命令内容不写死在代码里</b>（v1.33 起的铁律）：默认清单随程序发布在
-/// <c>&lt;程序目录&gt;\defaults\pc-scripts.default.json</c> 与 <c>...\pc-quick.default.json</c>，
-/// 首次运行播种成上面两个用户文件；之后一切以用户那份为准（删条目不会被"复活"）。
+/// <b>命令内容不写死在代码里，也不随程序预置</b>（v3.60 §3.6 / NT-060）：<b>干净启动</b> —— 两个配置文件
+/// 首次运行落盘成**空清单**，条目全部由用户自己导入 / 新建。软件只提供**默认路径**
+/// （<see cref="ScriptsDirectory"/> 这类常量），⛔ 不再读 <c>defaults\*.default.json</c> 播种。
 /// </para>
 /// <para>
 /// 旧版（v1.33 及以前）只有一个 <c>quickactions.json</c>：首次运行本服务会把它**按 <see cref="QuickAction.Page"/>
@@ -69,14 +69,6 @@ public class QuickActionService : IQuickActionService
 
     /// <summary>旧版单文件（v1.33 及以前）；只用于一次性迁移。</summary>
     private string LegacyFilePath => Path.Combine(_cfg.ConfigDir, "quickactions.json");
-
-    /// <summary>随程序发布的默认清单：设置与脚本。</summary>
-    public static string ScriptsDefaultsFile
-        => Path.Combine(AppContext.BaseDirectory, "defaults", "pc-scripts.default.json");
-
-    /// <summary>随程序发布的默认清单：快捷设置。</summary>
-    public static string QuickDefaultsFile
-        => Path.Combine(AppContext.BaseDirectory, "defaults", "pc-quick.default.json");
 
     /// <summary>脚本目录（生效值）：配置为空时用 <c>&lt;应用根&gt;\scripts</c>。</summary>
     public string ScriptsDirectory
@@ -477,15 +469,16 @@ public class QuickActionService : IQuickActionService
             dirty = true;
         }
 
-        // ---- ② 播种默认清单 ----
+        // ---- ② 干净启动（v3.60 §3.6 / NT-060）：⛔ 不播种任何默认清单 ----
+        // 两个文件不存在 ⇒ 落一份**空清单**（让磁盘上看得见"这里由我自己填"），⛔ 不再读 defaults\*.default.json。
         if (scriptItems == null)
         {
-            scriptItems = TryRead(ScriptsDefaultsFile) ?? new List<QuickAction>();
+            scriptItems = new List<QuickAction>();
             dirty = true;
         }
         if (quickItems == null)
         {
-            quickItems = TryRead(QuickDefaultsFile) ?? new List<QuickAction>();
+            quickItems = new List<QuickAction>();
             dirty = true;
         }
 
@@ -576,10 +569,9 @@ public class QuickActionService : IQuickActionService
     }
 
     /// <summary>
-    /// 首次运行把随程序发布的示例脚本（<c>defaults\scripts\*</c>）复制到脚本目录。
+    /// 确保脚本目录存在（<see cref="ScriptsDirectory"/>）。
     /// <para>
-    /// ⚠️ 仅当脚本目录**还不存在**时才做：目录已存在说明用户已经在用了，
-    /// 此时把"被删掉的示例脚本"再塞回去就成了"删不掉的幽灵文件"（v1.33 的有意取舍）。
+    /// v3.60 §一 / NT-060：⛔ <b>不再复制示例脚本</b> —— 软件只提供默认路径，脚本内容由用户自己放 / 导入。
     /// </para>
     /// </summary>
     private void EnsureScriptsDirectory()
@@ -588,16 +580,7 @@ public class QuickActionService : IQuickActionService
         {
             var dir = ScriptsDirectory;
             if (Directory.Exists(dir)) return;
-
             Directory.CreateDirectory(dir);
-            var src = Path.Combine(AppContext.BaseDirectory, "defaults", "scripts");
-            if (!Directory.Exists(src)) return;
-
-            foreach (var f in Directory.GetFiles(src))
-            {
-                try { File.Copy(f, Path.Combine(dir, Path.GetFileName(f)), overwrite: false); }
-                catch { /* 单个文件失败不影响其它 */ }
-            }
         }
         catch { /* 建目录失败不阻断启动：运行时会给出"找不到脚本文件"的明确提示 */ }
     }

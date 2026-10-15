@@ -173,29 +173,13 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
-    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
-    public bool ShowDetailBody => HasSelection || IsDetailSample;
-    public bool IsDbAvailable => _assets?.IsAvailable ?? false;
+    public bool ShowDetailBody => HasSelection;    public bool IsDbAvailable => _assets?.IsAvailable ?? false;
 
     /// <summary>「扫描选中」可用态（Avalonia 绑定不支逻辑运算符，⛔ 别在 XAML 里写 And）。</summary>
     public bool CanScanSelected => HasSelection && IsDbAvailable;
 
-    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
-
-    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例行**（示例态整卡禁用）。</summary>
-    public StorageRow DetailStorage => Selected ?? SampleStorage;
-
-    private static readonly StorageRow SampleStorage = new()
-    {
-        Id = 0,
-        Name = "移动硬盘 D",
-        RootPath = @"D:\Movies",
-        Type = StorageTypes.Removable,
-        Online = true,
-        FileCount = 1204,
-        LastScanAt = "2026-10-14 05:20:00"
-    };
-
+    /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
+    public StorageRow DetailStorage => Selected;
     public AssetStoragesViewModel() { }
 
     public AssetStoragesViewModel(AssetService assets, StorageService storages, ScanService scan, TaskQueue queue,
@@ -218,7 +202,6 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
             ("状态：离线", "Status", "离线")
         });
         Reload();
-        UpdateDetailSample(false);
         LoadDetail(null);
         StatusText = StatusSummary();
 
@@ -293,7 +276,6 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(CanScanSelected));
-        OnPropertyChanged(nameof(ShowSampleRow));
     }
 
     private IOrderedEnumerable<StorageRow> Order<TKey>(IEnumerable<StorageRow> q, Func<StorageRow, TKey> key)
@@ -469,7 +451,6 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
 
     partial void OnSelectedChanged(StorageRow? value)
     {
-        UpdateDetailSample(value != null);
         OnPropertyChanged(nameof(DetailStorage));
         LoadDetail(value);
         OnPropertyChanged(nameof(HasSelection));
@@ -482,8 +463,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         DetailTypeStats.Clear();
         DetailErrors.Clear();
 
-        var target = row ?? (HasSampleRow ? SampleStorage : null);
-        DetailRootPath = target?.RootPath ?? "";
+        var target = row;        DetailRootPath = target?.RootPath ?? "";
         DetailType = target?.TypeText ?? "";
         DetailStatus = target?.StatusText ?? "";
         DetailCreated = target?.CreatedAt ?? "";
@@ -491,7 +471,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
 
         if (target == null || target.Id <= 0)
         {
-            // 示例态 / 无选中：统计位给示例值（与列表示例行同一批数据）
+            // 未入库（Id<=0）：统计位留空
             DetailFileCount = target == null ? "" : target.FileCountText + " 个";
             DetailSize = target == null ? "" : AssetRow.FormatSize(4_509_715_660);
             DetailMissing = target == null ? "" : "无缺失";
@@ -535,9 +515,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        SamplePath = nameof(IsDetailSample),
         EmptyText = "在左侧列表里选中一个存储源，这里显示它的详情与统计。",
-        SampleText = "（示例数据）在左侧选中一个存储源后，这里显示它的真实信息。",
         Sections =
         {
             new DetailSection

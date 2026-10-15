@@ -797,15 +797,12 @@ public sealed class DetailCardRenderer : ObservableObject, IDisposable
     private readonly object? _source;
     private readonly INotifyPropertyChanged? _sourceNotifier;
     private readonly string? _bodyPath;
-    private readonly string? _samplePath;
 
     public DetailCardRenderer(DetailCardDescriptor card, object? source)
     {
         _source = source;
         _bodyPath = card.BodyVisiblePath;
-        _samplePath = card.SamplePath;
         EmptyText = card.EmptyText;
-        SampleText = card.SampleText;
 
         foreach (var s in card.Sections) Sections.Add(new DetailSectionRender(s, source));
         foreach (var a in card.Actions) Actions.Add(new DetailActionRender(a, source));
@@ -822,26 +819,19 @@ public sealed class DetailCardRenderer : ObservableObject, IDisposable
     public bool HasSections => Sections.Count > 0;
     public bool HasActions => Actions.Count > 0;
     public string? EmptyText { get; }
-    public string? SampleText { get; }
-    public bool HasSampleText => !string.IsNullOrWhiteSpace(SampleText);
 
     private bool _showBody = true;
-    private bool _isSample;
 
-    /// <summary>详情正文是否可见（空态 / 示例态之外的正常态）。</summary>
+    /// <summary>详情正文是否可见（空态之外的正常态）。</summary>
     public bool ShowBody { get => _showBody; private set => SetProperty(ref _showBody, value); }
-
-    /// <summary>示例态（v3.32 §4.8.3）：整卡 <c>IsEnabled=false</c>，⛔ 不让用户改 / 保存一份假数据。</summary>
-    public bool IsSample { get => _isSample; private set => SetProperty(ref _isSample, value); }
 
     /// <summary>源 VM 任一属性变化 → 整体重解析。</summary>
     private void OnSourceChanged(object? sender, PropertyChangedEventArgs e) => Refresh();
 
-    /// <summary>重解析全部路径（可见性 / 示例态 / 各字段值 / 动作可用性）。</summary>
+    /// <summary>重解析全部路径（可见性 / 各字段值 / 动作可用性）。</summary>
     public void Refresh()
     {
         ShowBody = _bodyPath is null || DetailPath.ResolveBool(_source, _bodyPath);
-        IsSample = _samplePath is not null && DetailPath.ResolveBool(_source, _samplePath);
         foreach (var s in Sections) s.Refresh();
         foreach (var a in Actions) a.Refresh();
     }

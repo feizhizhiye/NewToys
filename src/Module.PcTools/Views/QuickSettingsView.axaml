@@ -73,18 +73,6 @@
             </v:ColumnGrid>
           </Border>
 
-          <!--  v3.32 §4.8.3：示例行（列表为空时显示；有真实条目后整条消失，⛔ 不参与统计 / 筛选 / 排序）  -->
-          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
-                  ToolTip.Tip="这是示例数据（列宽就按它判定）；新增 / 导入条目后这一行会消失">
-            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsTitleVisible}" Text="{Binding SampleRowTexts[0]}"/>
-              <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsCategoryVisible}" Text="{Binding SampleRowTexts[1]}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsClassifyVisible}" Text="{Binding SampleRowTexts[2]}"/>
-              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsDescriptionVisible}" Text="{Binding SampleRowTexts[3]}"/>
-              <TextBlock Grid.Column="4" Classes="list-cell accent" IsVisible="{Binding IsFavoriteVisible}" Text="{Binding SampleRowTexts[4]}"/>
-            </v:ColumnGrid>
-          </Border>
-
           <ListBox Grid.Row="2" x:Name="ActionList" Classes="list-page"
                    ItemsSource="{Binding Items}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
@@ -131,6 +119,26 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
+
+          <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
+          <StackPanel
+              Grid.Row="2"
+              HorizontalAlignment="Center"
+              IsVisible="{Binding !HasItems}"
+              Spacing="10"
+              VerticalAlignment="Center">
+              <TextBlock
+                  Classes="hint-text"
+                  MaxWidth="420"
+                  TextAlignment="Center"
+                  TextWrapping="Wrap"
+                  Text="没有可显示的快捷项。点「📥 导入」从 json 清单导入。" />
+              <Button
+                  Classes="ghost"
+                  HorizontalAlignment="Center"
+                  Content="📥 导入"
+                  Command="{Binding ImportPageMergeCommand}" />
+          </StackPanel>
         </Grid>
       </Border>
 

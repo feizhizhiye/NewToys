@@ -264,34 +264,6 @@
                         </v:ColumnGrid>
                     </Border>
 
-                    <!--
-                        v3.22 §4.8.1：**示例行**（设计时数据 / 水印）—— 列表为空时显示一条，让用户先看清每列是什么；
-                        有真实数据后整条消失。⛔ 它不在 Videos 里：不参与统计 / 筛选 / 排序 / 勾选 / 导入导出，
-                        只用来「看列」并给列宽判定提供样本（示例宽 ≤ 表头宽 → 该列锁成表头宽不可拖）。
-                    -->
-                    <Border
-                        Grid.Row="1"
-                        Classes="list-header"
-                        IsVisible="{Binding ShowSampleRow}"
-                        Opacity="0.5"
-                        ToolTip.Tip="这是示例数据（列宽就按它判定）；导入 / 扫描到真实视频后这一行会消失">
-                        <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-                            <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[1]}" />
-                            <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsTypeVisible}" Text="{Binding SampleRowTexts[2]}" />
-                            <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsSizeVisible}" Text="{Binding SampleRowTexts[3]}" />
-                            <TextBlock Grid.Column="4" Classes="list-cell" IsVisible="{Binding IsDurationVisible}" Text="{Binding SampleRowTexts[4]}" />
-                            <TextBlock Grid.Column="5" Classes="list-cell" IsVisible="{Binding IsResolutionVisible}" Text="{Binding SampleRowTexts[5]}" />
-                            <TextBlock Grid.Column="6" Classes="list-cell" IsVisible="{Binding IsCodecVisible}" Text="{Binding SampleRowTexts[6]}" />
-                            <TextBlock Grid.Column="7" Classes="list-cell" IsVisible="{Binding IsBitrateVisible}" Text="{Binding SampleRowTexts[7]}" />
-                            <TextBlock Grid.Column="8" Classes="list-cell" IsVisible="{Binding IsModifiedVisible}" Text="{Binding SampleRowTexts[8]}" />
-                            <TextBlock Grid.Column="9" Classes="list-cell" IsVisible="{Binding IsFpsVisible}" Text="{Binding SampleRowTexts[9]}" />
-                            <TextBlock Grid.Column="10" Classes="list-cell" IsVisible="{Binding IsContainerVisible}" Text="{Binding SampleRowTexts[10]}" />
-                            <TextBlock Grid.Column="11" Classes="list-cell" IsVisible="{Binding IsAudioVisible}" Text="{Binding SampleRowTexts[11]}" />
-                            <TextBlock Grid.Column="12" Classes="list-cell" IsVisible="{Binding IsPathVisible}" Text="{Binding SampleRowTexts[12]}" />
-                            <TextBlock Grid.Column="13" Classes="list-cell" IsVisible="{Binding IsCreatedVisible}" Text="{Binding SampleRowTexts[13]}" />
-                        </v:ColumnGrid>
-                    </Border>
-
                     <ListBox
                         x:Name="VideoList"
                         Grid.Row="2"
@@ -416,6 +388,26 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+
+                    <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
+                    <StackPanel
+                        Grid.Row="2"
+                        HorizontalAlignment="Center"
+                        IsVisible="{Binding !HasItems}"
+                        Spacing="10"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            Classes="hint-text"
+                            MaxWidth="420"
+                            TextAlignment="Center"
+                            TextWrapping="Wrap"
+                            Text="没有可显示的视频。点「📂 导入」选一个目录开始扫描。" />
+                        <Button
+                            Classes="ghost"
+                            HorizontalAlignment="Center"
+                            Content="📂 导入"
+                            Command="{Binding PickFolderCommand}" />
+                    </StackPanel>
                 </Grid>
             </Border>
 

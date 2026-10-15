@@ -77,25 +77,6 @@
           </v:ColumnGrid>
         </Border>
 
-        <!--  示例行（v3.32 §4.8.3：空列表时给一条半透明占位，顺便判定列宽）  -->
-        <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
-                ToolTip.Tip="这是示例数据（列宽就按它判定）；登记存储源后这一行会消失">
-          <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-            <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding SampleRowTexts[0]}"
-                       Foreground="{DynamicResource PrimaryTextBrush}" IsVisible="{Binding IsNameVisible}"/>
-            <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SampleRowTexts[1]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsRootVisible}"/>
-            <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SampleRowTexts[2]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTypeVisible}"/>
-            <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding SampleRowTexts[3]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsStatusVisible}"/>
-            <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding SampleRowTexts[4]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsFilesVisible}"/>
-            <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding SampleRowTexts[5]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsLastScanVisible}"/>
-          </v:ColumnGrid>
-        </Border>
-
         <ListBox Grid.Row="2" x:Name="StorageList" Classes="list-page"
                  ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                  SelectionMode="Single">
@@ -142,6 +123,26 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
+
+        <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
+        <StackPanel
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            IsVisible="{Binding !HasItems}"
+            Spacing="10"
+            VerticalAlignment="Center">
+            <TextBlock
+                Classes="hint-text"
+                MaxWidth="420"
+                TextAlignment="Center"
+                TextWrapping="Wrap"
+                Text="没有可显示的存储源。点「➕ 添加存储源」把要扫描的目录登记进来。" />
+            <Button
+                Classes="ghost"
+                HorizontalAlignment="Center"
+                Content="➕ 添加存储源"
+                Command="{Binding AddStorageCommand}" />
+        </StackPanel>
       </Grid>
     </Border>
   </Grid>

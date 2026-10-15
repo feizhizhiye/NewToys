@@ -173,9 +173,7 @@ public partial class MyShortcutsViewModel : QuickActionListViewModel
         var card = new DetailCardDescriptor
         {
             BodyVisiblePath = nameof(ShowDetailBody),
-            SamplePath = nameof(IsDetailSample),
             EmptyText = "在左侧列表里选中一条，可在这里看它的脚本文件 / 解释器并改名称 / 简介 / 分类；下面的图标按钮依次是「运行 / 收藏 / 保存 / 从列表移除」。本页是**脚本索引库**：新增条目靠工具条「📂 导入」，⛔ 不在这里新建脚本。",
-            SampleText = "（示例数据）在左侧选中一条后，这里显示它的真实内容；示例态下卡片不可编辑。",
             Sections =
             {
                 new DetailSection

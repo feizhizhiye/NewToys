@@ -1,5 +1,0 @@
-[
-  { "Page": "shortcuts", "Kind": "script", "Title": "刷新 DNS 缓存（脚本）", "Category": "网络", "Description": "示例脚本：调用 ipconfig /flushdns。文件在脚本目录里，可直接编辑。", "Command": "", "ScriptFile": "flush-dns.bat", "Interpreter": "", "NeedAdmin": false },
-  { "Page": "shortcuts", "Kind": "script", "Title": "系统信息速览（脚本）", "Category": "系统设置", "Description": "示例脚本：打印系统版本 / CPU / 内存 / 磁盘剩余（.ps1）。", "Command": "", "ScriptFile": "sysinfo.ps1", "Interpreter": "", "NeedAdmin": false },
-  { "Page": "shortcuts", "Kind": "script", "Title": "列出最大的文件（脚本）", "Category": "维护", "Description": "示例脚本：扫描脚本目录里最大的若干文件（.py，需要 python）。", "Command": "", "ScriptFile": "list-large-files.py", "Interpreter": "", "NeedAdmin": false }
-]

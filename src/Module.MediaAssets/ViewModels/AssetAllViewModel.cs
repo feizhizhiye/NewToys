@@ -122,7 +122,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         // 🔴 v3.34 / NT-018：首列 = **勾选列**（Pick）——
-        //    加了首列后，表头 / 示例行 / 行模板里**所有 Grid.Column 索引都要 +1**（⛔ 别漏一处）。
+        //    加了首列后，表头 / 行模板里**所有 Grid.Column 索引都要 +1**（⛔ 别漏一处）。
         new("Pick", "", "34", sortable: false),
         // Sample 要给"典型内容宽度"（v3.22）：示例宽 ≤ 表头宽的列会被锁成表头宽、不可拖
         new("Name", "名称", "2.6*", sample: "The.Matrix.1999.1080p.mkv"),
@@ -181,40 +181,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
 
-    /// <summary>
-    /// v3.22 §4.8.1：列表为空时才显示**示例行**（让用户在没有数据时先看清每列是什么，
-    /// 同时给「示例宽 ≤ 表头宽 → 锁列宽」提供测量样本）。有真实数据后整条消失。
-    /// ⛔ 它不在 <see cref="Items"/> 里：不参与筛选 / 排序 / 统计。
-    /// </summary>
-    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
+    /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
+    public AssetRow DetailRow => Selected;
 
-    // ==================== v3.32 §4.8.3：详情卡示例态 ====================
-
-    /// <summary>详情卡的**示例行**（与列表示例行同一批数据）。</summary>
-    private static readonly AssetRow SampleRow = new()
-    {
-        Name = "The.Matrix.1999.1080p.mkv",
-        Title = "The.Matrix.1999.1080p.mkv",
-        Type = AssetTypes.Video,
-        Status = AssetStatuses.Active,
-        FileName = "The.Matrix.1999.1080p.mkv",
-        FilePath = @"D:\Movies\The.Matrix.1999.1080p.mkv",
-        Size = 4_509_715_660,                       // ≈ 4.2 GB
-        Mtime = "2026-10-13 21:04:00",
-        StorageName = "移动硬盘 D",
-        TagsText = "科幻, 收藏",
-        CategoriesText = "电影 / 动作",
-        CollectionsText = "周末片单"
-    };
-
-    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例行**（示例态下卡片整体禁用）。</summary>
-    public AssetRow DetailRow => Selected ?? SampleRow;
-
-    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
-    public bool ShowDetailBody => HasSelection || IsDetailSample;
-
-    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
-
+    /// <summary>详情卡正文是否显示（有选中项）。</summary>
+    public bool ShowDetailBody => HasSelection;
     /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
     public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
 
@@ -366,7 +337,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
         BuildStaticOptions();               // 类型 / 状态（固定值）
         Reload();                           // 存储源 / 标签下拉要读库 → 放在读库之后
-        UpdateDetailSample(false);          // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
         LoadDetail(null);
 
         StatusText = StatusSummary();
@@ -559,7 +529,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         Items.Clear();
         Selected = null;
         OnPropertyChanged(nameof(HasItems));
-        OnPropertyChanged(nameof(ShowSampleRow));
         StatusText = "已清空列表显示（数据仍在库里，点「🔄 重读」找回）。";
     }
 
@@ -659,7 +628,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             try { Dispatcher.UIThread.Post(() => StatusText = text); }
             catch { /* 还没有 UI 线程（设计期 / 已关闭）→ 忽略 */ }
         });
-
 
     private async Task RunJobAsync(string startText,
         Func<CancellationToken, IProgress<string>, Task<ScanJob>> work)
@@ -929,7 +897,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         for (var i = 0; i < RatingValues.Length; i++)
             RatingPicks.Add(new PickItem(RatingValues[i], $"{RatingValues[i]}", Brushes.Transparent, target.Rating == RatingValues[i]));
 
-        if (target.Id <= 0) return;   // 示例行：不给色片（卡片整体禁用）
+        if (target.Id <= 0) return;   // 未入库（Id<=0）：不给色片
 
         var tagIds = _tagSvc.ListTagIdsOfAsset(target.Id);
         // NT-058：标签**按命名空间分组**显示 ⇒ 先按 ns 排序（分组靠"键连续"，乱序会拆出很多组）
@@ -1195,9 +1163,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        SamplePath = nameof(IsDetailSample),
         EmptyText = "在左侧列表里选中一个资产，这里显示它的详情。",
-        SampleText = "（示例数据）在左侧选中一个资产后，这里显示它的真实信息；示例态下卡片不可编辑。",
         Sections =
         {
             new DetailSection
@@ -1452,7 +1418,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     partial void OnSelectedChanged(AssetRow? value)
     {
-        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例行（并整卡禁用）
         OnPropertyChanged(nameof(DetailRow));
         LoadDetail(value);
         OnPropertyChanged(nameof(HasSelection));
@@ -1465,8 +1430,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         try
         {
             Locations.Clear();
-            // v3.32 §4.8.3：没选中项 → 用示例行（示例态），否则用真值
-            var target = row ?? (HasSampleRow ? SampleRow : null);
+            var target = row;
             DetailDisplayName = target == null
                 ? ""
                 : target.DisplayName ?? target.Title ?? target.Name;
@@ -1478,9 +1442,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
             if (target != null && target.Id > 0) BuildPicks(target);
 
-            if (ReferenceEquals(target, SampleRow))
-                Locations.Add(new FileLocation { Path = SampleRow.FilePath, Status = "（示例位置）" });
-            else if (target != null)
+            if (target != null)
                 foreach (var l in _assets.ListLocations(target.Id)) Locations.Add(l);
         }
         finally { _loadingDetail = false; }
@@ -1689,7 +1651,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
     }
 
-
     // ==================== 过滤 / 排序 ====================
 
     private void ApplyView()
@@ -1749,7 +1710,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         RefreshChecked();                          // 列表重建 → 勾选计数 / 表头三态跟上
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(ShowSampleRow));   // v3.22：有真实数据后示例行消失
     }
 
     private IOrderedEnumerable<AssetRow> Order<TKey>(IEnumerable<AssetRow> q, Func<AssetRow, TKey> key)

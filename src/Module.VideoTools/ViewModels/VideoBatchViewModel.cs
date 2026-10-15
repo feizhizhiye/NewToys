@@ -150,7 +150,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         set => NewAsCut = !value;
     }
 
-    /// <summary>当前任务的类型名（详情卡显示；v3.32：没选中项时给示例任务的类型）。</summary>
+    /// <summary>当前任务的类型名（详情卡显示）。</summary>
     public string SelectedKind => DetailTask == null ? "—" : KindOf(DetailTask);
 
     // ==================== 编辑缓冲（两套，按选中任务类型生效） ====================
@@ -409,7 +409,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         // 🔴 顺序不能颠倒：RefreshView() 里 Items.Clear() 会把 ListView 的选中项清空（TwoWay 回写 Selected = null），
         //    ★ 如果先 Selected = fresh 再 RefreshView()，fresh 会被这次 Clear 冲掉 → OnSelectedChanged(null)
-        //      → FillEditors(null) → 详情卡掉回「示例态」（用户看到的现象：勾选框一点，卡就回初始示例）。
+        //      → FillEditors(null) → 详情卡掉回「未选中」空态（用户看到的现象：勾选框一点，卡就变空白）。
         RefreshView();
 
         _converting = true;
@@ -605,7 +605,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     protected override string PageKey => "video-batch";
 
-    /// <summary>v3.22 §4.8.1：每列一条示例值（列表为空时拼成水印示例行；同时用于列宽判定）。</summary>
+    /// <summary>v3.22 §4.8.1：每列一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         // v3.16 §6.4.10：行首勾选框（表头 ☑ 的 全选 / 取消选择 / 反选 改它）
@@ -623,37 +623,11 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         new("Created", "创建时间", "1.3*", sample: "2026-10-13 15:00"),
     };
 
-    /// <summary>v3.22：队列为空时显示那条示例行（⛔ 不进 Items、不参与统计 / 导入导出）。</summary>
-    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
+    /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
+    public VideoTaskBase? DetailTask => Selected;
 
-    // ==================== v3.32 §4.8.3：详情卡示例态 ====================
-
-    /// <summary>详情卡的**示例任务**（带剪辑区间的转码任务 → 剪辑 / 转码两段分区都有内容可看）。</summary>
-    private static readonly TranscodeTask SampleTask = new()
-    {
-        SourcePath = @"D:\Videos\示例视频 2026.mp4",
-        OutputPath = @"D:\Videos\示例视频 2026_H265.mp4",
-        PresetId = "h265",
-        Crf = 23,
-        UseTrim = true,
-        TrimStart = 10,
-        TrimEnd = 90,
-        SourceSize = 1_610_612_736,
-        SourceCodec = "hevc",
-        SourceResolution = "1920×1080",
-        SourceBitRate = "8.5 Mbps",
-        SourceDuration = 3723,
-        Created = new DateTime(2026, 10, 13, 15, 0, 0)
-    };
-
-    /// <summary>详情卡的数据源：有选中任务用真值，没选中用**示例任务**（示例态下卡片整体禁用）。</summary>
-    public VideoTaskBase? DetailTask => Selected ?? (HasSampleRow ? SampleTask : null);
-
-    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
-    public bool ShowDetailBody => HasSelection || IsDetailSample;
-
-    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
-
+    /// <summary>详情卡正文是否显示（有选中项）。</summary>
+    public bool ShowDetailBody => HasSelection;
     // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 打样页，需求 §4.5.1） ====================
 
     /// <summary>
@@ -705,9 +679,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        SamplePath = nameof(IsDetailSample),
         EmptyText = "在左侧选中一个任务：这里可以改它的参数（剪辑 = 区间 / 预设；转码 = 预设 / 编码器 / CRF / 分辨率），改完点工具条上的「💾 保存修改」。",
-        SampleText = "（示例数据）在左侧选中一个任务后，这里显示它的真实参数；示例态下卡片不可编辑。",
         Sections =
         {
             // ===== 台头：类型 / 文件（不可编辑） =====
@@ -1002,7 +974,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             (Label: "类型：剪辑+转码", ColumnKey: "Kind", Value: "剪辑+转码")
         });
         RefreshView();
-        UpdateDetailSample(false);      // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
         FillEditors(DetailTask);
     }
 
@@ -1060,7 +1031,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
-        OnPropertyChanged(nameof(ShowSampleRow));   // v3.22：有真实任务后示例行消失
         OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：清队列 / 导入任务后表头三态刷新
         UpdateSummaryText();
         OnPropertyChanged(nameof(CheckedCount));
@@ -1145,9 +1115,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     partial void OnSelectedChanged(VideoTaskBase? value)
     {
-        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例任务（并整卡禁用）
         OnPropertyChanged(nameof(DetailTask));
-        FillEditors(DetailTask);             // 真值 / 示例值走同一条填充路径
+        FillEditors(DetailTask);             // 填充详情卡编辑缓冲
 
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(SelectedIsCut));
@@ -1159,8 +1128,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     }
 
     /// <summary>
-    /// 把一条任务（**真正的选中项**，或没选中时的**示例任务**）填进详情卡的编辑缓冲。
-    /// <para>v3.32 §4.8.3：抽成方法，好让"示例态"复用同一条填充路径 —— 否则示例卡里会全是空格子。</para>
+    /// 把一条任务（**真正的选中项**）填进详情卡的编辑缓冲。
+    /// <para>抽成方法：编辑缓冲的填充只此一条路径，⛔ 别在多处各填一遍。</para>
     /// </summary>
     private void FillEditors(VideoTaskBase? value)
     {

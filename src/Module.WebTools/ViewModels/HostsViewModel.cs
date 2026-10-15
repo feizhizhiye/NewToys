@@ -62,7 +62,7 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）
+        // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
         new("Name", "名称", "3*", sample: "开发环境 hosts"),
         new("Entries", "条目数", "1.2*", sample: "12"),
         new("Source", "来源", "2*", sample: @"D:\hosts\dev.hosts"),
@@ -79,31 +79,11 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
     public bool HasSelection => Selected != null;
     public bool HasItems => Profiles.Count > 0;
 
-    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+    /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
+    public HostsProfile? DetailItem => Selected;
 
-    /// <summary>详情卡 / 列表示例行用的**示例方案**。</summary>
-    private static readonly HostsProfile SampleItem = new()
-    {
-        Name = "开发环境 hosts",
-        Source = @"D:\hosts\dev.hosts",
-        Entries = new List<HostsEntry>
-        {
-            new() { Ip = "127.0.0.1", Host = "dev.local", Comment = "示例数据" },
-            new() { Ip = "10.0.0.8", Host = "api.dev.local", Comment = "" }
-        }
-    };
-
-    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Profiles</c>、不参与统计 / 筛选 / 排序）。</summary>
-    public bool ShowSampleRow => HasSampleRow && Profiles.Count == 0;
-
-    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例方案**。</summary>
-    public HostsProfile DetailItem => Selected ?? SampleItem;
-
-    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
-    public bool ShowDetailBody => HasSelection || IsDetailSample;
-
-    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
-
+    /// <summary>详情卡正文是否显示（有选中项）。</summary>
+    public bool ShowDetailBody => HasSelection;
     // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
 
     /// <summary>无权限写系统 hosts 时给出的可复制受管块是否非空（原 XAML 用 <c>ObjectConverters.IsNotNull</c>，描述符只认布尔路径）。</summary>
@@ -150,9 +130,7 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        SamplePath = nameof(IsDetailSample),
         EmptyText = "在左侧列表里选中一套方案",
-        SampleText = "（示例数据）在左侧选中一套方案后，这里显示它的真实内容；示例态下不可编辑。",
         Sections =
         {
             new DetailSection
@@ -195,7 +173,7 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
         },
         Actions =
         {
-            // 原来这四个按钮是页内卡里的 WrapPanel（只在有选中 / 示例态之外显示）；声明式卡里进 Actions 区。
+            // 原来这四个按钮是页内卡里的 WrapPanel（只在有选中时显示）；声明式卡里进 Actions 区。
             new DetailAction
             {
                 Text = "💾 保存",
@@ -238,7 +216,6 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
     {
         _svc = svc;
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
-        UpdateDetailSample(false);        // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
         Refresh();
     }
 
@@ -268,8 +245,6 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
         foreach (var p in ordered) Profiles.Add(p);
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
-        OnPropertyChanged(nameof(ShowSampleRow));   // v3.32：有真实数据后示例行消失
-        UpdateDetailSample(Selected != null);
     }
 
     private void UpdateHeaders()
@@ -280,10 +255,8 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
     // ============ 选中 → 同步详情编辑区 ============
     partial void OnSelectedChanged(HostsProfile? value)
     {
-        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例方案
         OnPropertyChanged(nameof(DetailItem));
-        var v = value ?? (HasSampleRow ? SampleItem : null);
-        EntriesText = v == null ? "" : string.Join("\n", v.Entries.Select(e => e.ToLine()));
+        var v = value;        EntriesText = v == null ? "" : string.Join("\n", v.Entries.Select(e => e.ToLine()));
         BlockPreview = "";
         OnPropertyChanged(nameof(HasSelection));
     }

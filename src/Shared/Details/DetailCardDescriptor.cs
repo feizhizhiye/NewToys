@@ -104,14 +104,8 @@ public sealed class DetailCardDescriptor
     /// <summary>没选中项时的引导文案（空态）。</summary>
     public string? EmptyText { get; set; }
 
-    /// <summary>示例态提示文案（v3.32 §4.8.3）。</summary>
-    public string? SampleText { get; set; }
-
     /// <summary>「详情正文是否可见」的布尔路径（如 <c>ShowDetailBody</c>）；null = 恒可见。</summary>
     public string? BodyVisiblePath { get; set; }
-
-    /// <summary>「示例态」的布尔路径（如 <c>IsDetailSample</c>）；null = 恒非示例态。示例态下整卡 IsEnabled=false。</summary>
-    public string? SamplePath { get; set; }
 }
 
 /// <summary>详情卡的一个分区（Fields 区的分组）。</summary>

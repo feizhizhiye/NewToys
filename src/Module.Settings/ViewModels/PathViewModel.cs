@@ -82,7 +82,7 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）；「操作」是按钮列 → 不给
+        // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）；「操作」是按钮列 → 不给
         new("Category", "分类", "1*", sample: "路径"),
         new("Name", "名称", "2.2*", sample: "ffmpeg 路径"),
         new("Value", "当前值", "4*", sample: @"C:\ffmpeg\bin\ffmpeg.exe"),
@@ -101,36 +101,18 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
 
-    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+    /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
+    public PathSettingItem? DetailItem => Selected;
 
-    /// <summary>详情卡 / 列表示例行用的**示例项**（路径行）。</summary>
-    private static readonly PathSettingItem SampleItem = new()
-    {
-        Key = "FfmpegPath",
-        Name = "ffmpeg 路径",
-        Kind = PathItemKind.File,
-        Description = "视频的媒体信息（时长 / 分辨率 / 编码 / 码率）用它旁边的 ffprobe 读取（示例数据）",
-        Value = @"C:\ffmpeg\bin\ffmpeg.exe"
-    };
-
-    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Items</c>、不参与统计 / 筛选 / 排序）。</summary>
-    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
-
-    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例项**。</summary>
-    public PathSettingItem DetailItem => Selected ?? SampleItem;
-
-    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
-    public bool ShowDetailBody => HasSelection || IsDetailSample;
-
-    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
-
+    /// <summary>详情卡正文是否显示（有选中项）。</summary>
+    public bool ShowDetailBody => HasSelection;
     // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
 
     /// <summary>「当前值」是否可编辑（只读展示项 = 数据目录 / 配置目录 / 配置行的数据目录 ⇒ ⛔ 不让改）。</summary>
-    public bool IsValueEditable => DetailItem.IsEditable;
+    public bool IsValueEditable => DetailItem?.IsEditable == true;
 
     /// <summary>「当前值」是只读展示项（与 <see cref="IsValueEditable"/> 互斥 ⇒ 两个字段行各自可见）。</summary>
-    public bool IsValueReadOnly => DetailItem.IsReadOnly;
+    public bool IsValueReadOnly => DetailItem?.IsReadOnly == true;
 
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
@@ -179,9 +161,7 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
     private DetailCardDescriptor BuildPathCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        SamplePath = nameof(IsDetailSample),
         EmptyText = "在左侧列表里选中一项。这些是「运行环境」相关的路径：ffmpeg / 播放器 / 三个解释器 / 脚本目录。留空 = 用系统默认；数据目录与配置目录是只读展示项。",
-        SampleText = "（示例数据）在左侧选中一项后，这里显示它的真实内容；示例态下不可编辑。",
         Sections =
         {
             new DetailSection
@@ -295,9 +275,7 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
     private DetailCardDescriptor BuildProfileCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        SamplePath = nameof(IsDetailSample),
         EmptyText = "在左侧列表里选中一个**配置行**。一个配置 = 一套独立的 config + data + logs；可同时打开多个配置的窗口（各跑各的数据）。",
-        SampleText = "（示例数据）在左侧选中一个配置行后，这里显示它的真实内容。",
         Sections =
         {
             new DetailSection
@@ -551,16 +529,13 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
 
     partial void OnSelectedChanged(PathSettingItem? value)
     {
-        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例项
         OnPropertyChanged(nameof(DetailItem));
-        // 切选中项 / 示例态 → 「当前值」在可编辑 ↔ 只读两种形态间切换（描述符里是两行互斥字段）
+        // 切选中项 → 「当前值」在可编辑 ↔ 只读两种形态间切换（描述符里是两行互斥字段）
         OnPropertyChanged(nameof(IsValueEditable));
         OnPropertyChanged(nameof(IsValueReadOnly));
         _syncing = true;
-        // 只有路径行才进「当前值」编辑缓冲（配置行 / 示例态都是只读展示）
-        EditValue = value is { IsPathRow: true } ? value.Value
-            : value == null && HasSampleRow ? SampleItem.Value : "";
-        _syncing = false;
+        // 只有路径行才进「当前值」编辑缓冲（配置行只读展示）
+        EditValue = value is { IsPathRow: true } ? value.Value : "";        _syncing = false;
         OnPropertyChanged(nameof(HasSelection));
 
         RaiseActionStates();   // v3.53 / NT-056：工具条按分类启停，靠这批通知刷新
@@ -598,8 +573,6 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
         BuildItems();
         RebuildQuickFilters();            // v3.21 §4.8.2：分类 / 类型进表头右键「筛选」
         ApplyView();
-        UpdateDetailSample(false);        // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
-        EditValue = SampleItem.Value;
         SelectActiveProfile();            // v3.53：默认选中「正在使用」的配置行（一眼看到我在哪）
     }
 
@@ -671,7 +644,7 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
         {
             Key = "ScriptFolder", Name = "脚本目录", Kind = PathItemKind.Folder,
             DefaultValue = _cfg.DefaultScriptFolder,
-            Description = "「设置与脚本」页引用的 .py / .ps1 / .bat 都放这里；首次运行会把示例脚本复制进去",
+            Description = "「设置与脚本」页引用的 .py / .ps1 / .bat 都放这里；用「📂 导入」把脚本建成条目",
             Value = _cfg.ScriptFolder
         });
         Items.Add(new PathSettingItem
@@ -736,8 +709,6 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
         ApplyView();
         SelectActiveProfile();
         OnPropertyChanged(nameof(HasItems));
-        OnPropertyChanged(nameof(ShowSampleRow));
-        OnPropertyChanged(nameof(IsDetailSample));
     }
 
     /// <summary>排序列 / 筛选条件变化后重算列表（基类的 SortCommand 与筛选都走这里）。</summary>
@@ -781,8 +752,6 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(ShowSampleRow));   // v3.32：有真实数据后示例行消失
-        UpdateDetailSample(Selected != null);
     }
 
     private void UpdateHeaders()

@@ -139,30 +139,14 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
-    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
-    public bool ShowDetailBody => HasSelection || IsDetailSample;
-
-    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
-
+    public bool ShowDetailBody => HasSelection;
     /// <summary>详情卡里"用了这个标签的资产"有没有内容（空 → 显示提示）。</summary>
     public bool HasDetailAssets => DetailAssets.Count > 0;
 
-    /// <summary>详情卡当前显示的标签（没选中 → 示例行）。</summary>
-    public TagRow DetailTag => Selected ?? SampleTag;
-
+    /// <summary>详情卡当前显示的标签（有选中项时显示它）。</summary>
+    public TagRow DetailTag => Selected;
     /// <summary>库是否可用（不可用照常显示 + 状态栏提示，⛔ 不崩）。</summary>
     public bool IsDbAvailable => _tags?.IsAvailable ?? false;
-
-    /// <summary>详情卡示例标签（v3.32 §4.8.3：没数据时也能看清卡片长什么样）。</summary>
-    private static readonly TagRow SampleTag = new()
-    {
-        Id = 0,
-        Name = "科幻",
-        Namespace = null,
-        Color = null,
-        UsageCount = 12,
-        CreatedAt = "2026-10-14 05:20:00"
-    };
 
     public AssetTagsViewModel() { }
 
@@ -177,7 +161,6 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
 
         LoadLayout();
         Reload();
-        UpdateDetailSample(false);
         LoadDetail(null);
         StatusText = StatusSummary();
     }
@@ -232,7 +215,6 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(ShowSampleRow));
     }
 
     private IOrderedEnumerable<TagRow> Order<TKey>(IEnumerable<TagRow> q, Func<TagRow, TKey> key)
@@ -374,7 +356,6 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
 
     partial void OnSelectedChanged(TagRow? value)
     {
-        UpdateDetailSample(value != null);
         OnPropertyChanged(nameof(DetailTag));
         LoadDetail(value);
         OnPropertyChanged(nameof(HasSelection));
@@ -387,8 +368,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         try
         {
             DetailAssets.Clear();
-            var target = row ?? (HasSampleRow ? SampleTag : null);
-            EditName = target?.Name ?? "";
+            var target = row;            EditName = target?.Name ?? "";
             EditNamespace = target?.Namespace ?? "";
             EditColor = target?.ColorHex ?? "";
 
@@ -449,9 +429,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        SamplePath = nameof(IsDetailSample),
         EmptyText = "在左侧列表里选中一个标签，这里显示它的详情。",
-        SampleText = "（示例数据）在左侧选中一个标签后，这里显示它的真实信息；示例态下卡片不可编辑。",
         Sections =
         {
             new DetailSection

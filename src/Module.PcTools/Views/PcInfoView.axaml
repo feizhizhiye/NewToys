@@ -56,17 +56,6 @@
             </v:ColumnGrid>
           </Border>
 
-          <!--  v3.32 §4.8.3：示例行（列表为空时显示；采集到真实信息后整条消失，⛔ 不参与统计 / 筛选 / 排序）  -->
-          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
-                  ToolTip.Tip="这是示例数据（列宽就按它判定）；采集到真实信息后这一行会消失">
-            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsCategoryVisible}" Text="{Binding SampleRowTexts[0]}"/>
-              <TextBlock Grid.Column="1" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[1]}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsValueVisible}" Text="{Binding SampleRowTexts[2]}"/>
-              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsNoteVisible}" Text="{Binding SampleRowTexts[3]}"/>
-            </v:ColumnGrid>
-          </Border>
-
           <ListBox Grid.Row="2" x:Name="InfoList" Classes="list-page"
                    ItemsSource="{Binding Items}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
@@ -98,6 +87,26 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
+
+          <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
+          <StackPanel
+              Grid.Row="2"
+              HorizontalAlignment="Center"
+              IsVisible="{Binding !HasItems}"
+              Spacing="10"
+              VerticalAlignment="Center">
+              <TextBlock
+                  Classes="hint-text"
+                  MaxWidth="420"
+                  TextAlignment="Center"
+                  TextWrapping="Wrap"
+                  Text="还没有采集到信息。点「🔄 重新检测」采集这台机器的硬件 / 系统信息。" />
+              <Button
+                  Classes="ghost"
+                  HorizontalAlignment="Center"
+                  Content="🔄 重新检测"
+                  Command="{Binding DetectCommand}" />
+          </StackPanel>
         </Grid>
       </Border>
 

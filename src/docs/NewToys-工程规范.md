@@ -1,6 +1,7 @@
 # NewToys 工程规范
 
-> v3.40 · 2026-10-16 · 技术实现指南
+> v3.41 · 2026-10-16 · 技术实现指南
+> **v3.41 变更**：**NT-060「干净启动」已实施**（需求 v3.61）—— §3.6 改写「示例值 + 固定表头宽列」段：示例值**只服务列宽判定**，`SampleRowTexts` / `HasSampleRow` / `ShowSampleRow` 与详情卡示例态（`IsDetailSample` / `UpdateDetailSample` / `DetailCardDescriptor.SamplePath` + `SampleText` / `DetailCardRender.IsSample`）**整体删除**；新增**空态引导**落地口径（页内 `StackPanel` + `!HasItems` + 复用既有命令，⛔ 不新增 VM 状态）。§4 补：`defaults\` 默认内容**已删**、`QuickActionService` 不再播种，`Shell.csproj` 的 `None Update="defaults\**"` 保留待用。
 > **v3.40 变更**：**NT-058「详情卡图标动作组」+ NT-059「设置与脚本」页改脚本索引库**（需求 v3.59；用户「详情卡动作改成图标 / pc-shortcuts 按资产库的操作逻辑来」）—— §3.8 补 **IconBar（第 9 种 Kind）渲染口径**：图标资源键**只能 C# 侧解析**（`Application.Current.TryFindResource(key, out v)`，Try 模式、需 `using Avalonia.Controls;`）⇒ 行对象暴露 `Geometry Icon` 给模板 `Path.Data` 直接绑；`ShowToolTipOnDisabled` 是本仓自定义属性，**XAML 里必须写 `ToolTip.ShowOnDisabled`**（写裸名 ⇒ AVLN2000）；chips 分组走 `DetailChipGroup`（`IsSwatch` **透传到组对象**，模板只在上一层取，⛔ 不用链式 `$parent`）。同节补两个已修 bug：① `IndexSelectFieldRow.RefreshCore` 原来**只认 `LiteralOptions`、不认 `OptionsPath`** ⇒ 给 `OptionsPath` 的索引下拉**渲染空白**；② `ApplyView()` 里 `Items.Clear()` 会让 ListBox 的 `SelectedItem` 双向绑定**回写 null** ⇒ 点收藏 / 切分类后详情卡掉回示例态（新增 `ApplyViewKeepSelection()`）。§3.6 补一条：**任何"批量加条目"之后必须清筛选**（清 `SearchText` / 分类归"全部" / 清表头筛选 / 选中第一条新增）—— `pc-shortcuts` 导入"没反应"的真因就是没清。§3.10 补**工具条只读输入框**口径：`PlaceholderText` **只在 `Text` 为空时才显示** ⇒ 水印化⛔ 不能只把 `Foreground` 设透明；改由 `ToolbarHost` 掌管 `Text`（真实值 OneWay 绑 `Control.Tag`，未聚焦 `Text = Placeholder`、聚焦 `Text = Tag` + `SelectAll()`、失焦还原）。
 > **v3.39 变更**：**NT-055 后续「工具条三件套统一」**（需求 v3.58；用户「primary 按钮都用 ghost / 导入按钮 + 输入框 + 搜索框按全部资产的宽度和顺序统一」）—— §3.10 三条口径改定：① 工具条配色**只剩两个在用变体** `ghost` / `danger-btn`（`primary-outline` 全量撤成 `ghost`，`primary` 实心仍只给详情卡与对话框）；② 输入框 / 搜索框 **`Width = 88`**；③ **前段顺序 = 入口动作 → 输入框 → 搜索框（三者挨着、排在最前）**，含四条落地细则 + `pc-package` 例外。另：`QuickActionListViewModel` 新增 **`ToolbarTailExtras`** 槽（排在共用搜索框之后），供「框的配套动作」挂靠，⛔ 别塞进 `ToolbarExtras`（会把搜索框挤到后面）。
 > **v3.38 变更**：**NT-055 五轮「工具条内容与配色收口」**（用户「绿色按钮换样式 / 删提示文字 / 输入框按全部资产的逻辑，三项放最前 / 修视频列表两按钮丢字」）—— §3.10 补三条口径：① 工具条配色只剩三变体 `ghost` / `primary-outline`（原工具条 `primary` 实心绿全换）/ `danger-btn`，`primary` 实心只留给详情卡与对话框；② `Label` 提示 / 计数文字**工具条里不再使用**（8 处删除，含义进按钮 `ToolTip`）；③ **前三项固定** = 数据入口动作 → 路径框 → 搜索框（两框相邻 + 水印，⛔ 不强加到没有外部数据源的管理页）。另录一条渲染层 bug 修法：`BuildContent` 的动态文案绑定**必须显式给 `Source`**（`ToolbarHost` ⛔ 无 DataContext）⇒ 漏了就渲染成空白按钮。
@@ -468,12 +469,12 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - **详情开合状态**：由 Shell 统一落 `config/columnlayout.json`（`FlagDetailPanel`，**按页面 Key 分别记忆**），列表页 VM 不再直接读写。
 - 涉及页面（5 个）：`pc-package` / `video-list` / `pc-shortcuts` / `pc-quicksettings` / `settings-path`。
 
-- **示例值 + 固定表头宽列（v3.22）**：
-  - 每列给 `ListColumn.Sample`（示例值）；基类暴露 `SampleRowTexts`（示例行文本数组）/ `SampleSpecs`（';' 分隔，⛔ 不用逗号——示例值里可能有）/ `ShowSampleRow`（`HasSampleRow && 列表为空`）。
+- **示例值 + 固定表头宽列（v3.22；v3.60 §4.8.1 收窄）**：
+  - 每列给 `ListColumn.Sample`（示例值）—— **唯一用途 = 列宽判定**；基类暴露 `SampleSpecs`（';' 分隔，⛔ 不用逗号——示例值里可能有）。
+  - ⛔ **v3.60 / NT-060 已删「示例行 / 水印行」**：`SampleRowTexts` / `HasSampleRow` / `ShowSampleRow` 与详情卡示例态（`IsDetailSample` / `UpdateDetailSample` / `DetailCardDescriptor.SamplePath` + `SampleText`）**全部移除** —— 示例值**不再显示在任何地方**，列表没数据时走**空态引导**（需求 §4.8.3）。
   - 表头 `ColumnGrid` 绑 `SampleSpecs="{Binding SampleSpecs}"`；首次布局测出 **表头宽**（各表头子元素 `DesiredSize`）与**示例宽**（临时 `TextBlock` 建来 `Measure(∞)`，字号 12 + 单元格内边距 16；测不到记 `double.MaxValue` 免得误锁）→ `HeaderMeasured` 事件 → VM `LockColumnsBySample(header, sample)`：**示例宽 ≤ 表头宽 → 锁成表头宽，且不小于 `MinLockedWidth = 34`**（表头文字很短的列也留得下拖拽把手）。
   - 锁定列的边界**不生成把手**、`ResizeColumns` 也拒绝（两侧任一被锁）；VM 的 `LockedColumnMask` → `ColumnGrid.LockedColumns`。
-  - **示例行（水印）**：列表区上方单独一条 `Border + ColumnGrid`（⛔ **不进** `Items/Videos`，不参与统计 / 排序 / 筛选 / 勾选 / 导入导出），`IsVisible="{Binding ShowSampleRow}"`、`Opacity="0.5"`，逐列 `Text="{Binding SampleRowTexts[i]}"`。
-  - 本轮只在**视频两页**落地；别的页要用：给列填 `Sample` + 加示例行 XAML + 绑 `SampleSpecs` + code-behind 接 `HeaderMeasured` 四步。
+  - **空态引导（v3.60 / NT-060）**：列表页 View 里放一个 `StackPanel`，`Grid.Row` 与列表**同一格**（⇒ 叠在列表区居中）、`IsVisible="{Binding !HasItems}"`（两处可选其一：`HasItems` 每页都有，记得 `OnPropertyChanged(nameof(HasItems))`）；内含一行 `TextBlock.hint-text`（讲"这页放什么"）+ 一个 `Button.ghost`（讲"怎么开始"），命令**直接绑该页既有命令**（「📥 导入」/「➕ 新增」…）⇒ ⛔ 不新增 VM 状态、⛔ 不新增命令（需求 §4.8.3）。
 - ⚠️ `Views/ColumnGrid.cs` 因**模块间禁互引**而在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` / `Module.MediaAssets` **各存一份（共五份），改动必须同步五处**。
 
 ### 3.7 热加载实现
@@ -769,7 +770,8 @@ VM ⛔ 不引 Avalonia ⇒ 统一走 `Core.DialogHooks` 的 3 个钩子：`PickF
 | `columnlayout.json` | 用户功能数据 | 列显隐偏好 + **页面级开关**（详情栏开合 `FlagDetailPanel`；**壳级页 Key `"shell"`**：左树折叠态 `treeCollapsed` + **各一级分组展开态 `treeGroup:<groupKey>`，默认 false**） |
 
 - **解释器路径**（python / pwsh / PS5.1）留空 = 用系统 PATH 里的；只有填了"看起来像路径"的值才校验存在性。`.ps1` 未配 pwsh 时自动退回系统自带的 5.1。
-- `defaults\` 播种：`Shell.csproj` 用 `<None Update="defaults\**" CopyToOutputDirectory="PreserveNewest" />`（⛔ 用 `Update` 不用 `Include`）。
+- ⛔ **v3.60 §一 / NT-060：不随程序预置默认内容** —— `defaults\pc-scripts.default.json` / `pc-quick.default.json` 与 `defaults\scripts\*` **已删**、`QuickActionService` 不再播种 ⇒ 首次运行 `config\pc-scripts.json` / `pc-quick.json` 就是**空清单**，条目全部由用户导入 / 新建。
+  - `Shell.csproj` 的 `<None Update="defaults\**" CopyToOutputDirectory="PreserveNewest" />` **保留待用**（现在无文件可复制）；⚠️ 若确认不再需要 `defaults\` 可另行清理（现有唯一消费者 `QuickActionService` 已不再读它）。
 - 脚本目录默认 `<应用根>\scripts`（`IAppConfigService.DefaultScriptFolder` 推出），可在「设置 → 路径配置」改。
 
 ---

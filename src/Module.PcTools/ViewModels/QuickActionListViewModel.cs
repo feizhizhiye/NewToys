@@ -116,7 +116,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// 不参与列显隐菜单、也不进 <c>columnlayout.json</c>，它只是把表头与行的最后一格对齐留出来。</para></summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）；「操作」是按钮列 → 不给
+        // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）；「操作」是按钮列 → 不给
         new("Title", "名称", "3*", sample: "清理临时文件"),
         // v3.63：「功能」= 原来那列 `Category`（维护 / 网络 …）—— 表头与详情卡同名
         new("Category", "功能", "1.3*", sample: "维护"),
@@ -278,31 +278,11 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
 
-    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+    /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
+    public QuickAction? DetailItem => Selected;
 
-    /// <summary>详情卡 / 列表示例行用的**示例条目**（两页共用一条通用示例）。</summary>
-    private static readonly QuickAction SampleItem = new()
-    {
-        Title = "清理临时文件",
-        Category = "维护",
-        Description = "删除 %TEMP% 下的临时文件（示例数据）",
-        Command = "del /q %TEMP%\\*",
-        Kind = QuickActionKind.Command,
-        Shell = QuickActionShell.Auto,
-        IsFavorite = true
-    };
-
-    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Items</c>、不参与统计 / 筛选 / 排序）。</summary>
-    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
-
-    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例条目**（示例态下卡片整体禁用）。</summary>
-    public QuickAction DetailItem => Selected ?? SampleItem;
-
-    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
-    public bool ShowDetailBody => HasSelection || IsDetailSample;
-
-    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
-
+    /// <summary>详情卡正文是否显示（有选中项）。</summary>
+    public bool ShowDetailBody => HasSelection;
     // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
     //    本基类被两页共用（「设置与脚本」/「快捷设置」）⇒ 契约在这里实现一次，
     //    **卡片描述符由两个子类各自 override <see cref="BuildCard"/>**（两页字段本来就不同：
@@ -410,14 +390,14 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// 详情卡「分类」：与表头「分类」列**同源**（<see cref="QuickAction.Classify"/>）
     /// —— 脚本条目 = 脚本后缀（.py / .ps1 / .bat / .cmd），命令行命令 = Shell 宿主（cmd / pwsh / 自动）。
     /// </summary>
-    public string ClassifyText => DetailItem.Classify;
+    public string ClassifyText => DetailItem?.Classify ?? "";
 
     /// <summary>详情卡「分类」（旧）：脚本条目 = **脚本后缀**（.py / .ps1 / .bat / .cmd），没有脚本文件 = 「—」。</summary>
     public string ScriptExtText
     {
         get
         {
-            var file = (DetailItem.ScriptFile ?? "").Trim();
+            var file = (DetailItem?.ScriptFile ?? "").Trim();
             var ext = Path.GetExtension(file).ToLowerInvariant();
             return ext.Length > 0 ? ext : "—";
         }
@@ -446,14 +426,14 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// <summary>把 chips 的选中态同步到**当前卡片条目**（集合实例不变，只改 <c>IsSelected</c>）。</summary>
     private void SyncCategoryPicks()
     {
-        var cur = (DetailItem.Category ?? "").Trim();
+        var cur = (DetailItem?.Category ?? "").Trim();
         foreach (var p in CategoryPicks)
             p.IsSelected = string.Equals(p.Name, cur, StringComparison.CurrentCultureIgnoreCase);
     }
 
     /// <summary>
     /// 刷新列表但**保住选中项**：<see cref="ApplyView"/> 会 <c>Items.Clear()</c> 再重填，
-    /// ListBox 的 <c>SelectedItem</c> 双向绑定在清空这一瞬被回写成 null ⇒ 详情卡掉回示例态
+    /// ListBox 的 <c>SelectedItem</c> 双向绑定在清空这一瞬被回写成 null ⇒ 详情卡掉回「未选中」空态
     /// （"点收藏 / 点分类后详情卡变空白"就是这个）⇒ 改完列表内容后把选中项原样放回去。
     /// </summary>
     protected void ApplyViewKeepSelection()
@@ -463,14 +443,14 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         if (keep != null && Selected == null && Items.Contains(keep)) Selected = keep;
     }
 
-    /// <summary>选中项（无选中时看示例项）是否已收藏 —— 收藏图标的高亮。</summary>
-    public bool IsSelectedFavorite => DetailItem.IsFavorite;
+    /// <summary>选中项是否已收藏（没选中 → false）—— 收藏图标的高亮。</summary>
+    public bool IsSelectedFavorite => DetailItem?.IsFavorite == true;
 
-    /// <summary>选中项（无选中时看示例项）尚未收藏。</summary>
-    public bool IsSelectedNotFavorite => !DetailItem.IsFavorite;
+    /// <summary>选中项尚未收藏（没选中 → false）。</summary>
+    public bool IsSelectedNotFavorite => DetailItem?.IsFavorite != true;
 
     /// <summary>属性卡里收藏按钮的文案。</summary>
-    public string FavoriteButtonText => DetailItem.IsFavorite ? "★ 取消收藏" : "☆ 收藏";
+    public string FavoriteButtonText => DetailItem?.IsFavorite == true ? "★ 取消收藏" : "☆ 收藏";
 
     /// <summary>底部提示：数据落在哪、会不会被备份（规范 §9）。
     /// 两页各有自己的文件（v1.34）：「设置与脚本」= <c>pc-scripts.json</c>、「快捷设置」= <c>pc-quick.json</c>。</summary>
@@ -494,8 +474,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     protected QuickActionListViewModel()
     {
         _pageKind = QuickActionPage.Shortcuts;
-        UpdateDetailSample(false);   // v3.32 §4.8.3：设计期也进示例态（XAML 设计器能看出结构）
-        FillEditors(SampleItem);
+        FillEditors(null);
     }
 
     protected QuickActionListViewModel(IQuickActionService svc, IColumnLayoutService cols, IAppConfigService app)
@@ -508,8 +487,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         LoadLayout();
         RebuildCategories();
         ApplyView();
-        UpdateDetailSample(false);   // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
-        FillEditors(SampleItem);
+        FillEditors(null);
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
@@ -597,8 +575,6 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(ShowSampleRow));    // v3.32：有真实数据后示例行消失
-        UpdateDetailSample(Selected != null);
     }
 
     private void UpdateHeaders()
@@ -616,10 +592,9 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     partial void OnSelectedChanged(QuickAction? value)
     {
-        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例条目（并整卡禁用）
         OnPropertyChanged(nameof(DetailItem));
-        FillEditors(DetailItem);             // 真值 / 示例值走同一条填充路径
-        // 切选中项 / 示例态 → 收藏按钮的互斥可见性跟着换
+        FillEditors(DetailItem);             // 填充详情卡编辑缓冲
+        // 切选中项 → 收藏按钮的互斥可见性跟着换
         OnPropertyChanged(nameof(IsSelectedFavorite));
         OnPropertyChanged(nameof(IsSelectedNotFavorite));
         OnPropertyChanged(nameof(HasSelection));
@@ -631,8 +606,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     }
 
     /// <summary>
-    /// 把一条条目（**真正的选中项**，或没选中时的**示例条目**）灌进编辑缓冲。
-    /// <para>v3.32 §4.8.3：抽成方法，好让"示例态"复用同一条填充路径 —— 否则示例卡里全是空格子。</para>
+    /// 把一条条目（**真正的选中项**）灌进编辑缓冲。
+    /// <para>抽成方法：编辑缓冲的填充只此一条路径，⛔ 别在多处各填一遍。</para>
     /// </summary>
     private void FillEditors(QuickAction? value)
     {

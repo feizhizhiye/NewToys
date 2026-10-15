@@ -169,8 +169,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     /// </summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.22 §4.8.1：每列给一条**示例值** —— ① 列表为空时拼成一条水印示例行；
-        // ② 用「示例宽 ≤ 表头宽」判定该列是否锁成表头宽（锁了就不可拖，且不低于 MinLockedWidth=34 保证把手可拖）。
+        // v3.22 §4.8.1：每列给一条**示例值** —— 用「示例宽 ≤ 表头宽」判定该列是否锁成表头宽（锁了就不可拖，且不低于 MinLockedWidth=34 保证把手可拖）。
         new("Pick", "", "34", sortable: false),
         new("Name", "名称", "3.2*", sample: "示例视频 2026.mp4"),
         new("Type", "类型", "0.9*", sample: ".mp4"),
@@ -188,42 +187,14 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         new("Created", "创建时间", "1.5*", sample: "2026-10-13 15:00"),
     };
 
-    /// <summary>v3.22：列表为空时显示那条**示例行**（⛔ 不进 <c>Videos</c>、不参与统计 / 导入导出）。</summary>
-    public bool ShowSampleRow => HasSampleRow && Videos.Count == 0;
-
     public bool HasSelection => Selected != null;
     public bool HasItems => Videos.Count > 0;
 
-    // ==================== v3.32 §4.8.3：详情卡示例态 ====================
+    /// <summary>详情卡的数据源：有选中项时显示它。</summary>
+    public VideoItem? DetailItem => Selected;
 
-    /// <summary>详情卡的**示例项**（与列表示例行同一批数据）。</summary>
-    private static readonly VideoItem SampleItem = CreateSampleItem();
-
-    private static VideoItem CreateSampleItem()
-    {
-        var v = new VideoItem
-        {
-            Name = "示例视频 2026.mp4",
-            FullPath = @"D:\Videos\示例视频 2026.mp4",
-            Extension = ".mp4",
-            SizeBytes = 1_610_612_736,                        // ≈ 1.5 GB
-            Modified = new DateTime(2026, 10, 13, 15, 0, 0),
-            Created = new DateTime(2026, 10, 13, 15, 0, 0)
-        };
-        v.ApplyMedia(new VideoMediaInfo(
-            Duration: 3723, Width: 1920, Height: 1080, Codec: "hevc", BitRate: 8_500_000,
-            Fps: 29.97, ContainerFormat: "mp4", AudioCodec: "aac"));
-        return v;
-    }
-
-    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例项**（示例态下卡片整体禁用）。</summary>
-    public VideoItem DetailItem => Selected ?? SampleItem;
-
-    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
-    public bool ShowDetailBody => HasSelection || IsDetailSample;
-
-    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
-
+    /// <summary>详情卡正文是否显示（有选中项）。</summary>
+    public bool ShowDetailBody => HasSelection;
     // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
 
     public bool HasDetailPanel => true;
@@ -270,9 +241,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        SamplePath = nameof(IsDetailSample),
         EmptyText = "扫描一个目录后，在左侧列表里选中视频：这里会显示完整路径、大小、修改时间，以及分辨率 / 编码 / 码率 / 时长 —— 足够判断要不要剪辑或转码。勾上几行还能批量「发送到转码 / 剪切」。",
-        SampleText = "（示例数据）在左侧选中一个视频后，这里显示它的真实信息；示例态下卡片不可编辑。",
         Sections =
         {
             new DetailSection
@@ -392,8 +361,6 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         LoadLayout();
         Folder = _lastFolder;                                                            // 本次运行内记住上次选的目录
         UpdateHeaders();
-        UpdateDetailSample(false);      // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
-        EditName = SampleItem.Name;
 
         // 目录**不来自设置**（v1.34 解绑）：没选过就如实提示，由用户点「📂 导入」选
         if (string.IsNullOrWhiteSpace(Folder))
@@ -473,7 +440,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     /// <summary>
     /// 「失焦即提交」的文件名（需求 §6.4.7）：声明式卡的输入框失焦时把文本写回 <see cref="EditName"/>，
     /// 这里再落盘 —— 等价于迁移前 code-behind 的 <c>NameBox.LostFocus → SaveNameCommand</c>。
-    /// <para>⛔ 填充编辑缓冲（切选中项 / 示例态）时也会走到这里，所以先跟当前选中项比一次名字：
+    /// <para>⛔ 填充编辑缓冲（切选中项）时也会走到这里，所以先跟当前选中项比一次名字：
     /// 没变就直接返回，⛔ 不去碰磁盘。</para>
     /// </summary>
     partial void OnEditNameChanged(string value)
@@ -488,11 +455,10 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     partial void OnSelectedChanged(VideoItem? value)
     {
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(DetailItem));      // v3.32：详情卡示例态 → 真值 / 示例值 切换
-        UpdateDetailSample(value != null);
+        OnPropertyChanged(nameof(DetailItem));
         // 详情卡可编辑字段跟着选中项走：切换选中即丢弃**未提交**的改动（提交要显式回车 / 失焦）；
-        // 没有选中项 → 用示例项的名字（示例态下卡片禁用，改不动）
-        EditName = (value ?? SampleItem).Name;
+        // 没有选中项 → 编辑缓冲留空
+        EditName = value?.Name ?? "";
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
@@ -594,7 +560,6 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
               + (Selected != null ? $" · 已选：{Selected.Name}" : "");
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(ShowSampleRow));   // v3.22：有真实数据后示例行消失
         OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(HasChecked));
         OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：导入 / 清除 / 重扫后表头三态刷新

@@ -87,21 +87,6 @@
             </v:ColumnGrid>
           </Border>
 
-          <!--  v3.32 §4.8.3：示例行（列表为空时显示；有真实数据后整条消失，⛔ 不参与统计 / 筛选 / 排序）  -->
-          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
-                  ToolTip.Tip="这是示例数据（列宽就按它判定）；查到真实包后这一行会消失">
-            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <!--  勾选列（示例行不给勾选框，保持"占位"语义）  -->
-              <TextBlock Grid.Column="0" Classes="list-cell" Text=""
-                         Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBlock Grid.Column="1" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[1]}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsIdVisible}" Text="{Binding SampleRowTexts[2]}"/>
-              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsVersionVisible}" Text="{Binding SampleRowTexts[3]}"/>
-              <TextBlock Grid.Column="4" Classes="list-cell" IsVisible="{Binding IsSourceVisible}" Text="{Binding SampleRowTexts[4]}"/>
-              <TextBlock Grid.Column="5" Classes="list-cell accent" IsVisible="{Binding IsStatusVisible}" Text="{Binding SampleRowTexts[5]}"/>
-            </v:ColumnGrid>
-          </Border>
-
           <ListBox Grid.Row="2" x:Name="PkgList" Classes="list-page"
                    ItemsSource="{Binding Packages}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
@@ -147,6 +132,26 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
+
+          <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
+          <StackPanel
+              Grid.Row="2"
+              HorizontalAlignment="Center"
+              IsVisible="{Binding !HasItems}"
+              Spacing="10"
+              VerticalAlignment="Center">
+              <TextBlock
+                  Classes="hint-text"
+                  MaxWidth="420"
+                  TextAlignment="Center"
+                  TextWrapping="Wrap"
+                  Text="列表里没有包。点「📥 已安装」加载本机已安装的软件包。" />
+              <Button
+                  Classes="ghost"
+                  HorizontalAlignment="Center"
+                  Content="📥 已安装"
+                  Command="{Binding LoadInstalledCommand}" />
+          </StackPanel>
         </Grid>
       </Border>
 

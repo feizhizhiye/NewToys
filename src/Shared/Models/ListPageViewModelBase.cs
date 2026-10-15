@@ -219,23 +219,6 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     public const double MinLockedWidth = 34;
 
     /// <summary>
-    /// 示例行的文本（按列顺序，与 <see cref="Columns"/> 一一对齐）：给 View 的「水印行」绑
-    /// <c>{Binding SampleRowTexts[i]}</c> 用；⛔ 不进 <c>Items</c>、不参与统计 / 导入导出。
-    /// </summary>
-    public string[] SampleRowTexts
-    {
-        get
-        {
-            var arr = new string[Columns.Count];
-            for (var i = 0; i < Columns.Count; i++) arr[i] = Columns[i].Sample ?? "";
-            return arr;
-        }
-    }
-
-    /// <summary>有没有给任何列填过示例值（View 据此决定要不要画那条水印行）。</summary>
-    public bool HasSampleRow => Columns.Any(c => !string.IsNullOrEmpty(c.Sample));
-
-    /// <summary>
     /// 示例值文本串（';' 分隔，给表头 <c>ColumnGrid.SampleSpecs</c> 测量用；⛔ 别用逗号 —— 示例值里可能有逗号）。
     /// </summary>
     public string SampleSpecs => string.Join(';', Columns.Select(c => (c.Sample ?? "").Replace(';', ' ')));
@@ -438,24 +421,6 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
 
     /// <summary>是否有快捷筛选项（XAML 据此在「占位提示」与「列表」间切换）。</summary>
     public bool HasQuickFilters => QuickFilters.Count > 0;
-
-    // ==================== 详情卡示例态（v3.32 / 需求 §4.8.3） ====================
-
-    /// <summary>
-    /// 详情卡是否处于**示例态**：没有选中项、但本页给了示例数据（<see cref="HasSampleRow"/>）→
-    /// 详情卡以**示例值**填充并**禁用全部交互控件**（避免用户去改 / 保存一份假数据）。
-    /// <para>由派生类在"选中项变化"时调 <see cref="UpdateDetailSample"/> 维护，⛔ 不要手写赋值。</para>
-    /// </summary>
-    [ObservableProperty] private bool _isDetailSample;
-
-    /// <summary>派生类在选中项变化时调：没有选中项且有示例数据 → 进示例态；否则退出。</summary>
-    protected void UpdateDetailSample(bool hasSelection) => IsDetailSample = HasSampleRow && !hasSelection;
-
-    /// <summary>示例态变了（派生类可 override：把自己的"详情正文可见性"等派生属性发一次通知）。</summary>
-    protected virtual void OnDetailSampleChanged() { }
-
-    /// <summary>示例态变化 → 通知派生类（<c>partial void</c> 只能写在定义类，故转一道虚方法）。</summary>
-    partial void OnIsDetailSampleChanged(bool value) => OnDetailSampleChanged();
 
     /// <summary>没有分类的页，种子一次性建「＋ 添加筛选列 / 🧹 清空 / （占位）」三项。</summary>
     private void SeedStandardQuickFilters()

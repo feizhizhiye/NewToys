@@ -154,41 +154,6 @@
           </v:ColumnGrid>
         </Border>
 
-        <!--
-          v3.22 §4.8.1 **示例行**（空态水印）：列表为空时显示一条，让用户先看清每列是什么；
-          有真实数据后整条消失。⛔ 它不在 Items 里：不参与筛选 / 排序 / 统计。
-        -->
-        <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
-                ToolTip.Tip="这是示例数据（列宽就按它判定）；导入 / 扫描到真实资产后这一行会消失">
-          <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-            <!--  勾选列（示例行不给勾选框，保持"占位"语义）  -->
-            <TextBlock Grid.Column="0" Classes="list-cell" Text=""
-                       Foreground="{DynamicResource SecondaryTextBrush}"/>
-            <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SampleRowTexts[1]}"
-                       Foreground="{DynamicResource PrimaryTextBrush}" IsVisible="{Binding IsNameVisible}"/>
-            <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SampleRowTexts[2]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTypeVisible}"/>
-            <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding SampleRowTexts[3]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsTagsVisible}"/>
-            <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding SampleRowTexts[4]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCategoriesVisible}"/>
-            <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding SampleRowTexts[5]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCollectionsVisible}"/>
-            <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding SampleRowTexts[6]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsSizeVisible}"/>
-            <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding SampleRowTexts[7]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsModifiedVisible}"/>
-            <TextBlock Grid.Column="8" Classes="list-cell" Text="{Binding SampleRowTexts[8]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsStorageVisible}"/>
-            <TextBlock Grid.Column="9" Classes="list-cell" Text="{Binding SampleRowTexts[9]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsDurationVisible}"/>
-            <TextBlock Grid.Column="10" Classes="list-cell" Text="{Binding SampleRowTexts[10]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsResolutionVisible}"/>
-            <TextBlock Grid.Column="11" Classes="list-cell" Text="{Binding SampleRowTexts[11]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCodecVisible}"/>
-          </v:ColumnGrid>
-        </Border>
-
         <ListBox Grid.Row="2" x:Name="AssetList" Classes="list-page"
                  ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                  SelectionMode="Single">
@@ -256,6 +221,26 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
+
+        <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
+        <StackPanel
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            IsVisible="{Binding !HasItems}"
+            Spacing="10"
+            VerticalAlignment="Center">
+            <TextBlock
+                Classes="hint-text"
+                MaxWidth="420"
+                TextAlignment="Center"
+                TextWrapping="Wrap"
+                Text="没有可显示的资产。点「📥 导入」把导出的 json 合并进库，或用「📁 扫描」扫一个目录。" />
+            <Button
+                Classes="ghost"
+                HorizontalAlignment="Center"
+                Content="📥 导入"
+                Command="{Binding ImportAssetsCommand}" />
+        </StackPanel>
       </Grid>
     </Border>
   </Grid>

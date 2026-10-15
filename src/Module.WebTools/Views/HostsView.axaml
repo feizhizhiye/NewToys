@@ -53,16 +53,6 @@
             </v:ColumnGrid>
           </Border>
 
-          <!--  v3.32 §4.8.3：示例行（列表为空时显示；有真实数据后整条消失，⛔ 不参与统计 / 筛选 / 排序）  -->
-          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
-                  ToolTip.Tip="这是示例数据（列宽就按它判定）；新建 / 导入方案后这一行会消失">
-            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[0]}"/>
-              <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsEntriesVisible}" Text="{Binding SampleRowTexts[1]}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsSourceVisible}" Text="{Binding SampleRowTexts[2]}"/>
-            </v:ColumnGrid>
-          </Border>
-
           <ListBox Grid.Row="2" x:Name="ProfileList" Classes="list-page"
                    ItemsSource="{Binding Profiles}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
@@ -90,6 +80,26 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
+
+          <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
+          <StackPanel
+              Grid.Row="2"
+              HorizontalAlignment="Center"
+              IsVisible="{Binding !HasItems}"
+              Spacing="10"
+              VerticalAlignment="Center">
+              <TextBlock
+                  Classes="hint-text"
+                  MaxWidth="420"
+                  TextAlignment="Center"
+                  TextWrapping="Wrap"
+                  Text="没有可显示的方案。点「🌐 导入」从网络 hosts 源导入，或「➕ 新建方案」。" />
+              <Button
+                  Classes="ghost"
+                  HorizontalAlignment="Center"
+                  Content="🌐 导入"
+                  Command="{Binding ImportCommand}" />
+          </StackPanel>
         </Grid>
       </Border>
 

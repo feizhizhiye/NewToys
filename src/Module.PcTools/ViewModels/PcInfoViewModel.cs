@@ -84,29 +84,18 @@ public partial class PcInfoViewModel : ListPageViewModelBase, IDetailPanelProvid
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）
+        // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
         new("Category", "类型", "1.2*", sample: "硬件"),
         new("Name", "项目", "2.2*", sample: "CPU"),
         new("Value", "值", "5*", sample: "12th Gen Intel Core i7-12700H"),
         new("Note", "说明", "2.4*", sample: "10 核 20 线程"),
     };
 
-    // ==================== v3.32 §4.8.3：列表示例行 + 详情卡示例态 ====================
+    /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
+    public PcInfoEntry? DetailItem => Selected;
 
-    /// <summary>详情卡 / 列表示例行用的**示例项**。</summary>
-    private static readonly PcInfoEntry SampleItem = new("硬件", "CPU", "12th Gen Intel Core i7-12700H", "10 核 20 线程（示例数据）");
-
-    /// <summary>列表为空时显示**示例行**（⛔ 不进 <c>Items</c>、不参与统计 / 筛选 / 排序）。</summary>
-    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
-
-    /// <summary>详情卡的数据源：有选中项用真值，没选中用**示例项**。</summary>
-    public PcInfoEntry DetailItem => Selected ?? SampleItem;
-
-    /// <summary>详情卡正文是否显示（有选中项，或处于示例态）。</summary>
-    public bool ShowDetailBody => HasSelection || IsDetailSample;
-
-    protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
-
+    /// <summary>详情卡正文是否显示（有选中项）。</summary>
+    public bool ShowDetailBody => HasSelection;
     // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
 
     public bool HasDetailPanel => true;
@@ -148,9 +137,7 @@ public partial class PcInfoViewModel : ListPageViewModelBase, IDetailPanelProvid
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        SamplePath = nameof(IsDetailSample),
         EmptyText = "在左侧选中一行，这里显示它的分类、项目、值与说明；右键列表可复制单行 / 全部。",
-        SampleText = "（示例数据）在左侧选中一行后，这里显示它的真实内容；示例态下不可复制。",
         Sections =
         {
             new DetailSection
@@ -228,7 +215,6 @@ public partial class PcInfoViewModel : ListPageViewModelBase, IDetailPanelProvid
         Collect();
         RebuildQuickFilters();   // v3.21 §4.8.2：类型（信息分组）进表头右键「筛选」
         RefreshView();
-        UpdateDetailSample(false);   // v3.32 §4.8.3：初始没有选中项 → 详情卡进"示例态"
     }
 
     private void RebuildQuickFilters()
@@ -269,8 +255,6 @@ public partial class PcInfoViewModel : ListPageViewModelBase, IDetailPanelProvid
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(ShowSampleRow));   // v3.32：有真实数据后示例行消失
-        UpdateDetailSample(Selected != null);
     }
 
     /// <summary>筛选取值：按列键拿这一行的文本（多项筛选的"列"下拉框就列这些）。</summary>
@@ -299,7 +283,6 @@ public partial class PcInfoViewModel : ListPageViewModelBase, IDetailPanelProvid
 
     partial void OnSelectedChanged(PcInfoEntry? value)
     {
-        UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例项
         OnPropertyChanged(nameof(DetailItem));
         OnPropertyChanged(nameof(HasSelection));
     }

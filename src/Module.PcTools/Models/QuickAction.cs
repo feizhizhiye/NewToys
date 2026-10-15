@@ -107,9 +107,8 @@ public static class QuickActionShell
 /// <see cref="NeedAdmin"/> 为真时统一走 UAC 提权。
 /// </para>
 /// <para>
-/// ⛔ 默认清单<b>不写在代码里</b>：随程序发布 <c>&lt;程序目录&gt;\defaults\pc-scripts.default.json</c> 与
-/// <c>pc-quick.default.json</c>，首次运行分别复制成 <c>config\pc-scripts.json</c> / <c>config\pc-quick.json</c>，
-/// 之后改本地文件即可（见 <c>QuickActionService</c>）。
+/// ⛔ 默认清单<b>既不写死在代码里、也不随程序预置</b>（v3.60 §三 / NT-060）：<c>config\pc-scripts.json</c> /
+/// <c>config\pc-quick.json</c> 首次运行就是**空清单**，条目全部由用户导入 / 新建（见 <c>QuickActionService</c>）。
 /// </para>
 /// </summary>
 public partial class QuickAction : ObservableObject

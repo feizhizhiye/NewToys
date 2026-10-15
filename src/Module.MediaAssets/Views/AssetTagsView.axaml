@@ -73,23 +73,6 @@
           </v:ColumnGrid>
         </Border>
 
-        <!--  示例行（v3.32 §4.8.3：空列表时给一条半透明占位，顺便判定列宽）  -->
-        <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
-                ToolTip.Tip="这是示例数据（列宽就按它判定）；新建标签后这一行会消失">
-          <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-            <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding SampleRowTexts[0]}"
-                       Foreground="{DynamicResource PrimaryTextBrush}" IsVisible="{Binding IsNameVisible}"/>
-            <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SampleRowTexts[1]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsNamespaceVisible}"/>
-            <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SampleRowTexts[2]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsColorVisible}"/>
-            <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding SampleRowTexts[3]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsUsageVisible}"/>
-            <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding SampleRowTexts[4]}"
-                       Foreground="{DynamicResource SecondaryTextBrush}" IsVisible="{Binding IsCreatedVisible}"/>
-          </v:ColumnGrid>
-        </Border>
-
         <ListBox Grid.Row="2" x:Name="TagList" Classes="list-page"
                  ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                  SelectionMode="Single">
@@ -129,6 +112,26 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
+
+        <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
+        <StackPanel
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            IsVisible="{Binding !HasItems}"
+            Spacing="10"
+            VerticalAlignment="Center">
+            <TextBlock
+                Classes="hint-text"
+                MaxWidth="420"
+                TextAlignment="Center"
+                TextWrapping="Wrap"
+                Text="没有可显示的标签。点「➕ 新建标签」建第一个。" />
+            <Button
+                Classes="ghost"
+                HorizontalAlignment="Center"
+                Content="➕ 新建标签"
+                Command="{Binding NewTagCommand}" />
+        </StackPanel>
       </Grid>
     </Border>
   </Grid>

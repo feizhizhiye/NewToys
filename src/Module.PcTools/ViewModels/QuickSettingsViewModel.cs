@@ -67,9 +67,7 @@ public partial class QuickSettingsViewModel : QuickActionListViewModel
         var card = new DetailCardDescriptor
         {
             BodyVisiblePath = nameof(ShowDetailBody),
-            SamplePath = nameof(IsDetailSample),
             EmptyText = "在左侧列表里选中一条。这里放的是系统自带的设置入口（Windows 设置面板 / 控制面板 / 管理工具），选中后用下面的运行图标即打开；图标按钮依次是「运行 / 收藏 / 保存 / 删除」。右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。",
-            SampleText = "（示例数据）在左侧选中一条后，这里显示它的真实内容；示例态下卡片不可编辑。",
             Sections =
             {
                 new DetailSection

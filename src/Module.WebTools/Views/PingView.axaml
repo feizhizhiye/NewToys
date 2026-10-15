@@ -52,18 +52,6 @@
             </v:ColumnGrid>
           </Border>
 
-          <!--  v3.32 §4.8.3：示例行（列表为空时显示；有真实数据后整条消失，⛔ 不参与统计 / 筛选 / 排序）  -->
-          <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
-                  ToolTip.Tip="这是示例数据（列宽就按它判定）；导入 / 新增目标后这一行会消失">
-            <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsHostVisible}" Text="{Binding SampleRowTexts[0]}"/>
-              <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsIpVisible}" Text="{Binding SampleRowTexts[1]}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell accent" IsVisible="{Binding IsStatusVisible}" Text="{Binding SampleRowTexts[2]}"/>
-              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsRoundtripVisible}" Text="{Binding SampleRowTexts[3]}"/>
-              <TextBlock Grid.Column="4" Classes="list-cell" IsVisible="{Binding IsDnsVisible}" Text="{Binding SampleRowTexts[4]}"/>
-            </v:ColumnGrid>
-          </Border>
-
           <ListBox Grid.Row="2" x:Name="TargetList" Classes="list-page"
                    ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
@@ -100,6 +88,26 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
+
+          <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
+          <StackPanel
+              Grid.Row="2"
+              HorizontalAlignment="Center"
+              IsVisible="{Binding !HasItems}"
+              Spacing="10"
+              VerticalAlignment="Center">
+              <TextBlock
+                  Classes="hint-text"
+                  MaxWidth="420"
+                  TextAlignment="Center"
+                  TextWrapping="Wrap"
+                  Text="没有可显示的目标。点「📥 导入文件」选一行一个主机的文本文件，或「➕ 新建」。" />
+              <Button
+                  Classes="ghost"
+                  HorizontalAlignment="Center"
+                  Content="📥 导入文件"
+                  Command="{Binding ImportTargetsCommand}" />
+          </StackPanel>
         </Grid>
       </Border>
 

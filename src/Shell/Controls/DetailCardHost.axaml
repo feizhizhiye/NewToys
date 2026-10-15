@@ -415,14 +415,7 @@
           IsVisible="{Binding !ShowBody}"
           Text="{Binding EmptyText}"
           TextWrapping="Wrap" />
-      <!--  示例态（v3.32 §4.8.3）：提示 + 整卡禁用，⛔ 不让用户去改 / 保存一份假数据  -->
-      <TextBlock
-          Classes="hint-text"
-          IsVisible="{Binding IsSample}"
-          Text="{Binding SampleText}"
-          TextWrapping="Wrap" />
       <StackPanel
-          IsEnabled="{Binding !IsSample}"
           IsVisible="{Binding ShowBody}"
           Spacing="10">
         <ItemsControl ItemsSource="{Binding Sections}" />

@@ -121,24 +121,11 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool IsDbAvailable => _assets?.IsAvailable ?? false;
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
-    public bool ShowSampleRow => HasSampleRow && Items.Count == 0;
     public bool ShowDetailBody => HasSelection;
     public bool HasLocations => Locations.Count > 0;
 
-    /// <summary>详情卡当前显示的资产（没选中 → 示例行，只读展示）。</summary>
-    public AssetRow DetailRow => Selected ?? SampleRow;
-
-    private static readonly AssetRow SampleRow = new()
-    {
-        Name = "The.Matrix.1999.1080p.mkv",
-        Type = AssetTypes.Video,
-        Status = AssetStatuses.Trashed,
-        FilePath = @"D:\Movies\The.Matrix.1999.1080p.mkv",
-        Size = 4_509_715_660,
-        Mtime = "2026-10-13 21:04:00",
-        StorageName = "移动硬盘 D"
-    };
-
+    /// <summary>详情卡当前显示的资产（有选中项时显示它）。</summary>
+    public AssetRow DetailRow => Selected;
     protected override void EnsureDetailSelection()
     {
         if (Selected == null && Items.Count > 0) Selected = Items[0];
@@ -214,7 +201,6 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(ShowSampleRow));
     }
 
     private IOrderedEnumerable<AssetRow> Order<TKey>(IEnumerable<AssetRow> q, Func<AssetRow, TKey> key)

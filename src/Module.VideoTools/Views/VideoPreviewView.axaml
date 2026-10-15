@@ -2,7 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.VideoTools.Views.VideoPreviewView">
   <!--  v3.12：「命令生成」页更名为「视频预览」；详情卡与「批量处理」页**同一套结构**
-        （分区按 ffmpeg 命令书写顺序：剪辑 → 转码 → 输出 → 命令；详情卡内不放任何操作按钮，全在工具条）。 -->
+        （分区按 ffmpeg 命令书写顺序：剪辑 → 转码 → 输出 → 命令）。
+        v3.31 / NT-054：**详情卡已迁到 Shell 的声明式渲染**（`IDetailCardSource` + `DetailCardHost`）⇒
+        本页只剩「预览列」一列；卡片的声明在 `VideoPreviewViewModel.BuildCard()` 里，⛔ 不再页内自绘。 -->
 
   <Grid RowDefinitions="Auto,*" Margin="12">
 
@@ -40,7 +42,7 @@
                   ToolTip.Tip="丢弃手改的命令，恢复成由参数自动生成"/>
         </WrapPanel>
         <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailCommand}"
+                Command="{Binding ToggleDetailPanelCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（参数与 ffmpeg 命令）">
           <Panel>
             <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -52,10 +54,10 @@
       </Grid>
     </Border>
 
-    <!--  ==================== 主体：预览列 ｜ 详情卡  ==================== -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+    <!--  ==================== 主体：预览列（详情卡由 Shell 右列承载）  ==================== -->
+    <Grid Grid.Row="1" Margin="0,8,0,0">
 
-      <!--  ==================== 左：预览画面 + 三条时间条（均常显）  ==================== -->
+      <!--  ==================== 预览画面 + 三条时间条（均常显）  ==================== -->
       <Border Grid.Column="0" Classes="card" Padding="4">
         <Grid RowDefinitions="*,Auto">
 
@@ -132,207 +134,6 @@
         </Grid>
       </Border>
 
-      <!--  ==================== 右：详情卡（可开合；只有参数 + 命令）  ==================== -->
-      <!--  ⚠️ Avalonia 12 的 ScrollBar 是**覆盖式**（槽落在 ScrollViewer 右缘之外 8px）→
-           卡片 Padding 右 4 + 滚动内容 Margin 右 4，滚动条才不会压在内容上（规范 §3.6）  -->
-      <Border Grid.Column="1" Classes="detail-card" Padding="12,12,4,12"
-              IsVisible="{Binding IsDetailVisible}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Margin="0,0,4,0" Spacing="6">
-
-            <!--  ① 剪辑：勾选框就在分区标题上（勾 = 这段进命令），不再单列一块「任务类型」  -->
-            <Expander IsExpanded="{Binding IsCutSectionExpanded, Mode=TwoWay}">
-              <Expander.Header>
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                  <CheckBox IsChecked="{Binding IsCut, Mode=TwoWay}" VerticalAlignment="Center"
-                            ToolTip.Tip="勾上 = 命令里带 -ss / -to 截取这段"/>
-                  <TextBlock Text="✂ 剪切" VerticalAlignment="Center" FontSize="12"
-                             FontWeight="SemiBold"/>
-                </StackPanel>
-              </Expander.Header>
-              <StackPanel Spacing="6" Margin="0,6,0,0">
-
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="开始（也可拖左侧时间条）"/>
-                  <TextBox Classes="code" Text="{Binding EditStart, Mode=TwoWay}"/>
-                </StackPanel>
-
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="结束（留空 = 到末尾）"/>
-                  <TextBox Classes="code" Text="{Binding EditEnd, Mode=TwoWay}"/>
-                </StackPanel>
-
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="剪切预设"/>
-                  <ComboBox ItemsSource="{Binding CutPresetOptions}"
-                            SelectedValue="{Binding EditPresetId, Mode=TwoWay}"
-                            SelectedValueBinding="{Binding Id}"
-                            HorizontalAlignment="Stretch" FontSize="12">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate><TextBlock Text="{Binding Name}" FontSize="12" TextWrapping="Wrap"/></DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                </StackPanel>
-
-                <StackPanel Classes="field" IsVisible="{Binding IsReEncode}">
-                  <TextBlock Classes="field-label" Text="重新编码时的 CRF（18~28 常用，越小越清晰）"/>
-                  <TextBox Classes="code" Text="{Binding EditCrf, Mode=TwoWay}"/>
-                </StackPanel>
-
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="自定义 ffmpeg 参数（追加在预设之后 → 可覆盖预设）"/>
-                  <TextBox Classes="code" Text="{Binding EditExtraArgs, Mode=TwoWay}" AcceptsReturn="True"
-                           TextWrapping="Wrap" MinHeight="40"
-                           PlaceholderText="例：-vf scale=1280:-2"/>
-                </StackPanel>
-
-              </StackPanel>
-            </Expander>
-
-            <!--  ② 转码  -->
-            <Expander IsExpanded="{Binding IsTranscodeSectionExpanded, Mode=TwoWay}">
-              <Expander.Header>
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                  <CheckBox IsChecked="{Binding IsTranscode, Mode=TwoWay}" VerticalAlignment="Center"
-                            ToolTip.Tip="勾上 = 命令里带编码 / 画质参数"/>
-                  <TextBlock Text="🔁 转码" VerticalAlignment="Center" FontSize="12"
-                             FontWeight="SemiBold"/>
-                </StackPanel>
-              </Expander.Header>
-              <StackPanel Spacing="6" Margin="0,6,0,0">
-
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="编码预设"/>
-                  <ComboBox ItemsSource="{Binding TranscodePresets}"
-                            SelectedValue="{Binding EditTranscodePresetId, Mode=TwoWay}"
-                            SelectedValueBinding="{Binding Id}"
-                            HorizontalAlignment="Stretch" FontSize="12">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate><TextBlock Text="{Binding Name}" FontSize="12" TextWrapping="Wrap"/></DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                </StackPanel>
-
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="编码器"/>
-                  <ComboBox SelectedIndex="{Binding EncoderIndex, Mode=TwoWay}"
-                            HorizontalAlignment="Stretch" FontSize="12">
-                    <ComboBoxItem Content="CPU（软件编码，兼容性最好）"/>
-                    <ComboBoxItem Content="GPU（NVENC，N 卡）"/>
-                  </ComboBox>
-                  <TextBlock Classes="hint-text" Margin="0,2,0,0" TextWrapping="Wrap"
-                             Text="{Binding EncoderPreview, StringFormat='实际会用：{0}'}"/>
-                </StackPanel>
-
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="容器 / 格式（决定输出文件后缀）"/>
-                  <ComboBox ItemsSource="{Binding ContainerOptions}"
-                            SelectedValue="{Binding EditContainer, Mode=TwoWay}"
-                            HorizontalAlignment="Stretch" FontSize="12"/>
-                </StackPanel>
-
-                <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="4">
-                  <StackPanel Grid.Column="0" Classes="field">
-                    <TextBlock Classes="field-label" Text="宽（0 = 按比例）"/>
-                    <TextBox Classes="code" Text="{Binding EditTargetWidth, Mode=TwoWay}"/>
-                  </StackPanel>
-                  <TextBlock Grid.Column="1" Text="×" VerticalAlignment="Center" Margin="0,16,0,0"/>
-                  <StackPanel Grid.Column="2" Classes="field">
-                    <TextBlock Classes="field-label" Text="高（0 = 不改）"/>
-                    <TextBox Classes="code" Text="{Binding EditTargetHeight, Mode=TwoWay}"/>
-                  </StackPanel>
-                </Grid>
-
-                <!--  v3.19 / NT-013：默认宽 / 高上限（源**大于**它才缩到它、**小于等于**保原始；与显式宽高二选一，优先用显式宽高）。
-                      ⛔ 已删「最大高度」字段（反馈：冗余，与默认宽高重复）；默认值 1920×1080，可手改。  -->
-                <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                           Text="{Binding SourceResolutionDisplay, StringFormat='原视频宽高：{0}'}"/>
-                <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="4">
-                  <StackPanel Grid.Column="0" Classes="field">
-                    <TextBlock Classes="field-label" Text="默认宽上限"/>
-                    <TextBox Classes="code" Text="{Binding EditDefaultWidth, Mode=TwoWay}"/>
-                  </StackPanel>
-                  <TextBlock Grid.Column="1" Text="×" VerticalAlignment="Center" Margin="0,16,0,0"/>
-                  <StackPanel Grid.Column="2" Classes="field">
-                    <TextBlock Classes="field-label" Text="默认高上限"/>
-                    <TextBox Classes="code" Text="{Binding EditDefaultHeight, Mode=TwoWay}"/>
-                  </StackPanel>
-                </Grid>
-
-                <!--  v3.19 / NT-012：旋转 / 翻转（映射 ffmpeg -vf transpose/hflip；工具条 ↻/↺ 转预览会同步到这）  -->
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="旋转 / 翻转（视频方向不对时用；也可点工具条 ↻ / ↺ 转预览自动同步）"/>
-                  <ComboBox ItemsSource="{Binding RotateChoices}"
-                            SelectedItem="{Binding SelectedRotate, Mode=TwoWay}"
-                            HorizontalAlignment="Stretch" FontSize="12">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                </StackPanel>
-
-                <StackPanel Classes="field">
-                  <TextBlock Classes="field-label" Text="码率模式"/>
-                  <ComboBox SelectedIndex="{Binding BitrateModeIndex, Mode=TwoWay}"
-                            HorizontalAlignment="Stretch" FontSize="12">
-                    <ComboBoxItem Content="CRF（恒定质量，推荐）"/>
-                    <ComboBoxItem Content="目标码率（如 5000k / 5M）"/>
-                  </ComboBox>
-                </StackPanel>
-
-                <StackPanel Classes="field" IsVisible="{Binding UseCrf}">
-                  <TextBlock Classes="field-label" Text="CRF（0 = 用预设值；18~28 常用）"/>
-                  <TextBox Classes="code" Text="{Binding EditTranscodeCrf, Mode=TwoWay}"/>
-                </StackPanel>
-
-                <StackPanel Classes="field" IsVisible="{Binding !UseCrf}">
-                  <TextBlock Classes="field-label" Text="目标码率（如 5000k / 5M）"/>
-                  <TextBox Classes="code" Text="{Binding EditTargetBitrate, Mode=TwoWay}"
-                           PlaceholderText="5000k"/>
-                </StackPanel>
-
-              </StackPanel>
-            </Expander>
-
-            <!--  v3.19 / NT-013：下方「输出 / 命令」几行包一层，左缘对齐 Expander 内容
-                  （Fluent Expander 内容 Padding=16，故这里补同量左内边距；原本下方几行贴左、比上面缩进少 16px 不齐）  -->
-            <StackPanel Margin="16,0,16,0" Spacing="6">
-            <!--  ③ 输出  -->
-            <StackPanel Classes="field">
-              <TextBlock Classes="field-label" Text="输出文件（留空 = 自动命名，绝不覆盖已有文件）"/>
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0" Classes="code" Text="{Binding EditOutput, Mode=TwoWay}"/>
-                <Button Grid.Column="1" x:Name="PickOutputBtn" Classes="ghost" Content="📂" Margin="4,0,0,0"
-                        Padding="8,4"/>
-              </Grid>
-            </StackPanel>
-
-            <!--  ④ 命令（自动生成 + 可手改）  -->
-            <Border Classes="divider-line"/>
-            <StackPanel Classes="field">
-              <TextBlock Classes="field-label" Text="将要执行的命令（改参数即时刷新，与发到批处理的那条同源）"/>
-              <SelectableTextBlock Classes="field-value" Text="{Binding CommandPreview}" TextWrapping="Wrap"/>
-            </StackPanel>
-
-            <StackPanel Classes="field">
-              <TextBlock Classes="field-label" Text="ffmpeg 参数（可手动编辑；不含 ffmpeg.exe 与输出路径）"/>
-              <TextBox Classes="code" Text="{Binding EditArgs, Mode=TwoWay}" AcceptsReturn="True"
-                       TextWrapping="Wrap" MinHeight="44"/>
-              <TextBlock Classes="hint-text" Margin="0,2,0,0" TextWrapping="Wrap"
-                         IsVisible="{Binding IsArgsEdited}"
-                         Text="✎ 已手改：执行时以这里为准（工具条上「↺ 重置为自动」可撤销）。"/>
-            </StackPanel>
-
-            <Border Classes="divider-line"/>
-            <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                       Text="本页只负责「制定一条任务」：编好点「➡ 发送到批处理」入队，真正运行在「批量处理」页。剪辑默认 -c copy 不重编码（秒级、无损，但起止会就近对齐关键帧）；要精确到帧就选「重新编码」。"/>
-            <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                       Text="⚠️ GPU 编码需要 N 卡 + 支持 NVENC 的 ffmpeg；机器不支持时 ffmpeg 会直接报错，页面会如实显示原因。"/>
-            </StackPanel>
-
-          </StackPanel>
-        </ScrollViewer>
-      </Border>
 
     </Grid>
   </Grid>

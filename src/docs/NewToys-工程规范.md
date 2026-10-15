@@ -1,13 +1,14 @@
 # NewToys 工程规范
 
-> v3.29 · 2026-10-15 · 技术实现指南
+> v3.30 · 2026-10-15 · 技术实现指南
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
 > 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
 > 权威源：需求规格（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕技术债（本文件台账，原「折衷约束」）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
-> **v3.29 变更**：⑥ **详情卡声明式渲染实装（NT-054 的 L0 + L1）** —— 新增 `Shared/Details/DetailCardDescriptor.cs`（描述符 POCO）+ `Shared/Services/IDetailCardSource.cs`（来源契约）+ `Shell/Controls/DetailCardHost.axaml(.cs)` / `DetailCardRender.cs`（渲染器：7 个字段 `DataTemplate` + Kind→行对象唯一分派 + 路径解析 + 属性级刷新）；`ShellViewModel.RefreshDetail` 改**两轨择一**（声明式优先，老的自绘 `DetailContent` 保留给未迁移页）；`Shell/Styles/Controls.axaml` 新增 ⑭（`Button.section-toggle` / `Button.chip-toggle`）；§3.8 新增「`IDetailCardSource` + 详情卡声明式渲染」小节（件与归属 / 两轨 / 渲染层口径 / 路径静态兜底）；§3.6 详情卡滚动条写明**只写在 Shell 一处**。配套 `skill/scripts/check-detail-paths.ps1` 新增，`check-axaml-props.ps1` 加 `Classes.` 前缀豁免。
+> **v3.30 变更**：⑦ **NT-054 的 L2 打样页落地**（视频工具·批量队列，需求 §4.5.1）—— 描述符补**第 8 种 Kind `List`**（只读列表：键值行 / 对比行）+ `Hint` 动态行（`ValuePath` + `Prefix`）+ `DetailSection.ToggleEnabledPath` + `Select` 的**索引通道**（`IndexPath` + `LiteralOptions`）；渲染器加 `ListFieldRow` / `IndexSelectFieldRow`；§3.8 新增「**L2 打样补记**」（路径优先 `nameof` / `OptionsPath` 必须稳定实例 / 空候选不回写 / 迁移页三件事 / 布局降级）。
+> **v3.29 变更**：⑥ **详情卡声明式渲染实装（NT-054 的 L0 + L1）** —— 新增 `Shared/Details/DetailCardDescriptor.cs`（描述符 POCO）+ `Shared/Services/IDetailCardSource.cs`（来源契约）+ `Shell/Controls/DetailCardHost.axaml(.cs)` / `DetailCardRender.cs`（渲染器：字段 `DataTemplate` + Kind→行对象唯一分派 + 路径解析 + 属性级刷新）；`ShellViewModel.RefreshDetail` 改**两轨择一**（声明式优先，老的自绘 `DetailContent` 保留给未迁移页）；`Shell/Styles/Controls.axaml` 新增 ⑭（`Button.section-toggle` / `Button.chip-toggle`）；§3.8 新增「`IDetailCardSource` + 详情卡声明式渲染」小节（件与归属 / 两轨 / 渲染层口径 / 路径静态兜底）；§3.6 详情卡滚动条写明**只写在 Shell 一处**。配套 `skill/scripts/check-detail-paths.ps1` 新增，`check-axaml-props.ps1` 加 `Classes.` 前缀豁免。
 > **v3.28 变更**：① §2.1 新增「**两种基准宽度下的可用宽度**」推导表（默认 1280×800 / 最窄 960×640 → 列表列 736 / 416、工具条与筛选条可用宽 712 / 392）＋ 两条设计逻辑（工具条"能用多少就显示多少"、筛选条"一行排死自适应收缩"）；② §3.6 ① 改为**按容器宽度自动折叠**：项宽**首次布局后缓存一次** + 贪心算两行容量 ⇒ ⛔ 没有"档位数字"可调、⛔ 不用 `Measure(∞)` 每帧重测（循环 / 抖动的来源）。
 > **v3.27 变更**：§3.6 新增「**主显示区（工具条 / 筛选条）实现范例**」（v3.41 / v3.42 用户定调，对应需求 §4.8.4）：工具条**按容器宽度分档折叠**（`ApplyToolbarLayout()`：≥620px→12 项 / 450~620px→9 项 / <450px→6 项，末尾「⋯」= 全部显示；⛔ 不用 `ToggleButton`、⛔ 不把控件搬进弹出树、⛔ 不改回"逐项测量"版）；筛选条**恒一行无滚动**（等分星号 `Grid` + `MinWidth=0` 覆盖全局 `ComboBox.filter-combo` 的 `MinWidth=110`）；「需先勾选」的按钮用 **`ToolTip.ShowOnDisabled`** 保证禁用态提示词可读。
 >
@@ -538,7 +539,7 @@ public interface IHistoryProvider
 
 #### `IDetailCardSource` + 详情卡声明式渲染（v3.29 / NT-054）
 
-> 🔴 **规格唯一源** = 需求 §4.5.1（三区模型 / 7 种 Kind / 3 种提交语义 / 刷新契约 / 16 张覆盖基线）。
+> 🔴 **规格唯一源** = 需求 §4.5.1（三区模型 / **8 种 Kind** / 3 种提交语义 / 刷新契约 / 16 张覆盖基线）。
 > 本节只写**怎么实现**。迁移进度：**L0（外壳上提）+ L1（渲染器）已实装**；L2（逐页迁移）/ L3（逃生舱 + 旧 XAML 清理）待做。
 
 ```csharp
@@ -569,7 +570,7 @@ public interface IDetailCardSource
 
 - 描述符里的路径是**字符串**，XAML 里写不出动态 `{Binding <字符串>}` ⇒ 渲染层在 C# 侧把
   `ValuePath` / `VisibleWhen` / `EnabledWhen` / `OptionsPath` / `Chip*Path` / `*IsExpanded` 解析成真实值，
-  行对象（`TextFieldRow` / `CheckFieldRow` / `SelectFieldRow` / `NumberFieldRow` / `ChipsFieldRow` / `HintFieldRow` / `DividerFieldRow`）
+  行对象（`TextFieldRow` / `CheckFieldRow` / `SelectFieldRow` / `IndexSelectFieldRow` / `NumberFieldRow` / `ChipsFieldRow` / `HintFieldRow` / `DividerFieldRow` / `ListFieldRow`）
   **只暴露强类型属性**给模板 ⇒ 模板里**零字符串路径**。
 - `DetailSectionRender.CreateRow` 是 **Kind → 行对象**的**唯一分派点**；加新 Kind = 加一个 `case` + 一个 `DataTemplate`。
 - 刷新契约：渲染器**订阅源 VM 一次**（`PropertyChanged`）→ 任一属性变化整体重解析。
@@ -581,6 +582,31 @@ public interface IDetailCardSource
 - 外壳（340px 容器由 Shell 右列给 / 覆盖式滚动条右侧留位 / 空态 / 示例态 / 分区与字段间距）**只实现一次**（`DetailCardHost.axaml`）。
 - 新增样式类：`Button.section-toggle`（分区折叠标题）+ `Button.chip-toggle(.selected)`（`Kind=Chips`）→ 见 `Shell/Styles/Controls.axaml` ⑭。
 
+**L2 打样补记（v3.30 / 首个迁移页 = 视频工具·批量队列 `VideoBatchView`）**
+
+- 🔴 **路径优先用 `nameof(VM 属性)`**：能写 `nameof` 就别写字符串字面量（改名时编译器就报错）；
+  只有**跨对象路径**（如 `"DetailTask.StatusDisplay"`、候选项的 `"Id"` / `"Name"` / `"Label"`）才用字符串。
+  `check-detail-paths.ps1` 只查字符串那一批，`nameof` 那批靠编译器 —— 两者互补，⛔ 别把 `nameof` 退回字符串。
+- 🔴 **`OptionsPath` 指向的集合必须是「稳定实例」**（静态表 / 常驻 `ObservableCollection`）。渲染器只在**集合实例换了**时
+  才重建候选；若每次取属性都 `new List<>()`，ItemsSource 每刷新一次就是新的 ⇒ ComboBox 把 `SelectedItem` / `SelectedIndex`
+  清掉并经 TwoWay **回写**，等于把页面 VM 上的值抹掉。
+- 🔴 **空候选不回写**：候选列表为空时（ComboBox 初始的 `null` / `-1`）行对象**拒绝回写** —— 否则一进页面就把预设 / 编码器选择抹空。
+- 🧩 `Select` 的**两个落值通道** = 两个行对象 + 两个模板：值（`SelectFieldRow`：`SelectedItem`，配 `OptionValuePath` 比对）
+  与索引（`IndexSelectFieldRow`：`SelectedIndex` + `LiteralOptions`）；`CreateRow` 按 `IndexPath` 是否为空分派。
+- 🧩 `Hint` 支持**动态行**（`ValuePath` + `Prefix`），替代 XAML 的 `StringFormat='前缀{0}'`；
+  `List` 的单项五格（左标签 / 主文本 / 固定符号 / 右侧强调值 / 第二行说明）全由 `Item*Path` 取数，**符号也走描述符**（⛔ 模板里不写死 `→`）。
+- 🧩 **迁移页三件事（缺一不可）**：
+  1. VM 实现 `IDetailPanelProvider` + `IDetailCardSource`，并加一个**会通知 Shell** 的开合命令
+     （⛔ 直接用基类的 `ToggleDetailCommand` 不行：它只翻 `IsDetailVisible`、**不发 `DetailChanged`**，右列不会跟着开合）；
+     `ToggleDetail` / `OpenDetail` 建议**显式实现接口**（基类已有同名 private 方法，隐式实现会撞名）。
+  2. `DetailContent` 返回 `null`，删掉页内右列 XAML（Shell 右列改由 `DetailCardHost` 承载）；根 `Grid` 收成单列。
+  3. 页内原来自绘的**按钮**（如「📂 选输出文件」＝ code-behind + `StorageProvider`）→ 改成 VM 上的 `ICommand` **属性**，
+     由 View 在 `OnDataContextChanged` 注入实现，声明式卡用 `DetailAction.Command` 调它。
+- ⚠️ **布局降级（用户 2026-10-15 拍板接受）**：原「宽 / 高」这种**同行并排**字段改为**纵向堆叠**；输入框右侧的**内联按钮**
+  统一收进 Actions 区。要 1:1 还原版面，需再给描述符加「同行并排 / 字段内联动作」两个能力（本轮⛔ 未做）。
+- ✅ 打样页覆盖面：3 个分区（2 个可折叠 + 标题勾选框）/ 对象预设下拉 ×2 / 索引下拉 ×2 / 条件可见 ×3 /
+  多行 code ×3 / 只读列表 ×1 / Actions ×1 —— **未使用 `Custom` 逃生舱**。
+
 **绑定路径的静态兜底（🔴 必跑）**
 
 - 描述符路径改名**不报错、不崩溃**，只是白板 ⇒ 新增 `skill/scripts/check-detail-paths.ps1`：
@@ -590,6 +616,10 @@ public interface IDetailCardSource
 ### 3.9 视频工具「视频预览」页与两页详情卡（v3.12 重写，需求 §6.4）
 
 > 页面 key 仍是 `video-cut`（落 `columnlayout.json` 页键，改名会丢用户偏好）；**View / VM 的类名与文件名 v3.12 起已改为 `VideoPreviewView` / `VideoPreviewViewModel`**。
+>
+> 🔴 **v3.30 / NT-054 起**：本节描述的是**迁移前**的形态。**「批量队列」页（`video-batch`）已完成 L2 迁移** ——
+> 页内右列已删（页根 Grid 收成单列），详情卡改由 Shell 的 `DetailCardHost` 按 `VideoBatchViewModel.BuildCard()`
+> 的描述符渲染；**「视频预览」页（`video-cut`）仍是页内自绘**（L2 待迁）。下面关于两页布局的条文对 `video-cut` 仍然有效。
 
 **布局（页内两列 + 左树 = 三列）**
 - 页根 Grid：`ColumnDefinitions="*,Auto"`；左列 = **预览列**（大画面 + 三条时间条），右列 = **详情卡** `Border.detail-card`（340px、`VerticalAlignment="Stretch"`、可开合）。

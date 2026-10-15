@@ -57,6 +57,8 @@ foreach ($f in $csFiles) {
         $path = $m.Groups[1].Value
         if ([string]::IsNullOrWhiteSpace($path)) { continue }
         $head = $path.TrimStart('!').Split('.')[0]
+        # 常见情形：`VisibleWhen = "!" + nameof(X)` —— 字符串字面量只有取反前缀，首段为空 ⇒ 跳过（不是路径）
+        if ([string]::IsNullOrEmpty($head)) { continue }
         if (-not $names.Contains($head)) {
             $line = Get-LineNo $txt $m.Index
             $rel = $f.FullName.Substring($src.Length + 1)

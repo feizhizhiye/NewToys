@@ -6,8 +6,10 @@
     <!--
         v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。
+        v3.32 / NT-054：**详情卡已迁到 Shell 的声明式渲染**（`IDetailCardSource` + `DetailCardHost`）⇒
+        本页只剩「列表列」一列；卡片的声明在 `VideoListViewModel.BuildCard()` 里，⛔ 不再页内自绘。
     -->
-    <Grid Margin="12" ColumnDefinitions="*,Auto">
+    <Grid Margin="12">
 
         <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
         <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -119,7 +121,7 @@
                     <Button
                         Grid.Column="1"
                         Classes="detail-toggle"
-                        Command="{Binding ToggleDetailCommand}"
+                        Command="{Binding ToggleDetailPanelCommand}"
                         ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
                         <Panel>
                             <TextBlock
@@ -535,104 +537,6 @@
             </Border>
 
         </Grid>
-
-        <!--  右：选中视频的详情；宽度由共享样式 Border.detail-card 给 → 收起时整列不占位  -->
-        <Border
-            Grid.Column="1"
-            Classes="detail-card"
-            IsVisible="{Binding IsDetailVisible}">
-            <Grid RowDefinitions="Auto,*">
-
-                <!--  v3.19 / NT-011：详情卡操作按钮整排删除 —— 播放/定位/信息/路径/发送/重命名/删除都与工具条 + 右键菜单重复，
-                      详情卡只留「只读信息 + 可改文件名」。  -->
-                <TextBlock
-                    Grid.Row="0"
-                    Classes="section-title"
-                    Text="选中视频"
-                    IsVisible="{Binding ShowDetailBody}" />
-
-                <ScrollViewer
-                    Grid.Row="1"
-                    Margin="0,12,0,0"
-                    VerticalScrollBarVisibility="Auto">
-                    <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户去改 / 保存一份假数据  -->
-                    <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
-
-                        <TextBlock
-                            Classes="empty-hint"
-                            IsVisible="{Binding !ShowDetailBody}"
-                            Text="扫描一个目录后，在左侧列表里选中视频：这里会显示完整路径、大小、修改时间，以及分辨率 / 编码 / 码率 / 时长 —— 足够判断要不要剪辑或转码。勾上几行还能批量「发送到转码 / 剪切」。" />
-
-                        <!--  v3.32 §4.8.3：示例态标识（下面的值是示例数据，不可编辑）  -->
-                        <TextBlock
-                            Classes="hint-text"
-                            TextWrapping="Wrap"
-                            IsVisible="{Binding IsDetailSample}"
-                            Text="（示例数据）在左侧选中一个视频后，这里显示它的真实信息；示例态下卡片不可编辑。" />
-
-                        <!--
-                            §6.4.7 文件名**可编辑**：回车 / 失焦提交 → VideoFileService.RenameToAsync
-                            （复用防穿越 + 同名检查）；⛔ 不整目录重扫。
-                            提交由代码后置（NameBox 的 KeyDown / LostFocus）触发，详情卡里不放按钮（规范 §6.4.1 第 3 条）。
-                        -->
-                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                            <TextBlock Classes="field-label" Text="文件名（可改 · 回车 / 失焦提交）" />
-                            <TextBox
-                                x:Name="NameBox"
-                                FontSize="12"
-                                Text="{Binding EditName, Mode=TwoWay}" />
-                        </StackPanel>
-
-                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                            <TextBlock Classes="field-label" Text="完整路径" />
-                            <SelectableTextBlock Classes="field-value" Text="{Binding DetailItem.FullPath}" />
-                        </StackPanel>
-
-                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                            <TextBlock Classes="field-label" Text="类型 / 大小" />
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <TextBlock Classes="field-value" Text="{Binding DetailItem.Extension}" />
-                                <TextBlock Classes="field-value" Text="{Binding DetailItem.SizeDisplay}" />
-                            </StackPanel>
-                        </StackPanel>
-
-                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                            <TextBlock Classes="field-label" Text="时长" />
-                            <TextBlock Classes="field-value" Text="{Binding DetailItem.DurationDisplay}" />
-                        </StackPanel>
-
-                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                            <TextBlock Classes="field-label" Text="分辨率" />
-                            <TextBlock Classes="field-value" Text="{Binding DetailItem.ResolutionDisplay}" />
-                        </StackPanel>
-
-                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                            <TextBlock Classes="field-label" Text="编码格式" />
-                            <TextBlock Classes="field-value" Text="{Binding DetailItem.CodecDisplay}" />
-                        </StackPanel>
-
-                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                            <TextBlock Classes="field-label" Text="码率" />
-                            <TextBlock Classes="field-value" Text="{Binding DetailItem.BitRateDisplay}" />
-                        </StackPanel>
-
-                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                            <TextBlock Classes="field-label" Text="修改时间" />
-                            <TextBlock Classes="field-value" Text="{Binding DetailItem.ModifiedDisplay}" />
-                        </StackPanel>
-
-                        <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                            <TextBlock Classes="field-label" Text="媒体信息" />
-                            <TextBlock
-                                Classes="field-value"
-                                Foreground="{DynamicResource SecondaryTextBrush}"
-                                Text="{Binding DetailItem.MediaStatus}" />
-                        </StackPanel>
-
-                    </StackPanel>
-                </ScrollViewer>
-            </Grid>
-        </Border>
 
     </Grid>
 </UserControl>

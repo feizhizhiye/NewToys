@@ -24,10 +24,9 @@ public partial class VideoListView : UserControl
             e.Handled = true;
         };
 
-        // §6.4.7：详情卡「文件名」**回车 / 失焦即提交**（详情卡内不放按钮）。
-        // ⚠️ 命令里自带"名字没变"的短路，所以"切换选中项时顺带触发一次失焦"只会空转，不会误改磁盘文件。
-        NameBox.KeyDown += (_, e) => { if (e.Key == Key.Enter) { CommitName(); e.Handled = true; } };
-        NameBox.LostFocus += (_, _) => CommitName();
+        // §6.4.7：详情卡「文件名」原先是**回车 / 失焦即提交**（详情卡内不放按钮），由这里挂 NameBox 的
+        // KeyDown / LostFocus 触发。NT-054 迁移后输入框归 Shell 的声明式卡渲染，页面 code-behind 够不着它 ⇒
+        // 改由 VM 的 OnEditNameChanged（失焦写回 → 自动提交）+ 卡里「✏ 应用新文件名」按钮承担（见 VideoListViewModel）。
 
         ImportSplit.Click += OnBrowseFolder;
         ImportFolderItem.Click += OnBrowseFolder;
@@ -49,12 +48,6 @@ public partial class VideoListView : UserControl
         {
             if (DataContext is ListPageViewModelBase vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
         };
-    }
-
-    /// <summary>提交详情卡里改过的**文件名**（改名走 <c>VideoFileService.RenameToAsync</c>）。</summary>
-    private void CommitName()
-    {
-        if (DataContext is VideoListViewModel vm) vm.SaveNameCommand.Execute(null);
     }
 
     /// <summary>

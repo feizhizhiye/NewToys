@@ -6,12 +6,14 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.VideoTools.Models;
@@ -41,7 +43,7 @@ namespace NewToys.VideoTools.ViewModels;
 /// </para>
 /// <para><b>没有「保存」按钮</b>：这里没有任何"设置项"，全是动作按钮（规范 3.5）。</para>
 /// </summary>
-public partial class VideoListViewModel : ListPageViewModelBase
+public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     /// <summary>上次选的目录（**只在本次运行内**记住；不写配置，见类注释）。</summary>
     private static string _lastFolder = "";
@@ -173,6 +175,152 @@ public partial class VideoListViewModel : ListPageViewModelBase
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
 
+    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>
+    /// 工具条末位的详情开关 → 走本命令。
+    /// <para>⛔ 基类 <c>ToggleDetailCommand</c> 只翻 <c>IsDetailVisible</c>、**不通知 Shell**，
+    /// Shell 的右列（由 <c>DetailCardHost</c> 承载）就不会跟着出现 / 消失。</para>
+    /// </summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);   // 基类逻辑：翻转 + 落盘 + 展开时没选中就选第一项
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);     // 基类逻辑：确保展开并定位到当前选中项
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的页内自绘卡片对应：单分区（只读信息 + 可改文件名），无卡内动作区
+    /// （v3.19 起详情卡不放操作按钮，动作全在工具条 / 右键菜单）。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
+    {
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "扫描一个目录后，在左侧列表里选中视频：这里会显示完整路径、大小、修改时间，以及分辨率 / 编码 / 码率 / 时长 —— 足够判断要不要剪辑或转码。勾上几行还能批量「发送到转码 / 剪切」。",
+        SampleText = "（示例数据）在左侧选中一个视频后，这里显示它的真实信息；示例态下卡片不可编辑。",
+        Sections =
+        {
+            new DetailSection
+            {
+                // 原页内卡的「选中视频」小标题挪成分区标题（Shell 渲染器统一给标题行样式）
+                Header = "选中视频",
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "文件名（可改 · 失焦即提交；也可用下方「✏ 应用新文件名」）",
+                        ValuePath = nameof(EditName),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur
+                    },
+                    new DetailField
+                    {
+                        Label = "完整路径",
+                        ValuePath = "DetailItem.FullPath",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    // 原来「类型 / 大小」是**同行并排**两个值 → 按 NT-054 已拍板的降级口径拆成两行
+                    new DetailField
+                    {
+                        Label = "类型",
+                        ValuePath = "DetailItem.Extension",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "大小",
+                        ValuePath = "DetailItem.SizeDisplay",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "时长",
+                        ValuePath = "DetailItem.DurationDisplay",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "分辨率",
+                        ValuePath = "DetailItem.ResolutionDisplay",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "编码格式",
+                        ValuePath = "DetailItem.CodecDisplay",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "码率",
+                        ValuePath = "DetailItem.BitRateDisplay",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "修改时间",
+                        ValuePath = "DetailItem.ModifiedDisplay",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "媒体信息",
+                        ValuePath = "DetailItem.MediaStatus",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    }
+                }
+            }
+        },
+        Actions =
+        {
+            // 原来改名是「详情卡的 TextBox 回车 / 失焦」→ code-behind 挂 KeyDown / LostFocus。
+            // 声明式卡里输入框在 Shell 侧，页面 code-behind 够不着 ⇒ 收进 Actions 区补一个显式按钮
+            //（失焦自动提交仍保留，见 OnEditNameChanged）。
+            new DetailAction
+            {
+                Text = "✏ 应用新文件名",
+                Classes = "ghost",
+                ToolTip = "把「文件名」框里的内容提交到磁盘（回车场景：失焦已自动提交，这里手动补一次）",
+                Command = SaveNameCommand
+            }
+        }
+    };
+
     /// <summary>全局导入/导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.15 全局，覆盖 .db 与 .json 选择器）。</summary>
     public string ImportExportDefaultDir => _cfg?.VideoDbFolder ?? "";
 
@@ -272,6 +420,21 @@ public partial class VideoListViewModel : ListPageViewModelBase
     }
 
     partial void OnSearchTextChanged(string value) => ApplyView();
+
+    /// <summary>
+    /// 「失焦即提交」的文件名（需求 §6.4.7）：声明式卡的输入框失焦时把文本写回 <see cref="EditName"/>，
+    /// 这里再落盘 —— 等价于迁移前 code-behind 的 <c>NameBox.LostFocus → SaveNameCommand</c>。
+    /// <para>⛔ 填充编辑缓冲（切选中项 / 示例态）时也会走到这里，所以先跟当前选中项比一次名字：
+    /// 没变就直接返回，⛔ 不去碰磁盘。</para>
+    /// </summary>
+    partial void OnEditNameChanged(string value)
+    {
+        if (Selected == null) return;
+        var name = (value ?? "").Trim();
+        if (name.Length == 0) return;
+        if (string.Equals(name, Selected.Name, StringComparison.Ordinal)) return;
+        SaveNameCommand.Execute(null);
+    }
 
     partial void OnSelectedChanged(VideoItem? value)
     {

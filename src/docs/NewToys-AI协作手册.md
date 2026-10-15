@@ -1,6 +1,7 @@
 # NewToys · AI 协作手册（Playbook）
 
-> v3.20 · 2026-10-15 · 会话启动包（面向**本地执行型** AI 客户端：可直接读写 `src/`、跑命令）
+> v3.21 · 2026-10-15 · 会话启动包（面向**本地执行型** AI 客户端：可直接读写 `src/`、跑命令）
+> **v3.21**：🧯 **技术栈硬伤闭环** —— [4] 静态预检新增「技术栈硬伤」条：唯一源 = `skill/references/tech-guard.md`（含 §五「编译错误速查」按错误码索引），交付前跑 `pwsh skill/scripts/check-techstack.ps1`；[6] 自检新增两项（三条静态自检是否跑过 / 本轮编译报错是否已回填 §五）；[4] 通用条的「32 键」订正为「31 键」。
 > **v3.20**：🏷 文档名对齐（2026-10-14 四份文档改名）—— [5] 交付 ④⑤ 的「提示词」→ **「协作手册」**（本文件自身即 `NewToys-AI协作手册.md`，⛔ 旧名「AI协作提示词」已废）；[4] 校验 ⑧ 里对 `check.ps1` 的「提示词」引用同步。
 > **v3.19**：🗣 **回复格式与会话成本管控** —— [5] 交付新增 ⑧：需用户回选 / 拍板的回复一律用 `1.` `2.`（`1.1` 二级）**编号段落**，用户可只手打编号作答；会话明显变长（约 20 轮 或 一个工作项交付完毕）时末尾附「💡 建议开新会话」。细则唯一源 = `skill/references/collab-method.md` §七（本文件只引用）。
 > 🔴 **本文件是研发流程与术语的唯一定义处**（【研发流程】节含状态机与验收清理；【术语对照】节是全局 Glossary）；《需求规格》《工程规范》《状态与路线图》《AGENTS.md》《skill/` 一律只引用，不另写流程、不另立术语。
@@ -81,7 +82,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 范围清楚再编码；小改动（单文件、纯文案/配色）可口头一句带过。
 
 [3] 编码速记（跨章节高频易错；细则见 [0] 表指向的章节）
-· 栈锁 .NET10/Avalonia12.1.3/CT.Mvvm8.4.2/MEDI9.0.0；禁第三方 UI 库；禁第三方图标字体/包；包版本只在 Directory.Packages.props。
+· 栈锁 .NET10/Avalonia12.1.4/CT.Mvvm8.4.2/MEDI9.0.0；禁第三方 UI 库；禁第三方图标字体/包；包版本只在 Directory.Packages.props。
 · 分层单向 Shared←Core←Shell←Module.*；模块禁引 Shell、禁互引；Shared/Core 不引 Avalonia。
 · 框架层(Shared/Core/Shell)冻结，新功能只在 Module.*；改框架层先问。
 · 命名空间 NewToys.<模块>.Views/.ViewModels（无 .Module 段）；View 与 VM 成对。
@@ -104,12 +105,14 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 · Modules\ 是模块产物唯一去处(OutDir 直出，禁拷贝步骤)；热加载只读本地 Modules\、逐 DLL try-catch 隔离、不联网。
 
 [4] 分型静态预检（交付前必跑；不能本地编译 → 把编译错消灭在这）
-· 通用：.axaml ↔ .axaml.cs 同步？using/类型/命名空间对得上？引用的主题键都在 32 键内？引用的 Icon* 键都在 App.axaml 里？改动的 VM 字段名全仓搜过旧名(含 nameof)？
+· 通用：.axaml ↔ .axaml.cs 同步？using/类型/命名空间对得上？引用的主题键都在 31 键内？引用的 Icon* 键都在 App.axaml 里？改动的 VM 字段名全仓搜过旧名(含 nameof)？
 · 加模块：slnx + Shell.csproj(Debug 条件) + App.axaml.cs #if DEBUG 三处都登了？
 · 改列表页：表头与行同套星号列定义？内边距一致？ContextMenu.DataContext 行菜单+表头菜单都在 code-behind 同步了？隐藏列用宽度 0？改 `Columns` 后表头/行模板的 `Grid.Column` 逐字核对了？
 · 改跨页投递：取件点是不是在 `OnAttachedToVisualTree`（`OnDataContextChanged` 在标签页已存在时不触发）？
 · 改标签/树/导航：OpenTab 做了单例判定？首页 CanClose=false？关闭最后一个自动回首页？Shell 订阅 IDetailPanelProvider/IHistoryProvider 前解绑旧 Tab？
 · 🔴 新增 / 改 `.axaml` 属性：跑 `pwsh skill/scripts/check-axaml-props.ps1` —— **Avalonia ≠ WPF 的属性名差异**（实测踩过 `SelectedValuePath` / `StrokeLineJoin`，编译期直接 AVLN2000）；⛔ 别凭记忆写，脚本会到 Avalonia ref 程序集里核对名字。
+· 🔴 **技术栈硬伤**（Avalonia / 分析器 / API / 架构边界）：唯一源 = `skill/references/tech-guard.md` —— §一 = 静态可检测规则 G-01~G-14，§二 = 只有编译器或只有跑起来才能抓的清单，§五 = **按错误码索引**的编译错误速查。交付前跑 `pwsh skill/scripts/check-techstack.ps1`（`-All` 看 WARN 明细）。
+· 🔴 **回填纪律**：本轮只要出现本地编译失败，修复后**必须把「错误码 + 根因 + 一行修法」追加进 tech-guard.md §五** —— AI 不代跑编译，编译期知识只能从你这边回流；不回填 = 同一个坑反复踩。
 
 [5] 交付
 ① 变更清单（增/改/删逐条一句话）+ 前置基线 + 用户需本地执行的验证命令（build.ps1 等）。
@@ -136,6 +139,8 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 ☐ 设置落 config\、模块只读？      ☐ 模块 DLL 无拷贝、OutDir 直出？
 ☐ 未谎报编译、写清用户命令？      ☐ 台账按功能级更新、版本号独立？
 ☐ 待回选 / 拍板的回复用了编号段落？☐ 会话过长已提醒开新会话？
+☐ 跑过三条静态自检（check / axaml-props / techstack）？
+☐ 本轮编译报错已回填 tech-guard.md §五？
 
 本次需求：
 （在此粘贴需求/参考源码/报错信息）

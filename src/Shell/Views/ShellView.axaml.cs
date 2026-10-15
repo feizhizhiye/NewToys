@@ -520,7 +520,7 @@ public partial class ShellView : Window
     /// <para>
     /// 🔴 为什么单独拆出来：Avalonia 12.1.3 的 <c>ShowWindow</c> → <c>ExtendClientArea()</c> →
     /// <c>UpdateWindowCornerPreference()</c> 会**重算并回写**圆角偏好，把我们设的 DONOTROUND 冲掉
-    /// （窗口状态变化 / 全屏 / 贴靠都会触发）→ 必须在**它处理完之后**再压一次（见 <see cref="SnapFrameWndProc"/>）。
+    /// （窗口状态变化 / 全屏 / 贴靠都会触发）→ 必须在**它处理完之后**再压一次（见 <see cref="PostChromeReassert"/>）。
     /// ⛔ 从窗口过程里调的这个版本**绝不能带 SWP_FRAMECHANGED**：消息处理中再发消息会递归。
     /// </para>
     /// </summary>
@@ -570,21 +570,26 @@ public partial class ShellView : Window
     //       → 永远读到失败值，不能当"下发是否成功"的判据。
 
     /// <summary>
-    /// 接管窗口过程：① `WM_NCCALCSIZE` **零内缩**（客户区 = 整个外框，消灭那圈 ≈8px 的非客户区边框）
-    /// ② 在 Avalonia **处理完之后**压 DWM 圆角偏好 / 重套矩形区域。
+    /// 接管窗口过程（🔴 **走 Avalonia 官方钩子**，2026-10-15 由手搓子类化迁移过来）：
+    /// ① `WM_NCCALCSIZE` **零内缩**（客户区 = 整个外框，消灭那圈 ≈8px 的非客户区边框）
+    /// ② 窗口尺寸 / 位置 / 样式变化后，重做「方角」相关的两件事（DWM 圆角偏好 + 矩形窗口区域）。
     /// <para>
     /// 🔴 为什么必须留 ①（2026-10-15 实测规律）：贴靠**第 1 次缝小(~1px)、第 2 次变大(~8px)** —— 8px 正是
     /// Avalonia CSD 按 `WS_CAPTION/WS_THICKFRAME` 扣出来的边框厚度；第 2 次它按「外框 = 客户区 + 边框」的记账
     /// 回写了几何、赢过系统给的贴靠矩形 ⇒ 只有让**客户区与外框同尺寸**，两边的记账才会一致。
     /// </para>
     /// <para>
-    /// 🔴 为什么必须留 ②：Avalonia 每次 <c>ShowWindow</c> → <c>ExtendClientArea()</c> →
-    /// <c>UpdateWindowCornerPreference()</c> 都会重算并**回写**圆角偏好（窗口状态变化 / 全屏 / 贴靠都触发）
-    /// → 必须在它处理完之后再压（⛔ 顺序不能反）。
+    /// 🔴 为什么改走官方钩子（12.1.3 的 <c>Win32Properties.AddWndProcHookCallback</c>，取代自写子类化）：
+    /// 官方钩子由 <c>WindowImpl.WndProcMessageHandler</c> 在 **Avalonia 处理消息之前**调用，用 <c>ref bool handled</c>
+    /// 决定是否吞掉；委托由框架自己的字段持有 ⇒ ① 不必再「挂静态字段防 GC 回收」② 不必 <c>CallWindowProc</c> 转发
+    /// ③ 只在 <c>PlatformImpl is IWin32OptionsTopLevelImpl</c> 时才挂 = **天然平台门控**（X11 / Wayland 自动不走）。
     /// </para>
     /// <para>
-    /// 🔴 历史留档（⛔ 别再加回来）：此处还曾有过 NT-048 的「贴靠几何外部纠偏」（比对系统矩形 / 按屏幕自检纠偏）。
-    /// 已删除：「首次偏宽」是**系统行为**（第三方 Firefox 同复现）⇒ 在系统正常行为上打补丁方向错误。
+    /// 🔴 历史留档（⛔ 别再加回来）：
+    /// ① NT-048 的「贴靠几何外部纠偏」（比对系统矩形 / 按屏幕自检纠偏）—— 已删除：
+    ///    「首次偏宽」是**系统行为**（第三方 Firefox 同复现）⇒ 在系统正常行为上打补丁方向错误；
+    /// ② 手搓的 <c>SetWindowLongPtr(GWLP_WNDPROC)</c> 子类化 + <c>Marshal.GetFunctionPointerForDelegate</c>
+    ///    + <c>CallWindowProc</c> + <c>_originalWndProc / _snapFixProc</c> 静态字段 —— 已被官方钩子整体取代后删除。
     /// </para>
     /// <para>⚠️ 装不上就什么都不做 —— 这类代码出错的代价是"窗口完全不响应消息"，失败路径必须保守。</para>
     /// </summary>
@@ -592,66 +597,67 @@ public partial class ShellView : Window
     {
         try
         {
-            var h = TryGetPlatformHandle()?.Handle;
-            if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
-            if (_originalWndProc != IntPtr.Zero) return;              // 只装一次
+            if (_wndProcHookInstalled) return;               // 只装一次
+            if (!OperatingSystem.IsWindows()) return;        // 内联 IsWindows()：CA1416 只认这种写法
 
-            // ⛔ 委托必须挂在静态字段上：局部变量会被 GC 回收 → 回调时进程直接崩
-            _snapFixProc = SnapFrameWndProc;
-            var ptr = Marshal.GetFunctionPointerForDelegate(_snapFixProc);
-            var old = SetWindowLongPtr(hwnd, GWLP_WNDPROC, ptr);
-            if (old == IntPtr.Zero) { _snapFixProc = null; return; }   // 装失败 → 保持原样
-            _originalWndProc = old;
+            Win32Properties.AddWndProcHookCallback(this, OnWndProcHook);
+            _wndProcHookInstalled = true;
         }
-        catch { /* 装不上就维持现状 */ }
+        catch { /* 挂不上就维持现状 */ }
     }
 
-    private static IntPtr SnapFrameWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+    /// <summary>官方钩子是否已挂（幂等标记）。</summary>
+    private static bool _wndProcHookInstalled;
+
+    /// <summary>
+    /// 官方 WndProc 钩子：**在 Avalonia 处理消息之前**被调用（<c>WindowImpl.WndProcMessageHandler</c>）。
+    /// <para>🔴 零内缩的实现随之简化：手搓版要「抄下系统外框 → 转发给 Avalonia → 再把 rgrc[0] 写回原值」，
+    /// 现在只需 <c>handled = true; return 0</c> 且**不改动 lParam** —— 系统拿到的仍是它自己送进来的
+    /// <c>rgrc[0]</c>（= 新窗口外框）⇒ 客户区 = 外框，结果完全等价。
+    /// wParam == 1 → lParam 指向 NCCALCSIZE_PARAMS；rgrc[0] 就在 lParam 的开头 16 字节。</para>
+    /// <para>⚠️ 最大化**不拦截**：最大化时外框本来就比屏幕大一圈（边框被甩到屏幕外），
+    /// 此时若零内缩，内容会伸出屏幕 8px、标题栏顶边被切掉 ⇒ 交回 Avalonia 正常处理。</para>
+    /// </summary>
+    private static IntPtr OnWndProcHook(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (_originalWndProc == IntPtr.Zero)
-            return DefWindowProc(hWnd, msg, wParam, lParam);
-
-        // 🔴 零内缩（Windows-only 例外，2026-10-15 复归）：把 Avalonia 算好的客户区改回「客户区 = 整个外框」。
-        //    为什么必须留这一处：Avalonia 的 CSD 会按 WS_CAPTION/WS_THICKFRAME 扣掉一圈 ≈8px 的**非客户区**，
-        //    那圈归系统画；贴靠态 Windows 对靠屏边那几边不画框 → 露出 ≈8px 的缝（左右下明显）。
-        //    ⚠️ 实测规律（用户 2026-10-15）：**贴靠第 1 次缝小(~1px)、第 2 次变大(~8px)** —— 说明第 2 次是
-        //    Avalonia 按自己那套「外框 = 客户区 + 边框」的记账回写了几何、赢了系统给的贴靠矩形 ⇒ 零内缩让
-        //    客户区与外框同尺寸，两边记账才会一致。
-        //    ⚠️ 平台门控：本钩子只在 Windows 装得上（`SetWindowLongPtr` 成功才进来），Linux/macOS 自然不走这条路径。
-        // wParam == 1 → lParam 指向 NCCALCSIZE_PARAMS；rgrc[0] 就在 lParam 的开头 16 字节
-        if (msg == WM_NCCALCSIZE && wParam.ToInt64() == 1)
+        _ = lParam;   // ⛔ 刻意**不读写**：零内缩正是靠「系统送进来的 rgrc[0] 未被改写」
+        if (msg == WM_NCCALCSIZE && wParam.ToInt64() == 1 && !IsWindowMaximized(hWnd))
         {
-            // ① 抄下系统送进来的"新外框"
-            var l0 = Marshal.ReadInt32(lParam, 0);
-            var t0 = Marshal.ReadInt32(lParam, 4);
-            var r0 = Marshal.ReadInt32(lParam, 8);
-            var b0 = Marshal.ReadInt32(lParam, 12);
-
-            // ② 先转给 Avalonia：它按自己的逻辑算完客户区、写回 rgrc[0]
-            CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
-
-            // ③ 最大化**不**覆盖：最大化时外框本来就比屏幕大一圈（边框被甩到屏幕外），
-            //    此时若零内缩，内容会伸出屏幕 8px、标题栏顶边被切掉。
-            if (!IsWindowMaximized(hWnd))
-            {
-                Marshal.WriteInt32(lParam, 0, l0);
-                Marshal.WriteInt32(lParam, 4, t0);
-                Marshal.WriteInt32(lParam, 8, r0);
-                Marshal.WriteInt32(lParam, 12, b0);
-            }
-            return IntPtr.Zero;      // 返回 0 = 已处理，系统拿 rgrc[0] 当客户区
+            handled = true;          // 吞掉消息 → 系统拿「未被改写的 rgrc[0]」当客户区
+            return IntPtr.Zero;      // 返回 0 = 已处理
         }
 
-        var result = CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
-
-        // NT-034：**Avalonia 处理完之后**再压一次 DONOTROUND ——
-        // 它会在 ShowWindow → ExtendClientArea → UpdateWindowCornerPreference 里把偏好回写成 Default，
-        // 窗口状态变化 / 全屏 / 贴靠都会触发。先转发、后压，顺序不能反。
-        // ⛔ 这里只能用「只设属性」的版本（SetCornerPreferenceNoRound），带 SWP_FRAMECHANGED 会递归。
+        // NT-034：方角同步（DWM 圆角偏好 + 矩形窗口区域）。
+        // ⚠️ 本钩子在 Avalonia **处理之前**调用，而压制必须在框架**处理完之后**
+        //    （框架会重算并回写偏好）→ 用 Post 保序，见 PostChromeReassert。
         if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE || msg == WM_STYLECHANGED || msg == WM_SHOWWINDOW)
-            ReassertWindowChrome(hWnd);
+            PostChromeReassert(hWnd);
 
-        return result;
+        return IntPtr.Zero;          // handled 保持 false → Avalonia 继续正常处理
+    }
+
+    /// <summary>方角重置的**待执行标志**（<c>SetWindowRgn</c> 会再触发同类消息 → 无它就会自激成环）。</summary>
+    private static bool _chromeReassertPending;
+
+    /// <summary>
+    /// 把方角重置排到「Avalonia 处理完本次消息之后」执行。
+    /// <para>🔴 为什么要 Post：官方钩子在框架**之前**调用，而 <see cref="ReassertWindowChrome"/> 必须在框架**之后**
+    /// 运行 —— <c>Send</c> 优先级 = 本次 WndProc 返回后立即执行，顺序最接近原手搓版的「先转发、后压」。</para>
+    /// <para>⚠️ 标志**执行完才复位**：重置过程（<c>SetWindowRgn</c>）会同步再触发同类消息，提前复位会自激成环。</para>
+    /// </summary>
+    private static void PostChromeReassert(IntPtr hwnd)
+    {
+        if (_chromeReassertPending) return;
+        try
+        {
+            _chromeReassertPending = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                try { ReassertWindowChrome(hwnd); }
+                finally { _chromeReassertPending = false; }
+            }, DispatcherPriority.Send);
+        }
+        catch { _chromeReassertPending = false; }    // 派发失败 → 复位，不影响后续消息
     }
 
     private static bool IsWindowMaximized(IntPtr hwnd)
@@ -685,11 +691,10 @@ public partial class ShellView : Window
     [DllImport("user32.dll", SetLastError = false)]
     private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
-    // ===== v3.29 贴靠缝隙根治：接管窗口过程做贴靠纠偏 / 圆角压制（原理见 InstallSnapFrameFix 的注释） =====
+    // ===== v3.29 贴靠缝隙根治：官方 WndProc 钩子做零内缩 / 圆角压制（原理见 InstallSnapFrameFix 的注释） =====
 
     private const uint SWP_NOOWNERZORDER = 0x0200;
 
-    private const int GWLP_WNDPROC = -4;
     private const uint WM_NCCALCSIZE = 0x0083;
     private const uint WM_SIZE = 0x0005;
     private const uint WM_SHOWWINDOW = 0x0018;
@@ -718,24 +723,10 @@ public partial class ShellView : Window
     [DllImport("user32.dll", SetLastError = false)]
     private static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
 
-    [DllImport("user32.dll", SetLastError = false)]
-    private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = false)]
-    private static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    /// <summary>窗口过程委托。⛔ **必须常驻静态字段** —— 委托被 GC 回收后窗口会直接崩。</summary>
-    private delegate IntPtr WndProcFunc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    private static WndProcFunc? _snapFixProc;
-    private static IntPtr _originalWndProc;
-
-    // ⚠️ 本项目锁定 win-x64（见 src/Directory.Build.props）→ 用 Ptr 版导出 ✓（32 位 Windows 上导出名不同）
-    //    NT-041：`GetWindowLongPtr`（读样式位）随 `ApplySnapEligibleStyles` 一并删除；
-    //    `SetWindowLongPtr` 仍是 `InstallSnapFrameFix`（挂 WndProc）的必需品 → 保留。
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-
+    // 2026-10-15：`CallWindowProc` / `DefWindowProc` / `WndProcFunc` 委托 /
+    //   `_snapFixProc` · `_originalWndProc` 字段 / `SetWindowLongPtr(GWLP_WNDPROC)` **已全部删除** ——
+    //   窗口过程改由官方钩子接管（`Win32Properties.AddWndProcHookCallback`，见 `InstallSnapFrameFix`）。
+    //   ⛔ 别再加回来：自写子类化需要「委托挂静态字段防 GC + 手动转发 + 装失败保守」，官方钩子这三项全免。
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
                                             int x, int y, int cx, int cy, uint uFlags);

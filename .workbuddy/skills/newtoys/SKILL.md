@@ -1,6 +1,6 @@
 ---
 name: newtoys
-description: NewToys 项目（.NET 10 + Avalonia 12.1.3 Windows 桌面工具管理器）的开发协作技能（WorkBuddy 薄指针）。正文与深度路由表在仓库根 AGENTS.md 与 skill/ 目录，跨 AI 共享（WorkBuddy 与 Hermes/DeepSeek Harness 共用）。涉及本仓库任务——页面/列表页/设置页、Module.VideoTools/PcTools/WebTools/Settings 改动、主题样式、编译报错、文档台账——动手前先加载本技能，按其指引读仓库根 AGENTS.md 与 skill/SKILL.md。触发词：NewToys、src/、视频工具、PcTools、WebTools、需求规格、工程规范、台账、build.ps1。
+description: NewToys 项目（.NET 10 + Avalonia 12.1.4 Windows 桌面工具管理器）的开发协作技能（WorkBuddy 薄指针）。正文与深度路由表在仓库根 AGENTS.md 与 skill/ 目录，跨 AI 共享（WorkBuddy 与 Hermes/DeepSeek Harness 共用）。涉及本仓库任务——页面/列表页/设置页、Module.VideoTools/PcTools/WebTools/Settings 改动、主题样式、编译报错、文档台账——动手前先加载本技能，按其指引读仓库根 AGENTS.md 与 skill/SKILL.md。触发词：NewToys、src/、视频工具、PcTools、WebTools、需求规格、工程规范、台账、build.ps1。
 agent_created: true
 ---
 

@@ -14,7 +14,7 @@
 
 NewToys = 带 GUI 的 Windows 桌面工具管理器（脚本管理器定位，不做社交/推荐/埋点/云同步）。
 
-- 技术栈（锁定）：.NET 10 / Avalonia 12.1.3 / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0
+- 技术栈（锁定）：.NET 10 / Avalonia 12.1.4 / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0
 - 分层单向依赖：Shared ← Core ← Shell ← Module.*；模块禁引 Shell、禁互引；Shared/Core 不引 Avalonia
 - 工作区根 = 能看到 `src/` 的那一级；**只改 `src/`**
 - 包版本只在 `src/Directory.Packages.props`；禁第三方 UI 库 / 图标字体

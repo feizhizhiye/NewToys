@@ -38,7 +38,7 @@
                           <TextBlock Text="{Binding Title}" FontSize="14"
                                      Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
                           <!-- ★ 已固定标记：固定到首页收藏夹后显示 -->
-                          <TextBlock Text="★" FontSize="12" Foreground="#FFB300" VerticalAlignment="Center">
+                          <TextBlock Text="★" FontSize="12" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center">
                             <TextBlock.IsVisible>
                               <Binding Path="IsFavorite"/>
                             </TextBlock.IsVisible>

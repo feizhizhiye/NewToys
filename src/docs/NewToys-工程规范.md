@@ -199,7 +199,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 手段 | 现状 |
 |---|---|
 | `Win32Properties.SetWindowCornerPreference`（官方通道） | ✅ 保留（NT-034 ①） |
-| `DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE=33)` = `DONOTROUND`(**1**)；写成 2 = 强制圆角（踩过） | ✅ 保留（NT-034 ②；必须在 Avalonia **处理完之后**压，见 `SnapFrameWndProc`） |
+| `DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE=33)` = `DONOTROUND`(**1**)；写成 2 = 强制圆角（踩过） | ✅ 保留（NT-034 ②；必须在 Avalonia **处理完之后**压，见 `PostChromeReassert`） |
 | `SetWindowRgn` 矩形区域（真正保证方角那一环） | ✅ 保留（NT-034 ③ / NT-042 裁决；技术债 **B16**） |
 | 手工补 `WS_CAPTION` / `WS_THICKFRAME` 样式位（`ApplySnapEligibleStyles`） | ⛔ **已删**（NT-041）：官方 `Full` 自带贴靠所需样式位 |
 | 接管 `WM_NCCALCSIZE` 做「零内缩」 | ✅ **保留（Windows 独有的例外）**：Avalonia CSD 扣掉 ≈8px 非客户区，贴靠态系统不画那圈 → 第 2 次贴靠起露 ≈8px 缝；零内缩让「客户区 = 外框」消除之（钩子仅在 Windows 装得上，Linux 自然不走） |

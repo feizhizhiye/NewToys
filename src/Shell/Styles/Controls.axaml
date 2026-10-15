@@ -271,6 +271,39 @@
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
 
+  <!--  chips 的**色块模式**（NT-054 v3.33 / 描述符 ChipBrushPath 非空）：chip 内是「色块 + 可选文字」，
+        未选中时也要显边框（色块本身要看得见轮廓），选中态沿用 .selected 的强调色边框。  -->
+  <Style Selector="Button.chip-toggle.swatch">
+    <Setter Property="Padding" Value="4,3"/>
+    <Setter Property="MinWidth" Value="0"/>
+  </Style>
+  <Style Selector="Button.chip-toggle.swatch Border">
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+  </Style>
+
+  <!--  List 行容器（NT-054 v3.33 / 描述符 ItemCommandPath）：常态**长得跟只读行一样**。
+        ⛔ 没给命令就不加 .link —— 点击无操作、也没有悬停高亮，避免"看着能点其实不能"。
+        ⚠️ 悬停只改背景，⛔ 不改文字色：模板里的 TextBlock 有本地 Foreground，样式压不过本地值。  -->
+  <Style Selector="Button.list-row">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="FontWeight" Value="Normal"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+  </Style>
+  <Style Selector="Button.list-row.link">
+    <Setter Property="Padding" Value="6,3"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Button.list-row.link:pointerover">
+    <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+  </Style>
+
   <!--  ⑬ 筛选条：多项筛选那一行的容器与其中的控件  -->
   <Style Selector="Border.filter-bar">
     <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>

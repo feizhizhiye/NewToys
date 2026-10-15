@@ -204,6 +204,17 @@ public sealed class DetailField
     /// <summary>列表项「第二行说明」的路径（<c>hint-text</c>，可空）。</summary>
     public string? ItemDetailPath { get; set; }
 
+    /// <summary>
+    /// **列表项级命令**的路径（指向页面 VM 上的 <see cref="ICommand"/>，如 <c>OpenAssetCommand</c>）；null = 整表只读。
+    /// <para>非空时每个列表项渲染成**可点击行**（Shell 给 <c>Button.list-row.link</c> 样式：悬停高亮 + 强调色 + 手型）。</para>
+    /// </summary>
+    public string? ItemCommandPath { get; set; }
+
+    /// <summary>
+    /// 列表项级命令的**参数**路径（相对候选项，如 <c>"Id"</c>）；null = 把**候选项本身**当参数（先例：<c>OpenAssetCommand</c> 收整项）。
+    /// </summary>
+    public string? ItemCommandArgPath { get; set; }
+
     // ===== Chips 专用 =====
 
     /// <summary>chip 文案路径（<see cref="FieldKind.Chips"/>；null = <c>ToString()</c>）。</summary>
@@ -214,6 +225,22 @@ public sealed class DetailField
 
     /// <summary>chip 点击命令的路径（指向页面 VM 上的 <see cref="ICommand"/>，如 <c>"ToggleTagCommand"</c>）。</summary>
     public string? ChipCommandPath { get; set; }
+
+    /// <summary>
+    /// chip 点击命令的**参数**路径（相对候选项，如色板的 <c>"Hex"</c>）；null = 把**候选项本身**当参数
+    /// （先例：<c>ToggleTagCommand</c> 收整项）。
+    /// </summary>
+    public string? ChipCommandArgPath { get; set; }
+
+    /// <summary>
+    /// chip **色块**的路径（相对候选项，如 <c>"Brush"</c>，值为 <c>IBrush</c>）；非空即视为**色块模式**
+    /// （Shell 给 <c>Button.chip-swatch</c> 样式，chip 内渲染一个 8×8 圆角色块）。
+    /// <para>⚠️ 只要色块不要文字时，把 <see cref="ChipTextPath"/> 设成**空串**（<c>""</c>）—— 空路径解析不出值 ⇒ 文本为空、自动隐藏。</para>
+    /// </summary>
+    public string? ChipBrushPath { get; set; }
+
+    /// <summary>chip 悬停提示的路径（相对候选项，如色板的 <c>"Hex"</c>）；null = 无提示。</summary>
+    public string? ChipToolTipPath { get; set; }
 
     // ===== Number 用 =====
 

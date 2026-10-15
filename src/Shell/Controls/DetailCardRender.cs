@@ -326,6 +326,15 @@ public sealed class DetailListRow
     /// <summary>主文本与右侧强调值之间的固定符号（如 <c>"→"</c>），由所属字段统一下发（⛔ 模板里不写死）。</summary>
     public string? Separator { get; init; }
 
+    /// <summary>项级命令（<c>ItemCommandPath</c> 非空时给，如「点一下打开这个资产」）；null = 这一行只读。</summary>
+    public ICommand? Command { get; init; }
+
+    /// <summary>项级命令的参数（<c>ItemCommandArgPath</c> 的解析结果；未给该路径时 = **候选项本身**）。</summary>
+    public object? Argument { get; init; }
+
+    /// <summary>是否有项级命令（模板据此加 <c>link</c> 样式类 = 悬停高亮 + 手型；⛔ 不加类就长得像普通只读行）。</summary>
+    public bool HasCommand => Command is not null;
+
     public bool HasLabel => !string.IsNullOrWhiteSpace(Label);
     public bool HasText => !string.IsNullOrWhiteSpace(Text);
     public bool HasSub => !string.IsNullOrWhiteSpace(Sub);
@@ -334,8 +343,8 @@ public sealed class DetailListRow
 }
 
 /// <summary>
-/// <see cref="FieldKind.List"/>：只读列表（键值行 / 对比行）。
-/// <para>数据源复用 <see cref="DetailField.OptionsPath"/>，单项取数见 <c>Item*Path</c>（左标签 / 主文本 / 右侧强调值 / 第二行说明）。</para>
+/// <see cref="FieldKind.List"/>：只读列表（键值行 / 对比行）；配 <see cref="DetailField.ItemCommandPath"/> 时**每行可点击**。
+/// <para>数据源复用 <see cref="DetailField.OptionsPath"/>，单项取数见 <c>Item*Path</c>（左标签 / 主文本 / 右侧强调值 / 第二行说明 / 项级命令）。</para>
 /// </summary>
 public sealed class ListFieldRow : DetailFieldRow
 {
@@ -347,6 +356,7 @@ public sealed class ListFieldRow : DetailFieldRow
     protected override void RefreshCore()
     {
         var raw = DetailPath.Resolve(Source, Field.OptionsPath) as IEnumerable;
+        var cmd = DetailPath.Resolve(Source, Field.ItemCommandPath) as ICommand;
         Items.Clear();
         if (raw is not null)
         {
@@ -358,7 +368,10 @@ public sealed class ListFieldRow : DetailFieldRow
                     Text = DetailPath.Resolve(item, Field.ItemTextPath)?.ToString(),
                     Sub = DetailPath.Resolve(item, Field.ItemSubPath)?.ToString(),
                     Detail = DetailPath.Resolve(item, Field.ItemDetailPath)?.ToString(),
-                    Separator = Field.ItemSeparator
+                    Separator = Field.ItemSeparator,
+                    Command = cmd,
+                    // 默认把候选项本身当参数（先例：OpenAssetCommand 收整项）
+                    Argument = Field.ItemCommandArgPath is null ? item : DetailPath.Resolve(item, Field.ItemCommandArgPath)
                 });
             }
         }
@@ -408,6 +421,18 @@ public sealed class DetailChip : ObservableObject
     public ICommand? Command { get; init; }
     public object? Argument { get; init; }
 
+    /// <summary>chip 左侧的色块（<c>ChipBrushPath</c> 非空时给）—— 标签 / 分类 / 集合 / 色板都用它带颜色。</summary>
+    public Avalonia.Media.IBrush? Brush { get; init; }
+
+    /// <summary>是否有色块（模板据此显隐那个 8×8 圆角方块）。</summary>
+    public bool HasBrush => Brush is not null;
+
+    /// <summary>是否有文本（色板模式只给色块、文本为空 ⇒ 隐藏那个 TextBlock）。</summary>
+    public bool HasText => !string.IsNullOrWhiteSpace(Text);
+
+    /// <summary>鼠标悬停提示（<c>ChipToolTipPath</c>，可空；色板用它显示 Hex）。</summary>
+    public string? ToolTipText { get; init; }
+
     private bool _isSelected;
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
 }
@@ -421,6 +446,12 @@ public sealed class ChipsFieldRow : DetailFieldRow
 
     public ObservableCollection<DetailChip> Chips { get; } = new();
     public bool HasChips => Chips.Count > 0;
+
+    /// <summary>
+    /// 色块模式（<c>ChipBrushPath</c> 非空）：模板给按钮换成 <c>chip-swatch</c> 样式（紧凑色块按钮），
+    /// 色板 / 带颜色的标签 chips 都走这条路。
+    /// </summary>
+    public bool IsSwatch => !string.IsNullOrEmpty(Field.ChipBrushPath);
 
     protected override void RefreshCore()
     {
@@ -448,12 +479,17 @@ public sealed class ChipsFieldRow : DetailFieldRow
                     Source = item,
                     Text = text ?? "",
                     Command = cmd,
-                    Argument = item,
+                    // 命令参数：默认把**候选项本身**传出去（标签 / 分类 / 集合的 Toggle 命令收整项）；
+                    // 给了 ChipCommandArgPath 就取候选项上的那个属性（色板的 SetColorCommand 收 Hex 字符串）。
+                    Argument = Field.ChipCommandArgPath is null ? item : DetailPath.Resolve(item, Field.ChipCommandArgPath),
+                    Brush = DetailPath.Resolve(item, Field.ChipBrushPath) as Avalonia.Media.IBrush,
+                    ToolTipText = DetailPath.Resolve(item, Field.ChipToolTipPath)?.ToString(),
                     IsSelected = DetailPath.ResolveBool(item, Field.ChipSelectedPath)
                 });
             }
         }
         OnPropertyChanged(nameof(HasChips));
+        OnPropertyChanged(nameof(IsSwatch));
     }
 
     private void OnSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => Refresh();

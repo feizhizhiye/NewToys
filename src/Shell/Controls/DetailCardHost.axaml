@@ -198,9 +198,26 @@
               <Button
                   Classes="chip-toggle"
                   Classes.selected="{Binding IsSelected}"
+                  Classes.swatch="{Binding $parent[ItemsControl].DataContext.IsSwatch}"
                   Command="{Binding Command}"
                   CommandParameter="{Binding Argument}"
-                  Content="{Binding Text}" />
+                  ToolTip.Tip="{Binding ToolTipText}">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <!--  色块（ChipBrushPath 给了才有）：标签 / 分类 / 集合 / 色板 都靠它带颜色  -->
+                  <Border
+                      Width="8"
+                      Height="8"
+                      CornerRadius="2"
+                      Background="{Binding Brush}"
+                      IsVisible="{Binding HasBrush}"
+                      VerticalAlignment="Center" />
+                  <TextBlock
+                      FontSize="11"
+                      Text="{Binding Text}"
+                      IsVisible="{Binding HasText}"
+                      VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
@@ -239,6 +256,13 @@
         <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding HasItems}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>
+              <!--  行容器一律是 Button：给了 ItemCommandPath 就有 link 样式类（悬停高亮 + 手型），
+                    ⛔ 没给命令时不加类 —— 长得跟原来的只读行一样（点击无操作）。  -->
+              <Button
+                  Classes="list-row"
+                  Classes.link="{Binding HasCommand}"
+                  Command="{Binding Command}"
+                  CommandParameter="{Binding Argument}">
               <StackPanel Margin="0,0,0,4" Spacing="1">
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="4">
                   <SelectableTextBlock
@@ -275,6 +299,7 @@
                     Text="{Binding Detail}"
                     TextWrapping="Wrap" />
               </StackPanel>
+              </Button>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>

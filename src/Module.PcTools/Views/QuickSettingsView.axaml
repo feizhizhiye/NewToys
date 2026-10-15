@@ -4,7 +4,7 @@
              x:Class="NewToys.PcTools.Views.QuickSettingsView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="12">
+  <Grid Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -41,7 +41,7 @@
                 Command="{Binding ClearPageCommand}" IsEnabled="{Binding !IsBusy}"
                 ToolTip.Tip="删掉本页全部条目并写盘（真删除，二次确认；建议先导出备份）"/>
         <Button Grid.Column="3" Classes="detail-toggle"
-                Command="{Binding ToggleDetailCommand}"
+                Command="{Binding ToggleDetailPanelCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>
             <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -166,89 +166,5 @@
 
     </Grid>
 
-    <!--  右：选中项的属性卡（可编辑 = CRUD 的 U/C）；宽度由共享样式 Border.detail-card 给 → 收起时整列不占位  -->
-    <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
-        <Grid RowDefinitions="Auto,*">
-
-          <StackPanel Grid.Row="0" Spacing="10" IsVisible="{Binding HasSelection}">
-            <TextBlock Classes="section-title" Text="选中项"/>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="primary" Content="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
-                      IsEnabled="{Binding IsNotBusy}"
-                      ToolTip.Tip="用 cmd 执行「命令」里的内容；勾选「需要管理员权限」时会弹 UAC"/>
-              <Button Classes="ghost" Content="{Binding FavoriteButtonText}" Command="{Binding ToggleFavoriteCommand}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveCommand}"/>
-              <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
-            </StackPanel>
-          </StackPanel>
-
-          <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户去改 / 保存一份假数据  -->
-            <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
-
-              <StackPanel Spacing="2" IsVisible="{Binding !ShowDetailBody}">
-                <TextBlock Classes="empty-hint" Text="在左侧列表里选中一条"/>
-                <TextBlock Classes="hint-text" Margin="0,4,0,0"
-                           Text="这里放的是系统自带的设置入口（Windows 设置面板 / 控制面板 / 管理工具），选中后点「▶ 运行」即打开；右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。"/>
-              </StackPanel>
-
-              <!--  v3.32 §4.8.3：示例态标识（下面是示例数据，不可编辑）  -->
-              <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
-                         Text="（示例数据）在左侧选中一条后，这里显示它的真实内容；示例态下卡片不可编辑。"/>
-
-              <StackPanel Spacing="2" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="名称"/>
-                <TextBox Text="{Binding EditTitle, Mode=TwoWay}" FontSize="13"/>
-              </StackPanel>
-
-              <StackPanel Spacing="2" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="分类"/>
-                <TextBox Text="{Binding EditCategory, Mode=TwoWay}" FontSize="12"
-                         PlaceholderText="系统设置 / 打开…"/>
-              </StackPanel>
-
-              <StackPanel Spacing="2" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="简介"/>
-                <TextBox Text="{Binding EditDescription, Mode=TwoWay}" FontSize="12"
-                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52"/>
-              </StackPanel>
-
-              <StackPanel Spacing="2" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="命令"/>
-                <TextBox Classes="code" Text="{Binding EditCommand, Mode=TwoWay}" FontSize="12"
-                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="84"/>
-                <TextBlock Classes="hint-text" Text="本页条目都是命令行命令：例：start ms-settings:display 打开「显示」设置；control 打开控制面板。▶ 运行 = 用 cmd 执行它。要跑脚本文件（.py / .ps1 / .bat）请去「设置与脚本」页。"
-                           Margin="0,4,0,0"/>
-              </StackPanel>
-
-              <CheckBox Content="需要管理员权限" FontSize="12" IsVisible="{Binding ShowDetailBody}"
-                        IsChecked="{Binding EditNeedAdmin, Mode=TwoWay}"/>
-
-              <!--  命令行宿主 / 隐藏终端窗口（v3.19 / NT-006，仅命令行命令显示）。
-                    Shell=Auto 有输出用 pwsh 弹终端并回显命令、GUI 启动类静默；Cmd/Pwsh 强制宿主。
-                    「隐藏终端窗口」勾上 = GUI 启动类语义，不弹终端、cmd /c 静默打开目标程序（管理员时失效）。  -->
-              <StackPanel Spacing="2" IsVisible="{Binding ShowCommandRunOptions}">
-                <TextBlock Classes="field-label" Text="Shell（命令行宿主）"/>
-                <ComboBox ItemsSource="{Binding ShellOptions}"
-                          SelectedItem="{Binding SelectedShell, Mode=TwoWay}">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-              </StackPanel>
-              <CheckBox IsVisible="{Binding ShowCommandRunOptions}" IsChecked="{Binding EditRunHidden, Mode=TwoWay}">
-                <TextBlock Text="隐藏终端窗口（GUI 启动类：不弹终端，静默打开目标程序）" FontSize="12" TextWrapping="Wrap"/>
-              </CheckBox>
-
-              <Border Classes="divider-line"/>
-
-              <TextBlock Classes="hint-text" Text="{Binding DataFileHint}"/>
-
-            </StackPanel>
-          </ScrollViewer>
-        </Grid>
-      </Border>
   </Grid>
 </UserControl>

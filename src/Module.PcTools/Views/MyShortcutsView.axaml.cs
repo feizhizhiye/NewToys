@@ -13,10 +13,11 @@ public partial class MyShortcutsView : UserControl
     public MyShortcutsView()
     {
         InitializeComponent();
-        // 「📂 选择」脚本目录 / 「📂」选脚本文件：都要用到平台文件选择器，
+        // 「📂 选择」脚本目录：要用到平台文件选择器，
         // 而 VM 不能引用 Avalonia（规范：业务不碰 UI 类型），所以在这一层选完再把结果交给 VM。
         PickScriptFolderBtn.Click += (_, _) => _ = PickScriptFolderAsync();
-        PickScriptFileBtn.Click += (_, _) => _ = PickScriptFileAsync();
+        // ⚠️ NT-054：原来卡片里那个内联「📂」选脚本文件按钮（PickScriptFileBtn）随页内卡一起删了 ——
+        //    现在它是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
         ImportFolderBtn.Click += (_, _) => _ = PickImportFolderAsync();
     }
 
@@ -30,6 +31,11 @@ public partial class MyShortcutsView : UserControl
         if (ActionList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         // 表头右键「显示 / 隐藏列」菜单同样挂在独立弹出树，必须手工同步 DataContext（见规范 3.6）。
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+
+        // NT-054：把「📂 选脚本文件…」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
+        // 每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
+        if (DataContext is QuickActionListViewModel vm)
+            vm.PickScriptFileCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => _ = PickScriptFileAsync());
     }
 
     /// <summary>顶部「📂 选择」：换脚本目录（选完立即生效并写 app.json）。</summary>

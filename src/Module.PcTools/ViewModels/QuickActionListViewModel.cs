@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
@@ -13,6 +14,7 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
 using NewToys.PcTools.Models;
 using NewToys.PcTools.Services;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -55,7 +57,7 @@ public class ActionKindOption
 /// 「收藏夹」页读的是同一批对象，因此这里右键收藏后那边天然一致。
 /// </para>
 /// </summary>
-public abstract partial class QuickActionListViewModel : ListPageViewModelBase
+public abstract partial class QuickActionListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly IQuickActionService? _svc;
     private readonly IAppConfigService? _app;
@@ -313,6 +315,117 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
 
+    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+    //    本基类被两页共用（「设置与脚本」/「快捷设置」）⇒ 契约在这里实现一次，
+    //    **卡片描述符由两个子类各自 override <see cref="BuildCard"/>**（两页字段本来就不同：
+    //    脚本页有「类型 / 脚本文件 / 解释器」，快捷设置页有「Shell / 隐藏终端窗口」）。
+
+    /// <summary>
+    /// 📂 选脚本文件（平台文件选择器**只能在 View 层用**，VM 不引 Avalonia）⇒ 由 <c>MyShortcutsView</c>
+    /// 在 <c>OnDataContextChanged</c> 里注入实现（原来那个按钮在页内卡片里、走 code-behind 直接挂 Click）。
+    /// </summary>
+    public ICommand? PickScriptFileCommand { get; set; }
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>工具条末位的详情开关 → 走本命令（⛔ 基类 <c>ToggleDetailCommand</c> 不通知 Shell，右列不会跟着开合）。</summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>本页详情卡描述符（**C# 对象字面量**；由两个子类各自实现，因为两页字段不同）。</summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    /// <summary>构造本页的详情卡描述符（子类实现）。</summary>
+    protected abstract DetailCardDescriptor BuildCard();
+
+    /// <summary>
+    /// 详情卡的四个卡内动作（两页**完全一致** ⇒ 基类给一份，子类只声明字段区）。
+    /// <para>▶ 运行 / 收藏（两个互斥文案的按钮，替代原来绑 <c>FavoriteButtonText</c> 的动态文案）/
+    /// 💾 保存 / 🗑 删除。</para>
+    /// </summary>
+    protected List<DetailAction> BuildCommonActions()
+    {
+        var run = new DetailAction
+        {
+            Text = "▶ 运行",
+            Classes = "primary",
+            ToolTip = "用 cmd 执行「命令」里的内容；勾选「需要管理员权限」时会弹 UAC",
+            IsVisiblePath = nameof(HasSelection),
+            IsEnabledPath = nameof(IsNotBusy),
+            Command = new RelayCommand(() => RunCommand.Execute(Selected))
+        };
+
+        // ⚠️ 原来这个按钮的文案是 `{Binding FavoriteButtonText}`（★ 取消收藏 / ☆ 收藏）——
+        //    描述符的 Text 是静态字符串 ⇒ 拆成两个互斥可见的按钮表达同一件事（不新增能力）。
+        var favAdd = new DetailAction
+        {
+            Text = "☆ 收藏",
+            Classes = "ghost",
+            ToolTip = "把这条加入收藏夹",
+            IsVisiblePath = nameof(IsSelectedNotFavorite),
+            Command = ToggleFavoriteCommand
+        };
+        var favRemove = new DetailAction
+        {
+            Text = "★ 取消收藏",
+            Classes = "ghost",
+            ToolTip = "把这条移出收藏夹",
+            IsVisiblePath = nameof(IsSelectedFavorite),
+            Command = ToggleFavoriteCommand
+        };
+
+        var save = new DetailAction
+        {
+            Text = "💾 保存",
+            Classes = "ghost",
+            ToolTip = "把当前内容写回本页数据文件",
+            IsVisiblePath = nameof(HasSelection),
+            Command = SaveCommand
+        };
+
+        var del = new DetailAction
+        {
+            Text = "🗑 删除",
+            Classes = "ghost",
+            ToolTip = "删除这条",
+            IsVisiblePath = nameof(HasSelection),
+            IsEnabledPath = nameof(IsNotBusy),
+            Command = DeleteCommand
+        };
+
+        return new List<DetailAction> { run, favAdd, favRemove, save, del };
+    }
+
+    /// <summary>选中项（无选中时看示例项）是否已收藏 —— 两个收藏按钮的互斥可见性。</summary>
+    public bool IsSelectedFavorite => DetailItem.IsFavorite;
+
+    /// <summary>选中项（无选中时看示例项）尚未收藏。</summary>
+    public bool IsSelectedNotFavorite => !DetailItem.IsFavorite;
+
     /// <summary>属性卡里收藏按钮的文案。</summary>
     public string FavoriteButtonText => DetailItem.IsFavorite ? "★ 取消收藏" : "☆ 收藏";
 
@@ -463,6 +576,9 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
         UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例条目（并整卡禁用）
         OnPropertyChanged(nameof(DetailItem));
         FillEditors(DetailItem);             // 真值 / 示例值走同一条填充路径
+        // 切选中项 / 示例态 → 收藏按钮的互斥可见性跟着换
+        OnPropertyChanged(nameof(IsSelectedFavorite));
+        OnPropertyChanged(nameof(IsSelectedNotFavorite));
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(ShowCommandRunOptions));
         OnPropertyChanged(nameof(CanEditScript));
@@ -760,6 +876,9 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase
 
         _svc.ToggleFavorite(item);
         UpdateFavoriteUi(item);
+        // 声明式卡里收藏是**两个互斥可见的按钮**（☆ 收藏 / ★ 取消收藏）⇒ 切换后要让可见性重算
+        OnPropertyChanged(nameof(IsSelectedFavorite));
+        OnPropertyChanged(nameof(IsSelectedNotFavorite));
         ApplyView();
         StatusText = item.IsFavorite ? $"已收藏：{item.Title}" : $"已取消收藏：{item.Title}";
     }

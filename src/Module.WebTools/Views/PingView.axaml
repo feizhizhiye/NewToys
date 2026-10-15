@@ -5,7 +5,7 @@
              x:Class="NewToys.WebTools.Views.PingView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="12">
+  <Grid Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -28,7 +28,7 @@
                      VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
         </WrapPanel>
         <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailCommand}"
+                Command="{Binding ToggleDetailPanelCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>
             <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -130,49 +130,5 @@
       </Border>
 
     </Grid>
-
-    <!--  右：详情（编辑 + 切换 DNS）；宽度由共享样式 Border.detail-card 给  -->
-    <Border Grid.Column="1" Classes="detail-card"
-              IsVisible="{Binding IsDetailVisible}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户去改 / 保存一份假数据  -->
-          <StackPanel Spacing="12" IsEnabled="{Binding !IsDetailSample}">
-            <StackPanel Spacing="2" IsVisible="{Binding !ShowDetailBody}">
-              <TextBlock Text="在左侧列表里选中一个目标" FontSize="13" TextWrapping="Wrap"
-                         Foreground="{DynamicResource SecondaryTextBrush}"/>
-            </StackPanel>
-
-            <!--  v3.32 §4.8.3：示例态标识（下面是示例数据，不可编辑）  -->
-            <TextBlock Text="（示例数据）在左侧选中一个目标后，这里显示它的真实内容；示例态下不可编辑。"
-                       FontSize="12" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
-                       Foreground="{DynamicResource SecondaryTextBrush}"/>
-
-            <StackPanel Spacing="6" IsVisible="{Binding ShowDetailBody}">
-              <TextBlock Text="主机（域名或 IP）" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding DetailItem.Host, Mode=TwoWay}"/>
-
-              <TextBlock Text="专属 DNS（留空 = 用全局 DNS）" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding DetailItem.DnsOverride, Mode=TwoWay}" PlaceholderText="如 8.8.8.8"/>
-
-              <!-- ⚠️ Avalonia 的 WrapPanel **没有** Spacing 属性（StackPanel 才有）→ 用按钮 Margin 做间距 -->
-              <WrapPanel Orientation="Horizontal">
-                <Button Classes="primary" Content="📡 Ping" Margin="0,0,6,0" Command="{Binding PingCommand}"/>
-                <Button Classes="ghost" Content="💾 保存" Margin="0,0,6,0" Command="{Binding SaveCommand}"/>
-                <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}"/>
-              </WrapPanel>
-
-              <StackPanel Spacing="2"
-                          IsVisible="{Binding DetailItem.LastStatus, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-                <TextBlock Text="最近结果" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <SelectableTextBlock Text="{Binding DetailItem.LastStatus}" FontSize="12" TextWrapping="Wrap"/>
-                <TextBlock Text="{Binding DetailItem.LastIp, StringFormat='解析 IP：{0}'}" FontSize="11"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="{Binding DetailItem.LastTime, StringFormat='检测时间：{0:yyyy-MM-dd HH:mm}'}" FontSize="11"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-              </StackPanel>
-            </StackPanel>
-          </StackPanel>
-        </ScrollViewer>
-      </Border>
   </Grid>
 </UserControl>

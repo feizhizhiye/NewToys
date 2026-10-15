@@ -20,7 +20,7 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.40 ｜ 规范 v3.24 ｜ 协作手册 v3.20 ｜ 本台账 v3.41 |
+| 文档版本 | 需求 v3.41 ｜ 规范 v3.24 ｜ 协作手册 v3.20 ｜ 本台账 v3.42 |
 | 技术栈 | .NET 10 + Avalonia 12.1.4 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
 | 代码规模 | 7 项目 / 251 个 `.cs+.axaml+.csproj` / 约 42600 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |
@@ -139,7 +139,7 @@
 | NT-049 | 清理 3 个未引用标题栏主题键（`TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`；主题键 34 → 31） | P2 | ✔ 已完成（待本地编译 + 验收） | backlog/NT-049.md |
 | NT-050 | 设置归位：模块专属设置迁模块（软件源 View/VM → PcTools，媒体资产先例模式）+ settings 内「媒体资产」改名「媒体资产设置」 | P1 | ✅ 就绪 | backlog/NT-050.md |
 | NT-051 | 设置页合并：主题外观 + 关于 并入 通用设置（单页三节；键 `settings-general` 不变，删 `settings-theme`/`settings-about` 两项） | P2 | ✅ 就绪 | backlog/NT-051.md |
-| NT-052 | 「🔄 重载模块」移入设置（标题栏 3→2 按钮；通用设置新增「模块」小节；⚠️ 框架层最小新增 `IModuleReloadService`，待用户确认后升就绪） | P2 | 📝 草稿 | backlog/NT-052.md |
+| NT-052 | 「🔄 重载模块」移入设置（标题栏 3→2 按钮；入口 = **功能清单页**「增加功能」操作区；方案 A：Shared/Core 新增 `IModuleReloadService` 契约，2026-10-15 用户拍板） | P2 | ✅ 就绪 | backlog/NT-052.md |
 | NT-053 | 设置页窄界面适配：最窄 960×640（内容宽 720）与默认 1280×800 两种可用（根 ScrollViewer / 星号列 / 去超宽固定容器） | P2 | ✅ 就绪 | backlog/NT-053.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡保留、⛔ 不删）。
@@ -200,3 +200,4 @@
 | 2026-10-14 | **fix** | **NT-032 + NT-033（深入审查两项 P1 逻辑缺陷修复，✅ 已落盘 + 本地编译通过 ✅）** —— 扫描"大小+修改时间"移动识别键改多值字典、仅**唯一候选**认作移动（修"复制且保留时间戳"误把原文件位置改写到副本、原文件变 missing）；多库融合在事务内清除"零文件位置"的重复资产（含其标签/分类/集合/关联），修重合并同一库 / 合并共享文件两库产生的孤儿资产，类注释"幂等"表述同步修正。静态自查 check.ps1 + check-axaml-props.ps1 全过；**用户本地 `build.ps1` 编译通过，按本轮约定视为验收通过 ✔** |
 | 2026-10-14 | **v3.36** | **NT-019 物理操作 + 任务中心 + 回收站（✅ 已验收）** —— 新增 `FileOperationService`（全模块唯一动磁盘：`Rename`/`Move`/`Copy`/`DeleteToRecycle`/`PermanentDelete` + `ConflictPolicy` + `IsInside` 防穿越；🔴 日志先行 `pending→磁盘→file_locations→success/failed`，⛔ 失败不回滚；删除默认送 `SHFileOperationW` 系统回收站）；`assets-tasks`（运行态队列可取消 + 扫描记录可重扫 + 操作日志）；`assets-trash`（`status='trashed'` + `TrashDetailView` 含受影响文件位置，恢复=逻辑 / 永久删除·清空=真删磁盘并排进队列）；全部资产页新增「↗ 应用到文件」（把名字真写到磁盘）。⚠️ 3 处偏差：移动/复制无 UI 入口、删除时间未显示、重试仅扫描任务 |
 | 2026-10-15 | **立项** | **设置重构立项 NT-050~053（🟡 规划期 · 纯文档，未动 `src/`）** —— 用户 5 项诉求：① 模块专属设置像媒体资产一样归模块自注册 → **NT-050**（软件源迁 PcTools；加密 DNS 经评估为 app.json 应用级⛔不迁；一键按钮/功能清单为 Shell 级⛔不迁）② settings 内「媒体资产」混淆一级菜单 → 改名「媒体资产设置」（NT-050）③ 设置页合并评估 → **NT-051**（主题+关于并入通用；配置+数据管理经评估**不合并**：配置切换=重启本窗、语义重）④ 重载模块非常用 → 移入设置（**NT-052**，标题栏 3→2；⚠️ 框架层最小新增 `IModuleReloadService` 待用户确认故列草稿）⑤ 页面容器窄界面适配 → **NT-053**（基线 960×640/内容宽 720；实测设置页均已有根 ScrollViewer、固定宽容器均在 720 内，疑似点=ProfileView 无根 ScrollViewer、DataView 固定列）。**文档**：需求 v3.40（§4.1 标题栏两按钮、§4.9 三条新规则、§6.5 重写设置清单）、台账 v3.41。⛔ 规划期不改代码 |
+| 2026-10-15 | **定案** | **NT-052 拍板：方案 A + 入口改功能清单页（🟡 规划期 · 纯文档，未动 `src/`）** —— 用户选**方案 A**（框架层加契约：`Shared/Services/IModuleReloadService`（`HotReload()` + `Reloaded` 事件）+ `Core/Services/ModuleReloadService` 包装现有 `ModuleLoader.HotReload`；`ShellViewModel`（已核实 `AddSingleton` 进程级单例 ⇒ 订阅无泄漏）订阅事件重建左树 + 底栏消息）。**对比结论**：性能三方无差异（点击一次的操作）；维护性/复用性 A 优（契约显式、事件模式有 `INavigationService.Navigated` 先例、未来托盘/命令行可复用）；C（Shell 自营设置页）破 §6.5「设置页归 Module.Settings」归口且 Shell 零 `RegisterFunction` 先例；B（直接调 `ModuleLoader` 静态类）因 `IMenuService` 无任何事件 ⇒ 左树不刷新 = 静默失效，不成立。**入口**：标题栏 3→2 按钮，「🔄 重载模块」落**功能清单页**（`settings-all`）顶部「增加功能」操作区（重载 = 给清单增加功能，语义最顺）⇒ 与 NT-051 **依赖解除**，NT-052 升 `✅ 就绪`；重载后本页 `BuildGroups()` 刷新卡片。**文档**：需求 v3.41（§4.1 / §6.5）、台账 v3.42。⛔ 仍未动 `src/` |

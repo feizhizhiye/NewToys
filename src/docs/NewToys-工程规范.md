@@ -1,12 +1,13 @@
 # NewToys 工程规范
 
-> v3.25 · 2026-10-15 · 技术实现指南
+> v3.26 · 2026-10-15 · 技术实现指南
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
 > 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
 > 权威源：需求规格（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕技术债（本文件台账，原「折衷约束」）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
+> **v3.26 变更**：§2.1 新增「**必须始终显示的元素不参与滚动**」规则（v3.44 用户定：首页标签 + `＋` 按钮固定列、不进 `ScrollViewer`；实现口径 = `ScrollableTabs` 镜像 + 共享 `TabItemTemplate` + `ScrollActiveTabIntoView` 按镜像索引）。
 > **v3.25 变更**：① §2.1 标题栏按钮尺寸订正（实际 40×40、图标 16px Path，NT-045 起矢量）；② §2.3 图标状态刷新——**框架层已全矢量**（NT-035/045/046），数据驱动图标收敛 NT-047；③ §2.4 版本表述同步（栈 Avalonia 12.1.3 → **12.1.4**，API 面不变，§2.4 的 12.1.3 实测结论沿用，待本地编译复核）。
 > **v3.24 变更**：🏷 文档名对齐（2026-10-14 四份文档改名）——「更新节奏」表末列列名 `提示词` → **`协作手册`**（对应 `NewToys-AI协作手册.md`，⛔ 旧名「AI协作提示词」已废）。
 > **v3.22 变更**：① 主题键 **32 → 34**（新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`，需求 §4.1.1 ③ / §4.7）；② §7「折衷约束台账」改名 **技术债台账**（术语标准化）；③ 附录 A **修正「Avalonia 12.1.3 托管装饰在 Win32 上不可用」这条过时结论** → 正确结论见 §2.4「窗口装饰（CSD）」；④ 新增 §2.4 窗口装饰（CSD）实现基线。
@@ -84,6 +85,8 @@
 | 表头行高 / 表格行高 | **32px / 28px**；单元格左右内边距 **8px**（表头与行必须一致） |
 | 详情卡 | 宽 340px、内边距 **12px**；本页覆盖 `Padding="12,12,4,12"` + 滚动内容 `Margin="0,0,4,0"`（给覆盖式滚动条留位，见 §3.6） |
 | 标题栏按钮 | **40×40**（与标题栏同高，`Button.title-btn` 样式 Width/Height=40）；图标 = **16px `Path`**（NT-045 起矢量，粗细/端帽/拐角由 `Button.title-btn Path` 样式给）；窗口控制按钮 46×40 |
+
+> 🔴 **必须始终显示的元素不参与滚动（v3.44，用户规则）**：标签栏里**首页标签固定显示**（`ShellViewModel.HomeTab` → `ContentControl` 单独一列，⛔ 不进 `ScrollViewer`）；**`＋`（功能清单）按钮同理固定右列**。**后续新增任何「必须始终可见」的标签 / 按钮，一律放 `ScrollViewer` 外单独占位列**；滚动区只放「可溢出」的标签。实现口径：`ScrollableTabs` = `Tabs` 去首页的**镜像集合**（VM 里随 `Tabs.CollectionChanged` 同步，⛔ 不在各开 / 关命令里分别维护）；标签项模板 = 共享资源 `TabItemTemplate`（`ShellView.axaml` 的 `Window.Resources`，⛔ 不复制两份防样式漂移）；`ScrollActiveTabIntoView` 按 `ScrollableTabs` 索引找容器（首页 `IndexOf` = -1 → 跳过，天然正确）。
 
 **全局样式位置**：`Shell/App.axaml`（+ 复用样式表 `Shell/Styles/Controls.axaml`）。当前样式类：
 `Button.title-btn`（标题栏工具按钮）、`Border.tab-item`/`.active`（标签项）、`Button.tab-btn`（标签）、`Button.tab-close`（标签关闭）、`Button.tree-row`/`.active`/`.sub`（左树行）、`Border.tree-panel.collapsed`（左树折叠态）、**`Border.tree-version`（左树底部「配置 · 版本」，v3.9 / v3.28 改）**、`Button.win-btn`/`.close`（窗口控制）、**`Border.status-bar` + `TextBlock.status-bar-text`（Shell 底部状态栏，v3.9）**、`Button.primary`/`.ghost`/`.fav-btn`、`Border.card`、`Button.col-header`、`Border.list-header`、`TextBlock.list-cell`、`ListBox.list-page`、**`Button.detail-toggle`（工具条末位的详情开关，v3.12；取代 v1.35 的 `Border.detail-hotspot` + `Button.header-toggle`）**。

@@ -1,6 +1,6 @@
 # NewToys 项目状态与路线图
 
-> v3.49 · 2026-10-15 · 台账
+> v3.50 · 2026-10-15 · 台账
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **项目状态与路线图**（Status & Roadmap），三、节 = **Backlog 工作项台账**。
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
@@ -8,6 +8,7 @@
 > 配套：需求规格（宪法）/ 工程规范 / AI 协作手册 / AGENTS.md（跨 AI 入口）/ skill/（跨 AI 知识库）
 
 **最近三次变更**
+- **v3.50（🚧 实施期 2026-10-15）**：🛠 **NT-054 的 L2 第 2 张迁移落地** —— **视频工具·视频预览 `VideoPreviewView`（页键 `video-cut`，非列表页）**，**删除页内详情卡 201 行**、页根主体 Grid 收单列、工具条末位改绑 `ToggleDetailPanelCommand`（**会通知 Shell**）。**L1 能力零扩展**（不需要新 Kind / 新通道 ⇒ 打样页补的能力已够覆盖同构页）；VM 加 `IDetailPanelProvider` + `IDetailCardSource` + `BuildCard()`（4 分区 / 1 动作）+ `PickOutputCommand` 注入（原「输出文件」输入框的内联 📂 按钮按打样口径收进 Actions 区）。文档：需求 v3.48（§4.5.1 进度）、规范 v3.31（**§3.9 迁移前条文作废并改写为迁移后形态**）、台账 v3.50。静态检查四项全绿；**⏳ 待用户本地编译 + 实机回归**。
 - **v3.49（🚧 实施期 2026-10-15）**：🛠 **NT-054 的 L2 首个打样页落地** —— **视频工具·批量队列 `VideoBatchView`**（16 张卡里最复杂的一张，349 行页内卡片 XAML 全部删除）。**打样结论（阻塞上报 → 用户拍板）**：7 种 Kind **覆盖不了「只读列表」**（本页「处理前 → 处理后」+ 资产卡「关联 / 文件位置」）⇒ **加第 8 种 Kind `List`**；布局降级（宽/高 同行并排 → 纵向堆叠、输入框内联 📂 → Actions 区）**用户接受**。**描述符/L1 扩展**：`FieldKind.List`、`DetailField` 加 `Item*Path`(5) + `IndexPath` + `LiteralOptions` + `Prefix`、`DetailSection` 加 `ToggleEnabledPath`、`Hint` 支持动态行；渲染器加 `ListFieldRow` / `IndexSelectFieldRow`（Select 两通道两模板），并修两处**数据安全坑**（`OptionsPath` 必须稳定实例、空候选不回写，否则 ComboBox 会把 VM 值抹掉）。**页侧**：VM 实现 `IDetailPanelProvider` + `IDetailCardSource` + `BuildCard()`（约 50 字段 / 3 分区 / 1 动作）+ 两个**会通知 Shell** 的开合命令（⛔ 基类 `ToggleDetailCommand` 不发 `DetailChanged`）+ `PickOutputCommand` 注入；View 删页内右列、根 Grid 收单列。**文档**：需求 v3.47（Kind 7 → 8 种）、规范 v3.30（§3.8 **L2 打样补记** / §3.9 标注 `video-batch` 已迁）。静态检查四项全绿；**用户本地编译 + 实机回归均通过 ⇒ 打样页验收通过（2026-10-15）**。
 - **v3.48（🚧 实施期 2026-10-15）**：🛠 **NT-054 的 L0 + L1 落地**（用户指定「执行 NT-054」→ 拍板本轮只做**框架骨架**）。**新增**：`src/Shared/Details/DetailCardDescriptor.cs`（描述符 POCO：`DetailCardDescriptor`/`Section`/`Field`/`Action` + `FieldKind` + `EditCommitMode`）、`src/Shared/Services/IDetailCardSource.cs`、`src/Shell/Controls/DetailCardHost.axaml(.cs)` + `DetailCardRender.cs`（渲染器：字段 `DataTemplate` / Kind→行对象唯一分派 / 路径解析（`!` 取反 + 多级）/ 属性级刷新 / `Chips` 集合看护）、`skill/scripts/check-detail-paths.ps1`。**改动**：`ShellViewModel.RefreshDetail` 改**两轨择一**（声明式优先，⛔ 此时不读 `DetailContent`）、`ShellView.axaml` 右列 = `Panel{ContentControl + DetailCardHost}`、`Shell/Styles/Controls.axaml` 新增 ⑭（`Button.section-toggle` / `Button.chip-toggle(.selected)`）、`check-axaml-props.ps1` 加 `Classes.` 前缀豁免（修误报）。**文档**：需求 v3.46、规范 v3.29、台账 v3.48。静态检查四项全绿；**用户本地 `build.ps1` 编译通过（2026-10-15 确认）⇒ L0 + L1 验收通过**。
 - **v3.47（📝 规划期 2026-10-15）**：📌 **立项 NT-054「详情卡声明式规范」**（**未动 `src/` 代码**）。详情卡现状 16 张、两种形态（4 张 `Views/Detail/*.axaml` + 12 页页内自绘右列 = 规范 §3.8 技术债 B13）；用户定调「详情卡功能一律是对主显示区数据的补充与修改、命令编辑也在卡内、不走弹窗卡」。产出：需求新增 **§4.5.1**（三区模型 + 字段 Kind + 3 种提交语义 + 刷新契约 + **16/16 覆盖基线**）+ 任务卡 `backlog/NT-054.md`（📝 草稿）。⛔ 描述符走 C# 对象字面量，**不做运行时 JSON/XAML 加载**。
@@ -142,7 +143,7 @@
 | NT-051 | 设置页合并：主题外观 + 关于 并入 通用设置（单页三节；键 `settings-general` 不变，删 `settings-theme`/`settings-about` 两项） | P2 | ✔ 已完成（已验收） | backlog/NT-051.md |
 | NT-052 | 「🔄 重载模块」移入设置（标题栏 3→2 按钮；入口 = **功能清单页**「增加功能」操作区；方案 A：Shared/Core 新增 `IModuleReloadService` 契约，2026-10-15 用户拍板） | P2 | ✔ 已完成（已验收） | backlog/NT-052.md |
 | NT-053 | 设置页窄界面适配：最窄 960×640（内容宽 720）与默认 1280×800 两种可用（根 ScrollViewer / 星号列 / 去超宽固定容器） | P2 | ✔ 已完成（已验收） | backlog/NT-053.md |
-| NT-054 | 详情卡声明式规范：**三区模型**（`Fields` 字段区 / `Actions` 动作区 / `Custom` 逃生舱）+ 7 种字段 Kind + 3 种提交语义（`Instant`/`OnBlur`/`Explicit`）+ Shell 统一渲染，替代 16 张卡逐页手写 XAML（含债 B13 详情面板上提） | P1 | 🚧 **实施中**（2026-10-15：📝 草稿 → ✅ 就绪 → **L0 + L1 已交付并编译验收通过** → **L2 打样页 `VideoBatchView` 已迁完并验收通过**；余下 **15 张卡** + L3 逃生舱 / 旧 XAML 清理待做，未迁移的卡仍走老的 `DetailContent`） | backlog/NT-054.md |
+| NT-054 | 详情卡声明式规范：**三区模型**（`Fields` 字段区 / `Actions` 动作区 / `Custom` 逃生舱）+ 7 种字段 Kind + 3 种提交语义（`Instant`/`OnBlur`/`Explicit`）+ Shell 统一渲染，替代 16 张卡逐页手写 XAML（含债 B13 详情面板上提） | P1 | 🚧 **实施中**（2026-10-15：📝 草稿 → ✅ 就绪 → **L0 + L1 已交付并编译验收通过** → **L2 已迁 2 张：`VideoBatchView` 打样（已验收）/ `VideoPreviewView`（⏳ 待本地编译 + 实机回归）**；余下 **14 张卡** + L3 逃生舱 / 旧 XAML 清理待做，未迁移的卡仍走老的 `DetailContent`） | backlog/NT-054.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡保留、⛔ 不删）。
 > NT-048（分屏贴靠首次几何不收敛）**已作废**：现象为**系统级**（Firefox 同复现）⇒ 外部纠偏方向错误，⛔ 不复活；任务卡保留备查。

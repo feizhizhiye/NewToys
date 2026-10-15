@@ -1,12 +1,13 @@
 # NewToys 工程规范
 
-> v3.30 · 2026-10-15 · 技术实现指南
+> v3.31 · 2026-10-15 · 技术实现指南
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
 > 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
 > 权威源：需求规格（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕技术债（本文件台账，原「折衷约束」）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
+> **v3.31 变更**：**NT-054 的 L2 第 2 张迁移**（视频工具·视频预览 `video-cut`）—— 与打样页同构，**L1 能力零扩展**（无需新 Kind / 新通道）；§3.9 的「迁移前页内两列布局」条文正式作废并改写为**迁移后形态**（页内单列 + Shell 右列 / 工具条末位绑 `ToggleDetailPanelCommand` / VM 已实现 `IDetailPanelProvider` + `IDetailCardSource`）。
 > **v3.30 变更**：⑦ **NT-054 的 L2 打样页落地**（视频工具·批量队列，需求 §4.5.1）—— 描述符补**第 8 种 Kind `List`**（只读列表：键值行 / 对比行）+ `Hint` 动态行（`ValuePath` + `Prefix`）+ `DetailSection.ToggleEnabledPath` + `Select` 的**索引通道**（`IndexPath` + `LiteralOptions`）；渲染器加 `ListFieldRow` / `IndexSelectFieldRow`；§3.8 新增「**L2 打样补记**」（路径优先 `nameof` / `OptionsPath` 必须稳定实例 / 空候选不回写 / 迁移页三件事 / 布局降级）。
 > **v3.29 变更**：⑥ **详情卡声明式渲染实装（NT-054 的 L0 + L1）** —— 新增 `Shared/Details/DetailCardDescriptor.cs`（描述符 POCO）+ `Shared/Services/IDetailCardSource.cs`（来源契约）+ `Shell/Controls/DetailCardHost.axaml(.cs)` / `DetailCardRender.cs`（渲染器：字段 `DataTemplate` + Kind→行对象唯一分派 + 路径解析 + 属性级刷新）；`ShellViewModel.RefreshDetail` 改**两轨择一**（声明式优先，老的自绘 `DetailContent` 保留给未迁移页）；`Shell/Styles/Controls.axaml` 新增 ⑭（`Button.section-toggle` / `Button.chip-toggle`）；§3.8 新增「`IDetailCardSource` + 详情卡声明式渲染」小节（件与归属 / 两轨 / 渲染层口径 / 路径静态兜底）；§3.6 详情卡滚动条写明**只写在 Shell 一处**。配套 `skill/scripts/check-detail-paths.ps1` 新增，`check-axaml-props.ps1` 加 `Classes.` 前缀豁免。
 > **v3.28 变更**：① §2.1 新增「**两种基准宽度下的可用宽度**」推导表（默认 1280×800 / 最窄 960×640 → 列表列 736 / 416、工具条与筛选条可用宽 712 / 392）＋ 两条设计逻辑（工具条"能用多少就显示多少"、筛选条"一行排死自适应收缩"）；② §3.6 ① 改为**按容器宽度自动折叠**：项宽**首次布局后缓存一次** + 贪心算两行容量 ⇒ ⛔ 没有"档位数字"可调、⛔ 不用 `Measure(∞)` 每帧重测（循环 / 抖动的来源）。
@@ -617,14 +618,14 @@ public interface IDetailCardSource
 
 > 页面 key 仍是 `video-cut`（落 `columnlayout.json` 页键，改名会丢用户偏好）；**View / VM 的类名与文件名 v3.12 起已改为 `VideoPreviewView` / `VideoPreviewViewModel`**。
 >
-> 🔴 **v3.30 / NT-054 起**：本节描述的是**迁移前**的形态。**「批量队列」页（`video-batch`）已完成 L2 迁移** ——
-> 页内右列已删（页根 Grid 收成单列），详情卡改由 Shell 的 `DetailCardHost` 按 `VideoBatchViewModel.BuildCard()`
-> 的描述符渲染；**「视频预览」页（`video-cut`）仍是页内自绘**（L2 待迁）。下面关于两页布局的条文对 `video-cut` 仍然有效。
+> 🔴 **v3.31 / NT-054 起**：本节描述的是**迁移前**的形态。**「批量队列」页（`video-batch`）与「视频预览」页（`video-cut`）均已完成 L2 迁移** ——
+> 两页页内右列都已删（页根 Grid 收成单列），详情卡改由 Shell 的 `DetailCardHost` 按 `VideoBatchViewModel.BuildCard()` /
+> `VideoPreviewViewModel.BuildCard()` 的描述符渲染。下面关于页内两列布局的条文**已作废**（保留作迁移前形态备查），其余条文（时间条 / 卡片分区顺序 / 参数语义）仍有效。
 
-**布局（页内两列 + 左树 = 三列）**
-- 页根 Grid：`ColumnDefinitions="*,Auto"`；左列 = **预览列**（大画面 + 三条时间条），右列 = **详情卡** `Border.detail-card`（340px、`VerticalAlignment="Stretch"`、可开合）。
-- 顶部工具条（**所有动作按钮都归这里**，详情卡里一个都不放）：`📂 选择视频` / `➡ 发送到批处理` / `↺ 区间重置` / `❮❯ 详情`。
-- VM 仍**不继承 `ListPageViewModelBase`**（不是列表页）→ `ObservableObject, IStatusProvider`；**预留** `IDetailPanelProvider`（`HasDetailPanel` 暂 `false` → 先用**页内右列**）。
+**布局（迁移后：页内单列 + Shell 右列）**
+- 页根主体 Grid：**单列**（预览列）；详情卡 = Shell 右详情列（340px，由 `DetailCardHost` 渲染，可开合）。
+- 顶部工具条（**页面级动作都归这里**）：`📂 选择视频` / `➡ 发送到批处理` / `↺ 区间重置` / `❮❯ 详情`（末位绑 `ToggleDetailPanelCommand`，**会通知 Shell**）；**卡内动作**（如 `📂 选择输出文件…`）走描述符 `Actions` 区。
+- VM 仍**不继承 `ListPageViewModelBase`**（不是列表页）→ `ObservableObject, IStatusProvider`；**已实现** `IDetailPanelProvider` + `IDetailCardSource`（`HasDetailPanel => true`、`DetailContent => null`）。
 
 **三条时间条（预览位置 / 开始 / 结束）**
 - ⛔ **滑条别直接绑模型属性** —— 一律走 VM 的**手动属性**（`PreviewTime` / `StartSeconds` / `EndSeconds`），setter 里改一处 → 时间码文本 + 大画面 + 命令预览**一起刷新**（避免"拖了滑条、时间码没跟上 → 保存被旧值覆盖"）。

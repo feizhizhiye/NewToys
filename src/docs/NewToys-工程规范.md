@@ -1,12 +1,13 @@
 # NewToys 工程规范
 
-> v3.33 · 2026-10-15 · 技术实现指南
+> v3.34 · 2026-10-15 · 技术实现指南
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
 > 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
 > 权威源：需求规格（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕技术债（本文件台账，原「折衷约束」）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
+> **v3.34 变更**：**NT-054 整体验收通过** ⇒ §7 技术债 **B13「详情面板上提」结清**（16/16 张卡全部由 Shell 的 `DetailCardHost` 声明式承载；12 页页内右列 + 4 个独立 `Views/Detail/*.axaml` 均已删）。实现口径见 §3.8（迁移四件事 + L1 扩展与样式类）/ §3.9。遗留：`Custom` 逃生舱渲染分支未接（现无页面需要，⛔ 非必要不实现）。
 > **v3.33 变更**：**NT-054 的 L1 加法扩展（用户拍板「加能力，一次做到位」）+ L2 收官 16/16 + L3 旧 XAML 清理**。描述符新增 5 个**可选**路径：`DetailField.ChipBrushPath`（chip 色块）/ `ChipCommandArgPath`（命令参数取候选项某属性 —— 色板要 Hex 而非整项）/ `ChipToolTipPath`；`DetailField.ItemCommandPath` + `ItemCommandArgPath`（`List` **项级命令** ⇒ 只读列表可变成可点击行）。渲染层：`DetailChip.Brush/HasBrush/HasText/ToolTipText`、`ChipsFieldRow.IsSwatch`、`DetailListRow.Command/Argument/HasCommand`。样式区（`Shell/Styles/Controls.axaml` ⑭ 追加）：**`Button.chip-toggle.swatch`**（紧凑色块 chip）、**`Button.list-row`**（行容器常态 = 透明无边框左对齐，长得跟只读行一样）+ **`Button.list-row.link`**（有命令才加：`Padding 6,3` + `Cursor=Hand` + 悬停 `CardHoverBrush`；⚠️ 悬停**只改背景** —— 模板里 `TextBlock` 有本地 `Foreground`，样式压不过本地值）。模板侧：chips 由 `Content="{Binding Text}"` 改**内联「色块 + 文本」**（两者各自 `IsVisible`；**色板模式给 `ChipTextPath = ""`** 让文本自动隐藏）；List 项外面包一层 `Button`（`Classes.link="{Binding HasCommand}"`）。**L3**：4 个已停用的 `Views/Detail/*.axaml` 已删（`Custom` 渲染分支仍未接）。
 > **v3.32 变更**：**NT-054 的 L2 批量迁移**（页内自绘 12 页迁掉 11 页，**L1 能力零扩展**）—— 沉淀出**可照抄的迁移四件事**：① VM 实现 `IDetailPanelProvider` + `IDetailCardSource` + **自己的** `ToggleDetailPanel` / `OpenDetailPanel`（⛔ 基类 `ToggleDetailCommand` 不发 `DetailChanged`）+ 显式接口实现；② View 删右列、页根 Grid 收单列、工具条末位改绑 `ToggleDetailPanelCommand`；③ code-behind 的卡内按钮接线**改成把实现注入 VM 的 `XxxCommand` 属性**（`OnDataContextChanged` 里挂，幂等）；④ **`StringFormat` → VM 派生属性**、**`ObjectConverters.IsNotNull` → `HasXxx` 布尔派生**并补通知。另两条口径：**「动态按钮文案」拆成两个互斥可见的 `DetailAction`**（⭐/☆ 收藏，不加新能力）、**`RelayCommand<T>` 型命令在描述符里包 lambda 传选中项**。`pc-shortcuts` 与 `pc-quicksettings` 共用 VM 基类 ⇒ **契约实现一次、`BuildCard()` 由子类 override**。
 > **v3.31 变更**：**NT-054 的 L2 第 2 张迁移**（视频工具·视频预览 `video-cut`）—— 与打样页同构，**L1 能力零扩展**（无需新 Kind / 新通道）；§3.9 的「迁移前页内两列布局」条文正式作废并改写为**迁移后形态**（页内单列 + Shell 右列 / 工具条末位绑 `ToggleDetailPanelCommand` / VM 已实现 `IDetailPanelProvider` + `IDetailCardSource`）。
@@ -747,7 +748,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B10 运行期热加载** | 任意模块随时加载/卸载/替换，服务随模块可扩 | 仅支持「新增未加载过的模块」；同名不卸载不替换；容器已 build，模块不能注册新服务 | 引入可卸载 ALC+模块级容器后升级 | ModuleLoader+Shell |
 | **B11 反射使用** | 最小魔法、少反射 | 模块装配/热加载/视图解析三处用反射枚举 IModule 与 View/VM | 机制必需暂不改；⛔ 仅限这三处 | ModuleLoader/ShellViewModel |
 | **B12 前进/后退**（v3.0 新增） | 所有页面都有丰富页内导航 | 现状仅 `video-list` 有目录语义；多数标签页前进/后退**灰显** | 各页逐步实现 `IHistoryProvider` 后自然改善 | 各模块页面 |
-| **B13 详情面板上提**（v3.2 新增） | 详情由 Shell 右面板统一承载 | 契约与 Shell 容器已实装，但**页面迁移暂缓**——12 个页面仍用页内自绘右列 | 下一版迁移（改 `ListPageViewModelBase` 一处 + 每页抽 DetailView） | Shared + 各模块页面 |
+| **B13 详情面板上提**（v3.2 新增，**v3.54 / NT-054 已结清**） | 详情由 Shell 右面板统一承载 | ✅ **16/16 张卡全部改由 Shell 的声明式渲染器承载**（`IDetailCardSource` + `DetailCardHost`）；12 页页内自绘右列已删、4 个独立 `Views/Detail/*.axaml` 已删 | — | Shared + Shell + 各模块页面 |
 | **B14 媒体资产用户数据落库**（v3.19 新增） | 用户手动数据落 `config\`、进备份（需求 §3.5） | 标签 / 分类 / 集合 / 关联暂存 `data\newtoys.db`（需求 §3.5 称其"可随时重建"）——与 §3.5 定位冲突，以「导出用户数据 JSON」缓解（需求 §6.6 R1） | 用户拍板独立库 / 纳入备份策略时 | Module.MediaAssets + 数据管理 |
 | **B15 数据驱动图标**（v3.22 新增） | 所有图标位都是矢量 `Geometry`（`App.axaml` 的 `Icon*` 键） | 二级功能菜单 `icon` / 首页一键按钮 / 模块页内数据行仍是 **emoji 字符串**（用户 2026-10-15「其他没改的以后再改」） | 收敛工作项 **NT-047**（键名不存在就地没图标，⛔ 不做 emoji 回退） | 各模块注册 + 首页 / 功能清单 / 资产集合页 |
 | **B16 `SetWindowRgn` 方角硬手段**（v3.23 新增） | 方角由官方 `DWMWA_WINDOW_CORNER_PREFERENCE` 稳定生效 | 保留 `ShellView.ApplySquareRegion()`（矩形窗口区域）+ `SetCornerPreferenceNoRound()` 双保险 | 🔴 **NT-042 已裁决保留**：基准测试（完全不套 region）实测阴影**同样没有** ⇒ 原「代价 = 阴影消失」证伪，代价不成立、方角收益仍在。移除条件 = 官方 corner preference 在本窗口上能稳定生效（普通窗 + 分屏两态都不复发圆角） | `Shell/Views/ShellView.axaml.cs` |

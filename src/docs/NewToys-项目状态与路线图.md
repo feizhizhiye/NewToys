@@ -1,6 +1,6 @@
 # NewToys 项目状态与路线图
 
-> v3.53 · 2026-10-15 · 台账
+> v3.54 · 2026-10-15 · 台账
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **项目状态与路线图**（Status & Roadmap），三、节 = **Backlog 工作项台账**。
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
@@ -8,9 +8,9 @@
 > 配套：需求规格（宪法）/ 工程规范 / AI 协作手册 / AGENTS.md（跨 AI 入口）/ skill/（跨 AI 知识库）
 
 **最近三次变更**
+- **v3.54（✅ 验收期 2026-10-15）**：🎉 **NT-054「详情卡声明式规范」整体验收通过 ⇒ 翻 ✔ 已完成**。**L2 全数迁完 16/16**（打样页 `video-batch` + 页内自绘 12 页 + MediaAssets 4 张独立视图）；**L1 按用户拍板做加法扩展**（chips 色块 / chips 命令参数取值 / chip 悬停提示 / `List` 项级命令 + `Button.chip-toggle.swatch` / `Button.list-row`(.link) 两个样式类）；**L3 已删 8 个停用视图**。**用户本地编译 + 实机回归通过**，据此把规范 §7 的**技术债 B13「详情面板上提」结清**（16/16 张卡全部由 Shell 的 `DetailCardHost` 声明式承载）。**遗留（已记录、不阻塞）**：`Custom` 逃生舱的渲染分支仍未接（现无页面需要）；每页仍手写 `IDetailPanelProvider` + `IDetailCardSource` 三件套（评估过的 `ListPageViewModelBase` 一处收敛未做，因 16 张卡已全部迁完、收益消失）。任务卡全量保留。
 - **v3.53（🚧 实施期 2026-10-15）**：✅ **NT-054 的 L2 全数迁完（16/16）+ L1 按用户拍板做加法扩展 + L3 旧 XAML 清理**。**用户拍板**：余 2 张卡（`AssetAllView` 资产 / `AssetTagsView` 标签）选「**加能力，一次做到位**」。**L1 加法（`0584d07`，⛔ 不动既有子）**：`DetailField` 新增 `ChipBrushPath`（chip 色块）/ `ChipCommandArgPath`（命令参数取候选项某属性）/ `ChipToolTipPath` / `ItemCommandPath` + `ItemCommandArgPath`（**List 项级命令**）；渲染层对应 `DetailChip.Brush/HasBrush/HasText/ToolTipText`、`ChipsFieldRow.IsSwatch`、`DetailListRow.Command/Argument/HasCommand`；样式区新增 `Button.chip-toggle.swatch` + `Button.list-row`(.link)（行容器常态 = 只读行外观，⛔ 有命令才加 link：手型 + 悬停背景）。**L2 收官**：`AssetAllView` `37541dd`（三组**带色块** chips + 5 个动作，最复杂的一张）、`AssetTagsView` `cbb190e`（色板 = `ChipTextPath=""` + `ChipBrushPath` + `ChipCommandArgPath="Hex"`；「用了这个标签的资产」**可点击 List**）。**L3**：`ece5234` 删掉 8 个已停用的 `Views/Detail/*.axaml(.cs)` + 修正 3 处过时注释（`Custom` 渲染分支仍未接，现无页面需要）。文档：需求 v3.51、规范 v3.33、任务卡 NT-054（L1 扩展表 + 收官记录 + 4 条回归清单）。静态检查四项全绿；⏳ 待用户本地编译 + 实机回归。
 - **v3.52（🚧 实施期 2026-10-15）**：🛠 **NT-054 的 L2 收尾 3 张（累计 14/16）+ 🔴 余 2 张停手待拍板**。**做掉**：`pc-package`（软件包管理，页内卡 110 行，8 个卡内动作）`ae312de`、`assets-trash`（回收站，独立视图 `TrashDetailView` → 描述符）`7565b2a`、`assets-storages`（存储源，`StorageDetailView` → 描述符，含两组 `List` 与组空态）`d8c4817`；迁完即无引用的 4 个 `Views/Detail/*.axaml` **本轮不删**（归 L3）。前置：工作区那批**他人在飞的未提交改动**（右键菜单挂 Border 修崩溃 + 资产/软件包页文案与工具条对齐）先单独落盘 `14721db`，⛔ 不与本次混提。🔴 **余 2 张（`AssetAllView` 资产 / `TagDetailView` 标签）停手**：现有 8 种 Kind 覆盖不了它们的交互 —— ① chips **每项带色块**（`Chips` 缺「色块路径」）；② 色板选择器（还缺「命令参数取候选项某属性」）；③ `List` 项**可点击跳转**（List 只读、无项级命令）；④ 色板的 `Button.swatch` 是**页内私有样式**（描述符没有样式类槽位）。**阻塞上报第 2 种**（不删用户已确认的实现）⇒ 待用户三选一：加法扩展描述符 / 降级迁移 / 保留自绘走 `Custom`。文档：需求 v3.50（§4.5.1 覆盖基线**再次暴露漏洞，与打样页同类**）、任务卡 NT-054（3 张 commit + 缺口表 + 4 条回归清单）。静态检查四项全绿；⏳ 待用户本地编译 + 实机回归。
-- **v3.51（🚧 实施期 2026-10-15）**：🛠 **NT-054 的 L2 批量迁移落地（本轮 10 页，累计 11/16 张）** —— 页内自绘右列 12 页里迁掉 11 页：视频预览 `video-cut`、视频列表 `video-list`、电脑信息 `pc-info`、设置与脚本 `pc-shortcuts`、快捷设置 `pc-quicksettings`、路径配置 `settings-path`、Hosts `web-hosts`、书签 `web-bookmark`、Ping `web-ping`、爬虫 `web-scrape`（每页一个 commit，逐页可回滚）。**L1 能力全程零扩展**。沉淀出可照抄的迁移四件事（VM 三件套 + 会通知 Shell 的开合命令 / View 收单列 + 改绑 / code-behind 卡内按钮改注入命令 / `StringFormat` 与 `IsNotNull` 一律换 VM 派生属性）；**「动态按钮文案」拆成两个互斥可见的 `DetailAction`**（⭐ 收藏 / ★ 取消收藏）—— 不需要新能力；`pc-shortcuts` 与 `pc-quicksettings` 共用一个 VM 基类 ⇒ **契约在基类实现一次、`BuildCard()` 由子类各自 override**。🔴 **另修一个用户报障的既有回归**：批量队列勾选分区 ✂ / 🔁 后详情卡掉回示例态（`FinishKindChange` 里 `Selected = fresh` 与 `RefreshView()` 顺序颠倒，`Items.Clear()` 会冲掉选中项）⇒ 两句换序修好。**⛔ 未做（阻塞）**：`pc-package` 与 MediaAssets 4 张（独立视图形态）—— 前者 `PackageManagerView.*`、后者 `AssetAllView*` / `AssetAllViewModel.cs` 等工作区**已有他人在飞的未提交改动**，⛔ 不能混进本次 commit，需先处置。文档：需求 v3.49、规范 v3.32、任务卡 NT-054（含 10 页逐页 commit 表 + 7 条手工回归清单）。静态检查四项全绿；⏳ 待用户本地编译 + 实机回归。
 - **v3.45 / v3.43 / v3.40 / v3.37 / v3.36 / v3.35 / v3.34 / v3.33 / v3.32**（归档）：v3.45 首页标签固定不滚动（v3.44 的收窄 + 横排 ItemsPanel 丢失的 bug 修复）｜v3.43 设置重构四项批（NT-050~053）｜v3.40 台账去重 + 与代码对齐 / v3.37 夜间批量 8 项 / NT-019 物理操作 + 任务中心 + 回收站 / NT-018 三页 + 逻辑操作 / NT-017 薄壳类型页 / 媒体资产数据层与骨架 / 视频工具精简 + 示例数据 —— 明细见 `git log`。
 
 ---
@@ -142,7 +142,7 @@
 | NT-051 | 设置页合并：主题外观 + 关于 并入 通用设置（单页三节；键 `settings-general` 不变，删 `settings-theme`/`settings-about` 两项） | P2 | ✔ 已完成（已验收） | backlog/NT-051.md |
 | NT-052 | 「🔄 重载模块」移入设置（标题栏 3→2 按钮；入口 = **功能清单页**「增加功能」操作区；方案 A：Shared/Core 新增 `IModuleReloadService` 契约，2026-10-15 用户拍板） | P2 | ✔ 已完成（已验收） | backlog/NT-052.md |
 | NT-053 | 设置页窄界面适配：最窄 960×640（内容宽 720）与默认 1280×800 两种可用（根 ScrollViewer / 星号列 / 去超宽固定容器） | P2 | ✔ 已完成（已验收） | backlog/NT-053.md |
-| NT-054 | 详情卡声明式规范：**三区模型**（`Fields` 字段区 / `Actions` 动作区 / `Custom` 逃生舱）+ 7 种字段 Kind + 3 种提交语义（`Instant`/`OnBlur`/`Explicit`）+ Shell 统一渲染，替代 16 张卡逐页手写 XAML（含债 B13 详情面板上提） | P1 | 🚧 **实施中**（2026-10-15：📝 草稿 → ✅ 就绪 → **L0 + L1 已交付并编译验收通过** → **L2 全数迁完 16/16**（打样页 `video-batch` 已验收 + 页内自绘 12 页 + MediaAssets 4 张独立视图；**L1 按用户拍板做了加法扩展**：chips 色块 / chips 命令参数取值 / List 项级命令 / chip 悬停提示；**L3 已删 8 个停用视图**，`Custom` 渲染分支仍未接）；⏳ 全部批次待本地编译 + 实机回归 逃生舱 / 旧 XAML 清理待做，未迁移的卡仍走老的 `DetailContent`） | backlog/NT-054.md |
+| NT-054 | 详情卡声明式规范：**三区模型**（`Fields` 字段区 / `Actions` 动作区 / `Custom` 逃生舱）+ 7 种字段 Kind + 3 种提交语义（`Instant`/`OnBlur`/`Explicit`）+ Shell 统一渲染，替代 16 张卡逐页手写 XAML（含债 B13 详情面板上提） | P1 | ✔ **已完成（已验收 2026-10-15）**（2026-10-15：📝 草稿 → ✅ 就绪 → **L0 + L1 交付并编译验收通过** → **L2 全数迁完 16/16**（打样页 `video-batch` 已验收 + 页内自绘 12 页 + MediaAssets 4 张独立视图；**L1 按用户拍板做了加法扩展**：chips 色块 / chips 命令参数取值 / List 项级命令 / chip 悬停提示；**L3 已删 8 个停用视图**，`Custom` 渲染分支仍未接）；**用户本地编译 + 实机回归通过（2026-10-15）；技术债 B13 结清**；遗留 = `Custom` 逃生舱渲染分支仍未接（现无页面需要）） | backlog/NT-054.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡保留、⛔ 不删）。
 > NT-048（分屏贴靠首次几何不收敛）**已作废**：现象为**系统级**（Firefox 同复现）⇒ 外部纠偏方向错误，⛔ 不复活；任务卡保留备查。

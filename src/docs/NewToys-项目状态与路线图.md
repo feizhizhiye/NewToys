@@ -8,10 +8,10 @@
 > 配套：需求规格（宪法）/ 工程规范 / AI 协作手册 / AGENTS.md（跨 AI 入口）/ skill/（跨 AI 知识库）
 
 **最近三次变更**
+- **v3.57（🚧 实施期 2026-10-15）**：**NT-055 验收通过**（用户本地 `build.ps1` 编译 + 回归）＋ **NT-056「设置总表」落地**（commit `66faa28`）—— 用户「NT-055 验收通过，继续执行 NT-056」。**一张表两类行**：`PathSettingItem` 加 `SettingCategory`（`路径` / `配置`）+ 配置行字段（`IsActiveProfile` / `Mark` / `ProfileStateText`，`Kind` 借只读展示位）；`PathViewModel` 统一表头 = **分类 ｜ 名称 ｜ 当前值 ｜ 类型 ｜ 说明 ｜ 操作**（分类列可排序 —— 排序时按"分类 → 名称"两级，同类不会被名称打散 —— 且进表头右键「筛选」）；**工具可用性按选中行分类**：路径侧 4 项（💾 保存 / 📂 浏览… / ↗ 打开位置 / ↩ 还原默认）与配置侧 6 项（⇄ 切换 / 🚀 新开 / ⭐ 设为默认 / ✏ 重命名 / 🗑 删除 / ♻ 重置）在选中另一分类时置灰，`ToolTipPath` 给出**原因**（"该操作只对「路径」行可用" / "当前窗口已经在用这个配置了" …），与分类无关的（📂 打开配置目录 / ＋ 新建配置）恒可用；**详情卡按分类切换字段集**（`Card` → 路径卡 / 配置卡两个实例，分类一变即 `OnPropertyChanged(Card)` + `DetailChanged` ⇒ Shell 重取重建，⛔ 不再是"缓存一次"的静态卡）；**操作列按分类分派**（路径 = 📂 浏览 / ↗；配置 = ⇄ 🚀 ⭐ ✏ 🗑 ♻，窄窗口下 WrapPanel 折行）；**配置侧 7 个动作语义零改动**（切换仍二次确认 + 本窗重启、删除仍禁删当前配置并二次确认、重置仍禁 default / 当前配置）。**结构清理**：删 `ProfileView.axaml(.cs)` + `ProfileViewModel.cs`（含 160px 自绘按钮列）；`PathView` 删页内工具条（改由 Shell 承载，NT-055）+ 页内 `code-behind` 的浏览接线改走 `Core.DialogHooks`（只留右键菜单 DataContext 同步）；菜单 `settings-path` 标题改「**路径与配置**」（Key ⛔ 不变）、删 `settings-profile`、`settings-data` / `settings-all` Order 顺延（35 → 34 项）。静态检查四项全绿；⏳ 待用户本地 `build.ps1` 编译验收。
 - **v3.56（🚧 实施期 2026-10-15）**：**NT-055「工具条改由 Shell 声明式承载」落地**（commit `8da4462`）—— 用户「执行全部就绪待办」。**框架件**：新增 `Shared/Services/IToolbarSource` + `Shared/Models/ToolbarItemDescriptor`（**7 类项**：Button / SplitButton / Toggle / TextField / **Combo / Label / Separator**）+ `Shell/Controls/ToolbarHost`（折叠算法由「全部资产」页**原样搬迁**，两条防抖保留；详情开关改**浮层**：⛔ 不占独立列、⛔ 不参与宽度计算，但**第一行容量避让**）；`ShellView` 内容列新增工具条行、`ShellViewModel` 探测契约；🔴 **框架层**：`ListPageViewModelBase` 实现 `IToolbarSource`（`virtual Toolbar => null`）⇒ 列表页只 override 一个属性；`Core.DialogHooks` 新增 3 个选择器钩子（PickFolder / PickFiles / SaveFile）+ `App.axaml.cs` 注入 ⇒ 页面 VM 也能弹选择器。**已迁 9 个 View（覆盖 14 页）**：`assets-all`（+5 个类型薄壳页经 VM 继承）、`video-list` / `video-cut` / `video-batch`、`web-scrape` / `web-hosts` / `web-bookmark` / `web-ping`、`pc-info`。⚠️ **范围修正**：`web-http`（表单式撑满布局）/ `pc-package`（动态多选源按钮组）/ `pc-shortcuts` + `pc-quick`（`io-bar` 分组 + Flyout）走需求 §4.8.5 第 2 条**逃生舱**（保留页内工具条）；`settings-path` 挪到 NT-056。静态检查四项全绿；⏳ 待用户本地 `build.ps1`。**NT-056 未开始**（仍 ✅ 就绪）。**（立项留痕：v3.55 规划期已写需求 §4.8.5 + §4.9.1 + 任务卡 NT-055 / NT-056；用户**否决**「每模块一份副本」（加代码）与「`Shared` 引 Avalonia」（破铁律、增架构复杂度），**选 X1**。）**
 - **v3.54（✅ 验收期 2026-10-15）**：🎉 **NT-054「详情卡声明式规范」整体验收通过 ⇒ 翻 ✔ 已完成**。**L2 全数迁完 16/16**（打样页 `video-batch` + 页内自绘 12 页 + MediaAssets 4 张独立视图）；**L1 按用户拍板做加法扩展**（chips 色块 / chips 命令参数取值 / chip 悬停提示 / `List` 项级命令 + `Button.chip-toggle.swatch` / `Button.list-row`(.link) 两个样式类）；**L3 已删 8 个停用视图**。**用户本地编译 + 实机回归通过**，据此把规范 §7 的**技术债 B13「详情面板上提」结清**（16/16 张卡全部由 Shell 的 `DetailCardHost` 声明式承载）。**遗留（已记录、不阻塞）**：`Custom` 逃生舱的渲染分支仍未接（现无页面需要）；每页仍手写 `IDetailPanelProvider` + `IDetailCardSource` 三件套（评估过的 `ListPageViewModelBase` 一处收敛未做，因 16 张卡已全部迁完、收益消失）。任务卡全量保留。
-- **v3.53（🚧 实施期 2026-10-15）**：✅ **NT-054 的 L2 全数迁完（16/16）+ L1 按用户拍板做加法扩展 + L3 旧 XAML 清理**。**用户拍板**：余 2 张卡（`AssetAllView` 资产 / `AssetTagsView` 标签）选「**加能力，一次做到位**」。**L1 加法（`0584d07`，⛔ 不动既有子）**：`DetailField` 新增 `ChipBrushPath`（chip 色块）/ `ChipCommandArgPath`（命令参数取候选项某属性）/ `ChipToolTipPath` / `ItemCommandPath` + `ItemCommandArgPath`（**List 项级命令**）；渲染层对应 `DetailChip.Brush/HasBrush/HasText/ToolTipText`、`ChipsFieldRow.IsSwatch`、`DetailListRow.Command/Argument/HasCommand`；样式区新增 `Button.chip-toggle.swatch` + `Button.list-row`(.link)（行容器常态 = 只读行外观，⛔ 有命令才加 link：手型 + 悬停背景）。**L2 收官**：`AssetAllView` `37541dd`（三组**带色块** chips + 5 个动作，最复杂的一张）、`AssetTagsView` `cbb190e`（色板 = `ChipTextPath=""` + `ChipBrushPath` + `ChipCommandArgPath="Hex"`；「用了这个标签的资产」**可点击 List**）。**L3**：`ece5234` 删掉 8 个已停用的 `Views/Detail/*.axaml(.cs)` + 修正 3 处过时注释（`Custom` 渲染分支仍未接，现无页面需要）。文档：需求 v3.51、规范 v3.33、任务卡 NT-054（L1 扩展表 + 收官记录 + 4 条回归清单）。静态检查四项全绿；⏳ 待用户本地编译 + 实机回归。
-- **v3.52 / v3.45 / v3.43 / v3.40 / v3.37 / v3.36 / v3.35 / v3.34 / v3.33 / v3.32**（归档）：v3.52 NT-054 的 L2 收尾 3 张（14/16）+ 余 2 张停手待拍板｜v3.45 首页标签固定不滚动（v3.44 的收窄 + 横排 ItemsPanel 丢失的 bug 修复）｜v3.43 设置重构四项批（NT-050~053）｜v3.40 台账去重 + 与代码对齐 / v3.37 夜间批量 8 项 / NT-019 物理操作 + 任务中心 + 回收站 / NT-018 三页 + 逻辑操作 / NT-017 薄壳类型页 / 媒体资产数据层与骨架 / 视频工具精简 + 示例数据 —— 明细见 `git log`。
+- **v3.53 / v3.52 / v3.45 / v3.43 / v3.40 / v3.37 / v3.36 / v3.35 / v3.34 / v3.33 / v3.32**（归档）：v3.53 NT-054 的 L2 全数迁完 16/16 + L1 加法扩展 + L3 旧 XAML 清理｜v3.52 NT-054 的 L2 收尾 3 张（14/16）+ 余 2 张停手待拍板｜v3.45 首页标签固定不滚动（v3.44 的收窄 + 横排 ItemsPanel 丢失的 bug 修复）｜v3.43 设置重构四项批（NT-050~053）｜v3.40 台账去重 + 与代码对齐 / v3.37 夜间批量 8 项 / NT-019 物理操作 + 任务中心 + 回收站 / NT-018 三页 + 逻辑操作 / NT-017 薄壳类型页 / 媒体资产数据层与骨架 / 视频工具精简 + 示例数据 —— 明细见 `git log`。
 
 ---
 
@@ -59,9 +59,10 @@
 | **合计** | **32** | **32** | **0** |
 
 > **骨架页**：无（web-http 已由 NT-001 落成真实页；媒体资产 11 页已由 NT-017~022 逐页落地 + NT-016 `assets-all` 真实列表页，零骨架）。
+> v3.57：系统设置 **8 → 7**（NT-056：「路径配置」+「配置」合并为一页**「路径与配置」**，菜单项 `settings-profile` 移除，其余 Order 顺延 6 / 7）。
 > v3.43：系统设置 10 → 7（NT-050 软件源迁 PcTools；NT-051 主题 / 关于并入通用）；媒体资产设置页 `settings-media-assets` 按菜单归「设置」分组、按代码归 `Module.MediaAssets`，§2.3 沿旧口径未单列（12 = `assets-*` 页）。
 
-### 2.4 菜单清单（35 项）
+### 2.4 菜单清单（34 项）
 
 > 权威来源 = 各模块 `Initialize()` 的 `RegisterModule/RegisterFunction`；冲突以代码为准。
 
@@ -72,7 +73,7 @@
 | 网络工具 | web | 30 | `IconWeb` | `web-http`HTTP测试/1/✅ ｜ `web-bookmark`书签/2/✅ ｜ `web-ping`网络Ping/3/✅ ｜ `web-scrape`网页抓取/4/✅ ｜ `web-hosts`Hosts管理/5/✅ |
 | 视频工具 | video | 40 | `IconVideo` | `video-list`视频列表/0/✅ ｜ `video-cut`**视频预览**/1/✅ ｜ `video-batch`**批量处理**/2/✅ |
 | 媒体资产 | assets | 50 | `IconMediaAssets` | `assets-all`全部资产/0/✅ ｜ `assets-video`视频/1/✅ ｜ `assets-music`音乐/2/✅ ｜ `assets-book`书籍/3/✅ ｜ `assets-image`图片/4/✅ ｜ `assets-document`文档/5/✅ ｜ `assets-tags`标签管理/6/✅ ｜ `assets-categories`分类管理/7/✅ ｜ `assets-collections`集合管理/8/✅ ｜ `assets-storages`存储源/9/✅ ｜ `assets-tasks`任务中心/10/✅ ｜ `assets-trash`回收站/11/✅ |
-| 设置 | settings | 999 | `IconSettings` | `settings-general`通用/0/✅（v3.43 起含主题外观 / 关于）｜ `settings-path`路径/2/✅ ｜ `settings-launch`一键按钮/3/✅ ｜ `settings-dns`加密DNS/4/✅ ｜ `settings-package`软件源/5/✅（v3.43 起 PcTools 自注册）｜ `settings-profile`配置/6/✅ ｜ `settings-data`数据管理/7/✅ ｜ `settings-all`功能清单/9/✅（v3.43 起重载模块入口）｜ `settings-media-assets`媒体资产设置/100/✅（媒体资产模块自注册；v3.43 由「媒体资产」改名） |
+| 设置 | settings | 999 | `IconSettings` | `settings-general`通用/0/✅（v3.43 起含主题外观 / 关于）｜ `settings-path`**路径与配置**/2/✅（**v3.57 由「路径配置」改名：并入原「配置」页，一张设置总表按分类列区分「路径 / 配置」行**）｜ `settings-launch`一键按钮/3/✅ ｜ `settings-dns`加密DNS/4/✅ ｜ `settings-package`软件源/5/✅（v3.43 起 PcTools 自注册）｜ `settings-data`数据管理/6/✅ ｜ `settings-all`功能清单/7/✅（v3.43 起重载模块入口）｜ `settings-media-assets`媒体资产设置/100/✅（媒体资产模块自注册；v3.43 由「媒体资产」改名） |
 
 ---
 
@@ -143,8 +144,8 @@
 | NT-052 | 「🔄 重载模块」移入设置（标题栏 3→2 按钮；入口 = **功能清单页**「增加功能」操作区；方案 A：Shared/Core 新增 `IModuleReloadService` 契约，2026-10-15 用户拍板） | P2 | ✔ 已完成（已验收） | backlog/NT-052.md |
 | NT-053 | 设置页窄界面适配：最窄 960×640（内容宽 720）与默认 1280×800 两种可用（根 ScrollViewer / 星号列 / 去超宽固定容器） | P2 | ✔ 已完成（已验收） | backlog/NT-053.md |
 | NT-054 | 详情卡声明式规范：**三区模型**（`Fields` 字段区 / `Actions` 动作区 / `Custom` 逃生舱）+ 7 种字段 Kind + 3 种提交语义（`Instant`/`OnBlur`/`Explicit`）+ Shell 统一渲染，替代 16 张卡逐页手写 XAML（含债 B13 详情面板上提） | P1 | ✔ **已完成（已验收 2026-10-15）**（2026-10-15：📝 草稿 → ✅ 就绪 → **L0 + L1 交付并编译验收通过** → **L2 全数迁完 16/16**（打样页 `video-batch` 已验收 + 页内自绘 12 页 + MediaAssets 4 张独立视图；**L1 按用户拍板做了加法扩展**：chips 色块 / chips 命令参数取值 / List 项级命令 / chip 悬停提示；**L3 已删 8 个停用视图**，`Custom` 渲染分支仍未接）；**用户本地编译 + 实机回归通过（2026-10-15）；技术债 B13 结清**；遗留 = `Custom` 逃生舱渲染分支仍未接（现无页面需要）） | backlog/NT-054.md |
-| NT-055 | 工具条统一：Shell 声明式承载（`IToolbarSource` + `ToolbarHost`）+ 详情开关浮动（新契约 + Shell 新控件，**框架层首审项**；**已迁 9 个 View / 覆盖 14 页**；4 页走逃生舱） | P1 | ✔ 已完成（待验收）· commit `8da4462` | backlog/NT-055.md |
-| NT-056 | 设置总表：路径配置 + 配置 合并为一表（分类列区分行类型 / 决定工具可用性；菜单 35 → 34） | P1 | ✅ 就绪（**依赖 NT-055**） | backlog/NT-056.md |
+| NT-055 | 工具条统一：Shell 声明式承载（`IToolbarSource` + `ToolbarHost`）+ 详情开关浮动（新契约 + Shell 新控件，**框架层首审项**；**已迁 9 个 View / 覆盖 14 页**；4 页走逃生舱） | P1 | ✔ 已完成（已验收）· commit `8da4462` | backlog/NT-055.md |
+| NT-056 | 设置总表：路径配置 + 配置 合并为一表（分类列区分行类型 / 决定工具可用性；菜单 35 → 34） | P1 | ✔ 已完成（待验收）· commit `66faa28` | backlog/NT-056.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡保留、⛔ 不删）。
 > NT-048（分屏贴靠首次几何不收敛）**已作废**：现象为**系统级**（Firefox 同复现）⇒ 外部纠偏方向错误，⛔ 不复活；任务卡保留备查。

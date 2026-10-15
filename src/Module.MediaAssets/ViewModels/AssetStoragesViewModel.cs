@@ -10,7 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
 using NewToys.MediaAssets.Models;
 using NewToys.MediaAssets.Services;
-using NewToys.MediaAssets.Views.Detail;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -28,7 +28,7 @@ namespace NewToys.MediaAssets.ViewModels;
 /// </list>
 /// </para>
 /// </summary>
-public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPanelProvider
+public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly AssetService _assets = null!;
     private readonly StorageService _storages = null!;
@@ -36,7 +36,6 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     private readonly TaskQueue _queue = null!;
     private readonly INavigationService? _nav;
     private readonly List<StorageRow> _all = new();
-    private StorageDetailView? _detailView;
 
     public ObservableCollection<StorageRow> Items { get; } = new();
 
@@ -462,18 +461,77 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    public object? DetailContent
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（NT-054 迁移：原来的 <c>StorageDetailView</c> 已停用）。</summary>
+    public object? DetailContent => null;
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（NT-054 / 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的 <c>StorageDetailView</c> 对应：基本信息 / 统计 / 按类型分布 / 最近扫描错误 / 时间戳，**无卡内动作**（编辑走行右键）。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
     {
-        get
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧列表里选中一个存储源，这里显示它的详情与统计。",
+        SampleText = "（示例数据）在左侧选中一个存储源后，这里显示它的真实信息。",
+        Sections =
         {
-            if (_detailView == null)
+            new DetailSection
             {
-                _detailView = new StorageDetailView();
-                _detailView.DataContext = this;
+                Fields =
+                {
+                    // 原来卡首是动态标题 `{Binding DetailStorage.Name}`；描述符的分区标题是静态串 ⇒ 改成一个「名称」字段
+                    new DetailField { Label = "名称", ValuePath = "DetailStorage.Name", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "根路径", ValuePath = nameof(DetailRootPath), Kind = FieldKind.Text, Selectable = true },
+                    // 原来「类型 / 状态」是**同行并排** → 按 NT-054 已拍板口径拆成两行
+                    new DetailField { Label = "类型", ValuePath = nameof(DetailType), Kind = FieldKind.Text },
+                    new DetailField { Label = "状态", ValuePath = nameof(DetailStatus), Kind = FieldKind.Text },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField { Label = "文件位置数", ValuePath = nameof(DetailFileCount), Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "已用大小", ValuePath = nameof(DetailSize), Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "缺失位置", ValuePath = nameof(DetailMissing), Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "按类型分布",
+                        Kind = FieldKind.List,
+                        OptionsPath = nameof(DetailTypeStats),
+                        ItemTextPath = "TypeText",
+                        ItemSubPath = "CountText",
+                        ItemDetailPath = "SizeText"
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有文件位置）",
+                        VisibleWhen = "!" + nameof(HasTypeStats)
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "最近扫描错误",
+                        Kind = FieldKind.List,
+                        OptionsPath = nameof(DetailErrors),
+                        ItemTextPath = "Message",
+                        ItemDetailPath = "Path"
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（没有记录错误）",
+                        VisibleWhen = "!" + nameof(HasErrors)
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField { Label = "登记时间", ValuePath = nameof(DetailCreated), Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "最近更新", ValuePath = nameof(DetailUpdated), Kind = FieldKind.Text, Selectable = true }
+                }
             }
-            return _detailView;
         }
-    }
+    };
 
     public event EventHandler? DetailChanged;
 

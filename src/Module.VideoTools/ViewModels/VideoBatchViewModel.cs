@@ -349,13 +349,17 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         if (old != null) _store!.Replace(old, fresh);
 
+        // 🔴 顺序不能颠倒：RefreshView() 里 Items.Clear() 会把 ListView 的选中项清空（TwoWay 回写 Selected = null），
+        //    ★ 如果先 Selected = fresh 再 RefreshView()，fresh 会被这次 Clear 冲掉 → OnSelectedChanged(null)
+        //      → FillEditors(null) → 详情卡掉回「示例态」（用户看到的现象：勾选框一点，卡就回初始示例）。
+        RefreshView();
+
         _converting = true;
         Selected = fresh;                 // 触发 OnSelectedChanged → 重填编辑缓冲与两个勾选框
         _converting = false;
 
         IsCutSectionExpanded = EditIsCut;
         IsTranscodeSectionExpanded = EditIsTranscode;
-        RefreshView();
         BuildCompareRows();
         RefreshCommand();
         StatusText = $"「{fresh.Name}」已改为「{kind}」任务 —— 参数回到该类型的默认值，改完点「💾 保存修改」。";

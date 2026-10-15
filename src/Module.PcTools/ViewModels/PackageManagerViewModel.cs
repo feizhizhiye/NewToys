@@ -5,11 +5,13 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -40,7 +42,7 @@ public class PackageExportItem
 /// 页面 VM 是瞬态，订阅了就会把每次进入页面的 VM 都挂在单例上（内存泄漏 + 重复回调）。
 /// </para>
 /// </summary>
-public partial class PackageManagerViewModel : ListPageViewModelBase
+public partial class PackageManagerViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private enum ListMode { None, Search, Installed, Upgrades }
 
@@ -171,6 +173,214 @@ public partial class PackageManagerViewModel : ListPageViewModelBase
     public bool ShowDetailBody => HasSelection || IsDetailSample;
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
+    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>工具条末位的详情开关 → 走本命令（⛔ 基类 <c>ToggleDetailCommand</c> 不通知 Shell，右列不会跟着开合）。</summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的页内自绘卡片对应：只读信息（名称 / Id / 版本 / 状态 / 源 / 发布者 / 协议 / 安装位置 / 主页 / 描述）
+    /// + 八个卡内动作（安装 / 升级 / 详情 / Pin / 取消 Pin / 卸载 / 复制 Id / 主页）。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
+    {
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧列表里选中一个包。选中后这里显示版本、源、状态、发布者、主页、协议与描述；右键列表还有安装 / 升级 / 卸载 / Pin 等操作。",
+        SampleText = "（示例数据）在左侧选中一个包后，这里显示它的真实信息；示例态下操作按钮不可用。",
+        Sections =
+        {
+            new DetailSection
+            {
+                Header = "选中包",
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "名称",
+                        ValuePath = "DetailItem.Name",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField
+                    {
+                        Label = "Id",
+                        ValuePath = "DetailItem.Id",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    // 原来「版本 / 可升级到」是**同行并排**（版本 → 可升级）→ 按 NT-054 已拍板口径拆成两行
+                    new DetailField
+                    {
+                        Label = "版本",
+                        ValuePath = "DetailItem.Version",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "可升级到",
+                        ValuePath = "DetailItem.Available",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "状态",
+                        ValuePath = "DetailItem.StatusText",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField
+                    {
+                        Label = "源",
+                        ValuePath = "DetailItem.Source",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField
+                    {
+                        Label = "发布者",
+                        ValuePath = "DetailItem.Publisher",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField
+                    {
+                        Label = "协议 / 许可证",
+                        ValuePath = "DetailItem.License",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField
+                    {
+                        Label = "安装位置",
+                        ValuePath = "DetailItem.InstallLocation",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "主页",
+                        ValuePath = "DetailItem.Homepage",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "描述",
+                        ValuePath = "DetailItem.Description",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（描述等信息来自「🔎 详情」，点一下才会去跑 winget show）"
+                    }
+                }
+            }
+        },
+        Actions =
+        {
+            // 原来这八个按钮是页内卡顶部的三排（只在有选中项时显示）；声明式卡里进 Actions 区。
+            new DetailAction
+            {
+                Text = "⬇ 安装",
+                Classes = "primary",
+                ToolTip = "用 winget 安装这个包",
+                IsVisiblePath = nameof(HasSelection),
+                IsEnabledPath = "!" + nameof(IsBusy),
+                Command = InstallCommand
+            },
+            new DetailAction
+            {
+                Text = "⬆ 升级",
+                Classes = "ghost",
+                ToolTip = "把已安装的版本升到最新",
+                IsVisiblePath = nameof(HasSelection),
+                IsEnabledPath = "!" + nameof(IsBusy),
+                Command = UpgradeCommand
+            },
+            new DetailAction
+            {
+                Text = "🔎 详情",
+                Classes = "ghost",
+                ToolTip = "跑 winget show 拉取发布者 / 协议 / 主页 / 描述等详细信息",
+                IsVisiblePath = nameof(HasSelection),
+                Command = LoadDetailCommand
+            },
+            new DetailAction
+            {
+                Text = "📌 Pin",
+                Classes = "ghost",
+                ToolTip = "Pin 住 = 暂停更新，winget upgrade 会跳过它",
+                IsVisiblePath = nameof(HasSelection),
+                IsEnabledPath = "!" + nameof(IsBusy),
+                Command = PinCommand
+            },
+            new DetailAction
+            {
+                Text = "📌 取消 Pin",
+                Classes = "ghost",
+                ToolTip = "解除 Pin，恢复参与升级",
+                IsVisiblePath = nameof(HasSelection),
+                IsEnabledPath = "!" + nameof(IsBusy),
+                Command = UnpinCommand
+            },
+            new DetailAction
+            {
+                Text = "🗑 卸载",
+                Classes = "ghost",
+                ToolTip = "用 winget 卸载这个包",
+                IsVisiblePath = nameof(HasSelection),
+                IsEnabledPath = "!" + nameof(IsBusy),
+                Command = UninstallCommand
+            },
+            new DetailAction
+            {
+                Text = "📋 复制 Id",
+                Classes = "ghost",
+                ToolTip = "把包 Id 复制到剪贴板",
+                IsVisiblePath = nameof(HasSelection),
+                Command = CopyIdCommand
+            },
+            new DetailAction
+            {
+                Text = "🌐 主页",
+                Classes = "ghost",
+                ToolTip = "在默认浏览器里打开主页",
+                IsVisiblePath = nameof(HasSelection),
+                Command = OpenHomepageCommand
+            }
+        }
+    };
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public PackageManagerViewModel() { }

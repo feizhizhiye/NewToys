@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.WebTools.Models;
@@ -16,7 +18,7 @@ namespace NewToys.WebTools.ViewModels;
 /// hosts 管理页：多套方案（列表）+ 右侧详情（编辑条目 / 应用到系统 hosts / 网络导入）。
 /// 布局遵循规范 3.8 列表页规范；列显隐 / 详情开合偏好落在 <c>config\columnlayout.json</c>。
 /// </summary>
-public partial class HostsViewModel : ListPageViewModelBase
+public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly HostsService _svc = null!;
@@ -89,6 +91,133 @@ public partial class HostsViewModel : ListPageViewModelBase
     public bool ShowDetailBody => HasSelection || IsDetailSample;
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
+    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+
+    /// <summary>无权限写系统 hosts 时给出的可复制受管块是否非空（原 XAML 用 <c>ObjectConverters.IsNotNull</c>，描述符只认布尔路径）。</summary>
+    public bool HasBlockPreview => !string.IsNullOrWhiteSpace(BlockPreview);
+
+    partial void OnBlockPreviewChanged(string value) => OnPropertyChanged(nameof(HasBlockPreview));
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>工具条末位的详情开关 → 走本命令（⛔ 基类 <c>ToggleDetailCommand</c> 不通知 Shell，右列不会跟着开合）。</summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的页内自绘卡片对应：方案名 + 条目编辑区 + 受管块预览 + 四个卡内动作（保存 / 应用 / 导出 / 删除）。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
+    {
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧列表里选中一套方案",
+        SampleText = "（示例数据）在左侧选中一套方案后，这里显示它的真实内容；示例态下不可编辑。",
+        Sections =
+        {
+            new DetailSection
+            {
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "方案名称",
+                        ValuePath = "DetailItem.Name",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur
+                    },
+                    new DetailField
+                    {
+                        Label = "条目（每行一条：IP 主机名 # 注释；行首 # 表示禁用）",
+                        ValuePath = nameof(EntriesText),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        MultiLine = true,
+                        Rows = 160
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "无权限写入系统 hosts 时，下方会显示可复制的受管块：",
+                        VisibleWhen = nameof(HasBlockPreview)
+                    },
+                    new DetailField
+                    {
+                        ValuePath = nameof(BlockPreview),
+                        Kind = FieldKind.Text,
+                        Selectable = true,
+                        Mono = true,
+                        VisibleWhen = nameof(HasBlockPreview)
+                    }
+                }
+            }
+        },
+        Actions =
+        {
+            // 原来这四个按钮是页内卡里的 WrapPanel（只在有选中 / 示例态之外显示）；声明式卡里进 Actions 区。
+            new DetailAction
+            {
+                Text = "💾 保存",
+                Classes = "primary",
+                ToolTip = "把当前内容写回方案（落 config 下的 hosts 方案文件）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = SaveCommand
+            },
+            new DetailAction
+            {
+                Text = "✅ 应用",
+                Classes = "ghost",
+                ToolTip = "把这套方案应用到系统 hosts（无权限时给出可复制的受管块）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = ApplyCommand
+            },
+            new DetailAction
+            {
+                Text = "📤 导出",
+                Classes = "ghost",
+                ToolTip = "把当前方案导出成文件",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = ExportCommand
+            },
+            new DetailAction
+            {
+                Text = "🗑 删除",
+                Classes = "ghost",
+                ToolTip = "删除这套方案",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = DeleteCommand
+            }
+        }
+    };
 
     public HostsViewModel() { }
 

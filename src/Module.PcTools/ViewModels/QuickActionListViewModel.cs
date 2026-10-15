@@ -97,13 +97,14 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     // ==================== 表头（左键点一下切换排序） ====================
 
     [ObservableProperty] private string _titleHeader = "名称 ▲";
-    [ObservableProperty] private string _categoryHeader = "类型";
+    [ObservableProperty] private string _categoryHeader = "功能";
     [ObservableProperty] private string _favoriteHeader = "★";
 
     // ==================== 列显隐（基类管状态，这里只给 XAML 提供具名属性） ====================
 
     public bool IsTitleVisible => Vis("Title");
     public bool IsCategoryVisible => Vis("Category");
+    public bool IsClassifyVisible => Vis("Classify");
     public bool IsDescriptionVisible => Vis("Description");
     public bool IsFavoriteVisible => Vis("Favorite");
     public bool IsActionVisible => Vis("Action");
@@ -117,7 +118,10 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     {
         // v3.32 §4.8.3：每列给一条示例值（空态水印行 + 列宽判定）；「操作」是按钮列 → 不给
         new("Title", "名称", "3*", sample: "清理临时文件"),
-        new("Category", "类型", "1.3*", sample: "维护"),
+        // v3.63：「功能」= 原来那列 `Category`（维护 / 网络 …）—— 表头与详情卡同名
+        new("Category", "功能", "1.3*", sample: "维护"),
+        // v3.63 新增「分类」：脚本 = 脚本后缀（.ps1 …），命令行命令 = Shell 宿主（cmd / pwsh / 自动）
+        new("Classify", "分类", "1.1*", sortable: false, sample: ".ps1"),
         new("Description", "简介", "4*", sortable: false, sample: "删除 %TEMP% 下的临时文件"),
         new("Favorite", "★", "0.9*", sample: "★"),
         new("Action", "操作", "1.5*", sortable: false),
@@ -260,25 +264,9 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         catch (Exception ex) { StatusText = "打开失败：" + ex.Message; }
     }
 
-    /// <summary>
-    /// 详情卡「📂」按钮选好脚本文件后调用：把路径填进编辑缓冲。
-    /// <para>落在脚本目录里的文件<b>存相对文件名</b>（换机器 / 换目录也能跑），目录外的存绝对路径。</para>
-    /// </summary>
-    public void ApplyPickedScriptFile(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path)) return;
-
-        var dir = ScriptsDirectory;
-        EditScriptFile = !string.IsNullOrWhiteSpace(dir)
-                         && path.StartsWith(dir, StringComparison.OrdinalIgnoreCase)
-            ? path[dir.Length..].TrimStart('\\', '/')
-            : path;
-        StatusText = $"已选择脚本文件：{EditScriptFile}（点「💾 保存」写盘）";
-    }
-
     /// <summary>脚本字段下方的提示（解释器怎么挑 + 脚本目录在哪）。</summary>
     public string ScriptHint =>
-        $"脚本文件 = 脚本目录里的 .py / .ps1 / .bat（可填相对文件名，也可填绝对路径）；点「📂」可以直接选文件。\n脚本目录：{ScriptsDirectory}" +
+        $"脚本文件 = 脚本目录里的 .py / .ps1 / .bat（填相对文件名即可，目录在「设置 → 路径与配置」里改）；工具条「📥 导入脚本」可批量导入。\n脚本目录：{ScriptsDirectory}" +
         (IsDefaultScriptFolder ? "（默认值）\n" : "\n") +
         "解释器留「自动」即可：.py→python、.ps1→pwsh（没配则退回 5.1）、.bat/.cmd→cmd；三个解释器路径在「设置 → 路径配置」里配，留空 = 用系统默认。";
 
@@ -320,12 +308,6 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     //    **卡片描述符由两个子类各自 override <see cref="BuildCard"/>**（两页字段本来就不同：
     //    脚本页有「类型 / 脚本文件 / 解释器」，快捷设置页有「Shell / 隐藏终端窗口」）。
 
-    /// <summary>
-    /// 📂 选脚本文件（平台文件选择器**只能在 View 层用**，VM 不引 Avalonia）⇒ 由 <c>MyShortcutsView</c>
-    /// 在 <c>OnDataContextChanged</c> 里注入实现（原来那个按钮在页内卡片里、走 code-behind 直接挂 Click）。
-    /// </summary>
-    public ICommand? PickScriptFileCommand { get; set; }
-
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
@@ -363,64 +345,125 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     protected abstract DetailCardDescriptor BuildCard();
 
     /// <summary>
-    /// 详情卡的四个卡内动作（两页**完全一致** ⇒ 基类给一份，子类只声明字段区）。
-    /// <para>▶ 运行 / 收藏（两个互斥文案的按钮，替代原来绑 <c>FavoriteButtonText</c> 的动态文案）/
-    /// 💾 保存 / 🗑 删除。</para>
+    /// 详情卡的**图标动作组**（NT-059 / <see cref="FieldKind.IconBar"/>）：运行 / 收藏 / 保存 / 删除
+    /// 合成**一行 32×32 小图标按钮**（替代原来四个撑满宽度的文字按钮）。
+    /// <para>
+    /// 两页**完全一致** ⇒ 基类给一份，子类把它插进字段区末尾。
+    /// 收藏 = 「未收藏 / 已收藏」两个**互斥**图标（靠 <c>IsActivePath</c> 走强调色表达状态，⛔ 无文字）。
+    /// </para>
     /// </summary>
-    protected List<DetailAction> BuildCommonActions()
+    protected DetailField BuildActionBar() => new()
     {
-        var run = new DetailAction
+        Kind = FieldKind.IconBar,
+        IconActions =
         {
-            Text = "▶ 运行",
-            Classes = "primary",
-            ToolTip = "用 cmd 执行「命令」里的内容；勾选「需要管理员权限」时会弹 UAC",
-            IsVisiblePath = nameof(HasSelection),
-            IsEnabledPath = nameof(IsNotBusy),
-            Command = new RelayCommand(() => RunCommand.Execute(Selected))
-        };
+            new DetailIconAction
+            {
+                IconKey = "IconPlay",
+                ToolTip = "运行这条（命令用 cmd 执行；勾了「需要管理员权限」会弹 UAC）",
+                CommandPath = nameof(RunCommand),
+                IsVisiblePath = nameof(HasSelection),
+                IsEnabledPath = nameof(IsNotBusy)
+            },
+            new DetailIconAction
+            {
+                IconKey = "IconStar",
+                ToolTip = "收藏 / 取消收藏（图标亮 = 已收藏）",
+                CommandPath = nameof(ToggleFavoriteCommand),
+                IsVisiblePath = nameof(HasSelection),
+                IsActivePath = nameof(IsSelectedFavorite)
+            },
+            new DetailIconAction
+            {
+                IconKey = "IconSave",
+                ToolTip = "把当前内容写回本页数据文件",
+                CommandPath = nameof(SaveCommand),
+                IsVisiblePath = nameof(HasSelection)
+            },
+            new DetailIconAction { IsSeparator = true },
+            new DetailIconAction
+            {
+                IconKey = "IconTrash",
+                ToolTip = "从列表移除这条（⛔ 只动清单、不删磁盘文件；删文件用列表右键菜单）",
+                CommandPath = nameof(DeleteCommand),
+                IsVisiblePath = nameof(HasSelection),
+                IsEnabledPath = nameof(IsNotBusy),
+                IsDanger = true
+            }
+        }
+    };
 
-        // ⚠️ 原来这个按钮的文案是 `{Binding FavoriteButtonText}`（★ 取消收藏 / ☆ 收藏）——
-        //    描述符的 Text 是静态字符串 ⇒ 拆成两个互斥可见的按钮表达同一件事（不新增能力）。
-        var favAdd = new DetailAction
-        {
-            Text = "☆ 收藏",
-            Classes = "ghost",
-            ToolTip = "把这条加入收藏夹",
-            IsVisiblePath = nameof(IsSelectedNotFavorite),
-            Command = ToggleFavoriteCommand
-        };
-        var favRemove = new DetailAction
-        {
-            Text = "★ 取消收藏",
-            Classes = "ghost",
-            ToolTip = "把这条移出收藏夹",
-            IsVisiblePath = nameof(IsSelectedFavorite),
-            Command = ToggleFavoriteCommand
-        };
+    // ==================== 分类 = 功能标签（v3.62：详情卡 chips） ====================
 
-        var save = new DetailAction
-        {
-            Text = "💾 保存",
-            Classes = "ghost",
-            ToolTip = "把当前内容写回本页数据文件",
-            IsVisiblePath = nameof(HasSelection),
-            Command = SaveCommand
-        };
+    /// <summary>分类标签（**功能**维度，⛔ 不再是来源）：设置 / 脚本 / 定时任务。</summary>
+    public static readonly string[] CategoryPresets = { "设置", "脚本", "定时任务" };
 
-        var del = new DetailAction
-        {
-            Text = "🗑 删除",
-            Classes = "ghost",
-            ToolTip = "删除这条",
-            IsVisiblePath = nameof(HasSelection),
-            IsEnabledPath = nameof(IsNotBusy),
-            Command = DeleteCommand
-        };
+    /// <summary>
+    /// 详情卡「分类」chips 的数据源。
+    /// <para>🔴 **集合实例必须稳定**：只改每项的 <c>IsSelected</c>，⛔ 不要 Clear / 重建
+    /// （重建会把 chip 的选中态清掉并回写空值）。</para>
+    /// </summary>
+    public ObservableCollection<CategoryPick> CategoryPicks { get; } =
+        new(CategoryPresets.Select(p => new CategoryPick(p)));
 
-        return new List<DetailAction> { run, favAdd, favRemove, save, del };
+    /// <summary>
+    /// 详情卡「分类」：与表头「分类」列**同源**（<see cref="QuickAction.Classify"/>）
+    /// —— 脚本条目 = 脚本后缀（.py / .ps1 / .bat / .cmd），命令行命令 = Shell 宿主（cmd / pwsh / 自动）。
+    /// </summary>
+    public string ClassifyText => DetailItem.Classify;
+
+    /// <summary>详情卡「分类」（旧）：脚本条目 = **脚本后缀**（.py / .ps1 / .bat / .cmd），没有脚本文件 = 「—」。</summary>
+    public string ScriptExtText
+    {
+        get
+        {
+            var file = (DetailItem.ScriptFile ?? "").Trim();
+            var ext = Path.GetExtension(file).ToLowerInvariant();
+            return ext.Length > 0 ? ext : "—";
+        }
     }
 
-    /// <summary>选中项（无选中时看示例项）是否已收藏 —— 两个收藏按钮的互斥可见性。</summary>
+    /// <summary>点分类 chip：**单选**语义（点已选中的那个 = 取消），改完立即落盘。</summary>
+    [RelayCommand]
+    private void ToggleCategory(CategoryPick? pick)
+    {
+        if (pick == null || Selected == null || _svc == null) return;
+
+        var next = pick.IsSelected ? "" : pick.Name;
+        Selected.Category = next;
+        EditCategory = next;
+        _svc.Save();
+
+        SyncCategoryPicks();
+        RebuildCategories();      // 分类值变了 ⇒ 分类候选 / 筛选菜单要重算
+        ApplyViewKeepSelection();
+
+        StatusText = next.Length > 0
+            ? $"已把「{Selected.Title}」归到「{next}」。"
+            : $"已清掉「{Selected.Title}」的分类。";
+    }
+
+    /// <summary>把 chips 的选中态同步到**当前卡片条目**（集合实例不变，只改 <c>IsSelected</c>）。</summary>
+    private void SyncCategoryPicks()
+    {
+        var cur = (DetailItem.Category ?? "").Trim();
+        foreach (var p in CategoryPicks)
+            p.IsSelected = string.Equals(p.Name, cur, StringComparison.CurrentCultureIgnoreCase);
+    }
+
+    /// <summary>
+    /// 刷新列表但**保住选中项**：<see cref="ApplyView"/> 会 <c>Items.Clear()</c> 再重填，
+    /// ListBox 的 <c>SelectedItem</c> 双向绑定在清空这一瞬被回写成 null ⇒ 详情卡掉回示例态
+    /// （"点收藏 / 点分类后详情卡变空白"就是这个）⇒ 改完列表内容后把选中项原样放回去。
+    /// </summary>
+    protected void ApplyViewKeepSelection()
+    {
+        var keep = Selected;
+        ApplyView();
+        if (keep != null && Selected == null && Items.Contains(keep)) Selected = keep;
+    }
+
+    /// <summary>选中项（无选中时看示例项）是否已收藏 —— 收藏图标的高亮。</summary>
     public bool IsSelectedFavorite => DetailItem.IsFavorite;
 
     /// <summary>选中项（无选中时看示例项）尚未收藏。</summary>
@@ -561,7 +604,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     private void UpdateHeaders()
     {
         TitleHeader = "名称" + SortArrow("Title");
-        CategoryHeader = "类型" + SortArrow("Category");
+        CategoryHeader = "功能" + SortArrow("Category");   // v3.63：原「类型」改叫「功能」（后缀那列才是「分类」）
         FavoriteHeader = "★" + SortArrow("Favorite");
     }
 
@@ -582,6 +625,9 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(ShowCommandRunOptions));
         OnPropertyChanged(nameof(CanEditScript));
+        OnPropertyChanged(nameof(ScriptExtText));
+        OnPropertyChanged(nameof(ClassifyText));
+        SyncCategoryPicks();          // chips 的选中态跟着新条目走（集合实例不变）
     }
 
     /// <summary>
@@ -642,10 +688,13 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     // ==================== 批量导入脚本目录（v1.35） ====================
 
-    /// <summary>认得的脚本扩展名（小写，带点）。批量导入时只挑这些。</summary>
+    /// <summary>认得的脚本扩展名（小写，带点）。导入时只挑这些。</summary>
     public static readonly string[] ScriptExtensions = { ".py", ".ps1", ".bat", ".cmd" };
 
-    /// <summary>导入子目录里的脚本吗（View 上的勾选框直接读它）。</summary>
+    /// <summary>文件选择器的类型过滤（<c>;</c> 分隔的通配模式，见 <c>App.BuildFileTypes</c>）。</summary>
+    public static string ScriptFilePattern => string.Join(";", ScriptExtensions.Select(e => "*" + e));
+
+    /// <summary>导入子目录里的脚本吗（工具条上的勾选框直接读它；只对「导入文件夹」生效）。</summary>
     [ObservableProperty] private bool _importSubFolders = true;
 
     /// <summary>上一次导入的结论（状态行就是它）。</summary>
@@ -654,29 +703,23 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     private static string ScriptExtensionsList => string.Join(" / ", ScriptExtensions);
 
     /// <summary>
-    /// 批量导入：把一个目录里的脚本文件**全部建成条目**。
+    /// 📥 导入**一批脚本文件**（工具条「导入文件 / 导入文件夹」两路共用）。
     /// <para>
     /// 规则（都写进状态行，绝不"悄悄跳过"）：
     /// ① 只收 <see cref="ScriptExtensions"/> 里的扩展名；
     /// ② 清单里已有的（按脚本文件名字比对）**跳过**，不重复建；
-    /// ③ 落在脚本目录内的存**相对文件名**、目录外的存绝对路径 —— 与手动「📂」选文件保持一致；
+    /// ③ 落在脚本目录内的存**相对文件名**、目录外的存绝对路径（路径一律以**配置的脚本目录**为准）；
     /// ④ 名称取文件名（去扩展名）、分类填「导入」，方便之后批量改。
+    /// </para>
+    /// <para>
+    /// ⚠️ 导入后**清掉搜索 / 分类 / 表头筛选**并选中第一条新增 —— 否则新条目可能被当前筛选挡住，
+    /// 看起来像"导入没生效"（与「➕ 新增」同一口径）。
     /// </para>
     /// </summary>
     /// <returns>(新增几条, 跳过几条)。</returns>
-    public (int Added, int Skipped) ImportScriptFolder(string folder, bool includeSubFolders = true)
+    public (int Added, int Skipped) ImportScriptFiles(IEnumerable<string> files)
     {
         if (_svc == null) return (0, 0);
-        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder)) return (0, 0);
-
-        IEnumerable<string> files;
-        try
-        {
-            files = Directory.EnumerateFiles(folder, "*",
-                        includeSubFolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
-                    .ToList();   // 先固化，避免枚举中途目录变动
-        }
-        catch { return (0, 0); }
 
         var scriptsDir = ScriptsDirectory;
         var existing = new HashSet<string>(
@@ -685,42 +728,76 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
         var added = 0;
         var skipped = 0;
+        QuickAction? first = null;
 
-        foreach (var file in files)
+        foreach (var file in files ?? Array.Empty<string>())
         {
+            if (string.IsNullOrWhiteSpace(file)) continue;
             if (!ScriptExtensions.Contains(Path.GetExtension(file).ToLowerInvariant())) continue;
 
-            var stored = !string.IsNullOrWhiteSpace(scriptsDir)
-                         && file.StartsWith(scriptsDir, StringComparison.OrdinalIgnoreCase)
-                ? file[scriptsDir.Length..].TrimStart('\\', '/')
-                : file;
-
+            var stored = ToStoredScriptPath(file, scriptsDir);
             if (existing.Contains(stored)) { skipped++; continue; }
 
             var item = _svc.Add(_pageKind);
             item.Kind = QuickActionKind.Script;
             item.Title = Path.GetFileNameWithoutExtension(file);
-            item.Category = "导入";
-            item.Description = $"从目录导入：{Path.GetFileName(file)}";
+            // 分类**不自动填**（v3.62：分类 = 功能标签，由用户在详情卡的 chips 上点；⛔ 不再写"导入"）
+            item.Category = "";
+            item.Description = $"导入：{Path.GetFileName(file)}";
             item.ScriptFile = stored;
             item.Interpreter = ScriptInterpreter.Auto;
             existing.Add(stored);
             added++;
+            first ??= item;
         }
 
-        if (added > 0) _svc.Save();
-        RebuildCategories();
-        ResetFilters();          // 新导入的脚本可能正被筛选条件挡着 → 清掉筛选，保证看得见
-        ApplyView();
+        if (added > 0)
+        {
+            _svc.Save();
+            RebuildCategories();
+            _suppress = true;
+            SearchText = "";
+            if (CategoryOptions.Count > 0) SelectedCategory = CategoryOptions[0];
+            _suppress = false;
+            ResetFilters();
+            ApplyView();
+            if (first != null) Selected = Items.FirstOrDefault(i => ReferenceEquals(i, first)) ?? first;
+        }
 
         ImportResultText = added == 0
-            ? $"「{folder}」里没有可导入的新脚本（只认 {ScriptExtensionsList}）"
+            ? $"没有可导入的新脚本（只认 {ScriptExtensionsList}）"
               + (skipped > 0 ? $"；{skipped} 个已在清单里，已跳过" : "")
             : $"已导入 {added} 个脚本"
               + (skipped > 0 ? $"；{skipped} 个已存在，已跳过" : "");
         StatusText = ImportResultText;
         return (added, skipped);
     }
+
+    /// <summary>📥 导入一个**目录**里的脚本（<paramref name="includeSubFolders"/> = 是否连子目录一起收）。</summary>
+    public (int Added, int Skipped) ImportScriptFolder(string folder, bool includeSubFolders = true)
+    {
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder)) return (0, 0);
+
+        List<string> files;
+        try
+        {
+            files = Directory.EnumerateFiles(folder, "*",
+                        includeSubFolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                    .ToList();   // 先固化，避免枚举中途目录变动
+        }
+        catch { return (0, 0); }
+
+        return ImportScriptFiles(files);
+    }
+
+    /// <summary>
+    /// 落盘的路径怎么存：脚本目录**内**的文件存**相对文件名**（换机器 / 换目录也能跑），目录外的存绝对路径。
+    /// </summary>
+    private static string ToStoredScriptPath(string file, string scriptsDir)
+        => !string.IsNullOrWhiteSpace(scriptsDir)
+           && file.StartsWith(scriptsDir, StringComparison.OrdinalIgnoreCase)
+            ? file[scriptsDir.Length..].TrimStart('\\', '/')
+            : file;
 
     // ==================== 工具条（NT-055 / 需求 §4.8.5：由 Shell 统一渲染） ====================
 
@@ -732,21 +809,42 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     /// <summary>
     /// 夹在「搜索框」与「导入 / 导出」之间的**页专属**项（默认空）：
-    /// 「设置与脚本」页放脚本目录 + 批量导入；「快捷设置」页没有。
+    /// 「设置与脚本」页放「📥 导入脚本」按钮 + 脚本目录只读框；「快捷设置」页没有。
     /// </summary>
     protected virtual IEnumerable<ToolbarItemDescriptor> ToolbarExtras => Array.Empty<ToolbarItemDescriptor>();
 
     /// <summary>
     /// 排在**共用搜索框之后**的页专属项（v3.61）：给「入口动作 / 输入框 / 搜索框」三件套后面还要挂按钮的页用
-    /// （如 <c>pc-shortcuts</c> 的脚本目录三按钮；⛔ 别塞进 <see cref="ToolbarExtras"/>，否则会把搜索框挤到后面）。
+    /// （如 <c>pc-shortcuts</c> 的「含子目录」；⛔ 别塞进 <see cref="ToolbarExtras"/>，否则会把搜索框挤到后面）。
     /// </summary>
     protected virtual IEnumerable<ToolbarItemDescriptor> ToolbarTailExtras => Array.Empty<ToolbarItemDescriptor>();
+
+    /// <summary>
+    /// v3.63：共用的「📥 导入」（json 清单）放哪儿 —— **true = 排最前**（「导入 → 输入框 → 搜索」三件套，
+    /// 「快捷设置」页走这条）；**false = 排在「📤 导出」前面**（「设置与脚本」页：最前已经有一个「📂 导入」脚本文件了，
+    /// 两个导入挨在一起会分不清）。
+    /// </summary>
+    protected virtual bool JsonImportFirst => true;
+
+    /// <summary>共用的「📥 导入」按钮（从 json 文件导入本页清单：合并 / 整页替换两路菜单）。</summary>
+    private static ToolbarItemDescriptor JsonImportItem => new()
+    {
+        // v3.63：与「📤 导出」同一口径（emoji + 一个词），⛔ 不再写「导入清单」这类后缀
+        Text = "📥 导入",
+        Classes = "ghost",
+        ToolTip = "从 json 文件导入本页清单（合并 / 整页替换）",
+        Items = new ToolbarMenuItemDescriptor[]
+        {
+            new() { Text = "🔀 合并导入（按 Id 去重，同 Id 覆盖）", CommandPath = nameof(ImportPageMergeCommand) },
+            new() { Text = "♻ 整页替换（先清空本页再导入）", CommandPath = nameof(ImportPageReplaceCommand) },
+        }
+    };
 
     /// <summary>
     /// 工具条（NT-055 / 需求 §4.8.5）：页面⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。
     /// <para>
     /// 顺序按「全部资产」同一口径：**入口动作（<see cref="ToolbarExtras"/>）→ 输入框 → 搜索框**，
-    /// 页专属项在前，共用搜索框紧随其后，末尾是共用的「导出 / 导入（导入 = 合并 / 整页替换两路菜单）+ 清空本页」。
+    /// 页专属项在前，共用搜索框紧随其后，末尾是共用的「导入 / 导出 + 清空本页」。
     /// </para>
     /// </summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar
@@ -754,6 +852,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         get
         {
             var items = new List<ToolbarItemDescriptor>();
+
+            if (JsonImportFirst) items.Add(JsonImportItem);
 
             // 页专属项（入口动作 / 输入框）在前，共用的搜索框紧随其后（与「全部资产」同一口径）。
             items.AddRange(ToolbarExtras);
@@ -770,6 +870,9 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
             // 搜索框之后的页专属项（⛔ 别塞进 ToolbarExtras —— 那会把搜索框从「入口动作 / 输入框」后面挤开）。
             items.AddRange(ToolbarTailExtras);
 
+            // v3.63：不排在最前的页 ⇒ 「📥 导入」插到「📤 导出」前面
+            if (!JsonImportFirst) items.Add(JsonImportItem);
+
             items.AddRange(new ToolbarItemDescriptor[]
             {
                 new()
@@ -778,18 +881,6 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
                     Classes = "ghost",
                     CommandPath = nameof(ExportPageCommand),
                     ToolTip = "把本页全条目导出为 json 文件"
-                },
-                new()
-                {
-                    // ⚠️ 原页内就是这个语义：**整颗按钮**弹菜单二选一（⛔ 不给它 CommandPath —— 否则点按钮会先跑合并导入）
-                    Text = "📥 导入",
-                    Classes = "ghost",
-                    ToolTip = "从 json 文件导入（合并 / 整页替换）",
-                    Items = new ToolbarMenuItemDescriptor[]
-                    {
-                        new() { Text = "🔀 合并导入（按 Id 去重，同 Id 覆盖）", CommandPath = nameof(ImportPageMergeCommand) },
-                        new() { Text = "♻ 整页替换（先清空本页再导入）", CommandPath = nameof(ImportPageReplaceCommand) },
-                    }
                 },
                 new()
                 {
@@ -966,24 +1057,53 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         StatusText = $"已把「{item.Title}」移到「{OtherPageName}」。";
     }
 
-    /// <summary>删除：内部走二次确认（钩子在宿主接到模态框上）。</summary>
+    /// <summary>
+    /// 🗑 删除前是否弹二次确认（v3.63）：
+    /// 「设置与脚本」= **索引库**，删的只是清单里的一行（脚本文件还在磁盘上）⇒ false，不打扰；
+    /// 「快捷设置」= **json 里的真数据**，删掉就没了 ⇒ true（派生类 override）。
+    /// </summary>
+    protected virtual bool ConfirmBeforeDelete => false;
+
+    /// <summary>
+    /// 🗑 **从列表删除**：把这条从清单里去掉并落盘（⛔ 从不碰磁盘文件；删脚本文件走右键「🔥 从磁盘删除…」）。
+    /// <para>是否弹确认框由 <see cref="ConfirmBeforeDelete"/> 决定。</para>
+    /// </summary>
     [RelayCommand]
     private async Task DeleteAsync()
     {
         var item = Selected;
         if (item == null || _svc == null) return;
 
-        IsBusy = true;
-        try
+        if (ConfirmBeforeDelete)
         {
-            var ok = await _svc.RemoveAsync(item);
+            var ok = await DialogHooks.ConfirmAsync(
+                $"确定删除「{item.Title}」吗？\n\n这条是 {FilePath} 里的记录，删掉后不可撤销（磁盘上的文件不会动）。");
             if (!ok) { StatusText = "已取消删除。"; return; }
-            Selected = null;
-            RebuildCategories();
-            ApplyView();
-            StatusText = $"已删除：{item.Title}";
         }
-        finally { IsBusy = false; }
+
+        if (!RemoveFromList(item)) { StatusText = "这条不在清单里，没有可移除的。"; return; }
+        StatusText = ConfirmBeforeDelete
+            ? $"已删除：{item.Title}"
+            : $"已从列表移除：{item.Title}（不删磁盘文件）";
+    }
+
+    /// <summary>数据服务是否可用（派生类要做"没有服务就别动磁盘"这类判断时用）。</summary>
+    protected bool HasService => _svc != null;
+
+    /// <summary>
+    /// 把一条从清单里移除并刷新（⛔ 只动清单、**不碰磁盘文件**、不弹确认）。
+    /// <para>「从磁盘删除」那一路由派生类先删文件、再调本方法收尾。</para>
+    /// </summary>
+    /// <returns>真的移掉了才 true（不在清单里 ⇒ false）。</returns>
+    protected bool RemoveFromList(QuickAction item)
+    {
+        if (_svc == null || item == null) return false;
+        if (!_svc.RemoveSilent(item)) return false;
+
+        Selected = null;
+        RebuildCategories();
+        ApplyView();
+        return true;
     }
 
     /// <summary>切换收藏（收藏夹页读的是同一批对象，天然同步）。</summary>
@@ -995,10 +1115,12 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
         _svc.ToggleFavorite(item);
         UpdateFavoriteUi(item);
-        // 声明式卡里收藏是**两个互斥可见的按钮**（☆ 收藏 / ★ 取消收藏）⇒ 切换后要让可见性重算
+        // 图标组里收藏是**一个图标 + IsActivePath** ⇒ 切换后要让高亮重算
         OnPropertyChanged(nameof(IsSelectedFavorite));
         OnPropertyChanged(nameof(IsSelectedNotFavorite));
-        ApplyView();
+
+        ApplyViewKeepSelection();
+
         StatusText = item.IsFavorite ? $"已收藏：{item.Title}" : $"已取消收藏：{item.Title}";
     }
 
@@ -1026,7 +1148,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         && File.Exists(ResolveScriptPath(Selected.ScriptFile));
 
     /// <summary>把脚本文件字段（相对脚本目录或绝对路径）解析成磁盘全路径；空则返回空串。</summary>
-    private string ResolveScriptPath(string? scriptFile)
+    protected string ResolveScriptPath(string? scriptFile)
     {
         var file = (scriptFile ?? "").Trim();
         if (file.Length == 0) return "";

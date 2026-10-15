@@ -39,6 +39,12 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
 
     public int Rating { get; set; }
 
+    /// <summary>
+    /// 是否收藏（NT-058；库列 <c>assets.is_favorite</c>，由 <c>AssetDatabase</c> 的 <c>EnsureColumn</c> 补）。
+    /// 详情卡图标组的「★ 收藏」按钮直接改它（⛔ 不走保存：即时生效即落盘）。
+    /// </summary>
+    public bool IsFavorite { get; set; }
+
     /// <summary>用户在库里改的显示名（<c>display_name</c>；可能为空 → 与 <see cref="Title"/> 分开存，详情卡要能改它）。</summary>
     public string? DisplayName { get; set; }
 

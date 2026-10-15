@@ -29,14 +29,18 @@
                       Command="{Binding SortCommand}" CommandParameter="Title" ToolTip.Tip="点一下按名称排序"
                       IsVisible="{Binding IsTitleVisible}"/>
               <Button Grid.Column="1" Classes="col-header" Content="{Binding CategoryHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Category" ToolTip.Tip="点一下按分类排序"
+                      Command="{Binding SortCommand}" CommandParameter="Category" ToolTip.Tip="点一下按功能排序"
                       IsVisible="{Binding IsCategoryVisible}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" Text="简介" FontWeight="SemiBold"
+              <!-- v3.63 新增「分类」列：本页条目全是命令行命令 ⇒ 分类 = Shell 宿主（cmd / pwsh / 自动） -->
+              <TextBlock Grid.Column="2" Classes="list-cell" Text="分类" FontWeight="SemiBold"
+                         ToolTip.Tip="命令行宿主：cmd / pwsh / 自动（在详情卡「Shell」里改）"
+                         IsVisible="{Binding IsClassifyVisible}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" Text="简介" FontWeight="SemiBold"
                          IsVisible="{Binding IsDescriptionVisible}"/>
-              <Button Grid.Column="3" Classes="col-header" Content="{Binding FavoriteHeader}"
+              <Button Grid.Column="4" Classes="col-header" Content="{Binding FavoriteHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Favorite" ToolTip.Tip="点一下把收藏的排在前面"
                       IsVisible="{Binding IsFavoriteVisible}"/>
-              <TextBlock Grid.Column="4" Classes="list-cell" Text="操作" FontWeight="SemiBold"
+              <TextBlock Grid.Column="5" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -54,8 +58,10 @@
                        真正的翻转由 ToggleColumnCommand 独家负责（默认双向会写回 VM 造成二次翻转）。 -->
                   <MenuItem Header="名称" IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" ToggleType="CheckBox" IsChecked="{Binding IsTitleVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Title"/>
-                  <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsCategoryVisible, Mode=OneWay}"
+                  <MenuItem Header="功能" ToggleType="CheckBox" IsChecked="{Binding IsCategoryVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Category"/>
+                  <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsClassifyVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Classify"/>
                   <MenuItem Header="简介" ToggleType="CheckBox" IsChecked="{Binding IsDescriptionVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Description"/>
                   <MenuItem Header="★" ToggleType="CheckBox" IsChecked="{Binding IsFavoriteVisible, Mode=OneWay}"
@@ -73,8 +79,9 @@
             <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
               <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsTitleVisible}" Text="{Binding SampleRowTexts[0]}"/>
               <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsCategoryVisible}" Text="{Binding SampleRowTexts[1]}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsDescriptionVisible}" Text="{Binding SampleRowTexts[2]}"/>
-              <TextBlock Grid.Column="3" Classes="list-cell accent" IsVisible="{Binding IsFavoriteVisible}" Text="{Binding SampleRowTexts[3]}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsClassifyVisible}" Text="{Binding SampleRowTexts[2]}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsDescriptionVisible}" Text="{Binding SampleRowTexts[3]}"/>
+              <TextBlock Grid.Column="4" Classes="list-cell accent" IsVisible="{Binding IsFavoriteVisible}" Text="{Binding SampleRowTexts[4]}"/>
             </v:ColumnGrid>
           </Border>
 
@@ -95,7 +102,7 @@
                 <MenuItem Header="📋 复制命令" Command="{Binding CopyCommand}"/>
                 <Separator/>
                 <MenuItem Header="➕ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
-                <MenuItem Header="🗑 删除…" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="🗑 从列表移除" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
               </ContextMenu>
             </ListBox.ContextMenu>
 
@@ -107,12 +114,14 @@
                              IsVisible="{Binding $parent[ListBox].DataContext.IsTitleVisible}"/>
                   <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Category}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsCategoryVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Description}"
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Classify}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsClassifyVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Description}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell accent" Text="{Binding FavoriteMark}"
+                  <TextBlock Grid.Column="4" Classes="list-cell accent" Text="{Binding FavoriteMark}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsFavoriteVisible}"/>
                   <!-- 行内「▶ 运行」：点一下即打开该设置页面 -->
-                  <Button Grid.Column="4" Classes="ghost row-btn" Content="▶ 打开"
+                  <Button Grid.Column="5" Classes="ghost row-btn" Content="▶ 打开"
                           Command="{Binding $parent[ListBox].DataContext.RunCommand}"
                           CommandParameter="{Binding}"
                           IsEnabled="{Binding $parent[ListBox].DataContext.IsNotBusy}"

@@ -204,6 +204,11 @@
               <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderCommand}"
                         ToolTip.Tip="在资源管理器里选中这个文件"/>
               <!--  「🗄 打开库文件」是**库级**操作 → 回工具条（§4.8 硬规则 9），⛔ 不放这儿重复一份  -->
+              <Separator/>
+              <!--  NT-058：**唯一**直接物理删磁盘文件的入口（破坏性最大 ⇒ 故意只放右键、还要二次确认 + 走任务队列）；
+                    ⛔ 不上工具条、⛔ 不进详情卡（想从库里移除文件留着 ⇒ 详情卡图标组的「🗑 移入回收站」）。  -->
+              <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"
+                        ToolTip.Tip="永久删除磁盘文件：不进回收站、不可还原，库里的文件索引一起删"/>
             </ContextMenu>
           </ListBox.ContextMenu>
           <ListBox.ItemTemplate>

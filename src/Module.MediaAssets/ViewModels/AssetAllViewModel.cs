@@ -815,10 +815,32 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>详情卡的集合色片。</summary>
     public ObservableCollection<PickItem> CollectionPicks { get; } = new();
 
-    /// <summary>评分（0~5）可选项。</summary>
-    public int[] RatingChoices { get; } = { 0, 1, 2, 3, 4, 5 };
+    // ===== NT-058：评分改成「一排 1~5 小按钮」（点一下即生效并落盘，与图标组同一口径） =====
+
+    /// <summary>评分可点按钮（1~5；<see cref="PickItem.Id"/> 就是分值）。</summary>
+    public ObservableCollection<PickItem> RatingPicks { get; } = new();
+
+    /// <summary>评分按钮的分值（与 <see cref="RatingPicks"/> 一一对应）。</summary>
+    private static readonly int[] RatingValues = { 1, 2, 3, 4, 5 };
+
+    /// <summary>把 <see cref="RatingPicks"/> 的选中态同步成当前评分（点选 / 点赞 / 点踩 / 换选中项后都要调）。</summary>
+    private void SyncRatingPicks(int rating)
+    {
+        for (var i = 0; i < RatingPicks.Count; i++) RatingPicks[i].IsSelected = RatingValues[i] == rating;
+    }
 
     [ObservableProperty] private int _editRating;
+
+    // ===== NT-058：状态改**单选下拉**（预设三档；索引 ↔ 状态 key 的映射只在这里） =====
+
+    /// <summary>状态下拉的显示文案（顺序 = <see cref="StatusKeys"/>）。</summary>
+    public string[] StatusChoices { get; } = { "正常", "已归档", "文件缺失" };
+
+    /// <summary>状态下拉的实际值（存库；<see cref="AssetStatuses"/>）。</summary>
+    private static readonly string[] StatusKeys =
+        { AssetStatuses.Active, AssetStatuses.Archived, AssetStatuses.Missing };
+
+    [ObservableProperty] private int _editStatusIndex;
     [ObservableProperty] private string _editDescription = "";
 
     /// <summary>该资产的关联（只读列出；增删归后续——本轮只在详情卡展示）。</summary>
@@ -841,6 +863,60 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [RelayCommand]
     private void ToggleCollection(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
 
+    // ===== NT-058：详情卡**图标动作组**（收藏 / 评分 ±1 / 保存 / 刷新 / 删除） =====
+    // 🔴 与「💾 保存」的分工：收藏 / 评分是**单项即时生效即落盘**（点一下就写库，⛔ 不用再点保存）；
+    //    显示名 / 描述 / 标签 / 分类 / 集合仍是**编辑态 + 显式保存**（多字段表单）。
+
+    /// <summary>「★ 收藏」：切换收藏（即时落盘）。</summary>
+    [RelayCommand]
+    private void ToggleFavorite()
+    {
+        if (Selected == null) { StatusText = "先在左侧选中一个资产。"; return; }
+        var next = !Selected.IsFavorite;
+        if (!_assets.SetFavorite(Selected.Id, next)) { StatusText = "写库失败（资产库不可用）。"; return; }
+        Selected.IsFavorite = next;
+        OnPropertyChanged(nameof(DetailRow));   // 图标 .active 态跟着变（渲染器订阅的是页面 VM）
+        StatusText = next ? $"已收藏「{Selected.Name}」。★" : $"已取消收藏「{Selected.Name}」。";
+    }
+
+    /// <summary>「👍 点赞」：评分 +1（0~5 封顶，即时落盘）。</summary>
+    [RelayCommand]
+    private void RateUp() => ChangeRating(1);
+
+    /// <summary>「👎 点踩」：评分 -1（0~5 封底，即时落盘）。</summary>
+    [RelayCommand]
+    private void RateDown() => ChangeRating(-1);
+
+    /// <summary>「1~5 评分按钮」：直接设成这个值（即时落盘）。</summary>
+    [RelayCommand]
+    private void SetRating(PickItem? item)
+    {
+        if (item == null) return;
+        ChangeRating(0, (int)item.Id);
+    }
+
+    private void ChangeRating(int delta, int? absolute = null)
+    {
+        if (Selected == null) { StatusText = "先在左侧选中一个资产。"; return; }
+        var next = Math.Clamp(absolute ?? Selected.Rating + delta, 0, 5);
+        if (next == Selected.Rating)
+        {
+            StatusText = absolute.HasValue
+                ? $"当前就是 {next} 分。"
+                : delta > 0 ? "已经是最高分 5 了。" : "已经是最低分 0 了。";
+            return;
+        }
+        // ⚠️ 描述一起写是这个方法的要求 ⇒ 传**库里的现值**（不是编辑态 EditDescription），
+        //    否则会把用户还没保存的草稿覆盖掉 / 或把已保存的描述清掉。
+        if (!_assets.SetRatingAndDescription(Selected.Id, next, Selected.Description))
+        { StatusText = "写库失败（资产库不可用）。"; return; }
+        Selected.Rating = next;
+        EditRating = next;                      // 详情卡编辑态同步
+        SyncRatingPicks(next);                  // 1~5 按钮的选中态同步
+        OnPropertyChanged(nameof(DetailRow));
+        StatusText = $"评分 → {next}（已写入资产库）。";
+    }
+
     private void BuildPicks(AssetRow target)
     {
         TagPicks.Clear();
@@ -848,11 +924,17 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         CollectionPicks.Clear();
         Relations.Clear();
 
+        // 评分按钮（1~5）：**固定五项**，选中态 = 当前评分（⛔ 不用色块 → Brush 给透明）
+        RatingPicks.Clear();
+        for (var i = 0; i < RatingValues.Length; i++)
+            RatingPicks.Add(new PickItem(RatingValues[i], $"{RatingValues[i]}", Brushes.Transparent, target.Rating == RatingValues[i]));
+
         if (target.Id <= 0) return;   // 示例行：不给色片（卡片整体禁用）
 
         var tagIds = _tagSvc.ListTagIdsOfAsset(target.Id);
-        foreach (var t in _tagSvc.List())
-            TagPicks.Add(new PickItem(t.Id, t.Name, t.ChipBrush, tagIds.Contains(t.Id)));
+        // NT-058：标签**按命名空间分组**显示 ⇒ 先按 ns 排序（分组靠"键连续"，乱序会拆出很多组）
+        foreach (var t in _tagSvc.List().OrderBy(t => t.Namespace ?? "").ThenBy(t => t.Name, StringComparer.CurrentCulture))
+            TagPicks.Add(new PickItem(t.Id, t.Name, t.ChipBrush, tagIds.Contains(t.Id), t.Namespace));
 
         var catIds = _catSvc.ListCategoryIdsOfAsset(target.Id);
         foreach (var c in _catSvc.List())
@@ -889,6 +971,14 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _assets.SetRatingAndDescription(row.Id, EditRating, string.IsNullOrWhiteSpace(EditDescription) ? null : EditDescription);
         row.Rating = EditRating;
         row.Description = string.IsNullOrWhiteSpace(EditDescription) ? null : EditDescription;
+
+        // 状态（单选下拉 → 存库的 key）
+        var status = StatusKeys[Math.Clamp(EditStatusIndex, 0, StatusKeys.Length - 1)];
+        if (!string.Equals(row.Status, status, StringComparison.Ordinal))
+        {
+            _assets.SetAssetStatus(row.Id, status);
+            row.Status = status;
+        }
 
         var tagIds = TagPicks.Where(p => p.IsSelected).Select(p => p.Id).ToList();
         var catIds = CategoryPicks.Where(p => p.IsSelected).Select(p => p.Id).ToList();
@@ -957,6 +1047,47 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _opLog.Log("trash", "asset", row.Id, beforeJson: "{\"status\":\"active\"}", afterJson: "{\"status\":\"trashed\"}");
         Reload();
         StatusText = $"已把「{row.Name}」移入回收站（磁盘文件没动）。";
+    }
+
+    /// <summary>
+    /// 列表右键「⛔ 从磁盘删除」（NT-058）：**本程序唯一**直接删磁盘文件的入口。
+    /// <para>
+    /// 🔴 三重防误触（这是索引库里**破坏性最大**的操作，故意把点击成本做高）：
+    /// ① 不进详情卡 / 不上工具条，**只在行右键菜单里**；② 二次确认（文案写明"不进回收站、不可还原"）；
+    /// ③ 真删走**任务队列**（任务中心可见），⛔ 不在 UI 线程上直接删。
+    /// </para>
+    /// <para>只想从库里移除（文件留着）→ 用详情卡图标组的「🗑 移入回收站」。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteFromDiskAsync()
+    {
+        if (Selected == null) { StatusText = "先选中一个资产。"; return; }
+
+        var row = Selected;
+        var loc = PrimaryLocationOf(row);
+        if (loc == null) { StatusText = "这个资产没有登记文件位置，没法从磁盘删除。"; return; }
+
+        var name = Path.GetFileName(loc.Path);
+        if (!await DialogHooks.ConfirmAsync(
+                $"⛔ 从磁盘**永久删除**这个文件？\n\n{name}\n\n· 不进系统回收站、无法还原；\n· 库里这条文件索引也会一起删掉（还有其它位置的不会删）；\n· 只想从库里移除、文件留着 ⇒ 用详情卡的「🗑 移入回收站」。").ConfigureAwait(false))
+        { StatusText = "已取消。"; return; }
+
+        _fileOps.Queue.Enqueue($"从磁盘删除 {name}", async (ct, p) =>
+        {
+            await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                p.Report($"正在永久删除「{name}」…");
+                var r = _fileOps.PermanentDelete(loc);
+                p.Report(r.Message);
+                if (!r.Ok) return;
+                _assets.DeleteLocation(loc.Id);
+                // 这条资产的**所有**位置都删光了 ⇒ 资产本体也没意义了（连带挂接一起清）
+                if (_assets.ListLocations(row.Id).Count == 0) _assets.DeleteAsset(row.Id);
+            }, ct).ConfigureAwait(false);
+            try { Dispatcher.UIThread.Post(Reload); } catch { /* 已关闭 */ }
+        });
+        StatusText = $"已把「{name}」的永久删除排进任务队列（进度看「任务中心」）。";
     }
 
     // ==================== NT-030：移动 / 复制（目标 = 已登记存储源根；防穿越由 FileOperationService 保证） ====================
@@ -1073,19 +1204,27 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             {
                 Fields =
                 {
+                    // ===== 顶部：文件名（磁盘上的真名，只读；要改库里的显示名用卡底部的输入框） =====
                     new DetailField
                     {
-                        Label = "显示名（只改库里的名字，⛔ 不动磁盘文件）",
-                        ValuePath = nameof(DetailDisplayName),
+                        Label = "文件名",
+                        ValuePath = "DetailRow.FileName",
                         Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        Placeholder = "留空 = 用扫描时得到的标题"
+                        Selectable = true,
+                        Mono = true
                     },
-                    new DetailField { Label = "类型", ValuePath = "DetailRow.TypeText", Kind = FieldKind.Text },
-                    new DetailField { Label = "状态", ValuePath = "DetailRow.StatusText", Kind = FieldKind.Text },
+                    new DetailField { Label = "类型", ValuePath = "DetailRow.TypeText", Kind = FieldKind.Text, Selectable = true },
+                    // 状态：**单选下拉**（预设三档；改完点「💾 保存」落库）
+                    new DetailField
+                    {
+                        Label = "状态",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(StatusChoices),
+                        IndexPath = nameof(EditStatusIndex)
+                    },
                     new DetailField { Label = "大小", ValuePath = "DetailRow.SizeText", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "修改时间", ValuePath = "DetailRow.ModifiedText", Kind = FieldKind.Text, Selectable = true },
-                    new DetailField { Label = "存储源", ValuePath = "DetailRow.StorageName", Kind = FieldKind.Text },
+                    new DetailField { Label = "存储源", ValuePath = "DetailRow.StorageName", Kind = FieldKind.Text, Selectable = true },
                     new DetailField
                     {
                         Label = "文件路径",
@@ -1093,37 +1232,18 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Kind = FieldKind.Text,
                         Selectable = true
                     },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "重命名 / 移动 / 复制 / 删除**磁盘上的文件**是显式操作，在 NT-019 落地。"
-                    },
-                    new DetailField
-                    {
-                        Label = "评分（0~5）",
-                        Kind = FieldKind.Select,
-                        OptionsPath = nameof(RatingChoices),
-                        ValuePath = nameof(EditRating)
-                    },
-                    new DetailField
-                    {
-                        Label = "描述",
-                        ValuePath = nameof(EditDescription),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        MultiLine = true,
-                        Rows = 52,
-                        Placeholder = "随手记点什么（可留空）"
-                    },
+                    // ⛔ 已删：原「重命名 / 移动 / 复制 / 删除磁盘文件在 NT-019 落地」这句提示 —— 那些操作早已落地，
+                    //    提示留着只是噪声（NT-058 样板：固定项区只留**事实**，不放实现进度）。
                     // ===== 三组 chips（标签 / 分类 / 集合）：点一下打上 / 取消，每项带一个颜色块 =====
                     new DetailField
                     {
-                        Label = "标签（点一下打上 / 取消）",
+                        Label = "标签（点一下打上 / 取消；按命名空间分组）",
                         Kind = FieldKind.Chips,
                         OptionsPath = nameof(TagPicks),
                         ChipTextPath = "Name",
                         ChipBrushPath = "Brush",
                         ChipSelectedPath = "IsSelected",
+                        ChipGroupPath = "Group",
                         ChipCommandPath = nameof(ToggleTagCommand)
                     },
                     new DetailField
@@ -1164,16 +1284,83 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Hint = "（还没有集合：到「集合管理」页新建）",
                         VisibleWhen = "!" + nameof(HasCollectionPicks)
                     },
-                    new DetailField { Kind = FieldKind.Divider },
+                    // ===== NT-058 样板顺序：**固定只读项 → 标签 / 分类 / 集合 → 动作按钮组 → 评分 → 描述** =====
+                    // ===== 图标动作组（高频动作收成一行，替掉原来一排撑满宽度的文字按钮） =====
                     new DetailField
                     {
-                        Label = "移动到 / 复制到（目标存储源）",
-                        Kind = FieldKind.Select,
-                        OptionsPath = nameof(TargetStorages),
-                        OptionValuePath = "Id",
-                        OptionDisplayPath = "Name",
-                        ValuePath = nameof(SelectedTargetStorageId)
+                        Kind = FieldKind.IconBar,
+                        IconActions =
+                        {
+                            new DetailIconAction
+                            {
+                                IconKey = "IconStar",
+                                ToolTip = "收藏 / 取消收藏（即时写库）",
+                                CommandPath = nameof(ToggleFavoriteCommand),
+                                IsActivePath = "DetailRow.IsFavorite",
+                                IsEnabledPath = nameof(HasSelection)
+                            },
+                            new DetailIconAction
+                            {
+                                IconKey = "IconThumbUp",
+                                ToolTip = "点赞：评分 +1（0~5，即时写库）",
+                                CommandPath = nameof(RateUpCommand),
+                                IsEnabledPath = nameof(HasSelection)
+                            },
+                            new DetailIconAction
+                            {
+                                IconKey = "IconThumbDown",
+                                ToolTip = "点踩：评分 -1（0~5，即时写库）",
+                                CommandPath = nameof(RateDownCommand),
+                                IsEnabledPath = nameof(HasSelection)
+                            },
+                            new DetailIconAction { IsSeparator = true },
+                            new DetailIconAction
+                            {
+                                IconKey = "IconSave",
+                                ToolTip = "保存：把显示名 / 描述 / 状态 / 标签 / 分类 / 集合写进资产库（⛔ 不动磁盘文件）",
+                                CommandPath = nameof(SaveAssetDetailCommand),
+                                IsEnabledPath = nameof(HasSelection)
+                            },
+                            new DetailIconAction
+                            {
+                                IconKey = "IconRefresh",
+                                ToolTip = "刷新：重读资产库（列表 + 详情）",
+                                CommandPath = nameof(RefreshCommand),
+                                IsEnabledPath = "!" + nameof(IsBusy)
+                            },
+                            new DetailIconAction
+                            {
+                                IconKey = "IconTrash",
+                                ToolTip = "移入回收站：软删除（只改库里状态，⛔ 不动磁盘文件；回收站页可恢复）",
+                                CommandPath = nameof(MoveToTrashCommand),
+                                IsEnabledPath = nameof(HasSelection),
+                                ConfirmText = "把这条资产移入回收站？\n（只改库里的状态，磁盘文件不动；可在「回收站」页恢复）",
+                                IsDanger = true
+                            }
+                        }
                     },
+                    // ===== 评分：一排 1~5 小按钮（点一下**即时落盘**；要 0 分用按钮组的「👎 点踩」） =====
+                    new DetailField
+                    {
+                        Label = "评分",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(RatingPicks),
+                        ChipTextPath = "Name",
+                        ChipSelectedPath = "IsSelected",
+                        ChipCommandPath = nameof(SetRatingCommand)
+                    },
+                    new DetailField
+                    {
+                        Label = "描述",
+                        ValuePath = nameof(EditDescription),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        MultiLine = true,
+                        Rows = 52,
+                        Placeholder = "随手记点什么（可留空）"
+                    },
+                    // ⛔ 原「移动到 / 复制到（目标存储源）」整块已删（NT-058）：
+                    //    这两个是**低频的重操作**，详情卡样板只留「查看 + 改元数据」，不再摆两个物理量操作入口。
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -1189,15 +1376,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Hint = "（暂无关联；关联的增删在本轮之后落地）",
                         VisibleWhen = "!" + nameof(HasRelations)
                     },
-                    new DetailField { Kind = FieldKind.Divider },
-                    new DetailField
-                    {
-                        Label = "文件位置",
-                        Kind = FieldKind.List,
-                        OptionsPath = nameof(Locations),
-                        ItemTextPath = "Path",
-                        ItemDetailPath = "Status"
-                    },
+                    // ⛔ 原「文件位置」List 已删：它与上面的「文件路径」是同一份信息（磁盘路径），
+                    //    只读展示一次就够（NT-058 详情卡样板：去重 + 直接读取的信息一律只读）。
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
@@ -1209,20 +1389,23 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     {
                         Kind = FieldKind.Hint,
                         Hint = "操作日志（谁在什么时候改了什么）随 NT-018 / NT-019 一起落地，届时会在这里给出入口。"
+                    },
+                    // ===== 卡底部：改名输入框（⛔ 只改库里的显示名；真改磁盘文件名走下面的「应用到文件」） =====
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "显示名（只改库里的名字，⛔ 不动磁盘文件；改完点「💾 保存」）",
+                        ValuePath = nameof(DetailDisplayName),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Placeholder = "留空 = 用扫描时得到的标题"
                     }
                 }
             }
         },
         Actions =
         {
-            new DetailAction
-            {
-                Text = "💾 保存",
-                Classes = "primary",
-                ToolTip = "把显示名 / 评分 / 描述 / 标签 / 分类 / 集合写进资产库（⛔ 不动磁盘文件）",
-                IsVisiblePath = nameof(ShowDetailBody),
-                Command = SaveAssetDetailCommand
-            },
+            // ⛔ 「💾 保存」「🗑 移入回收站」已上提到**顶部图标动作组**（NT-058），这里不再重复。
             new DetailAction
             {
                 Text = "↗ 应用到文件",
@@ -1231,30 +1414,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = ApplyToFileCommand
             },
-            new DetailAction
-            {
-                Text = "🗑 移入回收站",
-                Classes = "danger-btn",
-                ToolTip = "软删除：只改库里的状态（⛔ 不动磁盘文件；在「回收站」页能恢复）",
-                IsVisiblePath = nameof(ShowDetailBody),
-                Command = MoveToTrashCommand
-            },
-            new DetailAction
-            {
-                Text = "📁 移动到此源",
-                Classes = "ghost",
-                ToolTip = "把主文件位置移到选定的已登记存储源根内（⛔ 不越界写盘）",
-                IsVisiblePath = nameof(ShowDetailBody),
-                Command = MoveToTargetCommand
-            },
-            new DetailAction
-            {
-                Text = "📋 复制到此源",
-                Classes = "ghost",
-                ToolTip = "复制一份到选定的已登记存储源根内（原文件不动）",
-                IsVisiblePath = nameof(ShowDetailBody),
-                Command = CopyToTargetCommand
-            }
+            // ⛔ 「📁 移动到此源」「📋 复制到此源」已删（NT-058）：物理搬运归任务中心 / 后续入口，
+            //    详情卡样板只保留「↗ 应用到文件」这一个**写磁盘**的显式动作。
         }
     };
 
@@ -1311,6 +1472,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 : target.DisplayName ?? target.Title ?? target.Name;
             EditRating = target?.Rating ?? 0;
             EditDescription = target?.Description ?? "";
+            // 状态下拉：索引 ↔ 状态 key（取不到就落到第 0 项「正常」）
+            var si = target == null ? -1 : Array.IndexOf(StatusKeys, target.Status);
+            EditStatusIndex = si < 0 ? 0 : si;
 
             if (target != null && target.Id > 0) BuildPicks(target);
 

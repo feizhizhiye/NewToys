@@ -378,6 +378,25 @@ public class AssetService
     }
 
     /// <summary>
+    /// NT-058：改**收藏**（详情卡图标组的「★」；即时生效即落盘，⛔ 不走「保存」、⛔ 不动磁盘）。
+    /// </summary>
+    public bool SetFavorite(long assetId, bool favorite)
+    {
+        if (assetId <= 0 || !IsAvailable) return false;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE assets SET is_favorite=$f, updated_at=$u WHERE id=$id;";
+            cmd.Parameters.AddWithValue("$f", favorite ? 1 : 0);
+            cmd.Parameters.AddWithValue("$u", Now());
+            cmd.Parameters.AddWithValue("$id", assetId);
+            return cmd.ExecuteNonQuery() > 0;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
     /// NT-019：删掉一条文件位置（**永久删除**流程用 —— 磁盘文件已经真删了，库里这条索引就没意义了）。
     /// ⛔ 只删索引行，⛔ 不碰磁盘。
     /// </summary>
@@ -676,7 +695,8 @@ public class AssetService
             var sql =
                 "SELECT a.id, a.type, a.title, a.display_name, a.status, a.rating, a.description, " +
                 "       IFNULL(l.file_name,''), IFNULL(l.path,''), IFNULL(l.size,0), l.mtime, " +
-                "       IFNULL(l.status,'active'), IFNULL(l.storage_id,0), IFNULL(s.name,''), a.updated_at, a.metadata_json " +
+                "       IFNULL(l.status,'active'), IFNULL(l.storage_id,0), IFNULL(s.name,''), a.updated_at, a.metadata_json, " +
+                "       IFNULL(a.is_favorite,0) " +
                 "FROM assets a " +
                 "LEFT JOIN file_locations l ON l.id = (SELECT f.id FROM file_locations f " +
                 "    WHERE f.asset_id = a.id ORDER BY f.is_primary DESC, f.id LIMIT 1) " +
@@ -709,6 +729,7 @@ public class AssetService
                     StorageId = r.GetInt64(12),
                     StorageName = r.GetString(13),
                     UpdatedAt = r.IsDBNull(14) ? null : r.GetString(14),
+                    IsFavorite = !r.IsDBNull(16) && r.GetInt32(16) != 0,
                     Name = !r.IsDBNull(3) && r.GetString(3).Length > 0 ? r.GetString(3)
                         : !r.IsDBNull(2) && r.GetString(2).Length > 0 ? r.GetString(2)
                         : "资产 #" + r.GetInt64(0).ToString(System.Globalization.CultureInfo.InvariantCulture)

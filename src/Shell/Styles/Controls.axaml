@@ -289,6 +289,52 @@
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
   </Style>
 
+  <!--  ===== 详情卡「图标动作组」（NT-058 / FieldKind.IconBar） =====
+        方形小按钮（32×32，图标 16×16）：一组高频动作收成一行，替掉原来一堆撑满宽度的文字按钮。
+        ① 尺寸 / 圆角 / 内边距**只在这里给一次**；② 图标颜色**只由下面的后代选择器给**
+           （Path 走 Stroke、不继承 Foreground；⛔ 不在 XAML 里写本地 Stroke —— 本地值会压过 :pointerover / .active）；
+        ③ `.active` = 已生效状态（如已收藏）：强调色；`.danger-btn` 复用既有红按钮配色（悬停红底白图标）。  -->
+  <Style Selector="Button.icon-btn">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinWidth" Value="32"/>
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Button.icon-btn:pointerover">
+    <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+  </Style>
+  <Style Selector="Button.icon-btn:disabled">
+    <Setter Property="Opacity" Value="0.35"/>
+  </Style>
+  <Style Selector="Button.icon-btn Path">
+    <Setter Property="Stroke" Value="{DynamicResource SecondaryTextBrush}"/>
+    <Setter Property="StrokeThickness" Value="1.6"/>
+    <Setter Property="StrokeLineCap" Value="Round"/>
+    <Setter Property="StrokeJoin" Value="Round"/>
+  </Style>
+  <Style Selector="Button.icon-btn:pointerover Path">
+    <Setter Property="Stroke" Value="{DynamicResource PrimaryTextBrush}"/>
+  </Style>
+  <Style Selector="Button.icon-btn.active Path">
+    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+  <Style Selector="Button.icon-btn.icon-danger Path">
+    <Setter Property="Stroke" Value="{DynamicResource DangerBrush}"/>
+  </Style>
+  <!--  组内分隔：1px 竖线（与卡内 Divider 同色，高度跟着按钮行 20px）  -->
+  <Style Selector="Border.icon-sep">
+    <Setter Property="Width" Value="1"/>
+    <Setter Property="Height" Value="20"/>
+    <Setter Property="Margin" Value="2,0"/>
+    <Setter Property="Background" Value="{DynamicResource DividerBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
   <!--  List 行容器（NT-054 v3.33 / 描述符 ItemCommandPath）：常态**长得跟只读行一样**。
         ⛔ 没给命令就不加 .link —— 点击无操作、也没有悬停高亮，避免"看着能点其实不能"。
         ⚠️ 悬停只改背景，⛔ 不改文字色：模板里的 TextBlock 有本地 Foreground，样式压不过本地值。  -->

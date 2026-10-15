@@ -71,16 +71,23 @@ public class TagAssetRef
 /// </summary>
 public partial class PickItem : ObservableObject
 {
-    public PickItem(long id, string name, IBrush brush, bool selected)
+    public PickItem(long id, string name, IBrush brush, bool selected, string? group = null)
     {
         Id = id;
         Name = name;
         Brush = brush;
         _isSelected = selected;
+        Group = group;
     }
 
     public long Id { get; }
     public string Name { get; }
+
+    /// <summary>
+    /// **分组键**（NT-058）：详情卡 chips 的 <c>ChipGroupPath="Group"</c> 用它分组显示
+    /// （标签 = 命名空间；分类 / 集合 / 评分给 null = 不分组，一大排显示）。
+    /// </summary>
+    public string? Group { get; }
 
     /// <summary>色片画刷（数据色；标签用库里的色，分类 / 集合按名字稳定取）。</summary>
     public IBrush Brush { get; }

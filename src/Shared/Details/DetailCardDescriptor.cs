@@ -43,7 +43,17 @@ public enum FieldKind
     /// **只读列表**（键值 / 对比行）：主文本 + 可选左标签 + 可选右侧强调值 + 可选第二行说明。
     /// 单项路径见 <see cref="DetailField.ItemTextPath"/> 等；数据源复用 <see cref="DetailField.OptionsPath"/>。
     /// </summary>
-    List
+    List,
+
+    /// <summary>
+    /// **图标动作组**（NT-058）：一行方形小图标按钮（32×32），给「收藏 / 点赞 / 点踩 / 保存 / 刷新 / 删除」
+    /// 这类**高频、语义靠图标就够**的动作用，替掉一排撑满宽度的文字按钮。
+    /// <para>
+    /// 成员见 <see cref="DetailField.IconActions"/>（列表 → 顺序即渲染顺序、数量不限、可出现多次）；
+    /// 溢出自动换行（WrapPanel）。**只固定视觉样式**，⛔ 不固定排列。
+    /// </para>
+    /// </summary>
+    IconBar
 }
 
 /// <summary>
@@ -242,6 +252,20 @@ public sealed class DetailField
     /// <summary>chip 悬停提示的路径（相对候选项，如色板的 <c>"Hex"</c>）；null = 无提示。</summary>
     public string? ChipToolTipPath { get; set; }
 
+    /// <summary>
+    /// chip **分组**的路径（相对候选项，如标签的 <c>"Namespace"</c>；NT-058）。
+    /// <para>非空 = 按这个键**分组显示**（每组一个小标题 + 一组 chips，空键归到「其它」）；null = 一大排不分组。</para>
+    /// </summary>
+    public string? ChipGroupPath { get; set; }
+
+    // ===== IconBar 专用（NT-058：一行图标动作） =====
+
+    /// <summary>
+    /// 图标动作组（<see cref="FieldKind.IconBar"/> 专用）：**顺序即渲染顺序**、数量不限、溢出自动换行。
+    /// <para>⛔ 与本行其它取数属性（<c>ValuePath</c> / <c>OptionsPath</c> …）互斥 —— IconBar 只认这个集合。</para>
+    /// </summary>
+    public List<DetailIconAction> IconActions { get; } = new();
+
     // ===== Number 用 =====
 
     /// <summary>数值下限（<see cref="FieldKind.Number"/>）。</summary>
@@ -266,6 +290,52 @@ public sealed class DetailField
 
     /// <summary>密码框。</summary>
     public bool Password { get; set; }
+}
+
+/// <summary>
+/// 图标动作组（<see cref="FieldKind.IconBar"/>）里的**一个图标按钮**（NT-058）。
+/// <para>
+/// 🔴 全部走**路径字符串**（相对卡片 DataContext = 页面 VM），由 Shell 渲染层解析成强类型属性 —— 与
+/// <see cref="DetailAction"/> 同一口径（其余 Kind 的路径也是这么解析的）。
+/// </para>
+/// <para>
+/// ⚠️ 纯图标没有文字 ⇒ <see cref="ToolTip"/> **必填**（悬停讲语义，否则用户猜不出按钮是干什么的）。
+/// </para>
+/// </summary>
+public sealed class DetailIconAction
+{
+    /// <summary>
+    /// 图标资源键（`App.axaml` 的 <c>Icon*</c> <c>StreamGeometry</c> 键，如 <c>"IconStar"</c> / <c>"IconThumbUp"</c>）。
+    /// <para>⛔ 键不存在 ⇒ 按钮没有图标（渲染层静默跳过，不抛）。</para>
+    /// </summary>
+    public string? IconKey { get; set; }
+
+    /// <summary>可选文字（非空 = 「图标 + 文字」小按钮；null = 纯图标方形按钮）。</summary>
+    public string? Text { get; set; }
+
+    /// <summary>悬停提示（**必填**：纯图标靠它讲语义；置灰时也要讲原因）。</summary>
+    public string? ToolTip { get; set; }
+
+    /// <summary>命令路径（指向页面 VM 上的 <see cref="ICommand"/>，如 <c>"SaveAssetDetailCommand"</c>）。</summary>
+    public string? CommandPath { get; set; }
+
+    /// <summary>可用性布尔路径；null = 恒可用（命令自己的 <c>CanExecute</c> 仍然生效）。</summary>
+    public string? IsEnabledPath { get; set; }
+
+    /// <summary>可见性布尔路径；null = 恒可见。</summary>
+    public string? IsVisiblePath { get; set; }
+
+    /// <summary>激活态布尔路径（如「已收藏」）；true = 图标走强调色。</summary>
+    public string? IsActivePath { get; set; }
+
+    /// <summary>非空则执行前弹二次确认（走 <c>Core/Services/DialogHooks</c>）—— 删除这类不可逆动作必填。</summary>
+    public string? ConfirmText { get; set; }
+
+    /// <summary>危险动作（删除等）：图标走 <c>DangerBrush</c>。</summary>
+    public bool IsDanger { get; set; }
+
+    /// <summary>分隔符（渲染成一条竖线，把组内按钮分组；此时除本属性外全部忽略）。</summary>
+    public bool IsSeparator { get; set; }
 }
 
 /// <summary>详情卡动作区的一个**声明式命令**。</summary>

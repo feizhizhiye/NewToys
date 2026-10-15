@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
 using System.Windows.Input;
+using Avalonia.Controls;      // ← TryFindResource 是这里的扩展方法（挂在 IResourceHost 上）
 using Avalonia.Layout;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -155,7 +156,7 @@ public sealed class TextFieldRow : DetailFieldRow
     public bool MultiLine => Field.MultiLine;
     public bool Mono => Field.Mono;
     public char PasswordChar => Field.Password ? '●' : '\0';
-    public double BoxMinHeight => Field.MultiLine ? (Field.Rows > 0 ? Field.Rows * 18 : 52) : 0;
+    public double BoxMinHeight => Field.MultiLine ? (Field.Rows > 0 ? Field.Rows : 52) : 0;
     public string? Placeholder => Field.Placeholder;
 
     /// <summary>OnBlur 语义：值的写回交给 <c>LostFocus</c>（模板里挂 <c>OnTextLostFocus</c>）。</summary>
@@ -302,7 +303,14 @@ public sealed class IndexSelectFieldRow : DetailFieldRow
     {
         // ⚠️ 候选列表**只建一次**：换新的 ItemsSource 会让 ComboBox 把 SelectedIndex 清成 -1 并 TwoWay 回写，
         //    等于每刷新一次就把页面 VM 上的「第几个编码器」抹掉。
-        if (_options.Count == 0 && Field.LiteralOptions is not null) Options = new List<string>(Field.LiteralOptions);
+        if (_options.Count == 0)
+        {
+            if (Field.LiteralOptions is not null)
+                Options = new List<string>(Field.LiteralOptions);
+            else if (DetailPath.Resolve(Source, Field.OptionsPath) is IEnumerable opts)
+                // NT-058：索引通道也支持 `OptionsPath`（原来只认 `LiteralOptions` ⇒ 给了 OptionsPath 就**下拉空白**）
+                Options = opts.Cast<object?>().Select(x => x?.ToString() ?? "").ToList();
+        }
 
         var raw = DetailPath.Resolve(Source, Field.IndexPath);
         var index = -1;
@@ -437,15 +445,37 @@ public sealed class DetailChip : ObservableObject
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
 }
 
-/// <summary><see cref="FieldKind.Chips"/>：集合编辑器（标签：点一下打上 / 取消）。</summary>
+/// <summary>chips 的一个**分组**（NT-058：标签按命名空间分组显示时用）。</summary>
+public sealed class DetailChipGroup
+{
+    /// <summary>组标题（<c>ChipGroupPath</c> 取到的键；空键归到「其它」）。</summary>
+    public string? Header { get; set; }
+
+    public bool HasHeader => !string.IsNullOrWhiteSpace(Header);
+
+    /// <summary>是否色块模式（透传 <see cref="ChipsFieldRow.IsSwatch"/>；模板只在**上一层**取，⛔ 不用链式 $parent）。</summary>
+    public bool IsSwatch { get; set; }
+
+    public ObservableCollection<DetailChip> Chips { get; } = new();
+}
+
+/// <summary>
+/// <see cref="FieldKind.Chips"/>：集合编辑器（标签：点一下打上 / 取消）。
+/// <para>NT-058：<see cref="DetailField.ChipGroupPath"/> 非空 ⇒ 按这个键**分组显示**（每组一个小标题 + 一组 chips）。</para>
+/// </summary>
 public sealed class ChipsFieldRow : DetailFieldRow
 {
     private INotifyCollectionChanged? _watched;
 
     public ChipsFieldRow(DetailField field, object? source) : base(field, source) { }
 
+    /// <summary>全部 chip（扁平；分组时 = 各组之和）。</summary>
     public ObservableCollection<DetailChip> Chips { get; } = new();
     public bool HasChips => Chips.Count > 0;
+
+    /// <summary>**分组视图**（模板走这个；不分组时只有一组、且没有标题）。</summary>
+    public ObservableCollection<DetailChipGroup> Groups { get; } = new();
+    public bool HasGroups => Groups.Count > 0;
 
     /// <summary>
     /// 色块模式（<c>ChipBrushPath</c> 非空）：模板给按钮换成 <c>chip-swatch</c> 样式（紧凑色块按钮），
@@ -467,14 +497,34 @@ public sealed class ChipsFieldRow : DetailFieldRow
         }
 
         Chips.Clear();
+        Groups.Clear();
+
+        var groupPath = Field.ChipGroupPath;
+        var grouping = !string.IsNullOrWhiteSpace(groupPath);
+        DetailChipGroup? cur = null;
+        string? lastKey = null;
+
         if (raw is not null)
         {
             foreach (var item in raw)
             {
+                var key = grouping ? DetailPath.Resolve(item, groupPath)?.ToString() : null;
+                // 组键变了（或第一项）⇒ 开一个新组；不分组 ⇒ 全程只有一组、无标题
+                if (cur is null || (grouping && !string.Equals(key, lastKey, StringComparison.Ordinal)))
+                {
+                    cur = new DetailChipGroup
+                    {
+                        Header = grouping ? (string.IsNullOrWhiteSpace(key) ? "其它" : key) : null,
+                        IsSwatch = IsSwatch
+                    };
+                    Groups.Add(cur);
+                    lastKey = key;
+                }
+
                 var text = Field.ChipTextPath is null
                     ? item?.ToString()
                     : DetailPath.Resolve(item, Field.ChipTextPath)?.ToString();
-                Chips.Add(new DetailChip
+                var chip = new DetailChip
                 {
                     Source = item,
                     Text = text ?? "",
@@ -485,10 +535,13 @@ public sealed class ChipsFieldRow : DetailFieldRow
                     Brush = DetailPath.Resolve(item, Field.ChipBrushPath) as Avalonia.Media.IBrush,
                     ToolTipText = DetailPath.Resolve(item, Field.ChipToolTipPath)?.ToString(),
                     IsSelected = DetailPath.ResolveBool(item, Field.ChipSelectedPath)
-                });
+                };
+                Chips.Add(chip);
+                cur.Chips.Add(chip);
             }
         }
         OnPropertyChanged(nameof(HasChips));
+        OnPropertyChanged(nameof(HasGroups));
         OnPropertyChanged(nameof(IsSwatch));
     }
 
@@ -520,6 +573,99 @@ public sealed class HintFieldRow : DetailFieldRow
 public sealed class DividerFieldRow : DetailFieldRow
 {
     public DividerFieldRow(DetailField field, object? source) : base(field, source) { }
+}
+
+/// <summary>
+/// <see cref="FieldKind.IconBar"/> 里的一个图标按钮（NT-058）。
+/// <para>
+/// 图标由 <c>App.axaml</c> 的 <c>Icon*</c> <c>StreamGeometry</c> **按资源键**解析成 <see cref="Avalonia.Media.Geometry"/>
+/// （模板里 <c>Path.Data</c> 直接绑它 —— XAML 写不出动态资源键，所以这一步只能在 C# 侧做）。
+/// </para>
+/// </summary>
+public sealed class DetailIconActionRender : ObservableObject
+{
+    private readonly DetailIconAction _d;
+    private readonly object? _source;
+    private readonly ICommand? _command;
+
+    public DetailIconActionRender(DetailIconAction action, object? source)
+    {
+        _d = action;
+        _source = source;
+        Icon = ResolveIcon(action.IconKey);
+
+        var inner = DetailPath.Resolve(source, action.CommandPath) as ICommand;
+        if (inner is not null && !string.IsNullOrWhiteSpace(action.ConfirmText))
+        {
+            var message = action.ConfirmText!;
+            _command = new AsyncRelayCommand(async () =>
+            {
+                if (await DialogHooks.ConfirmAsync(message).ConfigureAwait(true)) inner.Execute(null);
+            });
+        }
+        else
+        {
+            _command = inner;
+        }
+    }
+
+    public Avalonia.Media.Geometry? Icon { get; }
+    public bool HasIcon => Icon is not null;
+    public string? Text => _d.Text;
+    public bool HasText => !string.IsNullOrWhiteSpace(_d.Text);
+    public string? ToolTip => _d.ToolTip;
+    public bool IsDanger => _d.IsDanger;
+    public bool IsSeparator => _d.IsSeparator;
+    public ICommand? Command => _command;
+
+    private bool _isVisible = true;
+    private bool _isEnabled = true;
+    private bool _isActive;
+
+    public bool IsVisible { get => _isVisible; private set => SetProperty(ref _isVisible, value); }
+    public bool IsEnabled { get => _isEnabled; private set => SetProperty(ref _isEnabled, value); }
+    public bool IsActive { get => _isActive; private set => SetProperty(ref _isActive, value); }
+
+    public void Refresh()
+    {
+        IsVisible = _d.IsVisiblePath is null || DetailPath.ResolveBool(_source, _d.IsVisiblePath);
+        IsActive = _d.IsActivePath is not null && DetailPath.ResolveBool(_source, _d.IsActivePath);
+        IsEnabled = (_d.IsEnabledPath is null || DetailPath.ResolveBool(_source, _d.IsEnabledPath))
+                    && (_command is null || _command.CanExecute(null));
+    }
+
+    /// <summary>
+    /// 按资源键取图标（<c>App.axaml</c> 的 <c>Icon*</c>）。
+    /// ⚠️ Avalonia 12 的 <c>TryFindResource</c> 是 **Try 模式**（<c>out</c> 参数），且是 <c>IResourceHost</c> 的扩展方法。
+    /// </summary>
+    private static Avalonia.Media.Geometry? ResolveIcon(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        var app = Avalonia.Application.Current;
+        if (app is null) return null;
+        return app.TryFindResource(key!, out var value) && value is Avalonia.Media.Geometry g ? g : null;
+    }
+}
+
+/// <summary>
+/// <see cref="FieldKind.IconBar"/>：一行图标动作（32×32 方形小按钮，溢出换行）。
+/// <para>成员来自 <see cref="DetailField.IconActions"/>（顺序即渲染顺序、数量不限）；同一张卡可以出现多组。</para>
+/// </summary>
+public sealed class IconBarFieldRow : DetailFieldRow
+{
+    public IconBarFieldRow(DetailField field, object? source) : base(field, source)
+    {
+        foreach (var a in field.IconActions) Items.Add(new DetailIconActionRender(a, source));
+    }
+
+    public ObservableCollection<DetailIconActionRender> Items { get; } = new();
+    public bool HasItems => Items.Count > 0;
+
+    protected override void RefreshCore()
+    {
+        foreach (var i in Items) i.Refresh();
+        OnPropertyChanged(nameof(HasItems));
+    }
 }
 
 /// <summary>分区渲染对象：标题（可点折叠）+ 可选标题勾选框 + 字段列表。</summary>
@@ -587,6 +733,7 @@ public sealed class DetailSectionRender : ObservableObject
         FieldKind.Hint => new HintFieldRow(f, source),
         FieldKind.Divider => new DividerFieldRow(f, source),
         FieldKind.List => new ListFieldRow(f, source),
+        FieldKind.IconBar => new IconBarFieldRow(f, source),
         _ => new TextFieldRow(f, source)
     };
 }

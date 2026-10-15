@@ -57,6 +57,12 @@ public interface IQuickActionService
     /// <summary>删除一条（内部走二次确认钩子；用户取消返回 <c>false</c>）。</summary>
     Task<bool> RemoveAsync(QuickAction item);
 
+    /// <summary>
+    /// 删除一条**但不弹确认**（NT-059：从磁盘删除那一路 —— 确认框由调用方自己弹，
+    /// ⛔ 否则"确认删文件 + 确认删条目"会出现两次，且第二次取消时文件已经没了）。
+    /// </summary>
+    bool RemoveSilent(QuickAction item);
+
     /// <summary>切换收藏（没有则收藏、已有则取消）。</summary>
     void ToggleFavorite(QuickAction item);
 

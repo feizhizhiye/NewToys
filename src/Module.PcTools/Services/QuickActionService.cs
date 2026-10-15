@@ -135,6 +135,17 @@ public class QuickActionService : IQuickActionService
         return true;
     }
 
+    public bool RemoveSilent(QuickAction item)
+    {
+        if (item == null) return false;
+        if (!_shortcuts.Contains(item) && !_quick.Contains(item)) return false;
+
+        _shortcuts.Remove(item);
+        _quick.Remove(item);
+        Persist();
+        return true;
+    }
+
     public void ToggleFavorite(QuickAction item)
     {
         if (item == null) return;

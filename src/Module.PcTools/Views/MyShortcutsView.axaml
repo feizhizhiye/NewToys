@@ -26,19 +26,22 @@
                       Command="{Binding SortCommand}" CommandParameter="Title" ToolTip.Tip="点一下按名称排序"
                       IsVisible="{Binding IsTitleVisible}"/>
               <Button Grid.Column="1" Classes="col-header" Content="{Binding CategoryHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Category" ToolTip.Tip="点一下按分类排序"
+                      Command="{Binding SortCommand}" CommandParameter="Category" ToolTip.Tip="点一下按功能排序"
                       IsVisible="{Binding IsCategoryVisible}"/>
-              <Button Grid.Column="2" Classes="col-header" Content="简介"
+              <!-- v3.63 新增「分类」列：脚本 = 脚本后缀 / 命令行命令 = Shell 宿主；派生值，不可排序 -->
+              <TextBlock Grid.Column="2" Classes="list-cell" Text="分类" FontWeight="SemiBold"
+                         ToolTip.Tip="脚本 = 脚本后缀（.py/.ps1/.bat/.cmd）；命令行命令 = Shell 宿主（cmd / pwsh / 自动）"
+                         IsVisible="{Binding IsClassifyVisible}"/>
+              <Button Grid.Column="3" Classes="col-header" Content="简介"
                       Command="{Binding SortCommand}" CommandParameter="Description"
                       IsVisible="{Binding IsDescriptionVisible}"/>
-              <Button Grid.Column="3" Classes="col-header" Content="{Binding FavoriteHeader}"
+              <Button Grid.Column="4" Classes="col-header" Content="{Binding FavoriteHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Favorite" ToolTip.Tip="点一下把收藏的排在前面"
                       IsVisible="{Binding IsFavoriteVisible}"/>
-              <TextBlock Grid.Column="4" Classes="list-cell" Text="操作" FontWeight="SemiBold"
+              <TextBlock Grid.Column="5" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
-                  <MenuItem Header="➕ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
                   <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
                     <MenuItem.ItemContainerTheme>
                       <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
@@ -51,8 +54,10 @@
                   <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：翻转由 ToggleColumnCommand 独家负责（默认双向会二次翻转）。 -->
                   <MenuItem Header="名称" IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" ToggleType="CheckBox" IsChecked="{Binding IsTitleVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Title"/>
-                  <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsCategoryVisible, Mode=OneWay}"
+                  <MenuItem Header="功能" ToggleType="CheckBox" IsChecked="{Binding IsCategoryVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Category"/>
+                  <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsClassifyVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Classify"/>
                   <MenuItem Header="简介" ToggleType="CheckBox" IsChecked="{Binding IsDescriptionVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Description"/>
                   <MenuItem Header="★" ToggleType="CheckBox" IsChecked="{Binding IsFavoriteVisible, Mode=OneWay}"
@@ -69,8 +74,9 @@
             <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
               <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsTitleVisible}" Text="{Binding SampleRowTexts[0]}"/>
               <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsCategoryVisible}" Text="{Binding SampleRowTexts[1]}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsDescriptionVisible}" Text="{Binding SampleRowTexts[2]}"/>
-              <TextBlock Grid.Column="3" Classes="list-cell accent" IsVisible="{Binding IsFavoriteVisible}" Text="{Binding SampleRowTexts[3]}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsClassifyVisible}" Text="{Binding SampleRowTexts[2]}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsDescriptionVisible}" Text="{Binding SampleRowTexts[3]}"/>
+              <TextBlock Grid.Column="4" Classes="list-cell accent" IsVisible="{Binding IsFavoriteVisible}" Text="{Binding SampleRowTexts[4]}"/>
             </v:ColumnGrid>
           </Border>
 
@@ -91,8 +97,10 @@
                 <MenuItem Header="{Binding FavoriteMenuLabel}" Command="{Binding ToggleFavoriteCommand}"/>
                 <MenuItem Header="📋 复制命令" Command="{Binding CopyCommand}"/>
                 <Separator/>
-                <MenuItem Header="➕ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
-                <MenuItem Header="🗑 删除…" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <!-- 本页 = 脚本索引库 ⇒ ⛔ 不在这里「新增脚本」（新增只走工具条「📂 导入」）。
+                     删除分两路：右键 = 连磁盘文件一起删（二次确认）；详情卡图标组的 🗑 = 只从清单移除。 -->
+                <MenuItem Header="🔥 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="🗑 从列表移除" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
               </ContextMenu>
             </ListBox.ContextMenu>
 
@@ -103,12 +111,14 @@
                              IsVisible="{Binding $parent[ListBox].DataContext.IsTitleVisible}"/>
                   <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Category}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsCategoryVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Description}"
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Classify}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsClassifyVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Description}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell accent" Text="{Binding FavoriteMark}"
+                  <TextBlock Grid.Column="4" Classes="list-cell accent" Text="{Binding FavoriteMark}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsFavoriteVisible}"/>
                   <!-- 行内「▶ 运行」：每行可直接运行 -->
-                  <Button Grid.Column="4" Classes="ghost row-btn" Content="▶ 运行"
+                  <Button Grid.Column="5" Classes="ghost row-btn" Content="▶ 运行"
                           Command="{Binding $parent[ListBox].DataContext.RunCommand}"
                           CommandParameter="{Binding}"
                           IsEnabled="{Binding $parent[ListBox].DataContext.IsNotBusy}"

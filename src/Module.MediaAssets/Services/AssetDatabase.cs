@@ -52,6 +52,7 @@ public class AssetDatabase
         EnsureColumn("file_locations", "device", "TEXT");
         EnsureColumn("file_locations", "last_seen_at", "TEXT");
         EnsureColumn("storages", "online", "INTEGER");
+        EnsureColumn("assets", "is_favorite", "INTEGER");   // NT-058：详情卡「★ 收藏」
         EnsureColumn("operation_logs", "finished_at", "TEXT");
         EnsureColumn("scan_jobs", "error_count", "INTEGER");
     }

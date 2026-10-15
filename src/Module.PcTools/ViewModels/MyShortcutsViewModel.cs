@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
@@ -35,70 +37,136 @@ public partial class MyShortcutsViewModel : QuickActionListViewModel
     protected override string ExportSuggestedName => "pc-scripts-export.json";
 
     /// <summary>
-    /// 本页专属的工具条项（插在搜索框之后、导入 / 导出之前）：脚本目录（只读框 + 选择 / 打开 / 默认）
-    /// + 「📥 批量导入脚本」+「含子目录」。与迁移前的页内工具条**逐项一致**。
+    /// v3.63：本页最前已经有了「📂 导入」（脚本文件）⇒ 共用的「📥 导入」（json 清单）退到「📤 导出」前面，
+    /// ⛔ 不让两个导入挨在一起。
+    /// </summary>
+    protected override bool JsonImportFirst => false;
+
+    /// <summary>
+    /// 本页专属的工具条项（插在搜索框之前）：「📥 导入脚本」（一个按钮 + 下拉：**导入文件 / 导入文件夹**两路）
+    /// + 脚本目录只读框（展示**当前生效的配置**，路径在「设置 → 路径与配置」里改 ⇒ ⛔ 本页不再给「选择 / 打开 / 默认」）。
     /// </summary>
 
     protected override IEnumerable<ToolbarItemDescriptor> ToolbarExtras => new ToolbarItemDescriptor[]
     {
-        // v3.60：原 Label「脚本目录」删除（工具条⛔ 不放提示文字）—— 含义由下面的只读框 ToolTip（ScriptHint）表达。
         new()
         {
-            Text = "📥 批量导入脚本",
+            // 与视频列表「📂 导入」**同一口径**：SplitButton（主钮 = 选文件夹，右侧箭头 = 两路菜单）。
+            Kind = ToolbarItemKind.SplitButton,
+            Text = "📂 导入",   // v3.63：与「📥 导入」（json 清单，排在导出前面）靠图标 + 悬停提示区分
             Classes = "ghost",
             CommandPath = nameof(ImportScriptFolderCommand),
-            ToolTip = "选一个目录，把它里的脚本文件一次性全部建成条目（已存在的会跳过）"
+            ToolTip = "把脚本文件建成条目：直接点 = 选文件夹（含子目录），右侧箭头 = 选文件夹 / 选文件；已存在的会跳过",
+            Items = new[]
+            {
+                new ToolbarMenuItemDescriptor
+                {
+                    Text = "📁 文件夹…",
+                    CommandPath = nameof(ImportScriptFolderCommand),
+                    ToolTip = "选一个目录，把它里的脚本全部建成条目"
+                },
+                new ToolbarMenuItemDescriptor
+                {
+                    Text = "📄 文件…",
+                    CommandPath = nameof(ImportScriptFilesCommand),
+                    ToolTip = "一次选一个或多个 .py / .ps1 / .bat / .cmd 文件"
+                }
+            }
         },
         new()
         {
             Kind = ToolbarItemKind.TextField,
             Width = 88,
             IsReadOnly = true,
+            // v3.63：未聚焦时框里只显示「脚本目录」四个字，点一下才露出真实路径并全选（好复制）
+            Placeholder = "脚本目录",
             ValuePath = nameof(ScriptsDirectory),
             ToolTipPath = nameof(ScriptHint)
         }
     };
 
-    // 这几个是「脚本目录」框的配套动作 / 选项 ⇒ 排在共用搜索框**之后**（基类 ToolbarTailExtras），
-    // 让「📥 批量导入脚本 → 目录框 → 搜索框」三件套在最前面挨着。
+    // 「含子目录」只跟「导入文件夹」这一路有关 ⇒ 排在共用搜索框之后（基类 ToolbarTailExtras）。
     protected override IEnumerable<ToolbarItemDescriptor> ToolbarTailExtras => new ToolbarItemDescriptor[]
     {
         new()
         {
-            Text = "📂 选择",
-            CommandPath = nameof(PickScriptFolderCommand),
-            ToolTip = "选一个目录作为脚本目录（立即生效，写入 app.json）"
-        },
-        new() { Text = "↗ 打开", CommandPath = nameof(OpenScriptsFolderCommand) },
-        new() { Text = "↩ 默认", CommandPath = nameof(ResetScriptFolderCommand), ToolTipPath = nameof(DefaultScriptFolder) },
-        new() { Kind = ToolbarItemKind.Toggle, Text = "含子目录", ValuePath = nameof(ImportSubFolders) }
+            Kind = ToolbarItemKind.Toggle,
+            Text = "含子目录",
+            ValuePath = nameof(ImportSubFolders),
+            ToolTip = "勾上 = 导入文件夹时连子目录里的脚本一起收（对「导入文件」无效）"
+        }
     };
 
-    /// <summary>📂 选择脚本目录（NT-055：原 code-behind 的 Click 搬进 VM，选择器走 DialogHooks）。</summary>
+    /// <summary>
+    /// 📄 导入文件：一次选一个或多个脚本文件。
+    /// <para>🔴 起始目录 = **配置的脚本目录**（<see cref="ScriptsDirectory"/>）—— 路径一律按配置走。</para>
+    /// </summary>
 
     [RelayCommand]
 
-    private async Task PickScriptFolderAsync()
+    private async Task ImportScriptFilesAsync()
     {
-        var dir = await DialogHooks.PickFolderAsync("选择脚本目录");
-        if (!string.IsNullOrWhiteSpace(dir)) ApplyPickedScriptFolder(dir);
+        var files = await DialogHooks.PickFilesAsync("选择要导入的脚本文件", ScriptsDirectory, true, ScriptFilePattern);
+        if (files == null || files.Count == 0) return;
+        var (added, skipped) = ImportScriptFiles(files);
+        if (added == 0 && skipped == 0)
+            StatusText = $"选中的文件里没有 {string.Join(" / ", ScriptExtensions)} 这类脚本。";
+        // 有结果时结论已经写进 StatusText（ImportScriptFiles 内部负责）
     }
 
-    /// <summary>📥 批量导入：选一个目录 → 把里面的脚本文件一次性全建成条目（NT-055：同上搬进 VM）。</summary>
+    /// <summary>
+    /// 📁 导入文件夹：选一个目录 → 把里面的脚本文件全建成条目。
+    /// <para>🔴 起始目录 = **配置的脚本目录**（<see cref="ScriptsDirectory"/>）—— 路径一律按配置走。</para>
+    /// </summary>
 
     [RelayCommand]
 
     private async Task ImportScriptFolderAsync()
     {
-        var dir = await DialogHooks.PickFolderAsync("选择要导入的脚本目录");
+        var dir = await DialogHooks.PickFolderAsync("选择要导入的脚本目录", ScriptsDirectory);
         if (string.IsNullOrWhiteSpace(dir)) return;
         var (added, skipped) = ImportScriptFolder(dir, ImportSubFolders);
         if (added == 0 && skipped == 0)
             StatusText = $"「{dir}」里没有 {string.Join(" / ", ScriptExtensions)} 这类脚本文件。";
-        // 有结果时结论已经写进 StatusText（ImportScriptFolder 内部负责）
+        // 有结果时结论已经写进 StatusText（ImportScriptFiles 内部负责）
     }
 
-    /// <summary>本页详情卡（NT-054 / 需求 §4.5.1）：类型下拉 + 「命令」/「脚本文件」两套字段（按条目类型显隐）。</summary>
+    /// <summary>
+    /// 🔥 **从磁盘删除**（列表右键）：先删脚本文件本身，再把这条从清单里移除。
+    /// <para>
+    /// 与详情卡图标组的「🗑」分工：**图标组只动清单（⛔ 不碰磁盘）**；右键这一路是**真删文件**，不可撤销。
+    /// 本页本质是**脚本索引库**，操作逻辑与资产库一致 ⇒ 破坏性动作放右键、放二次确认。
+    /// </para>
+    /// </summary>
+
+    [RelayCommand]
+
+    private async Task DeleteFromDiskAsync()
+    {
+        var item = Selected;
+        if (item == null || !HasService) return;
+
+        var path = ResolveScriptPath(item.ScriptFile);
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            StatusText = $"「{item.Title}」的脚本文件不在磁盘上（{item.ScriptFile}）⇒ 只把这条从列表移除。";
+            RemoveFromList(item);
+            return;
+        }
+
+        // 二次确认**只在这里弹一次**（service 走 RemoveSilent，⛔ 否则会问两遍、且第二遍取消时文件已删）
+        var ok = await DialogHooks.ConfirmAsync(
+            $"确定从磁盘删除脚本文件「{Path.GetFileName(path)}」吗？\n{path}\n\n此操作不可撤销，删除后这条也会从清单里移除。");
+        if (!ok) { StatusText = "已取消，文件没动。"; return; }
+
+        try { File.Delete(path); }
+        catch (Exception ex) { StatusText = "删除文件失败：" + ex.Message; return; }
+
+        RemoveFromList(item);
+        StatusText = $"已从磁盘删除：{Path.GetFileName(path)}（清单里的这条也一并移除）";
+    }
+
+    /// <summary>本页详情卡（NT-054 / 需求 §4.5.1）：类型 = 脚本后缀 + 「脚本文件 / 解释器」两套字段。</summary>
 
     protected override DetailCardDescriptor BuildCard()
     {
@@ -106,7 +174,7 @@ public partial class MyShortcutsViewModel : QuickActionListViewModel
         {
             BodyVisiblePath = nameof(ShowDetailBody),
             SamplePath = nameof(IsDetailSample),
-            EmptyText = "在左侧列表里选中一条，可在这里编辑名称 / 分类 / 简介与「命令」或「脚本文件」，并点「▶ 运行」执行；右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。",
+            EmptyText = "在左侧列表里选中一条，可在这里看它的脚本文件 / 解释器并改名称 / 简介 / 分类；下面的图标按钮依次是「运行 / 收藏 / 保存 / 从列表移除」。本页是**脚本索引库**：新增条目靠工具条「📂 导入」，⛔ 不在这里新建脚本。",
             SampleText = "（示例数据）在左侧选中一条后，这里显示它的真实内容；示例态下卡片不可编辑。",
             Sections =
             {
@@ -122,13 +190,15 @@ public partial class MyShortcutsViewModel : QuickActionListViewModel
                             Kind = FieldKind.Text,
                             Commit = EditCommitMode.OnBlur
                         },
+                        // v3.63 改名：这一列（设置 / 脚本 / 定时任务）叫**功能**；「分类」给了下面的后缀/宿主列
                         new DetailField
                         {
-                            Label = "分类",
-                            ValuePath = nameof(EditCategory),
-                            Kind = FieldKind.Text,
-                            Commit = EditCommitMode.OnBlur,
-                            Placeholder = "系统设置 / 网络 / 维护 / 打开…"
+                            Label = "功能（点一下打上 / 再点取消）",
+                            Kind = FieldKind.Chips,
+                            OptionsPath = nameof(CategoryPicks),
+                            ChipTextPath = nameof(CategoryPick.Name),
+                            ChipSelectedPath = nameof(CategoryPick.IsSelected),
+                            ChipCommandPath = nameof(ToggleCategoryCommand)
                         },
                         new DetailField
                         {
@@ -139,13 +209,15 @@ public partial class MyShortcutsViewModel : QuickActionListViewModel
                             MultiLine = true,
                             Rows = 52
                         },
+                        // v3.63：「分类」= 脚本后缀（.py / .ps1 / .bat / .cmd），只读（解释器按后缀自动挑）；
+                        //        值与表头「分类」列同源（ClassifyText ⇒ QuickAction.Classify）
                         new DetailField
                         {
-                            Label = "类型",
-                            Kind = FieldKind.Select,
-                            OptionsPath = nameof(KindOptions),
-                            OptionDisplayPath = "Label",
-                            ValuePath = nameof(SelectedKind)
+                            Label = "分类",
+                            ValuePath = nameof(ClassifyText),
+                            Kind = FieldKind.Text,
+                            Selectable = true,
+                            Mono = true
                         },
                         // 「命令」只在命令行条目上显示（脚本条目走下面的脚本文件 / 解释器）
                         new DetailField
@@ -197,6 +269,7 @@ public partial class MyShortcutsViewModel : QuickActionListViewModel
                             Kind = FieldKind.Check
                         },
                         new DetailField { Kind = FieldKind.Divider },
+                        BuildActionBar(),
                         new DetailField
                         {
                             Kind = FieldKind.Hint,
@@ -206,16 +279,8 @@ public partial class MyShortcutsViewModel : QuickActionListViewModel
                 }
             }
         };
-        card.Actions.AddRange(BuildCommonActions());
-        // 原来「脚本文件」框右侧有个内联 📂（走 code-behind）—— 声明式卡里收进 Actions 区。
-        card.Actions.Add(new DetailAction
-        {
-            Text = "📂 选脚本文件…",
-            Classes = "ghost",
-            ToolTip = "挑一个脚本文件（相对脚本目录，或绝对路径）",
-            IsVisiblePath = nameof(IsScriptKind),
-            Command = new RelayCommand(() => PickScriptFileCommand?.Execute(null))
-        });
+        // 🔴 NT-059：卡内动作不再用一排文字按钮 —— 运行 / 收藏 / 保存 / 删除合成字段区末尾的**图标动作组**；
+        //    「📂 选脚本文件」按钮删除（脚本文件字段手写相对文件名即可，批量添加走工具条「📥 导入脚本」）。
         return card;
     }
 

@@ -34,6 +34,33 @@ public partial class QuickSettingsViewModel : QuickActionListViewModel
     /// <summary>本页搜索框原本没有悬停提示（保持迁移前一致）。</summary>
     protected override string? SearchToolTip => null;
 
+    /// <summary>
+    /// v3.63：本页工具条 = **「📂 导入清单」（基类共用，已在最前）→ 输入框 → 搜索框**。
+    /// <para>
+    /// 输入框 = 本页数据文件 <c>config\pc-quick.json</c>（只读，与「设置与脚本」页的脚本目录框同一位置 / 同宽）；
+    /// ⛔ 本页条目全是 json 里的记录（不是磁盘上的脚本文件）⇒ **没有「导入文件夹」这一路**。
+    /// </para>
+    /// </summary>
+    protected override IEnumerable<ToolbarItemDescriptor> ToolbarExtras => new ToolbarItemDescriptor[]
+    {
+        new()
+        {
+            Kind = ToolbarItemKind.TextField,
+            Width = 88,
+            IsReadOnly = true,
+            // v3.63：未聚焦时框里只显示「数据文件」四个字，点一下才露出真实路径并全选（好复制）
+            Placeholder = "数据文件",
+            ValuePath = nameof(FilePath),
+            ToolTip = "本页清单文件（路径在「设置 → 路径与配置」里改）"
+        }
+    };
+
+    /// <summary>
+    /// v3.63：本页条目**就是 json 里的记录**（删掉 = 这条数据没了，不像脚本索引库那样文件还在磁盘上）
+    /// ⇒ 删除**弹二次确认**。
+    /// </summary>
+    protected override bool ConfirmBeforeDelete => true;
+
     /// <summary>本页详情卡（NT-054 / 需求 §4.5.1）：本页条目**全是命令行命令** ⇒ 没有类型下拉，多出 Shell / 隐藏终端窗口两项。</summary>
     protected override DetailCardDescriptor BuildCard()
     {
@@ -41,7 +68,7 @@ public partial class QuickSettingsViewModel : QuickActionListViewModel
         {
             BodyVisiblePath = nameof(ShowDetailBody),
             SamplePath = nameof(IsDetailSample),
-            EmptyText = "在左侧列表里选中一条。这里放的是系统自带的设置入口（Windows 设置面板 / 控制面板 / 管理工具），选中后点「▶ 运行」即打开；右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。",
+            EmptyText = "在左侧列表里选中一条。这里放的是系统自带的设置入口（Windows 设置面板 / 控制面板 / 管理工具），选中后用下面的运行图标即打开；图标按钮依次是「运行 / 收藏 / 保存 / 删除」。右键列表还有「运行 / 收藏 / 复制命令 / 删除」。点「➕ 新增」可添加一条。",
             SampleText = "（示例数据）在左侧选中一条后，这里显示它的真实内容；示例态下卡片不可编辑。",
             Sections =
             {
@@ -57,13 +84,22 @@ public partial class QuickSettingsViewModel : QuickActionListViewModel
                             Kind = FieldKind.Text,
                             Commit = EditCommitMode.OnBlur
                         },
+                        // v3.63 改名：这一列叫**功能**；「分类」= Shell 宿主（cmd / pwsh / 自动），与表头同源
                         new DetailField
                         {
-                            Label = "分类",
+                            Label = "功能",
                             ValuePath = nameof(EditCategory),
                             Kind = FieldKind.Text,
                             Commit = EditCommitMode.OnBlur,
                             Placeholder = "系统设置 / 打开…"
+                        },
+                        new DetailField
+                        {
+                            Label = "分类",
+                            ValuePath = nameof(ClassifyText),
+                            Kind = FieldKind.Text,
+                            Selectable = true,
+                            Mono = true
                         },
                         new DetailField
                         {
@@ -113,6 +149,7 @@ public partial class QuickSettingsViewModel : QuickActionListViewModel
                             VisibleWhen = nameof(ShowCommandRunOptions)
                         },
                         new DetailField { Kind = FieldKind.Divider },
+                        BuildActionBar(),
                         new DetailField
                         {
                             Kind = FieldKind.Hint,
@@ -123,7 +160,7 @@ public partial class QuickSettingsViewModel : QuickActionListViewModel
             }
         };
 
-        card.Actions.AddRange(BuildCommonActions());
+        // NT-059：与「设置与脚本」页同一口径 —— 运行 / 收藏 / 保存 / 删除合成字段区末尾的**图标动作组**。
         return card;
     }
 

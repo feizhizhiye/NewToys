@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -181,15 +182,46 @@ public partial class QuickAction : ObservableObject
     public string KindText
         => Kind == QuickActionKind.Script ? "脚本文件" : "命令行命令";
 
+    /// <summary>
+    /// 「分类」列（v3.63）：**脚本 = 脚本后缀**（.py / .ps1 / .bat / .cmd）；**命令行命令 = Shell 宿主**（cmd / pwsh / 自动）。
+    /// <para>派生、**不写盘**：两页各自的分类维度不同（脚本按文件类型、命令按执行宿主），一个属性同时覆盖。</para>
+    /// </summary>
+    [JsonIgnore]
+    public string Classify
+    {
+        get
+        {
+            if (Kind == QuickActionKind.Script)
+            {
+                var ext = Path.GetExtension(ScriptFile ?? "").ToLowerInvariant();
+                return ext.Length > 0 ? ext : "—";
+            }
+
+            return QuickActionShell.Normalize(Shell) switch
+            {
+                QuickActionShell.Cmd => "cmd",
+                QuickActionShell.Pwsh => "pwsh",
+                _ => "自动"
+            };
+        }
+    }
+
     partial void OnIsFavoriteChanged(bool value) => OnPropertyChanged(nameof(FavoriteMark));
 
     partial void OnKindChanged(string value)
     {
         OnPropertyChanged(nameof(KindText));
+        OnPropertyChanged(nameof(Classify));
         OnPropertyChanged(nameof(TargetText));
     }
 
-    partial void OnScriptFileChanged(string value) => OnPropertyChanged(nameof(TargetText));
+    partial void OnScriptFileChanged(string value)
+    {
+        OnPropertyChanged(nameof(Classify));
+        OnPropertyChanged(nameof(TargetText));
+    }
+
+    partial void OnShellChanged(string value) => OnPropertyChanged(nameof(Classify));
 
     partial void OnCommandChanged(string value) => OnPropertyChanged(nameof(TargetText));
 }

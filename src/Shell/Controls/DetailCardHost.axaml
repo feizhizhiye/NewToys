@@ -9,8 +9,9 @@
        **外壳只实现一次**，页面不再各写一份（债 B13「详情面板上提」的 Shell 侧）。
     🔴 承载者：Shell 右详情列（`ShellView.axaml` 的 `DetailPanel`）——它给 340px 宽 + 背景 + 左边线，
        本控件给「覆盖式滚动条右侧留位 / Padding / 空态 / 示例态」。
-    🔴 7 个 `DataTemplate` = 7 种字段 Kind（+ 分区 / 动作各一个），按**行对象类型**隐式匹配
-       （行对象由 `DetailCardRender.cs` 从描述符翻译而来）→ 模板里**零字符串路径**。
+    🔴 字段模板：**8 种 Kind**（Text / Check / Select / Number / Chips / Hint / Divider / List）+ 分区 + 动作，
+       按**行对象类型**隐式匹配（行对象由 `DetailCardRender.cs` 从描述符翻译而来）→ 模板里**零字符串路径**。
+       ⚠️ Select 有**两个落值通道**（值 / 索引）⇒ 两个行对象、两个模板（`SelectFieldRow` / `IndexSelectFieldRow`）。
     ⚠️ 滚动条是覆盖式的、槽落在 ScrollViewer 右缘之外 8px（需求 §4.8 第 7 条）：
        本控件右侧 Padding 留 4、内容再留 8，把滑块收进卡内。⛔ 不要改共享的 `Border.detail-card`。
   -->
@@ -50,6 +51,7 @@
           <CheckBox
               Grid.Column="2"
               IsChecked="{Binding ToggleChecked, Mode=TwoWay}"
+              IsEnabled="{Binding ToggleEnabled}"
               IsVisible="{Binding HasToggle}"
               VerticalAlignment="Center"
               ToolTip.Tip="勾选 = 本分区参与本次操作" />
@@ -222,6 +224,87 @@
     <!--  ===== Kind ⑦ Divider（分隔线）  =====  -->
     <DataTemplate DataType="c:DividerFieldRow">
       <Border Classes="divider-line" IsVisible="{Binding IsVisible}" />
+    </DataTemplate>
+
+    <!--  ===== Kind ⑧ List（只读列表：键值行 / 对比行）  =====
+          一行 = 左标签（次要色）+ 主文本（可复制）+ [固定符号] + 右侧强调值 + 可选第二行说明。
+          单项四格都由描述符的 Item*Path 取数（⛔ 这里不写任何字段名）。  -->
+    <DataTemplate DataType="c:ListFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <TextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding HasItems}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Margin="0,0,0,4" Spacing="1">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="4">
+                  <SelectableTextBlock
+                      Grid.Column="0"
+                      Classes="field-value"
+                      Foreground="{DynamicResource SecondaryTextBrush}"
+                      IsVisible="{Binding HasLabel}"
+                      Text="{Binding Label}"
+                      VerticalAlignment="Center" />
+                  <SelectableTextBlock
+                      Grid.Column="1"
+                      Classes="field-value"
+                      IsVisible="{Binding HasText}"
+                      Text="{Binding Text}"
+                      TextWrapping="Wrap" />
+                  <TextBlock
+                      Grid.Column="2"
+                      Classes="field-value"
+                      Foreground="{DynamicResource SecondaryTextBrush}"
+                      IsVisible="{Binding HasSeparator}"
+                      Text="{Binding Separator}"
+                      VerticalAlignment="Center" />
+                  <TextBlock
+                      Grid.Column="3"
+                      Classes="field-value"
+                      Foreground="{DynamicResource AccentBrush}"
+                      IsVisible="{Binding HasSub}"
+                      Text="{Binding Sub}"
+                      VerticalAlignment="Center" />
+                </Grid>
+                <TextBlock
+                    Classes="hint-text"
+                    IsVisible="{Binding HasDetail}"
+                    Text="{Binding Detail}"
+                    TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
+    <!--  ===== Kind ③-b Select（**索引通道**）：页面 VM 上本来就是「第几个选项」+ 候选项写死  =====
+          ⛔ 与值通道的模板互斥（IndexPath 非空才走这里），两个模板共存不算新增 Kind。  -->
+    <DataTemplate DataType="c:IndexSelectFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <TextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <ComboBox
+            HorizontalAlignment="Stretch"
+            ItemsSource="{Binding Options}"
+            SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" />
+        <TextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
     </DataTemplate>
   </UserControl.DataTemplates>
 

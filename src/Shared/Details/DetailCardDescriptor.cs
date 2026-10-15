@@ -5,10 +5,15 @@ using System.Windows.Input;
 namespace NewToys.Shared.Details;
 
 /// <summary>
-/// 字段 Kind（**收敛为 7 种**，需求 §4.5.1 / NT-054）。
+/// 字段 Kind（**7 + 1 种**，需求 §4.5.1 / NT-054）。
 /// <para>
 /// 🔴 **加新 Kind 是「加法」**：新需求优先用「现有 Kind + 修饰位」表达；确实需要新交互时才加一个枚举值
 /// （配一个 <c>DataTemplate</c>），不影响既有卡。
+/// </para>
+/// <para>
+/// ⚠️ 2026-10-15 打样补记：<see cref="List"/> 是**用户拍板新增的第 8 种** —— 详情卡里的「只读列表」
+/// （VideoBatch 的「处理前 → 处理后」、资产卡的「关联 / 文件位置」）用原来 7 种表达不了，
+/// 而它不是"新交互"而是既有形态 ⇒ 补一个 Kind 比让整卡走 <see cref="DetailCardDescriptor.Custom"/> 更划算。
 /// </para>
 /// </summary>
 public enum FieldKind
@@ -32,7 +37,13 @@ public enum FieldKind
     Hint,
 
     /// <summary>分隔线。</summary>
-    Divider
+    Divider,
+
+    /// <summary>
+    /// **只读列表**（键值 / 对比行）：主文本 + 可选左标签 + 可选右侧强调值 + 可选第二行说明。
+    /// 单项路径见 <see cref="DetailField.ItemTextPath"/> 等；数据源复用 <see cref="DetailField.OptionsPath"/>。
+    /// </summary>
+    List
 }
 
 /// <summary>
@@ -104,6 +115,9 @@ public sealed class DetailSection
     /// </summary>
     public string? TogglePath { get; set; }
 
+    /// <summary>分区标题勾选框的**可用性**路径（如 <c>HasSelection</c>）；null = 恒可用。</summary>
+    public string? ToggleEnabledPath { get; set; }
+
     /// <summary>分区是否展开的布尔路径（可折叠分区）；null = 恒展开（不显示折叠箭头）。</summary>
     public string? IsExpandedPath { get; set; }
 
@@ -143,12 +157,18 @@ public sealed class DetailField
     /// <summary>字段下方的补充提示（<c>hint-text</c>）；<see cref="FieldKind.Hint"/> 时它就是提示正文。</summary>
     public string? Hint { get; set; }
 
+    /// <summary>
+    /// 显示后缀前缀（**仅 <see cref="FieldKind.Hint"/> 的动态行用**，如「实际会用：」+ 值）。
+    /// 用于替代 XAML 的 <c>StringFormat='实际会用：{0}'</c>。
+    /// </summary>
+    public string? Prefix { get; set; }
+
     /// <summary>多行文本的最小高度（<see cref="MultiLine"/> 时生效；默认 52）。</summary>
     public int Rows { get; set; }
 
     // ===== Select / Chips 用 =====
 
-    /// <summary>候选集合的路径（<see cref="FieldKind.Select"/> / <see cref="FieldKind.Chips"/>）。</summary>
+    /// <summary>候选集合的路径（<see cref="FieldKind.Select"/> / <see cref="FieldKind.Chips"/> / <see cref="FieldKind.List"/>）。</summary>
     public string? OptionsPath { get; set; }
 
     /// <summary>候选项「值」的路径（对象集合时用，如 <c>"Id"</c>）；null = 直接把候选项本身写回。</summary>
@@ -156,6 +176,33 @@ public sealed class DetailField
 
     /// <summary>候选项「显示文案」的路径（对象集合时用，如 <c>"Name"</c>）；null = <c>ToString()</c>。</summary>
     public string? OptionDisplayPath { get; set; }
+
+    /// <summary>
+    /// 下拉选中的**索引**路径（<see cref="FieldKind.Select"/> 的第二种落值通道，int 属性）。
+    /// <para>用于页面 VM 上本来就是「第几个选项」这种字段（如 <c>EncoderIndex</c> / <c>BitrateModeIndex</c>）；
+    /// 用它时配 <see cref="LiteralOptions"/>，且 ⛔ **不要再给 <see cref="ValuePath"/>**（二者互斥）。</para>
+    /// </summary>
+    public string? IndexPath { get; set; }
+
+    /// <summary>内联候选项文案（<see cref="IndexPath"/> 通道专用：把 XAML 里写死的几个 <c>ComboBoxItem</c> 挪进来）。</summary>
+    public IList<string>? LiteralOptions { get; set; }
+
+    // ===== List 专用（只读列表的单项取数） =====
+
+    /// <summary>列表项「左标签」的路径（次要色，可空）。</summary>
+    public string? ItemLabelPath { get; set; }
+
+    /// <summary>列表项「主文本」的路径（可复制；可空 —— 空则只渲染 <see cref="ItemSubPath"/>）。</summary>
+    public string? ItemTextPath { get; set; }
+
+    /// <summary>列表项「右侧强调值」的路径（强调色，可空，如对比行的「后」）。</summary>
+    public string? ItemSubPath { get; set; }
+
+    /// <summary><see cref="ItemTextPath"/> 与 <see cref="ItemSubPath"/> 之间的固定符号（如 <c>"→"</c>）；null = 不显示。</summary>
+    public string? ItemSeparator { get; set; }
+
+    /// <summary>列表项「第二行说明」的路径（<c>hint-text</c>，可空）。</summary>
+    public string? ItemDetailPath { get; set; }
 
     // ===== Chips 专用 =====
 

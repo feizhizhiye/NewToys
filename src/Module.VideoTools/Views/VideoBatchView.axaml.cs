@@ -3,6 +3,7 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
 using NewToys.VideoTools.ViewModels;
 
@@ -16,7 +17,8 @@ public partial class VideoBatchView : UserControl
 
         // 平台文件选择器只能在 View 层用（VM 不引 Avalonia），选完把结果交给 VM
         PickFilesBtn.Click += (_, _) => _ = PickFilesAsync();
-        PickOutputBtn.Click += (_, _) => _ = PickOutputAsync();
+        // ⚠️ NT-054：原来卡片里那个内联「📂」按钮（PickOutputBtn）随页内卡一起删了 ——
+        //    现在它是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
         ExportBtn.Click += (_, _) => _ = ExportTasksAsync();
         ImportBtn.Click += (_, _) => _ = ImportTasksAsync();
 
@@ -56,6 +58,11 @@ public partial class VideoBatchView : UserControl
         // v3.16 §6.4.10：表头勾选框的「全选 / 取消选择 / 反选」菜单同理（不同步的话右键点了没反应）。
         // v3.16.1：菜单挪到 HeaderCheckHost（透明 Border = 整格热区）上。
         if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
+
+        // NT-054：把「📂 选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
+        // 每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
+        if (DataContext is VideoBatchViewModel vmb)
+            vmb.PickOutputCommand = new RelayCommand(() => _ = PickOutputAsync());
     }
 
     /// <summary>

@@ -6,11 +6,13 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.VideoTools.Models;
@@ -38,7 +40,7 @@ public sealed class CompareRow
 /// 运行按类型分派：剪辑 → <c>BuildCutArgs</c>，转码 → <c>BuildTranscodeArgs</c>，统一走 <c>RunAsync</c>。
 /// </para>
 /// </summary>
-public partial class VideoBatchViewModel : ListPageViewModelBase
+public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly VideoTaskStore? _store;
     private readonly IAppConfigService? _cfg;
@@ -589,6 +591,337 @@ public partial class VideoBatchViewModel : ListPageViewModelBase
     public bool ShowDetailBody => HasSelection || IsDetailSample;
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
+    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 打样页，需求 §4.5.1） ====================
+
+    /// <summary>
+    /// 📂 选输出文件。平台文件选择器**只能在 View 层用**（VM 不引 Avalonia）⇒ 由 <c>VideoBatchView</c>
+    /// 在 <c>OnDataContextChanged</c> 里注入实现（原来那个按钮在页内卡片里、走 code-behind 直接挂 Click）。
+    /// </summary>
+    public ICommand? PickOutputCommand { get; set; }
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>
+    /// 工具条末位的详情开关 → 走本命令。
+    /// <para>⛔ 不能直接用基类的 <c>ToggleDetailCommand</c>：它只翻 <c>IsDetailVisible</c>，**不通知 Shell**，
+    /// Shell 的右列（由 <c>DetailCardHost</c> 承载）就不会跟着出现 / 消失。</para>
+    /// </summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);   // 基类逻辑：翻转 + 落盘 + 展开时没选中就选第一项
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>右键「▤ 显示详情栏」→ 走本命令（同上：基类逻辑 + 通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);     // 基类逻辑：确保展开并定位到当前选中项
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的页内自绘卡片 1:1 对应：剪辑 / 转码两个可折叠分区（标题带勾选框）+ 输出 + 命令 + 处理前后对比。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
+    {
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧选中一个任务：这里可以改它的参数（剪辑 = 区间 / 预设；转码 = 预设 / 编码器 / CRF / 分辨率），改完点工具条上的「💾 保存修改」。",
+        SampleText = "（示例数据）在左侧选中一个任务后，这里显示它的真实参数；示例态下卡片不可编辑。",
+        Sections =
+        {
+            // ===== 台头：类型 / 文件（不可编辑） =====
+            new DetailSection
+            {
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "类型 / 文件",
+                        ValuePath = "DetailTask.Name",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    }
+                }
+            },
+
+            // ===== ① 剪辑 =====
+            new DetailSection
+            {
+                Header = "✂ 剪辑（截区间）",
+                TogglePath = nameof(EditIsCut),
+                ToggleEnabledPath = nameof(HasSelection),
+                IsExpandedPath = nameof(IsCutSectionExpanded),
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "开始（HH:MM:SS.mmm 或秒）",
+                        ValuePath = nameof(EditStart),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Placeholder = "00:00:00.000"
+                    },
+                    new DetailField
+                    {
+                        Label = "结束（留空 = 到末尾）",
+                        ValuePath = nameof(EditEnd),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Placeholder = "00:00:10.000"
+                    },
+                    new DetailField
+                    {
+                        Label = "剪切预设",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(CutPresetOptions),
+                        OptionValuePath = "Id",
+                        OptionDisplayPath = "Name",
+                        ValuePath = nameof(EditCutPresetId)
+                    },
+                    new DetailField
+                    {
+                        Label = "重新编码时的 CRF（18~28 常用，越小越清晰）",
+                        ValuePath = nameof(EditCutCrf),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        VisibleWhen = nameof(IsCutReEncode)
+                    },
+                    new DetailField
+                    {
+                        Label = "自定义 ffmpeg 参数（追加在预设之后 → 可覆盖预设）",
+                        ValuePath = nameof(EditExtraArgs),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        MultiLine = true,
+                        Placeholder = "例：-vf scale=1280:-2"
+                    }
+                }
+            },
+
+            // ===== ② 转码 =====
+            new DetailSection
+            {
+                Header = "🔁 转码（换编码 / 格式）",
+                TogglePath = nameof(EditIsTranscode),
+                ToggleEnabledPath = nameof(HasSelection),
+                IsExpandedPath = nameof(IsTranscodeSectionExpanded),
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "编码预设",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(Presets),
+                        OptionValuePath = "Id",
+                        OptionDisplayPath = "Name",
+                        ValuePath = nameof(EditPresetId)
+                    },
+                    new DetailField
+                    {
+                        Label = "编码器",
+                        Kind = FieldKind.Select,
+                        IndexPath = nameof(EncoderIndex),
+                        LiteralOptions = new[] { "CPU（软件编码，兼容性最好）", "GPU（NVENC，N 卡）" }
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Prefix = "实际会用：",
+                        ValuePath = nameof(SelectedEncoder)
+                    },
+                    new DetailField
+                    {
+                        Label = "容器 / 格式（决定输出文件后缀）",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(ContainerOptions),
+                        ValuePath = nameof(EditContainer)
+                    },
+                    new DetailField
+                    {
+                        Label = "宽（0 = 按比例）",
+                        ValuePath = nameof(EditTargetWidth),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true
+                    },
+                    new DetailField
+                    {
+                        Label = "高（0 = 不改）",
+                        ValuePath = nameof(EditTargetHeight),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true
+                    },
+                    new DetailField
+                    {
+                        Label = "默认宽上限",
+                        ValuePath = nameof(EditDefaultWidth),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true
+                    },
+                    new DetailField
+                    {
+                        Label = "默认高上限",
+                        ValuePath = nameof(EditDefaultHeight),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true
+                    },
+                    new DetailField
+                    {
+                        Label = "旋转 / 翻转（视频方向不对时用）",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(RotateChoices),
+                        OptionDisplayPath = "Label",
+                        ValuePath = nameof(SelectedRotate)
+                    },
+                    new DetailField
+                    {
+                        Label = "码率模式",
+                        Kind = FieldKind.Select,
+                        IndexPath = nameof(BitrateModeIndex),
+                        LiteralOptions = new[] { "CRF（恒定质量，推荐）", "目标码率（如 5000k / 5M）" }
+                    },
+                    new DetailField
+                    {
+                        Label = "CRF（0 = 用预设的值；18~28 常用）",
+                        ValuePath = nameof(EditCrf),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        VisibleWhen = nameof(UseCrf)
+                    },
+                    new DetailField
+                    {
+                        Label = "目标码率（如 5000k / 5M）",
+                        ValuePath = nameof(EditTargetBitrate),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        Placeholder = "5000k",
+                        VisibleWhen = "!" + nameof(UseCrf)
+                    }
+                }
+            },
+
+            // ===== ③ 输出 + 命令（原来没有分区标题，这里也不给） =====
+            new DetailSection
+            {
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "输出文件（留空 = 自动命名，绝不覆盖已有文件）",
+                        ValuePath = nameof(EditOutput),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "将要执行的命令（改参数即时刷新，实际跑的就是这条）",
+                        ValuePath = nameof(CommandPreview),
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "ffmpeg 参数（可手动编辑；不含 ffmpeg.exe 与输出路径）",
+                        ValuePath = nameof(EditArgs),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        MultiLine = true
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "✎ 已手改：运行时以这里为准（工具条上「↺ 重置为自动」可撤销）。",
+                        VisibleWhen = nameof(IsArgsEdited)
+                    }
+                }
+            },
+
+            // ===== ④ 处理前 → 处理后 + 任务状态 =====
+            new DetailSection
+            {
+                Header = "处理前 → 处理后",
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Kind = FieldKind.List,
+                        OptionsPath = nameof(CompareRows),
+                        ItemLabelPath = "Label",
+                        ItemTextPath = "Before",
+                        ItemSeparator = "→",
+                        ItemSubPath = "After",
+                        Hint = "「后」这一列在跑完之后才有值（转码会自动用 ffprobe 探测输出文件）。"
+                    },
+                    new DetailField
+                    {
+                        Label = "任务状态",
+                        ValuePath = "DetailTask.StatusDisplay",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        ValuePath = "DetailTask.Message"
+                    }
+                }
+            },
+
+            // ===== ⑤ 收尾说明 =====
+            new DetailSection
+            {
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "任务只在这里排队：改完参数点工具条上的「💾 保存修改」，要跑的时候点「▶▶ 批量运行」。任务清单存 config\\video-tasks.json，关掉软件再回来还在。"
+                    }
+                }
+            }
+        },
+        Actions =
+        {
+            // 原来这个 📂 是「输出文件」输入框右侧的内联按钮（code-behind 挂 Click）——
+            // 声明式卡里统一收进 Actions 区（需求 §4.5.1：Actions = 与该卡内容强绑定的卡内动作）。
+            new DetailAction
+            {
+                Text = "📂 选择输出文件…",
+                Classes = "ghost",
+                ToolTip = "挑一个输出文件；留空 = 按预设自动命名（⛔ 绝不覆盖已有文件）",
+                Command = new RelayCommand(() => PickOutputCommand?.Execute(null))
+            }
+        }
+    };
 
     public VideoBatchViewModel() { }
 

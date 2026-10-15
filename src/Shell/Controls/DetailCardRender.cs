@@ -221,6 +221,8 @@ public sealed class SelectFieldRow : DetailFieldRow
     private List<DetailOption> _options = new();
     public List<DetailOption> Options { get => _options; private set => SetProperty(ref _options, value); }
 
+    private object? _boundOptions;
+
     private DetailOption? _selected;
     public DetailOption? Selected
     {
@@ -228,6 +230,8 @@ public sealed class SelectFieldRow : DetailFieldRow
         set
         {
             if (!SetProperty(ref _selected, value)) return;
+            // ⛔ 候选还没到位时（ComboBox 初始 null / 空列表）不回写：否则会把 VM 上的值抹成 null
+            if (_options.Count == 0) return;
             DetailPath.Write(Source, Field.ValuePath,
                 Field.OptionValuePath is null ? value?.Source : DetailPath.Resolve(value?.Source, Field.OptionValuePath));
         }
@@ -238,27 +242,127 @@ public sealed class SelectFieldRow : DetailFieldRow
     protected override void RefreshCore()
     {
         var raw = DetailPath.Resolve(Source, Field.OptionsPath) as IEnumerable;
-        var list = new List<DetailOption>();
-        if (raw is not null)
+
+        // ⚠️ 只在**候选集合实例变了**时才换 Options：换新 List 会让 ComboBox 把 SelectedItem 清成 null，
+        //    经 TwoWay 回写就把页面 VM 的值抹掉了（改了参数的卡尤其要命）。
+        if (!ReferenceEquals(raw, _boundOptions))
         {
-            foreach (var item in raw)
+            _boundOptions = raw;
+            var list = new List<DetailOption>();
+            if (raw is not null)
             {
-                var display = Field.OptionDisplayPath is null
-                    ? item?.ToString()
-                    : DetailPath.Resolve(item, Field.OptionDisplayPath)?.ToString();
-                list.Add(new DetailOption { Source = item, Display = display ?? "" });
+                foreach (var item in raw)
+                {
+                    var display = Field.OptionDisplayPath is null
+                        ? item?.ToString()
+                        : DetailPath.Resolve(item, Field.OptionDisplayPath)?.ToString();
+                    list.Add(new DetailOption { Source = item, Display = display ?? "" });
+                }
             }
+            Options = list;
         }
-        Options = list;
 
         var cur = DetailPath.Resolve(Source, Field.ValuePath);
         DetailOption? hit = null;
-        foreach (var o in list)
+        foreach (var o in Options)
         {
             var ov = Field.OptionValuePath is null ? o.Source : DetailPath.Resolve(o.Source, Field.OptionValuePath);
             if (DetailPath.LooseEquals(ov, cur)) { hit = o; break; }
         }
         SetProperty(ref _selected, hit, nameof(Selected));
+    }
+}
+
+/// <summary>
+/// <see cref="FieldKind.Select"/> 的**索引通道**：页面 VM 上本来就是「第几个选项」（<c>EncoderIndex</c> / <c>BitrateModeIndex</c> 这类），
+/// 候选项是 XAML 里写死的那几条 ⇒ 走 <c>ComboBox.SelectedIndex</c>（配 <c>LiteralOptions</c>）。
+/// <para>⛔ 与值通道（<see cref="SelectFieldRow"/>）互斥：<c>IndexPath</c> 非空即走本行对象。</para>
+/// </summary>
+public sealed class IndexSelectFieldRow : DetailFieldRow
+{
+    public IndexSelectFieldRow(DetailField field, object? source) : base(field, source) { }
+
+    private List<string> _options = new();
+    public List<string> Options { get => _options; private set => SetProperty(ref _options, value); }
+
+    private int _selectedIndex = -1;
+    public int SelectedIndex
+    {
+        get => _selectedIndex;
+        set
+        {
+            if (!SetProperty(ref _selectedIndex, value)) return;
+            // ⛔ 候选还没到位时（ComboBox 初始 -1 / 空列表）不回写：否则会把 VM 上的值抹成 -1
+            if (_options.Count == 0) return;
+            DetailPath.Write(Source, Field.IndexPath, value);
+        }
+    }
+
+    protected override void RefreshCore()
+    {
+        // ⚠️ 候选列表**只建一次**：换新的 ItemsSource 会让 ComboBox 把 SelectedIndex 清成 -1 并 TwoWay 回写，
+        //    等于每刷新一次就把页面 VM 上的「第几个编码器」抹掉。
+        if (_options.Count == 0 && Field.LiteralOptions is not null) Options = new List<string>(Field.LiteralOptions);
+
+        var raw = DetailPath.Resolve(Source, Field.IndexPath);
+        var index = -1;
+        if (raw is not null)
+        {
+            try { index = System.Convert.ToInt32(raw, CultureInfo.InvariantCulture); }
+            catch (Exception) { index = -1; }
+        }
+        SetProperty(ref _selectedIndex, index, nameof(SelectedIndex));
+    }
+}
+
+/// <summary>只读列表（<see cref="FieldKind.List"/>）的一行。</summary>
+public sealed class DetailListRow
+{
+    public string? Label { get; init; }
+    public string? Text { get; init; }
+    public string? Sub { get; init; }
+    public string? Detail { get; init; }
+
+    /// <summary>主文本与右侧强调值之间的固定符号（如 <c>"→"</c>），由所属字段统一下发（⛔ 模板里不写死）。</summary>
+    public string? Separator { get; init; }
+
+    public bool HasLabel => !string.IsNullOrWhiteSpace(Label);
+    public bool HasText => !string.IsNullOrWhiteSpace(Text);
+    public bool HasSub => !string.IsNullOrWhiteSpace(Sub);
+    public bool HasDetail => !string.IsNullOrWhiteSpace(Detail);
+    public bool HasSeparator => !string.IsNullOrWhiteSpace(Separator);
+}
+
+/// <summary>
+/// <see cref="FieldKind.List"/>：只读列表（键值行 / 对比行）。
+/// <para>数据源复用 <see cref="DetailField.OptionsPath"/>，单项取数见 <c>Item*Path</c>（左标签 / 主文本 / 右侧强调值 / 第二行说明）。</para>
+/// </summary>
+public sealed class ListFieldRow : DetailFieldRow
+{
+    public ListFieldRow(DetailField field, object? source) : base(field, source) { }
+
+    public ObservableCollection<DetailListRow> Items { get; } = new();
+    public bool HasItems => Items.Count > 0;
+
+    protected override void RefreshCore()
+    {
+        var raw = DetailPath.Resolve(Source, Field.OptionsPath) as IEnumerable;
+        Items.Clear();
+        if (raw is not null)
+        {
+            foreach (var item in raw)
+            {
+                Items.Add(new DetailListRow
+                {
+                    Label = DetailPath.Resolve(item, Field.ItemLabelPath)?.ToString(),
+                    Text = DetailPath.Resolve(item, Field.ItemTextPath)?.ToString(),
+                    Sub = DetailPath.Resolve(item, Field.ItemSubPath)?.ToString(),
+                    Detail = DetailPath.Resolve(item, Field.ItemDetailPath)?.ToString(),
+                    Separator = Field.ItemSeparator
+                });
+            }
+        }
+        OnPropertyChanged(nameof(HasItems));
     }
 }
 
@@ -355,13 +459,25 @@ public sealed class ChipsFieldRow : DetailFieldRow
     private void OnSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => Refresh();
 }
 
-/// <summary><see cref="FieldKind.Hint"/>：纯提示文字（含空态）。</summary>
+/// <summary>
+/// <see cref="FieldKind.Hint"/>：纯提示文字（含空态）。
+/// <para>两种写法：① 静态文案（<c>Label</c> / <c>Hint</c> 直接写死）；② 动态行（给 <c>ValuePath</c> 取运行值，
+/// 可配 <c>Prefix</c> 当前缀）。</para>
+/// </summary>
 public sealed class HintFieldRow : DetailFieldRow
 {
     public HintFieldRow(DetailField field, object? source) : base(field, source) { }
 
-    /// <summary>提示正文：Kind=Hint 时 <c>Label</c> 也当正文用（少写一个属性）。</summary>
-    public string? Text => Field.Hint ?? Field.Label;
+    private string? _text;
+    public string? Text { get => _text; set => SetProperty(ref _text, value); }
+
+    protected override void RefreshCore()
+    {
+        var body = Field.ValuePath is null
+            ? Field.Hint ?? Field.Label
+            : DetailPath.Resolve(Source, Field.ValuePath)?.ToString();
+        Text = string.IsNullOrEmpty(Field.Prefix) ? body : Field.Prefix + body;
+    }
 }
 
 /// <summary><see cref="FieldKind.Divider"/>：分隔线。</summary>
@@ -407,6 +523,11 @@ public sealed class DetailSectionRender : ObservableObject
         }
     }
 
+    private bool _toggleEnabled = true;
+
+    /// <summary>标题勾选框是否可用（<c>ToggleEnabledPath</c>，如「有选中项才能改类型」）。</summary>
+    public bool ToggleEnabled { get => _toggleEnabled; private set => SetProperty(ref _toggleEnabled, value); }
+
     public ICommand ToggleExpandCommand { get; }
 
     private void ToggleExpand() => DetailPath.Write(Source, Section.IsExpandedPath, !IsExpanded);
@@ -415,6 +536,7 @@ public sealed class DetailSectionRender : ObservableObject
     {
         if (IsCollapsible) SetProperty(ref _isExpanded, DetailPath.ResolveBool(Source, Section.IsExpandedPath), nameof(IsExpanded));
         if (HasToggle) SetProperty(ref _toggleChecked, DetailPath.ResolveBool(Source, Section.TogglePath), nameof(ToggleChecked));
+        ToggleEnabled = Section.ToggleEnabledPath is null || DetailPath.ResolveBool(Source, Section.ToggleEnabledPath);
         foreach (var f in Fields) f.Refresh();
     }
 
@@ -422,11 +544,13 @@ public sealed class DetailSectionRender : ObservableObject
     private static DetailFieldRow CreateRow(DetailField f, object? source) => f.Kind switch
     {
         FieldKind.Check => new CheckFieldRow(f, source),
-        FieldKind.Select => new SelectFieldRow(f, source),
+        // Select 有两个落值通道：值（默认）/ 索引（页面 VM 上本来就是"第几个选项"）→ 两个行对象、两个模板
+        FieldKind.Select => f.IndexPath is null ? new SelectFieldRow(f, source) : new IndexSelectFieldRow(f, source),
         FieldKind.Number => new NumberFieldRow(f, source),
         FieldKind.Chips => new ChipsFieldRow(f, source),
         FieldKind.Hint => new HintFieldRow(f, source),
         FieldKind.Divider => new DividerFieldRow(f, source),
+        FieldKind.List => new ListFieldRow(f, source),
         _ => new TextFieldRow(f, source)
     };
 }

@@ -1,6 +1,7 @@
 # NewToys 工程规范
 
-> v3.39 · 2026-10-15 · 技术实现指南
+> v3.40 · 2026-10-16 · 技术实现指南
+> **v3.40 变更**：**NT-058「详情卡图标动作组」+ NT-059「设置与脚本」页改脚本索引库**（需求 v3.59；用户「详情卡动作改成图标 / pc-shortcuts 按资产库的操作逻辑来」）—— §3.8 补 **IconBar（第 9 种 Kind）渲染口径**：图标资源键**只能 C# 侧解析**（`Application.Current.TryFindResource(key, out v)`，Try 模式、需 `using Avalonia.Controls;`）⇒ 行对象暴露 `Geometry Icon` 给模板 `Path.Data` 直接绑；`ShowToolTipOnDisabled` 是本仓自定义属性，**XAML 里必须写 `ToolTip.ShowOnDisabled`**（写裸名 ⇒ AVLN2000）；chips 分组走 `DetailChipGroup`（`IsSwatch` **透传到组对象**，模板只在上一层取，⛔ 不用链式 `$parent`）。同节补两个已修 bug：① `IndexSelectFieldRow.RefreshCore` 原来**只认 `LiteralOptions`、不认 `OptionsPath`** ⇒ 给 `OptionsPath` 的索引下拉**渲染空白**；② `ApplyView()` 里 `Items.Clear()` 会让 ListBox 的 `SelectedItem` 双向绑定**回写 null** ⇒ 点收藏 / 切分类后详情卡掉回示例态（新增 `ApplyViewKeepSelection()`）。§3.6 补一条：**任何"批量加条目"之后必须清筛选**（清 `SearchText` / 分类归"全部" / 清表头筛选 / 选中第一条新增）—— `pc-shortcuts` 导入"没反应"的真因就是没清。§3.10 补**工具条只读输入框**口径：`PlaceholderText` **只在 `Text` 为空时才显示** ⇒ 水印化⛔ 不能只把 `Foreground` 设透明；改由 `ToolbarHost` 掌管 `Text`（真实值 OneWay 绑 `Control.Tag`，未聚焦 `Text = Placeholder`、聚焦 `Text = Tag` + `SelectAll()`、失焦还原）。
 > **v3.39 变更**：**NT-055 后续「工具条三件套统一」**（需求 v3.58；用户「primary 按钮都用 ghost / 导入按钮 + 输入框 + 搜索框按全部资产的宽度和顺序统一」）—— §3.10 三条口径改定：① 工具条配色**只剩两个在用变体** `ghost` / `danger-btn`（`primary-outline` 全量撤成 `ghost`，`primary` 实心仍只给详情卡与对话框）；② 输入框 / 搜索框 **`Width = 88`**；③ **前段顺序 = 入口动作 → 输入框 → 搜索框（三者挨着、排在最前）**，含四条落地细则 + `pc-package` 例外。另：`QuickActionListViewModel` 新增 **`ToolbarTailExtras`** 槽（排在共用搜索框之后），供「框的配套动作」挂靠，⛔ 别塞进 `ToolbarExtras`（会把搜索框挤到后面）。
 > **v3.38 变更**：**NT-055 五轮「工具条内容与配色收口」**（用户「绿色按钮换样式 / 删提示文字 / 输入框按全部资产的逻辑，三项放最前 / 修视频列表两按钮丢字」）—— §3.10 补三条口径：① 工具条配色只剩三变体 `ghost` / `primary-outline`（原工具条 `primary` 实心绿全换）/ `danger-btn`，`primary` 实心只留给详情卡与对话框；② `Label` 提示 / 计数文字**工具条里不再使用**（8 处删除，含义进按钮 `ToolTip`）；③ **前三项固定** = 数据入口动作 → 路径框 → 搜索框（两框相邻 + 水印，⛔ 不强加到没有外部数据源的管理页）。另录一条渲染层 bug 修法：`BuildContent` 的动态文案绑定**必须显式给 `Source`**（`ToolbarHost` ⛔ 无 DataContext）⇒ 漏了就渲染成空白按钮。
 > **v3.37 变更**：**NT-055 收尾「工具条按钮样式统一」**（用户「按全部资产按钮区的逻辑扩到其它页 + 统一按钮样式」）—— §3.10 新增「🔴 按钮样式统一」段：尺寸（字号 12 / 内边距 10,5 / 最小高 28 / 圆角 6）由 `ToolbarHost.axaml` 的 `<UserControl.Styles>` **一处给**（`Button` / `SplitButton` / `TextBox` / `ComboBox` 四条无类名宽选择器，控件内样式优先级高于 App 级 ⇒ `primary` 的 12,6、`danger-btn`/`src-btn` 的 11 + 10,4 全被压成同一档）；描述符 `Classes` **只表达配色**。**`io-bar` + `io-btn` 两个共享样式已删**（工具条统一后无引用），4 处 `io-btn` 描述符改 `ghost`；`danger-btn` **保留原名**（详情卡共用，改名零收益）。
@@ -616,6 +617,21 @@ public interface IDetailCardSource
 - ✅ 打样页覆盖面：3 个分区（2 个可折叠 + 标题勾选框）/ 对象预设下拉 ×2 / 索引下拉 ×2 / 条件可见 ×3 /
   多行 code ×3 / 只读列表 ×1 / Actions ×1 —— **未使用 `Custom` 逃生舱**。
 
+**NT-058：`IconBar`（第 9 种 Kind）+ chips 分组**
+- 件：`FieldKind.IconBar` + `DetailField.IconActions` + `DetailIconAction`（`IconKey` / `Text` / `ToolTip` / `CommandPath` /
+  `IsEnabledPath` / `IsVisiblePath` / `IsActivePath` / `ConfirmText` / `IsDanger` / `IsSeparator`，**全走路径字符串**，页面 VM 为源）；
+  渲染层 `IconBarFieldRow` + `DetailIconActionRender`，`CreateRow` 加一个 case；模板在 `DetailCardHost.axaml` 的 Kind ⑨。
+- 🔑 **图标资源键只能 C# 侧解析**：`Application.Current.TryFindResource(key, out var v)`（**Try 模式** + `using Avalonia.Controls;`），
+  行对象暴露 `Geometry Icon` ⇒ 模板 `Path.Data` 直接绑（XAML ⛔ 写不了"按字符串取资源"）。键不存在 = 无图标，静默跳过。
+- 🔑 `ShowToolTipOnDisabled` 是本仓自定义属性 ⇒ **XAML 必须写 `ToolTip.ShowOnDisabled="True"`**（写裸名报 AVLN2000）。
+- 样式：`Button.icon-btn`（32×32，`Path` 的 `Stroke` **只由样式给**，⛔ XAML 里不写本地 Stroke）+ `.active`（强调色）+ `.icon-danger`（`DangerBrush`）+ `Border.icon-sep`（组内竖线）。
+- 🧩 chips **分组**：`DetailField.ChipGroupPath`（候选项上的分组键，如标签的 `Namespace`）⇒ 渲染层建 `DetailChipGroup{Header, IsSwatch, Chips}` 集合，
+  模板外层走 `Groups`；⛔ **候选必须先按分组键排序**（分组靠"键连续"，乱序会拆出一堆组）；`IsSwatch` 透传到组对象（模板只往上找一层，⛔ 不用链式 `$parent`）。
+- 🐛 **已修 bug（索引下拉渲染空白）**：`IndexSelectFieldRow.RefreshCore` 原来**只认 `LiteralOptions`**，给了 `OptionsPath` 的索引下拉因此空白 ⇒ 已补 `OptionsPath` 分支（既有页都用 `LiteralOptions`，零影响）。
+- 📐 **资产详情卡样板顺序**（其它资产页照抄）：文件名（只读）→ 固定只读项（类型 / 状态下拉 / 大小 / 时间 / 存储源 / 文件路径）→ 标签（分组）/ 分类 / 集合 chips → **IconBar** → 评分 1~5 chips → 描述 → 关联 / 提示 → 底部改名框。
+  收藏 / 评分 **即时落盘**（⛔ 不走「保存」）；「移动到 / 复制到（目标存储源）」整块已删（低频重操作不进卡）。
+- 🔴 **物理删除唯一入口** = 列表右键「⛔ 从磁盘删除」（二次确认 + `FileOperationService.PermanentDelete` 走任务队列 + 删索引）；详情卡 IconBar 的 🗑 只做**软删除**（移入回收站）。
+
 **绑定路径的静态兜底（🔴 必跑）**
 
 - 描述符路径改名**不报错、不崩溃**，只是白板 ⇒ 新增 `skill/scripts/check-detail-paths.ps1`：
@@ -713,6 +729,16 @@ VM ⛔ 不引 Avalonia ⇒ 统一走 `Core.DialogHooks` 的 3 个钩子：`PickF
 - 🔴 **原逃生舱里的「动态按钮组」「按钮 Flyout 菜单」「只读展示框」已由描述符消化**（`ChipGroup` / `Button` + `Items` / `TextField.IsReadOnly`）—— `pc-package` / `pc-shortcuts` / `pc-quick` 已迁完（2026-10-15 二轮）；**MediaAssets 6 页**（`categories` / `collections` / `storages` / `tags` / `tasks` / `trash`）三轮迁完（2026-10-15，⛔ 未加 Kind）。
 - 🔴 **详情开关只有一处**：已由 Shell 的 `ToolbarHost` **浮层**统一给（VM 实现 `IDetailPanelProvider` 且 `HasDetailPanel` 才显示）⇒ 迁移页必须删掉页内 `detail-toggle` 块，⛔ 不允许两处都有（三轮删除了 `storages` / `tags` / `trash` 三页的页内自绘开关）。
 - ⚠️ **已知微降级**：页内 `io-bar` 分组容器（`StackPanel Spacing=6`，**无边框/底色**）在统一工具条里退化为全局 **8px** 间距（差 2px）；**左右双栏页**（`categories` / `collections`）的工具条原先在**右列顶部**，统一后**上提到页面顶部**（跨整页宽）。
+
+**只读输入框（展示"配置的路径"这类只读值）**
+- ⛔ **只读框本就不能编辑**（脚本目录 / 数据文件的**唯一写入点在设置页**），改动它 = 改配置写入点，需先立项。
+- 🔑 `PlaceholderText` **只在 `Text` 为空时才显示** ⇒ "水印化"⛔ 不能只把 `Foreground` 设成 `Transparent`（文字只是透明、`Text` 非空 ⇒ 水印根本不出现）。
+- 落地口径（全在 `ToolbarHost.BuildTextField`，且需 `IsReadOnly && ValuePath != null && Placeholder` 非空才走这条路）：
+  **真实值 OneWay 绑 `Control.Tag`**，`tb.Text = Placeholder`；`GotFocus` → `tb.Text = Tag` + `SelectAll()`，`LostFocus` → 还原 `Placeholder`
+  ⇒ 看着是水印、聚焦可全选复制（⛔ 不要再给这类框加任何"透明文字"样式类）。
+- 两页只读框各给 `Placeholder`（「脚本目录」/「数据文件」）；`Width = 88`（与其它框同一口径）。
+- 📐 位置由基类 `JsonImportFirst` 决定：共用 json 导入按钮文案 = **`📥 导入`**（与「📤 导出」同风格）；`true` = 导入 → 输入框 → 搜索框（`pc-quick`），
+  `false` = 退到「📤 导出」前面（最前已有「📂 导入」脚本文件时）。
 
 ## §4 配置与路径实现
 

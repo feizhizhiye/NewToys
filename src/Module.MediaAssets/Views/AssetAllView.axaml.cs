@@ -26,10 +26,10 @@ public partial class AssetAllView : UserControl
         ScanFolderItem.Click += (_, _) => _ = ScanFolderAsync();
         ScanFilesItem.Click += (_, _) => _ = ScanFilesAsync();
 
-        // ② NT-026：「🗄 并入库文件…」主按钮 = 选一个外部 .db 并入当前库（预览 + 确认在 VM 里做）。
+        // ② NT-026：「🗄 并入…」主按钮 = 选一个外部 .db 并入当前库（预览 + 确认在 VM 里做）。
         MergeSplit.Click += (_, _) => _ = PickMergeDbAsync();
 
-        // ③ 「➕ 登记文件夹」：加入待扫列表（⛔ 不扫描，等「🔄 扫描全部」）
+        // ③ 「➕ 登记」：加入待扫列表（⛔ 不扫描，等「🔄 扫描全部」）
         BtnRegisterFolder.Click += async (_, _) =>
         {
             if (DataContext is not AssetAllViewModel vm) return;
@@ -60,15 +60,14 @@ public partial class AssetAllView : UserControl
         };
 
         // ⑦ v3.34 / NT-018：表头 ☑ 上的右键菜单（全选 / 取消选择 / 反选）
-        //    ⚠️ 必须是**原生三态 CheckBox**（⛔ 别用字符"☑"画 —— 字体会渲染成深色块，v3.16 连踩两轮）；
-        //    ⚠️ ContextMenu 挂在 **CheckBox** 上（不是外层 Border）→ 这里要读 HeaderCheckBox，
-        //       整格热区由外层透明 Border 的右键手动开菜单。
-        HeaderCheckHost.PointerPressed += (_, e) =>
-        {
-            if (e.GetCurrentPoint(HeaderCheckHost).Properties.IsRightButtonPressed != true) return;
-            if (HeaderCheckBox?.ContextMenu is { } menu) menu.Open(HeaderCheckHost);
-            e.Handled = true;
-        };
+        //    🔴 v3.42.1：**菜单只挂外层 Border（HeaderCheckHost），右键由 Avalonia 原生弹出** ——
+        //    ⛔ 不要再在 PointerPressed 里手动 menu.Open()：消息冒泡到 CheckBox 时它自己的 ContextMenu
+        //    属性已经自动弹过一次，二次 Open 会抛异常 → 应用直接崩（用户实测）。
+        //    整格热区由 Border 本身提供（它的 ContextMenu 覆盖整格，含包在里面的 CheckBox）。
+
+        // ⑧ v3.42：工具条按容器宽度**自动折叠** —— 布局一变就重算（两行放得下就多显示，放不下才折尾部的）。
+        //    🔴 用 LayoutUpdated 而不是 SizeChanged：首次要等子元素量出宽度才能算（SizeChanged 可能早于子元素布局）。
+        ToolbarPanel.LayoutUpdated += (_, _) => ApplyToolbarLayout();
     }
 
     /// <summary>
@@ -80,6 +79,7 @@ public partial class AssetAllView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         if (DataContext is AssetAllViewModel vm) vm.ConsumePendingAsset();
+        ApplyToolbarLayout();   // v3.42：从别的标签页切回来时按当前宽度重排一次工具条
     }
 
     /// <summary>⚠️ ContextMenu 挂在独立弹出树上，DataContext 不随宿主继承，必须手工同步（规范 §3.8）。</summary>
@@ -88,7 +88,11 @@ public partial class AssetAllView : UserControl
         base.OnDataContextChanged(e);
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
         if (AssetList?.ContextMenu is { } amenu) amenu.DataContext = DataContext;
-        if (HeaderCheckBox?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
+        if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
+
+        // v3.42：换 VM（换页 / 薄壳页切换）后要重新挂钩「⋯」展开态监听并重排工具条
+        HookToolbarVm();
+        ApplyToolbarLayout();
     }
 
     /// <summary>「📁 扫描 → 文件夹…」：选一个目录 → **预览**（只进内存，⛔ 不入库）。</summary>
@@ -124,7 +128,7 @@ public partial class AssetAllView : UserControl
         await vm.PreviewFilesAsync(paths).ConfigureAwait(false);
     }
 
-    /// <summary>NT-026：「🗄 并入库文件…」：选一个外部 .db → VM 预览 + 确认 + 入队合并。</summary>
+    /// <summary>NT-026：「🗄 并入…」：选一个外部 .db → VM 预览 + 确认 + 入队合并。</summary>
     private async Task PickMergeDbAsync()
     {
         if (DataContext is not AssetAllViewModel vm) return;
@@ -148,7 +152,7 @@ public partial class AssetAllView : UserControl
         vm.MergeLibraryCommand.Execute(path);
     }
 
-    /// <summary>NT-026：「💾 保存」：选一个目标 .db → VM 另存（已存在会问覆盖）。</summary>
+    /// <summary>NT-026：「💿 另存为…」：选一个目标 .db → VM 另存（已存在会问覆盖）。</summary>
     private async void OnSaveLibraryAsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (DataContext is not AssetAllViewModel vm) return;
@@ -246,5 +250,114 @@ public partial class AssetAllView : UserControl
             vm.StatusText = msg;
         }
         catch (Exception ex) { vm.StatusText = "导入失败：" + ex.Message; }
+    }
+
+    // ==================== v3.42：工具条按容器宽度自动折叠（用户定调） ====================
+
+    /// <summary>各项的布局宽（不含间距），首次布局后**缓存一次** —— 用它贪心算"两行能放几项"。</summary>
+    private double[]? _itemWidths;
+
+    /// <summary>末尾「⋯」按钮自己的宽 —— 算两行预算时先给它留位，保证它永远落得下。</summary>
+    private double _moreWidth;
+
+    private AssetAllViewModel? _toolbarVm;
+    private int _appliedCapacity = -1;
+
+    /// <summary>
+    /// 按容器宽度重排工具条：**两行内放得下就全显示，放不下才把序列尾部几项收进「⋯」**。
+    /// <para>约定：<c>ToolbarPanel</c> 的**最后一个**子元素就是那个「⋯」按钮；其余按 XAML 顺序 = **优先级顺序**。</para>
+    /// <para>🔴 为什么不会布局循环 / 抖动：项宽**只在首次布局后测一次并缓存**，之后每次只按"容器宽 + 缓存宽"做纯计算
+    /// ⇒ 折叠结果**不反过来影响计算输入**（容器宽由窗口决定，与内容无关）。</para>
+    /// </summary>
+    private void ApplyToolbarLayout()
+    {
+        if (ToolbarPanel is null) return;                        // 极早期（DataContext 先于 XAML 树就绪）的兜底
+        var children = ToolbarPanel.Children;
+        if (children.Count < 2) return;
+
+        var width = ToolbarPanel.Bounds.Width;
+        if (width <= 0) return;                                  // 还没量到尺寸 → 等下一次布局回调
+
+        var itemCount = children.Count - 1;                      // 末尾那个是「⋯」本身
+
+        // ① 首次（或子元素数变了）：此刻子元素都还可见 → 记下各自宽。
+        //    ⚠️ 任一项量到 0 就整体放弃缓存（说明布局还没完成），⛔ 不能把脏数据存下来。
+        if (_itemWidths is null || _itemWidths.Length != itemCount)
+        {
+            var widths = new double[itemCount];
+            for (var i = 0; i < itemCount; i++)
+            {
+                var w = children[i].Bounds.Width;
+                if (w <= 0) return;
+                widths[i] = w;
+            }
+            var moreWidth = children[itemCount].Bounds.Width;
+            if (moreWidth <= 0) return;
+            _itemWidths = widths;
+            _moreWidth = moreWidth;
+        }
+
+        var expanded = _toolbarVm?.IsToolbarExpanded == true;
+        var capacity = expanded ? itemCount : FitTwoRows(width);
+
+        if (capacity == _appliedCapacity) return;                // 幂等短路：容量没变就不动（避免无谓重排）
+        _appliedCapacity = capacity;
+
+        for (var i = 0; i < itemCount; i++)
+            children[i].IsVisible = i < capacity;
+
+        // 「⋯」：收起态且确实有东西被折时才显示；展开态保留（否则没法收起）；全放得下则自己消失。
+        children[itemCount].IsVisible = expanded || capacity < itemCount;
+    }
+
+    /// <summary>
+    /// 贪心算"容器宽 <paramref name="width"/> 下、**两行**内能放下几项"（先给末尾「⋯」留出位置）。
+    /// <para>逐行累计、超出容器宽就换行、两行预算用完即停 —— 与 <c>WrapPanel</c> 的实际排布规则一致。</para>
+    /// </summary>
+    private int FitTwoRows(double width)
+    {
+        var widths = _itemWidths;
+        if (widths is null) return 0;
+
+        var spacing = ToolbarPanel.ItemSpacing;
+        var budget = width * 2 - _moreWidth - spacing;           // 两行总宽，先扣掉「⋯」的占位
+        if (budget <= 0) return 1;                              // 极端窄也留一项：⛔ 不许工具条整条空掉
+
+        var rowUsed = 0.0;                                       // 当前行已占宽（含间距）
+        var total = 0.0;                                         // 两行合计（含间距）
+        var count = 0;
+
+        foreach (var w in widths)
+        {
+            var add = (rowUsed > 0 ? spacing : 0) + w;
+            if (rowUsed > 0 && rowUsed + add > width)
+            {
+                rowUsed = 0;                                     // 该换行了
+                add = w;
+            }
+            if (total + add > budget) break;                     // 两行预算用尽 → 剩下的都进「⋯」
+            rowUsed += add;
+            total += add;
+            count++;
+        }
+        return count;
+    }
+
+    /// <summary>订阅 / 退订当前 VM 的 <see cref="AssetAllViewModel.IsToolbarExpanded"/>（点「⋯」后要立即重排）。</summary>
+    private void HookToolbarVm()
+    {
+        var vm = DataContext as AssetAllViewModel;
+        if (ReferenceEquals(_toolbarVm, vm)) return;
+
+        if (_toolbarVm != null) _toolbarVm.PropertyChanged -= OnToolbarVmPropertyChanged;
+        _toolbarVm = vm;
+        if (_toolbarVm != null) _toolbarVm.PropertyChanged += OnToolbarVmPropertyChanged;
+
+        _appliedCapacity = -1;                               // 换了 VM → 强制重算一次
+    }
+
+    private void OnToolbarVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AssetAllViewModel.IsToolbarExpanded)) ApplyToolbarLayout();
     }
 }

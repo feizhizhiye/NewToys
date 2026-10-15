@@ -149,7 +149,8 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
 /// <summary>资产类型 ↔ 中文显示名（列表 / 详情 / 筛选下拉共用；⛔ 别在各处各写一份）。</summary>
 public static class AssetTypeTexts
 {
-    public const string All = "全部";
+    /// <summary>筛选下拉第一项（v3.40：文案由「全部」改为「全部类型」—— 与其他三个筛选框的「全部状态 / 全部存储源 / 全部标签」对齐）。</summary>
+    public const string All = "全部类型";
 
     public static string Of(string type) => type switch
     {

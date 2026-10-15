@@ -54,6 +54,12 @@
 - **Win10 顶部两角圆角**是 `WS_THICKFRAME|WS_CAPTION` 的固有小圆角，非 Win11 可调 API。
 - 全屏：`WindowState.FullScreen` 切换 + `F11` + 全屏态 `Esc` 退出（隧道注册 KeyDown，非全屏不吞）。
 - SQLite：`ATTACH` / `DETACH` 必须在**事务外**；整数列不能用 `GetString`。
+- **右键菜单（ContextMenu）在「非依附控件」上 `Open` 直接抛异常**（v3.42.1 实测崩溃）：`Control.ContextMenu` 赋值时会把宿主登记进菜单的依附列表，`ContextMenu.Open(control)` 校验 `_attachedControls.Contains(control)`，不满足即抛
+  `ArgumentException: Cannot show ContentMenu on a different control to the one it is attached to.` —— 表现是"右键菜单一弹就崩"。
+  ⚠️ 注意 **不是** `IsOpen` 重复打开（`Open` 内部 `if (IsOpen) return;` 是幂等的）。
+  → 菜单**只挂最外层热区控件**（例：表头勾选列的整格 `Border#HeaderCheckHost`），右键由 Avalonia 原生 `ContextRequested` 弹出；⛔ 不要写 `PointerPressed` + `menu.Open(另一个控件)`，挂最外层后整格热区天然生效。
+- **菜单项「还有下一级」的折叠标识**：Fluent 的 `MenuItem` 模板**自带** `Path#PART_ChevronPath`（Grid 第 5 列），显隐由 `:empty` 伪类控制 = `ItemCount == 0`（无子项）时隐藏 ⇒ **有子项就自动出现**，⛔ 别往 `Header` 里拼 `▸`/自绘 Path。
+  项目只在 `Shell/Styles/Controls.axaml` ⑱ 统一它的 `Fill`（`PrimaryTextBrush`；全局 Style 优先级高于 ControlTheme ⇒ 该色对所有状态一律生效）。
 - 两条死诊断：无边框自绘窗口 `Window.Title` 界面上**不显示**；`DwmGetWindowAttribute(33)` **不支持读**（永远 -1）。诊断写文件或状态栏。
 
 ---

@@ -104,19 +104,19 @@
                  右键表头任意位置弹出「显示 / 隐藏列」菜单（规范 3.8 右键增删表头项）。 -->
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
               <!--  v3.37 / NT-002：勾选列表头 —— 🔴 **原生三态 CheckBox**（⛔ 别用字符"☑"画，字体会渲染成深色块）；
-                    右键菜单挂在外层透明 Border 上（整格都能右键）。  -->
+                    右键菜单挂在外层透明 Border 上（整格都能右键）。
+                    🔴 v3.42.1 修崩溃：菜单**只挂 Border、⛔ 不挂 CheckBox、⛔ 不手动 Open**（同 AssetAllView）。  -->
               <Border Grid.Column="0" x:Name="HeaderCheckHost" Background="Transparent"
                       ToolTip.Tip="勾选的行由「⬇ 安装选中 / ⬆ 升级选中」批量执行（右键：全选 / 取消 / 反选）">
                 <CheckBox x:Name="HeaderCheckBox" HorizontalAlignment="Center" VerticalAlignment="Center" IsThreeState="True"
-                          IsChecked="{Binding AllCheckedState, Mode=TwoWay}">
-                  <CheckBox.ContextMenu>
-                    <ContextMenu>
-                      <MenuItem Header="☑ 全选" Command="{Binding ToggleAllCommand}"/>
-                      <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
-                      <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
-                    </ContextMenu>
-                  </CheckBox.ContextMenu>
-                </CheckBox>
+                          IsChecked="{Binding AllCheckedState, Mode=TwoWay}"/>
+                <Border.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="☑ 全选" Command="{Binding ToggleAllCommand}"/>
+                    <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
+                    <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
+                  </ContextMenu>
+                </Border.ContextMenu>
               </Border>
 
               <Button Grid.Column="1" Classes="col-header" Content="{Binding NameHeader}"

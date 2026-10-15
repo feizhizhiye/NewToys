@@ -244,7 +244,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     // ==================== NT-026：多库融合（并库 / 另存 / 勾选删除） ====================
 
     /// <summary>
-    /// 「🗄 并入库文件」：预览 → 确认摘要 → 合并进主库（走任务队列，进度在「任务中心」看）。
+    /// 「🗄 合并库文件」：预览 → 确认摘要 → 合并进主库（走任务队列，进度在「任务中心」看）。
     /// 🔴 源库**只读**：ATTACH 后只 SELECT，⛔ 一个字节都不改源文件。
     /// </summary>
     [RelayCommand]
@@ -278,7 +278,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 「💾 保存」：把当前主库**另存为**一个新 .db（VACUUM INTO 在线备份，一致快照）。
+    /// 「💿 另存库文件」：把当前主库**另存为**一个新 .db（VACUUM INTO 在线备份，一致快照）。
     /// 目标已存在 → 二次确认后覆盖（⛔ 不静默覆盖）。
     /// </summary>
     [RelayCommand]
@@ -561,7 +561,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         Selected = null;
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(ShowSampleRow));
-        StatusText = "已清空列表显示（数据仍在库里，点「🔄 重读资产库」找回）。";
+        StatusText = "已清空列表显示（数据仍在库里，点「🔄 重读」找回）。";
     }
 
     /// <summary>库文件全路径（右键「🗄 打开库文件」的 ToolTip 用）。</summary>
@@ -695,12 +695,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     // ==================== v3.34 / NT-018：勾选列 + 批量逻辑操作 ====================
 
-    /// <summary>行被勾了几条（工具条「🏷 加标签」「🗂 加集合」按它操作）。</summary>
+    /// <summary>行被勾了几条（工具条「🏷 加标签」「📚 加集合」按它操作）。</summary>
     public int CheckedCount => _all.Count(r => r.IsChecked);
 
     public bool HasChecked => CheckedCount > 0;
 
-    public string CheckedText => CheckedCount == 0 ? "未勾选" : $"已勾选 {CheckedCount} 个";
+    // v3.41（用户定调）：⛔ 工具条不再放「未勾选 / 已勾选 N 个」指示文字 ——
+    // 「需先勾选」这件事改用按钮自己的 ToolTip（+ ToolTip.ShowOnDisabled）表达，勾选数由列表左列勾选框直接可见。
 
     /// <summary>
     /// 表头 ☑ 的三态（🔴 用**原生三态 CheckBox**，⛔ 别用字符"☑"画 —— 字体会渲染成深色块，v3.16 连踩两轮）：
@@ -745,7 +746,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(HasChecked));
-        OnPropertyChanged(nameof(CheckedText));
     }
 
     private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -782,7 +782,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = $"已给 {n} 个资产打上标签「{name.Trim()}」（原本已有该标签的不重复）。";
     }
 
-    /// <summary>工具条「🗂 加集合」：把**勾选的行**加进一个集合（输入集合名，不存在就建一个手动集合）。</summary>
+    /// <summary>工具条「📚 加集合」：把**勾选的行**加进一个集合（输入集合名，不存在就建一个手动集合）。</summary>
     [RelayCommand]
     private async Task AddToCollectionCheckedAsync()
     {
@@ -1201,6 +1201,20 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     partial void OnFilterStorageChanged(FilterOption? value) => ApplyView();
     partial void OnFilterStatusChanged(FilterOption? value) => ApplyView();
     partial void OnFilterTagChanged(FilterOption? value) => ApplyView();
+
+    // ==================== 工具条「⋯ 更多」开合（v3.41 / 用户定调） ====================
+
+    /// <summary>
+    /// 工具条是否**全部显示**（由末尾那个「⋯」按钮切换）。
+    /// <para>🔴 v3.42：工具条默认**按容器宽度分档折叠**（显示前 N 项由 View 的 <c>ApplyToolbarLayout()</c> 算），
+    /// 排不下的落在序列末尾、收进「⋯」；本属性 = <c>true</c> 时**不受宽度限制、全部显示**。</para>
+    /// <para>⛔ 不落盘：每次进页面回到**收起**态（默认布局要稳定，别让上次的展开态把首屏撑高）。</para>
+    /// </summary>
+    [ObservableProperty] private bool _isToolbarExpanded;
+
+    /// <summary>「⋯」：全部显示 / 收起工具条里被宽度折掉的按钮。</summary>
+    [RelayCommand]
+    private void ToggleToolbar() => IsToolbarExpanded = !IsToolbarExpanded;
 
     // ==================== 过滤 / 排序 ====================
 

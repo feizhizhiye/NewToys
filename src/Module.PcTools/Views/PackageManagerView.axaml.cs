@@ -25,13 +25,8 @@ public partial class PackageManagerView : UserControl
         };
 
         // v3.37 / NT-002：表头 ☑ 上的右键菜单（全选 / 取消选择 / 反选）。
-        // ⚠️ ContextMenu 挂在 **CheckBox** 上（不是外层 Border）→ 整格热区由外层透明 Border 的右键手动开菜单。
-        HeaderCheckHost.PointerPressed += (_, e) =>
-        {
-            if (e.GetCurrentPoint(HeaderCheckHost).Properties.IsRightButtonPressed != true) return;
-            if (HeaderCheckBox?.ContextMenu is { } menu) menu.Open(HeaderCheckHost);
-            e.Handled = true;
-        };
+        // 🔴 v3.42.1：菜单只挂外层 Border（HeaderCheckHost），右键由 Avalonia 原生弹出 ——
+        // ⛔ 不要再手动 menu.Open()（会与 CheckBox 自身 ContextMenu 的自动弹出撞车 → 二次 Open 异常崩溃）。
     }
 
     /// <summary>
@@ -46,7 +41,7 @@ public partial class PackageManagerView : UserControl
         // 表头右键「显示 / 隐藏列」菜单同样挂在独立弹出树，必须手工同步 DataContext（见规范 3.8）。
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
         // v3.37 / NT-002：表头 ☑ 的勾选菜单（全选 / 取消 / 反选）同理。
-        if (HeaderCheckBox?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
+        if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
     }
 
     // ==================== 已安装包清单 导入 / 导出（v3.19 / NT-008：换机恢复） ====================

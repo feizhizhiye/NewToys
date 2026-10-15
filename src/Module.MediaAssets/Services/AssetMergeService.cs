@@ -230,7 +230,7 @@ public class AssetMergeService
         }
     }
 
-    /// <summary>💾 保存（另存为）：把主库**在线备份**成一个新 .db（VACUUM INTO = 一致快照，⛔ 不锁库）。</summary>
+    /// <summary>💿 另存库文件（另存为）：把主库**在线备份**成一个新 .db（VACUUM INTO = 一致快照，⛔ 不锁库）。</summary>
     public (bool Ok, string Message) SaveAs(string targetPath)
     {
         if (!IsAvailable) return (false, "主资产库不可用（数据库打不开）。");

@@ -17,8 +17,8 @@
         ItemSpacing（元素间水平距）+ LineSpacing（换行后行与行的上下距）—— ⛔ 别让换行后的
         两行按钮贴在一起（实测踩过：按钮一多换行，第二行顶死第一行）。  -->
     <Border Grid.Row="0" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel x:Name="ToolbarPanel" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
                    ItemSpacing="8" LineSpacing="4">
 
           <!--
@@ -48,22 +48,78 @@
           <!--  按钮在前、输入框在后（v3.29 用户定调）：📁 扫描 → 路径框 → 搜索框 → 其余按钮依次排列。
                 ⛔ 「⤓ 预览扫描」按钮已删（用户：没用）—— 路径框里**回车**即预览扫描。
                 手输路径的用处：NAS / 网络路径、以及反复重扫同一个目录时比选择框好用。  -->
-          <TextBox x:Name="ImportPathBox" Width="240"
+          <TextBox x:Name="ImportPathBox" Width="88"
                    Text="{Binding ImportPath, Mode=TwoWay}"
-                   PlaceholderText="填文件夹路径（回车即预览扫描）"/>
-          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}"
-                   PlaceholderText="搜索名称 / 路径 / 标签…"/>
+                   ToolTip.Tip="填文件夹路径，回车即预览扫描（也可用左侧「📁 扫描」选目录）"
+                   PlaceholderText="路径（回车预览）"/>
+          <TextBox Width="88" Text="{Binding SearchText, Mode=TwoWay}"
+                   ToolTip.Tip="按名称 / 路径 / 标签搜索"
+                   PlaceholderText="搜索…"/>
 
           <!--  库级操作（作用于整个库，⛔ 与"单条操作走右键"不冲突，见 §4.8 硬规则 9）  -->
-          <Button x:Name="BtnRegisterFolder" Classes="ghost" Content="➕ 登记文件夹"
+          <Button x:Name="BtnRegisterFolder" Classes="ghost" Content="➕ 登记"
                   IsEnabled="{Binding !IsBusy}"
-                  ToolTip.Tip="加入待扫列表（⛔ 不扫描），攒几个后点「🔄 扫描全部」"/>
+                  ToolTip.Tip="加入待扫文件夹列表（⛔ 不扫描），攒几个后点「🔄 扫描全部」"/>
           <Button Classes="ghost" Content="🔄 扫描全部"
                   Command="{Binding ScanAllCommand}" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="把所有已登记的存储源扫一遍，直接入库"/>
+
+          <!--  NT-018 逻辑操作（按勾选批量）：v3.29 增补 —— 列表有勾选框后按钮直接叫「加标签 / 加集合」，
+                语义天然就是批量（⛔ 不再写"批量"二字）。
+                v3.40 图标去重：`🗂 加集合` → `📚 加集合`（原 🗂 与 🗄 并入库视觉几乎一样）。  -->
+          <!--  🔴 v3.41（用户定调）：这三个按钮**必须先勾选** —— 提示词写进 ToolTip，并且要加
+                `ToolTip.ShowOnDisabled="True"`（⚠️ 不加这句，按钮禁用时 ToolTip **根本不显示**，
+                用户只看到一个灰按钮、不知道要先勾选）；⛔ 工具条里不再放「未勾选 / 已勾选 N 个」指示文字。  -->
+          <Button Classes="ghost" Content="🏷 加标签"
+                  Command="{Binding AddTagToCheckedCommand}" IsEnabled="{Binding HasChecked}"
+                  ToolTip.Tip="先在列表里勾选行，再点这里打标签（输入标签名，不存在就新建）"
+                  ToolTip.ShowOnDisabled="True"/>
+          <Button Classes="ghost" Content="📚 加集合"
+                  Command="{Binding AddToCollectionCheckedCommand}" IsEnabled="{Binding HasChecked}"
+                  ToolTip.Tip="先在列表里勾选行，再点这里加进集合（输入集合名，不存在就新建一个手动集合）"
+                  ToolTip.ShowOnDisabled="True"/>
+          <!--  NT-026：「减」= 勾选后软删除（进回收站可恢复；⛔ 不动磁盘）。
+                勾选框已在列表里，按钮语义天然是批量 ⇒ v3.41 去掉冗词「（选中）」。  -->
+          <Button Classes="ghost" Content="🗑 移入回收站"
+                  Command="{Binding TrashCheckedCommand}" IsEnabled="{Binding HasChecked}"
+                  ToolTip.Tip="先在列表里勾选行，再点这里移入回收站（只改库状态，磁盘文件不动；可恢复）"
+                  ToolTip.ShowOnDisabled="True"/>
+
+          <!--  🔴 v3.42（用户定调）：**按容器宽度自动折叠** —— 工具条子元素 = 按**优先级顺序**排开的一个序列
+                （越靠前越不会被折），末尾固定是那个「⋯」按钮：
+                  · 两行内放得下就**全部显示**（宽窗口 / 收起详情卡时会自动一路展开）；放不下才把序列尾部几项收进「⋯」；
+                  · 点「⋯」= 不受宽度限制全部显示、再点收起；全部放得下时「⋯」自己消失。
+                🔴 判定在 code-behind 的 `ApplyToolbarLayout()` + `FitTwoRows()`：项宽**首次布局后缓存一次**，
+                   之后只按"容器宽 + 缓存宽"纯计算 ⇒ 折叠结果不影响计算输入，⛔ 无布局循环、⛔ 无窗口拖动抖动。
+                ⚠️ XAML 顺序 = **优先级顺序**；⛔ 不要再给这些控件写 `IsVisible`（会与运行期赋值打架）。
+                ⚠️ 约定：「⋯」必须是 `ToolbarPanel` 的**最后一个**子元素（code-behind 据此定位）。
+          -->
+
+          <!--  草稿态专属：非草稿时置灰（⛔ 不做能点没反应的按钮）
+                v3.39（用户定调）：工具条按钮风格统一 ghost（⛔ 不再单独用 primary 实心突出）。  -->
+          <Button Classes="ghost" Content="💾 加入库"
+                  Command="{Binding CommitDraftCommand}" IsEnabled="{Binding IsDraft}"
+                  ToolTip.Tip="把当前预览结果写入资产库（⛔ 不动磁盘文件）"/>
+          <!--  🔴 清除列表**任何状态都可用**（v3.29 用户反馈：库视图下置灰像坏了）：
+                草稿态 = 丢弃预览；库视图 = 只清当前显示（数据仍在库里，「🔄 重读」找回）—— 对齐视频列表的同名按钮  -->
+          <Button Classes="ghost" Content="🧹 清除列表"
+                  Command="{Binding ClearListCommand}"
+                  ToolTip.Tip="草稿态：丢弃预览结果；库视图：清空当前显示（数据仍在库里，刷新即找回）"/>
+
+          <CheckBox Content="含子目录"
+                  IsChecked="{Binding Recursive, Mode=TwoWay}"
+                  ToolTip.Tip="关掉就只扫当前这一层"/>
+
+          <!--  🔄 重读 = 重读数据库重建列表（⛔ 不扫盘、不读目录、不重新索引）。
+                v3.41 改名：原「🔄 重读资产库」→「🔄 重读」（本页就是资产库，⛔ 不必重述宾语）。  -->
+          <Button Classes="ghost" Content="🔄 重读"
+                  Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="重新读取资产库（⛔ 不扫描磁盘）"/>
+
           <!--  NT-026：库文件 SplitButton —— 主钮 = 选一个外部 .db **并入**当前库（源库只读）；
-                下拉保留原「打开当前库文件」（用系统默认程序看，如 DB Browser）。  -->
-          <SplitButton x:Name="MergeSplit" Classes="ghost" Content="🗄 并入库文件…"
+                下拉保留原「打开当前库文件」（用系统默认程序看，如 DB Browser）。
+                v3.41 改名：「🗄 合并库文件…」→「🗄 并入…」（与「💿 另存为…」靠动词区分，⛔ 不再并列两个"库文件"）。  -->
+          <SplitButton x:Name="MergeSplit" Classes="ghost" Content="🗄 并入…"
                        IsEnabled="{Binding IsDbAvailable}"
                        ToolTip.Tip="把另一个 newtoys.db 合并进当前库（按路径/内容去重；源库只读；进度看任务中心）">
             <SplitButton.Flyout>
@@ -73,63 +129,52 @@
               </MenuFlyout>
             </SplitButton.Flyout>
           </SplitButton>
-          <!--  NT-026：💾 保存 = 把当前库另存为一个 .db（VACUUM INTO 一致快照；目标已存在会问覆盖）  -->
-          <Button Classes="ghost" Content="💾 保存" Click="OnSaveLibraryAsClick"
+          <!--  NT-026：💿 另存为… = 把当前库另存为一个 .db（VACUUM INTO 一致快照；目标已存在会问覆盖）。
+                v3.40 改名 + 换图标：⛔ 别与"把编辑内容落库"的「💾 保存」共用名字 + 图标（整库另存是另一件事）。  -->
+          <Button Classes="ghost" Content="💿 另存为…"
+                  Click="OnSaveLibraryAsClick"
                   IsEnabled="{Binding IsDbAvailable}"
                   ToolTip.Tip="把当前资产库另存成一个 .db（备份 / 交付用）"/>
 
-          <!--  草稿态专属：非草稿时置灰（⛔ 不做能点没反应的按钮）  -->
-          <Button Classes="primary" Content="💾 加入库"
-                  Command="{Binding CommitDraftCommand}" IsEnabled="{Binding IsDraft}"
-                  ToolTip.Tip="把当前预览结果写入资产库（⛔ 不动磁盘文件）"/>
-          <!--  🔴 清除列表**任何状态都可用**（v3.29 用户反馈：库视图下置灰像坏了）：
-                草稿态 = 丢弃预览；库视图 = 只清当前显示（数据仍在库里，「🔄 重读资产库」找回）—— 对齐视频列表的同名按钮  -->
-          <Button Classes="ghost" Content="🧹 清除列表"
-                  Command="{Binding ClearListCommand}"
-                  ToolTip.Tip="草稿态：丢弃预览结果；库视图：清空当前显示（数据仍在库里，刷新即找回）"/>
-          <!--  ⛔ 「📂 打开 / 📁 打开所在文件夹」是针对**单条**的动作 → 归列表右键菜单（§4.8 硬规则 9）；
-                「🗄 并入库文件…」/「💾 保存」是**库级**操作 → 在工具条（见上）。  -->
+          <!--  NT-022：资产列表 JSON 导入 / 导出（v3.39 参与工具条流式排序；v3.41 归「更多」组）。  -->
+          <Button Classes="ghost" Content="📤 导出"
+                  Click="OnExportAssetsClick"
+                  ToolTip.Tip="把当前列表导成 json（含标签 / 分类 / 集合的名字）"/>
+          <Button Classes="ghost" Content="📥 导入"
+                  Click="OnImportAssetsClick"
+                  ToolTip.Tip="选一个导出的 json 追加合并进库（按路径去重，⛔ 不静默覆盖）"/>
 
-          <CheckBox Content="含子目录" IsChecked="{Binding Recursive, Mode=TwoWay}"
-                    ToolTip.Tip="关掉就只扫当前这一层"/>
-
-          <!--  NT-018 逻辑操作（按勾选批量）：命名规则见 v3.29 增补 —— 列表有勾选框后，
-                按钮就叫「加标签 / 加集合」（**去掉"批量"二字**），语义天然就是批量。
-                ⛔ 「💾 存为智能集合」仍留灰（智能集合的规则求值未实装）。  -->
-          <Button Classes="ghost" Content="🏷 加标签"
-                  Command="{Binding AddTagToCheckedCommand}" IsEnabled="{Binding HasChecked}"
-                  ToolTip.Tip="给勾选的行打标签（输入标签名，不存在就新建）"/>
-          <Button Classes="ghost" Content="🗂 加集合"
-                  Command="{Binding AddToCollectionCheckedCommand}" IsEnabled="{Binding HasChecked}"
-                  ToolTip.Tip="把勾选的行加进集合（输入集合名，不存在就新建一个手动集合）"/>
-          <!--  NT-026：「减」= 勾选后软删除（进回收站可恢复；⛔ 不动磁盘）  -->
-          <Button Classes="ghost" Content="🗑 移入回收站（选中）"
-                  Command="{Binding TrashCheckedCommand}" IsEnabled="{Binding HasChecked}"
-                  ToolTip.Tip="把勾选的行移入回收站（只改库状态，磁盘文件不动；可恢复）"/>
-          <TextBlock Text="{Binding CheckedText}" FontSize="11" VerticalAlignment="Center"
-                     Foreground="{DynamicResource SecondaryTextBrush}"/>
-          <Button Classes="ghost" Content="💾 存为智能集合" IsEnabled="False"
+          <!--  ⛔ 「🧠 存为智能集合」留灰占位（智能集合规则求值未实装，见 NT-018 偏差 2）：
+                v3.41 归「更多」组 —— 只为不占主区，⛔ 不是删功能。  -->
+          <Button Classes="ghost" Content="🧠 存为智能集合"
+                  IsEnabled="False"
                   ToolTip.Tip="智能集合需要规则求值（未实装）"/>
+          <!--  ⛔ 「📂 打开 / 📁 打开所在文件夹」是针对**单条**的动作 → 归列表右键菜单（§4.8 硬规则 9）；
+                「🗄 并入…」/「💿 另存为…」是**库级**操作 → 排在优先级序列的靠后位置。  -->
 
-          <!--  ⚠️ 「🔄 重读资产库」= **重读数据库**重建列表：⛔ 不扫盘、不读目录、不重新索引。
-                要重新扫一个文件夹，用左边的「📁 扫描」；要把登记的都扫一遍，用「🔄 扫描全部」；
-                要"回到刚打开时的状态"（丢排序 / 筛选 / 草稿），用**标题栏的 ⟳**。  -->
-          <Button Classes="ghost" Content="🔄 重读资产库"
-                  Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"
-                  ToolTip.Tip="重新读取资产库（⛔ 不扫描磁盘）"/>
+          <!--  🔴 优先级序列的**末尾**必须是这个「⋯」按钮（code-behind 靠"最后一个子元素"定位它）：
+                只放图标（⛔ 不带文字），固定 Width=32 保证开合时按钮不自变宽；展开态换成「▲」提示可收起。
+                ⚠️ 用 Button + Command 做开合（⛔ 不用 ToggleButton：全局只定义了 Button/SplitButton 的
+                   ghost 样式，ToggleButton 没样式会掉回 Fluent 默认外观，与其余按钮打架）。  -->
+          <Button Classes="ghost" Width="32" MinWidth="32"
+                  Command="{Binding ToggleToolbarCommand}"
+                  ToolTip.Tip="显示全部按钮 / 收起（本工具条默认最多两行，超出部分收在这里）">
+            <Panel>
+              <TextBlock Text="⋯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                         IsVisible="{Binding !IsToolbarExpanded}"/>
+              <TextBlock Text="▲" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                         IsVisible="{Binding IsToolbarExpanded}"/>
+            </Panel>
+          </Button>
         </WrapPanel>
 
-        <!--  NT-022：资产列表 JSON 导入 / 导出（控件同 PcTools / 视频工具的 io-bar）  -->
-        <StackPanel Grid.Column="1" Classes="io-bar" Margin="0,0,8,0">
-          <Button Classes="io-btn" Content="📤 导出" Click="OnExportAssetsClick"
-                  ToolTip.Tip="把当前列表导成 json（含标签 / 分类 / 集合的名字）"/>
-          <Button Classes="io-btn" Content="📥 导入" Click="OnImportAssetsClick"
-                  ToolTip.Tip="选一个导出的 json 追加合并进库（按路径去重，⛔ 不静默覆盖）"/>
-        </StackPanel>
-
-        <!--  末位：详情开关（v3.12 起从表头挪到工具条）
+        <!--  详情开关（v3.12 起从表头挪到工具条；v3.40 用户定调）：
+              🔴 **不参与工具条的流式排列** —— 独立 Auto 列、**不塞进 WrapPanel**、也不参与容器的换行计算；
+              位置 = 容器内**第一行元素的最右侧**（`VerticalAlignment="Top"` 顶格对齐第一行，⛔ 不再垂直居中）；
+              尺寸本地压窄到 20×20（覆盖全局 `Button.detail-toggle` 的 26 —— ⛔ 不改全局样式，其他列表页共用）。
               ⛔ 绑 ToggleDetailPanelCommand —— 基类的 ToggleDetailCommand 不通知 Shell，右列不会出现  -->
-        <Button Grid.Column="2" Classes="detail-toggle"
+        <Button Grid.Column="1" Classes="detail-toggle"
+                Width="20" MinWidth="20" Height="20" VerticalAlignment="Top"
                 Command="{Binding ToggleDetailPanelCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>
@@ -144,30 +189,34 @@
 
     <!--  ==================== ② 筛选条（改任一条件即时重算：VM 的 OnFilterXxxChanged → ApplyView）  ====================  -->
     <Border Grid.Row="1" Classes="filter-bar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
-        <TextBlock Text="类型" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
+      <!--  🔴 v3.41（用户定调）：筛选条**恒为一行、且⛔不许出现滚动条**。
+            筛选器数量是固定的（类型 / 存储源 / 状态 / 标签）⇒ 用 Grid 排死：
+            标签 Auto + 四个 combo 各占等分星号 ⇒ 窗口变窄时 combo **自己跟着变窄**，永远不会溢出、也不需要滚动条；
+            再给 combo 设 MaxWidth 防止宽窗口下被拉得过宽（超出部分自然留在右侧空白）。
+            ⚠️ ⛔ 别改回 WrapPanel（放不下就换行，条高会变）、⛔ 别套 ScrollViewer（用户明确不要滚动条）。
+            ⚠️ 列间距用 Grid.ColumnSpacing（= §4.10.4 对横向流式容器的同一条要求），⛔ 不给每个 combo 写右 Margin。  -->
+      <Grid ColumnDefinitions="Auto,*,*,*,*" ColumnSpacing="5">
+        <TextBlock Grid.Column="0" Text="筛选" FontSize="11" VerticalAlignment="Center" Margin="0,0,2,0"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <ComboBox Classes="filter-combo" Width="110" Margin="0,0,10,0"
+        <!--  v3.41：combo 尺寸再压小（Padding 4,1 + MinWidth 0 覆盖全局 filter-combo 的 MinWidth=110；
+              MaxWidth 120 兜住宽窗口）—— 最窄窗口（960 + 详情栏展开）也放得下，一行不动。  -->
+        <ComboBox Grid.Column="1" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+                  HorizontalAlignment="Left"
+                  ToolTip.Tip="按类型筛选（视频 / 音乐 / 书籍 / 图片 / 文档）"
                   ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding FilterType, Mode=TwoWay}"/>
-
-        <TextBlock Text="存储源" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <ComboBox Classes="filter-combo" Width="150" Margin="0,0,10,0"
+        <ComboBox Grid.Column="2" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+                  HorizontalAlignment="Left"
+                  ToolTip.Tip="按存储源筛选"
                   ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding FilterStorage, Mode=TwoWay}"/>
-
-        <TextBlock Text="状态" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <ComboBox Classes="filter-combo" Width="110" Margin="0,0,10,0"
+        <ComboBox Grid.Column="3" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+                  HorizontalAlignment="Left"
+                  ToolTip.Tip="按状态筛选（正常 / 已丢失 / 回收站 / 已归档）"
                   ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding FilterStatus, Mode=TwoWay}"/>
-
-        <TextBlock Text="标签" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <ComboBox Classes="filter-combo" Width="140" Margin="0,0,10,0"
+        <ComboBox Grid.Column="4" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+                  HorizontalAlignment="Left"
+                  ToolTip.Tip="按标签筛选"
                   ItemsSource="{Binding TagOptions}" SelectedItem="{Binding FilterTag, Mode=TwoWay}"/>
-
-        <TextBlock Text="左键表头排序 · 右键表头选列 / 筛选" FontSize="11" VerticalAlignment="Center"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-      </WrapPanel>
+      </Grid>
     </Border>
 
     <!--  ==================== ③ 列表本体  ====================  -->
@@ -183,19 +232,21 @@
                         LockedColumns="{Binding LockedColumnMask}"
                         SampleSpecs="{Binding SampleSpecs}">
             <!--  v3.34 / NT-018：勾选列表头 —— 🔴 **原生三态 CheckBox**（⛔ 别用字符"☑"画，字体会渲染成深色块）；
-                  右键菜单挂在外层透明 Border 上（整格都能右键）。  -->
+                  右键菜单挂在外层透明 Border 上（整格都能右键）。
+                  🔴 v3.42.1 修崩溃：菜单**只挂 Border、⛔ 不挂 CheckBox、⛔ code-behind 不手动 Open**
+                  —— 挂 CheckBox 上时原生右键已自动弹一次，code-behind 再 Open 一次 → 二次 Open 抛异常直接崩。
+                  与 VideoTools v3.16.1 写法对齐（那边一直是这么做的）。  -->
             <Border Grid.Column="0" x:Name="HeaderCheckHost" Background="Transparent"
-                    ToolTip.Tip="勾选的行由「🏷 加标签 / 🗂 加集合」批量操作（右键：全选 / 取消 / 反选）">
+                    ToolTip.Tip="勾选的行由「🏷 加标签 / 📚 加集合」批量操作（右键：全选 / 取消 / 反选）">
               <CheckBox x:Name="HeaderCheckBox" HorizontalAlignment="Center" VerticalAlignment="Center" IsThreeState="True"
-                        IsChecked="{Binding AllCheckedState, Mode=TwoWay}">
-                <CheckBox.ContextMenu>
-                  <ContextMenu>
-                    <MenuItem Header="☑ 全选" Command="{Binding ToggleAllCommand}"/>
-                    <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
-                    <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
-                  </ContextMenu>
-                </CheckBox.ContextMenu>
-              </CheckBox>
+                        IsChecked="{Binding AllCheckedState, Mode=TwoWay}"/>
+              <Border.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="☑ 全选" Command="{Binding ToggleAllCommand}"/>
+                  <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
+                  <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
+                </ContextMenu>
+              </Border.ContextMenu>
             </Border>
 
             <Button Grid.Column="1" Classes="col-header" Content="{Binding NameHeader}"

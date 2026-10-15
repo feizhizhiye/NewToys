@@ -46,6 +46,18 @@ public partial class ShellViewModel : ViewModelBase
 
     public ObservableCollection<TabItemViewModel> Tabs { get; } = new();
 
+    /// <summary>
+    /// 首页标签（v3.44）：**固定显示、不参与横向滚动** —— 用户规则「必须始终可见的元素不进 ScrollViewer」。
+    /// 左树 / 标签栏点它只是激活；它随 <see cref="Tabs"/> 变化同步（CollectionChanged 里发通知）。
+    /// </summary>
+    public TabItemViewModel? HomeTab => Tabs.FirstOrDefault(t => string.Equals(t.Key, HomeKey, StringComparison.Ordinal));
+
+    /// <summary>
+    /// 参与横向滚动的标签（v3.44）= <see cref="Tabs"/> 去掉首页的**镜像集合**，
+    /// 随 Tabs 的 CollectionChanged 同步（增 / 删 / 批量关都走同一套，⛔ 不在各命令里分别维护）。
+    /// </summary>
+    public ObservableCollection<TabItemViewModel> ScrollableTabs { get; } = new();
+
     [ObservableProperty] private TabItemViewModel? _activeTab;
 
     /// <summary>左树节点（首页叶子 + 一级分组 + 二级功能叶子）。</summary>
@@ -99,6 +111,17 @@ public partial class ShellViewModel : ViewModelBase
         // NT-052：模块热加载（入口 = 功能清单页「增加功能」操作区，标题栏按钮已移入）→ 重建左树 + 底栏消息。
         // ShellViewModel 是进程级单例（AddSingleton）⇒ 订阅随进程生命周期，无需退订。
         _reload.Reloaded += OnModulesReloaded;
+
+        // v3.44：首页标签固定显示（不进滚动区）⇒ 维护「可滚动标签」镜像 + HomeTab 变更通知。
+        // 放在 OpenTab(HomeKey) 之前订阅，保证首个首页标签也进镜像逻辑。
+        Tabs.CollectionChanged += (_, _) =>
+        {
+            ScrollableTabs.Clear();
+            foreach (var t in Tabs)
+                if (!string.Equals(t.Key, HomeKey, StringComparison.Ordinal))
+                    ScrollableTabs.Add(t);
+            OnPropertyChanged(nameof(HomeTab));
+        };
 
         BuildTree();
         // 首导：首页作为第一个固定标签页（§5.4）。

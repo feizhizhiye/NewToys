@@ -9,7 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
 using NewToys.MediaAssets.Models;
 using NewToys.MediaAssets.Services;
-using NewToys.MediaAssets.Views.Detail;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -25,13 +25,12 @@ namespace NewToys.MediaAssets.ViewModels;
 /// </list>
 /// </para>
 /// </summary>
-public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelProvider
+public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly AssetService _assets = null!;
     private readonly FileOperationService _fileOps = null!;
     private readonly OperationLogService _opLog = null!;
     private readonly List<AssetRow> _all = new();
-    private TrashDetailView? _detailView;
 
     public ObservableCollection<AssetRow> Items { get; } = new();
 
@@ -308,18 +307,74 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    public object? DetailContent
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（NT-054 迁移：原来的 <c>TrashDetailView</c> 已删）。</summary>
+    public object? DetailContent => null;
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（NT-054 / 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的 <c>TrashDetailView</c> 1:1 对应：资产只读信息 + 受影响的文件位置列表 + 两个卡内动作。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
     {
-        get
+        BodyVisiblePath = nameof(ShowDetailBody),
+        EmptyText = "在左侧列表里选中一个资产，这里显示它的详情。",
+        Sections =
         {
-            if (_detailView == null)
+            new DetailSection
             {
-                _detailView = new TrashDetailView();
-                _detailView.DataContext = this;
+                Fields =
+                {
+                    new DetailField { Label = "名称", ValuePath = "DetailRow.Name", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "状态", ValuePath = "DetailRow.StatusText", Kind = FieldKind.Text },
+                    new DetailField { Label = "类型", ValuePath = "DetailRow.TypeText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "大小", ValuePath = "DetailRow.SizeText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "修改时间", ValuePath = "DetailRow.ModifiedText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "存储源", ValuePath = "DetailRow.StorageName", Kind = FieldKind.Text },
+                    new DetailField { Label = "删除时间", ValuePath = "DetailRow.UpdatedAtText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Kind = FieldKind.Divider },
+                    // 受影响的文件位置（永久删除会真删这些）：原 ItemsControl 两行一项 → List Kind
+                    new DetailField
+                    {
+                        Label = "文件位置（永久删除会真删这些）",
+                        Kind = FieldKind.List,
+                        OptionsPath = nameof(Locations),
+                        ItemTextPath = "Path",
+                        ItemDetailPath = "Status"
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（这个资产没有登记任何文件位置）",
+                        VisibleWhen = "!" + nameof(HasLocations)
+                    },
+                    new DetailField { Kind = FieldKind.Divider }
+                }
             }
-            return _detailView;
+        },
+        Actions =
+        {
+            new DetailAction
+            {
+                Text = "♻ 恢复",
+                Classes = "primary",
+                ToolTip = "改回「正常」状态（⛔ 只改库里的状态，磁盘文件本来就还在）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = RestoreCommand
+            },
+            new DetailAction
+            {
+                Text = "🗑 永久删除",
+                Classes = "danger-btn",
+                ToolTip = "真删磁盘文件 + 删索引行（二次确认；⛔ 不进回收站、无法还原）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = PurgeSelectedCommand
+            }
         }
-    }
+    };
 
     public event EventHandler? DetailChanged;
 

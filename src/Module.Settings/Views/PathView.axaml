@@ -3,40 +3,17 @@
              xmlns:v="using:NewToys.Settings.Views"
              x:Class="NewToys.Settings.Views.PathView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
-        详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
+        详情卡在右列、从页面顶到底（加上左树就是三列）。
+        v3.53 / NT-055：工具条已由 Shell 的 ToolbarHost 声明式承载 ⇒ 页内⛔ 不再写 Border.toolbar
+        （两处同时渲染会出现两条工具条）。 -->
   <Grid Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
 
     <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
-         Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
-
-    <!--  ==================== 工具条  ====================  -->
-    <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button Classes="ghost" Content="📂 打开配置目录" Margin="0,0,8,0"
-                  Command="{Binding OpenConfigDirCommand}"/>
-          <Button Classes="primary" Content="💾 保存" Margin="0,0,8,0"
-                  Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"
-                  ToolTip.Tip="把右侧详情里改过的值写进 app.json（路径是自由文本，不适合边打边存）"/>
-          <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="0,0,0,6"
-                     Text="留空的项 = 用系统默认（PATH 里的 python / pwsh 等）；「📂 浏览…」选出来的路径会立即生效。"/>
-        </WrapPanel>
-        <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailPanelCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
-
+         工具条行已移除（v3.53 / NT-055）：改由 Shell 渲染。Row0~Row2 保持空着（Auto → 高度 0），
+         不动列表所在的行号。 -->
 
       <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
       <Border Grid.Row="3" Classes="card" Padding="0">
@@ -46,18 +23,22 @@
             <!-- ⚠️ 表头与行模板用同一份列宽规格（规范 3.6 对齐铁律①）；列宽绑 VM 的 VisibleColumnSpecs。
                  ⚠️ 必须用 ColumnGrid 而不是 Grid：Grid.ColumnDefinitions 是 CLR 属性、XAML 里不能 {Binding}（AVLN3000）。 -->
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+              <!--  v3.53 / NT-056：分类列 = 行类型判别列（路径 / 配置），可排序 + 可筛选  -->
+              <Button Grid.Column="0" Classes="col-header" Content="{Binding CategoryHeader}"
+                      Command="{Binding SortCommand}" CommandParameter="Category" ToolTip.Tip="点一下按分类排序（同类聚在一起）"
+                      IsVisible="{Binding IsCategoryVisible}"/>
+              <Button Grid.Column="1" Classes="col-header" Content="{Binding NameHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Name" ToolTip.Tip="点一下按名称排序"
                       IsVisible="{Binding IsNameVisible}"/>
-              <Button Grid.Column="1" Classes="col-header" Content="{Binding ValueHeader}"
+              <Button Grid.Column="2" Classes="col-header" Content="{Binding ValueHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Value" ToolTip.Tip="点一下按当前值排序"
                       IsVisible="{Binding IsValueVisible}"/>
-              <Button Grid.Column="2" Classes="col-header" Content="{Binding KindHeader}"
+              <Button Grid.Column="3" Classes="col-header" Content="{Binding KindHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Kind"
                       IsVisible="{Binding IsKindVisible}"/>
-              <TextBlock Grid.Column="3" Classes="list-cell" Text="说明" FontWeight="SemiBold"
+              <TextBlock Grid.Column="4" Classes="list-cell" Text="说明" FontWeight="SemiBold"
                          IsVisible="{Binding IsDescriptionVisible}"/>
-              <TextBlock Grid.Column="4" Classes="list-cell" Text="操作" FontWeight="SemiBold"
+              <TextBlock Grid.Column="5" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -72,6 +53,8 @@
                   <Separator/>
                   <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：勾选只负责"显示当前状态"，
                        真正的翻转由 ToggleColumnCommand 独家负责（默认双向会写回 VM 造成二次翻转）。 -->
+                  <MenuItem Header="分类（路径 / 配置）" ToggleType="CheckBox" IsChecked="{Binding IsCategoryVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Category"/>
                   <MenuItem Header="名称" IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
                   <MenuItem Header="当前值" ToggleType="CheckBox" IsChecked="{Binding IsValueVisible, Mode=OneWay}"
@@ -80,7 +63,7 @@
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Kind"/>
                   <MenuItem Header="说明" ToggleType="CheckBox" IsChecked="{Binding IsDescriptionVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Description"/>
-                  <MenuItem Header="操作（浏览 / 打开）" ToggleType="CheckBox" IsChecked="{Binding IsActionVisible, Mode=OneWay}"
+                  <MenuItem Header="操作" ToggleType="CheckBox" IsChecked="{Binding IsActionVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Action"/>
                 </ContextMenu>
               </v:ColumnGrid.ContextMenu>
@@ -91,10 +74,11 @@
           <Border Grid.Row="1" Classes="list-header" IsVisible="{Binding ShowSampleRow}" Opacity="0.5"
                   ToolTip.Tip="这是示例数据（列宽就按它判定）">
             <v:ColumnGrid ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <TextBlock Grid.Column="0" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[0]}"/>
-              <TextBlock Grid.Column="1" Classes="list-cell" IsVisible="{Binding IsValueVisible}" Text="{Binding SampleRowTexts[1]}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsKindVisible}" Text="{Binding SampleRowTexts[2]}"/>
-              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsDescriptionVisible}" Text="{Binding SampleRowTexts[3]}"/>
+              <TextBlock Grid.Column="0" Classes="list-cell accent" IsVisible="{Binding IsCategoryVisible}" Text="{Binding SampleRowTexts[0]}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell primary" IsVisible="{Binding IsNameVisible}" Text="{Binding SampleRowTexts[1]}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" IsVisible="{Binding IsValueVisible}" Text="{Binding SampleRowTexts[2]}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" IsVisible="{Binding IsKindVisible}" Text="{Binding SampleRowTexts[3]}"/>
+              <TextBlock Grid.Column="4" Classes="list-cell" IsVisible="{Binding IsDescriptionVisible}" Text="{Binding SampleRowTexts[4]}"/>
             </v:ColumnGrid>
           </Border>
 
@@ -102,15 +86,28 @@
                    ItemsSource="{Binding Items}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
-            <!-- 右键 = 「选中项更多功能」的主入口：查（▤ 详情栏）/ 改（📂 浏览 / 💾 保存 / ↩ 还原默认）/ 打开 -->
+            <!-- 右键 = 「选中项更多功能」的主入口：查（▤ 详情）/ 路径侧（📂 浏览 / 💾 保存 / ↩ 还原 / ↗ 打开）
+                 / 配置侧（⇄ 切换 / ⭐ 设为默认 / ✏ 重命名 / 🗑 删除 / ♻ 重置 / 🚀 新开）。
+                 🔴 按分类启停：不适用当前分类行的项 IsEnabled=false（v3.53 / NT-056）。 -->
             <ListBox.ContextMenu>
               <ContextMenu>
                 <Separator/>
-                <MenuItem Header="📂 浏览…" Click="OnBrowseMenuClick"/>
-                <MenuItem Header="↗ 打开位置" Command="{Binding OpenCommand}" CommandParameter="{Binding Selected}"/>
+                <MenuItem Header="📂 浏览…" Command="{Binding PickPathCommand}" IsEnabled="{Binding CanSavePath}"/>
+                <MenuItem Header="↗ 打开位置" Command="{Binding OpenCommand}" CommandParameter="{Binding Selected}"
+                          IsEnabled="{Binding IsPathRowSelected}"/>
                 <Separator/>
-                <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
-                <MenuItem Header="↩ 还原默认" Command="{Binding RestoreDefaultCommand}" IsEnabled="{Binding HasSelection}"/>
+                <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSavePath}"/>
+                <MenuItem Header="↩ 还原默认" Command="{Binding RestoreDefaultCommand}" IsEnabled="{Binding CanSavePath}"/>
+                <Separator/>
+                <MenuItem Header="⇄ 切换到此配置" Command="{Binding SwitchProfileCommand}" IsEnabled="{Binding CanSwitchProfile}"/>
+                <MenuItem Header="🚀 新开一个窗口" Command="{Binding LaunchProfileNewCommand}" IsEnabled="{Binding CanSwitchProfile}"/>
+                <MenuItem Header="⭐ 设为默认" Command="{Binding SetProfileDefaultCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
+                <MenuItem Header="✏ 重命名" Command="{Binding RenameProfileCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
+                <MenuItem Header="🗑 删除" Command="{Binding DeleteProfileCommand}" IsEnabled="{Binding CanDeleteProfile}"/>
+                <MenuItem Header="♻ 重置为初始态" Command="{Binding ResetProfileCommand}" IsEnabled="{Binding CanResetProfile}"/>
+                <Separator/>
+                <MenuItem Header="＋ 新建配置" Command="{Binding NewProfileCommand}"/>
+                <MenuItem Header="📂 打开配置目录" Command="{Binding OpenConfigDirCommand}"/>
               </ContextMenu>
             </ListBox.ContextMenu>
 
@@ -118,24 +115,53 @@
               <DataTemplate>
                 <!-- 行与表头共用同一份 VisibleColumnSpecs（规范 3.6 对齐铁律①）；每格 IsVisible 跟随列显隐。 -->
                 <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding ValueDisplay}"
+                  <TextBlock Grid.Column="0" Classes="list-cell accent" Text="{Binding CategoryText}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsCategoryVisible}"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                              IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}">
+                    <TextBlock Classes="list-cell primary" Text="{Binding Name}"/>
+                    <TextBlock Classes="list-cell accent" Text="{Binding Mark}" IsVisible="{Binding IsProfileRow}"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding ValueDisplay}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsValueVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding KindText}"
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding KindText}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsKindVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Description}"
+                  <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding Description}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
-                  <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" Margin="12,4"
-                              VerticalAlignment="Center"
-                              IsVisible="{Binding $parent[ListBox].DataContext.IsActionVisible}">
-                    <Button Classes="ghost small" Content="📂 浏览"
+
+                  <!-- 「操作」列按分类分派（v3.53 / NT-056）：路径行 = 📂 浏览 / ↗；
+                       配置行 = ⇄ 切换 / 🚀 新开 / ⭐ 设为默认 / ✏ 重命名 / 🗑 删除 / ♻ 重置。
+                       窄窗口下 WrapPanel 会自动折行（⛔ 不写固定宽容器）。 -->
+                  <WrapPanel Grid.Column="5" Orientation="Horizontal" ItemSpacing="4" LineSpacing="4" Margin="8,2"
+                             VerticalAlignment="Center"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsActionVisible}">
+                    <Button Classes="ghost small" Content="📂 浏览" IsVisible="{Binding IsPathRow}"
                             IsEnabled="{Binding IsEditable}"
-                            Click="OnBrowseRowClick" ToolTip.Tip="选文件 / 选目录（选完立即生效）"/>
-                    <Button Classes="ghost small" Content="↗"
+                            Command="{Binding $parent[ListBox].DataContext.PickRowPathCommand}"
+                            CommandParameter="{Binding}"
+                            ToolTip.Tip="选文件 / 选目录（选完立即生效）"/>
+                    <Button Classes="ghost small" Content="↗" IsVisible="{Binding IsPathRow}"
                             Command="{Binding $parent[ListBox].DataContext.OpenCommand}"
                             CommandParameter="{Binding}" ToolTip.Tip="打开所在目录 / 定位该文件"/>
-                  </StackPanel>
+                    <Button Classes="ghost small" Content="⇄" IsVisible="{Binding IsProfileRow}"
+                            Command="{Binding $parent[ListBox].DataContext.SwitchProfileCommand}"
+                            CommandParameter="{Binding}" ToolTip.Tip="切换到此配置（本窗口重启）"/>
+                    <Button Classes="ghost small" Content="🚀" IsVisible="{Binding IsProfileRow}"
+                            Command="{Binding $parent[ListBox].DataContext.LaunchProfileNewCommand}"
+                            CommandParameter="{Binding}" ToolTip.Tip="以该配置新开一个窗口"/>
+                    <Button Classes="ghost small" Content="⭐" IsVisible="{Binding IsProfileRow}"
+                            Command="{Binding $parent[ListBox].DataContext.SetProfileDefaultCommand}"
+                            CommandParameter="{Binding}" ToolTip.Tip="设为全局默认（以后不带参数启动用它）"/>
+                    <Button Classes="ghost small" Content="✏" IsVisible="{Binding IsProfileRow}"
+                            Command="{Binding $parent[ListBox].DataContext.RenameProfileCommand}"
+                            CommandParameter="{Binding}" ToolTip.Tip="重命名该配置"/>
+                    <Button Classes="ghost small" Content="🗑" IsVisible="{Binding IsProfileRow}"
+                            Command="{Binding $parent[ListBox].DataContext.DeleteProfileCommand}"
+                            CommandParameter="{Binding}" ToolTip.Tip="删除该配置的全部数据（不能删当前配置）"/>
+                    <Button Classes="ghost small" Content="♻" IsVisible="{Binding IsProfileRow}"
+                            Command="{Binding $parent[ListBox].DataContext.ResetProfileCommand}"
+                            CommandParameter="{Binding}" ToolTip.Tip="重置为初始态（不能重置 default / 当前配置）"/>
+                  </WrapPanel>
                 </v:ColumnGrid>
               </DataTemplate>
             </ListBox.ItemTemplate>

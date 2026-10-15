@@ -18,6 +18,7 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:chrome="using:Avalonia.Controls.Chrome"
+    xmlns:ctl="clr-namespace:NewToys.Shell.Controls"
     Title="NewToys"
     Width="1280"
     Height="800"
@@ -406,7 +407,13 @@
                     Background="{DynamicResource ContentBrush}"
                     Content="{Binding ActiveTab.Content}" />
 
-                <!--  右详情面板（340px，可开合）：由 Shell 统一承载，内容来自 IDetailPanelProvider  -->
+                <!--  右详情面板（340px，可开合）：由 Shell 统一承载。
+                     内容两轨（NT-054 需求 §4.5.1）：
+                     ① 声明式（新）—— 页面 VM 实现 IDetailCardSource 且 Card 非 null → 用 DetailCardHost 统一渲染
+                        （外壳 / 滚动 / 空态 / 示例态只实现一次，页面不再各写一份）；
+                     ② 自绘（老）—— 尚未迁移的页仍返回 IDetailPanelProvider.DetailContent，原样承载。
+                     ⚠️ DetailCardHost 的 DataContext 必须是**页面 VM**（描述符路径的解析根），
+                        所以 Source 绑页面 VM、Card 绑描述符，⛔ 不给控件本身设 DataContext。  -->
                 <Border
                     x:Name="DetailPanel"
                     Grid.Column="1"
@@ -415,7 +422,13 @@
                     Background="{DynamicResource PanelBrush}"
                     BorderBrush="{DynamicResource DividerBrush}"
                     BorderThickness="1,0,0,0">
-                    <ContentControl Content="{Binding DetailPanelContent}" />
+                    <Panel>
+                        <ContentControl Content="{Binding DetailPanelContent}" IsVisible="{Binding !IsDetailCardActive}" />
+                        <ctl:DetailCardHost
+                            Card="{Binding DetailCard}"
+                            IsVisible="{Binding IsDetailCardActive}"
+                            Source="{Binding DetailCardSource}" />
+                    </Panel>
                 </Border>
               </Grid>
 

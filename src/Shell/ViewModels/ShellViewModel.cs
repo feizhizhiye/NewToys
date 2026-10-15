@@ -69,6 +69,19 @@ public partial class ShellViewModel : ViewModelBase
     [ObservableProperty] private bool _isTreeCollapsed;
     [ObservableProperty] private bool _isDetailPanelVisible;
     [ObservableProperty] private object? _detailPanelContent;
+
+    /// <summary>
+    /// 声明式详情卡（NT-054）：当前页描述符。非 null → 右列走 <c>DetailCardHost</c> 统一渲染，
+    /// ⛔ 此时不再取 <see cref="DetailPanelContent"/>（老路留给尚未迁移的页）。
+    /// </summary>
+    [ObservableProperty] private NewToys.Shared.Details.DetailCardDescriptor? _detailCard;
+
+    /// <summary>声明式详情卡的 DataContext（= **页面 VM 本身**）：描述符里所有路径都相对它解析。</summary>
+    [ObservableProperty] private object? _detailCardSource;
+
+    /// <summary>右列当前是否走声明式渲染（= <see cref="DetailCard"/> 非 null）。</summary>
+    [ObservableProperty] private bool _isDetailCardActive;
+
     [ObservableProperty] private string _statusText = "NewToys · 已就绪";
 
     /// <summary>底部状态栏文本（v3.9）：来自当前页的 <see cref="IStatusProvider"/>；页面没接契约就为空。</summary>
@@ -349,6 +362,9 @@ public partial class ShellViewModel : ViewModelBase
 
         IsDetailPanelVisible = false;
         DetailPanelContent = null;
+        DetailCard = null;
+        DetailCardSource = null;
+        IsDetailCardActive = false;
         StatusBarText = "";
 
         if (tab?.ViewModel is IDetailPanelProvider p)
@@ -389,7 +405,17 @@ public partial class ShellViewModel : ViewModelBase
     private void RefreshDetail(string pageKey, IDetailPanelProvider p)
     {
         IsDetailPanelVisible = p.HasDetailPanel && p.IsDetailOpen;
-        DetailPanelContent = p.DetailContent;
+
+        // 两轨择一（NT-054 需求 §4.5.1）：
+        //   ① 页面实现 IDetailCardSource 且 Card 非空 → 走声明式（DetailCardHost 统一渲染），
+        //      ⛔ 此时**不碰** p.DetailContent（否则白建一个自绘视图）；
+        //   ② 否则退回老路（页面自绘 DetailContent），直到该页完成 L2 迁移。
+        var card = (p as IDetailCardSource)?.Card;
+        IsDetailCardActive = card is not null;
+        DetailCard = card;
+        DetailCardSource = card is null ? null : p;
+        DetailPanelContent = card is null ? p.DetailContent : null;
+
         _cols.SaveFlag(pageKey, IColumnLayoutService.FlagDetailPanel, p.IsDetailOpen);
     }
 

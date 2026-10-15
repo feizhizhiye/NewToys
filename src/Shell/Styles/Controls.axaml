@@ -220,6 +220,57 @@
     <Setter Property="FontFamily" Value="Consolas"/>
   </Style>
 
+  <!--  ⑭ 详情卡分区标题按钮 + 集合 chips（NT-054 声明式详情卡，需求 §4.5.1 / 规范 §3.6）
+        ⚠️ 这两个类归 **Shell** 的 `DetailCardHost` 用：卡片外壳与字段形态由 Shell 统一渲染，
+           各页不再各写一份（模块侧也能直接用这两个类，它们是全局样式）。  -->
+  <Style Selector="Button.section-toggle">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+  </Style>
+  <Style Selector="Button.section-toggle:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+  <!--  折叠箭头：Path 走 Stroke、不继承 Foreground（App.axaml 的既有约定）→ 由样式给颜色与粗细  -->
+  <Style Selector="Button.section-toggle Path">
+    <Setter Property="Stroke" Value="{DynamicResource SecondaryTextBrush}"/>
+    <Setter Property="StrokeThickness" Value="1.6"/>
+    <Setter Property="StrokeLineCap" Value="Round"/>
+    <Setter Property="StrokeJoin" Value="Round"/>
+  </Style>
+  <Style Selector="Button.section-toggle:pointerover Path">
+    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+
+  <!--  chips（Kind=Chips 的集合编辑器）：选中 = 强调色描边 + 强调色文字  -->
+  <Style Selector="Button.chip-toggle">
+    <Setter Property="Padding" Value="8,3"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+  </Style>
+  <Style Selector="Button.chip-toggle:pointerover">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+  <Style Selector="Button.chip-toggle.selected">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
   <!--  ⑬ 筛选条：多项筛选那一行的容器与其中的控件  -->
   <Style Selector="Border.filter-bar">
     <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
@@ -344,6 +395,18 @@
         实现见 Shell/Behaviors/TextBoxContextMenu.cs。  -->
   <Style Selector="TextBox">
     <Setter Property="(b:TextBoxMenu.Attach)" Value="True"/>
+  </Style>
+
+  <!--  ⑱ 菜单项「折叠标识」（v3.42.2 用户定调）：凡**带二级菜单**的菜单项，右侧统一显示 ▸。
+        🔴 标识**由 Fluent 的 MenuItem 模板自带**（`Path#PART_ChevronPath`，10×20 几何、8×16 尺寸），
+           显隐由模板的 `:empty` 伪类控制 —— 即 `ItemCount == 0`（没有子项）时自动隐藏，
+           ⛔ 不要往 `MenuItem.Header` 里拼字符 / Path 自绘箭头（那是重复实现，且会跟图标列错位）。
+        这里只做一件事：把它的 Fill 从 Fluent 默认的次要色（`MenuFlyoutSubItemChevron`，暗色下偏淡、
+           看不出"还有下一级"）统一到本应用的正文语义键，保证明暗主题下都清晰可辨。
+        ⚠️ 全局 Style 优先级高于 ControlTheme ⇒ 此 Fill 对 hover / pressed / disabled / 展开态**一律生效**
+           （有子菜单的项本来也不该在禁用态出现，故放弃这几个状态色差是无损的）。  -->
+  <Style Selector="MenuItem /template/ Path#PART_ChevronPath">
+    <Setter Property="Fill" Value="{DynamicResource PrimaryTextBrush}"/>
   </Style>
 
 </Styles>

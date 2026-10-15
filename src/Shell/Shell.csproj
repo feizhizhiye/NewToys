@@ -4,6 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>NewToys.Shell</RootNamespace>
     <AssemblyName>NewToys</AssemblyName>
+    <!--  NT-057：应用图标。**exe 图标** = 本文件（编译进 Windows 资源，⛔ 不需要复制到输出目录）；
+          **窗口 / 托盘图标** = 运行时按当前强调色重画的同一形状（见 App.axaml.cs 的 CreateAppIcon），
+          形状口径与本 ICO 一致（圆角 + N），改一处必须同步另一处。  -->
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>

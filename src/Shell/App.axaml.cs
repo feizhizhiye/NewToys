@@ -126,9 +126,13 @@ public class App : Application
             theme.ThemeChanged += () => ApplyTheme(theme);
 
             var win = new ShellView { DataContext = _sp.GetRequiredService<ShellViewModel>() };
+            _mainWindow = win;
 
             // v3.26：标题带配置名（多实例在任务栏里可区分，需求 §3.5）
             win.Title = $"NewToys · {store.ActiveProfileName}";
+
+            // NT-057：窗口图标 = 应用图标（与托盘同源同一份，底色随当前强调色）
+            win.Icon = CreateAppIcon(CurrentAccent());
 
             // 卸载 / 删除前的二次确认：Core 里的服务不能引用 Avalonia，
             // 所以由宿主在这里把「怎么问」接上去（弹窗在下面实现）。
@@ -168,6 +172,13 @@ public class App : Application
             else
             {
                 win.Show();
+            }
+
+            // NT-057：托盘建不起来（平台不支持 / 无托盘环境）⇒ 如实提示一次，行为退化成普通最小化
+            if (!trayOk && launchCfg.Config.StartMinimized)
+            {
+                MessageBoxW(IntPtr.Zero, "系统托盘不可用，「启动时最小化到托盘」已改为普通最小化。",
+                            "NewToys", MB_OK | MB_ICONINFORMATION);
             }
 
             if (launchCfg.Config.CheckUpdateOnStartup)
@@ -349,11 +360,18 @@ public class App : Application
 
     private static TrayIcon? _tray;
 
+    /// <summary>主窗口（NT-057：托盘菜单「先拉起窗口、再导航」要用它；主题切换后重画窗口图标也要用它）。</summary>
+    private static Window? _mainWindow;
+
+    /// <summary>托盘 / 窗口导航用的固定页 key（首页与设置总表，见需求 §5）。</summary>
+    private const string TrayHomeKey = "home";
+    private const string TraySettingsKey = "settings-path";
+
     /// <summary>
-    /// 建托盘图标并挂上菜单（显示 / 隐藏窗口、退出）。
+    /// 建托盘图标并挂上菜单（左键切窗口；右键五项：显示 / 隐藏、首页、设置、用另一个配置打开、退出）。
     /// <para>
     /// ⚠️ 托盘是 Avalonia 的原生控件，必须落在 Shell 这一层（<c>Core</c> 不引用 Avalonia）。
-    /// 图标是**代码画出来的**（32×32 位图，不依赖任何打包资源），所以发布产物里不会漏文件。
+    /// 图标走 <see cref="CreateAppIcon"/>（与窗口图标**同源同一份**，不依赖打包资源）。
     /// </para>
     /// </summary>
     /// <returns>托盘是否创建成功（失败时「最小化到托盘 / 关闭到托盘」会退化成普通最小化，并如实提示）。</returns>
@@ -363,22 +381,16 @@ public class App : Application
         {
             // ⚠️ 用对象初始化器而不是带参构造：Header 是确定存在的可写属性，ctor 重载各版本不完全一致
             var show = new NativeMenuItem { Header = "显示 / 隐藏窗口" };
-            var exit = new NativeMenuItem { Header = "退出 NewToys" };
+            show.Click += (_, _) => ToggleWindow(win);
 
-            show.Click += (_, _) =>
-            {
-                if (win.IsVisible)
-                {
-                    if (win.WindowState == WindowState.Minimized) { win.WindowState = WindowState.Normal; win.Show(); }
-                    else win.Hide();
-                }
-                else
-                {
-                    win.Show();
-                    win.WindowState = WindowState.Normal;
-                    win.Activate();
-                }
-            };
+            var home = new NativeMenuItem { Header = "打开首页" };
+            home.Click += (_, _) => ShowAndNavigate(win, TrayHomeKey);
+
+            var settings = new NativeMenuItem { Header = "打开设置…" };
+            settings.Click += (_, _) => ShowAndNavigate(win, TraySettingsKey);
+
+            var profiles = BuildProfileMenuItem();
+            var exit = new NativeMenuItem { Header = "退出 NewToys" };
 
             exit.Click += (_, _) =>
             {
@@ -389,11 +401,15 @@ public class App : Application
 
             var icon = new TrayIcon
             {
-                Icon = CreateTrayIcon(),
+                Icon = CreateAppIcon(CurrentAccent()),
                 ToolTipText = "NewToys",
                 IsVisible = true,
-                Menu = new NativeMenu { Items = { show, exit } }
+                // 顺序即优先级（需求 §4.6.1）：① 显示/隐藏 ② 首页 ③ 设置 ④ 另一个配置 ⑤ 退出
+                Menu = new NativeMenu { Items = { show, home, settings, profiles, exit } }
             };
+
+            // 左键 = 切换显示 / 隐藏（与菜单①同义；⛔ 与右键菜单互不抢：Clicked 只管左键）
+            icon.Clicked += (_, _) => ToggleWindow(win);
 
             var icons = TrayIcon.GetIcons(this);
             if (icons == null)
@@ -413,8 +429,92 @@ public class App : Application
         }
     }
 
-    /// <summary>代码画一个 32×32 的托盘图标（强调色圆角底 + 白色 N），不依赖任何资源文件。</summary>
-    private static WindowIcon? CreateTrayIcon()
+    /// <summary>
+    /// 左键 / 菜单①：**切换**主窗口显示与隐藏（⛔ 不是"只显示"）。
+    /// 隐藏（或最小化）态必须能一次拉回前台：还原为非最小化 → <c>Show</c> → <c>Activate</c>。
+    /// </summary>
+    private static void ToggleWindow(Window win)
+    {
+        if (win.IsVisible && win.WindowState != WindowState.Minimized) { win.Hide(); return; }
+        ShowWindow(win);
+    }
+
+    /// <summary>把主窗口拉到前台（已可见就只激活，不动它的最大化状态）。</summary>
+    private static void ShowWindow(Window win)
+    {
+        win.Show();
+        if (win.WindowState == WindowState.Minimized) win.WindowState = WindowState.Normal;
+        win.Activate();
+    }
+
+    /// <summary>
+    /// 菜单②③：**先拉起窗口、再导航**（⛔ 不许弹个没跳转的空窗口）。
+    /// 导航排到 UI 队列里执行，确保窗口已显示完再切页。
+    /// </summary>
+    private void ShowAndNavigate(Window win, string pageKey)
+    {
+        ShowWindow(win);
+        var nav = _sp?.GetService<INavigationService>();
+        if (nav == null) return;
+        // ⚠️ 托盘菜单的回调线程不保证是 UI 线程 ⇒ 一律 Post 回 UI 线程
+        Dispatcher.UIThread.Post(() =>
+        {
+            try { nav.NavigateTo(pageKey); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("托盘导航失败：" + ex.Message); }
+        });
+    }
+
+    /// <summary>
+    /// 菜单④「用另一个配置打开…」子菜单 = 全部配置**排除当前配置**；
+    /// 一个配置只能开一个实例（进程级 Mutex，见 <see cref="AcquireProfileMutex"/>）⇒ 当前配置⛔ 不进菜单。
+    /// 没有其他配置时置灰并在标题里写明原因（需求 §4.6.1）。
+    /// </summary>
+    private NativeMenuItem BuildProfileMenuItem()
+    {
+        var item = new NativeMenuItem();
+        IProfileService? profiles = null;
+        try { profiles = _sp?.GetService<IProfileService>(); }
+        catch { /* 服务拿不到就退化成"没有其他配置" */ }
+
+        var current = profiles?.ActiveProfile;
+        var others = profiles == null
+            ? new List<string>()
+            : profiles.Profiles.Where(p => !string.Equals(p, current, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (others.Count == 0)
+        {
+            item.Header = "用另一个配置打开…（没有其他配置）";
+            item.IsEnabled = false;
+            return item;
+        }
+
+        item.Header = "用另一个配置打开…";
+        var sub = new NativeMenu();
+        foreach (var name in others)
+        {
+            var one = new NativeMenuItem { Header = name };
+            one.Click += (_, _) =>
+            {
+                try { profiles!.LaunchNewInstance(name); }
+                catch (Exception ex)
+                {
+                    // 起不来（互斥体挡住 / 路径非法）：托盘里⛔ 不弹窗打断用户，只留调试线索
+                    System.Diagnostics.Debug.WriteLine("托盘启动配置实例失败：" + ex.Message);
+                }
+            };
+            sub.Items.Add(one);
+        }
+        item.Menu = sub;
+        return item;
+    }
+
+    /// <summary>
+    /// **唯一的应用图标工厂**（NT-057 / 需求 §4.6.1）：窗口标题栏图标与托盘图标**用同一份**，
+    /// 形状与 <c>Resources/app.ico</c>（exe 图标，由 <c>&lt;ApplicationIcon&gt;</c> 编进 exe）一致；
+    /// 底色取**当前强调色**（⛔ 不写死），换主题 / 换强调色图标跟着变。
+    /// <para>⛔ 改这里的圆角 / N 笔画比例，必须同步 <c>Resources/app.ico</c> 的形状口径，否则三处会走形。</para>
+    /// </summary>
+    private static WindowIcon? CreateAppIcon(Color accent)
     {
         try
         {
@@ -423,7 +523,8 @@ public class App : Application
                                           PixelFormat.Bgra8888, AlphaFormat.Premul);
             using var fb = bmp.Lock();
 
-            const uint back = 0xFF07C160u;   // 强调色（微信绿）
+            // ⚠️ 位图是 BGRA（内存小端）：按 0xAA_BB_GG_RR 组装，alpha 255 时预乘等价于原色
+            var back = (uint)((255u << 24) | ((uint)accent.B << 16) | ((uint)accent.G << 8) | accent.R);
             const uint white = 0xFFFFFFFFu;
             const uint transparent = 0x00000000u;
 
@@ -469,6 +570,33 @@ public class App : Application
         {
             return null;   // 画不出来就用系统默认图标（托盘照样可用）
         }
+    }
+
+    /// <summary>当前强调色（取主题服务的 accent id；拿不到就回退预设默认色，⛔ 不在图标里写死颜色）。</summary>
+    private static Color CurrentAccent()
+    {
+        try
+        {
+            var theme = _current?._sp?.GetService<IThemeService>();
+            return Color.Parse(AccentPalette.Find(theme?.AccentId).Color);
+        }
+        catch
+        {
+            return Color.Parse(AccentPalette.Default.Color);
+        }
+    }
+
+    /// <summary>主题 / 强调色变了就把窗口图标与托盘图标一起重画（同一份 <see cref="CreateAppIcon"/>）。</summary>
+    private static void RefreshAppIcon()
+    {
+        try
+        {
+            var icon = CreateAppIcon(CurrentAccent());
+            if (icon == null) return;
+            if (_mainWindow != null) _mainWindow.Icon = icon;
+            if (_tray != null) _tray.Icon = icon;
+        }
+        catch { /* 图标重画失败无所谓：不影响窗口本身 */ }
     }
 
     /// <summary>真正的退出（托盘「退出」走这里）：收掉托盘图标，免得进程退了图标还挂着。</summary>
@@ -661,6 +789,9 @@ public class App : Application
             Resources.MergedDictionaries.Add(d);
             _themeDictionary = d;
         }
+
+        // NT-057：强调色可能刚变过 ⇒ 窗口 / 托盘图标一起重画
+        RefreshAppIcon();
     }
 
     /// <summary>按 <paramref name="fgWeight"/>（0~1，前景占比）做线性混色 —— 用来从强调色派生浅/深变体。</summary>

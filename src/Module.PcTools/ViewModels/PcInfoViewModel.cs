@@ -9,6 +9,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
@@ -17,6 +18,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using NewToys.Core.Services;
 using NewToys.PcTools.Models;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -34,7 +36,7 @@ namespace NewToys.PcTools.ViewModels;
 /// 只有 CPU 型号要读一次注册表（读不到就写"未知"，**绝不抛异常炸页面**）。
 /// </para>
 /// </summary>
-public partial class PcInfoViewModel : ListPageViewModelBase
+public partial class PcInfoViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly IAppConfigService? _cfg;
     private readonly ConfigStoreService? _store;
@@ -94,6 +96,112 @@ public partial class PcInfoViewModel : ListPageViewModelBase
     public bool ShowDetailBody => HasSelection || IsDetailSample;
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
+
+    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>工具条末位的详情开关 → 走本命令（⛔ 基类 <c>ToggleDetailCommand</c> 不通知 Shell，右列不会跟着开合）。</summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的页内自绘卡片对应：单分区（分类 / 项目 / 值 / 说明 + 一句说明）+ 卡内两个动作（复制 / 打开配置目录）。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
+    {
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧选中一行，这里显示它的分类、项目、值与说明；右键列表可复制单行 / 全部。",
+        SampleText = "（示例数据）在左侧选中一行后，这里显示它的真实内容；示例态下不可复制。",
+        Sections =
+        {
+            new DetailSection
+            {
+                Header = "选中项",
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "分类",
+                        ValuePath = "DetailItem.Category",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField
+                    {
+                        Label = "项目",
+                        ValuePath = "DetailItem.Name",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField
+                    {
+                        Label = "值",
+                        ValuePath = "DetailItem.Value",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Label = "说明",
+                        ValuePath = "DetailItem.Note",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "「应用路径」分类里的就是「设置 → 路径配置」那几项的**生效值**（留空表示用系统默认）。"
+                    }
+                }
+            }
+        },
+        Actions =
+        {
+            // 原来这两个按钮是页内卡「动作条」里的（只在有选中项时显示）；声明式卡里进 Actions 区。
+            new DetailAction
+            {
+                Text = "📋 复制",
+                Classes = "primary",
+                ToolTip = "复制「项目 = 值」到剪贴板",
+                IsVisiblePath = nameof(HasSelection),
+                Command = CopySelectedCommand
+            },
+            new DetailAction
+            {
+                Text = "📂 配置目录",
+                Classes = "ghost",
+                ToolTip = "在资源管理器里打开本机配置目录",
+                IsVisiblePath = nameof(HasSelection),
+                Command = OpenConfigDirCommand
+            }
+        }
+    };
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public PcInfoViewModel() { }

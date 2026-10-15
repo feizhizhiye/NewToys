@@ -4,7 +4,7 @@
              x:Class="NewToys.PcTools.Views.PcInfoView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="12">
+  <Grid Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -26,7 +26,7 @@
                   ToolTip.Tip="跳到「设置 → 路径配置」改这些默认路径"/>
         </WrapPanel>
         <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailCommand}"
+                Command="{Binding ToggleDetailPanelCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>
             <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -127,47 +127,5 @@
 
     </Grid>
 
-    <!--  右：选中项详情（值可能很长，这里可以整段看 / 复制）；宽度由共享样式 Border.detail-card 给  -->
-    <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
-        <Grid RowDefinitions="Auto,*">
-          <!--  有选中：动作条（示例态下不显示，⛔ 免得像能操作）  -->
-          <StackPanel Grid.Row="0" Spacing="8" IsVisible="{Binding HasSelection}">
-            <TextBlock Classes="section-title" Text="选中项"/>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="primary" Content="📋 复制" Command="{Binding CopySelectedCommand}"/>
-              <Button Classes="ghost" Content="📂 配置目录" Command="{Binding OpenConfigDirCommand}"/>
-            </StackPanel>
-          </StackPanel>
-
-          <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用  -->
-            <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
-              <TextBlock Classes="empty-hint" IsVisible="{Binding !ShowDetailBody}"
-                         Text="在左侧选中一行，这里显示它的分类、项目、值与说明；右键列表可复制单行 / 全部。"/>
-              <!--  v3.32 §4.8.3：示例态标识（下面是示例数据）  -->
-              <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
-                         Text="（示例数据）在左侧选中一行后，这里显示它的真实内容；示例态下不可复制。"/>
-              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="分类"/>
-                <TextBlock Classes="field-value" Text="{Binding DetailItem.Category}"/>
-              </StackPanel>
-              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="项目"/>
-                <TextBlock Classes="field-value" Text="{Binding DetailItem.Name}" FontWeight="SemiBold"/>
-              </StackPanel>
-              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="值"/>
-                <SelectableTextBlock Classes="field-value" Text="{Binding DetailItem.Value}"/>
-              </StackPanel>
-              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="说明"/>
-                <TextBlock Classes="field-value" Text="{Binding DetailItem.Note}"/>
-              </StackPanel>
-              <TextBlock Classes="hint-text" Margin="0,8,0,0"
-                         Text="「应用路径」分类里的就是「设置 → 路径配置」那几项的**生效值**（留空表示用系统默认）。"/>
-            </StackPanel>
-          </ScrollViewer>
-        </Grid>
-      </Border>
   </Grid>
 </UserControl>

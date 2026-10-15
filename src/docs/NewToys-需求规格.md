@@ -1,6 +1,7 @@
 # NewToys 需求规格（宪法 + 框架规格）
 
-> v3.53 · 2026-10-15 · 项目唯一权威规格
+> v3.54 · 2026-10-15 · 项目唯一权威规格
+> **v3.54**：**NT-055 落地**（commit `8da4462`）—— §4.8.5 的「项类型」由 4 类扩到 **7 类**（`Button` / `SplitButton` / `Toggle` / `TextField` / **`Combo`** / **`Label`** / **`Separator`**；后 3 类是真实工具条里已有的下拉框 / 文字前缀 / 分组竖线）。契约**在 `ListPageViewModelBase` 上统一实现**（与 `IStatusProvider` 同套路），列表页只 `override Toolbar`。**已迁 9 个 View / 覆盖 14 页**；`web-http` / `pc-package` / `pc-shortcuts` / `pc-quick` 走 §4.8.5 第 2 条**逃生舱**（保留页内工具条），`settings-path` 随 NT-056 一并处理。
 > **v3.53**：新增 **§4.8.5「工具条由 Shell 统一承载」**（v3.53 用户立项，工作项 **NT-055**）—— 列表页工具条（§4.8.4）的实现**只存在一份**：Shell 的 `ToolbarHost` 统一渲染 + 自动折叠 + **浮动详情开关**；页面 VM 只给数据。§4.5 / §4.8 硬规则 8 的详情开关入口同步改为「**容器右上角浮层**：⛔ 不占独立列、⛔ 不参与宽度计算，但折叠算法的容量预算内**避让**」。同时新增 **§4.9「设置总表」**（工作项 **NT-056**）：「路径配置」与「配置」合并为**一张表**，用**分类列**区分行类型并决定工具可用性。
 > **v3.52**：**NT-054「详情卡声明式规范」整体验收通过（2026-10-15）** —— 用户本地编译 + 实机回归通过；**16/16 张卡全部改由 Shell 统一渲染**，§4.5.1「覆盖基线」表**全部成立**。规范侧技术债 B13「详情面板上提」随之结清。遗留：`Custom` 逃生舱渲染分支未接（⛔ 现无页面需要）。本节规格条文未变。
 > **v3.51**：**NT-054 的 L2 全数迁完（16/16）**。余 2 张卡（资产 / 标签）经用户拍板选「**加能力，一次做到位**」而非降级 —— 对描述符做**加法**（⛔ 不动既有子）：`Chips` 增**每项色块** `ChipBrushPath`、**命令参数取候选项某属性** `ChipCommandArgPath`（色板的 `SetColorCommand` 要 Hex 字符串而非整项）、**chip 悬停提示** `ChipToolTipPath`；`List` 增**项级命令** `ItemCommandPath` / `ItemCommandArgPath`（⇒ 只读列表可变成**可点击行**）。实现口径见《工程规范》§3.8。**L3**：4 个已停用的 `Views/Detail/*.axaml` 已删；`Custom` 逃生舱渲染分支仍未接（现无页面需要）。
@@ -504,7 +505,7 @@ Module.*（功能模块，只引 Shared + Core）
 1. **契约** `IToolbarSource`（`Shared/Services/`，页面 VM **可选**实现）：
    `Toolbar`（`IReadOnlyList<ToolbarItemDescriptor>`；**空 / null = 本页无工具条** ⇒ Shell ⛔ 不渲染、⛔ 不留空行）｜`ToolbarChanged`（工具条构成变化时通知 Shell 重建）。
 2. **描述符** `ToolbarItemDescriptor`（`Shared/`，**纯数据、⛔ 不引 Avalonia**，命令用 BCL `ICommand`）：
-   - 支持 **4 类项**：`Button` / `SplitButton`（主按钮语义 + 菜单项集合）/ `Toggle`（勾选框）/ `TextField`（输入框，可配"回车即执行"的命令）；
+   - 支持 **7 类项**：`Button` / `SplitButton`（主按钮语义 + 菜单项集合）/ `Toggle`（勾选框）/ `TextField`（输入框，可配"回车即执行"的命令）/ `Combo`（下拉：预设 / DNS 预设）/ `Label`（次要色文字，如「源」）/ `Separator`（分组竖线）；
    - 每项含 `Text` / `Command` / `IsEnabled` / `ToolTip` / `ShowToolTipOnDisabled` / `Priority`（**= XAML 顺序 = 折叠顺序的反序**，越靠前越不易被折）；
    - ⛔ **加新项类型是"加法"**：优先用现有 4 类 + 修饰位表达；确实表达不了的页面**本页暂不迁移**（保持页内自绘），⛔ 不为了统一而强行改造页面。
 3. **Shell 职责**：渲染工具条行 + **自动折叠算法**（口径 = §4.8.4 第 1 条：两行放得下就全显示、放不下才折尾部，末尾固定「⋯」）+ **浮动详情开关**（§4.5）；切标签时探测当前页 VM 是否实现契约并重建（复用 `IStatusProvider` / `IDetailCardSource` 的同一探测点）。

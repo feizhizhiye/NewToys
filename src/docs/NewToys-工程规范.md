@@ -1,6 +1,7 @@
 # NewToys 工程规范
 
-> v3.34 · 2026-10-15 · 技术实现指南
+> v3.35 · 2026-10-15 · 技术实现指南
+> **v3.35 变更**：**NT-055「工具条改由 Shell 声明式承载」落地** ⇒ 新增 **§3.10**（件与归属 / 7 类项 / 渲染口径 / 折叠算法两条防抖 / 选择器钩子 / 逃生舱）。
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
 > 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
 > 权威源：需求规格（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
@@ -659,6 +660,35 @@ public interface IDetailCardSource
 **"两页其实一样"到什么程度**：只有**区间来源**与**类型决定方式**不同 —— 预览页区间由时间条驱动、类型由两个勾选框决定（可同时勾 → 剪辑+转码一条命令）；批量页区间与类型都由**选中任务**决定（`CutTask` 只有区间段、`TranscodeTask` 只有编码段）。分区顺序、折叠、命令区形态必须一致。
 
 ---
+
+### 3.10 工具条声明式承载（v3.53 / NT-055，需求 §4.8.5）
+
+**件与归属**
+| 件 | 位置 | 说明 |
+|---|---|---|
+| `IToolbarSource` | `Shared/Services/` | `Toolbar`（`IReadOnlyList<ToolbarItemDescriptor>?`，**空 / null = 本页无工具条**）+ `ToolbarChanged` |
+| `ToolbarItemDescriptor` / `ToolbarMenuItemDescriptor` | `Shared/Models/` | **纯 POCO**（⛔ 不引 Avalonia，命令用 BCL `ICommand`）；`*Path` 一律是**相对页面 VM 的属性名** |
+| `ToolbarHost` | `Shell/Controls/` | 渲染 + 自动折叠 + 详情开关浮层；`Source` = 页面 VM |
+| `ListPageViewModelBase` | `Shared/Models/` | **已实现 `IToolbarSource`**（`public virtual Toolbar => null`）⇒ 列表页只 `override Toolbar`，零样板（与 `IStatusProvider` 同一套路） |
+
+**7 类项**：`Button` / `SplitButton` / `Toggle`(CheckBox) / `TextField` / `Combo` / `Label`(次要色文字) / `Separator`(竖线)。
+常用可选项：`Text` / `TextPath` + `TextFormat` / `AltText` + `AltTextPath`（双文案互斥，如 ▶/⏸）/ `Classes`（默认 `ghost`，可 `primary` / `danger-btn`）/ `Width` / `ToolTip` / `ToolTipPath` / `ShowToolTipOnDisabled` / `CommandPath` / `CommandArgPath` / `IsEnabledPath` / `IsVisiblePath` / `IsEnabled`（静态置灰占位，如「🧠 存为智能集合」）/ `Items`（Flyout 菜单，项支持 `ToolTipPath`）。
+`TextField` 另有 `Placeholder` / `IsReadOnly` / `EnterCommandPath` / `ValuePath`；`Combo` 另有 `ItemsPath` / `DisplayPath` / `SelectedItemPath` / `SelectedValuePath` + `SelectedValueBindingPath`。
+
+**渲染口径（渲染层在 code-behind，⛔ 不是 XAML 模板）**
+- 每个控件用 `control.Bind(prop, new Binding(path) { Source = 页面VM })` **显式指定 Source**：Flyout 菜单在独立弹出树、DataContext 不继承（与 `ContextMenu` 同一坑），显式 Source 一次解决。
+- ⛔ 不给 `ToolbarHost` 设 `DataContext`（与 `DetailCardHost` 同口径）。
+- `TextField` 的「回车即执行」= `KeyDown` + 反射取 `EnterCommandPath` 对应的 `ICommand`（全仓唯一一处反射，只用于这条）。
+
+**折叠算法（搬自「全部资产」页，两条防抖必须保留）**
+- 项宽**首帧缓存一次**（任一项量到 0 就整体放弃缓存）；容量**幂等短路**（`_appliedCapacity`）。
+- 预算**按行**算：**第一行**减去详情开关浮层安全区（⛔ 不许遮按钮）、**第二行**减去末尾「⋯」宽度；两行放不下才折尾部。
+- 「⋯」由 `ToolbarHost` 自建、**必须是 `ItemsPanel` 的最后一个子元素**；「展开全部」是 **Host 本地状态**（⛔ 不再挂 VM，原 `AssetAllViewModel.IsToolbarExpanded` 已删）。
+
+**页面 VM 弹选择器**
+VM ⛔ 不引 Avalonia ⇒ 统一走 `Core.DialogHooks` 的 3 个钩子：`PickFolderAsync` / `PickFilesAsync`（多个模式用 `;` 分隔，如 `"*.html;*.htm"`）/ `SaveFileAsync`；由 `Shell/App.axaml.cs` 注入实现（未注入 = 按「用户取消」处理）。
+
+**逃生舱**：描述符表达不了的页（表单式撑满布局 / 动态按钮组 / `io-bar` 分组容器 + Flyout）**暂不迁移**，保留页内 `Border.toolbar` —— 逐页 opt-in、⛔ 不双渲染（`ShellViewModel.IsToolbarActive` 仅在 VM 实现契约且工具条非空时为 true，未接契约的页工具条行高度为 0）。
 
 ## §4 配置与路径实现
 

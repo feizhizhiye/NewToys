@@ -11,6 +11,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
@@ -137,6 +138,12 @@ public class App : Application
             // ⛔ 模块不能反向引用 Shell，所以只能由这里注入；没注入时钩子一律按"用户取消"处理。
             DialogHooks.ConfirmHandler = msg => ConfirmAsync(win, msg);
             DialogHooks.InputHandler = (title, initial) => InputAsync(win, title, initial);
+
+            // v3.53 / NT-055：选择器钩子 —— 工具条由 Shell 声明式承载后，页面 VM 也要能"弹选择器"
+            // （VM ⛔ 不引 Avalonia，所以统一走 Core.DialogHooks，与上面两条同一个套路）。
+            DialogHooks.PickFolderHandler = (title, initialDir) => PickFolderAsync(win, title, initialDir);
+            DialogHooks.PickFilesHandler = (title, initialDir, multi, pattern) => PickFilesAsync(win, title, initialDir, multi, pattern);
+            DialogHooks.SaveFileHandler = (title, initialDir, suggestedName, pattern) => SaveFileAsync(win, title, initialDir, suggestedName, pattern);
 
             // ==================== 「设置 → 通用」的三项系统级行为（v1.35 真正生效） ====================
             // ① 开机启动：以注册表为准做一次静默对账（用户在系统别处改了也不会两边打架）；
@@ -673,6 +680,85 @@ public class App : Application
     /// 按钮沿用全局的 <c>primary</c> / <c>ghost</c> 样式。
     /// </para>
     /// </summary>
+    // ==================== 选择器钩子的宿主实现（v3.53 / NT-055） ====================
+
+    /// <summary>把选择器的起始位置定到某个目录（拿不到就交给系统默认位置，⛔ 不抛）。</summary>
+    private static async Task<IStorageFolder?> TryStartFolderAsync(IStorageProvider sp, string? dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir)) return null;
+        try { return await sp.TryGetFolderFromPathAsync(dir!); }
+        catch { return null; }
+    }
+
+    private static async Task<string?> PickFolderAsync(Window owner, string title, string? initialDir)
+    {
+        var sp = owner.StorageProvider;
+        if (sp == null) return null;
+        var folders = await sp.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            SuggestedStartLocation = await TryStartFolderAsync(sp, initialDir)
+        }).ConfigureAwait(false);
+        return folders?.Count > 0 ? folders[0].TryGetLocalPath() : null;
+    }
+
+    private static async Task<IReadOnlyList<string>> PickFilesAsync(
+        Window owner, string title, string? initialDir, bool allowMultiple, string pattern)
+    {
+        var sp = owner.StorageProvider;
+        if (sp == null) return Array.Empty<string>();
+
+        var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = allowMultiple,
+            SuggestedStartLocation = await TryStartFolderAsync(sp, initialDir),
+            FileTypeFilter = BuildFileTypes(pattern)
+        }).ConfigureAwait(false);
+
+        if (files == null || files.Count == 0) return Array.Empty<string>();
+        var paths = new List<string>();
+        foreach (var f in files)
+        {
+            var p = f.TryGetLocalPath();
+            if (!string.IsNullOrEmpty(p)) paths.Add(p);
+        }
+        return paths;
+    }
+
+    private static async Task<string?> SaveFileAsync(
+        Window owner, string title, string? initialDir, string suggestedName, string pattern)
+    {
+        var sp = owner.StorageProvider;
+        if (sp == null) return null;
+
+        var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = title,
+            SuggestedStartLocation = await TryStartFolderAsync(sp, initialDir),
+            SuggestedFileName = suggestedName,
+            FileTypeChoices = BuildFileTypes(pattern)
+        }).ConfigureAwait(false);
+        return file?.TryGetLocalPath();
+    }
+
+    /// <summary>把通配模式转成选择器的类型过滤（多个模式用 <c>;</c> 分隔；<c>*</c> = 所有文件）。</summary>
+    private static FilePickerFileType[] BuildFileTypes(string pattern)
+    {
+        var patterns = (pattern ?? "").Split(';',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (patterns.Length == 0 || (patterns.Length == 1 && patterns[0] == "*"))
+            return new[] { new FilePickerFileType("所有文件") { Patterns = new[] { "*" } } };
+
+        return new[]
+        {
+            new FilePickerFileType(string.Join(" / ", patterns)) { Patterns = patterns },
+            new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+        };
+    }
+
     private static async Task<bool> ConfirmAsync(Window owner, string message)
     {
         IBrush? Res(string key) => owner.FindResource(key) as IBrush;

@@ -22,7 +22,6 @@ public partial class VideoPreviewView : UserControl
     {
         InitializeComponent();
         // 选源文件 / 输出文件都要走平台选择器 —— VM 不引用 Avalonia 的 UI 类型，所以在这一层选完交给 VM。
-        PickFileBtn.Click += (_, _) => _ = PickSourceFileAsync();
         // ⚠️ NT-054：原来卡片里那个内联「📂」按钮（PickOutputBtn）随页内卡一起删了 ——
         //    现在它是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
     }
@@ -52,44 +51,6 @@ public partial class VideoPreviewView : UserControl
 
         if (DataContext is VideoPreviewViewModel vm)
             vm.ConsumePending();
-    }
-
-    /// <summary>📂 选择视频：本页一次只编一个任务，所以单选。</summary>
-    private async System.Threading.Tasks.Task PickSourceFileAsync()
-    {
-        if (DataContext is not VideoPreviewViewModel vm) return;
-
-        try
-        {
-            var top = TopLevel.GetTopLevel(this);
-            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
-
-            var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "选择视频",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("视频文件")
-                    {
-                        Patterns = new[] { "*.mp4", "*.mkv", "*.avi", "*.mov", "*.wmv", "*.flv", "*.webm",
-                                           "*.m4v", "*.ts", "*.mpg", "*.mpeg", "*.rmvb", "*.3gp" }
-                    },
-                    new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
-                }
-            });
-
-            // ⚠️ TryGetLocalPath() 返回 string? → 过滤完还要 `p!` 收紧成非空串，否则 CS8604/CS8620
-            var path = files?.Select(f => f.TryGetLocalPath())
-                            .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p));
-            if (string.IsNullOrWhiteSpace(path)) return;
-
-            vm.LoadSource(path!);
-        }
-        catch (Exception ex)
-        {
-            vm.StatusText = "选择文件失败：" + ex.Message;
-        }
     }
 
     /// <summary>📂 给当前任务挑输出文件（另存为）。</summary>

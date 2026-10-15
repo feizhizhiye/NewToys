@@ -12,6 +12,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Core.Services;
 using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
@@ -42,6 +43,63 @@ public sealed class CompareRow
 /// </summary>
 public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
+    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+
+    private const string VideoFilePatterns =
+        "*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.ts;*.m4v;*.mpg;*.mpeg";
+
+    /// <summary>📂 添加文件（可多选）→ 按工具条上选的类型建任务。</summary>
+    [RelayCommand]
+    private async Task PickFilesAsync()
+    {
+        var paths = await DialogHooks.PickFilesAsync("选择视频文件", null, true, VideoFilePatterns);
+        if (paths.Count == 0) return;
+        await AddFilesAsync(paths);
+    }
+
+    /// <summary>📤 导出任务：把当前队列（剪辑 + 转码）序列化成 JSON 文件。</summary>
+    [RelayCommand]
+    private async Task ExportTasksAsync()
+    {
+        var path = await DialogHooks.SaveFileAsync("导出任务为 JSON 文件", ImportExportDefaultDir, "video-tasks.json", "*.json");
+        if (string.IsNullOrWhiteSpace(path)) return;
+        ExportTasks(path);
+    }
+
+    /// <summary>📥 导入任务：从导出的 JSON 里追加任务进当前队列（⛔ 不覆盖已有）。</summary>
+    [RelayCommand]
+    private async Task ImportTasksAsync()
+    {
+        var files = await DialogHooks.PickFilesAsync("导入任务 JSON 文件", ImportExportDefaultDir, false, "*.json");
+        var path = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(path)) return;
+        ImportTasks(path);
+    }
+
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new() { Text = "📂 添加文件", Classes = "primary", CommandPath = nameof(PickFilesCommand), ToolTip = "按左边选的类型建任务；只是建任务，不立刻跑" },
+        new() { Kind = ToolbarItemKind.Combo, Width = 220, ItemsPath = nameof(Presets), DisplayPath = "Name", SelectedValuePath = nameof(DefaultPresetId), SelectedValueBindingPath = "Id", ToolTip = "只影响随后加入的**转码**任务；已存在的任务在右侧详情卡里单独改" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 180, Placeholder = "按文件名 / 输出过滤…", ValuePath = nameof(SearchText) },
+        new() { Kind = ToolbarItemKind.Separator },
+        new() { Text = "▶▶ 批量运行", Classes = "primary", CommandPath = nameof(RunAllCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "按列表顺序依次处理（剪辑 / 转码各按自己的参数），跑完自动探测输出文件" },
+        new() { Text = "▶ 只跑选中", CommandPath = nameof(RunSelectedCommand), IsEnabledPath = nameof(IsNotBusy) },
+        new() { Text = "⏹ 停止", CommandPath = nameof(StopCommand), IsEnabledPath = nameof(IsRunning) },
+        new() { Kind = ToolbarItemKind.Separator },
+        new() { Text = "💾 保存修改", CommandPath = nameof(SaveCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把详情卡里改的参数写回选中的任务" },
+        new() { Text = "🗑 删除", CommandPath = nameof(DeleteCommand), IsEnabledPath = nameof(IsNotBusy) },
+        new() { Text = "📂 输出目录", CommandPath = nameof(OpenOutputFolderCommand), IsEnabledPath = nameof(HasSelection) },
+        new() { Text = "📋 复制命令", CommandPath = nameof(CopyCommandLineCommand), IsEnabledPath = nameof(HasSelection) },
+        new() { Text = "↺ 重置为自动", CommandPath = nameof(ResetCommandCommand), IsEnabledPath = nameof(IsArgsEdited), IsVisiblePath = nameof(IsArgsEdited), ToolTip = "丢弃手改的命令，恢复成由参数自动生成" },
+        new() { Kind = ToolbarItemKind.Separator },
+        new() { Text = "📤 导出任务", CommandPath = nameof(ExportTasksCommand), ToolTip = "把当前队列（剪辑 + 转码）导出成 JSON 文件，可用外部脚本批量加工后再导入" },
+        new() { Text = "📥 导入任务", CommandPath = nameof(ImportTasksCommand), ToolTip = "从导出的 JSON 里追加任务进当前队列（不覆盖已有）" },
+        new() { Text = "🧹 清理已结束", CommandPath = nameof(ClearFinishedCommand), IsEnabledPath = nameof(IsNotBusy) },
+        new() { Text = "🧹 清除缓存", CommandPath = nameof(ClearCacheCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "只清页面上的这条列表（不再显示它们）：⛔ 磁盘上的 config\\video-tasks.json 不会动，点「📥 导入任务」可以再读回来" },
+        new() { Kind = ToolbarItemKind.Separator },
+        new() { Text = "➡ 送预览", Classes = "primary", CommandPath = nameof(SendToPreviewCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把选中的任务源文件送进「视频预览」页（一次只编一个，进入后自动载入）" },
+    };
+
     private readonly VideoTaskStore? _store;
     private readonly IAppConfigService? _cfg;
     private readonly INavigationService? _nav;

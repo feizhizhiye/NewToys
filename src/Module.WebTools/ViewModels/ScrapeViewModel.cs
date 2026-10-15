@@ -23,6 +23,17 @@ namespace NewToys.WebTools.ViewModels;
 /// </summary>
 public partial class ScrapeViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
+    // ==================== 声明式工具条（NT-055 / 需求 §4.8.5） ====================
+    // 顺序 = 优先级顺序（越靠前越不会被折进「⋯」）；Shell 的 ToolbarHost 统一渲染。
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new() { Text = "➕ 新建任务", Classes = "primary", CommandPath = nameof(NewTaskCommand) },
+        new() { Text = "▶ 运行全部", CommandPath = nameof(RunAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Text = "🔄 重读任务", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的抓取任务配置（⛔ 不开始抓取）" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 220, Placeholder = "搜索名称 / 网址 / 规则…", ValuePath = nameof(SearchText) },
+        new() { Kind = ToolbarItemKind.Label, Text = "右键列表项：运行 / 发送到书签 / 编辑 / 删除" },
+    };
+
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly ScrapeService _svc = null!;
     private readonly WebTransferService _transfer = null!;

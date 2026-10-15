@@ -1398,17 +1398,129 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     // ==================== 工具条「⋯ 更多」开合（v3.41 / 用户定调） ====================
 
-    /// <summary>
-    /// 工具条是否**全部显示**（由末尾那个「⋯」按钮切换）。
-    /// <para>🔴 v3.42：工具条默认**按容器宽度分档折叠**（显示前 N 项由 View 的 <c>ApplyToolbarLayout()</c> 算），
-    /// 排不下的落在序列末尾、收进「⋯」；本属性 = <c>true</c> 时**不受宽度限制、全部显示**。</para>
-    /// <para>⛔ 不落盘：每次进页面回到**收起**态（默认布局要稳定，别让上次的展开态把首屏撑高）。</para>
-    /// </summary>
-    [ObservableProperty] private bool _isToolbarExpanded;
+    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+    // 🔴 v3.53：本页工具条改由 **Shell 的 ToolbarHost 统一渲染**（折叠 / 「⋯」/ 详情开关浮层都在那边实现），
+    //    页内 `Border.toolbar` 与原来的 `ApplyToolbarLayout()` / `IsToolbarExpanded` 一并删除。
+    //    顺序 = 优先级顺序（越靠前越不会被折进「⋯」）。
+    // ⚠️ 5 个类型薄壳页（assets-video/music/book/image/document）**继承本类** ⇒ 一次覆盖 6 个页面。
 
-    /// <summary>「⋯」：全部显示 / 收起工具条里被宽度折掉的按钮。</summary>
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new() { Kind = ToolbarItemKind.SplitButton, Text = "📁 扫描", CommandPath = nameof(ScanFolderCommand),
+                IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "扫目录 / 扫文件到列表（⛔ 只进内存、不入库）",
+                Items = new ToolbarMenuItemDescriptor[]
+                {
+                    new() { Text = "📁 文件夹…", CommandPath = nameof(ScanFolderCommand), ToolTip = "扫一个目录到列表（⛔ 只进内存、不入库）" },
+                    new() { Text = "📄 文件…", CommandPath = nameof(ScanFilesCommand), ToolTip = "只扫选中的几个文件（⛔ 只进内存、不入库）" },
+                } },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "路径（回车预览）", ValuePath = nameof(ImportPath),
+                EnterCommandPath = nameof(PreviewPathCommand), ToolTip = "填文件夹路径，回车即预览扫描（也可用左侧「📁 扫描」选目录）" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索…", ValuePath = nameof(SearchText), ToolTip = "按名称 / 路径 / 标签搜索" },
+        new() { Text = "➕ 登记", CommandPath = nameof(RegisterFolderCommand), IsEnabledPath = "!" + nameof(IsBusy),
+                ToolTip = "加入待扫文件夹列表（⛔ 不扫描），攒几个后点「🔄 扫描全部」" },
+        new() { Text = "🔄 扫描全部", CommandPath = nameof(ScanAllCommand), IsEnabledPath = "!" + nameof(IsBusy),
+                ToolTip = "把所有已登记的存储源扫一遍，直接入库" },
+        new() { Text = "🏷 加标签", CommandPath = nameof(AddTagToCheckedCommand), IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true,
+                ToolTip = "先在列表里勾选行，再点这里打标签（输入标签名，不存在就新建）" },
+        new() { Text = "📚 加集合", CommandPath = nameof(AddToCollectionCheckedCommand), IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true,
+                ToolTip = "先在列表里勾选行，再点这里加进集合（输入集合名，不存在就新建一个手动集合）" },
+        new() { Text = "🗑 移入回收站", CommandPath = nameof(TrashCheckedCommand), IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true,
+                ToolTip = "先在列表里勾选行，再点这里移入回收站（只改库状态，磁盘文件不动；可恢复）" },
+        new() { Text = "💾 加入库", CommandPath = nameof(CommitDraftCommand), IsEnabledPath = nameof(IsDraft),
+                ToolTip = "把当前预览结果写入资产库（⛔ 不动磁盘文件）" },
+        new() { Text = "🧹 清除列表", CommandPath = nameof(ClearListCommand),
+                ToolTip = "草稿态：丢弃预览结果；库视图：清空当前显示（数据仍在库里，刷新即找回）" },
+        new() { Kind = ToolbarItemKind.Toggle, Text = "含子目录", ValuePath = nameof(Recursive), ToolTip = "关掉就只扫当前这一层" },
+        new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy),
+                ToolTip = "重新读取资产库（⛔ 不扫描磁盘）" },
+        new() { Kind = ToolbarItemKind.SplitButton, Text = "🗄 并入…", CommandPath = nameof(MergeDbCommand), IsEnabledPath = nameof(IsDbAvailable),
+                ToolTip = "把另一个 newtoys.db 合并进当前库（按路径/内容去重；源库只读；进度看任务中心）",
+                Items = new ToolbarMenuItemDescriptor[]
+                {
+                    new() { Text = "🔎 打开当前库文件", CommandPath = nameof(OpenDbFileCommand), ToolTipPath = nameof(DatabasePath) },
+                } },
+        new() { Text = "💿 另存为…", CommandPath = nameof(SaveLibraryAsCommand), IsEnabledPath = nameof(IsDbAvailable),
+                ToolTip = "把当前资产库另存成一个 .db（备份 / 交付用）" },
+        new() { Text = "📤 导出", CommandPath = nameof(ExportAssetsCommand), ToolTip = "把当前列表导成 json（含标签 / 分类 / 集合的名字）" },
+        new() { Text = "📥 导入", CommandPath = nameof(ImportAssetsCommand), ToolTip = "选一个导出的 json 追加合并进库（按路径去重，⛔ 不静默覆盖）" },
+        new() { Text = "🧠 存为智能集合", IsEnabled = false, ToolTip = "智能集合需要规则求值（未实装）" },
+    };
+
+    /// <summary>「📁 扫描」主按钮 / 「📁 文件夹…」：选目录 → **预览**（⛔ 只进内存、不入库）。</summary>
     [RelayCommand]
-    private void ToggleToolbar() => IsToolbarExpanded = !IsToolbarExpanded;
+    private async Task ScanFolderAsync()
+    {
+        var dir = await DialogHooks.PickFolderAsync("选择要扫描的目录", ImportExportDefaultDir);
+        if (string.IsNullOrWhiteSpace(dir)) return;
+        await PreviewFolderAsync(dir).ConfigureAwait(false);
+    }
+
+    /// <summary>「📄 文件…」：只预览选中的几个文件（⛔ 同样不入库）。</summary>
+    [RelayCommand]
+    private async Task ScanFilesAsync()
+    {
+        var files = await DialogHooks.PickFilesAsync("选择要扫描的文件", ImportExportDefaultDir, true, "*");
+        if (files.Count == 0) return;
+        await PreviewFilesAsync(files).ConfigureAwait(false);
+    }
+
+    /// <summary>「➕ 登记」：选一个目录加进待扫列表（⛔ 不扫描，等「🔄 扫描全部」）。</summary>
+    [RelayCommand]
+    private async Task RegisterFolderAsync()
+    {
+        var dir = await DialogHooks.PickFolderAsync("选择要登记的目录", ImportExportDefaultDir);
+        if (string.IsNullOrWhiteSpace(dir)) return;
+        RegisterFolder(dir);
+    }
+
+    /// <summary>「🗄 并入…」主按钮：选一个外部 .db → VM 预览 + 确认 + 入队合并。</summary>
+    [RelayCommand]
+    private async Task MergeDbAsync()
+    {
+        var files = await DialogHooks.PickFilesAsync("选择要并入当前库的 newtoys.db", ImportExportDefaultDir, false, "*.db;*.db3;*.sqlite");
+        var path = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(path)) return;
+        MergeLibraryCommand.Execute(path);
+    }
+
+    /// <summary>「💿 另存为…」：选一个目标 .db → VM 另存（已存在会问覆盖）。</summary>
+    [RelayCommand]
+    private async Task SaveLibraryAsAsync()
+    {
+        var path = await DialogHooks.SaveFileAsync("保存资产库为", ImportExportDefaultDir, "newtoys.db", "*.db");
+        if (string.IsNullOrWhiteSpace(path)) return;
+        SaveLibraryAsCommand.Execute(path);
+    }
+
+    /// <summary>「📤 导出」：把当前列表导成 json（含标签 / 分类 / 集合的名字）。</summary>
+    [RelayCommand]
+    private async Task ExportAssetsAsync()
+    {
+        var path = await DialogHooks.SaveFileAsync("导出资产列表", ImportExportDefaultDir, "media-assets.json", "*.json");
+        if (string.IsNullOrWhiteSpace(path)) return;
+        try
+        {
+            File.WriteAllText(path, ExportAssetsJson());
+            StatusText = $"已导出当前列表到：{path}";
+        }
+        catch (Exception ex) { StatusText = "导出失败：" + ex.Message; }
+    }
+
+    /// <summary>「📥 导入」：选一个导出的 json 追加合并进库（按路径去重，⛔ 不静默覆盖）。</summary>
+    [RelayCommand]
+    private async Task ImportAssetsAsync()
+    {
+        var files = await DialogHooks.PickFilesAsync("选择要导入的资产 json", ImportExportDefaultDir, false, "*.json");
+        var src = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(src)) return;
+        try
+        {
+            var result = ImportAssetsJson(File.ReadAllText(src));
+            StatusText = result.Message;
+        }
+        catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
+    }
+
 
     // ==================== 过滤 / 排序 ====================
 

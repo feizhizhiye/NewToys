@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Core.Services;
 using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
@@ -25,6 +26,32 @@ namespace NewToys.WebTools.ViewModels;
 /// </summary>
 public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
+    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+
+    /// <summary>
+    /// 📥 导入书签：弹文件选择器（宿主经 <c>Core.DialogHooks</c> 注入 —— VM ⛔ 不引 Avalonia），
+    /// 选完把 HTML 交给 <see cref="ImportBookmarksFromFileAsync"/>。
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportBookmarksAsync()
+    {
+        var files = await DialogHooks.PickFilesAsync("选择浏览器导出的书签 HTML", ImportExportDefaultDir, false, "*.html;*.htm");
+        var file = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(file)) return;
+        await ImportBookmarksFromFileAsync(file);
+    }
+
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new() { Text = "📥 导入书签", Classes = "primary", CommandPath = nameof(ImportBookmarksCommand), ToolTip = "选择浏览器导出的书签 HTML 文件" },
+        new() { Text = "➕ 新建", CommandPath = nameof(NewBookmarkCommand) },
+        new() { Text = "🔗 检测全部", CommandPath = nameof(CheckAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Text = "🚀 批量打开", CommandPath = nameof(OpenBatchCommand) },
+        new() { Text = "🔄 重读书签", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地书签配置（⛔ 不联网、不导浏览器）" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 220, Placeholder = "搜索标题 / 网址 / 分组…", ValuePath = nameof(SearchText) },
+        new() { Kind = ToolbarItemKind.Label, Text = "右键列表项：联通检测 · 批量打开 · 打开 · 发送到抓取 · 编辑 · 删除" },
+    };
+
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly BookmarkService _svc = null!;
     private readonly INavigationService? _nav;

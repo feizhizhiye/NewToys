@@ -82,6 +82,15 @@ public partial class ShellViewModel : ViewModelBase
     /// <summary>右列当前是否走声明式渲染（= <see cref="DetailCard"/> 非 null）。</summary>
     [ObservableProperty] private bool _isDetailCardActive;
 
+    /// <summary>
+    /// 声明式工具条（NT-055 / 需求 §4.8.5）：当前页 VM 若实现 <c>IToolbarSource</c> 且**工具条非空**，
+    /// 这里就是它 —— <c>ToolbarHost</c> 据此渲染；否则为 null（Shell ⛔ 不留空行，页面继续用页内自绘工具条）。
+    /// </summary>
+    [ObservableProperty] private object? _toolbarSource;
+
+    /// <summary>顶部工具条行是否显示（= 本页有声明式工具条）。</summary>
+    [ObservableProperty] private bool _isToolbarActive;
+
     [ObservableProperty] private string _statusText = "NewToys · 已就绪";
 
     /// <summary>底部状态栏文本（v3.9）：来自当前页的 <see cref="IStatusProvider"/>；页面没接契约就为空。</summary>
@@ -366,6 +375,11 @@ public partial class ShellViewModel : ViewModelBase
         DetailCardSource = null;
         IsDetailCardActive = false;
         StatusBarText = "";
+
+        // v3.53 / NT-055：声明式工具条 —— 页面没接契约（或工具条为空）= 本页没有工具条（⛔ 不留空行）
+        var toolbar = (tab?.ViewModel as IToolbarSource)?.Toolbar;
+        IsToolbarActive = toolbar is { Count: > 0 };
+        ToolbarSource = IsToolbarActive ? tab!.ViewModel : null;
 
         if (tab?.ViewModel is IDetailPanelProvider p)
         {

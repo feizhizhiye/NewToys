@@ -13,30 +13,6 @@
          Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
 
     <!-- 工具条 -->
-    <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button Classes="primary" Content="🔄 重新检测" Margin="0,0,8,6"
-                  Command="{Binding DetectCommand}" IsEnabled="{Binding !IsBusy}"/>
-          <TextBox Width="220" Margin="0,0,8,6" Text="{Binding SearchText, Mode=TwoWay}"
-                   PlaceholderText="搜索分类 / 项目 / 值…"/>
-          <Button Classes="ghost" Content="📋 复制全部" Margin="0,0,8,6" Command="{Binding CopyAllCommand}"/>
-          <Button Classes="ghost" Content="📂 打开配置目录" Margin="0,0,8,6" Command="{Binding OpenConfigDirCommand}"/>
-          <Button Classes="ghost" Content="⚙ 路径配置" Margin="0,0,8,6" Command="{Binding OpenPathSettingsCommand}"
-                  ToolTip.Tip="跳到「设置 → 路径配置」改这些默认路径"/>
-        </WrapPanel>
-        <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailPanelCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
 
 
       <!--  ==================== 列表本体：可排序表头 + 列表  ====================  -->

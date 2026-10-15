@@ -17,20 +17,10 @@ public partial class VideoListView : UserControl
         InitializeComponent();
 
         // 目录框回车 = 扫描（Avalonia 的 TextBox 没有 AcceptButton 之类的属性）
-        FolderBox.KeyDown += (_, e) =>
-        {
-            if (e.Key != Key.Enter) return;
-            if (DataContext is VideoListViewModel vm) vm.ScanCommand.Execute(null);
-            e.Handled = true;
-        };
-
         // §6.4.7：详情卡「文件名」原先是**回车 / 失焦即提交**（详情卡内不放按钮），由这里挂 NameBox 的
         // KeyDown / LostFocus 触发。NT-054 迁移后输入框归 Shell 的声明式卡渲染，页面 code-behind 够不着它 ⇒
         // 改由 VM 的 OnEditNameChanged（失焦写回 → 自动提交）+ 卡里「✏ 应用新文件名」按钮承担（见 VideoListViewModel）。
 
-        ImportSplit.Click += OnBrowseFolder;
-        ImportFolderItem.Click += OnBrowseFolder;
-        ImportFilesItem.Click += OnPickVideoFiles;
         // 双击列表项 = 播放（和资源管理器习惯一致）
         VideoList.DoubleTapped += (_, _) =>
         {
@@ -65,64 +55,4 @@ public partial class VideoListView : UserControl
         if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
     }
 
-    private async void OnBrowseFolder(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var top = TopLevel.GetTopLevel(this);
-            if (top?.StorageProvider is not { } sp) return;
-
-            var picked = await sp.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = "选择视频目录",
-                AllowMultiple = false
-            });
-
-            var dir = picked?.FirstOrDefault()?.TryGetLocalPath();
-            if (string.IsNullOrWhiteSpace(dir)) return;
-            if (DataContext is not VideoListViewModel vm) return;
-
-            vm.Folder = dir;
-            vm.ScanCommand.Execute(null);
-        }
-        catch (Exception ex)
-        {
-            if (DataContext is VideoListViewModel vm) vm.StatusText = "选择目录失败：" + ex.Message;
-        }
-    }
-
-    /// <summary>📂 导入 → 视频文件…：多选单个视频文件，直接建列表条目追加进当前列表（不扫描整目录）。</summary>
-    private async void OnPickVideoFiles(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var top = TopLevel.GetTopLevel(this);
-            if (top?.StorageProvider is not { } sp) return;
-            if (DataContext is not VideoListViewModel vm) return;
-
-            var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "选择视频文件（可多选）",
-                AllowMultiple = true,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("视频文件") { Patterns = VideoScanner.Extensions },
-                    new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (files == null || files.Count == 0) return;
-            var paths = files
-                .Select(f => f.TryGetLocalPath())
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Select(p => p!)
-                .ToList();
-            if (paths.Count == 0) return;
-            vm.ImportVideoFiles(paths);
-        }
-        catch (Exception ex)
-        {
-            if (DataContext is VideoListViewModel vm) vm.StatusText = "选择视频文件失败：" + ex.Message;
-        }
-    }
 }

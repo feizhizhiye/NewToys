@@ -20,6 +20,16 @@ namespace NewToys.WebTools.ViewModels;
 /// </summary>
 public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
+    // ==================== 声明式工具条（NT-055 / 需求 §4.8.5） ====================
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new() { Text = "➕ 新建方案", Classes = "primary", CommandPath = nameof(NewProfileCommand) },
+        new() { Text = "🔄 重读方案", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的 hosts 方案清单（⛔ 不动系统 hosts、不导入）" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 300, Placeholder = "网络 hosts 文件 URL…", ValuePath = nameof(ImportUrl), ToolTip = "粘贴一份 hosts 文本文件的网址，点「导入」下载并解析" },
+        new() { Text = "🌐 导入", CommandPath = nameof(ImportCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Kind = ToolbarItemKind.Label, Text = "双击应用 = 写入系统 hosts（需管理员）" },
+    };
+
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly HostsService _svc = null!;
 

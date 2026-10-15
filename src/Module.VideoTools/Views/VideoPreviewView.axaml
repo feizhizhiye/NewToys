@@ -9,50 +9,6 @@
   <Grid RowDefinitions="Auto,*" Margin="12">
 
     <!--  ==================== 工具条：**所有**动作按钮都在这里（含详情开关）  ==================== -->
-    <Border Grid.Row="0" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button x:Name="PickFileBtn" Classes="primary" Content="📂 选择视频" Margin="0,0,6,4"
-                  ToolTip.Tip="挑一个视频文件载入编辑器（这一页一次只编一个任务；载入后自动预览）"/>
-          <Button Classes="ghost" Command="{Binding TogglePlayCommand}"
-                  ToolTip.Tip="类播放器：点一下自动逐帧播放预览（抽帧模拟），再点停止；也可直接拖动下面「预览位置」条手动快览">
-            <Panel>
-              <TextBlock Text="▶ 播放预览" IsVisible="{Binding !IsPlaying}" VerticalAlignment="Center"/>
-              <TextBlock Text="⏸ 停止" IsVisible="{Binding IsPlaying}" VerticalAlignment="Center"/>
-            </Panel>
-          </Button>
-          <!--  v3.19 / NT-012：预览旋转（纯视觉 RenderTransform，不改文件；同步命令卡「旋转」字段，保证转码后方向正确）  -->
-          <Button Classes="ghost" Content="↻ 90°" Margin="0,0,6,4"
-                  Command="{Binding RotatePreviewCwCommand}" IsEnabled="{Binding HasSource}"
-                  ToolTip.Tip="预览画面顺时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步"/>
-          <Button Classes="ghost" Content="↺ 90°" Margin="0,0,6,4"
-                  Command="{Binding RotatePreviewCcwCommand}" IsEnabled="{Binding HasSource}"
-                  ToolTip.Tip="预览画面逆时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步"/>
-          <Button Classes="ghost" Content="➡ 发送到批处理" Margin="0,0,6,4"
-                  Command="{Binding SendToBatchCommand}"
-                  ToolTip.Tip="把当前这一条任务加入「批量处理」的队列（不立刻运行）"/>
-          <Button Classes="ghost" Content="↺ 区间重置" Margin="0,0,6,4"
-                  Command="{Binding ResetRangeCommand}"
-                  ToolTip.Tip="开始归零、结束留空 = 整段"/>
-          <Button Classes="ghost" Content="📋 复制命令" Margin="0,0,6,4"
-                  Command="{Binding CopyCommandLineCommand}"/>
-          <Button Classes="ghost" Content="↺ 重置为自动" Margin="0,0,6,4"
-                  Command="{Binding ResetCommandCommand}"
-                  IsVisible="{Binding IsArgsEdited}"
-                  ToolTip.Tip="丢弃手改的命令，恢复成由参数自动生成"/>
-        </WrapPanel>
-        <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailPanelCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（参数与 ffmpeg 命令）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
 
     <!--  ==================== 主体：预览列（详情卡由 Shell 右列承载）  ==================== -->
     <Grid Grid.Row="1" Margin="0,8,0,0">

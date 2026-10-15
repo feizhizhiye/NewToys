@@ -29,7 +29,7 @@ namespace NewToys.Shared.Models;
 /// 为 <c>"Is" + key + "Visible"</c> 发一次通知，所以列键必须与该属性名对得上。
 /// </para>
 /// </summary>
-public abstract partial class ListPageViewModelBase : ObservableObject, IStatusProvider
+public abstract partial class ListPageViewModelBase : ObservableObject, IStatusProvider, IToolbarSource
 {
     private readonly IColumnLayoutService? _cols;
 
@@ -57,6 +57,22 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
 
     /// <summary>状态文本变化 → 通知 Shell 刷新底栏。</summary>
     public event EventHandler? StatusChanged;
+
+    // ==================== 声明式工具条（v3.53 / NT-055：提到基类，Shell 统一承载） ====================
+
+    /// <summary>
+    /// 工具条内容（需求 §4.8.5）。**默认 <c>null</c> = 本页没有声明式工具条**（Shell ⛔ 不留空行，
+    /// 页面继续用页内自绘工具条）；迁到 Shell 承载的页只需 <c>override</c> 本属性给出描述符列表。
+    /// <para>🔴 与 <see cref="IStatusProvider"/> 同一套路：一次在基类实现，覆盖全部列表页。</para>
+    /// <para>⚠️ 页面 <c>override</c> 后**必须删掉页内的 <c>Border.toolbar</c>**，否则会出现两条工具条。</para>
+    /// </summary>
+    public virtual IReadOnlyList<ToolbarItemDescriptor>? Toolbar => null;
+
+    /// <summary>工具条构成变化时通知 Shell 重建（工具条静态的页用不着；给"项随状态增删"的页备用）。</summary>
+    public event EventHandler? ToolbarChanged;
+
+    /// <summary>工具条构成变了 → 通知 Shell（<see cref="Toolbar"/> 是动态构造的页才需要调）。</summary>
+    protected void NotifyToolbarChanged() => ToolbarChanged?.Invoke(this, EventArgs.Empty);
 
     partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 

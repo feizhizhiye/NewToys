@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Core.Services;
 using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
@@ -24,6 +25,29 @@ namespace NewToys.WebTools.ViewModels;
 /// </summary>
 public partial class PingViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
+    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+
+    /// <summary>📥 导入文件：弹文件选择器（宿主经 <c>Core.DialogHooks</c> 注入）→ 交给 VM 解析。</summary>
+    [RelayCommand]
+    private async Task ImportTargetsAsync()
+    {
+        var files = await DialogHooks.PickFilesAsync("选择一行一个主机的文本文件", ImportExportDefaultDir, false, "*.txt");
+        var file = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(file)) return;
+        await ImportFromFileAsync(file);
+    }
+
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new() { Text = "📥 导入文件", Classes = "primary", CommandPath = nameof(ImportTargetsCommand), ToolTip = "选择一行一个主机的文本文件" },
+        new() { Text = "➕ 新建", CommandPath = nameof(NewTargetCommand) },
+        new() { Text = "📡 批量 Ping", CommandPath = nameof(PingAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Text = "🔄 重读目标", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的目标清单（⛔ 不发起 Ping）" },
+        new() { Kind = ToolbarItemKind.Combo, Width = 200, ItemsPath = nameof(DnsPresets), SelectedItemPath = nameof(SelectedDns), ToolTip = "切换 DNS：批量 Ping 与未单独设置 DNS 的目标都按此解析" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 200, Placeholder = "搜索主机…", ValuePath = nameof(SearchText) },
+        new() { Kind = ToolbarItemKind.Label, Text = "右键列表项：发送到书签 / 网页抓取 / Ping / 编辑 / 删除" },
+    };
+
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly PingService _svc = null!;
     private readonly INavigationService? _nav;

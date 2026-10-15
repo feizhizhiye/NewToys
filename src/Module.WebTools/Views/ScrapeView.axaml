@@ -13,29 +13,6 @@
     <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
          Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
 
-    <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button Classes="primary" Content="➕ 新建任务" Margin="0,0,8,0" Command="{Binding NewTaskCommand}"/>
-          <Button Classes="ghost" Content="▶ 运行全部" Margin="0,0,8,0" Command="{Binding RunAllCommand}" IsEnabled="{Binding !IsBusy}"/>
-          <Button Classes="ghost" Content="🔄 重读任务" Margin="0,0,8,0" Command="{Binding RefreshCommand}"
-                  ToolTip.Tip="重新读一遍本地的抓取任务配置（⛔ 不开始抓取）"/>
-          <TextBox Width="220" Margin="0,0,8,0" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索名称 / 网址 / 规则…"/>
-          <TextBlock Text="右键列表项：运行 / 发送到书签 / 编辑 / 删除" FontSize="11"
-                     VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
-        </WrapPanel>
-        <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailPanelCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
 
     
 

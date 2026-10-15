@@ -11,7 +11,9 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Core.Services;
 using NewToys.Shared.Details;
+using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.VideoTools.Models;
 using NewToys.VideoTools.Services;
@@ -43,8 +45,39 @@ namespace NewToys.VideoTools.ViewModels;
 /// 手改后参数变化**不覆盖**手改，⛔ 手改后的命令必须**原样执行**。
 /// </para>
 /// </summary>
-public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, IDetailPanelProvider, IDetailCardSource
+public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, IDetailPanelProvider, IDetailCardSource, IToolbarSource
 {
+    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+    // ⚠️ 本页 VM 不是 ListPageViewModelBase ⇒ 契约成员自己实现（其余 12 页由基类统一实现）。
+
+    /// <summary>工具条构成变化时通知 Shell（本页工具条静态 ⇒ 不主动触发；留契约）。</summary>
+    public event EventHandler? ToolbarChanged;
+
+    private const string VideoFilePatterns =
+        "*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.ts;*.mpg;*.mpeg;*.rmvb;*.3gp";
+
+    /// <summary>📂 选择视频：源文件选择器（宿主经 <c>Core.DialogHooks</c> 注入 ⇒ VM ⛔ 不引 Avalonia UI）。</summary>
+    [RelayCommand]
+    private async Task PickSourceAsync()
+    {
+        var files = await DialogHooks.PickFilesAsync("选择视频", null, false, VideoFilePatterns);
+        var path = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(path)) return;
+        LoadSource(path);
+    }
+
+    public IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new() { Text = "📂 选择视频", Classes = "primary", CommandPath = nameof(PickSourceCommand), ToolTip = "挑一个视频文件载入编辑器（这一页一次只编一个任务；载入后自动预览）" },
+        new() { Text = "▶ 播放预览", AltText = "⏸ 停止", AltTextPath = nameof(IsPlaying), CommandPath = nameof(TogglePlayCommand), ToolTip = "类播放器：点一下自动逐帧播放预览（抽帧模拟），再点停止；也可直接拖动下面「预览位置」条手动快览" },
+        new() { Text = "↻ 90°", CommandPath = nameof(RotatePreviewCwCommand), IsEnabledPath = nameof(HasSource), ToolTip = "预览画面顺时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步" },
+        new() { Text = "↺ 90°", CommandPath = nameof(RotatePreviewCcwCommand), IsEnabledPath = nameof(HasSource), ToolTip = "预览画面逆时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步" },
+        new() { Text = "➡ 发送到批处理", CommandPath = nameof(SendToBatchCommand), ToolTip = "把当前这一条任务加入「批量处理」的队列（不立刻运行）" },
+        new() { Text = "↺ 区间重置", CommandPath = nameof(ResetRangeCommand), ToolTip = "开始归零、结束留空 = 整段" },
+        new() { Text = "📋 复制命令", CommandPath = nameof(CopyCommandLineCommand) },
+        new() { Text = "↺ 重置为自动", CommandPath = nameof(ResetCommandCommand), IsVisiblePath = nameof(IsArgsEdited), ToolTip = "丢弃手改的命令，恢复成由参数自动生成" },
+    };
+
     private const string PageKey = "video-cut";
 
     private readonly VideoTaskStore? _store;

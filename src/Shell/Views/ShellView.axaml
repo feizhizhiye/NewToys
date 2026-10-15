@@ -400,12 +400,27 @@
 
               <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
 
-                <!--  内容区：绑定当前激活标签页缓存的 View 实例  -->
-                <ContentControl
-                    x:Name="ContentArea"
-                    Grid.Column="0"
-                    Background="{DynamicResource ContentBrush}"
-                    Content="{Binding ActiveTab.Content}" />
+                <!--  内容列 = 声明式工具条（NT-055）+ 页面本体  -->
+                <Grid Grid.Column="0" RowDefinitions="Auto,*">
+
+                  <!--  🔴 NT-055 / 需求 §4.8.5：工具条由 **Shell 统一承载**（页面 VM 实现 IToolbarSource 才有这一行；
+                        未接契约的页继续用自己的页内自绘工具条 ⇒ ⛔ 不会两处同时渲染）。
+                        Margin 12,12,12,0 = 与页面根 Margin="12" 的左 / 右 / 上对齐。  -->
+                  <Border
+                      Grid.Row="0"
+                      Classes="toolbar"
+                      Margin="12,12,12,0"
+                      IsVisible="{Binding IsToolbarActive}">
+                    <ctl:ToolbarHost Source="{Binding ToolbarSource}" />
+                  </Border>
+
+                  <!--  内容区：绑定当前激活标签页缓存的 View 实例  -->
+                  <ContentControl
+                      x:Name="ContentArea"
+                      Grid.Row="1"
+                      Background="{DynamicResource ContentBrush}"
+                      Content="{Binding ActiveTab.Content}" />
+                </Grid>
 
                 <!--  右详情面板（340px，可开合）：由 Shell 统一承载。
                      内容两轨（NT-054 需求 §4.5.1）：

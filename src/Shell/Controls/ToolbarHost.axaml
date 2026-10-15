@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Shell.Controls.ToolbarHost">
+  <!--
+    NT-055 工具条宿主（需求 §4.8.5）：页面 VM 实现 IToolbarSource ⇒ 由本控件统一渲染。
+
+    结构（两条硬规则都在这里落地）：
+      ① 左侧 = WrapPanel（按优先级排列的项 + **末尾固定「⋯」**，由 code-behind 追加）；
+         Code-behind 负责「两行放得下就全显示、放不下才折尾部」的容量计算
+         （算法由「全部资产」页原样搬迁，保留**两条防抖**：项宽首帧缓存一次 + 容量幂等短路）。
+      ② 右侧 = **详情开关浮层**（v3.53 新口径）：与 WrapPanel **同格叠放**、右上角对齐，
+         ⛔ 不占独立列、⛔ 不参与工具条容器宽度计算；但容量计算里**给它留安全区**（⛔ 不遮按钮）。
+         ⚠️ 它是 Panel 的第二个子元素 ⇒ 绘制在最上层；样式与容器内按钮同源（ghost），
+            宽度更窄（20）且固定（防开合抖动）。
+
+    ⛔ 不给本控件设 DataContext：所有绑定由 code-behind 用 `Source` 显式指定（与 DetailCardHost 同口径）。
+  -->
+  <Panel>
+    <WrapPanel x:Name="ItemsPanel"
+               Orientation="Horizontal"
+               VerticalAlignment="Center"
+               ItemSpacing="8"
+               LineSpacing="4" />
+
+    <Button x:Name="DetailToggle"
+            Classes="ghost"
+            Width="20"
+            MinWidth="20"
+            Padding="0"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            IsVisible="False"
+            Click="OnDetailToggleClick"
+            ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
+      <Panel>
+        <TextBlock x:Name="GlyphClosed" Text="❯" FontSize="12"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="True" />
+        <TextBlock x:Name="GlyphOpen" Text="❮" FontSize="12"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False" />
+      </Panel>
+    </Button>
+  </Panel>
+</UserControl>

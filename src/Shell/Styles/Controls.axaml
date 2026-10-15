@@ -47,6 +47,13 @@
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
   </Style>
+  <!--  NT-055：工具条里的纯文字标签（「源」「脚本目录」这类前缀）与输入框水印同级 -->
+  <Style Selector="TextBlock.toolbar-label">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+  </Style>
+
   <Style Selector="TextBlock.section-title">
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>

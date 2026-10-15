@@ -14,32 +14,6 @@
          Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
 
     <!-- 工具条 -->
-    <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button x:Name="BtnImport" Classes="primary" Content="📥 导入书签" Margin="0,0,8,0" ToolTip.Tip="选择浏览器导出的书签 HTML 文件"/>
-          <Button Classes="ghost" Content="➕ 新建" Margin="0,0,8,0" Command="{Binding NewBookmarkCommand}"/>
-          <Button Classes="ghost" Content="🔗 检测全部" Margin="0,0,8,0" Command="{Binding CheckAllCommand}" IsEnabled="{Binding !IsBusy}"/>
-          <Button Classes="ghost" Content="🚀 批量打开" Margin="0,0,8,0" Command="{Binding OpenBatchCommand}"/>
-          <Button Classes="ghost" Content="🔄 重读书签" Margin="0,0,8,0" Command="{Binding RefreshCommand}"
-                  ToolTip.Tip="重新读一遍本地书签配置（⛔ 不联网、不导浏览器）"/>
-          <TextBox Width="220" Margin="0,0,8,0" Text="{Binding SearchText, Mode=TwoWay}"
-                   PlaceholderText="搜索标题 / 网址 / 分组…"/>
-          <TextBlock Text="右键列表项：联通检测 · 批量打开 · 打开 · 发送到抓取 · 编辑 · 删除" FontSize="11"
-                     VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
-        </WrapPanel>
-        <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailPanelCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
 
     <!-- 主区：左列表 + 右详情 -->
     

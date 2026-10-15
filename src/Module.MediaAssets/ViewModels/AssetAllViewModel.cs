@@ -13,7 +13,7 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
 using NewToys.MediaAssets.Models;
 using NewToys.MediaAssets.Services;
-using NewToys.MediaAssets.Views.Detail;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -33,7 +33,7 @@ namespace NewToys.MediaAssets.ViewModels;
 /// </list>
 /// </para>
 /// </summary>
-public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProvider
+public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly AssetService _assets = null!;
@@ -50,7 +50,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private readonly TaskQueue _queue = null!;
     private readonly IAppConfigService? _app;
     private readonly List<AssetRow> _all = new();
-    private AssetDetailView? _detailView;
 
     /// <summary>详情卡正在回填（改名框失焦保存要跳过这一次，⛔ 别把"显示"当成"用户改了"）。</summary>
     private bool _loadingDetail;
@@ -1050,19 +1049,214 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    /// <summary>详情内容：**同一个** <c>AssetDetailView</c> 实例（懒建），DataContext 指向本 VM。</summary>
-    public object? DetailContent
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（NT-054 迁移：原来的 <c>AssetDetailView</c> 已停用）。</summary>
+    public object? DetailContent => null;
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（NT-054 / 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的 <c>AssetDetailView</c> 1:1 对应；三组 chips 带**色块**（`ChipBrushPath`）、
+    /// 目标是「编辑 + 保存」这套卡内动作。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
     {
-        get
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧列表里选中一个资产，这里显示它的详情。",
+        SampleText = "（示例数据）在左侧选中一个资产后，这里显示它的真实信息；示例态下卡片不可编辑。",
+        Sections =
         {
-            if (_detailView == null)
+            new DetailSection
             {
-                _detailView = new AssetDetailView();
-                _detailView.DataContext = this;
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "显示名（只改库里的名字，⛔ 不动磁盘文件）",
+                        ValuePath = nameof(DetailDisplayName),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Placeholder = "留空 = 用扫描时得到的标题"
+                    },
+                    new DetailField { Label = "类型", ValuePath = "DetailRow.TypeText", Kind = FieldKind.Text },
+                    new DetailField { Label = "状态", ValuePath = "DetailRow.StatusText", Kind = FieldKind.Text },
+                    new DetailField { Label = "大小", ValuePath = "DetailRow.SizeText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "修改时间", ValuePath = "DetailRow.ModifiedText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "存储源", ValuePath = "DetailRow.StorageName", Kind = FieldKind.Text },
+                    new DetailField
+                    {
+                        Label = "文件路径",
+                        ValuePath = "DetailRow.FilePath",
+                        Kind = FieldKind.Text,
+                        Selectable = true
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "重命名 / 移动 / 复制 / 删除**磁盘上的文件**是显式操作，在 NT-019 落地。"
+                    },
+                    new DetailField
+                    {
+                        Label = "评分（0~5）",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(RatingChoices),
+                        ValuePath = nameof(EditRating)
+                    },
+                    new DetailField
+                    {
+                        Label = "描述",
+                        ValuePath = nameof(EditDescription),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        MultiLine = true,
+                        Rows = 52,
+                        Placeholder = "随手记点什么（可留空）"
+                    },
+                    // ===== 三组 chips（标签 / 分类 / 集合）：点一下打上 / 取消，每项带一个颜色块 =====
+                    new DetailField
+                    {
+                        Label = "标签（点一下打上 / 取消）",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(TagPicks),
+                        ChipTextPath = "Name",
+                        ChipBrushPath = "Brush",
+                        ChipSelectedPath = "IsSelected",
+                        ChipCommandPath = nameof(ToggleTagCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有标签：到「标签管理」页新建，或用工具条的「🏷 加标签」）",
+                        VisibleWhen = "!" + nameof(HasTagPicks)
+                    },
+                    new DetailField
+                    {
+                        Label = "分类（点一下加 / 去掉）",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(CategoryPicks),
+                        ChipTextPath = "Name",
+                        ChipBrushPath = "Brush",
+                        ChipSelectedPath = "IsSelected",
+                        ChipCommandPath = nameof(ToggleCategoryCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有分类：到「分类管理」页新建）",
+                        VisibleWhen = "!" + nameof(HasCategoryPicks)
+                    },
+                    new DetailField
+                    {
+                        Label = "集合（点一下加 / 去掉；⚡ 智能集合不参与手工设置）",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(CollectionPicks),
+                        ChipTextPath = "Name",
+                        ChipBrushPath = "Brush",
+                        ChipSelectedPath = "IsSelected",
+                        ChipCommandPath = nameof(ToggleCollectionCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有集合：到「集合管理」页新建）",
+                        VisibleWhen = "!" + nameof(HasCollectionPicks)
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "移动到 / 复制到（目标存储源）",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(TargetStorages),
+                        OptionValuePath = "Id",
+                        OptionDisplayPath = "Name",
+                        ValuePath = nameof(SelectedTargetStorageId)
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "关联（字幕 / 封面 / 版本…）",
+                        Kind = FieldKind.List,
+                        OptionsPath = nameof(Relations),
+                        ItemLabelPath = "TypeText",
+                        ItemTextPath = "TargetName"
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（暂无关联；关联的增删在本轮之后落地）",
+                        VisibleWhen = "!" + nameof(HasRelations)
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "文件位置",
+                        Kind = FieldKind.List,
+                        OptionsPath = nameof(Locations),
+                        ItemTextPath = "Path",
+                        ItemDetailPath = "Status"
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "⚠ 这个文件在磁盘上找不到了（最近一次扫描没见到它）。",
+                        VisibleWhen = "DetailRow.IsMissing"
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "操作日志（谁在什么时候改了什么）随 NT-018 / NT-019 一起落地，届时会在这里给出入口。"
+                    }
+                }
             }
-            return _detailView;
+        },
+        Actions =
+        {
+            new DetailAction
+            {
+                Text = "💾 保存",
+                Classes = "primary",
+                ToolTip = "把显示名 / 评分 / 描述 / 标签 / 分类 / 集合写进资产库（⛔ 不动磁盘文件）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = SaveAssetDetailCommand
+            },
+            new DetailAction
+            {
+                Text = "↗ 应用到文件",
+                Classes = "ghost",
+                ToolTip = "把名字**真写到磁盘文件上**（物理重命名：走任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = ApplyToFileCommand
+            },
+            new DetailAction
+            {
+                Text = "🗑 移入回收站",
+                Classes = "danger-btn",
+                ToolTip = "软删除：只改库里的状态（⛔ 不动磁盘文件；在「回收站」页能恢复）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = MoveToTrashCommand
+            },
+            new DetailAction
+            {
+                Text = "📁 移动到此源",
+                Classes = "ghost",
+                ToolTip = "把主文件位置移到选定的已登记存储源根内（⛔ 不越界写盘）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = MoveToTargetCommand
+            },
+            new DetailAction
+            {
+                Text = "📋 复制到此源",
+                Classes = "ghost",
+                ToolTip = "复制一份到选定的已登记存储源根内（原文件不动）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = CopyToTargetCommand
+            }
         }
-    }
+    };
 
     public event EventHandler? DetailChanged;
 

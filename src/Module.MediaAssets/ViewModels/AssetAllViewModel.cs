@@ -1439,7 +1439,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 {
                     new() { Text = "🔎 打开当前库文件", CommandPath = nameof(OpenDbFileCommand), ToolTipPath = nameof(DatabasePath) },
                 } },
-        new() { Text = "💿 另存为…", CommandPath = nameof(SaveLibraryAsCommand), IsEnabledPath = nameof(IsDbAvailable),
+        new() { Text = "💿 另存为…", CommandPath = nameof(PickSaveLibraryAsCommand), IsEnabledPath = nameof(IsDbAvailable),
                 ToolTip = "把当前资产库另存成一个 .db（备份 / 交付用）" },
         new() { Text = "📤 导出", CommandPath = nameof(ExportAssetsCommand), ToolTip = "把当前列表导成 json（含标签 / 分类 / 集合的名字）" },
         new() { Text = "📥 导入", CommandPath = nameof(ImportAssetsCommand), ToolTip = "选一个导出的 json 追加合并进库（按路径去重，⛔ 不静默覆盖）" },
@@ -1483,9 +1483,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         MergeLibraryCommand.Execute(path);
     }
 
-    /// <summary>「💿 另存为…」：选一个目标 .db → VM 另存（已存在会问覆盖）。</summary>
+    /// <summary>
+    /// 「💿 另存为…」：选一个目标 .db → 调既有 <see cref="SaveLibraryAsCommand"/> 另存（已存在会问覆盖）。
+    /// <para>⚠️ 方法名带 <c>Pick</c> 前缀是**必须的**：既有的 <c>SaveLibraryAsAsync(string?)</c> 已占用
+    /// <c>SaveLibraryAsCommand</c> 这个名字，同名再加一个 [RelayCommand] 方法会报 **MVVMTK0023**（同类型内命令名必须唯一）。</para>
+    /// </summary>
     [RelayCommand]
-    private async Task SaveLibraryAsAsync()
+    private async Task PickSaveLibraryAsAsync()
     {
         var path = await DialogHooks.SaveFileAsync("保存资产库为", ImportExportDefaultDir, "newtoys.db", "*.db");
         if (string.IsNullOrWhiteSpace(path)) return;

@@ -50,8 +50,11 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
     // ⚠️ 本页 VM 不是 ListPageViewModelBase ⇒ 契约成员自己实现（其余 12 页由基类统一实现）。
 
-    /// <summary>工具条构成变化时通知 Shell（本页工具条静态 ⇒ 不主动触发；留契约）。</summary>
+    /// <summary>工具条构成变化时通知 Shell（本页工具条静态 ⇒ 不主动触发；留契约给"项随状态增删"的将来）。</summary>
     public event EventHandler? ToolbarChanged;
+
+    /// <summary>工具条构成变了 → 通知 Shell（⛔ 只有动态构造 <see cref="Toolbar"/> 时才需要调）。</summary>
+    private void NotifyToolbarChanged() => ToolbarChanged?.Invoke(this, EventArgs.Empty);
 
     private const string VideoFilePatterns =
         "*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.ts;*.mpg;*.mpeg;*.rmvb;*.3gp";

@@ -182,7 +182,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool HasItems => Items.Count > 0;
 
     /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
-    public AssetRow DetailRow => Selected;
+    public AssetRow? DetailRow => Selected;
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;

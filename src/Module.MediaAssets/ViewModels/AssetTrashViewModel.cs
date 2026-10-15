@@ -125,7 +125,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool HasLocations => Locations.Count > 0;
 
     /// <summary>详情卡当前显示的资产（有选中项时显示它）。</summary>
-    public AssetRow DetailRow => Selected;
+    public AssetRow? DetailRow => Selected;
     protected override void EnsureDetailSelection()
     {
         if (Selected == null && Items.Count > 0) Selected = Items[0];

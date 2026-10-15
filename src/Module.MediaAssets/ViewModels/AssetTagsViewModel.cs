@@ -144,7 +144,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     public bool HasDetailAssets => DetailAssets.Count > 0;
 
     /// <summary>详情卡当前显示的标签（有选中项时显示它）。</summary>
-    public TagRow DetailTag => Selected;
+    public TagRow? DetailTag => Selected;
     /// <summary>库是否可用（不可用照常显示 + 状态栏提示，⛔ 不崩）。</summary>
     public bool IsDbAvailable => _tags?.IsAvailable ?? false;
 

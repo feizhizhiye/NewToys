@@ -179,7 +179,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     public bool CanScanSelected => HasSelection && IsDbAvailable;
 
     /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
-    public StorageRow DetailStorage => Selected;
+    public StorageRow? DetailStorage => Selected;
     public AssetStoragesViewModel() { }
 
     public AssetStoragesViewModel(AssetService assets, StorageService storages, ScanService scan, TaskQueue queue,

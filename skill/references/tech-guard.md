@@ -93,7 +93,7 @@ pwsh skill/scripts/check-techstack.ps1          # 加 -All 看 WARN 明细
 | `MVVMTK0034` | 直接访问 backing field | 只在构造函数 / 字段初始化器内允许；改字段名须全仓搜（属性 + `_字段` + `nameof`） |
 | `AVLN2000` | Avalonia XAML 编译失败 | 九成是 WPF 专有属性名（`SelectedValuePath` / `StrokeLineJoin` / `Watermark` / `DisplayMemberPath` / `SharedSizeGroup`）→ 先跑 `check-axaml-props.ps1`（**§三**） |
 | `NETSDK1022` | 重复的编译项 | `defaults\` 用了 `Include=` → 改 `None Update="defaults\**"`（**G-08**） |
-| `CS0246` / `CS1061` | 找不到类型 / 找不到成员 | 先跑 `check-axaml-props.ps1`；再核命名空间与引用方向（**G-10** / **G-11**） |
+| `CS0246` / `CS1061` | 找不到类型 / 找不到成员 | 先跑 `check-axaml-props.ps1`；再核命名空间与引用方向（**G-10** / **G-11**）。🔴 实例（v3.43 编译轮修）：`Core/Services/ModuleReloadService.cs` 实现 Shared 契约 `IModuleReloadService` 但漏 `using NewToys.Shared.Services;` —— `NewToys.Core.Services` 与 `NewToys.Shared.Services` 是 `NewToys` 下的**兄弟命名空间，不互达** ⇒ 报在类声明行（CS0246@`: IXxx`）。修法 = 补一行 using；「新建 Core 服务类实现 Shared 接口」时**先抄同目录现役服务的 using 头** |
 
 **无错误码、但会静默失效（编译器抓不到 —— 优先查这里）**：
 

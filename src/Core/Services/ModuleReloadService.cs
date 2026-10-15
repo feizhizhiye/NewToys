@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 

@@ -1,12 +1,13 @@
 # NewToys 工程规范
 
-> v3.31 · 2026-10-15 · 技术实现指南
+> v3.32 · 2026-10-15 · 技术实现指南
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
 > 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
 > 权威源：需求规格（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕技术债（本文件台账，原「折衷约束」）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
+> **v3.32 变更**：**NT-054 的 L2 批量迁移**（页内自绘 12 页迁掉 11 页，**L1 能力零扩展**）—— 沉淀出**可照抄的迁移四件事**：① VM 实现 `IDetailPanelProvider` + `IDetailCardSource` + **自己的** `ToggleDetailPanel` / `OpenDetailPanel`（⛔ 基类 `ToggleDetailCommand` 不发 `DetailChanged`）+ 显式接口实现；② View 删右列、页根 Grid 收单列、工具条末位改绑 `ToggleDetailPanelCommand`；③ code-behind 的卡内按钮接线**改成把实现注入 VM 的 `XxxCommand` 属性**（`OnDataContextChanged` 里挂，幂等）；④ **`StringFormat` → VM 派生属性**、**`ObjectConverters.IsNotNull` → `HasXxx` 布尔派生**并补通知。另两条口径：**「动态按钮文案」拆成两个互斥可见的 `DetailAction`**（⭐/☆ 收藏，不加新能力）、**`RelayCommand<T>` 型命令在描述符里包 lambda 传选中项**。`pc-shortcuts` 与 `pc-quicksettings` 共用 VM 基类 ⇒ **契约实现一次、`BuildCard()` 由子类 override**。
 > **v3.31 变更**：**NT-054 的 L2 第 2 张迁移**（视频工具·视频预览 `video-cut`）—— 与打样页同构，**L1 能力零扩展**（无需新 Kind / 新通道）；§3.9 的「迁移前页内两列布局」条文正式作废并改写为**迁移后形态**（页内单列 + Shell 右列 / 工具条末位绑 `ToggleDetailPanelCommand` / VM 已实现 `IDetailPanelProvider` + `IDetailCardSource`）。
 > **v3.30 变更**：⑦ **NT-054 的 L2 打样页落地**（视频工具·批量队列，需求 §4.5.1）—— 描述符补**第 8 种 Kind `List`**（只读列表：键值行 / 对比行）+ `Hint` 动态行（`ValuePath` + `Prefix`）+ `DetailSection.ToggleEnabledPath` + `Select` 的**索引通道**（`IndexPath` + `LiteralOptions`）；渲染器加 `ListFieldRow` / `IndexSelectFieldRow`；§3.8 新增「**L2 打样补记**」（路径优先 `nameof` / `OptionsPath` 必须稳定实例 / 空候选不回写 / 迁移页三件事 / 布局降级）。
 > **v3.29 变更**：⑥ **详情卡声明式渲染实装（NT-054 的 L0 + L1）** —— 新增 `Shared/Details/DetailCardDescriptor.cs`（描述符 POCO）+ `Shared/Services/IDetailCardSource.cs`（来源契约）+ `Shell/Controls/DetailCardHost.axaml(.cs)` / `DetailCardRender.cs`（渲染器：字段 `DataTemplate` + Kind→行对象唯一分派 + 路径解析 + 属性级刷新）；`ShellViewModel.RefreshDetail` 改**两轨择一**（声明式优先，老的自绘 `DetailContent` 保留给未迁移页）；`Shell/Styles/Controls.axaml` 新增 ⑭（`Button.section-toggle` / `Button.chip-toggle`）；§3.8 新增「`IDetailCardSource` + 详情卡声明式渲染」小节（件与归属 / 两轨 / 渲染层口径 / 路径静态兜底）；§3.6 详情卡滚动条写明**只写在 Shell 一处**。配套 `skill/scripts/check-detail-paths.ps1` 新增，`check-axaml-props.ps1` 加 `Classes.` 前缀豁免。

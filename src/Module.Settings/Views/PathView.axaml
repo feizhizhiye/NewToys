@@ -4,7 +4,7 @@
              x:Class="NewToys.Settings.Views.PathView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="12">
+  <Grid Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -25,7 +25,7 @@
                      Text="留空的项 = 用系统默认（PATH 里的 python / pwsh 等）；「📂 浏览…」选出来的路径会立即生效。"/>
         </WrapPanel>
         <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailCommand}"
+                Command="{Binding ToggleDetailPanelCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>
             <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -145,71 +145,5 @@
 
     </Grid>
 
-    <!--  右：选中项的详情（可编辑 = CRUD 的 U/C）；宽度由共享样式 Border.detail-card 给 → 收起时整列不占位  -->
-    <Border Grid.Column="1" Classes="detail-card" IsVisible="{Binding IsDetailVisible}">
-        <Grid RowDefinitions="Auto,*">
-
-          <StackPanel Grid.Row="0" Spacing="8" IsVisible="{Binding HasSelection}">
-            <TextBlock Classes="section-title" Text="选中项"/>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="primary" Content="💾 保存" Command="{Binding SaveCommand}"/>
-              <Button Classes="ghost" Content="↩ 还原默认" Command="{Binding RestoreDefaultCommand}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button x:Name="BrowseDetailBtn" Classes="ghost" Content="📂 浏览…"/>
-              <Button Classes="ghost" Content="↗ 打开" Command="{Binding OpenCommand}"
-                      CommandParameter="{Binding Selected}"/>
-            </StackPanel>
-          </StackPanel>
-
-          <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户去改 / 保存一份假数据  -->
-            <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
-
-              <StackPanel Classes="field" IsVisible="{Binding !ShowDetailBody}">
-                <TextBlock Classes="empty-hint" Text="在左侧列表里选中一项"/>
-                <TextBlock Classes="hint-text" Margin="0,4,0,0"
-                           Text="这些是「运行环境」相关的路径：ffmpeg / 播放器 / 三个解释器 / 脚本目录。留空 = 用系统默认。数据目录与配置目录是只读展示项。"/>
-              </StackPanel>
-
-              <!--  v3.32 §4.8.3：示例态标识（下面是示例数据，不可编辑）  -->
-              <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
-                         Text="（示例数据）在左侧选中一项后，这里显示它的真实内容；示例态下不可编辑。"/>
-
-              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="名称"/>
-                <TextBlock Classes="field-value" Text="{Binding DetailItem.Name}" FontSize="13" FontWeight="SemiBold"/>
-              </StackPanel>
-
-              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="当前值"/>
-                <TextBox Classes="code" Text="{Binding EditValue, Mode=TwoWay}" FontSize="12"
-                         TextWrapping="Wrap" AcceptsReturn="False"
-                         IsReadOnly="{Binding DetailItem.IsReadOnly}"
-                         IsEnabled="{Binding DetailItem.IsEditable}"/>
-                <TextBlock Classes="hint-text" Margin="0,4,0,0"
-                           Text="改完点「💾 保存」；点「📂 浏览…」选的路径会立即生效。"/>
-              </StackPanel>
-
-              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="类型"/>
-                <TextBlock Classes="field-value" Text="{Binding DetailItem.KindText}"/>
-              </StackPanel>
-
-              <StackPanel Classes="field" IsVisible="{Binding ShowDetailBody}">
-                <TextBlock Classes="field-label" Text="说明"/>
-                <TextBlock Classes="field-value" Text="{Binding DetailItem.Description}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-              </StackPanel>
-
-              <Border Classes="divider-line"/>
-
-              <TextBlock Classes="hint-text"
-                         Text="配置文件：%LocalAppData%\NewToys\config\app.json（会被「设置 → 数据管理」的备份一起覆盖）"/>
-
-            </StackPanel>
-          </ScrollViewer>
-        </Grid>
-      </Border>
   </Grid>
 </UserControl>

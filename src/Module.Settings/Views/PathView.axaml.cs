@@ -13,7 +13,8 @@ public partial class PathView : UserControl
     public PathView()
     {
         InitializeComponent();
-        BrowseDetailBtn.Click += (_, _) => _ = BrowseForSelectedAsync();
+        // ⚠️ NT-054：原来那个页内卡里的「📂 浏览…」按钮（BrowseDetailBtn）随卡片一起删了 ——
+        //    现在它是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
     }
 
     /// <summary>
@@ -25,6 +26,11 @@ public partial class PathView : UserControl
         base.OnDataContextChanged(e);
         if (PathList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+
+        // NT-054：把「📂 浏览…」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
+        // 每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
+        if (DataContext is PathViewModel vm)
+            vm.PickPathCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => _ = BrowseForSelectedAsync());
     }
 
     /// <summary>行内「📂 浏览」：拿这一行的项去选路径。</summary>

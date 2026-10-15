@@ -4,10 +4,12 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
 using NewToys.Settings.Models;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -26,7 +28,7 @@ namespace NewToys.Settings.ViewModels;
     /// 不回写扫描目录，不影响"每次手动选目录"的扫描逻辑。
     /// </para>
 /// </summary>
-public partial class PathViewModel : ListPageViewModelBase
+public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly IAppConfigService? _cfg;
 
@@ -107,6 +109,162 @@ public partial class PathViewModel : ListPageViewModelBase
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
 
+    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+
+    /// <summary>
+    /// 📂 浏览…（平台文件 / 目录选择器**只能在 View 层用**，VM 不引 Avalonia）⇒ 由 <c>PathView</c>
+    /// 在 <c>OnDataContextChanged</c> 里注入实现（原来那个按钮在页内卡片里、走 code-behind 直接挂 Click）。
+    /// </summary>
+    public ICommand? PickPathCommand { get; set; }
+
+    /// <summary>「当前值」是否可编辑（只读展示项 = 数据目录 / 配置目录，⛔ 不让改）。</summary>
+    public bool IsValueEditable => DetailItem.IsEditable;
+
+    /// <summary>「当前值」是只读展示项（与 <see cref="IsValueEditable"/> 互斥 ⇒ 两个字段行各自可见）。</summary>
+    public bool IsValueReadOnly => DetailItem.IsReadOnly;
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>工具条末位的详情开关 → 走本命令（⛔ 基类 <c>ToggleDetailCommand</c> 不通知 Shell，右列不会跟着开合）。</summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的页内自绘卡片对应：名称 / 当前值（可编辑 ↔ 只读两种形态）/ 类型 / 说明 + 配置文件提示 + 四个卡内动作。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
+    {
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧列表里选中一项。这些是「运行环境」相关的路径：ffmpeg / 播放器 / 三个解释器 / 脚本目录。留空 = 用系统默认；数据目录与配置目录是只读展示项。",
+        SampleText = "（示例数据）在左侧选中一项后，这里显示它的真实内容；示例态下不可编辑。",
+        Sections =
+        {
+            new DetailSection
+            {
+                Header = "选中项",
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "名称",
+                        ValuePath = "DetailItem.Name",
+                        Kind = FieldKind.Text
+                    },
+                    // 可编辑项：名字框失焦提交到编辑缓冲，落盘交「💾 保存」按钮
+                    new DetailField
+                    {
+                        Label = "当前值",
+                        ValuePath = nameof(EditValue),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        MultiLine = true,
+                        VisibleWhen = nameof(IsValueEditable)
+                    },
+                    // 只读展示项：同一条路径，但只读可复制（⛔ 不给编辑框，免得像能改）
+                    new DetailField
+                    {
+                        Label = "当前值",
+                        ValuePath = nameof(EditValue),
+                        Kind = FieldKind.Text,
+                        Mono = true,
+                        Selectable = true,
+                        VisibleWhen = nameof(IsValueReadOnly)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "改完点「💾 保存」；点「📂 浏览…」选的路径会立即生效。",
+                        VisibleWhen = nameof(IsValueEditable)
+                    },
+                    new DetailField
+                    {
+                        Label = "类型",
+                        ValuePath = "DetailItem.KindText",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField
+                    {
+                        Label = "说明",
+                        ValuePath = "DetailItem.Description",
+                        Kind = FieldKind.Text
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "配置文件：%LocalAppData%\\NewToys\\config\\app.json（会被「设置 → 数据管理」的备份一起覆盖）"
+                    }
+                }
+            }
+        },
+        Actions =
+        {
+            // 原来这四个按钮是页内卡顶部的两排（只在有选中项时显示）；声明式卡里进 Actions 区。
+            new DetailAction
+            {
+                Text = "💾 保存",
+                Classes = "primary",
+                ToolTip = "把「当前值」写回配置并落盘",
+                IsVisiblePath = nameof(HasSelection),
+                Command = SaveCommand
+            },
+            new DetailAction
+            {
+                Text = "↩ 还原默认",
+                Classes = "ghost",
+                ToolTip = "恢复成该路径的默认值（⛔ 只填进输入框，仍需点「💾 保存」）",
+                IsVisiblePath = nameof(HasSelection),
+                Command = RestoreDefaultCommand
+            },
+            new DetailAction
+            {
+                Text = "📂 浏览…",
+                Classes = "ghost",
+                ToolTip = "选文件 / 选目录（按项的类型决定），选完立即生效并落盘",
+                IsVisiblePath = nameof(HasSelection),
+                Command = new RelayCommand(() => PickPathCommand?.Execute(null))
+            },
+            new DetailAction
+            {
+                Text = "↗ 打开",
+                Classes = "ghost",
+                ToolTip = "在资源管理器里打开这个路径",
+                IsVisiblePath = nameof(HasSelection),
+                // OpenCommand 是 RelayCommand<PathSettingItem?>（要参数）⇒ 这里包一层拿当前选中项
+                Command = new RelayCommand(() => OpenCommand.Execute(Selected))
+            }
+        }
+    };
+
     // ==================== 编辑缓冲 ====================
 
     /// <summary>详情卡里正在编辑的值（点「💾 保存」才写回对象并落盘）。</summary>
@@ -116,6 +274,9 @@ public partial class PathViewModel : ListPageViewModelBase
     {
         UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例项
         OnPropertyChanged(nameof(DetailItem));
+        // 切选中项 / 示例态 → 「当前值」在可编辑 ↔ 只读两种形态间切换（描述符里是两行互斥字段）
+        OnPropertyChanged(nameof(IsValueEditable));
+        OnPropertyChanged(nameof(IsValueReadOnly));
         _syncing = true;
         EditValue = (value ?? (HasSampleRow ? SampleItem : null))?.Value ?? "";
         _syncing = false;

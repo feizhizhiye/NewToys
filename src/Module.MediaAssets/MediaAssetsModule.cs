@@ -96,7 +96,9 @@ public class MediaAssetsModule : IModule
         // 跨组注册由框架延迟补登保障——Module.Settings 后初始化也能补上，规范 §3.2）。
         // Order 100 = 模块设置页起始段（0~99 保留给框架设置）。
         // ⚠️ 图标用 🎬 而非 NT 细节里写的 🧩：后者已被 settings-profile「配置」占用（同组两个 🧩 会看混）。
-        menu.RegisterFunction("settings", "settings-media-assets", "媒体资产", "🎬", "SettingsMediaAssetsView", 100,
+        // NT-050：标题「媒体资产」→「媒体资产设置」—— 与一级菜单「媒体资产」同名，左树两处出现易混淆。
+        // Key `settings-media-assets` ⛔不改（首页跳转 / 收藏白名单按 Key 寻址）；Order 100 不变。
+        menu.RegisterFunction("settings", "settings-media-assets", "媒体资产设置", "🎬", "SettingsMediaAssetsView", 100,
             "扫描忽略规则 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据提取");
 
         // ===== NT-021：把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====

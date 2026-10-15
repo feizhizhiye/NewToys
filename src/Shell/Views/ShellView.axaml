@@ -64,7 +64,8 @@
                 <!--  左：窗口功能按钮  -->
                 <!--  NT-045：图标**一律矢量 `Path` + `App.axaml` 的 `Icon*` 几何键**（24×24 网格），
                      粗细 / 端帽 / 拐角 / 颜色全由 `Button.title-btn Path` 样式给，XAML 里只写 Data + 尺寸。
-                     折叠按钮的图案 = 面板 + 左栏（Lucide `panel-left`）；重载模块 = 拼图（`IconPuzzle`）。  -->
+                     折叠按钮的图案 = 面板 + 左栏（Lucide `panel-left`）。
+                     NT-052：「🔄 重载模块」按钮已移入**功能清单页**「增加功能」操作区（标题栏 3→2 按钮）。  -->
                 <StackPanel
                     Grid.Column="0"
                     Margin="4,0"
@@ -84,18 +85,6 @@
                             Height="16"
                             Stretch="Uniform"
                             Data="{StaticResource IconRefresh}" />
-                    </Button>
-                    <!--  NT-005：重载模块。图标 = **拼图块**（浏览器扩展那个）—— 语义上比等距立方体更贴「模块 / 插件」。
-                         NT-046：原用 Lucide `puzzle` 的路径数据（8 段弧），16px 下糊成一团 → 改**自绘简洁拼图**
-                         （方身 + 三凸块，`App.axaml` 的 `IconPuzzle`，直线为主）。
-                         规范 §3.7：只做「新增」、失败 DLL 隔离。  -->
-                    <Button Classes="title-btn" Command="{Binding ReloadModulesCommand}"
-                            ToolTip.Tip="重载模块：重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）">
-                        <Path
-                            Width="16"
-                            Height="16"
-                            Stretch="Uniform"
-                            Data="{StaticResource IconPuzzle}" />
                     </Button>
                 </StackPanel>
 

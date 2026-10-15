@@ -1,7 +1,21 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Settings.Views.AllFunctionsView">
-  <ScrollViewer VerticalScrollBarVisibility="Auto">
+  <Grid RowDefinitions="Auto,*">
+    <!-- NT-052：「增加功能」操作区（页面级功能入口）——「🔄 重载模块」由标题栏移入此处。
+         放在 ScrollViewer **外** = 不随内容滚动；重载 = 给本清单增加新模块的功能，语义最顺。
+         结果反馈走壳级底栏（ShellViewModel 订阅 IModuleReloadService.Reloaded），本页不设状态行。 -->
+    <Border Grid.Row="0" Padding="24,16,24,0">
+      <StackPanel Spacing="8">
+        <TextBlock Text="把新的模块 DLL 放进 Modules\ 目录后，点「🔄 重载模块」即可装进来 —— 重载后本清单与左侧菜单会立即刷新（只新增；移除模块要重启）。"
+                   FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <Button Classes="ghost" HorizontalAlignment="Left" Content="🔄 重载模块"
+                Command="{Binding ReloadModulesCommand}"
+                ToolTip.Tip="重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）"/>
+      </StackPanel>
+    </Border>
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
     <ItemsControl ItemsSource="{Binding Groups}" Margin="24,16">
       <ItemsControl.ItemTemplate>
         <DataTemplate>
@@ -58,4 +72,5 @@
       </ItemsControl.ItemTemplate>
     </ItemsControl>
   </ScrollViewer>
+  </Grid>
 </UserControl>

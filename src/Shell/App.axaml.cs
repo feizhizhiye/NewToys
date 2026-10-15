@@ -60,6 +60,8 @@ public class App : Application
             services.AddSingleton<IMenuService, MenuService>();
             services.AddSingleton<IThemeService, ThemeService>();
             services.AddSingleton<INavigationService, NavigationService>();
+            // NT-052：模块热加载契约（标题栏按钮移入功能清单页；Shell 订阅 Reloaded 重建左树）。
+            services.AddSingleton<IModuleReloadService, ModuleReloadService>();
             services.AddSingleton<LaunchRunner>();
             // ⚠️ 之前只注册了**具体类型**，没有注册接口 —— 于是「设置 → 加密 DNS」页要想拿
             // IEncryptedDnsService 就解析不到（DI 会退回到无参构造，页面变成"未就绪"骨架）。

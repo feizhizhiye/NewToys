@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="NewToys.Settings.Views.PackageSourceView">
+             x:Class="NewToys.PcTools.Views.PackageSourceView">
   <Grid RowDefinitions="Auto,*">
     <!-- 操作行：状态提示右对齐；页名由左侧二级菜单体现，内容区不再重复标题页头。
          ⚠️ 本页**除「添加源」表单外全是开关/下拉 + 即时执行的按钮**，点一下就写系统 winget 或 config\package.json（规范 3.7）。 -->

@@ -38,6 +38,7 @@ public partial class ShellViewModel : ViewModelBase
     private readonly INavigationService _nav;
     private readonly IColumnLayoutService _cols;
     private readonly IProfileService _profiles;
+    private readonly IModuleReloadService _reload;
 
     private IDetailPanelProvider? _detailProvider;
     private IHistoryProvider? _historyProvider;
@@ -84,9 +85,9 @@ public partial class ShellViewModel : ViewModelBase
 
     public ShellViewModel(IServiceProvider sp, IMenuService menu,
                           INavigationService nav, IColumnLayoutService cols,
-                          IProfileService profiles)
+                          IProfileService profiles, IModuleReloadService reload)
     {
-        _sp = sp; _menu = menu; _nav = nav; _cols = cols; _profiles = profiles;
+        _sp = sp; _menu = menu; _nav = nav; _cols = cols; _profiles = profiles; _reload = reload;
 
         // 左树折叠态从壳级 Flag 恢复。
         _isTreeCollapsed = _cols.LoadFlag(ShellPageKey, "treeCollapsed", false);
@@ -94,6 +95,10 @@ public partial class ShellViewModel : ViewModelBase
         // 模块（功能清单页、模块首页等）通过 INavigationService.NavigateTo(key) 发起跳转，
         // 这里统一接住 —— 模块无需引用 Shell 程序集即可导航。
         _nav.Navigated += (_, e) => OpenTab(e.key);
+
+        // NT-052：模块热加载（入口 = 功能清单页「增加功能」操作区，标题栏按钮已移入）→ 重建左树 + 底栏消息。
+        // ShellViewModel 是进程级单例（AddSingleton）⇒ 订阅随进程生命周期，无需退订。
+        _reload.Reloaded += OnModulesReloaded;
 
         BuildTree();
         // 首导：首页作为第一个固定标签页（§5.4）。
@@ -278,18 +283,18 @@ public partial class ShellViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 「🔄 重载模块」（NT-005，标题栏）：重扫 <c>&lt;程序目录&gt;\Modules\</c> 把**新**模块装进来 + 重建左树。
+    /// 模块热加载完成（NT-052：入口已由标题栏移入**功能清单页**「增加功能」操作区）：
+    /// 重建左树 + 底栏消息（文案与旧标题栏按钮逐字一致）。
     /// <para>
     /// 规范 §3.7：只做「新增」（移除模块要重启）；单个 DLL 失败被隔离（⛔ 不拖垮宿主）；
     /// 已构建的 DI 容器无法追加服务 → 热加载模块的 RegisterServices 跳过，优先页面型模块。
     /// </para>
     /// </summary>
-    [RelayCommand]
-    private void ReloadModules()
+    private void OnModulesReloaded((int Added, int Skipped, int Failed) result)
     {
-        var (added, skipped, failed) = Core.Services.ModuleLoader.HotReload(_sp);
         BuildTree();   // 左树重建：新增 / 移除的模块菜单反映出来
 
+        var (added, skipped, failed) = result;
         var msg = failed > 0
             ? $"模块重载：新增 {added} / 跳过 {skipped} / 失败 {failed}（失败不影响使用，详情见 Debug 输出）"
             : $"模块重载：新增 {added} / 跳过 {skipped} / 失败 0。";

@@ -10,10 +10,11 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-namespace NewToys.Settings.ViewModels;
+namespace NewToys.PcTools.ViewModels;
 
 /// <summary>
-/// 「软件源」设置页 —— 软件包管理模块的源设置都在这。
+/// 「软件源」设置页 —— 软件包管理模块的源设置都在这（NT-050：由 Module.Settings 迁入 Module.PcTools，
+/// View/VM 归模块、菜单自注册进 settings 分组，Key `settings-package` 不变）。
 /// <para>
 /// <b>v1.33 起本页直接操作系统 winget 的源</b>（"与系统共用一套数据"）：
 /// 列表读的是 <c>winget source list</c> 的真实结果，「停用」= <c>winget source remove</c>，

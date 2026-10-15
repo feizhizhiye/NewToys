@@ -13,7 +13,7 @@ public sealed record AccentPreset(string Id, string Name, string Color, string H
 /// <summary>
 /// 强调色预设表 —— **Shell 的资源注入与主题页的色卡列表共用这一份**，不要各写一套：
 /// - Shell：<c>App.ApplyTheme()</c> 用它填 <c>AccentBrush</c> / <c>AccentHoverBrush</c>，并派生选中态色；
-/// - 主题页：<c>ThemeViewModel</c> 直接把它当作色卡数据源。
+/// - 主题页：通用设置「主题外观」节的 <c>GeneralViewModel</c>（NT-051 合并后）直接把它当作色卡数据源。
 /// </summary>
 public static class AccentPalette
 {

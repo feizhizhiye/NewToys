@@ -21,6 +21,7 @@ public partial class AllFunctionsViewModel : ViewModelBase
     private readonly IMenuService _menu;
     private readonly INavigationService _nav;
     private readonly IFavoritesService _fav;
+    private readonly IModuleReloadService _reload;
 
     /// <summary>按模块分组的功能项（含简介与固定状态），已按 Order 排序。</summary>
     public ObservableCollection<FunctionGroup> Groups { get; } = new();
@@ -28,11 +29,13 @@ public partial class AllFunctionsViewModel : ViewModelBase
     public ICommand NavigateCommand { get; }
     public ICommand ToggleFavoriteCommand { get; }
 
-    public AllFunctionsViewModel(IMenuService menu, INavigationService nav, IFavoritesService fav)
+    public AllFunctionsViewModel(IMenuService menu, INavigationService nav, IFavoritesService fav,
+                                 IModuleReloadService reload)
     {
         _menu = menu;
         _nav = nav;
         _fav = fav;
+        _reload = reload;
 
         NavigateCommand = new RelayCommand<string?>(k =>
         {
@@ -46,6 +49,15 @@ public partial class AllFunctionsViewModel : ViewModelBase
         // 收藏夹变化（右键固定/取消）→ 刷新 ★ 标记：订阅放在 View 的 VisualTree 挂接/卸载时，
         // 避免瞬态 VM 被单例 FavoritesService 长期持有（内存泄漏）。
         BuildGroups();
+    }
+
+    /// <summary>🔄 重载模块（NT-052）：重扫 Modules\ 装新模块 → 返回后刷新本页清单（新功能卡片即时出现）。
+    /// 左树重建 / 底栏计数由 Shell 订阅 <see cref="IModuleReloadService.Reloaded"/> 完成。</summary>
+    [RelayCommand]
+    private void ReloadModules()
+    {
+        _reload.HotReload();   // 做事 + 同步触发 Reloaded（Shell：重建左树 + 底栏计数）
+        BuildGroups();          // 本页清单刷新：新模块的功能卡片即时出现
     }
 
     private void BuildGroups()

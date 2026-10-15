@@ -102,6 +102,7 @@ pwsh skill/scripts/check-techstack.ps1          # 加 -All 看 WARN 明细
 | `CS0103` | 找不到名称 | 删了带 `x:Name` 的 XAML 块（如迁走的页内工具条）但 code-behind 仍引用那个字段 ⇒ 全仓搜该 `x:Name`，把 code-behind 里的接线一并删掉。🔴 实例（NT-055）：`BtnImport` 随工具条一起删了，`BookmarkView` / `PingView` 的构造器还在 `BtnImport.Click += …` |
 | `MVVMTK0023` | 命令方法在类型内不唯一 | 新写的 `[RelayCommand] XxxAsync()` 与**同类型既有**方法**同名**（`Xxx` 与 `XxxAsync` 都生成 `XxxCommand`）⇒ 给新方法换名（如加 `Pick` 前缀）并同步描述符 / XAML 里的 `CommandPath`。🔴 实例（NT-055）：`AssetAllViewModel` 已有 `SaveLibraryAsAsync(string?)`，新加的选路径版同名 ⇒ 改成 `PickSaveLibraryAsAsync`（内部再调既有的 `SaveLibraryAsCommand.Execute(path)`） |
 | `CS0067` | 事件从未使用 | 不继承 `ListPageViewModelBase` 的自定义 VM（如 `VideoPreviewViewModel`）自己声明了 `ToolbarChanged` 却没有 `?.Invoke` 点 ⇒ 补一个 `private void NotifyToolbarChanged() => ToolbarChanged?.Invoke(this, EventArgs.Empty);`（继承基类的页不用管，基类已自带该辅助方法） |
+| `CS8619` | 空性与目标类型不匹配 | 🔴 实例（NT-055）：`items.ItemsPanel = new FuncTemplate<Panel>(…)` —— `ItemsControl.ItemsPanel` 的目标类型是 **`ITemplate<Panel?>`** ⇒ 类型参数必须写 **`FuncTemplate<Panel?>`**（写 `Panel` 只警告不报错，但污染输出）。同类坑：凡目标是 `ITemplate<X?>` / `Func<X?>`，泛型实参都要带 `?` |
 | `CS0246` / `CS1061` | 找不到类型 / 找不到成员 | 先跑 `check-axaml-props.ps1`；再核命名空间与引用方向（**G-10** / **G-11**）。🔴 实例（v3.43 编译轮修）：`Core/Services/ModuleReloadService.cs` 实现 Shared 契约 `IModuleReloadService` 但漏 `using NewToys.Shared.Services;` —— `NewToys.Core.Services` 与 `NewToys.Shared.Services` 是 `NewToys` 下的**兄弟命名空间，不互达** ⇒ 报在类声明行（CS0246@`: IXxx`）。修法 = 补一行 using；「新建 Core 服务类实现 Shared 接口」时**先抄同目录现役服务的 using 头** |
 
 **无错误码、但会静默失效（编译器抓不到 —— 优先查这里）**：

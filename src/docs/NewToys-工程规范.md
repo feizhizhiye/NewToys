@@ -1,6 +1,10 @@
 # NewToys 工程规范
 
-> v3.35 · 2026-10-15 · 技术实现指南
+> v3.39 · 2026-10-15 · 技术实现指南
+> **v3.39 变更**：**NT-055 后续「工具条三件套统一」**（需求 v3.58；用户「primary 按钮都用 ghost / 导入按钮 + 输入框 + 搜索框按全部资产的宽度和顺序统一」）—— §3.10 三条口径改定：① 工具条配色**只剩两个在用变体** `ghost` / `danger-btn`（`primary-outline` 全量撤成 `ghost`，`primary` 实心仍只给详情卡与对话框）；② 输入框 / 搜索框 **`Width = 88`**；③ **前段顺序 = 入口动作 → 输入框 → 搜索框（三者挨着、排在最前）**，含四条落地细则 + `pc-package` 例外。另：`QuickActionListViewModel` 新增 **`ToolbarTailExtras`** 槽（排在共用搜索框之后），供「框的配套动作」挂靠，⛔ 别塞进 `ToolbarExtras`（会把搜索框挤到后面）。
+> **v3.38 变更**：**NT-055 五轮「工具条内容与配色收口」**（用户「绿色按钮换样式 / 删提示文字 / 输入框按全部资产的逻辑，三项放最前 / 修视频列表两按钮丢字」）—— §3.10 补三条口径：① 工具条配色只剩三变体 `ghost` / `primary-outline`（原工具条 `primary` 实心绿全换）/ `danger-btn`，`primary` 实心只留给详情卡与对话框；② `Label` 提示 / 计数文字**工具条里不再使用**（8 处删除，含义进按钮 `ToolTip`）；③ **前三项固定** = 数据入口动作 → 路径框 → 搜索框（两框相邻 + 水印，⛔ 不强加到没有外部数据源的管理页）。另录一条渲染层 bug 修法：`BuildContent` 的动态文案绑定**必须显式给 `Source`**（`ToolbarHost` ⛔ 无 DataContext）⇒ 漏了就渲染成空白按钮。
+> **v3.37 变更**：**NT-055 收尾「工具条按钮样式统一」**（用户「按全部资产按钮区的逻辑扩到其它页 + 统一按钮样式」）—— §3.10 新增「🔴 按钮样式统一」段：尺寸（字号 12 / 内边距 10,5 / 最小高 28 / 圆角 6）由 `ToolbarHost.axaml` 的 `<UserControl.Styles>` **一处给**（`Button` / `SplitButton` / `TextBox` / `ComboBox` 四条无类名宽选择器，控件内样式优先级高于 App 级 ⇒ `primary` 的 12,6、`danger-btn`/`src-btn` 的 11 + 10,4 全被压成同一档）；描述符 `Classes` **只表达配色**。**`io-bar` + `io-btn` 两个共享样式已删**（工具条统一后无引用），4 处 `io-btn` 描述符改 `ghost`；`danger-btn` **保留原名**（详情卡共用，改名零收益）。
+> **v3.36 变更**：**NT-055 补迁收官** —— §3.10 项类型 **7 → 8 类**（`ChipGroup`：按钮组，选中态靠订阅数据项 `INotifyPropertyChanged` 切 `selected` 类，⛔ C# 里 `Classes` 绑不了）；逃生舱**只剩 `web-http`**；**已迁 18 个 View / 覆盖 23 页**（二轮 PcTools 3 页、三轮 MediaAssets 6 页）；新增两条口径：**详情开关只有一处**（Shell 浮层，迁移页删页内 `detail-toggle`）、**左右双栏页工具条上提到页面顶部**。选择器一律走 `Core.DialogHooks`（⛔ 不在 code-behind 里接 `StorageProvider`）。
 > **v3.35 变更**：**NT-055「工具条改由 Shell 声明式承载」落地** ⇒ 新增 **§3.10**（件与归属 / 7 类项 / 渲染口径 / 折叠算法两条防抖 / 选择器钩子 / 逃生舱）。
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
 > 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
@@ -671,9 +675,26 @@ public interface IDetailCardSource
 | `ToolbarHost` | `Shell/Controls/` | 渲染 + 自动折叠 + 详情开关浮层；`Source` = 页面 VM |
 | `ListPageViewModelBase` | `Shared/Models/` | **已实现 `IToolbarSource`**（`public virtual Toolbar => null`）⇒ 列表页只 `override Toolbar`，零样板（与 `IStatusProvider` 同一套路） |
 
-**7 类项**：`Button` / `SplitButton` / `Toggle`(CheckBox) / `TextField` / `Combo` / `Label`(次要色文字) / `Separator`(竖线)。
-常用可选项：`Text` / `TextPath` + `TextFormat` / `AltText` + `AltTextPath`（双文案互斥，如 ▶/⏸）/ `Classes`（默认 `ghost`，可 `primary` / `danger-btn`）/ `Width` / `ToolTip` / `ToolTipPath` / `ShowToolTipOnDisabled` / `CommandPath` / `CommandArgPath` / `IsEnabledPath` / `IsVisiblePath` / `IsEnabled`（静态置灰占位，如「🧠 存为智能集合」）/ `Items`（Flyout 菜单，项支持 `ToolTipPath`）。
+**8 类项**：`Button` / `SplitButton` / `Toggle`(CheckBox) / `TextField` / `Combo` / `Label`(次要色文字) / `Separator`(竖线) / `ChipGroup`(按钮组)。
+常用可选项：`Text` / `TextPath` + `TextFormat` / `AltText` + `AltTextPath`（双文案互斥，如 ▶/⏸）/ `Classes`（只表达**配色**：工具条内 `ghost` / `danger-btn`，见下「按钮样式统一」）/ `Width` / `ToolTip` / `ToolTipPath` / `ShowToolTipOnDisabled` / `CommandPath` / `CommandArgPath` / `IsEnabledPath` / `IsVisiblePath` / `IsEnabled`（静态置灰占位，如「🧠 存为智能集合」）/ `Items`（Flyout 菜单，项支持 `ToolTipPath`）。
 `TextField` 另有 `Placeholder` / `IsReadOnly` / `EnterCommandPath` / `ValuePath`；`Combo` 另有 `ItemsPath` / `DisplayPath` / `SelectedItemPath` / `SelectedValuePath` + `SelectedValueBindingPath`。
+`ChipGroup` 另有 `ItemsPath` / `DisplayPath`（**每项**文案）/ `SelectedPath`（**数据项**上的 bool，决定该项是否高亮 = `src-btn.selected`）/ `CommandPath`（参数 = **数据项本身**）。
+- 🔴 `ChipGroup` 的「选中态」在 C# 里**绑不了** `Classes`：渲染层订阅数据项的 `INotifyPropertyChanged`，属性变了就切 `selected` 类（模板见 `ToolbarHost.BindSelectedClass`）。
+
+**🔴 按钮样式统一（v3.59 / NT-055 收尾，需求 §4.10.4）**
+- 尺寸（**字号 12 / 内边距 10,5 / 最小高 28 / 圆角 6**）由 `ToolbarHost.axaml` 的 `<UserControl.Styles>` 一处给（`Button` / `SplitButton` / `CheckBox` / `TextBox` / `ComboBox` 五条无类名的宽选择器）；**控件内样式优先级高于 App 级** ⇒ `primary` 自带的 `Padding=12,6`、`danger-btn` / `src-btn` 自带的 `FontSize=11 + Padding=10,4` 在工具条里**全被压成同一档**。
+- ⇒ 描述符 `Classes` **只表达配色**；⛔ 别用 `io-btn`（已随 `io-bar` 删除）/ ⛔ 别靠换类改大小。
+- 🔴 **工具条配色只有两个在用变体**（v3.39）：`ghost`（默认，**也是主按钮**）/ `danger-btn`（红，只给会丢数据的动作）；另 `src-btn`+`selected` 只给 `ChipGroup` 的按钮组高亮。⛔ 工具条⛔ 不用 `primary`（实心绿，只留给详情卡动作与对话框主按钮），⛔ 也不用 `primary-outline`（v3.60 那档「强调色描边主按钮」已全量撤成 `ghost`）。
+- 🔴 **工具条输入框 / 搜索框宽度统一 `Width = 88`**（v3.39，与「全部资产」页同一口径）。下拉框（`Combo`）不受此限，按内容给宽（如预设 220 / DNS 200）。
+- 🔴 **工具条前段顺序固定（v3.39）：入口动作按钮 → 路径 / URL 输入框 → 搜索框，三者挨着、排在最前**（样板 = `asset-all`：📁 扫描 → 路径框 → 搜索框）。
+  1. 只有搜索框、没有入口动作 / 输入框的**管理页**（`categories` / `collections` / `tags` / `trash` / `storages` / `tasks` / `pc-info`）⛔ 不凑三项，只保留搜索框（仍排最前）。
+  2. 入口动作就是「导入」的页：导入按钮在前、框紧跟（`hosts`：`🌐 导入` → URL 框；`video-list`：`📂 导入` → 目录框 → 搜索框）。
+  3. 预设 / 筛选类 `Combo` ⛔ 不许插在「入口动作 → 搜索框」之间 ⇒ 挪到第一个 `Separator` 之后（`video-batch`）。
+  4. `pc-shortcuts` / `pc-quick` 由基类 `QuickActionListViewModel` 拼装：**`ToolbarExtras`（入口动作 / 输入框）→ 共用搜索框 → `ToolbarTailExtras`（框的配套动作）→ 导出 / 导入 / 清空**；⛔ 配套动作别塞进 `ToolbarExtras`（会把搜索框挤到后面）。
+  5. ⚠️ 已知例外（`pc-package`）：首位是源 `ChipGroup`（查询维度），顺序为「源 → 关键字框 → 🔍 联网搜索」（动作在框后），用户 2026-10-15 确认**保持不动**。
+- 🔴 **工具条里⛔ 不放任何说明 / 计数文字**：`Label` 项虽仍在描述符里，**已无页面使用**；含义一律写进相关按钮的 `ToolTip`（「已勾选 N 个」这类计数直接删，勾选状态看列表勾选框即可）。
+- ⛔ 逃生舱 `web-http` 的页内工具条**不享受**这套统一（页内自绘，仍是老样式）—— 已知例外。
+- `detail-toggle`（详情开关）保持 `Padding=0` / `Width=20` 的**本地值**（本地值优先级最高，⛔ 不会被上面那条压掉）。
 
 **渲染口径（渲染层在 code-behind，⛔ 不是 XAML 模板）**
 - 每个控件用 `control.Bind(prop, new Binding(path) { Source = 页面VM })` **显式指定 Source**：Flyout 菜单在独立弹出树、DataContext 不继承（与 `ContextMenu` 同一坑），显式 Source 一次解决。
@@ -688,7 +709,10 @@ public interface IDetailCardSource
 **页面 VM 弹选择器**
 VM ⛔ 不引 Avalonia ⇒ 统一走 `Core.DialogHooks` 的 3 个钩子：`PickFolderAsync` / `PickFilesAsync`（多个模式用 `;` 分隔，如 `"*.html;*.htm"`）/ `SaveFileAsync`；由 `Shell/App.axaml.cs` 注入实现（未注入 = 按「用户取消」处理）。
 
-**逃生舱**：描述符表达不了的页（表单式撑满布局 / 动态按钮组 / `io-bar` 分组容器 + Flyout）**暂不迁移**，保留页内 `Border.toolbar` —— 逐页 opt-in、⛔ 不双渲染（`ShellViewModel.IsToolbarActive` 仅在 VM 实现契约且工具条非空时为 true，未接契约的页工具条行高度为 0）。
+**逃生舱**：描述符**表达不了的特殊布局**（现仅 `web-http` 的**表单式撑满布局**：`Grid ColumnDefinitions="Auto,*,Auto,Auto"`，URL 框吃剩余宽）**不迁移**，保留页内 `Border.toolbar` —— 逐页 opt-in、⛔ 不双渲染（`ShellViewModel.IsToolbarActive` 仅在 VM 实现契约且工具条非空时为 true，未接契约的页工具条行高度为 0）。
+- 🔴 **原逃生舱里的「动态按钮组」「按钮 Flyout 菜单」「只读展示框」已由描述符消化**（`ChipGroup` / `Button` + `Items` / `TextField.IsReadOnly`）—— `pc-package` / `pc-shortcuts` / `pc-quick` 已迁完（2026-10-15 二轮）；**MediaAssets 6 页**（`categories` / `collections` / `storages` / `tags` / `tasks` / `trash`）三轮迁完（2026-10-15，⛔ 未加 Kind）。
+- 🔴 **详情开关只有一处**：已由 Shell 的 `ToolbarHost` **浮层**统一给（VM 实现 `IDetailPanelProvider` 且 `HasDetailPanel` 才显示）⇒ 迁移页必须删掉页内 `detail-toggle` 块，⛔ 不允许两处都有（三轮删除了 `storages` / `tags` / `trash` 三页的页内自绘开关）。
+- ⚠️ **已知微降级**：页内 `io-bar` 分组容器（`StackPanel Spacing=6`，**无边框/底色**）在统一工具条里退化为全局 **8px** 间距（差 2px）；**左右双栏页**（`categories` / `collections`）的工具条原先在**右列顶部**，统一后**上提到页面顶部**（跨整页宽）。
 
 ## §4 配置与路径实现
 

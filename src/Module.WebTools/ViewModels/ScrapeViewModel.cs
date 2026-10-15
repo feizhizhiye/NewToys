@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.WebTools.Models;
@@ -19,7 +21,7 @@ namespace NewToys.WebTools.ViewModels;
 /// 列表管理多个任务；右键「运行 / 发送到书签」。列显隐 / 详情开合偏好落 <c>config\columnlayout.json</c>。
 /// </para>
 /// </summary>
-public partial class ScrapeViewModel : ListPageViewModelBase
+public partial class ScrapeViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly ScrapeService _svc = null!;
@@ -97,6 +99,175 @@ public partial class ScrapeViewModel : ListPageViewModelBase
 
     protected override void OnDetailSampleChanged() => OnPropertyChanged(nameof(ShowDetailBody));
 
+    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+
+    /// <summary>「运行结果」块是否要显示（原 XAML 用 <c>ObjectConverters.IsNotNull</c>，描述符只认布尔路径）。</summary>
+    public bool HasLastOutput => !string.IsNullOrEmpty(DetailItem.LastOutput);
+
+    /// <summary>「最近运行：N 条」（原 XAML 走 <c>StringFormat</c> 带后缀，描述符不支持格式化 ⇒ 这里先拼好）。</summary>
+    public string LastRunSummary => $"最近运行：{DetailItem.LastCount} 条";
+
+    /// <summary>运行时间展示串（同上）。</summary>
+    public string LastRunAtDisplay => DetailItem.LastRunAt is { } t && t != default ? t.ToString("yyyy-MM-dd HH:mm") : "";
+
+    private void NotifyLastInfo()
+    {
+        OnPropertyChanged(nameof(HasLastOutput));
+        OnPropertyChanged(nameof(LastRunSummary));
+        OnPropertyChanged(nameof(LastRunAtDisplay));
+    }
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>工具条末位的详情开关 → 走本命令（⛔ 基类 <c>ToggleDetailCommand</c> 不通知 Shell，右列不会跟着开合）。</summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <summary>
+    /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// <para>结构与迁移前的页内自绘卡片对应：任务名 / 起始网址 / 规则类型 / 规则 / UA / 整合脚本 + 运行结果块 + 三个卡内动作。</para>
+    /// <para>⚠️ 迁移降级：原页内卡是 <b>420px 宽</b>（要放规则 / 脚本），Shell 右列固定 340px。</para>
+    /// </summary>
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    private DetailCardDescriptor BuildCard() => new()
+    {
+        BodyVisiblePath = nameof(ShowDetailBody),
+        SamplePath = nameof(IsDetailSample),
+        EmptyText = "在左侧列表里选中一个任务",
+        SampleText = "（示例数据）在左侧选中一个任务后，这里显示它的真实配置；示例态下不可编辑。",
+        Sections =
+        {
+            new DetailSection
+            {
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Label = "任务名",
+                        ValuePath = "DetailItem.Name",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur
+                    },
+                    new DetailField
+                    {
+                        Label = "起始网址",
+                        ValuePath = "DetailItem.StartUrl",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur
+                    },
+                    new DetailField
+                    {
+                        Label = "抓取规则类型",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(RuleTypes),
+                        ValuePath = "DetailItem.RuleType"
+                    },
+                    new DetailField
+                    {
+                        Label = "抓取规则（CSS 选择器如 div.news a；或正则）",
+                        ValuePath = "DetailItem.Rule",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true
+                    },
+                    new DetailField
+                    {
+                        Label = "User-Agent（留空用默认）",
+                        ValuePath = "DetailItem.UserAgent",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur
+                    },
+                    new DetailField
+                    {
+                        Label = "整合脚本（JavaScript）：变量 items 为抓取到的字符串数组，返回最终文本",
+                        ValuePath = "DetailItem.JsScript",
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        MultiLine = true,
+                        Rows = 90,
+                        Placeholder = "留空 = 直接拼接。示例：items.map(s=>s.trim()).filter(Boolean).join('\\n')"
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        ValuePath = nameof(LastRunSummary),
+                        VisibleWhen = nameof(HasLastOutput)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Prefix = "运行时间：",
+                        ValuePath = nameof(LastRunAtDisplay),
+                        VisibleWhen = nameof(HasLastOutput)
+                    },
+                    new DetailField
+                    {
+                        Label = "输出",
+                        ValuePath = "DetailItem.LastOutput",
+                        Kind = FieldKind.Text,
+                        Selectable = true,
+                        Mono = true,
+                        VisibleWhen = nameof(HasLastOutput)
+                    }
+                }
+            }
+        },
+        Actions =
+        {
+            // 原来这三个按钮是页内卡里的 WrapPanel；声明式卡里进 Actions 区。
+            new DetailAction
+            {
+                Text = "▶ 运行",
+                Classes = "primary",
+                ToolTip = "按当前配置跑一次抓取",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = RunCommand
+            },
+            new DetailAction
+            {
+                Text = "💾 保存",
+                Classes = "ghost",
+                ToolTip = "把当前配置写回任务清单",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = SaveCommand
+            },
+            new DetailAction
+            {
+                Text = "🗑 删除",
+                Classes = "ghost",
+                ToolTip = "删除这个抓取任务",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = DeleteCommand
+            }
+        }
+    };
+
     public ScrapeViewModel() { }
 
     public ScrapeViewModel(ScrapeService svc, IColumnLayoutService cols, WebTransferService transfer)
@@ -172,6 +343,7 @@ public partial class ScrapeViewModel : ListPageViewModelBase
         if (Selected == null) return;
         await RunOneAsync(Selected);
         ApplyView();
+        NotifyLastInfo();
     }
 
     [RelayCommand]
@@ -191,7 +363,7 @@ public partial class ScrapeViewModel : ListPageViewModelBase
             }));
             StatusText = "全部任务运行完毕。";
         }
-        finally { IsBusy = false; ApplyView(); }
+        finally { IsBusy = false; ApplyView(); NotifyLastInfo(); }
     }
 
     private async Task RunOneAsync(ScrapeTask t)
@@ -247,6 +419,7 @@ public partial class ScrapeViewModel : ListPageViewModelBase
     {
         UpdateDetailSample(value != null);   // v3.32 §4.8.3：没选中项 → 详情卡改用示例任务
         OnPropertyChanged(nameof(DetailItem));
+        NotifyLastInfo();       // 切选中项 / 示例态 → 「运行结果」块跟着换
         OnPropertyChanged(nameof(HasSelection));
     }
     partial void OnSearchTextChanged(string value) => ApplyView();

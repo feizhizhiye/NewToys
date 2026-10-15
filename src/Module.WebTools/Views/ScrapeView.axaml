@@ -5,7 +5,7 @@
              x:Class="NewToys.WebTools.Views.ScrapeView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid ColumnDefinitions="*,Auto" Margin="12">
+  <Grid Margin="12">
 
     <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
@@ -25,7 +25,7 @@
                      VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
         </WrapPanel>
         <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailCommand}"
+                Command="{Binding ToggleDetailPanelCommand}"
                 ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
           <Panel>
             <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -121,63 +121,5 @@
 
     </Grid>
 
-    <!--  右：详情（配置 + 输出）；这一页更宽（要放规则 / 脚本），只覆盖 Width，其余沿用共享样式  -->
-    <Border Grid.Column="1" Classes="detail-card" Width="420"
-              IsVisible="{Binding IsDetailVisible}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <!--  v3.32 §4.8.3：示例态（没选中）时整卡禁用，⛔ 不让用户去改 / 保存一份假任务  -->
-          <StackPanel Spacing="10" IsEnabled="{Binding !IsDetailSample}">
-            <StackPanel Spacing="2" IsVisible="{Binding !ShowDetailBody}">
-              <TextBlock Text="在左侧列表里选中一个任务" FontSize="13" TextWrapping="Wrap"
-                         Foreground="{DynamicResource SecondaryTextBrush}"/>
-            </StackPanel>
-
-            <!--  v3.32 §4.8.3：示例态标识（下面是示例数据，不可编辑）  -->
-            <TextBlock Text="（示例数据）在左侧选中一个任务后，这里显示它的真实配置；示例态下不可编辑。"
-                       FontSize="12" TextWrapping="Wrap" IsVisible="{Binding IsDetailSample}"
-                       Foreground="{DynamicResource SecondaryTextBrush}"/>
-
-            <StackPanel Spacing="6" IsVisible="{Binding ShowDetailBody}">
-              <TextBlock Text="任务名" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding DetailItem.Name, Mode=TwoWay}"/>
-
-              <TextBlock Text="起始网址" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding DetailItem.StartUrl, Mode=TwoWay}"/>
-
-              <TextBlock Text="抓取规则类型" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <ComboBox ItemsSource="{Binding RuleTypes}" SelectedItem="{Binding DetailItem.RuleType, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-
-              <TextBlock Text="抓取规则（CSS 选择器如 div.news a；或正则）" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding DetailItem.Rule, Mode=TwoWay}"/>
-
-              <TextBlock Text="User-Agent（留空用默认）" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding DetailItem.UserAgent, Mode=TwoWay}"/>
-
-              <TextBlock Text="整合脚本（JavaScript）：变量 items 为抓取到的字符串数组，返回最终文本" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-              <TextBox Text="{Binding DetailItem.JsScript, Mode=TwoWay}" AcceptsReturn="True" Height="90"
-                       TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"
-                       PlaceholderText="留空 = 直接拼接。示例：items.map(s=>s.trim()).filter(Boolean).join('\n')"/>
-
-              <!-- ⚠️ Avalonia 的 WrapPanel **没有** Spacing 属性（StackPanel 才有）→ 用按钮 Margin 做间距 -->
-              <WrapPanel Orientation="Horizontal">
-                <Button Classes="primary" Content="▶ 运行" Margin="0,0,6,0" Command="{Binding RunCommand}"/>
-                <Button Classes="ghost" Content="💾 保存" Margin="0,0,6,0" Command="{Binding SaveCommand}"/>
-                <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}"/>
-              </WrapPanel>
-
-              <StackPanel Spacing="2"
-                          IsVisible="{Binding DetailItem.LastOutput, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-                <TextBlock Text="{Binding DetailItem.LastCount, StringFormat='最近运行：{0} 条'}" FontSize="11"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="{Binding DetailItem.LastRunAt, StringFormat='运行时间：{0:yyyy-MM-dd HH:mm}'}" FontSize="11"
-                           Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="输出" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <SelectableTextBlock Text="{Binding DetailItem.LastOutput}" FontFamily="Consolas" FontSize="11"
-                                    TextWrapping="Wrap" MaxHeight="240"/>
-              </StackPanel>
-            </StackPanel>
-          </StackPanel>
-        </ScrollViewer>
-      </Border>
   </Grid>
 </UserControl>

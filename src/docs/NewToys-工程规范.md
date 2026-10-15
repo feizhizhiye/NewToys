@@ -1,24 +1,17 @@
 # NewToys 工程规范
 
-> v3.24 · 2026-10-15 · 技术实现指南
+> v3.25 · 2026-10-15 · 技术实现指南
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
 > 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
 > 权威源：需求规格（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕技术债（本文件台账，原「折衷约束」）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
-> **v3.22 变更**：① 主题键 **32 → 34**（新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`，需求 §4.1.1 ③ / §4.7）；② §7「折衷约束台账」改名 **技术债台账**（术语标准化）；③ 附录 A **修正「Avalonia 12.1.3 托管装饰在 Win32 上不可用」这条过时结论** → 正确结论见 §2.4「窗口装饰（CSD）」；④ 新增 §2.4 窗口装饰（CSD）实现基线。
+> **v3.25 变更**：① §2.1 标题栏按钮尺寸订正（实际 40×40、图标 16px Path，NT-045 起矢量）；② §2.3 图标状态刷新——**框架层已全矢量**（NT-035/045/046），数据驱动图标收敛 NT-047；③ §2.4 版本表述同步（栈 Avalonia 12.1.3 → **12.1.4**，API 面不变，§2.4 的 12.1.3 实测结论沿用，待本地编译复核）。
 > **v3.24 变更**：🏷 文档名对齐（2026-10-14 四份文档改名）——「更新节奏」表末列列名 `提示词` → **`协作手册`**（对应 `NewToys-AI协作手册.md`，⛔ 旧名「AI协作提示词」已废）。
+> **v3.22 变更**：① 主题键 **32 → 34**（新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`，需求 §4.1.1 ③ / §4.7）；② §7「折衷约束台账」改名 **技术债台账**（术语标准化）；③ 附录 A **修正「Avalonia 12.1.3 托管装饰在 Win32 上不可用」这条过时结论** → 正确结论见 §2.4「窗口装饰（CSD）」；④ 新增 §2.4 窗口装饰（CSD）实现基线。
 >
 > ⛔ **只保留最近三次变更**，更早的逐次记录看 `git log`；需求侧章节号见《需求规格》目录（v3.11 起 §4 重排：4.5 详情卡 / 4.6 状态栏 / 4.7 主题 / 4.8 列表页 / 4.9 设置页 / 4.10 视觉规范 / 4.11 未实装）。
-> **v3.17 变更**：§3.6 列宽判定改为**示例值（Sample）**（列表空时显示一条水印示例行；示例宽 ≤ 表头宽 → 锁表头宽且 ≥34px 保证把手可拖）；补两个 Avalonia 坑：**MenuItem 子菜单的 `ItemContainerTheme` 必须写 `BasedOn`**（否则子项没模板 → 子菜单打不开）、**Button 伪类样式要用后代选择器**（单选择器会被 Fluent 主题的 `:pointerover` 盖掉）。
-> **v3.16 变更**：§3.6 列宽改为**表头拖拽手动调**（`ColumnGrid.IsResizable` + VM `ResizeColumns`；⛔ 删「自动调整列宽」开关——整体 `Auto` 时长内容列按未截断全文测宽、把其余列挤没，表头文字被裁没）；`ColumnGrid` 副本 **三份→四份**（WebTools 亦有一份，旧注释漏记）。
-> **v3.15 变更**：§6 删除「统一启动器 `scripts/launch.ps1`」说法（已弃用）；脚本改为 fail-loud（成功 `exit 0` 自关窗口、失败 `trap` 暂停），禁止 `.cmd/.bat` 铁律保留。
-> **v3.21 变更**：新增**多实例**（`--profile` 启动参数 + 每配置单例 mutex + 切换不写全局默认 + 「设为默认」/「🚀 新开」）与**窗口自绘缩放**（四边 5px / 四角 10px 抓取区 + `BeginResizeDrag`）规格（需求 §3.5 / §4.1 / §6.5）；§2.1 / §4 同步；附录 A 补三条 Avalonia 12 实测坑（`ExtendClientAreaChromeHints` 已移除、托管装饰 Win32 不可用 **← v3.22 已修正，见 §2.4**、`VisualRoot as Window` 恒 null）。
-> **v3.20 变更**：落地用户新需求「**模块设置页归本模块 + 自注册进 settings 组**」——§3.2 增**跨组注册延迟补登**规则（分组未注册时暂存、`RegisterModule` 建组时补登，⛔ 不抛异常）；§3.3 增**必备模块**（`Module.Settings`）与启动健全性检查 / 降级；§3.4 新增模块步骤补第 6 步（设置页落点 + Order 100 起）；§7 **删 B15**（原「设置页归 Module.Settings」折衷被新机制取代）；附录 A「菜单项静默丢失」行换解法。
-> **v3.19 变更**：§3.6 `ColumnGrid` 副本**四份→五份**（新增 `Module.MediaAssets`，需求 §6.6）；§7 增 **B14**（媒体资产用户手动数据落 `newtoys.db` 的 R1 例外）与 **B15**（模块设置页归属：`settings-media-assets` 的 View/VM 与注册都在 `Module.Settings`）；附录 A 补坑「跨组 `RegisterFunction` 抛异常且被 `InitializeAll` 吞 → Release 下菜单项静默丢失」。
-> **v3.18 变更**：协作流程已收敛为**规划 / 执行双模式**（🔴 唯一定义见《AI协作手册》，本文件不重复定义）—— 规划模式只动《需求规格》+《状态与路线图》待办项 + `src/docs/backlog/NT-xxx.md` 细节、⛔ 不改 `src/`；执行模式按 `✅ 就绪` 待办 + 本文件做法改代码；本文件不被执行模式改动。
-> **v3.11 变更**：随《需求规格》瘦身同步——修正章节引用（列表页 → §4.8、视觉基线 → §4.10）；**§3.9 撤下"命令生成纯函数库"与"多段剪辑"**（属评估结论，不入文档）；补 `IStatusProvider` 相关引用。
 
 ---
 
@@ -90,7 +83,7 @@
 | 工具条 / 筛选条内边距 | `12,6` / `12,4` |
 | 表头行高 / 表格行高 | **32px / 28px**；单元格左右内边距 **8px**（表头与行必须一致） |
 | 详情卡 | 宽 340px、内边距 **12px**；本页覆盖 `Padding="12,12,4,12"` + 滚动内容 `Margin="0,0,4,0"`（给覆盖式滚动条留位，见 §3.6） |
-| 标题栏按钮 | 高 32px、**图标 18px**（v3.4 由 16 放大）；窗口控制按钮沿用 46×40 |
+| 标题栏按钮 | **40×40**（与标题栏同高，`Button.title-btn` 样式 Width/Height=40）；图标 = **16px `Path`**（NT-045 起矢量，粗细/端帽/拐角由 `Button.title-btn Path` 样式给）；窗口控制按钮 46×40 |
 
 **全局样式位置**：`Shell/App.axaml`（+ 复用样式表 `Shell/Styles/Controls.axaml`）。当前样式类：
 `Button.title-btn`（标题栏工具按钮）、`Border.tab-item`/`.active`（标签项）、`Button.tab-btn`（标签）、`Button.tab-close`（标签关闭）、`Button.tree-row`/`.active`/`.sub`（左树行）、`Border.tree-panel.collapsed`（左树折叠态）、**`Border.tree-version`（左树底部「配置 · 版本」，v3.9 / v3.28 改）**、`Button.win-btn`/`.close`（窗口控制）、**`Border.status-bar` + `TextBlock.status-bar-text`（Shell 底部状态栏，v3.9）**、`Button.primary`/`.ghost`/`.fav-btn`、`Border.card`、`Button.col-header`、`Border.list-header`、`TextBlock.list-cell`、`ListBox.list-page`、**`Button.detail-toggle`（工具条末位的详情开关，v3.12；取代 v1.35 的 `Border.detail-hotspot` + `Button.header-toggle`）**。
@@ -134,15 +127,17 @@
 - 新增 Light/Dark 两套必须**同时补齐**；引用不存在键**编译不报错、运行期才失败**。
 - 废弃旧键：`AppBackground/TitleBarBackground/TextPrimary/TextSecondary/BorderColor/CardBackground`（长键）、`AppBg/TitleBarBg/Text1/Text2/CardBg/PanelBg/SidebarBg/HoverBg/Border`（短键）。
 
-### 2.3 图标（v3.3：一级菜单已矢量，其余仍 emoji）
+### 2.3 图标（v3.25：框架层已全矢量；数据驱动图标待 NT-047）
 
-> **当前状态**：**一级菜单 / 首页 = 矢量**（`Icon*` Geometry，描边型）；**二级菜单不显示图标**；⛔ 标题栏工具按钮与标签页**仍为 emoji**（待下一版）。
+> **当前状态**：**框架层（一级菜单 / 首页 / 标题栏 / 标签页 / 左树）= 矢量**（`Icon*` Geometry，描边型，NT-035 / NT-045 / NT-046 已实装）；**二级菜单不显示图标**；⚠️ **数据驱动图标**（二级功能菜单 `icon` / 首页一键按钮 / 模块页内数据行）仍是 **emoji 字符串** → 技术债 **NT-047**（⛔ 静态装饰 emoji 不动）。
 
 - **矢量图标定义**：`Shell/App.axaml` 的 `<Application.Resources>` 里，`<StreamGeometry x:Key="IconXxx">路径数据</StreamGeometry>`（24×24 网格、**描边型**）。
 - **渲染**：`<Path Data="{Binding VectorIcon}" Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="1.5" Stretch="Uniform" Width="16" Height="16"/>` —— ⚠️ 描边型**不要**用填充型的 `PathIcon`。
-- **键名规范**：`Icon<用途>`。已定义 `IconHome`/`IconPc`/`IconWeb`/`IconVideo`/`IconSettings`；下一版再补 `IconBack`/`IconForward`/`IconRefresh`/`IconSearch`/`IconMenu`/`IconClose`/`IconPackage`/`IconFavorite` 等。
+- **键名规范**：`Icon<用途>`。框架层已定义（完整清单以 `App.axaml` 为准）：`IconHome`/`IconPc`/`IconWeb`/`IconVideo`/`IconSettings`/`IconMediaAssets`/`IconMenuPanel`/`IconRefresh`/`IconPuzzle`/`IconWinMinimize`/`IconWinMaximize`/`IconWinRestore`/`IconWinClose`/`IconFullScreen`/`IconExitFullScreen`/`IconTabClose`/`IconPlus`/`IconChevronDown`/`IconChevronRight`/`IconStar`/`IconZap`/`IconGear`。
+- 🔴 **Shell 框架层图标只用 `Path`**（NT-045/046）：⛔ 图标字体 / 字符 / emoji / `Rectangle` 拼几何；粗细 / 端帽 / 拐角 / 颜色一律由按钮的后代选择器样式给，⛔ XAML 写本地 `Stroke`。
+- 🔴 **`Stretch="Uniform"` 两坑**（NT-046）：几何必须有**非零宽高**（`M4,12 H20` 零高度包围盒会退化成「一个点」）；**扁几何**（横杠 / 线）顶边对齐偏上 ~7px ⇒ 线 / 横杠类用 `Stretch="None"` + 16×16 坐标（唯一例外 `IconWinMinimize` = `M2,8 H14`）。
 - **取不到键要回退**：VM 解析失败返回 `null` → XAML 用 `IsVisible="{Binding HasVectorIcon}"` 在「矢量 / emoji」两种图标间切换（⛔ 不能让未知键显示成一串 `IconXxx` 文本）。
-- 尺寸基线：**一级菜单 / 首页 16px**；（下一版）标题栏 16px ｜ 树节点 14px ｜ 标签页 14px ｜ 标签关闭 10px。
+- 尺寸基线：**一级菜单 / 首页 / 标题栏 16px** ｜ 树节点 14px ｜ 标签页 14px ｜ 标签关闭 10px。
 - 颜色：由 `Foreground` 继承，⛔ 不写死色值。
 - **来源**：从公开线性图标集（如 Lucide / Feather，MIT 许可）取路径数据，**只取路径数据不引依赖**。风格统一（线性、同笔画粗细）。
 
@@ -155,7 +150,7 @@
 > Wayland **无服务端装饰**、装饰要么合成器画要么客户端 CSD，贴靠 / 平铺由 Mutter / KWin 管，且**没有 DWM / `WS_*` 样式位 / GDI region** 这些概念
 > ⇒ Win32 补丁路线在 Linux 上整体作废，官方 CSD 是唯一能对接的路线。口径：**框架能做的交给框架**（用户定调）。
 
-**① 官方四件套（本机 12.1.3 已核实存在）**
+**① 官方四件套（12.1.3 已核实存在；v3.43 栈升 12.1.4，API 面不变，待本地编译复核）**
 
 | API | 说明 |
 |---|---|
@@ -191,7 +186,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - `Full` 只为了拿到**完整标准窗口样式**（贴靠资格 / 系统菜单 / 最小化动画）；可见 UI 仍是自绘标题栏。
 - 主题 = `App.axaml` 的 `ControlTheme`（`TargetType="chrome:WindowDrawnDecorations"`）：**只顶掉默认主题，🔴 故意不给 `Template`**（无模板 → 框架不应用 → 不画任何装饰视觉）。
 - 🔴 **键必须是隐式键 `{x:Type chrome:WindowDrawnDecorations}`**（⛔ 自定义字符串键 + `WindowDecorationsTheme` 指它 **不生效**，Fluent 默认装饰主题照画 —— 2026-10-14 实测：标题文字 / 窗口图标 / caption 按钮全叠上来）。
-- 🔴 **12.1.3 版本事实（编译实测，⛔ 别再试）**：`Avalonia.Controls.Chrome` 公共类型只有 6 个（`WindowDrawnDecorations` / `WindowDrawnDecorationsContent` / `IWindowDrawnDecorationsTemplate` / `DrawnWindowDecorationParts` / `WindowDecorationProperties` / `ResizeGripLayer`）；⛔ **没有 `WindowDrawnDecorationsTemplate` 具体类**（internal），`Template` 属性是**接口** ⇒ 写自定义装饰模板必报 `AVLN2000`。⇒ **12.1.3 上「自定义装饰模板」这条路不存在**。
+- 🔴 **12.1.3 版本事实（编译实测，⛔ 别再试；12.1.4 同）**：`Avalonia.Controls.Chrome` 公共类型只有 6 个（`WindowDrawnDecorations` / `WindowDrawnDecorationsContent` / `IWindowDrawnDecorationsTemplate` / `DrawnWindowDecorationParts` / `WindowDecorationProperties` / `ResizeGripLayer`）；⛔ **没有 `WindowDrawnDecorationsTemplate` 具体类**（internal），`Template` 属性是**接口** ⇒ 写自定义装饰模板必报 `AVLN2000`。⇒ 「自定义装饰模板」这条路不存在。
 - 主题引用用 **`DynamicResource`**：装饰主题在合并字典完成前就可能被解析，`StaticResource` 那一刻取不到（AtomUI 指南 §15 的已知坑）。
 
 **④ Win32 手段清单（其余一律删除）**
@@ -412,6 +407,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - 加载后调 `IMenuService.RegisterModule/RegisterFunction` 注册菜单；**v3.0 刷新点**：通知 `ShellViewModel` 重建左树（`BuildTree()`）+ 刷新标签页图标键映射（若新模块的标签已打开则无需处理）。
 - **失败隔离（硬要求）**：单个 DLL 加载/注册异常 → `try-catch` 兜住，只记日志+一行 StatusText；完成后 StatusText 报「本次新增 N/跳过 M/失败 K」。
 - ⛔ 只读本地 `Modules\`；不联网不下载；加载前 `Path.GetFullPath` 校验路径在 `Modules\` 内。
+- **入口（NT-052，2026-10-15）**：**功能清单页**（`settings-all`）「增加功能」操作区的「🔄 重载模块」按钮（标题栏按钮已移入）→ `AllFunctionsViewModel.ReloadModulesCommand` 调 `IModuleReloadService.HotReload()`（`Shared` 契约 + `Core/Services/ModuleReloadService` 包装 `ModuleLoader.HotReload(sp)`）→ 完成后 `BuildGroups()` 刷新本页 + 触发 `Reloaded` 事件；**`ShellViewModel` 订阅 `Reloaded`**（进程级单例，无需退订）重建左树 + 写底栏「新增 N/跳过 M/失败 K」。设置页 VM ⛔ 不直接调 `ModuleLoader` / 不订阅事件（瞬态 VM）。
 
 ### 3.8 UI 契约（v3.0 新增；v3.1 契约落地，v3.2 页面迁移暂缓）
 

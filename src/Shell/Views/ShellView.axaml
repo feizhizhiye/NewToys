@@ -31,7 +31,7 @@
     CanResize="True"
     WindowState="Normal">
 
-    <!--  v3.44：标签项模板提为共享资源 —— 首页标签（固定列，不滚动）与滚动区标签（ScrollableTabs）
+    <!--  v3.45：标签项模板提为共享资源 —— 首页标签（固定列，不滚动）与滚动区标签（ScrollableTabs）
           共用同一份 DataTemplate（⛔ 不复制两份，防样式漂移）。  -->
     <Window.Resources>
         <DataTemplate x:Key="TabItemTemplate">
@@ -142,9 +142,10 @@
                         VerticalAlignment="Stretch"
                         Background="Transparent"
                         chrome:WindowDecorationProperties.ElementRole="User"
-                        ColumnDefinitions="Auto,*,Auto">
-                        <!--  v3.44：首页标签**固定显示、不参与横向滚动**（用户规则：必须始终可见的元素⛔不进 ScrollViewer）。
-                              数据 = ShellViewModel.HomeTab；模板与滚动区共用 TabItemTemplate。  -->
+                        ColumnDefinitions="Auto,*">
+                        <!--  v3.45：首页标签 = **唯一固定元素**（单独一列、不进 ScrollViewer）；其余全部参与横向滚动。
+                              数据 = ShellViewModel.HomeTab；模板与滚动区共用 TabItemTemplate。
+                              ⛔ 不做「固定其他标签页」功能（「固定」需求走首页收藏夹 / 常用功能，见需求 §4.2）。  -->
                         <ContentControl Grid.Column="0" Content="{Binding HomeTab}"
                                         ContentTemplate="{StaticResource TabItemTemplate}"
                                         VerticalAlignment="Center"/>
@@ -155,25 +156,32 @@
                         <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                             <ItemsControl x:Name="TabsControl" ItemsSource="{Binding ScrollableTabs}"
                                           ItemTemplate="{StaticResource TabItemTemplate}"
-                                          VerticalAlignment="Center"/>
+                                          VerticalAlignment="Center">
+                                <!--  🔴 必须显式横排面板：默认竖排 StackPanel + 竖滚禁用 = 只显示第一个（v3.44 踩过）  -->
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                            <!--  ＋ 打开「功能清单」页（当选择器用；已打开则激活）—— 参与横向滚动（v3.45 回归原位）。
+                                 NT-045：图标改矢量 `IconPlus`（24×24 网格，等比缩到 14px），颜色 / 粗细走
+                                 `Button.tab-new Path` 样式。  -->
+                            <Button
+                                Classes="tab-new"
+                                Command="{Binding OpenFunctionListCommand}"
+                                Margin="4,0,0,0"
+                                ToolTip.Tip="功能清单（打开新页面）">
+                                <Path
+                                    Width="14"
+                                    Height="14"
+                                    Stretch="Uniform"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Data="{StaticResource IconPlus}" />
+                            </Button>
                         </StackPanel>
                         </ScrollViewer>
-                        <!--  v3.44：＋ 同属"必须始终显示"→ 固定右列（原先在滚动区内，标签一多就滑走）。
-                              NT-045：图标为矢量 `IconPlus`（24×24 网格，等比缩到 14px），颜色 / 粗细走 `Button.tab-new Path` 样式。  -->
-                        <Button
-                            Grid.Column="2"
-                            Classes="tab-new"
-                            Command="{Binding OpenFunctionListCommand}"
-                            Margin="4,0,0,0"
-                            ToolTip.Tip="功能清单（打开新页面）">
-                            <Path
-                                Width="14"
-                                Height="14"
-                                Stretch="Uniform"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Data="{StaticResource IconPlus}" />
-                        </Button>
                     </Grid>
                     <Panel Grid.Column="2" Background="Transparent" />
                 </Grid>

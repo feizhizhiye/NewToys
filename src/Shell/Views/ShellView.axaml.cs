@@ -207,7 +207,7 @@ public partial class ShellView : Window
     {
         if (_vm?.ActiveTab is not { } tab) return;
 
-        // v3.44：首页标签在固定列（不滚动）⇒ 按 ScrollableTabs 的索引找容器；
+        // v3.45：首页标签在固定列（不滚动）⇒ 按 ScrollableTabs 的索引找容器；
         // IndexOf = -1（首页 / 不在滚动区）直接跳过 —— 首页天然始终可见。
         var index = _vm.ScrollableTabs.IndexOf(tab);
         if (index < 0) return;

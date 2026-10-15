@@ -47,14 +47,14 @@ public partial class ShellViewModel : ViewModelBase
     public ObservableCollection<TabItemViewModel> Tabs { get; } = new();
 
     /// <summary>
-    /// 首页标签（v3.44）：**固定显示、不参与横向滚动** —— 用户规则「必须始终可见的元素不进 ScrollViewer」。
-    /// 左树 / 标签栏点它只是激活；它随 <see cref="Tabs"/> 变化同步（CollectionChanged 里发通知）。
+    /// 首页标签（v3.45）：**唯一固定元素** —— 单独一列、不参与横向滚动；⛔ 不做「固定其他标签页」功能。
+    /// 随 <see cref="Tabs"/> 变化同步（CollectionChanged 里发通知）。
     /// </summary>
     public TabItemViewModel? HomeTab => Tabs.FirstOrDefault(t => string.Equals(t.Key, HomeKey, StringComparison.Ordinal));
 
     /// <summary>
-    /// 参与横向滚动的标签（v3.44）= <see cref="Tabs"/> 去掉首页的**镜像集合**，
-    /// 随 Tabs 的 CollectionChanged 同步（增 / 删 / 批量关都走同一套，⛔ 不在各命令里分别维护）。
+    /// 参与横向滚动的标签（v3.45）= <see cref="Tabs"/> 去掉首页的**镜像集合**
+    /// （首页是唯一固定元素，其余全滚动；随 Tabs 的 CollectionChanged 同步，⛔ 不在各命令里分别维护）。
     /// </summary>
     public ObservableCollection<TabItemViewModel> ScrollableTabs { get; } = new();
 
@@ -112,7 +112,7 @@ public partial class ShellViewModel : ViewModelBase
         // ShellViewModel 是进程级单例（AddSingleton）⇒ 订阅随进程生命周期，无需退订。
         _reload.Reloaded += OnModulesReloaded;
 
-        // v3.44：首页标签固定显示（不进滚动区）⇒ 维护「可滚动标签」镜像 + HomeTab 变更通知。
+        // v3.45：首页标签 = 唯一固定元素（不进滚动区）⇒ 维护「可滚动标签」镜像 + HomeTab 变更通知。
         // 放在 OpenTab(HomeKey) 之前订阅，保证首个首页标签也进镜像逻辑。
         Tabs.CollectionChanged += (_, _) =>
         {

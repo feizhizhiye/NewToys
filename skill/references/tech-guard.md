@@ -100,6 +100,7 @@ pwsh skill/scripts/check-techstack.ps1          # 加 -All 看 WARN 明细
 - `CommandParameter` 传了字符串字面量，而对应命令是 `RelayCommand<T>`（T ≠ string）→ Avalonia 在 `CanExecute` 抛 `ArgumentException`，被绑定机制**吞掉**；表现是"点了没反应 / 切页半途而废"。参数一律收 `object?` 自己转。
   ⚠️ 本项目列表页有 **150+ 处** `CommandParameter="列名"` 属**合法标准模式**（`SortCommand` / `ToggleColumnCommand` 都是 `object?`）⇒ **无法静态判定**，只在出新命令时留意。
 - 列键 ≠ 属性名且没显式写进 `FieldText` → 筛选**静默失效**。
+- 🔴 `ItemsControl` 改绑 `ItemsSource` / 抽模板到资源时**丢了原 `ItemsPanel`** → 回落默认**竖排** `StackPanel`；配 `VerticalScrollBarVisibility="Disabled"` 的横向滚动区 = **只显示第一项**（v3.44 标签栏踩过：新增标签只显示第一个，编译不报）⇒ 横排列表必须显式写 `<ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>`。
 - 绑定路径写错（编译绑定全工程关闭）→ 运行期才报，且只在输出窗口里。
 
 **已被实测否决的「疑似静态规则」（别再尝试静态化）**：

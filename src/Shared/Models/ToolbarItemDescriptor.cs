@@ -24,7 +24,16 @@ public enum ToolbarItemKind
     Label,
 
     /// <summary>竖分隔线（分组用）。</summary>
-    Separator
+    Separator,
+
+    /// <summary>
+    /// 单选 / 多选**按钮组**（如「软件包管理」页的「源」按钮）：按 <see cref="ToolbarItemDescriptor.ItemsPath"/>
+    /// 生成一排按钮，每项文案取 <see cref="ToolbarItemDescriptor.DisplayPath"/>、高亮跟随数据项上的
+    /// <see cref="ToolbarItemDescriptor.SelectedPath"/>，点击把**数据项本身**当参数执行
+    /// <see cref="ToolbarItemDescriptor.CommandPath"/>。
+    /// <para>v3.54 / NT-055 补迁 <c>pc-package</c> 时新增（既有页不受影响）。</para>
+    /// </summary>
+    ChipGroup
 }
 
 /// <summary>
@@ -55,7 +64,9 @@ public sealed class ToolbarItemDescriptor
     /// <summary>备用文案何时显示（绑 VM 上的 bool 属性；真 = 显示 <see cref="AltText"/>）。</summary>
     public string? AltTextPath { get; init; }
 
-    /// <summary>样式类（空格分隔），默认 <c>ghost</c>：可用 <c>primary</c> / <c>danger-btn</c> / <c>io-btn</c> 等。</summary>
+    /// <summary>样式类（空格分隔），默认 <c>ghost</c>。🔴 只表达**配色语义**，三个变体：<c>primary</c>（强调实心）/ <c>ghost</c>（描边，默认）/ <c>danger-btn</c>（红，只给会丢数据的动作）。
+    /// **尺寸（字号 / 内边距 / 最小高 / 圆角）一律由 <c>ToolbarHost</c> 一处给**（需求 §4.10.4「按钮样式全局统一」）⇒ ⛔ 别在这里换尺寸类（原 <c>io-btn</c> 已停用）。
+    /// 按钮组（<see cref="ToolbarItemKind.ChipGroup"/>）另用 <c>src-btn</c> + <c>selected</c>，尺寸同样由宿主统一。</summary>
     public string? Classes { get; init; }
 
     /// <summary>固定宽度（不写 = 由内容决定）。</summary>
@@ -115,6 +126,14 @@ public sealed class ToolbarItemDescriptor
 
     /// <summary>按哪个属性取值（配 <see cref="SelectedValuePath"/>，如 <c>Id</c>）。</summary>
     public string? SelectedValueBindingPath { get; init; }
+
+    // ==================== ChipGroup ====================
+
+    /// <summary>
+    /// 组内每项的**高亮状态**（绑**数据项**上的 bool 属性名，如 <c>IsSelected</c>）；
+    /// 组内每项的文案复用 <see cref="DisplayPath"/>。配 <see cref="ItemsPath"/> + <see cref="CommandPath"/> 使用。
+    /// </summary>
+    public string? SelectedPath { get; init; }
 
     // ==================== Button / SplitButton 的菜单 ====================
 

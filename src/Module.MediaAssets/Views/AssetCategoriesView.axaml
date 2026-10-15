@@ -37,7 +37,7 @@
             BorderThickness="1" CornerRadius="8" Padding="8">
       <Grid RowDefinitions="Auto,Auto,*">
         <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
-          <Button Classes="primary" Content="➕ 新建分类" Command="{Binding NewRootCommand}"
+          <Button Classes="ghost" Content="➕ 新建分类" Command="{Binding NewRootCommand}"
                   ToolTip.Tip="新建一个**根**分类"/>
           <Button Classes="ghost" Content="➕ 子分类" Command="{Binding NewChildCommand}"
                   ToolTip.Tip="在选中的分类下新建子分类"/>
@@ -79,13 +79,9 @@
     <!--  ==================== 右：成员列表 ====================  -->
     <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="8,0,0,0">
 
-      <Border Grid.Row="0" Classes="toolbar">
-        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" ItemSpacing="8" LineSpacing="4">
-          <TextBox Width="240" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索成员名称…"/>
-          <Button Classes="danger-btn" Content="⛔ 摘出选中" Command="{Binding RemoveMembersCommand}"
-                  ToolTip.Tip="把选中的资产从当前分类摘出（⛔ 不删资产、⛔ 不动磁盘文件）"/>
-        </WrapPanel>
-      </Border>
+      <!--  ==================== 工具条  ====================
+            NT-055 三轮（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），
+            页内⛔ 不再自写 `Border.toolbar`。Row0 留空（Auto → 高度 0），不动下面各行的行号。 -->
 
       <Border Grid.Row="1" Classes="filter-bar">
         <StackPanel Spacing="2">

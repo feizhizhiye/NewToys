@@ -12,48 +12,9 @@
     <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
          Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
 
-    <!--  ==================== 工具条  ====================  -->
-    <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <!--  v3.19 / NT-006：原「分类」下拉 + 「➕ 新增」按钮移入表头右键菜单（分类→🔎筛选子菜单；新增→表头右键项）。  -->
-          <TextBox x:Name="SearchBox" Width="240" Margin="0,0,8,0"
-                   Text="{Binding SearchText, Mode=TwoWay}"
-                   PlaceholderText="搜索名称 / 分类 / 简介…"
-                   ToolTip.Tip="即时过滤（本地）"/>
-        </WrapPanel>
-        <!--  导入 / 导出（v3.19 / NT-006）：用 NT-010 的 io-bar/io-btn 共享控件；
-              导入 = 合并 / 整页替换（Flyout 二选一），导出 = 全条目 json；文件选择在 code-behind。  -->
-        <StackPanel Grid.Column="1" Classes="io-bar" Margin="0,0,8,0">
-          <Button Classes="io-btn" Content="📤 导出" Click="OnExportClick"
-                  ToolTip.Tip="把本页全条目导出为 json 文件"/>
-          <Button Classes="io-btn" Content="📥 导入" ToolTip.Tip="从 json 文件导入（合并 / 整页替换）">
-            <Button.Flyout>
-              <MenuFlyout Placement="Bottom">
-                <MenuItem Header="🔀 合并导入（按 Id 去重，同 Id 覆盖）" Click="OnImportMergeClick"/>
-                <MenuItem Header="♻ 整页替换（先清空本页再导入）" Click="OnImportReplaceClick"/>
-              </MenuFlyout>
-            </Button.Flyout>
-          </Button>
-        </StackPanel>
-        <!--  🧹 清空本页（v3.19 / NT-006 方案③：真删除并落盘）：danger 语义，与导入导出分开  -->
-        <Button Grid.Column="2" Classes="danger-btn" Content="🧹 清空本页" Margin="8,0,8,0"
-                Command="{Binding ClearPageCommand}" IsEnabled="{Binding !IsBusy}"
-                ToolTip.Tip="删掉本页全部条目并写盘（真删除，二次确认；建议先导出备份）"/>
-        <Button Grid.Column="3" Classes="detail-toggle"
-                Command="{Binding ToggleDetailPanelCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
-
-
+    <!--  ==================== 工具条  ====================
+          NT-055（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），
+          页内⛔ 不再自写 `Border.toolbar`；导入 / 导出的文件选择已搬进 VM（走 DialogHooks）。 -->
 
       <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
       <Border Grid.Row="3" Classes="card" Padding="0">

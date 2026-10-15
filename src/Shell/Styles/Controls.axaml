@@ -367,32 +367,11 @@
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
   </Style>
 
-  <!--  ⑯ 列表页「导入 / 导出」组（v3.19 / 需求 §4.10.4「导入导出控件一致」）：
-        有导入导出需求的列表页（快捷设置 / 设置与脚本 / 视频列表 / 软件包已装导出）用**同一套**容器 + 按钮，
-        ⛔ 不再各页自造。用法：工具条右侧放 <StackPanel Classes="io-bar">，内含若干 <Button Classes="io-btn">。
-        （「清除缓存」这类破坏性按钮另用 danger 语义，别混进本组。）  -->
-  <Style Selector="StackPanel.io-bar">
-    <Setter Property="Orientation" Value="Horizontal"/>
-    <Setter Property="Spacing" Value="6"/>
-    <Setter Property="VerticalAlignment" Value="Center"/>
-  </Style>
-  <Style Selector="Button.io-btn">
-    <Setter Property="FontSize" Value="11"/>
-    <Setter Property="Padding" Value="10,4"/>
-    <Setter Property="CornerRadius" Value="6"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-    <Setter Property="VerticalAlignment" Value="Center"/>
-  </Style>
-  <Style Selector="Button.io-btn:pointerover">
-    <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-  </Style>
-  <!--  ⛔ 破坏性按钮（如「🧹 清空本页」，v3.19 / NT-006）：danger 语义（红），
-        与导入导出(io-btn)分开、别混进 io-bar 组（需求 §4.10.4）。  -->
+  <!--  ⑯（NT-055 收尾后**已删除**）原「列表页导入 / 导出组」`StackPanel.io-bar` + `Button.io-btn`：
+        工具条改由 Shell 的 `ToolbarHost` 统一渲染后，导入 / 导出就是**工具条里的普通按钮**（`ghost`），
+        尺寸与配色都由 `ToolbarHost` 一处给（需求 §4.10.4）⇒ 这组样式已无引用，删除。⛔ 别再加回来。  -->
+  <!--  danger 语义（红）的破坏性按钮（如「🧹 清空本页」，v3.19 / NT-006）：
+        ⛔ 只给"会丢数据"的动作（清空 / 永久删除）用，别当普通按钮的默认样式。  -->
   <Style Selector="Button.danger-btn">
     <Setter Property="FontSize" Value="11"/>
     <Setter Property="Padding" Value="10,4"/>

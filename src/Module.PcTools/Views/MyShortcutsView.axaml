@@ -12,64 +12,9 @@
     <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
          Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
 
-    <!--  ==================== 工具条  ====================  -->
-    <Border Grid.Row="1" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <!--  v3.19 / NT-006：原「分类」下拉 + 「➕ 新增」按钮移入表头右键菜单（分类→🔎筛选子菜单；新增→表头右键项）。  -->
-          <TextBox x:Name="SearchBox" Width="240" Margin="0,0,8,6"
-                   Text="{Binding SearchText, Mode=TwoWay}"
-                   PlaceholderText="搜索名称 / 分类 / 简介…"
-                   ToolTip.Tip="即时过滤（本地）"/>
-
-          <!--  脚本目录（v1.35）：选了就立即生效并写 app.json —— 选目录是明确的动作，不该再点保存  -->
-          <TextBlock Text="脚本目录" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"
-                     Foreground="{DynamicResource SecondaryTextBrush}"/>
-          <TextBox Width="260" Margin="0,0,4,6" IsReadOnly="True"
-                   Text="{Binding ScriptsDirectory, Mode=OneWay}"
-                   ToolTip.Tip="{Binding ScriptHint}"/>
-          <Button x:Name="PickScriptFolderBtn" Classes="ghost" Content="📂 选择" Margin="0,0,4,6"
-                  ToolTip.Tip="选一个目录作为脚本目录（立即生效，写入 app.json）"/>
-          <Button Classes="ghost" Content="↗ 打开" Margin="0,0,4,6" Command="{Binding OpenScriptsFolderCommand}"/>
-          <Button Classes="ghost" Content="↩ 默认" Margin="0,0,8,6" Command="{Binding ResetScriptFolderCommand}"
-                  ToolTip.Tip="{Binding DefaultScriptFolder}"/>
-
-          <!--  📥 批量导入：选一个目录，把它里面的 .py / .ps1 / .bat / .cmd 一次性全建成条目  -->
-          <Button x:Name="ImportFolderBtn" Classes="primary" Content="📥 批量导入脚本" Margin="0,0,6,6"
-                  ToolTip.Tip="选一个目录，把它里的脚本文件一次性全部建成条目（已存在的会跳过）"/>
-          <CheckBox Content="含子目录" FontSize="12" Margin="0,0,8,6"
-                    IsChecked="{Binding ImportSubFolders, Mode=TwoWay}"/>
-        </WrapPanel>
-        <!--  导入 / 导出 + 清空本页（v3.19 / NT-007）：与快捷设置页同一套 io-bar/io-btn、danger-btn；
-              导入 = 合并 / 整页替换，文件选择在 code-behind。  -->
-        <StackPanel Grid.Column="1" Classes="io-bar" Margin="0,0,8,6">
-          <Button Classes="io-btn" Content="📤 导出" Click="OnExportClick"
-                  ToolTip.Tip="把本页全条目导出为 json 文件"/>
-          <Button Classes="io-btn" Content="📥 导入" ToolTip.Tip="从 json 文件导入（合并 / 整页替换）">
-            <Button.Flyout>
-              <MenuFlyout Placement="Bottom">
-                <MenuItem Header="🔀 合并导入（按 Id 去重，同 Id 覆盖）" Click="OnImportMergeClick"/>
-                <MenuItem Header="♻ 整页替换（先清空本页再导入）" Click="OnImportReplaceClick"/>
-              </MenuFlyout>
-            </Button.Flyout>
-          </Button>
-        </StackPanel>
-        <Button Grid.Column="2" Classes="danger-btn" Content="🧹 清空本页" Margin="0,0,8,6"
-                Command="{Binding ClearPageCommand}" IsEnabled="{Binding !IsBusy}"
-                ToolTip.Tip="删掉本页全部条目并写盘（真删除，二次确认；建议先导出备份）"/>
-        <Button Grid.Column="3" Classes="detail-toggle"
-                Command="{Binding ToggleDetailPanelCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一项）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
-
+    <!--  ==================== 工具条  ====================
+          NT-055（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符；
+          本页专属项见 `MyShortcutsViewModel.ToolbarExtras`），页内⛔ 不再自写 `Border.toolbar`。 -->
 
       <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
       <Border Grid.Row="3" Classes="card" Padding="0">

@@ -65,6 +65,43 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     public bool IsUsageVisible => Vis("Usage");
     public bool IsCreatedVisible => Vis("Created");
 
+    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+
+    /// <summary>
+    /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>（含自绘的 <c>detail-toggle</c>），
+    /// 改由 Shell 渲染本描述符；详情开关由 Shell 的**浮层**统一给（本页实现 <c>IDetailPanelProvider</c>）。
+    /// </summary>
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new()
+        {
+            Text = "➕ 新建标签",
+            Classes = "ghost",
+            CommandPath = nameof(NewTagCommand),
+            ToolTip = "新建一个标签（重名会被拒）"
+        },
+        new()
+        {
+            Kind = ToolbarItemKind.TextField,
+            Width = 88,
+            Placeholder = "搜索标签名 / 命名空间…",
+            ValuePath = nameof(SearchText)
+        },
+        new()
+        {
+            Text = "🧹 清理未使用",
+            CommandPath = nameof(DeleteUnusedCommand),
+            ToolTip = "删掉使用数为 0 的标签（二次确认）"
+        },
+        // 🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库
+        new()
+        {
+            Text = "🔄 重读标签",
+            CommandPath = nameof(RefreshTagsCommand),
+            ToolTip = "重新读取标签表（⛔ 不扫盘）"
+        },
+    };
+
     protected override string PageKey => "assets-tags";
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>

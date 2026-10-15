@@ -23,11 +23,13 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
     // ==================== 声明式工具条（NT-055 / 需求 §4.8.5） ====================
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "➕ 新建方案", Classes = "primary", CommandPath = nameof(NewProfileCommand) },
-        new() { Text = "🔄 重读方案", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的 hosts 方案清单（⛔ 不动系统 hosts、不导入）" },
-        new() { Kind = ToolbarItemKind.TextField, Width = 300, Placeholder = "网络 hosts 文件 URL…", ValuePath = nameof(ImportUrl), ToolTip = "粘贴一份 hosts 文本文件的网址，点「导入」下载并解析" },
-        new() { Text = "🌐 导入", CommandPath = nameof(ImportCommand), IsEnabledPath = "!" + nameof(IsBusy) },
-        new() { Kind = ToolbarItemKind.Label, Text = "双击应用 = 写入系统 hosts（需管理员）" },
+        new() { Text = "🌐 导入", CommandPath = nameof(ImportCommand), IsEnabledPath = "!" + nameof(IsBusy),
+                ToolTip = "按右边 URL 框里的地址下载一份 hosts 文本并解析成新方案（网络失败会提示）" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "网络 hosts 文件 URL…", ValuePath = nameof(ImportUrl), ToolTip = "粘贴一份 hosts 文本文件的网址，点左边「🌐 导入」下载并解析" },
+        new() { Text = "➕ 新建方案", Classes = "ghost", CommandPath = nameof(NewProfileCommand) },
+        // v3.60：原 Label「双击应用 = 写入系统 hosts（需管理员）」删除（工具条⛔ 不放说明文字）。
+        //        ⚠️ 这条是**行级**操作提示，工具条里没有合适按钮可挂 ⇒ 暂由列表行自己表达（后续若加行 ToolTip 再补回）。
+        new() { Text = "🔄 重读方案", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的 hosts 方案清单（⛔ 不动系统 hosts、不导入）" }
     };
 
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618

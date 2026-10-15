@@ -74,6 +74,66 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     public bool IsFilesVisible => Vis("Files");
     public bool IsLastScanVisible => Vis("LastScan");
 
+    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+
+    /// <summary>
+    /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>（含自绘的 <c>detail-toggle</c>），
+    /// 改由 Shell 渲染本描述符；详情开关由 Shell 的**浮层**统一给（本页实现 <c>IDetailPanelProvider</c>）。
+    /// </summary>
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new()
+        {
+            Text = "➕ 添加存储源",
+            Classes = "ghost",
+            CommandPath = nameof(AddStorageCommand),
+            IsEnabledPath = nameof(IsDbAvailable),
+            ToolTip = "登记一个目录为存储源（⛔ 不扫描；扫描是下面的显式动作）"
+        },
+        new()
+        {
+            Kind = ToolbarItemKind.TextField,
+            Width = 88,
+            Placeholder = "搜索名称 / 根路径…",
+            ValuePath = nameof(SearchText)
+        },
+        new()
+        {
+            Text = "🔍 扫描选中",
+            CommandPath = nameof(ScanSelectedCommand),
+            IsEnabledPath = nameof(CanScanSelected),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "把选中的存储源扫一遍并直接入库（进度在「任务中心」看）"
+        },
+        new()
+        {
+            Text = "🔍 扫描全部",
+            CommandPath = nameof(ScanAllCommand),
+            IsEnabledPath = nameof(IsDbAvailable),
+            ToolTip = "所有存储源扫一遍（离线的自动跳过）"
+        },
+        // 🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库 + 逐个体探测在线状态
+        new()
+        {
+            Text = "🔄 重读存储源",
+            CommandPath = nameof(RefreshStoragesCommand),
+            ToolTip = "重新读取存储源表，并逐个探测根目录是否可访问（在线 / 离线）"
+        }
+    };
+
+    /// <summary>
+    /// ➕ 添加存储源：选一个目录 → 登记（⛔ 不扫描）。
+    /// <para>NT-055 三轮：原 <c>AssetStoragesView.axaml.cs</c> 的 Click（要 TopLevel / StorageProvider）
+    /// 搬进 VM，选择器走 <see cref="DialogHooks"/>（VM ⛔ 不引 Avalonia UI 类型）。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task AddStorageAsync()
+    {
+        var dir = await DialogHooks.PickFolderAsync("选择要登记为存储源的目录");
+        if (string.IsNullOrWhiteSpace(dir)) return;
+        AddStorage(dir);
+    }
+
     protected override string PageKey => "assets-storages";
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
@@ -101,6 +102,7 @@ public partial class ToolbarHost : UserControl
         ToolbarItemKind.TextField => BuildTextField(d, src),
         ToolbarItemKind.Combo => BuildCombo(d, src),
         ToolbarItemKind.Toggle => BuildToggle(d, src),
+        ToolbarItemKind.ChipGroup => BuildChipGroup(d, src),
         ToolbarItemKind.Label => BuildLabel(d, src),
         ToolbarItemKind.Separator => BuildSeparator(),
         ToolbarItemKind.SplitButton => BuildSplitButton(d, src),
@@ -213,6 +215,68 @@ public partial class ToolbarHost : UserControl
         return cb;
     }
 
+    /// <summary>
+    /// 多选 / 单选按钮组（<c>ChipGroup</c>；v3.54 / NT-055 补迁 <c>pc-package</c> 时新增）：
+    /// 按 <c>ItemsPath</c> 生成一排按钮（样式类 = 页面里「源」按钮用的 <c>src-btn</c>），
+    /// 每项文案取 <c>DisplayPath</c>、高亮跟随数据项的 <c>SelectedPath</c>，
+    /// 点击把**数据项本身**当参数执行 <c>CommandPath</c>。
+    /// </summary>
+    private Control BuildChipGroup(ToolbarItemDescriptor d, object src)
+    {
+        var items = new ItemsControl { VerticalAlignment = VerticalAlignment.Center };
+        // ⚠️ `ItemsControl.ItemsPanel` 的目标类型是 `ITemplate<Panel?>` ⇒ 类型参数必须写 `Panel?`
+        //    （写 `Panel` 只是警告 CS8619，但会污染编译输出）。
+        items.ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4
+        });
+
+        if (d.ItemsPath != null) Bind(items, ItemsControl.ItemsSourceProperty, src, d.ItemsPath);
+
+        items.ItemTemplate = new FuncDataTemplate<object>((item, _) => BuildChip(item, d, src), true);
+
+        ApplyEnabledVisible(items, d, src);
+        return items;
+    }
+
+    private static Control BuildChip(object? item, ToolbarItemDescriptor d, object src)
+    {
+        var btn = new Button { VerticalAlignment = VerticalAlignment.Center };
+        btn.Classes.Add("src-btn");
+
+        if (d.DisplayPath != null) btn.Bind(ContentControl.ContentProperty, new Binding(d.DisplayPath));
+        if (d.ToolTip != null) ToolTip.SetTip(btn, d.ToolTip);
+        if (d.ShowToolTipOnDisabled) ToolTip.SetShowOnDisabled(btn, true);
+
+        if (d.CommandPath != null && ResolveCommand(src, d.CommandPath) is { } cmd)
+        {
+            btn.Command = cmd;
+            btn.CommandParameter = item;          // 🔴 参数 = 数据项本身（⛔ 不是字面量）
+        }
+
+        if (d.SelectedPath != null) BindSelectedClass(btn, item, d.SelectedPath);
+        return btn;
+    }
+
+    /// <summary>
+    /// 把「选中态样式类」挂到数据项的 bool 属性上：C# 里 <c>Classes</c> 绑不了（XAML 的
+    /// <c>Classes.selected="{Binding …}"</c> 才有编译期支持），只能订阅 <see cref="INotifyPropertyChanged"/>
+    /// 手动切类 —— <c>src-btn.selected</c> 本来就是靠这个类高亮的。
+    /// </summary>
+    private static void BindSelectedClass(Button btn, object? item, string path)
+    {
+        if (item == null) return;
+        var prop = item.GetType().GetProperty(path);
+        if (prop == null) return;
+
+        void Sync() => btn.Classes.Set("selected", prop.GetValue(item) is true);
+        Sync();
+
+        if (item is INotifyPropertyChanged inpc)
+            inpc.PropertyChanged += (_, e) => { if (e.PropertyName == path) Sync(); };
+    }
+
     private Control BuildLabel(ToolbarItemDescriptor d, object src)
     {
         var tb = new TextBlock { Text = d.Text ?? "", VerticalAlignment = VerticalAlignment.Center };
@@ -224,7 +288,7 @@ public partial class ToolbarHost : UserControl
     }
 
     /// <summary>按钮 / 标签的内容：静态文案 / 动态文案 / 双文案互斥切换。</summary>
-    private static Control BuildContent(ToolbarItemDescriptor d, object src)
+    private Control BuildContent(ToolbarItemDescriptor d, object src)
     {
         if (d.AltText != null && d.AltTextPath != null)
         {
@@ -241,7 +305,9 @@ public partial class ToolbarHost : UserControl
         if (d.TextPath != null)
         {
             var tb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-            var binding = new Binding(d.TextPath);
+            // 🔴 必须显式给 Source：ToolbarHost ⛔ 没有 DataContext（与 Flyout 同一坑），
+            //    漏了 Source ⇒ 绑定取不到值 ⇒ 按钮渲染成**空白无字**（v3.60 视频列表两按钮丢字就是这个根因）。
+            var binding = new Binding(d.TextPath) { Source = src };
             if (d.TextFormat != null) binding.StringFormat = d.TextFormat;
             tb.Bind(TextBlock.TextProperty, binding);
             return tb;

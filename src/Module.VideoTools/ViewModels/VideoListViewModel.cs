@@ -71,22 +71,27 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Kind = ToolbarItemKind.TextField, Width = 300, Placeholder = "如 D:\\Videos（回车即扫描）", ValuePath = nameof(Folder), EnterCommandPath = nameof(ScanCommand) },
         new() { Kind = ToolbarItemKind.SplitButton, Text = "📂 导入", CommandPath = nameof(PickFolderCommand), ToolTip = "导入视频：选文件夹扫描（替换当前列表）/ 选单个视频文件追加；目录框里回车也等于「选文件夹」",
                 Items = new ToolbarMenuItemDescriptor[]
                 {
                     new() { Text = "📁 文件夹…", CommandPath = nameof(PickFolderCommand), ToolTip = "选一个目录扫描（替换当前列表）" },
                     new() { Text = "🎞 视频文件…", CommandPath = nameof(PickVideoFilesCommand), ToolTip = "选一个或多个视频文件，追加进当前列表" },
                 } },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "如 D:\\Videos（回车即扫描）", ValuePath = nameof(Folder), EnterCommandPath = nameof(ScanCommand) },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "按文件名 / 类型过滤…", ValuePath = nameof(SearchText) },
         new() { Text = "🔄 重扫目录", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "重新枚举当前目录（按左边「含子目录」决定深不深扫）；勾选状态保留，媒体信息优先走 SQLite 缓存" },
         new() { Kind = ToolbarItemKind.Toggle, Text = "含子目录", ValuePath = nameof(Recursive) },
-        new() { Kind = ToolbarItemKind.TextField, Width = 180, Placeholder = "按文件名 / 类型过滤…", ValuePath = nameof(SearchText) },
         new() { Text = "🔎 读取全部媒体信息", CommandPath = nameof(LoadAllMediaInfoCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 data\\newtoys.db 缓存，下次扫描直接命中" },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Kind = ToolbarItemKind.Button, Classes = "primary", TextFormat = "➡ 批量处理 ({0})", TextPath = nameof(CheckedCount), CommandPath = nameof(SendToTranscodeCommand), IsEnabledPath = nameof(HasChecked), ToolTip = "把勾选的文件批量生成**转码**任务，送到「批量处理」页（只是建任务，不立刻跑）" },
-        new() { TextFormat = "➡ 视频预览 ({0})", TextPath = nameof(CheckedCount), CommandPath = nameof(SendToCutCommand), IsEnabledPath = nameof(HasChecked), ToolTip = "把勾选的文件送进「视频预览」页，边看画面边定剪辑区间" },
+        // ⚠️ 原先 `TextPath = CheckedCount` + `TextFormat = "… ({0})"`，渲染出来的按钮是**空白**的
+        //    （根因 = `ToolbarHost.BuildContent` 的动态文案绑定漏了 Source，⛔ Host 没有 DataContext）。
+        //    已按需求 §4.8.4 第 3 条改回纯文案（⛔ 工具条不放计数指示文字），渲染侧那条也已修。
+        new() { Kind = ToolbarItemKind.Button, Classes = "ghost", Text = "➡ 批量处理", CommandPath = nameof(SendToTranscodeCommand),
+                IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true, ToolTip = "先把视频勾选上，再点这里：批量生成**转码**任务送到「批量处理」页（只是建任务，不立刻跑）" },
+        new() { Text = "➡ 视频预览", CommandPath = nameof(SendToCutCommand), IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true,
+                ToolTip = "先把视频勾选上，再点这里：送进「视频预览」页，边看画面边定剪辑区间" },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Text = "🧹 清除列表", CommandPath = nameof(ClearListCommand), ToolTip = "清空当前列表（含勾选 / 筛选），回到空态；⛔ 不删除任何视频文件、不重扫目录" },
+        new() { Text = "🧹 清除列表", CommandPath = nameof(ClearListCommand), ToolTip = "清空当前列表（含勾选 / 筛选），回到空态；⛔ 不删除任何视频文件、不重扫目录" }
     };
 
     /// <summary>上次选的目录（**只在本次运行内**记住；不写配置，见类注释）。</summary>

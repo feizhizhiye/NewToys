@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.MediaAssets.Models;
 using NewToys.MediaAssets.Services;
+using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
@@ -18,8 +20,50 @@ namespace NewToys.MediaAssets.ViewModels;
 /// </para>
 /// <para>🔴 <see cref="TaskQueue.Changed"/> 是**后台线程**抛的 → 必须 `Dispatcher.UIThread.Post` 切回 UI 再重建列表。</para>
 /// </summary>
-public partial class AssetTasksViewModel : ObservableObject, IStatusProvider
+public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IToolbarSource
 {
+    // ==================== 声明式工具条（NT-055 三轮 / 需求 §4.8.5） ====================
+    // ⚠️ 本页 VM 不是 ListPageViewModelBase ⇒ 契约成员自己实现（与 VideoPreviewViewModel 同一套路）。
+
+    /// <summary>工具条构成变化时通知 Shell（本页工具条**静态** ⇒ 不主动触发；留契约给"项随状态增删"的将来）。</summary>
+    public event EventHandler? ToolbarChanged;
+
+    /// <summary>工具条构成变了 → 通知 Shell（⛔ 只有动态构造 <see cref="Toolbar"/> 时才需要调）。</summary>
+    private void NotifyToolbarChanged() => ToolbarChanged?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。
+    /// <para>本页 <c>HasDetailPanel=false</c>（没有详情卡）⇒ Shell ⛔ 不显示详情开关。</para>
+    /// </summary>
+    public IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new()
+        {
+            Text = "✖ 取消选中任务",
+            CommandPath = nameof(CancelTaskCommand),
+            CommandArgPath = nameof(SelectedTask),
+            ToolTip = "取消选中的那件任务（排队中的直接取消；正在跑的会请求取消）"
+        },
+        new()
+        {
+            Text = "⛔ 全部取消",
+            CommandPath = nameof(CancelAllTasksCommand),
+            ToolTip = "取消所有**排队中**的任务"
+        },
+        new()
+        {
+            Text = "🧹 清理已结束",
+            CommandPath = nameof(ClearFinishedCommand),
+            ToolTip = "清掉已完成 / 失败 / 已取消的历史项（⛔ 不动排队中与在跑的）"
+        },
+        new()
+        {
+            Text = "🔄 重读任务",
+            CommandPath = nameof(RefreshTasksCommand),
+            ToolTip = "重新读取任务队列 / 扫描记录 / 操作日志（⛔ 不扫盘）"
+        },
+    };
+
     private readonly TaskQueue _queue = null!;
     private readonly AssetService _assets = null!;
     private readonly ScanService _scan = null!;

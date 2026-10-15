@@ -71,7 +71,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     public IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📂 选择视频", Classes = "primary", CommandPath = nameof(PickSourceCommand), ToolTip = "挑一个视频文件载入编辑器（这一页一次只编一个任务；载入后自动预览）" },
+        new() { Text = "📂 选择视频", Classes = "ghost", CommandPath = nameof(PickSourceCommand), ToolTip = "挑一个视频文件载入编辑器（这一页一次只编一个任务；载入后自动预览）" },
         new() { Text = "▶ 播放预览", AltText = "⏸ 停止", AltTextPath = nameof(IsPlaying), CommandPath = nameof(TogglePlayCommand), ToolTip = "类播放器：点一下自动逐帧播放预览（抽帧模拟），再点停止；也可直接拖动下面「预览位置」条手动快览" },
         new() { Text = "↻ 90°", CommandPath = nameof(RotatePreviewCwCommand), IsEnabledPath = nameof(HasSource), ToolTip = "预览画面顺时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步" },
         new() { Text = "↺ 90°", CommandPath = nameof(RotatePreviewCcwCommand), IsEnabledPath = nameof(HasSource), ToolTip = "预览画面逆时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步" },

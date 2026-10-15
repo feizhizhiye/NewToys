@@ -8,35 +8,10 @@
   -->
   <Grid RowDefinitions="Auto,Auto,*" Margin="12">
 
-    <Border Grid.Row="0" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
-                   ItemSpacing="8" LineSpacing="4">
-          <Button Classes="primary" Content="♻ 恢复" Command="{Binding RestoreCommand}"
-                  IsEnabled="{Binding HasSelection}"
-                  ToolTip.Tip="恢复回「正常」状态（⛔ 只改库里的状态，磁盘文件本来就还在）"/>
-          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索名称 / 路径…"/>
-          <Button Classes="danger-btn" Content="🗑 永久删除选中" Command="{Binding PurgeSelectedCommand}"
-                  IsEnabled="{Binding HasSelection}"
-                  ToolTip.Tip="真删磁盘文件 + 删索引行（二次确认；⛔ 不进回收站、无法还原）"/>
-          <Button Classes="danger-btn" Content="🧹 清空回收站" Command="{Binding EmptyTrashCommand}"
-                  ToolTip.Tip="把回收站里所有资产永久删除（二次确认）"/>
-          <Button Classes="ghost" Content="🔄 重读回收站" Command="{Binding RefreshTrashCommand}"
-                  ToolTip.Tip="重新读取资产库里的回收站状态行（⛔ 不扫盘）"/>
-        </WrapPanel>
-
-        <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailPanelCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一个）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
+    <!--  ==================== 工具条  ====================
+          NT-055 三轮（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），
+          页内⛔ 不再自写 `Border.toolbar` 与 `detail-toggle`（详情开关 = Shell 的浮层）。
+          Row0 留空（Auto → 高度 0），不动下面各行的行号。 -->
 
     <Border Grid.Row="1" Classes="filter-bar">
       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">

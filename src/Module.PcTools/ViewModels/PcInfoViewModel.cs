@@ -41,8 +41,8 @@ public partial class PcInfoViewModel : ListPageViewModelBase, IDetailPanelProvid
     // ==================== 声明式工具条（NT-055 / 需求 §4.8.5） ====================
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "🔄 重新检测", Classes = "primary", CommandPath = nameof(DetectCommand), IsEnabledPath = "!" + nameof(IsBusy) },
-        new() { Kind = ToolbarItemKind.TextField, Width = 220, Placeholder = "搜索分类 / 项目 / 值…", ValuePath = nameof(SearchText) },
+        new() { Text = "🔄 重新检测", Classes = "ghost", CommandPath = nameof(DetectCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索分类 / 项目 / 值…", ValuePath = nameof(SearchText) },
         new() { Text = "📋 复制全部", CommandPath = nameof(CopyAllCommand) },
         new() { Text = "📂 打开配置目录", CommandPath = nameof(OpenConfigDirCommand) },
         new() { Text = "⚙ 路径配置", CommandPath = nameof(OpenPathSettingsCommand), ToolTip = "跳到「设置 → 路径与配置」改这些默认路径" },

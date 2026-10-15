@@ -468,6 +468,27 @@
         <Style Selector="Button.ghost:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
+        <!--  工具条主按钮专用（v3.60 / NT-055 收尾）：原先工具条用 `primary`（强调色**实心**，
+              默认强调色 = 微信绿 ⇒ 一排绿按钮，抢视线）。这里给**描边版**：透明底 + 强调色描边 + 强调色文字，
+              悬停 / 按下才实心 —— 与首页收藏夹 `fav-btn`（需求 §6.5）同一口径，主次层级保留、⛔ 不再一片实心。
+              ⚠️ 只给**工具条**用（详情卡 / 页面级主按钮仍用 `primary` 实心）。  -->
+        <Style Selector="Button.primary-outline">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.primary-outline:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+        </Style>
+        <Style Selector="Button.primary-outline:pressed">
+            <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+        </Style>
         <!--  视频列表「📂 导入」拆分按钮：沿用 ghost 外观，主钮 + 下拉两半都透明、悬停同卡片色  -->
         <Style Selector="SplitButton.ghost">
             <Setter Property="Background" Value="Transparent"/>

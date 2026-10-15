@@ -53,6 +53,30 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsStorageVisible => Vis("Storage");
 
+    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+
+    /// <summary>
+    /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。
+    /// ⚠️ 与迁移前**逐项一致**（搜索框 +「⛔ 摘出选中」）；本页 <c>HasDetailPanel=false</c> ⇒ Shell ⛔ 不显示详情开关。
+    /// </summary>
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new()
+        {
+            Kind = ToolbarItemKind.TextField,
+            Width = 88,
+            Placeholder = "搜索成员名称…",
+            ValuePath = nameof(SearchText)
+        },
+        new()
+        {
+            Text = "⛔ 摘出选中",
+            Classes = "danger-btn",
+            CommandPath = nameof(RemoveMembersCommand),
+            ToolTip = "把选中的资产从当前分类摘出（⛔ 不删资产、⛔ 不动磁盘文件）"
+        },
+    };
+
     protected override string PageKey => "assets-categories";
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>

@@ -1,7 +1,5 @@
 using System;
-using System.Threading.Tasks;
 using Avalonia.Controls;
-using Avalonia.Platform.Storage;
 using NewToys.MediaAssets.ViewModels;
 
 namespace NewToys.MediaAssets.Views;
@@ -38,22 +36,6 @@ public partial class AssetStoragesView : UserControl
         if (StorageList?.ContextMenu is { } lmenu) lmenu.DataContext = DataContext;
     }
 
-    /// <summary>「➕ 添加存储源」：选一个目录 → 登记（⛔ 不扫描）。</summary>
-    private async void OnAddStorageClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (DataContext is not AssetStoragesViewModel vm) return;
-
-        var topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持目录选择器。"; return; }
-
-        var folders = await sp.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = "选择要登记为存储源的目录",
-            AllowMultiple = false
-        }).ConfigureAwait(false);
-
-        var path = folders?.Count > 0 ? folders[0].TryGetLocalPath() : null;
-        if (string.IsNullOrEmpty(path)) return;
-        vm.AddStorage(path);
-    }
+    // NT-055 三轮（需求 §4.8.5）：原「➕ 添加存储源」的 Click 接线随页内工具条一起删了 ——
+    // 现在它是 VM 上的命令（目录选择走 DialogHooks）。
 }

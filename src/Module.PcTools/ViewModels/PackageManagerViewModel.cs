@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -11,6 +12,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Core.Services;
 using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
@@ -67,6 +69,88 @@ public partial class PackageManagerViewModel : ListPageViewModelBase, IDetailPan
 
     public ObservableCollection<PackageInfo> Packages { get; } = new();
     public ObservableCollection<PackageSourceOption> SourceOptions { get; } = new();
+
+    /// <summary>
+    /// 工具条（NT-055 / 需求 §4.8.5：**由 Shell 统一渲染**，页面⛔ 不再自写 <c>Border.toolbar</c>）。
+    /// 顺序 = 折叠顺序的**反序**（越靠前越不易被折进「⋯」）。
+    /// <para>
+    /// ⚠️ 与迁移前**逐项一致**：文案 / 顺序 / 启停条件 / 悬停提示 / 回车命令（搜索框回车 = 联网搜索）。
+    /// 原页内工具条的「源」按钮组（<c>ItemsControl</c> 动态生成）改用 <see cref="ToolbarItemKind.ChipGroup"/>。
+    /// </para>
+    /// </summary>
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        // v3.60：原 Label「源」删除（工具条⛔ 不放提示文字）—— 语义改由下面的源按钮组 ToolTip 表达。
+        new()
+        {
+            Kind = ToolbarItemKind.ChipGroup,
+            ItemsPath = nameof(SourceOptions),
+            DisplayPath = "Label",
+            SelectedPath = "IsSelected",
+            CommandPath = nameof(SelectSourceCommand),
+            ToolTip = "winget 源：可多选，高亮 = 参与查询；点「🔍 联网搜索」才真去查源（「📥 已安装 / ⬆ 可升级」与源无关）"
+        },
+        new()
+        {
+            Kind = ToolbarItemKind.TextField,
+            Width = 88,
+            Placeholder = "关键字：git / Docker / ffmpeg…",
+            ValuePath = nameof(SearchText),
+            IsEnabledPath = nameof(IsSupported),
+            EnterCommandPath = nameof(SearchCommand),
+            ToolTip = "已安装 / 可升级列表里，这里就是本地过滤器；点「🔍 联网搜索」才去查 winget 源"
+        },
+        new() { Text = "🔍 联网搜索", Classes = "ghost", CommandPath = nameof(SearchCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Text = "📥 已安装", CommandPath = nameof(LoadInstalledCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Text = "⬆ 可升级", CommandPath = nameof(LoadUpgradesCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new()
+        {
+            Text = "🔄 重新查询",
+            CommandPath = nameof(RefreshCommand),
+            IsEnabledPath = "!" + nameof(IsBusy),
+            ToolTip = "按当前所在的列表重跑一次（搜索 / 已安装 / 可升级）—— 走 winget 联网查询，要等几秒"
+        },
+        new()
+        {
+            Text = "📌 Pin 列表",
+            CommandPath = nameof(LoadPinnedCommand),
+            IsEnabledPath = "!" + nameof(IsBusy),
+            ToolTip = "跑 winget pin list，把被 Pin 的包并入「已安装」列表（已存在的贴 📌，缺的补一行）"
+        },
+        new()
+        {
+            Text = "⬇ 安装选中",
+            CommandPath = nameof(InstallCheckedCommand),
+            IsEnabledPath = nameof(CanRunBatch),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "把勾选的包逐条安装（winget 会跳过已安装的；单个失败不影响其余）"
+        },
+        new()
+        {
+            Text = "⬆ 升级选中",
+            CommandPath = nameof(UpgradeCheckedCommand),
+            IsEnabledPath = nameof(CanRunBatch),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "把勾选的包逐条升级（没有可升级版本的自动跳过）"
+        },
+        // v3.60：原「已勾选 N 个」指示文字（Label + CheckedText）删除 —— 需求 §4.8.4 第 3 条：⛔ 工具条不放计数指示，
+        //        勾选状态在列表勾选框上一眼可见；前置条件写进下面两个按钮的 ToolTip（ShowToolTipOnDisabled）。
+        new() { Kind = ToolbarItemKind.Toggle, Text = "静默安装 (--silent)", ValuePath = nameof(SilentInstall) },
+        new()
+        {
+            Text = "📤 导出",
+            Classes = "ghost",
+            CommandPath = nameof(ExportPackagesCommand),
+            ToolTip = "把当前列表（建议先点「📥 已安装」）导成 json，供新系统恢复"
+        },
+        new()
+        {
+            Text = "📥 导入",
+            Classes = "ghost",
+            CommandPath = nameof(ImportPackagesCommand),
+            ToolTip = "选一个导出的 json，生成 winget 批量安装脚本(.bat)，到新系统运行即可恢复"
+        },
+    };
 
     // ==================== 页面状态 ====================
 
@@ -1006,6 +1090,51 @@ public partial class PackageManagerViewModel : ListPageViewModelBase, IDetailPan
     }
 
     // ==================== 导入 / 导出（v3.19 / NT-008：换机恢复） ====================
+
+    /// <summary>
+    /// 📤 导出当前列表为 json（建议先点「📥 已安装」再导）。
+    /// <para>NT-055：原来在 <c>PackageManagerView.axaml.cs</c>（要 TopLevel / StorageProvider），
+    /// 工具条改由 Shell 渲染后搬进 VM，选择器走 <see cref="DialogHooks"/>（VM ⛔ 不引 Avalonia UI 类型）。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task ExportPackagesAsync()
+    {
+        var path = await DialogHooks.SaveFileAsync("导出已安装包清单", ImportExportDefaultDir, "packages.json", "*.json");
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try
+        {
+            File.WriteAllText(path, ExportPackagesJson());
+            StatusText = $"已导出当前列表到：{path}（新系统上用它生成安装脚本）";
+        }
+        catch (Exception ex) { StatusText = "导出失败：" + ex.Message; }
+    }
+
+    /// <summary>📥 导入导出的 json → 生成 winget 批量安装脚本(.bat)（NT-055：同「📤 导出」搬进 VM）。</summary>
+    [RelayCommand]
+    private async Task ImportPackagesAsync()
+    {
+        var files = await DialogHooks.PickFilesAsync("选择要恢复的包清单 json", ImportExportDefaultDir, false, "*.json");
+        var src = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(src)) return;
+
+        try
+        {
+            var script = BuildInstallScript(File.ReadAllText(src));
+            if (string.IsNullOrEmpty(script))
+            {
+                StatusText = "⚠ 这个 json 里没有可安装的包（或不是本程序导出的清单）。";
+                return;
+            }
+
+            var dst = await DialogHooks.SaveFileAsync("保存批量安装脚本", ImportExportDefaultDir, "install-packages.bat", "*.bat");
+            if (string.IsNullOrWhiteSpace(dst)) return;
+
+            File.WriteAllText(dst, script);
+            StatusText = $"已生成批量安装脚本：{dst}（在新系统上运行它即可恢复）";
+        }
+        catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
+    }
 
     /// <summary>📤 导出：把当前列表导成 json（换机恢复用；只留 Id / Name / Version）。建议先在「📥 已安装」后再导。</summary>
     public string ExportPackagesJson()

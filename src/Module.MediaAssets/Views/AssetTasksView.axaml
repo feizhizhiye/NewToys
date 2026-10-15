@@ -10,19 +10,9 @@
   -->
   <Grid RowDefinitions="Auto,*" Margin="12">
 
-    <Border Grid.Row="0" Classes="toolbar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" ItemSpacing="8" LineSpacing="4">
-        <Button Classes="ghost" Content="✖ 取消选中任务" Command="{Binding CancelTaskCommand}"
-                CommandParameter="{Binding SelectedTask}"
-                ToolTip.Tip="取消选中的那件任务（排队中的直接取消；正在跑的会请求取消）"/>
-        <Button Classes="ghost" Content="⛔ 全部取消" Command="{Binding CancelAllTasksCommand}"
-                ToolTip.Tip="取消所有**排队中**的任务"/>
-        <Button Classes="ghost" Content="🧹 清理已结束" Command="{Binding ClearFinishedCommand}"
-                ToolTip.Tip="清掉已完成 / 失败 / 已取消的历史项（⛔ 不动排队中与在跑的）"/>
-        <Button Classes="ghost" Content="🔄 重读任务" Command="{Binding RefreshTasksCommand}"
-                ToolTip.Tip="重新读取任务队列 / 扫描记录 / 操作日志（⛔ 不扫盘）"/>
-      </WrapPanel>
-    </Border>
+    <!--  ==================== 工具条  ====================
+          NT-055 三轮（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），
+          页内⛔ 不再自写 `Border.toolbar`。Row0 留空（Auto → 高度 0），不动下面各行的行号。 -->
 
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="12">

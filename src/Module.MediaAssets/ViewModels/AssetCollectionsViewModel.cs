@@ -48,6 +48,49 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsStorageVisible => Vis("Storage");
 
+    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+
+    /// <summary>
+    /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。
+    /// ⚠️ 与迁移前**逐项一致**（搜索框 + 上移 / 下移 / 移出选中，后三者**智能集合置灰**）；
+    /// 本页 <c>HasDetailPanel=false</c> ⇒ Shell ⛔ 不显示详情开关。
+    /// </summary>
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new()
+        {
+            Kind = ToolbarItemKind.TextField,
+            Width = 88,
+            Placeholder = "搜索成员名称…",
+            ValuePath = nameof(SearchText)
+        },
+        new()
+        {
+            Text = "⬆ 上移",
+            CommandPath = nameof(MoveUpCommand),
+            IsEnabledPath = "!" + nameof(IsSmartSelected),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "上移一位（写 sort_order，与拖拽同效）"
+        },
+        new()
+        {
+            Text = "⬇ 下移",
+            CommandPath = nameof(MoveDownCommand),
+            IsEnabledPath = "!" + nameof(IsSmartSelected),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "下移一位（写 sort_order）"
+        },
+        new()
+        {
+            Text = "⛔ 移出选中",
+            Classes = "danger-btn",
+            CommandPath = nameof(RemoveMemberCommand),
+            IsEnabledPath = "!" + nameof(IsSmartSelected),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "把选中的资产移出本集合（⛔ 不删资产、⛔ 不动磁盘文件）"
+        },
+    };
+
     protected override string PageKey => "assets-collections";
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>

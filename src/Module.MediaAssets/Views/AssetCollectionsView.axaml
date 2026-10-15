@@ -36,7 +36,7 @@
             BorderThickness="1" CornerRadius="8" Padding="8">
       <Grid RowDefinitions="Auto,Auto,*">
         <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
-          <Button Classes="primary" Content="➕ 新建集合" Command="{Binding NewCollectionCommand}"
+          <Button Classes="ghost" Content="➕ 新建集合" Command="{Binding NewCollectionCommand}"
                   ToolTip.Tip="新建一个手动集合（成员靠手工加 / 排序）"/>
           <Button Classes="ghost" Content="⚡ 新建智能" Command="{Binding NewSmartCommand}"
                   ToolTip.Tip="新建智能集合（⚠️ 本轮只存规则文本，规则求值未实装）"/>
@@ -80,18 +80,9 @@
     <!--  ==================== 右：成员列表 ====================  -->
     <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Margin="8,0,0,0">
 
-      <Border Grid.Row="0" Classes="toolbar">
-        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" ItemSpacing="8" LineSpacing="4">
-          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="搜索成员名称…"/>
-          <Button Classes="ghost" Content="⬆ 上移" Command="{Binding MoveUpCommand}"
-                  IsEnabled="{Binding !IsSmartSelected}" ToolTip.Tip="上移一位（写 sort_order，与拖拽同效）"/>
-          <Button Classes="ghost" Content="⬇ 下移" Command="{Binding MoveDownCommand}"
-                  IsEnabled="{Binding !IsSmartSelected}" ToolTip.Tip="下移一位（写 sort_order）"/>
-          <Button Classes="danger-btn" Content="⛔ 移出选中" Command="{Binding RemoveMemberCommand}"
-                  IsEnabled="{Binding !IsSmartSelected}"
-                  ToolTip.Tip="把选中的资产移出本集合（⛔ 不删资产、⛔ 不动磁盘文件）"/>
-        </WrapPanel>
-      </Border>
+      <!--  ==================== 工具条  ====================
+            NT-055 三轮（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），
+            页内⛔ 不再自写 `Border.toolbar`。Row0 留空（Auto → 高度 0），不动下面各行的行号。 -->
 
       <Border Grid.Row="1" Classes="filter-bar">
         <StackPanel Spacing="2">

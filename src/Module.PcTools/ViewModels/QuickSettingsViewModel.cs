@@ -27,6 +27,13 @@ public partial class QuickSettingsViewModel : QuickActionListViewModel
     protected override string ColumnLayoutKey => "pc-quicksettings";
     protected override string PageDisplayName => "快捷设置";
 
+    // ==================== 工具条（NT-055 / 需求 §4.8.5） ====================
+
+    protected override string ExportSuggestedName => "pc-quick-export.json";
+
+    /// <summary>本页搜索框原本没有悬停提示（保持迁移前一致）。</summary>
+    protected override string? SearchToolTip => null;
+
     /// <summary>本页详情卡（NT-054 / 需求 §4.5.1）：本页条目**全是命令行命令** ⇒ 没有类型下拉，多出 Shell / 隐藏终端窗口两项。</summary>
     protected override DetailCardDescriptor BuildCard()
     {

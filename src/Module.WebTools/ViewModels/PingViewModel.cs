@@ -39,13 +39,13 @@ public partial class PingViewModel : ListPageViewModelBase, IDetailPanelProvider
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📥 导入文件", Classes = "primary", CommandPath = nameof(ImportTargetsCommand), ToolTip = "选择一行一个主机的文本文件" },
+        new() { Text = "📥 导入文件", Classes = "ghost", CommandPath = nameof(ImportTargetsCommand), ToolTip = "选择一行一个主机的文本文件" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索主机…", ValuePath = nameof(SearchText) },
+        // v3.60：原 Label「右键列表项：…」删除（工具条⛔ 不放说明文字）—— 右键能力本来就写在各右键菜单项上。
         new() { Text = "➕ 新建", CommandPath = nameof(NewTargetCommand) },
         new() { Text = "📡 批量 Ping", CommandPath = nameof(PingAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new() { Text = "🔄 重读目标", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的目标清单（⛔ 不发起 Ping）" },
-        new() { Kind = ToolbarItemKind.Combo, Width = 200, ItemsPath = nameof(DnsPresets), SelectedItemPath = nameof(SelectedDns), ToolTip = "切换 DNS：批量 Ping 与未单独设置 DNS 的目标都按此解析" },
-        new() { Kind = ToolbarItemKind.TextField, Width = 200, Placeholder = "搜索主机…", ValuePath = nameof(SearchText) },
-        new() { Kind = ToolbarItemKind.Label, Text = "右键列表项：发送到书签 / 网页抓取 / Ping / 编辑 / 删除" },
+        new() { Kind = ToolbarItemKind.Combo, Width = 200, ItemsPath = nameof(DnsPresets), SelectedItemPath = nameof(SelectedDns), ToolTip = "切换 DNS：批量 Ping 与未单独设置 DNS 的目标都按此解析" }
     };
 
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618

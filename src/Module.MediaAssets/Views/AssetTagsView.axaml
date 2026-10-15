@@ -10,34 +10,10 @@
   -->
   <Grid RowDefinitions="Auto,Auto,*" Margin="12">
 
-    <!--  ==================== ① 工具条（页面级功能） ====================  -->
-    <Border Grid.Row="0" Classes="toolbar">
-      <Grid ColumnDefinitions="*,Auto">
-        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
-                   ItemSpacing="8" LineSpacing="4">
-          <Button Classes="primary" Content="➕ 新建标签" Command="{Binding NewTagCommand}"
-                  ToolTip.Tip="新建一个标签（重名会被拒）"/>
-          <TextBox Width="220" Text="{Binding SearchText, Mode=TwoWay}"
-                   PlaceholderText="搜索标签名 / 命名空间…"/>
-          <Button Classes="ghost" Content="🧹 清理未使用" Command="{Binding DeleteUnusedCommand}"
-                  ToolTip.Tip="删掉使用数为 0 的标签（二次确认）"/>
-          <!--  🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库 -->
-          <Button Classes="ghost" Content="🔄 重读标签" Command="{Binding RefreshTagsCommand}"
-                  ToolTip.Tip="重新读取标签表（⛔ 不扫盘）"/>
-        </WrapPanel>
-
-        <Button Grid.Column="1" Classes="detail-toggle"
-                Command="{Binding ToggleDetailPanelCommand}"
-                ToolTip.Tip="显示 / 隐藏右侧详情（展开时自动选中第一个标签）">
-          <Panel>
-            <TextBlock Text="❯" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !IsDetailVisible}"/>
-            <TextBlock Text="❮" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding IsDetailVisible}"/>
-          </Panel>
-        </Button>
-      </Grid>
-    </Border>
+    <!--  ==================== ① 工具条（页面级功能） ====================
+          NT-055 三轮（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），
+          页内⛔ 不再自写 `Border.toolbar` 与 `detail-toggle`（详情开关 = Shell 的浮层）。
+          Row0 留空（Auto → 高度 0），不动下面各行的行号。 -->
 
     <!--  ==================== ② 筛选条 ====================  -->
     <Border Grid.Row="1" Classes="filter-bar">

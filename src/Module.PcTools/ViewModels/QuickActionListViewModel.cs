@@ -722,7 +722,126 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         return (added, skipped);
     }
 
-    // ==================== 整页导入 / 导出（v3.19 / NT-006、NT-007；控件样式见 NT-010 的 io-bar/io-btn） ====================
+    // ==================== 工具条（NT-055 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+
+    /// <summary>导出时建议的文件名（两页不同：<c>pc-scripts-export.json</c> / <c>pc-quick-export.json</c>）。</summary>
+    protected virtual string ExportSuggestedName => "pc-export.json";
+
+    /// <summary>搜索框的悬停提示（「快捷设置」页原本没有 → 派生类覆盖成 null）。</summary>
+    protected virtual string? SearchToolTip => "即时过滤（本地）";
+
+    /// <summary>
+    /// 夹在「搜索框」与「导入 / 导出」之间的**页专属**项（默认空）：
+    /// 「设置与脚本」页放脚本目录 + 批量导入；「快捷设置」页没有。
+    /// </summary>
+    protected virtual IEnumerable<ToolbarItemDescriptor> ToolbarExtras => Array.Empty<ToolbarItemDescriptor>();
+
+    /// <summary>
+    /// 排在**共用搜索框之后**的页专属项（v3.61）：给「入口动作 / 输入框 / 搜索框」三件套后面还要挂按钮的页用
+    /// （如 <c>pc-shortcuts</c> 的脚本目录三按钮；⛔ 别塞进 <see cref="ToolbarExtras"/>，否则会把搜索框挤到后面）。
+    /// </summary>
+    protected virtual IEnumerable<ToolbarItemDescriptor> ToolbarTailExtras => Array.Empty<ToolbarItemDescriptor>();
+
+    /// <summary>
+    /// 工具条（NT-055 / 需求 §4.8.5）：页面⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。
+    /// <para>
+    /// 顺序按「全部资产」同一口径：**入口动作（<see cref="ToolbarExtras"/>）→ 输入框 → 搜索框**，
+    /// 页专属项在前，共用搜索框紧随其后，末尾是共用的「导出 / 导入（导入 = 合并 / 整页替换两路菜单）+ 清空本页」。
+    /// </para>
+    /// </summary>
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar
+    {
+        get
+        {
+            var items = new List<ToolbarItemDescriptor>();
+
+            // 页专属项（入口动作 / 输入框）在前，共用的搜索框紧随其后（与「全部资产」同一口径）。
+            items.AddRange(ToolbarExtras);
+
+            items.Add(new()
+            {
+                Kind = ToolbarItemKind.TextField,
+                Width = 88,
+                Placeholder = "搜索名称 / 分类 / 简介…",
+                ValuePath = nameof(SearchText),
+                ToolTip = SearchToolTip
+            });
+
+            // 搜索框之后的页专属项（⛔ 别塞进 ToolbarExtras —— 那会把搜索框从「入口动作 / 输入框」后面挤开）。
+            items.AddRange(ToolbarTailExtras);
+
+            items.AddRange(new ToolbarItemDescriptor[]
+            {
+                new()
+                {
+                    Text = "📤 导出",
+                    Classes = "ghost",
+                    CommandPath = nameof(ExportPageCommand),
+                    ToolTip = "把本页全条目导出为 json 文件"
+                },
+                new()
+                {
+                    // ⚠️ 原页内就是这个语义：**整颗按钮**弹菜单二选一（⛔ 不给它 CommandPath —— 否则点按钮会先跑合并导入）
+                    Text = "📥 导入",
+                    Classes = "ghost",
+                    ToolTip = "从 json 文件导入（合并 / 整页替换）",
+                    Items = new ToolbarMenuItemDescriptor[]
+                    {
+                        new() { Text = "🔀 合并导入（按 Id 去重，同 Id 覆盖）", CommandPath = nameof(ImportPageMergeCommand) },
+                        new() { Text = "♻ 整页替换（先清空本页再导入）", CommandPath = nameof(ImportPageReplaceCommand) },
+                    }
+                },
+                new()
+                {
+                    Text = "🧹 清空本页",
+                    Classes = "danger-btn",
+                    CommandPath = nameof(ClearPageCommand),
+                    IsEnabledPath = "!" + nameof(IsBusy),
+                    ToolTip = "删掉本页全部条目并写盘（真删除，二次确认；建议先导出备份）"
+                },
+            });
+
+            return items;
+        }
+    }
+
+    /// <summary>📤 导出：把本页全条目存成 json 文件（NT-055：原 code-behind 的 Click 搬进 VM，选择器走 DialogHooks）。</summary>
+    [RelayCommand]
+    private async Task ExportPageAsync()
+    {
+        var path = await DialogHooks.SaveFileAsync("导出清单", ImportExportDefaultDir, ExportSuggestedName, "*.json");
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try
+        {
+            File.WriteAllText(path, ExportPageJson());
+            StatusText = $"已导出本页全条目到：{path}";
+        }
+        catch (Exception ex) { StatusText = "导出失败：" + ex.Message; }
+    }
+
+    /// <summary>📥 合并导入（按 Id 去重，同 Id 覆盖）。</summary>
+    [RelayCommand]
+    private Task ImportPageMergeAsync() => ImportPageFromFileAsync(replace: false);
+
+    /// <summary>📥 整页替换导入（先清空本页再导入）。</summary>
+    [RelayCommand]
+    private Task ImportPageReplaceAsync() => ImportPageFromFileAsync(replace: true);
+
+    /// <summary>📥 导入：选 json 文件 → 合并 / 整页替换导入本页（NT-055：原 code-behind 的 Click 搬进 VM）。</summary>
+    private async Task ImportPageFromFileAsync(bool replace)
+    {
+        var files = await DialogHooks.PickFilesAsync(
+            replace ? "选择要整页替换导入的清单" : "选择要合并导入的清单",
+            ImportExportDefaultDir, false, "*.json");
+        var path = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try { StatusText = ImportPageJson(File.ReadAllText(path), replace); }
+        catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
+    }
+
+    // ==================== 整页导入 / 导出（v3.19 / NT-006、NT-007；NT-055 收尾后控件样式由 Shell 的 ToolbarHost 统一） ====================
 
     /// <summary>导出本页**全条目** json 文本（供 View「📤 导出」存盘）。</summary>
     public string ExportPageJson() => _svc?.ExportPage(_pageKind) ?? "[]";

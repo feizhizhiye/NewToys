@@ -43,13 +43,13 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📥 导入书签", Classes = "primary", CommandPath = nameof(ImportBookmarksCommand), ToolTip = "选择浏览器导出的书签 HTML 文件" },
+        new() { Text = "📥 导入书签", Classes = "ghost", CommandPath = nameof(ImportBookmarksCommand), ToolTip = "选择浏览器导出的书签 HTML 文件" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索标题 / 网址 / 分组…", ValuePath = nameof(SearchText) },
+        // v3.60：原 Label「右键列表项：…」删除（工具条⛔ 不放说明文字）—— 右键能力本来就写在各右键菜单项上。
         new() { Text = "➕ 新建", CommandPath = nameof(NewBookmarkCommand) },
         new() { Text = "🔗 检测全部", CommandPath = nameof(CheckAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new() { Text = "🚀 批量打开", CommandPath = nameof(OpenBatchCommand) },
-        new() { Text = "🔄 重读书签", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地书签配置（⛔ 不联网、不导浏览器）" },
-        new() { Kind = ToolbarItemKind.TextField, Width = 220, Placeholder = "搜索标题 / 网址 / 分组…", ValuePath = nameof(SearchText) },
-        new() { Kind = ToolbarItemKind.Label, Text = "右键列表项：联通检测 · 批量打开 · 打开 · 发送到抓取 · 编辑 · 删除" },
+        new() { Text = "🔄 重读书签", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地书签配置（⛔ 不联网、不导浏览器）" }
     };
 
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618

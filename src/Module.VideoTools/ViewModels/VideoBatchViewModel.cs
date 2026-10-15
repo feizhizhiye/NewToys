@@ -78,11 +78,11 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📂 添加文件", Classes = "primary", CommandPath = nameof(PickFilesCommand), ToolTip = "按左边选的类型建任务；只是建任务，不立刻跑" },
-        new() { Kind = ToolbarItemKind.Combo, Width = 220, ItemsPath = nameof(Presets), DisplayPath = "Name", SelectedValuePath = nameof(DefaultPresetId), SelectedValueBindingPath = "Id", ToolTip = "只影响随后加入的**转码**任务；已存在的任务在右侧详情卡里单独改" },
-        new() { Kind = ToolbarItemKind.TextField, Width = 180, Placeholder = "按文件名 / 输出过滤…", ValuePath = nameof(SearchText) },
+        new() { Text = "📂 添加文件", Classes = "ghost", CommandPath = nameof(PickFilesCommand), ToolTip = "按左边选的类型建任务；只是建任务，不立刻跑" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "按文件名 / 输出过滤…", ValuePath = nameof(SearchText) },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Text = "▶▶ 批量运行", Classes = "primary", CommandPath = nameof(RunAllCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "按列表顺序依次处理（剪辑 / 转码各按自己的参数），跑完自动探测输出文件" },
+        new() { Kind = ToolbarItemKind.Combo, Width = 220, ItemsPath = nameof(Presets), DisplayPath = "Name", SelectedValuePath = nameof(DefaultPresetId), SelectedValueBindingPath = "Id", ToolTip = "只影响随后加入的**转码**任务；已存在的任务在右侧详情卡里单独改" },
+        new() { Text = "▶▶ 批量运行", Classes = "ghost", CommandPath = nameof(RunAllCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "按列表顺序依次处理（剪辑 / 转码各按自己的参数），跑完自动探测输出文件" },
         new() { Text = "▶ 只跑选中", CommandPath = nameof(RunSelectedCommand), IsEnabledPath = nameof(IsNotBusy) },
         new() { Text = "⏹ 停止", CommandPath = nameof(StopCommand), IsEnabledPath = nameof(IsRunning) },
         new() { Kind = ToolbarItemKind.Separator },
@@ -97,7 +97,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         new() { Text = "🧹 清理已结束", CommandPath = nameof(ClearFinishedCommand), IsEnabledPath = nameof(IsNotBusy) },
         new() { Text = "🧹 清除缓存", CommandPath = nameof(ClearCacheCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "只清页面上的这条列表（不再显示它们）：⛔ 磁盘上的 config\\video-tasks.json 不会动，点「📥 导入任务」可以再读回来" },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Text = "➡ 送预览", Classes = "primary", CommandPath = nameof(SendToPreviewCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把选中的任务源文件送进「视频预览」页（一次只编一个，进入后自动载入）" },
+        new() { Text = "➡ 送预览", Classes = "ghost", CommandPath = nameof(SendToPreviewCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把选中的任务源文件送进「视频预览」页（一次只编一个，进入后自动载入）" },
     };
 
     private readonly VideoTaskStore? _store;

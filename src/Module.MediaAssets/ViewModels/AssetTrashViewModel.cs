@@ -54,6 +54,55 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsStorageVisible => Vis("Storage");
 
+    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+
+    /// <summary>
+    /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>（含自绘的 <c>detail-toggle</c>），
+    /// 改由 Shell 渲染本描述符；详情开关由 Shell 的**浮层**统一给（本页实现 <c>IDetailPanelProvider</c>）。
+    /// </summary>
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new()
+        {
+            Text = "♻ 恢复",
+            Classes = "ghost",
+            CommandPath = nameof(RestoreCommand),
+            IsEnabledPath = nameof(HasSelection),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "恢复回「正常」状态（⛔ 只改库里的状态，磁盘文件本来就还在）"
+        },
+        new()
+        {
+            Kind = ToolbarItemKind.TextField,
+            Width = 88,
+            Placeholder = "搜索名称 / 路径…",
+            ValuePath = nameof(SearchText)
+        },
+        new()
+        {
+            Text = "🗑 永久删除选中",
+            Classes = "danger-btn",
+            CommandPath = nameof(PurgeSelectedCommand),
+            IsEnabledPath = nameof(HasSelection),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "真删磁盘文件 + 删索引行（二次确认；⛔ 不进回收站、无法还原）"
+        },
+        new()
+        {
+            Text = "🧹 清空回收站",
+            Classes = "danger-btn",
+            CommandPath = nameof(EmptyTrashCommand),
+            ToolTip = "把回收站里所有资产永久删除（二次确认）"
+        },
+        // 🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库
+        new()
+        {
+            Text = "🔄 重读回收站",
+            CommandPath = nameof(RefreshTrashCommand),
+            ToolTip = "重新读取资产库里的回收站状态行（⛔ 不扫盘）"
+        },
+    };
+
     protected override string PageKey => "assets-trash";
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>

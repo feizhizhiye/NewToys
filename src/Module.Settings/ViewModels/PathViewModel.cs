@@ -515,7 +515,7 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
     {
         new() { Text = "📂 打开配置目录", CommandPath = nameof(OpenConfigDirCommand),
                 ToolTip = "打开 app.json / columnlayout.json 等所在的目录（可整体备份）" },
-        new() { Text = "💾 保存", Classes = "primary", CommandPath = nameof(SaveCommand),
+        new() { Text = "💾 保存", Classes = "ghost", CommandPath = nameof(SaveCommand),
                 IsEnabledPath = nameof(CanSavePath), ToolTipPath = nameof(SaveTip), ShowToolTipOnDisabled = true },
         new() { Text = "📂 浏览…", CommandPath = nameof(PickPathCommand),
                 IsEnabledPath = nameof(CanSavePath), ToolTipPath = nameof(BrowseTip), ShowToolTipOnDisabled = true },
@@ -540,8 +540,8 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
                 IsEnabledPath = nameof(CanDeleteProfile), ToolTipPath = nameof(DeleteTip), ShowToolTipOnDisabled = true },
         new() { Text = "♻ 重置", CommandPath = nameof(ResetProfileCommand),
                 IsEnabledPath = nameof(CanResetProfile), ToolTipPath = nameof(ResetTip), ShowToolTipOnDisabled = true },
-
-        new() { Kind = ToolbarItemKind.Label, Text = "「路径」行改默认路径；「配置」行管多套数据" },
+        // v3.60：原 Label「「路径」行改默认路径；「配置」行管多套数据」删除（工具条⛔ 不放说明文字）——
+        //        表头「分类」列已经把两类行分开，各行自带说明（StringFormat 那条坑见工程规范）。
     };
 
     // ==================== 编辑缓冲 ====================

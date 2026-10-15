@@ -98,6 +98,9 @@ foreach ($f in $axamls) {
         foreach ($m in [regex]::Matches($ln, '(?<![\w.:-])([A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*)\s*=\s*"')) {
             $attr = $m.Groups[1].Value
             if ($skip -contains $attr -or $attr.StartsWith('x:')) { continue }
+            # `Classes.xxx` 是**条件类**（Avalonia 写法，xxx 是本仓样式类名、不是控件属性）→ 同 `Classes` 一起跳过。
+            # ⚠️ 不跳会误报：如 `Classes.ghost="{Binding IsGhost}"` 里的 `ghost` 在 Avalonia 程序集里当然找不到。
+            if ($attr.StartsWith('Classes.')) { continue }
             $checkedAttrs++
             foreach ($part in $attr.Split('.')) {
                 if ($part.Length -lt 2) { continue }

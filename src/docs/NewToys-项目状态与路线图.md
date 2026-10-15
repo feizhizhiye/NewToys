@@ -1,6 +1,6 @@
 # NewToys 项目状态与路线图
 
-> v3.47 · 2026-10-15 · 台账
+> v3.48 · 2026-10-15 · 台账
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **项目状态与路线图**（Status & Roadmap），三、节 = **Backlog 工作项台账**。
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
@@ -8,10 +8,10 @@
 > 配套：需求规格（宪法）/ 工程规范 / AI 协作手册 / AGENTS.md（跨 AI 入口）/ skill/（跨 AI 知识库）
 
 **最近三次变更**
+- **v3.48（🚧 实施期 2026-10-15）**：🛠 **NT-054 的 L0 + L1 落地**（用户指定「执行 NT-054」→ 拍板本轮只做**框架骨架**）。**新增**：`src/Shared/Details/DetailCardDescriptor.cs`（描述符 POCO：`DetailCardDescriptor`/`Section`/`Field`/`Action` + 7 种 `FieldKind` + 3 种 `EditCommitMode`）、`src/Shared/Services/IDetailCardSource.cs`、`src/Shell/Controls/DetailCardHost.axaml(.cs)` + `DetailCardRender.cs`（渲染器：7 个字段 `DataTemplate` / Kind→行对象唯一分派 / 路径解析（`!` 取反 + 多级）/ 属性级刷新 / `Chips` 集合看护）、`skill/scripts/check-detail-paths.ps1`。**改动**：`ShellViewModel.RefreshDetail` 改**两轨择一**（声明式优先，⛔ 此时不读 `DetailContent`）、`ShellView.axaml` 右列 = `Panel{ContentControl + DetailCardHost}`、`Shell/Styles/Controls.axaml` 新增 ⑭（`Button.section-toggle` / `Button.chip-toggle(.selected)`）、`check-axaml-props.ps1` 加 `Classes.` 前缀豁免（修误报）。**文档**：需求 v3.46（§4.5.1 补实现进度）、规范 v3.29（§3.8 新增声明式渲染小节 + §3.6 滚动条收口到 Shell 一处）。**未做**：L2（16 张卡逐页迁移）/ L3（逃生舱 + 旧 XAML 清理）—— 16 张卡当前**仍走老的自绘 `DetailContent`**，行为零变化。静态检查四项全绿（`check.ps1` / `check-axaml-props.ps1` / `check-techstack.ps1` / `check-detail-paths.ps1`）；**用户本地 `build.ps1` 编译通过（2026-10-15 确认）⇒ L0 + L1 验收通过**，随后进入 L2（逐页迁移，`VideoBatchView` 打样）。
 - **v3.47（📝 规划期 2026-10-15）**：📌 **立项 NT-054「详情卡声明式规范」**（**未动 `src/` 代码**）。详情卡现状 16 张、两种形态（4 张 `Views/Detail/*.axaml` + 12 页页内自绘右列 = 规范 §3.8 技术债 B13）；用户定调「详情卡功能一律是对主显示区数据的补充与修改、命令编辑也在卡内、不走弹窗卡」。产出：需求新增 **§4.5.1**（三区模型 `Fields`/`Actions`/`Custom` + 7 种 Kind + 3 种提交语义 + 刷新契约 + **16/16 覆盖基线**）+ 任务卡 `backlog/NT-054.md`（**📝 草稿，未过 DoR**）。⛔ 描述符走 C# 对象字面量，**不做运行时 JSON/XAML 加载**。
 - **v3.45（✅ 已验收 2026-10-15）**：📌 **首页标签固定不滚动（v3.44 的收窄 + bug 修复）** —— 用户反馈「搞复杂了」：**只固定 home 页，其余全参与滚动；⛔ 不做「固定其他标签页」功能**（固定需求走首页收藏夹）。**代码**：`＋` 按钮从固定右列**回归滚动区**；标签栏 = 「首页固定列 + 滚动区」两列。🔴 **修 v3.44 的 bug**：重构时丢了 `ItemsControl.ItemsPanel`（横排）⇒ 默认竖排 + 竖滚禁用 = **只显示第一个标签**；已补回。**文档**：需求 §4.2 / 规范 §2.1 规则收窄为「首页是唯一固定元素」+ 补「横排 ItemsPanel 必须显式写」；需求 v3.42 / 规范 v3.26 / 台账 v3.45。
-- **v3.43（✅ 已验收 2026-10-15）**：🧹 **设置重构四项批量执行**（用户「执行全部就绪待办」）。**NT-050** 软件源页迁 PcTools（View/VM + DI + 自注册，Key/Order/图标/描述⛔不改）+ settings 内「媒体资产」→「媒体资产设置」；**NT-051** 主题外观 + 关于并入通用设置（VM 合并去重、删 6 文件、菜单 37→35）+ 两处平移偏差（恢复默认按钮移入卡头 / About 死按钮删）；**NT-052** 重载模块移入功能清单页「增加功能」操作区（新增 `IModuleReloadService` 契约 + `ModuleReloadService`，标题栏 3→2 按钮，`ShellViewModel` 订阅 `Reloaded`；⚠️ 事件签名细化为带计数元组）；**NT-053** 设置页窄界面适配审计（8 页全合规，0 修改）。文档：规范 v3.25（§2.1 尺寸订正 / §2.3 图标状态刷新 / §3.7 热加载入口 / 12.1.4 表述）、NT-047 卡片去两行、台账计数同步（设置 10→7 页、菜单 37→35）。
-- **v3.40 / v3.37 / v3.36 / v3.35 / v3.34 / v3.33 / v3.32**（归档）：v3.40 台账去重 + 与代码对齐 / v3.37 夜间批量 8 项 / NT-019 物理操作 + 任务中心 + 回收站 / NT-018 三页 + 逻辑操作 / NT-017 薄壳类型页 / 媒体资产数据层与骨架 / 视频工具精简 + 示例数据 —— 明细见 `git log`。
+- **v3.43 / v3.40 / v3.37 / v3.36 / v3.35 / v3.34 / v3.33 / v3.32**（归档）：v3.43 设置重构四项批（NT-050~053：软件源迁 PcTools / 主题+关于并入通用设置 / 重载模块移入功能清单 / 设置页窄界面审计 + 规范 v3.25）｜v3.40 台账去重 + 与代码对齐 / v3.37 夜间批量 8 项 / NT-019 物理操作 + 任务中心 + 回收站 / NT-018 三页 + 逻辑操作 / NT-017 薄壳类型页 / 媒体资产数据层与骨架 / 视频工具精简 + 示例数据 —— 明细见 `git log`。
 
 ---
 
@@ -142,7 +142,7 @@
 | NT-051 | 设置页合并：主题外观 + 关于 并入 通用设置（单页三节；键 `settings-general` 不变，删 `settings-theme`/`settings-about` 两项） | P2 | ✔ 已完成（已验收） | backlog/NT-051.md |
 | NT-052 | 「🔄 重载模块」移入设置（标题栏 3→2 按钮；入口 = **功能清单页**「增加功能」操作区；方案 A：Shared/Core 新增 `IModuleReloadService` 契约，2026-10-15 用户拍板） | P2 | ✔ 已完成（已验收） | backlog/NT-052.md |
 | NT-053 | 设置页窄界面适配：最窄 960×640（内容宽 720）与默认 1280×800 两种可用（根 ScrollViewer / 星号列 / 去超宽固定容器） | P2 | ✔ 已完成（已验收） | backlog/NT-053.md |
-| NT-054 | 详情卡声明式规范：**三区模型**（`Fields` 字段区 / `Actions` 动作区 / `Custom` 逃生舱）+ 7 种字段 Kind + 3 种提交语义（`Instant`/`OnBlur`/`Explicit`）+ Shell 统一渲染，替代 16 张卡逐页手写 XAML（含债 B13 详情面板上提） | P1 | 📝 草稿 Draft | backlog/NT-054.md |
+| NT-054 | 详情卡声明式规范：**三区模型**（`Fields` 字段区 / `Actions` 动作区 / `Custom` 逃生舱）+ 7 种字段 Kind + 3 种提交语义（`Instant`/`OnBlur`/`Explicit`）+ Shell 统一渲染，替代 16 张卡逐页手写 XAML（含债 B13 详情面板上提） | P1 | 🚧 **实施中**（2026-10-15：📝 草稿 → ✅ 就绪 → **L0 + L1 已交付并编译验收通过**；**L2 逐页迁移进行中**（`VideoBatchView` 打样 → 倒序） / L3 逃生舱 + 清理待做，未迁移的卡仍走老的 `DetailContent`） | backlog/NT-054.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡保留、⛔ 不删）。
 > NT-048（分屏贴靠首次几何不收敛）**已作废**：现象为**系统级**（Firefox 同复现）⇒ 外部纠偏方向错误，⛔ 不复活；任务卡保留备查。

@@ -1,16 +1,15 @@
 # NewToys 工程规范
 
-> v3.26 · 2026-10-15 · 技术实现指南
+> v3.29 · 2026-10-15 · 技术实现指南
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **工程规范**（Dev Guide + 技术债台账）。
 > 🔴 **工作流与术语不在此定义**：`研发流程（规划期 / 实施期）` + 状态机 + 术语对照的唯一定义处 = 《AI协作手册》；本文件只管「怎么具体实现」。
 > 权威源：需求规格（做什么 + 硬性框架约束）；**本文件只做「怎么具体实现」**——编码模式/像素/类名/API 签名/易错点。
 > 约束分两类：〔A〕硬约束（引需求）｜〔B〕技术债（本文件台账，原「折衷约束」）
 > **两条铁律**：① 代码是唯一真相源（文档与 `src/` 冲突以 `src/` 为准并回写）；② 本文件是唯一实现约定源。
 >
-> **v3.26 变更**：§2.1 新增「**首页标签是唯一固定元素**」规则（v3.45 用户定并收窄：⛔ 不做「固定其他标签页」，其余标签与 `＋` 全参与横向滚动；实现口径 = `HomeTab` 固定列 + `ScrollableTabs` 镜像 + 共享 `TabItemTemplate` + 横排 `ItemsPanel`）。
-> **v3.25 变更**：① §2.1 标题栏按钮尺寸订正（实际 40×40、图标 16px Path，NT-045 起矢量）；② §2.3 图标状态刷新——**框架层已全矢量**（NT-035/045/046），数据驱动图标收敛 NT-047；③ §2.4 版本表述同步（栈 Avalonia 12.1.3 → **12.1.4**，API 面不变，§2.4 的 12.1.3 实测结论沿用，待本地编译复核）。
-> **v3.24 变更**：🏷 文档名对齐（2026-10-14 四份文档改名）——「更新节奏」表末列列名 `提示词` → **`协作手册`**（对应 `NewToys-AI协作手册.md`，⛔ 旧名「AI协作提示词」已废）。
-> **v3.22 变更**：① 主题键 **32 → 34**（新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`，需求 §4.1.1 ③ / §4.7）；② §7「折衷约束台账」改名 **技术债台账**（术语标准化）；③ 附录 A **修正「Avalonia 12.1.3 托管装饰在 Win32 上不可用」这条过时结论** → 正确结论见 §2.4「窗口装饰（CSD）」；④ 新增 §2.4 窗口装饰（CSD）实现基线。
+> **v3.29 变更**：⑥ **详情卡声明式渲染实装（NT-054 的 L0 + L1）** —— 新增 `Shared/Details/DetailCardDescriptor.cs`（描述符 POCO）+ `Shared/Services/IDetailCardSource.cs`（来源契约）+ `Shell/Controls/DetailCardHost.axaml(.cs)` / `DetailCardRender.cs`（渲染器：7 个字段 `DataTemplate` + Kind→行对象唯一分派 + 路径解析 + 属性级刷新）；`ShellViewModel.RefreshDetail` 改**两轨择一**（声明式优先，老的自绘 `DetailContent` 保留给未迁移页）；`Shell/Styles/Controls.axaml` 新增 ⑭（`Button.section-toggle` / `Button.chip-toggle`）；§3.8 新增「`IDetailCardSource` + 详情卡声明式渲染」小节（件与归属 / 两轨 / 渲染层口径 / 路径静态兜底）；§3.6 详情卡滚动条写明**只写在 Shell 一处**。配套 `skill/scripts/check-detail-paths.ps1` 新增，`check-axaml-props.ps1` 加 `Classes.` 前缀豁免。
+> **v3.28 变更**：① §2.1 新增「**两种基准宽度下的可用宽度**」推导表（默认 1280×800 / 最窄 960×640 → 列表列 736 / 416、工具条与筛选条可用宽 712 / 392）＋ 两条设计逻辑（工具条"能用多少就显示多少"、筛选条"一行排死自适应收缩"）；② §3.6 ① 改为**按容器宽度自动折叠**：项宽**首次布局后缓存一次** + 贪心算两行容量 ⇒ ⛔ 没有"档位数字"可调、⛔ 不用 `Measure(∞)` 每帧重测（循环 / 抖动的来源）。
+> **v3.27 变更**：§3.6 新增「**主显示区（工具条 / 筛选条）实现范例**」（v3.41 / v3.42 用户定调，对应需求 §4.8.4）：工具条**按容器宽度分档折叠**（`ApplyToolbarLayout()`：≥620px→12 项 / 450~620px→9 项 / <450px→6 项，末尾「⋯」= 全部显示；⛔ 不用 `ToggleButton`、⛔ 不把控件搬进弹出树、⛔ 不改回"逐项测量"版）；筛选条**恒一行无滚动**（等分星号 `Grid` + `MinWidth=0` 覆盖全局 `ComboBox.filter-combo` 的 `MinWidth=110`）；「需先勾选」的按钮用 **`ToolTip.ShowOnDisabled`** 保证禁用态提示词可读。
 >
 > ⛔ **只保留最近三次变更**，更早的逐次记录看 `git log`；需求侧章节号见《需求规格》目录（v3.11 起 §4 重排：4.5 详情卡 / 4.6 状态栏 / 4.7 主题 / 4.8 列表页 / 4.9 设置页 / 4.10 视觉规范 / 4.11 未实装）。
 
@@ -84,7 +83,28 @@
 | 工具条 / 筛选条内边距 | `12,6` / `12,4` |
 | 表头行高 / 表格行高 | **32px / 28px**；单元格左右内边距 **8px**（表头与行必须一致） |
 | 详情卡 | 宽 340px、内边距 **12px**；本页覆盖 `Padding="12,12,4,12"` + 滚动内容 `Margin="0,0,4,0"`（给覆盖式滚动条留位，见 §3.6） |
-| 标题栏按钮 | **40×40**（与标题栏同高，`Button.title-btn` 样式 Width/Height=40）；图标 = **16px `Path`**（NT-045 起矢量，粗细/端帽/拐角由 `Button.title-btn Path` 样式给）；窗口控制按钮 46×40 |
+| 标题栏按钮 | **40×40**（与标题栏同高，`Button.title-btn` 样式 Width/Height=40）；图标 = **16px `Path`**（NT-045 起矢量，粗细/端帽/拐角由 `Button.title-btn` 样式给）；窗口控制按钮 46×40 |
+
+**两种基准宽度下的可用宽度（v3.42 收口 · 🔴 排版前先按这张表算，⛔ 别凭感觉给控件定宽）**
+
+> **全局固定件**：左树 **180px**（折叠 48px）、右详情 **340px**、页面根 `Margin="12"`（左右各 12）、
+> `Border.toolbar` 内边距 `12,6`、`Border.filter-bar` 内边距 `12,4`。
+> ⇒ **列表列 = 窗口宽 − 左树 − 详情 − 24**；**工具条 / 筛选条可用宽 = 列表列 − 24**。
+
+| 基准 | 窗口 | 列表列（详情卡**展开**） | 工具条 / 筛选条可用宽 |
+|---|---|---|---|
+| **默认** | 1280×800 | 1280 − 180 − 340 − 24 = **736** | **712** |
+| **最窄** | 960×640 | 960 − 180 − 340 − 24 = **416** | 🔴 **392（所有固定宽控件的判据下限）** |
+| 默认 · 详情收起 | 1280×800 | 1076 | 1052 |
+| 最窄 · 详情收起 | 960×640 | 756 | 732 |
+
+**由此推出的两条设计逻辑**：
+
+1. **工具条 = "能用多少宽度，就显示多少按钮"**：容器宽 × 2 = 两行可容纳的像素总量 ⇒ 决定显示几项（实现见 §3.6 ①）。
+   同一套按钮序列在 **392 / 712 / 1052** 三种宽度下自动表现为 **少 → 多 → 全部**，⛔ 不需要为不同宽度各写一套布局。
+2. **筛选条 = 一行排死、自适应收缩**（需求 §4.8.4 第 4 条）：**392px 是它的可用宽下限**；筛选项一律
+   **等分星号列 + `MaxWidth`**，⛔ 不写固定宽（固定宽在 392px 下必然溢出成滚动或换行）。
+   ⚠️ 设置类页面**无详情卡**，可用宽 ≠ 上表（判据见需求 §4.9「窄界面适配基线」）。
 
 > 🔴 **首页标签是唯一固定元素（v3.45，用户定并收窄）**：标签栏里**首页标签固定显示**（`ShellViewModel.HomeTab` → `ContentControl` 单独一列，⛔ 不进 `ScrollViewer`）；**其余标签与 `＋`（功能清单）按钮全部参与横向滚动**。⛔ **不做「固定其他标签页」功能**（「固定」需求走首页收藏夹 / 常用功能）⇒ 不需要通用「固定位」机制。实现口径：`ScrollableTabs` = `Tabs` 去首页的**镜像集合**（VM 里随 `Tabs.CollectionChanged` 同步，⛔ 不在各开 / 关命令里分别维护）；标签项模板 = 共享资源 `TabItemTemplate`（`ShellView.axaml` 的 `Window.Resources`，⛔ 不复制两份防样式漂移）；`ScrollActiveTabIntoView` 按 `ScrollableTabs` 索引找容器（首页 `IndexOf` = -1 → 跳过，天然正确）；🔴 **滚动区 `ItemsControl` 必须显式写横排 `ItemsPanel`**（默认竖排 + 竖滚禁用 = 只显示第一个，v3.44 踩过）。
 
@@ -374,11 +394,57 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - 相应地，`ListPageViewModelBase.Columns` 里**不再追加** `new("Detail","","36")`；基类里 `if (c.Key != "Detail")` 这类特判**全部删掉**（`SaveVisibility` / `NotifyColumnsChanged` / `EnsureFilterColumns` 各一处）。
 - ⛔ **别删 `Border.detail-card` 的宽度**；改它的内边距会波及 12 个列表页的滚动条位置（见下一条）。
 
+**主显示区（工具条 / 筛选条）实现范例（v3.41，需求 §4.8.4；样板 = 媒体资产「全部资产」页）**
+
+> 参考实现：`Module.MediaAssets/Views/AssetAllView.axaml`（工具条 + 筛选条）+ `AssetAllViewModel`（`IsToolbarExpanded` / `ToggleToolbarCommand`）。
+> 该页被 5 个类型薄壳页（视频 / 音乐 / 书籍 / 图片 / 文档）内嵌复用（`<views:AssetAllView/>` + VM 继承 `AssetAllViewModel`）
+> ⇒ **一份实现覆盖 6 页**；⛔ 不要逐页复制工具条 / 筛选条。
+
+**① 工具条「最多两行 + 按宽度自动折叠」**
+
+- 容器结构：`Border.toolbar` → `Grid ColumnDefinitions="*,Auto"` → 左列 `WrapPanel x:Name="ToolbarPanel"`（`ItemSpacing=8` + `LineSpacing=4`）+ 右列 `Button.detail-toggle`。
+- 🔴 **约定：`ToolbarPanel` 的「最后一个子元素」就是那个「⋯」按钮**；其余按 XAML 顺序 = **优先级顺序**（越靠前越不会被折）。
+- **判定逻辑 = code-behind 的 `ApplyToolbarLayout()` + `FitTwoRows()`**（`Module.MediaAssets/Views/AssetAllView.axaml.cs`）：
+  **各项宽度在首次布局后缓存一次** → 之后每次只按"容器宽 + 缓存宽"贪心算"**两行**内能放下几项"（先给末尾「⋯」留出占位）→
+  **放得下就全显示、放不下才折尾部**。
+  展开态（`IsToolbarExpanded == true`）= ⛔ 不受宽度限制、全显示；容量没变化时**幂等短路**（⛔ 不重复赋 `IsVisible`）。
+- **触发点**：`ToolbarPanel.LayoutUpdated`（⚠️ 用 `LayoutUpdated` 而⛔ 不是 `SizeChanged` —— 首次必须等**子元素**量出宽度）+ `OnAttachedToVisualTree` + `OnDataContextChanged`（换 VM 时 `HookToolbarVm()` 重挂 `IsToolbarExpanded` 监听并重置容量缓存）。
+- 🔴 **为什么不会布局循环、不会抖动**（⛔ 别改成"每次重新测量"的写法）：项宽**只在首次布局后测一次并缓存**，
+  之后折叠结果**不反过来影响计算输入**（容器宽由窗口决定，与"折了哪些按钮"无关）⇒ 不会出现
+  "改可见性 → 重新布局 → 再测量"的循环，也不会在窗口拖动时让按钮反复进出「⋯」。
+  ⛔ **也不要用 `Measure(∞)` 每帧重新测**：那正是循环 + 滞回的来源，而工具条按钮宽度基本不变，毫无收益。
+- 「⋯」按钮：`<Button Classes="ghost" Width="32" MinWidth="32" Command="{Binding ToggleToolbarCommand}">`，内容用 `Panel` 叠两个
+  `TextBlock`（`⋯` / `▲`）按 `IsToolbarExpanded` 切 `IsVisible`（写法同 `Button.detail-toggle` 的 `❯/❮`）；固定宽度 ⇒ 开合不引起重新换行。
+- ⛔ **XAML 里这些控件⛔ 不要写 `IsVisible`**：可见性由 `ApplyToolbarLayout()` 运行期赋值，写了绑定会与本地值打架。
+- 🔴 **⛔ 不要用 `ToggleButton` 做开合**：全局只定义了 `Button.ghost` / `SplitButton.ghost` 的样式，`ToggleButton` 会掉回 Fluent 默认外观。
+- 🔴 **⛔ 不要把被折的控件搬进 `MenuFlyout` / `ContextMenu`**：弹出树不继承 `DataContext`（§3.8 老坑），`Click="…"` 接线还得逐条转发。
+- `IsToolbarExpanded` **⛔ 不落盘**：每次进页面回到收起态。
+- ⚠️ **调参口径**：**没有"档位数字"可调** —— 能显示几项由"容器宽 + 缓存项宽"算出来。要换"哪个按钮先被折"，
+  改 XAML 里的排列位置（优先级）即可；⛔ 不要为了让某个按钮常显而给它写死 `IsVisible`（会被运行期赋值覆盖）。
+- ⚠️ **改了按钮文案 / 字号后**（项宽会变）：缓存会在**下一次重建可视树**时自动重取（切页回来 / 重开标签即生效），
+  ⛔ 不需要为此加"监听每个控件尺寸"的机制。
+
+**② 筛选条「恒一行、无滚动条」**
+
+- `Border.filter-bar` 内改成 `Grid ColumnDefinitions="Auto,*,*,*,*" ColumnSpacing="5"`（标签列 `Auto` + 各筛选项 1 份星号）⇒ 窗口变窄时星号列**自己收窄**，永不溢出 ⇒ 无需滚动条。
+- 每个 `ComboBox`：`MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11" HorizontalAlignment="Left"`。
+  🔴 `MinWidth="0"` **是必须的** —— 全局样式 `ComboBox.filter-combo` 给了 `MinWidth=110`，不覆盖它则星号列收不下去、窗口一窄就溢出。
+- ⛔ 不要 `WrapPanel`（放不下就换行、条高抖动）；⛔ 不要 `ScrollViewer`（需求 §4.8.4 明确不要滚动条）。
+- 间距用 `Grid.ColumnSpacing`（与 §4.10.4 同一条要求的口径），⛔ 不给每个控件写右 `Margin`。
+
+**③ 「需先勾选」按钮的提示词（禁用态可读）**
+
+- 这类按钮（加标签 / 加集合 / 移入回收站 …）必须同时写 `ToolTip.Tip="先在列表里勾选行，再点这里…"` + **`ToolTip.ShowOnDisabled="True"`**。
+- 🔴 坑：Avalonia 的 `ToolTip` **默认不在 `IsEnabled=False` 的控件上显示** —— 不加该属性，"提示词"等于没写（用户只看到一个灰按钮、不知道要先勾选）。
+- 因此 VM 侧**不需要** `CheckedText` 这类"未勾选 / 已勾选 N 个"指示值（v3.41 已从 `AssetAllViewModel` 删除；⚠️ `PcTools/PackageManagerViewModel` 里的同名属性属该模块自己的，⛔ 不要顺手删）。
+
 **详情卡滚动条（覆盖式，v3.12 记法）**
 
 - Avalonia 12 的 `ScrollBar` 浮在内容之上，**槽落在 `ScrollViewer` 右缘之外 8px**（偏移写死在 Fluent 模板的 `Margin` 里，改不动）。
 - 于是只能二选一：① `ScrollViewer` 顶到卡片边 → 槽探出卡片 8px、拇指压在边框上；② 正常收在卡内 → 本页 `Border.detail-card` 覆盖 `Padding="12,12,4,12"`、滚动内容 `Margin="0,0,4,0"`。
 - **统一走 ②**：需要滚动条的详情卡都按这两处写（`video-cut` 从 v3.10 起就这么做，v3.12 推广到 `video-batch`）。
+- 🔴 **v3.29 / NT-054 起（声明式卡）**：这两处**只写在 Shell 一处** —— `Shell/Controls/DetailCardHost.axaml`（内容 `Margin="12,12,4,12"`）。
+  迁移到声明式卡后页面**不必也不能**再覆盖 `Padding`（页面连卡片 XAML 都没有了）。
 
 **v3.0 列表页右列改动**：
 
@@ -469,6 +535,57 @@ public interface IHistoryProvider
 - 订阅时**先解绑旧 Tab 的订阅**。
 
 **页面 VM 侧**：`video-list` 是唯一有实际页内导航语义的页（目录切换）；其他页不需要实现。
+
+#### `IDetailCardSource` + 详情卡声明式渲染（v3.29 / NT-054）
+
+> 🔴 **规格唯一源** = 需求 §4.5.1（三区模型 / 7 种 Kind / 3 种提交语义 / 刷新契约 / 16 张覆盖基线）。
+> 本节只写**怎么实现**。迁移进度：**L0（外壳上提）+ L1（渲染器）已实装**；L2（逐页迁移）/ L3（逃生舱 + 旧 XAML 清理）待做。
+
+```csharp
+// Shared/Services/IDetailCardSource.cs —— 与 IDetailPanelProvider **并列**，页面 VM 两个都实现
+public interface IDetailCardSource
+{
+    DetailCardDescriptor? Card { get; }   // 非 null → 走声明式；null → 退回老的自绘 DetailContent
+}
+```
+
+**件与归属（⛔ 别放错层：Shared 不引 Avalonia、模块禁引 Shell）**
+
+| 件 | 归属 | 说明 |
+|---|---|---|
+| `DetailCardDescriptor` / `DetailSection` / `DetailField` / `DetailAction` / `FieldKind` / `EditCommitMode` | `src/Shared/Details/DetailCardDescriptor.cs` | 纯 POCO，**零 Avalonia 依赖**；`DetailAction.Command` 用 BCL 的 `System.Windows.Input.ICommand` |
+| `IDetailCardSource` | `src/Shared/Services/IDetailCardSource.cs` | 模块侧来源契约 |
+| `DetailCardHost.axaml(.cs)` + `DetailCardRender.cs` | `src/Shell/Controls/` | 渲染器（必须引 Avalonia，模块又禁引 Shell ⇒ 只此一处） |
+| 16 张卡的 `Card` 声明 | 各页 VM | C# 对象字面量，每页一个实例 |
+
+**Shell 侧两轨择一（`ShellViewModel.RefreshDetail`）**
+
+1. 页面是 `IDetailCardSource` 且 `Card != null` → `IsDetailCardActive = true`、`DetailCard = Card`、`DetailCardSource = 页面 VM`，
+   ⛔ **此时不读 `p.DetailContent`**（读它就白建一个自绘视图）；
+2. 否则 → 老路：`DetailPanelContent = p.DetailContent`。
+   `ShellView` 右列 = `Panel{ ContentControl(老路) + DetailCardHost(声明式) }`，两者按 `IsDetailCardActive` 互斥显隐。
+
+**渲染层口径（`DetailCardRender.cs`，改 Kind 必须同步这里 + XAML）**
+
+- 描述符里的路径是**字符串**，XAML 里写不出动态 `{Binding <字符串>}` ⇒ 渲染层在 C# 侧把
+  `ValuePath` / `VisibleWhen` / `EnabledWhen` / `OptionsPath` / `Chip*Path` / `*IsExpanded` 解析成真实值，
+  行对象（`TextFieldRow` / `CheckFieldRow` / `SelectFieldRow` / `NumberFieldRow` / `ChipsFieldRow` / `HintFieldRow` / `DividerFieldRow`）
+  **只暴露强类型属性**给模板 ⇒ 模板里**零字符串路径**。
+- `DetailSectionRender.CreateRow` 是 **Kind → 行对象**的**唯一分派点**；加新 Kind = 加一个 `case` + 一个 `DataTemplate`。
+- 刷新契约：渲染器**订阅源 VM 一次**（`PropertyChanged`）→ 任一属性变化整体重解析。
+  ⛔ 动作级改动（落盘 / 加标签 / 删除）由**页面 VM 自己回刷**，描述符不参与。
+- 提交语义落地：`Instant`/`Explicit` → 值的写回绑 `PropertyChanged`（`Explicit` 写的是 VM 的**编辑态草稿**，落盘由工具条「💾 保存修改」负责）；
+  `OnBlur` → 模板挂 `LostFocus="OnTextLostFocus"` → `TextFieldRow.Commit()`。
+- 🔴 **不可编译的坑（v3.29 实测）**：`Classes.xxx="{Binding ...}"` 里的 `xxx` 是**本仓样式类名**、
+  不是控件属性 —— 会被 `check-axaml-props.ps1` 的名字存在性检查误报，**该脚本已加 `Classes.` 前缀豁免**，⛔ 别把这行豁免删了。
+- 外壳（340px 容器由 Shell 右列给 / 覆盖式滚动条右侧留位 / 空态 / 示例态 / 分区与字段间距）**只实现一次**（`DetailCardHost.axaml`）。
+- 新增样式类：`Button.section-toggle`（分区折叠标题）+ `Button.chip-toggle(.selected)`（`Kind=Chips`）→ 见 `Shell/Styles/Controls.axaml` ⑭。
+
+**绑定路径的静态兜底（🔴 必跑）**
+
+- 描述符路径改名**不报错、不崩溃**，只是白板 ⇒ 新增 `skill/scripts/check-detail-paths.ps1`：
+  扫含 `IDetailCardSource|DetailCardDescriptor` 的 `.cs`，把路径**首段**与全仓库属性 / 字段名比对，不命中即 WARN。
+- 交付前三件套 + 本脚本一起跑：`check.ps1` → `check-axaml-props.ps1` → `check-techstack.ps1` → `check-detail-paths.ps1`。
 
 ### 3.9 视频工具「视频预览」页与两页详情卡（v3.12 重写，需求 §6.4）
 

@@ -10,7 +10,35 @@
                       EmptyActionCommand="{Binding ImportScriptFolderCommand}"
                       IsEmpty="{Binding !HasItems}">
 
-    <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
+    <!--  ==================== 扫描候选面板（NT-068 §三.6；有扫描结果才展开）  ====================  -->
+    <v:ListPageSkeleton.TopArea>
+      <Border IsVisible="{Binding HasScanResult}"
+              BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
+              Padding="8,6,8,8" Margin="0,0,0,6">
+        <StackPanel Spacing="4">
+          <TextBlock Text="扫描候选：勾选新文件后点工具条「➕ 加入库」（已入库 / 不可采集不可勾）"
+                     Classes="hint-text"/>
+          <ScrollViewer MaxHeight="180">
+            <ItemsControl ItemsSource="{Binding ScanCandidates}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,1">
+                    <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                              IsEnabled="{Binding Selectable}" MinWidth="0"/>
+                    <TextBlock Grid.Column="1" Text="{Binding RelativePath}" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" Margin="4,0,0,0"/>
+                    <TextBlock Grid.Column="2" Text="{Binding StateText}" Classes="hint-text"
+                               VerticalAlignment="Center" Margin="8,0,0,0"/>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+      </Border>
+    </v:ListPageSkeleton.TopArea>
+
+    <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 只放扫描面板）  ====================  -->
     <v:ListPageSkeleton.HeaderArea>
       <Border Classes="list-header">
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
@@ -30,7 +58,10 @@
               <Button Grid.Column="4" Classes="col-header" Content="{Binding FavoriteHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Favorite" ToolTip.Tip="点一下把收藏的排在前面"
                       IsVisible="{Binding IsFavoriteVisible}"/>
-              <TextBlock Grid.Column="5" Classes="list-cell" Text="操作" FontWeight="SemiBold"
+              <TextBlock Grid.Column="5" Classes="list-cell" Text="可采集" FontWeight="SemiBold"
+                         ToolTip.Tip="✔ = 可当采集器（只读、无副作用）；✖ = 不可采集（悬浮看原因）"
+                         IsVisible="{Binding IsCollectableVisible}"/>
+              <TextBlock Grid.Column="6" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -54,6 +85,8 @@
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Description"/>
                   <MenuItem Header="★" ToggleType="CheckBox" IsChecked="{Binding IsFavoriteVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Favorite"/>
+                  <MenuItem Header="可采集" ToggleType="CheckBox" IsChecked="{Binding IsCollectableVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Collectable"/>
                   <MenuItem Header="操作（▶ 运行）" ToggleType="CheckBox" IsChecked="{Binding IsActionVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Action"/>
                 </ContextMenu>
@@ -100,8 +133,12 @@
                              IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
                   <TextBlock Grid.Column="4" Classes="list-cell accent" Text="{Binding FavoriteMark}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsFavoriteVisible}"/>
+                  <!-- NT-068 S3：「可采集」—— ✖ 时悬浮显示不可采集的原因 -->
+                  <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding CollectableMark}"
+                             ToolTip.Tip="{Binding IneligibleReason}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsCollectableVisible}"/>
                   <!-- 行内「▶ 运行」：每行可直接运行 -->
-                  <Button Grid.Column="5" Classes="ghost row-btn" Content="▶ 运行"
+                  <Button Grid.Column="6" Classes="ghost row-btn" Content="▶ 运行"
                           Command="{Binding $parent[ListBox].DataContext.RunCommand}"
                           CommandParameter="{Binding}"
                           IsEnabled="{Binding $parent[ListBox].DataContext.IsNotBusy}"

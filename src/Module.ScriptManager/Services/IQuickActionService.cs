@@ -11,8 +11,8 @@ namespace NewToys.ScriptManager.Services;
 /// <para>
 /// <b>两个页面 = 两个配置文件</b>（v1.34 拆分，单一职责、便于手改、不易因格式出错）：
 /// <list type="bullet">
-///   <item>「脚本库」→ <c>&lt;应用根&gt;\config\pc-scripts.json</c>：**有脚本文件的脚本**（.py / .ps1 / .bat）。</item>
-///   <item>「命令库」→ <c>&lt;应用根&gt;\config\pc-quick.json</c>：**命令行命令**（<c>ms-settings:</c> / <c>reg</c> / <c>ipconfig</c>…）。</item>
+///   <item>「脚本库」→ <c>&lt;应用根&gt;\config\script\script.json</c>：**有脚本文件的脚本**（.py / .ps1 / .bat）。</item>
+///   <item>「命令库」→ <c>&lt;应用根&gt;\config\script\script.json</c>：**命令行命令**（<c>ms-settings:</c> / <c>reg</c> / <c>ipconfig</c>…）。</item>
 /// </list>
 /// 两个文件同属 <c>config\</c>，会被「设置 → 数据管理」一起备份 / 导入。
 /// </para>
@@ -30,10 +30,10 @@ public interface IQuickActionService
     /// <summary>全部项目（两页合计），顺序 = 脚本库在前、命令库在后。</summary>
     IReadOnlyList<QuickAction> Items { get; }
 
-    /// <summary>「脚本库」页的项目（来自 <c>config\pc-scripts.json</c>）。</summary>
+    /// <summary>「脚本库」页的项目（来自 <c>config\script\script.json</c>）。</summary>
     IReadOnlyList<QuickAction> Shortcuts { get; }
 
-    /// <summary>「命令库」页的项目（来自 <c>config\pc-quick.json</c>）。</summary>
+    /// <summary>「命令库」页的项目（来自 <c>config\script\script.json</c>）。</summary>
     IReadOnlyList<QuickAction> QuickSettings { get; }
 
     /// <summary>已收藏的项目（两页合计）。</summary>
@@ -91,4 +91,10 @@ public interface IQuickActionService
 
     /// <summary>数据变化通知（列表 / 收藏夹刷新用）。</summary>
     event Action? Changed;
+
+    /// <summary>
+    /// <b>手动扫描</b>（NT-068 §三.6）：把目录里的脚本列成候选（三态：新文件 / 已入库 / 不可采集）。
+    /// <para>⛔ 只列不建 —— 入库动作由界面的「➕ 加入库」触发（用户拍板「用户自己扫描」）。</para>
+    /// </summary>
+    IReadOnlyList<ScriptCandidate> Scan(string directory, bool includeSubFolders);
 }

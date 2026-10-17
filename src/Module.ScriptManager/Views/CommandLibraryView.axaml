@@ -32,7 +32,10 @@
               <Button Grid.Column="4" Classes="col-header" Content="{Binding FavoriteHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Favorite" ToolTip.Tip="点一下把收藏的排在前面"
                       IsVisible="{Binding IsFavoriteVisible}"/>
-              <TextBlock Grid.Column="5" Classes="list-cell" Text="操作" FontWeight="SemiBold"
+              <TextBlock Grid.Column="5" Classes="list-cell" Text="可采集" FontWeight="SemiBold"
+                         ToolTip.Tip="✔ = 可当采集器（命令型：需开启「捕获输出」且无副作用）；✖ = 不可采集（悬浮看原因）"
+                         IsVisible="{Binding IsCollectableVisible}"/>
+              <TextBlock Grid.Column="6" Classes="list-cell" Text="操作" FontWeight="SemiBold"
                          IsVisible="{Binding IsActionVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -58,6 +61,8 @@
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Description"/>
                   <MenuItem Header="★" ToggleType="CheckBox" IsChecked="{Binding IsFavoriteVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Favorite"/>
+                  <MenuItem Header="可采集" ToggleType="CheckBox" IsChecked="{Binding IsCollectableVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Collectable"/>
                   <MenuItem Header="操作（▶ 运行）" ToggleType="CheckBox" IsChecked="{Binding IsActionVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Action"/>
                 </ContextMenu>
@@ -102,8 +107,12 @@
                              IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
                   <TextBlock Grid.Column="4" Classes="list-cell accent" Text="{Binding FavoriteMark}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsFavoriteVisible}"/>
+                  <!-- NT-068 S3：「可采集」—— ✖ 时悬浮显示不可采集的原因 -->
+                  <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding CollectableMark}"
+                             ToolTip.Tip="{Binding IneligibleReason}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsCollectableVisible}"/>
                   <!-- 行内「▶ 运行」：点一下即打开该设置页面 -->
-                  <Button Grid.Column="5" Classes="ghost row-btn" Content="▶ 打开"
+                  <Button Grid.Column="6" Classes="ghost row-btn" Content="▶ 打开"
                           Command="{Binding $parent[ListBox].DataContext.RunCommand}"
                           CommandParameter="{Binding}"
                           IsEnabled="{Binding $parent[ListBox].DataContext.IsNotBusy}"

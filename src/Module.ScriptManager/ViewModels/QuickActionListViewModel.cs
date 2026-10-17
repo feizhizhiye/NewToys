@@ -110,6 +110,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     public bool IsClassifyVisible => Vis("Classify");
     public bool IsDescriptionVisible => Vis("Description");
     public bool IsFavoriteVisible => Vis("Favorite");
+    public bool IsCollectableVisible => Vis("Collectable");
     public bool IsActionVisible => Vis("Action");
 
     protected override string PageKey => ColumnLayoutKey;
@@ -127,6 +128,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         new("Classify", "分类", "1.1*", sortable: false, sample: ".ps1"),
         new("Description", "简介", "4*", sortable: false, sample: "删除 %TEMP% 下的临时文件"),
         new("Favorite", "★", "0.9*", sample: "★"),
+        // NT-068 S3：「可采集」= 能不能当采集器用（✔ / ✖，✖ 悬浮看原因）；派生值，不落盘
+        new("Collectable", "可采集", "0.9*", sample: "✔"),
         new("Action", "操作", "1.5*", sortable: false),
     };
 
@@ -533,6 +536,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         "Category" => ((QuickAction)row).Category,
         "Description" => ((QuickAction)row).Description,
         "Favorite" => ((QuickAction)row).FavoriteMark,
+        // NT-068 S3：可采集（✔ / ✖）——「仅可采集」筛选与表头右键都走这一列。
+        "Collectable" => ((QuickAction)row).CollectableMark,
         _ => null
     };
 
@@ -556,7 +561,11 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         SelectedCategory = CategoryOptions.FirstOrDefault(o => o.Value == keep) ?? CategoryOptions[0];
 
         // v3.19 / NT-006：分类也进表头右键「🔎 筛选」子菜单（原工具条「分类筛选框」移入这里）
-        SetQuickFilters(CategoryOptions.Where(o => !string.IsNullOrEmpty(o.Value)).Select(o => (o.Label, "Category", o.Value!)));
+        // NT-068 S3：追加「仅可采集」—— 按需生成集合的入口（卡 §三.5）。
+        var quick = CategoryOptions.Where(o => !string.IsNullOrEmpty(o.Value))
+                                   .Select(o => (o.Label, "Category", o.Value!))
+                                   .Append(("仅可采集", "Collectable", "✔"));
+        SetQuickFilters(quick);
         _suppress = false;
     }
 
@@ -818,6 +827,62 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// 排在**共用搜索框之后**的页专属项（v3.61）：给「入口动作 / 输入框 / 搜索框」三件套后面还要挂按钮的页用
     /// （如 <c>script-library</c> 的「含子目录」；⛔ 别塞进 <see cref="ToolbarExtras"/>，否则会把搜索框挤到后面）。
     /// </summary>
+    // ==================== 手动扫描（NT-068 §三.6：用户自己扫，⛔ 不自动登记） ====================
+
+    /// <summary>扫描候选（页内候选面板的数据源）。</summary>
+    public ObservableCollection<ScanCandidateItem> ScanCandidates { get; } = new();
+
+    /// <summary>候选面板是否展开（有扫描结果才展开）。</summary>
+    [ObservableProperty] private bool _hasScanResult;
+
+    /// <summary>「加入库」是否可点 = 至少勾了一条新文件。</summary>
+    public bool CanAddScanCandidates => ScanCandidates.Any(c => c.Selectable && c.IsSelected);
+
+    /// <summary>🔍 扫描目录：只列候选，⛔ 不自动入库（用户 2026-10-17 拍板「用户自己扫描」）。</summary>
+    [RelayCommand]
+    private async Task ScanFolderAsync()
+    {
+        if (_svc == null) return;
+        var dir = await DialogHooks.PickFolderAsync("扫描脚本目录（只列候选，不会自动入库）", ScriptsDirectory);
+        if (string.IsNullOrWhiteSpace(dir)) return;
+
+        var found = _svc.Scan(dir, true);
+        ScanCandidates.Clear();
+        foreach (var c in found) ScanCandidates.Add(new ScanCandidateItem(c));
+
+        HasScanResult = ScanCandidates.Count > 0;
+        OnPropertyChanged(nameof(CanAddScanCandidates));
+        OnPropertyChanged(nameof(Toolbar));
+
+        var newCount = ScanCandidates.Count(c => c.Selectable);
+        var known = ScanCandidates.Count(c => c.State == ScriptCandidate.StateExisting);
+        var bad = ScanCandidates.Count(c => c.State == ScriptCandidate.StateIneligible);
+        StatusText = ScanCandidates.Count == 0
+            ? $"「{dir}」里没有 {string.Join(" / ", ScriptExtensions)} 这类脚本文件。"
+            : $"扫描完成：新文件 {newCount} · 已入库 {known} · 不可采集 {bad}（勾选后点「➕ 加入库」）";
+    }
+
+    /// <summary>➕ 加入库：把勾选的新文件建成条目（复用 <see cref="ImportScriptFiles"/> 的路径归一与去重）。</summary>
+    [RelayCommand]
+    private void AddScanCandidates()
+    {
+        var files = ScanCandidates.Where(c => c.Selectable && c.IsSelected).Select(c => c.FullPath).ToList();
+        if (files.Count == 0) { StatusText = "没有勾选任何新文件。"; return; }
+
+        CloseScan();
+        ImportScriptFiles(files);
+    }
+
+    /// <summary>✕ 收起候选面板。</summary>
+    [RelayCommand]
+    private void CloseScan()
+    {
+        ScanCandidates.Clear();
+        HasScanResult = false;
+        OnPropertyChanged(nameof(CanAddScanCandidates));
+        OnPropertyChanged(nameof(Toolbar));
+    }
+
     protected virtual IEnumerable<ToolbarItemDescriptor> ToolbarTailExtras => Array.Empty<ToolbarItemDescriptor>();
 
     /// <summary>
@@ -870,6 +935,25 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
             // 搜索框之后的页专属项（⛔ 别塞进 ToolbarExtras —— 那会把搜索框从「入口动作 / 输入框」后面挤开）。
             items.AddRange(ToolbarTailExtras);
+
+            // NT-068 S3：扫描候选面板的两个动作（只在有候选时出现，⛔ 不占常态工具条）。
+            if (HasScanResult)
+            {
+                items.Add(new()
+                {
+                    Text = "➕ 加入库",
+                    Classes = "ghost",
+                    CommandPath = nameof(AddScanCandidatesCommand),
+                    ToolTip = "把勾选的新文件建成条目（已入库 / 不可采集的不会重复添加）"
+                });
+                items.Add(new()
+                {
+                    Text = "✕ 收起",
+                    Classes = "ghost",
+                    CommandPath = nameof(CloseScanCommand),
+                    ToolTip = "收起扫描结果面板"
+                });
+            }
 
             // v3.63：不排在最前的页 ⇒ 「📥 导入」插到「📤 导出」前面
             if (!JsonImportFirst) items.Add(JsonImportItem);

@@ -65,4 +65,10 @@ public interface IScriptStoreService
 
     /// <summary>把条目加入 / 移出集合（即时生效，调用方自行 <see cref="Save"/>）。</summary>
     bool SetMembership(string itemId, string collectionId, bool member);
+
+    /// <summary>
+    /// 内置集合成员同步（<c>脚本库</c> 收 script/collector、<c>命令库</c> 收 command）。
+    /// </summary>
+    /// <returns>是否有变化（需要回写磁盘）。</returns>
+    bool SyncBuiltinCollections();
 }

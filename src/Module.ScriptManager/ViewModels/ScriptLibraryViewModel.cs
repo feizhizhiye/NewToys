@@ -83,6 +83,15 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
             ValuePath = nameof(ScriptsFolderDraft),
             EnterCommandPath = nameof(CommitScriptsFolderCommand),
             ToolTipPath = nameof(ScriptHint)
+        },
+        new()
+        {
+            // NT-068 S3：手动扫描（⛔ 不自动登记）—— 候选面板的动作项随后出现在工具条右侧
+            Kind = ToolbarItemKind.Button,
+            Text = "🔍 扫描目录",
+            Classes = "ghost",
+            CommandPath = nameof(ScanFolderCommand),
+            ToolTip = "扫描脚本目录（含子目录）：列出新文件 / 已入库 / 不可采集，勾选后点「➕ 加入库」（不会自动登记）"
         }
     };
 

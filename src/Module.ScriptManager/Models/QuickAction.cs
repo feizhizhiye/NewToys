@@ -98,7 +98,7 @@ public static class QuickActionShell
 /// <para>
 /// <b>归属</b>由 <see cref="Page"/> 决定：<see cref="QuickActionPage.Shortcuts"/> 出现在「脚本库」页、
 /// <see cref="QuickActionPage.Quick"/> 出现在「命令库」页。两页**各有一份清单文件**（v1.34）：
-/// 「脚本库」=<c>config\pc-scripts.json</c>、「命令库」=<c>config\pc-quick.json</c>；
+/// 「脚本库」=<c>config\script\script.json</c>、「命令库」=<c>config\script\script.json</c>；
 /// 收藏（<see cref="IsFavorite"/>）是同一条记录上的标记 —— 单一真相源，收藏夹页据此汇总两页的收藏项。
 /// </para>
 /// <para>
@@ -107,8 +107,8 @@ public static class QuickActionShell
 /// <see cref="NeedAdmin"/> 为真时统一走 UAC 提权。
 /// </para>
 /// <para>
-/// ⛔ 默认清单<b>既不写死在代码里、也不随程序预置</b>（v3.60 §三 / NT-060）：<c>config\pc-scripts.json</c> /
-/// <c>config\pc-quick.json</c> 首次运行就是**空清单**，条目全部由用户导入 / 新建（见 <c>QuickActionService</c>）。
+/// ⛔ 默认清单<b>既不写死在代码里、也不随程序预置</b>（v3.60 §三 / NT-060）：<c>config\script\script.json</c> /
+/// <c>config\script\script.json</c> 首次运行就是**空清单**，条目全部由用户导入 / 新建（见 <c>QuickActionService</c>）。
 /// </para>
 /// </summary>
 public partial class QuickAction : ObservableObject
@@ -171,6 +171,19 @@ public partial class QuickAction : ObservableObject
     [JsonIgnore]
     public string FavoriteMark => IsFavorite ? "★" : "";
 
+    /// <summary>
+    /// <b>可采集</b>（NT-068 §三.5）：由 <c>CollectableEvaluator</c> 判定后填进来，供库页「可采集」列显示。
+    /// <para>⚠️ <b>派生值</b>，⛔ 不从本类回写数据层（真相源是 <c>ScriptItem.Collectable</c>）。</para>
+    /// </summary>
+    [ObservableProperty] private bool _collectable = true;
+
+    /// <summary>不可采集的原因（列悬浮提示用）；可采集时为空。</summary>
+    [ObservableProperty] private string _ineligibleReason = "";
+
+    /// <summary>列表「可采集」列的显示文本：✔ / ✖。派生，不写盘。</summary>
+    [JsonIgnore]
+    public string CollectableMark => Collectable ? "✔" : "✖";
+
     /// <summary>这条到底跑什么（命令内容 / 脚本文件），界面上提示用。派生，不写盘。</summary>
     [JsonIgnore]
     public string TargetText
@@ -206,6 +219,8 @@ public partial class QuickAction : ObservableObject
     }
 
     partial void OnIsFavoriteChanged(bool value) => OnPropertyChanged(nameof(FavoriteMark));
+
+    partial void OnCollectableChanged(bool value) => OnPropertyChanged(nameof(CollectableMark));
 
     partial void OnKindChanged(string value)
     {

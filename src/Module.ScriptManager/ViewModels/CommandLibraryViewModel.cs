@@ -17,8 +17,8 @@ namespace NewToys.ScriptManager.ViewModels;
 /// 与「脚本库」页的分工（v1.33）：这里放<b>命令行命令</b>（<see cref="QuickActionKind.Command"/>，
 /// 如 <c>start ms-settings:display</c>、<c>ipconfig /flushdns</c>）；
 /// <b>有脚本文件的脚本</b>（.py / .ps1 / .bat）放「脚本库」页。
-/// 两页**各有自己的清单文件**（v1.34）：本页 = <c>config\pc-quick.json</c>，
-/// 「脚本库」= <c>config\pc-scripts.json</c>；收藏是同一批 <c>IsFavorite</c> 标记。
+/// 两页**各有自己的清单文件**（v1.34）：本页 = <c>config\script\script.json</c>，
+/// 「脚本库」= <c>config\script\script.json</c>；收藏是同一批 <c>IsFavorite</c> 标记。
 /// </para>
 /// </summary>
 public partial class CommandLibraryViewModel : QuickActionListViewModel
@@ -37,7 +37,7 @@ public partial class CommandLibraryViewModel : QuickActionListViewModel
     /// <summary>
     /// v3.63：本页工具条 = **「📂 导入清单」（基类共用，已在最前）→ 输入框 → 搜索框**。
     /// <para>
-    /// 输入框 = 本页数据文件 <c>config\pc-quick.json</c>（只读，与「脚本库」页的脚本目录框同一位置 / 同宽）；
+    /// 输入框 = 本页数据文件 <c>config\script\script.json</c>（只读，与「脚本库」页的脚本目录框同一位置 / 同宽）；
     /// ⛔ 本页条目全是 json 里的记录（不是磁盘上的脚本文件）⇒ **没有「导入文件夹」这一路**。
     /// </para>
     /// </summary>

@@ -138,6 +138,37 @@ public class ScriptStoreService : IScriptStoreService
         return true;
     }
 
+    /// <summary>
+    /// <b>内置集合成员同步</b>（NT-068 §三.7）：<c>脚本库</c> 集合收全部 <c>role∈{script,collector}</c>，
+    /// <c>命令库</c> 集合收全部 <c>role=command</c>。只读关系 —— 用户要自定义就新建集合。
+    /// </summary>
+    /// <returns>是否有成员变化（需要回写磁盘）。</returns>
+    public bool SyncBuiltinCollections()
+    {
+        var dirty = false;
+        foreach (var col in Data.Collections.Where(c => c.Builtin && !c.Archived))
+        {
+            var wantsScript = col.Kind == ScriptCollectionKind.Script;
+            var wantsCommand = col.Kind == ScriptCollectionKind.Command;
+            if (!wantsScript && !wantsCommand) continue;
+
+            foreach (var item in Data.Items)
+            {
+                var belongs = wantsScript
+                    ? item.Role is ScriptItemRole.Script or ScriptItemRole.Collector
+                    : item.Role == ScriptItemRole.Command;
+
+                var has = item.Collections.Contains(col.Id);
+                if (belongs == has) continue;
+
+                if (belongs) item.Collections.Add(col.Id);
+                else item.Collections.RemoveAll(c => c == col.Id);
+                dirty = true;
+            }
+        }
+        return dirty;
+    }
+
     // ==================== 内部 ====================
 
     /// <summary>原子写：同目录临时文件 + 一次 rename 覆盖（同卷 rename 是原子操作）。</summary>

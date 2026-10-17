@@ -784,15 +784,17 @@ VM ⛔ 不引 Avalonia ⇒ 统一走 `Core.DialogHooks` 的 3 个钩子：`PickF
 | `app.json` | 软件设置 | ffmpeg/播放器/DNS 开关/脚本运行环境（python、pwsh、PS5.1 路径 + 脚本目录）。无视频库目录 |
 | `launch.json` | 软件设置 | 三个一键按钮+4 个通用开关 |
 | `package.json` | 软件设置 | 软件包查询偏好。源本身不在这里 |
+| `script-manager.json` | 模块设置 | **脚本管理器**（`IOptionsStore` 分区名 `script-manager`，v3.64 / NT-061 起唯一写入点 = `settings-script` 页）：脚本目录。⚠️ 分区名 ≠ 模块键（模块键是 `script`）是历史惯例 |
 | `favorites.json` | 用户功能数据 | 首页收藏夹 |
-| `pc-scripts.json` | 用户功能数据 | 「设置与脚本」页清单 |
-| `pc-quick.json` | 用户功能数据 | 「快捷设置」页清单 |
+| `script\script.json` | 用户功能数据 | **脚本管理器手工数据**（NT-068 S2）：集合 / 条目（脚本·命令·采集器·软件包）/ 标签 / 视图 / 上次选中的集合。原子写（`.tmp` + rename）；旧 `pc-scripts.json` / `pc-quick.json` / `quickactions.json` **已废弃并静默忽略**（不读不写不删） |
 | `columnlayout.json` | 用户功能数据 | 列显隐偏好 + **页面级开关**（详情栏开合 `FlagDetailPanel`；**壳级页 Key `"shell"`**：左树折叠态 `treeCollapsed` + **各一级分组展开态 `treeGroup:<groupKey>`，默认 false**） |
 
 - **解释器路径**（python / pwsh / PS5.1）留空 = 用系统 PATH 里的；只有填了"看起来像路径"的值才校验存在性。`.ps1` 未配 pwsh 时自动退回系统自带的 5.1。
-- ⛔ **v3.60 §一 / NT-060：不随程序预置默认内容** —— `defaults\pc-scripts.default.json` / `pc-quick.default.json` 与 `defaults\scripts\*` **已删**、`QuickActionService` 不再播种 ⇒ 首次运行 `config\pc-scripts.json` / `pc-quick.json` 就是**空清单**，条目全部由用户导入 / 新建。
-  - `Shell.csproj` 的 `<None Update="defaults\**" CopyToOutputDirectory="PreserveNewest" />` **保留待用**（现在无文件可复制）；⚠️ 若确认不再需要 `defaults\` 可另行清理（现有唯一消费者 `QuickActionService` 已不再读它）。
-- 脚本目录默认 `<应用根>\scripts`（`IAppConfigService.DefaultScriptFolder` 推出），可在「设置 → 路径配置」改。
+- ⛔ **v3.60 §一 / NT-060：不随程序预置默认内容** —— `defaults\pc-scripts.default.json` / `pc-quick.default.json` 与 `defaults\scripts\*` **已删**、`QuickActionService` 不再播种 ⇒ 首次运行 `config\script\script.json` 是**空清单**，条目全部由用户导入 / 新建。
+  - 唯一例外 = **内置采集脚本**：`defaults\sysinfo\*.ps1` 由 `BuiltinCollectorSeeder` 播到 `<脚本目录>\sysinfo\`（**只加不覆盖** + `.seeded` 标记），并把它们登记成 `role=collector` 的条目。
+- **`data\` 下的观测缓存**（NT-068 S3）：`data\script\script.db` = 采集观测 / 运行日志（`pc_observations` + `pc_runs` 两表，含索引与保留策略），**可重建、不进备份**。模块自建 `ScriptDatabase`（Microsoft.Data.Sqlite 直连），⛔ 不动 Core 的 `SqliteDatabase`（它把 `newtoys.db` 写死了）。
+- **`config\script\settings.json` 不可行**：`IOptionsStore.Validate` 禁路径分隔符 / `.` / `..` ⇒ 模块设置只能落 `config\script-manager.json`；手工数据走模块自建子目录 `config\script\`。
+
 
 ---
 

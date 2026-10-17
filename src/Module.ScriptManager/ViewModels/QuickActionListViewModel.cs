@@ -479,11 +479,11 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     public string FavoriteButtonText => DetailItem?.IsFavorite == true ? "★ 取消收藏" : "☆ 收藏";
 
     /// <summary>底部提示：数据落在哪、会不会被备份（规范 §9）。
-    /// 两页各有自己的文件（v1.34）：「脚本库」= <c>pc-scripts.json</c>、「命令库」= <c>pc-quick.json</c>。</summary>
+    /// 🔴 NT-068 S3 起脚本库 / 命令库**共用** <c>config\script\script.json</c>（按条目角色区分归属）。</summary>
     public string DataFileHint =>
         $"本页数据文件：{FilePath}\n（两个页面的文件都在 config\\ 下，会被「设置 → 数据管理」的备份 / 导入一起覆盖）";
 
-    /// <summary>本页的配置文件全路径（两页各一份，v1.34 拆文件）。</summary>
+    /// <summary>本页的配置文件全路径（两页同一个文件，按 <c>role</c> 区分）。</summary>
     public string FilePath => _pageKind == QuickActionPage.Quick
         ? _svc?.QuickFilePath ?? ""
         : _svc?.ScriptsFilePath ?? "";
@@ -811,8 +811,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     // ==================== 工具条（NT-055 / 需求 §4.8.5：由 Shell 统一渲染） ====================
 
-    /// <summary>导出时建议的文件名（两页不同：<c>pc-scripts-export.json</c> / <c>pc-quick-export.json</c>）。</summary>
-    protected virtual string ExportSuggestedName => "pc-export.json";
+    /// <summary>导出时建议的文件名（两页不同：<c>script-library-export.json</c> / <c>script-commands-export.json</c>）。</summary>
+    protected virtual string ExportSuggestedName => "script-export.json";
 
     /// <summary>搜索框的悬停提示（「命令库」页原本没有 → 派生类覆盖成 null）。</summary>
     protected virtual string? SearchToolTip => "即时过滤（本地）";

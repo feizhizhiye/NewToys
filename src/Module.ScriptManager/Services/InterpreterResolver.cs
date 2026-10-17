@@ -71,7 +71,7 @@ public static class InterpreterResolver
 
         if (string.Equals(mode, ScriptInterpreter.Pwsh, StringComparison.OrdinalIgnoreCase))
         {
-            // 显式指定了 pwsh 却没装 → 退回 5.1（用户手改 manifest 写死 pwsh 时不至于整组没有数据）
+            // 显式指定了 pwsh 却没装 → 退回 5.1（条目里写死 pwsh 时不至于整组没有数据）
             var ps51 = ConfiguredOr(cfg?.PowerShell51Path, "powershell.exe");
             return (ps51, PsArgs(scriptPath), null);
         }

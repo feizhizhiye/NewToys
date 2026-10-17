@@ -84,7 +84,7 @@
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
             <!-- 右键菜单：这是「选中后更多功能」的主入口（菜单项作用对象 = 当前选中行）：
-                 查（▤ 详情栏 / 🔎 详情 / 🌐 主页 / 🔗 winget.run）/ 增（⬇ 安装）/ 改（⬆ 升级 / 📌 Pin）/ 删（🗑 卸载）。 -->
+                 查（▤ 详情栏 / 🔎 详情 / 🌐 主页 / 🔗 在线索引）/ 增（⬇ 安装）/ 改（⬆ 升级 / 🔒 锁定）/ 删（🗑 卸载）。 -->
             <ListBox.ContextMenu>
               <ContextMenu>
                 <Separator/>
@@ -92,10 +92,10 @@
                 <MenuItem Header="⬆ 升级到最新" Command="{Binding UpgradeCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <MenuItem Header="🗑 卸载…" Command="{Binding UninstallCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <Separator/>
-                <MenuItem Header="📌 Pin（暂停更新）" Command="{Binding PinCommand}" IsEnabled="{Binding !IsBusy}"/>
-                <MenuItem Header="📌 取消 Pin" Command="{Binding UnpinCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="🔒 锁定版本（暂停更新）" Command="{Binding PinCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="🔒 解除锁定" Command="{Binding UnpinCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <Separator/>
-                <MenuItem Header="🔎 读取详情（winget show）" Command="{Binding LoadDetailCommand}"/>
+                <MenuItem Header="🔎 读取详情" Command="{Binding LoadDetailCommand}"/>
                 <MenuItem Header="📋 复制 Id" Command="{Binding CopyIdCommand}"/>
                 <MenuItem Header="🌐 打开主页" Command="{Binding OpenHomepageCommand}"/>
                 <MenuItem Header="🔗 在 winget.run 查看" Command="{Binding OpenInWingetRunCommand}"/>

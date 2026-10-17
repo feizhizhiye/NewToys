@@ -167,7 +167,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     partial void OnSelectedViewOptionChanged(CollectionFilterOption? value) => ApplyCollectionEdits();
 
     partial void OnEditKindChanged(string value) => ApplyCollectionEdits();
-    partial void OnEditRefreshMode(string value) => ApplyCollectionEdits();
+    partial void OnEditRefreshModeChanged(string value) => ApplyCollectionEdits();
 
     // ==================== 列表基础设施（ListPageViewModelBase 抽象成员） ====================
 

@@ -42,7 +42,7 @@
               <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
-          <TextBlock
+          <SelectableTextBlock
               Grid.Column="0"
               Classes="section-title"
               Text="{Binding Header}"
@@ -87,7 +87,7 @@
     <!--  ===== Kind ① Text（单行 / 多行 / 只读可复制 / 密码）  =====  -->
     <DataTemplate DataType="c:TextFieldRow">
       <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <TextBlock
+        <SelectableTextBlock
             Classes="field-label"
             IsVisible="{Binding HasLabel}"
             Text="{Binding Label}"
@@ -108,7 +108,7 @@
             IsVisible="{Binding IsSelectable}"
             Text="{Binding Text}"
             TextWrapping="Wrap" />
-        <TextBlock
+        <SelectableTextBlock
             Classes="hint-text"
             IsVisible="{Binding HasHint}"
             Text="{Binding Hint}"
@@ -120,7 +120,7 @@
     <DataTemplate DataType="c:CheckFieldRow">
       <StackPanel Spacing="2" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
         <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked, Mode=TwoWay}" />
-        <TextBlock
+        <SelectableTextBlock
             Classes="hint-text"
             IsVisible="{Binding HasHint}"
             Text="{Binding Hint}"
@@ -131,7 +131,7 @@
     <!--  ===== Kind ③ Select（下拉；显示文案 / 值回写都在渲染层收口）  =====  -->
     <DataTemplate DataType="c:SelectFieldRow">
       <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <TextBlock
+        <SelectableTextBlock
             Classes="field-label"
             IsVisible="{Binding HasLabel}"
             Text="{Binding Label}"
@@ -147,7 +147,7 @@
             </DataTemplate>
           </ComboBox.ItemTemplate>
         </ComboBox>
-        <TextBlock
+        <SelectableTextBlock
             Classes="hint-text"
             IsVisible="{Binding HasHint}"
             Text="{Binding Hint}"
@@ -158,7 +158,7 @@
     <!--  ===== Kind ④ Number（数值 / 评分）  =====  -->
     <DataTemplate DataType="c:NumberFieldRow">
       <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <TextBlock
+        <SelectableTextBlock
             Classes="field-label"
             IsVisible="{Binding HasLabel}"
             Text="{Binding Label}"
@@ -172,7 +172,7 @@
             Maximum="{Binding Maximum}"
             Minimum="{Binding Minimum}"
             Value="{Binding Number, Mode=TwoWay}" />
-        <TextBlock
+        <SelectableTextBlock
             Classes="hint-text"
             IsVisible="{Binding HasHint}"
             Text="{Binding Hint}"
@@ -185,7 +185,7 @@
           `ChipGroupPath` 为空时就只有一组、无标题），内层才是 chips 本体。  -->
     <DataTemplate DataType="c:ChipsFieldRow">
       <StackPanel Spacing="6" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <TextBlock
+        <SelectableTextBlock
             Classes="field-label"
             IsVisible="{Binding HasLabel}"
             Text="{Binding Label}"
@@ -240,7 +240,7 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <TextBlock
+        <SelectableTextBlock
             Classes="hint-text"
             IsVisible="{Binding HasHint}"
             Text="{Binding Hint}"
@@ -250,7 +250,7 @@
 
     <!--  ===== Kind ⑥ Hint（纯提示文字，含空态）  =====  -->
     <DataTemplate DataType="c:HintFieldRow">
-      <TextBlock
+      <SelectableTextBlock
           Classes="hint-text"
           IsVisible="{Binding IsVisible}"
           Text="{Binding Text}"
@@ -263,7 +263,7 @@
           ⚠️ 颜色 / 尺寸**只由 Controls.axaml 的 `Button.icon-btn` 给**（⛔ 这里不写本地 Stroke / Width）。  -->
     <DataTemplate DataType="c:IconBarFieldRow">
       <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <TextBlock
+        <SelectableTextBlock
             Classes="field-label"
             IsVisible="{Binding HasLabel}"
             Text="{Binding Label}"
@@ -318,7 +318,7 @@
           单项四格都由描述符的 Item*Path 取数（⛔ 这里不写任何字段名）。  -->
     <DataTemplate DataType="c:ListFieldRow">
       <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <TextBlock
+        <SelectableTextBlock
             Classes="field-label"
             IsVisible="{Binding HasLabel}"
             Text="{Binding Label}"
@@ -385,7 +385,7 @@
           ⛔ 与值通道的模板互斥（IndexPath 非空才走这里），两个模板共存不算新增 Kind。  -->
     <DataTemplate DataType="c:IndexSelectFieldRow">
       <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <TextBlock
+        <SelectableTextBlock
             Classes="field-label"
             IsVisible="{Binding HasLabel}"
             Text="{Binding Label}"
@@ -394,7 +394,7 @@
             HorizontalAlignment="Stretch"
             ItemsSource="{Binding Options}"
             SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" />
-        <TextBlock
+        <SelectableTextBlock
             Classes="hint-text"
             IsVisible="{Binding HasHint}"
             Text="{Binding Hint}"
@@ -410,7 +410,7 @@
       DataContext="{Binding $parent[c:DetailCardHost].Renderer}">
     <StackPanel Margin="12,12,4,12" Spacing="10">
       <!--  空态：没选中项时给一句引导（⛔ 不留白）  -->
-      <TextBlock
+      <SelectableTextBlock
           Classes="hint-text"
           IsVisible="{Binding !ShowBody}"
           Text="{Binding EmptyText}"
@@ -419,10 +419,12 @@
           IsVisible="{Binding ShowBody}"
           Spacing="10">
         <ItemsControl ItemsSource="{Binding Sections}" />
-        <ItemsControl ItemsSource="{Binding Actions}">
+        <!--  动作 = **一行按钮组**（WrapPanel）：按钮按选中项状态显隐，宽 340 放不下就自动换行。
+              ⛔ 原来是竖向 StackPanel（一个按钮占一行）⇒ 6 个按钮把详情信息顶出可视区。  -->
+        <ItemsControl ItemsSource="{Binding Actions}" IsVisible="{Binding HasActions}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <StackPanel Spacing="6" />
+              <WrapPanel ItemSpacing="6" LineSpacing="6" Orientation="Horizontal" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>

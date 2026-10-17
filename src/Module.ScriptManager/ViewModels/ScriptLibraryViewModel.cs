@@ -34,7 +34,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
 
     // ==================== 工具条（NT-055 / 需求 §4.8.5） ====================
 
-    protected override string ExportSuggestedName => "pc-scripts-export.json";
+    protected override string ExportSuggestedName => "script-library-export.json";
 
     /// <summary>
     /// v3.63：本页最前已经有了「📂 导入」（脚本文件）⇒ 共用的「📥 导入」（json 清单）退到「📤 导出」前面，

@@ -141,33 +141,179 @@ internal static class PackageOutputParser
             if (IsNoiseLine(line)) continue;
             if (IsSeparator(line)) continue;        // ---- 分隔线
 
-            var row = new Dictionary<string, string>(StringComparer.Ordinal);
+            // 🔴 按**显示宽度**切片（不是字符下标）：中文名一行里每个汉字占 2 列，
+            //    按字符下标切会把后面几列整体左移 ⇒ 版本列里出现 Id / 名称的字母（"e 8000…" "wn"）。
+            var cells = new string[columns.Count];
             for (var c = 0; c < columns.Count; c++)
             {
-                var start = columns[c].Start;
-                var end = c + 1 < columns.Count ? columns[c + 1].Start : line.Length;
-                if (start >= line.Length) { row[columns[c].Label] = ""; continue; }
-                if (end > line.Length) end = line.Length;
-                row[columns[c].Label] = line.Substring(start, end - start).Trim();
+                var startW = columns[c].StartW;
+                var endW = c + 1 < columns.Count ? columns[c + 1].StartW : int.MaxValue;
+                cells[c] = startW >= DisplayWidth(line) ? "" : SliceByWidth(line, startW, endW);
             }
+
+            ReflowOverflow(cells, columns);
+
+            var row = new Dictionary<string, string>(StringComparer.Ordinal);
+            for (var c = 0; c < columns.Count; c++) row[columns[c].Label] = cells[c].Trim();
 
             // 整行只剩第一个单元格（长名称换行那种残行）→ 丢弃
             if (!row.TryGetValue("Name", out var name) || name.Length == 0) continue;
+
+            // 🔴 名称被**自动换行**时，Id 会跟着折到下一行 ⇒ 本行 Id 只剩尾巴
+            //    （`Microsoft Edge` 折行后本行 Id = `e`，完整 Id `Microsoft.Edge` 在下一行）。
+            //    这种残缺 Id 装不了 / 卸不了、也匹配不上已安装表。判据三条同时成立才算续行：
+            //    ① 本行 Id 非空、是**最后有值的一列**且整行顶到行尾；② 下一行在 id 列位置有内容，版本列为空；
+            //    ③ 两段合起来才像一条 Id —— 本行段不含 `.`、下一段含 `.`（= 被切断的那条），
+            //       或本行段**不足 4 字符**（`e` / `edg`）且两段直接相连。⛔ 不做"任意两段拼接"。
+            //    ⚠️ 判成续行时**保留本行的 Name**（不要用续行的空 Name 覆盖），只把 Id 拼全。
+            //    ⚠️ 续行的 Version 列若也被切断（`1…` / `e15…`）就丢掉 —— 这种版本串没有意义。
+            if (row.TryGetValue("Id", out var idCell) && idCell.Length > 0 && IdIsLastColumn(line, columns, row)
+                && i + 1 < lines.Length && TryGetColumnAt(lines[i + 1], columns, "Id", out var rest) && rest.Length > 0
+                && TryGetColumnAt(lines[i + 1], columns, "Version", out var nextVer) && nextVer.Length == 0
+                && ((!idCell.Contains('.') && rest.Contains('.'))
+                    || (idCell.Length < 4 && !idCell.Contains(' ') && !rest.Contains(' '))))
+            {
+                row["Id"] = idCell + rest;
+                if (row.TryGetValue("Version", out var v0) && v0.Length > 0 && v0.Length <= 2) row["Version"] = "";
+                i++;                                 // 续行已消费（否则会被当成一条孤立行）
+            }
+
             rows.Add(row);
         }
         return rows;
     }
 
-    /// <summary>把一行里的列标签解析成「规范名 + 起始下标」，按出现顺序排列。</summary>
-    private static List<(string Label, int Start)> FindLabels(string line)
+    /// <summary>
+    /// 单元格**溢出回填**：列宽是固定的，内容超长时后端不会截断，而是**顶满后挤进下一列**
+    /// （例：Id <c>MSIX\…8wekyb3d8bbwe</c> 比 Id 列宽 1 ⇒ 版本列变成 <c>e 8000.836.2153.0</c>）。
+    /// <para>
+    /// 判据（四条同时成立才搬）：① 本列内容顶满列宽；② 本列末尾不是空白；③ 下一列开头不是空白（没被空格分隔）；
+    /// ④ 下一列里还有空格 ⇒ 把**第一个空格之前的那段**还给本列（剩下的才是本列真正的值）。
+    /// </para>
+    /// </summary>
+    private static void ReflowOverflow(string[] cells, List<(string Label, int StartW)> columns)
+    {
+        for (var c = 0; c + 1 < cells.Length; c++)
+        {
+            var width = columns[c + 1].StartW - columns[c].StartW;
+            var cur = cells[c];
+            var next = cells[c + 1];
+            if (width <= 0 || cur.Length == 0 || next.Length == 0) continue;
+            if (char.IsWhiteSpace(cur[^1]) || char.IsWhiteSpace(next[0])) continue;
+            if (DisplayWidth(cur.Trim()) < width) continue;
+
+            var sp = next.IndexOf(' ');
+            if (sp <= 0 || sp == next.Length - 1) continue;
+
+            cells[c] = cur + next[..sp];
+            cells[c + 1] = next[sp..];
+        }
+    }
+
+    // ==================== 显示宽度（🔴 CJK 全角 = 2 列） ====================
+
+    /// <summary>东亚宽 / 全角字符的码点区间（造表格时按 2 列计）。</summary>
+    private static readonly (int Lo, int Hi)[] WideRanges =
+    {
+        (0x1100, 0x115F), (0x2E80, 0x303E), (0x3041, 0x33FF), (0x3400, 0x4DBF),
+        (0x4E00, 0x9FFF), (0xA000, 0xA4CF), (0xAC00, 0xD7A3), (0xF900, 0xFAFF),
+        (0xFE10, 0xFE19), (0xFE30, 0xFE6F), (0xFF00, 0xFF60), (0xFFE0, 0xFFE6),
+        (0x20000, 0x2FFFD), (0x30000, 0x3FFFD),
+    };
+
+    /// <summary>字符串占多少**显示列**（全角 2、其余 1；代理对按码点算一次）。</summary>
+    internal static int DisplayWidth(string s)
+    {
+        var w = 0;
+        for (var i = 0; i < s.Length; i++)
+        {
+            int cp = s[i];                     // 🔴 必须是 int：代理对下面要塞码点（char 装不下）
+            if (char.IsHighSurrogate(s[i]) && i + 1 < s.Length && char.IsLowSurrogate(s[i + 1]))
+            {
+                cp = char.ConvertToUtf32(s[i], s[i + 1]);
+                i++;
+            }
+            w += IsWide(cp) ? 2 : 1;
+        }
+        return w;
+    }
+
+    private static bool IsWide(int cp)
+    {
+        foreach (var (lo, hi) in WideRanges)
+            if (cp >= lo && cp <= hi) return true;
+        return false;
+    }
+
+    /// <summary>显示列 <paramref name="width"/> 处对应的字符下标（超出则返回行尾）。</summary>
+    private static int IndexOfWidth(string s, int width)
+    {
+        var w = 0;
+        var i = 0;
+        while (i < s.Length && w < width)
+        {
+            var step = 1;
+            var cp = (int)s[i];
+            if (char.IsHighSurrogate(s[i]) && i + 1 < s.Length && char.IsLowSurrogate(s[i + 1]))
+            {
+                cp = char.ConvertToUtf32(s[i], s[i + 1]);
+                step = 2;
+            }
+            w += IsWide(cp) ? 2 : 1;
+            i += step;
+        }
+        return i;
+    }
+
+    /// <summary>按显示列区间取子串（<paramref name="endW"/> 给 <c>int.MaxValue</c> = 取到行尾）。</summary>
+    private static string SliceByWidth(string s, int startW, int endW)
+    {
+        var a = IndexOfWidth(s, startW);
+        var b = endW == int.MaxValue ? s.Length : IndexOfWidth(s, endW);
+        return b <= a ? "" : s.Substring(a, b - a);
+    }
+
+    /// <summary>Id 是否就是本行**有值的最右一列**（⇒ 换行时它会被从中间切断）。</summary>
+    private static bool IdIsLastColumn(string line, List<(string Label, int StartW)> columns, Dictionary<string, string> row)
+    {
+        var idx = columns.FindIndex(c => c.Label == "Id");
+        if (idx < 0 || line.Length == 0 || char.IsWhiteSpace(line[^1])) return false;
+
+        for (var c = idx + 1; c < columns.Count; c++)
+        {
+            if (row.TryGetValue(columns[c].Label, out var v) && v.Length > 0) return false;
+        }
+        return true;
+    }
+
+    /// <summary>按列切片规则取某一行的某列文本（同样按**显示宽度**切）。</summary>
+    private static bool TryGetColumnAt(string line, List<(string Label, int StartW)> columns, string label, out string value)
+    {
+        value = "";
+        var idx = columns.FindIndex(c => c.Label == label);
+        if (idx < 0) return false;
+
+        var startW = columns[idx].StartW;
+        var endW = idx + 1 < columns.Count ? columns[idx + 1].StartW : int.MaxValue;
+        if (startW >= DisplayWidth(line)) return true;
+
+        value = SliceByWidth(line, startW, endW).Trim();
+        return true;
+    }
+
+    /// <summary>
+    /// 把一行里的列标签解析成「规范名 + 起始**显示列**」，按出现顺序排列。
+    /// <para>🔴 存的是显示列而不是字符下标：表头是 ASCII，但数据行里有中文 ⇒ 两者不对齐。</para>
+    /// </summary>
+    private static List<(string Label, int StartW)> FindLabels(string line)
     {
         return LabelRegex.Matches(line)
-            .Select(m => (Label: ToCanonical(m.Value), Start: m.Index))
+            .Select(m => (Label: ToCanonical(m.Value), StartW: DisplayWidth(line[..m.Index])))
             .Where(c => c.Label != null)
-            .Select(c => (Label: c.Label!, c.Start))
+            .Select(c => (Label: c.Label!, c.StartW))
             .GroupBy(c => c.Label)
             .Select(g => g.First())                 // 同一规范名只取首次出现
-            .OrderBy(c => c.Start)
+            .OrderBy(c => c.StartW)
             .ToList();
     }
 

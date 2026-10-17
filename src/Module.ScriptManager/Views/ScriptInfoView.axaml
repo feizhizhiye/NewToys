@@ -1,117 +1,282 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:v="using:NewToys.UI.Controls"
              xmlns:pc="using:NewToys.ScriptManager.Controls"
              x:Class="NewToys.ScriptManager.Views.ScriptInfoView">
   <!--
-    「脚本管理器 → 信息面板」（NT-067；原 script-info「系统信息」）。
-    本页是**脚本输出呈现器**：列与脚本都由 sysinfo\sysinfo.manifest.json 决定 ⇒ 列数运行时可变
-    ⇒ 表头与行都用 pc:SysInfoGrid（页内自绘动态列，⛔ 不用 XAML 静态列，也不改 Shared 的列机制）。
-    NT-063 P1：外层沿用列表页骨架 ListPageSkeleton（card / 空态 / 底栏由骨架提供）。
-  -->
-  <v:ListPageSkeleton EmptyMessage="{Binding EmptyMessage}"
-                      EmptyActionText="🔄 重新检测"
-                      EmptyActionCommand="{Binding DetectCommand}"
-                      IsEmpty="{Binding !HasItems}">
+    「脚本管理器 → 信息面板」（NT-068 S5/S6；原 NT-067 的 manifest 驱动模型已废弃）。
 
-    <!--  ==================== 顶区：「⚙ 列设置」面板（收起时 Auto 行高度 0）  ====================  -->
-    <v:ListPageSkeleton.TopArea>
-      <Border Classes="filter-bar" IsVisible="{Binding IsColumnSettingsOpen}" Margin="0,0,0,8">
-        <StackPanel Spacing="6">
-          <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                     Text="列设置：勾选控制显隐（落 config\columnlayout.json 的 script-info 页键）；列宽保存后写回 sysinfo.manifest.json（宽度唯一来源 = manifest）。"/>
-          <ItemsControl ItemsSource="{Binding HeaderCells}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <WrapPanel Orientation="Horizontal"/>
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
+    结构：
+      ┌ 顶区：⚙ 节设置面板（收起时高度 0）
+      ├ 主体：Card 里一个 ScrollViewer → 每个采集器一节（节头 + 节体表）
+      ├ 空态：没集合 / 集合里没采集器（一段文案 + 一个按钮，⛔ 不做按钮墙）
+      └ 底栏：本次耗时 · 节数 · 总行数（分节模式**不分页**）
+
+    🔴 一次只显示一个集合：切集合靠工具条的「集合 ▾」选择框，⛔ 没有 Chip 条 / 横向集合按钮。
+    🔴 节体列是运行时变的（每个采集器自己的列）⇒ 表头与行都用 pc:SysInfoGrid（⛔ 不用静态列）。
+    🔴 颜色一律 DynamicResource 引主题语义键（⛔ 不写死色值）。
+  -->
+  <UserControl.Styles>
+    <!--  节头状态点：未采集=次要色 / 正常=强调色 / 警告=强调派生亮色 / 出错=危险色  -->
+    <Style Selector="Border.status-dot">
+      <Setter Property="Width" Value="8"/>
+      <Setter Property="Height" Value="8"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Background" Value="{DynamicResource SecondaryTextBrush}"/>
+    </Style>
+    <Style Selector="Border.status-dot.ok">
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+    <Style Selector="Border.status-dot.warn">
+      <Setter Property="Background" Value="{DynamicResource CardSelectedTextBrush}"/>
+    </Style>
+    <Style Selector="Border.status-dot.error">
+      <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
+    <!--  状态文字与点同色  -->
+    <Style Selector="TextBlock.status-text">
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+    </Style>
+    <Style Selector="TextBlock.status-text.ok">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+    <Style Selector="TextBlock.status-text.warn">
+      <Setter Property="Foreground" Value="{DynamicResource CardSelectedTextBrush}"/>
+    </Style>
+    <Style Selector="TextBlock.status-text.error">
+      <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+    </Style>
+
+    <!--  节容器：底部一条分隔线，节与节之间不留空白块  -->
+    <Style Selector="Border.section">
+      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+      <Setter Property="Padding" Value="12,8"/>
+    </Style>
+
+    <!--  节头（吸顶未做：见 NT-068 执行记录）  -->
+    <Style Selector="Border.section-head">
+      <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
+      <Setter Property="Padding" Value="12,6"/>
+    </Style>
+
+    <!--  数据行：可点选（选中效果走详情卡，行本身不再画选中底）  -->
+    <Style Selector="Border.info-row">
+      <Setter Property="Padding" Value="0,0,0,0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="MinHeight" Value="28"/>
+    </Style>
+    <Style Selector="Border.info-row:pointerover">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="*,Auto" Margin="12">
+
+    <!--  ==================== 主体  ====================  -->
+    <Border Grid.Row="0" Classes="card" Padding="0">
+      <Grid RowDefinitions="Auto,*">
+
+        <!--  ① ⚙ 节设置面板（收起时 Auto 行高度 0）  -->
+        <Border Grid.Row="0" Classes="filter-bar" IsVisible="{Binding IsSectionSettingsOpen}" Margin="0,0,0,8">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                       Text="节设置：改的是**当前节**的采集器（解析器 / 超时 / 保留策略 / 自动刷新）与**当前集合**的刷新策略。保存后写入 config\script\script.json。"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="采集器"/>
+              <TextBlock VerticalAlignment="Center" FontSize="12"
+                         Text="{Binding SettingsSection.Title, FallbackValue=（未选择节）}"/>
+            </StackPanel>
+
+            <WrapPanel Orientation="Horizontal" ItemHeight="30">
+              <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" Text="解析器"/>
+              <ComboBox Width="170" Height="24" MinHeight="0" Margin="0,0,14,0"
+                        ItemsSource="{Binding ParserOptions}"
+                        SelectedItem="{Binding SettingsParser, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock FontSize="12" Text="{Binding Label}"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+
+              <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" Text="超时(秒)"/>
+              <TextBox Width="64" Height="24" MinWidth="0" MinHeight="0" Margin="0,0,14,0"
+                       Text="{Binding SettingsTimeout, Mode=TwoWay}"/>
+
+              <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" Text="保留"/>
+              <ComboBox Width="180" Height="24" MinHeight="0" Margin="0,0,14,0"
+                        ItemsSource="{Binding RetentionOptions}"
+                        SelectedItem="{Binding SettingsRetention, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock FontSize="12" Text="{Binding Label}"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBox Width="56" Height="24" MinWidth="0" MinHeight="0" Margin="0,0,14,0"
+                       Text="{Binding SettingsRetentionN, Mode=TwoWay}" ToolTip.Tip="count = 保留最近 N 次；days = 保留最近 N 天"/>
+
+              <CheckBox Margin="0,0,6,0" VerticalAlignment="Center" Content="自动刷新"
+                        IsChecked="{Binding SettingsAuto, Mode=TwoWay}" IsEnabled="{Binding CanAuto}"/>
+              <TextBox Width="64" Height="24" MinWidth="0" MinHeight="0" Margin="0,0,14,0"
+                       Text="{Binding SettingsInterval, Mode=TwoWay}"
+                       IsEnabled="{Binding CanAuto}" ToolTip.Tip="间隔秒数（2~3600；0 = 只手动）"/>
+
+              <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" Text="集合刷新"/>
+              <ComboBox Width="150" Height="24" MinHeight="0" Margin="0,0,14,0"
+                        ItemsSource="{Binding CollectionRefreshOptions}"
+                        SelectedItem="{Binding CollectionRefresh, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock FontSize="12" Text="{Binding Label}"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBox Width="64" Height="24" MinWidth="0" MinHeight="0"
+                       Text="{Binding CollectionRefreshSeconds, Mode=TwoWay}"
+                       ToolTip.Tip="定时刷新间隔（秒），只对 timer 模式有效"/>
+            </WrapPanel>
+
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding AutoHint}"/>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding RetentionHint}"/>
+
+            <!--  列：显隐 + 宽度（写回该采集器的列 schema）  -->
+            <ItemsControl ItemsSource="{Binding SettingsSection.HeaderCells}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Margin="0,0,8,6" Padding="8,4" CornerRadius="4"
+                          BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <CheckBox Content="{Binding Title}" IsChecked="{Binding IsVisible, Mode=OneWay}"
+                                Command="{Binding ToggleCommand}"/>
+                      <TextBox Width="64" Height="22" MinWidth="0" MinHeight="0" Text="{Binding Width}"
+                               ToolTip.Tip="数字 = 像素；2* = 比例；Auto = 自适应"/>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="primary" Content="💾 保存设置" Command="{Binding SaveSectionSettingsCommand}"/>
+              <TextBlock Classes="hint-text" VerticalAlignment="Center"
+                         Text="只读采集器强制 latest（不保留历史）；自动刷新只对只读条目开放。"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!--  ② 节列表（一个集合的全部采集器）  -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding Sections}">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Border Margin="0,0,10,6" Padding="8,4,8,4" CornerRadius="4"
-                        BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}">
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <CheckBox Content="{Binding Title}"
-                              IsChecked="{Binding IsVisible, Mode=OneWay}"
-                              Command="{Binding ToggleCommand}"/>
-                    <TextBox Width="76" Height="22" MinWidth="0" MinHeight="0"
-                             Text="{Binding Width}" ToolTip.Tip="数字 = 像素；2* = 比例；Auto = 自适应"/>
+                <Border Classes="section">
+                  <StackPanel Spacing="0">
+
+                    <!--  节头：状态点 + 标题 + 状态 / 时间 / 行数 + 局部刷新 + 折叠  -->
+                    <Border Classes="section-head" CornerRadius="3">
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                        <Border Grid.Column="0" Classes="status-dot" Margin="0,0,8,0"
+                                Classes.ok="{Binding IsOk}" Classes.warn="{Binding IsWarn}"
+                                Classes.error="{Binding IsError}"/>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                          <TextBlock FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                                     Text="{Binding Title}" ToolTip.Tip="{Binding Subtitle}"/>
+                          <TextBlock Classes="status-text" Text="{Binding StatusLabel}"
+                                     Classes.ok="{Binding IsOk}" Classes.warn="{Binding IsWarn}"
+                                     Classes.error="{Binding IsError}"/>
+                          <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="{Binding CapturedText}"/>
+                          <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="{Binding RowCountText}"/>
+                          <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="{Binding Error}"
+                                     IsVisible="{Binding IsError}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Classes="ghost" Content="⟳" Width="24" Height="22" Padding="0"
+                                FontSize="13" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                ToolTip.Tip="只刷新这一节" Command="{Binding RefreshCommand}"
+                                IsEnabled="{Binding CanRefresh}"/>
+                        <Button Grid.Column="3" Classes="ghost" Content="⚙" Width="24" Height="22" Padding="0"
+                                FontSize="12" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                ToolTip.Tip="这一节的解析器 / 超时 / 保留策略 / 自动刷新"
+                                Command="{Binding OpenSettingsCommand}"/>
+                        <Button Grid.Column="4" Classes="ghost" Content="⌄" Width="24" Height="22" Padding="0"
+                                FontSize="13" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                ToolTip.Tip="折叠 / 展开这一节" Command="{Binding ToggleCollapseCommand}"
+                                IsVisible="{Binding IsExpanded}"/>
+                        <Button Grid.Column="4" Classes="ghost" Content="›" Width="24" Height="22" Padding="0"
+                                FontSize="13" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                ToolTip.Tip="折叠 / 展开这一节" Command="{Binding ToggleCollapseCommand}"
+                                IsVisible="{Binding IsCollapsed}"/>
+                      </Grid>
+                    </Border>
+
+                    <!--  节体：这一采集器自己的列  -->
+                    <StackPanel IsVisible="{Binding IsExpanded}" Spacing="0">
+
+                      <!--  还没有列（首次采集前）  -->
+                      <TextBlock Classes="hint-text" Margin="12,8" TextWrapping="Wrap"
+                                 Text="{Binding EmptyBodyText}" IsVisible="{Binding !HasColumns}"/>
+
+                      <StackPanel IsVisible="{Binding HasColumns}" Spacing="0">
+                        <Border Classes="list-header" Margin="0,4,0,0">
+                          <pc:SysInfoGrid ColumnSpecs="{Binding ColumnSpecs}"
+                                          HeaderCells="{Binding HeaderCells}"
+                                          SortCommand="{Binding SortCommand}"/>
+                        </Border>
+
+                        <ItemsControl ItemsSource="{Binding Rows}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Border Classes="info-row" PointerPressed="OnRowPressed">
+                                <pc:SysInfoGrid ColumnSpecs="{Binding $parent[ItemsControl].DataContext.ColumnSpecs}"
+                                                Cells="{Binding Cells}"/>
+                              </Border>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Classes="hint-text" Margin="12,8" TextWrapping="Wrap"
+                                   Text="这次没有采集到行。"
+                                   IsVisible="{Binding ShowNoRowsHint}"/>
+
+                        <Button Classes="ghost" Content="{Binding ShowAllText}" Margin="0,6,0,2"
+                                HorizontalAlignment="Left" IsVisible="{Binding CanToggleShowAll}"
+                                Command="{Binding ToggleShowAllCommand}"/>
+                      </StackPanel>
+                    </StackPanel>
                   </StackPanel>
                 </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Classes="primary" Content="💾 保存宽度" Command="{Binding SaveColumnWidthsCommand}"/>
-            <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="写法：140（像素）/ 2*（比例）/ Auto"/>
-          </StackPanel>
+        </ScrollViewer>
+
+        <!--  ③ 空态（没集合 / 集合里没采集器）：一段文案 + 一个按钮  -->
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10"
+                    IsVisible="{Binding !HasSections}">
+          <TextBlock Classes="hint-text" MaxWidth="440" TextAlignment="Center" TextWrapping="Wrap"
+                     Text="{Binding EmptyMessage}"/>
+          <Button Classes="ghost" HorizontalAlignment="Center" Content="{Binding EmptyActionText}"
+                  IsVisible="{Binding HasEmptyAction}" Command="{Binding OpenEmptyActionCommand}"/>
         </StackPanel>
-      </Border>
-    </v:ListPageSkeleton.TopArea>
+      </Grid>
+    </Border>
 
-    <!--  ==================== 表头  ====================  -->
-    <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-        <pc:SysInfoGrid x:Name="HeaderGrid"
-                        ColumnSpecs="{Binding VisibleColumnSpecs}"
-                        HeaderCells="{Binding HeaderCells}"
-                        SortCommand="{Binding SortCommand}">
-          <pc:SysInfoGrid.ContextMenu>
-            <ContextMenu>
-              <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                <MenuItem.ItemContainerTheme>
-                  <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                    <Setter Property="Header" Value="{Binding Label}"/>
-                    <Setter Property="Command" Value="{Binding Command}"/>
-                  </ControlTheme>
-                </MenuItem.ItemContainerTheme>
-              </MenuItem>
-              <Separator/>
-              <MenuItem Header="显隐列" ItemsSource="{Binding HeaderCells}">
-                <MenuItem.ItemContainerTheme>
-                  <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                    <Setter Property="Header" Value="{Binding Title}"/>
-                    <Setter Property="ToggleType" Value="CheckBox"/>
-                    <Setter Property="IsChecked" Value="{Binding IsVisible, Mode=OneWay}"/>
-                    <Setter Property="Command" Value="{Binding ToggleCommand}"/>
-                  </ControlTheme>
-                </MenuItem.ItemContainerTheme>
-              </MenuItem>
-            </ContextMenu>
-          </pc:SysInfoGrid.ContextMenu>
-        </pc:SysInfoGrid>
-      </Border>
-    </v:ListPageSkeleton.HeaderArea>
-
-    <!--  ==================== 列表本体  ====================  -->
-    <v:ListPageSkeleton.ListArea>
-      <ListBox x:Name="InfoList" Classes="list-page"
-               ItemsSource="{Binding Items}"
-               SelectedItem="{Binding Selected, Mode=TwoWay}"
-               SelectionMode="Single">
-        <ListBox.ContextMenu>
-          <ContextMenu>
-            <MenuItem Header="🔄 重跑该脚本" Command="{Binding RerunScriptCommand}" CommandParameter="{Binding Selected}"/>
-            <MenuItem Header="📋 复制这一行" Command="{Binding CopyRowCommand}" CommandParameter="{Binding Selected}"/>
-            <MenuItem Header="✏ 编辑脚本" Command="{Binding EditScriptCommand}" CommandParameter="{Binding Selected}"/>
-            <MenuItem Header="📂 脚本目录" Command="{Binding OpenScriptDirCommand}"/>
-            <Separator/>
-            <MenuItem Header="📋 复制全部" Command="{Binding CopyAllCommand}"/>
-            <MenuItem Header="🔄 重新检测" Command="{Binding DetectCommand}" IsEnabled="{Binding !IsBusy}"/>
-            <MenuItem Header="⚙ 列设置" Command="{Binding ToggleColumnSettingsCommand}"/>
-            <Separator/>
-            <MenuItem Header="📦 导出脚本集合" Command="{Binding ExportPackCommand}"/>
-            <MenuItem Header="📂 导入脚本集合" Command="{Binding ImportPackCommand}"/>
-          </ContextMenu>
-        </ListBox.ContextMenu>
-
-        <ListBox.ItemTemplate>
-          <DataTemplate>
-            <pc:SysInfoGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}"
-                            Cells="{Binding Cells}"/>
-          </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
-    </v:ListPageSkeleton.ListArea>
-  </v:ListPageSkeleton>
+    <!--  ==================== 底栏：摘要（分节模式不分页）  ====================  -->
+    <Border Grid.Row="1" Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Height="28">
+      <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="12,0" Text="{Binding FooterSummary}"/>
+    </Border>
+  </Grid>
 </UserControl>

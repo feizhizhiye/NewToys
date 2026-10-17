@@ -29,7 +29,7 @@ public partial class CommandLibraryViewModel : QuickActionListViewModel
 
     // ==================== 工具条（NT-055 / 需求 §4.8.5） ====================
 
-    protected override string ExportSuggestedName => "pc-quick-export.json";
+    protected override string ExportSuggestedName => "script-commands-export.json";
 
     /// <summary>本页搜索框原本没有悬停提示（保持迁移前一致）。</summary>
     protected override string? SearchToolTip => null;

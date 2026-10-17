@@ -53,6 +53,12 @@ public partial class PackageInfo : ObservableObject
     public bool HasUpgrade => !string.IsNullOrEmpty(Available)
                               && !string.Equals(Available, Version, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// 可以真的点「⬆ 升级」= **已安装**且有可用更新（未安装的包没有升级语义）。
+    /// <para>详情卡的升级按钮绑这个：已安装但已是最新 ⇒ 置灰，并给「已是最新版」的理由。</para>
+    /// </summary>
+    public bool CanUpgrade => IsInstalled && HasUpgrade;
+
     /// <summary>列表「状态」列的文字。</summary>
     public string StatusText =>
         IsPinned ? "已 Pin（暂停更新）"
@@ -71,17 +77,23 @@ public partial class PackageInfo : ObservableObject
         OnPropertyChanged(nameof(PinnedMark));
     }
 
-    partial void OnIsInstalledChanged(bool value) => OnPropertyChanged(nameof(StatusText));
+    partial void OnIsInstalledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(CanUpgrade));
+    }
 
     partial void OnVersionChanged(string value)
     {
         OnPropertyChanged(nameof(HasUpgrade));
+        OnPropertyChanged(nameof(CanUpgrade));
         OnPropertyChanged(nameof(StatusText));
     }
 
     partial void OnAvailableChanged(string value)
     {
         OnPropertyChanged(nameof(HasUpgrade));
+        OnPropertyChanged(nameof(CanUpgrade));
         OnPropertyChanged(nameof(StatusText));
     }
 }

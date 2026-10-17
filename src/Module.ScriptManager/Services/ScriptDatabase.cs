@@ -168,7 +168,7 @@ public sealed class ScriptDatabase
              WHERE item_id = $item
                AND run_id = (SELECT id FROM pc_runs WHERE item_id = $item AND row_count > 0
                               ORDER BY started_at DESC LIMIT 1)
-             ORDER BY row_key, id;
+             ORDER BY id;
             """;
         cmd.Parameters.AddWithValue("$item", itemId);
 

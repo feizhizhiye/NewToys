@@ -14,20 +14,22 @@ using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <see cref="IQuickActionService"/> 实现：两个页面 = 两个配置文件。
-/// <list type="bullet">
-///   <item>「脚本库」→ <c>&lt;应用根&gt;\config\script\script.json</c>（有脚本文件的脚本）；</item>
-///   <item>「命令库」→ <c>&lt;应用根&gt;\config\script\script.json</c>（命令行命令）。</item>
-/// </list>
+/// <see cref="IQuickActionService"/> 实现：<b>两页共用一份手工数据</b>（NT-068 S3 起）。
+/// <para>
+/// 「脚本库」与「命令库」都读写 <c>&lt;配置根&gt;\config\script\script.json</c>，
+/// 用条目角色 <c>role</c>（<c>script</c> / <c>command</c> / <c>collector</c>）区分归属；
+/// 本服务是这份文件的<b>适配器</b>：把 <see cref="ScriptItem"/> 投影成 <see cref="QuickAction"/> 给库页用，
+/// 再把库页的改动 upsert 回仓储。
+/// </para>
 /// <para>
 /// <b>命令内容不写死在代码里，也不随程序预置</b>（v3.60 §3.6 / NT-060）：<b>干净启动</b> —— 两个配置文件
 /// 首次运行落盘成**空清单**，条目全部由用户自己导入 / 新建。软件只提供**默认路径**
 /// （<see cref="ScriptsDirectory"/> 这类常量），⛔ 不再读 <c>defaults\*.default.json</c> 播种。
 /// </para>
 /// <para>
-/// 旧版（v1.33 及以前）只有一个 <c>quickactions.json</c>：首次运行本服务会把它**按 <see cref="QuickAction.Page"/>
-/// 拆成两个新文件**，然后把旧文件改名成 <c>quickactions.json.migrated</c>（改名而不是删除 —— 不丢数据，
-/// 且 <c>*.json</c> 的备份扫描不会再带上它）。
+/// 🔴 NT-068 起<b>不做旧数据迁移</b>（用户 2026-10-17「无所谓老用户」）：
+/// <c>pc-scripts.json</c> / <c>pc-quick.json</c> / <c>quickactions.json</c> 一律<b>静默忽略</b>
+/// （不读、不写、不删，文件留在原地）。
 /// </para>
 /// <para>
 /// 删除等破坏性操作的二次确认通过静态钩子 <see cref="ConfirmHandler"/> 外抛 —— <c>Core</c> 不引用 Avalonia，

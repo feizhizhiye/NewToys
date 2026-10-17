@@ -11,7 +11,7 @@ namespace NewToys.ScriptManager.Controls;
 /// 信息面板页的**动态列**容器（NT-067 §三.5 / 决策 D1）：把「列宽规格串 + 单元格集合」渲染成一格一行。
 /// <para>
 /// 🔴 为什么需要它：<c>Shared/ListPageViewModelBase</c> 的列机制是「<c>Columns</c> 元数据 + 每列一个具名
-/// <c>IsXxxVisible</c> 属性 + XAML 静态列」（XAML 绑不了字典），而本页列数由 manifest 决定、运行时可变
+/// <c>IsXxxVisible</c> 属性 + XAML 静态列」（XAML 绑不了字典），而本页列数由采集器的列 schema（<c>items[].columns</c>）决定、运行时可变
 /// ⇒ 静态列不可行。框架层冻结（不改 Shared），所以在**页内自绘动态列**：
 /// <see cref="ColumnSpecs"/> 解析成 <see cref="Grid.ColumnDefinitions"/>，
 /// 每个单元格 / 表头按钮按 <c>Grid.Column</c> 落位。
@@ -26,7 +26,7 @@ namespace NewToys.ScriptManager.Controls;
 /// </para>
 /// <para>
 /// ⚠️ 与 <c>UI/Controls/ColumnGrid</c> 的分工：那个是「列宽可拖动 + 示例值锁宽」的表头栅格（框架内已有列机制用）；
-/// 本控件只做「任意列数 + 规格串 → 网格」的渲染，不接拖拽（改宽走 manifest，见卡 §三.5 代价）。
+/// 本控件只做「任意列数 + 规格串 → 网格」的渲染，不接拖拽（改宽走列 schema，即 <c>script.json</c>）。
 /// </para>
 /// </summary>
 public class SysInfoGrid : Grid
@@ -94,7 +94,13 @@ public class SysInfoGrid : Grid
             for (var i = 0; i < headers.Count; i++)
             {
                 var h = headers[i];
-                var btn = new Button { DataContext = h, Command = SortCommand, CommandParameter = h.ColumnKey };
+                var btn = new Button
+                {
+                    DataContext = h,
+                    // 排序命令优先用表头格自带的（节内排序），否则用宿主传入的
+                    Command = h.SortCommand ?? SortCommand,
+                    CommandParameter = h.Attr,
+                };
                 btn.Classes.Add("col-header");
                 btn.Bind(ContentControl.ContentProperty, new Binding(nameof(SysInfoHeaderCell.Text)));
                 btn.Bind(IsVisibleProperty, new Binding(nameof(SysInfoHeaderCell.IsVisible)));

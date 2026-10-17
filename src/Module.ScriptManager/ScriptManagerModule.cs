@@ -25,15 +25,20 @@ public class ScriptManagerModule : IModule
         // 落 config\script-manager.json（经 Core 的 IOptionsStore）。旧值原来在 app.json，首次运行自动搬迁。
         services.AddSingleton<IScriptManagerSettingsService, ScriptManagerSettingsService>();
 
-        // NT-067：信息面板页的两块底座 —— manifest 加载/校验 + 脚本执行（静默跑、捕获输出）。
-        // 都落本模块（⛔ 不进 Core：框架层冻结；脚本执行是"脚本管理器"的能力，不是全应用能力）。
-        services.AddSingleton<ISysInfoManifestService, SysInfoManifestService>();
+        // NT-067 的底座：脚本执行（静默跑、捕获输出）。
+        // 落本模块（⛔ 不进 Core：框架层冻结；脚本执行是"脚本管理器"的能力，不是全应用能力）。
+        // ⚠️ NT-068 S8：manifest 服务（ISysInfoManifestService）已删除 —— sysinfo.manifest.json 模型废弃。
         services.AddSingleton(sp => new ScriptRunner(sp.GetRequiredService<IAppConfigService>()));
 
         // NT-068 S2：数据层 —— 手工数据（集合/条目/视图）落 config\script\script.json，
         // 观测缓存落 data\script\script.db。两者都**不进** Core（框架层冻结）。
         services.AddSingleton<IScriptStoreService, ScriptStoreService>();
         services.AddSingleton(sp => new ScriptDatabase(sp.GetRequiredService<IScriptStoreService>().DatabasePath));
+        // NT-068 S5：采集器执行（跑条目 → 解析输出 → 写观测库 → 生成列 schema）
+        services.AddSingleton(sp => new CollectorService(
+            sp.GetRequiredService<ScriptRunner>(),
+            sp.GetRequiredService<ScriptDatabase>(),
+            sp.GetRequiredService<IScriptManagerSettingsService>()));
         // NT-068 S4：集合页（主从两栏）
         services.AddTransient<Views.CollectionView>();  services.AddTransient<CollectionViewModel>();
         services.AddTransient<Views.SettingsScriptView>();  services.AddTransient<SettingsScriptViewModel>();
@@ -49,6 +54,9 @@ public class ScriptManagerModule : IModule
             var db = services.GetRequiredService<ScriptDatabase>();
             // 保留策略兜底：days 模式的条目在启动时清一遍超龄观测（§三.10）。
             db.PruneAllDays(store.Data.Items);
+
+            // NT-068 S5：内置采集脚本 + 内置采集器条目 + 内置「系统信息」集合（只加不改）。
+            BuiltinCollectorSeeder.Seed(store, services.GetRequiredService<IScriptManagerSettingsService>());
         }
         catch
         {
@@ -66,7 +74,7 @@ public class ScriptManagerModule : IModule
         menu.RegisterFunction("script", "script-commands",  "命令库",   "⚙",  "CommandLibraryView", 2, "系统自带设置入口（Windows 设置面板 / 管理工具），点一下即打开");
         menu.RegisterFunction("script", "script-packages",  "软件包",   "📦", "PackageView",        3, "搜索、安装、升级、卸载软件包");
         menu.RegisterFunction("script", "script-collections", "集合",   "🗂", "CollectionView",     4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
-        menu.RegisterFunction("script", "script-info",      "信息面板", "💻", "ScriptInfoView",     99, "用 sysinfo\\ 下的脚本呈现任意信息表（列与脚本由 manifest 定义）");
+        menu.RegisterFunction("script", "script-info",      "信息面板", "💻", "ScriptInfoView",     99, "按集合分节展示采集器输出；顶部「集合 ▾」一次显示一个集合");
 
         // 软件包模块的源设置：v3.65 / NT-062 起**并入「脚本管理器设置」页**（需求 §6.5）——
         // 原独立菜单项 `settings-package` 已移除（⛔ 不再单独占一个菜单项），数据仍落 config\package.json。

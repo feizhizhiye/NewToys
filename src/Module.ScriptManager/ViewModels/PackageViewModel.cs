@@ -13,6 +13,8 @@ using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
+using NewToys.ScriptManager.Models;
+using NewToys.ScriptManager.Services;
 using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
@@ -48,6 +50,30 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 {
     private enum ListMode { None, Search, Installed, Upgrades }
 
+    // ==================== 动词 → 命令模板（🔴 抽象落点） ====================
+    //
+    // 页面上每个按钮 = 一个**通用动词**（刷新索引 / 全部升级 / 卸载 …），这里给它配一条**后端命令模板**。
+    // 将来切后端（scoop / choco）或改成"脚本驱动"（每个动词一条 ScriptItem）⇒ **只改这一块**，
+    // 页面与详情页的文案、按钮、状态判定一行都不用动。
+    //
+    // ⛔ 不要把这些模板散落到各个命令方法里 —— 散了就不是抽象，只是"每条命令各写一遍"。
+
+    /// <summary>后端可执行文件名（切后端时改这里）。</summary>
+    private const string BackendExeName = "winget.exe";
+
+    /// <summary>刷新索引（<c>source update</c>）：把各源的元数据拉到最新，之后「可升级」才准。</summary>
+    private const string CmdRefreshIndex = "{exe} source update";
+
+    /// <summary>全部升级（<c>upgrade --all</c>）。已锁定的包后端会自行跳过。</summary>
+    private const string CmdUpgradeAll =
+        "{exe} upgrade --all --accept-package-agreements --accept-source-agreements --disable-interactivity";
+
+    /// <summary>卸载（<c>uninstall --id {id}</c>）。</summary>
+    private const string CmdUninstall = "{exe} uninstall --id {id} --exact --disable-interactivity";
+
+    /// <summary>静默后缀（安装器不弹界面）；与 <see cref="CmdUpgradeAll"/> 拼接。</summary>
+    private const string ArgSilent = " --silent";
+
     private readonly IPackageManagerService? _pkg;
     private readonly IPackageSettingsService? _settings;
 
@@ -64,6 +90,12 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>已安装包 Id 的缓存（搜索结果要靠它把「状态」列标准）。</summary>
     private HashSet<string>? _installedIds;
 
+    /// <summary>
+    /// 同一次 <c>winget list</c> 的**完整记录**（Id / Name / Version）：用来把「显示名被截断 ⇒ Id 残缺」的
+    /// 搜索结果行修回已安装版本（见 <see cref="ResolveTruncatedIdAsync"/>）。与 <see cref="_installedIds"/> 同生同灭。
+    /// </summary>
+    private List<PackageInfo>? _installedList;
+
     /// <summary>抑制"改属性 → 回写设置"的开关（批量灌值时用，避免无谓写盘与递归）。</summary>
     private bool _syncing;
 
@@ -74,21 +106,24 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// 工具条（NT-055 / 需求 §4.8.5：**由 Shell 统一渲染**，页面⛔ 不再自写 <c>Border.toolbar</c>）。
     /// 顺序 = 折叠顺序的**反序**（越靠前越不易被折进「⋯」）。
     /// <para>
-    /// ⚠️ 与迁移前**逐项一致**：文案 / 顺序 / 启停条件 / 悬停提示 / 回车命令（搜索框回车 = 联网搜索）。
-    /// 原页内工具条的「源」按钮组（<c>ItemsControl</c> 动态生成）改用 <see cref="ToolbarItemKind.ChipGroup"/>。
+    /// 🔴 2026-10-17 动词层：文案一律用**通用动词**（列出 / 搜索 / 升级 / 锁定 / 卸载 …），
+    /// ⛔ 不出现后端名（winget / scoop）—— 换后端时按钮文案一个字都不用改。
+    /// 分组顺序 = 查看（源 / 搜索 / 三种列表）→ 刷新 → 写操作 → 偏好 → 导入导出。
     /// </para>
     /// </summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        // v3.60：原 Label「源」删除（工具条⛔ 不放提示文字）—— 语义改由下面的源按钮组 ToolTip 表达。
+        // 2026-10-17：一排源按钮（ChipGroup）→ **单个筛选框**（Combo）—— 源多了以后按钮条会把关键字输入框挤没，
+        // 且本页的源本来就是**单选**语义（OnSelectedSourceChanged 只点亮一个），下拉更贴合。
+        // 「全部源」= null ⇒ 搜索时逐个源查一遍再合并。
         new()
         {
-            Kind = ToolbarItemKind.ChipGroup,
+            Kind = ToolbarItemKind.Combo,
+            Width = 132,
             ItemsPath = nameof(SourceOptions),
             DisplayPath = "Label",
-            SelectedPath = "IsSelected",
-            CommandPath = nameof(SelectSourceCommand),
-            ToolTip = "winget 源：可多选，高亮 = 参与查询；点「🔍 联网搜索」才真去查源（「📥 已安装 / ⬆ 可升级」与源无关）"
+            SelectedItemPath = nameof(SelectedSource),
+            ToolTip = "软件源：只影响「🔍 搜索」；「📋 已安装 / ⬆ 可升级 / 🔒 已锁定」与源无关"
         },
         new()
         {
@@ -98,32 +133,42 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             ValuePath = nameof(SearchText),
             IsEnabledPath = nameof(IsSupported),
             EnterCommandPath = nameof(SearchCommand),
-            ToolTip = "已安装 / 可升级列表里，这里就是本地过滤器；点「🔍 联网搜索」才去查 winget 源"
+            ToolTip = "已安装 / 可升级列表里，这里就是本地过滤器；点「🔍 搜索」才去查远端源"
         },
-        new() { Text = "🔍 联网搜索", Classes = "ghost", CommandPath = nameof(SearchCommand), IsEnabledPath = "!" + nameof(IsBusy) },
-        new() { Text = "📥 已安装", CommandPath = nameof(LoadInstalledCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Text = "🔍 搜索", Classes = "ghost", CommandPath = nameof(SearchCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Text = "📋 已安装", CommandPath = nameof(LoadInstalledCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new() { Text = "⬆ 可升级", CommandPath = nameof(LoadUpgradesCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new()
         {
-            Text = "🔄 重新查询",
+            Text = "🔒 已锁定",
+            CommandPath = nameof(LoadPinnedCommand),
+            IsEnabledPath = "!" + nameof(IsBusy),
+            ToolTip = "列出被锁定（暂停更新）的包 —— 已存在的会贴上 🔒，不在列表里的补一行"
+        },
+        new() { Kind = ToolbarItemKind.Separator },
+        new()
+        {
+            Text = "🔄 重新加载",
             CommandPath = nameof(RefreshCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
-            ToolTip = "按当前所在的列表重跑一次（搜索 / 已安装 / 可升级）—— 走 winget 联网查询，要等几秒"
+            ToolTip = "按当前所在的列表重跑一次（搜索 / 已安装 / 可升级）—— 要等几秒"
         },
         new()
         {
-            Text = "📌 Pin 列表",
-            CommandPath = nameof(LoadPinnedCommand),
+            Text = "🔃 刷新索引",
+            Classes = "ghost",
+            CommandPath = nameof(RefreshIndexCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
-            ToolTip = "跑 winget pin list，把被 Pin 的包并入「已安装」列表（已存在的贴 📌，缺的补一行）"
+            ToolTip = "把各软件源的元数据拉到最新（等价 apt update）—— 「可升级」的结果依赖它"
         },
+        new() { Kind = ToolbarItemKind.Separator },
         new()
         {
             Text = "⬇ 安装选中",
             CommandPath = nameof(InstallCheckedCommand),
             IsEnabledPath = nameof(CanRunBatch),
             ShowToolTipOnDisabled = true,
-            ToolTip = "把勾选的包逐条安装（winget 会跳过已安装的；单个失败不影响其余）"
+            ToolTip = "把勾选的包逐条安装（已安装的后端会自行跳过；单个失败不影响其余）"
         },
         new()
         {
@@ -133,15 +178,31 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             ShowToolTipOnDisabled = true,
             ToolTip = "把勾选的包逐条升级（没有可升级版本的自动跳过）"
         },
+        new()
+        {
+            Text = "⬆⬆ 全部升级",
+            CommandPath = nameof(UpgradeAllCommand),
+            IsEnabledPath = "!" + nameof(IsBusy),
+            ToolTip = "把所有可升级的包一次性升到最新版（已锁定的跳过）—— 执行前会确认一次"
+        },
+        new()
+        {
+            Text = "🗑 卸载选中",
+            Classes = "danger-btn",
+            CommandPath = nameof(UninstallCheckedCommand),
+            IsEnabledPath = nameof(CanRunBatch),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "把勾选的包逐条卸载（不可撤销）—— 执行前只确认一次，不逐条弹窗"
+        },
         // v3.60：原「已勾选 N 个」指示文字（Label + CheckedText）删除 —— 需求 §4.8.4 第 3 条：⛔ 工具条不放计数指示，
         //        勾选状态在列表勾选框上一眼可见；前置条件写进下面两个按钮的 ToolTip（ShowToolTipOnDisabled）。
-        new() { Kind = ToolbarItemKind.Toggle, Text = "静默安装 (--silent)", ValuePath = nameof(SilentInstall) },
+        new() { Kind = ToolbarItemKind.Toggle, Text = "静默安装", ValuePath = nameof(SilentInstall) },
         new()
         {
             Text = "📤 导出",
             Classes = "ghost",
             CommandPath = nameof(ExportPackagesCommand),
-            ToolTip = "把当前列表（建议先点「📥 已安装」）导成 json，供新系统恢复"
+            ToolTip = "把当前列表（建议先点「📋 已安装」）导成 json，供新系统恢复"
         },
         new()
         {
@@ -175,7 +236,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     [ObservableProperty] private string _versionHeader = "版本";
     [ObservableProperty] private string _sourceHeader = "源";
     [ObservableProperty] private string _statusHeader = "状态";
-    [ObservableProperty] private string _pinnedHeader = "Pin";
+    [ObservableProperty] private string _pinnedHeader = "锁定";
 
     // ==================== 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ====================
 
@@ -268,8 +329,10 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     /// <summary>
     /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
-    /// <para>结构与迁移前的页内自绘卡片对应：只读信息（名称 / Id / 版本 / 状态 / 源 / 发布者 / 协议 / 安装位置 / 主页 / 描述）
-    /// + 八个卡内动作（安装 / 升级 / 详情 / Pin / 取消 Pin / 卸载 / 复制 Id / 主页）。</para>
+    /// <para>结构 = 只读信息（名称 / Id / 版本 / 状态 / 源 / 发布者 / 协议 / 安装位置 / 主页 / 描述，**全部只读可选中复制**）
+    /// + 动作组合（安装 · 升级 · 详情 · 锁定/解除锁定 · 卸载 · 打开主页，**一行按钮组**，按选中项状态显隐）。</para>
+    /// <para>🔴 2026-10-17 用户口径：只读信息一律只读 + 可复制；**已安装的包不再给「安装」**（由
+    /// <see cref="PackageInfo.IsInstalled"/> 驱动），Pin 只留一个三态按钮（未 Pin / 已 Pin 二选一显示）。</para>
     /// </summary>
     public DetailCardDescriptor? Card => _card ??= BuildCard();
 
@@ -284,11 +347,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                 Header = "选中包",
                 Fields =
                 {
+                    // NT-068 S7'：11 个只读字段一律 Selectable=true（SelectableTextBlock = 只读可选可复制）。
+                    // ⛔ 包装成可编辑 TextBox 会让「详情卡」变成第二个写入点，与「设置页是唯一写入点」冲突。
                     new DetailField
                     {
                         Label = "名称",
                         ValuePath = "DetailItem.Name",
-                        Kind = FieldKind.Text
+                        Kind = FieldKind.Text,
+                        Selectable = true
                     },
                     new DetailField
                     {
@@ -316,25 +382,29 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                     {
                         Label = "状态",
                         ValuePath = "DetailItem.StatusText",
-                        Kind = FieldKind.Text
+                        Kind = FieldKind.Text,
+                        Selectable = true
                     },
                     new DetailField
                     {
                         Label = "源",
                         ValuePath = "DetailItem.Source",
-                        Kind = FieldKind.Text
+                        Kind = FieldKind.Text,
+                        Selectable = true
                     },
                     new DetailField
                     {
                         Label = "发布者",
                         ValuePath = "DetailItem.Publisher",
-                        Kind = FieldKind.Text
+                        Kind = FieldKind.Text,
+                        Selectable = true
                     },
                     new DetailField
                     {
                         Label = "协议 / 许可证",
                         ValuePath = "DetailItem.License",
-                        Kind = FieldKind.Text
+                        Kind = FieldKind.Text,
+                        Selectable = true
                     },
                     new DetailField
                     {
@@ -360,55 +430,55 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "（描述等信息来自「🔎 详情」，点一下才会去跑 winget show）"
+                        Hint = "（描述等信息来自「🔎 详情」，点一下才去源里查）"
                     }
                 }
             }
         },
         Actions =
         {
-            // 原来这八个按钮是页内卡顶部的三排（只在有选中项时显示）；声明式卡里进 Actions 区。
+            // —— 一条动作组合：安装 / 升级按「是否已安装」二选一，Pin 按「是否已 Pin」二选一 ——
             new DetailAction
             {
                 Text = "⬇ 安装",
                 Classes = "primary",
-                ToolTip = "用 winget 安装这个包",
-                IsVisiblePath = nameof(HasSelection),
+                ToolTip = "安装这个包（用当前包管理器后端）",
+                IsVisiblePath = nameof(ShowInstallAction),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 Command = InstallCommand
             },
             new DetailAction
             {
                 Text = "⬆ 升级",
-                Classes = "ghost",
-                ToolTip = "把已安装的版本升到最新",
-                IsVisiblePath = nameof(HasSelection),
-                IsEnabledPath = "!" + nameof(IsBusy),
+                Classes = "primary",
+                ToolTip = "升级到最新版（已是最新版时置灰）",
+                IsVisiblePath = nameof(ShowUpgradeAction),
+                IsEnabledPath = nameof(CanUpgradeSelected),
                 Command = UpgradeCommand
             },
             new DetailAction
             {
                 Text = "🔎 详情",
                 Classes = "ghost",
-                ToolTip = "跑 winget show 拉取发布者 / 协议 / 主页 / 描述等详细信息",
+                ToolTip = "向源查询这个包的详细信息（发布者 / 协议 / 主页 / 描述）",
                 IsVisiblePath = nameof(HasSelection),
                 Command = LoadDetailCommand
             },
             new DetailAction
             {
-                Text = "📌 Pin",
+                Text = "🔒 锁定版本",
                 Classes = "ghost",
-                ToolTip = "Pin 住 = 暂停更新，winget upgrade 会跳过它",
-                IsVisiblePath = nameof(HasSelection),
+                ToolTip = "锁定到当前版本 = 暂停更新，「全部升级 / 升级」都会跳过它",
+                IsVisiblePath = nameof(ShowPinAction),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 Command = PinCommand
             },
             new DetailAction
             {
-                Text = "📌 取消 Pin",
+                Text = "🔒 解除锁定",
                 Classes = "ghost",
-                ToolTip = "解除 Pin，恢复参与升级",
-                IsVisiblePath = nameof(HasSelection),
+                ToolTip = "解除锁定，恢复参与升级",
+                IsVisiblePath = nameof(ShowUnpinAction),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 Command = UnpinCommand
             },
@@ -416,29 +486,44 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             {
                 Text = "🗑 卸载",
                 Classes = "ghost",
-                ToolTip = "用 winget 卸载这个包",
-                IsVisiblePath = nameof(HasSelection),
+                ToolTip = "卸载这个包（不可撤销，会再确认一次）",
+                IsVisiblePath = nameof(ShowUninstallAction),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 Command = UninstallCommand
             },
+            // 2026-10-17：「📋 复制信息」删除 —— 详情卡内所有文字本身就可复制（SelectableTextBlock），
+            //              再给一个"复制整卡"按钮是重复入口。
             new DetailAction
             {
-                Text = "📋 复制 Id",
+                Text = "🌐 打开主页",
                 Classes = "ghost",
-                ToolTip = "把包 Id 复制到剪贴板",
-                IsVisiblePath = nameof(HasSelection),
-                Command = CopyIdCommand
-            },
-            new DetailAction
-            {
-                Text = "🌐 主页",
-                Classes = "ghost",
-                ToolTip = "在默认浏览器里打开主页",
+                ToolTip = "在默认浏览器里打开主页（先点「🔎 详情」才有地址）",
                 IsVisiblePath = nameof(HasSelection),
                 Command = OpenHomepageCommand
             }
         }
     };
+
+    // —— 动作可见性 / 可用性（路径绑定的具名属性；派生自 Selected，选中变化时统一通知） ——
+
+    /// <summary>⬇ 安装：选中项**未安装**时才出现（🔴 已安装的包不该再给「安装」）。</summary>
+    public bool ShowInstallAction => Selected is { IsInstalled: false };
+
+    /// <summary>⬆ 升级：选中项**已安装**时出现（是否可点另看 <see cref="CanUpgradeSelected"/>）。</summary>
+    public bool ShowUpgradeAction => Selected is { IsInstalled: true };
+
+    /// <summary>升级按钮可用态：已安装且确有新版本（否则置灰 —— 悬浮提示说明已是最新版）。</summary>
+    public bool CanUpgradeSelected => Selected is { CanUpgrade: true } && !IsBusy;
+
+    /// <summary>📌 Pin：未 Pin 时显示。</summary>
+    public bool ShowPinAction => Selected is { IsPinned: false };
+
+    /// <summary>📌 取消 Pin：已 Pin 时显示（三态单按钮的另一半）。</summary>
+    public bool ShowUnpinAction => Selected is { IsPinned: true };
+
+    /// <summary>🗑 卸载：只有已安装的包才有意义。</summary>
+    public bool ShowUninstallAction => Selected is { IsInstalled: true };
+
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public PackageViewModel() { }
@@ -609,6 +694,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     private async Task RefreshAsync()
     {
         _installedIds = null;
+        _installedList = null;
         switch (_mode)
         {
             case ListMode.Search: await SearchAsync(); break;
@@ -643,13 +729,81 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (_installedIds == null)
         {
             var (ok, _, items) = await _pkg.ListInstalledAsync();
-            if (ok) _installedIds = new HashSet<string>(items.Select(i => i.Id), StringComparer.OrdinalIgnoreCase);
+            if (ok)
+            {
+                _installedIds = new HashSet<string>(items.Select(i => i.Id), StringComparer.OrdinalIgnoreCase);
+                _installedList = items.ToList();      // 同一次调用的完整记录（截断 Id 修复要用 Name / Version）
+            }
         }
         if (_installedIds == null) return;
 
-        foreach (var p in _all) p.IsInstalled = _installedIds.Contains(p.Id);
+        var known = new HashSet<string>(_all.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var p in _all) p.IsInstalled = IsInstalledId(p.Id);
         await ApplyPinnedAsync();
+
+        // 🔴 查询词本身是个**残缺 Id**（如 `edg`）时，补一条"已安装版本"的真相：
+        //    搜索结果的 Id 来自本地化显示名截断（`Microsoft Edg` → `e`），用它对不上 `winget list`
+        //    的完整 Id（`Microsoft.Edge`）。这里按「Id 前缀 + 名称前缀」认出它，版本改用已装版本。
+        if (await ResolveTruncatedIdAsync(known)) ApplyView();
+
+        // 承接方式（IsInstalledId）：Id 互相包含，或前 4 字符 Jaro 式贴合 —— 只解决"名字截断导致 Id 残缺"这一种。
+        bool IsInstalledId(string id)
+        {
+            if (_installedIds.Contains(id)) return true;
+            return id.Length >= 3 && KeyName(id).Length >= 3 && _installedIds.Any(inst =>
+                inst.Contains(id, StringComparison.OrdinalIgnoreCase)
+                || (KeyName(id) == KeyName(inst)));
+        }
     }
+
+    /// <summary>
+    /// 把「被截断的解析结果」修回完整的已安装 Id（见 <see cref="MarkInstalledAsync"/> 的说明）。
+    /// <para>只在**当前列表里确实存在装不上的残缺 Id** 时触发一次 <c>winget list</c>，不影响正常搜索。</para>
+    /// </summary>
+    /// <returns>真改了任何行 → true（调用方需要重算列表）。</returns>
+    private async Task<bool> ResolveTruncatedIdAsync(HashSet<string> knownIds)
+    {
+        if (_pkg == null || _installedList == null) return false;
+        var candidates = _all
+            .Where(p => !_installedIds!.Contains(p.Id) && p.Id.Length >= 1 && KeyName(p.Name).Length >= 2)
+            .ToList();
+        if (candidates.Count == 0) return false;
+
+        var changed = false;
+        foreach (var p in candidates)
+        {
+            var nameKey = KeyName(p.Name);
+            var inst = _installedList.FirstOrDefault(i =>
+                // ⚠️ 残缺 Id（`e` / `edg`）必须**紧贴**完整 Id 的头部 —— 放宽到任意子串会把 `7zip` 认成 `Microsoft.Something.Zip`。
+                (p.Id.Length <= 4
+                    ? i.Id.StartsWith(p.Id, StringComparison.OrdinalIgnoreCase)
+                    : (i.Id.StartsWith(p.Id, StringComparison.OrdinalIgnoreCase)
+                       || i.Id.Contains("." + p.Id + ".", StringComparison.OrdinalIgnoreCase)))
+                && KeyName(i.Name).StartsWith(nameKey, StringComparison.OrdinalIgnoreCase));
+
+            if (inst == null) continue;
+
+            // 同名同源可能真有多个包（如两个「Microsoft Edge」）⇒ 目标 Id 已在列表里就不合并
+            if (knownIds.Contains(inst.Id)) continue;
+
+            knownIds.Remove(p.Id);
+            knownIds.Add(inst.Id);
+
+            p.Id = inst.Id;
+            if (!string.IsNullOrWhiteSpace(inst.Name)) p.Name = inst.Name;
+            p.Version = inst.Version;
+            p.Available = "";
+            p.Source = inst.Source;
+            p.IsInstalled = true;
+            changed = true;
+        }
+        return changed;
+    }
+
+    /// <summary>比较用的名字键：只留字母数字、转小写，用来对齐被截断的显示名与完整名称。</summary>
+    private static string KeyName(string? s)
+        => new string((s ?? "").Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
 
     private void BuildInstalledCache()
         => _installedIds = new HashSet<string>(_all.Select(i => i.Id), StringComparer.OrdinalIgnoreCase);
@@ -722,6 +876,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         DetailExtra = "";
         OnPropertyChanged(nameof(DetailItem));
         OnPropertyChanged(nameof(HasSelection));
+        NotifyActionVisibility();
     }
 
     private void ApplyView()
@@ -786,6 +941,21 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         RefreshChecked();                         // v3.37 / NT-002：列表重建 → 勾选计数 / 表头三态跟上
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        NotifyActionVisibility();                 // 列表重建可能把选中项换掉 → 动作组合跟着重算
+    }
+
+    /// <summary>
+    /// 详情卡动作组合的可见 / 可用性（安装 vs 升级、Pin vs 取消 Pin、卸载）都派生自 <see cref="Selected"/>，
+    /// 选中变化或忙碌态变化时统一通知（⛔ 别散落各处）。
+    /// </summary>
+    private void NotifyActionVisibility()
+    {
+        OnPropertyChanged(nameof(ShowInstallAction));
+        OnPropertyChanged(nameof(ShowUpgradeAction));
+        OnPropertyChanged(nameof(CanUpgradeSelected));
+        OnPropertyChanged(nameof(ShowPinAction));
+        OnPropertyChanged(nameof(ShowUnpinAction));
+        OnPropertyChanged(nameof(ShowUninstallAction));
     }
 
     private void UpdateHeaders()
@@ -795,7 +965,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         VersionHeader = "版本" + SortArrow("Version");
         SourceHeader = "源" + SortArrow("Source");
         StatusHeader = "状态" + SortArrow("Status");
-        PinnedHeader = "Pin" + SortArrow("Pinned");
+        PinnedHeader = "锁定" + SortArrow("Pinned");
     }
 
     /// <summary>版本比较：能解析成 <see cref="System.Version"/> 就按版本比（1.10 &gt; 1.9），否则退回字符串比较。</summary>
@@ -811,22 +981,59 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     {
         var p = Selected;
         if (p == null || _pkg == null || IsBusy) return;
+
+        // 🔴 装完刷新会整表重建，`p` 就成了**游离实例**（已不在 Packages 里）⇒ 详情卡要手动回写。
+        //    这里记住它在 _all 里的新实例，刷新后把「已安装」抄回 p 并发通知（否则按钮仍显示「⬇ 安装」）。
+        var wantedId = p.Id;
         try
         {
             IsBusy = true;
             StatusText = $"正在安装 {p.Id} ……（较大的包会久一点，请勿关闭窗口）";
             var (ok, msg) = await _pkg.InstallAsync(p.Id, string.IsNullOrEmpty(p.Source) ? SelectedSource?.Value : p.Source, SilentInstall);
             StatusText = msg;
-            if (ok) { _installedIds = null; await MarkInstalledAsync(); ApplyView(); }
+            if (ok)
+            {
+                _installedIds = null;
+                _installedList = null;
+                await MarkInstalledAsync();
+                ApplyView();
+                SyncSelectedInstalledState(wantedId);
+            }
         }
         finally { IsBusy = false; }
     }
+
+    /// <summary>安装 / 卸载后用最新列表回写「详情卡当前引用的那个实例」的安装状态（见 <see cref="InstallAsync"/>）。</summary>
+    private void SyncSelectedInstalledState(string id)
+    {
+        var fresh = _all.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+        var current = Selected;
+        if (fresh == null || current == null) return;
+        if (ReferenceEquals(fresh, current)) { NotifyActionVisibility(); return; }
+
+        current.IsInstalled = fresh.IsInstalled;
+        current.Available = fresh.Available;
+        if (!string.IsNullOrWhiteSpace(fresh.Version) && !string.Equals(fresh.Version, current.Version, StringComparison.Ordinal))
+            current.Version = fresh.Version;
+
+        // ⚠️ 这些派生属性在**另一个实例**上变了 ⇒ 详情卡的渲染器订阅的是 VM（不是 PackageInfo），
+        //    所以必须从 VM 侧补一次通知才能整体重解析。
+        DetailChangedFromItem();
+    }
+
+    /// <summary>让详情卡整体重解析（渲染器订阅 VM 的 PropertyChanged）。</summary>
+    private void DetailChangedFromItem() => OnPropertyChanged(nameof(DetailItem));
 
     [RelayCommand]
     private async Task UpgradeAsync()
     {
         var p = Selected;
         if (p == null || _pkg == null || IsBusy) return;
+        if (!p.CanUpgrade)
+        {
+            StatusText = $"{p.Name} 已是最新版（当前 {p.Version}），无需升级。";
+            return;
+        }
         try
         {
             IsBusy = true;
@@ -834,7 +1041,11 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             var (ok, msg) = await _pkg.UpgradeAsync(p.Id, SilentInstall);
             StatusText = msg;
             if (ok && _mode == ListMode.Upgrades) await LoadUpgradesAsync();
-            else ApplyView();
+            else
+            {
+                if (ok) { _installedIds = null; _installedList = null; await MarkInstalledAsync(); }
+                ApplyView();
+            }
         }
         finally { IsBusy = false; }
     }
@@ -851,7 +1062,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             // ⚠️ 二次确认在 IPackageManagerService 内部完成（宿主把钩子接到了模态对话框上，见 App.axaml.cs）
             var (ok, msg) = await _pkg.UninstallAsync(p.Id);
             StatusText = msg;
-            if (ok) { _installedIds = null; await RefreshAsync(); }
+            if (ok) { _installedIds = null; _installedList = null; await RefreshAsync(); }
         }
         finally { IsBusy = false; }
     }
@@ -882,6 +1093,164 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             var (ok, msg) = await _pkg.UnpinAsync(p.Id);
             StatusText = msg;
             if (ok) { await ApplyPinnedAsync(); ApplyView(); }
+        }
+        finally { IsBusy = false; }
+    }
+
+    // ==================== 动词执行底座（模块内，⛔ 不改 Shared 的 IPackageManagerService） ====================
+
+    /// <summary>
+    /// 跑一条后端命令（命令型条目走 <c>cmd.exe /c</c>，⛔ 不经 pwsh ⇒ 无冷启动开销）。
+    /// <para>用模块内 <see cref="ScriptRunner"/> 而非给 <see cref="IPackageManagerService"/> 加方法 —— 后者在 Shared（框架层冻结）。</para>
+    /// </summary>
+    private async Task<ScriptRunResult> RunBackendAsync(string command, int timeoutSeconds = ScriptRunner.MaxTimeoutSeconds)
+    {
+        var runner = new ScriptRunner(_app);
+        return await runner.RunCommandAsync(new CommandRunRequest
+        {
+            Command = command,
+            Shell = QuickActionShell.Cmd,
+            TimeoutSeconds = Math.Min(timeoutSeconds, ScriptRunner.MaxTimeoutSeconds),
+        });
+    }
+
+    /// <summary>失败原因：超时 &gt; 进程错误 &gt; stderr 末行 &gt; 退出码。</summary>
+    private static string ErrorOf(ScriptRunResult r)
+    {
+        if (r.TimedOut) return "执行超时";
+        if (!string.IsNullOrWhiteSpace(r.Error)) return r.Error!;
+        if (!string.IsNullOrWhiteSpace(r.StdErr)) return r.StdErr.Trim();
+        return $"退出码 {r.ExitCode}";
+    }
+
+    /// <summary>命令参数加引号（包 Id 允许含空格 / 括号 —— 见 <c>IdLike</c>）；顺手去掉双引号防拼接被破。</summary>
+    private static string QuoteArg(string s) => "\"" + (s ?? "").Replace("\"", "") + "\"";
+
+    /// <summary>
+    /// 后端可执行文件的**绝对路径**。
+    /// <para>🔴 不能只写 <c>winget</c>：它是 **App Execution Alias**（<c>WindowsApps\winget.exe</c> 是 0 字节重解析点），
+    /// <c>UseShellExecute=false</c> 的进程创建不解析别名 ⇒ 必须自己按 PATH 找出真实路径（<c>PackageManagerService.ResolveExe</c>
+    /// 就是为这个存在的，它 private ⇒ 这里在模块内重一份）。</para>
+    /// </summary>
+    private string? _backendExe;
+
+    private string BackendExe
+    {
+        get
+        {
+            if (_backendExe != null) return _backendExe;
+
+            var pathVar = Environment.GetEnvironmentVariable("PATH") ?? "";
+            foreach (var dir in pathVar.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(dir)) continue;
+                try
+                {
+                    var full = Path.Combine(dir.Trim(), BackendExeName);
+                    if (File.Exists(full)) return _backendExe = full;
+                }
+                catch { /* 非法路径段，跳过 */ }
+            }
+
+            var alias = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Microsoft", "WindowsApps", BackendExeName);
+
+            return _backendExe = File.Exists(alias) ? alias : BackendExeName;   // 兜底：交给宿主解析
+        }
+    }
+
+    /// <summary>把命令模板里的占位符替换掉：<c>{exe}</c> → 后端绝对路径，<c>{id}</c> → 包 Id（都加引号）。</summary>
+    private string ResolveCommand(string template, string? id = null)
+    {
+        var s = template.Replace("{exe}", QuoteArg(BackendExe));
+        return id is null ? s : s.Replace("{id}", QuoteArg(id));
+    }
+
+    /// <summary>破坏性动作的二次确认（走模块内 <see cref="QuickActionService.ConfirmHandler"/>；没接上钩子时一律 false）。</summary>
+    private static async Task<bool> ConfirmAsync(string message)
+        => QuickActionService.ConfirmHandler != null
+           && await QuickActionService.ConfirmHandler(message).ConfigureAwait(true);
+
+    // ==================== 新增动词：刷新索引 / 全部升级 / 卸载选中 ====================
+
+    /// <summary>🔃 刷新索引（<see cref="CmdRefreshIndex"/>）：源元数据拉新，之后「可升级」才准。</summary>
+    [RelayCommand]
+    private async Task RefreshIndexAsync()
+    {
+        if (IsBusy) return;
+        try
+        {
+            IsBusy = true;
+            StatusText = "正在刷新软件源索引……（首次会比较慢）";
+            var r = await RunBackendAsync(ResolveCommand(CmdRefreshIndex));
+            StatusText = r.Ok ? "软件源索引已刷新。" : "刷新索引失败：" + ErrorOf(r);
+            if (r.Ok) await LoadSourcesAsync();      // 索引变了，源清单可能也变
+        }
+        finally { IsBusy = false; }
+    }
+
+    /// <summary>⬆⬆ 全部升级（<see cref="CmdUpgradeAll"/>）：**先整体确认一次**，再跑后端命令。</summary>
+    [RelayCommand]
+    private async Task UpgradeAllAsync()
+    {
+        if (IsBusy) return;
+        if (!await ConfirmAsync("确定把全部可升级的包升到最新版吗？\n\n· 已锁定（暂停更新）的包会被跳过\n· 过程可能持续很久，请勿关闭窗口"))
+        {
+            StatusText = "已取消「全部升级」。";
+            return;
+        }
+        try
+        {
+            IsBusy = true;
+            StatusText = "正在升级全部包……（可能持续很久，请勿关闭窗口）";
+            var cmd = ResolveCommand(SilentInstall ? CmdUpgradeAll + ArgSilent : CmdUpgradeAll);
+            var r = await RunBackendAsync(cmd);
+            StatusText = r.Ok ? "全部升级已执行完成。" : "全部升级失败：" + ErrorOf(r);
+
+            _installedIds = null;
+            _installedList = null;
+            await MarkInstalledAsync();
+            ApplyView();
+        }
+        finally { IsBusy = false; }
+    }
+
+    /// <summary>
+    /// 🗑 卸载选中（<see cref="CmdUninstall"/> 逐条跑）。
+    /// <para>⚠️ 刻意<b>不走</b> <see cref="IPackageManagerService.UninstallAsync"/>：那个方法内部每次都弹二次确认，
+    /// 批量 N 个就要弹 N 次。这里整体确认一次，再逐条跑命令。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task UninstallCheckedAsync()
+    {
+        var targets = _all.Where(p => p.IsChecked).ToList();
+        if (targets.Count == 0) { StatusText = "先勾选要卸载的包（行首勾选框）。"; return; }
+        if (IsBusy) return;
+        if (!await ConfirmAsync($"确定卸载勾选的 {targets.Count} 个包吗？此操作不可撤销。"))
+        {
+            StatusText = "已取消卸载。";
+            return;
+        }
+        try
+        {
+            IsBusy = true;
+            var fails = new List<string>();
+            for (var i = 0; i < targets.Count; i++)
+            {
+                var p = targets[i];
+                StatusText = $"正在卸载 {i + 1}/{targets.Count}：{p.Id} ……";
+                var r = await RunBackendAsync(ResolveCommand(CmdUninstall, p.Id));
+                if (!r.Ok) fails.Add($"{p.Id}（{ErrorOf(r)}）");
+            }
+
+            StatusText = fails.Count == 0
+                ? $"已卸载 {targets.Count} 个包。"
+                : $"卸载完成：{targets.Count - fails.Count} 成功 / {fails.Count} 失败 —— " + string.Join("、", fails);
+
+            _installedIds = null;
+            _installedList = null;
+            await RefreshAsync();
         }
         finally { IsBusy = false; }
     }
@@ -925,7 +1294,11 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>批量按钮的可用态：有勾选且不在忙（Avalonia 绑定不支逻辑运算符，⛔ 别在 XAML 里写 And）。</summary>
     public bool CanRunBatch => HasChecked && !IsBusy;
 
-    partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(CanRunBatch));
+    partial void OnIsBusyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanRunBatch));
+        OnPropertyChanged(nameof(CanUpgradeSelected));
+    }
 
     /// <summary>
     /// 表头 ☑ 的三态（🔴 用**原生三态 CheckBox**，⛔ 别用字符"☑"画 —— 字体会渲染成深色块）：
@@ -1007,6 +1380,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             }
 
             _installedIds = null;
+            _installedList = null;
             await MarkInstalledAsync();
             ApplyView();
             StatusText = fails.Count == 0
@@ -1136,6 +1510,41 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (n == 0) return "";
         sb.AppendLine("echo Done.");
         return sb.ToString();
+    }
+
+    [RelayCommand]
+    private async Task CopyDetailAsync()
+    {
+        var p = Selected;
+        if (p == null) return;
+
+        // 与详情卡字段**一一对应**（加了字段记得同步这里，⛔ 不要漏成"复制少了"）。
+        var sb = new StringBuilder();
+        Append("名称", p.Name);
+        Append("Id", p.Id);
+        Append("版本", p.Version);
+        Append("可升级到", p.Available);
+        Append("状态", p.StatusText);
+        Append("源", p.Source);
+        Append("发布者", p.Publisher);
+        Append("协议 / 许可证", p.License);
+        Append("安装位置", p.InstallLocation);
+        Append("主页", p.Homepage);
+        Append("描述", p.Description);
+
+        try
+        {
+            var win = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if (win?.Clipboard == null) { StatusText = "剪贴板不可用。"; return; }
+            await win.Clipboard.SetTextAsync(sb.ToString().TrimEnd());
+            StatusText = $"已复制「{p.Name}」的详情信息。";
+        }
+        catch (Exception ex) { StatusText = "复制失败：" + ex.Message; }
+
+        void Append(string label, string value)
+        {
+            if (!string.IsNullOrWhiteSpace(value)) sb.Append(label).Append(" = ").AppendLine(value.Trim());
+        }
     }
 
     [RelayCommand]

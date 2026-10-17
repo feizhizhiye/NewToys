@@ -1,6 +1,12 @@
 # NewToys 工程规范
 
-> v3.41 · 2026-10-16 · 技术实现指南
+> v3.47 · 2026-10-16 · 技术实现指南
+> **v3.47 变更**：**NT-063 P1「列表页骨架」已实施**（⏳ 待本地 build 验收）—— §3.6 新增「列表页骨架」段：`UI/Controls/ListPageSkeleton` 四段容器（顶工具条区 / 列表区 / 空态区 / 底栏区）+ `EmptyStateBlock`，14 个列表页切换（`AssetTasksView` 与 5 个类型薄壳页⛔不切）；x:Name 在属性元素内容里照样注册 namescope ⇒ code-behind 接线原样可用；card 由各页手写边框统一为 `Classes="card"`。
+> **v3.46 变更**：**NT-063 控件库重写 + NT-064 分页立卡 + 类型页合并**（需求 v3.69）—— ① §3.4 / §3.6 的 `ColumnGrid`：**实测是五份**（MediaAssets/Controls + PcTools/Views + VideoTools/Views + WebTools/Views + Shell/Views，各 417~418 行 = 2086 行），原「四份」表述更正；⛔ 不再同步五处，改随 **NT-063 P0-a** 合一进 `NewToys.UI`。② 🔴 **UI 库纪律**（新增）：`NewToys.UI` 被所有模块引用 ⇒ 与 Shared/Core 同级 ⇒ **改一次 = 全模块重编** ⇒ 只放写完即冻结的稳定控件；**`App.axaml` 的 31 个 `*Brush` 主题刷子 ⛔ 不搬**，UI 内 XAML 一律 `DynamicResource` 引用（`skill/scripts/check.ps1` 的主题键检查须覆盖 UI 目录）。③ §3.6 媒体资产样板页：5 个**类型薄壳页已撤销**（合并进 `AssetAllView` 的筛选栏类型切换），`AssetAllViewModel` 的 `SetPresetType` / `PageKey` / `StatusPrefix` 三个虚成员随之收窄。④ 列表页新增**底栏**语义（`UI/Controls/ListFooterBar`）：**默认不显示，列表超出页底才显示**（用户定）；分页实现不在此卡，见 **NT-064**。⑤ ⛔ **不做构建加速**（用户已有按模块 build 的脚本）。
+> **v3.45 变更**：**文档回写：`settings` 分组表述清理**（需求 v3.68）—— §3.3 健全性检查的分组名改 **`system`**（`ModuleLoader.HostGroupKey`，🔴 ⛔ 不是 `settings`）；`src/` 内 8 处「自注册进 `settings` 分组」的过时注释同步改为「本模块分组」（4 个模块设置页 VM + `MediaAssetsModule` / `PcToolsModule` / `App.axaml.cs` / `HomeViewModel`）。
+> **v3.44 变更**：**标签栏去掉「首页固定标签」+ `＋` 改为导航到首页**（需求 v3.67）—— ① §2.1 **v3.45 那条「首页是唯一固定元素」规则整体作废**：首页 ⛔ 不进标签栏（`TabItemViewModel.ShowInTabStrip` = false ⇒ 模板根 `Border` 隐藏），仍 `CanClose=false`、仍在 `Tabs` 里（零标签兜底照旧回首页）。② 标签栏 = 「可滚动标签区（`ItemsControl` **直接绑 `Tabs` 全量**）+ **`＋` 固定列**」（`Grid ColumnDefinitions="*,Auto"`，`＋` 在 `Auto` 列 ⇒ 常驻最右、滚不丢）。③ `＋` = `OpenHomeTabCommand` → `OpenTab(HomeKey)`，⛔ 不再指向 `settings-all`。④ **删除的旧机制**：`ScrollableTabs` / `HomeTab` / `SyncTabMirror()` / `SyncScrollableTabs()` 及其 3 处调用点 —— v3.45~v3.66 第七轮的"标签集合镜像 + 每处集合修改点显式同步"做法整体作废，标签栏改由 Avalonia 自己消费 `Tabs` 的集合通知；`ScrollActiveTabIntoView` 索引源改 `Tabs`。
+> **v3.43 变更**：**NT-062 细节收口（需求 v3.66）** —— ① §3.2 `RegisterFunction` 签名回写为**真实签名**（`category` 是**追加在末尾带默认值**的参数，⛔ 不是"第 6 个"）；`category` 的用途删掉"左树「设置」组分组 / 搜索分组"（左树已无「设置」组）。② §3.2 跨组注册 + 延迟补登：**模块设置页已不再跨组**（挂本模块分组）⇒ 该机制降级为"分组 key 打错"的兜底。③ §3.3 启动双轨：Shell 建的是 **`IsHome` 不渲染宿主分组 `system`**（⛔ 不是 `settings` 分组），健全性检查同源（`ModuleLoader.HostGroupKey`）。④ §3.4 新增模块步骤 6：设置页注册进**本模块分组**（长名标题）。⑤ §3.8 工具条契约新增 **`IToolbarOwner`**（复合页把承载者让给节 VM —— 修掉"工具条画得出来点不动"）。
+> **v3.42 变更**：**「应用级设置归位」立项（NT-062）+ 控件库立项（NT-063）**（需求 v3.62）—— ① §3.2 菜单注册 API：`RegisterFunction` **加第 6 个参数 `category`**（`SettingsCategory`：`通用`｜`一键按钮`｜`运行环境`｜`网络`｜`数据`｜`关于`｜`模块设置`），**取代"0~99 框架 / 100+ 模块"的 Order 段位隐式约定**；`Order` 只作组内排序；分类供左树「设置」组分组 / 设置搜索分组 / "框架 or 模块"判定。② §3.3 启动双轨：**v3.62 起必载清单为空**（应用级设置页归 Shell，`settings` 分组改由 Shell 启动时 `RegisterModule` 创建）；`Module.Settings` 的"框架组件例外"整体作废（`Shell.csproj` 无条件引用 / props 的 OutDir 例外 / 必载置顶 **全部删除**）—— `Modules\` 只含功能模块、**无必备模块**。③ §3.4 新增模块步骤去掉 `Module.Settings` 括注（所有 `Module.*` 都是功能模块）。④ §3.5 补：**Shell 自带页面同样走 `ResolveView`**（先例 = `HomeView` / `HomeViewModel` 就在 `src/Shell`）⇒ ⛔ 解析逻辑零改动；⚠️ 因 `Type.Name` 是**全局取首个命中、未按程序集限定**，Shell 内新页的类名必须**全局唯一**。⑤ §3.6 / §3.4 的 `ColumnGrid` **五份 → 四份**（`Module.Settings` 撤销后；另挂 **NT-063**：目标合并为一份，见 `backlog/NT-063.md`）。
 > **v3.41 变更**：**NT-060「干净启动」已实施**（需求 v3.61）—— §3.6 改写「示例值 + 固定表头宽列」段：示例值**只服务列宽判定**，`SampleRowTexts` / `HasSampleRow` / `ShowSampleRow` 与详情卡示例态（`IsDetailSample` / `UpdateDetailSample` / `DetailCardDescriptor.SamplePath` + `SampleText` / `DetailCardRender.IsSample`）**整体删除**；新增**空态引导**落地口径（页内 `StackPanel` + `!HasItems` + 复用既有命令，⛔ 不新增 VM 状态）。§4 补：`defaults\` 默认内容**已删**、`QuickActionService` 不再播种，`Shell.csproj` 的 `None Update="defaults\**"` 保留待用。
 > **v3.40 变更**：**NT-058「详情卡图标动作组」+ NT-059「设置与脚本」页改脚本索引库**（需求 v3.59；用户「详情卡动作改成图标 / pc-shortcuts 按资产库的操作逻辑来」）—— §3.8 补 **IconBar（第 9 种 Kind）渲染口径**：图标资源键**只能 C# 侧解析**（`Application.Current.TryFindResource(key, out v)`，Try 模式、需 `using Avalonia.Controls;`）⇒ 行对象暴露 `Geometry Icon` 给模板 `Path.Data` 直接绑；`ShowToolTipOnDisabled` 是本仓自定义属性，**XAML 里必须写 `ToolTip.ShowOnDisabled`**（写裸名 ⇒ AVLN2000）；chips 分组走 `DetailChipGroup`（`IsSwatch` **透传到组对象**，模板只在上一层取，⛔ 不用链式 `$parent`）。同节补两个已修 bug：① `IndexSelectFieldRow.RefreshCore` 原来**只认 `LiteralOptions`、不认 `OptionsPath`** ⇒ 给 `OptionsPath` 的索引下拉**渲染空白**；② `ApplyView()` 里 `Items.Clear()` 会让 ListBox 的 `SelectedItem` 双向绑定**回写 null** ⇒ 点收藏 / 切分类后详情卡掉回示例态（新增 `ApplyViewKeepSelection()`）。§3.6 补一条：**任何"批量加条目"之后必须清筛选**（清 `SearchText` / 分类归"全部" / 清表头筛选 / 选中第一条新增）—— `pc-shortcuts` 导入"没反应"的真因就是没清。§3.10 补**工具条只读输入框**口径：`PlaceholderText` **只在 `Text` 为空时才显示** ⇒ 水印化⛔ 不能只把 `Foreground` 设透明；改由 `ToolbarHost` 掌管 `Text`（真实值 OneWay 绑 `Control.Tag`，未聚焦 `Text = Placeholder`、聚焦 `Text = Tag` + `SelectAll()`、失焦还原）。
 > **v3.39 变更**：**NT-055 后续「工具条三件套统一」**（需求 v3.58；用户「primary 按钮都用 ghost / 导入按钮 + 输入框 + 搜索框按全部资产的宽度和顺序统一」）—— §3.10 三条口径改定：① 工具条配色**只剩两个在用变体** `ghost` / `danger-btn`（`primary-outline` 全量撤成 `ghost`，`primary` 实心仍只给详情卡与对话框）；② 输入框 / 搜索框 **`Width = 88`**；③ **前段顺序 = 入口动作 → 输入框 → 搜索框（三者挨着、排在最前）**，含四条落地细则 + `pc-package` 例外。另：`QuickActionListViewModel` 新增 **`ToolbarTailExtras`** 槽（排在共用搜索框之后），供「框的配套动作」挂靠，⛔ 别塞进 `ToolbarExtras`（会把搜索框挤到后面）。
@@ -118,7 +124,7 @@
    **等分星号列 + `MaxWidth`**，⛔ 不写固定宽（固定宽在 392px 下必然溢出成滚动或换行）。
    ⚠️ 设置类页面**无详情卡**，可用宽 ≠ 上表（判据见需求 §4.9「窄界面适配基线」）。
 
-> 🔴 **首页标签是唯一固定元素（v3.45，用户定并收窄）**：标签栏里**首页标签固定显示**（`ShellViewModel.HomeTab` → `ContentControl` 单独一列，⛔ 不进 `ScrollViewer`）；**其余标签与 `＋`（功能清单）按钮全部参与横向滚动**。⛔ **不做「固定其他标签页」功能**（「固定」需求走首页收藏夹 / 常用功能）⇒ 不需要通用「固定位」机制。实现口径：`ScrollableTabs` = `Tabs` 去首页的**镜像集合**（VM 里随 `Tabs.CollectionChanged` 同步，⛔ 不在各开 / 关命令里分别维护）；标签项模板 = 共享资源 `TabItemTemplate`（`ShellView.axaml` 的 `Window.Resources`，⛔ 不复制两份防样式漂移）；`ScrollActiveTabIntoView` 按 `ScrollableTabs` 索引找容器（首页 `IndexOf` = -1 → 跳过，天然正确）；🔴 **滚动区 `ItemsControl` 必须显式写横排 `ItemsPanel`**（默认竖排 + 竖滚禁用 = 只显示第一个，v3.44 踩过）。
+> 🔴 **首页标签 ⛔ 不进标签栏（v3.67，用户定；取代 v3.45 的「首页是唯一固定元素」）**：首页是**默认页**而不是标签 —— 标签栏里⛔ 不显示它（`TabItemViewModel.ShowInTabStrip` = false ⇒ `TabItemTemplate` 根 `Border` 隐藏、在横排面板中不占位）；它仍 `CanClose=false`、仍在 `Tabs` 里（零标签兜底照旧回首页）。标签栏 = 「可滚动标签区 + **`＋` 固定列**」：`ScrollViewer` 在 `*` 列、`＋` 在 `Auto` 列 ⇒ **`＋` 常驻最右、标签再多也滚不丢**。⛔ **不做「固定其他标签页」功能**（「固定」需求走首页收藏夹 / 常用功能）⇒ 不需要通用「固定位」机制。实现口径：`ItemsControl` **直接绑 `Tabs`**（⛔ 不再维护 `ScrollableTabs` / `HomeTab` 镜像 —— 删了 `SyncTabMirror()` / `SyncScrollableTabs()` 及其 3 处调用点）；`＋` = `OpenHomeTabCommand` → `OpenTab(HomeKey)`（⛔ 不再指向 `settings-all`）；标签项模板 = 共享资源 `TabItemTemplate`（`ShellView.axaml` 的 `Window.Resources`，⛔ 不复制两份防样式漂移）；`ScrollActiveTabIntoView` 按 **`Tabs`** 索引找容器；🔴 **滚动区 `ItemsControl` 必须显式写横排 `ItemsPanel`**（默认竖排 + 竖滚禁用 = 只显示第一个，v3.44 踩过）。
 
 **全局样式位置**：`Shell/App.axaml`（+ 复用样式表 `Shell/Styles/Controls.axaml`）。当前样式类：
 `Button.title-btn`（标题栏工具按钮）、`Border.tab-item`/`.active`（标签项）、`Button.tab-btn`（标签）、`Button.tab-close`（标签关闭）、`Button.tree-row`/`.active`/`.sub`（左树行）、`Border.tree-panel.collapsed`（左树折叠态）、**`Border.tree-version`（左树底部「配置 · 版本」，v3.9 / v3.28 改）**、`Button.win-btn`/`.close`（窗口控制）、**`Border.status-bar` + `TextBlock.status-bar-text`（Shell 底部状态栏，v3.9）**、`Button.primary`/`.ghost`/`.fav-btn`、`Border.card`、`Button.col-header`、`Border.list-header`、`TextBlock.list-cell`、`ListBox.list-page`、**`Button.detail-toggle`（工具条末位的详情开关，v3.12；取代 v1.35 的 `Border.detail-hotspot` + `Button.header-toggle`）**。
@@ -265,9 +271,11 @@ public interface IModule {
 ```csharp
 AppMenuGroup RegisterModule(string key, string title, string icon, int order,
                            bool isBottom=false, bool isHome=false);
-void RegisterFunction(string moduleKey, string key, string title, string icon,
-                      string viewName, int order=0, string desc="");
+void RegisterFunction(string moduleKey, string key, string title, string icon, string viewName,
+                      int order=0, string desc="", SettingsCategory category=SettingsCategory.None);
 ```
+
+- **`category`（v3.62 / NT-062 新增，**追加在参数表末尾、带默认值**）**：设置项的**显式分类**，取代原"0~99 框架 / 100+ 模块"的 **Order 段位隐式约定**；取值 `通用`｜`一键按钮`｜`运行环境`｜`网络`｜`数据`｜`关于`｜`模块设置`｜`None`（默认；普通功能项不标）。`Order` **只作组内排序**。分类供判定"框架设置 / 模块设置"（🔴 v3.66：左树已无「设置」组，故**不再**供左树分组 / 搜索分组）。
 
 - 先 `RegisterModule` 拿分组，再 `RegisterFunction`（找不到分组抛 `InvalidOperationException`）。
 - `viewName` 传**视图类名**（如 `"PcInfoView"`），不是 VM 名。
@@ -275,9 +283,9 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - **菜单只能在 `Initialize` 注册**。
 - 菜单 Key：`<模块缩写>-<页面名>` 全小写连字符。
 - **`icon` 字段（v3.3 起实际启用）**：**一级分组** `RegisterModule` 的 `icon` 传 **Geometry 资源键**（如 `"IconPc"` / `"IconWeb"` / `"IconVideo"` / `"IconSettings"`）；**二级功能** `RegisterFunction` 的 `icon` **仍是 emoji**（左树不显示；首页收藏卡 / 功能清单页继续用它）。
-- 分组 Order 现状：`pc`=20 ｜ `web`=30 ｜ `video`=40 ｜ **`settings`=999, isBottom:true**。`isBottom` 现仅语义标记「设置组」，**不再影响视觉位置**（v3.0 标题栏 ⚙ 直接打开设置页；树里设置组排在末尾）。新增分组**必须显式给 Order**。
+- 分组 Order 现状：`pc`=20 ｜ `web`=30 ｜ `video`=40 ｜ `assets`=50 ｜ **宿主分组 `system`=999, `isHome:true`**（v3.66：**不渲染**，只承载应用级设置的节锚点 + `settings-all` 的寻址；⛔ 已无 `settings` 分组）。`isBottom` 保留但当前**无分组使用**。模块设置项排在本组末位（`assets`=99、其余=100）。新增分组**必须显式给 Order**。
 - 排序：`OrderBy(Order)`；分组内 `Items` 按 `Order` 重排。
-- 🔴 **跨组注册 + 延迟补登（v3.20，需求 §3.4）**：模块可把菜单项注册进**别的模块的分组**（典型 = 模块设置页进 `settings` 组）。`RegisterFunction` 发现分组未注册时**暂存**该菜单项（⛔ 不抛 `InvalidOperationException`——`ModuleLoader.InitializeAll` 的逐模块 try-catch 会把它吞掉，Release 目录扫描顺序不保证 → 菜单项**静默丢失**）；待 `RegisterModule` 建立该分组时**补登**（去重 + 按 Order 重排）。分组始终未建立（如 `Module.Settings` 缺失）→ 暂存项不显示，由启动健全性检查报一行兜底（§3.3）。
+- 🔴 **跨组注册 + 延迟补登（v3.20，需求 §3.4）**：模块可把菜单项注册进**别的模块的分组**。`RegisterFunction` 发现分组未注册时**暂存**该菜单项（⛔ 不抛 `InvalidOperationException`——`ModuleLoader.InitializeAll` 的逐模块 try-catch 会把它吞掉，Release 目录扫描顺序不保证 → 菜单项**静默丢失**）；待 `RegisterModule` 建立该分组时**补登**（去重 + 按 Order 重排）。分组始终未建立（如宿主分组创建失败）→ 暂存项不显示，由启动健全性检查报一行兜底（§3.3）。⚠️ **v3.66 起模块设置页不再跨组**（挂本模块分组）⇒ 本机制现只作"分组 key 打错"的兜底。
 - `desc`（功能简介）务必填写。
 - 菜单点击路径：`ShellViewModel.OpenTab(key)` → 新建/激活 `TabItemViewModel` → View 解析 → 写入 Tab 的 `Content`。
 
@@ -286,7 +294,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 `App.OnFrameworkInitializationCompleted()` 顺序（不可颠倒）：
 
 1. 建 `ServiceCollection` 注册核心服务；
-2. `ModuleLoader.LoadAll(services, GetMandatoryModuleTypes())`：**必载清单**（`Module.Settings` 置顶 + Debug 追加其余功能模块）始终加载，**再扫** `<程序目录>\Modules\` 补功能模块（跳过已加载同名，如 Shared/Core）；
+2. `ModuleLoader.LoadAll(services, GetMandatoryModuleTypes())`：**必载清单**（v3.62 起 = **空 + Debug 追加功能模块**；应用级设置页已归 Shell）始终加载，**再扫** `<程序目录>\Modules\` 补功能模块（跳过已加载同名，如 Shared/Core）。🔴 **v3.66**：Shell 建的**不是** `settings` 分组，而是一个 **`IsHome` 的不渲染宿主分组 `system`**（承载五个节锚点 Key + `settings-all` 的寻址；左树 / 首页计数 / 功能清单页都按 `!IsHome` 过滤）；启动健全性检查（§3.3）也按 `system` 判定，常量见 `ModuleLoader.HostGroupKey`；
 3. `BuildServiceProvider()` → `AppServices.Initialize(sp)`；
 4. `ModuleLoader.InitializeAll(sp)`（**必须在 3 之后**）；
 5. 应用主题（订阅 `ThemeChanged`）；
@@ -296,27 +304,27 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 | | Debug | Release |
 |---|---|---|
 | 模块源 | `Shell.csproj` Debug 条件 `ProjectReference` | `<程序目录>\Modules\` DLL |
-| **`Module.Settings`（例外 = 框架组件）** | **无条件 `ProjectReference`，随 `NewToys.exe` 出根目录** | 同左；props 开例外，⛔ 不进 `Modules\` |
+| **框架组件（v3.62 起 = 无）** | 应用级设置页已归 Shell；⛔ 不再有任何 `Module.*` 被无条件引用 | 同左 |
 | 需要 `Modules\` | 否 | 是（无则兜底程序目录） |
 | MSBuild 拷贝 | 否 | 否（OutDir 直出） |
 
 **硬规则**：
 - Debug 的功能模块必须走显式类型清单（⛔ 不能只靠 `AppDomain.GetAssemblies()`）。
-- 跳过**功能模块**改两处：`App.axaml.cs` 的 `typeof(XxxModule)` + `Shell.csproj` 的 `ProjectReference`。⛔ `Module.Settings` 不适用此条——它是无条件引用 + 必载清单置顶，跳过它 = 卸框架。
+- 跳过**功能模块**改两处：`App.axaml.cs` 的 `typeof(XxxModule)` + `Shell.csproj` 的 `ProjectReference`。（v3.62 起所有 `Module.*` 都是功能模块、一律适用本条——原 `Module.Settings` 例外已随该模块撤销而消失。）
 - Release 路径用 `AppContext.BaseDirectory` 拼绝对路径。
 - 模块 DLL 命名 `Module.<模块名>.dll`。
-- ⛔ **`Modules\` 是模块产物唯一去处，全程零拷贝**：`src/Directory.Build.props` 把模块 Release `OutDir` 直设为 `$(NewToysReleaseDir)Modules\`。（`Module.Settings` 例外：框架组件直出根目录，见下条。）
+- ⛔ **`Modules\` 是模块产物唯一去处，全程零拷贝**：`src/Directory.Build.props` 把模块 Release `OutDir` 直设为 `$(NewToysReleaseDir)Modules\`。
 - Release 关 pdb（`DebugType=none`）消除并发写 `MSB3026`。
-- **必备模块（物理必备，v3.25 用户拍板；需求 §3.4）**：`Module.Settings` = **框架组件**——`Shell.csproj` **无条件** `ProjectReference`（⛔ 不再走 Debug 条件组）；`src/Directory.Build.props` 的模块 `OutDir` 规则对它**开例外**（Release ⛔ 不进 `Modules\`，只随 `NewToys.exe` 出**程序根目录**）；启动**第一个加载**（必载清单置顶）；缺失 = 启动失败（同 Shared/Core 硬依赖，⛔ 不做降级）。`scripts/build.ps1` 的产物计数校验**同步改为只数功能模块**（2026-10-13 用户授权改构建脚本；`Modules\` 自此只含功能模块 DLL）。`InitializeAll` 后**健全性检查**：`settings` 分组仍不存在（典型 = `SettingsModule.Initialize` 自身抛异常被逐模块 try-catch 吞了）→ 日志 + Shell 状态栏一行警告，⛔ 不静默。
+- **框架组件（v3.62 起）**：`Module.Settings` **已撤销并入 Shell** ⇒ `Modules\` **只含功能模块**、**无必备模块**（Shared / Core / Shell 之外的框架代码全在 Shell 内）。`scripts/build.ps1` 产物计数校验 = **只数功能模块**；`InitializeAll` 后**健全性检查**：**宿主分组 `system`** 不存在（Shell 自身注册失败）→ 日志 + Shell 状态栏一行警告，⛔ 不静默（常量 `ModuleLoader.HostGroupKey` = `"system"`；🔴 v3.66 起 ⛔ 不是 `settings`）。
 
 ### 3.4 新增模块步骤
 
 1. 建 `src/Module.Xxx/Module.Xxx.csproj`：`RootNamespace=NewToys.<Xxx>`、`AvaloniaUseCompiledBindingsByDefault=false`，引 `Shared+Core`。
 2. 写 `XxxModule.cs : IModule`，命名空间 `NewToys.<Xxx>`。
 3. `src/NewToys.slnx` 加 `<Project Path="Module.Xxx/Module.Xxx.csproj" Type="C#" />`。
-4. **Debug 链路两处登记**：`Shell.csproj` Debug 条件 `ProjectReference` + `App.axaml.cs` 的 `#if DEBUG` 清单。Release 不需登记。（`Module.Settings` 是框架组件，不走本条——见 §3.3 必备模块。）
+4. **Debug 链路两处登记**：`Shell.csproj` Debug 条件 `ProjectReference` + `App.axaml.cs` 的 `#if DEBUG` 清单。Release 不需登记。
 5. `Initialize` 里 `RegisterModule`+`RegisterFunction` 注册菜单，`viewName`=View 类名，`icon`=Geometry 键。
-6. **（有设置页时，v3.20）** 设置 View/VM 放**本模块** `Views/SettingsXxxView.axaml(+.cs)` + `ViewModels/SettingsXxxViewModel.cs`；`Initialize` 里 `RegisterFunction("settings", "settings-<模块键>", …, Order)` 注册进 `settings` 分组——**Order 从 100 起、每模块独占一段（+10）**，0~99 保留给框架设置（跨组注册走延迟补登，§3.2）。设置模型类被两模块共用时放 `Shared`（⛔ 双真相源）；设置落 `config\*.json`，模块只读、唯一写入点 = 该设置页。
+6. **（有设置页时，v3.20 / v3.66 改）** 设置 View/VM 放**本模块** `Views/SettingsXxxView.axaml(+.cs)` + `ViewModels/SettingsXxxViewModel.cs`；`Initialize` 里 `RegisterFunction(<本模块分组键>, "settings-<模块键>", …, Order)` 注册进**本模块的一级菜单**（🔴 v3.66：⛔ 不再注册进 `settings` 组 —— 该组已删；Order 排在本组末位，⛔ 不再跨组、也不需要延迟补登）。设置模型类被两模块共用时放 `Shared`（⛔ 双真相源）；设置落 `config\*.json`，模块只读、唯一写入点 = 该设置页。🔴 **菜单标题保持长名**（如「电脑工具设置」）—— 它是**独立标签页**的标题。
 
 ### 3.5 页面开发与 VM 定位
 
@@ -326,6 +334,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - 解析（`ShellViewModel.ResolveView`）：① 按 `ViewTypeName` 遍历**全部已加载程序集**匹配 `Type.Name`（`Control` 子类）**取首个命中** → ② `ActivatorUtilities.CreateInstance` 建视图 → ③ 推导 VM 时**优先限定在 View 自己的程序集**（`.Views`→`.ViewModels`、`XxxView`→`XxxViewModel`），找不到才降级全 `AppDomain` 扫类名。
   > ⚠️ **View 解析这一步未按模块限定程序集** → 各模块出现同名 View 时会撞车（现状两处 `DnsView`）。
 - 无占位页：兜底是 `ShellViewModel.BuildErrorView()` 现场构造的红字+`ScrollViewer`。
+- **Shell 自带页面同样走上面的解析（v3.62）**：应用级设置页的 View/VM 放 `src/Shell/Views` + `ViewModels`（先例 = `HomeView` / `HomeViewModel`，在 `App.axaml.cs` 与 HomeView 一同 DI 注册）⇒ ⛔ **解析逻辑无需改动**。⚠️ 但 ① 是**全局取首个命中、未按程序集限定** ⇒ Shell 内新页类名必须全局唯一（现状已有一处 `DnsView` 撞车记载）；②页内相关 VM 若要状态栏，仍实现 `IStatusProvider`。
 - 可以先注册菜单、后补页面。
 - **v3.0 缓存语义**：View 实例**由 `TabItemViewModel` 持有并缓存**，切标签不重建；**关闭标签时才销毁**（若 VM 实现 `IDisposable` 则调用）。
 
@@ -394,7 +403,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 - 表头两列交界处 5px 透明把手：`ColumnGrid.IsResizable="True"` 时自动生成（**只生成在相邻两个可见列之间**，隐藏列边界没有）；`Cursor = new Cursor(StandardCursorType.SizeWestEast)`；拖动经 `ColumnResize` 事件 → VM `ResizeColumns(i, w, i+1, w)`（基类 `ListPageViewModelBase` 提供）→ `VisibleColumnSpecs` 重出 → 表头与行**同规格重建**。每列 ≥24px、左右列总宽守恒；⛔ 不拖最后一列右缘。
 - ⛔ **没有「自动调整列宽」开关**（v3.20 全模块删除：可见列整体切 `Auto` 时，长内容列按**未截断全文**测宽，把其余列挤到接近 0 → 表头文字被裁没，像"整行消失"）。
 - 手调列宽**只存会话**（⛔ 不落 `columnlayout.json`）：切标签页不丢、重启还原；列显隐切换不影响已手调宽度。
-- 🔴 `Views/ColumnGrid.cs` 因**模块间禁互引**在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` / `Module.MediaAssets` **各存一份（共五份），改动必须同步五处**。
+- ✅ `ColumnGrid` **全库仅一份** = `src/UI/Controls/ColumnGrid.cs`（**NT-063 P0-a 已实施**，⏳ 待本地 build 验收）：此前因「模块禁互引 + 禁引 Shell + Shared/Core 不引 Avalonia」在 4 个模块与 Shell 各存一份（共五份、2086 行、已漂移）；`NewToys.UI` 落成后合并，各页 `xmlns:v="using:NewToys.UI.Controls"`。列数防线（`ColumnDefinitions.Count` ≥ 子元素最大 `Grid.Column` + 1）**原样保留**（合并时最易丢的一段）。
 8. 🔴 **跨页投递的数据在 `OnAttachedToVisualTree` 取**（不是 `OnDataContextChanged`）：标签页已存在时切回来只重新挂可视树，`DataContext` 不变 → 后者**不再触发**，症状是"送过去的文件 / 任务要刷新页面才出现"。`VideoTaskStore.TakePendingCut/TakePendingTranscode` 是取一次即清空的，重复调安全。
 
 **详情开关的位置（v3.12：表头 → 工具条末位）**
@@ -409,7 +418,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
 **主显示区（工具条 / 筛选条）实现范例（v3.41，需求 §4.8.4；样板 = 媒体资产「全部资产」页）**
 
 > 参考实现：`Module.MediaAssets/Views/AssetAllView.axaml`（工具条 + 筛选条）+ `AssetAllViewModel`（`IsToolbarExpanded` / `ToggleToolbarCommand`）。
-> 该页被 5 个类型薄壳页（视频 / 音乐 / 书籍 / 图片 / 文档）内嵌复用（`<views:AssetAllView/>` + VM 继承 `AssetAllViewModel`）
+> ⛔ **v3.69：5 个类型薄壳页已撤销**（合并进本页的筛选栏类型切换，见需求 §6.5「类型切换」；实施见 NT-063 P2）⇒ 本页现在是**唯一的资产浏览页**，`AssetAllViewModel` 不再有派生子类。
 > ⇒ **一份实现覆盖 6 页**；⛔ 不要逐页复制工具条 / 筛选条。
 
 **① 工具条「最多两行 + 按宽度自动折叠」**
@@ -475,7 +484,17 @@ void RegisterFunction(string moduleKey, string key, string title, string icon,
   - 表头 `ColumnGrid` 绑 `SampleSpecs="{Binding SampleSpecs}"`；首次布局测出 **表头宽**（各表头子元素 `DesiredSize`）与**示例宽**（临时 `TextBlock` 建来 `Measure(∞)`，字号 12 + 单元格内边距 16；测不到记 `double.MaxValue` 免得误锁）→ `HeaderMeasured` 事件 → VM `LockColumnsBySample(header, sample)`：**示例宽 ≤ 表头宽 → 锁成表头宽，且不小于 `MinLockedWidth = 34`**（表头文字很短的列也留得下拖拽把手）。
   - 锁定列的边界**不生成把手**、`ResizeColumns` 也拒绝（两侧任一被锁）；VM 的 `LockedColumnMask` → `ColumnGrid.LockedColumns`。
   - **空态引导（v3.60 / NT-060）**：列表页 View 里放一个 `StackPanel`，`Grid.Row` 与列表**同一格**（⇒ 叠在列表区居中）、`IsVisible="{Binding !HasItems}"`（两处可选其一：`HasItems` 每页都有，记得 `OnPropertyChanged(nameof(HasItems))`）；内含一行 `TextBlock.hint-text`（讲"这页放什么"）+ 一个 `Button.ghost`（讲"怎么开始"），命令**直接绑该页既有命令**（「📥 导入」/「➕ 新增」…）⇒ ⛔ 不新增 VM 状态、⛔ 不新增命令（需求 §4.8.3）。
-- ⚠️ `Views/ColumnGrid.cs` 因**模块间禁互引**而在 `Module.PcTools` / `Module.WebTools` / `Module.VideoTools` / `Module.Settings` / `Module.MediaAssets` **各存一份（共五份），改动必须同步五处**。
+- ✅ `ColumnGrid` 已合并为一份（`src/UI/Controls/ColumnGrid.cs`，NT-063 P0-a；⏳ 待本地 build 验收）—— 历史包袱：曾因模块禁互引在 4 模块 + Shell 存五份（2086 行）。UI 库纪律见 NT-063：只放稳定控件、主题刷子留 Shell。
+
+**列表页骨架（v3.70 / NT-063 P1 已实施，⏳ 待本地 build 验收）**
+
+- 件：`src/UI/Controls/ListPageSkeleton.axaml(.cs)` + `EmptyStateBlock.axaml(.cs)`（与 `ListFooterBar` 同在 `NewToys.UI`，各页经 `xmlns:v="using:NewToys.UI.Controls"` 用）。
+- **四段容器**：顶工具条区（`TopArea`，Auto 行；没有 ⇒ 高度 0）/ 列表区（`HeaderArea` 表头 + `ListArea` 列表，card 内同格）/ 空态区（`EmptyStateBlock`，与 `ListArea` 同格，`IsVisible` 绑 `IsEmpty`）/ 底栏区（`ListFooterBar`，`ShowFooter` 绑 VM `HasFooterContent`，NT-064 接入前默认 false 不显示）。
+- 页面写法（样板 = `AssetAllView`）：根元素换成 `<v:ListPageSkeleton EmptyMessage="…" EmptyActionText="…" EmptyActionCommand="{Binding …}" IsEmpty="{Binding !HasItems}">`，原 card / 表头 Border / 空态 StackPanel 拆进三个属性元素内容；⛔ 行模板仍各页自写（骨架不吞）。
+- 🔴 **`x:Name` 在属性元素内容里照样注册 namescope**（XamlIl `AddNameScopeRegistration` 对任意位置的 Name 赋值都注册）⇒ 表头 / 列表的 code-behind 接线（`HeaderGrid.ColumnResize` / `OnDataContextChanged` 同步菜单 DataContext）**原样可用**。
+- 已切换 14 页（MediaAssets 6：`assets-all` / `assets-tags` / `assets-storages` / `assets-trash` / `assets-collections` / `assets-categories`；WebTools 4：`web-bookmark` / `web-ping` / `web-scrape` / `web-hosts`；PcTools 4：`pc-package` / `pc-shortcuts` / `pc-quicksettings` / `pc-info`；VideoTools 2：`video-list` / `video-batch`；Shell 1：`settings-path`，**Margin="0"** 作设置节正文）。
+- ⛔ **不切的两类**：① `AssetTasksView`（三块堆叠 + ScrollViewer，非标准列表页）；② 5 个资产类型薄壳页（NT-063 P2 整体删除）。
+- 视觉差异（有意统一）：原部分页手写 `PanelBrush + DividerBrush 1px` 的 card 边框 ⇒ 统一走 `Classes="card"`（Shell 样式类；深色主题下差异极小）；`AssetCategories` 的列表由"card 外独立"进 card 内（保留 `Margin="0,6,0,0"`）。
 
 ### 3.7 热加载实现
 
@@ -567,7 +586,7 @@ public interface IDetailCardSource
 |---|---|---|
 | `DetailCardDescriptor` / `DetailSection` / `DetailField` / `DetailAction` / `FieldKind` / `EditCommitMode` | `src/Shared/Details/DetailCardDescriptor.cs` | 纯 POCO，**零 Avalonia 依赖**；`DetailAction.Command` 用 BCL 的 `System.Windows.Input.ICommand` |
 | `IDetailCardSource` | `src/Shared/Services/IDetailCardSource.cs` | 模块侧来源契约 |
-| `DetailCardHost.axaml(.cs)` + `DetailCardRender.cs` | `src/Shell/Controls/` | 渲染器（必须引 Avalonia，模块又禁引 Shell ⇒ 只此一处） |
+| `DetailCardHost.axaml(.cs)` + `DetailCardRender.cs` | `src/UI/Controls/`（NT-063 P0-a 从 Shell 搬入） | 渲染器（必须引 Avalonia；UI 库引 Shared 不引 Core/Shell ⇒ 任何模块都能用）。确认弹窗经 `DetailCardHooks` 由 Shell 启动时转接 `DialogHooks.ConfirmHandler` |
 | 16 张卡的 `Card` 声明 | 各页 VM | C# 对象字面量，每页一个实例 |
 
 **Shell 侧两轨择一（`ShellViewModel.RefreshDetail`）**
@@ -688,6 +707,7 @@ public interface IDetailCardSource
 | 件 | 位置 | 说明 |
 |---|---|---|
 | `IToolbarSource` | `Shared/Services/` | `Toolbar`（`IReadOnlyList<ToolbarItemDescriptor>?`，**空 / null = 本页无工具条**）+ `ToolbarChanged` |
+| `IToolbarOwner` | `Shared/Services/` | 🔴 v3.66 新增：`object? ToolbarOwner` —— **复合页**（一页多节，如应用级设置页）把工具条的**承载者 / 绑定根**让给"有工具条的那一节 VM"。原因：描述符里的 `CommandPath` / `IsEnabledPath` 是**相对节 VM** 解析（`Binding{Source}` + `GetProperty`），复合页自己当承载者 ⇒ 工具条"画得出来、点了没反应"。Shell 规则：当前页 VM 实现本接口 ⇒ 用 `ToolbarOwner` 当承载者，否则沿用页面 VM 自己（普通页零改动） |
 | `ToolbarItemDescriptor` / `ToolbarMenuItemDescriptor` | `Shared/Models/` | **纯 POCO**（⛔ 不引 Avalonia，命令用 BCL `ICommand`）；`*Path` 一律是**相对页面 VM 的属性名** |
 | `ToolbarHost` | `Shell/Controls/` | 渲染 + 自动折叠 + 详情开关浮层；`Source` = 页面 VM |
 | `ListPageViewModelBase` | `Shared/Models/` | **已实现 `IToolbarSource`**（`public virtual Toolbar => null`）⇒ 列表页只 `override Toolbar`，零样板（与 `IStatusProvider` 同一套路） |
@@ -865,7 +885,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **关闭首页标签失败**（v3.0） | 未设 `CanClose=false` | `TabItemViewModel` 构造时首页 `CanClose=false`，`CloseTab` 检查 |
 | **跨页投递的数据要刷新页面才出现**（v3.12） | 只在 `OnDataContextChanged` 里取件；标签页已存在时切回来 `DataContext` 不变 → 该回调不再触发 | 取件放 `OnAttachedToVisualTree`（每次进页面都会跑）；⚠️ 必须写 `protected override`（基类是 protected，写 public 报 CS0507） |
 | **表头与行错位**（v3.12） | 改了 `Columns` 元数据但表头 / 行模板的 `Grid.Column` 没逐字同步 | 改列元数据后核对表头与行模板的列序列（需求 §4.8 硬规则 2） |
-| **菜单项静默丢失**（v3.19 记，v3.20 换解法） | 模块 A 在 `Initialize` 里 `RegisterFunction` 到模块 B 的分组：B 尚未注册 → 旧实现抛 `InvalidOperationException`，被 `ModuleLoader.InitializeAll` 的逐模块 try-catch **吞掉** → Release（`Modules\` 目录扫描，`Directory.EnumerateFiles` 顺序不保证）下该项**静默消失**，Debug 显式清单反而可能正常 | v3.20 起 `MenuService` **延迟补登**（§3.2）：分组未注册时暂存、`RegisterModule` 建立分组时补登，⛔ 不抛异常；分组始终未建立（如 `Module.Settings` 缺失）→ 启动健全性检查报一行（§3.3），暂存项不显示 |
+| **菜单项静默丢失**（v3.19 记，v3.20 换解法） | 模块 A 在 `Initialize` 里 `RegisterFunction` 到模块 B 的分组：B 尚未注册 → 旧实现抛 `InvalidOperationException`，被 `ModuleLoader.InitializeAll` 的逐模块 try-catch **吞掉** → Release（`Modules\` 目录扫描，`Directory.EnumerateFiles` 顺序不保证）下该项**静默消失**，Debug 显式清单反而可能正常 | v3.20 起 `MenuService` **延迟补登**（§3.2）：分组未注册时暂存、`RegisterModule` 建立分组时补登，⛔ 不抛异常；分组始终未建立（如宿主分组 `system` 创建失败）→ 启动健全性检查报一行（§3.3），暂存项不显示。⚠️ v3.66 起模块设置页不再跨组 ⇒ 此坑在本仓多数场景已不适用 |
 | **窗口不能拖边框缩放**（v3.26 记；🔴 **v3.22 修正结论**） | 12 时代 `ExtendClientAreaChromeHints` 已移除（11 的 API，运行时程序集探针实证）；`ElementRole` 在 12 上**确实生效**（前提是 `ExtendClientAreaToDecorationsHint="True"`，官方明确、issue #21202 已确认） | ✅ **正确解法 = 官方 CSD**：`WindowDecorations` + `ElementRole=ResizeN…SW` 由系统处理缩放，见 **§2.4**。⛔ v3.26 那条「托管装饰在 Win32 不可用 → 保持 `WindowDecorations="None"` 自绘」的结论**已过时**——它只实测到 `ElementRole` 早期版本的 bug，且漏了 `WindowDecorationsTheme` 这条正门。自绘抓取区（四边 5px + 四角 10px + `BeginResizeDrag`）降级为**兜底**，NT-041 验证后删除 |
 | **`VisualRoot as Window` 恒为 null**（v3.26 记，Avalonia 12.x） | 视觉根是 `TopLevelHost`，`VisualRoot as Window` 永远转不成功（12.x 实测项目结论） | 取窗走逻辑树 `FindLogicalAncestorOfType<Window>()`（`includeSelf: true`） |
 | **同配置多开互相踩数据**（v3.26 防） | 两实例同配置 → 共享 `config/*.json`（后写覆盖）+ 同一 `newtoys.db` 并发写 | **每配置单例**：命名互斥 `Local\NewToys_Profile_<小写配置名>`，`WaitOne(0)` 占不住就提示退出；SQLite 已有 `busy_timeout=3000` 兜底（`SqliteDatabase.cs`） |

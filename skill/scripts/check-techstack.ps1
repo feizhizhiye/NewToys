@@ -2,10 +2,10 @@
 # 用法（在仓库根执行）：pwsh skill/scripts/check-techstack.ps1 [-All]
 #   -All  同时列出 WARN 明细（默认只列 ERROR 明细 + WARN 计数，保持输出短）
 #
-# 规则清单唯一源 = skill/references/tech-guard.md 第一节（G-01 ~ G-11）—— 改这里必须同步改那边。
+# 规则清单唯一源 = skill/references/tech-guard.md 第一节（G-01 ~ G-11 + G-14）—— 改这里必须同步改那边。
 # ⛔ 只报告，不修改任何文件，不以非零码退出（自检是参考，不是门禁）。
 # ⛔ 口径：ERROR = 会编译失败 / 运行必错 / 破坏架构边界；WARN = 违反约定但仍能编译。
-# ⛔ 不扫 src/docs/（文档里大量引用反例写法，扫了就全是误报）。
+# ⛔ 不扫 skill/docs/（文档里大量引用反例写法，扫了就全是误报）。
 
 param([switch]$All)
 

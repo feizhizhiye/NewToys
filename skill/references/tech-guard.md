@@ -3,13 +3,13 @@
 > **版本锚点**：.NET 10 / Avalonia **12.1.4** / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0
 > **口径**：硬伤 = **框架 / 版本层面**的坑（Avalonia ≠ WPF、分析器行为、API 缺失、Win32 与客户区扩展的平台差异）。业务需求不在此。
 > **定位**：本文件是**技术栈硬伤的唯一源**；`G-xx` 与 `scripts/check-techstack.ps1` 的规则**一一对应**（改这张表必须同步改脚本，反之亦然）。
-> ⚠️ 已知重叠：`references/newtoys-spec.md` §七「分析器 / API 坑」与本文件内容重复（收敛为引用属后续动作，本轮未执行）。
+> ✅ §七 重叠**已收敛**：`references/newtoys-spec.md` §七 现只做引用，本文件 = 唯一源。
 > 🔴 **升级 Avalonia / .NET 后必须复核本文件**：标「版本相关 = 是」的条目会随升级失效甚至反转，不复核这里就会变成谎言。
-> 🔴 本文件**不替代编译器**。三条脚本只是「编译前抓常见硬伤」，最终门禁仍是用户本地 `pwsh -File .\scripts\build.ps1`。
+> 🔴 本文件**不替代编译器**。四个静态检查（`skill/scripts/accept.ps1` 一键编排）只是「编译前抓常见硬伤」，最终门禁仍是用户本地 `pwsh -File .\scripts\build.ps1`。
 
 ---
 
-## 一、静态可检测规则（脚本 `G-01` ~ `G-14`）
+## 一、静态可检测规则（脚本 `G-01` ~ `G-11` + `G-14`）
 
 级别口径：**ERROR** = 会编译失败 / 运行必错 / 破坏架构边界；**WARN** = 违反项目约定，但仍能编译。
 
@@ -29,6 +29,8 @@
 | **G-14** | ERROR | 插值串 `$"…"` 里出现**单个** `\`（如 `$"C:\path"`） | CS8087 + CS1009。要反斜杠写 `\\`；`\n` / `\t` / `\"` / `\\` 等合法转义不报；`$@"…"` verbatim 插值串跳过 | 否 |
 
 ---
+
+> ℹ️ **`G-12` / `G-13` 编号未启用**（历史留空，避免既有引用错位）；新增规则从 `G-15` 起。
 
 ## 二、⛔ 不可静态检测的硬伤
 
@@ -68,8 +70,8 @@
 
 | 脚本 | 已覆盖的范围 |
 |---|---|
-| `scripts/check.ps1` | `.axaml` XML 合法性 / `.axaml`↔`.axaml.cs` 配对 / `*Brush` 主题键白名单（白名单外的键 = 旧键或拼错） |
-| `scripts/check-axaml-props.ps1` | XAML **属性名存在性**（逐个到 Avalonia ref 程序集核对 + 本仓自定义属性豁免），专治 Avalonia ≠ WPF 名字差异：`SelectedValuePath` / `SelectedValue` / `StrokeLineJoin`（Avalonia 叫 `StrokeJoin`）/ `Watermark`（→ `PlaceholderText`）/ `DisplayMemberPath` / `SharedSizeGroup` / `ValidatesOnExceptions` / `IsCheckable`。另：勾选按钮 ⛔ 无 `IsCheckable`（用 `ToggleType=CheckBox`），`IsChecked` 本项目约定须 `Mode=OneWay` |
+| `skill/scripts/check.ps1` | `.axaml` XML 合法性 / `.axaml`↔`.axaml.cs` 配对 / **`.axaml.cs` 是否调用 `InitializeComponent()`**（2026-10-17 新增：Avalonia 不自动生成构造函数，漏写 ⇒ XAML 静默不加载、具名字段 null ⇒ NRE，NT-063 连挂两次）/ `*Brush` 主题键白名单（白名单外的键 = 旧键或拼错） |
+| `skill/scripts/check-axaml-props.ps1` | XAML **属性名存在性**（逐个到 Avalonia ref 程序集核对 + 本仓自定义属性豁免），专治 Avalonia ≠ WPF 名字差异：`SelectedValuePath` / `SelectedValue` / `StrokeLineJoin`（Avalonia 叫 `StrokeJoin`）/ `Watermark`（→ `PlaceholderText`）/ `DisplayMemberPath` / `SharedSizeGroup` / `ValidatesOnExceptions` / `IsCheckable`。另：勾选按钮 ⛔ 无 `IsCheckable`（用 `ToggleType=CheckBox`），`IsChecked` 本项目约定须 `Mode=OneWay` |
 
 ---
 

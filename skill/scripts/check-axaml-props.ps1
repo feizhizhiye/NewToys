@@ -51,10 +51,12 @@ Write-Host "已载入 Avalonia ref 程序集: $loaded 个" -ForegroundColor Gray
 if ($loaded -eq 0) { Write-Host '[WARN] 一个 Avalonia ref 程序集都没找到（NuGet 缓存路径变了？）——本检查无意义' -ForegroundColor Yellow; exit 0 }
 
 # 2b) 本仓自定义控件 / 附加属性（Controls/*.cs 与任何 *.cs 里注册的 XxxProperty）
+#     ⚠️ 泛型实参允许**一层嵌套**（如 StyledProperty<IReadOnlyList<SysInfoHeaderCell>?>）——
+#        原来是 `<[^>]*>`，遇到嵌套泛型会在内层 '>' 处截断 ⇒ 漏收该属性名 ⇒ 误报"属性名找不到"。
 $ownNames = @{}
 Get-ChildItem $src -Recurse -Include '*.cs' -File | ForEach-Object {
     $t = Get-Content $_.FullName -Raw
-    [regex]::Matches($t, '(?:StyledProperty|DirectProperty|AttachedProperty)<[^>]*>\s+(\w+?)Property\b') | ForEach-Object {
+    [regex]::Matches($t, '(?:StyledProperty|DirectProperty|AttachedProperty)<(?:[^<>]|<[^<>]*>)*>\s+(\w+?)Property\b') | ForEach-Object {
         $ownNames[$_.Groups[1].Value] = $true
     }
 }

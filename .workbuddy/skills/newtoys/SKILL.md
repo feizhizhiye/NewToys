@@ -12,8 +12,8 @@ agent_created: true
 
 1. 仓库根 `AGENTS.md`（定位 + 铁律 + 四文档路由表）
 2. `skill/SKILL.md`（中立导航 + 客户端接入表）
-3. `src/docs/NewToys-项目状态与路线图.md`「一、当前基线」
-4. 按 `skill/references/newtoys-spec.md` 的「任务型→规范章节」读 `src/docs/NewToys-工程规范.md` 对应节
+3. `skill/docs/NewToys-项目状态与路线图.md`「一、当前基线」
+4. 按 `skill/references/newtoys-spec.md` 的「任务型→规范章节」读 `skill/docs/NewToys-工程规范.md` 对应节
 5. 交付前 `pwsh skill/scripts/check.ps1`
 
-🔴 权威源 = `src/docs/` 四份 + `src/` 源码；**规划 / 执行双模式**唯一定义处 = `src/docs/NewToys-AI协作手册.md`。冲突以源码为准。
+🔴 权威源 = `skill/docs/` 四份 + `src/` 源码；**规划 / 执行双模式**唯一定义处 = `skill/docs/NewToys-AI协作手册.md`。冲突以源码为准。

@@ -1,6 +1,6 @@
 # NewToys 静态自检（交付前跑，不替代用户本地 build.ps1）
 # 用法（在仓库根执行）：pwsh skill/scripts/check.ps1
-# 定位：把 AI 人肉做的 .axaml 合法性 / .axaml.cs 配对 / 主题键白名单 自动化，
+# 定位：把 AI 人肉做的 .axaml 合法性 / .axaml.cs 配对 / InitializeComponent 调用 / 主题键白名单 自动化，
 #       只报告问题，不修改任何文件、不以非零码退出（自检是参考，不是门禁）。
 
 $ErrorActionPreference = 'Continue'
@@ -39,6 +39,24 @@ foreach ($f in $axamls) {
     }
 }
 
+# .axaml.cs 必须调用 InitializeComponent()（2026-10-17 新增）
+# 🔴 Avalonia 不会自动生成构造函数 ⇒ 漏写则整块 XAML 静默不加载（无报错/无异常），
+#    x:Name 字段为 null ⇒ 运行时 NRE（NT-063 连挂两次：列表全白 / 视图创建失败）。
+$noInit = 0
+Write-Host "`n[初始化] 检查 .axaml.cs 是否调用 InitializeComponent()..." -ForegroundColor Cyan
+foreach ($f in $axamls) {
+    $raw = Get-Content $f.FullName -Raw
+    if ($raw -notmatch 'x:Class=') { continue }
+    if ($f.BaseName -eq 'App') { continue }   # App 是 Application 不是 UserControl/Window，初始化走 ApplyTheme
+    $cs = Join-Path $f.DirectoryName ($f.BaseName + '.axaml.cs')
+    if (-not (Test-Path $cs)) { continue }
+    $csText = [System.IO.File]::ReadAllText($cs, [System.Text.Encoding]::UTF8)
+    if ($csText -notmatch 'InitializeComponent\s*\(\s*\)') {
+        Write-Host "  [缺 InitializeComponent] $cs" -ForegroundColor Red
+        $noInit++
+    }
+}
+
 # DynamicResource/StaticResource 引用的 *Brush 键是否都在白名单
 if ($brushKeys.Count -gt 0) {
     $unknown = @{}
@@ -60,6 +78,7 @@ if ($brushKeys.Count -gt 0) {
 Write-Host "`n=== 汇总 ===" -ForegroundColor Cyan
 Write-Host "  XML 不合法 .axaml : $bad"
 Write-Host "  缺 .axaml.cs 配对 : $unpaired"
+Write-Host "  缺 InitializeComponent : $noInit"
 Write-Host "  *Brush 白名单      : $($brushKeys.Count)"
 Write-Host "`n提示：本脚本只做轻量静态检查；完整编译由用户本地 build.ps1 验证。" -ForegroundColor Gray
 exit 0

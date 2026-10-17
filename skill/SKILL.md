@@ -6,7 +6,7 @@ agent_created: true
 
 # NewToys 协作技能（中立载体 · 导航）
 
-本目录 = **跨 AI 共享知识库**（与具体客户端无关）。
+本目录 = **跨 AI 共享知识库 + 自封装文档**（与具体客户端无关）。
 🔴 **本文件只做导航**：正文（定位 / 铁律 / 路由表）唯一源 = 仓库根 `AGENTS.md`；细则唯一源 = `references/*`。⛔ 不在此重复正文——同一内容多份会漂移，且每多一份就多一份注入成本。
 
 ## 客户端接入
@@ -21,18 +21,22 @@ agent_created: true
 ## 读取顺序
 
 1. 仓库根 `AGENTS.md`（定位 + 铁律 + 四文档路由表）
-2. `src/docs/NewToys-项目状态与路线图.md`「一、当前基线」
+2. `skill/docs/NewToys-项目状态与路线图.md`「一、当前基线」
 3. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型→规范章节）
-4. 按「任务型→规范章节」读 `src/docs/NewToys-工程规范.md` 对应节
-5. 术语 / 流程有疑问 → `src/docs/NewToys-AI协作手册.md`【术语对照】【研发流程】
-6. 交付前 `pwsh skill/scripts/check.ps1` + `pwsh skill/scripts/check-axaml-props.ps1` + `pwsh skill/scripts/check-techstack.ps1`
+4. 按「任务型→规范章节」读 `skill/docs/NewToys-工程规范.md` 对应节
+5. 术语 / 流程有疑问 → `skill/docs/NewToys-AI协作手册.md`【术语对照】【研发流程】
+6. **交付前 / 验收：一键 `pwsh skill/scripts/accept.ps1`**（= 4 个静态检查 + 构建 + 产物核对 + 改动范围，加 `-Run` 再冒烟；退出码 0/1 可直接给用户跑）
 
 ## 目录
 
 - `references/collab-method.md` —— 通用协作方法论（跨项目母本；**§七 回复格式（编号段落）与会话成本管控 · 长会话提醒** —— 每次回复前对照）
 - `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / **31 个主题键** / 任务型→章节 / 四文档路由）
-- `scripts/check.ps1` —— 交付前静态检查 / Lint（axaml 合法性、`.axaml`↔`.cs` 配对、主题键白名单）
+- `references/tech-guard.md` —— 技术栈硬伤唯一源（`G-01`~`G-14`，与 `check-techstack.ps1` 一一对应）
+- **`scripts/accept.ps1` —— 🔴 一键验收总入口**：串起下面 4 个静态检查 + 构建 + 产物核对 + 改动范围（+ `-Run` 冒烟），输出结论与退出码（0 = 通过 / 1 = 有 FAIL）。用户自己验收就跑这一条。
+- `scripts/check.ps1` —— `.axaml` 合法性、`.axaml`↔`.axaml.cs` 配对、主题键白名单
 - `scripts/check-axaml-props.ps1` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异，如 `SelectedValuePath` / `StrokeLineJoin`）
-- `../src/docs/backlog/` —— **任务卡**（NT-xxx）：验收标准 / 技术要点 / 依赖 / 范围
+- `scripts/check-techstack.ps1` —— 技术栈硬伤 `G-01`~`G-14`（ERROR / WARN 分级；`-All` 看 WARN 明细）
+- `scripts/check-detail-paths.ps1` —— 声明式详情卡的字符串绑定路径首段是否存在（改名 / 拼错兜底；`-All` 看全）
+- `docs/` —— 🔴 **权威文档（自封装）**：需求规格 / 工程规范 / 项目状态与路线图 / AI协作手册 + `docs/backlog/`（任务卡 NT-xxx）。2026-10-17 从 `src/docs/` 整体搬入 skill（`src/` 只放代码）。
 
-🔴 权威源 = `src/docs/` 四份 + `src/` 源码，冲突以源码为准；**研发流程（规划期 / 实施期）与术语对照（Glossary）** 唯一定义处 = `src/docs/NewToys-AI协作手册.md`【研发流程】+【术语对照】节。
+🔴 权威源 = `skill/docs/` 四份 + `src/` 源码，冲突以源码为准；**研发流程（规划期 / 实施期）与术语对照（Glossary）** 唯一定义处 = `skill/docs/NewToys-AI协作手册.md`【研发流程】+【术语对照】节。

@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.UI.Controls.EmptyStateBlock">
+  <!--
+    NT-063 P1 · 空态块（NT-060 口径）：一行说明（hint-text）+ 一个**复用本页现有命令**的入口（ghost 按钮）。
+    · 文案与命令由宿主骨架经属性下发（Message / ActionText / ActionCommand）；ActionText 为空 ⇒ 按钮不显示。
+    · 🔴 库内 XAML ⛔ 不许写死色值：只用应用级样式类（hint-text / ghost，与 Shell 同源）。
+    🔴 v3.71 / NT-063 P2：文案 / 命令由 code-behind 直接写进具名元素（⛔ 不用
+       `{Binding $parent[UserControl].X}` 祖先绑定 —— 解析不到就是静默空内容，见 ListPageSkeleton 注释）。
+  -->
+  <StackPanel HorizontalAlignment="Center" Spacing="10" VerticalAlignment="Center">
+    <TextBlock x:Name="MessageText"
+               Classes="hint-text"
+               MaxWidth="420"
+               TextAlignment="Center"
+               TextWrapping="Wrap" />
+    <Button x:Name="ActionButton"
+            Classes="ghost"
+            HorizontalAlignment="Center"
+            IsVisible="False" />
+  </StackPanel>
+</UserControl>

@@ -11,7 +11,7 @@ namespace NewToys.Shared.Services;
 /// ② 首页与「设置 → 功能清单」都只通过本服务读写，不各自保存一份，避免双真相源。
 /// </para>
 /// <para>
-/// 收藏项只存**功能 key**（如 <c>pc-info</c>），标题 / 图标 / 简介一律到 <see cref="IMenuService"/> 现取，
+/// 收藏项只存**功能 key**（如 <c>script-info</c>），标题 / 图标 / 简介一律到 <see cref="IMenuService"/> 现取，
 /// 这样改名后首页卡片自动跟着变。
 /// </para>
 /// </summary>

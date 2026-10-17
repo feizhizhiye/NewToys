@@ -1,19 +1,20 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:v="using:NewToys.MediaAssets.Controls"
+             xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetTrashView">
   <!--
     NT-019「回收站」页：`assets.status='trashed'` 的资产列表（右详情卡由 **Shell** 承载，⛔ 本页不自带右栏）。
     ⚠️ 「♻ 恢复」= 只改库状态（逻辑操作）；「🗑 永久删除 / 清空」= 真删磁盘 + 删索引（物理操作 → 任务中心可见）。
+    NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（四段：顶区 = 筛选条 / 列表区 = 表头 + 列表 / 空态 / 底栏），
+        card 容器、空态块、底栏壳由骨架统一提供（⛔ 行模板仍本页自写）。
   -->
-  <Grid RowDefinitions="Auto,Auto,*" Margin="12">
+  <v:ListPageSkeleton EmptyMessage="没有可显示的资产。删除的资产会先放到回收站，可以在这儿恢复。"
+                      EmptyActionText="🔄 重读回收站"
+                      EmptyActionCommand="{Binding RefreshTrashCommand}"
+                      IsEmpty="{Binding !HasItems}">
 
-    <!--  ==================== 工具条  ====================
-          NT-055 三轮（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），
-          页内⛔ 不再自写 `Border.toolbar` 与 `detail-toggle`（详情开关 = Shell 的浮层）。
-          Row0 留空（Auto → 高度 0），不动下面各行的行号。 -->
-
-    <Border Grid.Row="1" Classes="filter-bar">
+    <v:ListPageSkeleton.TopArea>
+    <Border Classes="filter-bar">
       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
         <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
@@ -21,12 +22,10 @@
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
       </WrapPanel>
     </Border>
+    </v:ListPageSkeleton.TopArea>
 
-    <Border Grid.Row="2" Padding="0" Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
-      <Grid RowDefinitions="Auto,Auto,*">
-
-        <Border Grid.Row="0" Classes="list-header">
+    <v:ListPageSkeleton.HeaderArea>
+      <Border Classes="list-header">
           <v:ColumnGrid x:Name="HeaderGrid"
                         ColumnSpecs="{Binding VisibleColumnSpecs}"
                         IsResizable="True"
@@ -67,8 +66,10 @@
               </ContextMenu>
             </v:ColumnGrid.ContextMenu>
           </v:ColumnGrid>
-        </Border>
+      </Border>
+    </v:ListPageSkeleton.HeaderArea>
 
+    <v:ListPageSkeleton.ListArea>
         <ListBox Grid.Row="2" x:Name="TrashList" Classes="list-page"
                  ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                  SelectionMode="Single">
@@ -105,27 +106,6 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-
-        <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
-        <StackPanel
-            Grid.Row="2"
-            HorizontalAlignment="Center"
-            IsVisible="{Binding !HasItems}"
-            Spacing="10"
-            VerticalAlignment="Center">
-            <TextBlock
-                Classes="hint-text"
-                MaxWidth="420"
-                TextAlignment="Center"
-                TextWrapping="Wrap"
-                Text="没有可显示的资产。删除的资产会先放到回收站，可以在这儿恢复。" />
-            <Button
-                Classes="ghost"
-                HorizontalAlignment="Center"
-                Content="🔄 重读回收站"
-                Command="{Binding RefreshTrashCommand}" />
-        </StackPanel>
-      </Grid>
-    </Border>
-  </Grid>
+    </v:ListPageSkeleton.ListArea>
+  </v:ListPageSkeleton>
 </UserControl>

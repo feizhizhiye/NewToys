@@ -2,10 +2,10 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using NewToys.Core.Services;
-using NewToys.Settings.ViewModels;
+using NewToys.Shell.ViewModels;
 using NewToys.Shared.Services;
 
-namespace NewToys.Settings.Views;
+namespace NewToys.Shell.Views;
 
 public partial class AllFunctionsView : UserControl
 {

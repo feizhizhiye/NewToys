@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows.Input;
 using Avalonia.Controls;      // ← TryFindResource 是这里的扩展方法（挂在 IResourceHost 上）
 using Avalonia.Media;
@@ -7,7 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-namespace NewToys.Settings.ViewModels;
+namespace NewToys.Shell.ViewModels;
 
 /// <summary>
 /// 功能清单 页面：按模块列出全部二级功能（图标 + 名称 + 简介），点击卡片直接跳转。
@@ -15,13 +16,16 @@ namespace NewToys.Settings.ViewModels;
 /// <para>
 /// 每个功能卡片支持**右键 → 固定 / 取消固定到首页收藏夹**，固定状态实时同步（经 <see cref="IFavoritesService.Changed"/>）。
 /// </para>
+/// <para>
+/// 🔴 v3.65 / NT-062：本页**移出设置 = 独立页**（Key `settings-all` ⛔ 不改），入口 = 首页收藏卡尾部
+/// 「显示更多」+ 「设置 → 关于」节的功能清单按钮；页内「🔄 重载模块」已**移入关于节**。
+/// </para>
 /// </summary>
 public partial class AllFunctionsViewModel : ViewModelBase
 {
     private readonly IMenuService _menu;
     private readonly INavigationService _nav;
     private readonly IFavoritesService _fav;
-    private readonly IModuleReloadService _reload;
 
     /// <summary>按模块分组的功能项（含简介与固定状态），已按 Order 排序。</summary>
     public ObservableCollection<FunctionGroup> Groups { get; } = new();
@@ -29,13 +33,11 @@ public partial class AllFunctionsViewModel : ViewModelBase
     public ICommand NavigateCommand { get; }
     public ICommand ToggleFavoriteCommand { get; }
 
-    public AllFunctionsViewModel(IMenuService menu, INavigationService nav, IFavoritesService fav,
-                                 IModuleReloadService reload)
+    public AllFunctionsViewModel(IMenuService menu, INavigationService nav, IFavoritesService fav)
     {
         _menu = menu;
         _nav = nav;
         _fav = fav;
-        _reload = reload;
 
         NavigateCommand = new RelayCommand<string?>(k =>
         {
@@ -51,19 +53,12 @@ public partial class AllFunctionsViewModel : ViewModelBase
         BuildGroups();
     }
 
-    /// <summary>🔄 重载模块（NT-052）：重扫 Modules\ 装新模块 → 返回后刷新本页清单（新功能卡片即时出现）。
-    /// 左树重建 / 底栏计数由 Shell 订阅 <see cref="IModuleReloadService.Reloaded"/> 完成。</summary>
-    [RelayCommand]
-    private void ReloadModules()
-    {
-        _reload.HotReload();   // 做事 + 同步触发 Reloaded（Shell：重建左树 + 底栏计数）
-        BuildGroups();          // 本页清单刷新：新模块的功能卡片即时出现
-    }
-
     private void BuildGroups()
     {
         Groups.Clear();
-        foreach (var g in _menu.Groups)
+        // 🔴 v3.65 / NT-062：`IsHome` 分组（如承载「功能清单」自身的 `system` 宿主组）**不进清单** ——
+        //    与左树（ShellViewModel.BuildTree）和首页模块计数（HomeViewModel.StatusText）同一口径。
+        foreach (var g in _menu.Groups.Where(x => !x.IsHome))
         {
             var fg = new FunctionGroup(g.Title, g.Icon) { IconGeometry = ResolveIcon(g.Icon) };
             foreach (var it in g.Items)

@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.VideoTools.Views.SettingsVideoToolsView">
+  <!--
+    v3.64 / NT-061「视频工具」模块设置页（View/VM 归本模块，自注册进 settings 分组，Key = settings-video-tools / Order 120）。
+    规范 §4.9：数值 = 即时生效（改即落盘，⛔ 无保存按钮）；全局项只展示、⛔ 不另存一份。
+    窄界面基线（NT-053）：根 ScrollViewer + 内容 MaxWidth 760。
+  -->
+  <Grid RowDefinitions="Auto,*">
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
+      <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+
+        <!--  ============ ① 并发数 ============  -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Text="性能" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+
+            <StackPanel Classes="field">
+              <TextBlock Classes="field-label" Text="并发数"/>
+              <TextBox Width="120" Text="{Binding MaxConcurrency, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+              <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding ConcurrencyHint}"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!--  ============ ② 全局项（只读） ============  -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="2">
+              <TextBlock Text="全局项（本模块复用）" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+              <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                         Text="下面三项是应用级设置（媒体资产模块也在用同一份）⇒ 本页不另存一份，去「设置 → 路径与配置」改。"/>
+            </StackPanel>
+
+            <StackPanel Classes="field">
+              <TextBlock Classes="field-label" Text="ffmpeg / ffprobe"/>
+              <TextBlock Classes="field-value" TextWrapping="Wrap" Text="{Binding FfmpegPathDisplay}"/>
+            </StackPanel>
+
+            <StackPanel Classes="field">
+              <TextBlock Classes="field-label" Text="外部播放器（视频列表「▶ 播放」）"/>
+              <TextBlock Classes="field-value" TextWrapping="Wrap" Text="{Binding PlayerPathDisplay}"/>
+            </StackPanel>
+
+            <StackPanel Classes="field">
+              <TextBlock Classes="field-label" Text="导入导出默认目录"/>
+              <TextBlock Classes="field-value" TextWrapping="Wrap" Text="{Binding ImportExportDirDisplay}"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!--  ============ ③ 说明 ============  -->
+        <Border Classes="card">
+          <StackPanel Spacing="6">
+            <TextBlock Text="📄 设置文件" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Text="{Binding ConfigFilePath}" FontSize="12" TextWrapping="Wrap" FontFamily="Consolas"
+                       Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                       Text="它在 config 目录下 —— 「设置 → 数据管理」的备份 / 导入会一起覆盖它。并发数原先存在 app.json（没有界面），首次运行已自动搬过来（⛔ 不丢配置）。"/>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StatusText, StringFormat='状态：{0}'}"/>
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

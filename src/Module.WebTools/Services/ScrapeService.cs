@@ -24,12 +24,19 @@ namespace NewToys.WebTools.Services;
 /// </summary>
 public class ScrapeService
 {
-    private static readonly string DefaultUa =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
-
     private readonly ConfigStoreService _cfg;
 
-    public ScrapeService(ConfigStoreService cfg) => _cfg = cfg;
+    /// <summary>
+    /// 本模块设置（v3.64 / NT-061）：抓取的**默认 UA** 与**单次超时**从这里来（落 <c>config\web-tools.json</c>，
+    /// 可手改；v3.64 前这两个值硬编码在本类里）。
+    /// </summary>
+    private readonly IWebToolsSettingsService? _wt;
+
+    public ScrapeService(ConfigStoreService cfg, IWebToolsSettingsService? wt = null)
+    {
+        _cfg = cfg;
+        _wt = wt;
+    }
 
     private string FilePath => Path.Combine(_cfg.ConfigDir, "scrape-tasks.json");
 
@@ -60,9 +67,12 @@ public class ScrapeService
         if (string.IsNullOrWhiteSpace(task.StartUrl)) return (false, "", "起始网址为空", 0);
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            var timeout = _wt?.ScrapeTimeoutSeconds ?? WebToolsSettingsService.DefaultTimeout;
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(timeout) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
-                string.IsNullOrWhiteSpace(task.UserAgent) ? DefaultUa : task.UserAgent);
+                string.IsNullOrWhiteSpace(task.UserAgent)
+                    ? (_wt?.EffectiveUserAgent ?? WebToolsSettingsService.BuiltInUa)
+                    : task.UserAgent);
 
             var html = await client.GetStringAsync(task.StartUrl).ConfigureAwait(false);
 

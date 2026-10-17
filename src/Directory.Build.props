@@ -65,9 +65,9 @@
     <OutDir>$(NewToysReleaseDir)</OutDir>
   </PropertyGroup>
 
-  <!--  Module.Settings = 框架组件（物理必备，需求 §3.4）：Release 直出程序根目录、⛔ 不进 Modules\
-        （build.ps1 的产物计数校验同步排除它；缺失 = 启动失败，同 Shared/Core 硬依赖）。  -->
-  <PropertyGroup Condition="'$(Configuration)'=='Release' And $(MSBuildProjectName.StartsWith('Module.')) And $(MSBuildProjectName)!='Module.Settings'">
+  <!--  NT-062：Module.Settings 已撤销（应用级设置归 Shell 自带）⇒ OutDir 例外删除，
+        所有 Module.* 一律进 Modules\（build.ps1 / accept.ps1 的产物计数校验同步恢复为全量）。  -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release' And $(MSBuildProjectName.StartsWith('Module.'))">
     <OutDir>$(NewToysReleaseDir)Modules\</OutDir>
   </PropertyGroup>
 

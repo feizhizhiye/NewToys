@@ -1,0 +1,117 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.UI.Controls"
+             xmlns:pc="using:NewToys.ScriptManager.Controls"
+             x:Class="NewToys.ScriptManager.Views.ScriptInfoView">
+  <!--
+    「脚本管理器 → 信息面板」（NT-067；原 script-info「系统信息」）。
+    本页是**脚本输出呈现器**：列与脚本都由 sysinfo\sysinfo.manifest.json 决定 ⇒ 列数运行时可变
+    ⇒ 表头与行都用 pc:SysInfoGrid（页内自绘动态列，⛔ 不用 XAML 静态列，也不改 Shared 的列机制）。
+    NT-063 P1：外层沿用列表页骨架 ListPageSkeleton（card / 空态 / 底栏由骨架提供）。
+  -->
+  <v:ListPageSkeleton EmptyMessage="{Binding EmptyMessage}"
+                      EmptyActionText="🔄 重新检测"
+                      EmptyActionCommand="{Binding DetectCommand}"
+                      IsEmpty="{Binding !HasItems}">
+
+    <!--  ==================== 顶区：「⚙ 列设置」面板（收起时 Auto 行高度 0）  ====================  -->
+    <v:ListPageSkeleton.TopArea>
+      <Border Classes="filter-bar" IsVisible="{Binding IsColumnSettingsOpen}" Margin="0,0,0,8">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                     Text="列设置：勾选控制显隐（落 config\columnlayout.json 的 script-info 页键）；列宽保存后写回 sysinfo.manifest.json（宽度唯一来源 = manifest）。"/>
+          <ItemsControl ItemsSource="{Binding HeaderCells}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Margin="0,0,10,6" Padding="8,4,8,4" CornerRadius="4"
+                        BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <CheckBox Content="{Binding Title}"
+                              IsChecked="{Binding IsVisible, Mode=OneWay}"
+                              Command="{Binding ToggleCommand}"/>
+                    <TextBox Width="76" Height="22" MinWidth="0" MinHeight="0"
+                             Text="{Binding Width}" ToolTip.Tip="数字 = 像素；2* = 比例；Auto = 自适应"/>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="primary" Content="💾 保存宽度" Command="{Binding SaveColumnWidthsCommand}"/>
+            <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="写法：140（像素）/ 2*（比例）/ Auto"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </v:ListPageSkeleton.TopArea>
+
+    <!--  ==================== 表头  ====================  -->
+    <v:ListPageSkeleton.HeaderArea>
+      <Border Classes="list-header">
+        <pc:SysInfoGrid x:Name="HeaderGrid"
+                        ColumnSpecs="{Binding VisibleColumnSpecs}"
+                        HeaderCells="{Binding HeaderCells}"
+                        SortCommand="{Binding SortCommand}">
+          <pc:SysInfoGrid.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                <MenuItem.ItemContainerTheme>
+                  <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                    <Setter Property="Header" Value="{Binding Label}"/>
+                    <Setter Property="Command" Value="{Binding Command}"/>
+                  </ControlTheme>
+                </MenuItem.ItemContainerTheme>
+              </MenuItem>
+              <Separator/>
+              <MenuItem Header="显隐列" ItemsSource="{Binding HeaderCells}">
+                <MenuItem.ItemContainerTheme>
+                  <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                    <Setter Property="Header" Value="{Binding Title}"/>
+                    <Setter Property="ToggleType" Value="CheckBox"/>
+                    <Setter Property="IsChecked" Value="{Binding IsVisible, Mode=OneWay}"/>
+                    <Setter Property="Command" Value="{Binding ToggleCommand}"/>
+                  </ControlTheme>
+                </MenuItem.ItemContainerTheme>
+              </MenuItem>
+            </ContextMenu>
+          </pc:SysInfoGrid.ContextMenu>
+        </pc:SysInfoGrid>
+      </Border>
+    </v:ListPageSkeleton.HeaderArea>
+
+    <!--  ==================== 列表本体  ====================  -->
+    <v:ListPageSkeleton.ListArea>
+      <ListBox x:Name="InfoList" Classes="list-page"
+               ItemsSource="{Binding Items}"
+               SelectedItem="{Binding Selected, Mode=TwoWay}"
+               SelectionMode="Single">
+        <ListBox.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="🔄 重跑该脚本" Command="{Binding RerunScriptCommand}" CommandParameter="{Binding Selected}"/>
+            <MenuItem Header="📋 复制这一行" Command="{Binding CopyRowCommand}" CommandParameter="{Binding Selected}"/>
+            <MenuItem Header="✏ 编辑脚本" Command="{Binding EditScriptCommand}" CommandParameter="{Binding Selected}"/>
+            <MenuItem Header="📂 脚本目录" Command="{Binding OpenScriptDirCommand}"/>
+            <Separator/>
+            <MenuItem Header="📋 复制全部" Command="{Binding CopyAllCommand}"/>
+            <MenuItem Header="🔄 重新检测" Command="{Binding DetectCommand}" IsEnabled="{Binding !IsBusy}"/>
+            <MenuItem Header="⚙ 列设置" Command="{Binding ToggleColumnSettingsCommand}"/>
+            <Separator/>
+            <MenuItem Header="📦 导出脚本集合" Command="{Binding ExportPackCommand}"/>
+            <MenuItem Header="📂 导入脚本集合" Command="{Binding ImportPackCommand}"/>
+          </ContextMenu>
+        </ListBox.ContextMenu>
+
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <pc:SysInfoGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}"
+                            Cells="{Binding Cells}"/>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </v:ListPageSkeleton.ListArea>
+  </v:ListPageSkeleton>
+</UserControl>

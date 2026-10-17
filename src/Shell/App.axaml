@@ -9,7 +9,7 @@
     <Application.Resources>
         <!--  首页：房子  -->
         <StreamGeometry x:Key="IconHome">M3,10 L12,3 L21,10 L21,21 L14,21 L14,15 L10,15 L10,21 L3,21 Z</StreamGeometry>
-        <!--  电脑工具：显示器  -->
+        <!--  脚本管理器：显示器  -->
         <StreamGeometry x:Key="IconPc">M3,5 L21,5 L21,17 L3,17 Z M8,21 L16,21 M12,17 L12,21</StreamGeometry>
         <!--  网络工具：地球  -->
         <StreamGeometry x:Key="IconWeb">M2,12 A10,10 0 1,1 22,12 A10,10 0 1,1 2,12 Z M2,12 L22,12 M12,2 A6,10 0 0,0 12,22 A6,10 0 0,0 12,2 Z</StreamGeometry>
@@ -70,6 +70,10 @@
                  （见 backlog/NT-046.md）。两个键留备后续可折叠区块，⛔ 不要因为"没人用"就删（要用直接绑）。  -->
         <StreamGeometry x:Key="IconChevronDown">M6,9 L12,15 L18,9</StreamGeometry>
         <StreamGeometry x:Key="IconChevronRight">M9,18 L15,12 L9,6</StreamGeometry>
+
+        <!--  标题栏：设置搜索（Lucide `search` = 圆 + 斜柄，24 网格描边型；v3.66 / NT-062）。
+              用法 = 标题栏右侧一个 `Button.title-btn`，点击弹出输入框、回车跳转并展开命中的设置节。  -->
+        <StreamGeometry x:Key="IconSearch">M19,11 A8,8 0 1,1 3,11 A8,8 0 1,1 19,11 Z M21,21 L16.65,16.65</StreamGeometry>
 
         <!--  首页装饰图标：收藏（★）/ 一键操作（⚡）/ 设置入口（⚙）—— 一律 Lucide（ISC）  -->
         <StreamGeometry x:Key="IconStar">M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z</StreamGeometry>
@@ -481,6 +485,27 @@
         <Style Selector="Button.ghost:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
+
+        <!--  应用级设置页的**节导航**按钮（v3.65 / NT-062，需求 §4.9.2：一页多节）。
+              与左树 `tree-row` 同一口径（透明底 + 圆角 6；激活 = CardSelectedBrush + 强调色），
+              尺寸更紧凑 —— 六个节一行放得下（窄窗口由 WrapPanel 自动折行）。
+              ⚠️ 激活色由样式给，⛔ 不在 XAML 里写本地值（本地值会压过 .active）。  -->
+        <Style Selector="Button.settings-nav">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.settings-nav:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+        <Style Selector="Button.settings-nav.active">
+            <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
         <!--  工具条主按钮专用（v3.60 / NT-055 收尾）：原先工具条用 `primary`（强调色**实心**，
               默认强调色 = 微信绿 ⇒ 一排绿按钮，抢视线）。这里给**描边版**：透明底 + 强调色描边 + 强调色文字，
               悬停 / 按下才实心 —— 与首页收藏夹 `fav-btn`（需求 §6.5）同一口径，主次层级保留、⛔ 不再一片实心。
@@ -556,7 +581,7 @@
             <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
         </Style>
 
-        <!--  收藏按钮墙（首页常用功能 / PcTools 收藏夹）：一排按钮，点即执行  -->
+        <!--  收藏按钮墙（首页常用功能 / ScriptManager 收藏夹）：一排按钮，点即执行  -->
         <Style Selector="Button.fav-btn">
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Padding" Value="16,9"/>
@@ -566,7 +591,7 @@
             <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
         </Style>
 
-        <!--  收藏夹页（PcTools）的按钮（v3.9）：透明底 + **强调色描边**；悬停 / 按下变**强调色实心**。
+        <!--  收藏夹页（ScriptManager）的按钮（v3.9）：透明底 + **强调色描边**；悬停 / 按下变**强调色实心**。
              ⚠️ 单独做一个 .accent 变体 —— 首页「常用功能」那排按钮用的是**模块底色**（本地 Background，优先级高于样式），
                 直接改基础 .fav-btn 会把首页一起带偏，所以这个变体只给收藏夹页用。  -->
         <Style Selector="Button.fav-btn.accent">
@@ -598,8 +623,45 @@
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-        <Style Selector="Border.tree-panel.collapsed Border.tree-version">
-            <Setter Property="IsVisible" Value="False"/>
+        <!--  左树底部版本行里的**设置齿轮**（v3.65 / NT-062，需求 §4.3）：低调一行，悬停才显底。
+              🔴 折叠态（48px）**不隐藏它** —— 折叠后版本文字靠绑定 IsTreeExpanded 自行隐藏，
+                 齿轮必须在，否则折叠态没有设置入口（§4.3 要求「折叠态有落点」）。  -->
+        <Style Selector="Button.tree-gear">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.tree-gear:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+        <Style Selector="Button.tree-gear Path">
+            <Setter Property="Stroke" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
+        </Style>
+        <Style Selector="Button.tree-gear:pointerover Path">
+            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <!--  底部状态栏的**可点击态**（v3.65 / NT-062）：⚠ 一行带跳转目标时用它包住文字。
+              底色透明、无边框，悬停才给 hover 底 —— 看起来仍是一行状态文字。  -->
+        <Style Selector="Button.status-action">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="4,1"/>
+            <Setter Property="Margin" Value="-4,0,0,0"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.status-action:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
 
         <!--  底部状态栏（v3.9）：横贯「内容区 + 详情区」，由 Shell 统一承载（内容来自 IStatusProvider）。  -->
@@ -615,6 +677,11 @@
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+        <!--  v3.64 / NT-061：状态栏「警示态」——路径无效 / 无权限 / 落盘失败 ⇒ 红字讲清「为什么没生效」。
+              判定 = 状态文本以 `⚠` 开头（仓内既有约定，见 `GeneralViewModel` 的 `"⚠ " + msg`）。  -->
+        <Style Selector="TextBlock.status-bar-text.error">
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
         </Style>
     </Application.Styles>
 </Application>

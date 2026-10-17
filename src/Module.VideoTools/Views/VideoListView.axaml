@@ -2,37 +2,22 @@
     x:Class="NewToys.VideoTools.Views.VideoListView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:v="using:NewToys.VideoTools.Views">
+    xmlns:v="using:NewToys.UI.Controls">
     <!--
         v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。
         v3.32 / NT-054：**详情卡已迁到 Shell 的声明式渲染**（`IDetailCardSource` + `DetailCardHost`）⇒
         本页只剩「列表列」一列；卡片的声明在 `VideoListViewModel.BuildCard()` 里，⛔ 不再页内自绘。
+        NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。
     -->
-    <Grid Margin="12">
+    <v:ListPageSkeleton EmptyMessage="没有可显示的视频。点「📂 导入」选一个目录开始扫描。"
+                        EmptyActionText="📂 导入"
+                        EmptyActionCommand="{Binding PickFolderCommand}"
+                        IsEmpty="{Binding !HasItems}">
 
-        <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
-        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
-
-            <!--
-                操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
-                Row0 保持空着（Auto → 高度 0），不动下面各行的行号。
-            -->
-
-            <!--
-                ==================== 工具条  ====================
-                目录**不来自设置**：每次手动选（v1.34 与设置解绑）；选过的目录只在本次运行内记住。
-            -->
-
-
-            <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
-            <Border
-                Grid.Row="3"
-                Padding="0"
-                Classes="card">
-                <Grid RowDefinitions="Auto,Auto,*">
-
-                    <Border Grid.Row="0" Classes="list-header">
+        <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
+        <v:ListPageSkeleton.HeaderArea>
+        <Border Classes="list-header">
                         <!--  v3.20 §6.4.15：IsResizable = 表头列边界可拖动手动调列宽（事件在 code-behind 转给 VM）  -->
                         <v:ColumnGrid
                             x:Name="HeaderGrid"
@@ -262,11 +247,12 @@
                                 </ContextMenu>
                             </v:ColumnGrid.ContextMenu>
                         </v:ColumnGrid>
-                    </Border>
+        </Border>
+        </v:ListPageSkeleton.HeaderArea>
 
+        <v:ListPageSkeleton.ListArea>
                     <ListBox
                         x:Name="VideoList"
-                        Grid.Row="2"
                         Classes="list-page"
                         ItemsSource="{Binding Videos}"
                         SelectedItem="{Binding Selected, Mode=TwoWay}"
@@ -388,30 +374,6 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-
-                    <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
-                    <StackPanel
-                        Grid.Row="2"
-                        HorizontalAlignment="Center"
-                        IsVisible="{Binding !HasItems}"
-                        Spacing="10"
-                        VerticalAlignment="Center">
-                        <TextBlock
-                            Classes="hint-text"
-                            MaxWidth="420"
-                            TextAlignment="Center"
-                            TextWrapping="Wrap"
-                            Text="没有可显示的视频。点「📂 导入」选一个目录开始扫描。" />
-                        <Button
-                            Classes="ghost"
-                            HorizontalAlignment="Center"
-                            Content="📂 导入"
-                            Command="{Binding PickFolderCommand}" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-        </Grid>
-
-    </Grid>
+        </v:ListPageSkeleton.ListArea>
+    </v:ListPageSkeleton>
 </UserControl>

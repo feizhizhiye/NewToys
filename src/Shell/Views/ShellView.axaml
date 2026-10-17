@@ -19,6 +19,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:chrome="using:Avalonia.Controls.Chrome"
     xmlns:ctl="clr-namespace:NewToys.Shell.Controls"
+    xmlns:ui="using:NewToys.UI.Controls"
     Title="NewToys"
     Width="1280"
     Height="800"
@@ -32,12 +33,11 @@
     CanResize="True"
     WindowState="Normal">
 
-    <!--  v3.45：标签项模板提为共享资源 —— 首页标签（固定列，不滚动）与滚动区标签（ScrollableTabs）
-          共用同一份 DataTemplate（⛔ 不复制两份，防样式漂移）。  -->
+    <!--  v3.45：标签项模板提为共享资源（滚动区标签共用一份，⛔ 不复制两份，防样式漂移）。  -->
     <Window.Resources>
         <DataTemplate x:Key="TabItemTemplate">
             <!--  标签项 = 纯标题（无图标）；✕ 仅在鼠标悬停本标签时显示（样式控制）  -->
-            <Border Classes="tab-item" Classes.active="{Binding IsActive}">
+            <Border Classes="tab-item" Classes.active="{Binding IsActive}" IsVisible="{Binding ShowInTabStrip}">
                 <!--  单格 Grid：标题按钮撑开标签宽度，关闭按钮**叠在上层贴右端**（不占位 → 标签更窄）  -->
                 <Grid>
                     <Button
@@ -143,19 +143,19 @@
                         VerticalAlignment="Stretch"
                         Background="Transparent"
                         chrome:WindowDecorationProperties.ElementRole="User"
-                        ColumnDefinitions="Auto,*">
-                        <!--  v3.45：首页标签 = **唯一固定元素**（单独一列、不进 ScrollViewer）；其余全部参与横向滚动。
-                              数据 = ShellViewModel.HomeTab；模板与滚动区共用 TabItemTemplate。
+                        ColumnDefinitions="*,Auto">
+                        <!--  🔴 v3.66 第十八轮：**取消「首页固定列」** —— 首页标签与其余标签一视同仁进滚动区
+                              （启动即打开，仍 `CanClose=false`；零标签兜底照旧回首页）。
+                              滚动区 `HorizontalAlignment=Left` ⇒ 宽度自适应内容：标签不满一行时 `＋` 紧跟最后一个标签，
+                              标签溢出时 `*` 列吃满 ⇒ `＋` 常驻最右、滚不丢。
                               ⛔ 不做「固定其他标签页」功能（「固定」需求走首页收藏夹 / 常用功能，见需求 §4.2）。  -->
-                        <ContentControl Grid.Column="0" Content="{Binding HomeTab}"
-                                        ContentTemplate="{StaticResource TabItemTemplate}"
-                                        VerticalAlignment="Center"/>
                         <ScrollViewer
-                            Grid.Column="1"
+                            Grid.Column="0"
+                            HorizontalAlignment="Left"
                             HorizontalScrollBarVisibility="Hidden"
                             VerticalScrollBarVisibility="Disabled">
                         <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                            <ItemsControl x:Name="TabsControl" ItemsSource="{Binding ScrollableTabs}"
+                            <ItemsControl x:Name="TabsControl" ItemsSource="{Binding Tabs}"
                                           ItemTemplate="{StaticResource TabItemTemplate}"
                                           VerticalAlignment="Center">
                                 <!--  🔴 必须显式横排面板：默认竖排 StackPanel + 竖滚禁用 = 只显示第一个（v3.44 踩过）  -->
@@ -165,24 +165,26 @@
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                             </ItemsControl>
-                            <!--  ＋ 打开「功能清单」页（当选择器用；已打开则激活）—— 参与横向滚动（v3.45 回归原位）。
-                                 NT-045：图标改矢量 `IconPlus`（24×24 网格，等比缩到 14px），颜色 / 粗细走
-                                 `Button.tab-new Path` 样式。  -->
-                            <Button
-                                Classes="tab-new"
-                                Command="{Binding OpenFunctionListCommand}"
-                                Margin="4,0,0,0"
-                                ToolTip.Tip="功能清单（打开新页面）">
-                                <Path
-                                    Width="14"
-                                    Height="14"
-                                    Stretch="Uniform"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Data="{StaticResource IconPlus}" />
-                            </Button>
                         </StackPanel>
                         </ScrollViewer>
+                        <!--  ＋ 常驻标签栏最末：点击 = **导航到首页**（首页收藏卡尾部自带功能清单入口，
+                              故 ⛔ 不再直达 `settings-all`；仍按 key 单例，已开则激活）。
+                              NT-045：图标矢量 `IconPlus`（24×24 网格，等比缩到 14px），颜色 / 粗细走
+                              `Button.tab-new Path` 样式。  -->
+                        <Button
+                            Grid.Column="1"
+                            Classes="tab-new"
+                            Command="{Binding OpenHomeTabCommand}"
+                            Margin="4,0,0,0"
+                            ToolTip.Tip="首页（功能清单入口在首页内）">
+                            <Path
+                                Width="14"
+                                Height="14"
+                                Stretch="Uniform"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource IconPlus}" />
+                        </Button>
                     </Grid>
                     <Panel Grid.Column="2" Background="Transparent" />
                 </Grid>
@@ -204,6 +206,43 @@
                     VerticalAlignment="Stretch"
                     Orientation="Horizontal"
                     chrome:WindowDecorationProperties.ElementRole="User">
+                    <!--  v3.66 / NT-062：**设置搜索**（原「应用级设置页」页内的标题栏 + 搜索框已删）——
+                         按钮放在窗口按钮组最左侧（= 最大化的左侧），点击弹出输入框、**回车**搜索。
+                         搜索范围 = 应用级设置页的**节**（标题 / 一句话说明）：命中 ⇒ 打开设置页 + 展开该节
+                         （其余节收起）；未命中 ⇒ 底栏给一行提示。
+                         🔴 弹出内容在**弹出树**里（不在本窗口 NameScope）⇒ ⛔ 不给内部控件 `x:Name`，
+                             一律由 code-behind 用 `sender` 取（见 `OnSearchBoxAttached` / `OnSearchBoxKeyDown`）。  -->
+                    <Button
+                        x:Name="BtnSettingsSearch"
+                        Width="46"
+                        Height="40"
+                        Classes="title-btn"
+                        ToolTip.Tip="搜索设置（点击输入 · 回车跳转）">
+                        <Path
+                            Width="16"
+                            Height="16"
+                            Stretch="Uniform"
+                            Data="{StaticResource IconSearch}" />
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Width="230" Spacing="8">
+                                    <TextBlock
+                                        FontSize="13"
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource PrimaryTextBrush}"
+                                        Text="搜索设置" />
+                                    <TextBox
+                                        PlaceholderText="如：DNS / 主题 / 路径 / 备份"
+                                        AttachedToVisualTree="OnSearchBoxAttached"
+                                        KeyDown="OnSearchBoxKeyDown" />
+                                    <TextBlock
+                                        Classes="hint-text"
+                                        Text="回车跳转并展开命中的设置节" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
                     <!--  NT-044：全屏按钮（⛶）—— 位置在最小化左边。
                          ⚠️ **不单设** `ElementRole="FullScreenButton"` —— 切换一律由 code-behind 的 Click 处理；
                             父 StackPanel 已标 `User`（点击照常放行）。若框架也自动切一次，就会和我们重复触发。  -->
@@ -388,9 +427,32 @@
                     </ItemsControl>
                 </ScrollViewer>
 
-                <!--  左树底部：版本号区（v3.9；**折叠态隐藏**）。⚠️ 独立占位值，与「设置 → 关于」的版本号无关。  -->
-                <Border Grid.Row="1" Classes="tree-version" ToolTip.Tip="当前配置 · 版本号">
-                  <TextBlock Classes="tree-version-text" Text="{Binding TreeVersionText}" />
+                <!--  左树底部：版本号区（v3.9）+ **设置齿轮**（v3.65 / NT-062，需求 §4.3）。
+                     ⚠️ 版本号 = 独立占位值（ShellViewModel.TreeVersionText），与「关于」节的版本号是两个用途。
+                     🔴 折叠态（48px）**保留齿轮**（只隐藏版本文字）—— 否则折叠后设置入口就没了；
+                        因此 `App.axaml` 里「折叠态整体隐藏」的那条样式已改为只隐藏文字。  -->
+                <Border Grid.Row="1" Classes="tree-version">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock
+                        Grid.Column="0"
+                        Classes="tree-version-text"
+                        Text="{Binding TreeVersionText}"
+                        ToolTip.Tip="当前配置 · 版本号"
+                        IsVisible="{Binding IsTreeExpanded}" />
+                    <Button
+                        Grid.Column="1"
+                        Classes="tree-gear"
+                        Command="{Binding OpenSettingsCommand}"
+                        ToolTip.Tip="设置（应用级设置页 · 快捷键 Ctrl+,）">
+                      <Path
+                          Width="14"
+                          Height="14"
+                          Stretch="Uniform"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Data="{StaticResource IconGear}" />
+                    </Button>
+                  </Grid>
                 </Border>
               </Grid>
             </Border>
@@ -414,7 +476,13 @@
                     <ctl:ToolbarHost Source="{Binding ToolbarSource}" />
                   </Border>
 
-                  <!--  内容区：绑定当前激活标签页缓存的 View 实例  -->
+                  <!--  内容区：绑定当前激活标签页缓存的 View 实例。
+                       ⚠️ v3.66 第十四轮**结案**：曾经"点开设置页内容区不换 / 刷新后变乱 / 直接崩"，
+                           真因不在本处，而是 `SettingsView` 里**磁吸浮层抬头那个按钮**的
+                           `CommandParameter` 继承到了 `SettingsViewModel`（而命令要求 `SettingsSection`）
+                           ⇒ Avalonia 挂载本页时 `CanExecute` 抛 `ArgumentException` ⇒ **整页挂载中断**。
+                           已在 `SettingsView.axaml.cs` 构造里把浮层 DataContext 预置为 null 修掉。
+                           ⇒ ⛔ 本处保持"`ContentControl` + 绑定"即可（⛔ 不要再改成自己 `Children.Clear/Add`）。  -->
                   <ContentControl
                       x:Name="ContentArea"
                       Grid.Row="1"
@@ -439,7 +507,7 @@
                     BorderThickness="1,0,0,0">
                     <Panel>
                         <ContentControl Content="{Binding DetailPanelContent}" IsVisible="{Binding !IsDetailCardActive}" />
-                        <ctl:DetailCardHost
+                        <ui:DetailCardHost
                             Card="{Binding DetailCard}"
                             IsVisible="{Binding IsDetailCardActive}"
                             Source="{Binding DetailCardSource}" />
@@ -448,9 +516,24 @@
               </Grid>
 
               <!--  底部状态栏（v3.9）：Shell 统一承载，内容来自当前页的 IStatusProvider；页面没接契约就为空。
-                    模块/功能数改由**首页 VM** 经 IStatusProvider 提供（仅首页显示，见 NT-009 / HomeViewModel）。  -->
+                    模块/功能数改由**首页 VM** 经 IStatusProvider 提供（仅首页显示，见 NT-009 / HomeViewModel）。
+                    v3.65 / NT-062：当前页给了 `IStatusActionProvider` 目标时，这一行**可点击跳转**
+                    （典型 = 外部程序缺失 `⚠ 未找到 ffmpeg` → 一点跳到「运行环境」节）；⛔ 无目标时仍是纯文本。  -->
               <Border Grid.Row="1" Classes="status-bar">
-                <TextBlock Classes="status-bar-text" Text="{Binding StatusBarText}" />
+                <Panel>
+                  <Button
+                      Classes="status-action"
+                      IsVisible="{Binding HasStatusAction}"
+                      Command="{Binding InvokeStatusActionCommand}"
+                      ToolTip.Tip="{Binding StatusActionTip}">
+                    <TextBlock Classes="status-bar-text" Classes.error="{Binding IsStatusError}" Text="{Binding StatusBarText}" />
+                  </Button>
+                  <TextBlock
+                      Classes="status-bar-text"
+                      Classes.error="{Binding IsStatusError}"
+                      IsVisible="{Binding !HasStatusAction}"
+                      Text="{Binding StatusBarText}" />
+                </Panel>
               </Border>
             </Grid>
         </Grid>

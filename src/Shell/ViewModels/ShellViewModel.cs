@@ -33,6 +33,19 @@ public partial class ShellViewModel : ViewModelBase
     private const string ShellPageKey = "shell";
     private const string HomeKey = "home";
 
+    /// <summary>
+    /// 应用级设置页的**页 Key**（v3.65 / NT-062，需求 §4.9.2）：八个节共用这一个页 Key，
+    /// 七个**节锚点 Key**（`settings-general` …）在 <see cref="OpenTab"/> 里被归一成它 + 激活对应节。
+    /// </summary>
+    private const string SettingsKey = "settings";
+
+    /// <summary>节锚点 Key（= 原菜单 Key，⛔ 一律不改）：打开它们 = 打开设置页并激活对应节。</summary>
+    private static readonly string[] SettingsSectionKeys =
+    {
+        "settings-general", "settings-update", "settings-theme",
+        "settings-launch", "settings-path", "settings-dns", "settings-data"
+    };
+
     private readonly IServiceProvider _sp;
     private readonly IMenuService _menu;
     private readonly INavigationService _nav;
@@ -43,20 +56,16 @@ public partial class ShellViewModel : ViewModelBase
     private IDetailPanelProvider? _detailProvider;
     private IHistoryProvider? _historyProvider;
     private IStatusProvider? _statusProvider;
+    private IStatusActionProvider? _statusActionProvider;
 
+    /// <summary>当前标签是否就是应用级设置页（切节要重绑契约 / 刷左树高亮）。</summary>
+    private SettingsViewModel? _settingsVm;
+
+    /// <summary>
+    /// 全部标签页（v3.66 第十八轮）：**不再区分「固定首页 + 可滚动标签」两套集合** ——
+    /// 首页与其余标签一样进滚动区，标签栏直接绑本集合（`ItemsControl ItemsSource="{Binding Tabs}"`）。
+    /// </summary>
     public ObservableCollection<TabItemViewModel> Tabs { get; } = new();
-
-    /// <summary>
-    /// 首页标签（v3.45）：**唯一固定元素** —— 单独一列、不参与横向滚动；⛔ 不做「固定其他标签页」功能。
-    /// 随 <see cref="Tabs"/> 变化同步（CollectionChanged 里发通知）。
-    /// </summary>
-    public TabItemViewModel? HomeTab => Tabs.FirstOrDefault(t => string.Equals(t.Key, HomeKey, StringComparison.Ordinal));
-
-    /// <summary>
-    /// 参与横向滚动的标签（v3.45）= <see cref="Tabs"/> 去掉首页的**镜像集合**
-    /// （首页是唯一固定元素，其余全滚动；随 Tabs 的 CollectionChanged 同步，⛔ 不在各命令里分别维护）。
-    /// </summary>
-    public ObservableCollection<TabItemViewModel> ScrollableTabs { get; } = new();
 
     [ObservableProperty] private TabItemViewModel? _activeTab;
 
@@ -97,6 +106,34 @@ public partial class ShellViewModel : ViewModelBase
     [ObservableProperty] private string _statusBarText = "";
 
     /// <summary>
+    /// 底栏是否按**警示态**（红字）显示（v3.64 / NT-061）：判定 = 文本以 `⚠` 开头 ——
+    /// 这是仓内既有的失败约定（如 <c>GeneralViewModel</c> 的 <c>"⚠ " + msg</c>），⛔ 不改 <see cref="IStatusProvider"/> 契约。
+    /// </summary>
+    public bool IsStatusError => StatusBarText.StartsWith("⚠", StringComparison.Ordinal);
+
+    partial void OnStatusBarTextChanged(string value) => OnPropertyChanged(nameof(IsStatusError));
+
+    /// <summary>
+    /// 状态栏那一行是否**可点击跳转**（v3.65 / NT-062，需求 §4.9.2 第 5 条）：
+    /// 当前页实现了 <see cref="IStatusActionProvider"/> 且给了目标 Key。
+    /// </summary>
+    [ObservableProperty] private bool _hasStatusAction;
+
+    /// <summary>状态栏点击提示（tooltip；没有目标时为空）。</summary>
+    public string StatusActionTip => _statusActionProvider?.StatusActionTip ?? "";
+
+    /// <summary>重算「状态栏可点击跳转」的两个派生属性。</summary>
+    private void RefreshStatusAction()
+    {
+        HasStatusAction = !string.IsNullOrWhiteSpace(_statusActionProvider?.StatusActionKey);
+        OnPropertyChanged(nameof(StatusActionTip));
+    }
+
+    /// <summary>当前标签对应的**左树寻址 Key**：设置页 = 当前节锚点（左树子项是节，标签页 Key 是 `settings`）。</summary>
+    private string? ActiveTreeKey
+        => ActiveTab?.ViewModel is SettingsViewModel svm ? svm.ActiveSectionKey : ActiveTab?.Key;
+
+    /// <summary>
     /// 左树底部的「当前配置 · 版本号」（v3.28）。
     /// 版本取 <see cref="UpdateService.CurrentVersion"/>（编译时自动生成的 `1.yyyyMMdd.HH.mm0`，⛔ 禁手写）；
     /// 配置名取 <see cref="IProfileService.ActiveProfile"/>（多实例时每窗口可不同 → 一眼看出这个窗口在用哪套数据）。
@@ -114,8 +151,8 @@ public partial class ShellViewModel : ViewModelBase
     /// <summary>左树是否展开（= 未折叠）。UI 用它控制标题/子级显隐。</summary>
     public bool IsTreeExpanded => !IsTreeCollapsed;
 
-    /// <summary>左树宽度：展开 180px（v3.7 由 240 收窄）、折叠 48px。</summary>
-    public double TreePanelWidth => IsTreeCollapsed ? 48d : 180d;
+    /// <summary>左树宽度：展开 150px（v3.7 由 240 收窄）、折叠 48px。</summary>
+    public double TreePanelWidth => IsTreeCollapsed ? 48d : 150d;
 
     public ShellViewModel(IServiceProvider sp, IMenuService menu,
                           INavigationService nav, IColumnLayoutService cols,
@@ -134,19 +171,11 @@ public partial class ShellViewModel : ViewModelBase
         // ShellViewModel 是进程级单例（AddSingleton）⇒ 订阅随进程生命周期，无需退订。
         _reload.Reloaded += OnModulesReloaded;
 
-        // v3.45：首页标签 = 唯一固定元素（不进滚动区）⇒ 维护「可滚动标签」镜像 + HomeTab 变更通知。
-        // 放在 OpenTab(HomeKey) 之前订阅，保证首个首页标签也进镜像逻辑。
-        Tabs.CollectionChanged += (_, _) =>
-        {
-            ScrollableTabs.Clear();
-            foreach (var t in Tabs)
-                if (!string.Equals(t.Key, HomeKey, StringComparison.Ordinal))
-                    ScrollableTabs.Add(t);
-            OnPropertyChanged(nameof(HomeTab));
-        };
-
+        // 🔴 v3.66 第十八轮：标签栏**不再有固定列** ⇒ `HomeTab` / `ScrollableTabs` 镜像与 `SyncTabMirror()`
+        //    整体删除（标签栏直接绑 `Tabs`，集合通知由 Avalonia 自己处理，⛔ 无需手工镜像）。
+        //    v3.45~v3.66 期间"每处集合修改点显式调 SyncTabMirror()"的做法随之作废（Add / Remove 共 3 处调用点已删）。
         BuildTree();
-        // 首导：首页作为第一个固定标签页（§5.4）。
+        // 首导：首页作为第一个标签页（§5.4）。
         OpenTab(HomeKey);
     }
 
@@ -161,29 +190,90 @@ public partial class ShellViewModel : ViewModelBase
 
     partial void OnActiveTabChanged(TabItemViewModel? value)
     {
-        foreach (var t in Tabs) t.IsActive = ReferenceEquals(t, value);
-        BindContracts(value);
-        UpdateTreeActive();
-        EnsureActiveGroupExpanded(value);   // v3.6：确保当前页所属一级是展开的（不收起其它）
+        // 🔴 v3.66 第九轮：这段是"切页的后续重活"（标签高亮 / 契约绑定 / 左树高亮 / 分组展开）。
+        //    ⚠️ MVVM Toolkit 生成的 `ActiveTab` 属性 setter 里，**`OnPropertyChanged(ActiveTab)` 排在
+        //    本方法之后** ⇒ 这里一旦抛异常，那条通知就永远发不出（内容区绑的是 `ActiveTab.Content`，
+        //    是**链式绑定**，靠这条通知重求值）⇒ 症状 = "标签切了 / 状态栏也变了，内容区却还是上一页，
+        //    再点一次才好"。所以这里必须**不许抛**：异常一律变成底栏红字（可诊断，不静默）。
+        try
+        {
+            foreach (var t in Tabs) t.IsActive = ReferenceEquals(t, value);
+            BindContracts(value);
+            UpdateTreeActive();
+            EnsureActiveGroupExpanded(value);   // v3.6：确保当前页所属一级是展开的（不收起其它）
+        }
+        catch (Exception ex)
+        {
+            StatusBarText = $"⚠ 切换页面时出错：{ex.Message}";
+        }
+        finally
+        {
+            // 兜底：即使上面出了问题，也把"当前标签变了"这件事**补通知一遍** ⇒ 内容区一定重求值。
+            OnPropertyChanged(nameof(ActiveTab));
+        }
     }
 
     // ==================== 标签页：打开 / 激活 / 关闭 / 刷新 ====================
 
-    /// <summary>打开或激活某个 key 的标签页（单例）。找不到 key → 忽略并记一行状态，不抛（§5.5）。</summary>
+    /// <summary>
+    /// 打开或激活某个 key 的标签页（单例）。找不到 key → 忽略并记一行状态，不抛（§5.5）。
+    /// <para>
+    /// v3.65 / NT-062：五个**设置节锚点 Key** 先归一成页 Key <see cref="SettingsKey"/>，
+    /// 再在已打开（或新建）的设置页上激活对应节 —— **切节⛔ 不新开标签页**（需求 §4.9.2 第 1 条）。
+    /// </para>
+    /// </summary>
     [RelayCommand]
     private void OpenTab(string? key)
     {
         if (string.IsNullOrWhiteSpace(key)) return;
 
-        var existing = Tabs.FirstOrDefault(t => string.Equals(t.Key, key, StringComparison.Ordinal));
-        if (existing != null) { ActiveTab = existing; return; }
+        var tabKey = NormalizeTabKey(key);
+        var existing = Tabs.FirstOrDefault(t => string.Equals(t.Key, tabKey, StringComparison.Ordinal));
+        if (existing != null)
+        {
+            ActiveTab = existing;
+            // 已打开设置页 → 只切节（原始 key = 节锚点；`settings` = 通用节）
+            if (existing.ViewModel is SettingsViewModel svm) svm.OpenSection(key);
+            return;
+        }
 
-        var tab = CreateTab(key);
-        if (tab == null) { StatusText = $"找不到页面：{key}"; return; }
+        // 🔴 兜底可见化：建页这一步（DI 解析 View/VM）万一抛，异常会被 UI 线程吞掉 ⇒ 变成底栏红字。
+        TabItemViewModel? tab;
+        try
+        {
+            tab = CreateTab(tabKey);
+        }
+        catch (Exception ex)
+        {
+            StatusBarText = $"⚠ 打开「{key}」失败：{ex.Message}";
+            return;
+        }
+        if (tab == null) { StatusBarText = $"⚠ 找不到页面：{key}"; return; }
 
-        Tabs.Add(tab);
+        // 🔴 v3.66 第八轮：**先激活、后入集合** —— `ActiveTab = tab` 会同步完成"切内容区 + 绑契约"，
+        //    放在 `Tabs.Add` **之前**，就不存在"入集合那一步出问题 ⇒ 标签亮着但内容没切"的窗口。
+        //    ⚠️ 代价：此刻 `Tabs` 里还没有它 ⇒ `OnActiveTabChanged` 的 IsActive 循环轮不到它，
+        //    故入集合后补一遍高亮。
         ActiveTab = tab;
+        try
+        {
+            Tabs.Add(tab);
+        }
+        catch (Exception ex)
+        {
+            // 🔴 兜底可见化（v3.66 第八轮）：历史上"标签出现了、内容区却没切、再点一次才好"的根因就在
+            //    `Tabs.Add` 触发的集合通知链里（异常被框架吞掉，连 logs 都不写）⇒ 这里把它变成**看得见**的
+            //    底栏红字（`⚠` 前缀 = 红字，见 IsStatusError）。本页内容此时**已经**切过去了（上面两行在前），
+            //    所以即使走到这里，用户看到的是正常页面 + 一行提示。
+            StatusBarText = $"⚠ 打开「{tab.Title}」时出错：{ex.Message}";
+        }
+        foreach (var t in Tabs) t.IsActive = ReferenceEquals(t, tab);
+        if (tab.ViewModel is SettingsViewModel svm2) svm2.OpenSection(key);
     }
+
+    /// <summary>把「节锚点 Key」归一成页 Key（其余 Key 原样返回，⛔ 不影响任何既有页面）。</summary>
+    private static string NormalizeTabKey(string key)
+        => SettingsSectionKeys.Contains(key, StringComparer.Ordinal) ? SettingsKey : key;
 
     /// <summary>单击标签 → 激活。</summary>
     [RelayCommand]
@@ -255,16 +345,59 @@ public partial class ShellViewModel : ViewModelBase
         if (tab == null) return;
         var rebuilt = CreateTab(tab.Key);
         if (rebuilt == null) return;
+
+        // ⚠️ v3.66 第九轮：这里曾试过"先把内容区置空再挂新 View"，实测会让页面**整片空白**
+        //    （内容区的 Content 换成新 View 时挂不上）⇒ 已回滚。现在就按"原地换 View"来。
         tab.Replace(rebuilt.Content, rebuilt.ViewModel);
         BindContracts(tab);
+        // v3.66 第十二轮：内容区由 Shell 侧**显式挂载**（见 ShellView.SyncContentHost）——
+        // 标签还是同一个、只是它缓存的 View 换了 ⇒ 这里补发一次"当前标签变了"，让内容区重挂。
+        OnPropertyChanged(nameof(ActiveTab));
         StatusText = $"已重建：{tab.Title}";
     }
 
     // ==================== 标题栏 / 左树 ====================
 
     // 注：v3.4 起标题栏删掉了 🏠 主页 / ⚙ 设置 / 🌓 主题三个按钮 →
-    //     GoHome / OpenSettings / ToggleTheme 三个命令随之移除（首页靠常驻标签返回、设置走左树、主题走设置页）。
-    [RelayCommand] private void OpenFunctionList() => OpenTab("settings-all");
+    //     OpenSettings / ToggleTheme 两个命令随之移除（设置走左树 / Ctrl+,、主题走设置页）。
+    // 🔴 v3.66 第十八轮：标签栏 `＋` 从「打开功能清单页」改为「**导航到首页**」——
+    //     首页收藏卡尾部自带功能清单入口（内嵌 `AllFunctionsView`），`＋` 不再直达 `settings-all`。
+    [RelayCommand] private void OpenHomeTab() => OpenTab(HomeKey);
+
+    /// <summary>
+    /// 打开**应用级设置页**（v3.65 / NT-062，需求 §4.3 / §4.9.2）：入口 = 左树底部版本行的**设置齿轮**
+    /// 与 `Ctrl+,`。默认落在「通用」节（页内可再切到其它节）。
+    /// </summary>
+    [RelayCommand] private void OpenSettings() => OpenTab("settings-general");
+
+    /// <summary>
+    /// 搜索**应用级设置页的节**（v3.66 / NT-062）：入口 = 标题栏窗口按钮组左侧的搜索按钮（回车触发）。
+    /// 命中 ⇒ 打开设置页并展开该节（其余节收起，见 <c>SettingsViewModel.SearchAndOpen</c>）；
+    /// 未命中 ⇒ 底栏给一行提示（⛔ 不用 `⚠` 前缀 —— 那不是错误，不该红字）。
+    /// </summary>
+    [RelayCommand]
+    private void SearchSettings(string? keyword)
+    {
+        var kw = keyword?.Trim();
+        if (string.IsNullOrEmpty(kw)) return;
+
+        OpenTab(SettingsKey);
+        if (ActiveTab?.ViewModel is SettingsViewModel svm && svm.SearchAndOpen(kw)) return;
+
+        StatusText = $"没找到匹配的设置项：{kw}";
+        StatusBarText = $"没找到匹配的设置项：{kw}（可试「路径」「DNS」「主题」「备份」等关键词）";
+    }
+
+    /// <summary>
+    /// 状态栏 `⚠` 那一行**可点击跳转**（v3.65 / NT-062，需求 §4.9.2 第 5 条）：目标 Key 由当前页的
+    /// <see cref="IStatusActionProvider"/> 给（典型 = 外部程序缺失 → 跳到「运行环境」节）。
+    /// </summary>
+    [RelayCommand]
+    private void InvokeStatusAction()
+    {
+        var key = _statusActionProvider?.StatusActionKey;
+        if (!string.IsNullOrWhiteSpace(key)) OpenTab(key);
+    }
 
     /// <summary>
     /// 折叠 / 展开左树（v3.5）：
@@ -368,6 +501,7 @@ public partial class ShellViewModel : ViewModelBase
         if (_detailProvider != null) { _detailProvider.DetailChanged -= OnDetailChanged; _detailProvider = null; }
         if (_historyProvider != null) { _historyProvider.StatePushed -= OnStatePushed; _historyProvider = null; }
         if (_statusProvider != null) { _statusProvider.StatusChanged -= OnStatusChanged; _statusProvider = null; }
+        if (_settingsVm != null) { _settingsVm.SectionChanged -= OnSettingsSectionChanged; _settingsVm = null; }
 
         IsDetailPanelVisible = false;
         DetailPanelContent = null;
@@ -375,11 +509,25 @@ public partial class ShellViewModel : ViewModelBase
         DetailCardSource = null;
         IsDetailCardActive = false;
         StatusBarText = "";
+        _statusActionProvider = null;
+        RefreshStatusAction();
+
+        // v3.65 / NT-062：应用级设置页是**复合 VM** —— 它把契约转发给当前节，
+        // 切节时发 SectionChanged ⇒ 这里重新探测一遍（工具条 / 详情卡 / 状态栏随节变）。
+        if (tab?.ViewModel is SettingsViewModel settings)
+        {
+            _settingsVm = settings;
+            settings.SectionChanged += OnSettingsSectionChanged;
+        }
 
         // v3.53 / NT-055：声明式工具条 —— 页面没接契约（或工具条为空）= 本页没有工具条（⛔ 不留空行）
-        var toolbar = (tab?.ViewModel as IToolbarSource)?.Toolbar;
+        // v3.66 / NT-062：复合页可经 IToolbarOwner 把承载者换成**子 VM**（描述符里的 CommandPath 相对它解析）。
+        //   ⚠️ 第五轮起应用级设置页**不再实现**该契约（节工具条改为在节点内渲染，用户要求"放回本节顶部"）
+        //   ⇒ 该分支当前只为将来的复合页保留。
+        var toolbarOwner = tab?.ViewModel is IToolbarOwner owner ? owner.ToolbarOwner : tab?.ViewModel;
+        var toolbar = (toolbarOwner as IToolbarSource)?.Toolbar;
         IsToolbarActive = toolbar is { Count: > 0 };
-        ToolbarSource = IsToolbarActive ? tab!.ViewModel : null;
+        ToolbarSource = IsToolbarActive ? toolbarOwner : null;
 
         if (tab?.ViewModel is IDetailPanelProvider p)
         {
@@ -404,11 +552,28 @@ public partial class ShellViewModel : ViewModelBase
             sp.StatusChanged += OnStatusChanged;
             StatusBarText = sp.StatusText;
         }
+
+        // v3.65 / NT-062：状态栏 `⚠` 可点击跳转（目标由页面给；没有目标就不可点）
+        _statusActionProvider = tab?.ViewModel as IStatusActionProvider;
+        RefreshStatusAction();
+    }
+
+    /// <summary>设置页**切节**（v3.65 / NT-062）：重绑契约 + 刷左树高亮（左树子项 = 节锚点）。</summary>
+    private void OnSettingsSectionChanged(object? sender, EventArgs e)
+    {
+        var tab = ActiveTab;
+        if (tab == null || !ReferenceEquals(tab.ViewModel, _settingsVm)) return;
+        BindContracts(tab);
+        UpdateTreeActive();
+        EnsureActiveGroupExpanded(tab);
     }
 
     /// <summary>页面状态变了 → 刷新底部状态栏。</summary>
     private void OnStatusChanged(object? sender, EventArgs e)
-        => StatusBarText = _statusProvider?.StatusText ?? "";
+    {
+        StatusBarText = _statusProvider?.StatusText ?? "";
+        RefreshStatusAction();     // 状态文本与「可点击目标」同生同灭（如 `⚠ 未找到 ffmpeg`）
+    }
 
     private void OnDetailChanged(object? sender, EventArgs e)
     {
@@ -467,7 +632,7 @@ public partial class ShellViewModel : ViewModelBase
 
     private void UpdateTreeActive()
     {
-        var key = ActiveTab?.Key;
+        var key = ActiveTreeKey;   // v3.65：设置页 → 当前节锚点（左树子项是节，不是页 Key）
         foreach (var node in TreeNodes)
         {
             // 二级：命中当前标签页
@@ -494,7 +659,7 @@ public partial class ShellViewModel : ViewModelBase
     {
         if (IsTreeCollapsed) return;
 
-        var key = tab?.Key;
+        var key = ActiveTreeKey;   // v3.65：设置页按**当前节锚点**找所属分组
         if (string.IsNullOrEmpty(key)) return;
 
         foreach (var node in TreeNodes)
@@ -536,7 +701,18 @@ public partial class ShellViewModel : ViewModelBase
             // ⚠️ 必须**先给 View 设好 DataContext，再挂到内容区**（DataContext 是继承属性）。
             if (home.DataContext == null)
                 home.DataContext = _sp.GetRequiredService<HomeViewModel>();
-            return new TabItemViewModel(HomeKey, "首页", "🏠", home, home.DataContext, canClose: false);
+            return new TabItemViewModel(HomeKey, "首页", "🏠", home, home.DataContext,
+                                        canClose: false, showInTabStrip: false);
+        }
+
+        // v3.65 / NT-062：应用级设置页（**一页多节**）—— 与首页同构：从 DI 取 View + VM。
+        // ⛔ 不走菜单项解析：`settings` 是**分组**键，压根没有对应的 AppMenuItem。
+        if (string.Equals(key, SettingsKey, StringComparison.Ordinal))
+        {
+            var settings = _sp.GetRequiredService<SettingsView>();
+            if (settings.DataContext == null)
+                settings.DataContext = _sp.GetRequiredService<SettingsViewModel>();
+            return new TabItemViewModel(SettingsKey, "设置", "⚙", settings, settings.DataContext, canClose: true);
         }
 
         var item = _menu.FindItem(key);

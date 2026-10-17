@@ -66,15 +66,16 @@ public class MenuService : IMenuService
     }
 
     public void RegisterFunction(string moduleKey, string key, string title, string icon,
-                                  string viewName, int order = 0, string desc = "")
+                                  string viewName, int order = 0, string desc = "",
+                                  SettingsCategory category = SettingsCategory.None)
     {
         lock (_groups)
         {
             var g = _groups.FirstOrDefault(x => x.Key == moduleKey);
             if (g == null)
             {
-                // 跨组注册：分组尚未注册（典型 = 功能模块的设置页进 settings 组，但 Module.Settings
-                // 尚未初始化）→ 暂存，待 RegisterModule 建立该分组时补登。
+                // 跨组注册：分组尚未注册（典型 = 功能模块的设置页进 settings 组，但 Shell 的
+                // AppSettingsRegistration 尚未执行）→ 暂存，待 RegisterModule 建立该分组时补登。
                 _pending.Add(new AppMenuItem
                 {
                     Key = key,
@@ -83,6 +84,7 @@ public class MenuService : IMenuService
                     Desc = desc,
                     Icon = icon,
                     ViewTypeName = viewName,
+                    Category = category,
                     Order = order
                 });
                 return;
@@ -96,6 +98,7 @@ public class MenuService : IMenuService
                 Desc = desc,
                 Icon = icon,
                 ViewTypeName = viewName,
+                Category = category,
                 Order = order
             });
 
@@ -116,6 +119,8 @@ public class MenuService : IMenuService
             existing.ViewTypeName = item.ViewTypeName;
             existing.Order = item.Order;
             existing.GroupKey = item.GroupKey;
+            // 分类：显式给了就覆盖（None 视为"没给"，允许"只改标题不重写分类"的局部更新）
+            if (item.Category != SettingsCategory.None) existing.Category = item.Category;
             // 简介为空时不覆盖已有值（允许"只改标题不重写简介"的局部更新）
             if (!string.IsNullOrEmpty(item.Desc)) existing.Desc = item.Desc;
             return;

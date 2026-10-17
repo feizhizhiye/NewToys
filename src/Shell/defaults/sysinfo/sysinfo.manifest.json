@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "columns": [
+    { "key": 1, "title": "分类", "width": "110", "visible": true },
+    { "key": 2, "title": "项目", "width": "2*", "visible": true },
+    { "key": 3, "title": "值",   "width": "3*", "visible": true },
+    { "key": 4, "title": "说明", "width": "3*", "visible": true }
+  ],
+  "scripts": [
+    { "file": "os.ps1",      "group": "操作系统", "interval": 0, "auto": false, "timeout": 30 },
+    { "file": "cpu.ps1",     "group": "CPU",      "interval": 0, "auto": false, "timeout": 30 },
+    { "file": "mem.ps1",     "group": "内存",     "interval": 0, "auto": false, "timeout": 30 },
+    { "file": "disk.ps1",    "group": "磁盘",     "interval": 0, "auto": false, "timeout": 30 },
+    { "file": "net.ps1",     "group": "网络",     "interval": 0, "auto": false, "timeout": 30 },
+    { "file": "runtime.ps1", "group": "运行时",   "interval": 0, "auto": false, "timeout": 30 }
+  ]
+}

@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.ScriptManager.Views.FavoritesView">
+  <Grid RowDefinitions="Auto,Auto,*">
+
+    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
+         Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
+
+    <!-- 说明条 + 入口 -->
+    <Border Grid.Row="1" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding Hint}" FontSize="12" TextWrapping="Wrap"
+                   VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <Button Grid.Column="1" Classes="ghost" Content="⚙ 打开脚本库"
+                Command="{Binding OpenShortcutsCommand}"/>
+      </Grid>
+    </Border>
+
+    <!-- 收藏按钮墙：收藏 = 常用功能 → 只给一个按钮，点一下就跑，不放任何卡片信息。 -->
+    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="16" Spacing="12">
+
+        <TextBlock Text="还没有收藏任何项 —— 去「脚本库」或「命令库」里选中一条，右键「★ 添加到收藏夹」。"
+                   IsVisible="{Binding IsEmpty}" Margin="8" TextWrapping="Wrap"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+        <ItemsControl ItemsSource="{Binding Items}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <!-- 只要名称、点了就跑；右键 = 「运行 / 取消固定」（菜单在 code-behind 现场构造，
+                   弹出树取不到父级 DataContext，见规范 3.6）。 -->
+              <Button Classes="fav-btn accent"
+                      Content="{Binding Title}"
+                      Command="{Binding $parent[UserControl].DataContext.RunCommand}"
+                      CommandParameter="{Binding}"
+                      IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
+                      ContextRequested="OnItemContextRequested"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Text="{Binding DataFileHint}" FontSize="11" Margin="8" TextWrapping="Wrap"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

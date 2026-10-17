@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:v="using:NewToys.MediaAssets.Controls"
+             xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetCollectionsView">
   <!--
     NT-018「集合管理」页：左集合列表（📦 手动 / ⚡ 智能）+ 右成员列表。
@@ -78,13 +78,11 @@
     </Border>
 
     <!--  ==================== 右：成员列表 ====================  -->
-    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Margin="8,0,0,0">
+    <!--  NT-063 P1：右列改用列表页骨架（四段；本列无空态 ⇒ 不设 EmptyMessage）。  -->
+    <v:ListPageSkeleton Grid.Column="1" Margin="8,0,0,0">
 
-      <!--  ==================== 工具条  ====================
-            NT-055 三轮（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），
-            页内⛔ 不再自写 `Border.toolbar`。Row0 留空（Auto → 高度 0），不动下面各行的行号。 -->
-
-      <Border Grid.Row="1" Classes="filter-bar">
+      <v:ListPageSkeleton.TopArea>
+      <Border Classes="filter-bar">
         <StackPanel Spacing="2">
           <TextBlock Text="{Binding CollectionHint}" FontSize="11" TextWrapping="Wrap"
                      Foreground="{DynamicResource SecondaryTextBrush}"/>
@@ -92,11 +90,10 @@
                      Text="往集合里加资产：到「全部资产」选中资产 → 详情卡里勾选集合 → 💾 保存。"/>
         </StackPanel>
       </Border>
+      </v:ListPageSkeleton.TopArea>
 
-      <Border Grid.Row="2" Padding="0" Background="{DynamicResource PanelBrush}"
-              BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
-        <Grid RowDefinitions="Auto,*">
-          <Border Grid.Row="0" Classes="list-header">
+      <v:ListPageSkeleton.HeaderArea>
+      <Border Classes="list-header">
             <v:ColumnGrid x:Name="HeaderGrid"
                           ColumnSpecs="{Binding VisibleColumnSpecs}"
                           IsResizable="True"
@@ -137,9 +134,11 @@
                 </ContextMenu>
               </v:ColumnGrid.ContextMenu>
             </v:ColumnGrid>
-          </Border>
+        </Border>
+      </v:ListPageSkeleton.HeaderArea>
 
-          <ListBox Grid.Row="1" x:Name="MemberList" Classes="list-page"
+      <v:ListPageSkeleton.ListArea>
+          <ListBox x:Name="MemberList" Classes="list-page"
                    ItemsSource="{Binding Members}" SelectionMode="Single"
                    SelectedItem="{Binding SelectedMember, Mode=TwoWay}">
             <ListBox.ContextMenu>
@@ -172,8 +171,7 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-        </Grid>
-      </Border>
-    </Grid>
+      </v:ListPageSkeleton.ListArea>
+    </v:ListPageSkeleton>
   </Grid>
 </UserControl>

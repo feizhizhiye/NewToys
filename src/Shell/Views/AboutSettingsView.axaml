@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Shell.Views.AboutSettingsView">
+  <!--
+    v3.65 / NT-062 · 应用级设置页「关于」节（需求 §4.9.2 / §6.5）：版本 / 关于 / **功能清单入口** / 🔄 重载模块。
+    ⚠️ 「版本 + 技术栈」两张卡 v3.65 由「通用」节**平移**过来（原页里是重复的），本节是它们唯一的家。
+    窄界面基线（NT-053）：内容 MaxWidth 720、左对齐。
+    🔴 v3.66 / NT-062 第五轮：**内层 ScrollViewer 删除** —— 设置页整页就是滚动流，内层再套一个会
+       **吃掉滚轮**（鼠标停在本节上时滚的是本节、不是整页 ⇒ 感受成"滚不动 / 像循环"）。
+  -->
+  <StackPanel
+      HorizontalAlignment="Left"
+      MaxWidth="720"
+      Spacing="10">
+
+    <Border Classes="card">
+      <StackPanel Margin="4" Spacing="4">
+        <TextBlock
+            FontSize="22"
+            FontWeight="Bold"
+            Foreground="{DynamicResource PrimaryTextBrush}"
+            Text="NewToys" />
+        <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Text="{Binding Version}" />
+        <TextBlock
+            Foreground="{DynamicResource SecondaryTextBrush}"
+            Text="个人高强度使用工具集 · 跨平台（Windows / macOS / Linux）"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
+      <StackPanel Margin="4" Spacing="4">
+        <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" Text="技术栈" />
+        <TextBlock
+            Foreground="{DynamicResource SecondaryTextBrush}"
+            Text=".NET 10 · Avalonia 12.1.4 · CommunityToolkit.Mvvm 8.4.2 · Microsoft.Extensions.DependencyInjection 9.0.0"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <!--  ============ 功能清单入口（v3.62 移出设置 = 独立页；Key settings-all ⛔ 不改） ============  -->
+    <Border Classes="card">
+      <StackPanel Spacing="8">
+        <TextBlock
+            FontSize="14"
+            FontWeight="SemiBold"
+            Foreground="{DynamicResource PrimaryTextBrush}"
+            Text="功能清单" />
+        <TextBlock
+            Classes="hint-text"
+            Text="全部模块与功能的合集（首页收藏卡只是其中的常用子集）。在清单里右键一个功能可「📌 固定到首页」。"
+            TextWrapping="Wrap" />
+        <Button
+            Classes="ghost"
+            HorizontalAlignment="Left"
+            Command="{Binding OpenFunctionListCommand}"
+            Content="📋 打开功能清单"
+            ToolTip.Tip="打开功能清单页（首页收藏卡尾部「显示更多」是同一个入口）" />
+      </StackPanel>
+    </Border>
+
+    <!--  ============ 🔄 重载模块（v3.62 由功能清单页移入本节） ============  -->
+    <Border Classes="card">
+      <StackPanel Spacing="8">
+        <TextBlock
+            FontSize="14"
+            FontWeight="SemiBold"
+            Foreground="{DynamicResource PrimaryTextBrush}"
+            Text="增加功能" />
+        <TextBlock
+            Classes="hint-text"
+            Text="把新的模块 DLL 放进 Modules\ 目录后，点「🔄 重载模块」即可装进来 —— 重载后功能清单与左侧菜单会立即刷新（只新增；移除模块要重启）。"
+            TextWrapping="Wrap" />
+        <Button
+            Classes="ghost"
+            HorizontalAlignment="Left"
+            Command="{Binding ReloadModulesCommand}"
+            Content="🔄 重载模块"
+            ToolTip.Tip="重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）" />
+        <TextBlock Classes="hint-text" Text="{Binding StatusText, StringFormat='状态：{0}'}" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

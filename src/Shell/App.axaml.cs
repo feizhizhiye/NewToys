@@ -19,6 +19,7 @@ using NewToys.Core.Services;
 using NewToys.Shared.Services;
 using NewToys.Shell.ViewModels;
 using NewToys.Shell.Views;
+using NewToys.UI.Controls;
 
 namespace NewToys.Shell;
 
@@ -56,6 +57,9 @@ public class App : Application
 
             // Core services
             services.AddSingleton(sp => new ConfigStoreService(profileOverride));
+            // NT-061 / 需求 §3.5：按模块分区的 KV 选项存储（落 config\<module>.json；换 profile ⇒ 天然读到另一份）。
+            // 模块只依赖 IOptionsStore、⛔ 不碰文件；将来整体换 SQLite 调用方零改动。
+            services.AddSingleton<IOptionsStore>(sp => new JsonOptionsStore(sp.GetRequiredService<ConfigStoreService>()));
             services.AddSingleton<IAppConfigService, AppConfigService>();
             services.AddSingleton<ILaunchConfigService, LaunchConfigService>();
             services.AddSingleton<IMenuService, MenuService>();
@@ -63,6 +67,9 @@ public class App : Application
             services.AddSingleton<INavigationService, NavigationService>();
             // NT-052：模块热加载契约（标题栏按钮移入功能清单页；Shell 订阅 Reloaded 重建左树）。
             services.AddSingleton<IModuleReloadService, ModuleReloadService>();
+            // v3.65 / NT-062：外部程序注册表（清单 + **惰性探测**，需求 §4.9.2 第 5 条）——
+            // 单例 + 结果缓存：进「运行环境」节 / 功能首次要用到时才真探，⛔ 不拖启动。
+            services.AddSingleton<IExternalToolRegistry, ExternalToolRegistry>();
             services.AddSingleton<LaunchRunner>();
             // ⚠️ 之前只注册了**具体类型**，没有注册接口 —— 于是「设置 → 加密 DNS」页要想拿
             // IEncryptedDnsService 就解析不到（DI 会退回到无参构造，页面变成"未就绪"骨架）。
@@ -96,10 +103,25 @@ public class App : Application
             services.AddTransient<HomeView>();
             services.AddTransient<HomeViewModel>();
 
+            // NT-062：应用级设置 6 页（原 Module.Settings 的框架职责收归 Shell，View/VM 已在 src/Shell 下）。
+            services.AddTransient<GeneralView>();        services.AddTransient<GeneralViewModel>();
+            // v3.66 第五轮：「通用」节拆成三个节（启动与退出 / 更新 / 主题外观）⇒ 两个新 View，
+            // 三节共用同一个 GeneralViewModel（只在上面注册一次）。
+            services.AddTransient<UpdateView>();
+            services.AddTransient<ThemeView>();
+            services.AddTransient<PathView>();           services.AddTransient<PathViewModel>();
+            services.AddTransient<LaunchConfigView>();   services.AddTransient<LaunchConfigViewModel>();
+            services.AddTransient<DnsView>();            services.AddTransient<DnsViewModel>();
+            services.AddTransient<DataView>();           services.AddTransient<DataViewModel>();
+            services.AddTransient<AllFunctionsView>();   services.AddTransient<AllFunctionsViewModel>();
+            // v3.65 / NT-062：「一页多节」复合页 + 「关于」节（需求 §4.9.2）
+            services.AddTransient<SettingsView>();       services.AddTransient<SettingsViewModel>();
+            services.AddTransient<AboutSettingsView>();  services.AddTransient<AboutSettingsViewModel>();
+
             // v3.26：主窗口大小 / 位置记忆（落本配置 config\window.json；多实例各记各的，需求 §四）
             services.AddSingleton<NewToys.Shell.Services.WindowBoundsService>();
 
-            // 模块加载（v3.26，需求 §3.4）：必载清单（Module.Settings = 框架组件，置顶先加载）
+            // 模块加载（v3.26，需求 §3.4）：必载清单（NT-062 起为空 —— 应用级设置归 Shell 自带，不再单独成程序集）
             // + ModuleLoader 扫 Modules\ 补功能模块。新增功能模块两处登记：Shell.csproj 的 Debug ProjectReference
             // + 下面 GetMandatoryModuleTypes 的 #if DEBUG 追加。
             Core.Services.ModuleLoader.LoadAll(services, GetMandatoryModuleTypes());
@@ -117,6 +139,12 @@ public class App : Application
 
             // NT-038：播种内置配置档（debug / default / release）—— 只增不覆盖、永久驻留（需求 §3.5）
             store.EnsureBuiltInProfiles();
+
+            // NT-062：应用级设置的菜单注册归 Shell（原 Module.Settings 的 Initialize 职责）——
+            // v3.66 起左树**没有**「设置」一级菜单项：注册的是一个 IsHome 的不渲染宿主分组
+            // （挂应用级设置的节锚点 + 功能清单页），设置页入口 = 左树底部齿轮 / Ctrl+, / 首页一键操作的齿轮。
+            // 🔴 必须先于 InitializeAll：功能模块要在自己的分组下注册菜单（分组先存在才命中）。
+            NewToys.Shell.Settings.AppSettingsRegistration.RegisterMenu(_sp);
 
             Core.Services.ModuleLoader.InitializeAll(_sp);
 
@@ -142,6 +170,10 @@ public class App : Application
             // ⛔ 模块不能反向引用 Shell，所以只能由这里注入；没注入时钩子一律按"用户取消"处理。
             DialogHooks.ConfirmHandler = msg => ConfirmAsync(win, msg);
             DialogHooks.InputHandler = (title, initial) => InputAsync(win, title, initial);
+
+            // NT-063：详情卡渲染器随控件库搬进 NewToys.UI（⛔ 不引 Core/Shell）⇒ 它的「确认弹窗」
+            // 钩子在 UI 侧声明（DetailCardHooks），这里把 Core 的 DialogHooks.ConfirmHandler 转接过去。
+            DetailCardHooks.ConfirmHandler = DialogHooks.ConfirmHandler;
 
             // v3.53 / NT-055：选择器钩子 —— 工具条由 Shell 声明式承载后，页面 VM 也要能"弹选择器"
             // （VM ⛔ 不引 Avalonia，所以统一走 Core.DialogHooks，与上面两条同一个套路）。
@@ -682,18 +714,17 @@ public class App : Application
     }
 
     /// <summary>
-    /// 必载模块清单（v3.26，需求 §3.4）：<see cref="NewToys.Settings.SettingsModule"/> = 框架组件
-    /// （物理必备，随 NewToys.exe 出根目录），**置顶先于一切功能模块**加载——settings 分组先存在，
-    /// 功能模块的设置页自注册（RegisterFunction("settings", …)）才能命中（延迟补登兜底，规范 §3.2）。
-    /// <para>Release 只传它，其余功能模块由 ModuleLoader 扫 Modules\ 补全。</para>
+    /// 必载模块清单（v3.26，需求 §3.4）：NT-062 起 **Release 为空** —— 原唯一的框架组件
+    /// <c>Module.Settings</c> 已撤销，应用级设置归 Shell 自带（<c>AppSettingsRegistration</c> 建 <c>system</c> 宿主分组）。
+    /// <para>Release 全部功能模块由 ModuleLoader 扫 Modules\ 补全；Debug 见下。</para>
     /// </summary>
     private static Type[] GetMandatoryModuleTypes()
     {
-        var list = new List<Type> { typeof(NewToys.Settings.SettingsModule) };
+        var list = new List<Type>();
 #if DEBUG
         // Debug 的显式清单：程序集延迟加载，纯扫描一个都扫不到（表现为「左侧菜单全空」）。
         // 新增功能模块：这里追加 + Shell.csproj 的 Debug ProjectReference，两处都要改。
-        list.Add(typeof(NewToys.PcTools.PcToolsModule));
+        list.Add(typeof(NewToys.ScriptManager.ScriptManagerModule));
         list.Add(typeof(NewToys.WebTools.WebToolsModule));
         list.Add(typeof(NewToys.VideoTools.VideoToolsModule));
         list.Add(typeof(NewToys.MediaAssets.MediaAssetsModule));

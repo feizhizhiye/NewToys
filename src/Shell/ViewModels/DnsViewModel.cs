@@ -7,7 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Services;
 
-namespace NewToys.Settings.ViewModels;
+namespace NewToys.Shell.ViewModels;
 
 /// <summary>
 /// 加密 DNS（DoH）页。

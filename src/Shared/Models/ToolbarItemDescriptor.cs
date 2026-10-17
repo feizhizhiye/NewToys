@@ -31,7 +31,7 @@ public enum ToolbarItemKind
     /// 生成一排按钮，每项文案取 <see cref="ToolbarItemDescriptor.DisplayPath"/>、高亮跟随数据项上的
     /// <see cref="ToolbarItemDescriptor.SelectedPath"/>，点击把**数据项本身**当参数执行
     /// <see cref="ToolbarItemDescriptor.CommandPath"/>。
-    /// <para>v3.54 / NT-055 补迁 <c>pc-package</c> 时新增（既有页不受影响）。</para>
+    /// <para>v3.54 / NT-055 补迁 <c>script-packages</c> 时新增（既有页不受影响）。</para>
     /// </summary>
     ChipGroup
 }

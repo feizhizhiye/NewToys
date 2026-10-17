@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Shell.Views.UpdateView">
+  <!--
+    v3.66 / NT-062 第五轮：从原「通用」节拆出来的**更新**节（节锚点 `settings-update`）。
+    DataContext = 共用的 `GeneralViewModel`（⛔ 本 View 没有自己的 VM）。
+  -->
+  <StackPanel
+      HorizontalAlignment="Left"
+      MaxWidth="720"
+      Spacing="10">
+
+    <StackPanel Classes="field">
+      <TextBlock Classes="field-label" Text="版本文件地址（纯文本，内容里含形如 1.20261010.00.10 的版本号）" />
+      <TextBox Classes="code" Text="{Binding UpdateUrl, Mode=TwoWay}" PlaceholderText="留空 = 不检查更新" />
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" Spacing="6">
+      <Button Classes="primary" Content="💾 保存地址" Command="{Binding SaveUpdateUrlCommand}" />
+      <Button Classes="ghost" Content="🔎 立即检查更新" Command="{Binding CheckUpdateCommand}"
+              IsEnabled="{Binding IsNotBusy}" />
+    </StackPanel>
+
+    <TextBlock Classes="hint-text"
+               Text="检查结果只做提示：NewToys 不会自己下载、也不会替换自己。没填地址就真的不检查（不会假装在检查）。" />
+  </StackPanel>
+</UserControl>

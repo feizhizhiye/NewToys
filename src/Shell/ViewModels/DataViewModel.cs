@@ -3,7 +3,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace NewToys.Settings.ViewModels;
+namespace NewToys.Shell.ViewModels;
 
 public partial class DataViewModel : ObservableObject, NewToys.Shared.Services.IStatusProvider
 {

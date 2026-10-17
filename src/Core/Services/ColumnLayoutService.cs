@@ -8,7 +8,7 @@ namespace NewToys.Core.Services;
 
 /// <summary>
 /// <see cref="IColumnLayoutService"/> 的实现：把各列表页的列显隐偏好落到
-/// <c>config\columnlayout.json</c>（形如 <c>{ "pc-package": { "Name": true, "Id": false } }</c>）。
+/// <c>config\columnlayout.json</c>（形如 <c>{ "script-packages": { "Name": true, "Id": false } }</c>）。
 /// <para>
 /// ⚠️ 这里**不**走规范 3.9 的「模块只读设置」约束 —— 列显隐是**纯 UI 偏好**（不是应用设置），
 /// 由各列表页自发读写，不属于「设置模块才写」的范畴。

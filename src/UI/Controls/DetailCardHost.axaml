@@ -1,0 +1,432 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:NewToys.UI.Controls"
+             x:Class="NewToys.UI.Controls.DetailCardHost">
+  <!--
+    NT-054 · 详情卡声明式渲染器（需求 §4.5.1 / 规范 §3.6「详情卡声明式渲染」）。
+
+    🔴 职责：把 `DetailCardDescriptor` 渲染成「340px 宽、可滚动、有空态 / 示例态」的详情卡，
+       **外壳只实现一次**，页面不再各写一份（债 B13「详情面板上提」的 Shell 侧）。
+    🔴 承载者：Shell 右详情列（`ShellView.axaml` 的 `DetailPanel`）——它给 340px 宽 + 背景 + 左边线，
+       本控件给「覆盖式滚动条右侧留位 / Padding / 空态 / 示例态」。
+    🔴 字段模板：**8 种 Kind**（Text / Check / Select / Number / Chips / Hint / Divider / List）+ 分区 + 动作，
+       按**行对象类型**隐式匹配（行对象由 `DetailCardRender.cs` 从描述符翻译而来）→ 模板里**零字符串路径**。
+       ⚠️ Select 有**两个落值通道**（值 / 索引）⇒ 两个行对象、两个模板（`SelectFieldRow` / `IndexSelectFieldRow`）。
+    ⚠️ 滚动条是覆盖式的、会压在内容右缘之上（需求 §4.8 第 7 条）：
+       ScrollViewer 右侧留位 14（滑块宽度）、内容再留 4（间隙），合计右边距 18 ⇒ 元素不再被滑块盖住。
+       改这个数就改这一处（⛔ 不要改共享的 `Border.detail-card`）。
+  -->
+  <UserControl.DataTemplates>
+    <!--  ===== 分区：标题（可折叠按钮）+ 标题勾选框 + 字段列表  =====  -->
+    <DataTemplate DataType="c:DetailSectionRender">
+      <StackPanel Spacing="8">
+        <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasHeader}">
+          <Button
+              Classes="section-toggle"
+              Command="{Binding ToggleExpandCommand}"
+              IsVisible="{Binding IsCollapsible}"
+              ToolTip.Tip="展开 / 收起本分区">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <Path
+                  Width="12"
+                  Height="12"
+                  Data="{DynamicResource IconChevronDown}"
+                  IsVisible="{Binding IsExpanded}"
+                  Stretch="Uniform" />
+              <Path
+                  Width="12"
+                  Height="12"
+                  Data="{DynamicResource IconChevronRight}"
+                  IsVisible="{Binding !IsExpanded}"
+                  Stretch="Uniform" />
+              <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <TextBlock
+              Grid.Column="0"
+              Classes="section-title"
+              Text="{Binding Header}"
+              VerticalAlignment="Center"
+              IsVisible="{Binding !IsCollapsible}" />
+          <!--  分区标题处的勾选框（如批量队列的「参与剪辑」）：勾选 = 本区参与本次操作  -->
+          <CheckBox
+              Grid.Column="2"
+              IsChecked="{Binding ToggleChecked, Mode=TwoWay}"
+              IsEnabled="{Binding ToggleEnabled}"
+              IsVisible="{Binding HasToggle}"
+              VerticalAlignment="Center"
+              ToolTip.Tip="勾选 = 本分区参与本次操作" />
+        </Grid>
+
+        <StackPanel Spacing="8" IsVisible="{Binding IsExpanded}">
+          <ItemsControl ItemsSource="{Binding Fields}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </DataTemplate>
+
+    <!--  ===== 动作区：一个按钮（ConfirmText 非空时由渲染层包二次确认）  =====  -->
+    <DataTemplate DataType="c:DetailActionRender">
+      <Button
+          Classes.danger-btn="{Binding IsDanger}"
+          Classes.ghost="{Binding IsGhost}"
+          Classes.primary="{Binding IsPrimary}"
+          Command="{Binding Command}"
+          Content="{Binding Text}"
+          HorizontalAlignment="{Binding Alignment}"
+          IsEnabled="{Binding IsEnabled}"
+          IsVisible="{Binding IsVisible}"
+          ToolTip.Tip="{Binding ToolTip}" />
+    </DataTemplate>
+
+    <!--  ===== Kind ① Text（单行 / 多行 / 只读可复制 / 密码）  =====  -->
+    <DataTemplate DataType="c:TextFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <TextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <!--  OnBlur 语义：模板里挂 LostFocus，值的写回在 code-behind 的 OnTextLostFocus 里做 -->
+        <TextBox
+            AcceptsReturn="{Binding MultiLine}"
+            Classes.code="{Binding Mono}"
+            IsVisible="{Binding IsEditable}"
+            LostFocus="OnTextLostFocus"
+            MinHeight="{Binding BoxMinHeight}"
+            PasswordChar="{Binding PasswordChar}"
+            PlaceholderText="{Binding Placeholder}"
+            Text="{Binding Text, Mode=TwoWay}"
+            TextWrapping="Wrap" />
+        <SelectableTextBlock
+            Classes="field-value"
+            IsVisible="{Binding IsSelectable}"
+            Text="{Binding Text}"
+            TextWrapping="Wrap" />
+        <TextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
+    <!--  ===== Kind ② Check（Instant）  =====  -->
+    <DataTemplate DataType="c:CheckFieldRow">
+      <StackPanel Spacing="2" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked, Mode=TwoWay}" />
+        <TextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
+    <!--  ===== Kind ③ Select（下拉；显示文案 / 值回写都在渲染层收口）  =====  -->
+    <DataTemplate DataType="c:SelectFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <TextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <ComboBox
+            HorizontalAlignment="Stretch"
+            ItemsSource="{Binding Options}"
+            PlaceholderText="{Binding Placeholder}"
+            SelectedItem="{Binding Selected, Mode=TwoWay}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Display}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
+    <!--  ===== Kind ④ Number（数值 / 评分）  =====  -->
+    <DataTemplate DataType="c:NumberFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <TextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <!--  ⚠️ NumericUpDown 的属性名与本仓既有用法**无先例**：只用 Minimum / Maximum / Increment / Value 四个
+              （Minimum/Maximum 是 decimal?，故行对象暴露 decimal?）。⛔ 别加 PlaceholderText —— 它未必在
+              NumericUpDown 上（TextBox / ComboBox 才有），写错会在编译期抛 AVLN2000。  -->
+        <NumericUpDown
+            HorizontalAlignment="Stretch"
+            Increment="{Binding Increment}"
+            Maximum="{Binding Maximum}"
+            Minimum="{Binding Minimum}"
+            Value="{Binding Number, Mode=TwoWay}" />
+        <TextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
+    <!--  ===== Kind ⑤ Chips（集合编辑器：点一下打上 / 取消） =====
+          NT-058：**分组视图** —— 外层 ItemsControl 走 `Groups`（每组一个小标题 + 一组 chips，
+          `ChipGroupPath` 为空时就只有一组、无标题），内层才是 chips 本体。  -->
+    <DataTemplate DataType="c:ChipsFieldRow">
+      <StackPanel Spacing="6" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <TextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Groups}" IsVisible="{Binding HasGroups}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Margin="0,0,0,4" Spacing="4">
+                <!--  组标题（不分组时 HasHeader=false ⇒ 不占地方）  -->
+                <TextBlock
+                    Classes="field-label"
+                    IsVisible="{Binding HasHeader}"
+                    Opacity="0.8"
+                    Text="{Binding Header}"
+                    TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding Chips}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel ItemSpacing="6" LineSpacing="4" Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <!--  `IsSwatch` 由渲染层透传到 **组对象**上 ⇒ 只往上找一层 ItemsControl（组），⛔ 不用链式 $parent  -->
+                      <Button
+                          Classes="chip-toggle"
+                          Classes.selected="{Binding IsSelected}"
+                          Classes.swatch="{Binding $parent[ItemsControl].DataContext.IsSwatch}"
+                          Command="{Binding Command}"
+                          CommandParameter="{Binding Argument}"
+                          ToolTip.Tip="{Binding ToolTipText}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                          <!--  色块（ChipBrushPath 给了才有）：标签 / 分类 / 集合 / 色板 都靠它带颜色  -->
+                          <Border
+                              Width="8"
+                              Height="8"
+                              CornerRadius="2"
+                              Background="{Binding Brush}"
+                              IsVisible="{Binding HasBrush}"
+                              VerticalAlignment="Center" />
+                          <TextBlock
+                              FontSize="11"
+                              Text="{Binding Text}"
+                              IsVisible="{Binding HasText}"
+                              VerticalAlignment="Center" />
+                        </StackPanel>
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
+    <!--  ===== Kind ⑥ Hint（纯提示文字，含空态）  =====  -->
+    <DataTemplate DataType="c:HintFieldRow">
+      <TextBlock
+          Classes="hint-text"
+          IsVisible="{Binding IsVisible}"
+          Text="{Binding Text}"
+          TextWrapping="Wrap" />
+    </DataTemplate>
+
+    <!--  ===== Kind ⑨ IconBar（NT-058：一行图标动作） =====
+          项三态：① 普通图标按钮 ② 分隔竖线（IsSeparator） ③ 激活态（IsActive → 图标走强调色）。
+          ⚠️ 每个项外面套一层 Panel：按钮与竖线**二选一可见**，WrapPanel 会自动跳过隐藏项（不留空位）。
+          ⚠️ 颜色 / 尺寸**只由 Controls.axaml 的 `Button.icon-btn` 给**（⛔ 这里不写本地 Stroke / Width）。  -->
+    <DataTemplate DataType="c:IconBarFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <TextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding HasItems}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="4" LineSpacing="4" Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Panel>
+                <Border Classes="icon-sep" IsVisible="{Binding IsSeparator}" />
+                <Button
+                    Classes="icon-btn"
+                    Classes.active="{Binding IsActive}"
+                    Classes.icon-danger="{Binding IsDanger}"
+                    Command="{Binding Command}"
+                    IsEnabled="{Binding IsEnabled}"
+                    IsVisible="{Binding !IsSeparator}"
+                    ToolTip.ShowOnDisabled="True"
+                    ToolTip.Tip="{Binding ToolTip}">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Path
+                        Width="16"
+                        Height="16"
+                        Data="{Binding Icon}"
+                        IsVisible="{Binding HasIcon}"
+                        Stretch="Uniform" />
+                    <TextBlock
+                        FontSize="12"
+                        IsVisible="{Binding HasText}"
+                        Text="{Binding Text}"
+                        VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+              </Panel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </DataTemplate>
+
+    <!--  ===== Kind ⑦ Divider（分隔线）  =====  -->
+    <DataTemplate DataType="c:DividerFieldRow">
+      <Border Classes="divider-line" IsVisible="{Binding IsVisible}" />
+    </DataTemplate>
+
+    <!--  ===== Kind ⑧ List（只读列表：键值行 / 对比行）  =====
+          一行 = 左标签（次要色）+ 主文本（可复制）+ [固定符号] + 右侧强调值 + 可选第二行说明。
+          单项四格都由描述符的 Item*Path 取数（⛔ 这里不写任何字段名）。  -->
+    <DataTemplate DataType="c:ListFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <TextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding HasItems}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <!--  行容器一律是 Button：给了 ItemCommandPath 就有 link 样式类（悬停高亮 + 手型），
+                    ⛔ 没给命令时不加类 —— 长得跟原来的只读行一样（点击无操作）。  -->
+              <Button
+                  Classes="list-row"
+                  Classes.link="{Binding HasCommand}"
+                  Command="{Binding Command}"
+                  CommandParameter="{Binding Argument}">
+              <StackPanel Margin="0,0,0,4" Spacing="1">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="4">
+                  <SelectableTextBlock
+                      Grid.Column="0"
+                      Classes="field-value"
+                      Foreground="{DynamicResource SecondaryTextBrush}"
+                      IsVisible="{Binding HasLabel}"
+                      Text="{Binding Label}"
+                      VerticalAlignment="Center" />
+                  <SelectableTextBlock
+                      Grid.Column="1"
+                      Classes="field-value"
+                      IsVisible="{Binding HasText}"
+                      Text="{Binding Text}"
+                      TextWrapping="Wrap" />
+                  <TextBlock
+                      Grid.Column="2"
+                      Classes="field-value"
+                      Foreground="{DynamicResource SecondaryTextBrush}"
+                      IsVisible="{Binding HasSeparator}"
+                      Text="{Binding Separator}"
+                      VerticalAlignment="Center" />
+                  <TextBlock
+                      Grid.Column="3"
+                      Classes="field-value"
+                      Foreground="{DynamicResource AccentBrush}"
+                      IsVisible="{Binding HasSub}"
+                      Text="{Binding Sub}"
+                      VerticalAlignment="Center" />
+                </Grid>
+                <TextBlock
+                    Classes="hint-text"
+                    IsVisible="{Binding HasDetail}"
+                    Text="{Binding Detail}"
+                    TextWrapping="Wrap" />
+              </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
+    <!--  ===== Kind ③-b Select（**索引通道**）：页面 VM 上本来就是「第几个选项」+ 候选项写死  =====
+          ⛔ 与值通道的模板互斥（IndexPath 非空才走这里），两个模板共存不算新增 Kind。  -->
+    <DataTemplate DataType="c:IndexSelectFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <TextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <ComboBox
+            HorizontalAlignment="Stretch"
+            ItemsSource="{Binding Options}"
+            SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" />
+        <TextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <!--  Padding 右 14 = 覆盖式滚动条的留位（⛔ 别挪到 Border.detail-card，会波及未迁移页）  -->
+  <ScrollViewer
+      Padding="0,0,14,0"
+      VerticalScrollBarVisibility="Auto"
+      DataContext="{Binding $parent[c:DetailCardHost].Renderer}">
+    <StackPanel Margin="12,12,4,12" Spacing="10">
+      <!--  空态：没选中项时给一句引导（⛔ 不留白）  -->
+      <TextBlock
+          Classes="hint-text"
+          IsVisible="{Binding !ShowBody}"
+          Text="{Binding EmptyText}"
+          TextWrapping="Wrap" />
+      <StackPanel
+          IsVisible="{Binding ShowBody}"
+          Spacing="10">
+        <ItemsControl ItemsSource="{Binding Sections}" />
+        <ItemsControl ItemsSource="{Binding Actions}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

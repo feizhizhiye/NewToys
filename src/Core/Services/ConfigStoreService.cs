@@ -98,7 +98,8 @@ public class ConfigStoreService
     /// <summary>旧结构迁移失败时的原因（非 null → 本次退回旧结构运行，仅在「设置 → 配置」提示）。</summary>
     public string? ProfileMigrationError { get; private set; }
 
-    /// <summary>&lt;配置根&gt;\config —— 应用级配置（app.json / theme.json / launch.json …）。</summary>
+    /// <summary>&lt;配置根&gt;\config —— 本配置档的配置（theme.json / launch.json / 各模块设置 …）。
+    /// <para>⚠️ v3.65 / NT-062 起 <c>app.json</c>（运行环境）**不在**这里 —— 它上提到应用根（跨配置共享）。</para></summary>
     public string ConfigDir => EnsureDir("config");
 
     /// <summary>&lt;配置根&gt;\data —— 可重建的缓存（`newtoys.db` 等），不进备份。</summary>

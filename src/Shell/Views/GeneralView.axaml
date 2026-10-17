@@ -1,130 +1,32 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="NewToys.Settings.Views.GeneralView">
-  <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：页名由左侧二级菜单体现，这里只放状态文字。
-         ⚠️ 刻意**不放"保存"按钮** —— 开关 / 单选 / 色卡勾选即写盘（更新地址是自由文本，单独一个 💾）。 -->
-    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。 -->
+             x:Class="NewToys.Shell.Views.GeneralView">
+  <!--
+    v3.66 / NT-062 第五轮：「通用」节拆成三个节（用户要求"拆开、删除通用"）——
+    本 View = **启动与退出**（节锚点 `settings-general`，Key ⛔ 不变）。
+      ① 内层 `ScrollViewer` **已删除**：设置页整页就是滚动流，内层再套一个会**吃掉滚轮**
+         （鼠标停在本节上时滚的是本节、不是整页 ⇒ 用户感受成"滚不动 / 像循环"）；
+      ② 原来的「更新」（→ `UpdateView`）/「主题外观」（→ `ThemeView`）两张卡已**拆到各自的节**，
+         「实现状态（v1.35）」那张纯说明卡**删除**（属过时的进度叙述，不是设置项）。
+    三个 View 共用同一个 `GeneralViewModel`（数据同源，只是显示位置分开）。
+  -->
+  <StackPanel
+      HorizontalAlignment="Left"
+      MaxWidth="720"
+      Spacing="10">
 
-    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
-      <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+    <CheckBox Content="开机时启动 NewToys" IsChecked="{Binding StartWithSystem, Mode=TwoWay}" />
+    <TextBlock Classes="hint-text" Margin="26,0,0,0" Text="{Binding StartupStateText}" />
+    <CheckBox Content="启动时最小化到托盘" IsChecked="{Binding StartMinimized, Mode=TwoWay}" />
+    <CheckBox Content="关闭按钮最小化到托盘" IsChecked="{Binding CloseToTray, Mode=TwoWay}" />
+    <CheckBox Content="启动时检查更新" IsChecked="{Binding CheckUpdateOnStartup, Mode=TwoWay}" />
+    <TextBlock Classes="hint-text" Text="{Binding TrayHint}" />
 
-        <Border Classes="card">
-          <StackPanel Spacing="10">
-            <TextBlock Text="启动与退出" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <CheckBox Content="开机时启动 NewToys" IsChecked="{Binding StartWithSystem, Mode=TwoWay}"/>
-            <TextBlock Classes="hint-text" Margin="26,0,0,4" Text="{Binding StartupStateText}"/>
-            <CheckBox Content="启动时最小化到托盘" IsChecked="{Binding StartMinimized, Mode=TwoWay}"/>
-            <CheckBox Content="关闭按钮最小化到托盘" IsChecked="{Binding CloseToTray, Mode=TwoWay}"/>
-            <CheckBox Content="启动时检查更新" IsChecked="{Binding CheckUpdateOnStartup, Mode=TwoWay}"/>
-            <TextBlock Classes="hint-text" Text="{Binding TrayHint}"/>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="ghost" Content="🗂 系统启动项管理" Command="{Binding OpenStartupSettingsCommand}"
-                      ToolTip.Tip="打开任务管理器的「启动」页，可自行核对 / 禁用"/>
-              <Button Classes="ghost" Content="🔄 重读启动状态" Command="{Binding RefreshStartupCommand}"
-                      ToolTip.Tip="重新读一次注册表，看开机启动项到底在不在"/>
-            </StackPanel>
-          </StackPanel>
-        </Border>
-
-        <Border Classes="card">
-          <StackPanel Spacing="10">
-            <TextBlock Text="更新" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <StackPanel Classes="field">
-              <TextBlock Classes="field-label" Text="版本文件地址（纯文本，内容里含形如 1.20261010.00.10 的版本号）"/>
-              <TextBox Classes="code" Text="{Binding UpdateUrl, Mode=TwoWay}"
-                       PlaceholderText="留空 = 不检查更新"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Classes="primary" Content="💾 保存地址" Command="{Binding SaveUpdateUrlCommand}"/>
-              <Button Classes="ghost" Content="🔎 立即检查更新" Command="{Binding CheckUpdateCommand}"
-                      IsEnabled="{Binding IsNotBusy}"/>
-            </StackPanel>
-            <TextBlock Classes="hint-text"
-                       Text="检查结果只做提示：NewToys 不会自己下载、也不会替换自己。没填地址就真的不检查（不会假装在检查）。"/>
-          </StackPanel>
-        </Border>
-
-        <Border Classes="card">
-          <StackPanel Spacing="6">
-            <TextBlock Text="✅ 实现状态（v1.35）" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Classes="hint-text"
-                       Text="① 开机启动 = 写 HKCU\Software\Microsoft\Windows\CurrentVersion\Run，勾选即改注册表（不用管理员权限）；② 关闭到托盘 = 主窗口关闭时实时读开关并隐藏到托盘，托盘右键可「显示 / 隐藏」与「退出」；③ 启动时最小化 = Shell 启动时按开关决定是否显示主窗口（下次启动生效）；④ 检查更新 = GET 上面那个地址取版本号比对，只提示不自动更新。非 Windows 平台的开机启动会如实标注为不支持。"/>
-          </StackPanel>
-        </Border>
-
-        <!-- ============ 主题外观（NT-051：由「主题外观」页整体平移；恢复默认按钮从该页操作行移入本卡头部） ============ -->
-        <Border Classes="card">
-          <StackPanel Spacing="12">
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Grid.Column="0" Text="主题模式" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
-              <Button Grid.Column="1" Classes="ghost" Content="↺ 恢复默认" Command="{Binding ResetThemeCommand}"
-                      ToolTip.Tip="深色 + 微信绿（同样立即生效）" VerticalAlignment="Center"/>
-            </Grid>
-            <TextBlock Text="点选即时切换整个窗口的明暗，不再需要重启。" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
-            <StackPanel Spacing="8">
-              <RadioButton GroupName="theme-mode" IsChecked="{Binding IsDarkMode, Mode=TwoWay}">
-                <TextBlock Text="🌙 深色（默认）" FontSize="13"/>
-              </RadioButton>
-              <RadioButton GroupName="theme-mode" IsChecked="{Binding IsLightMode, Mode=TwoWay}">
-                <TextBlock Text="☀ 浅色" FontSize="13"/>
-              </RadioButton>
-              <RadioButton GroupName="theme-mode" IsChecked="{Binding IsSystemMode, Mode=TwoWay}">
-                <TextBlock Text="🖥 跟随系统" FontSize="13"/>
-              </RadioButton>
-            </StackPanel>
-            <TextBlock Text="「跟随系统」会读取 Windows 的应用模式，系统切换明暗时本体也会跟着变。"
-                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
-          </StackPanel>
-        </Border>
-
-        <Border Classes="card">
-          <StackPanel Spacing="12">
-            <StackPanel Spacing="2">
-              <TextBlock Text="强调色" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
-              <TextBlock Text="影响主按钮、选中项、输入框聚焦边框等，选中即时生效。" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
-            </StackPanel>
-            <ListBox ItemsSource="{Binding Accents}"
-                     SelectedItem="{Binding SelectedAccent, Mode=TwoWay}"
-                     SelectionMode="Single"
-                     Background="Transparent" BorderThickness="0" Padding="0"
-                     HorizontalAlignment="Left">
-              <ListBox.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <WrapPanel Orientation="Horizontal"/>
-                </ItemsPanelTemplate>
-              </ListBox.ItemsPanel>
-              <ListBox.ItemTemplate>
-                <DataTemplate>
-                  <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,0">
-                    <Border Width="18" Height="18" CornerRadius="9"
-                            BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}"
-                            Background="{Binding Swatch}" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding Name}" FontSize="13" VerticalAlignment="Center"/>
-                  </StackPanel>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </StackPanel>
-        </Border>
-
-        <!-- ============ 关于（NT-051：由「关于」页整体平移；原页操作行两个无命令按钮已删，更新入口见「更新」节） ============ -->
-        <Border Classes="card">
-          <StackPanel Spacing="4" Margin="4">
-            <TextBlock Text="NewToys" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Text="{Binding Version}" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold"/>
-            <TextBlock Text="个人高强度使用工具集 · 跨平台（Windows / macOS / Linux）" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
-          </StackPanel>
-        </Border>
-
-        <Border Classes="card">
-          <StackPanel Spacing="4" Margin="4">
-            <TextBlock Text="技术栈" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Text=".NET 10 · Avalonia 12.1.4 · CommunityToolkit.Mvvm 8.4.2 · Microsoft.Extensions.DependencyInjection 9.0.0" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
-          </StackPanel>
-        </Border>
-
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+    <StackPanel Orientation="Horizontal" Spacing="6">
+      <Button Classes="ghost" Content="🗂 系统启动项管理" Command="{Binding OpenStartupSettingsCommand}"
+              ToolTip.Tip="打开任务管理器的「启动」页，可自行核对 / 禁用" />
+      <Button Classes="ghost" Content="🔄 重读启动状态" Command="{Binding RefreshStartupCommand}"
+              ToolTip.Tip="重新读一次注册表，看开机启动项到底在不在" />
+    </StackPanel>
+  </StackPanel>
 </UserControl>

@@ -1,7 +1,7 @@
 using System;
 using Avalonia.Controls;
 
-namespace NewToys.Settings.Views;
+namespace NewToys.Shell.Views;
 
 public partial class PathView : UserControl
 {

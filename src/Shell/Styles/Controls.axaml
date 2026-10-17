@@ -8,7 +8,7 @@
         字段组 / 表头 / 行内按钮 …）收成 Class，页面里只写一行 Classes="…"。
 
         用法：Shell/App.axaml 里 <StyleInclude Source="avares://NewToys/Styles/Controls.axaml"/>
-        样式是**应用级**的，模块（PcTools / VideoTools / Settings / WebTools）里的
+        样式是**应用级**的，模块（ScriptManager / VideoTools / Settings / WebTools）里的
         控件直接写 Classes 即可生效，不需要各模块再抄一份。
 
         ⚠️ 铁律：颜色一律 DynamicResource + *Brush 语义键，禁写死 #RRGGBB

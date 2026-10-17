@@ -27,3 +27,23 @@ public interface IToolbarSource
     /// <summary>工具条构成变化（增删项 / 换页）时通知 Shell 重建。</summary>
     event EventHandler? ToolbarChanged;
 }
+
+/// <summary>
+/// 「工具条的**承载者**是谁」契约（v3.66 / NT-062 细节调整）：**复合页**（一页多节，如应用级设置页）
+/// 用它把工具条交给**某一节自己的 VM**。
+/// <para>
+/// 🔴 为什么必须有这一层：<see cref="ToolbarItemDescriptor"/> 里的 <c>CommandPath</c> / <c>IsEnabledPath</c>
+/// 等路径是**相对节 VM** 解析的（<c>ToolbarHost</c> 用 <c>Binding { Source = 传入对象 }</c> 与
+/// <c>src.GetType().GetProperty(path)</c>）；复合页若自己当承载者，<c>SaveCommand</c> 这类路径全落空
+/// ⇒ 工具条"画得出来、点了没反应"。
+/// </para>
+/// <para>
+/// Shell 规则：当前页 VM 实现了本接口 ⇒ 用 <see cref="ToolbarOwner"/> 当工具条承载者与绑定根；
+/// 否则沿用当前页 VM 自己（普通页零改动）。
+/// </para>
+/// </summary>
+public interface IToolbarOwner
+{
+    /// <summary>工具条的承载者（= 描述符里各路径的解析根）；<c>null</c> = 本页没有工具条。</summary>
+    object? ToolbarOwner { get; }
+}

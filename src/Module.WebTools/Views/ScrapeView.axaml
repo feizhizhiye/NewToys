@@ -1,25 +1,19 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:v="using:NewToys.WebTools.Views"
+             xmlns:v="using:NewToys.UI.Controls"
              xmlns:conv="using:Avalonia.Data.Converters"
              x:Class="NewToys.WebTools.Views.ScrapeView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
-        详情卡在右列、从页面顶到底（加上左树就是三列）。 -->
-  <Grid Margin="12">
+        详情卡在右列、从页面顶到底（加上左树就是三列）。
+        NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。  -->
+  <v:ListPageSkeleton EmptyMessage="没有可显示的任务。点「➕ 新建任务」建一个。"
+                      EmptyActionText="➕ 新建任务"
+                      EmptyActionCommand="{Binding NewTaskCommand}"
+                      IsEmpty="{Binding !HasItems}">
 
-    <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
-    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
-
-    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
-         Row0 保持空着（Auto → 高度 0），不动下面各行的行号。 -->
-
-
-    
-
-      <!--  ==================== 列表本体  ====================  -->
-      <Border Grid.Row="3" Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,Auto,*">
-          <Border Grid.Row="0" Classes="list-header">
+    <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
+    <v:ListPageSkeleton.HeaderArea>
+      <Border Classes="list-header">
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
               <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
@@ -47,9 +41,11 @@
                 </ContextMenu>
               </v:ColumnGrid.ContextMenu>
             </v:ColumnGrid>
-          </Border>
+      </Border>
+    </v:ListPageSkeleton.HeaderArea>
 
-          <ListBox Grid.Row="2" x:Name="TaskList" Classes="list-page"
+    <v:ListPageSkeleton.ListArea>
+          <ListBox x:Name="TaskList" Classes="list-page"
                    ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
             <ListBox.ContextMenu>
@@ -82,30 +78,6 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-
-          <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
-          <StackPanel
-              Grid.Row="2"
-              HorizontalAlignment="Center"
-              IsVisible="{Binding !HasItems}"
-              Spacing="10"
-              VerticalAlignment="Center">
-              <TextBlock
-                  Classes="hint-text"
-                  MaxWidth="420"
-                  TextAlignment="Center"
-                  TextWrapping="Wrap"
-                  Text="没有可显示的任务。点「➕ 新建任务」建一个。" />
-              <Button
-                  Classes="ghost"
-                  HorizontalAlignment="Center"
-                  Content="➕ 新建任务"
-                  Command="{Binding NewTaskCommand}" />
-          </StackPanel>
-        </Grid>
-      </Border>
-
-    </Grid>
-
-  </Grid>
+    </v:ListPageSkeleton.ListArea>
+  </v:ListPageSkeleton>
 </UserControl>

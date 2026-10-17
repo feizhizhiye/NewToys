@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using NewToys.MediaAssets.Models;
+using NewToys.Shared.Models;
 
 namespace NewToys.MediaAssets.Services;
 
@@ -753,6 +757,313 @@ public class AssetService
         return rows;
     }
 
+    // ==================== NT-064：分页查询（列表与计数共用同一套 WHERE） ====================
+
+    /// <summary>
+    /// 分页查询条件（列表 <see cref="QueryPage"/> 与计数 <see cref="CountAssets"/> 传同一个对象）。
+    /// <para>🔴 WHERE 只准在 <see cref="BuildWhere"/> 里写一份 —— 两份漂移 = 总数与列表对不上。</para>
+    /// </summary>
+    /// <param name="Search">关键字（名称 / 路径 / 标签 包含，忽略大小写）。</param>
+    /// <param name="Type">类型原始值（video / music / …）。</param>
+    /// <param name="Status">状态原始值（active / archived / missing / trashed）。</param>
+    /// <param name="StorageId">存储源 id 文本。</param>
+    /// <param name="TagName">标签名（TagsText 逗号串里含这一个）。</param>
+    /// <param name="Clauses">表头右键「多项筛选」的生效条件（AND）。</param>
+    /// <param name="SortColumn">排序列键（与内存版口径一致；空 = 按名称）。</param>
+    /// <param name="SortDescending">是否降序。</param>
+    /// <param name="Offset">偏移行数（= (页码-1)×页大小）。</param>
+    /// <param name="Limit">页大小。</param>
+    public sealed record AssetQuery(
+        string? Search = null,
+        string? Type = null,
+        string? Status = null,
+        string? StorageId = null,
+        string? TagName = null,
+        IReadOnlyList<FilterClause>? Clauses = null,
+        string SortColumn = "",
+        bool SortDescending = false,
+        int Offset = 0,
+        int Limit = DefaultPageSize);
+
+    /// <summary>SQL 侧共用的列表达式（🔴 筛选 / 排序 / 关键字共用同一份定义，⛔ 不各写一遍）。</summary>
+    private const string NameExpr = "IFNULL(NULLIF(a.display_name,''), NULLIF(a.title,''), '资产 #' || a.id)";
+    private const string TagsExpr = "(SELECT group_concat(n.name, ', ') FROM (SELECT n.name FROM asset_tags at " +
+        "JOIN tags n ON n.id=at.tag_id WHERE at.asset_id=a.id ORDER BY n.name))";
+    private const string CategoriesExpr = "(SELECT group_concat(n.name, ', ') FROM (SELECT n.name FROM asset_categories ac " +
+        "JOIN categories n ON n.id=ac.category_id WHERE ac.asset_id=a.id ORDER BY n.name))";
+    private const string CollectionsExpr = "(SELECT group_concat(n.name, ', ') FROM (SELECT n.name FROM collection_assets ca " +
+        "JOIN collections n ON n.id=ca.collection_id WHERE ca.asset_id=a.id ORDER BY n.name))";
+    // 🔴 json_extract 遇损坏 JSON 会**炸整条查询**（内存路径是逐行容错）⇒ 一律 json_valid 守卫
+    private const string DurationExpr = "IFNULL(CASE WHEN json_valid(a.metadata_json) THEN " +
+        "json_extract(a.metadata_json,'$.duration_seconds') END,0)";
+    private const string ResolutionExpr = "CASE WHEN json_valid(a.metadata_json) AND " +
+        "json_extract(a.metadata_json,'$.width') IS NOT NULL AND " +
+        "json_extract(a.metadata_json,'$.height') IS NOT NULL " +
+        "THEN json_extract(a.metadata_json,'$.width') || '×' || json_extract(a.metadata_json,'$.height') ELSE '' END";
+    private const string CodecExpr = "IFNULL(CASE WHEN json_valid(a.metadata_json) THEN " +
+        "json_extract(a.metadata_json,'$.video_codec') END,'')";
+
+    private const int DefaultPageSize = 50;
+
+    private const string QueryJoins =
+        "LEFT JOIN file_locations l ON l.id = (SELECT f.id FROM file_locations f " +
+        "    WHERE f.asset_id = a.id ORDER BY f.is_primary DESC, f.id LIMIT 1) " +
+        "LEFT JOIN storages s ON s.id = l.storage_id ";
+
+    /// <summary>
+    /// 符合条件的总条数（NT-064：独立 COUNT(*)，⛔ 不用「当前页条数」充当总数）。
+    /// 库不可用 / 查询失败 → 0（调用方按空页处理并提示）。
+    /// </summary>
+    public int CountAssets(AssetQuery q)
+    {
+        if (!IsAvailable) return 0;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM assets a " + QueryJoins + BuildWhere(q, cmd) + ";";
+            var v = cmd.ExecuteScalar();
+            return v is null || v is DBNull ? 0 : Convert.ToInt32(v);
+        }
+        catch { return 0; }
+    }
+
+    /// <summary>
+    /// 取一页资产（NT-064：ORDER BY 下推 SQL + LIMIT/OFFSET 按需取页，⛔ 不再整表入内存）。
+    /// 组织信息（标签 / 分类 / 集合）只查本页 id 的映射（⛔ 不拉全表映射 —— 那是分页最贵的隐藏 N²）。
+    /// </summary>
+    public List<AssetRow> QueryPage(AssetQuery q)
+    {
+        var rows = new List<AssetRow>();
+        if (!IsAvailable || q.Limit <= 0) return rows;
+
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                "SELECT a.id, a.type, a.title, a.display_name, a.status, a.rating, a.description, " +
+                "       IFNULL(l.file_name,''), IFNULL(l.path,''), IFNULL(l.size,0), l.mtime, " +
+                "       IFNULL(l.status,'active'), IFNULL(l.storage_id,0), IFNULL(s.name,''), a.updated_at, a.metadata_json, " +
+                "       IFNULL(a.is_favorite,0) " +
+                "FROM assets a " + QueryJoins + BuildWhere(q, cmd) + BuildOrderBy(q) +
+                " LIMIT $lim OFFSET $off;";
+            cmd.Parameters.AddWithValue("$lim", q.Limit);
+            cmd.Parameters.AddWithValue("$off", System.Math.Max(0, q.Offset));
+
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var meta = r.IsDBNull(15) ? "{}" : r.GetString(15);
+                var row = new AssetRow
+                {
+                    Id = r.GetInt64(0),
+                    Type = r.IsDBNull(1) ? AssetTypes.Other : r.GetString(1),
+                    Title = r.IsDBNull(2) ? null : r.GetString(2),
+                    DisplayName = r.IsDBNull(3) ? null : r.GetString(3),
+                    Status = r.IsDBNull(4) ? AssetStatuses.Active : r.GetString(4),
+                    Rating = r.IsDBNull(5) ? 0 : r.GetInt32(5),
+                    Description = r.IsDBNull(6) ? null : r.GetString(6),
+                    FileName = r.GetString(7),
+                    FilePath = r.GetString(8),
+                    Size = r.GetInt64(9),
+                    Mtime = r.IsDBNull(10) ? null : r.GetString(10),
+                    LocationStatus = r.IsDBNull(11) ? LocationStatuses.Active : r.GetString(11),
+                    StorageId = r.GetInt64(12),
+                    StorageName = r.GetString(13),
+                    UpdatedAt = r.IsDBNull(14) ? null : r.GetString(14),
+                    IsFavorite = !r.IsDBNull(16) && r.GetInt32(16) != 0,
+                    Name = !r.IsDBNull(3) && r.GetString(3).Length > 0 ? r.GetString(3)
+                        : !r.IsDBNull(2) && r.GetString(2).Length > 0 ? r.GetString(2)
+                        : "资产 #" + r.GetInt64(0).ToString(CultureInfo.InvariantCulture)
+                };
+                ApplyVideoMeta(row, meta);   // 逐行独立解析（损坏的 metadata_json 不影响整批）
+                rows.Add(row);
+            }
+        }
+        catch { return rows; }
+
+        // 三类组织信息：只查本页 id 的映射（行数有限，⛔ 不 per-row 查、⛔ 不拉全表）
+        var ids = rows.Select(x => x.Id).ToArray();
+        var tags = LoadNameMap("asset_tags", "tags", ids);
+        var cats = LoadNameMap("asset_categories", "categories", ids);
+        var cols = LoadNameMap("collection_assets", "collections", ids);
+        foreach (var row in rows)
+        {
+            if (tags.TryGetValue(row.Id, out var t)) row.TagsText = t;
+            if (cats.TryGetValue(row.Id, out var c)) row.CategoriesText = c;
+            if (cols.TryGetValue(row.Id, out var k)) row.CollectionsText = k;
+        }
+        return rows;
+    }
+
+    /// <summary>
+    /// WHERE 子句构造（NT-064 唯一一份；列表与计数共用）。
+    /// 页面级条件（类型 / 状态 / 存储源 / 标签 / 关键字）+ 表头右键的多项筛选（<see cref="FilterClause"/>）。
+    /// </summary>
+    private static string BuildWhere(AssetQuery q, SqliteCommand cmd)
+    {
+        var sql = new StringBuilder("WHERE 1=1 AND a.status <> 'trashed'");
+
+        // 状态筛选优先：显式选了「回收站」等状态时，⛔ 不再叠加默认的「非回收站」条件
+        if (!string.IsNullOrWhiteSpace(q.Status))
+        {
+            sql.Append(" AND a.status=$s");
+            cmd.Parameters.AddWithValue("$s", q.Status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(q.Type))
+        {
+            sql.Append(" AND a.type=$t");
+            cmd.Parameters.AddWithValue("$t", q.Type);
+        }
+
+        if (!string.IsNullOrWhiteSpace(q.StorageId))
+        {
+            if (long.TryParse(q.StorageId, out var sid))
+            {
+                sql.Append(" AND IFNULL(l.storage_id,0)=$sid");
+                cmd.Parameters.AddWithValue("$sid", sid);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(q.TagName))
+        {
+            sql.Append(" AND EXISTS (SELECT 1 FROM asset_tags at JOIN tags tg ON tg.id=at.tag_id " +
+                       "WHERE at.asset_id=a.id AND tg.name=$tag)");
+            cmd.Parameters.AddWithValue("$tag", q.TagName);
+        }
+
+        var search = (q.Search ?? "").Trim();
+        if (search.Length > 0)
+        {
+            // 与内存版口径一致：名称 / 路径 / 标签文本「包含」（LIKE 通配符转义，⛔ 不当 wildcard 用）
+            sql.Append(" AND (" + NameExpr + " LIKE $q ESCAPE '\\' OR IFNULL(l.path,'') LIKE $q ESCAPE '\\' OR " +
+                       TagsExpr + " LIKE $q ESCAPE '\\')");
+            cmd.Parameters.AddWithValue("$q", "%" + EscapeLike(search) + "%");
+        }
+
+        if (q.Clauses != null)
+        {
+            var n = 0;
+            foreach (var c in q.Clauses)
+            {
+                if (!c.IsActive) continue;
+                var frag = ClauseToSql(c, cmd, "c" + n.ToString(CultureInfo.InvariantCulture));
+                if (frag != null) { sql.Append(" AND ").Append(frag); n++; }
+            }
+        }
+
+        return sql.ToString();
+    }
+
+    /// <summary>
+    /// ORDER BY 下推（NT-064：⛔ 排序不准留在内存做 —— 分页后页内排序 = 每页各自排，排错序）。
+    /// 文本列一律 <c>COLLATE NOCASE</c>（贴合原内存排序的大小写不敏感口径）；
+    /// 恒定加 <c>a.id</c> 次级键（同值行翻页不串位）。
+    /// </summary>
+    private static string BuildOrderBy(AssetQuery q)
+    {
+        var expr = q.SortColumn switch
+        {
+            "Type" => "a.type COLLATE NOCASE",
+            "Tags" => TagsExpr + " COLLATE NOCASE",
+            "Categories" => CategoriesExpr + " COLLATE NOCASE",
+            "Collections" => CollectionsExpr + " COLLATE NOCASE",
+            "Size" => "IFNULL(l.size,0)",
+            "Modified" => "IFNULL(l.mtime,'')",
+            "Storage" => "IFNULL(s.name,'') COLLATE NOCASE",
+            "Duration" => DurationExpr,
+            "Resolution" => ResolutionExpr + " COLLATE NOCASE",
+            "Codec" => CodecExpr + " COLLATE NOCASE",
+            _ => NameExpr + " COLLATE NOCASE"   // 空 / "Name" = 按名称（与原默认一致）
+        };
+        return " ORDER BY " + expr + (q.SortDescending ? " DESC" : " ASC") + ", a.id ASC";
+    }
+
+    /// <summary>列键 → SQL 表达式 + 是否数值列（与 <see cref="AssetRow"/> 的展示口径对齐）。</summary>
+    private static (string Expr, bool Numeric)? ColumnExpr(string key) => key switch
+    {
+        "Name" => (NameExpr, false),
+        "Type" => ("a.type", false),
+        "Status" => ("a.status", false),
+        "Tags" => (TagsExpr, false),
+        "Categories" => (CategoriesExpr, false),
+        "Collections" => (CollectionsExpr, false),
+        "Size" => ("IFNULL(l.size,0)", true),
+        "Modified" => ("IFNULL(l.mtime,'')", false),
+        "Storage" => ("IFNULL(s.name,'')", false),
+        "Duration" => (DurationExpr, true),
+        "Resolution" => (ResolutionExpr, false),
+        "Codec" => (CodecExpr, false),
+        _ => null   // 取不到值的列 ⇒ 条件不生效（与内存版「列键对不上 ⇒ 跳过」同口径）
+    };
+
+    /// <summary>一条 <see cref="FilterClause"/> → SQL 片段（⛔ 不再内存里补滤 —— 那会让计数与列表对不上）。</summary>
+    private static string? ClauseToSql(FilterClause c, SqliteCommand cmd, string p)
+    {
+        var col = ColumnExpr(c.ColumnKey);
+        if (col == null) return null;
+        var (expr, numeric) = col.Value;
+        var input = (c.Value ?? "").Trim();
+
+        // 🔴 先给初值：`numeric && TryParse(out num)` 短路时 TryParse 不跑 ⇒ num 未赋值（CS0165）
+        var num = 0.0;
+        var numOk = numeric && double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out num);
+
+        switch (c.Op)
+        {
+            case FilterOperators.Contains:
+                cmd.Parameters.AddWithValue("$" + p, "%" + EscapeLike(input) + "%");
+                return expr + " LIKE $" + p + " ESCAPE '\\'";
+            case FilterOperators.NotContains:
+                cmd.Parameters.AddWithValue("$" + p, "%" + EscapeLike(input) + "%");
+                return "IFNULL(" + expr + ",'') NOT LIKE $" + p + " ESCAPE '\\'";
+            case FilterOperators.Equal:
+                if (numOk)
+                {
+                    cmd.Parameters.AddWithValue("$" + p, num);
+                    return expr + "=$" + p;
+                }
+                cmd.Parameters.AddWithValue("$" + p, input);
+                return expr + "=$" + p + " COLLATE NOCASE";
+            case FilterOperators.NotEqual:
+                if (numOk)
+                {
+                    cmd.Parameters.AddWithValue("$" + p, num);
+                    return expr + "<>$" + p;
+                }
+                cmd.Parameters.AddWithValue("$" + p, input);
+                return expr + "<>$" + p + " COLLATE NOCASE";
+            case FilterOperators.Greater:
+                if (numOk)
+                {
+                    cmd.Parameters.AddWithValue("$" + p, num);
+                    return expr + ">$" + p;
+                }
+                cmd.Parameters.AddWithValue("$" + p, input);
+                return expr + ">$" + p;
+            case FilterOperators.Less:
+                if (numOk)
+                {
+                    cmd.Parameters.AddWithValue("$" + p, num);
+                    return expr + "<$" + p;
+                }
+                cmd.Parameters.AddWithValue("$" + p, input);
+                return expr + "<$" + p;
+            case FilterOperators.Empty:
+                return "TRIM(IFNULL(" + expr + ",''))=''";
+            case FilterOperators.NotEmpty:
+                return "TRIM(IFNULL(" + expr + ",''))<>''";
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>LIKE 通配符转义（% _ \ 三个字符；⛔ 用户输入不当 wildcard 用）。</summary>
+    private static string EscapeLike(string s)
+        => s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
     /// <summary>
     /// NT-031：把 <c>metadata_json</c> 里的视频元数据填进 <see cref="AssetRow"/> 的视频专属字段。
     /// <para>逐行独立解析、吞掉一切异常（JSON 损坏 / 缺键 / 类型不符都不影响列表其余行）。
@@ -779,11 +1090,14 @@ public class AssetService
     /// <summary>
     /// 取「资产 id → 逗号分隔的名字串」（标签 / 分类 / 集合通用）。
     /// <paramref name="linkTable"/> 必须有 <c>asset_id</c> 与 <c>{tag|category|collection}_id</c> 两列。
+    /// <paramref name="ids">NT-064 分页：只查这些资产的映射（⛔ 不拉全表 —— 全量映射是分页最贵的隐藏消耗）；
+    /// <c>null</c> = 全量（非分页调用方用）。</paramref>
     /// </summary>
-    private Dictionary<long, string> LoadNameMap(string linkTable, string nameTable)
+    private Dictionary<long, string> LoadNameMap(string linkTable, string nameTable, IReadOnlyCollection<long>? ids = null)
     {
         var map = new Dictionary<long, string>();
         if (!IsAvailable) return map;
+        if (ids != null && ids.Count == 0) return map;   // 空页 ⇒ 空映射，⛔ 不发无意义查询
 
         // 三类链接表的外键列名各不相同（tag_id / category_id / collection_id）→ 由名字表单数推出
         var fk = nameTable switch
@@ -799,7 +1113,14 @@ public class AssetService
             using var conn = _db.Db.Open();
             using var cmd = conn.CreateCommand();
             // ⛔ 表名 / 列名来自上面的固定映射（⛔ 不接受外部输入），不是用户数据 → 拼接安全
-            cmd.CommandText = $"SELECT l.asset_id, n.name FROM {linkTable} l JOIN {nameTable} n ON n.id = l.{fk} ORDER BY n.name;";
+            var sql = $"SELECT l.asset_id, n.name FROM {linkTable} l JOIN {nameTable} n ON n.id = l.{fk}";
+            if (ids != null)
+            {
+                // id 是 long 值（⛔ 非用户文本）→ 直接拼 IN 列表安全；单页 ≤ 页大小，参数个数可控
+                sql += " WHERE l.asset_id IN (" + string.Join(",", ids.Select(i => i.ToString(CultureInfo.InvariantCulture))) + ")";
+            }
+            sql += " ORDER BY n.name;";
+            cmd.CommandText = sql;
             using var r = cmd.ExecuteReader();
             while (r.Read())
             {

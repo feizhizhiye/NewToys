@@ -191,12 +191,20 @@ public partial class ToolbarHost : UserControl
 
         if (d.EnterCommandPath is { } enterPath)
         {
+            // 提交通道（v3.64 / NT-061）：`EnterCommandPath` = 该框的**唯一提交入口**，**回车 + 失焦都走它**
+            // （⛔ 不再加第二处反射）。可编辑框靠 TwoWay 绑定把新值写回 VM，命令只负责「校验 + 落盘」；
+            // 只读框没有提交语义 ⇒ 不挂失焦（否则每个只读框一失焦就触发一次动作）。
+            Action commit = () =>
+            {
+                if (ResolveCommand(src, enterPath) is { } cmd && cmd.CanExecute(null)) cmd.Execute(null);
+            };
             tb.KeyDown += (_, e) =>
             {
                 if (e.Key != Key.Enter) return;
-                if (ResolveCommand(src, enterPath) is { } cmd && cmd.CanExecute(null)) cmd.Execute(null);
+                commit();
                 e.Handled = true;
             };
+            if (!d.IsReadOnly) tb.LostFocus += (_, _) => commit();
         }
         return tb;
     }
@@ -227,7 +235,7 @@ public partial class ToolbarHost : UserControl
     }
 
     /// <summary>
-    /// 多选 / 单选按钮组（<c>ChipGroup</c>；v3.54 / NT-055 补迁 <c>pc-package</c> 时新增）：
+    /// 多选 / 单选按钮组（<c>ChipGroup</c>；v3.54 / NT-055 补迁 <c>script-packages</c> 时新增）：
     /// 按 <c>ItemsPath</c> 生成一排按钮（样式类 = 页面里「源」按钮用的 <c>src-btn</c>），
     /// 每项文案取 <c>DisplayPath</c>、高亮跟随数据项的 <c>SelectedPath</c>，
     /// 点击把**数据项本身**当参数执行 <c>CommandPath</c>。

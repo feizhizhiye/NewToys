@@ -1,13 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="NewToys.Settings.Views.DnsView">
-  <Grid RowDefinitions="Auto,*">
-    <!-- 操作行：原页头右侧「状态提示」迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。
-         ⚠️ 刻意**不放"应用"按钮** —— 开关/下拉/URL 都是即时写盘（见 DnsViewModel 类注释）。 -->
-    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。 -->
-
-    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
-      <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+             x:Class="NewToys.Shell.Views.DnsView">
+  <!--  v3.66 / NT-062 第五轮：**内层 ScrollViewer 删除** + 间距收紧（设置页整页已是滚动流，
+        内层再套一个会**吃掉滚轮** ⇒ 鼠标停在本节上时整页滚不动）。  -->
+  <StackPanel
+      HorizontalAlignment="Left"
+      MaxWidth="720"
+      Spacing="10">
 
         <Border Classes="card">
           <StackPanel Spacing="12">
@@ -55,6 +54,4 @@
         </Border>
 
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
 </UserControl>

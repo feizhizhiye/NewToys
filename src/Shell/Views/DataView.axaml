@@ -1,19 +1,28 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="NewToys.Settings.Views.DataView">
+             x:Class="NewToys.Shell.Views.DataView">
+  <!--  v3.66 / NT-062 第五轮：**内层 ScrollViewer 删除** + 边距 / 卡片内距收紧
+        （设置页整页已是滚动流，内层再套一个会**吃掉滚轮** ⇒ 鼠标停在本节上时整页滚不动）。  -->
   <Grid RowDefinitions="Auto,*">
     <!-- 操作行：原页头右侧按钮迁移至此；页名已由左侧二级菜单体现，内容区不再重复标题页头。 -->
-    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="24,16,24,0" Spacing="8">
+    <StackPanel
+        Grid.Row="0"
+        Margin="0,0,0,10"
+        HorizontalAlignment="Right"
+        Orientation="Horizontal"
+        Spacing="8">
       <Button x:Name="BtnRefresh" Classes="ghost" Content="🔄 重列配置"
               ToolTip.Tip="重新列一遍 config 目录下的配置文件（⛔ 不备份、不修改）"/>
       <Button x:Name="BtnBackup" Classes="primary" Content="📤 备份到文件"/>
       <Button x:Name="BtnImport" Classes="ghost" Content="📥 从备份导入"/>
     </StackPanel>
 
-    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24">
-      <StackPanel Spacing="16">
-        <Border Classes="card" Padding="20">
+    <StackPanel
+        Grid.Row="1"
+        HorizontalAlignment="Left"
+        MaxWidth="720"
+        Spacing="10">
+        <Border Classes="card">
           <StackPanel Spacing="8">
             <TextBlock Text="当前配置文件" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
             <!-- 状态行已取消（v3.9）：改由 Shell 底部状态栏统一显示。 -->
@@ -33,20 +42,19 @@
           </StackPanel>
         </Border>
 
-        <Border Classes="card" Padding="20">
+        <Border Classes="card">
           <StackPanel Spacing="6">
             <TextBlock Text="📤 备份" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
             <TextBlock Text="把 &lt;应用根&gt;\config 下所有 .json 打包为单个 JSON 备份文件，便于跨机迁移。" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>
 
-        <Border Classes="card" Padding="20">
+        <Border Classes="card">
           <StackPanel Spacing="6">
             <TextBlock Text="📥 导入" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
             <TextBlock Text="导入前会自动把当前所有配置备份到 &lt;应用根&gt;\config\.bak-时间戳\ 目录；导入后建议重启应用。" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>
       </StackPanel>
-    </ScrollViewer>
   </Grid>
 </UserControl>

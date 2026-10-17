@@ -16,11 +16,13 @@ public class AppConfigService : IAppConfigService
         public string FfmpegPath { get; set; } = "ffmpeg";
         public string PlayerPath { get; set; } = "";
         public int MaxConcurrency { get; set; } = 2;
-        public bool GpuAcceleration { get; set; } = false;
+        // v3.65 / NT-062：GpuAcceleration 已删除（没有任何消费方）。旧 app.json 里的该键由
+        // System.Text.Json 默认忽略未知属性 ⇒ 反序列化不报错，下次保存即从文件里消失。
         public bool EncryptedDnsEnabled { get; set; } = false;
         public string EncryptedDnsProviderId { get; set; } = "dnspod";
         public string EncryptedDnsCustomUrl { get; set; } = "";
-        // 运行环境（脚本解释器 + 脚本目录，v1.33）：留空 = 用系统默认
+        // 运行环境（v1.33）：三个解释器路径，**应用级**（v3.65 / NT-062 回迁）；留空 = 用系统默认。
+        // ⚠️ ScriptFolder 已定为**模块级**（「脚本管理器」设置），这里只为 NT-061 的一次性下沉保留读取。
         public string PythonPath { get; set; } = "";
         public string PwshPath { get; set; } = "";
         public string PowerShell51Path { get; set; } = "";
@@ -37,26 +39,65 @@ public class AppConfigService : IAppConfigService
     private ConfigData _data = new();
     private readonly ConfigStoreService _cfg;
 
-    public AppConfigService(ConfigStoreService cfg) { _cfg = cfg; Load(); }
+    public AppConfigService(ConfigStoreService cfg) { _cfg = cfg; MigrateLegacyOnce(); Load(); }
 
-    private string ConfigFile => Path.Combine(_cfg.ConfigDir, "app.json");
+    /// <summary>
+    /// <c>app.json</c> 全路径（v3.65 / NT-062）：落在**应用根**，与 <c>profiles\</c> / <c>active-profile.txt</c> 同级。
+    /// <para>理由：「运行环境」（外部程序路径 / 运行行为）是**应用级路由**，⛔ 不随配置档切换 —— 换配置只隔离
+    /// <c>config / data / logs</c>，解释器与 ffmpeg 的路径不该跟着变。</para>
+    /// </summary>
+    private string ConfigFile => Path.Combine(_cfg.AppRootDirectory, "app.json");
 
     public string ConfigFilePath => ConfigFile;
     public string DataDirectory => _cfg.DataDir;
 
+    /// <summary>v3.65 / NT-062：<c>app.json</c> 由旧位置上提到应用根时留下的说明（null = 没发生迁移）。供设置页 / 排障展示。</summary>
+    public string? LegacyMigrationNote { get; private set; }
+
+    /// <summary>
+    /// 一次性迁移（v3.65 / NT-062）：把 <c>&lt;配置根&gt;\config\app.json</c> 复制到 <c>&lt;应用根&gt;\app.json</c>。
+    /// <list type="bullet">
+    ///   <item>⛔ 只在**新位置还没有**该文件时搬一次（已有 ⇒ 一律不覆盖，用户数据优先）；</item>
+    ///   <item>⛔ **复制不移除**老文件（保守，留作回退），老文件不再被读写；</item>
+    ///   <item>多配置档：只取**当前活动档**为准（其余档的老文件留在原地不动）；</item>
+    ///   <item>失败不阻断启动 —— 本次按新位置默认值跑。</item>
+    /// </list>
+    /// </summary>
+    private void MigrateLegacyOnce()
+    {
+        try
+        {
+            if (File.Exists(ConfigFile)) return;
+            var legacy = Path.Combine(_cfg.ConfigDir, "app.json");
+            if (!File.Exists(legacy)) return;
+
+            File.Copy(legacy, ConfigFile, overwrite: false);
+            LegacyMigrationNote = $"app.json 已上提到应用根（取自配置「{_cfg.ActiveProfileName}」）：{legacy} → {ConfigFile}";
+            System.Diagnostics.Debug.WriteLine("[NewToys][迁移] " + LegacyMigrationNote);
+        }
+        catch (Exception ex)
+        {
+            LegacyMigrationNote = "app.json 上提失败（本次按新位置默认值运行）：" + ex.Message;
+            System.Diagnostics.Debug.WriteLine("[NewToys][迁移] " + LegacyMigrationNote);
+        }
+    }
+
     public string FfmpegPath { get => _data.FfmpegPath; set { _data.FfmpegPath = value; Save(); } }
     public string PlayerPath { get => _data.PlayerPath; set { _data.PlayerPath = value; Save(); } }
     public int MaxConcurrency { get => _data.MaxConcurrency; set { _data.MaxConcurrency = value; Save(); } }
-    public bool GpuAcceleration { get => _data.GpuAcceleration; set { _data.GpuAcceleration = value; Save(); } }
     public bool EncryptedDnsEnabled { get => _data.EncryptedDnsEnabled; set { _data.EncryptedDnsEnabled = value; Save(); } }
     public string EncryptedDnsProviderId { get => _data.EncryptedDnsProviderId; set { _data.EncryptedDnsProviderId = value; Save(); } }
     public string EncryptedDnsCustomUrl { get => _data.EncryptedDnsCustomUrl; set { _data.EncryptedDnsCustomUrl = value; Save(); } }
 
-    // ==================== 运行环境（v1.33） ====================
+    // ==================== 运行环境（v1.33；v3.65 / NT-062 回迁为**应用级**正式读写） ====================
+    // 三个解释器路径 = 「运行环境」（描述"本机怎么跑外部程序"），故归应用级、跨配置共享。
+    // 唯一写入点 =「设置 → 路径与配置」页的运行环境行；模块只读。
 
     public string PythonPath { get => _data.PythonPath; set { _data.PythonPath = value; Save(); } }
     public string PwshPath { get => _data.PwshPath; set { _data.PwshPath = value; Save(); } }
     public string PowerShell51Path { get => _data.PowerShell51Path; set { _data.PowerShell51Path = value; Save(); } }
+
+    /// <summary>⚠️ 已定为**模块级**（<c>config\script-manager.json</c>）：这里只为 NT-061 的一次性下沉保留读写，⛔ 不再有 UI 写入它。</summary>
     public string ScriptFolder { get => _data.ScriptFolder; set { _data.ScriptFolder = value; Save(); } }
     public string UpdateUrl { get => _data.UpdateUrl; set { _data.UpdateUrl = value; Save(); } }
     public string VideoDbFolder { get => _data.VideoDbFolder; set { _data.VideoDbFolder = value; Save(); } }

@@ -2,30 +2,18 @@
     x:Class="NewToys.VideoTools.Views.VideoBatchView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:v="using:NewToys.VideoTools.Views">
+    xmlns:v="using:NewToys.UI.Controls">
     <!--  v3.29 / NT-054：**详情卡已迁到 Shell 的声明式渲染**（`IDetailCardSource` + `DetailCardHost`）⇒
-          本页只剩「列表列」一列；卡片的声明在 `VideoBatchViewModel.BuildCard()` 里，⛔ 不再页内自绘。  -->
-    <Grid Margin="12">
+          本页只剩「列表列」一列；卡片的声明在 `VideoBatchViewModel.BuildCard()` 里，⛔ 不再页内自绘。
+          NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。  -->
+    <v:ListPageSkeleton EmptyMessage="队列是空的。点「📥 导入任务」从导出的 JSON 追加任务。"
+                        EmptyActionText="📥 导入任务"
+                        EmptyActionCommand="{Binding ImportTasksCommand}"
+                        IsEmpty="{Binding !HasItems}">
 
-        <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
-        <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
-
-            <!--
-                操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
-                Row0 保持空着（Auto → 高度 0），不动下面各行的行号。
-            -->
-
-            <!--  ==================== 工具条  ====================  -->
-
-
-            <!--  ==================== 列表本体：剪辑 + 转码混排的统一队列  ====================  -->
-            <Border
-                Grid.Row="3"
-                Padding="0"
-                Classes="card">
-                <Grid RowDefinitions="Auto,Auto,*">
-
-                    <Border Grid.Row="0" Classes="list-header">
+        <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
+        <v:ListPageSkeleton.HeaderArea>
+            <Border Classes="list-header">
                         <!--  v3.20 §6.4.15：IsResizable = 表头列边界可拖动手动调列宽（事件在 code-behind 转给 VM）  -->
                         <v:ColumnGrid
                             x:Name="HeaderGrid"
@@ -213,11 +201,12 @@
                                 </ContextMenu>
                             </v:ColumnGrid.ContextMenu>
                         </v:ColumnGrid>
-                    </Border>
+            </Border>
+        </v:ListPageSkeleton.HeaderArea>
 
+        <v:ListPageSkeleton.ListArea>
                     <ListBox
                         x:Name="TaskList"
-                        Grid.Row="2"
                         Classes="list-page"
                         ItemsSource="{Binding Items}"
                         SelectedItem="{Binding Selected, Mode=TwoWay}"
@@ -311,29 +300,6 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-
-                    <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
-                    <StackPanel
-                        Grid.Row="2"
-                        HorizontalAlignment="Center"
-                        IsVisible="{Binding !HasItems}"
-                        Spacing="10"
-                        VerticalAlignment="Center">
-                        <TextBlock
-                            Classes="hint-text"
-                            MaxWidth="420"
-                            TextAlignment="Center"
-                            TextWrapping="Wrap"
-                            Text="队列是空的。点「📥 导入任务」从导出的 JSON 追加任务。" />
-                        <Button
-                            Classes="ghost"
-                            HorizontalAlignment="Center"
-                            Content="📥 导入任务"
-                            Command="{Binding ImportTasksCommand}" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-        </Grid>
-
-    </Grid>
+        </v:ListPageSkeleton.ListArea>
+    </v:ListPageSkeleton>
 </UserControl>

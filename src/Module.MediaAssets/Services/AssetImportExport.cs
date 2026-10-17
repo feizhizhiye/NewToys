@@ -187,6 +187,66 @@ public class AssetImportExport
         return (true, $"导入完成：新增 {added} / 跳过 {skipped} / 组织挂接 {linked}。", added, skipped, linked);
     }
 
+    /// <summary>
+    /// **只解析**一段 JSON 成预览行（⛔ 不写库、⛔ 不去重）——2026-10-16 用户定稿：
+    /// 「📥 导入」= 把 db/json 的内容**加载到列表显示**（草稿态预览），写入由「💾 加入库」决定。
+    /// 返回（成功 / 消息 / 行）；解析失败 / 格式不对 ⇒ Ok=false 且消息说清原因（⛔ 不吞异常返回空）。
+    /// </summary>
+    public (bool Ok, string Message, List<AssetRow> Rows) Parse(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return (false, "文件是空的。", new List<AssetRow>());
+
+        AssetJsonFile? file = null;
+        try
+        {
+            file = JsonSerializer.Deserialize<AssetJsonFile>(json);
+        }
+        catch (Exception ex)
+        {
+            return (false, "不是合法的 JSON：" + ex.Message, new List<AssetRow>());
+        }
+        if (file?.Items == null || file.Items.Count == 0)
+            return (false, "JSON 里没有条目（或不是本程序导出的清单）。", new List<AssetRow>());
+        if (!string.Equals(file.Format, FormatName, StringComparison.OrdinalIgnoreCase))
+            return (false, $"格式不对（format = {file.Format}，期望 {FormatName}）。", new List<AssetRow>());
+
+        var rows = new List<AssetRow>();
+        foreach (var it in file.Items)
+        {
+            var path = (it.FilePath ?? "").Trim();
+            if (path.Length == 0) continue;
+            var fileName = it.FileName ?? "";
+            rows.Add(new AssetRow
+            {
+                // Id=0（草稿态）：入库时 CommitRows 统一分配
+                // 🔴 `?? ""` 三连：① 消 CS8601（Path.GetFileName* 返回 string?）；② 防 JSON 注入 null
+                //    （System.Text.Json 无视默认值，`{"FilePath":null}` 真能赋进 null ⇒ UI 绑定 / 后续读取 NRE）
+                Name = (!string.IsNullOrWhiteSpace(it.DisplayName) ? it.DisplayName
+                     : !string.IsNullOrWhiteSpace(it.Title) ? it.Title
+                     : Path.GetFileNameWithoutExtension(fileName.Length > 0 ? fileName : path)) ?? "",
+                Title = it.Title,
+                DisplayName = it.DisplayName,
+                Description = it.Description,
+                Rating = it.Rating,
+                Type = string.IsNullOrWhiteSpace(it.Type) ? ScanService.GuessAssetType(Path.GetExtension(path)) : it.Type,
+                Status = AssetStatuses.Active,
+                LocationStatus = LocationStatuses.Active,
+                FileName = !string.IsNullOrEmpty(fileName) ? fileName : (Path.GetFileName(path) ?? ""),
+                FilePath = path,
+                Size = it.Size,
+                Mtime = it.Mtime,
+                // 组织信息原文带进预览（逗号拼接，与库态 TagsText 同格式）
+                TagsText = string.Join(", ", it.Tags.Where(t => !string.IsNullOrWhiteSpace(t))),
+                CategoriesText = string.Join(", ", it.Categories.Where(c => !string.IsNullOrWhiteSpace(c))),
+                CollectionsText = string.Join(", ", it.Collections.Where(c => !string.IsNullOrWhiteSpace(c))),
+            });
+        }
+        if (rows.Count == 0)
+            return (false, "JSON 条目里没有有效路径。", new List<AssetRow>());
+
+        return (true, $"已解析 {rows.Count} 条。", rows);
+    }
+
     /// <summary>按名字找分类，找不到就建（顶级）。</summary>
     private long FindOrCreateCategory(string name)
     {

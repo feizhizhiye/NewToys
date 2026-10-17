@@ -1,25 +1,24 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:v="using:NewToys.Settings.Views"
-             x:Class="NewToys.Settings.Views.PathView">
+             xmlns:v="using:NewToys.UI.Controls"
+             x:Class="NewToys.Shell.Views.PathView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。
-        v3.53 / NT-055：工具条已由 Shell 的 ToolbarHost 声明式承载 ⇒ 页内⛔ 不再写 Border.toolbar
-        （两处同时渲染会出现两条工具条）。 -->
-  <Grid Margin="12">
+        v3.53 / NT-055：工具条由 Shell 的 ToolbarHost 声明式承载 ⇒ 页内⛔ 不再写 Border.toolbar
+        （两处同时渲染会出现两条工具条）。
+        v3.66 / NT-062 第五轮：本页**只作为设置页「运行环境」节的正文**使用 ⇒ 根 Margin 由 12 改 0
+        （缩进交给宿主节点的 `sec-body`，⛔ 不再叠加一层）；节的工具条由**宿主节点**里的 ToolbarHost
+        渲染（抬头下方、正文之上），本页⛔ 依旧不写工具条。
+        NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。 -->
+  <v:ListPageSkeleton Margin="0"
+                      EmptyMessage="没有可显示的配置行。点「＋ 新建配置」建一个新的配置档。"
+                      EmptyActionText="＋ 新建配置"
+                      EmptyActionCommand="{Binding NewProfileCommand}"
+                      IsEmpty="{Binding !HasItems}">
 
-    <!--  ==================== 列表列（状态行 / 工具条 / 筛选条 / 列表）  ====================  -->
-    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*">
-
-    <!-- 操作行已取消（v3.9）：状态文本改由 Shell 底部状态栏统一显示（IStatusProvider）。
-         工具条行已移除（v3.53 / NT-055）：改由 Shell 渲染。Row0~Row2 保持空着（Auto → 高度 0），
-         不动列表所在的行号。 -->
-
-      <!--  ==================== 列表本体：可排序表头 + 列表（右键出更多功能）  ====================  -->
-      <Border Grid.Row="3" Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,Auto,*">
-
-          <Border Grid.Row="0" Classes="list-header">
+    <!--  ==================== 列表本体（表头 / 列表进骨架）  ====================  -->
+    <v:ListPageSkeleton.HeaderArea>
+      <Border Classes="list-header">
             <!-- ⚠️ 表头与行模板用同一份列宽规格（规范 3.6 对齐铁律①）；列宽绑 VM 的 VisibleColumnSpecs。
                  ⚠️ 必须用 ColumnGrid 而不是 Grid：Grid.ColumnDefinitions 是 CLR 属性、XAML 里不能 {Binding}（AVLN3000）。 -->
             <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
@@ -68,9 +67,11 @@
                 </ContextMenu>
               </v:ColumnGrid.ContextMenu>
             </v:ColumnGrid>
-          </Border>
+      </Border>
+    </v:ListPageSkeleton.HeaderArea>
 
-          <ListBox Grid.Row="2" x:Name="PathList" Classes="list-page"
+    <v:ListPageSkeleton.ListArea>
+          <ListBox x:Name="PathList" Classes="list-page"
                    ItemsSource="{Binding Items}"
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
@@ -118,7 +119,8 @@
                              IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
 
                   <!-- 「操作」列按分类分派（v3.53 / NT-056）：路径行 = 📂 浏览 / ↗；
-                       配置行 = ⇄ 切换 / 🚀 新开 / ⭐ 设为默认 / ✏ 重命名 / 🗑 删除 / ♻ 重置。
+                       配置行 = ⇄ 切换 / 🚀 新开 / ⭐ 设为默认 / ✏ 重命名 / 🗑 删除 / ♻ 重置；
+                       `↗ 打开位置`（v3.65 起**每行都有**）= 打开配置目录 / 定位文件，tooltip 给出实际路径。
                        窄窗口下 WrapPanel 会自动折行（⛔ 不写固定宽容器）。 -->
                   <WrapPanel Grid.Column="5" Orientation="Horizontal" ItemSpacing="4" LineSpacing="4" Margin="8,2"
                              VerticalAlignment="Center"
@@ -128,9 +130,12 @@
                             Command="{Binding $parent[ListBox].DataContext.PickRowPathCommand}"
                             CommandParameter="{Binding}"
                             ToolTip.Tip="选文件 / 选目录（选完立即生效）"/>
-                    <Button Classes="ghost small" Content="↗" IsVisible="{Binding IsPathRow}"
+                    <!-- v3.65 / NT-062：`↗` 从"只给路径行"改为**每行都有**（需求 §4.9.2 第 3 条）——
+                         配置行 = 打开该配置的目录，路径行 = 打开所在目录 / 定位文件；
+                         tooltip 显示**实际路径**（OpenTargetTip，留空时说明"用系统默认"）。 -->
+                    <Button Classes="ghost small" Content="↗"
                             Command="{Binding $parent[ListBox].DataContext.OpenCommand}"
-                            CommandParameter="{Binding}" ToolTip.Tip="打开所在目录 / 定位该文件"/>
+                            CommandParameter="{Binding}" ToolTip.Tip="{Binding OpenTargetTip}"/>
                     <Button Classes="ghost small" Content="⇄" IsVisible="{Binding IsProfileRow}"
                             Command="{Binding $parent[ListBox].DataContext.SwitchProfileCommand}"
                             CommandParameter="{Binding}" ToolTip.Tip="切换到此配置（本窗口重启）"/>
@@ -154,30 +159,6 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-
-          <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
-          <StackPanel
-              Grid.Row="2"
-              HorizontalAlignment="Center"
-              IsVisible="{Binding !HasItems}"
-              Spacing="10"
-              VerticalAlignment="Center">
-              <TextBlock
-                  Classes="hint-text"
-                  MaxWidth="420"
-                  TextAlignment="Center"
-                  TextWrapping="Wrap"
-                  Text="没有可显示的配置行。点「＋ 新建配置」建一个新的配置档。" />
-              <Button
-                  Classes="ghost"
-                  HorizontalAlignment="Center"
-                  Content="＋ 新建配置"
-                  Command="{Binding NewProfileCommand}" />
-          </StackPanel>
-        </Grid>
-      </Border>
-
-    </Grid>
-
-  </Grid>
+    </v:ListPageSkeleton.ListArea>
+  </v:ListPageSkeleton>
 </UserControl>

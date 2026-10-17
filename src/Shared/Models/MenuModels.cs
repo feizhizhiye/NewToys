@@ -32,5 +32,8 @@ public class AppMenuItem
     public string Icon { get; set; } = "";
     public string ViewTypeName { get; set; } = "";
     public string ViewModelTypeName { get; set; } = "";
+    /// <summary>本项所属的显式分类（v3.65 / NT-062，需求 §4.9.2）。默认 <see cref="SettingsCategory.None"/>。</summary>
+    public SettingsCategory Category { get; set; } = SettingsCategory.None;
+    /// <summary>组内排序（v3.65 起**只作排序**；"框架 / 模块"的判定改看 <see cref="Category"/>）。</summary>
     public int Order { get; set; }
 }

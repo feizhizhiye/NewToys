@@ -20,8 +20,12 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
-/// 「全部资产」页（NT-016）—— 本模块的**样板列表页**：后续 5 个类型页与标签 / 集合 / 存储源 / 任务 /
-/// 回收站页都照这个模式复刻（列显隐 / 排序 / 筛选由基类承载，详情面板由 **Shell** 承载）。
+/// 「全部资产」页（NT-016）—— 本模块的**样板列表页**：标签 / 集合 / 存储源 / 任务 / 回收站页都照这个
+/// 模式复刻（列显隐 / 排序 / 筛选由基类承载，详情面板由 **Shell** 承载）。
+/// <para>
+/// 🔴 v3.69 / NT-063 P2：5 个类型页（视频 / 音乐 / 书籍 / 图片 / 文档）已**合并进本页** ——
+/// 由筛选栏的**类型控件**驱动列表数据 / 列集合 / 详情卡字段集 / 状态栏前缀（需求 §6.6「类型切换」）。
+/// </para>
 /// <para>
 /// 三个要点：
 /// <list type="number">
@@ -49,6 +53,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private readonly AssetMergeService _merge = null!;
     private readonly TaskQueue _queue = null!;
     private readonly IAppConfigService? _app;
+
+    /// <summary>v3.69：列布局服务（只用来记「用户显式设过」的列键；显隐 / 落盘本身在基类）。</summary>
+    private IColumnLayoutService? _columnLayout;
+
+    /// <summary>v3.69：用户显式设过（已落盘）的列键 —— 类型驱动的默认显隐**不覆盖**它们（二者不互相覆盖）。</summary>
+    private readonly HashSet<string> _userColumnKeys = new();
+
     private readonly List<AssetRow> _all = new();
 
     /// <summary>详情卡正在回填（改名框失焦保存要跳过这一次，⛔ 别把"显示"当成"用户改了"）。</summary>
@@ -134,14 +145,20 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         new("Modified", "修改时间", "1.3*", sample: "2026-10-13 21:04"),
         new("Storage", "存储源", "1.2*", sample: "移动硬盘 D"),
 
-        // 🔴 NT-031：视频专属列（试点）—— 默认隐藏，仅视频页（assets-video）经构造显隐逻辑开启。
+        // 🔴 NT-031：视频专属列（试点）—— 默认隐藏；v3.69 起由**筛选类型**驱动
+        //    （选「视频」时可见，⛔ 不落盘；用户右键改过的偏好优先，见 ApplyTypeColumnDefaults）。
         //    键名 ≠ 属性名（Duration→DurationText），已在 FieldText / SortColumn 显式映射。
         new("Duration", "时长", "0.9*", sample: "02:14:33"),
         new("Resolution", "分辨率", "0.9*", sample: "1920×1080"),
         new("Codec", "编码", "0.9*", sample: "h264")
     };
 
-    protected override void RefreshView() => ApplyView();
+    /// <summary>NT-064：基类的翻页 / 排序 / 筛选变化都转到这里 —— 库态按新状态重取一页，草稿态内存重算。</summary>
+    protected override void RefreshView()
+    {
+        if (IsDraft) { ApplyViewMemory(); return; }
+        LoadPageFromDb();
+    }
 
     protected override void EnsureDetailSelection()
     {
@@ -194,21 +211,12 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>
     /// 📤 导出**当前列表**（<c>_all</c>，即当前模式的全量、⛔ 不含筛选后的可见集）为 JSON 文本。
     /// 组织信息（标签 / 分类 / 集合）按**名字**导出（⛔ 不存内部 id）——换机 / 合并都能用。
+    /// <para>⚠️ NT-064 起库态 <c>_all</c> = **当前页**（分页批量口径统一为当前页）⇒ 导出即当前页。</para>
     /// </summary>
     public string ExportAssetsJson()
     {
         var scope = IsDraft ? "draft-preview" : "library";
         return _impExp.Export(_all, scope);
-    }
-
-    /// <summary>
-    /// 📥 导入 JSON：**追加合并**（按路径去重，⛔ 不静默覆盖）。完成后刷新列表。
-    /// </summary>
-    public (bool Ok, string Message) ImportAssetsJson(string json)
-    {
-        var (ok, msg, _, _, _) = _impExp.Import(json);
-        if (ok) Reload();
-        return (ok, msg);
     }
 
     // ==================== NT-026：多库融合（并库 / 另存 / 勾选删除） ====================
@@ -223,28 +231,50 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (string.IsNullOrWhiteSpace(dbPath)) { StatusText = "未选择库文件。"; return; }
         if (!IsDbAvailable) { StatusText = "资产库不可用。"; return; }
 
-        var preview = _merge.Preview(dbPath);
-        if (!preview.Ok) { StatusText = preview.Message; return; }
-
-        var missing = preview.MissingTables.Count > 0
-            ? $"\n⚠️ 源库缺 {preview.MissingTables.Count} 张表（{string.Join("、", preview.MissingTables)}）——按老库兼容处理，缺的跳过。"
-            : "";
-        if (!await DialogHooks.ConfirmAsync(
-                $"把库文件合并进当前资产库？\n{dbPath}\n\n该库规模：{preview.SummaryText}{missing}\n\n" +
-                "按路径 / 内容去重（重复并入第二次基本全跳过）；源库不会被修改。").ConfigureAwait(false))
+        try
         {
-            StatusText = "已取消合并。";
-            return;
+            var preview = _merge.Preview(dbPath);
+            if (!preview.Ok) { StatusText = preview.Message; return; }
+
+            // 🔴 2026-10-16：「导入之前的 NewToys.db 崩溃」—— 旧版 NewToys 的应用库里**没有**媒体资产表
+            //    （MediaAssets 是后加的模块）。这种文件不是资产库 ⇒ 直接拒绝，⛔ 不进确认 / 合并。
+            if (!preview.HasAssetTables)
+            {
+                StatusText = $"「{Path.GetFileName(dbPath)}」不是媒体资产库（找不到 assets 等表）——" +
+                             "导入只支持媒体资产库的 .db；json 列表请选「📥 导入」。";
+                return;
+            }
+
+            var missing = preview.MissingTables.Count > 0
+                ? $"\n⚠️ 源库缺 {preview.MissingTables.Count} 张表（{string.Join("、", preview.MissingTables)}）——按老库兼容处理，缺的跳过。"
+                : "";
+            if (!await DialogHooks.ConfirmAsync(
+                    $"把库文件合并进当前资产库？\n{dbPath}\n\n该库规模：{preview.SummaryText}{missing}\n\n" +
+                    "按路径 / 内容去重（重复并入第二次基本全跳过）；源库不会被修改。").ConfigureAwait(false))
+            {
+                StatusText = "已取消合并。";
+                return;
+            }
+
+            _queue.Enqueue($"合并库 {Path.GetFileName(dbPath)}", async (ct, p) =>
+            {
+                var result = await Task.Run(() => _merge.Merge(dbPath, p, ct), ct).ConfigureAwait(false);
+                // 🔴 合并后的刷新跑在 UI 线程：刷新本身抛异常会变成未处理异常直接崩程序 ⇒ 必须兜住
+                Dispatcher.UIThread.Post(() =>
+                {
+                    try { Reload(); }
+                    catch (Exception ex) { StatusText = "合并后刷新列表失败：" + ex.Message; }
+                });
+                p.Report(result.Ok ? result.Message : "失败：" + result.Message);
+            });
+            StatusText = "已把合并任务排进队列——正在打开「任务中心」看进度。";
+            _navStore.NavigateTo("assets-tasks");
         }
-
-        _queue.Enqueue($"合并库 {Path.GetFileName(dbPath)}", async (ct, p) =>
+        catch (Exception ex)
         {
-            var result = await Task.Run(() => _merge.Merge(dbPath, p, ct), ct).ConfigureAwait(false);
-            try { Dispatcher.UIThread.Post(Reload); } catch { /* 已关闭 */ }
-            p.Report(result.Ok ? result.Message : "失败：" + result.Message);
-        });
-        StatusText = "已把合并任务排进队列——正在打开「任务中心」看进度。";
-        _navStore.NavigateTo("assets-tasks");
+            // 兜底：合并链上任何未预期异常（确认框 / 导航 / 入队）都不许把程序带崩
+            StatusText = "合并失败：" + ex.Message;
+        }
     }
 
     /// <summary>
@@ -308,8 +338,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         TagService? tagSvc = null, CategoryService? catSvc = null, CollectionService? colSvc = null,
         RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null,
         FileOperationService? fileOps = null, AssetImportExport? impExp = null, AssetMergeService? merge = null,
-        TaskQueue? queue = null)
-        : base(cols)
+        TaskQueue? queue = null, IOptionsStore? opts = null)
+        : base(cols, opts)
     {
         _assets = assets;
         _scan = scan;
@@ -325,59 +355,85 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _merge = merge!;
         _queue = queue!;
 
-        // NT-031：视频专属列默认显隐 —— 视频页（assets-video）默认可见（不进字典 = 默认可见），
-        // 其余页默认隐藏（显式置 false）。LoadLayout 之后读回用户已保存的偏好会覆盖这里的默认。
-        if (PageKey != "assets-video")
-        {
-            SetColumnVisible("Duration", false);
-            SetColumnVisible("Resolution", false);
-            SetColumnVisible("Codec", false);
-        }
+        _columnLayout = cols;
 
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
-        BuildStaticOptions();               // 类型 / 状态（固定值）
+        CaptureUserColumnPrefs();           // v3.69：记下用户显式设过的列 ⇒ 类型默认不覆盖它们
+        BuildStaticOptions();               // 类型 / 状态（固定值；设 FilterType ⇒ 触发类型列默认 + 状态栏前缀）
         Reload();                           // 存储源 / 标签下拉要读库 → 放在读库之后
         LoadDetail(null);
 
+        _booted = true;                     // NT-064：ctor 期间的筛选默认值不触发重取（Reload 已统一加载）
         StatusText = StatusSummary();
     }
 
-    // ==================== v3.34：类型页「薄壳」共用的两处缝 ====================
+    /// <summary>NT-064：构造期卫哨 —— BuildStaticOptions 设的筛选默认值⛔不各触发一次全页重取。</summary>
+    private bool _booted;
+
+    // ==================== v3.69：类型切换（NT-063 P2，取代原「类型页薄壳」）====================
 
     /// <summary>
-    /// 状态栏前缀（v3.34）：5 个类型页（<c>AssetVideoViewModel</c> 等）覆写成 <c>"视频："</c> 之类；默认空串。
-    /// <para>🔴 覆写**必须写成常量表达式**（<c>protected override string StatusPrefix =&gt; "视频：";</c>），
-    /// ⛔ 别用字段 / 构造期赋的值 —— 基类构造函数里就会读它写状态栏，那一刻派生类的字段还没初始化。</para>
+    /// 状态栏前缀**随筛选类型切换**（v3.69，需求 §6.6「类型切换」）：视频：/ 音乐：/ 书籍：/ 图片：/ 文档：；
+    /// 「全部」= 空串。原来由 5 个类型页 VM 覆写 <c>StatusPrefix</c>，合并后改由本属性按 <see cref="FilterType"/> 推导。
     /// </summary>
-    protected virtual string StatusPrefix => "";
+    private string StatusPrefix => FilterType?.Value switch
+    {
+        AssetTypes.Video => "视频：",
+        AssetTypes.Music => "音乐：",
+        AssetTypes.Book => "书籍：",
+        AssetTypes.Image => "图片：",
+        AssetTypes.Document => "文档：",
+        _ => ""
+    };
 
-    /// <summary>一次读库的最大行数（v3.34）：超过时状态栏**显式提示**，⛔ 不再静默截断。</summary>
+    /// <summary>当前筛选类型 = 视频（v3.69）：驱动视频专属列与详情卡字段的显隐。</summary>
+    public bool IsVideoType => string.Equals(FilterType?.Value, AssetTypes.Video, StringComparison.Ordinal);
+
+    /// <summary>
+    /// v3.69：类型驱动的列默认显隐 —— 视频 = 「时长 / 分辨率 / 编码」三列可见，其余类型隐藏。
+    /// <para>🔴 ⛔ **不落盘**（<c>SetColumnVisible</c> 只改内存）；用户右键改过的偏好（落盘的那些键）
+    /// **不被覆盖** —— 需求 §6.6「二者不互相覆盖」。</para>
+    /// </summary>
+    private void ApplyTypeColumnDefaults()
+    {
+        ApplyTypeColumnDefault("Duration", IsVideoType);
+        ApplyTypeColumnDefault("Resolution", IsVideoType);
+        ApplyTypeColumnDefault("Codec", IsVideoType);
+    }
+
+    private void ApplyTypeColumnDefault(string key, bool visible)
+    {
+        if (_userColumnKeys.Contains(key)) return;   // 用户显式设过 ⇒ 偏好优先
+        SetColumnVisible(key, visible);
+    }
+
+    /// <summary>v3.69：把「用户显式设过（落盘）的列键」记下来（类型驱动的默认不覆盖它们）。</summary>
+    private void CaptureUserColumnPrefs()
+    {
+        _userColumnKeys.Clear();
+        if (_columnLayout == null) return;
+        foreach (var k in _columnLayout.LoadPage(PageKey).Keys) _userColumnKeys.Add(k);
+    }
+
+    /// <summary>一次读库的最大行数（v3.34）：NT-064 分页后本页不再整表读，
+    /// 该上限仅剩同模块其它页（回收站 / 分类 / 集合）在用。</summary>
     public const int QueryLimit = 2000;
 
-    /// <summary>库里资产数 ≥ <see cref="QueryLimit"/> → 列表只显示前 N 条（状态栏提示）。</summary>
-    private bool _truncated;
-
-    /// <summary>截断提示后缀（没截断时为空串）。</summary>
-    private string TruncatedHint => _truncated ? $"（库中超过 {QueryLimit} 条，仅显示前 {QueryLimit} 条）" : "";
-
-    /// <summary>列表概况文案（状态栏用）：类型前缀 + 条数 + 截断提示。派生类构造末尾可调它刷新文案。</summary>
-    protected string StatusSummary() => IsDbAvailable
-        ? $"{StatusPrefix}共 {Items.Count} 个资产" + (Items.Count == 0 ? "（点「📂 导入」添加存储源或文件）" : "") + TruncatedHint
-        : $"{StatusPrefix}资产库不可用（数据库打不开）——本页只读，不会崩。";
+    /// <summary>NT-064：本页为分页样板页 —— 库模式走 SQL 侧筛/排/分页（⛔ 不再整表入内存）。</summary>
+    protected override bool PagingEnabled => true;
 
     /// <summary>
-    /// v3.34：把筛选条的「类型」预设为某个类型（**类型页薄壳**构造末尾调一次）。
-    /// <para>基类构造已把全量行装进内存 → 这里只**重算视图**（<c>FilterType</c> 一变即触发
-    /// <c>OnFilterTypeChanged → ApplyView</c>），⛔ **不重查库**。</para>
-    /// <para>🔴 「类型」是**页面属性**（筛选条下拉），不在基类 <c>Filters</c> 里 ——
-    /// 所以点「🧹 清除筛选（全部列）」或表头右键快捷筛选**不会把它清掉**（这正是类型页要的语义）。</para>
+    /// NT-064：草稿态同样分页 —— 2026-10-16 用户定：**扫描预览也要能翻页 + 显示底栏跳转链**。
+    /// ⛔ 因此不再 override <c>IsPagingSuspended</c>（基类默认 false = 不挂起）：
+    /// 草稿态在 <see cref="ApplyViewMemory"/> 里用 LINQ 的 Skip/Take 做**内存切片**（比 SQL 更简单）。
     /// </summary>
-    protected void SetPresetType(string type)
-    {
-        var hit = TypeOptions.FirstOrDefault(o => string.Equals(o.Value, type, StringComparison.Ordinal));
-        if (hit != null) FilterType = hit;      // → OnFilterTypeChanged → ApplyView
-        StatusText = StatusSummary();           // 条数文案跟上（基类构造里写的是"全部"的条数）
-    }
+
+    /// <summary>列表概况文案（状态栏用）：类型前缀（v3.69 起随筛选类型切换）+ 总数（COUNT(*)）+ 当前页位置。</summary>
+    protected string StatusSummary() => IsDbAvailable
+        ? $"{StatusPrefix}共 {TotalCount} 个资产"
+          + (TotalCount == 0 ? "（点「📂 导入」添加存储源或文件）" : "")
+          + (PagingEnabled && PageCount > 1 ? $"（{PageText}）" : "")
+        : $"{StatusPrefix}资产库不可用（数据库打不开）——本页只读，不会崩。";
 
     // ==================== 加载 ====================
 
@@ -386,21 +442,49 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         Reload();
         StatusText = IsDbAvailable
-            ? $"{StatusPrefix}已重读资产库：共 {Items.Count} 个资产" + TruncatedHint
+            ? $"{StatusPrefix}已重读资产库：共 {TotalCount} 个资产"
             : $"{StatusPrefix}资产库不可用（数据库打不开）。";
     }
 
     private void Reload()
     {
         _all.Clear();
-        if (!IsDbAvailable) { _truncated = false; ApplyView(); return; }
-        AddRows(_assets.QueryRows(limit: QueryLimit));
-        _truncated = _all.Count >= QueryLimit;   // v3.34：截断了就明说（⛔ 不再静默少显示）
+        if (!IsDbAvailable) { TotalCount = 0; ApplyView(); return; }
         RebuildStorageOptions();
         RebuildTagOptions();
         RebuildTargetStorages();
+        LoadPageFromDb();
+    }
+
+    /// <summary>
+    /// NT-064：按当前筛选 / 排序 / 分页状态从库里取一页。
+    /// 🔴 计数与列表传**同一个** <see cref="AssetQuery"/>（WHERE 只在 SQL 侧写一份）⇒ 总数与列表永不错位。
+    /// </summary>
+    private void LoadPageFromDb()
+    {
+        _all.Clear();
+        var before = PageIndex;
+        var q = BuildQuery();
+        TotalCount = _assets.CountAssets(q);      // 独立 COUNT(*)（⛔ 不用当前页条数充当总数）
+        ClampPageIndex();                          // 删除 / 筛选后总数变少 ⇒ 页码收敛（越界时自动重取）
+        if (PageIndex != before) return;           // 已收敛 ⇒ 嵌套的 RefreshView 按新页码重取过了，⛔ 外层别再取一遍
+        AddRows(_assets.QueryPage(q with { Offset = (PageIndex - 1) * PageSize, Limit = PageSize }));
         ApplyView();
     }
+
+    /// <summary>把页面上的筛选 / 排序状态打成 <see cref="AssetService.AssetQuery"/>（计数与取页共用）。</summary>
+    private AssetService.AssetQuery BuildQuery() => new(
+        Search: SearchText,
+        Type: FilterType?.Value,
+        Status: FilterStatus?.Value,
+        StorageId: FilterStorage?.Value,
+        // 标签下拉存的是 id，SQL 侧按名字匹配（⛔ 别拿 id 比文本）
+        TagName: FilterTag != null
+            ? TagOptions.FirstOrDefault(o => o.Value == FilterTag.Value)?.Label
+            : null,
+        Clauses: Filters.Where(f => f.IsActive).ToList(),
+        SortColumn: SortColumn,
+        SortDescending: SortDescending);
 
     // ==================== 导入：文件夹 / 文件（由 View 弹选择框后调用） ====================
 
@@ -409,6 +493,31 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// 用户看完决定：💾 加入库（<see cref="CommitDraftCommand"/>）或 🧹 清除列表（<see cref="ClearListCommand"/>）。
     /// </summary>
     [ObservableProperty] private bool _isDraft;
+
+    /// <summary>
+    /// NT-064：草稿态⇄库态切换 ⇒ <see cref="ListPageViewModelBase.IsPagingSuspended"/> 变了，
+    /// 底栏显隐（HasFooterContent）/ 页码跳组（HasPaging）必须重算 —— ⛔ 没有这一跳，
+    /// 「扫描预览（挂起不显示）→ 加入库 / 清除（恢复分页）」后底栏显隐停在旧值。
+    /// </summary>
+    partial void OnIsDraftChanged(bool value)
+    {
+        OnPropertyChanged(nameof(HasFooterContent));
+        OnPropertyChanged(nameof(HasPaging));
+        OnPropertyChanged(nameof(PageText));
+    }
+
+    /// <summary>
+    /// NT-064：宿主页挂载时强制重算一次底栏显隐 —— 兜住「View 绑定建立早于 VM 数据就绪」
+    /// 的时序漏推（绑定求值一次后若无属性变更事件，底栏显隐会停在旧值）。
+    /// </summary>
+    public void RefreshFooterVisibility()
+    {
+        OnPropertyChanged(nameof(TotalCount));
+        OnPropertyChanged(nameof(PageCount));
+        OnPropertyChanged(nameof(PageText));
+        OnPropertyChanged(nameof(HasPaging));
+        OnPropertyChanged(nameof(HasFooterContent));
+    }
 
     /// <summary>扫描是否**含子目录**（默认开；与视频列表页一致）。</summary>
     [ObservableProperty] private bool _recursive = true;
@@ -448,7 +557,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             var progress = PostProgress();
             var rows = await _scan.PreviewAsync(dir, Recursive, progress, CancellationToken.None).ConfigureAwait(false);
             LoadDraft(rows);
-            StatusText = $"预览到 {Items.Count} 个：点「💾 加入库」保存，或「🧹 清除列表」换文件夹重扫。";
+            StatusText = $"预览到 {TotalCount} 个：点「💾 加入库」保存，或「🧹 清除列表」换文件夹重扫。";
         }
         catch (Exception ex) { StatusText = "预览失败：" + ex.Message; }
         finally { IsBusy = false; }
@@ -483,7 +592,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             catch { /* 单个文件读不了 → 跳过 */ }
         }
         LoadDraft(rows);
-        StatusText = $"预览到 {Items.Count} 个文件：点「💾 加入库」保存，或「🧹 清除列表」放弃。";
+        StatusText = $"预览到 {TotalCount} 个文件：点「💾 加入库」保存，或「🧹 清除列表」放弃。";
         return Task.CompletedTask;
     }
 
@@ -494,6 +603,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         AddRows(rows);
         Selected = null;
         IsDraft = true;
+        TotalCount = rows.Count;   // NT-064：草稿态总数 = 预览行数（分页挂起，⛔ 不走 SQL）
         ApplyView();
     }
 
@@ -582,11 +692,31 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 用**系统默认程序**打开 <c>newtoys.db</c>（装了 DB Browser for SQLite 之类的工具就能直接看表）。
-    /// ⛔ 打开的是只读副本视角：别的程序占用时 SQLite 的 WAL 模式仍允许我们继续写，但**别在工具里改数据**。
+    /// 「📂 打开库所在文件夹」：在资源管理器打开 db 所在目录（**路径形式**，⛔ 不指向具体文件）。
+    /// 🔴 2026-10-16 用户定稿：原「🔎 打开当前库文件」用系统默认程序直接开 .db ——
+    /// 没装 DB Browser 之类的工具必然报「打不开」；改成开所在目录，用户在里面手动选。
     /// </summary>
     [RelayCommand]
-    private void OpenDbFile() => Launch(_assets.DatabasePath, true, "库文件");
+    private void OpenDbFile()
+    {
+        var db = _assets.DatabasePath;
+        var dir = string.IsNullOrEmpty(db) ? "" : Path.GetDirectoryName(Path.GetFullPath(db)) ?? "";
+        if (dir.Length == 0 || !Directory.Exists(dir))
+        {
+            StatusText = $"库所在目录不存在：{dir}";
+            return;
+        }
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
+            {
+                UseShellExecute = true,
+                Arguments = $"\"{dir}\""
+            });
+            StatusText = $"已在资源管理器打开库所在目录：{dir}";
+        }
+        catch (Exception ex) { StatusText = "打开库所在目录失败：" + ex.Message; }
+    }
 
     // ==================== ③ 登记文件夹 + 扫描全部（直接入库） ====================
 
@@ -662,7 +792,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     // ==================== v3.34 / NT-018：勾选列 + 批量逻辑操作 ====================
 
-    /// <summary>行被勾了几条（工具条「🏷 加标签」「📚 加集合」按它操作）。</summary>
+    /// <summary>
+    /// 行被勾了几条（工具条「🏷 加标签」「📚 加集合」按它操作）。
+    /// <para>口径 = <c>_all</c> 里被勾的行数，而 <c>_all</c> 的语义分两态：
+    /// <b>库态</b> = 当前页（翻页会重建 ⇒ 勾选**不跨页保留**）；
+    /// <b>草稿态</b> = 全部预览行（对象一直在内存 ⇒ 勾选**天然跨页保留**）。
+    /// 这是分页列表的常规行为，⛔ 别理解成 bug —— 想一次勾全部就把底栏「每页」切到「全部」。</para>
+    /// </summary>
     public int CheckedCount => _all.Count(r => r.IsChecked);
 
     public bool HasChecked => CheckedCount > 0;
@@ -676,17 +812,31 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// </summary>
     [ObservableProperty] private bool? _allCheckedState = false;
 
-    /// <summary>表头 ☑ 点一下：当前不是"全选"就全选，否则全不选。</summary>
+    /// <summary>
+    /// 表头 ☑ 点一下：当前不是"全选"就全选（**只勾当前页**），否则全不选（**跨页全清**）。
+    /// <para>2026-10-16 用户定「跟随分页」：<see cref="Items"/> = 当前页可见行；
+    /// 底栏「每页」选「全部」（<see cref="ListPageViewModelBase.AllPageSize"/>）时 当前页 = 全部 ⇒ 间接实现全量选择。</para>
+    /// </summary>
     [RelayCommand]
     private void ToggleAll()
     {
         var target = AllCheckedState != true;
-        foreach (var r in _all) r.IsChecked = target;
+        if (target)
+        {
+            foreach (var r in Items) r.IsChecked = true;      // 只勾当前页
+        }
+        else
+        {
+            // ⛔ 取消必须清**全部行**（只清当前页会在别的页留看不见的勾，下一步「加入库」误提交）
+            foreach (var r in _all) r.IsChecked = false;
+        }
         RefreshChecked();
-        StatusText = target ? $"已全选 {_all.Count} 条。" : "已取消全选。";
+        StatusText = target
+            ? $"已全选当前页 {Items.Count} 条，累计勾选 {CheckedCount} 条。"
+            : "已取消全选（其它页的勾选也一并清掉）。";
     }
 
-    /// <summary>表头右键：取消选择。</summary>
+    /// <summary>表头右键：取消选择（跨页全清）。</summary>
     [RelayCommand]
     private void SelectNone()
     {
@@ -695,20 +845,24 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = "已取消选择。";
     }
 
-    /// <summary>表头右键：反选。</summary>
+    /// <summary>表头右键：反选（**只反当前页**）。</summary>
     [RelayCommand]
     private void InvertSelection()
     {
-        foreach (var r in _all) r.IsChecked = !r.IsChecked;
+        foreach (var r in Items) r.IsChecked = !r.IsChecked;
         RefreshChecked();
-        StatusText = $"已反选，当前勾选 {CheckedCount} 条。";
+        StatusText = $"已反选当前页，累计勾选 {CheckedCount} 条。";
     }
 
-    /// <summary>重算勾选计数与表头三态（行的 IsChecked 一变就会被调）。</summary>
+    /// <summary>
+    /// 重算勾选计数与表头三态（行的 IsChecked 一变就会被调）。
+    /// <para>🔴 三态按**当前页**（<see cref="Items"/>）算：用户盯着屏幕上的格点表头 ☑，
+    /// 「部分选中」必须对应看得见的行；计数（<see cref="CheckedCount"/>）仍按跨页累计。</para>
+    /// </summary>
     public void RefreshChecked()
     {
-        var total = _all.Count;
-        var n = _all.Count(r => r.IsChecked);
+        var total = Items.Count;
+        var n = Items.Count(r => r.IsChecked);
         AllCheckedState = total == 0 ? false : n == 0 ? false : n == total ? true : null;
 
         OnPropertyChanged(nameof(CheckedCount));
@@ -958,7 +1112,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _opLog.Log("display_name", "asset", row.Id, beforeJson: before,
             afterJson: $"{{\"name\":\"{row.Name}\",\"rating\":{EditRating},\"tags\":{tagIds.Count},\"categories\":{catIds.Count},\"collections\":{colIds.Count}}}");
 
-        ApplyView();
+        RefreshView();   // NT-064：标签/分类/集合变了 ⇒ 按当前筛重排重取（选中项按 Id 认领，⛔ 不跳走）
         StatusText = $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。";
     }
 
@@ -1197,6 +1351,31 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         ValuePath = "DetailRow.FilePath",
                         Kind = FieldKind.Text,
                         Selectable = true
+                    },
+                    // ===== v3.69 / NT-063 P2：视频专属字段（仅筛选类型 = 视频时显示；列同理）=====
+                    new DetailField
+                    {
+                        Label = "时长",
+                        ValuePath = "DetailRow.DurationText",
+                        Kind = FieldKind.Text,
+                        Selectable = true,
+                        VisibleWhen = nameof(IsVideoType)
+                    },
+                    new DetailField
+                    {
+                        Label = "分辨率",
+                        ValuePath = "DetailRow.ResolutionText",
+                        Kind = FieldKind.Text,
+                        Selectable = true,
+                        VisibleWhen = nameof(IsVideoType)
+                    },
+                    new DetailField
+                    {
+                        Label = "编码",
+                        ValuePath = "DetailRow.CodecText",
+                        Kind = FieldKind.Text,
+                        Selectable = true,
+                        VisibleWhen = nameof(IsVideoType)
                     },
                     // ⛔ 已删：原「重命名 / 移动 / 复制 / 删除磁盘文件在 NT-019 落地」这句提示 —— 那些操作早已落地，
                     //    提示留着只是噪声（NT-058 样板：固定项区只留**事实**，不放实现进度）。
@@ -1463,7 +1642,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         Selected.DisplayName = name.Length == 0 ? null : name;
         Selected.Name = name.Length == 0 ? (Selected.Title ?? $"资产 #{Selected.Id}") : name;
 
-        ApplyView();
+        RefreshView();   // NT-064：显示名变了 ⇒ 按当前排序重取（选中项按 Id 认领，⛔ 不跳走）
         StatusText = name.Length == 0
             ? "已清除显示名（回退到标题）。"
             : $"已把显示名改为「{name}」（⛔ 未动磁盘文件）。";
@@ -1516,11 +1695,29 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                                   ?? TargetStorages.FirstOrDefault()?.Id ?? 0;
     }
 
-    partial void OnSearchTextChanged(string value) => ApplyView();
-    partial void OnFilterTypeChanged(FilterOption? value) => ApplyView();
-    partial void OnFilterStorageChanged(FilterOption? value) => ApplyView();
-    partial void OnFilterStatusChanged(FilterOption? value) => ApplyView();
-    partial void OnFilterTagChanged(FilterOption? value) => ApplyView();
+    partial void OnSearchTextChanged(string value)
+    {
+        if (_booted) ResetToFirstPage();
+    }
+    partial void OnFilterTypeChanged(FilterOption? value)
+    {
+        ApplyTypeColumnDefaults();               // v3.69：列集合随类型切换（⛔ 不落盘、不覆盖用户偏好）
+        OnPropertyChanged(nameof(IsVideoType));  // v3.69：详情卡字段集随类型切换（VisibleWhen 重解析）
+        if (_booted) ResetToFirstPage();         // NT-064：筛选变了回第一页（库态 ⇒ 重取一页）
+        StatusText = StatusSummary();            // v3.69：状态栏前缀随类型切换
+    }
+    partial void OnFilterStorageChanged(FilterOption? value)
+    {
+        if (_booted) ResetToFirstPage();
+    }
+    partial void OnFilterStatusChanged(FilterOption? value)
+    {
+        if (_booted) ResetToFirstPage();
+    }
+    partial void OnFilterTagChanged(FilterOption? value)
+    {
+        if (_booted) ResetToFirstPage();
+    }
 
     // ==================== 工具条「⋯ 更多」开合（v3.41 / 用户定调） ====================
 
@@ -1528,7 +1725,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     // 🔴 v3.53：本页工具条改由 **Shell 的 ToolbarHost 统一渲染**（折叠 / 「⋯」/ 详情开关浮层都在那边实现），
     //    页内 `Border.toolbar` 与原来的 `ApplyToolbarLayout()` / `IsToolbarExpanded` 一并删除。
     //    顺序 = 优先级顺序（越靠前越不会被折进「⋯」）。
-    // ⚠️ 5 个类型薄壳页（assets-video/music/book/image/document）**继承本类** ⇒ 一次覆盖 6 个页面。
+    // ⚠️ v3.69 起 5 个类型薄壳页已合并（NT-063 P2）⇒ 本工具条只服务「全部资产」一页。
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
@@ -1563,19 +1760,31 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 ToolTip = "把另一个 newtoys.db 合并进当前库（按路径/内容去重；源库只读；进度看任务中心）",
                 Items = new ToolbarMenuItemDescriptor[]
                 {
-                    new() { Text = "🔎 打开当前库文件", CommandPath = nameof(OpenDbFileCommand), ToolTipPath = nameof(DatabasePath) },
+                    new() { Text = "📂 打开库所在文件夹", CommandPath = nameof(OpenDbFileCommand), ToolTipPath = nameof(DatabasePath),
+                            ToolTip = "在资源管理器打开库所在目录（路径形式；⛔ 不直接开 .db 文件，避免没装查看工具时打不开）" },
                 } },
         new() { Text = "💿 另存为…", CommandPath = nameof(PickSaveLibraryAsCommand), IsEnabledPath = nameof(IsDbAvailable),
                 ToolTip = "把当前资产库另存成一个 .db（备份 / 交付用）" },
-        new() { Text = "📤 导出", CommandPath = nameof(ExportAssetsCommand), ToolTip = "把当前列表导成 json（含标签 / 分类 / 集合的名字）" },
-        new() { Text = "📥 导入", CommandPath = nameof(ImportAssetsCommand), ToolTip = "选一个导出的 json 追加合并进库（按路径去重，⛔ 不静默覆盖）" },
+        new() { Text = "📤 导出", CommandPath = nameof(ExportAssetsCommand),
+                ToolTip = "导出当前列表：.json = 列表（含标签 / 分类 / 集合名字）；.db = 整个资产库另存（备份 / 交付）" },
+        new() { Text = "📥 导入", CommandPath = nameof(ImportAssetsCommand),
+                ToolTip = "把 json 列表 / newtoys.db 加载到列表**预览**（⛔ 不写库）；看完点「💾 加入库」才写入" },
         new() { Text = "🧠 存为智能集合", IsEnabled = false, ToolTip = "智能集合需要规则求值（未实装）" },
     };
 
     /// <summary>「📁 扫描」主按钮 / 「📁 文件夹…」：选目录 → **预览**（⛔ 只进内存、不入库）。</summary>
+    /// <para>🔴 主按钮（SplitButton 主体）：输入框里已有**有效目录** ⇒ 直接扫它（⛔ 不弹选择框）——
+    /// 2026-10-16 用户反馈「输入框有路径，点扫描不读取」；空 / 不存在时才弹选择框。</para>
     [RelayCommand]
     private async Task ScanFolderAsync()
     {
+        var typed = (ImportPath ?? "").Trim().Trim('"');
+        if (typed.Length > 0)
+        {
+            if (!Directory.Exists(typed)) { StatusText = $"目录不存在：{typed}"; return; }
+            await PreviewFolderAsync(typed).ConfigureAwait(false);
+            return;
+        }
         var dir = await DialogHooks.PickFolderAsync("选择要扫描的目录", ImportExportDefaultDir);
         if (string.IsNullOrWhiteSpace(dir)) return;
         await PreviewFolderAsync(dir).ConfigureAwait(false);
@@ -1622,31 +1831,62 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         SaveLibraryAsCommand.Execute(path);
     }
 
-    /// <summary>「📤 导出」：把当前列表导成 json（含标签 / 分类 / 集合的名字）。</summary>
+    /// <summary>
+    /// 「📤 导出」：按所选格式导出 —— .json = 当前列表（含标签 / 分类 / 集合的名字）；
+    /// .db = **整个资产库**另存（备份 / 交付用，复用「💿 另存为…」同一命令）。
+    /// </summary>
     [RelayCommand]
     private async Task ExportAssetsAsync()
     {
-        var path = await DialogHooks.SaveFileAsync("导出资产列表", ImportExportDefaultDir, "media-assets.json", "*.json");
+        var path = await DialogHooks.SaveFileAsync("导出资产列表", ImportExportDefaultDir, "media-assets.json",
+            "JSON 列表（*.json）|*.json|SQLite 库（*.db）|*.db");
         if (string.IsNullOrWhiteSpace(path)) return;
         try
         {
+            if (string.Equals(Path.GetExtension(path), ".db", StringComparison.OrdinalIgnoreCase))
+            {
+                SaveLibraryAsCommand.Execute(path);      // 整库另存（已有命令：已存在会问覆盖）
+                return;                                  // 结果文案由 SaveLibraryAsAsync 自己发
+            }
             File.WriteAllText(path, ExportAssetsJson());
             StatusText = $"已导出当前列表到：{path}";
         }
         catch (Exception ex) { StatusText = "导出失败：" + ex.Message; }
     }
 
-    /// <summary>「📥 导入」：选一个导出的 json 追加合并进库（按路径去重，⛔ 不静默覆盖）。</summary>
+    /// <summary>
+    /// 「📥 导入」：把 db / json 的内容**加载到列表显示（草稿态预览）**——⛔ 不写库、⛔ 不弹确认、⛔ 不入队。
+    /// 2026-10-16 用户定稿：导入只作为草稿上列表，要不要进库由「💾 加入库」决定（与扫描预览同语义）。
+    /// </summary>
     [RelayCommand]
     private async Task ImportAssetsAsync()
     {
-        var files = await DialogHooks.PickFilesAsync("选择要导入的资产 json", ImportExportDefaultDir, false, "*.json");
+        var files = await DialogHooks.PickFilesAsync("选择要导入预览的资产（json 列表 / newtoys.db）",
+            ImportExportDefaultDir, false, "*.json;*.db");
         var src = files.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(src)) return;
         try
         {
-            var result = ImportAssetsJson(File.ReadAllText(src));
-            StatusText = result.Message;
+            List<AssetRow> rows;
+            string what;
+            if (string.Equals(Path.GetExtension(src), ".db", StringComparison.OrdinalIgnoreCase))
+            {
+                var (ok, msg, dbRows) = _merge.ReadAssets(src);
+                if (!ok) { StatusText = msg; return; }
+                rows = dbRows;
+                what = $"从「{Path.GetFileName(src)}」";
+            }
+            else
+            {
+                var (ok, msg, jsonRows) = _impExp.Parse(File.ReadAllText(src));
+                if (!ok) { StatusText = msg; return; }
+                rows = jsonRows;
+                what = $"从「{Path.GetFileName(src)}」";
+            }
+            if (rows.Count == 0) { StatusText = "没有可显示的条目。"; return; }
+
+            LoadDraft(rows);
+            StatusText = $"已导入预览 {rows.Count} 条{what}（未入库存）：点「💾 加入库」写入资产库，或「🧹 清除列表」放弃。";
         }
         catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
     }
@@ -1654,6 +1894,27 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     // ==================== 过滤 / 排序 ====================
 
     private void ApplyView()
+    {
+        // NT-064：草稿态（扫描预览）走内存路径；库态 _all 即当前页（SQL 已筛/排过分）⇒ 直接渲染
+        if (IsDraft) { ApplyViewMemory(); return; }
+
+        Items.Clear();
+        foreach (var r in _all) Items.Add(r);
+
+        // 翻页 / 重取后选中项落到页内第一条（验收标准②；⛔ 不留在已不可见的旧行上）。
+        // 同一资产换了对象实例（重取）⇒ 按 Id 认领，保详情卡不跳走；真不在本页才落到第一条。
+        if (Selected != null && !Items.Contains(Selected))
+            Selected = Items.FirstOrDefault(r => r.Id == Selected.Id)
+                       ?? (Items.Count > 0 ? Items[0] : null);
+
+        UpdateHeaders();
+        RefreshChecked();                          // 列表重建 → 勾选计数 / 表头三态跟上
+        OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(HasSelection));
+    }
+
+    /// <summary>草稿态专用：筛选 + 排序全在内存做（数据不在库里，⛔ 无分页）。</summary>
+    private void ApplyViewMemory()
     {
         IEnumerable<AssetRow> q = _all;
 
@@ -1702,14 +1963,37 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         };
 
         var ordered = q.ToList();
+
+        // 🔴 NT-064（2026-10-16 用户定：草稿态跟随分页）：**内存侧** Skip/Take 切片
+        //    —— 上面的筛选 / 排序已经做完，这里切出来的就是「当前页」。
+        //    ⛔ TotalCount 必须是**筛选后**的总数（不能用 Items.Count = 当页行数，否则「共 N 页」永远是 1）。
+        //    PageSize = AllPageSize（下拉选「全部」）⇒ 不分片，等于不分页。
+        var total = ordered.Count;
+        TotalCount = total;
+
+        // 页码越界自动收敛（删行 / 收紧筛选后 TotalCount 变小才会碰上）⇒ 直接 return，setter 会带着新页码再跑一遍
+        var pages = total <= 0 ? 0
+            : PageSize >= ListPageViewModelBase.AllPageSize ? 1
+            : (total - 1) / PageSize + 1;
+        if (pages > 0 && PageIndex > pages) { PageIndex = pages; return; }
+
         Items.Clear();
-        foreach (var r in ordered) Items.Add(r);
+        if (PageSize >= ListPageViewModelBase.AllPageSize || PageSize >= total)
+        {
+            foreach (var r in ordered) Items.Add(r);
+        }
+        else
+        {
+            // PageSize 走到这里必然是有限值 ⇒ skip 不会溢出（≤ total）
+            foreach (var r in ordered.Skip((PageIndex - 1) * PageSize).Take(PageSize)) Items.Add(r);
+        }
 
         if (Selected != null && !Items.Contains(Selected)) Selected = null;
         UpdateHeaders();
         RefreshChecked();                          // 列表重建 → 勾选计数 / 表头三态跟上
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(HasPaging));       // 切片后页数变了 ⇒ 底栏跳转链跟着出现/消失
     }
 
     private IOrderedEnumerable<AssetRow> Order<TKey>(IEnumerable<AssetRow> q, Func<AssetRow, TKey> key)

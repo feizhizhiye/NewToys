@@ -13,7 +13,7 @@ namespace NewToys.Core.Services;
 /// <summary>
 /// 模块加载器（v3.26 起，需求 §3.4）：**必载清单 + 目录扫描**两步——
 /// <list type="bullet">
-///   <item><b>必载清单</b>：框架组件（<c>Module.Settings</c>，物理必备）由调用方传入，先加载；
+///   <item><b>必载清单</b>：由调用方传入，先于目录扫描加载（NT-062 起 Release 为空 —— 应用级设置已归 Shell 自带）；
 ///         Debug 同时把功能模块也放进清单（程序集延迟加载，纯扫描一个都扫不到 →「左侧菜单全空」）。</item>
 ///   <item><b>目录扫描</b>：随后扫 <c>&lt;程序目录&gt;\Modules\</c> 下的 DLL 补功能模块，
 ///         跳过已加载同名（Shared/Core、以及清单里已加载的模块由此跳过）。</item>
@@ -25,6 +25,13 @@ public static class ModuleLoader
 
     /// <summary>Release 模式下扫描的模块目录名（相对程序目录）。</summary>
     public const string ModulesSubDirectory = "Modules";
+
+    /// <summary>
+    /// Shell 的**不渲染宿主分组**键（v3.66）：应用级设置的节锚点 + 功能清单页挂它名下
+    /// （<c>IsHome=true</c> ⇒ 左树 / 首页模块计数 / 功能清单页都跳过它）。
+    /// ⚠️ 与 <c>AppSettingsRegistration.HiddenGroupKey</c> 必须一致（跨程序集，故此处各留一份常量）。
+    /// </summary>
+    private const string HostGroupKey = "system";
 
     /// <param name="services">DI 容器</param>
     /// <param name="mandatoryModuleTypes">必载清单（框架组件置顶 + Debug 的功能模块）；⛔ 非 null。</param>
@@ -63,13 +70,15 @@ public static class ModuleLoader
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"模块 {m.GetType().Name} 初始化失败: {ex.Message}"); }
         }
 
-        // 健全性检查（v3.26，需求 §3.4）：必备的 settings 分组没注册上（Module.Settings 缺失 /
-        // 它的 Initialize 抛异常被上面的逐模块 try-catch 吞了）→ 报一行，⛔ 不静默。
-        // 启动不中断——框架自给（首页 / 一键启动不依赖任何功能模块），仅设置不可用。
+        // 健全性检查（v3.26，需求 §3.4；v3.66 口径更新）：Shell 的 AppSettingsRegistration 会建一个
+        // **IsHome 的不渲染宿主分组** `system`（应用级设置的节锚点 + 功能清单页挂它名下；
+        // v3.66 起左树不再有「设置」一级菜单项，模块设置各自挂回本模块分组）。
+        // 它没建上（漏调 / 抛异常被上面的逐模块 try-catch 吞了）→ 报一行，⛔ 不静默。
+        // 启动不中断——框架自给（首页 / 一键启动不依赖任何功能模块），仅设置入口与跳转不可用。
         var menu = sp.GetService<IMenuService>();
-        if (menu?.FindGroup("settings") == null)
+        if (menu?.FindGroup(HostGroupKey) == null)
             System.Diagnostics.Debug.WriteLine(
-                "[NewToys] 健全性检查：settings 分组未注册——Module.Settings 缺失或初始化失败，设置不可用（框架其余功能不受影响）。");
+                "[NewToys] 健全性检查：宿主分组未注册——Shell 的 AppSettingsRegistration 未执行或失败，设置入口与功能清单跳转不可用（框架其余功能不受影响）。");
         else if (menu is MenuService ms && ms.PendingCount > 0)
             // 暂存区还有孤儿项 = 有模块往一个始终没建立的分组注册过（典型 = 分组 key 打错）
             System.Diagnostics.Debug.WriteLine(

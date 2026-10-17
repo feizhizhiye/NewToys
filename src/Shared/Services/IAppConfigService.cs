@@ -16,11 +16,26 @@ namespace NewToys.Shared.Services
         /// </summary>
         string PlayerPath { get; set; }
 
+        /// <summary>
+        /// 🔴 v3.64 / NT-061：**已下沉到「视频工具」模块设置**（<c>config\video-tools.json</c> 的 <c>maxConcurrency</c>，
+        /// 唯一写入点 =「设置 → 视频工具设置」页）。这里**只为一次性迁移保留读取**（`VideoToolsSettingsService`
+        /// 首次运行会搬过去），搬完即不再读写。
+        /// </summary>
         int MaxConcurrency { get; set; }
-        bool GpuAcceleration { get; set; }
+        // v3.65 / NT-062：GpuAcceleration 已删除（无消费方）。旧 app.json 里的该键由
+        // System.Text.Json 默认忽略未知属性 ⇒ 反序列化容错，不报错。
 
-        /// <summary>配置文件完整路径（<c>%LocalAppData%\NewToys\config.json</c>）。</summary>
+        /// <summary>
+        /// <c>app.json</c> 全路径（v3.65 / NT-062：落**应用根**，即 <c>profiles\</c> 的同级 ——
+        /// 「运行环境」是应用级路由，⛔ 不随配置档切换；环境变量 <c>NEWTOYS_HOME</c> 可整体换根）。
+        /// </summary>
         string ConfigFilePath { get; }
+
+        /// <summary>
+        /// v3.65 / NT-062：<c>app.json</c> 由旧位置（<c>&lt;配置根&gt;\config\</c>）上提到**应用根**时留下的说明；
+        /// <c>null</c> = 本机没发生过迁移。设置页 / 排障可展示（记录迁移来源与时间点）。
+        /// </summary>
+        string? LegacyMigrationNote { get; }
 
         /// <summary>
         /// 应用数据根目录（媒体库 library.json、缩略图、各模块自己的数据都放这里）。
@@ -46,9 +61,13 @@ namespace NewToys.Shared.Services
         // 否则会出现"路径配置改了 exe、一键按钮还用旧 exe"这种双真相源问题（v1.19 收敛）。
 
         // ==================== 运行环境（脚本解释器 + 脚本目录，v1.33） ====================
-        // 用途：「电脑工具 → 设置与脚本」页里的**脚本文件**（.py / .ps1 / .bat）靠这几个路径跑起来。
+        // 用途：「脚本管理器 → 设置与脚本」页里的**脚本文件**（.py / .ps1 / .bat）靠这几个路径跑起来。
         // 前三个**留空 = 用系统默认**（从 PATH 里找 python / pwsh / powershell）；
         // 不填也能跑，只是机器上得真有那个解释器。
+        //
+        // 🔴 v3.65 / NT-062：**判据 = 语义** —— 外部程序路径描述"本机怎么跑外部程序"（应用级路由），
+        //    ⛔ 不随配置档切换 ⇒ 三个解释器路径**回迁为应用级**（唯一写入点 =「设置 → 路径与配置」页）。
+        //    仅 **ScriptFolder 留模块级**（「脚本管理器」设置，<c>config\script-manager.json</c>）。
 
         /// <summary>Python 解释器路径（exe 全路径，也可只写命令名）。留空 = 用 PATH 里的 python。</summary>
         string PythonPath { get; set; }
@@ -66,7 +85,11 @@ namespace NewToys.Shared.Services
         /// </summary>
         string UpdateUrl { get; set; }
 
-        /// <summary>脚本目录（「设置与脚本」页引用的脚本文件都放这里；留空 = <see cref="DefaultScriptFolder"/>）。</summary>
+        /// <summary>
+        /// ⚠️ 已定为**模块级**（v3.65 / NT-062）：脚本目录的唯一写入点 = 「设置 → 脚本管理器设置」
+        /// （<c>config\script-manager.json</c> 的 <c>scriptsFolder</c>）。这里**只为 NT-061 迁移保留读取**，
+        /// ⛔ 不再有 UI 写入它。
+        /// </summary>
         string ScriptFolder { get; set; }
 
         /// <summary>脚本目录的默认值：<c>&lt;应用根&gt;\scripts</c>（即 config / data 的同级）。</summary>

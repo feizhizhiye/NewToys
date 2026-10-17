@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:v="using:NewToys.MediaAssets.Controls"
+             xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetAllView">
   <!--
     NT-016「全部资产」样板列表页。
@@ -8,17 +8,33 @@
        承载（VM 实现 IDetailPanelProvider，详情卡已改由 Shell 声明式渲染（NT-054））。
        ⛔ 若本页再自带一栏，右列会出现两个详情卡（Shell 一个、页面一个）。
 
-    布局：工具条 / 筛选条 / 列表 三行（右列由 Shell 补上，凑成三列）。
+    NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（四段：顶区 = 筛选条 / 列表区 = 表头 + 列表 /
+        空态 / 底栏）—— card 容器、空态块、底栏壳由骨架统一提供（⛔ 行模板仍本页自写）。
+    NT-064：本页为分页样板页 —— 底栏插槽（计数 / 页码跳 / 页大小）整组绑 VM 的分页状态；
+        显隐 = HasFooterContent（VM：有多页 或 代码侧量到列表超出视口）。
   -->
-  <Grid RowDefinitions="Auto,Auto,*" Margin="12">
-
-    <!--  ==================== ① 工具条  ====================  -->
-    <!--  🔴 容器间距规则（v3.29，写进需求 §4.10.4）：横向流式容器（WrapPanel）**必须**给
-        ItemSpacing（元素间水平距）+ LineSpacing（换行后行与行的上下距）—— ⛔ 别让换行后的
-        两行按钮贴在一起（实测踩过：按钮一多换行，第二行顶死第一行）。  -->
+  <v:ListPageSkeleton EmptyMessage="没有可显示的资产。点「📥 导入」把导出的 json 合并进库，或用「📁 扫描」扫一个目录。"
+                      EmptyActionText="📥 导入"
+                      EmptyActionCommand="{Binding ImportAssetsCommand}"
+                      IsEmpty="{Binding !HasItems}"
+                      ShowFooter="{Binding HasFooterContent}"
+                      TotalCount="{Binding TotalCount}"
+                      SelectedCount="{Binding CheckedCount}"
+                      PageText="{Binding PageText}"
+                      ShowPaging="{Binding HasPaging}"
+                      PageCount="{Binding PageCount}"
+                      CurrentPage="{Binding PageIndex}"
+                      JumpToPageCommand="{Binding GoToPageCommand}"
+                      FirstCommand="{Binding FirstPageCommand}"
+                      PrevCommand="{Binding PrevPageCommand}"
+                      NextCommand="{Binding NextPageCommand}"
+                      LastCommand="{Binding LastPageCommand}"
+                      PageSizes="{Binding PageSizeChoices}"
+                      PageSize="{Binding PageSize, Mode=TwoWay}">
 
     <!--  ==================== ② 筛选条（改任一条件即时重算：VM 的 OnFilterXxxChanged → ApplyView）  ====================  -->
-    <Border Grid.Row="1" Classes="filter-bar">
+    <v:ListPageSkeleton.TopArea>
+    <Border Classes="filter-bar">
       <!--  🔴 v3.41（用户定调）：筛选条**恒为一行、且⛔不许出现滚动条**。
             筛选器数量是固定的（类型 / 存储源 / 状态 / 标签）⇒ 用 Grid 排死：
             标签 Auto + 四个 combo 各占等分星号 ⇒ 窗口变窄时 combo **自己跟着变窄**，永远不会溢出、也不需要滚动条；
@@ -42,20 +58,17 @@
                   HorizontalAlignment="Left"
                   ToolTip.Tip="按状态筛选（正常 / 已丢失 / 回收站 / 已归档）"
                   ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding FilterStatus, Mode=TwoWay}"/>
-        <ComboBox Grid.Column="4" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
-                  HorizontalAlignment="Left"
-                  ToolTip.Tip="按标签筛选"
-                  ItemsSource="{Binding TagOptions}" SelectedItem="{Binding FilterTag, Mode=TwoWay}"/>
+          <ComboBox Grid.Column="4" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+                    HorizontalAlignment="Left"
+                    ToolTip.Tip="按标签筛选"
+                    ItemsSource="{Binding TagOptions}" SelectedItem="{Binding FilterTag, Mode=TwoWay}"/>
       </Grid>
     </Border>
+    </v:ListPageSkeleton.TopArea>
 
-    <!--  ==================== ③ 列表本体  ====================  -->
-    <Border Grid.Row="2" Padding="0" Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
-      <Grid RowDefinitions="Auto,Auto,*">
-
-        <!--  表头（IsResizable = 列边界可拖；LockedColumns / SampleSpecs 供"示例宽 ≤ 表头宽就锁宽"用）  -->
-        <Border Grid.Row="0" Classes="list-header">
+    <!--  ==================== ③ 列表本体（card / 空行由骨架提供，本页只给表头与列表）  ====================  -->
+    <v:ListPageSkeleton.HeaderArea>
+      <Border Classes="list-header">
           <v:ColumnGrid x:Name="HeaderGrid"
                         ColumnSpecs="{Binding VisibleColumnSpecs}"
                         IsResizable="True"
@@ -63,13 +76,17 @@
                         SampleSpecs="{Binding SampleSpecs}">
             <!--  v3.34 / NT-018：勾选列表头 —— 🔴 **原生三态 CheckBox**（⛔ 别用字符"☑"画，字体会渲染成深色块）；
                   右键菜单挂在外层透明 Border 上（整格都能右键）。
+                  🔴 2026-10-16：左键点表头勾选框 = **全选 / 全不选切换**（ToggleAllCommand）；
+                  IsChecked 改 **OneWay**（只让 VM 刷新显示：全选=true / 全不选=false / 部分=indeterminate）
+                  —— ⛔ 不再 TwoWay 写回（写回会把三态循环 null 也当一次切换，行为不可预期）。
                   🔴 v3.42.1 修崩溃：菜单**只挂 Border、⛔ 不挂 CheckBox、⛔ code-behind 不手动 Open**
                   —— 挂 CheckBox 上时原生右键已自动弹一次，code-behind 再 Open 一次 → 二次 Open 抛异常直接崩。
                   与 VideoTools v3.16.1 写法对齐（那边一直是这么做的）。  -->
             <Border Grid.Column="0" x:Name="HeaderCheckHost" Background="Transparent"
-                    ToolTip.Tip="勾选的行由「🏷 加标签 / 📚 加集合」批量操作（右键：全选 / 取消 / 反选）">
+                    ToolTip.Tip="左键全选 / 全不选；勾选的行由「🏷 加标签 / 📚 加集合」批量操作（右键：全选 / 取消 / 反选）">
               <CheckBox x:Name="HeaderCheckBox" HorizontalAlignment="Center" VerticalAlignment="Center" IsThreeState="True"
-                        IsChecked="{Binding AllCheckedState, Mode=TwoWay}"/>
+                        IsChecked="{Binding AllCheckedState, Mode=OneWay}"
+                        Command="{Binding ToggleAllCommand}"/>
               <Border.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="☑ 全选" Command="{Binding ToggleAllCommand}"/>
@@ -152,9 +169,11 @@
               </ContextMenu>
             </v:ColumnGrid.ContextMenu>
           </v:ColumnGrid>
-        </Border>
+      </Border>
+    </v:ListPageSkeleton.HeaderArea>
 
-        <ListBox Grid.Row="2" x:Name="AssetList" Classes="list-page"
+    <v:ListPageSkeleton.ListArea>
+        <ListBox x:Name="AssetList" Classes="list-page"
                  ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                  SelectionMode="Single">
           <!--
@@ -221,27 +240,6 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-
-        <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
-        <StackPanel
-            Grid.Row="2"
-            HorizontalAlignment="Center"
-            IsVisible="{Binding !HasItems}"
-            Spacing="10"
-            VerticalAlignment="Center">
-            <TextBlock
-                Classes="hint-text"
-                MaxWidth="420"
-                TextAlignment="Center"
-                TextWrapping="Wrap"
-                Text="没有可显示的资产。点「📥 导入」把导出的 json 合并进库，或用「📁 扫描」扫一个目录。" />
-            <Button
-                Classes="ghost"
-                HorizontalAlignment="Center"
-                Content="📥 导入"
-                Command="{Binding ImportAssetsCommand}" />
-        </StackPanel>
-      </Grid>
-    </Border>
-  </Grid>
+    </v:ListPageSkeleton.ListArea>
+  </v:ListPageSkeleton>
 </UserControl>

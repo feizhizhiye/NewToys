@@ -1,22 +1,21 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:v="using:NewToys.MediaAssets.Controls"
+             xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetTagsView">
   <!--
     NT-018「标签管理」页：列表（名称 / 命名空间 / 颜色 / 使用数 / 创建时间）+ 详情卡（由 **Shell** 承载）。
     🔴 与「全部资产」页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，详情卡已改由 Shell 声明式渲染（NT-054））。
-    逻辑操作（新建 / 改名 / 改色 / 合并 / 删除 / 清理未使用）都在工具条与**行右键菜单**；
-    ⛔ 单条动作不上工具条（需求 §4.8 硬规则 9）。
+    NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（四段：顶区 = 筛选条 / 列表区 = 表头 + 列表 / 空态 / 底栏），
+        card 容器、空态块、底栏壳由骨架统一提供（⛔ 行模板仍本页自写）。
   -->
-  <Grid RowDefinitions="Auto,Auto,*" Margin="12">
-
-    <!--  ==================== ① 工具条（页面级功能） ====================
-          NT-055 三轮（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），
-          页内⛔ 不再自写 `Border.toolbar` 与 `detail-toggle`（详情开关 = Shell 的浮层）。
-          Row0 留空（Auto → 高度 0），不动下面各行的行号。 -->
+  <v:ListPageSkeleton EmptyMessage="没有可显示的标签。点「➕ 新建标签」建第一个。"
+                      EmptyActionText="➕ 新建标签"
+                      EmptyActionCommand="{Binding NewTagCommand}"
+                      IsEmpty="{Binding !HasItems}">
 
     <!--  ==================== ② 筛选条 ====================  -->
-    <Border Grid.Row="1" Classes="filter-bar">
+    <v:ListPageSkeleton.TopArea>
+    <Border Classes="filter-bar">
       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
         <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
@@ -24,13 +23,11 @@
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
       </WrapPanel>
     </Border>
+    </v:ListPageSkeleton.TopArea>
 
-    <!--  ==================== ③ 列表本体 ====================  -->
-    <Border Grid.Row="2" Padding="0" Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8">
-      <Grid RowDefinitions="Auto,Auto,*">
-
-        <Border Grid.Row="0" Classes="list-header">
+    <!--  ==================== ③ 列表本体（card / 空行由骨架提供，本页只给表头与列表）  ====================  -->
+    <v:ListPageSkeleton.HeaderArea>
+      <Border Classes="list-header">
           <v:ColumnGrid x:Name="HeaderGrid"
                         ColumnSpecs="{Binding VisibleColumnSpecs}"
                         IsResizable="True"
@@ -71,8 +68,10 @@
               </ContextMenu>
             </v:ColumnGrid.ContextMenu>
           </v:ColumnGrid>
-        </Border>
+      </Border>
+    </v:ListPageSkeleton.HeaderArea>
 
+    <v:ListPageSkeleton.ListArea>
         <ListBox Grid.Row="2" x:Name="TagList" Classes="list-page"
                  ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
                  SelectionMode="Single">
@@ -112,27 +111,6 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-
-        <!--  v3.60 §4.8.3 / NT-060：空态引导 = 一行说明 + 一个**复用本页现有命令**的入口（⛔ 不新增能力）  -->
-        <StackPanel
-            Grid.Row="2"
-            HorizontalAlignment="Center"
-            IsVisible="{Binding !HasItems}"
-            Spacing="10"
-            VerticalAlignment="Center">
-            <TextBlock
-                Classes="hint-text"
-                MaxWidth="420"
-                TextAlignment="Center"
-                TextWrapping="Wrap"
-                Text="没有可显示的标签。点「➕ 新建标签」建第一个。" />
-            <Button
-                Classes="ghost"
-                HorizontalAlignment="Center"
-                Content="➕ 新建标签"
-                Command="{Binding NewTagCommand}" />
-        </StackPanel>
-      </Grid>
-    </Border>
-  </Grid>
+    </v:ListPageSkeleton.ListArea>
+  </v:ListPageSkeleton>
 </UserControl>

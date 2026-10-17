@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:NewToys.UI.Controls"
+             x:Class="NewToys.UI.Controls.ListPageSkeleton">
+  <!--
+    NT-063 P1 · 列表页骨架（四段容器）：顶工具条区 / 列表区 / 空态区 / 底栏区。
+
+    · TopArea：页面自有的工具条 / 筛选条（没有 ⇒ Auto 行高度 0，⛔ 不留空行）。
+    · ListArea：列表本体 card（表头 HeaderArea + 列表 ListArea + 空态同格）。
+      行模板仍由各页自己写（⛔ 骨架不吞行模板 —— 渐变 / 状态 / chips / 进度差异大）。
+    · 空态区：EmptyStateBlock 与 ListArea 同格，⛔ 没文案时不显示（绑定断了也不能拿空块盖住列表）。
+    · 底栏区：ListFooterBar（P0-a 的 UI 壳）。显隐由宿主页经 ShowFooter 下发（NT-064 起 = VM 的
+      HasFooterContent：列表超出页面底部才 true；分页插槽 PageText / 四个跳页命令 / 页大小一并转发）。
+    · 🔴 库内 XAML ⛔ 不许写死色值：只用应用级样式类（card / list-header，与 Shell 同源）。
+    · 页根 Margin 默认 12；嵌在设置节正文里的页（如 PathView）在外层标签覆盖 Margin="0"。
+
+    🔴🔴 v3.71 / NT-063 P2（修「所有列表页全空白」事故）：
+        三个内容槽 + 空态块 + 底栏一律由 **code-behind 按属性赋值**（与 Shell 的 ToolbarHost 同口径）——
+        ⛔ 不用 `{Binding $parent[UserControl].X}` 这类祖先绑定：库内控件的祖先绑定一旦解析不到，
+        表现是**静默空内容**（无日志 / 无红字 / 整页发白），2026-10-16 用户本地首跑时
+        14 个列表页全空就是这个形态（内容槽绑定全部静默失效 ⇒ 筛选条 / 表头 / 列表全消失）。
+        直接赋值不依赖绑定解析，ContentControl reparent 语义与绑定赋值完全一致。
+  -->
+  <Grid RowDefinitions="Auto,*,Auto">
+
+    <!--  ① 顶工具条 / 筛选区（code-behind 填 TopArea）  -->
+    <ContentControl x:Name="TopAreaHost" Grid.Row="0"/>
+
+    <!--  ② 列表区（card：表头 / 空行 / 列表 + 空态同格）  -->
+    <Border Grid.Row="1" Classes="card" Padding="0">
+      <Grid RowDefinitions="Auto,Auto,*">
+        <ContentControl x:Name="HeaderAreaHost" Grid.Row="0"/>
+        <ContentControl x:Name="ListAreaHost" Grid.Row="2"/>
+        <ui:EmptyStateBlock x:Name="EmptyState" Grid.Row="2"/>
+      </Grid>
+    </Border>
+
+    <!--  ③ 底栏区（NT-064 接入分页 / 显隐规则前默认不占位）  -->
+    <ui:ListFooterBar x:Name="Footer" Grid.Row="2"/>
+  </Grid>
+</UserControl>

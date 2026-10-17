@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.WebTools.Views.SettingsWebToolsView">
+  <!--
+    v3.64 / NT-061「网页工具」模块设置页（View/VM 归本模块，自注册进 settings 分组，Key = settings-web-tools / Order 130）。
+    规范 §4.9：路径 / 数值 / 文本 = 即时生效（失焦即落盘，⛔ 无保存按钮）；非法值 ⇒ 底栏红字 + ⛔ 不写盘。
+    窄界面基线（NT-053）：根 ScrollViewer + 内容 MaxWidth 760。
+  -->
+  <Grid RowDefinitions="Auto,*">
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,16">
+      <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+
+        <!--  ============ ① 网页抓取默认项 ============  -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <StackPanel Spacing="2">
+              <TextBlock Text="网页抓取" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
+              <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                         Text="抓取任务若没填自己的 UA / 超时，就用这里的默认值（个别任务在它的详情卡里单独填）。"/>
+            </StackPanel>
+
+            <StackPanel Classes="field">
+              <TextBlock Classes="field-label" Text="默认 User-Agent（留空 = 恢复内置）"/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox Width="440" PlaceholderText="留空 = 用内置的 Chrome UA"
+                         Text="{Binding DefaultUserAgent, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                <Button Classes="ghost" Content="↺ 恢复内置" Command="{Binding ResetUserAgentCommand}"/>
+              </StackPanel>
+              <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                         Text="{Binding EffectiveUserAgent, StringFormat='生效值：{0}'}"/>
+            </StackPanel>
+
+            <StackPanel Classes="field">
+              <TextBlock Classes="field-label" Text="单次抓取超时（秒）"/>
+              <TextBox Width="120" Text="{Binding ScrapeTimeoutSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+              <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding TimeoutHint}"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!--  ============ ② 说明 ============  -->
+        <Border Classes="card">
+          <StackPanel Spacing="6">
+            <TextBlock Text="本模块的其它功能" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                       Text="书签 / 网络 Ping / Hosts 管理没有模块级配置 —— 它们的数据就是各自的清单文件（bookmarks.json / ping-targets.json / hosts-profiles.json），由页面自己维护；网络请求超时各自按用途定，不共用这里这一项。"/>
+            <Border Classes="divider-line"/>
+            <TextBlock Text="📄 设置文件" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Text="{Binding ConfigFilePath}" FontSize="12" TextWrapping="Wrap" FontFamily="Consolas"
+                       Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                       Text="它在 config 目录下 —— 「设置 → 数据管理」的备份 / 导入会一起覆盖它。两个默认值原先硬编码在程序里，现在落在这里可手改。"/>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StatusText, StringFormat='状态：{0}'}"/>
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

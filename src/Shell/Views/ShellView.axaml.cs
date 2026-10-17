@@ -207,9 +207,8 @@ public partial class ShellView : Window
     {
         if (_vm?.ActiveTab is not { } tab) return;
 
-        // v3.45：首页标签在固定列（不滚动）⇒ 按 ScrollableTabs 的索引找容器；
-        // IndexOf = -1（首页 / 不在滚动区）直接跳过 —— 首页天然始终可见。
-        var index = _vm.ScrollableTabs.IndexOf(tab);
+        // 🔴 v3.66 第十八轮：标签栏**不再有固定列**（首页与其余标签同处滚动区）⇒ 一律按 `Tabs` 索引找容器。
+        var index = _vm.Tabs.IndexOf(tab);
         if (index < 0) return;
 
         if (TabsControl.ContainerFromIndex(index) is Control container)
@@ -805,6 +804,11 @@ public partial class ShellView : Window
 
     /// <summary>
     /// NT-044：`F11` 切换全屏；`Esc` **仅在全屏态下**退出（⛔ 平时不吞 Esc —— 页面里的取消 / 关闭浮层要用它）。
+    /// <para>
+    /// v3.65 / NT-062：`Ctrl+,` = 打开**应用级设置页**（需求 §4.3 / §4.9.2）。
+    /// 🔴 折叠左树后版本行的齿轮仍在，`Ctrl+,` 是它的备用入口（约定俗成的设置快捷键）。
+    /// ⚠️ 走隧道路由（Tunnel）⇒ 即使焦点在页内输入框也照样命中；判定用 `KeyModifiers` 而不是 `KeyGesture`。
+    /// </para>
     /// </summary>
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
@@ -818,6 +822,37 @@ public partial class ShellView : Window
             WindowState = WindowState.Normal;
             e.Handled = true;
         }
+        else if (e.Key == Key.OemComma && e.KeyModifiers == KeyModifiers.Control)
+        {
+            _vm?.OpenSettingsCommand.Execute(null);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// 设置搜索（v3.66 / NT-062）：弹窗里的输入框一挂上可视树就**自动聚焦**（弹出即可直接打字）。
+    /// <para>⚠️ 弹窗内容在**弹出树**里、不在本窗口的 NameScope ⇒ 不给它 `x:Name`，一律从 `sender` 取。</para>
+    /// </summary>
+    private void OnSearchBoxAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is not TextBox tb) return;
+        tb.Focus();
+        tb.SelectAll();
+    }
+
+    /// <summary>
+    /// 设置搜索（v3.66 / NT-062）：**回车** = 执行搜索（打开应用级设置页 + 展开命中的节）、清空输入、关掉弹窗。
+    /// 未命中由 Shell 在底栏给提示（见 <c>ShellViewModel.SearchSettings</c>）。
+    /// </summary>
+    private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || sender is not TextBox tb) return;
+        e.Handled = true;
+
+        var keyword = tb.Text ?? "";
+        tb.Text = "";
+        BtnSettingsSearch.Flyout?.Hide();
+        _vm?.SearchSettingsCommand.Execute(keyword);
     }
 
     private void UpdateMaxIcon()

@@ -10,9 +10,9 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using NewToys.Core.Services;
-using NewToys.Settings.ViewModels;
+using NewToys.Shell.ViewModels;
 
-namespace NewToys.Settings.Views;
+namespace NewToys.Shell.Views;
 
 public partial class DataView : UserControl
 {

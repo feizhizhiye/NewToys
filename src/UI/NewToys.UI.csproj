@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>NewToys.UI</RootNamespace>
+    <!--  与 Shell / 各模块同口径：关编译绑定（库内 XAML 大量用 {Binding} / {DynamicResource}）  -->
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--  NT-063：UI 库引 Shared（详情卡描述符契约），⛔ 不引 Core / Shell（保持单向，任何模块都能引）  -->
+    <ProjectReference Include="../Shared/Shared.csproj" />
+  </ItemGroup>
+</Project>

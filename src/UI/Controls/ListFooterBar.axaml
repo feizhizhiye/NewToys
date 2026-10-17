@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.UI.Controls.ListFooterBar">
+  <!--
+    NT-063 · 列表页底栏（UI 壳，为 NT-064 分页预留插槽）。
+
+    · 内容物（2026-10-16 用户定稿）：共 N 条 / 已选 M（左）＋
+      共 N 页 · 到首页 · 前一页 · 1 2 3 4 5（当前页强调色）· 后一页 · 尾页 · 跳转到[ ] · 每页[25/50/100/500]
+    · 🔴 **默认不显示**：由宿主页把本控件的 IsVisible 绑到 VM 的 `HasFooterContent`
+      （列表内容高度 > 视口高度 或 有多页时才 true）⇒ 只有列表超出页面底部，底栏才出现
+    · 🔴 库内 XAML ⛔ 不许写死色值：一律 DynamicResource 引主题键 / 复用应用级样式类
+      （ghost / primary / hint-text —— 与 Shell 的 App.axaml、Styles\Controls.axaml 同源）
+    · 🔴 NT-064：内部一律 **code-behind 按属性直配**（⛔ 不用 `{Binding $parent[UserControl].X}` 祖先绑定：
+      库内控件的祖先绑定一旦解析不到，表现是**静默空内容**）。页码按钮组与跳转输入框
+      按 PageCount / CurrentPage / JumpToPageCommand 在 code-behind 动态构建。
+
+    2026-10-17 版式返修（用户截图 + 逐轮微调，四轮定稿）：
+    ① **三段布局 = 左 `*` / 分页链 Auto / 每页 Auto**（用户定稿）：分页链**靠右、紧挨「每页」**，
+       ⛔ 不做整条居中（曾试过"居中浮层"，用户看后否决 ⇒ 居中时分页链与右侧信息脱节）。
+       左计数列是 `*` ⇒ 空间不足时**优先牺牲左计数**（先被压没），分页链与每页组保住。
+    ② 🔴 **两个输入控件会把顶边线压断**：`TextBox`/`ComboBox` 的**隐式样式 MinHeight=28**
+       （行高基线，见 Shell\Styles\Controls.axaml）+ TextBox 隐式 `MinWidth` ⇒ 显式写的
+       `Width / Height=22` 被压过：实测两者都撑成 **63×28（= 整条底栏高）**，于是底色盖掉
+       底栏顶边线（y=9 处 578→637 / 707→766 两段断口），四个边又与底栏边线同色 ⇒
+       看着像底栏被"挖了两个缺口"。现给两者 **`MinWidth="0" MinHeight="0"`**
+       （本地值 > 样式 Setter ⇒ 真能压住），边框换更亮一档的 `InputBorderBrush`（#3D3D3D，暗色下才看得出是输入框）。
+       ⚠️ 页大小下拉 **Width=78**：`ComboBox` 的下拉箭头区约占 32px，"全部"两个汉字 22px + 左右内边距
+       ⇒ 64 宽会把「部」字切掉一角（用户实锤）；78 才放得下最长项。
+    ③ **翻页箭头盒不均等**：`« ‹ › »` 原用 `Padding="6,2"` 自适应 ⇒ 盒宽 21/19px 不等、字形仅 3~7px。
+       现四个按钮统一 **`Width="24" Height="22"` + 内容居中 + FontSize 13**，页码盒宽 26 ⇒ 节距均匀。
+    ④ **字形"光学居中"**：🔴 **数字没有降部** ⇒ 行盒里墨迹中心比几何中心**高 ~2px**
+       （实测 11px 字号：数字墨迹 y17→24 中心 20.5，按钮盒 y12→33 中心 22.5）；
+       而 `« ‹ › »` 画在基线附近 ⇒ 反而**偏下 ~2px**（实测 « 墨迹中心 24.5）。
+       故 ⛔ 不能都给 `Padding=0`：页码按钮 **上内边距 3**、箭头按钮 **下内边距 4**，
+       让两者墨迹中心都落到按钮盒中心（22.5 一条线上）。
+  -->
+  <Border Background="{DynamicResource PanelBrush}"
+          BorderBrush="{DynamicResource DividerBrush}"
+          BorderThickness="0,1,0,0"
+          Height="28">
+    <Grid ColumnDefinitions="*,Auto,Auto">
+
+      <!--  左：计数（选中数为 0 时「已选 M」整行不占位；空间不足时本列先被压没 ⇒ 优先牺牲计数）  -->
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+        <TextBlock x:Name="TotalTextBlock" Classes="hint-text" VerticalAlignment="Center" />
+        <TextBlock x:Name="SelectedTextBlock" Classes="hint-text" VerticalAlignment="Center" />
+      </StackPanel>
+
+      <!--  中：分页跳转链 —— 靠右，紧挨「每页」组（单页 / 分页挂起时整组不占位）  -->
+      <StackPanel Grid.Column="1" x:Name="PagingGroup" Orientation="Horizontal" Spacing="2"
+                  VerticalAlignment="Center">
+        <TextBlock x:Name="PageCountText" Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <Button x:Name="FirstButton" Classes="ghost" Width="22" Height="22" Padding="0,0,0,4" FontSize="14"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                Content="«" ToolTip.Tip="第一页" />
+        <Button x:Name="PrevButton" Classes="ghost" Width="22" Height="22" Padding="0,0,0,4" FontSize="14"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                Content="‹" ToolTip.Tip="上一页" />
+        <!--  页码按钮（1 2 3 …，当前页 primary 强调色；按 PageCount 动态构建）  -->
+        <StackPanel x:Name="PageButtonsHost" Orientation="Horizontal" Spacing="2"
+                    VerticalAlignment="Center" Margin="2,0,2,1" />
+        <Button x:Name="NextButton" Classes="ghost" Width="22" Height="22" Padding="0,0,0,4" FontSize="14"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                Content="›" ToolTip.Tip="下一页" />
+        <Button x:Name="LastButton" Classes="ghost" Width="22" Height="22" Padding="0,0,0,4" FontSize="14"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                Content="»" ToolTip.Tip="最后一页" />
+        <TextBlock Text="跳转到" Classes="hint-text" VerticalAlignment="Center" Margin="0,0,4,0" />
+        <TextBox x:Name="JumpBox" Width="32" Height="22" MinWidth="0" MinHeight="0"
+                 Padding="4,1" FontSize="11"
+                 VerticalAlignment="Center" VerticalContentAlignment="Center"
+                 TextAlignment="Center"
+                 Background="{DynamicResource PanelBrush}"
+                 BorderBrush="{DynamicResource InputBorderBrush}"
+                 BorderThickness="1" CornerRadius="3"
+                 Foreground="{DynamicResource PrimaryTextBrush}"
+                 ToolTip.Tip="输入页码后回车直达" />
+        <TextBlock Text="页" Classes="hint-text" VerticalAlignment="Center" Margin="4,0,0,0" />
+      </StackPanel>
+
+      <!--  右：每页条数（25 / 50 / 100 / 500 / 全部，选择即落盘 + 重取；选「全部」= 不分页，全选即全量）。
+            🔴 ComboBox 必须显式 Height + MinHeight=0 + 主题色：Avalonia 隐式样式给 MinHeight=28
+            ⇒ 只写 Height=22 压不住，控件会撑满整条底栏并把顶边线压断（2026-10-17 用户截图实锤）。  -->
+      <StackPanel Grid.Column="2" x:Name="PageSizeGroup" Orientation="Horizontal" Spacing="4"
+                  VerticalAlignment="Center" Margin="12,0,0,0">
+        <TextBlock Text="每页" Classes="hint-text" VerticalAlignment="Center" />
+        <ComboBox x:Name="PageSizeCombo" Width="78" Height="22" MinWidth="0" MinHeight="0"
+                  FontSize="11" Padding="6,0" CornerRadius="3"
+                  VerticalAlignment="Center" VerticalContentAlignment="Center"
+                  Background="{DynamicResource PanelBrush}"
+                  BorderBrush="{DynamicResource InputBorderBrush}"
+                  BorderThickness="1"
+                  Foreground="{DynamicResource PrimaryTextBrush}"
+                  ToolTip.Tip="每页条数（选「全部」= 不分页）" />
+        <TextBlock Text="条" Classes="hint-text" VerticalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

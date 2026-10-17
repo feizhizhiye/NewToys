@@ -9,23 +9,25 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
-using NewToys.Settings.Models;
-using NewToys.Shared.Details;
+using NewToys.Shell.Models;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-namespace NewToys.Settings.ViewModels;
+namespace NewToys.Shell.ViewModels;
 
 /// <summary>
-/// 「设置 → 路径与配置」页（v3.53 / NT-056 起是**设置总表**）：一张列表按**分类列**承载两类行 ——
-/// `路径`（`app.json` 的运行环境路径，可编辑）与 `配置`（`profiles\` 下多套独立 config/data/logs）。
+/// 应用级设置页的「运行环境」节（原「设置 → 路径与配置」，v3.53 / NT-056 起是**设置总表**）：
+/// 一张列表按**分类列**承载两类行 —— `路径`（`app.json` 的运行环境路径，可编辑）
+/// 与 `配置`（`profiles\` 下多套独立 config/data/logs）。
 /// <para>
 /// 🔴 分类决定"哪些工具可用"：路径专属工具在选中配置行时**置灰并给出原因提示**，反之亦然；
 /// 与分类无关的工具（📂 打开配置目录 / ＋ 新建配置）恒可用。
 /// </para>
 /// <para>
-/// 工具条由 Shell 声明式承载（NT-055 / 需求 §4.8.5），本页只输出描述符；详情卡按分类**切换字段集** ——
-/// 选中行的分类一变就换一份描述符实例并通知 Shell 重取（⛔ 不是"缓存一次"的静态卡）。
+/// 工具条由 Shell 声明式承载（NT-055 / 需求 §4.8.5），本页只输出描述符。
+/// 🔴 v3.66 / NT-062 细节调整：**本页详情卡已删除**（⛔ 不再实现 <c>IDetailPanelProvider</c> /
+/// <c>IDetailCardSource</c>）—— 设置页是**一页多节**（节 = 竖向折叠块），右详情列在同页里无处安放；
+/// 全应用口径 = 设置页不分左右栏。列表本体、右键菜单、工具条（含「💾 保存」）全部保留。
 /// </para>
 /// <para>
 /// 本页**保留「💾 保存」**（规范 3.5 的分界）：路径是自由文本的复杂输入，边打边落盘没有意义，
@@ -36,19 +38,22 @@ namespace NewToys.Settings.ViewModels;
 /// 批量任务 .json 的导入/导出对话框定位），不回写扫描目录，不影响"每次手动选目录"的扫描逻辑。
 /// </para>
 /// </summary>
-public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
+public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvider
 {
     private readonly IAppConfigService? _cfg;
     private readonly ConfigStoreService? _store;
     private readonly IProfileService? _profiles;
 
+    /// <summary>外部程序注册表（v3.65 / NT-062）：进本页时才做**惰性探测**，缺失 ⇒ 状态栏 `⚠` 可点击。</summary>
+    private readonly IExternalToolRegistry? _ext;
+
+    /// <summary>外部程序缺失的警示文案（null = 没问题）；它同时决定状态栏那一行**是否可点击**。</summary>
+    private string? _externalWarn;
+
     /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
     public string ImportExportDefaultDir => _cfg?.VideoDbFolder ?? "";
 
     private bool _syncing;
-
-    /// <summary>上一次交给 Shell 的详情卡实例 —— 只有**分类变化**才需要通知重建（同分类内换行不必）。</summary>
-    private DetailCardDescriptor? _lastCard;
 
     public ObservableCollection<PathSettingItem> Items { get; } = new();
 
@@ -91,299 +96,8 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
         new("Action", "操作", "3.8*", sortable: false),
     };
 
-    // ==================== 详情栏开合（基类管状态；这里只补"没选中就选第一项"） ====================
-
-    protected override void EnsureDetailSelection()
-    {
-        if (Selected == null && Items.Count > 0) Selected = Items[0];
-    }
-
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
-
-    /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>
-    public PathSettingItem? DetailItem => Selected;
-
-    /// <summary>详情卡正文是否显示（有选中项）。</summary>
-    public bool ShowDetailBody => HasSelection;
-    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
-
-    /// <summary>「当前值」是否可编辑（只读展示项 = 数据目录 / 配置目录 / 配置行的数据目录 ⇒ ⛔ 不让改）。</summary>
-    public bool IsValueEditable => DetailItem?.IsEditable == true;
-
-    /// <summary>「当前值」是只读展示项（与 <see cref="IsValueEditable"/> 互斥 ⇒ 两个字段行各自可见）。</summary>
-    public bool IsValueReadOnly => DetailItem?.IsReadOnly == true;
-
-    public bool HasDetailPanel => true;
-    public bool IsDetailOpen => IsDetailVisible;
-
-    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图；老路只留给尚未迁移的页。</summary>
-    public object? DetailContent => null;
-
-    public event EventHandler? DetailChanged;
-
-    /// <summary>工具条末位的详情开关 → 走本命令（⛔ 基类 <c>ToggleDetailCommand</c> 不通知 Shell，右列不会跟着开合）。</summary>
-    [RelayCommand]
-    private void ToggleDetailPanel()
-    {
-        ToggleDetailCommand.Execute(null);
-        DetailChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
-    [RelayCommand]
-    private void OpenDetailPanel()
-    {
-        ShowDetailCommand.Execute(null);
-        DetailChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
-    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
-    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
-
-    private DetailCardDescriptor? _pathCard;
-    private DetailCardDescriptor? _profileCard;
-
-    /// <summary>
-    /// 当前详情卡描述符（**按选中行的分类切换字段集**，v3.53 / NT-056）：路径行 → <see cref="PathCard"/>，
-    /// 配置行 → <see cref="ProfileCard"/>；两张卡各缓存一份实例，分类变化时在 <see cref="OnSelectedChanged"/> 里通知 Shell 重取。
-    /// </summary>
-    public DetailCardDescriptor? Card => Selected?.IsProfileRow == true ? ProfileCard : PathCard;
-
-    private DetailCardDescriptor PathCard => _pathCard ??= BuildPathCard();
-    private DetailCardDescriptor ProfileCard => _profileCard ??= BuildProfileCard();
-
-    /// <summary>
-    /// 「路径」行的详情卡（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）：
-    /// 名称 / 当前值（可编辑 ↔ 只读两种形态）/ 类型 / 说明 + 配置文件提示 + 卡内四个动作。
-    /// </summary>
-    private DetailCardDescriptor BuildPathCard() => new()
-    {
-        BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在左侧列表里选中一项。这些是「运行环境」相关的路径：ffmpeg / 播放器 / 三个解释器 / 脚本目录。留空 = 用系统默认；数据目录与配置目录是只读展示项。",
-        Sections =
-        {
-            new DetailSection
-            {
-                Header = "选中项",
-                Fields =
-                {
-                    new DetailField
-                    {
-                        Label = "分类",
-                        ValuePath = "DetailItem.CategoryText",
-                        Kind = FieldKind.Text
-                    },
-                    new DetailField
-                    {
-                        Label = "名称",
-                        ValuePath = "DetailItem.Name",
-                        Kind = FieldKind.Text
-                    },
-                    // 可编辑项：名字框失焦提交到编辑缓冲，落盘交「💾 保存」按钮
-                    new DetailField
-                    {
-                        Label = "当前值",
-                        ValuePath = nameof(EditValue),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        Mono = true,
-                        MultiLine = true,
-                        VisibleWhen = nameof(IsValueEditable)
-                    },
-                    // 只读展示项：同一条路径，但只读可复制（⛔ 不给编辑框，免得像能改）
-                    new DetailField
-                    {
-                        Label = "当前值",
-                        ValuePath = nameof(EditValue),
-                        Kind = FieldKind.Text,
-                        Mono = true,
-                        Selectable = true,
-                        VisibleWhen = nameof(IsValueReadOnly)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "改完点「💾 保存」；点「📂 浏览…」选的路径会立即生效。",
-                        VisibleWhen = nameof(IsValueEditable)
-                    },
-                    new DetailField
-                    {
-                        Label = "类型",
-                        ValuePath = "DetailItem.KindText",
-                        Kind = FieldKind.Text
-                    },
-                    new DetailField
-                    {
-                        Label = "说明",
-                        ValuePath = "DetailItem.Description",
-                        Kind = FieldKind.Text
-                    },
-                    new DetailField { Kind = FieldKind.Divider },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "配置文件：%LocalAppData%\\NewToys\\config\\app.json（会被「设置 → 数据管理」的备份一起覆盖）"
-                    }
-                }
-            }
-        },
-        Actions =
-        {
-            // 原来这四个按钮是页内卡顶部的两排（只在有选中项时显示）；声明式卡里进 Actions 区。
-            new DetailAction
-            {
-                Text = "💾 保存",
-                Classes = "primary",
-                ToolTip = "把「当前值」写回配置并落盘",
-                IsVisiblePath = nameof(HasSelection),
-                Command = SaveCommand
-            },
-            new DetailAction
-            {
-                Text = "↩ 还原默认",
-                Classes = "ghost",
-                ToolTip = "恢复成该路径的默认值（⛔ 只填进输入框，仍需点「💾 保存」）",
-                IsVisiblePath = nameof(HasSelection),
-                Command = RestoreDefaultCommand
-            },
-            new DetailAction
-            {
-                Text = "📂 浏览…",
-                Classes = "ghost",
-                ToolTip = "选文件 / 选目录（按项的类型决定），选完立即生效并落盘",
-                IsVisiblePath = nameof(HasSelection),
-                Command = PickPathCommand
-            },
-            new DetailAction
-            {
-                Text = "↗ 打开",
-                Classes = "ghost",
-                ToolTip = "在资源管理器里打开这个路径",
-                IsVisiblePath = nameof(HasSelection),
-                // OpenCommand 是 RelayCommand<PathSettingItem?>（要参数）⇒ 这里包一层拿当前选中项
-                Command = new RelayCommand(() => OpenCommand.Execute(Selected))
-            }
-        }
-    };
-
-    /// <summary>
-    /// 「配置」行的详情卡（v3.53 / NT-056）：配置名 / 数据目录 / 状态 + 说明 + 配置侧七个动作
-    /// —— 与原来的「设置 → 配置」页语义**一一对应**（切换仍二次确认 + 本窗重启；⛔ 语义零改动）。
-    /// </summary>
-    private DetailCardDescriptor BuildProfileCard() => new()
-    {
-        BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在左侧列表里选中一个**配置行**。一个配置 = 一套独立的 config + data + logs；可同时打开多个配置的窗口（各跑各的数据）。",
-        Sections =
-        {
-            new DetailSection
-            {
-                Header = "选中配置",
-                Fields =
-                {
-                    new DetailField
-                    {
-                        Label = "分类",
-                        ValuePath = "DetailItem.CategoryText",
-                        Kind = FieldKind.Text
-                    },
-                    new DetailField
-                    {
-                        Label = "配置名",
-                        ValuePath = "DetailItem.Name",
-                        Kind = FieldKind.Text,
-                        Selectable = true
-                    },
-                    new DetailField
-                    {
-                        Label = "数据目录",
-                        ValuePath = "DetailItem.Value",
-                        Kind = FieldKind.Text,
-                        Mono = true,
-                        Selectable = true
-                    },
-                    new DetailField
-                    {
-                        Label = "状态",
-                        ValuePath = "DetailItem.ProfileStateText",
-                        Kind = FieldKind.Text
-                    },
-                    new DetailField { Kind = FieldKind.Divider },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "一个配置 = 一套独立的 config / data / logs。「⇄ 切换」只重启**本窗口**，不影响其它窗口与全局默认；「⭐ 设为默认」决定以后直接启动 NewToys（不带参数）用哪个。"
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "⚠️ 删除不可撤销；当前正在使用的配置不能删除，也不能重置 default 与当前配置。"
-                    }
-                }
-            }
-        },
-        Actions =
-        {
-            new DetailAction
-            {
-                Text = "⇄ 切换到此配置",
-                Classes = "primary",
-                ToolTip = "本窗口重启到目标配置（不影响其它窗口和默认配置）",
-                IsEnabledPath = nameof(CanSwitchProfile),
-                Command = SwitchProfileCommand
-            },
-            new DetailAction
-            {
-                Text = "🚀 新开一个窗口",
-                Classes = "ghost",
-                ToolTip = "以该配置再启动一个窗口（多实例；同一配置只能开一个）",
-                IsEnabledPath = nameof(CanSwitchProfile),
-                Command = LaunchProfileNewCommand
-            },
-            new DetailAction
-            {
-                Text = "⭐ 设为默认",
-                Classes = "ghost",
-                ToolTip = "写全局默认：以后直接启动 NewToys（不带参数）就是它",
-                IsEnabledPath = nameof(IsProfileRowSelected),
-                Command = SetProfileDefaultCommand
-            },
-            new DetailAction
-            {
-                Text = "＋ 新建配置",
-                Classes = "ghost",
-                ToolTip = "新建一套独立的 config / data / logs",
-                Command = NewProfileCommand
-            },
-            new DetailAction
-            {
-                Text = "✏ 重命名",
-                Classes = "ghost",
-                ToolTip = "重命名该配置（目录一起改名）",
-                IsEnabledPath = nameof(IsProfileRowSelected),
-                Command = RenameProfileCommand
-            },
-            new DetailAction
-            {
-                Text = "🗑 删除",
-                Classes = "danger-btn",
-                ToolTip = "会永久删除该配置的全部数据；不能删除当前配置",
-                IsEnabledPath = nameof(CanDeleteProfile),
-                Command = DeleteProfileCommand
-            },
-            new DetailAction
-            {
-                Text = "♻ 重置为初始态",
-                Classes = "ghost",
-                ToolTip = "清空该配置回初始态（debug 会重新复制当前 default 的配置）；不能重置 default 或当前配置",
-                IsEnabledPath = nameof(CanResetProfile),
-                Command = ResetProfileCommand
-            }
-        }
-    };
-
     // ==================== v3.53 / NT-056：工具可用性（按选中行的分类） ====================
 
     /// <summary>当前选中的是路径行。</summary>
@@ -483,16 +197,17 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
         OnPropertyChanged(nameof(ResetTip));
     }
 
-    // ==================== 工具条（由 Shell 的 ToolbarHost 渲染，NT-055） ====================
+    // ==================== 工具条（v3.66 第五轮起由**设置页「运行环境」节**的节点内嵌 ToolbarHost 渲染） ====================
 
     /// <summary>
     /// 工具条描述符（按优先级顺序）：前四个是**路径**侧工具，中间是共用的目录 / 新建，后面是**配置**侧工具。
     /// 🔴 启停全部落在 <c>IsEnabledPath</c> 上（选中另一分类 ⇒ 置灰 + <c>ToolTipPath</c> 说明原因）。
+    /// <para>⚠️ 渲染位置 = 宿主节点（节点抬头下方、正文之上），⛔ 不再上抛到 Shell 的页面顶部工具条行。</para>
     /// </summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
         new() { Text = "📂 打开配置目录", CommandPath = nameof(OpenConfigDirCommand),
-                ToolTip = "打开 app.json / columnlayout.json 等所在的目录（可整体备份）" },
+                ToolTip = "打开本配置档的 config 目录（launch.json / theme.json / 模块设置等；可整体备份）" },
         new() { Text = "💾 保存", Classes = "ghost", CommandPath = nameof(SaveCommand),
                 IsEnabledPath = nameof(CanSavePath), ToolTipPath = nameof(SaveTip), ShowToolTipOnDisabled = true },
         new() { Text = "📂 浏览…", CommandPath = nameof(PickPathCommand),
@@ -524,30 +239,17 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
 
     // ==================== 编辑缓冲 ====================
 
-    /// <summary>详情卡里正在编辑的值（点「💾 保存」才写回对象并落盘）。</summary>
+    /// <summary>「当前值」编辑缓冲里正在编辑的值（点「💾 保存」才写回对象并落盘）。</summary>
     [ObservableProperty] private string _editValue = "";
 
     partial void OnSelectedChanged(PathSettingItem? value)
     {
-        OnPropertyChanged(nameof(DetailItem));
-        // 切选中项 → 「当前值」在可编辑 ↔ 只读两种形态间切换（描述符里是两行互斥字段）
-        OnPropertyChanged(nameof(IsValueEditable));
-        OnPropertyChanged(nameof(IsValueReadOnly));
         _syncing = true;
         // 只有路径行才进「当前值」编辑缓冲（配置行只读展示）
         EditValue = value is { IsPathRow: true } ? value.Value : "";        _syncing = false;
         OnPropertyChanged(nameof(HasSelection));
 
         RaiseActionStates();   // v3.53 / NT-056：工具条按分类启停，靠这批通知刷新
-
-        // 🔴 分类变了 ⇒ 详情卡换描述符：Shell 只在收到 DetailChanged 时才重取 Card（需求 §4.9.1 第 3 条）
-        var card = value?.IsProfileRow == true ? ProfileCard : PathCard;
-        OnPropertyChanged(nameof(Card));
-        if (!ReferenceEquals(card, _lastCard))
-        {
-            _lastCard = card;
-            DetailChanged?.Invoke(this, EventArgs.Empty);
-        }
     }
 
     partial void OnEditValueChanged(string value)
@@ -561,12 +263,14 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public PathViewModel() { }
 
-    public PathViewModel(IAppConfigService cfg, ConfigStoreService store, IColumnLayoutService cols, IProfileService profiles)
+    public PathViewModel(IAppConfigService cfg, ConfigStoreService store, IColumnLayoutService cols, IProfileService profiles,
+                         IExternalToolRegistry? ext = null)
         : base(cols)
     {
         _cfg = cfg;
         _store = store;
         _profiles = profiles;
+        _ext = ext;
 
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         SetSort("Category", false);       // v3.53：默认按「分类」升序（同类聚在一起），组内再按名称
@@ -575,6 +279,38 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
         ApplyView();
         SelectActiveProfile();            // v3.53：默认选中「正在使用」的配置行（一眼看到我在哪）
     }
+
+    // ==================== 外部程序「惰性探测」 + 状态栏 ⚠ 可跳转（v3.65 / NT-062） ====================
+
+    /// <summary>
+    /// 惰性探测外部程序（需求 §4.9.2 第 5 条）：**进入「运行环境」节时**由设置页触发 ——
+    /// ⛔ 不在启动时全量探测（拖启动）。缺硬依赖（ffmpeg）或"配了但文件不在" ⇒ 底栏 `⚠`，
+    /// 且这一行**可点击**（<see cref="StatusActionKey"/> 指回本节）方便就地改路径。
+    /// </summary>
+    public void ProbeExternalTools()
+    {
+        if (_ext == null) return;
+
+        var all = _ext.ProbeAll();
+        var attention = all.Where(s => s.NeedsAttention).ToList();
+
+        // ⚠️ 先定好"可点击目标"，再改 StatusText（StatusChanged 触发时 Shell 会立刻读它）
+        _externalWarn = attention.Count == 0
+            ? null
+            : $"⚠ 未找到 {string.Join(" / ", attention.Select(s => s.WarnText))}（点这里到「运行环境」填路径）";
+
+        OnPropertyChanged(nameof(StatusActionKey));
+        OnPropertyChanged(nameof(StatusActionTip));
+
+        StatusText = _externalWarn ?? $"运行环境已探测：{all.Count} 个外部程序均可解析（留空 = 用系统默认）。";
+    }
+
+    /// <summary>状态栏 `⚠` 的跳转目标 = 本页（「运行环境」节）；没问题时为 null（不可点）。</summary>
+    public string? StatusActionKey => _externalWarn == null ? null : "settings-path";
+
+    public string StatusActionTip => _externalWarn == null
+        ? ""
+        : "打开「运行环境」节，填好缺失的外部程序路径（留空 = 用系统默认）";
 
     /// <summary>筛选快捷项：**分类**（路径 / 配置）+ **类型**（文件 / 目录 / 只读 / 配置档）。</summary>
     private void RebuildQuickFilters()
@@ -610,6 +346,8 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
     {
         if (_cfg == null) return;
 
+        // v3.64 / NT-061：下面两者是**跨模块共用的全局项** ⇒ 保持应用级、⛔ 不下沉。
+        //   ffmpeg：媒体资产（缩略图抽帧）与视频工具都用同一份；外部播放器：视频列表「▶ 播放」用。
         Items.Add(new PathSettingItem
         {
             Key = "FfmpegPath", Name = "ffmpeg 路径", Kind = PathItemKind.File, DefaultValue = "ffmpeg",
@@ -622,30 +360,26 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
             Description = "视频「▶ 播放」用它打开；留空 = 系统默认关联程序",
             Value = _cfg.PlayerPath
         });
+        // v3.65 / NT-062：三个解释器路径**回迁应用级**（判据 = 语义：「怎么跑外部程序」= 运行环境 ⇒ 应用级路由，
+        // ⛔ 不随配置档切换）。它们曾于 NT-061 下沉到「脚本管理器设置」，现回到本页（唯一写入点），落 app.json。
+        // ⚠️ 脚本目录仍归「脚本管理器设置」（模块级，config\script-manager.json）。
         Items.Add(new PathSettingItem
         {
-            Key = "PythonPath", Name = "Python 路径", Kind = PathItemKind.File,
-            Description = "「设置与脚本」里 .py 的解释器；留空 = 用 PATH 里的 python",
+            Key = "PythonPath", Name = "Python 解释器", Kind = PathItemKind.File,
+            Description = "「设置与脚本」里 .py 脚本的解释器；留空 = 用 PATH 里的 python",
             Value = _cfg.PythonPath
         });
         Items.Add(new PathSettingItem
         {
-            Key = "PwshPath", Name = "PowerShell 7+（pwsh）路径", Kind = PathItemKind.File,
-            Description = ".ps1 优先用它；留空 = 用 PATH 里的 pwsh，找不到则退回系统自带的 5.1",
+            Key = "PwshPath", Name = "PowerShell 7+（pwsh）", Kind = PathItemKind.File,
+            Description = ".ps1 优先用它；留空 = 优先探常见安装位、再退回 PATH 里的 pwsh",
             Value = _cfg.PwshPath
         });
         Items.Add(new PathSettingItem
         {
-            Key = "PowerShell51Path", Name = "Windows PowerShell 5.1 路径", Kind = PathItemKind.File,
-            Description = "没配 pwsh 时 .ps1 用它；留空 = 系统自带的 powershell.exe",
+            Key = "PowerShell51Path", Name = "Windows PowerShell 5.1", Kind = PathItemKind.File,
+            Description = "没配 pwsh 时 .ps1 用它；留空 = 用系统自带的 powershell.exe",
             Value = _cfg.PowerShell51Path
-        });
-        Items.Add(new PathSettingItem
-        {
-            Key = "ScriptFolder", Name = "脚本目录", Kind = PathItemKind.Folder,
-            DefaultValue = _cfg.DefaultScriptFolder,
-            Description = "「设置与脚本」页引用的 .py / .ps1 / .bat 都放这里；用「📂 导入」把脚本建成条目",
-            Value = _cfg.ScriptFolder
         });
         Items.Add(new PathSettingItem
         {
@@ -659,10 +393,18 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
             Description = "本地数据库 newtoys.db（视频媒体信息缓存）等数据放这里；由应用决定，可用环境变量 NEWTOYS_HOME 整根切换",
             Value = _cfg.DataDirectory
         });
+        // v3.65 / NT-062：app.json 已上提到**应用根**（与 profiles\ 同级）—— 它是应用级「运行环境」，
+        // ⛔ 不再随配置档切换，也不再位于 <配置根>\config。这里如实展示新位置（只读）。
+        Items.Add(new PathSettingItem
+        {
+            Key = "AppConfigFile", Name = "app.json（应用级配置）", Kind = PathItemKind.ReadOnly,
+            Description = "本页这些行的落盘文件；v3.65 起放在应用根（profiles 的同级），多配置共享同一份",
+            Value = _cfg.ConfigFilePath
+        });
         Items.Add(new PathSettingItem
         {
             Key = "ConfigDir", Name = "配置目录", Kind = PathItemKind.ReadOnly,
-            Description = "app.json / launch.json / theme.json / pc-quick.json / pc-scripts.json / columnlayout.json 等都在这里，可整体备份",
+            Description = "本配置档的 config 目录：launch.json / theme.json / script-manager.json / pc-quick.json / pc-scripts.json / columnlayout.json 等都在这里，可整体备份",
             Value = _store?.ConfigDir ?? ""
         });
     }
@@ -898,19 +640,17 @@ public partial class PathViewModel : ListPageViewModelBase, IDetailPanelProvider
             {
                 case "FfmpegPath": _cfg.FfmpegPath = v; break;
                 case "PlayerPath": _cfg.PlayerPath = v; break;
+                // v3.65 / NT-062：三个解释器路径回迁应用级（app.json）—— 本页是它们的唯一写入点。
                 case "PythonPath": _cfg.PythonPath = v; break;
                 case "PwshPath": _cfg.PwshPath = v; break;
                 case "PowerShell51Path": _cfg.PowerShell51Path = v; break;
-                case "ScriptFolder": _cfg.ScriptFolder = v; break;
                 case "VideoDbFolder": _cfg.VideoDbFolder = v; break;
-                // DataDir / ConfigDir 是只读展示项，不写；配置行（Key = "profile:<名>"）不属于 app.json
+                // ⚠️ 脚本目录（ScriptFolder）仍归「设置 → 脚本管理器设置」（config\script-manager.json），⛔ 本页不写它。
+                // DataDir / ConfigDir / AppConfigFile 是只读展示项，不写；配置行（Key = "profile:<名>"）不属于 app.json
             }
         }
         _cfg.Save();
     }
-
-    /// <summary>脚本目录的默认值（详情卡提示用）。</summary>
-    public string DefaultScriptFolder => _cfg?.DefaultScriptFolder ?? "";
 
     // ==================== 配置侧动作（v3.53 / NT-056：由「设置 → 配置」页原样并入） ====================
     //

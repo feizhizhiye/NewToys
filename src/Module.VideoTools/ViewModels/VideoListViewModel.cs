@@ -102,6 +102,9 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     private readonly VideoTaskStore? _store;
     private readonly INavigationService? _nav;
 
+    /// <summary>本模块设置（v3.64 / NT-061：并发数已从 app.json 下沉到 config\video-tools.json）。</summary>
+    private readonly IVideoToolsSettingsService? _vt;
+
     private readonly List<VideoItem> _all = new();
 
     private bool _syncing;
@@ -351,13 +354,15 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     public VideoListViewModel() { }
 
     public VideoListViewModel(IAppConfigService cfg, IColumnLayoutService cols, VideoMediaIndex index,
-                              VideoTaskStore store, INavigationService nav)
+                              VideoTaskStore store, INavigationService nav,
+                              IVideoToolsSettingsService? vt = null)
         : base(cols)
     {
         _cfg = cfg;
         _index = index;
         _store = store;
         _nav = nav;
+        _vt = vt;
         LoadLayout();
         Folder = _lastFolder;                                                            // 本次运行内记住上次选的目录
         UpdateHeaders();
@@ -724,7 +729,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
 
     /// <summary>
     /// 并发读取列表里**所有还没有媒体信息**的视频（已缓存的跳过，不重复跑）。
-    /// 并发度取「设置 → 通用」里的最大并发数（<c>app.json</c> 的 <c>MaxConcurrency</c>）。
+    /// 并发度取「设置 → 视频工具设置」里的**并发数**（v3.64 / NT-061：落 <c>config\video-tools.json</c>）。
     /// </summary>
     [RelayCommand]
     private async Task LoadAllMediaInfoAsync()
@@ -735,7 +740,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         if (targets.Count == 0) { StatusText = "列表里的视频都已有媒体信息。"; return; }
 
         var probe = VideoScanner.DeriveFfprobe(_cfg?.FfmpegPath);
-        var concurrency = Math.Clamp(_cfg?.MaxConcurrency ?? 2, 1, 16);
+        var concurrency = Math.Clamp(_vt?.MaxConcurrency ?? 2, 1, 16);
 
         _probeCts?.Cancel();
         _probeCts = new CancellationTokenSource();

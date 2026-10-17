@@ -1,0 +1,149 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ctl="using:NewToys.Shell.Controls"
+             x:Class="NewToys.Shell.Views.SettingsView">
+  <!--
+    v3.65 / NT-062「应用级设置页」（需求 §4.9.2 / §6.5）。
+    🔴 v3.66 第三轮：**树状（手风琴）+ 节点抬头磁吸**，⛔ 页面**没有标题栏**。
+      ① 整页只有一棵"树"：每个节 = 一个节点（卡片），节点抬头 = 折叠按钮（⌄/› + 图标 + 标题 + 说明）；
+      ② **首行始终显示当前节点**：节点抬头滚过页面顶部时，由一个**浮层抬头**（同一模板、可点）钉在顶部，
+         正身那份用 `Opacity=0` 让位（⛔ 不删元素，免得布局跳）—— 即"树状滚动"里的 sticky 节点；
+      ③ 下一个节点的抬头快顶上来时，浮层被**推着往上走**（Push 效果，`Margin.Top` 取负）；
+      ④ 滚动 / 手动都能开收：点抬头 = 手动开收；**与视口相交（滚到）的节点自动展开，⛔ 不自动折叠**
+         ⇒ 高度只增不减、可一路滚到底（第五轮改，见 `SettingsView.axaml.cs`）；
+      ⑤ 节自带工具条（`HasToolbar`）= **节点内渲染**（抬头下方、正文之上），⛔ 不再上抛到页面顶部
+         （第五轮改：原来经 `IToolbarOwner` 顶到 Shell 工具条行，用户要求放回本节内容顶部）。
+      滚动判定全在 `SettingsView.axaml.cs`（⛔ VM 不认识视口）。
+    ⛔ 切节不新开标签页；⛔ 本页没有右详情卡（契约已取消，见 SettingsViewModel 注释）。
+    窄界面基线（NT-053）：根 Panel 铺满 ⇒ 最窄 960×640 可用。
+  -->
+  <UserControl.Resources>
+    <!--  节点抬头的内容（正身 / 磁吸浮层**共用同一份模板**，⛔ 不写两遍）  -->
+    <DataTemplate x:Key="SectionHeaderContent">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+        <!--  折叠指示：展开 ⌄ / 收起 ›（两个键都在 App.axaml 资源区，24 网格描边几何）  -->
+        <Path
+            Grid.Column="0"
+            Width="12"
+            Height="12"
+            VerticalAlignment="Center"
+            Data="{StaticResource IconChevronDown}"
+            IsVisible="{Binding IsExpanded}"
+            Stroke="{DynamicResource SecondaryTextBrush}"
+            StrokeThickness="1.6"
+            Stretch="Uniform" />
+        <Path
+            Grid.Column="0"
+            Width="12"
+            Height="12"
+            VerticalAlignment="Center"
+            Data="{StaticResource IconChevronRight}"
+            IsVisible="{Binding !IsExpanded}"
+            Stroke="{DynamicResource SecondaryTextBrush}"
+            StrokeThickness="1.6"
+            Stretch="Uniform" />
+        <TextBlock
+            Grid.Column="1"
+            Margin="8,0,0,0"
+            VerticalAlignment="Center"
+            FontSize="14"
+            Text="{Binding Icon}" />
+        <TextBlock
+            Grid.Column="2"
+            Margin="6,0,0,0"
+            VerticalAlignment="Center"
+            FontSize="14"
+            FontWeight="SemiBold"
+            Foreground="{DynamicResource PrimaryTextBrush}"
+            Text="{Binding Title}" />
+        <TextBlock
+            Grid.Column="3"
+            Margin="12,0,4,0"
+            VerticalAlignment="Center"
+            FontSize="12"
+            Foreground="{DynamicResource SecondaryTextBrush}"
+            Text="{Binding Desc}"
+            TextTrimming="CharacterEllipsis" />
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <!--  🔴 v3.66 第七轮：根上**显式给不透明背景**（ContentBrush）—— 设置页内容都在卡片里，
+        页根与卡片之间本来是透明的；一旦切页时旧页面（首页）的视图有残留，就会"透出来"看到两层
+        内容叠在一起。给页根铺一层背景即可保证**本页永远自成一屏**。  -->
+  <ScrollViewer
+      x:Name="SectionScroll"
+      Background="{DynamicResource ContentBrush}"
+      HorizontalScrollBarVisibility="Disabled"
+      VerticalScrollBarVisibility="Auto">
+    <Panel>
+      <!--  ==================== 树本体：节点（抬头 + 正文）整体参与滚动 ====================  -->
+      <ItemsControl x:Name="SectionList" Margin="12" ItemsSource="{Binding Sections}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <!--  一个节点 = 一张卡片；`sec-head` / `sec-body` 两个类名保留（code-behind 靠 `sec-head` 找抬头；
+                  `sec-body` 标正文区，⛔ 别删 —— 后续若要量正文高度还用得上）  -->
+            <Border Classes="card" Margin="0,0,0,10" Padding="0">
+              <StackPanel>
+                <Button
+                    Classes="settings-nav sec-head"
+                    Padding="10,8"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left"
+                    Command="{Binding $parent[UserControl].DataContext.ToggleSectionCommand}"
+                    CommandParameter="{Binding}"
+                    Content="{Binding}"
+                    ContentTemplate="{StaticResource SectionHeaderContent}"
+                    ToolTip.Tip="{Binding Desc}" />
+
+                <!--  🔴 v3.66 第五轮：节**自己的工具条**（当前只有「运行环境」节有）= 就地在
+                      **抬头下方、正文之上**渲染（原来上抛给 Shell ⇒ 顶在页面顶部，用户要求放回本节顶部）。
+                      `ToolbarHost` 的 `Source` = **节 VM**（描述符里的 `CommandPath` 相对它解析）。
+                      外层 `IsVisible=IsExpanded` ⇒ 节点收起时工具条跟着收起；内层 `HasToolbar` ⇒
+                      ⛔ 没有工具条的节整块不占高度。  -->
+                <StackPanel IsVisible="{Binding IsExpanded}">
+                  <Border Classes="toolbar" IsVisible="{Binding HasToolbar}">
+                    <ctl:ToolbarHost Source="{Binding ViewModel}" />
+                  </Border>
+
+                  <ContentControl
+                      Classes="sec-body"
+                      Margin="14,10,14,12"
+                      Content="{Binding Content}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!--  ==================== 磁吸节点抬头：钉在页面顶部，点它照样折叠 / 展开 ====================
+            🔴 必须放在**滚动内容内部**（`Panel` 的第二个孩子 ⇒ 画在最上层）：
+               若把它放到 ScrollViewer 外面，鼠标停在它上面时滚轮事件到不了 ScrollViewer（滚不动）。
+               位置 = `RenderTransform` 的 Y 平移（由 code-behind 按滚动量给 ⇒ 视觉上始终贴视口顶部；
+               ⛔ 不用 Margin，那会把面板撑高、滚起来会"越滚越长"）；宽度随内容自适应，与卡片自动对齐。  -->
+      <Border
+          x:Name="StuckHeader"
+          VerticalAlignment="Top"
+          Margin="12,0,12,0"
+          Padding="0"
+          Classes="card"
+          BorderBrush="{DynamicResource DividerBrush}"
+          BorderThickness="0,0,0,1"
+          CornerRadius="8,8,0,0"
+          IsVisible="False">
+        <Button
+            Classes="settings-nav sec-head"
+            Margin="0"
+            Padding="10,8"
+            HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Left"
+            Command="{Binding $parent[UserControl].DataContext.ToggleSectionCommand}"
+            CommandParameter="{Binding}"
+            Content="{Binding}"
+            ContentTemplate="{StaticResource SectionHeaderContent}"
+            ToolTip.Tip="{Binding Desc}" />
+      </Border>
+    </Panel>
+  </ScrollViewer>
+</UserControl>

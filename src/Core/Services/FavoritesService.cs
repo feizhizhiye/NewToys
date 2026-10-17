@@ -18,7 +18,7 @@ public class FavoritesService : IFavoritesService
     /// <summary>首次运行（尚无 favorites.json）的默认常用功能。</summary>
     private static readonly string[] DefaultKeys =
     {
-        "pc-info", "pc-shortcuts", "web-scrape", "video-list", "settings-dns", "settings-general"
+        "script-info", "script-library", "web-scrape", "video-list", "settings-dns", "settings-general"
     };
 
     private readonly ConfigStoreService _cfg;
@@ -84,7 +84,7 @@ public class FavoritesService : IFavoritesService
     }
 }
 
-/// <summary>favorites.json 的磁盘结构：<c>{ "Keys": ["pc-info", ...] }</c>。</summary>
+/// <summary>favorites.json 的磁盘结构：<c>{ "Keys": ["script-info", ...] }</c>。</summary>
 internal class FavoritesFile
 {
     public List<string> Keys { get; set; } = new();

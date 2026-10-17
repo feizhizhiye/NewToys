@@ -9,7 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
 using NewToys.Shared.Services;
 
-namespace NewToys.Settings.ViewModels;
+namespace NewToys.Shell.ViewModels;
 
 /// <summary>
 /// 通用设置页（v1.35：**四项系统级行为全部真正生效**；NT-051：合并「主题外观」「关于」两页为四节）。
@@ -139,7 +139,7 @@ public partial class GeneralViewModel : ObservableObject, IStatusProvider
         TechStack.Add(new TechStackItem { Name = "CommunityToolkit.Mvvm", Ver = "8.x" });
         TechStack.Add(new TechStackItem { Name = "Microsoft.Extensions.DependencyInjection", Ver = "9.x" });
 
-        CoreConstraints.Add("项目分 7 层：Shared / Core / Shell + PcTools / WebTools / VideoTools / Settings 四个模块");
+        CoreConstraints.Add("项目分 7 层：Shared / Core / Shell + ScriptManager / WebTools / VideoTools / Settings 四个模块");
         CoreConstraints.Add("依赖方向单向：Module.* → Core → Shared；模块禁止反向引用 Shell，模块之间禁止互相引用");
         CoreConstraints.Add("菜单 100% 由 IMenuService 注册，Shell 里禁止硬编码任何模块名 / 页面名 / 导航键");
         CoreConstraints.Add("Debug 走显式模块类型清单，Release 只扫 <程序目录>\\Modules\\");

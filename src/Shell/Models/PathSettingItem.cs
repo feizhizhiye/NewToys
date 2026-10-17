@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace NewToys.Settings.Models;
+namespace NewToys.Shell.Models;
 
 /// <summary>路径项的类型 —— 决定「浏览…」打开的是文件选择器还是文件夹选择器。</summary>
 public enum PathItemKind
@@ -25,7 +25,7 @@ public enum PathItemKind
 /// </summary>
 public enum SettingCategory
 {
-    /// <summary>路径项：`app.json` 里的运行环境路径（ffmpeg / 播放器 / 解释器 / 脚本目录…）。</summary>
+    /// <summary>路径项：<c>app.json</c> 里的运行环境路径（ffmpeg / 播放器 / 解释器…；脚本目录已下沉到模块设置）。</summary>
     Path,
 
     /// <summary>配置档：`profiles\` 下的多套独立 data（config / data / logs），切换 = 重启本窗口。</summary>
@@ -105,5 +105,17 @@ public partial class PathSettingItem : ObservableObject
         ? Value
         : (IsReadOnly ? "—" : (DefaultValue.Length > 0 ? $"（默认：{DefaultValue}）" : "（留空 = 用系统默认）"));
 
-    partial void OnValueChanged(string value) => OnPropertyChanged(nameof(ValueDisplay));
+    /// <summary>
+    /// 行内「↗ 打开位置 / 打开配置目录」的完整提示（v3.65 / NT-062，需求 §4.9.2 第 3 条「每行打开配置目录 / 文件」）：
+    /// **每行**都给出实际文件 / 目录路径（配置行 = 该配置的目录；路径行留空时说明"用系统默认"）。
+    /// </summary>
+    public string OpenTargetTip => Value.Length > 0
+        ? (IsProfileRow ? "打开配置目录：" : "打开 / 定位：") + Value
+        : "这一项留空 = 用系统默认，没有具体路径";
+
+    partial void OnValueChanged(string value)
+    {
+        OnPropertyChanged(nameof(ValueDisplay));
+        OnPropertyChanged(nameof(OpenTargetTip));
+    }
 }

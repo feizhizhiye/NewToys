@@ -39,7 +39,7 @@ public partial class HomeView : UserControl
     private void OnFavoritesChanged() => _vm?.BuildFavorites();
 
     /// <summary>
-    /// 常用功能按钮右键 = 「▶ 打开 / ✕ 取消固定」—— 与「电脑工具 → 收藏夹」按钮墙完全一致的交互。
+    /// 常用功能按钮右键 = 「▶ 打开 / ✕ 取消固定」—— 与「脚本管理器 → 收藏夹」按钮墙完全一致的交互。
     /// <para>
     /// 为什么在 code-behind 里现构造菜单：<c>ContextMenu</c> 挂在**独立的弹出树**上，
     /// 模板里声明的菜单取不到页面 VM，<c>$parent[UserControl]</c> 这类绑定在弹出树里会断链（规范 3.6）。
@@ -52,6 +52,8 @@ public partial class HomeView : UserControl
         if (sender is not Control button) return;
         if (DataContext is not HomeViewModel vm) return;
         if (button.DataContext is not FavCard card) return;
+        // v3.66：尾部「显示更多」卡**不是收藏项** ⇒ 不给它右键菜单（否则会出现"取消固定 显示更多"）。
+        if (card.IsMore) { e.Handled = true; return; }
 
         var menu = new ContextMenu { DataContext = vm };
         menu.Items.Add(new MenuItem { Header = "▶ 打开", Command = vm.NavigateCommand, CommandParameter = card.Key });

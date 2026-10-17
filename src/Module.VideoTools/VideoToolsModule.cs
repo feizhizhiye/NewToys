@@ -22,10 +22,16 @@ public class VideoToolsModule : IModule
                 s.GetRequiredService<IColumnLayoutService>(),
                 s.GetRequiredService<VideoMediaIndex>(),
                 s.GetRequiredService<VideoTaskStore>(),
-                s.GetRequiredService<INavigationService>()));
+                s.GetRequiredService<INavigationService>(),
+                s.GetRequiredService<IVideoToolsSettingsService>()));
         services.AddTransient<Views.VideoPreviewView>(); services.AddTransient<VideoPreviewViewModel>();
         // v3.8：原「格式转码」页改名改造为「批量处理」页（列表 = 剪辑 + 转码混排的统一队列）
         services.AddTransient<Views.VideoBatchView>();  services.AddTransient<VideoBatchViewModel>();
+
+        // v3.64 / NT-061：本模块设置（并发数）——**本模块配置的唯一写入点**，落 config\video-tools.json
+        // （经 Core 的 IOptionsStore）。ffmpeg / 外部播放器 / 导入导出目录是全局项，⛔ 不在这里另存一份。
+        services.AddSingleton<IVideoToolsSettingsService, VideoToolsSettingsService>();
+        services.AddTransient<Views.SettingsVideoToolsView>();  services.AddTransient<SettingsVideoToolsViewModel>();
     }
     public void Initialize(IServiceProvider services)
     {
@@ -51,5 +57,10 @@ public class VideoToolsModule : IModule
         menu.RegisterFunction("video", "video-cut",   "视频预览", "✂",  "VideoPreviewView", 1, "边预览画面边制定单个剪辑 / 转码任务，生成 ffmpeg 命令后发送到批量处理");
         // v3.8：原「格式转码」→「批量处理」（剪辑 + 转码混排的任务队列）
         menu.RegisterFunction("video", "video-batch", "批量处理", "🧺", "VideoBatchView", 2, "剪辑 + 转码混排的任务队列：逐条改参数 / 编辑命令、批量运行");
+
+        // v3.64 / NT-061：模块设置页通则 —— View/VM 归本模块。
+        // v3.66 / NT-062：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
+        menu.RegisterFunction("video", "settings-video-tools", "视频工具设置", "🎬", "SettingsVideoToolsView", 100,
+            "并发数与 ffmpeg / 播放器 / 导入导出目录（后三项是全局项，本页只展示）");
     }
 }

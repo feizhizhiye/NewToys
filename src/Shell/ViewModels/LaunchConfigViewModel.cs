@@ -7,7 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-namespace NewToys.Settings.ViewModels;
+namespace NewToys.Shell.ViewModels;
 
 /// <summary>
 /// 「一键按钮」页 —— 首页「⚡ 一键操作」三个按钮的**全部设置都在这一页**。

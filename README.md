@@ -11,6 +11,8 @@
 > 技术栈：**Avalonia 12 + .NET 10**（不是 WPF，XAML 语法有差异）。
 > 全部约定见 `skill/docs/` 下 **4 份**文档（需求规格 / 工程规范 / 项目状态与路线图 / AI协作手册）；**任务型 → 规范章节速查表**见 `AGENTS.md`。
 
+<img width="1104" height="721" alt="图片" src="https://github.com/user-attachments/assets/7ccb3081-05e5-4f3d-b03d-52c45163829c" />
+
 ## 目录地图
 
 ```

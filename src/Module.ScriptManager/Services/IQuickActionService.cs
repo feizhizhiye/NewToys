@@ -93,6 +93,12 @@ public interface IQuickActionService
     event Action? Changed;
 
     /// <summary>
+    /// 从 <c>script.json</c> <b>重读</b>并重建两个库页的内存镜像，随后触发 <see cref="Changed"/>。
+    /// <para>用于"别的页写了数据层"之后让库页跟上（集合页扫描入库、信息面板改列 schema 等）。</para>
+    /// </summary>
+    void Reload();
+
+    /// <summary>
     /// <b>手动扫描</b>（NT-068 §三.6）：把目录里的脚本列成候选（三态：新文件 / 已入库 / 不可采集）。
     /// <para>⛔ 只列不建 —— 入库动作由界面的「➕ 加入库」触发（用户拍板「用户自己扫描」）。</para>
     /// </summary>

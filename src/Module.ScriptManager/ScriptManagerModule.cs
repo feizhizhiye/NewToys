@@ -34,6 +34,8 @@ public class ScriptManagerModule : IModule
         // 观测缓存落 data\script\script.db。两者都**不进** Core（框架层冻结）。
         services.AddSingleton<IScriptStoreService, ScriptStoreService>();
         services.AddSingleton(sp => new ScriptDatabase(sp.GetRequiredService<IScriptStoreService>().DatabasePath));
+        // NT-068 S4：集合页（主从两栏）
+        services.AddTransient<Views.CollectionView>();  services.AddTransient<CollectionViewModel>();
         services.AddTransient<Views.SettingsScriptView>();  services.AddTransient<SettingsScriptViewModel>();
     }
     public void Initialize(IServiceProvider services)
@@ -63,6 +65,7 @@ public class ScriptManagerModule : IModule
         menu.RegisterFunction("script", "script-library",   "脚本库",   "▤",  "ScriptLibraryView",  1, "较复杂的系统设置项与常用脚本，可运行 / 增删改查 / 收藏");
         menu.RegisterFunction("script", "script-commands",  "命令库",   "⚙",  "CommandLibraryView", 2, "系统自带设置入口（Windows 设置面板 / 管理工具），点一下即打开");
         menu.RegisterFunction("script", "script-packages",  "软件包",   "📦", "PackageView",        3, "搜索、安装、升级、卸载软件包");
+        menu.RegisterFunction("script", "script-collections", "集合",   "🗂", "CollectionView",     4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
         menu.RegisterFunction("script", "script-info",      "信息面板", "💻", "ScriptInfoView",     99, "用 sysinfo\\ 下的脚本呈现任意信息表（列与脚本由 manifest 定义）");
 
         // 软件包模块的源设置：v3.65 / NT-062 起**并入「脚本管理器设置」页**（需求 §6.5）——

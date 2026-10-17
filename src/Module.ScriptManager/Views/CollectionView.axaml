@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.UI.Controls"
+             x:Class="NewToys.ScriptManager.Views.CollectionView">
+  <!--  NT-068 S4 集合页：主从两栏 —— 左 280px 集合列表 + 右成员表（勾选即增删，即时生效）。
+        详情卡走标准右侧声明式卡（IDetailCardSource），与全应用一致。  -->
+  <Grid ColumnDefinitions="280,*" Margin="12">
+
+    <!--  ==================== 左栏：集合列表  ====================  -->
+    <Border Grid.Column="0" Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="4">
+      <Grid RowDefinitions="Auto,Auto,*" Margin="8">
+
+        <TextBox Grid.Row="0" PlaceholderText="搜索集合…" MinWidth="0" MinHeight="0"
+                 Text="{Binding CollectionSearch, Mode=TwoWay}"/>
+
+        <StackPanel Grid.Row="1" Spacing="4" Margin="0,6,0,0">
+          <ComboBox ItemsSource="{Binding GroupOptions}" SelectedItem="{Binding SelectedGroup, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch" MinWidth="0">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Label}"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox ItemsSource="{Binding KindFilterOptions}" SelectedItem="{Binding SelectedKindFilter, Mode=TwoWay}"
+                    HorizontalAlignment="Stretch" MinWidth="0">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Label}"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
+
+        <ListBox Grid.Row="2" Margin="0,6,0,0" ItemsSource="{Binding Collections}"
+                 SelectedItem="{Binding SelectedCollection, Mode=TwoWay}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                <TextBlock Grid.Column="0" Text="{Binding Icon}" Width="22" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Spacing="1">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Text="{Binding SubText}" Classes="hint-text"/>
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding PinMark}" Classes="accent" VerticalAlignment="Center"/>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+
+    <!--  ==================== 右栏：成员表（全库清单 + 勾选）  ====================  -->
+    <v:ListPageSkeleton Grid.Column="1" Margin="8,0,0,0" IsEmpty="{Binding !HasMembers}"
+                        EmptyMessage="没有可显示的条目。先去「脚本库」扫描 / 导入脚本，或在工具条切「📦 归档」外的下拉看全部。">
+      <v:ListPageSkeleton.HeaderArea>
+        <Border Classes="list-header">
+          <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+            <TextBlock Grid.Column="0" Classes="list-cell" Text="加入" FontWeight="SemiBold"
+                       ToolTip.Tip="勾上 = 加进当前集合；取消勾 = 移出（即时生效，无保存按钮）"/>
+            <TextBlock Grid.Column="1" Classes="list-cell" Text="名称" FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="2" Classes="list-cell" Text="类型" FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="3" Classes="list-cell" Text="目标" FontWeight="SemiBold"
+                       ToolTip.Tip="脚本文件（相对脚本目录）或命令行命令"/>
+          </v:ColumnGrid>
+        </Border>
+      </v:ListPageSkeleton.HeaderArea>
+
+      <v:ListPageSkeleton.ListArea>
+        <ListBox x:Name="MemberList" Classes="list-page" ItemsSource="{Binding Members}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                <CheckBox Grid.Column="0" IsChecked="{Binding IsMember, Mode=TwoWay}"
+                          IsEnabled="{Binding CanToggle}" MinWidth="0" MinHeight="0"
+                          ToolTip.Tip="{Binding Reason}"/>
+                <TextBlock Grid.Column="1" Classes="list-cell primary" Text="{Binding Title}"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding RoleText}"/>
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Target}"
+                           TextTrimming="CharacterEllipsis"/>
+              </v:ColumnGrid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </v:ListPageSkeleton.ListArea>
+    </v:ListPageSkeleton>
+  </Grid>
+</UserControl>

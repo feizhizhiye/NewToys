@@ -82,6 +82,13 @@ public class QuickActionService : IQuickActionService
 
     public event Action? Changed;
 
+    /// <summary>重读数据层并重建镜像（其它页写了 <c>script.json</c> 之后调）。</summary>
+    public void Reload()
+    {
+        Load();
+        Changed?.Invoke();
+    }
+
     /// <summary>手动扫描目录（NT-068 §三.6）：只产出候选，⛔ 不自动入库。</summary>
     public IReadOnlyList<ScriptCandidate> Scan(string directory, bool includeSubFolders)
         => ScriptScanner.Scan(directory, includeSubFolders, _store?.Data.Items ?? Enumerable.Empty<ScriptItem>());

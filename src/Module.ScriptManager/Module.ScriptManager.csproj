@@ -7,6 +7,8 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <!--  NT-068：模块自建的观测库 data\script\script.db（不复用 Core 的 SqliteDatabase）  -->
+    <PackageReference Include="Microsoft.Data.Sqlite" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Shared/Shared.csproj" />

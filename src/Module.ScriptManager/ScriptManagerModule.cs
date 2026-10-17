@@ -29,10 +29,30 @@ public class ScriptManagerModule : IModule
         // 都落本模块（⛔ 不进 Core：框架层冻结；脚本执行是"脚本管理器"的能力，不是全应用能力）。
         services.AddSingleton<ISysInfoManifestService, SysInfoManifestService>();
         services.AddSingleton(sp => new ScriptRunner(sp.GetRequiredService<IAppConfigService>()));
+
+        // NT-068 S2：数据层 —— 手工数据（集合/条目/视图）落 config\script\script.json，
+        // 观测缓存落 data\script\script.db。两者都**不进** Core（框架层冻结）。
+        services.AddSingleton<IScriptStoreService, ScriptStoreService>();
+        services.AddSingleton(sp => new ScriptDatabase(sp.GetRequiredService<IScriptStoreService>().DatabasePath));
         services.AddTransient<Views.SettingsScriptView>();  services.AddTransient<SettingsScriptViewModel>();
     }
     public void Initialize(IServiceProvider services)
     {
+        // NT-068 S2：开机即落位三份数据 —— config\script-manager.json（设置，解析设置服务时建）、
+        // config\script\script.json（手工数据）、data\script\script.db（观测缓存）。
+        // 库坏 / 目录只读都不该拦住整个应用启动，所以整体兜住。
+        try
+        {
+            var store = services.GetRequiredService<IScriptStoreService>();
+            var db = services.GetRequiredService<ScriptDatabase>();
+            // 保留策略兜底：days 模式的条目在启动时清一遍超龄观测（§三.10）。
+            db.PruneAllDays(store.Data.Items);
+        }
+        catch
+        {
+            // 数据层不可用 ⇒ 页面按空数据处理（状态栏由页面自己报 ⚠），⛔ 不让启动失败。
+        }
+
         var menu = services.GetRequiredService<IMenuService>();
         menu.RegisterModule("script", "脚本管理器", "IconPc", 20);
         // 第 7 个参数是「功能简介」：功能清单页展示，首页收藏卡也复用它（单一真相源）。

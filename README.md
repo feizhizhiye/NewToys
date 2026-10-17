@@ -1,6 +1,12 @@
 # NewToys
 
+**Windows 桌面工具集** —— 把命令行、系统设置、winget、ffmpeg 与自建脚本，收进一个模块化窗口里点一下就用。
+
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg) ![.NET](https://img.shields.io/badge/.NET-10-512BD4) ![UI](https://img.shields.io/badge/UI-Avalonia%2012-8B44D9)
+
 个人高强度使用工具集。**Avalonia 12 + .NET 10** 版本。
+
+> 想了解它**是什么 / 怎么用**（与技术栈无关的说明）：见 `skill/docs/NewToys-软件说明书.md`。
 
 > 技术栈：**Avalonia 12 + .NET 10**（不是 WPF，XAML 语法有差异）。
 > 全部约定见 `skill/docs/` 下 **4 份**文档（需求规格 / 工程规范 / 项目状态与路线图 / AI协作手册）；**任务型 → 规范章节速查表**见 `AGENTS.md`。
@@ -65,3 +71,21 @@ NewToys/
 - ✅ Debug / Release **均 0 Error / 0 Warning**
 - **版本记录走 git commit**（`<type>: 简述`），⛔ 不写 md 变更日志；完整约定详见 `AGENTS.md`
 - 详细基线与工作项见 `skill/docs/NewToys-项目状态与路线图.md`
+
+## 四个功能模块
+
+| 模块 | 干什么 |
+|---|---|
+| 脚本管理器 | 收集脚本 / 命令 / 采集器 / winget 包，并把脚本的结构化输出做成信息面板 |
+| 网络工具 | HTTP 测试、书签管理、网络 Ping（含 DNS 切换）、网页抓取、Hosts 管理 |
+| 视频工具 | 视频查看器 + ffmpeg 剪辑 / 转码命令的制定与批量执行 |
+| 媒体资产 | 本地文件资产库：扫描索引 + 标签 / 分类 / 集合 / 任务 / 回收站 |
+
+## 许可
+
+| 文件 | 内容 |
+|---|---|
+| `LICENSE` | **MIT**（本项目源码） |
+| `THIRD-PARTY-NOTICES.md` | 第三方依赖与运行时外部程序的许可清单 |
+| `CONTRIBUTING.md` | 贡献流程与本项目的四条铁律 |
+| `SECURITY.md` | 漏洞上报与本项目的威胁模型 |

@@ -11,6 +11,7 @@
     规范 §4.9：路径 / 数值 / 文本 = 即时生效（失焦即落盘，⛔ 无保存按钮）。
   -->
   <ui:SettingsSectionHost Sticky="False">
+    <ui:SettingsSectionHost.Sections>
 
     <!--  ============ ① 网页抓取默认项 ============  -->
     <ui:SettingsSection
@@ -79,5 +80,6 @@
       </StackPanel>
     </ui:SettingsSection>
 
+    </ui:SettingsSectionHost.Sections>
   </ui:SettingsSectionHost>
 </UserControl>

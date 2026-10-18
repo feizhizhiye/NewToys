@@ -12,6 +12,7 @@
     规范 §4.9：路径 = 即时生效（失焦即落盘，⛔ 无保存按钮）；无效路径 ⇒ 底栏红字 + ⛔ 不写盘。
   -->
   <ui:SettingsSectionHost Sticky="False">
+    <ui:SettingsSectionHost.Sections>
 
     <!--  ============ ① 脚本目录 ============  -->
     <ui:SettingsSection
@@ -90,5 +91,6 @@
       </StackPanel>
     </ui:SettingsSection>
 
+    </ui:SettingsSectionHost.Sections>
   </ui:SettingsSectionHost>
 </UserControl>

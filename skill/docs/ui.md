@@ -463,7 +463,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 | 层 | 是什么 | 谁给 |
 |---|---|---|
-| 节模型 | `NewToys.UI.Settings.SettingsSection`（`Key` / `Title` / `Icon` / `Desc` / `Content` / `ViewModels` / `IsExpanded`） | 应用级 = VM 代码构建；模块页 = **XAML 子元素**（`Content` 是内容属性） |
+| 节模型 | `NewToys.UI.Settings.SettingsSection`（`Key` / `Title` / `Icon` / `Desc` / `Content` / `ViewModels` / `IsExpanded`） | 应用级 = VM 代码构建；模块页 = **XAML 属性元素**（见 11.2） |
 | 骨架 | `SettingsSectionHost`：节卡片渲染 + 折叠 + 磁吸抬头 + Push + 滚动自动展开 + 全部收起 + 节内工具条 + 滚动定位 | UI 库（一份） |
 | 节内工具条 | `ToolbarTemplate` 插槽（DataContext = 节 VM） | Shell 传 `ToolbarHost`；模块页不给 = 无工具条 |
 
@@ -477,9 +477,18 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 用法 | 写法 | `Sticky` |
 |---|---|---|
 | 应用级设置页（6 节） | `ItemsSource="{Binding Sections}"` + `ToolbarTemplate` | 默认 `true` |
-| 模块设置页（2~3 节） | XAML 子元素 + `IsExpanded="True"` | **`false`** |
+| 模块设置页（2~3 节） | `<ui:SettingsSectionHost.Sections>` 属性元素 + `IsExpanded="True"` | **`false`** |
 | 模块设置页（≥5 节，如媒体资产 7 节） | 同上 | 默认 `true` |
 
+```xml
+<ui:SettingsSectionHost Sticky="False">
+  <ui:SettingsSectionHost.Sections>
+    <ui:SettingsSection Title="…" Icon="…" Desc="…" IsExpanded="True"> 内容 </ui:SettingsSection>
+  </ui:SettingsSectionHost.Sections>
+</ui:SettingsSectionHost>
+```
+- 🔴 **`Sections` ⛔ 不能标 `[Content]`**：会抢掉 `UserControl.Content`，控件自己的 axaml 根 `<Panel PageRoot>` 就被当成"一个节"塞进来
+  ⇒ `AVLN3000: Unable to find suitable setter or adder for property Sections … for argument Panel`。故模块页必须用**属性元素**写法（上面这段）。
 - `Sticky=false` ⇒ ⛔ 不挂浮层、⛔ 不滚动自动展开、⛔ 不显示「全部收起」，只保留**点抬头开收**。
 - 模块页节内容**直接放字段**（`StackPanel Classes="field"` / `CheckBox` / 按钮），⛔ 再包一层 `Border.card`（会套两层卡片）。
 

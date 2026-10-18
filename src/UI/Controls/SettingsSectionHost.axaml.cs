@@ -132,10 +132,13 @@ public partial class SettingsSectionHost : UserControl
     }
 
     /// <summary>
-    /// XAML 内容属性 = XAML 里直接写的那些 <see cref="SettingsSection"/>（模块设置页用法）。
-    /// <para><see cref="ItemsSource"/> 非空时以它为准，本集合被忽略。</para>
+    /// 节集合（模块设置页在 XAML 里用**属性元素**写：<c>&lt;ui:SettingsSectionHost.Sections&gt;</c>）。
+    /// <para>
+    /// 🔴 **⛔ 不要给本属性加 <c>[Content]</c>**：会抢掉 `UserControl.Content`，本控件自己的 axaml 根
+    /// `<Panel x:Name="PageRoot">` 就会被当成"一个节"塞进来 ⇒ 编译报
+    /// <c>AVLN3000: Unable to find suitable setter or adder for property Sections … for argument Panel</c>。
+    /// </para>
     /// </summary>
-    [Avalonia.Metadata.Content]
     public ObservableCollection<SettingsSection> Sections { get; } = new();
 
     /// <summary>任一节折叠 / 展开（含「全部收起」与滚动自动展开）后触发；<c>null</c> = 整批变化。</summary>

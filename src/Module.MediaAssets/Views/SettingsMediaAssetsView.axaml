@@ -11,6 +11,7 @@
     状态文本由 Shell 底部状态栏统一显示（IStatusProvider）。
   -->
   <ui:SettingsSectionHost>
+    <ui:SettingsSectionHost.Sections>
 
     <!--  ============ ① 扫描 ============  -->
     <ui:SettingsSection
@@ -280,5 +281,6 @@
       </StackPanel>
     </ui:SettingsSection>
 
+    </ui:SettingsSectionHost.Sections>
   </ui:SettingsSectionHost>
 </UserControl>

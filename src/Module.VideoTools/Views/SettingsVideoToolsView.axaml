@@ -9,6 +9,7 @@
     规范 §4.9：数值 = 即时生效（改即落盘，⛔ 无保存按钮）；全局项只展示、⛔ 不另存一份。
   -->
   <ui:SettingsSectionHost Sticky="False">
+    <ui:SettingsSectionHost.Sections>
 
     <!--  ============ ① 性能 ============  -->
     <ui:SettingsSection
@@ -89,5 +90,6 @@
       </StackPanel>
     </ui:SettingsSection>
 
+    </ui:SettingsSectionHost.Sections>
   </ui:SettingsSectionHost>
 </UserControl>

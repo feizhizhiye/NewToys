@@ -7,8 +7,7 @@ namespace NewToys.Shell.ViewModels;
 /// 一个打开的标签页（v3.1 仿浏览器导航模型）= 一个缓存的 View 实例 + 一份 VM + 一个历史栈。
 /// <para>
 /// 单例语义：同一 <see cref="Key"/> 只允许一个标签页存在（工具类应用，非文档编辑器）。
-/// 首页标签 <see cref="CanClose"/>=false 且 <see cref="ShowInTabStrip"/>=false（v3.66 第十八轮：
-/// 它不常驻标签栏，入口 = 标签栏 `＋`；但**激活时会在标签栏露出**，见 <see cref="IsVisibleInStrip"/>）。
+/// 首页标签 <see cref="CanClose"/>=false（不可关闭），但**与其他标签一样常驻标签栏**（v3.69：不再隐藏）。
 /// </para>
 /// </summary>
 public partial class TabItemViewModel : ObservableObject
@@ -31,17 +30,6 @@ public partial class TabItemViewModel : ObservableObject
     /// <summary>是否可关闭（首页 = false）。</summary>
     public bool CanClose { get; }
 
-    /// <summary>
-    /// 「是否**常驻**标签栏」：普通标签 <c>true</c>；首页 <c>false</c>（v3.66 第十八轮起首页不做固定按钮，
-    /// 入口 = 标签栏 `＋`）。⚠️ 首页激活时**仍要在标签栏露出**（否则看不出当前在哪一页）⇒ 见 <see cref="IsVisibleInStrip"/>。
-    /// </summary>
-    public bool ShowInTabStrip { get; }
-
-    /// <summary>
-    /// 标签栏里**实际是否可见**（v3.68）：常驻标签恒可见；首页只在**激活时**出现，切走即隐去。
-    /// </summary>
-    public bool IsVisibleInStrip => ShowInTabStrip || IsActive;
-
     [ObservableProperty] private bool _isActive;
 
     internal Stack<object?> BackStack { get; } = new();
@@ -51,7 +39,7 @@ public partial class TabItemViewModel : ObservableObject
     public bool CanGoForward => ForwardStack.Count > 0;
 
     public TabItemViewModel(string key, string title, string icon, object content, object? viewModel,
-                            bool canClose, bool showInTabStrip = true)
+                            bool canClose)
     {
         Key = key;
         Title = title;
@@ -59,7 +47,6 @@ public partial class TabItemViewModel : ObservableObject
         Content = content;
         ViewModel = viewModel;
         CanClose = canClose;
-        ShowInTabStrip = showInTabStrip;
     }
 
     /// <summary>「⟳ 刷新」用：原地换掉缓存的 View + VM（标签身份/位置不变）。</summary>
@@ -70,7 +57,4 @@ public partial class TabItemViewModel : ObservableObject
         OnPropertyChanged(nameof(Content));
         OnPropertyChanged(nameof(ViewModel));
     }
-
-    /// <summary>激活态一变，标签栏可见性（首页联动）也要重算。</summary>
-    partial void OnIsActiveChanged(bool value) => OnPropertyChanged(nameof(IsVisibleInStrip));
 }

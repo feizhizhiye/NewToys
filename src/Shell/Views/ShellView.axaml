@@ -37,7 +37,7 @@
     <Window.Resources>
         <DataTemplate x:Key="TabItemTemplate">
             <!--  标签项 = 纯标题（无图标）；✕ 仅在鼠标悬停本标签时显示（样式控制）  -->
-            <Border Classes="tab-item" Classes.active="{Binding IsActive}" IsVisible="{Binding IsVisibleInStrip}">
+            <Border Classes="tab-item" Classes.active="{Binding IsActive}">
                 <!--  单格 Grid：标题按钮撑开标签宽度，关闭按钮**叠在上层贴右端**（不占位 → 标签更窄）  -->
                 <Grid>
                     <Button
@@ -147,7 +147,7 @@
                         <!--  🔴 v3.68：标签栏**宽度跟随标签数量**（类浏览器）——
                               滚动区放 `Auto` 列 ⇒ 标签不满一行时 `＋` **紧跟最后一个标签**；标签溢出时
                               由 code-behind 把滚动区 `MaxWidth` 收到可用宽度 ⇒ `＋` 常驻最右、始终可见。
-                              首页标签平时不进栏，**激活时出现**（见 `TabItemViewModel.IsVisibleInStrip`）。
+                              v3.69：首页标签**与其他标签一样常驻标签栏**（不再隐藏、⛔ 无可见性过滤）。
                               ⛔ 不做「固定其他标签页」功能（「固定」需求走首页收藏夹 / 常用功能，见需求 §4.2）。  -->
                         <ScrollViewer
                             x:Name="TabsScroll"

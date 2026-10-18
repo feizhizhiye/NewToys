@@ -181,7 +181,7 @@ public partial class ShellView : Window
 
     // ==================== 标签栏：滚轮切换 + 切换后滚到可见 ====================
 
-    /// <summary>标签页区域滚轮：上滚 = 上一个标签，下滚 = 下一个标签（循环）。</summary>
+    /// <summary>标签页区域滚轮：上滚 = 上一个标签，下滚 = 下一个标签（**到头即止，不循环**）。</summary>
     private void OnTabStripWheel(object? sender, PointerWheelEventArgs e)
     {
         if (DataContext is not ShellViewModel vm) return;

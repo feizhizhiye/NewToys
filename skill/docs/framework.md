@@ -196,10 +196,11 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 
 ### 4.3 标签栏机制
 
-- 🔴 **首页不常驻标签栏、激活时露出**（v3.68）：`TabItemViewModel.ShowInTabStrip = false` ⇒ 平时模板根 `Border` 隐藏、不占位；**它被激活时可见**（模板绑 `IsVisibleInStrip = ShowInTabStrip || IsActive`，`IsActive` 变化即重算）—— 否则看不出当前在哪一页。仍 `CanClose=false`、仍在 `Tabs` 里（零标签兜底回首页）。
+- 🔴 **首页常驻标签栏**（v3.69）：`TabItemViewModel` **无可见性开关**（`ShowInTabStrip` / `IsVisibleInStrip` 已删），首页与其余标签一视同仁显示，仅 `CanClose=false`；零标签兜底照旧回首页。
 - 标签栏 = `Grid ColumnDefinitions="Auto,Auto"`：`Auto` 列 `ScrollViewer(TabsScroll)` 内 `ItemsControl` **直接绑 `Tabs`**（横排 `ItemsPanel` 必须显式写，否则默认竖排 + 竖滚禁用 = 只显示第一个）；`Auto` 列 `＋`（`NewTabButton`）**紧跟最后一个标签**。
 - 🔴 **宽度类浏览器行为**：标签少 ⇒ 滚动区按内容量，`＋` 贴着最后一个标签；标签溢出 ⇒ code-behind `SyncTabStripWidthCap()` 把 `TabsScroll.MaxWidth` 收到「标签栏宽 − `＋` 宽 − 左边距」⇒ 滚动区收窄、`＋` 常驻最右且始终可见（挂 `TabStrip` / `TabsControl` / `NewTabButton` 三处 `SizeChanged`）。⛔ 别再改回 `*` 列（`＋` 会被推到整条最右、脱离标签）。
 - `＋` = `OpenHomeTabCommand` → `OpenTab(HomeKey)`（⛔ 不指 `settings-all`）。
+- 滚轮切标签 = `PrevTabCommand` / `NextTabCommand`（仅此处使用），**到头即止、不循环**（`Math.Clamp`，v3.69）。
 - ⛔ 不做「固定其他标签页」（固定需求走首页收藏夹）⇒ 无通用「固定位」机制。
 - 旧机制 `ScrollableTabs` / `HomeTab` / `SyncTabMirror` / `SyncScrollableTabs` **全部已删**。
 - 标签项模板 = 共享资源 `TabItemTemplate`（`ShellView.axaml` 的 `Window.Resources`，⛔ 不复制两份防样式漂移）。
@@ -294,7 +295,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 | 一键按钮 | 点一键卡 | 按 `config\launch.json` 启动 | 配置来自「设置 → 一键按钮」 |
 | 收藏 | 功能项 ★ | 写 `config\favorites.json`（即时） | — |
 | 显示更多 | 收藏卡尾部 | 就地展开功能清单 | ⛔ 不跳页 |
-| 标签行为 | — | `ShowInTabStrip=false`、`CanClose=false` | 零标签兜底回首页（见 §4.3） |
+| 标签行为 | — | `CanClose=false`（其余同普通标签） | 零标签兜底回首页（见 §4.3） |
 
 **坑点**
 

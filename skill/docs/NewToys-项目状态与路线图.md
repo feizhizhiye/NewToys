@@ -68,7 +68,7 @@
 
 | 分组 | Key | Order | 图标键 | 二级菜单（Key 标题/View/Order/度） |
 |---|---|---|---|---|
-| 首页 | — | — | `IconHome` | （树的叶子节点；也是**默认页**，v3.68 起不常驻标签栏、激活时显示，入口 = 标签栏 `＋`） |
+| 首页 | — | — | `IconHome` | （树的叶子节点；也是**默认页**，与其他标签一样常驻标签栏、不可关闭） |
 | 脚本管理器 | script | 20 | `IconPc` | `script-favorites`收藏夹/0/✅ ｜ `script-library`脚本库/1/✅ ｜ `script-commands`命令库/2/✅ ｜ `script-packages`软件包/3/✅ ｜ `script-collections`集合/4/✅ ｜ `script-info`**信息面板**/99/✅ ｜ **`settings-script`脚本管理器设置/100/✅** |
 | 网络工具 | web | 30 | `IconWeb` | `web-http`HTTP 测试/1/✅（工具条逃生舱）｜ `web-bookmark`书签管理/2/✅ ｜ `web-ping`网络 Ping/3/✅ ｜ `web-scrape`网页抓取/4/✅ ｜ `web-hosts`Hosts 管理/5/✅ ｜ **`settings-web-tools`网络工具设置/100/✅** |
 | 视频工具 | video | 40 | `IconVideo` | `video-list`视频列表/0/✅ ｜ `video-cut`**视频预览**/1/✅ ｜ `video-batch`**批量处理**/2/✅ ｜ **`settings-video-tools`视频工具设置/100/✅** |

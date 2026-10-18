@@ -424,7 +424,7 @@ public partial class ShellViewModel : ViewModelBase
         EnsureActiveGroupExpanded(ActiveTab);
     }
 
-    /// <summary>标签页滚轮切换：切到下一个 / 上一个（循环）。</summary>
+    /// <summary>标签页滚轮切换：切到下一个 / 上一个（**到头即止，不循环**）。</summary>
     [RelayCommand] private void NextTab() => StepTab(1);
     [RelayCommand] private void PrevTab() => StepTab(-1);
 
@@ -433,7 +433,8 @@ public partial class ShellViewModel : ViewModelBase
         if (Tabs.Count < 2) return;
         var i = ActiveTab == null ? 0 : Tabs.IndexOf(ActiveTab);
         if (i < 0) i = 0;
-        var n = ((i + delta) % Tabs.Count + Tabs.Count) % Tabs.Count;
+        var n = Math.Clamp(i + delta, 0, Tabs.Count - 1);
+        if (n == i) return;
         ActiveTab = Tabs[n];
     }
 
@@ -702,7 +703,7 @@ public partial class ShellViewModel : ViewModelBase
             if (home.DataContext == null)
                 home.DataContext = _sp.GetRequiredService<HomeViewModel>();
             return new TabItemViewModel(HomeKey, "首页", "🏠", home, home.DataContext,
-                                        canClose: false, showInTabStrip: false);
+                                        canClose: false);
         }
 
         // v3.65 / NT-062：应用级设置页（**一页多节**）—— 与首页同构：从 DI 取 View + VM。

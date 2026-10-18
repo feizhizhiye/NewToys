@@ -81,6 +81,9 @@
 
 ### 视频工具设置 `settings-video-tools`
 
+> 🔴 NT-071：本页改用**共用设置页骨架**（`NewToys.UI/Controls/SettingsSectionHost`，`Sticky="False"`）—— 3 个节 = 折叠卡片
+> （性能 / 全局项只读 / 设置文件），点抬头开收，默认全展开。细则见 `ui.md` §11。
+
 | 类型 | 写入时机 |
 |---|---|
 | 播放器 / 默认预设 / 最大并发数 | **即时落盘**（`OnXxxChanged` → 写 `config\video-tools.json`），⛔ 无保存按钮 |

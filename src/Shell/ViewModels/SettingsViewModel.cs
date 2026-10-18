@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -9,7 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
-using NewToys.Shell.Models;
+using NewToys.UI.Settings;
 using NewToys.Shell.Views;
 
 namespace NewToys.Shell.ViewModels;
@@ -74,6 +74,8 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         BuildSections();
 
         // 契约聚合：订阅**每节的每个 VM**（状态栏 / 工具条随时可能变），由本页统一转成一份对外契约。
+        // 🔴 NT-068：「全部收起 / 全部展开」文案与折叠动作已搬进 UI 库的设置页骨架
+        //    （`SettingsSectionHost`）⇒ 本 VM ⛔ 不再订阅节的 IsExpanded。
         foreach (var s in Sections)
         {
             foreach (var vm in s.ViewModels)
@@ -81,8 +83,6 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
                 if (vm is IStatusProvider st) st.StatusChanged += OnSubChanged;
                 if (vm is IToolbarSource tb) tb.ToolbarChanged += OnSubChanged;
             }
-            // 节点开收会改变「全部收起 / 全部展开」按钮的文案（用户手点单节也要跟着变）
-            s.PropertyChanged += OnSectionPropertyChanged;
         }
 
         var first = Sections.FirstOrDefault();
@@ -156,8 +156,8 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         Sections.Add(new SettingsSection
         {
             Key = key, Title = title, Icon = icon, Desc = desc,
-            // 本节自带工具条？（v3.66 第五轮：工具条⛔ 不再上抛到页面顶部，改由节点内嵌 ToolbarHost 渲染）
-            HasToolbar = vms.Any(v => (v as IToolbarSource)?.Toolbar is { Count: > 0 }),
+            // 🔴 NT-068：`HasToolbar` 改为模型上的**计算属性**（VM 是否实现 IToolbarSource 且非空），
+            //    ⛔ 不再在构建时赋值 —— 模块设置页在 XAML 里声明节，也能自动判定。
             Content = view, ViewModels = vms, OnActivated = onActivated
         });
     }
@@ -216,86 +216,22 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         return true;
     }
 
-    /// <summary>
-    /// 点折叠块抬头 = 折叠 / 展开本节（展开时激活它，其余节**保持原状** —— 允许同时展开多节）。
-    /// <para>🔴 v3.66 第七轮：手动**折叠**要"作数"—— 记 <see cref="SettingsSection.UserCollapsed"/>，
-    /// 否则本节还在视口里，滚动的自动展开下一帧就把它弹开（用户实测"折叠点了没用"）。
-    /// 手动**展开**则清掉这个标记。</para>
-    /// </summary>
-    [RelayCommand]
-    private void ToggleSection(SettingsSection? section)
-    {
-        if (section == null) return;
-        section.IsExpanded = !section.IsExpanded;
-        section.UserCollapsed = !section.IsExpanded;
-        section.CollapsedByAll = false;   // v3.68：手动点过 = 表态明确，不再算「全部收起」的临时态
-        if (section.IsExpanded) ActiveSection = section;
-        // 折叠**也要**通知：状态栏按"哪几节展开"算（见 StatusText）。
-        SectionChanged?.Invoke(this, EventArgs.Empty);
-        // v3.67：点开 = 明确要看它 ⇒ 滚到视口顶部（否则它停在视口下部，磁吸浮层还钉着上一节、激活色对不上）
-        if (section.IsExpanded) ScrollRequested?.Invoke(section);
-    }
-
-    // ==================== 全部收起 / 全部展开（v3.67） ====================
+    // ==================== 折叠（NT-068：动作在 UI 库骨架里，本 VM 只收结果） ====================
 
     /// <summary>
-    /// 抬头右上角那个按钮的文案：**只要还有节点开着** ⇒「全部收起」，一个都没开 ⇒「全部展开」。
-    /// <para>⚠️ 不用"全部开着才算收起"——那会让"部分展开"状态下要先点两次才能全收，
-    /// 而用户的真实诉求就是**一键全收**（一屏看全 7 条抬头再点进去）。文案与点击动作始终一致。</para>
+    /// 用户折叠 / 展开后由 <c>SettingsView</c> 转进来（宿主的 <c>SectionToggled</c>）：
+    /// 展开的那节 = 当前节；并**重新发一次** <see cref="SectionChanged"/> ——
+    /// 状态栏按"哪几节展开"聚合，折叠也要刷新。
+    /// <para>⚠️ 折叠动作本身（含 <see cref="SettingsSection.UserCollapsed"/> /
+    /// <see cref="SettingsSection.CollapsedByAll"/> 语义、"全部收起"文案、滚到视口顶部）
+    /// 全在 <c>NewToys.UI.Controls.SettingsSectionHost</c>，⛔ 本 VM 不再重复实现。</para>
     /// </summary>
-    public string ToggleAllText
-        => Sections.Any(s => s.IsExpanded) ? "全部收起" : "全部展开";
-
-    /// <summary>
-    /// 一键全收 / 全开（v3.67）。
-    /// <para>
-    /// 全收 = 每个节点都记 <see cref="SettingsSection.UserCollapsed"/>（= 用户表态"我全收起了"）
-    /// ⇒ 之后滚动**不再自动展开**，页面只剩 N 条抬头：一屏看全、点哪条跳哪条。全开 = 清标记 + 全展开。
-    /// </para>
-    /// <para>⚠️ 全收**不滚动**：内容变短时 <c>ScrollViewer.Offset</c> 会被自动 clamp，无需补偿。</para>
-    /// </summary>
-    [RelayCommand]
-    private void ToggleAllSections()
+    /// <param name="section">变化的节；<c>null</c> = 「全部收起 / 全部展开」整批变化。</param>
+    public void NotifySectionsToggled(SettingsSection? section)
     {
-        // 只要还有节点开着 ⇒ 全部收起（一键看全）；一个都没开 ⇒ 全部展开
-        var collapse = Sections.Any(s => s.IsExpanded);
-        foreach (var s in Sections)
-        {
-            s.IsExpanded = !collapse;
-            s.UserCollapsed = collapse;
-            s.CollapsedByAll = collapse;   // v3.68：全部收起只是"总览态"，滚动到哪节照样展开哪节
-        }
-        OnPropertyChanged(nameof(ToggleAllText));
-        SectionChanged?.Invoke(this, EventArgs.Empty);
-    }
+        if (section is { IsExpanded: true } && !ReferenceEquals(ActiveSection, section))
+            ActiveSection = section;   // 触发 OnActivated（惰性探测）
 
-    /// <summary>单节点开收 → 刷新「全部收起 / 全部展开」的文案。</summary>
-    private void OnSectionPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(SettingsSection.IsExpanded))
-            OnPropertyChanged(nameof(ToggleAllText));
-    }
-
-    // ==================== 滚动展开（v3.66 第四轮：树状滚动，由 View 驱动） ====================
-
-    /// <summary>
-    /// 滚动让某个节点**进入视口** ⇒ 自动展开它。🔴 本页**只自动展开、不自动折叠** ——
-    /// 折叠会减高度、滚动位置就得补偿，视觉上就是"折了又开"的来回跳（用户反馈成"循环"）；
-    /// 不折叠 ⇒ 高度只增不减，页面就是一条能一路滚到底的长列表。
-    /// <para>⚠️ 手动收起的节点（<see cref="SettingsSection.UserCollapsed"/>）**跳过**：用户的意图优先，
-    /// 否则滚到它又会被自动弹开。</para>
-    /// <para>⚠️ 不改 <c>ActiveSection</c>（滚动中切换会触发各节的惰性探测 / 工具条抖动）；
-    /// 但状态栏按"哪几节展开"算，故要发一次通知。</para>
-    /// </summary>
-    public void ExpandSection(SettingsSection? section)
-    {
-        if (section is not { IsExpanded: false }) return;
-        // 🔴 v3.68：只有**单节手动收起**才拦；「全部收起」留下的临时态要放行，
-        //    否则点了「全部收起」之后往下滚永远是空抬头（用户实测"向下滚动不能自动展开"）。
-        if (section.UserCollapsed && !section.CollapsedByAll) return;
-        section.UserCollapsed = false;
-        section.CollapsedByAll = false;
-        section.IsExpanded = true;
         SectionChanged?.Invoke(this, EventArgs.Empty);
     }
 

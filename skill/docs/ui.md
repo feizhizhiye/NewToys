@@ -1,6 +1,7 @@
 # NewToys UI 规范
 
-> v4.1 · 2026-10-18 · **标准角色：工程规范（UI 部分）**
+> v4.2 · 2026-10-18 · **标准角色：工程规范（UI 部分）**
+> v4.2：**§8 工具条整理成唯一真源** —— 8.1 项类型表 / 8.2 尺寸·配色·宽度速查表 + 顺序铁律 / 8.3 渲染与折叠 / **8.4 输入框三态表**（新增「空闲态水印」`PlaceholderWhenIdle`、统一水印色 `PlaceholderTextBrush`）/ **8.5 交付自检**。⛔ 工具条样式规则⛔ 不要再散落到模块文档。
 > v4.1：新增 **§10 交互反馈约定**（跨模块共用的操作逻辑底座：右键 vs 工具条 / 二次确认判据 / 写入时机 / 状态反馈 / 重载语义 / 空态）。模块内逐页操作见 `modules/<模块>.md` §2.5。
 > 本文件 = **一切 `.axaml` / 视觉 / 控件尺寸 / 样式约定的唯一入口**（原 `NewToys-工程规范.md` §2 / §3.6 / §3.8 渲染层 / §3.10）。
 > 契约接口定义（`IDetailCardSource` / `IToolbarSource` …）在 `framework.md` §6；模块专属版式在 `modules/<模块>.md`。
@@ -18,6 +19,7 @@
 - §8 工具条（声明式承载）
 - §9 样式坑与已修 bug
 - §10 交互反馈约定（跨模块操作逻辑）
+- §11 设置页骨架（`SettingsSectionHost`）
 
 ---
 
@@ -58,6 +60,7 @@
 ### 2.1 两种基准宽度下的可用宽度（🔴 排版前先按这张表算）
 
 > 固定件：左树 180（折叠 48）、右详情 340、页面根 `Margin="12"`、`Border.toolbar` 内边距 `12,6`、`Border.filter-bar` 内边距 `12,4`。
+> 🔴 左树**两块 padding 互不继承**（v3.69）：滚动区 `Border Padding="8,8"`（要给滚动条让位）、底部版本行 `Border.tree-version Padding="4,0"`（折叠态 `12,0`，让齿轮居中）。改一处⛔ 别指望另一处跟着变。
 > ⇒ **列表列 = 窗口宽 − 左树 − 详情 − 24**；**工具条 / 筛选条可用宽 = 列表列 − 24**。
 
 | 基准 | 窗口 | 列表列（详情展开） | 工具条 / 筛选条可用宽 |
@@ -80,9 +83,9 @@
 
 ---
 
-## §3 主题键（31 个，⛔ 除白名单外不新增）
+## §3 主题键（32 个，⛔ 除白名单外不新增）
 
-- 一律 `*Brush` 语义键，共 **31 个**：`ContentBrush`/`PanelBrush`/`SubSiderBrush`/`SiderBrush`/`PrimaryTextBrush`/`SecondaryTextBrush`/`AccentBrush`/`AccentHoverBrush`/`DangerBrush`/`DividerBrush`/`InputBorderBrush`/`CardHoverBrush`/`CardSelectedBrush`/`WindowBorderBrush`/`WindowBorderInactiveBrush` …（**完整清单以源码为准**）。
+- 一律 `*Brush` 语义键，共 **32 个**：`ContentBrush`/`PanelBrush`/`SubSiderBrush`/`SiderBrush`/`PrimaryTextBrush`/`SecondaryTextBrush`/**`PlaceholderTextBrush`**（输入框水印）/`AccentBrush`/`AccentHoverBrush`/`DangerBrush`/`DividerBrush`/`InputBorderBrush`/`CardHoverBrush`/`CardSelectedBrush`/`WindowBorderBrush`/`WindowBorderInactiveBrush` …（**完整清单以源码为准**）。
 - ✅ **白名单免维护**：`check.ps1` 动态扫描（`x:Key="*Brush"` + 代码里 `S("*Brush")` 调用），在 `ApplyTheme()` 补了色值就算入白名单，⛔ 不需要改脚本。
 - 明暗两套**必须同时补齐**；引用不存在键**编译不报错、运行期才失败**。
 - ⛔ 新增键前先想「能不能复用现有键」；确实要加，两套同时补齐 + 写进本表。
@@ -93,6 +96,7 @@
 | 元素 | 键 |
 |---|---|
 | 标题栏 / 标签栏背景 | `ContentBrush`（底部 1px `DividerBrush`） |
+| 输入框水印（`PlaceholderText` 与只读假水印） | `PlaceholderTextBrush` |
 | 标题栏按钮 | 文字 / 图标 `PrimaryTextBrush`；hover 底 `CardHoverBrush`；关闭 hover `TitleBarCloseHoverBrush` |
 | 标签项（普通 / 激活） | 文字 `SecondaryTextBrush` / 背景 `CardSelectedBrush` + 文字 `PrimaryTextBrush` + 下方 2px `AccentBrush` 指示条 |
 | 树一级行 | 文字 `PrimaryTextBrush` + 加粗；图标 `SecondaryTextBrush` |
@@ -296,29 +300,49 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 > 契约在 `framework.md` §6.4；需求 §4.8.5。
 
-### 8.1 8 类项
+### 8.1 项类型与字段
 
-`Button` / `SplitButton` / `Toggle`(CheckBox) / `TextField` / `Combo` / `Label`(次要色文字) / `Separator`(竖线) / `ChipGroup`(按钮组)。
+| `ToolbarItemKind` | 渲染成 | 专用字段 |
+|---|---|---|
+| `Button` | `Button`（可带 Flyout 菜单） | `Items`（`ToolbarMenuItemDescriptor[]`） |
+| `SplitButton` | 主钮 + 下拉箭头 | `Items` |
+| `Toggle` | `CheckBox` | `ValuePath`（bool） |
+| `TextField` | `TextBox` | `ValuePath` / `Placeholder` / `IsReadOnly` / `PlaceholderWhenIdle` / `EnterCommandPath` |
+| `Combo` | `ComboBox` | `ItemsPath` / `DisplayPath` / `SelectedItemPath` / `SelectedValuePath` + `SelectedValueBindingPath` |
+| `ChipGroup` | 一排按钮（`src-btn`） | `ItemsPath` / `DisplayPath` / `SelectedPath` / `CommandPath` |
+| `Label` | 次要色文字 | ⚠️ **已无页面使用**，⛔ 别再加 |
+| `Separator` | 竖线 | — |
 
-常用可选项：`Text` / `TextPath` + `TextFormat` / `AltText` + `AltTextPath`（双文案互斥，如 ▶/⏸）/ `Classes`（**只表达配色**）/ `Width` / `ToolTip` / `ToolTipPath` / `ShowToolTipOnDisabled` / `CommandPath` / `CommandArgPath` / `IsEnabledPath` / `IsVisiblePath` / `IsEnabled`（静态置灰占位）/ `Items`（Flyout 菜单）。
-`TextField` 另有 `Placeholder` / `IsReadOnly` / `EnterCommandPath` / `ValuePath`；`Combo` 另有 `ItemsPath` / `DisplayPath` / `SelectedItemPath` / `SelectedValuePath` + `SelectedValueBindingPath`；`ChipGroup` 另有 `ItemsPath` / `DisplayPath` / `SelectedPath` / `CommandPath`。
-- 🔴 `ChipGroup` 的「选中态」在 C# 里**绑不了** `Classes`：渲染层订阅数据项 `INotifyPropertyChanged`，属性变了切 `selected` 类（`ToolbarHost.BindSelectedClass`）。
+通用字段：`Text` / `TextPath` + `TextFormat` / `AltText` + `AltTextPath`（双文案互斥，如 ▶/⏸）/ `Classes`（**只表达配色**）/ `Width` / `ToolTip` / `ToolTipPath` / `ShowToolTipOnDisabled` / `CommandPath` / `CommandArgPath` / `IsEnabledPath` / `IsVisiblePath` / `IsEnabled`（静态置灰占位）/ `Items`。
+- 🔴 `Classes` 只写 `ghost` / `danger-btn`；`src-btn` + `selected` 只归 `ChipGroup` 内部用（`ChipGroup` 的选中态在 C# 里绑不了 `Classes`：渲染层订阅数据项 `INotifyPropertyChanged` 切类，见 `ToolbarHost.BindSelectedClass`）。
 
-### 8.2 🔴 按钮样式统一
+### 8.2 🔴 尺寸 / 配色 / 宽度（一处给，页面⛔ 不自造）
 
-- 尺寸（**字号 12 / 内边距 10,5 / 最小高 28 / 圆角 6**）由 `ToolbarHost.axaml` 的 `<UserControl.Styles>` **一处给**（`Button` / `SplitButton` / `CheckBox` / `TextBox` / `ComboBox` 五条无类名宽选择器）；控件内样式优先级高于 App 级 ⇒ `primary` 的 12,6、`danger-btn` / `src-btn` 的 11 + 10,4 **全被压成同一档**。
+| 量 | 值 |
+|---|---|
+| 字号 | 12 |
+| 按钮内边距 / 最小高 / 圆角 | `10,5` / 28 / 6 |
+| 输入框·下拉框内边距 | `8,4`（最小高 28、垂直居中，与按钮基线齐） |
+| 工具条容器 | `Border.toolbar` = `Padding 12,6` + 底部 1px `DividerBrush` |
+| 输入框 / 搜索框宽度 | **`88`（铁律）** |
+| 下拉框宽度 | 按内容（预设 220 / DNS 200），⛔ 不硬套 88 |
+| 详情节流按钮 | `Width/MinWidth 20`、`Padding 0`、`Margin 0,-2,-6,0`（贴右上角） |
+
+- 尺寸由 `ToolbarHost.axaml` 的 `<UserControl.Styles>` **一处给**（`Button` / `SplitButton` / `CheckBox` / `TextBox` / `ComboBox` 五条无类名选择器）；控件内样式优先级高于 App 级 ⇒ `primary` 的 12,6、`danger-btn` / `src-btn` 的 11 + 10,4 **全被压成同一档**。
 - ⇒ 描述符 `Classes` **只表达配色**；⛔ 别用 `io-btn`（已删）/ ⛔ 别靠换类改大小。
 - 🔴 **配色只剩两个在用变体**：`ghost`（默认，**也是主按钮**）/ `danger-btn`（红，只给会丢数据的动作）；`src-btn` + `selected` 只给 `ChipGroup` 高亮。⛔ 工具条不用 `primary`（实心绿只留给详情卡动作与对话框），⛔ 不用 `primary-outline`。
-- 🔴 **输入框 / 搜索框宽度统一 `Width = 88`**；下拉框不受此限（按内容给宽，如预设 220 / DNS 200）。
-- 🔴 **前段顺序固定：入口动作按钮 → 路径 / URL 输入框 → 搜索框，三者挨着排最前**（样板 = `assets-all`：📁 扫描 → 路径框 → 搜索框）。
-  1. 只有搜索框的管理页（`categories` / `collections` / `tags` / `trash` / `storages` / `tasks` / `script-info`）⛔ 不凑三项。
-  2. 入口动作就是「导入」的页：导入按钮在前、框紧跟。
-  3. 预设 / 筛选类 `Combo` ⛔ 不许插在「入口动作 → 搜索框」之间 ⇒ 挪到第一个 `Separator` 之后。
-  4. `script-library` / `script-commands` 由基类 `QuickActionListViewModel` 拼装：`ToolbarExtras`（入口动作 / 输入框）→ 共用搜索框 → `ToolbarTailExtras`（框的配套动作）→ 导出 / 导入 / 清空；⛔ 配套动作别塞进 `ToolbarExtras`。
-  5. ⚠️ 已知例外（`script-packages`）：首位是源 `ChipGroup`，顺序为「源 → 关键字框 → 🔍 联网搜索」（用户确认保持不动）。
+- 🔴 **水印色 = `PlaceholderTextBrush`**（比 `SecondaryTextBrush` 再淡一档），由 `Controls.axaml` 的 `TextBox` 隐式样式统一设 `PlaceholderForeground`；⛔ 别在页面里单设。
+- 🔴 **输入框 / 搜索框宽度统一 `Width = 88`**；下拉框不受此限。
 - 🔴 **工具条里⛔ 不放任何说明 / 计数文字**：`Label` 项仍在描述符里但**已无页面使用**；含义写进按钮 `ToolTip`。
 - ⛔ 逃生舱 `web-http` 的页内工具条不享受这套统一（已知例外）。
-- `detail-toggle` 保持 `Padding=0` / `Width=20` 的**本地值**（本地值优先级最高）。
+
+**顺序铁律**（前段固定：入口动作按钮 → 路径 / URL 输入框 → 搜索框，三者挨着排最前；样板 = `assets-all`：📁 扫描 → 路径框 → 搜索框）：
+
+1. 只有搜索框的管理页（`categories` / `collections` / `tags` / `trash` / `storages` / `tasks` / `script-info`）⛔ 不凑三项。
+2. 入口动作就是「导入」的页：导入按钮在前、框紧跟。
+3. 预设 / 筛选类 `Combo` ⛔ 不许插在「入口动作 → 搜索框」之间 ⇒ 挪到第一个 `Separator` 之后。
+4. `script-library` / `script-commands` 由基类 `QuickActionListViewModel` 拼装：`ToolbarExtras`（入口动作 / 输入框）→ 共用搜索框 → `ToolbarTailExtras`（框的配套动作）→ 导出 / 导入 / 清空；⛔ 配套动作别塞进 `ToolbarExtras`。
+5. ⚠️ 已知例外（`script-packages`）：首位是源 `ChipGroup`，顺序为「源 → 关键字框 → 🔍 联网搜索」（用户确认保持不动）。
 
 ### 8.3 渲染与折叠
 
@@ -332,11 +356,26 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
   - ⛔ 不用 `ToggleButton` 做开合（会掉回 Fluent 默认外观）；⛔ 不把被折控件搬进 `MenuFlyout`（弹出树不继承 DataContext）。
 - 逃生舱：描述符表达不了的布局（现仅 `web-http` 表单式撑满）不迁移，保留页内 `Border.toolbar` —— 逐页 opt-in、⛔ 不双渲染。
 
-### 8.4 只读输入框（展示"配置的路径"这类只读值）
+### 8.4 输入框三态（`TextField`）
 
-- ⛔ 只读框本就不能编辑（脚本目录 / 数据文件的**唯一写入点在设置页**），改它 = 改配置写入点，需先立项。
-- 🔑 `PlaceholderText` **只在 `Text` 为空时才显示** ⇒ "水印化"⛔ 不能只把 `Foreground` 设成 `Transparent`。
-- 落地（`ToolbarHost.BuildTextField`，需 `IsReadOnly && ValuePath != null && Placeholder` 非空）：**真实值 OneWay 绑 `Control.Tag`**，`tb.Text = Placeholder`；`GotFocus` → `tb.Text = Tag` + `SelectAll()`；`LostFocus` → 还原 `Placeholder`。
+| 态 | 用在哪 | 描述符 | 实现（`BuildTextField`） |
+|---|---|---|---|
+| **普通** | 搜索框 / 关键字框 | `ValuePath` +（可选）`EnterCommandPath` | `Text` TwoWay 绑 VM |
+| **只读假水印** | 展示配置路径（命令库「数据文件」） | `IsReadOnly` + `Placeholder` + `ValuePath` | 真实值 OneWay 绑 `Tag`；`Text = Placeholder` + 类 `watermark-idle`（走水印色）；`GotFocus` → 去类 + `Text = Tag` + `SelectAll()`；`LostFocus` → 还原 |
+| **空闲态水印** | **可编辑**但常态不必看值（脚本库「脚本目录」） | `ValuePath` + `Placeholder` + `PlaceholderWhenIdle` | 失焦：**先 commit、再解挂 TwoWay 绑定** → `Text = ""`（水印自然出现）；聚焦：重挂绑定 → 从 VM 读回真实值 + 光标到末尾 |
+
+- 🔑 `PlaceholderText`（= Avalonia 12 的 `PlaceholderForeground` 那一层）**只在 `Text` 为空时才显示** ⇒ "水印化"⛔ 不能只把 `Foreground` 设成 `Transparent`（会把真实值一起弄没）。
+- 🔴 **失焦顺序铁律**：`commit()` **先于**清空。反了的话 commit 读到空串 ⇒ 配置被重置（脚本目录会莫名变默认）。
+- 只读框 ⛔ 不是"能随时改"：脚本目录 / 数据文件的**唯一写入点在设置页**；`PlaceholderWhenIdle` 的框可编辑，但落盘仍走 `EnterCommandPath`（回车 + 失焦）。
+- ⚠️ 可编辑框的初始态就是失焦态 ⇒ 构造时直接 `Text = ""`，不预绑（否则页面一打开就露出长路径）。
+
+### 8.5 工具条交付自检
+
+1. 只用了描述符 + `ToolbarExtras` / `ToolbarTailExtras`，⛔ 没在页里自写 `Border.toolbar`（除 `web-http`）。
+2. 没给按钮写尺寸 / 字号 / 内边距（`Width` 只给输入框 88 与 `detail-toggle` 20）。
+3. 顺序符合 §8.2 顺序铁律；没有 `Label` 文字项。
+4. 输入框宽度 88；水印色没被页面覆盖。
+5. 新加/改动的 `*Path` 路径都能在 VM 上找到（`check-detail-paths.ps1` 不报）。
 
 ---
 
@@ -414,3 +453,41 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 空态 = `hint-text` **说明为什么空** + 一个 `ghost` 主动作按钮（`EmptyStateBlock` / `ListPageSkeleton`），⛔ 只写「暂无数据」。
 - 空态按钮点了要有去处（去设置页 / 导入 / 新建），⛔ 死链。
 
+
+## §11 设置页骨架（`SettingsSectionHost`）
+
+> NT-071（2026-10-18）：**所有设置页只有一套实现** —— 应用级设置页与 4 个模块设置页都用
+> `NewToys.UI/Controls/SettingsSectionHost`。⛔ 页面不得再自写「节卡片 + 节标题」。
+
+### 11.1 结构
+
+| 层 | 是什么 | 谁给 |
+|---|---|---|
+| 节模型 | `NewToys.UI.Settings.SettingsSection`（`Key` / `Title` / `Icon` / `Desc` / `Content` / `ViewModels` / `IsExpanded`） | 应用级 = VM 代码构建；模块页 = **XAML 子元素**（`Content` 是内容属性） |
+| 骨架 | `SettingsSectionHost`：节卡片渲染 + 折叠 + 磁吸抬头 + Push + 滚动自动展开 + 全部收起 + 节内工具条 + 滚动定位 | UI 库（一份） |
+| 节内工具条 | `ToolbarTemplate` 插槽（DataContext = 节 VM） | Shell 传 `ToolbarHost`；模块页不给 = 无工具条 |
+
+- 节抬头 = `⌄/› + 图标(14) + 标题(14 SemiBold) + 说明(12 次要色，右对齐)`，底色 `ContentHeaderBrush`、圆角 8；
+- 卡片 = `Border.card`（`PanelBrush` / 圆角 8）+ `Padding="0"` + `Margin="0,0,0,10"`；
+- 正文 = `Margin="14,10,14,12"`；展开时抬头与正文之间 1px `DividerBrush` 分隔线；
+- 页根 = `Panel(ContentBrush)` + `ClipToBounds`（⛔ 不透明背景，防切页透出旧页）；滚动内容 `Margin 12`，**铺满**（⛔ 不再 `MaxWidth=760`）。
+
+### 11.2 两种用法
+
+| 用法 | 写法 | `Sticky` |
+|---|---|---|
+| 应用级设置页（6 节） | `ItemsSource="{Binding Sections}"` + `ToolbarTemplate` | 默认 `true` |
+| 模块设置页（2~3 节） | XAML 子元素 + `IsExpanded="True"` | **`false`** |
+| 模块设置页（≥5 节，如媒体资产 7 节） | 同上 | 默认 `true` |
+
+- `Sticky=false` ⇒ ⛔ 不挂浮层、⛔ 不滚动自动展开、⛔ 不显示「全部收起」，只保留**点抬头开收**。
+- 模块页节内容**直接放字段**（`StackPanel Classes="field"` / `CheckBox` / 按钮），⛔ 再包一层 `Border.card`（会套两层卡片）。
+
+### 11.3 🔴 硬规则
+
+- **节内容 DataContext**：节内容的父级是 `ContentControl`（DataContext = 节模型）⇒ XAML 内容会继承到节模型。
+  宿主会自动给 `DataContext == null` 的节内容补页面 DataContext；应用级节 View 已显式设 VM ⇒ 不被冲掉。
+  ⇒ 模块页 XAML **不要**给节内容手写 `DataContext`。
+- **折叠 / 磁吸逻辑 ⛔ 进 VM**：全在骨架的 code-behind；应用级 VM 通过 `SectionToggled` 事件拿结果
+  （只为刷新状态栏聚合），⛔ 不再有 `ToggleSectionCommand` 之类的命令。
+- 类名 `sec-head`（code-behind 找抬头）、`sec-body`（正文区）⛔ 别删；`StuckHeader.DataContext = null` ⛔ 别删（漏了整页挂载中断）。

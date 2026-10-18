@@ -163,6 +163,8 @@
 | NT-069 | **跨模块文件操作契约 `IFileOperationService`**（v3.66 配置整改第 ② 批次）：磁盘动作（改名/移动/复制/回收站删除）下沉 `Core` 一份实现，`Shared` 定接口；`VideoFileService` 删掉自带 `SHFileOperationW`；确认框与库表记账留在各模块 | P1 | ⏸ **暂缓**（2026-10-18；批次 2 已落地 = 接口 + Core 实现 + DI + 视频工具改造 + 3 个 VM 别名修 CS0104，`check.ps1` 0 告警，⏳ 待本地 build；**后续批次（媒体资产委托 / `IVideoHandoff` / defaults 示例 / 文档回写）按用户「以后讨论后再实现」暂停**） | backlog/framework/NT-069.md |
 | NT-070 | **启动提速（模块初始化两段式）**：`IModule` 增 `InitializeDeferred`（默认空实现）—— `Initialize` 只留菜单注册（首帧前），建库/清表/读配置/种子播种/扫描器接线/到期清理入队全部搬进 `InitializeDeferred`，由 Shell 在 `Window.Show()` 之后用 `DispatcherPriority.Background` 驱动；带启动打点写 `logs\startup-*.log` | P1 | 🔄 **已实施**（2026-10-18；改 `Shared/IModule` + `Core/ModuleLoader`（新增 `InitializeAllDeferred`，热加载同步补跑）+ `Shell/App`（打点 + Show 后 Post）+ ScriptManager / VideoTools / MediaAssets 三模块搬重活；WebTools 只有菜单注册，未覆盖；**实测 2959ms → 787~826ms（-73%）**：模块 IO 仅 58~64ms，真正大头 = 2173ms 的「程序目录全量 DLL 扫描」⇒ `ScanModulesDirectory` 改只枚举 `Module.*.dll`（Debug 下 49 个 DLL 逐个 LoadFrom+GetTypes），复测降到 **9~11ms**；🔴 排查坑 = 同二进制「冷启动 2173 / 热启动 93」，单次日志不足为凭；剩余 775ms = 主窗口构造 442~472 + 窗口显示 ~345（Avalonia 首帧固有，建议到此为止） | backlog/framework/NT-070.md |
 
+| NT-071 | **设置页骨架统一**：节结构（折叠卡片 + 磁吸抬头 + Push + 滚动自动展开 + 全部收起 + 节内工具条 + 滚动定位）抽成 UI 库 `SettingsSectionHost`，`SettingsSection` 上移 `NewToys.UI`；应用级设置页变薄壳（VM 删折叠命令，改 `SectionToggled` 回调）；4 个模块设置页改用同一骨架（Script/Web/Video `Sticky=False`，Assets 保留磁吸） | P1 | ✅ **已实施**（2026-10-18，用户拍板「抽共用宿主」并直接执行；🔴 关键坑 = 节内容父级 DataContext 是节模型 ⇒ 宿主对 `DataContext==null` 的节内容补页面 VM；⏳ 待用户本地 build/accept） | backlog/framework/NT-071.md |
+
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡默认保留；作废卡已删并标 `🗑`）。
 > NT-048（分屏贴靠首次几何不收敛）**已作废**：现象为**系统级**（Firefox 同复现）⇒ 外部纠偏方向错误，⛔ 不复活；任务卡保留备查。
 

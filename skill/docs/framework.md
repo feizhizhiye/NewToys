@@ -254,6 +254,11 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 
 **页面结构机制**（`SettingsView.axaml(.cs)`）
 
+> 🔴 **NT-071（2026-10-18）：整页骨架已搬到 UI 库** `NewToys.UI/Controls/SettingsSectionHost`（节模型 = `NewToys.UI.Settings.SettingsSection`），
+> 应用级设置页与 **4 个模块设置页共用同一份实现**。`SettingsView` 现在只剩两件事：VM `ScrollRequested` → `Host.ScrollTo`、
+> `Host.SectionToggled` → VM `NotifySectionsToggled`（刷新状态栏聚合）。⛔ 别再往 `SettingsView` 里加视口/折叠逻辑，
+> 细则见 `ui.md` §11。同时：`SettingsViewModel` 的 `ToggleSection` / `ToggleAllSections` / `ToggleAllText` / `ExpandSection` **已删**。
+
 - **树状手风琴滚动 + 抬头磁吸浮层**：逻辑在 code-behind；🔴 类名 `sec-head` / `sec-body` 别删，`StuckHeader.DataContext=null` 别删（磁吸浮层 DataContext 隔离）。
 - 🔴 **v3.68：磁吸浮层是 `ScrollViewer` 的兄弟覆盖层**（`PageRoot` 的第二个孩子），⛔ **不许放回滚动内容里**——
   放里面只能靠 `RenderTransform` 反补 `Offset` 把位置"推算"出来，实测出「滚到顶残留空白浮层 / 顶部抬头被裁一半 /
@@ -261,6 +266,11 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
   代价 = 浮层上的滚轮要转发给 `SectionScroll`（`PointerWheelChanged`，漏了就"鼠标停顶部滚不动"）。
 - 节点抬头有**独立底色**（`Button.sec-head` → `ContentHeaderBrush` + 展开时下边框 `DividerBrush`）⇒ 抬头与正文一眼分开；
   磁吸浮层里的抬头另走 `Button.sec-head.stuck`（透明底，底色由浮层 Border 给）。
+- 🔴 **v3.69：浮层顶部留白 = `clamp(12 - Offset.Y, 0, 12)`**，且 **`Offset.Y <= 0.5`（真·顶部）时浮层一律不挂**
+  （`default(Row)` 直接喂 `ApplyStuckHeader`）。原判定只看 `Top < -0.5`，高 DPI / 边距取整下首节点会被误判成"钉住"
+  ⇒ 顶部残留一条 `ContentHeaderBrush` 底色的抬头，看着像"标题栏没留空白"（用户实测）。留白跟卡片走还顺带消掉了
+  "滚过 12px 时浮层咔一下跳上去"的突变。⛔ 别把顶部留白改回常量 0。
+- 浮层右上「全部收起 / 全部展开」`FontSize=13` + `Padding=10,4`（v3.69 放大；11 号字用户看不清）。
 - 每节内含工具条（`HasToolbar` 门控，`ToolbarHost` 挂在节抬头下方）；⛔ **工具条不上抛页顶**；节 View **⛔ 带内层 `ScrollViewer`**（会出现双滚动条 + 磁吸失效）。
 - 切节 ⇒ `ActiveSection` 变 ⇒ `SectionChanged` ⇒ Shell 重绑工具条 / 状态栏 / 详情卡（漏了就"画得出来、点不动"）。
 - 用户**手动收起**的节记 `UserCollapsed`，滚动自动展开时跳过（用户意图优先）。
@@ -274,9 +284,10 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 | 2 | 外部寻址（首页 ⚙ / 收藏 / 搜索） | 目标展开 + 其余折叠 + **滚到目标贴视口顶**（`ScrollRequested`） |
 | 3 | 滚动 | **只有"往下滚"（`Offset.Y` 变大）才自动展开**，且每轮只开视口上半部最靠上的那一节；到底时放宽到整视口。⛔ 只展开、不自动折叠。`UserCollapsed` 拦、`CollapsedByAll` 放行 |
 
-- 🔴 激活色 `SettingsSection.IsActive` **只由 View 写**（= 被磁吸钉住的那个节点）；⛔ 别用 `ActiveSection` 染色——
-  滚动时两者会不一致（"钉着 A、亮着 B"）。标题色靠 `UserControl.Styles` 里的 `.sec-title` + `.active` 后代选择器，
-  ⛔ 模板里不许硬写 `Foreground`（本地值压过样式 ⇒ 激活不变色）。
+- 🔴 **v3.69：激活色整套已删**（用户："激活色始终不可见"）——`SettingsSection.IsActive` 属性、`Button.sec-head.active`、
+  `Button.settings-nav.active`、"被钉住的那节上激活色"的 View 逻辑全部撤销。**"当前在哪一节"只由顶栏表达**：
+  顶栏底色 `PanelBrush`（卡片同档）+ 下边框 `DividerBrush` + 上两角不圆（`CornerRadius="0,0,8,8"`）。
+  ⛔ 别再引入 active 态；`SettingsViewModel.ActiveSection` 仍归左树 / 状态栏用，与视觉无关。
 - 🔴 定位必须**两阶段**：先展开/折叠 → 等 `LayoutUpdated` → 再算 offset（`TranslatePoint(→SectionScroll).Y + Offset.Y`），
   最多重试 8 次收敛；⛔ 同步一次算完（高度还在变，算出来必错）。
 
@@ -301,7 +312,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 |---|---|---|---|
 | 展开 / 折叠节 | 点节抬头 | 手风琴：展开一节其余收起 | 手动收起的节不被自动展开 |
 | 切节 | 点另一节抬头 / 页内搜索命中 | 工具条 / 状态栏 / 详情卡重绑到该节 VM | 见上「SectionChanged」 |
-| 滚动 | 滚轮 | 当前节抬头磁吸顶部 | — |
+| 滚动 | 滚轮 | 当前节抬头磁吸顶部；**滚到最顶部（`Offset≈0`）时浮层自动消失**，页顶只留卡片自己的 12px 留白 | v3.69 |
 | 页内搜索 | 顶部搜索框 | 只覆盖已注册节与一级项，命中即跳节 | 二级菜单项搜索未做（NT-066） |
 
 **各节写入方式**（每项只有本页一个写入点）
@@ -410,7 +421,7 @@ public interface IDetailCardSource
 |---|---|---|
 | `IToolbarSource` | `Shared/Services/` | `Toolbar`（`IReadOnlyList<ToolbarItemDescriptor>?`，空 / null = 无工具条）+ `ToolbarChanged` |
 | `IToolbarOwner` | `Shared/Services/` | 🔴 `object? ToolbarOwner` —— **复合页**把工具条承载者让给"有工具条的那一节 VM"（描述符的 `CommandPath` 相对节 VM 解析；复合页自己当承载者 ⇒ 工具条"画得出来、点不动"）。Shell 规则：页面 VM 实现本接口 ⇒ 用 `ToolbarOwner` 作承载者，否则用页面 VM 自己 |
-| `ToolbarItemDescriptor` / `ToolbarMenuItemDescriptor` | `Shared/Models/` | 纯 POCO；`*Path` 一律相对页面 VM |
+| `ToolbarItemDescriptor` / `ToolbarMenuItemDescriptor` | `Shared/Models/` | 纯 POCO；`*Path` 一律相对页面 VM。`TextField` 的四种特殊字段：`Placeholder` / `IsReadOnly`（只读假水印）/ `PlaceholderWhenIdle`（**可编辑**框失焦只留水印）/ `EnterCommandPath`（唯一提交入口 = 回车 + 失焦）；三态对照表见 `ui.md` §8.4 |
 | `ToolbarHost` | `Shell/Controls/` | 渲染 + 自动折叠 + 详情开关浮层 |
 | `ListPageViewModelBase` | `Shared/Models/` | 已实现 `IToolbarSource`（`public virtual Toolbar => null`） |
 

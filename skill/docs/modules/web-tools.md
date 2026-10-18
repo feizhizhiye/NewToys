@@ -83,6 +83,9 @@
 
 ### 网络工具设置 `settings-web-tools`
 
+> 🔴 NT-071：本页改用**共用设置页骨架**（`NewToys.UI/Controls/SettingsSectionHost`，`Sticky="False"`）—— 2 个节 = 折叠卡片
+> （网页抓取 / 设置文件），点抬头开收，默认全展开。细则见 `ui.md` §11。
+
 | 类型 | 写入时机 |
 |---|---|
 | 超时 / 并发 / 默认 UA / 解析器 | **失焦即落盘**（`OnXxxChanged` → `config\web-tools.json`），**⛔ 无保存按钮** |

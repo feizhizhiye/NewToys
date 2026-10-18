@@ -1,0 +1,193 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:NewToys.UI.Controls"
+             x:Class="NewToys.UI.Controls.SettingsSectionHost">
+  <!--
+    NT-068「设置页骨架」（UI 库）—— 应用级设置页与 4 个模块设置页**共用同一套节结构**。
+      ① 整页一棵"树"：每个节 = 一张卡片（抬头 = ⌄/› + 图标 + 标题 + 说明），正文 = 节的 View；
+      ② 抬头有**独立底色 + 下边框**（`ContentHeaderBrush`）⇒ 与正文一眼分得开；
+      ③ `Sticky=True`（默认）⇒ 抬头滚出顶沿时由**覆盖层浮层**钉在顶部（含 Push），并可「全部收起」；
+         `Sticky=False`（模块设置页）⇒ ⛔ 不挂浮层、⛔ 不滚动自动展开，只保留**点抬头开收**；
+      ④ 节自带工具条（`HasToolbar`）= 抬头下方、正文之上，模板由宿主页经 `ToolbarTemplate` 给
+         （Shell 传 ToolbarHost；模块页不给 ⇒ 无工具条）。
+    🔴 折叠 / 磁吸 / Push / 自动展开 / 滚动定位全在 SettingsSectionHost.axaml.cs，⛔ VM 不认识视口。
+    🔴 类名 `sec-head`（code-behind 用 `Classes.Contains("sec-head")` 找抬头）⛔ 别删；`sec-body` 标正文区。
+  -->
+  <UserControl.Resources>
+    <!--  节点抬头的内容（正身 / 磁吸浮层**共用同一份模板**，⛔ 不写两遍）  -->
+    <DataTemplate x:Key="SectionHeaderContent">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+        <!--  折叠指示：展开 ⌄ / 收起 ›（两个键都在 App.axaml 资源区，24 网格描边几何）  -->
+        <Path
+            Grid.Column="0"
+            Width="12"
+            Height="12"
+            VerticalAlignment="Center"
+            Data="{StaticResource IconChevronDown}"
+            IsVisible="{Binding IsExpanded}"
+            Stroke="{DynamicResource SecondaryTextBrush}"
+            StrokeThickness="1.6"
+            Stretch="Uniform" />
+        <Path
+            Grid.Column="0"
+            Width="12"
+            Height="12"
+            VerticalAlignment="Center"
+            Data="{StaticResource IconChevronRight}"
+            IsVisible="{Binding !IsExpanded}"
+            Stroke="{DynamicResource SecondaryTextBrush}"
+            StrokeThickness="1.6"
+            Stretch="Uniform" />
+        <TextBlock
+            Grid.Column="1"
+            Margin="8,0,0,0"
+            VerticalAlignment="Center"
+            FontSize="14"
+            Text="{Binding Icon}" />
+        <TextBlock
+            Grid.Column="2"
+            Margin="6,0,0,0"
+            VerticalAlignment="Center"
+            Classes="sec-title"
+            FontSize="14"
+            FontWeight="SemiBold"
+            Text="{Binding Title}" />
+        <TextBlock
+            Grid.Column="3"
+            Margin="12,0,4,0"
+            VerticalAlignment="Center"
+            FontSize="12"
+            Foreground="{DynamicResource SecondaryTextBrush}"
+            Text="{Binding Desc}"
+            TextTrimming="CharacterEllipsis" />
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <!--  节点抬头标题：默认主文字色  -->
+    <Style Selector="TextBlock.sec-title">
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+    </Style>
+
+    <!--  抬头 = 卡片标题栏（独立底色 + 下边框）⇒ 与正文行区分开。
+          底色用 `ContentHeaderBrush`（暗色 #1F1F1F / 亮色 #FFF）—— 与卡片底 `PanelBrush` 正好差一档。  -->
+    <Style Selector="Button.sec-head">
+      <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,9" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+    <Style Selector="Button.sec-head:pointerover">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}" />
+    </Style>
+    <Style Selector="Button.sec-head:pressed">
+      <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}" />
+    </Style>
+    <!--  磁吸浮层里的抬头：底色由浮层自己给，这里不要再铺一层（否则悬停高亮只有半个圆角）  -->
+    <Style Selector="Button.sec-head.stuck">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.sec-head.stuck:pointerover">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <!--  🔴 页根**显式不透明背景**（ContentBrush）—— 设置页内容都在卡片里，
+        页根与卡片之间本来是透明的；切页时旧页面残留会"透出来"。给页根铺一层 ⇒ 本页永远自成一屏。  -->
+  <Panel
+      x:Name="PageRoot"
+      Background="{DynamicResource ContentBrush}"
+      ClipToBounds="True">
+    <!--  ==================== 树本体：节点（抬头 + 正文）整体参与滚动 ====================  -->
+    <ScrollViewer
+        x:Name="SectionScroll"
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+      <ItemsControl x:Name="SectionList" Margin="12">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <!--  一个节点 = 一张卡片；`card` 铺底、内边距 0（抬头自己带内边距）  -->
+            <Border Classes="card" Margin="0,0,0,10" Padding="0">
+              <Grid RowDefinitions="Auto,Auto">
+                <Grid Grid.Row="0">
+                  <Button
+                      Classes="settings-nav sec-head"
+                      HorizontalAlignment="Stretch"
+                      Click="OnHeaderClick"
+                      Content="{Binding}"
+                      ContentTemplate="{StaticResource SectionHeaderContent}"
+                      ToolTip.Tip="{Binding Desc}" />
+                  <!--  展开时抬头与正文之间一条分隔线（收起时不画，卡片就是一颗圆角小条）  -->
+                  <Border
+                      Height="1"
+                      VerticalAlignment="Bottom"
+                      Background="{DynamicResource DividerBrush}"
+                      IsVisible="{Binding IsExpanded}" />
+                </Grid>
+
+                <!--  节**自己的工具条** = 抬头下方、正文之上。外层 `IsExpanded` ⇒ 收起时跟收起；
+                      内层 `HasToolbar` ⇒ 没有工具条的节整块不占高度。
+                      `ToolbarTemplate` 由宿主页给（Shell 传 ToolbarHost；模块页不给 ⇒ 不渲染）。  -->
+                <StackPanel Grid.Row="1" IsVisible="{Binding IsExpanded}">
+                  <Border Classes="toolbar" IsVisible="{Binding HasToolbar}">
+                    <ContentControl
+                        Content="{Binding ViewModel}"
+                        ContentTemplate="{Binding $parent[UserControl].ToolbarTemplate}" />
+                  </Border>
+
+                  <ContentControl
+                      Classes="sec-body"
+                      Margin="14,10,14,12"
+                      Content="{Binding Content}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <!--  ==================== 磁吸节点抬头：覆盖在视口顶部，点它照样折叠 / 展开 ====================
+          🔴 **必须在 ScrollViewer 外面**（= 覆盖层，不参与滚动）：放在滚动内容里要反补滚动量才能"钉住"
+             ⇒ 位置全靠推算，实测"顶部残留空白浮层 / 顶行被裁"。现在位置 = 自身对齐，⛔ 不需要补偿数学；
+             浮层上的滚轮由 code-behind 转发，⛔ 不会"停上去滚不动"。Push 用 RenderTransform 负 Y 平移（纯视觉）。
+          🔴 底色 `PanelBrush` = 卡片同档；`CornerRadius="0,0,8,8"` —— 上面两个圆角取消，只留下面两个。  -->
+    <Border
+        x:Name="StuckHeader"
+        Margin="12,12,22,0"
+        VerticalAlignment="Top"
+        Background="{DynamicResource PanelBrush}"
+        BorderBrush="{DynamicResource DividerBrush}"
+        BorderThickness="0,0,0,1"
+        CornerRadius="0,0,8,8"
+        IsVisible="False">
+      <Grid ColumnDefinitions="*,Auto">
+        <Button
+            Grid.Column="0"
+            Classes="settings-nav sec-head stuck"
+            HorizontalAlignment="Stretch"
+            Click="OnHeaderClick"
+            Content="{Binding}"
+            ContentTemplate="{StaticResource SectionHeaderContent}"
+            ToolTip.Tip="{Binding Desc}" />
+        <!--  全部收起 / 全部展开（只在浮层上 —— 它常驻顶部，正身那份会被浮层盖住点不到）  -->
+        <Button
+            x:Name="ToggleAllButton"
+            Grid.Column="1"
+            Margin="0,0,8,0"
+            Padding="14,0"
+            Classes="ghost"
+            Background="{DynamicResource ContentHeaderBrush}"
+            CornerRadius="8"
+            VerticalAlignment="Stretch"
+            HorizontalContentAlignment="Center"
+            VerticalContentAlignment="Center"
+            Click="OnToggleAllClick"
+            FontSize="16"
+            ToolTip.Tip="全部收起 = 一屏看全所有节点，点标题直接跳过去；再点一次全部展开" />
+      </Grid>
+    </Border>
+  </Panel>
+</UserControl>

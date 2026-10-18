@@ -9,16 +9,13 @@
        节内⛔ 再写 Border.card（卡片由节自己提供）。
     规范 §4.9：开关 / 数值 / 路径 = 即时生效（⛔ 无保存按钮）；多行文本（忽略规则 / 命名模板）= 显式 💾 保存。
     状态文本由 Shell 底部状态栏统一显示（IStatusProvider）。
-  -->
-  <ui:SettingsSectionHost>
-    <ui:SettingsSectionHost.Sections>
 
-    <!--  ============ ① 扫描 ============  -->
-    <ui:SettingsSection
-        Title="扫描"
-        Icon="🔍"
-        Desc="忽略规则 / 快速哈希采样"
-        IsExpanded="True">
+    ⚠️ 节内容 = `<UserControl.Resources>` 里的 `SecN` 面板；节元数据（标题/图标/说明）在 code-behind 的 `Add(...)`。
+      （⛔ 不要在 XAML 里直接写 `<ui:SettingsSection>`：该页会不被预编译 ⇒ 运行时 `No precompiled XAML found`。）
+  -->
+
+  <UserControl.Resources>
+    <StackPanel x:Key="Sec0" Spacing="10">
       <StackPanel Spacing="10">
         <CheckBox Content="忽略隐藏文件 / 目录" IsChecked="{Binding IgnoreHiddenFiles, Mode=TwoWay}" />
         <CheckBox Content="忽略临时文件（.tmp / .part / ~$* 等）" IsChecked="{Binding IgnoreTempFiles, Mode=TwoWay}" />
@@ -59,14 +56,9 @@
             Content="💾 保存忽略规则"
             ToolTip.Tip="把上面的忽略规则 / 命名模板 / 冲突策略一次写全（即时生效项无需保存）" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ② 元数据与缩略图 ============  -->
-    <ui:SettingsSection
-        Title="元数据与缩略图"
-        Icon="🖼"
-        Desc="自动提取 / 抽帧位置 / 缩略图目录"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec1" Spacing="10">
       <StackPanel Spacing="10">
         <CheckBox Content="扫描到新文件时自动提取元数据（视频 = ffprobe；图片 = 读尺寸）" IsChecked="{Binding AutoExtractMetadata, Mode=TwoWay}" />
         <CheckBox Content="扫描到新文件时自动生成缩略图（视频抽帧 / 图片缩放）" IsChecked="{Binding AutoGenerateThumbnails, Mode=TwoWay}" />
@@ -116,14 +108,9 @@
               Text="{Binding ThumbsDirectoryEffective, StringFormat='生效目录：{0}'}" />
         </StackPanel>
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ③ 命名模板与冲突策略 ============  -->
-    <ui:SettingsSection
-        Title="命名模板与冲突策略"
-        Icon="✏"
-        Desc="重命名模板与重名处理"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec2" Spacing="10">
       <StackPanel Spacing="10">
         <TextBlock
             Classes="hint-text"
@@ -164,14 +151,9 @@
             Command="{Binding SaveTextSettingsCommand}"
             Content="💾 保存模板与规则" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ④ 回收站 ============  -->
-    <ui:SettingsSection
-        Title="回收站"
-        Icon="🗑"
-        Desc="保留天数与自动清理"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec3" Spacing="10">
       <StackPanel Spacing="10">
         <StackPanel Classes="field">
           <TextBlock Classes="field-label" Text="保留天数（超过即过期）" />
@@ -192,14 +174,9 @@
             Content="🧹 立即清理过期回收站"
             ToolTip.Tip="把超过保留天数的资产排进永久删除队列（二次确认）" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ⑤ 物理操作 ============  -->
-    <ui:SettingsSection
-        Title="物理操作"
-        Icon="🛠"
-        Desc="删除是否进系统回收站 / 二次确认"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec4" Spacing="10">
       <StackPanel Spacing="10">
         <CheckBox Content="删除默认送系统回收站（可还原）" IsChecked="{Binding DeleteToRecycleBin, Mode=TwoWay}" />
         <CheckBox
@@ -207,14 +184,9 @@
             IsChecked="{Binding ConfirmBeforeOperation, Mode=OneWay}"
             IsEnabled="False" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ⑥ 导入导出 ============  -->
-    <ui:SettingsSection
-        Title="导入导出"
-        Icon="📤"
-        Desc="默认目录 / 用户手动数据"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec5" Spacing="10">
       <StackPanel Spacing="10">
         <TextBlock
             Classes="hint-text"
@@ -260,14 +232,9 @@
               Text="{Binding UserDataFilePath}" />
         </StackPanel>
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ⑦ 说明 ============  -->
-    <ui:SettingsSection
-        Title="设置文件"
-        Icon="📄"
-        Desc="配置落在哪 / 本轮未做的部分"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec6" Spacing="10">
       <StackPanel Spacing="6">
         <TextBlock
             FontFamily="Consolas"
@@ -279,8 +246,8 @@
             TextWrapping="Wrap"
             Text="它在 config 目录下 —— 「设置 → 数据」的备份 / 导入会覆盖它。音乐 / 书籍 / 文档的元数据提取（需要第三方库）本轮未做，⛔ 未擅引。" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
+  </UserControl.Resources>
 
-    </ui:SettingsSectionHost.Sections>
-  </ui:SettingsSectionHost>
+  <ui:SettingsSectionHost x:Name="Host" />
 </UserControl>

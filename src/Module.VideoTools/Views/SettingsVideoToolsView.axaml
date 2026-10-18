@@ -7,16 +7,13 @@
     🔴 NT-068（2026-10-18）：改用与应用级设置页同一套骨架 <ui:SettingsSectionHost>（节 = 折叠卡片），
        3 节 ⇒ `Sticky="False"`（不挂磁吸浮层、不滚动自动展开）。节内⛔ 再写 Border.card。
     规范 §4.9：数值 = 即时生效（改即落盘，⛔ 无保存按钮）；全局项只展示、⛔ 不另存一份。
-  -->
-  <ui:SettingsSectionHost Sticky="False">
-    <ui:SettingsSectionHost.Sections>
 
-    <!--  ============ ① 性能 ============  -->
-    <ui:SettingsSection
-        Title="性能"
-        Icon="⚡"
-        Desc="批量处理并发数"
-        IsExpanded="True">
+    ⚠️ 节内容 = `<UserControl.Resources>` 里的 `SecN` 面板；节元数据（标题/图标/说明）在 code-behind 的 `Add(...)`。
+      （⛔ 不要在 XAML 里直接写 `<ui:SettingsSection>`：该页会不被预编译 ⇒ 运行时 `No precompiled XAML found`。）
+  -->
+
+  <UserControl.Resources>
+    <StackPanel x:Key="Sec0" Spacing="10">
       <StackPanel Spacing="10">
         <StackPanel Classes="field">
           <TextBlock Classes="field-label" Text="并发数" />
@@ -27,14 +24,9 @@
               Text="{Binding ConcurrencyHint}" />
         </StackPanel>
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ② 全局项（只读） ============  -->
-    <ui:SettingsSection
-        Title="全局项（本模块复用）"
-        Icon="🔗"
-        Desc="ffmpeg / 播放器 / 导入导出目录"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec1" Spacing="10">
       <StackPanel Spacing="10">
         <TextBlock
             Classes="hint-text"
@@ -65,14 +57,9 @@
               Text="{Binding ImportExportDirDisplay}" />
         </StackPanel>
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ③ 说明 ============  -->
-    <ui:SettingsSection
-        Title="设置文件"
-        Icon="📄"
-        Desc="配置落在哪 / 备份会覆盖它"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec2" Spacing="10">
       <StackPanel Spacing="6">
         <TextBlock
             FontFamily="Consolas"
@@ -88,8 +75,8 @@
             TextWrapping="Wrap"
             Text="{Binding StatusText, StringFormat='状态：{0}'}" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
+  </UserControl.Resources>
 
-    </ui:SettingsSectionHost.Sections>
-  </ui:SettingsSectionHost>
+  <ui:SettingsSectionHost x:Name="Host" Sticky="False" />
 </UserControl>

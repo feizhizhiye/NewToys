@@ -79,7 +79,9 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
             Kind = ToolbarItemKind.TextField,
             Width = 88,
             // v3.64 / NT-061：**可编辑** —— 写的是草稿，回车 / 失焦由 CommitScriptsFolderCommand 校验 + 落盘。
+            // v3.68：**空闲态水印化** —— 失焦时框里只剩「脚本目录」水印，点进去才露出当前值（与命令库那个框观感一致）。
             Placeholder = "脚本目录",
+            PlaceholderWhenIdle = true,
             ValuePath = nameof(ScriptsFolderDraft),
             EnterCommandPath = nameof(CommitScriptsFolderCommand),
             ToolTipPath = nameof(ScriptHint)

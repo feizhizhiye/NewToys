@@ -9,16 +9,13 @@
        模块页只有 2 节 ⇒ `Sticky="False"`：⛔ 不挂磁吸浮层、⛔ 不滚动自动展开，只保留点抬头开收。
        节内容⛔ 再写 Border.card（卡片由节自己提供），直接放字段。
     规范 §4.9：路径 / 数值 / 文本 = 即时生效（失焦即落盘，⛔ 无保存按钮）。
-  -->
-  <ui:SettingsSectionHost Sticky="False">
-    <ui:SettingsSectionHost.Sections>
 
-    <!--  ============ ① 网页抓取默认项 ============  -->
-    <ui:SettingsSection
-        Title="网页抓取"
-        Icon="🌐"
-        Desc="默认 UA 与单次抓取超时"
-        IsExpanded="True">
+    ⚠️ 节内容 = `<UserControl.Resources>` 里的 `SecN` 面板；节元数据（标题/图标/说明）在 code-behind 的 `Add(...)`。
+      （⛔ 不要在 XAML 里直接写 `<ui:SettingsSection>`：该页会不被预编译 ⇒ 运行时 `No precompiled XAML found`。）
+  -->
+
+  <UserControl.Resources>
+    <StackPanel x:Key="Sec0" Spacing="10">
       <StackPanel Spacing="10">
         <TextBlock
             Classes="hint-text"
@@ -49,14 +46,9 @@
           <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding TimeoutHint}" />
         </StackPanel>
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ② 说明 ============  -->
-    <ui:SettingsSection
-        Title="设置文件与其它功能"
-        Icon="📄"
-        Desc="配置落在哪 / 哪些功能没有模块级配置"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec1" Spacing="10">
       <StackPanel Spacing="6">
         <TextBlock
             Classes="hint-text"
@@ -78,8 +70,8 @@
             TextWrapping="Wrap"
             Text="{Binding StatusText, StringFormat='状态：{0}'}" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
+  </UserControl.Resources>
 
-    </ui:SettingsSectionHost.Sections>
-  </ui:SettingsSectionHost>
+  <ui:SettingsSectionHost x:Name="Host" Sticky="False" />
 </UserControl>

@@ -481,14 +481,34 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 模块设置页（≥5 节，如媒体资产 7 节） | 同上 | 默认 `true` |
 
 ```xml
-<ui:SettingsSectionHost Sticky="False">
-  <ui:SettingsSectionHost.Sections>
-    <ui:SettingsSection Title="…" Icon="…" Desc="…" IsExpanded="True"> 内容 </ui:SettingsSection>
-  </ui:SettingsSectionHost.Sections>
-</ui:SettingsSectionHost>
+<!--  模块页：节内容写成 UserControl.Resources 里的命名面板；节元数据在 code-behind 建  -->
+<UserControl x:Class="NewToys.Xxx.Views.SettingsXxxView">
+  <UserControl.Resources>
+    <StackPanel x:Key="Sec0" Spacing="10"> …字段… </StackPanel>
+    <StackPanel x:Key="Sec1" Spacing="10"> …字段… </StackPanel>
+  </UserControl.Resources>
+  <ui:SettingsSectionHost x:Name="Host" Sticky="False" />
+</UserControl>
 ```
-- 🔴 **`Sections` ⛔ 不能标 `[Content]`**：会抢掉 `UserControl.Content`，控件自己的 axaml 根 `<Panel PageRoot>` 就被当成"一个节"塞进来
-  ⇒ `AVLN3000: Unable to find suitable setter or adder for property Sections … for argument Panel`。故模块页必须用**属性元素**写法（上面这段）。
+```csharp
+public SettingsXxxView()
+{
+    InitializeComponent();
+    Add("扫描", "🔍", "一句话说明", "Sec0");
+    Add("设置文件", "📄", "配置落在哪", "Sec1");
+}
+
+private void Add(string title, string icon, string desc, string key)
+    => Host.Sections.Add(new SettingsSection
+    {
+        Title = title, Icon = icon, Desc = desc, IsExpanded = true,
+        Content = (Control)Resources[key]!,
+    });
+```
+- 🔴 **为什么不在 XAML 里直接写节**（2026-10-18 实测两次翻车）：`<ui:SettingsSectionHost.Sections>` 属性元素 / `<ui:SettingsSection>` 隐式内容都会让
+  该页 XAML **不被预编译**（编译通过、运行时报 `No precompiled XAML found for …SettingsXxxView`）；给 `Sections` 标 `[Content]`
+  则会抢掉 `UserControl.Content` ⇒ `AVLN3000`。⇒ 模块页一律「Resources 放内容 + code-behind 建节」。
+- 节内容的 DataContext 由骨架补成页面 VM（见 11.3），⛔ 手写 `DataContext`。
 - `Sticky=false` ⇒ ⛔ 不挂浮层、⛔ 不滚动自动展开、⛔ 不显示「全部收起」，只保留**点抬头开收**。
 - 模块页节内容**直接放字段**（`StackPanel Classes="field"` / `CheckBox` / 按钮），⛔ 再包一层 `Border.card`（会套两层卡片）。
 

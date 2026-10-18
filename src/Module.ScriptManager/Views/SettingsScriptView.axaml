@@ -10,16 +10,13 @@
     🔴 NT-068（2026-10-18）：改用与应用级设置页同一套骨架 <ui:SettingsSectionHost>（节 = 折叠卡片），
        3 节 ⇒ `Sticky="False"`。节内⛔ 再写 Border.card；子控件 PackageSourceView 自带 ScrollViewer 已去。
     规范 §4.9：路径 = 即时生效（失焦即落盘，⛔ 无保存按钮）；无效路径 ⇒ 底栏红字 + ⛔ 不写盘。
-  -->
-  <ui:SettingsSectionHost Sticky="False">
-    <ui:SettingsSectionHost.Sections>
 
-    <!--  ============ ① 脚本目录 ============  -->
-    <ui:SettingsSection
-        Title="脚本目录"
-        Icon="📂"
-        Desc="脚本库扫描的根目录（脚本库页同一份值）"
-        IsExpanded="True">
+    ⚠️ 节内容 = `<UserControl.Resources>` 里的 `SecN` 面板；节元数据（标题/图标/说明）在 code-behind 的 `Add(...)`。
+      （⛔ 不要在 XAML 里直接写 `<ui:SettingsSection>`：该页会不被预编译 ⇒ 运行时 `No precompiled XAML found`。）
+  -->
+
+  <UserControl.Resources>
+    <StackPanel x:Key="Sec0" Spacing="10">
       <StackPanel Spacing="10">
         <StackPanel Classes="field">
           <TextBlock Classes="field-label" Text="脚本目录（留空 = 默认目录）" />
@@ -46,15 +43,9 @@
             TextWrapping="Wrap"
             Text="「脚本库」页工具条上的「脚本目录」框和这里是同一份值：那条框改完（回车 / 点开别处）也写进本页的设置文件。" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ② 软件源（v3.65 / NT-062：原独立菜单项 settings-package 并入本页） ============
-          DataContext 绑到 PackageSourceViewModel —— 子控件内部的所有绑定照旧。  -->
-    <ui:SettingsSection
-        Title="软件源（winget）"
-        Icon="📦"
-        Desc="系统 winget 源的增删与默认源"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec1" Spacing="10">
       <StackPanel Spacing="10">
         <TextBlock
             Classes="hint-text"
@@ -62,14 +53,9 @@
             Text="原「设置 → 软件源」页 v3.65 起并入本页（不再单独占菜单项）；数据仍落 config\package.json，会被「设置 → 数据」的备份一起带走。" />
         <v:PackageSourceView DataContext="{Binding PackageSource}" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
 
-    <!--  ============ ③ 说明 ============  -->
-    <ui:SettingsSection
-        Title="设置文件"
-        Icon="📄"
-        Desc="配置落在哪 / 解释器路径在哪配"
-        IsExpanded="True">
+    <StackPanel x:Key="Sec2" Spacing="10">
       <StackPanel Spacing="6">
         <TextBlock
             FontFamily="Consolas"
@@ -89,8 +75,8 @@
             TextWrapping="Wrap"
             Text="{Binding StatusText, StringFormat='状态：{0}'}" />
       </StackPanel>
-    </ui:SettingsSection>
+    </StackPanel>
+  </UserControl.Resources>
 
-    </ui:SettingsSectionHost.Sections>
-  </ui:SettingsSectionHost>
+  <ui:SettingsSectionHost x:Name="Host" Sticky="False" />
 </UserControl>

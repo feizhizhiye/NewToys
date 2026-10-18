@@ -17,6 +17,10 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
+// v3.66 / NT-069：Core 里也有一个 FileOperationService（纯磁盘动作，跨模块共用）。
+// 本页用的是**带库表日志**的模块版，显式取别名，免得两个 using 撞名（CS0104）。
+using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
+
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
@@ -52,6 +56,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private readonly AssetImportExport _impExp = null!;
     private readonly AssetMergeService _merge = null!;
     private readonly TaskQueue _queue = null!;
+
+    /// <summary>应用级配置（只读：取 <c>VideoDbFolder</c> 当导入/导出默认目录）。</summary>
     private readonly IAppConfigService? _app;
 
     /// <summary>v3.69：列布局服务（只用来记「用户显式设过」的列键；显隐 / 落盘本身在基类）。</summary>

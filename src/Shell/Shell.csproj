@@ -26,9 +26,9 @@
     <!--  NT-062：应用级设置归 Shell 自带（原 Module.Settings 已撤销），此处不再有无条件模块引用。  -->
   </ItemGroup>
 
-  <!--  默认数据：随程序发布到 <程序目录>\defaults\（首次运行时由 Core 复制成
-        config\pc-scripts.json、config\pc-quick.json 与 <应用根>\scripts\*）。
-        为什么要它有：QuickAction 的命令清单**不写死在 C# 里**（v1.33），默认内容就是这些本地 JSON / 脚本文件。
+  <!--  默认数据：随程序发布到 <程序目录>\defaults\ —— 由各模块的 Seeder 首次运行时复制到配置根（⛔ 不是 Core 复制）。
+        现在两处：defaults\sysinfo\（内置采集脚本，Module.ScriptManager.BuiltinCollectorSeeder，缺了就补）
+        与 defaults\scripts\（示例脚本 + 采集器模板，ExampleSeeder，只播种一次）。
         ⚠️ 用 None Update（不是 Content/None Include）：这些文件本来就在 SDK 的默认 None 通配里，
            Update 只改"要不要复制到输出"，再加一条 Include 会撞 NETSDK1022 重复项。
         ⚠️ 放在 Shell 而不是 Core：Shell 是被引用的终点（模块不会引用它），

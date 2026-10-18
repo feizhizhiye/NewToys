@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -33,8 +35,14 @@ public partial class SettingsSection : ObservableObject
     /// <summary>节的视图实例（折叠 / 展开只是切它的可见性，⛔ 不重建）。</summary>
     public Control Content { get; init; } = null!;
 
-    /// <summary>节的 VM（契约转发 / 惰性探测用）。</summary>
-    public object? ViewModel { get; init; }
+    /// <summary>
+    /// 本节承载的 **VM 列表**（v3.67 合节后可能多个：「版本与更新」= <c>GeneralViewModel</c> + <c>AboutSettingsViewModel</c>）。
+    /// 状态栏 / 工具条契约聚合按它逐个探测。
+    /// </summary>
+    public IReadOnlyList<object> ViewModels { get; init; } = Array.Empty<object>();
+
+    /// <summary>节的**主** VM（首个）—— <c>ToolbarHost.Source</c> / 旧调用点用它，⛔ 多 VM 节的次级 VM 走 <see cref="ViewModels"/>。</summary>
+    public object? ViewModel => ViewModels.FirstOrDefault();
 
     /// <summary>
     /// 本节是否有**自己的工具条**（v3.66 第五轮）：有 ⇒ 节点抬头下方、正文之上渲染一条
@@ -50,8 +58,22 @@ public partial class SettingsSection : ObservableObject
     [ObservableProperty] private bool _isExpanded;
 
     /// <summary>
+    /// 本节点是否是**当前节点**（v3.67 新增，纯视觉）：View 按"哪一节的抬头跨住视口顶沿"设置，
+    /// 节点抬头据此上激活色（<c>Button.settings-nav.active</c>）。🔴 **只有 View 写**，
+    /// VM 的 <see cref="ViewModels"/> 那边仍用 <c>SettingsViewModel.ActiveSection</c>（左树 / 状态栏用），二者故意分开。
+    /// </summary>
+    [ObservableProperty] private bool _isActive;
+
+    /// <summary>
     /// 用户是否**手动收起**过本节（v3.66 第七轮）：滚动的自动展开会跳过它，⛔ 不被下一帧弹开；
     /// 手动展开 / 外部寻址（搜索、首页跳转）会清掉。⛔ 不是 UI 绑定属性，故不加通知。
     /// </summary>
     public bool UserCollapsed { get; set; }
+
+    /// <summary>
+    /// 收起是「全部收起」按钮干的（v3.68）：这种收起只是**一屏总览**的临时态 ⇒
+    /// 滚动到它时**照样自动展开**（用户滚动 = 表达"要看这一节"）。
+    /// ⛔ 与 <see cref="UserCollapsed"/> 的区别：那是**单节手动收起**，滚动不许弹开。
+    /// </summary>
+    public bool CollapsedByAll { get; set; }
 }

@@ -94,6 +94,10 @@ public class App : Application
             // 后续更多结构化数据也走它（见 SqliteDatabase 的类注释）。
             services.AddSingleton<SqliteDatabase>();
 
+            // v3.66 / NT-069：跨模块共用的文件系统动作（改名 / 移动 / 复制 / 回收站删除）。
+            // 只管磁盘，不记账、不弹窗 —— 库表日志与确认框留在各模块自己那层。
+            services.AddSingleton<IFileOperationService, FileOperationService>();
+
             // 「设置 → 通用」的系统级行为：开机启动项（注册表）+ 启动时检查更新。
             // 两者都不碰 Avalonia，所以能放在 Core 里；这里只是把它们挂进 DI。
             services.AddSingleton<StartupService>();
@@ -109,6 +113,8 @@ public class App : Application
             // 三节共用同一个 GeneralViewModel（只在上面注册一次）。
             services.AddTransient<UpdateView>();
             services.AddTransient<ThemeView>();
+            // v3.67：「更新」+「关于」合并成「版本与更新」节 ⇒ 拼装 View（内部仍用上面两个 View）
+            services.AddTransient<UpdateAboutView>();
             services.AddTransient<PathView>();           services.AddTransient<PathViewModel>();
             services.AddTransient<LaunchConfigView>();   services.AddTransient<LaunchConfigViewModel>();
             services.AddTransient<DnsView>();            services.AddTransient<DnsViewModel>();
@@ -137,8 +143,7 @@ public class App : Application
                 WriteStartupLog($"{store.ProfileOverrideError} —— 已回退到配置「{store.ActiveProfileName}」");
             if (!AcquireProfileMutex(store)) return;
 
-            // NT-038：播种内置配置档（debug / default / release）—— 只增不覆盖、永久驻留（需求 §3.5）
-            store.EnsureBuiltInProfiles();
+            // v3.66：内置三档（debug / default / release）已撤销 —— 配置 = 纯根目录，⛔ 不再自动播种任何档。
 
             // NT-062：应用级设置的菜单注册归 Shell（原 Module.Settings 的 Initialize 职责）——
             // v3.66 起左树**没有**「设置」一级菜单项：注册的是一个 IsHome 的不渲染宿主分组

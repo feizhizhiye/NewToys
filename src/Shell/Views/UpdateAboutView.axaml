@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:NewToys.Shell.Views"
+             x:Class="NewToys.Shell.Views.UpdateAboutView">
+  <!--
+    v3.67 / NT-062 收尾：应用级设置页「版本与更新」节 = 原「更新」节 + 原「关于」节**合一**
+    （用户 2026-10-18 拍板：两者都围绕版本号，合并后 8 节 → 7 节）。
+      ▸ 节锚点 Key = `settings-update`（原菜单 Key，⛔ 不改）；`settings-about` 退成**内部别名**（见 SettingsViewModel.OpenSection）。
+      ▸ 本 View 只做**拼装**：两个子 View 各自保留原文件与原本的 VM，⛔ 不把内容抄进来
+        （抄一份 = 两份要同步，下一轮又漂移）。
+      ▸ 🔴 两个子 View 的 DataContext 由 code-behind `Init(...)` **分别**赋（各用自己的 VM），
+        ⛔ 不能靠继承 —— 外层 DataContext 只有一个。
+  -->
+  <StackPanel
+      HorizontalAlignment="Left"
+      MaxWidth="720"
+      Spacing="16">
+    <views:UpdateView x:Name="UpdatePart" />
+    <views:AboutSettingsView x:Name="AboutPart" />
+  </StackPanel>
+</UserControl>

@@ -20,7 +20,7 @@ public enum SettingsCategory
     /// <summary>应用级 · 通用 —— 现为**启动与退出**（v3.66 第五轮「通用」节拆分后只留启动 / 托盘行为）。节锚点 `settings-general`。</summary>
     General = 1,
 
-    /// <summary>应用级 · 更新（版本文件地址 / 立即检查）。节锚点 `settings-update`（v3.66 第五轮新增）。</summary>
+    /// <summary>应用级 · 更新（版本号 / 版本文件地址 / 立即检查）。节锚点 `settings-update`（v3.66 第五轮新增）。v3.67：「关于」已并入本节。</summary>
     Update = 8,
 
     /// <summary>应用级 · 主题外观（明暗模式 / 强调色）。节锚点 `settings-theme`（v3.66 第五轮复原）。</summary>
@@ -38,7 +38,7 @@ public enum SettingsCategory
     /// <summary>应用级 · 数据（备份 / 导入 config）。节锚点 `settings-data`。</summary>
     Data = 5,
 
-    /// <summary>应用级 · 关于（版本 / 功能清单入口 / 重载模块）。**无节锚点 Key**（页内可点）。</summary>
+    /// <summary>应用级 · 关于（版本 / 功能清单入口 / 重载模块）。v3.67 起**已并入 <see cref="Update"/>**（节锚点 `settings-about` 退成内部别名），枚举值保留以兼容旧数据。</summary>
     About = 6,
 
     /// <summary>模块级设置（View/VM 归模块、自注册进 `settings` 组，需求 §4.9）。</summary>

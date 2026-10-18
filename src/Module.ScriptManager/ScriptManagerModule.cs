@@ -56,7 +56,11 @@ public class ScriptManagerModule : IModule
             db.PruneAllDays(store.Data.Items);
 
             // NT-068 S5：内置采集脚本 + 内置采集器条目 + 内置「系统信息」集合（只加不改）。
-            BuiltinCollectorSeeder.Seed(store, services.GetRequiredService<IScriptManagerSettingsService>());
+            var settings = services.GetRequiredService<IScriptManagerSettingsService>();
+            BuiltinCollectorSeeder.Seed(store, settings);
+
+            // v3.66 第 ④ 条：随包「示例」—— 示例脚本文件夹 + 示例命令，**只播种一次**（删了不复活）。
+            ExampleSeeder.Seed(store, settings);
         }
         catch
         {

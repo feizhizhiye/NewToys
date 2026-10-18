@@ -109,10 +109,6 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// <summary>选中的配置行就是**本窗口正在使用**的那个。</summary>
     private bool IsActiveProfileRow => Selected?.IsProfileRow == true && Selected.IsActiveProfile;
 
-    /// <summary>选中的是内置 `default` 档（⛔ 不可重置）。</summary>
-    private bool IsDefaultProfileRow
-        => Selected?.IsProfileRow == true && string.Equals(Selected.Name, "default", StringComparison.OrdinalIgnoreCase);
-
     /// <summary>「💾 保存 / 📂 浏览 / ↩ 还原默认」可用（路径行且非只读展示项）。</summary>
     public bool CanSavePath => IsPathRowSelected && Selected!.IsEditable;
 
@@ -121,9 +117,6 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
 
     /// <summary>「🗑 删除」可用（配置行且不是当前配置）。</summary>
     public bool CanDeleteProfile => IsProfileRowSelected && !IsActiveProfileRow;
-
-    /// <summary>「♻ 重置」可用（配置行、不是当前配置、也不是内置 default）。</summary>
-    public bool CanResetProfile => IsProfileRowSelected && !IsActiveProfileRow && !IsDefaultProfileRow;
 
     // —— 工具条悬停提示：可用时说明语义，置灰时说明**为什么**不可用（需求 §4.9.1 第 2 条） ——
 
@@ -171,10 +164,6 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         ? "永久删除这个配置的全部数据（会二次确认）"
         : IsProfileRowSelected ? "不能删除当前正在使用的配置 —— 先切到别的配置" : ProfileReason;
 
-    public string ResetTip => CanResetProfile
-        ? "清空回初始态（debug 复刻当前 default 的配置；会二次确认）"
-        : IsProfileRowSelected ? "不能重置 default 或当前正在使用的配置" : ProfileReason;
-
     /// <summary>选中行变化 / 列表重建后，把上面这批"可用性 + 提示词"整体通知一遍（工具条按钮绑的就是它们）。</summary>
     private void RaiseActionStates()
     {
@@ -183,7 +172,6 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         OnPropertyChanged(nameof(CanSavePath));
         OnPropertyChanged(nameof(CanSwitchProfile));
         OnPropertyChanged(nameof(CanDeleteProfile));
-        OnPropertyChanged(nameof(CanResetProfile));
 
         OnPropertyChanged(nameof(SaveTip));
         OnPropertyChanged(nameof(BrowseTip));
@@ -194,7 +182,6 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         OnPropertyChanged(nameof(DefaultTip));
         OnPropertyChanged(nameof(RenameTip));
         OnPropertyChanged(nameof(DeleteTip));
-        OnPropertyChanged(nameof(ResetTip));
     }
 
     // ==================== 工具条（v3.66 第五轮起由**设置页「运行环境」节**的节点内嵌 ToolbarHost 渲染） ====================
@@ -231,8 +218,6 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
                 IsEnabledPath = nameof(IsProfileRowSelected), ToolTipPath = nameof(RenameTip), ShowToolTipOnDisabled = true },
         new() { Text = "🗑 删除", Classes = "danger-btn", CommandPath = nameof(DeleteProfileCommand),
                 IsEnabledPath = nameof(CanDeleteProfile), ToolTipPath = nameof(DeleteTip), ShowToolTipOnDisabled = true },
-        new() { Text = "♻ 重置", CommandPath = nameof(ResetProfileCommand),
-                IsEnabledPath = nameof(CanResetProfile), ToolTipPath = nameof(ResetTip), ShowToolTipOnDisabled = true },
         // v3.60：原 Label「「路径」行改默认路径；「配置」行管多套数据」删除（工具条⛔ 不放说明文字）——
         //        表头「分类」列已经把两类行分开，各行自带说明（StringFormat 那条坑见工程规范）。
     };
@@ -431,7 +416,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
                 IsActiveProfile = isActive,
                 Description = isActive
                     ? "当前窗口正在使用的配置（切换 = 重启本窗口；⭐ 设为默认 = 以后不带参数启动用它）"
-                    : "一套独立的 config / data / logs，可切换 / 新开窗口 / 设为默认 / 重命名 / 删除 / 重置"
+                    : "一套独立的 config / data / logs，可切换 / 新开窗口 / 设为默认 / 重命名 / 删除"
             });
         }
     }
@@ -443,7 +428,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             ?? (Items.Count > 0 ? Items[0] : null);
     }
 
-    /// <summary>配置侧动作（新建 / 重命名 / 删除 / 重置 / 切换 / 设为默认）之后重建配置行并保持"选中当前配置"。</summary>
+    /// <summary>配置侧动作（新建 / 重命名 / 删除 / 切换 / 设为默认）之后重建配置行并保持"选中当前配置"。</summary>
     private void RefreshProfiles()
     {
         BuildItems();
@@ -654,7 +639,8 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
 
     // ==================== 配置侧动作（v3.53 / NT-056：由「设置 → 配置」页原样并入） ====================
     //
-    // 🔴 语义**零改动**：⇄ 切换仍二次确认 + 本窗重启；🗑 删除仍禁删当前配置并二次确认；♻ 重置仍禁 default / 当前配置。
+    // 🔴 语义**零改动**：⇄ 切换仍二次确认 + 本窗重启；🗑 删除仍禁删当前配置并二次确认。
+    // v3.66：♻ 重置（内置档语义）已撤销 —— 配置只是根目录，没有"初始态"这个概念。
     // 每个命令都收一个行参数（行内按钮传行、工具条与详情卡不传 ⇒ 用当前选中项）。
 
     /// <summary>把行参数归一成"当前要操作的配置行"（不传参就用选中项）。</summary>
@@ -729,30 +715,6 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             RefreshProfiles();
         }
         catch (Exception ex) { StatusText = "删除失败：" + ex.Message; }
-    }
-
-    /// <summary>把选中配置**重置为初始态**（NT-038）：debug = 重新复制 default 的 config；release = 清空。⛔ 不能重置 default 或当前配置。</summary>
-    [RelayCommand]
-    private async Task ResetProfileAsync(PathSettingItem? row)
-    {
-        if (_profiles == null) return;
-        var target = Resolve(row);
-        if (target?.IsProfileRow != true) { StatusText = "先在列表里选中一个配置行。"; return; }
-
-        var name = target.Name;
-        var ok = await DialogHooks.ConfirmAsync(
-            $"把配置「{name}」重置为初始态？\n\n" +
-            "会清空它的 config / data / logs（debug 会重新复制当前 default 的配置）。\n" +
-            "此操作不可撤销；不能重置 default 或当前正在使用的配置。");
-        if (!ok) return;
-
-        try
-        {
-            _profiles.ResetToInitial(name);
-            StatusText = $"已重置配置：{name}";
-            RefreshProfiles();
-        }
-        catch (Exception ex) { StatusText = "重置失败：" + ex.Message; }
     }
 
     [RelayCommand]

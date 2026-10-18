@@ -47,8 +47,12 @@ public class ScriptManagerSettingsService : IScriptManagerSettingsService
 
     public string ScriptsFolder => Read(KeyScriptsFolder);
 
-    /// <summary>默认脚本目录：<c>&lt;应用根&gt;\scripts</c> —— 用**应用根**而非配置根，脚本是多配置共享的用户文件。</summary>
-    public string DefaultScriptsFolder => Path.Combine(_cfg.AppRootDirectory, "scripts");
+    /// <summary>
+    /// 默认脚本目录：<c>&lt;配置根&gt;\data\scripts</c>。
+    /// <para>🔴 v3.66 改动：原先是 <c>&lt;应用根&gt;\scripts</c>（跨配置共享、在应用根裸奔）。
+    /// 按「配置 = 根目录导航」的定位，脚本是**这个配置的数据** ⇒ 跟着配置走、跟着 data 一起备份 / 一起删。</para>
+    /// </summary>
+    public string DefaultScriptsFolder => Path.Combine(_cfg.DataDir, "scripts");
 
     public string EffectiveScriptsFolder
     {

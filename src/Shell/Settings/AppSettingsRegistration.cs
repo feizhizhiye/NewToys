@@ -41,9 +41,7 @@ internal static class AppSettingsRegistration
             "开机启动 / 托盘 / 关闭按钮行为", SettingsCategory.General);
         // v3.66 第五轮：原「通用」节（一页塞三组设置）**拆成三个节**（用户要求"拆开、删除通用"）——
         // `settings-general`（启动与退出，Key ⛔ 不变，首页收藏卡 / 收藏白名单仍按它寻址）+
-        // 下面两个新节锚点（`settings-update` / `settings-theme`，后者即 v3.40 合并前的页 Key）。
-        menu.RegisterFunction(HiddenGroupKey, "settings-update", "更新", "🔄", "SettingsView", 1,
-            "版本文件地址与手动检查更新", SettingsCategory.Update);
+        // `settings-theme`（主题外观，即 v3.40 合并前的页 Key）。
         menu.RegisterFunction(HiddenGroupKey, "settings-theme", "主题外观", "🎨", "SettingsView", 1,
             "明暗模式与强调色", SettingsCategory.Theme);
         // v3.53 / NT-056：「路径配置」+「配置」合并为一张**设置总表**（分类列区分行类型）；
@@ -58,8 +56,11 @@ internal static class AppSettingsRegistration
         menu.RegisterFunction(HiddenGroupKey, "settings-data", "数据管理", "💾", "SettingsView", 6,
             "备份 / 导入 config 配置", SettingsCategory.Data);
 
-        // 「关于」节（版本 / 功能清单入口 / 重载模块）**无节锚点 Key**（需求 §4.9.2 表格 = "—（页内可点）"）
-        // ⇒ ⛔ 不在此注册，只从设置页的节里进入。
+        // 🔴 v3.67（用户 2026-10-18 拍板）：原「更新」+「关于」**合并**成「版本与更新」节
+        //    （两者都围绕版本号）⇒ 8 节变 7 节。Key 保留 `settings-update`（原菜单 Key，⛔ 不改）；
+        //    `settings-about` 退成**内部别名**（SettingsViewModel.OpenSection 里映射，⛔ 不再注册）。
+        menu.RegisterFunction(HiddenGroupKey, "settings-update", "版本与更新", "🔄", "SettingsView", 8,
+            "版本号 / 检查更新 / 功能清单 / 重载模块", SettingsCategory.Update);
 
         // 功能清单（Key `settings-all` ⛔ 不改）：v3.65 起是**独立页**（⛔ 不在设置内），
         // v3.66 起**同时内嵌在首页**（收藏卡尾部「显示更多」展开）；独立页仍保留 —— 标题栏 `＋` 与

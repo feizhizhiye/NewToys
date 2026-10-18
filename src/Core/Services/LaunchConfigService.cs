@@ -1,45 +1,42 @@
-using System;
-using System.IO;
-using System.Text.Json;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
+/// <summary>
+/// <see cref="ILaunchConfigService"/> 实现（v3.66 / 2026-10-18）：**已并入 <c>app.json</c>**，
+/// 本类退化为 <see cref="IAppConfigService"/> 的薄转接层 —— 目的是**保住调用方签名不变**
+/// （<c>GeneralViewModel</c> / <c>HomeViewModel</c> / <c>LaunchConfigViewModel</c> / <c>ShellView</c> 全都不用改）。
+/// <para>
+/// 🔴 为什么不再自己写文件：同一个文件两个写入方 = 读-改-写互相覆盖（谁后保存谁赢）。
+/// <c>app.json</c> 的唯一写入方必须是 <see cref="AppConfigService"/>。
+/// </para>
+/// </summary>
 public class LaunchConfigService : ILaunchConfigService
 {
-    private readonly ConfigStoreService _cfg;
-    private LaunchConfig? _config;
+    private readonly IAppConfigService _app;
 
-    public LaunchConfig Config => _config ??= Load();
-    public string FilePath => Path.Combine(_cfg.ConfigDir, "launch.json");
+    public LaunchConfigService(IAppConfigService app) => _app = app;
 
-    public LaunchConfigService(ConfigStoreService cfg) { _cfg = cfg; _config = Load(); }
+    public LaunchConfig Config => _app.Launch;
+
+    /// <summary>落盘位置（排障 / 设置页展示用）：就是 <c>app.json</c>。</summary>
+    public string FilePath => _app.ConfigFilePath;
 
     public LaunchConfig Load()
     {
-        try
-        {
-            if (File.Exists(FilePath))
-            {
-                var json = File.ReadAllText(FilePath);
-                var c = JsonSerializer.Deserialize<LaunchConfig>(json);
-                if (c != null) return _config = c;
-            }
-        }
-        catch { }
-        return _config = new LaunchConfig();
+        _app.Load();
+        return _app.Launch;
     }
 
+    /// <summary>
+    /// 保存：整块替换 <c>Launch</c> 节点后立即落盘。
+    /// <para>⚠️ 失败不抛 —— <c>app.json</c> 的写入失败由 <see cref="AppConfigService.Save"/> 内部吞掉并写调试日志，
+    /// 这是既有行为（改动它会牵动所有应用级设置的错误反馈路径）。</para>
+    /// </summary>
     public (bool Ok, string Message) Save(LaunchConfig config)
     {
-        try
-        {
-            Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true }));
-            _config = config;
-            return (true, "已保存");
-        }
-        catch (Exception ex) { return (false, ex.Message); }
+        _app.Launch = config;
+        return (true, "已保存");
     }
 }

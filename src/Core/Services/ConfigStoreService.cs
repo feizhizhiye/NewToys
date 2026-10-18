@@ -58,6 +58,33 @@ public class ConfigStoreService
         ProfileOverride = overrideName;
         ProfileOverrideError = error;
         _profileRoot = ResolveProfileRoot(_appRoot);
+        MigrateLegacyConfigFiles();
+    }
+
+    /// <summary>
+    /// 配置文件名重命名的一次性迁移（v3.66 / 2026-10-18）。目前一条：<c>shell.json</c> → <c>ui.json</c>。
+    /// <para>为什么在这里：本类是「配置目录/文件名的唯一决定者」，改名逻辑跟着它走，
+    /// 模块与 Shared 都不该知道旧名字（<see cref="Core.Services.JsonOptionsStore"/> 用分区名直接拼文件名）。</para>
+    /// <para>⚠️ 只在**新文件不存在**时搬（已有 ⇒ 不动，用户数据优先）；失败不抛。</para>
+    /// </summary>
+    private void MigrateLegacyConfigFiles()
+    {
+        try
+        {
+            var dir = ConfigDir;
+            if (!Directory.Exists(dir)) return;
+            var renames = new (string From, string To)[] { ("shell.json", "ui.json") };
+            foreach (var (from, to) in renames)
+            {
+                var src = Path.Combine(dir, from);
+                var dst = Path.Combine(dir, to);
+                if (File.Exists(src) && !File.Exists(dst)) File.Move(src, dst);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][迁移] 配置文件改名失败：" + ex.Message);
+        }
     }
 
     /// <summary>--profile 覆盖校验：名字合法 + 配置目录已存在，两个都满足才生效（防手滑打错名建出空配置）。</summary>
@@ -142,71 +169,12 @@ public class ConfigStoreService
     public string GetProfileDirectory(string name)
         => Path.Combine(_appRoot, ProfilesFolderName, name);
 
-    // ==================== 内置配置档（NT-038，需求 §3.5） ====================
-
-    /// <summary>内置配置档名（v3.37）：随程序内置、**永久驻留开发机**。</summary>
-    public static readonly IReadOnlyList<string> BuiltInProfiles = new[] { "debug", "default", "release" };
-
-    /// <summary>
-    /// 播种内置三档，**只增不覆盖**（已存在的档不动 —— 用户数据优先）。
-    /// <para>`default` = 确保存在；`debug` = **复制当前 `default` 的 `config`**（测试资源后续接入）；`release` = 干净初始态（仅建目录）。</para>
-    /// <para>启动时调用一次；⛔ 不删任何档（永久驻留）；失败不抛。</para>
-    /// </summary>
-    public void EnsureBuiltInProfiles()
-    {
-        try
-        {
-            var def = GetProfileDirectory(DefaultProfileName);
-            if (!Directory.Exists(def)) Directory.CreateDirectory(def);
-
-            var dbg = GetProfileDirectory("debug");
-            if (!Directory.Exists(dbg))
-            {
-                Directory.CreateDirectory(dbg);
-                CopyConfigDirectory(def, dbg);
-            }
-
-            var rel = GetProfileDirectory("release");
-            if (!Directory.Exists(rel)) Directory.CreateDirectory(rel);
-        }
-        catch (Exception ex) { ProfileMigrationError ??= "播种内置配置档失败：" + ex.Message; }
-    }
-
-    /// <summary>
-    /// 把内置档重置为初始态：`debug` = 清空后重新复制 `default` 的 `config`；`release` = 清空回干净态。
-    /// <para>⛔ 拒绝重置 `default`（本地真实数据）与**当前活动档**（正在被本实例使用）。调用方必须先二次确认。</para>
-    /// <para>⚠️ 不检测"该档是否被别的实例占用" —— 重置前请确认没有其它窗口在用这个档。</para>
-    /// </summary>
-    public void ResetBuiltInProfile(string name)
-    {
-        if (string.Equals(name, DefaultProfileName, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("不能重置 default 配置（那是本地真实数据）。");
-        if (string.Equals(name, ActiveProfileName, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("不能重置当前正在使用的配置。");
-
-        var dir = GetProfileDirectory(name);
-        if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
-        Directory.CreateDirectory(dir);
-
-        if (string.Equals(name, "debug", StringComparison.OrdinalIgnoreCase))
-            CopyConfigDirectory(GetProfileDirectory(DefaultProfileName), dir);
-    }
-
-    /// <summary>把 <paramref name="fromProfileDir"/> 的 `config\` 整体复制到 <paramref name="toProfileDir"/>（已存在的不覆盖）。</summary>
-    private static void CopyConfigDirectory(string fromProfileDir, string toProfileDir)
-    {
-        var src = Path.Combine(fromProfileDir, "config");
-        if (!Directory.Exists(src)) return;
-        var dst = Path.Combine(toProfileDir, "config");
-        Directory.CreateDirectory(dst);
-        foreach (var f in Directory.GetFiles(src, "*", SearchOption.AllDirectories))
-        {
-            var rel = Path.GetRelativePath(src, f);
-            var target = Path.Combine(dst, rel);
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            if (!File.Exists(target)) File.Copy(f, target);
-        }
-    }
+    // ==================== 内置三档已撤销（v3.66 / 2026-10-18） ====================
+    //
+    // 「配置」= **纯根目录**：一个配置 = 一套独立的 config / data / logs，由用户自建自删。
+    // ⛔ 不再有 debug / default / release 的档位语义（原 NT-038 的播种与「重置为初始态」全部删除），
+    //    ⛔ 也不自动创建任何配置目录 —— 除了首次启动缺省的那个（ResolveProfileRoot 负责）。
+    // 依据：档位语义会让"切换配置"变成两件事（换根 + 换身份），而真正需要的只是换根。
 
     /// <summary>
     /// 配置名合法性：非空、非 `.`/`..`、不含路径非法字符。

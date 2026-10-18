@@ -1,6 +1,7 @@
 # NewToys 框架层（Framework）
 
-> v4.1 · 2026-10-18 · **标准角色：工程规范（框架层部分）**
+> v4.2 · 2026-10-18 · **标准角色：工程规范（框架层部分）**
+> v4.2：新增 **§6.6 `IFileOperationService`** —— 跨模块磁盘动作（改名/移动/复制/回收站删除）下沉 `Core`，两处 `SHFileOperationW` 合一（v3.66 / NT-069）。
 > v4.1：新增 **§4.6 应用级设置 / 首页 / 功能清单** —— 三者属 `src/Shell`（`Module.Settings` 已于 NT-062 撤销），原 `modules/settings-app.md` 内容并入本节并删除该文件；`modules/` 只剩 4 个真模块。
 > 本文件 = **框架层（Shared / Core / Shell / NewToys.UI）的实现约定**，外加**跨模块待办**的唯一收口处。
 > 原 `NewToys-工程规范.md` 已于 2026-10-18 拆分：**框架层 → 本文件**｜**UI 规范 → `ui.md`**｜**各模块 → `modules/<模块>.md`**。
@@ -15,7 +16,7 @@
 - §3 启动顺序与模块加载
 - §4 菜单注册与导航（含 **§4.6 应用级设置 / 首页 / 功能清单**）
 - §5 页面解析与 VM 定位
-- §6 UI 契约（Shared 侧接口）
+- §6 契约（Shared 侧接口）
 - §7 配置与路径
 - §8 异常处理
 - §9 构建与版本
@@ -224,41 +225,65 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 > 🔴 **定位**：应用级设置归**框架层**（`src/Shell`）。`Module.Settings` 已于 NT-062 撤销，⛔ 别再当模块写、⛔ 不建 `modules/settings-app.md`。
 > 入口 = 左树底部**版本行齿轮** / `Ctrl+,` / 标题栏搜索 / 首页一键区 `⚙`（跳 `settings-launch`，归一到页 Key `settings`）。**左树无「设置」一级菜单**；模块专属设置在本模块分组末位（如 `settings-script`）。
 
-**7 个节锚点 + 关于**（`Shell/Settings/AppSettingsRegistration.cs` 注册进不渲染的 `system` 组）
+**7 个节锚点**（`Shell/Settings/AppSettingsRegistration.cs` 注册进不渲染的 `system` 组）
 
 | 节锚点 Key | 标题 | Order | 分类 | 内容 |
 |---|---|---|---|---|
 | `settings-general` | 启动与退出 | 0 | `General` | 开机启动 / 托盘 / 关闭按钮行为 |
-| `settings-update` | 更新 | 1 | `Update` | 版本文件地址 + 手动检查更新 |
 | `settings-theme` | 主题外观 | 1 | `Theme` | 明暗模式 / 强调色 |
-| `settings-path` | 路径与配置 | 2 | `Environment` | 运行环境路径 + 多配置档（分类列区分行） |
 | `settings-launch` | 一键按钮 | 3 | `Launch` | 首页三个一键按钮的配置 |
+| `settings-path` | 路径与配置 | 2 | `Environment` | 运行环境路径 + 多配置档（分类列区分行） |
 | `settings-dns` | 加密 DNS | 4 | `Network` | 加密 DNS / 网络 |
 | `settings-data` | 数据管理 | 6 | `Data` | 备份 / 导入 `config` |
-| —（`settings-about`） | 关于 | — | `About` | **无节锚点**，只在页内可点进入 |
+| `settings-update` | **版本与更新** | 8 | `Update` | 版本号 / 版本文件地址 / 检查更新 / 功能清单入口 / 重载模块 |
 
 - 🔴 **所有 Key ⛔ 不改**：首页跳转 / 收藏白名单 / 托盘「打开设置」都按 Key 寻址。
 - 「通用」已拆成 `settings-general` / `-update` / `-theme` **三节共用一个 VM**。
+- 🔴 **v3.67：「更新」+「关于」合并 = 「版本与更新」**（8 节 → 7 节，用户拍板）—— Key 用原来的 `settings-update`；
+  `settings-about` 退成**别名**（`SettingsViewModel.ResolveKey` + `ShellViewModel.SettingsSectionKeys`，旧链接仍能打开，
+  ⛔ 不再注册菜单、⛔ 不再是一个节点）。该节由 `UpdateAboutView`（**拼装壳**）装 `UpdateView` + `AboutSettingsView`，
+  子 View 的 DataContext 由 `Init(...)` 分别赋（⛔ 靠继承只能给到一个）；节上有**两个 VM** ⇒ `SettingsSection.ViewModels`
+  是列表，状态栏 / 工具条契约按列表逐个聚合。
 - 另有 `settings-all`（功能清单页，Order 7，`AllFunctionsView`）。
 
 **页面结构机制**（`SettingsView.axaml(.cs)`）
 
 - **树状手风琴滚动 + 抬头磁吸浮层**：逻辑在 code-behind；🔴 类名 `sec-head` / `sec-body` 别删，`StuckHeader.DataContext=null` 别删（磁吸浮层 DataContext 隔离）。
+- 🔴 **v3.68：磁吸浮层是 `ScrollViewer` 的兄弟覆盖层**（`PageRoot` 的第二个孩子），⛔ **不许放回滚动内容里**——
+  放里面只能靠 `RenderTransform` 反补 `Offset` 把位置"推算"出来，实测出「滚到顶残留空白浮层 / 顶部抬头被裁一半 /
+  抬头与正文错位」。覆盖层由布局自己定位（`VerticalAlignment=Top` + code-behind 按卡片算左右 Margin），零补偿数学；
+  代价 = 浮层上的滚轮要转发给 `SectionScroll`（`PointerWheelChanged`，漏了就"鼠标停顶部滚不动"）。
+- 节点抬头有**独立底色**（`Button.sec-head` → `ContentHeaderBrush` + 展开时下边框 `DividerBrush`）⇒ 抬头与正文一眼分开；
+  磁吸浮层里的抬头另走 `Button.sec-head.stuck`（透明底，底色由浮层 Border 给）。
 - 每节内含工具条（`HasToolbar` 门控，`ToolbarHost` 挂在节抬头下方）；⛔ **工具条不上抛页顶**；节 View **⛔ 带内层 `ScrollViewer`**（会出现双滚动条 + 磁吸失效）。
 - 切节 ⇒ `ActiveSection` 变 ⇒ `SectionChanged` ⇒ Shell 重绑工具条 / 状态栏 / 详情卡（漏了就"画得出来、点不动"）。
 - 用户**手动收起**的节记 `UserCollapsed`，滚动自动展开时跳过（用户意图优先）。
 - `settings-path` 节正文用 `ListPageSkeleton` 且 `Margin="0"`。
 
+**三层优先级（v3.67，改这块前必须遵守）**
+
+| 层 | 触发 | 行为 |
+|---|---|---|
+| 1 | 用户点抬头 / 「全部收起·全部展开」 | 立即生效；单节收起写 `UserCollapsed`（滚动不再弹开）；「全部收起」写 `CollapsedByAll`（**临时总览态**，滚到哪节照样展开哪节，v3.68） |
+| 2 | 外部寻址（首页 ⚙ / 收藏 / 搜索） | 目标展开 + 其余折叠 + **滚到目标贴视口顶**（`ScrollRequested`） |
+| 3 | 滚动 | **只有"往下滚"（`Offset.Y` 变大）才自动展开**，且每轮只开视口上半部最靠上的那一节；到底时放宽到整视口。⛔ 只展开、不自动折叠。`UserCollapsed` 拦、`CollapsedByAll` 放行 |
+
+- 🔴 激活色 `SettingsSection.IsActive` **只由 View 写**（= 被磁吸钉住的那个节点）；⛔ 别用 `ActiveSection` 染色——
+  滚动时两者会不一致（"钉着 A、亮着 B"）。标题色靠 `UserControl.Styles` 里的 `.sec-title` + `.active` 后代选择器，
+  ⛔ 模板里不许硬写 `Foreground`（本地值压过样式 ⇒ 激活不变色）。
+- 🔴 定位必须**两阶段**：先展开/折叠 → 等 `LayoutUpdated` → 再算 offset（`TranslatePoint(→SectionScroll).Y + Offset.Y`），
+  最多重试 8 次收敛；⛔ 同步一次算完（高度还在变，算出来必错）。
+
 **节 / VM 归属**
 
 | 节 | View | VM |
 |---|---|---|
-| 启动与退出 / 更新 / 主题外观 | `GeneralView` / `UpdateView` / `ThemeView`（三节共用 VM 宿主） | `GeneralViewModel` 等 |
-| 路径与配置 | `PathView` | `PathViewModel` + `Models/PathSettingItem` |
+| 启动与退出 / 主题外观 | `GeneralView` / `ThemeView` | `GeneralViewModel`（无自有 VM，共用） |
 | 一键按钮 | `LaunchConfigView` | `LaunchConfigViewModel` |
+| 路径与配置 | `PathView` | `PathViewModel` + `Models/PathSettingItem` |
 | 加密 DNS | `DnsView` | `DnsViewModel` |
 | 数据管理 | `DataView` | `DataViewModel` |
-| 关于 | `AboutSettingsView` | `AboutSettingsViewModel` |
+| 版本与更新 | **`UpdateAboutView`**（拼装 `UpdateView` + `AboutSettingsView`） | `GeneralViewModel` + `AboutSettingsViewModel`（**两个**） |
 | 页宿主 | `SettingsView` | `SettingsViewModel` + `Models/SettingsSection` |
 
 - 复合页工具条：节 VM 靠 **`IToolbarOwner.ToolbarOwner`** 当承载者（见 §6.4）。
@@ -317,7 +342,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 
 ---
 
-## §6 UI 契约（Shared 侧接口，全部放 `Shared/Services/`）
+## §6 契约（Shared 侧接口，全部放 `Shared/Services/`）
 
 > 实现与渲染口径见 `ui.md`；本节约只写**契约定义与 Shell 侧职责**。
 
@@ -386,6 +411,21 @@ public interface IDetailCardSource
 ### 6.5 选择器钩子（VM ⛔ 不引 Avalonia）
 
 统一走 `Core.DialogHooks` 的 3 个钩子：`PickFolderAsync` / `PickFilesAsync`（多模式用 `;` 分隔，如 `"*.html;*.htm"`）/ `SaveFileAsync`；由 `Shell/App.axaml.cs` 注入实现（未注入 = 按「用户取消」处理）。
+
+### 6.6 `IFileOperationService`（v3.66 / NT-069，跨模块磁盘动作）
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| `IFileOperationService` | `Shared/Services/` | `Rename` / `Move` / `Copy` / `DeleteToRecycle` / `PermanentDelete` / `EnsureDirectory` / `IsInside`；返回 `FileOpResult(bool Ok, string Message, string? Path)`（`Shared/Services/` 内，与枚举 `FileConflictPolicy` 同文件） |
+| `FileConflictPolicy` | 同上 | `AppendNumber`（默认）/ `ShortHash` / `Skip` / `Overwrite` |
+| 实现 | `Core/Services/FileOperationService.cs` | 纯磁盘动作：⛔ 不碰数据库、⛔ 不弹窗、⛔ 不写业务日志 |
+| 注册 | `Shell/App.axaml.cs` | 单例 |
+
+🔴 **分层纪律**：确认框与库表记账留在各模块自己那层——媒体资产用 `Module.MediaAssets/Services/FileOperationService`（带 `operation_logs` 日志 + 存储源防穿越），视频工具用 `VideoFileService`（带 `DialogHooks` 确认）。两者都只把**磁盘那一步**交给本接口。
+
+🔴 **命名坑**：`NewToys.Core.Services.FileOperationService` 与 `NewToys.MediaAssets.Services.FileOperationService` 同名 ⇒ 模块内同时 `using` 两个命名空间会 CS0104；消费方显式取别名（`AssetAllViewModel` / `AssetTrashViewModel` / `SettingsMediaAssetsViewModel` 已加）。
+
+⚠️ 未完成（待办）：媒体资产那层的磁盘动作仍是自己的实现（含 `ConflictPolicy` 私有枚举），尚未改为委托本接口——只有视频工具接上了。
 
 ---
 

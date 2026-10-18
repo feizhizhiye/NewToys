@@ -10,6 +10,9 @@ using NewToys.MediaAssets.Models;
 using NewToys.MediaAssets.Services;
 using NewToys.Shared.Services;
 
+// v3.66 / NT-069：与 Core 的同名服务区分（本页用带库表日志的模块版）。
+using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
+
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>设置页下拉用的一项（标签 + 值）。</summary>

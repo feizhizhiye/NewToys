@@ -104,8 +104,8 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// </summary>
     public const int AllPageSize = int.MaxValue;
 
-    /// <summary>页大小落盘位置（<see cref="IOptionsStore"/> 的 shell 分区 = 全局记忆，⛔ 不按页各存一份）。</summary>
-    private const string OptionsModule = "shell";
+    /// <summary>页大小落盘位置（<see cref="IOptionsStore"/> 的 ui 分区 = 全局记忆，⛔ 不按页各存一份）。</summary>
+    private const string OptionsModule = "ui";
     private const string PageSizeKey = "list-page-size";
 
     /// <summary>

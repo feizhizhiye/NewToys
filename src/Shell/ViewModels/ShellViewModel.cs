@@ -43,7 +43,9 @@ public partial class ShellViewModel : ViewModelBase
     private static readonly string[] SettingsSectionKeys =
     {
         "settings-general", "settings-update", "settings-theme",
-        "settings-launch", "settings-path", "settings-dns", "settings-data"
+        "settings-launch", "settings-path", "settings-dns", "settings-data",
+        // v3.67：「关于」已并入「版本与更新」，此键退成**别名**（不注册菜单，但旧链接仍能打开设置页）
+        "settings-about"
     };
 
     private readonly IServiceProvider _sp;

@@ -95,7 +95,7 @@
 | `VideoScanner` | 目录扫描入库 |
 | `VideoMediaIndex` | 本地索引（`data\` 侧，轻量） |
 | `VideoTaskStore` | 跨页投递（`TakePendingCut` / `TakePendingTranscode`，**取一次即清空**） |
-| `VideoFileService` | 文件选择 / 打开 |
+| `VideoFileService` | 文件选择 / 打开 + 改名 / 删除的**弹窗确认层**（磁盘动作 v3.66 起委托 `IFileOperationService`，见 framework.md §6.6） |
 | `VideoToolsSettingsService` | `config\video-tools.json` |
 
 ### 3.2 视频预览页（`video-cut`）

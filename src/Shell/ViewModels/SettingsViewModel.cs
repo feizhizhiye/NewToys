@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -16,7 +17,7 @@ namespace NewToys.Shell.ViewModels;
 /// <summary>
 /// 应用级设置页（v3.65 / NT-062，需求 §4.9.2 / §6.5）：**一页多节**的复合 VM。
 /// <para>
-/// 八个节 = 启动与退出 / 更新 / 主题外观 / 一键按钮 / 运行环境 / 网络 / 数据 / 关于，整体竖向排列成一棵**树**（手风琴）：
+/// 七个节 = 启动与退出 / 主题外观 / 一键按钮 / 运行环境 / 网络 / 数据 / 版本与更新，整体竖向排列成一棵**树**（手风琴）：
 /// 每个节 = **一个节点**（抬头 = ⌄/› + 图标 + 标题 + 一句话说明，点一下开 / 收；正文 = 该节的 View），
 /// 整页一起滚动；页面**没有标题栏** —— 当前节点的抬头由 View 用**浮层**钉在页面顶部（磁吸 / sticky），
 /// 节点与视口相交（滚到）时由 View 自动展开；🔴 本页**不自动折叠** ⇒ 高度只增不减，能一路滚到底
@@ -57,6 +58,13 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
     /// <summary>节变化通知（Shell 据此重新探测契约：工具条 / 状态栏随节变）。</summary>
     public event EventHandler? SectionChanged;
 
+    /// <summary>
+    /// 请求把某个节点**滚到视口顶部**（v3.67）：VM 不认识视口 ⇒ 这里只发意图，
+    /// 由 <c>SettingsView.axaml.cs</c> 执行（含两阶段收敛：先布局、再算 offset）。
+    /// 触发源 = 外部寻址（<see cref="OpenSection"/>）+ 点节点抬头。
+    /// </summary>
+    public event Action<SettingsSection>? ScrollRequested;
+
     /// <summary>当前节锚点 Key（Shell 的左树高亮 / 分组展开按它寻址）。</summary>
     public string ActiveSectionKey => ActiveSection?.Key ?? "";
 
@@ -65,11 +73,16 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         _sp = sp;
         BuildSections();
 
-        // 契约聚合：订阅**每节**的 VM（状态栏 / 工具条随时可能变），由本页统一转成一份对外契约。
+        // 契约聚合：订阅**每节的每个 VM**（状态栏 / 工具条随时可能变），由本页统一转成一份对外契约。
         foreach (var s in Sections)
         {
-            if (s.ViewModel is IStatusProvider st) st.StatusChanged += OnSubChanged;
-            if (s.ViewModel is IToolbarSource tb) tb.ToolbarChanged += OnSubChanged;
+            foreach (var vm in s.ViewModels)
+            {
+                if (vm is IStatusProvider st) st.StatusChanged += OnSubChanged;
+                if (vm is IToolbarSource tb) tb.ToolbarChanged += OnSubChanged;
+            }
+            // 节点开收会改变「全部收起 / 全部展开」按钮的文案（用户手点单节也要跟着变）
+            s.PropertyChanged += OnSectionPropertyChanged;
         }
 
         var first = Sections.FirstOrDefault();
@@ -83,61 +96,69 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
     // ==================== 节构建 ====================
 
     /// <summary>
-    /// 装配八个节：每个节 = 「DI 取 View + 取 VM + 把 VM 设成 View 的 DataContext」。
+    /// 装配七个节：每个节 = 「DI 取 View + 取 VM + 把 VM 设成 View 的 DataContext」。
     /// ⚠️ 必须先给 View 设 DataContext 再挂进内容区（DataContext 是继承属性）—— 与 Shell 的
     /// <c>HomeView</c> 同一约定。
     /// <para>🔴 v3.66 第五轮：原「通用」节的**三组设置拆成三个节**，三节**共用一个 <c>GeneralViewModel</c>**
     /// （数据同源、只是显示位置分开）⇒ 拆的是 View，⛔ 不是 VM。</para>
+    /// <para>🔴 v3.67：「更新」+「关于」**合并**成「版本与更新」（8 节 → 7 节，用户拍板）——
+    /// 该节由 <see cref="UpdateAboutView"/> 拼装两个子 View，<c>ViewModels</c> 有两个（状态栏 / 工具条都要聚合到）。</para>
     /// </summary>
     private void BuildSections()
     {
-        // 「启动与退出 / 更新 / 主题外观」三节共用这一个 VM（原「通用」页的 VM）
+        // 「启动与退出 / 主题外观 / 版本与更新」三节共用这一个 VM（原「通用」页的 VM）
         var generalVm = _sp.GetRequiredService<GeneralViewModel>();
 
         // Key ⛔ 不变：首页收藏卡 / 收藏白名单 / Ctrl+, 都按 `settings-general` 寻址（需求 §5.1）
         Add("settings-general", "启动与退出", "⚙", "开机启动 / 托盘 / 关闭按钮行为",
-            () => _sp.GetRequiredService<GeneralView>(), () => generalVm);
-
-        Add("settings-update", "更新", "🔄", "版本文件地址与手动检查更新",
-            () => _sp.GetRequiredService<UpdateView>(), () => generalVm);
+            () => _sp.GetRequiredService<GeneralView>(), () => new object?[] { generalVm });
 
         Add("settings-theme", "主题外观", "🎨", "明暗模式与强调色",
-            () => _sp.GetRequiredService<ThemeView>(), () => generalVm);
+            () => _sp.GetRequiredService<ThemeView>(), () => new object?[] { generalVm });
 
         Add("settings-launch", "一键按钮", "🚀", "首页三个一键按钮的程序与网址",
-            () => _sp.GetRequiredService<LaunchConfigView>(), () => _sp.GetRequiredService<LaunchConfigViewModel>());
+            () => _sp.GetRequiredService<LaunchConfigView>(), () => new object?[] { _sp.GetRequiredService<LaunchConfigViewModel>() });
 
         // 「运行环境」= 配置档 + 外部程序路径；进入本节才做**惰性探测**（需求 §4.9.2 第 5 条）
         var pathVm = _sp.GetRequiredService<PathViewModel>();
         Add("settings-path", "运行环境", "📁", "配置档 + 外部程序路径（ffmpeg / 播放器 / 解释器）",
-            () => _sp.GetRequiredService<PathView>(), () => pathVm,
+            () => _sp.GetRequiredService<PathView>(), () => new object?[] { pathVm },
             onActivated: () => pathVm.ProbeExternalTools());
 
         Add("settings-dns", "网络", "🛡", "加密 DNS 与网络配置",
-            () => _sp.GetRequiredService<DnsView>(), () => _sp.GetRequiredService<DnsViewModel>());
+            () => _sp.GetRequiredService<DnsView>(), () => new object?[] { _sp.GetRequiredService<DnsViewModel>() });
 
         Add("settings-data", "数据", "💾", "备份 / 导入 config 配置",
-            () => _sp.GetRequiredService<DataView>(), () => _sp.GetRequiredService<DataViewModel>());
+            () => _sp.GetRequiredService<DataView>(), () => new object?[] { _sp.GetRequiredService<DataViewModel>() });
 
-        // 「关于」节：⛔ 无节锚点菜单 Key（需求 §4.9.2 表格里它是"—（页内可点）"），
-        // 故用内部键 settings-about，⛔ 不进菜单、不可被 OpenTab 外部寻址。
-        Add("settings-about", "关于", "ℹ", "版本 / 功能清单入口 / 重载模块",
-            () => _sp.GetRequiredService<AboutSettingsView>(), () => _sp.GetRequiredService<AboutSettingsViewModel>());
+        // 🔴 v3.67（用户 2026-10-18 拍板）：原「更新」节 + 原「关于」节**合一** = 「版本与更新」
+        //    （两者都围绕版本号：版本文件地址 / 检查更新 / 版本信息 / 功能清单 / 重载模块）。
+        //    Key 保留 `settings-update`（原菜单 Key，⛔ 不改；收藏 / 寻址仍按它）；
+        //    `settings-about` 退成**内部别名**（见 OpenSection），⛔ 不再是一个独立节点。
+        var aboutVm = _sp.GetRequiredService<AboutSettingsViewModel>();
+        Add("settings-update", "版本与更新", "🔄", "版本号 / 检查更新 / 功能清单 / 重载模块",
+            () => _sp.GetRequiredService<UpdateAboutView>(),
+            () => new object?[] { generalVm, aboutVm },
+            init: v => ((UpdateAboutView)v).Init(generalVm, aboutVm));
     }
 
     private void Add(string key, string title, string icon, string desc,
-                     Func<Control> viewFactory, Func<object> vmFactory, Action? onActivated = null)
+                     Func<Control> viewFactory, Func<object?[]> vmFactory, Action? onActivated = null,
+                     Action<Control>? init = null)
     {
         var view = viewFactory();
-        var vm = vmFactory();
-        if (view.DataContext == null) view.DataContext = vm;
+        // v3.67：一个节可以有多个 VM（合节）⇒ 契约聚合按列表逐个探测；首个 = 主 VM（工具条宿主用）。
+        var vms = (vmFactory() ?? Array.Empty<object?>()).OfType<object>().ToArray();
+        var primary = vms.FirstOrDefault();
+        if (primary != null && view.DataContext == null) view.DataContext = primary;
+        init?.Invoke(view);
 
         Sections.Add(new SettingsSection
         {
             Key = key, Title = title, Icon = icon, Desc = desc,
             // 本节自带工具条？（v3.66 第五轮：工具条⛔ 不再上抛到页面顶部，改由节点内嵌 ToolbarHost 渲染）
-            HasToolbar = (vm as IToolbarSource)?.Toolbar is { Count: > 0 },
-            Content = view, ViewModel = vm, OnActivated = onActivated
+            HasToolbar = vms.Any(v => (v as IToolbarSource)?.Toolbar is { Count: > 0 }),
+            Content = view, ViewModels = vms, OnActivated = onActivated
         });
     }
 
@@ -153,10 +174,17 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         if (string.IsNullOrWhiteSpace(key)) return;
         var target = string.Equals(key, "settings", StringComparison.Ordinal)
             ? Sections.FirstOrDefault()
-            : Sections.FirstOrDefault(s => string.Equals(s.Key, key, StringComparison.Ordinal));
+            : Sections.FirstOrDefault(s => string.Equals(s.Key, ResolveKey(key), StringComparison.Ordinal));
         if (target == null) return;
         ExpandOnly(target);
     }
+
+    /// <summary>
+    /// 节锚点别名（v3.67）：「关于」已并入「版本与更新」⇒ `settings-about` 不再是一个节点，
+    /// 但仍是**内部引用**（旧链接 / 文档 / 收藏可能还留着），统一指到 `settings-update`。
+    /// </summary>
+    private static string ResolveKey(string key)
+        => string.Equals(key, "settings-about", StringComparison.Ordinal) ? "settings-update" : key;
 
     /// <summary>展开目标节、收起其余节，并把它设为当前节（外部寻址 / 搜索共用）。</summary>
     private void ExpandOnly(SettingsSection target)
@@ -165,7 +193,9 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
             if (!ReferenceEquals(s, target)) s.IsExpanded = false;
         target.IsExpanded = true;
         target.UserCollapsed = false;   // v3.66 第七轮：外部寻址 / 搜索 = 明确要开它 ⇒ 清掉"手动收起"标记
+        target.CollapsedByAll = false;  // v3.68：同上，清掉「全部收起」的临时态
         Activate(target);
+        ScrollRequested?.Invoke(target);   // v3.67：光换节不够，还要**滚过去**（否则视口停在原处 = "跳错地方"）
     }
 
     /// <summary>
@@ -198,9 +228,52 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         if (section == null) return;
         section.IsExpanded = !section.IsExpanded;
         section.UserCollapsed = !section.IsExpanded;
+        section.CollapsedByAll = false;   // v3.68：手动点过 = 表态明确，不再算「全部收起」的临时态
         if (section.IsExpanded) ActiveSection = section;
         // 折叠**也要**通知：状态栏按"哪几节展开"算（见 StatusText）。
         SectionChanged?.Invoke(this, EventArgs.Empty);
+        // v3.67：点开 = 明确要看它 ⇒ 滚到视口顶部（否则它停在视口下部，磁吸浮层还钉着上一节、激活色对不上）
+        if (section.IsExpanded) ScrollRequested?.Invoke(section);
+    }
+
+    // ==================== 全部收起 / 全部展开（v3.67） ====================
+
+    /// <summary>
+    /// 抬头右上角那个按钮的文案：**只要还有节点开着** ⇒「全部收起」，一个都没开 ⇒「全部展开」。
+    /// <para>⚠️ 不用"全部开着才算收起"——那会让"部分展开"状态下要先点两次才能全收，
+    /// 而用户的真实诉求就是**一键全收**（一屏看全 7 条抬头再点进去）。文案与点击动作始终一致。</para>
+    /// </summary>
+    public string ToggleAllText
+        => Sections.Any(s => s.IsExpanded) ? "全部收起" : "全部展开";
+
+    /// <summary>
+    /// 一键全收 / 全开（v3.67）。
+    /// <para>
+    /// 全收 = 每个节点都记 <see cref="SettingsSection.UserCollapsed"/>（= 用户表态"我全收起了"）
+    /// ⇒ 之后滚动**不再自动展开**，页面只剩 N 条抬头：一屏看全、点哪条跳哪条。全开 = 清标记 + 全展开。
+    /// </para>
+    /// <para>⚠️ 全收**不滚动**：内容变短时 <c>ScrollViewer.Offset</c> 会被自动 clamp，无需补偿。</para>
+    /// </summary>
+    [RelayCommand]
+    private void ToggleAllSections()
+    {
+        // 只要还有节点开着 ⇒ 全部收起（一键看全）；一个都没开 ⇒ 全部展开
+        var collapse = Sections.Any(s => s.IsExpanded);
+        foreach (var s in Sections)
+        {
+            s.IsExpanded = !collapse;
+            s.UserCollapsed = collapse;
+            s.CollapsedByAll = collapse;   // v3.68：全部收起只是"总览态"，滚动到哪节照样展开哪节
+        }
+        OnPropertyChanged(nameof(ToggleAllText));
+        SectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>单节点开收 → 刷新「全部收起 / 全部展开」的文案。</summary>
+    private void OnSectionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SettingsSection.IsExpanded))
+            OnPropertyChanged(nameof(ToggleAllText));
     }
 
     // ==================== 滚动展开（v3.66 第四轮：树状滚动，由 View 驱动） ====================
@@ -217,7 +290,11 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
     public void ExpandSection(SettingsSection? section)
     {
         if (section is not { IsExpanded: false }) return;
-        if (section.UserCollapsed) return;          // 🔴 用户手动收起的：⛔ 不再自动展开
+        // 🔴 v3.68：只有**单节手动收起**才拦；「全部收起」留下的临时态要放行，
+        //    否则点了「全部收起」之后往下滚永远是空抬头（用户实测"向下滚动不能自动展开"）。
+        if (section.UserCollapsed && !section.CollapsedByAll) return;
+        section.UserCollapsed = false;
+        section.CollapsedByAll = false;
         section.IsExpanded = true;
         SectionChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -254,13 +331,15 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         get
         {
             foreach (var s in Sections)
-                if (s.ViewModel is IStatusProvider p
-                    && p.StatusText.StartsWith("⚠", StringComparison.Ordinal))
-                    return p.StatusText;
+                foreach (var v in s.ViewModels)
+                    if (v is IStatusProvider p
+                        && p.StatusText.StartsWith("⚠", StringComparison.Ordinal))
+                        return p.StatusText;
 
             foreach (var s in Sections.Where(x => x.IsExpanded))
-                if (s.ViewModel is IStatusProvider p && !string.IsNullOrWhiteSpace(p.StatusText))
-                    return p.StatusText;
+                foreach (var v in s.ViewModels)
+                    if (v is IStatusProvider p && !string.IsNullOrWhiteSpace(p.StatusText))
+                        return p.StatusText;
 
             return "";
         }
@@ -277,8 +356,9 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
     public string StatusActionTip => FirstAction()?.StatusActionTip ?? "";
 
     private IStatusActionProvider? FirstAction()
-        => Sections.Select(s => s.ViewModel as IStatusActionProvider)
-                   .FirstOrDefault(p => p != null && !string.IsNullOrWhiteSpace(p.StatusActionKey));
+        => Sections.SelectMany(s => s.ViewModels)
+                   .OfType<IStatusActionProvider>()
+                   .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.StatusActionKey));
 
     // ==================== 工具条：⛔ 不再上抛（v3.66 第五轮） ====================
     //

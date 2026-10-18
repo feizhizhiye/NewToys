@@ -76,7 +76,7 @@
                    SelectedItem="{Binding Selected, Mode=TwoWay}"
                    SelectionMode="Single">
             <!-- 右键 = 「选中项更多功能」的主入口：查（▤ 详情）/ 路径侧（📂 浏览 / 💾 保存 / ↩ 还原 / ↗ 打开）
-                 / 配置侧（⇄ 切换 / ⭐ 设为默认 / ✏ 重命名 / 🗑 删除 / ♻ 重置 / 🚀 新开）。
+                 / 配置侧（⇄ 切换 / ⭐ 设为默认 / ✏ 重命名 / 🗑 删除 / 🚀 新开）。
                  🔴 按分类启停：不适用当前分类行的项 IsEnabled=false（v3.53 / NT-056）。 -->
             <ListBox.ContextMenu>
               <ContextMenu>
@@ -93,7 +93,6 @@
                 <MenuItem Header="⭐ 设为默认" Command="{Binding SetProfileDefaultCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
                 <MenuItem Header="✏ 重命名" Command="{Binding RenameProfileCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
                 <MenuItem Header="🗑 删除" Command="{Binding DeleteProfileCommand}" IsEnabled="{Binding CanDeleteProfile}"/>
-                <MenuItem Header="♻ 重置为初始态" Command="{Binding ResetProfileCommand}" IsEnabled="{Binding CanResetProfile}"/>
                 <Separator/>
                 <MenuItem Header="＋ 新建配置" Command="{Binding NewProfileCommand}"/>
                 <MenuItem Header="📂 打开配置目录" Command="{Binding OpenConfigDirCommand}"/>
@@ -119,7 +118,7 @@
                              IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
 
                   <!-- 「操作」列按分类分派（v3.53 / NT-056）：路径行 = 📂 浏览 / ↗；
-                       配置行 = ⇄ 切换 / 🚀 新开 / ⭐ 设为默认 / ✏ 重命名 / 🗑 删除 / ♻ 重置；
+                       配置行 = ⇄ 切换 / 🚀 新开 / ⭐ 设为默认 / ✏ 重命名 / 🗑 删除；
                        `↗ 打开位置`（v3.65 起**每行都有**）= 打开配置目录 / 定位文件，tooltip 给出实际路径。
                        窄窗口下 WrapPanel 会自动折行（⛔ 不写固定宽容器）。 -->
                   <WrapPanel Grid.Column="5" Orientation="Horizontal" ItemSpacing="4" LineSpacing="4" Margin="8,2"
@@ -151,9 +150,6 @@
                     <Button Classes="ghost small" Content="🗑" IsVisible="{Binding IsProfileRow}"
                             Command="{Binding $parent[ListBox].DataContext.DeleteProfileCommand}"
                             CommandParameter="{Binding}" ToolTip.Tip="删除该配置的全部数据（不能删当前配置）"/>
-                    <Button Classes="ghost small" Content="♻" IsVisible="{Binding IsProfileRow}"
-                            Command="{Binding $parent[ListBox].DataContext.ResetProfileCommand}"
-                            CommandParameter="{Binding}" ToolTip.Tip="重置为初始态（不能重置 default / 当前配置）"/>
                   </WrapPanel>
                 </v:ColumnGrid>
               </DataTemplate>

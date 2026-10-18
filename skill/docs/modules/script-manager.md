@@ -156,6 +156,7 @@
 | `CollectableEvaluator` | `collectable` 可采集判定（自动规则 + 用户覆盖） |
 | `ScriptScanner` | 目录扫描三态（新增 / 已存在 / 忽略） |
 | `BuiltinCollectorSeeder` | 内置采集脚本播种（**只加不覆盖** + `.seeded` 标记） |
+| `ExampleSeeder` | 随包**示例**播种：`defaults\scripts\*` → `<脚本目录>\examples\` + 3 个示例脚本条目 + 1 个采集器模板 + 8 条示例命令（🔴 **只播种一次**，删了不复活） |
 | `QuickActionService` | `script.json` 适配器 + `ConfirmHandler` 复用（⛔ 不再是四份 JSON 的门面） |
 | `ScriptManagerSettingsService` | `config\script-manager.json`（`IOptionsStore` 分区名 `script-manager`） |
 
@@ -171,6 +172,7 @@
 | `config\package.json` | 软件包查询偏好 | ✅ |
 | `data\script\script.db` | 采集观测 + 运行日志 | ⛔ 不进备份 |
 | `<脚本目录>\sysinfo\*.ps1` | 内置采集脚本（播种） | — |
+| `<脚本目录>\examples\*` | 随包示例脚本（`.ps1` / `.py` / `.bat` + 采集器模板）+ `.seeded` 一次性标记 | — |
 
 - ⛔ `config\script\settings.json` 不可行：`IOptionsStore.Validate` 禁路径分隔符 / `.` / `..`。
 - ⛔ **不做旧数据迁移**（用户拍板「无所谓老用户」）：旧四份 JSON 静默忽略（不读不写不删）。
@@ -203,6 +205,8 @@
 9. 已安装列表少一大截 = `IdLike` 正则不认 `\` ⇒ 加 `\\`（`^[A-Za-z0-9][A-Za-z0-9._+\\-]*$`）。
 10. 列宽拖拽**未接**（`SysInfoGrid` 不支持）；改宽走「⚙ 列设置」写回 manifest。
 11. 分节模式**关分页**（底栏改摘要），因为一次只显示一个集合的多个采集器节。
+12. 🔴 **示例 vs 内置采集器是两套语义**：`ExampleSeeder` 只播种一次（`examples\.seeded` 存在即整体跳过，删掉的示例**不复活**）；`BuiltinCollectorSeeder` 缺了就补回。改 `defaults\scripts\*` 后老配置目录不会自动更新（要用户删 `examples\` 目录再启动）。
+13. `.bat` 示例**只写 ASCII** + 首行 `chcp 65001` —— 带中文的 .bat 在 936 代码页下必乱码，且 BOM 会被 cmd 当命令字符。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

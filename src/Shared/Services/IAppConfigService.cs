@@ -1,3 +1,5 @@
+using NewToys.Shared.Models;
+
 namespace NewToys.Shared.Services
 {
     public interface IAppConfigService
@@ -87,13 +89,17 @@ namespace NewToys.Shared.Services
 
         /// <summary>
         /// ⚠️ 已定为**模块级**（v3.65 / NT-062）：脚本目录的唯一写入点 = 「设置 → 脚本管理器设置」
-        /// （<c>config\script-manager.json</c> 的 <c>scriptsFolder</c>）。这里**只为 NT-061 迁移保留读取**，
-        /// ⛔ 不再有 UI 写入它。
+        /// （<c>config\script-manager.json</c> 的 <c>scriptsFolder</c>）。这里**只为一次性迁移保留读取**，
+        /// ⛔ 不再有 UI 写入它；值为空时**不落盘**（v3.66 起 app.json 里不会再出现这个键）。
         /// </summary>
         string ScriptFolder { get; set; }
 
-        /// <summary>脚本目录的默认值：<c>&lt;应用根&gt;\scripts</c>（即 config / data 的同级）。</summary>
-        string DefaultScriptFolder { get; }
+        /// <summary>
+        /// 一键按钮 + 行为开关（v3.66 / 2026-10-18）：原 <c>config\launch.json</c> 已并入 <c>app.json</c>，
+        /// 唯一写入点仍是「设置 → 启动与行为」页（经 <see cref="ILaunchConfigService"/> 转手，⛔ 别直接写这个属性）。
+        /// <para>理由：同为**应用级行为**（开机自启 / 关窗到托盘 / 一键按钮），按配置档隔离没有意义；合并后少一个文件、少一处双写。</para>
+        /// </summary>
+        LaunchConfig Launch { get; set; }
 
         // ==================== 导入 / 导出默认目录（v3.15，全局） ====================
         //
@@ -102,8 +108,10 @@ namespace NewToys.Shared.Services
         // （StorageProvider.TryGetFolderFromPathAsync + SuggestedStartLocation）。留空 = 用系统默认。
 
         /// <summary>
-        /// 导入 / 导出默认目录：视频库 <c>.db</c> 与批量任务 <c>.json</c> 的导入/导出文件选择器打开时定位到它。
-        /// 留空 = 用系统默认（系统文档 / 视频目录）。后续新增的导入/导出对话框也应复用它。
+        /// 导入 / 导出默认目录：媒体资产的库 <c>.db</c>、脚本库的 <c>.json</c> 等导入/导出文件选择器打开时定位到它。
+        /// 留空 = 用系统默认（系统文档 / 视频目录）。
+        /// <para>🔴 v3.66 结论：**留在 app.json**。曾想下沉到 media-assets.json，但脚本管理器（<c>PackageViewModel</c> /
+        /// <c>QuickActionListViewModel</c>）也在用它 ⇒ 两个模块共用 = 应用级，下沉会制造两份必须同步的真相。</para>
         /// </summary>
         string VideoDbFolder { get; set; }
 

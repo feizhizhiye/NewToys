@@ -1,0 +1,447 @@
+# NewToys 框架层（Framework）
+
+> v4.0 · 2026-10-18 · **标准角色：工程规范（框架层部分）**
+> 本文件 = **框架层（Shared / Core / Shell / NewToys.UI）的实现约定**，外加**跨模块待办**的唯一收口处。
+> 原 `NewToys-工程规范.md` 已于 2026-10-18 拆分：**框架层 → 本文件**｜**UI 规范 → `ui.md`**｜**各模块 → `modules/<模块>.md`**。
+> 权威源 = `src/` 源码；代码与文档冲突以源码为准并回写本文。
+> 流程与术语唯一定义处 = `NewToys-AI协作手册.md`【研发流程】【术语对照】；本文件只写「怎么实现」。
+
+## 目录
+
+- §0 文档体系与更新纪律
+- §1 编码规范（C#）
+- §2 程序集与依赖边界
+- §3 启动顺序与模块加载
+- §4 菜单注册与导航
+- §5 页面解析与 VM 定位
+- §6 UI 契约（Shared 侧接口）
+- §7 配置与路径
+- §8 异常处理
+- §9 构建与版本
+- §10 技术债台账
+- §11 跨模块待办
+- 附录 A 高频编译错误速查
+
+---
+
+## §0 文档体系与更新纪律
+
+### 0.1 文档地图（2026-10-18 重构）
+
+| 文档 | 角色 | 内容 | 何时读 |
+|---|---|---|---|
+| `index.md` | 文档地图 | 模块清单表 + 全部文档索引 | **会话开始** |
+| `NewToys-需求规格.md` | 需求规格（宪法） | 定位 / 边界 / 技术框架 / UI 框架 / 导航模型 / 功能域 | 涉及功能与边界 |
+| **本文件 `framework.md`** | 工程规范 · 框架层 | 程序集边界 / 启动 / 菜单 / 加载 / 契约 / 配置 / 构建 / 技术债 / **跨模块待办** | 改 Shared/Core/Shell 或新建模块 |
+| **`ui.md`** | 工程规范 · UI | 尺寸密度 / 主题键 / 图标 / CSD / 列表页 / 详情卡 / 工具条 | 改任何 `.axaml` |
+| **`modules/<模块>.md`** | 模块说明 | 该模块的职责 / 当前功能 / 实现逻辑 / 数据 / 坑点 / 待办 | **改哪个模块读哪个** |
+| `NewToys-项目状态与路线图.md` | 工作项台账 | 基线 / 已完成 / Backlog 索引 | 会话开始读「一、当前基线」 |
+| `backlog/<模块>/NT-xxx.md` | 任务卡 | 实施期工作稿 | 只有实施该卡才读 |
+| `NewToys-AI协作手册.md` | 协作手册 | 研发流程 + 术语对照（🔴 唯一源） | 流程/术语有疑问 |
+| `NewToys-软件说明书.md` | 用户手册 | 用户视角功能说明（不含实现细节） | 写用户文档时 |
+
+**拆分原则**：一个功能模块一个 md；新增模块 = 新增 `modules/<模块>.md` + `backlog/<模块>/`。
+
+### 0.2 更新节奏
+
+| 事件 | 需求 | framework | ui | modules/<模块> | 台账 | 手册 |
+|---|---|---|---|---|---|---|
+| 定位 / 边界 / 框架级变化 | ✅改 | ✅改 | 视情 | 视情 | 同步 | 视情 |
+| 实现方式变化 | 引用 | ✅改 | ✅改 | ✅改 | 同步 | — |
+| **完成一个功能** | — | 视情 | 视情 | ✅**改**（功能/逻辑/坑） | ✅**更新** | — |
+| 仅修报错 / 错别字 | — | ⛔ | ⛔ | ⛔ | ⛔ 不回写 | — |
+| 协作流程变化 | — | — | — | — | — | ✅改 |
+
+- **各文档版本号相互独立**，只有内容真变了才自增，⛔ 不做齐步递增。
+- 🔒 **指导性文件不乱改**：仅为单个任务的措辞微调不擅改。
+- **提交信息** `<type>: <简述>`，type ∈ {feat, fix, docs, refactor, chore, style}。
+- ⛔ **评估 / 讨论结论不进文档**，只在会话里谈，用户拍板后才转为需求。
+
+### 0.3 任务卡生命周期与滑动窗口（2026-10-18 修订）
+
+- 卡放 `backlog/<模块>/`（跨模块卡放 `backlog/framework/`），**每目录最多 5 张**。
+- **淘汰规则**：新增卡使目录超 5 张时，删除**最旧且已验收**的那张；`📝草稿 / ✅就绪 / 🔄执行中 / ✔已完成（待验收）` 的卡**不参与淘汰**。
+- **验收即蒸馏**：卡验收后，把它的「结论 / 偏差 / 坑点 / 关键文件」写进 `modules/<模块>.md` 对应节，卡才可被淘汰。
+- 被后续工作项整体取代 / 明确作废的卡 → 直接删除，台账行标 `🗑 已作废（卡已删）`。
+- 台账行**始终保留**（只翻状态）。
+- ⛔ 已废止：2026-10-14「全量保留」、2026-10-17「默认保留 + 作废删除」（被本条的滑动窗口取代）。
+
+---
+
+## §1 编码规范（C#）
+
+- 文件作用域命名空间（`namespace X;`）；`using` 置顶，`System.*` 优先。
+- 命名：公共成员 / 类型 / 方法 `PascalCase`；私有字段 / 局部 / 参数 `camelCase`（私有字段前缀 `_`）；异步方法 `Async` 结尾。
+- 带 `[ObservableProperty]` / `[RelayCommand]` 的类**必须 `partial`**（否则 `CS0260`）。
+- 属性优先 `[ObservableProperty]` 私有字段；命令 `[RelayCommand]`。
+- 构造注入为主；`Ioc.Default` 仅在 code-behind / 回调等无法构造注入处使用。
+- 集合 `ObservableCollection<T>`；公共 API 写 XML 注释；复杂逻辑注释「为什么」。
+- ⚠️ 改 `[ObservableProperty]` 字段名 / 语义时全仓搜旧名（属性名 + `_字段名` + `nameof`）；构造里 `_xxx=…` 合法，别顺手修。
+- `NewToys.Shared` / `NewToys.Core` **⛔ 不引 Avalonia**；模块 ⛔ 禁引 Shell、禁互引。
+
+---
+
+## §2 程序集与依赖边界
+
+| 程序集 | 职责 | 依赖 |
+|---|---|---|
+| `NewToys.Shared` | 契约接口（`Services/`）/ 模型 POCO / 详情卡描述符 | 无（零 Avalonia） |
+| `NewToys.Core` | 服务实现（配置 / 主题 / 菜单 / 加载 / 列布局 / winget / ffmpeg 封装） | Shared |
+| `NewToys.UI` | **共享控件库**（NT-063） | Shared + Avalonia（⛔ 不引 Core / Shell） |
+| `NewToys`（Shell，exe） | 启动 / DI / 主窗口 / 导航 / 应用级设置页 | Shared + Core + UI |
+| `Module.<模块>` | 功能模块 | Shared + Core + UI（⛔ 不引 Shell） |
+
+- 单向依赖：`Shared ← Core ← Shell ← Module.*`；`Shared ← UI`。
+- **接口一律放 `Shared/Services/`**；POCO 放 `Shared/Models/`。
+- 🔴 **`NewToys.UI` 纪律**：被所有模块引用 ⇒ 与 Shared/Core 同级 ⇒ **改一次 = 全模块重编**。只放**写完即冻结的稳定控件**；`App.axaml` 的 31 个 `*Brush` 主题刷子 ⛔ 不搬，UI 内 XAML 一律 `DynamicResource` 引用主题键。
+- ⛔ 禁第三方 UI 库 / 图标字体。包版本只在 `src/Directory.Packages.props`。
+
+---
+
+## §3 启动顺序与模块加载
+
+### 3.1 启动顺序（`App.OnFrameworkInitializationCompleted()`，不可颠倒）
+
+1. 建 `ServiceCollection` 注册核心服务；
+2. `ModuleLoader.LoadAll(services, GetMandatoryModuleTypes())`；
+3. `BuildServiceProvider()` → `AppServices.Initialize(sp)`；
+4. `ModuleLoader.InitializeAll(sp)`（**必须在 3 之后**）；
+5. 应用主题（订阅 `ThemeChanged`）；
+6. `new ShellView{DataContext=ShellViewModel} → win.Show()`；
+7. 首导由 `ShellViewModel` 构造函数末尾 `OpenTab("home")` 触发。
+
+### 3.2 双轨加载
+
+| | Debug | Release |
+|---|---|---|
+| 模块源 | `Shell.csproj` Debug 条件 `ProjectReference` | `<程序目录>\Modules\` DLL |
+| 必备模块 | **无**（v3.62 起应用级设置页归 Shell） | 无 |
+| 需要 `Modules\` | 否 | 是（无则兜底程序目录） |
+
+**硬规则**：
+- Debug 的功能模块必须走显式类型清单（`App.axaml.cs` 的 `#if DEBUG`），⛔ 不能只靠 `AppDomain.GetAssemblies()`。
+- 跳过一个功能模块要改两处：`App.axaml.cs` 的 `typeof(XxxModule)` + `Shell.csproj` 的 `ProjectReference`。
+- Release 路径用 `AppContext.BaseDirectory` 拼绝对路径；模块 DLL 命名 `Module.<模块名>.dll`。
+- ⛔ **`Modules\` 是模块产物唯一去处，全程零拷贝**（`Directory.Build.props` 把模块 Release `OutDir` 直设为 `$(NewToysReleaseDir)Modules\`）。
+- Release 关 pdb（`DebugType=none`）消除并发写 `MSB3026`。
+- **健全性检查**：`InitializeAll` 后若**宿主分组 `system`** 不存在（Shell 自身注册失败）→ 日志 + 状态栏一行警告，⛔ 不静默（常量 `ModuleLoader.HostGroupKey = "system"`）。
+
+### 3.3 新增模块步骤
+
+1. 建 `src/Module.Xxx/Module.Xxx.csproj`：`RootNamespace=NewToys.<Xxx>`、`AvaloniaUseCompiledBindingsByDefault=false`，引 `Shared + Core + UI`。
+2. 写 `XxxModule.cs : IModule`，命名空间 `NewToys.<Xxx>`。
+3. `src/NewToys.slnx` 加 `<Project Path="Module.Xxx/Module.Xxx.csproj" Type="C#" />`。
+4. **Debug 链路两处登记**：`Shell.csproj` Debug 条件 `ProjectReference` + `App.axaml.cs` 的 `#if DEBUG` 清单。
+5. `Initialize` 里 `RegisterModule` + `RegisterFunction`，`viewName` = View 类名，`icon` = Geometry 键。
+6. **有设置页时**：View/VM 放**本模块** `Views/SettingsXxxView.axaml(+.cs)` + `ViewModels/SettingsXxxViewModel.cs`；`RegisterFunction(<本模块分组键>, "settings-<模块键>", …, Order)` 注册进**本模块的一级菜单**（⛔ 不跨组，Order 排本组末位）。设置落 `config\<模块>.json`，模块只读、唯一写入点 = 该设置页。🔴 菜单标题**保持长名**（如「脚本管理器设置」）—— 它是独立标签页标题。
+7. **建 `modules/<模块>.md`**（照 6 节模板）+ `backlog/<模块>/` 目录。
+
+```csharp
+public interface IModule {
+    void RegisterServices(IServiceCollection services);
+    void Initialize(IServiceProvider services);   // 这里注册菜单
+}
+```
+
+- 模块类命名 `XxxModule`，命名空间 `NewToys.<模块名>`（不带 `.Module` 段）。
+
+### 3.4 热加载
+
+- 目录只有一个：`Path.Combine(AppContext.BaseDirectory,"Modules")`；只认 `Module.<模块名>.dll`。
+- ⛔ 跳过已加载同名程序集 → 本版**只做「新增」**（B10）。
+- 每个待加载 DLL 用**独立 `AssemblyLoadContext`**（`isCollectible:true`）；`Shared` / `Core` 一律由**默认 ALC 共享**（ALC 的 `Load` 覆写里把契约程序集转交默认上下文），否则 `IModule` 强转必失败。
+- ⛔ 已 `BuildServiceProvider()` 的容器无法追加服务 → 热加载模块 `RegisterServices` 可跳过；优先**页面型模块**。
+- 加载后调 `IMenuService.RegisterModule/RegisterFunction`，通知 `ShellViewModel` 重建左树（`BuildTree()`）。
+- **失败隔离（硬要求）**：单 DLL 异常 `try-catch` 兜住，只记日志 + 一行 StatusText；完成后报「本次新增 N / 跳过 M / 失败 K」。
+- ⛔ 只读本地 `Modules\`；不联网；加载前 `Path.GetFullPath` 校验路径在 `Modules\` 内。
+- **入口**：功能清单页（`settings-all`）「增加功能」区的「🔄 重载模块」→ `AllFunctionsViewModel.ReloadModulesCommand` → `IModuleReloadService.HotReload()`；`ShellViewModel` 订阅 `Reloaded` 重建左树（进程级单例，无需退订）。设置页 VM ⛔ 不直接调 `ModuleLoader`。
+
+---
+
+## §4 菜单注册与导航
+
+### 4.1 API
+
+```csharp
+AppMenuGroup RegisterModule(string key, string title, string icon, int order,
+                           bool isBottom=false, bool isHome=false);
+void RegisterFunction(string moduleKey, string key, string title, string icon, string viewName,
+                      int order=0, string desc="", SettingsCategory category=SettingsCategory.None);
+```
+
+- `category`（追加在参数表末尾、带默认值）：`通用｜一键按钮｜运行环境｜网络｜数据｜关于｜模块设置｜None`。取代「0~99 框架 / 100+ 模块」的 Order 段位隐式约定；`Order` **只作组内排序**。
+- 先 `RegisterModule` 拿分组，再 `RegisterFunction`；⛔ 菜单只能在 `Initialize` 注册。
+- `viewName` 传**视图类名**（如 `"ScriptLibraryView"`），不是 VM 名。
+- 菜单 Key 规范：`<模块缩写>-<页面名>`，全小写连字符。🔴 **Key 一经发布 ⛔ 不改**（改 = 用户列布局 / 收藏 / 标签偏好全丢）。
+- **`icon`**：一级分组传 **Geometry 资源键**（`"IconPc"` / `"IconWeb"` / `"IconVideo"` / `"IconMediaAssets"` / `"IconSettings"`）；二级功能仍传 emoji（左树不显示；首页收藏卡 / 功能清单页用）。
+- `desc`（功能简介）务必填写。
+- 点击路径：`ShellViewModel.OpenTab(key)` → 新建 / 激活 `TabItemViewModel` → `ResolveView` → 写入 Tab 的 `Content`。
+
+### 4.2 分组现状
+
+| 分组 | Key | Order | 图标 |
+|---|---|---|---|
+| 脚本管理器 | `script` | 20 | `IconPc` |
+| 网络工具 | `web` | 30 | `IconWeb` |
+| 视频工具 | `video` | 40 | `IconVideo` |
+| 媒体资产 | `assets` | 50 | `IconMediaAssets` |
+| 宿主分组（**不渲染**） | `system` | 999 | `IconSettings` |
+
+- 宿主分组 `IsHome=true` ⇒ 左树 / 首页模块计数 / 功能清单页都按 `!IsHome` 过滤；只承载应用级设置的节锚点 + `settings-all` 寻址。
+- **v3.66 起左树无「设置」一级菜单项**；模块设置项挂回**本模块分组末位**（`assets`=99、其余=100）。
+- `isBottom` 保留但当前**无分组使用**。
+- 排序：`OrderBy(Order)`；分组内 `Items` 按 `Order` 重排。
+- 🔴 **跨组注册 + 延迟补登**：`RegisterFunction` 发现分组未注册时**暂存**（⛔ 不抛，`InitializeAll` 的逐模块 try-catch 会吞掉 → 菜单项静默丢失），待 `RegisterModule` 建立分组时补登（去重 + 按 Order 重排）。分组始终未建立 → 启动健全性检查报一行。v3.66 起模块设置页不再跨组 ⇒ 本机制现只作「分组 key 打错」的兜底。
+
+### 4.3 标签栏机制
+
+- 🔴 **首页 ⛔ 不进标签栏**：`TabItemViewModel.ShowInTabStrip = false` ⇒ 模板根 `Border` 隐藏、不占位；仍 `CanClose=false`、仍在 `Tabs` 里（零标签兜底回首页）。
+- 标签栏 = `Grid ColumnDefinitions="*,Auto"`：`*` 列 `ItemsControl` **直接绑 `Tabs`**（横排 `ItemsPanel` 必须显式写，否则默认竖排 + 竖滚禁用 = 只显示第一个）；`Auto` 列 `＋` 常驻最右。
+- `＋` = `OpenHomeTabCommand` → `OpenTab(HomeKey)`（⛔ 不指 `settings-all`）。
+- ⛔ 不做「固定其他标签页」（固定需求走首页收藏夹）⇒ 无通用「固定位」机制。
+- 旧机制 `ScrollableTabs` / `HomeTab` / `SyncTabMirror` / `SyncScrollableTabs` **全部已删**。
+- 标签项模板 = 共享资源 `TabItemTemplate`（`ShellView.axaml` 的 `Window.Resources`，⛔ 不复制两份防样式漂移）。
+- View 实例由 `TabItemViewModel` 持有并缓存，切标签不重建；关标签时才销毁（VM 实现 `IDisposable` 则调用）。
+
+### 4.4 左树行为
+
+- 左树用 `ItemsControl` + `Button.tree-row` **自绘**，⛔ 不用 `TreeView`。
+- 一级分组展开态落 `columnlayout.json` 的壳级分区（`treeGroup:<groupKey>`，默认 false）；折叠态 `treeCollapsed`。
+- **展开整组 `BringIntoView`**（NT-037）：点**底部**分组的展开后，对该组**容器整块**做 `BringIntoView`（`Dispatcher.Post`，参考 `ScrollActiveTabIntoView` 模式），保证分组头 + 子项末都可见；**收起时不跳**；顶部 / 中部分组行为不变。
+- 版本号 `TreeVersionText` 在左树底部版本行（`ShellView.axaml`）；设置齿轮也在此行。
+
+### 4.5 托盘（NT-057）
+
+- 图标 = **唯一图标工厂 `CreateAppIcon(accent)`**（窗口 + 托盘同源，随强调色）+ `Resources/app.ico`（exe 图标）⇒ ⛔ 不再代码画、⛔ 不写死强调色。
+- 左键 = 切显示 / 隐藏；右键五项菜单：首页 · 设置 · 用另一个配置打开…（子菜单排除当前配置 / 无其他配置时置灰，先拉起窗口再导航）· 退出。
+- ⚠️ 技术债：图标**形状两处定义**（C# 常量与 ICO 口径），改一处须同步另一处。
+
+---
+
+## §5 页面解析与 VM 定位
+
+- View：`UserControl`，放模块 `Views/`，`.axaml` + `.axaml.cs`。
+- VM：`NewToys.<模块>.Views.XxxView` ↔ `NewToys.<模块>.ViewModels.XxxViewModel`，**必须成对**。
+- 解析（`ShellViewModel.ResolveView`）：① 遍历全部已加载程序集匹配 `Type.Name`（`Control` 子类）**取首个命中** → ② `ActivatorUtilities.CreateInstance` → ③ 推导 VM 优先限定在 View 自己的程序集（`.Views`→`.ViewModels`），找不到才降级全 `AppDomain` 扫。
+- 🔴 **类名必须全局唯一**：解析未按程序集限定，同名 View 会撞车（历史两处 `DnsView`）。
+- 无占位页：兜底 = `ShellViewModel.BuildErrorView()` 现场构造的红字 + `ScrollViewer`。
+- Shell 自带页面同样走 `ResolveView`（先例 `HomeView` / `HomeViewModel`）。
+- 可以先注册菜单、后补页面。
+
+---
+
+## §6 UI 契约（Shared 侧接口，全部放 `Shared/Services/`）
+
+> 实现与渲染口径见 `ui.md`；本节约只写**契约定义与 Shell 侧职责**。
+
+### 6.1 `IDetailPanelProvider`
+
+```csharp
+public interface IDetailPanelProvider
+{
+    bool HasDetailPanel { get; }
+    bool IsDetailOpen   { get; }
+    object? DetailContent { get; }
+    event EventHandler? DetailChanged;
+    void ToggleDetail();
+    void OpenDetail();
+}
+```
+
+- Shell：`ActiveTab` 变化时检测 `ActiveTab.ViewModel is IDetailPanelProvider p`；是 → 显示右列 + 订阅 `p.DetailChanged`，`IsDetailOpen` 初值从 `ColumnLayoutService.LoadFlag(<pageKey>, FlagDetailPanel)` 读；否 → 隐藏右列。订阅前**先解绑旧 Tab**。
+- ⚠️ 基类 `ToggleDetailCommand` **不发 `DetailChanged`** ⇒ 迁移页必须自己的开合命令。
+
+### 6.2 `IHistoryProvider`
+
+```csharp
+public interface IHistoryProvider
+{
+    object? CaptureState();
+    void RestoreState(object state);
+    event EventHandler? StatePushed;
+}
+```
+
+- Shell：`ActiveTab` 变化时检测并订阅；`TabItemViewModel.CanGoBack/CanGoForward` 控制前进后退按钮。
+- 现状仅 `video-list`（目录切换）有实际语义。
+
+### 6.3 `IDetailCardSource`
+
+```csharp
+public interface IDetailCardSource
+{
+    DetailCardDescriptor? Card { get; }   // 非 null → 声明式；null → 退回自绘 DetailContent
+}
+```
+
+**件与归属（⛔ 别放错层）**
+
+| 件 | 归属 |
+|---|---|
+| `DetailCardDescriptor` / `DetailSection` / `DetailField` / `DetailAction` / `FieldKind` / `EditCommitMode` | `Shared/Details/DetailCardDescriptor.cs`（纯 POCO，命令用 BCL `ICommand`） |
+| `IDetailCardSource` | `Shared/Services/` |
+| `DetailCardHost.axaml(.cs)` + `DetailCardRender.cs` | `NewToys.UI/Controls/`（NT-063 P0-a 从 Shell 搬入） |
+| 16 张卡的 `Card` 声明 | 各页 VM（C# 对象字面量） |
+
+- 渲染器确认弹窗经 `DetailCardHooks` 由 Shell 启动时转接 `DialogHooks.ConfirmHandler`。
+- **Shell 两轨择一**（`ShellViewModel.RefreshDetail`）：① 是实现 `IDetailCardSource` 且 `Card != null` → `IsDetailCardActive = true`，⛔ **此时不读 `p.DetailContent`**；② 否则走老路 `DetailPanelContent = p.DetailContent`。`ShellView` 右列 = `Panel{ ContentControl(老路) + DetailCardHost(声明式) }`，按 `IsDetailCardActive` 互斥显隐。
+
+### 6.4 `IToolbarSource` + `IToolbarOwner`
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| `IToolbarSource` | `Shared/Services/` | `Toolbar`（`IReadOnlyList<ToolbarItemDescriptor>?`，空 / null = 无工具条）+ `ToolbarChanged` |
+| `IToolbarOwner` | `Shared/Services/` | 🔴 `object? ToolbarOwner` —— **复合页**把工具条承载者让给"有工具条的那一节 VM"（描述符的 `CommandPath` 相对节 VM 解析；复合页自己当承载者 ⇒ 工具条"画得出来、点不动"）。Shell 规则：页面 VM 实现本接口 ⇒ 用 `ToolbarOwner` 作承载者，否则用页面 VM 自己 |
+| `ToolbarItemDescriptor` / `ToolbarMenuItemDescriptor` | `Shared/Models/` | 纯 POCO；`*Path` 一律相对页面 VM |
+| `ToolbarHost` | `Shell/Controls/` | 渲染 + 自动折叠 + 详情开关浮层 |
+| `ListPageViewModelBase` | `Shared/Models/` | 已实现 `IToolbarSource`（`public virtual Toolbar => null`） |
+
+### 6.5 选择器钩子（VM ⛔ 不引 Avalonia）
+
+统一走 `Core.DialogHooks` 的 3 个钩子：`PickFolderAsync` / `PickFilesAsync`（多模式用 `;` 分隔，如 `"*.html;*.htm"`）/ `SaveFileAsync`；由 `Shell/App.axaml.cs` 注入实现（未注入 = 按「用户取消」处理）。
+
+---
+
+## §7 配置与路径
+
+- 一律 `Path.Combine`，⛔ 硬编码 `\` 或 `/`。
+- **用户数据**由 `ConfigStoreService` 唯一决定（不在仓库内）：应用根 `%LocalAppData%\NewToys`（环境变量 **`NEWTOYS_HOME`** 整根切换）。
+  - 应用根之下分「配置」：`<应用根>\profiles\<配置名>\` → 其下才是 `config / data / logs`；当前配置名记在 **`<应用根>\active-profile.txt`**（在 `profiles\` 之外，否则切换会把自己也换掉）。
+  - `ConfigStoreService` 构造时：① 确保 `profiles\<active>\` 存在（首次跑旧结构迁移）；② 暴露 `ConfigDir` / `DataDirectory` / `LogsDir`；③ `ProfilesRoot` / `ActiveProfileName` 供设置页用。
+  - ⛔ 模块不自己拼路径，向 `IAppConfigService.DataDirectory` / `ConfigStoreService` 取值。
+- **配置切换**：`IProfileService`（Core）负责列出 / 新增 / 重命名 / 删除 / 切换 / 设为默认；**切换 = 重启进程并显式传 `--profile <名>`**（`Process.Start(Environment.ProcessPath + " --profile " + name)` + `Environment.Exit(0)`），⛔ 不写 `active-profile.txt`；**设为默认**才写指针。⛔ 不做运行时热切换。
+- **启动参数**：`NewToys.exe [--profile <配置名>]`；解析顺序 = **参数 > `active-profile.txt` > `default`**；非法 / 不存在 → 用默认 + 状态栏一行提示（⛔ 不崩、不静默）。
+- **每配置单例**：命名互斥 `Local\NewToys_Profile_<配置名小写>`（`new Mutex(false, name)` + `WaitOne(0)`）；已占用 → 提示「该配置已在运行」后 `Environment.Exit(0)`，⛔ 不静默。⛔ 别用 `Global\`；配置名大小写不敏感 → mutex 名统一小写。
+- **新开实例**：每配置行「🚀 新开」= `Process.Start(Environment.ProcessPath, $"--profile {name}")`；窗口标题 = `NewToys · <配置名>`。
+- **窗口 bounds 记忆**：`config\window.json`（`X/Y/Width/Height/WindowState`），按配置各存各的；关闭时存，最小化态不存位置；还原时夹进当前屏幕工作区。
+- 平台相关能力（winget / `ms-settings:` / ffmpeg）集中封装；路径穿越防御：外部相对路径 `Path.GetFullPath` 后校验落在目标目录内。
+
+### 7.1 `config/` 文件清单（模块分区见各模块 md）
+
+| 文件 | 归属 | 内容 |
+|---|---|---|
+| `theme.json` | 应用级设置 | 主题模式 + 强调色 id |
+| `app.json` | 应用级设置 | ffmpeg / 播放器 / DNS 开关 / 脚本运行环境（python、pwsh、PS5.1 路径 + 脚本目录）。无视频库目录 |
+| `launch.json` | 应用级设置 | 三个一键按钮 + 4 个通用开关 |
+| `package.json` | 脚本管理器 | 软件包查询偏好。软件源本身不在这里 |
+| `script-manager.json` | 脚本管理器 | `IOptionsStore` 分区名 `script-manager`，唯一写入点 = `settings-script` 页：脚本目录。⚠️ 分区名 ≠ 模块键（模块键是 `script`），历史惯例 |
+| `favorites.json` | 首页 | 收藏夹 |
+| `script\script.json` | 脚本管理器 | 手工数据（集合 / 条目 / 标签 / 视图 / 上次集合）。原子写（`.tmp` + rename） |
+| `columnlayout.json` | 框架层 | 列显隐 + 页面级开关（详情栏开合 `FlagDetailPanel`；壳级页 Key `"shell"`：左树折叠态 `treeCollapsed` + 各一级分组展开态 `treeGroup:<groupKey>`，默认 false） |
+
+- **`data\` 下是观测缓存**（可重建、不进备份），如 `data\script\script.db`。
+- `IOptionsStore.Validate` 禁路径分隔符 / `.` / `..` ⇒ 模块设置只能落 `config\<模块>.json`，模块私有子目录另建（如 `config\script\`）。
+- ⛔ 不为单个功能预置默认内容（v3.60）：首次运行清单为空，条目由用户导入 / 新建。唯一例外 = 内置采集脚本播种（见 `modules/script-manager.md`）。
+
+### 7.2 三配置档（debug / default / release）
+
+- 三档**永久驻留**开发机，随时切换、**不丢数据**（⛔ 任何自动清理）。
+- **Debug 构建首启播种**：`default`（既有；缺失则按现状播种）、`debug`（= 复制 `default` 内容）、`release`（= 干净初始态）。
+- 动作是 **「重置为初始态」**（按播种源填回），⛔ 不提供「删除」。
+- ⛔ 商店版配置（条件播种 / 排除 dev 文件 / 仅 `default`）归需求 §2.1 远期，**未实现**。
+
+---
+
+## §8 异常处理
+
+- 导航 / 模块加载 / 主题应用等边界处 `try-catch`，失败不崩溃；至少写日志或兜底 UI，**不得吞异常无反馈**。
+- 全局兜底：`AppDomain.UnhandledException` / 启动异常捕获，崩溃给可读错误窗。
+
+---
+
+## §9 构建与版本
+
+- 构建 / 发布 / 环境切换**由用户本地执行**（`pwsh -File .\scripts\build.ps1 -Configuration Debug|Release`）；AI 改完 `src/` 后列出需用户验证的点，**不代跑构建**。
+- ⛔ 禁止声称「已编译通过」；没跑过写「未编译，请用户本地执行 `build.ps1` 验证」。纯文档变更注明「不涉及编译」。
+- ⛔ **脚本只用 PowerShell 7（`.ps1`），禁止 `.cmd` / `.bat`**；fail-loud（成功 `exit 0` 自关窗口、失败 `trap` 暂停）。
+
+**版本号**（`src/Directory.Build.props` 编译时自动生成，⛔ 禁止手写）：
+- `InformationalVersion` = `1.<yyyyMMdd>.<HH>.<mm取整到十位>`（显示用）
+- `FileVersion` = `1.<yyyy>.<MMdd>.<HHmm>`；`AssemblyVersion` 固定 `1.0.0.0`
+- 「设置·关于」读 `InformationalVersion`；左树底部 `TreeVersionText` 显示同一值。
+
+**产物路径**：
+
+| 产物 | 路径 |
+|---|---|
+| Debug 输出 | `artifacts/bin/<项目名>/Debug/net10.0/` |
+| Debug 主程序 | `artifacts/bin/Shell/Debug/net10.0/NewToys.exe` |
+| Release 输出根 | `artifacts/release/` |
+| Release 模块 DLL | `artifacts/release/Modules/Module.*.dll`（直出，零拷贝） |
+| 发布产物 | `production/NewToys_<运行时>/` |
+| 测试环境根 | `artifacts/env/test/` |
+| 用户数据 | ⚠️ 不在仓库内：`%LocalAppData%\NewToys\{config,data,logs}` |
+
+AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
+
+---
+
+## §10 技术债台账（B 类）
+
+> 本表 = **技术债（Tech Debt）**：当前做法是「需求 vs 工程现实」的妥协，非永久铁律。**变更条件满足 + 用户同意 + 本表登记**后方可调；未登记不得擅改。
+
+| 项 | 理想 | 当前折衷 | 变更条件 | 影响面 |
+|---|---|---|---|---|
+| **B1 编译绑定** | 开启编译绑定 | 全工程关闭，不写 `x:DataType` | **保持关闭**（用户拍板） | 全部 View |
+| **B2 VM 基类** | 统一继承 `Shared/ViewModelBase` | 模块内多直接继承 `ObservableObject`，仅 Shell/Home 用 `ViewModelBase` | 某模块改造时逐模块统一 | 各模块 VM |
+| **B3 全局样式** | 显式 `x:Key` 样式键 | 用 `Classes` 隐式样式 | 收益足够大时整体改造 | `App.axaml` |
+| **B4 导航服务** | 统一走 `INavigationService` | 主流程由 `ShellViewModel` 自解析；`NavigationService` 仅被模块内跳转经 `Navigated` 事件复用 | 删闲置服务或改用它（属框架层需同意） | Shell/Core |
+| **B5 平台后端** | 完全跨平台 | 后端仍调 winget / ffmpeg 命令行，类型已中立为 `Package*` | 迁 Debian 时替换 | Core 服务 |
+| **B6 仓库根 slnx** | 唯一入口 `src/NewToys.slnx` | 仓库根残留旧 `NewToys.slnx` 副本 | 直接删除即可 | 仓库 |
+| **B7 Modules 冗余 DLL** | `Modules\` 仅含模块 DLL | 会多出 `NewToys.Shared.dll` / `NewToys.Core.dll` | 无害暂留 | Release 产物 |
+| **B8 闲置转换器** | 不留无用文件 | ✅ 已删（2026-10-14） | — | Shell |
+| **B9 骨架页面** | 全部页面真实逻辑 | ✅ 零骨架（`web-http` 已落成） | — | Module.WebTools |
+| **B10 运行期热加载** | 任意模块随时加载 / 卸载 / 替换 | 仅支持「新增未加载过的模块」；容器已 build，模块不能注册新服务 | 引入可卸载 ALC + 模块级容器 | ModuleLoader + Shell |
+| **B11 反射使用** | 最小魔法 | 模块装配 / 热加载 / 视图解析三处用反射 | 机制必需暂不改；⛔ 仅限这三处 | ModuleLoader / ShellViewModel |
+| **B12 前进/后退** | 所有页面丰富页内导航 | 仅 `video-list` 有目录语义；多数页灰显 | 各页逐步实现 `IHistoryProvider` | 各模块页面 |
+| **B13 详情面板上提** | 详情由 Shell 统一承载 | ✅ 16/16 张卡全部声明式（2026-10-15 结清） | — | Shared + Shell + 各模块 |
+| **B14 媒体资产用户数据落库** | 手动数据落 `config\` 进备份 | 标签 / 分类 / 集合 / 关联暂存 `data\newtoys.db`，与需求 §3.5 定位冲突 | 用户拍板独立库 / 纳入备份时 | Module.MediaAssets |
+| **B15 数据驱动图标** | 全矢量 | 二级菜单 `icon` / 首页一键按钮 / 模块页内数据行仍 emoji | 收敛工作项 **NT-047** | 各模块注册 + 首页 |
+| **B16 `SetWindowRgn` 方角硬手段** | 官方 corner preference 稳定生效 | 保留 `ApplySquareRegion()` + `SetCornerPreferenceNoRound()` 双保险 | NT-042 已裁决保留（阴影代价已证伪） | `ShellView.axaml.cs` |
+| **B17 窗口装饰 Win32 补丁残留** | 零补丁 | 方角两处 + `WM_NCCALCSIZE` 零内缩（Windows 独有例外）；样式位补位 / 贴靠纠偏已删 | 见 B16 + Avalonia 提供等价开关；迁非 Windows 前须补外框门控与窗口记忆回退 | `ShellView.axaml(.cs)` + `App.axaml` |
+
+---
+
+## §11 跨模块待办（唯一收口处）
+
+> 涉及 2 个以上模块、或改 Shared / Core / Shell / UI 的待办一律登记在此，**不在模块 md 里重复**。
+> 任务卡放 `backlog/framework/`（同样 5 张滑动窗口）。台账状态以《项目状态与路线图》三、为准。
+
+| NT | 内容 | 状态 |
+|---|---|---|
+| NT-047 | **数据驱动图标矢量化**：二级功能菜单 34 项 `icon` / 首页一键按钮 / 模块页内数据行（⛔ 静态装饰 emoji 不动） | 📝 草稿（= B15） |
+| NT-064 | **列表分页数据层**：SQL `LIMIT/OFFSET` + 排序下推 + 独立 `COUNT(*)`；批量操作只作用当前页选中项。样板 = 全部资产，其余页待迁 | 🔄 已实施（样板页） |
+| NT-065 | **分页推广到脚本库 / 命令库**：挂 `ListPageSkeleton` 底栏 + VM 分页（JSON 清单 ⇒ 内存切片，⛔ 不做 SQL） | 📝 草稿 |
+| NT-066 | **标题栏搜索扩范围**：可搜二级菜单项 + 设置页节点（现只搜一级 / 已注册项）；跨 Shell ⇒ 需用户授权 | 📝 草稿 |
+| NT-067 | **信息展示脚本化底座**（原 `pc-info`）：`ScriptRunner` / `InterpreterResolver` / `SysInfoGrid` 已落地并被 NT-068 继承 | ✅ 已实施 |
+| NT-068 | **脚本管理器重构**：改名 + 数据库化 + 集合 + 信息面板分节（S1~S8 分步；S7 待拍板） | 🔨 实施中 |
+
+---
+
+## 附录 A 高频编译错误速查
+
+| 错误 | 原因 | 解法 |
+|---|---|---|
+| NU1010 | CPM 下 csproj 写了 Version 或 props 未声明 | props 补 `<PackageVersion>`；csproj 不写版本 |
+| CS0260 | 带 `[ObservableProperty]` 的类未 `partial` | 类声明加 `partial` |
+| AVLN2000 | 用了 WPF 专有写法 / `IsCheckable` | 改 Avalonia 语法（`Selector` 代 `TargetType`；列显隐用 `ToggleType=CheckBox`） |
+| AVLN3000 | `ColumnDefinitions` 绑 `{Binding}` | 改列宽规格串 + `ColumnGrid` |
+| CS1061 ItemsControl 未含 Children | `.axaml` 是 ItemsControl，code-behind 按 Panel 用 `.Children` | 两文件同步 |
+| CS0103 当前上下文不存在 Xxx | XAML 元素没 `x:Name`，code-behind 引用 | 补 `x:Name` |
+| CS0104「Xxx」不明确引用 | 应用侧类型与所用库同名 | 给应用侧类型换名（`AppMenuItem`）；⛔ 别用别名掩盖 |
+| CS0507 | `Visual.OnAttachedToVisualTree` 写成 `public override` | 基类是 protected ⇒ 写 `protected override` |
+| No precompiled XAML found | 用 `AvaloniaXamlLoader.Load` 加载独立资源字典 | 主题改纯代码构建 ResourceDictionary 注入 |
+| NETSDK1022 重复项 | `defaults\**` 用了 `None Include` | 改 `None Update` |
+| 菜单为空（一个模块都没） | 程序集延迟加载，扫 AppDomain 扫不到 | Debug 用显式类型清单；Release 先 `LoadFrom` |
+| 侧栏菜单重复 N 次 | 模块被重复注册 | ModuleLoader 跳过已加载同名程序集 |
+| 切主题后树 / 标签栏仍旧配色 | code-behind new 出的行是本地值 | 订阅 `ThemeChanged` 后重建；优先 Classes + 样式 |
+| 点刷新没反应 | 只扫目录没重建左树；或容器已 build 无法注册服务 | 加载后 `BuildTree()`；页面型模块可不注册服务 |
+| 菜单项静默丢失 | 跨组注册时目标分组未建 → 异常被逐模块 try-catch 吞 | `MenuService` 延迟补登已兜住；分组始终未建 → 健全性检查报一行 |
+| `PathIcon` 不显示 | `Data` 绑的 `Geometry` 键不存在或拼错 | 全仓搜键名，确认 `App.axaml` 已定义 `Icon*` |
+| `Application` 无 `TryFindResource` | Avalonia 12 里是 `IResourceHost` 扩展方法（命名空间 `Avalonia.Controls`），Try 模式 | 加 `using Avalonia.Controls;`；写 `if (app.TryFindResource(key, out var v) && v is Geometry g)` |
+| `VisualRoot as Window` 恒为 null | 视觉根是 `TopLevelHost` | 走逻辑树 `FindLogicalAncestorOfType<Window>(includeSelf: true)` |
+| 标签页重复打开 | `OpenTab` 未做单例判定 | `Tabs` 中按 `Key` 查重，存在则激活 |
+| 关闭首页标签失败 | 未设 `CanClose=false` | 首页构造时 `CanClose=false`，`CloseTab` 检查 |
+| 窗口不能拖边框缩放 | — | 走官方 CSD（见 `ui.md` §4） |
+
+> 模块专属编译坑见各 `modules/<模块>.md` §5 坑点。

@@ -30,33 +30,39 @@
 
 ---
 
-## 三、四份权威文档（`skill/docs/`）路由
+## 三、权威文档（`skill/docs/`）路由
 
 | 文档 | 角色（**标准角色**） | 何时读 |
 |---|---|---|
+| skill/docs/index.md | **文档地图 + 模块清单表** | 会话开始（先看它定位） |
 | skill/docs/NewToys-需求规格.md | WHAT：唯一权威规格、验收基线（**需求规格** PRD+SRS） | 涉及功能/框架/边界，至少读相关章节 |
-| skill/docs/NewToys-工程规范.md | HOW：实现细节、类名/像素/API/易错点 + 技术债台账（**工程规范**） | 编码前按「任务型→章节」读 |
-| skill/docs/NewToys-项目状态与路线图.md | STATUS + **Backlog 工作项索引**（任务卡见 `skill/docs/backlog/NT-xxx.md`）+ 已完成（**项目状态与路线图**） | 会话开始读「一、当前基线」；实施期逐条勾工作项 |
-| skill/docs/NewToys-AI协作手册.md | 流程 + 术语：**研发流程（规划期 / 实施期）**（🔴 **唯一定义处**，含状态机、验收清理、Glossary）+ 静态自检（**AI 协作手册**） | 流程 / 术语权威，必读其【研发流程】与【术语对照】节 |
-| skill/docs/backlog/NT-xxx.md | **任务卡**：验收标准 / 技术要点 / 依赖 / 范围（实施期工作稿，随 `src/` 更新） | 立项 / 展开 / 验收归档时 |
+| skill/docs/framework.md | HOW · 框架层（**工程规范**）：程序集边界 / 启动 / 菜单 / 加载 / UI 契约 / 配置 / 构建 / 技术债 / **跨模块待办** | 改 Shared/Core/Shell/UI 或新建模块 |
+| skill/docs/ui.md | HOW · UI（**工程规范**）：尺寸密度 / 主题键 / 图标 / CSD / 列表页 / 详情卡 / 工具条 / 样式坑 | 改任何 `.axaml` 前必读 |
+| skill/docs/modules/<模块>.md | **模块说明**：职责 / 当前功能 / 实现逻辑 / 数据 / 坑点 / 待办 | **改哪个模块读哪个** |
+| skill/docs/NewToys-项目状态与路线图.md | STATUS + **Backlog 工作项索引** + 已完成（**项目状态与路线图**） | 会话开始读「一、当前基线」；实施期逐条勾工作项 |
+| skill/docs/NewToys-AI协作手册.md | 流程 + 术语：**研发流程（规划期 / 实施期）**（🔴 **唯一定义处**，含状态机、滑动窗口、Glossary）+ 静态自检（**AI 协作手册**） | 流程 / 术语权威，必读其【研发流程】与【术语对照】节 |
+| skill/docs/backlog/<模块>/NT-xxx.md | **任务卡**：验收标准 / 技术要点 / 依赖 / 范围（每目录 ≤5 张已验收卡） | 只读本次要实施的那张 |
+
+> 原 `NewToys-工程规范.md` 已于 2026-10-18 拆为 `framework.md` + `ui.md` + `modules/*.md`，原文件删除。
 
 ---
 
-## 四、任务型 → 规范章节
+## 四、任务型 → 文档
 
-| 任务 | 读《工程规范》 |
+| 任务 | 读什么 |
 |---|---|
-| 改/加页面 | §2 §3.5 §3.6 |
-| 设置类页面 | §2 §3.5 §4 |
-| 列表页 | §3.6 §3.8 |
-| 新增模块 | §3.4 |
-| 图标/样式 | §2.1 §2.2 §2.3 |
-| 主题键 | §2.2 |
-| 框架层（先问用户） | 需求 §3.3 + 规范 §3.3 |
-| 标签栏/树/导航 | 规范 §3.8 + 需求 §4.1~4.3 §5 |
-| 热加载模块 | 规范 §3.7 |
-| 接口/契约 | 规范 §3.1 §3.2 §3.8 |
-| 修编译报错 | 规范 附录A |
+| 改某模块的一个页面 | `modules/<模块>.md` → `ui.md`（§6 列表页 / §7 详情卡 / §8 工具条） |
+| 改/加页面 | `ui.md` §2 §6 §7 §8 |
+| 设置类页面 | `modules/settings-app.md` → `ui.md` §2 §6 |
+| 列表页 | `ui.md` §6 |
+| 新增模块 | `framework.md` §3.3 §5 → 新建 `modules/<模块>.md` |
+| 图标 / 样式 / 主题键 | `ui.md` §1 §3 §5 |
+| 框架层（先问用户） | `framework.md` §2 §3 §4 + 需求 §3.3 |
+| 标签栏 / 树 / 导航 | `framework.md` §4 + 需求 §4.1~4.3 §5 |
+| 热加载模块 | `framework.md` §3.4 |
+| 接口 / 契约 | `framework.md` §6 |
+| 配置 / 路径 / 多配置 | `framework.md` §7 |
+| 修编译报错 | `framework.md` 附录 A + `modules/<模块>.md` §5 |
 | 纯文档改动 | — |
 
 ---
@@ -124,4 +130,4 @@
 
 ## 八、触发词
 
-NewToys、src/、视频工具、PcTools、ScriptManager 脚本管理器、WebTools、需求规格、工程规范、Backlog、任务卡、立项、build.ps1、accept.ps1、skill/docs
+NewToys、src/、视频工具、脚本管理器 ScriptManager、WebTools、MediaAssets、应用级设置、需求规格、framework.md、ui.md、模块文档、Backlog、任务卡、立项、build.ps1、accept.ps1、skill/docs

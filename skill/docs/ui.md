@@ -477,7 +477,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 用法 | 写法 | `Sticky` |
 |---|---|---|
 | 应用级设置页（6 节） | `ItemsSource="{Binding Sections}"` + `ToolbarTemplate` | 默认 `true` |
-| 模块设置页（2~3 节） | `<ui:SettingsSectionHost.Sections>` 属性元素 + `IsExpanded="True"` | **`false`** |
+| 模块设置页（2~3 节） | `UserControl.Resources` 放节内容 + code-behind `Add(...)` 建节 | **`false`** |
 | 模块设置页（≥5 节，如媒体资产 7 节） | 同上 | 默认 `true` |
 
 ```xml

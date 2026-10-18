@@ -93,6 +93,20 @@ public class MediaAssetsModule : IModule
             "扫描忽略规则 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据提取");
 
         // ===== NT-021：把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====
+        // 🔴 NT-070（启动提速）：这段接线要读 config\media-assets.json 并可能扫库入队，
+        // 已整体搬到 InitializeDeferred（首帧之后）。上面的菜单注册全部保留在首帧前。
+    }
+
+    /// <summary>
+    /// NT-070（启动提速）：模块设置读取 + 扫描器接线 + 回收站到期清理入队 —— 首帧之后执行。
+    /// <para>
+    /// ⚠️ 顺序不变：<c>ApplySettings</c> 仍要在用户第一次点「扫描」之前生效。
+    /// 延迟层排在首帧渲染之后，而窗口可交互也在首帧之后 —— 实际不会漏。
+    /// </para>
+    /// </summary>
+    public void InitializeDeferred(IServiceProvider services)
+    {
+        // ===== NT-021：把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====
         var io = services.GetRequiredService<Services.MediaAssetsSettingsIO>();
         var scan = services.GetRequiredService<Services.ScanService>();
         scan.ApplySettings(io.Settings);

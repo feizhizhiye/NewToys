@@ -35,16 +35,8 @@ public class VideoToolsModule : IModule
     }
     public void Initialize(IServiceProvider services)
     {
-        // v3.32（需求 §6.4.16）：本模块已移除"资产库"能力 —— 视频库 / 标签 / 收藏（及其 3 张表）
-        // 全部让给「媒体资产」。旧库里遗留的表不再被任何代码使用 → 启动时一次性清掉（幂等）。
-        // ⛔ 只删这 3 张：video_media（ffprobe 扫描缓存）保留、其它模块的表一概不动。
-        try
-        {
-            services.GetRequiredService<SqliteDatabase>().EnsureTable(
-                "DROP TABLE IF EXISTS video_catalog; DROP TABLE IF EXISTS video_tags; DROP TABLE IF EXISTS video_favorites;");
-        }
-        catch { /* 数据库不可用：本模块其它页照常（媒体信息缓存失效而已） */ }
-
+        // 🔴 NT-070（启动提速）：建库/删表的 IO 已搬到 InitializeDeferred（首帧之后）。
+        // 这里只留菜单注册（纯内存，必须首帧前完成）。
         var menu = services.GetRequiredService<IMenuService>();
         menu.RegisterModule("video", "视频工具", "IconVideo", 40);
         // 「视频库」→「视频列表」（v1.35）：本页不是"库"（没有默认目录、不做登记），
@@ -62,5 +54,23 @@ public class VideoToolsModule : IModule
         // v3.66 / NT-062：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
         menu.RegisterFunction("video", "settings-video-tools", "视频工具设置", "🎬", "SettingsVideoToolsView", 100,
             "并发数与 ffmpeg / 播放器 / 导入导出目录（后三项是全局项，本页只展示）");
+    }
+
+    /// <summary>
+    /// NT-070：启动时的一次性库清理（幂等），挪到首帧之后。
+    /// <para>
+    /// v3.32（需求 §6.4.16）：本模块已移除"资产库"能力 —— 视频库 / 标签 / 收藏（及其 3 张表）
+    /// 全部让给「媒体资产」。旧库里遗留的表不再被任何代码使用 → 清掉。
+    /// ⛔ 只删这 3 张：video_media（ffprobe 扫描缓存）保留、其它模块的表一概不动。
+    /// </para>
+    /// </summary>
+    public void InitializeDeferred(IServiceProvider services)
+    {
+        try
+        {
+            services.GetRequiredService<SqliteDatabase>().EnsureTable(
+                "DROP TABLE IF EXISTS video_catalog; DROP TABLE IF EXISTS video_tags; DROP TABLE IF EXISTS video_favorites;");
+        }
+        catch { /* 数据库不可用：本模块其它页照常（媒体信息缓存失效而已） */ }
     }
 }

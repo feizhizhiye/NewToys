@@ -141,11 +141,17 @@
 ```csharp
 public interface IModule {
     void RegisterServices(IServiceCollection services);
-    void Initialize(IServiceProvider services);   // 这里注册菜单
+    void Initialize(IServiceProvider services);           // 首帧前：只注册菜单 + 轻量接线
+    void InitializeDeferred(IServiceProvider services) { }// 首帧后：建库 / 读配置 / 播种 / 扫描接线（默认空实现）
 }
 ```
 
 - 模块类命名 `XxxModule`，命名空间 `NewToys.<模块名>`（不带 `.Module` 段）。
+- 🔴 **NT-070（启动提速）两段式初始化**：`Initialize` 必须跑在 `Window.Show()` 之前（左树 / 首页功能清单 / 收藏跳转都依赖菜单已注册，晚了会「左树先空后跳」）；**任何 IO 重活都不许写这里** —— 建库 / 清表 / 读配置文件 / 种子播种 / 扫描器接线 / 批量任务入队，一律放 `InitializeDeferred`。宿主在 `Show()` 之后用 `Dispatcher.UIThread.Post(..., DispatcherPriority.Background)` 驱动它（排在首帧渲染之后）。
+  - ⚠️ 必须留在 **UI 线程**（不用 `Task.Run`）：`Sqlite` / 配置 store 非线程安全，换线程会和「用户已点开页面」的读取撞车。代价 = 启动瞬间 UI 卡几十毫秒。
+  - ⚠️ **页面不可假设 `InitializeDeferred` 已跑完**：用户可能抢在它之前点进页面（`InitializeDeferred` 内部必须自兜 try/catch，失败按空数据渲染）。
+  - 热加载（§3.4）也会紧接着跑 `InitializeDeferred`，否则新模块热加载后永远拿不到数据。
+  - 启动打点：`logs\startup-*.log` 的「启动打点（累计毫秒）：…」+「模块延迟初始化 Nms（首帧之后）」两行，改完用它核对收益。
 
 ### 3.4 热加载
 

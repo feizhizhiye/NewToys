@@ -61,7 +61,13 @@ public static class ModuleLoader
         return _modules;
     }
 
-    /// <summary>在 ServiceProvider 构建完成后调用；单个模块初始化失败不影响其它模块。</summary>
+    /// <summary>
+    /// 在 ServiceProvider 构建完成后、**首帧之前**调用；单个模块初始化失败不影响其它模块。
+    /// <para>
+    /// 🔴 NT-070：这里只应剩菜单注册与轻量接线。重活（建库 / 读配置 / 播种 / 扫描）走
+    /// <see cref="InitializeAllDeferred"/>，由宿主在 <c>Window.Show()</c> 之后驱动。
+    /// </para>
+    /// </summary>
     public static void InitializeAll(IServiceProvider sp)
     {
         foreach (var m in _modules)
@@ -86,6 +92,31 @@ public static class ModuleLoader
     }
 
     /// <summary>
+    /// 首帧之后执行的重活（NT-070 启动提速）：数据库打开与清理、配置读取、种子播种、
+    /// 扫描器接线、过期数据清理入队。
+    /// <para>
+    /// 调用时机 = 宿主 <c>Window.Show()</c> 之后、<c>DispatcherPriority.Background</c> 队列
+    /// —— 首帧已经画完，窗口不会被这些 IO 挡住。
+    /// </para>
+    /// <para>
+    /// ⚠️ 必须跑在 **UI 线程**：各模块的服务（Sqlite / 配置 store）都不是线程安全的，
+    /// 换后台线程会和"用户已经点开页面"的读取撞车。
+    /// </para>
+    /// </summary>
+    /// <returns>实际执行耗时（毫秒）—— 宿主写启动日志用。</returns>
+    public static long InitializeAllDeferred(IServiceProvider sp)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        foreach (var m in _modules)
+        {
+            try { m.InitializeDeferred(sp); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"模块 {m.GetType().Name} 延迟初始化失败: {ex.Message}"); }
+        }
+        sw.Stop();
+        return sw.ElapsedMilliseconds;
+    }
+
+    /// <summary>
     /// Release 目录扫描：只扫 <c>&lt;程序目录&gt;\Modules\</c>（比扫程序目录全部 DLL 省一大截），
     /// 没有 Modules 目录时兜底程序目录本身。
     /// ⚠️ 路径必须用 <see cref="AppContext.BaseDirectory"/> 拼<b>绝对路径</b>——
@@ -98,7 +129,12 @@ public static class ModuleLoader
         var dir = Path.Combine(baseDir, ModulesSubDirectory);
         if (!Directory.Exists(dir)) dir = baseDir;
 
-        foreach (var dll in Directory.EnumerateFiles(dir, "*.dll"))
+        // ⚠️ NT-070（启动提速，实测该段 2.1s）：**只枚举 `Module.*.dll`**，⛔ 别扫全部 *.dll。
+        //    Debug 的程序目录里有 49 个 DLL（Avalonia / AngleSharp / SQLite / 工具包…），
+        //    逐个 Assembly.LoadFrom + GetTypes() 要 2 秒 —— 而其中根本没有 IModule。
+        //    模块程序集命名铁律 = `Module.<名>.dll`（build.ps1 / Directory.Build.props 同口径），
+        //    与下面 HotReload 的前缀过滤保持一致。
+        foreach (var dll in Directory.EnumerateFiles(dir, "Module.*.dll"))
         {
         // 已加载的程序集一律跳过：Release 的 Modules\ 里可能混着 NewToys.Shared / NewToys.Core 等
         // 框架 DLL，如果把它们再 LoadFrom 成第二份副本，就会出现「同一程序集两个-instance」，
@@ -178,6 +214,10 @@ public static class ModuleLoader
                     if (Activator.CreateInstance(t) is not IModule m) continue;
                     // ⛔ RegisterServices 跳过（容器已构建）；Initialize 内部逐项 try-catch 由调用方约定
                     m.Initialize(sp);
+                    // NT-070：热加载的模块**也要**跑延迟层 —— 否则把重活搬进 InitializeDeferred 的模块
+                    // 热加载后永远拿不到数据（页面全空）。
+                    try { m.InitializeDeferred(sp); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"热加载 {name} 延迟初始化失败: {ex.Message}"); }
                     _modules.Add(m);
                     added++;
                 }

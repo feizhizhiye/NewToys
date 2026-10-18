@@ -45,28 +45,9 @@ public class ScriptManagerModule : IModule
     }
     public void Initialize(IServiceProvider services)
     {
-        // NT-068 S2：开机即落位三份数据 —— config\script-manager.json（设置，解析设置服务时建）、
-        // config\script\script.json（手工数据）、data\script\script.db（观测缓存）。
-        // 库坏 / 目录只读都不该拦住整个应用启动，所以整体兜住。
-        try
-        {
-            var store = services.GetRequiredService<IScriptStoreService>();
-            var db = services.GetRequiredService<ScriptDatabase>();
-            // 保留策略兜底：days 模式的条目在启动时清一遍超龄观测（§三.10）。
-            db.PruneAllDays(store.Data.Items);
-
-            // NT-068 S5：内置采集脚本 + 内置采集器条目 + 内置「系统信息」集合（只加不改）。
-            var settings = services.GetRequiredService<IScriptManagerSettingsService>();
-            BuiltinCollectorSeeder.Seed(store, settings);
-
-            // v3.66 第 ④ 条：随包「示例」—— 示例脚本文件夹 + 示例命令，**只播种一次**（删了不复活）。
-            ExampleSeeder.Seed(store, settings);
-        }
-        catch
-        {
-            // 数据层不可用 ⇒ 页面按空数据处理（状态栏由页面自己报 ⚠），⛔ 不让启动失败。
-        }
-
+        // 🔴 NT-070（启动提速）：原「开机即落位三份数据」的数据库/播种重活已搬到
+        // InitializeDeferred（首帧之后）。这里只剩菜单注册 + 钩子接线 —— 两者都是纯内存操作，
+        // 但必须在首帧前完成，否则左树会先空后跳。
         var menu = services.GetRequiredService<IMenuService>();
         menu.RegisterModule("script", "脚本管理器", "IconPc", 20);
         // 第 7 个参数是「功能简介」：功能清单页展示，首页收藏卡也复用它（单一真相源）。
@@ -92,5 +73,36 @@ public class ScriptManagerModule : IModule
         // 删除等破坏性操作的二次确认：走公共对话框钩子（由 Shell 注入到 DialogHooks），
         // 不再在 Shell 里硬接（那样会让 Release 下 Shell 被迫引用本模块）。
         QuickActionService.ConfirmHandler = DialogHooks.ConfirmAsync;
+    }
+
+    /// <summary>
+    /// NT-070（启动提速）：原来写在 Initialize 里的启动重活 —— 打开两个数据层 + 播种。
+    /// 挪到首帧之后执行，启动时不再被 SQLite 打开 / 写库 / 复制示例脚本挡住。
+    /// <para>
+    /// NT-068 S2：落位三份数据 —— config\script-manager.json（设置，解析设置服务时建）、
+    /// config\script\script.json（手工数据）、data\script\script.db（观测缓存）。
+    /// 库坏 / 目录只读都不该拦住整个应用（⛔ 不抛），页面按空数据处理。
+    /// </para>
+    /// </summary>
+    public void InitializeDeferred(IServiceProvider services)
+    {
+        try
+        {
+            var store = services.GetRequiredService<IScriptStoreService>();
+            var db = services.GetRequiredService<ScriptDatabase>();
+            // 保留策略兜底：days 模式的条目在启动时清一遍超龄观测（§三.10）。
+            db.PruneAllDays(store.Data.Items);
+
+            // NT-068 S5：内置采集脚本 + 内置采集器条目 + 内置「系统信息」集合（只加不改）。
+            var settings = services.GetRequiredService<IScriptManagerSettingsService>();
+            BuiltinCollectorSeeder.Seed(store, settings);
+
+            // v3.66 第 ④ 条：随包「示例」—— 示例脚本文件夹 + 示例命令，**只播种一次**（删了不复活）。
+            ExampleSeeder.Seed(store, settings);
+        }
+        catch
+        {
+            // 数据层不可用 ⇒ 页面按空数据处理（状态栏由页面自己报 ⚠），⛔ 不让启动失败。
+        }
     }
 }

@@ -50,6 +50,12 @@ public class App : Application
 
         try
         {
+            // NT-070（启动提速）：打点 —— 相对本方法进入时刻的累计毫秒，首帧后写一行到 logs\startup-*.log。
+            // 用途：判断「延迟初始化」到底省了多少（⛔ 靠猜）。Debug 下同时进调试输出。
+            var swStartup = System.Diagnostics.Stopwatch.StartNew();
+            var startupMarks = new List<(string Name, long Ms)>();
+            void Mark(string name) => startupMarks.Add((name, swStartup.ElapsedMilliseconds));
+
             var services = new ServiceCollection();
 
             // v3.26：多实例启动参数 --profile <配置名>（需求 §3.5）——最早处解析，交给 ConfigStoreService。
@@ -94,7 +100,7 @@ public class App : Application
             // 后续更多结构化数据也走它（见 SqliteDatabase 的类注释）。
             services.AddSingleton<SqliteDatabase>();
 
-            // v3.66 / NT-069：跨模块共用的文件系统动作（改名 / 移动 / 复制 / 回收站删除）。
+            // v3.66 / NT-070：跨模块共用的文件系统动作（改名 / 移动 / 复制 / 回收站删除）。
             // 只管磁盘，不记账、不弹窗 —— 库表日志与确认框留在各模块自己那层。
             services.AddSingleton<IFileOperationService, FileOperationService>();
 
@@ -130,11 +136,14 @@ public class App : Application
             // 模块加载（v3.26，需求 §3.4）：必载清单（NT-062 起为空 —— 应用级设置归 Shell 自带，不再单独成程序集）
             // + ModuleLoader 扫 Modules\ 补功能模块。新增功能模块两处登记：Shell.csproj 的 Debug ProjectReference
             // + 下面 GetMandatoryModuleTypes 的 #if DEBUG 追加。
+            Mark("DI注册");
             Core.Services.ModuleLoader.LoadAll(services, GetMandatoryModuleTypes());
+            Mark("模块扫描");
 
             _sp = services.BuildServiceProvider();
             _current = this;
             AppServices.Initialize(_sp);
+            Mark("容器构建");
 
             // v3.26：每配置单例 + --profile 诊断（需求 §3.5）——同一配置只允许一个实例，
             // 第二例提示后退出（数据隔离：不同配置各跑各的目录，同配置共享会互相覆盖）。
@@ -152,6 +161,7 @@ public class App : Application
             NewToys.Shell.Settings.AppSettingsRegistration.RegisterMenu(_sp);
 
             Core.Services.ModuleLoader.InitializeAll(_sp);
+            Mark("模块菜单初始化");
 
             var theme = _sp.GetRequiredService<IThemeService>();
             WatchSystemTheme(theme);          // 先注入系统明暗（「跟随系统」要用），再刷第一帧
@@ -160,6 +170,7 @@ public class App : Application
 
             var win = new ShellView { DataContext = _sp.GetRequiredService<ShellViewModel>() };
             _mainWindow = win;
+            Mark("主窗口构造");
 
             // v3.26：标题带配置名（多实例在任务栏里可区分，需求 §3.5）
             win.Title = $"NewToys · {store.ActiveProfileName}";
@@ -210,6 +221,24 @@ public class App : Application
             {
                 win.Show();
             }
+
+            // ==================== NT-070：模块重活延迟到首帧之后 ====================
+            // Show() 只是把窗口挂到窗口管理器上，首帧还没画。把「建库 / 读配置 / 种子播种 /
+            // 扫描器接线」排进 Background 优先级的 UI 队列 ⇒ 排在首帧渲染之后执行：
+            // 用户先看到完整界面（左树菜单在首帧前已注册，⛔ 不会先空后跳），再跑这些 IO。
+            // ⚠️ 刻意留在 UI 线程（不用 Task.Run）：Sqlite / 配置 store 都不是线程安全的，
+            //    换线程会和「用户已经点开页面」的读取撞车。代价 = 启动瞬间 UI 卡几十毫秒。
+            Mark("窗口显示");
+            WriteStartupLog("启动打点（累计毫秒）：" + string.Join(" → ", startupMarks.Select(m => $"{m.Name} {m.Ms}")));
+
+            var spForDeferred = _sp!;
+            Avalonia.Threading.Dispatcher.UIThread.Post(
+                () =>
+                {
+                    var deferredMs = Core.Services.ModuleLoader.InitializeAllDeferred(spForDeferred);
+                    WriteStartupLog($"模块延迟初始化 {deferredMs}ms（首帧之后）");
+                },
+                Avalonia.Threading.DispatcherPriority.Background);
 
             // NT-057：托盘建不起来（平台不支持 / 无托盘环境）⇒ 如实提示一次，行为退化成普通最小化
             if (!trayOk && launchCfg.Config.StartMinimized)

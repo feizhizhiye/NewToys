@@ -160,6 +160,23 @@ public partial class ShellView : Window
         // 标签页区域滚轮 = 切换标签。用 **隧道** 方式注册：滚动容器（ScrollViewer）会先把
         // 滚轮当成横向滚动吃掉，隧道阶段拦下来才能变成"切标签"。
         TabStrip.AddHandler(InputElement.PointerWheelChangedEvent, OnTabStripWheel, RoutingStrategies.Tunnel);
+
+        // v3.68：标签栏宽度跟随标签数量（类浏览器）—— 标签少时 `＋` 紧跟最后一个标签；标签溢出时把滚动区
+        // 收到可用宽度，`＋` 常驻最右、始终可见。窗口宽度 / 标签集合变化都要重算。
+        TabStrip.SizeChanged += (_, _) => SyncTabStripWidthCap();
+        TabsControl.SizeChanged += (_, _) => SyncTabStripWidthCap();
+        NewTabButton.SizeChanged += (_, _) => SyncTabStripWidthCap();
+    }
+
+    /// <summary>
+    /// 把标签滚动区的最大宽度收到「标签栏宽度 − `＋` 按钮宽度」：
+    /// 未溢出时 MaxWidth 不起作用（Auto 列仍按内容量）⇒ `＋` 贴着最后一个标签；溢出时滚动区被收窄 ⇒ `＋` 不被挤出去。
+    /// </summary>
+    private void SyncTabStripWidthCap()
+    {
+        var available = TabStrip.Bounds.Width - NewTabButton.Bounds.Width - NewTabButton.Margin.Left;
+        if (!double.IsFinite(available) || available < 0) return;
+        TabsScroll.MaxWidth = available;
     }
 
     // ==================== 标签栏：滚轮切换 + 切换后滚到可见 ====================

@@ -37,7 +37,7 @@
     <Window.Resources>
         <DataTemplate x:Key="TabItemTemplate">
             <!--  标签项 = 纯标题（无图标）；✕ 仅在鼠标悬停本标签时显示（样式控制）  -->
-            <Border Classes="tab-item" Classes.active="{Binding IsActive}" IsVisible="{Binding ShowInTabStrip}">
+            <Border Classes="tab-item" Classes.active="{Binding IsActive}" IsVisible="{Binding IsVisibleInStrip}">
                 <!--  单格 Grid：标题按钮撑开标签宽度，关闭按钮**叠在上层贴右端**（不占位 → 标签更窄）  -->
                 <Grid>
                     <Button
@@ -143,13 +143,14 @@
                         VerticalAlignment="Stretch"
                         Background="Transparent"
                         chrome:WindowDecorationProperties.ElementRole="User"
-                        ColumnDefinitions="*,Auto">
-                        <!--  🔴 v3.66 第十八轮：**取消「首页固定列」** —— 首页标签与其余标签一视同仁进滚动区
-                              （启动即打开，仍 `CanClose=false`；零标签兜底照旧回首页）。
-                              滚动区 `HorizontalAlignment=Left` ⇒ 宽度自适应内容：标签不满一行时 `＋` 紧跟最后一个标签，
-                              标签溢出时 `*` 列吃满 ⇒ `＋` 常驻最右、滚不丢。
+                        ColumnDefinitions="Auto,Auto">
+                        <!--  🔴 v3.68：标签栏**宽度跟随标签数量**（类浏览器）——
+                              滚动区放 `Auto` 列 ⇒ 标签不满一行时 `＋` **紧跟最后一个标签**；标签溢出时
+                              由 code-behind 把滚动区 `MaxWidth` 收到可用宽度 ⇒ `＋` 常驻最右、始终可见。
+                              首页标签平时不进栏，**激活时出现**（见 `TabItemViewModel.IsVisibleInStrip`）。
                               ⛔ 不做「固定其他标签页」功能（「固定」需求走首页收藏夹 / 常用功能，见需求 §4.2）。  -->
                         <ScrollViewer
+                            x:Name="TabsScroll"
                             Grid.Column="0"
                             HorizontalAlignment="Left"
                             HorizontalScrollBarVisibility="Hidden"
@@ -172,6 +173,7 @@
                               NT-045：图标矢量 `IconPlus`（24×24 网格，等比缩到 14px），颜色 / 粗细走
                               `Button.tab-new Path` 样式。  -->
                         <Button
+                            x:Name="NewTabButton"
                             Grid.Column="1"
                             Classes="tab-new"
                             Command="{Binding OpenHomeTabCommand}"

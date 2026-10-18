@@ -1,6 +1,7 @@
 # NewToys 框架层（Framework）
 
-> v4.0 · 2026-10-18 · **标准角色：工程规范（框架层部分）**
+> v4.1 · 2026-10-18 · **标准角色：工程规范（框架层部分）**
+> v4.1：新增 **§4.6 应用级设置 / 首页 / 功能清单** —— 三者属 `src/Shell`（`Module.Settings` 已于 NT-062 撤销），原 `modules/settings-app.md` 内容并入本节并删除该文件；`modules/` 只剩 4 个真模块。
 > 本文件 = **框架层（Shared / Core / Shell / NewToys.UI）的实现约定**，外加**跨模块待办**的唯一收口处。
 > 原 `NewToys-工程规范.md` 已于 2026-10-18 拆分：**框架层 → 本文件**｜**UI 规范 → `ui.md`**｜**各模块 → `modules/<模块>.md`**。
 > 权威源 = `src/` 源码；代码与文档冲突以源码为准并回写本文。
@@ -12,7 +13,7 @@
 - §1 编码规范（C#）
 - §2 程序集与依赖边界
 - §3 启动顺序与模块加载
-- §4 菜单注册与导航
+- §4 菜单注册与导航（含 **§4.6 应用级设置 / 首页 / 功能清单**）
 - §5 页面解析与 VM 定位
 - §6 UI 契约（Shared 侧接口）
 - §7 配置与路径
@@ -34,11 +35,11 @@
 | `NewToys-需求规格.md` | 需求规格（宪法） | 定位 / 边界 / 技术框架 / UI 框架 / 导航模型 / 功能域 | 涉及功能与边界 |
 | **本文件 `framework.md`** | 工程规范 · 框架层 | 程序集边界 / 启动 / 菜单 / 加载 / 契约 / 配置 / 构建 / 技术债 / **跨模块待办** | 改 Shared/Core/Shell 或新建模块 |
 | **`ui.md`** | 工程规范 · UI | 尺寸密度 / 主题键 / 图标 / CSD / 列表页 / 详情卡 / 工具条 | 改任何 `.axaml` |
-| **`modules/<模块>.md`** | 模块说明 | 该模块的职责 / 当前功能 / 实现逻辑 / 数据 / 坑点 / 待办 | **改哪个模块读哪个** |
+| **`modules/<模块>.md`** | 模块说明 | 该模块的职责 / 当前功能 / **操作逻辑（§2.5）** / 实现逻辑 / 数据 / 坑点 / 待办 | **改哪个模块读哪个** |
 | `NewToys-项目状态与路线图.md` | 工作项台账 | 基线 / 已完成 / Backlog 索引 | 会话开始读「一、当前基线」 |
 | `backlog/<模块>/NT-xxx.md` | 任务卡 | 实施期工作稿 | 只有实施该卡才读 |
 | `NewToys-AI协作手册.md` | 协作手册 | 研发流程 + 术语对照（🔴 唯一源） | 流程/术语有疑问 |
-| `NewToys-软件说明书.md` | 用户手册 | 用户视角功能说明（不含实现细节） | 写用户文档时 |
+| `NewToys-软件说明书.md` | **使用层**（用户手册） | 用户视角：每页干什么 / 谁会用 / 典型场景 / 数据在哪（⛔ 无实现细节） | 问「怎么用」、写用法说明 |
 
 **拆分原则**：一个功能模块一个 md；新增模块 = 新增 `modules/<模块>.md` + `backlog/<模块>/`。
 
@@ -134,7 +135,7 @@
 4. **Debug 链路两处登记**：`Shell.csproj` Debug 条件 `ProjectReference` + `App.axaml.cs` 的 `#if DEBUG` 清单。
 5. `Initialize` 里 `RegisterModule` + `RegisterFunction`，`viewName` = View 类名，`icon` = Geometry 键。
 6. **有设置页时**：View/VM 放**本模块** `Views/SettingsXxxView.axaml(+.cs)` + `ViewModels/SettingsXxxViewModel.cs`；`RegisterFunction(<本模块分组键>, "settings-<模块键>", …, Order)` 注册进**本模块的一级菜单**（⛔ 不跨组，Order 排本组末位）。设置落 `config\<模块>.json`，模块只读、唯一写入点 = 该设置页。🔴 菜单标题**保持长名**（如「脚本管理器设置」）—— 它是独立标签页标题。
-7. **建 `modules/<模块>.md`**（照 6 节模板）+ `backlog/<模块>/` 目录。
+7. **建 `modules/<模块>.md`**（照 7 节模板，含 §2.5 操作逻辑）+ `backlog/<模块>/` 目录。
 
 ```csharp
 public interface IModule {
@@ -195,8 +196,9 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 
 ### 4.3 标签栏机制
 
-- 🔴 **首页 ⛔ 不进标签栏**：`TabItemViewModel.ShowInTabStrip = false` ⇒ 模板根 `Border` 隐藏、不占位；仍 `CanClose=false`、仍在 `Tabs` 里（零标签兜底回首页）。
-- 标签栏 = `Grid ColumnDefinitions="*,Auto"`：`*` 列 `ItemsControl` **直接绑 `Tabs`**（横排 `ItemsPanel` 必须显式写，否则默认竖排 + 竖滚禁用 = 只显示第一个）；`Auto` 列 `＋` 常驻最右。
+- 🔴 **首页不常驻标签栏、激活时露出**（v3.68）：`TabItemViewModel.ShowInTabStrip = false` ⇒ 平时模板根 `Border` 隐藏、不占位；**它被激活时可见**（模板绑 `IsVisibleInStrip = ShowInTabStrip || IsActive`，`IsActive` 变化即重算）—— 否则看不出当前在哪一页。仍 `CanClose=false`、仍在 `Tabs` 里（零标签兜底回首页）。
+- 标签栏 = `Grid ColumnDefinitions="Auto,Auto"`：`Auto` 列 `ScrollViewer(TabsScroll)` 内 `ItemsControl` **直接绑 `Tabs`**（横排 `ItemsPanel` 必须显式写，否则默认竖排 + 竖滚禁用 = 只显示第一个）；`Auto` 列 `＋`（`NewTabButton`）**紧跟最后一个标签**。
+- 🔴 **宽度类浏览器行为**：标签少 ⇒ 滚动区按内容量，`＋` 贴着最后一个标签；标签溢出 ⇒ code-behind `SyncTabStripWidthCap()` 把 `TabsScroll.MaxWidth` 收到「标签栏宽 − `＋` 宽 − 左边距」⇒ 滚动区收窄、`＋` 常驻最右且始终可见（挂 `TabStrip` / `TabsControl` / `NewTabButton` 三处 `SizeChanged`）。⛔ 别再改回 `*` 列（`＋` 会被推到整条最右、脱离标签）。
 - `＋` = `OpenHomeTabCommand` → `OpenTab(HomeKey)`（⛔ 不指 `settings-all`）。
 - ⛔ 不做「固定其他标签页」（固定需求走首页收藏夹）⇒ 无通用「固定位」机制。
 - 旧机制 `ScrollableTabs` / `HomeTab` / `SyncTabMirror` / `SyncScrollableTabs` **全部已删**。
@@ -215,6 +217,90 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 - 图标 = **唯一图标工厂 `CreateAppIcon(accent)`**（窗口 + 托盘同源，随强调色）+ `Resources/app.ico`（exe 图标）⇒ ⛔ 不再代码画、⛔ 不写死强调色。
 - 左键 = 切显示 / 隐藏；右键五项菜单：首页 · 设置 · 用另一个配置打开…（子菜单排除当前配置 / 无其他配置时置灰，先拉起窗口再导航）· 退出。
 - ⚠️ 技术债：图标**形状两处定义**（C# 常量与 ICO 口径），改一处须同步另一处。
+
+### 4.6 应用级设置页 / 首页 / 功能清单（Shell 页面，不是模块）
+
+> 🔴 **定位**：应用级设置归**框架层**（`src/Shell`）。`Module.Settings` 已于 NT-062 撤销，⛔ 别再当模块写、⛔ 不建 `modules/settings-app.md`。
+> 入口 = 左树底部**版本行齿轮** / `Ctrl+,` / 标题栏搜索 / 首页一键区 `⚙`（跳 `settings-launch`，归一到页 Key `settings`）。**左树无「设置」一级菜单**；模块专属设置在本模块分组末位（如 `settings-script`）。
+
+**7 个节锚点 + 关于**（`Shell/Settings/AppSettingsRegistration.cs` 注册进不渲染的 `system` 组）
+
+| 节锚点 Key | 标题 | Order | 分类 | 内容 |
+|---|---|---|---|---|
+| `settings-general` | 启动与退出 | 0 | `General` | 开机启动 / 托盘 / 关闭按钮行为 |
+| `settings-update` | 更新 | 1 | `Update` | 版本文件地址 + 手动检查更新 |
+| `settings-theme` | 主题外观 | 1 | `Theme` | 明暗模式 / 强调色 |
+| `settings-path` | 路径与配置 | 2 | `Environment` | 运行环境路径 + 多配置档（分类列区分行） |
+| `settings-launch` | 一键按钮 | 3 | `Launch` | 首页三个一键按钮的配置 |
+| `settings-dns` | 加密 DNS | 4 | `Network` | 加密 DNS / 网络 |
+| `settings-data` | 数据管理 | 6 | `Data` | 备份 / 导入 `config` |
+| —（`settings-about`） | 关于 | — | `About` | **无节锚点**，只在页内可点进入 |
+
+- 🔴 **所有 Key ⛔ 不改**：首页跳转 / 收藏白名单 / 托盘「打开设置」都按 Key 寻址。
+- 「通用」已拆成 `settings-general` / `-update` / `-theme` **三节共用一个 VM**。
+- 另有 `settings-all`（功能清单页，Order 7，`AllFunctionsView`）。
+
+**页面结构机制**（`SettingsView.axaml(.cs)`）
+
+- **树状手风琴滚动 + 抬头磁吸浮层**：逻辑在 code-behind；🔴 类名 `sec-head` / `sec-body` 别删，`StuckHeader.DataContext=null` 别删（磁吸浮层 DataContext 隔离）。
+- 每节内含工具条（`HasToolbar` 门控，`ToolbarHost` 挂在节抬头下方）；⛔ **工具条不上抛页顶**；节 View **⛔ 带内层 `ScrollViewer`**（会出现双滚动条 + 磁吸失效）。
+- 切节 ⇒ `ActiveSection` 变 ⇒ `SectionChanged` ⇒ Shell 重绑工具条 / 状态栏 / 详情卡（漏了就"画得出来、点不动"）。
+- 用户**手动收起**的节记 `UserCollapsed`，滚动自动展开时跳过（用户意图优先）。
+- `settings-path` 节正文用 `ListPageSkeleton` 且 `Margin="0"`。
+
+**节 / VM 归属**
+
+| 节 | View | VM |
+|---|---|---|
+| 启动与退出 / 更新 / 主题外观 | `GeneralView` / `UpdateView` / `ThemeView`（三节共用 VM 宿主） | `GeneralViewModel` 等 |
+| 路径与配置 | `PathView` | `PathViewModel` + `Models/PathSettingItem` |
+| 一键按钮 | `LaunchConfigView` | `LaunchConfigViewModel` |
+| 加密 DNS | `DnsView` | `DnsViewModel` |
+| 数据管理 | `DataView` | `DataViewModel` |
+| 关于 | `AboutSettingsView` | `AboutSettingsViewModel` |
+| 页宿主 | `SettingsView` | `SettingsViewModel` + `Models/SettingsSection` |
+
+- 复合页工具条：节 VM 靠 **`IToolbarOwner.ToolbarOwner`** 当承载者（见 §6.4）。
+- 设置模型类被两模块共用时放 `Shared`（⛔ 双真相源）；配置落 `config\theme.json` / `app.json` / `launch.json` / `columnlayout.json`（见 §7.1）。
+
+**操作逻辑**
+
+| 操作 | 触发 | 结果 / 状态变化 | 约束 |
+|---|---|---|---|
+| 展开 / 折叠节 | 点节抬头 | 手风琴：展开一节其余收起 | 手动收起的节不被自动展开 |
+| 切节 | 点另一节抬头 / 页内搜索命中 | 工具条 / 状态栏 / 详情卡重绑到该节 VM | 见上「SectionChanged」 |
+| 滚动 | 滚轮 | 当前节抬头磁吸顶部 | — |
+| 页内搜索 | 顶部搜索框 | 只覆盖已注册节与一级项，命中即跳节 | 二级菜单项搜索未做（NT-066） |
+
+**各节写入方式**（每项只有本页一个写入点）
+
+| 节 | 时机 | 备注 |
+|---|---|---|
+| 启动与退出 / 更新 / 主题外观 / 一键按钮 / 加密 DNS | 即时落盘 | 主题即时生效 |
+| 路径与配置 | 编辑即落盘 | **切换配置二次确认 + 本窗重启**；`🚀 新开` 同时开两套；外部程序路径**惰性探测**，缺失 ⇒ 状态栏 `⚠` 可点提示，⛔ 不崩 |
+| 数据管理 | 显式动作 | 备份**只打包 `config\`**（⛔ 不含可重建的 `data\`）；导入 config |
+
+**功能清单页 `settings-all`**
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 重载模块 | 增加功能区 `🔄 重载模块` | 扫 `Modules\` 新增模块并加载 | **只新增**，移除要重启 |
+| 当选择器用 | 标题栏 `＋` / 关于节按钮 | 选中功能开标签，**不切走当前页** | — |
+
+**首页 `home`**
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 一键按钮 | 点一键卡 | 按 `config\launch.json` 启动 | 配置来自「设置 → 一键按钮」 |
+| 收藏 | 功能项 ★ | 写 `config\favorites.json`（即时） | — |
+| 显示更多 | 收藏卡尾部 | 就地展开功能清单 | ⛔ 不跳页 |
+| 标签行为 | — | `ShowInTabStrip=false`、`CanClose=false` | 零标签兜底回首页（见 §4.3） |
+
+**坑点**
+
+1. 🔴 内容区 = `ContentControl` + `{Binding ActiveTab.Content}`，⛔ 不自己 `Children.Add`、⛔ 不绑独立属性。修「不换页 / 双击」落点 = `OnActiveTabChanged`（重活包 try/catch + `finally` 补发 `OnPropertyChanged(nameof(ActiveTab))`）。
+2. 菜单标题**保持长名**（如「脚本管理器设置」）—— 它是独立标签页标题。
+3. Shell 自带页面也走 `ResolveView` ⇒ 🔴 **类名必须全局唯一**（历史两处 `DnsView` 撞车）。
 
 ---
 
@@ -325,6 +411,9 @@ public interface IDetailCardSource
 | `launch.json` | 应用级设置 | 三个一键按钮 + 4 个通用开关 |
 | `package.json` | 脚本管理器 | 软件包查询偏好。软件源本身不在这里 |
 | `script-manager.json` | 脚本管理器 | `IOptionsStore` 分区名 `script-manager`，唯一写入点 = `settings-script` 页：脚本目录。⚠️ 分区名 ≠ 模块键（模块键是 `script`），历史惯例 |
+| `web-tools.json` | 网络工具 | `IOptionsStore` 分区 `web-tools`，唯一写入点 = `settings-web-tools` 页：默认 UA / 抓取超时 |
+| `video-tools.json` | 视频工具 | `IOptionsStore` 分区 `video-tools`，唯一写入点 = `settings-video-tools` 页：最大并发数 |
+| `media-assets.json` | 媒体资产 | 唯一写入点 = `settings-media-assets` 页：扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 |
 | `favorites.json` | 首页 | 收藏夹 |
 | `script\script.json` | 脚本管理器 | 手工数据（集合 / 条目 / 标签 / 视图 / 上次集合）。原子写（`.tmp` + rename） |
 | `columnlayout.json` | 框架层 | 列显隐 + 页面级开关（详情栏开合 `FlagDetailPanel`；壳级页 Key `"shell"`：左树折叠态 `treeCollapsed` + 各一级分组展开态 `treeGroup:<groupKey>`，默认 false） |
@@ -389,16 +478,15 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B5 平台后端** | 完全跨平台 | 后端仍调 winget / ffmpeg 命令行，类型已中立为 `Package*` | 迁 Debian 时替换 | Core 服务 |
 | **B6 仓库根 slnx** | 唯一入口 `src/NewToys.slnx` | 仓库根残留旧 `NewToys.slnx` 副本 | 直接删除即可 | 仓库 |
 | **B7 Modules 冗余 DLL** | `Modules\` 仅含模块 DLL | 会多出 `NewToys.Shared.dll` / `NewToys.Core.dll` | 无害暂留 | Release 产物 |
-| **B8 闲置转换器** | 不留无用文件 | ✅ 已删（2026-10-14） | — | Shell |
-| **B9 骨架页面** | 全部页面真实逻辑 | ✅ 零骨架（`web-http` 已落成） | — | Module.WebTools |
 | **B10 运行期热加载** | 任意模块随时加载 / 卸载 / 替换 | 仅支持「新增未加载过的模块」；容器已 build，模块不能注册新服务 | 引入可卸载 ALC + 模块级容器 | ModuleLoader + Shell |
 | **B11 反射使用** | 最小魔法 | 模块装配 / 热加载 / 视图解析三处用反射 | 机制必需暂不改；⛔ 仅限这三处 | ModuleLoader / ShellViewModel |
 | **B12 前进/后退** | 所有页面丰富页内导航 | 仅 `video-list` 有目录语义；多数页灰显 | 各页逐步实现 `IHistoryProvider` | 各模块页面 |
-| **B13 详情面板上提** | 详情由 Shell 统一承载 | ✅ 16/16 张卡全部声明式（2026-10-15 结清） | — | Shared + Shell + 各模块 |
 | **B14 媒体资产用户数据落库** | 手动数据落 `config\` 进备份 | 标签 / 分类 / 集合 / 关联暂存 `data\newtoys.db`，与需求 §3.5 定位冲突 | 用户拍板独立库 / 纳入备份时 | Module.MediaAssets |
 | **B15 数据驱动图标** | 全矢量 | 二级菜单 `icon` / 首页一键按钮 / 模块页内数据行仍 emoji | 收敛工作项 **NT-047** | 各模块注册 + 首页 |
 | **B16 `SetWindowRgn` 方角硬手段** | 官方 corner preference 稳定生效 | 保留 `ApplySquareRegion()` + `SetCornerPreferenceNoRound()` 双保险 | NT-042 已裁决保留（阴影代价已证伪） | `ShellView.axaml.cs` |
 | **B17 窗口装饰 Win32 补丁残留** | 零补丁 | 方角两处 + `WM_NCCALCSIZE` 零内缩（Windows 独有例外）；样式位补位 / 贴靠纠偏已删 | 见 B16 + Avalonia 提供等价开关；迁非 Windows 前须补外框门控与窗口记忆回退 | `ShellView.axaml(.cs)` + `App.axaml` |
+
+**已结清并移出本表**：B8（闲置转换器，已删）/ B9（骨架页面，零骨架）/ B13（详情面板上提，16/16 声明式）—— 明细见 `git log`。
 
 ---
 
@@ -414,7 +502,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT-065 | **分页推广到脚本库 / 命令库**：挂 `ListPageSkeleton` 底栏 + VM 分页（JSON 清单 ⇒ 内存切片，⛔ 不做 SQL） | 📝 草稿 |
 | NT-066 | **标题栏搜索扩范围**：可搜二级菜单项 + 设置页节点（现只搜一级 / 已注册项）；跨 Shell ⇒ 需用户授权 | 📝 草稿 |
 | NT-067 | **信息展示脚本化底座**（原 `pc-info`）：`ScriptRunner` / `InterpreterResolver` / `SysInfoGrid` 已落地并被 NT-068 继承 | ✅ 已实施 |
-| NT-068 | **脚本管理器重构**：改名 + 数据库化 + 集合 + 信息面板分节（S1~S8 分步；S7 待拍板） | 🔨 实施中 |
+| NT-068 | **脚本管理器重构**：改名 + 数据库化 + 集合 + 信息面板分节（S1~S8 全部分步完成） | ✔ 已完成（⏳ 待本地验收） |
 
 ---
 

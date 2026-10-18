@@ -15,7 +15,7 @@ backlog/
   media-assets/     媒体资产
   video-tools/      视频工具
   web-tools/        网络工具
-  settings-app/     应用级设置 + 首页
+  (无 settings-app/ —— 应用级设置 + 首页的卡已于 2026-10-18 整目录删除，新卡一律放 framework/)
 ```
 
 - **一个模块一个目录**；新增模块 ⇒ 新增同名目录（与 `docs/modules/<模块>.md` 同名）。
@@ -63,7 +63,7 @@ backlog/
 # NT-xxx · <标题>
 - 状态：📝 草稿 Draft | ✅ 就绪 Ready | 🔄 执行中 In Progress | ✔ 已完成 Done（待验收）
 - 优先级：P0 / P1 / P2
-- 关联模块：script-manager | media-assets | video-tools | web-tools | settings-app | framework
+- 关联模块：script-manager | media-assets | video-tools | web-tools | framework（应用级设置 / 首页 / 功能清单已归 framework）
 - 关联需求：需求规格 §x.y
 - 依赖：NT-yyy（无则删此行）
 - 创建：YYYY-MM-DD ｜ 更新：YYYY-MM-DD

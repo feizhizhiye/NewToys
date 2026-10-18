@@ -8,7 +8,7 @@ namespace NewToys.Shell.ViewModels;
 /// <para>
 /// 单例语义：同一 <see cref="Key"/> 只允许一个标签页存在（工具类应用，非文档编辑器）。
 /// 首页标签 <see cref="CanClose"/>=false 且 <see cref="ShowInTabStrip"/>=false（v3.66 第十八轮：
-/// 它不进标签栏，入口 = 标签栏 `＋`）。
+/// 它不常驻标签栏，入口 = 标签栏 `＋`；但**激活时会在标签栏露出**，见 <see cref="IsVisibleInStrip"/>）。
 /// </para>
 /// </summary>
 public partial class TabItemViewModel : ObservableObject
@@ -32,10 +32,15 @@ public partial class TabItemViewModel : ObservableObject
     public bool CanClose { get; }
 
     /// <summary>
-    /// 是否在标签栏里出现（v3.66 第十八轮）：首页 = <c>false</c> —— 它不再是标签栏里那个"固定按钮"，
-    /// 只作为内容区的**默认页**存在（入口 = 标签栏 `＋`，见 <c>ShellViewModel.OpenHomeTabCommand</c>）。
+    /// 「是否**常驻**标签栏」：普通标签 <c>true</c>；首页 <c>false</c>（v3.66 第十八轮起首页不做固定按钮，
+    /// 入口 = 标签栏 `＋`）。⚠️ 首页激活时**仍要在标签栏露出**（否则看不出当前在哪一页）⇒ 见 <see cref="IsVisibleInStrip"/>。
     /// </summary>
     public bool ShowInTabStrip { get; }
+
+    /// <summary>
+    /// 标签栏里**实际是否可见**（v3.68）：常驻标签恒可见；首页只在**激活时**出现，切走即隐去。
+    /// </summary>
+    public bool IsVisibleInStrip => ShowInTabStrip || IsActive;
 
     [ObservableProperty] private bool _isActive;
 
@@ -65,4 +70,7 @@ public partial class TabItemViewModel : ObservableObject
         OnPropertyChanged(nameof(Content));
         OnPropertyChanged(nameof(ViewModel));
     }
+
+    /// <summary>激活态一变，标签栏可见性（首页联动）也要重算。</summary>
+    partial void OnIsActiveChanged(bool value) => OnPropertyChanged(nameof(IsVisibleInStrip));
 }

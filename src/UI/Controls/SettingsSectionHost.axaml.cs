@@ -31,7 +31,8 @@ namespace NewToys.UI.Controls;
 /// 🔴 两种用法：
 /// <list type="bullet">
 ///   <item>**应用级** = 代码构节 + <c>ItemsSource</c> 绑定 + <c>ToolbarTemplate</c>（节内工具条）；</item>
-///   <item>**模块级** = XAML 直接写子元素（<see cref="Sections"/> 是内容属性）+ <c>Sticky="False"</c>。</item>
+///   <item>**模块级** = XAML 用属性元素 <c>&lt;ui:SettingsSectionHost.Sections&gt;</c> 列出各节 + <c>Sticky="False"</c>
+///         （⛔ 别把 <see cref="Sections"/> 标 <c>[Content]</c>：会抢掉 <c>UserControl.Content</c> ⇒ AVLN3000）。</item>
 /// </list>
 /// </para>
 /// </summary>

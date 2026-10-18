@@ -11,6 +11,9 @@
       ④ 节自带工具条（`HasToolbar`）= 抬头下方、正文之上，模板由宿主页经 `ToolbarTemplate` 给
          （Shell 传 ToolbarHost；模块页不给 ⇒ 无工具条）。
     🔴 折叠 / 磁吸 / Push / 自动展开 / 滚动定位全在 SettingsSectionHost.axaml.cs，⛔ VM 不认识视口。
+    🔴 节列表 = `Sections`（模块页用属性元素 `<ui:SettingsSectionHost.Sections>` 写；应用级走 `ItemsSource` 绑定）——
+       ⛔ 该属性不能标 `[Content]`（会抢掉 `UserControl.Content`，本文件根 `<Panel PageRoot>` 会被当成一个节 ⇒ AVLN3000）。
+    ⚠️ 箭头几何 `IconChevronDown/Right` 引用 App 级资源（`ui.md` §5 图标唯一源）。
     🔴 类名 `sec-head`（code-behind 用 `Classes.Contains("sec-head")` 找抬头）⛔ 别删；`sec-body` 标正文区。
   -->
   <UserControl.Resources>

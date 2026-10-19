@@ -208,10 +208,9 @@
                     VerticalAlignment="Stretch"
                     Orientation="Horizontal"
                     chrome:WindowDecorationProperties.ElementRole="User">
-                    <!--  v3.66 / NT-062：**设置搜索**（原「应用级设置页」页内的标题栏 + 搜索框已删）——
-                         按钮放在窗口按钮组最左侧（= 最大化的左侧），点击弹出输入框、**回车**搜索。
-                         搜索范围 = 应用级设置页的**节**（标题 / 一句话说明）：命中 ⇒ 打开设置页 + 展开该节
-                         （其余节收起）；未命中 ⇒ 底栏给一行提示。
+                    <!--  NT-066：搜索范围扩到**二级菜单项 + 应用级设置页的节点**（原来是"只搜设置节"）——
+                         输入即出结果列表（子串匹配），↑↓ 选择、回车 / 双击打开；
+                         菜单项 ⇒ 直接开页；设置节点 ⇒ 开设置页并**展开 + 滚动**到该节。
                          🔴 弹出内容在**弹出树**里（不在本窗口 NameScope）⇒ ⛔ 不给内部控件 `x:Name`，
                              一律由 code-behind 用 `sender` 取（见 `OnSearchBoxAttached` / `OnSearchBoxKeyDown`）。  -->
                     <Button
@@ -219,7 +218,7 @@
                         Width="46"
                         Height="40"
                         Classes="title-btn"
-                        ToolTip.Tip="搜索设置（点击输入 · 回车跳转）">
+                        ToolTip.Tip="搜索（页面 · 设置项）">
                         <Path
                             Width="16"
                             Height="16"
@@ -227,19 +226,43 @@
                             Data="{StaticResource IconSearch}" />
                         <Button.Flyout>
                             <Flyout Placement="BottomEdgeAlignedRight">
-                                <StackPanel Width="230" Spacing="8">
+                                <StackPanel Width="300" Spacing="8">
                                     <TextBlock
                                         FontSize="13"
                                         FontWeight="SemiBold"
                                         Foreground="{DynamicResource PrimaryTextBrush}"
-                                        Text="搜索设置" />
+                                        Text="搜索" />
                                     <TextBox
-                                        PlaceholderText="如：DNS / 主题 / 路径 / 备份"
+                                        PlaceholderText="页面名 / 功能名 / 设置项，如：DNS"
+                                        Text="{Binding SearchText, Mode=TwoWay}"
                                         AttachedToVisualTree="OnSearchBoxAttached"
                                         KeyDown="OnSearchBoxKeyDown" />
+                                    <!--  结果列表：空集合时整块隐藏（`HasSearchResults`），⛔ 不用转换器  -->
+                                    <ListBox
+                                        MaxHeight="300"
+                                        DoubleTapped="OnSearchResultDoubleTapped"
+                                        IsVisible="{Binding HasSearchResults}"
+                                        ItemsSource="{Binding SearchResults}"
+                                        SelectedItem="{Binding SelectedSearchResult, Mode=TwoWay}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Spacing="1">
+                                                    <TextBlock
+                                                        FontSize="13"
+                                                        Text="{Binding Title}"
+                                                        TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock
+                                                        Classes="hint-text"
+                                                        Text="{Binding Detail}"
+                                                        TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
                                     <TextBlock
                                         Classes="hint-text"
-                                        Text="回车跳转并展开命中的设置节" />
+                                        Text="{Binding SearchHint}"
+                                        TextWrapping="Wrap" />
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>

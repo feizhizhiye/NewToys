@@ -2,22 +2,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.ScriptManager.Views.PackageSourceView">
   <!--
-    NT-050「软件源」设置页（View/VM 归本模块）。
-    🔴 v3.65 / NT-062：**并入「电脑设置 → 脚本管理器设置」页**（需求 §6.5：不再单独占菜单项，Key settings-package 已从菜单移除）
-      ⇒ 本控件不再是「页面」，而是被 <c>SettingsScriptView</c> **内嵌**的一块内容：
-        去掉自己的 Grid + ScrollViewer + 外边距/内边距（否则嵌套滚动、双重留白），只留内容本体。
-      数据仍落 config\package.json（可被「数据管理」备份）。
-    ⚠️ 本页**除「添加源」表单外全是开关 + 即时执行的按钮**，点一下就写系统 winget 或 config\package.json。
-    ⚠️ 状态文本由宿主页（SettingsScriptViewModel）转发到 Shell 底部状态栏（IStatusProvider）。
-
-    NT-075 简化（用户定调）：本页**只留两件事** —— ① 切换源（不常用，且源不在系统里就没得切）；
-    ② 存源信息（添加源要填名称 / 地址）。其余 winget 操作（搜索 / 安装 / 升级 / 卸载 / 刷新索引 / 查询源 …）
-    一律在「软件包」页工具条，⛔ 不在这里重复。
-      ⇒ 结构 = ① 源列表（每行右侧**开关**，拨一下立刻生效；系统里没启用的内置源补一行、开关在关位；
-          多一列「分类」，社区源 / 商店源两档**互斥**）
-          ② 「添加源」表单（名称 / 地址 / **分类**）。
-    NT-076：⛔ 删掉「✅ 生效」按钮 —— 开关拨一下就真的执行（改源要管理员权限，会弹 UAC）。
-      ⚠️ 已删（原 v3.78）：商店源独立卡片 / 社区源镜像卡片 / 默认查询源卡片 / 说明卡片。
+    「软件源」设置节（View/VM 归本模块）。
+    🔴 v3.65 / NT-062：**并入「脚本管理器设置」页**（不再单独占菜单项，Key settings-package 已移除）
+      ⇒ 本控件不再是「页面」，而是被 <c>SettingsScriptView</c> **内嵌**的一块内容。
+      数据落 config\package.json（可被「数据管理」备份）。
+    ⚠️ 状态文本由宿主页（SettingsScriptViewModel）转发到 Shell 底部状态栏。
+    🔴 v3.79 语义（实测 winget 1.29 没有 source enable/disable）：
+      关 = winget source remove（先把定义记进 package.json）；开 = 按原定义 winget source add。
+      ⇒ **每次拨开关都会弹 UAC**；商店源 msstore **不可切换**（开关置灰，只显示状态）。
+      分类只有「社区源 / 字体源」两档内部互斥（同时最多启用一个）。
   -->
   <StackPanel Spacing="16" MaxWidth="1000" HorizontalAlignment="Left">
 
@@ -37,24 +30,25 @@
             </Grid>
 
             <Border Classes="list-header" Height="36">
-              <Grid ColumnDefinitions="1.1*,3.2*,1.0*,1.1*,84">
+              <Grid ColumnDefinitions="1.1*,3.2*,1.0*,1.3*,84">
                 <TextBlock Grid.Column="0" Classes="list-cell" Text="名称" FontWeight="SemiBold"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
                 <TextBlock Grid.Column="1" Classes="list-cell" Text="地址（Argument）" FontWeight="SemiBold"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
                 <TextBlock Grid.Column="2" Classes="list-cell" Text="分类" FontWeight="SemiBold"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="类型" FontWeight="SemiBold"
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="发现" FontWeight="SemiBold"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
                 <TextBlock Grid.Column="4" Classes="list-cell" Text="启用" FontWeight="SemiBold"
                            Foreground="{DynamicResource SecondaryTextBrush}"/>
               </Grid>
             </Border>
 
-            <ListBox Classes="list-page" ItemsSource="{Binding Rows}" MaxHeight="260" SelectionMode="Single">
+            <ListBox Classes="list-page" ItemsSource="{Binding Rows}" MaxHeight="260" SelectionMode="Single"
+                     IsEnabled="{Binding IsNotBusy}">
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <Grid ColumnDefinitions="1.1*,3.2*,1.0*,1.1*,84">
+                  <Grid ColumnDefinitions="1.1*,3.2*,1.0*,1.3*,84">
                     <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Name}"
                                ToolTip.Tip="{Binding KindLabel}"
                                Foreground="{DynamicResource PrimaryTextBrush}"/>
@@ -62,15 +56,15 @@
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Grid.Column="2" Classes="list-cell accent" Text="{Binding Category}"
                                ToolTip.Tip="{Binding KindLabel}"/>
-                    <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding TypeText}"
+                    <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding ScopeText}"
+                               ToolTip.Tip="「显式」源（如 winget-font）不参与默认搜索，只有勾选它时才查"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
-                    <!-- NT-076：右侧开关**拨一下就生效**（⛔ 没有「生效」按钮）——
-                         开 = 内置源 source enable；关 = 内置源 source disable / 自定义源 source remove（二次确认）。
-                         社区源 / 商店源两档**互斥**：开一个会自动关掉同分类里其它已启用的源。 -->
+                    <!-- 开关**拨一下就生效**：开 = winget source add；关 = winget source remove（二次确认）。
+                         🔴 商店源 CanToggle=false ⇒ 开关置灰（由 winget 统一管理，不支持停用）。 -->
                     <ToggleSwitch Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center"
                                   IsChecked="{Binding IsEnabled, Mode=TwoWay}"
-                                  ToolTip.Tip="{Binding ActionTip}"
-                                  IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"/>
+                                  IsEnabled="{Binding CanToggle}"
+                                  ToolTip.Tip="{Binding ActionTip}"/>
                   </Grid>
                 </DataTemplate>
               </ListBox.ItemTemplate>
@@ -78,23 +72,23 @@
 
             <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,0"/>
             <StackPanel Margin="18,12,18,16" Spacing="8">
-              <TextBlock Text="开关拨一下立刻生效：开 = 内置源 winget source enable；关 = 内置源 source disable（源定义保留）/ 自定义源 source remove（会弹二次确认）。改源需要管理员权限，会弹 UAC。「社区源」「商店源」两档互斥（同时最多启用一个）—— 添加的镜像源与内置 winget 属同一档，开一个会自动关掉另一个；「自定义源」档不互斥，可以并存多个。系统里没启用的内置源（如商店源 msstore）会自动补一行，开关在关位。"
+              <TextBlock Text="拨开关立刻生效，且需要管理员权限（会弹 UAC）：关 = 从系统 winget 移除该源（winget 1.29 没有 source enable/disable，只能 remove），开 = 按记下的地址 / 类型重新 add 回来。只有「社区源」和「字体源」两档内部互斥（同档同时最多启用一个，开一个会自动关掉另一个）；「自定义源」可以并存多个；「商店源 msstore」由 winget 统一管理，不可切换。系统里已移除但本应用记着定义的源会补一行（开关在关位），拨开即可加回来。"
                          FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Classes="ghost" Content="↺ 恢复默认源"
-                        ToolTip.Tip="等价于 winget source reset --force：移除自定义源，重新加回 winget / msstore"
+                        ToolTip.Tip="等价于 winget source reset --force：移除自定义源，重新加回 winget / msstore / winget-font（需要管理员权限）"
                         Command="{Binding ResetSourcesCommand}" IsEnabled="{Binding IsNotBusy}"/>
               </StackPanel>
             </StackPanel>
           </StackPanel>
         </Border>
 
-        <!-- ============ 2. 添加源（NT-075：本页只留「切换源」+「存源信息」两件事 —— 其余 winget 操作都在软件包页工具条） ============ -->
+        <!-- ============ 2. 添加源（本页只留「切换源」+「存源信息」两件事） ============ -->
         <Border Classes="card">
           <StackPanel Spacing="8">
             <TextBlock Text="添加源" FontWeight="SemiBold" FontSize="14"
                        Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Text="等价于 winget source add —— 会真的写进系统 winget 的源配置（需要管理员权限，会弹 UAC）。"
+            <TextBlock Text="等价于 winget source add —— 会写进系统 winget 的源配置（需要管理员权限，会弹 UAC）。"
                        FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}"/>
             <Grid ColumnDefinitions="200,*,130,Auto" Margin="0,4,0,0">
               <TextBox Grid.Column="0" PlaceholderText="源名称（如 my-source）" Margin="0,0,8,0"
@@ -102,11 +96,11 @@
               <TextBox Grid.Column="1" PlaceholderText="https://cdn.winget.microsoft.com/cache（微软官方 winget 源）" Margin="0,0,8,0"
                        Text="{Binding NewSourceArgument, Mode=TwoWay}"
                        ToolTip.Tip="水印里的地址就是微软官方社区源；想加镜像就把地址换成镜像站（如中科大 https://mirrors.ustc.edu.cn/winget-source）"/>
-              <!-- NT-076：分类决定这个源**跟谁互斥** —— 选「社区源」就与内置 winget 互斥（开它会自动关掉 winget）。 -->
+              <!-- 分类决定这个源**跟谁互斥** —— 选「社区源」就与内置 winget 互斥；选「字体源」会自动加成显式源。 -->
               <ComboBox Grid.Column="2" Margin="0,0,8,0" MinWidth="0" HorizontalAlignment="Stretch"
                         ItemsSource="{Binding CategoryOptions}"
                         SelectedItem="{Binding NewSourceCategory, Mode=TwoWay}"
-                        ToolTip.Tip="这个源属于哪一档：社区源 / 商店源 两档与内置源互斥（同时只能启用一个）；自定义源不互斥"/>
+                        ToolTip.Tip="社区源 / 字体源两档内部互斥（同时只能启用一个）；字体源会加成「显式源」（不参与默认搜索）；自定义源不互斥"/>
               <Button Grid.Column="3" Classes="ghost" Content="➕ 添加" Command="{Binding AddSourceCommand}"
                       IsEnabled="{Binding IsNotBusy}"/>
             </Grid>

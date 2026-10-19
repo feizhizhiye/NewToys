@@ -327,7 +327,7 @@ public class ScriptStoreService : IScriptStoreService
             Name = name,
             Kind = kind,
             Icon = icon,
-            Description = $"{name}里的全部条目（内置集合，可改名、不可删）",
+            Description = $"{name}里的全部条目（默认库：没有归属的条目会自动收进来，可改名、⛔ 不可删）",
             Order = order,
             Builtin = true,
             RefreshMode = ScriptRefreshMode.Manual,

@@ -34,8 +34,9 @@ namespace NewToys.Shell.ViewModels;
 ///         🔴 第五轮起**工具条不再上抛**（原走 <c>IToolbarOwner</c> ⇒ 顶到页面顶部）——
 ///         改为**在节内渲染**：节点抬头下方由 <c>SettingsView</c> 挂 <c>ToolbarHost</c>
 ///         （<see cref="SettingsSection.HasToolbar"/> 门控，用户要求"放回本节内容顶部"）；</item>
-///   <item>**页内搜索整体删除**（页面标题栏与搜索框都撤了）⇒ 搜索入口 = 标题栏窗口按钮组左侧的搜索按钮，
-///         经 <c>ShellViewModel.SearchSettingsCommand</c> 调本页 <see cref="SearchAndOpen"/>；</item>
+///   <item>**页内搜索整体删除**（页面标题栏与搜索框都撤了）⇒ 搜索入口 = 标题栏窗口按钮组左侧的搜索按钮；
+///         🔴 NT-066 起搜索**不再只搜本页的节** —— 统一走 <c>ShellViewModel</c> 的索引（菜单项 + 本节清单），
+///         命中本节清单的项 ⇒ <c>OpenTab(节锚点)</c> 归一成本页并展开该节（本页不再有自己的搜索入口）。</item>
 ///   <item>**「通用」节点拆成三个**（原来一页塞了启动与退出 / 更新检查 / 主题外观三组设置，
 ///         用户要求"拆开、删除通用"）：节锚点 = `settings-general`（启动与退出，⛔ Key 不变）+
 ///         新增 `settings-update` / `settings-theme`；三个节**共用同一个 <c>GeneralViewModel</c>**。</item>
@@ -51,6 +52,30 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
 
     /// <summary>应用级设置的节（顺序 = 需求 §4.9.2 的表；v3.66 第五轮：「通用」拆成前三个节）。</summary>
     public ObservableCollection<SettingsSection> Sections { get; } = new();
+
+    /// <summary>
+    /// 一个设置节的**元数据**（NT-066）：标题 / 图标 / 一句话说明。
+    /// <para>View 与 VM 由 <see cref="BuildSections"/> 现场从 DI 装配，⛔ 元数据不再散落在 <c>Add(...)</c> 实参里。</para>
+    /// </summary>
+    public sealed record SectionMeta(string Key, string Title, string Icon, string Desc);
+
+    /// <summary>
+    /// 全部节的元数据 = **单一来源**（NT-066）：节装配按它、标题栏搜索的「设置项」索引也按它。
+    /// 🔴 顺序 = 页内显示顺序；⛔ 增删节时同步改这里（漏改 ⇒ 搜索不到 / 标题过时）。
+    /// </summary>
+    public static readonly IReadOnlyList<SectionMeta> Catalog = new SectionMeta[]
+    {
+        new("settings-general", "启动与退出", "⚙", "开机启动 / 托盘 / 关闭按钮行为"),
+        new("settings-theme", "主题外观", "🎨", "明暗模式与强调色"),
+        new("settings-launch", "一键按钮", "🚀", "首页三个一键按钮的程序与网址"),
+        new("settings-path", "运行环境", "📁", "配置档 + 外部程序路径（ffmpeg / 播放器 / 解释器）"),
+        new("settings-dns", "网络", "🛡", "加密 DNS 与网络配置"),
+        new("settings-data", "数据", "💾", "备份 / 导入 config 配置"),
+        new("settings-update", "版本与更新", "🔄", "版本号 / 检查更新 / 功能清单 / 重载模块"),
+    };
+
+    /// <summary>按节锚点取元数据（装配用；Key 写错即启动期抛，好过静默少一节）。</summary>
+    private static SectionMeta Meta(string key) => Catalog.First(m => m.Key == key);
 
     /// <summary>最近一次被激活（外部寻址 / 展开）的节 —— Shell 的左树高亮 / 分组展开按它寻址。</summary>
     [ObservableProperty] private SettingsSection? _activeSection;
@@ -110,41 +135,33 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         var generalVm = _sp.GetRequiredService<GeneralViewModel>();
 
         // Key ⛔ 不变：首页收藏卡 / 收藏白名单 / Ctrl+, 都按 `settings-general` 寻址（需求 §5.1）
-        Add("settings-general", "启动与退出", "⚙", "开机启动 / 托盘 / 关闭按钮行为",
-            () => _sp.GetRequiredService<GeneralView>(), () => new object?[] { generalVm });
+        Add(Meta("settings-general"), () => _sp.GetRequiredService<GeneralView>(), () => new object?[] { generalVm });
 
-        Add("settings-theme", "主题外观", "🎨", "明暗模式与强调色",
-            () => _sp.GetRequiredService<ThemeView>(), () => new object?[] { generalVm });
+        Add(Meta("settings-theme"), () => _sp.GetRequiredService<ThemeView>(), () => new object?[] { generalVm });
 
-        Add("settings-launch", "一键按钮", "🚀", "首页三个一键按钮的程序与网址",
-            () => _sp.GetRequiredService<LaunchConfigView>(), () => new object?[] { _sp.GetRequiredService<LaunchConfigViewModel>() });
+        Add(Meta("settings-launch"), () => _sp.GetRequiredService<LaunchConfigView>(), () => new object?[] { _sp.GetRequiredService<LaunchConfigViewModel>() });
 
         // 「运行环境」= 配置档 + 外部程序路径；进入本节才做**惰性探测**（需求 §4.9.2 第 5 条）
         var pathVm = _sp.GetRequiredService<PathViewModel>();
-        Add("settings-path", "运行环境", "📁", "配置档 + 外部程序路径（ffmpeg / 播放器 / 解释器）",
-            () => _sp.GetRequiredService<PathView>(), () => new object?[] { pathVm },
+        Add(Meta("settings-path"), () => _sp.GetRequiredService<PathView>(), () => new object?[] { pathVm },
             onActivated: () => pathVm.ProbeExternalTools());
 
-        Add("settings-dns", "网络", "🛡", "加密 DNS 与网络配置",
-            () => _sp.GetRequiredService<DnsView>(), () => new object?[] { _sp.GetRequiredService<DnsViewModel>() });
+        Add(Meta("settings-dns"), () => _sp.GetRequiredService<DnsView>(), () => new object?[] { _sp.GetRequiredService<DnsViewModel>() });
 
-        Add("settings-data", "数据", "💾", "备份 / 导入 config 配置",
-            () => _sp.GetRequiredService<DataView>(), () => new object?[] { _sp.GetRequiredService<DataViewModel>() });
+        Add(Meta("settings-data"), () => _sp.GetRequiredService<DataView>(), () => new object?[] { _sp.GetRequiredService<DataViewModel>() });
 
         // 🔴 v3.67（用户 2026-10-18 拍板）：原「更新」节 + 原「关于」节**合一** = 「版本与更新」
         //    （两者都围绕版本号：版本文件地址 / 检查更新 / 版本信息 / 功能清单 / 重载模块）。
         //    Key 保留 `settings-update`（原菜单 Key，⛔ 不改；收藏 / 寻址仍按它）；
         //    `settings-about` 退成**内部别名**（见 OpenSection），⛔ 不再是一个独立节点。
         var aboutVm = _sp.GetRequiredService<AboutSettingsViewModel>();
-        Add("settings-update", "版本与更新", "🔄", "版本号 / 检查更新 / 功能清单 / 重载模块",
-            () => _sp.GetRequiredService<UpdateAboutView>(),
+        Add(Meta("settings-update"), () => _sp.GetRequiredService<UpdateAboutView>(),
             () => new object?[] { generalVm, aboutVm },
             init: v => ((UpdateAboutView)v).Init(generalVm, aboutVm));
     }
 
-    private void Add(string key, string title, string icon, string desc,
-                     Func<Control> viewFactory, Func<object?[]> vmFactory, Action? onActivated = null,
-                     Action<Control>? init = null)
+    private void Add(SectionMeta meta, Func<Control> viewFactory, Func<object?[]> vmFactory,
+                     Action? onActivated = null, Action<Control>? init = null)
     {
         var view = viewFactory();
         // v3.67：一个节可以有多个 VM（合节）⇒ 契约聚合按列表逐个探测；首个 = 主 VM（工具条宿主用）。
@@ -155,7 +172,7 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
 
         Sections.Add(new SettingsSection
         {
-            Key = key, Title = title, Icon = icon, Desc = desc,
+            Key = meta.Key, Title = meta.Title, Icon = meta.Icon, Desc = meta.Desc,
             // 🔴 NT-068：`HasToolbar` 改为模型上的**计算属性**（VM 是否实现 IToolbarSource 且非空），
             //    ⛔ 不再在构建时赋值 —— 模块设置页在 XAML 里声明节，也能自动判定。
             Content = view, ViewModels = vms, OnActivated = onActivated
@@ -198,24 +215,6 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         ScrollRequested?.Invoke(target);   // v3.67：光换节不够，还要**滚过去**（否则视口停在原处 = "跳错地方"）
     }
 
-    /// <summary>
-    /// 按**关键词**搜索节并跳过去（v3.66 / NT-062：入口 = 标题栏的搜索按钮，回车触发）：
-    /// 命中节标题 / 一句话说明即算命中。返回是否命中（未命中由 Shell 给提示）。
-    /// </summary>
-    public bool SearchAndOpen(string keyword)
-    {
-        var kw = keyword?.Trim() ?? "";
-        if (kw.Length == 0) return false;
-
-        var hit = Sections.FirstOrDefault(s =>
-            s.Title.Contains(kw, StringComparison.CurrentCultureIgnoreCase) ||
-            s.Desc.Contains(kw, StringComparison.CurrentCultureIgnoreCase));
-        if (hit == null) return false;
-
-        ExpandOnly(hit);
-        return true;
-    }
-
     // ==================== 折叠（NT-068：动作在 UI 库骨架里，本 VM 只收结果） ====================
 
     /// <summary>
@@ -249,11 +248,13 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         newValue.OnActivated.Invoke();
     }
 
-    // ==================== 页内搜索：已删除（v3.66） ====================
+    // ==================== 页内搜索：已删除（v3.66 / NT-066 起统一到标题栏） ====================
     //
     // 原「页内搜索框 + 结果列表 / 过滤节」两版都撤了 —— 入口统一搬到**标题栏**的搜索按钮
-    // （`ShellView` 的 `BtnSettingsSearch` → `ShellViewModel.SearchSettingsCommand` → 本页
-    //  `SearchAndOpen`）。页面顶部现在只留**冻结首行**的节导航（点一下快速折叠 / 切换）。
+    // （`ShellView` 的 `BtnSettingsSearch` → `ShellViewModel` 的统一搜索结果列表）。
+    // 🔴 NT-066：**节的关键词匹配搬到 Shell**（索引来自 `Catalog`），本页只负责"按节锚点展开 + 滚动"，
+    //    即 `OpenSection` / `ExpandOnly`（`OpenTab` 归一后调用），⛔ 本页不再持有搜索逻辑。
+    // 页面顶部现在只留**冻结首行**的节导航（点一下快速折叠 / 切换）。
 
     // ==================== 契约：IStatusProvider（跨节聚合） ====================
 

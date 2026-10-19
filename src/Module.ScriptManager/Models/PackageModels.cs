@@ -101,22 +101,43 @@ public partial class PackageInfo : ObservableObject
 /// <summary>包管理器的一个源（`winget source list` 的一行）。</summary>
 public class PackageSourceInfo
 {
-    /// <summary>源名，也是 <c>--source</c> 的取值（winget / msstore …）。</summary>
+    /// <summary>源名，也是 <c>--source</c> 的取值（winget / winget-font …）。</summary>
     public string Name { get; set; } = "";
 
     /// <summary>源的 URL / UNC 路径。</summary>
     public string Argument { get; set; } = "";
 
-    /// <summary>类型或 Explicit 标记（winget 不同版本列头不同，两者都收）。</summary>
+    /// <summary>源类型（<c>winget source export</c> 的 <c>Type</c>，如 <c>Microsoft.PreIndexed.Package</c>）；列表输出里没有 ⇒ 空。</summary>
     public string Type { get; set; } = "";
 
-    public string TypeText => Type switch
-    {
-        "true" or "True" => "自定义（explicit）",
-        "false" or "False" => "内置",
-        "" => "—",
-        _ => Type
-    };
+    /// <summary>
+    /// 显式源（<c>source list</c> 的「显式」列）：<c>true</c> = 不参与默认搜索，只有显式 <c>--source</c> 才用。
+    /// <para>🔴 重新添加时必须带上 <c>--explicit</c>，否则字体源之类的显式源会被卷进每次默认搜索。</para>
+    /// </summary>
+    public bool Explicit { get; set; }
+
+    /// <summary>「发现」列文案：显式源只在你勾选它时才被查询。</summary>
+    public string ScopeText => Explicit ? "显式（仅勾选时查询）" : "默认参与搜索";
+
+    public string TypeText => Type.Length == 0 ? "—" : Type;
+}
+
+/// <summary>
+/// 一个源的**完整定义**（<c>winget source export</c> 的字段子集，v3.79）。
+/// <para>
+/// 为什么需要它：winget 1.29 **没有 <c>source enable|disable</c>**，停用只能是 <c>source remove</c>。
+/// 想让开关还能拨回来，就必须先把「名字 / 地址 / 类型 / 是否显式」记进本应用配置，
+/// 重新启用时按原样 <c>source add</c>（否则地址未知、加不回来）。
+/// </para>
+/// </summary>
+public class PackageSourceDefinition
+{
+    public string Name { get; set; } = "";
+    public string Argument { get; set; } = "";
+    public string Type { get; set; } = "";
+
+    /// <summary>显式源（重新添加时带 <c>--explicit</c>）。</summary>
+    public bool Explicit { get; set; }
 }
 
 /// <summary>
@@ -165,11 +186,18 @@ public class PackageSettings
     public bool SortDescending { get; set; }
 
     /// <summary>
-    /// **自定义源的分类**（源名 → 分类；NT-076）。
-    /// <para>内置源（<c>winget</c> / <c>msstore</c>）的分类由名字直接定，⛔ 不存这里（存了会与真相源打架）。</para>
-    /// <para>分类决定「和谁互斥」：社区源 / 商店源里**同时最多启用一个**；自定义源分类不互斥。</para>
+    /// **源的分类**（源名 → 分类；NT-076 / v3.79）。
+    /// <para>内置源（<c>winget</c> / <c>winget-font</c> / <c>msstore</c>）的分类由名字直接定，⛔ 不存这里。</para>
+    /// <para>分类决定「和谁互斥」：社区源之间、字体源之间**同时最多启用一个**；自定义源不互斥。</para>
     /// </summary>
     public System.Collections.Generic.Dictionary<string, string> SourceCategories { get; set; } = new();
+
+    /// <summary>
+    /// **源定义的快照**（源名 → 定义；v3.79）。
+    /// <para>用途：winget 1.29 没有 <c>source enable/disable</c>，停用 = <c>source remove</c>；
+    /// 记住定义才能在开关拨回来时按原地址 / 类型 <c>source add</c> 回去。</para>
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, PackageSourceDefinition> SourceDefinitions { get; set; } = new();
 }
 
 /// <summary>
@@ -190,6 +218,15 @@ public static class PackageSources
     /// <summary>商店源名（<c>msstore</c>）。</summary>
     public const string StoreName = "msstore";
 
+    /// <summary>字体源名（<c>winget-font</c>，微软官方字体源）。</summary>
+    public const string FontName = "winget-font";
+
+    /// <summary>字体源官方地址。</summary>
+    public const string FontUrl = "https://cdn.winget.microsoft.com/fonts";
+
+    /// <summary>预索引源的类型（<c>winget</c> / <c>winget-font</c> 都是它）。</summary>
+    public const string PreIndexedType = "Microsoft.PreIndexed.Package";
+
     /// <summary>商店源地址（老 winget 没有 <c>source enable</c>，要靠 add 加回来时用这个）。</summary>
     public const string StoreUrl = "https://storeedgefd.dsx.mp.microsoft.com/v9.0";
 
@@ -203,43 +240,79 @@ public static class PackageSources
     public static bool IsStore(string? name)
         => string.Equals((name ?? "").Trim(), StoreName, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>是不是 winget 内置源（<c>winget</c> / <c>msstore</c>）—— 内置的用 enable/disable，自定义的只能 remove。</summary>
-    public static bool IsBuiltin(string? name)
-        => IsStore(name) || string.Equals((name ?? "").Trim(), MainName, StringComparison.OrdinalIgnoreCase);
+    /// <summary>是不是字体源（<c>winget-font</c>）。</summary>
+    public static bool IsFont(string? name)
+        => string.Equals((name ?? "").Trim(), FontName, StringComparison.OrdinalIgnoreCase);
 
-    // ==================== 分类（NT-076：源列表多一列「分类」，同分类互斥） ====================
+    /// <summary>是不是社区源本体（<c>winget</c>）。</summary>
+    public static bool IsMain(string? name)
+        => string.Equals((name ?? "").Trim(), MainName, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>社区源分类（默认项 = <c>winget</c>；镜像源也归这一类，因此与官方社区源<b>互斥</b>）。</summary>
+    /// <summary>是不是 winget 内置源（<c>winget</c> / <c>winget-font</c> / <c>msstore</c>）。</summary>
+    public static bool IsBuiltin(string? name) => IsStore(name) || IsMain(name) || IsFont(name);
+
+    /// <summary>
+    /// 这个源**能不能在设置页拨开关**（v3.79）。
+    /// <para>🔴 商店源 <c>msstore</c> 不可切换（用户定调）：它由 winget 统一管理，删掉后加回来还要
+    /// <c>--type Microsoft.Rest</c> + 商店条款，误操作代价高 ⇒ 页面只读显示状态。</para>
+    /// </summary>
+    public static bool CanToggle(string? name) => !IsStore(name);
+
+    // ==================== 分类（v3.79：社区源 / 字体源 / 商店源 / 自定义源） ====================
+
+    /// <summary>社区源分类（<c>winget</c> 与其镜像归这一类 ⇒ **互斥**，同时最多启用一个）。</summary>
     public const string CategoryCommunity = "社区源";
 
-    /// <summary>商店源分类（默认项 = <c>msstore</c>）。</summary>
+    /// <summary>字体源分类（<c>winget-font</c> 与其镜像归这一类 ⇒ **互斥**，同时最多启用一个）。</summary>
+    public const string CategoryFont = "字体源";
+
+    /// <summary>商店源分类（<c>msstore</c>；不可切换，也不参与互斥计算）。</summary>
     public const string CategoryStore = "商店源";
 
     /// <summary>自定义源分类（⛔ 不互斥 —— 这类源可以同时开好几个）。</summary>
     public const string CategoryCustom = "自定义源";
 
     /// <summary>分类下拉的可选项（顺序即界面顺序）。</summary>
-    public static readonly string[] AllCategories = { CategoryCommunity, CategoryStore, CategoryCustom };
+    public static readonly string[] AllCategories = { CategoryCommunity, CategoryFont, CategoryStore, CategoryCustom };
 
     /// <summary>内置源的分类；不是内置源 ⇒ <c>null</c>（分类由用户在「添加源」时指定）。</summary>
     public static string? BuiltinCategory(string? name)
         => IsStore(name) ? CategoryStore
-         : string.Equals((name ?? "").Trim(), MainName, StringComparison.OrdinalIgnoreCase) ? CategoryCommunity
+         : IsMain(name) ? CategoryCommunity
+         : IsFont(name) ? CategoryFont
          : null;
 
-    /// <summary>按地址**猜**分类（「添加源」时的默认值，用户可改）。</summary>
+    /// <summary>
+    /// 按地址**猜**分类（「添加源」时的默认值，用户可改）。
+    /// <para>🔴 顺序要紧：字体源地址也在 <c>cdn.winget.microsoft.com</c> 下（<c>/fonts</c>），
+    /// 先判 <c>/fonts</c> 再判 <c>winget</c>，否则字体源会被误判成社区源 ⇒ 和 <c>winget</c> 相互关停。</para>
+    /// </summary>
     public static string GuessCategory(string? argument)
     {
         var a = argument ?? "";
         if (a.Contains("storeedgefd", StringComparison.OrdinalIgnoreCase)) return CategoryStore;
+        if (a.Contains("/fonts", StringComparison.OrdinalIgnoreCase)) return CategoryFont;
         if (a.Contains("winget", StringComparison.OrdinalIgnoreCase)) return CategoryCommunity;
         return CategoryCustom;
     }
 
-    /// <summary>这个分类里有内置源 ⇒ 同分类的源**互斥**（同时最多启用一个）。</summary>
+    /// <summary>按地址猜源类型（<c>source add</c> 的 <c>--type</c>）。</summary>
+    public static string GuessType(string? argument)
+    {
+        var a = argument ?? "";
+        if (a.Contains("storeedgefd", StringComparison.OrdinalIgnoreCase)) return StoreType;
+        if (a.Contains("/rest", StringComparison.OrdinalIgnoreCase)
+            || a.Contains("api.", StringComparison.OrdinalIgnoreCase)) return "Microsoft.Rest";
+        return PreIndexedType;
+    }
+
+    /// <summary>
+    /// 这个分类**内部互斥**（同时最多启用一个）。
+    /// <para>🔴 只有社区源 / 字体源两档互斥；商店源不可切换、自定义源本就可以并存。</para>
+    /// </summary>
     public static bool IsExclusiveCategory(string? category)
         => string.Equals(category, CategoryCommunity, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(category, CategoryStore, StringComparison.OrdinalIgnoreCase);
+        || string.Equals(category, CategoryFont, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>归一化分类串（未知值 ⇒ <see cref="CategoryCustom"/>）。</summary>
     public static string NormalizeCategory(string? category)
@@ -248,4 +321,11 @@ public static class PackageSources
             if (string.Equals(c, (category ?? "").Trim(), StringComparison.OrdinalIgnoreCase)) return c;
         return CategoryCustom;
     }
+
+    /// <summary>内置源的**默认定义**（系统里没有、配置里也没记过时，靠它把源加回来）。</summary>
+    public static PackageSourceDefinition? DefaultDefinition(string? name)
+        => IsStore(name) ? new PackageSourceDefinition { Name = StoreName, Argument = StoreUrl, Type = StoreType }
+         : IsMain(name) ? new PackageSourceDefinition { Name = MainName, Argument = MainUrl, Type = PreIndexedType }
+         : IsFont(name) ? new PackageSourceDefinition { Name = FontName, Argument = FontUrl, Type = PreIndexedType, Explicit = true }
+         : null;
 }

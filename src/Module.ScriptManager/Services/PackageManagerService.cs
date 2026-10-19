@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -74,11 +75,14 @@ public class PackageManagerService : IPackageManagerService
         {
             var name = row.GetValueOrDefault("Name", "").Trim();
             if (name.Length == 0) continue;
+            var explicitText = row.GetValueOrDefault("Explicit", "").Trim();
             list.Add(new PackageSourceInfo
             {
                 Name = name,
                 Argument = row.GetValueOrDefault("Argument", "").Trim(),
-                Type = row.GetValueOrDefault("Type", row.GetValueOrDefault("Explicit", "")).Trim()
+                Type = row.GetValueOrDefault("Type", "").Trim(),
+                // 中文表头这一列叫「显式」；英文是 Explicit。认不出就按 false（= 参与默认搜索）。
+                Explicit = explicitText.Equals("true", StringComparison.OrdinalIgnoreCase)
             });
         }
 
@@ -97,8 +101,59 @@ public class PackageManagerService : IPackageManagerService
             }
         }
 
+        // 类型 / 显式标记不在 source list 里 ⇒ 从 source export 补齐（跑一次，忽略失败）
+        if (list.Count > 0)
+        {
+            var (defOk, _, defs) = await ExportSourceDefinitionsAsync(ct).ConfigureAwait(false);
+            if (defOk)
+            {
+                foreach (var s in list)
+                {
+                    if (!defs.TryGetValue(s.Name, out var def)) continue;
+                    if (s.Type.Length == 0) s.Type = def.Type;
+                    s.Explicit = def.Explicit;
+                }
+            }
+        }
+
         if (list.Count == 0 && r.Code != 0) return (false, Explain(r, "读取源列表失败"), list);
         return (true, $"共 {list.Count} 个源", list);
+    }
+
+    /// <summary>
+    /// <c>winget source export</c>（每行一个 JSON）：把源的完整定义读出来，供「关掉还能加回来」用。
+    /// <para>⚠️ 这是只读操作，**不需要管理员权限**。</para>
+    /// </summary>
+    public async Task<(bool Ok, string Message, IReadOnlyDictionary<string, PackageSourceDefinition> Items)> ExportSourceDefinitionsAsync(CancellationToken ct = default)
+    {
+        var dict = new Dictionary<string, PackageSourceDefinition>(StringComparer.OrdinalIgnoreCase);
+        if (!IsSupported) return (false, Fallback.Msg, dict);
+
+        var r = await RunAsync(new[] { "source", "export" }, ct, ReadTimeout).ConfigureAwait(false);
+        foreach (var line in PackageOutputParser.Clean(r.Out).Split('\n'))
+        {
+            var t = line.Trim();
+            if (t.Length == 0 || t[0] != '{') continue;
+            try
+            {
+                using var doc = JsonDocument.Parse(t);
+                var root = doc.RootElement;
+                var name = root.TryGetProperty("Name", out var n) ? (n.GetString() ?? "").Trim() : "";
+                if (name.Length == 0) continue;
+                dict[name] = new PackageSourceDefinition
+                {
+                    Name = name,
+                    Argument = root.TryGetProperty("Arg", out var a) ? (a.GetString() ?? "") : "",
+                    Type = root.TryGetProperty("Type", out var ty) ? (ty.GetString() ?? "") : "",
+                    Explicit = root.TryGetProperty("Explicit", out var ex) && ex.ValueKind == JsonValueKind.True
+                };
+            }
+            catch (JsonException) { /* 单行解析不了就跳过，不影响其它源 */ }
+        }
+
+        return dict.Count > 0
+            ? (true, $"读到 {dict.Count} 个源定义", dict)
+            : (r.Code == 0, "没有读到源定义（winget 版本可能不支持 source export）", dict);
     }
 
     public async Task<(bool Ok, string Message, IReadOnlyList<PackageInfo> Items)> ListInstalledAsync(CancellationToken ct = default)
@@ -197,7 +252,7 @@ public class PackageManagerService : IPackageManagerService
 
     // ==================== 源的增删（直接改系统 winget，与它共用一套数据） ====================
 
-    public async Task<(bool Ok, string Message)> AddSourceAsync(string name, string argument, string? type = null, CancellationToken ct = default)
+    public async Task<(bool Ok, string Message)> AddSourceAsync(string name, string argument, string? type = null, bool explicitSource = false, CancellationToken ct = default)
     {
         if (!IsSupported) return (false, Fallback.Msg);
         if (string.IsNullOrWhiteSpace(name)) return (false, "请先填写源名称。");
@@ -205,6 +260,8 @@ public class PackageManagerService : IPackageManagerService
 
         var args = new List<string> { "source", "add", "--name", name.Trim(), "--arg", argument.Trim() };
         if (!string.IsNullOrWhiteSpace(type)) { args.Add("--type"); args.Add(type.Trim()); }
+        // 🔴 显式源（如 winget-font）重新添加时必须带 --explicit，否则会被卷进每次默认搜索。
+        if (explicitSource) args.Add("--explicit");
 
         var r = await RunAsync(args, ct, ReadTimeout, elevate: true).ConfigureAwait(false);
         return r.Code == 0
@@ -218,16 +275,22 @@ public class PackageManagerService : IPackageManagerService
         if (string.IsNullOrWhiteSpace(name)) return (false, "未指定源。");
 
         // ⚠️ 破坏性操作：动的是**整台机器**的包管理器源（等同于用户在终端敲 winget source remove）
-        if (!await ConfirmAsync(
-                $"确定要从系统 winget 里删除源「{name}」吗？\n" +
-                "这会改掉整台机器的包管理器源配置（等价于 winget source remove），之后搜索与安装都会少一个来源。")
-            .ConfigureAwait(false))
+        return await RemoveCoreAsync(name.Trim(),
+            $"确定要从系统 winget 里删除源「{name}」吗？\n" +
+            "这会改掉整台机器的包管理器源配置（等价于 winget source remove），之后搜索与安装都会少一个来源。",
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>删除源的统一落点（确认 → 提权 remove）。</summary>
+    private static async Task<(bool Ok, string Message)> RemoveCoreAsync(string name, string confirmMessage, CancellationToken ct)
+    {
+        if (!await ConfirmAsync(confirmMessage).ConfigureAwait(false))
             return (false, "已取消。");
 
-        var r = await RunAsync(new[] { "source", "remove", "--name", name.Trim() }, ct, ReadTimeout, elevate: true).ConfigureAwait(false);
+        var r = await RunAsync(new[] { "source", "remove", "--name", name }, ct, ReadTimeout, elevate: true).ConfigureAwait(false);
         return r.Code == 0
-            ? (true, $"已从系统 winget 删除源 {name}")
-            : (false, Explain(r, $"删除源 {name} 失败"));
+            ? (true, $"已从系统 winget 移除源 {name}")
+            : (false, Explain(r, $"移除源 {name} 失败"));
     }
 
     public async Task<(bool Ok, string Message)> ResetSourcesAsync(CancellationToken ct = default)
@@ -236,7 +299,7 @@ public class PackageManagerService : IPackageManagerService
 
         if (!await ConfirmAsync(
                 "确定把系统 winget 的源恢复为默认吗？\n" +
-                "自定义添加的源会被移除，默认源（winget / msstore）会被重新加回来。")
+                "自定义添加的源会被移除，默认源（winget / msstore / winget-font）会被重新加回来。")
             .ConfigureAwait(false))
             return (false, "已取消。");
 
@@ -246,36 +309,38 @@ public class PackageManagerService : IPackageManagerService
             : (false, Explain(r, "恢复默认源失败"));
     }
 
-    public async Task<(bool Ok, string Message)> SetSourceEnabledAsync(string name, bool enable, CancellationToken ct = default)
+    /// <summary>
+    /// 启用 / 停用源（v3.79）。
+    /// <para>
+    /// 🔴 实测 winget 1.29 的 <c>source</c> 子命令只有 add / list / update / remove / edit / reset / export
+    /// —— **没有 enable / disable**（旧实现先试 enable 再回退，等于每次多弹一次 UAC 才失败）。
+    /// 现在的做法：开 = 按记下的定义 <c>source add</c>；关 = <c>source remove</c>（带确认）。
+    /// </para>
+    /// </summary>
+    public async Task<(bool Ok, string Message)> SetSourceEnabledAsync(string name, bool enable, PackageSourceDefinition? definition = null, CancellationToken ct = default)
     {
         if (!IsSupported) return (false, Fallback.Msg);
         var n = (name ?? "").Trim();
         if (n.Length == 0) return (false, "未指定源。");
 
-        // 新路子（winget 1.9+）：source enable / disable —— 只开关，⛔ 不删源定义。
-        var r = await RunAsync(new[] { "source", enable ? "enable" : "disable", "--name", n }, ct, ReadTimeout, elevate: true)
-            .ConfigureAwait(false);
-        if (r.Code == 0) return (true, (enable ? "已启用源 " : "已停用源 ") + n + "（源定义还在）");
+        if (!PackageSources.CanToggle(n))
+            return (false, $"商店源 {n} 由 winget 统一管理，不支持启用 / 停用（丢了点「↺ 恢复默认源」）。");
 
-        // 🔴 NT-076：提权失败（UAC 被拒 / 起不来进程）⛔ 不能当成"版本不支持" —— 原样把原因报出去。
-        if (r.Code == -1) return (false, Explain(r, (enable ? "启用源 " : "停用源 ") + n + " 失败"));
-
-        // 🔴 NT-076：只有**确实是这个 winget 版本没有 source enable/disable** 才回退到老路子；
-        // 源不存在 / 参数错 / 网络问题一律如实报，⛔ 不骗用户说"版本不支持"。
-        if (!LooksUnsupported(r))
-            return (false, Explain(r, (enable ? "启用源 " : "停用源 ") + n + " 失败"));
-
-        // 老路子回退：这个 winget 版本没有 source enable/disable。
         if (enable)
         {
-            // 只有内置商店源的地址是确定已知的 ⇒ 其它源没法凭空加回来，只能让用户去 reset。
-            if (!PackageSources.IsStore(n))
-                return (false, $"这个 winget 版本不支持「启用源」，且 {n} 不是内置源（地址未知，无法自动加回）。请点「↺ 恢复默认源」。");
-            return await AddSourceAsync(n, PackageSources.StoreUrl, PackageSources.StoreType, ct).ConfigureAwait(false);
+            var def = definition ?? PackageSources.DefaultDefinition(n);
+            if (def == null || string.IsNullOrWhiteSpace(def.Argument))
+                return (false, $"没有记下源 {n} 的地址，无法加回来 —— 请用「添加源」重新添加（或点「↺ 恢复默认源」）。");
+
+            var (ok, msg) = await AddSourceAsync(n, def.Argument, def.Type, def.Explicit, ct).ConfigureAwait(false);
+            return ok ? (true, $"已启用源 {n}（winget source add）") : (false, msg);
         }
 
-        var rm = await RemoveSourceAsync(n, ct).ConfigureAwait(false);   // 破坏性 ⇒ 内部会弹二次确认
-        return rm.Ok ? (true, rm.Message + "（这个 winget 版本没有 source disable，用的是 remove）") : rm;
+        return await RemoveCoreAsync(n,
+            $"停用源「{n}」= 从系统 winget 里移除它（winget 1.29 没有 source enable/disable，只能 remove）。\n" +
+            "它的地址 / 类型已经记在本应用配置里，之后把开关拨回来就会按原样加回去。\n\n" +
+            "这会改掉整台机器的包管理器源配置，继续吗？",
+            ct).ConfigureAwait(false);
     }
 
     // ==================== 写操作 ====================
@@ -415,18 +480,6 @@ public class PackageManagerService : IPackageManagerService
             if (lines.Count > 0) return lines[^1];
         }
         return "";
-    }
-
-    /// <summary>
-    /// winget 报的是「没有 source enable / disable 这个子命令」（NT-076）——
-    /// 与"源不存在 / 参数错 / 权限失败"区分开，只有前一种才值得回退到 remove / add。
-    /// </summary>
-    private static bool LooksUnsupported((int Code, string Out, string Err) r)
-    {
-        var text = PackageOutputParser.Clean(r.Out) + " " + PackageOutputParser.Clean(r.Err);
-        foreach (var token in new[] { "unrecognized", "无法识别", "不是有效", "无效的命令", "不支持", "unexpected", "0x8A15000B", "0x8A150001" })
-            if (text.Contains(token, StringComparison.OrdinalIgnoreCase)) return true;
-        return false;
     }
 
     private static string? FirstLineContaining(string? raw, string token)

@@ -2,9 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.ScriptManager.Views.CollectionView">
-  <!--  NT-068 S4 集合页：主从两栏 —— 左 280px 集合列表 + 右成员表（勾选即增删，即时生效）。
+  <!--  NT-068 S4 集合页：主从两栏 —— 左 240px 集合列表 + 右成员表（勾选即增删，即时生效）。
         详情卡走标准右侧声明式卡（IDetailCardSource），与全应用一致。  -->
-  <Grid ColumnDefinitions="280,*" Margin="12">
+  <Grid ColumnDefinitions="240,*" Margin="12">
 
     <!--  ==================== 左栏：集合列表  ====================  -->
     <Border Grid.Column="0" Background="{DynamicResource PanelBrush}"
@@ -51,7 +51,8 @@
                 <!--  NT-073：种类徽标 —— 与筛选下拉 / 详情卡「类别」同一套文案  -->
                 <TextBlock Grid.Column="2" Text="{Binding KindText}" Classes="accent" Margin="6,0,0,0"
                            VerticalAlignment="Center" FontSize="11"/>
-                <TextBlock Grid.Column="3" Text="{Binding PinMark}" Classes="accent" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="{Binding PinMark}" Classes="accent" Margin="6,0,0,0" VerticalAlignment="Center"
+                           ToolTip.Tip="★ 置顶：分组下拉选「置顶」时可单独筛出，信息面板的集合下拉里也排最前（详情卡「置顶」勾选框切换）"/>
               </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>

@@ -847,29 +847,60 @@ public partial class ShellView : Window
     }
 
     /// <summary>
-    /// 设置搜索（v3.66 / NT-062）：弹窗里的输入框一挂上可视树就**自动聚焦**（弹出即可直接打字）。
+    /// 搜索框挂上视觉树（NT-066）：**清空上次状态 + 聚焦 + 全选**（弹出即可直接打字）。
     /// <para>⚠️ 弹窗内容在**弹出树**里、不在本窗口的 NameScope ⇒ 不给它 `x:Name`，一律从 `sender` 取。</para>
+    /// <para>🔴 弹出内容在**弹出树**里 ⇒ 绑定的 `DataContext` 未必继承到本窗口；这里兜底补一次
+    /// （补不上 ⇒ 结果列表静默空白，且不报错）。</para>
     /// </summary>
     private void OnSearchBoxAttached(object? sender, VisualTreeAttachmentEventArgs e)
     {
         if (sender is not TextBox tb) return;
+        if (tb.Parent is Control host && host.DataContext == null) host.DataContext = DataContext;
+        _vm?.ResetSearch();
         tb.Focus();
         tb.SelectAll();
     }
 
     /// <summary>
-    /// 设置搜索（v3.66 / NT-062）：**回车** = 执行搜索（打开应用级设置页 + 展开命中的节）、清空输入、关掉弹窗。
-    /// 未命中由 Shell 在底栏给提示（见 <c>ShellViewModel.SearchSettings</c>）。
+    /// 搜索结果键盘操作（NT-066）：**↑↓** 移动高亮、**回车**打开高亮项（无高亮则取第一条）。
+    /// 打开后关掉弹窗；未命中不做事（提示已由 <c>SearchHint</c> 显示）。
     /// </summary>
     private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Enter || sender is not TextBox tb) return;
-        e.Handled = true;
+        if (_vm == null) return;
 
-        var keyword = tb.Text ?? "";
-        tb.Text = "";
+        switch (e.Key)
+        {
+            case Key.Enter:
+            {
+                e.Handled = true;
+                var target = _vm.SelectedSearchResult
+                             ?? (_vm.SearchResults.Count > 0 ? _vm.SearchResults[0] : null);
+                if (target == null) return;
+                BtnSettingsSearch.Flyout?.Hide();
+                _vm.OpenSearchResultCommand.Execute(target);
+                break;
+            }
+            case Key.Down:
+                e.Handled = true;
+                _vm.MoveSearchSelection(1);
+                break;
+            case Key.Up:
+                e.Handled = true;
+                _vm.MoveSearchSelection(-1);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 结果列表**双击** = 打开（NT-066）：单击只改高亮，⛔ 不导航 —— 免得手滑点到就跳走。
+    /// </summary>
+    private void OnSearchResultDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (_vm == null || sender is not ListBox list || list.SelectedItem is not SearchTarget target) return;
+        e.Handled = true;
         BtnSettingsSearch.Flyout?.Hide();
-        _vm?.SearchSettingsCommand.Execute(keyword);
+        _vm.OpenSearchResultCommand.Execute(target);
     }
 
     private void UpdateMaxIcon()

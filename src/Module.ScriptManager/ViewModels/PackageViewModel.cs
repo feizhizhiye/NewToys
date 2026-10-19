@@ -81,8 +81,11 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>刷新索引（<c>source update</c>）：把各源的元数据拉到最新，之后「可升级」才准。</summary>
     private const string CmdRefreshIndex = "{exe} source update";
 
-    /// <summary>启用源（<c>winget source enable</c>）—— 工具条**勾一下源就立刻跑**（NT-076）。</summary>
-    private const string CmdSourceEnable = "winget source enable --name <源>";
+    /// <summary>
+    /// 工具条源多选框**只决定查哪些源**（v3.79）。
+    /// <para>🔴 切源（启用 / 停用，需要管理员权限）归「脚本管理器设置 → 软件源」节；本页⛔ 不弹 UAC。</para>
+    /// </summary>
+    private const string CmdSourcePick = "winget search <关键字> --source <源>（勾多个就逐个查再合并；全勾 = 不传 --source，交给 winget 用自己的默认源集合）";
 
     /// <summary>安装（<c>winget install</c>）。</summary>
     private const string CmdInstall =
@@ -119,10 +122,10 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     private HashSet<string>? _installedIds;
 
     /// <summary>
-    /// 系统 winget 里**真实存在**的源名（<c>winget source list</c> 的结果）。
-    /// 「勾选即生效」靠它判断"勾了但没启用" —— 界面上的源选项可能与它不一致（内置源兜底项）。
+    /// 系统里**显式源**的名字（<c>source list</c> 的「显式」列 = true，如 <c>winget-font</c>）：
+    /// 它们不参与默认搜索 ⇒ 「全部源」时要单独补查一遍，否则勾了也搜不到（v3.79）。
     /// </summary>
-    private readonly HashSet<string> _systemSources = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _explicitSources = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 同一次 <c>winget list</c> 的**完整记录**（Id / Name / Version）：用来把「显示名被截断 ⇒ Id 残缺」的
@@ -148,8 +151,8 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// </summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        // 2026-10-19（v3.77）：源改**多选**（一个下拉，勾中项右侧 ✓）—— 默认只勾 winget；
-        // 一个都不勾 = 「全部源」（搜索时逐个源查一遍再合并），按钮上的汇总文案由 SourceSummary 给出。
+        // 2026-10-19（v3.79）：源改**多选**（一个下拉，勾中项右侧 ✓）—— 只列系统里**已启用**的源；
+        // 全勾 = 「全部源」（搜索时不传 --source，winget 自己跳过显式源）。勾选立刻写进 package.json。
         new()
         {
             Kind = ToolbarItemKind.MultiCombo,
@@ -159,8 +162,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             SelectedPath = "IsSelected",
             TextPath = nameof(SourceSummary),
             CommandPath = nameof(RefreshSourceSummaryCommand),
-            // NT-076：勾一下就生效 —— 勾上系统里还没启用的源 ⇒ 立刻跑 winget source enable（会弹 UAC）。
-            ToolTip = CmdSearch + "｜勾选即生效：" + CmdSourceEnable
+            ToolTip = CmdSourcePick
         },
         new()
         {
@@ -291,70 +293,35 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     /// <summary>
     /// 勾选态变了 ⇒ 重算按钮汇总文案（工具条 <c>MultiCombo</c> 的 <c>CommandPath</c> 指这里）
-    /// + **勾一下就生效**（NT-076：⛔ 工具条不再有「✅ 生效」按钮）。
-    /// 🔴 宿主已经把 bool 翻好了，⛔ 这里不要再翻。
+    /// + **立刻写进 <c>package.json</c>**（v3.79）。
+    /// <para>
+    /// 🔴 只存偏好、⛔ 不碰系统 winget（切源要管理员权限，归设置页）——老实现每次勾选都跑
+    /// <c>source enable</c> 并重读源列表，结果反把用户刚勾的状态冲掉，这就是「勾了 store 源不生效」的根因。
+    /// </para>
+    /// <para>🔴 宿主已经把 bool 翻好了，⛔ 这里不要再翻。</para>
     /// </summary>
     [RelayCommand]
     private void RefreshSourceSummary()
     {
         var picked = CheckedSources();
-        SourceSummary = picked.Count switch
-        {
-            0 => "全部源",
-            1 => picked[0],
-            2 => $"{picked[0]}, {picked[1]}",
-            _ => $"{picked.Count} 个源"
-        };
+        var all = SourceOptions.Count(o => !string.IsNullOrEmpty(o.Value));
 
-        _ = ApplyCheckedSourcesAsync();
-    }
-
-    /// <summary>正在跑"勾选即生效"（防止 <see cref="LoadSourcesAsync"/> 末尾的重入）。</summary>
-    private bool _applyingSources;
-
-    /// <summary>
-    /// **勾选即生效**（NT-076）：把「勾上了但系统 winget 里没有」的源真正启用
-    /// （<c>winget source enable --name &lt;源&gt;</c>）。
-    /// <para>
-    /// 商店源 <c>msstore</c> 这类"系统里默认没启用"的源，勾上就会真的出现在系统里 ——
-    /// 这就是「勾了 msstore 却搜不到」的根因与修法（改源要管理员权限，会弹 UAC）。
-    /// </para>
-    /// <para>⚠️ 系统里已有但**没勾**的源一律不动（⛔ 不 disable）—— 停用属于设置页的职责，且会动到整台机器。</para>
-    /// </summary>
-    private async Task ApplyCheckedSourcesAsync()
-    {
-        if (_pkg == null || IsBusy || _applyingSources) return;
-
-        var missing = CheckedSources().Where(n => !_systemSources.Contains(n)).ToList();
-        if (missing.Count == 0) return;      // 都已在系统里 ⇒ 不用动、也不用打扰用户
-
-        _applyingSources = true;
-        try
-        {
-            IsBusy = true;
-            var done = new List<string>();
-            var errs = new List<string>();
-
-            foreach (var name in missing)
+        SourceSummary = picked.Count == 0 || picked.Count >= all
+            ? "全部源"
+            : picked.Count switch
             {
-                StatusText = $"正在启用源 {name} ……（winget source enable --name {name}）";
-                var (ok, msg) = await _pkg.SetSourceEnabledAsync(name, true);
-                if (ok) done.Add(name); else errs.Add($"{name}：{msg}");
-            }
+                1 => picked[0],
+                2 => $"{picked[0]}, {picked[1]}",
+                _ => $"{picked.Count} 个源"
+            };
 
-            await LoadSourcesAsync();      // 源清单变了 ⇒ 重读，去掉「（未启用）」标记
-            StatusText = (done.Count > 0 ? $"已启用源 {string.Join(" / ", done)}（写进系统 winget）。" : "")
-                       + (errs.Count > 0 ? " 失败：" + string.Join("；", errs) : "");
-        }
-        catch (Exception ex)
-        {
-            StatusText = "启用源出错：" + ex.Message;
-        }
-        finally
-        {
-            IsBusy = false;
-            _applyingSources = false;
-        }
+        if (_syncing || _settings == null) return;
+
+        // 全勾 / 全不勾 都存空串 = 「全部源」（≡ 搜索时不传 --source，让 winget 用自己的默认源集合）
+        _settings.Settings.DefaultSource = picked.Count == 0 || picked.Count >= all
+            ? ""
+            : string.Join(",", picked);
+        _settings.Save();
     }
 
     // ==================== 表头（点一下切换排序） ====================
@@ -715,12 +682,13 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     }
 
     /// <summary>
-    /// 源下拉 = 系统 winget 里真实存在的源（<c>winget source list</c>）+ 内置源兜底项。
+    /// 源多选框 = 系统 winget 里**已启用**的源（<c>winget source list</c> 的真实结果）。
     /// <para>
-    /// ⚠️ v1.33 起源完全来自**系统 winget**（本页只是它的可视化外壳，⛔ 不另存一份源定义）。
-    /// 内置源（<c>winget</c> / <c>msstore</c>）若系统里没有 ⇒ 补一项并在名字后标「（未启用）」，
-    /// 勾上就**立刻**执行 <c>winget source enable</c>（NT-076：⛔ 没有「✅ 生效」按钮）。
+    /// 🔴 v3.79：⛔ 不再补「（未启用）」的兜底项 —— 勾上一个系统里不存在的源，只能靠
+    /// <c>source add</c> 真把它加进来（要管理员权限 + UAC），那不归本页管；
+    /// 启用 / 停用源一律去「脚本管理器设置 → 软件源」。
     /// </para>
+    /// <para><c>defaultSource</c> 空串 = 全部源（全勾）；否则只勾存过的那些。</para>
     /// </summary>
     private async Task LoadSourcesAsync()
     {
@@ -728,47 +696,28 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
         var (ok, _, items) = await _pkg.ListSourcesAsync();
 
-        _systemSources.Clear();
-        if (ok) foreach (var s in items) _systemSources.Add(s.Name);
-
         SourceOptions.Clear();
+        _explicitSources.Clear();
         if (ok)
         {
             foreach (var s in items)
-                SourceOptions.Add(new PackageSourceOption { Label = s.Name, Value = s.Name });
-        }
-
-        // 内置源兜底：系统里没有的，标「（未启用）」—— 让"勾了却搜不到"这件事在界面上说得通。
-        foreach (var builtin in new[] { PackageSources.MainName, PackageSources.StoreName })
-        {
-            if (SourceOptions.Any(o => string.Equals(o.Value, builtin, StringComparison.OrdinalIgnoreCase))) continue;
-            SourceOptions.Add(new PackageSourceOption
             {
-                Label = builtin + "（未启用）",
-                Value = builtin
-            });
+                SourceOptions.Add(new PackageSourceOption { Label = s.Name, Value = s.Name });
+                if (s.Explicit) _explicitSources.Add(s.Name);
+            }
         }
 
-        // v3.77：默认**只勾 winget**（没有 winget 就勾第一个）；一个都不勾 = 「全部源」。
-        // 设置里存过的源（逗号分隔）优先 —— 沿用原来的「记住上次选择」语义。
         var want = (_settings?.Settings.DefaultSource ?? "")
                    .Split(new[] { ',', '，' }, StringSplitOptions.RemoveEmptyEntries)
                    .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
 
-        var preset = want.Count > 0
-            ? SourceOptions.Where(o => want.Contains(o.Value ?? "", StringComparer.OrdinalIgnoreCase)).ToList()
-            : new List<PackageSourceOption>();
-        if (preset.Count == 0)
-        {
-            var fallback = SourceOptions.FirstOrDefault(o => string.Equals(o.Value, "winget", StringComparison.OrdinalIgnoreCase))
-                           ?? SourceOptions.FirstOrDefault(o => !string.IsNullOrEmpty(o.Value));
-            if (fallback != null) preset.Add(fallback);
-        }
-
         _syncing = true;
-        foreach (var o in SourceOptions) o.IsSelected = preset.Contains(o);
+        // 空串 = 全部源（全勾）；存过名字就只勾它们（已被移除的源自然忽略）
+        foreach (var o in SourceOptions)
+            o.IsSelected = want.Count == 0
+                        || want.Contains(o.Value ?? "", StringComparer.OrdinalIgnoreCase);
+        RefreshSourceSummary();     // _syncing=true ⇒ 只算按钮文案，不回写 package.json
         _syncing = false;
-        RefreshSourceSummary();
     }
 
     // ==================== 加载列表 ====================
@@ -788,29 +737,61 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             IsBusy = true;
             StatusText = "正在搜索……";
 
-            // v3.77：源多选 —— 逐个勾选的源查一遍再合并；一个都没勾 = 全部源。
+            // v3.79：源多选 ——
+            //   全勾 / 全不勾 = 全部源 ⇒ 先不传 --source（winget 用自己的默认源集合，自动排除显式源），
+            //   再把勾上的「显式源」（如 winget-font）逐个补查一遍合并 —— 否则勾了字体源也搜不到。
+            //   否则只查勾的那些源。
+            var all = SourceOptions.Count(o => !string.IsNullOrEmpty(o.Value));
             var picked = CheckedSources();
-            if (picked.Count == 0) picked = SourceOptions.Where(o => !string.IsNullOrEmpty(o.Value)).Select(o => o.Value!).ToList();
+            var allSources = picked.Count == 0 || picked.Count >= all;
 
-            if (picked.Count > 1)
+            if (allSources || picked.Count > 1)
             {
                 var merged = new List<PackageInfo>();
                 var errs = new List<string>();
-                foreach (var name in picked)
+                var queried = 0;
+
+                if (allSources)
                 {
-                    var (ok, msg, items) = await _pkg.SearchAsync(SearchText, name);
-                    if (ok) { StampSource(items, name); merged.AddRange(items); }
-                    else errs.Add($"{name}: {msg}");
+                    var (ok0, msg0, items0) = await _pkg.SearchAsync(SearchText, null);
+                    queried++;
+                    if (ok0) merged.AddRange(items0); else errs.Add("默认源集合: " + msg0);
+
+                    foreach (var name in picked.Where(n => _explicitSources.Contains(n)))
+                    {
+                        var (ok, msg, items) = await _pkg.SearchAsync(SearchText, name);
+                        queried++;
+                        if (ok) { StampSource(items, name); merged.AddRange(items); }
+                        else errs.Add($"{name}: {msg}");
+                    }
                 }
-                BeginList(merged, ListMode.Search);
+                else
+                {
+                    foreach (var name in picked)
+                    {
+                        var (ok, msg, items) = await _pkg.SearchAsync(SearchText, name);
+                        queried++;
+                        if (ok) { StampSource(items, name); merged.AddRange(items); }
+                        else errs.Add($"{name}: {msg}");
+                    }
+                }
+
+                // 同一个包可能同时出现在默认源集合与显式源里（按 源 + Id 去重）
+                var deduped = merged
+                    .GroupBy(p => (p.Source ?? "") + "|" + p.Id, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
+                    .ToList();
+
+                BeginList(deduped, ListMode.Search);
                 ApplyView();
-                StatusText = merged.Count == 0
+                StatusText = deduped.Count == 0
                     ? "没有匹配的包" + (errs.Count > 0 ? "｜" + string.Join("；", errs) : "")
-                    : $"找到 {merged.Count} 个包（已合并 {picked.Count} 个源）";
+                    : $"找到 {deduped.Count} 个包（已查 {queried} 个源{(allSources ? "，含全部默认源" : "")}）";
             }
             else
             {
-                var only = picked.FirstOrDefault();
+                // 全部源 ⇒ source = null（winget 用自己的默认源集合）；否则只查勾的那一个
+                var only = allSources ? null : picked.FirstOrDefault();
                 var (ok, msg, items) = await _pkg.SearchAsync(SearchText, only);
                 StampSource(items, only);
                 BeginList(items.ToList(), ListMode.Search);

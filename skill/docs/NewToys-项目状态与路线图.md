@@ -1,6 +1,6 @@
 # NewToys 项目状态与路线图
 
-> v3.78 · 2026-10-18 · 台账
+> v3.79 · 2026-10-19 · 台账
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **项目状态与路线图**（Status & Roadmap），三、节 = **Backlog 工作项台账**。
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
@@ -8,9 +8,9 @@
 > 配套：`index.md`（文档地图）/ 需求规格 / `framework.md` / `ui.md` / `modules/<模块>.md` / AI 协作手册 / AGENTS.md（跨 AI 入口）
 
 **最近三次变更**
+- **v3.79（2026-10-19 · NT-080）**：**软件包定位收敛 + winget 源模型重写** —— ① 集合页**删「软件包」类别**（`ScriptCollectionKind.Package` 删除；老数据 `kind=package` 归 `info`，`role=package` 不进集合候选池）；② 软件包页**后端只支持 winget**，跨平台（apt 等）另开独立页面；③ 🔴 修「工具条源多选框勾 store 源不生效」：源多选改为**只写 `package.json → defaultSource`**（⛔ 不再勾一下就跑 `source enable` + 重读列表把状态冲掉），全勾 / 全不勾 = 全部源 ⇒ 搜索不传 `--source`；④ 修源分类：`winget`→社区源、`winget-font`→**字体源**、`msstore`→商店源、其它→自定义源，**互斥只发生在社区源内部与字体源内部**（`/fonts` 判定必须先于 `winget`）；⑤ **商店源不可切换**（开关置灰）；⑥ 实测 winget 1.29 **无 `source enable/disable`** ⇒ 关 = `source remove`、开 = 按 `winget source export` 快照 `source add`（回放 `--type` / `--explicit`），两向都要管理员权限（UAC）。改动局限在 `Module.ScriptManager`（未碰框架层）。
 - **v3.78（🗂 整理期 2026-10-18）**：**文档一致性治理 + 任务卡归档**（用户「统一 skill 与 src、清理已作废旧信息」）—— ① 模块设置文件名校正：`script-manager.json` / `web-tools.json` / `video-tools.json` / `media-assets.json`（⛔ 不是 `script.json` / `web.json` / `video.json`；`script` 模块的分区名 ≠ 模块键）；② `index.md` 新增 **§四「使用层」写入规范**（用户口述的新功能 / 交互行为 / 使用场景 / 功能说明 / 踩坑各有唯一落点 + 当场落 + 改行为双写）；③ 软件说明书改定位为**使用层 · 用户手册**（576→467 行，删「外部依赖」「重写指引」两节，数据节压成「数据在哪 / 备份什么」）；④ **删卡 9 张**：`framework/NT-054/055/057/058`（已验收，结论在 `ui.md` §7 §8 + `framework.md` §4.5 §6.3 §6.4）、`settings-app/NT-009/050/051/053/056`（模块已撤销，整目录删除）；⑤ 需求规格现行段落旧称全量校正 + 版本记录压到最近三次；⑥ 台账 / `AGENTS.md` 版本记录同步压缩。⛔ 未动 `src/`。
 - **v3.76（🗂 整理期 2026-10-18）**：**文档按「框架层 / UI / 每模块一份」重构**（用户「拆分文档，框架层 / ui / 各功能模块各一个 md，待办细节每模块只留最新 5 份」）—— ① 原《NewToys-工程规范.md》（892 行）拆为 **`framework.md`**（框架层：程序集 / 启动 / 菜单 / 加载 / UI 契约 / 配置 / 构建 / 技术债 B1~B17 / **跨模块待办 §11**）+ **`ui.md`**（尺寸密度 / 主题键 / 图标 / CSD / 列表页 / 详情卡 / 工具条 / 样式坑），原文件删除；② 新增 **`modules/script-manager.md` / `media-assets.md` / `video-tools.md` / `web-tools.md` / `settings-app.md`**（统一 6 节模板：职责 / 当前功能 / 实现逻辑 / 数据 / 坑点 / 待办）+ **`index.md`**（文档地图 + 模块清单表）；③ 任务卡按模块分目录 `backlog/<模块>/`（跨模块 `backlog/framework/`），**归档策略改滑动窗口：每目录 ≤5 张已验收卡、未验收不参与淘汰、淘汰前必须先蒸馏进模块 md**（10-14「全量保留」/10-17「默认保留」均废止），本批已蒸馏并删除 27 张卡（framework 18 / media-assets 8 / script-manager 1）；④ **台账与代码对齐**：§2.3 页面全景、§2.4 菜单清单按 `src/` 现状重写（脚本管理器 `pc-*`→`script-*` 6 功能页 + 设置、媒体资产 5 类型页已删 → 7 页、菜单项 34 项），工作项详情列改新路径；⑤ `AGENTS.md` v1.7 / `skill/SKILL.md` / `.workbuddy/skills/newtoys/SKILL.md` / `newtoys-spec.md` / `collab-method.md` / `README.md` / 手册 v3.24 的文档路由与归档策略同步改写。⛔ 未动 `src/`。
-- **v3.75（🗂 整理期 2026-10-17）**：**文档搬入 skill + 任务卡归档策略修订 + 表述收敛**（用户「把doc文件移到skill里，封装，删除原有doc目录」）—— ① 🔴 **`src/docs/` → `skill/docs/`** 整体搬迁（git mv，4 份文档 + `backlog/`），`src/` 从此只放代码；`AGENTS.md` / `README.md` / `skill/SKILL.md` / `skill/references/*` / `check-techstack.ps1` / `.workbuddy/skills/newtoys/SKILL.md` 的路径引用同步改写，铁律 1 例外扩到 `skill/`（`accept.ps1` 改动范围判定原本已放行 `skill/`，零改动）。② 🔴 **归档策略修订**（原 2026-10-14「全量保留 ⛔不删」定调作废）：任务卡**默认保留**；**内容被后续工作项整体取代 / 明确作废的卡删除**，台账行标 `🗑 已作废（卡已删）`——本批已删 **NT-004 / NT-017 / NT-028 / NT-031 / NT-043 / NT-048** 共 6 张（NT-067 保留：`ScriptRunner` / `SysInfoGrid` 仍在使用）。③ **skill 与代码对齐**：`newtoys-spec.md` v1.5（补 `NewToys.UI` 程序集 / 数据落点改 `profiles\<配置>` + `app.json` 应用根 / 底栏 28px 口径 / 5 条踩坑硬约束 / G 规则号订正）；`tech-guard.md` 删「§七 与本文件重叠（待收敛）」过期告警 + 标注 `G-12`/`G-13` 未启用 + §三 补 `InitializeComponent` 覆盖；`check-techstack.ps1` 注释规则号订正。④ **本台账自身收敛**：按本文件自定规则「⛔ 只保留最近三次变更」**截断 v3.72 及更早**（归档为一行，明细看 `git log`）；工作项索引表按 NT 号升序重排（原 NT-025/026 倒置、NT-058~068 压在 NT-056 后）。⑤ **脚本评估结论**：`check.ps1` 新增 **`.axaml.cs` 是否调用 `InitializeComponent()`** 检查（NT-063 两次「整块 XAML 静默不加载」事故的静态兜底，`App.axaml` 豁免），实跑 0 告警；其余 3 个检查与 `accept.ps1` 编排无缺口，⛔ 未改构建脚本。文档：需求 v3.72 / 手册 v3.23 / 本台账 v3.75。
 - **v3.74 ~ v3.54（归档）**：NT-063 控件库（P0-a/P1/P2-a）/ NT-064 分页 / NT-067 信息展示页 / NT-062 设置归位与树状设置页 / NT-055~059 工具条·详情卡 IconBar·脚本索引库 / 标签栏改版 / 首页标签退出标签栏 —— 逐条明细见 `git log`（本台账只留最近三次变更）。
 
 ---
@@ -20,7 +20,7 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.72 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.0 ｜ 协作手册 v3.24 ｜ 本台账 v3.76 |
+| 文档版本 | 需求 v3.79 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.79 |
 | 技术栈 | .NET 10 + Avalonia 12.1.4 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
 | 代码规模 | 8 项目 / 274 个 `.cs+.axaml+.csproj` / 约 51100 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |
@@ -138,7 +138,7 @@
 | NT-044 | 标题栏加全屏按钮（⛶）+ `F11` / `Esc` 快捷键 | P2 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
 | NT-045 | 图标实现方式统一（C 方案：全框架矢量 `Geometry` 库；窗口按钮弃图标字体 / 标签 ✕ 与树展开符弃字符；折叠菜单→panel-left、模块加载→拼图） | P2 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
 | NT-046 | 图标收尾：最小化退化与居中修复 / 拼图与全屏改型（两箭头）/ 左树去展开符 / 「框架层图标只用 `Path`」写进规范 | P2 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
-| NT-047 | 数据驱动图标矢量化（二级功能菜单 34 项 / 首页一键按钮 / 模块页内数据行；⛔ 静态装饰 emoji 不动） | P2 | 📝 草稿 | backlog/framework/NT-047.md |
+| NT-047 | 数据驱动图标矢量化（二级功能菜单 34 项 / 首页一键按钮 / 模块页内数据行；⛔ 静态装饰 emoji 不动） | P2 | 📝 草稿（**用户 2026-10-19：暂时不做**，不排期） | backlog/framework/NT-047.md |
 | NT-049 | 清理 3 个未引用标题栏主题键（`TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`；主题键 34 → 31） | P2 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
 | NT-050 | 设置归位：模块专属设置迁模块（软件源 View/VM → PcTools，媒体资产先例模式）+ settings 内「媒体资产」改名「媒体资产设置」 | P1 | ✔ 已完成（已验收） | 🗑 已作废（卡已删） |
 | NT-051 | 设置页合并：主题外观 + 关于 并入 通用设置（单页三节；键 `settings-general` 不变，删 `settings-theme`/`settings-about` 两项） | P2 | ✔ 已完成（已验收） | 🗑 已作废（卡已删） |
@@ -149,14 +149,14 @@
 | NT-056 | 设置总表：路径配置 + 配置 合并为一表（分类列区分行类型 / 决定工具可用性；菜单 35 → 34） | P1 | ✔ **已完成（已验收 2026-10-16）**· commit `66faa28` | 🗑 已作废（卡已删） |
 | NT-057 | 系统托盘增强：左键切显示 / 隐藏 + 右键五项菜单（首页 · 设置 · 用另一个配置打开… · 退出）+ **托盘图标改用应用图标**（与 exe / 窗口同源，⛔ 不再代码画、⛔ 不写死强调色） | P2 | ✔ **已完成（已验收 2026-10-16）**· 2026-10-15：`CreateTrayIcon` → 唯一图标工厂 `CreateAppIcon(accent)`（窗口 + 托盘同源，随强调色）+ 新增 `Resources/app.ico`（exe 图标）；托盘五项菜单（②③ 先拉起窗口再导航，④ 子菜单排除当前配置 / 无其他配置时置灰）；技术债：**形状两处定义**（C# 常量与 ICO 口径，改一处须同步另一处） | 🗑 已蒸馏（卡已删） |
 | NT-058 | 详情卡图标动作组：**第 9 种 `FieldKind.IconBar`**（32×32 图标按钮组）+ chips 分组（`ChipGroupPath`）+ 「全部资产」页打样定稿（**框架层首审项**） | P1 | ✔ **已完成（已验收 2026-10-16）** | 🗑 已蒸馏（卡已删） |
-| NT-059 | 「设置与脚本」页改**脚本索引库**：导入收成 `SplitButton`「📂 导入」+ 导入后清筛选 + 详情卡 `IconBar` + 新增「分类」列 + 删除语义分叉 | P1 | ✔ **已完成（已验收 2026-10-16）** | backlog/script-manager/NT-059.md |
+| NT-059 | 「设置与脚本」页改**脚本索引库**：导入收成 `SplitButton`「📂 导入」+ 导入后清筛选 + 详情卡 `IconBar` + 新增「分类」列 + 删除语义分叉 | P1 | ✔ **已完成（已验收 2026-10-16）** | 🗑 卡已淘汰（滑动窗口；已蒸馏进 `modules/script-manager.md` §5） |
 | NT-060 | **干净启动**：删示例数据（列表示例行 + 详情卡示例态）改**空态引导**（说明 + 入口按钮）+ 取消 `defaults\` 默认清单播种（⚠️ 实含**框架层减法**：`DetailCardDescriptor.SamplePath`/`SampleText` + `DetailCardRender.IsSample`） | P1 | ✔ **已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
 | NT-061 | **配置下沉**：Core 新增 **`IOptionsStore`**（KV + 按模块分区，先 json 后可换 SQLite）+ **五模块各一个设置页**注册进 `settings` + 功能入口页**数据源框可编辑**（回车 / 失焦提交，路径无效 ⇒ 状态栏红字 + ⛔ 不写盘） | P1 | ✔ **已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
 | NT-062 | **应用级设置归位**：`Module.Settings` **撤销** → 6 页迁入 Shell（`settings` 分组改由 Shell 创建）+ **「运行环境」**（外部程序路径上提应用根 `app.json`，与配置档同节）+ 设置项**显式分类** `SettingsCategory` + 设置页**搜索** / 每行**打开配置目录** / 外部程序缺失**惰性探测** + **功能清单移首页** + **软件源并入电脑工具设置** + 删 `GpuAcceleration` + 左树**设置齿轮**（`Ctrl+,`） | P1 | ✔ **已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
 | NT-063 | **控件库 NewToys.UI + 列表页控件化**：ColumnGrid 五合一（2086 行）+ 详情卡渲染搬家 + 新底栏 ListFooterBar（P0-a）→ 列表页骨架（P1）→ 类型页合并 / 设置行控件（P2） | P1 | ✔ **P0-a + P1 + P2-a 已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
 | NT-064 | **列表分页**：UI 底栏归 NT-063，本卡做**数据层** —— SQL LIMIT/OFFSET + **排序下推** + 独立 COUNT(*)；底栏**默认隐藏、列表超出页底才显示**；批量操作只作用于当前页选中项 | P1 | ✔ **已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
-| NT-065 | **分页推广到「脚本收集 / 命令收集」两页**（`pc-shortcuts` / `pc-quicksettings`）：两页挂 `ListPageSkeleton` 的底栏 + VM 分页（数据源是 **JSON 清单 ⇒ 内存切片**，⛔ 不做 SQL）；同步菜单改名「设置与脚本→脚本收集」「快捷设置→命令收集」 | P1 | 📝 草稿（2026-10-17 建卡，待升就绪） | backlog/script-manager/NT-065.md |
-| NT-066 | **标题栏搜索扩范围**：可搜**二级菜单项** + **设置页的节点**（现只搜一级 / 已注册项）；跨 Shell（框架层）⇒ 需用户授权 | P1 | 📝 草稿（2026-10-17 建卡，待摸底 + 授权） | backlog/framework/NT-066.md |
+| NT-065 | **分页推广到「脚本收集 / 命令收集」两页**（`pc-shortcuts` / `pc-quicksettings`）：两页挂 `ListPageSkeleton` 的底栏 + VM 分页（数据源是 **JSON 清单 ⇒ 内存切片**，⛔ 不做 SQL）；同步菜单改名「设置与脚本→脚本收集」「快捷设置→命令收集」 | P1 | 🗑 **已作废（卡已删，2026-10-19）**：改名目标已被 NT-068 取代（两页现为「脚本库 / 命令库」，Key 亦 `pc-*`→`script-*`）；分页部分未做且不再需要（两库存量几十条，骨架已有一屏滚动） | 🗑 已作废 |
+| NT-066 | **标题栏搜索扩范围**：可搜**全部二级菜单项** + **应用级设置页的节**（索引 = 已注册菜单项 + `SettingsViewModel.Catalog`；输入即出列表、↑↓/回车/双击打开）；Shell 改动经用户 2026-10-19 授权 | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/framework/NT-066.md |
 | NT-067 | **信息展示页（脚本输出呈现器，原系统信息 `pc-info`）**：`ScriptRunner` 底座（PcTools）+ manifest 驱动（columns/scripts + per-script interval + auto/timeout）+ 多脚本合并 + 按 RowKey 就地定时刷新 + 自定义表头 + 默认采集脚本播种 | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/script-manager/NT-067.md |
 | NT-068 | **脚本管理器（改名 + 数据库化 + 集合 + 信息面板分节）**：`Module.PcTools` → `Module.ScriptManager`（程序集 / 命名空间 / 模块键 `pc`→`script` / 菜单 Key `pc-*`→`script-*` / 中文页名）；四层模型「采集器 → 集合 → 视图 → 页面」取代四份扁平 JSON；模块独立数据目录（`config\script\` 手工数据 + `data\script\script.db` 观测缓存）；新增集合页 `script-collections`（主从两栏 + 置顶 / 最近 / 搜索 + 发送到信息面板）；信息面板改**集合选择框 + 按采集器分节**（顶部唯一 `集合 ▾`，一次一个集合，⛔ 无 Chip 条；节头状态着色 / 局部刷新 + 关分页）；`collectable` 可采集判定 + 手动扫描三态 + 「仅可采集」筛选；执行频率三层 + 保留策略（`latest` / `count` / `days`）；命令即采集器；⛔ 不做旧数据迁移 | P0 | ✔ **S1~S8 已完成（已验收 2026-10-19）** | backlog/script-manager/NT-068.md |
 
@@ -168,11 +168,14 @@
 | NT-072 | **集合页防误删**：左栏标记「其他页面使用中」的集合（= 信息面板 `lastCollectionId`）并**无条件沉底**；删除保留二次确认，使用中时文案加警示 | P2 | ✔ **已完成（已验收 2026-10-19）** | backlog/script-manager/NT-072.md |
 | NT-073 | **脚本 / 命令「多库索引」+ kind 真正生效**（合并原规划 073/074）：信息面板只列 `kind=info` + 非 info 集合禁用刷新 / 视图字段；库 = `kind∈{script,command}` 的集合，**库页 = 该 kind 全部库的可采集成员并集**（带「所属库」列）；每库 `rootPath`（空 = 全局脚本目录）；内置两库改名「默认脚本库 / 默认命令库」且 kind 锁死；删库孤儿收回默认库；「在用」按 kind 分键 | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/script-manager/NT-073.md |
 
-| NT-075 | **配置写入基建**：`AtomicJsonFile` 原子写（temp + `File.Move`）+ **默认值不落盘 / 空文件删除**（懒创建）+ 启动清理空壳 + `winget.json` 改名升级；`default` 配置 JSON **15 → ≤12** | P1 | ✔ **已完成（已验收 2026-10-19）**（17 处写入点统一 + `ConfigStoreService.PruneEmptyConfigFiles` + `ScriptStoreService` 去重；约定已蒸馏进 `framework.md` §7） | backlog/framework/NT-075.md |
+| NT-075 | **配置写入基建**：`AtomicJsonFile` 原子写（temp + `File.Move`）+ **默认值不落盘 / 空文件删除**（懒创建）+ 启动清理空壳 + `winget.json` 改名升级；`default` 配置 JSON **15 → ≤12** | P1 | ✔ **已完成（已验收 2026-10-19）**（17 处写入点统一 + `ConfigStoreService.PruneEmptyConfigFiles` + `ScriptStoreService` 去重；约定已蒸馏进 `framework.md` §7） | 🗑 已作废（卡已删 · 滑动窗口淘汰，内容全在 §7） |
 | NT-076 | **单库收编**：`data\script\script.db` 并入 `newtoys.db` + 6 份内容型 JSON 建表 + `ILibrarySchemaContributor`（DDL 统一入口 / `user_version` / `VACUUM INTO` 迁移前快照）+ WAL + 表名前缀纪律（`asset_*`/`video_*`/`script_*`/`web_*`） | P0 | ✔ **两批已完成（已验收 2026-10-19）** | backlog/framework/NT-076.md |
 | NT-077 | **配置分层**：机器级 `env.json`（+ 命令行/环境变量覆盖链）/ 框架级 `shell.json`（合并 ui·theme·window·favorites·columnlayout）/ 模块级 `modules\<模块>.json`；删 `app.json` 的 `VideoDbFolder`（写死 profile 绝对路径的现存缺陷） | P1 | ✔ **两批已完成（已验收 2026-10-19）** | backlog/framework/NT-077.md |
 | NT-078 | **备份路由**：`IBackupSection` + zip 容器（manifest + 分节）+ **两入口**（设置备份默认 / 数据备份可选）+ 数据节 `VACUUM INTO` + 旧 v1 备份只读兼容；收编 `AssetAllViewModel` 的 db 导入导出 | P1 | ✔ **A/B/C 三批已完成（已验收 2026-10-19）** | backlog/framework/NT-078.md |
 | NT-079 | **可成长性三件套**（可拆）：模块开关 `disabledModules`（不注册菜单 / 不跑 DDL）/ 命令面板 `Ctrl+K`（复用菜单索引）/ 采集器骨架生成（ps1 **UTF-8 带 BOM** + manifest 模板） | P2 | 📝 草稿（2026-10-19 建卡，先做哪项待拍板） | backlog/framework/NT-079.md |
+| NT-080 | **软件包定位收敛 + winget 源模型重写**：① 集合页删「软件包」类别（`kind=package` 废弃）；② 软件包页**只支持 winget**（apt 等跨平台另开页面）；③ 修「工具条源多选框勾 store 源不生效」（源多选只写 `defaultSource`，全勾 = 不传 `--source`）；④ 修源分类（社区源 / **字体源** / 商店源 / 自定义源；互斥只在社区源内部、字体源内部）；⑤ **商店源不可切换**（开关置灰）；⑥ 实测 winget 1.29 无 `source enable/disable` ⇒ 关 = `remove`、开 = 按 `source export` 快照 `add`（`--type` / `--explicit` 回放），两向都要管理员权限 | P0 | ✔ **已完成（已验收 2026-10-19）**（4 项静态检查 0 阻断；用户本地 build 通过） | backlog/script-manager/NT-080.md |
+
+| NT-081 | **跨平台中立化（远期 · 本期不实施）**：RID 条件化 / Windows-only P/Invoke 守卫收口 / `IProcessRunner` 平台底座（取消进程树 + 编码 + 提权）/ 解析分层（winget 启发式 + 通用 TSV-JSON）/ 后端适配器。日常生效部分 = `framework.md` §2.1 六条硬约束 | P3 | 📝 草稿（2026-10-19 建卡，**本期不做**） | backlog/framework/NT-081.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡默认保留；作废卡已删并标 `🗑`）。
 > NT-048（分屏贴靠首次几何不收敛）**已作废**：现象为**系统级**（Firefox 同复现）⇒ 外部纠偏方向错误，⛔ 不复活；任务卡保留备查。

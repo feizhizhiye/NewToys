@@ -260,7 +260,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - `WHERE` 只写一份，计数与取页共用同一条件对象（两份漂移 ⇒ 总数与行数对不上）。
 - 底栏**默认隐藏**，行数超出页底才显示；批量操作**只作用于当前页选中项**。
 - 页大小落 `shell` 分区（`shell.json`），⛔ 不落 `columnlayout.json`。
-- 现状：仅样板页「全部资产」迁完，其余列表页仍是内存切片（推广见 `framework.md` §11 NT-065）。
+- 现状：仅「全部资产」与「软件包」两页走底栏分页，其余列表页仍是内存切片 + 滚动（量级小，暂无推广需求；原推广卡 NT-065 已作废）。
 
 ---
 

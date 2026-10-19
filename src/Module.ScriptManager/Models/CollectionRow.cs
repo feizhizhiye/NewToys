@@ -54,19 +54,21 @@ public partial class CollectionRow : ObservableObject
     /// <summary>成员数（打开集合时由页面算一次）。</summary>
     [ObservableProperty] private int _memberCount;
 
-    /// <summary>正在被其他页面使用（当前 = 信息面板的 <c>lastCollectionId</c>，NT-072）。</summary>
+    /// <summary>正在被其他页面使用（各页面的 <c>lastCollectionId</c> / 默认库恒真，NT-072）。</summary>
     [ObservableProperty] private bool _isInUse;
 
     /// <summary>左栏「在用」短标（空 = 不显示）。</summary>
     public string InUseMark => IsInUse ? "在用" : "";
 
-    /// <summary>短标悬停说明（左栏只有 280px，长句放这里）。</summary>
-    public string InUseTip => ScriptCollectionKind.Normalize(Kind) switch
-    {
-        ScriptCollectionKind.Script => "脚本库页面正在使用这个库；删除后会回退到「全部库」。",
-        ScriptCollectionKind.Command => "命令库页面正在使用这个库；删除后会回退到「全部库」。",
-        _ => "信息面板正在使用这个集合；删除后会回退到第一个集合。",
-    };
+    /// <summary>短标悬停说明（左栏只有 240px，长句放这里）。</summary>
+    public string InUseTip => Builtin
+        ? "默认库：没有归属的条目会自动收进这里，所以一直算「在用」——⛔ 不可删除（可以改名 / 归档）。"
+        : ScriptCollectionKind.Normalize(Kind) switch
+        {
+            ScriptCollectionKind.Script => "脚本库页面正在使用这个库；要删除先在脚本库页的「库」下拉切到别的库。",
+            ScriptCollectionKind.Command => "命令库页面正在使用这个库；要删除先在命令库页的「库」下拉切到别的库。",
+            _ => "信息面板正在使用这个集合；要删除先把信息面板切到别的集合。",
+        };
 
     /// <summary>kind 的中文名（信息面板 / 脚本库 / 命令库 / 软件包）。
     /// <para>🔴 左栏徽标、筛选下拉、详情卡「类别」三处必须用这同一个文案（用户 2026-10-19）。</para></summary>
@@ -91,7 +93,11 @@ public partial class CollectionRow : ObservableObject
     }
 
     partial void OnPinnedChanged(bool value) => OnPropertyChanged(nameof(PinMark));
-    partial void OnKindChanged(string value) => OnPropertyChanged(nameof(KindText));
+    partial void OnKindChanged(string value)
+    {
+        OnPropertyChanged(nameof(KindText));
+        OnPropertyChanged(nameof(InUseTip));
+    }
     partial void OnMemberCountChanged(int value) => OnPropertyChanged(nameof(SubText));
     partial void OnIsInUseChanged(bool value) => OnPropertyChanged(nameof(InUseMark));
 }

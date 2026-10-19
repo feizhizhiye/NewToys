@@ -137,13 +137,29 @@ public static class BuiltinCollectorSeeder
     /// <summary>内置信息集合「系统信息」：把 6 个内置采集器装进去（只在缺成员时补，⛔ 不动用户改过的排版）。</summary>
     private static bool EnsureInfoCollection(IScriptStoreService store)
     {
-        var col = store.Data.Collections.FirstOrDefault(c => c.Builtin && c.Kind == ScriptCollectionKind.Info);
-        var dirty = false;
+        // 🔴 先清历史重复：老版本播种器曾因「固定 id 被占 / kind 大小写不一致」漏判而**多建一个同名内置集合**
+        // （用户 2026-10-19 看到两个「系统信息」就是这个）。
+        var dirty = DedupeBuiltinInfo(store);
+
+        var col = store.Data.Collections.FirstOrDefault(
+            c => c.Builtin && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Info);
         var created = false;
 
         if (col == null)
         {
-            // 固定 id 被占（用户手工造过）⇒ 换个 id，别抢别人的集合。
+            // 固定 id 被别的集合占了：若那本来就是 info 集合 ⇒ 直接接管，⛔ 不再另建一个同名集合。
+            var taken = store.Data.Collections.FirstOrDefault(c => c.Id == "builtin-info");
+            if (taken != null && ScriptCollectionKind.Normalize(taken.Kind) == ScriptCollectionKind.Info)
+            {
+                taken.Builtin = true;
+                col = taken;
+                created = true;
+                dirty = true;
+            }
+        }
+
+        if (col == null)
+        {
             var id = store.Data.Collections.Any(c => c.Id == "builtin-info")
                 ? Guid.NewGuid().ToString("N")[..12]
                 : "builtin-info";
@@ -178,6 +194,40 @@ public static class BuiltinCollectorSeeder
         }
 
         return dirty;
+    }
+
+    /// <summary>
+    /// 内置信息集合去重（用户 2026-10-19）：多于一个 <c>builtin &amp;&amp; kind=info</c> 时只留一个 ——
+    /// 成员取并集、被删集合的视图一并丢弃、正在用/默认视图的 id 指过去。
+    /// </summary>
+    private static bool DedupeBuiltinInfo(IScriptStoreService store)
+    {
+        var infos = store.Data.Collections
+            .Where(c => c.Builtin && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Info)
+            .ToList();
+        if (infos.Count <= 1) return false;
+
+        // 优先保留固定 id 的那个（播种器认得的），否则留成员最多的。
+        var keep = infos.FirstOrDefault(c => c.Id == "builtin-info")
+                   ?? infos.OrderByDescending(c => store.ItemsOf(c.Id).Count).First();
+
+        foreach (var dup in infos.Where(c => !string.Equals(c.Id, keep.Id, StringComparison.Ordinal)).ToList())
+        {
+            foreach (var item in store.Data.Items)
+            {
+                if (!item.Collections.Contains(dup.Id)) continue;
+                if (!item.Collections.Contains(keep.Id)) item.Collections.Add(keep.Id);
+                item.Collections.RemoveAll(x => x == dup.Id);
+            }
+
+            store.Data.Views.RemoveAll(v => v.CollectionId == dup.Id);
+            if (string.Equals(store.GetLastCollectionId(ScriptCollectionKind.Info), dup.Id, StringComparison.Ordinal))
+                store.SetLastCollectionId(ScriptCollectionKind.Info, keep.Id);
+
+            store.Data.Collections.RemoveAll(c => c.Id == dup.Id);
+        }
+
+        return true;
     }
 
     /// <summary>随包默认脚本所在目录（不存在返回 null）。</summary>

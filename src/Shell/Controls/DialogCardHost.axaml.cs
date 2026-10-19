@@ -96,7 +96,7 @@ public partial class DialogCardHost : UserControl
         BtnCancel.IsVisible = showCancel;
         CardInput.IsVisible = kind == Kind.Input;
         CardInput.Text = initialValue ?? "";
-        CardInput.Watermark = "请输入";
+        CardInput.PlaceholderText = "请输入";
 
         Root.IsVisible = true;
 

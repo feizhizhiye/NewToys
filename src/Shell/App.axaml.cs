@@ -72,6 +72,9 @@ public class App : Application
                 sp.GetRequiredService<ShellConfigStore>()));
             // NT-077 第二批：机器级配置（解释器 / ffmpeg / 播放器 / 更新地址 / DNS）落 %LOCALAPPDATA%\NewToys\env.json
             services.AddSingleton<EnvConfigService>();
+            // NT-083：Python 运行时底座（跨模块共用 —— 网络工具的规则集 / 脚本管理器的 .py 命令）。
+            // 长驻 worker + stdin/stdout 行分隔 JSON；⛔ 不引 pythonnet（保持平台中立，framework.md §2.1）。
+            services.AddSingleton<IPythonRuntime, PythonRuntime>();
             services.AddSingleton<IAppConfigService, AppConfigService>();
             services.AddSingleton<ILaunchConfigService, LaunchConfigService>();
             services.AddSingleton<IMenuService, MenuService>();

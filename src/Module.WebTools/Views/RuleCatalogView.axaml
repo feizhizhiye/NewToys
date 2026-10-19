@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.UI.Controls"
+             x:Class="NewToys.WebTools.Views.RuleCatalogView">
+  <!--  NT-084 批 A/B：「网页抓取」→「抓取规则」的**规则目录页**（页 Key 仍为 web-scrape）。
+       本页只管目录（.py 文件），命令列表与 HTML 调试在另一页（web-rule-editor）。
+       骨架仍用 ListPageSkeleton，⛔ 不改骨架、⛔ 不动 340px 详情卡。  -->
+  <v:ListPageSkeleton EmptyMessage="还没有规则集。点「➕ 新建规则集」建一个。"
+                      EmptyActionText="➕ 新建规则集"
+                      EmptyActionCommand="{Binding NewRuleSetCommand}"
+                      IsEmpty="{Binding !HasItems}">
+
+    <v:ListPageSkeleton.HeaderArea>
+      <Border Classes="list-header">
+        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+          <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                  Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
+          <Button Grid.Column="1" Classes="col-header" Content="{Binding BaseUrlHeader}"
+                  IsVisible="{Binding IsBaseUrlVisible}"/>
+          <Button Grid.Column="2" Classes="col-header" Content="{Binding EnabledHeader}"
+                  IsVisible="{Binding IsEnabledVisible}"/>
+          <Button Grid.Column="3" Classes="col-header" Content="{Binding LastRunHeader}"
+                  IsVisible="{Binding IsLastRunVisible}"/>
+          <v:ColumnGrid.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                <MenuItem.ItemContainerTheme>
+                  <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                    <Setter Property="Header" Value="{Binding Label}"/>
+                    <Setter Property="Command" Value="{Binding Command}"/>
+                  </ControlTheme>
+                </MenuItem.ItemContainerTheme>
+              </MenuItem>
+              <Separator/>
+              <MenuItem Header="名称" IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
+              <MenuItem Header="域名" ToggleType="CheckBox" IsChecked="{Binding IsBaseUrlVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="BaseUrl"/>
+              <MenuItem Header="状态" ToggleType="CheckBox" IsChecked="{Binding IsEnabledVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Enabled"/>
+              <MenuItem Header="最近运行" ToggleType="CheckBox" IsChecked="{Binding IsLastRunVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="LastRun"/>
+            </ContextMenu>
+          </v:ColumnGrid.ContextMenu>
+        </v:ColumnGrid>
+      </Border>
+    </v:ListPageSkeleton.HeaderArea>
+
+    <v:ListPageSkeleton.ListArea>
+      <ListBox x:Name="RuleSetList" Classes="list-page"
+               ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+               SelectionMode="Single">
+        <ListBox.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="✓ 切换启用" Command="{Binding ToggleEnabledCommand}"/>
+            <Separator/>
+            <MenuItem Header="📝 打开文件" Command="{Binding OpenFileCommand}"/>
+            <MenuItem Header="📂 打开目录" Command="{Binding OpenFolderCommand}"/>
+            <Separator/>
+            <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}"/>
+          </ContextMenu>
+        </ListBox.ContextMenu>
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+              <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Name}"
+                         Foreground="{DynamicResource PrimaryTextBrush}"
+                         IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding BaseUrl}"
+                         Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding $parent[ListBox].DataContext.IsBaseUrlVisible}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding EnabledText}"
+                         Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding $parent[ListBox].DataContext.IsEnabledVisible}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding LastRunText}"
+                         Foreground="{DynamicResource SecondaryTextBrush}"
+                         IsVisible="{Binding $parent[ListBox].DataContext.IsLastRunVisible}"/>
+            </v:ColumnGrid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </v:ListPageSkeleton.ListArea>
+  </v:ListPageSkeleton>
+</UserControl>

@@ -14,7 +14,10 @@ public class WebToolsModule : IModule
         services.AddSingleton<HostsService>();
         services.AddSingleton<BookmarkService>();
         services.AddSingleton<PingService>();
-        services.AddSingleton<ScrapeService>();
+        // NT-084 批 A/B：规则集 = 磁盘 .py 文件（RuleFileService）+ 元数据 / 迁移（RuleCatalogService）。
+        // 旧的 ScrapeService（单条 RuleType+Rule）已删 —— 见 NT-084 命名表。
+        services.AddSingleton<RuleFileService>();
+        services.AddSingleton<RuleCatalogService>();
 
         // NT-076 第二批：本模块的总库 schema（web_docs + 4 份旧 JSON 一次性入表）。
         services.AddSingleton<ILibrarySchemaContributor, WebToolsSchemaContributor>();
@@ -22,7 +25,7 @@ public class WebToolsModule : IModule
         services.AddTransient<Views.WebHttpView>();    services.AddTransient<WebHttpViewModel>();
         services.AddTransient<Views.BookmarkView>();   services.AddTransient<BookmarkViewModel>();
         services.AddTransient<Views.PingView>();       services.AddTransient<PingViewModel>();
-        services.AddTransient<Views.ScrapeView>();     services.AddTransient<ScrapeViewModel>();
+        services.AddTransient<Views.RuleCatalogView>(); services.AddTransient<RuleCatalogViewModel>();
         services.AddTransient<Views.HostsView>();      services.AddTransient<HostsViewModel>();
 
         // v3.64 / NT-061：本模块设置（网页抓取默认 UA + 单次抓取超时）——**本模块配置的唯一写入点**，
@@ -37,7 +40,9 @@ public class WebToolsModule : IModule
         menu.RegisterFunction("web", "web-http",     "HTTP 测试",  "🧪", "WebHttpView", 1, "构造请求并查看响应");
         menu.RegisterFunction("web", "web-bookmark", "书签管理",   "🔖", "BookmarkView", 2, "收藏与整理常用网址、导入浏览器书签");
         menu.RegisterFunction("web", "web-ping",     "网络 Ping",  "📡", "PingView",     3, "测试主机连通性与延迟，支持切 DNS");
-        menu.RegisterFunction("web", "web-scrape",   "网页抓取",   "🕷", "ScrapeView",   4, "多配置批量抓取并整合");
+        // 🔴 NT-084：Key 仍是 web-scrape（落 columnlayout.json 页键，改了用户偏好失效）；
+        // 标题改为「抓取规则」，指向新的目录页 RuleCatalogView（旧的 ScrapeView 已删）。
+        menu.RegisterFunction("web", "web-scrape",   "抓取规则",   "🕷", "RuleCatalogView", 4, "管理抓取规则集（一条规则集 = 一个 .py 文件）");
         menu.RegisterFunction("web", "web-hosts",    "Hosts 管理", "🗂", "HostsView",    5, "切换 hosts 方案、网络导入、编辑系统 hosts");
 
         // v3.64 / NT-061：模块设置页通则 —— View/VM 归本模块。

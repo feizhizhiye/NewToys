@@ -46,7 +46,8 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
         "点按钮直接执行；右键按钮可「✕ 取消固定」移出收藏夹。";
 
     public string DataFileHint =>
-        $"数据文件：{_svc?.ScriptsFilePath}\n　　　　　{_svc?.QuickFilePath}\n（两个页面各一份，都在 config\\ 下，会被「设置 → 数据管理」的备份 / 导入一起覆盖）";
+        $"数据文件：{_svc?.ScriptsFilePath}（脚本库 / 命令库共用同一个库文件）\n" +
+        "（NT-076 起进总库 <profile>\\data\\newtoys.db，随配置档隔离）";
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public FavoritesViewModel() { }

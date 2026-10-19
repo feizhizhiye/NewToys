@@ -1,4 +1,4 @@
-<!--  NT-040 · 🔴 2026-10-15 定案：窗口装饰走 **Avalonia 12 官方 CSD 路线**（需求 §4.1.1）。
+﻿<!--  NT-040 · 🔴 2026-10-15 定案：窗口装饰走 **Avalonia 12 官方 CSD 路线**（需求 §4.1.1）。
       `WindowDecorations="Full"` 只为拿到**完整标准窗口样式**（贴靠资格 / 系统菜单 / 最小化动画），
       ⛔ **不等于让 Avalonia 画默认那套窗框** —— 顶掉默认主题靠 `App.axaml` 里以**隐式键**
       `{x:Type chrome:WindowDrawnDecorations}` 注册的 ControlTheme（不设 Template → 无模板 → 不画装饰视觉）。
@@ -363,71 +363,84 @@
                 Classes="tree-panel"
                 Classes.collapsed="{Binding IsTreeCollapsed}">
               <Grid RowDefinitions="*,Auto">
-                <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl x:Name="TreeControl" ItemsSource="{Binding TreeNodes}" Margin="8,8">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel>
-                                    <!--  一级：分组（可展开）/ 首页（叶子）；图标为矢量图、文字加粗  -->
-                                    <Button
-                                        Classes="tree-row"
-                                        Classes.active="{Binding IsActive}"
-                                        Command="{Binding $parent[Window].DataContext.TreeClickCommand}"
-                                        CommandParameter="{Binding}"
-                                        ToolTip.Tip="{Binding Title}">
-                                        <Grid ColumnDefinitions="Auto,*">
-                                            <!--  一级图标 = 矢量（`VectorIcon` 由 VM 按几何键解析）。颜色由样式给
-                                                 （`Button.tree-row Path` / `.active Path`）→ 折叠态也能显主题色。
-                                                 ⛔ 不再有 emoji 回退：键名必须在 `App.axaml` 定义。
-                                                 🔴 NT-046：行首**展开箭头已去掉** —— 左树只有一级有图标，
-                                                    行首再占 12px 会让一级 / 二级行不对齐（`IconChevronDown/Right`
-                                                    两个键留在资源库里备后续可折叠区块用）。  -->
-                                            <Path
-                                                Grid.Column="0"
-                                                Width="16"
-                                                Height="16"
-                                                VerticalAlignment="Center"
-                                                Data="{Binding VectorIcon}"
-                                                IsVisible="{Binding HasVectorIcon}"
-                                                Stretch="Uniform" />
-                                            <TextBlock
-                                                Grid.Column="1"
-                                                Margin="8,0,0,0"
-                                                VerticalAlignment="Center"
-                                                Classes="tree-title"
-                                                FontSize="15"
-                                                Text="{Binding Title}" />
-                                        </Grid>
-                                    </Button>
-                                    <!--  二级：功能叶子（缩进 + 次要色，无图标）  -->
-                                    <!--  Margin 上边距 4：一级行与其下第一个二级行之间留出层级间隔
-                                          （否则两行都激活时圆角背景块贴合、看着连成一整块）。⛔ 不是行高、别改 Height。  -->
-                                    <ItemsControl
-                                        Classes="tree-children"
-                                        ItemsSource="{Binding Children}"
-                                        IsVisible="{Binding IsExpanded}"
-                                        Margin="16,4,0,0">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button
-                                                    Classes="tree-row sub"
-                                                    Classes.active="{Binding IsActive}"
-                                                    Command="{Binding $parent[Window].DataContext.TreeClickCommand}"
-                                                    CommandParameter="{Binding}">
-                                                    <TextBlock
-                                                        VerticalAlignment="Center"
-                                                        Classes="tree-title"
-                                                        FontSize="13"
-                                                        Text="{Binding Title}" />
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                <!--  🔴 v3.69（用户 2026-10-18）：**滚动区与版本行的内边距彻底隔离** ——
+                      滚动区（本 `Border` 的 `Padding="8,8"` + 下方 `ScrollViewer` 的右侧 8px 走廊）
+                      要给右侧滚动条让位、也让树行离面板边；
+                      版本行（下方 `Border.tree-version`）在滚动区**外面**、没有滚动条 ⇒ 它自己另设 `Padding="4,0"`
+                      （`App.axaml` 里的 `Border.tree-version` 样式），⛔ 两者不要互相继承 / 不要共用一个 padding。  -->
+                <Border Grid.Row="0" Padding="8,8">
+                  <!--  🔴 右侧 8px 内边距 = 滚动条**专用走廊**（Fluent 的滚动条是自动隐藏的浮层，
+                        不占布局列 ⇒ 不给走廊就会压在树行按钮上：激活色药丸被竖线穿过）。
+                        ⛔ 别再改回 0：走廊一没，重合立刻回来。  -->
+                  <ScrollViewer
+                      Padding="0,0,8,0"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+                      <ItemsControl x:Name="TreeControl" ItemsSource="{Binding TreeNodes}">
+                          <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                  <StackPanel>
+                                      <!--  一级：分组（可展开）/ 首页（叶子）；图标为矢量图、文字加粗  -->
+                                      <Button
+                                          Classes="tree-row"
+                                          Classes.active="{Binding IsActive}"
+                                          Command="{Binding $parent[Window].DataContext.TreeClickCommand}"
+                                          CommandParameter="{Binding}"
+                                          ToolTip.Tip="{Binding Title}">
+                                          <Grid ColumnDefinitions="Auto,*">
+                                              <!--  一级图标 = 矢量（`VectorIcon` 由 VM 按几何键解析）。颜色由样式给
+                                                   （`Button.tree-row Path` / `.active Path`）→ 折叠态也能显主题色。
+                                                   ⛔ 不再有 emoji 回退：键名必须在 `App.axaml` 定义。
+                                                   🔴 NT-046：行首**展开箭头已去掉** —— 左树只有一级有图标，
+                                                      行首再占 12px 会让一级 / 二级行不对齐（`IconChevronDown/Right`
+                                                      两个键留在资源库里备后续可折叠区块用）。  -->
+                                              <Path
+                                                  Grid.Column="0"
+                                                  Width="16"
+                                                  Height="16"
+                                                  VerticalAlignment="Center"
+                                                  Data="{Binding VectorIcon}"
+                                                  IsVisible="{Binding HasVectorIcon}"
+                                                  Stretch="Uniform" />
+                                              <TextBlock
+                                                  Grid.Column="1"
+                                                  Margin="8,0,0,0"
+                                                  VerticalAlignment="Center"
+                                                  Classes="tree-title"
+                                                  FontSize="15"
+                                                  Text="{Binding Title}" />
+                                          </Grid>
+                                      </Button>
+                                      <!--  二级：功能叶子（缩进 + 次要色，无图标）  -->
+                                      <!--  Margin 上边距 4：一级行与其下第一个二级行之间留出层级间隔
+                                            （否则两行都激活时圆角背景块贴合、看着连成一整块）。⛔ 不是行高、别改 Height。  -->
+                                      <ItemsControl
+                                          Classes="tree-children"
+                                          ItemsSource="{Binding Children}"
+                                          IsVisible="{Binding IsExpanded}"
+                                          Margin="16,4,0,0">
+                                          <ItemsControl.ItemTemplate>
+                                              <DataTemplate>
+                                                  <Button
+                                                      Classes="tree-row sub"
+                                                      Classes.active="{Binding IsActive}"
+                                                      Command="{Binding $parent[Window].DataContext.TreeClickCommand}"
+                                                      CommandParameter="{Binding}">
+                                                      <TextBlock
+                                                          VerticalAlignment="Center"
+                                                          Classes="tree-title"
+                                                          FontSize="13"
+                                                          Text="{Binding Title}" />
+                                                  </Button>
+                                              </DataTemplate>
+                                          </ItemsControl.ItemTemplate>
+                                      </ItemsControl>
+                                  </StackPanel>
+                              </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                  </ScrollViewer>
+                </Border>
 
                 <!--  左树底部：版本号区（v3.9）+ **设置齿轮**（v3.65 / NT-062，需求 §4.3）。
                      ⚠️ 版本号 = 独立占位值（ShellViewModel.TreeVersionText），与「关于」节的版本号是两个用途。
@@ -440,15 +453,17 @@
                         Classes="tree-version-text"
                         Text="{Binding TreeVersionText}"
                         ToolTip.Tip="当前配置 · 版本号"
+                        HorizontalAlignment="Left"
                         IsVisible="{Binding IsTreeExpanded}" />
                     <Button
                         Grid.Column="1"
                         Classes="tree-gear"
                         Command="{Binding OpenSettingsCommand}"
+	          HorizontalAlignment="Right"
                         ToolTip.Tip="设置（应用级设置页 · 快捷键 Ctrl+,）">
                       <Path
-                          Width="14"
-                          Height="14"
+                          Width="18"
+                          Height="18"
                           Stretch="Uniform"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"
@@ -468,12 +483,11 @@
                 <Grid Grid.Column="0" RowDefinitions="Auto,*">
 
                   <!--  🔴 NT-055 / 需求 §4.8.5：工具条由 **Shell 统一承载**（页面 VM 实现 IToolbarSource 才有这一行；
-                        未接契约的页继续用自己的页内自绘工具条 ⇒ ⛔ 不会两处同时渲染）。
-                        Margin 12,12,12,0 = 与页面根 Margin="12" 的左 / 右 / 上对齐。  -->
+                        未接契约的页继续用自己的页内自绘工具条 ⇒ ⛔ 不会两处同时渲染）。  -->
                   <Border
                       Grid.Row="0"
                       Classes="toolbar"
-                      Margin="12,12,12,0"
+                      Margin="0,0,0,0"
                       IsVisible="{Binding IsToolbarActive}">
                     <ctl:ToolbarHost Source="{Binding ToolbarSource}" />
                   </Border>

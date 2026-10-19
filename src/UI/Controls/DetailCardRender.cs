@@ -386,6 +386,99 @@ public sealed class ListFieldRow : DetailFieldRow
     }
 }
 
+/// <summary>
+/// <see cref="FieldKind.EditableList"/>：**可编辑列表**（每行 = 只读左标签 + 可编辑文本框，失焦提交）。
+/// <para>
+/// 取数：<see cref="DetailField.OptionsPath"/>（候选集合）+ <see cref="DetailField.ItemLabelPath"/>（左标签）
+/// + <see cref="DetailField.ItemTextPath"/>（可编辑文本，双向写回候选项）。
+/// 提交时执行 <see cref="DetailField.ItemCommandPath"/>（参数 = 候选项本身），落盘 / 重投影由页面 VM 负责。
+/// </para>
+/// </summary>
+public sealed class EditableListFieldRow : DetailFieldRow
+{
+    private INotifyCollectionChanged? _watched;
+
+    public EditableListFieldRow(DetailField field, object? source) : base(field, source) { }
+
+    public ObservableCollection<EditableListItemRow> Items { get; } = new();
+
+    public bool HasItems => Items.Count > 0;
+
+    protected override void RefreshCore()
+    {
+        var raw = DetailPath.Resolve(Source, Field.OptionsPath) as IEnumerable;
+        var cmd = DetailPath.Resolve(Source, Field.ItemCommandPath) as ICommand;
+
+        // 候选集合换了 / 被重建（切节、列变化）⇒ 跟着刷新（否则卡里停留在上一节的列）
+        if (raw is INotifyCollectionChanged ncc && !ReferenceEquals(ncc, _watched))
+        {
+            if (_watched is not null) _watched.CollectionChanged -= OnSourceCollectionChanged;
+            _watched = ncc;
+            _watched.CollectionChanged += OnSourceCollectionChanged;
+        }
+
+        Items.Clear();
+        if (raw is not null)
+        {
+            foreach (var item in raw)
+                Items.Add(new EditableListItemRow(
+                    item,
+                    DetailPath.Resolve(item, Field.ItemLabelPath)?.ToString(),
+                    DetailPath.Resolve(item, Field.ItemTextPath)?.ToString(),
+                    Field.ItemTextPath,
+                    cmd));
+        }
+        OnPropertyChanged(nameof(HasItems));
+    }
+
+    private void OnSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => Refresh();
+}
+
+/// <summary>可编辑列表的一行：左标签 + 文本框；<see cref="Commit"/> 由失焦触发。</summary>
+public sealed class EditableListItemRow : ObservableObject
+{
+    private readonly object? _item;
+    private readonly string? _textPath;
+    private readonly ICommand? _command;
+    private string _value = "";
+    private bool _dirty;
+
+    public EditableListItemRow(object? item, string? label, string? value, string? textPath, ICommand? command)
+    {
+        _item = item;
+        _textPath = textPath;
+        _command = command;
+        _value = value ?? "";
+        Label = label;
+    }
+
+    /// <summary>只读左标签（列 key / 属性名）。</summary>
+    public string? Label { get; }
+
+    public bool HasLabel => !string.IsNullOrWhiteSpace(Label);
+
+    /// <summary>可编辑文本；改的时候只留在本地，失焦才写回。</summary>
+    public string Value
+    {
+        get => _value;
+        set
+        {
+            if (!SetProperty(ref _value, value ?? "")) return;
+            _dirty = true;
+        }
+    }
+
+    /// <summary>失焦提交：只写回真正改过的项（<see cref="_dirty"/> 为空时直接跳过，避免无谓重投影）。</summary>
+    public void Commit()
+    {
+        if (!_dirty || _item is null) return;
+        _dirty = false;
+
+        DetailPath.Write(_item, _textPath, _value);
+        if (_command is not null && _command.CanExecute(_item)) _command.Execute(_item);
+    }
+}
+
 /// <summary><see cref="FieldKind.Number"/>：数值 / 评分（可带取值区间）。</summary>
 public sealed class NumberFieldRow : DetailFieldRow
 {
@@ -733,6 +826,7 @@ public sealed class DetailSectionRender : ObservableObject
         FieldKind.Divider => new DividerFieldRow(f, source),
         FieldKind.List => new ListFieldRow(f, source),
         FieldKind.IconBar => new IconBarFieldRow(f, source),
+        FieldKind.EditableList => new EditableListFieldRow(f, source),
         _ => new TextFieldRow(f, source)
     };
 }

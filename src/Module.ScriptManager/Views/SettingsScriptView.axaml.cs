@@ -13,7 +13,7 @@ public partial class SettingsScriptView : UserControl
     {
         InitializeComponent();
         Add("脚本目录", "📂", "脚本库扫描的根目录（脚本库页同一份值）", "Sec0");
-        Add("软件源（winget）", "📦", "系统 winget 源的增删与默认源", "Sec1");
+        Add("软件源（winget）", "📦", "系统 winget 源的开关与添加（其余 winget 操作都在软件包页工具条）", "Sec1");
         Add("设置文件", "📄", "配置落在哪 / 解释器路径在哪配", "Sec2");
     }
 

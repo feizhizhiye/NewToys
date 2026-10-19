@@ -17,7 +17,7 @@
 - §4 菜单注册与导航（含 **§4.6 应用级设置 / 首页 / 功能清单**）
 - §5 页面解析与 VM 定位
 - §6 契约（Shared 侧接口）
-- §7 配置与路径
+- §7 配置与路径（**§7.1 三层配置清单 · §7.3 单一数据总库**）
 - §8 异常处理
 - §9 构建与版本
 - §10 技术债台账
@@ -321,7 +321,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 |---|---|---|
 | 启动与退出 / 更新 / 主题外观 / 一键按钮 / 加密 DNS | 即时落盘 | 主题即时生效 |
 | 路径与配置 | 编辑即落盘 | **切换配置二次确认 + 本窗重启**；`🚀 新开` 同时开两套；外部程序路径**惰性探测**，缺失 ⇒ 状态栏 `⚠` 可点提示，⛔ 不崩 |
-| 数据管理 | 显式动作 | 备份**只打包 `config\`**（⛔ 不含可重建的 `data\`）；导入 config |
+| 数据管理 | 显式动作 | 备份 = **zip 分节包**（`manifest.json` + 每节一个内层 zip）；默认只勾设置节（`shell` + `module.*`），`env` / `data.*` 默认不勾；恢复先归档 `.bak-<时间戳>`；旧的 v1 单 JSON 只读导入 | 见 §7.4 |
 
 **功能清单页 `settings-all`**
 
@@ -451,34 +451,77 @@ public interface IDetailCardSource
 - 一律 `Path.Combine`，⛔ 硬编码 `\` 或 `/`。
 - **用户数据**由 `ConfigStoreService` 唯一决定（不在仓库内）：应用根 `%LocalAppData%\NewToys`（环境变量 **`NEWTOYS_HOME`** 整根切换）。
   - 应用根之下分「配置」：`<应用根>\profiles\<配置名>\` → 其下才是 `config / data / logs`；当前配置名记在 **`<应用根>\active-profile.txt`**（在 `profiles\` 之外，否则切换会把自己也换掉）。
-  - `ConfigStoreService` 构造时：① 确保 `profiles\<active>\` 存在（首次跑旧结构迁移）；② 暴露 `ConfigDir` / `DataDirectory` / `LogsDir`；③ `ProfilesRoot` / `ActiveProfileName` 供设置页用。
+  - `ConfigStoreService` 构造时：① 确保 `profiles\<active>\` 存在（首次跑旧结构迁移）；② 暴露 `ConfigDir` / `ModulesConfigDir`（`config\modules`）/ `DataDir` / `LogsDirectory`；③ `ProfilesRoot` / `ActiveProfileName` 供设置页用。
   - ⛔ 模块不自己拼路径，向 `IAppConfigService.DataDirectory` / `ConfigStoreService` 取值。
 - **配置切换**：`IProfileService`（Core）负责列出 / 新增 / 重命名 / 删除 / 切换 / 设为默认；**切换 = 重启进程并显式传 `--profile <名>`**（`Process.Start(Environment.ProcessPath + " --profile " + name)` + `Environment.Exit(0)`），⛔ 不写 `active-profile.txt`；**设为默认**才写指针。⛔ 不做运行时热切换。
 - **启动参数**：`NewToys.exe [--profile <配置名>]`；解析顺序 = **参数 > `active-profile.txt` > `default`**；非法 / 不存在 → 用默认 + 状态栏一行提示（⛔ 不崩、不静默）。
 - **每配置单例**：命名互斥 `Local\NewToys_Profile_<配置名小写>`（`new Mutex(false, name)` + `WaitOne(0)`）；已占用 → 提示「该配置已在运行」后 `Environment.Exit(0)`，⛔ 不静默。⛔ 别用 `Global\`；配置名大小写不敏感 → mutex 名统一小写。
 - **新开实例**：每配置行「🚀 新开」= `Process.Start(Environment.ProcessPath, $"--profile {name}")`；窗口标题 = `NewToys · <配置名>`。
-- **窗口 bounds 记忆**：`config\window.json`（`X/Y/Width/Height/WindowState`），按配置各存各的；关闭时存，最小化态不存位置；还原时夹进当前屏幕工作区。
+- **窗口 bounds 记忆**：`shell.json` 的 `window` 节（`X/Y/Width/Height/State`），按配置各存各的；关闭时存，最小化态不存位置；还原时夹进当前屏幕工作区。
 - 平台相关能力（winget / `ms-settings:` / ffmpeg）集中封装；路径穿越防御：外部相对路径 `Path.GetFullPath` 后校验落在目标目录内。
+- **配置写盘只有一个实现：`AtomicJsonFile.Write`**（NT-075）。`Core/Services/AtomicJsonFile.cs` = 同目录 `.<名>.<guid>.tmp` → `File.Move(overwrite)`；
+  内容为 `""` / `{}` / `[]` / `null` ⇒ **删除目标文件**（懒创建：默认值 = 无文件）。
+  ⛔ 新代码不许再用 `File.WriteAllText` 落配置；⛔ 也不要用它写**用户导出文件**（删空文件会让人以为导出失败）。
+- **启动清理（NT-075）**：`ConfigStoreService` 构造时 `PruneEmptyConfigFiles()` 递归删 `config\**\*.json` 里的空壳，
+  跳过 `.` 开头的目录 / 文件（`.bak-*` 归档不动）。
+  🔴 前提约定：**「配置文件不存在」= 用默认值**，所以删空壳语义等价。
+  ⇒ 任何 store ⛔ 不许用 `File.Exists(config)` 判「是否首次运行 / 要不要播种」，要标记就用 `.seeded` 这类独立标记文件。
 
-### 7.1 `config/` 文件清单（模块分区见各模块 md）
+### 7.1 配置文件清单（NT-077 第二批定稿：三层 + 一个总库）
+
+**L0 机器级**（跟随机器，⛔ 不随配置档）
 
 | 文件 | 归属 | 内容 |
 |---|---|---|
-| `theme.json` | 应用级设置 | 主题模式 + 强调色 id |
-| `app.json` | 应用级设置 | ffmpeg / 播放器 / DNS 开关 / 脚本运行环境（python、pwsh、PS5.1 路径 + 脚本目录）。无视频库目录 |
-| `launch.json` | 应用级设置 | 三个一键按钮 + 4 个通用开关 |
-| `package.json` | 脚本管理器 | 软件包查询偏好。软件源本身不在这里 |
-| `script-manager.json` | 脚本管理器 | `IOptionsStore` 分区名 `script-manager`，唯一写入点 = `settings-script` 页：脚本目录。⚠️ 分区名 ≠ 模块键（模块键是 `script`），历史惯例 |
-| `web-tools.json` | 网络工具 | `IOptionsStore` 分区 `web-tools`，唯一写入点 = `settings-web-tools` 页：默认 UA / 抓取超时 |
-| `video-tools.json` | 视频工具 | `IOptionsStore` 分区 `video-tools`，唯一写入点 = `settings-video-tools` 页：最大并发数 |
-| `media-assets.json` | 媒体资产 | 唯一写入点 = `settings-media-assets` 页：扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 |
-| `favorites.json` | 首页 | 收藏夹 |
-| `script\script.json` | 脚本管理器 | 手工数据（集合 / 条目 / 标签 / 视图 / 上次集合）。原子写（`.tmp` + rename） |
-| `columnlayout.json` | 框架层 | 列显隐 + 页面级开关（详情栏开合 `FlagDetailPanel`；壳级页 Key `"shell"`：左树折叠态 `treeCollapsed` + 各一级分组展开态 `treeGroup:<groupKey>`，默认 false） |
+| `<应用根>\env.json`（默认 `%LOCALAPPDATA%\NewToys\env.json`） | 框架层 | 唯一写入点 = `Core/Services/EnvConfigService`：ffmpeg / 播放器 / Python / pwsh / PS5.1 路径、更新地址、加密 DNS 三项。**覆盖链**（读）：命令行 `--ffmpeg/--player/--python/--pwsh/--pwsh51/--update-url` ＞ 环境变量 `NEWTOYS_FFMPEG` 等 ＞ `env.json` ＞ 内置默认。覆盖值⛔ 不落盘 |
 
-- **`data\` 下是观测缓存**（可重建、不进备份），如 `data\script\script.db`。
-- `IOptionsStore.Validate` 禁路径分隔符 / `.` / `..` ⇒ 模块设置只能落 `config\<模块>.json`，模块私有子目录另建（如 `config\script\`）。
-- ⛔ 不为单个功能预置默认内容（v3.60）：首次运行清单为空，条目由用户导入 / 新建。唯一例外 = 内置采集脚本播种（见 `modules/script-manager.md`）。
+**L2 框架偏好**（跟随配置档）
+
+| 文件 | 归属 | 内容 |
+|---|---|---|
+| `config\shell.json` | 框架层 | 五节：`theme` / `window` / `favorites` / `columnLayout` / `ui`。唯一写入点 = `Core/Services/ShellConfigStore`（整节读写 + 原子写 + 空即删）。⚠️ NT-077 前是 5 个独立文件，迁移后旧文件改名 `.legacy` |
+
+**L3 模块设置**（跟随配置档，统一在 `config\modules\`）
+
+| 文件 | 归属 | 内容 |
+|---|---|---|
+| `config\modules\script-manager.json` | 脚本管理器 | 分区 `script-manager`：脚本目录等 |
+| `config\modules\web-tools.json` | 网络工具 | 分区 `web-tools`：默认 UA / 抓取超时 |
+| `config\modules\video-tools.json` | 视频工具 | 分区 `video-tools`：最大并发数 |
+| `config\modules\media-assets.json` | 媒体资产 | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 |
+| `config\modules\package.json` | 脚本管理器 | 软件包查询偏好（软件源不在这里） |
+
+- `IOptionsStore` 的分区名仍**不带路径**（`Validate` 禁分隔符），目录由 `ConfigStoreService.ModulesConfigDir` 决定 ⇒ 分区 `x` → `config\modules\x.json`。
+- 应用级行为（**不是机器环境**）留 `app.json`：`MaxConcurrency` + `Launch`（三按钮 + 通用开关）。
+- 🔴 **`app.json.VideoDbFolder` 已删除**（NT-077 第二批）：它是跨配置共享却写着某个 profile 绝对路径的缺陷字段。导入/导出默认目录一律 = `IAppConfigService.DataDirectory`（当前配置档 `data\`），设置页不再有这一行。
+- ⛔ 模块不自建 `config\` 子目录：手工数据 / 功能数据一律进总库（见 7.3）。
+
+### 7.3 单一数据总库（NT-076 定稿：一个配置档 = 一个 `data\newtoys.db`）
+
+- **入口唯一**：`SqliteDatabase`（连接 + `meta` 表 + WAL）；建表唯一入口 = `LibrarySchemaService.EnsureAll()`，跑在 `InitializeAllDeferred` 第一步。
+- **契约**：`Shared/Services/ILibrarySchemaContributor`（`ModuleKey` / `SchemaVersion` / `EnsureSchema()`），每个模块一个，在 `RegisterServices` 注册。版本写 `meta['schema.<模块键>']`，总版本写 `PRAGMA user_version`；库里版本更高 ⇒ 只告警不降级。
+- **不可逆操作先快照**：任何模块 `SchemaVersion` 升级前 `VACUUM INTO data\backups\pre-migrate-<时间戳>.db`（⛔ 不许 `File.Copy`，WAL 下会漏事务）。
+- **失败留证据**：写 `logs\migrate-<时间戳>.log` + `meta['migrate.last-warning']`；「设置 → 数据管理」页顶部（`DataView`）红字显示。
+- **表名前缀纪律**：模块只许 `<模块前缀>_*`（`asset_` / `video_` / `script_` / `web_`），外键挂 `asset_id`，⛔ 不建第二份文件索引。历史例外：脚本观测表叫 `pc_*`（NT-068 前的 PcTools），改名要迁移数据。
+- **内容型 JSON → 文档表**：`script_docs` / `web_docs` / `video_docs`，结构 `(name, payload, updated_at)`，`payload` = 整份 JSON 原文。读写统一走 `Core/Services/JsonDocStore`，旧文件由各模块贡献者用 `JsonDocMigration.ImportOnce` 一次性搬入并改名 `.legacy`（⛔ 不删）。要按字段查时用 `json_extract(payload,'$.x')`。
+- **`data\` 进不进备份由用户勾**：NT-078 起 `data\` 是独立备份节（`data.db` / `data.thumbs` / `data.scripts`），默认**不勾**；勾上才导出。见 §7.4。
+
+### 7.4 备份路由（NT-078：zip 分节）
+
+- **容器 = 一个 zip**（`System.IO.Compression`，⛔ 不引第三方压缩库）：`manifest.json` + 每节一个 `<节ID>.zip`。理由：db / 缩略图放不进 JSON，zip 还能「只恢复其中一节」。
+- **唯一实现** = `Core/Services/BackupService`；节的契约 = `Shared/Services/IBackupSection`（`Id` / `Title` / `Description` / `Scope` / `Order` / `DefaultSelected` / `IsMachineBound` / `SchemaVersion` / `EstimateBytes()` / `ExportTo(Stream)` / `RestoreFrom(ZipArchiveEntry)`）。
+- **节的落点**：框架节在 `src/Shell/Services/`（`shell` = `config\**\*.json`、`env` = 应用根 `env.json`、`data.*`）；模块节放各 `Module.*`，`RegisterServices` 里 `services.AddSingleton<IBackupSection, XxxBackupSection>()`（⛔ 模块不引 Shell）。
+- **节 ID / 顺序**（发布后⛔ 不改）：`env`(Env,10) / `shell`(Shell,20) / `module.<模块键>`(Module,30+) / `data.db` `data.thumbs` `data.scripts`(Data,90/91/92)。
+- **默认勾选** = 设置备份：`shell` + 全部 `module.*`；`env` 与 `data.*` **默认不勾**（前者含绝对路径、后者可能几百 MB）。
+- **恢复落点**：设置节 = 覆盖原文件，**覆盖前整目录归档到 `config\.bak-<时间戳>\`**；数据节 = **写成新副本**（`data\restore-<时间戳>\`，一次恢复里所有数据节共用同一个目录，由 `BackupPaths.BeginRestore` 会话决定），⛔ 不覆盖当前库。恢复完成会弹框给出副本路径。
+- **已实现的数据节**（批次 B/C）：`data.db` = `data\newtoys.db` 的 `VACUUM INTO` 快照（内层不压缩）；`data.thumbs` = 缩略图目录（从 `config\modules\media-assets.json` 的 `thumbsDirectory` 解析，空 ⇒ `data\thumbs`，Shell **只读字段、⛔ 不引模块**）；`data.scripts` = 脚本实体文件（由 **`Module.ScriptManager`** 注册：默认脚本目录 + 各库 `RootPath`，`<别名>/<相对路径>` + `_roots.txt` 记录来源）。
+- 🔴 **`VACUUM INTO` 只有一处实现**：`SqliteDatabase.VacuumIntoFile(targetPath, out error)` —— 数据节与资产页「💿 另存库文件」共用，⛔ 别再写第二份 SQL。
+- **批次 C 的决定**：4 个模块**不**各注册一个「模块设置节」—— `shell` 节已递归打包 `config\**\*.json`（含 `modules\*.json`），再做模块节只会让同一份文件在包里出现两次。模块自主注册的节只用于**模块自己的数据**（当前只有 `data.scripts`）。
+- **体积闸**：勾了数据节且估算合计 > 100 MB ⇒ 导出前弹确认（⛔ 不做进度条 / 取消，卡内拍板）；节大小在**后台线程**估算（缩略图可能几万个文件）。
+- **恢复前校验**：`manifest.format` > 当前 ⇒ 拒绝；`manifest.app` 主版本不一致 ⇒ 拒绝；节的 `schema` 高于当前 ⇒ 跳过该节并提示升级。
+- **`VACUUM INTO` 取快照**（⛔ `File.Copy`：WAL 下会漏未落盘事务）；目标文件必须不存在 ⇒ 先落临时文件名再打包。
+- **路径防御顺序固定**：先判 `..` / 绝对路径（拒绝）→ 再跳过 `.seeded` / `.bak` / `.legacy`（顺序反了会放过 `../evil.ps1`）。实现 = `Shared/Services/BackupPaths`。
+- **旧格式只读**：v1 单 JSON 的 `Files[]`（以及早期 DataView 的 `files[{path,content}]`）仍可导入，⛔ 不再产出。
 
 ### 7.2 三配置档（debug / default / release）
 
@@ -556,11 +599,16 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT | 内容 | 状态 |
 |---|---|---|
 | NT-047 | **数据驱动图标矢量化**：二级功能菜单 34 项 `icon` / 首页一键按钮 / 模块页内数据行（⛔ 静态装饰 emoji 不动） | 📝 草稿（= B15） |
-| NT-064 | **列表分页数据层**：SQL `LIMIT/OFFSET` + 排序下推 + 独立 `COUNT(*)`；批量操作只作用当前页选中项。样板 = 全部资产，其余页待迁 | 🔄 已实施（样板页） |
+| NT-064 | **列表分页数据层**：SQL `LIMIT/OFFSET` + 排序下推 + 独立 `COUNT(*)`；批量操作只作用当前页选中项。样板 = 全部资产，其余页待迁 | ✔ 已完成（已验收 2026-10-19 · 样板页） |
 | NT-065 | **分页推广到脚本库 / 命令库**：挂 `ListPageSkeleton` 底栏 + VM 分页（JSON 清单 ⇒ 内存切片，⛔ 不做 SQL） | 📝 草稿 |
 | NT-066 | **标题栏搜索扩范围**：可搜二级菜单项 + 设置页节点（现只搜一级 / 已注册项）；跨 Shell ⇒ 需用户授权 | 📝 草稿 |
-| NT-067 | **信息展示脚本化底座**（原 `pc-info`）：`ScriptRunner` / `InterpreterResolver` / `SysInfoGrid` 已落地并被 NT-068 继承 | ✅ 已实施 |
-| NT-068 | **脚本管理器重构**：改名 + 数据库化 + 集合 + 信息面板分节（S1~S8 全部分步完成） | ✔ 已完成（⏳ 待本地验收） |
+| NT-067 | **信息展示脚本化底座**（原 `pc-info`）：`ScriptRunner` / `InterpreterResolver` / `SysInfoGrid` 已落地并被 NT-068 继承 | ✔ 已完成（已验收 2026-10-19） |
+| NT-068 | **脚本管理器重构**：改名 + 数据库化 + 集合 + 信息面板分节（S1~S8 全部分步完成） | ✔ 已完成（已验收 2026-10-19） |
+| NT-075 | **配置写入基建**：原子写 + 默认值不落盘 + 空文件清理（15 → ≤12） | ✔ 已完成（已验收 2026-10-19） |
+| NT-076 | **单库收编**：`script.db` 并库 + 内容 JSON 入表 + `ILibrarySchemaContributor` / `user_version` + WAL + 表名前缀纪律 | ✔ 两批已完成（已验收 2026-10-19） |
+| NT-077 | **配置分层**：`env.json`（机器级）/ `shell.json`（框架级）/ `modules\`（模块级）；删 `VideoDbFolder` | ✔ 两批已完成（已验收 2026-10-19） |
+| NT-078 | **备份路由**：`IBackupSection` + zip 分节 + 设置/数据两入口（`VACUUM INTO`） | ✔ A/B/C 三批已完成（已验收 2026-10-19） |
+| NT-079 | **可成长性**：模块开关 / 命令面板 / 采集器骨架生成 | 📝 草稿 |
 
 ---
 

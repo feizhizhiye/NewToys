@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using Microsoft.Data.Sqlite;
+using NewToys.Core.Services;
 using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
@@ -13,12 +13,13 @@ namespace NewToys.ScriptManager.Services;
 public readonly record struct ScriptObservation(string RowKey, string Attr, string Value);
 
 /// <summary>
-/// 观测缓存库 <c>data\script\script.db</c>（NT-068 §三.3）：<c>pc_observations</c> + <c>pc_runs</c>。
+/// 观测表 <c>pc_observations</c> + <c>pc_runs</c>（NT-068 §三.3 建；NT-076 起落**总库** <c>data\newtoys.db</c>）。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🔴 <b>不复用</b> <c>Core</c> 的 <c>SqliteDatabase</c>（它把 <c>newtoys.db</c> 写死了，改它 = 动框架层）。
-/// 本库用 <c>Microsoft.Data.Sqlite</c> 直连（Core 的包引用可传递编译）。
+/// 🔴 NT-076 起**并进总库**（<c>data\newtoys.db</c>）：连接一律向 <see cref="SqliteDatabase"/> 要，
+/// ⛔ 不再自建连接串 / 不再单独一个 <c>script.db</c>。建表搬到
+/// <see cref="ScriptManagerSchemaContributor"/>（总库 schema 统一入口），本类只读写。
 /// </para>
 /// <para>
 /// 连接生命周期 = <b>每次操作短连接</b>（SQLite 连接便宜，省掉线程 / 生命周期管理）。
@@ -30,51 +31,12 @@ public readonly record struct ScriptObservation(string RowKey, string Attr, stri
 /// </remarks>
 public sealed class ScriptDatabase
 {
-    private readonly string _path;
+    private readonly SqliteDatabase _db;
 
-    public ScriptDatabase(string databasePath)
-    {
-        _path = databasePath;
-        EnsureSchema();
-    }
+    public ScriptDatabase(SqliteDatabase db) => _db = db;
 
-    public string DatabasePath => _path;
-
-    /// <summary>建库建表（幂等）。库目录不存在时自建。</summary>
-    public void EnsureSchema()
-    {
-        var dir = Path.GetDirectoryName(_path);
-        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-
-        using var conn = Open();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            CREATE TABLE IF NOT EXISTS pc_observations (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                item_id     TEXT    NOT NULL,
-                run_id      TEXT    NOT NULL,
-                row_key     TEXT    NOT NULL,
-                attr        TEXT    NOT NULL,
-                value       TEXT,
-                captured_at TEXT    NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS ix_pc_obs_item_row  ON pc_observations (item_id, row_key);
-            CREATE INDEX IF NOT EXISTS ix_pc_obs_item_time ON pc_observations (item_id, captured_at);
-
-            CREATE TABLE IF NOT EXISTS pc_runs (
-                id            TEXT    PRIMARY KEY,
-                item_id       TEXT    NOT NULL,
-                started_at    TEXT    NOT NULL,
-                duration_ms   INTEGER NOT NULL DEFAULT 0,
-                exit_code     INTEGER NOT NULL DEFAULT 0,
-                stdout_digest TEXT,
-                status        TEXT    NOT NULL DEFAULT 'running',
-                row_count     INTEGER NOT NULL DEFAULT 0
-            );
-            CREATE INDEX IF NOT EXISTS ix_pc_runs_item ON pc_runs (item_id, started_at);
-            """;
-        cmd.ExecuteNonQuery();
-    }
+    /// <summary>总库文件全路径（排障 / 设置页展示用）。</summary>
+    public string DatabasePath => _db.DatabasePath;
 
     // ==================== runs ====================
 
@@ -267,23 +229,8 @@ public sealed class ScriptDatabase
 
     // ==================== 基础设施 ====================
 
-    private SqliteConnection Open()
-    {
-        var cs = new SqliteConnectionStringBuilder
-        {
-            DataSource = _path,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            // 默认（Private）连接缓存：只本进程用，配合下面每次操作的短连接足够。
-        }.ToString();
-
-        var conn = new SqliteConnection(cs);
-        conn.Open();
-
-        using var pragma = conn.CreateCommand();
-        pragma.CommandText = "PRAGMA busy_timeout=3000;";
-        pragma.ExecuteNonQuery();
-        return conn;
-    }
+    /// <summary>取总库连接（调用方负责 Dispose；连接池由 Microsoft.Data.Sqlite 管）。</summary>
+    private SqliteConnection Open() => _db.Open();
 
     private static string Now() => DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
 }

@@ -265,8 +265,8 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
 
     private readonly IAppConfigService? _app;
 
-    /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
-    public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
     public BookmarkViewModel() { }
 

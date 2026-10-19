@@ -6,12 +6,14 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NewToys.Core.Services;
+using NewToys.Core.Services.DataMigrations;
 using NewToys.WebTools.Models;
 
 namespace NewToys.WebTools.Services;
 
 /// <summary>
-/// hosts 方案管理：多套方案存在 <c>config\hosts-profiles.json</c>（可被数据管理备份）。
+/// hosts 方案管理：多套方案落**总库 <c>web_docs</c> 的 <c>hosts-profiles</c> 文档**
+/// （NT-076 第二批；此前是 <c>config\hosts-profiles.json</c>）。
 /// <para>
 /// <b>切换到系统 hosts</b>：在系统 <c>drivers\etc\hosts</c> 里维护一段
 /// <c># === NewToys hosts start === … end ===</c> 的受管块，应用某方案时只替换这段块，
@@ -25,11 +27,17 @@ public class HostsService
     private static readonly string ManagedEnd = "# === NewToys hosts end ===";
 
     private readonly ConfigStoreService _cfg;
+    private readonly JsonDocStore _docs;
     private readonly HttpClient _http = new();
 
-    public HostsService(ConfigStoreService cfg) => _cfg = cfg;
+    public HostsService(ConfigStoreService cfg, SqliteDatabase db)
+    {
+        _cfg = cfg;
+        _docs = new JsonDocStore(db, "web");
+    }
 
-    private string FilePath => Path.Combine(_cfg.ConfigDir, "hosts-profiles.json");
+    /// <summary>旧文件（迁移源；搬完是 <c>hosts-profiles.json.legacy</c>）。</summary>
+    private string LegacyFile => Path.Combine(_cfg.ConfigDir, WebToolsSchemaContributor.DocHostsProfiles + ".json");
 
     /// <summary>系统 hosts 文件路径（Windows）。</summary>
     public static string SystemHostsPath
@@ -39,9 +47,8 @@ public class HostsService
     {
         try
         {
-            if (!File.Exists(FilePath)) return new List<HostsProfile>();
-            var list = JsonSerializer.Deserialize<List<HostsProfile>>(File.ReadAllText(FilePath));
-            return list ?? new List<HostsProfile>();
+            JsonDocMigration.ImportOnce(_docs, WebToolsSchemaContributor.DocHostsProfiles, LegacyFile);
+            return _docs.Load<List<HostsProfile>>(WebToolsSchemaContributor.DocHostsProfiles) ?? new List<HostsProfile>();
         }
         catch { return new List<HostsProfile>(); }
     }
@@ -50,8 +57,9 @@ public class HostsService
     {
         try
         {
-            Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(profiles, new JsonSerializerOptions { WriteIndented = true }));
+            var list = profiles.ToList();
+            if (list.Count == 0) { _docs.Delete(WebToolsSchemaContributor.DocHostsProfiles); return; }   // 空列表即删（懒创建）
+            _docs.Save(WebToolsSchemaContributor.DocHostsProfiles, list);
         }
         catch { /* 保存失败不打断 UI */ }
     }

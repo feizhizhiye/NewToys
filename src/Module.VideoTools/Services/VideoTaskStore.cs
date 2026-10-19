@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NewToys.Core.Services;
+using NewToys.Core.Services.DataMigrations;
 using NewToys.VideoTools.Models;
 
 namespace NewToys.VideoTools.Services;
@@ -17,8 +18,8 @@ namespace NewToys.VideoTools.Services;
 /// 页面 VM 是**瞬态**的（每次导航都重建，见规范 6.5），任务若挂在 VM 上，切走一次就全没了。
 /// </para>
 /// <para>
-/// 落 <c>&lt;应用根&gt;\config\video-tasks.json</c> —— 在 <c>config\</c> 下会被
-/// 「设置 → 数据管理」的备份 / 导入一起覆盖。
+/// 落**总库 <c>video_docs</c> 的 <c>tasks</c> 文档**（NT-076 第二批；此前是 <c>config\video-tasks.json</c>）。
+/// 它跟随配置档 —— 换配置就是另一套任务缓存，与视频库本身一致。
 /// </para>
 /// </summary>
 public class VideoTaskStore
@@ -29,9 +30,11 @@ public class VideoTaskStore
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private readonly ConfigStoreService _cfg;
+    /// <summary><c>video_docs</c> 里的文档名。</summary>
+    public const string DocName = "tasks";
 
-    private const string FileName = "video-tasks.json";
+    private readonly ConfigStoreService _cfg;
+    private readonly JsonDocStore _docs;
 
     public ObservableCollection<CutTask> CutTasks { get; } = new();
     public ObservableCollection<TranscodeTask> TranscodeTasks { get; } = new();
@@ -44,15 +47,20 @@ public class VideoTaskStore
     /// <summary>「视频列表」页多选后要送过来的文件（剪切页进来时取走）。</summary>
     private readonly List<string> _pendingCut = new();
 
-    public VideoTaskStore(ConfigStoreService cfg)
+    public VideoTaskStore(ConfigStoreService cfg, SqliteDatabase db)
     {
         _cfg = cfg;
-        // v3.16.1：⛔ 构造时**不自动载入** video-tasks.json —— 那个 json 只是"缓存 / 备份"，
+        _docs = new JsonDocStore(db, "video");
+        // v3.16.1：⛔ 构造时**不自动载入**任务缓存 —— 那个文档只是"缓存 / 备份"，
         // 批处理列表在程序刚打开时就是空白的（需求 §6.4.4）；要恢复上一次的任务显式点「📥 导入任务」。
         // ⛔ 偷偷自动恢复会让用户莫名其妙："我明明清空了，怎么一开机又有一堆旧任务"。
     }
 
-    public string FilePath => Path.Combine(_cfg.ConfigDir, FileName);
+    /// <summary>缓存落点（展示 / 排障用；数据在总库 <c>video_docs</c> 表）。</summary>
+    public string FilePath => Path.Combine(_cfg.DataDir, "newtoys.db");
+
+    /// <summary>旧文件（迁移源；搬完是 <c>video-tasks.json.legacy</c>）。</summary>
+    private string LegacyFile => Path.Combine(_cfg.ConfigDir, "video-tasks.json");
 
     // ==================== 交接 ====================
 
@@ -144,13 +152,17 @@ public class VideoTaskStore
     {
         try
         {
-            Directory.CreateDirectory(_cfg.ConfigDir);
             var data = new TaskFile
             {
                 Cut = CutTasks.ToList(),
                 Transcode = TranscodeTasks.ToList()
             };
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(data, JsonOpts));
+            if (data.Cut.Count == 0 && data.Transcode.Count == 0)
+            {
+                _docs.Delete(DocName);      // 两队都空 ⇒ 删文档（沿用 NT-075「空即删」语义）
+                return;
+            }
+            _docs.Save(DocName, data, JsonOpts);
         }
         catch { /* 存不下不打断 UI：任务照样能跑，只是关掉软件后不保留 */ }
     }
@@ -202,9 +214,9 @@ public class VideoTaskStore
     }
 
     /// <summary>
-    /// 从 <c>video-tasks.json</c> 把任务**读回**当前队列（追加，⛔ 不清空已有）。
-    /// <para>v3.16.1：⛔ **构造时不再自动调它** —— 那个 json 只是缓存，批处理页刚打开时列表是空的；
-    /// 想恢复上一次的任务，由用户显式点「📥 导入任务」（走 <see cref="ImportFromFile"/>，那个是挑任意 json 文件）。</para>
+    /// 把总库里的任务缓存**读回**当前队列（追加，⛔ 不清空已有）。旧 <c>video-tasks.json</c> 先搬进表（幂等）。
+    /// <para>v3.16.1：⛔ **构造时不再自动调它** —— 那个缓存只是备份，批处理页刚打开时列表是空的；
+    /// 想恢复上一次的任务，由用户显式点「📥 导入任务」。</para>
     /// </summary>
     /// <returns>读入的条数。</returns>
     public int LoadFromFile()
@@ -212,8 +224,8 @@ public class VideoTaskStore
         var n = 0;
         try
         {
-            if (!File.Exists(FilePath)) return 0;
-            var data = JsonSerializer.Deserialize<TaskFile>(File.ReadAllText(FilePath));
+            JsonDocMigration.ImportOnce(_docs, DocName, LegacyFile);
+            var data = _docs.Load<TaskFile>(DocName, JsonOpts);
             if (data == null) return 0;
 
             // 磁盘上可能还留着"运行中"的状态（上次是被强杀的）→ 如实标成失败，别假装还在跑

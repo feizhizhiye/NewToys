@@ -74,7 +74,7 @@ public class QuickActionService : IQuickActionService
     public IReadOnlyList<QuickAction> Favorites => _shortcuts.Concat(_quick).Where(i => i.IsFavorite).ToList();
 
     /// <summary>手工数据文件全路径（<c>config\script\script.json</c>）：两个库页共用同一份（NT-068 S3 切库后）。</summary>
-    public string ScriptsFilePath => _store?.FilePath ?? Path.Combine(_cfg.ConfigDir, "script", "script.json");
+    public string ScriptsFilePath => _store?.FilePath ?? Path.Combine(_cfg.DataDir, "newtoys.db");
 
     /// <summary>与 <see cref="ScriptsFilePath"/> 相同 —— 命令库与脚本库已合并到同一个数据文件。</summary>
     public string QuickFilePath => ScriptsFilePath;
@@ -115,6 +115,18 @@ public class QuickActionService : IQuickActionService
             NeedAdmin = false,
             IsFavorite = false
         };
+
+        // NT-073：新条目必须有归属 —— 落同 kind 的默认库（与 Persist → SyncBuiltinCollections 的结果一致）。
+        var defKind = quick ? ScriptCollectionKind.Command : ScriptCollectionKind.Script;
+        var def = _store?.Data.Collections.FirstOrDefault(c => c.Builtin && !c.Archived
+                                                              && ScriptCollectionKind.Normalize(c.Kind) == defKind);
+        if (def != null)
+        {
+            item.CollectionIds.Add(def.Id);
+            item.LibraryText = def.Name;
+            item.LibraryRoot = _store!.RootOf(def.Id);
+        }
+
         (quick ? _quick : _shortcuts).Add(item);
         Persist();
         return item;
@@ -322,7 +334,8 @@ public class QuickActionService : IQuickActionService
         var file = (item.ScriptFile ?? "").Trim();
         if (file.Length == 0) return (false, "", "", "", "这条还没有指定脚本文件。");
 
-        var path = Path.IsPathRooted(file) ? file : Path.Combine(ScriptsDirectory, file);
+        var root = string.IsNullOrEmpty(item.LibraryRoot) ? ScriptsDirectory : item.LibraryRoot;
+        var path = Path.IsPathRooted(file) ? file : Path.Combine(root, file);
         if (!File.Exists(path))
             return (false, "", "", "", $"找不到脚本文件：{path}（脚本目录可在「设置 → 路径配置」里改）");
 
@@ -496,7 +509,9 @@ public class QuickActionService : IQuickActionService
         foreach (var si in _store.Data.Items)
         {
             // 可采集判定是派生值：每次加载重算（用户覆盖过的行由 Apply 自己跳过）。
-            if (CollectableEvaluator.Apply(si, ScriptsDirectory)) dirty = true;
+            // NT-073：按条目所属库的根目录判定（空 = 全局脚本目录）。
+            var root = _store.RootOfItem(si);
+            if (CollectableEvaluator.Apply(si, root.Length > 0 ? root : ScriptsDirectory)) dirty = true;
 
             switch (si.Role)
             {
@@ -518,24 +533,36 @@ public class QuickActionService : IQuickActionService
     }
 
     /// <summary>数据层条目 → 库页条目（UI 模型）。</summary>
-    private static QuickAction From(ScriptItem si, string page) => new()
+    private QuickAction From(ScriptItem si, string page)
     {
-        Id = si.Id,
-        Page = page,
-        Kind = si.Role == ScriptItemRole.Command ? QuickActionKind.Command : QuickActionKind.Script,
-        Title = si.Title,
-        Category = si.Category,
-        Description = si.Description,
-        Command = si.Role == ScriptItemRole.Command ? si.Target : "",
-        ScriptFile = si.Role == ScriptItemRole.Command ? "" : si.Target,
-        Interpreter = si.Interpreter,
-        NeedAdmin = si.NeedAdmin,
-        IsFavorite = si.Favorite,
-        RunHidden = si.RunHidden,
-        Shell = QuickActionShell.Normalize(si.Shell),
-        Collectable = si.Collectable,
-        IneligibleReason = si.IneligibleReason,
-    };
+        var names = si.Collections
+            .Select(id => _store?.FindCollection(id)?.Name ?? "")
+            .Where(n => n.Length > 0)
+            .Distinct(StringComparer.CurrentCulture)
+            .ToList();
+
+        return new QuickAction
+        {
+            Id = si.Id,
+            Page = page,
+            Kind = si.Role == ScriptItemRole.Command ? QuickActionKind.Command : QuickActionKind.Script,
+            Title = si.Title,
+            Category = si.Category,
+            Description = si.Description,
+            Command = si.Role == ScriptItemRole.Command ? si.Target : "",
+            ScriptFile = si.Role == ScriptItemRole.Command ? "" : si.Target,
+            Interpreter = si.Interpreter,
+            NeedAdmin = si.NeedAdmin,
+            IsFavorite = si.Favorite,
+            RunHidden = si.RunHidden,
+            Shell = QuickActionShell.Normalize(si.Shell),
+            Collectable = si.Collectable,
+            IneligibleReason = si.IneligibleReason,
+            CollectionIds = new List<string>(si.Collections),
+            LibraryText = string.Join(" / ", names),
+            LibraryRoot = _store?.RootOfItem(si) ?? "",
+        };
+    }
 
     /// <summary>
     /// 库页条目 → 数据层条目：<b>只覆盖 UI 能改的字段</b>；

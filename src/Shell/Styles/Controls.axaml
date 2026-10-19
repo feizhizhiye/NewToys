@@ -18,7 +18,7 @@
   <!--  ① 工具条：列表页顶部那条（背景 + 底部分隔线 + 内边距），页面里套 WrapPanel 即可  -->
   <Style Selector="Border.toolbar">
     <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
-    <Setter Property="Padding" Value="12,6"/>
+    <Setter Property="Padding" Value="6,6"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
   </Style>
@@ -454,12 +454,21 @@
     <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
   </Style>
 
+  <!--  v3.68：只读工具条输入框的「假水印」态（框里那行字是真实 Text，不是 PlaceholderText）
+        ⇒ 必须靠这个类把 Foreground 换成水印色；聚焦时由 ToolbarHost 摘掉该类，恢复正文色。  -->
+  <Style Selector="TextBox.watermark-idle">
+    <Setter Property="Foreground" Value="{DynamicResource PlaceholderTextBrush}"/>
+  </Style>
+
   <!--  ⑰ 全局 TextBox 右键编辑菜单（v3.19 / 需求 §4.10.4「文本框右键 paste/copy/cut 符合配色」）：
         Avalonia 的 TextBox 默认**没有**右键菜单（键盘 Ctrl+X/C/V 仍可用），这里用挂载属性统一挂上
         「剪切 / 复制 / 粘贴 / 全选」，外观走 Fluent 默认 ContextMenu（随明暗主题）。
         实现见 Shell/Behaviors/TextBoxContextMenu.cs。  -->
   <Style Selector="TextBox">
     <Setter Property="(b:TextBoxMenu.Attach)" Value="True"/>
+    <!--  v3.68：水印色统一压淡（用户反馈「太重」）。Avalonia 12 的 TextBox 有 PlaceholderForeground，
+          直接给语义键；⛔ 别再用「Foreground + 透明」那套（会把真实值也一起弄没）。  -->
+    <Setter Property="PlaceholderForeground" Value="{DynamicResource PlaceholderTextBrush}"/>
   </Style>
 
   <!--  ⑱ 菜单项「折叠标识」（v3.42.2 用户定调）：凡**带二级菜单**的菜单项，右侧统一显示 ▸。

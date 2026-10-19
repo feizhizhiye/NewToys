@@ -19,17 +19,11 @@ namespace NewToys.ScriptManager.Services;
 /// </remarks>
 public interface IScriptStoreService
 {
-    /// <summary>手工数据目录 = <c>&lt;配置根&gt;\config\script</c>（含 <see cref="FilePath"/>）。</summary>
+    /// <summary>手工数据的旧目录 = <c>&lt;配置根&gt;\config\script</c>（NT-076 第二批起数据已进总库，这里只剩迁移痕迹）。</summary>
     string ConfigDir { get; }
 
-    /// <summary>观测缓存目录 = <c>&lt;配置根&gt;\data\script</c>（含 <see cref="DatabasePath"/>）。</summary>
-    string DataDir { get; }
-
-    /// <summary>手工数据文件全路径 = <c>config\script\script.json</c>。</summary>
+    /// <summary>数据实际落点 = 总库文件 <c>data\newtoys.db</c> 的 <c>script_docs</c> 表（界面展示用）。</summary>
     string FilePath { get; }
-
-    /// <summary>观测数据库全路径 = <c>data\script\script.db</c>。</summary>
-    string DatabasePath { get; }
 
     /// <summary>已加载的根结构（进程内唯一实例；改动后由调用方调 <see cref="Save"/>）。</summary>
     ScriptStoreRoot Data { get; }
@@ -66,8 +60,23 @@ public interface IScriptStoreService
     /// <summary>把条目加入 / 移出集合（即时生效，调用方自行 <see cref="Save"/>）。</summary>
     bool SetMembership(string itemId, string collectionId, bool member);
 
+    /// <summary>某个 kind（<see cref="ScriptCollectionKind"/>）全部未归档集合的成员并集（按条目顺序去重）。</summary>
+    System.Collections.Generic.IReadOnlyList<ScriptItem> MembersOfKind(string kind);
+
+    /// <summary>取集合的脚本根目录（<see cref="ScriptCollection.RootPath"/>；空 = 用全局脚本目录）。</summary>
+    string RootOf(string collectionId);
+
+    /// <summary>条目所属库的第一个非空根目录（空 = 用全局脚本目录；NT-073 多库）。</summary>
+    string RootOfItem(ScriptItem item);
+
+    /// <summary>取某页面「正在用」的集合 id（<see cref="ScriptStoreRoot.LastCollectionIdByKind"/>）。</summary>
+    string GetLastCollectionId(string kind);
+
+    /// <summary>写某页面「正在用」的集合 id（空串 = 清除）。</summary>
+    void SetLastCollectionId(string kind, string id);
+
     /// <summary>
-    /// 内置集合成员同步（<c>脚本库</c> 收 script/collector、<c>命令库</c> 收 command）。
+    /// 内置集合成员同步：只把<b>还没有任何归属</b>的条目收进对应默认库（NT-073 D10）。
     /// </summary>
     /// <returns>是否有变化（需要回写磁盘）。</returns>
     bool SyncBuiltinCollections();

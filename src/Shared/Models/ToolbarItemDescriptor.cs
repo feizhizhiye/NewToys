@@ -33,7 +33,19 @@ public enum ToolbarItemKind
     /// <see cref="ToolbarItemDescriptor.CommandPath"/>。
     /// <para>v3.54 / NT-055 补迁 <c>script-packages</c> 时新增（既有页不受影响）。</para>
     /// </summary>
-    ChipGroup
+    ChipGroup,
+
+    /// <summary>
+    /// **多选下拉**（v3.77 / 2026-10-19 用户定调：软件包的「源」要能多选）：
+    /// 按钮上显示汇总文案（<see cref="ToolbarItemDescriptor.TextPath"/>，如 <c>winget, msstore</c>），
+    /// 点开是浮层，每行一个可勾选项（文案取 <see cref="ToolbarItemDescriptor.DisplayPath"/>），
+    /// 勾选状态**双向绑数据项上的** <see cref="ToolbarItemDescriptor.SelectedPath"/>（bool），右侧显示 ✓。
+    /// <para>
+    /// 🔴 宿主只负责「勾 ↔ 数据项 bool」的双向绑定；点击后**照常执行**
+    /// <see cref="ToolbarItemDescriptor.CommandPath"/>（参数 = 数据项本身）⇒ VM 的命令里⛔ 不要再翻 bool（会翻两次）。
+    /// </para>
+    /// </summary>
+    MultiCombo
 }
 
 /// <summary>
@@ -104,6 +116,16 @@ public sealed class ToolbarItemDescriptor
     /// <summary>只读（纯展示，如「脚本目录」）。</summary>
     public bool IsReadOnly { get; init; }
 
+    /// <summary>
+    /// 「空闲态水印化」（v3.68 / 用户定调）：失焦时框里只留 <see cref="Placeholder"/>，聚焦才露出真实值。
+    /// <para>
+    /// 与 <see cref="IsReadOnly"/> 无关：只读框靠 <c>Tag</c> 暂存真实值（原有机制），可编辑框靠
+    /// **临时解挂 TwoWay 绑定**实现（⛔ 不能直接改 <c>Text</c>，会写回 VM）。用于「常态不必看值、
+    /// 点进去才编辑」的框（样板 = 脚本库的「脚本目录」）。
+    /// </para>
+    /// </summary>
+    public bool PlaceholderWhenIdle { get; init; }
+
     /// <summary>回车即执行的命令（绑 VM 上的 <c>ICommand</c> 属性）。</summary>
     public string? EnterCommandPath { get; init; }
 
@@ -132,6 +154,7 @@ public sealed class ToolbarItemDescriptor
     /// <summary>
     /// 组内每项的**高亮状态**（绑**数据项**上的 bool 属性名，如 <c>IsSelected</c>）；
     /// 组内每项的文案复用 <see cref="DisplayPath"/>。配 <see cref="ItemsPath"/> + <see cref="CommandPath"/> 使用。
+    /// <para><see cref="ToolbarItemKind.MultiCombo"/> 复用同一字段做**勾选状态**（双向）。</para>
     /// </summary>
     public string? SelectedPath { get; init; }
 

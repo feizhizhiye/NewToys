@@ -103,6 +103,7 @@ public partial class ToolbarHost : UserControl
         ToolbarItemKind.Combo => BuildCombo(d, src),
         ToolbarItemKind.Toggle => BuildToggle(d, src),
         ToolbarItemKind.ChipGroup => BuildChipGroup(d, src),
+        ToolbarItemKind.MultiCombo => BuildMultiCombo(d, src),
         ToolbarItemKind.Label => BuildLabel(d, src),
         ToolbarItemKind.Separator => BuildSeparator(),
         ToolbarItemKind.SplitButton => BuildSplitButton(d, src),
@@ -172,6 +173,8 @@ public partial class ToolbarHost : UserControl
         if (d.Width is { } w) tb.Width = w;
         if (d.Placeholder != null) tb.PlaceholderText = d.Placeholder;
 
+        Action? idleDetach = null;
+
         // v3.63：**只读框** ⇒ 未聚焦时框里只放占位文字（`Placeholder`），聚焦才填入真实值并自动全选（方便 Ctrl+C）。
         // ⚠️ 不能用「把文字设成透明」那套：Avalonia 的 PlaceholderText **只在 Text 为空时才显示**，
         //    文字还在框里 ⇒ 水印永远不出现。这里让 Text 完全由本控件掌管，真实值走 Tag（OneWay）暂存。
@@ -179,9 +182,45 @@ public partial class ToolbarHost : UserControl
         {
             var ph = d.Placeholder;
             Bind(tb, Control.TagProperty, src, d.ValuePath, BindingMode.OneWay);
+            // v3.68：这句「假水印」是**真实 Text**，走 Foreground 而不是 PlaceholderForeground
+            // ⇒ 必须显式切到水印色类（否则就是正文色，用户反馈「太重」）。
+            tb.Classes.Add("watermark-idle");
             tb.Text = ph;
-            tb.GotFocus += (_, _) => { tb.Text = tb.Tag?.ToString() ?? ""; tb.SelectAll(); };
-            tb.LostFocus += (_, _) => tb.Text = ph;
+            tb.GotFocus += (_, _) =>
+            {
+                tb.Classes.Remove("watermark-idle");
+                tb.Text = tb.Tag?.ToString() ?? "";
+                tb.SelectAll();
+            };
+            tb.LostFocus += (_, _) => { tb.Text = ph; tb.Classes.Add("watermark-idle"); };
+        }
+        // v3.68：**可编辑框的「空闲态水印化」**（用户定调：脚本库那个脚本目录框失焦后就该只剩水印）。
+        // 与只读框同一目的，但 ⛔ 不能靠改 Text：Text 是 TwoWay ⇒ 一改就把 VM 上的值冲掉。
+        // 做法 = **临时解挂绑定**再清空 → 水印自然出现；聚焦时重挂绑定（立刻从 VM 读回真实值）。
+        else if (!d.IsReadOnly && d.PlaceholderWhenIdle && d.ValuePath != null
+                 && !string.IsNullOrEmpty(d.Placeholder))
+        {
+            var path = d.ValuePath;
+            IDisposable? binder = null;
+            void Attach()
+            {
+                binder?.Dispose();
+                binder = null;
+                tb.ClearValue(TextBox.TextProperty);   // 清掉失焦时写进去的 local 值，绑定才好推值
+                binder = tb.Bind(TextBox.TextProperty,
+                    new Binding(path) { Source = src, Mode = BindingMode.TwoWay });
+                tb.CaretIndex = tb.Text?.Length ?? 0;
+            }
+            void Detach()
+            {
+                binder?.Dispose();
+                binder = null;
+                tb.SetCurrentValue(TextBox.TextProperty, string.Empty);
+            }
+
+            tb.Text = string.Empty;                 // 初始就是失焦态 ⇒ 直接显示水印
+            tb.GotFocus += (_, _) => Attach();
+            idleDetach = Detach;                    // ⚠️ 失焦要等 commit 先跑完 ⇒ 在下方统一注册
         }
         else if (d.ValuePath != null)
             Bind(tb, TextBox.TextProperty, src, d.ValuePath, d.IsReadOnly ? BindingMode.OneWay : BindingMode.TwoWay);
@@ -206,6 +245,10 @@ public partial class ToolbarHost : UserControl
             };
             if (!d.IsReadOnly) tb.LostFocus += (_, _) => commit();
         }
+
+        // 🔴 顺序铁律：**先 commit（读 VM 上的最新草稿）再清空显示**。
+        //    反了的话 Detach 先把 Text 清成 ""，commit 读到的就是空串 ⇒ 目录被重置。
+        if (idleDetach is { } detach) tb.LostFocus += (_, _) => detach();
         return tb;
     }
 
@@ -304,6 +347,93 @@ public partial class ToolbarHost : UserControl
         ApplyTip(tb, d, src);
         ApplyEnabledVisible(tb, d, src);
         return tb;
+    }
+
+    /// <summary>
+    /// **多选下拉**（<c>MultiCombo</c>；v3.77）：按钮显示汇总文案 + 点开浮层，浮层里每行一个勾选项，
+    /// 勾选状态**双向绑数据项上的 bool**（<c>SelectedPath</c>），右侧 ✓ 跟随它；点击后执行 <c>CommandPath</c>（参数 = 数据项）。
+    /// <para>
+    /// ⛔ 不用 <c>ComboBox</c>：Avalonia 的 ComboBox 选完就自动收起，做不了「勾多个」。
+    /// 这里用普通 <c>Button</c> + <c>Flyout</c>：浮层里的按钮⛔ 不会自动关闭浮层 ⇒ 可以连着勾。
+    /// </para>
+    /// </summary>
+    private Control BuildMultiCombo(ToolbarItemDescriptor d, object src)
+    {
+        var btn = new Button { VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
+        ApplyClasses(btn, d.Classes, "ghost");
+        ApplyWidth(btn, d.Width);
+        ApplyTip(btn, d, src);
+
+        var label = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        if (d.TextPath != null) Bind(label, TextBlock.TextProperty, src, d.TextPath);
+        else if (d.Text != null) label.Text = d.Text;
+
+        var arrow = new TextBlock { Text = "▾", FontSize = 10, VerticalAlignment = VerticalAlignment.Center };
+        arrow.Classes.Add("hint-text");
+
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        content.Children.Add(label);
+        content.Children.Add(arrow);
+        btn.Content = content;
+
+        var list = new ItemsControl { Margin = new Thickness(2) };
+        if (d.ItemsPath != null) Bind(list, ItemsControl.ItemsSourceProperty, src, d.ItemsPath);
+        list.ItemTemplate = new FuncDataTemplate<object>((item, _) => BuildMultiItem(item, d, src), true);
+
+        btn.Flyout = new Flyout { Content = new Border { MaxHeight = 320, Child = new ScrollViewer { Content = list } } };
+
+        ApplyEnabledVisible(btn, d, src);
+        return btn;
+    }
+
+    /// <summary>多选下拉里的**一行**：左文案 + 右 ✓（✓ 的显隐跟勾选态走）。</summary>
+    private static Control BuildMultiItem(object? item, ToolbarItemDescriptor d, object src)
+    {
+        var toggle = new ToggleButton
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            MinHeight = 26,
+            Padding = new Thickness(8, 2)
+        };
+
+        var text = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        if (d.DisplayPath != null) text.Bind(TextBlock.TextProperty, new Binding(d.DisplayPath));
+
+        var check = new TextBlock
+        {
+            Text = "✓",
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(10, 0, 2, 0)
+        };
+        check.Classes.Add("accent");
+
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        Grid.SetColumn(text, 0);
+        grid.Children.Add(text);
+        Grid.SetColumn(check, 1);
+        grid.Children.Add(check);
+        toggle.Content = grid;
+
+        // 勾选状态 = 数据项上的 bool（双向）⇒ 点一下就把 VM 的数据改了，⛔ 不需要宿主再翻一次。
+        if (d.SelectedPath != null)
+            toggle.Bind(ToggleButton.IsCheckedProperty,
+                new Binding(d.SelectedPath) { Source = item, Mode = BindingMode.TwoWay });
+
+        void Sync() => check.IsVisible = toggle.IsChecked == true;
+        // 🔴 Avalonia 的属性变更事件参数是 `AvaloniaPropertyChangedEventArgs`（⛔ 没有 `PropertyName`）⇒ 比属性本身。
+        toggle.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Sync(); };
+        Sync();
+
+        if (d.CommandPath != null && ResolveCommand(src, d.CommandPath) is { } cmd)
+        {
+            toggle.Command = cmd;
+            toggle.CommandParameter = item;     // 参数 = 数据项本身（与 ChipGroup 同口径）
+        }
+
+        if (d.ToolTip != null) ToolTip.SetTip(toggle, d.ToolTip);
+        return toggle;
     }
 
     /// <summary>按钮 / 标签的内容：静态文案 / 动态文案 / 双文案互斥切换。</summary>

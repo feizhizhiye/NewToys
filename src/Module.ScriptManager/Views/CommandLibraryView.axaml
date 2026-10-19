@@ -97,7 +97,7 @@
               <DataTemplate>
                 <!-- 行与表头共用同一份 VisibleColumnSpecs（规范 3.6 对齐铁律①）；每格 IsVisible 跟随列显隐。 -->
                 <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Title}"
+                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding DisplayTitle}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsTitleVisible}"/>
                   <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Category}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsCategoryVisible}"/>

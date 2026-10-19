@@ -123,7 +123,7 @@
             <ListBox.ItemTemplate>
               <DataTemplate>
                 <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Title}"
+                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding DisplayTitle}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsTitleVisible}"/>
                   <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Category}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsCategoryVisible}"/>

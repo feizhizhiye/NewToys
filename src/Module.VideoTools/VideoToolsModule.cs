@@ -12,6 +12,9 @@ public class VideoToolsModule : IModule
         // 媒体信息缓存（SQLite，库文件在 <应用根>\data\newtoys.db；SqliteDatabase 由 Shell 注册）
         services.AddSingleton<Services.VideoMediaIndex>();
 
+        // NT-076：本模块在总库里的 schema 贡献者（旧表清理由它按版本号做一次，建表仍由 VideoMediaIndex 构造完成）
+        services.AddSingleton<ILibrarySchemaContributor, Services.VideoToolsSchemaContributor>();
+
         // 剪切 / 转码的**任务清单**（单例）：页面 VM 是瞬态的，任务挂在 VM 上切一次页就没了。
         // 落 config\video-tasks.json（会被「设置 → 数据管理」一起备份）。
         services.AddSingleton<Services.VideoTaskStore>();
@@ -57,20 +60,11 @@ public class VideoToolsModule : IModule
     }
 
     /// <summary>
-    /// NT-070：启动时的一次性库清理（幂等），挪到首帧之后。
+    /// NT-076：旧表清理 + 建表搬到 <see cref="Services.VideoToolsSchemaContributor"/>（总库 schema 统一入口）。
     /// <para>
-    /// v3.32（需求 §6.4.16）：本模块已移除"资产库"能力 —— 视频库 / 标签 / 收藏（及其 3 张表）
-    /// 全部让给「媒体资产」。旧库里遗留的表不再被任何代码使用 → 清掉。
-    /// ⛔ 只删这 3 张：video_media（ffprobe 扫描缓存）保留、其它模块的表一概不动。
+    /// 为什么搬：总库是多模块共享的，原来这段 DROP 在 `InitializeDeferred` 里**每次启动都跑**，
+    /// 属于无护栏的破坏性语句；现在改成「缓存版本号变化才清一次」，并且排在建表之前。
     /// </para>
     /// </summary>
-    public void InitializeDeferred(IServiceProvider services)
-    {
-        try
-        {
-            services.GetRequiredService<SqliteDatabase>().EnsureTable(
-                "DROP TABLE IF EXISTS video_catalog; DROP TABLE IF EXISTS video_tags; DROP TABLE IF EXISTS video_favorites;");
-        }
-        catch { /* 数据库不可用：本模块其它页照常（媒体信息缓存失效而已） */ }
-    }
+    public void InitializeDeferred(IServiceProvider services) { }
 }

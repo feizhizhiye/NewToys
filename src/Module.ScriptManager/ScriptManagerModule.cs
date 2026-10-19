@@ -21,6 +21,14 @@ public class ScriptManagerModule : IModule
         // 它依赖 Core 的 ConfigStoreService 与 Shared 的 IAppConfigService，由 Shell 在 LoadAll 之前已注册。
         services.AddSingleton<IQuickActionService, QuickActionService>();
 
+        // NT-074：软件包管理整套**下放到本模块**（只有本模块用，⛔ 不让框架层背业务）。
+        // 原在 Shared（接口 / 模型）+ Core（winget 后端 / 输出解析 / package.json 设置），
+        // 现全部落 NewToys.ScriptManager.{Models,Services}；Shell 侧的 DI 与确认钩子接线已摘掉
+        // （二次确认改走 Core.DialogHooks，与模块里其它破坏性操作同一套）。
+        services.AddSingleton(sp => new PackageSettingsService(sp.GetRequiredService<ConfigStoreService>()));
+        services.AddSingleton<IPackageSettingsService>(sp => sp.GetRequiredService<PackageSettingsService>());
+        services.AddSingleton<IPackageManagerService, PackageManagerService>();
+
         // v3.64 / NT-061：本模块设置（脚本目录 + 三个解释器路径）——**本模块配置的唯一写入点**，
         // 落 config\script-manager.json（经 Core 的 IOptionsStore）。旧值原来在 app.json，首次运行自动搬迁。
         services.AddSingleton<IScriptManagerSettingsService, ScriptManagerSettingsService>();
@@ -33,7 +41,13 @@ public class ScriptManagerModule : IModule
         // NT-068 S2：数据层 —— 手工数据（集合/条目/视图）落 config\script\script.json，
         // 观测缓存落 data\script\script.db。两者都**不进** Core（框架层冻结）。
         services.AddSingleton<IScriptStoreService, ScriptStoreService>();
-        services.AddSingleton(sp => new ScriptDatabase(sp.GetRequiredService<IScriptStoreService>().DatabasePath));
+        // NT-076：观测表**并进总库** `data\newtoys.db`（连接向 Core 的 SqliteDatabase 要，⛔ 不再单独 script.db）
+        services.AddSingleton<ScriptDatabase>();
+        // NT-076：本模块在总库里的建表（+ 老 script.db 一次性合并），由总库 schema 统一入口调用
+        services.AddSingleton<ILibrarySchemaContributor, ScriptManagerSchemaContributor>();
+        // NT-078 批次 C：脚本实体文件的备份节（`data.scripts`）—— 脚本目录 = 默认目录 + 各库 RootPath，
+        // 这段解析只有本模块有（框架层⛔ 不引模块），所以按 IBackupSection 契约由模块自己注册。
+        services.AddSingleton<IBackupSection, ScriptsBackupSection>();
         // NT-068 S5：采集器执行（跑条目 → 解析输出 → 写观测库 → 生成列 schema）
         services.AddSingleton(sp => new CollectorService(
             sp.GetRequiredService<ScriptRunner>(),
@@ -58,7 +72,7 @@ public class ScriptManagerModule : IModule
         menu.RegisterFunction("script", "script-library",   "脚本库",   "▤",  "ScriptLibraryView",  1, "较复杂的系统设置项与常用脚本，可运行 / 增删改查 / 收藏");
         menu.RegisterFunction("script", "script-commands",  "命令库",   "⚙",  "CommandLibraryView", 2, "系统自带设置入口（Windows 设置面板 / 管理工具），点一下即打开");
         menu.RegisterFunction("script", "script-packages",  "软件包",   "📦", "PackageView",        3, "搜索、安装、升级、卸载软件包");
-        menu.RegisterFunction("script", "script-collections", "集合",   "🗂", "CollectionView",     4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
+        menu.RegisterFunction("script", "script-collections", "脚本集合", "🗂", "CollectionView",     4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
         menu.RegisterFunction("script", "script-info",      "信息面板", "💻", "ScriptInfoView",     99, "按集合分节展示采集器输出；顶部「集合 ▾」一次显示一个集合");
 
         // 软件包模块的源设置：v3.65 / NT-062 起**并入「脚本管理器设置」页**（需求 §6.5）——

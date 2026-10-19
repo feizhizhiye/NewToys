@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using NewToys.ScriptManager.Models;
 using NewToys.ScriptManager.ViewModels;
 
@@ -42,7 +43,18 @@ public partial class ScriptInfoView : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
-    /// <summary>点在节内任意一行 ⇒ 选中（详情卡显示这一行）。</summary>
+    /// <summary>
+    /// 点节任意处（节头 / 节点）⇒ 把右侧详情卡切到这一节。**不主动打开面板**（和列表页点行一个心智）。
+    /// <para>节头里的 ⟳ / 折叠按钮自己处理指针事件（`Handled`），⛔ 不会冒泡成「选中这一节」。</para>
+    /// </summary>
+    private void OnSectionPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is Visual v && v.FindAncestorOfType<Button>(true) is not null) return;
+        if (sender is Control { DataContext: InfoSectionViewModel section })
+            (DataContext as ScriptInfoViewModel)?.SelectSection(section);
+    }
+
+    /// <summary>点在节内任意一行 ⇒ 选中这一行（只用于复制 / 定位；详情卡按「节」渲染，⛔ 不显示行属性）。</summary>
     private void OnRowPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Control control || control.DataContext is not SysInfoRow row) return;

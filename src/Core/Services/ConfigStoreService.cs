@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace NewToys.Core.Services;
@@ -58,33 +59,193 @@ public class ConfigStoreService
         ProfileOverride = overrideName;
         ProfileOverrideError = error;
         _profileRoot = ResolveProfileRoot(_appRoot);
-        MigrateLegacyConfigFiles();
+        MigrateLegacyShellFiles();    // NT-077：5 份框架级小文件 → shell.json
+        MigrateModuleConfigFiles();   // NT-077 第二批：模块设置 → config\modules\（纯整理，只搬文件）
+        PruneEmptyConfigFiles();      // NT-075：清掉内容等价于「没有配置」的空壳文件
+    }
+
+    /// <summary>模块设置文件名（不含扩展名）—— 全部迁进 <c>config\modules\</c>。</summary>
+    private static readonly string[] ModuleConfigNames =
+    {
+        "script-manager", "media-assets", "video-tools", "web-tools",
+        // ⚠️ package.json 是「软件包管理」（script-manager 模块）的设置数据，同属模块级。
+        "package",
+    };
+
+    /// <summary>
+    /// NT-077 第二批一次性迁移：<c>config\&lt;模块&gt;.json</c> → <c>config\modules\&lt;模块&gt;.json</c>。
+    /// <list type="bullet">
+    ///   <item>幂等：源文件不存在就跳过（搬过一次之后永远不走）；</item>
+    ///   <item>⛔ 不覆盖：目标已有同名文件 ⇒ 旧文件改名 <c>.legacy</c> 留档（用户数据优先）；</item>
+    ///   <item>纯移动，不改内容 —— 目录整理不该有任何解析风险。</item>
+    /// </list>
+    /// </summary>
+    private void MigrateModuleConfigFiles()
+    {
+        try
+        {
+            var src = ConfigDir;
+            var dst = ModulesConfigDir;
+
+            foreach (var name in ModuleConfigNames)
+            {
+                var from = Path.Combine(src, name + ".json");
+                if (!File.Exists(from)) continue;
+
+                var to = Path.Combine(dst, name + ".json");
+                if (File.Exists(to))
+                {
+                    File.Move(from, from + ".legacy", overwrite: true);   // ⛔ 不覆盖目标，旧文件留档
+                    continue;
+                }
+
+                File.Move(from, to);
+                System.Diagnostics.Debug.WriteLine($"[NewToys][迁移] 模块设置归位：{from} → {to}");
+            }
+        }
+        catch (Exception ex)
+        {
+            // 搬不动（被占用 / 只读）不影响启动：读方在旧位置还能读到（见各服务的 FirstExisting 兜底）
+            System.Diagnostics.Debug.WriteLine("[NewToys][迁移] 模块设置归位失败（下次启动重试）：" + ex.Message);
+        }
     }
 
     /// <summary>
-    /// 配置文件名重命名的一次性迁移（v3.66 / 2026-10-18）。目前一条：<c>shell.json</c> → <c>ui.json</c>。
-    /// <para>为什么在这里：本类是「配置目录/文件名的唯一决定者」，改名逻辑跟着它走，
-    /// 模块与 Shared 都不该知道旧名字（<see cref="Core.Services.JsonOptionsStore"/> 用分区名直接拼文件名）。</para>
-    /// <para>⚠️ 只在**新文件不存在**时搬（已有 ⇒ 不动，用户数据优先）；失败不抛。</para>
+    /// NT-075：清掉**等价于默认值**的配置文件（内容只有 <c>{}</c> / <c>[]</c> / <c>null</c> / 空串）。
+    /// <para>
+    /// 依据：全工程读配置的统一约定是「文件不存在 ⇒ 用默认值」，所以这类文件删掉**语义完全等价**，
+    /// 只是把 2 字节的空壳从配置目录里清掉（`hosts-profiles.json` / `scrape-tasks.json` 这类）。
+    /// </para>
+    /// <para>⚠️ 跳过以 <c>.</c> 开头的目录 / 文件（<c>.bak-&lt;时间戳&gt;</c> 归档、临时文件）；单文件失败不阻断启动。</para>
     /// </summary>
-    private void MigrateLegacyConfigFiles()
+    private void PruneEmptyConfigFiles()
     {
         try
         {
             var dir = ConfigDir;
             if (!Directory.Exists(dir)) return;
-            var renames = new (string From, string To)[] { ("shell.json", "ui.json") };
-            foreach (var (from, to) in renames)
+
+            foreach (var f in Directory.EnumerateFiles(dir, "*.json", SearchOption.AllDirectories))
             {
-                var src = Path.Combine(dir, from);
-                var dst = Path.Combine(dir, to);
-                if (File.Exists(src) && !File.Exists(dst)) File.Move(src, dst);
+                try
+                {
+                    var rel = Path.GetRelativePath(dir, f);
+                    var segments = rel.Split(Path.DirectorySeparatorChar, '/');
+                    var hidden = false;
+                    foreach (var seg in segments)
+                        if (seg.Length > 0 && seg[0] == '.') { hidden = true; break; }
+                    if (hidden) continue;
+
+                    if (AtomicJsonFile.IsEmpty(File.ReadAllText(f))) File.Delete(f);
+                }
+                catch { /* 单个文件失败（被占用 / 只读）⇒ 跳过，下次启动再试 */ }
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine("[NewToys][迁移] 配置文件改名失败：" + ex.Message);
+            System.Diagnostics.Debug.WriteLine("[NewToys][清理] 空配置文件清理失败：" + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// NT-077 一次性迁移：把 5 份框架级小文件并进 <c>shell.json</c>（每份一个节）。
+    /// <para>
+    /// 只在 <c>shell.json</c> **不存在**时执行（幂等）；搬完把旧文件改名 <c>.legacy</c>（⛔ 不删）。
+    /// 迁移只做「读文件 → 放进节」，**不认识任何字段名** —— 字段解析留给各自读方
+    /// （<c>ThemeService</c> / <c>WindowBoundsService</c> / <c>FavoritesService</c> / <c>ColumnLayoutService</c> /
+    /// <c>JsonOptionsStore</c> 的 <c>ui</c> 分区）。
+    /// </para>
+    /// <para>
+    /// ⚠️ v3.66 曾把 <c>shell.json</c> 改名成 <c>ui.json</c>；本迁移正好把 <c>ui.json</c> 收回
+    /// <c>shell.json</c> 的 <c>ui</c> 节，所以**旧的改名逻辑已删除**——留着它每次启动都会把新 shell.json 改走。
+    /// </para>
+    /// </summary>
+    private void MigrateLegacyShellFiles()
+    {
+        try
+        {
+            var dir = ConfigDir;
+            var target = Path.Combine(dir, "shell.json");
+            var doc = LoadShellDoc(target);   // 已有就接着用（这样「导入旧备份」之后也能把旧文件补并进来）
+            var changed = false;
+
+            var sources = new (string File, string Section)[]
+            {
+                ("theme.json", "theme"),
+                ("window.json", "window"),
+                ("favorites.json", "favorites"),
+                ("columnlayout.json", "columnLayout"),
+                ("ui.json", "ui"),
+            };
+
+            foreach (var (file, section) in sources)
+            {
+                var path = Path.Combine(dir, file);
+                if (!File.Exists(path)) continue;
+
+                if (doc.ContainsKey(section))
+                {
+                    // 新格式里已有这一节（迁移过 / 用户改过）⇒ 旧文件只是残留：归档，⛔ 不覆盖
+                    ArchiveLegacyFile(path);
+                    continue;
+                }
+
+                try
+                {
+                    var node = JsonNode.Parse(File.ReadAllText(path), nodeOptions: null,
+                        documentOptions: new JsonDocumentOptions
+                        {
+                            AllowTrailingCommas = true,
+                            CommentHandling = JsonCommentHandling.Skip
+                        });
+                    if (node is null) continue;
+
+                    doc[section] = node;
+                    changed = true;
+                    ArchiveLegacyFile(path);
+                }
+                catch { /* 坏文件不搬：原样留着，由用户自查 */ }
+            }
+
+            if (!changed) return;
+
+            AtomicJsonFile.Write(target, doc.ToJsonString(new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            }));
+
+            System.Diagnostics.Debug.WriteLine("[NewToys][迁移] 框架级配置已并入 shell.json");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][迁移] shell.json 合并失败：" + ex.Message);
+        }
+    }
+
+    /// <summary>读已有 <c>shell.json</c>（不存在 / 坏了 ⇒ 空文档，⛔ 不抛）。</summary>
+    private static JsonObject LoadShellDoc(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return new JsonObject();
+            if (JsonNode.Parse(File.ReadAllText(path), nodeOptions: null,
+                    documentOptions: new JsonDocumentOptions
+                    {
+                        AllowTrailingCommas = true,
+                        CommentHandling = JsonCommentHandling.Skip
+                    }) is JsonObject obj)
+                return obj;
+        }
+        catch { /* 坏文件：按空文档处理，下次保存会覆盖（内容已在 .bak 里） */ }
+        return new JsonObject();
+    }
+
+    /// <summary>旧配置文件读完后改名 <c>.legacy</c>（⛔ 不删；失败不影响主流程）。</summary>
+    private static void ArchiveLegacyFile(string path)
+    {
+        try { File.Move(path, path + ".legacy", overwrite: true); }
+        catch { /* 改名失败不影响新文件已写出，下次启动再试 */ }
     }
 
     /// <summary>--profile 覆盖校验：名字合法 + 配置目录已存在，两个都满足才生效（防手滑打错名建出空配置）。</summary>
@@ -125,12 +286,31 @@ public class ConfigStoreService
     /// <summary>旧结构迁移失败时的原因（非 null → 本次退回旧结构运行，仅在「设置 → 配置」提示）。</summary>
     public string? ProfileMigrationError { get; private set; }
 
-    /// <summary>&lt;配置根&gt;\config —— 本配置档的配置（theme.json / launch.json / 各模块设置 …）。
+    /// <summary>&lt;配置根&gt;\config —— 本配置档的配置（shell.json / 各模块设置 …；应用行为在应用根 app.json）。
     /// <para>⚠️ v3.65 / NT-062 起 <c>app.json</c>（运行环境）**不在**这里 —— 它上提到应用根（跨配置共享）。</para></summary>
     public string ConfigDir => EnsureDir("config");
 
     /// <summary>&lt;配置根&gt;\data —— 可重建的缓存（`newtoys.db` 等），不进备份。</summary>
     public string DataDir => EnsureDir("data");
+
+    /// <summary>
+    /// &lt;配置根&gt;\config\modules —— **模块设置**的统一落点（NT-077 第二批）。
+    /// <para>
+    /// 语义分层：<c>shell.json</c> = 框架偏好、<c>modules\&lt;模块&gt;.json</c> = 模块设置。
+    /// 「设置 → 数据管理」的备份 / 导入按 <c>config</c> 递归收集 <c>*.json</c>，所以子目录天然被覆盖。
+    /// </para>
+    /// </summary>
+    public string ModulesConfigDir => EnsureModulesDir();
+
+    private string EnsureModulesDir()
+    {
+        var d = Path.Combine(ConfigDir, ModulesSubDirName);
+        Directory.CreateDirectory(d);
+        return d;
+    }
+
+    /// <summary>模块设置子目录名（<c>config\modules</c>）。</summary>
+    private const string ModulesSubDirName = "modules";
 
     /// <summary>&lt;配置根&gt;\logs —— 崩溃日志等。</summary>
     public string LogsDirectory => EnsureDir("logs");
@@ -303,11 +483,20 @@ public class ConfigStoreService
         return JsonSerializer.Serialize(pkg, new JsonSerializerOptions { WriteIndented = true });
     }
 
+    /// <summary>
+    /// 导入 **v1 旧格式**（单 JSON）备份 —— NT-078 起只保留**只读兼容**，新备份走
+    /// <see cref="BackupService"/> 的 zip 分节格式。
+    /// <para>
+    /// 两种旧写法都认：<c>Files[{RelativePath,Content}]</c>（本类早期导出）与
+    /// <c>files[{path,content}]</c>（v3.6x DataView 自己拼的）—— 用户手里的历史备份不该因为改名而导不进。
+    /// </para>
+    /// </summary>
     public (int ok, int skipped, string? backupDir) ImportBackup(string json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
-        if (!root.TryGetProperty("Files", out var filesEl)) throw new InvalidDataException("备份文件缺少 Files 节点");
+        if (!root.TryGetProperty("Files", out var filesEl) && !root.TryGetProperty("files", out filesEl))
+            throw new InvalidDataException("备份文件缺少 Files 节点");
 
         var bak = Path.Combine(ConfigDir, $".bak-{DateTime.Now:yyyyMMdd-HHmmss}");
         Directory.CreateDirectory(bak);
@@ -323,15 +512,20 @@ public class ConfigStoreService
         int ok = 0, skipped = 0;
         foreach (var e in filesEl.EnumerateArray())
         {
-            var rel = (e.GetProperty("RelativePath").GetString() ?? "").Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+            var rel = (GetString(e, "RelativePath") ?? GetString(e, "path") ?? "")
+                .Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
             if (string.IsNullOrEmpty(rel)) { skipped++; continue; }
             var full = Path.GetFullPath(Path.Combine(ConfigDir, rel));
-            if (!full.StartsWith(ConfigDir, StringComparison.OrdinalIgnoreCase)) { skipped++; continue; } // 路径穿越防御
-            var content = e.GetProperty("Content").GetString() ?? "";
-            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-            File.WriteAllText(full, content);
+            // 路径穿越防御（⚠️ 必须比到 `config\` 这一级：只 StartsWith(ConfigDir) 会放过 `config2\...`）
+            if (!full.StartsWith(ConfigDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) { skipped++; continue; }
+            var content = GetString(e, "Content") ?? GetString(e, "content") ?? "";
+            // NT-075：恢复也走原子写（每个文件独立 rename，中断时最多剩一份半成品tmp）
+            AtomicJsonFile.Write(full, content);
             ok++;
         }
         return (ok, skipped, bak);
     }
+
+    private static string? GetString(JsonElement element, string name)
+        => element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 }

@@ -5,7 +5,7 @@ using System.Windows.Input;
 namespace NewToys.Shared.Details;
 
 /// <summary>
-/// 字段 Kind（**7 + 1 种**，需求 §4.5.1 / NT-054）。
+/// 字段 Kind（**10 种**，需求 §4.5.1 / NT-054；2026-10-19 增 <see cref="EditableList"/>）。
 /// <para>
 /// 🔴 **加新 Kind 是「加法」**：新需求优先用「现有 Kind + 修饰位」表达；确实需要新交互时才加一个枚举值
 /// （配一个 <c>DataTemplate</c>），不影响既有卡。
@@ -53,7 +53,18 @@ public enum FieldKind
     /// 溢出自动换行（WrapPanel）。**只固定视觉样式**，⛔ 不固定排列。
     /// </para>
     /// </summary>
-    IconBar
+    IconBar,
+
+    /// <summary>
+    /// **可编辑列表**（2026-10-19）：每行 = 只读左标签 + 一个可编辑文本框，**失焦提交**。
+    /// <para>
+    /// 数据源复用 <see cref="DetailField.OptionsPath"/>；<see cref="DetailField.ItemLabelPath"/> = 左标签，
+    /// <see cref="DetailField.ItemTextPath"/> = **可编辑文本（双向写回候选项）**，
+    /// <see cref="DetailField.ItemCommandPath"/> = 提交命令（参数 = 候选项本身，页面 VM 负责落盘 / 重投影）。
+    /// </para>
+    /// <para>典型用途：信息面板改表格表头名称（每列一行）。⛔ 不做增删行（那是 Chips 的事）。</para>
+    /// </summary>
+    EditableList
 }
 
 /// <summary>
@@ -143,7 +154,7 @@ public sealed class DetailField
     /// <summary>值的绑定路径（如 <c>"DetailRow.TypeText"</c> / <c>"EditDescription"</c>）。</summary>
     public string? ValuePath { get; set; }
 
-    /// <summary>字段形态（7 种）。</summary>
+    /// <summary>字段形态（10 种）。</summary>
     public FieldKind Kind { get; set; } = FieldKind.Text;
 
     /// <summary>提交语义（3 种）。</summary>

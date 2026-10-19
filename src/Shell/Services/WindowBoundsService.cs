@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Text.Json;
 using NewToys.Core.Services;
 
@@ -17,13 +16,9 @@ namespace NewToys.Shell.Services;
 /// </summary>
 public class WindowBoundsService
 {
-    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
+    private readonly ShellConfigStore _shell;
 
-    private readonly ConfigStoreService _cfg;
-
-    public WindowBoundsService(ConfigStoreService cfg) => _cfg = cfg;
-
-    private string FilePath => Path.Combine(_cfg.ConfigDir, "window.json");
+    public WindowBoundsService(ShellConfigStore shell) => _shell = shell;
 
     /// <summary>
     /// 窗口边界。
@@ -44,13 +39,12 @@ public class WindowBoundsService
         public string State { get; set; } = "Normal";
     }
 
-    /// <summary>读上次的窗口边界；文件不存在 / 读坏 → <c>null</c>（用默认窗口）。</summary>
+    /// <summary>读上次的窗口边界（<c>shell.json</c> 的 <c>window</c> 节）；节不存在 / 读坏 → <c>null</c>（用默认窗口）。</summary>
     public WindowBounds? Load()
     {
         try
         {
-            if (!File.Exists(FilePath)) return null;
-            return JsonSerializer.Deserialize<WindowBounds>(File.ReadAllText(FilePath));
+            return _shell.Get("window")?.Deserialize<WindowBounds>();
         }
         catch { return null; }
     }
@@ -60,8 +54,7 @@ public class WindowBoundsService
     {
         try
         {
-            Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(bounds, JsonOpts));
+            _shell.Set("window", JsonSerializer.SerializeToNode(bounds));
         }
         catch { /* 记不下来不影响主流程 */ }
     }

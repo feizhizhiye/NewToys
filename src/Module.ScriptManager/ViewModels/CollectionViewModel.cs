@@ -53,6 +53,10 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         _nav = nav;
         _settings = settings;
 
+        // 🔴 两个筛选框的默认值 = 「全部」：直接写字段（⛔ 走属性会各触发一次 RefreshCollections）。
+        _selectedGroup = GroupOptions[0];
+        _selectedKindFilter = KindFilterOptions[0];
+
         Members.CollectionChanged += OnMembersChanged;
         RefreshCollections();
     }
@@ -113,8 +117,15 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     /// </summary>
     [ObservableProperty] private bool _showNonCollectable;
 
+    /// <summary>
+    /// 「显示全部类型」（NT-073 D13）：默认候选池按当前集合的 kind 过滤；
+    /// 打开后可把别的 kind 的条目也勾进来（信息面板集合默认就允许混）。
+    /// </summary>
+    [ObservableProperty] private bool _showAllKinds;
+
     partial void OnMemberSearchChanged(string value) => LoadMemberTable();
     partial void OnShowNonCollectableChanged(bool value) => LoadMemberTable();
+    partial void OnShowAllKindsChanged(bool value) => LoadMemberTable();
 
     public bool HasMembers => Members.Count > 0;
 
@@ -126,6 +137,17 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private string _editDescription = "";
     [ObservableProperty] private string _editTags = "";
     [ObservableProperty] private string _editRefreshMode = ScriptRefreshMode.OnEnter;
+    [ObservableProperty] private string _editRefreshSeconds = "";
+
+    /// <summary>库的脚本根目录（NT-073；只对 kind=script 有意义，空 = 全局脚本目录）。</summary>
+    [ObservableProperty] private string _editRootPath = "";
+
+    /// <summary>
+    /// 默认视图 id（详情卡「默认视图」下拉的**值通道**）。
+    /// <para>🔴 下拉别再绑「选项对象」：`CollectionFilterOption` 没有 == 语义，详情卡按 `ToString()` 比对 ⇒
+    /// 所有选项长得一样，永远命中第一项（v3.77 修的「类别不自动读取」就是这个根因）⇒ 一律走**字符串值**。</para>
+    /// </summary>
+    [ObservableProperty] private string _editDefaultViewId = "";
 
     public ObservableCollection<CollectionFilterOption> KindOptions { get; } = new(new[]
     {
@@ -140,8 +162,6 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         new CollectionFilterOption { Label = "默认视图", Value = "" },
     };
 
-    [ObservableProperty] private CollectionFilterOption? _selectedKindOption;
-    [ObservableProperty] private CollectionFilterOption? _selectedViewOption;
 
     public ObservableCollection<CollectionFilterOption> RefreshOptions { get; } = new(new[]
     {
@@ -150,24 +170,17 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         new CollectionFilterOption { Label = "定时刷新", Value = ScriptRefreshMode.Timer },
     });
 
-    [ObservableProperty] private CollectionFilterOption? _selectedRefreshOption;
-
-    partial void OnSelectedKindOptionChanged(CollectionFilterOption? value)
-    {
-        if (value == null) return;
-        EditKind = value.Value;
-    }
-
-    partial void OnSelectedRefreshOptionChanged(CollectionFilterOption? value)
-    {
-        if (value == null) return;
-        EditRefreshMode = value.Value;
-    }
-
-    partial void OnSelectedViewOptionChanged(CollectionFilterOption? value) => ApplyCollectionEdits();
-
     partial void OnEditKindChanged(string value) => ApplyCollectionEdits();
     partial void OnEditRefreshModeChanged(string value) => ApplyCollectionEdits();
+    partial void OnEditDefaultViewIdChanged(string value) => ApplyCollectionEdits();
+
+    // 🔴 卡里的 OnBlur 字段只把值写回 VM，**落盘要在这里接**（否则改名 / 改描述只在内存里）。
+    partial void OnEditNameChanged(string value) => ApplyCollectionEdits();
+    partial void OnEditIconChanged(string value) => ApplyCollectionEdits();
+    partial void OnEditDescriptionChanged(string value) => ApplyCollectionEdits();
+    partial void OnEditTagsChanged(string value) => ApplyCollectionEdits();
+    partial void OnEditRefreshSecondsChanged(string value) => ApplyCollectionEdits();
+    partial void OnEditRootPathChanged(string value) => ApplyCollectionEdits();
 
     // ==================== 列表基础设施（ListPageViewModelBase 抽象成员） ====================
 
@@ -254,7 +267,8 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
                     {
                         Label = "类别", Kind = FieldKind.Select,
                         OptionsPath = nameof(KindOptions), OptionDisplayPath = nameof(CollectionFilterOption.Label),
-                        ValuePath = nameof(SelectedKindOption)
+                        OptionValuePath = nameof(CollectionFilterOption.Value), ValuePath = nameof(EditKind),
+                        Hint = "决定这个集合归哪个页面（信息面板 / 脚本库 / 命令库 / 软件包）；改内置库的类别后，下次启动会自动补回一个默认库"
                     },
                     new DetailField
                     {
@@ -263,15 +277,37 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
                     },
                     new DetailField
                     {
+                        Label = "脚本根目录", ValuePath = nameof(EditRootPath), Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        VisibleWhen = nameof(IsScriptCollection),
+                        Placeholder = "留空 = 用设置里的全局脚本目录",
+                        Hint = "这个库的脚本文件放哪；相对路径按它解析"
+                    },
+                    new DetailField
+                    {
                         Label = "默认视图", Kind = FieldKind.Select,
                         OptionsPath = nameof(ViewOptions), OptionDisplayPath = nameof(CollectionFilterOption.Label),
-                        ValuePath = nameof(SelectedViewOption)
+                        OptionValuePath = nameof(CollectionFilterOption.Value), ValuePath = nameof(EditDefaultViewId),
+                        VisibleWhen = nameof(IsInfoCollection), EnabledWhen = nameof(IsInfoCollection)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint, ValuePath = nameof(ViewCountText),
+                        VisibleWhen = nameof(IsInfoCollection)
                     },
                     new DetailField
                     {
                         Label = "刷新策略", Kind = FieldKind.Select,
                         OptionsPath = nameof(RefreshOptions), OptionDisplayPath = nameof(CollectionFilterOption.Label),
-                        ValuePath = nameof(SelectedRefreshOption)
+                        OptionValuePath = nameof(CollectionFilterOption.Value), ValuePath = nameof(EditRefreshMode),
+                        EnabledWhen = nameof(IsInfoCollection),
+                        Hint = "只有信息面板集合会刷新（脚本库 / 命令库只是索引）"
+                    },
+                    new DetailField
+                    {
+                        Label = "刷新间隔(秒)", ValuePath = nameof(EditRefreshSeconds), Kind = FieldKind.Text,
+                        EnabledWhen = nameof(IsInfoCollection),
+                        Hint = "只对「定时」有效；0 = 用最小间隔"
                     },
                     new DetailField
                     {
@@ -287,10 +323,33 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
     public bool HasSelectedCollection => SelectedCollection != null;
 
+    /// <summary>只有「信息面板」类集合才有节 / 视图（其它集合不显示默认视图与视图提示）。</summary>
+    public bool IsInfoCollection => SelectedCollection == null
+        || ScriptCollectionKind.Normalize(SelectedCollection.Kind) == ScriptCollectionKind.Info;
+
+    /// <summary>当前是不是脚本库类集合（决定「脚本根目录」字段显隐）。</summary>
+    public bool IsScriptCollection => SelectedCollection != null
+        && ScriptCollectionKind.Normalize(SelectedCollection.Kind) == ScriptCollectionKind.Script;
+
+    /// <summary>视图数 + 一句话解释（集合卡「视图」段提示）。</summary>
+    public string ViewCountText
+    {
+        get
+        {
+            if (_store == null || SelectedCollection == null) return "";
+
+            var n = _store.Data.Views.Count(v => v.CollectionId == SelectedCollection.Id);
+            return n == 0
+                ? "还没有视图（打开信息面板时自动建一个「默认」）。"
+                : $"共 {n} 个视图 · 视图决定每节显示哪些列、节怎么排；同一个脚本在不同集合可以显示不同的列。";
+        }
+    }
+
     public string CollectionHint => SelectedCollection == null
         ? ""
         : $"成员 {SelectedCollection.MemberCount} 个 · 内置集合"
           + (SelectedCollection.Builtin ? "（可改名，⛔ 不可删）" : "")
+          + (SelectedCollection.IsInUse ? $" · {SelectedCollection.KindText}在用" : "")
           + $" · 落盘 {_store?.FilePath ?? ""}";
 
     // ==================== 工具条 ====================
@@ -315,6 +374,12 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
             ValuePath = nameof(ShowNonCollectable),
             ToolTip = "默认只列可采集条目；打开后不可采集项灰显（⛔ 勾不上）"
         },
+        new()
+        {
+            Kind = ToolbarItemKind.Toggle, Text = "显示全部类型",
+            ValuePath = nameof(ShowAllKinds),
+            ToolTip = "默认候选池按当前集合的类别过滤（脚本库集合只列脚本）；打开后可跨类勾选"
+        },
     };
 
     // ==================== 数据加载 ====================
@@ -329,23 +394,39 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         var kindFilter = SelectedKindFilter?.Value ?? "";
         var group = SelectedGroup?.Value ?? "";
 
+        // NT-072 / NT-073：各页面（信息面板 / 脚本库 / 命令库）正在使用的集合 ⇒ 标「在用」；
+        // 沉底只对 info 集合（库页高频切库，沉底反而难找）。
+        int InUseRank(ScriptCollection c)
+            => ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Info && IsActive(c) ? 1 : 0;
+
+        bool IsActive(ScriptCollection c)
+        {
+            var id = _store!.GetLastCollectionId(ScriptCollectionKind.Normalize(c.Kind));
+            return id.Length > 0 && string.Equals(c.Id, id, StringComparison.Ordinal);
+        }
+
         var rows = _store.Data.Collections
             .Where(c => kindFilter.Length == 0 || ScriptCollectionKind.Normalize(c.Kind) == kindFilter)
             .Where(c => keyword.Length == 0 || Matches(c, keyword))
             .Where(c => group != "pinned" || c.Pinned)
-            .OrderBy(c => c.Archived)                          // 归档的排最后（仍可见，方便取消归档）
+            .OrderBy(InUseRank)                                // 使用中的集合排最后（置顶 / 归档都优先不了）
+            .ThenBy(c => c.Archived)                           // 归档的排最后（仍可见，方便取消归档）
             .ThenByDescending(c => c.Pinned)
             .ThenByDescending(c => SafeDate(c.LastOpenedAt))
             .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
         if (group == "recent")
-            rows = rows.OrderByDescending(c => SafeDate(c.LastOpenedAt)).ToList();
+            rows = rows.OrderByDescending(c => SafeDate(c.LastOpenedAt)).ThenBy(InUseRank).ToList();
 
         Collections.Clear();
         foreach (var c in rows)
         {
-            var row = new CollectionRow(c) { MemberCount = _store.ItemsOf(c.Id).Count };
+            var row = new CollectionRow(c)
+            {
+                MemberCount = _store.ItemsOf(c.Id).Count,
+                IsInUse = IsActive(c),
+            };
             Collections.Add(row);
         }
 
@@ -357,6 +438,12 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         OnPropertyChanged(nameof(CollectionHint));
     }
 
+    /// <summary>
+    /// NT-072：页面重新显示时重算「在用」标记与沉底顺序。
+    /// <para>信息面板切集合只会改 <c>lastCollectionId</c>，本页 VM 收不到通知 ⇒ 由 View 在挂上视觉树时调一次。</para>
+    /// </summary>
+    public void RefreshUsageState() => RefreshCollections();
+
     private static bool Matches(ScriptCollection c, string keyword)
         => (c.Name ?? "").Contains(keyword, StringComparison.CurrentCultureIgnoreCase)
            || (c.Description ?? "").Contains(keyword, StringComparison.CurrentCultureIgnoreCase)
@@ -365,7 +452,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     private static DateTime SafeDate(string? iso)
         => DateTime.TryParse(iso, out var dt) ? dt : DateTime.MinValue;
 
-    /// <summary>重建右栏成员表：全库条目 + 是否属于当前集合。</summary>
+    /// <summary>重建右栏成员表：候选池（按集合 kind 过滤）+ 是否属于当前集合（NT-073 D13）。</summary>
     private void LoadMemberTable()
     {
         if (_store == null) return;
@@ -374,10 +461,12 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         Members.Clear();
 
         var colId = SelectedCollection?.Id ?? "";
+        var kind = SelectedCollection == null ? "" : ScriptCollectionKind.Normalize(SelectedCollection.Kind);
         var keyword = (MemberSearch ?? "").Trim();
 
         foreach (var item in _store.Data.Items)
         {
+            if (!ShowAllKinds && kind.Length > 0 && !RoleMatchesKind(item.Role, kind)) continue;
             if (!ShowNonCollectable && !item.Collectable) continue;
             if (keyword.Length > 0
                 && !(item.Title ?? "").Contains(keyword, StringComparison.CurrentCultureIgnoreCase)
@@ -388,6 +477,19 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
         _suppressMember = false;
         OnPropertyChanged(nameof(HasMembers));
+    }
+
+    /// <summary>条目角色是否属于这个集合 kind 的候选域（信息面板集合不限）。</summary>
+    private static bool RoleMatchesKind(string? role, string kind)
+    {
+        var r = ScriptItemRole.Normalize(role);
+        return ScriptCollectionKind.Normalize(kind) switch
+        {
+            ScriptCollectionKind.Script => r is ScriptItemRole.Script or ScriptItemRole.Collector,
+            ScriptCollectionKind.Command => r == ScriptItemRole.Command,
+            ScriptCollectionKind.Package => r == ScriptItemRole.Package,
+            _ => true,   // 信息面板集合：脚本 + 命令都能当采集器
+        };
     }
 
     /// <summary>给每一行挂上勾选联动（重建时统一挂，避免漏挂）。</summary>
@@ -439,20 +541,23 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         EditDescription = col?.Description ?? "";
         EditTags = col == null ? "" : string.Join(", ", col.Tags);
         EditRefreshMode = ScriptRefreshMode.Normalize(col?.RefreshMode);
+        EditRefreshSeconds = Math.Max(0, col?.RefreshSeconds ?? 0).ToString();
+        EditRootPath = col?.RootPath ?? "";
 
-        SelectedKindOption = KindOptions.FirstOrDefault(o => o.Value == EditKind);
-        SelectedRefreshOption = RefreshOptions.FirstOrDefault(o => o.Value == EditRefreshMode);
+        EditDefaultViewId = col?.DefaultViewId ?? "";
 
         ViewOptions.Clear();
         ViewOptions.Add(new CollectionFilterOption { Label = "默认视图", Value = "" });
         if (col != null)
             foreach (var v in _store?.Data.Views.Where(v => v.CollectionId == col.Id) ?? Enumerable.Empty<ScriptView>())
                 ViewOptions.Add(new CollectionFilterOption { Label = v.Name, Value = v.Id });
-        SelectedViewOption = ViewOptions.FirstOrDefault(o => o.Value == (col?.DefaultViewId ?? ""));
 
         _loading = false;
         OnPropertyChanged(nameof(HasSelectedCollection));
         OnPropertyChanged(nameof(CollectionHint));
+        OnPropertyChanged(nameof(IsInfoCollection));
+        OnPropertyChanged(nameof(IsScriptCollection));
+        OnPropertyChanged(nameof(ViewCountText));
     }
 
     private void ApplyCollectionEdits()
@@ -463,12 +568,15 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
         col.Name = string.IsNullOrWhiteSpace(EditName) ? col.Name : EditName.Trim();
         col.Icon = EditIcon ?? "";
+        // 类别可改（用户 2026-10-19）：内置库改走后，下次启动由 Normalize 补一个新默认库。
         col.Kind = ScriptCollectionKind.Normalize(EditKind);
         col.Description = EditDescription ?? "";
         col.Tags = (EditTags ?? "").Split(new[] { ',', '，' }, StringSplitOptions.RemoveEmptyEntries)
                                   .Select(t => t.Trim()).Where(t => t.Length > 0).Distinct().ToList();
         col.RefreshMode = ScriptRefreshMode.Normalize(EditRefreshMode);
-        col.DefaultViewId = SelectedViewOption?.Value ?? "";
+        col.RefreshSeconds = int.TryParse((EditRefreshSeconds ?? "").Trim(), out var sec) && sec > 0 ? sec : 0;
+        col.RootPath = (EditRootPath ?? "").Trim().TrimEnd('\\', '/');
+        col.DefaultViewId = EditDefaultViewId ?? "";
 
         _store.Save();
 
@@ -478,6 +586,9 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         SelectedCollection.Icon = col.Icon;
         SelectedCollection.Description = col.Description;
         OnPropertyChanged(nameof(CollectionHint));
+        OnPropertyChanged(nameof(IsInfoCollection));
+        OnPropertyChanged(nameof(IsScriptCollection));
+        OnPropertyChanged(nameof(ViewCountText));
     }
 
     // ==================== 命令 ====================
@@ -523,6 +634,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
             Tags = new List<string>(src.Tags),
             RefreshMode = src.RefreshMode,
             RefreshSeconds = src.RefreshSeconds,
+            RootPath = src.RootPath,
             LastOpenedAt = Now(),
         };
         _store.Data.Collections.Add(col);
@@ -530,6 +642,40 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         // 成员一并复制（条目侧加一条集合 id）
         foreach (var item in _store.Data.Items.Where(i => i.Collections.Contains(src.Id)))
             item.Collections.Add(col.Id);
+
+        // NT-069：视图也要一起复制 —— 视图承载「每节显示哪些列 / 节顺序」，不复制副本就变成全默认。
+        foreach (var srcView in _store.Data.Views.Where(v => v.CollectionId == src.Id).ToList())
+        {
+            var newView = new ScriptView
+            {
+                Id = Guid.NewGuid().ToString("N")[..12],
+                CollectionId = col.Id,
+                Name = srcView.Name,
+                Layout = srcView.Layout,
+                Filter = srcView.Filter,
+                Sort = srcView.Sort,
+                Group = srcView.Group,
+                RefreshMode = srcView.RefreshMode,
+                RefreshSeconds = srcView.RefreshSeconds,
+                Collapsed = new List<string>(srcView.Collapsed ?? new List<string>()),
+                SectionOrder = new List<string>(srcView.SectionOrder ?? new List<string>()),
+                SectionColumns = (srcView.SectionColumns ?? new List<SectionViewColumns>()).Select(s => new SectionViewColumns
+                {
+                    ItemId = s.ItemId,
+                    Hidden = new List<string>(s.Hidden ?? new List<string>()),
+                    Titles = s.Titles == null ? new Dictionary<string, string>() : new Dictionary<string, string>(s.Titles),
+                    Widths = s.Widths == null ? new Dictionary<string, string>() : new Dictionary<string, string>(s.Widths),
+                }).ToList(),
+                Columns = (srcView.Columns ?? new List<ScriptColumn>()).Select(c => new ScriptColumn
+                {
+                    Key = c.Key, Title = c.Title, Visible = c.Visible, Order = c.Order, Width = c.Width,
+                }).ToList(),
+            };
+            _store.Data.Views.Add(newView);
+
+            if (string.Equals(src.DefaultViewId, srcView.Id, StringComparison.Ordinal))
+                col.DefaultViewId = newView.Id;
+        }
 
         _store.Save();
         RefreshCollections();
@@ -547,13 +693,37 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
         if (col.Builtin) { StatusText = "内置集合不可删除（可以改名或归档）。"; return; }
 
-        var ok = await DialogHooks.ConfirmAsync($"确定删除集合「{col.Name}」吗？\n只删集合定义，⛔ 不删里面的条目。");
+        var inUse = string.Equals(_store.GetLastCollectionId(ScriptCollectionKind.Normalize(col.Kind)), col.Id,
+            StringComparison.Ordinal);
+        var message = $"确定删除集合「{col.Name}」吗？\n只删集合定义，⛔ 不删里面的条目。";
+        if (inUse)
+        {
+            var page = ScriptCollectionKind.Normalize(col.Kind) switch
+            {
+                ScriptCollectionKind.Script => "脚本库",
+                ScriptCollectionKind.Command => "命令库",
+                _ => "信息面板",
+            };
+            message += $"\n⚠ {page}正在使用这个集合，删除后会回退到「全部库」/ 第一个集合。";
+        }
+        var ok = await DialogHooks.ConfirmAsync(message);
         if (!ok) return;
 
         // 先清成员关系（条目侧），再删集合。
         foreach (var item in _store.Data.Items) item.Collections.RemoveAll(c => c == col.Id);
         _store.Data.Collections.RemoveAll(c => c.Id == col.Id);
-        if (_store.Data.LastCollectionId == col.Id) _store.Data.LastCollectionId = "";
+
+        // NT-073 D8：只属于这个库的条目 ⇒ 收回同 kind 的默认库（⛔ 不删条目 / 文件）。
+        var kind = ScriptCollectionKind.Normalize(col.Kind);
+        var def = _store.Data.Collections.FirstOrDefault(c => c.Builtin && !c.Archived
+                                                              && ScriptCollectionKind.Normalize(c.Kind) == kind);
+        if (def != null)
+            foreach (var orphan in _store.Data.Items.Where(i => i.Collections.Count == 0))
+                orphan.Collections.Add(def.Id);
+
+        if (string.Equals(_store.GetLastCollectionId(kind), col.Id, StringComparison.Ordinal))
+            _store.SetLastCollectionId(kind, "");
+
         _store.Save();
 
         RefreshCollections();
@@ -580,7 +750,13 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         var col = _store.FindCollection(SelectedCollection.Id);
         if (col == null) return;
 
-        _store.Data.LastCollectionId = col.Id;
+        if (ScriptCollectionKind.Normalize(col.Kind) != ScriptCollectionKind.Info)
+        {
+            StatusText = "只有「信息面板」类集合能发送到信息面板（脚本库 / 命令库请到各自页面用「库」下拉切换）。";
+            return;
+        }
+
+        _store.SetLastCollectionId(ScriptCollectionKind.Info, col.Id);
         col.LastOpenedAt = Now();
         _store.Save();
 
@@ -628,8 +804,10 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         if (_store == null || SelectedCollection == null) { StatusText = "先选中一个集合。"; return; }
 
+        // NT-073：优先从当前集合的根目录（脚本库）开始扫。
+        var colRoot = _store.RootOf(SelectedCollection.Id);
         var dir = await DialogHooks.PickFolderAsync("扫描脚本目录（新脚本会入库并加入当前集合）",
-            _settings?.EffectiveScriptsFolder ?? _svc?.ScriptsDirectory ?? "");
+            colRoot.Length > 0 ? colRoot : (_settings?.EffectiveScriptsFolder ?? _svc?.ScriptsDirectory ?? ""));
         if (string.IsNullOrWhiteSpace(dir)) return;
 
         var candidates = ScriptScanner.Scan(dir, true, _store.Data.Items)

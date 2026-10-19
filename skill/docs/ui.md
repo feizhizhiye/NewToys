@@ -61,6 +61,7 @@
 
 > 固定件：左树 180（折叠 48）、右详情 340、页面根 `Margin="12"`、`Border.toolbar` 内边距 `12,6`、`Border.filter-bar` 内边距 `12,4`。
 > 🔴 左树**两块 padding 互不继承**（v3.69）：滚动区 `Border Padding="8,8"`（要给滚动条让位）、底部版本行 `Border.tree-version Padding="4,0"`（折叠态 `12,0`，让齿轮居中）。改一处⛔ 别指望另一处跟着变。
+> 🔴 左树滚动条走廊（v3.70 / 2026-10-18）：`ScrollViewer Padding="0,0,8,0"` —— Fluent 滚动条是**自动隐藏浮层**、不占布局列，走廊一没就压在树行按钮上（激活药丸被竖线穿过）。⛔ 别把右侧 padding 清成 0。
 > ⇒ **列表列 = 窗口宽 − 左树 − 详情 − 24**；**工具条 / 筛选条可用宽 = 列表列 − 24**。
 
 | 基准 | 窗口 | 列表列（详情展开） | 工具条 / 筛选条可用宽 |
@@ -257,11 +258,11 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 ## §7 详情卡（声明式渲染）
 
-> 契约在 `framework.md` §6.3；规格唯一源 = 需求 §4.5.1（三区模型 / 9 种 Kind / 3 种提交语义 / 刷新契约 / 16 张覆盖基线）。
+> 契约在 `framework.md` §6.3；规格唯一源 = 需求 §4.5.1（三区模型 / 10 种 Kind / 3 种提交语义 / 刷新契约 / 16 张覆盖基线）。
 
 ### 7.1 渲染层口径（`DetailCardRender.cs`）
 
-- 描述符里的路径是**字符串**，XAML 写不出动态 `{Binding <字符串>}` ⇒ 渲染层在 C# 侧把 `ValuePath` / `VisibleWhen` / `EnabledWhen` / `OptionsPath` / `Chip*Path` / `*IsExpanded` 解析成真实值，行对象（`TextFieldRow` / `CheckFieldRow` / `SelectFieldRow` / `IndexSelectFieldRow` / `NumberFieldRow` / `ChipsFieldRow` / `HintFieldRow` / `DividerFieldRow` / `ListFieldRow` / `IconBarFieldRow`）**只暴露强类型属性** ⇒ 模板里**零字符串路径**。
+- 描述符里的路径是**字符串**，XAML 写不出动态 `{Binding <字符串>}` ⇒ 渲染层在 C# 侧把 `ValuePath` / `VisibleWhen` / `EnabledWhen` / `OptionsPath` / `Chip*Path` / `*IsExpanded` 解析成真实值，行对象（`TextFieldRow` / `CheckFieldRow` / `SelectFieldRow` / `IndexSelectFieldRow` / `NumberFieldRow` / `ChipsFieldRow` / `HintFieldRow` / `DividerFieldRow` / `ListFieldRow` / `IconBarFieldRow` / `EditableListFieldRow`）**只暴露强类型属性** ⇒ 模板里**零字符串路径**。
 - `DetailSectionRender.CreateRow` 是 **Kind → 行对象**的**唯一分派点**；加新 Kind = 加一个 `case` + 一个 `DataTemplate`。
 - 刷新契约：渲染器**订阅源 VM 一次**（`PropertyChanged`）→ 任一属性变化整体重解析。⛔ 动作级改动（落盘 / 加标签 / 删除）由**页面 VM 自己回刷**，描述符不参与。
 - 提交语义：`Instant` / `Explicit` → 值写回绑 `PropertyChanged`（`Explicit` 写的是 VM 的**编辑态草稿**，落盘由工具条「💾 保存修改」负责）；`OnBlur` → 模板挂 `LostFocus="OnTextLostFocus"` → `TextFieldRow.Commit()`。
@@ -284,6 +285,13 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 件：`FieldKind.IconBar` + `DetailField.IconActions` + `DetailIconAction`（`IconKey` / `Text` / `ToolTip` / `CommandPath` / `IsEnabledPath` / `IsVisiblePath` / `IsActivePath` / `ConfirmText` / `IsDanger` / `IsSeparator`，全走路径字符串）。
 - 🔑 **图标资源键只能 C# 侧解析**：`Application.Current.TryFindResource(key, out var v)`（Try 模式 + `using Avalonia.Controls;`），行对象暴露 `Geometry Icon` ⇒ 模板 `Path.Data` 直接绑。键不存在 = 无图标，静默跳过。
 - 🔑 `ShowToolTipOnDisabled` 是本仓自定义属性 ⇒ **XAML 必须写 `ToolTip.ShowOnDisabled="True"`**（写裸名报 `AVLN2000`）。
+
+### 7.3b EditableList（第 10 种 Kind，2026-10-19）
+
+- 件：`FieldKind.EditableList`（`Shared`）+ `EditableListFieldRow` / `EditableListItemRow`（`UI`）。
+- 取数：`OptionsPath`（候选，必须**稳定实例**）→ 每行 `ItemLabelPath`（只读左标签）+ `ItemTextPath`（**可编辑文本，双向写回候选项**）。
+- 提交：模板挂 `LostFocus="OnEditableListLostFocus"` → `EditableListItemRow.Commit()`（**只提交真的改过的行**）→ 写回候选项 + 执行 `ItemCommandPath`（参数 = 候选项）。
+- 候选集合变了（切节 / 列变化）会自动重读；🔴 提交命令里⛔ **不要重建候选集合**，否则用户点下一个输入框时它会失焦。
 
 ### 7.4 迁移页三件事（缺一不可）
 

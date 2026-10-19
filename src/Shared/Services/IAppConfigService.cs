@@ -101,19 +101,11 @@ namespace NewToys.Shared.Services
         /// </summary>
         LaunchConfig Launch { get; set; }
 
-        // ==================== 导入 / 导出默认目录（v3.15，全局） ====================
+        // ==================== 导入 / 导出默认目录（v3.15 全局 → NT-077 第二批：改由 DataDir 推导） ====================
         //
-        // ⚠️ 字段名沿用 <c>VideoDbFolder</c> 仅为向后兼容（早期只管视频库 .db）；v3.15 升为**全局导入/导出默认目录**：
-        // 视频库 .db 与批量任务 .json 的导入/导出文件选择器打开时直接定位到它
-        // （StorageProvider.TryGetFolderFromPathAsync + SuggestedStartLocation）。留空 = 用系统默认。
-
-        /// <summary>
-        /// 导入 / 导出默认目录：媒体资产的库 <c>.db</c>、脚本库的 <c>.json</c> 等导入/导出文件选择器打开时定位到它。
-        /// 留空 = 用系统默认（系统文档 / 视频目录）。
-        /// <para>🔴 v3.66 结论：**留在 app.json**。曾想下沉到 media-assets.json，但脚本管理器（<c>PackageViewModel</c> /
-        /// <c>QuickActionListViewModel</c>）也在用它 ⇒ 两个模块共用 = 应用级，下沉会制造两份必须同步的真相。</para>
-        /// </summary>
-        string VideoDbFolder { get; set; }
+        // 🔴 `VideoDbFolder` 字段已**删除**（2026-10-19）：它把某个 profile 的绝对路径写进跨配置共享的 app.json，
+        // 切配置后导入/导出会指向别人的目录 —— 属现存缺陷。现在一律用 <see cref="DataDirectory"/>（
+        // = 当前配置档的 <c>data\</c>）推导，既跟随配置档，也不再需要用户维护这个路径。
 
         void Save();
         void Load();

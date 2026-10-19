@@ -91,8 +91,9 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// <summary>页大小预设（底栏下拉用；<see cref="PageSize"/> 记忆上次选择）。</summary>
     public static readonly int[] PageSizeOptions = { 25, 50, 100, 500, AllPageSize };
 
-    /// <summary>页大小预设的实例视图（XAML 绑 ItemsSource 用；⛔ 不直接绑静态字段）。</summary>
-    public IReadOnlyList<int> PageSizeChoices => PageSizeOptions;
+    /// <summary>页大小预设的实例视图（XAML 绑 ItemsSource 用；⛔ 不直接绑静态字段）。
+    /// NT-075：改 **virtual** —— 个别页（如软件包）要自己的一档预设，override 即可，⛔ 别改全局数组。</summary>
+    public virtual IReadOnlyList<int> PageSizeChoices => PageSizeOptions;
 
     /// <summary>默认页大小（2026-10-16 用户定：25）。</summary>
     public const int DefaultPageSize = 25;

@@ -1,7 +1,7 @@
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace NewToys.Shared.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 一条软件包记录 —— 「搜索结果 / 已安装 / 可升级」三种列表**共用同一个模型**。
@@ -163,4 +163,89 @@ public class PackageSettings
 
     /// <summary>上次的排序方向。</summary>
     public bool SortDescending { get; set; }
+
+    /// <summary>
+    /// **自定义源的分类**（源名 → 分类；NT-076）。
+    /// <para>内置源（<c>winget</c> / <c>msstore</c>）的分类由名字直接定，⛔ 不存这里（存了会与真相源打架）。</para>
+    /// <para>分类决定「和谁互斥」：社区源 / 商店源里**同时最多启用一个**；自定义源分类不互斥。</para>
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> SourceCategories { get; set; } = new();
+}
+
+/// <summary>
+/// winget **内置源**的常量（v3.78）—— Core（拼命令）与模块（界面文案）共用一份，⛔ 别各写一遍。
+/// <para>
+/// 「商店源」= <c>msstore</c>（Microsoft Store）：包 Id 是 Store 的 12 位字符（如 <c>9NBLGGH4NNS1</c>），
+/// 与 winget 社区源的 <c>发布者.应用名</c> 长得不一样 —— 判定是不是商店包一律走 <see cref="IsStore"/>。
+/// </para>
+/// </summary>
+public static class PackageSources
+{
+    /// <summary>社区源名（<c>winget</c>）。</summary>
+    public const string MainName = "winget";
+
+    /// <summary>社区源官方地址（切回官方 / 添加时用）。</summary>
+    public const string MainUrl = "https://cdn.winget.microsoft.com/cache";
+
+    /// <summary>商店源名（<c>msstore</c>）。</summary>
+    public const string StoreName = "msstore";
+
+    /// <summary>商店源地址（老 winget 没有 <c>source enable</c>，要靠 add 加回来时用这个）。</summary>
+    public const string StoreUrl = "https://storeedgefd.dsx.mp.microsoft.com/v9.0";
+
+    /// <summary>商店源类型（<c>--type</c>）。</summary>
+    public const string StoreType = "Microsoft.Rest";
+
+    /// <summary>中科大镜像源地址（国内通常更快；社区源的镜像，⛔ 商店源没有镜像）。</summary>
+    public const string UstcUrl = "https://mirrors.ustc.edu.cn/winget-source";
+
+    /// <summary>是不是商店源（忽略大小写 / 首尾空格）。</summary>
+    public static bool IsStore(string? name)
+        => string.Equals((name ?? "").Trim(), StoreName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>是不是 winget 内置源（<c>winget</c> / <c>msstore</c>）—— 内置的用 enable/disable，自定义的只能 remove。</summary>
+    public static bool IsBuiltin(string? name)
+        => IsStore(name) || string.Equals((name ?? "").Trim(), MainName, StringComparison.OrdinalIgnoreCase);
+
+    // ==================== 分类（NT-076：源列表多一列「分类」，同分类互斥） ====================
+
+    /// <summary>社区源分类（默认项 = <c>winget</c>；镜像源也归这一类，因此与官方社区源<b>互斥</b>）。</summary>
+    public const string CategoryCommunity = "社区源";
+
+    /// <summary>商店源分类（默认项 = <c>msstore</c>）。</summary>
+    public const string CategoryStore = "商店源";
+
+    /// <summary>自定义源分类（⛔ 不互斥 —— 这类源可以同时开好几个）。</summary>
+    public const string CategoryCustom = "自定义源";
+
+    /// <summary>分类下拉的可选项（顺序即界面顺序）。</summary>
+    public static readonly string[] AllCategories = { CategoryCommunity, CategoryStore, CategoryCustom };
+
+    /// <summary>内置源的分类；不是内置源 ⇒ <c>null</c>（分类由用户在「添加源」时指定）。</summary>
+    public static string? BuiltinCategory(string? name)
+        => IsStore(name) ? CategoryStore
+         : string.Equals((name ?? "").Trim(), MainName, StringComparison.OrdinalIgnoreCase) ? CategoryCommunity
+         : null;
+
+    /// <summary>按地址**猜**分类（「添加源」时的默认值，用户可改）。</summary>
+    public static string GuessCategory(string? argument)
+    {
+        var a = argument ?? "";
+        if (a.Contains("storeedgefd", StringComparison.OrdinalIgnoreCase)) return CategoryStore;
+        if (a.Contains("winget", StringComparison.OrdinalIgnoreCase)) return CategoryCommunity;
+        return CategoryCustom;
+    }
+
+    /// <summary>这个分类里有内置源 ⇒ 同分类的源**互斥**（同时最多启用一个）。</summary>
+    public static bool IsExclusiveCategory(string? category)
+        => string.Equals(category, CategoryCommunity, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(category, CategoryStore, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>归一化分类串（未知值 ⇒ <see cref="CategoryCustom"/>）。</summary>
+    public static string NormalizeCategory(string? category)
+    {
+        foreach (var c in AllCategories)
+            if (string.Equals(c, (category ?? "").Trim(), StringComparison.OrdinalIgnoreCase)) return c;
+        return CategoryCustom;
+    }
 }

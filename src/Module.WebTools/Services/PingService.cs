@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NewToys.Core.Services;
+using NewToys.Core.Services.DataMigrations;
 using NewToys.WebTools.Models;
 
 namespace NewToys.WebTools.Services;
@@ -27,27 +28,32 @@ public readonly struct PingResult
 /// 「切换 DNS 进行 ping」：若主机是域名，先用 <see cref="DnsResolver"/> 向**指定 DNS 服务器**解析 A 记录，
 /// 再对解析出的 IP 发 ICMP；若未指定 DNS 则回退系统解析。主机已是 IP 时直接 ping。
 /// </para>
+/// <para>
+/// 目标清单落**总库 <c>web_docs</c> 的 <c>ping-targets</c> 文档**（NT-076 第二批；此前是 <c>config\ping-targets.json</c>）。
+/// </para>
 /// </summary>
 public class PingService
 {
     private readonly ConfigStoreService _cfg;
     private readonly DnsResolver _dns;
+    private readonly JsonDocStore _docs;
 
-    public PingService(ConfigStoreService cfg, DnsResolver dns)
+    public PingService(ConfigStoreService cfg, DnsResolver dns, SqliteDatabase db)
     {
         _cfg = cfg;
         _dns = dns;
+        _docs = new JsonDocStore(db, "web");
     }
 
-    private string FilePath => Path.Combine(_cfg.ConfigDir, "ping-targets.json");
+    /// <summary>旧文件（迁移源；搬完是 <c>ping-targets.json.legacy</c>）。</summary>
+    private string LegacyFile => Path.Combine(_cfg.ConfigDir, WebToolsSchemaContributor.DocPingTargets + ".json");
 
     public IReadOnlyList<PingTarget> Load()
     {
         try
         {
-            if (!File.Exists(FilePath)) return new List<PingTarget>();
-            var list = JsonSerializer.Deserialize<List<PingTarget>>(File.ReadAllText(FilePath));
-            return list ?? new List<PingTarget>();
+            JsonDocMigration.ImportOnce(_docs, WebToolsSchemaContributor.DocPingTargets, LegacyFile);
+            return _docs.Load<List<PingTarget>>(WebToolsSchemaContributor.DocPingTargets) ?? new List<PingTarget>();
         }
         catch { return new List<PingTarget>(); }
     }
@@ -56,8 +62,9 @@ public class PingService
     {
         try
         {
-            Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(items, new JsonSerializerOptions { WriteIndented = true }));
+            var list = items.ToList();
+            if (list.Count == 0) { _docs.Delete(WebToolsSchemaContributor.DocPingTargets); return; }   // 空列表即删（懒创建）
+            _docs.Save(WebToolsSchemaContributor.DocPingTargets, list);
         }
         catch { /* 保存失败不打断 UI */ }
     }

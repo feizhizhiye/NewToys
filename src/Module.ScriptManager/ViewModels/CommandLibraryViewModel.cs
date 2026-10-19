@@ -162,10 +162,13 @@ public partial class CommandLibraryViewModel : QuickActionListViewModel
         return card;
     }
 
+    /// <summary>NT-073：本页按 <c>kind=command</c> 的库过滤（工具条「库 ▾」）。</summary>
+    protected override string LibraryKind => ScriptCollectionKind.Command;
+
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public CommandLibraryViewModel() { }
 
     public CommandLibraryViewModel(IQuickActionService svc, IColumnLayoutService cols, IAppConfigService app,
-        IScriptManagerSettingsService pc)
-        : base(svc, cols, app, pc) { }
+        IScriptManagerSettingsService pc, IScriptStoreService store)
+        : base(svc, cols, app, pc, store) { }
 }

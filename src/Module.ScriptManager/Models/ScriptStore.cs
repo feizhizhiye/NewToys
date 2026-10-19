@@ -130,8 +130,14 @@ public class ScriptStoreRoot
 
     public List<ScriptView> Views { get; set; } = new();
 
-    /// <summary>上次在信息面板里选中的集合（重启恢复）。</summary>
+    /// <summary>上次在信息面板里选中的集合（v3.76 起 = <see cref="LastCollectionIdByKind"/> 的兼容别名）。</summary>
     public string LastCollectionId { get; set; } = "";
+
+    /// <summary>
+    /// 各页面「正在用」的集合（NT-073）：键 = <see cref="ScriptCollectionKind"/>（info / script / command），值 = 集合 id。
+    /// <para>老字段 <see cref="LastCollectionId"/> 只作 info 的兼容读入。</para>
+    /// </summary>
+    public Dictionary<string, string> LastCollectionIdByKind { get; set; } = new();
 }
 
 /// <summary>
@@ -180,6 +186,12 @@ public class ScriptCollection
 
     /// <summary>默认视图 id（空 = 用第一条视图）。</summary>
     public string DefaultViewId { get; set; } = "";
+
+    /// <summary>
+    /// 这个库的脚本根目录（NT-073；只有 <c>kind=script</c> 有意义）。
+    /// <para>空 = 用设置页的全局脚本目录；相对路径的 <see cref="ScriptItem.Target"/> 按本字段解析。</para>
+    /// </summary>
+    public string RootPath { get; set; } = "";
 }
 
 /// <summary>
@@ -312,11 +324,47 @@ public class ScriptView
     /// <summary>已折叠的节（采集器 item id）。</summary>
     public List<string> Collapsed { get; set; } = new();
 
+    /// <summary>
+    /// <b>逐节的列显示覆盖</b>（视图级，NT-069）：键 = 采集器 item id。
+    /// <para>
+    /// 🔴 只存「覆盖」⛔ 不复制列 schema —— 列能力归 <see cref="ScriptItem.Columns"/>，
+    /// 脚本后来新增的 key 默认可见，不会因为视图没登记就消失。
+    /// </para>
+    /// <para>只在 <see cref="ScriptViewLayout.Sectioned"/> 布局下生效；<c>merged</c> 共用视图列，逐节覆盖无意义。</para>
+    /// </summary>
+    public List<SectionViewColumns> SectionColumns { get; set; } = new();
+
+    /// <summary>节的显示顺序（采集器 item id）；空 = 按集合成员顺序。</summary>
+    public List<string> SectionOrder { get; set; } = new();
+
     /// <summary>刷新模式覆盖（空 = 沿用集合）。</summary>
     public string RefreshMode { get; set; } = "";
 
     /// <summary>刷新间隔覆盖（0 = 沿用集合）。</summary>
     public int RefreshSeconds { get; set; }
+}
+
+/// <summary>
+/// 一个视图里**某一节**的列显示覆盖（NT-069）。
+/// <para>
+/// 三个容器都只存「与脚本 schema 不同的地方」：不在 <see cref="Hidden"/> 里的 key 就按脚本默认显示；
+/// <see cref="Titles"/> / <see cref="Widths"/> 没登记的 key 就用脚本给的默认标题 / 宽度。
+/// </para>
+/// <para>🔴 由此实现「同一个脚本在 A 集合显示 abc、在 B 集合显示 bcd」——差异落在视图，⛔ 不改脚本本体。</para>
+/// </summary>
+public class SectionViewColumns
+{
+    /// <summary>采集器 item id（= <see cref="ScriptItem.Id"/>）。</summary>
+    public string ItemId { get; set; } = "";
+
+    /// <summary>本视图下**隐藏**的列 key（大小写不敏感比较）。</summary>
+    public List<string> Hidden { get; set; } = new();
+
+    /// <summary>标题覆盖：列 key → 表头文案。</summary>
+    public Dictionary<string, string> Titles { get; set; } = new();
+
+    /// <summary>列宽覆盖：列 key → 宽规格（<c>140</c> / <c>2*</c> / 空 = 自适应）。</summary>
+    public Dictionary<string, string> Widths { get; set; } = new();
 }
 
 /// <summary>
@@ -328,9 +376,13 @@ public class ScriptColumn
     /// <summary>列 key = 输出 <c>attrs</c> 的属性名（与 <c>pc_observations.attr</c> 同一键空间）。</summary>
     public string Key { get; set; } = "";
 
-    /// <summary>表头文案（默认 = <see cref="Key"/>；用户可改）。</summary>
+    /// <summary>表头文案（默认 = <see cref="Key"/>；用户可改）。视图可用 <see cref="SectionViewColumns.Titles"/> 覆盖它。</summary>
     public string Title { get; set; } = "";
 
+    /// <summary>
+    /// ⚠️ NT-069 起 = **脚本默认可见性**（只作为新视图 / 新成员的初值），
+    /// 用户在某个视图里切列的显隐记在 <see cref="SectionViewColumns.Hidden"/>，⛔ 不再回写这里。
+    /// </summary>
     public bool Visible { get; set; } = true;
 
     /// <summary>显示顺序（出现序；用户调过的顺序不被新 attr 打乱）。</summary>

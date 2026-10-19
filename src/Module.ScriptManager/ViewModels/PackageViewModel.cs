@@ -38,8 +38,10 @@ public class PackageExportItem
 /// <para>
 /// <b>本页没有任何「保存」按钮</b>（规范 3.7）：源、静默安装、排序列都是点一下就生效并写
 /// <c>config\package.json</c>（由 <see cref="IPackageSettingsService"/> 落盘）。
-/// 「启用 / 关闭 Store 源」这类成体系的设置归 <b>设置 → 软件源</b> 页管；本页进入时读一次，
-/// 因此设置页改完再回到本页即生效（页面每次导航都会重建 VM，见规范 6.5）。
+/// NT-074：源的**增删 / 镜像切换**归「脚本管理器设置 → 软件源」节；本页只管"查哪些源"。
+/// NT-076：**勾一下源就立刻生效** —— 勾上但系统里没有的源（如默认未启用的 <c>msstore</c>）
+/// 会标「（未启用）」，勾它立刻跑 <c>winget source enable</c>（⛔ 工具条不再有「✅ 生效」按钮）。
+/// 本页进入时读一次源列表，因此设置页改完再回到本页即生效（页面每次导航都会重建 VM，见规范 6.5）。
 /// </para>
 /// <para>
 /// ⚠️ 刻意<b>不订阅</b> <see cref="IPackageSettingsService.Changed"/>：那个服务是单例，
@@ -48,7 +50,7 @@ public class PackageExportItem
 /// </summary>
 public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
-    private enum ListMode { None, Search, Installed, Upgrades }
+    private enum ListMode { None, Search, Installed, Upgrades, Pinned }
 
     // ==================== 动词 → 命令模板（🔴 抽象落点） ====================
     //
@@ -61,8 +63,34 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>后端可执行文件名（切后端时改这里）。</summary>
     private const string BackendExeName = "winget.exe";
 
+    // 🔴 NT-074：工具条每个按钮的 ToolTip = 它真正执行的 winget 命令（用户定调：⛔ 不写抽象描述）。
+    // 下面每条既是文档也是提示词来源；<占位符> 会原样显示给用户（告诉他这里填什么）。
+
+    /// <summary>列出已安装（<c>winget list</c>）。</summary>
+    private const string CmdListInstalled = "winget list --accept-source-agreements";
+
+    /// <summary>列出可升级（<c>winget upgrade</c>）。</summary>
+    private const string CmdListUpgrades = "winget upgrade --accept-source-agreements --include-unknown";
+
+    /// <summary>列出被 pin 的包（<c>winget pin list</c>）。</summary>
+    private const string CmdListPinned = "winget pin list";
+
+    /// <summary>搜索（<c>winget search</c>）；<c>--source</c> 只在勾了具体源时才带。</summary>
+    private const string CmdSearch = "winget search <关键字> --accept-source-agreements [--source <源>]";
+
     /// <summary>刷新索引（<c>source update</c>）：把各源的元数据拉到最新，之后「可升级」才准。</summary>
     private const string CmdRefreshIndex = "{exe} source update";
+
+    /// <summary>启用源（<c>winget source enable</c>）—— 工具条**勾一下源就立刻跑**（NT-076）。</summary>
+    private const string CmdSourceEnable = "winget source enable --name <源>";
+
+    /// <summary>安装（<c>winget install</c>）。</summary>
+    private const string CmdInstall =
+        "winget install --id <id> --exact --accept-package-agreements --accept-source-agreements --disable-interactivity";
+
+    /// <summary>升级单个包（<c>winget upgrade --id</c>）。</summary>
+    private const string CmdUpgrade =
+        "winget upgrade --id <id> --exact --accept-package-agreements --accept-source-agreements --disable-interactivity";
 
     /// <summary>全部升级（<c>upgrade --all</c>）。已锁定的包后端会自行跳过。</summary>
     private const string CmdUpgradeAll =
@@ -84,11 +112,17 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     private readonly IAppConfigService? _app;
 
-    /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
-    public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
     /// <summary>已安装包 Id 的缓存（搜索结果要靠它把「状态」列标准）。</summary>
     private HashSet<string>? _installedIds;
+
+    /// <summary>
+    /// 系统 winget 里**真实存在**的源名（<c>winget source list</c> 的结果）。
+    /// 「勾选即生效」靠它判断"勾了但没启用" —— 界面上的源选项可能与它不一致（内置源兜底项）。
+    /// </summary>
+    private readonly HashSet<string> _systemSources = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 同一次 <c>winget list</c> 的**完整记录**（Id / Name / Version）：用来把「显示名被截断 ⇒ Id 残缺」的
@@ -106,24 +140,27 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// 工具条（NT-055 / 需求 §4.8.5：**由 Shell 统一渲染**，页面⛔ 不再自写 <c>Border.toolbar</c>）。
     /// 顺序 = 折叠顺序的**反序**（越靠前越不易被折进「⋯」）。
     /// <para>
-    /// 🔴 2026-10-17 动词层：文案一律用**通用动词**（列出 / 搜索 / 升级 / 锁定 / 卸载 …），
-    /// ⛔ 不出现后端名（winget / scoop）—— 换后端时按钮文案一个字都不用改。
+    /// 🔴 2026-10-17 动词层：**按钮文案**一律用通用动词（列出 / 搜索 / 升级 / 锁定 / 卸载 …），
+    /// ⛔ 不出现后端名 —— 换后端时按钮文案一个字都不用改。
+    /// 🔴 NT-074 反转：**ToolTip 一律给真实 winget 命令**（用户定调）—— 用户要看的是"到底跑了什么"。
     /// 分组顺序 = 查看（源 / 搜索 / 三种列表）→ 刷新 → 写操作 → 偏好 → 导入导出。
     /// </para>
     /// </summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        // 2026-10-17：一排源按钮（ChipGroup）→ **单个筛选框**（Combo）—— 源多了以后按钮条会把关键字输入框挤没，
-        // 且本页的源本来就是**单选**语义（OnSelectedSourceChanged 只点亮一个），下拉更贴合。
-        // 「全部源」= null ⇒ 搜索时逐个源查一遍再合并。
+        // 2026-10-19（v3.77）：源改**多选**（一个下拉，勾中项右侧 ✓）—— 默认只勾 winget；
+        // 一个都不勾 = 「全部源」（搜索时逐个源查一遍再合并），按钮上的汇总文案由 SourceSummary 给出。
         new()
         {
-            Kind = ToolbarItemKind.Combo,
-            Width = 132,
+            Kind = ToolbarItemKind.MultiCombo,
+            Width = 150,
             ItemsPath = nameof(SourceOptions),
             DisplayPath = "Label",
-            SelectedItemPath = nameof(SelectedSource),
-            ToolTip = "软件源：只影响「🔍 搜索」；「📋 已安装 / ⬆ 可升级 / 🔒 已锁定」与源无关"
+            SelectedPath = "IsSelected",
+            TextPath = nameof(SourceSummary),
+            CommandPath = nameof(RefreshSourceSummaryCommand),
+            // NT-076：勾一下就生效 —— 勾上系统里还没启用的源 ⇒ 立刻跑 winget source enable（会弹 UAC）。
+            ToolTip = CmdSearch + "｜勾选即生效：" + CmdSourceEnable
         },
         new()
         {
@@ -133,17 +170,17 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             ValuePath = nameof(SearchText),
             IsEnabledPath = nameof(IsSupported),
             EnterCommandPath = nameof(SearchCommand),
-            ToolTip = "已安装 / 可升级列表里，这里就是本地过滤器；点「🔍 搜索」才去查远端源"
+            ToolTip = CmdSearch
         },
-        new() { Text = "🔍 搜索", Classes = "ghost", CommandPath = nameof(SearchCommand), IsEnabledPath = "!" + nameof(IsBusy) },
-        new() { Text = "📋 已安装", CommandPath = nameof(LoadInstalledCommand), IsEnabledPath = "!" + nameof(IsBusy) },
-        new() { Text = "⬆ 可升级", CommandPath = nameof(LoadUpgradesCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Text = "🔍 搜索", Classes = "ghost", CommandPath = nameof(SearchCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = CmdSearch },
+        new() { Text = "📋 已安装", CommandPath = nameof(LoadInstalledCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = CmdListInstalled },
+        new() { Text = "⬆ 可升级", CommandPath = nameof(LoadUpgradesCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = CmdListUpgrades },
         new()
         {
             Text = "🔒 已锁定",
             CommandPath = nameof(LoadPinnedCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
-            ToolTip = "列出被锁定（暂停更新）的包 —— 已存在的会贴上 🔒，不在列表里的补一行"
+            ToolTip = CmdListPinned
         },
         new() { Kind = ToolbarItemKind.Separator },
         new()
@@ -151,7 +188,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             Text = "🔄 重新加载",
             CommandPath = nameof(RefreshCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
-            ToolTip = "按当前所在的列表重跑一次（搜索 / 已安装 / 可升级）—— 要等几秒"
+            ToolTip = CmdListInstalled + " / " + CmdListUpgrades + " / " + CmdSearch + "（按当前列表重跑）"
         },
         new()
         {
@@ -159,7 +196,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             Classes = "ghost",
             CommandPath = nameof(RefreshIndexCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
-            ToolTip = "把各软件源的元数据拉到最新（等价 apt update）—— 「可升级」的结果依赖它"
+            ToolTip = CmdRefreshIndex.Replace("{exe}", "winget")
         },
         new() { Kind = ToolbarItemKind.Separator },
         new()
@@ -168,7 +205,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             CommandPath = nameof(InstallCheckedCommand),
             IsEnabledPath = nameof(CanRunBatch),
             ShowToolTipOnDisabled = true,
-            ToolTip = "把勾选的包逐条安装（已安装的后端会自行跳过；单个失败不影响其余）"
+            ToolTip = CmdInstall
         },
         new()
         {
@@ -176,14 +213,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             CommandPath = nameof(UpgradeCheckedCommand),
             IsEnabledPath = nameof(CanRunBatch),
             ShowToolTipOnDisabled = true,
-            ToolTip = "把勾选的包逐条升级（没有可升级版本的自动跳过）"
+            ToolTip = CmdUpgrade
         },
         new()
         {
             Text = "⬆⬆ 全部升级",
             CommandPath = nameof(UpgradeAllCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
-            ToolTip = "把所有可升级的包一次性升到最新版（已锁定的跳过）—— 执行前会确认一次"
+            ToolTip = CmdUpgradeAll.Replace("{exe}", "winget") + ArgSilent
         },
         new()
         {
@@ -192,11 +229,11 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             CommandPath = nameof(UninstallCheckedCommand),
             IsEnabledPath = nameof(CanRunBatch),
             ShowToolTipOnDisabled = true,
-            ToolTip = "把勾选的包逐条卸载（不可撤销）—— 执行前只确认一次，不逐条弹窗"
+            ToolTip = CmdUninstall.Replace("{exe}", "winget")
         },
         // v3.60：原「已勾选 N 个」指示文字（Label + CheckedText）删除 —— 需求 §4.8.4 第 3 条：⛔ 工具条不放计数指示，
         //        勾选状态在列表勾选框上一眼可见；前置条件写进下面两个按钮的 ToolTip（ShowToolTipOnDisabled）。
-        new() { Kind = ToolbarItemKind.Toggle, Text = "静默安装", ValuePath = nameof(SilentInstall) },
+        new() { Kind = ToolbarItemKind.Toggle, Text = "静默安装", ValuePath = nameof(SilentInstall), ToolTip = ArgSilent.Trim() + "（追加到 install / upgrade 末尾；商店源不支持，会自动跳过）" },
         new()
         {
             Text = "📤 导出",
@@ -226,8 +263,99 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     // v3.22：原「仅看 Pin」勾选框（`_showPinned`）已删除 —— pin 改成一条真命令「📌 Pin 列表」（见 LoadPinnedAsync）。
     [ObservableProperty] private bool _silentInstall = true;
     [ObservableProperty] private PackageInfo? _selected;
-    [ObservableProperty] private PackageSourceOption? _selectedSource;
     [ObservableProperty] private string _detailExtra = "";
+
+    /// <summary>
+    /// 源多选框**按钮上的汇总文案**（v3.77）：`winget` / `winget, msstore` / `3 个源` / `全部源`（一个都没勾）。
+    /// </summary>
+    [ObservableProperty] private string _sourceSummary = "全部源";
+
+    /// <summary>已勾选的源名（⚠ 只含有名字的项；空 = 全部源）。</summary>
+    private List<string> CheckedSources()
+        => SourceOptions.Where(o => o.IsSelected && !string.IsNullOrEmpty(o.Value))
+                        .Select(o => o.Value!).ToList();
+
+    /// <summary>安装时兜底用：第一个勾选的源；一个都没勾 ⇒ null（交给后端自己挑）。</summary>
+    private string? FirstCheckedSource() => CheckedSources().FirstOrDefault();
+
+    /// <summary>
+    /// 给搜索结果**补上来源**（v3.78）：老版本 winget 的 <c>search</c> 输出不一定有 Source 列，
+    /// 而详情 / 安装都要拿它拼 <c>--source</c> —— 商店包（msstore）不带源是读不出详情的。
+    /// </summary>
+    private static void StampSource(IReadOnlyList<PackageInfo> items, string? source)
+    {
+        if (string.IsNullOrEmpty(source)) return;
+        foreach (var it in items)
+            if (string.IsNullOrEmpty(it.Source)) it.Source = source;
+    }
+
+    /// <summary>
+    /// 勾选态变了 ⇒ 重算按钮汇总文案（工具条 <c>MultiCombo</c> 的 <c>CommandPath</c> 指这里）
+    /// + **勾一下就生效**（NT-076：⛔ 工具条不再有「✅ 生效」按钮）。
+    /// 🔴 宿主已经把 bool 翻好了，⛔ 这里不要再翻。
+    /// </summary>
+    [RelayCommand]
+    private void RefreshSourceSummary()
+    {
+        var picked = CheckedSources();
+        SourceSummary = picked.Count switch
+        {
+            0 => "全部源",
+            1 => picked[0],
+            2 => $"{picked[0]}, {picked[1]}",
+            _ => $"{picked.Count} 个源"
+        };
+
+        _ = ApplyCheckedSourcesAsync();
+    }
+
+    /// <summary>正在跑"勾选即生效"（防止 <see cref="LoadSourcesAsync"/> 末尾的重入）。</summary>
+    private bool _applyingSources;
+
+    /// <summary>
+    /// **勾选即生效**（NT-076）：把「勾上了但系统 winget 里没有」的源真正启用
+    /// （<c>winget source enable --name &lt;源&gt;</c>）。
+    /// <para>
+    /// 商店源 <c>msstore</c> 这类"系统里默认没启用"的源，勾上就会真的出现在系统里 ——
+    /// 这就是「勾了 msstore 却搜不到」的根因与修法（改源要管理员权限，会弹 UAC）。
+    /// </para>
+    /// <para>⚠️ 系统里已有但**没勾**的源一律不动（⛔ 不 disable）—— 停用属于设置页的职责，且会动到整台机器。</para>
+    /// </summary>
+    private async Task ApplyCheckedSourcesAsync()
+    {
+        if (_pkg == null || IsBusy || _applyingSources) return;
+
+        var missing = CheckedSources().Where(n => !_systemSources.Contains(n)).ToList();
+        if (missing.Count == 0) return;      // 都已在系统里 ⇒ 不用动、也不用打扰用户
+
+        _applyingSources = true;
+        try
+        {
+            IsBusy = true;
+            var done = new List<string>();
+            var errs = new List<string>();
+
+            foreach (var name in missing)
+            {
+                StatusText = $"正在启用源 {name} ……（winget source enable --name {name}）";
+                var (ok, msg) = await _pkg.SetSourceEnabledAsync(name, true);
+                if (ok) done.Add(name); else errs.Add($"{name}：{msg}");
+            }
+
+            await LoadSourcesAsync();      // 源清单变了 ⇒ 重读，去掉「（未启用）」标记
+            StatusText = (done.Count > 0 ? $"已启用源 {string.Join(" / ", done)}（写进系统 winget）。" : "")
+                       + (errs.Count > 0 ? " 失败：" + string.Join("；", errs) : "");
+        }
+        catch (Exception ex)
+        {
+            StatusText = "启用源出错：" + ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+            _applyingSources = false;
+        }
+    }
 
     // ==================== 表头（点一下切换排序） ====================
 
@@ -253,6 +381,19 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     public bool IsPickVisible => true;
 
     protected override string PageKey => "script-packages";
+
+    // ==================== 分页（NT-075） ====================
+    //
+    // 数据全在内存（winget 一次性吐完），分页只做**切片**（⛔ 不回查后端）；
+    // 预设 20 / 50 / 100 / 全部 —— 用户定调，⛔ 别动全局那档（25/50/100/500/全部）。
+
+    /// <summary>本页自己的页大小预设。</summary>
+    private static readonly int[] PackagePageSizes = { 20, 50, 100, AllPageSize };
+
+    public override IReadOnlyList<int> PageSizeChoices => PackagePageSizes;
+
+    /// <summary>启用底栏分页（基类默认 false）；数据源在内存 ⇒ 切片由 <see cref="ApplyView"/> 做。</summary>
+    protected override bool PagingEnabled => true;
 
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
@@ -574,10 +715,11 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     }
 
     /// <summary>
-    /// 源下拉 = 「全部（系统 winget 里的）」+ 各源。
+    /// 源下拉 = 系统 winget 里真实存在的源（<c>winget source list</c>）+ 内置源兜底项。
     /// <para>
-    /// ⚠️ v1.33 起源完全来自**系统 winget**（<c>winget source list</c>），本应用不再自己维护
-    /// "启用 / 关闭某个源"的开关 —— 要增删源请去「设置 → 软件源」页（那里改的也是系统 winget）。
+    /// ⚠️ v1.33 起源完全来自**系统 winget**（本页只是它的可视化外壳，⛔ 不另存一份源定义）。
+    /// 内置源（<c>winget</c> / <c>msstore</c>）若系统里没有 ⇒ 补一项并在名字后标「（未启用）」，
+    /// 勾上就**立刻**执行 <c>winget source enable</c>（NT-076：⛔ 没有「✅ 生效」按钮）。
     /// </para>
     /// </summary>
     private async Task LoadSourcesAsync()
@@ -586,21 +728,47 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
         var (ok, _, items) = await _pkg.ListSourcesAsync();
 
-        SourceOptions.Clear();
-        SourceOptions.Add(new PackageSourceOption { Label = "全部源", Value = null });
+        _systemSources.Clear();
+        if (ok) foreach (var s in items) _systemSources.Add(s.Name);
 
+        SourceOptions.Clear();
         if (ok)
         {
             foreach (var s in items)
                 SourceOptions.Add(new PackageSourceOption { Label = s.Name, Value = s.Name });
         }
-        else SourceOptions.Add(new PackageSourceOption { Label = "winget", Value = "winget" });
 
-        var want = _settings?.Settings.DefaultSource ?? "";
+        // 内置源兜底：系统里没有的，标「（未启用）」—— 让"勾了却搜不到"这件事在界面上说得通。
+        foreach (var builtin in new[] { PackageSources.MainName, PackageSources.StoreName })
+        {
+            if (SourceOptions.Any(o => string.Equals(o.Value, builtin, StringComparison.OrdinalIgnoreCase))) continue;
+            SourceOptions.Add(new PackageSourceOption
+            {
+                Label = builtin + "（未启用）",
+                Value = builtin
+            });
+        }
+
+        // v3.77：默认**只勾 winget**（没有 winget 就勾第一个）；一个都不勾 = 「全部源」。
+        // 设置里存过的源（逗号分隔）优先 —— 沿用原来的「记住上次选择」语义。
+        var want = (_settings?.Settings.DefaultSource ?? "")
+                   .Split(new[] { ',', '，' }, StringSplitOptions.RemoveEmptyEntries)
+                   .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+
+        var preset = want.Count > 0
+            ? SourceOptions.Where(o => want.Contains(o.Value ?? "", StringComparer.OrdinalIgnoreCase)).ToList()
+            : new List<PackageSourceOption>();
+        if (preset.Count == 0)
+        {
+            var fallback = SourceOptions.FirstOrDefault(o => string.Equals(o.Value, "winget", StringComparison.OrdinalIgnoreCase))
+                           ?? SourceOptions.FirstOrDefault(o => !string.IsNullOrEmpty(o.Value));
+            if (fallback != null) preset.Add(fallback);
+        }
+
         _syncing = true;
-        SelectedSource = SourceOptions.FirstOrDefault(o => string.Equals(o.Value ?? "", want, StringComparison.OrdinalIgnoreCase))
-                         ?? SourceOptions[0];
+        foreach (var o in SourceOptions) o.IsSelected = preset.Contains(o);
         _syncing = false;
+        RefreshSourceSummary();
     }
 
     // ==================== 加载列表 ====================
@@ -620,28 +788,31 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             IsBusy = true;
             StatusText = "正在搜索……";
 
-            var source = SelectedSource?.Value;
-            if (source == null)
+            // v3.77：源多选 —— 逐个勾选的源查一遍再合并；一个都没勾 = 全部源。
+            var picked = CheckedSources();
+            if (picked.Count == 0) picked = SourceOptions.Where(o => !string.IsNullOrEmpty(o.Value)).Select(o => o.Value!).ToList();
+
+            if (picked.Count > 1)
             {
-                // 「全部源」= 对**每个已启用的源**各查一遍再合并。
-                // 这样「关掉 Store 源」就是真的不查它（而不是查完再过滤）。
                 var merged = new List<PackageInfo>();
                 var errs = new List<string>();
-                foreach (var opt in SourceOptions.Where(o => !string.IsNullOrEmpty(o.Value)).ToList())
+                foreach (var name in picked)
                 {
-                    var (ok, msg, items) = await _pkg.SearchAsync(SearchText, opt.Value);
-                    if (ok) merged.AddRange(items);
-                    else errs.Add($"{opt.Label}: {msg}");
+                    var (ok, msg, items) = await _pkg.SearchAsync(SearchText, name);
+                    if (ok) { StampSource(items, name); merged.AddRange(items); }
+                    else errs.Add($"{name}: {msg}");
                 }
                 BeginList(merged, ListMode.Search);
                 ApplyView();
                 StatusText = merged.Count == 0
                     ? "没有匹配的包" + (errs.Count > 0 ? "｜" + string.Join("；", errs) : "")
-                    : $"找到 {merged.Count} 个包（已合并 {SourceOptions.Count - 1} 个源）";
+                    : $"找到 {merged.Count} 个包（已合并 {picked.Count} 个源）";
             }
             else
             {
-                var (ok, msg, items) = await _pkg.SearchAsync(SearchText, source);
+                var only = picked.FirstOrDefault();
+                var (ok, msg, items) = await _pkg.SearchAsync(SearchText, only);
+                StampSource(items, only);
                 BeginList(items.ToList(), ListMode.Search);
                 ApplyView();
                 StatusText = msg;
@@ -699,6 +870,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         {
             case ListMode.Search: await SearchAsync(); break;
             case ListMode.Upgrades: await LoadUpgradesAsync(); break;
+            case ListMode.Pinned: await LoadPinnedAsync(); break;   // NT-075：按当前列表重跑
             default: await LoadInstalledAsync(); break;
         }
     }
@@ -716,6 +888,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             ListMode.Search => $"搜索结果：{SearchText}",
             ListMode.Installed => "已安装（本机全部包）",
             ListMode.Upgrades => "可升级",
+            ListMode.Pinned => "已锁定（winget pin list）",
             _ => "尚未加载"
         };
         if (mode != ListMode.Search && SearchText.Length > 0) SearchText = "";
@@ -841,9 +1014,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     {
         if (_pkg == null || IsBusy) return;
 
-        if (_mode != ListMode.Installed)
-            await LoadInstalledAsync();     // 先有 winget list 的底子（内部会 ApplyView）
-
         try
         {
             IsBusy = true;
@@ -851,22 +1021,40 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             var (ok, msg, pinned) = await _pkg.ListPinnedAsync();
             if (!ok) { StatusText = "读取 Pin 列表失败：" + msg; return; }
 
-            var marked = 0;
-            var added = 0;
-            foreach (var p in pinned)
+            // 🔴 NT-075：点「🔒 已锁定」= **换一个列表**（⛔ 不清空就是"把 pin 项塞进上一次的结果"，
+            // 用户看不出哪些才是被锁定的）。pin list 只给 Id / 版本 ⇒ 再跑一次 winget list 补齐名称 / 源 / 状态。
+            var ids = pinned.Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var rows = new List<PackageInfo>();
+            var missed = 0;
+
+            if (ids.Count > 0)
             {
-                var hit = _all.FirstOrDefault(x => string.Equals(x.Id, p.Id, StringComparison.OrdinalIgnoreCase));
-                if (hit != null) { hit.IsPinned = true; marked++; continue; }
-                var row = new PackageInfo { Id = p.Id, Name = p.Name, IsPinned = true };
-                row.PropertyChanged += OnRowPropertyChanged;
-                _all.Add(row);
-                added++;
+                var (okList, _, installed) = await _pkg.ListInstalledAsync();
+                if (okList)
+                {
+                    foreach (var p in installed)
+                    {
+                        if (!ids.Contains(p.Id)) continue;
+                        p.IsPinned = true;
+                        p.PinnedVersion = pinned.FirstOrDefault(x => string.Equals(x.Id, p.Id, StringComparison.OrdinalIgnoreCase))?.PinnedVersion ?? "";
+                        rows.Add(p);
+                    }
+                }
+                foreach (var p in pinned)
+                    if (!rows.Any(x => string.Equals(x.Id, p.Id, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        // 已安装列表里没有（离线 / 解析差异）⇒ 仍给一行，至少 Id 和锁定的版本是对的
+                        rows.Add(new PackageInfo { Id = p.Id, Version = p.Version, PinnedVersion = p.PinnedVersion, IsPinned = true });
+                        missed++;
+                    }
             }
 
+            BeginList(rows, ListMode.Pinned);     // 清掉原有列表，只留被锁定的
             ApplyView();
-            StatusText = pinned.Count == 0
+
+            StatusText = ids.Count == 0
                 ? "没有被 Pin 的包（winget pin list 为空）。"
-                : $"Pin 列表 {pinned.Count} 项已并入已安装列表：{marked} 个已存在的贴上 📌、{added} 个新加入（Pin = 暂停更新）。";
+                : $"已锁定 {rows.Count} 个包（winget pin list）；" + (missed > 0 ? $"{missed} 个在已安装列表里没匹配到，只显示 Id。" : "");
         }
         finally { IsBusy = false; }
     }
@@ -927,11 +1115,26 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                                  : q.OrderBy(p => p.Name, byText)
         };
 
+        // ---- NT-075 分页切片（数据已在内存 ⇒ 只切不回查；选「全部」= 不切） ----
+        var ordered = q.ToList();
+        TotalCount = ordered.Count;
+
+        var maxPage = Math.Max(1, PageCount);          // 用基类口径（AllPageSize 下 = 1）
+        if (PageIndex > maxPage)
+        {
+            PageIndex = maxPage;                       // setter → OnPageIndexChanged → RefreshView ⇒ 再来一次（⛔ 不在这里继续）
+            return;
+        }
+
+        var page = PageSize >= AllPageSize
+            ? ordered
+            : ordered.Skip((PageIndex - 1) * PageSize).Take(PageSize).ToList();
+
         _syncing = true;                                  // 重建集合期间不要再触发回写
         try
         {
             Packages.Clear();
-            foreach (var p in q) Packages.Add(p);
+            foreach (var p in page) Packages.Add(p);
         }
         finally { _syncing = false; }
 
@@ -989,7 +1192,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         {
             IsBusy = true;
             StatusText = $"正在安装 {p.Id} ……（较大的包会久一点，请勿关闭窗口）";
-            var (ok, msg) = await _pkg.InstallAsync(p.Id, string.IsNullOrEmpty(p.Source) ? SelectedSource?.Value : p.Source, SilentInstall);
+            var (ok, msg) = await _pkg.InstallAsync(p.Id, string.IsNullOrEmpty(p.Source) ? FirstCheckedSource() : p.Source, SilentInstall);
             StatusText = msg;
             if (ok)
             {
@@ -1263,7 +1466,9 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (p == null || _pkg == null) return;
 
         StatusText = "正在读取详情（winget show）……";
-        var (ok, msg, detail) = await _pkg.ShowAsync(p.Id);
+        // v3.78：商店包只在 msstore 源里 ⇒ show 必须带 --source，否则详情读不出来。
+        var (ok, msg, detail) = await _pkg.ShowAsync(p.Id,
+            string.IsNullOrEmpty(p.Source) ? FirstCheckedSource() : p.Source);
         if (!ok || detail == null) { StatusText = msg; return; }
 
         if (!string.IsNullOrWhiteSpace(detail.Name)) p.Name = detail.Name;
@@ -1374,7 +1579,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                 var p = targets[i];
                 StatusText = $"正在安装 {i + 1}/{targets.Count}：{p.Id} …（较大的包会久一点，请勿关闭窗口）";
                 var (success, msg) = await _pkg.InstallAsync(p.Id,
-                    string.IsNullOrEmpty(p.Source) ? SelectedSource?.Value : p.Source, SilentInstall);
+                    string.IsNullOrEmpty(p.Source) ? FirstCheckedSource() : p.Source, SilentInstall);
                 if (success) ok++;
                 else fails.Add($"{p.Id}（{msg}）");
             }
@@ -1587,30 +1792,12 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     // ==================== 即时写盘（无保存按钮，规范 3.7） ====================
 
-    /// <summary>v3.19 / NT-008：点「源」按钮切换当前源（原下拉框改按钮）。</summary>
-    [RelayCommand]
-    private void SelectSource(PackageSourceOption? opt)
-    {
-        if (opt != null) SelectedSource = opt;
-    }
-
     /// <summary>v3.19 / NT-008：「仅看已安装」从工具条勾选并入表头右键菜单（切换过滤）。</summary>
     [RelayCommand]
     private void ToggleInstalledOnly()
     {
         InstalledOnly = !InstalledOnly;
         StatusText = InstalledOnly ? "仅看已安装（搜索结果里只留本机已装的）。" : "已取消「仅看已安装」。";
-    }
-
-    partial void OnSelectedSourceChanged(PackageSourceOption? value)
-    {
-        foreach (var o in SourceOptions) o.IsSelected = ReferenceEquals(o, value);   // v3.19 / NT-008：源按钮高亮
-        if (_syncing || _settings == null || value == null) return;
-        _settings.Settings.DefaultSource = value.Value ?? "";
-        _settings.Save();
-        StatusText = value.Value == null
-            ? "已切到「全部源（已启用的）」，下次联网搜索会逐个源查一遍。"
-            : $"已切到源：{value.Value}";
     }
 
     partial void OnSilentInstallChanged(bool value)

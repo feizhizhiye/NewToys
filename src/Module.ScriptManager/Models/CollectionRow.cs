@@ -54,14 +54,29 @@ public partial class CollectionRow : ObservableObject
     /// <summary>成员数（打开集合时由页面算一次）。</summary>
     [ObservableProperty] private int _memberCount;
 
-    /// <summary>kind 的中文名（信息面板 / 脚本库 / 命令库 / 软件包）。</summary>
+    /// <summary>正在被其他页面使用（当前 = 信息面板的 <c>lastCollectionId</c>，NT-072）。</summary>
+    [ObservableProperty] private bool _isInUse;
+
+    /// <summary>左栏「在用」短标（空 = 不显示）。</summary>
+    public string InUseMark => IsInUse ? "在用" : "";
+
+    /// <summary>短标悬停说明（左栏只有 280px，长句放这里）。</summary>
+    public string InUseTip => ScriptCollectionKind.Normalize(Kind) switch
+    {
+        ScriptCollectionKind.Script => "脚本库页面正在使用这个库；删除后会回退到「全部库」。",
+        ScriptCollectionKind.Command => "命令库页面正在使用这个库；删除后会回退到「全部库」。",
+        _ => "信息面板正在使用这个集合；删除后会回退到第一个集合。",
+    };
+
+    /// <summary>kind 的中文名（信息面板 / 脚本库 / 命令库 / 软件包）。
+    /// <para>🔴 左栏徽标、筛选下拉、详情卡「类别」三处必须用这同一个文案（用户 2026-10-19）。</para></summary>
     public string KindText => ScriptCollectionKind.Label(Kind);
 
     /// <summary>置顶标记（★ / 空）。</summary>
     public string PinMark => Pinned ? "★" : "";
 
-    /// <summary>左栏副标题：`kind · 3 个成员`。</summary>
-    public string SubText => $"{KindText} · {MemberCount}";
+    /// <summary>左栏副标题：`3 个成员`（kind 已由徽标表达，⛔ 不重复）。</summary>
+    public string SubText => $"{MemberCount} 个成员";
 
     /// <summary>把界面上的改动写回落盘模型（改名 / 图标 / 描述 / 置顶 / 归档 / 排序）。</summary>
     public void ApplyTo(ScriptCollection c)
@@ -78,6 +93,7 @@ public partial class CollectionRow : ObservableObject
     partial void OnPinnedChanged(bool value) => OnPropertyChanged(nameof(PinMark));
     partial void OnKindChanged(string value) => OnPropertyChanged(nameof(KindText));
     partial void OnMemberCountChanged(int value) => OnPropertyChanged(nameof(SubText));
+    partial void OnIsInUseChanged(bool value) => OnPropertyChanged(nameof(InUseMark));
 }
 
 /// <summary>

@@ -50,8 +50,8 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// <summary>外部程序缺失的警示文案（null = 没问题）；它同时决定状态栏那一行**是否可点击**。</summary>
     private string? _externalWarn;
 
-    /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
-    public string ImportExportDefaultDir => _cfg?.VideoDbFolder ?? "";
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    public string ImportExportDefaultDir => _cfg?.DataDirectory ?? "";
 
     private bool _syncing;
 
@@ -366,12 +366,9 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Description = "没配 pwsh 时 .ps1 用它；留空 = 用系统自带的 powershell.exe",
             Value = _cfg.PowerShell51Path
         });
-        Items.Add(new PathSettingItem
-        {
-            Key = "VideoDbFolder", Name = "导入导出默认目录", Kind = PathItemKind.Folder,
-            Description = "批量任务 .json（及媒体资产库文件）的导入/导出对话框打开时直接定位到这里；留空 = 用系统默认",
-            Value = _cfg.VideoDbFolder
-        });
+        // NT-077 第二批：「导入导出默认目录」可编辑项**已删除** —— 它原来把某个 profile 的绝对路径写进
+        // 跨配置共享的 app.json（切配置后指向别人的目录）。现在一律由「数据目录」推导，
+        // 也就没有再让用户手填的必要。
         Items.Add(new PathSettingItem
         {
             Key = "DataDir", Name = "数据目录", Kind = PathItemKind.ReadOnly,
@@ -629,8 +626,8 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
                 case "PythonPath": _cfg.PythonPath = v; break;
                 case "PwshPath": _cfg.PwshPath = v; break;
                 case "PowerShell51Path": _cfg.PowerShell51Path = v; break;
-                case "VideoDbFolder": _cfg.VideoDbFolder = v; break;
-                // ⚠️ 脚本目录（ScriptFolder）仍归「设置 → 脚本管理器设置」（config\script-manager.json），⛔ 本页不写它。
+                // NT-077 第二批：以上五项已下沉 env.json（机器级，⛔ app.json 里不再有这些键）。
+                // ⚠️ 脚本目录（ScriptFolder）仍归「设置 → 脚本管理器设置」（config\modules\script-manager.json），⛔ 本页不写它。
                 // DataDir / ConfigDir / AppConfigFile 是只读展示项，不写；配置行（Key = "profile:<名>"）不属于 app.json
             }
         }

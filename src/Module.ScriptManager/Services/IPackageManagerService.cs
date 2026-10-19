@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using NewToys.Shared.Models;
+using NewToys.ScriptManager.Models;
 
-namespace NewToys.Shared.Services;
+namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// 包管理器命令行封装（当前后端为 winget，未来可扩展为 apt 等）。
@@ -44,6 +44,12 @@ public interface IPackageManagerService
     /// <summary>把系统的源恢复为默认（<c>winget source reset --force</c>）—— 内部二次确认。</summary>
     Task<(bool Ok, string Message)> ResetSourcesAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// 源的**启用 / 停用**（v3.78）：优先 <c>winget source enable|disable</c>（winget 1.9+，⛔ 不删源定义）；
+    /// 老版本没有这两个子命令 ⇒ 回退成 <c>remove</c>（破坏性，内部二次确认）/ <c>add</c>（只有内置商店源能自动加回）。
+    /// </summary>
+    Task<(bool Ok, string Message)> SetSourceEnabledAsync(string name, bool enable, CancellationToken ct = default);
+
     /// <summary>已安装的包（<c>winget list</c>）。</summary>
     Task<(bool Ok, string Message, IReadOnlyList<PackageInfo> Items)> ListInstalledAsync(CancellationToken ct = default);
 
@@ -56,8 +62,12 @@ public interface IPackageManagerService
     /// <summary>被 pin 的包（<c>winget pin list</c>）。返回项的 <c>Id</c> / <c>PinnedVersion</c> 有效。</summary>
     Task<(bool Ok, string Message, IReadOnlyList<PackageInfo> Items)> ListPinnedAsync(CancellationToken ct = default);
 
-    /// <summary>包详情（<c>winget show</c>）：长描述 / 发布者 / 主页 / 协议。</summary>
-    Task<(bool Ok, string Message, PackageInfo? Detail)> ShowAsync(string id, CancellationToken ct = default);
+    /// <summary>
+    /// 包详情（<c>winget show</c>）：长描述 / 发布者 / 主页 / 协议。
+    /// <para>🔴 <c>source</c> 必传（v3.78）：商店包（<c>msstore</c>）在社区源里查不到 ⇒
+    /// 不带 <c>--source</c> 时详情直接读不出来。</para>
+    /// </summary>
+    Task<(bool Ok, string Message, PackageInfo? Detail)> ShowAsync(string id, string? source = null, CancellationToken ct = default);
 
     Task<(bool Ok, string Message)> InstallAsync(string id, string? source, bool silent, CancellationToken ct = default);
 

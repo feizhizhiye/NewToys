@@ -342,8 +342,8 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         }
     };
 
-    /// <summary>全局导入/导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.15 全局，覆盖 .db 与 .json 选择器）。</summary>
-    public string ImportExportDefaultDir => _cfg?.VideoDbFolder ?? "";
+    /// <summary>全局导入/导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    public string ImportExportDefaultDir => _cfg?.DataDirectory ?? "";
 
     /// <summary>已勾选的文件数（工具条上的「发送到…」按钮据此启用 / 显示数量）。</summary>
     public int CheckedCount => _all.Count(v => v.IsChecked);

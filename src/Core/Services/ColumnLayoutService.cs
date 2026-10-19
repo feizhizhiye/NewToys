@@ -1,14 +1,12 @@
 using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
-using NewToys.Core.Services;
 using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
 /// <summary>
 /// <see cref="IColumnLayoutService"/> 的实现：把各列表页的列显隐偏好落到
-/// <c>config\columnlayout.json</c>（形如 <c>{ "script-packages": { "Name": true, "Id": false } }</c>）。
+/// <c>config\shell.json</c> 的 <c>columnLayout</c> 节（形如 <c>{ "script-packages": { "Name": true, "Id": false } }</c>）。
 /// <para>
 /// ⚠️ 这里**不**走规范 3.9 的「模块只读设置」约束 —— 列显隐是**纯 UI 偏好**（不是应用设置），
 /// 由各列表页自发读写，不属于「设置模块才写」的范畴。
@@ -16,25 +14,20 @@ namespace NewToys.Core.Services;
 /// </summary>
 public class ColumnLayoutService : IColumnLayoutService
 {
-    private readonly ConfigStoreService _store;
-    private const string FileName = "columnlayout.json";
+    private readonly ShellConfigStore _shell;
 
-    public ColumnLayoutService(ConfigStoreService store) => _store = store;
-
-    private string FilePath => Path.Combine(_store.ConfigDir, FileName);
+    public ColumnLayoutService(ShellConfigStore shell) => _shell = shell;
 
     private Dictionary<string, Dictionary<string, bool>> ReadAll()
     {
-        if (!File.Exists(FilePath)) return new Dictionary<string, Dictionary<string, bool>>();
         try
         {
-            var text = File.ReadAllText(FilePath);
-            return JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, bool>>>(text)
+            return _shell.Get("columnLayout")?.Deserialize<Dictionary<string, Dictionary<string, bool>>>()
                    ?? new Dictionary<string, Dictionary<string, bool>>();
         }
         catch
         {
-            // 文件损坏：宁可丢掉显隐偏好，也不要让列表页崩（下次会从默认重建）
+            // 配置损坏：宁可丢掉显隐偏好，也不要让列表页崩（下次会从默认重建）
             return new Dictionary<string, Dictionary<string, bool>>();
         }
     }
@@ -43,9 +36,8 @@ public class ColumnLayoutService : IColumnLayoutService
     {
         try
         {
-            var dir = Path.GetDirectoryName(FilePath);
-            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(all, new JsonSerializerOptions { WriteIndented = true }));
+            // NT-075/077：原子写 + 空集合即删（整节为空 ⇒ 文件里不留这一节）
+            _shell.Set("columnLayout", all.Count == 0 ? null : JsonSerializer.SerializeToNode(all));
         }
         catch
         {

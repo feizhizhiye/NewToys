@@ -57,7 +57,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private readonly AssetMergeService _merge = null!;
     private readonly TaskQueue _queue = null!;
 
-    /// <summary>应用级配置（只读：取 <c>VideoDbFolder</c> 当导入/导出默认目录）。</summary>
+    /// <summary>应用级配置（只读：取 <c>DataDirectory</c> 当导入/导出默认目录）。</summary>
     private readonly IAppConfigService? _app;
 
     /// <summary>v3.69：列布局服务（只用来记「用户显式设过」的列键；显隐 / 落盘本身在基类）。</summary>
@@ -209,8 +209,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;
-    /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
-    public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
     // ==================== NT-022：列表 JSON 导入 / 导出 ====================
 

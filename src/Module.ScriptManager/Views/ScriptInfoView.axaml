@@ -6,11 +6,11 @@
     「脚本管理器 → 信息面板」（NT-068 S5/S6；原 NT-067 的 manifest 驱动模型已废弃）。
 
     结构：
-      ┌ 顶区：⚙ 节设置面板（收起时高度 0）
       ├ 主体：Card 里一个 ScrollViewer → 每个采集器一节（节头 + 节体表）
       ├ 空态：没集合 / 集合里没采集器（一段文案 + 一个按钮，⛔ 不做按钮墙）
       └ 底栏：本次耗时 · 节数 · 总行数（分节模式**不分页**）
 
+    🔴 点节任意处（Tapped）= 把右侧详情卡切到这一节（**不主动打开面板**）；打开面板走右键菜单第一项。
     🔴 一次只显示一个集合：切集合靠工具条的「集合 ▾」选择框，⛔ 没有 Chip 条 / 横向集合按钮。
     🔴 节体列是运行时变的（每个采集器自己的列）⇒ 表头与行都用 pc:SysInfoGrid（⛔ 不用静态列）。
     🔴 颜色一律 DynamicResource 引主题语义键（⛔ 不写死色值）。
@@ -50,17 +50,23 @@
       <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
     </Style>
 
-    <!--  节容器：底部一条分隔线，节与节之间不留空白块  -->
+    <!--  节容器：底部一条分隔线，节与节之间不留空白块；
+          整节可点（Tapped）⇒ 把详情卡切到这一节，Background 必须非 null 才参与命中测试  -->
     <Style Selector="Border.section">
       <Setter Property="BorderThickness" Value="0,0,0,1"/>
       <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
       <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="Background" Value="Transparent"/>
     </Style>
 
-    <!--  节头（吸顶未做：见 NT-068 执行记录）  -->
+    <!--  节头（吸顶未做：见 NT-068 执行记录）—— 可点提示：手型 + 悬停底色  -->
     <Style Selector="Border.section-head">
       <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
       <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Border.section-head:pointerover">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
     </Style>
 
     <!--  数据行：可点选（选中效果走详情卡，行本身不再画选中底）  -->
@@ -80,112 +86,27 @@
     <Border Grid.Row="0" Classes="card" Padding="0">
       <Grid RowDefinitions="Auto,*">
 
-        <!--  ① ⚙ 节设置面板（收起时 Auto 行高度 0）  -->
-        <Border Grid.Row="0" Classes="filter-bar" IsVisible="{Binding IsSectionSettingsOpen}" Margin="0,0,0,8">
-          <StackPanel Spacing="8">
-            <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                       Text="节设置：改的是**当前节**的采集器（解析器 / 超时 / 保留策略 / 自动刷新）与**当前集合**的刷新策略。保存后写入 config\script\script.json。"/>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="采集器"/>
-              <TextBlock VerticalAlignment="Center" FontSize="12"
-                         Text="{Binding SettingsSection.Title, FallbackValue=（未选择节）}"/>
-            </StackPanel>
-
-            <WrapPanel Orientation="Horizontal" ItemHeight="30">
-              <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" Text="解析器"/>
-              <ComboBox Width="170" Height="24" MinHeight="0" Margin="0,0,14,0"
-                        ItemsSource="{Binding ParserOptions}"
-                        SelectedItem="{Binding SettingsParser, Mode=TwoWay}">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate>
-                    <TextBlock FontSize="12" Text="{Binding Label}"/>
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
-
-              <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" Text="超时(秒)"/>
-              <TextBox Width="64" Height="24" MinWidth="0" MinHeight="0" Margin="0,0,14,0"
-                       Text="{Binding SettingsTimeout, Mode=TwoWay}"/>
-
-              <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" Text="保留"/>
-              <ComboBox Width="180" Height="24" MinHeight="0" Margin="0,0,14,0"
-                        ItemsSource="{Binding RetentionOptions}"
-                        SelectedItem="{Binding SettingsRetention, Mode=TwoWay}">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate>
-                    <TextBlock FontSize="12" Text="{Binding Label}"/>
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
-              <TextBox Width="56" Height="24" MinWidth="0" MinHeight="0" Margin="0,0,14,0"
-                       Text="{Binding SettingsRetentionN, Mode=TwoWay}" ToolTip.Tip="count = 保留最近 N 次；days = 保留最近 N 天"/>
-
-              <CheckBox Margin="0,0,6,0" VerticalAlignment="Center" Content="自动刷新"
-                        IsChecked="{Binding SettingsAuto, Mode=TwoWay}" IsEnabled="{Binding CanAuto}"/>
-              <TextBox Width="64" Height="24" MinWidth="0" MinHeight="0" Margin="0,0,14,0"
-                       Text="{Binding SettingsInterval, Mode=TwoWay}"
-                       IsEnabled="{Binding CanAuto}" ToolTip.Tip="间隔秒数（2~3600；0 = 只手动）"/>
-
-              <TextBlock Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" Text="集合刷新"/>
-              <ComboBox Width="150" Height="24" MinHeight="0" Margin="0,0,14,0"
-                        ItemsSource="{Binding CollectionRefreshOptions}"
-                        SelectedItem="{Binding CollectionRefresh, Mode=TwoWay}">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate>
-                    <TextBlock FontSize="12" Text="{Binding Label}"/>
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
-              <TextBox Width="64" Height="24" MinWidth="0" MinHeight="0"
-                       Text="{Binding CollectionRefreshSeconds, Mode=TwoWay}"
-                       ToolTip.Tip="定时刷新间隔（秒），只对 timer 模式有效"/>
-            </WrapPanel>
-
-            <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding AutoHint}"/>
-            <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding RetentionHint}"/>
-
-            <!--  列：显隐 + 宽度（写回该采集器的列 schema）  -->
-            <ItemsControl ItemsSource="{Binding SettingsSection.HeaderCells}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <WrapPanel Orientation="Horizontal"/>
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Border Margin="0,0,8,6" Padding="8,4" CornerRadius="4"
-                          BorderThickness="1" BorderBrush="{DynamicResource DividerBrush}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                      <CheckBox Content="{Binding Title}" IsChecked="{Binding IsVisible, Mode=OneWay}"
-                                Command="{Binding ToggleCommand}"/>
-                      <TextBox Width="64" Height="22" MinWidth="0" MinHeight="0" Text="{Binding Width}"
-                               ToolTip.Tip="数字 = 像素；2* = 比例；Auto = 自适应"/>
-                    </StackPanel>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button Classes="primary" Content="💾 保存设置" Command="{Binding SaveSectionSettingsCommand}"/>
-              <TextBlock Classes="hint-text" VerticalAlignment="Center"
-                         Text="只读采集器强制 latest（不保留历史）；自动刷新只对只读条目开放。"/>
-            </StackPanel>
-          </StackPanel>
-        </Border>
-
         <!--  ② 节列表（一个集合的全部采集器）  -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <ItemsControl ItemsSource="{Binding Sections}">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Border Classes="section">
+                <Border Classes="section" PointerPressed="OnSectionPressed">
                   <StackPanel Spacing="0">
 
                     <!--  节头：状态点 + 标题 + 状态 / 时间 / 行数 + 局部刷新 + 折叠  -->
                     <Border Classes="section-head" CornerRadius="3">
-                      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                      <!--  右键这一节 ⇒ 详情卡按这一节渲染（NT-069）  -->
+                      <Border.ContextMenu>
+                        <ContextMenu>
+                          <MenuItem Header="⚙ 显示这一节的详情 / 设置" Command="{Binding OpenDetailCommand}"/>
+                          <MenuItem Header="⟳ 只刷新这一节" Command="{Binding RefreshCommand}"
+                                    IsEnabled="{Binding CanRefresh}"/>
+                          <Separator/>
+                          <MenuItem Header="⌄ 折叠 / 展开" Command="{Binding ToggleCollapseCommand}"/>
+                        </ContextMenu>
+                      </Border.ContextMenu>
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                         <Border Grid.Column="0" Classes="status-dot" Margin="0,0,8,0"
                                 Classes.ok="{Binding IsOk}" Classes.warn="{Binding IsWarn}"
                                 Classes.error="{Binding IsError}"/>
@@ -206,15 +127,11 @@
                                 FontSize="13" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                 ToolTip.Tip="只刷新这一节" Command="{Binding RefreshCommand}"
                                 IsEnabled="{Binding CanRefresh}"/>
-                        <Button Grid.Column="3" Classes="ghost" Content="⚙" Width="24" Height="22" Padding="0"
-                                FontSize="12" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                ToolTip.Tip="这一节的解析器 / 超时 / 保留策略 / 自动刷新"
-                                Command="{Binding OpenSettingsCommand}"/>
-                        <Button Grid.Column="4" Classes="ghost" Content="⌄" Width="24" Height="22" Padding="0"
+                        <Button Grid.Column="3" Classes="ghost" Content="⌄" Width="24" Height="22" Padding="0"
                                 FontSize="13" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                 ToolTip.Tip="折叠 / 展开这一节" Command="{Binding ToggleCollapseCommand}"
                                 IsVisible="{Binding IsExpanded}"/>
-                        <Button Grid.Column="4" Classes="ghost" Content="›" Width="24" Height="22" Padding="0"
+                        <Button Grid.Column="3" Classes="ghost" Content="›" Width="24" Height="22" Padding="0"
                                 FontSize="13" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                 ToolTip.Tip="折叠 / 展开这一节" Command="{Binding ToggleCollapseCommand}"
                                 IsVisible="{Binding IsCollapsed}"/>

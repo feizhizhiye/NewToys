@@ -116,8 +116,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool IsNotBusy => !IsBusy && !IsRunning;
     public bool HasSelection => Selected != null;
 
-    /// <summary>全局导入/导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.15 全局，覆盖 .db 与 .json 选择器）。</summary>
-    public string ImportExportDefaultDir => _cfg?.VideoDbFolder ?? "";
+    /// <summary>全局导入/导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    public string ImportExportDefaultDir => _cfg?.DataDirectory ?? "";
 
     /// <summary>队列里有没有任务。
     /// ⚠️ <see cref="ItemsRaw"/> 是 <c>IEnumerable</c>，只有 LINQ 的 <c>Count()</c> 方法、**没有** <c>Count</c> 属性

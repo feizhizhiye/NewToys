@@ -61,7 +61,7 @@ public partial class SettingsVideoToolsViewModel : ObservableObject, IStatusProv
     public string PlayerPathDisplay => Or(_app?.PlayerPath, "未配置（用系统默认关联程序）");
 
     /// <summary>导入导出默认目录（全局项）。</summary>
-    public string ImportExportDirDisplay => Or(_app?.VideoDbFolder, "未配置（用系统默认目录）");
+    public string ImportExportDirDisplay => Or(_app?.DataDirectory, "当前配置档的 data 目录");
 
     /// <summary>本模块设置文件全路径。</summary>
     public string ConfigFilePath => _settings?.FilePath ?? "";

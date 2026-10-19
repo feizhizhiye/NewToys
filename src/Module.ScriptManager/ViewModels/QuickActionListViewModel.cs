@@ -65,8 +65,11 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// <summary>本模块设置（v3.64 / NT-061：脚本目录 + 解释器路径的唯一写入点，落 config\script-manager.json）。</summary>
     private readonly IScriptManagerSettingsService? _pc;
 
-    /// <summary>导入 / 导出默认目录（<c>app.json</c> 的 <c>VideoDbFolder</c>；v3.19 / NT-006 全页统一）。</summary>
-    public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
+    /// <summary>手工数据（NT-073：库列表 / 当前库 / 根目录）。</summary>
+    private readonly IScriptStoreService? _store;
+
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
     /// <summary>本页归属的 <see cref="QuickAction.Page"/>（<see cref="QuickActionPage"/> 之一）。</summary>
     private readonly string _pageKind;
@@ -216,10 +219,170 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// <summary>是否显示 Shell / 隐藏终端窗口 两个运行选项（v3.32：详情卡正文显示时且是命令行命令）。</summary>
     public bool ShowCommandRunOptions => ShowDetailBody && IsCommandKind;
 
+    // ==================== 库选择（NT-073） ====================
+
+    /// <summary>
+    /// 本页的库 kind（<c>script</c> / <c>command</c>）；空 = 本页不启用库选择（脚本收集 / 命令收集仍按全量清单）。
+    /// </summary>
+    protected virtual string LibraryKind => "";
+
+    /// <summary>库下拉：第一项「全部库」（<c>Value = ""</c>），其余 = 本 kind 的集合。</summary>
+    public ObservableCollection<CollectionFilterOption> LibraryOptions { get; } = new();
+
+    private CollectionFilterOption? _selectedLibraryOption;
+
+    /// <summary>当前选中的库（「全部库」时 Value 为空串）。</summary>
+    public CollectionFilterOption? SelectedLibraryOption
+    {
+        get => _selectedLibraryOption;
+        set
+        {
+            if (!SetProperty(ref _selectedLibraryOption, value)) return;
+            if (_suppress) return;
+            OnLibrarySelectionChanged();
+        }
+    }
+
+    /// <summary>当前库 id（空 = 全部库）。</summary>
+    public string CurrentLibraryId => SelectedLibraryOption?.Value ?? "";
+
+    /// <summary>当前库名（空 = 全部库）。</summary>
+    public string CurrentLibraryName => SelectedLibraryOption?.Label ?? "全部库";
+
+    /// <summary>重建库下拉（保持上次选中的库；集合被删 ⇒ 回到「全部库」）。</summary>
+    private void RefreshLibraries()
+    {
+        if (_store == null || LibraryKind.Length == 0) return;
+
+        var keep = _store.GetLastCollectionId(LibraryKind);
+        var wasSuppressed = _suppress;
+        _suppress = true;
+
+        LibraryOptions.Clear();
+        LibraryOptions.Add(new CollectionFilterOption { Label = "全部库", Value = "" });
+        foreach (var c in _store.Data.Collections
+                    .Where(c => !c.Archived && ScriptCollectionKind.Normalize(c.Kind) == LibraryKind)
+                    .OrderByDescending(c => c.Pinned)
+                    .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
+            LibraryOptions.Add(new CollectionFilterOption { Label = c.Name, Value = c.Id });
+
+        _selectedLibraryOption = LibraryOptions.FirstOrDefault(o => o.Value == keep) ?? LibraryOptions[0];
+        _suppress = wasSuppressed;
+        OnPropertyChanged(nameof(SelectedLibraryOption));
+        OnPropertyChanged(nameof(CurrentLibraryId));
+        OnPropertyChanged(nameof(CurrentLibraryName));
+    }
+
+    /// <summary>切库：记「在用」+ 重算分类与列表 + 脚本目录提示跟着变。</summary>
+    private void OnLibrarySelectionChanged()
+    {
+        if (_store != null)
+        {
+            _store.SetLastCollectionId(LibraryKind, CurrentLibraryId);
+            _store.Save();
+        }
+
+        OnPropertyChanged(nameof(CurrentLibraryId));
+        OnPropertyChanged(nameof(CurrentLibraryName));
+        OnPropertyChanged(nameof(ScriptsDirectory));
+
+        RebuildCategories();
+        ApplyView();
+    }
+
+    /// <summary>本条是否属于当前库（「全部库」= 全通过；未启用库选择的页 = 全通过）。</summary>
+    protected virtual bool AcceptLibrary(QuickAction item)
+    {
+        var id = CurrentLibraryId;
+        if (LibraryKind.Length == 0 || id.Length == 0) return true;
+        return item.CollectionIds.Contains(id);
+    }
+
+    // ==================== 库级导入导出（NT-073 S7） ====================
+
+    /// <summary>导出当前库的**索引包**（json：定义 + 成员 + 根目录）。</summary>
+    [RelayCommand]
+    private Task ExportLibraryAsync() => ExportLibraryCoreAsync(bundle: false);
+
+    /// <summary>导出当前库的**全量包**（zip：索引包 + 脚本文件本体）。</summary>
+    [RelayCommand]
+    private Task ExportLibraryBundleAsync() => ExportLibraryCoreAsync(bundle: true);
+
+    private async Task ExportLibraryCoreAsync(bool bundle)
+    {
+        if (_store == null) return;
+        if (CurrentLibraryId.Length == 0)
+        {
+            StatusText = "先在工具条「库」里选一个库再导出（「全部库」不能整体导出）。";
+            return;
+        }
+
+        var col = _store.FindCollection(CurrentLibraryId);
+        if (col == null) return;
+
+        var filter = bundle ? "*.zip" : "*.json";
+        var name = $"library-{col.Name}" + (bundle ? ".zip" : ".json");
+        var path = await DialogHooks.SaveFileAsync(bundle ? "导出库（含脚本文件）" : "导出库（索引包）",
+            ImportExportDefaultDir, name, filter);
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try
+        {
+            var result = ScriptLibraryPackageService.Export(_store, col, path, bundle);
+            StatusText = result;
+        }
+        catch (Exception ex) { StatusText = "导出失败：" + ex.Message; }
+    }
+
+    /// <summary>
+    /// 导入库：自动识别索引包 / 全量包；全量包先解到用户选的目录，再建库。
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportLibraryAsync()
+    {
+        if (_store == null) return;
+        if (LibraryKind.Length == 0) { StatusText = "本页不支持库导入。"; return; }
+
+        var files = await DialogHooks.PickFilesAsync("选择库包（json 索引包 / zip 全量包）",
+            ImportExportDefaultDir, false);
+        if (files.Count == 0) return;
+
+        var path = files[0];
+        try
+        {
+            var isBundle = Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase);
+            string targetDir = "";
+            if (isBundle)
+            {
+                targetDir = await DialogHooks.PickFolderAsync("选择解压目录（全量包会解到这里，库根目录 = 这个目录）",
+                    ImportExportDefaultDir) ?? "";
+                if (string.IsNullOrWhiteSpace(targetDir)) return;
+            }
+
+            var (ok, message) = ScriptLibraryPackageService.Import(_store, LibraryKind, path, isBundle, targetDir);
+            StatusText = message;
+            if (!ok) return;
+
+            _store.Save();
+            RefreshLibraries();
+            RebuildCategories();
+            ApplyView();
+        }
+        catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
+    }
+
     // ==================== 脚本目录（v3.64：唯一写入点 = 本模块设置页；这里的框只是同一份值的另一个视图） ====================
 
-    /// <summary>脚本目录（生效值），详情卡里提示"文件放哪"。</summary>
-    public string ScriptsDirectory => _svc?.ScriptsDirectory ?? "";
+    /// <summary>脚本目录（生效值），详情卡里提示"文件放哪"。
+    /// <para>NT-073：选了具体库时 = 该库的 <c>rootPath</c>（空则回全局目录）；「全部库」= 全局目录。</para></summary>
+    public virtual string ScriptsDirectory
+    {
+        get
+        {
+            var root = LibraryKind.Length > 0 && _store != null ? _store.RootOf(CurrentLibraryId) : "";
+            return root.Length > 0 ? root : (_svc?.ScriptsDirectory ?? "");
+        }
+    }
 
     /// <summary>脚本目录的默认值（配置留空时用的那个）。</summary>
     public string DefaultScriptFolder => _pc?.DefaultScriptsFolder ?? "";
@@ -504,16 +667,18 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     }
 
     protected QuickActionListViewModel(IQuickActionService svc, IColumnLayoutService cols,
-        IAppConfigService app, IScriptManagerSettingsService? pc = null)
+        IAppConfigService app, IScriptManagerSettingsService? pc = null, IScriptStoreService? store = null)
         : base(cols)
     {
         _svc = svc;
         _app = app;
         _pc = pc;
+        _store = store;
         ScriptsFolderDraft = pc?.ScriptsFolder ?? "";
         // 抽象属性在基类构造里读一次存字段：避免「构造期虚调用」反复触发，也让后续逻辑读到稳定值。
         _pageKind = PageKind;
         LoadLayout();
+        RefreshLibraries();
         RebuildCategories();
         ApplyView();
         FillEditors(null);
@@ -548,7 +713,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         if (_svc == null) return;
 
         var keep = SelectedCategory?.Value;
-        var source = _svc.Items.Where(i => BelongsToThisPage(i)).ToList();
+        var source = _svc.Items.Where(i => BelongsToThisPage(i) && AcceptLibrary(i)).ToList();
 
         _suppress = true;
         CategoryOptions.Clear();
@@ -579,7 +744,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     {
         if (_svc == null) return;
 
-        IEnumerable<QuickAction> q = _svc.Items.Where(BelongsToThisPage);
+        IEnumerable<QuickAction> q = _svc.Items.Where(BelongsToThisPage).Where(AcceptLibrary);
 
         var cat = SelectedCategory?.Value;
         if (!string.IsNullOrEmpty(cat))
@@ -756,6 +921,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
             item.Description = $"导入：{Path.GetFileName(file)}";
             item.ScriptFile = stored;
             item.Interpreter = ScriptInterpreter.Auto;
+            AttachToCurrentLibrary(item);   // NT-073：收录进当前库（「全部库」= 默认库）
             existing.Add(stored);
             added++;
             first ??= item;
@@ -919,6 +1085,37 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         {
             var items = new List<ToolbarItemDescriptor>();
 
+            // NT-073：库页最前 = 库选择 + 库级导入导出。
+            if (LibraryKind.Length > 0)
+            {
+                items.Add(new()
+                {
+                    Kind = ToolbarItemKind.Combo, Width = 160,
+                    ItemsPath = nameof(LibraryOptions),
+                    DisplayPath = nameof(CollectionFilterOption.Label),
+                    SelectedItemPath = nameof(SelectedLibraryOption),
+                    ToolTip = "这个页面显示哪个库（「全部库」= 所有库的合集）",
+                });
+                items.Add(new()
+                {
+                    Text = "📥 导入库", Classes = "ghost",
+                    CommandPath = nameof(ImportLibraryCommand),
+                    ToolTip = "导入库包：json 索引包（只导索引）/ zip 全量包（连脚本文件）"
+                });
+                items.Add(new()
+                {
+                    Text = "📤 导出库", Classes = "ghost",
+                    CommandPath = nameof(ExportLibraryCommand),
+                    ToolTip = "导出当前库为索引包（json）"
+                });
+                items.Add(new()
+                {
+                    Text = "📦 全量导出", Classes = "ghost",
+                    CommandPath = nameof(ExportLibraryBundleCommand),
+                    ToolTip = "导出当前库为全量包（zip，含脚本文件）"
+                });
+            }
+
             if (JsonImportFirst) items.Add(JsonImportItem);
 
             // 页专属项（入口动作 / 输入框）在前，共用的搜索框紧随其后（与「全部资产」同一口径）。
@@ -1068,6 +1265,31 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     // ==================== 增删改查 ====================
 
+    /// <summary>
+    /// 把新建 / 导入的条目归到**当前库**（NT-073：收录必须归属一个库）。
+    /// <para>「全部库」时不动（保持 <c>Add</c> 给它的默认库归属）。</para>
+    /// </summary>
+    private void AttachToCurrentLibrary(QuickAction? item)
+    {
+        var colId = CurrentLibraryId;
+        if (_store == null || item == null || LibraryKind.Length == 0 || colId.Length == 0) return;
+
+        var col = _store.FindCollection(colId);
+        if (col == null) return;
+
+        // 从默认库移出：默认库只兜底无归属条目，⛔ 不吞掉用户归到别的库的东西。
+        foreach (var def in _store.Data.Collections.Where(c => c.Builtin
+                     && ScriptCollectionKind.Normalize(c.Kind) == LibraryKind && c.Id != colId).ToList())
+            _store.SetMembership(item.Id, def.Id, false);
+
+        _store.SetMembership(item.Id, colId, true);
+
+        item.CollectionIds.Clear();
+        item.CollectionIds.Add(colId);
+        item.LibraryText = col.Name;
+        item.LibraryRoot = _store.RootOf(colId);
+    }
+
     /// <summary>新增：先清掉过滤（保证新项一定可见），追加一条并选中它，改好后点「💾 保存」。</summary>
     [RelayCommand]
     private void Add()
@@ -1081,6 +1303,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         ResetFilters();   // 清掉筛选，保证新项一定看得见
 
         var item = _svc.Add(_pageKind);
+        AttachToCurrentLibrary(item);
         RebuildCategories();
         ApplyView();
         Selected = Items.FirstOrDefault(i => ReferenceEquals(i, item)) ?? item;
@@ -1158,6 +1381,33 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     {
         var item = Selected;
         if (item == null || _svc == null) return;
+
+        // NT-073 D15：选了具体库时，删除 = **从当前库移出**（⛔ 不删条目本体 / 文件）。
+        if (LibraryKind.Length > 0 && CurrentLibraryId.Length > 0 && _store != null)
+        {
+            var okMove = await DialogHooks.ConfirmAsync(
+                $"把「{item.Title}」从「{CurrentLibraryName}」移出吗？\n条目和磁盘文件都会保留，其他库仍能看到它。");
+            if (!okMove) { StatusText = "已取消。"; return; }
+
+            _store.SetMembership(item.Id, CurrentLibraryId, false);
+            item.CollectionIds.Remove(CurrentLibraryId);
+
+            // 移出后没有归属 ⇒ 收回默认库（⛔ 不留孤儿）。
+            var si = _store.FindItem(item.Id);
+            if (si != null && si.Collections.Count == 0)
+            {
+                var def = _store.Data.Collections.FirstOrDefault(c => c.Builtin
+                             && ScriptCollectionKind.Normalize(c.Kind) == LibraryKind);
+                if (def != null) _store.SetMembership(item.Id, def.Id, true);
+            }
+
+            _store.Save();
+            _svc.Reload();
+            RebuildCategories();
+            ApplyView();
+            StatusText = $"已从「{CurrentLibraryName}」移出：{item.Title}";
+            return;
+        }
 
         if (ConfirmBeforeDelete)
         {

@@ -8,7 +8,17 @@
   <v:ListPageSkeleton EmptyMessage="列表里没有包。点「📥 已安装」加载本机已安装的软件包。"
                       EmptyActionText="📥 已安装"
                       EmptyActionCommand="{Binding LoadInstalledCommand}"
-                      IsEmpty="{Binding !HasItems}">
+                      IsEmpty="{Binding !HasItems}"
+                      ShowFooter="{Binding HasFooterContent}"
+                      ShowPaging="{Binding HasPaging}"
+                      TotalCount="{Binding TotalCount}"
+                      PageText="{Binding PageText}"
+                      FirstCommand="{Binding FirstPageCommand}"
+                      PrevCommand="{Binding PrevPageCommand}"
+                      NextCommand="{Binding NextPageCommand}"
+                      LastCommand="{Binding LastPageCommand}"
+                      PageSizes="{Binding PageSizeChoices}"
+                      PageSize="{Binding PageSize, Mode=TwoWay}">
 
     <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
     <v:ListPageSkeleton.HeaderArea>

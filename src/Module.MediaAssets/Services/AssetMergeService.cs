@@ -342,31 +342,21 @@ public class AssetMergeService
         }
     }
 
-    /// <summary>💿 另存库文件（另存为）：把主库**在线备份**成一个新 .db（VACUUM INTO = 一致快照，⛔ 不锁库）。</summary>
+    /// <summary>
+    /// 💿 另存库文件（另存为）：把主库**在线备份**成一个新 .db。
+    /// <para>🔴 NT-078 收编：实现统一走 <see cref="NewToys.Core.Services.SqliteDatabase.VacuumIntoFile"/> ——
+    /// 与备份数据节（`data.db`）是**同一个** `VACUUM INTO` 实现，⛔ 不再这里单独写一份 SQL。</para>
+    /// </summary>
     public (bool Ok, string Message) SaveAs(string targetPath)
     {
         if (!IsAvailable) return (false, "主资产库不可用（数据库打不开）。");
         if (string.IsNullOrWhiteSpace(targetPath)) return (false, "未指定目标文件。");
 
-        try
-        {
-            var full = Path.GetFullPath(targetPath);
-            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+        if (!_db.Db.VacuumIntoFile(targetPath, out var error))
+            return (false, "保存失败：" + error + "（目标已存在？换个文件名或确认覆盖）");
 
-            using var conn = _db.Db.Open();
-            using var cmd = conn.CreateCommand();
-            // VACUUM INTO：SQLite 官方的"在线另存"——一致、紧凑、⛔ 不需要事务
-            cmd.CommandText = "VACUUM INTO $p;";
-            cmd.Parameters.AddWithValue("$p", full);
-            cmd.ExecuteNonQuery();
-
-            var size = new FileInfo(full).Length;
-            return (true, $"已保存到：{full}（{AssetRow.FormatSize(size)}）");
-        }
-        catch (Exception ex)
-        {
-            return (false, "保存失败：" + ex.Message + "（目标已存在？换个文件名或确认覆盖）");
-        }
+        var size = new FileInfo(Path.GetFullPath(targetPath)).Length;
+        return (true, $"已保存到：{Path.GetFullPath(targetPath)}（{AssetRow.FormatSize(size)}）");
     }
 
     // ==================== 内部：各表合并 ====================

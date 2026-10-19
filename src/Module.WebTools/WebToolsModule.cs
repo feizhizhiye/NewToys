@@ -16,6 +16,9 @@ public class WebToolsModule : IModule
         services.AddSingleton<PingService>();
         services.AddSingleton<ScrapeService>();
 
+        // NT-076 第二批：本模块的总库 schema（web_docs + 4 份旧 JSON 一次性入表）。
+        services.AddSingleton<ILibrarySchemaContributor, WebToolsSchemaContributor>();
+
         services.AddTransient<Views.WebHttpView>();    services.AddTransient<WebHttpViewModel>();
         services.AddTransient<Views.BookmarkView>();   services.AddTransient<BookmarkViewModel>();
         services.AddTransient<Views.PingView>();       services.AddTransient<PingViewModel>();

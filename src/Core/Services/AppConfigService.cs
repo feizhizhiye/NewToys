@@ -11,48 +11,104 @@ public class AppConfigService : IAppConfigService
 {
     private class ConfigData
     {
-        // 主题（深色/浅色/强调色）不在这里 —— 统一由 ThemeService 落到 theme.json，
+        // 主题（深色/浅色/强调色）不在这里 —— 统一由 ThemeService 落到 shell.json 的 theme 节，
         // 避免出现两份"当前是不是深色"的真相（v1.18 移除历史字段 IsDarkTheme）。
-        // 注：v1.34 曾移除"视频库默认目录"；v3.15 重新引入为**全局导入/导出默认目录**（VideoDbFolder），
-        // 仅用于导入/导出对话框定位，不影响"每次手动选目录"的扫描逻辑。
-        public string FfmpegPath { get; set; } = "ffmpeg";
+
+        // ==================== 迁移遗留（NT-077 第二批：机器级项已下沉 %LOCALAPPDATA%\NewToys\env.json） ====================
+        // 🔴 这些字段**只为一次性下沉保留读取**：搬进 env.json 之后立刻清空 + 立即 Save，
+        //    配合 [JsonIgnore(WhenWritingDefault)] ⇒ 下一次保存就从 app.json 里消失，⛔ 不会长期挂着两份真相。
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string FfmpegPath { get; set; } = "";
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public string PlayerPath { get; set; } = "";
-        public int MaxConcurrency { get; set; } = 2;
-        // v3.65 / NT-062：GpuAcceleration 已删除（没有任何消费方）。旧 app.json 里的该键由
-        // System.Text.Json 默认忽略未知属性 ⇒ 反序列化不报错，下次保存即从文件里消失。
-        public bool EncryptedDnsEnabled { get; set; } = false;
-        public string EncryptedDnsProviderId { get; set; } = "dnspod";
-        public string EncryptedDnsCustomUrl { get; set; } = "";
-        // 运行环境（v1.33）：三个解释器路径，**应用级**（v3.65 / NT-062 回迁）；留空 = 用系统默认。
-        // ⚠️ ScriptFolder 已定为**模块级**（「脚本管理器」设置），这里只为 NT-061 的一次性下沉保留读取。
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public string PythonPath { get; set; } = "";
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public string PwshPath { get; set; } = "";
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public string PowerShell51Path { get; set; } = "";
-        // 🔴 v3.66：两个**迁移遗留**字段。仍然能读（老 app.json / 旧模块设置的自愈迁移要拿），
-        // 但值为空时**不写盘** ⇒ 下一次保存就把键从 app.json 里抹掉，文件里不会长期挂着废弃键。
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string UpdateUrl { get; set; } = "";
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool EncryptedDnsEnabled { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string EncryptedDnsProviderId { get; set; } = "";
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string EncryptedDnsCustomUrl { get; set; } = "";
+        // 🔴 v3.66：ScriptFolder 已下沉到模块设置。仍然能读（旧模块设置的自愈迁移要拿），
+        // 但值为空时不写盘 ⇒ 下一次保存就把键从 app.json 里抹掉。
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public string ScriptFolder { get; set; } = "";
-        // 更新检查：留空 = 不检查（「设置 → 通用」如实标注）
-        public string UpdateUrl { get; set; } = "";
-        // v3.15 的全局导入/导出目录（媒体资产 + 脚本库共用 ⇒ 留在应用级，见 IAppConfigService 注释）
-        public string VideoDbFolder { get; set; } = "";
+
+        // ==================== 仍归应用级的项 ====================
+        public int MaxConcurrency { get; set; } = 2;
         // v3.66：原 config\launch.json 并入 app.json（应用级行为，⛔ 不随配置档隔离）
         public LaunchConfig Launch { get; set; } = new();
         // 注：浏览器 1/2 的程序路径与参数**不在这里**，见 IAppConfigService 的注释（v1.19 收敛到 launch.json）。
         // 旧版本写过 Browser1Path / Browser1Args / Browser2Path / Browser2Args 四个字段，
         // 反序列化时会被忽略、下次保存即从 app.json 里消失，无需迁移。
+        // 🔴 NT-077 第二批：VideoDbFolder 已删除（写死某个 profile 绝对路径的缺陷）——导入/导出默认目录
+        //    一律用 ConfigStoreService.DataDir 推导（见 IAppConfigService.DataDirectory）。
     }
 
     private ConfigData _data = new();
     private readonly ConfigStoreService _cfg;
+    private readonly EnvConfigService _env;
 
-    public AppConfigService(ConfigStoreService cfg)
+    public AppConfigService(ConfigStoreService cfg, EnvConfigService env)
     {
         _cfg = cfg;
+        _env = env;
         MigrateLegacyOnce();
         Load();
         MigrateLaunchOnce();
+        MigrateMachineFieldsOnce();
         CleanupMovedFieldsOnce();
+    }
+
+    /// <summary>
+    /// 一次性下沉（NT-077 第二批）：<c>app.json</c> 里的**机器级**项（解释器 / ffmpeg / 播放器 / 更新地址 / DNS）
+    /// → <c>%LOCALAPPDATA%\NewToys\env.json</c>。
+    /// <list type="bullet">
+    ///   <item>只填空字段（env.json 已有值 ⇒ 用户数据优先，⛔ 不覆盖）；</item>
+    ///   <item>搬完把 <c>app.json</c> 里的旧键清空并立即保存 ⇒ 文件里不再挂第二份真相；</item>
+    ///   <item>失败不阻断启动 —— 本次按默认值跑，旧值留在 app.json 里下次重试。</item>
+    /// </list>
+    /// </summary>
+    private void MigrateMachineFieldsOnce()
+    {
+        try
+        {
+            var moved = _env.ImportLegacy(
+                _data.FfmpegPath, _data.PlayerPath, _data.PythonPath, _data.PwshPath, _data.PowerShell51Path,
+                _data.UpdateUrl, _data.EncryptedDnsEnabled, _data.EncryptedDnsProviderId, _data.EncryptedDnsCustomUrl);
+
+            var anyLegacy = (_data.FfmpegPath ?? "").Length > 0 || (_data.PlayerPath ?? "").Length > 0
+                            || (_data.PythonPath ?? "").Length > 0 || (_data.PwshPath ?? "").Length > 0
+                            || (_data.PowerShell51Path ?? "").Length > 0 || (_data.UpdateUrl ?? "").Length > 0
+                            || (_data.EncryptedDnsProviderId ?? "").Length > 0 || (_data.EncryptedDnsCustomUrl ?? "").Length > 0
+                            || _data.EncryptedDnsEnabled;
+            if (!anyLegacy) return;
+
+            // 清空旧键（[JsonIgnore(WhenWritingDefault)] 保证它们从文件里消失）
+            _data.FfmpegPath = "";
+            _data.PlayerPath = "";
+            _data.PythonPath = "";
+            _data.PwshPath = "";
+            _data.PowerShell51Path = "";
+            _data.UpdateUrl = "";
+            _data.EncryptedDnsEnabled = false;
+            _data.EncryptedDnsProviderId = "";
+            _data.EncryptedDnsCustomUrl = "";
+            Save();
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[NewToys][迁移] 机器级配置已下沉 env.json（{(moved ? "有值搬入" : "env.json 已有值，跳过")}）：{_env.FilePath}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][迁移] 机器级配置下沉失败（旧值留在 app.json，下次重试）：" + ex.Message);
+        }
     }
 
     /// <summary>
@@ -66,7 +122,9 @@ public class AppConfigService : IAppConfigService
         try
         {
             if ((_data.ScriptFolder ?? "").Length == 0) return;
-            var moduleFile = Path.Combine(_cfg.ConfigDir, "script-manager.json");
+            // NT-077 第二批：模块设置已归位 config\modules\（旧位置兜底：搬文件被占用时还能判到）
+            var moduleFile = Path.Combine(_cfg.ModulesConfigDir, "script-manager.json");
+            if (!File.Exists(moduleFile)) moduleFile = Path.Combine(_cfg.ConfigDir, "script-manager.json");
             if (!File.Exists(moduleFile)) return;
             if (!File.ReadAllText(moduleFile).Contains("\"scriptsFolder\"", StringComparison.Ordinal)) return;
 
@@ -117,25 +175,33 @@ public class AppConfigService : IAppConfigService
         }
     }
 
-    public string FfmpegPath { get => _data.FfmpegPath; set { _data.FfmpegPath = value; Save(); } }
-    public string PlayerPath { get => _data.PlayerPath; set { _data.PlayerPath = value; Save(); } }
+    // ==================== 机器级项：⛔ 不再存在 app.json，读写都走 env.json（NT-077 第二批） ====================
+    // 唯一写入点仍是「设置 → 路径与配置」页；模块只读。命令行 / 环境变量覆盖只影响读取，不写进文件。
+
+    /// <summary>ffmpeg 可执行文件（覆盖链见 <see cref="EnvConfigService"/>）。</summary>
+    public string FfmpegPath { get => _env.FfmpegPath; set => _env.SetFfmpegPath(value); }
+
+    /// <summary>外部播放器路径（空 = 系统默认关联）。</summary>
+    public string PlayerPath { get => _env.PlayerPath; set => _env.SetPlayerPath(value); }
+
     public int MaxConcurrency { get => _data.MaxConcurrency; set { _data.MaxConcurrency = value; Save(); } }
-    public bool EncryptedDnsEnabled { get => _data.EncryptedDnsEnabled; set { _data.EncryptedDnsEnabled = value; Save(); } }
-    public string EncryptedDnsProviderId { get => _data.EncryptedDnsProviderId; set { _data.EncryptedDnsProviderId = value; Save(); } }
-    public string EncryptedDnsCustomUrl { get => _data.EncryptedDnsCustomUrl; set { _data.EncryptedDnsCustomUrl = value; Save(); } }
 
-    // ==================== 运行环境（v1.33；v3.65 / NT-062 回迁为**应用级**正式读写） ====================
-    // 三个解释器路径 = 「运行环境」（描述"本机怎么跑外部程序"），故归应用级、跨配置共享。
-    // 唯一写入点 =「设置 → 路径与配置」页的运行环境行；模块只读。
+    public bool EncryptedDnsEnabled { get => _env.EncryptedDnsEnabled; set => _env.SetEncryptedDnsEnabled(value); }
+    public string EncryptedDnsProviderId { get => _env.EncryptedDnsProviderId; set => _env.SetEncryptedDnsProviderId(value); }
+    public string EncryptedDnsCustomUrl { get => _env.EncryptedDnsCustomUrl; set => _env.SetEncryptedDnsCustomUrl(value); }
 
-    public string PythonPath { get => _data.PythonPath; set { _data.PythonPath = value; Save(); } }
-    public string PwshPath { get => _data.PwshPath; set { _data.PwshPath = value; Save(); } }
-    public string PowerShell51Path { get => _data.PowerShell51Path; set { _data.PowerShell51Path = value; Save(); } }
+    // ==================== 运行环境（v1.33；NT-077 第二批起 = 机器级 env.json） ====================
+    // 三个解释器路径 = 「运行环境」（描述"本机怎么跑外部程序"），故跟着机器、跨配置共享。
 
-    /// <summary>⚠️ 已定为**模块级**（<c>config\script-manager.json</c>）：这里只为一次性下沉迁移保留读取，⛔ 不再有 UI 写入它。</summary>
+    public string PythonPath { get => _env.PythonPath; set => _env.SetPythonPath(value); }
+    public string PwshPath { get => _env.PwshPath; set => _env.SetPwshPath(value); }
+    public string PowerShell51Path { get => _env.PowerShell51Path; set => _env.SetPowerShell51Path(value); }
+
+    /// <summary>⚠️ 已定为**模块级**（<c>config\modules\script-manager.json</c>）：这里只为一次性下沉迁移保留读取，⛔ 不再有 UI 写入它。</summary>
     public string ScriptFolder { get => _data.ScriptFolder; set { _data.ScriptFolder = value; Save(); } }
-    public string UpdateUrl { get => _data.UpdateUrl; set { _data.UpdateUrl = value; Save(); } }
-    public string VideoDbFolder { get => _data.VideoDbFolder; set { _data.VideoDbFolder = value; Save(); } }
+
+    /// <summary>更新检查地址（空 = 不检查）。</summary>
+    public string UpdateUrl { get => _env.UpdateUrl; set => _env.SetUpdateUrl(value); }
 
     /// <summary>
     /// 一键按钮 + 行为开关（v3.66）：原 <c>config\launch.json</c> 的内容，现在住在 <c>app.json</c> 的 <c>Launch</c> 节点。
@@ -200,8 +266,8 @@ public class AppConfigService : IAppConfigService
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(ConfigFile)!);
-            File.WriteAllText(ConfigFile, JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true }));
+            // NT-075：原子写（目录由 AtomicJsonFile 负责创建）
+            AtomicJsonFile.Write(ConfigFile, JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { }
     }

@@ -37,13 +37,21 @@
                  SelectedItem="{Binding SelectedCollection, Mode=TwoWay}">
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,2">
                 <TextBlock Grid.Column="0" Text="{Binding Icon}" Width="22" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Spacing="1">
                   <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                  <TextBlock Text="{Binding SubText}" Classes="hint-text"/>
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding SubText}" Classes="hint-text"/>
+                    <!--  NT-072：其他页面（信息面板 / 脚本库 / 命令库）正在使用的集合 —— 标「在用」  -->
+                    <TextBlock Text="{Binding InUseMark}" Classes="accent" VerticalAlignment="Center"
+                               ToolTip.Tip="{Binding InUseTip}"/>
+                  </StackPanel>
                 </StackPanel>
-                <TextBlock Grid.Column="2" Text="{Binding PinMark}" Classes="accent" VerticalAlignment="Center"/>
+                <!--  NT-073：种类徽标 —— 与筛选下拉 / 详情卡「类别」同一套文案  -->
+                <TextBlock Grid.Column="2" Text="{Binding KindText}" Classes="accent" Margin="6,0,0,0"
+                           VerticalAlignment="Center" FontSize="11"/>
+                <TextBlock Grid.Column="3" Text="{Binding PinMark}" Classes="accent" Margin="6,0,0,0" VerticalAlignment="Center"/>
               </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>

@@ -1,6 +1,6 @@
 using System;
-using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
@@ -48,53 +48,54 @@ public class ThemeService : IThemeService
 
     public string ConfigDir => _cfg.ConfigDir;
 
-    public ThemeService(ConfigStoreService cfg)
+    public ThemeService(ConfigStoreService cfg, ShellConfigStore shell)
     {
         _cfg = cfg;
+        _shell = shell;
         Load();
     }
 
-    private string ThemeFile => Path.Combine(ConfigDir, "theme.json");
+    private readonly ShellConfigStore _shell;
 
     // ==================== 持久化 ====================
 
     /// <summary>
-    /// 读取 <c>theme.json</c>。两种格式都认：
+    /// 读 <c>shell.json</c> 的 <c>theme</c> 节（NT-077 前是独立的 <c>theme.json</c>，迁移由
+    /// <see cref="ConfigStoreService"/> 一次性完成）。两种格式都认：
     /// - 现格式：<c>{ "Mode": "System", "AccentId": "blue", "IsDark": true }</c>；
     /// - **旧格式**（v1.18 之前只有 <c>{ "IsDark": true }</c>）→ 映射成 Dark / Light，老用户的偏好不丢。
-    /// 任何异常（文件不存在 / JSON 坏了 / 值非法）都静默回退默认值，绝不让主题读取把启动搞崩。
+    /// 任何异常（节不存在 / 值非法）都静默回退默认值，绝不让主题读取把启动搞崩。
     /// </summary>
     public void Load()
     {
         try
         {
-            if (!File.Exists(ThemeFile)) return;
+            if (_shell.Get("theme") is not JsonObject root) return;
 
-            using var doc = JsonDocument.Parse(File.ReadAllText(ThemeFile));
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("Mode", out var modeEl))
+            if (root.TryGetPropertyValue("Mode", out var modeNode) && modeNode is not null)
             {
-                if (modeEl.ValueKind == JsonValueKind.String
-                    && Enum.TryParse<ThemeMode>(modeEl.GetString(), ignoreCase: true, out var parsed))
+                if (modeNode.GetValueKind() == JsonValueKind.String)
                 {
-                    _mode = parsed;
+                    if (Enum.TryParse<ThemeMode>(modeNode.GetValue<string>(), ignoreCase: true, out var parsed))
+                        _mode = parsed;
                 }
-                else if (modeEl.ValueKind == JsonValueKind.Number && modeEl.TryGetInt32(out var n)
+                else if (modeNode.GetValueKind() == JsonValueKind.Number
+                         && int.TryParse(modeNode.ToJsonString(), out var n)
                          && Enum.IsDefined(typeof(ThemeMode), n))
                 {
                     _mode = (ThemeMode)n;   // 允许数字写法
                 }
             }
-            else if (root.TryGetProperty("IsDark", out var darkEl)
-                     && (darkEl.ValueKind == JsonValueKind.True || darkEl.ValueKind == JsonValueKind.False))
+            else if (root.TryGetPropertyValue("IsDark", out var darkNode) && darkNode is not null
+                     && darkNode.GetValueKind() is JsonValueKind.True or JsonValueKind.False)
             {
-                _mode = darkEl.GetBoolean() ? ThemeMode.Dark : ThemeMode.Light;
+                _mode = darkNode.GetValueKind() == JsonValueKind.True ? ThemeMode.Dark : ThemeMode.Light;
             }
 
-            if (root.TryGetProperty("AccentId", out var accentEl) && accentEl.ValueKind == JsonValueKind.String)
+            if (root.TryGetPropertyValue("AccentId", out var accentNode) && accentNode is not null
+                && accentNode.GetValueKind() == JsonValueKind.String)
             {
-                _accentId = AccentPalette.Find(accentEl.GetString()).Id;   // Find 自带回退，废弃 id 也安全
+                _accentId = AccentPalette.Find(accentNode.GetValue<string>()).Id;   // Find 自带回退，废弃 id 也安全
             }
         }
         catch
@@ -104,20 +105,17 @@ public class ThemeService : IThemeService
         }
     }
 
-    /// <summary>写入 <c>theme.json</c>（缩进、可读、便于手工改）。</summary>
+    /// <summary>写入 <c>shell.json</c> 的 <c>theme</c> 节（缩进、可读、便于手工改）。</summary>
     public void Save()
     {
         try
         {
-            Directory.CreateDirectory(ConfigDir);
-            var json = $$"""
+            _shell.Set("theme", new JsonObject
             {
-              "Mode": "{{_mode}}",
-              "AccentId": "{{_accentId}}",
-              "IsDark": {{(IsDark ? "true" : "false")}}
-            }
-            """;
-            File.WriteAllText(ThemeFile, json);
+                ["Mode"] = _mode.ToString(),
+                ["AccentId"] = _accentId,
+                ["IsDark"] = IsDark,
+            });
         }
         catch { }
     }

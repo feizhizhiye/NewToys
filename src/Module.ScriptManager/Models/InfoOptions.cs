@@ -1,6 +1,23 @@
 using System;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.ScriptManager.Models;
+
+/// <summary>
+/// 「节详情卡 → 显示列」里的一个 chip（NT-069）：点一下切这一列在当前视图里的显隐。
+/// <para>由页面 VM 按节当前投影重建（<c>Title</c> 已是视图覆盖后的标题）。</para>
+/// </summary>
+public sealed partial class SectionColumnChip : ObservableObject
+{
+    /// <summary>列 key（= 输出属性名）。</summary>
+    public string Key { get; init; } = "";
+
+    /// <summary>chip 文案（视图覆盖后的列标题；详情卡「表头名称」改的就是它）。</summary>
+    [ObservableProperty] private string _title = "";
+
+    /// <summary>当前是否显示。</summary>
+    [ObservableProperty] private bool _visible;
+}
 
 /// <summary>
 /// 信息面板顶部「集合 ▾」下拉里的一项（NT-068 §三.8）。

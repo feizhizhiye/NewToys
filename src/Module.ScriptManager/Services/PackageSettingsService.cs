@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using System.Text.Json;
-using NewToys.Shared.Models;
-using NewToys.Shared.Services;
+using NewToys.Core.Services;          // ConfigStoreService（配置根目录的唯一决定者）
+using NewToys.ScriptManager.Models;
 
-namespace NewToys.Core.Services;
+namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// <see cref="IPackageSettingsService"/> 实现：落到 <c>&lt;应用根&gt;\config\package.json</c>。
@@ -32,25 +32,34 @@ public class PackageSettingsService : IPackageSettingsService
 
     public PackageSettings Settings { get; }
 
-    public string FilePath => Path.Combine(_cfg.ConfigDir, "package.json");
+    /// <summary>本模块设置文件（NT-077 第二批起落 <c>config\modules\package.json</c>）。</summary>
+    public string FilePath => Path.Combine(_cfg.ModulesConfigDir, "package.json");
 
     public event Action? Changed;
 
     private PackageSettings Load()
     {
-        // 优先新文件名；旧版 winget.json 兼容读取（仅当新文件不存在时，避免升级丢设置）
-        var path = File.Exists(FilePath) ? FilePath : null;
-        if (path == null)
-        {
-            var legacy = Path.Combine(_cfg.ConfigDir, "winget.json");
-            if (File.Exists(legacy)) path = legacy;
-        }
+        // 优先新位置；再退「旧位置 config\package.json」；最后兼容更老的 winget.json（仅当新文件不存在时，避免升级丢设置）
+        var legacyMoved = Path.Combine(_cfg.ConfigDir, "package.json");
+        var legacy = Path.Combine(_cfg.ConfigDir, "winget.json");
+        var path = File.Exists(FilePath) ? FilePath
+                 : File.Exists(legacyMoved) ? legacyMoved
+                 : (File.Exists(legacy) ? legacy : null);
         if (path != null)
         {
             try
             {
                 var s = JsonSerializer.Deserialize<PackageSettings>(File.ReadAllText(path));
-                if (s != null) return s;
+                if (s != null)
+                {
+                    // 从任一旧位置读到 ⇒ 名字升级成新位置（⛔ 不再留双份；
+                    // 失败只可能是被占用 / 只读 ⇒ 本次照旧用旧文件，下次启动再试）
+                    if (!string.Equals(path, FilePath, StringComparison.Ordinal))
+                    {
+                        try { File.Move(path, FilePath); } catch { /* 下次再试 */ }
+                    }
+                    return s;
+                }
             }
             catch { /* 配置损坏时回落到默认值，不阻断启动 */ }
         }
@@ -61,8 +70,8 @@ public class PackageSettingsService : IPackageSettingsService
     {
         try
         {
-            Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(Settings, JsonOpts));
+            // NT-075：原子写（目录由 AtomicJsonFile 负责创建）
+            AtomicJsonFile.Write(FilePath, JsonSerializer.Serialize(Settings, JsonOpts));
         }
         catch { /* 保存失败不打断 UI；界面的状态行会显示上一次成功时间 */ }
         Changed?.Invoke();

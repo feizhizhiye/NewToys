@@ -17,7 +17,7 @@ namespace NewToys.ScriptManager.ViewModels;
 /// <remarks>
 /// <para>
 /// 节头：采集器标题 + 状态点（ok / warn / error <b>着色</b>）+ 上次采集时间 + 行数 + 折叠 + 局部刷新；
-/// 节体：这一采集器**自己的列**（<see cref="ScriptItem.Columns"/>，§三.13），预览 20 行 + 「展开全部」。
+/// 节体：这一采集器**在本视图下的列**（<see cref="ScriptItem.Columns"/> 经视图投影后，§三.13 / NT-069），预览 20 行 + 「展开全部」。
 /// </para>
 /// <para>
 /// 🔴 状态着色只能绑 <b>bool 具名属性</b>（XAML 绑不了枚举比较）：<see cref="IsOk"/> / <see cref="IsWarn"/> /
@@ -32,17 +32,26 @@ public sealed partial class InfoSectionViewModel : ObservableObject
 
     private readonly List<SysInfoRow> _all = new();
 
-    public InfoSectionViewModel(ScriptItem item)
+    /// <summary>
+    /// 本节**在当前视图下的有效列**（<see cref="Services.ViewColumnProjection.Resolve"/> 的投影副本）。
+    /// 🔴 不是 <see cref="ScriptItem.Columns"/> —— 后者是脚本能力，这里连显隐 / 标题 / 宽度都按视图算好了。
+    /// </summary>
+    private IReadOnlyList<ScriptColumn> _columns = Array.Empty<ScriptColumn>();
+
+    public InfoSectionViewModel(ScriptItem item) : this(item, item.Columns ?? new List<ScriptColumn>()) { }
+
+    public InfoSectionViewModel(ScriptItem item, IReadOnlyList<ScriptColumn> columns)
     {
         Item = item;
+        _columns = columns;
         RebuildHeaders();
 
         RefreshCommand = new RelayCommand(() => RefreshRequested?.Invoke(this));
         ToggleCollapseCommand = new RelayCommand(ToggleCollapse);
         ToggleShowAllCommand = new RelayCommand(() => ShowAll = !ShowAll);
-        OpenSettingsCommand = new RelayCommand(() => SettingsRequested?.Invoke(this));
         ToggleColumnCommand = new RelayCommand<string?>(ToggleColumn);
         SortCommand = new RelayCommand<string?>(SortBy);
+        OpenDetailCommand = new RelayCommand(() => DetailRequested?.Invoke(this));
     }
 
     // ==================== 所属条目 ====================
@@ -62,22 +71,22 @@ public sealed partial class InfoSectionViewModel : ObservableObject
     /// <summary>局部刷新（⟳）。</summary>
     public Action<InfoSectionViewModel>? RefreshRequested { get; set; }
 
-    /// <summary>打开「⚙ 节设置」。</summary>
-    public Action<InfoSectionViewModel>? SettingsRequested { get; set; }
-
     /// <summary>折叠状态变化（落视图定义的 <c>collapsed</c>）。</summary>
     public Action<InfoSectionViewModel>? CollapseChanged { get; set; }
 
     /// <summary>列显隐变化（写回列 schema + 落盘 + 重排）。</summary>
     public Action<InfoSectionViewModel, ScriptColumn>? ColumnToggled { get; set; }
 
+    /// <summary>打开「节详情卡」（右键菜单；卡片按这一节渲染）。</summary>
+    public Action<InfoSectionViewModel>? DetailRequested { get; set; }
+
     // ==================== 命令 ====================
     public ICommand RefreshCommand { get; }
     public ICommand ToggleCollapseCommand { get; }
     public ICommand ToggleShowAllCommand { get; }
-    public ICommand OpenSettingsCommand { get; }
     public ICommand ToggleColumnCommand { get; }
     public ICommand SortCommand { get; }
+    public ICommand OpenDetailCommand { get; }
 
     // ==================== 状态 ====================
     [ObservableProperty] private string _status = SysInfoStatus.Idle;
@@ -138,10 +147,10 @@ public sealed partial class InfoSectionViewModel : ObservableObject
     public ObservableCollection<SysInfoHeaderCell> HeaderCells { get; } = new();
 
     /// <summary>列宽规格串（隐藏列 = <c>0</c>，列索引保持不动）。</summary>
-    public string ColumnSpecs => InfoRowFactory.Specs(Item.Columns);
+    public string ColumnSpecs => InfoRowFactory.Specs(_columns);
 
     /// <summary>有没有列（首次采集前为空 ⇒ 节体给「还没有列，先刷新一次」）。</summary>
-    public bool HasColumns => Item.Columns.Count > 0;
+    public bool HasColumns => _columns.Count > 0;
 
     public bool HasRows => _all.Count > 0;
 
@@ -167,15 +176,41 @@ public sealed partial class InfoSectionViewModel : ObservableObject
     public IReadOnlyList<SysInfoRow> AllRows => _all;
 
     /// <summary>整节就绪：有列才渲染表头。</summary>
-    public IReadOnlyList<ScriptColumn> Columns => Item.Columns;
+    public IReadOnlyList<ScriptColumn> Columns => _columns;
 
     // ==================== 数据装载 ====================
+
+    /// <summary>
+    /// 换一套列投影（切视图时调）：重建表头 + 按新列重建各行单元格，<b>保留</b> RowKey / 状态 / 选中。
+    /// </summary>
+    public void ApplyColumns(IReadOnlyList<ScriptColumn> columns)
+    {
+        _columns = columns;
+
+        var selKey = Selected?.RowKey;
+        if (_all.Count > 0)
+        {
+            var rebuilt = new List<SysInfoRow>(_all.Count);
+            foreach (var r in _all)
+                rebuilt.Add(InfoRowFactory.Create(ItemId, r.RowKey, r.Status, _columns, InfoRowFactory.ToAttrs(r)));
+
+            _all.Clear();
+            _all.AddRange(rebuilt);
+        }
+
+        RebuildHeaders();
+
+        if (_all.Count > 0)
+            Selected = _all.FirstOrDefault(r => string.Equals(r.RowKey, selKey, StringComparison.OrdinalIgnoreCase)) ?? _all[0];
+
+        Project();
+    }
 
     /// <summary>重建表头（列 schema 变化后调）。</summary>
     public void RebuildHeaders()
     {
         HeaderCells.Clear();
-        foreach (var cell in InfoRowFactory.BuildHeaders(Item.Columns))
+        foreach (var cell in InfoRowFactory.BuildHeaders(_columns))
         {
             cell.ToggleCommand = ToggleColumnCommand;
             cell.SortCommand = SortCommand;
@@ -206,7 +241,7 @@ public sealed partial class InfoSectionViewModel : ObservableObject
             }
             else
             {
-                row = InfoRowFactory.Create(ItemId, rowKey, status, Item.Columns, attrs);
+                row = InfoRowFactory.Create(ItemId, rowKey, status, _columns, attrs);
             }
             next.Add(row);
         }
@@ -321,11 +356,11 @@ public sealed partial class InfoSectionViewModel : ObservableObject
 
     private void ToggleCollapse() => IsCollapsed = !IsCollapsed;
 
-    /// <summary>切换某列显隐（写回列 schema 由页面负责落盘）。</summary>
+    /// <summary>切换某列显隐（本视图内生效，落盘由页面负责）。</summary>
     private void ToggleColumn(string? attr)
     {
         if (string.IsNullOrWhiteSpace(attr)) return;
-        var col = Item.Columns.FirstOrDefault(c => string.Equals(c.Key, attr, StringComparison.OrdinalIgnoreCase));
+        var col = _columns.FirstOrDefault(c => string.Equals(c.Key, attr, StringComparison.OrdinalIgnoreCase));
         if (col == null) return;
 
         col.Visible = !col.Visible;

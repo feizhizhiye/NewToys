@@ -191,8 +191,8 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
     /// <summary>缩略图目录（生效值：配置为空 → <c>&lt;应用根&gt;\data\thumbs</c>）。</summary>
     public string ThumbsDirectoryEffective => _io.ThumbsDirectory;
 
-    /// <summary>导入导出默认目录（全局设置 <c>app.json</c> 的 VideoDbFolder；⛔ 本页不新建字段）。</summary>
-    public string ImportExportDefaultDir => _app?.VideoDbFolder ?? "";
+    /// <summary>导入导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批，⛔ 本页不新建字段）。</summary>
+    public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
     public bool HasImportExportDir => !string.IsNullOrWhiteSpace(ImportExportDefaultDir);
 

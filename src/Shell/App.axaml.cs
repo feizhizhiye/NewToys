@@ -63,9 +63,15 @@ public class App : Application
 
             // Core services
             services.AddSingleton(sp => new ConfigStoreService(profileOverride));
+            // NT-077：框架级偏好（主题 / 窗口 / 收藏 / 列宽 / 页码大小）统一落 config\shell.json
+            services.AddSingleton<ShellConfigStore>();
             // NT-061 / 需求 §3.5：按模块分区的 KV 选项存储（落 config\<module>.json；换 profile ⇒ 天然读到另一份）。
             // 模块只依赖 IOptionsStore、⛔ 不碰文件；将来整体换 SQLite 调用方零改动。
-            services.AddSingleton<IOptionsStore>(sp => new JsonOptionsStore(sp.GetRequiredService<ConfigStoreService>()));
+            services.AddSingleton<IOptionsStore>(sp => new JsonOptionsStore(
+                sp.GetRequiredService<ConfigStoreService>(),
+                sp.GetRequiredService<ShellConfigStore>()));
+            // NT-077 第二批：机器级配置（解释器 / ffmpeg / 播放器 / 更新地址 / DNS）落 %LOCALAPPDATA%\NewToys\env.json
+            services.AddSingleton<EnvConfigService>();
             services.AddSingleton<IAppConfigService, AppConfigService>();
             services.AddSingleton<ILaunchConfigService, LaunchConfigService>();
             services.AddSingleton<IMenuService, MenuService>();
@@ -83,9 +89,9 @@ public class App : Application
             services.AddSingleton<EncryptedDnsService>();
             services.AddSingleton<IEncryptedDnsService>(sp => sp.GetRequiredService<EncryptedDnsService>());
 
-            // 「软件包管理」模块的两项：命令行后端 + 它自己的源设置（落 config\package.json，可被数据管理备份）。
-            services.AddSingleton<IPackageSettingsService, PackageSettingsService>();
-            services.AddSingleton<IPackageManagerService, PackageManagerService>();
+            // NT-074：「软件包管理」的两项服务（IPackageManagerService / IPackageSettingsService）
+            // 已随整套代码下放到 Module.ScriptManager（只有它用）⇒ DI 注册移到 ScriptManagerModule，
+            // Shell 这里不再注册、也不再给它的确认钩子接线（改走 Core.DialogHooks，见下面）。
 
             // 首页收藏夹：落 config\favorites.json（可被数据管理备份），单一真相源，标题/图标/简介现从菜单取。
             services.AddSingleton<IFavoritesService, FavoritesService>();
@@ -99,10 +105,22 @@ public class App : Application
             // 工程内唯一的本地数据库（data\newtoys.db）：当前给「视频工具 → 视频库」的媒体信息索引用；
             // 后续更多结构化数据也走它（见 SqliteDatabase 的类注释）。
             services.AddSingleton<SqliteDatabase>();
+            // NT-076：总库 schema 统一入口 —— 容器里所有 ILibrarySchemaContributor（由各模块 RegisterServices 注册）
+            // 在首帧之后由 ModuleLoader.InitializeAllDeferred 统一跑一遍（建表 / 补列 / 一次性迁移）。
+            services.AddSingleton<NewToys.Core.Services.LibrarySchemaService>();
 
             // v3.66 / NT-070：跨模块共用的文件系统动作（改名 / 移动 / 复制 / 回收站删除）。
             // 只管磁盘，不记账、不弹窗 —— 库表日志与确认框留在各模块自己那层。
             services.AddSingleton<IFileOperationService, FileOperationService>();
+
+            // NT-078：备份路由 —— 框架节在这里注册，模块节在各自 RegisterServices 里注册
+            // （同一个 IBackupSection 契约，BackupService 经 IEnumerable<IBackupSection> 聚合）。
+            services.AddSingleton<IBackupSection, NewToys.Shell.Services.ShellBackupSection>();
+            services.AddSingleton<IBackupSection, NewToys.Shell.Services.EnvBackupSection>();
+            // 数据节（默认不勾）：总库走 VACUUM INTO 快照；缩略图目录读 media-assets 设置，空则 data\thumbs
+            services.AddSingleton<IBackupSection, NewToys.Shell.Services.DataDbBackupSection>();
+            services.AddSingleton<IBackupSection, NewToys.Shell.Services.DataThumbsBackupSection>();
+            services.AddSingleton<BackupService>();
 
             // 「设置 → 通用」的系统级行为：开机启动项（注册表）+ 启动时检查更新。
             // 两者都不碰 Avalonia，所以能放在 Core 里；这里只是把它们挂进 DI。
@@ -178,11 +196,8 @@ public class App : Application
             // NT-057：窗口图标 = 应用图标（与托盘同源同一份，底色随当前强调色）
             win.Icon = CreateAppIcon(CurrentAccent());
 
-            // 卸载 / 删除前的二次确认：Core 里的服务不能引用 Avalonia，
-            // 所以由宿主在这里把「怎么问」接上去（弹窗在下面实现）。
-            PackageManagerService.ConfirmHandler = msg => ConfirmAsync(win, msg);
-
             // 公共对话框钩子（Core.DialogHooks）：给各模块用（视频工具的重命名 / 删除文件 / 清空缓存 …）。
+            // NT-074：软件包的「卸载 / 删源」二次确认也走这一条（原 PackageManagerService.ConfirmHandler 已删）。
             // ⛔ 模块不能反向引用 Shell，所以只能由这里注入；没注入时钩子一律按"用户取消"处理。
             DialogHooks.ConfirmHandler = msg => ConfirmAsync(win, msg);
             DialogHooks.InputHandler = (title, initial) => InputAsync(win, title, initial);
@@ -824,6 +839,8 @@ public class App : Application
             S("ContentBrush","#191919"); S("ContentHeaderBrush","#1F1F1F"); S("StatusBarBrush","#1F1F1F");
             S("PanelBrush","#262626"); S("CardHoverBrush","#333333"); S("DividerBrush","#333333"); S("DangerBrush","#F85149"); S("LoadingOverlayBrush","#80000000");
             S("PrimaryTextBrush","#E5E5E5"); S("SecondaryTextBrush","#9E9E9E"); S("SiderIconHoverBrush","#3A3A3A");
+            // 输入框水印（v3.68 / 用户定调「太重」）：比次要文字再淡一档，只给 PlaceholderText 用
+            S("PlaceholderTextBrush","#6B6B6B");
             S("AccentBrush", accent.Color); S("AccentHoverBrush", accent.HoverColor); S("AccentTextBrush","#FFFFFF");
             S("CodeBlockBrush","#1F1F1F"); S("InputBorderBrush","#3D3D3D"); S("InputHoverBorderBrush", accent.Color);
         }
@@ -843,6 +860,8 @@ public class App : Application
             S("ContentBrush","#FFFFFF"); S("ContentHeaderBrush","#FFFFFF"); S("StatusBarBrush","#FAFBFC");
             S("PanelBrush","#F7F8FA"); S("CardHoverBrush","#EFEFEF"); S("DividerBrush","#E6E8EC"); S("DangerBrush","#D93026"); S("LoadingOverlayBrush","#80FFFFFF");
             S("PrimaryTextBrush","#1F1F1F"); S("SecondaryTextBrush","#8A8A8F"); S("SiderIconHoverBrush","#E9E9E9");
+            // 输入框水印：浅色下同样比次要文字淡一档
+            S("PlaceholderTextBrush","#B4B4BA");
             S("AccentBrush", accent.Color); S("AccentHoverBrush", accent.HoverColor); S("AccentTextBrush","#FFFFFF");
             S("CodeBlockBrush","#FFFFFF"); S("InputBorderBrush","#D1D5DB"); S("InputHoverBorderBrush", accent.Color);
         }

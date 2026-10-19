@@ -28,7 +28,11 @@ public class MediaAssetsSettingsIO
     /// <summary>活实例（属性可被设置页直接改；改完调 <see cref="Save"/> 落盘）。</summary>
     public MediaAssetsSettings Settings { get; }
 
-    public string FilePath => Path.Combine(_cfg.ConfigDir, "media-assets.json");
+    /// <summary>本模块设置文件（NT-077 第二批起落 <c>config\modules\media-assets.json</c>）。</summary>
+    public string FilePath => Path.Combine(_cfg.ModulesConfigDir, "media-assets.json");
+
+    /// <summary>迁移前的旧位置（<c>config\media-assets.json</c>）；搬文件被占用时按它兜底读。</summary>
+    private string LegacyPath => Path.Combine(_cfg.ConfigDir, "media-assets.json");
 
     /// <summary>缩略图目录（生效值）：配置为空时用 <c>&lt;应用根&gt;\data\thumbs</c>。</summary>
     public string ThumbsDirectory
@@ -46,9 +50,10 @@ public class MediaAssetsSettingsIO
     {
         try
         {
-            if (File.Exists(FilePath))
+            var path = File.Exists(FilePath) ? FilePath : (File.Exists(LegacyPath) ? LegacyPath : null);
+            if (path != null)
             {
-                var s = JsonSerializer.Deserialize<MediaAssetsSettings>(File.ReadAllText(FilePath));
+                var s = JsonSerializer.Deserialize<MediaAssetsSettings>(File.ReadAllText(path));
                 if (s != null) return s;
             }
         }
@@ -60,8 +65,8 @@ public class MediaAssetsSettingsIO
     {
         try
         {
-            Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(Settings, JsonOpts));
+            // NT-075：原子写（目录由 AtomicJsonFile 负责创建）
+            AtomicJsonFile.Write(FilePath, JsonSerializer.Serialize(Settings, JsonOpts));
         }
         catch { /* 保存失败不打断 UI；状态栏会给反馈 */ }
         Changed?.Invoke();

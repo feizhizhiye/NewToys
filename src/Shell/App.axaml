@@ -486,10 +486,9 @@
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
 
-        <!--  应用级设置页的**节导航**按钮（v3.65 / NT-062，需求 §4.9.2：一页多节）。
-              与左树 `tree-row` 同一口径（透明底 + 圆角 6；激活 = CardSelectedBrush + 强调色），
-              尺寸更紧凑 —— 六个节一行放得下（窄窗口由 WrapPanel 自动折行）。
-              ⚠️ 激活色由样式给，⛔ 不在 XAML 里写本地值（本地值会压过 .active）。  -->
+        <!--  应用级设置页的**节抬头按钮**（v3.65 / NT-062，需求 §4.9.2：一页多节）。
+              与左树 `tree-row` 同一口径（透明底 + 圆角 6）。v3.69：**取消激活态**（用户：激活色始终不可见）——
+              当前在哪一节改由 `StuckHeader` 顶栏自己的底色表达，这里不再有 `.active`。  -->
         <Style Selector="Button.settings-nav">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
@@ -501,10 +500,6 @@
         </Style>
         <Style Selector="Button.settings-nav:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
-        </Style>
-        <Style Selector="Button.settings-nav.active">
-            <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
         <!--  工具条主按钮专用（v3.60 / NT-055 收尾）：原先工具条用 `primary`（强调色**实心**，
               默认强调色 = 微信绿 ⇒ 一排绿按钮，抢视线）。这里给**描边版**：透明底 + 强调色描边 + 强调色文字，
@@ -611,15 +606,22 @@
 
         <!--  左树底部版本号（v3.9）：低调一行小字；折叠态整体隐藏。
              ⚠️ 这是**独立占位值**（ShellViewModel.TreeVersionText），与「设置 → 关于」的版本号无关。  -->
+        <!--  🔴 v3.69（用户 2026-10-18）：版本行是**一条独立小条**，左右没有必要跟树行缩进对齐 ⇒
+              内边距单独给 `4`（原来沿用 10 是为让开右侧滚动条，但这一行在滚动区外）：
+              「配置 · 版本」贴左、齿轮贴右，两边不再空一大截。
+              折叠态（48）反过来要**对称 12** ⇒ 24 宽的齿轮正好居中。  -->
         <Style Selector="Border.tree-version">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
             <Setter Property="BorderThickness" Value="0,1,0,0"/>
-            <Setter Property="Padding" Value="10,0"/>
-            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="2,0,0,0"/>
+            <Setter Property="Height" Value="24"/>
+        </Style>
+        <Style Selector="Border.tree-panel.collapsed Border.tree-version">
+            <Setter Property="Padding" Value="12,0"/>
         </Style>
         <Style Selector="TextBlock.tree-version-text">
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="10"/>
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
@@ -630,9 +632,9 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="2"/>
-            <Setter Property="Width" Value="24"/>
-            <Setter Property="Height" Value="22"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="23"/>
+            <Setter Property="Height" Value="23"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>

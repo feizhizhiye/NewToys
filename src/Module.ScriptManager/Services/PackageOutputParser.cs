@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace NewToys.Core.Services;
+namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// 包管理器命令行输出的解析器（**纯函数**，不碰进程、不碰 UI）。
@@ -325,17 +325,43 @@ internal static class PackageOutputParser
     /// </para>
     /// </summary>
     public static List<string> ParsePackageIds(string? raw)
+        => ParsePins(raw).Select(p => p.Id).ToList();
+
+    /// <summary>
+    /// 解析 <c>winget pin list</c>（NT-075）：按**表头切片**取 Id 与版本。
+    /// <para>
+    /// 🔴 老实现 <see cref="ParsePackageIds"/> 是"扫所有带点号的词" ⇒ 版本号（<c>24.08</c>、<c>1.2.3</c>）
+    /// 长得跟包 Id 一样，会被当成 Id 混进来（表现：列表里多出一堆"版本号行"，Id 列还串了位）。
+    /// 现在走 <see cref="ParseTable"/>（规范列名 <c>Id</c> / <c>Version</c>），只在表头认不出时才兜底，
+    /// 且兜底里**按形状排除纯版本号**。
+    /// </para>
+    /// </summary>
+    public static List<(string Id, string Version)> ParsePins(string? raw)
     {
-        var ids = new List<string>();
-        // 先干掉 URL：源地址（https://cdn.winget.microsoft.com/cache）里也带点号，
-        // 不先删掉就会被当成"包 Id"混进来。
-        var body = Regex.Replace(Clean(raw), @"\bhttps?://\S+", " ");
-        foreach (Match m in Regex.Matches(body, @"[A-Za-z0-9][A-Za-z0-9._+-]*\.[A-Za-z0-9][A-Za-z0-9._+-]*"))
+        var list = new List<(string Id, string Version)>();
+
+        foreach (var row in ParseTable(raw, "Name", "Id"))
         {
-            var v = m.Value;
-            if (v.Length > 2 && !ids.Contains(v, StringComparer.OrdinalIgnoreCase)) ids.Add(v);
+            var id = row.GetValueOrDefault("Id", "").Trim();
+            if (id.Length == 0) continue;
+            if (list.Any(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase))) continue;
+            list.Add((id, row.GetValueOrDefault("Version", "").Trim()));
         }
-        return ids;
+
+        if (list.Count == 0)                       // 兜底：极少数版本表头认不出
+        {
+            var body = Regex.Replace(Clean(raw), @"\bhttps?://\S+", " ");
+            foreach (Match m in Regex.Matches(body, @"[A-Za-z0-9][A-Za-z0-9._+-]*\.[A-Za-z0-9][A-Za-z0-9._+-]*"))
+            {
+                var v = m.Value;
+                if (v.Length <= 2) continue;
+                // ⛔ 纯版本号（24.08 / 1.2.3）不是包 Id —— 老 bug 就出在这里
+                if (Regex.IsMatch(v, @"^[0-9]+(\.[0-9]+)+$")) continue;
+                if (list.Any(x => string.Equals(x.Id, v, StringComparison.OrdinalIgnoreCase))) continue;
+                list.Add((v, ""));
+            }
+        }
+        return list;
     }
 
     /// <summary>

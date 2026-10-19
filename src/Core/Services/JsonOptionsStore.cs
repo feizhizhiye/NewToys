@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
@@ -37,16 +38,33 @@ public class JsonOptionsStore : IOptionsStore
     };
 
     private readonly ConfigStoreService _cfg;
+    private readonly ShellConfigStore _shell;
     private readonly object _gate = new();
 
     /// <summary>module → 该模块的选项表（懒加载一次，之后以内存为准）。</summary>
     private readonly Dictionary<string, SortedDictionary<string, string>> _cache =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public JsonOptionsStore(ConfigStoreService cfg) => _cfg = cfg;
+    public JsonOptionsStore(ConfigStoreService cfg, ShellConfigStore shell)
+    {
+        _cfg = cfg;
+        _shell = shell;
+    }
 
-    /// <summary>某个 module 的配置文件全路径（设置页展示 / 排障用；模块自身⛔不该知道这个）。</summary>
-    public string FilePath(string module) => Path.Combine(_cfg.ConfigDir, Validate(module) + ".json");
+    /// <summary>
+    /// NT-077：分区 <c>ui</c>（列表页大小等框架级 KV）**不再单独占一个 <c>ui.json</c>**，
+    /// 而是读写 <c>shell.json</c> 的 <c>ui</c> 节。其余分区仍是 <c>config\&lt;分区&gt;.json</c>。
+    /// </summary>
+    private const string ShellPartition = "ui";
+
+    private static bool IsShellPartition(string module) => module.Equals(ShellPartition, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 某个 module 的配置文件全路径（设置页展示 / 排障用；模块自身⛔不该知道这个）。
+    /// <para>NT-077 第二批：分区文件统一落 <c>config\modules\&lt;分区&gt;.json</c>；<c>ui</c> 分区仍走 <c>shell.json</c>。</para>
+    /// </summary>
+    public string FilePath(string module)
+        => IsShellPartition(module) ? _shell.FilePath : Path.Combine(_cfg.ModulesConfigDir, Validate(module) + ".json");
 
     public string? Get(string module, string key)
     {
@@ -116,7 +134,22 @@ public class JsonOptionsStore : IOptionsStore
         if (_cache.TryGetValue(module, out var cached)) return cached;
 
         var map = new SortedDictionary<string, string>(StringComparer.Ordinal);
+
+        if (IsShellPartition(module))
+        {
+            // 值从 shell.json 的 ui 节取；读失败按"没有"处理
+            if (_shell.Get(ShellPartition) is JsonObject obj)
+                foreach (var p in obj)
+                    map[p.Key] = AsString(p.Value);
+            _cache[module] = map;
+            return map;
+        }
+
         var path = FilePath(module);
+        // 迁移兜底（NT-077 第二批）：config\modules\ 里没有、但旧的 config\<分区>.json 还在 ⇒ 读旧的
+        // （搬文件被占用 / 只读时不让用户"设置全丢"）
+        var legacy = Path.Combine(_cfg.ConfigDir, Validate(module) + ".json");
+        if (!File.Exists(path) && File.Exists(legacy)) path = legacy;
         try
         {
             if (File.Exists(path))
@@ -143,9 +176,26 @@ public class JsonOptionsStore : IOptionsStore
 
     private void Save(string module, SortedDictionary<string, string> map)
     {
-        Directory.CreateDirectory(_cfg.ConfigDir);
-        File.WriteAllText(FilePath(module), JsonSerializer.Serialize(map, WriteOpts));
+        if (IsShellPartition(module))
+        {
+            if (map.Count == 0) { _shell.Set(ShellPartition, null); return; }
+            var obj = new JsonObject();
+            foreach (var kv in map) obj[kv.Key] = kv.Value;
+            _shell.Set(ShellPartition, obj);
+            return;
+        }
+
+        // NT-075：原子写 + 空表即删文件 —— 模块设置全是默认值时不再留一个 2 字节的 `{}`。
+        AtomicJsonFile.Write(FilePath(module), JsonSerializer.Serialize(map, WriteOpts));
     }
+
+    /// <summary>JsonNode → 存进 KV 表的字符串（字符串取原值，其余取 JSON 原文）。</summary>
+    private static string AsString(JsonNode? node) => node switch
+    {
+        null => "",
+        JsonValue v when v.GetValueKind() == JsonValueKind.String => v.GetValue<string>() ?? "",
+        _ => node.ToJsonString()
+    };
 
     /// <summary>把任意 JSON 值读成 string：字符串取原值，其余取原始文本（数字 / 布尔 / 对象原样保留）。</summary>
     private static string AsString(JsonElement e) => e.ValueKind switch

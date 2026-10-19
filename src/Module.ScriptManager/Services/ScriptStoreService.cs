@@ -4,22 +4,24 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using NewToys.Core.Services;
+using NewToys.Core.Services.DataMigrations;
 using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <see cref="IScriptStoreService"/> 实现：手工数据落 <c>config\script\script.json</c>，<b>原子写</b>（NT-068 §三.2 / §三.4）。
+/// <see cref="IScriptStoreService"/> 实现：手工数据落**总库的 <c>script_docs</c> 表**（NT-076 第二批；此前是
+/// <c>config\script\script.json</c>），写入即一条 upsert。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🔴 为什么是 <c>config\script\</c> 而不是 <c>config\script\settings.json</c>：模块<b>设置</b>走
-/// <c>IOptionsStore</c>，其 <c>Validate</c> 禁路径分隔符 ⇒ 只能落 <c>config\script-manager.json</c>。
-/// 本服务管的是<b>手工数据</b>（集合 / 条目 / 视图），不进 <c>IOptionsStore</c>，所以能开子目录。
+/// 🔴 落点在总库里而不是 <c>config\</c>：脚本库的集合 / 条目 / 视图是**功能数据**，与资产表、观测表同库
+/// （一个配置档 = 一个库）。旧 <c>script.json</c> 由 <see cref="ScriptManagerSchemaContributor"/> 在启动时
+/// 一次性搬进表并改名 <c>.legacy</c>（⛔ 不删）。
 /// </para>
 /// <para>
-/// 只读 <c>ConfigStoreService</c> 的 <see cref="ConfigStoreService.ConfigDir"/> /
-/// <see cref="ConfigStoreService.DataDir"/>（框架层冻结，⛔ 不新增 <c>GetModuleDataDir</c>）。
+/// ⚠️ <see cref="ConfigDir"/> / <see cref="FilePath"/> 保留只为**界面展示与排障**（状态栏会打印落盘位置），
+/// ⛔ 不再用于读写。
 /// </para>
 /// </remarks>
 public class ScriptStoreService : IScriptStoreService
@@ -35,19 +37,28 @@ public class ScriptStoreService : IScriptStoreService
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    public ScriptStoreService(ConfigStoreService cfg)
+    /// <summary><c>script_docs</c> 里的文档名（整份 <see cref="ScriptStoreRoot"/> 一条）。</summary>
+    public const string DocName = "store";
+
+    /// <summary>旧 JSON 的落点（迁移源；迁移完成后是 <c>script.json.legacy</c>）。</summary>
+    public static string LegacyFile(ConfigStoreService cfg)
+        => Path.Combine(cfg.ConfigDir, "script", "script.json");
+
+    private readonly JsonDocStore _docs;
+    private readonly string _legacyFile;
+
+    public ScriptStoreService(ConfigStoreService cfg, SqliteDatabase db)
     {
+        _docs = new JsonDocStore(db, "script");
         ConfigDir = Path.Combine(cfg.ConfigDir, "script");
-        DataDir = Path.Combine(cfg.DataDir, "script");
-        FilePath = Path.Combine(ConfigDir, "script.json");
-        DatabasePath = Path.Combine(DataDir, "script.db");
+        FilePath = db.DatabasePath;
+        _legacyFile = LegacyFile(cfg);
         Reload();
     }
 
     public string ConfigDir { get; }
-    public string DataDir { get; }
+
     public string FilePath { get; }
-    public string DatabasePath { get; }
 
     public ScriptStoreRoot Data { get; private set; } = new();
     public bool IsLoaded { get; private set; }
@@ -60,35 +71,39 @@ public class ScriptStoreService : IScriptStoreService
         LastError = "";
         try
         {
-            Directory.CreateDirectory(ConfigDir);
+            var raw = _docs.LoadRaw(DocName);
 
-            if (!File.Exists(FilePath))
+            if (raw == null)
             {
-                // 首次运行：落一份带两个内置集合的空文件（需求 §6.2.5 / NT-068 §三.7）。
+                // 首次运行（或迁移尚未跑）：先试搬旧 script.json（表已建时才会成功），再按种子起步。
+                JsonDocMigration.ImportOnce(_docs, DocName, _legacyFile);
+                raw = _docs.LoadRaw(DocName);
+            }
+
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                // 首次运行：落一份带两个内置集合的空文档（需求 §6.2.5 / NT-068 §三.7）。
                 Data = CreateSeed();
                 IsLoaded = true;
                 Save();
                 return;
             }
 
-            var json = File.ReadAllText(FilePath);
-            var root = string.IsNullOrWhiteSpace(json)
-                ? new ScriptStoreRoot()
-                : JsonSerializer.Deserialize<ScriptStoreRoot>(json, JsonOpts) ?? new ScriptStoreRoot();
+            var root = JsonSerializer.Deserialize<ScriptStoreRoot>(raw, JsonOpts) ?? new ScriptStoreRoot();
 
             var dirty = Normalize(root);
             Data = root;
             IsLoaded = true;
 
-            // 归一化补了东西（schema 版本 / 内置集合）⇒ 立刻回写，让磁盘与内存一致。
+            // 归一化补了东西（schema 版本 / 内置集合）⇒ 立刻回写，让库与内存一致。
             if (dirty) Save();
         }
         catch (Exception ex)
         {
-            // ⛔ 不抛：坏文件只降级成空数据 + 状态栏提示（验收 §五.15）。
+            // ⛔ 不抛：坏数据只降级成空数据 + 状态栏提示（验收 §五.15）。
             Data = new ScriptStoreRoot();
             IsLoaded = false;
-            LastError = $"读 {FilePath} 失败：{ex.Message}";
+            LastError = $"读 script_docs 失败：{ex.Message}";
         }
     }
 
@@ -96,16 +111,13 @@ public class ScriptStoreService : IScriptStoreService
     {
         try
         {
-            Directory.CreateDirectory(ConfigDir);
             Data.SchemaVersion = 1;
-
-            var json = JsonSerializer.Serialize(Data, JsonOpts);
-            WriteAtomic(FilePath, json);
+            _docs.SaveRaw(DocName, JsonSerializer.Serialize(Data, JsonOpts));
             LastError = "";
         }
         catch (Exception ex)
         {
-            LastError = $"写 {FilePath} 失败：{ex.Message}";
+            LastError = $"写 script_docs 失败：{ex.Message}";
         }
         Changed?.Invoke();
     }
@@ -138,61 +150,88 @@ public class ScriptStoreService : IScriptStoreService
         return true;
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<ScriptItem> MembersOfKind(string kind)
+    {
+        var k = ScriptCollectionKind.Normalize(kind);
+        var ids = Data.Collections.Where(c => !c.Archived && ScriptCollectionKind.Normalize(c.Kind) == k)
+                                  .Select(c => c.Id)
+                                  .ToHashSet(StringComparer.Ordinal);
+        if (ids.Count == 0) return Array.Empty<ScriptItem>();
+        return Data.Items.Where(i => i.Collections.Any(ids.Contains)).ToList();
+    }
+
+    /// <inheritdoc />
+    public string RootOf(string collectionId)
+    {
+        var col = FindCollection(collectionId);
+        return (col?.RootPath ?? "").TrimEnd('\\', '/');
+    }
+
+    /// <inheritdoc />
+    public string RootOfItem(ScriptItem item)
+    {
+        foreach (var id in item.Collections)
+        {
+            var root = RootOf(id);
+            if (root.Length > 0) return root;
+        }
+        return "";
+    }
+
+    /// <inheritdoc />
+    public string GetLastCollectionId(string kind)
+    {
+        var k = ScriptCollectionKind.Normalize(kind);
+        if (Data.LastCollectionIdByKind.TryGetValue(k, out var id) && !string.IsNullOrEmpty(id))
+        {
+            // 集合被删 / 换了 kind ⇒ 视为没有记录。
+            var col = FindCollection(id);
+            if (col != null && ScriptCollectionKind.Normalize(col.Kind) == k) return id;
+            return "";
+        }
+        return k == ScriptCollectionKind.Info ? (Data.LastCollectionId ?? "") : "";
+    }
+
+    /// <inheritdoc />
+    public void SetLastCollectionId(string kind, string id)
+    {
+        var k = ScriptCollectionKind.Normalize(kind);
+        Data.LastCollectionIdByKind[k] = id ?? "";
+        if (k == ScriptCollectionKind.Info) Data.LastCollectionId = id ?? "";
+    }
+
     /// <summary>
-    /// <b>内置集合成员同步</b>（NT-068 §三.7）：<c>脚本库</c> 集合收全部 <c>role∈{script,collector}</c>，
-    /// <c>命令库</c> 集合收全部 <c>role=command</c>。只读关系 —— 用户要自定义就新建集合。
+    /// <b>内置集合成员同步</b>（NT-068 §三.7，NT-073 D10 修订）：只把<b>还没有归属</b>的条目收进默认库。
+    /// <para>🔴 不再全量同步 —— 否则多库时默认库会吞掉用户归到其他库的条目。</para>
     /// </summary>
     /// <returns>是否有成员变化（需要回写磁盘）。</returns>
     public bool SyncBuiltinCollections()
     {
         var dirty = false;
-        foreach (var col in Data.Collections.Where(c => c.Builtin && !c.Archived))
+        foreach (var item in Data.Items)
         {
-            var wantsScript = col.Kind == ScriptCollectionKind.Script;
-            var wantsCommand = col.Kind == ScriptCollectionKind.Command;
-            if (!wantsScript && !wantsCommand) continue;
+            if (item.Collections.Count > 0) continue;
 
-            foreach (var item in Data.Items)
-            {
-                var belongs = wantsScript
-                    ? item.Role is ScriptItemRole.Script or ScriptItemRole.Collector
-                    : item.Role == ScriptItemRole.Command;
+            var kind = item.Role is ScriptItemRole.Command ? ScriptCollectionKind.Command : ScriptCollectionKind.Script;
+            var col = Data.Collections.FirstOrDefault(c => c.Builtin && !c.Archived
+                                                           && ScriptCollectionKind.Normalize(c.Kind) == kind);
+            if (col == null) continue;
 
-                var has = item.Collections.Contains(col.Id);
-                if (belongs == has) continue;
-
-                if (belongs) item.Collections.Add(col.Id);
-                else item.Collections.RemoveAll(c => c == col.Id);
-                dirty = true;
-            }
+            item.Collections.Add(col.Id);
+            dirty = true;
         }
         return dirty;
     }
 
     // ==================== 内部 ====================
 
-    /// <summary>原子写：同目录临时文件 + 一次 rename 覆盖（同卷 rename 是原子操作）。</summary>
-    private static void WriteAtomic(string path, string content)
-    {
-        var dir = Path.GetDirectoryName(path)!;
-        var tmp = Path.Combine(dir, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
-        try
-        {
-            File.WriteAllText(tmp, content);
-            File.Move(tmp, path, overwrite: true);
-        }
-        finally
-        {
-            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* 残留临时文件不影响主流程 */ }
-        }
-    }
-
     /// <summary>首次运行的种子：只有两个内置集合，⛔ 不预置任何条目（NT-060 干净启动）。</summary>
     private static ScriptStoreRoot CreateSeed()
     {
         var root = new ScriptStoreRoot();
-        EnsureBuiltin(root, "脚本库", ScriptCollectionKind.Script, "▤", 0);
-        EnsureBuiltin(root, "命令库", ScriptCollectionKind.Command, "⚙", 1);
+        EnsureBuiltin(root, "默认脚本库", ScriptCollectionKind.Script, "▤", 0);
+        EnsureBuiltin(root, "默认命令库", ScriptCollectionKind.Command, "⚙", 1);
         return root;
     }
 
@@ -206,6 +245,15 @@ public class ScriptStoreService : IScriptStoreService
         root.Items ??= new List<ScriptItem>();
         root.Tags ??= new List<ScriptTag>();
         root.Views ??= new List<ScriptView>();
+        root.LastCollectionIdByKind ??= new Dictionary<string, string>();
+
+        // NT-073 迁移：老 lastCollectionId → byKind["info"]（不动老字段，保存后仍是兼容别名）。
+        if (!root.LastCollectionIdByKind.ContainsKey(ScriptCollectionKind.Info)
+            && !string.IsNullOrWhiteSpace(root.LastCollectionId))
+        {
+            root.LastCollectionIdByKind[ScriptCollectionKind.Info] = root.LastCollectionId;
+            dirty = true;
+        }
 
         foreach (var c in root.Collections)
         {
@@ -214,6 +262,13 @@ public class ScriptStoreService : IScriptStoreService
             c.Kind = ScriptCollectionKind.Normalize(c.Kind);
             c.RefreshMode = ScriptRefreshMode.Normalize(c.RefreshMode);
             c.Tags ??= new List<string>();
+            c.RootPath = (c.RootPath ?? "").Trim().TrimEnd('\\', '/');
+
+            // NT-073：内置两库改名（只改仍叫旧默认名的，⛔ 不动用户自定义名）。
+            if (c.Builtin && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Script && c.Name == "脚本库")
+            { c.Name = "默认脚本库"; dirty = true; }
+            if (c.Builtin && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Command && c.Name == "命令库")
+            { c.Name = "默认命令库"; dirty = true; }
         }
 
         foreach (var i in root.Items)
@@ -236,11 +291,28 @@ public class ScriptStoreService : IScriptStoreService
             v.RefreshMode = ScriptRefreshMode.NormalizeOverride(v.RefreshMode);
             v.Columns ??= new List<ScriptColumn>();
             v.Collapsed ??= new List<string>();
+            v.SectionColumns ??= new List<SectionViewColumns>();
+            v.SectionOrder ??= new List<string>();
+
+            foreach (var sc in v.SectionColumns)
+            {
+                sc.Hidden ??= new List<string>();
+                sc.Titles ??= new Dictionary<string, string>();
+                sc.Widths ??= new Dictionary<string, string>();
+            }
+
+            // NT-069 一次性迁移：老文件里「列显隐」写在脚本 schema 上（全局），
+            // 首次加载按成员默认值把它们收进该集合视图的覆盖记录，之后切列只影响本视图。
+            if (v.SectionColumns.Count == 0)
+            {
+                ViewColumnProjection.InitializeForCollection(v, root.Items.Where(i => i.Collections.Contains(v.CollectionId)));
+                if (v.SectionColumns.Count > 0) dirty = true;
+            }
         }
 
         // 内置集合缺失（老文件 / 手删）⇒ 补回来；⛔ 不因缺就清空用户的其它集合。
-        if (EnsureBuiltin(root, "脚本库", ScriptCollectionKind.Script, "▤", 0)) dirty = true;
-        if (EnsureBuiltin(root, "命令库", ScriptCollectionKind.Command, "⚙", 1)) dirty = true;
+        if (EnsureBuiltin(root, "默认脚本库", ScriptCollectionKind.Script, "▤", 0)) dirty = true;
+        if (EnsureBuiltin(root, "默认命令库", ScriptCollectionKind.Command, "⚙", 1)) dirty = true;
 
         return dirty;
     }

@@ -155,8 +155,8 @@ public class UserDataExport
         try
         {
             var json = ExportJson();
-            Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, json);
+            // NT-075：原子写（目录由 AtomicJsonFile 负责创建）
+            AtomicJsonFile.Write(FilePath, json);
             return (true, $"已导出用户数据（标签 / 分类 / 集合 / 关联）到：{FilePath}");
         }
         catch (Exception ex)

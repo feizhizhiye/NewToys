@@ -10,6 +10,7 @@ using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using Jint;
 using NewToys.Core.Services;
+using NewToys.Core.Services.DataMigrations;
 using NewToys.WebTools.Models;
 
 namespace NewToys.WebTools.Services;
@@ -19,34 +20,36 @@ namespace NewToys.WebTools.Services;
 /// <para>
 /// 流程：用 <see cref="HttpClient"/> 拉取页面 → 按 <c>Css</c>（AngleSharp 选择器）或 <c>Regex</c> 抽取字符串数组
 /// → 用 <see cref="Jint"/> 跑一段 JS 整合脚本（<c>items</c> 为数组）得到最终输出。
-/// 数据落 <c>config\scrape-tasks.json</c>（可被数据管理备份）。
+/// 数据落**总库 <c>web_docs</c> 的 <c>scrape-tasks</c> 文档**（NT-076 第二批；此前是 <c>config\scrape-tasks.json</c>）。
 /// </para>
 /// </summary>
 public class ScrapeService
 {
     private readonly ConfigStoreService _cfg;
+    private readonly JsonDocStore _docs;
 
     /// <summary>
-    /// 本模块设置（v3.64 / NT-061）：抓取的**默认 UA** 与**单次超时**从这里来（落 <c>config\web-tools.json</c>，
+    /// 本模块设置（v3.64 / NT-061）：抓取的**默认 UA** 与**单次超时**从这里来（落 <c>config\modules\web-tools.json</c>，
     /// 可手改；v3.64 前这两个值硬编码在本类里）。
     /// </summary>
     private readonly IWebToolsSettingsService? _wt;
 
-    public ScrapeService(ConfigStoreService cfg, IWebToolsSettingsService? wt = null)
+    public ScrapeService(ConfigStoreService cfg, SqliteDatabase db, IWebToolsSettingsService? wt = null)
     {
         _cfg = cfg;
+        _docs = new JsonDocStore(db, "web");
         _wt = wt;
     }
 
-    private string FilePath => Path.Combine(_cfg.ConfigDir, "scrape-tasks.json");
+    /// <summary>旧文件（迁移源；搬完是 <c>scrape-tasks.json.legacy</c>）。</summary>
+    private string LegacyFile => Path.Combine(_cfg.ConfigDir, WebToolsSchemaContributor.DocScrapeTasks + ".json");
 
     public IReadOnlyList<ScrapeTask> Load()
     {
         try
         {
-            if (!File.Exists(FilePath)) return new List<ScrapeTask>();
-            var list = JsonSerializer.Deserialize<List<ScrapeTask>>(File.ReadAllText(FilePath));
-            return list ?? new List<ScrapeTask>();
+            JsonDocMigration.ImportOnce(_docs, WebToolsSchemaContributor.DocScrapeTasks, LegacyFile);
+            return _docs.Load<List<ScrapeTask>>(WebToolsSchemaContributor.DocScrapeTasks) ?? new List<ScrapeTask>();
         }
         catch { return new List<ScrapeTask>(); }
     }
@@ -55,8 +58,9 @@ public class ScrapeService
     {
         try
         {
-            Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(items, new JsonSerializerOptions { WriteIndented = true }));
+            var list = items.ToList();
+            if (list.Count == 0) { _docs.Delete(WebToolsSchemaContributor.DocScrapeTasks); return; }   // 空列表即删（懒创建）
+            _docs.Save(WebToolsSchemaContributor.DocScrapeTasks, list);
         }
         catch { /* 保存失败不打断 UI */ }
     }

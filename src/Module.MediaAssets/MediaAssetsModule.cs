@@ -50,6 +50,9 @@ public class MediaAssetsModule : IModule
         // NT-026：多库融合（ATTACH 只读合并 + VACUUM INTO 另存）
         services.AddSingleton<Services.AssetMergeService>();
 
+        // NT-076：本模块在总库里的 schema 贡献者（DDL 仍在 AssetDatabase 构造里，贡献者只负责「库打开时就建表」）
+        services.AddSingleton<ILibrarySchemaContributor, Services.MediaAssetsSchemaContributor>();
+
         // ===== 页面 View / VM（NT-014 骨架：全是空页面；页面实现 NT-016~022 依次落地） =====
         services.AddTransient<Views.AssetAllView>();        services.AddTransient<ViewModels.AssetAllViewModel>();
         services.AddTransient<Views.AssetTagsView>();       services.AddTransient<ViewModels.AssetTagsViewModel>();

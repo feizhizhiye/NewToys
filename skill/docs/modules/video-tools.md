@@ -147,6 +147,8 @@
 
 ## 5. 坑点（🔴 实测过）
 
+> **NT-076 第二批**：任务缓存已从 `config\video-tasks.json` 搬进总库 `video_docs`（文档名 `tasks`）。⛔ 构造时不自动载入（需求 §6.4.4），只有用户点「📥 导入任务」才读。
+
 1. 🔴 **覆写可视树回调要写 `protected override`**（`OnAttachedToVisualTree` / `OnDetachedFromVisualTree` 是 protected，写 `public override` → `CS0507`）。
 2. 🔴 滑条 `Maximum==Minimum` → `NaN` 布局崩（见 §3.2）。
 3. 🔴 输出路径**绝不覆盖已有文件**（自动命名要避让）。

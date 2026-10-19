@@ -65,14 +65,18 @@
     <WrapPanel x:Name="ItemsPanel"
                Orientation="Horizontal"
                VerticalAlignment="Center"
-               ItemSpacing="8"
+               ItemSpacing="4"
                LineSpacing="4" />
 
+    <!--  v3.68：右上角详情节流按钮再往右上贴一点（用户反馈「离容器边距太大」）：
+          右移 6（工具条 Padding 12 ⇒ 实际留白 6），上移 2。负 Margin 不参与测量，
+          容量安全区仍按 ToggleReserve = 20 保守计算。  -->
     <Button x:Name="DetailToggle"
             Classes="ghost"
-            Width="20"
-            MinWidth="20"
+            Width="18"
+            MinWidth="18"
             Padding="0"
+            Margin="0,2,0,0"
             HorizontalAlignment="Right"
             VerticalAlignment="Top"
             IsVisible="False"

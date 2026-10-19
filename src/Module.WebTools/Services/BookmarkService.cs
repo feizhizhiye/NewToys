@@ -8,31 +8,38 @@ using System.Threading.Tasks;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using NewToys.Core.Services;
+using NewToys.Core.Services.DataMigrations;
 using NewToys.WebTools.Models;
 
 namespace NewToys.WebTools.Services;
 
 /// <summary>
-/// 书签持久化与导入：数据落在 <c>config\bookmarks.json</c>（可被数据管理备份）。
+/// 书签持久化与导入：数据落**总库 <c>web_docs</c> 的 <c>bookmarks</c> 文档**（NT-076 第二批；此前是
+/// <c>config\bookmarks.json</c>，旧文件由 <see cref="WebToolsSchemaContributor"/> 一次性搬入并改名 <c>.legacy</c>）。
 /// <para>导入浏览器书签：用 <see cref="AngleSharp"/> 解析 Netscape 书签 HTML（<c>&lt;A HREF&gt;</c> + 文件夹 <c>&lt;H3&gt;</c>）。</para>
 /// <para>联通检测：发一个带超时的 HTTP 请求，反馈状态码 / 超时 / 异常。</para>
 /// </summary>
 public class BookmarkService
 {
     private readonly ConfigStoreService _cfg;
+    private readonly JsonDocStore _docs;
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(8) };
 
-    public BookmarkService(ConfigStoreService cfg) => _cfg = cfg;
+    public BookmarkService(ConfigStoreService cfg, SqliteDatabase db)
+    {
+        _cfg = cfg;
+        _docs = new JsonDocStore(db, "web");
+    }
 
-    private string FilePath => Path.Combine(_cfg.ConfigDir, "bookmarks.json");
+    /// <summary>旧文件（迁移源；搬完是 <c>bookmarks.json.legacy</c>）。只在 <see cref="Load"/> 里做兜底搬运。</summary>
+    private string LegacyFile => Path.Combine(_cfg.ConfigDir, WebToolsSchemaContributor.DocBookmarks + ".json");
 
     public IReadOnlyList<BookmarkItem> Load()
     {
         try
         {
-            if (!File.Exists(FilePath)) return new List<BookmarkItem>();
-            var list = JsonSerializer.Deserialize<List<BookmarkItem>>(File.ReadAllText(FilePath));
-            return list ?? new List<BookmarkItem>();
+            JsonDocMigration.ImportOnce(_docs, WebToolsSchemaContributor.DocBookmarks, LegacyFile);
+            return _docs.Load<List<BookmarkItem>>(WebToolsSchemaContributor.DocBookmarks) ?? new List<BookmarkItem>();
         }
         catch { return new List<BookmarkItem>(); }
     }
@@ -41,8 +48,10 @@ public class BookmarkService
     {
         try
         {
-            Directory.CreateDirectory(_cfg.ConfigDir);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(items, new JsonSerializerOptions { WriteIndented = true }));
+            var list = items.ToList();
+            // 空列表即删（沿用 NT-075「懒创建」语义：没有书签就不留空文档）
+            if (list.Count == 0) { _docs.Delete(WebToolsSchemaContributor.DocBookmarks); return; }
+            _docs.Save(WebToolsSchemaContributor.DocBookmarks, list);
         }
         catch { /* 保存失败不打断 UI */ }
     }

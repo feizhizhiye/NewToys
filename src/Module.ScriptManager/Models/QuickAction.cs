@@ -180,6 +180,25 @@ public partial class QuickAction : ObservableObject
     /// <summary>不可采集的原因（列悬浮提示用）；可采集时为空。</summary>
     [ObservableProperty] private string _ineligibleReason = "";
 
+    /// <summary>
+    /// 所属库的集合 id（NT-073，派生自 <see cref="ScriptItem.Collections"/>，⛔ 不写盘）。
+    /// <para>库页按它过滤 / 显示「所属库」。</para>
+    /// </summary>
+    [JsonIgnore]
+    public List<string> CollectionIds { get; set; } = new();
+
+    /// <summary>所属库名称（派生，⛔ 不写盘；「全部库」视图下拼在标题后面）。</summary>
+    [JsonIgnore]
+    public string LibraryText { get; set; } = "";
+
+    /// <summary>所属库的脚本根目录（派生；空 = 用全局脚本目录）。</summary>
+    [JsonIgnore]
+    public string LibraryRoot { get; set; } = "";
+
+    /// <summary>列表「名称」列实际显示的文本：有库名后缀时 = <c>名称 · 库名</c>。</summary>
+    [JsonIgnore]
+    public string DisplayTitle => string.IsNullOrEmpty(LibraryText) ? Title : $"{Title}  ·  {LibraryText}";
+
     /// <summary>列表「可采集」列的显示文本：✔ / ✖。派生，不写盘。</summary>
     [JsonIgnore]
     public string CollectableMark => Collectable ? "✔" : "✖";
@@ -219,6 +238,8 @@ public partial class QuickAction : ObservableObject
     }
 
     partial void OnIsFavoriteChanged(bool value) => OnPropertyChanged(nameof(FavoriteMark));
+
+    partial void OnTitleChanged(string value) => OnPropertyChanged(nameof(DisplayTitle));
 
     partial void OnCollectableChanged(bool value) => OnPropertyChanged(nameof(CollectableMark));
 

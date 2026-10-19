@@ -381,6 +381,48 @@
       </StackPanel>
     </DataTemplate>
 
+    <!--  ===== Kind ⑩ EditableList（可编辑列表：每行左标签 + 文本框，失焦提交）  =====
+          ⚠️ 值只在本行本地暂存，LostFocus 由 code-behind 触发 Commit（写回候选项 + 执行提交命令）。  -->
+    <DataTemplate DataType="c:EditableListFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <SelectableTextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Items}" IsVisible="{Binding HasItems}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid
+                  Margin="0,0,0,4"
+                  ColumnDefinitions="72,*"
+                  ColumnSpacing="6">
+                <SelectableTextBlock
+                    Grid.Column="0"
+                    Classes="field-value"
+                    Foreground="{DynamicResource SecondaryTextBrush}"
+                    IsVisible="{Binding HasLabel}"
+                    Text="{Binding Label}"
+                    TextTrimming="CharacterEllipsis"
+                    ToolTip.Tip="{Binding Label}"
+                    VerticalAlignment="Center" />
+                <TextBox
+                    Grid.Column="1"
+                    LostFocus="OnEditableListLostFocus"
+                    MinHeight="0"
+                    Text="{Binding Value, Mode=TwoWay}" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <SelectableTextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
     <!--  ===== Kind ③-b Select（**索引通道**）：页面 VM 上本来就是「第几个选项」+ 候选项写死  =====
           ⛔ 与值通道的模板互斥（IndexPath 非空才走这里），两个模板共存不算新增 Kind。  -->
     <DataTemplate DataType="c:IndexSelectFieldRow">

@@ -70,16 +70,15 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
     // ==================== 声明式工具条（需求 §4.8.5） ====================
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Kind = ToolbarItemKind.Label, Text = "集合" },
+        // v3.77：工具条里⛔ 不再放只读文字标签（「集合」「视图」）—— 一律用**悬浮提示**说明这一项是什么。
         new()
         {
             Kind = ToolbarItemKind.Combo, Width = 240,
             ItemsPath = nameof(Collections),
             DisplayPath = nameof(InfoCollectionOption.Display),
             SelectedItemPath = nameof(SelectedCollection),
-            ToolTip = "一次显示一个集合（★置顶 → 最近使用 → 名称）",
+            ToolTip = "集合：一次显示一个（★置顶 → 最近使用 → 名称）",
         },
-        new() { Kind = ToolbarItemKind.Label, Text = "视图" },
         new()
         {
             Kind = ToolbarItemKind.Combo, Width = 140,
@@ -87,7 +86,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
             DisplayPath = nameof(InfoViewOption.Display),
             SelectedItemPath = nameof(SelectedView),
             IsEnabledPath = nameof(HasViews),
-            ToolTip = "同一集合的不同呈现（布局 / 折叠状态 / 刷新频率）",
+            ToolTip = "视图：同一集合的不同呈现（布局 / 折叠状态 / 刷新频率）",
         },
         new() { Kind = ToolbarItemKind.Separator },
         new()
@@ -96,13 +95,6 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
             CommandPath = nameof(RefreshAllCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = "刷新当前集合里全部未折叠的节",
-        },
-        new()
-        {
-            Text = "⚙ 节设置", Classes = "ghost",
-            CommandPath = nameof(ToggleSectionSettingsCommand),
-            IsEnabledPath = nameof(HasSettingsSection),
-            ToolTip = "解析器 / 超时 / 保留策略 / 自动刷新（针对当前选中的节）",
         },
         new()
         {
@@ -151,7 +143,6 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private InfoCollectionOption? _selectedCollection;
     [ObservableProperty] private InfoViewOption? _selectedView;
     [ObservableProperty] private InfoSectionViewModel? _settingsSection;
-    [ObservableProperty] private bool _isSectionSettingsOpen;
     [ObservableProperty] private bool _isBusy;
 
     /// <summary>详情卡选中的行（跨节统一一个选中）。</summary>
@@ -176,17 +167,18 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
     partial void OnSettingsSectionChanged(InfoSectionViewModel? value)
     {
         OnPropertyChanged(nameof(HasSettingsSection));
+        OnPropertyChanged(nameof(ShowDetailBody));
+        OnPropertyChanged(nameof(SectionTitleText));
+        OnPropertyChanged(nameof(SectionTargetText));
+        OnPropertyChanged(nameof(SectionStateText));
         LoadSectionSettings();
+        RebuildSectionColumnChips();
+        DetailChanged?.Invoke(this, EventArgs.Empty);
     }
 
     partial void OnSelectedRowChanged(SysInfoRow? value)
     {
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(ShowDetailBody));
-        OnPropertyChanged(nameof(DetailSource));
-        OnPropertyChanged(nameof(DetailRowKey));
-        OnPropertyChanged(nameof(DetailStatus));
-        OnPropertyChanged(nameof(DetailCells));
     }
 
     // ==================== 基类契约 ====================
@@ -204,23 +196,42 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
 
     protected override void EnsureDetailSelection()
     {
-        if (SelectedRow == null) SelectedRow = Sections.FirstOrDefault()?.Selected;
+        if (SettingsSection == null) SettingsSection = Sections.FirstOrDefault();
     }
 
-    // ==================== 详情卡 ====================
+    // ==================== 详情卡（针对「节」，NT-069） ====================
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
     public object? DetailContent => null;
     public event EventHandler? DetailChanged;
 
-    public bool ShowDetailBody => HasSelection;
+    /// <summary>有选中节才显示卡正文。⛔ 卡里**不放行数据**（行属于节体表格，别在这里重复一遍）。</summary>
+    public bool ShowDetailBody => HasSettingsSection;
 
-    public string DetailSource => OwnerSectionOf(SelectedRow)?.Title ?? "";
-    public string DetailRowKey => SelectedRow?.RowKey ?? "";
-    public string DetailStatus => SysInfoStatus.Label(SelectedRow?.Status ?? SysInfoStatus.Idle);
+    public string SectionTitleText => SettingsSection?.Title ?? "";
 
-    public IReadOnlyList<SysInfoCell> DetailCells
-        => SelectedRow?.Cells ?? (IReadOnlyList<SysInfoCell>)Array.Empty<SysInfoCell>();
+    /// <summary>当前节要跑的东西（脚本路径 / 命令行）。</summary>
+    public string SectionTargetText => SettingsSection?.Item.Target ?? "";
+
+    /// <summary>节状态摘要：状态 · 上次采集 · 行数。</summary>
+    public string SectionStateText
+    {
+        get
+        {
+            if (SettingsSection is not { } s) return "";
+            var parts = new List<string> { s.StatusLabel };
+            if (s.CapturedText.Length > 0) parts.Add(s.CapturedText);
+            parts.Add(s.RowCountText);
+            return string.Join(" · ", parts);
+        }
+    }
+
+    /// <summary>节的显示列 chips（点一下切显隐，只影响当前视图）。</summary>
+    public ObservableCollection<SectionColumnChip> SectionColumnChips { get; } = new();
+
+    public string SectionColumnsHint => SectionColumnChips.Count == 0
+        ? "还没有列 —— 先刷新这一节。"
+        : "点一下切换这一列在当前视图里的显隐；要改表头文字就改上面的「表头名称」（⛔ 都不改脚本本体、不影响其它集合）。";
 
     private DetailCardDescriptor? _card;
 
@@ -229,29 +240,78 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "点某个节里的一行，这里显示它的全部属性值。",
+        EmptyText = "点左边任意一节（或右键它）把这里切到那一节；右键「⚙ 显示这一节的详情 / 设置」可重新打开这张卡。",
         Sections =
         {
             new DetailSection
             {
-                Header = "选中行",
+                Header = "节",
                 Fields =
                 {
-                    new DetailField { Label = "采集器", ValuePath = nameof(DetailSource), Kind = FieldKind.Text, Selectable = true },
-                    new DetailField { Label = "行键", ValuePath = nameof(DetailRowKey), Kind = FieldKind.Text, Selectable = true },
-                    new DetailField { Label = "状态", ValuePath = nameof(DetailStatus), Kind = FieldKind.Text },
+                    new DetailField { Label = "采集器", ValuePath = nameof(SectionTitleText), Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "目标", ValuePath = nameof(SectionTargetText), Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "状态", ValuePath = nameof(SectionStateText), Kind = FieldKind.Text, Selectable = true },
+                }
+            },
+            new DetailSection
+            {
+                Header = "采集参数（所有集合共用）",
+                Fields =
+                {
                     new DetailField
                     {
-                        Kind = FieldKind.List,
-                        OptionsPath = nameof(DetailCells),
-                        ItemLabelPath = "Header",
-                        ItemTextPath = "Text",
+                        Label = "解析器", Kind = FieldKind.Select,
+                        OptionsPath = nameof(ParserOptions), OptionDisplayPath = nameof(InfoOption.Label),
+                        ValuePath = nameof(SettingsParser)
+                    },
+                    new DetailField { Label = "超时(秒)", ValuePath = nameof(SettingsTimeout), Kind = FieldKind.Text },
+                    new DetailField
+                    {
+                        Label = "保留", Kind = FieldKind.Select,
+                        OptionsPath = nameof(RetentionOptions), OptionDisplayPath = nameof(InfoOption.Label),
+                        ValuePath = nameof(SettingsRetention)
                     },
                     new DetailField
                     {
-                        Kind = FieldKind.Hint,
-                        Hint = "值来自采集器脚本 / 命令的 stdout（列 = 输出里的属性名）。",
-                    }
+                        Label = "保留数量", ValuePath = nameof(SettingsRetentionN), Kind = FieldKind.Text,
+                        Hint = "count = 保留次数；days = 保留天数"
+                    },
+                    new DetailField
+                    {
+                        Label = "自动刷新", ValuePath = nameof(SettingsAuto), Kind = FieldKind.Check,
+                        Commit = EditCommitMode.Instant, EnabledWhen = nameof(CanAuto)
+                    },
+                    new DetailField
+                    {
+                        Label = "间隔(秒)", ValuePath = nameof(SettingsInterval), Kind = FieldKind.Text,
+                        EnabledWhen = nameof(CanAuto), Hint = "2~3600；0 = 只手动"
+                    },
+                }
+            },
+            new DetailSection
+            {
+                Header = "本视图的显示",
+                Fields =
+                {
+                    new DetailField
+                    {
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(SectionColumnChips),
+                        ChipTextPath = nameof(SectionColumnChip.Title),
+                        ChipSelectedPath = nameof(SectionColumnChip.Visible),
+                        ChipCommandPath = nameof(ToggleSectionColumnCommand)
+                    },
+                    new DetailField
+                    {
+                        Label = "表头名称",
+                        Kind = FieldKind.EditableList,
+                        OptionsPath = nameof(SectionColumnChips),
+                        ItemLabelPath = nameof(SectionColumnChip.Key),
+                        ItemTextPath = nameof(SectionColumnChip.Title),
+                        ItemCommandPath = nameof(CommitColumnTitleCommand),
+                        Hint = "改完点别处即生效；只改当前视图的表头，⛔ 不改脚本本体、不影响其它集合。"
+                    },
+                    new DetailField { Kind = FieldKind.Hint, ValuePath = nameof(SectionColumnsHint) },
                 }
             }
         },
@@ -259,21 +319,98 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         {
             new DetailAction
             {
-                Text = "📋 复制「属性 = 值」",
+                Text = "💾 保存参数",
                 Classes = "primary",
-                ToolTip = "把选中行的各属性按「属性 = 值」复制到剪贴板",
-                IsVisiblePath = nameof(HasSelection),
-                Command = CopySelectedRowCommand
+                ToolTip = "把上面的采集参数与本视图的列宽写进 script.json",
+                Command = SaveSectionSettingsCommand
             },
             new DetailAction
             {
-                Text = "📂 脚本目录",
-                Classes = "ghost",
+                Text = "⬆ 上移", Classes = "ghost",
+                ToolTip = "在当前视图里把这一节往前挪",
+                Command = MoveSectionUpCommand
+            },
+            new DetailAction
+            {
+                Text = "⬇ 下移", Classes = "ghost",
+                ToolTip = "在当前视图里把这一节往后挪",
+                Command = MoveSectionDownCommand
+            },
+            new DetailAction
+            {
+                Text = "📂 脚本目录", Classes = "ghost",
                 ToolTip = "打开脚本目录",
                 Command = OpenScriptDirCommand
             }
         }
     };
+
+    /// <summary>按当前节重建「显示列」chips（列标题取视图覆盖后的值）。</summary>
+    private void RebuildSectionColumnChips()
+    {
+        SectionColumnChips.Clear();
+
+        if (SettingsSection != null)
+            foreach (var col in SettingsSection.Columns)
+                SectionColumnChips.Add(new SectionColumnChip
+                {
+                    Key = col.Key,
+                    Title = InfoRowFactory.Title(col),
+                    Visible = col.Visible,
+                });
+
+        OnPropertyChanged(nameof(SectionColumnsHint));
+    }
+
+    /// <summary>
+    /// 卡里「表头名称」失焦 ⇒ 把这一节的列标题写进当前视图并重投影本节（只影响当前视图）。
+    /// </summary>
+    [RelayCommand]
+    private void CommitColumnTitle(SectionColumnChip? chip)
+    {
+        // 没有视图就没有「视图级覆盖」的落点（直接改会退回默认列显隐）⇒ 不处理
+        if (chip == null || SettingsSection == null || _view == null) return;
+
+        var titles = SectionColumnChips
+            .Where(c => !string.IsNullOrWhiteSpace(c.Key))
+            .Select(c => new KeyValuePair<string, string>(
+                c.Key,
+                string.Equals(c.Key, chip.Key, StringComparison.OrdinalIgnoreCase) ? chip.Title : c.Title));
+
+        ViewColumnProjection.SetTitles(_view, SettingsSection.Item, titles);
+        _store?.Save();
+
+        SettingsSection.ApplyColumns(ViewColumnProjection.Resolve(SettingsSection.Item, _view));
+        var applied = SettingsSection.Columns.FirstOrDefault(c => string.Equals(c.Key, chip.Key, StringComparison.OrdinalIgnoreCase));
+        StatusText = applied == null
+            ? "表头已更新（只影响当前视图）。"
+            : $"表头「{chip.Key}」已改为「{InfoRowFactory.Title(applied)}」（只影响当前视图）。";
+    }
+
+    /// <summary>卡里点 chip ⇒ 切这一列在当前视图的显隐（写视图 + 即时重投影本节）。</summary>
+    [RelayCommand]
+    private void ToggleSectionColumn(SectionColumnChip? chip)
+    {
+        if (chip == null || SettingsSection == null) return;
+
+        ViewColumnProjection.Toggle(SettingsSection.Item, _view, chip.Key);
+        _store?.Save();
+
+        SettingsSection.ApplyColumns(ViewColumnProjection.Resolve(SettingsSection.Item, _view));
+        RebuildSectionColumnChips();
+        // chip.Visible 是点击**前**的值 ⇒ 文案取反。
+        StatusText = $"已{(chip.Visible ? "隐藏" : "显示")}列「{chip.Title}」（只影响当前视图）。";
+    }
+
+    /// <summary>
+    /// 点节（节头 / 节点任意处）⇒ 把详情卡切到这一节；**不主动打开面板**（和列表页点行一个心智）。
+    /// 需要打开面板时走右键菜单「⚙ 显示这一节的详情 / 设置」。
+    /// </summary>
+    public void SelectSection(InfoSectionViewModel? section)
+    {
+        if (section == null || ReferenceEquals(SettingsSection, section)) return;
+        SettingsSection = section;
+    }
 
     [RelayCommand]
     private void ToggleDetailPanel()
@@ -305,7 +442,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
             Collections.Clear();
 
             var options = _store.Data.Collections
-                .Where(c => !c.Archived)
+                .Where(c => !c.Archived && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Info)
                 .Select(c => new InfoCollectionOption
                 {
                     Id = c.Id,
@@ -335,7 +472,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         if (Collections.Count == 0) { UpdateEmpty(); return; }
 
-        var last = _store?.Data.LastCollectionId ?? "";
+        var last = _store?.GetLastCollectionId(ScriptCollectionKind.Info) ?? "";
         var target = Collections.FirstOrDefault(o => o.Id == last) ?? Collections[0];
 
         _loadingSelection = true;
@@ -357,7 +494,9 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         if (value == null) { _view = null; return; }
 
         _view = _store.Data.Views.FirstOrDefault(v => v.Id == value.Id);
-        ApplyCollapsedFromView();
+
+        // NT-069：视图决定「每节显示哪些列 / 节怎么排」，切换后整页按新视图重投影。
+        ApplyViewProjection();
     }
 
     /// <summary>载入一个集合：视图 + 节（先出缓存，再按刷新策略跑一次）。</summary>
@@ -367,6 +506,8 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         Views.Clear();
         _view = null;
         SelectedRow = null;
+        // 切集合 ⇒ 之前的节已不在列表里，节设置面板必须清空（否则会对着已移除的节改参数）。
+        SettingsSection = null;
 
         if (_store == null || option == null) { UpdateEmpty(); return; }
 
@@ -378,6 +519,8 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         if (views.Count == 0)
         {
             var created = new ScriptView { Id = "view-" + col.Id, CollectionId = col.Id, Name = "默认" };
+            ViewColumnProjection.InitializeForCollection(created,
+                _store.ItemsOf(col.Id).Where(i => i.Role != ScriptItemRole.Package));
             _store.Data.Views.Add(created);
             views.Add(created);
             _store.Save();
@@ -393,11 +536,12 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         }
         finally { _loadingSelection = false; }
 
-        // ---- 节：集合成员里能采集的条目 ----
+        // ---- 节：集合成员里能采集的条目（先截断上限，再按视图的 sectionOrder 排序） ----
         var members = _store.ItemsOf(col.Id)
             .Where(i => i.Role != ScriptItemRole.Package && i.Capture && i.Collectable)
             .Take(MaxSections)
             .ToList();
+        members = ViewColumnProjection.Order(members, _view);
 
         foreach (var item in members) Sections.Add(CreateSection(item));
 
@@ -405,9 +549,12 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         LoadCachedRows();
         SelectedRow = Sections.FirstOrDefault()?.Selected;
 
+        // 详情卡针对「节」⇒ 进页面先落在第一节，卡里立刻有内容（右键别的节可切）。
+        SettingsSection = Sections.FirstOrDefault();
+
         // ---- 记住上次选中（重启恢复，验收 §五.7） ----
         col.LastOpenedAt = Now();
-        _store.Data.LastCollectionId = col.Id;
+        _store.SetLastCollectionId(ScriptCollectionKind.Info, col.Id);
         _store.Save();
 
         OnPropertyChanged(nameof(HasViews));
@@ -420,12 +567,17 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
 
     private InfoSectionViewModel CreateSection(ScriptItem item)
     {
-        var section = new InfoSectionViewModel(item)
+        var section = new InfoSectionViewModel(item, ViewColumnProjection.Resolve(item, _view))
         {
             RefreshRequested = s => _ = RefreshSectionsAsync(new[] { s }),
-            SettingsRequested = OpenSettingsFor,
+            DetailRequested = OpenSettingsFor,
             CollapseChanged = PersistCollapsed,
-            ColumnToggled = (_, _) => { _columnsDirty = true; _store?.Save(); },
+            ColumnToggled = (s, col) =>
+            {
+                // NT-069：显隐记在**当前视图**，不再回写脚本 schema（否则一个集合切列会连累全部集合）。
+                ViewColumnProjection.Toggle(s.Item, _view, col.Key);
+                _store?.Save();
+            },
         };
 
         section.PropertyChanged += OnSectionPropertyChanged;
@@ -465,6 +617,60 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         var collapsed = _view?.Collapsed;
         foreach (var s in Sections)
             s.IsCollapsed = collapsed != null && collapsed.Contains(s.ItemId);
+    }
+
+    /// <summary>按当前视图重投影全部节：列（显隐 / 标题 / 宽度）+ 折叠 + 顺序（NT-069）。</summary>
+    private void ApplyViewProjection()
+    {
+        foreach (var s in Sections)
+            s.ApplyColumns(ViewColumnProjection.Resolve(s.Item, _view));
+
+        ApplyCollapsedFromView();
+        ReorderSections();
+        RebuildSectionColumnChips();
+    }
+
+    /// <summary>按 <see cref="ScriptView.SectionOrder"/> 就地重排 <see cref="Sections"/>（不重建节 ⇒ 数据 / 选中不丢）。</summary>
+    private void ReorderSections()
+    {
+        if (Sections.Count < 2) return;
+
+        var ordered = ViewColumnProjection.Order(Sections.Select(s => s.Item), _view);
+        var desired = new List<InfoSectionViewModel>(ordered.Count);
+        foreach (var item in ordered)
+        {
+            var section = Sections.FirstOrDefault(s => s.ItemId == item.Id);
+            if (section != null) desired.Add(section);
+        }
+
+        for (var i = 0; i < desired.Count; i++)
+        {
+            var at = Sections.IndexOf(desired[i]);
+            if (at >= 0 && at != i) Sections.Move(at, i);
+        }
+    }
+
+    /// <summary>⬆ 把当前「节设置」对应的节往前挪一位。</summary>
+    [RelayCommand]
+    private void MoveSectionUp() => MoveSection(-1);
+
+    /// <summary>⬇ 往后挪一位。</summary>
+    [RelayCommand]
+    private void MoveSectionDown() => MoveSection(1);
+
+    private void MoveSection(int delta)
+    {
+        if (_view == null || SettingsSection == null) return;
+
+        if (!ViewColumnProjection.Move(_view, Sections.Select(s => s.Item), SettingsSection.ItemId, delta))
+        {
+            StatusText = "已经到头了。";
+            return;
+        }
+
+        _store?.Save();
+        ReorderSections();
+        StatusText = "已调整节的顺序（只影响当前视图）。";
     }
 
     private void PersistCollapsed(InfoSectionViewModel section)
@@ -584,7 +790,12 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
 
                 if (outcome.Rows != null)
                 {
-                    section.RebuildHeaders();
+                    // 列 schema 变了（脚本吐出新的 key）⇒ 重新投影本节，让新列按视图规则出现。
+                    if (outcome.ColumnsChanged)
+                        section.ApplyColumns(ViewColumnProjection.Resolve(section.Item, _view));
+                    else
+                        section.RebuildHeaders();
+
                     section.SetRows(outcome.Rows.Select(r => (r.RowKey, r.Status, ToDict(r.Attrs))));
                     section.MarkOk(outcome.Status, DateTime.Now);
                 }
@@ -796,17 +1007,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
     private void OpenSettingsFor(InfoSectionViewModel section)
     {
         SettingsSection = section;
-        IsSectionSettingsOpen = true;
-    }
-
-    /// <summary>⚙ 节设置：展开 / 收起（收起时保留上次的节）。</summary>
-    [RelayCommand]
-    private void ToggleSectionSettings()
-    {
-        if (!IsSectionSettingsOpen && SettingsSection == null)
-            SettingsSection = Sections.FirstOrDefault();
-
-        IsSectionSettingsOpen = !IsSectionSettingsOpen;
+        OpenDetailPanelCommand.Execute(null);
     }
 
     /// <summary>保存节设置 + 集合刷新策略。</summary>
@@ -838,7 +1039,19 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
             col.RefreshSeconds = Math.Max(0, int.TryParse((CollectionRefreshSeconds ?? "").Trim(), out var s) ? s : 0);
         }
 
+        // NT-069：列宽属于「显示方式」⇒ 记在当前视图（脚本 schema 只留默认值）。
+        if (_view != null && SettingsSection != null)
+        {
+            ViewColumnProjection.SetWidths(_view, SettingsSection.Item,
+                SettingsSection.HeaderCells.Select(h => new KeyValuePair<string, string>(h.Attr, h.Width)));
+        }
+
         _store.Save();
+
+        // 宽度改变要重建列定义才生效（ApplyColumns 保留 RowKey / 选中）。
+        if (SettingsSection != null)
+            SettingsSection.ApplyColumns(ViewColumnProjection.Resolve(SettingsSection.Item, _view));
+
         LoadSectionSettings();
         StatusText = $"已保存「{SettingsSection?.Title}」的采集设置。";
     }

@@ -44,8 +44,22 @@ public sealed class PythonRuntime : IPythonRuntime
 
     // ==================== 路径 ====================
 
-    /// <summary>共享工具根：<c>&lt;AppRoot&gt;\tools\py</c>（⛔ 不进 profiles，多配置共用一套）。</summary>
-    public string ToolsRoot => Path.Combine(_cfg.AppRootDirectory, "tools", "py");
+    /// <summary>
+    /// 共享工具根：<c>%LOCALAPPDATA%\NewToys\tools\py</c>（与 <c>env.json</c> 同级）。
+    /// <para>
+    /// 🔴 刻意<b>不</b>用 <c>AppRoot</c>：程序可能装在只读目录（Program Files），运行期写
+    /// <c>py_worker.py</c> 会直接失败；且 venv 体积大、属用户级数据，跟着 env.json 走边界更清楚。
+    /// </para>
+    /// </summary>
+    public string ToolsRoot
+    {
+        get
+        {
+            var envDir = Path.GetDirectoryName(_env.FilePath);
+            var baseDir = string.IsNullOrWhiteSpace(envDir) ? _cfg.AppRootDirectory : envDir;
+            return Path.Combine(baseDir, "tools", "py");
+        }
+    }
 
     /// <summary>共享 venv 的解释器路径（Windows / 非 Windows 各一套命名）。</summary>
     public string VenvPythonPath => Path.Combine(ToolsRoot, "venv",

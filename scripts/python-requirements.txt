@@ -1,0 +1,5 @@
+# NewToys · 规则集 / 书源转换依赖（NT-083）
+# 由 scripts\setup-python-env.ps1 安装进 %LOCALAPPDATA%\NewToys\tools\py\venv
+requests>=2.32
+lxml>=5.2
+parsel>=1.9

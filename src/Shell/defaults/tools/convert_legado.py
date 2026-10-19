@@ -47,6 +47,16 @@ def _q(text):
     return str(text or "").replace("\\", "\\\\").replace('"', '\\"').replace("\r", "").replace("\n", "\\n")
 
 
+def _comment_lines(text, head="#   ", cont="#     "):
+    """把（可能多行的）规则值**逐行**写成注释。
+    🔴 只给首行加 # 会让续行裸奔成代码 —— 运行时 exec_module 直接 SyntaxError，
+    整个规则集连 RULES 都读不出来（2026-10-20 踩坑：得奇小说.py 第 44 行起全裸）。"""
+    out = []
+    for i, ln in enumerate(str(text or "").replace("\r", "").split("\n")):
+        out.append((head if i == 0 else cont) + ln)
+    return out
+
+
 def _safe_name(name):
     raw = (name or "").strip() or "未命名书源"
     raw = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", raw).strip().strip(".")
@@ -129,7 +139,7 @@ def _build(src, file_name):
         lines.append("]")
     book_list = _python_value(rule_search.get("bookList"))
     if book_list:
-        lines += ["", "# 列表容器规则（本项目在整页上跑命令，这一条仅供参考）：", "#   " + book_list]
+        lines += ["", "# 列表容器规则（本项目在整页上跑命令，这一条仅供参考）："] + _comment_lines(book_list)
 
     extras = []
     for key, label in OTHER_BLOCKS:
@@ -141,7 +151,7 @@ def _build(src, file_name):
         for k, v in block.items():
             text = _python_value(v)
             if text:
-                extras.append("#   %s: %s" % (k, text))
+                extras += _comment_lines("%s: %s" % (k, text))
     if extras:
         lines += extras
 

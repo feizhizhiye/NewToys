@@ -60,20 +60,21 @@
 
             <!-- 查找条（NT-084 收尾）：命中 = **选区高亮**（系统高亮色），⛔ 不自绘高亮层。
                  回车 = 找下一个；「🎯 定位命中」把选中命令的首条结果搬进查找框并跳过去。
-                 🔴 输入框必须显式 MinWidth/MinHeight=0（隐式样式 MinHeight=28 会撑爆这一行）。 -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,6,0,4">
-              <TextBox Width="200" Height="24" MinWidth="0" MinHeight="0" VerticalContentAlignment="Center"
+                 🔴 控件与顶部统一工具条**同规格**（28 高 / 12 字号 / ghost 10,5）—— 2026-10-20 前
+                    这里是 24px 矮控件 + `ghost small`，与工具条放一起明显矮一截、字号也不齐。 -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,8,0,6">
+              <TextBox Width="200" MinHeight="28" Padding="8,4" FontSize="12" VerticalContentAlignment="Center"
                        Text="{Binding FindText, Mode=TwoWay}" PlaceholderText="在源码里查找（回车 = 下一个）">
                 <TextBox.KeyBindings>
                   <KeyBinding Gesture="Enter" Command="{Binding FindNextCommand}"/>
                 </TextBox.KeyBindings>
               </TextBox>
-              <Button Classes="ghost small" Content="◀" Command="{Binding FindPrevCommand}"
+              <Button Classes="ghost" Content="◀" Command="{Binding FindPrevCommand}" MinHeight="28"
                       ToolTip.Tip="上一个"/>
-              <Button Classes="ghost small" Content="▶" Command="{Binding FindNextCommand}"
+              <Button Classes="ghost" Content="▶" Command="{Binding FindNextCommand}" MinHeight="28"
                       ToolTip.Tip="下一个（回车）"/>
               <TextBlock Text="{Binding FindHint}" Classes="hint-text" VerticalAlignment="Center" MinWidth="70"/>
-              <Button Classes="ghost small" Content="🎯 定位命中" Command="{Binding LocateHitCommand}"
+              <Button Classes="ghost" Content="🎯 定位命中" Command="{Binding LocateHitCommand}" MinHeight="28"
                       ToolTip.Tip="把选中命令的首条命中结果搬到查找框并跳到源码里"/>
             </StackPanel>
 

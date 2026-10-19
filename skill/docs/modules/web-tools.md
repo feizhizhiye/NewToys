@@ -82,7 +82,7 @@
 
 三段式自绘：左**命令列表**（`Commands`）/ 中**HTML 源码**（`HtmlText`，上限 40 万字符 / 8000 行）/ 右**规则编辑**（选中命令的字段名 / 类型 / 表达式 / 预览）。
 
-🔴 **样式统一（2026-10-20 收尾，修「与其他页面不统一」）**：工具条走 `IToolbarSource` 描述符（Shell `ToolbarHost` 统一渲染，⛔ 页内不写 `Border.toolbar`）；状态文本走 `IStatusProvider`（Shell 底部状态栏）；命令列表 = `Border.list-header` + `ColumnGrid`（表头/行同规格串 `120,80,*,80`）+ `ListBox.list-page`（行高 28 / 悬停 / 选中底色，与目录页一致）；右栏抬头 = 规则集名 + 域名（`HeaderTitle`，未选时占位）。
+🔴 **样式统一（2026-10-20 收尾，修「与其他页面不统一」）**：工具条走 `IToolbarSource` 描述符（Shell `ToolbarHost` 统一渲染，⛔ 页内不写 `Border.toolbar`）；状态文本走 `IStatusProvider`（Shell 底部状态栏）；命令列表 = `Border.list-header` + `ColumnGrid`（表头/行同规格串 `120,80,*,80`）+ `ListBox.list-page`（行高 28 / 悬停 / 选中底色，与目录页一致）；右栏抬头 = 规则集名 + 域名（`HeaderTitle`，未选时占位）；HTML 面板查找条控件与工具条**同规格**（28 高 / 12 字号 / `ghost`，⛔ 不再用 24px 矮控件 + `ghost small`）。
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|

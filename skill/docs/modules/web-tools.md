@@ -156,6 +156,7 @@
 6. 🔴 **Python 缺失只提示、⛔ 不阻断**：页面照常打开 / 编辑 / 保存，只有抓取后跑规则、导入书源这两处需要 Python（`IPythonRuntime.Probe()` 未就绪 ⇒ 状态栏给「怎么装」的指引）。
 7. 随包 `.py`（`defaults\tools\convert_legado.py`）**只用标准库** —— 导入书源不依赖 venv 里的 requests/lxml/parsel，装了 Python 就能用。
 8. 抓 HTML 要给 GBK / GB18030 注册 `CodePagesEncodingProvider`（net10 共享框架自带，⛔ 不引第三方包）；HTML 显示有上限（40 万字符 / 8000 行），⛔ 别整页塞进 TextBox。
+9. 🔴 **规则集 `.py` 是 `exec_module` 整文件执行的** ⇒ 文件里任何一行语法错误 = 整个规则集连 `RULES` 都读不出来。`convert_legado.py` 把 Legado 多行规则值（`@js:` 大段 JS）写进文件尾注释时**必须逐行加 `#`**（只注首行 ⇒ 续行裸奔 ⇒ SyntaxError，2026-10-20 踩坑：得奇小说.py）。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

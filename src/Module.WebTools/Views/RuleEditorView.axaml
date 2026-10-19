@@ -18,7 +18,7 @@
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
           <TextBlock Text="关键词" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
           <TextBox Width="120" Height="24" MinWidth="0" MinHeight="0" VerticalContentAlignment="Center"
-                   Text="{Binding Keyword, Mode=TwoWay}" Watermark="搜索词"/>
+                   Text="{Binding Keyword, Mode=TwoWay}" PlaceholderText="搜索词"/>
           <Button Classes="ghost" Content="🌐 抓取 HTML" Command="{Binding FetchHtmlCommand}"
                   IsEnabled="{Binding !IsBusy}"/>
           <Button Classes="ghost" Content="▶ 运行" Command="{Binding RunRulesCommand}"
@@ -76,7 +76,7 @@
             <TextBox Grid.Row="1" Margin="8,0,8,8" IsReadOnly="True" AcceptsReturn="True"
                      TextWrapping="NoWrap" FontFamily="Cascadia Mono,Consolas,monospace"
                      FontSize="12" Text="{Binding HtmlText}"
-                     Watermark="点上方「🌐 抓取 HTML」把页面拉下来"/>
+                     PlaceholderText="点上方「🌐 抓取 HTML」把页面拉下来"/>
           </Grid>
         </Border>
       </Grid>
@@ -91,7 +91,7 @@
 
             <TextBlock Text="字段名（输出列名）" Classes="hint-text"/>
             <TextBox Text="{Binding SelectedCommand.Key, Mode=TwoWay}" Height="28"
-                     Watermark="title"/>
+                     PlaceholderText="title"/>
 
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Text="类型：" Classes="hint-text" VerticalAlignment="Center"/>
@@ -102,7 +102,7 @@
             <TextBlock Text="表达式" Classes="hint-text"/>
             <TextBox Text="{Binding SelectedCommand.Expr, Mode=TwoWay}" Height="96" AcceptsReturn="True"
                      TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
-                     Watermark="css:div.item &gt; a@href"/>
+                     PlaceholderText="css:div.item &gt; a@href"/>
 
             <TextBlock Classes="hint-text" TextWrapping="Wrap"
                        Text="前缀：css: / xpath: / regex: / =常量；不写前缀 = legado 默认规则（class.x@tag.a@text）。多个候选用 || 连接；净化写 表达式##正则##替换。"/>
@@ -118,7 +118,7 @@
             <TextBox IsReadOnly="True" AcceptsReturn="True" Height="140" TextWrapping="Wrap"
                      FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
                      Text="{Binding SelectedCommand.Preview}"
-                     Watermark="跑一次「▶ 运行」看结果"/>
+                     PlaceholderText="跑一次「▶ 运行」看结果"/>
           </StackPanel>
         </ScrollViewer>
       </Border>

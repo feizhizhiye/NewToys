@@ -1,63 +1,46 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.WebTools.Views.RuleEditorView">
   <!--  NT-084 批 C：规则编辑器（新页 web-rule-editor，**非列表页** ⇒ 自绘三段式，⛔ 不用 ListPageSkeleton）
-        上：命令列表 ／ 下：HTML 源码面板（可拖高）／ 右：规则编辑（加宽到 460）  -->
-  <Grid Margin="12" RowDefinitions="Auto,*">
-
-    <!--  ==================== 工具条 ====================  -->
-    <Border Grid.Row="0" Classes="toolbar">
-      <Grid ColumnDefinitions="Auto,*,Auto">
-        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <TextBlock Text="{Binding RuleName}" FontWeight="500"
-                     Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
-          <TextBlock Text="{Binding BaseUrl}" Foreground="{DynamicResource SecondaryTextBrush}"
-                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="360"/>
-        </StackPanel>
-
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <TextBlock Text="关键词" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-          <TextBox Width="120" Height="24" MinWidth="0" MinHeight="0" VerticalContentAlignment="Center"
-                   Text="{Binding Keyword, Mode=TwoWay}" PlaceholderText="搜索词"/>
-          <Button Classes="ghost" Content="🌐 抓取 HTML" Command="{Binding FetchHtmlCommand}"
-                  IsEnabled="{Binding !IsBusy}"/>
-          <Button Classes="ghost" Content="▶ 运行" Command="{Binding RunRulesCommand}"
-                  IsEnabled="{Binding !IsBusy}"/>
-          <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveCommand}"/>
-          <Button Classes="ghost" Content="🔄 重读" Command="{Binding ReloadCommand}"/>
-          <Button Classes="ghost" Content="◀ 返回目录" Command="{Binding BackToCatalogCommand}"/>
-        </StackPanel>
-      </Grid>
-    </Border>
+        上：命令列表 ／ 下：HTML 源码面板（可拖高）／ 右：规则编辑（加宽到 460）
+        🔴 样式统一（2026-10-20 收尾）：
+          · 工具条已迁 **Shell 统一承载**（VM 实现 IToolbarSource → ToolbarHost 渲染描述符）
+                ⇒ 页内 ⛔ 不写 Border.toolbar（会两条工具条）；
+          · 状态文本走 **底部状态栏**（IStatusProvider），⛔ 不在卡片里自带一行；
+          · 命令列表 = `Border.list-header` + `ColumnGrid`（表头与行同规格，对齐不漂）+ `ListBox.list-page`
+                （行高 28 / 悬停 / 选中底色，与目录页一致）。  -->
+  <Grid Margin="12">
 
     <!--  ==================== 主体 ====================  -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,460" Margin="0,8,0,0">
+    <Grid ColumnDefinitions="*,Auto,460">
 
       <!--  左：上命令列表 / 下 HTML  -->
       <Grid Grid.Column="0" RowDefinitions="2*,Auto,3*">
-        <Border Grid.Row="0" Classes="card">
+        <Border Grid.Row="0" Classes="card" Padding="0">
           <Grid RowDefinitions="Auto,*">
-            <Grid Grid.Row="0" ColumnDefinitions="120,80,*,80" Margin="12,10,12,6">
-              <TextBlock Grid.Column="0" Text="字段名" Classes="hint-text"/>
-              <TextBlock Grid.Column="1" Text="类型" Classes="hint-text"/>
-              <TextBlock Grid.Column="2" Text="表达式" Classes="hint-text"/>
-              <TextBlock Grid.Column="3" Text="命中" Classes="hint-text"/>
-            </Grid>
-            <ListBox Grid.Row="1" Margin="6,0,6,6" ItemsSource="{Binding Commands}"
+            <Border Grid.Row="0" Classes="list-header">
+              <v:ColumnGrid ColumnSpecs="120,80,*,80">
+                <TextBlock Grid.Column="0" Text="字段名" Padding="8,0" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="类型" Padding="8,0" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="表达式" Padding="8,0" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="命中" Padding="8,0" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+              </v:ColumnGrid>
+            </Border>
+            <ListBox Grid.Row="1" Classes="list-page" ItemsSource="{Binding Commands}"
                      SelectedItem="{Binding SelectedCommand, Mode=TwoWay}" SelectionMode="Single">
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <Grid ColumnDefinitions="114,80,*,80">
-                    <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Key}"
-                               Foreground="{DynamicResource PrimaryTextBrush}"/>
-                    <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeLabel}"
-                               Foreground="{DynamicResource SecondaryTextBrush}"/>
-                    <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Expr}"
-                               Foreground="{DynamicResource SecondaryTextBrush}"
-                               TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding HitText}"
-                               Foreground="{DynamicResource SecondaryTextBrush}"/>
-                  </Grid>
+                  <v:ColumnGrid ColumnSpecs="120,80,*,80">
+                    <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Key}"/>
+                    <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeLabel}"/>
+                    <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Expr}"/>
+                    <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding HitText}"/>
+                  </v:ColumnGrid>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
@@ -67,9 +50,9 @@
         <GridSplitter Grid.Row="1" Height="6" ResizeDirection="Rows"
                       Background="Transparent" HorizontalAlignment="Stretch"/>
 
-        <Border Grid.Row="2" Classes="card">
-          <Grid RowDefinitions="Auto,Auto,*">
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,8,12,2">
+        <Border Grid.Row="2" Classes="card" Padding="0">
+          <Grid RowDefinitions="Auto,Auto,*" Margin="12,12,12,8">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
               <TextBlock Grid.Column="0" Text="{Binding HtmlInfo}" Classes="hint-text"
                          TextTrimming="CharacterEllipsis"/>
               <TextBlock Grid.Column="1" Text="{Binding LineInfo}" Classes="hint-text" Margin="8,0,0,0"/>
@@ -78,7 +61,7 @@
             <!-- 查找条（NT-084 收尾）：命中 = **选区高亮**（系统高亮色），⛔ 不自绘高亮层。
                  回车 = 找下一个；「🎯 定位命中」把选中命令的首条结果搬进查找框并跳过去。
                  🔴 输入框必须显式 MinWidth/MinHeight=0（隐式样式 MinHeight=28 会撑爆这一行）。 -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="12,0,12,4">
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,6,0,4">
               <TextBox Width="200" Height="24" MinWidth="0" MinHeight="0" VerticalContentAlignment="Center"
                        Text="{Binding FindText, Mode=TwoWay}" PlaceholderText="在源码里查找（回车 = 下一个）">
                 <TextBox.KeyBindings>
@@ -94,25 +77,27 @@
                       ToolTip.Tip="把选中命令的首条命中结果搬到查找框并跳到源码里"/>
             </StackPanel>
 
-            <TextBox Grid.Row="2" Margin="8,0,8,8" IsReadOnly="True" AcceptsReturn="True"
+            <TextBox Grid.Row="2" Margin="0,0,0,0" IsReadOnly="True" AcceptsReturn="True"
                      TextWrapping="NoWrap" FontFamily="Cascadia Mono,Consolas,monospace"
                      FontSize="12" Text="{Binding HtmlText}"
                      SelectionStart="{Binding HtmlSelStart, Mode=TwoWay}"
                      SelectionEnd="{Binding HtmlSelEnd, Mode=TwoWay}"
-                     PlaceholderText="点上方「🌐 抓取 HTML」把页面拉下来"/>
+                     PlaceholderText="点上方工具条「🌐 抓取 HTML」把页面拉下来"/>
           </Grid>
         </Border>
       </Grid>
 
-      <!--  右：规则编辑  -->
+      <!--  右：规则编辑（Padding=12 由 card 给，内容 ⛔ 不再叠加一层 —— 同 340px 详情卡口径）  -->
       <Border Grid.Column="2" Classes="card" Margin="8,0,0,0">
         <ScrollViewer>
-          <StackPanel Margin="12" Spacing="8">
+          <StackPanel Margin="0" Spacing="8">
 
-            <TextBlock Text="规则编辑" FontWeight="500" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Text="{Binding StatusText}" Classes="hint-text" TextWrapping="Wrap"/>
+            <!--  抬头 = 当前规则集名 + 域名（原在自绘工具条里的 Label，工具条统一后挪到这里）  -->
+            <TextBlock Text="{Binding HeaderTitle}" FontWeight="500"
+                       Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding BaseUrl}" Classes="hint-text" TextTrimming="CharacterEllipsis"/>
 
-            <TextBlock Text="字段名（输出列名）" Classes="hint-text"/>
+            <TextBlock Text="字段名（输出列名）" Classes="hint-text" Margin="0,4,0,0"/>
             <TextBox Text="{Binding SelectedCommand.Key, Mode=TwoWay}" Height="28"
                      PlaceholderText="title"/>
 
@@ -128,7 +113,7 @@
                      PlaceholderText="css:div.item &gt; a@href"/>
 
             <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                       Text="前缀：css: / xpath: / regex: / =常量；不写前缀 = legado 默认规则（class.x@tag.a@text）。多个候选用 || 连接；净化写 表达式##正则##替换。"/>
+                       Text="前缀：css: / xpath: / regex: / json: / =常量；不写前缀 = legado 默认规则（class.x@tag.a@text）。多个候选用 || 连接；净化写 表达式##正则##替换。"/>
 
             <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
               <Button Classes="ghost" Content="➕ 加命令" Command="{Binding AddCommandCommand}"/>

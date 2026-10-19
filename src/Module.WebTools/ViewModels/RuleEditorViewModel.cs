@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.WebTools.Models;
 using NewToys.WebTools.Services;
@@ -20,8 +21,13 @@ namespace NewToys.WebTools.ViewModels;
 /// 🔴 本页是**新开的非列表页**（自绘布局），⛔ 不用 `ListPageSkeleton`、⛔ 不动 340px 详情卡。
 /// <br/>🔴 本页不解析规则：命令列表与命中数都由 Python 侧算（`RuleRunService`），C# 只搬运。
 /// </para>
+/// <para>
+/// 🔴 **样式统一（NT-084 收尾）**：工具条走 <see cref="IToolbarSource"/> 描述符（Shell 的
+/// <c>ToolbarHost</c> 统一渲染，⛔ 页内不写 <c>Border.toolbar</c>）；状态文本走
+/// <see cref="IStatusProvider"/>（Shell 底部状态栏）—— 与目录页 / 各列表页同一套路。
+/// </para>
 /// </summary>
-public partial class RuleEditorViewModel : ObservableObject
+public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IToolbarSource
 {
     private readonly RuleFileService _files = null!;
     private readonly RuleRunService _run = null!;
@@ -38,6 +44,43 @@ public partial class RuleEditorViewModel : ObservableObject
     [ObservableProperty] private string _htmlText = "";
     [ObservableProperty] private string _htmlInfo = "还没抓取 HTML。点「🌐 抓取 HTML」。";
     [ObservableProperty] private RuleCommand? _selectedCommand;
+
+    // ==================== 声明式工具条（NT-055：Shell 统一承载） ====================
+
+    /// <summary>
+    /// 工具条描述符（顺序 = 优先级，越前越不被折进「⋯」）。
+    /// 🔴 页内 ⛔ 不再自绘 <c>Border.toolbar</c>（会出现两条工具条）。
+    /// </summary>
+    public IReadOnlyList<ToolbarItemDescriptor> Toolbar => new ToolbarItemDescriptor[]
+    {
+        new() { Text = "🌐 抓取 HTML", Classes = "ghost", CommandPath = nameof(FetchHtmlCommand),
+                IsEnabledPath = "!" + nameof(IsBusy), ShowToolTipOnDisabled = true,
+                ToolTip = "抓取当前规则集的页面并落缓存（重复调试不再发请求）" },
+        new() { Text = "▶ 运行", Classes = "ghost", CommandPath = nameof(RunRulesCommand),
+                IsEnabledPath = "!" + nameof(IsBusy), ShowToolTipOnDisabled = true,
+                ToolTip = "对缓存 HTML 跑全部命令，回填命中数与预览" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索命令…", ValuePath = nameof(Keyword) },
+        new() { Text = "💾 保存", Classes = "ghost", CommandPath = nameof(SaveCommand),
+                ToolTip = "把命令列表写回规则文件的 RULES 块（⛔ 无自动保存）" },
+        new() { Text = "🔄 重读", Classes = "ghost", CommandPath = nameof(ReloadCommand),
+                IsEnabledPath = "!" + nameof(IsBusy), ShowToolTipOnDisabled = true,
+                ToolTip = "重新从规则文件载入命令（外部改完用）" },
+        new() { Text = "◀ 返回目录", Classes = "ghost", CommandPath = nameof(BackToCatalogCommand),
+                ToolTip = "回「抓取规则」目录页" }
+    };
+
+    /// <summary>工具条构成变化通知（本页工具条静态，⛔ 不触发）。</summary>
+    public event EventHandler? ToolbarChanged;
+
+    /// <summary>底部状态栏（v3.9 / <see cref="IStatusProvider"/>）：Shell 统一显示。</summary>
+    public event EventHandler? StatusChanged;
+
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>右栏抬头：当前规则集名（没选时给占位，⛔ 不留空行）。</summary>
+    public string HeaderTitle => string.IsNullOrWhiteSpace(RuleName) ? "（未选择规则集）" : RuleName;
+
+    partial void OnRuleNameChanged(string value) => OnPropertyChanged(nameof(HeaderTitle));
 
     // ==================== HTML 面板：查找 / 定位（NT-084 收尾） ====================
 
@@ -57,6 +100,9 @@ public partial class RuleEditorViewModel : ObservableObject
     [ObservableProperty] private int _htmlSelEnd;
 
     public ObservableCollection<RuleCommand> Commands { get; } = new();
+
+    /// <summary>命令全量主表（保存 / 增删都动它）；<see cref="Commands"/> = 经 <see cref="Keyword"/> 过滤后的视图。</summary>
+    private readonly List<RuleCommand> _allCommands = new();
 
     public bool HasRule => !string.IsNullOrWhiteSpace(RuleName);
     public bool HasCommands => Commands.Count > 0;
@@ -129,7 +175,8 @@ public partial class RuleEditorViewModel : ObservableObject
         try
         {
             var text = _files.Read(RuleName);
-            _files.Write(RuleName, ReplaceRulesBlock(text, Commands));
+            // 🔴 写主表（全量）：⛔ 不写 Commands（那只是过滤视图，会把被关键词藏起来的命令存丢）
+            _files.Write(RuleName, ReplaceRulesBlock(text, _allCommands));
             StatusText = "已保存到 " + RuleName + ".py";
             await Task.CompletedTask;
         }
@@ -180,15 +227,16 @@ public partial class RuleEditorViewModel : ObservableObject
             StatusText = "正在跑命令……";
             var rows = await _run.RunRulesAsync(RuleName, BaseUrl).ConfigureAwait(true);
 
-            // 就地合并（⛔ 不重建集合，否则选中项丢失）
+            // 就地合并（⛔ 不重建集合，否则选中项丢失）—— 合并进**主表**，再刷过滤视图
             foreach (var row in rows)
             {
-                var exist = Commands.FirstOrDefault(c => c.Key == row.Key);
-                if (exist is null) { Commands.Add(row); continue; }
+                var exist = _allCommands.FirstOrDefault(c => c.Key == row.Key);
+                if (exist is null) { _allCommands.Add(row); continue; }
                 exist.HitText = row.HitText;
                 exist.Preview = row.Preview;
             }
 
+            ApplyFilter();
             StatusText = $"跑完 {rows.Count} 条命令。";
         }
         catch (Exception ex) { StatusText = "⚠ 运行失败：" + FirstLine(ex.Message); }
@@ -225,9 +273,11 @@ public partial class RuleEditorViewModel : ObservableObject
     private void AddCommand()
     {
         var n = 1;
-        while (Commands.Any(c => c.Key == "field" + n)) n++;
+        while (_allCommands.Any(c => c.Key == "field" + n)) n++;
         var cmd = new RuleCommand { Key = "field" + n, Expr = "css:" };
-        Commands.Add(cmd);
+        _allCommands.Add(cmd);
+        Keyword = "";   // 清过滤：保证新命令一定可见（否则藏在下拉筛选外，用户找不到）
+        ApplyFilter();
         SelectedCommand = cmd;
         NotifyEmpty();
         StatusText = "已加一条命令，改完记得「💾 保存」。";
@@ -238,8 +288,29 @@ public partial class RuleEditorViewModel : ObservableObject
     {
         if (SelectedCommand is null) return;
         var idx = Commands.IndexOf(SelectedCommand);
-        Commands.Remove(SelectedCommand);
+        _allCommands.Remove(SelectedCommand);
+        ApplyFilter();
         SelectedCommand = Commands.Count == 0 ? null : Commands[Math.Min(idx, Commands.Count - 1)];
+        NotifyEmpty();
+    }
+
+    partial void OnKeywordChanged(string value) => ApplyFilter();
+
+    /// <summary>按 <see cref="Keyword"/> 过滤命令列表（字段名 / 表达式内含即命中；大小写不敏感）。</summary>
+    private void ApplyFilter()
+    {
+        var kw = (Keyword ?? "").Trim();
+        Commands.Clear();
+        foreach (var c in _allCommands)
+        {
+            if (kw.Length == 0
+                || c.Key.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                || c.Expr.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                Commands.Add(c);
+        }
+
+        if (SelectedCommand is not null && !Commands.Contains(SelectedCommand))
+            SelectedCommand = Commands.FirstOrDefault();
         NotifyEmpty();
     }
 
@@ -343,8 +414,9 @@ public partial class RuleEditorViewModel : ObservableObject
     private void ReplaceCommands(IEnumerable<RuleCommand> list)
     {
         var keepKey = SelectedCommand?.Key;
-        Commands.Clear();
-        foreach (var c in list) Commands.Add(c);
+        _allCommands.Clear();
+        _allCommands.AddRange(list);
+        ApplyFilter();
         SelectedCommand = keepKey is null
             ? Commands.FirstOrDefault()
             : Commands.FirstOrDefault(c => c.Key == keepKey) ?? Commands.FirstOrDefault();

@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NewToys.Core.Services;   // IProcessRunner 缺省实现（模块内手工 new 时的兜底）
 using NewToys.ScriptManager.Models;
 using NewToys.Shared.Services;
 
@@ -83,14 +82,20 @@ public sealed class ScriptRunResult
 /// ⛔ 不复用 <c>QuickActionService.BuildRunPlan</c>（那个是可见窗口给用户看的）。
 /// </para>
 /// <para>
-/// 🔴 编码：<c>StandardOutputEncoding</c> 用**遇非法字节即抛**的 UTF-8 解码器；stderr 用宽容解码。
+/// 🔴 进程执行本体在 NT-081 步骤 3 起下沉 <see cref="IProcessRunner"/>（Core）：编码 / 超时 / 杀进程树
+/// 与 <c>PackageManagerService</c> 共用一份；本类只留脚本特有部分（解释器解析、环境变量、结果语义）。
 /// </para>
 /// </remarks>
 public sealed class ScriptRunner
 {
     private readonly IAppConfigService? _cfg;
+    private readonly IProcessRunner _runner;
 
-    public ScriptRunner(IAppConfigService? cfg = null) => _cfg = cfg;
+    public ScriptRunner(IAppConfigService? cfg = null, IProcessRunner? runner = null)
+    {
+        _cfg = cfg;
+        _runner = runner ?? new ProcessRunner();
+    }
 
     /// <summary>默认超时（秒）。</summary>
     public const int DefaultTimeoutSeconds = 30;
@@ -142,114 +147,54 @@ public sealed class ScriptRunner
         return await RunCoreAsync(exe, args, req.WorkingDirectory, timeout, req.Environment, ct).ConfigureAwait(false);
     }
 
-    /// <summary>捕获式执行的核心（脚本 / 命令共用）。</summary>
-    private static async Task<ScriptRunResult> RunCoreAsync(string exe, string args, string? workDir,
+    /// <summary>捕获式执行的核心（脚本 / 命令共用）：进程本体走 <see cref="IProcessRunner"/>，这里只做环境与结果语义。</summary>
+    private async Task<ScriptRunResult> RunCoreAsync(string exe, string args, string? workDir,
         int timeoutSeconds, IReadOnlyDictionary<string, string>? extraEnv, CancellationToken ct)
     {
-        var psi = new ProcessStartInfo
+        var wd = (workDir ?? "").Trim();
+
+        // 脚本执行的环境约定（采集器 / 规则脚本都吃这一套）
+        var env = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["PYTHONIOENCODING"] = "utf-8",
+            ["PYTHONUTF8"] = "1"
+        };
+        if (wd.Length > 0) env["NEWTOYS_SYSINFO_DIR"] = wd;
+        if (extraEnv is { } extra)
+            foreach (var kv in extra) env[kv.Key] = kv.Value;
+
+        var r = await _runner.RunAsync(new ProcessRunRequest
         {
             FileName = exe,
             Arguments = args,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            // 🔴 强制 UTF-8：无 BOM 的严格解码器（非法字节 → 抛 DecoderFallbackException ⇒ 判该次采集失败）
-            StandardOutputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true),
-            StandardErrorEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false),
-        };
+            WorkingDirectory = wd.Length > 0 ? wd : null,
+            Environment = env,
+            StrictOutput = true
+        }, TimeSpan.FromSeconds(timeoutSeconds), ct).ConfigureAwait(false);
 
-        var wd = (workDir ?? "").Trim();
-        if (wd.Length > 0) psi.WorkingDirectory = wd;
+        if (!r.Started)
+            return new ScriptRunResult { Error = r.Error ?? "进程启动失败" };
 
-        psi.Environment["PYTHONIOENCODING"] = "utf-8";
-        psi.Environment["PYTHONUTF8"] = "1";
-        if (wd.Length > 0) psi.Environment["NEWTOYS_SYSINFO_DIR"] = wd;
-        if (extraEnv is { } extra)
-            foreach (var kv in extra) psi.Environment[kv.Key] = kv.Value;
+        if (r.OutputDecodeFailed)
+            return new ScriptRunResult { TimedOut = r.TimedOut, Canceled = r.Canceled, StdErr = r.StdErr, Error = r.Error };
 
-        Process? proc = null;
-        try
-        {
-            proc = new Process { StartInfo = psi };
-            if (!proc.Start())
-                return new ScriptRunResult { Error = "进程启动失败" };
+        if (r.Canceled)
+            return new ScriptRunResult { Canceled = true, ExitCode = r.ExitCode, StdOut = r.StdOut, StdErr = r.StdErr };
 
-            // 先起读取任务（边跑边读，避免输出超过管道缓冲把子进程卡死）
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
-
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-
-            var timedOut = false;
-            var canceled = false;
-            try
-            {
-                await proc.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                canceled = ct.IsCancellationRequested;
-                timedOut = !canceled;
-                TryKill(proc);
-            }
-
-            var stdout = await SafeReadAsync(stdoutTask).ConfigureAwait(false);
-            var stderr = await SafeReadAsync(stderrTask).ConfigureAwait(false);
-
-            if (stdout is null || stderr is null)
-                return new ScriptRunResult
-                {
-                    TimedOut = timedOut,
-                    Canceled = canceled,
-                    StdErr = stderr ?? "",
-                    Error = "输出编码非 UTF-8（中文会乱码，请把输出改成 UTF-8）",
-                };
-
-            var exit = -1;
-            try { exit = proc.ExitCode; } catch { /* 已被强杀 / 没正常退出 */ }
-
-            if (canceled)
-                return new ScriptRunResult { Canceled = true, ExitCode = exit, StdOut = stdout, StdErr = stderr };
-
-            if (timedOut)
-                return new ScriptRunResult
-                {
-                    TimedOut = true, ExitCode = exit, StdOut = stdout, StdErr = stderr,
-                    Error = $"超时（>{timeoutSeconds}s）",
-                };
-
+        if (r.TimedOut)
             return new ScriptRunResult
             {
-                Ok = exit == 0,
-                ExitCode = exit,
-                StdOut = stdout,
-                StdErr = stderr,
-                Error = exit == 0 ? null : $"退出码 {exit}",
+                TimedOut = true, ExitCode = r.ExitCode, StdOut = r.StdOut, StdErr = r.StdErr,
+                Error = $"超时（>{timeoutSeconds}s）"
             };
-        }
-        catch (Exception ex)
-        {
-            proc?.Dispose();
-            return new ScriptRunResult { Error = ex.Message };
-        }
-        finally
-        {
-            proc?.Dispose();
-        }
-    }
 
-    /// <summary>读 stdout/stderr；解码非法（严格 UTF-8）返回 null。</summary>
-    private static async Task<string?> SafeReadAsync(Task<string> task)
-    {
-        try { return await task.ConfigureAwait(false); }
-        catch { return null; }
-    }
-
-    /// <summary>强杀进程树（吞掉所有异常：目标可能已经自己退了）。</summary>
-    private static void TryKill(Process proc)
-    {
-        try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { /* 已退出 / 无权限 */ }
+        return new ScriptRunResult
+        {
+            Ok = r.ExitCode == 0,
+            ExitCode = r.ExitCode,
+            StdOut = r.StdOut,
+            StdErr = r.StdErr,
+            Error = r.ExitCode == 0 ? null : $"退出码 {r.ExitCode}"
+        };
     }
 }

@@ -200,7 +200,7 @@
 | `ScriptDatabase` | 总库的 `pc_observations` + `pc_runs` 两表 + 索引 + 保留策略（NT-076 起不再有独立 `script.db`），**可重建、不进备份** |
 | `CollectorService` | 采集执行（并发上限、按采集器归舱、只刷未折叠节） |
 | `InfoRowFactory` | 只读呈现内核（列 schema 自动生成） |
-| `ScriptRunner` | 进程执行：`UseShellExecute=false` + 重定向 + **stdout 严格 UTF-8 解码**（非法字节 ⇒ 判该脚本失败）+ 超时 / 取消 / 退出码 |
+| `ScriptRunner` | 进程执行（NT-081 步骤3 起本体下沉 `IProcessRunner`：显式 UTF-8 / 超时 / 取消杀进程树，与 `PackageManagerService` 共用）；本类只留脚本特有部分：解释器解析、`PYTHONIOENCODING` 等环境约定、结果语义（严格 stdout，非法字节 ⇒ 判失败） |
 | `InterpreterResolver` | 解释器 → exe + args：配置路径 / 探安装位 / PATH 回退；Auto 按扩展名 |
 | `SysInfoOutputParser` | 三种外壳的宽松解析（`{rows:[{key,status,values}]}` 等） |
 | `CollectableEvaluator` | `collectable` 可采集判定（自动规则 + 用户覆盖） |
@@ -241,9 +241,11 @@
 |---|---|
 | 菜单注册（Key 权威源） | `ScriptManagerModule.cs` |
 | 数据模型 | `Models/ScriptStore.cs` / `Models/InfoOptions.cs` / `Models/SysInfoRow.cs` |
-| 执行底座 | `Services/ScriptRunner.cs` / `InterpreterResolver.cs` / `SysInfoOutputParser.cs` |
+| 执行底座 | `Services/ScriptRunner.cs` / `InterpreterResolver.cs` / `SysInfoOutputParser.cs`；进程本体在框架层 `IProcessRunner`（Shared 契约 / Core 实现，Shell 注册单例） |
 | 采集呈现 | `Services/CollectorService.cs` / `InfoRowFactory.cs` / `Controls/SysInfoGrid.cs` / `ViewModels/InfoSectionViewModel.cs` |
 | 软件包 | `ViewModels/PackageViewModel.cs` / `PackageSourceViewModel.cs` + **本模块** `Services/PackageManagerService.cs` / `PackageOutputParser.cs` / `PackageSettingsService.cs` / `Models/PackageModels.cs`（NT-074：整套从 Core / Shared 下放，只有本模块用） |
+| 解析分层（NT-081 步骤4） | 通用机械 `Services/FixedWidthTable.cs`（固定列宽：清洗 / 显示宽度 / 切片 / 溢出回填 / 噪行）+ 机读 `Services/TsvRows.cs`（TSV → 行模型）；winget 固有启发式（别名表 / 续行合并 / pin 兜底 / 标签-值）留在 `PackageOutputParser.cs` |
+| 后端适配器（NT-081 步骤5） | `Services/AptPackageService.cs`（Linux 只读：dpkg-query TSV / `apt list --upgradable` / sources.list / `apt-mark showhold`；写操作未实装）；`ScriptManagerModule` 按平台二选一注册 |
 
 ## 5. 坑点（🔴 实测过）
 
@@ -262,6 +264,8 @@
 10. 列宽拖拽**未接**（`SysInfoGrid` 不支持）；改宽走「⚙ 列设置」写回 manifest。
 11. 分节模式**关分页**（底栏改摘要），因为一次只显示一个集合的多个采集器节。
 12. 🔴 **示例 vs 内置采集器是两套语义**：`ExampleSeeder` 只播种一次（`examples\.seeded` 存在即整体跳过，删掉的示例**不复活**）；`BuiltinCollectorSeeder` 缺了就补回。改 `defaults\scripts\*` 后老配置目录不会自动更新（要用户删 `examples\` 目录再启动）。
+13. 🔴 **解析分层纪律（NT-081）**：固定列宽表格的通用机械只在 `FixedWidthTable`（🔴 按**显示宽度**切，汉字 2 列）；winget 的续行合并 / 别名表 / pin 兜底是**固有启发式**⛔ 不进通用层；机读后端（dpkg-query）⛔ 不走表格解析，直接 `TsvRows`。新增后端 = 新适配器 + 命令模板，页面 / VM 零改动。
+14. 🔴 **进程执行只走 `IProcessRunner`**（NT-081）：散落的 `Process.Start` 分三类，⛔ 不一刀切合并 —— ① 捕获式外部工具（脚本 / 命令 / winget）⇒ `IProcessRunner`；② 平台能力（打开文件夹 / 文件 / URL，`UseShellExecute=true`）⇒ VM 直接用 BCL；③ 可见控制台 / 提权（`Verb=runas`）⇒ `QuickActionService.StartVisible`（winget 源命令走命令库 + UAC，NT-080 定调）。
 13. `.bat` 示例**只写 ASCII** + 首行 `chcp 65001` —— 带中文的 .bat 在 936 代码页下必乱码，且 BOM 会被 cmd 当命令字符。
 14. 🔴 v3.80：**源在 UI 里没有入口了**。源选择框 / 源开关 / 分类 / 互斥 / 定义快照全删
     （`PackageSourceViewModel`、`PackageSourceRow`、`PackageSettings.DefaultSource|SourceCategories|SourceDefinitions`、

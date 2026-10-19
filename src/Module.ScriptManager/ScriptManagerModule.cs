@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
 using NewToys.Core.Services;
 using NewToys.ScriptManager.Services;
@@ -26,7 +27,12 @@ public class ScriptManagerModule : IModule
         // （二次确认改走 Core.DialogHooks，与模块里其它破坏性操作同一套）。
         services.AddSingleton(sp => new PackageSettingsService(sp.GetRequiredService<ConfigStoreService>()));
         services.AddSingleton<IPackageSettingsService>(sp => sp.GetRequiredService<PackageSettingsService>());
-        services.AddSingleton<IPackageManagerService, PackageManagerService>();
+        // NT-081 步骤5：包后端按平台二选一（页面/VM 零改动，只换 IPackageManagerService 实现）。
+        // Windows = winget（PackageManagerService）；Linux = dpkg/apt 只读适配器（AptPackageService）。
+        if (OperatingSystem.IsLinux())
+            services.AddSingleton<IPackageManagerService, AptPackageService>();
+        else
+            services.AddSingleton<IPackageManagerService, PackageManagerService>();
 
         // v3.64 / NT-061：本模块设置（脚本目录 + 三个解释器路径）——**本模块配置的唯一写入点**，
         // 落 config\script-manager.json（经 Core 的 IOptionsStore）。旧值原来在 app.json，首次运行自动搬迁。
@@ -35,7 +41,10 @@ public class ScriptManagerModule : IModule
         // NT-067 的底座：脚本执行（静默跑、捕获输出）。
         // 落本模块（⛔ 不进 Core：框架层冻结；脚本执行是"脚本管理器"的能力，不是全应用能力）。
         // ⚠️ NT-068 S8：manifest 服务（ISysInfoManifestService）已删除 —— sysinfo.manifest.json 模型废弃。
-        services.AddSingleton(sp => new ScriptRunner(sp.GetRequiredService<IAppConfigService>()));
+        // NT-081 步骤3：进程执行本体走 Shell 注册的 IProcessRunner（Core）；本类只留脚本特有逻辑。
+        services.AddSingleton(sp => new ScriptRunner(
+            sp.GetRequiredService<IAppConfigService>(),
+            sp.GetRequiredService<IProcessRunner>()));
 
         // NT-068 S2：数据层 —— 手工数据（集合/条目/视图）落 config\script\script.json，
         // 观测缓存落 data\script\script.db。两者都**不进** Core（框架层冻结）。

@@ -116,6 +116,10 @@ public class App : Application
             // 只管磁盘，不记账、不弹窗 —— 库表日志与确认框留在各模块自己那层。
             services.AddSingleton<IFileOperationService, FileOperationService>();
 
+            // NT-081 步骤3：外部工具执行底座（捕获式：显式 UTF-8 / 超时 / 取消杀进程树）。
+            // 接口在 Shared、实现在 Core；平台能力（打开文件）与可见控制台/提权不走这里（见 IProcessRunner 注释）。
+            services.AddSingleton<IProcessRunner, ProcessRunner>();
+
             // NT-078：备份路由 —— 框架节在这里注册，模块节在各自 RegisterServices 里注册
             // （同一个 IBackupSection 契约，BackupService 经 IEnumerable<IBackupSection> 聚合）。
             services.AddSingleton<IBackupSection, NewToys.Shell.Services.ShellBackupSection>();

@@ -495,6 +495,17 @@ public interface IDetailCardSource
 
 ⚠️ 未完成（待办）：媒体资产那层的磁盘动作仍是自己的实现（含 `ConflictPolicy` 私有枚举），尚未改为委托本接口——只有视频工具接上了。
 
+### 6.7 `IProcessRunner`（NT-081 步骤 3，外部工具执行底座）
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| `IProcessRunner` + `ProcessRunRequest` / `ProcessRunResult` | `Shared/Services/IProcessRunner.cs` | `RunAsync(request, timeout, ct)`：隐藏 + 重定向 + **显式 UTF-8**（stdout 严格 / stderr 宽容，`StrictOutput` 开关）+ 先读后等 + 超时 / 取消**杀进程树**；结果带 `Started` / `ExitCode` / `TimedOut` / `Canceled` / `StdOut` / `StdErr` / `OutputDecodeFailed` / `Error` |
+| 实现 | `Core/Services/ProcessRunner.cs` | 无状态；Shell 注册单例（`App.axaml.cs`，与 `IFileOperationService` 同处） |
+
+🔴 **三类进程用法分立，⛔ 不一刀切收口**：① **捕获式外部工具**（脚本 / 命令 / winget，输出当数据解析）⇒ 走本接口（已迁 `ScriptRunner` / `PackageManagerService`）；② **平台能力**（打开文件夹 / 文件 / URL，`UseShellExecute=true`）⇒ VM 直接用 BCL，换平台只改"explorer → xdg-open"这一处；③ **可见控制台 / 提权**（`Verb=runas`）⇒ `QuickActionService.StartVisible`（NT-080 定调：winget 源命令走命令库 + UAC）。`PythonRuntime` 长驻 worker 自有双向协议，不迁。
+
+⚠️ 契约**不含提权参数**：当前无捕获式提权消费方（YAGNI，不预留）；真需要时在可见控制台路径上扩展。
+
 ---
 
 ## §7 配置与路径
@@ -660,7 +671,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT-077 | **配置分层**：`env.json`（机器级）/ `shell.json`（框架级）/ `modules\`（模块级）；删 `VideoDbFolder` | ✔ 两批已完成（已验收 2026-10-19） |
 | NT-078 | **备份路由**：`IBackupSection` + zip 分节 + 设置/数据两入口（`VACUUM INTO`） | ✔ A/B/C 三批已完成（已验收 2026-10-19） |
 | NT-079 | **可成长性**：模块开关 / 命令面板 / 采集器骨架生成 | 📝 草稿 |
-| NT-081 | **跨平台中立化（远期，本期不实施）**：RID 条件化 + Windows-only P/Invoke 守卫收口 + 进程/取消/提权下沉平台底座 + 通用 TSV 解析 + 后端适配器接口。约束见 **§2.1** | 📝 草稿（卡：`backlog/framework/NT-081.md`） |
+| NT-081 | **跨平台中立化（远期）**：RID 条件化 ✔ + Windows-only P/Invoke 守卫收口 ✔（守卫层）+ 进程底座 `IProcessRunner`（Shared 契约 / Core 实现 / Shell 单例；三类进程用法分立见 §6.7）✔ + 解析分层（`FixedWidthTable` 通用机械 / `TsvRows` 机读 / winget 启发式留模块）✔ + apt 只读适配器 `AptPackageService`（按平台二选一注册，页面零改动）✔；⛳ 未做：Linux 实机验证（无环境）/ P/Invoke 物理集中 / apt 写操作（需 sudo）。约束见 **§2.1** | 🔄 执行中（步骤 1~5 已实施 2026-10-19，待本地 build；卡：`backlog/framework/NT-081.md`） |
 | NT-083 | **Python 运行时底座**（跨模块共用 ⇒ **落 Core**，已批准）：`IPythonRuntime`（`ToolsRoot` / `Probe` / `RunAsync` / `Shutdown`）+ `Core/Services/PythonRuntime`（长驻 worker，行分隔 JSON / `-u -X utf8` / 超时杀进程树 / traceback 回传 / 串行 `SemaphoreSlim` / 空闲 10 分钟自动退出）+ 共享环境 **`%LOCALAPPDATA%\NewToys\tools\py`**（与 `env.json` 同级）⇒ 依赖安装交给随包脚本，**C# ⛔ 不写 pip 逻辑**（播种成集合「环境维护」，见 `modules/script-manager.md` §2.5）；状态在「设置 → 运行环境 → Python 共享环境（venv）」 | ✔ 已完成（批 1~4，2026-10-19；⏳ 待用户 build + 实机功能验收） |
 
 ---

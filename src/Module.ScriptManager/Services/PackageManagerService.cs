@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using NewToys.Core.Services;   // DialogHooks（二次确认钩子，由 Shell 注入）
+using NewToys.Core.Services;   // DialogHooks（二次确认钩子，由 Shell 注入）+ IProcessRunner（NT-081 步骤3）
 using NewToys.ScriptManager.Models;
+using NewToys.Shared.Services;
 
 namespace NewToys.ScriptManager.Services;
 
@@ -28,6 +27,10 @@ namespace NewToys.ScriptManager.Services;
 public class PackageManagerService : IPackageManagerService
 {
     private static string? _exePath;
+    private readonly IProcessRunner _runner;
+
+    /// <summary>NT-081 步骤 3：进程执行本体走统一底座（编码 / 超时 / 取消杀进程树）。</summary>
+    public PackageManagerService(IProcessRunner runner) => _runner = runner;
 
     /// <summary>
     /// 包 Id 的形状，用来滤掉表格尾部的"统计行"。
@@ -343,52 +346,26 @@ public class PackageManagerService : IPackageManagerService
             .Select(x => x.Trim())
             .FirstOrDefault(x => x.Length > 0 && x.Contains(token, StringComparison.OrdinalIgnoreCase));
 
-    private static async Task<(int Code, string Out, string Err)> RunAsync(
+    private async Task<(int Code, string Out, string Err)> RunAsync(
         IReadOnlyList<string> args, CancellationToken ct, TimeSpan timeout)
     {
-        var psi = new ProcessStartInfo
+        // NT-081 步骤3：本体在 IProcessRunner。winget 输出宽容解（历史行为：Encoding.UTF8 不抛）。
+        var r = await _runner.RunAsync(new ProcessRunRequest
         {
             FileName = ResolveExe(),
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            // winget 在重定向输出时按 UTF-8 写；不用 UTF-8 读会把中文源名 / 包名解成乱码。
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-        };
-        foreach (var a in args) psi.ArgumentList.Add(a);
-        psi.Environment["WINGET_DISABLE_INTERACTIVITY"] = "1";
-        psi.Environment["WINGET_ACCEPT_SOURCE_AGREEMENTS"] = "1";
+            ArgumentList = args,
+            StrictOutput = false,
+            Environment = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["WINGET_DISABLE_INTERACTIVITY"] = "1",
+                ["WINGET_ACCEPT_SOURCE_AGREEMENTS"] = "1"
+            }
+        }, timeout, ct).ConfigureAwait(false);
 
-        using var proc = new Process { StartInfo = psi };
-        try
-        {
-            if (!proc.Start()) return (-1, "", "无法启动 winget 进程。");
-        }
-        catch (Exception ex)
-        {
-            return (-1, "", ex.Message);
-        }
-
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(timeout);
-
-        var outTask = proc.StandardOutput.ReadToEndAsync();
-        var errTask = proc.StandardError.ReadToEndAsync();
-        try
-        {
-            await proc.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
-            return (-2, "", ct.IsCancellationRequested ? "已取消。" : $"winget 执行超过 {timeout.TotalMinutes:0} 分钟，已中止。");
-        }
-
-        return (proc.ExitCode,
-                await outTask.ConfigureAwait(false),
-                await errTask.ConfigureAwait(false));
+        if (!r.Started) return (-1, "", r.Error ?? "无法启动 winget 进程。");
+        if (r.Canceled) return (-2, r.StdOut, "已取消。");
+        if (r.TimedOut) return (-2, r.StdOut, $"winget 执行超过 {timeout.TotalMinutes:0} 分钟，已中止。");
+        return (r.ExitCode, r.StdOut, r.StdErr);
     }
 
     /// <summary>

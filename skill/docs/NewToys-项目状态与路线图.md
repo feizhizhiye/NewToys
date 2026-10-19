@@ -178,7 +178,7 @@
 | NT-083 | **Python 运行时底座**：`env.json` 增 `python` 项（空 = PATH 探测，平台中立）/ 共享环境 **`%LOCALAPPDATA%\NewToys\tools\py`**（与 `env.json` 同级，⛔ 不进 profiles）/ 长驻 worker（行分隔 JSON + `-u -X utf8` + 超时杀进程树 + traceback 回传 + 空闲 10 分钟自动退出）/ **依赖安装交给随包脚本**（C# ⛔ 不写 pip 逻辑，播种成集合「环境维护」）/ 「运行环境」节显示共享环境状态 / ⛔ 不引 pythonnet；供 web-tools 与 script-manager 共用 ⇒ **落 Core（已批准）** | P1 | ✔ **批 1~4 已实施（2026-10-19）**：运行时 + worker + 环境脚本集合 + 「Python 共享环境（venv）」状态行；⏳ 待用户本地 build + 实机功能验收 | backlog/framework/NT-083.md |
 | NT-082 | **软件包集合（跨后端包清单预设）+ 集合右键发送到对应页面**：① 集合类别加回 `package`（成员 `role=package`，`Target`=包 Id；与包条目一对一容器）；② 「📤 发送到信息面板」→「📤 发送到对应页面」，按 kind 跳 info / script / command / packages 并写 `lastCollectionIdByKind`；左栏集合行右键同项；③ 软件包页 `集合 ▾` 显示包清单（状态按 `winget list` 比对）+ 行右键 `📥 加入集合`（幂等）。源命令（含中科大）已由 NT-080 提供，本次未改 | P1 | ✔ **已完成（⏳ 待用户本地 build 验收）** | backlog/script-manager/NT-082.md |
 
-| NT-081 | **跨平台中立化**：RID 条件化 / Windows-only P/Invoke 守卫收口 / `IProcessRunner` 平台底座（取消进程树 + 编码 + 提权）/ 解析分层（winget 启发式 + 通用 TSV-JSON）/ 后端适配器。日常生效部分 = `framework.md` §2.1 六条硬约束 | P3 | 🔄 **执行中**（步骤 1-2 已完成 2026-10-19：RID 条件化 + Shell Win32 调用全部补内联守卫；步骤 3-6 未做） | backlog/framework/NT-081.md |
+| NT-081 | **跨平台中立化**：RID 条件化 / Windows-only P/Invoke 守卫收口 / `IProcessRunner` 平台底座（取消进程树 + 编码统一；三类进程用法分立）/ 解析分层（winget 启发式 + `FixedWidthTable` 通用机械 + `TsvRows` 机读）/ 后端适配器（`AptPackageService` 只读，按平台二选一注册）。日常生效部分 = `framework.md` §2.1 六条硬约束 | P3 | 🔄 **执行中**（步骤 1~5 已实施 2026-10-19：RID 条件化 + Shell 守卫 + `IProcessRunner` 迁 2 处 + 解析三层拆分 + apt 只读适配器；⏳ 待本地 build；未做：Linux 实机验证 / P/Invoke 物理集中 / apt 写操作） | backlog/framework/NT-081.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡默认保留；作废卡已删并标 `🗑`）。
 > NT-048（分屏贴靠首次几何不收敛）**已作废**：现象为**系统级**（Firefox 同复现）⇒ 外部纠偏方向错误，⛔ 不复活；任务卡保留备查。

@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using NewToys.Shared.Services;
+using NewToys.Shell.Controls;
 using NewToys.Shell.Models;
 using NewToys.Shell.Services;
 using NewToys.Shell.ViewModels;
@@ -46,9 +47,23 @@ public partial class ShellView : Window
     /// </summary>
     public bool ForceClose { get; set; }
 
+    /// <summary>
+    /// 全局弹出卡片层（NT-084，确认 / 提示 / 输入的唯一呈现器）。
+    /// 🔴 **⛔ 不在 XAML 里声明**：XAML 引用该 UserControl 会连带整个窗口的 x:Name 回填失败
+    /// （运行时表现 = 启动即崩在 OnLoaded 的 BtnMin，2026-10-20 实测；IL 侧 29 个 stfld 都在、
+    /// 树却拿不到字段）⇒ 由构造末尾**代码挂到根 Grid**，叠在最顶层、不占布局。
+    /// </summary>
+    public DialogCardHost? DialogCards { get; private set; }
+
     public ShellView()
     {
         InitializeComponent();
+
+        // NT-084：弹出卡片层代码挂载（原因见 DialogCards 注释）——根 Grid 的最后一个子元素，
+        // 绘制在窗口外框 / 缩放热区之上；未展示时整层 IsVisible=False ⇒ 不吃命中测试。
+        var cards = new DialogCardHost();
+        DialogCards = cards;
+        if (Content is Grid rootGrid) rootGrid.Children.Add(cards);
 
         _bounds = App.GetService<WindowBoundsService>();
         RestoreWindowBounds();
@@ -137,6 +152,10 @@ public partial class ShellView : Window
     protected override void OnLoaded(RoutedEventArgs e)
     {
         base.OnLoaded(e);
+
+        // NT-084 防御（2026-10-20 启动崩溃复盘）：x:Name 回填异常时字段全为 null（BtnMin 首当其冲）。
+        // 先按名字兜底找一次；仍找不到才放行（后面的 += 会抛，crash log 留现场）。
+        if (BtnMin is null) BtnMin = this.FindControl<Button>("BtnMin");
 
         BtnMin.Click += (s, ev) => { WindowState = WindowState.Minimized; ev.Handled = true; };
         BtnMax.Click += (s, ev) => { ToggleMaxRestore(); ev.Handled = true; };

@@ -163,6 +163,7 @@ public interface IModule {
 - **失败隔离（硬要求）**：单 DLL 异常 `try-catch` 兜住，只记日志 + 一行 StatusText；完成后报「本次新增 N / 跳过 M / 失败 K」。
 - ⛔ 只读本地 `Modules\`；不联网；加载前 `Path.GetFullPath` 校验路径在 `Modules\` 内。
 - **入口**：功能清单页（`settings-all`）「增加功能」区的「🔄 重载模块」→ `AllFunctionsViewModel.ReloadModulesCommand` → `IModuleReloadService.HotReload()`；`ShellViewModel` 订阅 `Reloaded` 重建左树（进程级单例，无需退订）。设置页 VM ⛔ 不直接调 `ModuleLoader`。
+- 🔴 `Reloaded` 事件签名 = `event Action<(int Added, int Skipped, int Failed)>?` —— 裸 `Action?` 承载不了「本次新增 / 跳过 / 失败」计数（NT-052 对验收标准的细化）。
 
 ---
 

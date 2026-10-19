@@ -165,6 +165,7 @@
 5. 收藏 / 评分 **即时落盘**（⛔ 不走「保存」）；「移动到 / 复制到（目标存储源）」整块已删（低频重操作不进卡）。
 6. 资产详情卡 chips 的 `OptionsPath` 必须是常驻集合实例，否则 ComboBox 回写会抹掉页面值（见 `../ui.md` §7.2）。
 7. `AssetTasksView` **不是标准列表页**（三块堆叠 + `ScrollViewer`）⇒ ⛔ 不套 `ListPageSkeleton`。
+8. 空态引导只覆盖资产列表类页（`assets-all` 等）；`assets-categories` / `assets-collections` 数据源是左树 + 成员列表，**无空态也无 `HasItems`**（NT-060 遗留，未补）。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

@@ -254,6 +254,14 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 28px 底栏内的 `TextBox` / `ComboBox` 必须显式 `MinWidth=0 MinHeight=0`（隐式样式 `MinHeight=28` 会压掉 `Height=22`，控件撑满整条并把顶边线压断）。
 - 输入框边框用 `InputBorderBrush`（`DividerBrush` 在暗色下看不出框）。
 
+### 6.9 分页数据层（NT-064）
+
+- 三段分工：**SQL `LIMIT/OFFSET`** 取当页 / **独立 `COUNT(*)`** 出总数 / **排序必须下推到 SQL**（⛔ 只排当页内存 = 排错序，这是分页最隐蔽的坑）。
+- `WHERE` 只写一份，计数与取页共用同一条件对象（两份漂移 ⇒ 总数与行数对不上）。
+- 底栏**默认隐藏**，行数超出页底才显示；批量操作**只作用于当前页选中项**。
+- 页大小落 `shell` 分区（`shell.json`），⛔ 不落 `columnlayout.json`。
+- 现状：仅样板页「全部资产」迁完，其余列表页仍是内存切片（推广见 `framework.md` §11 NT-065）。
+
 ---
 
 ## §7 详情卡（声明式渲染）

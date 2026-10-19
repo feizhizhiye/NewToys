@@ -94,12 +94,12 @@
 |---|---|---|---|---|
 | NT-001 | web-http 实装（唯一剩余骨架页） | P2 | ✔ 已完成（已验收） | backlog/web-tools/NT-001.md |
 | NT-002 | pc-package 收尾（Parser 实机 + 批量队列） | P2 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
-| NT-003 | settings-package 软件源（退出码验证） | P2 | ✔ 已完成（已验收） | backlog/script-manager/NT-003.md |
+| NT-003 | settings-package 软件源（退出码验证） | P2 | ✔ 已完成（已验收） | 🗑 已蒸馏（卡已删） |
 | NT-004 | defaults\ 与脚本目录播种确认 | P2 | ✔ 已完成（已验收） | 🗑 已作废（卡已删） |
 | NT-005 | 模块热加载实装（规范 §3.7） | P2 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
-| NT-006 | 快捷设置：运行改造（可见 pwsh+回显 / GUI 隐藏 / 切换 shell）+ 导入导出 / 清除缓存 | P1 | ✔ 已完成（已验收） | backlog/script-manager/NT-006.md |
-| NT-007 | 设置与脚本：导入导出 + 右键编辑 / 打开方式 + 运行如双击 | P1 | ✔ 已完成（已验收） | backlog/script-manager/NT-007.md |
-| NT-008 | 软件包：可升级对齐 winget update + Pin 显示 + 已装移状态栏 + 详情 bug + 已装导入导出 | P1 | ✔ 已完成（已验收） | backlog/script-manager/NT-008.md |
+| NT-006 | 快捷设置：运行改造（可见 pwsh+回显 / GUI 隐藏 / 切换 shell）+ 导入导出 / 清除缓存 | P1 | ✔ 已完成（已验收） | 🗑 已蒸馏（卡已删） |
+| NT-007 | 设置与脚本：导入导出 + 右键编辑 / 打开方式 + 运行如双击 | P1 | ✔ 已完成（已验收） | 🗑 已蒸馏（卡已删） |
+| NT-008 | 软件包：可升级对齐 winget update + Pin 显示 + 已装移状态栏 + 详情 bug + 已装导入导出 | P1 | ✔ 已完成（已验收） | 🗑 已蒸馏（卡已删） |
 | NT-009 | 首页：收藏配色 / 一键操作固定底部 / 删工具箱行 / 状态栏模块功能数 | P2 | ✔ 已完成（已验收） | 🗑 已作废（卡已删） |
 | NT-010 | 通用样式统一：激活强调色加深 / 按钮配色 / 导入导出控件一致 / 输入框水印 / 弹层样式 | P1 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
 | NT-011 | 视频列表：删扫描按钮 / 数千视频优化 / 入库去重 / 删清空媒体缓存 | P1 | ✔ 已完成（已验收） | backlog/video-tools/NT-011.md |
@@ -142,7 +142,7 @@
 | NT-049 | 清理 3 个未引用标题栏主题键（`TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`；主题键 34 → 31） | P2 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
 | NT-050 | 设置归位：模块专属设置迁模块（软件源 View/VM → PcTools，媒体资产先例模式）+ settings 内「媒体资产」改名「媒体资产设置」 | P1 | ✔ 已完成（已验收） | 🗑 已作废（卡已删） |
 | NT-051 | 设置页合并：主题外观 + 关于 并入 通用设置（单页三节；键 `settings-general` 不变，删 `settings-theme`/`settings-about` 两项） | P2 | ✔ 已完成（已验收） | 🗑 已作废（卡已删） |
-| NT-052 | 「🔄 重载模块」移入设置（标题栏 3→2 按钮；入口 = **功能清单页**「增加功能」操作区；方案 A：Shared/Core 新增 `IModuleReloadService` 契约，2026-10-15 用户拍板） | P2 | ✔ 已完成（已验收） | backlog/framework/NT-052.md |
+| NT-052 | 「🔄 重载模块」移入设置（标题栏 3→2 按钮；入口 = **功能清单页**「增加功能」操作区；方案 A：Shared/Core 新增 `IModuleReloadService` 契约，2026-10-15 用户拍板） | P2 | ✔ 已完成（已验收） | 🗑 已蒸馏（卡已删） |
 | NT-053 | 设置页窄界面适配：最窄 960×640（内容宽 720）与默认 1280×800 两种可用（根 ScrollViewer / 星号列 / 去超宽固定容器） | P2 | ✔ 已完成（已验收） | 🗑 已作废（卡已删） |
 | NT-054 | 详情卡声明式规范：**三区模型**（`Fields` 字段区 / `Actions` 动作区 / `Custom` 逃生舱）+ 7 种字段 Kind + 3 种提交语义（`Instant`/`OnBlur`/`Explicit`）+ Shell 统一渲染，替代 16 张卡逐页手写 XAML（含债 B13 详情面板上提） | P1 | ✔ **已完成（已验收 2026-10-15）**（2026-10-15：📝 草稿 → ✅ 就绪 → **L0 + L1 交付并编译验收通过** → **L2 全数迁完 16/16**（打样页 `video-batch` 已验收 + 页内自绘 12 页 + MediaAssets 4 张独立视图；**L1 按用户拍板做了加法扩展**：chips 色块 / chips 命令参数取值 / List 项级命令 / chip 悬停提示；**L3 已删 8 个停用视图**，`Custom` 渲染分支仍未接）；**用户本地编译 + 实机回归通过（2026-10-15）；技术债 B13 结清**；遗留 = `Custom` 逃生舱渲染分支仍未接（现无页面需要）） | 🗑 已蒸馏（卡已删） |
 | NT-055 | 工具条统一：Shell 声明式承载（`IToolbarSource` + `ToolbarHost`）+ 详情开关浮动（新契约 + Shell 新控件，**框架层首审项**；**已迁 18 个 View / 覆盖 23 页**（`settings-path` 另见 NT-056；三轮补迁 MediaAssets 6 页）；仅 `web-http` 走逃生舱） | P1 | ✔ 已完成（已验收）· commit `8da4462` | 🗑 已蒸馏（卡已删） |
@@ -150,11 +150,11 @@
 | NT-057 | 系统托盘增强：左键切显示 / 隐藏 + 右键五项菜单（首页 · 设置 · 用另一个配置打开… · 退出）+ **托盘图标改用应用图标**（与 exe / 窗口同源，⛔ 不再代码画、⛔ 不写死强调色） | P2 | ✔ **已完成（已验收 2026-10-16）**· 2026-10-15：`CreateTrayIcon` → 唯一图标工厂 `CreateAppIcon(accent)`（窗口 + 托盘同源，随强调色）+ 新增 `Resources/app.ico`（exe 图标）；托盘五项菜单（②③ 先拉起窗口再导航，④ 子菜单排除当前配置 / 无其他配置时置灰）；技术债：**形状两处定义**（C# 常量与 ICO 口径，改一处须同步另一处） | 🗑 已蒸馏（卡已删） |
 | NT-058 | 详情卡图标动作组：**第 9 种 `FieldKind.IconBar`**（32×32 图标按钮组）+ chips 分组（`ChipGroupPath`）+ 「全部资产」页打样定稿（**框架层首审项**） | P1 | ✔ **已完成（已验收 2026-10-16）** | 🗑 已蒸馏（卡已删） |
 | NT-059 | 「设置与脚本」页改**脚本索引库**：导入收成 `SplitButton`「📂 导入」+ 导入后清筛选 + 详情卡 `IconBar` + 新增「分类」列 + 删除语义分叉 | P1 | ✔ **已完成（已验收 2026-10-16）** | backlog/script-manager/NT-059.md |
-| NT-060 | **干净启动**：删示例数据（列表示例行 + 详情卡示例态）改**空态引导**（说明 + 入口按钮）+ 取消 `defaults\` 默认清单播种（⚠️ 实含**框架层减法**：`DetailCardDescriptor.SamplePath`/`SampleText` + `DetailCardRender.IsSample`） | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/framework/NT-060.md |
-| NT-061 | **配置下沉**：Core 新增 **`IOptionsStore`**（KV + 按模块分区，先 json 后可换 SQLite）+ **五模块各一个设置页**注册进 `settings` + 功能入口页**数据源框可编辑**（回车 / 失焦提交，路径无效 ⇒ 状态栏红字 + ⛔ 不写盘） | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/framework/NT-061.md |
-| NT-062 | **应用级设置归位**：`Module.Settings` **撤销** → 6 页迁入 Shell（`settings` 分组改由 Shell 创建）+ **「运行环境」**（外部程序路径上提应用根 `app.json`，与配置档同节）+ 设置项**显式分类** `SettingsCategory` + 设置页**搜索** / 每行**打开配置目录** / 外部程序缺失**惰性探测** + **功能清单移首页** + **软件源并入电脑工具设置** + 删 `GpuAcceleration` + 左树**设置齿轮**（`Ctrl+,`） | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/framework/NT-062.md |
-| NT-063 | **控件库 NewToys.UI + 列表页控件化**：ColumnGrid 五合一（2086 行）+ 详情卡渲染搬家 + 新底栏 ListFooterBar（P0-a）→ 列表页骨架（P1）→ 类型页合并 / 设置行控件（P2） | P1 | ✔ **P0-a + P1 + P2-a 已完成（已验收 2026-10-19）** | backlog/framework/NT-063.md |
-| NT-064 | **列表分页**：UI 底栏归 NT-063，本卡做**数据层** —— SQL LIMIT/OFFSET + **排序下推** + 独立 COUNT(*)；底栏**默认隐藏、列表超出页底才显示**；批量操作只作用于当前页选中项 | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/framework/NT-064.md |
+| NT-060 | **干净启动**：删示例数据（列表示例行 + 详情卡示例态）改**空态引导**（说明 + 入口按钮）+ 取消 `defaults\` 默认清单播种（⚠️ 实含**框架层减法**：`DetailCardDescriptor.SamplePath`/`SampleText` + `DetailCardRender.IsSample`） | P1 | ✔ **已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
+| NT-061 | **配置下沉**：Core 新增 **`IOptionsStore`**（KV + 按模块分区，先 json 后可换 SQLite）+ **五模块各一个设置页**注册进 `settings` + 功能入口页**数据源框可编辑**（回车 / 失焦提交，路径无效 ⇒ 状态栏红字 + ⛔ 不写盘） | P1 | ✔ **已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
+| NT-062 | **应用级设置归位**：`Module.Settings` **撤销** → 6 页迁入 Shell（`settings` 分组改由 Shell 创建）+ **「运行环境」**（外部程序路径上提应用根 `app.json`，与配置档同节）+ 设置项**显式分类** `SettingsCategory` + 设置页**搜索** / 每行**打开配置目录** / 外部程序缺失**惰性探测** + **功能清单移首页** + **软件源并入电脑工具设置** + 删 `GpuAcceleration` + 左树**设置齿轮**（`Ctrl+,`） | P1 | ✔ **已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
+| NT-063 | **控件库 NewToys.UI + 列表页控件化**：ColumnGrid 五合一（2086 行）+ 详情卡渲染搬家 + 新底栏 ListFooterBar（P0-a）→ 列表页骨架（P1）→ 类型页合并 / 设置行控件（P2） | P1 | ✔ **P0-a + P1 + P2-a 已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
+| NT-064 | **列表分页**：UI 底栏归 NT-063，本卡做**数据层** —— SQL LIMIT/OFFSET + **排序下推** + 独立 COUNT(*)；底栏**默认隐藏、列表超出页底才显示**；批量操作只作用于当前页选中项 | P1 | ✔ **已完成（已验收 2026-10-19）** | 🗑 已蒸馏（卡已删） |
 | NT-065 | **分页推广到「脚本收集 / 命令收集」两页**（`pc-shortcuts` / `pc-quicksettings`）：两页挂 `ListPageSkeleton` 的底栏 + VM 分页（数据源是 **JSON 清单 ⇒ 内存切片**，⛔ 不做 SQL）；同步菜单改名「设置与脚本→脚本收集」「快捷设置→命令收集」 | P1 | 📝 草稿（2026-10-17 建卡，待升就绪） | backlog/script-manager/NT-065.md |
 | NT-066 | **标题栏搜索扩范围**：可搜**二级菜单项** + **设置页的节点**（现只搜一级 / 已注册项）；跨 Shell（框架层）⇒ 需用户授权 | P1 | 📝 草稿（2026-10-17 建卡，待摸底 + 授权） | backlog/framework/NT-066.md |
 | NT-067 | **信息展示页（脚本输出呈现器，原系统信息 `pc-info`）**：`ScriptRunner` 底座（PcTools）+ manifest 驱动（columns/scripts + per-script interval + auto/timeout）+ 多脚本合并 + 按 RowKey 就地定时刷新 + 自定义表头 + 默认采集脚本播种 | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/script-manager/NT-067.md |
@@ -163,7 +163,7 @@
 | NT-069 | **跨模块文件操作契约 `IFileOperationService`**（v3.66 配置整改第 ② 批次）：磁盘动作（改名/移动/复制/回收站删除）下沉 `Core` 一份实现，`Shared` 定接口；`VideoFileService` 删掉自带 `SHFileOperationW`；确认框与库表记账留在各模块 | P1 | ⏸ **暂缓**（2026-10-18；批次 2 已落地 = 接口 + Core 实现 + DI + 视频工具改造 + 3 个 VM 别名修 CS0104，`check.ps1` 0 告警，⏳ 待本地 build；**后续批次（媒体资产委托 / `IVideoHandoff` / defaults 示例 / 文档回写）按用户「以后讨论后再实现」暂停**） | backlog/framework/NT-069.md |
 | NT-070 | **启动提速（模块初始化两段式）**：`IModule` 增 `InitializeDeferred`（默认空实现）—— `Initialize` 只留菜单注册（首帧前），建库/清表/读配置/种子播种/扫描器接线/到期清理入队全部搬进 `InitializeDeferred`，由 Shell 在 `Window.Show()` 之后用 `DispatcherPriority.Background` 驱动；带启动打点写 `logs\startup-*.log` | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/framework/NT-070.md |
 
-| NT-071 | **设置页骨架统一**：节结构（折叠卡片 + 磁吸抬头 + Push + 滚动自动展开 + 全部收起 + 节内工具条 + 滚动定位）抽成 UI 库 `SettingsSectionHost`，`SettingsSection` 上移 `NewToys.UI`；应用级设置页变薄壳（VM 删折叠命令，改 `SectionToggled` 回调）；4 个模块设置页改用同一骨架（Script/Web/Video `Sticky=False`，Assets 保留磁吸） | P1 | ✅ **已完成**（2026-10-18 用户 build 通过；🔴 三个实测坑：① 节内容父级 DataContext 是节模型 ⇒ 宿主对 `DataContext==null` 的节内容补页面 VM；② `Sections` 标 `[Content]` 抢掉 `UserControl.Content` ⇒ AVLN3000；③ XAML 里直接写节 ⇒ 该页不被预编译 ⇒ 运行时 `No precompiled XAML found`，最终 = Resources 面板 + code-behind 建节） | backlog/framework/NT-071.md |
+| NT-071 | **设置页骨架统一**：节结构（折叠卡片 + 磁吸抬头 + Push + 滚动自动展开 + 全部收起 + 节内工具条 + 滚动定位）抽成 UI 库 `SettingsSectionHost`，`SettingsSection` 上移 `NewToys.UI`；应用级设置页变薄壳（VM 删折叠命令，改 `SectionToggled` 回调）；4 个模块设置页改用同一骨架（Script/Web/Video `Sticky=False`，Assets 保留磁吸） | P1 | ✅ **已完成**（2026-10-18 用户 build 通过；🔴 三个实测坑：① 节内容父级 DataContext 是节模型 ⇒ 宿主对 `DataContext==null` 的节内容补页面 VM；② `Sections` 标 `[Content]` 抢掉 `UserControl.Content` ⇒ AVLN3000；③ XAML 里直接写节 ⇒ 该页不被预编译 ⇒ 运行时 `No precompiled XAML found`，最终 = Resources 面板 + code-behind 建节） | 🗑 已蒸馏（卡已删） |
 
 | NT-072 | **集合页防误删**：左栏标记「其他页面使用中」的集合（= 信息面板 `lastCollectionId`）并**无条件沉底**；删除保留二次确认，使用中时文案加警示 | P2 | ✔ **已完成（已验收 2026-10-19）** | backlog/script-manager/NT-072.md |
 | NT-073 | **脚本 / 命令「多库索引」+ kind 真正生效**（合并原规划 073/074）：信息面板只列 `kind=info` + 非 info 集合禁用刷新 / 视图字段；库 = `kind∈{script,command}` 的集合，**库页 = 该 kind 全部库的可采集成员并集**（带「所属库」列）；每库 `rootPath`（空 = 全局脚本目录）；内置两库改名「默认脚本库 / 默认命令库」且 kind 锁死；删库孤儿收回默认库；「在用」按 kind 分键 | P1 | ✔ **已完成（已验收 2026-10-19）** | backlog/script-manager/NT-073.md |

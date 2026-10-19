@@ -324,13 +324,102 @@ def _extract(nodes, take, base):
             continue
     return vals
 
+_JSON = {}
+
+def _json_doc(text):
+    # 页面里内嵌的 JSON（<script>var x = {...}</script> 或纯 JSON 响应）。
+    # 先整篇试，失败再找**能解析的最大片段**（用标准库，⛔ 不引 jsonpath）。
+    if "doc" in _JSON:
+        return _JSON["doc"]
+    doc = None
+    t = (text or "").strip()
+    try:
+        doc = json.loads(t)
+    except Exception:
+        doc = None
+    if doc is None:
+        best = ""
+        for opener, closer in (("{", "}"), ("[", "]")):
+            i = t.find(opener)
+            while i >= 0:
+                depth, j = 0, i
+                while j < len(t):
+                    if t[j] == opener:
+                        depth += 1
+                    elif t[j] == closer:
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    j += 1
+                frag = t[i:j + 1]
+                if len(frag) > len(best):
+                    try:
+                        json.loads(frag)
+                        best = frag
+                    except Exception:
+                        pass
+                i = t.find(opener, i + 1)
+        try:
+            doc = json.loads(best) if best else None
+        except Exception:
+            doc = None
+    _JSON["doc"] = doc
+    return doc
+
+def _json_walk(doc, path):
+    p = (path or "").strip()
+    if p.startswith("$"):
+        p = p[1:]
+    toks, i = [], 0
+    while i < len(p):
+        if p[i] == ".":
+            i += 1
+            continue
+        if p[i] == "[":
+            j = p.find("]", i)
+            if j < 0:
+                break
+            toks.append(p[i + 1:j].strip().strip("'\""))
+            i = j + 1
+        else:
+            j = i
+            while j < len(p) and p[j] not in ".[":
+                j += 1
+            toks.append(p[i:j])
+            i = j
+    cur = [doc]
+    for t in toks:
+        nxt = []
+        for c in cur:
+            if t in ("*", ""):
+                if isinstance(c, list):
+                    nxt.extend(c)
+                elif isinstance(c, dict):
+                    nxt.extend(c.values())
+            elif isinstance(c, dict) and t in c:
+                nxt.append(c[t])
+            elif isinstance(c, list) and t.lstrip("-").isdigit():
+                k = int(t)
+                if -len(c) <= k < len(c):
+                    nxt.append(c[k])
+        cur = nxt
+    out = []
+    for v in cur:
+        out.append(v if isinstance(v, str) else json.dumps(v, ensure_ascii=False))
+    return [v for v in out if v]
+
 def _one(root, cand, base):
     c = cand.strip()
     if not c:
         return []
     low = c.lower()
-    if low.startswith("json:") or low.startswith("js:"):
-        return ["(" + low.split(":")[0] + ": 规则暂未支持，见 NT-084 批 D)"]
+    if low.startswith("json:"):
+        doc = _json_doc(ROOT_HTML)
+        if doc is None:
+            return ["(json: 页面里没找到可解析的 JSON)"]
+        return _json_walk(doc, c[5:]) or ["(json: 路径没命中：" + c[5:] + ")"]
+    if low.startswith("js:"):
+        return ["(js: 规则暂未支持 —— 需要 JS 引擎，⛔ 不做)"]
     if low.startswith("regex:"):
         return [m for m in re.findall(c[6:], ROOT_HTML, re.S) if m]
     if low.startswith("xpath:"):

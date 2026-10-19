@@ -68,14 +68,37 @@
                       Background="Transparent" HorizontalAlignment="Stretch"/>
 
         <Border Grid.Row="2" Classes="card">
-          <Grid RowDefinitions="Auto,*">
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,8,12,4">
+          <Grid RowDefinitions="Auto,Auto,*">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,8,12,2">
               <TextBlock Grid.Column="0" Text="{Binding HtmlInfo}" Classes="hint-text"
                          TextTrimming="CharacterEllipsis"/>
+              <TextBlock Grid.Column="1" Text="{Binding LineInfo}" Classes="hint-text" Margin="8,0,0,0"/>
             </Grid>
-            <TextBox Grid.Row="1" Margin="8,0,8,8" IsReadOnly="True" AcceptsReturn="True"
+
+            <!-- 查找条（NT-084 收尾）：命中 = **选区高亮**（系统高亮色），⛔ 不自绘高亮层。
+                 回车 = 找下一个；「🎯 定位命中」把选中命令的首条结果搬进查找框并跳过去。
+                 🔴 输入框必须显式 MinWidth/MinHeight=0（隐式样式 MinHeight=28 会撑爆这一行）。 -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="12,0,12,4">
+              <TextBox Width="200" Height="24" MinWidth="0" MinHeight="0" VerticalContentAlignment="Center"
+                       Text="{Binding FindText, Mode=TwoWay}" PlaceholderText="在源码里查找（回车 = 下一个）">
+                <TextBox.KeyBindings>
+                  <KeyBinding Gesture="Enter" Command="{Binding FindNextCommand}"/>
+                </TextBox.KeyBindings>
+              </TextBox>
+              <Button Classes="ghost small" Content="◀" Command="{Binding FindPrevCommand}"
+                      ToolTip.Tip="上一个"/>
+              <Button Classes="ghost small" Content="▶" Command="{Binding FindNextCommand}"
+                      ToolTip.Tip="下一个（回车）"/>
+              <TextBlock Text="{Binding FindHint}" Classes="hint-text" VerticalAlignment="Center" MinWidth="70"/>
+              <Button Classes="ghost small" Content="🎯 定位命中" Command="{Binding LocateHitCommand}"
+                      ToolTip.Tip="把选中命令的首条命中结果搬到查找框并跳到源码里"/>
+            </StackPanel>
+
+            <TextBox Grid.Row="2" Margin="8,0,8,8" IsReadOnly="True" AcceptsReturn="True"
                      TextWrapping="NoWrap" FontFamily="Cascadia Mono,Consolas,monospace"
                      FontSize="12" Text="{Binding HtmlText}"
+                     SelectionStart="{Binding HtmlSelStart, Mode=TwoWay}"
+                     SelectionEnd="{Binding HtmlSelEnd, Mode=TwoWay}"
                      PlaceholderText="点上方「🌐 抓取 HTML」把页面拉下来"/>
           </Grid>
         </Border>

@@ -39,6 +39,23 @@ public partial class RuleEditorViewModel : ObservableObject
     [ObservableProperty] private string _htmlInfo = "还没抓取 HTML。点「🌐 抓取 HTML」。";
     [ObservableProperty] private RuleCommand? _selectedCommand;
 
+    // ==================== HTML 面板：查找 / 定位（NT-084 收尾） ====================
+
+    /// <summary>查找词（Ctrl+F）。</summary>
+    [ObservableProperty] private string _findText = "";
+
+    /// <summary>查找结果提示（「第 2/17 个」/「没找到」）。</summary>
+    [ObservableProperty] private string _findHint = "";
+
+    /// <summary>光标所在行信息（「行 12 / 3456」）—— 行号栏的降级形态，见 <see cref="UpdateLineInfo"/>。</summary>
+    [ObservableProperty] private string _lineInfo = "";
+
+    /// <summary>HTML 文本框选区起点（与控件**双向绑定**：VM 设置它即可选中并滚过去）。</summary>
+    [ObservableProperty] private int _htmlSelStart;
+
+    /// <summary>HTML 文本框选区终点。</summary>
+    [ObservableProperty] private int _htmlSelEnd;
+
     public ObservableCollection<RuleCommand> Commands { get; } = new();
 
     public bool HasRule => !string.IsNullOrWhiteSpace(RuleName);
@@ -226,6 +243,101 @@ public partial class RuleEditorViewModel : ObservableObject
         NotifyEmpty();
     }
 
+    // ==================== 查找 / 定位 ====================
+
+    /// <summary>
+    /// 在 HTML 里找下一个 / 上一个（<paramref name="direction"/> = 1 向后、-1 向前）。
+    /// <para>🔴 用**选区**表达命中（= 系统高亮色），⛔ 不自绘高亮层：Avalonia 只读 <c>TextBox</c>
+    /// 没有富文本着色 API，自绘行号列 + 自绘高亮要与滚动同步，成本高风险大。</para>
+    /// <para>到头回绕（找完一圈回到第一个 / 最后一个），和常见编辑器的手感一致。</para>
+    /// </summary>
+    private void Find(int direction)
+    {
+        var needle = FindText ?? "";
+        if (needle.Length == 0 || HtmlText.Length == 0) { FindHint = ""; return; }
+
+        var idx = -1;
+        if (direction >= 0)
+        {
+            var from = Math.Min(Math.Max(HtmlSelEnd, 0), HtmlText.Length);
+            idx = HtmlText.IndexOf(needle, from, StringComparison.OrdinalIgnoreCase);
+            if (idx < 0) idx = HtmlText.IndexOf(needle, 0, StringComparison.OrdinalIgnoreCase);   // 回绕
+        }
+        else
+        {
+            var from = Math.Clamp(HtmlSelStart - 1, 0, Math.Max(HtmlText.Length - 1, 0));
+            idx = from < 0 ? -1 : HtmlText.LastIndexOf(needle, from, StringComparison.OrdinalIgnoreCase);
+            if (idx < 0) idx = HtmlText.LastIndexOf(needle, HtmlText.Length - 1, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (idx < 0) { FindHint = "没找到"; return; }
+
+        // ⚠️ 先缩回 End 再设 Start：否则「Start > 旧 End」这一瞬是非法选区（Avalonia 会 clamp，跳位就错）
+        HtmlSelEnd = idx;
+        HtmlSelStart = idx;
+        HtmlSelEnd = idx + needle.Length;
+        FindHint = $"第 {CountBefore(idx) + 1}/{CountTotal()} 个";
+        UpdateLineInfo();
+    }
+
+    [RelayCommand] private void FindNext() => Find(1);
+    [RelayCommand] private void FindPrev() => Find(-1);
+
+    partial void OnHtmlSelStartChanged(int value) => UpdateLineInfo();
+
+    /// <summary>把选中命令的首条命中填进查找框并**定位过去**（= 命中高亮的降级形态）。</summary>
+    [RelayCommand]
+    private void LocateHit()
+    {
+        var first = (SelectedCommand?.Preview ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                        .FirstOrDefault()?.Trim() ?? "";
+        if (first.Length == 0) { StatusText = "先跑一次「▶ 运行」，选中命令要有命中结果。"; return; }
+        if (first.Length > 200) first = first[..200];   // 太长就没法在源码里定位了
+
+        FindText = first;
+        HtmlSelStart = 0;
+        HtmlSelEnd = 0;
+        Find(1);
+        StatusText = FindHint == "没找到"
+            ? "命中的这段文本在源码里找不到（页面可能是压缩过的 / 结果经过净化改写）。"
+            : "已定位到「" + SelectedCommand?.Key + "」的首条命中。";
+    }
+
+    private int CountTotal()
+    {
+        var needle = FindText ?? "";
+        if (needle.Length == 0 || HtmlText.Length == 0) return 0;
+        var n = 0;
+        var i = HtmlText.IndexOf(needle, StringComparison.OrdinalIgnoreCase);
+        while (i >= 0) { n++; i = HtmlText.IndexOf(needle, i + needle.Length, StringComparison.OrdinalIgnoreCase); }
+        return n;
+    }
+
+    private int CountBefore(int index)
+    {
+        var needle = FindText ?? "";
+        if (needle.Length == 0) return 0;
+        var n = 0;
+        var i = HtmlText.IndexOf(needle, StringComparison.OrdinalIgnoreCase);
+        while (i >= 0 && i < index)
+        {
+            n++;
+            i = HtmlText.IndexOf(needle, i + needle.Length, StringComparison.OrdinalIgnoreCase);
+        }
+        return n;
+    }
+
+    /// <summary>由选区起点推算「行 N / 共 M 行」（行号栏的降级：⛔ 不整列渲染 8000 行）。</summary>
+    private void UpdateLineInfo()
+    {
+        if (HtmlText.Length == 0) { LineInfo = ""; return; }
+        var pos = Math.Clamp(HtmlSelStart, 0, HtmlText.Length);
+        var line = HtmlText.Count(ch => ch == '\n') + 1;   // 总数
+        var cur = 1;
+        for (var i = 0; i < pos; i++) if (HtmlText[i] == '\n') cur++;
+        LineInfo = $"行 {cur} / {line}";
+    }
+
     // ==================== 内部 ====================
 
     private void ReplaceCommands(IEnumerable<RuleCommand> list)
@@ -263,8 +375,13 @@ public partial class RuleEditorViewModel : ObservableObject
         }
 
         if (!ReferenceEquals(text, HtmlText)) HtmlText = text;
+        HtmlText = text;
         HtmlInfo = $"共 {HtmlText.Length:N0} 字符 · {HtmlText.Count(ch => ch == '\n') + 1:N0} 行"
                  + (truncated ? "（已截断显示，完整内容在缓存文件里）" : "");
+        HtmlSelStart = 0;
+        HtmlSelEnd = 0;
+        FindHint = "";
+        UpdateLineInfo();
     }
 
     private void NotifyEmpty()

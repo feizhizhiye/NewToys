@@ -1,7 +1,8 @@
 # NewToys 需求规格（宪法 + 框架规格）
 
-> v3.81 · 2026-10-19 · 项目唯一权威规格
+> v3.82 · 2026-10-19 · 项目唯一权威规格
 > ⛔ **只保留最近三次变更**；更早的逐次记录看 `git log`（本文自带版本号仅作需求演进索引）。
+> **v3.82**：**网络工具 · 爬虫规则页草案**（📝 未立项，仅方案雏形，⛔ 不得据本文实施）—— §6.3.1 新增：「网页抓取」由单条 `RuleType`+`Rule` 升级为 `ScrapeSource` / `ScrapeStep` / `ScrapeCommand` 三层模型 + `Filter` 净化链，支持 `css / xpath / json / regex / js / const` 六种表达式，Jint 自研简化 DOM 桥；页面三段式（命令列表 / HTML 源码面板 / 宽规则编辑）。借鉴 legado-rule（语法）、OpenScraping（规则模型 + 变换链）、WebReaper·CocoCrawler（流程动词）、Pickaxe（子句骨架），⛔ 不引新爬虫框架、⛔ 不追求兼容 legado 书源文件。依赖新增 `AngleSharp.XPath` / `JsonPath.Net` / `System.Text.Encoding.CodePages`。两处待拍板：① 本页需页级自绘（框架例外）；② 只做源码视图、⛔ 不引 WebView2。
 > **v3.81**：**软件包集合 = 跨后端包清单预设**（2026-10-19 用户定调，NT-082）—— ① 集合类别加回 `package`（信息面板 / 脚本库 / 命令库 / 软件包四档），成员 = `role=package` 条目（`Target` = 包 Id），只在「软件包」类集合的候选池出现；② 集合工具条 / 左栏右键的「📤 发送到信息面板」改为「**📤 发送到对应页面**」：按 kind 跳 `script-info` / `script-library` / `script-commands` / `script-packages` 并写 `lastCollectionIdByKind.<kind>` 让目标页自动选中；③ 软件包页新增工具条 `集合 ▾`（第一项「（不按集合）」，其余 = 未归档的软件包集合）⇒ 列表变成该集合的**包清单**，状态按一次 `winget list` 缓存比对；行右键新增 `📥 加入集合`（写 `role=package` 条目，按 Id 幂等）。定位 = 将来 apt / flatpak / snap 各成后端时按集合归类、成员命令可绑成按钮。
 > **v3.80**：**源 = 系统配置 ⇒ 源 UI 全部删除**（2026-10-19 用户定调，NT-080 返工）—— ① 软件包页**删除工具条源选择框**，搜索固定不传 `--source` + 自动补查系统里的显式源；② **源开关 / 分类 / 互斥 / 定义快照 / 添加源全套删除**（`PackageSourceView` / `PackageSourceViewModel` / `PackageSourceRow`、`package.json` 的 `defaultSource|sourceCategories|sourceDefinitions`、`PackageManagerService.RunElevatedAsync` 一并删）；③ 源操作改由「命令库 → `winget 源`」集合的命令执行（`NeedAdmin` ⇒ UAC + 可见控制台）；④ 设置页「软件源」节 = 只读 6 条命令 + 「＋ 加入命令库」（幂等）。
 > 理由：源与系统共用一套数据、本质就是终端里一条命令；App 内包一层 UI 反而要自己维护分类 / 互斥 / 定义快照三套状态。
@@ -859,6 +860,132 @@ Module.*（功能模块，只引 Shared + Core）
 **HTTP 测试** / **书签** / **网络 Ping** / **网页抓取** / **Hosts 管理**。
 
 - 各页工具条的重载按钮按 §4.8 硬规则 10 命名：书签「🔄 重读书签」/ Hosts「🔄 重读方案」/ Ping「🔄 重读目标」/ 抓取「🔄 重读任务」（都只重读本地 JSON 配置，⛔ 不联网、不重扫）。
+
+#### 6.3.1 爬虫规则页（草案 · 📝 未立项）
+
+> **状态**：方案雏形，⛔ **未立项、不得据本文实施**。用户过稿后按铁律 3 走「台账 + `backlog/web-tools/NT-xxx.md`」再动 `src/`。
+> **定位**：把现「网页抓取」页（单条 `RuleType` + `Rule` + JS 拼接）升级为**可编辑的多命令规则集**，并内置 HTML 源码面板供边看边调规则。
+> **借鉴来源（只读源码借鉴，⛔ 不引包、⛔ 不追求兼容 legado 书源文件）**：
+> - 规则语法形似 → **legado-rule**（TS，LegadoTeam 官方组织的 `@css:..@text` 解析器）
+> - 规则模型 + 变换链 → **OpenScraping**（C#，JSON 规则 + `_transformations` + `_removeXPaths`）
+> - 流程动词 → **WebReaper / CocoCrawler**（`Follow` / `OpenLinks` / `Paginate` / `Parse(name, sel, attr)`）
+> - 命令子句骨架 → **Pickaxe**（`download page` / `where nodes` / `pick` / `take text|html|attribute`）
+
+**A. 三层数据模型**
+
+| 层 | 模型 | 说明 |
+|---|---|---|
+| 规则集 | `ScrapeSource` | 一个站点 = 一条规则集（≈ legado 书源） |
+| 步骤 | `ScrapeStep` | `list`（列表页）/ `detail`（详情页），**最多两级** |
+| 命令 | `ScrapeCommand` | 一条命令 = 一个字段的取值；列表页里 `Multi=true` 的命令天然产出多行 |
+
+**B. 字段表**
+
+`ScrapeSource`：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `Id` / `Name` | string | Guid N / 显示名 |
+| `StartUrl` | string | 起始网址，可含 `{keyword}` 占位（搜索场景） |
+| `UserAgent` | string | 空 = 用设置页默认 |
+| `Encoding` | enum | `auto` / `utf8` / `gbk`（自动嗅探失败时的兜底） |
+| `Headers` | kv | Cookie / Referer / 自定义头 |
+| `Steps` | `ScrapeStep[]` | 见下 |
+| `Enabled` | bool | 停用后不出现在运行列表 |
+
+`ScrapeStep`：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `Key` | enum | `list` / `detail` |
+| `From` | string | 上游命令 Key（`detail` 步骤取列表页里产出 URL 的那条命令） |
+| `Commands` | `ScrapeCommand[]` | 顺序 = 执行顺序 |
+
+`ScrapeCommand`：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `Key` | string | 字段名 = 输出列名（`title` / `url` / `cover` / `content`…） |
+| `Type` | enum | `css` / `xpath` / `json` / `regex` / `js` / `const` |
+| `Expr` | string | 表达式（语法见 C 节） |
+| `Take` | enum | `text`（默认）/ `html` / `outerHtml` / `attr`（配 `Attr`） |
+| `Attr` | string | `Take=attr` 时的属性名 |
+| `Multi` | bool | 多值（列表页取一批；false = 只取第一条） |
+| `Filters` | `Filter[]` | 净化链，按序执行 |
+| `Fallback` | string | 无命中时的兜底常量 |
+| `Enabled` | bool | 单条启用开关（调试用） |
+
+`Filter`（借鉴 OpenScraping 的 transformation 链）：
+
+| 名称 | 作用 |
+|---|---|
+| `Trim` | 去首尾空白（默认必带） |
+| `Collapse` | 合并连续空白 / 换行 |
+| `Regex` | 写成 `##正则##替换`（对齐 legado 习惯；替换段留空 = 删除） |
+| `Replace` | 纯文本替换 |
+| `HtmlDecode` | 实体解码 |
+| `Number` | 提取数字 |
+| `Date` | 按格式解析日期 |
+| `Join` | 多值按分隔符拼接 |
+
+**C. 表达式语法（形似 legado，🔴 不承诺兼容其书源文件）**
+
+| 写法 | 含义 |
+|---|---|
+| `css:div.item > a` | AngleSharp CSS（默认类型） |
+| `xpath://div[@class='item']` | XPath（`AngleSharp.XPath`） |
+| `json:$.data.list[*].name` | JSONPath（接口型站点） |
+| `regex:<title>(.*?)</title>` | 正则 |
+| `js:doc.querySelector('.x').text()` | Jint 沙箱 |
+| `=固定值` | 常量 |
+
+- `@` 后缀可省：`css:div.item>a@href` ≡ `Take=attr` + `Attr=href`。
+- 命令之间可互相引用：JS 里用 `vars.title`，URL 里用 `{title}`。
+
+**D. JS 沙箱能力边界（Jint + 自研 DOM 桥）**
+
+| 提供 | 说明 |
+|---|---|
+| `doc` | 简化 DOM：`querySelector` / `querySelectorAll` / `text()` / `html()` / `attr(name)` / `nodes()` |
+| `baseUrl` / `vars` / `result` | 当前地址 / 跨命令变量 / 上游结果 |
+| `JSON` / `Math` / `String` / `RegExp` | Jint 内置 |
+| ⛔ `java.*` / `webView` / `fetch` / 文件系统 | **不提供** —— 这也是「不兼容 legado 书源」的主因 |
+
+**E. 页面形态（方案 A · 待拍板）**
+
+| 区域 | 内容 |
+|---|---|
+| 工具条 | `➕ 新建规则集` / `🌐 抓取 HTML` / `▶ 运行` / `⬆ 导入规则` / `⬇ 导出规则` / 搜索框 |
+| 上 · 命令列表 | 列 = 字段名 / 类型 / 表达式 / 命中数；行右键 `▶ 只测这条` / `📋 复制` / `🗑 删除` |
+| 下 · HTML 源码面板 | 只读缓存原文 + 行号 + **命中节点高亮** + `Ctrl+F`；可拖动调高 |
+| 右 · 规则编辑 | 类型下拉 / 表达式（mono 多行）/ 取值 / 净化链 / **预览（命中 N 条 + 前 3 条结果）** |
+
+- 🔴 **Avalonia 无 HTML 渲染控件**：本页只做**源码视图**，⛔ 不引 WebView2（Windows-only，违反 `framework.md` §2.1）。
+- 🔴 **触碰框架层**：需页级自绘（放弃 `ListPageSkeleton` + 340px 声明式详情卡，参照 `web-http` 逃生舱先例）⇒ **立项前须用户批准框架例外**。
+
+**F. 依赖**
+
+| 包 | 用途 | 现状 |
+|---|---|---|
+| AngleSharp | CSS + DOM | ✅ 已有 |
+| Jint | JS 沙箱 | ✅ 已有（需自研 DOM 桥） |
+| AngleSharp.XPath | `xpath:` | 新增 |
+| JsonPath.Net | `json:` | 新增 |
+| System.Text.Encoding.CodePages | GBK / GB18030 页面 | 新增 |
+
+**G. 数据落点**
+
+- 规则集存总库 `web_docs` 新文档 **`scrape-sources`**；旧 `scrape-tasks` **一次性迁移**（`RuleType`+`Rule` → 一条 `css`/`regex` 命令，`JsScript` → 一条 `js` 命令，迁完留 `.legacy`）。
+- HTML 缓存落 `data\web-scrape-cache\<sourceId>\`，**只留最近 10 份**，⛔ 不参与备份。
+
+**H. 验收判据（草案）**
+
+1. 新建规则集 → 抓一次 HTML → 源码面板可见原文且行号连续。
+2. 写 `css:div.item>a@href` → 命令行显示命中数，预览出前 3 条。
+3. 六种 `Type` 各能跑通一条真实站点。
+4. 净化链至少 `Trim` / `Regex` / `Join` 三项生效。
+5. `detail` 步骤能按列表页产出的 URL 自动跟进并取正文。
+6. 旧任务迁移后仍能运行，`LastOutput` 不丢。
 
 ### 6.4 视频工具（`Module.VideoTools`）
 

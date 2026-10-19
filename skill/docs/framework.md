@@ -661,6 +661,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT-078 | **备份路由**：`IBackupSection` + zip 分节 + 设置/数据两入口（`VACUUM INTO`） | ✔ A/B/C 三批已完成（已验收 2026-10-19） |
 | NT-079 | **可成长性**：模块开关 / 命令面板 / 采集器骨架生成 | 📝 草稿 |
 | NT-081 | **跨平台中立化（远期，本期不实施）**：RID 条件化 + Windows-only P/Invoke 守卫收口 + 进程/取消/提权下沉平台底座 + 通用 TSV 解析 + 后端适配器接口。约束见 **§2.1** | 📝 草稿（卡：`backlog/framework/NT-081.md`） |
+| NT-083 | **Python 运行时底座**：`IPythonRuntime` + 共享环境 `<AppRoot>\tools\py` + 环境自检 + 长驻 worker 进程协议（行分隔 JSON / `-u` 无缓冲 / 超时杀进程树 / traceback 回传）；跨模块共用 ⇒ **落 Core（需批准）** | 📝 草稿（卡：`backlog/framework/NT-083.md`） |
 
 ---
 

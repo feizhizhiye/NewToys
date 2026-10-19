@@ -21,6 +21,9 @@ public class WebToolsModule : IModule
         // NT-084 批 C：抓取 + 跑规则（规则解析全在 Python 侧，C# 只搬运）
         services.AddSingleton<RuleRunService>();
 
+        // NT-084：规则目录进备份（🔴 默认勾选 —— 规则是唯一无法重建的资产；只备 rules\，⛔ 不备 cache\）
+        services.AddSingleton<IBackupSection, RulesBackupSection>();
+
         // NT-076 第二批：本模块的总库 schema（web_docs + 4 份旧 JSON 一次性入表）。
         services.AddSingleton<ILibrarySchemaContributor, WebToolsSchemaContributor>();
 

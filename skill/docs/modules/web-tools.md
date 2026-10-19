@@ -128,6 +128,7 @@
 
 - 数据与配置：`config\web-tools.json`（设置）；书签与 hosts 方案落模块数据目录（见 `WebToolsSettingsService` 与各 Service 的路径来源）。⛔ 模块内不自己拼 `ConfigStoreService` 的根路径。
 - NT-084 新增两块数据：**规则** = `<DataDir>\web-tools\rules\*.py`（可备份、可手写）；**抓取缓存** = `<DataDir>\web-tools\cache\<名>\page.html`（单文件覆盖，可重建）。
+- 备份：`Services/RulesBackupSection.cs`（`IBackupSection`，Id `data.web-rules`，Order 91）—— 只备 `rules\`，⛔ 不备 `cache\`；🔴 **`DefaultSelected=true`（唯一默认勾的数据节）**，恢复落 `data\restore-<ts>\web-rules\`，⛔ 不覆盖现有规则。
 
 ## 4. 关键文件
 

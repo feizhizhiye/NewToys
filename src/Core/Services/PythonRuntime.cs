@@ -14,7 +14,7 @@ namespace NewToys.Core.Services;
 /// Python 运行时实现（NT-083）。
 /// <para>
 /// <b>形态</b>：长驻 worker 子进程 + stdin/stdout **行分隔 JSON**；冷启动一次，之后每任务毫秒级。
-/// <br/>**环境**：优先共享 venv <c>&lt;AppRoot&gt;\tools\py\venv</c>，否则用「运行环境 → Python 解释器」或 PATH 里的 <c>python</c>/<c>python3</c>。
+/// <br/>**环境**：优先共享 venv <c>%LOCALAPPDATA%\NewToys\tools\py\venv</c>，否则用「运行环境 → Python 解释器」或 PATH 里的 <c>python</c>/<c>python3</c>。
 /// <br/>**并发**：单 worker 串行（<see cref="SemaphoreSlim"/>），跨任务不并行 —— 规则集执行本来就是串行的。
 /// </para>
 /// <para>
@@ -33,6 +33,15 @@ public sealed class PythonRuntime : IPythonRuntime
     private readonly object _sync = new();
     private Worker? _worker;
     private int _seq;
+
+    /// <summary>空闲多久自动收掉 worker（避免一个 python.exe 常驻到关机）。</summary>
+    private const int IdleMinutes = 10;
+
+    /// <summary>最后一次执行结束的时刻（<see cref="Environment.TickCount64"/> 毫秒）。</summary>
+    private long _lastUseTicks;
+
+    /// <summary>空闲巡检定时器（只在 worker 存活时存在）。</summary>
+    private Timer? _idle;
 
     public PythonRuntime(EnvConfigService env, ConfigStoreService cfg)
     {
@@ -206,7 +215,11 @@ public sealed class PythonRuntime : IPythonRuntime
 
             return ParseResponse(line);
         }
-        finally { _gate.Release(); }
+        finally
+        {
+            Interlocked.Exchange(ref _lastUseTicks, Environment.TickCount64);
+            _gate.Release();
+        }
     }
 
     /// <summary>拼一行请求 JSON（<c>vars</c> 直接透传为 JSON 对象）。</summary>
@@ -299,8 +312,23 @@ public sealed class PythonRuntime : IPythonRuntime
             var worker = new Worker(proc);
             worker.In.AutoFlush = true;
             _worker = worker;
+            Interlocked.Exchange(ref _lastUseTicks, Environment.TickCount64);
+            // 空闲巡检：每 60s 看一眼，超过 IdleMinutes 没干活就收掉（下次用来自动重启）
+            _idle ??= new Timer(_ => IdleSweep(), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
             return worker;
         }
+    }
+
+    /// <summary>空闲巡检（定时器线程）：⛔ 不许抛，⛔ 不许打断正在跑的请求。</summary>
+    private void IdleSweep()
+    {
+        try
+        {
+            if (Environment.TickCount64 - Interlocked.Read(ref _lastUseTicks) < IdleMinutes * 60_000L) return;
+            if (!_gate.Wait(0)) return;   // 正在执行：下次再说
+            try { Shutdown(); } finally { _gate.Release(); }
+        }
+        catch { /* 巡检失败不影响下次启动 */ }
     }
 
     private void DiscardWorker(Worker worker)
@@ -312,7 +340,9 @@ public sealed class PythonRuntime : IPythonRuntime
     public void Shutdown()
     {
         Worker? worker;
-        lock (_sync) { worker = _worker; _worker = null; }
+        Timer? timer;
+        lock (_sync) { worker = _worker; _worker = null; timer = _idle; _idle = null; }
+        try { timer?.Dispose(); } catch { }
         if (worker is null) return;
         try { worker.Dispose(); } catch { }
     }

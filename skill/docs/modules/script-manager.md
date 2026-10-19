@@ -134,6 +134,18 @@
 | 置顶 ★ | 详情卡「置顶」勾选框 / 左栏行尾 ★ | 落盘 `pinned` | 分组选「置顶」可单独筛出；信息面板集合下拉里排最前 |
 | 重名 | 详情卡「名称」（失焦提交） | 撞名 ⇒ ⛔ 不落盘，输入框退回原名 + 状态栏提示 | 新建 / 复制自动取不重名的名字（`新集合 2` / `X 副本 2`） |
 
+#### 内置集合「环境维护」（NT-083，只播种一次）
+
+软件**自己要用**的环境准备脚本（不是教学示例）单独放一个内置脚本库集合，复用本模块的运行 / 输出捕获 / 超时，⛔ 不另做"工具页"。
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 建集合 + 成员 | 首次启动（`EnvScriptsSeeder.Seed`） | 随包 `defaults\env-scripts\*` 复制到 `<脚本目录>\env\`；登记条目 `env-python-setup`「环境：准备 Python」；建集合 `builtin-env`「环境维护」并装入该成员 | 🔴 **只播种一次**（`.seeded` 标记）：用户删集合 / 改脚本 / 移出成员都不复活、不覆盖、不抢回；建集合**只在刚建时**装成员 |
+| 运行 | 脚本库页点「▶ 运行」（或收藏夹） | 建 `%LOCALAPPDATA%\NewToys\tools\py\venv` 并装 `requests` / `lxml` / `parsel`；输出进现有输出窗 | 条目 `Timeout=900`、`Capture=true`、`ParseMode=Line`；幂等（有 venv 只补装），`-Force` 重建、`-IndexUrl` 换镜像 |
+| 当采集器 | — | ⛔ 不允许 | `Collectable=false` + `IneligibleReason`：有副作用（写磁盘 / 装包），不进采集器候选池，集合页「显示不可采集」下也灰显不可勾 |
+| 环境状态 | 设置 → 运行环境 → 「Python 共享环境（venv）」行 | 只读显示 `Probe()` 结论（venv 就绪 / 用系统解释器 / 未找到 Python）+ `↗` 打开 `tools\py` | 进本节时随外部程序一起惰性探测（`ProbeExternalTools`）；`Value` 恒为工具根目录（供 `↗` 用） |
+
+
 ### 信息面板 `script-info`
 
 工具条：`集合 ▾`(240) → `视图 ▾`(140) → `🔄 全部刷新` / `📂 脚本目录`。🔴 v3.77：**工具条里⛔ 没有只读文字标签**（原「集合 / 视图」两个文字已删）—— 两个下拉各自带 `ToolTip` 说明自己是什么。
@@ -194,6 +206,7 @@
 | `ScriptScanner` | 目录扫描三态（新增 / 已存在 / 忽略） |
 | `BuiltinCollectorSeeder` | 内置采集脚本播种（**只加不覆盖** + `.seeded` 标记） |
 | `ExampleSeeder` | 随包**示例**播种：`defaults\scripts\*` → `<脚本目录>\examples\` + 3 个示例脚本条目 + 1 个采集器模板 + 8 条示例命令（🔴 **只播种一次**，删了不复活） |
+| `EnvScriptsSeeder` | 随包**环境脚本**播种（NT-083）：`defaults\env-scripts\*` → `<脚本目录>\env\` + 条目 `env-python-setup` + 内置集合「环境维护」（`builtin-env`；`Collectable=false`，🔴 **只播种一次**，不覆盖用户改动） |
 | `QuickActionService` | `script_docs` 适配器 + `ConfirmHandler` 复用（⛔ 不再是四份 JSON 的门面） |
 | `ScriptManagerSettingsService` | `config\modules\script-manager.json`（`IOptionsStore` 分区名 `script-manager`） |
 
@@ -210,6 +223,8 @@
 | `data\newtoys.db` 的 `pc_observations` / `pc_runs` | 采集观测 + 运行日志 | ⛔ 随库 |
 | `<脚本目录>\sysinfo\*.ps1` | 内置采集脚本（播种） | — |
 | `<脚本目录>\examples\*` | 随包示例脚本（`.ps1` / `.py` / `.bat` + 采集器模板）+ `.seeded` 一次性标记 | — |
+| `<脚本目录>\env\*` | 随包环境脚本（`setup-python-env.ps1` + `python-requirements.txt`）+ `.seeded` 一次性标记（NT-083） | — |
+| `%LOCALAPPDATA%\NewToys\tools\py\` | Python 共享环境：`venv\` + `py_worker.py`（NT-083，与 `env.json` 同级；⛔ 不进 `profiles\`） | — |
 
 - ⛔ `config\script\settings.json` 不可行：`IOptionsStore.Validate` 禁路径分隔符 / `.` / `..`。
 - ⛔ **不做旧数据迁移**（用户拍板「无所谓老用户」）：旧四份 JSON 静默忽略（不读不写不删）。

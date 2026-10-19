@@ -58,7 +58,7 @@ public sealed class PyEnvStatus
     /// <summary>版本串（如 <c>3.15.0</c>）。</summary>
     public string Version { get; set; } = "";
 
-    /// <summary>是否在用共享 venv（<c>&lt;AppRoot&gt;\tools\py\venv</c>）。</summary>
+    /// <summary>是否在用共享 venv（<c>%LOCALAPPDATA%\NewToys\tools\py\venv</c>）。</summary>
     public bool UsingVenv { get; set; }
 
     /// <summary>给用户看的一句话（不可用时说明怎么修）。</summary>
@@ -74,6 +74,9 @@ public sealed class PyEnvStatus
 /// </summary>
 public interface IPythonRuntime
 {
+    /// <summary>共享工具根（<c>%LOCALAPPDATA%\NewToys\tools\py</c>）：venv、worker 脚本都落在这里。</summary>
+    string ToolsRoot { get; }
+
     /// <summary>探测环境（同步、快；用于设置页与首次执行前的自检）。</summary>
     PyEnvStatus Probe();
 

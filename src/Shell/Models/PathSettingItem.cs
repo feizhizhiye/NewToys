@@ -52,7 +52,14 @@ public partial class PathSettingItem : ObservableObject
     public string Name { get; set; } = "";
 
     /// <summary>一句话说明（第三列 / 详情卡）。</summary>
-    public string Description { get; set; } = "";
+    /// <remarks>NT-083：改成**可通知**属性 —— 「Python 共享环境」行的说明随探测结果就地更新。</remarks>
+    public string Description
+    {
+        get => _description;
+        set => SetProperty(ref _description, value);
+    }
+
+    private string _description = "";
 
     public PathItemKind Kind { get; set; } = PathItemKind.File;
 

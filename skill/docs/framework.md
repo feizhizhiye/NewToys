@@ -661,7 +661,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT-078 | **备份路由**：`IBackupSection` + zip 分节 + 设置/数据两入口（`VACUUM INTO`） | ✔ A/B/C 三批已完成（已验收 2026-10-19） |
 | NT-079 | **可成长性**：模块开关 / 命令面板 / 采集器骨架生成 | 📝 草稿 |
 | NT-081 | **跨平台中立化（远期，本期不实施）**：RID 条件化 + Windows-only P/Invoke 守卫收口 + 进程/取消/提权下沉平台底座 + 通用 TSV 解析 + 后端适配器接口。约束见 **§2.1** | 📝 草稿（卡：`backlog/framework/NT-081.md`） |
-| NT-083 | **Python 运行时底座**：`IPythonRuntime` + 共享环境 `<AppRoot>\tools\py` + 环境自检 + 长驻 worker 进程协议（行分隔 JSON / `-u` 无缓冲 / 超时杀进程树 / traceback 回传）；跨模块共用 ⇒ **落 Core（需批准）** | 📝 草稿（卡：`backlog/framework/NT-083.md`） |
+| NT-083 | **Python 运行时底座**（跨模块共用 ⇒ **落 Core**，已批准）：`IPythonRuntime`（`ToolsRoot` / `Probe` / `RunAsync` / `Shutdown`）+ `Core/Services/PythonRuntime`（长驻 worker，行分隔 JSON / `-u -X utf8` / 超时杀进程树 / traceback 回传 / 串行 `SemaphoreSlim` / 空闲 10 分钟自动退出）+ 共享环境 **`%LOCALAPPDATA%\NewToys\tools\py`**（与 `env.json` 同级）⇒ 依赖安装交给随包脚本，**C# ⛔ 不写 pip 逻辑**（播种成集合「环境维护」，见 `modules/script-manager.md` §2.5）；状态在「设置 → 运行环境 → Python 共享环境（venv）」 | ✔ 已完成（批 1~4，2026-10-19；⏳ 待用户 build + 实机功能验收） |
 
 ---
 

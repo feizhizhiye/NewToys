@@ -50,6 +50,9 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// <summary>外部程序缺失的警示文案（null = 没问题）；它同时决定状态栏那一行**是否可点击**。</summary>
     private string? _externalWarn;
 
+    /// <summary>Python 运行时（NT-083）：只为「Python 共享环境」只读行提供状态文案 + 目录。</summary>
+    private readonly IPythonRuntime? _py;
+
     /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
     public string ImportExportDefaultDir => _cfg?.DataDirectory ?? "";
 
@@ -249,13 +252,14 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     public PathViewModel() { }
 
     public PathViewModel(IAppConfigService cfg, ConfigStoreService store, IColumnLayoutService cols, IProfileService profiles,
-                         IExternalToolRegistry? ext = null)
+                         IExternalToolRegistry? ext = null, IPythonRuntime? py = null)
         : base(cols)
     {
         _cfg = cfg;
         _store = store;
         _profiles = profiles;
         _ext = ext;
+        _py = py;
 
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         SetSort("Category", false);       // v3.53：默认按「分类」升序（同类聚在一起），组内再按名称
@@ -274,6 +278,8 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// </summary>
     public void ProbeExternalTools()
     {
+        RefreshPythonRow();   // NT-083：Python 共享环境与外部程序一起惰性探测（重建行文案，不动其它行）
+
         if (_ext == null) return;
 
         var all = _ext.ProbeAll();
@@ -288,6 +294,39 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         OnPropertyChanged(nameof(StatusActionTip));
 
         StatusText = _externalWarn ?? $"运行环境已探测：{all.Count} 个外部程序均可解析（留空 = 用系统默认）。";
+    }
+
+    /// <summary>
+    /// 「Python 共享环境」行的说明文案（NT-083）：一句话说清现在用的是哪个解释器、共享 venv 建没建。
+    /// <para>
+    /// 🔴 未装 Python ⛔ 不阻断任何功能 —— 只有"跑 .py 脚本 / 抓取规则"才需要它，本行只是**如实告知**。
+    /// </para>
+    /// </summary>
+    private string PythonEnvText()
+    {
+        if (_py == null) return "运行时服务未注册（配置错误）";
+
+        try
+        {
+            var s = _py.Probe();
+            if (!s.Ready)
+                return "未找到 Python：装 3.10+ 或在本页填「Python 解释器」；建共享环境见「脚本管理器 → 环境维护」集合";
+
+            var ver = s.Version.Length > 0 ? " · Python " + s.Version : "";
+            return s.UsingVenv
+                ? "已就绪（venv）" + ver + "；规则集 / .py 脚本用它跑"
+                : "未建 venv，现用系统解释器" + ver + "：跑一次「环境维护 → 环境：准备 Python」建共享环境并装依赖";
+        }
+        catch { return "探测失败（见日志）"; }
+    }
+
+    /// <summary>刷新「Python 共享环境」行（**就地改值**，⛔ 不重建集合 —— 重建会丢选中行）。</summary>
+    private void RefreshPythonRow()
+    {
+        var row = Items.FirstOrDefault(i => i.Key == "PythonRuntime");
+        if (row == null) return;
+        row.Value = _py?.ToolsRoot ?? "";
+        row.Description = PythonEnvText();
     }
 
     /// <summary>状态栏 `⚠` 的跳转目标 = 本页（「运行环境」节）；没问题时为 null（不可点）。</summary>
@@ -353,6 +392,14 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Key = "PythonPath", Name = "Python 解释器", Kind = PathItemKind.File,
             Description = "「设置与脚本」里 .py 脚本的解释器；留空 = 用 PATH 里的 python",
             Value = _cfg.PythonPath
+        });
+        // NT-083：Python **共享环境**（venv）状态行 —— 只读展示，↗ 打开工具根目录。
+        // 🔴 「当前值」= 目录（供 ↗ 使用），环境状态写进「说明」列；进本节时由 ProbeExternalTools() 刷新。
+        Items.Add(new PathSettingItem
+        {
+            Key = "PythonRuntime", Name = "Python 共享环境（venv）", Kind = PathItemKind.ReadOnly,
+            Description = PythonEnvText(),
+            Value = _py?.ToolsRoot ?? ""
         });
         Items.Add(new PathSettingItem
         {

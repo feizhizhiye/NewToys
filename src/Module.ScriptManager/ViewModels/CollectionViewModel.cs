@@ -102,7 +102,23 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         LoadMemberTable();
         LoadDetailEdits();
+        OnPropertyChanged(nameof(SendToPageMenuText));
         DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 右键菜单「📤 发送到{目标页}」的动态文案（NT-082 微调）：按选中集合的类别实时变
+    /// （信息面板 / 脚本库 / 命令库 / 软件包）；未选中时落信息面板（点击后命令会提示先选集合）。
+    /// </summary>
+    public string SendToPageMenuText
+    {
+        get
+        {
+            var kind = SelectedCollection == null
+                ? ScriptCollectionKind.Info
+                : ScriptCollectionKind.Normalize(SelectedCollection.Kind);
+            return $"📤 发送到{ScriptCollectionKind.Label(kind)}";
+        }
     }
 
     // ==================== 右栏：成员表 ====================

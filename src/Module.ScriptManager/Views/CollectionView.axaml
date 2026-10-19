@@ -40,7 +40,7 @@
                 右键命中的行由 code-behind 先选中，菜单项作用于「当前集合」。  -->
           <ListBox.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="📤 发送到对应页面"
+              <MenuItem Header="{Binding SendToPageMenuText}"
                         Command="{Binding SendToPageCommand}"
                         ToolTip.Tip="按集合类别跳到信息面板 / 脚本库 / 命令库 / 软件包，并选中这个集合"/>
             </ContextMenu>

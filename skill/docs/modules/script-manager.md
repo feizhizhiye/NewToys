@@ -123,7 +123,7 @@
 | 删除 | 🗑 删除 | 删集合定义 | 🔴 **只有「在用」的集合不能删**（用户 2026-10-19）；默认库恒「在用」⇒ 自然受保护，⛔ 不再另按 `Builtin` 拦；二次确认「只删集合定义，不删条目」 |
 | 归档 | 📦 归档 | 归档后默认不显示，排序沉底 | 仍可见（从「全部」里能取消归档） |
 | 扫描目录 | 🔍 扫描目录 | 新脚本入库并**加入当前集合** | 与本页「⛔ 不自动登记」一致：用户手动触发 |
-| 发送到对应页面 | 工具条 `📤 发送到对应页面` / 左栏集合**右键**同名项 | 按集合类别跳目标页并选中该集合：信息面板→`script-info` / 脚本库→`script-library` / 命令库→`script-commands` / 软件包→`script-packages` | 写 `lastCollectionIdByKind.<kind>` 后 `NavigateTo`，目标页构造时读回；`PageKey` 与 `ScriptCollectionKind` 同源（`ScriptCollectionKind.PageKey`），⛔ 别处另写 switch；右键命中的行由 code-behind 先选中（Avalonia 右键不自动选行） |
+| 发送到对应页面 | 工具条 `📤 发送到对应页面` / 左栏集合**右键** `📤 发送到{目标页名}`（按选中集合类别动态显示：信息面板 / 脚本库 / 命令库 / 软件包，未选中时落「信息面板」） | 按集合类别跳目标页并选中该集合：信息面板→`script-info` / 脚本库→`script-library` / 命令库→`script-commands` / 软件包→`script-packages` | 写 `lastCollectionIdByKind.<kind>` 后 `NavigateTo`，目标页构造时读回；`PageKey` 与 `ScriptCollectionKind` 同源（`ScriptCollectionKind.PageKey`），⛔ 别处另写 switch；右键文案 = VM `SendToPageMenuText`，随 `SelectedCollection` 变（`OnSelectedCollectionChanged` 发通知）；右键命中的行由 code-behind 先选中（Avalonia 右键不自动选行） |
 | 成员增减 | 右栏成员行**勾选** | **立即写** `config\script\script.json` | ⛔ 无保存按钮；不可采集项灰显 `CanToggle=false`，悬停给原因 |
 | 显示不可采集 | 工具条开关，默认关 | 打开后列不可采集项（灰显不可勾） | — |
 | 显示全部类型 | 工具条开关，默认关 | 候选池默认按**当前集合的 kind** 过滤（脚本库集合只列脚本、命令库只列命令、软件包集合只列 `role=package`、信息面板集合不限）；打开后跨类可见 | NT-073 D13；`role=package` 与「软件包」集合是**一对一容器关系**，不受此开关影响 |

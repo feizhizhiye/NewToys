@@ -1,0 +1,127 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.WebTools.Views.RuleEditorView">
+  <!--  NT-084 批 C：规则编辑器（新页 web-rule-editor，**非列表页** ⇒ 自绘三段式，⛔ 不用 ListPageSkeleton）
+        上：命令列表 ／ 下：HTML 源码面板（可拖高）／ 右：规则编辑（加宽到 460）  -->
+  <Grid Margin="12" RowDefinitions="Auto,*">
+
+    <!--  ==================== 工具条 ====================  -->
+    <Border Grid.Row="0" Classes="toolbar">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <TextBlock Text="{Binding RuleName}" FontWeight="500"
+                     Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding BaseUrl}" Foreground="{DynamicResource SecondaryTextBrush}"
+                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="360"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <TextBlock Text="关键词" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+          <TextBox Width="120" Height="24" MinWidth="0" MinHeight="0" VerticalContentAlignment="Center"
+                   Text="{Binding Keyword, Mode=TwoWay}" Watermark="搜索词"/>
+          <Button Classes="ghost" Content="🌐 抓取 HTML" Command="{Binding FetchHtmlCommand}"
+                  IsEnabled="{Binding !IsBusy}"/>
+          <Button Classes="ghost" Content="▶ 运行" Command="{Binding RunRulesCommand}"
+                  IsEnabled="{Binding !IsBusy}"/>
+          <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveCommand}"/>
+          <Button Classes="ghost" Content="🔄 重读" Command="{Binding ReloadCommand}"/>
+          <Button Classes="ghost" Content="◀ 返回目录" Command="{Binding BackToCatalogCommand}"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!--  ==================== 主体 ====================  -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,460" Margin="0,8,0,0">
+
+      <!--  左：上命令列表 / 下 HTML  -->
+      <Grid Grid.Column="0" RowDefinitions="2*,Auto,3*">
+        <Border Grid.Row="0" Classes="card">
+          <Grid RowDefinitions="Auto,*">
+            <Grid Grid.Row="0" ColumnDefinitions="120,80,*,80" Margin="12,10,12,6">
+              <TextBlock Grid.Column="0" Text="字段名" Classes="hint-text"/>
+              <TextBlock Grid.Column="1" Text="类型" Classes="hint-text"/>
+              <TextBlock Grid.Column="2" Text="表达式" Classes="hint-text"/>
+              <TextBlock Grid.Column="3" Text="命中" Classes="hint-text"/>
+            </Grid>
+            <ListBox Grid.Row="1" Margin="6,0,6,6" ItemsSource="{Binding Commands}"
+                     SelectedItem="{Binding SelectedCommand, Mode=TwoWay}" SelectionMode="Single">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="114,80,*,80">
+                    <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Key}"
+                               Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeLabel}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Expr}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding HitText}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </Border>
+
+        <GridSplitter Grid.Row="1" Height="6" ResizeDirection="Rows"
+                      Background="Transparent" HorizontalAlignment="Stretch"/>
+
+        <Border Grid.Row="2" Classes="card">
+          <Grid RowDefinitions="Auto,*">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,8,12,4">
+              <TextBlock Grid.Column="0" Text="{Binding HtmlInfo}" Classes="hint-text"
+                         TextTrimming="CharacterEllipsis"/>
+            </Grid>
+            <TextBox Grid.Row="1" Margin="8,0,8,8" IsReadOnly="True" AcceptsReturn="True"
+                     TextWrapping="NoWrap" FontFamily="Cascadia Mono,Consolas,monospace"
+                     FontSize="12" Text="{Binding HtmlText}"
+                     Watermark="点上方「🌐 抓取 HTML」把页面拉下来"/>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <!--  右：规则编辑  -->
+      <Border Grid.Column="2" Classes="card" Margin="8,0,0,0">
+        <ScrollViewer>
+          <StackPanel Margin="12" Spacing="8">
+
+            <TextBlock Text="规则编辑" FontWeight="500" Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Text="{Binding StatusText}" Classes="hint-text" TextWrapping="Wrap"/>
+
+            <TextBlock Text="字段名（输出列名）" Classes="hint-text"/>
+            <TextBox Text="{Binding SelectedCommand.Key, Mode=TwoWay}" Height="28"
+                     Watermark="title"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="类型：" Classes="hint-text" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding SelectedCommand.TypeLabel}" VerticalAlignment="Center"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+            </StackPanel>
+
+            <TextBlock Text="表达式" Classes="hint-text"/>
+            <TextBox Text="{Binding SelectedCommand.Expr, Mode=TwoWay}" Height="96" AcceptsReturn="True"
+                     TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                     Watermark="css:div.item &gt; a@href"/>
+
+            <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                       Text="前缀：css: / xpath: / regex: / =常量；不写前缀 = legado 默认规则（class.x@tag.a@text）。多个候选用 || 连接；净化写 表达式##正则##替换。"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+              <Button Classes="ghost" Content="➕ 加命令" Command="{Binding AddCommandCommand}"/>
+              <Button Classes="ghost" Content="🗑 删命令" Command="{Binding RemoveCommandCommand}"/>
+              <Button Classes="ghost" Content="▶ 只测这条" Command="{Binding TestSelectedCommand}"
+                      IsEnabled="{Binding !IsBusy}"/>
+            </StackPanel>
+
+            <TextBlock Text="预览（前 3 条）" Classes="hint-text" Margin="0,6,0,0"/>
+            <TextBox IsReadOnly="True" AcceptsReturn="True" Height="140" TextWrapping="Wrap"
+                     FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                     Text="{Binding SelectedCommand.Preview}"
+                     Watermark="跑一次「▶ 运行」看结果"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

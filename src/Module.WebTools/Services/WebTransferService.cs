@@ -21,4 +21,19 @@ public sealed class WebTransferService
 
     /// <summary>当前是否还有待处理的 URL。</summary>
     public bool HasPending => !string.IsNullOrWhiteSpace(_pendingUrl);
+
+    // ==================== 规则目录 → 规则编辑器（NT-084 批 C） ====================
+
+    private string? _pendingRuleSet;
+
+    /// <summary>投递「要打开哪条规则集」（目录页点「✏ 编辑规则」时用）。</summary>
+    public void PushRuleSet(string? name) => _pendingRuleSet = string.IsNullOrWhiteSpace(name) ? null : name;
+
+    /// <summary>取走待打开的规则集名（取走即清空）。</summary>
+    public string? TakeRuleSet()
+    {
+        var name = _pendingRuleSet;
+        _pendingRuleSet = null;
+        return name;
+    }
 }

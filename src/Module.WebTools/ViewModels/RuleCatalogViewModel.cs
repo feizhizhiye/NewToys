@@ -38,6 +38,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
     private readonly RuleCatalogService _catalog = null!;
     private readonly RuleFileService _files = null!;
     private readonly WebTransferService _transfer = null!;
+    private readonly INavigationService? _nav;
     private readonly List<RuleSetMeta> _all = new();
 
     public ObservableCollection<RuleSetMeta> Items { get; } = new();
@@ -141,8 +142,16 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
         {
             new DetailAction
             {
-                Text = "📝 打开文件",
+                Text = "✏ 编辑规则",
                 Classes = "primary",
+                ToolTip = "打开规则编辑器（命令列表 + HTML 源码面板）",
+                IsVisiblePath = nameof(ShowDetailBody),
+                Command = EditRuleSetCommand
+            },
+            new DetailAction
+            {
+                Text = "📝 打开文件",
+                Classes = "ghost",
                 ToolTip = "用记事本打开 .py 规则文件（⛔ 不用「运行方式」，避免双击就执行）",
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = OpenFileCommand
@@ -183,12 +192,13 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
     public RuleCatalogViewModel() { }
 
     public RuleCatalogViewModel(RuleCatalogService catalog, RuleFileService files,
-        IColumnLayoutService cols, WebTransferService transfer)
+        IColumnLayoutService cols, WebTransferService transfer, INavigationService? nav = null)
         : base(cols)
     {
         _catalog = catalog;
         _files = files;
         _transfer = transfer;
+        _nav = nav;
         LoadLayout();
         Refresh();
 
@@ -259,6 +269,15 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
         PersistMeta();
         ApplyView();
         StatusText = Selected.Enabled ? $"已启用「{Selected.Name}」。" : $"已停用「{Selected.Name}」。";
+    }
+
+    /// <summary>跳「规则编辑器」并带上当前规则集（经 <see cref="WebTransferService"/> 传参）。</summary>
+    [RelayCommand]
+    private void EditRuleSet()
+    {
+        if (Selected == null) return;
+        _transfer.PushRuleSet(Selected.Name);
+        _nav?.NavigateTo("web-rule-editor");
     }
 
     [RelayCommand]

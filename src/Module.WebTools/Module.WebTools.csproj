@@ -9,6 +9,7 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="AngleSharp" />
     <PackageReference Include="Jint" />
+    <PackageReference Include="System.Text.Encoding.CodePages" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Shared/Shared.csproj" />

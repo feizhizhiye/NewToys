@@ -48,6 +48,7 @@
                SelectionMode="Single">
         <ListBox.ContextMenu>
           <ContextMenu>
+            <MenuItem Header="✏ 编辑规则" Command="{Binding EditRuleSetCommand}"/>
             <MenuItem Header="✓ 切换启用" Command="{Binding ToggleEnabledCommand}"/>
             <Separator/>
             <MenuItem Header="📝 打开文件" Command="{Binding OpenFileCommand}"/>

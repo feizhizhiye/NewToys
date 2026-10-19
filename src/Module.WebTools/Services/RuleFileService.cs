@@ -149,6 +149,15 @@ RULES = [
 ";
     }
 
+    /// <summary>读文件头的 <c># base:</c> / <c># encoding:</c>（编辑器页用；缺省返回空串 / <c>utf8</c>）。</summary>
+    public (string BaseUrl, string Encoding) ReadMeta(string name)
+    {
+        var map = ReadHeader(PathOf(name));
+        var b = map.TryGetValue("base", out var v1) ? v1 : "";
+        var e = map.TryGetValue("encoding", out var v2) && v2.Length > 0 ? v2 : "utf8";
+        return (b, e);
+    }
+
     /// <summary>只读文件头前 40 行里的 <c># key: value</c>（大小写不敏感）。</summary>
     private static Dictionary<string, string> ReadHeader(string path)
     {

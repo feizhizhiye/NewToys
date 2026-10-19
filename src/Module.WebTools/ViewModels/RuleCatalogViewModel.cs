@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.Core.Services;
 using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
@@ -30,6 +31,8 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
         new() { Text = "➕ 新建规则集", Classes = "ghost", CommandPath = nameof(NewRuleSetCommand) },
+        new() { Text = "⬆ 导入书源", Classes = "ghost", CommandPath = nameof(ImportLegadoCommand), IsEnabledPath = "!" + nameof(IsBusy),
+                ToolTip = "把 Legado（阅读）书源 json 转成规则集：一条书源 = 一个 .py 文件" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索名称 / 域名…", ValuePath = nameof(SearchText) },
         new() { Text = "✓ 切换启用", CommandPath = nameof(ToggleEnabledCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new() { Text = "🔄 重读规则", CommandPath = nameof(RefreshCommand), ToolTip = "重新扫一遍规则目录（⛔ 不运行任何规则集）" }
@@ -37,6 +40,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
 
     private readonly RuleCatalogService _catalog = null!;
     private readonly RuleFileService _files = null!;
+    private readonly RuleRunService _run = null!;
     private readonly WebTransferService _transfer = null!;
     private readonly INavigationService? _nav;
     private readonly List<RuleSetMeta> _all = new();
@@ -192,12 +196,13 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
     public RuleCatalogViewModel() { }
 
     public RuleCatalogViewModel(RuleCatalogService catalog, RuleFileService files,
-        IColumnLayoutService cols, WebTransferService transfer, INavigationService? nav = null)
+        IColumnLayoutService cols, WebTransferService transfer, RuleRunService run, INavigationService? nav = null)
         : base(cols)
     {
         _catalog = catalog;
         _files = files;
         _transfer = transfer;
+        _run = run;
         _nav = nav;
         LoadLayout();
         Refresh();
@@ -278,6 +283,40 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
         if (Selected == null) return;
         _transfer.PushRuleSet(Selected.Name);
         _nav?.NavigateTo("web-rule-editor");
+    }
+
+    /// <summary>
+    /// ⬆ 导入书源（批 D）：选一个 / 多个 Legado 书源 json → 交给随包 Python 脚本转换 → 落到规则目录。
+    /// <para>🔴 C# ⛔ 不解析书源（字段映射 / 表达式改写全在 <c>defaults\tools\convert_legado.py</c>）。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportLegadoAsync()
+    {
+        if (IsBusy) return;
+
+        var files = await DialogHooks.PickFilesAsync("选择 Legado（阅读）书源 json", _files.RulesDir, false, "*.json");
+        if (files.Count == 0) return;
+
+        IsBusy = true;
+        try
+        {
+            StatusText = "正在转换（首次要起 Python，稍等几秒）…";
+
+            var total = 0;
+            var messages = new List<string>();
+            foreach (var file in files)
+            {
+                var (written, message) = await _run.ConvertLegadoAsync(file);
+                total += written;
+                messages.Add(System.IO.Path.GetFileName(file) + "：" + message);
+            }
+
+            Refresh();
+            StatusText = string.Join("；", messages);
+            if (total > 0) Selected = Items.FirstOrDefault();
+        }
+        catch (Exception ex) { StatusText = "⚠ 导入失败：" + ex.Message; }
+        finally { IsBusy = false; }
     }
 
     [RelayCommand]

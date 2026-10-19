@@ -20,7 +20,8 @@
 | `web-http` | HTTP 测试 | 1 | `WebHttpView` / `WebHttpViewModel` | 构造请求并查看响应。⚠️ **工具条逃生舱**：页内自绘 `Border.toolbar`（表单式撑满布局），不套统一工具条 |
 | `web-bookmark` | 书签管理 | 2 | `BookmarkView` / `BookmarkViewModel` | 收藏与整理网址、导入浏览器书签 |
 | `web-ping` | 网络 Ping | 3 | `PingView` / `PingViewModel` | 测试主机连通性与延迟，支持切 DNS |
-| `web-scrape` | 网页抓取 | 4 | `ScrapeView` / `ScrapeViewModel` | 多配置批量抓取并整合 |
+| `web-scrape` | **抓取规则**（NT-084 改名，Key ⛔ 不改） | 4 | `RuleCatalogView` / `RuleCatalogViewModel` | **规则目录**：规则集（`.py`）的增删改 / 启用 / 导入书源 / 重读；`✏ 编辑规则` → 跳编辑器 |
+| `web-rule-editor` | 规则编辑器 | 5 | `RuleEditorView` / `RuleEditorViewModel` | 三段式自绘：命令列表 / HTML 源码 / 规则编辑（解析全在 Python 侧） |
 | `web-hosts` | Hosts 管理 | 5 | `HostsView` / `HostsViewModel` | 切换 hosts 方案、网络导入、编辑系统 hosts |
 | `settings-web-tools` | 网络工具设置 | 100 | `SettingsWebToolsView` | 超时 / 并发 / 默认解析器 |
 
@@ -62,13 +63,33 @@
 | 重读目标 | `🔄 重读目标` | 重读本地目标清单 | **⛔ 不发起 Ping** |
 | 送书签 / 送抓取 | 行右键 | 带主机跳对应页 | — |
 
-### 网页抓取 `web-scrape`
+### 抓取规则 `web-scrape`（规则目录，NT-084 批 A/B/D）
+
+> 规则载体 = `<DataDir>\web-tools\rules\<名>.py`（`SOURCE` 注释头 + `RULES` 列表 + 可选四段函数）。
+> 🔴 **C# ⛔ 不解析规则**：命中数 / 预览 / 书源转换全部由 Python 算（`RuleRunService` → `IPythonRuntime`）。
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| 新建任务 | `➕ 新建任务` | 加一条抓取配置 | — |
-| 运行全部 | `▶ 运行全部` | 批量抓取并按配置整合 | 忙碌禁用；可取消；⛔ 阻塞 UI 线程 |
-| 重读任务 | `🔄 重读任务` | 重读本地任务配置 | **⛔ 不开始抓取** |
+| 新建规则集 | `➕ 新建规则集` | 建一个 `.py` 骨架并进编辑器 | — |
+| 启用 / 停用 | `✓ 切换启用` | 落目录清单的启用标记 | 停用只影响目录开关，⛔ 不删文件 |
+| 导入书源 | `⬆ 导入书源`（批 D） | 选 Legado 书源 json → 随包 `defaults\tools\convert_legado.py` 转换 → 一条书源 = 一个规则集 `.py` | 🔴 映射 / 表达式改写全在 Python 侧（只用标准库）；转换结果按一行 JSON 回读（末尾一行） |
+| 编辑规则 | 双击行 / 右键 `✏ 编辑规则` | 经 `WebTransferService` 一次性参数跳 `web-rule-editor` | 参数一次性消费（`TakeRuleSet`） |
+| 重读规则 | `🔄 重读规则` | 重扫规则目录，**⛔ 不运行任何规则集、不联网** | — |
+| 打开文件 / 目录 | 右键 `📄 打开文件` / `📂 打开目录` | 用系统关联 / 资源管理器打开 | — |
+| 删除 | 右键 `🗑 删除` | 删规则集文件 | 二次确认 |
+
+### 规则编辑器 `web-rule-editor`（NT-084 批 C）
+
+三段式自绘：左**命令列表**（`Commands`）/ 中**HTML 源码**（`HtmlText`，上限 40 万字符 / 8000 行）/ 右**规则编辑**（选中命令的字段名 / 类型 / 表达式 / 预览）。
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 抓取 HTML | `🌐 抓取 HTML` | 按 `SOURCE` 头里的 `base`/关键字抓页面 → 落 `<DataDir>\web-tools\cache\<名>\page.html` | 编码按 `SOURCE` 的 `encoding`（GBK 需 `CodePagesEncodingProvider`，net10 自带） |
+| 运行全部 | `▶ 运行` | 对缓存 HTML 跑 `RULES`，回填命中数 + 预览 | 只跑缓存，⛔ 不重复发请求；Python 未就绪 ⇒ 状态栏提示，**页面照常可用**（⛔ 不阻断） |
+| 测试选中 | 选中命令 → `🧪 测试` | 只跑这一条 | 同上 |
+| 增 / 删命令 | `＋` / `🗑` | 改 `RULES` 列表 | — |
+| 保存 / 重载 | `💾 保存` / `🔄 重载` | 写回 `.py` / 重读磁盘 | ⛔ 无自动保存 |
+| 返回目录 | `← 返回` | 跳 `web-scrape` | — |
 
 ### Hosts 管理 `web-hosts`
 
@@ -98,12 +119,15 @@
 | `BookmarkService` | 书签 CRUD + 浏览器书签导入（`web-bookmark`） |
 | `PingService` | Ping 执行与延迟统计（`web-ping`） |
 | `DnsResolver` | DNS 解析（工具条切 DNS 的来源） |
-| `ScrapeService` | 多配置批量抓取 + 结果整合（`web-scrape`） |
+| `RuleCatalogService` | 规则集目录清单（`web-scrape`）：扫 `rules\*.py` 读 `SOURCE` 头（NT-084 取代 `ScrapeService`） |
+| `RuleFileService` | 规则 `.py` 的读写 / 命名清洗 / 目录（`web-scrape` / `web-rule-editor` 共用） |
+| `RuleRunService` | 抓 HTML 落缓存 + **调 Python** 跑 `RULES` / 列命令 / 转书源（NT-084；⛔ C# 不做解析） |
 | `HostsService` | hosts 方案读写 / 系统 hosts 落盘（需管理员，`web-hosts`） |
 | `WebTransferService` | 导入 / 导出（书签 + hosts 方案） |
 | `WebToolsSettingsService` | `config\web-tools.json` |
 
 - 数据与配置：`config\web-tools.json`（设置）；书签与 hosts 方案落模块数据目录（见 `WebToolsSettingsService` 与各 Service 的路径来源）。⛔ 模块内不自己拼 `ConfigStoreService` 的根路径。
+- NT-084 新增两块数据：**规则** = `<DataDir>\web-tools\rules\*.py`（可备份、可手写）；**抓取缓存** = `<DataDir>\web-tools\cache\<名>\page.html`（单文件覆盖，可重建）。
 
 ## 4. 关键文件
 
@@ -121,6 +145,10 @@
 2. hosts 写入系统文件需管理员权限 ⇒ 失败必须给可读提示，⛔ 静默失败。
 3. 抓取 / Ping 属长任务 ⇒ 必须可取消（`CancellationToken`），⛔ 阻塞 UI 线程。
 4. 导入外部书签 / hosts 文件时路径须 `Path.GetFullPath` 校验（见 `../framework.md` §7 路径穿越防御）。
+5. 🔴 **规则解析只在 Python 侧**（NT-084）：C# 只送路径 + 回读一行 JSON。改规则语言（css/xpath/regex）不用动 C#；反过来 ⛔ 别把解析逻辑搬进 C#。
+6. 🔴 **Python 缺失只提示、⛔ 不阻断**：页面照常打开 / 编辑 / 保存，只有抓取后跑规则、导入书源这两处需要 Python（`IPythonRuntime.Probe()` 未就绪 ⇒ 状态栏给「怎么装」的指引）。
+7. 随包 `.py`（`defaults\tools\convert_legado.py`）**只用标准库** —— 导入书源不依赖 venv 里的 requests/lxml/parsel，装了 Python 就能用。
+8. 抓 HTML 要给 GBK / GB18030 注册 `CodePagesEncodingProvider`（net10 共享框架自带，⛔ 不引第三方包）；HTML 显示有上限（40 万字符 / 8000 行），⛔ 别整页塞进 TextBox。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

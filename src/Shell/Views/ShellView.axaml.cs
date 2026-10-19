@@ -154,8 +154,9 @@ public partial class ShellView : Window
         base.OnLoaded(e);
 
         // NT-084 防御（2026-10-20 启动崩溃复盘）：x:Name 回填异常时字段全为 null（BtnMin 首当其冲）。
-        // 先按名字兜底找一次；仍找不到才放行（后面的 += 会抛，crash log 留现场）。
+        // 先按名字兜底找一次；兜底也拿不到就放弃接线（崩溃 log 已留现场，总比启动即崩好）。
         if (BtnMin is null) BtnMin = this.FindControl<Button>("BtnMin");
+        if (BtnMin is null) return;
 
         BtnMin.Click += (s, ev) => { WindowState = WindowState.Minimized; ev.Handled = true; };
         BtnMax.Click += (s, ev) => { ToggleMaxRestore(); ev.Handled = true; };

@@ -955,12 +955,12 @@ public class App : Application
     /// <para>钩子没接上（主窗口未构造）时返回 false = 当作用户没同意。</para>
     /// </summary>
     private static Task<bool> ConfirmAsync(string message)
-        => (_mainWindow as ShellView)?.DialogCards.ConfirmAsync(message) ?? Task.FromResult(false);
+        => (_mainWindow as ShellView)?.DialogCards?.ConfirmAsync(message) ?? Task.FromResult(false);
 
     /// <summary>
     /// 通用单行输入对话框（NT-084 起 = 页内弹出卡片；取消返回 null）。
     /// </summary>
     private static Task<string?> InputAsync(string title, string initialValue)
-        => (_mainWindow as ShellView)?.DialogCards.InputAsync(title, initialValue)
+        => (_mainWindow as ShellView)?.DialogCards?.InputAsync(title, initialValue)
            ?? Task.FromResult<string?>(null);
 }

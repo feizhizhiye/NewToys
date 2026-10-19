@@ -34,7 +34,17 @@
         </StackPanel>
 
         <ListBox Grid.Row="2" Margin="0,6,0,0" ItemsSource="{Binding Collections}"
-                 SelectedItem="{Binding SelectedCollection, Mode=TwoWay}">
+                 SelectedItem="{Binding SelectedCollection, Mode=TwoWay}"
+                 ContextRequested="OnCollectionListContextRequested">
+          <!--  NT-082：右键 = 对这个集合的整体动作（⛔ 与右栏成员勾选无关）；
+                右键命中的行由 code-behind 先选中，菜单项作用于「当前集合」。  -->
+          <ListBox.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="📤 发送到对应页面"
+                        Command="{Binding SendToPageCommand}"
+                        ToolTip.Tip="按集合类别跳到信息面板 / 脚本库 / 命令库 / 软件包，并选中这个集合"/>
+            </ContextMenu>
+          </ListBox.ContextMenu>
           <ListBox.ItemTemplate>
             <DataTemplate>
               <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,2">

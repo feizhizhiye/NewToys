@@ -38,7 +38,7 @@ public class PackageExportItem
 /// <para>
 /// <b>本页没有任何「保存」按钮</b>（规范 3.7）：源、静默安装、排序列都是点一下就生效并写
 /// <c>config\package.json</c>（由 <see cref="IPackageSettingsService"/> 落盘）。
-/// NT-074：源的**增删 / 镜像切换**归「脚本管理器设置 → 软件源」节；本页只管"查哪些源"。
+/// NT-074 / v3.80：源的**增删 / 切换**全要 UAC ⇒ 归「命令库 → winget 源」集合的命令；本页只管"查包"。
 /// NT-076：**勾一下源就立刻生效** —— 勾上但系统里没有的源（如默认未启用的 <c>msstore</c>）
 /// 会标「（未启用）」，勾它立刻跑 <c>winget source enable</c>（⛔ 工具条不再有「✅ 生效」按钮）。
 /// 本页进入时读一次源列表，因此设置页改完再回到本页即生效（页面每次导航都会重建 VM，见规范 6.5）。
@@ -50,7 +50,7 @@ public class PackageExportItem
 /// </summary>
 public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
-    private enum ListMode { None, Search, Installed, Upgrades, Pinned }
+    private enum ListMode { None, Search, Installed, Upgrades, Pinned, Collection }
 
     // ==================== 动词 → 命令模板（🔴 抽象落点） ====================
     //
@@ -75,17 +75,11 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>列出被 pin 的包（<c>winget pin list</c>）。</summary>
     private const string CmdListPinned = "winget pin list";
 
-    /// <summary>搜索（<c>winget search</c>）；<c>--source</c> 只在勾了具体源时才带。</summary>
-    private const string CmdSearch = "winget search <关键字> --accept-source-agreements [--source <源>]";
+    /// <summary>搜索（<c>winget search</c>）：一律不传 <c>--source</c>，走 winget 自己的默认源集合。</summary>
+    private const string CmdSearch = "winget search <关键字> --accept-source-agreements";
 
     /// <summary>刷新索引（<c>source update</c>）：把各源的元数据拉到最新，之后「可升级」才准。</summary>
     private const string CmdRefreshIndex = "{exe} source update";
-
-    /// <summary>
-    /// 工具条源多选框**只决定查哪些源**（v3.79）。
-    /// <para>🔴 切源（启用 / 停用，需要管理员权限）归「脚本管理器设置 → 软件源」节；本页⛔ 不弹 UAC。</para>
-    /// </summary>
-    private const string CmdSourcePick = "winget search <关键字> --source <源>（勾多个就逐个查再合并；全勾 = 不传 --source，交给 winget 用自己的默认源集合）";
 
     /// <summary>安装（<c>winget install</c>）。</summary>
     private const string CmdInstall =
@@ -107,6 +101,12 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     private readonly IPackageManagerService? _pkg;
     private readonly IPackageSettingsService? _settings;
+
+    /// <summary>
+    /// 「软件包集合」的数据源（NT-082：集合 / 条目 = 手工数据，唯一写入点仍是 <see cref="IScriptStoreService"/>）。
+    /// <para>null = DI 未注册（设计期 / 单测），此时「集合 ▾」只显示「（不按集合）」。</para>
+    /// </summary>
+    private readonly IScriptStoreService? _store;
 
     /// <summary>当前模式下的全量结果（界面集合只放过滤 + 排序后的投影）。</summary>
     private readonly List<PackageInfo> _all = new();
@@ -137,7 +137,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     private bool _syncing;
 
     public ObservableCollection<PackageInfo> Packages { get; } = new();
-    public ObservableCollection<PackageSourceOption> SourceOptions { get; } = new();
 
     /// <summary>
     /// 工具条（NT-055 / 需求 §4.8.5：**由 Shell 统一渲染**，页面⛔ 不再自写 <c>Border.toolbar</c>）。
@@ -151,19 +150,19 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// </summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        // 2026-10-19（v3.79）：源改**多选**（一个下拉，勾中项右侧 ✓）—— 只列系统里**已启用**的源；
-        // 全勾 = 「全部源」（搜索时不传 --source，winget 自己跳过显式源）。勾选立刻写进 package.json。
+        // 🔴 v3.80：源选择框**已删除**（用户定调）—— 源是系统 winget 的配置，增删 / 切换全要 UAC，
+        // 由「命令库 → winget 源」集合里的命令执行；本页搜索一律不传 --source（走默认源集合 + 补查显式源）。
+        // NT-082 / v3.81：换成「集合 ▾」—— 显示某个「软件包」类集合的**包清单**（成员 = role=package 条目）。
         new()
         {
-            Kind = ToolbarItemKind.MultiCombo,
-            Width = 150,
-            ItemsPath = nameof(SourceOptions),
-            DisplayPath = "Label",
-            SelectedPath = "IsSelected",
-            TextPath = nameof(SourceSummary),
-            CommandPath = nameof(RefreshSourceSummaryCommand),
-            ToolTip = CmdSourcePick
+            Kind = ToolbarItemKind.Combo,
+            Width = 140,
+            ItemsPath = nameof(CollectionOptions),
+            DisplayPath = nameof(CollectionFilterOption.Label),
+            SelectedItemPath = nameof(SelectedCollectionOption),
+            ToolTip = "软件包集合：显示这个集合的包清单（成员 = 包 Id）；「（不按集合）」= 只按搜索 / 已安装看包"
         },
+        new() { Kind = ToolbarItemKind.Separator },
         new()
         {
             Kind = ToolbarItemKind.TextField,
@@ -267,18 +266,37 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     [ObservableProperty] private PackageInfo? _selected;
     [ObservableProperty] private string _detailExtra = "";
 
+    // ==================== 软件包集合（NT-082 / v3.81） ====================
+
     /// <summary>
-    /// 源多选框**按钮上的汇总文案**（v3.77）：`winget` / `winget, msstore` / `3 个源` / `全部源`（一个都没勾）。
+    /// 「集合 ▾」的选项：第一项永远是「（不按集合）」；其余 = 未归档的 <see cref="ScriptCollectionKind.Package"/> 集合。
     /// </summary>
-    [ObservableProperty] private string _sourceSummary = "全部源";
+    public ObservableCollection<CollectionFilterOption> CollectionOptions { get; } = new();
 
-    /// <summary>已勾选的源名（⚠ 只含有名字的项；空 = 全部源）。</summary>
-    private List<string> CheckedSources()
-        => SourceOptions.Where(o => o.IsSelected && !string.IsNullOrEmpty(o.Value))
-                        .Select(o => o.Value!).ToList();
+    private CollectionFilterOption? _selectedCollectionOption;
 
-    /// <summary>安装时兜底用：第一个勾选的源；一个都没勾 ⇒ null（交给后端自己挑）。</summary>
-    private string? FirstCheckedSource() => CheckedSources().FirstOrDefault();
+    /// <summary>
+    /// 当前选中的软件包集合（Value 空串 = 不按集合）。
+    /// <para>切换即加载清单并记「在用」（<c>LastCollectionIdByKind</c>）：集合页右键「发送到对应页面」就是写这个值，
+    /// 本页构造时读回来 ⇒ 页面被重建也能停在同一个集合。</para>
+    /// </summary>
+    public CollectionFilterOption? SelectedCollectionOption
+    {
+        get => _selectedCollectionOption;
+        set
+        {
+            if (!SetProperty(ref _selectedCollectionOption, value)) return;
+            if (_syncingCollections) return;
+            if (_store != null) _store.SetLastCollectionId(ScriptCollectionKind.Package, value?.Value ?? "");
+            _ = LoadCollectionAsync();
+        }
+    }
+
+    /// <summary>抑制「改选中 → 重加载」的开关（构造时灌值用）。</summary>
+    private bool _syncingCollections;
+
+    /// <summary>当前集合的名字（空 = 不按集合），给状态文案用。</summary>
+    private string CurrentCollectionName => SelectedCollectionOption?.Label ?? "";
 
     /// <summary>
     /// 给搜索结果**补上来源**（v3.78）：老版本 winget 的 <c>search</c> 输出不一定有 Source 列，
@@ -289,39 +307,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (string.IsNullOrEmpty(source)) return;
         foreach (var it in items)
             if (string.IsNullOrEmpty(it.Source)) it.Source = source;
-    }
-
-    /// <summary>
-    /// 勾选态变了 ⇒ 重算按钮汇总文案（工具条 <c>MultiCombo</c> 的 <c>CommandPath</c> 指这里）
-    /// + **立刻写进 <c>package.json</c>**（v3.79）。
-    /// <para>
-    /// 🔴 只存偏好、⛔ 不碰系统 winget（切源要管理员权限，归设置页）——老实现每次勾选都跑
-    /// <c>source enable</c> 并重读源列表，结果反把用户刚勾的状态冲掉，这就是「勾了 store 源不生效」的根因。
-    /// </para>
-    /// <para>🔴 宿主已经把 bool 翻好了，⛔ 这里不要再翻。</para>
-    /// </summary>
-    [RelayCommand]
-    private void RefreshSourceSummary()
-    {
-        var picked = CheckedSources();
-        var all = SourceOptions.Count(o => !string.IsNullOrEmpty(o.Value));
-
-        SourceSummary = picked.Count == 0 || picked.Count >= all
-            ? "全部源"
-            : picked.Count switch
-            {
-                1 => picked[0],
-                2 => $"{picked[0]}, {picked[1]}",
-                _ => $"{picked.Count} 个源"
-            };
-
-        if (_syncing || _settings == null) return;
-
-        // 全勾 / 全不勾 都存空串 = 「全部源」（≡ 搜索时不传 --source，让 winget 用自己的默认源集合）
-        _settings.Settings.DefaultSource = picked.Count == 0 || picked.Count >= all
-            ? ""
-            : string.Join(",", picked);
-        _settings.Save();
     }
 
     // ==================== 表头（点一下切换排序） ====================
@@ -636,13 +621,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public PackageViewModel() { }
 
-    public PackageViewModel(IPackageManagerService pkg, IPackageSettingsService settings, IColumnLayoutService cols, IAppConfigService app)
-        : base(cols)
+    public PackageViewModel(IPackageManagerService pkg, IPackageSettingsService settings, IColumnLayoutService cols, IAppConfigService app, IScriptStoreService? store = null, IOptionsStore? opts = null)
+        : base(cols, opts)
     {
         _app = app;
         _pkg = pkg;
         _settings = settings;
         _cols = cols;
+        _store = store;
 
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         _syncing = true;
@@ -651,6 +637,9 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         SilentInstall = s.SilentInstall;
         _syncing = false;
         UpdateHeaders();
+
+        // NT-082：先把「集合 ▾」建好并恢复上次选中的软件包集合（若有 ⇒ 直接显示包清单）。
+        RefreshCollections(restoreLast: true);
 
         _ = InitAsync();
     }
@@ -672,7 +661,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             IsSupported = ok;
             SupportText = ok ? $"✅ {msg}" : $"⚠️ {msg}";
             if (!ok) { StatusText = msg; ModeText = "当前环境下不可用"; return; }
-            await LoadSourcesAsync();
+            await LoadExplicitSourcesAsync();
         }
         catch (Exception ex)
         {
@@ -682,42 +671,20 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     }
 
     /// <summary>
-    /// 源多选框 = 系统 winget 里**已启用**的源（<c>winget source list</c> 的真实结果）。
-    /// <para>
-    /// 🔴 v3.79：⛔ 不再补「（未启用）」的兜底项 —— 勾上一个系统里不存在的源，只能靠
-    /// <c>source add</c> 真把它加进来（要管理员权限 + UAC），那不归本页管；
-    /// 启用 / 停用源一律去「脚本管理器设置 → 软件源」。
-    /// </para>
-    /// <para><c>defaultSource</c> 空串 = 全部源（全勾）；否则只勾存过的那些。</para>
+    /// 读系统 winget 的**显式源**名单（<c>winget source list</c> 的「显式」列）。
+    /// <para>🔴 v3.80：源选择框已删 ⇒ 这里只留搜索需要的那点信息 —— 显式源（如 <c>winget-font</c>）
+    /// 不参与默认搜索，所以「搜全部源」时要单独补查一遍，否则永远搜不到。</para>
     /// </summary>
-    private async Task LoadSourcesAsync()
+    private async Task LoadExplicitSourcesAsync()
     {
         if (_pkg == null) return;
 
         var (ok, _, items) = await _pkg.ListSourcesAsync();
 
-        SourceOptions.Clear();
         _explicitSources.Clear();
-        if (ok)
-        {
-            foreach (var s in items)
-            {
-                SourceOptions.Add(new PackageSourceOption { Label = s.Name, Value = s.Name });
-                if (s.Explicit) _explicitSources.Add(s.Name);
-            }
-        }
-
-        var want = (_settings?.Settings.DefaultSource ?? "")
-                   .Split(new[] { ',', '，' }, StringSplitOptions.RemoveEmptyEntries)
-                   .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
-
-        _syncing = true;
-        // 空串 = 全部源（全勾）；存过名字就只勾它们（已被移除的源自然忽略）
-        foreach (var o in SourceOptions)
-            o.IsSelected = want.Count == 0
-                        || want.Contains(o.Value ?? "", StringComparer.OrdinalIgnoreCase);
-        RefreshSourceSummary();     // _syncing=true ⇒ 只算按钮文案，不回写 package.json
-        _syncing = false;
+        if (!ok) return;
+        foreach (var s in items)
+            if (s.Explicit) _explicitSources.Add(s.Name);
     }
 
     // ==================== 加载列表 ====================
@@ -737,72 +704,181 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             IsBusy = true;
             StatusText = "正在搜索……";
 
-            // v3.79：源多选 ——
-            //   全勾 / 全不勾 = 全部源 ⇒ 先不传 --source（winget 用自己的默认源集合，自动排除显式源），
-            //   再把勾上的「显式源」（如 winget-font）逐个补查一遍合并 —— 否则勾了字体源也搜不到。
-            //   否则只查勾的那些源。
-            var all = SourceOptions.Count(o => !string.IsNullOrEmpty(o.Value));
-            var picked = CheckedSources();
-            var allSources = picked.Count == 0 || picked.Count >= all;
+            // v3.80：源选择框已删 ⇒ 固定「全部源」行为：
+            //   ① 先不传 --source（winget 用自己的默认源集合，自动排除显式源）；
+            //   ② 再把系统里的**显式源**（如 winget-font）逐个补查合并 —— 否则字体源永远搜不到。
+            var merged = new List<PackageInfo>();
+            var errs = new List<string>();
+            var queried = 0;
 
-            if (allSources || picked.Count > 1)
+            var (ok0, msg0, items0) = await _pkg.SearchAsync(SearchText, null);
+            queried++;
+            if (ok0) merged.AddRange(items0); else errs.Add("默认源集合: " + msg0);
+
+            foreach (var name in _explicitSources)
             {
-                var merged = new List<PackageInfo>();
-                var errs = new List<string>();
-                var queried = 0;
-
-                if (allSources)
-                {
-                    var (ok0, msg0, items0) = await _pkg.SearchAsync(SearchText, null);
-                    queried++;
-                    if (ok0) merged.AddRange(items0); else errs.Add("默认源集合: " + msg0);
-
-                    foreach (var name in picked.Where(n => _explicitSources.Contains(n)))
-                    {
-                        var (ok, msg, items) = await _pkg.SearchAsync(SearchText, name);
-                        queried++;
-                        if (ok) { StampSource(items, name); merged.AddRange(items); }
-                        else errs.Add($"{name}: {msg}");
-                    }
-                }
-                else
-                {
-                    foreach (var name in picked)
-                    {
-                        var (ok, msg, items) = await _pkg.SearchAsync(SearchText, name);
-                        queried++;
-                        if (ok) { StampSource(items, name); merged.AddRange(items); }
-                        else errs.Add($"{name}: {msg}");
-                    }
-                }
-
-                // 同一个包可能同时出现在默认源集合与显式源里（按 源 + Id 去重）
-                var deduped = merged
-                    .GroupBy(p => (p.Source ?? "") + "|" + p.Id, StringComparer.OrdinalIgnoreCase)
-                    .Select(g => g.First())
-                    .ToList();
-
-                BeginList(deduped, ListMode.Search);
-                ApplyView();
-                StatusText = deduped.Count == 0
-                    ? "没有匹配的包" + (errs.Count > 0 ? "｜" + string.Join("；", errs) : "")
-                    : $"找到 {deduped.Count} 个包（已查 {queried} 个源{(allSources ? "，含全部默认源" : "")}）";
+                var (ok, msg, items) = await _pkg.SearchAsync(SearchText, name);
+                queried++;
+                if (ok) { StampSource(items, name); merged.AddRange(items); }
+                else errs.Add($"{name}: {msg}");
             }
-            else
-            {
-                // 全部源 ⇒ source = null（winget 用自己的默认源集合）；否则只查勾的那一个
-                var only = allSources ? null : picked.FirstOrDefault();
-                var (ok, msg, items) = await _pkg.SearchAsync(SearchText, only);
-                StampSource(items, only);
-                BeginList(items.ToList(), ListMode.Search);
-                ApplyView();
-                StatusText = msg;
-            }
+
+            // 同一个包可能同时出现在默认源集合与显式源里（按 源 + Id 去重）
+            var deduped = merged
+                .GroupBy(p => (p.Source ?? "") + "|" + p.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .ToList();
+
+            BeginList(deduped, ListMode.Search);
+            ApplyView();
+            StatusText = deduped.Count == 0
+                ? "没有匹配的包" + (errs.Count > 0 ? "｜" + string.Join("；", errs) : "")
+                : $"找到 {deduped.Count} 个包（已查 {queried} 个源，含全部默认源）";
 
             await MarkInstalledAsync();
             ApplyView();
         }
         finally { IsBusy = false; }
+    }
+
+    // ==================== 软件包集合（NT-082 / v3.81） ====================
+
+    /// <summary>
+    /// 重建「集合 ▾」：第一项「（不按集合）」+ 全部未归档的 <see cref="ScriptCollectionKind.Package"/> 集合。
+    /// <para><paramref name="restoreLast"/> = 进页面时用：读回「在用」集合（集合页右键「发送到对应页面」写的就是它）。</para>
+    /// </summary>
+    private void RefreshCollections(bool restoreLast = false)
+    {
+        var keep = restoreLast
+            ? _store?.GetLastCollectionId(ScriptCollectionKind.Package) ?? ""
+            : _selectedCollectionOption?.Value ?? "";
+
+        CollectionOptions.Clear();
+        CollectionOptions.Add(new CollectionFilterOption { Label = "（不按集合）", Value = "" });
+        if (_store != null)
+            foreach (var c in _store.Data.Collections
+                        .Where(c => !c.Archived && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Package)
+                        .OrderByDescending(c => c.Pinned)
+                        .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
+                CollectionOptions.Add(new CollectionFilterOption { Label = c.Name, Value = c.Id });
+
+        var target = CollectionOptions.FirstOrDefault(o => o.Value == keep) ?? CollectionOptions[0];
+        _syncingCollections = true;
+        _selectedCollectionOption = target;
+        _syncingCollections = false;
+        OnPropertyChanged(nameof(SelectedCollectionOption));
+
+        if (target.Value.Length > 0) _ = LoadCollectionAsync();
+    }
+
+    /// <summary>
+    /// 把当前集合的包清单铺到列表：成员里 <c>role=package</c> 的条目，<c>Target</c> 就是包 Id。
+    /// <para>状态（已安装 / 可升级）复用 <see cref="MarkInstalledAsync"/> —— 清单本身不带运行状态，
+    /// 一次 <c>winget list</c> 缓存即可比对，⛔ 不逐包跑 <c>winget show</c>（慢且会触发源更新）。</para>
+    /// </summary>
+    private async Task LoadCollectionAsync()
+    {
+        if (_store == null) return;
+        var colId = SelectedCollectionOption?.Value ?? "";
+        if (colId.Length == 0)
+        {
+            // 用户主动切回「（不按集合）」：不自动跑 winget，只退出清单视图。
+            if (_mode == ListMode.Collection)
+            {
+                BeginList(new List<PackageInfo>(), ListMode.None);
+                StatusText = "已退出集合视图：点「📋 已安装」或直接搜索看包。";
+            }
+            return;
+        }
+
+        var col = _store.FindCollection(colId);
+        if (col == null) return;
+
+        var members = _store.ItemsOf(colId)
+            .Where(i => ScriptItemRole.Normalize(i.Role) == ScriptItemRole.Package)
+            .Where(i => (i.Target ?? "").Length > 0)
+            .Select(i => new PackageInfo
+            {
+                Id = i.Target!,
+                Name = string.IsNullOrWhiteSpace(i.Title) ? i.Target! : i.Title!,
+                Source = i.Category ?? "",
+            })
+            .ToList();
+
+        try
+        {
+            IsBusy = true;
+            BeginList(members, ListMode.Collection);
+            await MarkInstalledAsync();
+            ApplyView();
+            StatusText = members.Count == 0
+                ? $"「{col.Name}」还没有包：在搜索结果里右键「📥 加入集合」把包加进来。"
+                : $"「{col.Name}」：{members.Count} 个包（状态按本机 winget list 比对）。";
+        }
+        finally { IsBusy = false; }
+    }
+
+    /// <summary>
+    /// 右键「📥 加入集合」：把当前选中的包写进**当前集合**（没选集合 ⇒ 用第一个软件包集合，没有就建「我的软件包」）。
+    /// <para>成员条目：<c>Role=package</c>、<c>Target=包 Id</c>、<c>Category=源</c>；按 Id 幂等去重。</para>
+    /// </summary>
+    [RelayCommand]
+    private void AddToCollection()
+    {
+        if (_store == null) { StatusText = "⚠ 集合服务未就绪（DI 未注册）—— 无法写入集合。"; return; }
+        if (Selected == null) { StatusText = "先选一个包，再「📥 加入集合」。"; return; }
+
+        var colId = SelectedCollectionOption?.Value ?? "";
+        var col = colId.Length > 0 ? _store.FindCollection(colId) : null;
+        if (col == null)
+        {
+            col = _store.Data.Collections.FirstOrDefault(
+                c => !c.Archived && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Package);
+
+            if (col == null)
+            {
+                col = new ScriptCollection
+                {
+                    Id = "col-" + Guid.NewGuid().ToString("N")[..12],
+                    Name = "我的软件包",
+                    Kind = ScriptCollectionKind.Package,
+                    Icon = "📦",
+                    Description = "手工挑出来的包清单（集合页可发送到软件包页，按清单看安装状态）",
+                    Order = _store.Data.Collections.Count,
+                };
+                _store.Data.Collections.Add(col);
+            }
+        }
+
+        var exists = _store.ItemsOf(col.Id).Any(
+            i => ScriptItemRole.Normalize(i.Role) == ScriptItemRole.Package
+                 && string.Equals(i.Target, Selected.Id, StringComparison.OrdinalIgnoreCase));
+        if (exists)
+        {
+            StatusText = $"「{Selected.Id}」已在集合「{col.Name}」里。";
+            return;
+        }
+
+        _store.Data.Items.Add(new ScriptItem
+        {
+            Id = "item-" + Guid.NewGuid().ToString("N"),
+            Role = ScriptItemRole.Package,
+            Title = string.IsNullOrWhiteSpace(Selected.Name) ? Selected.Id : Selected.Name,
+            Target = Selected.Id,
+            Category = Selected.Source ?? "",
+            Collectable = false,
+            Collections = new List<string> { col.Id },
+        });
+        _store.Save();
+
+        RefreshCollections();
+        _syncingCollections = true;
+        _selectedCollectionOption = CollectionOptions.FirstOrDefault(o => o.Value == col.Id) ?? CollectionOptions[0];
+        _syncingCollections = false;
+        OnPropertyChanged(nameof(SelectedCollectionOption));
+        _ = LoadCollectionAsync();
+
+        StatusText = $"已把「{Selected.Id}」加入集合「{col.Name}」。";
     }
 
     [RelayCommand]
@@ -852,12 +928,23 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             case ListMode.Search: await SearchAsync(); break;
             case ListMode.Upgrades: await LoadUpgradesAsync(); break;
             case ListMode.Pinned: await LoadPinnedAsync(); break;   // NT-075：按当前列表重跑
+            case ListMode.Collection: await LoadCollectionAsync(); break;   // NT-082：按集合清单重跑
             default: await LoadInstalledAsync(); break;
         }
     }
 
     private void BeginList(List<PackageInfo> items, ListMode mode)
     {
+        // NT-082：任何「非集合」列表都把「集合 ▾」复位到「（不按集合）」——
+        // 否则搜完一轮列表是搜索结果、下拉还挂着集合名，用户会以为在看清单。
+        if (mode != ListMode.Collection && _selectedCollectionOption != null && _selectedCollectionOption.Value.Length > 0)
+        {
+            _syncingCollections = true;
+            _selectedCollectionOption = CollectionOptions.Count > 0 ? CollectionOptions[0] : null;
+            _syncingCollections = false;
+            OnPropertyChanged(nameof(SelectedCollectionOption));
+        }
+
         // v3.37 / NT-002：旧行先解绑勾选监听，新行挂上（⛔ 别直接 AddRange，否则计数不更新）
         foreach (var p in _all) p.PropertyChanged -= OnRowPropertyChanged;
         _all.Clear();
@@ -870,6 +957,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             ListMode.Installed => "已安装（本机全部包）",
             ListMode.Upgrades => "可升级",
             ListMode.Pinned => "已锁定（winget pin list）",
+            ListMode.Collection => $"集合：{CurrentCollectionName}（{items.Count} 个包）",
             _ => "尚未加载"
         };
         if (mode != ListMode.Search && SearchText.Length > 0) SearchText = "";
@@ -1173,7 +1261,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         {
             IsBusy = true;
             StatusText = $"正在安装 {p.Id} ……（较大的包会久一点，请勿关闭窗口）";
-            var (ok, msg) = await _pkg.InstallAsync(p.Id, string.IsNullOrEmpty(p.Source) ? FirstCheckedSource() : p.Source, SilentInstall);
+            var (ok, msg) = await _pkg.InstallAsync(p.Id, p.Source, SilentInstall);
             StatusText = msg;
             if (ok)
             {
@@ -1369,7 +1457,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             StatusText = "正在刷新软件源索引……（首次会比较慢）";
             var r = await RunBackendAsync(ResolveCommand(CmdRefreshIndex));
             StatusText = r.Ok ? "软件源索引已刷新。" : "刷新索引失败：" + ErrorOf(r);
-            if (r.Ok) await LoadSourcesAsync();      // 索引变了，源清单可能也变
+            if (r.Ok) await LoadExplicitSourcesAsync();      // 索引变了，显式源名单可能也变
         }
         finally { IsBusy = false; }
     }
@@ -1449,7 +1537,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         StatusText = "正在读取详情（winget show）……";
         // v3.78：商店包只在 msstore 源里 ⇒ show 必须带 --source，否则详情读不出来。
         var (ok, msg, detail) = await _pkg.ShowAsync(p.Id,
-            string.IsNullOrEmpty(p.Source) ? FirstCheckedSource() : p.Source);
+            p.Source);
         if (!ok || detail == null) { StatusText = msg; return; }
 
         if (!string.IsNullOrWhiteSpace(detail.Name)) p.Name = detail.Name;
@@ -1560,7 +1648,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                 var p = targets[i];
                 StatusText = $"正在安装 {i + 1}/{targets.Count}：{p.Id} …（较大的包会久一点，请勿关闭窗口）";
                 var (success, msg) = await _pkg.InstallAsync(p.Id,
-                    string.IsNullOrEmpty(p.Source) ? FirstCheckedSource() : p.Source, SilentInstall);
+                    p.Source, SilentInstall);
                 if (success) ok++;
                 else fails.Add($"{p.Id}（{msg}）");
             }
@@ -1790,5 +1878,5 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     }
 
     // 注：源的下拉只是**只读快照**（进入本页读一次系统 winget 的源）。
-    // 要增删源请去「设置 → 软件源」页 —— 那里改的也是系统 winget，两边共用一套数据（v1.33）。
+    // 要增删 / 切换源请去「命令库 → winget 源」集合（那里的命令带 UAC 提权；改的也是系统 winget）。
 }

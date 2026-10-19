@@ -48,9 +48,39 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     {
         _cols = cols;
         _opts = opts;
-        if (opts != null
-            && int.TryParse(opts.Get(OptionsModule, PageSizeKey), out var saved) && saved > 0)
-            _pageSize = saved;   // 记住上次选择的页大小（shell 分区，全局）
+
+        // 🔴 构造期只走属性赋值（⛔ 不直连 _pageSize，MVVMTK0034）；临时挂起 setter 副作用
+        //    （写盘 + RefreshView）—— 派生类还没构造完，RefreshView 会碰到未初始化成员。
+        _initializing = true;
+        try
+        {
+            if (opts != null
+                && int.TryParse(opts.Get(OptionsModule, PageSizeKey), out var saved) && saved > 0)
+                PageSize = saved;   // 记住上次选择的页大小（shell 分区，全局）
+            SnapPageSizeToChoices();
+        }
+        finally { _initializing = false; }
+    }
+
+    /// <summary>构造期标志：抑制 <see cref="OnPageSizeChanged"/> 的写盘 / 重取副作用。</summary>
+    private bool _initializing;
+
+    /// <summary>
+    /// 把落盘的页大小收成本页预设里的值（🔴 2026-10-19 修「软件包页默认 25 / 选 50 崩溃」）。
+    /// <para>
+    /// 页大小落盘是**全局一份**（<c>shell.json</c> 的 <c>ui.list-page-size</c>），但各页的预设不同
+    /// （通用 25/50/100/500/全部，软件包 20/50/100/全部）⇒ 换到预设不同的页时会读到"不属于本页"的值，
+    /// 底栏会把该值补进下拉并成为默认项（用户看到"默认 25"），此时再点选任一预设项，
+    /// 候选项集合变化 ⇒ 下拉 <c>ItemsSource</c> 被换掉，正在提交选中的弹层项索引越界 ⇒ 进程崩溃。
+    /// 这里在构造期直接收成本页预设的第一档（找不到才保留原值）。
+    /// </para>
+    /// <para>⚠️ 这是**构造期**的虚属性调用：派生 <c>override PageSizeChoices</c> 只许返回 static 只读数组。</para>
+    /// </summary>
+    private void SnapPageSizeToChoices()
+    {
+        var choices = PageSizeChoices;
+        if (choices is { Count: > 0 } && !choices.Contains(PageSize))
+            PageSize = choices[0];
     }
 
     // ==================== 底部状态栏（v3.9：提到基类，Shell 统一承载） ====================
@@ -170,6 +200,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     partial void OnPageSizeChanged(int value)
     {
         if (value <= 0) { PageSize = DefaultPageSize; return; }
+        if (_initializing) return;                  // 构造期赋值（读盘 / 收成本页预设）不写盘、不重取
         _opts?.Set(OptionsModule, PageSizeKey, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
         OnPropertyChanged(nameof(PageCount));       // 页大小变了 ⇒ 总页数重算（底栏「共 N 页」/ 页码按钮）
         OnPropertyChanged(nameof(HasFooterContent));

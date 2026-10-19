@@ -4,11 +4,12 @@ namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// <b>集合类别</b>（<see cref="ScriptCollection.Kind"/> 的合法取值，NT-068 §三.0）。
-/// <para>决定集合归属哪一页：<c>script</c> / <c>command</c> / <c>info</c>。</para>
+/// <para>决定集合归属哪一页：<c>script</c> / <c>command</c> / <c>info</c> / <c>package</c>。</para>
 /// <para>
-/// 🔴 v3.79：**删掉 <c>package</c> 一档**（用户定调）—— 「用脚本集合冒充软件包分类」不现实
-/// （软件包是 winget 的实时查询结果，不是可手工归档的条目）⇒ 软件包只有独立的「软件包」页。
-/// 老数据里 kind=package 的集合会被 <see cref="Normalize"/> 归到 <c>info</c>。
+/// 🔴 v3.81（NT-082，用户定调）：**加回 <c>package</c> 一档** —— 它不是「用集合冒充 winget 查询结果」，
+/// 而是**包清单**：成员是 <see cref="ScriptItemRole.Package"/> 条目（Target = 包 Id），
+/// 发送到软件包页按清单显示安装状态。定位是**跨包管理器的架构预设**：
+/// 将来 apt / flatpak / snap 各有后端，集合按后端归类，页面上再把成员命令绑定成按钮。
 /// </para>
 /// <para>⚠️ 与条目角色 <see cref="ScriptItemRole"/> 是<b>两套枚举</b>，⛔ 不要混用。</para>
 /// </summary>
@@ -17,17 +18,28 @@ public static class ScriptCollectionKind
     public const string Script = "script";
     public const string Command = "command";
     public const string Info = "info";
+    public const string Package = "package";
 
-    /// <summary>认得的返回值，其余（含 null / 空 / 已废弃的 <c>package</c>）回退 <see cref="Info"/>。</summary>
+    /// <summary>认得的返回值，其余（含 null / 空）回退 <see cref="Info"/>。</summary>
     public static string Normalize(string? kind)
-        => kind == Script || kind == Command ? kind : Info;
+        => kind == Script || kind == Command || kind == Package ? kind : Info;
 
     /// <summary>集合列表 / 下拉里显示的中文名。</summary>
     public static string Label(string? kind) => Normalize(kind) switch
     {
         Script => "脚本库",
         Command => "命令库",
+        Package => "软件包",
         _ => "信息面板",
+    };
+
+    /// <summary>该类别对应的页面 key（「发送到对应页面」用；⛔ 与本枚举同源，别在别处另写一份 switch）。</summary>
+    public static string PageKey(string? kind) => Normalize(kind) switch
+    {
+        Script => "script-library",
+        Command => "script-commands",
+        Package => "script-packages",
+        _ => "script-info",
     };
 }
 

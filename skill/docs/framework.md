@@ -100,7 +100,7 @@
 - 🔴 **`NewToys.UI` 纪律**：被所有模块引用 ⇒ 与 Shared/Core 同级 ⇒ **改一次 = 全模块重编**。只放**写完即冻结的稳定控件**；`App.axaml` 的 31 个 `*Brush` 主题刷子 ⛔ 不搬，UI 内 XAML 一律 `DynamicResource` 引用主题键。
 - ⛔ 禁第三方 UI 库 / 图标字体。包版本只在 `src/Directory.Packages.props`。
 
-### 2.1 跨平台中立约束（2026-10-19 · 长期约束，本期不实施）
+### 2.1 跨平台中立约束（2026-10-19 · 长期约束；NT-081 步骤 1-2 已实施）
 
 > 本期交付仍是 **Windows 10 LTSC**（需求 §3.7），Debian 13 属远期。本节**不是**「现在就做跨平台」，而是**新增代码的形状约束**：将来换平台时不用重写页面。
 > 口径：**架构中立 ≠ 功能落地** —— 平台差异必须被隔离在适配层，⛔ 不允许「页面里判断平台」。
@@ -140,7 +140,9 @@
 6. 新增后端或新平台能力时**先问「属于三层里的哪一层」**：落不进适配层的设计 = 架构债。
 
 **现状债（明细登记 §10 B5）**
-- `src/Directory.Build.props:17` 硬编 `<RuntimeIdentifier>win-x64</RuntimeIdentifier>`（全工程单 RID）。
+- ✔ RID 已**条件化**（NT-081 步骤 1）：默认仍 `win-x64`，`-p:RuntimeIdentifier=` / `build.ps1 -Runtime` 可接管。
+- ✔ Shell 窗口层 Win32 调用（`SetWindowPos` / `GetWindowPlacement` / `GetWindowRect` / DWM / gdi32 region / `MessageBoxW`）已全部补**内联 `OperatingSystem.IsWindows()` 守卫**（NT-081 步骤 2）。🔴 教训：X11 / Wayland 下 `TryGetPlatformHandle()?.Handle` **也是非零值** ⇒ 只判 handle 非零挡不住 Win32 调用，必须判平台。
+- 未收口：P/Invoke 物理分散在 `Shell` / `Core` / `Module.MediaAssets`（MediaAssets 还留一份重复的 `SHFileOperationW`，有守卫但不该出现）；`Process.Start` 20+ 处仍在 VM。
 - Windows-only 依赖：`shell32`（回收站 ×2）/ `user32`（`MessageBoxW`、贴靠）/ `gdi32` + `dwmapi`（CSD 补丁）/ `Registry`（开机启动）/ 托盘。
 - ⇒ **迁 Debian 的真实门槛是发布链 + 这些 P/Invoke，不是软件包页的抽象**。跨平台立项时先做「RID 条件化 + 守卫收口 + 主界面冒烟」，再谈 apt / snap / flatpak 后端。
 
@@ -538,7 +540,7 @@ public interface IDetailCardSource
 | `config\modules\web-tools.json` | 网络工具 | 分区 `web-tools`：默认 UA / 抓取超时 |
 | `config\modules\video-tools.json` | 视频工具 | 分区 `video-tools`：最大并发数 |
 | `config\modules\media-assets.json` | 媒体资产 | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 |
-| `config\modules\package.json` | 脚本管理器 | 软件包查询偏好（软件源不在这里） |
+| `config\modules\package.json` | 脚本管理器 | 软件包偏好（静默安装 / 排序列）；🔴 v3.80：源相关字段全部删除（源归命令库命令） |
 
 - `IOptionsStore` 的分区名仍**不带路径**（`Validate` 禁分隔符），目录由 `ConfigStoreService.ModulesConfigDir` 决定 ⇒ 分区 `x` → `config\modules\x.json`。
 - 应用级行为（**不是机器环境**）留 `app.json`：`MaxConcurrency` + `Launch`（三按钮 + 通用开关）。

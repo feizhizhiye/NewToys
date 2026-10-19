@@ -33,6 +33,7 @@ public partial class ListFooterBar : UserControl
     public ListFooterBar()
     {
         InitializeComponent();
+        PageSizeCombo.ItemsSource = _pageSizeItems;   // 🔴 恒定一个集合实例（⛔ 不在运行中换 ItemsSource，见 SyncPageSizeCombo）
         Apply();   // 首帧兜底：属性默认值也要落到具名控件上
 
         // 用户在底栏改了页大小 ⇒ 写回本控件的 PageSize（宿主骨架监听该属性 ⇒ 经双向绑写回 VM）
@@ -241,7 +242,17 @@ public partial class ListFooterBar : UserControl
         public override string ToString() => Label;
     }
 
-    private string _pageSizeComboKey = "";
+    /// <summary>
+    /// 页大小下拉的**唯一**数据源（恒定实例，内容就地增删改）。
+    /// <para>
+    /// 🔴 2026-10-19 崩溃修复：⛔ **不许在运行时换 <c>PageSizeCombo.ItemsSource</c>** ——
+    /// 下拉展开、用户点选某一项的那一刻，若候选项集合被整体替换（如"当前值不在预设 ⇒ 补进下拉"
+    /// 的 25 被移除），Avalonia 会用旧选中索引去新集合取项 ⇒
+    /// <c>ArgumentOutOfRangeException</c>（<c>ItemsSourceView.GetAt</c> ← <c>ListBoxItem.OnPointerReleased</c>）
+    /// 且无人能用 try/catch 拦住（在输入事件栈里）⇒ 整个进程退出。用户实锤：软件包页选「50」直接闪退。
+    /// </para>
+    /// </summary>
+    private readonly System.Collections.ObjectModel.ObservableCollection<PageSizeChoice> _pageSizeItems = new();
 
     private void SyncPageSizeCombo()
     {
@@ -250,21 +261,32 @@ public partial class ListFooterBar : UserControl
         var sizes = PageSizes?.Cast<object?>().OfType<int>().ToList() ?? new List<int>();
         if (PageSize > 0 && !sizes.Contains(PageSize)) sizes.Add(PageSize);   // 当前值不在候选项 ⇒ 补进下拉
 
-        var items = sizes.Select(v => new PageSizeChoice(
-                v,
-                v >= ListPageViewModelBase.AllPageSize
-                    ? "全部"
-                    : v.ToString(CultureInfo.CurrentCulture)))
-            .ToList();
+        // ---- 就地差异更新（⛔ 不换 ItemsSource，见 _pageSizeItems 注释） ----
+        var same = sizes.Count == _pageSizeItems.Count;
+        if (same)
+            for (var i = 0; i < sizes.Count; i++)
+                if (_pageSizeItems[i].Value != sizes[i]) { same = false; break; }
 
-        var key = string.Join(",", sizes);
-        if (key != _pageSizeComboKey)
+        if (!same)
         {
-            _pageSizeComboKey = key;
-            PageSizeCombo.ItemsSource = items;
+            for (var i = _pageSizeItems.Count - 1; i >= sizes.Count; i--) _pageSizeItems.RemoveAt(i);
+            for (var i = 0; i < sizes.Count; i++)
+            {
+                var item = new PageSizeChoice(
+                    sizes[i],
+                    sizes[i] >= ListPageViewModelBase.AllPageSize
+                        ? "全部"
+                        : sizes[i].ToString(CultureInfo.CurrentCulture));
+                if (i < _pageSizeItems.Count)
+                {
+                    if (_pageSizeItems[i].Value != item.Value) _pageSizeItems[i] = item;
+                }
+                else _pageSizeItems.Add(item);
+            }
         }
 
-        var sel = PageSize > 0 ? items.FirstOrDefault(i => i.Value == PageSize) : null;
+        // 选中项取**集合里的那个实例**（record 值相等，⛔ 不能比引用；也不新建实例塞给控件）
+        var sel = PageSize > 0 ? _pageSizeItems.FirstOrDefault(i => i.Value == PageSize) : null;
         if (!ReferenceEquals(PageSizeCombo.SelectedItem, sel)) PageSizeCombo.SelectedItem = sel;
     }
 

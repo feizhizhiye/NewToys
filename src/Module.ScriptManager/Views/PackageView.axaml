@@ -5,12 +5,15 @@
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。
         NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。  -->
-  <v:ListPageSkeleton EmptyMessage="列表里没有包。点「📥 已安装」加载本机已安装的软件包。"
+  <v:ListPageSkeleton EmptyMessage="列表里没有包。点「📋 已安装」加载本机已安装的包；或选一个「集合 ▾」看包清单（搜索结果右键「📥 加入集合」往里加）。"
                       EmptyActionText="📥 已安装"
                       EmptyActionCommand="{Binding LoadInstalledCommand}"
                       IsEmpty="{Binding !HasItems}"
                       ShowFooter="{Binding HasFooterContent}"
                       ShowPaging="{Binding HasPaging}"
+                      PageCount="{Binding PageCount}"
+                      CurrentPage="{Binding PageIndex}"
+                      JumpToPageCommand="{Binding GoToPageCommand}"
                       TotalCount="{Binding TotalCount}"
                       PageText="{Binding PageText}"
                       FirstCommand="{Binding FirstPageCommand}"
@@ -107,6 +110,8 @@
                 <Separator/>
                 <MenuItem Header="🔎 读取详情" Command="{Binding LoadDetailCommand}"/>
                 <MenuItem Header="📋 复制 Id" Command="{Binding CopyIdCommand}"/>
+                <MenuItem Header="📥 加入集合" Command="{Binding AddToCollectionCommand}"
+                          ToolTip.Tip="把这一行写进当前「软件包」集合（工具条「集合 ▾」；没选集合就放进「我的软件包」）"/>
                 <MenuItem Header="🌐 打开主页" Command="{Binding OpenHomepageCommand}"/>
                 <MenuItem Header="🔗 在 winget.run 查看" Command="{Binding OpenInWingetRunCommand}"/>
               </ContextMenu>

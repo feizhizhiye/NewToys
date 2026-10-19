@@ -3,8 +3,8 @@
 > **程序集**：`src/Module.ScriptManager`（`NewToys.ScriptManager`，产物 `Module.ScriptManager.dll`）
 > **模块键**：`script` ｜ **一级菜单**：Order 20 · 图标 `IconPc`
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：✔ NT-068 S1~S8 已完成（⏳ 待用户本地 build / accept 验收）
-> **最后校对**：2026-10-18（对照 `ScriptManagerModule.cs` / 文件清单 / NT-068 执行记录；§2.5 对照各 ViewModel 的 `Toolbar` / `[RelayCommand]` 与 `Views` 右键菜单）
+> **状态**：✔ NT-068 S1~S8 已完成（⏳ 待用户本地 build / accept 验收）；✔ NT-080 首轮已完成，**v3.80 源 UI 删除返工 ⏳ 待 build 验收**
+> **最后校对**：2026-10-19（v3.80：源管理全套删除，改命令库；对照 `PackageViewModel` / `SettingsScriptViewModel` / `SettingsScriptView.axaml`）
 
 ---
 
@@ -79,16 +79,20 @@
 
 ### 软件包 `script-packages`
 
-工具条：**源多选框**（只列系统里**已启用**的源；全勾或全不勾 = 全部源；勾选立刻写 `package.json`，⛔ 不碰系统）→ 关键字框（回车 = 搜索）→ `🔍 搜索` / `📋 已安装` / `⬆ 可升级` / `🔒 已锁定` → `🔄 重新加载` / `🔃 刷新索引` → `⬇ 安装选中` / `⬆ 升级选中` / `⬆⬆ 全部升级` / `🗑 卸载选中` → `静默安装` 开关。
+工具条：`集合 ▾`(140) → 关键字框（回车 = 搜索）→ `🔍 搜索` / `📋 已安装` / `⬆ 可升级` / `🔒 已锁定` → `🔄 重新加载` / `🔃 刷新索引` → `⬇ 安装选中` / `⬆ 升级选中` / `⬆⬆ 全部升级` / `🗑 卸载选中` → `静默安装` 开关。
+（🔴 v3.80：**源选择框已删除** —— 源 = 系统 winget 的配置，增删 / 切换全要 UAC，统一走「命令库 → winget 源」集合。）
+（🔴 v3.81 / NT-082：原位置换成 `集合 ▾` —— 第一项「（不按集合）」，其余 = 未归档的「软件包」类集合；切集合 ⇒ 列表变成该集合的**包清单**。）
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
 | 三种列表 | 📋 / ⬆ / 🔒 | 都刷**同一个列表**（切一次就清空重来，⛔ 不叠加）；被锁定的包标 🔒 | 源**只影响 🔍 搜索**，不影响这三种 |
+| 集合清单（NT-082） | `集合 ▾` 选一个软件包集合 | 列表 = 该集合的成员（`role=package` 条目，`Target` = 包 Id）；状态按一次 `winget list` 缓存比对（已安装 / 可升级） | 切换即写 `lastCollectionIdByKind.package`；集合页右键「发送到对应页面」就是靠这个值让本页停下同一个集合；⛔ 不逐包跑 `winget show` |
+| 加入集合（NT-082） | 行右键 `📥 加入集合` | 把当前选中包写成 `role=package` 条目（`Target`=Id / `Category`=源）并加进当前集合 | 没选集合 ⇒ 用第一个软件包集合，没有就建「我的软件包」；按 Id 幂等去重；写 `script.json` 后立即刷新「集合 ▾」|
 | 🔒 已锁定（NT-075） | 点按钮 | `winget pin list` → 再跑一次 `winget list` 补齐名称 / 版本 / 源，只留被锁定的包（**清空原列表**） | 老行为是"把 pin 项并进上一次结果" ⇒ 看不出哪些才是锁定的 |
-| 分页（NT-075） | 列表底部底栏 | 预设 **20 / 50 / 100 / 全部**（本页 override，⛔ 不动全局 25/50/100/500）；数据在内存 ⇒ 只切片不回查 | `PagingEnabled=true`；底栏显隐还需 `PackageView` 的 `SetContentOverflow` 回填 |
-| 搜索 | 🔍 搜索 / 关键字回车 | 只勾了一个源 ⇒ `--source` 查它；勾了多个 ⇒ 逐个查再合并；**全勾 / 全不勾 = 全部源 ⇒ 不传 `--source`**（winget 用自己的默认源集合，自动跳过显式源） | 在已安装 / 可升级列表里，关键字只是**本地过滤** |
-| 源多选（v3.79） | 勾一下源多选框 | 只更新 `package.json → defaultSource` + 按钮汇总文案；⛔ **不发任何 winget 命令、不弹 UAC** | 🔴 这就是「勾了 store 源不生效」的修法：老实现勾一下就跑去 `source enable` 并重读源列表，把用户刚勾的状态冲掉；切源归设置页 |
-| 商店包（msstore） | 勾上 `msstore` 源后搜到的包 | Id 是 Store 的 12 位字符；**详情 / 安装都必须带 `--source`**（v3.78 修）；⛔ 不吃 `--silent`；⛔ 不进「已安装 / 可升级」列表 |
+| 分页（NT-075） | 列表底部底栏 | 预设 **20 / 50 / 100 / 全部**（本页 override，⛔ 不动全局 25/50/100/500）；数据在内存 ⇒ 只切片不回查。**默认 = 本页预设第一档（20）**：页大小全局记忆（`shell.json` 的 `ui.list-page-size`）读到不属于本页预设的值（如 25）时，构造期收成第一档（2026-10-19 修：否则 25 会被补进下拉，点选任一预设项时下拉集合被换掉 ⇒ `ArgumentOutOfRangeException` 闪退） | `PagingEnabled=true`；底栏显隐还需 `PackageView` 的 `SetContentOverflow` 回填 |
+| 搜索 | 🔍 搜索 / 关键字回车 | **一律不传 `--source`**（winget 用自己的默认源集合，自动跳过显式源）+ 把系统里的**显式源**（如 `winget-font`）逐个补查再合并去重 | 在已安装 / 可升级列表里，关键字只是**本地过滤** |
+| 源管理（v3.80） | — | 本页**没有**源开关 / 源选择框；改源去「命令库 → `winget 源`」集合（设置页有「＋ 加入命令库」一键写入） | 源是系统 winget 的配置（`source add/remove/reset` 全要 UAC），App 内不再包一层 UI |
+| 商店包（msstore） | 搜到的包 | Id 是 Store 的 12 位字符；**详情 / 安装都必须带 `--source`**（v3.78 修）；⛔ 不吃 `--silent`；⛔ 不进「已安装 / 可升级」列表 | 行的「源」列由 `winget search` 自带；缺了用 `StampSource` 补 |
 | 刷新索引 | 🔃 刷新索引 | 拉各源元数据（≈ apt update） | 「可升级」的结果依赖它 |
 | 重新加载 | 🔄 重新加载 | 按**当前所在列表**重跑 | — |
 | 批量安装 / 升级 | 勾选 + `⬇ 安装选中` / `⬆ 升级选中` | 逐条执行，**单个失败不影响其余** | 只在有勾选时可用（`CanRunBatch`） |
@@ -104,9 +108,13 @@
 
 ### 脚本集合 `script-collections`（主从两栏）
 
-左栏 = 集合列表（搜索 + 分组「全部 / 置顶 / 最近」+ 类别筛选，🔴 **两个筛选框默认选中「全部」**）；工具条 `➕ 新建集合` / `⧉ 复制` / `🗑 删除` / `📦 归档` / `🔍 扫描目录` / `📤 发送到信息面板` / `📤 导出` → 搜索成员 → `显示不可采集`。
+左栏 = 集合列表（搜索 + 分组「全部 / 置顶 / 最近」+ 类别筛选，🔴 **两个筛选框默认选中「全部」**）；工具条 `➕ 新建集合` / `⧉ 复制` / `🗑 删除` / `📦 归档` / `🔍 扫描目录` / `📤 发送到对应页面` / `📤 导出` → 搜索成员 → `显示不可采集`。
 
-> 🔴 v3.79：集合类别**只剩三档** —— 信息面板 / 脚本库 / 命令库。原「软件包」一档**已删**（用户定调：「用脚本集合冒充软件包分类不现实」—— 软件包是 winget 的实时查询结果，不是可手工归档的条目）。老数据里 `kind=package` 的集合按 `info` 处理；`role=package` 的条目不再进任何集合的候选池。
+> 🔴 v3.81（NT-082）：集合类别**四档** —— 信息面板 / 脚本库 / 命令库 / **软件包**。
+> 「软件包」不是「用集合冒充 winget 查询结果」，而是**包清单容器**：成员 = `role=package` 条目（`Target` = 包 Id），
+> 发送到软件包页后按清单显示安装状态。定位是**跨包管理器的架构预设**（将来 apt / flatpak / snap 各有后端，集合按后端归类，
+> 页面再把成员命令绑成按钮）。`role=package` 条目只在「软件包」类集合的候选池里出现，⛔ 不混进其他集合。
+> （v3.79 曾整体删除该档，理由是「软件包是实时查询结果」；本次按用户要求恢复为清单容器，逻辑 = 实时查询走搜索、手工清单走集合。）
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
@@ -115,12 +123,12 @@
 | 删除 | 🗑 删除 | 删集合定义 | 🔴 **只有「在用」的集合不能删**（用户 2026-10-19）；默认库恒「在用」⇒ 自然受保护，⛔ 不再另按 `Builtin` 拦；二次确认「只删集合定义，不删条目」 |
 | 归档 | 📦 归档 | 归档后默认不显示，排序沉底 | 仍可见（从「全部」里能取消归档） |
 | 扫描目录 | 🔍 扫描目录 | 新脚本入库并**加入当前集合** | 与本页「⛔ 不自动登记」一致：用户手动触发 |
-| 发送到信息面板 | 📤 发送到信息面板 | 跳 `script-info` 并选中该集合 | — |
+| 发送到对应页面 | 工具条 `📤 发送到对应页面` / 左栏集合**右键**同名项 | 按集合类别跳目标页并选中该集合：信息面板→`script-info` / 脚本库→`script-library` / 命令库→`script-commands` / 软件包→`script-packages` | 写 `lastCollectionIdByKind.<kind>` 后 `NavigateTo`，目标页构造时读回；`PageKey` 与 `ScriptCollectionKind` 同源（`ScriptCollectionKind.PageKey`），⛔ 别处另写 switch；右键命中的行由 code-behind 先选中（Avalonia 右键不自动选行） |
 | 成员增减 | 右栏成员行**勾选** | **立即写** `config\script\script.json` | ⛔ 无保存按钮；不可采集项灰显 `CanToggle=false`，悬停给原因 |
 | 显示不可采集 | 工具条开关，默认关 | 打开后列不可采集项（灰显不可勾） | — |
-| 显示全部类型 | 工具条开关，默认关 | 候选池默认按**当前集合的 kind** 过滤（脚本库集合只列脚本 / 命令库集合只列命令 / 信息面板集合不限）；打开后跨类可见 | NT-073 D13 |
+| 显示全部类型 | 工具条开关，默认关 | 候选池默认按**当前集合的 kind** 过滤（脚本库集合只列脚本、命令库只列命令、软件包集合只列 `role=package`、信息面板集合不限）；打开后跨类可见 | NT-073 D13；`role=package` 与「软件包」集合是**一对一容器关系**，不受此开关影响 |
 | 改脚本根目录 | 详情卡「脚本根目录」（仅脚本库类集合） | 失焦落盘 `rootPath`；空 = 全局脚本目录 | 相对路径按它解析；命令库 ⛔ 不显示该字段 |
-| 改类别 | 详情卡「类别」下拉（信息面板 / 脚本库 / 命令库三选一） | 落盘 `kind`，决定集合归哪个页面 | 🔴 走**字符串值通道**（`EditKind` + `OptionValuePath=Value`），⛔ 不绑选项对象（否则永远显示第一项） | 内置库也可改（改走后下次启动自动补回该 kind 的默认库）；改 kind 后刷新 / 视图字段可用性随之变；🔴 文案与左栏徽标 / 筛选下拉三处一致 |
+| 改类别 | 详情卡「类别」下拉（信息面板 / 脚本库 / 命令库 / **软件包**四选一） | 落盘 `kind`，决定集合归哪个页面 | 🔴 走**字符串值通道**（`EditKind` + `OptionValuePath=Value`），⛔ 不绑选项对象（否则永远显示第一项） | 内置库也可改（改走后下次启动自动补回该 kind 的默认库）；改 kind 后刷新 / 视图字段可用性随之变；🔴 文案与左栏徽标 / 筛选下拉三处一致 |
 | 选中集合 | 点左栏一行 | 右栏成员表 + 详情卡随之更新 | — |
 | 使用中标记 | 左栏行副标题右侧「在用」 | 各页面（信息面板 / 脚本库 / 命令库）当前选中的集合（`lastCollectionIdByKind`）+ **默认库恒为「在用」**（兜底接收无归属条目） | 「在用」= 唯一不可删条件；`kind=info` 的「在用」排最后（NT-072 防误删），默认库 / script / command 不沉底；进入本页时重算（`CollectionView.OnAttachedToVisualTree` → `RefreshUsageState`） |
 | 置顶 ★ | 详情卡「置顶」勾选框 / 左栏行尾 ★ | 落盘 `pinned` | 分组选「置顶」可单独筛出；信息面板集合下拉里排最前 |
@@ -156,14 +164,8 @@
 | 改脚本目录 | 输入框失焦 | 校验通过即落盘 | **⛔ 无保存按钮**（即时生效）；非法 ⇒ 底栏红字 + ⛔ 不写盘 |
 | 选择目录 | 📂 选择目录 | 弹文件夹选择器 → 写入 | — |
 | 恢复默认 | 恢复默认 | 清空用户值 ⇒ `<应用根>\scripts` | — |
-| 软件源 | 内嵌 `PackageSourceView` 节 | 原独立设置页并入本页 | 其状态转发到本页状态栏 |
-| 〃源列表（v3.79） | 每行右侧一个**开关**（初始位置 = 系统里有没有这个源）+ 两列**分类 / 发现**；系统里没有但本应用记着定义的源会**补一行**（开关在关位） | **拨一下立刻生效**：开 = 按记下的定义 `source add`（带 `--type` / `--explicit`）；关 = `source remove`（二次确认）。失败 ⇒ 开关拨回原位 | 🔴 **winget 1.29 没有 `source enable/disable`**（实测子命令只有 add/list/update/remove/edit/reset/export）⇒ 停用只能是 remove；🔴 两个方向都**要管理员权限**（弹 UAC）；🔴 **商店源 msstore 不可切换**（开关置灰，只显示状态） |
-| 〃分类（v3.79） | 添加源时的**分类下拉** | `社区源` / `字体源` / `商店源` / `自定义源`；自定义源的分类存 `package.json → sourceCategories`（winget 本身没有分类概念） | 内置源分类由名字定（`winget`→社区源、`winget-font`→字体源、`msstore`→商店源），⛔ 不存配置；地址含 `/fonts` 的按字体源猜（🔴 必须**先判 `/fonts` 再判 `winget`**，否则字体镜像会被误判成社区源） |
-| 〃互斥（v3.79） | 启用某源 / 添加某源 | **同分类里同时最多启用一个**：开一个会自动关掉同分类里其它已启用的 | 只对 `社区源` / `字体源` 两档生效 —— `winget` ↔ 社区镜像互斥、`winget-font` ↔ 字体镜像互斥；`商店源` 不参与（本来就不能切）；`自定义源` 档不互斥，可并存多个 |
-| 〃定义快照（v3.79） | 每次读源列表时自动 | `winget source export` → `package.json → sourceDefinitions`（名字 / 地址 / 类型 / 显式）；关源前再存一次 | **这是「关掉还能开回来」的唯一依据** —— winget 自己记不住被 remove 的源；`--explicit` 必须回放，否则字体源会被卷进每次默认搜索 |
-| 〃添加源 | 「添加源」卡片（名称 + 地址 + **分类** + ➕ 添加） | `winget source add --name … --arg … [--type] [--explicit]`，成功即存分类并**关掉同分类的竞争对手** | **需要管理员权限 ⇒ 走提权通道（弹 UAC）**；分类 = 字体源时自动加 `--explicit` |
-| 〃开关 / 添加源 = 本页全部 | — | — | 🔴 NT-075 定调：本页只留「**切换源**」（不常用）+「**存源信息**」（添加源表单）；其余 winget 操作都在软件包页工具条 |
-| 〃已删除（NT-075） | 商店源独立卡片 / 社区源镜像卡片 / 默认查询源卡片 / 说明卡片 | 商店源开关并入源列表；默认查询源与工具条源多选框是同一设置项 ⇒ 只留工具条那一处 | — |
+| 软件源（v3.80） | 只读**命令清单**（6 条）+ `＋ 加入命令库（winget 源）` | 点按钮把它们写进命令库的「winget 源」集合（幂等：按标题去重，已有就跳过），之后去命令库点运行 | 🔴 本页**不执行 winget、不弹 UAC**；源是系统配置（`source add/remove/reset` 全要 UAC）⇒ 执行归命令库（`NeedAdmin=true` ⇒ `runas` + 可见控制台）；这批命令写进 `script.json`（随「设置 → 数据」备份） |
+| 〃为什么不做开关（v3.80 用户定调） | — | — | winget 1.29 **没有 `source enable/disable`**（只有 add/list/update/remove/edit/reset/export）⇒ 「停用」= remove；App 里做开关等于把「终端一条命令」包成一层 UI + 自己记定义快照 + 管分类互斥，纯增加复杂度。**源与系统共用一套数据，用命令操作最直接** |
 
 
 ## 3. 实现逻辑
@@ -245,22 +247,21 @@
 11. 分节模式**关分页**（底栏改摘要），因为一次只显示一个集合的多个采集器节。
 12. 🔴 **示例 vs 内置采集器是两套语义**：`ExampleSeeder` 只播种一次（`examples\.seeded` 存在即整体跳过，删掉的示例**不复活**）；`BuiltinCollectorSeeder` 缺了就补回。改 `defaults\scripts\*` 后老配置目录不会自动更新（要用户删 `examples\` 目录再启动）。
 13. `.bat` 示例**只写 ASCII** + 首行 `chcp 65001` —— 带中文的 .bat 在 936 代码页下必乱码，且 BOM 会被 cmd 当命令字符。
-14. 🔴 v3.79：**勾源 ≠ 启用源**。源多选框只写 `package.json` 的本地偏好（决定查哪些源），源在不在系统里由 `winget source list` 说了算。
-    老实现（NT-076）勾一下就 `source enable` + 重读源列表 ⇒ 勾选被冲掉（「勾了 store 源不生效」的根因），已废。
+14. 🔴 v3.80：**源在 UI 里没有入口了**。源选择框 / 源开关 / 分类 / 互斥 / 定义快照全删
+    （`PackageSourceViewModel`、`PackageSourceRow`、`PackageSettings.DefaultSource|SourceCategories|SourceDefinitions`、
+    `PackageManagerService.RunElevatedAsync` 一并删除）—— 源操作 = 命令库里的命令条目；设置页只剩「命令清单 + ＋ 加入命令库」
+    （写入 `script.json` 的集合「winget 源」，按标题幂等去重）。
 15. NT-074：软件包服务下放到模块后，**Shell 不能再给它接确认钩子**（Release 下 Shell 不引模块）⇒
     二次确认改走 `Core.DialogHooks.ConfirmAsync`（原 `PackageManagerService.ConfirmHandler` 已删）。
-16. 🔴🔴 v3.79 实测：**winget 1.29 根本没有 `source enable` / `source disable`**（`winget source --help` 只有 add/list/update/remove/edit/reset/export）
-    —— 旧实现"先试 enable、失败再回退 remove"等于每次白弹一次 UAC 才失败，这就是「商店源勾了不生效 / 开关拨不动」的真因。
-    现在的做法：关 = `source remove`，开 = 按 `source export` 记下的定义 `source add`（`--type` + `--explicit` 原样回放）。
-16. 🔴 NT-075：**改 winget 源要管理员权限**（`source add|remove|reset`）—— 不提权就是"点了没生效"。
-    `PackageManagerService.RunElevatedAsync` 的做法：`Verb="runas"`（必须 `UseShellExecute=true`）+ **不能重定向流**
-    ⇒ 借 `cmd /c winget … > 临时文件 2>&1` 把输出落盘再读回；UAC 点「否」抛 `Win32Exception(1223)` ⇒ 按"已取消"处理。
+16. 🔴🔴 v3.80 实测 + 用户定调：**winget 1.29 没有 `source enable` / `source disable`**
+    （`winget source --help` 只有 add/list/update/remove/edit/reset/export）⇒ 「停用源」只能 `source remove`，
+    要能加回来必须先 `source export` 记定义 —— **这就是源 UI 被砍掉的原因**：与其在 App 里模拟一套开关状态，
+    不如把 `source add/remove/reset` 交给命令库（条目的 `NeedAdmin=true` ⇒ `runas` 提权 + 可见控制台）。
     ⛔ 装 / 卸 / pin 包不提权（用户级安装不需要）。
-    🔴🔴 NT-076 补（"弹了 UAC 却什么都没发生"的真凶）：**`cmd /c` 的引号有两层坑** ——
-    ① `psi.ArgumentList` 按 MSVCRT 规则把 `"` 转义成 `\"`，而 **cmd 不认反斜杠转义** ⇒ winget 路径 / 日志路径的引号被吃掉一半，命令整条变非法；
-    ② 不给 `/s` 时 cmd 会"剥掉首尾引号"，把内层引号配对彻底打乱。
-    ⇒ 修法：`psi.Arguments` **原样传**（⛔ 不用 `ArgumentList`）+ `cmd /d /s /c "<整条命令>"`（外面多套一层引号）。
-    改这条之前，**所有提权 winget 操作都是"UAC 过了、命令没跑"**。
+17. 🔴 v3.81（NT-082）：`role=package` 条目 ↔ 「软件包」类集合是**一对一容器** ——
+    候选池判定写成 `isPackageItem != isPackageCol ⇒ continue`；⛔ 别只把 v3.79 那句无条件 `continue` 删掉
+    （那样包条目会污染脚本库 / 命令库候选池）。软件包页的清单状态只取自**一次 `winget list` 缓存**，
+    ⛔ 不逐包跑 `winget show`（慢、且会触发源元数据更新）。
 17. 🔴 NT-075：`winget pin list` 的**版本号长得跟包 Id 一样**（都有点号）⇒ 老实现"扫所有带点号的词"会把
     `24.08` 当成一个包 Id 混进列表。现在走 `ParsePins`（表头切片取 `Id` + `Version`），兜底正则按形状排除纯数字版本。
 18. 🔴 NT-059：`ApplyView()` 里 `Items.Clear()` 会让 ListBox 的 `SelectedItem` 双向绑定**回写成 null** ⇒ 点收藏 / 切分类后详情卡掉回示例态。

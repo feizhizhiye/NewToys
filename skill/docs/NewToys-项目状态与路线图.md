@@ -1,6 +1,6 @@
 # NewToys 项目状态与路线图
 
-> v3.79 · 2026-10-19 · 台账
+> v3.80 · 2026-10-19 · 台账
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **项目状态与路线图**（Status & Roadmap），三、节 = **Backlog 工作项台账**。
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
@@ -173,9 +173,10 @@
 | NT-077 | **配置分层**：机器级 `env.json`（+ 命令行/环境变量覆盖链）/ 框架级 `shell.json`（合并 ui·theme·window·favorites·columnlayout）/ 模块级 `modules\<模块>.json`；删 `app.json` 的 `VideoDbFolder`（写死 profile 绝对路径的现存缺陷） | P1 | ✔ **两批已完成（已验收 2026-10-19）** | backlog/framework/NT-077.md |
 | NT-078 | **备份路由**：`IBackupSection` + zip 容器（manifest + 分节）+ **两入口**（设置备份默认 / 数据备份可选）+ 数据节 `VACUUM INTO` + 旧 v1 备份只读兼容；收编 `AssetAllViewModel` 的 db 导入导出 | P1 | ✔ **A/B/C 三批已完成（已验收 2026-10-19）** | backlog/framework/NT-078.md |
 | NT-079 | **可成长性三件套**（可拆）：模块开关 `disabledModules`（不注册菜单 / 不跑 DDL）/ 命令面板 `Ctrl+K`（复用菜单索引）/ 采集器骨架生成（ps1 **UTF-8 带 BOM** + manifest 模板） | P2 | 📝 草稿（2026-10-19 建卡，先做哪项待拍板） | backlog/framework/NT-079.md |
-| NT-080 | **软件包定位收敛 + winget 源模型重写**：① 集合页删「软件包」类别（`kind=package` 废弃）；② 软件包页**只支持 winget**（apt 等跨平台另开页面）；③ 修「工具条源多选框勾 store 源不生效」（源多选只写 `defaultSource`，全勾 = 不传 `--source`）；④ 修源分类（社区源 / **字体源** / 商店源 / 自定义源；互斥只在社区源内部、字体源内部）；⑤ **商店源不可切换**（开关置灰）；⑥ 实测 winget 1.29 无 `source enable/disable` ⇒ 关 = `remove`、开 = 按 `source export` 快照 `add`（`--type` / `--explicit` 回放），两向都要管理员权限 | P0 | ✔ **已完成（已验收 2026-10-19）**（4 项静态检查 0 阻断；用户本地 build 通过） | backlog/script-manager/NT-080.md |
+| NT-080 | **软件包定位收敛 + winget 源模型重写**：① 集合页删「软件包」类别（`kind=package` 废弃）；② 软件包页**只支持 winget**（apt 等跨平台另开页面）；③ 🔴 **v3.80 返工（用户定调）**：源 = 系统 winget 配置 ⇒ **源开关 / 分类 / 互斥 / 定义快照 / 工具条源选择框全部删除**，改由「命令库 → `winget 源`」集合的命令执行（`NeedAdmin` ⇒ UAC + 可见控制台）；设置页「软件源」节 = 只读 6 条命令 + 「＋ 加入命令库」（幂等）；搜索固定不传 `--source` + 补查显式源 | P0 | ✔ 已完成（首轮已验收 2026-10-19；**v3.80 返工 ⏳ 待用户本地 build 验收**） | backlog/script-manager/NT-080.md |
+| NT-082 | **软件包集合（跨后端包清单预设）+ 集合右键发送到对应页面**：① 集合类别加回 `package`（成员 `role=package`，`Target`=包 Id；与包条目一对一容器）；② 「📤 发送到信息面板」→「📤 发送到对应页面」，按 kind 跳 info / script / command / packages 并写 `lastCollectionIdByKind`；左栏集合行右键同项；③ 软件包页 `集合 ▾` 显示包清单（状态按 `winget list` 比对）+ 行右键 `📥 加入集合`（幂等）。源命令（含中科大）已由 NT-080 提供，本次未改 | P1 | ✔ **已完成（⏳ 待用户本地 build 验收）** | backlog/script-manager/NT-082.md |
 
-| NT-081 | **跨平台中立化（远期 · 本期不实施）**：RID 条件化 / Windows-only P/Invoke 守卫收口 / `IProcessRunner` 平台底座（取消进程树 + 编码 + 提权）/ 解析分层（winget 启发式 + 通用 TSV-JSON）/ 后端适配器。日常生效部分 = `framework.md` §2.1 六条硬约束 | P3 | 📝 草稿（2026-10-19 建卡，**本期不做**） | backlog/framework/NT-081.md |
+| NT-081 | **跨平台中立化**：RID 条件化 / Windows-only P/Invoke 守卫收口 / `IProcessRunner` 平台底座（取消进程树 + 编码 + 提权）/ 解析分层（winget 启发式 + 通用 TSV-JSON）/ 后端适配器。日常生效部分 = `framework.md` §2.1 六条硬约束 | P3 | 🔄 **执行中**（步骤 1-2 已完成 2026-10-19：RID 条件化 + Shell Win32 调用全部补内联守卫；步骤 3-6 未做） | backlog/framework/NT-081.md |
 
 > `📝 草稿` 需继续展开细节，升 `✅ 就绪` 后才会被批量执行；`✔ 已完成（待验收）` 经用户验收后台账翻 ✔（任务卡默认保留；作废卡已删并标 `🗑`）。
 > NT-048（分屏贴靠首次几何不收敛）**已作废**：现象为**系统级**（Firefox 同复现）⇒ 外部纠偏方向错误，⛔ 不复活；任务卡保留备查。

@@ -80,13 +80,14 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
     [ObservableProperty] private CollectionFilterOption? _selectedGroup;
 
-    /// <summary>左栏类型筛选（集合类别）。🔴 v3.79：软件包一档已删（软件包只有独立的软件包页）。</summary>
+    /// <summary>左栏类型筛选（集合类别）。v3.81：加回「软件包」（包清单，发送到软件包页显示）。</summary>
     public ObservableCollection<CollectionFilterOption> KindFilterOptions { get; } = new(new[]
     {
         new CollectionFilterOption { Label = "全部类型", Value = "" },
         new CollectionFilterOption { Label = "信息面板", Value = ScriptCollectionKind.Info },
         new CollectionFilterOption { Label = "脚本库", Value = ScriptCollectionKind.Script },
         new CollectionFilterOption { Label = "命令库", Value = ScriptCollectionKind.Command },
+        new CollectionFilterOption { Label = "软件包", Value = ScriptCollectionKind.Package },
     });
 
     [ObservableProperty] private CollectionFilterOption? _selectedKindFilter;
@@ -156,6 +157,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         new CollectionFilterOption { Label = "信息面板", Value = ScriptCollectionKind.Info },
         new CollectionFilterOption { Label = "脚本库", Value = ScriptCollectionKind.Script },
         new CollectionFilterOption { Label = "命令库", Value = ScriptCollectionKind.Command },
+        new CollectionFilterOption { Label = "软件包", Value = ScriptCollectionKind.Package },
     });
 
     public ObservableCollection<CollectionFilterOption> ViewOptions { get; } = new()
@@ -368,7 +370,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         new() { Text = "🗑 删除", Classes = "danger-btn", CommandPath = nameof(DeleteCollectionCommand), ToolTip = "只有「在用」的集合不能删（默认库一直算在用）；其余可删" },
         new() { Text = "📦 归档", Classes = "ghost", CommandPath = nameof(ArchiveCollectionCommand), ToolTip = "归档后默认不显示，可从「全部」里找回" },
         new() { Text = "🔍 扫描目录", Classes = "ghost", CommandPath = nameof(ScanIntoCollectionCommand), ToolTip = "扫描脚本目录，把新脚本入库并加入当前集合" },
-        new() { Text = "📤 发送到信息面板", Classes = "ghost", CommandPath = nameof(SendToInfoPanelCommand), ToolTip = "选中这个集合并跳到信息面板" },
+        new() { Text = "📤 发送到对应页面", Classes = "ghost", CommandPath = nameof(SendToPageCommand), ToolTip = "按集合类别跳到对应页面并选中这个集合（信息面板 / 脚本库 / 命令库 / 软件包）" },
         new() { Text = "📤 导出", Classes = "ghost", CommandPath = nameof(ExportCommand), ToolTip = "把集合定义导出为 json" },
         new()
         {
@@ -473,12 +475,14 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         var colId = SelectedCollection?.Id ?? "";
         var kind = SelectedCollection == null ? "" : ScriptCollectionKind.Normalize(SelectedCollection.Kind);
         var keyword = (MemberSearch ?? "").Trim();
+        var isPackageCol = kind == ScriptCollectionKind.Package;
 
         foreach (var item in _store.Data.Items)
         {
-            // 🔴 v3.79：软件包条目（老数据里的 role=package）不进任何集合的候选池
-            //         —— 软件包只有独立的「软件包」页，⛔ 不再用集合分类冒充。
-            if (ScriptItemRole.Normalize(item.Role) == ScriptItemRole.Package) continue;
+            // 🔴 v3.81（NT-082）：软件包条目 ↔ 软件包集合是**一对一**的容器关系 ——
+            // 包条目只在「软件包」类集合的候选池里出现，其他集合完全看不到（反之亦然）。
+            var isPackageItem = ScriptItemRole.Normalize(item.Role) == ScriptItemRole.Package;
+            if (isPackageItem != isPackageCol) continue;
 
             if (!ShowAllKinds && kind.Length > 0 && !RoleMatchesKind(item.Role, kind)) continue;
             if (!ShowNonCollectable && !item.Collectable) continue;
@@ -501,6 +505,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         {
             ScriptCollectionKind.Script => r is ScriptItemRole.Script or ScriptItemRole.Collector,
             ScriptCollectionKind.Command => r == ScriptItemRole.Command,
+            ScriptCollectionKind.Package => r == ScriptItemRole.Package,
             _ => true,   // 信息面板集合：脚本 + 命令都能当采集器
         };
     }
@@ -783,28 +788,40 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         StatusText = col.Archived ? $"已归档「{col.Name}」。" : $"已取消归档「{col.Name}」。";
     }
 
+    /// <summary>
+    /// 「📤 发送到对应页面」：按集合类别决定目标页（信息面板 / 脚本库 / 命令库 / 软件包），
+    /// 先记下「在用」集合再跳过去 —— 目标页构造时按 <c>LastCollectionIdByKind</c> 自动选中同一个集合。
+    /// <para>v3.81（NT-082）取代原来只认信息面板的 <c>SendToInfoPanelCommand</c>。</para>
+    /// </summary>
     [RelayCommand]
-    private void SendToInfoPanel()
+    private void SendToPage()
     {
-        if (_store == null || SelectedCollection == null) return;
-        var col = _store.FindCollection(SelectedCollection.Id);
-        if (col == null) return;
-
-        if (ScriptCollectionKind.Normalize(col.Kind) != ScriptCollectionKind.Info)
+        if (_store == null || SelectedCollection == null)
         {
-            StatusText = "只有「信息面板」类集合能发送到信息面板（脚本库 / 命令库请到各自页面用「库」下拉切换）。";
+            StatusText = "先在左栏选一个集合。";
             return;
         }
 
-        _store.SetLastCollectionId(ScriptCollectionKind.Info, col.Id);
+        var col = _store.FindCollection(SelectedCollection.Id);
+        if (col == null) return;
+
+        var kind = ScriptCollectionKind.Normalize(col.Kind);
+        var pageKey = ScriptCollectionKind.PageKey(kind);
+        var pageName = ScriptCollectionKind.Label(kind);
+
+        _store.SetLastCollectionId(kind, col.Id);
         col.LastOpenedAt = Now();
         _store.Save();
 
         if (_nav == null) { StatusText = "无法跳转（导航服务不可用）。"; return; }
-        if (_nav.CurrentPageKey == "script-info") { StatusText = $"「{col.Name}」已在信息面板中。"; return; }
+        if (_nav.CurrentPageKey == pageKey)
+        {
+            StatusText = $"「{col.Name}」已在{pageName}中。";
+            return;
+        }
 
-        _nav.NavigateTo("script-info");
-        StatusText = $"已发送「{col.Name}」到信息面板。";
+        _nav.NavigateTo(pageKey);
+        StatusText = $"已发送「{col.Name}」到{pageName}。";
     }
 
     [RelayCommand]

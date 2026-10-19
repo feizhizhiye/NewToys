@@ -680,8 +680,35 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         LoadLayout();
         RefreshLibraries();
         RebuildCategories();
+        _storeStamp = StoreStamp;
         ApplyView();
         FillEditors(null);
+    }
+
+    // ==================== 数据层计数戳（NT-080 v3.80） ====================
+
+    /// <summary>数据层「条目数 + 集合数」的组合戳（见 <see cref="RefreshIfStoreChanged"/>）。</summary>
+    private int _storeStamp;
+
+    private int StoreStamp => _store == null ? 0 : _store.Data.Items.Count + _store.Data.Collections.Count * 1000;
+
+    /// <summary>
+    /// 切回本页时，若 <c>script.json</c> 被**别的页**写过（设置页「＋ 加入命令库（winget 源）」），重读清单。
+    /// <para>🔴 用计数戳判断，⛔ 无条件重建 —— 否则每次切标签都把列表清一遍、丢掉选中与滚动位置。</para>
+    /// <para>⚠️ 由 View 的 <c>OnAttachedToVisualTree</c> 调用（与 <c>CollectionView.RefreshUsageState</c> 同一套做法）。</para>
+    /// </summary>
+    public void RefreshIfStoreChanged()
+    {
+        if (_svc == null || _store == null) return;
+
+        var stamp = StoreStamp;
+        if (stamp == _storeStamp) return;
+        _storeStamp = stamp;
+
+        _svc.Reload();          // 重建 service 镜像（内部 Load 会同步内置集合）
+        RefreshLibraries();
+        RebuildCategories();
+        ApplyView();
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));

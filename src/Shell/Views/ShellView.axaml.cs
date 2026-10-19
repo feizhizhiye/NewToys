@@ -101,6 +101,9 @@ public partial class ShellView : Window
     /// </summary>
     private void ApplyWindowFrame(PixelRect frame)
     {
+        // NT-081：Win32 handle 在 X11 / Wayland 上**也能取到非零值** ⇒ 必须显式平台守卫，
+        //   否则 SetWindowPos 会走到 user32.dll 直接 DllNotFoundException。
+        if (!OperatingSystem.IsWindows()) return;   // 内联 IsWindows()：CA1416 只认这种写法
         var h = TryGetPlatformHandle()?.Handle;
         if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
         SetWindowPos(hwnd, IntPtr.Zero, frame.X, frame.Y, frame.Width, frame.Height,
@@ -355,6 +358,8 @@ public partial class ShellView : Window
         {
             if (_bounds == null) return;
             if (WindowState == WindowState.Minimized) return;
+            // NT-081：窗口几何只能从 Win32 读（GetWindowPlacement / GetWindowRect）⇒ 非 Windows 直接跳过落盘
+            if (!OperatingSystem.IsWindows()) return;   // 内联 IsWindows()：CA1416 只认这种写法
 
             var h = TryGetPlatformHandle()?.Handle;
             if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
@@ -443,6 +448,8 @@ public partial class ShellView : Window
     {
         try
         {
+            // NT-081：DWM / gdi32 / user32 全是 Windows-only ⇒ 非 Windows 直接降级为系统默认外观
+            if (!OperatingSystem.IsWindows()) return;   // 内联 IsWindows()：CA1416 只认这种写法
             var h = TryGetPlatformHandle()?.Handle;
             if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
 
@@ -502,6 +509,8 @@ public partial class ShellView : Window
         try
         {
             if (!UseSquareRegionHack) return;    // NT-042 复核开关；置 false = 完全不套 region（仅复核用）
+            // NT-081：gdi32 / user32 调用前显式守卫（调用方虽已门控，这里兜住后续新入口）
+            if (!OperatingSystem.IsWindows()) return;   // 内联 IsWindows()：CA1416 只认这种写法
             if (hwnd == IntPtr.Zero) return;
 
             // NT-044：全屏与最大化一视同仁 → 清 region

@@ -14,9 +14,8 @@ public class ScriptManagerModule : IModule
         services.AddTransient<Views.PackageView>();  services.AddTransient<PackageViewModel>();
         services.AddTransient<Views.ScriptInfoView>();         services.AddTransient<ScriptInfoViewModel>();
         services.AddTransient<Views.CommandLibraryView>();  services.AddTransient<CommandLibraryViewModel>();
-        // 「软件源」设置页（NT-050 由 Module.Settings 迁入）：模块专属设置归模块（需求 §4.9），
-        // 自注册进**本模块分组 `pc`**，Key / Order / 图标 / 描述⛔不改（收藏与跳转按 Key 寻址）。
-        services.AddTransient<Views.PackageSourceView>();  services.AddTransient<PackageSourceViewModel>();
+        // v3.80：「软件源」设置页已删（源 = 系统 winget 配置，全要 UAC）⇒ 改成命令库里的命令条目，
+        // 设置页「软件源」节只剩说明 + 一键加入命令库（见 SettingsScriptViewModel）。
         // 「脚本库 / 命令库」的清单服务（v1.34 起仅本模块使用，故沉到模块内）。
         // 它依赖 Core 的 ConfigStoreService 与 Shared 的 IAppConfigService，由 Shell 在 LoadAll 之前已注册。
         services.AddSingleton<IQuickActionService, QuickActionService>();

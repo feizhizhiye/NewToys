@@ -1,11 +1,23 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
+using NewToys.ScriptManager.ViewModels;
 
 namespace NewToys.ScriptManager.Views;
 
 public partial class CommandLibraryView : UserControl
 {
     public CommandLibraryView() { InitializeComponent(); }
+
+    /// <summary>
+    /// NT-080 v3.80：设置页「＋ 加入命令库（winget 源）」写的是 <c>script.json</c>，
+    /// 本页若已打开看不到 ⇒ 切回本页时按数据层计数戳判断要不要重读（⛔ 无条件重建）。
+    /// </summary>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        (DataContext as QuickActionListViewModel)?.RefreshIfStoreChanged();
+    }
 
     /// <summary>
     /// ⚠️ <c>ContextMenu</c> 挂在**独立的弹出树**上，DataContext 不保证随宿主继承 ——

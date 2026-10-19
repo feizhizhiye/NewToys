@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.VisualTree;
 using NewToys.ScriptManager.ViewModels;
 
 namespace NewToys.ScriptManager.Views;
@@ -19,5 +21,15 @@ public partial class CollectionView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         (DataContext as CollectionViewModel)?.RefreshUsageState();
+    }
+
+    /// <summary>
+    /// 右键菜单作用于「右键命中的那一行」：Avalonia 右键不会自动选行，先按事件源向上找 <see cref="ListBoxItem"/>。
+    /// <para>落在空白处 ⇒ 不改选中（菜单仍对当前选中的集合生效）。</para>
+    /// </summary>
+    private void OnCollectionListContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (e.Source is Visual src && src.FindAncestorOfType<ListBoxItem>() is { } item)
+            item.IsSelected = true;
     }
 }

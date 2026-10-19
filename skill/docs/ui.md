@@ -253,6 +253,8 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 页大小下拉 `Width=78`（64 会切掉「全部」的「部」字）。
 - 28px 底栏内的 `TextBox` / `ComboBox` 必须显式 `MinWidth=0 MinHeight=0`（隐式样式 `MinHeight=28` 会压掉 `Height=22`，控件撑满整条并把顶边线压断）。
 - 输入框边框用 `InputBorderBrush`（`DividerBrush` 在暗色下看不出框）。
+- 🔴 **页大小下拉的 `ItemsSource` 必须是恒定实例**（内部一个 `ObservableCollection` 就地增删改）。⛔ 运行时整体换 `ItemsSource`：下拉展开、用户点选的那一瞬集合被换 ⇒ Avalonia 用旧索引取新集合 ⇒ `ArgumentOutOfRangeException`（`ItemsSourceView.GetAt` ← `ListBoxItem.OnPointerReleased`），在输入事件栈里无法 catch，**整个进程直接退出**（2026-10-19 软件包页选「50」闪退实锤）。
+- 🔴 **「当前值不在候选项就补进下拉」这条兜底会诱发上一条**：页大小落盘是全局一份，各页预设不同（软件包 20/50/100/全部）。VM 侧必须在构造期把读到/默认的页大小**收成本页预设的第一档**（`ListPageViewModelBase.SnapPageSizeToChoices`），⛔ 不要靠底栏去"补一个非预设值"。
 
 ### 6.9 分页数据层（NT-064）
 

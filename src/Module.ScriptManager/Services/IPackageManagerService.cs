@@ -26,37 +26,12 @@ public interface IPackageManagerService
     /// <summary>探测后端是否可用（<c>winget --version</c>）。</summary>
     Task<(bool Ok, string Message)> ProbeAsync(CancellationToken ct = default);
 
-    /// <summary>列出所有源（<c>winget source list</c>）。</summary>
+    /// <summary>
+    /// 列出所有源（<c>winget source list</c>）。
+    /// <para>🔴 源的增删 / 切换（<c>source add|remove|reset</c>，全要 UAC）**不在本服务**：
+    /// 它们是「命令库」里的命令条目（设置页「软件源」节只做说明 + 一键加入命令库）。</para>
+    /// </summary>
     Task<(bool Ok, string Message, IReadOnlyList<PackageSourceInfo> Items)> ListSourcesAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// 导出当前源的**完整定义**（<c>winget source export</c>，JSON 行）：名字 / 地址 / 类型 / 是否显式。
-    /// <para>🔴 用途：winget 1.29 **没有 <c>source enable|disable</c>**，停用只能是 <c>source remove</c>；
-    /// 先把定义记下来，开关拨回来时才能按原样 <c>source add</c> 回去（否则地址未知 = 加不回来）。</para>
-    /// </summary>
-    Task<(bool Ok, string Message, IReadOnlyDictionary<string, PackageSourceDefinition> Items)> ExportSourceDefinitionsAsync(CancellationToken ct = default);
-
-    // ==================== 源的增删（v1.33：直接改系统 winget，与它共用一套数据） ====================
-    //
-    // ⚠️ 以下都写**系统级** winget 配置（等价于用户在终端里敲 winget source …）⇒ **必须管理员权限**（弹 UAC）。
-    //    删除 / 重置属于破坏性操作 → 内部走二次确认钩子（与卸载同理；钩子没接上一律返回 false）。
-
-    /// <summary>添加一个源（<c>winget source add --name … --arg …</c>）。<paramref name="explicitSource"/> = 加 <c>--explicit</c>。</summary>
-    Task<(bool Ok, string Message)> AddSourceAsync(string name, string argument, string? type = null, bool explicitSource = false, CancellationToken ct = default);
-
-    /// <summary>删除一个源（<c>winget source remove</c>）—— 内部二次确认。</summary>
-    Task<(bool Ok, string Message)> RemoveSourceAsync(string name, CancellationToken ct = default);
-
-    /// <summary>把系统的源恢复为默认（<c>winget source reset --force</c>）—— 内部二次确认。</summary>
-    Task<(bool Ok, string Message)> ResetSourcesAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// 源的**启用 / 停用**（v3.79 改写）：winget 1.29 实测**没有 <c>source enable|disable</c>**，
-    /// 所以开 = <c>source add</c>（按 <paramref name="definition"/> 的原地址 / 类型 / 显式标记加回）、
-    /// 关 = <c>source remove</c>（内部二次确认）。两向都要管理员权限。
-    /// <para>🔴 商店源 <c>msstore</c> 不可切换（用户定调）⇒ 直接返回失败说明原因。</para>
-    /// </summary>
-    Task<(bool Ok, string Message)> SetSourceEnabledAsync(string name, bool enable, PackageSourceDefinition? definition = null, CancellationToken ct = default);
 
     /// <summary>已安装的包（<c>winget list</c>）。</summary>
     Task<(bool Ok, string Message, IReadOnlyList<PackageInfo> Items)> ListInstalledAsync(CancellationToken ct = default);

@@ -11,11 +11,13 @@
   </PropertyGroup>
 
   <!--  ===== 目标平台：默认只产出当前 Windows x64（框架依赖，运行机自带 .NET 10）=====
-        跨平台构建见 scripts\build.ps1 -Runtime <rid>（如 linux-x64 / osx-x64）。
+        NT-081：RID 改为**可覆盖**（条件化）—— 默认仍是 win-x64，但
+        `dotnet build -p:RuntimeIdentifier=linux-x64` / `scripts\build.ps1 -Runtime <rid>` 能接管；
+        ⛔ 别再改回无条件赋值，否则外部传值会被悄悄忽略（跨平台冒烟直接失真）。
         ⛔ 删除本段即恢复「拷贝全部 RID 原生资产（约 28 个 / 580MB）」的旧行为。     -->
   <PropertyGroup>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <SelfContained Condition="'$(SelfContained)' == ''">false</SelfContained>
   </PropertyGroup>
 
   <!--  ===== 版本号：编译时自动生成，禁止手写  =====

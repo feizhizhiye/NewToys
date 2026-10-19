@@ -258,8 +258,7 @@ public class App : Application
             // NT-057：托盘建不起来（平台不支持 / 无托盘环境）⇒ 如实提示一次，行为退化成普通最小化
             if (!trayOk && launchCfg.Config.StartMinimized)
             {
-                MessageBoxW(IntPtr.Zero, "系统托盘不可用，「启动时最小化到托盘」已改为普通最小化。",
-                            "NewToys", MB_OK | MB_ICONINFORMATION);
+                ShowPlatformMessage("系统托盘不可用，「启动时最小化到托盘」已改为普通最小化。", "NewToys");
             }
 
             if (launchCfg.Config.CheckUpdateOnStartup)
@@ -394,12 +393,11 @@ public class App : Application
             return true;
         }
 
-        MessageBoxW(IntPtr.Zero,
+        ShowPlatformMessage(
             $"配置「{store.ActiveProfileName}」已在运行。\n\n"
             + "同一个配置同时只允许一个窗口（否则两边的设置与数据会互相覆盖）。\n"
             + "请切换到已打开的窗口，或换一个配置启动。",
-            "NewToys",
-            MB_OK | MB_ICONINFORMATION);
+            "NewToys");
         Environment.Exit(0);
         return false; // 到不了（Exit 不返回），写上防流程分析报警
     }
@@ -436,6 +434,22 @@ public class App : Application
 
     private const uint MB_OK = 0x00000000;
     private const uint MB_ICONINFORMATION = 0x00000040;
+
+    /// <summary>
+    /// 平台门控的系统提示框（NT-081）。
+    /// <para>🔴 <c>MessageBoxW</c> 是 user32 的 P/Invoke：非 Windows 上一调就 <c>DllNotFoundException</c>。
+    /// 这里统一降级为「静默跳过」（调用点都已同时写启动日志，信息不丢）。</para>
+    /// </summary>
+    private static void ShowPlatformMessage(string text, string caption)
+    {
+        try
+        {
+            // 内联 IsWindows()：CA1416 只认这种写法
+            if (!OperatingSystem.IsWindows()) return;
+            MessageBoxW(IntPtr.Zero, text, caption, MB_OK | MB_ICONINFORMATION);
+        }
+        catch { /* 提示失败不影响主流程 */ }
+    }
 
     // ==================== 托盘图标（「关闭按钮最小化到托盘」的落点） ====================
 

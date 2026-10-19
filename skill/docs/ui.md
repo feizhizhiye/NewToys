@@ -466,6 +466,15 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 - 两者 ⛔ 互相替代；页内重载文案必须带来源（`🔄 重扫脚本目录`，不写「刷新」）。
 
+### 10.7 弹出卡片（确认 / 提示 / 输入，NT-084）
+
+- 全局唯一呈现器 = `Shell/Controls/DialogCardHost`（遮罩 + 居中卡片，挂在 `ShellView` 最外层 Grid 顶层）。**所有页面共用**：模块的 `DialogHooks.ConfirmAsync` / `InputAsync`、详情卡动作确认（`DetailCardHooks` 转接）、`DataView` 导入确认、启动检查更新提示，全部落到这一层。
+- ⛔ 页面 / 模块**不得自造弹窗**（`new Window` + `ShowDialog` 已全清）：系统窗口标题栏是系统装饰，明暗主题下与主窗口割裂。
+- 卡片配色**只许 DynamicResource 引主题键**：底 `PanelBrush` / 描边 `DividerBrush` / 圆角 8（同 `Border.card`）/ 投影 `#66000000`；标题行 = 强调色圆底白符号（三角=确认 / i=提示 / 铅笔=输入）；按钮沿用全局 `primary` / `ghost`；遮罩 = `LoadingOverlayBrush`。明暗切换自动跟随。
+- 交互口径：点遮罩 / `Esc` = 取消；`Enter` = 确定（输入框内回车 = 确定）；消息区超 320 高才出滚动条。
+- 钩子未接上（主窗口未构造）时一律按「用户取消」（Confirm=false / Input=null / Notify 静默），⛔ 不抛。
+- 卡片宽 460；`DialogCardHost` 未展示时整层 `IsVisible=False` ⇒ 不吃命中测试，缩放热区 / 标题栏按钮照常。
+
 ### 10.6 空态
 
 - 空态 = `hint-text` **说明为什么空** + 一个 `ghost` 主动作按钮（`EmptyStateBlock` / `ListPageSkeleton`），⛔ 只写「暂无数据」。

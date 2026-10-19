@@ -480,6 +480,17 @@ public interface IDetailCardSource
 
 统一走 `Core.DialogHooks` 的 3 个钩子：`PickFolderAsync` / `PickFilesAsync`（多模式用 `;` 分隔，如 `"*.html;*.htm"`）/ `SaveFileAsync`；由 `Shell/App.axaml.cs` 注入实现（未注入 = 按「用户取消」处理）。
 
+### 6.5b 弹出卡片层（`DialogCardHost`，NT-084）
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| `DialogCardHost.axaml(.cs)` | `Shell/Controls/` | 全窗口遮罩（`LoadingOverlayBrush`）+ 居中卡片（`PanelBrush` 底 / `DividerBrush` 1px / 圆角 8 / 投影）；挂在 `ShellView` 最外层 Grid 顶层 |
+| 宿主注入 | `Shell/App.axaml.cs` | `DialogHooks.ConfirmHandler` → `ConfirmAsync(msg)`、`InputHandler` → `InputAsync(title, initial)`，内部取 `(_mainWindow as ShellView)?.DialogCards`；`DetailCardHooks.ConfirmHandler` 转接不变 |
+| 调用方 | 全部页面 | `DialogHooks.ConfirmAsync` / `InputAsync`（Core 静态钩子）+ `DataView`（导入/备份确认走 `MessageAsync` / `NotifyAsync`）+ 检查更新提示 |
+
+- NT-084 起 **Shell 内不再有 `new Window` 弹窗**（Confirm / Input / Notify / DataView 四套 Window 实现全收编）；`PickFolder` / `PickFiles` / `SaveFile` 仍是系统选择器（本来就走 OS UI，与主题无关）。
+- 卡片 API：`ConfirmAsync(message)` / `NotifyAsync(title, message)` / `InputAsync(title, initial)` / `MessageAsync(title, message, okText, showCancel)`；样式与交互口径见 `ui.md` §10.7。
+
 ### 6.6 `IFileOperationService`（v3.66 / NT-069，跨模块磁盘动作）
 
 | 件 | 位置 | 说明 |

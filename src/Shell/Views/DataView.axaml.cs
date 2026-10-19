@@ -369,7 +369,7 @@ public partial class DataView : UserControl
         LoadSections();
     }
 
-    // ==================== 对话框（沿用本页既有的内联写法） ====================
+    // ==================== 对话框（NT-084：统一走全局弹出卡片 DialogCardHost） ====================
 
     private Task ShowMessageAsync(string title, string message)
         => DialogAsync(title, message, "知道了", showCancel: false);
@@ -377,65 +377,20 @@ public partial class DataView : UserControl
     private Task<bool> ConfirmAsync(string title, string message, string okText)
         => DialogAsync(title, message, okText, showCancel: true);
 
+    /// <summary>
+    /// 弹一张全局弹出卡片（⛔ 不再自造 Window：原独立窗口标题栏是系统装饰，明暗主题下与主窗口割裂）。
+    /// <para>拿不到宿主（页面未挂载）时按「用户取消」处理。</para>
+    /// </summary>
     private async Task<bool> DialogAsync(string title, string message, string okText, bool showCancel)
     {
-        var owner = TopLevel.GetTopLevel(this) as Window;
-        if (owner == null) return false;
+        var host = (TopLevel.GetTopLevel(this) as ShellView)?.DialogCards;
+        if (host == null) return false;
 
-        // 颜色取**主题资源**（FindResource 到头回退），不能写死深色 —— 浅色主题下会变成一块黑框。
-        IBrush Panel() => (IBrush?)this.FindResource("PanelBrush") ?? new SolidColorBrush(Color.Parse("#262626"));
-        IBrush Text() => (IBrush?)this.FindResource("PrimaryTextBrush") ?? new SolidColorBrush(Color.Parse("#EFEFEF"));
-
-        var buttons = new StackPanel
+        if (!showCancel)
         {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
-        };
-        var cancelButton = new Button { Content = "取消", MinWidth = 80, Classes = { "ghost" } };
-        var confirmButton = new Button { Content = okText, MinWidth = 96, Classes = { "primary" } };
-        if (showCancel) buttons.Children.Add(cancelButton);
-        buttons.Children.Add(confirmButton);
-
-        var dialog = new Window
-        {
-            Width = 520,
-            SizeToContent = SizeToContent.Height,
-            MaxHeight = 560,
-            Title = title,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = false,
-            Background = Panel(),
-            Content = new Border
-            {
-                Padding = new Thickness(20),
-                Background = Panel(),
-                Child = new StackPanel
-                {
-                    Spacing = 16,
-                    Children =
-                    {
-                        new ScrollViewer
-                        {
-                            MaxHeight = 380,
-                            Content = new TextBlock
-                            {
-                                Text = message,
-                                TextWrapping = TextWrapping.Wrap,
-                                Foreground = Text()
-                            }
-                        },
-                        buttons
-                    }
-                }
-            }
-        };
-
-        var ok = !showCancel;   // 只有「知道了」的提示框 ⇒ 关闭即视为确认
-        cancelButton.Click += (_, _) => { ok = false; dialog.Close(); };
-        confirmButton.Click += (_, _) => { ok = true; dialog.Close(); };
-
-        await dialog.ShowDialog(owner);
-        return ok;
+            await host.NotifyAsync(title, message);
+            return true;   // 只有「知道了」的提示框 ⇒ 关闭即视为确认（保留原语义）
+        }
+        return await host.MessageAsync(title, message, okText, showCancel: true);
     }
 }

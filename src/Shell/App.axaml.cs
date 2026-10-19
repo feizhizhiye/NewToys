@@ -206,8 +206,10 @@ public class App : Application
             // 公共对话框钩子（Core.DialogHooks）：给各模块用（视频工具的重命名 / 删除文件 / 清空缓存 …）。
             // NT-074：软件包的「卸载 / 删源」二次确认也走这一条（原 PackageManagerService.ConfirmHandler 已删）。
             // ⛔ 模块不能反向引用 Shell，所以只能由这里注入；没注入时钩子一律按"用户取消"处理。
-            DialogHooks.ConfirmHandler = msg => ConfirmAsync(win, msg);
-            DialogHooks.InputHandler = (title, initial) => InputAsync(win, title, initial);
+            // NT-084：宿主实现改为页内**弹出卡片**（DialogCardHost）——原独立系统 Window 的标题栏是系统装饰，
+            //   明暗主题下与主窗口割裂；现在遮罩 + 主题色卡片铺在主窗口上，所有页面同一套视觉。
+            DialogHooks.ConfirmHandler = msg => ConfirmAsync(msg);
+            DialogHooks.InputHandler = (title, initial) => InputAsync(title, initial);
 
             // NT-063：详情卡渲染器随控件库搬进 NewToys.UI（⛔ 不引 Core/Shell）⇒ 它的「确认弹窗」
             // 钩子在 UI 侧声明（DetailCardHooks），这里把 Core 的 DialogHooks.ConfirmHandler 转接过去。
@@ -736,51 +738,11 @@ public class App : Application
                 System.Diagnostics.Debug.WriteLine("检查更新：" + message);
                 return;
             }
-            await NotifyAsync(win, "发现新版本", message + "\n\n（NewToys 不会自动替换自己，请手动更新。）");
+            var host = (_mainWindow as ShellView)?.DialogCards;
+            if (host != null)
+                await host.NotifyAsync("发现新版本", message + "\n\n（NewToys 不会自动替换自己，请手动更新。）");
         }
         catch { /* 检查更新失败绝不影响启动 */ }
-    }
-
-    /// <summary>单按钮提示框（与 <see cref="ConfirmAsync"/> 同款：纯代码构造 + 只取主题资源色）。</summary>
-    private static async Task NotifyAsync(Window owner, string title, string message)
-    {
-        IBrush? Res(string key) => owner.FindResource(key) as IBrush;
-
-        var ok = new Button { Content = "知道了", Width = 96, Classes = { "primary" } };
-        var dlg = new Window
-        {
-            Width = 460,
-            Height = 220,
-            Title = title,
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = Res("ContentBrush") ?? Brushes.Transparent,
-            Content = new Border
-            {
-                Padding = new Thickness(20),
-                Background = Res("PanelBrush") ?? Brushes.Transparent,
-                Child = new StackPanel
-                {
-                    Spacing = 16,
-                    Children =
-                    {
-                        new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.SemiBold,
-                                        Foreground = Res("PrimaryTextBrush") },
-                        new TextBlock { Text = message, FontSize = 13, TextWrapping = TextWrapping.Wrap,
-                                        Foreground = Res("PrimaryTextBrush") },
-                        new StackPanel
-                        {
-                            Orientation = Avalonia.Layout.Orientation.Horizontal,
-                            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
-                            Children = { ok }
-                        }
-                    }
-                }
-            }
-        };
-        ok.Click += (_, _) => dlg.Close();
-        try { await dlg.ShowDialog(owner); }
-        catch { /* 主窗口已关等情况：放弃提示 */ }
     }
 
     /// <summary>
@@ -909,13 +871,6 @@ public class App : Application
     /// <summary><c>#RRGGBB</c> 文本（<c>Color.Parse</c> 能原样读回）。</summary>
     private static string Hex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
 
-    /// <summary>
-    /// 通用二次确认对话框（当前只给「软件包管理 → 卸载」用）。
-    /// <para>
-    /// 只用主题资源取色（<c>FindResource</c> + 兜底），不写死颜色 —— 浅色主题下不会变成黑框。
-    /// 按钮沿用全局的 <c>primary</c> / <c>ghost</c> 样式。
-    /// </para>
-    /// </summary>
     // ==================== 选择器钩子的宿主实现（v3.53 / NT-055） ====================
 
     /// <summary>把选择器的起始位置定到某个目录（拿不到就交给系统默认位置，⛔ 不抛）。</summary>
@@ -995,119 +950,17 @@ public class App : Application
         };
     }
 
-    private static async Task<bool> ConfirmAsync(Window owner, string message)
-    {
-        IBrush? Res(string key) => owner.FindResource(key) as IBrush;
-
-        var cancel = new Button { Content = "取消", Width = 88, Classes = { "ghost" } };
-        var ok = new Button { Content = "继续", Width = 96, Classes = { "primary" } };
-
-        var dlg = new Window
-        {
-            Width = 460,
-            Height = 200,
-            Title = "请确认",
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = Res("ContentBrush") ?? Brushes.Transparent,
-            Content = new Border
-            {
-                Padding = new Thickness(20),
-                Background = Res("PanelBrush") ?? Brushes.Transparent,
-                Child = new StackPanel
-                {
-                    Spacing = 18,
-                    Children =
-                    {
-                        new TextBlock
-                        {
-                            Text = message,
-                            TextWrapping = TextWrapping.Wrap,
-                            FontSize = 13,
-                            Foreground = Res("PrimaryTextBrush")
-                        },
-                        new StackPanel
-                        {
-                            Orientation = Avalonia.Layout.Orientation.Horizontal,
-                            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
-                            Spacing = 10,
-                            Children = { cancel, ok }
-                        }
-                    }
-                }
-            }
-        };
-
-        cancel.Click += (_, _) => dlg.Close(false);
-        ok.Click += (_, _) => dlg.Close(true);
-        return await dlg.ShowDialog<bool>(owner);
-    }
+    /// <summary>
+    /// 通用二次确认对话框（NT-084 起 = 页内弹出卡片，见 <see cref="DialogCardHost"/>）。
+    /// <para>钩子没接上（主窗口未构造）时返回 false = 当作用户没同意。</para>
+    /// </summary>
+    private static Task<bool> ConfirmAsync(string message)
+        => (_mainWindow as ShellView)?.DialogCards.ConfirmAsync(message) ?? Task.FromResult(false);
 
     /// <summary>
-    /// 通用单行输入对话框（当前给「视频库 → 重命名文件」用）。
-    /// <para>同样是纯代码构造 + 只取主题资源色，浅色主题下不会变成黑框。</para>
+    /// 通用单行输入对话框（NT-084 起 = 页内弹出卡片；取消返回 null）。
     /// </summary>
-    private static async Task<string?> InputAsync(Window owner, string title, string initialValue)
-    {
-        IBrush? Res(string key) => owner.FindResource(key) as IBrush;
-
-        var box = new TextBox
-        {
-            Text = initialValue ?? "",
-            FontSize = 13,
-            Foreground = Res("PrimaryTextBrush"),
-            Background = Res("PanelBrush")
-        };
-        var cancel = new Button { Content = "取消", Width = 88, Classes = { "ghost" } };
-        var ok = new Button { Content = "确定", Width = 96, Classes = { "primary" } };
-
-        var dlg = new Window
-        {
-            Width = 460,
-            Height = 190,
-            Title = title,
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = Res("ContentBrush") ?? Brushes.Transparent,
-            Content = new Border
-            {
-                Padding = new Thickness(20),
-                Background = Res("PanelBrush") ?? Brushes.Transparent,
-                Child = new StackPanel
-                {
-                    Spacing = 14,
-                    Children =
-                    {
-                        new TextBlock
-                        {
-                            Text = title,
-                            FontSize = 13,
-                            Foreground = Res("PrimaryTextBrush")
-                        },
-                        box,
-                        new StackPanel
-                        {
-                            Orientation = Avalonia.Layout.Orientation.Horizontal,
-                            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
-                            Spacing = 10,
-                            Children = { cancel, ok }
-                        }
-                    }
-                }
-            }
-        };
-
-        // 回车 = 确定（Avalonia 的 TextBox 没有 AcceptButton，只能自己接键盘）
-        box.KeyDown += (_, e) =>
-        {
-            if (e.Key != Avalonia.Input.Key.Enter) return;
-            dlg.Close(box.Text ?? "");
-            e.Handled = true;
-        };
-        cancel.Click += (_, _) => dlg.Close(null);
-        ok.Click += (_, _) => dlg.Close(box.Text ?? "");
-
-        dlg.Opened += (_, _) => box.Focus();
-        return await dlg.ShowDialog<string?>(owner);
-    }
+    private static Task<string?> InputAsync(string title, string initialValue)
+        => (_mainWindow as ShellView)?.DialogCards.InputAsync(title, initialValue)
+           ?? Task.FromResult<string?>(null);
 }

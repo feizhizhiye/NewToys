@@ -1020,8 +1020,10 @@ Module.*（功能模块，只引 Shared + Core）
 
 **I. 数据落点与迁移**
 
-- 规则集存总库 `web_docs` 新文档 **`scrape-sources`**；旧 `scrape-tasks` **一次性迁移**（`RuleType` + `Rule` → 一条命令，`JsScript` → 保留为「整合脚本」字段，迁完留 `.legacy`）。
-- HTML 缓存落 `data\web-scrape-cache\<sourceId>\`，**只留最近 10 份**，⛔ 不参与备份。
+- 🔴 **规则落「模块独有目录」的磁盘文件**（2026-10-19 用户定调）：`<DataDir>\web-tools\rules\<规则集名>.py` —— 用户可见、可手改、可备份、可分享（**一个文件 = 一条规则集**）；DB 只存启用状态 / 最后运行 / 列宽偏好。
+- 旧 `scrape-tasks` **一次性迁移**（`RuleType` + `Rule` → 一条命令，`JsScript` → 保留为「整合脚本」字段，迁完留 `.legacy`）。
+- HTML 缓存落 `<DataDir>\web-tools\cache\<规则集名>\`，**只留最近 10 份**，⛔ 不参与备份。
+- 🔴 `DataDir` 一律向 `ConfigStoreService` 取（= `profiles\<配置>\data`），⛔ 模块内自己拼根路径（`framework.md` §7）。
 
 **J. 验收判据**
 

@@ -112,6 +112,10 @@ public class ScriptManagerModule : IModule
 
             // v3.66 第 ④ 条：随包「示例」—— 示例脚本文件夹 + 示例命令，**只播种一次**（删了不复活）。
             ExampleSeeder.Seed(store, settings);
+
+            // NT-083 批 3：随包「环境维护」脚本 + 内置集合「环境维护」—— 同样只播种一次。
+            // ⛔ 不覆盖用户改过的脚本、⛔ 不抢回被移出的集合成员。
+            EnvScriptsSeeder.Seed(store, settings);
         }
         catch
         {

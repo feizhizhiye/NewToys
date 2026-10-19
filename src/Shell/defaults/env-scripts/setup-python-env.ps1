@@ -18,9 +18,11 @@
   pip 镜像源。留空 = pip 默认（国内建议 https://pypi.tuna.tsinghua.edu.cn/simple）。
 
 .EXAMPLE
-  pwsh -File .\scripts\setup-python-env.ps1
-  pwsh -File .\scripts\setup-python-env.ps1 -IndexUrl https://pypi.tuna.tsinghua.edu.cn/simple
-  pwsh -File .\scripts\setup-python-env.ps1 -Force
+  # 平时：在「脚本管理器 → 环境维护 → 环境：准备 Python」里点运行即可。
+  # 命令行等价写法：
+  ./setup-python-env.ps1
+  ./setup-python-env.ps1 -IndexUrl https://pypi.tuna.tsinghua.edu.cn/simple
+  ./setup-python-env.ps1 -Force
 #>
 [CmdletBinding()]
 param(

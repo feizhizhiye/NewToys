@@ -41,7 +41,7 @@ public sealed class RuleRunService
 
         if (!_encodingReady)
         {
-            // GBK / GB18030 站点：.NET 默认不带代码页编码器（加了 System.Text.Encoding.CodePages 包）
+            // GBK / GB18030 站点：需注册代码页编码器（net10.0 共享框架自带，无需第三方包）
             try { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); _encodingReady = true; } catch { }
         }
     }
@@ -124,6 +124,64 @@ public sealed class RuleRunService
     {
         try { return enc.GetString(bytes); }
         catch { return Encoding.UTF8.GetString(bytes); }
+    }
+
+    // ==================== 导入 Legado 书源（批 D） ====================
+
+    /// <summary>
+    /// 把 Legado（阅读 App）书源 json 转成规则集文件：**转换逻辑全在随包脚本
+    /// <c>defaults\tools\convert_legado.py</c>**，C# 只送路径 + 解析回来的一行 JSON。
+    /// </summary>
+    /// <returns>(写入了几条, 给用户看的一句话)</returns>
+    public async Task<(int written, string message)> ConvertLegadoAsync(string jsonPath, CancellationToken ct = default)
+    {
+        var script = Path.Combine(AppContext.BaseDirectory, "defaults", "tools", "convert_legado.py");
+        if (!File.Exists(script)) return (0, "⚠ 找不到转换脚本：" + script);
+
+        var req = new PyRequest
+        {
+            Mode = "file",
+            Path = script,
+            TimeoutSeconds = 120,
+            ArgsJson = JsonSerializer.Serialize(new Dictionary<string, string>
+            {
+                ["in"] = jsonPath,
+                ["outDir"] = _files.RulesDir
+            })
+        };
+
+        var res = await _py.RunAsync(req, ct).ConfigureAwait(false);
+        if (!res.Ok || !string.IsNullOrEmpty(res.Error))
+        {
+            var detail = !string.IsNullOrWhiteSpace(res.Traceback) ? res.Traceback
+                       : (res.Error + " " + res.Err).Trim();
+            return (0, "⚠ " + detail);
+        }
+
+        var json = (res.Out ?? "").Trim();
+        var nl = json.LastIndexOf('\n');
+        if (nl >= 0) json = json[(nl + 1)..].Trim();   // 脚本可能先打了别的东西
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("error", out var err)) return (0, "⚠ " + (err.GetString() ?? ""));
+
+            var names = new List<string>();
+            if (root.TryGetProperty("written", out var w) && w.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var el in w.EnumerateArray())
+                {
+                    if (el.TryGetProperty("name", out var n)) names.Add(n.GetString() ?? "");
+                }
+            }
+
+            return (names.Count, names.Count == 0
+                ? "没有可转换的书源（检查文件是不是 Legado 书源 json）"
+                : "已导入 " + names.Count + " 条：" + string.Join("、", names));
+        }
+        catch (Exception ex) { return (0, "⚠ 转换结果无法解析：" + ex.Message); }
     }
 
     // ==================== 跑规则 ====================

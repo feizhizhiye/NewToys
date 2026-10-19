@@ -69,8 +69,11 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
                 ToolTip = "回「抓取规则」目录页" }
     };
 
-    /// <summary>工具条构成变化通知（本页工具条静态，⛔ 不触发）。</summary>
+    /// <summary>工具条构成变化通知（本页工具条静态，⛔ 不触发；帮助方法的存在即仓库同款写法，消 CS0067）。</summary>
     public event EventHandler? ToolbarChanged;
+
+    /// <summary>工具条构成变了 → 通知 Shell（⛔ 只有动态构造 <see cref="Toolbar"/> 时才需要调）。</summary>
+    private void NotifyToolbarChanged() => ToolbarChanged?.Invoke(this, EventArgs.Empty);
 
     /// <summary>底部状态栏（v3.9 / <see cref="IStatusProvider"/>）：Shell 统一显示。</summary>
     public event EventHandler? StatusChanged;

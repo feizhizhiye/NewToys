@@ -1,7 +1,8 @@
 # NewToys 框架层（Framework）
 
-> v4.2 · 2026-10-18 · **标准角色：工程规范（框架层部分）**
-> v4.2：新增 **§6.6 `IFileOperationService`** —— 跨模块磁盘动作（改名/移动/复制/回收站删除）下沉 `Core`，两处 `SHFileOperationW` 合一（v3.66 / NT-069）。
+> v4.3 · 2026-10-19 · **标准角色：工程规范（框架层部分）**
+> v4.3：NT-070 卡淘汰，蒸馏进 §3.3 —— 补「模块扫描必须按 `Module.*.dll` 过滤」「单次启动日志不可作结论 + 787~826ms 基线」。
+> v4.2 · 2026-10-18 · 新增 **§6.6 `IFileOperationService`** —— 跨模块磁盘动作（改名/移动/复制/回收站删除）下沉 `Core`，两处 `SHFileOperationW` 合一（v3.66 / NT-069）。
 > v4.1：新增 **§4.6 应用级设置 / 首页 / 功能清单** —— 三者属 `src/Shell`（`Module.Settings` 已于 NT-062 撤销），原 `modules/settings-app.md` 内容并入本节并删除该文件；`modules/` 只剩 4 个真模块。
 > 本文件 = **框架层（Shared / Core / Shell / NewToys.UI）的实现约定**，外加**跨模块待办**的唯一收口处。
 > 原 `NewToys-工程规范.md` 已于 2026-10-18 拆分：**框架层 → 本文件**｜**UI 规范 → `ui.md`**｜**各模块 → `modules/<模块>.md`**。
@@ -152,6 +153,8 @@ public interface IModule {
   - ⚠️ **页面不可假设 `InitializeDeferred` 已跑完**：用户可能抢在它之前点进页面（`InitializeDeferred` 内部必须自兜 try/catch，失败按空数据渲染）。
   - 热加载（§3.4）也会紧接着跑 `InitializeDeferred`，否则新模块热加载后永远拿不到数据。
   - 启动打点：`logs\startup-*.log` 的「启动打点（累计毫秒）：…」+「模块延迟初始化 Nms（首帧之后）」两行，改完用它核对收益。
+  - 🔴 **模块扫描必须过滤 `Module.*.dll`**：`ModuleLoader.LoadAll` 的 `ScanModulesDirectory` 与 `HotReload` 都要按前缀枚举（Debug 程序目录有 ~49 个 DLL，全量 `Assembly.LoadFrom` + `GetTypes()` 一次吃掉 2173ms，过滤后 9~11ms）。
+  - ⚠️ **单次启动日志不能当结论**：新编译产物第一次启动必然慢（冷读 + 杀毒实时扫描 + JIT）。判断优化是否生效，要么连跑两次取第二次，要么看分项打点。基线（Debug 热启动）= 总启动 **787~826ms**，其中主窗口构造 ~450ms、窗口显示段 ~345ms 为 Avalonia 首帧固有成本，再压收益 < 150ms 且风险高 ⇒ 到此为止。
 
 ### 3.4 热加载
 

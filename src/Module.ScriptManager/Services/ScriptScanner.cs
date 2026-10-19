@@ -67,6 +67,12 @@ public static class ScriptScanner
         foreach (var file in files)
         {
             var relative = Path.GetRelativePath(directory, file);
+
+            // 🔴 环境脚本目录（NT-083）⛔ 不进候选：它有副作用（建 venv / 装依赖），
+            // 只能由 `EnvScriptsSeeder` 以 `Collectable=false` 登记；扫进脚本库后会被当成普通采集脚本，
+            // 一旦被勾进集合并设了定时，就会反复建环境 / 装包。
+            if (IsInFolder(relative, EnvScriptsSeeder.TargetSubFolder)) continue;
+
             var full = Normalize(file);
 
             if (known.Contains(full))
@@ -82,6 +88,14 @@ public static class ScriptScanner
         }
 
         return list;
+    }
+
+    /// <summary>相对路径是否位于脚本目录的某个子目录内（只看第一段；顶层文件不算）。</summary>
+    private static bool IsInFolder(string relative, string folder)
+    {
+        var i = relative.IndexOfAny(new[] { Path.DirectorySeparatorChar, '/' });
+        var head = i < 0 ? "" : relative[..i];
+        return head.Length > 0 && string.Equals(head, folder, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>文件级可采集判定（扫描阶段只能看文件本身，不扫脚本内容）。</summary>

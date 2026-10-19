@@ -143,6 +143,7 @@
 | 建集合 + 成员 | 首次启动（`EnvScriptsSeeder.Seed`） | 随包 `defaults\env-scripts\*` 复制到 `<脚本目录>\env\`；登记条目 `env-python-setup`「环境：准备 Python」；建集合 `builtin-env`「环境维护」并装入该成员 | 🔴 **只播种一次**（`.seeded` 标记）：用户删集合 / 改脚本 / 移出成员都不复活、不覆盖、不抢回；建集合**只在刚建时**装成员 |
 | 运行 | 脚本库页点「▶ 运行」（或收藏夹） | 建 `%LOCALAPPDATA%\NewToys\tools\py\venv` 并装 `requests` / `lxml` / `parsel`；输出进现有输出窗 | 条目 `Timeout=900`、`Capture=true`、`ParseMode=Line`；幂等（有 venv 只补装），`-Force` 重建、`-IndexUrl` 换镜像 |
 | 当采集器 | — | ⛔ 不允许 | `Collectable=false` + `IneligibleReason`：有副作用（写磁盘 / 装包），不进采集器候选池，集合页「显示不可采集」下也灰显不可勾 |
+| 被扫描 | 脚本库「🔍 扫描目录」 | ⛔ 该目录（`env\`）**不出现在扫描候选里** | `ScriptScanner` 按第一段目录名跳过它：扫进去会被当成普通采集脚本，勾进集合 + 设定时 ⇒ 反复建环境 / 装包（`examples\` / `sysinfo\` 无副作用，仍可扫） |
 | 环境状态 | 设置 → 运行环境 → 「Python 共享环境（venv）」行 | 只读显示 `Probe()` 结论（venv 就绪 / 用系统解释器 / 未找到 Python）+ `↗` 打开 `tools\py` | 进本节时随外部程序一起惰性探测（`ProbeExternalTools`）；`Value` 恒为工具根目录（供 `↗` 用） |
 
 

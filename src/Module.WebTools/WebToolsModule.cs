@@ -57,14 +57,14 @@ public class WebToolsModule : IModule
         // 🔴 NT-084：Key 仍是 web-scrape（落 columnlayout.json 页键，改了用户偏好失效）；
         // 标题改为「抓取规则」，指向新的目录页 RuleCatalogView（旧的 ScrapeView 已删）。
         menu.RegisterFunction("web", "web-scrape",   "抓取规则",   "🕷", "RuleCatalogView", 4, "管理抓取规则集（一条规则集 = 一个 .py 文件）");
-        // NT-086 批 C：原「规则编辑器」重构为**调试集合**（五段槽位装配流水线）并**撤出左树菜单** ——
-        // 🔴 注册到 Shell 的 `system` 组（IsHome ⇒ 左树 / 首页计数 / 功能清单都跳过它），
-        //    但 FindItem 仍能解析 ⇒ 目录页 NavigateTo("web-rule-editor") 照常可用。
-        menu.RegisterFunction("system", "web-rule-editor", "调试集合", "🧩", "RuleEditorView", 5, "把段脚本装配成流水线：五段槽位 + 试跑推荐 + 表达式检验");
-        // NT-086 批 D：**爬虫面板**（期①「能看、能诊断」；试下载 / 批量下载 / next 分页属期② NT-087）
-        menu.RegisterFunction("web", "web-crawl", "爬虫面板", "🕸", "CrawlPanelView", 5,
+        // NT-086 批 C：原「规则编辑器」重构为**调试集合**（五段槽位装配流水线）。
+        // 2026-10-20 用户要求：挂回 **网络工具二级菜单**（直接从左侧导航进，不必只经目录页跳转）。
+        //   仍保留同一 Key ⇒ FindItem 解析、目录页 NavigateTo("web-rule-editor") 照常可用。
+        menu.RegisterFunction("web", "web-rule-editor", "调试集合", "🧩", "RuleEditorView", 5, "把段脚本装配成流水线：五段槽位 + 试跑推荐 + 表达式检验");
+        // NT-086 批 D：爬虫面板（期①「能看、能诊断」；试下载 / 批量下载 / next 分页属期② NT-087）
+        menu.RegisterFunction("web", "web-crawl", "爬虫面板", "🕸", "CrawlPanelView", 6,
             "跑抓取脚本看目录条目：动态列 + 双击下钻 + 复制诊断（下载属期②）");
-        menu.RegisterFunction("web", "web-hosts",    "Hosts 管理", "🗂", "HostsView",    6, "切换 hosts 方案、网络导入、编辑系统 hosts");
+        menu.RegisterFunction("web", "web-hosts",    "Hosts 管理", "🗂", "HostsView",    7, "切换 hosts 方案、网络导入、编辑系统 hosts");
 
         // v3.64 / NT-061：模块设置页通则 —— View/VM 归本模块。
         // v3.66 / NT-062：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。

@@ -21,7 +21,7 @@
 | `web-bookmark` | 书签管理 | 2 | `BookmarkView` / `BookmarkViewModel` | 收藏与整理网址、导入浏览器书签 |
 | `web-ping` | 网络 Ping | 3 | `PingView` / `PingViewModel` | 测试主机连通性与延迟，支持切 DNS |
 | `web-scrape` | **抓取规则**（NT-084 改名，Key ⛔ 不改） | 4 | `RuleCatalogView` / `RuleCatalogViewModel` | **规则目录**：规则集（`.py`）的增删改 / 启用 / 重读；NT-086 起列表带**分类 / 说明**列 + 工具条「分类 ▾」筛选 + **「预设 ▾」从预设创建** + **「🔍 探测」站点探测**；`✏ 编辑规则` → 跳编辑器 |
-| `web-rule-editor` | **调试集合**（NT-086 批 C 改名，**已撤出左树菜单**，只经目录页进入） | 5 | `RuleEditorView` / `RuleEditorViewModel` | 三段式自绘：**五段槽位 + 试跑推荐**（左）/ HTML 源码（中）/ 选中段脚本的表达式检验（右）；装配结果存 `flows\<名>.json`（解析全在 Python 侧） |
+| `web-rule-editor` | **调试集合**（NT-086 批 C 改名；**2026-10-20 挂回 `web` 二级菜单**，也可从目录页进入） | 5 | `RuleEditorView` / `RuleEditorViewModel` | 三段式自绘：**五段槽位 + 试跑推荐**（左）/ HTML 源码（中）/ 选中段脚本的表达式检验（右）；装配结果存 `flows\<名>.json`（解析全在 Python 侧） |
 | `web-crawl` | **爬虫面板**（NT-086 批 D 新增） | 5 | `CrawlPanelView` / `CrawlPanelViewModel` | 期①「能看、能诊断」：工具条「脚本 ▾」+ 起始网址 + `🔗 抓链接`；三节（① 链接·目录动态列 + 双击 url 下钻 ② 试下载预览 ③ 下载进度—— ②③ 期② NT-087 占位）；底栏摘要：条数 · 字段数 · 错误数 · 耗时 |
 | `web-hosts` | Hosts 管理 | 6 | `HostsView` / `HostsViewModel` | 切换 hosts 方案、网络导入、编辑系统 hosts |
 | `settings-web-tools` | 网络工具设置 | 100 | `SettingsWebToolsView` | 超时 / 并发 / 默认解析器 |
@@ -227,6 +227,8 @@
 23. 🔴 **链式队列不能在「队列空」时直接 break**（NT-087）：并发任务还会往队列里加 `rows` 子条目 ⇒ 必须「队列空 **且** 在跑任务数为 0」才退出，否则 `Task.WhenAny` 等一个跑完再看队列。
 24. 🔴 **`mode=step` 只求值指定段、回全量值**（NT-087）：`RunStepAsync(..., keys: "content,next")` ⛔ 不截断、⛔ 不预览；翻页 / 并发 / 停止条件全在 C# 侧（Python 只答「这一页有什么、下一页在哪」）。
 25. 🔴 **下载器内置 ≠ 写操作脚本化**（NT-087）：安装/升级/卸载类写操作仍 ⛔ 不脚本化；这里脚本化的只有「解析出什么」（读），落盘 / 并发 / 取消是 C# 的事。
+26. 🔴 **`||` 多候选必须写在 `##` 净化之前**（2026-10-20 得奇实战）：`eval_expr` 先按 `##` 切分 ⇒ 写成 `A@text##^前缀##||B` 会把整个 `||B` 吞进**过滤器数组**（候选 B 永远进不去）。正确顺序：`A@text||B##^前缀##`（净化对胜出的那个候选生效）。症状：该列在多形态页面（详情 / 列表）上只有一半场景有值。
+27. 🔴 **JS 取正文类站点抓不到内容**（2026-10-20 得奇小说）：章节页 `#chapter-content` 恒空，真正文靠 JS 二次请求 `ajax2.php`（`token` + `timestamp` + `nonce` 一次性，缺任一回「请求已过期」）⇒ 单章静态抓取**必然空**。出路是找站点自带的**免 token 打包接口**（该站 `packdown.php?aid=&start=&end=`，一次 ≤501 章、GBK 纯文本），写法见实测段脚本。同理：改 UA 伪装（百度 / Google spider）对这类站无效。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

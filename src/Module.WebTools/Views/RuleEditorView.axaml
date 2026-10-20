@@ -2,25 +2,155 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.WebTools.Views.RuleEditorView">
-  <!--  NT-084 批 C：规则编辑器（新页 web-rule-editor，**非列表页** ⇒ 自绘三段式，⛔ 不用 ListPageSkeleton）
-        上：命令列表 ／ 下：HTML 源码面板（可拖高）／ 右：规则编辑（加宽到 460）
-        🔴 样式统一（2026-10-20 收尾）：
-          · 工具条已迁 **Shell 统一承载**（VM 实现 IToolbarSource → ToolbarHost 渲染描述符）
-                ⇒ 页内 ⛔ 不写 Border.toolbar（会两条工具条）；
-          · 状态文本走 **底部状态栏**（IStatusProvider），⛔ 不在卡片里自带一行；
-          · 命令列表 = `Border.list-header` + `ColumnGrid`（表头与行同规格，对齐不漂）+ `ListBox.list-page`
-                （行高 28 / 悬停 / 选中底色，与目录页一致）。  -->
+  <!--  NT-086 批 C：**调试集合**（原「规则编辑器」重构；页 Key 仍是 web-rule-editor，已撤出左树菜单）
+        左 = 五段槽位 + 试跑推荐 ／ 中 = HTML 源码（查找 / 🎯 定位命中）／ 右 = 选中段脚本的表达式检验 + 错误回显
+        🔴 工具条走 Shell 统一承载（VM 实现 IToolbarSource）⇒ 页内 ⛔ 不写 Border.toolbar；
+        🔴 状态文本走底部状态栏（IStatusProvider）⇒ 页内 ⛔ 不自带状态行。  -->
   <Grid Margin="12">
 
-    <!--  ==================== 主体 ====================  -->
-    <Grid ColumnDefinitions="*,Auto,460">
+    <Grid ColumnDefinitions="330,Auto,*,Auto,420">
 
-      <!--  左：上命令列表 / 下 HTML  -->
-      <Grid Grid.Column="0" RowDefinitions="2*,Auto,3*">
-        <Border Grid.Row="0" Classes="card" Padding="0">
-          <Grid RowDefinitions="Auto,*">
+      <!--  ==================== 左：起始网址 + 五段槽位 + 试跑推荐 ====================  -->
+      <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto,*,Auto">
+
+        <!--  起始网址（试跑推荐的前提：候选脚本对同一份 HTML 求值）  -->
+        <Border Grid.Row="0" Classes="card" Padding="10,8">
+          <StackPanel Spacing="6">
+            <TextBlock Text="起始网址" Classes="hint-text"/>
+            <TextBox Text="{Binding StartUrl, Mode=TwoWay}" Height="28" MinWidth="0"
+                     VerticalContentAlignment="Center" PlaceholderText="https://…（或从目录页带一个规则集进来）"/>
+          </StackPanel>
+        </Border>
+
+        <TextBlock Grid.Row="1" Text="流水线槽位（可选，留空即跳过）" Classes="hint-text" Margin="2,8,0,4"/>
+
+        <!--  槽位列表：选中一行 = 右栏切到该段脚本的命令  -->
+        <Border Grid.Row="2" Classes="card" Padding="0">
+          <ListBox Classes="list-page" ItemsSource="{Binding Slots}"
+                   SelectedItem="{Binding SelectedSlot, Mode=TwoWay}" SelectionMode="Single">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="84,*,72" Margin="0,2">
+                  <TextBlock Grid.Column="0" Text="{Binding Label}" VerticalAlignment="Center"
+                             ToolTip.Tip="{Binding Hint}"/>
+                  <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" MinWidth="0" MinHeight="28"
+                            IsVisible="{Binding CanPick}" ToolTip.Tip="{Binding Hint}"
+                            ItemsSource="{Binding Options}"
+                            SelectedItem="{Binding Selected, Mode=TwoWay}">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Text="{Binding Label}"/>
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <TextBlock Grid.Column="1" Text="{Binding BuiltInText}" Classes="hint-text"
+                             VerticalAlignment="Center" IsVisible="{Binding IsBuiltIn}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding HitText}" Classes="list-cell"
+                             VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Border>
+
+        <TextBlock Grid.Row="3" Text="试跑推荐（同一份 HTML · 按条数与完整度排序）" Classes="hint-text"
+                   Margin="2,8,0,4"/>
+
+        <Border Grid.Row="4" Classes="card" Padding="0">
+          <Grid RowDefinitions="*,Auto">
+            <ListBox Grid.Row="0" Classes="list-page" ItemsSource="{Binding Candidates}"
+                     SelectedItem="{Binding SelectedCandidate, Mode=TwoWay}" SelectionMode="Single">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Spacing="2">
+                    <Grid ColumnDefinitions="*,52,44">
+                      <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"/>
+                      <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding CountText}"/>
+                      <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding FillText}"/>
+                    </Grid>
+                    <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding FieldsText}"/>
+                    <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding HasError}"
+                               Text="{Binding Error, StringFormat='⚠ {0}'}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="8">
+              <Button Classes="ghost" Content="✅ 用它" Command="{Binding ApplyCandidateCommand}"
+                      ToolTip.Tip="把推荐列表里选中的那条填进当前槽位（⛔ 不自动选）"/>
+              <TextBlock Text="{Binding Candidates.Count, StringFormat='共 {0} 个候选'}"
+                         Classes="hint-text" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="5" Classes="hint-text" TextWrapping="Wrap" Margin="2,8,0,0"
+                   Text="槽位候选按脚本头 # role: 过滤；toc 留空 = 链式模式（靠 content 的 next 逐页跟进）。"/>
+      </Grid>
+
+      <GridSplitter Grid.Column="1" Width="6" ResizeDirection="Columns" Background="Transparent"/>
+
+      <!--  ==================== 中：HTML 源码 + 查找 / 定位 ====================  -->
+      <Border Grid.Column="2" Classes="card" Padding="0">
+        <Grid RowDefinitions="Auto,Auto,*" Margin="12,12,12,8">
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="{Binding HtmlInfo}" Classes="hint-text"
+                       TextTrimming="CharacterEllipsis"/>
+            <TextBlock Grid.Column="1" Text="{Binding LineInfo}" Classes="hint-text" Margin="8,0,0,0"/>
+          </Grid>
+
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,8,0,6">
+            <TextBox Width="200" MinHeight="28" Padding="8,4" FontSize="12" VerticalContentAlignment="Center"
+                     Text="{Binding FindText, Mode=TwoWay}" PlaceholderText="在源码里查找（回车 = 下一个）">
+              <TextBox.KeyBindings>
+                <KeyBinding Gesture="Enter" Command="{Binding FindNextCommand}"/>
+              </TextBox.KeyBindings>
+            </TextBox>
+            <Button Classes="ghost" Content="◀" Command="{Binding FindPrevCommand}" MinHeight="28"
+                    ToolTip.Tip="上一个"/>
+            <Button Classes="ghost" Content="▶" Command="{Binding FindNextCommand}" MinHeight="28"
+                    ToolTip.Tip="下一个（回车）"/>
+            <TextBlock Text="{Binding FindHint}" Classes="hint-text" VerticalAlignment="Center" MinWidth="70"/>
+            <Button Classes="ghost" Content="🎯 定位命中" Command="{Binding LocateHitCommand}" MinHeight="28"
+                    ToolTip.Tip="把选中命令的首条命中结果搬到查找框并跳到源码里"/>
+          </StackPanel>
+
+          <TextBox Grid.Row="2" IsReadOnly="True" AcceptsReturn="True"
+                   TextWrapping="NoWrap" FontFamily="Cascadia Mono,Consolas,monospace"
+                   FontSize="12" Text="{Binding HtmlText}"
+                   SelectionStart="{Binding HtmlSelStart, Mode=TwoWay}"
+                   SelectionEnd="{Binding HtmlSelEnd, Mode=TwoWay}"
+                   PlaceholderText="点工具条「🌐 抓页」把页面拉下来"/>
+        </Grid>
+      </Border>
+
+      <GridSplitter Grid.Column="3" Width="6" ResizeDirection="Columns" Background="Transparent"/>
+
+      <!--  ==================== 右：选中段脚本的表达式检验 + 错误回显 + 编辑 ====================  -->
+      <Border Grid.Column="4" Classes="card" Margin="8,0,0,0">
+        <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+          <StackPanel Grid.Row="0" Spacing="2">
+            <TextBlock Text="{Binding HeaderTitle}" FontWeight="500"
+                       Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding SelectedSlot.Hint}" Classes="hint-text" TextWrapping="Wrap"/>
+          </StackPanel>
+
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,8,0,6">
+            <TextBox Width="150" MinHeight="28" Padding="8,4" FontSize="12" VerticalContentAlignment="Center"
+                     Text="{Binding Keyword, Mode=TwoWay}" PlaceholderText="搜索字段 / 表达式…"/>
+            <Button Classes="ghost" Content="📋 复制诊断" Command="{Binding CopyDiagCommand}"
+                    ToolTip.Tip="把段位 / 脚本 / 网址 / 每字段命中与错误打包复制（给 AI 复盘）"/>
+          </StackPanel>
+
+          <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
             <Border Grid.Row="0" Classes="list-header">
-              <v:ColumnGrid ColumnSpecs="120,80,*,80">
+              <v:ColumnGrid ColumnSpecs="110,64,*,56">
                 <TextBlock Grid.Column="0" Text="字段名" Padding="8,0" FontSize="12" FontWeight="SemiBold"
                            Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="类型" Padding="8,0" FontSize="12" FontWeight="SemiBold"
@@ -35,7 +165,7 @@
                      SelectedItem="{Binding SelectedCommand, Mode=TwoWay}" SelectionMode="Single">
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <v:ColumnGrid ColumnSpecs="120,80,*,80">
+                  <v:ColumnGrid ColumnSpecs="110,64,*,56">
                     <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Key}"/>
                     <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeLabel}"/>
                     <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Expr}"/>
@@ -45,91 +175,48 @@
               </ListBox.ItemTemplate>
             </ListBox>
           </Grid>
-        </Border>
 
-        <GridSplitter Grid.Row="1" Height="6" ResizeDirection="Rows"
-                      Background="Transparent" HorizontalAlignment="Stretch"/>
+          <!--  编辑区：🔴 错误必须回显（⚠ 前缀），⛔ 不静默显示「0 条」  -->
+          <ScrollViewer Grid.Row="3" MaxHeight="260" Margin="0,8,0,0">
+            <StackPanel Spacing="8">
+              <TextBlock Text="字段名（输出列名）" Classes="hint-text"/>
+              <TextBox Text="{Binding SelectedCommand.Key, Mode=TwoWay}" Height="28" PlaceholderText="title"/>
 
-        <Border Grid.Row="2" Classes="card" Padding="0">
-          <Grid RowDefinitions="Auto,Auto,*" Margin="12,12,12,8">
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-              <TextBlock Grid.Column="0" Text="{Binding HtmlInfo}" Classes="hint-text"
-                         TextTrimming="CharacterEllipsis"/>
-              <TextBlock Grid.Column="1" Text="{Binding LineInfo}" Classes="hint-text" Margin="8,0,0,0"/>
-            </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="类型：" Classes="hint-text" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding SelectedCommand.TypeLabel}" VerticalAlignment="Center"
+                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+              </StackPanel>
 
-            <!-- 查找条（NT-084 收尾）：命中 = **选区高亮**（系统高亮色），⛔ 不自绘高亮层。
-                 回车 = 找下一个；「🎯 定位命中」把选中命令的首条结果搬进查找框并跳过去。
-                 🔴 控件与顶部统一工具条**同规格**（28 高 / 12 字号 / ghost 10,5）—— 2026-10-20 前
-                    这里是 24px 矮控件 + `ghost small`，与工具条放一起明显矮一截、字号也不齐。 -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,8,0,6">
-              <TextBox Width="200" MinHeight="28" Padding="8,4" FontSize="12" VerticalContentAlignment="Center"
-                       Text="{Binding FindText, Mode=TwoWay}" PlaceholderText="在源码里查找（回车 = 下一个）">
-                <TextBox.KeyBindings>
-                  <KeyBinding Gesture="Enter" Command="{Binding FindNextCommand}"/>
-                </TextBox.KeyBindings>
-              </TextBox>
-              <Button Classes="ghost" Content="◀" Command="{Binding FindPrevCommand}" MinHeight="28"
-                      ToolTip.Tip="上一个"/>
-              <Button Classes="ghost" Content="▶" Command="{Binding FindNextCommand}" MinHeight="28"
-                      ToolTip.Tip="下一个（回车）"/>
-              <TextBlock Text="{Binding FindHint}" Classes="hint-text" VerticalAlignment="Center" MinWidth="70"/>
-              <Button Classes="ghost" Content="🎯 定位命中" Command="{Binding LocateHitCommand}" MinHeight="28"
-                      ToolTip.Tip="把选中命令的首条命中结果搬到查找框并跳到源码里"/>
+              <TextBlock Text="表达式" Classes="hint-text"/>
+              <TextBox Text="{Binding SelectedCommand.Expr, Mode=TwoWay}" Height="88" AcceptsReturn="True"
+                       TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                       PlaceholderText="css:div.item &gt; a@href"/>
+
+              <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                         Text="前缀：css: / xpath: / regex: / json: / text: / link: / url: / =常量（不写前缀默认按 CSS 解析）。多个候选用 || 连接；净化写 表达式##正则##替换。"/>
+              <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                         Text="⛔ 禁止绝对位置路径（/html/body/… 、连续 div[3]）—— 改一次版式就断。优先写「功能文本锚」与「URL 模式」。"/>
+
+              <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                         IsVisible="{Binding SelectedCommand.HasError}"
+                         Text="{Binding SelectedCommand.Error, StringFormat='⚠ {0}'}"/>
+
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Classes="ghost" Content="➕ 加命令" Command="{Binding AddCommandCommand}"/>
+                <Button Classes="ghost" Content="🗑 删命令" Command="{Binding RemoveCommandCommand}"/>
+                <Button Classes="ghost" Content="💾 保存脚本" Command="{Binding SaveCommand}"
+                        ToolTip.Tip="把命令列表写回该脚本文件的 RULES 块（⛔ 无自动保存）"/>
+              </StackPanel>
+
+              <TextBlock Text="预览（前 3 条）" Classes="hint-text" Margin="0,4,0,0"/>
+              <TextBox IsReadOnly="True" AcceptsReturn="True" Height="120" TextWrapping="Wrap"
+                       FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                       Text="{Binding SelectedCommand.Preview}"
+                       PlaceholderText="点工具条「▶ 跑这段」看结果"/>
             </StackPanel>
-
-            <TextBox Grid.Row="2" Margin="0,0,0,0" IsReadOnly="True" AcceptsReturn="True"
-                     TextWrapping="NoWrap" FontFamily="Cascadia Mono,Consolas,monospace"
-                     FontSize="12" Text="{Binding HtmlText}"
-                     SelectionStart="{Binding HtmlSelStart, Mode=TwoWay}"
-                     SelectionEnd="{Binding HtmlSelEnd, Mode=TwoWay}"
-                     PlaceholderText="点上方工具条「🌐 抓取 HTML」把页面拉下来"/>
-          </Grid>
-        </Border>
-      </Grid>
-
-      <!--  右：规则编辑（Padding=12 由 card 给，内容 ⛔ 不再叠加一层 —— 同 340px 详情卡口径）  -->
-      <Border Grid.Column="2" Classes="card" Margin="8,0,0,0">
-        <ScrollViewer>
-          <StackPanel Margin="0" Spacing="8">
-
-            <!--  抬头 = 当前规则集名 + 域名（原在自绘工具条里的 Label，工具条统一后挪到这里）  -->
-            <TextBlock Text="{Binding HeaderTitle}" FontWeight="500"
-                       Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
-            <TextBlock Text="{Binding BaseUrl}" Classes="hint-text" TextTrimming="CharacterEllipsis"/>
-
-            <TextBlock Text="字段名（输出列名）" Classes="hint-text" Margin="0,4,0,0"/>
-            <TextBox Text="{Binding SelectedCommand.Key, Mode=TwoWay}" Height="28"
-                     PlaceholderText="title"/>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBlock Text="类型：" Classes="hint-text" VerticalAlignment="Center"/>
-              <TextBlock Text="{Binding SelectedCommand.TypeLabel}" VerticalAlignment="Center"
-                         Foreground="{DynamicResource SecondaryTextBrush}"/>
-            </StackPanel>
-
-            <TextBlock Text="表达式" Classes="hint-text"/>
-            <TextBox Text="{Binding SelectedCommand.Expr, Mode=TwoWay}" Height="96" AcceptsReturn="True"
-                     TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
-                     PlaceholderText="css:div.item &gt; a@href"/>
-
-            <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                       Text="前缀：css: / xpath: / regex: / json: / =常量；不写前缀 = legado 默认规则（class.x@tag.a@text）。多个候选用 || 连接；净化写 表达式##正则##替换。"/>
-
-            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
-              <Button Classes="ghost" Content="➕ 加命令" Command="{Binding AddCommandCommand}"/>
-              <Button Classes="ghost" Content="🗑 删命令" Command="{Binding RemoveCommandCommand}"/>
-              <Button Classes="ghost" Content="▶ 只测这条" Command="{Binding TestSelectedCommand}"
-                      IsEnabled="{Binding !IsBusy}"/>
-            </StackPanel>
-
-            <TextBlock Text="预览（前 3 条）" Classes="hint-text" Margin="0,6,0,0"/>
-            <TextBox IsReadOnly="True" AcceptsReturn="True" Height="140" TextWrapping="Wrap"
-                     FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
-                     Text="{Binding SelectedCommand.Preview}"
-                     PlaceholderText="跑一次「▶ 运行」看结果"/>
-          </StackPanel>
-        </ScrollViewer>
+          </ScrollViewer>
+        </Grid>
       </Border>
     </Grid>
   </Grid>

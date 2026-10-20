@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.ScriptManager.Models;
 using NewToys.ScriptManager.Services;
+using NewToys.UI.Controls;
 
 namespace NewToys.ScriptManager.ViewModels;
 

@@ -75,6 +75,29 @@ public sealed class RuleCatalogService
         catch { /* 保存失败不打断 UI */ }
     }
 
+    /// <summary>
+    /// 记一次运行（NT-086 批 G：目录页「最近运行」列 / 详情卡的数据源）—— 只写元数据，⛔ 不碰文件。
+    /// </summary>
+    public void MarkRun(string name, DateTime at, int count)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        try
+        {
+            var doc = LoadDoc();
+            var rec = doc.Items.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (rec is null)
+            {
+                rec = new MetaRecord { Name = name };
+                doc.Items.Add(rec);
+            }
+            rec.LastRunAt = at;
+            rec.LastCount = count;
+            _docs.Save(DocRuleMeta, doc);
+        }
+        catch { /* 记不上不打断运行 */ }
+    }
+
     /// <summary>改名以外的编辑都靠文件；这里只删文件 + 元数据。</summary>
     public void Delete(string name)
     {

@@ -222,6 +222,14 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 手调列宽**只存会话**（⛔ 不落 `columnlayout.json`）：切标签页不丢、重启还原。
 - ✅ `ColumnGrid` **全库仅一份** = `src/UI/Controls/ColumnGrid.cs`（NT-063 P0-a 已合并，此前 5 份 2086 行）。列数防线（`ColumnDefinitions.Count` ≥ 子元素最大 `Grid.Column` + 1）**原样保留**（合并时最易丢的一段）。
 
+#### 6.3b 运行时动态列 `DynamicColumnGrid`（NT-085 上提，2026-10-20）
+
+- `src/UI/Controls/DynamicColumnGrid.cs`（含单元格模型 `SysInfoCell` / `SysInfoHeaderCell`，同文件同命名空间 `NewToys.UI.Controls`）：**列数运行时才知道**（采集器列 schema / 爬虫面板 `RULES` 字段）时用 —— `ColumnSpecs`（可绑定规格串）→ `ColumnDefinitions`，`HeaderCells` 渲染一行 `Button.col-header`、`Cells` 渲染一行 `TextBlock.list-cell`（第 1 列带 `accent`）。
+- 🔴 与 `ColumnGrid` 分工：那个 = 静态列 + 拖拽 + 示例值锁宽（列表页骨架用）；这个 = **任意列数 + 规格串 → 网格**，⛔ 不接拖拽。
+- 🔴 样式类 `col-header` / `list-cell` / `accent` 在 Shell `App.axaml`（运行时解析）—— UI 库 ⛔ 不自带、⛔ 不写死色值。
+- 用法：信息面板（ScriptManager）+ 爬虫面板（WebTools）；跨程序集 xmlns 必须 `using:`（如 `xmlns:v="using:NewToys.UI.Controls"`）。
+- 🔴 行选择 / 右键用**外层 `Border`** 包（`Border.info-row` + 事件 / `ContextMenu`）；控件本身 ⛔ 不加这类参数（NT-085 铁律：只搬现状）。
+
 ### 6.4 列宽锁定（示例值唯一用途）
 
 - 每列给 `ListColumn.Sample`（示例值）—— **唯一用途 = 列宽判定**；基类暴露 `SampleSpecs`（';' 分隔，⛔ 不用逗号）。

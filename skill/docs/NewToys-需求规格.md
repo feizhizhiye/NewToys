@@ -867,203 +867,99 @@ Module.*（功能模块，只引 Shared + Core）
 
 ### 6.3 网络工具（`Module.WebTools`）
 
-**HTTP 测试** / **书签** / **网络 Ping** / **网页抓取** / **Hosts 管理**。
+**HTTP 测试** / **书签** / **网络 Ping** / **抓取规则** / **Hosts 管理**。
 
-- 各页工具条的重载按钮按 §4.8 硬规则 10 命名：书签「🔄 重读书签」/ Hosts「🔄 重读方案」/ Ping「🔄 重读目标」/ 抓取「🔄 重读任务」（都只重读本地 JSON 配置，⛔ 不联网、不重扫）。
+- 各页工具条的重载按钮按 §4.8 硬规则 10 命名：书签「🔄 重读书签」/ Hosts「🔄 重读方案」/ Ping「🔄 重读目标」/ 抓取「🔄 重读规则」（都只重读本地配置，⛔ 不联网、不重扫）。
 
-#### 6.3.1 爬虫规则页（路线 C → B → A · 📝 未立项）
+#### 6.3.1 爬虫脚本面板（AI 写脚本范式 · 期① NT-086 / 期② NT-087）
 
-> **状态**：方案雏形，⛔ **未立项、不得据本文实施**。用户过稿后按铁律 3 走「台账 + `backlog/web-tools/NT-xxx.md`」再动 `src/`。
-> **路线定调（2026-10-19 用户拍板）**：**从「运行时兼容 legado 书源」改为「导入时翻译书源」** —— 兼容成本从运行时（`java` 门面 / 跨阶段状态 / bean 代理）搬到导入时（纯离线字符串处理），三堵墙自动消失。分三步交付，每步可独立验收。
-> **借鉴来源（只读源码借鉴，⛔ 不引爬虫框架）**：legado-rule（规则语法）· OpenScraping（规则模型 + 变换链）· WebReaper / CocoCrawler（流程动词）· Pickaxe（命令子句骨架）· RSS-Bridge（声明式 bridge ≈ 导入时翻译）· changedetection.io / EasySpider（可视化选择器交互）· **书源调试器（Legado Source Debugger，Electron：三模式编辑 + 搜索/发现/详情/目录/正文四段调试 + Legado ↔ 异次元格式互转，与 B 步同构，交互可直接参考）** · **funread（Python，书源解析 / 校验 / 批量处理工具库）**。
-> 🔴 **实现路线（2026-10-19 最终定调，优先级取代下文 C/B/A）**：**Python 优先（P2）** —— 先做「Python 运行时底座（NT-083）+ `Type=python` 命令 + 结果预览（NT-084）」，以 ~700 行让抓取先可用；**数据型规则引擎（下文 C → B → A）整体押后**，仅在真实使用证明「规则需可校验 / 可分享」时才启动，届时书源转换（B）改为**生成 Python 脚本片段**而非 DSL。编排能力上限见 **§2.2（L3 封顶）**。
+> **状态**：✅ 已立项（NT-084 已实施；期① = NT-086「能装配、能看、能诊断」，期② = NT-087 下载类能力）。
+> 🔴 **范式（2026-10-20 用户定调）**：**AI 写脚本 → App 只做运行 / 诊断 / 展示**。脚本从「一个 `.py` = 一个站点」降为
+> 「一个 `.py` = **一段**」（段脚本），由**调试集合页**装配成流水线（flow），跑通后在面板批量下载。
+> 🔴 **2026-10-20 整体撤销**：Legado 兼容 / 书源转换已从代码删除（随包 `convert_legado.py`、`ConvertLegadoAsync`、
+> `⬆ 导入书源`、legado 默认规则方言全部移除）；规则改由 **AI / 手写**生成，⛔ 不做书源兼容。
+> **历史留档（⛔ 勿再据以实施）**：2026-10-19 曾定调「导入时翻译 legado 书源」（C→B→A 三步 + 三层数据型规则引擎），
+> 已被上式取代；远期方向见 §6.3.2。**借鉴来源（只读源码借鉴，⛔ 不引爬虫框架）**：legado-rule（规则语法）·
+> OpenScraping（规则模型 + 变换链）· WebReaper / CocoCrawler（流程动词）· Pickaxe（命令子句骨架）·
+> RSS-Bridge（声明式 bridge）· changedetection.io / EasySpider（可视化选择器交互）·
+> 书源调试器（Legado Source Debugger，三段调试交互参考）· funread（Python 工具库）。
+> 编排能力上限见 **§2.2（L3 封顶）**。
 
-**A. 交付拆解**
+**A. 两种脚本形态与流水线**
 
-| 步 | 内容 | 新增代码量级 | 可独立验收 |
-|---|---|---|---|
-| **C**（第一步） | 三层模型 + 命令列表编辑 + 表达式与净化链 + 批量跑 + 保存 / 导入导出 | 900~1300 行 | ✅ |
-| **B**（第二步） | 书源 JSON → 本地规则的**离线转换器** + 可翻译性报告 | +400~600 行 | ✅ |
-| **A**（第三步） | 结果**外置**：导出 `result.json` / `urls.txt`，图文视频只存 URL 交现有导入流程 | +200~400 行 | ✅ |
-| 远期 | L1 运行时兼容（`java` 门面 / 多级跟进 / webJs / 下载器） | — | 见 §6.3.2 |
-
-- 🔴 **本页不做富文本渲染 / 播放器**：抓到的文本、图片、视频一律不在此页呈现，只出**引用与清单**（省掉 Avalonia 无 HTML 渲染这一整块风险）。
-- 🔴 **但必须保留结果预览**：命令行显示「命中 N 条」，规则编辑区预览前 3 条取值 —— 否则规则无从调试。
-
-**B. 三层数据模型**
-
-| 层 | 模型 | 说明 |
-|---|---|---|
-| 规则集 | `ScrapeSource` | 一个站点 = 一条规则集（≈ legado 书源）；列表页一行 = 一条规则集 |
-| 步骤 | `ScrapeStep` | `search` / `detail` / `toc` / `content`（与书源四段一一对应） |
-| 命令 | `ScrapeCommand` | 一条命令 = 一个字段的取值；`Multi=true` 的命令产出多行 |
-
-`ScrapeSource`：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `Id` / `Name` | string | Guid N / 显示名 |
-| `StartUrl` | string | 起始网址，可含 `{keyword}` / `{page}` 占位 |
-| `UserAgent` | string | 空 = 用设置页默认 |
-| `Encoding` | enum | `auto` / `utf8` / `gbk`（自动嗅探失败时兜底） |
-| `Headers` | kv | Cookie / Referer / 自定义头 |
-| `Steps` | `ScrapeStep[]` | 见下 |
-| `Enabled` | bool | 停用后不出现在运行列表 |
-
-`ScrapeStep`：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `Key` | enum | `search` / `detail` / `toc` / `content` |
-| `From` | string | 上游命令 Key（`detail` 之后取上游产出 URL 的那条命令） |
-| `Commands` | `ScrapeCommand[]` | 顺序 = 执行顺序 |
-
-`ScrapeCommand`：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `Key` | string | 字段名 = 输出列名（`title` / `url` / `cover` / `content`…） |
-| `Type` | enum | `css` / `xpath` / `json` / `regex` / `const` |
-| `Expr` | string | 表达式（语法见 C 节） |
-| `Take` | enum | `text`（默认）/ `html` / `outerHtml` / `attr`（配 `Attr`） |
-| `Attr` | string | `Take=attr` 时的属性名 |
-| `Multi` | bool | 多值（列表取一批；false = 只取第一条） |
-| `Filters` | `Filter[]` | 净化链，按序执行 |
-| `Fallback` | string | 无命中时的兜底常量 |
-| `Enabled` | bool | 单条启用开关（调试用） |
-
-`Filter`（借鉴 OpenScraping 的 transformation 链）：
-
-| 名称 | 作用 |
+| 形态 | 说明 |
 |---|---|
-| `Trim` | 去首尾空白（默认必带） |
-| `Collapse` | 合并连续空白 / 换行 |
-| `Regex` | 写成 `##正则##替换`（对齐 legado 习惯；替换段留空 = 删除） |
-| `Replace` | 纯文本替换 |
-| `HtmlDecode` | 实体解码 |
-| `Number` | 提取数字 |
-| `Date` | 按格式解析日期 |
-| `Join` | 多值按分隔符拼接 |
+| 段脚本（默认） | 一个 `.py` = 一段：`entry`（入口列表）/ `pick`（点选消歧，默认人工点选）/ `toc`（目录）/ `content`（正文） |
+| 整站脚本 | 一个 `.py` = 整条流水线（`role: pipeline`，缺省即此），内部自由组织 |
 
-**C. 表达式语法**
+- 拆不拆由 AI 判断；通用段脚本加 `generic-` 前缀。
+- 流水线段位：`probe`(内置) → `entry` → `pick` → `toc` → `content` → `save`(内置)；槽位**可选、可留空**（`toc` 留空 = 链式模式）。
+- 🔴 **段间契约**：入口 / 中间段输出**必须含 `url`**；`title` 推荐保留；缺 `url` ⇒ 诊断显式报「第 N 段输出没有 url 字段」⛔ 不静默。`urljoin` 的 base = **当前页 URL**（⛔ 不是站点根）。
+- 🔴 **段内 `if` 免费**（段脚本就是 Python）⇒ ⛔ 不引入跨段调度脚本 / dispatch DSL。
+- 🔴 `pick` 默认**人工点选**（同名书消歧），⛔ 本期不做匹配规则。
+- 🔴 `save`（下载器）**内置**；⛔ 不为下载写脚本（并发 / 限速 / 去重 / 续跑 / 取消 / 进度全在 App 侧）。
 
-| 写法 | 含义 | 阶段 |
+**B. 脚本头配置（C# 只读 `# key: value`，⛔ 不解析 Python）**
+
+| 键 | 值 | 说明 |
 |---|---|---|
-| `css:div.item > a` | AngleSharp CSS（`Type=css`，默认） | C |
-| `xpath://div[@class='item']` | XPath（`AngleSharp.XPath`） | C |
-| `json:$.data.list[*].name` | JSONPath（接口型站点） | C |
-| `regex:<title>(.*?)</title>` | 正则 | C |
-| `=固定值` | 常量 | C |
-| `class.book.0@tag.a@text` / `id.x` / `tag.li.-1` | **legado 默认规则**，由 mini-parser 译成 CSS（等价 `Type=css`） | C（转换器依赖，必须） |
-| `@js:` / `js:` | JS 表达式 | ⛔ C 不做；B 转换时标「不可翻译」；远期见 §6.3.2 |
+| `# name:` / `# base:` / `# encoding:` | 文本 | 既有键，不动 |
+| `# desc:` | 文本 | 目录页「说明」列 + 详情卡 |
+| `# category:` | `book` / `image` / `video` / `doc` / `generic` | 目录页「分类」列 + 筛选；**未知值原样显示** ⛔ 不报错；只做展示分组与筛选，⛔ 不驱动 UI 行为 |
+| `# role:` | `entry` / `pick` / `toc` / `content` / `pipeline` | 调试集合槽位下拉按它过滤候选；缺省按 `pipeline` |
+| `# works:` | 文本 | 适用站点（详情卡） |
+| `# artifact:` | `files` / `text` / `none` | 产物形态优先级链：`content` 返回 ＞ `# artifact:` ＞ 分类缺省猜测（image/video/doc→files，book→text，generic→none）＞ none；分类只在「未声明 + 返回空 / `{}`」时生效 |
+| `# ua:` | 多行 = UA 池 | 不写 = 用设置页缺省 UA |
+| `# header:` | 多行 | 额外请求头，原样透传 |
+| `# concurrency` | 数字（缺省 1） | 并发数 |
+| `# delay-ms` | 数字（缺省 0） | 每次请求间隔毫秒 |
+| `# timeout` | 数字秒（0 = 设置页缺省） | 单次请求超时 |
+| `# max-pages` | 数字（0 = 不限） | 分页上限 |
+| `# max-items` | 数字（0 = 不限） | 条目上限 |
 
-- `@` 后缀可省：`css:div.item>a@href` ≡ `Take=attr` + `Attr=href`。
-- 组合符 `||`（取第一个非空）**C 阶段就实现**（成本极低，书源与手写都常用）；`&&` / `%%` 归 B 阶段转换器。
+- 数字键**脏值回落缺省 + 状态栏 ⚠ 提示**（⛔ 不阻断加载）。
+- 设置页**只保留缺省 UA + 缺省超时**（⛔ 不加 UA 池 / 并发）。
 
-**D. 页面形态（两页分工 · 2026-10-19 定）**
+**C. 表达式方言（去 Legado 后）**
 
-| 页 | 菜单 Key / 标题 | 形态 | 职责 |
+`css:` / `xpath:` / `regex:` / `json:` / `=常量`；**不写前缀 = 按 CSS 解析**。契约明令 ⛔ 绝对位置路径（`/html/body/div[3]/...`）。
+多候选 `||`、净化 `##正则##替换` 不变。新增三操作符（内部转 parsel xpath）：`text:下一页` / `link:下一章` / `url:/chapter/`。
+
+**D. 页面形态（三页分工）**
+
+| 页 | Key / 标题 | 形态 | 职责 |
 |---|---|---|---|
-| **管理页** | `web-scrape` / 「抓取规则」 | **标准列表页**（`ListPageSkeleton`，⛔ 不改骨架） | 规则目录：列出 `rules\*.py` → 新建 / 删除 / 启用 / 导入书源 / 导出 / 重读 / 搜索；行双击或右键 `✏ 编辑规则` → 跳编辑器 |
-| **编辑器页** | `web-rule-editor` / 「规则编辑器」（**新增**） | 自绘三段式（见下） | 命令列表 + HTML 源码面板 + 规则编辑；调完存回 `.py` |
+| 目录页 | `web-scrape`「抓取规则」（Key ⛔ 不改） | 标准列表页 | 规则集目录：分类 / 说明列 + 工具条「分类 ▾」（按文件里实际出现的值动态生成）+ 增删改 / 启停 / 重读；详情卡显示脚本头配置 |
+| 调试集合页 | `web-rule-editor`「调试集合」（重构，撤出左树菜单，注册保留供 `NavigateTo`） | 自绘 | 左 = 五段槽位（按 `role` 过滤候选）+ **试跑推荐**（一次抓页 → 候选脚本对同一份 HTML 全求值 → 按「条数 >0 且必填字段非空率最高」排序）；中 = HTML 源码 + 查找 + 🎯 定位命中；右 = 表达式检验（字段名 / 表达式 / 命中数 / 前 N 条 / **错误回显**）；底栏「💾 保存为流水线」 |
+| 面板页 | `web-crawl`「爬虫面板」（新增） | 自绘 | 顶部「脚本 ▾」（集合切换）+ 可选「批次 ▾」；三节（仿信息面板节头）：① 链接·目录（动态列，双击 `url` 列下钻）② 试下载预览 ③ 下载进度；底栏摘要：条数 · 字段数 · 错误数 · 耗时 |
 
-编辑器页三段：
+- 🔴 **错误回显**：Python 侧 error / traceback 必须回显，⛔ 禁止静默显示「0 条」。
+- `📋 复制诊断` = 规则名 / URL / 每字段 count+error / 表达式原文 / HTML 片段 / traceback / SPA 识别。
 
-| 区域 | 内容 |
-|---|---|
-| 工具条 | `🌐 抓取 HTML` / `▶ 运行` / **关键词输入框** / `💾 保存` / `🔄 重读` / `◀ 返回目录` |
-| 上 · 命令列表 | 字段名 / 类型 / 表达式 / 命中数；右键 `▶ 只测这条` `📋 复制` `🗑 删除` |
-| 下 · HTML 源码面板 | 只读 + 行号 + `Ctrl+F`；超 8000 行截断并提示；顶栏「命中 N 个节点」+ 首条 `outerHTML` |
-| 右 · 规则编辑 | 类型 / 表达式（mono 多行）/ 取值 / 净化链 / 预览（命中 N 条 + 前 3 条） |
+**E. 流水线配置与运行记录**
 
-- ✅ **不再是框架例外**：新页本来就不是列表页，自绘属正常（`web-http` 先例）—— ⛔ 不动 `ListPageSkeleton`、⛔ 不改 340px 详情卡机制。
-- 🔴 **行级高亮做不到**：AngleSharp `IElement` 不保留源码偏移 ⇒ 改「命中数 + 首条 `outerHTML`」。
-- 🔴 **Avalonia 无 HTML 渲染控件** ⇒ 只做源码视图，⛔ 不引 WebView2。
-- 🔴 **页 Key 纪律**：`web-scrape` Key ⛔ 不改（落 `columnlayout.json` 页键，改了用户偏好失效）；新页用新 Key `web-rule-editor`。
-- 🔴 **类名全换**（用户定调「文件名要改，避免后续幻觉」）：⛔ 不复用 `Scrape*` 命名，见下表。
-- 左树 Order 重排：http 1 / bookmark 2 / ping 3 / **抓取规则 4** / **规则编辑器 5** / hosts 6 / 设置 100。
+- flow 配置 = `<DataDir>\web-tools\flows\<名>.json`（`FlowConfig` + `FlowService`，⛔ 不开 DB 表）。
+- 运行记录 = `runs\<脚本>\<时间戳>_<关键词或URL哈希>\`：`result.json` + `page.html` + `diag.txt`；保留最近 10 次。
+- 导出 CSV / JSON；⛔ 不引 Excel 库。
+- 备份：规则目录仍默认勾；`runs\` / `downloads\` / `cache\` ⛔ 不进备份。
 
-**命名表（🔴 防幻觉，新代码一律用右列）**
+**F. 预设库与探测**
 
-| 旧（删） | 新 | 说明 |
-|---|---|---|
-| `ScrapeTask` | `RuleSetMeta` | 目录页一行（启用 / 最后运行 / 计数 / 列宽），**不含规则内容** |
-| `ScrapeService` | `RuleCatalogService` | 扫目录 / 元数据 / 启用状态 / 删除 |
-| `ScrapeView` + `ScrapeViewModel` | `RuleCatalogView` + `RuleCatalogViewModel` | 管理页（标准列表页） |
-| — | `RuleEditorView` + `RuleEditorViewModel` | 编辑器页（三段式，新） |
-| — | `RuleFileService` | 读写 `.py` / 解析 `SOURCE` / `RULES` / 生成模板 |
-| — | `RuleRunService` | 抓 HTML / 跑单条命令 / 跑整个规则集（走 `IPythonRuntime`） |
-| — | `WebTransferService.PushRuleSet` | 目录页 → 编辑器传参（复用现有 Push / Take 机制） |
+- P0 七个预设：`rss` / `opds` / `sitemap` / `wp-json` / `mediawiki` / `links`(兜底) / `images`(兜底)，落 `defaults\`，由 Seeder 播种（`.seeded` 标记，⛔ 用户删了不再种）；每个预设**实测跑通**才入库（纳入验收）。
+- 新建脚本时可「从预设创建」；**探测**：试 `/feed` `/rss.xml` `/atom.xml` `/sitemap.xml` `/wp-json/wp/v2/posts?per_page=1` `/api.php?...` `/opds`，以「**能解析出条目**」为准（⛔ 不看 200），只推荐不代选。
 
-**E. 关键词运行**
+**G. 期②（NT-087 · 下载类）**
 
-编辑器页工具条常驻一个**关键词输入框**（规则集含 `{keyword}` 占位时才启用，否则置灰），`▶ 运行` 时按它的值拼 URL。
+`🧪 试下载`（单条预览，不落产物）+ `⬇ 批量下载`（`downloads\<脚本>\<条目>\`）+ `next` 分页原语（去重 / `# max-pages` / 连续空停）+ 链式模式（无 toc 时跟进累积）+ 并发 / 间隔读脚本头 + 单条失败不停批 / 连续失败 3 次停批 + 可取消。
 
-- ⛔ 不弹窗（不打断调试节奏）、⛔ 不复用目录页的列表过滤框（一个过滤列表、一个传参，语义不同）。
-- 编码按 `SOURCE["encoding"]` 走 `utf8` / `gbk` 两档（老站必用 GBK）。
+**H. 平台中立**
 
-**F. 难点清单**
+`SemaphoreSlim` / `Task` / `HttpClient`，⛔ 不引 Windows-only；⛔ WebView2；⛔ pythonnet。
 
-| # | 阶段 | 难点 | 对策 |
-|---|---|---|---|
-| 1 | C | 大 HTML 卡 UI（常见 1~2 MB） | 面板截断 8000 行；全文搜索在缓存字符串上做，⛔ 不塞进控件 |
-| 2 | C | 源码无法行级高亮（无 SourceSpan） | 放弃高亮，改「命中数 + 首条 outerHTML」 |
-| 3 | C | GBK 站 / `<meta charset>` 与实际不符 | 先取 bytes → 嗅探 → `Encoding.CodePages` 解码；不依赖 `GetStringAsync` |
-| 4 | C | 中文关键词需按站点编码拼 URL | `{keyword}` 分 `utf8` / `gbk` 两种编码模式 |
-| 5 | C | 批量跑被封 | 每规则集限速 + 并发上限 + 失败退避重试 |
-| 6 | C | 默认规则歧义（`class.x` vs `div.x`） | 独立 mini-parser 译成 CSS，⛔ 不直接喂 AngleSharp |
-| 7 | C | 编辑态与保存态混淆 | 沿用现状：改动即时生效、显式 `💾 保存` 落库 |
-| 8 | B | `@js` 无法静态翻译 | 三档标注：机械翻译 / 降级（转净化链）/ 不可翻译（留空 + 报告注明） |
-| 9 | B | 书源文件变体多（单条 / 数组 / 包一层 `bookSources` / BOM / GBK / zip 合集），且社区分发常用 **Base16 / Base64 编码**（因为 legado 只吃纯文本导入） | 宽容解析 + 内置 zip 解包 + **Base16 / Base64 自动解码**（`Convert` 内置，无需新包） |
-| 10 | B | 四段语义与命令模型不对等 | 一源 → 一个 `ScrapeSource`，四段 → 四个 `ScrapeStep` |
-| 11 | A | 图片 / 视频是相对路径 + 防盗链 | 存绝对 URL；下载时才带 Referer（本期只存 URL） |
-| 12 | A | 跨模块落地（web-tools ⛔ 不能引 MediaAssets） | **只导出清单文件**，用户走现有「媒体资产 · 导入」 |
-
-**G. 依赖**
-
-| 包 | 用途 | 阶段 |
-|---|---|---|
-| AngleSharp | CSS + DOM | ✅ 已有 |
-| Jint | 结果整合脚本（现状不动，⛔ 本期不做 DOM 桥） | ✅ 已有 |
-| **AngleSharp.XPath** | `xpath:` | C · 新增 |
-| **JsonPath.Net** | `json:` | C · 新增 |
-| **System.Text.Encoding.CodePages** | GBK / GB18030 | C · 新增 |
-| System.IO.Compression | 书源 zip 合集 | B · 内置 |
-| ~~AngleSharp.Js~~ | 远期：在 AngleSharp DOM 上跑 JS（⚠️ 绑定特定 Jint 版本，与现有 3.1.2 可能冲突，届时一并评估） | — |
-| ~~Microsoft.Playwright~~ | 远期：`webJs` / 登录态 | — |
-
-- 全部版本进 `src/Directory.Packages.props`，⛔ 模块私自加包。
-
-**H. 页面与菜单变更**
-
-| 项 | 结论 |
-|---|---|
-| 新增菜单页 | **1 个**：`web-rule-editor`「规则编辑器」（三段式，自绘） |
-| 改造菜单页 | **1 个**：`web-scrape` 标题改「抓取规则」+ 改为**规则目录管理**（保留 `ListPageSkeleton`，**Key ⛔ 不改**） |
-| 新增对话框 | **1 个**：`导入书源`（含逐字段转换报告） |
-| 不新增 | 关键词输入不弹窗（编辑器页工具条常驻输入框）；结果呈现不接信息面板（本期只导出清单） |
-| 删除 | 旧「网页抓取」单条规则页的详情卡（`RuleType` / `Rule` / `JsScript` 三字段随 `ScrapeTask` 一起删） |
-
-**I. 数据落点与迁移**
-
-- 🔴 **规则落「模块独有目录」的磁盘文件**（2026-10-19 用户定调）：`<DataDir>\web-tools\rules\<规则集名>.py` —— 用户可见、可手改、可备份、可分享（**一个文件 = 一条规则集**）；DB 只存启用状态 / 最后运行 / 列宽偏好。
-- 旧 `scrape-tasks` **一次性迁移**（`RuleType` + `Rule` → 一条命令，`JsScript` → 保留为「整合脚本」字段，迁完留 `.legacy`）。
-- HTML 缓存落 `<DataDir>\web-tools\cache\<规则集名>\`，**只留最近 10 份**，⛔ 不参与备份。
-- 🔴 `DataDir` 一律向 `ConfigStoreService` 取（= `profiles\<配置>\data`），⛔ 模块内自己拼根路径（`framework.md` §7）。
-
-**J. 验收判据**
-
-1. 新建规则集 → 抓一次 HTML → 源码面板可见原文且行号连续（超长页截断有提示）。
-2. 写 `css:div.item>a@href` → 命令行显示命中数，预览出前 3 条。
-3. 五种 `Type` 与默认规则各能跑通一条真实站点。
-4. 净化链至少 `Trim` / `Regex` / `Join` 三项生效。
-5. 批量跑 10 个 URL 能限速完成，超时 / 失败有逐条记录。
-6. 导入一份真实 legado 书源 → 生成规则集 + **转换报告逐字段标注「已翻译 / 已降级 / 不支持」**。
-7. 旧任务迁移后仍能运行，`LastOutput` 不丢。
 
 #### 6.3.2 书源运行时兼容（L1 · 远期，⛔ 本期不做）
 
-> **仅作方向备查**：本节内容 **⛔ 不立项、⛔ 不排期**，除非 §6.3.1 的 C/B/A 三步落地后仍确有需求。
+> **仅作方向备查**：本节内容 **⛔ 不立项、⛔ 不排期**，除非爬虫脚本面板（§6.3.1 期① / 期②）落地后仍确有需求。
 
 - **L1 定义**：语法全解 + `java` 门面（`ajax` / `get` / `post` / `put` / `getString` / `jsoupParse` / `base64*` / `md5Encode` / `timeFormat` / `encodeURI*`）+ jsoup 元素 API 子集 + 有状态上下文（`book` / `chapter` / `source` bean 与 `@put/@get` 共用变量表）。
 - **三堵墙**：① `java.getString(rule)` 反向回调规则引擎（双向依赖）；② `result` 可能是标量也可能是数组；③ `@put/@get` 跨阶段状态（搜索 → 书籍 → 章节）。三者定错即全部返工。

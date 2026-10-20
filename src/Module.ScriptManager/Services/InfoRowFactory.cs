@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using NewToys.ScriptManager.Models;
+using NewToys.UI.Controls;
 
 namespace NewToys.ScriptManager.Services;
 

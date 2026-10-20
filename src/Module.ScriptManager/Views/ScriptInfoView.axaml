@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:pc="using:NewToys.ScriptManager.Controls"
+             xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.ScriptManager.Views.ScriptInfoView">
   <!--
     「脚本管理器 → 信息面板」（NT-068 S5/S6；原 NT-067 的 manifest 驱动模型已废弃）。
@@ -12,7 +12,7 @@
 
     🔴 点节任意处（Tapped）= 把右侧详情卡切到这一节（**不主动打开面板**）；打开面板走右键菜单第一项。
     🔴 一次只显示一个集合：切集合靠工具条的「集合 ▾」选择框，⛔ 没有 Chip 条 / 横向集合按钮。
-    🔴 节体列是运行时变的（每个采集器自己的列）⇒ 表头与行都用 pc:SysInfoGrid（⛔ 不用静态列）。
+    🔴 节体列是运行时变的（每个采集器自己的列）⇒ 表头与行都用 v:DynamicColumnGrid（⛔ 不用静态列）。
     🔴 颜色一律 DynamicResource 引主题语义键（⛔ 不写死色值）。
   -->
   <UserControl.Styles>
@@ -147,17 +147,17 @@
 
                       <StackPanel IsVisible="{Binding HasColumns}" Spacing="0">
                         <Border Classes="list-header" Margin="0,4,0,0">
-                          <pc:SysInfoGrid ColumnSpecs="{Binding ColumnSpecs}"
-                                          HeaderCells="{Binding HeaderCells}"
-                                          SortCommand="{Binding SortCommand}"/>
+                          <v:DynamicColumnGrid ColumnSpecs="{Binding ColumnSpecs}"
+                                               HeaderCells="{Binding HeaderCells}"
+                                               SortCommand="{Binding SortCommand}"/>
                         </Border>
 
                         <ItemsControl ItemsSource="{Binding Rows}">
                           <ItemsControl.ItemTemplate>
                             <DataTemplate>
                               <Border Classes="info-row" PointerPressed="OnRowPressed">
-                                <pc:SysInfoGrid ColumnSpecs="{Binding $parent[ItemsControl].DataContext.ColumnSpecs}"
-                                                Cells="{Binding Cells}"/>
+                                <v:DynamicColumnGrid ColumnSpecs="{Binding $parent[ItemsControl].DataContext.ColumnSpecs}"
+                                                     Cells="{Binding Cells}"/>
                               </Border>
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>

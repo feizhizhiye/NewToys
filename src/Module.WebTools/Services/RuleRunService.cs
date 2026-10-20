@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -63,11 +64,25 @@ public sealed class RuleRunService
         catch { return ""; }
     }
 
+    /// <summary>
+    /// 调试集合共用的那份 HTML（NT-086 批 C）：<c>cache\_debug\page.html</c>。
+    /// 🔴 试跑推荐的前提是「多个候选脚本对<b>同一份</b> HTML 求值」，⛔ 不能各抓各的。
+    /// </summary>
+    public string DebugHtmlPath => Path.Combine(_cfg.DataDir, "web-tools", "cache", "_debug", "page.html");
+
+    /// <summary>爬虫面板共用的那份 HTML（NT-086 批 D）：<c>cache\_crawl\page.html</c>。</summary>
+    public string CrawlHtmlPath => Path.Combine(_cfg.DataDir, "web-tools", "cache", "_crawl", "page.html");
+
     // ==================== 抓取 ====================
 
-    /// <summary>抓一次页面并落缓存。返回 (成功, HTML, 错误)。</summary>
-    public async Task<(bool ok, string html, string error)> FetchAsync(
+    /// <summary>抓一次页面并落**该规则集自己的**缓存。返回 (成功, HTML, 错误)。</summary>
+    public Task<(bool ok, string html, string error)> FetchAsync(
         string ruleName, string url, string encoding, CancellationToken ct = default)
+        => FetchIntoAsync(url, encoding, HtmlPath(ruleName), ct);
+
+    /// <summary>抓一次页面并写到 <paramref name="htmlPath"/>（调试集合 / 试跑推荐共用入口）。</summary>
+    public async Task<(bool ok, string html, string error)> FetchIntoAsync(
+        string url, string encoding, string htmlPath, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(url)) return (false, "", "起始网址为空（文件头该有 # base: https://…）");
         if (!Uri.TryCreate(url, UriKind.Absolute, out _)) return (false, "", "网址不是绝对地址：" + url);
@@ -86,9 +101,9 @@ public sealed class RuleRunService
             var (declared, useGbk) = SniffCharset(bytes, encoding);
             var text = Decode(bytes, declared, useGbk);
 
-            var dir = CacheDir(ruleName);
-            Directory.CreateDirectory(dir);
-            File.WriteAllText(HtmlPath(ruleName), text, new UTF8Encoding(false));
+            var dir = Path.GetDirectoryName(htmlPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(htmlPath, text, new UTF8Encoding(false));
 
             return (true, text, "");
         }
@@ -126,93 +141,234 @@ public sealed class RuleRunService
         catch { return Encoding.UTF8.GetString(bytes); }
     }
 
-    // ==================== 导入 Legado 书源（批 D） ====================
-
-    /// <summary>
-    /// 把 Legado（阅读 App）书源 json 转成规则集文件：**转换逻辑全在随包脚本
-    /// <c>defaults\tools\convert_legado.py</c>**，C# 只送路径 + 解析回来的一行 JSON。
-    /// </summary>
-    /// <returns>(写入了几条, 给用户看的一句话)</returns>
-    public async Task<(int written, string message)> ConvertLegadoAsync(string jsonPath, CancellationToken ct = default)
-    {
-        var script = Path.Combine(AppContext.BaseDirectory, "defaults", "tools", "convert_legado.py");
-        if (!File.Exists(script)) return (0, "⚠ 找不到转换脚本：" + script);
-
-        var req = new PyRequest
-        {
-            Mode = "file",
-            Path = script,
-            TimeoutSeconds = 120,
-            ArgsJson = JsonSerializer.Serialize(new Dictionary<string, string>
-            {
-                ["in"] = jsonPath,
-                ["outDir"] = _files.RulesDir
-            })
-        };
-
-        var res = await _py.RunAsync(req, ct).ConfigureAwait(false);
-        if (!res.Ok || !string.IsNullOrEmpty(res.Error))
-        {
-            var detail = !string.IsNullOrWhiteSpace(res.Traceback) ? res.Traceback
-                       : (res.Error + " " + res.Err).Trim();
-            return (0, "⚠ " + detail);
-        }
-
-        var json = (res.Out ?? "").Trim();
-        var nl = json.LastIndexOf('\n');
-        if (nl >= 0) json = json[(nl + 1)..].Trim();   // 脚本可能先打了别的东西
-
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            if (root.TryGetProperty("error", out var err)) return (0, "⚠ " + (err.GetString() ?? ""));
-
-            var names = new List<string>();
-            if (root.TryGetProperty("written", out var w) && w.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var el in w.EnumerateArray())
-                {
-                    if (el.TryGetProperty("name", out var n)) names.Add(n.GetString() ?? "");
-                }
-            }
-
-            return (names.Count, names.Count == 0
-                ? "没有可转换的书源（检查文件是不是 Legado 书源 json）"
-                : "已导入 " + names.Count + " 条：" + string.Join("、", names));
-        }
-        catch (Exception ex) { return (0, "⚠ 转换结果无法解析：" + ex.Message); }
-    }
-
     // ==================== 跑规则 ====================
 
     /// <summary>只读 <c>RULES</c> 列表（不抓网页，用于打开编辑器时回填命令列表）。</summary>
     public async Task<List<RuleCommand>> ListCommandsAsync(string ruleName, CancellationToken ct = default)
-    {
-        var result = await RunPythonAsync(ruleName, "list", "", ct).ConfigureAwait(false);
-        return result;
-    }
+        => await RunPythonAsync(ruleName, "list", "", "", ct).ConfigureAwait(false);
 
     /// <summary>按缓存 HTML 跑全部命令，回填命中数与预览。</summary>
     public async Task<List<RuleCommand>> RunRulesAsync(string ruleName, string baseUrl, CancellationToken ct = default)
     {
         var htmlPath = HtmlPath(ruleName);
         if (!File.Exists(htmlPath)) throw new InvalidOperationException("还没抓到 HTML —— 先点「🌐 抓取 HTML」。");
-        return await RunPythonAsync(ruleName, "run", baseUrl, ct).ConfigureAwait(false);
+        return await RunPythonAsync(ruleName, "run", baseUrl, htmlPath, ct).ConfigureAwait(false);
     }
 
-    /// <summary>调 Python：<c>mode=list|run</c>，返回命令行。</summary>
-    private async Task<List<RuleCommand>> RunPythonAsync(string ruleName, string mode, string baseUrl, CancellationToken ct)
+    /// <summary>用**指定的 HTML** 跑指定脚本（调试集合：一份 HTML 喂给不同段的脚本）。</summary>
+    public async Task<List<RuleCommand>> RunScriptAsync(string ruleName, string htmlPath, string baseUrl, CancellationToken ct = default)
     {
+        if (!File.Exists(htmlPath)) throw new InvalidOperationException("还没抓到 HTML —— 先点「🌐 抓页」。");
+        return await RunPythonAsync(ruleName, "run", baseUrl, htmlPath, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 试跑推荐（NT-084 J4 / NT-086 批 C）：**一次 Python 进程**把 N 个候选脚本对<b>同一份 HTML</b>
+    /// 全求值，按「条数 &gt; 0 且字段非空率最高」排序返回。
+    /// <para>🔴 一个脚本一次进程会慢到没法用（N 个候选 = N 次解释器启动），故循环放在 Python 侧。</para>
+    /// </summary>
+    public async Task<List<CandidateResult>> RunProbeAsync(string htmlPath, string baseUrl,
+        IEnumerable<(string Name, string Path)> scripts, CancellationToken ct = default)
+    {
+        if (!File.Exists(htmlPath)) throw new InvalidOperationException("还没抓到 HTML —— 先点「🌐 抓页」。");
+
+        var items = scripts.Select(s => new Dictionary<string, string> { ["name"] = s.Name, ["path"] = s.Path }).ToList();
+        if (items.Count == 0) return new List<CandidateResult>();
+
         var req = new PyRequest
         {
             Mode = "code",
-            TimeoutSeconds = 60,
+            TimeoutSeconds = 120,
             ArgsJson = JsonSerializer.Serialize(new Dictionary<string, string>
             {
-                ["mode"] = mode,
+                ["mode"] = "probe",
+                ["html_path"] = htmlPath,
+                ["base"] = baseUrl ?? "",
+                ["paths"] = JsonSerializer.Serialize(items)
+            }),
+            Code = Program
+        };
+
+        var res = await _py.RunAsync(req, ct).ConfigureAwait(false);
+        if (!res.Ok || !string.IsNullOrEmpty(res.Error))
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(res.Traceback) ? res.Error : res.Traceback);
+
+        var list = new List<CandidateResult>();
+        var json = LastLine(res.Out);
+        if (json.Length == 0) return list;
+
+        using var doc = JsonDocument.Parse(json);
+        foreach (var el in doc.RootElement.EnumerateArray())
+        {
+            var c = new CandidateResult
+            {
+                Name = el.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                Count = el.TryGetProperty("count", out var cnt) && cnt.TryGetInt32(out var ci) ? ci : 0,
+                Fill = el.TryGetProperty("fill", out var fv) && fv.TryGetDouble(out var fd) ? fd : 0d,
+                Error = el.TryGetProperty("error", out var pe) ? pe.GetString() ?? "" : ""
+            };
+
+            if (el.TryGetProperty("fields", out var fs) && fs.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var f in fs.EnumerateArray())
+                    c.Fields.Add((
+                        f.TryGetProperty("key", out var k) ? k.GetString() ?? "" : "",
+                        f.TryGetProperty("count", out var fc) && fc.TryGetInt32(out var fci) ? fci : 0,
+                        f.TryGetProperty("error", out var fe) ? fe.GetString() ?? "" : ""));
+            }
+
+            list.Add(c);
+        }
+
+        list.Sort(CandidateResult.Compare);
+        return list;
+    }
+
+    /// <summary>
+    /// 站点探测（NT-086 批 E）：对站点根试各预设的探测路径 —— 抓下来后用预设解析，
+    /// 以「**能解析出条目**」为准（⛔ 不看 HTTP 200），🔴 **只推荐不代选**。
+    /// <para>抓取并行；评估只起**一次** Python 进程（⛔ 不逐候选启动解释器）。</para>
+    /// </summary>
+    public async Task<SiteProbeResult> ProbeSiteAsync(string siteUrl, IReadOnlyList<PresetInfo> presets,
+        CancellationToken ct = default)
+    {
+        var result = new SiteProbeResult();
+
+        var raw = (siteUrl ?? "").Trim();
+        if (raw.Length == 0) { result.Error = "站点网址为空。"; return result; }
+
+        if (!Uri.TryCreate(raw, UriKind.Absolute, out var site)
+            && !Uri.TryCreate("https://" + raw, UriKind.Absolute, out site))
+        {
+            result.Error = "网址无法识别：" + raw;
+            return result;
+        }
+
+        var probeDir = Path.Combine(_cfg.DataDir, "web-tools", "cache", "_probe");
+        var candidates = new List<(PresetInfo Preset, string Path, string Url, string File)>();
+        var seq = 0;
+        foreach (var p in presets)
+        {
+            foreach (var path in p.ProbePaths)
+            {
+                string url;
+                try { url = new Uri(site, path).ToString(); } catch { continue; }
+                candidates.Add((p, path, url, Path.Combine(probeDir, p.Id + "-" + seq++ + ".html")));
+            }
+        }
+        if (candidates.Count == 0) { result.Error = "没有可探测的预设路径。"; return result; }
+
+        // 抓取（并行；单个失败只算那个路径没命中）
+        var fetches = candidates.Select(c => FetchIntoAsync(c.Url, "", c.File, ct)).ToArray();
+        var fetched = await Task.WhenAll(fetches).ConfigureAwait(false);
+
+        var live = new List<int>();
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            var c = candidates[i];
+            if (fetched[i].ok) { live.Add(i); continue; }
+            result.Hits.Add(new SiteProbeHit
+            {
+                PresetId = c.Preset.Id,
+                PresetTitle = c.Preset.Title,
+                Path = c.Path,
+                Url = c.Url,
+                Count = 0,
+                Error = fetched[i].error
+            });
+        }
+        if (live.Count == 0) return result;
+
+        var items = live.Select(i =>
+        {
+            var c = candidates[i];
+            return new Dictionary<string, string>
+            {
+                // 带序号 ⇒ 回值时按名精确对应（同一预设可有多条探测路径）
+                ["name"] = c.Preset.Id + "#" + i,
+                ["path"] = _files.PresetPath(c.Preset.Id),
+                ["html_path"] = c.File,
+                ["base"] = c.Url
+            };
+        }).ToList();
+
+        var req = new PyRequest
+        {
+            Mode = "code",
+            TimeoutSeconds = 120,
+            ArgsJson = JsonSerializer.Serialize(new Dictionary<string, string>
+            {
+                ["mode"] = "probe",
+                ["html_path"] = "",
+                ["base"] = "",
+                ["paths"] = JsonSerializer.Serialize(items)
+            }),
+            Code = Program
+        };
+
+        var res = await _py.RunAsync(req, ct).ConfigureAwait(false);
+        if (!res.Ok || !string.IsNullOrEmpty(res.Error))
+        {
+            result.Error = string.IsNullOrWhiteSpace(res.Traceback) ? res.Error : res.Traceback;
+            return result;
+        }
+
+        var json = LastLine(res.Out);
+        if (json.Length == 0) { result.Error = "Python 没有返回探测结果。"; return result; }
+
+        var counts = new Dictionary<string, (int Count, string Error)>(StringComparer.Ordinal);
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                var name = el.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var count = el.TryGetProperty("count", out var cnt) && cnt.TryGetInt32(out var ci) ? ci : 0;
+                var error = el.TryGetProperty("error", out var pe) ? pe.GetString() ?? "" : "";
+                counts[name] = (count, error);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Error = "探测结果无法解析：" + ex.Message;
+            return result;
+        }
+
+        foreach (var i in live)
+        {
+            var c = candidates[i];
+            counts.TryGetValue(c.Preset.Id + "#" + i, out var hit);
+            result.Hits.Add(new SiteProbeHit
+            {
+                PresetId = c.Preset.Id,
+                PresetTitle = c.Preset.Title,
+                Path = c.Path,
+                Url = c.Url,
+                Count = hit.Count,
+                Error = hit.Error
+            });
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 爬虫面板（NT-086 批 D）：跑脚本 → 按索引合成**行表**（columns + rows + total）。
+    /// 🔴 与 <see cref="RunScriptAsync"/> 的分工：那个按字段回命中数（编辑器检验用），这个回行表（面板列表用）。
+    /// </summary>
+    public async Task<CrawlResult> RunRowsAsync(string ruleName, string htmlPath, string baseUrl, CancellationToken ct = default)
+    {
+        if (!File.Exists(htmlPath)) throw new InvalidOperationException("还没抓到 HTML —— 先点「🔗 抓链接」。");
+
+        var req = new PyRequest
+        {
+            Mode = "code",
+            TimeoutSeconds = 120,
+            ArgsJson = JsonSerializer.Serialize(new Dictionary<string, string>
+            {
+                ["mode"] = "rows",
                 ["path"] = _files.PathOf(ruleName),
-                ["html_path"] = HtmlPath(ruleName),
+                ["html_path"] = htmlPath,
                 ["base"] = baseUrl ?? ""
             }),
             Code = Program
@@ -222,9 +378,133 @@ public sealed class RuleRunService
         if (!res.Ok || !string.IsNullOrEmpty(res.Error))
             throw new InvalidOperationException(string.IsNullOrWhiteSpace(res.Traceback) ? res.Error : res.Traceback);
 
-        var json = (res.Out ?? "").Trim();
+        var json = LastLine(res.Out);
+        var result = new CrawlResult();
+        if (json.Length == 0) return result;
+
+        using var doc = JsonDocument.Parse(json);
+        var rootEl = doc.RootElement;
+
+        if (rootEl.TryGetProperty("columns", out var colsEl) && colsEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var el in colsEl.EnumerateArray())
+            {
+                var col = new CrawlColumn
+                {
+                    Key = el.TryGetProperty("key", out var k) ? k.GetString() ?? "" : "",
+                    Expr = el.TryGetProperty("expr", out var e) ? e.GetString() ?? "" : "",
+                    Count = el.TryGetProperty("count", out var c) && c.TryGetInt32(out var ci) ? ci : 0,
+                    Error = el.TryGetProperty("error", out var pe) ? pe.GetString() ?? "" : ""
+                };
+                if (el.TryGetProperty("values", out var vs) && vs.ValueKind == JsonValueKind.Array)
+                    foreach (var v in vs.EnumerateArray())
+                        col.Values.Add(v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : v.ToString());
+                result.Columns.Add(col);
+            }
+        }
+
+        if (rootEl.TryGetProperty("rows", out var rowsEl) && rowsEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var el in rowsEl.EnumerateArray())
+            {
+                var row = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var prop in el.EnumerateObject())
+                    row[prop.Name] = prop.Value.ValueKind == JsonValueKind.String
+                        ? prop.Value.GetString() ?? ""
+                        : prop.Value.ToString();
+                result.Rows.Add(row);
+            }
+        }
+
+        result.Total = rootEl.TryGetProperty("total", out var t) && t.TryGetInt32(out var ti)
+            ? ti
+            : result.Rows.Count;
+        return result;
+    }
+
+    /// <summary>
+    /// 期②下载（NT-087）：对一份 HTML 只求值 <paramref name="keys"/>（逗号分隔，如 <c>content,next</c>），回**全量值**。
+    /// 🔴 与 <see cref="RunRowsAsync"/> 的分工：那个按索引合成行表（面板列表用），这个回全量值（下载落盘用）。
+    /// </summary>
+    public async Task<StepResult> RunStepAsync(string ruleName, string htmlPath, string baseUrl, string keys, CancellationToken ct = default)
+    {
+        if (!File.Exists(htmlPath)) throw new InvalidOperationException("HTML 文件不存在：" + htmlPath);
+
+        var req = new PyRequest
+        {
+            Mode = "code",
+            TimeoutSeconds = 120,
+            ArgsJson = JsonSerializer.Serialize(new Dictionary<string, string>
+            {
+                ["mode"] = "step",
+                ["path"] = _files.PathOf(ruleName),
+                ["html_path"] = htmlPath,
+                ["base"] = baseUrl ?? "",
+                ["keys"] = keys ?? "content"
+            }),
+            Code = Program
+        };
+
+        var res = await _py.RunAsync(req, ct).ConfigureAwait(false);
+        if (!res.Ok || !string.IsNullOrEmpty(res.Error))
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(res.Traceback) ? res.Error : res.Traceback);
+
+        var json = LastLine(res.Out);
+        var result = new StepResult();
+        if (json.Length == 0) return result;
+
+        using var doc = JsonDocument.Parse(json);
+        var rootEl = doc.RootElement;
+
+        if (rootEl.TryGetProperty("fields", out var fEl) && fEl.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var prop in fEl.EnumerateObject())
+            {
+                var list = new List<string>();
+                if (prop.Value.ValueKind == JsonValueKind.Array)
+                    foreach (var v in prop.Value.EnumerateArray())
+                        list.Add(v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : v.ToString());
+                result.Fields[prop.Name] = list;
+            }
+        }
+
+        if (rootEl.TryGetProperty("errors", out var eEl) && eEl.ValueKind == JsonValueKind.Object)
+            foreach (var prop in eEl.EnumerateObject())
+                result.Errors[prop.Name] = prop.Value.ToString();
+
+        return result;
+    }
+
+    /// <summary>取输出的最后一行（脚本可能先打了别的东西，JSON 只在最后一行）。</summary>
+    private static string LastLine(string? output)
+    {
+        var json = (output ?? "").Trim();
         var nl = json.LastIndexOf('\n');
-        if (nl >= 0) json = json[(nl + 1)..].Trim();   // 脚本可能先打了别的东西
+        return nl >= 0 ? json[(nl + 1)..].Trim() : json;
+    }
+
+    /// <summary>调 Python：<c>mode=list|run</c>，返回命令行。</summary>
+    private async Task<List<RuleCommand>> RunPythonAsync(string ruleName, string mode, string baseUrl, string htmlPath, CancellationToken ct)
+    {
+        var req = new PyRequest
+        {
+            Mode = "code",
+            TimeoutSeconds = 60,
+            ArgsJson = JsonSerializer.Serialize(new Dictionary<string, string>
+            {
+                ["mode"] = mode,
+                ["path"] = _files.PathOf(ruleName),
+                ["html_path"] = string.IsNullOrEmpty(htmlPath) ? HtmlPath(ruleName) : htmlPath,
+                ["base"] = baseUrl ?? ""
+            }),
+            Code = Program
+        };
+
+        var res = await _py.RunAsync(req, ct).ConfigureAwait(false);
+        if (!res.Ok || !string.IsNullOrEmpty(res.Error))
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(res.Traceback) ? res.Error : res.Traceback);
+
+        var json = LastLine(res.Out);
 
         if (json.Length == 0) return new List<RuleCommand>();
 
@@ -240,6 +520,7 @@ public sealed class RuleRunService
 
             if (el.TryGetProperty("count", out var c) && c.TryGetInt32(out var count))
             {
+                cmd.Count = count;
                 cmd.HitText = count + " 条";
                 if (el.TryGetProperty("preview", out var pv) && pv.ValueKind == JsonValueKind.Array)
                 {
@@ -252,6 +533,13 @@ public sealed class RuleRunService
                     }
                     cmd.Preview = string.Join("\n", items);
                 }
+            }
+
+            // 🔴 错误回显（NT-086 批 C）：Python 侧的异常必须搬到界面上，⛔ 不静默显示「0 条」
+            if (el.TryGetProperty("error", out var err))
+            {
+                cmd.Error = err.GetString() ?? "";
+                if (cmd.Error.Length > 0) cmd.HitText = "⚠ 出错";
             }
 
             list.Add(cmd);
@@ -281,30 +569,6 @@ def _split_take(s):
     if m:
         return s[:m.start()], m.group(1)
     return s, "text"
-
-def _default_to_css(rule):
-    parts = [p.strip() for p in rule.split("@") if p.strip()]
-    if not parts:
-        return "", "text"
-    take = "text"
-    segs = []
-    for i, p in enumerate(parts):
-        if i == len(parts) - 1 and p in ("text", "html", "outerHtml", "textNodes", "href", "src"):
-            take = p
-            continue
-        m = re.match(r"^(class|id|tag)\.(.+)$", p)
-        if not m:
-            return "", "text"
-        kind, val = m.group(1), re.sub(r"\.-?\d+$", "", m.group(2))
-        if not val:
-            continue
-        if kind == "class":
-            segs.append("." + val)
-        elif kind == "id":
-            segs.append("#" + val)
-        else:
-            segs.append(val)
-    return " ".join(segs), take
 
 def _extract(nodes, take, base):
     vals = []
@@ -408,6 +672,14 @@ def _json_walk(doc, path):
         out.append(v if isinstance(v, str) else json.dumps(v, ensure_ascii=False))
     return [v for v in out if v]
 
+def _xpath_by_text(t, tag=""):
+    # 三个语义操作符的公共转写：按**可见文本**找元素（NT-086 批 F）。
+    # ⛔ 不做绝对位置路径（/html/body/div[3]…）—— 契约明令禁用，一改版式就断。
+    q = (t or "").replace("'", "").strip()
+    if not q:
+        return ""
+    return "//" + (tag or "*") + "[contains(normalize-space(.), '" + q + "')]"
+
 def _one(root, cand, base):
     c = cand.strip()
     if not c:
@@ -422,6 +694,21 @@ def _one(root, cand, base):
         return ["(js: 规则暂未支持 —— 需要 JS 引擎，⛔ 不做)"]
     if low.startswith("regex:"):
         return [m for m in re.findall(c[6:], ROOT_HTML, re.S) if m]
+    # 语义操作符（NT-086 批 F）：text: 任意元素按文本（优先 a）／ link: 只找 a 按文本／ url: 按 href 片段找 a
+    if low.startswith("text:"):
+        q, take = _split_take(c[5:])
+        nodes = root.xpath(_xpath_by_text(q, "a"))
+        if not nodes:
+            nodes = root.xpath(_xpath_by_text(q))
+        return _extract(nodes, take, base)
+    if low.startswith("link:"):
+        q, take = _split_take(c[5:])
+        return _extract(root.xpath(_xpath_by_text(q, "a")), take, base)
+    if low.startswith("url:"):
+        q, take = _split_take(c[4:])
+        if take == "text":
+            take = "href"      # url: 不写 @ ⇒ 取链接地址（翻页 / 下钻要的就是地址）
+        return _extract(root.xpath("//a[contains(@href, '" + q.replace("'", "") + "')]"), take, base)
     if low.startswith("xpath:"):
         q, take = _split_take(c[6:])
         return _extract(root.xpath(q), take, base)
@@ -430,16 +717,34 @@ def _one(root, cand, base):
         return _extract(root.css(q), take, base)
     if c.startswith("="):
         return [c[1:]]
-    q, take = _default_to_css(c)
+    # 不写前缀 ⇒ 按 CSS 解析（🔴 2026-10-20 起：legado 默认规则方言 class.x@tag.a@text 已移除，⛔ 不再兼容）
+    q, take = _split_take(c)
     if not q:
         return []
     return _extract(root.css(q), take, base)
+
+_PREFIXES = ("css:", "xpath:", "json:", "regex:", "text:", "link:", "url:", "js:")
+
+def _norm_cands(core):
+    # 🔴 || 的后续候选省写前缀时继承前一个的（css:a||b 的 b 也按 css 解析）—— NT-086 批 E 修
+    out, inherit = [], ""
+    for c in core.split("||"):
+        c = c.strip()
+        low = c.lower()
+        if c.startswith("="):
+            inherit = ""
+        elif low.startswith(_PREFIXES):
+            inherit = c[:c.index(":") + 1]
+        elif inherit:
+            c = inherit + c
+        out.append(c)
+    return out
 
 def eval_expr(root, expr, base):
     parts = expr.split("##")
     core, filters = parts[0], parts[1:]
     vals = []
-    for cand in core.split("||"):
+    for cand in _norm_cands(core):
         vals = _one(root, cand, base)
         if vals:
             break
@@ -452,12 +757,104 @@ def eval_expr(root, expr, base):
     return [v for v in vals if v]
 
 mode = vars.get("mode") or "list"
-rules = _load_rules(vars.get("path") or "")
 
 if mode == "list":
+    rules = _load_rules(vars.get("path") or "")
     print(json.dumps([{"key": str(k), "expr": str(e)} for k, e in rules], ensure_ascii=False))
+
+elif mode == "probe":
+    # 试跑推荐（NT-084 J4）：N 个候选脚本对**同一份 HTML** 全求值（一次进程跑完，⛔ 不逐个启动）。
+    # 站点探测（NT-086 批 E）：候选可带自己的 html_path / base（N 个候选 = N 份不同内容，缺省回落全局）。
+    # 条数 = url 字段命中数（段间契约要求入口 / 中间段输出含 url），没有 url 时取最大字段命中数；
+    # fill = 各字段 min(count, 条数)/条数 的平均 ⇒ 「必填字段非空率」。
+    from parsel import Selector
+    out = []
+    for it in json.loads(vars.get("paths") or "[]"):
+        try:
+            rules = _load_rules(it.get("path") or "")
+            hp = it.get("html_path") or vars.get("html_path") or ""
+            base = it.get("base") or vars.get("base") or ""
+            _JSON.clear()
+            ROOT_HTML = open(hp, "r", encoding="utf-8").read()
+            root = Selector(text=ROOT_HTML)
+            fields, counts, urlc = [], [], 0
+            for item in rules:
+                k = str(item[0])
+                e = str(item[1])
+                try:
+                    # 🔴 "(json: …)" 这类错误占位符不算条目（探测以「能解析出条目」为准）
+                    vals = [v for v in eval_expr(root, e, base) if not (v.startswith("(") and v.endswith(")"))]
+                    c = len(vals)
+                    fields.append({"key": k, "count": c})
+                except Exception as ex:
+                    fields.append({"key": k, "count": 0, "error": str(ex)})
+                counts.append(fields[-1]["count"])
+                if k.lower() == "url":
+                    urlc = fields[-1]["count"]
+            cnt = urlc if urlc > 0 else (max(counts) if counts else 0)
+            fill = 0.0
+            if cnt > 0 and counts:
+                fill = sum(min(c, cnt) for c in counts) / float(len(counts) * cnt)
+            out.append({"name": it.get("name") or "", "count": cnt, "fill": round(fill, 3), "fields": fields})
+        except Exception as ex:
+            out.append({"name": it.get("name") or "", "count": 0, "fill": 0.0, "fields": [], "error": str(ex)})
+    print(json.dumps(out, ensure_ascii=False))
+
+elif mode == "rows":
+    # 爬虫面板（NT-086 批 D）：按字段独立求值后**按索引合成行表**。
+    # 段间契约：入口 / 中间段输出含 url；缺字段的格子补空串（⛔ 不按索引硬取 ⇒ 不错位）。
+    from parsel import Selector
+    rules = _load_rules(vars.get("path") or "")
+    p = vars.get("html_path") or ""
+    ROOT_HTML = open(p, "r", encoding="utf-8").read()
+    root = Selector(text=ROOT_HTML)
+    base = vars.get("base") or ""
+    cols = []
+    for item in rules:
+        k = str(item[0])
+        e = str(item[1])
+        try:
+            vals = eval_expr(root, e, base)
+            cols.append({"key": k, "expr": e, "count": len(vals), "values": vals})
+        except Exception as ex:
+            cols.append({"key": k, "expr": e, "count": 0, "values": [], "error": str(ex)})
+    n = 0
+    for c in cols:
+        if c["count"] > n:
+            n = c["count"]
+    n = min(n, 1000)
+    rows = []
+    for i in range(n):
+        row = {}
+        for c in cols:
+            row[c["key"]] = c["values"][i] if i < c["count"] else ""
+        rows.append(row)
+    print(json.dumps({"columns": cols, "rows": rows, "total": n}, ensure_ascii=False))
+
+elif mode == "step":
+    # 期②下载（NT-087）：对**一份 HTML** 只求值指定字段（content / next），回**全量值**（⛔ 不截断、⛔ 不预览）。
+    # C# 侧驱动跟进循环：next 的 URL、翻页停止条件、并发都在外面。
+    from parsel import Selector
+    rules = _load_rules(vars.get("path") or "")
+    p = vars.get("html_path") or ""
+    ROOT_HTML = open(p, "r", encoding="utf-8").read()
+    root = Selector(text=ROOT_HTML)
+    base = vars.get("base") or ""
+    want = [k.strip() for k in (vars.get("keys") or "content").split(",") if k.strip()]
+    fields, errors = {}, {}
+    for item in rules:
+        k = str(item[0])
+        if want and k not in want:
+            continue
+        try:
+            fields[k] = eval_expr(root, str(item[1]), base)
+        except Exception as ex:
+            errors[k] = str(ex)
+    print(json.dumps({"fields": fields, "errors": errors}, ensure_ascii=False))
+
 else:
     from parsel import Selector
+    rules = _load_rules(vars.get("path") or "")
     p = vars.get("html_path") or ""
     ROOT_HTML = open(p, "r", encoding="utf-8").read()
     root = Selector(text=ROOT_HTML)

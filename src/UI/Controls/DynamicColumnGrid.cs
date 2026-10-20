@@ -3,17 +3,85 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
-using NewToys.ScriptManager.Models;
+using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace NewToys.ScriptManager.Controls;
+namespace NewToys.UI.Controls;
 
 /// <summary>
-/// 信息面板页的**动态列**容器（NT-067 §三.5 / 决策 D1）：把「列宽规格串 + 单元格集合」渲染成一格一行。
+/// 表格里的一格（NT-068 §三.13；NT-085 随 <see cref="DynamicColumnGrid"/> 上提 UI 库）。
+/// <para>🔴 <see cref="Attr"/> = 输出属性的<b>属性名字符串</b>（列 key），⛔ 不是列位号。</para>
+/// <para><see cref="Text"/> 可观察：刷新时就地改值 ⇒ 行对象与选中项不换、界面不闪。</para>
+/// </summary>
+public sealed partial class SysInfoCell : ObservableObject
+{
+    public SysInfoCell(string attr, string title, string text, bool isVisible)
+    {
+        Attr = attr;
+        Title = title;
+        Text = text;
+        IsVisible = isVisible;
+    }
+
+    /// <summary>列 key（= 属性名）。</summary>
+    public string Attr { get; }
+
+    /// <summary>列标题（详情卡 / 复制时当小标签用）。</summary>
+    public string Title { get; }
+
+    /// <summary>详情卡 <c>FieldKind.List</c> 的标签字段（历史名字，等价 <see cref="Title"/>）。</summary>
+    public string Header => Title;
+
+    /// <summary>单元格文本。</summary>
+    [ObservableProperty] private string _text = "";
+
+    /// <summary>该列当前是否显示。</summary>
+    [ObservableProperty] private bool _isVisible;
+}
+
+/// <summary>
+/// 表头的一格：表头按钮（点 = 按该列排序）+ 列显隐菜单（NT-085 随 <see cref="DynamicColumnGrid"/> 上提 UI 库）。
+/// </summary>
+public sealed partial class SysInfoHeaderCell : ObservableObject
+{
+    public SysInfoHeaderCell(string attr, string title, string width, bool isVisible)
+    {
+        Attr = attr;
+        Title = title;
+        Text = title;
+        Width = width;
+        IsVisible = isVisible;
+    }
+
+    /// <summary>列 key（= 属性名）。</summary>
+    public string Attr { get; }
+
+    /// <summary>列标题原文（不含排序箭头）。</summary>
+    [ObservableProperty] private string _title = "";
+
+    /// <summary>表头按钮文案（标题 + 排序箭头）。</summary>
+    [ObservableProperty] private string _text = "";
+
+    /// <summary>列宽规格（<c>140</c> / <c>2*</c> / <c>Auto</c>）；本期不接拖拽，宽窄由调用方算。</summary>
+    [ObservableProperty] private string _width = "";
+
+    /// <summary>该列当前是否显示。</summary>
+    [ObservableProperty] private bool _isVisible;
+
+    /// <summary>切换这一列显隐（**每项自带命令**：菜单项在弹出树里取不到页面 VM 的命令）。</summary>
+    public ICommand? ToggleCommand { get; set; }
+
+    /// <summary>点这一列表头 → 按该列排序（同样自带命令；不设 = 表头不可点）。</summary>
+    public ICommand? SortCommand { get; set; }
+}
+
+/// <summary>
+/// **动态列**容器（NT-067 §三.5 / 决策 D1；NT-085 上提 UI 库改名）：把「列宽规格串 + 单元格集合」
+/// 渲染成一格一行。
 /// <para>
 /// 🔴 为什么需要它：<c>Shared/ListPageViewModelBase</c> 的列机制是「<c>Columns</c> 元数据 + 每列一个具名
-/// <c>IsXxxVisible</c> 属性 + XAML 静态列」（XAML 绑不了字典），而本页列数由采集器的列 schema（<c>items[].columns</c>）决定、运行时可变
-/// ⇒ 静态列不可行。框架层冻结（不改 Shared），所以在**页内自绘动态列**：
-/// <see cref="ColumnSpecs"/> 解析成 <see cref="Grid.ColumnDefinitions"/>，
+/// <c>IsXxxVisible</c> 属性 + XAML 静态列」（XAML 绑不了字典），而信息面板 / 爬虫面板的列数由
+/// 运行时的列 schema 决定、运行时可变 ⇒ 静态列不可行。框架层冻结（不改 Shared），所以在 UI 库提供
+/// 本控件：<see cref="ColumnSpecs"/> 解析成 <see cref="Grid.ColumnDefinitions"/>，
 /// 每个单元格 / 表头按钮按 <c>Grid.Column</c> 落位。
 /// </para>
 /// <para>
@@ -26,26 +94,30 @@ namespace NewToys.ScriptManager.Controls;
 /// </para>
 /// <para>
 /// ⚠️ 与 <c>UI/Controls/ColumnGrid</c> 的分工：那个是「列宽可拖动 + 示例值锁宽」的表头栅格（框架内已有列机制用）；
-/// 本控件只做「任意列数 + 规格串 → 网格」的渲染，不接拖拽（改宽走列 schema，即 <c>script.json</c>）。
+/// 本控件只做「任意列数 + 规格串 → 网格」的渲染，不接拖拽。
+/// </para>
+/// <para>
+/// 🔴 样式类 <c>col-header</c> / <c>list-cell</c> / <c>accent</c> 定义在 Shell <c>App.axaml</c>（运行时解析）——
+/// UI 库 ⛔ 不自带这些样式、⛔ 不写死色值。
 /// </para>
 /// </summary>
-public class SysInfoGrid : Grid
+public class DynamicColumnGrid : Grid
 {
     /// <summary>列宽规格串（可绑定）：<c>"140,2*,3*"</c>，隐藏列写 <c>0</c>（与 <c>ColumnGrid</c> 同一口径）。</summary>
     public static readonly StyledProperty<string?> ColumnSpecsProperty =
-        AvaloniaProperty.Register<SysInfoGrid, string?>(nameof(ColumnSpecs));
+        AvaloniaProperty.Register<DynamicColumnGrid, string?>(nameof(ColumnSpecs));
 
     /// <summary>单元格集合（数据行的用法）。</summary>
     public static readonly StyledProperty<IReadOnlyList<SysInfoCell>?> CellsProperty =
-        AvaloniaProperty.Register<SysInfoGrid, IReadOnlyList<SysInfoCell>?>(nameof(Cells));
+        AvaloniaProperty.Register<DynamicColumnGrid, IReadOnlyList<SysInfoCell>?>(nameof(Cells));
 
     /// <summary>表头集合（表头的用法）。</summary>
     public static readonly StyledProperty<IReadOnlyList<SysInfoHeaderCell>?> HeaderCellsProperty =
-        AvaloniaProperty.Register<SysInfoGrid, IReadOnlyList<SysInfoHeaderCell>?>(nameof(HeaderCells));
+        AvaloniaProperty.Register<DynamicColumnGrid, IReadOnlyList<SysInfoHeaderCell>?>(nameof(HeaderCells));
 
-    /// <summary>表头点击时的排序命令（参数 = 列键 <c>c1</c> / <c>c2</c>…）。</summary>
+    /// <summary>表头点击时的排序命令（参数 = 列键；表头格自带命令优先）。</summary>
     public static readonly StyledProperty<ICommand?> SortCommandProperty =
-        AvaloniaProperty.Register<SysInfoGrid, ICommand?>(nameof(SortCommand));
+        AvaloniaProperty.Register<DynamicColumnGrid, ICommand?>(nameof(SortCommand));
 
     public string? ColumnSpecs
     {
@@ -118,7 +190,7 @@ public class SysInfoGrid : Grid
                 var cell = cells[i];
                 var tb = new TextBlock { DataContext = cell };
                 tb.Classes.Add("list-cell");
-                if (i == 0) tb.Classes.Add("accent");   // 第 1 列（分类）用强调色，与其它列表页一致
+                if (i == 0) tb.Classes.Add("accent");   // 第 1 列（url / 主键）用强调色，与其它列表页一致
                 tb.Bind(TextBlock.TextProperty, new Binding(nameof(SysInfoCell.Text)));
                 tb.Bind(IsVisibleProperty, new Binding(nameof(SysInfoCell.IsVisible)));
                 SetColumn(tb, i);

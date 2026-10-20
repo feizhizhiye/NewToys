@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
+using NewToys.UI.Controls;
 
 namespace NewToys.ScriptManager.Models;
 
@@ -40,75 +40,9 @@ public static class SysInfoStatus
 }
 
 /// <summary>
-/// 表格里的一格（NT-068 §三.13）。
-/// <para>🔴 <see cref="Attr"/> = 输出 <c>attrs</c> 的<b>属性名字符串</b>（与 <c>pc_observations.attr</c> 同一键空间），
-/// ⛔ 不再是 NT-067 的 1-based 列位。</para>
-/// <para><see cref="Text"/> 可观察：刷新时就地改值 ⇒ 行对象与选中项不换、界面不闪。</para>
-/// </summary>
-public sealed partial class SysInfoCell : ObservableObject
-{
-    public SysInfoCell(string attr, string title, string text, bool isVisible)
-    {
-        Attr = attr;
-        Title = title;
-        Text = text;
-        IsVisible = isVisible;
-    }
-
-    /// <summary>列 key（= 属性名）。</summary>
-    public string Attr { get; }
-
-    /// <summary>列标题（详情卡 / 复制时当小标签用）。</summary>
-    public string Title { get; }
-
-    /// <summary>详情卡 <c>FieldKind.List</c> 的标签字段（历史名字，等价 <see cref="Title"/>）。</summary>
-    public string Header => Title;
-
-    /// <summary>单元格文本。</summary>
-    [ObservableProperty] private string _text = "";
-
-    /// <summary>该列当前是否显示。</summary>
-    [ObservableProperty] private bool _isVisible;
-}
-
-/// <summary>
-/// 表头的一格：节内表头按钮（点 = 本节按该列排序）+ 列显隐菜单。
-/// </summary>
-public sealed partial class SysInfoHeaderCell : ObservableObject
-{
-    public SysInfoHeaderCell(string attr, string title, string width, bool isVisible)
-    {
-        Attr = attr;
-        Title = title;
-        Text = title;
-        Width = width;
-        IsVisible = isVisible;
-    }
-
-    /// <summary>列 key（= 属性名）。</summary>
-    public string Attr { get; }
-
-    /// <summary>列标题原文（不含排序箭头）。</summary>
-    [ObservableProperty] private string _title = "";
-
-    /// <summary>表头按钮文案（标题 + 排序箭头）。</summary>
-    [ObservableProperty] private string _text = "";
-
-    /// <summary>列宽规格（<c>140</c> / <c>2*</c> / <c>Auto</c>）；本期不接拖拽，写回 <c>script.json</c> 的列 schema。</summary>
-    [ObservableProperty] private string _width = "";
-
-    /// <summary>该列当前是否显示。</summary>
-    [ObservableProperty] private bool _isVisible;
-
-    /// <summary>切换这一列显隐（**每项自带命令**：菜单项在弹出树里取不到页面 VM 的命令）。</summary>
-    public ICommand? ToggleCommand { get; set; }
-
-    /// <summary>点这一列表头 → 本节按该列排序（同样自带命令）。</summary>
-    public ICommand? SortCommand { get; set; }
-}
-
-/// <summary>
 /// 信息面板里的一行：某采集器某个 <c>row_key</c> 的一组属性值。
+/// <para>🔴 单元格模型 <see cref="SysInfoCell"/> / <see cref="SysInfoHeaderCell"/> 已随 NT-085 上提
+/// <c>NewToys.UI.Controls</c>（<see cref="DynamicColumnGrid"/> 同文件），本模块只留行模型。</para>
 /// </summary>
 public sealed partial class SysInfoRow : ObservableObject
 {

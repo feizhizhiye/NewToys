@@ -27,10 +27,10 @@
   </ItemGroup>
 
   <!--  默认数据：随程序发布到 <程序目录>\defaults\ —— 由各模块的 Seeder 首次运行时复制到配置根（⛔ 不是 Core 复制）。
-        现在四处：defaults\sysinfo\（内置采集脚本，Module.ScriptManager.BuiltinCollectorSeeder，缺了就补）、
+        现在三处：defaults\sysinfo\（内置采集脚本，Module.ScriptManager.BuiltinCollectorSeeder，缺了就补）、
         defaults\scripts\（示例脚本 + 采集器模板，ExampleSeeder，只播种一次）、
-        defaults\env-scripts\（环境脚本 + 依赖清单，EnvScriptsSeeder，只播种一次）、
-        defaults\tools\（随包 Python 工具，如 convert_legado.py；⛔ 不复制走，程序直接按 BaseDirectory 调用）。
+        defaults\env-scripts\（环境脚本 + 依赖清单，EnvScriptsSeeder，只播种一次）。
+        （2026-10-20：原 defaults\tools\convert_legado.py 随 Legado 兼容一并移除，该目录已空。）
         ⚠️ 用 None Update（不是 Content/None Include）：这些文件本来就在 SDK 的默认 None 通配里，
            Update 只改"要不要复制到输出"，再加一条 Include 会撞 NETSDK1022 重复项。
         ⚠️ 放在 Shell 而不是 Core：Shell 是被引用的终点（模块不会引用它），

@@ -212,7 +212,7 @@
 | `ScriptManagerSettingsService` | `config\modules\script-manager.json`（`IOptionsStore` 分区名 `script-manager`） |
 
 - VM 侧：`QuickActionListViewModel` 为 `script-library` / `script-commands` 共用基类（`ToolbarExtras` / `ToolbarTailExtras` 拼装工具条）。
-- 控件：`Controls/SysInfoGrid`（`Grid` 子类，规格串 → `ColumnDefinitions`；**星号列宽必需**，`ItemsControl` + 横向 `StackPanel` 表达不了）。
+- 🔴 NT-085（2026-10-20）：动态列控件**已不在本模块** —— `Controls/SysInfoGrid` 连同单元格模型上提 `src/UI/Controls/DynamicColumnGrid.cs`（类改名 `DynamicColumnGrid`，模型 `SysInfoCell` / `SysInfoHeaderCell` 随迁，命名空间 `NewToys.UI.Controls`）。本模块 `ScriptInfoView.axaml` 用 `xmlns:v="using:NewToys.UI.Controls"` + `v:DynamicColumnGrid`；`InfoSectionViewModel` / `InfoRowFactory` 加 `using NewToys.UI.Controls`。⛔ 别再把控件搬回来。
 
 ### 3.3 数据与配置
 
@@ -261,7 +261,7 @@
 7. `winget` 表头**本地化**（中文 Windows 打「名称/ID/版本/可用」）⇒ 列标签按「英文 + 中文别名」映射到规范名再切片。
 8. `winget show` 的「发布服务器 URL:」会被当成上一条多行值的续行 ⇒ 不认识的 `标签:` 必须显式**终结**上一个字段并丢弃。
 9. 已安装列表少一大截 = `IdLike` 正则不认 `\` ⇒ 加 `\\`（`^[A-Za-z0-9][A-Za-z0-9._+\\-]*$`）。
-10. 列宽拖拽**未接**（`SysInfoGrid` 不支持）；改宽走「⚙ 列设置」写回 manifest。
+10. 列宽拖拽**未接**（`DynamicColumnGrid` 不支持，NT-085 起控件住 `src/UI`）；改宽走「⚙ 列设置」写回 manifest。
 11. 分节模式**关分页**（底栏改摘要），因为一次只显示一个集合的多个采集器节。
 12. 🔴 **示例 vs 内置采集器是两套语义**：`ExampleSeeder` 只播种一次（`examples\.seeded` 存在即整体跳过，删掉的示例**不复活**）；`BuiltinCollectorSeeder` 缺了就补回。改 `defaults\scripts\*` 后老配置目录不会自动更新（要用户删 `examples\` 目录再启动）。
 13. 🔴 **解析分层纪律（NT-081）**：固定列宽表格的通用机械只在 `FixedWidthTable`（🔴 按**显示宽度**切，汉字 2 列）；winget 的续行合并 / 别名表 / pin 兜底是**固有启发式**⛔ 不进通用层；机读后端（dpkg-query）⛔ 不走表格解析，直接 `TsvRows`。新增后端 = 新适配器 + 命令模板，页面 / VM 零改动。

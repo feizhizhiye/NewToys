@@ -135,7 +135,7 @@
 - 开了客户区扩展后 **DWM 把边框交给应用画** ⇒ 应用不画就没有边界（NT-039 自绘 1px 外框的由来）。
 - DWM 窗口阴影在客户区扩展下**本来就不存在** ⇒ ⛔ 别把它算作 `SetWindowRgn` 的代价。
 - 模板 PART 缺失会在 `OnApplyTemplate` 抛 NRE → 前提是**有模板**；本配置不设 `Template`，该风险不成立。
-- 🔴 **贴靠几何**：**≈8px（左右下）= 非客户区边框** ⇒ 由「零内缩」消除 ✅ 已验收；**16px 半屏偏宽** = 系统按「外框 = 客户区 + 8px/边」算贴靠矩形的必然多算 ⇒ 由 `ShellView.axaml.cs` 的 `FixTiledGeometry` 纠回精确半屏/四分屏（2026-10-21 实测左右贴靠均 960×1040）。⛔ 别再试「去掉零内缩」（露缝复发）或「DwmExtendFrameIntoClientArea 清零」（无效）。
+- 🔴 **贴靠几何**：**≈8px（左右下）= 非客户区边框** ⇒ 由「零内缩」消除 ✅ 已验收；**16px 半屏偏宽** = 系统按「外框 = 客户区 + 8px/边」算贴靠矩形的必然多算 ⇒ 由 `ShellView.Win32.cs` 的 `FixTiledGeometry` 纠回精确半屏/四分屏（2026-10-21 实测左右贴靠均 960×1040）。判据容差 **32px 是 96 DPI 基准**、按 `GetDpiForWindow()`/96 缩放（200% 屏 = 64px），⛔ 别再退回固定常量。⛔ 别再试「去掉零内缩」（露缝复发）或「DwmExtendFrameIntoClientArea 清零」（无效）。
 
 **③ 现役配置（`ShellView.axaml`）**
 

@@ -657,8 +657,8 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B12 前进/后退** | 所有页面丰富页内导航 | 仅 `video-list` 有目录语义；多数页灰显 | 各页逐步实现 `IHistoryProvider` | 各模块页面 |
 | **B14 媒体资产用户数据落库** | 手动数据落 `config\` 进备份 | 标签 / 分类 / 集合 / 关联暂存 `data\newtoys.db`，与需求 §3.5 定位冲突 | 用户拍板独立库 / 纳入备份时 | Module.MediaAssets |
 | **B15 数据驱动图标** | 全矢量 | 二级菜单 `icon` / 首页一键按钮 / 模块页内数据行仍 emoji | 收敛工作项 **NT-047** | 各模块注册 + 首页 |
-| **B16 `SetWindowRgn` 方角硬手段** | 官方 corner preference 稳定生效 | 保留 `ApplySquareRegion()` + `SetCornerPreferenceNoRound()` 双保险 | NT-042 已裁决保留（阴影代价已证伪） | `ShellView.axaml.cs` |
-| **B17 窗口装饰 Win32 补丁残留** | 零补丁 | 方角两处 + `WM_NCCALCSIZE` 零内缩 + 贴靠矩形纠偏 `FixTiledGeometry`（Windows 独有例外）；样式位补位已删 | 见 B16 + Avalonia 提供等价开关；迁非 Windows 前须补外框门控与窗口记忆回退 | `ShellView.axaml(.cs)` + `App.axaml` |
+| **B16 `SetWindowRgn` 方角硬手段** | 官方 corner preference 稳定生效 | 保留 `ApplySquareRegion()` + `SetCornerPreferenceNoRound()` 双保险 | NT-042 已裁决保留（阴影代价已证伪） | `ShellView.Win32.cs` |
+| **B17 窗口装饰 Win32 补丁残留** | 零补丁 | 方角两处 + `WM_NCCALCSIZE` 零内缩 + 贴靠矩形纠偏 `FixTiledGeometry`（Windows 独有例外）；样式位补位已删 | 见 B16 + Avalonia 提供等价开关；迁非 Windows 前须补外框门控与窗口记忆回退 | `ShellView.axaml(.cs)` + `ShellView.Win32.cs`（**Windows 专属代码全在此 partial**）+ `App.axaml` |
 
 **已结清并移出本表**：B8（闲置转换器，已删）/ B9（骨架页面，零骨架）/ B13（详情面板上提，16/16 声明式）—— 明细见 `git log`。
 

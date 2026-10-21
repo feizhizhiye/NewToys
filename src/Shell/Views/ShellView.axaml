@@ -11,8 +11,7 @@
       🔴 **客户区零内缩由我们接管**（Windows 独有的那一处例外，原理见 `ShellView.axaml.cs` 的 `InstallSnapFrameFix`）：
       Avalonia CSD 会按 `WS_CAPTION|WS_THICKFRAME` 扣掉 ≈8px **非客户区**，贴靠态系统不画那圈 → 露缝（左右下）；
       零内缩让「客户区 = 外框」消除它，自绘 1px 外框（NT-039）正好落在窗口外沿。
-      ℹ️ 残留（系统级，Firefox 同复现 ⇒ 接受）：**首次分屏左右下偏大 1~2px**；常规态左右不对称（左重叠 / 右缝隙）。
-      ⛔ 不做外部几何纠偏（NT-048 那套已证伪并删除）。  -->
+      🔴 代价是系统贴靠矩形会按「外框 = 客户区 + 8px/边」多给 16px ⇒ 由 `FixTiledGeometry`（code-behind）纠回精确半屏/四分屏。  -->
 <Window
     x:Class="NewToys.Shell.Views.ShellView"
     xmlns="https://github.com/avaloniaui"

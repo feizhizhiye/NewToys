@@ -633,10 +633,12 @@ public partial class ShellView : Window
     /// </para>
     /// <para>
     /// 🔴 历史留档（⛔ 别再加回来）：
-    /// ① NT-048 的「贴靠几何外部纠偏」（比对系统矩形 / 按屏幕自检纠偏）—— 已删除：
-    ///    「首次偏宽」是**系统行为**（第三方 Firefox 同复现）⇒ 在系统正常行为上打补丁方向错误；
+    /// ① NT-048 的「贴靠几何外部纠偏」（按屏幕自检强行 SetWindowPos）—— 判据不成立，已删；
+    ///    ⚠️ 2026-10-21 的 <see cref="FixTiledGeometry"/> 形似但**判据明确**（只认 tile 矩形），不是它的复活。
     /// ② 手搓的 <c>SetWindowLongPtr(GWLP_WNDPROC)</c> 子类化 + <c>Marshal.GetFunctionPointerForDelegate</c>
     ///    + <c>CallWindowProc</c> + <c>_originalWndProc / _snapFixProc</c> 静态字段 —— 已被官方钩子整体取代后删除。
+    /// ③ A 方案（删吞消息、交回官方零内缩）—— 2026-10-21 试过，首次分屏**仍略宽**（原因见 <see cref="FixTiledGeometry"/>）；
+    /// ④ 「吞消息前先 <c>DwmExtendFrameIntoClientArea(0)</c>」—— 2026-10-21 试过，无效（贴靠矩形早于 DWM 记账）。
     /// </para>
     /// <para>⚠️ 装不上就什么都不做 —— 这类代码出错的代价是"窗口完全不响应消息"，失败路径必须保守。</para>
     /// </summary>
@@ -656,17 +658,147 @@ public partial class ShellView : Window
     /// <summary>官方钩子是否已挂（幂等标记）。</summary>
     private static bool _wndProcHookInstalled;
 
+    // ===== 贴靠 / 分屏几何纠偏（2026-10-21 定案）=====
+
+    /// <summary>贴靠矩形与本窗口真实几何的容差（px）。实测「系统多算的量」= 2×8（=16）或再叠 7 ⇒ 32 足够。</summary>
+    private const int SnapTolerance = 32;
+
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    /// <summary>SetWindowPos 的 <c>WINDOWPOS</c>：<c>WM_WINDOWPOSCHANGING</c> / <c>WM_WINDOWPOSCHANGED</c> 的 lParam。</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWPOS
+    {
+        public IntPtr Hwnd;
+        public IntPtr HwndInsertAfter;
+        public int X, Y, Cx, Cy;
+        public uint Flags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int CbSize;
+        public RECT RcMonitor;
+        public RECT RcWork;
+        public uint DwFlags;
+    }
+
+    [DllImport("user32.dll", SetLastError = false)]
+    private static extern IntPtr MonitorFromRect(ref RECT lprc, uint dwFlags);
+
+    [DllImport("user32.dll", SetLastError = false)]
+    private static extern bool GetMonitorInfoW(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    private static bool Near(int a, int b) => Math.Abs(a - b) <= SnapTolerance;
+
+    /// <summary>
+    /// 🔴 把系统给的**贴靠矩形**还原成真正的半屏 / 四分屏（本项目独有的问题，2026-10-21 实测确认根因）。
+    /// <para>
+    /// 根因：系统算贴靠矩形时按「外框 = 客户区 + 边框（本机 8px/边）」换算 —— 对普通窗口成立
+    /// （实测记事本 / Edge：窗口矩形 974 宽、可见区 960 = 正好半屏）；但本窗口用零内缩
+    /// （<c>WM_NCCALCSIZE</c> 被吞，客户区 = 外框）⇒ 系统仍按「客户区 = 贴靠目标」多给 16px 宽度，
+    /// 而我们把 16px 全画成了内容 ⇒ **可见区比半屏宽 16px**（左贴靠右溢 16、右贴靠左溢 16）。
+    /// 实测：左贴靠请求 (0,0,976,1040)，正确值应为 (0,0,960,1040)。
+    /// </para>
+    /// <para>
+    /// 为什么不是「去掉零内缩」：去掉就等于恢复那圈 ≈8px 非客户区，贴靠态系统不画 → 露缝（v3.29 的原始问题）。
+    /// 为什么不是「事后按屏幕自检纠偏」（NT-048，已删）：那是**无判据的强行 SetWindowPos**；
+    /// 这里只认「矩形正好是某个 tile ±32px」这一种明确的系统贴靠请求，其余一切不动。
+    /// </para>
+    /// <para>
+    /// 两个时机：<c>POSCHANGING</c> 直接改写请求（无闪烁，覆盖绝大多数情况）；
+    /// <c>POSCHANGED</c> 兜住「改写后又被补一次边框」的路径（区域 hack 开着时实测会再多 7px）。
+    /// </para>
+    /// </summary>
+    private static void FixTiledGeometry(uint msg, IntPtr hWnd, IntPtr lParam)
+    {
+        try
+        {
+            if (IsWindowMaximized(hWnd)) return;
+
+            var wp = Marshal.PtrToStructure<WINDOWPOS>(lParam);
+            int x = wp.X, y = wp.Y, cx = wp.Cx, cy = wp.Cy;
+            if (cx <= 0 || cy <= 0) return;
+
+            // 🔴 用**目标矩形**找显示器（不是当前窗口位置）：跨屏贴靠时窗口还在旧屏上，
+            //    拿旧屏的 rcWork 比对必然不匹配 ⇒ 只会漏纠，不会误纠；这里按目标矩形取才准。
+            var probe = new RECT { Left = x, Top = y, Right = x + cx, Bottom = y + cy };
+            var mon = MonitorFromRect(ref probe, MONITOR_DEFAULTTONEAREST);
+            if (mon == IntPtr.Zero) return;
+            var mi = new MONITORINFO { CbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfoW(mon, ref mi)) return;
+
+            var work = mi.RcWork;
+            int ww = work.Right - work.Left;
+            int wh = work.Bottom - work.Top;
+            if (ww <= 0 || wh <= 0) return;
+
+            int hw = ww / 2, hh = wh / 2;
+            int tx = int.MinValue, ty = int.MinValue, tw = 0, th = 0;
+
+            // 半屏（左右）
+            if (Near(cy, wh) && Near(y, work.Top))
+            {
+                if (Near(x, work.Left) && Near(x + cx, work.Left + hw))
+                { tx = work.Left; ty = work.Top; tw = hw; th = wh; }
+                else if (Near(x + cx, work.Right) && Near(x, work.Right - hw))
+                { tx = work.Right - hw; ty = work.Top; tw = hw; th = wh; }
+            }
+            // 四分屏（四角）
+            else if (Near(cy, hh))
+            {
+                bool top = Near(y, work.Top) && Near(y + cy, work.Top + hh);
+                bool bot = Near(y + cy, work.Bottom) && Near(y, work.Bottom - hh);
+                if (top || bot)
+                {
+                    ty = top ? work.Top : work.Bottom - hh;
+                    th = hh;
+                    if (Near(x, work.Left) && Near(x + cx, work.Left + hw))
+                    { tx = work.Left; tw = hw; }
+                    else if (Near(x + cx, work.Right) && Near(x, work.Right - hw))
+                    { tx = work.Right - hw; tw = hw; }
+                }
+            }
+
+            if (tw == 0) return;                                            // 不是 tile → 不碰
+            if (x == tx && y == ty && cx == tw && cy == th) return;          // 已经精确 → 不碰
+
+            if (msg == WM_WINDOWPOSCHANGING)
+            {
+                wp.X = tx; wp.Y = ty; wp.Cx = tw; wp.Cy = th;
+                Marshal.StructureToPtr(wp, lParam, false);
+            }
+            else
+            {
+                SetWindowPos(hWnd, IntPtr.Zero, tx, ty, tw, th,
+                             SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING);
+            }
+        }
+        catch { /* 纠偏失败 → 维持系统给的原样（宁可略宽，不可崩） */ }
+    }
+
     /// <summary>
     /// 官方 WndProc 钩子：**在 Avalonia 处理消息之前**被调用（<c>WindowImpl.WndProcMessageHandler</c>）。
     /// <para>🔴 零内缩的实现随之简化：手搓版要「抄下系统外框 → 转发给 Avalonia → 再把 rgrc[0] 写回原值」，
     /// 现在只需 <c>handled = true; return 0</c> 且**不改动 lParam** —— 系统拿到的仍是它自己送进来的
     /// <c>rgrc[0]</c>（= 新窗口外框）⇒ 客户区 = 外框，结果完全等价。
     /// wParam == 1 → lParam 指向 NCCALCSIZE_PARAMS；rgrc[0] 就在 lParam 的开头 16 字节。</para>
+    /// <para>🔴 2026-10-21 定案：**「贴靠偏宽」不是 DWM 记账延迟，而是系统给贴靠矩形做「外框 = 客户区 + 边框」
+    /// 换算**（本机 8px/边）×**本窗口客户区 = 外框**（零内缩）⇒ 多算的 16px 全变成可见内容。
+    /// 修法 = <see cref="FixTiledGeometry"/>（只认 tile 矩形，其余一律不碰）。两条死路已实测排除：
+    /// ① 吞消息前 <c>DwmExtendFrameIntoClientArea(0)</c> 清零扩展帧 —— 无效（矩形在 SetWindowPos 之前就算完）；
+    /// ② 删掉吞消息、交回官方零内缩 —— 首次分屏仍偏宽（同因，且露缝复发）。</para>
     /// <para>⚠️ 最大化**不拦截**：最大化时外框本来就比屏幕大一圈（边框被甩到屏幕外），
     /// 此时若零内缩，内容会伸出屏幕 8px、标题栏顶边被切掉 ⇒ 交回 Avalonia 正常处理。</para>
     /// </summary>
     private static IntPtr OnWndProcHook(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        // 🔴 贴靠几何纠偏（2026-10-21 实测定案，见 FixTiledGeometry）：系统按「外框 = 客户区 + ~8px/边」
+        //    设计贴靠矩形，而本窗口客户区 = 外框（零内缩）⇒ 实际可见区比目标宽 16px。
+        if (msg == WM_WINDOWPOSCHANGING || msg == WM_WINDOWPOSCHANGED)
+            FixTiledGeometry(msg, hWnd, lParam);
+
         _ = lParam;   // ⛔ 刻意**不读写**：零内缩正是靠「系统送进来的 rgrc[0] 未被改写」
         if (msg == WM_NCCALCSIZE && wParam.ToInt64() == 1 && !IsWindowMaximized(hWnd))
         {
@@ -725,6 +857,7 @@ public partial class ShellView : Window
     private const uint SWP_NOZORDER = 0x0004;
     private const uint SWP_NOACTIVATE = 0x0010;   // v3.29：贴靠校正时⛔别抢焦点
     private const uint SWP_FRAMECHANGED = 0x0020;
+    private const uint SWP_NOSENDCHANGING = 0x0400;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT
@@ -742,6 +875,7 @@ public partial class ShellView : Window
 
     private const uint SWP_NOOWNERZORDER = 0x0200;
 
+    private const uint WM_WINDOWPOSCHANGING = 0x0046;
     private const uint WM_NCCALCSIZE = 0x0083;
     private const uint WM_SIZE = 0x0005;
     private const uint WM_SHOWWINDOW = 0x0018;

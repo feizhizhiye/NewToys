@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using Avalonia;
+using Avalonia.Controls;   // Win32Properties 在 Avalonia.Controls.dll 的 Avalonia.Controls 命名空间（不是 Avalonia.Win32）
 using Avalonia.Threading;
 
 namespace NewToys.Shell.Views;

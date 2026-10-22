@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NewToys.WebTools.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 试跑推荐的一条结果（NT-086 批 C / NT-084 J4）：候选脚本对<b>同一份 HTML</b> 求值后的

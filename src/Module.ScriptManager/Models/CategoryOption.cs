@@ -1,4 +1,4 @@
-namespace NewToys.WebTools.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 工具条「分类 ▾」里的一项（NT-086）：显示标签 + 文件里的原始分类值。

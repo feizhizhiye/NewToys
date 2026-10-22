@@ -12,7 +12,7 @@ public sealed class ScriptRunRequest
     /// <summary>脚本绝对路径。</summary>
     public string ScriptPath { get; init; } = "";
 
-    /// <summary>解释器常量（<see cref="Models.ScriptInterpreter"/>）；空 = 按扩展名自动。</summary>
+    /// <summary>解释器常量（<see cref="ScriptInterpreter"/>）；空 = 按扩展名自动。</summary>
     public string Interpreter { get; init; } = "";
 
     /// <summary>工作目录（脚本里的相对路径才好使）。</summary>

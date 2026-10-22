@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using NewToys.Core.Services;   // NT-088：ScriptInterpreter / QuickActionShell 常量已上提 Core
 
 namespace NewToys.ScriptManager.Models;
 

@@ -29,7 +29,7 @@ public interface IPackageManagerService
     /// <summary>
     /// 列出所有源（<c>winget source list</c>）。
     /// <para>🔴 源的增删 / 切换（<c>source add|remove|reset</c>，全要 UAC）**不在本服务**：
-    /// 它们是「命令库」里的命令条目（设置页「软件源」节只做说明 + 一键加入命令库）。</para>
+    /// 它们是「命令库」里的命令条目（用户按 <c>winget source …</c> 自己加，设置页 ⛔ 不再陈列命令清单）。</para>
     /// </summary>
     Task<(bool Ok, string Message, IReadOnlyList<PackageSourceInfo> Items)> ListSourcesAsync(CancellationToken ct = default);
 

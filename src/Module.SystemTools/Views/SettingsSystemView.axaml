@@ -4,7 +4,7 @@
              x:Class="NewToys.SystemTools.Views.SettingsSystemView">
   <!--
     「系统工具设置」页（`settings-system` / Order 100，NT-091）。
-    🔴 用与应用级设置页同一套骨架 <ui:SettingsSectionHost>（节 = 折叠卡片），3 节 ⇒ `Sticky="False"`；节内⛔ 再写 Border.card。
+    🔴 用与应用级设置页同一套骨架 <ui:SettingsSectionHost>（节 = 折叠卡片），2 节 ⇒ `Sticky="False"`；节内⛔ 再写 Border.card。
     ⚠️ 节内容 = `<UserControl.Resources>` 里的 `SecN` 面板；节元数据在 code-behind 的 `Add(...)`
       （⛔ 不要在 XAML 里直接写 `<ui:SettingsSection>`：该页会不被预编译 ⇒ 运行时 `No precompiled XAML found`）。
   -->
@@ -33,39 +33,9 @@
         <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding DataFilePath}"/>
       </StackPanel>
       <Button Classes="ghost" Content="📂 打开数据目录" Command="{Binding OpenFolderCommand}"/>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StatusText}"/>
       <TextBlock Classes="hint-text" TextWrapping="Wrap"
                  Text="🔴 系统工具的条目是本模块自己的清单（NT-091 从脚本中心平移而来），与脚本中心的库是两份数据，改一边不影响另一边。"/>
-    </StackPanel>
-
-    <!--  NT-096：「软件源（winget）」节自「脚本管理器设置」迁入（源归系统 winget，改它要 UAC ⇒ 只列命令，
-         一键写进本模块命令库执行）。  -->
-    <StackPanel x:Key="Sec2" Spacing="10">
-      <TextBlock
-          Classes="hint-text"
-          TextWrapping="Wrap"
-          Text="源就是系统 winget 自己的配置（winget source …），改它要管理员权限、影响整台机器。所以这里不放开关：源相关操作统一在「命令库」里执行（那里可以勾「需要管理员权限」走 UAC）。下面这几条就是全部命令，点按钮一次性写进命令库的「winget 源」分类，之后去命令库点运行即可。" />
-      <ItemsControl ItemsSource="{Binding SourceCommands}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <StackPanel Margin="0,0,0,8" Spacing="2">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="{Binding Title}" />
-                <TextBlock Classes="hint-text" Text="{Binding AdminText}" />
-              </StackPanel>
-              <SelectableTextBlock
-                  FontFamily="Consolas"
-                  FontSize="12"
-                  Text="{Binding Command}"
-                  TextWrapping="Wrap" />
-              <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding Description}" />
-            </StackPanel>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Classes="ghost" Content="＋ 加入命令库（winget 源）" Command="{Binding AddSourceCommandsCommand}" />
-        <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="{Binding StatusText}" />
-      </StackPanel>
     </StackPanel>
   </UserControl.Resources>
 

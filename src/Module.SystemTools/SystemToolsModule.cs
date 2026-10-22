@@ -65,7 +65,7 @@ public class SystemToolsModule : IModule
 
         // 模块设置页（NT-061 通则：挂回本模块的一级菜单，Order 100）。
         menu.RegisterFunction("system", "settings-system", "系统工具设置", "🖥", "SettingsSystemView", 100,
-            "命令超时、软件源命令、本模块的数据文件位置");
+            "命令超时、本模块的数据文件位置");
     }
 
     // 🔴 本模块没有建库 / 播种 / 扫描之类的重活 ⇒ 不覆盖 InitializeDeferred（接口有默认空实现）。

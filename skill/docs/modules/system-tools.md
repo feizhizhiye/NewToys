@@ -25,7 +25,7 @@
 | `system-quick` | 快捷命令 | 2 | `QuickCommandView` / `QuickCommandViewModel` | 十项常见开关（电源计划 / 主题明暗 / 休眠 / 网卡启禁 / 磁盘清理 / UAC / 开发者模式 / 远程桌面 / 代理开关 / 时间区域）；要管理员权限的**只给命令 + 📋 复制**，⛔ 不代跑 |
 | `script-favorites` | 收藏夹 | 3 | `FavoritesView` / `FavoritesViewModel` | 按钮墙：**本模块命令条目**里 `IsFavorite` 的那些，点一下执行 |
 | `script-packages` | 软件包 | 4 | `PackageView` / `PackageViewModel`（NT-096 自脚本中心迁入） | winget GUI：搜索 / 安装 / 升级 / 卸载 / 锁定 / 详情 / 导入导出已装清单；Linux 走 dpkg 只读适配器 |
-| `settings-system` | 系统工具设置 | 100 | `SettingsSystemView` / `SettingsSystemViewModel` | 唯一写入点：命令超时 + **软件源（winget）命令清单** + 数据文件位置 |
+| `settings-system` | 系统工具设置 | 100 | `SettingsSystemView` / `SettingsSystemViewModel` | 唯一写入点：命令超时 + 数据文件位置（🔴 2026-10-22 返工：**不再有「软件源」节**） |
 
 ## 2.5 操作逻辑（交互契约）
 
@@ -58,7 +58,7 @@
 | 🔒 已锁定 | 点按钮 | `winget pin list` → 再跑一次 `winget list` 补齐名称 / 版本 / 源，只留被锁定的包 | 老行为是"把 pin 项并进上次结果" ⇒ 看不出哪些才是锁定的 |
 | 分页 | 底部底栏 | 预设 **20 / 50 / 100 / 全部**（本页 override，⛔ 不动全局）；数据在内存 ⇒ 只切片不回查 | 页大小全局记忆读到不属于本页预设的值 ⇒ 构造期收成第一档；底栏显隐还需 `PackageView` 的 `SetContentOverflow` 回填 |
 | 搜索 | 🔍 搜索 / 关键字回车 | **一律不传 `--source`** + 把系统里的**显式源**（如 `winget-font`）逐个补查再合并去重 | 在已安装 / 可升级列表里，关键字只是**本地过滤** |
-| 源管理 | — | 本页**没有**源开关 / 源选择框；改源去「系统工具设置 → 软件源」把命令写进命令库再执行 | 源是系统 winget 的配置（`source add/remove/reset` 全要 UAC），App 内不包 UI |
+| 源管理 | — | 本页**没有**源开关 / 源选择框，App 也**不再陈列源命令**；要改源直接 `winget source …`（需要 App 里跑就自己往命令库加一条，勾「需要管理员权限」） | 源是系统 winget 的配置（`source add/remove/reset` 全要 UAC），App 内不包 UI |
 | 商店包（msstore） | 搜到的包 | Id 是 Store 的 12 位字符；**详情 / 安装都必须带 `--source`**；⛔ 不吃 `--silent`；⛔ 不进「已安装 / 可升级」列表 | 行的「源」列由 `winget search` 自带；缺了用 `StampSource` 补 |
 | 刷新索引 | 🔃 刷新索引 | 拉各源元数据（≈ apt update） | 「可升级」的结果依赖它 |
 | 重新加载 | 🔄 重新加载 | 按**当前所在列表**重跑 | — |
@@ -69,13 +69,14 @@
 | 导出 / 导入已装清单 | 工具条 📤 / 📥 | json（`PackageExportItem`：Id / Name / Version） | 默认目录 = 当前配置档 `data\` |
 | 🔴 已删除（NT-096） | — | 工具条 `集合 ▾`、行右键 `📥 加入集合` **都不再存在** | 原逻辑写的是脚本库 `script.json`（跨模块依赖，模块禁互引）；已存「软件包」类集合仍可在集合页看到并发送回本页 |
 
-### 系统工具设置 `settings-system`（3 节）
+### 系统工具设置 `settings-system`（2 节）
 
 | 节 | 操作 | 结果 | 约束 |
 |---|---|---|---|
 | 执行 | 改「单条命令的超时」+ 💾 | 落 `config\system.json` | 5~300 整数，非法 ⇒ 状态栏红字 + ⛔ 不写盘 |
-| 软件源（winget） | `＋ 加入命令库（winget 源）` | 把 6 条源命令写进**本模块命令库**（分类「winget 源」，按标题幂等） | 🔴 设置页**不执行 winget、不弹 UAC**；`source add/remove/reset` 标「需要管理员权限」 |
 | 数据文件 | 📂 打开数据目录 | 打开 `config\system\` | 只读展示配置 / 清单路径 |
+
+> 🔴 **「软件源（winget）」节已删**（2026-10-22 用户返工：「系统工具模块下有软件设置页的节，没必要」）。原节 = 6 条只读命令 + `＋ 加入命令库（winget 源）`；删后源操作回到「一条 `winget source` 命令」，App ⛔ 不再代陈列、⛔ 不再代写命令库。
 
 - 收藏夹 = **本模块命令条目的收藏**（`commands.json` 的 `IsFavorite`），本模块自管；
   🔴 与 Core `IFavoritesService`（首页卡片的「菜单功能 key」收藏）**是两套**，⛔ 不混用。
@@ -121,4 +122,4 @@
 | NT | 内容 | 状态 |
 |---|---|---|
 | NT-091 | 本模块建档与四页落地 | ✅ 已验收（2026-10-22 编译通过） |
-| NT-096 | 软件包页 + 软件源节迁入本模块（定位收紧） | ✅ 已实施（⏳ 待 build 验收） |
+| NT-096 | 软件包页迁入本模块（定位收紧）；「软件源」设置节**同日返工删除** | ✅ 已实施（⏳ 待 build 验收） |

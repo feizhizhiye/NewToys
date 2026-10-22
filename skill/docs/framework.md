@@ -245,6 +245,8 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 | 媒体资产 | `assets` | 50 | `IconMediaAssets` |
 | 宿主分组（**不渲染**） | `system` | 999 | `IconSettings` |
 
+> 🔴 **`system` 是框架保留键**（`ModuleLoader.HostGroupKey` / `AppSettingsRegistration.HiddenGroupKey`）：功能模块⛔ 不得用同名组键 —— `RegisterModule` 同名会复用 + 覆盖 `Title/Order/IsHome` 并补登暂存项 ⇒ 宿主组的设置锚点会被渲染进那个模块（NT-091 踩过，系统工具改用 `system-tools`）。
+
 - 宿主分组 `IsHome=true` ⇒ 左树 / 首页模块计数 / 功能清单页都按 `!IsHome` 过滤；只承载应用级设置的节锚点 + `settings-all` 寻址。
 - **v3.66 起左树无「设置」一级菜单项**；模块设置项挂回**本模块分组末位**（`assets`=99、其余=100）。
 - `isBottom` 保留但当前**无分组使用**。

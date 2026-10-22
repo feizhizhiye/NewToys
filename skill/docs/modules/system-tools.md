@@ -97,7 +97,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| `SystemToolsModule.cs` | 菜单注册（`system` 组 Order 25）+ DI 接线 |
+| `SystemToolsModule.cs` | 菜单注册（组键 **`system-tools`**，Order 25；🔴 不能用 `system`——那是 Shell 隐藏宿主组，会把应用级设置 8 页渲染进本组）+ DI 接线 |
 | `Services/ISystemCommandStore.cs` / `SystemCommandStore.cs` | 命令条目（`config\system\commands.json`，`AtomicJsonFile` 落盘） |
 | `Services/ISystemToolsSettingsService.cs` / `SystemToolsSettingsService.cs` | 本模块设置（`config\system.json`） |
 | `Services/QuickCommandCatalog.cs` | 十项快捷命令清单 |
@@ -116,6 +116,7 @@
 5. **`PackageView` 底栏显隐**：除 `HasFooterContent` 外还要 code-behind 量 `ScrollViewer` 溢出回填 `SetContentOverflow`；右键菜单（列表 / 表头 / 表头 ☑）挂在弹出树 ⇒ `OnDataContextChanged` 里手工同步 DataContext。
 6. **软件包集合已断链**：页内「集合」入口删除后，`ScriptCollectionKind.Package` 的成员只能从集合页维护；`PageKey` 映射仍指向 `script-packages`（Key 未变 ⇒ 跳转仍通）。
 7. **测试引用**：`FixedWidthTable` / `TsvRows` / `PackageOutputParser` 是 internal，靠本程序集的 `InternalsVisibleTo("NewToys.Tests")`；⛔ 改回 public。
+8. 🔴🔴 **组键不能叫 `system`**（2026-10-23 踩坑）：`system` 是 Shell 的 `isHome:true` **隐藏宿主组**（`ModuleLoader.HostGroupKey` / `AppSettingsRegistration.HiddenGroupKey`），应用级设置的 8 个节锚点 + 功能清单页挂它名下。`RegisterModule` 遇同名键会**复用该组**并覆盖 `Title/Order/IsHome` + 补登暂存项 ⇒ 那 8 个设置页直接渲染进「系统工具」。本模块组键 = **`system-tools`**（⛔ 页 Key 不是组键，页 Key 一律未动）。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

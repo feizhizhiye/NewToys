@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
+using NewToys.Core.Services;   // NT-088：QuickActionShell（解释器 / 宿主常量已上提 Core）
 using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;

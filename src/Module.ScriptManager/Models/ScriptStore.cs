@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NewToys.Core.Services;   // NT-088：QuickActionShell（解释器 / 宿主常量已上提 Core）
 
 namespace NewToys.ScriptManager.Models;
 

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using NewToys.Core.Services;   // NT-088：ScriptRunner 已上提 Core
 using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
@@ -53,12 +54,6 @@ public sealed class CollectOutcome
 /// </remarks>
 public sealed class CollectorService
 {
-    /// <summary>命令型采集器的默认超时（秒）。</summary>
-    public const int CommandDefaultTimeout = 15;
-
-    /// <summary>命令型采集器的超时上限（秒）。</summary>
-    public const int CommandMaxTimeout = 120;
-
     /// <summary>自动刷新最小间隔（秒）。</summary>
     public const int MinIntervalSeconds = 2;
 

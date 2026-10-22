@@ -39,7 +39,9 @@ public class ScriptManagerModule : IModule
         services.AddSingleton<IScriptManagerSettingsService, ScriptManagerSettingsService>();
 
         // NT-067 的底座：脚本执行（静默跑、捕获输出）。
-        // 落本模块（⛔ 不进 Core：框架层冻结；脚本执行是"脚本管理器"的能力，不是全应用能力）。
+        // NT-088：已上提 NewToys.Core.Services —— system 系统工具模块（收藏夹 / 快捷命令）要执行条目，
+        // 而**模块禁互引**，执行契约只能放框架层（行为零变化，纯搬家）。
+        // ⛔ 不留转发 shim / 别名 —— 留了等于两套入口，必然漂移。
         // ⚠️ NT-068 S8：manifest 服务（ISysInfoManifestService）已删除 —— sysinfo.manifest.json 模型废弃。
         // NT-081 步骤3：进程执行本体走 Shell 注册的 IProcessRunner（Core）；本类只留脚本特有逻辑。
         services.AddSingleton(sp => new ScriptRunner(

@@ -33,62 +33,6 @@ public static class QuickActionKind
 }
 
 /// <summary>
-/// 脚本文件用哪个解释器（<see cref="QuickAction.Interpreter"/> 的取值）。
-/// <para>
-/// <see cref="Auto"/>（空串）= 按扩展名自动：<c>.py</c>→python、<c>.ps1</c>→pwsh（没配就退回 5.1）、
-/// <c>.bat/.cmd</c>→cmd。各解释器的**路径**在「设置 → 路径配置」里配，留空 = 用系统 PATH 里的。
-/// </para>
-/// </summary>
-public static class ScriptInterpreter
-{
-    /// <summary>按扩展名自动挑（默认）。</summary>
-    public const string Auto = "";
-
-    public const string Python = "python";
-
-    /// <summary>PowerShell 7+（pwsh）。</summary>
-    public const string Pwsh = "pwsh";
-
-    /// <summary>Windows PowerShell 5.1（powershell.exe，系统自带）。</summary>
-    public const string PowerShell51 = "powershell";
-
-    public const string Cmd = "cmd";
-}
-
-/// <summary>
-/// 「命令库」命令行的**宿主 / 窗口行为**（<see cref="QuickAction.Shell"/> 的取值，v3.19 / NT-006）。
-/// <para>
-/// <see cref="Auto"/>（默认）= 当前智能行为：有输出的命令用 pwsh 弹可见终端并回显命令、GUI 启动类命令静默；
-/// 显式 <see cref="Cmd"/> / <see cref="Pwsh"/> 覆盖 Auto，强制用哪个宿主跑。
-/// </para>
-/// </summary>
-public static class QuickActionShell
-{
-    /// <summary>自动：有输出→pwsh 可见终端（回显命令）；GUI 启动类→cmd 静默。默认。</summary>
-    public const string Auto = "Auto";
-
-    /// <summary>强制用 cmd（<c>cmd /k</c> 可见窗口）。</summary>
-    public const string Cmd = "Cmd";
-
-    /// <summary>强制用 pwsh（可见终端 + 回显命令）。</summary>
-    public const string Pwsh = "Pwsh";
-
-    /// <summary>详情卡「Shell」下拉的选项（顺序即显示顺序）。</summary>
-    public static IReadOnlyList<(string Value, string Label)> Options { get; } = new[]
-    {
-        (Auto, "自动（有输出用 pwsh / GUI 用 cmd）"),
-        (Cmd, "cmd（/k 可见窗口）"),
-        (Pwsh, "pwsh（可见终端 + 回显命令）"),
-    };
-
-    /// <summary>归一化：认得的返回值，其余（含 null / 空 / 旧数据缺省）一律回退 <see cref="Auto"/>。</summary>
-    public static string Normalize(string? shell)
-        => string.Equals(shell, Cmd, StringComparison.OrdinalIgnoreCase) ? Cmd
-         : string.Equals(shell, Pwsh, StringComparison.OrdinalIgnoreCase) ? Pwsh
-         : Auto;
-}
-
-/// <summary>
 /// 「脚本库」/「命令库」里的一条项目：一条<b>系统设置项</b>（注册表开关 / 电源计划 / 控制面板入口 …）
 /// 或一段常用<b>脚本</b>。
 /// <para>

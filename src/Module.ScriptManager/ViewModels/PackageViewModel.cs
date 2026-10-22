@@ -1373,7 +1373,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     /// <summary>
     /// 跑一条后端命令（命令型条目走 <c>cmd.exe /c</c>，⛔ 不经 pwsh ⇒ 无冷启动开销）。
-    /// <para>用模块内 <see cref="ScriptRunner"/> 而非给 <see cref="IPackageManagerService"/> 加方法 —— 后者在 Shared（框架层冻结）。</para>
+    /// <para>用 Core 的 <see cref="ScriptRunner"/>（NT-088 上提）而非给 <see cref="IPackageManagerService"/> 加方法 —— 后者在 Shared（框架层冻结）。</para>
     /// </summary>
     private async Task<ScriptRunResult> RunBackendAsync(string command, int timeoutSeconds = ScriptRunner.MaxTimeoutSeconds)
     {

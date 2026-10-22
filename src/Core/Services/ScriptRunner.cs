@@ -2,11 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using NewToys.Core.Services;   // IProcessRunner 缺省实现（模块内手工 new 时的兜底）
-using NewToys.ScriptManager.Models;
 using NewToys.Shared.Services;
 
-namespace NewToys.ScriptManager.Services;
+namespace NewToys.Core.Services;
 
 /// <summary>一次脚本执行的入参（NT-067 §二.1）。</summary>
 public sealed class ScriptRunRequest
@@ -38,7 +36,7 @@ public sealed class CommandRunRequest
 
     public string WorkingDirectory { get; init; } = "";
 
-    /// <summary>超时（秒；≤0 用 <see cref="CollectorService.CommandDefaultTimeout"/>，上限 <see cref="CollectorService.CommandMaxTimeout"/>）。</summary>
+    /// <summary>超时（秒；≤0 用 <see cref="ScriptRunner.CommandDefaultTimeout"/>，上限 <see cref="ScriptRunner.CommandMaxTimeout"/>）。</summary>
     public int TimeoutSeconds { get; init; }
 
     public IReadOnlyDictionary<string, string>? Environment { get; init; }
@@ -74,6 +72,12 @@ public sealed class ScriptRunResult
 /// </summary>
 /// <remarks>
 /// <para>
+/// 🔴 NT-088：本类从 <c>Module.ScriptManager</c> 上提 <c>NewToys.Core</c> —— system 系统工具模块
+/// （收藏夹 / 快捷命令）要执行条目，而**模块禁互引**（§3.1），执行契约只能放框架层。
+/// 行为零变化，纯搬家；<c>InterpreterResolver</c> 与解释器常量 <c>ScriptInterpreter</c> /
+/// <c>QuickActionShell</c> 同批上提（否则 Core 会反向依赖模块）。
+/// </para>
+/// <para>
 /// 🔴 与 <c>QuickActionService</c> 的根本差别：这里 <c>UseShellExecute=false</c> + 重定向 stdout/stderr，
 /// 进程隐藏、输出捕获、可超时 / 可取消 —— 供信息面板把输出当数据解析。
 /// </para>
@@ -103,6 +107,12 @@ public sealed class ScriptRunner
     /// <summary>超时上限（秒）。</summary>
     public const int MaxTimeoutSeconds = 300;
 
+    /// <summary>命令型执行的默认超时（秒）（NT-088：从 <c>CollectorService</c> 上提，沿用原名）。</summary>
+    public const int CommandDefaultTimeout = 15;
+
+    /// <summary>命令型执行的超时上限（秒）（NT-088：从 <c>CollectorService</c> 上提，沿用原名）。</summary>
+    public const int CommandMaxTimeout = 120;
+
     /// <summary>跑一个脚本（永不抛异常：所有失败都折成 <see cref="ScriptRunResult.Error"/>）。</summary>
     public async Task<ScriptRunResult> RunAsync(ScriptRunRequest req, CancellationToken ct = default)
     {
@@ -127,8 +137,8 @@ public sealed class ScriptRunner
         if (command.Length == 0) return new ScriptRunResult { Error = "命令为空" };
 
         var timeout = req.TimeoutSeconds <= 0
-            ? CollectorService.CommandDefaultTimeout
-            : Math.Clamp(req.TimeoutSeconds, 1, CollectorService.CommandMaxTimeout);
+            ? CommandDefaultTimeout
+            : Math.Clamp(req.TimeoutSeconds, 1, CommandMaxTimeout);
 
         string exe;
         string args;

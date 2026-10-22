@@ -445,12 +445,12 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
                             Kind = FieldKind.Select,
                             OptionsPath = nameof(ShellOptions),
                             ValuePath = nameof(EditShell),
-                            Hint = "auto = 自动选 pwsh；cmd = cmd.exe /c（reg / netsh / winget 用它最稳）；pwsh = PowerShell"
+                            Hint = "auto = 自动选 pwsh 7（本机没有才退回 5.1）；cmd = cmd.exe /c（reg / netsh / winget 用它最稳）；pwsh = 强制 pwsh 7"
                         },
                         new DetailField { Label = "简介", ValuePath = nameof(EditDescription), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, MultiLine = true, Rows = 52 },
                         new DetailField { Label = "命令", ValuePath = nameof(EditCommand), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, Mono = true, MultiLine = true, Rows = 84 },
                         new DetailField { Kind = FieldKind.Hint, Hint = "例：`start ms-settings:display` 打开「显示」设置；`control` 打开控制面板。▶ = 交给 Core 的执行器跑这条命令。" },
-                        new DetailField { Label = "需要管理员权限（▶ 运行 = 弹 UAC，提权后在可见窗口里执行）", ValuePath = nameof(EditNeedAdmin), Kind = FieldKind.Check },
+                        new DetailField { Label = "需要管理员权限（▶ 运行 = 弹 UAC，提权后在 Windows 终端里执行）", ValuePath = nameof(EditNeedAdmin), Kind = FieldKind.Check },
                         new DetailField { Label = "隐藏终端窗口（GUI 启动类）", ValuePath = nameof(EditRunHidden), Kind = FieldKind.Check },
                         new DetailField { Kind = FieldKind.Divider },
                         new DetailField { Kind = FieldKind.Hint, ValuePath = nameof(DataFileHint) }
@@ -490,7 +490,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
             Text = "▶ 运行", Classes = "ghost",
             CommandPath = nameof(RunCommand),
             IsEnabledPath = nameof(IsNotBusy),
-            ToolTip = "运行选中条目；需要管理员的项弹 UAC 提权执行（可见窗口，跑完不自动关）"
+            ToolTip = "运行选中条目；需要管理员的项弹 UAC 提权执行（优先 Windows 终端，跑完不自动关）"
         },
         new()
         {

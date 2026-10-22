@@ -48,7 +48,7 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
 
     public string Hint =>
         "★ 收藏来自「命令库」页：选中一条后点「★ 收藏」。\n" +
-        "点按钮直接执行；点 ✕ 移出收藏夹。🔴 需要管理员的条目点按钮会弹 UAC，提权后在可见窗口里执行（取消则不执行）。";
+        "点按钮直接执行；点 ✕ 移出收藏夹。🔴 需要管理员的条目点按钮会弹 UAC，提权后在 Windows 终端里执行（取消则不执行）。";
 
     public string DataFileHint => "数据文件：" + (_store?.FilePath ?? "");
 

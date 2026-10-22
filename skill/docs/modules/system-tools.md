@@ -34,7 +34,7 @@
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| ▶ 运行 | 行内按钮 / 行右键 / 工具条 | 普通项走 Core `ScriptRunner` 静默跑 + 捕获输出；**`NeedAdmin` 项弹 UAC 提权执行**（可见窗口，`/k` 跑完不自动关；UAC 取消则不执行） | 超时用设置页 `CommandTimeoutSeconds`（5~300，默认 30）；提权路忽略「隐藏终端窗口」开关（必须可见） |
+| ▶ 运行 | 行内按钮 / 行右键 / 工具条 | 普通项走 Core `ScriptRunner` 静默跑 + 捕获输出；**`NeedAdmin` 项弹 UAC 提权执行**（**优先 Windows 终端** `wt.exe <命令>`，没装 WT 才回退系统终端 conhost；跑完不自动关；UAC 取消则不执行） | 超时用设置页 `CommandTimeoutSeconds`（5~300，默认 30）；提权路忽略「隐藏终端窗口」开关（必须可见） |
 | 增 / 改 / 删 | 工具条 ＋ / 详情卡 / 行右键 | 直接落 `config\system\commands.json`（无保存按钮） | 删除**二次确认**（`DialogHooks`） |
 | 收藏 | 工具条 ★ / 行右键 | 置 `IsFavorite` ⇒ 收藏夹页出现 | 只影响本模块条目，⛔ 与 Core `IFavoritesService` 无关 |
 | 复制命令 | 工具条 📋 / 行右键 | 复制到剪贴板 | `NeedAdmin` 的项运行时也自动复制 |
@@ -97,7 +97,7 @@
 - ⛔ 不开 DB：本模块没有观测数据（需求 §6.7）。
 - 包后端按平台二选一（NT-081 口径）：Windows = `PackageManagerService`（winget）；Linux = `AptPackageService`（dpkg/apt 只读）。页面 / VM 零改动。
 - 页面构建：命令库按 `ui.md` §6 列表页标准，VM 继承 Shared 的 `ListPageViewModelBase`（NT-097 起重写，与脚本库同一套列显隐 / 排序 / 筛选 / 工具条 / 详情开合）；设置页用 `SettingsSectionHost`（节内容放 `UserControl.Resources` + code-behind 建节）。
-- 执行两路（NT-097）：普通项 = Core `ScriptRunner`（隐藏 + 捕获）；`NeedAdmin` 项 = `ISystemCommandLauncher`（可见窗口 + `runas`，模块内自起进程 —— 这是 `IProcessRunner` 契约刻意不含提权的部分，与 `QuickActionService.StartVisible` 同范式）。
+- 执行两路（NT-097）：普通项 = Core `ScriptRunner`（隐藏 + 捕获）；`NeedAdmin` 项 = `ISystemCommandLauncher`（可见窗口 + `runas`，模块内自起进程 —— 这是 `IProcessRunner` 契约刻意不含提权的部分，与 `QuickActionService.StartVisible` 同范式）。🔴 **优先 Windows Terminal**（`wt.exe <命令>`，默认配置文件标签页，locale 无关），没装 WT 回退 conhost；Shell 口径与捕获路一致：**auto / pwsh = pwsh 7**（`InterpreterResolver.TryResolvePwsh`：配置路径 → `Program Files\PowerShell\7` → PATH，没有才 5.1）、cmd = `cmd /k`。
 - 预设播种（NT-097）：`InitializeDeferred` → `SystemCommandSeeder.Seed`（`.seeded` 标记 + 按 Id 只加不改）。
 
 ## 4. 关键文件
@@ -106,7 +106,7 @@
 |---|---|
 | `SystemToolsModule.cs` | 菜单注册（组键 **`system-tools`**，Order 25；🔴 不能用 `system`——那是 Shell 隐藏宿主组，会把应用级设置 8 页渲染进本组）+ DI 接线 + `InitializeDeferred` 预设播种 |
 | `Services/ISystemCommandStore.cs` / `SystemCommandStore.cs` | 命令条目（`config\system\commands.json`，`AtomicJsonFile` 落盘；`Insert` 供播种器保留固定 Id） |
-| `Services/ISystemCommandLauncher.cs` / `SystemCommandLauncher.cs` | 提权运行（NT-097 补充）：可见窗口 + `Verb=runas` 弹 UAC；pwsh 路走 `-EncodedCommand` base64 |
+| `Services/ISystemCommandLauncher.cs` / `SystemCommandLauncher.cs` | 提权运行（NT-097 补充）：优先 Windows Terminal（`wt.exe <命令>` + `runas`），没装 WT 回退 conhost；auto/pwsh = pwsh 7（`-EncodedCommand` base64），cmd = `cmd /k` |
 | `Services/SystemCommandSeeder.cs` | 随包预设（NT-097）：四类 + winget，`.seeded` 只播种一次 |
 | `Services/ISystemToolsSettingsService.cs` / `SystemToolsSettingsService.cs` | 本模块设置（`config\system.json`） |
 | `Services/IPackageManagerService.cs` / `PackageManagerService.cs` / `AptPackageService.cs` | 包后端（winget / dpkg） |
@@ -118,7 +118,7 @@
 ## 5. 坑点（🔴 已知）
 
 1. **页 Key 前缀误导**：3 页里 2 页 Key 是 `script-*`（刻意保留）；文档 / 注释⛔ 不要据此认为它们属 `script` 模块。
-2. **执行需要管理员的操作**：命令库 / 收藏夹的 `NeedAdmin` 条目 ▶ 运行 = **弹 UAC 提权执行**（可见窗口，`ISystemCommandLauncher`；UAC 取消 ⇒ 状态栏提示、不执行）⇒ 不再降级为「只给命令」。⛔ 注意：**其它路径仍无提权机制**（如网络工具的 Hosts 写入只提示「请以管理员身份运行」）；本模块的提权也不等待进程结束（`/k` 窗口由用户自己关）。
+2. **执行需要管理员的操作**：命令库 / 收藏夹的 `NeedAdmin` 条目 ▶ 运行 = **弹 UAC 提权执行**（**优先 Windows 终端**，没装才回退系统终端；UAC 取消 ⇒ 状态栏提示、不执行）⇒ 不再降级为「只给命令」。⛔ 注意：**其它路径仍无提权机制**（如网络工具的 Hosts 写入只提示「请以管理员身份运行」）；提权路 fire-and-forget **不等待进程结束**（标签页 / 窗口由用户自己关，超时设置只管非提权路）。
 3. 🔴 **预设命令一律 `Shell=cmd`**（NT-097）：`ScriptRunner` 的 `auto` 走 pwsh —— pwsh 会把 `control powercfg.cpl,,3` 的逗号当数组运算符、对含双引号的命令（`netsh interface set interface "以太网" …`）转义更敏感；`cmd /c` 对 `reg` / `netsh` / `winget` / `start` / `.cpl` / `.msc` 行为最稳。
 4. **Avalonia 硬规**：每个 `UserControl` 必须显式 `public Xxx(){ InitializeComponent(); }`（漏了整块 XAML 静默不加载）；跨程序集 `xmlns` 用 `using:`；`.cs` 里 `using Avalonia.Controls;` 别漏。
 4. **设置页节内容**必须放 `<UserControl.Resources>` 的 `x:Key` 面板 + code-behind `Add(...)`；⛔ 在 XAML 里写 `<ui:SettingsSection>`（会不被预编译）。

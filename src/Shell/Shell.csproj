@@ -48,5 +48,7 @@
     <ProjectReference Include="../Module.WebTools/Module.WebTools.csproj" />
     <ProjectReference Include="../Module.VideoTools/Module.VideoTools.csproj" />
     <ProjectReference Include="../Module.MediaAssets/Module.MediaAssets.csproj" />
+    <!--  NT-091：系统工具（Order 25）  -->
+    <ProjectReference Include="../Module.SystemTools/Module.SystemTools.csproj" />
   </ItemGroup>
 </Project>

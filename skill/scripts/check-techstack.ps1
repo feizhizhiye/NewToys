@@ -2,7 +2,7 @@
 # 用法（在仓库根执行）：pwsh skill/scripts/check-techstack.ps1 [-All]
 #   -All  同时列出 WARN 明细（默认只列 ERROR 明细 + WARN 计数，保持输出短）
 #
-# 规则清单唯一源 = skill/references/tech-guard.md 第一节（G-01 ~ G-11 + G-14）—— 改这里必须同步改那边。
+# 规则清单唯一源 = skill/references/tech-guard.md 第一节（G-01 ~ G-11 + G-14 ~ G-17）—— 改这里必须同步改那边。
 # ⛔ 只报告，不修改任何文件，不以非零码退出（自检是参考，不是门禁）。
 # ⛔ 口径：ERROR = 会编译失败 / 运行必错 / 破坏架构边界；WARN = 违反约定但仍能编译。
 # ⛔ 不扫 skill/docs/（文档里大量引用反例写法，扫了就全是误报）。
@@ -63,6 +63,12 @@ $clashNames = @(
 $iconFontRe = '(?i)(awesome|fluent[\s\-]?icons|mdl2|material[\s\-]?icons|icomoon|iconfont|bootstrap[\s\-]?icons|octicons|tabler|remixicon|themify|glyphicons|devicon)'
 # G-05：字符当勾选框（☑ U+2611 / ☐ U+2610 / ▣ U+25A3）—— 用 \u 转义，不依赖脚本文件编码
 $checkCharRe = '(?:Text|Content)\s*=\s*"\s*[\u2611\u2610\u25A3]\s*"'
+# G-15：icon 字段里的 emoji（图形符号 / 代理对表示的表情）—— B15 残留，NT-047 收敛
+$emojiRe = '[\u2600-\u27BF\u2B00-\u2BFF\uFE0F]|[\uD83C-\uD83E][\uDC00-\uDFFF]'
+# G-16：模块设置页（Module.*/Views/*Settings*.axaml）内层滚动 —— 滚动由 SettingsSectionHost 独占
+$isModuleSettingsFile = { param($p) $p -match '\\Module\.[^\\]+\\Views\\[^\\]*Settings[^\\]*\.axaml$' }
+# G-17：跨程序集 xmlns 必须 using:（clr-namespace + assembly= 会静默找不到类型）
+$clrAssemblyRe = 'clr-namespace:[^"]*;\s*assembly\s*='
 
 # ---------- 3) .axaml ----------
 foreach ($f in $axamls) {
@@ -90,6 +96,14 @@ foreach ($f in $axamls) {
             if ($fv -match $iconFontRe) {
                 Add-Finding 'G-06' 'ERROR' $f.FullName $no "FontFamily 指向图标字体（$fv）—— 图标走 Path 几何资源键，禁图标字体"
             }
+        }
+        # G-16：模块设置页 ⛔ 内层 ScrollViewer（会与 SettingsSectionHost 抢滚动条）
+        if ((& $isModuleSettingsFile $f.FullName) -and $ln -match 'ScrollViewer') {
+            Add-Finding 'G-16' 'ERROR' $f.FullName $no '模块设置页里出现 ScrollViewer —— 滚动统一由 SettingsSectionHost 管，节内 ⛔ 再包滚动条（双滚动条/磁吸失效）'
+        }
+        # G-17：跨程序集 xmlns 必须用 using: 形式
+        if ($ln -match $clrAssemblyRe) {
+            Add-Finding 'G-17' 'ERROR' $f.FullName $no 'xmlns 用了 clr-namespace + assembly= —— 跨程序集必须 xmlns:v="using:NewToys.UI.Controls"'
         }
     }
     # G-03：跨行元素（<TextBlock … MinHeight= …>，中途不越过标签结束符）
@@ -135,6 +149,13 @@ foreach ($f in $csFiles) {
                     Add-Finding 'G-14' 'ERROR' $f.FullName $no '插值串里有单个 \ —— CS8087/CS1009；反斜杠必须写 \\'
                     break
                 }
+            }
+        }
+        # G-15：icon 字段填 emoji（B15 残留；数据行图标应收敛到 Path 几何资源键，见 NT-047）
+        #   仅查 icon/Icon 赋值，静态装饰文本里的 emoji 不报
+        if ($ln -match '(?i)\bicon\s*[=:]\s*"([^"]*)"') {
+            if ($Matches[1] -match $emojiRe) {
+                Add-Finding 'G-15' 'WARN' $f.FullName $no 'icon 字段用了 emoji —— 应收敛到几何资源键（B15 / NT-047）'
             }
         }
     }

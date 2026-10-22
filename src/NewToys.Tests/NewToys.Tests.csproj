@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>NewToys.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <!--  🔴 测试程序⛔ 落 artifacts\release\：那里是交付产物区，接受 accept.ps1 的产物核对
+        （NewToys.exe + Modules\ 模块数），多出 TestHost / 测试 DLL 会污染交付目录。
+        Debug 走 Directory.Build.props 的 artifacts\bin\<项目名>\，天然隔离。        -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <OutDir>$(RepoRoot)artifacts\tests\</OutDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 被测对象：包管理器输出解析（internal ⇒ 靠 Module.ScriptManager.csproj 的 InternalsVisibleTo 打开） -->
+    <ProjectReference Include="../Module.ScriptManager/Module.ScriptManager.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -11,11 +11,9 @@ public class ScriptManagerModule : IModule
 {
     public void RegisterServices(IServiceCollection services)
     {
-        services.AddTransient<Views.FavoritesView>();      services.AddTransient<FavoritesViewModel>();
         services.AddTransient<Views.ScriptLibraryView>();    services.AddTransient<ScriptLibraryViewModel>();
         services.AddTransient<Views.PackageView>();  services.AddTransient<PackageViewModel>();
         services.AddTransient<Views.ScriptInfoView>();         services.AddTransient<ScriptInfoViewModel>();
-        services.AddTransient<Views.CommandLibraryView>();  services.AddTransient<CommandLibraryViewModel>();
         // v3.80：「软件源」设置页已删（源 = 系统 winget 配置，全要 UAC）⇒ 改成命令库里的命令条目，
         // 设置页「软件源」节只剩说明 + 一键加入命令库（见 SettingsScriptViewModel）。
         // 「脚本库 / 命令库」的清单服务（v1.34 起仅本模块使用，故沉到模块内）。
@@ -107,10 +105,10 @@ public class ScriptManagerModule : IModule
         // 第 7 个参数是「功能简介」：功能清单页展示，首页收藏卡也复用它（单一真相源）。
         // ⚠️ v1.24 起**删除了「工具箱首页」** —— 模块默认落在「脚本库」（order 1），
         //    功能入口本身由左侧二级菜单承担。
-        // 🔴 NT-068：菜单项顺序（order）= 收藏夹 / 脚本库 / 命令库 / 软件包 / 信息面板 / 设置。
-        menu.RegisterFunction("script", "script-favorites", "收藏夹",   "★",  "FavoritesView",      0, "已收藏的脚本与命令，点一下即运行");
+        // 🔴 NT-091：**收藏夹 / 命令库已迁出本组**（→ 新「系统工具」模块，页键 `script-favorites` /
+        // `script-commands` 与标题一律 ⛔ 不改 —— 页键落 columnlayout.json，改了用户列偏好失效）。
+        // NT-068 的原顺序（收藏夹 / 脚本库 / 命令库 / 软件包 / 信息面板 / 设置）⇒ 本组只剩后四项 + 抓取三页。
         menu.RegisterFunction("script", "script-library",   "脚本库",   "▤",  "ScriptLibraryView",  1, "较复杂的系统设置项与常用脚本，可运行 / 增删改查 / 收藏");
-        menu.RegisterFunction("script", "script-commands",  "命令库",   "⚙",  "CommandLibraryView", 2, "系统自带设置入口（Windows 设置面板 / 管理工具），点一下即打开");
         menu.RegisterFunction("script", "script-packages",  "软件包",   "📦", "PackageView",        3, "搜索、安装、升级、卸载软件包");
         menu.RegisterFunction("script", "script-collections", "脚本集合", "🗂", "CollectionView",     4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
         menu.RegisterFunction("script", "script-info",      "信息面板", "💻", "ScriptInfoView",     99, "按集合分节展示采集器输出；顶部「集合 ▾」一次显示一个集合");

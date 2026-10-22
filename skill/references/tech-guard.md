@@ -9,7 +9,7 @@
 
 ---
 
-## 一、静态可检测规则（脚本 `G-01` ~ `G-11` + `G-14`）
+## 一、静态可检测规则（脚本 `G-01` ~ `G-11` + `G-14` ~ `G-17`）
 
 级别口径：**ERROR** = 会编译失败 / 运行必错 / 破坏架构边界；**WARN** = 违反项目约定，但仍能编译。
 
@@ -27,10 +27,13 @@
 | **G-10** | ERROR | `Module.*` 引 `Shell`，或模块之间互引 | 分层单向：`Shared ← Core ← Shell ← Module.*`；模块只准引 Shared + Core | 否 |
 | **G-11** | ERROR | `Shared` / `Core` 的 csproj 引 Avalonia 包 | 这两层**不引 Avalonia**（保持可复用、与 UI 无关） | 否 |
 | **G-14** | ERROR | 插值串 `$"…"` 里出现**单个** `\`（如 `$"C:\path"`） | CS8087 + CS1009。要反斜杠写 `\\`；`\n` / `\t` / `\"` / `\\` 等合法转义不报；`$@"…"` verbatim 插值串跳过 | 否 |
+| **G-15** | WARN | `.cs` 里 `Icon = "🌐"` 之类用 emoji 填图标字段 | 数据行 / 菜单 / 首页按钮图标一律走 **`Path` + `StreamGeometry` 资源键**；静态装饰文本里的 emoji 不报。现存 9 处属 **B15** 残留，由 **NT-047** 收敛 | 否 |
+| **G-16** | ERROR | 模块设置页（`Module.*/Views/*Settings*.axaml`）里出现 `ScrollViewer` | 滚动条由 `SettingsSectionHost` 独占；节内再包滚动 ⇒ 双滚动条 + 磁吸浮层失效。节内容放进 `<UserControl.Resources>` 面板，不加滚动容器 | 否 |
+| **G-17** | ERROR | `.axaml` 的 `xmlns` 写成 `clr-namespace:Xxx;assembly=Yyy` | 跨程序集引用库控件必须 `xmlns:v="using:NewToys.UI.Controls"`；`clr-namespace` 只用于**同程序集**（此时不带 `assembly=`，合法） | 否 |
 
 ---
 
-> ℹ️ **`G-12` / `G-13` 编号未启用**（历史留空，避免既有引用错位）；新增规则从 `G-15` 起。
+> ℹ️ **`G-12` / `G-13` 编号未启用**（历史留空，避免既有引用错位）；新增规则从 `G-18` 起。
 
 ## 二、⛔ 不可静态检测的硬伤
 

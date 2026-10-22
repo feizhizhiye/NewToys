@@ -3,7 +3,7 @@
 ════════════════════════════════════════════════════════════════════
   NewToys 一键验收（accept）
 ────────────────────────────────────────────────────────────────────
-  一条命令跑完「静态检查 → 构建 → 产物核对 →(可选) 冒烟 → 铁律检查」，
+  一条命令跑完「静态检查 → 构建 → 产物核对 →(可选) 单元测试 / 冒烟 → 铁律检查」，
   最后给出 **通过 / 不通过** 结论 + 退出码。
 
     pwsh skill/scripts/accept.ps1                  # 默认 Release：静态 + 构建 + 产物核对
@@ -14,6 +14,7 @@
     pwsh skill/scripts/accept.ps1 -Report          # 额外写 artifacts/accept-report.md
     pwsh skill/scripts/accept.ps1 -All             # WARN 明细全展开（透传给支持的子脚本）
     pwsh skill/scripts/accept.ps1 -SkipStatic      # 只构建 + 产物核对（不跑 Lint）
+    pwsh skill/scripts/accept.ps1 -Test            # 追加单元测试（纯函数解析器）
 
   退出码：0 = 全通过；1 = 存在 FAIL（脚本自身报错亦为 1）。
   ⛔ 本脚本只读 src/ + 只做构建，不修改 src/ 下任何源文件。
@@ -34,6 +35,8 @@ param(
     [int]$SmokeSeconds = 8,
     # 写 artifacts/accept-report.md
     [switch]$Report,
+    # 追加单元测试（src/NewToys.Tests，只测纯函数解析器，秒级）
+    [switch]$Test,
     # 透传 -All 给支持的子脚本（WARN 明细全展开）
     [switch]$All
 )
@@ -80,7 +83,7 @@ $staticChecks = @(
         SupportsAll = $false
     }
     [pscustomobject]@{
-        Name = '技术栈硬伤（G-01 ~ G-14）'
+        Name = '技术栈硬伤（G-01~G-11 + G-14~G-17）'
         File = 'skill\scripts\check-techstack.ps1'
         Fail = @('\[ERROR\]\s*([1-9]\d*) 条')
         Warn = @('\[WARN\]\s*([1-9]\d*) 条')
@@ -170,6 +173,42 @@ else {
     Add-Row '构建' 'dotnet build' 'SKIP' '-SkipBuild'
 }
 
+# ═════════ 2.5) 单元测试（可选 -Test）════════
+# 只覆盖纯函数（包管理器输出解析），不碰 Avalonia / 文件系统 / VM ⇒ 秒级、无副作用。
+if ($Test) {
+    if ($SkipBuild) {
+        Add-Row '测试' 'dotnet test' 'SKIP' '-SkipBuild'
+    }
+    else {
+        Write-Host "`n──── 2.5/5 单元测试 ────" -ForegroundColor Cyan
+        $testProj = Join-Path $src 'NewToys.Tests\NewToys.Tests.csproj'
+        if (-not (Test-Path $testProj)) {
+            Add-Row '测试' 'dotnet test' 'SKIP' '未找到 NewToys.Tests'
+            Write-Host '  [SKIP] 未找到 src\NewToys.Tests' -ForegroundColor Yellow
+        }
+        else {
+            $t1 = Get-Date
+            # 不加 --no-build：测试项目的 Release OutDir 被覆盖到 artifacts\tests\，
+            # 让 MSBuild 自己评估输出路径比猜路径稳。
+            $testRaw = (& dotnet test $testProj -c $Configuration --nologo -v q 2>&1 | Out-String)
+            $tok = ($LASTEXITCODE -eq 0)
+            $tsec = [Math]::Round(((Get-Date) - $t1).TotalSeconds, 1)
+            $detail = if ($tok) { "全通过（{0}s）" -f $tsec } else { "有失败用例（{0}s）" -f $tsec }
+            Add-Row '测试' 'dotnet test（纯函数）' $(if ($tok) { 'PASS' } else { 'FAIL' }) $detail $testRaw
+            $ttag = if ($tok) { '[PASS] ' } else { '[FAIL] ' }
+            Write-Host ("  {0}{1}" -f $ttag, $detail) -ForegroundColor $(if ($tok) { 'Green' } else { 'Red' })
+            if (-not $tok) {
+                Write-Host '  ── 失败用例（前 15 行）──' -ForegroundColor DarkGray
+                $testRaw -split "\r?\n" | Where-Object { $_ -match '(?i)失败|failed|assert' } |
+                    Select-Object -First 15 | ForEach-Object { Write-Host "        $($_.Trim())" -ForegroundColor DarkGray }
+            }
+        }
+    }
+}
+else {
+    Add-Row '测试' 'dotnet test' 'SKIP' '未加 -Test'
+}
+
 # ═════════ 3) 产物核对 ═════════
 if (-not $SkipBuild) {
     Write-Host "`n──── 3/5 产物核对 ────" -ForegroundColor Cyan
@@ -203,7 +242,7 @@ else {
     Add-Row '产物' $Configuration 'SKIP' '-SkipBuild'
 }
 
-# ═════════ 4) 铁律 1：改动是否只在 src/（skill/ 经授权可改）═════════
+# ═════════ 4) 铁律 1：改动是否只在 src/（skill/ scripts/ AGENTS.md 经授权可改）═════════
 Write-Host "`n──── 4/5 铁律 1（改动范围）────" -ForegroundColor Cyan
 $changed = @()
 if (Get-Command git -ErrorAction SilentlyContinue) {
@@ -215,10 +254,11 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
             $changed += $p
         }
     }
-    $outside = @($changed | Where-Object { $_ -notmatch '^src/' -and $_ -notmatch '^skill/' })
+    # 授权区：src/（正文）+ skill/（知识库与权威文档）+ scripts/（构建脚本）+ AGENTS.md（文档体系入口）
+    $outside = @($changed | Where-Object { $_ -notmatch '^src/' -and $_ -notmatch '^skill/' -and $_ -notmatch '^scripts/' -and $_ -notmatch '^AGENTS\.md$' })
     if ($outside.Count -gt 0) {
         Add-Row '铁律1' 'src/ 之外的改动' 'WARN' ("$($outside.Count) 处越界") ($outside -join "`n")
-        Write-Host "  [WARN] src/ 之外有 $($outside.Count) 处改动（scripts/ 经授权可改，其余应确认）：" -ForegroundColor Yellow
+        Write-Host "  [WARN] src/ 之外有 $($outside.Count) 处改动（skill/ scripts/ AGENTS.md 经授权可改，其余应确认）：" -ForegroundColor Yellow
         $outside | Select-Object -First 10 | ForEach-Object { Write-Host "        $_" -ForegroundColor DarkGray }
     }
     else {

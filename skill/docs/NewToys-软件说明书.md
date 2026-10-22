@@ -452,9 +452,11 @@
 | 模块 | Key | 标题 | 页型 |
 |---|---|---|---|
 | 宿主 | — | 首页 | 按钮墙 |
-| 脚本管理器 `script` | `script-favorites` | 收藏夹 | 按钮墙 |
-| | `script-library` | 脚本库 | 列表 |
-| | `script-commands` | 命令库 | 列表 |
+| 系统工具 `system` | `script-favorites` | 收藏夹 | 按钮墙（NT-091 自脚本中心平移，Key 不改） |
+| | `script-commands` | 命令库 | 列表（NT-091 平移 + 精简重写） |
+| | `system-quick` | 快捷命令 | 按钮墙（十项系统开关） |
+| | `settings-system` | 系统工具设置 | 设置页 |
+| 脚本管理器 `script` | `script-library` | 脚本库 | 列表 |
 | | `script-packages` | 软件包 | 列表 |
 | | `script-collections` | 集合 | 主从两栏 |
 | | `script-info` | 信息面板 | 分节展示 |

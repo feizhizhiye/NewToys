@@ -760,6 +760,7 @@ public class App : Application
         list.Add(typeof(NewToys.WebTools.WebToolsModule));
         list.Add(typeof(NewToys.VideoTools.VideoToolsModule));
         list.Add(typeof(NewToys.MediaAssets.MediaAssetsModule));
+        list.Add(typeof(NewToys.SystemTools.SystemToolsModule));
 #endif
         return list.ToArray();
     }

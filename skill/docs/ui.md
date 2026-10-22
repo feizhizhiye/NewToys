@@ -1,8 +1,8 @@
 # NewToys UI 规范
 
-> v4.2 · 2026-10-18 · **标准角色：工程规范（UI 部分）**
-> v4.2：**§8 工具条整理成唯一真源** —— 8.1 项类型表 / 8.2 尺寸·配色·宽度速查表 + 顺序铁律 / 8.3 渲染与折叠 / **8.4 输入框三态表**（新增「空闲态水印」`PlaceholderWhenIdle`、统一水印色 `PlaceholderTextBrush`）/ **8.5 交付自检**。⛔ 工具条样式规则⛔ 不要再散落到模块文档。
-> v4.1：新增 **§10 交互反馈约定**（跨模块共用的操作逻辑底座：右键 vs 工具条 / 二次确认判据 / 写入时机 / 状态反馈 / 重载语义 / 空态）。模块内逐页操作见 `modules/<模块>.md` §2.5。
+> v4.3 · 2026-10-21 · **过时内容清理** —— §10 子节顺序订正（`10.6 空态` 归位到 `10.7 弹出卡片` 之前，编号与正文顺序一致）；版本记录压到最近三次。
+> v4.2 · 2026-10-18 · **§8 工具条整理成唯一真源** —— 8.1 项类型表 / 8.2 尺寸·配色·宽度速查表 + 顺序铁律 / 8.3 渲染与折叠 / **8.4 输入框三态表**（新增「空闲态水印」`PlaceholderWhenIdle`、统一水印色 `PlaceholderTextBrush`）/ **8.5 交付自检**。⛔ 工具条样式规则⛔ 不要再散落到模块文档。
+> v4.1 · 新增 **§10 交互反馈约定**（跨模块共用的操作逻辑底座：右键 vs 工具条 / 二次确认判据 / 写入时机 / 状态反馈 / 重载语义 / 空态）；**§11 设置页骨架**。模块内逐页操作见 `modules/<模块>.md` §2.5。
 > 本文件 = **一切 `.axaml` / 视觉 / 控件尺寸 / 样式约定的唯一入口**（原 `NewToys-工程规范.md` §2 / §3.6 / §3.8 渲染层 / §3.10）。
 > 契约接口定义（`IDetailCardSource` / `IToolbarSource` …）在 `framework.md` §6；模块专属版式在 `modules/<模块>.md`。
 > 权威源 = `src/` 源码，冲突以源码为准并回写本文。
@@ -41,7 +41,7 @@
 ## §2 尺寸与密度基线
 
 **主窗口**：`1280×800`，最小 `960×640`，可自由缩放（官方 CSD，见 §4）。
-**全局布局**：标题栏 **40px**（标签栏并入其中段）、左树 **180px**（折叠 48px）、右详情 **340px**、底部状态栏 **26px**、页面根 `Margin="12"`。
+**全局布局**：标题栏 **32px**（与系统原生标题栏齐平；标签栏并入其中段）、左树 **180px**（折叠 48px）、右详情 **340px**、底部状态栏 **26px**、页面根 `Margin="12"`。
 
 | 元素 | 尺寸 |
 |---|---|
@@ -84,9 +84,11 @@
 
 ---
 
-## §3 主题键（32 个，⛔ 除白名单外不新增）
+## §3 主题键（数量以白名单为准，⛔ 除白名单外不新增）
 
-- 一律 `*Brush` 语义键，共 **32 个**：`ContentBrush`/`PanelBrush`/`SubSiderBrush`/`SiderBrush`/`PrimaryTextBrush`/`SecondaryTextBrush`/**`PlaceholderTextBrush`**（输入框水印）/`AccentBrush`/`AccentHoverBrush`/`DangerBrush`/`DividerBrush`/`InputBorderBrush`/`CardHoverBrush`/`CardSelectedBrush`/`WindowBorderBrush`/`WindowBorderInactiveBrush` …（**完整清单以源码为准**）。
+> 🔴 **不在文档里写死数量**（历史踩过 31/32/34 三个数字并存）：实际条数 = 跑 `pwsh skill/scripts/check.ps1`，首行 `[主题键] 白名单 N 个 *Brush 键` 即权威值。
+
+- 一律 `*Brush` 语义键：`ContentBrush`/`PanelBrush`/`SubSiderBrush`/`SiderBrush`/`PrimaryTextBrush`/`SecondaryTextBrush`/**`PlaceholderTextBrush`**（输入框水印）/`AccentBrush`/`AccentHoverBrush`/`DangerBrush`/`DividerBrush`/`InputBorderBrush`/`CardHoverBrush`/`CardSelectedBrush`/`WindowBorderBrush`/`WindowBorderInactiveBrush` …（**完整清单以源码为准**）。
 - ✅ **白名单免维护**：`check.ps1` 动态扫描（`x:Key="*Brush"` + 代码里 `S("*Brush")` 调用），在 `ApplyTheme()` 补了色值就算入白名单，⛔ 不需要改脚本。
 - 明暗两套**必须同时补齐**；引用不存在键**编译不报错、运行期才失败**。
 - ⛔ 新增键前先想「能不能复用现有键」；确实要加，两套同时补齐 + 写进本表。
@@ -135,7 +137,8 @@
 - 开了客户区扩展后 **DWM 把边框交给应用画** ⇒ 应用不画就没有边界（NT-039 自绘 1px 外框的由来）。
 - DWM 窗口阴影在客户区扩展下**本来就不存在** ⇒ ⛔ 别把它算作 `SetWindowRgn` 的代价。
 - 模板 PART 缺失会在 `OnApplyTemplate` 抛 NRE → 前提是**有模板**；本配置不设 `Template`，该风险不成立。
-- 🔴 **贴靠几何**：**≈8px（左右下）= 非客户区边框** ⇒ 由「零内缩」消除 ✅ 已验收；**16px 半屏偏宽** = 系统按「外框 = 客户区 + 8px/边」算贴靠矩形的必然多算 ⇒ 由 `ShellView.Win32.cs` 的 `FixTiledGeometry` 纠回精确半屏/四分屏（2026-10-21 实测左右贴靠均 960×1040）。判据容差 **32px 是 96 DPI 基准**、按 `GetDpiForWindow()`/96 缩放（200% 屏 = 64px），⛔ 别再退回固定常量。⛔ 别再试「去掉零内缩」（露缝复发）或「DwmExtendFrameIntoClientArea 清零」（无效）。
+- 🔴 **贴靠几何**：**≈8px（左右下）= 非客户区边框** ⇒ 由「零内缩」消除 ✅ 已验收；**16px 半屏偏宽** = 系统按「外框 = 客户区 + 8px/边」算贴靠矩形的必然多算 ⇒ 由 `ShellView.Win32.cs` 的 `FixTiledGeometry` 纠回精确半屏/四分屏（2026-10-21 实测左右贴靠均 960×1040）。判据容差 **32px 是 96 DPI 基准**、按 `GetDpiForWindow()`/96 缩放（200% 屏 = 64px），⛔ 别再退回固定常量。⛔ 别再试「去掉零内缩」（露缝复发）或「DwmExtendFrameIntoClientArea 清零」（无效）。🔴 **实现细节 / 补丁清单 / 死路 = `framework.md` §12**（本节只留结论）。
+  **取消贴靠还原**：同一个「外框 = 客户区 + 8px/边」换算在取消贴靠时反向生效（退回后窗口大一圈）⇒ `FixTiledGeometry` 自己记账：进入贴靠前冻结自由外框（`_preTileFrame`），取消贴靠的第一个矩形请求改写回该外框。⚠️ 必须排除「铺满显示器」的请求（最大化走同一条路径，⛔ 别把双击最大化拽回来）。
 
 **③ 现役配置（`ShellView.axaml`）**
 
@@ -474,6 +477,11 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 - 两者 ⛔ 互相替代；页内重载文案必须带来源（`🔄 重扫脚本目录`，不写「刷新」）。
 
+### 10.6 空态
+
+- 空态 = `hint-text` **说明为什么空** + 一个 `ghost` 主动作按钮（`EmptyStateBlock` / `ListPageSkeleton`），⛔ 只写「暂无数据」。
+- 空态按钮点了要有去处（去设置页 / 导入 / 新建），⛔ 死链。
+
 ### 10.7 弹出卡片（确认 / 提示 / 输入，NT-084）
 
 - 全局唯一呈现器 = `Shell/Controls/DialogCardHost`（遮罩 + 居中卡片，挂在 `ShellView` 最外层 Grid 顶层）。**所有页面共用**：模块的 `DialogHooks.ConfirmAsync` / `InputAsync`、详情卡动作确认（`DetailCardHooks` 转接）、`DataView` 导入确认、启动检查更新提示，全部落到这一层。
@@ -482,11 +490,6 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 交互口径：点遮罩 / `Esc` = 取消；`Enter` = 确定（输入框内回车 = 确定）；消息区超 320 高才出滚动条。
 - 钩子未接上（主窗口未构造）时一律按「用户取消」（Confirm=false / Input=null / Notify 静默），⛔ 不抛。
 - 卡片宽 460；`DialogCardHost` 未展示时整层 `IsVisible=False` ⇒ 不吃命中测试，缩放热区 / 标题栏按钮照常。
-
-### 10.6 空态
-
-- 空态 = `hint-text` **说明为什么空** + 一个 `ghost` 主动作按钮（`EmptyStateBlock` / `ListPageSkeleton`），⛔ 只写「暂无数据」。
-- 空态按钮点了要有去处（去设置页 / 导入 / 新建），⛔ 死链。
 
 
 ## §11 设置页骨架（`SettingsSectionHost`）

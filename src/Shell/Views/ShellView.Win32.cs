@@ -367,6 +367,16 @@ public partial class ShellView
 
     private static bool Near(int a, int b, int tol) => Math.Abs(a - b) <= tol;
 
+    // ── 分屏退回记账（2026-10-21）────────────────────────────────────────────
+    // 🔴 为什么要自己记账：系统「取消贴靠」时按「外框 = 客户区 + ~8px/边」重算它记录的还原矩形，
+    //    而本窗口零内缩（客户区 = 外框）⇒ 退回后比贴靠前**宽高各多 ~16px、位置各偏 ~8px**
+    //    （与「贴靠偏宽」同源，只是方向相反）。这里在进入贴靠前冻结当时的自由外框，
+    //    取消贴靠的第一个矩形请求就改回该外框 —— 不依赖系统记账，也不做无判据的强行 SetWindowPos。
+    // ⚠️ 静态字段 = 单主窗口前提（本应用只有一个 ShellView 实例）；⛔ 多窗口场景别直接复用。
+    private static PixelRect? _freeFrame;    // 最近一次「自由」外框（非贴靠 / 非最大化 / 非全屏）
+    private static bool _inTile;             // 当前是否处于系统贴靠态
+    private static PixelRect? _preTileFrame; // 进入贴靠前的自由外框（取消贴靠时用它还原）
+
     /// <summary>
     /// 🔴 把系统给的**贴靠矩形**还原成真正的半屏 / 四分屏（本项目独有的问题，2026-10-21 实测确认根因）。
     /// <para>
@@ -390,7 +400,7 @@ public partial class ShellView
     {
         try
         {
-            if (IsWindowMaximized(hWnd)) return;
+            if (IsWindowMaximized(hWnd)) { _inTile = false; return; }   // 最大化 ⇒ 已离开贴靠态
 
             // 🔴 容差按 DPI 缩放（200% 屏上 8px/边 → 16px/边，固定 32 会漏纠）
             int tol = SnapToleranceFor(hWnd);
@@ -411,6 +421,12 @@ public partial class ShellView
             int ww = work.Right - work.Left;
             int wh = work.Bottom - work.Top;
             if (ww <= 0 || wh <= 0) return;
+
+            // 全屏（铺满整个显示器）不算「自由几何」：全屏 → 贴靠 → 取消贴靠时若拿它还原，
+            // 窗口会退回全屏尺寸。⛔ 别把它当普通位置记进 `_freeFrame`。
+            bool fillsMonitor = Near(x, mi.RcMonitor.Left, tol) && Near(y, mi.RcMonitor.Top, tol)
+                                && Near(cx, mi.RcMonitor.Right - mi.RcMonitor.Left, tol)
+                                && Near(cy, mi.RcMonitor.Bottom - mi.RcMonitor.Top, tol);
 
             int hw = ww / 2, hh = wh / 2;
             int tx = int.MinValue, ty = int.MinValue, tw = 0, th = 0;
@@ -439,7 +455,43 @@ public partial class ShellView
                 }
             }
 
-            if (tw == 0) return;                                            // 不是 tile → 不碰
+            if (tw == 0)                                            // 不是 tile
+            {
+                bool leavingTile = _inTile;
+                _inTile = false;
+
+                // 🔴 正在**取消贴靠**：把几何改回贴靠前的自由外框（系统重算会多给 ~16px，见上方字段处注释）。
+                // ⚠️ 必须排除「铺满显示器」的请求：贴靠态下双击标题栏 / Win+↑ 最大化走的是同一条路径，
+                //    若当成退出贴靠拽回原尺寸，最大化就再也进不去（2026-10-21 写这段时避开的坑）。
+                if (leavingTile && !fillsMonitor
+                    && _preTileFrame is { } pre
+                    && (pre.X != x || pre.Y != y || pre.Width != cx || pre.Height != cy))
+                {
+                    if (msg == WM_WINDOWPOSCHANGING)
+                    {
+                        wp.X = pre.X; wp.Y = pre.Y; wp.Cx = pre.Width; wp.Cy = pre.Height;
+                        Marshal.StructureToPtr(wp, lParam, false);
+                    }
+                    else
+                    {
+                        SetWindowPos(hWnd, IntPtr.Zero, pre.X, pre.Y, pre.Width, pre.Height,
+                                     SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING);
+                    }
+                    return;
+                }
+
+                // 自由态：持续记账（下一次贴靠时冻结成 `_preTileFrame`）。
+                // ⚠️ 全屏 / 最大化 / 刚退出贴靠的那一帧都不记账（它们的几何不是「用户想要的窗口大小」）。
+                if (!fillsMonitor && !leavingTile) _freeFrame = new PixelRect(x, y, cx, cy);
+                return;
+            }
+
+            // 首次进入贴靠 → 冻结「贴靠前」的自由外框供退回时使用
+            if (!_inTile)
+            {
+                _preTileFrame = _freeFrame;
+                _inTile = true;
+            }
             if (x == tx && y == ty && cx == tw && cy == th) return;          // 已经精确 → 不碰
 
             if (msg == WM_WINDOWPOSCHANGING)

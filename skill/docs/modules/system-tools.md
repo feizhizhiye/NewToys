@@ -21,7 +21,7 @@
 | 菜单 Key | 标题 | Order | View / VM | 说明 |
 |---|---|---|---|---|
 | `script-commands` | 命令库 | — | `CommandLibraryView` / `CommandLibraryViewModel`（由 `Module.ScriptManager` 平移） | Windows 设置面板 / 管理工具入口全集，点一下即打开 |
-| `script-favorites` | 收藏夹 | — | `FavoritesView` / `FavoritesViewModel`（由 `Module.ScriptManager` 平移） | 按 `source` 分组显示全部来源收藏，点一下执行 |
+| `script-favorites` | 收藏夹 | — | `FavoritesView` / `FavoritesViewModel`（由 `Module.ScriptManager` 平移） | 展示**本模块命令条目**里 `IsFavorite` 的那些（按钮墙，点一下执行）；🔴 ⛔ 不是 Core `IFavoritesService`（那份是首页卡片的菜单 key 收藏） |
 | `system-quick` | 快捷命令 | — | 待 NT-091 | 电源计划 / 主题明暗 / 休眠 / 网卡启禁 / 磁盘清理 / UAC / 开发者模式 / 远程桌面 / 代理开关 / 时间区域 |
 | `settings-system` | 系统工具设置 | 100 | 待 NT-091 | 本模块唯一写入点，落 `config\system\*` |
 
@@ -31,7 +31,9 @@
 
 已确定的骨架约束：
 
-- 收藏夹的数据本体在 Core `FavoritesService`（**⛔ 不搬数据**）；各页右键「收藏」仍是唯一写入点，本模块只做聚合展示与执行。
+- 收藏夹 = **本模块命令条目的收藏**（`config\system\commands.json` 里的 `IsFavorite`），本模块自管；
+  🔴 与 Core `IFavoritesService`（首页卡片的「菜单功能 key」收藏）**是两套**，⛔ 不混用（NT-091 §八.1）。
+  ⇒ 已知回退：脚本库条目的收藏不再出现在本页（用户 2026-10-22 接受）。
 - 迁移必须**一次性 + 可逆**：旧条目打 `migrated=true` 保留（⛔ 不删），本模块导入副本。
 
 ## 3. 实现逻辑
@@ -55,4 +57,4 @@
 | NT | 内容 | 状态 |
 |---|---|---|
 | NT-088 | 执行器上提 Core（前置） | 🔄 已实施（⏳ 待 build 验收；framework/） |
-| NT-091 | 本模块建档与三页落地 | 📝 草稿（待细化） |
+| NT-091 | 本模块建档与三页落地 | ✅ 就绪（2026-10-22 用户批准；实施步骤见卡 §九） |

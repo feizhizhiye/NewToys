@@ -21,18 +21,19 @@ agent_created: true
 ## 读取顺序
 
 1. 仓库根 `AGENTS.md`（定位 + 铁律 + 文档路由）
-2. `docs/index.md`（文档地图 + 模块清单）+ `docs/NewToys-项目状态与路线图.md`「一、当前基线」
-3. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型→章节）
-4. 按任务读 **`docs/framework.md`**（框架层）/ **`docs/ui.md`**（UI）/ **`docs/modules/<模块>.md`**（改哪个模块读哪个）对应节
-5. 术语 / 流程有疑问 → `docs/NewToys-AI协作手册.md`【术语对照】【研发流程】
-6. **交付前 / 验收：一键 `pwsh skill/scripts/accept.ps1`**（= 4 个静态检查 + 构建 + 产物核对 + 改动范围，加 `-Run` 再冒烟；退出码 0/1 可直接给用户跑）
+2. `docs/index.md`（文档地图 + **任务型路由唯一源**）+ `docs/NewToys-项目状态与路线图.md`「一、当前基线」
+3. 涉及功能 / 边界 → **`docs/NewToys-需求摘要.md`**（150 行常读基线；原文 1331 行只按它的定位表 grep）
+4. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型速记）
+5. 按任务读 **`docs/framework.md`**（框架层）/ **`docs/ui.md`**（UI）/ **`docs/modules/<模块>.md`**（改哪个模块读哪个）对应节
+6. 术语 / 流程有疑问 → `docs/NewToys-AI协作手册.md`【术语对照】【研发流程】
+7. **交付前 / 验收：一键 `pwsh skill/scripts/accept.ps1`**（= 4 个静态检查 + 构建 + 产物核对 + 改动范围，加 `-Run` 再冒烟；退出码 0/1 可直接给用户跑）
 
 ## 目录
 
 - `references/collab-method.md` —— 通用协作方法论（跨项目母本；**§七 回复格式（编号段落）与会话成本管控 · 长会话提醒** —— 每次回复前对照）
 - `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / **31 个主题键** / 任务型→章节 / 文档路由）
-- `references/tech-guard.md` —— 技术栈硬伤唯一源（`G-01`~`G-14`，与 `check-techstack.ps1` 一一对应）
-- **`scripts/accept.ps1` —— 🔴 一键验收总入口**：串起下面 4 个静态检查 + 构建 + 产物核对 + 改动范围（+ `-Run` 冒烟），输出结论与退出码（0 = 通过 / 1 有 FAIL）。用户自己验收就跑这一条。
+- `references/tech-guard.md` —— 技术栈硬伤唯一源（`G-01`~`G-11` + `G-14`~`G-17`，与 `check-techstack.ps1` 一一对应）
+- **`scripts/accept.ps1` —— 🔴 一键验收总入口**：串起下面 4 个静态检查 + 构建 + 产物核对 + 改动范围（`-Test` 追加单元测试、`-Run` 再冒烟），输出结论与退出码（0 = 通过 / 1 有 FAIL）。用户自己验收就跑这一条。
 - `scripts/check.ps1` —— `.axaml` 合法性、`.axaml`↔`.axaml.cs` 配对、`InitializeComponent` 调用、主题键白名单
 - `scripts/check-axaml-props.ps1` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异）
 - `scripts/check-techstack.ps1` —— 技术栈硬伤 `G-01`~`G-14`（ERROR / WARN 分级；`-All` 看 WARN 明细）

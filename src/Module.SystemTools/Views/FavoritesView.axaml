@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.SystemTools.Views.FavoritesView">
+  <!--
+    「系统工具 → 收藏夹」（`script-favorites`，NT-091 自脚本中心平移）。
+    形态沿用原页：**按钮墙**（收藏 = 常用动作，点一下就跑，不放卡片信息）。
+    🔴 取消收藏用行内「✕」按钮（⛔ 不用右键菜单 —— ContextMenu 在弹出树里取不到页面 VM 的命令）。
+  -->
+  <Grid RowDefinitions="Auto,Auto,*">
+
+    <!--  说明条  -->
+    <Border Grid.Row="0" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
+            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+      <TextBlock Text="{Binding Hint}" FontSize="12" TextWrapping="Wrap"
+                 VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
+    </Border>
+
+    <Border Grid.Row="1" Padding="24,6">
+      <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"
+                 Foreground="{DynamicResource SecondaryTextBrush}"/>
+    </Border>
+
+    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="16" Spacing="12">
+
+        <TextBlock Text="还没有收藏任何项 —— 去「命令库」里选中一条，点工具条的「★ 收藏」。"
+                   IsVisible="{Binding IsEmpty}" Margin="8" TextWrapping="Wrap"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+        <ItemsControl ItemsSource="{Binding Items}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal" Margin="0,0,6,6">
+                <Button Classes="fav-btn accent" Content="{Binding Title}"
+                        Command="{Binding $parent[UserControl].DataContext.RunCommand}"
+                        CommandParameter="{Binding}"
+                        IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
+                        ToolTip.Tip="{Binding Command}"/>
+                <Button Classes="ghost" Content="✕" Width="24" Height="22" Padding="0"
+                        Margin="2,0,0,0" ToolTip.Tip="移出收藏夹"
+                        Command="{Binding $parent[UserControl].DataContext.UnfavoriteCommand}"
+                        CommandParameter="{Binding}"/>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Text="{Binding DataFileHint}" FontSize="11" Margin="8" TextWrapping="Wrap"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

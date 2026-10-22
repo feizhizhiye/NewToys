@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>NewToys.SystemTools</RootNamespace>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Shared/Shared.csproj" />
+    <ProjectReference Include="../Core/Core.csproj" />
+    <!--  NT-063：列表页骨架 / ColumnGrid / 详情卡宿主来自 NewToys.UI（模块禁互引 / 禁引 Shell）  -->
+    <ProjectReference Include="../UI/NewToys.UI.csproj" />
+  </ItemGroup>
+</Project>

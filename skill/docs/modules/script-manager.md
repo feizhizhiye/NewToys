@@ -23,9 +23,7 @@
 
 | 菜单 Key | 标题 | Order | View | 说明 |
 |---|---|---|---|---|
-| `script-favorites` | 收藏夹 | 0 | `FavoritesView` | 已收藏的脚本与命令，点一下即运行 |
 | `script-library` | 脚本库 | 1 | `ScriptLibraryView` | 系统设置项与常用脚本：运行 / 增删改查 / 收藏 / 扫描候选 / 「可采集」列 + 「仅可采集」筛选 |
-| `script-commands` | 命令库 | 2 | `CommandLibraryView` | 系统设置入口（设置面板 / 管理工具），点一下即打开 |
 | `script-packages` | 软件包 | 3 | `PackageView` | 搜索 / 安装 / 升级 / 卸载（**后端只支持 winget**；跨平台 apt 另开软件包页，⛔ 不在本页切后端） |
 | `script-collections` | **脚本集合** | 4 | `CollectionView` | 采集器容器：主从两栏 + 搜索 / 置顶 / 最近 + 「📤 发送到信息面板」 |
 | `web-scrape` | **抓取规则**（NT-084 改名，Key ⛔ 不改；**NT-089 自 `web` 组迁入本组**） | 5 | `RuleCatalogView` / `RuleCatalogViewModel` | **规则目录**：规则集（`.py`）的增删改 / 启用 / 重读；列表带**分类 / 说明**列 + 工具条「分类 ▾」筛选 + **「预设 ▾」从预设创建** + **「🔍 探测」站点探测**；`✏ 编辑规则` → 跳编辑器 |
@@ -40,50 +38,13 @@
 
 > 每页一张表：**操作 → 触发 → 结果 / 状态变化 → 约束**。改页面必须保住这些行为；跨模块共用的语义（右键 vs 工具条 / 确认判据 / 写入时机 / 状态反馈）见 `../ui.md` §10。
 
-### 收藏夹 `script-favorites`
+### 收藏夹 / 命令库 —— 🔴 NT-091 已迁出本模块
 
-| 操作 | 触发 | 结果 / 状态变化 | 约束 |
-|---|---|---|---|
-| 运行 | 点按钮墙上的条目按钮 | 起进程执行；结论写状态栏 | 执行中全部按钮禁用（`IsNotBusy`） |
-| 取消固定 | 条目右键 → ✕ 取消固定 | 从收藏夹移除（= 取消收藏） | 只动清单，⛔ 不碰磁盘文件 |
-| 去脚本库 | ⚙ 打开脚本库 | 跳 `script-library` | — |
-
-> 按钮墙右键菜单在 `FavoritesView.axaml.cs` **现构造**（弹出树取不到 DataContext），⛔ 别搬回 XAML。
-
-### 脚本库 `script-library`
-
-> 🔴 NT-073：本页是**库的展示 + 收录入口**，工具条最前 = `库 ▾`（当前库 / 全部库）+ `📥 导入库` + `📤 导出库` + `📦 全量导出`。
-
-工具条顺序：`库 ▾` → `📥 导入库` → `📤 导出库` → `📦 全量导出` → `📂 导入`(SplitButton) → 脚本目录框 → `🔍 扫描目录` → 搜索框 → `含子目录` → `📥 导入` → `📤 导出` → `🧹 清空本页`；扫描出候选时追加 `➕ 加入库` / `✕ 收起`。
-
-| 操作 | 触发 | 结果 | 约束 |
-|---|---|---|---|
-| 切库 | `库 ▾` | 列表只显示该库成员；「全部库」= 本 kind 全部库的合集 | 记住上次选择（`lastCollectionIdByKind.script`）；标题列在「全部库」下带 `· 库名` 后缀 |
-| 导入文件夹 | 📂 导入 主钮 / 菜单「📁 文件夹…」 | 把目录里的脚本建成条目，已存在的跳过 | 起始目录 = **当前库的 `rootPath`**（空则全局脚本目录）；「含子目录」只对这条生效；新条目**自动加入当前库** |
-| 导入文件 | 📂 导入 →「📄 文件…」 | 多选 `.py/.ps1/.bat/.cmd` 建条目 | 同上 |
-| 改脚本目录 | 脚本目录框回车 / 失焦 | 校验通过即落盘 `config\script-manager.json` | 全局默认目录；单个库的根目录在集合页详情卡里改 |
-| 扫描目录 | 🔍 扫描目录 | 出候选面板（新增 / 已入库 / 不可采集三态） | **⛔ 不自动登记**；起始目录 = 当前库根 |
-| 加入库 | ➕ 加入库 | 勾选的新文件建条目并加入当前库 | 已入库 / 不可采集不重复添加 |
-| 导出库 | 📤 导出库 / 📦 全量导出 | 索引包 json（定义 + 成员相对路径 + 根目录）/ zip 全量包（含脚本文件） | 「全部库」时提示先选库 |
-| 导入库 | 📥 导入库 | json 索引包 → 只建库 + 条目；zip 全量包 → 先解到所选目录，库根 = 该目录 | 名称冲突自动加 `(2)`；同文件按绝对路径复用条目；zip 路径穿越会被拒 |
-| 运行 | ▶ 运行（行右键 / 详情卡） | 起进程执行 | 相对脚本路径按**条目所属库的根目录**解析 |
-| 删除条目 | 行右键 🗑 / 详情卡 | **从当前库移出**（条目与文件保留） | 选了具体库才走这条；移出后无归属 ⇒ 收回默认脚本库 |
-| 从磁盘删除 | 行右键 🔥 | 先删文件，再从清单移除 | 不可撤销 |
-| 导出 / 导入 | 📤 导出 · 📥 导入（合并 / 整页替换） | 本页**当前可见条目** ↔ json | 合并按 Id 去重、同 Id 覆盖；整页替换先清空本页 |
-| 清空本页 | 🧹 清空本页 | 真删除并落盘 | 二次确认 + 提示先导出 |
-
-### 命令库 `script-commands`
-
-> 🔴 NT-073：工具条最前同样有 `库 ▾` / `📥 导入库` / `📤 导出库`（命令库没有文件本体 ⇒ ⛔ 无「全量导出」）。
-
-工具条：`库 ▾` → `📥 导入库` → `📤 导出库` → `📥 导入`（json 清单，排最前）→ 只读框「数据文件」→ 搜索框 → `📤 导出` → `🧹 清空本页`。
-
-| 操作 | 触发 | 结果 | 约束 |
-|---|---|---|---|
-| 运行 | ▶ 运行（行右键 / 详情卡） | 有输出的用可见终端跑（优先 pwsh）；GUI 启动类静默；需管理员走 UAC | 先回显命令再显示输出 |
-| 复制命令 | 行右键 📋 复制命令 | 命令行文本进剪贴板 | — |
-| 删除 | 行右键 🗑 | 选了具体库 ⇒ **从该库移出**；「全部库」⇒ 删 `script.json` 里的记录 | 两种都弹二次确认；移出后无归属 ⇒ 收回默认命令库 |
-| 看数据文件路径 | 点只读框 | 露出真实路径并全选（好复制） | 只读；写入点在「设置 → 路径与配置」 |
+> 两页随「系统工具」模块（`Module.SystemTools`，Order 25）成立而迁出：**页键不改**
+> （`script-favorites` / `script-commands` 落 `columnlayout.json`，改了用户列偏好失效），
+> View / VM 在 `Module.SystemTools`（精简重写，⛔ 不复刻本模块 1559 行的列表基类）。
+> ⇒ 本模块只剩 脚本库 / 软件包 / 集合 / 信息面板 / 抓取三页 / 设置。
+> 🔴 数据**未自动迁移**：脚本侧 `role=command` 条目仍在 `config\script\` 库里（无展示入口，⛔ 未删 ⇒ 可逆）。
 
 ### 软件包 `script-packages`
 
@@ -303,7 +264,7 @@
 | **`RulesBackupSection`** 〃 | `IBackupSection`（Id `data.web-rules`，Order 91）—— 只备 `rules\`，⛔ 不备 `cache\`；🔴 **唯一默认勾的数据节** |
 | **`WebTransferService`**（NT-089 上提 `NewToys.UI`） | 跨页一次性传参（书签 / Ping（网络工具）↔ 抓取（本模块））；两侧各注册一次单例（同一容器 ⇒ 同一实例） |
 
-- VM 侧：`QuickActionListViewModel` 为 `script-library` / `script-commands` 共用基类（`ToolbarExtras` / `ToolbarTailExtras` 拼装工具条）。
+- VM 侧：`QuickActionListViewModel` 现**只服务 `script-library`**（`script-commands` 已随 NT-091 迁出；系统工具那边是精简重写版）。
   - NT-089 S1：新增 `RuleCatalogViewModel` / `RuleEditorViewModel` / `CrawlPanelViewModel` 三页 VM（抓取能力随迁，功能零变化）。
   - 🔴 抓取默认项（UA / 超时）**仍由「网络工具设置」页写入 `config\web-tools.json`**（菜单 Key ⛔ 不改）；本模块经 Core 的 `IOptionsStore` **只读**同一份文件（NT-094 设置拆分后归位）。
 - 🔴 NT-085（2026-10-20）：动态列控件**已不在本模块** —— `Controls/SysInfoGrid` 连同单元格模型上提 `src/UI/Controls/DynamicColumnGrid.cs`（类改名 `DynamicColumnGrid`，模型 `SysInfoCell` / `SysInfoHeaderCell` 随迁，命名空间 `NewToys.UI.Controls`）。本模块 `ScriptInfoView.axaml` 用 `xmlns:v="using:NewToys.UI.Controls"` + `v:DynamicColumnGrid`；`InfoSectionViewModel` / `InfoRowFactory` 加 `using NewToys.UI.Controls`。⛔ 别再把控件搬回来。

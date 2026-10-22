@@ -12,9 +12,9 @@
 
 ## 一、项目事实（锁死，勿擅改）
 
-- 程序集：`NewToys.Shared/Core`、`NewToys`(=Shell→NewToys.exe)、**`NewToys.UI`（控件库，NT-063）**、`Module.<名>`；命名空间一律 `NewToys.*`
+- 程序集：`NewToys.Shared/Core`、`NewToys`(=Shell→NewToys.exe)、**`NewToys.UI`（控件库，NT-063）**、`Module.<名>`、**`NewToys.Tests`（单元测试，非交付、不进 `Modules\`）**；命名空间一律 `NewToys.*`
 - 分层单向：`Shared ← Core ← Shell ← Module.*`；模块禁引 Shell、禁互引；`Shared/Core` 不引 Avalonia
-- **`NewToys.UI` 引 Shared + Avalonia，⛔ 不引 Core / Shell**；被所有模块引用 ⇒ 改一次 = 全模块重编 ⇒ 只放**写完即冻结的稳定控件**；主题刷子留 Shell（`App.axaml` 的 31 个 `*Brush` ⛔ 不搬），UI 内 XAML 只 `DynamicResource`
+- **`NewToys.UI` 引 Shared + Avalonia，⛔ 不引 Core / Shell**；被所有模块引用 ⇒ 改一次 = 全模块重编 ⇒ 只放**写完即冻结的稳定控件**；主题刷子留 Shell（`App.axaml` 的 `*Brush` 语义键 ⛔ 不搬；数量以 `check.ps1` 白名单为准），UI 内 XAML 只 `DynamicResource`
 - 栈：.NET 10 / Avalonia 12.1.4 / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0；版本只在 `src/Directory.Packages.props`
 - 编译绑定关闭 → XAML 不写 `x:DataType`；禁第三方 UI 库 / 图标字体
 - 数据落 `<应用根>\profiles\<配置>\{config,data,logs}`；**`active-profile.txt` 与 `app.json` 在应用根**（应用级，不随配置走，NT-062）；`NEWTOYS_HOME` 可整根切换；**`ConfigStoreService` = 路径唯一决定者**；路径一律 `Path.Combine`
@@ -49,21 +49,13 @@
 
 ## 四、任务型 → 文档
 
-| 任务 | 读什么 |
+🔴 **唯一源 = `skill/docs/index.md` §三「按任务选读」**，本文件 ⛔ 不再维护第二份（两份并存必然漂移，且双份注入费 token）。速记三条：
+
+| 任务 | 去处 |
 |---|---|
-| 改某模块的一个页面 | `modules/<模块>.md` → `ui.md`（§6 列表页 / §7 详情卡 / §8 工具条） |
-| 改/加页面 | `ui.md` §2 §6 §7 §8 |
-| 设置类页面 | **`framework.md` §4.6**（应用级设置 / 首页归框架层）→ `ui.md` §2 §6 |
-| 列表页 | `ui.md` §6 |
-| 新增模块 | `framework.md` §3.3 §5 → 新建 `modules/<模块>.md` |
-| 图标 / 样式 / 主题键 | `ui.md` §1 §3 §5 |
-| 框架层（先问用户） | `framework.md` §2 §3 §4 + 需求 §3.3 |
-| 标签栏 / 树 / 导航 | `framework.md` §4 + 需求 §4.1~4.3 §5 |
-| 热加载模块 | `framework.md` §3.4 |
-| 接口 / 契约 | `framework.md` §6 |
-| 配置 / 路径 / 多配置 | `framework.md` §7 |
-| 修编译报错 | `framework.md` 附录 A + `modules/<模块>.md` §5 |
-| 纯文档改动 | — |
+| 改页面 / 列表 / 详情卡 / 工具条 / 样式 | `modules/<模块>.md` → `ui.md` 对应节 |
+| 改框架层（Shared / Core / Shell / UI）/ 新增模块 / 新增后端 | `framework.md`（§2.1 跨平台中立必读） |
+| 问「这功能怎么用」 | `NewToys-软件说明书.md` §四 §五（⛔ 别读需求规格） |
 
 ---
 
@@ -101,7 +93,7 @@
 - `.axaml` 改动必同步 `.axaml.cs`；编译绑定关闭 → 只写 `{Binding}`，⛔ 不写 `x:DataType`、⛔ WPF 写法。
 - 🔴🔴 **Avalonia `UserControl` 必须显式写 `public Xxx(){ InitializeComponent(); }`**——不会自动生成；漏写 ⇒ 整块 XAML **静默不加载**（无报错/无异常），`x:Name` 字段为 null ⇒ 运行时 NRE（NT-063 连挂两次：列表全白 / 视图创建失败）。新增控件后逐个核对。
 - 跨程序集引用 UI 库控件：`xmlns:v="using:NewToys.UI.Controls"`（⛔ 不用 `clr-namespace` + `assembly=`）。
-- 颜色一律 DynamicResource；主题键只用 **31 个** `*Brush` 语义键（v3.38 由 32 增至 34：`WindowBorderBrush` / `WindowBorderInactiveBrush`；NT-049 又删 `TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush` ⇒ 现 31；⛔ 除此之外不新增、不用旧键 `AppBg/AppBackground/TextPrimary`）；code-behind ⛔ 写死 `#RRGGBB`。
+- 颜色一律 DynamicResource；主题键只用 `*Brush` 语义键，**数量不写死在本文件**（以 `check.ps1` 白名单为准）；⛔ 不新增、不用旧键 `AppBg/AppBackground/TextPrimary`；code-behind ⛔ 写死 `#RRGGBB`。
 - `App.ApplyTheme` 幂等，⛔ 禁 `MergedDictionaries.Clear()`。
 - 菜单：`icon` 传几何资源键（24 网格描边型，`<Path Stroke=… Stretch="Uniform"/>`），不是 emoji；Key = 小写连字符；viewName = View 类名。
 - 🔴 **菜单 Key 一经发布 ⛔ 不改**（例外须用户亲自拍板——已用两次：NT-063 P2-a 删 5 类型页、NT-068 全量 `pc-*`→`script-*`）；应用级设置页（`settings-general/-launch/-path/-dns/-data` + `settings-all`）挂在 **`IsHome` 不可见宿主分组 `system`** 上：⛔ 不进左树 / 首页计数 / 功能清单，但 `FindItem` 仍解析。
@@ -115,7 +107,7 @@
 
 ## 七、分析器 / API 坑（写新代码先对照）
 
-🔴 **本节已收敛，⛔ 不在此重复维护**：Avalonia / 分析器 / API 层面的**技术栈硬伤清单**（含「只有编译器能抓」的那批：CA1416 / CS0507 / CS0272 / CS0759 / CS8087 / MVVMTK0034 / AVLN2000 / NETSDK1022 等）+ 静态检测规则 **G-01~G-11 + G-14**（G-12 / G-13 未启用，编号留空以防历史引用错位），唯一源 = **`skill/references/tech-guard.md`**（另含「只有跑起来才能抓」的窗口装饰 / 贴靠 / SQLite 清单）。
+🔴 **本节已收敛，⛔ 不在此重复维护**：Avalonia / 分析器 / API 层面的**技术栈硬伤清单**（含「只有编译器能抓」的那批：CA1416 / CS0507 / CS0272 / CS0759 / CS8087 / MVVMTK0034 / AVLN2000 / NETSDK1022 等）+ 静态检测规则 **G-01~G-11 + G-14~G-17**（G-12 / G-13 未启用，编号留空以防历史引用错位），唯一源 = **`skill/references/tech-guard.md`**（另含「只有跑起来才能抓」的窗口装饰 / 贴靠 / SQLite 清单）。
 
 - 配套脚本 `skill/scripts/check-techstack.ps1`（`-All` 看 WARN 明细；规则 ID 与 tech-guard.md 一一对应）。
 - 🔴 交付前一律跑**一键验收**：`pwsh skill/scripts/accept.ps1`（= `check.ps1` + `check-axaml-props.ps1` + `check-techstack.ps1` + `check-detail-paths.ps1` + 构建 + 产物核对 + 改动范围；只过静态检查加 `-SkipBuild`；退出码 0/1）。⛔ 不再分条手跑四个检查。

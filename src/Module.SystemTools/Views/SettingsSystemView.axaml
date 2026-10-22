@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:NewToys.UI.Controls"
+             x:Class="NewToys.SystemTools.Views.SettingsSystemView">
+  <!--
+    「系统工具设置」页（`settings-system` / Order 100，NT-091）。
+    🔴 用与应用级设置页同一套骨架 <ui:SettingsSectionHost>（节 = 折叠卡片），2 节 ⇒ `Sticky="False"`；节内⛔ 再写 Border.card。
+    ⚠️ 节内容 = `<UserControl.Resources>` 里的 `SecN` 面板；节元数据在 code-behind 的 `Add(...)`
+      （⛔ 不要在 XAML 里直接写 `<ui:SettingsSection>`：该页会不被预编译 ⇒ 运行时 `No precompiled XAML found`）。
+  -->
+
+  <UserControl.Resources>
+    <StackPanel x:Key="Sec0" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="单条命令的超时（秒）"/>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBox Width="120" Text="{Binding TimeoutText}"/>
+          <Button Classes="ghost" Content="💾 保存" Command="{Binding CommitTimeoutCommand}"/>
+        </StackPanel>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                   Text="5~300 秒；命令跑不完就按超时算失败（系统设置面板类的命令一般会立刻返回）。"/>
+      </StackPanel>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StatusText}"/>
+    </StackPanel>
+
+    <StackPanel x:Key="Sec1" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="配置（config\system.json）"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding ConfigPath}"/>
+      </StackPanel>
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="命令条目清单"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding DataFilePath}"/>
+      </StackPanel>
+      <Button Classes="ghost" Content="📂 打开数据目录" Command="{Binding OpenFolderCommand}"/>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 Text="🔴 系统工具的条目是本模块自己的清单（NT-091 从脚本中心平移而来），与脚本中心的库是两份数据，改一边不影响另一边。"/>
+    </StackPanel>
+  </UserControl.Resources>
+
+  <ui:SettingsSectionHost x:Name="Host" Sticky="False"/>
+</UserControl>

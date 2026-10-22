@@ -19,6 +19,8 @@
         <StreamGeometry x:Key="IconSettings">M21,4 L14,4 M10,4 L3,4 M21,12 L12,12 M8,12 L3,12 M21,20 L16,20 M12,20 L3,20 M14,2 L14,6 M8,10 L8,14 M16,18 L16,22</StreamGeometry>
         <!--  媒体资产：层叠（资产库）—— NT-035：补齐一级分组矢量键，去掉 emoji 占位  -->
         <StreamGeometry x:Key="IconMediaAssets">M12,3 L21,8 L12,13 L3,8 Z M3,12 L12,17 L21,12 M3,16 L12,21 L21,16</StreamGeometry>
+        <!--  系统工具：齿轮（NT-091 新建模块 `system`，Order 25）  -->
+        <StreamGeometry x:Key="IconSystem">M12,8 A4,4 0 1,0 12,16 A4,4 0 1,0 12,8 Z M12,2 L12,5 M12,19 L12,22 M2,12 L5,12 M19,12 L22,12 M5,5 L7,7 M17,17 L19,19 M5,19 L7,17 M17,5 L19,7</StreamGeometry>
 
         <!--  ==================== 框架层图标（窗口 / 标题栏 / 标签 / 左树 / 首页） ====================
               🔴 **硬约束（规范 §2「框架层图标只用 `Path`」）**：Shell 框架层的图标**一律**是
@@ -146,8 +148,9 @@
                  理由：跨平台（Wayland / Debian 13）只有官方 CSD 能对接（Linux 无 DWM / `WS_*` / GDI region 概念），
                  且「贴靠态 1px 残差」已证为系统级（Firefox 同复现）⇒ 不再为它堆 Win32 补丁。  -->
         <ControlTheme x:Key="{x:Type chrome:WindowDrawnDecorations}" TargetType="chrome:WindowDrawnDecorations">
-            <!--  与 `ExtendClientAreaTitleBarHeightHint="40"` 保持一致：告诉框架标题栏占多高。  -->
-            <Setter Property="DefaultTitleBarHeight" Value="40"/>
+            <!--  与 `ExtendClientAreaTitleBarHeightHint="32"` 保持一致：告诉框架标题栏占多高。
+                 ⚠️ 2026-10-21：40 → 32，与系统原生标题栏（本机 31~32px）齐平，多窗口并排不再高低不齐。  -->
+            <Setter Property="DefaultTitleBarHeight" Value="32"/>
             <!--  Win32 上边框 / 阴影归 DWM（`:has-border` / `:has-shadow` 恒 false），这两个值不生效；
                  写 0 只为跨平台一致。窗口边界由 `Border.window-frame`（NT-039 自绘 1px 外框）负责。  -->
             <Setter Property="DefaultFrameThickness" Value="0"/>
@@ -190,14 +193,14 @@
         <!--  标题栏工具按钮（≡ ◀ ▶ ⟳）：高 32、无边框、图标 18px。
              ⚠️ v3.4：标题栏底色 = ContentBrush（跟随主题明暗）→ 文字/图标必须用主题色 PrimaryTextBrush，
                  ⛔ 不要再用 Sider* 系（那是深色侧栏专用，浅底白字会看不见）。  -->
-        <!--  v3.22：≡ / ⟳ **撑满标题栏整高**（40）、点击区放大到 40×40、无圆角（容器不要圆角）  -->
+        <!--  v3.22：≡ / ⟳ **撑满标题栏整高**、点击区放大、无圆角（容器不要圆角）。2026-10-21：40→32 随标题栏下调。  -->
         <Style Selector="Button.title-btn">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="Width" Value="40"/>
-            <Setter Property="Height" Value="40"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
             <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -242,7 +245,7 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="CornerRadius" Value="0"/>
-            <!--  v3.22：上下留白 4→2 —— 标签项长高，充分利用 40px 标题栏 -->
+            <!--  v3.22：上下留白 4→2 —— 标签项长高，充分利用标题栏（32px） -->
             <Setter Property="Margin" Value="2,2,2,2"/>
         </Style>
         <Style Selector="Border.tab-item:pointerover">
@@ -266,7 +269,8 @@
             <Setter Property="Padding" Value="8,0,28,0"/>
             <!--  v3.22：字号 = 13，与左侧二级菜单（Button.tree-row.sub）同大  -->
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="MinHeight" Value="30"/>
+            <!--  32px 标题栏：标签项上下 Margin 各 2 ⇒ 可用 28（原 30 是为 40px 栏配的，改 32 后会被裁 2px）  -->
+            <Setter Property="MinHeight" Value="28"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
         </Style>
@@ -353,7 +357,7 @@
             <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="MinWidth" Value="28"/>
-            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="MinHeight" Value="28"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -425,6 +429,36 @@
         </Style>
         <Style Selector="Border.tree-panel.collapsed ItemsControl.tree-children">
             <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <!--  🔴 2026-10-21：折叠态（48px）**不显示竖向滚动条** —— Fluent 的滚动条是浮层，
+              在 48px 窄栏里直接压在图标上（看着就是一根拖拽条）。用 `Hidden`（不是 `Disabled`）：
+              条不画、鼠标滚轮照常滚动。
+              ⚠️ `VerticalScrollBarVisibility` 的**本地值优先级高于 Style** ⇒ XAML 里⛔ 别再把 Auto 写回去，
+                 一律走这里的类。  -->
+        <!--  ⚠️ `Padding` / `VerticalScrollBarVisibility` 一律走这里的类，⛔ XAML 里别再写本地值
+              （本地值优先级高于 Style ⇒ 本地点一次，折叠态的覆盖就整条失效）。  -->
+        <Style Selector="ScrollViewer.tree-scroll">
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Padding" Value="0,0,8,0"/>
+        </Style>
+        <Style Selector="Border.tree-scroll-host">
+            <Setter Property="Padding" Value="8,8"/>
+        </Style>
+        <!--  🔴 折叠态（48px）三件套，缺一条图标就不居中（2026-10-21 实机截图确认）：
+              ① 隐藏竖向滚动条（浮层条会压在图标上，看着就是一根拖拽条）——用 Hidden 不用 Disabled，滚轮照常；
+              ② 收掉滚动条专用走廊（`ScrollViewer` 右 8px + 外层 `Border` 的 8px 内边距）——
+                 条都没了还留走廊，图标就被挤偏左；外层 `Border` 只留上下 8；
+              ③ 树行自身的内边距归 0 + 内容居中 —— 否则 48px 里 "16(外层) + 8(行内边距)" 全堆在左边。  -->
+        <Style Selector="Border.tree-panel.collapsed ScrollViewer.tree-scroll">
+            <Setter Property="VerticalScrollBarVisibility" Value="Hidden"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="Border.tree-panel.collapsed Border.tree-scroll-host">
+            <Setter Property="Padding" Value="0,8"/>
+        </Style>
+        <Style Selector="Border.tree-panel.collapsed Button.tree-row">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
 
         <!--  窗口控制按钮（标题栏底色 = ContentBrush，配色随主题）  -->
@@ -615,7 +649,9 @@
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
             <Setter Property="BorderThickness" Value="0,1,0,0"/>
             <Setter Property="Padding" Value="2,0,0,0"/>
-            <Setter Property="Height" Value="24"/>
+            <!--  🔴 2026-10-21：24 → 26，与底部状态栏（`Border.status-bar` = 26）等高 ——
+                  左树底边线与状态栏上边线必须落在同一条水平线上。⛔ 两处改一处必须同步改另一处。  -->
+            <Setter Property="Height" Value="26"/>
         </Style>
         <Style Selector="Border.tree-panel.collapsed Border.tree-version">
             <Setter Property="Padding" Value="12,0"/>

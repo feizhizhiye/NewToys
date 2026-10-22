@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.UI.Controls"
+             x:Class="NewToys.SystemTools.Views.SystemCommandLibraryView">
+  <!--
+    「系统工具 → 命令库」（`script-commands`，NT-091 自脚本中心平移）。
+
+    🔴 与 ScriptManager 那版的区别：VM 是**本模块精简重写**（那边 1559 行基类依赖 script 侧存储，
+    模块禁互引 ⇒ 搬不过来）⇒ 本页保留 搜索 / 排序 / 增改删 / ▶ 运行 / 收藏 / 复制 / 导出导入 json，
+    ⛔ 没有：集合（库）下拉 / 可采集列 / 列显隐（列固定四列）。
+    🔴 详情卡走声明式（`IDetailCardSource` + Shell 的 `DetailCardHost`），⛔ 页内不自绘右栏。
+    🔴 颜色一律 DynamicResource 主题语义键（⛔ 不写死色值）。
+  -->
+  <v:ListPageSkeleton EmptyMessage="还没有命令条目。点「➕ 新增」加一条，或「📥 导入」读同目录的 commands-export.json。"
+                      EmptyActionText="➕ 新增"
+                      EmptyActionCommand="{Binding AddCommand}"
+                      IsEmpty="{Binding !HasItems}"
+                      ShowFooter="True"
+                      TotalCount="{Binding Items.Count}">
+
+    <!--  ==================== 页内工具条（本模块不实现 IToolbarSource ⇒ 按钮自放在顶部）  ====================  -->
+    <v:ListPageSkeleton.TopArea>
+      <Border Classes="list-header">
+        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,200">
+          <Button Grid.Column="0" Classes="ghost" Content="➕ 新增" Command="{Binding AddCommand}"
+                  IsEnabled="{Binding !IsBusy}"/>
+          <Button Grid.Column="1" Classes="ghost" Content="🗑 删除" Command="{Binding DeleteCommand}"
+                  IsEnabled="{Binding HasSelection}"/>
+          <Button Grid.Column="2" Classes="ghost" Content="▶ 运行" Command="{Binding RunCommand}"
+                  CommandParameter="{Binding Selected}" IsEnabled="{Binding IsNotBusy}"/>
+          <Button Grid.Column="3" Classes="ghost" Content="★ 收藏" Command="{Binding ToggleFavoriteCommand}"
+                  IsEnabled="{Binding HasSelection}"/>
+          <Button Grid.Column="4" Classes="ghost" Content="📋 复制命令" Command="{Binding CopyCommand}"
+                  CommandParameter="{Binding Selected.Command}"/>
+          <Button Grid.Column="5" Classes="ghost" Content="📤 导出 / 📥 导入" Command="{Binding ExportCommand}"/>
+          <TextBox Grid.Column="7" Text="{Binding SearchText}" Watermark="搜索名称 / 命令…"
+                   ToolTip.Tip="输入即过滤（名称 / 功能 / 命令）"/>
+        </Grid>
+      </Border>
+    </v:ListPageSkeleton.TopArea>
+
+    <!--  ==================== 表头（与行模板共用同一份列宽规格）  ====================  -->
+    <v:ListPageSkeleton.HeaderArea>
+      <Border Classes="list-header">
+        <v:ColumnGrid ColumnSpecs="240,120,*,90">
+          <Button Grid.Column="0" Classes="col-header" Content="名称"
+                  Command="{Binding SortByCommand}" CommandParameter="Title" ToolTip.Tip="点一下按名称排序"/>
+          <Button Grid.Column="1" Classes="col-header" Content="功能"
+                  Command="{Binding SortByCommand}" CommandParameter="Category" ToolTip.Tip="点一下按功能排序"/>
+          <TextBlock Grid.Column="2" Classes="list-cell" Text="简介" FontWeight="SemiBold"/>
+          <Button Grid.Column="3" Classes="col-header" Content="★"
+                  Command="{Binding SortByCommand}" CommandParameter="Favorite" ToolTip.Tip="点一下把收藏的排在前面"/>
+        </v:ColumnGrid>
+      </Border>
+    </v:ListPageSkeleton.HeaderArea>
+
+    <!--  ==================== 列表  ====================  -->
+    <v:ListPageSkeleton.ListArea>
+      <ListBox Classes="list-page" ItemsSource="{Binding Items}"
+               SelectedItem="{Binding Selected, Mode=TwoWay}" SelectionMode="Single">
+        <ListBox.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
+                      IsEnabled="{Binding IsNotBusy}"/>
+            <Separator/>
+            <MenuItem Header="★ 收藏 / 取消收藏" Command="{Binding ToggleFavoriteCommand}"/>
+            <MenuItem Header="📋 复制命令" Command="{Binding CopyCommand}" CommandParameter="{Binding Selected.Command}"/>
+            <Separator/>
+            <MenuItem Header="➕ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
+            <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding HasSelection}"/>
+          </ContextMenu>
+        </ListBox.ContextMenu>
+
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <v:ColumnGrid ColumnSpecs="240,120,*,90">
+              <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Title}"/>
+              <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Category}"/>
+              <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Description}"/>
+              <TextBlock Grid.Column="3" Classes="list-cell accent" Text="{Binding FavoriteMark}"/>
+            </v:ColumnGrid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </v:ListPageSkeleton.ListArea>
+  </v:ListPageSkeleton>
+</UserControl>

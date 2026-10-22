@@ -25,7 +25,7 @@
     MinWidth="960"
     MinHeight="640"
     Background="{DynamicResource ContentBrush}"
-    ExtendClientAreaTitleBarHeightHint="40"
+    ExtendClientAreaTitleBarHeightHint="32"
     ExtendClientAreaToDecorationsHint="True"
     WindowDecorations="Full"
     WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}"
@@ -79,9 +79,9 @@
     <Grid>
 
         <!--  ==================== 内容层  ==================== -->
-        <Grid RowDefinitions="40,*">
+        <Grid RowDefinitions="32,*">
 
-        <!--  ==================== ① 标题栏（40px，底色 = 主题背景）  ====================
+        <!--  ==================== ① 标题栏（32px，与系统原生标题栏齐平）  ====================
               左：≡折叠 ｜ ⟳重建当前页
               中：标签页 + ＋（**左右各 16px 固定留白**，留白处可拖拽窗口）
               右：窗口按钮
@@ -215,7 +215,7 @@
                     <Button
                         x:Name="BtnSettingsSearch"
                         Width="46"
-                        Height="40"
+                        Height="32"
                         Classes="title-btn"
                         ToolTip.Tip="搜索（页面 · 设置项）">
                         <Path
@@ -273,7 +273,7 @@
                     <Button
                         x:Name="BtnFullScreen"
                         Width="46"
-                        Height="40"
+                        Height="32"
                         Classes="win-btn"
                         Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="全屏 (F11)">
@@ -302,7 +302,7 @@
                     <Button
                         x:Name="BtnMin"
                         Width="46"
-                        Height="40"
+                        Height="32"
                         Classes="win-btn"
                         Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="最小化">
@@ -324,7 +324,7 @@
                     <Button
                         x:Name="BtnMax"
                         Width="46"
-                        Height="40"
+                        Height="32"
                         Classes="win-btn"
                         Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="最大化">
@@ -354,7 +354,7 @@
                     <Button
                         x:Name="BtnClose"
                         Width="46"
-                        Height="40"
+                        Height="32"
                         Classes="win-btn close"
                         Theme="{StaticResource BareButtonTheme}"
                         ToolTip.Tip="关闭">
@@ -386,18 +386,19 @@
                 Classes.collapsed="{Binding IsTreeCollapsed}">
               <Grid RowDefinitions="*,Auto">
                 <!--  🔴 v3.69（用户 2026-10-18）：**滚动区与版本行的内边距彻底隔离** ——
-                      滚动区（本 `Border` 的 `Padding="8,8"` + 下方 `ScrollViewer` 的右侧 8px 走廊）
+                      滚动区（`Border.tree-scroll-host` 的 `8,8` + `ScrollViewer.tree-scroll` 的右侧 8px 走廊；
+                     ⚠️ 2026-10-21 这两个内边距已搬进 `App.axaml` 的类样式——折叠态要收掉它们才能让图标居中，
+                     本地值会压过样式 ⇒ XAML 里⛔ 别写回本地 Padding）
                       要给右侧滚动条让位、也让树行离面板边；
                       版本行（下方 `Border.tree-version`）在滚动区**外面**、没有滚动条 ⇒ 它自己另设 `Padding="4,0"`
                       （`App.axaml` 里的 `Border.tree-version` 样式），⛔ 两者不要互相继承 / 不要共用一个 padding。  -->
-                <Border Grid.Row="0" Padding="8,8">
+                <Border Grid.Row="0" Classes="tree-scroll-host">
                   <!--  🔴 右侧 8px 内边距 = 滚动条**专用走廊**（Fluent 的滚动条是自动隐藏的浮层，
                         不占布局列 ⇒ 不给走廊就会压在树行按钮上：激活色药丸被竖线穿过）。
                         ⛔ 别再改回 0：走廊一没，重合立刻回来。  -->
                   <ScrollViewer
-                      Padding="0,0,8,0"
-                      HorizontalScrollBarVisibility="Disabled"
-                      VerticalScrollBarVisibility="Auto">
+                      Classes="tree-scroll"
+                      HorizontalScrollBarVisibility="Disabled">
                       <ItemsControl x:Name="TreeControl" ItemsSource="{Binding TreeNodes}">
                           <ItemsControl.ItemTemplate>
                               <DataTemplate>

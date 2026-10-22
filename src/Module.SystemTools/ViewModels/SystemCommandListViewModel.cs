@@ -101,7 +101,7 @@ public partial class SystemCommandListViewModel : ListPageViewModelBase, IDetail
     };
 
     /// <summary>排序列 / 筛选条件 / 关键字变化后重算列表（基类 SortCommand 与筛选都走这里）。</summary>
-    protected override void RefreshView() => ApplyView();
+    protected override void RefreshView() => ApplyFilter();
 
     protected override void EnsureDetailSelection()
     {
@@ -110,7 +110,7 @@ public partial class SystemCommandListViewModel : ListPageViewModelBase, IDetail
 
     // ==================== 状态变化通知 ====================
 
-    partial void OnSearchTextChanged(string value) => ApplyView();
+    partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
 

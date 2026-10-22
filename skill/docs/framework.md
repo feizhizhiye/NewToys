@@ -1,11 +1,9 @@
 # NewToys 框架层（Framework）
 
-> v4.4 · 2026-10-19 · **标准角色：工程规范（框架层部分）**
-> v4.4：新增 **§2.1 跨平台中立约束**（长期架构约束，本期不实施）—— 三层分工 / 包管理器取数分级（只有 winget 需要复杂解析） / 写操作 ⛔ 不脚本化 / 六条新增代码硬约束；同步更新 §10 B5、§11 登记 NT-081。
-> v4.3：NT-070 卡淘汰，蒸馏进 §3.3 —— 补「模块扫描必须按 `Module.*.dll` 过滤」「单次启动日志不可作结论 + 787~826ms 基线」。
-> v4.2 · 2026-10-18 · 新增 **§6.6 `IFileOperationService`** —— 跨模块磁盘动作（改名/移动/复制/回收站删除）下沉 `Core`，两处 `SHFileOperationW` 合一（v3.66 / NT-069）。
-> v4.1：新增 **§4.6 应用级设置 / 首页 / 功能清单** —— 三者属 `src/Shell`（`Module.Settings` 已于 NT-062 撤销），原 `modules/settings-app.md` 内容并入本节并删除该文件；`modules/` 只剩 4 个真模块。
-> 本文件 = **框架层（Shared / Core / Shell / NewToys.UI）的实现约定**，外加**跨模块待办**的唯一收口处。
+> v4.5 · 2026-10-21 · **过时内容清理** —— §11 已完成项（NT-064/065/066/067/068/075/076/077/078/085）收拢为「已结清」一行，NT-085 状态按台账订正为已完成；版本记录按「只保留最近三次」压缩。
+> v4.4 · 2026-10-19 · 新增 **§2.1 跨平台中立约束**（长期架构约束，本期不实施）—— 三层分工 / 包管理器取数分级（只有 winget 需要复杂解析） / 写操作 ⛔ 不脚本化 / 六条新增代码硬约束；同步更新 §10 B5、§11 登记 NT-081。
+> v4.3 · 2026-10-18 · NT-070 卡淘汰并蒸馏进 §3.3 —— 补「模块扫描必须按 `Module.*.dll` 过滤」「单次启动日志不可作结论 + 787~826ms 基线」；§6.6 新增 `IFileOperationService`（跨模块磁盘动作下沉 `Core`，两处 `SHFileOperationW` 合一）。
+> **标准角色：工程规范（框架层部分）**。本文件 = **框架层（Shared / Core / Shell / NewToys.UI）的实现约定**，外加**跨模块待办**的唯一收口处。
 > 原 `NewToys-工程规范.md` 已于 2026-10-18 拆分：**框架层 → 本文件**｜**UI 规范 → `ui.md`**｜**各模块 → `modules/<模块>.md`**。
 > 权威源 = `src/` 源码；代码与文档冲突以源码为准并回写本文。
 > 流程与术语唯一定义处 = `NewToys-AI协作手册.md`【研发流程】【术语对照】；本文件只写「怎么实现」。
@@ -24,6 +22,7 @@
 - §9 构建与版本
 - §10 技术债台账
 - §11 跨模块待办
+- §12 窗口外壳（Windows Win32 补丁层 · **§12.2 贴靠几何** · §12.1 补丁清单）
 - 附录 A 高频编译错误速查
 
 ---
@@ -97,7 +96,7 @@
 
 - 单向依赖：`Shared ← Core ← Shell ← Module.*`；`Shared ← UI`。
 - **接口一律放 `Shared/Services/`**；POCO 放 `Shared/Models/`。
-- 🔴 **`NewToys.UI` 纪律**：被所有模块引用 ⇒ 与 Shared/Core 同级 ⇒ **改一次 = 全模块重编**。只放**写完即冻结的稳定控件**；`App.axaml` 的 31 个 `*Brush` 主题刷子 ⛔ 不搬，UI 内 XAML 一律 `DynamicResource` 引用主题键。
+- 🔴 **`NewToys.UI` 纪律**：被所有模块引用 ⇒ 与 Shared/Core 同级 ⇒ **改一次 = 全模块重编**。只放**写完即冻结的稳定控件**；`App.axaml` 的 `*Brush` 主题刷子 ⛔ 不搬（条数以 `check.ps1` 白名单为准），UI 内 XAML 一律 `DynamicResource` 引用主题键。
 - ⛔ 禁第三方 UI 库 / 图标字体。包版本只在 `src/Directory.Packages.props`。
 
 ### 2.1 跨平台中立约束（2026-10-19 · 长期约束；NT-081 步骤 1-2 已实施）
@@ -618,6 +617,12 @@ public interface IDetailCardSource
 - ⛔ 禁止声称「已编译通过」；没跑过写「未编译，请用户本地执行 `build.ps1` 验证」。纯文档变更注明「不涉及编译」。
 - ⛔ **脚本只用 PowerShell 7（`.ps1`），禁止 `.cmd` / `.bat`**；fail-loud（成功 `exit 0` 自关窗口、失败 `trap` 暂停）。
 
+**单元测试**（`src/NewToys.Tests`，2026-10-21 新增）：
+- 只测**纯函数**（`FixedWidthTable` / `TsvRows` / `PackageOutputParser` 这类「外部输出 → 行模型」的解析器）——⛔ 不 new VM、⛔ 不碰 Avalonia / 文件系统 / 进程。
+- 跑法：`pwsh skill/scripts/accept.ps1 -Test`（构建后追加，秒级）或直接 `dotnet test src\NewToys.Tests`。
+- `internal` 的解析类**不为测试改 public**，用 `Module.ScriptManager.csproj` 里的 `<InternalsVisibleTo Include="NewToys.Tests" />` 打开。
+- 产物落 `artifacts\tests\`（Release 的 `OutDir` 被项目级覆盖）——⛔ 不许进 `artifacts\release\`，那里是交付产物区，多出 TestHost 会污染产物核对。
+
 **版本号**（`src/Directory.Build.props` 编译时自动生成，⛔ 禁止手写）：
 - `InformationalVersion` = `1.<yyyyMMdd>.<HH>.<mm取整到十位>`（显示用）
 - `FileVersion` = `1.<yyyy>.<MMdd>.<HHmm>`；`AssemblyVersion` 固定 `1.0.0.0`
@@ -633,6 +638,7 @@ public interface IDetailCardSource
 | Release 模块 DLL | `artifacts/release/Modules/Module.*.dll`（直出，零拷贝） |
 | 发布产物 | `production/NewToys_<运行时>/` |
 | 测试环境根 | `artifacts/env/test/` |
+| **单元测试产物** | `artifacts/tests/`（`NewToys.Tests`，⛔ 不进 release） |
 | 用户数据 | ⚠️ 不在仓库内：`%LocalAppData%\NewToys\{config,data,logs}` |
 
 AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
@@ -672,19 +678,82 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT | 内容 | 状态 |
 |---|---|---|
 | NT-047 | **数据驱动图标矢量化**：二级功能菜单 34 项 `icon` / 首页一键按钮 / 模块页内数据行（⛔ 静态装饰 emoji 不动） | 📝 草稿（**用户 2026-10-19：暂时不做**） |
-| NT-064 | **列表分页数据层**：SQL `LIMIT/OFFSET` + 排序下推 + 独立 `COUNT(*)`；批量操作只作用当前页选中项。样板 = 全部资产，其余页待迁 | ✔ 已完成（已验收 2026-10-19 · 样板页） |
-| NT-065 | **分页推广到脚本库 / 命令库** | 🗑 已作废（2026-10-19 删卡：改名目标被 NT-068 取代；分页不再需要） |
-| NT-066 | **标题栏搜索扩范围**：可搜全部二级菜单项 + 应用级设置页的节（索引 = `IMenuService.Groups` + `SettingsViewModel.Catalog`）；Shell 改动经用户 2026-10-19 授权 | ✔ 已完成（已验收 2026-10-19） |
-| NT-067 | **信息展示脚本化底座**（原 `pc-info`）：`ScriptRunner` / `InterpreterResolver` / `SysInfoGrid` 已落地并被 NT-068 继承 | ✔ 已完成（已验收 2026-10-19） |
-| NT-068 | **脚本管理器重构**：改名 + 数据库化 + 集合 + 信息面板分节（S1~S8 全部分步完成） | ✔ 已完成（已验收 2026-10-19） |
-| NT-075 | **配置写入基建**：原子写 + 默认值不落盘 + 空文件清理（15 → ≤12） | ✔ 已完成（已验收 2026-10-19 · 卡已删，约定全在 §7） |
-| NT-076 | **单库收编**：`script.db` 并库 + 内容 JSON 入表 + `ILibrarySchemaContributor` / `user_version` + WAL + 表名前缀纪律 | ✔ 两批已完成（已验收 2026-10-19） |
-| NT-077 | **配置分层**：`env.json`（机器级）/ `shell.json`（框架级）/ `modules\`（模块级）；删 `VideoDbFolder` | ✔ 两批已完成（已验收 2026-10-19） |
-| NT-078 | **备份路由**：`IBackupSection` + zip 分节 + 设置/数据两入口（`VACUUM INTO`） | ✔ A/B/C 三批已完成（已验收 2026-10-19） |
 | NT-079 | **可成长性**：模块开关 / 命令面板 / 采集器骨架生成 | 📝 草稿 |
 | NT-081 | **跨平台中立化（远期）**：RID 条件化 ✔ + Windows-only P/Invoke 守卫收口 ✔（守卫层）+ 进程底座 `IProcessRunner`（Shared 契约 / Core 实现 / Shell 单例；三类进程用法分立见 §6.7）✔ + 解析分层（`FixedWidthTable` 通用机械 / `TsvRows` 机读 / winget 启发式留模块）✔ + apt 只读适配器 `AptPackageService`（按平台二选一注册，页面零改动）✔；⛳ 未做：Linux 实机验证（无环境）/ P/Invoke 物理集中 / apt 写操作（需 sudo）。约束见 **§2.1** | 🔄 执行中（步骤 1~5 已实施 2026-10-19，待本地 build；卡：`backlog/framework/NT-081.md`） |
-| NT-085 | **`SysInfoGrid` 上提 UI 库**（改名 `DynamicColumnGrid`，单元格模型随迁）：模块间禁引用 ⇒ WebTools 用不了，上提后爬虫面板（NT-086）与信息面板共用一套动态列渲染；`InfoRowFactory.Specs()` 列宽算法留在 ScriptManager（本期接受两份分叉）；⛔ 只搬现状不加参数；改动落 `src/UI` ⇒ **全模块重编**，须与 NT-086 攒一批 | 📝 草稿（2026-10-20 建卡，被 NT-086 依赖） |
 | NT-083 | **Python 运行时底座**（跨模块共用 ⇒ **落 Core**，已批准）：`IPythonRuntime`（`ToolsRoot` / `Probe` / `RunAsync` / `Shutdown`）+ `Core/Services/PythonRuntime`（长驻 worker，行分隔 JSON / `-u -X utf8` / 超时杀进程树 / traceback 回传 / 串行 `SemaphoreSlim` / 空闲 10 分钟自动退出）+ 共享环境 **`%LOCALAPPDATA%\NewToys\tools\py`**（与 `env.json` 同级）⇒ 依赖安装交给随包脚本，**C# ⛔ 不写 pip 逻辑**（播种成集合「环境维护」，见 `modules/script-manager.md` §2.5）；状态在「设置 → 运行环境 → Python 共享环境（venv）」 | ✔ 已完成（批 1~4，2026-10-19；⏳ 待用户 build + 实机功能验收） |
+
+| NT-088 | **执行器上提 Core**（`ScriptRunner` + `InterpreterResolver`：`Module.ScriptManager` → `NewToys.Core`）：为新增的 `system` 系统工具模块提供跨模块执行契约（模块禁互引），并为命令链（NT-092）铺路；行为零变化，纯重构 | 📝 草稿（⏸ **待用户批准框架层改动**，§3.3；卡：`backlog/framework/NT-088.md`） |
+| NT-094 | **重划分收尾**：设置拆分（`config\web\*` 瘦身：超时 / 并发 / 解析器 → script）+ 一级菜单显示名「脚本中心」+ `system` 组一级图标落地 + 备份段重复显示检查 | 📝 草稿（待细化；依赖 NT-088 ~ NT-093；卡：`backlog/framework/NT-094.md`） |
+
+**已结清并移出本表**（结论已蒸馏进正文，状态与日期以台账为准）：NT-064 分页数据层 / NT-066 标题栏搜索扩范围 / NT-067 信息展示脚本化底座 / NT-068 脚本管理器重构 / NT-075 配置写入基建 / NT-076 单库收编 / NT-077 配置分层 / NT-078 备份路由 / NT-085 `DynamicColumnGrid` 上提 UI 库。
+
+---
+
+## §12 窗口外壳（Windows Win32 补丁层）
+
+> 唯一实现处：**`src/Shell/Views/ShellView.Win32.cs`**（`partial class ShellView`，644 行；业务逻辑仍在 `ShellView.axaml.cs`）。平台门控：钩子只在 `Win32Properties` 可用（= Windows）时装，P/Invoke 全部走 `OperatingSystem.IsWindows()` 内联守卫（见 §2.1）。
+> 关联：需求 §四（窗口 CSD）、`ui.md` §4（CSD 现役配置）、`NewToys-软件说明书.md` §四（贴靠分屏的用户语言）。
+
+### 12.1 补丁清单（2026-10-21 现状）
+
+| # | 补丁 | 干什么 | 开关 / 门控 | 什么时候可以删 |
+|---|---|---|---|---|
+| 1 | `WM_NCCALCSIZE` 零内缩（吞 `wParam==1`） | 客户区 = 外框，消掉 ≈8px 非客户区边框（贴靠态系统不画那圈 → 露缝） | 无开关，无条件（最大化时放行） | 不再自绘标题栏 / 换官方完整装饰 |
+| 2 | `FixTiledGeometry` 贴靠几何纠偏 | 把系统给的 tile 矩形纠回精确半屏 / 四分屏（#1 的必然副作用），并**记账贴靠前的自由外框**供取消贴靠还原（见 §12.2 第 5、6 条） | 只认 tile（容差按 DPI 缩放，见下条），其余不动 | 不再零内缩（即 #1 删掉） |
+| 2b | 贴靠容差按 DPI 缩放（`SnapToleranceFor`） | 8px/边 是 96 DPI 的量；固定 32px 在 200% 屏失效 ⇒ 按 `GetDpiForWindow()`/96 放大，`Clamp(32, 128)` | 缺 `GetDpiForWindow` 导出 → 退回 96 DPI 基准 | 始终保留 |
+| 3 | DWM 圆角 `DWMWCP_DONOTROUND` + `PostChromeReassert` 保序重压 | Win11 顶部圆角压制；框架 `ShowWindow/ExtendClientArea` 会回写 → 必须在其**之后**再压一次 | `Dispatcher.Post(Send)` 保序，重入闸门 `_inChromeSync` | 只在 Win11 有意义；Win10 无效果无害 |
+| 4 | `SetWindowRgn` 矩形窗口区域（方角硬手段） | 圆角偏好"不听话"时的兜底（MS 文档：用了窗口区域系统不再套圆角） | `UseSquareRegionHack` 开关（NT-042 复核用） | **与 #3 语义重复**，确认 #3 稳定后可整段删除（−60 行 + 一个开关） |
+| 5 | 最大化 / 全屏时清 region | #4 的配套（否则区域与最大化几何打架 → 露边 / 裁内容） | 跟着 #4 | 跟着 #4 |
+| 6 | 窗口尺寸 / 位置记忆走**外框物理像素** | 客户区口径进出会被每轮再加一圈边框（实测每次变大 16px） | `WindowBoundsService` | 不再零内缩后，改用客户区口径 |
+
+⛔ **历史死路（已删，别再抄回来）**：NT-048「按屏幕自检强行 SetWindowPos」、手搓 `SetWindowLongPtr(GWLP_WNDPROC)` 子类化（已由官方钩子取代）、手工补 `WS_CAPTION/WS_THICKFRAME` 样式位、`DwmExtendFrameIntoClientArea(0)` 清零扩展帧（见 §12.2）。
+
+### 12.2 贴靠几何：根因与修法（2026-10-21 定案）
+
+**现象**：贴靠半屏后可见区比半屏宽 16px（左贴靠向右溢出、右贴靠向左溢出）。用户感知的"第一次宽、第二次正常"是错觉 —— 右贴靠的溢出被左侧窗口盖住，看着像齐平。
+
+**根因**：系统算 tile 矩形时按「外框 = 客户区 + 边框（本机 8px/边）」换算。普通窗口那圈 NC 边框正好把这笔换算吃掉，本窗口零内缩（#1）没有边框 ⇒ 多算的 16px 全变成可见内容。
+
+**实测对照**（1920×1080 / 96 DPI / rcWork = 1920×1040，半屏 = 960）：
+
+| 窗口 | 贴靠后 window rect | 可见区（DWM `EXTENDED_FRAME_BOUNDS`） | 判定 |
+|---|---|---|---|
+| 记事本（标准边框 7px） | (−7,0)–(967,1047) 974×1047 | 960×1040 | ✅ 系统算对 |
+| Edge（标准边框 8px） | (−7,0)–(967,1047) 974×1047 | 960×1040 | ✅ 系统算对 |
+| 本窗口（零内缩）修前 | (0,0)–(976,1040) 976×1040 | 976×1040 | ❌ 宽 16 |
+| 本窗口 · `SetWindowRgn` 生效时 | (−7,0)–(983,1047) 990×1047 | 990×1047 | ❌ 宽 30 / 高 7（多叠一层边框） |
+
+**修法**（`FixTiledGeometry`）：
+
+1. **两个时机各打一次**：`WM_WINDOWPOSCHANGING` 改写 `lParam` 指向的 `WINDOWPOS`（无闪烁、多数情况一次到位）；`WM_WINDOWPOSCHANGED` 兜住"改写后又被补一层边框"的路径（实测开着窗口区域时必现）。
+2. **`SWP_NOSENDCHANGING` 是必需品**：不带的 `SetWindowPos` 会被框架按「客户区 + 边框」重算回来（960 → 976），改不动。
+3. **判据 = 几何指纹，不依赖 flags**：系统贴靠的 `flags=0x300204` 未文档化 ⇒ 改认「尺寸 ≈ 半屏 / 四分屏 ±32px 且贴工作区边缘」。
+4. **`MonitorFromRect` 而非 `MonitorFromWindow`**：跨屏贴靠那一刻窗口还在旧屏上。
+5. **幂等闸门 + 最大化排除 + 全包 `try/catch`**：已精确则不动（防 `POSCHANGED` 内 `SetWindowPos` 自激）；最大化外框 `(−8,−8,1936,1056)` 离 tile 只有 16px，必须排除；纠不了就维持原样。
+6. **同一笔换算会反向生效**：取消贴靠（`Win+↓` / 拖离边缘）时系统会把窗口还原成"大一圈"的外框 ⇒ `FixTiledGeometry` 自己记账 `_freeFrame`（自由态持续更新），首次进入 tile 时冻结成 `_preTileFrame`，退出贴靠的第一个非 tile 请求改写回该外框。⚠️ 必须排除「铺满显示器」的请求 —— 最大化与取消贴靠是同一条路径，误判会让最大化再也进不去。
+7. **容差按 DPI 缩放**：`SnapToleranceAt96Dpi = 32` × `GetDpiForWindow()/96`，`Clamp(32,128)`。固定 32 在 200% 屏进入临界区。
+
+**修后实测**（Release 产物）：左贴靠 `(0,0)-(960,1040)`、右贴靠 `(960,0)-(1920,1040)`、最大化 `(-8,-8)-(1928,1048)` 且可见区 = 工作区（未受影响）。
+
+**⛔ 三条死路（都实测过，⛔ 别再走）**：
+1. 吞消息前 `DwmExtendFrameIntoClientArea(0)` 清零扩展帧 → 无效：tile 矩形在 `SetWindowPos` 之前就算完了，与 DWM 何时记账无关。
+2. 删掉零内缩、交回官方零内缩 → 首次分屏仍偏宽（同因），且露缝复发。
+3. 只吞 `WM_NCCALCSIZE` 的 `wParam==0`（想让系统"学到"无边框）→ 系统在贴靠路径上根本不发这条消息（实测日志里一条没有）。
+
+### 12.3 排查方法论（换项目也能用）
+
+- **能量矩形的就别看截图**：`GetWindowRect` / `GetClientRect` / `DwmGetWindowAttribute(DWMWA_EXTENDED_FRAME_BOUNDS)` / `GetMonitorInfoW(rcWork)` 四个数一比，误差到底是 7、8 还是 16 一目了然。
+- **对照实验**：先量一个标准窗口（记事本）和一个自绘外壳窗口（Edge），确定"系统本来怎么做"，再判断是本项目算错还是系统算错。
+- **临时诊断开关**：环境变量开一档，只往 `%TEMP%` 追加 `WM_WINDOWPOSCHANGING / POSCHANGED / NCCALCSIZE` 序列（含 `WINDOWPOS` 的 x/y/cx/cy/flags 与当时矩形）；**交付前删干净**。
+- **合成按键要解前台限制**：`keybd_event` 发 `Win+方向` 前先按一下 `ALT` + `SetForegroundWindow` + `BringWindowToTop`，否则按键根本不到目标窗口（会被误判成"贴靠不可复现"）。
+
+### 12.4 已知风险 / 待办
+
+| 项 | 说明 | 处理方向 |
+|---|---|---|
+| 四分屏未实机回归 | Win10 LTSC 无"同向贴靠两次变四分之一"，代码已覆盖但无实测证据 | 有 Win11 环境时补一次 |
+| 跨屏贴靠未实机验证 | 已改用 `MonitorFromRect`，开发机只有单屏 | 双屏环境回归一次 |
+| 取消贴靠还原只按「上一帧自由外框」记账 | 显示器拔插 / 分辨率切换后 `_freeFrame` 会滞后一帧 | 观察是否复现；必要时在 `WM_DISPLAYCHANGE` 时清空记账 |
 
 ---
 

@@ -1,14 +1,12 @@
 # NewToys 需求规格（宪法 + 框架规格）
 
-> v3.84 · 2026-10-19 · 项目唯一权威规格
+> v3.86 · 2026-10-22 · 项目唯一权威规格
 > ⛔ **只保留最近三次变更**；更早的逐次记录看 `git log`（本文自带版本号仅作需求演进索引）。
+> **v3.86**：**模块重划分 v1.1**（2026-10-22 用户定案）—— 新增 **§2.3**：① 脚本管理器升级为「**脚本中心**」= 可执行单元 + 集合容器 + **命令链**编排运行（显示名改，`script` 键不变）；② 新建 **`system` 系统工具**模块（`Module.SystemTools`，Order 25）承接本机快捷设置，迁入 `script-commands` 命令库 + `script-favorites` 收藏夹 + 快捷命令；③ WebTools 裁为「**网络配置与诊断**」= Ping / Hosts / 书签 / HTTP 测试 + **新增出口代理与防反爬**；④ web 侧 `web-scrape` / `web-rule-editor` / `web-crawl` 迁入 script。⛔ **菜单 Key 一律不改**。🔴 用户口头的"流水线"= **§2.2 的 L3 命令链**（复用集合 + `▶ 依次运行`），⛔ 不新造 Step 模型、⛔ 不做可视化连线、**线性 only**。配套工作项 **NT-088 ~ NT-094**。
+> **v3.85**：**过时内容清理**（2026-10-21，⛔ 未改任何需求结论）—— ① §3 系统级配置二次确认的举例由已删除的「软件源增删」换成「Hosts 写入」；② §6.6.2 媒体资产设置去掉已删除字段 `VideoDbFolder`；③ §6.6.2 类型切换去掉「5 个类型页」旧表述（类型页已于 v3.69 撤销）；④ 版本记录按「最近三次」压缩。
 > **v3.84**：**编排能力上限 · L3/L4 封顶**（2026-10-19 用户定调）—— §2.2 新增能力分级（L1 命令 → L2 集合 → **L3 命令链** → L4 条件 → ⛔ L5 图编排 / L6 调度）、命名口径（叫「命令链 / 抓取管道」，⛔ 不叫「工作流」）、**L3 唯一落点 = 复用集合加 `▶ 依次运行`（⛔ 不新造模型）**、三条可观测触发门槛（未满足前不设计、不预留）、唯一必守伏笔（命令须有 `capture` + 输出格式）；§6.3.1 补「实现路线最终定调 = **Python 优先（P2）**，数据型规则引擎 C→B→A 押后」，并登记工作项 **NT-083**（Python 运行时底座，落 Core 需批准）/ **NT-084**（爬虫规则页）。
 > **v3.81**：**软件包集合 = 跨后端包清单预设**（2026-10-19 用户定调，NT-082）—— ① 集合类别加回 `package`（信息面板 / 脚本库 / 命令库 / 软件包四档），成员 = `role=package` 条目（`Target` = 包 Id），只在「软件包」类集合的候选池出现；② 集合工具条 / 左栏右键的「📤 发送到信息面板」改为「**📤 发送到对应页面**」：按 kind 跳 `script-info` / `script-library` / `script-commands` / `script-packages` 并写 `lastCollectionIdByKind.<kind>` 让目标页自动选中；③ 软件包页新增工具条 `集合 ▾`（第一项「（不按集合）」，其余 = 未归档的软件包集合）⇒ 列表变成该集合的**包清单**，状态按一次 `winget list` 缓存比对；行右键新增 `📥 加入集合`（写 `role=package` 条目，按 Id 幂等）。定位 = 将来 apt / flatpak / snap 各成后端时按集合归类、成员命令可绑成按钮。
-> **v3.80**：**源 = 系统配置 ⇒ 源 UI 全部删除**（2026-10-19 用户定调，NT-080 返工）—— ① 软件包页**删除工具条源选择框**，搜索固定不传 `--source` + 自动补查系统里的显式源；② **源开关 / 分类 / 互斥 / 定义快照 / 添加源全套删除**（`PackageSourceView` / `PackageSourceViewModel` / `PackageSourceRow`、`package.json` 的 `defaultSource|sourceCategories|sourceDefinitions`、`PackageManagerService.RunElevatedAsync` 一并删）；③ 源操作改由「命令库 → `winget 源`」集合的命令执行（`NeedAdmin` ⇒ UAC + 可见控制台）；④ 设置页「软件源」节 = 只读 6 条命令 + 「＋ 加入命令库」（幂等）。
-> 理由：源与系统共用一套数据、本质就是终端里一条命令；App 内包一层 UI 反而要自己维护分类 / 互斥 / 定义快照三套状态。
-> **v3.79**：**软件包定位收敛 + 源模型重写**（2026-10-19）—— ① 集合页**删掉「软件包」类别**（用户定调：用脚本集合冒充软件包分类不现实——软件包是 winget 的实时查询结果，不是可手工归档的条目）；② 软件包页**后端只支持 winget**：跨平台（apt 等）**另开独立软件包页** + 新菜单 Key，⛔ 不在本页切后端；③ 🔴 修真 bug「工具条源多选框勾 store 源不生效」—— 源多选**只写本地偏好**（`package.json → defaultSource`），⛔ 不再勾一下就 `source enable` + 重读列表（那会冲掉刚勾的状态）；全勾 / 全不勾 = 全部源 ⇒ 搜索**不传 `--source`**；④ 🔴 修源设置页分类：`winget`→**社区源**、`winget-font`→**字体源**、`msstore`→**商店源**、其它→**自定义源**；**互斥只在社区源内部、字体源内部**（`/fonts` 必须优先于 `winget` 判定，否则字体镜像被误判成社区源）；⑤ **商店源不可切换**（开关置灰，由 winget 统一管理）；⑥ 实测 winget 1.29 **没有 `source enable/disable`** ⇒ 切源 = `source remove`（关）/ 按 `winget source export` 记下的定义 `source add`（开，回放 `--type` / `--explicit`），两个方向都**要管理员权限**（弹 UAC）。（🔭 2026-10-19 架构备注：§6.2.3「后端范围」补 `framework.md` §2.1 约束与两处待评估点，**本条需求结论未变**）
-> **v3.78**：**winget 商店源（msstore）补全 + 源设置页重排**（2026-10-19）—— ① 🔴 修真 bug：`winget show` / `install` **必须带 `--source`**（商店包在社区源里查不到 ⇒ 详情空白 / 装不上）；**商店源 ⛔ 不吃 `--silent`**（自动跳过，改走 Store 自己的通道）；搜索结果补 `Source` 标记（老 winget 的 search 没有 Source 列 ⇒ 装的时候拼不出 `--source`）；② 服务新增 `SetSourceEnabledAsync`（`winget source enable|disable`，winget 1.9+；老版本回退 `add` / `remove`，删除带二次确认）；③ **源设置页重排**：源列表加「种类」列（社区源 / 商店源 / 镜像源 / 自定义源），**内置源走 disable ⛔ 不删定义**、自定义源才 remove；新增**商店源一键开关卡片 + 能力边界说明**（能搜能装、⛔ 不进「已安装 / 可升级」、详情必带源、⛔ 商店源没有镜像）；「默认查询源」由单值下拉改**多选**（与软件包页工具条的源多选框共用 `package.json → defaultSource`）；④ winget 内置源地址常量集中到 `Shared/Models/PackageSources`（Core 拼命令与模块文案共用一份，⛔ 不各写一遍）。
-> **v3.76 及更早（归档）**：NT-073 多库索引 / NT-068 任务卡校订、文档搬家 + 归档策略修订、模块改名 + 数据库化 / 集合 / 信息面板分节、媒体资产类型页合并、控件库与分页、设置归位、干净启动、工具条 / 详情卡统一等 —— 明细与拍板理由见 `git log`；**仍然有效的口径已回写进正文**（§3.4 / §3.5 / §4.x / §6.2）。
+> **v3.80 及更早（归档）**：源 UI 全部删除（源 = 系统 winget 配置，操作走「命令库 → `winget 源`」）/ 软件包只支持 winget 后端 / 商店源补全 / NT-073 多库索引 / NT-068 模块改名 + 数据库化 / 媒体资产类型页合并 / 控件库与分页 / 设置归位 / 干净启动 / 工具条 · 详情卡统一等 —— 明细与拍板理由见 `git log`；**仍然有效的口径已回写进正文**（§3.4 / §3.5 / §4.x / §6.2）。
 
 ## 一、定位
 
@@ -49,6 +47,82 @@
 - **触发门槛**（未满足前 ⛔ 不设计、⛔ 不预留架构）：① 同样几条命令第 3 次手动挨个点；② 某条命令的输出开始被手工复制给另一条；③ 集合里出现 `01_` `02_` 这类顺序命名。
 - 🔴 **现在唯一要守住的伏笔**：命令必须有 `capture` + 明确输出格式（`line / csv / regex / json`）—— 这是将来串联的技术前提，已有机制不要破坏。
 - **两条正交轴别混**：Python 扩「**单节点能力上限**」，规则流水线扩「**节点之间的连接**」；⛔ 不要因为加了 Python 就认为该上工作流引擎（脚本本身就是万能节点，会抑制节点间编排的需求）。
+
+---
+
+### 2.3 模块重划分 v1.1（2026-10-22 用户定案）
+
+> 缘起：脚本管理器同时承载「复杂脚本资产」「本机快捷设置」「网络抓取」三类性质不同的能力，职责混杂。本次按**产出的性质**重划分。🔴 本节是本次改造的唯一权威口径。
+
+#### 2.3.1 三模块终态
+
+| 模块 | 键 / Order / 程序集 | 职责 | 归属判据 |
+|---|---|---|---|
+| **脚本中心** | `script` / 20 / `Module.ScriptManager` | 可执行单元（脚本 / 规则）+ 集合容器 + 命令链编排与运行 | 产出**可解析数据**（能进集合 / 信息面板 / 命令链） |
+| **系统工具**（新） | `system` / **25** / `Module.SystemTools` | 本机快捷设置入口 + 快捷命令 + 收藏聚合 | 执行完**只产生副作用**，不产出数据 |
+| **网络工具** | `web` / 30 / `Module.WebTools` | 网络配置与诊断 + 出口代理 | — |
+
+- **显示名**：脚本管理器 → 「**脚本中心**」（仅显示名，模块 Key `script` 与页 Key 全部不变）。
+- 系统工具 Order 25（紧邻 script），需**新增一个一级菜单 StreamGeometry 图标**（框架层 `App.axaml`，见 NT-091）。
+
+#### 2.3.2 页归属变更（⛔ Key 一律不改）
+
+| Key | 现 | 新 | 说明 |
+|---|---|---|---|
+| `script-commands` | script | **system** | 命令库平移，Key 保留 |
+| `script-favorites` | script | **system** | 收藏聚合页，按 `source` 分组显示全部来源收藏 |
+| `web-scrape` | web | **script** | 退化为脚本库的 `category=rule` 筛选态（规则 = 带参数的 Python 脚本） |
+| `web-rule-editor` | web | **script** | 五段槽位 → 命令链编辑器（§2.3.4） |
+| `web-crawl` | web | **script** | 泛化为**运行结果查看台**（脚本 / 命令链的执行结果与日志） |
+| `script-library` / `script-collections` / `script-info` / `script-packages` | script | script | 保留；集合新增类别 `crawl` |
+| `web-http` / `web-ping` / `web-hosts` / `web-bookmark` | web | web | 保留；新增 `web-egress` 出口管理 |
+
+- 收藏数据本体在 Core `FavoritesService`（⛔ 不搬数据）；各页右键「收藏」仍是唯一写入点，仅聚合页改挂 `system`。
+
+#### 2.3.3 迁移判据（可机械执行）
+
+| 条件 | 去向 |
+|---|---|
+| `role=command` 且 `QuickActionPage=quick` | `system` |
+| `role=command` 但脚本有可解析输出 | `script` |
+| `role=script` / `role=collector` / examples / sysinfo / env-scripts | `script` |
+
+- **迁移原则**：一次性 + **可逆**——旧条目标 `migrated=true` 保留（⛔ 不删），新模块导入副本。
+
+#### 2.3.4 命令链（用户口头「流水线」的本体）
+
+🔴 **= §2.2 的 L3 命令链**，不另立模型：
+
+- 实现 = 现有**集合**加执行语义（集合已有 `order` 字段）：工具条 `▶ 依次运行` + 每条约定 `capture` 输出 + **变量占位符传参**。
+- ⛔ **不新增 Step 类型**（`HttpFetch` / `Parse` / `Download` / `Emit` 一律不做）；命令链节点 = **一条已有条目**（脚本 / 命令）。
+- ⛔ 不做可视化连线；🔴 **线性 only**（2026-10-22 用户明确定：无并行、无分支、无子流程）。
+- 失败策略（L3 定义）：遇错停止 / 跳过继续；全部步骤带 `CancellationToken`，长任务必须可取消（§6.3 通则）。
+- 命名口径按 §2.2：叫「**命令链 / 依次运行 / 抓取管道**」，⛔ 不引入「工作流 / 执行实例 / 节点编排」。
+- `flows\*.json` 顺势升级为命令链定义（不再新造格式）。
+- 🔖 **触发门槛视为已满足**：用户已出现「同一批脚本反复手动挨个点」+ 现有 flows 已是硬编码五段 ⇒ 本次启动 L3（§2.2 门槛①③）。
+- 🆕 命令链需支持 **node（`.js`）解释器**：现有 `Auto` 只覆盖 `.py` / `.ps1` / `.bat` / `.cmd`，须在设置「路径配置」加 `node` 路径项。
+
+#### 2.3.5 数据与文件归属
+
+| 项 | 归属 |
+|---|---|
+| SQLite `pc_observations` / `pc_runs` | script（表名保留 `pc_` 前缀，🔴 不改名，免迁移器） |
+| `<DataDir>\web-tools\rules\*.py` | → `<DataDir>\script\rules\` |
+| `<DataDir>\web-tools\flows\*.json` | → `<DataDir>\script\flows\`（命令链定义） |
+| `config\script\*` | script 唯一写入点 |
+| `config\system\*`（新） | system 唯一写入点，⛔ 不共用 script |
+| `config\web\*` | 瘦身：超时 / 并发 / 默认解析器 → script |
+| `RulesBackupSection` | → script（检查与 `ScriptsBackupSection` 在备份 UI 的重复显示） |
+
+#### 2.3.6 分期工作项
+
+NT-088（执行器上提 Core，**待批准**）→ NT-089 规则侧搬家 → NT-090 运行台搬家 → NT-091 系统工具模块 → NT-092 命令链 L3 → NT-093 出口代理与防反爬 → NT-094 设置拆分与文案收尾。依赖：092/093 依赖 089+090；091 依赖 088；094 最后。
+
+#### 2.3.7 🔴 待批准 / 已知成本
+
+1. **NT-088 = 改框架层（§3.3）**：把 `ScriptRunner` + `InterpreterResolver` 从 `Module.ScriptManager` 上提 `NewToys.Core`。**必须由用户明确同意后才可执行。** 原因：system 的收藏夹与快捷命令要执行条目，而模块 **禁互引**（§3.1）；二者不引 Avalonia，搬家安全。
+2. **`QuickActionListViewModel` 双写**：脚本库与命令库分家后各持一份（VM 不能跨模块共享，也放不进 `NewToys.UI` —— 它依赖 Core 服务）。用户已知并接受，后续变更须同步两处。
+3. 应用**无提权机制**（HostsService 只提示「请以管理员身份运行」）⇒ `netsh` / 网卡启禁 / `rasdial` 类操作一律降级为「生成命令供用户自跑」。
 
 ## 三、技术框架（硬约束）
 
@@ -153,7 +227,7 @@ Module.*（功能模块，只引 Shared + Core）
 - 🧩 **每模块一个设置页（v3.60，工作项 NT-061；🔴 v3.66 菜单归属改）**：配置写入点**下沉到模块** —— View/VM 归模块，菜单项**注册进本模块的一级菜单**（NT-021 先例推广到 ScriptManager / WebTools / VideoTools / MediaAssets 四模块；⛔ 不再进 `settings` 组 —— 该组已删），
   见 §4.9。**功能入口页的数据源输入框可编辑**（回车 + 失焦都提交）⇒ 提交给**模块设置服务**走 `IOptionsStore` 落盘，页面 ⛔ 不直接写文件（唯一写入点仍是一处）。
   路径无效 / 无权限 ⇒ **状态栏红色警示 + ⛔ 不写盘**（保持上一个有效值），⛔ 不是"不能编辑"。
-- **改系统级配置的页面必须二次确认**（如软件源增删 → 改系统 winget）。
+- **改系统级配置的页面必须二次确认**（如网络工具的 Hosts 写入 → 改系统 hosts 文件；winget 源增删已改由命令库执行，命令条目的 UAC 即确认）。
 
 ### 3.6 默认数据（不许硬编码；v3.60 收窄为「只给默认路径」）
 
@@ -226,7 +300,7 @@ Module.*（功能模块，只引 Shared + Core）
 ### 4.1 标题栏（40px，窗口级）
 
 - 元素从左到右：`≡` **折叠左菜单栏**（状态落 `config/columnlayout.json`，壳级页 Key `"shell"`）｜ `⟳` **重建当前页**（销毁并重建当前标签页 View+VM；⚠️ 与页面内「🔄 重读…」不是一回事，见 §4.8 硬规则 10）｜ **标签页区** ｜ `⛶` **全屏** ｜ `—` `□` `✕` 窗口控制。
-- 🔴 **标题栏左侧只有 `≡` / `⟳` 两个按钮**（v3.41，NT-052）：「🔄 重载模块」原在标题栏（NT-005 加入），因**非常用功能**移入**设置 → 功能清单页顶部的「增加功能」操作区**（语义 = 给功能清单增加新功能；热加载语义不变，规范 §3.7）；⛔ 不再有第三个标题栏按钮。
+- 🔴 **标题栏左侧只有 `≡` / `⟳` 两个按钮**（v3.41，NT-052）：「🔄 重载模块」原在标题栏（NT-005 加入），因**非常用功能**移入**设置 → 功能清单页顶部的「增加功能」操作区**（语义 = 给功能清单增加新功能；热加载语义不变，见 `framework.md` §3.4）；⛔ 不再有第三个标题栏按钮。
 - **全屏按钮（v3.38 新立，见 NT-044）**：
   - 点击 = `WindowState.FullScreen` ↔ `Normal`。**与最大化的唯一区别 = 铺满屏幕并覆盖任务栏**（最大化保留任务栏）。
   - 角色标注 `WindowDecorationProperties.ElementRole="FullScreenButton"` → 切换行为由**框架**执行，我们只画图标（⛶ / 退出全屏，`ElementRole` 只在 `ExtendClientAreaToDecorationsHint="True"` 时生效）。
@@ -445,7 +519,7 @@ Module.*（功能模块，只引 Shared + Core）
 ### 4.7 主题
 
 - 三模式（Light / Dark / System）+ 强调色，落 `config/theme.json`，**默认深色**。
-- 主题键只 `*Brush`（**31 个**：原 32 + v3.38 新增 `WindowBorderBrush` / `WindowBorderInactiveBrush` − NT-049 删除 `TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`），颜色一律 `DynamicResource`；`ApplyTheme` 纯代码构建字典注入（⛔ 禁 `MergedDictionaries.Clear()`、⛔ 禁写死 `#RRGGBB`）。完整清单与映射见规范 §2.2。
+- 主题键只 `*Brush`（**条数不写死在文档里**，以 `check.ps1` 白名单为准），颜色一律 `DynamicResource`；`ApplyTheme` 纯代码构建字典注入（⛔ 禁 `MergedDictionaries.Clear()`、⛔ 禁写死 `#RRGGBB`）。完整清单与映射见 `ui.md` §3。
 - **新增元素必须走既有样式体系**（`Classes` + 全局样式），⛔ 不在页面里复制样式。
 
 ### 4.8 列表页
@@ -736,7 +810,9 @@ Module.*（功能模块，只引 Shared + Core）
 - **功能清单入口（v3.62 / v3.66 改）**：收藏卡**尾部**追加一张「显示更多」卡片（与收藏按钮**同一个换行容器**、**恒排最后**）→ 🔴 v3.66 起**就地展开内嵌的功能清单**（复用 `AllFunctionsView`，⛔ 不再跳独立页；再点「收起」折回）；独立页（Key `settings-all` ⛔ 不改）保留给标题栏 `＋` 与「关于」节按钮；🔴 **⛔ 不改动首页其余布局**（收藏卡是"常用子集"，功能清单是"全集"，语义与此一致）。
 - **一键操作区（v3.66 改）**：整页一个 `ScrollViewer`，内层 `Grid` 绑 `MinHeight = 视口高` ⇒ **折叠态一键操作钉在窗口底部**；**展开功能清单后内容超高 ⇒ 一键操作随页面向下滚动**。
 
-### 6.2 脚本管理器（`Module.ScriptManager`，原「电脑工具 / `Module.PcTools`」）
+### 6.2 脚本中心（`Module.ScriptManager`，显示名 v3.86 起改「脚本中心」；原「脚本管理器 / 电脑工具 / `Module.PcTools`」）
+
+> 🔴 **v3.86 模块重划分（§2.3，工作项 NT-089 ~ NT-094）**：本模块 = **可执行单元 + 集合 + 命令链**平台；命令库 `script-commands` 与收藏夹 `script-favorites` 迁出至 **`system` 系统工具**（§6.7）；web 侧 `web-scrape` / `web-rule-editor` / `web-crawl` **迁入本模块**。⛔ 菜单 Key 一律不改。
 
 > 🔭 **远期**：本模块各子工具需支持**备份**（清单 / 配置导出导入）+ **多平台预留**（见 §2.1.3）—— 暂不实现。
 >
@@ -868,7 +944,9 @@ Module.*（功能模块，只引 Shared + Core）
 
 ### 6.3 网络工具（`Module.WebTools`）
 
-**HTTP 测试** / **书签** / **网络 Ping** / **抓取规则** / **Hosts 管理**。
+> 🔴 **v3.86 重划分（§2.3，NT-089 / NT-090 / NT-093）**：本模块收窄为「**网络配置与诊断**」= **HTTP 测试 / 书签 / Ping / Hosts**（保留）+ **新增 `web-egress` 出口代理**；`web-scrape` / `web-rule-editor` / `web-crawl` **迁出至脚本中心**（§6.2）。爬虫迁出后本模块**不再依赖 Python 运行时**。⛔ 菜单 Key 一律不改。
+
+**HTTP 测试** / **书签** / **网络 Ping** / **Hosts 管理** / **出口代理**。
 
 - 各页工具条的重载按钮按 §4.8 硬规则 10 命名：书签「🔄 重读书签」/ Hosts「🔄 重读方案」/ Ping「🔄 重读目标」/ 抓取「🔄 重读规则」（都只重读本地配置，⛔ 不联网、不重扫）。
 
@@ -1243,7 +1321,7 @@ Module.*（功能模块，只引 Shared + Core）
 | 存储源 | `assets-storages` | 列表页 | local / removable / nas；在线状态；移除仅移索引、⛔ 不删磁盘文件 |
 | 任务中心 | `assets-tasks` | 列表页 | Scan / Rename / Move / Copy / Delete / ExtractMeta / Thumbnail；取消 / 重试 / 日志 |
 | 回收站 | `assets-trash` | 列表页 | `status='trashed'`；恢复 / 永久删除（二次确认）/ 清空 |
-| 模块设置 | `settings-media-assets` | 设置页（`Module.MediaAssets`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（复用全局 `VideoDbFolder`）；由本模块 `Initialize` 注册进本模块一级菜单（Order 99） |
+| 模块设置 | `settings-media-assets` | 设置页（`Module.MediaAssets`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（导入导出默认目录 = 当前配置档 `data\`）；由本模块 `Initialize` 注册进本模块一级菜单（Order 99） |
 
 - **类型切换（🔴 v3.69 取代原「类型页 = 薄壳 + 预设类型」；用户 2026-10-16 拍板）**：
   - **只有一页**：`assets-all`（`AssetAllView` / `AssetAllViewModel`）是唯一资产浏览页；5 个类型菜单项与 Key（`assets-video` / `assets-music` / `assets-book` / `assets-image` / `assets-document`）**已撤销**，不再有各自的 View / VM。
@@ -1251,7 +1329,7 @@ Module.*（功能模块，只引 Shared + Core）
   - ⚠️ **副作用（已接受）**：合并前 5 个类型各自**独立的列布局记忆**（`config\columnlayout.json` 按 PageKey 分区）消失 ⇒ 合并后**全类型共用一份**列显隐 / 排序偏好。
   - **收藏残留**：历史收藏里指向这 5 个 key 的记录**静默忽略**（`FindItem` 解析不到 ⇒ ⛔ 不抛异常、⛔ 不留死人口）。
   - ⛔ **卡片 / 网格视图不做**（v3.34 定调，沿用）。
-  - ⚠️ **类型专属列**（视频 时长 / 分辨率 / 编码；音乐 艺术家 / 专辑；书籍 作者 / ISBN；图片 尺寸 / 相机；文档 页数）**暂不做**：它们的数据源是 `assets.metadata_json`，而**元数据提取尚未实装**（现在该列恒为 `{}`）→ 做了也是空列。待元数据落地（NT-021 或其后）再加，本轮 5 个类型页用**通用列** + 预设类型。
+  - ⚠️ **类型专属列**（视频 时长 / 分辨率 / 编码；音乐 艺术家 / 专辑；书籍 作者 / ISBN；图片 尺寸 / 相机；文档 页数）**暂不做**：它们的数据源是 `assets.metadata_json`，而**元数据提取尚未实装**（现在该列恒为 `{}`）→ 做了也是空列。待元数据落地（NT-021 或其后）再加；`assets-all` 当前按类型切换的是**通用列** + 预设类型。
   - 列的**默认显隐**随类型切换即时设定（⛔ 不落盘）；用户右键改过的偏好统一落在 `assets-all` 单个页键下（⛔ 不再按类型分区），二者不互相覆盖。
 
 **数据模型**（13 张表，落 `data\newtoys.db`，与视频工具共库、表级隔离）：
@@ -1281,6 +1359,22 @@ Module.*（功能模块，只引 Shared + Core）
 **复用硬约束**（不在此复述，指向权威）：列表页一律继承 `ListPageViewModelBase`（`Shared/Models`）+ 三列布局 + 工具条 / 筛选条收进列表列 + 详情开关在工具条末位；`Views/ColumnGrid.cs` 本模块自建**第五份**副本（规范 §3.6，改动同步五处）；详情卡内容由 VM 实现 `IDetailPanelProvider.DetailContent` 提供（目标形态，规范 §3.8 / B13），详情卡内允许**编辑 + 「💾 保存」+「↗ 应用到文件」**（v3.29 用户定调，覆盖旧"零操作按钮"规则；⛔ 别放无关的全局动作）；状态栏由基类统一实现、每页 ≥1 行 `StatusText`；单元格内边距 8 / 表头 32 / 行 28（§4.10.2）。
 
 ---
+
+### 6.7 系统工具（`Module.SystemTools` · v3.86 新增）
+
+> 完整口径见 **§2.3**；工作项 **NT-091**（依赖 NT-088）。
+
+- **定位**：本机**快捷设置入口与快捷命令**。判据 = 执行完**只产生副作用、不产出数据**（§2.3.3）；产出可解析数据的条目一律归 §6.2 脚本中心。
+- **模块**：键 `system` / Order **25** / 程序集 `Module.SystemTools` / 命名空间 `NewToys.SystemTools`；一级菜单图标需**新增 StreamGeometry**（框架层 `App.axaml`）。
+- **页面**：
+  | Key | 标题 | 说明 |
+  |---|---|---|
+  | `script-commands` | 命令库 | 由 §6.2 平移（Key 保留）：Windows 设置面板 / 管理工具入口全集 |
+  | `system-quick`（新） | 快捷命令 | 电源计划 / 主题明暗 / 休眠 / 网卡启禁 / 磁盘清理 / UAC / 开发者模式 / 远程桌面 / 代理开关 / 时间区域 |
+  | `script-favorites` | 收藏夹 | 由 §6.2 平移：按 `source` 分组显示全部来源收藏，点一下执行 |
+  | `settings-system`（新） | 系统工具设置 | 本模块唯一写入点，落 `config\system\*` |
+- 执行依赖 Core 的 `IScriptRunner`（**NT-088 上提后**）；⛔ 不直接起进程、⛔ 不复制一份 Runner。
+- ⛔ 不做：采集 / 间隔刷新 / 解析器 / 集合 / 命令链编排（属 §6.2）。
 
 ## 七、设计原则（六条）
 
@@ -1325,7 +1419,7 @@ Module.*（功能模块，只引 Shared + Core）
 | **skill/**（仓库根，跨 AI 中立载体） | 深度知识库：`SKILL.md`（导航 + 客户端接入表）+ `references/`（铁律/密度/坑点/四文档路由）+ `scripts/check.ps1`（静态检查 / Lint），WorkBuddy 与 Hermes(DeepSeek Harness) 共用 | 铁律 / 坑点 / 路由变化时 |
 
 - **单一权威**：同一条规则只在权威文档定义一次，其余引用不复制。**工作流（`规划 / 执行双模式` + 状态机 + 验收清理）只在《AI协作手册》定义一次**；本文件 / 《工程规范》/ 《状态与路线图》/ `AGENTS.md` / `skill/` 一律只引用，⛔ 不再各写一份流程（避免双源漂移、不同模型读到不同版本）。
-- **入口例外**：`AGENTS.md`（仓库根）为**唯一自包含入口**，允许复制铁律与路由表——必须自包含（外部 AI 读不到 `skill/docs` 时也能开工）；`skill/SKILL.md` 与 `.workbuddy/skills/newtoys/SKILL.md` **只做导航 / 指针**，⛔ 不复制正文（避免同内容多份漂移、多份注入）。细则仍只在四份文档各定义一次；入口与四份文档冲突时，以四份文档和 `src/` 源码为准。
+- **入口例外**：`AGENTS.md`（仓库根）为**唯一自包含入口**，允许复制铁律与**高频路由（6 行）**——必须自包含（外部 AI 读不到 `skill/docs` 时也能开工）；🔴 **完整任务型路由的唯一源 = `skill/docs/index.md` §三**，AGENTS.md 与 `references/newtoys-spec.md` ⛔ 不再各存一份全量表（2026-10-21 精简：三份同构表并存必然漂移，且每次会话三倍注入）；`skill/SKILL.md` 与 `.workbuddy/skills/newtoys/SKILL.md` **只做导航 / 指针**，⛔ 不复制正文（避免同内容多份漂移、多份注入）。细则仍只在四份文档各定义一次；入口与四份文档冲突时，以四份文档和 `src/` 源码为准。
 - **代码 > 文档**：冲突以 `src/` 源码为准并回写文档。
 - ⛔ **本文件不写版本变更流水**，只写「当前应然」；变更历史一律 `git log`。
 - **研发流程（Spec-first）**（与《AI协作手册》一致，细则与术语以其为准）：

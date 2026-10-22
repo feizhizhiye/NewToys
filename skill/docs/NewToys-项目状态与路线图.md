@@ -1,6 +1,6 @@
 # NewToys 项目状态与路线图
 
-> v3.80 · 2026-10-19 · 台账
+> v3.82 · 2026-10-22 · 台账
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **项目状态与路线图**（Status & Roadmap），三、节 = **Backlog 工作项台账**。
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
@@ -8,6 +8,8 @@
 > 配套：`index.md`（文档地图）/ 需求规格 / `framework.md` / `ui.md` / `modules/<模块>.md` / AI 协作手册 / AGENTS.md（跨 AI 入口）
 
 **最近三次变更**
+- **v3.82（🧭 立项 2026-10-22）**：**模块重划分 v1.1 立项**（用户「把脚本管理器抽象成新模块、webtools 的脚本/集合集成进脚本管理器」→ 拍板 4 项 →「立项」）—— 需求规格升 **v3.86** 并**新增 §2.3**（唯一权威口径）+ §6.7 系统工具，§6.2 / §6.3 加迁移指针；🔴 用户口头「流水线」= **§2.2 L3 命令链**（复用集合 + `▶ 依次运行`，⛔ 不新造 Step 模型 / ⛔ 不连线 / **线性 only**）；显示名改「**脚本中心**」（Key 全不改）；`script-commands` + `script-favorites` → 新 `system` 模块（Order 25）；web 三页（`web-scrape` / `web-rule-editor` / `web-crawl`）→ script；WebTools 收窄为「网络配置与诊断」+ 新增出口代理。登记 **NT-088 ~ NT-094**；NT-088（执行器上提 Core）= 改框架层，**待用户批准**才可执行。⛔ 未动 `src/`。
+- **v3.81（🗂 整理期 2026-10-21）**：**全库过时内容清理**（用户「清理文档中过时的内容」，⛔ 未改代码）—— ① 关键文件索引订正：`QuickActionListViewModel` 路径 `Module.PcTools` → `Module.ScriptManager`、winget 服务 `Core/` → `Module.ScriptManager/Services/`（NT-074 下放）；② `framework.md` §11 已完成项（NT-064/065/066/067/068/075/076/077/078/085）收拢为「已结清」一行，NT-085 状态按本台账订正；③ `ui.md` §10 子节顺序订正（`10.6 空态` 归位到 `10.7 弹出卡片` 前）；④ 需求规格：系统级配置二次确认举例换成 Hosts、删 `VideoDbFolder` 与「5 个类型页」旧表述、版本记录压到三次；⑤ 模块文档：网络工具页数 5/6 → **7 页** + Order 订正、脚本管理器删已删文件 `PackageSourceViewModel` 并重编坑点编号（原有重复编号 7/7、13/13、17/17）；⑥ `index.md` 模块状态列与代码/台账对齐；⑦ NT-080 卡删除已作废的旧方案行（原 #3~#10、验收 #2~#4）。
 - **v3.79（2026-10-19 · NT-080）**：**软件包定位收敛 + winget 源模型重写** —— ① 集合页**删「软件包」类别**（`ScriptCollectionKind.Package` 删除；老数据 `kind=package` 归 `info`，`role=package` 不进集合候选池）；② 软件包页**后端只支持 winget**，跨平台（apt 等）另开独立页面；③ 🔴 修「工具条源多选框勾 store 源不生效」：源多选改为**只写 `package.json → defaultSource`**（⛔ 不再勾一下就跑 `source enable` + 重读列表把状态冲掉），全勾 / 全不勾 = 全部源 ⇒ 搜索不传 `--source`；④ 修源分类：`winget`→社区源、`winget-font`→**字体源**、`msstore`→商店源、其它→自定义源，**互斥只发生在社区源内部与字体源内部**（`/fonts` 判定必须先于 `winget`）；⑤ **商店源不可切换**（开关置灰）；⑥ 实测 winget 1.29 **无 `source enable/disable`** ⇒ 关 = `source remove`、开 = 按 `winget source export` 快照 `source add`（回放 `--type` / `--explicit`），两向都要管理员权限（UAC）。改动局限在 `Module.ScriptManager`（未碰框架层）。
 - **v3.78（🗂 整理期 2026-10-18）**：**文档一致性治理 + 任务卡归档**（用户「统一 skill 与 src、清理已作废旧信息」）—— ① 模块设置文件名校正：`script-manager.json` / `web-tools.json` / `video-tools.json` / `media-assets.json`（⛔ 不是 `script.json` / `web.json` / `video.json`；`script` 模块的分区名 ≠ 模块键）；② `index.md` 新增 **§四「使用层」写入规范**（用户口述的新功能 / 交互行为 / 使用场景 / 功能说明 / 踩坑各有唯一落点 + 当场落 + 改行为双写）；③ 软件说明书改定位为**使用层 · 用户手册**（576→467 行，删「外部依赖」「重写指引」两节，数据节压成「数据在哪 / 备份什么」）；④ **删卡 9 张**：`framework/NT-054/055/057/058`（已验收，结论在 `ui.md` §7 §8 + `framework.md` §4.5 §6.3 §6.4）、`settings-app/NT-009/050/051/053/056`（模块已撤销，整目录删除）；⑤ 需求规格现行段落旧称全量校正 + 版本记录压到最近三次；⑥ 台账 / `AGENTS.md` 版本记录同步压缩。⛔ 未动 `src/`。
 - **v3.76（🗂 整理期 2026-10-18）**：**文档按「框架层 / UI / 每模块一份」重构**（用户「拆分文档，框架层 / ui / 各功能模块各一个 md，待办细节每模块只留最新 5 份」）—— ① 原《NewToys-工程规范.md》（892 行）拆为 **`framework.md`**（框架层：程序集 / 启动 / 菜单 / 加载 / UI 契约 / 配置 / 构建 / 技术债 B1~B17 / **跨模块待办 §11**）+ **`ui.md`**（尺寸密度 / 主题键 / 图标 / CSD / 列表页 / 详情卡 / 工具条 / 样式坑），原文件删除；② 新增 **`modules/script-manager.md` / `media-assets.md` / `video-tools.md` / `web-tools.md` / `settings-app.md`**（统一 6 节模板：职责 / 当前功能 / 实现逻辑 / 数据 / 坑点 / 待办）+ **`index.md`**（文档地图 + 模块清单表）；③ 任务卡按模块分目录 `backlog/<模块>/`（跨模块 `backlog/framework/`），**归档策略改滑动窗口：每目录 ≤5 张已验收卡、未验收不参与淘汰、淘汰前必须先蒸馏进模块 md**（10-14「全量保留」/10-17「默认保留」均废止），本批已蒸馏并删除 27 张卡（framework 18 / media-assets 8 / script-manager 1）；④ **台账与代码对齐**：§2.3 页面全景、§2.4 菜单清单按 `src/` 现状重写（脚本管理器 `pc-*`→`script-*` 6 功能页 + 设置、媒体资产 5 类型页已删 → 7 页、菜单项 34 项），工作项详情列改新路径；⑤ `AGENTS.md` v1.7 / `skill/SKILL.md` / `.workbuddy/skills/newtoys/SKILL.md` / `newtoys-spec.md` / `collab-method.md` / `README.md` / 手册 v3.24 的文档路由与归档策略同步改写。⛔ 未动 `src/`。
@@ -20,7 +22,7 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.79 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.79 |
+| 文档版本 | 需求 v3.86 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.82 |
 | 技术栈 | .NET 10 + Avalonia 12.1.4 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
 | 代码规模 | 8 项目 / 274 个 `.cs+.axaml+.csproj` / 约 51100 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |
@@ -44,7 +46,7 @@
 
 ### 2.2 UI
 - 三栏 `60,140,*` → **标题栏 40px（含标签页）+ 左树 180 / 折叠 48 + 主内容区 + 右详情 340 + 底部状态栏 26px**。
-- 明暗主题全局切换，键一律 `*Brush`（**31 个**：v3.38 由 32 增至 34，新增 `WindowBorderBrush` / `WindowBorderInactiveBrush`；NT-049 再删 3 个零引用键 → 31），默认深色。
+- 明暗主题全局切换，键一律 `*Brush`（条数以 `check.ps1` 白名单为准，⛔ 文档不写死数量），默认深色。
 - **视觉规范**：共享样式已按 **v3.12 密度基线**收紧（表格行高 28、卡片内边距 12、工具条 12,6、筛选条 12,4）；**框架层图标已全矢量**（`Path` + `App.axaml` 的 `Icon*` 键：一级菜单 / 标题栏 / 标签页 / 左树，NT-035 / NT-045 / NT-046）；⚠️ **数据驱动图标**（二级菜单 / 首页一键按钮 / 模块页内数据行）仍是字符串 → 技术债 NT-047。
 
 ### 2.3 页面全景（2026-10-18 按 `src/` 现状重写）
@@ -178,6 +180,13 @@
 | NT-085 | **`SysInfoGrid` 上提 UI 库**（改名 `DynamicColumnGrid`）：供爬虫面板复用动态列；改 `src/UI` + `Module.ScriptManager` ⇒ 全模块重编，须与 NT-086 同批 | P2 | ✅ **已完成（已验收 2026-10-20 随 NT-086 同批 build 通过）**：`SysInfoGrid` → `src/UI/Controls/DynamicColumnGrid.cs` | backlog/framework/NT-085.md |
 | NT-086 | **爬虫脚本面板（期①）**：① 目录页加分类 / 说明 / 角色筛选（分类值动态生成）；② 新增 `web-crawl`「爬虫面板」（脚本 ▾ + 三节：链接·目录 / 试下载 / 下载 + 底栏摘要）；③ `web-rule-editor` 重构为「**调试集合**」（五段槽位 `entry/pick/toc/content/save` + 试跑推荐 + 保存 flow）+ 撤出菜单；④ 脚本头配置（`# role/desc/category/works/artifact/ua/header/concurrency/delay-ms/timeout`）；⑤ **错误回显 + 📋 复制诊断**；⑥ P0 七个预设（rss/opds/sitemap/wp-json/mediawiki/links/images）+ Seeder + 探测；⑦ 三操作符 `text:/link:/url:`；⑧ runs 落盘 + 导出 CSV/JSON | P1 | 🔄 **执行中**（2026-10-20 用户指令执行，过 DoR；需求规格 §6.3.1 已按新范式改写；**批 A/B/C 已实施且 build 通过（2026-10-20 验收）**；**批 D/E/F/G 全部已实施且 ✅ 已验收 2026-10-20 build 通过**） | backlog/web-tools/NT-086.md |
 | NT-087 | **爬虫脚本下载（期②）**：`🧪 试下载`（单条预览，不落产物）+ `⬇ 批量下载`（`downloads\<脚本>\<条目>\`）+ `next` 分页原语（去重 / `# max-pages` / 连续空停）+ 链式模式（无 toc 时跟进累积）+ 并发/间隔读脚本头 + 单条失败不停批 / 连续失败 3 次停批 + 可取消；下载器**内置** ⛔ 不脚本化 | P1 | ✅ **已完成（已验收 2026-10-20 build 通过）**：新增 `DownloadService`（内置下载器：并发 / 间隔 / 去重 / 续跑 / 取消）+ `RunStepAsync(mode=step)` + 面板 ②③ 节 + 行勾选 + `FlowService.ReferencesOf` 删除引用检查；`downloads\`/`trials\`/`cache\`/`runs\` ⛔ 不进备份（只有 `rules\` 进）。返修 3 处（类漏 `partial` / `CrawlEntry` 漏继承 `ObservableObject` / `MaxPages` 是 int 不是 int?） | backlog/web-tools/NT-087.md |
+| NT-088 | **执行器上提 Core（`ScriptRunner` + `InterpreterResolver`：Module.ScriptManager → NewToys.Core）**：为 system 模块（收藏夹 / 快捷命令）提供跨模块执行契约（模块禁互引），顺带为命令链铺路；🔴 **改框架层，须用户明确批准才可执行** | P0 | 📝 **草稿**（⏸ 待批准框架层改动） | backlog/framework/NT-088.md |
+| NT-089 | **脚本中心：规则侧搬家** —— `web-scrape` 退化为脚本库 `category=rule` 筛选态；`rules\*.py` 迁入 `<DataDir>\script\rules\`；`RuleFileService` / `RuleCatalogService` / `RuleRunService` 迁 Module.ScriptManager；预设遷入脚本库 | P1 | 📝 **草稿**（待细化；依赖 NT-088） | 📝 待建卡（backlog/script-manager/NT-089.md） |
+| NT-090 | **脚本中心：运行台搬家** —— `web-crawl` 泛化为「运行结果查看台」；`FlowService` / `RunRecordService` / `DownloadService` / `RulesBackupSection` 迁移；`flows\*.json` → `<DataDir>\script\flows\`；集合新增类别 `crawl` | P1 | 📝 **草稿**（待细化；依赖 NT-089） | 📝 待建卡（backlog/script-manager/NT-090.md） |
+| NT-091 | **新建 `Module.SystemTools`（系统工具，Order 25）** —— 命令库 `script-commands` + 收藏夹 `script-favorites` 平移 + 新增 `system-quick` 快捷命令 + `settings-system`（`config\system\*`）+ 新增一级菜单图标；迁移一次性可逆（旧条目打 `migrated=true` 保留） | P0 | 📝 **草稿**（待细化；依赖 NT-088） | 📝 待建卡（backlog/system-tools/NT-091.md） |
+| NT-092 | **命令链 L3** —— 集合加执行语义：工具条 `▶ 依次运行` + `capture` 输出 + 变量占位符传参 + 失败策略（遇错停止 / 跳过继续）+ 可取消；⛔ 不新造 Step 模型、⛔ 不连线、线性 only；新增 **node(.js) 解释器**支持 | P1 | 📝 **草稿**（待细化；依赖 NT-089 + NT-090） | 📝 待建卡（backlog/script-manager/NT-092.md） |
+| NT-093 | **出口代理与防反爬（WebTools）** —— `web-egress` 出口管理页 + `IEgressProvider`（Core/Shared 契约，WebTools 实现）+ 轮询 / 失败切换策略 + 出口 IP 探活；`py_worker.py` 加 proxy / 节流 / 429-503 退避 / UA 池；🔴 netsh / 网卡类操作降级为「生成命令供用户自跑」（无提权） | P1 | 📝 **草稿**（待细化；依赖 NT-089 + NT-092） | 📝 待建卡（backlog/web-tools/NT-093.md） |
+| NT-094 | **设置拆分与文案收尾** —— WebTools 设置瘦身（超时 / 并发 / 解析器 → script）；一级菜单显示名「脚本中心」；新二级图标落地；备份段重复显示检查 | P2 | 📝 **草稿**（待细化；依赖以上全部） | 📝 待建卡（backlog/framework/NT-094.md） |
 | NT-083 | **Python 运行时底座**：`env.json` 增 `python` 项（空 = PATH 探测，平台中立）/ 共享环境 **`%LOCALAPPDATA%\NewToys\tools\py`**（与 `env.json` 同级，⛔ 不进 profiles）/ 长驻 worker（行分隔 JSON + `-u -X utf8` + 超时杀进程树 + traceback 回传 + 空闲 10 分钟自动退出）/ **依赖安装交给随包脚本**（C# ⛔ 不写 pip 逻辑，播种成集合「环境维护」）/ 「运行环境」节显示共享环境状态 / ⛔ 不引 pythonnet；供 web-tools 与 script-manager 共用 ⇒ **落 Core（已批准）** | P1 | ✔ **批 1~4 已实施（2026-10-19）**：运行时 + worker + 环境脚本集合 + 「Python 共享环境（venv）」状态行；⏳ 待用户本地 build + 实机功能验收 | backlog/framework/NT-083.md |
 | NT-082 | **软件包集合（跨后端包清单预设）+ 集合右键发送到对应页面**：① 集合类别加回 `package`（成员 `role=package`，`Target`=包 Id；与包条目一对一容器）；② 「📤 发送到信息面板」→「📤 发送到对应页面」，按 kind 跳 info / script / command / packages 并写 `lastCollectionIdByKind`；左栏集合行右键同项（2026-10-19 追加微调：右键文案动态化「📤 发送到{目标页名}」，随选中集合类别变）；③ 软件包页 `集合 ▾` 显示包清单（状态按 `winget list` 比对）+ 行右键 `📥 加入集合`（幂等）。源命令（含中科大）已由 NT-080 提供，本次未改 | P1 | ✔ **已完成（⏳ 待用户本地 build 验收）** | backlog/script-manager/NT-082.md |
 
@@ -213,14 +222,14 @@
 | 主题 / 强调色 | `Core/Services/ThemeService.cs` + `Shared/Services/AccentPalette.cs` |
 | 配置存储 / 多配置 | `src/Core/Services/ConfigStoreService.cs` + `ProfileService.cs` + `Shared/Services/IProfileService.cs` |
 | 列显隐 + 页面级开关 + 左树状态 | `Core/Services/ColumnLayoutService.cs` + `Shared/Services/IColumnLayoutService.cs` |
-| 脚本 / 命令共用基类 + 运行 | `Core/Services/QuickActionService.cs`（NT-068 起为 `script.json` 适配器）+ `Shared/Models/QuickAction.cs` + `Module.PcTools/ViewModels/QuickActionListViewModel.cs` |
+| 脚本 / 命令共用基类 + 运行 | `Core/Services/QuickActionService.cs`（NT-068 起为 `script.json` 适配器）+ `Shared/Models/QuickAction.cs` + `Module.ScriptManager/ViewModels/QuickActionListViewModel.cs` |
 | 默认数据 | `src/Shell/defaults/sysinfo/*`（内置采集脚本，UTF-8 带 BOM + `.seeded` 只加不覆盖）；⛔ 无 `.default.json` 清单（v3.60 起） |
 | 本地数据库 | `Core/Services/SqliteDatabase.cs` + `Module.VideoTools/Services/VideoMediaIndex.cs` |
 | 会话 / 运行钩子 | `Core/Services/DialogHooks.cs` + `Module.VideoTools/Services/VideoFileService.cs` |
 | 视频工具 | `Module.VideoTools/Views/{VideoList,VideoPreview,VideoBatch}View.axaml` + `Services/{VideoScanner,FfmpegService,VideoTaskStore}.cs` |
 | 运行环境 | `Shared/Services/IAppConfigService.cs` + `Core/Services/AppConfigService.cs` |
 | 脚本管理器数据层 | `Module.ScriptManager/Services/{ScriptStoreService,ScriptDatabase,ScriptScanner,CollectableEvaluator}.cs` |
-| winget | `Core/Services/PackageManagerService.cs` + `PackageOutputParser.cs` + `PackageSettingsService.cs` |
+| winget | `Module.ScriptManager/Services/PackageManagerService.cs` + `PackageOutputParser.cs` + `PackageSettingsService.cs`（NT-074：整套从 Core / Shared 下放；NT-080 v3.80 后源管理已删除） |
 | 加密 DNS | `src/Core/Services/EncryptedDnsService.cs` |
 | 模块菜单注册（Key 权威源） | 各模块 `XxxModule.cs` |
 

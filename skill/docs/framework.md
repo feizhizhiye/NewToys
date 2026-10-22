@@ -561,7 +561,7 @@ public interface IDetailCardSource
 | `config\modules\web-tools.json` | 网络工具 | 分区 `web-tools`：默认 UA / 抓取超时 |
 | `config\modules\video-tools.json` | 视频工具 | 分区 `video-tools`：最大并发数 |
 | `config\modules\media-assets.json` | 媒体资产 | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 |
-| `config\modules\package.json` | 脚本管理器 | 软件包偏好（静默安装 / 排序列）；🔴 v3.80：源相关字段全部删除（源归命令库命令） |
+| `config\modules\package.json` | 系统工具（NT-096 起） | 软件包偏好（静默安装 / 排序列）；🔴 v3.80：源相关字段全部删除（源归命令库命令）；路径⛔ 不改（老用户配置不丢） |
 
 - `IOptionsStore` 的分区名仍**不带路径**（`Validate` 禁分隔符），目录由 `ConfigStoreService.ModulesConfigDir` 决定 ⇒ 分区 `x` → `config\modules\x.json`。
 - 应用级行为（**不是机器环境**）留 `app.json`：`MaxConcurrency` + `Launch`（三按钮 + 通用开关）。
@@ -620,7 +620,7 @@ public interface IDetailCardSource
 **单元测试**（`src/NewToys.Tests`，2026-10-21 新增）：
 - 只测**纯函数**（`FixedWidthTable` / `TsvRows` / `PackageOutputParser` 这类「外部输出 → 行模型」的解析器）——⛔ 不 new VM、⛔ 不碰 Avalonia / 文件系统 / 进程。
 - 跑法：`pwsh skill/scripts/accept.ps1 -Test`（构建后追加，秒级）或直接 `dotnet test src\NewToys.Tests`。
-- `internal` 的解析类**不为测试改 public**，用 `Module.ScriptManager.csproj` 里的 `<InternalsVisibleTo Include="NewToys.Tests" />` 打开。
+- `internal` 的解析类**不为测试改 public**，用被测类型所在模块的 `<InternalsVisibleTo Include="NewToys.Tests" />` 打开（当前 = `Module.SystemTools.csproj`，NT-096 迁入软件包解析器）。
 - 产物落 `artifacts\tests\`（Release 的 `OutDir` 被项目级覆盖）——⛔ 不许进 `artifacts\release\`，那里是交付产物区，多出 TestHost 会污染产物核对。
 
 **版本号**（`src/Directory.Build.props` 编译时自动生成，⛔ 禁止手写）：

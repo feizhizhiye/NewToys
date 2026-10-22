@@ -33,7 +33,7 @@
           <Button Grid.Column="4" Classes="ghost" Content="📋 复制命令" Command="{Binding CopyCommand}"
                   CommandParameter="{Binding Selected.Command}"/>
           <Button Grid.Column="5" Classes="ghost" Content="📤 导出 / 📥 导入" Command="{Binding ExportCommand}"/>
-          <TextBox Grid.Column="7" Text="{Binding SearchText}" Watermark="搜索名称 / 命令…"
+          <TextBox Grid.Column="7" Text="{Binding SearchText}" PlaceholderText="搜索名称 / 命令…"
                    ToolTip.Tip="输入即过滤（名称 / 功能 / 命令）"/>
         </Grid>
       </Border>

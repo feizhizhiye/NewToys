@@ -1,7 +1,7 @@
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace NewToys.ScriptManager.Models;
+namespace NewToys.SystemTools.Models;
 
 /// <summary>
 /// 一条软件包记录 —— 「搜索结果 / 已安装 / 可升级」三种列表**共用同一个模型**。

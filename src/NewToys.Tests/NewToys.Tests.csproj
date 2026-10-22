@@ -23,8 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 被测对象：包管理器输出解析（internal ⇒ 靠 Module.ScriptManager.csproj 的 InternalsVisibleTo 打开） -->
+    <!-- 被测对象：包管理器输出解析（internal ⇒ 靠 Module.SystemTools.csproj 的 InternalsVisibleTo 打开） -->
     <ProjectReference Include="../Module.ScriptManager/Module.ScriptManager.csproj" />
+    <!--  NT-096：软件包输出解析（FixedWidthTable / TsvRows / PackageOutputParser）随软件包页迁到系统工具。 -->
+    <ProjectReference Include="../Module.SystemTools/Module.SystemTools.csproj" />
   </ItemGroup>
 
 </Project>

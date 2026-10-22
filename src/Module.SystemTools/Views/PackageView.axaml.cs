@@ -1,9 +1,9 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
-using NewToys.ScriptManager.ViewModels;
+using NewToys.SystemTools.ViewModels;
 
-namespace NewToys.ScriptManager.Views;
+namespace NewToys.SystemTools.Views;
 
 public partial class PackageView : UserControl
 {

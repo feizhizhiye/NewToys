@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using NewToys.ScriptManager.Models;
+using NewToys.SystemTools.Models;
 
-namespace NewToys.ScriptManager.Services;
+namespace NewToys.SystemTools.Services;
 
 /// <summary>
 /// 包管理器命令行封装（当前后端为 winget，未来可扩展为 apt 等）。

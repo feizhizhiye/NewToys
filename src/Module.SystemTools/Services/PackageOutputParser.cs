@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace NewToys.ScriptManager.Services;
+namespace NewToys.SystemTools.Services;
 
 /// <summary>
 /// winget 命令行输出的解析器（**纯函数**，不碰进程、不碰 UI）。

@@ -1,7 +1,7 @@
 using System;
-using NewToys.ScriptManager.Models;
+using NewToys.SystemTools.Models;
 
-namespace NewToys.ScriptManager.Services;
+namespace NewToys.SystemTools.Services;
 
 /// <summary>
 /// 「软件包管理」模块的设置存取。

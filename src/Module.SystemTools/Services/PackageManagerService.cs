@@ -6,10 +6,10 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NewToys.Core.Services;   // DialogHooks（二次确认钩子，由 Shell 注入）+ IProcessRunner（NT-081 步骤3）
-using NewToys.ScriptManager.Models;
+using NewToys.SystemTools.Models;
 using NewToys.Shared.Services;
 
-namespace NewToys.ScriptManager.Services;
+namespace NewToys.SystemTools.Services;
 
 /// <summary>
 /// <see cref="IPackageManagerService"/> 的实现：当前后端把 winget 当**命令行**用。

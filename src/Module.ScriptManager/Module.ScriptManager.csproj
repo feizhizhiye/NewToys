@@ -16,9 +16,4 @@
     <!--  NT-063：ColumnGrid 等 View 层件来自 NewToys.UI（模块禁互引 / 禁引 Shell ⇒ 控件库是唯一解）  -->
     <ProjectReference Include="../UI/NewToys.UI.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <!--  单元测试要测包管理器输出解析（FixedWidthTable / TsvRows / PackageOutputParser 均为 internal）。
-          只对测试项目开放，⛔ 不改成 public —— 这三个是实现细节，不是模块对外契约。  -->
-    <InternalsVisibleTo Include="NewToys.Tests" />
-  </ItemGroup>
 </Project>

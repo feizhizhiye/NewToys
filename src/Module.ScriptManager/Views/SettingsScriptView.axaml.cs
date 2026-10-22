@@ -13,8 +13,7 @@ public partial class SettingsScriptView : UserControl
     {
         InitializeComponent();
         Add("脚本目录", "📂", "脚本库扫描的根目录（脚本库页同一份值）", "Sec0");
-        Add("软件源（winget）", "📦", "源归系统 winget + 命令库管：这里只列命令，一键写进命令库执行", "Sec1");
-        Add("设置文件", "📄", "配置落在哪 / 解释器路径在哪配", "Sec2");
+        Add("设置文件", "📄", "配置落在哪 / 解释器路径在哪配", "Sec1");
     }
 
     /// <summary>把一个"XAML 资源里的节内容"挂成设置节（节头样式/折叠/密度全由 UI 库骨架给）。</summary>

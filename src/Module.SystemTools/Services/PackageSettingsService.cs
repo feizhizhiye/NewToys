@@ -2,9 +2,9 @@ using System;
 using System.IO;
 using System.Text.Json;
 using NewToys.Core.Services;          // ConfigStoreService（配置根目录的唯一决定者）
-using NewToys.ScriptManager.Models;
+using NewToys.SystemTools.Models;
 
-namespace NewToys.ScriptManager.Services;
+namespace NewToys.SystemTools.Services;
 
 /// <summary>
 /// <see cref="IPackageSettingsService"/> 实现：落到 <c>&lt;应用根&gt;\config\package.json</c>。

@@ -93,7 +93,7 @@ public class App : Application
             services.AddSingleton<IEncryptedDnsService>(sp => sp.GetRequiredService<EncryptedDnsService>());
 
             // NT-074：「软件包管理」的两项服务（IPackageManagerService / IPackageSettingsService）
-            // 已随整套代码下放到 Module.ScriptManager（只有它用）⇒ DI 注册移到 ScriptManagerModule，
+            // 已随整套代码下放到功能模块 ⇒ DI 注册在模块内（NT-096 起归 Module.SystemTools，不再在脚本中心），
             // Shell 这里不再注册、也不再给它的确认钩子接线（改走 Core.DialogHooks，见下面）。
 
             // 首页收藏夹：落 config\favorites.json（可被数据管理备份），单一真相源，标题/图标/简介现从菜单取。

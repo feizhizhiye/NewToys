@@ -28,9 +28,10 @@ namespace NewToys.SystemTools.ViewModels;
 /// </summary>
 public partial class SystemCommandListViewModel : ObservableObject, IStatusProvider, IDetailCardSource
 {
-    private readonly ISystemCommandStore _store;
-    private readonly ISystemToolsSettingsService _settings;
-    private readonly ScriptRunner _runner;
+    // 🔴 有设计期 / 无 DI 兜底构造（见下方无参 ctor）⇒ 用 null! 消 CS8618；使用点均已 null 安全。
+    private readonly ISystemCommandStore _store = null!;
+    private readonly ISystemToolsSettingsService _settings = null!;
+    private readonly ScriptRunner _runner = null!;
 
     private readonly List<SystemCommand> _all = new();
 

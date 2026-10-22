@@ -13,13 +13,13 @@ using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
-using NewToys.ScriptManager.Models;
-using NewToys.ScriptManager.Services;
+using NewToys.SystemTools.Models;
+using NewToys.SystemTools.Services;
 using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-namespace NewToys.ScriptManager.ViewModels;
+namespace NewToys.SystemTools.ViewModels;
 
 /// <summary>导入 / 导出用的最小包记录（只要 <see cref="Id"/> 就能重装；Name / Version 仅供人看）。v3.19 / NT-008。</summary>
 public class PackageExportItem
@@ -50,7 +50,7 @@ public class PackageExportItem
 /// </summary>
 public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
-    private enum ListMode { None, Search, Installed, Upgrades, Pinned, Collection }
+    private enum ListMode { None, Search, Installed, Upgrades, Pinned }
 
     // ==================== 动词 → 命令模板（🔴 抽象落点） ====================
     //
@@ -102,11 +102,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     private readonly IPackageManagerService? _pkg;
     private readonly IPackageSettingsService? _settings;
 
-    /// <summary>
-    /// 「软件包集合」的数据源（NT-082：集合 / 条目 = 手工数据，唯一写入点仍是 <see cref="IScriptStoreService"/>）。
-    /// <para>null = DI 未注册（设计期 / 单测），此时「集合 ▾」只显示「（不按集合）」。</para>
-    /// </summary>
-    private readonly IScriptStoreService? _store;
 
     /// <summary>当前模式下的全量结果（界面集合只放过滤 + 排序后的投影）。</summary>
     private readonly List<PackageInfo> _all = new();
@@ -152,17 +147,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     {
         // 🔴 v3.80：源选择框**已删除**（用户定调）—— 源是系统 winget 的配置，增删 / 切换全要 UAC，
         // 由「命令库 → winget 源」集合里的命令执行；本页搜索一律不传 --source（走默认源集合 + 补查显式源）。
-        // NT-082 / v3.81：换成「集合 ▾」—— 显示某个「软件包」类集合的**包清单**（成员 = role=package 条目）。
-        new()
-        {
-            Kind = ToolbarItemKind.Combo,
-            Width = 140,
-            ItemsPath = nameof(CollectionOptions),
-            DisplayPath = nameof(CollectionFilterOption.Label),
-            SelectedItemPath = nameof(SelectedCollectionOption),
-            ToolTip = "软件包集合：显示这个集合的包清单（成员 = 包 Id）；「（不按集合）」= 只按搜索 / 已安装看包"
-        },
-        new() { Kind = ToolbarItemKind.Separator },
         new()
         {
             Kind = ToolbarItemKind.TextField,
@@ -265,38 +249,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     [ObservableProperty] private bool _silentInstall = true;
     [ObservableProperty] private PackageInfo? _selected;
     [ObservableProperty] private string _detailExtra = "";
-
-    // ==================== 软件包集合（NT-082 / v3.81） ====================
-
-    /// <summary>
-    /// 「集合 ▾」的选项：第一项永远是「（不按集合）」；其余 = 未归档的 <see cref="ScriptCollectionKind.Package"/> 集合。
-    /// </summary>
-    public ObservableCollection<CollectionFilterOption> CollectionOptions { get; } = new();
-
-    private CollectionFilterOption? _selectedCollectionOption;
-
-    /// <summary>
-    /// 当前选中的软件包集合（Value 空串 = 不按集合）。
-    /// <para>切换即加载清单并记「在用」（<c>LastCollectionIdByKind</c>）：集合页右键「发送到对应页面」就是写这个值，
-    /// 本页构造时读回来 ⇒ 页面被重建也能停在同一个集合。</para>
-    /// </summary>
-    public CollectionFilterOption? SelectedCollectionOption
-    {
-        get => _selectedCollectionOption;
-        set
-        {
-            if (!SetProperty(ref _selectedCollectionOption, value)) return;
-            if (_syncingCollections) return;
-            if (_store != null) _store.SetLastCollectionId(ScriptCollectionKind.Package, value?.Value ?? "");
-            _ = LoadCollectionAsync();
-        }
-    }
-
-    /// <summary>抑制「改选中 → 重加载」的开关（构造时灌值用）。</summary>
-    private bool _syncingCollections;
-
-    /// <summary>当前集合的名字（空 = 不按集合），给状态文案用。</summary>
-    private string CurrentCollectionName => SelectedCollectionOption?.Label ?? "";
 
     /// <summary>
     /// 给搜索结果**补上来源**（v3.78）：老版本 winget 的 <c>search</c> 输出不一定有 Source 列，
@@ -621,14 +573,13 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public PackageViewModel() { }
 
-    public PackageViewModel(IPackageManagerService pkg, IPackageSettingsService settings, IColumnLayoutService cols, IAppConfigService app, IScriptStoreService? store = null, IOptionsStore? opts = null)
+    public PackageViewModel(IPackageManagerService pkg, IPackageSettingsService settings, IColumnLayoutService cols, IAppConfigService app, IOptionsStore? opts = null)
         : base(cols, opts)
     {
         _app = app;
         _pkg = pkg;
         _settings = settings;
         _cols = cols;
-        _store = store;
 
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
         _syncing = true;
@@ -637,9 +588,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         SilentInstall = s.SilentInstall;
         _syncing = false;
         UpdateHeaders();
-
-        // NT-082：先把「集合 ▾」建好并恢复上次选中的软件包集合（若有 ⇒ 直接显示包清单）。
-        RefreshCollections(restoreLast: true);
 
         _ = InitAsync();
     }
@@ -741,146 +689,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         finally { IsBusy = false; }
     }
 
-    // ==================== 软件包集合（NT-082 / v3.81） ====================
-
-    /// <summary>
-    /// 重建「集合 ▾」：第一项「（不按集合）」+ 全部未归档的 <see cref="ScriptCollectionKind.Package"/> 集合。
-    /// <para><paramref name="restoreLast"/> = 进页面时用：读回「在用」集合（集合页右键「发送到对应页面」写的就是它）。</para>
-    /// </summary>
-    private void RefreshCollections(bool restoreLast = false)
-    {
-        var keep = restoreLast
-            ? _store?.GetLastCollectionId(ScriptCollectionKind.Package) ?? ""
-            : _selectedCollectionOption?.Value ?? "";
-
-        CollectionOptions.Clear();
-        CollectionOptions.Add(new CollectionFilterOption { Label = "（不按集合）", Value = "" });
-        if (_store != null)
-            foreach (var c in _store.Data.Collections
-                        .Where(c => !c.Archived && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Package)
-                        .OrderByDescending(c => c.Pinned)
-                        .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
-                CollectionOptions.Add(new CollectionFilterOption { Label = c.Name, Value = c.Id });
-
-        var target = CollectionOptions.FirstOrDefault(o => o.Value == keep) ?? CollectionOptions[0];
-        _syncingCollections = true;
-        _selectedCollectionOption = target;
-        _syncingCollections = false;
-        OnPropertyChanged(nameof(SelectedCollectionOption));
-
-        if (target.Value.Length > 0) _ = LoadCollectionAsync();
-    }
-
-    /// <summary>
-    /// 把当前集合的包清单铺到列表：成员里 <c>role=package</c> 的条目，<c>Target</c> 就是包 Id。
-    /// <para>状态（已安装 / 可升级）复用 <see cref="MarkInstalledAsync"/> —— 清单本身不带运行状态，
-    /// 一次 <c>winget list</c> 缓存即可比对，⛔ 不逐包跑 <c>winget show</c>（慢且会触发源更新）。</para>
-    /// </summary>
-    private async Task LoadCollectionAsync()
-    {
-        if (_store == null) return;
-        var colId = SelectedCollectionOption?.Value ?? "";
-        if (colId.Length == 0)
-        {
-            // 用户主动切回「（不按集合）」：不自动跑 winget，只退出清单视图。
-            if (_mode == ListMode.Collection)
-            {
-                BeginList(new List<PackageInfo>(), ListMode.None);
-                StatusText = "已退出集合视图：点「📋 已安装」或直接搜索看包。";
-            }
-            return;
-        }
-
-        var col = _store.FindCollection(colId);
-        if (col == null) return;
-
-        var members = _store.ItemsOf(colId)
-            .Where(i => ScriptItemRole.Normalize(i.Role) == ScriptItemRole.Package)
-            .Where(i => (i.Target ?? "").Length > 0)
-            .Select(i => new PackageInfo
-            {
-                Id = i.Target!,
-                Name = string.IsNullOrWhiteSpace(i.Title) ? i.Target! : i.Title!,
-                Source = i.Category ?? "",
-            })
-            .ToList();
-
-        try
-        {
-            IsBusy = true;
-            BeginList(members, ListMode.Collection);
-            await MarkInstalledAsync();
-            ApplyView();
-            StatusText = members.Count == 0
-                ? $"「{col.Name}」还没有包：在搜索结果里右键「📥 加入集合」把包加进来。"
-                : $"「{col.Name}」：{members.Count} 个包（状态按本机 winget list 比对）。";
-        }
-        finally { IsBusy = false; }
-    }
-
-    /// <summary>
-    /// 右键「📥 加入集合」：把当前选中的包写进**当前集合**（没选集合 ⇒ 用第一个软件包集合，没有就建「我的软件包」）。
-    /// <para>成员条目：<c>Role=package</c>、<c>Target=包 Id</c>、<c>Category=源</c>；按 Id 幂等去重。</para>
-    /// </summary>
-    [RelayCommand]
-    private void AddToCollection()
-    {
-        if (_store == null) { StatusText = "⚠ 集合服务未就绪（DI 未注册）—— 无法写入集合。"; return; }
-        if (Selected == null) { StatusText = "先选一个包，再「📥 加入集合」。"; return; }
-
-        var colId = SelectedCollectionOption?.Value ?? "";
-        var col = colId.Length > 0 ? _store.FindCollection(colId) : null;
-        if (col == null)
-        {
-            col = _store.Data.Collections.FirstOrDefault(
-                c => !c.Archived && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Package);
-
-            if (col == null)
-            {
-                col = new ScriptCollection
-                {
-                    Id = "col-" + Guid.NewGuid().ToString("N")[..12],
-                    Name = "我的软件包",
-                    Kind = ScriptCollectionKind.Package,
-                    Icon = "📦",
-                    Description = "手工挑出来的包清单（集合页可发送到软件包页，按清单看安装状态）",
-                    Order = _store.Data.Collections.Count,
-                };
-                _store.Data.Collections.Add(col);
-            }
-        }
-
-        var exists = _store.ItemsOf(col.Id).Any(
-            i => ScriptItemRole.Normalize(i.Role) == ScriptItemRole.Package
-                 && string.Equals(i.Target, Selected.Id, StringComparison.OrdinalIgnoreCase));
-        if (exists)
-        {
-            StatusText = $"「{Selected.Id}」已在集合「{col.Name}」里。";
-            return;
-        }
-
-        _store.Data.Items.Add(new ScriptItem
-        {
-            Id = "item-" + Guid.NewGuid().ToString("N"),
-            Role = ScriptItemRole.Package,
-            Title = string.IsNullOrWhiteSpace(Selected.Name) ? Selected.Id : Selected.Name,
-            Target = Selected.Id,
-            Category = Selected.Source ?? "",
-            Collectable = false,
-            Collections = new List<string> { col.Id },
-        });
-        _store.Save();
-
-        RefreshCollections();
-        _syncingCollections = true;
-        _selectedCollectionOption = CollectionOptions.FirstOrDefault(o => o.Value == col.Id) ?? CollectionOptions[0];
-        _syncingCollections = false;
-        OnPropertyChanged(nameof(SelectedCollectionOption));
-        _ = LoadCollectionAsync();
-
-        StatusText = $"已把「{Selected.Id}」加入集合「{col.Name}」。";
-    }
-
     [RelayCommand]
     private async Task LoadInstalledAsync()
     {
@@ -928,23 +736,12 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             case ListMode.Search: await SearchAsync(); break;
             case ListMode.Upgrades: await LoadUpgradesAsync(); break;
             case ListMode.Pinned: await LoadPinnedAsync(); break;   // NT-075：按当前列表重跑
-            case ListMode.Collection: await LoadCollectionAsync(); break;   // NT-082：按集合清单重跑
             default: await LoadInstalledAsync(); break;
         }
     }
 
     private void BeginList(List<PackageInfo> items, ListMode mode)
     {
-        // NT-082：任何「非集合」列表都把「集合 ▾」复位到「（不按集合）」——
-        // 否则搜完一轮列表是搜索结果、下拉还挂着集合名，用户会以为在看清单。
-        if (mode != ListMode.Collection && _selectedCollectionOption != null && _selectedCollectionOption.Value.Length > 0)
-        {
-            _syncingCollections = true;
-            _selectedCollectionOption = CollectionOptions.Count > 0 ? CollectionOptions[0] : null;
-            _syncingCollections = false;
-            OnPropertyChanged(nameof(SelectedCollectionOption));
-        }
-
         // v3.37 / NT-002：旧行先解绑勾选监听，新行挂上（⛔ 别直接 AddRange，否则计数不更新）
         foreach (var p in _all) p.PropertyChanged -= OnRowPropertyChanged;
         _all.Clear();
@@ -957,7 +754,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             ListMode.Installed => "已安装（本机全部包）",
             ListMode.Upgrades => "可升级",
             ListMode.Pinned => "已锁定（winget pin list）",
-            ListMode.Collection => $"集合：{CurrentCollectionName}（{items.Count} 个包）",
             _ => "尚未加载"
         };
         if (mode != ListMode.Search && SearchText.Length > 0) SearchText = "";
@@ -1439,10 +1235,8 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         return id is null ? s : s.Replace("{id}", QuoteArg(id));
     }
 
-    /// <summary>破坏性动作的二次确认（走模块内 <see cref="QuickActionService.ConfirmHandler"/>；没接上钩子时一律 false）。</summary>
-    private static async Task<bool> ConfirmAsync(string message)
-        => QuickActionService.ConfirmHandler != null
-           && await QuickActionService.ConfirmHandler(message).ConfigureAwait(true);
+    /// <summary>破坏性动作的二次确认（走 Core 的公共钩子 <see cref="DialogHooks.ConfirmAsync"/>，Shell 已注入模态框）。</summary>
+    private static Task<bool> ConfirmAsync(string message) => DialogHooks.ConfirmAsync(message);
 
     // ==================== 新增动词：刷新索引 / 全部升级 / 卸载选中 ====================
 

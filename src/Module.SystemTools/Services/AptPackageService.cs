@@ -5,10 +5,10 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using NewToys.ScriptManager.Models;
+using NewToys.SystemTools.Models;
 using NewToys.Shared.Services;
 
-namespace NewToys.ScriptManager.Services;
+namespace NewToys.SystemTools.Services;
 
 /// <summary>
 /// <see cref="IPackageManagerService"/> 的 **apt/dpkg 后端**（NT-081 步骤 5，结构验证适配器）。

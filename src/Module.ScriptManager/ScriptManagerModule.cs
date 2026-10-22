@@ -12,26 +12,10 @@ public class ScriptManagerModule : IModule
     public void RegisterServices(IServiceCollection services)
     {
         services.AddTransient<Views.ScriptLibraryView>();    services.AddTransient<ScriptLibraryViewModel>();
-        services.AddTransient<Views.PackageView>();  services.AddTransient<PackageViewModel>();
         services.AddTransient<Views.ScriptInfoView>();         services.AddTransient<ScriptInfoViewModel>();
-        // v3.80：「软件源」设置页已删（源 = 系统 winget 配置，全要 UAC）⇒ 改成命令库里的命令条目，
-        // 设置页「软件源」节只剩说明 + 一键加入命令库（见 SettingsScriptViewModel）。
         // 「脚本库 / 命令库」的清单服务（v1.34 起仅本模块使用，故沉到模块内）。
         // 它依赖 Core 的 ConfigStoreService 与 Shared 的 IAppConfigService，由 Shell 在 LoadAll 之前已注册。
         services.AddSingleton<IQuickActionService, QuickActionService>();
-
-        // NT-074：软件包管理整套**下放到本模块**（只有本模块用，⛔ 不让框架层背业务）。
-        // 原在 Shared（接口 / 模型）+ Core（winget 后端 / 输出解析 / package.json 设置），
-        // 现全部落 NewToys.ScriptManager.{Models,Services}；Shell 侧的 DI 与确认钩子接线已摘掉
-        // （二次确认改走 Core.DialogHooks，与模块里其它破坏性操作同一套）。
-        services.AddSingleton(sp => new PackageSettingsService(sp.GetRequiredService<ConfigStoreService>()));
-        services.AddSingleton<IPackageSettingsService>(sp => sp.GetRequiredService<PackageSettingsService>());
-        // NT-081 步骤5：包后端按平台二选一（页面/VM 零改动，只换 IPackageManagerService 实现）。
-        // Windows = winget（PackageManagerService）；Linux = dpkg/apt 只读适配器（AptPackageService）。
-        if (OperatingSystem.IsLinux())
-            services.AddSingleton<IPackageManagerService, AptPackageService>();
-        else
-            services.AddSingleton<IPackageManagerService, PackageManagerService>();
 
         // v3.64 / NT-061：本模块设置（脚本目录 + 三个解释器路径）——**本模块配置的唯一写入点**，
         // 落 config\script-manager.json（经 Core 的 IOptionsStore）。旧值原来在 app.json，首次运行自动搬迁。
@@ -107,9 +91,9 @@ public class ScriptManagerModule : IModule
         //    功能入口本身由左侧二级菜单承担。
         // 🔴 NT-091：**收藏夹 / 命令库已迁出本组**（→ 新「系统工具」模块，页键 `script-favorites` /
         // `script-commands` 与标题一律 ⛔ 不改 —— 页键落 columnlayout.json，改了用户列偏好失效）。
-        // NT-068 的原顺序（收藏夹 / 脚本库 / 命令库 / 软件包 / 信息面板 / 设置）⇒ 本组只剩后四项 + 抓取三页。
+        // NT-068 的原顺序（收藏夹 / 脚本库 / 命令库 / 软件包 / 信息面板 / 设置）⇒
+        // NT-091 迁出收藏夹 / 命令库，NT-096 迁出软件包 ⇒ 本组只剩 脚本库 / 集合 / 信息面板 + 抓取三页。
         menu.RegisterFunction("script", "script-library",   "脚本库",   "▤",  "ScriptLibraryView",  1, "较复杂的系统设置项与常用脚本，可运行 / 增删改查 / 收藏");
-        menu.RegisterFunction("script", "script-packages",  "软件包",   "📦", "PackageView",        3, "搜索、安装、升级、卸载软件包");
         menu.RegisterFunction("script", "script-collections", "脚本集合", "🗂", "CollectionView",     4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
         menu.RegisterFunction("script", "script-info",      "信息面板", "💻", "ScriptInfoView",     99, "按集合分节展示采集器输出；顶部「集合 ▾」一次显示一个集合");
 
@@ -120,14 +104,10 @@ public class ScriptManagerModule : IModule
         menu.RegisterFunction("script", "web-crawl", "运行结果", "🕸", "CrawlPanelView", 7,
             "跑抓取脚本看目录条目：动态列 + 双击下钻 + 下载，④ 节可回看最近 10 次运行（目录 / 日志 / 诊断）");
 
-        // 软件包模块的源设置：v3.65 / NT-062 起**并入「脚本管理器设置」页**（需求 §6.5）——
-        // 原独立菜单项 `settings-package` 已移除（⛔ 不再单独占一个菜单项），数据仍落 config\package.json。
-        // ⚠️ View/VM 的 DI 注册保留（SettingsScriptView 以子控件形式内嵌它）。
-
         // v3.64 / NT-061：**模块设置页通则** —— 每个功能模块一个设置页、View/VM 归本模块。
         // v3.66 / NT-062：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
         menu.RegisterFunction("script", "settings-script", "脚本管理器设置", "🛠", "SettingsScriptView", 100,
-            "脚本目录 + 软件源（winget 源与查询偏好）");
+            "脚本库扫描的根目录与设置文件位置");
 
         // 删除等破坏性操作的二次确认：走公共对话框钩子（由 Shell 注入到 DialogHooks），
         // 不再在 Shell 里硬接（那样会让 Release 下 Shell 被迫引用本模块）。

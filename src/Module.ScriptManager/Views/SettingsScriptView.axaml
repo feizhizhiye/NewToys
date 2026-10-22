@@ -5,10 +5,9 @@
   <!--
     「脚本管理器」模块设置页（v3.64 / NT-061，自注册进 settings 分组，Key = settings-script / Order 110）。
     v3.65 / NT-062：三个解释器路径已回迁应用级（「设置 → 运行环境」），本页只剩**脚本目录**一项。
-    🔴 v3.80（2026-10-19 用户定调）：「软件源」节 = 纯说明 + 命令清单 + 「＋ 加入命令库」按钮
-       （源 = 系统 winget 配置，改源要 UAC ⇒ 统一在命令库里执行；⛔ 本页不再有开关 / 不再调 winget）。
+    🔴 NT-096（2026-10-22）：「软件源」节已随软件包页迁到「系统工具设置」，本页只剩 脚本目录 + 设置文件 两节。
     🔴 NT-068（2026-10-18）：改用与应用级设置页同一套骨架 <ui:SettingsSectionHost>（节 = 折叠卡片），
-       3 节 ⇒ `Sticky="False"`。节内⛔ 再写 Border.card。
+       2 节 ⇒ `Sticky="False"`。节内⛔ 再写 Border.card。
 
     ⚠️ 节内容 = `<UserControl.Resources>` 里的 `SecN` 面板；节元数据（标题/图标/说明）在 code-behind 的 `Add(...)`。
       （⛔ 不要在 XAML 里直接写 `<ui:SettingsSection>`：该页会不被预编译 ⇒ 运行时 `No precompiled XAML found`。）
@@ -45,35 +44,6 @@
     </StackPanel>
 
     <StackPanel x:Key="Sec1" Spacing="10">
-      <TextBlock
-          Classes="hint-text"
-          TextWrapping="Wrap"
-          Text="源就是系统 winget 自己的配置（winget source …），改它要管理员权限、影响整台机器。所以这里不放开关：源相关操作统一在「命令库」里执行（那里可以勾「需要管理员权限」走 UAC）。下面这几条就是全部命令，点按钮一次性写进命令库的「winget 源」集合，之后去命令库点运行即可。" />
-      <ItemsControl ItemsSource="{Binding SourceCommands}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <StackPanel Margin="0,0,0,8" Spacing="2">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="{Binding Title}" />
-                <TextBlock Classes="hint-text" Text="{Binding AdminText}" />
-              </StackPanel>
-              <SelectableTextBlock
-                  FontFamily="Consolas"
-                  FontSize="12"
-                  Text="{Binding Command}"
-                  TextWrapping="Wrap" />
-              <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding Description}" />
-            </StackPanel>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Classes="ghost" Content="＋ 加入命令库（winget 源）" Command="{Binding AddSourceCommandsCommand}" />
-        <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="{Binding StatusText}" />
-      </StackPanel>
-    </StackPanel>
-
-    <StackPanel x:Key="Sec2" Spacing="10">
       <StackPanel Spacing="6">
         <TextBlock
             FontFamily="Consolas"

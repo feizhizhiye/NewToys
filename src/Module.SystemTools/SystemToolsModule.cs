@@ -41,7 +41,7 @@ public class SystemToolsModule : IModule
             sp.GetRequiredService<IAppConfigService>(),
             sp.GetRequiredService<IProcessRunner>()));
 
-        services.AddTransient<Views.SystemCommandLibraryView>();   services.AddTransient<SystemCommandListViewModel>();
+        services.AddTransient<Views.SystemCommandLibraryView>();   services.AddTransient<SystemCommandLibraryViewModel>();
         services.AddTransient<Views.FavoritesView>();              services.AddTransient<FavoritesViewModel>();
         services.AddTransient<Views.SettingsSystemView>();         services.AddTransient<SettingsSystemViewModel>();
         services.AddTransient<Views.PackageView>();                services.AddTransient<PackageViewModel>();

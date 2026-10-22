@@ -8,8 +8,8 @@ using NewToys.SystemTools.ViewModels;
 namespace NewToys.SystemTools;
 
 /// <summary>
-/// **系统工具**模块（菜单组键 `system-tools`，Order 25，NT-091 / NT-096）：<b>当前操作系统的常用设置与快速动作</b>
-/// —— 命令库 / 收藏夹 / 快捷命令 + 软件包（winget）+ 本模块设置。
+/// **系统工具**模块（菜单组键 `system-tools`，Order 25，NT-091 / NT-096 / NT-097）：<b>当前操作系统的常用设置与快速命令</b>
+/// —— 收藏夹 / 命令库（对标脚本库布局 + 随包预设）+ 软件包（winget）+ 本模块设置。
 /// <para>🔴 组键**不是** `system` —— 那是 Shell 的隐藏宿主组（应用级设置锚点 + 功能清单），同名会把
 /// 那 8 个页面渲染进本组（见 <see cref="Initialize"/> 注释）。</para>
 /// <para>
@@ -43,7 +43,6 @@ public class SystemToolsModule : IModule
 
         services.AddTransient<Views.SystemCommandLibraryView>();   services.AddTransient<SystemCommandListViewModel>();
         services.AddTransient<Views.FavoritesView>();              services.AddTransient<FavoritesViewModel>();
-        services.AddTransient<Views.QuickCommandView>();           services.AddTransient<QuickCommandViewModel>();
         services.AddTransient<Views.SettingsSystemView>();         services.AddTransient<SettingsSystemViewModel>();
         services.AddTransient<Views.PackageView>();                services.AddTransient<PackageViewModel>();
     }
@@ -60,14 +59,13 @@ public class SystemToolsModule : IModule
 
         // 🔴 函数 Key 一律不改：`script-commands` / `script-favorites` 沿用从脚本中心平移过来的键
         // （页键落 columnlayout.json，改了用户列偏好失效）。**组键与页键是两回事**，组键可改。
-        menu.RegisterFunction(GroupKey, "script-commands",  "命令库",   "⚙", "SystemCommandLibraryView", 1,
-            "只产生副作用的命令行清单：系统设置面板 / 控制面板 / 管理工具，点一下即执行");
-        menu.RegisterFunction(GroupKey, "system-quick",     "快捷命令", "⚡", "QuickCommandView",         2,
-            "十项常见系统开关（电源 / 主题 / 休眠 / 网卡 / UAC / 代理 …）；需要管理员的项只给命令，⛔ 不代跑");
-        menu.RegisterFunction(GroupKey, "script-favorites", "收藏夹",   "★", "FavoritesView",            3,
+        // NT-097：`system-quick` 快捷命令页已删（内容并入命令库预设）；收藏夹升为模块下第一个页面。
+        menu.RegisterFunction(GroupKey, "script-favorites", "收藏夹",   "★", "FavoritesView",            1,
             "收藏的命令：按钮墙，点一下就跑");
+        menu.RegisterFunction(GroupKey, "script-commands",  "命令库",   "⚙", "SystemCommandLibraryView", 2,
+            "只产生副作用的命令行清单（Windows 设置 / 控制面板 / 管理工具 / 快捷设置 / winget），首次运行带预设，点一下即执行");
         // NT-096：软件包页整体从脚本中心迁入（Key / 标题 ⛔ 不改 —— 页键落 columnlayout.json）。
-        menu.RegisterFunction(GroupKey, "script-packages",  "软件包",   "📦", "PackageView",             4,
+        menu.RegisterFunction(GroupKey, "script-packages",  "软件包",   "📦", "PackageView",             3,
             "搜索、安装、升级、卸载软件包（winget；Linux 上走 dpkg 只读适配器）");
 
         // 模块设置页（NT-061 通则：挂回本模块的一级菜单，Order 100）。
@@ -76,10 +74,26 @@ public class SystemToolsModule : IModule
     }
 
     /// <summary>
+    /// 首帧之后的轻活（NT-070 两段式）：命令库随包预设播种（NT-097）——
+    /// <c>config\system\commands.seeded</c> 标记存在 ⇒ 跳过（删了不复活）；按 Id 只加不改。
+    /// </summary>
+    public void InitializeDeferred(IServiceProvider services)
+    {
+        try
+        {
+            SystemCommandSeeder.Seed(services.GetRequiredService<ISystemCommandStore>());
+        }
+        catch
+        {
+            // 播种失败 ⇒ 页面按空数据处理，⛔ 不让启动失败（下次启动会重试）。
+        }
+    }
+
+    /// <summary>
     /// 本模块的**菜单组键**（⛔ 不是页 Key）。🔴 不能叫 <c>system</c>：那是 Shell 的隐藏宿主组
     /// （应用级设置锚点 + 功能清单挂那），同名会把这 8 个页面渲染进「系统工具」。
     /// </summary>
     private const string GroupKey = "system-tools";
 
-    // 🔴 本模块没有建库 / 播种 / 扫描之类的重活 ⇒ 不覆盖 InitializeDeferred（接口有默认空实现）。
+    // 🔴 启动重活只有「命令库预设播种」一件 ⇒ 放 InitializeDeferred（NT-070 两段式，⛔ 不拦首帧）。
 }

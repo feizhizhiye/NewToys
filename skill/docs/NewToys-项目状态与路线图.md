@@ -22,9 +22,9 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.86 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.82 |
+| 文档版本 | 需求 v3.90 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.83 |
 | 技术栈 | .NET 10 + Avalonia 12.1.4 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
-| 代码规模 | 8 项目 / 274 个 `.cs+.axaml+.csproj` / 约 51100 行 |
+| 代码规模 | 8 项目 / 272 个 `.cs+.axaml+.csproj` / 约 51000 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |
 | 版本控制 | ✅ git（分支 `main`） |
 | 构建分工 | 🧑‍💻 构建 / 发布由用户本地执行（`pwsh -File .\scripts\build.ps1`）；AI 只改 `src/`（**例外：`scripts/` 构建脚本经用户明确授权可改**——2026-10-13 授权，Settings 物理必备改造） |
@@ -53,25 +53,27 @@
 
 | 模块 | 菜单项 | 真实逻辑 | 骨架 |
 |---|---|---|---|
-| 脚本管理器（`script`） | 7（6 功能页 + 设置） | **7** | 0 |
-| 网络工具（`web`） | 6（5 功能页 + 设置） | **6** | 0 |
+| 脚本中心（`script`） | 7（6 功能页 + 设置） | **7** | 0 |
+| 网络工具（`web`） | 5（4 功能页 + 设置） | **5** | 0 |
 | 视频工具（`video`） | 4（3 功能页 + 设置） | **4** | 0 |
 | 媒体资产（`assets`） | 8（7 功能页 + 设置） | **8** | 0 |
+| **系统工具（`system-tools`）** | 4（3 功能页 + 设置） | **4** | 0 |
 | 应用级设置（宿主 `system`） | 8 节锚点（六节 + 功能清单） | **8** | 0 |
 | 首页（`home`） | 1 | **1** | 0 |
-| **合计** | **34** | **34** | **0** |
+| **合计** | **37** | **37** | **0** |
 
 > **骨架页**：无（`web-http` 已由 NT-001 落成真实页）。
 > v3.76：**媒体资产 5 个类型页已删**（`assets-video/-music/-book/-image/-document`，NT-063 P2-a）⇒ 8 = 7 功能页 + 设置；类型切换改由「全部资产」筛选栏驱动。
 
-### 2.4 菜单清单（34 项）
+### 2.4 菜单清单（37 项）
 
 > 权威来源 = 各模块 `Initialize()` 的 `RegisterModule/RegisterFunction`；冲突以代码为准。
 
-| 分组 | Key | Order | 图标键 | 二级菜单（Key 标题/View/Order/度） |
+| 分组 | Key | Order | 图标键 | 二级菜单（Key 标题/Order/✅） |
 |---|---|---|---|---|
 | 首页 | — | — | `IconHome` | （树的叶子节点；也是**默认页**，与其他标签一样常驻标签栏、不可关闭） |
-| 脚本管理器 | script | 20 | `IconPc` | `script-favorites`收藏夹/0/✅ ｜ `script-library`脚本库/1/✅ ｜ `script-commands`命令库/2/✅ ｜ `script-packages`软件包/3/✅ ｜ `script-collections`脚本集合/4/✅ ｜ `script-info`**信息面板**/99/✅ ｜ `web-scrape`**抓取规则**/5/✅ ｜ `web-rule-editor`**调试集合**/6/✅ ｜ `web-crawl`**运行结果**/7/✅ ｜ **`settings-script`脚本管理器设置/100/✅** |
+| 脚本中心 | script | 20 | `IconPc` | `script-library`脚本库/1/✅ ｜ `script-collections`脚本集合/4/✅ ｜ `script-info`**信息面板**/99/✅ ｜ `web-scrape`**抓取规则**/5/✅ ｜ `web-rule-editor`**调试集合**/6/✅ ｜ `web-crawl`**运行结果**/7/✅ ｜ **`settings-script`脚本中心设置/100/✅** |
+| **系统工具** | system-tools | 25 | `IconSystem` | `script-favorites`收藏夹/1/✅ ｜ `script-commands`命令库/2/✅ ｜ `script-packages`软件包/3/✅ ｜ **`settings-system`系统工具设置/100/✅**（🔴 `system-quick` 快捷命令页 NT-097 已删） |
 | 网络工具 | web | 30 | `IconWeb` | `web-http`HTTP 测试/1/✅（工具条逃生舱）｜ `web-bookmark`书签管理/2/✅ ｜ `web-ping`网络 Ping/3/✅ ｜ `web-hosts`Hosts 管理/7/✅（Order 保留原值）｜ **`settings-web-tools`网络工具设置/100/✅** |
 | 视频工具 | video | 40 | `IconVideo` | `video-list`视频列表/0/✅ ｜ `video-cut`**视频预览**/1/✅ ｜ `video-batch`**批量处理**/2/✅ ｜ **`settings-video-tools`视频工具设置/100/✅** |
 | 媒体资产 | assets | 50 | `IconMediaAssets` | `assets-all`全部资产/0/✅ ｜ `assets-tags`标签管理/6/✅ ｜ `assets-categories`分类管理/7/✅ ｜ `assets-collections`集合管理/8/✅ ｜ `assets-storages`存储源/9/✅ ｜ `assets-tasks`任务中心/10/✅ ｜ `assets-trash`回收站/11/✅ ｜ **`settings-media-assets`媒体资产设置/99/✅** |
@@ -189,6 +191,7 @@
 | NT-094 | **设置拆分与文案收尾** —— WebTools 设置瘦身（超时 / 并发 / 解析器 → script）；一级菜单显示名「脚本中心」；新二级图标落地；备份段重复显示检查 | P2 | 📝 **草稿**（待细化；依赖以上全部） | 📝 待建卡（backlog/fr
 | NT-095 | **`web-scrape` 抓取规则页终态**（NT-089 S2 拆出）—— 三选一：**A** 保留独立目录页（089 就此结项）／**B** 合并退化为脚本库 `category=rule` 筛选态（规则页 10 项专属命令经基类 `ToolbarExtras` 插槽整体平移，功能零回退）／**C** 撤出左树、保留注册供跳转。🔴 属「删 / 改用户已确认的实现」⇒ **待拍板** | P2 | 📝 **草稿**（⏸ 待拍板，见卡 §二） | backlog/script-manager/NT-095.md |amework/NT-094.md） |
 | NT-096 | **软件包页迁入系统工具 + 系统工具定位收紧**（2026-10-22 用户定调）：`script-packages`（winget GUI）整体从脚本中心平移到 `Module.SystemTools`（Key / 标题 ⛔ 不改）；~~「软件源（winget）」节从「脚本管理器设置」迁到「系统工具设置」~~（🔴 **同日返工：该节删除**，用户「系统工具模块下有软件设置页的节，没必要」）；软件包页的「集合」表达（工具条 `集合 ▾` + 行右键 `📥 加入集合`）删除；🔴 系统工具定位 = **当前操作系统的常用设置与快速命令**，⛔ 不收应用级设置页的功能 | P0 | ✅ **已实施（⏳ 待用户本地 build / accept 验收）** —— 2026-10-22 用户指令「把软件包页移动到系统工具里」；返工：系统工具设置回到 2 节（执行 / 数据文件），源操作回归 `winget source …`；**组键 `system` → `system-tools`**（撞 Shell 隐藏宿主组，应用级设置 8 页曾被渲染进本组） | backlog/system-tools/NT-096.md |
+| NT-097 | **系统工具页面重构**（2026-10-23 用户指令）：① **删 `system-quick` 快捷命令页**（内容并入命令库预设）；② **命令库对标脚本库**重做（列显隐 / 表头排序 / 行内 ▶ / Shell 工具条 / 详情卡，VM 继承 `ListPageViewModelBase`）；③ **随包预设** Windows 常用命令 + 快捷设置 + winget（`commands.seeded` 只播种一次）；④ **收藏夹升为模块下第一个页面**（Order 1） | P0 | ✔ **已完成（待验收）** —— 代码已落地（改动全落 `Module.SystemTools`），等用户本地 `accept.ps1`（与 NT-096 同批一次 build） | backlog/system-tools/NT-097.md |
 | NT-083 | **Python 运行时底座**：`env.json` 增 `python` 项（空 = PATH 探测，平台中立）/ 共享环境 **`%LOCALAPPDATA%\NewToys\tools\py`**（与 `env.json` 同级，⛔ 不进 profiles）/ 长驻 worker（行分隔 JSON + `-u -X utf8` + 超时杀进程树 + traceback 回传 + 空闲 10 分钟自动退出）/ **依赖安装交给随包脚本**（C# ⛔ 不写 pip 逻辑，播种成集合「环境维护」）/ 「运行环境」节显示共享环境状态 / ⛔ 不引 pythonnet；供 web-tools 与 script-manager 共用 ⇒ **落 Core（已批准）** | P1 | ✔ **批 1~4 已实施（2026-10-19）**：运行时 + worker + 环境脚本集合 + 「Python 共享环境（venv）」状态行；⏳ 待用户本地 build + 实机功能验收 | backlog/framework/NT-083.md |
 | NT-082 | **软件包集合（跨后端包清单预设）+ 集合右键发送到对应页面**：① 集合类别加回 `package`（成员 `role=package`，`Target`=包 Id；与包条目一对一容器）；② 「📤 发送到信息面板」→「📤 发送到对应页面」，按 kind 跳 info / script / command / packages 并写 `lastCollectionIdByKind`；左栏集合行右键同项（2026-10-19 追加微调：右键文案动态化「📤 发送到{目标页名}」，随选中集合类别变）；③ 软件包页 `集合 ▾` 显示包清单（状态按 `winget list` 比对）+ 行右键 `📥 加入集合`（幂等）。源命令（含中科大）已由 NT-080 提供，本次未改 | P1 | ✔ **已完成（⏳ 待用户本地 build 验收）** | backlog/script-manager/NT-082.md |
 

@@ -18,6 +18,9 @@ public interface ISystemCommandStore
     /// <summary>新增一条（带默认标题），返回它。</summary>
     SystemCommand Add(string title);
 
+    /// <summary>按原样新增一条（播种器用：保留调用方给的 <see cref="SystemCommand.Id"/>；⛔ 不做判重，由调用方保证）。</summary>
+    SystemCommand Insert(SystemCommand item);
+
     /// <summary>删除一条。</summary>
     bool Remove(SystemCommand item);
 

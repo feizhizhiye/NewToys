@@ -31,6 +31,9 @@ public sealed partial class SystemCommand : ObservableObject
     /// <summary>列表里的收藏标记（★ / 空）。</summary>
     public string FavoriteMark => IsFavorite ? "★" : "";
 
+    /// <summary>收藏翻转 ⇒ 通知列表里的 ★ 标记（行模板直接绑 <see cref="FavoriteMark"/>）。</summary>
+    partial void OnIsFavoriteChanged(bool value) => OnPropertyChanged(nameof(FavoriteMark));
+
     /// <summary>列表里的宿主显示名。</summary>
     public string ShellText => Shell switch
     {

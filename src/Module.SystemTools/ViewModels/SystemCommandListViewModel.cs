@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
 using NewToys.Shared.Details;
+using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.SystemTools.Models;
 using NewToys.SystemTools.Services;
@@ -17,18 +18,18 @@ using NewToys.SystemTools.Services;
 namespace NewToys.SystemTools.ViewModels;
 
 /// <summary>
-/// 「系统工具 → 命令库」页（`script-commands`，NT-091）：一张**只产生副作用**的命令行清单
-/// （Windows 设置面板 / 控制面板 / 管理工具入口）。
+/// 「系统工具 → 命令库」页（<c>script-commands</c>，NT-097 对标脚本库重做）：一张<b>只产生副作用</b>的命令行清单
+/// （Windows 设置面板 / 控制面板 / 管理工具 / 快捷设置 / winget）。
 /// <para>
-/// 🔴 与 ScriptManager 的列表页 VM <b>不是同一份</b>（模块禁互引 ⇒ 各持一份，NT-091 §八.2）：
-/// 这里只保留命令库需要的部分 —— 搜索 / 排序 / 增改删 / ▶ 运行 / 收藏 / 复制 / 导出导入 json；
-/// ⛔ 没有：集合（库）/ 可采集 / 采集器 / 类型·解释器下拉 / 分页（条目量小，一屏够）。
+/// 🔴 NT-097 起继承 <see cref="ListPageViewModelBase"/>（Shared）⇒ 与脚本库<b>同一套</b>列显隐 / 表头排序 /
+/// 多项筛选 / 声明式工具条 / 详情栏开合（偏好落 <c>config\columnlayout.json</c>，页键仍是 <c>script-commands</c>）。
+/// 早期精简版（固定四列 + 页内工具条 + 无详情卡）已废除。
 /// </para>
-/// <para>🔴 执行一律走 Core 的 <c>ScriptRunner</c>（NT-088 上提），⛔ 不自己起进程。</para>
+/// <para>🔴 执行一律走 Core 的 <c>ScriptRunner</c>（NT-088 上提），⛔ 不自己起进程；需要管理员的项只复制命令。</para>
 /// </summary>
-public partial class SystemCommandListViewModel : ObservableObject, IStatusProvider, IDetailCardSource
+public partial class SystemCommandListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
-    // 🔴 有设计期 / 无 DI 兜底构造（见下方无参 ctor）⇒ 用 null! 消 CS8618；使用点均已 null 安全。
+    // 🔴 有设计期 / 无 DI 兜底构造 ⇒ 用 null! 消 CS8618；使用点均已 null 安全。
     private readonly ISystemCommandStore _store = null!;
     private readonly ISystemToolsSettingsService _settings = null!;
     private readonly ScriptRunner _runner = null!;
@@ -36,21 +37,34 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
     private readonly List<SystemCommand> _all = new();
 
     [ObservableProperty] private SystemCommand? _selected;
-    [ObservableProperty] private string _statusText = "";
     [ObservableProperty] private bool _isBusy;
+
+    /// <summary>关键字（即时过滤：名称 / 功能 / 命令 / 简介）。</summary>
     [ObservableProperty] private string _searchText = "";
-    [ObservableProperty] private string _sortKey = "Title";
-    [ObservableProperty] private bool _sortDescending;
+
+    // ==================== 表头文案（基类 SortArrow 拼排序箭头） ====================
+
+    [ObservableProperty] private string _titleHeader = "名称";
+    [ObservableProperty] private string _categoryHeader = "功能";
+    [ObservableProperty] private string _shellHeader = "分类";
+    [ObservableProperty] private string _descriptionHeader = "简介";
+    [ObservableProperty] private string _favoriteHeader = "★";
 
     /// <summary>设计期 / 无 DI 兜底构造（⛔ 不碰任何服务）。</summary>
-    public SystemCommandListViewModel() { Card = BuildCard(); }
+    public SystemCommandListViewModel() : base(null, null) { }
 
-    public SystemCommandListViewModel(ISystemCommandStore store, ISystemToolsSettingsService settings, ScriptRunner runner)
+    public SystemCommandListViewModel(
+        ISystemCommandStore store,
+        ISystemToolsSettingsService settings,
+        ScriptRunner runner,
+        IColumnLayoutService? cols = null,
+        IOptionsStore? opts = null)
+        : base(cols, opts)
     {
         _store = store;
         _settings = settings;
         _runner = runner;
-        Card = BuildCard();
+        LoadLayout();     // 列显隐 + 详情栏开合（基类；页键 script-commands）
         Reload();
     }
 
@@ -62,29 +76,56 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
 
     public string FilePath => _store?.FilePath ?? "";
 
-    public string DataFileHint => "数据文件：" + FilePath + "（NT-091：系统工具自己的清单，⛔ 不与脚本中心共用）";
+    public string DataFileHint => "数据文件：" + FilePath + "（系统工具自己的命令清单，⛔ 不与脚本中心共用）";
 
-    /// <inheritdoc />
-    public DetailCardDescriptor? Card { get; }
+    // ==================== 列显隐直通（XAML 只能绑具名属性；状态在基类） ====================
 
-    public event EventHandler? StatusChanged;
-    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
+    public bool IsTitleVisible => Vis("Title");
+    public bool IsCategoryVisible => Vis("Category");
+    public bool IsShellVisible => Vis("Shell");
+    public bool IsDescriptionVisible => Vis("Description");
+    public bool IsFavoriteVisible => Vis("Favorite");
+    public bool IsActionVisible => Vis("Action");
+
+    protected override string PageKey => "script-commands";   // 🔴 页键落 columnlayout.json，⛔ 不改
+
+    /// <summary>列的元数据（顺序即表头与行的列顺序）；⛔ 不加 Detail 占位列。</summary>
+    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
+    {
+        new("Title", "名称", "240", sample: "网络和 Internet 设置"),
+        new("Category", "功能", "120", sample: "系统设置"),
+        new("Shell", "分类", "110", sample: "自动"),
+        new("Description", "简介", "*", sample: "打开系统设置的「显示」页，改分辨率 / 缩放"),
+        new("Favorite", "★", "90", sample: "★"),
+        new("Action", "操作", "96", sample: "▶ 运行"),
+    };
+
+    /// <summary>排序列 / 筛选条件 / 关键字变化后重算列表（基类 SortCommand 与筛选都走这里）。</summary>
+    protected override void RefreshView() => ApplyView();
+
+    protected override void EnsureDetailSelection()
+    {
+        if (Selected == null && Items.Count > 0) Selected = Items[0];
+    }
+
+    // ==================== 状态变化通知 ====================
+
+    partial void OnSearchTextChanged(string value) => ApplyView();
+
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
-
-    partial void OnSearchTextChanged(string value) => ApplyFilter();
-    partial void OnSortKeyChanged(string value) => ApplyFilter();
-    partial void OnSortDescendingChanged(bool value) => ApplyFilter();
 
     partial void OnSelectedChanged(SystemCommand? value)
     {
         OnPropertyChanged(nameof(EditTitle));
         OnPropertyChanged(nameof(EditCategory));
+        OnPropertyChanged(nameof(EditShell));
         OnPropertyChanged(nameof(EditDescription));
         OnPropertyChanged(nameof(EditCommand));
         OnPropertyChanged(nameof(EditNeedAdmin));
         OnPropertyChanged(nameof(EditRunHidden));
         OnPropertyChanged(nameof(ShellText));
         OnPropertyChanged(nameof(HasSelection));
+        DetailChanged?.Invoke(this, EventArgs.Empty);
     }
 
     // ==================== 编辑代理（详情卡 ValuePath 绑这些） ====================
@@ -99,6 +140,19 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
     {
         get => Selected?.Category ?? "";
         set { if (Selected is not null) { Selected.Category = value; Save(); } }
+    }
+
+    /// <summary>Shell 宿主下拉：<c>auto</c> / <c>cmd</c> / <c>pwsh</c>。</summary>
+    public string EditShell
+    {
+        get => Selected?.Shell ?? "auto";
+        set
+        {
+            if (Selected is null || string.IsNullOrWhiteSpace(value)) return;
+            Selected.Shell = value;
+            Save();
+            OnPropertyChanged(nameof(ShellText));
+        }
     }
 
     public string EditDescription
@@ -126,6 +180,9 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
     }
 
     public string ShellText => Selected?.ShellText ?? "";
+
+    /// <summary>Shell 下拉的候选项（详情卡 <see cref="FieldKind.Select"/> 简单值通道）。</summary>
+    public IReadOnlyList<string> ShellOptions { get; } = new[] { "auto", "cmd", "pwsh" };
 
     public bool ShowDetailBody => Selected is not null;
 
@@ -228,7 +285,7 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
         StatusText = "已复制命令。";
     }
 
-    /// <summary>📤 导出 json（写死落数据目录下的 `commands-export.json`，⛔ 不弹对话框）。</summary>
+    /// <summary>📤 导出 json（写死落数据文件同目录的 <c>commands-export.json</c>，⛔ 不弹对话框）。</summary>
     [RelayCommand]
     private void Export()
     {
@@ -257,35 +314,27 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
         catch (Exception ex) { StatusText = "⚠ 导入失败：" + ex.Message; }
     }
 
-    /// <summary>点表头排序。</summary>
-    [RelayCommand]
-    private void SortBy(string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)) return;
-        if (string.Equals(SortKey, key, StringComparison.Ordinal)) SortDescending = !SortDescending;
-        else { SortKey = key; SortDescending = false; }
-    }
-
-    private string ExportPath => System.IO.Path.Combine(
-        System.IO.Path.GetDirectoryName(FilePath) ?? ".", "commands-export.json");
-
-    private string ExportJson() => System.Text.Json.JsonSerializer.Serialize(_all,
-        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-
     // ==================== 列表 ====================
 
+    /// <summary>关键字 + 多项筛选 + 排序（基类 <see cref="SortColumn"/> / <see cref="SortDescending"/>）。</summary>
     private void ApplyFilter()
     {
-        var kw = (SearchText ?? "").Trim();
         IEnumerable<SystemCommand> src = _all;
+
+        var kw = (SearchText ?? "").Trim();
         if (kw.Length > 0)
             src = src.Where(i => (i.Title ?? "").Contains(kw, StringComparison.CurrentCultureIgnoreCase)
                                  || (i.Category ?? "").Contains(kw, StringComparison.CurrentCultureIgnoreCase)
-                                 || (i.Command ?? "").Contains(kw, StringComparison.CurrentCultureIgnoreCase));
+                                 || (i.Command ?? "").Contains(kw, StringComparison.CurrentCultureIgnoreCase)
+                                 || (i.Description ?? "").Contains(kw, StringComparison.CurrentCultureIgnoreCase));
 
-        src = SortKey switch
+        src = ApplyFilters(src);   // 基类：表头右键「🔎 筛选」加的条件（且 关系）
+
+        src = SortColumn switch
         {
             "Category" => src.OrderBy(i => i.Category, StringComparer.CurrentCultureIgnoreCase),
+            "Shell" => src.OrderBy(i => i.Shell, StringComparer.Ordinal),
+            "Description" => src.OrderBy(i => i.Description, StringComparer.CurrentCultureIgnoreCase),
             "Favorite" => src.OrderByDescending(i => i.IsFavorite),
             _ => src.OrderBy(i => i.Title, StringComparer.CurrentCultureIgnoreCase)
         };
@@ -294,7 +343,32 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
         Items.Clear();
         foreach (var i in src) Items.Add(i);
         OnPropertyChanged(nameof(HasItems));
+
+        TitleHeader = "名称" + SortArrow("Title");
+        CategoryHeader = "功能" + SortArrow("Category");
+        ShellHeader = "分类" + SortArrow("Shell");
+        DescriptionHeader = "简介" + SortArrow("Description");
+        FavoriteHeader = "★" + SortArrow("Favorite");
+
+        RebuildQuickFilters();
     }
+
+    /// <summary>表头右键「🔎 筛选」的快捷项 = 当前出现过的「功能」分类值（随条目增删重建）。</summary>
+    private void RebuildQuickFilters()
+    {
+        var cats = _all.Select(i => i.Category)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(c => c, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+        SetQuickFilters(cats.Select(c => (c, "Category", c)));
+    }
+
+    private string ExportPath => System.IO.Path.Combine(
+        System.IO.Path.GetDirectoryName(FilePath) ?? ".", "commands-export.json");
+
+    private string ExportJson() => System.Text.Json.JsonSerializer.Serialize(_all,
+        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
 
     private async Task SetClipboardAsync(string text)
     {
@@ -304,14 +378,47 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
         catch (Exception ex) { StatusText = "⚠ 复制失败：" + ex.Message; }
     }
 
-    // ==================== 详情卡 ====================
+    // ==================== 详情面板 + 声明式详情卡（NT-054 L2；NT-097 补上右栏渲染） ====================
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图。</summary>
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    /// <summary>工具条末位的详情开关 → 走本命令（⛔ 基类 <c>ToggleDetailCommand</c> 不通知 Shell，右列不会跟着开合）。</summary>
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        ToggleDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Shell 按 config 回放「展开」时调（同样要通知 Shell）。</summary>
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        ShowDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // —— 显式实现接口（⛔ 不写成 public 方法：基类已有同名的 private [RelayCommand] ToggleDetail / ShowDetail，隐式实现会撞名） ——
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    private DetailCardDescriptor? _card;
+
+    /// <inheritdoc />
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
 
     private static DetailCardDescriptor BuildCard()
     {
         return new DetailCardDescriptor
         {
             BodyVisiblePath = nameof(ShowDetailBody),
-            EmptyText = "在左侧列表里选中一条，或点「➕ 新增」。这里放的是系统自带的设置入口 / 命令行开关；选中后点列表里的「▶」即执行。",
+            EmptyText = "在左侧列表里选中一条，或点工具条「➕ 新增」。首次运行会播种一批 Windows 常用命令 / 快捷设置 / winget 命令；选中后点列表里的「▶」即执行。",
             Sections =
             {
                 new DetailSection
@@ -320,8 +427,15 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
                     Fields =
                     {
                         new DetailField { Label = "名称", ValuePath = nameof(EditTitle), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur },
-                        new DetailField { Label = "功能", ValuePath = nameof(EditCategory), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, Placeholder = "系统设置 / 打开…" },
-                        new DetailField { Label = "分类", ValuePath = nameof(ShellText), Kind = FieldKind.Text, Selectable = true, Mono = true },
+                        new DetailField { Label = "功能", ValuePath = nameof(EditCategory), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, Placeholder = "系统设置 / 控制面板 / 管理工具 / 快捷设置 / winget" },
+                        new DetailField
+                        {
+                            Label = "分类（Shell 宿主）",
+                            Kind = FieldKind.Select,
+                            OptionsPath = nameof(ShellOptions),
+                            ValuePath = nameof(EditShell),
+                            Hint = "auto = 自动选 pwsh；cmd = cmd.exe /c（reg / netsh / winget 用它最稳）；pwsh = PowerShell"
+                        },
                         new DetailField { Label = "简介", ValuePath = nameof(EditDescription), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, MultiLine = true, Rows = 52 },
                         new DetailField { Label = "命令", ValuePath = nameof(EditCommand), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, Mono = true, MultiLine = true, Rows = 84 },
                         new DetailField { Kind = FieldKind.Hint, Hint = "例：`start ms-settings:display` 打开「显示」设置；`control` 打开控制面板。▶ = 交给 Core 的执行器跑这条命令。" },
@@ -334,4 +448,65 @@ public partial class SystemCommandListViewModel : ObservableObject, IStatusProvi
             }
         };
     }
+
+    // ==================== 声明式工具条（NT-055：由 Shell 统一渲染，页面⛔ 不再自绘） ====================
+
+    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new()
+        {
+            Text = "➕ 新增", Classes = "ghost",
+            CommandPath = nameof(AddCommand),
+            IsEnabledPath = "!" + nameof(IsBusy),
+            ToolTip = "新增一条命令条目（在右栏详情卡里填名称 / 命令）"
+        },
+        new()
+        {
+            Text = "🗑 删除", Classes = "ghost",
+            CommandPath = nameof(DeleteCommand),
+            IsEnabledPath = nameof(HasSelection),
+            ToolTip = "删除选中条目（二次确认；只删清单，不碰系统）"
+        },
+        new()
+        {
+            Text = "★ 收藏", Classes = "ghost",
+            CommandPath = nameof(ToggleFavoriteCommand),
+            IsEnabledPath = nameof(HasSelection),
+            ToolTip = "收藏 / 取消收藏选中项 —— 收藏夹页（模块下第一个页面）同步显示"
+        },
+        new()
+        {
+            Text = "▶ 运行", Classes = "ghost",
+            CommandPath = nameof(RunCommand),
+            IsEnabledPath = nameof(IsNotBusy),
+            ToolTip = "运行选中条目；需要管理员的项只复制命令（应用不代跑）"
+        },
+        new()
+        {
+            Text = "📋 复制命令", Classes = "ghost",
+            CommandPath = nameof(CopyCommand),
+            IsEnabledPath = nameof(HasSelection),
+            ToolTip = "复制选中条目的命令文本"
+        },
+        new()
+        {
+            Kind = ToolbarItemKind.TextField,
+            Width = 88,
+            Placeholder = "搜索名称 / 功能 / 命令…",
+            ValuePath = nameof(SearchText),
+            ToolTip = "即时过滤（本地）"
+        },
+        new()
+        {
+            Text = "📤 导出", Classes = "ghost",
+            CommandPath = nameof(ExportCommand),
+            ToolTip = "把全部条目导出到数据文件同目录的 commands-export.json"
+        },
+        new()
+        {
+            Text = "📥 导入", Classes = "ghost",
+            CommandPath = nameof(ImportCommand),
+            ToolTip = "从同一个 commands-export.json 按 Id 合并导入"
+        },
+    };
 }

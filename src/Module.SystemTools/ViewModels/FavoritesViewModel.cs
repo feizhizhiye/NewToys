@@ -73,6 +73,8 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
 
         if (item.NeedAdmin)
         {
+            // NT-097：补上真正的剪贴板复制（原来只改状态栏文案，用户复制不到）。
+            await SetClipboardAsync(item.Command).ConfigureAwait(true);
             StatusText = "⚠ 这条要管理员权限 —— 命令已复制，请在提权的终端里自己跑：" + item.Command;
             return;
         }
@@ -103,5 +105,14 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
         _store.Save();
         Refresh();
         StatusText = "已移出收藏夹：" + item.Title;
+    }
+
+    private async Task SetClipboardAsync(string text)
+    {
+        if (string.IsNullOrEmpty(text)) { StatusText = "没有可复制的命令。"; return; }
+        var win = (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (win?.Clipboard is null) { StatusText = "剪贴板不可用。"; return; }
+        try { await win.Clipboard.SetTextAsync(text); }
+        catch (Exception ex) { StatusText = "⚠ 复制失败：" + ex.Message; }
     }
 }

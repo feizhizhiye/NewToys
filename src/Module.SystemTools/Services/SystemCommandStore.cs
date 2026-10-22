@@ -49,6 +49,14 @@ public sealed class SystemCommandStore : ISystemCommandStore
     }
 
     /// <inheritdoc />
+    public SystemCommand Insert(SystemCommand item)
+    {
+        _items.Add(item);
+        Save();
+        return item;
+    }
+
+    /// <inheritdoc />
     public bool Remove(SystemCommand item)
     {
         if (!_items.Remove(item)) return false;

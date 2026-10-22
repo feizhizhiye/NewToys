@@ -3,50 +3,50 @@
 > **程序集**：`src/Module.SystemTools`（`NewToys.SystemTools`，产物 `Module.SystemTools.dll`）
 > **模块键**：`system` ｜ **一级菜单**：Order **25** · 图标 `IconSystem`（StreamGeometry，NT-091 加进 `App.axaml`）
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：✅ 已实施（NT-091 建模块 · NT-096 收编软件包）｜⏳ 待用户本地 `accept.ps1` 验收
-> **最后校对**：2026-10-22
+> **状态**：✅ 已实施（NT-091 建模块 · NT-096 收编软件包 · **NT-097 页面重构**）｜⏳ 待用户本地 `accept.ps1` 验收
+> **最后校对**：2026-10-23
 
 ---
 
 ## 1. 职责与边界
 
-- **定位**（v3.87 用户定调）：**当前操作系统的常用设置与快速命令** —— 系统设置入口（命令库）/ 快捷命令 / 软件包（按操作系统装软件）/ 收藏聚合。
-- **归属判据**（需求 §2.3.3，机械可执行）：执行完**只产生副作用、不产出数据** ⇒ 本模块；产出**可解析数据**（能进集合 / 信息面板 / 命令链）⇒ `script` 脚本中心。
+- **定位**（v3.87 用户定调 / v3.90 收紧）：**当前操作系统的常用设置与快速命令** —— 收藏夹（模块下第一个页面）/ 命令库（对标脚本库布局 + 随包预设）/ 软件包（按操作系统装软件）。判据 = 执行完**只产生副作用、不产出数据**（需求 §2.3.3）；产出可解析数据的条目一律归 `script` 脚本中心。
 - ⛔ **不收应用级设置页的功能**（全局通用 / 启动与外观 / 路径与配置 / 网络与 DNS / 数据管理仍归框架层 `src/Shell`，需求 §4.9）。
 - ⛔ 不做：采集器 / 间隔刷新 / 输出解析器 / 集合 / 命令链编排（属 `script`）。
 - ⛔ 不引 Shell、⛔ 不引其它模块（模块禁互引）。执行一律走 Core 的 `ScriptRunner`（NT-088 上提）。
 - 页 Key 沿用从 script 迁来的 `script-commands` / `script-favorites` / `script-packages`（**⛔ 不改 Key**：落 `columnlayout.json`，改了用户列偏好失效）。
+- 🔴 **`system-quick`「快捷命令」页已删**（NT-097 / v3.90）：十项快捷开关并入**命令库预设**（「快捷设置」类），App 不再单独维护一页按钮墙。
 
-## 2. 当前功能（4 页 + 1 设置页）
+## 2. 当前功能（3 页 + 1 设置页）
 
 | 菜单 Key | 标题 | Order | View / VM | 说明 |
 |---|---|---|---|---|
-| `script-commands` | 命令库 | 1 | `SystemCommandLibraryView` / `SystemCommandListViewModel` | 系统设置面板 / 控制面板 / 管理工具的命令行清单，点一下即执行；搜索 / 排序 / 增改删 / ▶ 运行 / 收藏 / 复制 / 导入导出 json |
-| `system-quick` | 快捷命令 | 2 | `QuickCommandView` / `QuickCommandViewModel` | 十项常见开关（电源计划 / 主题明暗 / 休眠 / 网卡启禁 / 磁盘清理 / UAC / 开发者模式 / 远程桌面 / 代理开关 / 时间区域）；要管理员权限的**只给命令 + 📋 复制**，⛔ 不代跑 |
-| `script-favorites` | 收藏夹 | 3 | `FavoritesView` / `FavoritesViewModel` | 按钮墙：**本模块命令条目**里 `IsFavorite` 的那些，点一下执行 |
-| `script-packages` | 软件包 | 4 | `PackageView` / `PackageViewModel`（NT-096 自脚本中心迁入） | winget GUI：搜索 / 安装 / 升级 / 卸载 / 锁定 / 详情 / 导入导出已装清单；Linux 走 dpkg 只读适配器 |
+| `script-favorites` | 收藏夹 | **1**（模块下第一个页面） | `FavoritesView` / `FavoritesViewModel` | 按钮墙：**本模块命令条目**里 `IsFavorite` 的那些，点一下执行；✕ 移出收藏 |
+| `script-commands` | 命令库 | 2 | `SystemCommandLibraryView` / `SystemCommandListViewModel` | **对标脚本库**（NT-097 重做）：Windows 常用命令 / 控制面板 / 管理工具 / 快捷设置 / winget 的命令行清单；列显隐 / 表头排序 / 筛选 / 行内 ▶ 运行 / 增改删 / ★ 收藏 / 📋 复制 / 导入导出 json；**首次运行随包预设** |
+| `script-packages` | 软件包 | 3 | `PackageView` / `PackageViewModel`（NT-096 自脚本中心迁入） | winget GUI：搜索 / 安装 / 升级 / 卸载 / 锁定 / 详情 / 导入导出已装清单；Linux 走 dpkg 只读适配器 |
 | `settings-system` | 系统工具设置 | 100 | `SettingsSystemView` / `SettingsSystemViewModel` | 唯一写入点：命令超时 + 数据文件位置（🔴 2026-10-22 返工：**不再有「软件源」节**） |
 
 ## 2.5 操作逻辑（交互契约）
 
 > 每页一张表：**操作 → 触发 → 结果 / 状态变化 → 约束**。跨模块共用语义见 `../ui.md` §10。
 
-### 命令库 `script-commands`
+### 命令库 `script-commands`（NT-097 对标脚本库重做）
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| ▶ 运行 | 行右键 / 工具条 ▶ | 走 Core `ScriptRunner` 静默跑 + 捕获输出；`NeedAdmin` 的弹 UAC | 超时用设置页 `CommandTimeoutSeconds`（5~300，默认 30） |
+| ▶ 运行 | 行内按钮 / 行右键 / 工具条 | 走 Core `ScriptRunner` 静默跑 + 捕获输出；`NeedAdmin` 的弹 UAC | 超时用设置页 `CommandTimeoutSeconds`（5~300，默认 30） |
 | 增 / 改 / 删 | 工具条 ＋ / 详情卡 / 行右键 | 直接落 `config\system\commands.json`（无保存按钮） | 删除**二次确认**（`DialogHooks`） |
-| 收藏 | 行右键 ★ | 置 `IsFavorite` ⇒ 收藏夹页出现 | 只影响本模块条目，⛔ 与 Core `IFavoritesService` 无关 |
-| 导入 / 导出 | 工具条 📤 / 📥 | json 清单；按 `Id` 合并（已有更新、没有的加入） | 导入前先判 `..` / 绝对路径 |
-| 搜索 / 排序 / 列显隐 | 关键字框 / 表头 / 表头右键 | 纯内存过滤与排序；列偏好落 `columnlayout.json` | 页 Key 仍是 `script-commands` |
+| 收藏 | 工具条 ★ / 行右键 | 置 `IsFavorite` ⇒ 收藏夹页出现 | 只影响本模块条目，⛔ 与 Core `IFavoritesService` 无关 |
+| 复制命令 | 工具条 📋 / 行右键 | 复制到剪贴板 | `NeedAdmin` 的项运行时也自动复制 |
+| 导入 / 导出 | 工具条 📤 / 📥 | 固定落数据文件同目录 `commands-export.json`；按 `Id` 合并（已有更新、没有的加入） | ⛔ 不弹对话框（与脚本库的 DialogHooks 版不同，见 §5） |
+| 搜索 | 工具条关键字框 | 即时过滤（名称 / 功能 / 命令 / 简介） | 纯内存过滤 |
+| 排序 | 点表头 | 名称 / 功能 / 分类(Shell) / 简介 / ★；再点反向 | ★ 首点即降序（收藏在前） |
+| 列显隐 | 表头右键 | 勾选列；标识列（名称）不可隐藏 | 落 `columnlayout.json`，页键 `script-commands` |
+| 筛选 | 表头右键「🔎 筛选」 | 快捷项 = 当前出现过的「功能」分类值 | 与基类多项筛选条件并存 |
+| 详情栏 | 工具条末位详情开关 / 行右键「✏ 编辑」 | 右栏声明式详情卡（名称 / 功能 / Shell 下拉 / 简介 / 命令 / 需要管理员 / 隐藏窗口） | 开合状态落 `columnlayout.json` |
+| 预设播种 | 首帧后 `InitializeDeferred` | `config\system\commands.seeded` 标记不存在 ⇒ 按 `Id` **只加不改**地播种一批预设 | 删了不复活；用户改过的不被覆盖 |
 
-### 快捷命令 `system-quick`
-
-| 操作 | 触发 | 结果 | 约束 |
-|---|---|---|---|
-| 复制命令 | 卡片 📋 | 复制到剪贴板 | 十项都只给命令，⛔ App 不执行（无提权机制） |
-| 打开设置页 | 卡片 ↗ | `Process.Start("ms-settings:…")` | 打不开 ⇒ 状态栏红字，⛔ 不抛 |
+> 🔴 **快捷命令页已删**（NT-097）：原 `system-quick` 十项（电源计划 / 主题明暗 / 休眠 / 网卡启禁 / 磁盘清理 / UAC / 开发者模式 / 远程桌面 / 代理开关 / 时间区域）迁为命令库「快捷设置」类预设，并补全了原先缺 `/d` 取值的 `reg` 命令；「打开设置页」能力统一走 `start ms-settings:…`（Shell=cmd）。
 
 ### 软件包 `script-packages`（NT-096 自脚本中心平移，交互不变）
 
@@ -83,40 +83,47 @@
   ⇒ 已知回退：脚本库条目的收藏不再出现在收藏夹页（用户 2026-10-22 接受）。
 - 迁移（脚本侧 `role=command` 条目 → 本模块）**未自动做**：脚本侧条目原样保留（⛔ 未删 ⇒ 可逆）；
   要迁就用「脚本库 📤 导出 → 命令库 📥 导入」。
+- 🔴 **命令库预设播种（NT-097）**：`SystemCommandSeeder` 在 `InitializeDeferred` 里跑；标记
+  `config\system\commands.seeded`（内容 = 程序集版本）存在 ⇒ 整体跳过；按 `Id` 只加不改。
+  预设分四类 + winget：**系统设置**（`ms-settings:`）/ **控制面板**（`.cpl`）/ **管理工具**（`.msc` 与系统程序）/
+  **快捷设置** / **winget**（`source list` / `source reset` / `list` / `upgrade` / `upgrade --all` / `pin list` / `export` / `import`）。
 
 ## 3. 实现逻辑
 
-- 依赖：Core `ScriptRunner`（NT-088）、`ConfigStoreService`、`IOptionsStore`、`DialogHooks`；UI 控件库（骨架 / 列 / 详情卡 / 底栏）。
+- 依赖：Core `ScriptRunner`（NT-088）、`ConfigStoreService`、`IOptionsStore`、`DialogHooks`、`IColumnLayoutService`（列显隐 / 详情开合落盘）；UI 控件库（骨架 / 列 / 详情卡 / 底栏）。
 - 数据两处：`config\system.json`（设置，`ISystemToolsSettingsService` 唯一写入点）+ `config\system\commands.json`（命令条目，`ISystemCommandStore`）。
   软件包偏好仍落 `config\package.json`（`IPackageSettingsService`，NT-074 时的路径，⛔ 不改 —— 老用户配置不丢）。
 - ⛔ 不开 DB：本模块没有观测数据（需求 §6.7）。
 - 包后端按平台二选一（NT-081 口径）：Windows = `PackageManagerService`（winget）；Linux = `AptPackageService`（dpkg/apt 只读）。页面 / VM 零改动。
-- 页面构建：按 `ui.md` §6 列表页标准（工具条 / 列表 / 详情卡 / 底栏 `ListFooterBar`）；设置页用 `SettingsSectionHost`（节内容放 `UserControl.Resources` + code-behind 建节）。
+- 页面构建：命令库按 `ui.md` §6 列表页标准，VM 继承 Shared 的 `ListPageViewModelBase`（NT-097 起重写，与脚本库同一套列显隐 / 排序 / 筛选 / 工具条 / 详情开合）；设置页用 `SettingsSectionHost`（节内容放 `UserControl.Resources` + code-behind 建节）。
+- 预设播种（NT-097）：`InitializeDeferred` → `SystemCommandSeeder.Seed`（`.seeded` 标记 + 按 Id 只加不改）。
 
 ## 4. 关键文件
 
 | 文件 | 作用 |
 |---|---|
-| `SystemToolsModule.cs` | 菜单注册（组键 **`system-tools`**，Order 25；🔴 不能用 `system`——那是 Shell 隐藏宿主组，会把应用级设置 8 页渲染进本组）+ DI 接线 |
-| `Services/ISystemCommandStore.cs` / `SystemCommandStore.cs` | 命令条目（`config\system\commands.json`，`AtomicJsonFile` 落盘） |
+| `SystemToolsModule.cs` | 菜单注册（组键 **`system-tools`**，Order 25；🔴 不能用 `system`——那是 Shell 隐藏宿主组，会把应用级设置 8 页渲染进本组）+ DI 接线 + `InitializeDeferred` 预设播种 |
+| `Services/ISystemCommandStore.cs` / `SystemCommandStore.cs` | 命令条目（`config\system\commands.json`，`AtomicJsonFile` 落盘；`Insert` 供播种器保留固定 Id） |
+| `Services/SystemCommandSeeder.cs` | 随包预设（NT-097）：四类 + winget，`.seeded` 只播种一次 |
 | `Services/ISystemToolsSettingsService.cs` / `SystemToolsSettingsService.cs` | 本模块设置（`config\system.json`） |
-| `Services/QuickCommandCatalog.cs` | 十项快捷命令清单 |
 | `Services/IPackageManagerService.cs` / `PackageManagerService.cs` / `AptPackageService.cs` | 包后端（winget / dpkg） |
 | `Services/PackageOutputParser.cs` / `FixedWidthTable.cs` / `TsvRows.cs` | 输出解析（internal，只对测试项目开放） |
 | `Services/IPackageSettingsService.cs` / `PackageSettingsService.cs` | 软件包偏好（`config\package.json`） |
 | `Models/SystemCommand.cs` / `Models/PackageModels.cs` | 条目模型 |
-| `Views/*` / `ViewModels/*` | 4 页 + 设置页 |
+| `Views/*` / `ViewModels/*` | 3 页 + 设置页 |
 
 ## 5. 坑点（🔴 已知）
 
-1. **页 Key 前缀误导**：4 页里 3 页 Key 是 `script-*`（刻意保留）；文档 / 注释⛔ 不要据此认为它们属 `script` 模块。
-2. **执行需要管理员的操作**（启禁网卡 / `netsh` / `rasdial` / 改源）：应用**无提权机制** ⇒ 一律降级为「生成命令 + 📋 复制」供用户自跑，⛔ 不假装调用成功。
-3. **Avalonia 硬规**：每个 `UserControl` 必须显式 `public Xxx(){ InitializeComponent(); }`（漏了整块 XAML 静默不加载）；跨程序集 `xmlns` 用 `using:`；`.cs` 里 `using Avalonia.Controls;` 别漏。
+1. **页 Key 前缀误导**：3 页里 2 页 Key 是 `script-*`（刻意保留）；文档 / 注释⛔ 不要据此认为它们属 `script` 模块。
+2. **执行需要管理员的操作**（启禁网卡 / `netsh` / `rasdial` / 改源 / `reg` 写 HKLM）：应用**无提权机制** ⇒ 一律降级为「生成命令 + 📋 复制」供用户自跑，⛔ 不假装调用成功。
+3. 🔴 **预设命令一律 `Shell=cmd`**（NT-097）：`ScriptRunner` 的 `auto` 走 pwsh —— pwsh 会把 `control powercfg.cpl,,3` 的逗号当数组运算符、对含双引号的命令（`netsh interface set interface "以太网" …`）转义更敏感；`cmd /c` 对 `reg` / `netsh` / `winget` / `start` / `.cpl` / `.msc` 行为最稳。
+4. **Avalonia 硬规**：每个 `UserControl` 必须显式 `public Xxx(){ InitializeComponent(); }`（漏了整块 XAML 静默不加载）；跨程序集 `xmlns` 用 `using:`；`.cs` 里 `using Avalonia.Controls;` 别漏。
 4. **设置页节内容**必须放 `<UserControl.Resources>` 的 `x:Key` 面板 + code-behind `Add(...)`；⛔ 在 XAML 里写 `<ui:SettingsSection>`（会不被预编译）。
 5. **`PackageView` 底栏显隐**：除 `HasFooterContent` 外还要 code-behind 量 `ScrollViewer` 溢出回填 `SetContentOverflow`；右键菜单（列表 / 表头 / 表头 ☑）挂在弹出树 ⇒ `OnDataContextChanged` 里手工同步 DataContext。
 6. **软件包集合已断链**：页内「集合」入口删除后，`ScriptCollectionKind.Package` 的成员只能从集合页维护；`PageKey` 映射仍指向 `script-packages`（Key 未变 ⇒ 跳转仍通）。
 7. **测试引用**：`FixedWidthTable` / `TsvRows` / `PackageOutputParser` 是 internal，靠本程序集的 `InternalsVisibleTo("NewToys.Tests")`；⛔ 改回 public。
 8. 🔴🔴 **组键不能叫 `system`**（2026-10-23 踩坑）：`system` 是 Shell 的 `isHome:true` **隐藏宿主组**（`ModuleLoader.HostGroupKey` / `AppSettingsRegistration.HiddenGroupKey`），应用级设置的 8 个节锚点 + 功能清单页挂它名下。`RegisterModule` 遇同名键会**复用该组**并覆盖 `Title/Order/IsHome` + 补登暂存项 ⇒ 那 8 个设置页直接渲染进「系统工具」。本模块组键 = **`system-tools`**（⛔ 页 Key 不是组键，页 Key 一律未动）。
+9. **导入导出不走对话框**（NT-097 起仍是固定路径）：命令库 📤/📥 固定读写数据文件同目录的 `commands-export.json`；⛔ 别照抄脚本库的 `DialogHooks` 版（那套不在本卡范围）。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 
@@ -124,3 +131,4 @@
 |---|---|---|
 | NT-091 | 本模块建档与四页落地 | ✅ 已验收（2026-10-22 编译通过） |
 | NT-096 | 软件包页迁入本模块（定位收紧）；「软件源」设置节**同日返工删除** | ✅ 已实施（⏳ 待 build 验收） |
+| NT-097 | 页面重构：删快捷命令页 / 命令库对标脚本库 / 随包预设 / 收藏夹置首 | ✅ 已实施（⏳ 待 build 验收） |

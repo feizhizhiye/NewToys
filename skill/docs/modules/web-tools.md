@@ -3,27 +3,29 @@
 > **程序集**：`src/Module.WebTools`（`NewToys.WebTools`）
 > **模块键**：`web` ｜ **一级菜单**：Order 30 · 图标 `IconWeb`
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：✅ 稳定（5 页 + 1 设置页）
-> **最后校对**：2026-10-18（对照 `WebToolsModule.cs` / 文件清单；§2.5 对照 6 页 VM 的 `Toolbar` 与 `Views` 右键菜单）⚠️ 本节 §5 坑点待按模块逐页精校（见 §6）
+> **状态**：✅ 稳定（**4 页** + 1 设置页）
+> **最后校对**：2026-10-22（🔴 **NT-089 S1**：抓取能力 —— `RuleFileService` / `RuleCatalogService` /
+> `RuleRunService` / `RunRecordService` / `DownloadService` / `FlowService` + 三页 `web-scrape` /
+> `web-rule-editor` / `web-crawl` —— **整体迁出至脚本中心**（`Module.ScriptManager`，见
+> `modules/script-manager.md`）；本模块收窄为「网络配置与诊断」，且**不再依赖 Python 运行时**。
+> 跨页传物 `WebTransferService` 上提 `NewToys.UI`（两侧共享同一实例）。
 
 ---
 
 ## 1. 职责与边界
 
-- **定位**：一次性网络诊断与配置工具（HTTP 测试 / 书签 / Ping / 网页抓取 / hosts），不做常驻代理、不做抓包。
+- **定位**：一次性网络诊断与配置工具（HTTP 测试 / 书签 / Ping / hosts），不做常驻代理、不做抓包。
+- 🔴 NT-089 起：**网页抓取（规则集 / 调试集合 / 爬虫面板）已迁出本模块**（详见 §2 表与 `modules/script-manager.md`）。
 - 系统级写入只发生在 hosts 管理（需管理员权限）；其余均为只读探测或模块内数据。
 
-## 2. 当前功能（6 页 + 1 设置页）
+## 2. 当前功能（4 页 + 1 设置页）
 
 | 菜单 Key | 标题 | Order | View/VM | 说明 |
 |---|---|---|---|---|
 | `web-http` | HTTP 测试 | 1 | `WebHttpView` / `WebHttpViewModel` | 构造请求并查看响应。⚠️ **工具条逃生舱**：页内自绘 `Border.toolbar`（表单式撑满布局），不套统一工具条 |
 | `web-bookmark` | 书签管理 | 2 | `BookmarkView` / `BookmarkViewModel` | 收藏与整理网址、导入浏览器书签 |
 | `web-ping` | 网络 Ping | 3 | `PingView` / `PingViewModel` | 测试主机连通性与延迟，支持切 DNS |
-| `web-scrape` | **抓取规则**（NT-084 改名，Key ⛔ 不改） | 4 | `RuleCatalogView` / `RuleCatalogViewModel` | **规则目录**：规则集（`.py`）的增删改 / 启用 / 重读；NT-086 起列表带**分类 / 说明**列 + 工具条「分类 ▾」筛选 + **「预设 ▾」从预设创建** + **「🔍 探测」站点探测**；`✏ 编辑规则` → 跳编辑器 |
-| `web-rule-editor` | **调试集合**（NT-086 批 C 改名；**2026-10-20 挂回 `web` 二级菜单**，也可从目录页进入） | 5 | `RuleEditorView` / `RuleEditorViewModel` | 三段式自绘：**五段槽位 + 试跑推荐**（左）/ HTML 源码（中）/ 选中段脚本的表达式检验（右）；装配结果存 `flows\<名>.json`（解析全在 Python 侧） |
-| `web-crawl` | **爬虫面板**（NT-086 批 D 新增） | 5 | `CrawlPanelView` / `CrawlPanelViewModel` | 期①「能看、能诊断」：工具条「脚本 ▾」+ 起始网址 + `🔗 抓链接`；三节（① 链接·目录动态列 + 双击 url 下钻 ② 试下载预览 ③ 下载进度—— ②③ 期② NT-087 占位）；底栏摘要：条数 · 字段数 · 错误数 · 耗时 |
-| `web-hosts` | Hosts 管理 | 6 | `HostsView` / `HostsViewModel` | 切换 hosts 方案、网络导入、编辑系统 hosts |
+| `web-hosts` | Hosts 管理 | 7 | `HostsView` / `HostsViewModel` | 切换 hosts 方案、网络导入、编辑系统 hosts（Order 7 = NT-089 迁出抓取三页后保留的原值，⛔ 不重排） |
 | `settings-web-tools` | 网络工具设置 | 100 | `SettingsWebToolsView` | 超时 / 并发 / 默认解析器 |
 
 - 页 Key 一经发布 **⛔ 不改**。
@@ -64,81 +66,6 @@
 | 重读目标 | `🔄 重读目标` | 重读本地目标清单 | **⛔ 不发起 Ping** |
 | 送书签 / 送抓取 | 行右键 | 带主机跳对应页 | — |
 
-### 抓取规则 `web-scrape`（规则目录，NT-084 批 A/B/D + NT-086 期①批 A/B/E）
-
-> 规则载体 = `<DataDir>\web-tools\rules\<名>.py`（脚本头 `# key: value` + `SOURCE` 注释头 + `RULES` 列表 + 可选四段函数）。
-> 🔴 **C# ⛔ 不解析规则**：命中数 / 预览全部由 Python 算（`RuleRunService` → `IPythonRuntime`）。
-> 🔴 **脚本头只读、⛔ 不驱动行为**（NT-086）：分类只做展示分组与筛选；按钮可用性由 `role` / 槽位决定（调试集合，期①后续批）。头键全集 / 方言 / 段间契约 = 需求规格 §6.3.1。
-
-| 操作 | 触发 | 结果 | 约束 |
-|---|---|---|---|
-| 新建规则集 | `➕ 新建规则集` | 建一个 `.py` 骨架并进编辑器 | 骨架带脚本头键说明块（`——` 体，⛔ 不用英文冒号，见 §5.10） |
-| **从预设创建** | 工具条「预设 ▾」选中一个预设 | 复制预设文件成新规则集（⛔ 不覆盖同名，重名加序号），探测网址已填则写入 `# base:` | 选中即创建，创建后下拉自动复位到「（选预设创建）」；**预设只播种一次** ⇒ 用户删了不复活，此时给可读 ⚠ |
-| **站点探测** | 工具条「站点网址…」框（回车）/ `🔍 探测` | 对站点根试各预设的探测路径（`/feed` `/rss.xml` `/atom.xml` `/sitemap.xml` `/wp-json/wp/v2/posts?per_page=1` `/api.php?…` `/opds`），抓下来用预设解析 | 🔴 **以「能解析出条目」为准，⛔ 不看 HTTP 200**；🔴 **只推荐不代选** —— 结果与推荐写状态栏，创建仍由「预设 ▾」显式触发；抓取并行、评估一次进程 |
-| 按分类筛选 | 工具条「分类 ▾」 | 只显示该分类的规则集 | 分类值来自各文件 `# category:`，**按实际出现的值动态生成**（⛔ 不硬编码五档）；已知五档显示中文标签，未知值原样；「全部分类」= 不限 |
-| 启用 / 停用 | `✓ 切换启用` | 落目录清单的启用标记 | 停用只影响目录开关，⛔ 不删文件 |
-| 看运行记录 | 右键 / 详情卡 `📂 运行记录` | 打开 `runs\<名>\`（资源管理器） | 每脚本保留最近 10 次（`RunRecordService.KeepRuns`）；没跑过给「去调试集合跑一段」的指引 |
-| 导出运行记录 | 右键 `📤 导出 CSV` / `📤 导出 JSON` | 另存为对话框 → 写用户选的位置 | 取**最近一次**「▶ 跑这段」的记录；CSV = 元信息 + 字段汇总 + 前 3 条预览（带 BOM，Excel 认中文）；JSON = `result.json` 原样拷贝；没跑过 ⇒ 菜单项置灰（`HasRun`） |
-| 编辑规则 | 双击行 / 右键 `✏ 编辑规则` | 经 `WebTransferService` 一次性参数跳 `web-rule-editor` | 参数一次性消费（`TakeRuleSet`） |
-| 重读规则 | `🔄 重读规则` | 重扫规则目录，**⛔ 不运行任何规则集、不联网** | 重读会重建「分类 ▾」数据源 |
-| 打开文件 / 目录 | 右键 `📄 打开文件` / `📂 打开目录` | 用系统关联 / 资源管理器打开 | — |
-| 删除 | 右键 `🗑 删除` | 删规则集文件 | 二次确认 |
-| 看脚本头配置 | 详情卡 | 显示 说明 / 分类 / 角色 / 适用站点 / 最近运行 / 路径 | 空值显示「—」；`role` 缺省按 `pipeline` |
-| 脏值提示 | （自动） | 状态栏 `⚠` 列出回落缺省的头键（最多 2 条 + 计数） | 数字键脏值（非数字 / 负数）回落缺省，⛔ 不阻断加载 |
-
-### 调试集合 `web-rule-editor`（NT-086 批 C；原「规则编辑器」）
-
-范式：**脚本从「一个 `.py` = 一个站点」降为「一个 `.py` = 一段」** ⇒ 本页把段装配成流水线（flow），跑通后交给面板批量下载（期②）。**本页 ⛔ 不做批量下载**。
-
-三段式自绘：左**起始网址 + 五段槽位 + 试跑推荐** / 中**HTML 源码**（`HtmlText`，上限 40 万字符 / 8000 行）/ 右**选中段脚本的表达式检验 + 错误回显 + 命令编辑**。
-
-🔴 **样式统一**：工具条走 `IToolbarSource` 描述符（Shell `ToolbarHost` 统一渲染，⛔ 页内不写 `Border.toolbar`）；状态文本走 `IStatusProvider`（Shell 底部状态栏）；命令列表 = `Border.list-header` + `ColumnGrid` + `ListBox.list-page`（与目录页同规格）。
-
-**五段**：`entry`（入口/搜索）→ `pick`（条目筛选）→ `toc`（目录）→ `content`（正文/资源）→ `save`（**内置**下载器）。槽位**一律可选、可留空**（`toc` 留空 = **链式模式**）；下拉候选按脚本头 `# role:` 过滤（无 role 的 `pipeline` 只进 `entry` 槽位）。
-
-| 操作 | 触发 | 结果 | 约束 |
-|---|---|---|---|
-| 抓页 | 工具条 `🌐 抓页` | 抓起始网址 → 落**共享** HTML `cache\_debug\page.html` | 🔴 试跑推荐的前提是「候选脚本对**同一份** HTML 求值」，⛔ 各抓各的 |
-| 试跑推荐 | 工具条 `🔍 试跑推荐` | 当前槽位的**全部候选**对同一份 HTML 求值 → 按「条数 > 0 且字段非空率最高」排序 | **一次 Python 进程跑完所有候选**（⛔ N 个脚本启动 N 次解释器）；**只推荐不代选**，用户点 `✅ 用它` 才写进槽位 |
-| 跑这段 | 工具条 `▶ 跑这段` | 跑当前槽位选中的脚本 → 命中数 / 预览 / **错误回显**；🔴 同时落一条**运行记录**（`runs\<脚本>\<时间戳>_<URL哈希>\`，NT-086 批 G） | 🔴 段间契约：入口 / 中间段输出**必须含 `url`**，缺了状态栏显式报「第 N 段输出没有 url 字段」⛔ 不静默；记录失败 ⛔ 不打断运行 |
-| 选段 / 换脚本 | 左栏点槽位行 / 槽内下拉 | 右栏切到该段脚本的 `RULES` 命令表 | 下拉首项「（留空 · 跳过）」；`save` 是内置段 ⛔ 不可选 |
-| 保存 / 载入流水线 | 工具条 `流水线 ▾` + 名字框 + `💾 保存流水线` / `🗑 删流水线` | 写 / 读 `flows\<名>.json`（五段槽位 + 起始网址） | ⛔ 不开 DB 表；载入时选中的 flow 名缺失脚本会标「（缺脚本）」 |
-| 表达式检验 | 右栏命令表（字段名 / 类型 / 表达式 / 命中） | 选中行看预览与**错误**（`⚠` 前缀） | 🔴 Python 的 error / traceback **必须回显**，⛔ 禁止静默显示「0 条」 |
-| 改命令 | 右栏 `➕ 加命令` / `🗑 删命令` / `💾 保存脚本` | 写回该脚本 `.py` 的 `RULES` 块 | 主表 `_allCommands` 与视图 `Commands` 分离：**保存永远写主表**（⛔ 不把过滤藏起来的命令存丢）；⛔ 无自动保存 |
-| 复制诊断 | 右栏 `📋 复制诊断` | 段位 / 脚本 / 起始网址 / HTML 长度 / 试跑结果 / 每字段 count + error 打包进剪贴板 | 给 AI 复盘用；🔴 错误与 traceback 必含 |
-| 在源码里查找 | 中栏查找框（回车 = 下一个）/`◀` `▶` | 命中 = **选区高亮**（系统色），显示「第 n/m 个」，到头回绕 | ⛔ 不自绘高亮层：只读 `TextBox` 无着色 API；设选区必须**先缩 End 再设 Start 再设 End**（否则 Avalonia clamp 导致跳位错） |
-| 定位命中 | `🎯 定位命中` | 把选中命令的首条结果搬进查找框并跳过去 | 结果经过净化改写时可能找不到，会如实提示 |
-| 返回目录 | 工具条 `◀ 返回目录` | 跳 `web-scrape` | — |
-
-### 爬虫面板 `web-crawl`（NT-086 批 D 期① + **NT-087 期②**：「能看、能诊断、能下载」）
-
-> 范式：**AI 写脚本 → App 只做运行 / 诊断 / 展示 / 下载**。
-> 脚本只负责「**一页能取出什么**」；🔴 **下载器内置**（并发 / 限速 / 去重 / 续跑 / 取消），⛔ 不脚本化。
-
-形态：工具条「入口脚本 ▾」+「内容脚本 ▾」+「流水线 ▾」+ 起始网址框（回车 = 抓链接）+ `🔗 抓链接` / `🧪 试下载` / `⬇ 下载` / `⏹ 取消` / `📋 复制诊断`；
-主体三节（节头仿信息面板：状态点 / 标题 / 计数 / ⟳ / 折叠）：① 链接·目录（**行首勾选框**）② 试下载预览 ③ 下载进度；底栏摘要 = 条数 · 字段数 · 错误数 · 耗时（下载后改写为下载汇总）。
-
-| 操作 | 触发 | 结果 | 约束 |
-|---|---|---|---|
-| 抓链接 | 工具条 `🔗 抓链接` / 网址框回车 | 抓起始网址（落 `cache\_crawl\page.html`）→ 跑选中脚本 → 目录节出行表 + 底栏摘要 + **落一条运行记录** | 🔴 行表 = 按字段独立求值后**按索引合成**（`mode=rows`）；缺字段补空串不错位；上限 1000 行 |
-| 下钻 | 双击目录行 | 用这一行的 `url` 当新起始网址重跑 | 行没有 `url` 列 ⇒ 状态栏提示；用户驱动（⛔ 不自动无限钻） |
-| 排序 | 点表头 | 按该列排序（再点反向；数字列按数值） | 客户端排序，箭头进表头文案 |
-| 全选 | 表头勾选框 | 勾 / 不勾全部目录行 | 行勾选变化回推表头（`LinksAllSelected` 是计算属性） |
-| 🧪 试下载 | 工具条 / 行右键 | 对一行跑 `content`+`next` → ② 节出 形态 / 文件清单 / 正文前 600 字 / 页数 / 耗时 | ⛔ **不落最终产物**（临时副本在 `trials\`）；② 节头 ⟳ = 对同一条再跑一次 |
-| ⬇ 下载 | 工具条 | 跑**勾选的行** → 落 `downloads\<脚本>\<条目>\`；③ 节逐行 ✓/↷/✗ + 进度条 | 一行都不勾 = **链式模式**（见下）；并发读 `# concurrency`（钳 1..8） |
-| ⏹ 取消 | 工具条 | `CancellationToken` 取消 | 已下完的文件保留 |
-| 复制诊断 | 工具条 / 行右键 `📋 复制诊断` | 脚本 / 网址 / HTML 大小 / 每列命中与错误 / 前 5 行 + 试下载诊断进剪贴板 | 给 AI 复盘用；错误列 ⛔ 不静默 |
-| 重跑 / 折叠 | 节头 `⟳` / `⌄` | 目录 = 重新抓取；试下载 = 再跑一次；进度节 ⛔ 无 ⟳ | 命令挂**节对象**（ContextMenu 弹出树取不到 VM） |
-
-**产物形态优先级链**（🔴 下载行为由 `content` 返回形态决定，⛔ 不由分类直接决定）：
-`content` 返回 JSON（`text` / `files` / `rows`）＞ `# artifact:` ＞ 分类缺省猜测（images/media/video/audio）＞ 缺省文本。
-`rows` = 容器页 ⇒ 子条目入队递归跟进，**容器本身 ⛔ 不下盘**。
-
-**分页原语 `next`**：挂在各段上的参数（文本锚 / URL 模式）；三保险 = URL 去重 + `# max-pages`（缺省 50）+ 连续 2 页空即停。
-**链式模式**（流水线 `toc` 槽位留空 / 一行都不勾）：从起始网址起 `content`+`next` 逐页跟进，目录**边跑边累积**（① 节空时才灌，⛔ 不冲掉抓链接的结果）。
-**失败策略**：单条失败不停批；连续失败 3 次停批并报原因；目标目录已有文件 ⇒ 跳过（可续跑）。
-**备份**：`downloads\` / `trials\` / `cache\` 都是可再生产物 ⇒ ⛔ 不进备份（规则目录仍是唯一默认勾）。
-
 ### Hosts 管理 `web-hosts`
 
 工具条：`🌐 导入` / `➕ 新建方案` / `🔄 重读方案`；行右键：`✅ 应用到系统 hosts` / `📤 导出受管块` / `🗑 删除方案`。
@@ -159,6 +86,10 @@
 |---|---|
 | 超时 / 并发 / 默认 UA / 解析器 | **失焦即落盘**（`OnXxxChanged` → `config\web-tools.json`），**⛔ 无保存按钮** |
 
+> 🔴 NT-089：抓取页虽已迁入脚本中心，但**抓取默认 UA / 超时仍由本页写入** `config\web-tools.json`
+> （菜单 Key `settings-web-tools` ⛔ 不改；脚本中心经 Core 的 `IOptionsStore` 只读同一份文件）。
+> 归位到 `config\modules\script-manager.json` 属 NT-094。
+
 ## 3. 实现逻辑
 
 | 文件 | 职责 |
@@ -167,25 +98,19 @@
 | `BookmarkService` | 书签 CRUD + 浏览器书签导入（`web-bookmark`） |
 | `PingService` | Ping 执行与延迟统计（`web-ping`） |
 | `DnsResolver` | DNS 解析（工具条切 DNS 的来源） |
-| `RuleCatalogService` | 规则集目录清单（`web-scrape`）：扫 `rules\*.py` 读 `SOURCE` 头（NT-084 取代 `ScrapeService`）；NT-086 批 G 增 `MarkRun`（回写「最近运行」元数据） |
-| `RuleFileService` | 规则 `.py` 的读写 / 命名清洗 / 目录（`web-scrape` / `web-rule-editor` 共用）；NT-086 起 = **脚本头解析**（标量键 + `ua`/`header` 多行键 + 数字键脏值回落与警告）+ **预设**（`PresetPath` / `CreateFromPreset` 复制预设 + 写 `# base:`） |
-| `RuleRunService` | 抓 HTML 落缓存 + **调 Python** 跑 `RULES` / 列命令（NT-084；⛔ C# 不做解析）；NT-086 起支持**指定 HTML 跑指定脚本** + `mode=probe` 试跑推荐 + **站点探测** `ProbeSiteAsync`（并行抓 N 个探测路径 → 一次进程评估 → 每预设命中数，⛔ 不看 200）+ **`mode=rows` 行表合成**（`RunRowsAsync`，爬虫面板用） |
-| `RunRecordService` | 运行记录（NT-086 批 G）：`runs\<脚本>\<ts>_<URL哈希8>\` = `result.json` + `page.html` + `diag.txt`；每脚本留最近 10 条；`ToCsv` 导出；⛔ 试跑推荐不记（不是一次运行）。批 D 起面板也记（`SaveFields` 字段版入口） |
-| `PresetSeeder` | 随包预设播种（NT-086 批 E）：`<程序目录>\defaults\presets\*.py` → `rules\`（只加不覆盖，`.seeded` 只种一次，删了不复活） |
-| `FlowService` | 流水线（flow）读写：`<DataDir>\web-tools\flows\<名>.json`（NT-086 批 C；⛔ 不开 DB 表） |
 | `HostsService` | hosts 方案读写 / 系统 hosts 落盘（需管理员，`web-hosts`） |
-| `DownloadService` | **内置下载器**（NT-087 期②，⛔ 下载行为不脚本化）：并发 `SemaphoreSlim`（读 `# concurrency`，钳 1..8）+ 同 host 间隔门（`# delay-ms`）+ 全局 URL 去重 + 续跑跳过（目标目录已有文件）+ 连续失败 3 次停批 + `CancellationToken` 取消；`RunItemAsync` = 抓页 → `mode=step` 求值 `content`+`next` → 跟 next 翻页（去重 + `# max-pages` + 连续 2 页空停）；`ResolveArtifacts` = 产物形态优先级链 |
-| `WebTransferService` | 导入 / 导出（书签 + hosts 方案） |
+| `WebTransferService`（已上提 `NewToys.UI`） | 跨页一次性传参：书签 / Ping ↔ 抓取（脚本中心）；两侧共用同一单例 |
 | `WebToolsSettingsService` | `config\web-tools.json` |
 
 - 数据与配置：`config\web-tools.json`（设置）；书签与 hosts 方案落模块数据目录（见 `WebToolsSettingsService` 与各 Service 的路径来源）。⛔ 模块内不自己拼 `ConfigStoreService` 的根路径。
-- NT-084 新增两块数据：**规则** = `<DataDir>\web-tools\rules\*.py`（可备份、可手写）；**抓取缓存** = `<DataDir>\web-tools\cache\<名>\page.html`（单文件覆盖，可重建）。
-- NT-086 批 D 新增：**爬虫面板共享 HTML** = `cache\_crawl\page.html`（与调试集合的 `cache\_debug\` 分开，可重建、⛔ 不进备份）。🔴 面板的列宽算法 = `Models/CrawlModels.cs` 的 `CrawlSpecs`（按内容估值：CJK 记 2 宽、钳 [90,360]）—— 与 ScriptManager 的 `InfoRowFactory.Specs()` **故意分叉**（NT-085 约定，两份用法稳定后再评估合并）。
-- NT-086 批 G 新增：**运行记录** = `<DataDir>\web-tools\runs\<脚本>\<时间戳>_<URL哈希8位>\`（`result.json` + `page.html` + `diag.txt`；每脚本保留最近 10 条自动清；🔴 **⛔ 不进备份** —— 可重建）。「最近运行」元数据走 `RuleCatalogService.MarkRun`（落 `web_docs` 的 `rule-meta`；目录页重进 / 重读后刷新）。
-- NT-086 批 E 新增：**预设规则集**随包在 `src\Shell\defaults\presets\*.py`（7 个：`rss` / `opds` / `sitemap` / `wp-json` / `mediawiki` / `links`(兜底) / `images`(兜底)，均由 `PresetSeeder` 播种进 `rules\` 并实测跑通）；**探测缓存** = `cache\_probe\<预设>-<n>.html`（可重建、⛔ 不进备份）。🔴 预设 id = 文件名 = 「从预设创建」的源（`PresetPath`）。
-- NT-086 批 C 新增两块：**流水线** = `<DataDir>\web-tools\flows\<名>.json`（段名 → 脚本名，⛔ 不开 DB 表）；**共享调试 HTML** = `cache\_debug\page.html`（调试集合一次抓页，候选脚本共用）。📌 `flows\` 目前 ⛔ **未进备份**（`RulesBackupSection` 只备 `rules\`）—— 待与备份策略一并拍板。
-- NT-087 期②新增两块（**都可重建 ⇒ ⛔ 不进备份**）：**下载产物** = `<DataDir>\web-tools\downloads\<脚本>\<条目>\`（正文写 `内容.txt`；文件按 `name` 落，重名加 `(n)`）；**试下载临时件** = `<DataDir>\web-tools\trials\<脚本>\<条目>\`（⛔ 不是最终产物）。
-- 备份：`Services/RulesBackupSection.cs`（`IBackupSection`，Id `data.web-rules`，Order 91）—— 只备 `rules\`，⛔ 不备 `cache\`；🔴 **`DefaultSelected=true`（唯一默认勾的数据节）**，恢复落 `data\restore-<ts>\web-rules\`，⛔ 不覆盖现有规则。
+- 🔴 **NT-089 S1：抓取能力已整体迁出本模块** —— `RuleFileService` / `RuleCatalogService` / `RuleRunService` /
+  `RunRecordService` / `DownloadService` / `FlowService` / `RulesBackupSection` + 三页 `web-scrape` /
+  `web-rule-editor` / `web-crawl` 与规则备份节，现归 **`Module.ScriptManager`**（见 `modules/script-manager.md`）。
+  本模块保留 4 页（HTTP 测试 / 书签 / Ping / Hosts）+ 设置页，**不再依赖 Python 运行时**。
+  - 路径随之搬家：规则 `<DataDir>\script\rules\`、缓存 `<DataDir>\script\cache\`、
+    下载 `<DataDir>\script\downloads\` / `trials\`；`runs` / `flows` 仍留 `<DataDir>\web-tools\`（NT-090 一并归位）。
+  - `WebTransferService`（跨页传物）上提 `NewToys.UI` —— 书签 / Ping 与抓取**跨模块**共用同一实例。
+  - ⚠️ 抓取相关踩坑（§5 的 5~27）随代码迁出，内容保留备查；新改动见 `script-manager.md`。
 
 ## 4. 关键文件
 
@@ -234,6 +159,6 @@
 
 | NT | 内容 | 状态 |
 |---|---|---|
-| NT-086 | 期①批次：**A** 目录页分类/说明 ✅ → **B** 脚本头 ✅ → **C** 调试集合重构 ✅ → **E** 预设库 + 探测 ✅ → **F** 三操作符 ✅ → **G** runs 落盘/导出 ✅ → **D** 面板页 `web-crawl` ✅（**期①全部已实施**，⏳ 待同批 build 验收） | 🔄 执行中 |
+| NT-086 | 期①批次：**A** 目录页分类/说明 ✅ → **B** 脚本头 ✅ → **C** 调试集合重构 ✅ → **E** 预设库 + 探测 ✅ → **F** 三操作符 ✅ → **G** runs 落盘/导出 ✅ → **D** 面板页 `web-crawl` ✅（**期①全部已实施**） | ✅ **已验收 2026-10-20**（build 通过） |
 | NT-087 | 期②：试下载（单条预览）+ 批量下载（`downloads\`）+ `next` 分页 + 链式模式 + 并发/间隔 + 失败策略 + 可取消 | ✅ **已验收 2026-10-20**（build 通过） |
 | — | `flows\` 是否进备份（当前 ⛔ 不在 `RulesBackupSection` 里） | 📌 待拍板 |

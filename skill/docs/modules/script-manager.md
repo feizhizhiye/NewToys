@@ -3,8 +3,8 @@
 > **程序集**：`src/Module.ScriptManager`（`NewToys.ScriptManager`，产物 `Module.ScriptManager.dll`）
 > **模块键**：`script` ｜ **一级菜单**：Order 20 · 图标 `IconPc`
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：✔ NT-068 S1~S8 已完成（⏳ 待用户本地 build / accept 验收）；✔ NT-080 首轮已完成，**v3.80 源 UI 删除返工 ⏳ 待 build 验收**
-> **最后校对**：2026-10-19（v3.80：源管理全套删除，改命令库；对照 `PackageViewModel` / `SettingsScriptViewModel` / `SettingsScriptView.axaml`）
+> **状态**：✔ NT-068 S1~S8 已完成（⏳ 待用户本地 build / accept 验收）；✔ NT-080 首轮已完成，**v3.80 源 UI 删除返工 ⏳ 待 build 验收**；🔄 **NT-088 / NT-089 S1 已实施（⏳ 待 build 验收）**
+> **最后校对**：2026-10-22（NT-088：执行器上提 Core；NT-089 S1：抓取能力整体平移入本模块 —— 新增 `web-scrape` / `web-rule-editor` / `web-crawl` 三页；对照 `ScriptManagerModule.cs`）
 
 ---
 
@@ -14,7 +14,12 @@
 - ⛔ 不引 Shell；⛔ 不动 `ConfigStoreService` / `SqliteDatabase`（框架层冻结）—— 模块内自建子目录 + 自建连接。
 - 模块改名历史：`Module.PcTools` → `Module.ScriptManager`（NT-068 S1，commit `9eea91f`）；旧菜单 Key `pc-*` **已全部改为 `script-*`**（一次性改名，用户拍板）。
 
-## 2. 当前功能（6 页 + 1 设置页）
+## 2. 当前功能（9 页 + 1 设置页）
+
+> 🔴 **NT-089 S1**：原属网络工具的抓取能力 —— 规则文件（`RuleFileService`）/ 目录（`RuleCatalogService`）/
+> 抓取运行（`RuleRunService`）/ 运行记录（`RunRecordService`）/ 下载器（`DownloadService`）/ 流水线（`FlowService`）
+> + 三页 `web-scrape` `web-rule-editor` `web-crawl` —— **整体平移入本模块**（功能与交互零变化，仅换组与换目录）。
+> 页 Key 与标题一律 ⛔ 不改。
 
 | 菜单 Key | 标题 | Order | View | 说明 |
 |---|---|---|---|---|
@@ -23,6 +28,9 @@
 | `script-commands` | 命令库 | 2 | `CommandLibraryView` | 系统设置入口（设置面板 / 管理工具），点一下即打开 |
 | `script-packages` | 软件包 | 3 | `PackageView` | 搜索 / 安装 / 升级 / 卸载（**后端只支持 winget**；跨平台 apt 另开软件包页，⛔ 不在本页切后端） |
 | `script-collections` | **脚本集合** | 4 | `CollectionView` | 采集器容器：主从两栏 + 搜索 / 置顶 / 最近 + 「📤 发送到信息面板」 |
+| `web-scrape` | **抓取规则**（NT-084 改名，Key ⛔ 不改；**NT-089 自 `web` 组迁入本组**） | 5 | `RuleCatalogView` / `RuleCatalogViewModel` | **规则目录**：规则集（`.py`）的增删改 / 启用 / 重读；列表带**分类 / 说明**列 + 工具条「分类 ▾」筛选 + **「预设 ▾」从预设创建** + **「🔍 探测」站点探测**；`✏ 编辑规则` → 跳编辑器 |
+| `web-rule-editor` | **调试集合**（NT-086 批 C 改名；**NT-089 自 `web` 组迁入本组**） | 6 | `RuleEditorView` / `RuleEditorViewModel` | 三段式自绘：**五段槽位 + 试跑推荐**（左）/ HTML 源码（中）/ 选中段脚本的表达式检验（右）；装配结果存 `flows\<名>.json`（解析全在 Python 侧） |
+| `web-crawl` | **爬虫面板**（NT-086 批 D + NT-087 期②；**NT-089 自 `web` 组迁入本组**） | 7 | `CrawlPanelView` / `CrawlPanelViewModel` | 跑抓取脚本看目录条目：动态列 + 双击下钻 + 复制诊断 + 试下载 / 批量下载 |
 | `script-info` | 信息面板 | 99 | `ScriptInfoView` | 按集合分节展示采集器输出；顶部唯一 `集合 ▾` |
 | `settings-script` | 脚本管理器设置 | 100 | `SettingsScriptView` | 脚本目录（唯一写入点） |
 
@@ -147,6 +155,80 @@
 | 环境状态 | 设置 → 运行环境 → 「Python 共享环境（venv）」行 | 只读显示 `Probe()` 结论（venv 就绪 / 用系统解释器 / 未找到 Python）+ `↗` 打开 `tools\py` | 进本节时随外部程序一起惰性探测（`ProbeExternalTools`）；`Value` 恒为工具根目录（供 `↗` 用） |
 
 
+### 抓取规则 `web-scrape`（规则目录，NT-084 批 A/B/D + NT-086 期①批 A/B/E；**NT-089 自 `web` 组迁入本组**）
+
+> 规则载体 = `<DataDir>\script\rules\<名>.py`（NT-089 起；原 `<DataDir>\web-tools\rules\`）。
+> 🔴 **C# ⛔ 不解析规则**：命中数 / 预览全部由 Python 算（`RuleRunService` → `IPythonRuntime`）。
+> 🔴 **脚本头只读、⛔ 不驱动行为**（NT-086）：分类只做展示分组与筛选；按钮可用性由 `role` / 槽位决定（调试集合，期①后续批）。头键全集 / 方言 / 段间契约 = 需求规格 §6.3.1。
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 新建规则集 | `➕ 新建规则集` | 建一个 `.py` 骨架并进编辑器 | 骨架带脚本头键说明块（`——` 体，⛔ 不用英文冒号，见 WebTools §5.10） |
+| **从预设创建** | 工具条「预设 ▾」选中一个预设 | 复制预设文件成新规则集（⛔ 不覆盖同名，重名加序号），探测网址已填则写入 `# base:` | 选中即创建，创建后下拉自动复位到「（选预设创建）」；**预设只播种一次** ⇒ 用户删了不复活，此时给可读 ⚠ |
+| **站点探测** | 工具条「站点网址…」框（回车）/ `🔍 探测` | 对站点根试各预设的探测路径（`/feed` `/rss.xml` `/atom.xml` `/sitemap.xml` `/wp-json/wp/v2/posts?per_page=1` `/api.php?…` `/opds`），抓下来用预设解析 | 🔴 **以「能解析出条目」为准，⛔ 不看 HTTP 200**；🔴 **只推荐不代选** —— 结果与推荐写状态栏，创建仍由「预设 ▾」显式触发；抓取并行、评估一次进程 |
+| 按分类筛选 | 工具条「分类 ▾」 | 只显示该分类的规则集 | 分类值来自各文件 `# category:`，**按实际出现的值动态生成**（⛔ 不硬编码五档）；已知五档显示中文标签，未知值原样；「全部分类」= 不限 |
+| 启用 / 停用 | `✓ 切换启用` | 落目录清单的启用标记 | 停用只影响目录开关，⛔ 不删文件 |
+| 看运行记录 | 右键 / 详情卡 `📂 运行记录` | 打开 `runs\<名>\`（资源管理器） | 每脚本保留最近 10 次（`RunRecordService.KeepRuns`）；没跑过给「去调试集合跑一段」的指引 |
+| 导出运行记录 | 右键 `📤 导出 CSV` / `📤 导出 JSON` | 另存为对话框 → 写用户选的位置 | 取**最近一次**「▶ 跑这段」的记录；CSV = 元信息 + 字段汇总 + 前 3 条预览（带 BOM，Excel 认中文）；JSON = `result.json` 原样拷贝；没跑过 ⇒ 菜单项置灰（`HasRun`） |
+| 编辑规则 | 双击行 / 右键 `✏ 编辑规则` | 经 `WebTransferService` 一次性参数跳 `web-rule-editor` | 参数一次性消费（`TakeRuleSet`） |
+| 重读规则 | `🔄 重读规则` | 重扫规则目录，**⛔ 不运行任何规则集、不联网** | 重读会重建「分类 ▾」数据源 |
+| 打开文件 / 目录 | 右键 `📄 打开文件` / `📂 打开目录` | 用系统关联 / 资源管理器打开 | — |
+| 删除 | 右键 `🕑 删除` | 删规则集文件 | 二次确认 |
+| 看脚本头配置 | 详情卡 | 显示 说明 / 分类 / 角色 / 适用站点 / 最近运行 / 路径 | 空值显示「—」；`role` 缺省按 `pipeline` |
+| 脏值提示 | （自动） | 状态栏 `⚠` 列出回落缺省的头键（最多 2 条 + 计数） | 数字键脏值（非数字 / 负数）回落缺省，⛔ 不阻断加载 |
+
+### 调试集合 `web-rule-editor`（NT-086 批 C；**NT-089 自 `web` 组迁入本组**）
+
+范式：**脚本从「一个 `.py` = 一个站点」降为「一个 `.py` = 一段」** ⇒ 本页把段装配成流水线（flow），跑通后交给面板批量下载（期②）。**本页 ⛔ 不做批量下载**。
+
+三段式自绘：左**起始网址 + 五段槽位 + 试跑推荐** / 中**HTML 源码**（`HtmlText`，上限 40 万字符 / 8000 行）/ 右**选中段脚本的表达式检验 + 错误回显 + 命令编辑**。
+
+🔴 **样式统一**：工具条走 `IToolbarSource` 描述符（Shell `ToolbarHost` 统一渲染，⛔ 页内不写 `Border.toolbar`）；状态文本走 `IStatusProvider`（Shell 底部状态栏）；命令列表 = `Border.list-header` + `ColumnGrid` + `ListBox.list-page`（与目录页同规格）。
+
+**五段**：`entry`（入口/搜索）→ `pick`（条目筛选）→ `toc`（目录）→ `content`（正文/资源）→ `save`（**内置**下载器）。槽位**一律可选、可留空**（`toc` 留空 = **链式模式**）；下拉候选按脚本头 `# role:` 过滤（无 role 的 `pipeline` 只进 `entry` 槽位）。
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 抓页 | 工具条 `🌐 抓页` | 抓起始网址 → 落**共享** HTML `cache\_debug\page.html` | 🔴 试跑推荐的前提是「候选脚本对**同一份** HTML 求值」，⛔ 各抓各的 |
+| 试跑推荐 | 工具条 `🔍 试跑推荐` | 当前槽位的**全部候选**对同一份 HTML 求值 → 按「条数 > 0 且字段非空率最高」排序 | **一次 Python 进程跑完所有候选**（⛔ N 个脚本启动 N 次解释器）；**只推荐不代选**，用户点 `✅ 用它` 才写进槽位 |
+| 跑这段 | 工具条 `▶ 跑这段` | 跑当前槽位选中的脚本 → 命中数 / 预览 / **错误回显**；🔴 同时落一条**运行记录**（`runs\<脚本>\<时间戳>_<URL哈希>\`，NT-086 批 G） | 🔴 段间契约：入口 / 中间段输出**必须含 `url`**，缺了状态栏显式报「第 N 段输出没有 url 字段」⛔ 不静默；记录失败 ⛔ 不打断运行 |
+| 选段 / 换脚本 | 左栏点槽位行 / 槽内下拉 | 右栏切到该段脚本的 `RULES` 命令表 | 下拉首项「（留空 · 跳过）」；`save` 是内置段 ⛔ 不可选 |
+| 保存 / 载入流水线 | 工具条 `流水线 ▾` + 名字框 + `💾 保存流水线` / `🕑 删流水线` | 写 / 读 `flows\<名>.json`（五段槽位 + 起始网址） | ⛔ 不开 DB 表；载入时选中的 flow 名缺失脚本会标「（缺脚本）」 |
+| 表达式检验 | 右栏命令表（字段名 / 类型 / 表达式 / 命中） | 选中行看预览与**错误**（`⚠` 前缀） | 🔴 Python 的 error / traceback **必须回显**，⛔ 禁止静默显示「0 条」 |
+| 改命令 | 右栏 `➕ 加命令` / `🕑 删命令` / `💾 保存脚本` | 写回该脚本 `.py` 的 `RULES` 块 | 主表 `_allCommands` 与视图 `Commands` 分离：**保存永远写主表**（⛔ 不把过滤藏起来的命令存丢）；⛔ 无自动保存 |
+| 复制诊断 | 右栏 `📋 复制诊断` | 段位 / 脚本 / 起始网址 / HTML 长度 / 试跑结果 / 每字段 count + error 打包进剪贴板 | 给 AI 复盘用；🔴 错误与 traceback 必含 |
+| 在源码里查找 | 中栏查找框（回车 = 下一个）/`◀` `▶` | 命中 = **选区高亮**（系统色），显示「第 n/m 个」，到头回绕 | ⛔ 不自绘高亮层：只读 `TextBox` 无着色 API；设选区必须**先缩 End 再设 Start 再设 End**（否则 Avalonia clamp 导致跳位错） |
+| 定位命中 | `🎯 定位命中` | 把选中命令的首条结果搬进查找框并跳过去 | 结果经过净化改写时可能找不到，会如实提示 |
+| 返回目录 | 工具条 `◀ 返回目录` | 跳 `web-scrape` | — |
+
+### 爬虫面板 `web-crawl`（NT-086 批 D 期① + NT-087 期②；**NT-089 自 `web` 组迁入本组**）
+
+> 范式：**AI 写脚本 → App 只做运行 / 诊断 / 展示 / 下载**。
+> 脚本只负责「**一页能取出什么**」；🔴 **下载器内置**（并发 / 限速 / 去重 / 续跑 / 取消），⛔ 不脚本化。
+
+形态：工具条「入口脚本 ▾」+「内容脚本 ▾」+「流水线 ▾」+ 起始网址框（回车 = 抓链接）+ `🔗 抓链接` / `🧪 试下载` / `⬇ 下载` / `⏹ 取消` / `📋 复制诊断`；
+主体三节（节头仿信息面板：状态点 / 标题 / 计数 / ⟳ / 折叠）：① 链接·目录（**行首勾选框**）② 试下载预览 ③ 下载进度；底栏摘要 = 条数 · 字段数 · 错误数 · 耗时（下载后改写为下载汇总）。
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 抓链接 | 工具条 `🔗 抓链接` / 网址框回车 | 抓起始网址（落 `cache\_crawl\page.html`）→ 跑选中脚本 → 目录节出行表 + 底栏摘要 + **落一条运行记录** | 🔴 行表 = 按字段独立求值后**按索引合成**（`mode=rows`）；缺字段补空串不错位；上限 1000 行 |
+| 下钻 | 双击目录行 | 用这一行的 `url` 当新起始网址重跑 | 行没有 `url` 列 ⇒ 状态栏提示；用户驱动（⛔ 不自动无限钻） |
+| 排序 | 点表头 | 按该列排序（再点反向；数字列按数值） | 客户端排序，箭头进表头文案 |
+| 全选 | 表头勾选框 | 勾 / 不勾全部目录行 | 行勾选变化回推表头（`LinksAllSelected` 是计算属性） |
+| 🧪 试下载 | 工具条 / 行右键 | 对一行跑 `content`+`next` → ② 节出 形态 / 文件清单 / 正文前 600 字 / 页数 / 耗时 | ⛔ **不落最终产物**（临时副本在 `trials\`）；② 节头 ⟳ = 对同一条再跑一次 |
+| ⬇ 下载 | 工具条 | 跑**勾选的行** → 落 `downloads\<脚本>\<条目>\`；③ 节逐行 ✓/↷/✗ + 进度条 | 一行都不勾 = **链式模式**（见下）；并发读 `# concurrency`（钳 1..8） |
+| ⏹ 取消 | 工具条 | `CancellationToken` 取消 | 已下完的文件保留 |
+| 复制诊断 | 工具条 / 行右键 `📋 复制诊断` | 脚本 / 网址 / HTML 大小 / 每列命中与错误 / 前 5 行 + 试下载诊断进剪贴板 | 给 AI 复盘使用；错误列 ⛔ 不静默 |
+
+**产物形态优先级链**（🔴 下载行为由 `content` 返回形态决定，⛔ 不由分类直接决定）：
+`content` 返回 JSON（`text` / `files` / `rows`）＞ `# artifact:` ＞ 分类缺省猜测（images/media/video/audio）＞ 缺省文本。
+`rows` = 容器页 ⇒ 子条目入队递归跟进，**容器本身 ⛔ 不下盘**。
+
+**分页原语 `next`**：挂在各段上的参数（文本锚 / URL 模式）；三保险 = URL 去重 + `# max-pages`（缺省 50）+ 连续 2 页空即停。
+**链式模式**（流水线 `toc` 槽位留空 / 一行都不勾）：从起始网址起 `content`+`next` 逐页跟进，目录**边跑边累积**（① 节空时才灌，⛔ 不冲掉抓链接的结果）。
+**失败策略**：单条失败不停批；连续失败 3 次停批并报原因；目标目录已有文件 ⇒ 跳过（可续跑）。
+**备份**：`downloads\` / `trials\` / `cache\` 都是可再生产物 ⇒ ⛔ 不进备份（规则目录仍是唯一默认勾）。
+
 ### 信息面板 `script-info`
 
 工具条：`集合 ▾`(240) → `视图 ▾`(140) → `🔄 全部刷新` / `📂 脚本目录`。🔴 v3.77：**工具条里⛔ 没有只读文字标签**（原「集合 / 视图」两个文字已删）—— 两个下拉各自带 `ToolTip` 说明自己是什么。
@@ -210,8 +292,18 @@
 | `EnvScriptsSeeder` | 随包**环境脚本**播种（NT-083）：`defaults\env-scripts\*` → `<脚本目录>\env\` + 条目 `env-python-setup` + 内置集合「环境维护」（`builtin-env`；`Collectable=false`，🔴 **只播种一次**，不覆盖用户改动） |
 | `QuickActionService` | `script_docs` 适配器 + `ConfirmHandler` 复用（⛔ 不再是四份 JSON 的门面） |
 | `ScriptManagerSettingsService` | `config\modules\script-manager.json`（`IOptionsStore` 分区名 `script-manager`） |
+| **`RuleFileService`**（NT-089 自 WebTools 迁入） | 规则 `.py` 的读写 / 命名清洗 / 目录：`<DataDir>\script\rules`（NT-089 前为 `<DataDir>\web-tools\rules`）；脚本头解析（标量键 + `ua`/`header` 多行键 + 数字键脏值回落与警告）+ 预设（`PresetPath` / `CreateFromPreset` 复制预设 + 写 `# base:`） |
+| **`RuleCatalogService`** 〃 | 规则集目录清单：扫 `rules\*.py` 读 `SOURCE` 头；`MarkRun` 回写「最近运行」元数据（落 `web_docs` 的 `rule-meta`，分区键沿用 `web`） |
+| **`RuleRunService`** 〃 | 抓 HTML 落缓存 + 调 Python 跑 `RULES` / 列命令；支持指定 HTML 跑指定脚本 + `mode=probe` 试跑推荐 + `ProbeSiteAsync` 站点探测 + `mode=rows` 行表合成 + `mode=step` 单段求值 |
+| **`RunRecordService`** 〃 | 运行记录 `runs\<脚本>\<ts>_<URL哈希8>\` = `result.json` + `page.html` + `diag.txt`；每脚本留最近 10 条；`ToCsv` 导出 |
+| **`DownloadService`** 〃 | **内置下载器**（⛔ 下载行为不脚本化）：并发 / 间隔 / 去重 / 续跑 / 连续失败停批 / 可取消；`ResolveArtifacts` = 产物形态优先级链 |
+| **`FlowService`** 〃 | 流水线（flow）读写：`<DataDir>\web-tools\flows\<名>.json`（⛔ 不开 DB 表；路径迁移留给 NT-090） |
+| **`RulesBackupSection`** 〃 | `IBackupSection`（Id `data.web-rules`，Order 91）—— 只备 `rules\`，⛔ 不备 `cache\`；🔴 **唯一默认勾的数据节** |
+| **`WebTransferService`**（NT-089 上提 `NewToys.UI`） | 跨页一次性传参（书签 / Ping（网络工具）↔ 抓取（本模块））；两侧各注册一次单例（同一容器 ⇒ 同一实例） |
 
 - VM 侧：`QuickActionListViewModel` 为 `script-library` / `script-commands` 共用基类（`ToolbarExtras` / `ToolbarTailExtras` 拼装工具条）。
+  - NT-089 S1：新增 `RuleCatalogViewModel` / `RuleEditorViewModel` / `CrawlPanelViewModel` 三页 VM（抓取能力随迁，功能零变化）。
+  - 🔴 抓取默认项（UA / 超时）**仍由「网络工具设置」页写入 `config\web-tools.json`**（菜单 Key ⛔ 不改）；本模块经 Core 的 `IOptionsStore` **只读**同一份文件（NT-094 设置拆分后归位）。
 - 🔴 NT-085（2026-10-20）：动态列控件**已不在本模块** —— `Controls/SysInfoGrid` 连同单元格模型上提 `src/UI/Controls/DynamicColumnGrid.cs`（类改名 `DynamicColumnGrid`，模型 `SysInfoCell` / `SysInfoHeaderCell` 随迁，命名空间 `NewToys.UI.Controls`）。本模块 `ScriptInfoView.axaml` 用 `xmlns:v="using:NewToys.UI.Controls"` + `v:DynamicColumnGrid`；`InfoSectionViewModel` / `InfoRowFactory` 加 `using NewToys.UI.Controls`。⛔ 别再把控件搬回来。
 
 ### 3.3 数据与配置
@@ -226,6 +318,10 @@
 | `<脚本目录>\examples\*` | 随包示例脚本（`.ps1` / `.py` / `.bat` + 采集器模板）+ `.seeded` 一次性标记 | — |
 | `<脚本目录>\env\*` | 随包环境脚本（`setup-python-env.ps1` + `python-requirements.txt`）+ `.seeded` 一次性标记（NT-083） | — |
 | `%LOCALAPPDATA%\NewToys\tools\py\` | Python 共享环境：`venv\` + `py_worker.py`（NT-083，与 `env.json` 同级；⛔ 不进 `profiles\`） | — |
+| `<DataDir>\script\rules\*.py` | **抓取规则集**（NT-089 自 `web-tools\rules` 迁入） | ✅ |
+| `<DataDir>\script\cache\` | 抓取 HTML 缓存（含 `_debug` / `_crawl` / `_probe` / `_dl`） | ⛔ 可重建 |
+| `<DataDir>\script\downloads\` / `trials\` | 下载产物 / 试下载临时件 | ⛔ 可重建 |
+| `<DataDir>\web-tools\runs\` / `flows\` | 运行记录 / 流水线定义（NT-089 未迁，留给 NT-090 一并归位） | ⛔ 随库 / — |
 
 - ⛔ `config\script\settings.json` 不可行：`IOptionsStore.Validate` 禁路径分隔符 / `.` / `..`。
 - ⛔ **不做旧数据迁移**（用户拍板「无所谓老用户」）：旧四份 JSON 静默忽略（不读不写不删）。
@@ -243,7 +339,7 @@
 | 数据模型 | `Models/ScriptStore.cs` / `Models/InfoOptions.cs` / `Models/SysInfoRow.cs` |
 | 执行底座 | `Services/ScriptRunner.cs` / `InterpreterResolver.cs` / `SysInfoOutputParser.cs`；进程本体在框架层 `IProcessRunner`（Shared 契约 / Core 实现，Shell 注册单例） |
 | 采集呈现 | `Services/CollectorService.cs` / `InfoRowFactory.cs` / `Controls/SysInfoGrid.cs` / `ViewModels/InfoSectionViewModel.cs` |
-| 软件包 | `ViewModels/PackageViewModel.cs` / `PackageSourceViewModel.cs` + **本模块** `Services/PackageManagerService.cs` / `PackageOutputParser.cs` / `PackageSettingsService.cs` / `Models/PackageModels.cs`（NT-074：整套从 Core / Shared 下放，只有本模块用） |
+| 软件包 | `ViewModels/PackageViewModel.cs` + **本模块** `Services/PackageManagerService.cs` / `PackageOutputParser.cs` / `PackageSettingsService.cs` / `Models/PackageModels.cs`（NT-074：整套从 Core / Shared 下放，只有本模块用；源管理 View/VM 已在 NT-080 v3.80 删除） |
 | 解析分层（NT-081 步骤4） | 通用机械 `Services/FixedWidthTable.cs`（固定列宽：清洗 / 显示宽度 / 切片 / 溢出回填 / 噪行）+ 机读 `Services/TsvRows.cs`（TSV → 行模型）；winget 固有启发式（别名表 / 续行合并 / pin 兜底 / 标签-值）留在 `PackageOutputParser.cs` |
 | 后端适配器（NT-081 步骤5） | `Services/AptPackageService.cs`（Linux 只读：dpkg-query TSV / `apt list --upgradable` / sources.list / `apt-mark showhold`；写操作未实装）；`ScriptManagerModule` 按平台二选一注册 |
 
@@ -258,37 +354,37 @@
 5. 行级右键命令用 `CommandParameter="{Binding Selected}"`（ContextMenu 在弹出树）+ code-behind `ContextRequested` 选行。
 6. 🔴 `winget.exe` 是 App Execution Alias ⇒ **必须解析绝对路径**再起进程。
 7. 🔴 **内置「系统信息」曾被播种成两份**（用户 2026-10-19 发现）：`EnsureInfoCollection` 用 `c.Kind == Info` **精确比较**、固定 id `builtin-info` 被占时又改随机 id 另建 ⇒ 两个 `builtin=true` + 同名 + 同样的 6 个采集器。已修：比较一律走 `ScriptCollectionKind.Normalize`、id 被占就**接管**那个 info 集合、`DedupeBuiltinInfo` 每次播种把多余的内置 info 集合合并（成员并集 / 丢副本视图 / 在用 id 改指保留的那个）。
-7. `winget` 表头**本地化**（中文 Windows 打「名称/ID/版本/可用」）⇒ 列标签按「英文 + 中文别名」映射到规范名再切片。
-8. `winget show` 的「发布服务器 URL:」会被当成上一条多行值的续行 ⇒ 不认识的 `标签:` 必须显式**终结**上一个字段并丢弃。
-9. 已安装列表少一大截 = `IdLike` 正则不认 `\` ⇒ 加 `\\`（`^[A-Za-z0-9][A-Za-z0-9._+\\-]*$`）。
-10. 列宽拖拽**未接**（`DynamicColumnGrid` 不支持，NT-085 起控件住 `src/UI`）；改宽走「⚙ 列设置」写回 manifest。
-11. 分节模式**关分页**（底栏改摘要），因为一次只显示一个集合的多个采集器节。
-12. 🔴 **示例 vs 内置采集器是两套语义**：`ExampleSeeder` 只播种一次（`examples\.seeded` 存在即整体跳过，删掉的示例**不复活**）；`BuiltinCollectorSeeder` 缺了就补回。改 `defaults\scripts\*` 后老配置目录不会自动更新（要用户删 `examples\` 目录再启动）。
-13. 🔴 **解析分层纪律（NT-081）**：固定列宽表格的通用机械只在 `FixedWidthTable`（🔴 按**显示宽度**切，汉字 2 列）；winget 的续行合并 / 别名表 / pin 兜底是**固有启发式**⛔ 不进通用层；机读后端（dpkg-query）⛔ 不走表格解析，直接 `TsvRows`。新增后端 = 新适配器 + 命令模板，页面 / VM 零改动。
-14. 🔴 **进程执行只走 `IProcessRunner`**（NT-081）：散落的 `Process.Start` 分三类，⛔ 不一刀切合并 —— ① 捕获式外部工具（脚本 / 命令 / winget）⇒ `IProcessRunner`；② 平台能力（打开文件夹 / 文件 / URL，`UseShellExecute=true`）⇒ VM 直接用 BCL；③ 可见控制台 / 提权（`Verb=runas`）⇒ `QuickActionService.StartVisible`（winget 源命令走命令库 + UAC，NT-080 定调）。
-13. `.bat` 示例**只写 ASCII** + 首行 `chcp 65001` —— 带中文的 .bat 在 936 代码页下必乱码，且 BOM 会被 cmd 当命令字符。
-14. 🔴 v3.80：**源在 UI 里没有入口了**。源选择框 / 源开关 / 分类 / 互斥 / 定义快照全删
+8. `winget` 表头**本地化**（中文 Windows 打「名称/ID/版本/可用」）⇒ 列标签按「英文 + 中文别名」映射到规范名再切片。
+9. `winget show` 的「发布服务器 URL:」会被当成上一条多行值的续行 ⇒ 不认识的 `标签:` 必须显式**终结**上一个字段并丢弃。
+10. 已安装列表少一大截 = `IdLike` 正则不认 `\` ⇒ 加 `\\`（`^[A-Za-z0-9][A-Za-z0-9._+\\-]*$`）。
+11. 列宽拖拽**未接**（`DynamicColumnGrid` 不支持，NT-085 起控件住 `src/UI`）；改宽走「⚙ 列设置」写回 manifest。
+12. 分节模式**关分页**（底栏改摘要），因为一次只显示一个集合的多个采集器节。
+13. 🔴 **示例 vs 内置采集器是两套语义**：`ExampleSeeder` 只播种一次（`examples\.seeded` 存在即整体跳过，删掉的示例**不复活**）；`BuiltinCollectorSeeder` 缺了就补回。改 `defaults\scripts\*` 后老配置目录不会自动更新（要用户删 `examples\` 目录再启动）。
+14. 🔴 **解析分层纪律（NT-081）**：固定列宽表格的通用机械只在 `FixedWidthTable`（🔴 按**显示宽度**切，汉字 2 列）；winget 的续行合并 / 别名表 / pin 兜底是**固有启发式**⛔ 不进通用层；机读后端（dpkg-query）⛔ 不走表格解析，直接 `TsvRows`。新增后端 = 新适配器 + 命令模板，页面 / VM 零改动。
+15. 🔴 **进程执行只走 `IProcessRunner`**（NT-081）：散落的 `Process.Start` 分三类，⛔ 不一刀切合并 —— ① 捕获式外部工具（脚本 / 命令 / winget）⇒ `IProcessRunner`；② 平台能力（打开文件夹 / 文件 / URL，`UseShellExecute=true`）⇒ VM 直接用 BCL；③ 可见控制台 / 提权（`Verb=runas`）⇒ `QuickActionService.StartVisible`（winget 源命令走命令库 + UAC，NT-080 定调）。
+16. `.bat` 示例**只写 ASCII** + 首行 `chcp 65001` —— 带中文的 .bat 在 936 代码页下必乱码，且 BOM 会被 cmd 当命令字符。
+17. 🔴 v3.80：**源在 UI 里没有入口了**。源选择框 / 源开关 / 分类 / 互斥 / 定义快照全删
     （`PackageSourceViewModel`、`PackageSourceRow`、`PackageSettings.DefaultSource|SourceCategories|SourceDefinitions`、
     `PackageManagerService.RunElevatedAsync` 一并删除）—— 源操作 = 命令库里的命令条目；设置页只剩「命令清单 + ＋ 加入命令库」
     （写入 `script.json` 的集合「winget 源」，按标题幂等去重）。
-15. NT-074：软件包服务下放到模块后，**Shell 不能再给它接确认钩子**（Release 下 Shell 不引模块）⇒
+18. NT-074：软件包服务下放到模块后，**Shell 不能再给它接确认钩子**（Release 下 Shell 不引模块）⇒
     二次确认改走 `Core.DialogHooks.ConfirmAsync`（原 `PackageManagerService.ConfirmHandler` 已删）。
-16. 🔴🔴 v3.80 实测 + 用户定调：**winget 1.29 没有 `source enable` / `source disable`**
+19. 🔴🔴 v3.80 实测 + 用户定调：**winget 1.29 没有 `source enable` / `source disable`**
     （`winget source --help` 只有 add/list/update/remove/edit/reset/export）⇒ 「停用源」只能 `source remove`，
     要能加回来必须先 `source export` 记定义 —— **这就是源 UI 被砍掉的原因**：与其在 App 里模拟一套开关状态，
     不如把 `source add/remove/reset` 交给命令库（条目的 `NeedAdmin=true` ⇒ `runas` 提权 + 可见控制台）。
     ⛔ 装 / 卸 / pin 包不提权（用户级安装不需要）。
-17. 🔴 v3.81（NT-082）：`role=package` 条目 ↔ 「软件包」类集合是**一对一容器** ——
+20. 🔴 v3.81（NT-082）：`role=package` 条目 ↔ 「软件包」类集合是**一对一容器** ——
     候选池判定写成 `isPackageItem != isPackageCol ⇒ continue`；⛔ 别只把 v3.79 那句无条件 `continue` 删掉
     （那样包条目会污染脚本库 / 命令库候选池）。软件包页的清单状态只取自**一次 `winget list` 缓存**，
     ⛔ 不逐包跑 `winget show`（慢、且会触发源元数据更新）。
-17. 🔴 NT-075：`winget pin list` 的**版本号长得跟包 Id 一样**（都有点号）⇒ 老实现"扫所有带点号的词"会把
+21. 🔴 NT-075：`winget pin list` 的**版本号长得跟包 Id 一样**（都有点号）⇒ 老实现"扫所有带点号的词"会把
     `24.08` 当成一个包 Id 混进列表。现在走 `ParsePins`（表头切片取 `Id` + `Version`），兜底正则按形状排除纯数字版本。
-18. 🔴 NT-059：`ApplyView()` 里 `Items.Clear()` 会让 ListBox 的 `SelectedItem` 双向绑定**回写成 null** ⇒ 点收藏 / 切分类后详情卡掉回示例态。
+22. 🔴 NT-059：`ApplyView()` 里 `Items.Clear()` 会让 ListBox 的 `SelectedItem` 双向绑定**回写成 null** ⇒ 点收藏 / 切分类后详情卡掉回示例态。
     修法：刷新统一走 `ApplyViewKeepSelection()`（刷新后把选中项放回去），收藏 / 分类切换都改走它。
-19. 🔴 NT-059：`QuickActionService.RemoveAsync` 内部会弹确认 ⇒ 详情卡 🗑 与「🔥 从磁盘删除」两条路会**问两遍**，
+23. 🔴 NT-059：`QuickActionService.RemoveAsync` 内部会弹确认 ⇒ 详情卡 🗑 与「🔥 从磁盘删除」两条路会**问两遍**，
     且第二遍取消时文件已删。修法：`IQuickActionService.RemoveSilent`（⛔ 不弹），确认框由调用方自己弹。
-20. NT-059：导入只有一个 `SplitButton`「📂 导入」（主钮 = 选文件夹，箭头 = 文件夹 / 文件两路）；落盘口径 = 目录内**相对文件名**、目录外**绝对路径**（`ToStoredScriptPath`）；导入后必须清搜索框 + 分类归「全部类型」+ 清表头筛选 + 选中第一条，否则"导入了看不到"。
+24. NT-059：导入只有一个 `SplitButton`「📂 导入」（主钮 = 选文件夹，箭头 = 文件夹 / 文件两路）；落盘口径 = 目录内**相对文件名**、目录外**绝对路径**（`ToStoredScriptPath`）；导入后必须清搜索框 + 分类归「全部类型」+ 清表头筛选 + 选中第一条，否则"导入了看不到"。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

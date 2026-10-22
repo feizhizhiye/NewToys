@@ -1006,6 +1006,9 @@ Module.*（功能模块，只引 Shared + Core）
 
 **D. 页面形态（三页分工）**
 
+> 🔴 **v3.86 / NT-089 已迁出**：下列三页（**Key 一律不改**）现归**脚本中心**（`Module.ScriptManager`），网络工具只剩 4 页 + 设置页。
+> 下表保留作三页的**分工定义**（迁到 `script` 组后仍有效）；左树位置与菜单以 `modules/script-manager.md` 为准。
+
 | 页 | Key / 标题 | 形态 | 职责 |
 |---|---|---|---|
 | 目录页 | `web-scrape`「抓取规则」（Key ⛔ 不改） | 标准列表页 | 规则集目录：分类 / 说明列 + 工具条「分类 ▾」（按文件里实际出现的值动态生成）+ 增删改 / 启停 / 重读；详情卡显示脚本头配置 |
@@ -1017,7 +1020,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 **E. 流水线配置与运行记录**
 
-- flow 配置 = `<DataDir>\web-tools\flows\<名>.json`（`FlowConfig` + `FlowService`，⛔ 不开 DB 表）。
+- flow 配置 = `<DataDir>\web-tools\flows\<名>.json`（`FlowConfig` + `FlowService`，⛔ 不开 DB 表）。（🔴 **NT-090**：随 `FlowService` 迁 `<DataDir>\script\flows\`）
 - 运行记录 = `runs\<脚本>\<时间戳>_<关键词或URL哈希>\`：`result.json` + `page.html` + `diag.txt`；保留最近 10 次。
 - 导出 CSV / JSON；⛔ 不引 Excel 库。
 - 备份：规则目录仍默认勾；`runs\` / `downloads\` / `cache\` ⛔ 不进备份。

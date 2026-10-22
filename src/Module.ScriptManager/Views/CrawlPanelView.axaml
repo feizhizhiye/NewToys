@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
-             x:Class="NewToys.WebTools.Views.CrawlPanelView">
+             x:Class="NewToys.ScriptManager.Views.CrawlPanelView">
   <!--
     「网络工具 → 爬虫面板」（web-crawl，NT-086 批 D）。
 

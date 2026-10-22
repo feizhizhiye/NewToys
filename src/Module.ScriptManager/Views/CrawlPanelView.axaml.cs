@@ -1,10 +1,10 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Input;
-using NewToys.WebTools.Models;
-using NewToys.WebTools.ViewModels;
+using NewToys.ScriptManager.Models;
+using NewToys.ScriptManager.ViewModels;
 
-namespace NewToys.WebTools.Views;
+namespace NewToys.ScriptManager.Views;
 
 /// <summary>
 /// 爬虫面板（<c>web-crawl</c>，NT-086 批 D）。

@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NewToys.WebTools.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 随包<b>预设规则集</b>的一条（NT-086 批 E）：一个 <c>.py</c> 文件 + 元数据 + 探测路径。
 /// <para>
-/// 预设由 <see cref="Services.PresetSeeder"/> 播种进 <c>&lt;DataDir&gt;\web-tools\rules\</c>（只播种一次），
+/// 预设由 <see cref="Services.PresetSeeder"/> 播种进 <c>&lt;DataDir&gt;\script\rules\</c>（只播种一次），
 /// 「从预设创建」= 把预设文件复制成一条新规则集（⛔ 不覆盖同名）。
 /// </para>
 /// <para>

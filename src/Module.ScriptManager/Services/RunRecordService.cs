@@ -7,9 +7,9 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using NewToys.Core.Services;
-using NewToys.WebTools.Models;
+using NewToys.ScriptManager.Models;
 
-namespace NewToys.WebTools.Services;
+namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// 运行记录（NT-086 批 G）：每次「▶ 跑这段」落一条

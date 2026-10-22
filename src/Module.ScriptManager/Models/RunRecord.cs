@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace NewToys.WebTools.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 一次「▶ 跑这段」的运行记录（NT-086 批 G）—— 落 <c>runs\&lt;脚本&gt;\&lt;时间戳&gt;_&lt;URL哈希&gt;\result.json</c>。

@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NewToys.Core.Services;
-using NewToys.WebTools.Models;
+using NewToys.ScriptManager.Models;
 
-namespace NewToys.WebTools.Services;
+namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// 规则目录的元数据与迁移（NT-084）：
@@ -22,6 +22,12 @@ public sealed class RuleCatalogService
 {
     /// <summary>元数据文档名。</summary>
     public const string DocRuleMeta = "rule-meta";
+
+    /// <summary>
+    /// 旧「网页抓取」任务文档名（NT-089：原取自 <c>WebToolsSchemaContributor.DocScrapeTasks</c>；
+    /// 该类型留在网络工具模块，模块禁互引 ⇒ 这里留一份同名常量，值必须与之一致）。
+    /// </summary>
+    private const string DocScrapeTasks = "scrape-tasks";
 
     private readonly JsonDocStore _docs;
     private readonly RuleFileService _files;
@@ -119,7 +125,7 @@ public sealed class RuleCatalogService
 
         try
         {
-            var legacy = _docs.Load<List<LegacyTask>>(WebToolsSchemaContributor.DocScrapeTasks);
+            var legacy = _docs.Load<List<LegacyTask>>(DocScrapeTasks);
             if (legacy is { Count: > 0 })
             {
                 foreach (var task in legacy)

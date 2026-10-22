@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace NewToys.WebTools.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 调试集合页的一段槽位（NT-086 批 C）：段名 + 下拉候选（按 <c># role:</c> 过滤）+ 当前选中脚本。

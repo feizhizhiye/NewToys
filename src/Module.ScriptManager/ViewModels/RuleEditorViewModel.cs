@@ -11,10 +11,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
-using NewToys.WebTools.Models;
-using NewToys.WebTools.Services;
+using NewToys.UI.Services;   // NT-089：跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
+using NewToys.ScriptManager.Models;
+using NewToys.ScriptManager.Services;
 
-namespace NewToys.WebTools.ViewModels;
+namespace NewToys.ScriptManager.ViewModels;
 
 /// <summary>
 /// 调试集合（<c>web-rule-editor</c>，NT-086 批 C 重构）—— **装配流水线**的页：

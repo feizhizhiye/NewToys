@@ -4,10 +4,10 @@ using System.IO.Compression;
 using NewToys.Core.Services;
 using NewToys.Shared.Services;
 
-namespace NewToys.WebTools.Services;
+namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <b>数据节 · 网络工具规则</b>（NT-084）：<c>&lt;DataDir&gt;\web-tools\rules\*.py</c> 本体。
+/// <b>数据节 · 抓取规则</b>（NT-084）：<c>&lt;DataDir&gt;\script\rules\*.py</c> 本体。
 /// <para>
 /// 🔴 为什么**默认勾选**且必须由本模块注册：规则是「唯一无法重建的资产」（缓存 HTML 可重建、
 /// 库里的元数据可重建，唯有用户手写的表达式丢了就没了）；而规则目录的位置只有 RuleFileService 知道，
@@ -29,7 +29,7 @@ public sealed class RulesBackupSection : IBackupSection
 
     public string Id => "data.web-rules";
 
-    public string Title => "网络工具规则";
+    public string Title => "抓取规则";
 
     public string Description => "抓取规则集（*.py，含手写表达式）—— 丢了无法重建";
 

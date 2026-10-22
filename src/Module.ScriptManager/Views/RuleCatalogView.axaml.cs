@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 
-namespace NewToys.WebTools.Views;
+namespace NewToys.ScriptManager.Views;
 
 /// <summary>
 /// 抓取规则 · 规则目录页（NT-084 批 A/B；页 Key 仍为 <c>web-scrape</c>）。

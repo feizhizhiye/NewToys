@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NewToys.Core.Services;
 using NewToys.Shared.Services;
-using NewToys.WebTools.Models;
+using NewToys.ScriptManager.Models;
 
-namespace NewToys.WebTools.Services;
+namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// 抓取 + 跑规则（NT-084 批 C）。
@@ -20,7 +21,7 @@ namespace NewToys.WebTools.Services;
 /// <c>RULES</c>，C# 只负责"取 HTML / 送路径 / 解析返回的 JSON"。
 /// </para>
 /// <para>
-/// 缓存：<c>&lt;DataDir&gt;\web-tools\cache\&lt;规则集名&gt;\page.html</c>（单文件覆盖）——
+/// 缓存：<c>&lt;DataDir&gt;\script\cache\&lt;规则集名&gt;\page.html</c>（单文件覆盖）——
 /// 调试时反复跑命令 **不再重复发请求**。
 /// </para>
 /// </summary>
@@ -29,16 +30,25 @@ public sealed class RuleRunService
     private readonly IPythonRuntime _py;
     private readonly RuleFileService _files;
     private readonly ConfigStoreService _cfg;
-    private readonly IWebToolsSettingsService? _wt;
+    /// <summary>
+    /// 抓取默认项（UA / 超时）的取值处（NT-089）。
+    /// <para>
+    /// 🔴 设置页「网络工具设置」仍留在网络工具模块（菜单 Key `settings-web-tools` ⛔ 不改），
+    /// 它把值写进 <c>config\web-tools.json</c>；而抓取服务现在归脚本中心（模块禁互引 ⛔ 不能引用
+    /// <c>IWebToolsSettingsService</c>）⇒ 这里经 **Core 的 <see cref="IOptionsStore"/>** 只读同一份文件，
+    /// 键名 / 默认值与设置页保持逐字一致。NT-094 设置拆分后再归位到 <c>config\script-manager.json</c>。
+    /// </para>
+    /// </summary>
+    private readonly IOptionsStore? _opts;
 
     private static bool _encodingReady;
 
-    public RuleRunService(IPythonRuntime py, RuleFileService files, ConfigStoreService cfg, IWebToolsSettingsService? wt = null)
+    public RuleRunService(IPythonRuntime py, RuleFileService files, ConfigStoreService cfg, IOptionsStore? opts = null)
     {
         _py = py;
         _files = files;
         _cfg = cfg;
-        _wt = wt;
+        _opts = opts;
 
         if (!_encodingReady)
         {
@@ -47,9 +57,49 @@ public sealed class RuleRunService
         }
     }
 
+    // ==================== 抓取默认项（NT-089：经 Core 的 IOptionsStore 读 config\web-tools.json） ====================
+
+    /// <summary>设置分区名（= 配置文件名基名）；与「网络工具设置」页写入的文件同源。</summary>
+    private const string ScrapeModule = "web-tools";
+    private const string KeyUserAgent = "defaultUserAgent";
+    private const string KeyScrapeTimeout = "scrapeTimeoutSeconds";
+    private const int DefaultScrapeTimeout = 20;
+    private const int MinScrapeTimeout = 5;
+    private const int MaxScrapeTimeout = 300;
+
+    /// <summary>生效的 UA（配置留空 ⇒ 兜底串）。</summary>
+    private string EffectiveUserAgent
+    {
+        get
+        {
+            var ua = ReadOption(KeyUserAgent);
+            return ua.Length > 0 ? ua : "Mozilla/5.0";
+        }
+    }
+
+    /// <summary>生效的单次抓取超时（秒；非法 / 留空 ⇒ 默认值，钳 5~300）。</summary>
+    private int ScrapeTimeoutSeconds
+    {
+        get
+        {
+            var raw = ReadOption(KeyScrapeTimeout);
+            var v = int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)
+                ? n
+                : DefaultScrapeTimeout;
+            return Math.Clamp(v, MinScrapeTimeout, MaxScrapeTimeout);
+        }
+    }
+
+    private string ReadOption(string key)
+    {
+        if (_opts == null) return "";
+        try { return (_opts.Get(ScrapeModule, key) ?? "").Trim(); }
+        catch { return ""; }
+    }
+
     // ==================== 缓存路径 ====================
 
-    public string CacheDir(string ruleName) => Path.Combine(_cfg.DataDir, "web-tools", "cache", RuleFileService.SafeName(ruleName));
+    public string CacheDir(string ruleName) => Path.Combine(_cfg.DataDir, "script", "cache", RuleFileService.SafeName(ruleName));
 
     public string HtmlPath(string ruleName) => Path.Combine(CacheDir(ruleName), "page.html");
 
@@ -68,10 +118,10 @@ public sealed class RuleRunService
     /// 调试集合共用的那份 HTML（NT-086 批 C）：<c>cache\_debug\page.html</c>。
     /// 🔴 试跑推荐的前提是「多个候选脚本对<b>同一份</b> HTML 求值」，⛔ 不能各抓各的。
     /// </summary>
-    public string DebugHtmlPath => Path.Combine(_cfg.DataDir, "web-tools", "cache", "_debug", "page.html");
+    public string DebugHtmlPath => Path.Combine(_cfg.DataDir, "script", "cache", "_debug", "page.html");
 
     /// <summary>爬虫面板共用的那份 HTML（NT-086 批 D）：<c>cache\_crawl\page.html</c>。</summary>
-    public string CrawlHtmlPath => Path.Combine(_cfg.DataDir, "web-tools", "cache", "_crawl", "page.html");
+    public string CrawlHtmlPath => Path.Combine(_cfg.DataDir, "script", "cache", "_crawl", "page.html");
 
     // ==================== 抓取 ====================
 
@@ -92,10 +142,9 @@ public sealed class RuleRunService
             using var handler = new HttpClientHandler { AllowAutoRedirect = true };
             using var client = new HttpClient(handler)
             {
-                Timeout = TimeSpan.FromSeconds(_wt?.ScrapeTimeoutSeconds ?? 20)
+                Timeout = TimeSpan.FromSeconds(ScrapeTimeoutSeconds)
             };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd(
-                string.IsNullOrWhiteSpace(_wt?.EffectiveUserAgent) ? "Mozilla/5.0" : _wt!.EffectiveUserAgent);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(EffectiveUserAgent);
 
             var bytes = await client.GetByteArrayAsync(url, ct).ConfigureAwait(false);
             var (declared, useGbk) = SniffCharset(bytes, encoding);
@@ -244,7 +293,7 @@ public sealed class RuleRunService
             return result;
         }
 
-        var probeDir = Path.Combine(_cfg.DataDir, "web-tools", "cache", "_probe");
+        var probeDir = Path.Combine(_cfg.DataDir, "script", "cache", "_probe");
         var candidates = new List<(PresetInfo Preset, string Path, string Url, string File)>();
         var seq = 0;
         foreach (var p in presets)

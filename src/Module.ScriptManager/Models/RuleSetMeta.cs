@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NewToys.WebTools.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 规则目录里的一行（NT-084）。**不含规则内容** —— 内容在 <c>.py</c> 文件里，

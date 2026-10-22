@@ -1,8 +1,13 @@
-namespace NewToys.WebTools.Services;
+namespace NewToys.UI.Services;
 
 /// <summary>
-/// 网络工具模块内部的「跨页传物」：右键「发送到书签 / 网页抓取」时，把当前 URL 交给目标页，
-/// 目标页进入时消费一次。模块内部单例，不依赖 Shell、不引入模块间引用。
+/// 模块内部的「跨页传物」：右键「发送到书签 / 发送到抓取」时，把当前 URL 交给目标页，
+/// 目标页进入时消费一次。
+/// <para>
+/// 🔴 NT-089：抓取三页从网络工具迁入脚本中心 ⇒「书签 / Ping → 抓取」变成**跨模块**传参；
+/// 而模块禁互引、Shared/Core/Shell ⛔ 不动 ⇒ 落 `NewToys.UI`（两个模块都引它），
+/// 两侧各注册一次单例（同一容器 ⇒ 解析到同一实例，行为与搬家前一致）。
+/// </para>
 /// </summary>
 public sealed class WebTransferService
 {

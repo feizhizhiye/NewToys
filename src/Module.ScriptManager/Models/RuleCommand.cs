@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace NewToys.WebTools.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 规则编辑器里的一行命令（NT-084 批 C）：<c>(字段名, 表达式)</c> + 上次运行的命中信息。

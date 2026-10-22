@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using NewToys.Core.Services;
-using NewToys.WebTools.Models;
+using NewToys.ScriptManager.Models;
 
-namespace NewToys.WebTools.Services;
+namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// 流水线配置的读写（NT-086 批 C）：一个 flow = 一个 <c>flows\&lt;名&gt;.json</c>。

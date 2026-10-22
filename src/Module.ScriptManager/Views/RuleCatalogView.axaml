@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
-             x:Class="NewToys.WebTools.Views.RuleCatalogView">
+             x:Class="NewToys.ScriptManager.Views.RuleCatalogView">
   <!--  NT-084 批 A/B：「网页抓取」→「抓取规则」的**规则目录页**（页 Key 仍为 web-scrape）。
        本页只管目录（.py 文件），命令列表与 HTML 调试在另一页（web-rule-editor）。
        骨架仍用 ListPageSkeleton，⛔ 不改骨架、⛔ 不动 340px 详情卡。  -->

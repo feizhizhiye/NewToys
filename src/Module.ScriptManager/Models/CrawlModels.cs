@@ -5,7 +5,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using NewToys.UI.Controls;
 
-namespace NewToys.WebTools.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>爬虫面板结果里的一列（NT-086 批 D）。</summary>
 public sealed class CrawlColumn

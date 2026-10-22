@@ -15,10 +15,10 @@ using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.UI.Controls;
-using NewToys.WebTools.Models;
-using NewToys.WebTools.Services;
+using NewToys.ScriptManager.Models;
+using NewToys.ScriptManager.Services;
 
-namespace NewToys.WebTools.ViewModels;
+namespace NewToys.ScriptManager.ViewModels;
 
 /// <summary>
 /// 爬虫面板（<c>web-crawl</c>，NT-086 批 D + NT-087 期②）：跑一个抓取脚本 → 目录节看条目 → 试下载 / 批量下载。

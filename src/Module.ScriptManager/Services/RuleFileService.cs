@@ -4,13 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using NewToys.Core.Services;
-using NewToys.WebTools.Models;
+using NewToys.ScriptManager.Models;
 
-namespace NewToys.WebTools.Services;
+namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// 规则集文件读写（NT-084）：**一条规则集 = 一个 <c>.py</c> 文件**，落
-/// <c>&lt;DataDir&gt;\web-tools\rules\</c>（模块独有目录）。
+/// <c>&lt;DataDir&gt;\script\rules\</c>（模块独有目录）。
 /// <para>
 /// 文件头用注释块写元数据 —— C# 侧<b>只按行读这些键</b>，⛔ 不解析 Python 语法（真正的执行在 Python 侧）：
 /// <list type="bullet">
@@ -42,12 +42,12 @@ public sealed class RuleFileService
 
     public RuleFileService(ConfigStoreService cfg) => _cfg = cfg;
 
-    /// <summary>规则目录：<c>&lt;DataDir&gt;\web-tools\rules</c>（懒创建）。</summary>
+    /// <summary>规则目录：<c>&lt;DataDir&gt;\script\rules</c>（懒创建）。</summary>
     public string RulesDir
     {
         get
         {
-            var dir = Path.Combine(_cfg.DataDir, "web-tools", "rules");
+            var dir = Path.Combine(_cfg.DataDir, "script", "rules");
             try { Directory.CreateDirectory(dir); } catch { /* 只读环境退化为空列表 */ }
             return dir;
         }

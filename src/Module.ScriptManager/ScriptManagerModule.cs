@@ -5,6 +5,7 @@ using NewToys.ScriptManager.Services;
 using NewToys.ScriptManager.ViewModels;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
+using NewToys.UI.Services;   // NT-089：跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
 namespace NewToys.ScriptManager;
 public class ScriptManagerModule : IModule
 {
@@ -55,6 +56,35 @@ public class ScriptManagerModule : IModule
         services.AddSingleton<ScriptDatabase>();
         // NT-076：本模块在总库里的建表（+ 老 script.db 一次性合并），由总库 schema 统一入口调用
         services.AddSingleton<ILibrarySchemaContributor, ScriptManagerSchemaContributor>();
+        // ==================== NT-089：抓取能力整体平移（自 Module.WebTools 迁入，功能与交互零变化） ====================
+        // 规则集 = 磁盘 .py 文件（RuleFileService）+ 目录元数据（RuleCatalogService）。
+        services.AddSingleton<RuleFileService>();
+        services.AddSingleton<RuleCatalogService>();
+        // 流水线（flow）配置读写 —— 五段槽位落 flows\<名>.json（⛔ 不开 DB 表）；目录留给 NT-090 迁。
+        services.AddSingleton<FlowService>();
+        // 抓取 + 跑规则（规则解析全在 Python 侧，C# 只搬运）。
+        // 🔴 抓取默认项（UA / 超时）仍由「网络工具设置」页写进 config\web-tools.json（菜单 Key ⛔ 不改）⇒
+        //    模块禁互引，这里经 Core 的 IOptionsStore 只读同一份文件（NT-094 设置拆分后归位）。
+        services.AddSingleton(sp => new RuleRunService(
+            sp.GetRequiredService<IPythonRuntime>(),
+            sp.GetRequiredService<RuleFileService>(),
+            sp.GetRequiredService<ConfigStoreService>(),
+            sp.GetRequiredService<IOptionsStore>()));
+        // 运行记录 runs\<脚本>\<ts>_<hash>\（result.json + page.html + diag.txt，保留最近 10 条）。
+        services.AddSingleton<RunRecordService>();
+        // 内置下载器（并发 / 限速 / 去重 / 续跑 / 取消；⛔ 下载行为不脚本化）。
+        services.AddSingleton<DownloadService>();
+        // 跨页一次性传参：书签 / Ping（网络工具）↔ 抓取（本模块）跨模块共享 ⇒
+        // `WebTransferService` 上提 NewToys.UI，两侧各注册一次单例（同一容器 ⇒ 同一实例）。
+        services.AddSingleton<WebTransferService>();
+        // 规则目录进备份（🔴 默认勾选 —— 规则是唯一无法重建的资产；只备 rules\，⛔ 不备 cache\）。
+        services.AddSingleton<IBackupSection, RulesBackupSection>();
+
+        // 三页（Key 与标题 ⛔ 不改）
+        services.AddTransient<Views.RuleCatalogView>(); services.AddTransient<RuleCatalogViewModel>();
+        services.AddTransient<Views.RuleEditorView>();  services.AddTransient<RuleEditorViewModel>();
+        services.AddTransient<Views.CrawlPanelView>();  services.AddTransient<CrawlPanelViewModel>();
+
         // NT-078 批次 C：脚本实体文件的备份节（`data.scripts`）—— 脚本目录 = 默认目录 + 各库 RootPath，
         // 这段解析只有本模块有（框架层⛔ 不引模块），所以按 IBackupSection 契约由模块自己注册。
         services.AddSingleton<IBackupSection, ScriptsBackupSection>();
@@ -84,6 +114,13 @@ public class ScriptManagerModule : IModule
         menu.RegisterFunction("script", "script-packages",  "软件包",   "📦", "PackageView",        3, "搜索、安装、升级、卸载软件包");
         menu.RegisterFunction("script", "script-collections", "脚本集合", "🗂", "CollectionView",     4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
         menu.RegisterFunction("script", "script-info",      "信息面板", "💻", "ScriptInfoView",     99, "按集合分节展示采集器输出；顶部「集合 ▾」一次显示一个集合");
+
+        // 🔴 NT-089：抓取三页从「网络工具」迁入本组（Key `web-scrape` / `web-rule-editor` / `web-crawl`
+        // 与标题一律 ⛔ 不改 —— 页键落 columnlayout.json，改了用户列偏好失效）。
+        menu.RegisterFunction("script", "web-scrape",   "抓取规则",   "🕷", "RuleCatalogView", 5, "管理抓取规则集（一条规则集 = 一个 .py 文件）");
+        menu.RegisterFunction("script", "web-rule-editor", "调试集合", "🧩", "RuleEditorView", 6, "把段脚本装配成流水线：五段槽位 + 试跑推荐 + 表达式检验");
+        menu.RegisterFunction("script", "web-crawl", "爬虫面板", "🕸", "CrawlPanelView", 7,
+            "跑抓取脚本看目录条目：动态列 + 双击下钻 + 复制诊断（下载属期②）");
 
         // 软件包模块的源设置：v3.65 / NT-062 起**并入「脚本管理器设置」页**（需求 §6.5）——
         // 原独立菜单项 `settings-package` 已移除（⛔ 不再单独占一个菜单项），数据仍落 config\package.json。
@@ -127,6 +164,10 @@ public class ScriptManagerModule : IModule
             // NT-083 批 3：随包「环境维护」脚本 + 内置集合「环境维护」—— 同样只播种一次。
             // ⛔ 不覆盖用户改过的脚本、⛔ 不抢回被移出的集合成员。
             EnvScriptsSeeder.Seed(store, settings);
+
+            // NT-089：随包预设规则集播种（自 WebToolsModule 迁来）——
+            // `<程序目录>\defaults\presets\*.py` → `<DataDir>\script\rules\`（只加不覆盖、只播种一次）。
+            PresetSeeder.Seed(services.GetRequiredService<RuleFileService>());
         }
         catch
         {

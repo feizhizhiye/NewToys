@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
-             x:Class="NewToys.WebTools.Views.RuleEditorView">
+             x:Class="NewToys.ScriptManager.Views.RuleEditorView">
   <!--  NT-086 批 C：**调试集合**（原「规则编辑器」重构；页 Key 仍是 web-rule-editor，已撤出左树菜单）
         左 = 五段槽位 + 试跑推荐 ／ 中 = HTML 源码（查找 / 🎯 定位命中）／ 右 = 选中段脚本的表达式检验 + 错误回显
         🔴 工具条走 Shell 统一承载（VM 实现 IToolbarSource）⇒ 页内 ⛔ 不写 Border.toolbar；

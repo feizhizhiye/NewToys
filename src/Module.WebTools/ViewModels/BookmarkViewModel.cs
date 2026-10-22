@@ -12,6 +12,7 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.WebTools.Models;
+using NewToys.UI.Services;   // NT-089：跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
 using NewToys.WebTools.Services;
 
 namespace NewToys.WebTools.ViewModels;

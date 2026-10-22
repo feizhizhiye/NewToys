@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace NewToys.WebTools.Models;
+namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 流水线（flow）配置（NT-086 批 C）—— 五段槽位各挂一个脚本名，落

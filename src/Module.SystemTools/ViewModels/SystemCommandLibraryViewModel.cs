@@ -38,6 +38,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
     private readonly ISystemCommandStore _store = null!;
     private readonly ISystemToolsSettingsService _settings = null!;
     private readonly ScriptRunner _runner = null!;
+    private readonly ISystemCommandLauncher _launcher = null!;
 
     private readonly List<SystemCommand> _all = new();
 
@@ -62,6 +63,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         ISystemCommandStore store,
         ISystemToolsSettingsService settings,
         ScriptRunner runner,
+        ISystemCommandLauncher launcher,
         IColumnLayoutService? cols = null,
         IOptionsStore? opts = null)
         : base(cols, opts)
@@ -69,6 +71,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         _store = store;
         _settings = settings;
         _runner = runner;
+        _launcher = launcher;
         LoadLayout();     // 列显隐 + 详情栏开合（基类；页键 script-commands）
         Reload();
     }
@@ -238,7 +241,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         StatusText = Selected.IsFavorite ? "已收藏：" + Selected.Title : "已取消收藏：" + Selected.Title;
     }
 
-    /// <summary>▶ 运行：走 Core <c>ScriptRunner</c>（命令行命令）。需要管理员的项 ⛔ 不跑，只提示复制自跑。</summary>
+    /// <summary>▶ 运行：普通项走 Core <c>ScriptRunner</c>（静默跑 + 捕获输出）；需要管理员的项弹 UAC 提权执行（可见窗口）。</summary>
     [RelayCommand]
     private async Task RunAsync(SystemCommand? item)
     {
@@ -247,8 +250,11 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
 
         if (item.NeedAdmin)
         {
-            await CopyAsync(item.Command).ConfigureAwait(true);
-            StatusText = "⚠ 这条要管理员权限 —— 命令已复制，请在提权的终端里自己跑。";
+            // NT-097 补充（用户 2026-10-23：勾了需要管理员的也能直接运行）：弹 UAC，提权后在可见窗口里执行。
+            // 想手动跑还有「📋 复制命令」（工具条 / 行右键）。
+            if (_launcher is null) { StatusText = "提权运行不可用（DI 未注册）。"; return; }
+            var (_, msg) = _launcher.RunElevated(item);
+            StatusText = msg;
             return;
         }
 
@@ -444,7 +450,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
                         new DetailField { Label = "简介", ValuePath = nameof(EditDescription), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, MultiLine = true, Rows = 52 },
                         new DetailField { Label = "命令", ValuePath = nameof(EditCommand), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, Mono = true, MultiLine = true, Rows = 84 },
                         new DetailField { Kind = FieldKind.Hint, Hint = "例：`start ms-settings:display` 打开「显示」设置；`control` 打开控制面板。▶ = 交给 Core 的执行器跑这条命令。" },
-                        new DetailField { Label = "需要管理员权限（⛔ 不代跑：只复制命令）", ValuePath = nameof(EditNeedAdmin), Kind = FieldKind.Check },
+                        new DetailField { Label = "需要管理员权限（▶ 运行 = 弹 UAC，提权后在可见窗口里执行）", ValuePath = nameof(EditNeedAdmin), Kind = FieldKind.Check },
                         new DetailField { Label = "隐藏终端窗口（GUI 启动类）", ValuePath = nameof(EditRunHidden), Kind = FieldKind.Check },
                         new DetailField { Kind = FieldKind.Divider },
                         new DetailField { Kind = FieldKind.Hint, ValuePath = nameof(DataFileHint) }
@@ -484,7 +490,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
             Text = "▶ 运行", Classes = "ghost",
             CommandPath = nameof(RunCommand),
             IsEnabledPath = nameof(IsNotBusy),
-            ToolTip = "运行选中条目；需要管理员的项只复制命令（应用不代跑）"
+            ToolTip = "运行选中条目；需要管理员的项弹 UAC 提权执行（可见窗口，跑完不自动关）"
         },
         new()
         {

@@ -2,7 +2,6 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
-using Avalonia.Input.Platform;   // 🔴 SetTextAsync 是 IClipboard 的扩展方法，漏了这行会报 CS1061
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
@@ -26,6 +25,7 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
     private readonly ISystemCommandStore? _store;
     private readonly ISystemToolsSettingsService? _settings;
     private readonly ScriptRunner? _runner;
+    private readonly ISystemCommandLauncher? _launcher;
 
     [ObservableProperty] private string _statusText = "";
     [ObservableProperty] private bool _isBusy;
@@ -33,11 +33,12 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
 
     public FavoritesViewModel() { }
 
-    public FavoritesViewModel(ISystemCommandStore store, ISystemToolsSettingsService settings, ScriptRunner runner)
+    public FavoritesViewModel(ISystemCommandStore store, ISystemToolsSettingsService settings, ScriptRunner runner, ISystemCommandLauncher? launcher = null)
     {
         _store = store;
         _settings = settings;
         _runner = runner;
+        _launcher = launcher;
         Refresh();
     }
 
@@ -47,7 +48,7 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
 
     public string Hint =>
         "★ 收藏来自「命令库」页：选中一条后点「★ 收藏」。\n" +
-        "点按钮直接执行；点 ✕ 移出收藏夹。🔴 需要管理员的条目只复制命令（应用不代跑）。";
+        "点按钮直接执行；点 ✕ 移出收藏夹。🔴 需要管理员的条目点按钮会弹 UAC，提权后在可见窗口里执行（取消则不执行）。";
 
     public string DataFileHint => "数据文件：" + (_store?.FilePath ?? "");
 
@@ -66,7 +67,7 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
         StatusText = $"共 {Items.Count} 项收藏";
     }
 
-    /// <summary>执行一条收藏（走 Core 的 ScriptRunner；需要管理员的只复制命令）。</summary>
+    /// <summary>执行一条收藏：普通项走 Core 的 ScriptRunner；需要管理员的项弹 UAC 提权执行（可见窗口）。</summary>
     [RelayCommand]
     private async Task RunAsync(SystemCommand? item)
     {
@@ -74,9 +75,10 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
 
         if (item.NeedAdmin)
         {
-            // NT-097：补上真正的剪贴板复制（原来只改状态栏文案，用户复制不到）。
-            await SetClipboardAsync(item.Command).ConfigureAwait(true);
-            StatusText = "⚠ 这条要管理员权限 —— 命令已复制，请在提权的终端里自己跑：" + item.Command;
+            // NT-097 补充（用户 2026-10-23：勾了需要管理员的也能直接运行）。
+            if (_launcher is null) { StatusText = "提权运行不可用（DI 未注册）。"; return; }
+            var (_, msg) = _launcher.RunElevated(item);
+            StatusText = msg;
             return;
         }
 
@@ -106,14 +108,5 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
         _store.Save();
         Refresh();
         StatusText = "已移出收藏夹：" + item.Title;
-    }
-
-    private async Task SetClipboardAsync(string text)
-    {
-        if (string.IsNullOrEmpty(text)) { StatusText = "没有可复制的命令。"; return; }
-        var win = (Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-        if (win?.Clipboard is null) { StatusText = "剪贴板不可用。"; return; }
-        try { await win.Clipboard.SetTextAsync(text); }
-        catch (Exception ex) { StatusText = "⚠ 复制失败：" + ex.Message; }
     }
 }

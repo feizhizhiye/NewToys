@@ -22,7 +22,7 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.90 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.83 |
+| 文档版本 | 需求 v3.91 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.83 |
 | 技术栈 | .NET 10 + Avalonia 12.1.4 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
 | 代码规模 | 8 项目 / 272 个 `.cs+.axaml+.csproj` / 约 51000 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |

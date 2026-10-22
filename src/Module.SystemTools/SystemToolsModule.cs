@@ -23,6 +23,8 @@ public class SystemToolsModule : IModule
     {
         // 命令条目清单：config\system\commands.json（本模块手工数据的唯一落点，⛔ 不开 DB）。
         services.AddSingleton<ISystemCommandStore, SystemCommandStore>();
+        // 提权运行（NT-097 补充：NeedAdmin 条目 ▶ 运行 = 弹 UAC，可见窗口执行；⛔ 不走 Core 捕获路）。
+        services.AddSingleton<ISystemCommandLauncher, SystemCommandLauncher>();
         // 设置：config\system.json（经 Core 的 IOptionsStore）。
         services.AddSingleton<ISystemToolsSettingsService, SystemToolsSettingsService>();
 

@@ -1,8 +1,9 @@
 # NewToys 需求规格（宪法 + 框架规格）
 
-> v3.90 · 2026-10-23 · 项目唯一权威规格
+> v3.91 · 2026-10-23 · 项目唯一权威规格
 > ⛔ **只保留最近三次变更**；更早的逐次记录看 `git log`（本文自带版本号仅作需求演进索引）。
-> **v3.90**：**系统工具页面重构**（2026-10-23 用户指令，NT-097）—— ① **`system-quick`「快捷命令」页删除**：十项快捷开关并入**命令库预设**（「快捷设置」类），App 不再单独维护一页按钮墙；② **命令库 `script-commands` 布局与功能对标脚本库**（`ListPageSkeleton` + `ColumnGrid` 列显隐 / 表头排序 / 行内 ▶ 运行 / Shell 声明式工具条 / 右栏详情卡，VM 改继承 Shared 的 `ListPageViewModelBase`）；③ **命令库随包预设**：Windows 常用命令（设置面板 / 控制面板 / 管理工具）+ 快捷设置 + winget 命令，**首次运行播种一次**（`config\system\commands.seeded` 标记；按 Id 合并不覆盖用户改动；用户删掉的预设不复活）；④ **收藏夹升为系统工具下第一个页面**（Order 1，命令库 2 / 软件包 3；页 Key 一律未变）。
+> **v3.91**：**命令库支持提权运行**（2026-10-23 用户要求「勾了需要管理员的也能直接运行」，NT-097 补充）—— 命令库 / 收藏夹的 `NeedAdmin` 条目 ▶ 运行 = **弹 UAC，提权后在可见窗口里执行**（`cmd /k` 或 `pwsh -NoExit -EncodedCommand` + `Verb=runas`；UAC 取消则不执行；窗口跑完不自动关）。不再降级为「只复制命令」，「📋 复制命令」保留为手动通道。实现落 `Module.SystemTools`（与 `QuickActionService.StartVisible` 同范式；Core `IProcessRunner` 契约刻意不含提权，⛔ 不为它改框架层）。🔴 仅命令库 / 收藏夹两条路有提权；其它路径（如 Hosts 写入）仍无提权机制。
+> **v3.90**：**系统工具页面重构**（2026-10-23 用户指令，NT-097）—— ① **`system-quick`「快捷命令」页删除**：十项快捷开关并入**命令库预设**（「快捷设置」类），App 不再单独维护一页按钮墙；② **命令库 `script-commands` 布局与功能对标脚本库**（`ListPageSkeleton` + `ColumnGrid` 列显隐 / 表头排序 / 行内 ▶ 运行 / Shell 声明式工具条 / 右栏详情卡，VM 改继承 Shared 的 `ListPageViewModelBase`；🔴 VM 改名 `SystemCommandLibraryViewModel` 修复与 View 的同名对断裂——Shell 按约定反查不到 VM 曾导致整页 DataContext=null 静默不渲染）；③ **命令库随包预设**：Windows 常用命令（设置面板 / 控制面板 / 管理工具）+ 快捷设置 + winget 命令，**首次运行播种一次**（`config\system\commands.seeded` 标记；按 Id 合并不覆盖用户改动；用户删掉的预设不复活）；④ **收藏夹升为系统工具下第一个页面**（Order 1，命令库 2 / 软件包 3；页 Key 一律未变）。
 > **v3.89**：**「系统工具」组键改 `system-tools`**（2026-10-23 用户报缺陷）—— NT-091 建模块时用了 `system`，与 Shell 的 `isHome:true` 隐藏宿主组**撞键**，导致应用级设置的 8 个锚点页（启动与退出 / 主题外观 / 路径与配置 / 一键按钮 / 加密 DNS / 数据管理 / 功能清单 / 版本与更新）被渲染进「系统工具」组。🔴 **`system` 为框架保留键（宿主组），功能模块⛔ 不得占用**；页 Key 一律未变。
 > **v3.88**：**源管理彻底退出 App**（2026-10-22 用户返工）—— 「软件源（winget）」设置节（v3.87 刚从脚本管理器设置迁到系统工具设置）**删除**，连带只读命令清单与 `＋ 加入命令库（winget 源）` 一并消失。源 = 系统 winget 自己的配置，要改就敲 `winget source …`；⛔ App 不陈列源命令、⛔ 不代写命令库。系统工具设置页回到 2 节（执行 / 数据文件）。
 > **v3.87**：**软件包页归入系统工具 + 系统工具定位收紧**（2026-10-22 用户定调，NT-096）—— ① **系统工具的定位 = 「当前操作系统的常用设置与快速命令」**，⛔ 不收**应用级设置**页的功能；② `script-packages`（软件包 / winget GUI）自脚本中心**整体迁入 `system`**（Key 与标题 ⛔ 不改）；③ ~~「软件源（winget）」设置节随之从「脚本管理器设置」迁到「系统工具设置」~~（**已被 v3.88 取代：该节删除**）；④ 软件包页的「集合」表达（工具条 `集合 ▾`、行右键 `📥 加入集合`）**删除** —— 该 UI 早在 NT-080 已移除，残留的写入逻辑属跨模块依赖（模块禁互引）；⑤ 脚本中心只剩 脚本库 / 脚本集合 / 信息面板 + 抓取三页。
@@ -126,7 +127,7 @@ NT-088（执行器上提 Core，**2026-10-22 已批准并实施**）→ NT-089 �
 
 1. **NT-088 = 改框架层（§3.3）**：把 `ScriptRunner` + `InterpreterResolver` 从 `Module.ScriptManager` 上提 `NewToys.Core`。**必须由用户明确同意后才可执行。** 原因：system 的收藏夹与快捷命令要执行条目，而模块 **禁互引**（§3.1）；二者不引 Avalonia，搬家安全。
 2. **列表页 VM 复用 Shared 基类**（v3.90 订正）：`ListPageViewModelBase`（列显隐 / 排序 / 筛选 / 声明式工具条 / 详情开合）在 Shared，各模块列表页 VM 继承它即获得脚本库同款布局与行为 —— 系统工具命令库 NT-097 起重写为该模式；脚本中心的 `QuickActionListViewModel` 是其上加脚本库特有逻辑的派生，⛔ 不再为「命令库」单独维护一份双写 VM。
-3. 应用**无提权机制**（HostsService 只提示「请以管理员身份运行」）⇒ `netsh` / 网卡启禁 / `rasdial` 类操作一律降级为「生成命令供用户自跑」。
+3. **提权运行（v3.91）**：**命令库 / 收藏夹**的 `NeedAdmin` 条目 ▶ 运行 = 弹 UAC、提权后在**可见窗口**执行（§6.7；`cmd /k` 或 `pwsh -NoExit -EncodedCommand` + `Verb=runas`）⇒ 这两条路有提权机制；**其余路径仍无**（HostsService 只提示「请以管理员身份运行」）。
 
 ## 三、技术框架（硬约束）
 
@@ -1381,7 +1382,7 @@ Module.*（功能模块，只引 Shared + Core）
   | `script-commands` | 命令库 | 2 | **布局与功能对标脚本库**（§6.2）：`ListPageSkeleton` 骨架 + `ColumnGrid` 列显隐 / 表头排序 / 行内 ▶ 运行 / Shell 声明式工具条 / 右栏声明式详情卡；**随包预设** Windows 常用命令（设置面板 / 控制面板 / 管理工具）+ 快捷设置 + winget 命令 |
   | `script-packages` | 软件包 | 3 | **v3.87 由 §6.2 平移**（NT-096，Key 保留）：winget GUI —— 搜索 / 安装 / 升级 / 卸载 / 锁定 / 详情；Linux 走 dpkg 只读适配器 |
   | `settings-system`（新） | 系统工具设置 | 100 | 本模块唯一写入点，落 `config\system\*` |
-- 🔴 **命令库预设（v3.90 / NT-097）**：首次运行播种一次 —— 标记文件 `config\system\commands.seeded` 存在 ⇒ 整体跳过；按 `Id` 合并（**只加不改**：用户改过 / 删掉的预设不复活、不覆盖）。预设分四类（「功能」列的值）：**系统设置**（`ms-settings:` 入口）/ **控制面板**（`.cpl`）/ **管理工具**（`.msc` 与系统程序）/ **快捷设置**（原 `system-quick` 十项：主题明暗 / 休眠 / 网卡启禁 / 磁盘清理 / UAC / 开发者模式 / 远程桌面 / 代理开关 等）+ **winget**（`source list` / `source reset` / `upgrade --all` / `export` / `import` 等）。需要管理员的条目 `NeedAdmin=true` ⇒ App ⛔ 不代跑，只复制命令供用户在提权终端自跑（§2.3.7-3）。
+- 🔴 **命令库预设（v3.90 / NT-097）**：首次运行播种一次 —— 标记文件 `config\system\commands.seeded` 存在 ⇒ 整体跳过；按 `Id` 合并（**只加不改**：用户改过 / 删掉的预设不复活、不覆盖）。预设分四类（「功能」列的值）：**系统设置**（`ms-settings:` 入口）/ **控制面板**（`.cpl`）/ **管理工具**（`.msc` 与系统程序）/ **快捷设置**（原 `system-quick` 十项：主题明暗 / 休眠 / 网卡启禁 / 磁盘清理 / UAC / 开发者模式 / 远程桌面 / 代理开关 等）+ **winget**（`source list` / `source reset` / `upgrade --all` / `export` / `import` 等）。需要管理员的条目 `NeedAdmin=true` ⇒ ▶ 运行**弹 UAC 提权执行**（可见窗口；v3.91：⛔ 不再降级为只复制命令）。
 - 🔴 **`system-quick`「快捷命令」页已删**（v3.90 / NT-097）：内容并入命令库预设；App 不再单独维护一页快捷开关按钮墙。
 - 执行依赖 Core 的 `IScriptRunner`（**NT-088 上提后**）；⛔ 不直接起进程、⛔ 不复制一份 Runner。
 - ⛔ 不做：采集 / 间隔刷新 / 解析器 / 集合 / 命令链编排（属 §6.2）。

@@ -13,7 +13,7 @@
 - **定位**（v3.87 用户定调 / v3.90 收紧）：**当前操作系统的常用设置与快速命令** —— 收藏夹（模块下第一个页面）/ 命令库（对标脚本库布局 + 随包预设）/ 软件包（按操作系统装软件）。判据 = 执行完**只产生副作用、不产出数据**（需求 §2.3.3）；产出可解析数据的条目一律归 `script` 脚本中心。
 - ⛔ **不收应用级设置页的功能**（全局通用 / 启动与外观 / 路径与配置 / 网络与 DNS / 数据管理仍归框架层 `src/Shell`，需求 §4.9）。
 - ⛔ 不做：采集器 / 间隔刷新 / 输出解析器 / 集合 / 命令链编排（属 `script`）。
-- ⛔ 不引 Shell、⛔ 不引其它模块（模块禁互引）。执行一律走 Core 的 `ScriptRunner`（NT-088 上提）。
+- ⛔ 不引 Shell、⛔ 不引其它模块（模块禁互引）。执行两条路：普通项走 Core 的 `ScriptRunner`（NT-088 上提，隐藏+捕获）；**提权项**走模块内 `ISystemCommandLauncher`（可见窗口 + `Verb=runas` 弹 UAC，与 ScriptManager 的 `QuickActionService.StartVisible` 同范式；Core `IProcessRunner` 契约刻意不含提权）。
 - 页 Key 沿用从 script 迁来的 `script-commands` / `script-favorites` / `script-packages`（**⛔ 不改 Key**：落 `columnlayout.json`，改了用户列偏好失效）。
 - 🔴 **`system-quick`「快捷命令」页已删**（NT-097 / v3.90）：十项快捷开关并入**命令库预设**（「快捷设置」类），App 不再单独维护一页按钮墙。
 
@@ -34,7 +34,7 @@
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| ▶ 运行 | 行内按钮 / 行右键 / 工具条 | 走 Core `ScriptRunner` 静默跑 + 捕获输出；`NeedAdmin` 的弹 UAC | 超时用设置页 `CommandTimeoutSeconds`（5~300，默认 30） |
+| ▶ 运行 | 行内按钮 / 行右键 / 工具条 | 普通项走 Core `ScriptRunner` 静默跑 + 捕获输出；**`NeedAdmin` 项弹 UAC 提权执行**（可见窗口，`/k` 跑完不自动关；UAC 取消则不执行） | 超时用设置页 `CommandTimeoutSeconds`（5~300，默认 30）；提权路忽略「隐藏终端窗口」开关（必须可见） |
 | 增 / 改 / 删 | 工具条 ＋ / 详情卡 / 行右键 | 直接落 `config\system\commands.json`（无保存按钮） | 删除**二次确认**（`DialogHooks`） |
 | 收藏 | 工具条 ★ / 行右键 | 置 `IsFavorite` ⇒ 收藏夹页出现 | 只影响本模块条目，⛔ 与 Core `IFavoritesService` 无关 |
 | 复制命令 | 工具条 📋 / 行右键 | 复制到剪贴板 | `NeedAdmin` 的项运行时也自动复制 |
@@ -81,6 +81,7 @@
 - 收藏夹 = **本模块命令条目的收藏**（`commands.json` 的 `IsFavorite`），本模块自管；
   🔴 与 Core `IFavoritesService`（首页卡片的「菜单功能 key」收藏）**是两套**，⛔ 不混用。
   ⇒ 已知回退：脚本库条目的收藏不再出现在收藏夹页（用户 2026-10-22 接受）。
+  🔴 需要管理员的收藏项点按钮 = 弹 UAC 提权运行（NT-097 补充，2026-10-23 用户要求）；想手动跑可用命令库的「📋 复制命令」。
 - 迁移（脚本侧 `role=command` 条目 → 本模块）**未自动做**：脚本侧条目原样保留（⛔ 未删 ⇒ 可逆）；
   要迁就用「脚本库 📤 导出 → 命令库 📥 导入」。
 - 🔴 **命令库预设播种（NT-097）**：`SystemCommandSeeder` 在 `InitializeDeferred` 里跑；标记
@@ -96,6 +97,7 @@
 - ⛔ 不开 DB：本模块没有观测数据（需求 §6.7）。
 - 包后端按平台二选一（NT-081 口径）：Windows = `PackageManagerService`（winget）；Linux = `AptPackageService`（dpkg/apt 只读）。页面 / VM 零改动。
 - 页面构建：命令库按 `ui.md` §6 列表页标准，VM 继承 Shared 的 `ListPageViewModelBase`（NT-097 起重写，与脚本库同一套列显隐 / 排序 / 筛选 / 工具条 / 详情开合）；设置页用 `SettingsSectionHost`（节内容放 `UserControl.Resources` + code-behind 建节）。
+- 执行两路（NT-097）：普通项 = Core `ScriptRunner`（隐藏 + 捕获）；`NeedAdmin` 项 = `ISystemCommandLauncher`（可见窗口 + `runas`，模块内自起进程 —— 这是 `IProcessRunner` 契约刻意不含提权的部分，与 `QuickActionService.StartVisible` 同范式）。
 - 预设播种（NT-097）：`InitializeDeferred` → `SystemCommandSeeder.Seed`（`.seeded` 标记 + 按 Id 只加不改）。
 
 ## 4. 关键文件
@@ -104,6 +106,7 @@
 |---|---|
 | `SystemToolsModule.cs` | 菜单注册（组键 **`system-tools`**，Order 25；🔴 不能用 `system`——那是 Shell 隐藏宿主组，会把应用级设置 8 页渲染进本组）+ DI 接线 + `InitializeDeferred` 预设播种 |
 | `Services/ISystemCommandStore.cs` / `SystemCommandStore.cs` | 命令条目（`config\system\commands.json`，`AtomicJsonFile` 落盘；`Insert` 供播种器保留固定 Id） |
+| `Services/ISystemCommandLauncher.cs` / `SystemCommandLauncher.cs` | 提权运行（NT-097 补充）：可见窗口 + `Verb=runas` 弹 UAC；pwsh 路走 `-EncodedCommand` base64 |
 | `Services/SystemCommandSeeder.cs` | 随包预设（NT-097）：四类 + winget，`.seeded` 只播种一次 |
 | `Services/ISystemToolsSettingsService.cs` / `SystemToolsSettingsService.cs` | 本模块设置（`config\system.json`） |
 | `Services/IPackageManagerService.cs` / `PackageManagerService.cs` / `AptPackageService.cs` | 包后端（winget / dpkg） |
@@ -115,7 +118,7 @@
 ## 5. 坑点（🔴 已知）
 
 1. **页 Key 前缀误导**：3 页里 2 页 Key 是 `script-*`（刻意保留）；文档 / 注释⛔ 不要据此认为它们属 `script` 模块。
-2. **执行需要管理员的操作**（启禁网卡 / `netsh` / `rasdial` / 改源 / `reg` 写 HKLM）：应用**无提权机制** ⇒ 一律降级为「生成命令 + 📋 复制」供用户自跑，⛔ 不假装调用成功。
+2. **执行需要管理员的操作**：命令库 / 收藏夹的 `NeedAdmin` 条目 ▶ 运行 = **弹 UAC 提权执行**（可见窗口，`ISystemCommandLauncher`；UAC 取消 ⇒ 状态栏提示、不执行）⇒ 不再降级为「只给命令」。⛔ 注意：**其它路径仍无提权机制**（如网络工具的 Hosts 写入只提示「请以管理员身份运行」）；本模块的提权也不等待进程结束（`/k` 窗口由用户自己关）。
 3. 🔴 **预设命令一律 `Shell=cmd`**（NT-097）：`ScriptRunner` 的 `auto` 走 pwsh —— pwsh 会把 `control powercfg.cpl,,3` 的逗号当数组运算符、对含双引号的命令（`netsh interface set interface "以太网" …`）转义更敏感；`cmd /c` 对 `reg` / `netsh` / `winget` / `start` / `.cpl` / `.msc` 行为最稳。
 4. **Avalonia 硬规**：每个 `UserControl` 必须显式 `public Xxx(){ InitializeComponent(); }`（漏了整块 XAML 静默不加载）；跨程序集 `xmlns` 用 `using:`；`.cs` 里 `using Avalonia.Controls;` 别漏。
 4. **设置页节内容**必须放 `<UserControl.Resources>` 的 `x:Key` 面板 + code-behind `Add(...)`；⛔ 在 XAML 里写 `<ui:SettingsSection>`（会不被预编译）。

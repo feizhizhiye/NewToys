@@ -30,7 +30,7 @@
 | `script-collections` | **脚本集合** | 4 | `CollectionView` | 采集器容器：主从两栏 + 搜索 / 置顶 / 最近 + 「📤 发送到信息面板」 |
 | `web-scrape` | **抓取规则**（NT-084 改名，Key ⛔ 不改；**NT-089 自 `web` 组迁入本组**） | 5 | `RuleCatalogView` / `RuleCatalogViewModel` | **规则目录**：规则集（`.py`）的增删改 / 启用 / 重读；列表带**分类 / 说明**列 + 工具条「分类 ▾」筛选 + **「预设 ▾」从预设创建** + **「🔍 探测」站点探测**；`✏ 编辑规则` → 跳编辑器 |
 | `web-rule-editor` | **调试集合**（NT-086 批 C 改名；**NT-089 自 `web` 组迁入本组**） | 6 | `RuleEditorView` / `RuleEditorViewModel` | 三段式自绘：**五段槽位 + 试跑推荐**（左）/ HTML 源码（中）/ 选中段脚本的表达式检验（右）；装配结果存 `flows\<名>.json`（解析全在 Python 侧） |
-| `web-crawl` | **爬虫面板**（NT-086 批 D + NT-087 期②；**NT-089 自 `web` 组迁入本组**） | 7 | `CrawlPanelView` / `CrawlPanelViewModel` | 跑抓取脚本看目录条目：动态列 + 双击下钻 + 复制诊断 + 试下载 / 批量下载 |
+| `web-crawl` | **运行结果**（NT-090 改名，原「爬虫面板」；NT-086 批 D + NT-087 期②；**NT-089 自 `web` 组迁入本组**） | 7 | `CrawlPanelView` / `CrawlPanelViewModel` | 跑抓取脚本看目录条目：动态列 + 双击下钻 + 复制诊断 + 试下载 / 批量下载 + ④ 运行记录 |
 | `script-info` | 信息面板 | 99 | `ScriptInfoView` | 按集合分节展示采集器输出；顶部唯一 `集合 ▾` |
 | `settings-script` | 脚本管理器设置 | 100 | `SettingsScriptView` | 脚本目录（唯一写入点） |
 
@@ -201,13 +201,15 @@
 | 定位命中 | `🎯 定位命中` | 把选中命令的首条结果搬进查找框并跳过去 | 结果经过净化改写时可能找不到，会如实提示 |
 | 返回目录 | 工具条 `◀ 返回目录` | 跳 `web-scrape` | — |
 
-### 爬虫面板 `web-crawl`（NT-086 批 D 期① + NT-087 期②；**NT-089 自 `web` 组迁入本组**）
+### 运行结果 `web-crawl`（NT-090 改名；NT-086 批 D 期① + NT-087 期②；**NT-089 自 `web` 组迁入本组**）
 
 > 范式：**AI 写脚本 → App 只做运行 / 诊断 / 展示 / 下载**。
 > 脚本只负责「**一页能取出什么**」；🔴 **下载器内置**（并发 / 限速 / 去重 / 续跑 / 取消），⛔ 不脚本化。
 
 形态：工具条「入口脚本 ▾」+「内容脚本 ▾」+「流水线 ▾」+ 起始网址框（回车 = 抓链接）+ `🔗 抓链接` / `🧪 试下载` / `⬇ 下载` / `⏹ 取消` / `📋 复制诊断`；
-主体三节（节头仿信息面板：状态点 / 标题 / 计数 / ⟳ / 折叠）：① 链接·目录（**行首勾选框**）② 试下载预览 ③ 下载进度；底栏摘要 = 条数 · 字段数 · 错误数 · 耗时（下载后改写为下载汇总）。
+主体四节（节头仿信息面板：状态点 / 标题 / 计数 / ⟳ / 折叠）：① 链接·目录（**行首勾选框**）② 试下载预览 ③ 下载进度 ④ 运行记录；底栏摘要 = 条数 · 字段数 · 错误数 · 耗时（下载后改写为下载汇总）。
+
+🔴 **④ 运行记录**（NT-090）= 当前「入口脚本 ▾」选中脚本的最近 10 次 run（新→旧；时间 / 起始网址 / `列数 · 条数 · ⚠错误数`）：双击 = 打开那次运行的目录，右键 `📂 打开目录` / `📄 打开日志`（`diag.txt`）/ `📋 复制诊断`；节头 ⟳ 只重读磁盘（⛔ 不重跑脚本）。换脚本 / 每次跑完自动刷新。
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
@@ -295,9 +297,9 @@
 | **`RuleFileService`**（NT-089 自 WebTools 迁入） | 规则 `.py` 的读写 / 命名清洗 / 目录：`<DataDir>\script\rules`（NT-089 前为 `<DataDir>\web-tools\rules`）；脚本头解析（标量键 + `ua`/`header` 多行键 + 数字键脏值回落与警告）+ 预设（`PresetPath` / `CreateFromPreset` 复制预设 + 写 `# base:`） |
 | **`RuleCatalogService`** 〃 | 规则集目录清单：扫 `rules\*.py` 读 `SOURCE` 头；`MarkRun` 回写「最近运行」元数据（落 `web_docs` 的 `rule-meta`，分区键沿用 `web`） |
 | **`RuleRunService`** 〃 | 抓 HTML 落缓存 + 调 Python 跑 `RULES` / 列命令；支持指定 HTML 跑指定脚本 + `mode=probe` 试跑推荐 + `ProbeSiteAsync` 站点探测 + `mode=rows` 行表合成 + `mode=step` 单段求值 |
-| **`RunRecordService`** 〃 | 运行记录 `runs\<脚本>\<ts>_<URL哈希8>\` = `result.json` + `page.html` + `diag.txt`；每脚本留最近 10 条；`ToCsv` 导出 |
+| **`RunRecordService`** 〃 | 运行记录 `runs\<脚本>\<ts>_<URL哈希8>\` = `result.json` + `page.html` + `diag.txt`；每脚本留最近 10 条；`ToCsv` 导出；`History(script)` = 最近 N 条（NT-090 ④ 节用） |
 | **`DownloadService`** 〃 | **内置下载器**（⛔ 下载行为不脚本化）：并发 / 间隔 / 去重 / 续跑 / 连续失败停批 / 可取消；`ResolveArtifacts` = 产物形态优先级链 |
-| **`FlowService`** 〃 | 流水线（flow）读写：`<DataDir>\web-tools\flows\<名>.json`（⛔ 不开 DB 表；路径迁移留给 NT-090） |
+| **`FlowService`** 〃 | 流水线（flow）读写：`<DataDir>\script\flows\<名>.json`（⛔ 不开 DB 表；NT-090 自 `web-tools\flows` 归位 + 一次性搬迁） |
 | **`RulesBackupSection`** 〃 | `IBackupSection`（Id `data.web-rules`，Order 91）—— 只备 `rules\`，⛔ 不备 `cache\`；🔴 **唯一默认勾的数据节** |
 | **`WebTransferService`**（NT-089 上提 `NewToys.UI`） | 跨页一次性传参（书签 / Ping（网络工具）↔ 抓取（本模块））；两侧各注册一次单例（同一容器 ⇒ 同一实例） |
 
@@ -321,7 +323,7 @@
 | `<DataDir>\script\rules\*.py` | **抓取规则集**（NT-089 自 `web-tools\rules` 迁入） | ✅ |
 | `<DataDir>\script\cache\` | 抓取 HTML 缓存（含 `_debug` / `_crawl` / `_probe` / `_dl`） | ⛔ 可重建 |
 | `<DataDir>\script\downloads\` / `trials\` | 下载产物 / 试下载临时件 | ⛔ 可重建 |
-| `<DataDir>\web-tools\runs\` / `flows\` | 运行记录 / 流水线定义（NT-089 未迁，留给 NT-090 一并归位） | ⛔ 随库 / — |
+| `<DataDir>\script\runs\` / `flows\` | 运行记录 / 流水线定义（NT-090 自 `web-tools\` 归位） | ⛔ 可重建 / — |
 
 - ⛔ `config\script\settings.json` 不可行：`IOptionsStore.Validate` 禁路径分隔符 / `.` / `..`。
 - ⛔ **不做旧数据迁移**（用户拍板「无所谓老用户」）：旧四份 JSON 静默忽略（不读不写不删）。

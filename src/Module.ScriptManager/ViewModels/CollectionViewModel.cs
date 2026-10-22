@@ -88,6 +88,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         new CollectionFilterOption { Label = "脚本库", Value = ScriptCollectionKind.Script },
         new CollectionFilterOption { Label = "命令库", Value = ScriptCollectionKind.Command },
         new CollectionFilterOption { Label = "软件包", Value = ScriptCollectionKind.Package },
+        new CollectionFilterOption { Label = "抓取集合", Value = ScriptCollectionKind.Crawl },
     });
 
     [ObservableProperty] private CollectionFilterOption? _selectedKindFilter;
@@ -174,6 +175,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         new CollectionFilterOption { Label = "脚本库", Value = ScriptCollectionKind.Script },
         new CollectionFilterOption { Label = "命令库", Value = ScriptCollectionKind.Command },
         new CollectionFilterOption { Label = "软件包", Value = ScriptCollectionKind.Package },
+        new CollectionFilterOption { Label = "抓取集合", Value = ScriptCollectionKind.Crawl },
     });
 
     public ObservableCollection<CollectionFilterOption> ViewOptions { get; } = new()
@@ -522,6 +524,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
             ScriptCollectionKind.Script => r is ScriptItemRole.Script or ScriptItemRole.Collector,
             ScriptCollectionKind.Command => r == ScriptItemRole.Command,
             ScriptCollectionKind.Package => r == ScriptItemRole.Package,
+            ScriptCollectionKind.Crawl => r is ScriptItemRole.Script or ScriptItemRole.Collector,
             _ => true,   // 信息面板集合：脚本 + 命令都能当采集器
         };
     }

@@ -20,4 +20,12 @@ public partial class CrawlPanelView : UserControl
         if (DataContext is CrawlPanelViewModel vm)
             vm.DrillDownCommand.Execute(entry);
     }
+
+    /// <summary>双击运行记录行 = 打开那次运行的目录（NT-090）。</summary>
+    private void OnHistoryDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is not Border { DataContext: RunHistoryRow row }) return;
+        if (DataContext is CrawlPanelViewModel vm)
+            vm.OpenRunDirCommand.Execute(row);
+    }
 }

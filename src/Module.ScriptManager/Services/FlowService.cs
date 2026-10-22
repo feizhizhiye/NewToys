@@ -18,11 +18,48 @@ namespace NewToys.ScriptManager.Services;
 public sealed class FlowService
 {
     private readonly ConfigStoreService _cfg;
+    private bool _legacyMigrated;
 
     public FlowService(ConfigStoreService cfg) => _cfg = cfg;
 
-    /// <summary>flows 目录：<c>&lt;DataDir&gt;\web-tools\flows</c>。</summary>
-    public string FlowsDir => Path.Combine(_cfg.DataDir, "web-tools", "flows");
+    /// <summary>flows 目录：<c>&lt;DataDir&gt;\script\flows</c>（NT-090 从 <c>web-tools\flows</c> 归位）。</summary>
+    public string FlowsDir
+    {
+        get
+        {
+            var dir = Path.Combine(_cfg.DataDir, "script", "flows");
+            MigrateLegacyFlows(dir);
+            return dir;
+        }
+    }
+
+    /// <summary>
+    /// NT-090：与 <see cref="RuleFileService"/> 同款的一次性搬迁 —— 旧 <c>web-tools\flows\*.json</c> 搬进新目录
+    /// （只搬一次、⛔ 不覆盖同名新文件、整段 try/catch）。
+    /// </summary>
+    private void MigrateLegacyFlows(string dir)
+    {
+        if (_legacyMigrated) return;
+        _legacyMigrated = true;
+        try
+        {
+            var old = Path.Combine(_cfg.DataDir, "web-tools", "flows");
+            if (!Directory.Exists(old)) return;
+            foreach (var f in Directory.GetFiles(old, "*.json"))
+            {
+                var dst = Path.Combine(dir, Path.GetFileName(f));
+                if (!File.Exists(dst))
+                {
+                    Directory.CreateDirectory(dir);
+                    File.Move(f, dst);
+                }
+            }
+        }
+        catch
+        {
+            // 搬不动 ⇒ 按空流水线表处理。
+        }
+    }
 
     /// <summary>已有流水线名（按名字排序；目录不存在 = 空表）。</summary>
     public IReadOnlyList<string> List()

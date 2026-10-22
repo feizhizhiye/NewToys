@@ -68,6 +68,7 @@ public partial class CollectionRow : ObservableObject
             ScriptCollectionKind.Script => "脚本库页面正在使用这个库；要删除先在脚本库页的「库」下拉切到别的库。",
             ScriptCollectionKind.Command => "命令库页面正在使用这个库；要删除先在命令库页的「库」下拉切到别的库。",
             ScriptCollectionKind.Package => "软件包页面正在显示这个集合的清单；要删除先把软件包页的「集合 ▾」切到别的集合。",
+            ScriptCollectionKind.Crawl => "运行结果页正在使用这个集合；要删除先把运行结果页的脚本切到别的脚本。",
             _ => "信息面板正在使用这个集合；要删除先把信息面板切到别的集合。",
         };
 

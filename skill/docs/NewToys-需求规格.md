@@ -1020,7 +1020,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 **E. 流水线配置与运行记录**
 
-- flow 配置 = `<DataDir>\web-tools\flows\<名>.json`（`FlowConfig` + `FlowService`，⛔ 不开 DB 表）。（🔴 **NT-090**：随 `FlowService` 迁 `<DataDir>\script\flows\`）
+- flow 配置 = `<DataDir>\script\flows\<名>.json`（`FlowConfig` + `FlowService`，⛔ 不开 DB 表；NT-090 自 `web-tools\flows` 归位）。
 - 运行记录 = `runs\<脚本>\<时间戳>_<关键词或URL哈希>\`：`result.json` + `page.html` + `diag.txt`；保留最近 10 次。
 - 导出 CSV / JSON；⛔ 不引 Excel 库。
 - 备份：规则目录仍默认勾；`runs\` / `downloads\` / `cache\` ⛔ 不进备份。

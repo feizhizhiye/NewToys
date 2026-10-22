@@ -15,7 +15,7 @@
 ## 1. 职责与边界
 
 - **定位**：一次性网络诊断与配置工具（HTTP 测试 / 书签 / Ping / hosts），不做常驻代理、不做抓包。
-- 🔴 NT-089 起：**网页抓取（规则集 / 调试集合 / 爬虫面板）已迁出本模块**（详见 §2 表与 `modules/script-manager.md`）。
+- 🔴 NT-089 起：**网页抓取（规则集 / 调试集合 / 运行结果）已迁出本模块**（详见 §2 表与 `modules/script-manager.md`）。
 - 系统级写入只发生在 hosts 管理（需管理员权限）；其余均为只读探测或模块内数据。
 
 ## 2. 当前功能（4 页 + 1 设置页）
@@ -108,7 +108,7 @@
   `web-rule-editor` / `web-crawl` 与规则备份节，现归 **`Module.ScriptManager`**（见 `modules/script-manager.md`）。
   本模块保留 4 页（HTTP 测试 / 书签 / Ping / Hosts）+ 设置页，**不再依赖 Python 运行时**。
   - 路径随之搬家：规则 `<DataDir>\script\rules\`、缓存 `<DataDir>\script\cache\`、
-    下载 `<DataDir>\script\downloads\` / `trials\`；`runs` / `flows` 仍留 `<DataDir>\web-tools\`（NT-090 一并归位）。
+    下载 `<DataDir>\script\downloads\` / `trials\`；`runs` / `flows` 亦已归位 `<DataDir>\script\`（NT-090）。
   - `WebTransferService`（跨页传物）上提 `NewToys.UI` —— 书签 / Ping 与抓取**跨模块**共用同一实例。
   - ⚠️ 抓取相关踩坑（§5 的 5~27）随代码迁出，内容保留备查；新改动见 `script-manager.md`。
 

@@ -88,6 +88,7 @@ public sealed partial class CrawlSection : ObservableObject
         IsLinks = isLinks;
         IsPreview = key == "preview";
         IsProgress = key == "progress";
+        IsHistory = key == "history";
     }
 
     public string Key { get; }
@@ -104,6 +105,9 @@ public sealed partial class CrawlSection : ObservableObject
 
     /// <summary>是否为「③ 下载进度」节（NT-087）。</summary>
     public bool IsProgress { get; }
+
+    /// <summary>是否为「④ 运行记录」节（NT-090：历史 run 列表 + 打开目录 / 日志）。</summary>
+    public bool IsHistory { get; }
 
     [ObservableProperty] private string _status = Idle;
     [ObservableProperty] private string _countText = "—";

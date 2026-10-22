@@ -26,6 +26,7 @@ public sealed class RunRecordService
 
     private readonly ConfigStoreService _cfg;
     private readonly RuleCatalogService _catalog;
+    private bool _legacyMigrated;
 
     public RunRecordService(ConfigStoreService cfg, RuleCatalogService catalog)
     {
@@ -33,8 +34,75 @@ public sealed class RunRecordService
         _catalog = catalog;
     }
 
-    /// <summary>运行记录根：<c>&lt;DataDir&gt;\web-tools\runs</c>。</summary>
-    public string RunsRoot => Path.Combine(_cfg.DataDir, "web-tools", "runs");
+    /// <summary>运行记录根：<c>&lt;DataDir&gt;\script\runs</c>（NT-090 从 <c>web-tools\runs</c> 归位）。</summary>
+    public string RunsRoot
+    {
+        get
+        {
+            var dir = Path.Combine(_cfg.DataDir, "script", "runs");
+            MigrateLegacyRuns(dir);
+            return dir;
+        }
+    }
+
+    /// <summary>
+    /// NT-090：一次性把旧 <c>web-tools\runs</c> 下的**脚本子目录**整体搬进新根
+    /// （只搬一次、同名目标已存在则跳过、整段 try/catch）。
+    /// </summary>
+    private void MigrateLegacyRuns(string dir)
+    {
+        if (_legacyMigrated) return;
+        _legacyMigrated = true;
+        try
+        {
+            var old = Path.Combine(_cfg.DataDir, "web-tools", "runs");
+            if (!Directory.Exists(old)) return;
+            foreach (var d in Directory.GetDirectories(old))
+            {
+                var dst = Path.Combine(dir, Path.GetFileName(d));
+                if (!Directory.Exists(dst))
+                {
+                    Directory.CreateDirectory(dir);
+                    Directory.Move(d, dst);
+                }
+            }
+        }
+        catch
+        {
+            // 搬不动 ⇒ 按没有历史处理。
+        }
+    }
+
+    /// <summary>
+    /// 某脚本最近的运行记录（NT-090「运行结果」页 ④ 节用）：按目录名字典序倒序（= 时间倒序）取前 <paramref name="take"/> 条。
+    /// <para>🔴 读不出来 / 坏 json 一律跳过（⛔ 不打断页面）。</para>
+    /// </summary>
+    public IReadOnlyList<RunRecord> History(string script, int take = KeepRuns)
+    {
+        var list = new List<RunRecord>();
+        try
+        {
+            var dir = ScriptDir(script);
+            if (!Directory.Exists(dir)) return list;
+            foreach (var d in Directory.GetDirectories(dir)
+                         .OrderByDescending(d => d, StringComparer.Ordinal)
+                         .Take(take))
+            {
+                var file = Path.Combine(d, "result.json");
+                if (!File.Exists(file)) continue;
+                try
+                {
+                    var rec = JsonSerializer.Deserialize<RunRecord>(File.ReadAllText(file, Encoding.UTF8));
+                    if (rec is null) continue;
+                    rec.Dir = d;
+                    list.Add(rec);
+                }
+                catch { /* 坏记录跳过 */ }
+            }
+        }
+        catch { return list; }
+        return list;
+    }
 
     /// <summary>某脚本的运行记录目录（名字做文件名清洗）。</summary>
     public string ScriptDir(string script) => Path.Combine(RunsRoot, RuleFileService.SafeName(script));

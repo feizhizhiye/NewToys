@@ -23,8 +23,9 @@ namespace NewToys.ScriptManager.ViewModels;
 /// <summary>
 /// 爬虫面板（<c>web-crawl</c>，NT-086 批 D + NT-087 期②）：跑一个抓取脚本 → 目录节看条目 → 试下载 / 批量下载。
 /// <para>
-/// 🔴 三节：① 链接·目录（动态列 + 双击 url 下钻 + 行勾选 + 右键试下载/诊断）；
-/// ② 试下载预览（单条跑 content 段，⛔ 不落最终产物）；③ 下载进度（批量 + 取消）。
+/// 🔴 四节：① 链接·目录（动态列 + 双击 url 下钻 + 行勾选 + 右键试下载/诊断）；
+/// ② 试下载预览（单条跑 content 段，⛔ 不落最终产物）；③ 下载进度（批量 + 取消）；
+/// ④ 运行记录（NT-090：历史 run + 打开目录 / 日志 / 复制诊断）。
 /// </para>
 /// <para>
 /// 🔴 下载 = <see cref="DownloadService"/> 内置（并发 / 限速 / 去重 / 续跑 / 取消），⛔ 不脚本化；
@@ -45,6 +46,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
     private readonly CrawlSection _links = null!;
     private readonly CrawlSection _preview = null!;
     private readonly CrawlSection _progress = null!;
+    private readonly CrawlSection _history = null!;
 
     /// <summary>最近一次抓链接结果（复制诊断 / 运行记录用）。</summary>
     private CrawlResult _last = new();
@@ -233,6 +235,12 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         _progress.RefreshCommand = RefreshSectionCommand;
         _progress.ToggleCommand = ToggleSectionCommand;
         Sections.Add(_progress);
+        _history = new CrawlSection("history", "④ 运行记录",
+            "这个脚本还没跑过 —— 跑一次「🔗 抓链接」就会在这里留一条（每脚本只留最近 10 条）。");
+        _history.RefreshCommand = RefreshSectionCommand;
+        _history.ToggleCommand = ToggleSectionCommand;
+        Sections.Add(_history);
+        RefreshHistory();
 
         StatusText = ScriptOptions.Count == 0
             ? "rules 目录里还没有脚本 —— 去「抓取规则」页新建，或等首次运行播种预设。"
@@ -321,6 +329,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         {
             IsBusy = false;
             _links.IsBusy = false;
+            RefreshHistory();
         }
     }
 
@@ -681,6 +690,89 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         _links.EmptyText = "链式下载进行中：每完成一条就往这里累积一行。";
     }
 
+    // ==================== ④ 运行记录（NT-090） ====================
+
+    /// <summary>当前「脚本 ▾」选中脚本的最近运行记录（新 → 旧）。</summary>
+    public ObservableCollection<RunHistoryRow> HistoryRows { get; } = new();
+
+    /// <summary>🔴 XAML 的 IsVisible 只认 bool（⛔ 绑 .Count）。</summary>
+    public bool HasHistoryRows => HistoryRows.Count > 0;
+
+    /// <summary>④ 节空态文案（节体 DataContext 是页面 VM ⇒ 从节对象转一道）。</summary>
+    public string HistoryEmptyText => _history?.Hint ?? "";
+
+    /// <summary>
+    /// 读磁盘刷新 ④ 节（⛔ 不跑脚本）：取当前脚本最近 <see cref="RunRecordService.KeepRuns"/> 条 run。
+    /// </summary>
+    private void RefreshHistory()
+    {
+        HistoryRows.Clear();
+        var script = SelectedScript?.Value ?? "";
+        if (script.Length == 0)
+        {
+            _history.CountText = "—";
+            OnPropertyChanged(nameof(HasHistoryRows));
+            return;
+        }
+
+        foreach (var rec in _records.History(script))
+        {
+            HistoryRows.Add(new RunHistoryRow(rec)
+            {
+                // 🔴 右键命令挂在行对象上（ContextMenu 在弹出树，取不到页面 VM）
+                OpenDirCommand = OpenRunDirCommand,
+                OpenLogCommand = OpenRunLogCommand,
+                CopyDiagCommand = CopyRunDiagCommand
+            });
+        }
+
+        _history.CountText = HistoryRows.Count > 0 ? HistoryRows.Count + " 条" : "—";
+        OnPropertyChanged(nameof(HasHistoryRows));
+    }
+
+    /// <summary>换了入口脚本 ⇒ 换一批历史。</summary>
+    partial void OnSelectedScriptChanged(CategoryOption? value) => RefreshHistory();
+
+    /// <summary>📂 打开这次运行的目录（产物：result.json / page.html / diag.txt）。</summary>
+    [RelayCommand]
+    private void OpenRunDir(RunHistoryRow? row)
+    {
+        if (row is null || !Directory.Exists(row.Dir)) { StatusText = "这次运行的目录已经不在了。"; return; }
+        try { Process.Start(new ProcessStartInfo(row.Dir) { UseShellExecute = true }); }
+        catch (Exception ex) { StatusText = "⚠ 打开目录失败：" + FirstLine(ex.Message); }
+    }
+
+    /// <summary>📄 打开这次运行的日志（diag.txt，没有就记事本打开不了 ⇒ 直接提示）。</summary>
+    [RelayCommand]
+    private void OpenRunLog(RunHistoryRow? row)
+    {
+        if (row is null) return;
+        if (!File.Exists(row.LogPath)) { StatusText = "这次运行没有留下 diag.txt。"; return; }
+        try { Process.Start(new ProcessStartInfo(row.LogPath) { UseShellExecute = true }); }
+        catch (Exception ex) { StatusText = "⚠ 打开日志失败：" + FirstLine(ex.Message); }
+    }
+
+    /// <summary>📋 复制这次运行的诊断（diag.txt 原文；没文件就拼一条摘要）。</summary>
+    [RelayCommand]
+    private async Task CopyRunDiagAsync(RunHistoryRow? row)
+    {
+        if (row is null) return;
+
+        var text = File.Exists(row.LogPath)
+            ? File.ReadAllText(row.LogPath)
+            : $"脚本：{SelectedScript?.Label ?? "—"}\n网址：{row.Url}\n时间：{row.AtText}\n{row.Summary}\n目录：{row.Dir}";
+
+        var win = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (win?.Clipboard is null) { StatusText = "剪贴板不可用。"; return; }
+
+        try
+        {
+            await win.Clipboard.SetTextAsync(text);
+            StatusText = "已复制这次运行的诊断。";
+        }
+        catch (Exception ex) { StatusText = "⚠ 复制失败：" + ex.Message; }
+    }
+
     // ==================== 节头 ====================
 
     /// <summary>节头 ⟳ = 重跑（目录节 = 重新抓取；试下载节 = 对当前行再试一次）。</summary>
@@ -696,6 +788,9 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
             if (script.Length == 0) { StatusText = "先在「内容脚本 ▾」里选 content 段脚本。"; return; }
             _ = RunTrialAsync(script, _trialUrl, _trialTitle);
         }
+
+        // ④ 节 ⟳ = 重新读磁盘（历史是文件，⛔ 不重跑脚本）
+        if (section is { IsHistory: true }) { RefreshHistory(); StatusText = "已刷新运行记录。"; }
     }
 
     /// <summary>节头折叠 / 展开。</summary>

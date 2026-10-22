@@ -119,8 +119,8 @@ public class ScriptManagerModule : IModule
         // 与标题一律 ⛔ 不改 —— 页键落 columnlayout.json，改了用户列偏好失效）。
         menu.RegisterFunction("script", "web-scrape",   "抓取规则",   "🕷", "RuleCatalogView", 5, "管理抓取规则集（一条规则集 = 一个 .py 文件）");
         menu.RegisterFunction("script", "web-rule-editor", "调试集合", "🧩", "RuleEditorView", 6, "把段脚本装配成流水线：五段槽位 + 试跑推荐 + 表达式检验");
-        menu.RegisterFunction("script", "web-crawl", "爬虫面板", "🕸", "CrawlPanelView", 7,
-            "跑抓取脚本看目录条目：动态列 + 双击下钻 + 复制诊断（下载属期②）");
+        menu.RegisterFunction("script", "web-crawl", "运行结果", "🕸", "CrawlPanelView", 7,
+            "跑抓取脚本看目录条目：动态列 + 双击下钻 + 下载，④ 节可回看最近 10 次运行（目录 / 日志 / 诊断）");
 
         // 软件包模块的源设置：v3.65 / NT-062 起**并入「脚本管理器设置」页**（需求 §6.5）——
         // 原独立菜单项 `settings-package` 已移除（⛔ 不再单独占一个菜单项），数据仍落 config\package.json。

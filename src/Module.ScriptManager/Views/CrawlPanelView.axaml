@@ -62,7 +62,7 @@
 
   <Grid RowDefinitions="*,Auto" Margin="12">
 
-    <!--  ==================== 主体：三节  ====================  -->
+    <!--  ==================== 主体：四节  ====================  -->
     <Border Grid.Row="0" Classes="card" Padding="0">
       <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <ItemsControl ItemsSource="{Binding Sections}">
@@ -207,6 +207,37 @@
 
                       <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding Hint}"
                                  IsVisible="{Binding !HasDownloadRows}"/>
+                    </StackPanel>
+
+                    <!--  ④ 运行记录（NT-090：历史 run + 打开目录 / 日志 / 复制诊断）  -->
+                    <StackPanel IsVisible="{Binding IsHistory}" Margin="12,6" Spacing="0"
+                                DataContext="{Binding $parent[ItemsControl].DataContext}">
+                      <ItemsControl ItemsSource="{Binding HistoryRows}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Border Classes="info-row" DoubleTapped="OnHistoryDoubleTapped">
+                              <Border.ContextMenu>
+                                <ContextMenu>
+                                  <MenuItem Header="📂 打开目录" Command="{Binding OpenDirCommand}"/>
+                                  <MenuItem Header="📄 打开日志" Command="{Binding OpenLogCommand}"/>
+                                  <MenuItem Header="📋 复制诊断" Command="{Binding CopyDiagCommand}"/>
+                                </ContextMenu>
+                              </Border.ContextMenu>
+                              <Grid ColumnDefinitions="110,*,170">
+                                <TextBlock Grid.Column="0" Classes="hint-text" VerticalAlignment="Center"
+                                           Text="{Binding AtText}"/>
+                                <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding Url}" Text="{Binding Url}"/>
+                                <TextBlock Grid.Column="2" Classes="hint-text" VerticalAlignment="Center"
+                                           Margin="8,0,0,0" Text="{Binding Summary}"/>
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Classes="hint-text" Margin="0,8" TextWrapping="Wrap"
+                                 Text="{Binding HistoryEmptyText}" IsVisible="{Binding !HasHistoryRows}"/>
                     </StackPanel>
                   </StackPanel>
                 </StackPanel>

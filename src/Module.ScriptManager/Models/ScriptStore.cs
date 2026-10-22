@@ -20,10 +20,12 @@ public static class ScriptCollectionKind
     public const string Command = "command";
     public const string Info = "info";
     public const string Package = "package";
+    /// <summary>抓取集合（NT-090）：成员 = 脚本条目（<c>Target</c> = 起始网址），发送到「运行结果」页。</summary>
+    public const string Crawl = "crawl";
 
     /// <summary>认得的返回值，其余（含 null / 空）回退 <see cref="Info"/>。</summary>
     public static string Normalize(string? kind)
-        => kind == Script || kind == Command || kind == Package ? kind : Info;
+        => kind is Script or Command or Package or Crawl ? kind : Info;
 
     /// <summary>集合列表 / 下拉里显示的中文名。</summary>
     public static string Label(string? kind) => Normalize(kind) switch
@@ -31,6 +33,7 @@ public static class ScriptCollectionKind
         Script => "脚本库",
         Command => "命令库",
         Package => "软件包",
+        Crawl => "抓取集合",
         _ => "信息面板",
     };
 
@@ -40,6 +43,7 @@ public static class ScriptCollectionKind
         Script => "script-library",
         Command => "script-commands",
         Package => "script-packages",
+        Crawl => "web-crawl",
         _ => "script-info",
     };
 }

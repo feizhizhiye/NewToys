@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 using NewToys.Core.Services;
+using NewToys.Shared.Services;   // IAppConfigService 在 Shared（不在 Core）
 using NewToys.SystemTools.Models;
 
 namespace NewToys.SystemTools.Services;

@@ -42,14 +42,47 @@ public sealed class RuleFileService
 
     public RuleFileService(ConfigStoreService cfg) => _cfg = cfg;
 
+    /// <summary>NT-089：旧规则目录（<c>web-tools\rules</c>）一次性搬迁标记。</summary>
+    private static bool _legacyMigrated;
+
     /// <summary>规则目录：<c>&lt;DataDir&gt;\script\rules</c>（懒创建）。</summary>
     public string RulesDir
     {
         get
         {
             var dir = Path.Combine(_cfg.DataDir, "script", "rules");
+            MigrateLegacyRules(dir);
             try { Directory.CreateDirectory(dir); } catch { /* 只读环境退化为空列表 */ }
             return dir;
+        }
+    }
+
+    /// <summary>
+    /// NT-089：抓取能力从「网络工具」迁到「脚本中心」，规则目录随之从 <c>web-tools\rules</c> 挪到 <c>script\rules</c>。
+    /// 老用户磁盘上已播种 / 手写过规则 ⇒ 首次访问目录时把旧目录里的 <c>.py</c> **搬过来**（只搬一次，⛔ 不覆盖同名新文件）。
+    /// <para>⚠️ 内部自己 try/catch —— 搬不动就按空目录处理（⛔ 不拦启动、不弹错）。</para>
+    /// </summary>
+    private void MigrateLegacyRules(string dir)
+    {
+        if (_legacyMigrated) return;
+        _legacyMigrated = true;
+        try
+        {
+            var old = Path.Combine(_cfg.DataDir, "web-tools", "rules");
+            if (!Directory.Exists(old)) return;
+            foreach (var f in Directory.GetFiles(old, "*" + Extension))
+            {
+                var dst = Path.Combine(dir, Path.GetFileName(f));
+                if (!File.Exists(dst))
+                {
+                    Directory.CreateDirectory(dir);
+                    File.Move(f, dst);
+                }
+            }
+        }
+        catch
+        {
+            // 搬不动 ⇒ 页面按空数据处理。
         }
     }
 

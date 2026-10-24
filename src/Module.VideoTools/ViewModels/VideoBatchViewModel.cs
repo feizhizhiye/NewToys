@@ -1598,7 +1598,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             x.PresetId = string.IsNullOrWhiteSpace(EditPresetId) ? "h265" : EditPresetId;
             x.Crf = EditCrf;
             x.MaxHeight = EditMaxHeight;
-            x.Container = FfmpegService.IsSoftSubtitle(x) ? ".mkv"
+            x.Container = x.IsSoftSubtitle ? ".mkv"
                         : FfmpegService.IsGif(x.Preset) ? ".gif"
                         : NormalizeExt(EditContainer, x.Preset.Extension);
             x.UseGpuEncoder = EditUseGpu;
@@ -1629,7 +1629,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             var preset = x.Preset;
             if (output.Length == 0) output = FfmpegService.DefaultOutputPath(x.SourcePath, preset.OutputSuffix, FfmpegService.OutputExtension(x));
             // 软字幕只能是 .mkv：老输出名（.mp4）跟着改后缀，否则跑起来必报错
-            if (FfmpegService.IsSoftSubtitle(x) && output.Length > 0
+            if (x.IsSoftSubtitle && output.Length > 0
                 && !string.Equals(Path.GetExtension(output), ".mkv", StringComparison.OrdinalIgnoreCase))
             {
                 output = Path.ChangeExtension(output, ".mkv");

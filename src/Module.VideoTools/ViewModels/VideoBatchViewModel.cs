@@ -190,6 +190,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     /// <summary>目标码率文本（<c>bitrate</c> 模式才用）。</summary>
     [ObservableProperty] private string _editTargetBitrate = "";
 
+    /// <summary>GIF 帧率（NT-099；只对 GIF 预设生效）。</summary>
+    [ObservableProperty] private int _editFrameRate = 12;
+
+    /// <summary>GIF 宽度（NT-099；0 = 保持原宽）。</summary>
+    [ObservableProperty] private int _editGifWidth = 480;
+
+    /// <summary>当前编辑的转码预设是不是 GIF（详情卡据此显隐两个 GIF 字段）。</summary>
+    public bool IsGifPreset => FfmpegService.IsGif(TranscodePreset.Find(EditPresetId));
+
     // ---- 旋转 / 翻转（v3.19 / NT-012）----
 
     /// <summary>旋转 / 翻转编辑缓冲（取值见 <see cref="RotateOptions"/>；空 = 不旋转）。</summary>
@@ -476,9 +485,9 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     /// <summary>
     /// 按选中任务拼参数。<paramref name="includeRaw"/> 为 true 时优先用手改的 <c>RawArgs</c>（= 真正会执行的那条）。
     /// </summary>
-    private List<string> BuildArgs(VideoTaskBase t, bool includeRaw = true)
+    private List<string> BuildArgs(VideoTaskBase t, bool includeRaw = true, string? overrideOutput = null)
     {
-        var output = ResolveOutputOf(t);
+        var output = string.IsNullOrWhiteSpace(overrideOutput) ? ResolveOutputOf(t) : overrideOutput;
 
         if (includeRaw && !string.IsNullOrWhiteSpace(t.RawArgs))
         {
@@ -511,6 +520,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         var edited = !string.IsNullOrWhiteSpace(value)
                      && !string.Equals(value.Trim(), AutoArgsText, StringComparison.Ordinal);
         if (IsArgsEdited != edited) IsArgsEdited = edited;
+        RefreshLint();
     }
 
     /// <summary>刷新命令（未手改过 → 参数文本始终跟随参数走）。</summary>
@@ -518,9 +528,91 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         if (!IsArgsEdited) EditArgs = AutoArgsText;
         OnPropertyChanged(nameof(CommandPreview));
+        RefreshLint();
     }
 
-    partial void OnEditPresetIdChanged(string value) => RefreshCommand();
+    // ==================== 参数预检（NT-098，与「视频预览」页同源） ====================
+
+    /// <summary>预检结果（多行；空 = 没意见）。选中任务变化 / 参数变化都会重算。</summary>
+    [ObservableProperty] private string _lintText = "";
+
+    public bool HasLint => !string.IsNullOrWhiteSpace(LintText);
+
+    partial void OnLintTextChanged(string value) => OnPropertyChanged(nameof(HasLint));
+
+    private void RefreshLint()
+    {
+        var task = Selected;
+        if (task == null) { LintText = ""; return; }
+
+        var args = BuildArgs(task);                 // 手改过就是手改那条
+        LintText = CommandLint.Describe(CommandLint.Check(args, ResolveOutputOf(task), task.SourcePath));
+    }
+
+    // ==================== 试跑选中（NT-098） ====================
+
+    /// <summary>
+    /// 🧪 试跑选中：用小样验证「这条任务」的参数 —— 有区间就只跑区间（最多截 5 秒由区间决定），
+    /// 没区间就跑前 5 秒；成功直接交给外部播放器 / ffplay。
+    /// <para>⛔ 不改任务状态、不写输出路径（小样落在临时目录），纯粹是「看一眼再决定跑不跑」。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task TrialSelectedAsync()
+    {
+        var t = Selected;
+        if (t == null) { StatusText = "先在左侧选中一个任务。"; return; }
+        if (IsRunning) { StatusText = "正在跑批处理 —— 等它跑完再试跑。"; return; }
+
+        var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
+        var (okCheck, msgCheck) = await FfmpegService.CheckAsync(ffmpeg);
+        if (!okCheck) { StatusText = "⚠ " + msgCheck; return; }
+
+        var dir = Path.Combine(Path.GetTempPath(), "NewToys", "trial");
+        Directory.CreateDirectory(dir);
+        var ext = t switch
+        {
+            TranscodeTask x => x.ContainerDisplay,
+            _ => ".mp4"
+        };
+        var outFile = Path.Combine(dir, $"trial_{DateTime.Now:HHmmss}{NormalizeExt(ext, ".mp4")}");
+
+        var args = BuildArgs(t, includeRaw: true, overrideOutput: outFile);
+        if (args.Count == 0) { StatusText = "无法生成 ffmpeg 参数。"; return; }
+
+        // 没有区间 → 只转前 5 秒（插在输出路径之前 = 输出选项）
+        var limited = args.Any(a => string.Equals(a, "-t", StringComparison.Ordinal)
+                                    || string.Equals(a, "-to", StringComparison.Ordinal));
+        if (!limited && args.Count > 1)
+        {
+            args.Insert(args.Count - 1, "-t");
+            args.Insert(args.Count - 1, "5");
+        }
+
+        var len = t switch
+        {
+            CutTask c => c.Length > 0 ? c.Length : 5,
+            TranscodeTask x => x.HasTrim ? Math.Max(1, x.TrimEnd - x.TrimStart) : 5,
+            _ => 5
+        };
+
+        StatusText = $"试跑「{t.Name}」…";
+        var (ok, message, size) = await FfmpegService.RunAsync(ffmpeg, args, outFile, len, null);
+        if (!ok) { StatusText = "⚠ 试跑失败：" + message; return; }
+
+        var (played, playMsg) = FfmpegService.Play(outFile, _cfg?.PlayerPath, _cfg?.FfmpegPath);
+        StatusText = played
+            ? $"试跑成功（{size / 1024.0:0} KB）—— {playMsg}"
+            : $"试跑成功（{size / 1024.0:0} KB）：{outFile} · {playMsg}";
+    }
+
+    partial void OnEditPresetIdChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsGifPreset));
+        RefreshCommand();
+    }
+
+    partial void OnEditFrameRateChanged(int value) => RefreshCommand();
+    partial void OnEditGifWidthChanged(int value) => RefreshCommand();
     partial void OnEditCrfChanged(int value) => RefreshCommand();
     partial void OnEditMaxHeightChanged(int value) => RefreshCommand();
     partial void OnEditDefaultWidthChanged(int value) => RefreshCommand();
@@ -856,6 +948,25 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Mono = true,
                         Placeholder = "5000k",
                         VisibleWhen = "!" + nameof(UseCrf)
+                    },
+                    // NT-099：仅 GIF 预设可见
+                    new DetailField
+                    {
+                        Label = "GIF 帧率（12 常用；越大越流畅、体积越大）",
+                        ValuePath = nameof(EditFrameRate),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        VisibleWhen = nameof(IsGifPreset)
+                    },
+                    new DetailField
+                    {
+                        Label = "GIF 宽度（像素；0 = 保持原宽，体积会很大）",
+                        ValuePath = nameof(EditGifWidth),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        VisibleWhen = nameof(IsGifPreset)
                     }
                 }
             },
@@ -880,6 +991,13 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         ValuePath = nameof(CommandPreview),
                         Kind = FieldKind.Text,
                         Selectable = true
+                    },
+                    // NT-098：参数预检（有意见才显示）
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        ValuePath = nameof(LintText),
+                        VisibleWhen = nameof(HasLint)
                     },
                     new DetailField
                     {
@@ -953,6 +1071,14 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 Classes = "ghost",
                 ToolTip = "挑一个输出文件；留空 = 按预设自动命名（⛔ 绝不覆盖已有文件）",
                 Command = new RelayCommand(() => PickOutputCommand?.Execute(null))
+            },
+            // NT-098：先用小样验证这条任务的参数（不改状态、不落正式输出）
+            new DetailAction
+            {
+                Text = "🧪 试跑选中",
+                Classes = "ghost",
+                ToolTip = "用当前参数真转一小段（有区间就只跑区间，否则前 5 秒）到临时目录，成功自动播放 —— 验完再批量跑",
+                Command = TrialSelectedCommand
             }
         }
     };
@@ -1146,6 +1272,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             EditDefaultHeight = x.DefaultHeight;
             EditBitrateMode = x.BitrateMode;
             EditTargetBitrate = x.TargetBitrate;
+            EditFrameRate = x.FrameRate;
+            EditGifWidth = x.GifWidth;
             EditRotate = x.Rotate;
             SelectedRotate = RotateOptions.Find(x.Rotate);
             EditStart = x.HasTrim ? CutTask.FormatTime(x.TrimStart) : "";
@@ -1345,7 +1473,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             x.PresetId = string.IsNullOrWhiteSpace(EditPresetId) ? "h265" : EditPresetId;
             x.Crf = EditCrf;
             x.MaxHeight = EditMaxHeight;
-            x.Container = NormalizeExt(EditContainer, x.Preset.Extension);
+            x.Container = FfmpegService.IsGif(x.Preset) ? ".gif" : NormalizeExt(EditContainer, x.Preset.Extension);
             x.UseGpuEncoder = EditUseGpu;
             x.TargetWidth = EditTargetWidth;
             x.TargetHeight = EditTargetHeight;
@@ -1353,6 +1481,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             x.DefaultHeight = EditDefaultHeight;
             x.BitrateMode = string.IsNullOrWhiteSpace(EditBitrateMode) ? "crf" : EditBitrateMode;
             x.TargetBitrate = (EditTargetBitrate ?? "").Trim();
+            x.FrameRate = EditFrameRate;
+            x.GifWidth = EditGifWidth;
             x.Rotate = EditRotate ?? "";
 
             // 区间（v3.16）：**以「✂ 剪辑」勾选框为准** —— 没勾就把区间归零，

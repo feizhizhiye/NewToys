@@ -73,6 +73,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     {
         new() { Text = "📂 选择视频", Classes = "ghost", CommandPath = nameof(PickSourceCommand), ToolTip = "挑一个视频文件载入编辑器（这一页一次只编一个任务；载入后自动预览）" },
         new() { Text = "▶ 播放预览", AltText = "⏸ 停止", AltTextPath = nameof(IsPlaying), CommandPath = nameof(TogglePlayCommand), ToolTip = "类播放器：点一下自动逐帧播放预览（抽帧模拟），再点停止；也可直接拖动下面「预览位置」条手动快览" },
+        new() { Text = "🧪 试跑 5 秒", CommandPath = nameof(RunTrialCommand), IsEnabledPath = nameof(CanTrial), ToolTip = "用当前全部参数（含手改命令）从「预览位置」起真转 5 秒到临时目录 —— 先验证参数和画面，再发给批处理" },
+        new() { Text = "▶ 播放小样", CommandPath = nameof(PlayTrialCommand), IsVisiblePath = nameof(HasTrial), ToolTip = "用外部播放器 / ffplay 打开刚试跑出来的小样（带声音、真流畅）" },
         new() { Text = "↻ 90°", CommandPath = nameof(RotatePreviewCwCommand), IsEnabledPath = nameof(HasSource), ToolTip = "预览画面顺时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步" },
         new() { Text = "↺ 90°", CommandPath = nameof(RotatePreviewCcwCommand), IsEnabledPath = nameof(HasSource), ToolTip = "预览画面逆时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步" },
         new() { Text = "➡ 发送到批处理", CommandPath = nameof(SendToBatchCommand), ToolTip = "把当前这一条任务加入「批量处理」的队列（不立刻运行）" },
@@ -380,6 +382,25 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         Mono = true,
                         Placeholder = "5000k",
                         VisibleWhen = "!" + nameof(UseCrf)
+                    },
+                    // NT-099：仅 GIF 预设可见（其它预设这些参数没有意义）
+                    new DetailField
+                    {
+                        Label = "GIF 帧率（12 常用；越大越流畅、体积越大）",
+                        ValuePath = nameof(EditFrameRate),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        VisibleWhen = nameof(IsGifPreset)
+                    },
+                    new DetailField
+                    {
+                        Label = "GIF 宽度（像素；0 = 保持原宽，体积会很大）",
+                        ValuePath = nameof(EditGifWidth),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        VisibleWhen = nameof(IsGifPreset)
                     }
                 }
             },
@@ -404,6 +425,13 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         ValuePath = nameof(CommandPreview),
                         Kind = FieldKind.Text,
                         Selectable = true
+                    },
+                    // NT-098：参数预检（有意见才显示）
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        ValuePath = nameof(LintText),
+                        VisibleWhen = nameof(HasLint)
                     },
                     new DetailField
                     {
@@ -789,6 +817,18 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     [ObservableProperty] private int _editTranscodeCrf;
     [ObservableProperty] private string _editTargetBitrate = "";
 
+    /// <summary>GIF 帧率（NT-099；只对 GIF 预设生效）。</summary>
+    [ObservableProperty] private int _editFrameRate = 12;
+
+    /// <summary>GIF 宽度（NT-099；0 = 保持原宽）。</summary>
+    [ObservableProperty] private int _editGifWidth = 480;
+
+    /// <summary>当前转码预设是不是 GIF（详情卡据此显隐两个 GIF 字段）。</summary>
+    public bool IsGifPreset => FfmpegService.IsGif(TranscodePreset.Find(EditTranscodePresetId));
+
+    partial void OnEditFrameRateChanged(int value) => RefreshCommand();
+    partial void OnEditGifWidthChanged(int value) => RefreshCommand();
+
     // ---- 旋转 / 翻转（v3.19 / NT-012）----
 
     /// <summary>旋转 / 翻转编辑缓冲（取值见 <see cref="RotateOptions"/>；空 = 不旋转）。</summary>
@@ -819,6 +859,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     partial void OnEditTranscodePresetIdChanged(string value)
     {
         OnPropertyChanged(nameof(EncoderPreview));
+        OnPropertyChanged(nameof(IsGifPreset));
         RefreshCommand();
     }
 
@@ -921,6 +962,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     {
         var edited = !string.Equals((value ?? "").Trim(), AutoArgsText, StringComparison.Ordinal);
         if (IsArgsEdited != edited) IsArgsEdited = edited;
+        RefreshLint();
     }
 
     /// <summary>当前自动生成的参数文本（与手改文本比较的基准）。</summary>
@@ -956,6 +998,155 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
             EditArgs = AutoArgsText;
         }
         OnPropertyChanged(nameof(CommandPreview));
+        RefreshLint();
+    }
+
+    // ==================== 参数预检（NT-098） ====================
+
+    /// <summary>预检结果（多行文本；空 = 没有意见）。命令区上方常显，命中冲突时列出来。</summary>
+    [ObservableProperty] private string _lintText = "";
+
+    public bool HasLint => !string.IsNullOrWhiteSpace(LintText);
+
+    partial void OnLintTextChanged(string value) => OnPropertyChanged(nameof(HasLint));
+
+    /// <summary>重算预检。输入 = **真正会执行的那条参数**（手改过就是手改的），保证提示与运行一致。</summary>
+    private void RefreshLint()
+    {
+        var output = ResolveOutput();
+        LintText = CommandLint.Describe(CommandLint.Check(BuildExecutableArgs(), output, SourcePath));
+    }
+
+    /// <summary>真正会执行的参数（**含**输出路径）—— 预检 / 试跑共用，与运行时同源。</summary>
+    private List<string> BuildExecutableArgs()
+    {
+        if (IsArgsEdited && !string.IsNullOrWhiteSpace(EditArgs))
+        {
+            var raw = FfmpegService.SplitArgs(EditArgs);
+            raw.Add(ResolveOutput());
+            return raw;
+        }
+
+        var args = BuildAutoArgs();
+        args.Add(ResolveOutput());
+        return args;
+    }
+
+    // ==================== 试跑小样（NT-098） ====================
+
+    /// <summary>上次试跑的成品（临时目录）。</summary>
+    [ObservableProperty] private string _trialFile = "";
+
+    /// <summary>小样的一帧（右侧对比栏）。</summary>
+    [ObservableProperty] private Bitmap? _trialImage;
+
+    [ObservableProperty] private bool _isTrialing;
+
+    public bool HasTrial => !string.IsNullOrWhiteSpace(TrialFile) && File.Exists(TrialFile);
+    public bool HasTrialImage => TrialImage != null;
+    public bool CanTrial => HasSource && !IsTrialing && (IsCut || IsTranscode);
+
+    partial void OnTrialFileChanged(string value) => OnPropertyChanged(nameof(HasTrial));
+    partial void OnTrialImageChanged(Bitmap? value) => OnPropertyChanged(nameof(HasTrialImage));
+    partial void OnIsTrialingChanged(bool value) => OnPropertyChanged(nameof(CanTrial));
+
+    /// <summary>
+    /// 🧪 试跑 5 秒：用**当前全部参数**（含手改命令、含 GIF）从「预览位置」起真转一小段到临时目录。
+    /// <para>这是「编 → 验 → 看」的闭环入口：参数错在这里就报原文，不用等到批处理才发现。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task RunTrialAsync()
+    {
+        if (!CanTrial) { StatusText = "先挑一个视频、勾一种任务类型（剪辑 / 转码），再试跑。"; return; }
+
+        IsTrialing = true;
+        try
+        {
+            var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
+            var start = Math.Max(0, PreviewTime);
+            var len = 5.0;
+            if (Duration > 0) len = Math.Min(len, Math.Max(1, Duration - start));
+
+            var ext = ".mp4";
+            List<string> args;
+
+            if (IsArgsEdited && !string.IsNullOrWhiteSpace(EditArgs))
+            {
+                // 手改过：原样用用户写的参数（只补输出路径）
+                args = FfmpegService.SplitArgs(EditArgs);
+                var preset = TranscodePreset.Find(EditTranscodePresetId);
+                ext = IsTranscode
+                    ? (FfmpegService.IsGif(preset) ? ".gif" : NormalizeExt(EditContainer, preset.Extension))
+                    : ".mp4";
+            }
+            else if (IsTranscode)
+            {
+                var t = BuildTranscodeTask();
+                t.TrimStart = start;
+                t.TrimEnd = start + len;
+                t.UseTrim = true;
+                ext = FfmpegService.IsGif(t.Preset) ? ".gif" : t.ContainerDisplay;
+                args = FfmpegService.BuildTranscodeArgs(t, null);
+            }
+            else
+            {
+                var c = BuildCutTask();
+                c.Start = start;
+                c.End = start + len;
+                args = FfmpegService.BuildCutArgs(c, null);
+            }
+
+            var dir = Path.Combine(Path.GetTempPath(), "NewToys", "trial");
+            Directory.CreateDirectory(dir);
+            var outFile = Path.Combine(dir, $"trial_{DateTime.Now:HHmmss}{NormalizeExt(ext, ".mp4")}");
+            args.Add(outFile);
+
+            StatusText = "试跑中（最多 5 秒素材）…";
+            var (ok, message, size) = await FfmpegService.RunAsync(ffmpeg, args, outFile, len, null);
+            if (!ok)
+            {
+                StatusText = "⚠ 试跑失败：" + message;
+                return;
+            }
+
+            TrialFile = outFile;
+            await LoadTrialFrameAsync(ffmpeg, outFile);
+            StatusText = $"试跑成功（{size / 1024.0:0} KB / {len:0.#} 秒）—— 右栏是小样画面，点「▶ 播放小样」可带声音看。";
+        }
+        catch (Exception ex)
+        {
+            StatusText = "⚠ 试跑出错：" + ex.Message;
+        }
+        finally
+        {
+            IsTrialing = false;
+        }
+    }
+
+    /// <summary>抽小样的第 0.05 秒当对比帧（文件名跟小样走 → 不会与上一张抢文件）。</summary>
+    private async Task LoadTrialFrameAsync(string ffmpeg, string trialFile)
+    {
+        try
+        {
+            var shot = Path.ChangeExtension(trialFile, ".shot.jpg");
+            if (await FfmpegService.ExtractFrameAsync(ffmpeg, trialFile, 0.05, shot) && File.Exists(shot))
+            {
+                try { TrialImage = new Bitmap(shot); }
+                catch { /* 图坏了就保留上一张 */ }
+            }
+        }
+        catch { /* 抽帧失败不影响「试跑成功」这个结论 */ }
+    }
+
+    /// <summary>▶ 播放小样（没有小样就播源片）—— 外部播放器优先，其次 ffplay。</summary>
+    [RelayCommand]
+    private void PlayTrial()
+    {
+        var file = HasTrial ? TrialFile : SourcePath;
+        if (string.IsNullOrWhiteSpace(file) || !File.Exists(file)) { StatusText = "没有可播放的文件。"; return; }
+
+        var (ok, message) = FfmpegService.Play(file, _cfg?.PlayerPath, _cfg?.FfmpegPath);
+        StatusText = ok ? message : "⚠ " + message;
     }
 
     private static double ParseOr(string? text, double fallback) => CutTask.ParseTime(text) ?? fallback;
@@ -977,7 +1168,9 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         if (IsTranscode)
         {
             var preset = TranscodePreset.Find(EditTranscodePresetId);
-            return FfmpegService.DefaultOutputPath(SourcePath, preset.OutputSuffix, NormalizeExt(EditContainer, preset.Extension));
+            // NT-099：GIF 只认 .gif（容器下拉对它无效）
+            var ext = FfmpegService.IsGif(preset) ? ".gif" : NormalizeExt(EditContainer, preset.Extension);
+            return FfmpegService.DefaultOutputPath(SourcePath, preset.OutputSuffix, ext);
         }
         return FfmpegService.DefaultOutputPath(SourcePath, "_cut", ".mp4");
     }
@@ -1015,6 +1208,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
             BitrateMode = string.IsNullOrWhiteSpace(EditBitrateMode) ? "crf" : EditBitrateMode,
             Crf = EditTranscodeCrf,
             TargetBitrate = (EditTargetBitrate ?? "").Trim(),
+            FrameRate = EditFrameRate,
+            GifWidth = EditGifWidth,
             SourceDuration = Duration,
             OutputPath = ResolveOutput()
         };

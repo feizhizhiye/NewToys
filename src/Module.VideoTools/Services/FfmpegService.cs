@@ -194,6 +194,9 @@ public static class FfmpegService
         else
         {
             args.AddRange(new[] { "-c", "copy" });
+            // NT-098：`-ss` 在 `-i` 前（快速定位）+ copy 时，首段的 DTS 可能早于 0，
+            // 播放器表现是「开头黑屏 / 卡一下」。make_zero 把时间轴挪到 0 起。
+            args.AddRange(new[] { "-avoid_negative_ts", "make_zero" });
         }
 
         // ② 自定义参数**追加在预设之后** —— ffmpeg 里后出现的同名参数覆盖前面的，
@@ -297,14 +300,25 @@ public static class FfmpegService
     public static string FitFilter(int width, int height)
         => $"scale={width}:{height}:force_original_aspect_ratio=decrease";
 
-    /// <summary>拼转码命令的参数（不含 <c>ffmpeg</c> 本身）。支持"既剪辑又转码"（<see cref="TranscodeTask.HasTrim"/>）。</summary>
-    public static List<string> BuildTranscodeArgs(TranscodeTask task, string? output)
-    {
-        var preset = task.Preset;
-        var args = new List<string> { "-hide_banner", "-loglevel", "error", "-y" };
+    /// <summary>是不是 GIF 预设（`TranscodeTask` 走独立命令分支，详见 <see cref="BuildTranscodeArgs"/>）。</summary>
+    public static bool IsGif(TranscodePreset preset)
+        => string.Equals(preset.Id, "gif", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(preset.VideoCodec, "gif", StringComparison.OrdinalIgnoreCase);
 
-        // ① 区间（"既剪辑又转码"）：-ss 放在 -i **前面** = 关键帧快速定位；-to 是相对时长
-        //    v3.16：终点留空（0）= 从起点一直到文件末尾，此时不能加 -to（否则算出负数时长）。
+    /// <summary>
+    /// GIF 滤镜链：定帧率 → 定宽（<c>-1</c> = 按比例，保证偶数不用管，gif 接受奇数）→ 单遍调色板。
+    /// <para><c>palettegen=stats_mode=diff</c> + <c>paletteuse=dither=bayer</c> 是画质/体积的常用折中。</para>
+    /// </summary>
+    public static string GifFilterChain(TranscodeTask task)
+    {
+        var fps = task.FrameRate > 0 ? task.FrameRate : 12;
+        var head = task.GifWidth > 0 ? $"fps={fps},scale={task.GifWidth}:-1:flags=lanczos" : $"fps={fps}";
+        return head + ",split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5";
+    }
+
+    /// <summary>区间 + 输入（剪切与转码共用；<c>-ss</c> 必须在 <c>-i</c> 前才是快速定位）。</summary>
+    private static void AppendTrimAndInput(List<string> args, TranscodeTask task)
+    {
         if (task.HasTrim)
         {
             args.AddRange(new[] { "-ss", Sec(task.TrimStart) });
@@ -315,6 +329,28 @@ public static class FfmpegService
         else
         {
             args.AddRange(new[] { "-i", task.SourcePath });
+        }
+    }
+
+    /// <summary>拼转码命令的参数（不含 <c>ffmpeg</c> 本身）。支持"既剪辑又转码"（<see cref="TranscodeTask.HasTrim"/>）。</summary>
+    public static List<string> BuildTranscodeArgs(TranscodeTask task, string? output)
+    {
+        var preset = task.Preset;
+        var args = new List<string> { "-hide_banner", "-loglevel", "error", "-y" };
+
+        // ① 区间（"既剪辑又转码"）：-ss 放在 -i **前面** = 关键帧快速定位；-to 是相对时长
+        //    v3.16：终点留空（0）= 从起点一直到文件末尾，此时不能加 -to（否则算出负数时长）。
+        AppendTrimAndInput(args, task);
+
+        // ② GIF（NT-099）：gif 编码器不吃 -crf / -preset / 码率 / 音频参数 ⇒ 走独立分支。
+        //    单遍调色板（split 同图）：一条命令 = 看到的即执行的，⛔ 不做两遍临时文件（预览不可见会骗人）；
+        //    代价是整段帧要在内存里过一遍 ⇒ 预检（CommandLint）会提示「GIF 建议 ≤30 秒」。
+        if (IsGif(preset))
+        {
+            args.AddRange(new[] { "-an", "-c:v", "gif", "-loop", "0" });
+            args.AddRange(new[] { "-vf", GifFilterChain(task) });
+            AppendOutput(args, output);
+            return args;
         }
 
         var baseCodec = preset.VideoCodec ?? "";
@@ -444,10 +480,13 @@ public static class FfmpegService
                 StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8
             };
-            foreach (var a in args) psi.ArgumentList.Add(a);
+            // NT-098：`-progress` / `-nostats` 是**全局选项**，必须放在输出路径之前 ——
+            // 追加到参数末尾（输出路径之后）时 ffmpeg 会告警 "Trailing option(s) found in the command"，
+            // 且不保证被识别（进度会掉）。所以先写全局项，再写业务参数。
             psi.ArgumentList.Add("-progress");
             psi.ArgumentList.Add("pipe:1");
             psi.ArgumentList.Add("-nostats");
+            foreach (var a in args) psi.ArgumentList.Add(a);
 
             using var proc = new Process { StartInfo = psi };
             if (!proc.Start()) return (false, "无法启动 ffmpeg（可在「设置 → 路径配置」里检查路径）。", 0);
@@ -463,22 +502,11 @@ public static class FfmpegService
                     string? line;
                     while ((line = await proc.StandardOutput.ReadLineAsync().ConfigureAwait(false)) != null)
                     {
-                        if (line.StartsWith("out_time_ms=", StringComparison.Ordinal)
-                            || line.StartsWith("out_time_us=", StringComparison.Ordinal))
-                        {
-                            var v = line[(line.IndexOf('=') + 1)..].Trim();
-                            if (double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var micros))
-                            {
-                                var seconds = line.StartsWith("out_time_us=", StringComparison.Ordinal)
-                                    ? micros / 1_000_000.0
-                                    : micros / 1000.0;
-                                if (totalSeconds > 0)
-                                {
-                                    var pct = (int)Math.Clamp(seconds * 100.0 / totalSeconds, 0, 100);
-                                    if (pct != last) { last = pct; progress?.Report(pct); }
-                                }
-                            }
-                        }
+                        if (totalSeconds <= 0) continue;
+                        if (!TryReadProgressSeconds(line, out var seconds)) continue;
+
+                        var pct = (int)Math.Clamp(seconds * 100.0 / totalSeconds, 0, 100);
+                        if (pct != last) { last = pct; progress?.Report(pct); }
                     }
                 }
                 catch { /* 管道关了就收 */ }
@@ -518,6 +546,123 @@ public static class FfmpegService
         {
             return (false, "运行失败：" + ex.Message, 0);
         }
+    }
+
+    // ==================== 外部播放（NT-098） ====================
+
+    /// <summary>
+    /// 用外部程序播放一个文件：**配置的播放器优先**，其次 `ffplay`（与 ffmpeg 同目录 → PATH）。
+    /// <para>失败时返回原因（页面照实显示），⛔ 不静默吞掉。参数用 <see cref="ProcessStartInfo.ArgumentList"/>
+    /// 传递，中文 / 空格路径不需要额外转义。</para>
+    /// </summary>
+    public static (bool Ok, string Message) Play(string file, string? configuredPlayer, string? ffmpeg)
+    {
+        if (string.IsNullOrWhiteSpace(file) || !File.Exists(file)) return (false, "要播放的文件不存在。");
+
+        var candidates = new List<(string Exe, string Label)>();
+        var player = (configuredPlayer ?? "").Trim();
+        if (player.Length > 0) candidates.Add((player, "外部播放器"));
+
+        var ffplay = DeriveSibling(ffmpeg, "ffplay");
+        candidates.Add((ffplay, "ffplay"));
+
+        var errors = new List<string>();
+        foreach (var (exe, label) in candidates)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = exe,
+                    UseShellExecute = false,
+                    CreateNoWindow = false
+                };
+                // ffplay 播完自动关窗口；外部播放器（PotPlayer / VLC 等）直接给路径
+                if (string.Equals(label, "ffplay", StringComparison.Ordinal))
+                {
+                    psi.ArgumentList.Add("-autoexit");
+                    psi.ArgumentList.Add("-loglevel");
+                    psi.ArgumentList.Add("error");
+                }
+                psi.ArgumentList.Add(file);
+
+                using var proc = Process.Start(psi);
+                if (proc != null) return (true, $"已用{label}打开：{Path.GetFileName(file)}");
+                errors.Add($"{label} 启动失败");
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{label}：{ex.Message}");
+            }
+        }
+
+        return (false, "没有可用的播放器 —— 去「设置 → 路径配置」指定播放器，或把 ffplay.exe 放到 ffmpeg 同目录。"
+                       + (errors.Count > 0 ? "（" + string.Join("；", errors) + "）" : ""));
+    }
+
+    /// <summary>同目录下找兄弟可执行文件（`ffmpeg.exe` → `ffplay.exe`；裸名则原样交给 PATH）。</summary>
+    private static string DeriveSibling(string? tool, string sibling)
+    {
+        var p = (tool ?? "").Trim();
+        if (p.Length == 0) return sibling;
+
+        try
+        {
+            var dir = Path.GetDirectoryName(p);
+            if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+            {
+                var exe = Path.Combine(dir, OperatingSystem.IsWindows() ? sibling + ".exe" : sibling);
+                if (File.Exists(exe)) return exe;
+            }
+        }
+        catch { /* 路径怪就退回 PATH */ }
+
+        return sibling;
+    }
+
+    // ==================== 进度解析（NT-098） ====================
+
+    /// <summary>
+    /// 从 <c>-progress</c> 的一行里读出「已输出秒数」。
+    /// <para>🔴 只认 <c>out_time_us</c>（微秒，单位明确）与 <c>out_time</c>（时间码）——
+    /// <c>out_time_ms</c> 在不少 ffmpeg 版本里实际输出的是**微秒**（历史 bug），按毫秒解释会算错 1000 倍，
+    /// 所以直接跳过。</para>
+    /// </summary>
+    private static bool TryReadProgressSeconds(string line, out double seconds)
+    {
+        seconds = 0;
+        if (line.StartsWith("out_time_us=", StringComparison.Ordinal))
+        {
+            var v = line[(line.IndexOf('=') + 1)..].Trim();
+            if (!double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var micros)) return false;
+            if (micros < 0) micros = 0;   // 开头常见负值
+            seconds = micros / 1_000_000.0;
+            return true;
+        }
+
+        if (line.StartsWith("out_time=", StringComparison.Ordinal))
+        {
+            var v = line[(line.IndexOf('=') + 1)..].Trim();
+            return TryParseTimecode(v, out seconds);
+        }
+
+        return false;
+    }
+
+    /// <summary>解析 <c>HH:MM:SS.ffffff</c>（ffmpeg 进度里的时间码；<c>N/A</c> 视为无效）。</summary>
+    private static bool TryParseTimecode(string text, out double seconds)
+    {
+        seconds = 0;
+        if (string.IsNullOrWhiteSpace(text) || text.StartsWith("N/A", StringComparison.OrdinalIgnoreCase)) return false;
+
+        var parts = text.Split(':');
+        if (parts.Length != 3) return false;
+        if (!int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var h)) return false;
+        if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var m)) return false;
+        if (!double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var s)) return false;
+
+        seconds = Math.Max(0, h * 3600 + m * 60 + s);
+        return true;
     }
 
     private static void TryKill(Process? p)

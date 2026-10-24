@@ -313,6 +313,9 @@ public sealed class TranscodePreset
         new TranscodePreset { Id = "av1",    Name = "AV1 MP4（最小，最慢）",          VideoCodec = "libsvtav1", Crf = 32, Extension = ".mp4", Speed = "8", OutputSuffix = "_AV1" },
         new TranscodePreset { Id = "copy",   Name = "只换容器（不重编码，秒完成）",     VideoCodec = "copy",      AudioCodec = "copy", Extension = ".mp4", OutputSuffix = "_copy" },
         new TranscodePreset { Id = "audio",  Name = "仅提取音频 MP3",                 VideoCodec = "",          AudioCodec = "libmp3lame", AudioBitrate = "192k", Extension = ".mp3", OutputSuffix = "_audio" },
+        // NT-099：GIF 走**独立命令分支**（`BuildTranscodeArgs` 里 `IsGif` 判定）——
+        // 无音轨、无限循环、不吃 CRF/preset，滤镜链自带 palettegen/paletteuse。
+        new TranscodePreset { Id = "gif",    Name = "GIF 动图（无声，循环）",          VideoCodec = "gif",       AudioCodec = "", Extension = ".gif", Speed = "", OutputSuffix = "_GIF" },
     };
 
     public static TranscodePreset Find(string? id)
@@ -416,6 +419,14 @@ public partial class TranscodeTask : VideoTaskBase
     [ObservableProperty] private int _targetHeight;
 
     /// <summary>
+    /// **GIF 帧率**（NT-099；只对 GIF 预设生效）：12 是「体积 / 流畅度」的常用折中，24 = 接近原速。
+    /// </summary>
+    [ObservableProperty] private int _frameRate = 12;
+
+    /// <summary>**GIF 宽度**（NT-099；只对 GIF 预设生效）：0 = 保持原宽（体积会很大），默认 480。</summary>
+    [ObservableProperty] private int _gifWidth = 480;
+
+    /// <summary>
     /// **默认宽 / 高上限**（v3.19 / NT-013；0 = 不启用）：源宽高**大于**它才缩到它，**小于等于**则保持原始大小
     /// （ffmpeg <c>scale=W:H:force_original_aspect_ratio=decrease</c>，只缩不放、保比例）。
     /// 与 <see cref="TargetWidth"/>/<see cref="TargetHeight"/>（显式宽高）二选一，优先用显式宽高。
@@ -489,8 +500,11 @@ public partial class TranscodeTask : VideoTaskBase
     /// <summary>实际会用的视频编码器名（CPU / GPU 由 <see cref="UseGpuEncoder"/> 决定）。</summary>
     public string EncoderDisplay => FfmpegService.ResolveEncoder(Preset.VideoCodec, UseGpuEncoder);
 
-    /// <summary>容器（格式）显示文本。</summary>
-    public string ContainerDisplay => string.IsNullOrWhiteSpace(Container) ? Preset.Extension : Container;
+    /// <summary>容器（格式）显示文本。GIF 预设强制 <c>.gif</c>（容器下拉对它无效，避免出现「.mp4 里装 GIF」）。</summary>
+    public string ContainerDisplay =>
+        FfmpegService.IsGif(Preset) ? ".gif"
+        : string.IsNullOrWhiteSpace(Container) ? Preset.Extension
+        : Container;
 
     /// <summary>分辨率设置显示；两个都为 0 = 保持原分辨率。</summary>
     public string ResolutionDisplay =>
@@ -543,7 +557,15 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(Preset));
         OnPropertyChanged(nameof(PresetName));
         OnPropertyChanged(nameof(ParamDisplay));
+        // NT-099：预设变了 → 容器（GIF 强制 .gif）、编码器、码率、分辨率显示都要跟着变
+        OnPropertyChanged(nameof(ContainerDisplay));
+        OnPropertyChanged(nameof(EncoderDisplay));
+        OnPropertyChanged(nameof(RateDisplay));
+        OnPropertyChanged(nameof(IsGifPreset));
     }
+
+    /// <summary>是不是 GIF 预设（详情卡据此显隐「GIF 帧率 / 宽度」）。</summary>
+    public bool IsGifPreset => FfmpegService.IsGif(Preset);
 
     partial void OnRotateChanged(string value) => OnPropertyChanged(nameof(RotateLabel));
 

@@ -45,7 +45,7 @@
 
 ### 视频预览 `video-cut`（当前页 Key 仍叫 `video-cut`）
 
-工具条：`📂 选择视频` / `▶ 播放预览`(↔ `⏸ 停止`) / `↻ 90°` / `↺ 90°` / `➡ 发送到批处理` / `↺ 区间重置` / `❮❯ 详情`（末位，通知 Shell 开合详情列）。
+工具条：`📂 选择视频` / `▶ 播放预览`(↔ `⏸ 停止`) / **`🧪 试跑 5 秒`** / **`▶ 播放小样`** / `↻ 90°` / `↺ 90°` / `➡ 发送到批处理` / `↺ 区间重置` / `❮❯ 详情`（末位，通知 Shell 开合详情列）。
 
 | 操作 | 触发 | 结果 / 状态变化 | 约束 |
 |---|---|---|---|
@@ -58,6 +58,8 @@
 | 手改命令 | 命令区参数框 | 置 `IsArgsEdited`，参数变化不再覆盖 | 手改后**原样执行**（存 `RawArgs`） |
 | 重置为自动 | `↺ 重置为自动` | 清标记并重算自动参数 | 仅手改后可见 |
 | 复制命令 | `📋 复制命令` | 整条 ffmpeg 命令进剪贴板 | — |
+| **试跑 5 秒**（NT-098） | 工具条 `🧪 试跑 5 秒` | 用**当前全部参数**（手改过就用手改的）从「预览位置」起真转 5 秒 → `%TEMP%\NewToys\trial\`；成功后**右栏出现小样画面**，状态栏报体积 | 失败时状态栏显示 ffmpeg 原始错误尾行；不写正式输出、不改任务 |
+| **播放小样**（NT-098） | 工具条 `▶ 播放小样` | 外部播放器（设置 → 路径配置）优先，其次 `ffplay -autoexit` | 两者都没有 ⇒ 明确提示去配置；没有小样时播源片 |
 | 发送到批处理 | `➡ 发送到批处理` | 加入队列，**不立刻跑** | 视频详情卡工具条 |
 
 ### 批量处理 `video-batch`
@@ -78,6 +80,7 @@
 | 清除缓存 | `🧹 清除缓存` | 只清页面列表显示 | `config\video-tasks.json` **不动**，可「📥 导入任务」读回 |
 | 送预览 | `➡ 送预览` | 选中任务的源文件送进 `video-cut` | 一次只编一个 |
 | 手改命令 | 命令区参数框 | `RawArgs` 非空时批量运行**优先用它** | 与预览页同一套 `IsArgsEdited` 机制 |
+| **试跑选中**（NT-098） | 详情卡动作 `🧪 试跑选中` | 有区间只跑区间（否则前 5 秒）到临时目录，成功自动交给播放器 | ⛔ 不改任务状态 / 输出路径；批处理运行中禁用 |
 
 ### 视频工具设置 `settings-video-tools`
 
@@ -94,7 +97,8 @@
 
 | 文件 | 职责 |
 |---|---|
-| `FfmpegService` | 命令拼装 + 执行 + `ExtractFrameAsync`（抽帧）/ 探测时长 |
+| `FfmpegService` | 命令拼装 + 执行 + `ExtractFrameAsync`（抽帧）/ 探测时长 / `Play`（外部播放器 → ffplay） |
+| **`CommandLint`**（NT-098） | 参数**静态预检**：copy 配滤镜/CRF、`.gif` 配 x264、NVENC 用 `-crf`、多个 `-vf`、`-vf`+`-filter_complex`、CRF 越界、GIF 超 30 秒… 只做已知冲突白名单，⛔ 不解析 ffmpeg 语法 |
 | `VideoScanner` | 目录扫描入库 |
 | `VideoMediaIndex` | 本地索引（`data\` 侧，轻量） |
 | `VideoTaskStore` | 跨页投递（`TakePendingCut` / `TakePendingTranscode`，**取一次即清空**） |
@@ -136,6 +140,13 @@
 - 从「视频列表」送来 → 载入后**自动触发一次预览**（探测时长 + 抽当前帧）。
 - 取件必须在 `OnAttachedToVisualTree`（不是 `OnDataContextChanged`），见 `../ui.md` §6.2 第 8 条。
 
+### 3.5 参数预检 / 试跑 / GIF（NT-098 · NT-099）
+
+- **预检**：`CommandLint.Check(args, output, source)` 吃**含输出路径的完整参数列表**（两页都从各自的 `Build*Args` 拿，手改过就是手改那条），返回 `LintIssue(IsError, Text)` 列表；`Describe()` 拼成多行（最多 4 条）。详情卡里是一条 `FieldKind.Hint` + `ValuePath=LintText` + `VisibleWhen=HasLint`。
+- **试跑**：预览页 `RunTrialAsync` 直接改任务的区间字段后调同一个 `Build*Args`（⛔ 不另写拼参逻辑），产物落 `%TEMP%\NewToys\trial\trial_HHmmss.<ext>`，再用 `ExtractFrameAsync(0.05s)` 出右栏对比图（帧文件跟小样同名 → 不会与上一张 Bitmap 抢文件）。批量页 `TrialSelectedAsync` 走 `BuildArgs(t, includeRaw: true, overrideOutput: 临时路径)`，没区间时在输出路径**前**插 `-t 5`。
+- **GIF**：`TranscodePreset.Id="gif"` + `FfmpegService.IsGif()` 判定 → `BuildTranscodeArgs` **独立分支**（`-an -c:v gif -loop 0` + `GifFilterChain` 单遍调色板）；`TranscodeTask.ContainerDisplay` 对 GIF 强制 `.gif`（容器下拉无效）。**单遍**而不是两遍：两遍要在预览里显示两条命令，「看到的 ≠ 跑的」；单遍代价是整段帧过内存 ⇒ 预检对 >30 秒给提示。
+- **进度**：`-progress pipe:1 -nostats` 必须放在**业务参数之前**；只认 `out_time_us` 与 `out_time=`（时间码），⛔ 不读 `out_time_ms`（多版本里实际是微秒）。
+
 ## 4. 关键文件
 
 | 关注点 | 文件 |
@@ -154,6 +165,11 @@
 3. 🔴 输出路径**绝不覆盖已有文件**（自动命名要避让）。
 4. 拖滑条抽帧必须节流（最新值优先），否则卡住 UI 线程。
 5. 批量页属性名与预览页**不完全同名是刻意的**（见 §3.3），⛔ 别"统一命名"。
+6. 🔴 **`-progress` 不能追加在输出路径之后**（NT-098 已修）：ffmpeg 会告警 “Trailing option(s)…may be ignored”，进度可能整个不掉。
+7. 🔴 **`out_time_ms` 的数值在多版本里是微秒**（历史 bug）⇒ 按毫秒除 1000 会算成 1000 倍，进度条瞬间满。只读 `out_time_us` / `out_time`。
+8. 🔴 **`-ss` 前置 + `-c copy` 会带负 DTS**（开头黑屏/卡顿）⇒ copy 分支固定补 `-avoid_negative_ts make_zero`。
+9. 🔴 **GIF 不吃 `-crf` / `-preset` / 音频参数**，且必须自带调色板滤镜；把 GIF 塞进通用转码分支会得到「灰扑扑 + 体积大」或直接报错。
+10. 🔴 **抽帧文件名要跟产物同名**（`xxx.shot.jpg`）：`Bitmap` 加载后会占着文件，固定名复用会被上一张锁住导致新图抽不出来。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

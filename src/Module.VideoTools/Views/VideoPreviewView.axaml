@@ -11,7 +11,7 @@
     <!--  ==================== 工具条：**所有**动作按钮都在这里（含详情开关）  ==================== -->
 
     <!--  ==================== 主体：预览列（详情卡由 Shell 右列承载）  ==================== -->
-    <Grid Grid.Row="1" Margin="0,8,0,0">
+    <Grid Grid.Row="1" Margin="0,8,0,0" ColumnDefinitions="*,Auto">
 
       <!--  ==================== 预览画面 + 三条时间条（均常显）  ==================== -->
       <Border Grid.Column="0" Classes="card" Padding="4">
@@ -90,6 +90,20 @@
         </Grid>
       </Border>
 
+      <!--  ==================== 试跑结果（NT-098）：只在试跑成功后出现 ====================
+            左栏 = 原片当前帧，右栏 = 同参数试跑小样的一帧 —— 并排看压缩损失 / 字幕位置 / 缩放 / 旋转。
+            右列 Auto 宽：不可见时宽度归零，不影响原布局。  -->
+      <Border Grid.Column="1" Classes="card" Padding="4" Width="260" Margin="8,0,0,0"
+              IsVisible="{Binding HasTrialImage}">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0" Classes="field-label" Margin="4,2,0,4"
+                     Text="试跑结果（当前参数 · 5 秒小样）"/>
+          <Border Grid.Row="1" CornerRadius="6" ClipToBounds="True"
+                  Background="{DynamicResource CodeBlockBrush}" MinHeight="200">
+            <Image Source="{Binding TrialImage}" Stretch="Uniform"/>
+          </Border>
+        </Grid>
+      </Border>
 
     </Grid>
   </Grid>

@@ -505,12 +505,16 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         IsCutSectionExpanded = value;
         OnPropertyChanged(nameof(RangeEnabled));
         RefreshCommand();
+        OnPropertyChanged(nameof(CanTrial));
+        NotifyToolbarChanged();
     }
 
     partial void OnIsTranscodeChanged(bool value)
     {
         IsTranscodeSectionExpanded = value;
         RefreshCommand();
+        OnPropertyChanged(nameof(CanTrial));
+        NotifyToolbarChanged();
     }
 
     // ==================== 源文件 ====================
@@ -549,6 +553,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         OnPropertyChanged(nameof(HasSource));
         RefreshCommand();
         RefreshStatusPrefix();     // v3.16：换文件 → 状态栏前缀立刻跟上
+        NotifyToolbarChanged();    // NT-098：工具条按钮的可用性跟着「有没有源」走
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
@@ -1046,9 +1051,19 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     public bool HasTrialImage => TrialImage != null;
     public bool CanTrial => HasSource && !IsTrialing && (IsCut || IsTranscode);
 
-    partial void OnTrialFileChanged(string value) => OnPropertyChanged(nameof(HasTrial));
+    partial void OnTrialFileChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasTrial));
+        NotifyToolbarChanged();   // 「▶ 播放小样」的显隐跟着小样走
+    }
+
     partial void OnTrialImageChanged(Bitmap? value) => OnPropertyChanged(nameof(HasTrialImage));
-    partial void OnIsTrialingChanged(bool value) => OnPropertyChanged(nameof(CanTrial));
+
+    partial void OnIsTrialingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanTrial));
+        NotifyToolbarChanged();
+    }
 
     /// <summary>
     /// 🧪 试跑 5 秒：用**当前全部参数**（含手改命令、含 GIF）从「预览位置」起真转一小段到临时目录。

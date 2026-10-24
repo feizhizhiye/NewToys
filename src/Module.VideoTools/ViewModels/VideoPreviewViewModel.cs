@@ -176,6 +176,9 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// <summary>📝 选择字幕文件（NT-100；code-behind 挂真正实现）。</summary>
     public ICommand? PickSubtitleCommand { get; set; }
 
+    /// <summary>🎵 选择替换用的音频文件（NT-103；code-behind 挂真正实现）。</summary>
+    public ICommand? PickAudioCommand { get; set; }
+
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
@@ -368,6 +371,30 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         OptionDisplayPath = "Label",
                         ValuePath = nameof(SelectedRotate)
                     },
+                    // ===== 裁剪（NT-102）：宽 × 高 + 左上角坐标 =====
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "裁剪（宽 × 高；0 = 不裁剪。可用下面「🖼 探测黑边」自动填）",
+                        ValuePath = nameof(EditCropWidth),
+                        Kind = FieldKind.Pair,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        Placeholder = "宽",
+                        SecondValuePath = nameof(EditCropHeight),
+                        SecondPlaceholder = "高"
+                    },
+                    new DetailField
+                    {
+                        Label = "裁剪起点（X × Y，左上角；0,0 = 贴左上）",
+                        ValuePath = nameof(EditCropX),
+                        Kind = FieldKind.Pair,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        Placeholder = "X",
+                        SecondValuePath = nameof(EditCropY),
+                        SecondPlaceholder = "Y"
+                    },
                     // ===== 字幕（NT-100）=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
@@ -411,6 +438,36 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         Mono = true,
                         VisibleWhen = nameof(IsHardSubtitleEdit)
                     },
+                    // ===== 音轨（NT-103）=====
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "音频",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(AudioModeChoices),
+                        OptionValuePath = "Value",
+                        OptionDisplayPath = "Label",
+                        ValuePath = nameof(EditAudioMode)
+                    },
+                    new DetailField
+                    {
+                        Label = "音量增益（dB；正 = 变响、负 = 变轻，±6 已很明显）",
+                        ValuePath = nameof(EditVolumeDb),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        Placeholder = "6",
+                        VisibleWhen = nameof(IsVolumeModeEdit)
+                    },
+                    new DetailField
+                    {
+                        Label = "替换成的音频文件（用下面「🎵 选择音频文件…」挑）",
+                        ValuePath = nameof(EditAudioPath),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        VisibleWhen = nameof(IsReplaceAudioEdit)
+                    },
                     new DetailField
                     {
                         Label = "码率模式",
@@ -436,6 +493,23 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         Mono = true,
                         Placeholder = "5000k",
                         VisibleWhen = "!" + nameof(UseCrf)
+                    },
+                    // ===== 目标体积（NT-104）=====
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "目标体积（MB；0 = 不用。填了优先于 CRF / 目标码率）",
+                        ValuePath = nameof(EditTargetSizeMb),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        Placeholder = "50"
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        ValuePath = nameof(TargetSizeHint),
+                        VisibleWhen = nameof(HasTargetSizeHint)
                     },
                     // NT-099：仅 GIF 预设可见（其它预设这些参数没有意义）
                     new DetailField
@@ -541,6 +615,22 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                 Classes = "ghost",
                 ToolTip = "挑一个 .srt / .ass 字幕，再把上面的「字幕方式」选成软字幕或硬字幕",
                 Command = new RelayCommand(() => PickSubtitleCommand?.Execute(null))
+            },
+            // NT-102：探测黑边（从预览位置取 2 秒跑 cropdetect）
+            new DetailAction
+            {
+                Text = "🖼 探测黑边",
+                Classes = "ghost",
+                ToolTip = "自动算出去掉黑边后的画面尺寸与起点，填进上面的裁剪框（从当前预览位置取 2 秒）",
+                Command = DetectCropCommand
+            },
+            // NT-103：替换音轨用的音频文件
+            new DetailAction
+            {
+                Text = "🎵 选择音频文件…",
+                Classes = "ghost",
+                ToolTip = "先把「音频」选成「替换音轨」，再挑一个 mp3 / m4a / wav",
+                Command = new RelayCommand(() => PickAudioCommand?.Execute(null))
             }
         }
     };
@@ -611,6 +701,13 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         EditEnd = "";              // v3.16.1：换文件 → 结束归零，探测到新时长后自动填成"整段末尾"（停最右）
         PreviewRotation = 0;       // v3.19 / NT-012：换文件 → 预览旋转角度与「旋转」字段归零
         EditRotate = "";
+        // NT-102 ~ NT-104：裁剪坐标 / 替换音轨 / 目标体积都跟具体文件绑定，换文件必须作废
+        EditCropWidth = 0;
+        EditCropHeight = 0;
+        EditCropX = 0;
+        EditCropY = 0;
+        EditAudioPath = "";
+        EditTargetSizeMb = 0;
         IsArgsEdited = false;
         OnPropertyChanged(nameof(HasSource));
         RefreshCommand();
@@ -625,6 +722,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         OnPropertyChanged(nameof(TimelineMax));
         OnPropertyChanged(nameof(HasDuration));
         OnPropertyChanged(nameof(DurationDisplay));
+        OnPropertyChanged(nameof(TargetSizeHint));      // NT-104：体积反算依赖时长
+        OnPropertyChanged(nameof(HasTargetSizeHint));
         RefreshStatusPrefix();     // v3.16：探测到时长 → 状态栏前缀里的时长补上
 
         // v3.16.1：没手填过结束 → 结束滑块**停在最右**（= 整段末尾）。
@@ -989,6 +1088,119 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     partial void OnEditSubtitleFontSizeChanged(int value) => RefreshCommand();
     partial void OnEditSubtitleMarginVChanged(int value) => RefreshCommand();
 
+    // ==================== 裁剪 / 音轨 / 目标体积（NT-102 ~ NT-104） ====================
+
+    /// <summary>裁剪宽（0 = 不裁剪；必须与高同时 &gt; 0）。</summary>
+    [ObservableProperty] private int _editCropWidth;
+
+    /// <summary>裁剪高。</summary>
+    [ObservableProperty] private int _editCropHeight;
+
+    /// <summary>裁剪左上角 X（像素）。</summary>
+    [ObservableProperty] private int _editCropX;
+
+    /// <summary>裁剪左上角 Y（像素）。</summary>
+    [ObservableProperty] private int _editCropY;
+
+    /// <summary>音频方式（取值见 <see cref="AudioModes"/>）。</summary>
+    [ObservableProperty] private string _editAudioMode = AudioModes.Keep;
+
+    /// <summary>音量增益（dB；正 = 变响）。</summary>
+    [ObservableProperty] private double _editVolumeDb;
+
+    /// <summary>替换用的音频文件。</summary>
+    [ObservableProperty] private string _editAudioPath = "";
+
+    /// <summary>目标体积（MB；0 = 不用）。</summary>
+    [ObservableProperty] private double _editTargetSizeMb;
+
+    /// <summary>「音频方式」下拉选项。</summary>
+    public IReadOnlyList<AudioModeOption> AudioModeChoices => AudioModes.All;
+
+    public bool IsVolumeModeEdit => string.Equals(EditAudioMode, AudioModes.Volume, StringComparison.OrdinalIgnoreCase);
+    public bool IsReplaceAudioEdit => string.Equals(EditAudioMode, AudioModes.Replace, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>目标体积反算出的码率提示（没填 / 时长未知 → 空）。</summary>
+    public string TargetSizeHint
+    {
+        get
+        {
+            if (EditTargetSizeMb <= 0) return "";
+            if (Duration <= 0) return "⚠ 读不到源时长 —— 算不出码率（先让预览读出时长）。";
+            var kbps = FfmpegService.AutoBitrateKbps(BuildTranscodeTask());
+            return kbps > 0
+                ? $"按 {EditTargetSizeMb:0.#} MB ÷ {CutTask.FormatTime(Duration)} ≈ 视频 {kbps} kbps（已扣音频与容器开销；单遍 ABR，实际会略有偏差）。"
+                : "";
+        }
+    }
+
+    public bool HasTargetSizeHint => TargetSizeHint.Length > 0;
+
+    /// <summary>📝 探测黑边（失败 / 取不到 → 状态栏照实说，不改已有裁剪值）。</summary>
+    [ObservableProperty] private bool _isDetectingCrop;
+
+    /// <summary>🖼 探测黑边：跑 2 秒 cropdetect，把结果填进四个裁剪框。</summary>
+    [RelayCommand]
+    private async Task DetectCropAsync()
+    {
+        if (!HasSource || !File.Exists(SourcePath)) { StatusText = "先挑一个视频。"; return; }
+        if (IsDetectingCrop) return;
+
+        IsDetectingCrop = true;
+        try
+        {
+            var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
+            StatusText = "探测黑边中（取预览位置附近 2 秒）…";
+            var found = await FfmpegService.DetectCropAsync(ffmpeg, SourcePath, PreviewTime);
+            if (found == null)
+            {
+                StatusText = "⚠ 没探测到有效画面（源无视频轨 / ffmpeg 不可用？）—— 裁剪值保持不变。";
+                return;
+            }
+
+            var (w, h, x, y) = found.Value;
+            EditCropWidth = w;
+            EditCropHeight = h;
+            EditCropX = x;
+            EditCropY = y;
+            StatusText = w == 0 || h == 0
+                ? "⚠ 探测结果异常（0×0）—— 裁剪值保持不变。"
+                : $"探测到有效画面 {w}×{h} @ ({x}, {y})；四周没有黑边时就是整幅画面。";
+        }
+        catch (Exception ex)
+        {
+            StatusText = "⚠ 探测失败：" + ex.Message;
+        }
+        finally
+        {
+            IsDetectingCrop = false;
+        }
+    }
+
+    partial void OnEditCropWidthChanged(int value) => RefreshCropDependent();
+    partial void OnEditCropHeightChanged(int value) => RefreshCropDependent();
+    partial void OnEditCropXChanged(int value) => RefreshCropDependent();
+    partial void OnEditCropYChanged(int value) => RefreshCropDependent();
+
+    private void RefreshCropDependent() => RefreshCommand();
+
+    partial void OnEditAudioModeChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsVolumeModeEdit));
+        OnPropertyChanged(nameof(IsReplaceAudioEdit));
+        RefreshCommand();
+    }
+
+    partial void OnEditVolumeDbChanged(double value) => RefreshCommand();
+    partial void OnEditAudioPathChanged(string value) => RefreshCommand();
+
+    partial void OnEditTargetSizeMbChanged(double value)
+    {
+        OnPropertyChanged(nameof(TargetSizeHint));
+        OnPropertyChanged(nameof(HasTargetSizeHint));
+        RefreshCommand();
+    }
+
     /// <summary>多段剪切串（每行一段 <c>开始-结束</c>）。</summary>
     [ObservableProperty] private string _editSegmentsText = "";
 
@@ -1142,7 +1354,10 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     {
         var output = ResolveOutput();
         LintText = CommandLint.Describe(CommandLint.Check(BuildExecutableArgs(), output, SourcePath,
-                                                          EditSubtitlePath, EditSubtitleMode));
+                                                          EditSubtitlePath, EditSubtitleMode,
+                                                          new LintExtra(EditCropWidth, EditCropHeight,
+                                                                        EditAudioMode, EditAudioPath,
+                                                                        EditTargetSizeMb, Duration)));
     }
 
     /// <summary>真正会执行的参数（**含**输出路径）—— 预检 / 试跑共用，与运行时同源。</summary>
@@ -1355,6 +1570,14 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
             SubtitleMode = string.IsNullOrWhiteSpace(EditSubtitleMode) ? SubtitleModes.None : EditSubtitleMode,
             SubtitleFontSize = EditSubtitleFontSize,
             SubtitleMarginV = EditSubtitleMarginV,
+            CropWidth = EditCropWidth,
+            CropHeight = EditCropHeight,
+            CropX = EditCropX,
+            CropY = EditCropY,
+            AudioMode = string.IsNullOrWhiteSpace(EditAudioMode) ? AudioModes.Keep : EditAudioMode,
+            VolumeDb = EditVolumeDb,
+            ReplaceAudioPath = (EditAudioPath ?? "").Trim(),
+            TargetSizeMb = EditTargetSizeMb,
             SourceDuration = Duration,
             OutputPath = ResolveOutput()
         };

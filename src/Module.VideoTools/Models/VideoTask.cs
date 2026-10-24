@@ -388,6 +388,45 @@ public sealed class SubtitleModeOption
     public string Label { get; set; } = "";
 }
 
+/// <summary>
+/// 音频处理方式（NT-103）：一个下拉单选，⛔ 不用三个独立开关（互斥关系靠界面管不住）。
+/// </summary>
+public static class AudioModes
+{
+    /// <summary>保持原音频（默认）。</summary>
+    public const string Keep = "";
+
+    /// <summary>静音（<c>-an</c>，去掉音轨）。</summary>
+    public const string Mute = "mute";
+
+    /// <summary>音量增益 / 衰减（<c>-af volume=±NdB</c>，必须重编码音频）。</summary>
+    public const string Volume = "volume";
+
+    /// <summary>替换音轨（额外一条输入 + <c>-map</c>，视频仍取源片）。</summary>
+    public const string Replace = "replace";
+
+    public static IReadOnlyList<AudioModeOption> All { get; } = new[]
+    {
+        new AudioModeOption { Value = Keep,    Label = "保持原音频" },
+        new AudioModeOption { Value = Mute,    Label = "静音（去掉音轨）" },
+        new AudioModeOption { Value = Volume,  Label = "音量增益（±dB）" },
+        new AudioModeOption { Value = Replace, Label = "替换音轨（换一条音频）" },
+    };
+
+    public static AudioModeOption Find(string? value)
+        => All.FirstOrDefault(o => string.Equals(o.Value, value ?? "", StringComparison.OrdinalIgnoreCase)) ?? All[0];
+
+    /// <summary>选音频文件时的后缀白名单。</summary>
+    public const string FilePatterns = "*.mp3;*.m4a;*.aac;*.wav;*.flac;*.ogg;*.opus";
+}
+
+/// <summary>「音频方式」下拉项（<see cref="Value"/> = 存进 <see cref="TranscodeTask.AudioMode"/> 的值）。</summary>
+public sealed class AudioModeOption
+{
+    public string Value { get; set; } = "";
+    public string Label { get; set; } = "";
+}
+
 /// <summary>多段剪切里的一段（<c>Start</c> 秒 → <c>End</c> 秒；<c>End</c>=0 表示到末尾，但多段时按无效处理）。</summary>
 public readonly record struct CutSegment(double Start, double End)
 {
@@ -625,6 +664,102 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(ParamDisplay));
     }
 
+    // ==================== 画面裁剪（NT-102：去黑边 / 只留画面一块） ====================
+
+    /// <summary>裁剪宽（像素；0 = 不裁剪）。必须与 <see cref="CropHeight"/> 同时 &gt; 0 才生效。</summary>
+    [ObservableProperty] private int _cropWidth;
+
+    /// <summary>裁剪高（像素；0 = 不裁剪）。</summary>
+    [ObservableProperty] private int _cropHeight;
+
+    /// <summary>裁剪左上角 X（像素；0 = 贴左边）。</summary>
+    [ObservableProperty] private int _cropX;
+
+    /// <summary>裁剪左上角 Y（像素；0 = 贴顶边）。</summary>
+    [ObservableProperty] private int _cropY;
+
+    /// <summary>是否真的有裁剪（宽高都 &gt; 0）。</summary>
+    public bool IsCropping => CropWidth > 0 && CropHeight > 0;
+
+    /// <summary>裁剪摘要（详情卡提示 / 列表参数列）。</summary>
+    public string CropDisplay
+        => IsCropping ? $"{CropWidth}×{CropHeight} @ ({CropX}, {CropY})" : "不裁剪";
+
+    partial void OnCropWidthChanged(int value) => NotifyCropChanged();
+    partial void OnCropHeightChanged(int value) => NotifyCropChanged();
+    partial void OnCropXChanged(int value) => NotifyCropChanged();
+    partial void OnCropYChanged(int value) => NotifyCropChanged();
+
+    private void NotifyCropChanged()
+    {
+        OnPropertyChanged(nameof(IsCropping));
+        OnPropertyChanged(nameof(CropDisplay));
+        OnPropertyChanged(nameof(ParamDisplay));
+    }
+
+    // ==================== 音轨（NT-103：静音 / 音量 / 替换） ====================
+
+    /// <summary>音频方式（取值见 <see cref="AudioModes"/>；<c>""</c> = 保持原音频）。</summary>
+    [ObservableProperty] private string _audioMode = AudioModes.Keep;
+
+    /// <summary>音量增益（dB，正 = 变响、负 = 变轻；0 = 不改）。仅 <see cref="AudioModes.Volume"/> 生效。</summary>
+    [ObservableProperty] private double _volumeDb;
+
+    /// <summary>替换用的音频文件全路径。仅 <see cref="AudioModes.Replace"/> 生效。</summary>
+    [ObservableProperty] private string _replaceAudioPath = "";
+
+    public bool IsAudioMuted => string.Equals(AudioMode, AudioModes.Mute, StringComparison.OrdinalIgnoreCase);
+    public bool IsVolumeMode => string.Equals(AudioMode, AudioModes.Volume, StringComparison.OrdinalIgnoreCase);
+    public bool IsReplaceAudio => string.Equals(AudioMode, AudioModes.Replace, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>音频摘要（详情卡 / 参数列）。</summary>
+    public string AudioDisplay => AudioMode switch
+    {
+        AudioModes.Mute => "静音",
+        AudioModes.Volume => VolumeDb == 0 ? "音量（未设 dB）" : $"音量 {VolumeDb:+0.#;-0.#;0} dB",
+        AudioModes.Replace => string.IsNullOrWhiteSpace(ReplaceAudioPath)
+            ? "替换音轨（未选文件）"
+            : "替换音轨 · " + System.IO.Path.GetFileName(ReplaceAudioPath),
+        _ => "原音频"
+    };
+
+    partial void OnAudioModeChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsAudioMuted));
+        OnPropertyChanged(nameof(IsVolumeMode));
+        OnPropertyChanged(nameof(IsReplaceAudio));
+        OnPropertyChanged(nameof(AudioDisplay));
+        OnPropertyChanged(nameof(ParamDisplay));
+    }
+
+    partial void OnVolumeDbChanged(double value)
+    {
+        OnPropertyChanged(nameof(AudioDisplay));
+        OnPropertyChanged(nameof(ParamDisplay));
+    }
+
+    partial void OnReplaceAudioPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(AudioDisplay));
+        OnPropertyChanged(nameof(ParamDisplay));
+    }
+
+    // ==================== 目标体积（NT-104：按 MB 反算码率） ====================
+
+    /// <summary>
+    /// 目标体积（MB；0 = 不用）。启用后按 <see cref="SourceDuration"/> 反算视频码率
+    /// （<see cref="FfmpegService.AutoBitrateKbps"/>），**优先于** CRF / 目标码率。
+    /// </summary>
+    [ObservableProperty] private double _targetSizeMb;
+
+    public bool HasTargetSize => TargetSizeMb > 0;
+
+    partial void OnTargetSizeMbChanged(double value)
+    {
+        OnPropertyChanged(nameof(HasTargetSize));
+        OnPropertyChanged(nameof(ParamDisplay));
+    }
+
     // ==================== 转码前（源） ====================
 
     [ObservableProperty] private long _sourceSize;
@@ -715,7 +850,12 @@ public partial class TranscodeTask : VideoTaskBase
         get
         {
             var head = HasTrim ? TrimDisplay + " · " + PresetName : PresetName;
-            return IsSoftSubtitle || IsHardSubtitle ? head + " · " + SubtitleDisplay : head;
+            if (IsSoftSubtitle || IsHardSubtitle) head += " · " + SubtitleDisplay;
+            // NT-102 / NT-103 / NT-104：非默认值才追加，避免列表里堆一串"不裁剪 · 原音频"
+            if (IsCropping) head += " · 裁剪 " + CropDisplay;
+            if (!string.IsNullOrEmpty(AudioMode)) head += " · " + AudioDisplay;
+            if (HasTargetSize) head += $" · 目标 {TargetSizeMb:0.#} MB";
+            return head;
         }
     }
     public override string BeforeDisplay => SourceSizeDisplay;

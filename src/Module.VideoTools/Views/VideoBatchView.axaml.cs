@@ -51,6 +51,7 @@ public partial class VideoBatchView : UserControl
         {
             vmb.PickOutputCommand = new RelayCommand(() => _ = PickOutputAsync());
             vmb.PickSubtitleCommand = new RelayCommand(() => _ = PickSubtitleAsync());
+            vmb.PickAudioCommand = new RelayCommand(() => _ = PickAudioAsync());
         }
     }
 
@@ -129,6 +130,44 @@ public partial class VideoBatchView : UserControl
         catch (Exception ex)
         {
             vm.StatusText = "选择字幕失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>🎵 为当前选中任务挑替换用的音频文件（NT-103）。</summary>
+    private async System.Threading.Tasks.Task PickAudioAsync()
+    {
+        if (DataContext is not VideoBatchViewModel vm) return;
+        if (vm.Selected == null) { vm.StatusText = "先在列表里选中一个任务。"; return; }
+
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "选择音频文件",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("音频文件")
+                    {
+                        Patterns = new[] { "*.mp3", "*.m4a", "*.aac", "*.wav", "*.flac", "*.ogg", "*.opus" }
+                    }
+                }
+            });
+
+            var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+            if (string.IsNullOrWhiteSpace(path)) return;
+
+            vm.EditAudioPath = path;
+            if (string.Equals(vm.EditAudioMode, AudioModes.Keep, StringComparison.OrdinalIgnoreCase))
+                vm.EditAudioMode = AudioModes.Replace;
+            vm.StatusText = "已选择音频：" + System.IO.Path.GetFileName(path) + "（记得点「💾 保存修改」）";
+        }
+        catch (Exception ex)
+        {
+            vm.StatusText = "选择音频失败：" + ex.Message;
         }
     }
 

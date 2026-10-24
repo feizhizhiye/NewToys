@@ -227,6 +227,124 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     partial void OnEditSubtitleFontSizeChanged(int value) => RefreshCommand();
     partial void OnEditSubtitleMarginVChanged(int value) => RefreshCommand();
 
+    // ==================== 裁剪 / 音轨 / 目标体积（NT-102 ~ NT-104） ====================
+
+    /// <summary>裁剪宽（0 = 不裁剪）。</summary>
+    [ObservableProperty] private int _editCropWidth;
+
+    /// <summary>裁剪高。</summary>
+    [ObservableProperty] private int _editCropHeight;
+
+    /// <summary>裁剪左上角 X。</summary>
+    [ObservableProperty] private int _editCropX;
+
+    /// <summary>裁剪左上角 Y。</summary>
+    [ObservableProperty] private int _editCropY;
+
+    /// <summary>音频方式（取值见 <see cref="AudioModes"/>）。</summary>
+    [ObservableProperty] private string _editAudioMode = AudioModes.Keep;
+
+    /// <summary>音量增益（dB）。</summary>
+    [ObservableProperty] private double _editVolumeDb;
+
+    /// <summary>替换用的音频文件。</summary>
+    [ObservableProperty] private string _editAudioPath = "";
+
+    /// <summary>目标体积（MB；0 = 不用）。</summary>
+    [ObservableProperty] private double _editTargetSizeMb;
+
+    /// <summary>「音频方式」下拉选项。</summary>
+    public IReadOnlyList<AudioModeOption> AudioModeChoices => AudioModes.All;
+
+    public bool IsVolumeModeEdit => string.Equals(EditAudioMode, AudioModes.Volume, StringComparison.OrdinalIgnoreCase);
+    public bool IsReplaceAudioEdit => string.Equals(EditAudioMode, AudioModes.Replace, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>目标体积反算提示（时长取选中任务的源时长）。</summary>
+    public string TargetSizeHint
+    {
+        get
+        {
+            if (EditTargetSizeMb <= 0) return "";
+            var duration = (DetailTask as TranscodeTask)?.SourceDuration ?? 0;
+            if (duration <= 0) return "⚠ 这条任务没有源时长 —— 算不出码率（重新加一次任务让它探测）。";
+
+            var probe = new TranscodeTask
+            {
+                PresetId = EditPresetId,
+                AudioMode = string.IsNullOrWhiteSpace(EditAudioMode) ? AudioModes.Keep : EditAudioMode,
+                TargetSizeMb = EditTargetSizeMb,
+                SourceDuration = duration
+            };
+            var kbps = FfmpegService.AutoBitrateKbps(probe);
+            return kbps > 0
+                ? $"按 {EditTargetSizeMb:0.#} MB ÷ {CutTask.FormatTime(duration)} ≈ 视频 {kbps} kbps（已扣音频与容器开销）。"
+                : "";
+        }
+    }
+
+    public bool HasTargetSizeHint => TargetSizeHint.Length > 0;
+
+    partial void OnEditCropWidthChanged(int value) => RefreshCommand();
+    partial void OnEditCropHeightChanged(int value) => RefreshCommand();
+    partial void OnEditCropXChanged(int value) => RefreshCommand();
+    partial void OnEditCropYChanged(int value) => RefreshCommand();
+
+    partial void OnEditAudioModeChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsVolumeModeEdit));
+        OnPropertyChanged(nameof(IsReplaceAudioEdit));
+        RefreshCommand();
+    }
+
+    partial void OnEditVolumeDbChanged(double value) => RefreshCommand();
+    partial void OnEditAudioPathChanged(string value) => RefreshCommand();
+
+    partial void OnEditTargetSizeMbChanged(double value)
+    {
+        OnPropertyChanged(nameof(TargetSizeHint));
+        OnPropertyChanged(nameof(HasTargetSizeHint));
+        RefreshCommand();
+    }
+
+    /// <summary>🖼 探测选中任务的黑边（NT-102）：结果只填编辑缓冲，点「💾 保存」才写回任务。</summary>
+    [RelayCommand]
+    private async Task DetectCropAsync()
+    {
+        var t = Selected;
+        if (t == null) { StatusText = "先在左侧选中一个任务。"; return; }
+        if (string.IsNullOrWhiteSpace(t.SourcePath) || !System.IO.File.Exists(t.SourcePath))
+        {
+            StatusText = "源文件不存在 —— 探测不了黑边。";
+            return;
+        }
+
+        try
+        {
+            var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
+            var at = t is TranscodeTask { HasTrim: true } x ? x.TrimStart : 0;
+            StatusText = "探测黑边中…";
+            var found = await FfmpegService.DetectCropAsync(ffmpeg, t.SourcePath, at);
+            if (found == null)
+            {
+                StatusText = "⚠ 没探测到有效画面 —— 裁剪值保持不变。";
+                return;
+            }
+
+            var (w, h, cx, cy) = found.Value;
+            EditCropWidth = w;
+            EditCropHeight = h;
+            EditCropX = cx;
+            EditCropY = cy;
+            StatusText = w > 0 && h > 0
+                ? $"探测到有效画面 {w}×{h} @ ({cx}, {cy}) —— 别忘了点「💾 保存」。"
+                : "⚠ 探测结果异常（0×0）—— 裁剪值保持不变。";
+        }
+        catch (Exception ex)
+        {
+            StatusText = "⚠ 探测失败：" + ex.Message;
+        }
+    }
+
     // 公共
     [ObservableProperty] private string _editOutput = "";
 
@@ -603,8 +721,13 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         var args = BuildArgs(task);                 // 手改过就是手改那条
         var sub = task as TranscodeTask;
+        // NT-102 ~ NT-104：命令是由**任务上的值**生成的，所以补充上下文也取任务的值（⛔ 别取编辑缓冲，否则提示与命令对不上）
+        var extra = sub == null
+            ? null
+            : new LintExtra(sub.CropWidth, sub.CropHeight, sub.AudioMode, sub.ReplaceAudioPath,
+                            sub.TargetSizeMb, sub.SourceDuration);
         LintText = CommandLint.Describe(CommandLint.Check(args, ResolveOutputOf(task), task.SourcePath,
-                                                          sub?.SubtitlePath, sub?.SubtitleMode));
+                                                          sub?.SubtitlePath, sub?.SubtitleMode, extra));
     }
 
     // ==================== 试跑选中（NT-098） ====================
@@ -788,6 +911,9 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     /// <summary>📝 选择字幕文件（NT-100；code-behind 挂真正实现）。</summary>
     public ICommand? PickSubtitleCommand { get; set; }
+
+    /// <summary>🎵 选择替换用的音频文件（NT-103；code-behind 挂真正实现）。</summary>
+    public ICommand? PickAudioCommand { get; set; }
 
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
@@ -992,6 +1118,30 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         OptionDisplayPath = "Label",
                         ValuePath = nameof(SelectedRotate)
                     },
+                    // ===== 裁剪（NT-102）=====
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "裁剪（宽 × 高；0 = 不裁剪。可用下面「🖼 探测黑边」自动填）",
+                        ValuePath = nameof(EditCropWidth),
+                        Kind = FieldKind.Pair,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        Placeholder = "宽",
+                        SecondValuePath = nameof(EditCropHeight),
+                        SecondPlaceholder = "高"
+                    },
+                    new DetailField
+                    {
+                        Label = "裁剪起点（X × Y，左上角；0,0 = 贴左上）",
+                        ValuePath = nameof(EditCropX),
+                        Kind = FieldKind.Pair,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        Placeholder = "X",
+                        SecondValuePath = nameof(EditCropY),
+                        SecondPlaceholder = "Y"
+                    },
                     // ===== 字幕（NT-100）=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
@@ -1035,6 +1185,36 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Mono = true,
                         VisibleWhen = nameof(IsHardSubtitleEdit)
                     },
+                    // ===== 音轨（NT-103）=====
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "音频",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(AudioModeChoices),
+                        OptionValuePath = "Value",
+                        OptionDisplayPath = "Label",
+                        ValuePath = nameof(EditAudioMode)
+                    },
+                    new DetailField
+                    {
+                        Label = "音量增益（dB；正 = 变响、负 = 变轻，±6 已很明显）",
+                        ValuePath = nameof(EditVolumeDb),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        Placeholder = "6",
+                        VisibleWhen = nameof(IsVolumeModeEdit)
+                    },
+                    new DetailField
+                    {
+                        Label = "替换成的音频文件（用下面「🎵 选择音频文件…」挑）",
+                        ValuePath = nameof(EditAudioPath),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        VisibleWhen = nameof(IsReplaceAudioEdit)
+                    },
                     new DetailField
                     {
                         Label = "码率模式",
@@ -1060,6 +1240,23 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Mono = true,
                         Placeholder = "5000k",
                         VisibleWhen = "!" + nameof(UseCrf)
+                    },
+                    // ===== 目标体积（NT-104）=====
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "目标体积（MB；0 = 不用。填了优先于 CRF / 目标码率）",
+                        ValuePath = nameof(EditTargetSizeMb),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.Explicit,
+                        Mono = true,
+                        Placeholder = "50"
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        ValuePath = nameof(TargetSizeHint),
+                        VisibleWhen = nameof(HasTargetSizeHint)
                     },
                     // NT-099：仅 GIF 预设可见
                     new DetailField
@@ -1199,6 +1396,22 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 Classes = "ghost",
                 ToolTip = "用当前参数真转一小段（有区间就只跑区间，否则前 5 秒）到临时目录，成功自动播放 —— 验完再批量跑",
                 Command = TrialSelectedCommand
+            },
+            // NT-102：探测黑边（填进编辑缓冲，保存后才写回任务）
+            new DetailAction
+            {
+                Text = "🖼 探测黑边",
+                Classes = "ghost",
+                ToolTip = "从源文件（有区间就从区间起点）取 2 秒跑 cropdetect，把结果填进上面的裁剪框",
+                Command = DetectCropCommand
+            },
+            // NT-103：替换音轨用的音频文件
+            new DetailAction
+            {
+                Text = "🎵 选择音频文件…",
+                Classes = "ghost",
+                ToolTip = "先把「音频」选成「替换音轨」，再挑一个 mp3 / m4a / wav",
+                Command = new RelayCommand(() => PickAudioCommand?.Execute(null))
             }
         }
     };
@@ -1400,6 +1613,14 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             EditSubtitleMode = x.SubtitleMode;
             EditSubtitleFontSize = x.SubtitleFontSize;
             EditSubtitleMarginV = x.SubtitleMarginV;
+            EditCropWidth = x.CropWidth;
+            EditCropHeight = x.CropHeight;
+            EditCropX = x.CropX;
+            EditCropY = x.CropY;
+            EditAudioMode = x.AudioMode;
+            EditVolumeDb = x.VolumeDb;
+            EditAudioPath = x.ReplaceAudioPath;
+            EditTargetSizeMb = x.TargetSizeMb;
             EditStart = x.HasTrim ? CutTask.FormatTime(x.TrimStart) : "";
             EditEnd = x.TrimEnd > 0 ? CutTask.FormatTime(x.TrimEnd) : "";
         }
@@ -1615,6 +1836,14 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             x.SubtitleMode = string.IsNullOrWhiteSpace(EditSubtitleMode) ? SubtitleModes.None : EditSubtitleMode;
             x.SubtitleFontSize = EditSubtitleFontSize;
             x.SubtitleMarginV = EditSubtitleMarginV;
+            x.CropWidth = EditCropWidth;
+            x.CropHeight = EditCropHeight;
+            x.CropX = EditCropX;
+            x.CropY = EditCropY;
+            x.AudioMode = string.IsNullOrWhiteSpace(EditAudioMode) ? AudioModes.Keep : EditAudioMode;
+            x.VolumeDb = EditVolumeDb;
+            x.ReplaceAudioPath = (EditAudioPath ?? "").Trim();
+            x.TargetSizeMb = EditTargetSizeMb;
 
             // 区间（v3.16）：**以「✂ 剪辑」勾选框为准** —— 没勾就把区间归零，
             // ⛔ 否则会出现"框上没勾、命令里却带着 -ss"这种对不上的情况（HasTrim 以前只看终点>起点）。

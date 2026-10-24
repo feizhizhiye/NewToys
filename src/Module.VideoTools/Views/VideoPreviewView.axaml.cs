@@ -37,6 +37,7 @@ public partial class VideoPreviewView : UserControl
         {
             vm.PickOutputCommand = new RelayCommand(() => _ = PickOutputFileAsync());
             vm.PickSubtitleCommand = new RelayCommand(() => _ = PickSubtitleFileAsync());
+            vm.PickAudioCommand = new RelayCommand(() => _ = PickAudioFileAsync());
         }
     }
 
@@ -127,6 +128,44 @@ public partial class VideoPreviewView : UserControl
         catch (Exception ex)
         {
             vm.StatusText = "选择字幕失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>🎵 挑替换音轨用的音频文件（NT-103）。</summary>
+    private async System.Threading.Tasks.Task PickAudioFileAsync()
+    {
+        if (DataContext is not VideoPreviewViewModel vm) return;
+
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "选择音频文件",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("音频文件")
+                    {
+                        Patterns = new[] { "*.mp3", "*.m4a", "*.aac", "*.wav", "*.flac", "*.ogg", "*.opus" }
+                    }
+                }
+            });
+
+            var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+            if (string.IsNullOrWhiteSpace(path)) return;
+
+            vm.EditAudioPath = path;
+            // 挑了文件却还是「保持原音频」= 什么都不做，顺手切到「替换音轨」
+            if (string.Equals(vm.EditAudioMode, Models.AudioModes.Keep, StringComparison.OrdinalIgnoreCase))
+                vm.EditAudioMode = Models.AudioModes.Replace;
+            vm.StatusText = "已选择音频：" + System.IO.Path.GetFileName(path);
+        }
+        catch (Exception ex)
+        {
+            vm.StatusText = "选择音频失败：" + ex.Message;
         }
     }
 }

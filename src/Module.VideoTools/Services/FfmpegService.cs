@@ -359,6 +359,107 @@ public static class FfmpegService
     }
 
     /// <summary>
+    /// 裁剪滤镜（NT-102）：<c>crop=w:h:x:y</c>。
+    /// <para>🔴 宽高**必须取偶**：H.264/H.265 的 yuv420p 色度是 2×2 采样，奇数边长直接被编码器拒绝。</para>
+    /// </summary>
+    public static string CropFilter(TranscodeTask task)
+    {
+        if (!task.IsCropping) return "";
+        var w = Math.Max(2, task.CropWidth - task.CropWidth % 2);
+        var h = Math.Max(2, task.CropHeight - task.CropHeight % 2);
+        return $"crop={w}:{h}:{Math.Max(0, task.CropX)}:{Math.Max(0, task.CropY)}";
+    }
+
+    /// <summary>音量滤镜（NT-103）：<c>volume=6dB</c> / <c>volume=-6dB</c>（0 不产生滤镜）。</summary>
+    public static string VolumeFilter(double db)
+        => Math.Abs(db) < 0.001 ? "" : "volume=" + db.ToString("0.#", CultureInfo.InvariantCulture) + "dB";
+
+    /// <summary>
+    /// 按**目标体积**反算视频码率（NT-104），单位 kbps；返回 0 = 算不出来（没填体积 / 时长未知）。
+    /// <para>算法：<c>MB × 8192 ÷ 秒数 = 总 kbps</c>（1 MB = 8192 kbit），再扣掉音频码率与容器开销。</para>
+    /// </summary>
+    public static int AutoBitrateKbps(TranscodeTask task)
+    {
+        if (task.TargetSizeMb <= 0 || task.SourceDuration <= 0) return 0;
+        var audio = task.IsAudioMuted ? 0 : ParseKbps(task.Preset.AudioBitrate);
+        var total = (int)(task.TargetSizeMb * 8192 / task.SourceDuration);
+        var video = total - audio - 8;   // 8kbps ≈ 容器 / 索引开销
+        return Math.Max(50, video);
+    }
+
+    /// <summary>把 <c>192k</c> / <c>1M</c> 这类码率文本转成 kbps。</summary>
+    private static int ParseKbps(string? text)
+    {
+        var s = (text ?? "").Trim().ToLowerInvariant();
+        if (s.Length == 0) return 0;
+        var mult = 1;
+        if (s.EndsWith('k')) { s = s[..^1]; }
+        else if (s.EndsWith('m')) { s = s[..^1]; mult = 1000; }
+        return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v)
+            ? (int)(v * mult)
+            : 0;
+    }
+
+    /// <summary>
+    /// 探测黑边（NT-102）：跑 2 秒 <c>cropdetect</c>，解析最后一条 <c>crop=W:H:X:Y</c>。
+    /// <para>返回 null = 探测失败 / 取不到（源无画面 / ffmpeg 缺失）—— 页面照实提示，⛔ 不编一个值。</para>
+    /// </summary>
+    public static async Task<(int Width, int Height, int X, int Y)?> DetectCropAsync(
+        string ffmpeg, string source, double atSec, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(ffmpeg) || string.IsNullOrWhiteSpace(source) || !File.Exists(source))
+            return null;
+
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = ffmpeg,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8
+            };
+            foreach (var a in new[]
+                     {
+                         "-hide_banner", "-nostats",
+                         "-ss", Sec(Math.Max(0, atSec)), "-t", "2",
+                         "-i", source,
+                         "-vf", "cropdetect=24:2:0",
+                         "-f", "null", "-"
+                     })
+                psi.ArgumentList.Add(a);
+
+            using var proc = new Process { StartInfo = psi };
+            if (!proc.Start()) return null;
+
+            var errTask = proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+            var err = await errTask.ConfigureAwait(false) ?? "";
+
+            // cropdetect 的日志在 stderr：… crop=1920:1080:0:0（帧越靠后越稳定，取最后一条）
+            (int W, int H, int X, int Y)? last = null;
+            foreach (System.Text.RegularExpressions.Match m in
+                     System.Text.RegularExpressions.Regex.Matches(err, @"crop=(\d+):(\d+):(\d+):(\d+)"))
+            {
+                last = (int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value),
+                        int.Parse(m.Groups[3].Value), int.Parse(m.Groups[4].Value));
+            }
+            return last;
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// 硬字幕滤镜：<c>subtitles='路径':force_style='FontSize=22,MarginV=24'</c>。
     /// <para>
     /// 🔴 路径必须转成 <c>/</c> 并把 <c>:</c> 转义成 <c>:</c>（前面加反斜杠）—— filtergraph 用 <c>:</c> 分参数，
@@ -414,6 +515,11 @@ public static class FfmpegService
         //    v3.16：终点留空（0）= 从起点一直到文件末尾，此时不能加 -to（否则算出负数时长）。
         AppendTrimAndInput(args, task);
 
+        // ①-b 替换音轨（NT-103）：音频文件作为**第二条输入**，视频仍取 0 号输入的源片。
+        //     🔴 必须在所有输出选项之前加 -i；软字幕分支自己也要 -i（两者互斥，预检会拦）。
+        if (task.IsReplaceAudio && !task.IsSoftSubtitle && !string.IsNullOrWhiteSpace(task.ReplaceAudioPath))
+            args.AddRange(new[] { "-i", task.ReplaceAudioPath });
+
         // ② 软字幕（NT-100）：**只封装** —— 视频/音频原样 copy，字幕作为第 2 条输入单独成轨。
         //    容器必须是 .mkv（mp4 装不了 srt 轨），所以编码/分辨率等设置在本模式下不生效（详情卡有提示）。
         if (task.IsSoftSubtitle)
@@ -437,16 +543,30 @@ public static class FfmpegService
         if (IsGif(preset))
         {
             args.AddRange(new[] { "-an", "-c:v", "gif", "-loop", "0" });
-            args.AddRange(new[] { "-vf", GifFilterChain(task) });
+            // GIF 也要吃旋转 / 裁剪（去黑边做动图是常见组合），再挂调色板链
+            var gifFilters = new List<string>();
+            var gifRotate = RotateOptions.ToFilter(task.Rotate);
+            if (gifRotate.Length > 0) gifFilters.Add(gifRotate);
+            var gifCrop = CropFilter(task);
+            if (gifCrop.Length > 0) gifFilters.Add(gifCrop);
+            gifFilters.Add(GifFilterChain(task));
+            args.AddRange(new[] { "-vf", string.Join(",", gifFilters) });
             AppendOutput(args, output);
             return args;
         }
 
         var baseCodec = preset.VideoCodec ?? "";
-        // 硬字幕（NT-100）必须重新编码：copy 预设自动升级成 libx264（否则滤镜没有落脚处）
-        if (task.IsHardSubtitle && string.Equals(baseCodec, "copy", StringComparison.OrdinalIgnoreCase))
+        // 硬字幕（NT-100）/ 裁剪（NT-102）/ 音轨处理（NT-103）/ 目标体积（NT-104）都必须重新编码：
+        // copy 预设自动升级成 libx264（否则滤镜和码率控制都没有落脚处）
+        var needsReEncode = task.IsHardSubtitle || task.IsCropping || task.HasTargetSize
+                            || task.IsReplaceAudio || task.IsVolumeMode;
+        if (needsReEncode && string.Equals(baseCodec, "copy", StringComparison.OrdinalIgnoreCase))
             baseCodec = "libx264";
         var codec = ResolveEncoder(baseCodec, task.UseGpuEncoder);
+
+        // 替换音轨要显式 map：视频取第一条输入的图像，音频取第二条输入（否则 ffmpeg 会同时带上原音轨）
+        if (task.IsReplaceAudio && !string.IsNullOrWhiteSpace(task.ReplaceAudioPath))
+            args.AddRange(new[] { "-map", "0:v:0", "-map", "1:a:0" });
 
         if (string.Equals(baseCodec, "copy", StringComparison.OrdinalIgnoreCase))
         {
@@ -464,8 +584,18 @@ public static class FfmpegService
         {
             args.AddRange(new[] { "-c:v", codec });
 
-            // ② 码率：目标码率 或 恒定质量
-            if (string.Equals(task.BitrateMode, "bitrate", StringComparison.OrdinalIgnoreCase)
+            // ② 码率：目标体积（反算，最高优先） > 目标码率 > 恒定质量
+            var sizeKbps = AutoBitrateKbps(task);
+            if (sizeKbps > 0)
+            {
+                args.AddRange(new[]
+                {
+                    "-b:v", sizeKbps.ToString(CultureInfo.InvariantCulture) + "k",
+                    "-maxrate", (sizeKbps * 3 / 2).ToString(CultureInfo.InvariantCulture) + "k",
+                    "-bufsize", (sizeKbps * 2).ToString(CultureInfo.InvariantCulture) + "k"
+                });
+            }
+            else if (string.Equals(task.BitrateMode, "bitrate", StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(task.TargetBitrate))
             {
                 args.AddRange(new[] { "-b:v", task.TargetBitrate.Trim() });
@@ -488,6 +618,10 @@ public static class FfmpegService
             var filters = new List<string>();
             var rotate = RotateOptions.ToFilter(task.Rotate);
             if (rotate.Length > 0) filters.Add(rotate);
+            // 裁剪（NT-102）紧跟旋转：transpose 会换宽高，坐标必须作用在旋转后的画幅上；
+            // 又必须在缩放**之前**——先缩再裁，用户填的像素坐标就对不上了。
+            var crop = CropFilter(task);
+            if (crop.Length > 0) filters.Add(crop);
             if (task.TargetWidth > 0 || task.TargetHeight > 0)
                 filters.Add(ScaleFilter(task.TargetWidth, task.TargetHeight));
             else if (task.MaxHeight > 0)
@@ -499,14 +633,38 @@ public static class FfmpegService
             if (filters.Count > 0)
                 args.AddRange(new[] { "-vf", string.Join(",", filters) });
 
-            // ⑤ 音频
-            if (string.IsNullOrWhiteSpace(preset.AudioCodec))
-                args.AddRange(new[] { "-an" });
-            else
+            // ⑤ 音频（NT-103：静音 / 替换 / 音量增益都优先于预设的音频设置）
+            if (task.IsAudioMuted)
             {
-                args.AddRange(new[] { "-c:a", preset.AudioCodec });
+                args.AddRange(new[] { "-an" });
+            }
+            else if (task.IsReplaceAudio && !string.IsNullOrWhiteSpace(task.ReplaceAudioPath))
+            {
+                // 换进来的音频统一转 aac（源可能是 mp3 / flac / wav；-c copy 换个容器就废）
+                args.AddRange(new[] { "-c:a", "aac" });
                 if (!string.IsNullOrWhiteSpace(preset.AudioBitrate))
                     args.AddRange(new[] { "-b:a", preset.AudioBitrate });
+            }
+            else if (string.IsNullOrWhiteSpace(preset.AudioCodec))
+            {
+                args.AddRange(new[] { "-an" });
+            }
+            else
+            {
+                var acodec = preset.AudioCodec;
+                // 🔴 -af 只对**重编码**的音频有效：copy 预设 + 音量增益 ⇒ 音频改 aac
+                if (task.IsVolumeMode && string.Equals(acodec, "copy", StringComparison.OrdinalIgnoreCase))
+                    acodec = "aac";
+                args.AddRange(new[] { "-c:a", acodec });
+                if (!string.IsNullOrWhiteSpace(preset.AudioBitrate))
+                    args.AddRange(new[] { "-b:a", preset.AudioBitrate });
+            }
+
+            // 音量增益（静音时没音轨可调，跳过）
+            if (task.IsVolumeMode && !task.IsAudioMuted)
+            {
+                var volume = VolumeFilter(task.VolumeDb);
+                if (volume.Length > 0) args.AddRange(new[] { "-af", volume });
             }
         }
 

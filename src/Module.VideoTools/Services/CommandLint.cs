@@ -11,6 +11,18 @@ namespace NewToys.VideoTools.Services;
 public sealed record LintIssue(bool IsError, string Text);
 
 /// <summary>
+/// **预检的补充上下文**（NT-102 / NT-103 / NT-104）：这些值不是从命令行文本能反推出来的
+/// （裁剪坐标、音频方式、目标体积都在任务对象上），所以由调用方显式传入。
+/// </summary>
+public sealed record LintExtra(
+    int CropWidth = 0,
+    int CropHeight = 0,
+    string? AudioMode = null,
+    string? ReplaceAudioPath = null,
+    double TargetSizeMb = 0,
+    double Duration = 0);
+
+/// <summary>
 /// **ffmpeg 参数预检**（NT-098）：纯静态分析，不跑 ffmpeg、不碰 UI。
 /// <para>
 /// 只做「已知冲突」白名单 —— ⛔ 不做完整 ffmpeg 语法解析（那是不可能维护的）。
@@ -27,7 +39,7 @@ public static class CommandLint
     /// 检查一条命令。<paramref name="args"/> = 不含 <c>ffmpeg</c>、**含**输出路径的完整参数列表。
     /// </summary>
     public static IReadOnlyList<LintIssue> Check(IReadOnlyList<string>? args, string? output, string? sourcePath,
-        string? subtitlePath = null, string? subtitleMode = null)
+        string? subtitlePath = null, string? subtitleMode = null, LintExtra? extra = null)
     {
         var list = new List<LintIssue>();
         if (args == null || args.Count == 0) return list;
@@ -53,10 +65,52 @@ public static class CommandLint
         if (subMode == "soft" && ext.Length > 0 && ext != ".mkv")
             list.Add(new(true, "软字幕的输出必须是 .mkv —— mp4 / mov 装不了 srt 字幕轨。"));
 
-        // ② copy 与「需要重新编码的参数」冲突（最常见的手改翻车点）
+        // ①-c 裁剪 / 音轨 / 目标体积（NT-102 ~ NT-104）
         var codec = LastValue(args, CodecFlags);
         var isCopy = string.Equals(codec, "copy", StringComparison.OrdinalIgnoreCase);
 
+        if (extra != null)
+        {
+            var cropW = extra.CropWidth;
+            var cropH = extra.CropHeight;
+            if ((cropW > 0) != (cropH > 0))
+                list.Add(new(true, "裁剪的宽 / 高要**同时**填 —— 只填一个等于没填，命令里不会出现 crop。"));
+            else if (cropW > 0 && (cropW % 2 != 0 || cropH % 2 != 0))
+                list.Add(new(false, $"裁剪尺寸 {cropW}×{cropH} 有奇数边 —— H.264/H.265 的 yuv420p 要求偶数，会自动取偶。"));
+
+            var audioMode = (extra.AudioMode ?? "").Trim().ToLowerInvariant();
+            if (audioMode == "replace")
+            {
+                var audioPath = (extra.ReplaceAudioPath ?? "").Trim();
+                if (audioPath.Length == 0)
+                    list.Add(new(true, "选了「替换音轨」但没挑音频文件 —— 挑一个 mp3 / m4a / wav。"));
+                else if (!File.Exists(audioPath))
+                    list.Add(new(true, "替换用的音频文件不存在 —— 重新挑一次。"));
+                if (subMode == "soft")
+                    list.Add(new(true, "替换音轨与软字幕不能同时用 —— 两条路径都要 `-map`，互相打架；先做一样。"));
+            }
+            else if (audioMode == "volume" && isGifOut)
+            {
+                list.Add(new(false, "GIF 没有音轨 —— 音量增益对 GIF 无效。"));
+            }
+
+            // 软字幕是「只封装」模式：这些都要重编码，本模式下不生效
+            if (subMode == "soft"
+                && (cropW > 0 || audioMode == "volume" || extra.TargetSizeMb > 0))
+            {
+                list.Add(new(false, "软字幕只封装（`-c copy`）—— 裁剪 / 音量 / 目标体积在这个模式下不生效；要这些效果请改用重新编码 + 硬字幕。"));
+            }
+
+            if (extra.TargetSizeMb > 0)
+            {
+                if (extra.Duration <= 0)
+                    list.Add(new(true, "填了「目标体积」但读不到源时长 —— 算不出码率；先让预览读出时长，或改用 CRF。"));
+                else if (isCopy)
+                    list.Add(new(true, "`-c copy` 不能按体积压 —— copy 不改码率。"));
+            }
+        }
+
+        // ② copy 与「需要重新编码的参数」冲突（最常见的手改翻车点）
         if (subMode == "hard" && isCopy)
             list.Add(new(true, "硬字幕要烧进画面 ⇒ 必须重新编码，`-c copy` 用不了。"));
 

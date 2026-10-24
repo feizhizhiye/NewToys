@@ -177,6 +177,10 @@ public static class FfmpegService
     /// </summary>
     public static List<string> BuildCutArgs(CutTask task, string? output)
     {
+        // NT-101：多段（≥2 段）= 逐段裁剪 + 拼成一条流。单条命令做不到"先切再拼"，
+        // 所以走 -filter_complex（trim/atrim + concat）。⇒ 必须重新编码（copy 无法拼时间轴）。
+        if (task.Segments.Count > 1) return BuildMultiCutArgs(task, output);
+
         var args = new List<string> { "-hide_banner", "-loglevel", "error", "-y" };
 
         // -ss 放前面 = 先定位（快）；-to 是绝对结束时间
@@ -201,6 +205,45 @@ public static class FfmpegService
 
         // ② 自定义参数**追加在预设之后** —— ffmpeg 里后出现的同名参数覆盖前面的，
         //    所以用户填 `-c:v libx265` 之类能直接顶掉预设，不用另做一套"覆盖模式"。
+        var extra = (task.ExtraArgs ?? "").Trim();
+        if (extra.Length > 0)
+        {
+            foreach (var a in SplitArgs(extra)) args.Add(a);
+        }
+
+        AppendOutput(args, output);
+        return args;
+    }
+
+    /// <summary>
+    /// 多段剪切 + 拼接（NT-101）：一条 <c>-filter_complex</c> 命令 = 每段 trim/atrim → concat。
+    /// <para>⚠️ 假设源有音轨：无音轨文件会因 <c>[0:a]</c> 不存在而报错（页面上如实显示 ffmpeg 的报错，不猜）。</para>
+    /// </summary>
+    private static List<string> BuildMultiCutArgs(CutTask task, string? output)
+    {
+        var segs = task.Segments;
+        var args = new List<string> { "-hide_banner", "-loglevel", "error", "-y", "-i", task.SourcePath };
+
+        var sb = new StringBuilder();
+        for (var i = 0; i < segs.Count; i++)
+        {
+            sb.Append("[0:v]trim=start=").Append(Sec(segs[i].Start))
+              .Append(":end=").Append(Sec(segs[i].End))
+              .Append(",setpts=PTS-STARTPTS[v").Append(i).Append("];");
+            sb.Append("[0:a]atrim=start=").Append(Sec(segs[i].Start))
+              .Append(":end=").Append(Sec(segs[i].End))
+              .Append(",asetpts=PTS-STARTPTS[a").Append(i).Append("];");
+        }
+        for (var i = 0; i < segs.Count; i++)
+            sb.Append("[v").Append(i).Append("][a").Append(i).Append(']');
+        sb.Append("concat=n=").Append(segs.Count).Append(":v=1:a=1[v][a]");
+
+        args.AddRange(new[] { "-filter_complex", sb.ToString(), "-map", "[v]", "-map", "[a]" });
+
+        var crf = task.Crf > 0 ? task.Crf : 20;
+        args.AddRange(new[] { "-c:v", "libx264", "-crf", crf.ToString(CultureInfo.InvariantCulture),
+                              "-preset", "veryfast", "-c:a", "aac", "-b:a", "192k" });
+
         var extra = (task.ExtraArgs ?? "").Trim();
         if (extra.Length > 0)
         {
@@ -305,6 +348,35 @@ public static class FfmpegService
         => string.Equals(preset.Id, "gif", StringComparison.OrdinalIgnoreCase)
         || string.Equals(preset.VideoCodec, "gif", StringComparison.OrdinalIgnoreCase);
 
+    // ==================== 字幕（NT-100） ====================
+
+    /// <summary>输出扩展名（**软字幕固定 <c>.mkv</c>**、GIF 固定 <c>.gif</c>，其余按容器）。</summary>
+    public static string OutputExtension(TranscodeTask task)
+    {
+        if (IsGif(task.Preset)) return ".gif";
+        if (task.IsSoftSubtitle) return ".mkv";
+        return task.ContainerDisplay;
+    }
+
+    /// <summary>
+    /// 硬字幕滤镜：<c>subtitles='路径':force_style='FontSize=22,MarginV=24'</c>。
+    /// <para>
+    /// 🔴 路径必须转成 <c>/</c> 并把 <c>:</c> 转义成 <c>:</c>（前面加反斜杠）—— filtergraph 用 <c>:</c> 分参数，
+    /// 不转义时 <c>C:\...</c> 会被截成两段；整个值再用单引号包住，逗号才不会被当成滤镜分隔符。
+    /// </para>
+    /// </summary>
+    public static string SubtitlesFilter(TranscodeTask task)
+    {
+        var path = (task.SubtitlePath ?? "").Trim().Replace('\\', '/').Replace(":", "\\:").Replace("'", "\\'");
+        var style = new List<string>();
+        if (task.SubtitleFontSize > 0) style.Add("FontSize=" + task.SubtitleFontSize.ToString(CultureInfo.InvariantCulture));
+        if (task.SubtitleMarginV > 0) style.Add("MarginV=" + task.SubtitleMarginV.ToString(CultureInfo.InvariantCulture));
+
+        var filter = $"subtitles='{path}'";
+        if (style.Count > 0) filter += ":force_style='" + string.Join(",", style) + "'";
+        return filter;
+    }
+
     /// <summary>
     /// GIF 滤镜链：定帧率 → 定宽（<c>-1</c> = 按比例，保证偶数不用管，gif 接受奇数）→ 单遍调色板。
     /// <para><c>palettegen=stats_mode=diff</c> + <c>paletteuse=dither=bayer</c> 是画质/体积的常用折中。</para>
@@ -342,6 +414,23 @@ public static class FfmpegService
         //    v3.16：终点留空（0）= 从起点一直到文件末尾，此时不能加 -to（否则算出负数时长）。
         AppendTrimAndInput(args, task);
 
+        // ② 软字幕（NT-100）：**只封装** —— 视频/音频原样 copy，字幕作为第 2 条输入单独成轨。
+        //    容器必须是 .mkv（mp4 装不了 srt 轨），所以编码/分辨率等设置在本模式下不生效（详情卡有提示）。
+        if (task.IsSoftSubtitle)
+        {
+            args.AddRange(new[]
+            {
+                "-i", task.SubtitlePath,
+                "-map", "0", "-map", "1",
+                "-c", "copy", "-c:s", "srt",
+                "-metadata:s:s:0", "language=chi",
+                "-disposition:s:0", "default",
+                "-avoid_negative_ts", "make_zero"
+            });
+            AppendOutput(args, output);
+            return args;
+        }
+
         // ② GIF（NT-099）：gif 编码器不吃 -crf / -preset / 码率 / 音频参数 ⇒ 走独立分支。
         //    单遍调色板（split 同图）：一条命令 = 看到的即执行的，⛔ 不做两遍临时文件（预览不可见会骗人）；
         //    代价是整段帧要在内存里过一遍 ⇒ 预检（CommandLint）会提示「GIF 建议 ≤30 秒」。
@@ -354,6 +443,9 @@ public static class FfmpegService
         }
 
         var baseCodec = preset.VideoCodec ?? "";
+        // 硬字幕（NT-100）必须重新编码：copy 预设自动升级成 libx264（否则滤镜没有落脚处）
+        if (task.IsHardSubtitle && string.Equals(baseCodec, "copy", StringComparison.OrdinalIgnoreCase))
+            baseCodec = "libx264";
         var codec = ResolveEncoder(baseCodec, task.UseGpuEncoder);
 
         if (string.Equals(baseCodec, "copy", StringComparison.OrdinalIgnoreCase))
@@ -402,6 +494,8 @@ public static class FfmpegService
                 filters.Add($"scale=-2:{task.MaxHeight}");
             else if (task.DefaultWidth > 0 && task.DefaultHeight > 0)
                 filters.Add(FitFilter(task.DefaultWidth, task.DefaultHeight));
+            // 硬字幕放最后：先缩放 / 旋转，再在**最终画幅**上烧字（否则字会跟着被缩放）
+            if (task.IsHardSubtitle) filters.Add(SubtitlesFilter(task));
             if (filters.Count > 0)
                 args.AddRange(new[] { "-vf", string.Join(",", filters) });
 

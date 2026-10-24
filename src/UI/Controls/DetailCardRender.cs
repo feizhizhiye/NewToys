@@ -182,6 +182,62 @@ public sealed class TextFieldRow : DetailFieldRow
         => SetProperty(ref _text, DetailPath.Resolve(Source, Field.ValuePath)?.ToString(), nameof(Text));
 }
 
+/// <summary>
+/// <see cref="FieldKind.Pair"/>：**成对输入**（2026-10-24）—— 一行两个输入框 + 中间固定符号。
+/// <para>
+/// 左框写 <c>ValuePath</c>、右框写 <c>SecondValuePath</c>；提交语义与 <see cref="TextFieldRow"/> 一致
+/// （<c>OnBlur</c> 走模板的 <c>LostFocus</c>，其余即时写回）。
+/// </para>
+/// </summary>
+public sealed class PairFieldRow : DetailFieldRow
+{
+    public PairFieldRow(DetailField field, object? source) : base(field, source) { }
+
+    public bool Mono => Field.Mono;
+    public string? FirstPlaceholder => Field.Placeholder;
+    public string? SecondPlaceholder => Field.SecondPlaceholder;
+    public string Separator => string.IsNullOrEmpty(Field.PairSeparator) ? "×" : Field.PairSeparator;
+
+    /// <summary>OnBlur 语义：写回交给模板的 <c>LostFocus</c>（<c>OnPairLostFocus</c>）。</summary>
+    public bool CommitOnBlur => CommitMode == EditCommitMode.OnBlur;
+
+    private string? _first;
+    public string? First
+    {
+        get => _first;
+        set
+        {
+            if (!SetProperty(ref _first, value)) return;
+            if (!CommitOnBlur) DetailPath.Write(Source, Field.ValuePath, value);
+        }
+    }
+
+    private string? _second;
+    public string? Second
+    {
+        get => _second;
+        set
+        {
+            if (!SetProperty(ref _second, value)) return;
+            if (!CommitOnBlur) DetailPath.Write(Source, Field.SecondValuePath, value);
+        }
+    }
+
+    /// <summary>失焦提交（两框一起写）。</summary>
+    public void Commit()
+    {
+        if (!CommitOnBlur) return;
+        DetailPath.Write(Source, Field.ValuePath, _first);
+        DetailPath.Write(Source, Field.SecondValuePath, _second);
+    }
+
+    protected override void RefreshCore()
+    {
+        SetProperty(ref _first, DetailPath.Resolve(Source, Field.ValuePath)?.ToString(), nameof(First));
+        SetProperty(ref _second, DetailPath.Resolve(Source, Field.SecondValuePath)?.ToString(), nameof(Second));
+    }
+}
+
 /// <summary><see cref="FieldKind.Check"/>：勾选框（Instant）。</summary>
 public sealed class CheckFieldRow : DetailFieldRow
 {
@@ -818,6 +874,7 @@ public sealed class DetailSectionRender : ObservableObject
     private static DetailFieldRow CreateRow(DetailField f, object? source) => f.Kind switch
     {
         FieldKind.Check => new CheckFieldRow(f, source),
+        FieldKind.Pair => new PairFieldRow(f, source),
         // Select 有两个落值通道：值（默认）/ 索引（页面 VM 上本来就是"第几个选项"）→ 两个行对象、两个模板
         FieldKind.Select => f.IndexPath is null ? new SelectFieldRow(f, source) : new IndexSelectFieldRow(f, source),
         FieldKind.Number => new NumberFieldRow(f, source),

@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
+using NewToys.VideoTools.Models;
 using NewToys.VideoTools.ViewModels;
 
 namespace NewToys.VideoTools.Views;
@@ -47,7 +48,10 @@ public partial class VideoBatchView : UserControl
         // NT-054：把「📂 选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
         // 每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
         if (DataContext is VideoBatchViewModel vmb)
+        {
             vmb.PickOutputCommand = new RelayCommand(() => _ = PickOutputAsync());
+            vmb.PickSubtitleCommand = new RelayCommand(() => _ = PickSubtitleAsync());
+        }
     }
 
     /// <summary>
@@ -89,6 +93,42 @@ public partial class VideoBatchView : UserControl
         catch (Exception ex)
         {
             vm.StatusText = "选择输出失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>📝 为当前选中任务挑一个字幕文件（.srt / .ass；NT-100）。</summary>
+    private async System.Threading.Tasks.Task PickSubtitleAsync()
+    {
+        if (DataContext is not VideoBatchViewModel vm) return;
+        if (vm.Selected == null) { vm.StatusText = "先在列表里选中一个任务。"; return; }
+
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "选择字幕文件",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("字幕文件") { Patterns = new[] { "*.srt", "*.ass", "*.ssa", "*.vtt" } }
+                }
+            });
+
+            var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+            if (string.IsNullOrWhiteSpace(path)) return;
+
+            vm.EditSubtitlePath = path;
+            // 挑完默认按软字幕（最省事），用户再改成硬字幕也行
+            if (string.Equals(vm.EditSubtitleMode, SubtitleModes.None, StringComparison.OrdinalIgnoreCase))
+                vm.EditSubtitleMode = SubtitleModes.Soft;
+            vm.StatusText = "已选择字幕：" + System.IO.Path.GetFileName(path) + "（记得点「💾 保存修改」）";
+        }
+        catch (Exception ex)
+        {
+            vm.StatusText = "选择字幕失败：" + ex.Message;
         }
     }
 

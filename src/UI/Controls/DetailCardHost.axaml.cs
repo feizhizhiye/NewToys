@@ -76,6 +76,14 @@ public partial class DetailCardHost : UserControl
     }
 
     /// <summary>
+    /// <see cref="FieldKind.Pair"/> 的失焦提交（两个框共用一个处理器）。
+    /// </summary>
+    private void OnPairLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox { DataContext: PairFieldRow row }) row.Commit();
+    }
+
+    /// <summary>
     /// <see cref="FieldKind.EditableList"/> 的失焦提交：写回候选项 + 执行提交命令（页面 VM 落盘 / 重投影）。
     /// </summary>
     private void OnEditableListLostFocus(object? sender, RoutedEventArgs e)

@@ -26,7 +26,8 @@ public static class CommandLint
     /// <summary>
     /// 检查一条命令。<paramref name="args"/> = 不含 <c>ffmpeg</c>、**含**输出路径的完整参数列表。
     /// </summary>
-    public static IReadOnlyList<LintIssue> Check(IReadOnlyList<string>? args, string? output, string? sourcePath)
+    public static IReadOnlyList<LintIssue> Check(IReadOnlyList<string>? args, string? output, string? sourcePath,
+        string? subtitlePath = null, string? subtitleMode = null)
     {
         var list = new List<LintIssue>();
         if (args == null || args.Count == 0) return list;
@@ -42,9 +43,22 @@ public static class CommandLint
         var ext = outPath.Length > 0 ? Path.GetExtension(outPath).ToLowerInvariant() : "";
         var isGifOut = ext == ".gif";
 
+        // ①-b 字幕（NT-100）：选了方式没挑文件 / 文件不存在 / 软字幕装进了非 mkv 容器
+        var subPath = (subtitlePath ?? "").Trim();
+        var subMode = (subtitleMode ?? "").Trim().ToLowerInvariant();
+        if (subMode.Length > 0 && subPath.Length == 0)
+            list.Add(new(true, "选了字幕方式但没挑字幕文件 —— 挑一个 .srt / .ass，或把方式改回「不加字幕」。"));
+        if (subPath.Length > 0 && !File.Exists(subPath))
+            list.Add(new(true, "字幕文件不存在 —— 文件被移走了？重新挑一次。"));
+        if (subMode == "soft" && ext.Length > 0 && ext != ".mkv")
+            list.Add(new(true, "软字幕的输出必须是 .mkv —— mp4 / mov 装不了 srt 字幕轨。"));
+
         // ② copy 与「需要重新编码的参数」冲突（最常见的手改翻车点）
         var codec = LastValue(args, CodecFlags);
         var isCopy = string.Equals(codec, "copy", StringComparison.OrdinalIgnoreCase);
+
+        if (subMode == "hard" && isCopy)
+            list.Add(new(true, "硬字幕要烧进画面 ⇒ 必须重新编码，`-c copy` 用不了。"));
 
         var vfCount = CountFlag(args, "-vf") + CountFlag(args, "-filter:v");
         var hasComplex = CountFlag(args, "-filter_complex") > 0;

@@ -34,7 +34,10 @@ public partial class VideoPreviewView : UserControl
     {
         base.OnDataContextChanged(e);
         if (DataContext is VideoPreviewViewModel vm)
+        {
             vm.PickOutputCommand = new RelayCommand(() => _ = PickOutputFileAsync());
+            vm.PickSubtitleCommand = new RelayCommand(() => _ = PickSubtitleFileAsync());
+        }
     }
 
     /// <summary>
@@ -90,6 +93,40 @@ public partial class VideoPreviewView : UserControl
         catch (Exception ex)
         {
             vm.StatusText = "选择输出文件失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>📝 给当前任务挑字幕文件（.srt / .ass；NT-100）。</summary>
+    private async System.Threading.Tasks.Task PickSubtitleFileAsync()
+    {
+        if (DataContext is not VideoPreviewViewModel vm) return;
+
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider is not { } sp) { vm.StatusText = "当前环境不支持文件选择器。"; return; }
+
+            var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "选择字幕文件",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("字幕文件") { Patterns = new[] { "*.srt", "*.ass", "*.ssa", "*.vtt" } }
+                }
+            });
+
+            var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+            if (string.IsNullOrWhiteSpace(path)) return;
+
+            vm.EditSubtitlePath = path;
+            if (string.Equals(vm.EditSubtitleMode, Models.SubtitleModes.None, StringComparison.OrdinalIgnoreCase))
+                vm.EditSubtitleMode = Models.SubtitleModes.Soft;
+            vm.StatusText = "已选择字幕：" + System.IO.Path.GetFileName(path);
+        }
+        catch (Exception ex)
+        {
+            vm.StatusText = "选择字幕失败：" + ex.Message;
         }
     }
 }

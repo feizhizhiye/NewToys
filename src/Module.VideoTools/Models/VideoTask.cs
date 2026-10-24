@@ -208,6 +208,35 @@ public partial class CutTask : VideoTaskBase
     /// <summary>重编码时用的 CRF（越小越清晰越大；18~28 常用）。</summary>
     [ObservableProperty] private int _crf = 20;
 
+    // ==================== 多段剪切 / 拼接（NT-101） ====================
+
+    /// <summary>
+    /// **多段剪切串**（每行一段：<c>00:00:05-00:00:12</c>）。解析出 **≥2 段** ⇒ 走「逐段裁剪 + 拼接」，
+    /// 此时上面的「开始 / 结束」被忽略。
+    /// </summary>
+    [ObservableProperty] private string _segmentsText = "";
+
+    /// <summary>解析出的多段（<see cref="OnSegmentsTextChanged"/> 时重算，避免每次绑定时重解析）。</summary>
+    public IReadOnlyList<CutSegment> Segments { get; private set; } = Array.Empty<CutSegment>();
+
+    /// <summary>是否多段（≥2 段；1 段按普通剪切处理）。</summary>
+    public bool IsMultiSegment => Segments.Count > 1;
+
+    /// <summary>多段摘要（详情卡提示：几段 + 合计时长）。</summary>
+    public string SegmentsDisplay
+        => Segments.Count == 0
+            ? ""
+            : $"{Segments.Count} 段 · 合计 {FormatTime(Segments.Sum(s => s.Length))}";
+
+    partial void OnSegmentsTextChanged(string value)
+    {
+        Segments = CutSegments.Parse(value);
+        OnPropertyChanged(nameof(Segments));
+        OnPropertyChanged(nameof(IsMultiSegment));
+        OnPropertyChanged(nameof(SegmentsDisplay));
+        OnPropertyChanged(nameof(ParamDisplay));
+    }
+
     /// <summary>片段时长（秒）。</summary>
     public double Length => End > Start ? End - Start : 0;
 
@@ -221,7 +250,7 @@ public partial class CutTask : VideoTaskBase
     public string PresetName => CutPresets.Find(PresetId).Name;
 
     public override string KindDisplay => "剪辑";
-    public override string ParamDisplay => RangeDisplay;
+    public override string ParamDisplay => IsMultiSegment ? $"多段 {Segments.Count} 段" : RangeDisplay;
     public override string BeforeDisplay => DurationDisplay;
 
     partial void OnPresetIdChanged(string value)
@@ -320,6 +349,90 @@ public sealed class TranscodePreset
 
     public static TranscodePreset Find(string? id)
         => All.Find(p => string.Equals(p.Id, id, System.StringComparison.OrdinalIgnoreCase)) ?? All[0];
+}
+
+/// <summary>
+/// 字幕处理方式（NT-100）。
+/// <para><see cref="Soft"/> = 只把字幕**封装**进容器（视频/音频 <c>-c copy</c>，秒完成、可在播放器里开关）；
+/// <see cref="Hard"/> = 把字幕**烧进画面**（必须重新编码，画面上永久带字）。</para>
+/// </summary>
+public static class SubtitleModes
+{
+    /// <summary>不加字幕。</summary>
+    public const string None = "";
+
+    /// <summary>软字幕（封装成可选轨；输出容器必须是 .mkv）。</summary>
+    public const string Soft = "soft";
+
+    /// <summary>硬字幕（烧进画面，必须重编码）。</summary>
+    public const string Hard = "hard";
+
+    public static IReadOnlyList<SubtitleModeOption> All { get; } = new[]
+    {
+        new SubtitleModeOption { Value = None, Label = "不加字幕" },
+        new SubtitleModeOption { Value = Soft, Label = "软字幕（封装成 .mkv 可选轨，不重编码）" },
+        new SubtitleModeOption { Value = Hard, Label = "硬字幕（烧进画面，需重编码）" },
+    };
+
+    public static SubtitleModeOption Find(string? value)
+        => All.FirstOrDefault(o => string.Equals(o.Value, value ?? "", StringComparison.OrdinalIgnoreCase)) ?? All[0];
+
+    /// <summary>字幕文件后缀白名单（ffmpeg 支持的常见文本字幕）。</summary>
+    public const string FilePatterns = "*.srt;*.ass;*.ssa;*.vtt";
+}
+
+/// <summary>「字幕方式」下拉项（<see cref="Value"/> = 存进 <see cref="TranscodeTask.SubtitleMode"/> 的值）。</summary>
+public sealed class SubtitleModeOption
+{
+    public string Value { get; set; } = "";
+    public string Label { get; set; } = "";
+}
+
+/// <summary>多段剪切里的一段（<c>Start</c> 秒 → <c>End</c> 秒；<c>End</c>=0 表示到末尾，但多段时按无效处理）。</summary>
+public readonly record struct CutSegment(double Start, double End)
+{
+    /// <summary>段时长（秒）。</summary>
+    public double Length => End > Start ? End - Start : 0;
+}
+
+/// <summary>
+/// **多段剪切串**的解析（NT-101）：一行一段，形如 <c>00:00:05-00:00:12</c> / <c>5-12.5</c>。
+/// <para>分隔符支持 <c>-</c> / <c>~</c> / <c>→</c> / 逗号 / 空白；时间码的冒号与小数点不受影响。</para>
+/// <para>⛔ 解析失败的行**直接丢掉**（界面会显示解析出几段，用户能立刻发现写错），不做"猜一个"。</para>
+/// </summary>
+public static class CutSegments
+{
+    private static readonly char[] Separators = { '-', '~', '→', ',', ' ', '\t' };
+
+    /// <summary>解析多段文本（空 / 全无效 → 空列表）。</summary>
+    public static IReadOnlyList<CutSegment> Parse(string? text)
+    {
+        var list = new List<CutSegment>();
+        if (string.IsNullOrWhiteSpace(text)) return list;
+
+        foreach (var raw in text.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith('#')) continue;
+
+            var idx = line.IndexOfAny(Separators);
+            if (idx <= 0 || idx >= line.Length - 1) continue;
+
+            var a = CutTask.ParseTime(line[..idx]);
+            var b = CutTask.ParseTime(line[(idx + 1)..]);
+            if (a == null || b == null) continue;
+            if (b.Value <= a.Value) continue;
+
+            list.Add(new CutSegment(a.Value, b.Value));
+        }
+        return list;
+    }
+
+    /// <summary>段的显示文本（如 <c>00:00:05.000 → 00:00:12.000</c>）。</summary>
+    public static string Describe(IReadOnlyList<CutSegment> segments)
+        => segments.Count == 0
+            ? ""
+            : string.Join(" ｜ ", segments.Select(s => $"{CutTask.FormatTime(s.Start)} → {CutTask.FormatTime(s.End)}"));
 }
 
 /// <summary>「旋转 / 翻转」下拉项（<see cref="Value"/> = 存进 <see cref="TranscodeTask.Rotate"/> 的值）。</summary>
@@ -466,6 +579,52 @@ public partial class TranscodeTask : VideoTaskBase
     /// <summary>旋转的中文名（详情卡 / 命令摘要显示）。</summary>
     public string RotateLabel => RotateOptions.Find(Rotate).Label;
 
+    // ==================== 字幕（NT-100：软字幕 / 硬字幕烧入） ====================
+
+    /// <summary>字幕文件全路径（<c>.srt / .ass / .ssa / .vtt</c>；空 = 不加字幕）。</summary>
+    [ObservableProperty] private string _subtitlePath = "";
+
+    /// <summary>字幕方式（取值见 <see cref="SubtitleModes"/>；<c>""</c> = 不加）。</summary>
+    [ObservableProperty] private string _subtitleMode = SubtitleModes.None;
+
+    /// <summary>硬字幕字号（像素；0 = 用字幕文件自带的样式）。仅硬字幕生效。</summary>
+    [ObservableProperty] private int _subtitleFontSize = 22;
+
+    /// <summary>硬字幕距底边距（像素；0 = 不设）。仅硬字幕生效。</summary>
+    [ObservableProperty] private int _subtitleMarginV = 24;
+
+    /// <summary>是否软字幕（只封装、不重编码）。</summary>
+    public bool IsSoftSubtitle
+        => string.Equals(SubtitleMode, SubtitleModes.Soft, StringComparison.OrdinalIgnoreCase)
+           && !string.IsNullOrWhiteSpace(SubtitlePath);
+
+    /// <summary>是否硬字幕（烧进画面）。</summary>
+    public bool IsHardSubtitle
+        => string.Equals(SubtitleMode, SubtitleModes.Hard, StringComparison.OrdinalIgnoreCase)
+           && !string.IsNullOrWhiteSpace(SubtitlePath);
+
+    /// <summary>字幕摘要（命令摘要 / 详情卡提示）。</summary>
+    public string SubtitleDisplay
+        => !IsSoftSubtitle && !IsHardSubtitle
+            ? "无字幕"
+            : $"{(IsSoftSubtitle ? "软字幕" : "硬字幕")} · {System.IO.Path.GetFileName(SubtitlePath)}";
+
+    partial void OnSubtitleModeChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsSoftSubtitle));
+        OnPropertyChanged(nameof(IsHardSubtitle));
+        OnPropertyChanged(nameof(SubtitleDisplay));
+        OnPropertyChanged(nameof(ParamDisplay));
+    }
+
+    partial void OnSubtitlePathChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsSoftSubtitle));
+        OnPropertyChanged(nameof(IsHardSubtitle));
+        OnPropertyChanged(nameof(SubtitleDisplay));
+        OnPropertyChanged(nameof(ParamDisplay));
+    }
+
     // ==================== 转码前（源） ====================
 
     [ObservableProperty] private long _sourceSize;
@@ -500,9 +659,10 @@ public partial class TranscodeTask : VideoTaskBase
     /// <summary>实际会用的视频编码器名（CPU / GPU 由 <see cref="UseGpuEncoder"/> 决定）。</summary>
     public string EncoderDisplay => FfmpegService.ResolveEncoder(Preset.VideoCodec, UseGpuEncoder);
 
-    /// <summary>容器（格式）显示文本。GIF 预设强制 <c>.gif</c>（容器下拉对它无效，避免出现「.mp4 里装 GIF」）。</summary>
+    /// <summary>容器（格式）显示文本。GIF 预设强制 <c>.gif</c>；**软字幕强制 <c>.mkv</c>**（mp4 装不了 srt 字幕轨）。</summary>
     public string ContainerDisplay =>
         FfmpegService.IsGif(Preset) ? ".gif"
+        : IsSoftSubtitle ? ".mkv"
         : string.IsNullOrWhiteSpace(Container) ? Preset.Extension
         : Container;
 
@@ -549,7 +709,15 @@ public partial class TranscodeTask : VideoTaskBase
     public bool HasResult => OutputSize > 0;
 
     public override string KindDisplay => HasTrim ? "剪辑+转码" : "转码";
-    public override string ParamDisplay => HasTrim ? TrimDisplay + " · " + PresetName : PresetName;
+
+    public override string ParamDisplay
+    {
+        get
+        {
+            var head = HasTrim ? TrimDisplay + " · " + PresetName : PresetName;
+            return IsSoftSubtitle || IsHardSubtitle ? head + " · " + SubtitleDisplay : head;
+        }
+    }
     public override string BeforeDisplay => SourceSizeDisplay;
 
     partial void OnPresetIdChanged(string value)

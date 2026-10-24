@@ -5,7 +5,7 @@ using System.Windows.Input;
 namespace NewToys.Shared.Details;
 
 /// <summary>
-/// 字段 Kind（**10 种**，需求 §4.5.1 / NT-054；2026-10-19 增 <see cref="EditableList"/>）。
+/// 字段 Kind（**11 种**，需求 §4.5.1 / NT-054；2026-10-19 增 <see cref="EditableList"/>；2026-10-24 增 <see cref="Pair"/>）。
 /// <para>
 /// 🔴 **加新 Kind 是「加法」**：新需求优先用「现有 Kind + 修饰位」表达；确实需要新交互时才加一个枚举值
 /// （配一个 <c>DataTemplate</c>），不影响既有卡。
@@ -32,6 +32,16 @@ public enum FieldKind
 
     /// <summary>集合编辑器（chips：点一下打上 / 取消）。</summary>
     Chips,
+
+    /// <summary>
+    /// **成对输入**（2026-10-24 新增）：一行里两个输入框，中间一个固定符号（默认 <c>×</c>）。
+    /// <para>
+    /// 给「宽 × 高」这类**天然成对**的数值用（分辨率 / 尺寸上下限）—— 原来拆成上下两行，
+    /// 用户看不出这两个数是一件事。取数见 <see cref="DetailField.ValuePath"/>（左）+
+    /// <see cref="DetailField.SecondValuePath"/>（右）。
+    /// </para>
+    /// </summary>
+    Pair,
 
     /// <summary>纯提示文字（含空态提示）。</summary>
     Hint,
@@ -168,6 +178,17 @@ public sealed class DetailField
 
     /// <summary>输入框占位文案（<see cref="FieldKind.Text"/> / <see cref="FieldKind.Select"/>）。</summary>
     public string? Placeholder { get; set; }
+
+    // ===== Pair 专用（成对输入：宽 × 高） =====
+
+    /// <summary>右侧输入框的绑定路径（<see cref="FieldKind.Pair"/>；左框仍用 <see cref="ValuePath"/>）。</summary>
+    public string? SecondValuePath { get; set; }
+
+    /// <summary>右侧输入框的占位文案（如 <c>高</c>；左框用 <see cref="Placeholder"/>）。</summary>
+    public string? SecondPlaceholder { get; set; }
+
+    /// <summary>两框之间的固定符号（<see cref="FieldKind.Pair"/>；null = <c>×</c>）。</summary>
+    public string? PairSeparator { get; set; }
 
     /// <summary>字段下方的补充提示（<c>hint-text</c>）；<see cref="FieldKind.Hint"/> 时它就是提示正文。</summary>
     public string? Hint { get; set; }

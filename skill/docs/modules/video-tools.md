@@ -4,7 +4,7 @@
 > **模块键**：`video` ｜ **一级菜单**：Order 40 · 图标 `IconVideo`
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
 > **状态**：✅ 稳定（3 页 + 1 设置页）
-> **最后校对**：2026-10-18（对照 `VideoToolsModule.cs` / 文件清单 / `../framework.md` §6 + `../ui.md` §7；§2.5 对照三页 VM 的 `Toolbar`）
+> **最后校对**：2026-10-24（NT-100 字幕 / NT-101 多段剪切 + 详情卡 `Pair` 成对输入）
 
 ---
 
@@ -55,6 +55,8 @@
 | 拖时间条 | 预览位置 / 开始 / 结束三条 | 时间码文本 + 大画面 + 命令预览**同步刷新** | ⛔ 滑条不直接绑模型属性；`Maximum` 绑 `TimelineMax`（未知给占位 1，防 0/0=NaN 崩布局） |
 | 勾剪辑 / 勾转码 | 详情卡 `Expander` 抬头的勾选框 | 决定命令带 `-ss/-to` / 编码参数 | **取消勾选自动折叠**；折叠只影响界面，是否执行由勾选决定；两个可同勾 = 一条命令 |
 | 改参数 | 卡内字段 | 命令区实时重算 | 手改过命令后**不再覆盖** `EditArgs` |
+| **字幕**（NT-100） | 卡内「字幕文件」+「字幕方式」/ Actions `📝 选择字幕文件…` | 软字幕 = 只封装（`-c copy`，输出 `.mkv`）；硬字幕 = 追加 `subtitles=…` 滤镜 | 软字幕下编码 / 分辨率设置**不生效**（卡内有提示行）；硬字幕必须重编码（copy 预设自动升级 libx264） |
+| **多段剪切**（NT-101） | 卡内「多段剪切」多行框（每行 `开始-结束`） | 解析 ≥2 段 ⇒ 命令改走 `-filter_complex`（trim + concat），框下提示「已识别 N 段」 | 多段时忽略开始 / 结束，强制重新编码；<2 段按原单段走 |
 | 手改命令 | 命令区参数框 | 置 `IsArgsEdited`，参数变化不再覆盖 | 手改后**原样执行**（存 `RawArgs`） |
 | 重置为自动 | `↺ 重置为自动` | 清标记并重算自动参数 | 仅手改后可见 |
 | 复制命令 | `📋 复制命令` | 整条 ffmpeg 命令进剪贴板 | — |
@@ -73,6 +75,7 @@
 | 只跑选中 | `▶ 只跑选中` | 只跑选中行 | — |
 | 停止 | `⏹ 停止` | 中止当前任务 | **仅运行中可用**（`IsRunning`） |
 | 改参数 | 详情卡改字段 | **不自动写回任务** | 必须点 `💾 保存修改` 才写回（有选中才可用） |
+| **字幕 / 多段**（NT-100 / NT-101） | 同上（与预览页同一套字段） | 字段只是编辑缓冲，`💾 保存修改` 后写回任务并重算命令 | 软字幕保存时输出后缀自动改 `.mkv` |
 | 删除任务 | `🗑 删除` | 只删队列条目 | ⛔ 不删源文件 |
 | 导入任务 | `📥 导入任务` | 从导出 JSON **追加**进队列 | ⛔ 不覆盖已有 |
 | 导出任务 | `📤 导出任务` | 队列 → JSON（可外部加工再导入） | — |
@@ -122,8 +125,8 @@
 
 | 顺序 | 分区 | 内容 | 勾选框语义 |
 |---|---|---|---|
-| 1 | 「✂ 剪辑」 | 开始 / 结束、剪切预设、重新编码 CRF、自定义参数 | `IsCut`：勾上 → 命令带 `-ss/-to` |
-| 2 | 「🔁 转码」 | 预设、编码器(CPU·GPU)、容器、分辨率宽高、码率(CRF/目标) | `IsTranscode`：勾上 → 命令带编码参数 |
+| 1 | 「✂ 剪辑」 | 开始 / 结束 / **多段剪切（多行）**、剪切预设、重新编码 CRF、自定义参数 | `IsCut`：勾上 → 命令带 `-ss/-to` |
+| 2 | 「🔁 转码」 | 预设、编码器(CPU·GPU)、容器、**分辨率（宽 × 高 一行）**、默认宽高上限（一行）、码率(CRF/目标)、**字幕（文件 / 方式 / 字号 / 边距）** | `IsTranscode`：勾上 → 命令带编码参数 |
 | 3 | 输出 | 输出文件（留空自动命名，绝不覆盖已有文件） | — |
 | 4 | 命令 | 完整命令行（`SelectableTextBlock`）+ 可编辑参数框 + `↺ 重置为自动` + `📋 复制命令` | — |
 
@@ -146,6 +149,14 @@
 - **试跑**：预览页 `RunTrialAsync` 直接改任务的区间字段后调同一个 `Build*Args`（⛔ 不另写拼参逻辑），产物落 `%TEMP%\NewToys\trial\trial_HHmmss.<ext>`，再用 `ExtractFrameAsync(0.05s)` 出右栏对比图（帧文件跟小样同名 → 不会与上一张 Bitmap 抢文件）。批量页 `TrialSelectedAsync` 走 `BuildArgs(t, includeRaw: true, overrideOutput: 临时路径)`，没区间时在输出路径**前**插 `-t 5`。
 - **GIF**：`TranscodePreset.Id="gif"` + `FfmpegService.IsGif()` 判定 → `BuildTranscodeArgs` **独立分支**（`-an -c:v gif -loop 0` + `GifFilterChain` 单遍调色板）；`TranscodeTask.ContainerDisplay` 对 GIF 强制 `.gif`（容器下拉无效）。**单遍**而不是两遍：两遍要在预览里显示两条命令，「看到的 ≠ 跑的」；单遍代价是整段帧过内存 ⇒ 预检对 >30 秒给提示。
 - **进度**：`-progress pipe:1 -nostats` 必须放在**业务参数之前**；只认 `out_time_us` 与 `out_time=`（时间码），⛔ 不读 `out_time_ms`（多版本里实际是微秒）。
+
+### 3.6 字幕 / 多段剪切（NT-100 · NT-101）
+
+- **字幕落模型**：`TranscodeTask.SubtitlePath / SubtitleMode / SubtitleFontSize / SubtitleMarginV`；`SubtitleModes`（`None` / `Soft` / `Hard`）+ 下拉项在 `Models/VideoTask.cs`，⛔ 不写死在 XAML。
+- **软字幕**走 `BuildTranscodeArgs` 的**独立分支**（`-i 字幕` + `-map 0 -map 1` + `-c copy -c:s srt` + `language=chi` + `default`），**先于** GIF / 编码分支返回；`FfmpegService.OutputExtension(task)` 与 `TranscodeTask.ContainerDisplay` 都对软字幕强制 `.mkv`，批量页保存时还会把旧 `.mp4` 输出名一起改后缀。
+- **硬字幕**挂在通用编码分支的 `filters` **最后**（旋转 → 缩放 → 字幕），`SubtitlesFilter()` 负责 filtergraph 转义：`\`→`/`、`:`→`\:`、整值单引号包裹，逗号才不会被当成滤镜分隔符。预设为 `copy` 时 `baseCodec` 自动升级 `libx264`。
+- **多段剪切**：`CutTask.SegmentsText` + `CutSegments.Parse`（一行一段，分隔符 `-` `~` `→` 逗号 空白，解析失败的行直接丢）；`BuildCutArgs` 见到 `Segments.Count > 1` 直接转 `BuildMultiCutArgs`（`trim/atrim` + `setpts/asetpts` → `concat=n=N:v=1:a=1`，libx264 + aac）。`Segments` 在 `OnSegmentsTextChanged` 里重算缓存在模型上，⛔ 不在 getter 里反复解析。
+- **详情卡成对输入**：分辨率 / 默认宽高上限用 `FieldKind.Pair`（`ValuePath` + `SecondValuePath`），渲染在 `src/UI/Controls/DetailCardRender.cs::PairFieldRow` + `DetailCardHost.axaml`；`Pair` 的提交语义与 `Text` 一致（`OnBlur` 走 `OnPairLostFocus`）。
 
 ## 4. 关键文件
 
@@ -170,6 +181,9 @@
 8. 🔴 **`-ss` 前置 + `-c copy` 会带负 DTS**（开头黑屏/卡顿）⇒ copy 分支固定补 `-avoid_negative_ts make_zero`。
 9. 🔴 **GIF 不吃 `-crf` / `-preset` / 音频参数**，且必须自带调色板滤镜；把 GIF 塞进通用转码分支会得到「灰扑扑 + 体积大」或直接报错。
 10. 🔴 **抽帧文件名要跟产物同名**（`xxx.shot.jpg`）：`Bitmap` 加载后会占着文件，固定名复用会被上一张锁住导致新图抽不出来。
+11. 🔴 **`subtitles=` 滤镜里 Windows 路径必须转义**：`\`→`/`、`:`→`\:`，整值用单引号包住；否则 `C:\a\b.srt` 会被 filtergraph 按 `:` 切成两段，报 `No option name near ...`。
+12. 🔴 **软字幕只能进 `.mkv`**：mp4 / mov 不支持文本字幕轨，`-c:s srt` 会直接失败 ⇒ 容器对软字幕强制 `.mkv`，预检也拦。
+13. 🔴 **多段剪切靠 `[0:a]`**：源无音轨时 `atrim` 引用不存在的流会报错；当前如实显示 ffmpeg 报错（⛔ 不静默降级成无声版）。多段也无法 `-c copy`（copy 拼不了时间轴）。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

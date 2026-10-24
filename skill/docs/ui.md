@@ -1,8 +1,8 @@
 # NewToys UI 规范
 
+> v4.4 · 2026-10-24 · **全局滚动条换版（v3.80）** —— `App.axaml` 隐式 `{x:Type ScrollBar}` 主题：8px 槽 / 6px 圆角胶囊滑块 / 轨道透明无箭头 / 常驻；新增主题键 `ScrollThumbBrush`、`ScrollThumbHoverBrush` 与 `ScrollThumbRatioConverter`（滑块长度系数）；§9 补 4 条坑（`Track` 零绑定 / `Value` 必须 TwoWay / 缩长度禁 ScaleTransform / `IsExpanded` 恒真）。
 > v4.3 · 2026-10-21 · **过时内容清理** —— §10 子节顺序订正（`10.6 空态` 归位到 `10.7 弹出卡片` 之前，编号与正文顺序一致）；版本记录压到最近三次。
 > v4.2 · 2026-10-18 · **§8 工具条整理成唯一真源** —— 8.1 项类型表 / 8.2 尺寸·配色·宽度速查表 + 顺序铁律 / 8.3 渲染与折叠 / **8.4 输入框三态表**（新增「空闲态水印」`PlaceholderWhenIdle`、统一水印色 `PlaceholderTextBrush`）/ **8.5 交付自检**。⛔ 工具条样式规则⛔ 不要再散落到模块文档。
-> v4.1 · 新增 **§10 交互反馈约定**（跨模块共用的操作逻辑底座：右键 vs 工具条 / 二次确认判据 / 写入时机 / 状态反馈 / 重载语义 / 空态）；**§11 设置页骨架**。模块内逐页操作见 `modules/<模块>.md` §2.5。
 > 本文件 = **一切 `.axaml` / 视觉 / 控件尺寸 / 样式约定的唯一入口**（原 `NewToys-工程规范.md` §2 / §3.6 / §3.8 渲染层 / §3.10）。
 > 契约接口定义（`IDetailCardSource` / `IToolbarSource` …）在 `framework.md` §6；模块专属版式在 `modules/<模块>.md`。
 > 权威源 = `src/` 源码，冲突以源码为准并回写本文。
@@ -109,6 +109,7 @@
 | 右详情面板背景 | `PanelBrush`，与内容区之间 `DividerBrush` 1px 竖线 |
 | 窗口外框 | 激活 `WindowBorderBrush` ｜失焦 `WindowBorderInactiveBrush`；厚度 1px，最大化收掉；选择器 `Border.window-frame`（+ `.maximized` / `.inactive`），⛔ XAML 不写本地值 |
 | 输入框边框 | `InputBorderBrush`（`DividerBrush` 在暗色下看不出框） |
+| **滚动条滑块**（v3.80） | 常态 `ScrollThumbBrush`（暗 `#4A4A4A` / 亮 `#C6CAD0`）；悬停 `ScrollThumbHoverBrush` = 强调色 |
 
 - ⚠️ 标题栏底色跟随主题（`ContentBrush`）⇒ 文字必须用 `PrimaryTextBrush` 等主题色，⛔ 不要再用 `Sider*` 系（那是深色侧栏专用）。若以后改回深色标题栏，**底色与文字配色要成套同步改**。
 - 废弃旧键：`AppBackground` / `TitleBarBackground` / `TextPrimary` / `TextSecondary` / `BorderColor` / `CardBackground`（长键）、`AppBg` / `TitleBarBg` / `Text1` / `Text2` / `CardBg` / `PanelBg` / `SidebarBg` / `HoverBg` / `Border`（短键）、`TitleBarBrush` / `TitleBarTextBrush` / `TitleBarButtonHoverBrush`（NT-049 已删）。
@@ -255,7 +256,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 ### 6.7 详情卡滚动条（覆盖式）
 
 - Avalonia 12 的 `ScrollBar` 浮在内容之上，槽落在 `ScrollViewer` 右缘之外 8px（Fluent 模板写死）。
-- **统一走「收在卡内」**：`Shell/Controls/DetailCardHost.axaml` 内容 `Margin="12,12,4,12"` —— **只写在 Shell 一处**，迁移页不必也不能再覆盖 `Padding`。
+- **统一走「收在卡内」**：`NewToys.UI/Controls/DetailCardHost.axaml` 内容 `Padding="0,0,14,0"` + `Margin="12,12,4,12"` —— **只写在这一处**，迁移页不必也不能再覆盖 `Padding`。v3.80 起滚动条槽宽 8 / 滑块 6，14px 留位仍然够（⛔ 别缩到 8，滑块贴字难看）。
 
 ### 6.8 底栏 `ListFooterBar`
 
@@ -279,11 +280,11 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 ## §7 详情卡（声明式渲染）
 
-> 契约在 `framework.md` §6.3；规格唯一源 = 需求 §4.5.1（三区模型 / 10 种 Kind / 3 种提交语义 / 刷新契约 / 16 张覆盖基线）。
+> 契约在 `framework.md` §6.3；规格唯一源 = 需求 §4.5.1（三区模型 / 11 种 Kind / 3 种提交语义 / 刷新契约 / 16 张覆盖基线）。
 
 ### 7.1 渲染层口径（`DetailCardRender.cs`）
 
-- 描述符里的路径是**字符串**，XAML 写不出动态 `{Binding <字符串>}` ⇒ 渲染层在 C# 侧把 `ValuePath` / `VisibleWhen` / `EnabledWhen` / `OptionsPath` / `Chip*Path` / `*IsExpanded` 解析成真实值，行对象（`TextFieldRow` / `CheckFieldRow` / `SelectFieldRow` / `IndexSelectFieldRow` / `NumberFieldRow` / `ChipsFieldRow` / `HintFieldRow` / `DividerFieldRow` / `ListFieldRow` / `IconBarFieldRow` / `EditableListFieldRow`）**只暴露强类型属性** ⇒ 模板里**零字符串路径**。
+- 描述符里的路径是**字符串**，XAML 写不出动态 `{Binding <字符串>}` ⇒ 渲染层在 C# 侧把 `ValuePath` / `VisibleWhen` / `EnabledWhen` / `OptionsPath` / `Chip*Path` / `*IsExpanded` 解析成真实值，行对象（`TextFieldRow` / `PairFieldRow` / `CheckFieldRow` / `SelectFieldRow` / `IndexSelectFieldRow` / `NumberFieldRow` / `ChipsFieldRow` / `HintFieldRow` / `DividerFieldRow` / `ListFieldRow` / `IconBarFieldRow` / `EditableListFieldRow`）**只暴露强类型属性** ⇒ 模板里**零字符串路径**。
 - `DetailSectionRender.CreateRow` 是 **Kind → 行对象**的**唯一分派点**；加新 Kind = 加一个 `case` + 一个 `DataTemplate`。
 - 刷新契约：渲染器**订阅源 VM 一次**（`PropertyChanged`）→ 任一属性变化整体重解析。⛔ 动作级改动（落盘 / 加标签 / 删除）由**页面 VM 自己回刷**，描述符不参与。
 - 提交语义：`Instant` / `Explicit` → 值写回绑 `PropertyChanged`（`Explicit` 写的是 VM 的**编辑态草稿**，落盘由工具条「💾 保存修改」负责）；`OnBlur` → 模板挂 `LostFocus="OnTextLostFocus"` → `TextFieldRow.Commit()`。
@@ -313,6 +314,13 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 取数：`OptionsPath`（候选，必须**稳定实例**）→ 每行 `ItemLabelPath`（只读左标签）+ `ItemTextPath`（**可编辑文本，双向写回候选项**）。
 - 提交：模板挂 `LostFocus="OnEditableListLostFocus"` → `EditableListItemRow.Commit()`（**只提交真的改过的行**）→ 写回候选项 + 执行 `ItemCommandPath`（参数 = 候选项）。
 - 候选集合变了（切节 / 列变化）会自动重读；🔴 提交命令里⛔ **不要重建候选集合**，否则用户点下一个输入框时它会失焦。
+
+### 7.3c Pair（第 11 种 Kind，2026-10-24）
+
+- 件：`FieldKind.Pair`（`Shared`）+ `DetailField.SecondValuePath / SecondPlaceholder / PairSeparator` + `PairFieldRow`（`UI`）。
+- 布局：`Grid ColumnDefinitions="*,Auto,*"` = 左框 + 中间符号（默认 `×`）+ 右框；左框仍用 `ValuePath`、右框用 `SecondValuePath`。
+- 提交：与 `Text` 一致（`Commit=OnBlur` 时模板挂 `LostFocus="OnPairLostFocus"`，其余即时写回）。
+- 用途：**天然成对的数值**（宽 × 高 / 上下限）。⛔ 别把两个不相关的字段塞进 `Pair`。
 
 ### 7.4 迁移页三件事（缺一不可）
 
@@ -419,6 +427,10 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 7. **`IndexSelectFieldRow` 只认 `LiteralOptions` 的 bug** ⇒ 给 `OptionsPath` 的索引下拉渲染空白。✅ 已修（补 `OptionsPath` 分支）。
 8. **`ApplyView()` 里 `Items.Clear()` 会让 ListBox 的 `SelectedItem` 双向绑定回写 null** ⇒ 点收藏 / 切分类后详情卡掉回示例态。✅ 已修（新增 `ApplyViewKeepSelection()`）。
 9. **`BuildContent` 的动态文案绑定必须显式给 `Source`**（`ToolbarHost` ⛔ 无 DataContext）⇒ 漏了就渲染成空白按钮。
+10. 🔴 **全局滚动条（v3.80）= `App.axaml` 里隐式键 `{x:Type ScrollBar}` 的 `ControlTheme`**（8px 槽 / 6px 圆角胶囊滑块 / 轨道透明无箭头 / `AllowAutoHide=False` 常驻），点滑块悬停变强调色。⇒ 全应用（含 `Module.*` 页、`NewToys.UI` 控件、`ComboBox` 下拉）自动生效，⛔ 页面里别再自写 `ScrollBar` 样式；槽宽 8 与滚动条走廊（§2.2 / 本文件第 64 行）对齐，⛔ 改宽会压内容。
+11. 🔴 **`AllowAutoHide=False` ⇒ `ScrollBar.IsExpanded` 恒为 `true`**（源码 `UpdateIsExpandedState`）。所以滚动条悬停态**只认 `:pointerover`**，⛔ 别用 `^[IsExpanded=true]` 选择器 —— 它会永远命中，滑块变常年强调色。
+12. 🔴 **`Track` 的属性不会自动接上 `ScrollBar`**（`ScrollBar.cs` 与 `Track` 之间零绑定，`OnThumbDragDelta` 只发 `Scroll` 事件、**不写值**）：自定义 `ScrollBar` 模板时 `Track` 的 `Minimum` / `Maximum` / `Value` / `ViewportSize` **必须逐个 `TemplateBinding`**；其中 **`Value` 必须 `Mode=TwoWay`** —— 拖拽是 `Track` 自己 `SetCurrentValue(Value)`，单向绑定会把它立刻覆盖回去 ⇒ **滑块能拖、内容纹丝不动**（2026-10-24 实锤）。`PART_PageUpButton` / `PART_PageDownButton` 两个 `RepeatButton` 也必须留（否则点轨道不翻页）。
+13. 🔴 **滑块长度要缩只能改 `Track` 的 `ViewportSize`（过 `ScrollThumbRatioConverter`），⛔ 别用 `Thumb` 的 `ScaleTransform`**：Track 用 `ViewportSize / (Maximum + ViewportSize)` 算长度、用**同一个长度**算位置 ⇒ 用 render 缩放只改视觉不改布局，滑块「居中缩」后拖到底部会空出一截，现象就是**拖不到底**（2026-10-24 实锤）。系数在 `App.axaml` 的 `ScrollThumbRatio`（默认 0.55，越小滑块越短）。
 
 ---
 

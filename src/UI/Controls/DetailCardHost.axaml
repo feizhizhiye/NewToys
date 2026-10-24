@@ -116,6 +116,41 @@
       </StackPanel>
     </DataTemplate>
 
+    <!--  ===== Kind ①-b Pair（成对输入：宽 × 高）  =====  -->
+    <DataTemplate DataType="c:PairFieldRow">
+      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <SelectableTextBlock
+            Classes="field-label"
+            IsVisible="{Binding HasLabel}"
+            Text="{Binding Label}"
+            TextWrapping="Wrap" />
+        <Grid ColumnDefinitions="*,Auto,*">
+          <TextBox
+              Classes.code="{Binding Mono}"
+              LostFocus="OnPairLostFocus"
+              PlaceholderText="{Binding FirstPlaceholder}"
+              Text="{Binding First, Mode=TwoWay}" />
+          <TextBlock
+              Grid.Column="1"
+              Margin="6,0"
+              VerticalAlignment="Center"
+              Classes="hint-text"
+              Text="{Binding Separator}" />
+          <TextBox
+              Grid.Column="2"
+              Classes.code="{Binding Mono}"
+              LostFocus="OnPairLostFocus"
+              PlaceholderText="{Binding SecondPlaceholder}"
+              Text="{Binding Second, Mode=TwoWay}" />
+        </Grid>
+        <SelectableTextBlock
+            Classes="hint-text"
+            IsVisible="{Binding HasHint}"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap" />
+      </StackPanel>
+    </DataTemplate>
+
     <!--  ===== Kind ② Check（Instant）  =====  -->
     <DataTemplate DataType="c:CheckFieldRow">
       <StackPanel Spacing="2" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">

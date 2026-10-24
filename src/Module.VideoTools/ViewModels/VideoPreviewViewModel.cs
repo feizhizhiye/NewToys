@@ -173,6 +173,9 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// </summary>
     public ICommand? PickOutputCommand { get; set; }
 
+    /// <summary>📝 选择字幕文件（NT-100；code-behind 挂真正实现）。</summary>
+    public ICommand? PickSubtitleCommand { get; set; }
+
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
@@ -243,6 +246,23 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         Commit = EditCommitMode.OnBlur,
                         Mono = true
                     },
+                    // NT-101：多段剪切 + 拼接（≥2 段时忽略上面的开始 / 结束）
+                    new DetailField
+                    {
+                        Label = "多段剪切（每行一段：开始-结束；≥2 段 = 切完再拼成一条）",
+                        ValuePath = nameof(EditSegmentsText),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        MultiLine = true,
+                        Placeholder = "00:00:05-00:00:12\n00:00:20-00:00:28"
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        ValuePath = nameof(SegmentsHint),
+                        VisibleWhen = nameof(HasSegmentsHint)
+                    },
                     new DetailField
                     {
                         Label = "剪切预设",
@@ -311,21 +331,17 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         OptionsPath = nameof(ContainerOptions),
                         ValuePath = nameof(EditContainer)
                     },
+                    // 分辨率：宽 × 高 一行两个框（FieldKind.Pair）
                     new DetailField
                     {
-                        Label = "宽（0 = 按比例）",
+                        Label = "分辨率（宽 × 高；0 = 按比例 / 不改）",
                         ValuePath = nameof(EditTargetWidth),
-                        Kind = FieldKind.Text,
+                        Kind = FieldKind.Pair,
                         Commit = EditCommitMode.OnBlur,
-                        Mono = true
-                    },
-                    new DetailField
-                    {
-                        Label = "高（0 = 不改）",
-                        ValuePath = nameof(EditTargetHeight),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        Mono = true
+                        Mono = true,
+                        Placeholder = "宽",
+                        SecondValuePath = nameof(EditTargetHeight),
+                        SecondPlaceholder = "高"
                     },
                     new DetailField
                     {
@@ -335,19 +351,14 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                     },
                     new DetailField
                     {
-                        Label = "默认宽上限",
+                        Label = "默认宽高上限（源更大才缩，只缩不放）",
                         ValuePath = nameof(EditDefaultWidth),
-                        Kind = FieldKind.Text,
+                        Kind = FieldKind.Pair,
                         Commit = EditCommitMode.OnBlur,
-                        Mono = true
-                    },
-                    new DetailField
-                    {
-                        Label = "默认高上限",
-                        ValuePath = nameof(EditDefaultHeight),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        Mono = true
+                        Mono = true,
+                        Placeholder = "宽",
+                        SecondValuePath = nameof(EditDefaultHeight),
+                        SecondPlaceholder = "高"
                     },
                     new DetailField
                     {
@@ -356,6 +367,49 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         OptionsPath = nameof(RotateChoices),
                         OptionDisplayPath = "Label",
                         ValuePath = nameof(SelectedRotate)
+                    },
+                    // ===== 字幕（NT-100）=====
+                    new DetailField { Kind = FieldKind.Divider },
+                    new DetailField
+                    {
+                        Label = "字幕文件（.srt / .ass；留空 = 不加字幕）",
+                        ValuePath = nameof(EditSubtitlePath),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true
+                    },
+                    new DetailField
+                    {
+                        Label = "字幕方式",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(SubtitleModeChoices),
+                        OptionValuePath = "Value",
+                        OptionDisplayPath = "Label",
+                        ValuePath = nameof(EditSubtitleMode)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        ValuePath = nameof(SoftSubtitleHint),
+                        VisibleWhen = nameof(IsSoftSubtitleEdit)
+                    },
+                    new DetailField
+                    {
+                        Label = "硬字幕字号（像素；0 = 用字幕自带样式）",
+                        ValuePath = nameof(EditSubtitleFontSize),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        VisibleWhen = nameof(IsHardSubtitleEdit)
+                    },
+                    new DetailField
+                    {
+                        Label = "硬字幕底部边距（像素；0 = 不设）",
+                        ValuePath = nameof(EditSubtitleMarginV),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        VisibleWhen = nameof(IsHardSubtitleEdit)
                     },
                     new DetailField
                     {
@@ -479,6 +533,14 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                 Classes = "ghost",
                 ToolTip = "挑一个输出文件；留空 = 自动命名（⛔ 绝不覆盖已有文件）",
                 Command = new RelayCommand(() => PickOutputCommand?.Execute(null))
+            },
+            // NT-100：字幕文件（.srt / .ass）
+            new DetailAction
+            {
+                Text = "📝 选择字幕文件…",
+                Classes = "ghost",
+                ToolTip = "挑一个 .srt / .ass 字幕，再把上面的「字幕方式」选成软字幕或硬字幕",
+                Command = new RelayCommand(() => PickSubtitleCommand?.Execute(null))
             }
         }
     };
@@ -892,6 +954,66 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     partial void OnEditTranscodeCrfChanged(int value) => RefreshCommand();
     partial void OnEditTargetBitrateChanged(string value) => RefreshCommand();
 
+    // ==================== 字幕（NT-100）/ 多段剪切（NT-101） ====================
+
+    /// <summary>字幕文件（<c>.srt / .ass</c>；空 = 不加字幕）。</summary>
+    [ObservableProperty] private string _editSubtitlePath = "";
+
+    /// <summary>字幕方式（取值见 <see cref="SubtitleModes"/>）。</summary>
+    [ObservableProperty] private string _editSubtitleMode = SubtitleModes.None;
+
+    /// <summary>硬字幕字号（0 = 用字幕自带样式）。</summary>
+    [ObservableProperty] private int _editSubtitleFontSize = 22;
+
+    /// <summary>硬字幕底部边距（0 = 不设）。</summary>
+    [ObservableProperty] private int _editSubtitleMarginV = 24;
+
+    /// <summary>「字幕方式」下拉选项。</summary>
+    public IReadOnlyList<SubtitleModeOption> SubtitleModeChoices => SubtitleModes.All;
+
+    public bool IsHardSubtitleEdit => string.Equals(EditSubtitleMode, SubtitleModes.Hard, StringComparison.OrdinalIgnoreCase);
+    public bool IsSoftSubtitleEdit => string.Equals(EditSubtitleMode, SubtitleModes.Soft, StringComparison.OrdinalIgnoreCase);
+
+    public string SoftSubtitleHint
+        => "软字幕 = 视频 / 音频原样 copy，字幕单独成轨（秒完成、播放器里可开关）；输出固定 .mkv。"
+           + "此时编码 / 分辨率 / 码率设置不生效。";
+
+    partial void OnEditSubtitleModeChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsHardSubtitleEdit));
+        OnPropertyChanged(nameof(IsSoftSubtitleEdit));
+        RefreshCommand();
+    }
+
+    partial void OnEditSubtitlePathChanged(string value) => RefreshCommand();
+    partial void OnEditSubtitleFontSizeChanged(int value) => RefreshCommand();
+    partial void OnEditSubtitleMarginVChanged(int value) => RefreshCommand();
+
+    /// <summary>多段剪切串（每行一段 <c>开始-结束</c>）。</summary>
+    [ObservableProperty] private string _editSegmentsText = "";
+
+    /// <summary>多段解析的即时反馈（空 = 没填 / 一行都没解析出来）。</summary>
+    public string SegmentsHint
+    {
+        get
+        {
+            var segs = CutSegments.Parse(EditSegmentsText);
+            return segs.Count == 0
+                ? ""
+                : $"已识别 {segs.Count} 段 · 合计 {CutTask.FormatTime(segs.Sum(s => s.Length))}"
+                  + (segs.Count < 2 ? "（少于 2 段 = 忽略多段，按上面开始/结束切）" : " · 多段会强制重新编码");
+        }
+    }
+
+    public bool HasSegmentsHint => SegmentsHint.Length > 0;
+
+    partial void OnEditSegmentsTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(SegmentsHint));
+        OnPropertyChanged(nameof(HasSegmentsHint));
+        RefreshCommand();
+    }
+
     public IReadOnlyList<TranscodePreset> TranscodePresets => TranscodePreset.All;
     public IReadOnlyList<string> ContainerOptions => FfmpegService.Containers;
 
@@ -1019,7 +1141,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     private void RefreshLint()
     {
         var output = ResolveOutput();
-        LintText = CommandLint.Describe(CommandLint.Check(BuildExecutableArgs(), output, SourcePath));
+        LintText = CommandLint.Describe(CommandLint.Check(BuildExecutableArgs(), output, SourcePath,
+                                                          EditSubtitlePath, EditSubtitleMode));
     }
 
     /// <summary>真正会执行的参数（**含**输出路径）—— 预检 / 试跑共用，与运行时同源。</summary>
@@ -1183,8 +1306,10 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         if (IsTranscode)
         {
             var preset = TranscodePreset.Find(EditTranscodePresetId);
-            // NT-099：GIF 只认 .gif（容器下拉对它无效）
-            var ext = FfmpegService.IsGif(preset) ? ".gif" : NormalizeExt(EditContainer, preset.Extension);
+            // NT-099：GIF 只认 .gif；NT-100：软字幕只认 .mkv
+            var ext = FfmpegService.IsGif(preset) ? ".gif"
+                    : (IsSoftSubtitleEdit && !string.IsNullOrWhiteSpace(EditSubtitlePath)) ? ".mkv"
+                    : NormalizeExt(EditContainer, preset.Extension);
             return FfmpegService.DefaultOutputPath(SourcePath, preset.OutputSuffix, ext);
         }
         return FfmpegService.DefaultOutputPath(SourcePath, "_cut", ".mp4");
@@ -1197,6 +1322,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         Duration = Duration,
         Start = ParseOr(EditStart, 0),
         End = string.IsNullOrWhiteSpace(EditEnd) ? 0 : ParseOr(EditEnd, 0),
+        SegmentsText = EditSegmentsText ?? "",
         PresetId = string.IsNullOrWhiteSpace(EditPresetId) ? CutPresets.Copy : EditPresetId,
         Crf = EditCrf,
         ReEncode = string.Equals(EditPresetId, CutPresets.ReEncode, StringComparison.OrdinalIgnoreCase),
@@ -1225,6 +1351,10 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
             TargetBitrate = (EditTargetBitrate ?? "").Trim(),
             FrameRate = EditFrameRate,
             GifWidth = EditGifWidth,
+            SubtitlePath = (EditSubtitlePath ?? "").Trim(),
+            SubtitleMode = string.IsNullOrWhiteSpace(EditSubtitleMode) ? SubtitleModes.None : EditSubtitleMode,
+            SubtitleFontSize = EditSubtitleFontSize,
+            SubtitleMarginV = EditSubtitleMarginV,
             SourceDuration = Duration,
             OutputPath = ResolveOutput()
         };
@@ -1285,11 +1415,11 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
             else
             {
                 var c = BuildCutTask();
-                if (c.End > 0 && c.End <= c.Start) { StatusText = "结束时间必须大于开始时间。"; return; }
+                if (!c.IsMultiSegment && c.End > 0 && c.End <= c.Start) { StatusText = "结束时间必须大于开始时间。"; return; }
                 c.OutputPath = output;
                 c.RawArgs = raw;
                 _store.AddCut(c);
-                StatusText = $"已发送到「批量处理」：{c.Name} · 剪辑 · {c.RangeDisplay}";
+                StatusText = $"已发送到「批量处理」：{c.Name} · 剪辑 · {(c.IsMultiSegment ? $"多段 {c.Segments.Count} 段" : c.RangeDisplay)}";
             }
         }
         catch (Exception ex) { StatusText = "发送失败：" + ex.Message; }

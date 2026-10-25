@@ -173,7 +173,7 @@
 > `App.Theme.cs` 主题跟随与强调色；`App.Pickers.cs` 文件夹 / 文件 / 保存 / 确认 / 输入钩子的宿主实现。
 > ⛔ 别在 `App.axaml.cs` 里加新章节 —— 放进对应的 partial 文件。
 
-> **巨型 ViewModel 同样按职责拆 partial**（同一 `public partial class XxxViewModel`，同目录、同命名空间；字段与属性集中在主文件，partial 只放方法）：
+> **巨型 ViewModel / Service 同样按职责拆 partial**（同一 `public partial class Xxx`，同目录、同命名空间；字段与属性集中在主文件，partial 只放方法）：
 >
 > | 类 | 文件分工 |
 > |---|---|
@@ -186,6 +186,7 @@
 > | `CollectionViewModel`（924 → 250） | `.cs` 字段与构造；`.Detail.cs` 详情卡与编辑态装载；`.Members.cs` 集合刷新·成员表·详情编辑落库；`.Edit.cs` 新建/复制/删除/归档/送往页面；`.Export.cs` 导出与扫描入集合 |
 > | `VideoListViewModel`（991 → 211） | `.cs` 字段与选文件；`.Detail.cs` 详情卡；`.Page.cs` 构造·扫描·列映射·视图；`.Selection.cs` 勾选与转码/剪切跳转；`.MediaInfo.cs` 媒体信息探测；`.Actions.cs` 导入·播放·打开·重命名·删除 |
 > | `PathViewModel`（834 → 170） | `.cs` 字段与选项模型；`.State.cs` 动作可用性·构造；`.Probe.cs` 外部工具探测与 Python 行；`.Rows.cs` 行构建·列·视图；`.Save.cs` 保存/恢复默认/浏览/打开/写回；`.Profile.cs` 多实例 Profile 增删改切 |
+> | `AssetService`（1513 → 247） | `.cs` 字段·构造·存储源（增删查·统计·扫描错误）；`.Asset.cs` 资产查询/插入/更新/删除/收藏评分；`.Location.cs` 文件位置读写与缺失标记；`.Query.cs` 行查询 + SQL 条件/排序构建；`.Org.cs` 名称映射与标签·分类·集合选项；`.Commit.cs` 批量行落库与显示名；`.ScanJob.cs` 扫描任务 + 数据读取映射 |
 >
 > ⛔ 新增逻辑按职责投递到对应 partial，别往主文件堆；拆分只搬方法、不改一行实现。
 

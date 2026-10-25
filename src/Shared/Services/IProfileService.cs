@@ -9,7 +9,7 @@ namespace NewToys.Shared.Services;
 /// 留下"一半新配置一半旧配置"的状态。所以本接口只负责**写「当前配置」指针 + 重启进程**。
 /// </para>
 /// <para>
-/// v3.26 起支持**多实例**（需求 §3.5）：可同时开多个配置的窗口，各跑各的数据目录（目录级天然隔离）。
+/// 支持**多实例**（需求 §3.5）：可同时开多个配置的窗口，各跑各的数据目录（目录级天然隔离）。
 /// 语义随之调整：<c>active-profile.txt</c> 只写两处——首次迁移与 <see cref="SetAsDefault"/>；
 /// <see cref="SwitchTo"/> 不再写指针，切换 = <see cref="RestartApp(string)"/> 显式传参重启。
 /// </para>

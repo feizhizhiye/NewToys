@@ -52,7 +52,7 @@ public abstract partial class VideoTaskBase : ObservableObject
     public string CreatedDisplay => Created.ToString("yyyy-MM-dd HH:mm");
 
     /// <summary>
-    /// v3.15「命令摘要」列要显示的文本 —— **由批量处理页的 VM 在刷新列表时写入**。
+    /// 「命令摘要」列要显示的文本 —— **由批量处理页的 VM 在刷新列表时写入**。
     /// <para>为什么不能由模型自己算：拼 ffmpeg 参数需要 <c>FfmpegService</c> 与配置里的 ffmpeg 路径，
     /// 模型层拿不到（也不该拿）。VM 每次 <c>RefreshView</c> 填一次，行绑定时读它。</para>
     /// </summary>
@@ -72,7 +72,7 @@ public abstract partial class VideoTaskBase : ObservableObject
     [ObservableProperty] private string _rawArgs = "";
 
     /// <summary>
-    /// v3.16：批量处理列表**行首勾选框**（表头 ☑ 的「全选 / 取消选择 / 反选」改它）。
+    /// 批量处理列表**行首勾选框**（表头 ☑ 的「全选 / 取消选择 / 反选」改它）。
     /// <para>⛔ 只是界面上的多选标记，**不参与命令生成**（跑哪些任务由「▶ 跑选中 / ▶▶ 批量运行」决定）。</para>
     /// </summary>
     [ObservableProperty] private bool _isChecked;

@@ -70,7 +70,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
     // ==================== 声明式工具条（需求 §4.8.5） ====================
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        // v3.77：工具条里⛔ 不再放只读文字标签（「集合」「视图」）—— 一律用**悬浮提示**说明这一项是什么。
+        // 工具条里⛔ 不再放只读文字标签（「集合」「视图」）—— 一律用**悬浮提示**说明这一项是什么。
         new()
         {
             Kind = ToolbarItemKind.Combo, Width = 240,

@@ -19,13 +19,13 @@ public partial class VideoBatchView : UserControl
         // 平台文件选择器只能在 View 层用（VM 不引 Avalonia），选完把结果交给 VM
         // ⚠️ 原来卡片里那个内联「📂」按钮（PickOutputBtn）随页内卡一起删了 ——
         //    现在它是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
-        // v3.20 §6.4.15：拖动表头列边界 → VM 改「手动列宽」→ 表头与所有行同规格重建
+        // §6.4.15：拖动表头列边界 → VM 改「手动列宽」→ 表头与所有行同规格重建
         HeaderGrid.ColumnResize += (_, e) =>
         {
             if (DataContext is ListPageViewModelBase vm)
                 vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
         };
-        // v3.22 §4.8.1：表头首次布局后把「表头宽 + 示例值宽」交给 VM —— 示例 ≤ 表头的列锁成表头宽
+        // §4.8.1：表头首次布局后把「表头宽 + 示例值宽」交给 VM —— 示例 ≤ 表头的列锁成表头宽
         HeaderGrid.HeaderMeasured += (_, e) =>
         {
             if (DataContext is ListPageViewModelBase vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
@@ -41,8 +41,8 @@ public partial class VideoBatchView : UserControl
         base.OnDataContextChanged(e);
         if (TaskList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
-        // v3.16 §6.4.10：表头勾选框的「全选 / 取消选择 / 反选」菜单同理（不同步的话右键点了没反应）。
-        // v3.16.1：菜单挪到 HeaderCheckHost（透明 Border = 整格热区）上。
+        // §6.4.10：表头勾选框的「全选 / 取消选择 / 反选」菜单同理（不同步的话右键点了没反应）。
+        // 1：菜单挪到 HeaderCheckHost（透明 Border = 整格热区）上。
         if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
 
         // 把「📂 选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。

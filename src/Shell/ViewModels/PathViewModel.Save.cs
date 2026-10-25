@@ -152,7 +152,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             {
                 case "FfmpegPath": _cfg.FfmpegPath = v; break;
                 case "PlayerPath": _cfg.PlayerPath = v; break;
-                // v3.65：三个解释器路径回迁应用级（app.json）—— 本页是它们的唯一写入点。
+                // 三个解释器路径回迁应用级（app.json）—— 本页是它们的唯一写入点。
                 case "PythonPath": _cfg.PythonPath = v; break;
                 case "PwshPath": _cfg.PwshPath = v; break;
                 case "PowerShell51Path": _cfg.PowerShell51Path = v; break;
@@ -165,9 +165,8 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     }
 
     // ==================== 配置侧动作（v3.53：由「设置 → 配置」页原样并入） ====================
-    //
     // 🔴 语义**零改动**：⇄ 切换仍二次确认 + 本窗重启；🗑 删除仍禁删当前配置并二次确认。
-    // v3.66：♻ 重置（内置档语义）已撤销 —— 配置只是根目录，没有"初始态"这个概念。
+    // ♻ 重置（内置档语义）已撤销 —— 配置只是根目录，没有"初始态"这个概念。
     // 每个命令都收一个行参数（行内按钮传行、工具条与详情卡不传 ⇒ 用当前选中项）。
 
     /// <summary>把行参数归一成"当前要操作的配置行"（不传参就用选中项）。</summary>

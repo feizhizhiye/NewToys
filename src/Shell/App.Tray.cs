@@ -167,7 +167,7 @@ public partial class App : Application
                 try { profiles!.LaunchNewInstance(name); }
                 catch (Exception ex)
                 {
-                    // 起不来（互斥体挡住 / 路径非法）：托盘里⛔ 不弹窗打断用户，只留调试线索
+                    // 不来（互斥体挡住 / 路径非法）：托盘里⛔ 不弹窗打断用户，只留调试线索
                     System.Diagnostics.Debug.WriteLine("托盘启动配置实例失败：" + ex.Message);
                 }
             };

@@ -27,7 +27,7 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
                 ToolTip = "按右边 URL 框里的地址下载一份 hosts 文本并解析成新方案（网络失败会提示）" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "网络 hosts 文件 URL…", ValuePath = nameof(ImportUrl), ToolTip = "粘贴一份 hosts 文本文件的网址，点左边「🌐 导入」下载并解析" },
         new() { Text = "➕ 新建方案", Classes = "ghost", CommandPath = nameof(NewProfileCommand) },
-        // v3.60：原 Label「双击应用 = 写入系统 hosts（需管理员）」删除（工具条⛔ 不放说明文字）。
+        // 原 Label「双击应用 = 写入系统 hosts（需管理员）」删除（工具条⛔ 不放说明文字）。
         //        ⚠️ 这条是**行级**操作提示，工具条里没有合适按钮可挂 ⇒ 暂由列表行自己表达（后续若加行 ToolTip 再补回）。
         new() { Text = "🔄 重读方案", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的 hosts 方案清单（⛔ 不动系统 hosts、不导入）" }
     };
@@ -38,7 +38,7 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
     public ObservableCollection<HostsProfile> Profiles { get; } = new();
 
     [ObservableProperty] private bool _isBusy;
-    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
+    // StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private HostsProfile? _selected;
     [ObservableProperty] private string _entriesText = "";
     [ObservableProperty] private string _importUrl = "";
@@ -50,7 +50,6 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
     [ObservableProperty] private string _sourceHeader = "来源";
 
     // ============ 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ============
-    //
     // XAML 只能绑具名属性 → 每列给一个直通属性（真正的状态在基类里，落 config\columnlayout.json）。
 
     public bool IsNameVisible => Vis("Name");
@@ -62,7 +61,7 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
+        // §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
         new("Name", "名称", "3*", sample: "开发环境 hosts"),
         new("Entries", "条目数", "1.2*", sample: "12"),
         new("Source", "来源", "2*", sample: @"D:\hosts\dev.hosts"),

@@ -47,7 +47,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     protected virtual IEnumerable<ToolbarItemDescriptor> ToolbarTailExtras => Array.Empty<ToolbarItemDescriptor>();
 
     /// <summary>
-    /// v3.63：共用的「📥 导入」（json 清单）放哪儿 —— **true = 排最前**（「导入 → 输入框 → 搜索」三件套，
+    /// 共用的「📥 导入」（json 清单）放哪儿 —— **true = 排最前**（「导入 → 输入框 → 搜索」三件套，
     /// 「命令库」页走这条）；**false = 排在「📤 导出」前面**（「脚本库」页：最前已经有一个「📂 导入」脚本文件了，
     /// 两个导入挨在一起会分不清）。
     /// </summary>
@@ -56,7 +56,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// <summary>共用的「📥 导入」按钮（从 json 文件导入本页清单：合并 / 整页替换两路菜单）。</summary>
     private static ToolbarItemDescriptor JsonImportItem => new()
     {
-        // v3.63：与「📤 导出」同一口径（emoji + 一个词），⛔ 不再写「导入清单」这类后缀
+        // 与「📤 导出」同一口径（emoji + 一个词），⛔ 不再写「导入清单」这类后缀
         Text = "📥 导入",
         Classes = "ghost",
         ToolTip = "从 json 文件导入本页清单（合并 / 整页替换）",
@@ -147,7 +147,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
                 });
             }
 
-            // v3.63：不排在最前的页 ⇒ 「📥 导入」插到「📤 导出」前面
+            // 不排在最前的页 ⇒ 「📥 导入」插到「📤 导出」前面
             if (!JsonImportFirst) items.Add(JsonImportItem);
 
             items.AddRange(new ToolbarItemDescriptor[]

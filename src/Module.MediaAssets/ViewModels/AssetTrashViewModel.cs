@@ -13,7 +13,7 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-// v3.66：与 Core 的同名服务区分（本页用带库表日志的模块版）。
+// 与 Core 的同名服务区分（本页用带库表日志的模块版）。
 using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 
 namespace NewToys.MediaAssets.ViewModels;

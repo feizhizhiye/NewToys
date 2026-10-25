@@ -32,7 +32,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (p == null || _pkg == null) return;
 
         StatusText = "正在读取详情（winget show）……";
-        // v3.78：商店包只在 msstore 源里 ⇒ show 必须带 --source，否则详情读不出来。
+        // 商店包只在 msstore 源里 ⇒ show 必须带 --source，否则详情读不出来。
         var (ok, msg, detail) = await _pkg.ShowAsync(p.Id,
             p.Source);
         if (!ok || detail == null) { StatusText = msg; return; }
@@ -47,7 +47,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         p.License = detail.License;
         p.InstallLocation = detail.InstallLocation;
 
-        // v3.19：PackageInfo 已是 ObservableObject → 上面的赋值直接通知详情卡 / 列表行刷新，
+        // PackageInfo 已是 ObservableObject → 上面的赋值直接通知详情卡 / 列表行刷新，
         // ⛔ 不用再整体重建列表（以前是普通类才需要 ApplyView，且重建会重置滚动位）。
         DetailExtra = detail.Description;
         StatusText = msg;

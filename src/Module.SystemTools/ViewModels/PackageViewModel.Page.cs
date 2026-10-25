@@ -106,7 +106,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             IsBusy = true;
             StatusText = "正在搜索……";
 
-            // v3.80：源选择框已删 ⇒ 固定「全部源」行为：
+            // 源选择框已删 ⇒ 固定「全部源」行为：
             //   ① 先不传 --source（winget 用自己的默认源集合，自动排除显式源）；
             //   ② 再把系统里的**显式源**（如 winget-font）逐个补查合并 —— 否则字体源永远搜不到。
             var merged = new List<PackageInfo>();
@@ -174,7 +174,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             BuildInstalledCache();
             await ApplyPinnedAsync();
             ApplyView();
-            // v3.19：明确「已 Pin 的不出现在可升级列表」是 winget 行为、非漏报（需求 §6.2.3）。
+            // 明确「已 Pin 的不出现在可升级列表」是 winget 行为、非漏报（需求 §6.2.3）。
             StatusText = $"{msg} · 已 Pin 的不会出现在此列表（winget 行为）";
         }
         finally { IsBusy = false; }
@@ -196,7 +196,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     private void BeginList(List<PackageInfo> items, ListMode mode)
     {
-        // v3.37：旧行先解绑勾选监听，新行挂上（⛔ 别直接 AddRange，否则计数不更新）
+        // 旧行先解绑勾选监听，新行挂上（⛔ 别直接 AddRange，否则计数不更新）
         foreach (var p in _all) p.PropertyChanged -= OnRowPropertyChanged;
         _all.Clear();
         foreach (var p in items) p.PropertyChanged += OnRowPropertyChanged;
@@ -393,7 +393,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (InstalledOnly && _mode == ListMode.Search)
             q = q.Where(p => p.IsInstalled);
 
-        // v3.19：可升级列表**不显示已 Pin 的**（winget 会跳过它们 —— 需求 §6.2.3；也让它更贴近终端 winget upgrade 的条数）
+        // 可升级列表**不显示已 Pin 的**（winget 会跳过它们 —— 需求 §6.2.3；也让它更贴近终端 winget upgrade 的条数）
         if (_mode == ListMode.Upgrades)
             q = q.Where(p => !p.IsPinned);
 

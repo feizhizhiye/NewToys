@@ -5,7 +5,6 @@ namespace NewToys.Shared.Services
     /// <summary>
     /// **加密 DNS（DNS over HTTPS）**：只作用于**本软件自己**发起的网络请求（书签检测、网址爬取等），
     /// 不改系统 DNS、不影响浏览器。未启用时走系统解析。
-    ///
     /// 实现用 DoH 的 **JSON 接口**（`Accept: application/dns-json`），所以「自定义」端点必须是支持 JSON 的 DoH 服务。
     /// </summary>
     public interface IEncryptedDnsService

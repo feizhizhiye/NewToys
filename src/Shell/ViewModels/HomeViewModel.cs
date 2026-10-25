@@ -27,7 +27,7 @@ public class QuickBtn
 /// <summary>
 /// 首页「常用功能」墙里的一张卡（v3.19）。
 /// <para>
-/// v3.66：细节调整：尾部追加一张**「显示更多」卡**（<see cref="IsMore"/> = true）——
+/// 细节调整：尾部追加一张**「显示更多」卡**（<see cref="IsMore"/> = true）——
 /// 它与收藏按钮**同容器同流转**（同一个 <c>WrapPanel</c>）、恒排最后，点开把**功能清单就地展开**在下方
 /// （⛔ 不再跳独立页）。故命令与命令参数下沉到卡片自身（收藏卡 → 导航；更多卡 → 折叠切换）。
 /// </para>
@@ -134,7 +134,7 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
         NavigateCommand = new RelayCommand<string?>(k =>
         {
             if (string.IsNullOrEmpty(k)) return;
-            // v3.1：导航统一走标签页（打开或激活对应 key 的标签）。
+            // 导航统一走标签页（打开或激活对应 key 的标签）。
             var shell = sp.GetRequiredService<ShellViewModel>();
             shell.OpenTabCommand.Execute(k);
         });
@@ -201,7 +201,7 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
         }
         _hasFavorites = count > 0;
 
-        // v3.66：尾部「显示更多」卡 —— 与收藏按钮**同一个 WrapPanel**（同流转、自动换行）、**恒在最后**。
+        // 尾部「显示更多」卡 —— 与收藏按钮**同一个 WrapPanel**（同流转、自动换行）、**恒在最后**。
         SyncMoreCard();
         Favorites.Add(_moreCard);
 

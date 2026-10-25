@@ -21,7 +21,7 @@ public static partial class FfmpegService
         var args = new List<string> { "-hide_banner", "-loglevel", "error", "-y" };
 
         // ① 区间（"既剪辑又转码"）：-ss 放在 -i **前面** = 关键帧快速定位；-to 是相对时长
-        //    v3.16：终点留空（0）= 从起点一直到文件末尾，此时不能加 -to（否则算出负数时长）。
+        //    终点留空（0）= 从起点一直到文件末尾，此时不能加 -to（否则算出负数时长）。
         AppendTrimAndInput(args, task);
 
         // ①-b 替换音轨：音频文件作为**第二条输入**，视频仍取 0 号输入的源片。

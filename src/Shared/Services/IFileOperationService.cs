@@ -25,7 +25,7 @@ public readonly record struct FileOpResult(bool Ok, string Message, string? Path
 }
 
 /// <summary>
-/// v3.66：**跨模块共用的文件系统动作**（复制 / 移动 / 改名 / 删除）。
+/// **跨模块共用的文件系统动作**（复制 / 移动 / 改名 / 删除）。
 /// <para>
 /// 定位：只做「磁盘上发生了什么」，⛔ 不认识任何数据库、⛔ 不弹窗、⛔ 不写业务日志。
 /// 模块自己负责「先确认 / 后记账」——例如媒体资产在 <c>FileOperationService</c> 里包一层

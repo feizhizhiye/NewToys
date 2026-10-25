@@ -27,13 +27,13 @@ public partial class VideoListView : UserControl
             if (DataContext is VideoListViewModel vm) vm.PlayCommand.Execute(null);
         };
 
-        // v3.20 §6.4.15：拖动表头列边界 → VM 改「手动列宽」→ 表头与所有行同规格重建
+        // §6.4.15：拖动表头列边界 → VM 改「手动列宽」→ 表头与所有行同规格重建
         HeaderGrid.ColumnResize += (_, e) =>
         {
             if (DataContext is ListPageViewModelBase vm)
                 vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
         };
-        // v3.22 §4.8.1：表头首次布局后把「表头宽 + 示例值宽」交给 VM —— 示例 ≤ 表头的列锁成表头宽
+        // §4.8.1：表头首次布局后把「表头宽 + 示例值宽」交给 VM —— 示例 ≤ 表头的列锁成表头宽
         HeaderGrid.HeaderMeasured += (_, e) =>
         {
             if (DataContext is ListPageViewModelBase vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
@@ -50,8 +50,8 @@ public partial class VideoListView : UserControl
         if (VideoList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         // 表头右键「显示 / 隐藏列」菜单同样挂在独立弹出树，必须手工同步 DataContext（见规范 3.8）。
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
-        // v3.16 §6.4.10：表头勾选框的「全选 / 取消选择 / 反选」菜单同理（不同步的话右键点了没反应）。
-        // v3.16.1：菜单挪到 HeaderCheckHost（透明 Border = 整格热区）上。
+        // §6.4.10：表头勾选框的「全选 / 取消选择 / 反选」菜单同理（不同步的话右键点了没反应）。
+        // 1：菜单挪到 HeaderCheckHost（透明 Border = 整格热区）上。
         if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
     }
 

@@ -50,7 +50,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     }
 
     /// <summary>
-    /// v3.19：**必须始终可见的列**（右键菜单里不可隐藏、<see cref="VisibleColumnSpecs"/> 恒给它宽度）。
+    /// **必须始终可见的列**（右键菜单里不可隐藏、<see cref="VisibleColumnSpecs"/> 恒给它宽度）。
     /// 默认自动识别「名称 / 标题 / 主机」这类标识列；派生类可 override 明确指定。
     /// </summary>
     protected virtual string? MandatoryColumnKey
@@ -84,7 +84,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     private readonly Dictionary<string, double> _lockedWidths = new();
 
     /// <summary>
-    /// v3.22：按「示例值宽 ≤ 表头宽」把列锁成表头宽（不可拖、不自动调）。
+    /// 按「示例值宽 ≤ 表头宽」把列锁成表头宽（不可拖、不自动调）。
     /// 由 View 的 <c>ColumnGrid.HeaderMeasured</c> 事件转调（首次布局后一次性）。
     /// <para>锁定的宽度**不小于 <see cref="MinLockedWidth"/>** —— 表头文字很短的列也要留出空间，
     /// 让**边界把手始终显示、能拖**（用户要求：最小列宽也要能拖）。</para>
@@ -149,7 +149,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         if (leftIndex < 0 || rightIndex != leftIndex + 1) return;
         if (leftIndex >= Columns.Count || rightIndex >= Columns.Count) return;
         if (leftWidthPx < 0 || rightWidthPx < 0) return;
-        // v3.21：锁定列（内容没超过表头宽）**不可拖拽** —— 两侧任一被锁就拒绝
+        // 锁定列（内容没超过表头宽）**不可拖拽** —— 两侧任一被锁就拒绝
         if (IsLocked(leftIndex) || IsLocked(rightIndex)) return;
 
         _manualWidths[Columns[leftIndex].Key] = leftWidthPx;

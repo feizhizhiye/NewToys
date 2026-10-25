@@ -91,7 +91,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     // ==================== 页面状态 ====================
 
-    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
+    // StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private ActionCategoryOption? _selectedCategory;
@@ -123,11 +123,11 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// 不参与列显隐菜单、也不进 <c>columnlayout.json</c>，它只是把表头与行的最后一格对齐留出来。</para></summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）；「操作」是按钮列 → 不给
+        // §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）；「操作」是按钮列 → 不给
         new("Title", "名称", "3*", sample: "清理临时文件"),
-        // v3.63：「功能」= 原来那列 `Category`（维护 / 网络 …）—— 表头与详情卡同名
+        // 「功能」= 原来那列 `Category`（维护 / 网络 …）—— 表头与详情卡同名
         new("Category", "功能", "1.3*", sample: "维护"),
-        // v3.63 新增「分类」：脚本 = 脚本后缀（.ps1 …），命令行命令 = Shell 宿主（cmd / pwsh / 自动）
+        // 新增「分类」：脚本 = 脚本后缀（.ps1 …），命令行命令 = Shell 宿主（cmd / pwsh / 自动）
         new("Classify", "分类", "1.1*", sortable: false, sample: ".ps1"),
         new("Description", "简介", "4*", sortable: false, sample: "删除 %TEMP% 下的临时文件"),
         new("Favorite", "★", "0.9*", sample: "★"),

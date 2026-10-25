@@ -161,7 +161,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         "Codec" => ((VideoItem)row).CodecDisplay,
         "Bitrate" => ((VideoItem)row).BitRateDisplay,
         "Modified" => ((VideoItem)row).ModifiedDisplay,
-        // v3.15 扩充列：列键与模型属性名不一致的（Container/Audio/Path）在这里显式映射，
+        // 扩充列：列键与模型属性名不一致的（Container/Audio/Path）在这里显式映射，
         // 不能靠基类的反射兜底（反射按列键找属性，找不着会整条筛选条件失效）。
         "Fps" => ((VideoItem)row).FpsDisplay,
         "Container" => ((VideoItem)row).ContainerDisplay,
@@ -211,7 +211,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
                                             : q.OrderBy(v => (v.Width ?? 0) * (long)(v.Height ?? 0)),
             "Codec" => SortDescending ? q.OrderByDescending(v => v.Codec, byText) : q.OrderBy(v => v.Codec, byText),
             "Bitrate" => SortDescending ? q.OrderByDescending(v => v.BitRate ?? -1) : q.OrderBy(v => v.BitRate ?? -1),
-            // v3.15 扩充列
+            // 扩充列
             "Fps" => SortDescending ? q.OrderByDescending(v => v.Fps ?? -1) : q.OrderBy(v => v.Fps ?? -1),
             "Container" => SortDescending ? q.OrderByDescending(v => v.ContainerFormat, byText) : q.OrderBy(v => v.ContainerFormat, byText),
             "Audio" => SortDescending ? q.OrderByDescending(v => v.AudioCodec, byText) : q.OrderBy(v => v.AudioCodec, byText),

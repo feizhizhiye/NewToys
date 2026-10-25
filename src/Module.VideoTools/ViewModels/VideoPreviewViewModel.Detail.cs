@@ -562,7 +562,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         OnPropertyChanged(nameof(HasTargetSizeHint));
         RefreshStatusPrefix();     // v3.16：探测到时长 → 状态栏前缀里的时长补上
 
-        // v3.16.1：没手填过结束 → 结束滑块**停在最右**（= 整段末尾）。
+        // 1：没手填过结束 → 结束滑块**停在最右**（= 整段末尾）。
         // 以前它和上面两条一样停在 0，三条滑块全挤在最左边，看着像没对齐、也读不出"结束=片尾"这层意思。
         if (value > 0 && string.IsNullOrWhiteSpace(EditEnd)) EndSeconds = value;
     }

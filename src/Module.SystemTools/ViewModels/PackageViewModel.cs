@@ -53,11 +53,9 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     private enum ListMode { None, Search, Installed, Upgrades, Pinned }
 
     // ==================== 动词 → 命令模板（🔴 抽象落点） ====================
-    //
     // 页面上每个按钮 = 一个**通用动词**（刷新索引 / 全部升级 / 卸载 …），这里给它配一条**后端命令模板**。
     // 将来切后端（scoop / choco）或改成"脚本驱动"（每个动词一条 ScriptItem）⇒ **只改这一块**，
     // 页面与详情页的文案、按钮、状态判定一行都不用动。
-    //
     // ⛔ 不要把这些模板散落到各个命令方法里 —— 散了就不是抽象，只是"每条命令各写一遍"。
 
     /// <summary>后端可执行文件名（切后端时改这里）。</summary>
@@ -216,7 +214,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             ShowToolTipOnDisabled = true,
             ToolTip = CmdUninstall.Replace("{exe}", "winget")
         },
-        // v3.60：原「已勾选 N 个」指示文字（Label + CheckedText）删除 —— 需求 §4.8.4 第 3 条：⛔ 工具条不放计数指示，
+        // 原「已勾选 N 个」指示文字（Label + CheckedText）删除 —— 需求 §4.8.4 第 3 条：⛔ 工具条不放计数指示，
         //        勾选状态在列表勾选框上一眼可见；前置条件写进下面两个按钮的 ToolTip（ShowToolTipOnDisabled）。
         new() { Kind = ToolbarItemKind.Toggle, Text = "静默安装", ValuePath = nameof(SilentInstall), ToolTip = ArgSilent.Trim() + "（追加到 install / upgrade 末尾；商店源不支持，会自动跳过）" },
         new()
@@ -240,12 +238,12 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     [ObservableProperty] private bool _isSupported = true;
     [ObservableProperty] private string _supportText = "正在检测包管理器……";
     [ObservableProperty] private bool _isBusy;
-    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
+    // StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private string _modeText = "尚未加载 —— 点「📥 已安装」或直接联网搜索";
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _installedOnly;
 
-    // v3.22：原「仅看 Pin」勾选框（`_showPinned`）已删除 —— pin 改成一条真命令「📌 Pin 列表」（见 LoadPinnedAsync）。
+    // 原「仅看 Pin」勾选框（`_showPinned`）已删除 —— pin 改成一条真命令「📌 Pin 列表」（见 LoadPinnedAsync）。
     [ObservableProperty] private bool _silentInstall = true;
     [ObservableProperty] private PackageInfo? _selected;
     [ObservableProperty] private string _detailExtra = "";
@@ -287,7 +285,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     protected override string PageKey => "script-packages";
 
     // ==================== 分页 ====================
-    //
     // 数据全在内存（winget 一次性吐完），分页只做**切片**（⛔ 不回查后端）；
     // 预设 20 / 50 / 100 / 全部 —— 用户定调，⛔ 别动全局那档（25/50/100/500/全部）。
 
@@ -302,10 +299,10 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.37：首列 = **勾选列**（Pick）——
+        // 首列 = **勾选列**（Pick）——
         //    加了首列后，表头 / 行模板里**所有 Grid.Column 索引都要 +1**（⛔ 别漏一处）。
         new("Pick", "", "34", sortable: false),
-        // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
+        // §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
         new("Name", "名称", "3*", sample: "7-Zip 24.08"),
         new("Id", "Id", "3.6*", sample: "7zip.7zip"),
         new("Version", "版本", "1.3*", sample: "24.08"),

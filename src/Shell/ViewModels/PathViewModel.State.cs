@@ -72,7 +72,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
                 IsEnabledPath = nameof(IsProfileRowSelected), ToolTipPath = nameof(RenameTip), ShowToolTipOnDisabled = true },
         new() { Text = "🗑 删除", Classes = "danger-btn", CommandPath = nameof(DeleteProfileCommand),
                 IsEnabledPath = nameof(CanDeleteProfile), ToolTipPath = nameof(DeleteTip), ShowToolTipOnDisabled = true },
-        // v3.60：原 Label「「路径」行改默认路径；「配置」行管多套数据」删除（工具条⛔ 不放说明文字）——
+        // 原 Label「「路径」行改默认路径；「配置」行管多套数据」删除（工具条⛔ 不放说明文字）——
         //        表头「分类」列已经把两类行分开，各行自带说明（StringFormat 那条坑见工程规范）。
     };
 

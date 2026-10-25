@@ -91,7 +91,6 @@ public sealed partial class RuleRunService
     }
 
     // ==================== Python 侧引擎（⛔ C# 不解析规则） ====================
-    //
     // 职责：读规则文件 → 取 RULES → 按表达式求值 → 一行 JSON 打到 stdout。
     // mode=list 只回 key/expr；mode=run 额外回 count / preview。
     private const string Program = """

@@ -12,7 +12,6 @@ namespace NewToys.Core.Services
     /// 加密 DNS（DoH）实现：用 **JSON 接口**（`?name=x&amp;type=A` + `Accept: application/dns-json`）查 A/AAAA，
     /// 并把它接到 <see cref="SocketsHttpHandler.ConnectCallback"/> 上——于是本软件发出的 HTTP 请求在**建连之前**
     /// 的域名解析走的是加密 DNS（系统 DNS、浏览器都不受影响）。
-    ///
     /// 几个关键点：
     /// - 解析 DoH 端点**自身**的域名必须用系统 DNS（bootstrap），否则递归。
     /// - `ConnectCallback` 跑在**线程池线程**上，里面只能做纯后台的事（这里只查 DNS + 连 socket），

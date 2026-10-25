@@ -243,7 +243,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     /// <summary>
     /// 缩到的**最大高度**（0 = 不改；例 720 = 缩到 720p）。
-    /// v3.16：两页详情卡字段集合要一致 —— 「批量处理」页早就有这一项，这边补上。
+    /// 两页详情卡字段集合要一致 —— 「批量处理」页早就有这一项，这边补上。
     /// </summary>
     [ObservableProperty] private int _editMaxHeight;
 

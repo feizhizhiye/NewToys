@@ -47,7 +47,7 @@ public partial class LaunchConfigViewModel : ObservableObject, IStatusProvider
 
     [ObservableProperty] private string _statusText = "改完点右上角「保存」写入 launch.json。";
 
-    // v3.9：接入 Shell 底部状态栏契约（状态文本由 Shell 统一显示）
+    // 接入 Shell 底部状态栏契约（状态文本由 Shell 统一显示）
     public event EventHandler? StatusChanged;
     partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 

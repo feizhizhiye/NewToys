@@ -66,7 +66,7 @@ public partial class App : Application
         if (ex == null) return;
         try
         {
-            // v3.5：优先用 ConfigStoreService 给的日志目录（只有它知道当前是哪个「配置」）；
+            // 优先用 ConfigStoreService 给的日志目录（只有它知道当前是哪个「配置」）；
             // 启动早期（服务还没建好）崩溃时，退回「应用根\logs」的兜底算法。
             string dir;
             var store = AppServices.Get<ConfigStoreService>();

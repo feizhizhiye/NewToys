@@ -51,7 +51,7 @@ public class VideoTaskStore
     {
         _cfg = cfg;
         _docs = new JsonDocStore(db, "video");
-        // v3.16.1：⛔ 构造时**不自动载入**任务缓存 —— 那个文档只是"缓存 / 备份"，
+        // 1：⛔ 构造时**不自动载入**任务缓存 —— 那个文档只是"缓存 / 备份"，
         // 批处理列表在程序刚打开时就是空白的（需求 §6.4.4）；要恢复上一次的任务显式点「📥 导入任务」。
         // ⛔ 偷偷自动恢复会让用户莫名其妙："我明明清空了，怎么一开机又有一堆旧任务"。
     }
@@ -95,7 +95,7 @@ public class VideoTaskStore
     public void RemoveTranscode(TranscodeTask task) { TranscodeTasks.Remove(task); Save(); }
 
     /// <summary>
-    /// v3.16：把一条任务**换成另一条**（详情卡两个分区的勾选框改任务类型时用：剪辑 ⇄ 转码 ⇄ 剪辑+转码）。
+    /// 把一条任务**换成另一条**（详情卡两个分区的勾选框改任务类型时用：剪辑 ⇄ 转码 ⇄ 剪辑+转码）。
     /// <para>保住队列里的位置：删掉旧的、把新的插到**同一个下标**（两个集合分开存，跨类型时退化为加到末尾）。</para>
     /// </summary>
     public void Replace(VideoTaskBase old, VideoTaskBase fresh)

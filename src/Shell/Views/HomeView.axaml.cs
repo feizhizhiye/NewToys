@@ -52,7 +52,7 @@ public partial class HomeView : UserControl
         if (sender is not Control button) return;
         if (DataContext is not HomeViewModel vm) return;
         if (button.DataContext is not FavCard card) return;
-        // v3.66：尾部「显示更多」卡**不是收藏项** ⇒ 不给它右键菜单（否则会出现"取消固定 显示更多"）。
+        // 尾部「显示更多」卡**不是收藏项** ⇒ 不给它右键菜单（否则会出现"取消固定 显示更多"）。
         if (card.IsMore) { e.Handled = true; return; }
 
         var menu = new ContextMenu { DataContext = vm };

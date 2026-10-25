@@ -70,7 +70,7 @@ public partial class TranscodeTask : VideoTaskBase
     [ObservableProperty] private string _targetBitrate = "";
 
     /// <summary>
-    /// v3.16：**是否带"剪辑区间"**（详情卡转码分区上方那个「✂ 剪辑」勾选框绑它）。
+    /// **是否带"剪辑区间"**（详情卡转码分区上方那个「✂ 剪辑」勾选框绑它）。
     /// <para>以前只看"终点 &gt; 起点"，导致"勾了剪辑但结束留空（= 到末尾）"被判成不剪辑、勾选框显示不出来。
     /// 现在勾了就是勾了：终点留空 = 从起点到文件末尾。</para>
     /// </summary>

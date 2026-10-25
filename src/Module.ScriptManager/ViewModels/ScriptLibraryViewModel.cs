@@ -37,7 +37,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
     protected override string ExportSuggestedName => "script-library-export.json";
 
     /// <summary>
-    /// v3.63：本页最前已经有了「📂 导入」（脚本文件）⇒ 共用的「📥 导入」（json 清单）退到「📤 导出」前面，
+    /// 本页最前已经有了「📂 导入」（脚本文件）⇒ 共用的「📥 导入」（json 清单）退到「📤 导出」前面，
     /// ⛔ 不让两个导入挨在一起。
     /// </summary>
     protected override bool JsonImportFirst => false;
@@ -78,8 +78,8 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
         {
             Kind = ToolbarItemKind.TextField,
             Width = 88,
-            // v3.64：**可编辑** —— 写的是草稿，回车 / 失焦由 CommitScriptsFolderCommand 校验 + 落盘。
-            // v3.68：**空闲态水印化** —— 失焦时框里只剩「脚本目录」水印，点进去才露出当前值（与命令库那个框观感一致）。
+            // **可编辑** —— 写的是草稿，回车 / 失焦由 CommitScriptsFolderCommand 校验 + 落盘。
+            // **空闲态水印化** —— 失焦时框里只剩「脚本目录」水印，点进去才露出当前值（与命令库那个框观感一致）。
             Placeholder = "脚本目录",
             PlaceholderWhenIdle = true,
             ValuePath = nameof(ScriptsFolderDraft),
@@ -200,7 +200,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
                             Kind = FieldKind.Text,
                             Commit = EditCommitMode.OnBlur
                         },
-                        // v3.63 改名：这一列（设置 / 脚本 / 定时任务）叫**功能**；「分类」给了下面的后缀/宿主列
+                        // 改名：这一列（设置 / 脚本 / 定时任务）叫**功能**；「分类」给了下面的后缀/宿主列
                         new DetailField
                         {
                             Label = "功能（点一下打上 / 再点取消）",
@@ -219,7 +219,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
                             MultiLine = true,
                             Rows = 52
                         },
-                        // v3.63：「分类」= 脚本后缀（.py / .ps1 / .bat / .cmd），只读（解释器按后缀自动挑）；
+                        // 「分类」= 脚本后缀（.py / .ps1 / .bat / .cmd），只读（解释器按后缀自动挑）；
                         //        值与表头「分类」列同源（ClassifyText ⇒ QuickAction.Classify）
                         new DetailField
                         {

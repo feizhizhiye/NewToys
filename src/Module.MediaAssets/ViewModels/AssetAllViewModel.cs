@@ -17,7 +17,7 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-// v3.66：Core 里也有一个 FileOperationService（纯磁盘动作，跨模块共用）。
+// Core 里也有一个 FileOperationService（纯磁盘动作，跨模块共用）。
 // 本页用的是**带库表日志**的模块版，显式取别名，免得两个 using 撞名（CS0104）。
 using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 
@@ -396,7 +396,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool IsVideoType => string.Equals(FilterType?.Value, AssetTypes.Video, StringComparison.Ordinal);
 
     /// <summary>
-    /// v3.69：类型驱动的列默认显隐 —— 视频 = 「时长 / 分辨率 / 编码」三列可见，其余类型隐藏。
+    /// 类型驱动的列默认显隐 —— 视频 = 「时长 / 分辨率 / 编码」三列可见，其余类型隐藏。
     /// <para>🔴 ⛔ **不落盘**（<c>SetColumnVisible</c> 只改内存）；用户右键改过的偏好（落盘的那些键）
     /// **不被覆盖** —— 需求 §6.6「二者不互相覆盖」。</para>
     /// </summary>
@@ -495,7 +495,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     // ==================== 导入：文件夹 / 文件（由 View 弹选择框后调用） ====================
 
     /// <summary>
-    /// v3.29 草稿态：列表里装的**不是库里的数据**，而是「预览扫描」的结果（还没入库）。
+    /// 草稿态：列表里装的**不是库里的数据**，而是「预览扫描」的结果（还没入库）。
     /// 用户看完决定：💾 加入库（<see cref="CommitDraftCommand"/>）或 🧹 清除列表（<see cref="ClearListCommand"/>）。
     /// </summary>
     [ObservableProperty] private bool _isDraft;

@@ -594,7 +594,7 @@ public class QuickActionService : IQuickActionService
     /// <summary>
     /// 确保脚本目录存在（<see cref="ScriptsDirectory"/>）。
     /// <para>
-    /// v3.60 §一 / ⛔ <b>不再复制示例脚本</b> —— 软件只提供默认路径，脚本内容由用户自己放 / 导入。
+    /// §一 / ⛔ <b>不再复制示例脚本</b> —— 软件只提供默认路径，脚本内容由用户自己放 / 导入。
     /// </para>
     /// </summary>
     private void EnsureScriptsDirectory()

@@ -6,9 +6,8 @@ namespace NewToys.Shared.Services
     {
         // 注：**主题不属于这里**。明暗模式 / 强调色统一由 IThemeService 管（theme.json），
         // 本服务只管与主题无关的应用配置，避免出现两份"当前是不是深色"的真相。
-        //
         // 注：v1.34 曾移除"视频库默认目录"（库常分散在多文件夹，写死默认目录会误导）；
-        // v3.15 重新引入为**全局导入/导出默认目录**（VideoDbFolder）：只用于"导入/导出对话框打开时定位到它"，
+        // 重新引入为**全局导入/导出默认目录**（VideoDbFolder）：只用于"导入/导出对话框打开时定位到它"，
         // 不回写扫描目录、不影响"每次手动选目录"的逻辑。
         string FfmpegPath { get; set; }
 
@@ -24,7 +23,7 @@ namespace NewToys.Shared.Services
         /// 首次运行会搬过去），搬完即不再读写。
         /// </summary>
         int MaxConcurrency { get; set; }
-        // v3.65：GpuAcceleration 已删除（无消费方）。旧 app.json 里的该键由
+        // GpuAcceleration 已删除（无消费方）。旧 app.json 里的该键由
         // System.Text.Json 默认忽略未知属性 ⇒ 反序列化容错，不报错。
 
         /// <summary>
@@ -34,7 +33,7 @@ namespace NewToys.Shared.Services
         string ConfigFilePath { get; }
 
         /// <summary>
-        /// v3.65：<c>app.json</c> 由旧位置（<c>&lt;配置根&gt;\config\</c>）上提到**应用根**时留下的说明；
+        /// <c>app.json</c> 由旧位置（<c>&lt;配置根&gt;\config\</c>）上提到**应用根**时留下的说明；
         /// <c>null</c> = 本机没发生过迁移。设置页 / 排障可展示（记录迁移来源与时间点）。
         /// </summary>
         string? LegacyMigrationNote { get; }
@@ -56,7 +55,6 @@ namespace NewToys.Shared.Services
         string EncryptedDnsCustomUrl { get; set; }
 
         // ==================== 路径配置（「设置 → 路径配置」页，复杂输入 → 需点保存） ====================
-        //
         // ⚠️ 浏览器 1/2 的**程序路径与启动参数不在这里** —— 它们属于"一键按钮"的配置，
         // 与按钮名、网址清单一起放在 launch.json 的 LaunchButtonConfig 里
         // （见「设置 → 一键按钮」页）。理由：同一个按钮的字段必须同源，
@@ -66,7 +64,6 @@ namespace NewToys.Shared.Services
         // 用途：「脚本管理器 → 设置与脚本」页里的**脚本文件**（.py / .ps1 / .bat）靠这几个路径跑起来。
         // 前三个**留空 = 用系统默认**（从 PATH 里找 python / pwsh / powershell）；
         // 不填也能跑，只是机器上得真有那个解释器。
-        //
         // 🔴 v3.65：**判据 = 语义** —— 外部程序路径描述"本机怎么跑外部程序"（应用级路由），
         //    ⛔ 不随配置档切换 ⇒ 三个解释器路径**回迁为应用级**（唯一写入点 =「设置 → 路径与配置」页）。
         //    仅 **ScriptFolder 留模块级**（「脚本管理器」设置，<c>config\script-manager.json</c>）。
@@ -102,7 +99,6 @@ namespace NewToys.Shared.Services
         LaunchConfig Launch { get; set; }
 
         // ==================== 导入 / 导出默认目录（v3.15 全局 → 改由 DataDir 推导） ====================
-        //
         // 🔴 `VideoDbFolder` 字段已**删除**（2026-10-19）：它把某个 profile 的绝对路径写进跨配置共享的 app.json，
         // 切配置后导入/导出会指向别人的目录 —— 属现存缺陷。现在一律用 <see cref="DataDirectory"/>（
         // = 当前配置档的 <c>data\</c>）推导，既跟随配置档，也不再需要用户维护这个路径。

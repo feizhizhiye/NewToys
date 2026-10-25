@@ -116,7 +116,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
             CategoryOptions.Add(new ActionCategoryOption { Label = c, Value = c });
         SelectedCategory = CategoryOptions.FirstOrDefault(o => o.Value == keep) ?? CategoryOptions[0];
 
-        // v3.19：分类也进表头右键「🔎 筛选」子菜单（原工具条「分类筛选框」移入这里）
+        // 分类也进表头右键「🔎 筛选」子菜单（原工具条「分类筛选框」移入这里）
         // 追加「仅可采集」—— 按需生成集合的入口（卡 §三.5）。
         var quick = CategoryOptions.Where(o => !string.IsNullOrEmpty(o.Value))
                                    .Select(o => (o.Label, "Category", o.Value!))

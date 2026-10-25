@@ -30,7 +30,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     {
         if (_cfg == null) return;
 
-        // v3.64：下面两者是**跨模块共用的全局项** ⇒ 保持应用级、⛔ 不下沉。
+        // 下面两者是**跨模块共用的全局项** ⇒ 保持应用级、⛔ 不下沉。
         //   ffmpeg：媒体资产（缩略图抽帧）与视频工具都用同一份；外部播放器：视频列表「▶ 播放」用。
         Items.Add(new PathSettingItem
         {
@@ -44,7 +44,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Description = "视频「▶ 播放」用它打开；留空 = 系统默认关联程序",
             Value = _cfg.PlayerPath
         });
-        // v3.65：三个解释器路径**回迁应用级**（判据 = 语义：「怎么跑外部程序」= 运行环境 ⇒ 应用级路由，
+        // 三个解释器路径**回迁应用级**（判据 = 语义：「怎么跑外部程序」= 运行环境 ⇒ 应用级路由，
         // ⛔ 不随配置档切换）。它们曾于 下沉到「脚本管理器设置」，现回到本页（唯一写入点），落 app.json。
         // ⚠️ 脚本目录仍归「脚本管理器设置」（模块级，config\script-manager.json）。
         Items.Add(new PathSettingItem
@@ -82,7 +82,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Description = "本地数据库 newtoys.db（视频媒体信息缓存）等数据放这里；由应用决定，可用环境变量 NEWTOYS_HOME 整根切换",
             Value = _cfg.DataDirectory
         });
-        // v3.65：app.json 已上提到**应用根**（与 profiles\ 同级）—— 它是应用级「运行环境」，
+        // app.json 已上提到**应用根**（与 profiles\ 同级）—— 它是应用级「运行环境」，
         // ⛔ 不再随配置档切换，也不再位于 <配置根>\config。这里如实展示新位置（只读）。
         Items.Add(new PathSettingItem
         {
@@ -166,7 +166,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         var byText = StringComparer.CurrentCultureIgnoreCase;
         q = SortColumn switch
         {
-            // v3.53：分类是"分组列"—— 同分类聚在一起，组内再按名称（否则同类行会被名称打散）
+            // 分类是"分组列"—— 同分类聚在一起，组内再按名称（否则同类行会被名称打散）
             "Category" => SortDescending
                 ? q.OrderByDescending(i => i.CategoryText, byText).ThenByDescending(i => i.Name, byText)
                 : q.OrderBy(i => i.CategoryText, byText).ThenBy(i => i.Name, byText),

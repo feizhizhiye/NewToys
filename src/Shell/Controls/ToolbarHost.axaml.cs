@@ -175,14 +175,14 @@ public partial class ToolbarHost : UserControl
 
         Action? idleDetach = null;
 
-        // v3.63：**只读框** ⇒ 未聚焦时框里只放占位文字（`Placeholder`），聚焦才填入真实值并自动全选（方便 Ctrl+C）。
+        // **只读框** ⇒ 未聚焦时框里只放占位文字（`Placeholder`），聚焦才填入真实值并自动全选（方便 Ctrl+C）。
         // ⚠️ 不能用「把文字设成透明」那套：Avalonia 的 PlaceholderText **只在 Text 为空时才显示**，
         //    文字还在框里 ⇒ 水印永远不出现。这里让 Text 完全由本控件掌管，真实值走 Tag（OneWay）暂存。
         if (d.IsReadOnly && d.ValuePath != null && !string.IsNullOrEmpty(d.Placeholder))
         {
             var ph = d.Placeholder;
             Bind(tb, Control.TagProperty, src, d.ValuePath, BindingMode.OneWay);
-            // v3.68：这句「假水印」是**真实 Text**，走 Foreground 而不是 PlaceholderForeground
+            // 这句「假水印」是**真实 Text**，走 Foreground 而不是 PlaceholderForeground
             // ⇒ 必须显式切到水印色类（否则就是正文色，用户反馈「太重」）。
             tb.Classes.Add("watermark-idle");
             tb.Text = ph;
@@ -194,7 +194,7 @@ public partial class ToolbarHost : UserControl
             };
             tb.LostFocus += (_, _) => { tb.Text = ph; tb.Classes.Add("watermark-idle"); };
         }
-        // v3.68：**可编辑框的「空闲态水印化」**（用户定调：脚本库那个脚本目录框失焦后就该只剩水印）。
+        // **可编辑框的「空闲态水印化」**（用户定调：脚本库那个脚本目录框失焦后就该只剩水印）。
         // 与只读框同一目的，但 ⛔ 不能靠改 Text：Text 是 TwoWay ⇒ 一改就把 VM 上的值冲掉。
         // 做法 = **临时解挂绑定**再清空 → 水印自然出现；聚焦时重挂绑定（立刻从 VM 读回真实值）。
         else if (!d.IsReadOnly && d.PlaceholderWhenIdle && d.ValuePath != null

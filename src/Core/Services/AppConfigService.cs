@@ -42,7 +42,7 @@ public class AppConfigService : IAppConfigService
 
         // ==================== 仍归应用级的项 ====================
         public int MaxConcurrency { get; set; } = 2;
-        // v3.66：原 config\launch.json 并入 app.json（应用级行为，⛔ 不随配置档隔离）
+        // 原 config\launch.json 并入 app.json（应用级行为，⛔ 不随配置档隔离）
         public LaunchConfig Launch { get; set; } = new();
         // 注：浏览器 1/2 的程序路径与参数**不在这里**，见 IAppConfigService 的注释（v1.19 收敛到 launch.json）。
         // 旧版本写过 Browser1Path / Browser1Args / Browser2Path / Browser2Args 四个字段，

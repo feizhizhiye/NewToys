@@ -89,7 +89,7 @@ public partial class ShellView : Window
             return;
         }
 
-        // v3.28：**趁窗口句柄还在**存边界 —— Closed 时句柄已销毁，Position 会退化成 (0,0)（实测踩过）
+        // **趁窗口句柄还在**存边界 —— Closed 时句柄已销毁，Position 会退化成 (0,0)（实测踩过）
         SaveWindowBounds();
 
         App.ShutdownTray();
@@ -101,7 +101,7 @@ public partial class ShellView : Window
     {
         base.OnOpened(e);
 
-        // v3.29：句柄到这一刻才稳 → 在这里装窗口过程钩子（贴靠缝隙的根治）
+        // 句柄到这一刻才稳 → 在这里装窗口过程钩子（贴靠缝隙的根治）
         InstallSnapFrameFix();
 
         // 关闭 DWM 圆角（Win11 顶部两个圆角 → 最大化 / 分屏时露缝）
@@ -171,7 +171,7 @@ public partial class ShellView : Window
         // 滚轮当成横向滚动吃掉，隧道阶段拦下来才能变成"切标签"。
         TabStrip.AddHandler(InputElement.PointerWheelChangedEvent, OnTabStripWheel, RoutingStrategies.Tunnel);
 
-        // v3.68：标签栏宽度跟随标签数量（类浏览器）—— 标签少时 `＋` 紧跟最后一个标签；标签溢出时把滚动区
+        // 标签栏宽度跟随标签数量（类浏览器）—— 标签少时 `＋` 紧跟最后一个标签；标签溢出时把滚动区
         // 收到可用宽度，`＋` 常驻最右、始终可见。窗口宽度 / 标签集合变化都要重算。
         TabStrip.SizeChanged += (_, _) => SyncTabStripWidthCap();
         TabsControl.SizeChanged += (_, _) => SyncTabStripWidthCap();
@@ -375,12 +375,10 @@ public partial class ShellView : Window
             //    = 绕开 Avalonia「外框 = 客户区 + 边框」那层换算，存取同一坐标系 → 闭环稳定。
             //    （早期存客户区时恢复会被再加一圈边框 → **窗口每次启动变大一圈**，实测 16px。客户区内外缩与
             //      存取口径无关：官方 CSD 下客户区被内缩，但这里进出的都是**外框**，仍然自洽。）
-            //
             // ⚠️ 最大化时要存「还原后的矩形」（rcNormalPosition），
             //    否则存下来的是比屏幕还大一圈的最大化外框，下次还原会偏。
             // 全屏态与最大化同处理 —— 存**还原后的矩形**。
             // ⛔ 否则存下来的是铺满整屏的外框 → 下次启动是一个「跟屏幕一样大的普通窗口」（位置还偏）。
-            //
             // ⚠️ 2026-10-21：读外框的两条 Win32 路径（GetWindowPlacement / GetWindowRect）收进
             //    ShellView.Win32.cs 的 TryReadFrameGeometry —— 主文件不再出现 Win32 类型。
             var preferRestoreRect = WindowState == WindowState.Maximized || WindowState == WindowState.FullScreen;
@@ -470,7 +468,7 @@ public partial class ShellView : Window
     /// <summary>
     /// `F11` 切换全屏；`Esc` **仅在全屏态下**退出（⛔ 平时不吞 Esc —— 页面里的取消 / 关闭浮层要用它）。
     /// <para>
-    /// v3.65：`Ctrl+,` = 打开**应用级设置页**（需求 §4.3 / §4.9.2）。
+    /// `Ctrl+,` = 打开**应用级设置页**（需求 §4.3 / §4.9.2）。
     /// 🔴 折叠左树后版本行的齿轮仍在，`Ctrl+,` 是它的备用入口（约定俗成的设置快捷键）。
     /// ⚠️ 走隧道路由（Tunnel）⇒ 即使焦点在页内输入框也照样命中；判定用 `KeyModifiers` 而不是 `KeyGesture`。
     /// </para>

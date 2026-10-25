@@ -164,7 +164,7 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
                      Action? onActivated = null, Action<Control>? init = null)
     {
         var view = viewFactory();
-        // v3.67：一个节可以有多个 VM（合节）⇒ 契约聚合按列表逐个探测；首个 = 主 VM（工具条宿主用）。
+        // 一个节可以有多个 VM（合节）⇒ 契约聚合按列表逐个探测；首个 = 主 VM（工具条宿主用）。
         var vms = (vmFactory() ?? Array.Empty<object?>()).OfType<object>().ToArray();
         var primary = vms.FirstOrDefault();
         if (primary != null && view.DataContext == null) view.DataContext = primary;
@@ -249,7 +249,6 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
     }
 
     // ==================== 页内搜索：已删除（v3.66：统一到标题栏） ====================
-    //
     // 原「页内搜索框 + 结果列表 / 过滤节」两版都撤了 —— 入口统一搬到**标题栏**的搜索按钮
     // （`ShellView` 的 `BtnSettingsSearch` → `ShellViewModel` 的统一搜索结果列表）。
     // 🔴 **节的关键词匹配搬到 Shell**（索引来自 `Catalog`），本页只负责"按节锚点展开 + 滚动"，
@@ -298,7 +297,6 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
                    .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.StatusActionKey));
 
     // ==================== 工具条：⛔ 不再上抛（v3.66 第五轮） ====================
-    //
     // 原实现 = 「实现 IToolbarOwner，把承载者让给已展开且有工具条的那一节 VM」⇒ Shell 的顶部工具条行
     // 会渲染「运行环境」节的那一排按钮（保存 / 浏览 / 新建配置…）。用户反馈：**按钮跑到了页面顶部**，
     // 要求在**本节内容顶部**显示 ⇒ 改为节点内嵌：`SettingsView.axaml` 的节点模板里挂一个

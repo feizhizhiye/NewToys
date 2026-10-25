@@ -20,7 +20,7 @@ public class ConfigFileEntry
 /// <summary>
 /// 「应用根 → 配置（profile）→ config/data/logs」三级路径的唯一决定者。
 /// <para>
-/// v3.5 起支持**多配置**：<c>&lt;应用根&gt;\profiles\&lt;配置名&gt;\{config,data,logs}</c>；
+/// 支持**多配置**：<c>&lt;应用根&gt;\profiles\&lt;配置名&gt;\{config,data,logs}</c>；
 /// 当前配置名写在 <c>&lt;应用根&gt;\active-profile.txt</c>（**故意放在 profiles 之外** ——
 /// 否则切换配置时会把自己也换掉）。
 /// </para>
@@ -385,7 +385,6 @@ public class ConfigStoreService
         => Path.Combine(_appRoot, ProfilesFolderName, name);
 
     // ==================== 内置三档已撤销（v3.66：2026-10-18） ====================
-    //
     // 「配置」= **纯根目录**：一个配置 = 一套独立的 config / data / logs，由用户自建自删。
     // ⛔ 不再有 debug / default / release 的档位语义（原 的播种与「重置为初始态」全部删除），
     //    ⛔ 也不自动创建任何配置目录 —— 除了首次启动缺省的那个（ResolveProfileRoot 负责）。

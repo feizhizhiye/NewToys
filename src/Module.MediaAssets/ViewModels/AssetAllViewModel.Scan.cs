@@ -17,7 +17,7 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-// v3.66：Core 里也有一个 FileOperationService（纯磁盘动作，跨模块共用）。
+// Core 里也有一个 FileOperationService（纯磁盘动作，跨模块共用）。
 // 本页用的是**带库表日志**的模块版，显式取别名，免得两个 using 撞名（CS0104）。
 using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 
@@ -92,7 +92,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     public bool HasChecked => CheckedCount > 0;
 
-    // v3.41（用户定调）：⛔ 工具条不再放「未勾选 / 已勾选 N 个」指示文字 ——
+    // （用户定调）：⛔ 工具条不再放「未勾选 / 已勾选 N 个」指示文字 ——
     // 「需先勾选」这件事改用按钮自己的 ToolTip（+ ToolTip.ShowOnDisabled）表达，勾选数由列表左列勾选框直接可见。
 
     /// <summary>

@@ -60,7 +60,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
 
     public ObservableCollection<PathSettingItem> Items { get; } = new();
 
-    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
+    // StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private PathSettingItem? _selected;
 
@@ -75,7 +75,6 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     [ObservableProperty] private string _descriptionHeader = "说明";
 
     // ==================== 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ====================
-    //
     // XAML 只能绑具名属性 → 每列给一个直通属性（真正的状态在基类里，落 config\columnlayout.json）。
 
     public bool IsCategoryVisible => Vis("Category");
@@ -90,7 +89,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）；「操作」是按钮列 → 不给
+        // §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）；「操作」是按钮列 → 不给
         new("Category", "分类", "1*", sample: "路径"),
         new("Name", "名称", "2.2*", sample: "ffmpeg 路径"),
         new("Value", "当前值", "4*", sample: @"C:\ffmpeg\bin\ffmpeg.exe"),

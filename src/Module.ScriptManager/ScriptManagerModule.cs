@@ -17,7 +17,7 @@ public class ScriptManagerModule : IModule
         // 它依赖 Core 的 ConfigStoreService 与 Shared 的 IAppConfigService，由 Shell 在 LoadAll 之前已注册。
         services.AddSingleton<IQuickActionService, QuickActionService>();
 
-        // v3.64：本模块设置（脚本目录 + 三个解释器路径）——**本模块配置的唯一写入点**，
+        // 本模块设置（脚本目录 + 三个解释器路径）——**本模块配置的唯一写入点**，
         // 落 config\script-manager.json（经 Core 的 IOptionsStore）。旧值原来在 app.json，首次运行自动搬迁。
         services.AddSingleton<IScriptManagerSettingsService, ScriptManagerSettingsService>();
 
@@ -104,8 +104,8 @@ public class ScriptManagerModule : IModule
         menu.RegisterFunction<Views.CrawlPanelView>("script", "web-crawl", "运行结果", "🕸", 7,
             "跑抓取脚本看目录条目：动态列 + 双击下钻 + 下载，④ 节可回看最近 10 次运行（目录 / 日志 / 诊断）");
 
-        // v3.64：**模块设置页通则** —— 每个功能模块一个设置页、View/VM 归本模块。
-        // v3.66：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
+        // **模块设置页通则** —— 每个功能模块一个设置页、View/VM 归本模块。
+        // 菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
         menu.RegisterFunction<Views.SettingsScriptView>("script", "settings-script", "脚本管理器设置", "🛠", 100,
             "脚本库扫描的根目录与设置文件位置");
 
@@ -136,7 +136,7 @@ public class ScriptManagerModule : IModule
             var settings = services.GetRequiredService<IScriptManagerSettingsService>();
             BuiltinCollectorSeeder.Seed(store, settings);
 
-            // v3.66 第 ④ 条：随包「示例」—— 示例脚本文件夹 + 示例命令，**只播种一次**（删了不复活）。
+            // 第 ④ 条：随包「示例」—— 示例脚本文件夹 + 示例命令，**只播种一次**（删了不复活）。
             ExampleSeeder.Seed(store, settings);
 
             // 批 3：随包「环境维护」脚本 + 内置集合「环境维护」—— 同样只播种一次。

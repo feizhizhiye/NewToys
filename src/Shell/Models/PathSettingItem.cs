@@ -40,7 +40,7 @@ public enum SettingCategory
 /// 路径项会越来越多（解释器、脚本目录、缓存库…），表单式排版只会越来越长。
 /// </para>
 /// <para>
-/// v3.53 起「配置」页并入本表：配置行也用它，靠 <see cref="Category"/> 区分，⛔ 不搞两套行类型。
+/// 「配置」页并入本表：配置行也用它，靠 <see cref="Category"/> 区分，⛔ 不搞两套行类型。
 /// </para>
 /// </summary>
 public partial class PathSettingItem : ObservableObject

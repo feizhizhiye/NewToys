@@ -58,7 +58,7 @@ public partial class App : Application
 
             var services = new ServiceCollection();
 
-            // v3.26：多实例启动参数 --profile <配置名>（需求 §3.5）——最早处解析，交给 ConfigStoreService。
+            // 多实例启动参数 --profile <配置名>（需求 §3.5）——最早处解析，交给 ConfigStoreService。
             var profileOverride = ParseProfileOverride(Environment.GetCommandLineArgs());
 
             // Core services
@@ -85,7 +85,7 @@ public partial class App : Application
             services.AddSingleton<INavigationService, NavigationService>();
             // 模块热加载契约（标题栏按钮移入功能清单页；Shell 订阅 Reloaded 重建左树）。
             services.AddSingleton<IModuleReloadService, ModuleReloadService>();
-            // v3.65：外部程序注册表（清单 + **惰性探测**，需求 §4.9.2 第 5 条）——
+            // 外部程序注册表（清单 + **惰性探测**，需求 §4.9.2 第 5 条）——
             // 单例 + 结果缓存：进「运行环境」节 / 功能首次要用到时才真探，⛔ 不拖启动。
             services.AddSingleton<IExternalToolRegistry, ExternalToolRegistry>();
             services.AddSingleton<LaunchRunner>();
@@ -105,7 +105,7 @@ public partial class App : Application
             // 列表页「列显隐」偏好（右键表头增删列，规范 3.8）：落 config\columnlayout.json（会被数据管理备份）。
             services.AddSingleton<IColumnLayoutService, ColumnLayoutService>();
 
-            // v3.5：多配置（一个配置 = 一套独立的 config+data+logs）；v3.26 起切换 = 本窗重启到目标配置（显式传 --profile）。
+            // 多配置（一个配置 = 一套独立的 config+data+logs）；v3.26 起切换 = 本窗重启到目标配置（显式传 --profile）。
             services.AddSingleton<IProfileService, ProfileService>();
 
             // 工程内唯一的本地数据库（data\newtoys.db）：当前给「视频工具 → 视频库」的媒体信息索引用；
@@ -115,7 +115,7 @@ public partial class App : Application
             // 在首帧之后由 ModuleLoader.InitializeAllDeferred 统一跑一遍（建表 / 补列 / 一次性迁移）。
             services.AddSingleton<NewToys.Core.Services.LibrarySchemaService>();
 
-            // v3.66：跨模块共用的文件系统动作（改名 / 移动 / 复制 / 回收站删除）。
+            // 跨模块共用的文件系统动作（改名 / 移动 / 复制 / 回收站删除）。
             // 只管磁盘，不记账、不弹窗 —— 库表日志与确认框留在各模块自己那层。
             services.AddSingleton<IFileOperationService, FileOperationService>();
 
@@ -143,22 +143,22 @@ public partial class App : Application
 
             // 应用级设置 6 页（原 Module.Settings 的框架职责收归 Shell，View/VM 已在 src/Shell 下）。
             services.AddTransient<GeneralView>();        services.AddTransient<GeneralViewModel>();
-            // v3.66 第五轮：「通用」节拆成三个节（启动与退出 / 更新 / 主题外观）⇒ 两个新 View，
+            // 「通用」节拆成三个节（启动与退出 / 更新 / 主题外观）⇒ 两个新 View，
             // 三节共用同一个 GeneralViewModel（只在上面注册一次）。
             services.AddTransient<UpdateView>();
             services.AddTransient<ThemeView>();
-            // v3.67：「更新」+「关于」合并成「版本与更新」节 ⇒ 拼装 View（内部仍用上面两个 View）
+            // 「更新」+「关于」合并成「版本与更新」节 ⇒ 拼装 View（内部仍用上面两个 View）
             services.AddTransient<UpdateAboutView>();
             services.AddTransient<PathView>();           services.AddTransient<PathViewModel>();
             services.AddTransient<LaunchConfigView>();   services.AddTransient<LaunchConfigViewModel>();
             services.AddTransient<DnsView>();            services.AddTransient<DnsViewModel>();
             services.AddTransient<DataView>();           services.AddTransient<DataViewModel>();
             services.AddTransient<AllFunctionsView>();   services.AddTransient<AllFunctionsViewModel>();
-            // v3.65：「一页多节」复合页 + 「关于」节（需求 §4.9.2）
+            // 「一页多节」复合页 + 「关于」节（需求 §4.9.2）
             services.AddTransient<SettingsView>();       services.AddTransient<SettingsViewModel>();
             services.AddTransient<AboutSettingsView>();  services.AddTransient<AboutSettingsViewModel>();
 
-            // v3.26：主窗口大小 / 位置记忆（落本配置 config\window.json；多实例各记各的，需求 §四）
+            // 主窗口大小 / 位置记忆（落本配置 config\window.json；多实例各记各的，需求 §四）
             services.AddSingleton<NewToys.Shell.Services.WindowBoundsService>();
 
             // 模块加载（v3.26，需求 §3.4）：必载清单（为空 —— 应用级设置归 Shell 自带，不再单独成程序集）
@@ -173,17 +173,17 @@ public partial class App : Application
             AppServices.Initialize(_sp);
             Mark("容器构建");
 
-            // v3.26：每配置单例 + --profile 诊断（需求 §3.5）——同一配置只允许一个实例，
+            // 每配置单例 + --profile 诊断（需求 §3.5）——同一配置只允许一个实例，
             // 第二例提示后退出（数据隔离：不同配置各跑各的目录，同配置共享会互相覆盖）。
             var store = _sp.GetRequiredService<ConfigStoreService>();
             if (store.ProfileOverrideError != null)
                 WriteStartupLog($"{store.ProfileOverrideError} —— 已回退到配置「{store.ActiveProfileName}」");
             if (!AcquireProfileMutex(store)) return;
 
-            // v3.66：内置三档（debug / default / release）已撤销 —— 配置 = 纯根目录，⛔ 不再自动播种任何档。
+            // 内置三档（debug / default / release）已撤销 —— 配置 = 纯根目录，⛔ 不再自动播种任何档。
 
             // 应用级设置的菜单注册归 Shell（原 Module.Settings 的 Initialize 职责）——
-            // v3.66 起左树**没有**「设置」一级菜单项：注册的是一个 IsHome 的不渲染宿主分组
+            // 左树**没有**「设置」一级菜单项：注册的是一个 IsHome 的不渲染宿主分组
             // （挂应用级设置的节锚点 + 功能清单页），设置页入口 = 左树底部齿轮 / Ctrl+, / 首页一键操作的齿轮。
             // 🔴 必须先于 InitializeAll：功能模块要在自己的分组下注册菜单（分组先存在才命中）。
             NewToys.Shell.Settings.AppSettingsRegistration.RegisterMenu(_sp);
@@ -200,7 +200,7 @@ public partial class App : Application
             _mainWindow = win;
             Mark("主窗口构造");
 
-            // v3.26：标题带配置名（多实例在任务栏里可区分，需求 §3.5）
+            // 标题带配置名（多实例在任务栏里可区分，需求 §3.5）
             win.Title = $"NewToys · {store.ActiveProfileName}";
 
             // 窗口图标 = 应用图标（与托盘同源同一份，底色随当前强调色）
@@ -218,7 +218,7 @@ public partial class App : Application
             // 钩子在 UI 侧声明（DetailCardHooks），这里把 Core 的 DialogHooks.ConfirmHandler 转接过去。
             DetailCardHooks.ConfirmHandler = DialogHooks.ConfirmHandler;
 
-            // v3.53：选择器钩子 —— 工具条由 Shell 声明式承载后，页面 VM 也要能"弹选择器"
+            // 选择器钩子 —— 工具条由 Shell 声明式承载后，页面 VM 也要能"弹选择器"
             // （VM ⛔ 不引 Avalonia，所以统一走 Core.DialogHooks，与上面两条同一个套路）。
             DialogHooks.PickFolderHandler = (title, initialDir) => PickFolderAsync(win, title, initialDir);
             DialogHooks.PickFilesHandler = (title, initialDir, multi, pattern) => PickFilesAsync(win, title, initialDir, multi, pattern);

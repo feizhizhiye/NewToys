@@ -33,7 +33,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         _cfg = cfg;
         _nav = nav;
         LoadLayout();
-        // v3.21 §4.8.2：类型（剪辑 / 转码 / 剪辑+转码，与 VideoTask.KindDisplay 同字面量）进表头右键「筛选」
+        // §4.8.2：类型（剪辑 / 转码 / 剪辑+转码，与 VideoTask.KindDisplay 同字面量）进表头右键「筛选」
         SetQuickFilters(new[]
         {
             (Label: "类型：剪辑", ColumnKey: "Kind", Value: "剪辑"),
@@ -81,7 +81,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             "Before" => SortDescending ? q.OrderByDescending(BeforeSizeOf) : q.OrderBy(BeforeSizeOf),
             "After" => SortDescending ? q.OrderByDescending(t => t.OutputSize) : q.OrderBy(t => t.OutputSize),
             "Status" => SortDescending ? q.OrderByDescending(t => t.Status, byText) : q.OrderBy(t => t.Status, byText),
-            // v3.15 扩充列
+            // 扩充列
             "Source" => SortDescending ? q.OrderByDescending(t => t.SourcePath, byText) : q.OrderBy(t => t.SourcePath, byText),
             "Command" => SortDescending ? q.OrderByDescending(CommandSummaryOf, byText) : q.OrderBy(CommandSummaryOf, byText),
             "Created" => SortDescending ? q.OrderByDescending(t => t.Created) : q.OrderBy(t => t.Created),
@@ -91,7 +91,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         Items.Clear();
         foreach (var t in q)
         {
-            // v3.15「命令摘要」列：模型自己拼不出 ffmpeg 参数（拿不到 ffmpeg 路径），由 VM 填一次
+            // 「命令摘要」列：模型自己拼不出 ffmpeg 参数（拿不到 ffmpeg 路径），由 VM 填一次
             t.CommandSummaryDisplay = CommandSummaryOf(t);
             Items.Add(t);
         }
@@ -116,7 +116,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     };
 
     /// <summary>
-    /// v3.15「命令摘要」列：手改过就显示手改的那条，否则显示自动生成的参数串。
+    /// 「命令摘要」列：手改过就显示手改的那条，否则显示自动生成的参数串。
     /// <para>⛔ 只放**摘要**（超长截断）—— 完整命令行在详情卡的命令区看，列表格子里塞不下也不该塞。</para>
     /// </summary>
     private string CommandSummaryOf(VideoTaskBase t)
@@ -142,7 +142,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         "Status" => ((VideoTaskBase)row).Status,
         "Before" => ((VideoTaskBase)row) is TranscodeTask x ? x.SourceSizeDisplay : ((VideoTaskBase)row).OutputSize <= 0 ? "" : "",
         "After" => ((VideoTaskBase)row).OutputSizeDisplay,
-        // v3.15 扩充列（列键与模型属性名不一致的 Command 必须显式映射，否则基类反射取不到 → 该条筛选静默失效）
+        // 扩充列（列键与模型属性名不一致的 Command 必须显式映射，否则基类反射取不到 → 该条筛选静默失效）
         "Source" => ((VideoTaskBase)row).SourcePath,
         "Command" => CommandSummaryOf((VideoTaskBase)row),
         "Created" => ((VideoTaskBase)row).CreatedDisplay,
@@ -250,7 +250,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         BuildCompareRows();
 
-        // v3.16 §6.4.1：两个分区的勾选框跟着任务类型走（剪辑任务 = 只勾剪辑；转码任务 = 勾转码，带区间时两段都勾）
+        // §6.4.1：两个分区的勾选框跟着任务类型走（剪辑任务 = 只勾剪辑；转码任务 = 勾转码，带区间时两段都勾）
         _converting = true;
         EditIsCut = value is CutTask || value is TranscodeTask { HasTrim: true };
         EditIsTranscode = value is TranscodeTask;

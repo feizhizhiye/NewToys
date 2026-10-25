@@ -376,7 +376,6 @@ public sealed class PythonRuntime : IPythonRuntime
     }
 
     // ==================== 随包 worker 脚本 ====================
-    //
     // 🔴 响应必须写 sys.__stdout__：脚本的 stdout 被 redirect_stdout 接走了。
     // 🔴 入参出参都是「一行 JSON」，⛔ 不要往 stdout 打日志。
     private const string WorkerSource = """

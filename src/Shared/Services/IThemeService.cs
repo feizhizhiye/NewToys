@@ -14,11 +14,9 @@ public enum ThemeMode
 
 /// <summary>
 /// 明暗主题 + 强调色。持久化到 <c>&lt;应用根&gt;\config\theme.json</c>。
-///
 /// ⚠️ 本接口位于 <c>Core</c>（**不引用 Avalonia**），所以它只保存状态、不碰界面：
 /// - 「跟随系统」需要的操作系统状态由 **Shell 层**读出来后写进 <see cref="SystemDark"/>；
 /// - 真正把颜色刷到窗口上的是 Shell 的 <c>App.ApplyTheme()</c>，它订阅 <see cref="ThemeChanged"/>。
-///
 /// 因此约定：**任何导致外观变化的写入都要触发 <see cref="ThemeChanged"/>**（哪怕新旧观感恰好一样）。
 /// </summary>
 public interface IThemeService

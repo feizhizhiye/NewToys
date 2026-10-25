@@ -89,7 +89,7 @@ public class MediaAssetsModule : IModule
         menu.RegisterFunction<Views.AssetTrashView>(GroupKey, "assets-trash", "回收站", "🗑", 11, "已软删除资产：恢复 / 永久删除（二次确认）/ 清空");
 
         // 模块设置页的 View / VM **归本模块**（需求 §6.6「模块设置页归本模块」）。
-        // v3.66：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）：
+        // 菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）：
         //     全应用口径 = 应用级设置在**一页**（Shell 的设置页），模块设置在各模块**一级菜单下**。
         // Key `settings-media-assets` ⛔不改（首页跳转 / 收藏白名单按 Key 寻址）；Order 99 = 本组末位。
         menu.RegisterFunction<Views.SettingsMediaAssetsView>(GroupKey, "settings-media-assets", "媒体资产设置", "🎬", 99,

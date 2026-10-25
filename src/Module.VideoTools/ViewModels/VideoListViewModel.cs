@@ -119,7 +119,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     [ObservableProperty] private bool _recursive;
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _isBusy;
-    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
+    // StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private string _summaryText = "尚未扫描";
     [ObservableProperty] private VideoItem? _selected;
 
@@ -135,7 +135,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     [ObservableProperty] private string _codecHeader = "编码";
     [ObservableProperty] private string _bitrateHeader = "码率";
     [ObservableProperty] private string _modifiedHeader = "修改时间";
-    // v3.15 扩充列（§6.4.8）
+    // 扩充列（§6.4.8）
     [ObservableProperty] private string _fpsHeader = "帧率";
     [ObservableProperty] private string _containerHeader = "容器格式";
     [ObservableProperty] private string _audioHeader = "音频编码";
@@ -156,7 +156,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     public bool IsBitrateVisible => Vis("Bitrate");
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsPickVisible => Vis("Pick");
-    // v3.15 扩充列
+    // 扩充列
     public bool IsFpsVisible => Vis("Fps");
     public bool IsContainerVisible => Vis("Container");
     public bool IsAudioVisible => Vis("Audio");
@@ -172,7 +172,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     /// </summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.22 §4.8.1：每列给一条**示例值** —— 用「示例宽 ≤ 表头宽」判定该列是否锁成表头宽（锁了就不可拖，且不低于 MinLockedWidth=34 保证把手可拖）。
+        // §4.8.1：每列给一条**示例值** —— 用「示例宽 ≤ 表头宽」判定该列是否锁成表头宽（锁了就不可拖，且不低于 MinLockedWidth=34 保证把手可拖）。
         new("Pick", "", "34", sortable: false),
         new("Name", "名称", "3.2*", sample: "示例视频 2026.mp4"),
         new("Type", "类型", "0.9*", sample: ".mp4"),
@@ -182,7 +182,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         new("Codec", "编码", "1.1*", sample: "H.265/HEVC"),
         new("Bitrate", "码率", "1.1*", sample: "8.5 Mbps"),
         new("Modified", "修改时间", "1.5*", sample: "2026-10-13 15:00"),
-        // v3.15 扩充（表头右键均可隐藏）：帧率 / 容器格式 / 音频编码 / 路径 / 创建时间
+        // 扩充（表头右键均可隐藏）：帧率 / 容器格式 / 音频编码 / 路径 / 创建时间
         new("Fps", "帧率", "0.8*", sample: "29.97"),
         new("Container", "容器格式", "1*", sample: "MP4"),
         new("Audio", "音频编码", "1*", sample: "AAC"),

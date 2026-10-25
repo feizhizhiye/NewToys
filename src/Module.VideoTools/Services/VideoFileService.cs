@@ -15,7 +15,7 @@ namespace NewToys.VideoTools.Services;
 /// 钩子没接上时**一律按"用户取消"处理**：宁可什么都不做，也不能在没有确认的情况下动用户的文件。
 /// </para>
 /// <para>
-/// v3.66：**磁盘动作全部下沉到 <see cref="IFileOperationService"/>**（Core）——
+/// **磁盘动作全部下沉到 <see cref="IFileOperationService"/>**（Core）——
 /// 这里只剩「弹窗 + 校验 + 文案」。以前这一层自带一份 <c>SHFileOperationW</c> 互操作，
 /// 和媒体资产各写一遍，现已删掉，回收站只有一份实现。
 /// </para>
@@ -38,7 +38,7 @@ public static class VideoFileService
     }
 
     /// <summary>
-    /// v3.15：详情卡内**直接改名**（不弹输入框，新名字由调用方给）。成功返回新完整路径
+    /// 详情卡内**直接改名**（不弹输入框，新名字由调用方给）。成功返回新完整路径
     /// （调用方据此同步内存里的 <c>VideoItem</c>）。
     /// </summary>
     public static Task<(bool Ok, string Message, string? NewPath)> RenameToAsync(string fullPath, string newName)

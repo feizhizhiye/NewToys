@@ -28,7 +28,7 @@ public class WebToolsModule : IModule
         services.AddTransient<Views.PingView>();       services.AddTransient<PingViewModel>();
         services.AddTransient<Views.HostsView>();      services.AddTransient<HostsViewModel>();
 
-        // v3.64：本模块设置（网页抓取默认 UA + 单次抓取超时）——**本模块配置的唯一写入点**，
+        // 本模块设置（网页抓取默认 UA + 单次抓取超时）——**本模块配置的唯一写入点**，
         // 落 config\web-tools.json（经 Core 的 IOptionsStore）；原来这两个值硬编码在 ScrapeService 里。
         services.AddSingleton<IWebToolsSettingsService, WebToolsSettingsService>();
         services.AddTransient<Views.SettingsWebToolsView>();  services.AddTransient<SettingsWebToolsViewModel>();
@@ -44,8 +44,8 @@ public class WebToolsModule : IModule
         // 抓取三页迁出后，Hosts 保留原 Order 7（⛔ 不重排，免动既有排序偏好）。
         menu.RegisterFunction<Views.HostsView>("web", "web-hosts", "Hosts 管理", "🗂", 7, "切换 hosts 方案、网络导入、编辑系统 hosts");
 
-        // v3.64：模块设置页通则 —— View/VM 归本模块。
-        // v3.66：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
+        // 模块设置页通则 —— View/VM 归本模块。
+        // 菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
         menu.RegisterFunction<Views.SettingsWebToolsView>("web", "settings-web-tools", "网络工具设置", "🌐", 100,
             "网页抓取的默认 User-Agent 与单次抓取超时");
     }

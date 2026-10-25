@@ -17,7 +17,7 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-// v3.66：Core 里也有一个 FileOperationService（纯磁盘动作，跨模块共用）。
+// Core 里也有一个 FileOperationService（纯磁盘动作，跨模块共用）。
 // 本页用的是**带库表日志**的模块版，显式取别名，免得两个 using 撞名（CS0104）。
 using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 

@@ -46,7 +46,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         new() { Text = "📥 导入书签", Classes = "ghost", CommandPath = nameof(ImportBookmarksCommand), ToolTip = "选择浏览器导出的书签 HTML 文件" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索标题 / 网址 / 分组…", ValuePath = nameof(SearchText) },
-        // v3.60：原 Label「右键列表项：…」删除（工具条⛔ 不放说明文字）—— 右键能力本来就写在各右键菜单项上。
+        // 原 Label「右键列表项：…」删除（工具条⛔ 不放说明文字）—— 右键能力本来就写在各右键菜单项上。
         new() { Text = "➕ 新建", CommandPath = nameof(NewBookmarkCommand) },
         new() { Text = "🔗 检测全部", CommandPath = nameof(CheckAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new() { Text = "🚀 批量打开", CommandPath = nameof(OpenBatchCommand) },
@@ -62,7 +62,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     public ObservableCollection<BookmarkItem> Items { get; } = new();
 
     [ObservableProperty] private bool _isBusy;
-    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
+    // StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private BookmarkItem? _selected;
     [ObservableProperty] private string _searchText = "";
 
@@ -73,7 +73,6 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     [ObservableProperty] private string _statusHeader = "状态";
 
     // ============ 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase（v1.35 收口） ============
-    //
     // XAML 只能绑具名属性 → 每列给一个直通属性（真正的状态在基类里，落 config\columnlayout.json）。
 
     public bool IsTitleVisible => Vis("Title");
@@ -86,7 +85,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
+        // §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
         new("Title", "标题", "2.6*", sample: "NewToys 项目主页"),
         new("Url", "网址", "3*", sample: "https://example.com/newtoys"),
         new("Folder", "分组", "1.4*", sample: "工作"),

@@ -10,7 +10,7 @@ namespace NewToys.SystemTools.Models;
 /// （见规范 3.8「列表页布局规范」）。
 /// </para>
 /// <para>
-/// v3.19：改成 <see cref="ObservableObject"/> —— 详情卡绑 <c>Selected.Publisher</c> 等，
+/// 改成 <see cref="ObservableObject"/> —— 详情卡绑 <c>Selected.Publisher</c> 等，
 /// 「🔎 读取详情」回填字段后**必须通知 UI 才会补充显示**（以前是普通类，改了不刷新 = 详情不补充）。
 /// </para>
 /// </summary>
@@ -31,7 +31,7 @@ public partial class PackageInfo : ObservableObject
     [ObservableProperty] private bool _isInstalled;
 
     /// <summary>
-    /// v3.37：**勾选列**状态（「⬇ 安装选中」「⬆ 升级选中」按勾选批量执行）。
+    /// **勾选列**状态（「⬇ 安装选中」「⬆ 升级选中」按勾选批量执行）。
     /// ⚠️ 只是界面态，⛔ 不落库、不参与筛选 / 排序 / 导入导出。
     /// </summary>
     [ObservableProperty] private bool _isChecked;

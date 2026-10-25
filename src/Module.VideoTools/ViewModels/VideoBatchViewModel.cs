@@ -106,7 +106,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     private CancellationTokenSource? _runCts;
 
-    // v3.9：StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
+    // StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private VideoTaskBase? _selected;

@@ -364,7 +364,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private string _beforeHeader = "处理前";
     [ObservableProperty] private string _afterHeader = "处理后";
     [ObservableProperty] private string _statusHeader = "状态";
-    // v3.15 扩充列（§6.4.8）
+    // 扩充列（§6.4.8）
     [ObservableProperty] private string _sourceHeader = "源文件";
     [ObservableProperty] private string _commandHeader = "命令摘要";
     [ObservableProperty] private string _createdHeader = "创建时间";
@@ -379,7 +379,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool IsAfterVisible => Vis("After");
     public bool IsStatusVisible => Vis("Status");
     public bool IsProgressVisible => Vis("Progress");
-    // v3.15 扩充列
+    // 扩充列
     public bool IsSourceVisible => Vis("Source");
     public bool IsCommandVisible => Vis("Command");
     public bool IsCreatedVisible => Vis("Created");
@@ -389,7 +389,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     /// <summary>v3.22 §4.8.1：每列一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.16 §6.4.10：行首勾选框（表头 ☑ 的 全选 / 取消选择 / 反选 改它）
+        // §6.4.10：行首勾选框（表头 ☑ 的 全选 / 取消选择 / 反选 改它）
         new("Pick", "", "34", sortable: false),
         new("Kind", "类型", "1.0*", sample: "剪辑+转码"),
         new("Name", "文件", "2.6*", sample: "示例视频 2026.mp4"),
@@ -398,7 +398,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         new("After", "处理后", "1.5*", sample: "820.5 MB"),
         new("Status", "状态", "1.2*", sample: "已完成"),
         new("Progress", "进度", "1.1*", sample: "100%", sortable: false),
-        // v3.15 §6.4.8 扩充（源文件 / 命令摘要 / 创建时间；类型 / 状态 / 进度 / 输出大小已有）
+        // §6.4.8 扩充（源文件 / 命令摘要 / 创建时间；类型 / 状态 / 进度 / 输出大小已有）
         new("Source", "源文件", "2.2*", sample: @"D:\Videos\示例视频 2026.mp4"),
         new("Command", "命令摘要", "2.4*", sample: "-c:v libx265 -crf 23"),
         new("Created", "创建时间", "1.3*", sample: "2026-10-13 15:00"),

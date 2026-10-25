@@ -371,16 +371,10 @@ public partial class ShellView : Window
             var h = TryGetPlatformHandle()?.Handle;
             if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
 
-            // 🔴 v3.29：**存外框物理像素**（⛔ 不存 ClientSize）。恢复一律用 `SetWindowPos` 直接设外框
-            //    = 绕开 Avalonia「外框 = 客户区 + 边框」那层换算，存取同一坐标系 → 闭环稳定。
-            //    （早期存客户区时恢复会被再加一圈边框 → **窗口每次启动变大一圈**，实测 16px。客户区内外缩与
-            //      存取口径无关：官方 CSD 下客户区被内缩，但这里进出的都是**外框**，仍然自洽。）
-            // ⚠️ 最大化时要存「还原后的矩形」（rcNormalPosition），
-            //    否则存下来的是比屏幕还大一圈的最大化外框，下次还原会偏。
-            // 全屏态与最大化同处理 —— 存**还原后的矩形**。
-            // ⛔ 否则存下来的是铺满整屏的外框 → 下次启动是一个「跟屏幕一样大的普通窗口」（位置还偏）。
-            // ⚠️ 2026-10-21：读外框的两条 Win32 路径（GetWindowPlacement / GetWindowRect）收进
-            //    ShellView.Win32.cs 的 TryReadFrameGeometry —— 主文件不再出现 Win32 类型。
+            // 🔴 存**外框物理像素**（⛔ 不存 ClientSize）：恢复同样直接设外框 ⇒ 存取同一坐标系才闭环
+            //    （存客户区会被再加一圈边框，实测每次启动大 16px）。
+            // ⚠️ 最大化 / 全屏存**还原后的矩形**，否则下次启动是个位置还偏的整屏窗口。
+            //    两条 Win32 读法收在 ShellView.Win32.cs::TryReadFrameGeometry，主文件不出现 Win32 类型。
             var preferRestoreRect = WindowState == WindowState.Maximized || WindowState == WindowState.FullScreen;
             if (!TryReadFrameGeometry(hwnd, preferRestoreRect, out var x, out var y, out var w2, out var h2)) return;
 

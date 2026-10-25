@@ -21,12 +21,9 @@ public class ScriptManagerModule : IModule
         // 落 config\script-manager.json（经 Core 的 IOptionsStore）。旧值原来在 app.json，首次运行自动搬迁。
         services.AddSingleton<IScriptManagerSettingsService, ScriptManagerSettingsService>();
 
-        // 的底座：脚本执行（静默跑、捕获输出）。
-        // 已上提 NewToys.Core.Services —— system 系统工具模块（收藏夹 / 快捷命令）要执行条目，
-        // 而**模块禁互引**，执行契约只能放框架层（行为零变化，纯搬家）。
-        // ⛔ 不留转发 shim / 别名 —— 留了等于两套入口，必然漂移。
-        // ⚠️ manifest 服务（ISysInfoManifestService）已删除 —— sysinfo.manifest.json 模型废弃。
-        // 进程执行本体走 Shell 注册的 IProcessRunner（Core）；本类只留脚本特有逻辑。
+        // 脚本执行底座（静默跑、捕获输出）在 NewToys.Core.Services —— 系统工具模块也要执行条目，
+        // 而**模块禁互引**，执行契约只能放框架层；⛔ 不留转发 shim，否则两套入口必然漂移。
+        // 进程本体走 Shell 注册的 IProcessRunner（Core），本类只留脚本特有逻辑。
         services.AddSingleton(sp => new ScriptRunner(
             sp.GetRequiredService<IAppConfigService>(),
             sp.GetRequiredService<IProcessRunner>()));
@@ -86,13 +83,10 @@ public class ScriptManagerModule : IModule
         // 但必须在首帧前完成，否则左树会先空后跳。
         var menu = services.GetRequiredService<IMenuService>();
         menu.RegisterModule("script", "脚本管理器", "IconPc", 20);
-        // 第 7 个参数是「功能简介」：功能清单页展示，首页收藏卡也复用它（单一真相源）。
-        // ⚠️ v1.24 起**删除了「工具箱首页」** —— 模块默认落在「脚本库」（order 1），
-        //    功能入口本身由左侧二级菜单承担。
-        // 🔴 **收藏夹 / 命令库已迁出本组**（→ 新「系统工具」模块，页键 `script-favorites` /
-        // `script-commands` 与标题一律 ⛔ 不改 —— 页键落 columnlayout.json，改了用户列偏好失效）。
-        // 的原顺序（收藏夹 / 脚本库 / 命令库 / 软件包 / 信息面板 / 设置）⇒
-        // 迁出收藏夹 / 命令库，迁出软件包 ⇒ 本组只剩 脚本库 / 集合 / 信息面板 + 抓取三页。
+        // 第 7 个参数是「功能简介」：功能清单页与首页收藏卡共用（单一真相源）。
+        // 本组原为「收藏夹 / 脚本库 / 命令库 / 软件包 / 信息面板 / 设置」；收藏夹与命令库已迁入「系统工具」
+        // （页键 `script-favorites` / `script-commands` ⛔ 不改 —— 落 columnlayout.json，改了用户列偏好失效），
+        // 软件包也已迁出 ⇒ 现只剩 脚本库 / 集合 / 信息面板 + 抓取三页。
         menu.RegisterFunction<Views.ScriptLibraryView>("script", "script-library", "脚本库", "▤", 1, "较复杂的系统设置项与常用脚本，可运行 / 增删改查 / 收藏");
         menu.RegisterFunction<Views.CollectionView>("script", "script-collections", "脚本集合", "🗂", 4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
         menu.RegisterFunction<Views.ScriptInfoView>("script", "script-info", "信息面板", "💻", 99, "按集合分节展示采集器输出；顶部「集合 ▾」一次显示一个集合");

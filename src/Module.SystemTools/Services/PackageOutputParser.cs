@@ -135,14 +135,10 @@ internal static class PackageOutputParser
             // 整行只剩第一个单元格（长名称换行那种残行）→ 丢弃
             if (!row.TryGetValue("Name", out var name) || name.Length == 0) continue;
 
-            // 🔴 名称被**自动换行**时，Id 会跟着折到下一行 ⇒ 本行 Id 只剩尾巴
-            //    （`Microsoft Edge` 折行后本行 Id = `e`，完整 Id `Microsoft.Edge` 在下一行）。
-            //    这种残缺 Id 装不了 / 卸不了、也匹配不上已安装表。判据三条同时成立才算续行：
-            //    ① 本行 Id 非空、是**最后有值的一列**且整行顶到行尾；② 下一行在 id 列位置有内容，版本列为空；
-            //    ③ 两段合起来才像一条 Id —— 本行段不含 `.`、下一段含 `.`（= 被切断的那条），
-            //       或本行段**不足 4 字符**（`e` / `edg`）且两段直接相连。⛔ 不做"任意两段拼接"。
-            //    ⚠️ 判成续行时**保留本行的 Name**（不要用续行的空 Name 覆盖），只把 Id 拼全。
-            //    ⚠️ 续行的 Version 列若也被切断（`1…` / `e15…`）就丢掉 —— 这种版本串没有意义。
+            // 🔴 名称自动换行时 Id 也会折到下一行（本行只剩 `e`，完整 `Microsoft.Edge` 在下一行）。
+            //    三条同时成立才判续行：① 本行 Id 是最后有值的一列且整行顶到行尾；② 下一行 Id 位有内容、Version 位为空；
+            //    ③ 两段合起来像一条 Id（本行段不含 `.` 而下段含，或本行段 < 4 字符且两段都不含空格）。
+            //    ⚠️ 判成续行时保留本行 Name（别用下行的空 Name 覆盖），只拼 Id；被切断的 Version（`1…`）直接丢掉。
             if (row.TryGetValue("Id", out var idCell) && idCell.Length > 0 && IdIsLastColumn(line, columns, row)
                 && i + 1 < lines.Length && TryGetColumnAt(lines[i + 1], columns, "Id", out var rest) && rest.Length > 0
                 && TryGetColumnAt(lines[i + 1], columns, "Version", out var nextVer) && nextVer.Length == 0

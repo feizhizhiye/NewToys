@@ -248,12 +248,10 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         newValue.OnActivated.Invoke();
     }
 
-    // ==================== 页内搜索：已删除（v3.66：统一到标题栏） ====================
-    // 原「页内搜索框 + 结果列表 / 过滤节」两版都撤了 —— 入口统一搬到**标题栏**的搜索按钮
-    // （`ShellView` 的 `BtnSettingsSearch` → `ShellViewModel` 的统一搜索结果列表）。
-    // 🔴 **节的关键词匹配搬到 Shell**（索引来自 `Catalog`），本页只负责"按节锚点展开 + 滚动"，
-    //    即 `OpenSection` / `ExpandOnly`（`OpenTab` 归一后调用），⛔ 本页不再持有搜索逻辑。
-    // 页面顶部现在只留**冻结首行**的节导航（点一下快速折叠 / 切换）。
+    // ==================== 页内搜索：已撤销（入口统一到标题栏） ====================
+    // 搜索索引与关键词匹配归 Shell（索引来自 `Catalog`）；本页只负责「按节锚点展开 + 滚动」
+    // （`OpenSection` / `ExpandOnly`，`OpenTab` 归一后调用），⛔ 不再持有搜索逻辑。
+    // 页面顶部只留**冻结首行**的节导航（点一下折叠 / 切换）。
 
     // ==================== 契约：IStatusProvider（跨节聚合） ====================
 
@@ -296,12 +294,10 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
                    .OfType<IStatusActionProvider>()
                    .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.StatusActionKey));
 
-    // ==================== 工具条：⛔ 不再上抛（v3.66 第五轮） ====================
-    // 原实现 = 「实现 IToolbarOwner，把承载者让给已展开且有工具条的那一节 VM」⇒ Shell 的顶部工具条行
-    // 会渲染「运行环境」节的那一排按钮（保存 / 浏览 / 新建配置…）。用户反馈：**按钮跑到了页面顶部**，
-    // 要求在**本节内容顶部**显示 ⇒ 改为节点内嵌：`SettingsView.axaml` 的节点模板里挂一个
-    // `ToolbarHost`（`SettingsSection.HasToolbar` 门控，Source = 节 VM）。
-    // 契约 `IToolbarOwner`（Shared/Services/IToolbarSource.cs）**保留**（框架层不动），当前无实现者。
+    // ==================== 工具条：⛔ 不再上抛 ====================
+    // 原实现 = 本页当 `IToolbarOwner`，把承载者让给某节 VM ⇒ 那排按钮跑到**页面顶部**（用户否决）。
+    // 现改为节点内嵌：`SettingsView.axaml` 节点模板里挂 `ToolbarHost`（`SettingsSection.HasToolbar` 门控）。
+    // 契约 `IToolbarOwner` 保留在框架层，当前无实现者。
 
     /// <summary>任一节的契约发生变化 → 转成对本页的通知（Shell 重取状态栏）。</summary>
     private void OnSubChanged(object? sender, EventArgs e)

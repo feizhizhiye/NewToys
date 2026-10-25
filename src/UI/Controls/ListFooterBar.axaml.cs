@@ -326,12 +326,8 @@ public partial class ListFooterBar : UserControl
                 Content = page.ToString(CultureInfo.CurrentCulture),
                 Height = 22,
                 MinWidth = 26,
-                // 2026-10-17 版式返修：
-                // · 左右内边距归零 ⇒ 各页码按钮盒宽一致（1 与 12 同宽），节距才均匀；
-                // · **上内边距 3** = 光学居中：数字无降部 ⇒ 墨迹中心比按钮盒中心高 ~2px
-                //   （实测 11px 字号：墨迹 y17→24 中心 20.5 vs 盒 y12→33 中心 22.5）。
-                //   顶部垫 4 用户反馈"略偏下" ⇒ 收成 3（下移 1.5px，留 ~0.3px 偏高，肉眼不可见）；
-                //   箭头 `« ‹ › »` 是反向偏差（画在基线附近、偏下 ~2px），在 axaml 里给下内边距 4。
+                // 版式：左右内边距归零 ⇒ 各页码按钮盒宽一致（1 与 12 同宽）；
+                // 上内边距 3 = **光学居中**（数字无降部，墨迹中心比盒中心高 ~2px；箭头反向偏下 ~2px，改在 axaml 给下内边距 4）。
                 Padding = new Thickness(0, 3, 0, 0),
                 FontSize = 12,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,

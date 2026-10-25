@@ -2,12 +2,8 @@ using System.Collections.ObjectModel;
 
 namespace NewToys.Shared.Models;
 
-// ⚠️ 命名约定：这里的类型一律带 App 前缀（AppMenuGroup / AppMenuItem）。
-//    原因：这是**本应用注册的菜单模型**（模块 ↔ 二级功能），而 Avalonia.Controls 里已有
-//    同名的 MenuItem（以及 Menu / NativeMenu 等控件类型）。凡同时 using 两者（Avalonia.Controls
-//    + NewToys.Shared.Models）的 code-behind，裸写 MenuItem 会 CS0104 不明确引用（v1.32 踩过一次）。
-//    加前缀后：① 编译期不再撞名，也不必再写 using 别名；② 读代码时一眼分清「框架控件」与「应用模型」。
-//    新增模型时同样避免使用框架已有的类型名（如 Grid/Border/Panel/Separator/ContextMenu…）。
+// ⚠️ 类型一律带 App 前缀（AppMenuGroup / AppMenuItem）：Avalonia.Controls 已有 MenuItem / Menu 等同名类型，
+//    同时 using 两者时裸写会 CS0104 不明确引用。新增模型同样避开框架已有类型名（Grid / Border / Panel / ContextMenu…）。
 
 /// <summary>一级菜单（模块分组）：一个模块注册一个，内含若干 <see cref="AppMenuItem"/>。</summary>
 public class AppMenuGroup

@@ -677,6 +677,8 @@ public interface IDetailCardSource
 
 **单元测试**（`src/NewToys.Tests`，2026-10-21 新增）：
 - 只测**纯函数**（`FixedWidthTable` / `TsvRows` / `PackageOutputParser` 这类「外部输出 → 行模型」的解析器）——⛔ 不 new VM、⛔ 不碰 Avalonia / 文件系统 / 进程。
+- 现有覆盖面（`src/NewToys.Tests`）：包管理器输出解析（`ParserTests`）/ 系统信息输出（`SysInfoOutputParserTests`）/ 列表页基类（`ListPageBaseTests`）/ 页面契约（`PageCatalogTests` + `ViewNamingTests` + `MenuServiceTests`）/ **备份路径防御（`BackupPathsTests`）** / **ffmpeg 命令拼装（`FfmpegArgsTests`：裁剪取偶、编码器映射、目标体积反算、copy→libx264 升级、软字幕强制 mkv、GIF 调色板链、多段剪切的 filter_complex）**。
+- 测试工程按需求引被测模块（当前 = `Module.ScriptManager` / `Module.SystemTools` / **`Module.VideoTools`** / `Shared` / `Core`）；⛔ 别为了测试把整个 `Shell` 拉进来。
 - 跑法：`pwsh skill/scripts/accept.ps1 -Test`（构建后追加，秒级）或直接 `dotnet test src\NewToys.Tests`。
 - `internal` 的解析类**不为测试改 public**，用被测类型所在模块的 `<InternalsVisibleTo Include="NewToys.Tests" />` 打开（当前 = `Module.SystemTools.csproj`，NT-096 迁入软件包解析器）。
 - 产物落 `artifacts\tests\`（Release 的 `OutDir` 被项目级覆盖）——⛔ 不许进 `artifacts\release\`，那里是交付产物区，多出 TestHost 会污染产物核对。

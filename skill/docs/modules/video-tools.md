@@ -4,7 +4,7 @@
 > **模块键**：`video` ｜ **一级菜单**：Order 40 · 图标 `IconVideo`
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
 > **状态**：✅ 稳定（3 页 + 1 设置页）
-> **最后校对**：2026-10-24（NT-100 字幕 / NT-101 多段剪切 + 详情卡 `Pair` 成对输入）
+> **最后校对**：2026-10-24（NT-100 字幕 / NT-101 多段剪切 + 详情卡 `Pair` 成对输入；NT-105 时间轴区间标记）
 
 ---
 
@@ -52,7 +52,8 @@
 | 选择视频 | `📂 选择视频` | 载入并**自动预览**（探测时长 + 抽当前帧） | 从视频列表送来时也自动触发一次 |
 | 播放预览 | `▶ 播放预览` / `⏸ 停止` | 抽帧模拟播放，再点停止 | 拖滑条时「最新值优先」节流 |
 | 旋转 | `↻ 90°` / `↺ 90°` | 预览画面旋转（**纯视觉**） | 命令卡「旋转」字段同步 |
-| 拖时间条 | 预览位置 / 开始 / 结束三条 | 时间码文本 + 大画面 + 命令预览**同步刷新** | ⛔ 滑条不直接绑模型属性；`Maximum` 绑 `TimelineMax`（未知给占位 1，防 0/0=NaN 崩布局） |
+| **时间轴区间标记**（NT-105） | 「预览位置」行 = `TimelineTrack` 自绘轨道（点一下 / 按住拖动定位） | 轨道上高亮块 = 当前剪辑区间：单段整块、**多段 ≥2 段逐段色块**；未勾选「剪辑」时 35% 淡显；刻度尺按宽度自动选档 | 区间数据 = `SegmentList`（与 ffmpeg 命令**同源**）；颜色全走主题键 |
+| 拖时间条 | 时间轴轨道（定位）/ 开始 / 结束两条滑条 | 时间码文本 + 大画面 + 命令预览**同步刷新** | ⛔ 滑条不直接绑模型属性；`Maximum` 绑 `TimelineMax`（未知给占位 1，防 0/0=NaN 崩布局） |
 | 勾剪辑 / 勾转码 | 详情卡 `Expander` 抬头的勾选框 | 决定命令带 `-ss/-to` / 编码参数 | **取消勾选自动折叠**；折叠只影响界面，是否执行由勾选决定；两个可同勾 = 一条命令 |
 | 改参数 | 卡内字段 | 命令区实时重算 | 手改过命令后**不再覆盖** `EditArgs` |
 | **字幕**（NT-100） | 卡内「字幕文件」+「字幕方式」/ Actions `📝 选择字幕文件…` | 软字幕 = 只封装（`-c copy`，输出 `.mkv`）；硬字幕 = 追加 `subtitles=…` 滤镜 | 软字幕下编码 / 分辨率设置**不生效**（卡内有提示行）；硬字幕必须重编码（copy 预设自动升级 libx264） |
@@ -63,7 +64,8 @@
 | 手改命令 | 命令区参数框 | 置 `IsArgsEdited`，参数变化不再覆盖 | 手改后**原样执行**（存 `RawArgs`） |
 | 重置为自动 | `↺ 重置为自动` | 清标记并重算自动参数 | 仅手改后可见 |
 | 复制命令 | `📋 复制命令` | 整条 ffmpeg 命令进剪贴板 | — |
-| **试跑 5 秒**（NT-098） | 工具条 `🧪 试跑 5 秒` | 用**当前全部参数**（手改过就用手改的）从「预览位置」起真转 5 秒 → `%TEMP%\NewToys\trial\`；成功后**右栏出现小样画面**，状态栏报体积 | 失败时状态栏显示 ffmpeg 原始错误尾行；不写正式输出、不改任务 |
+| **试跑 5 秒**（NT-098） | 工具条 `🧪 试跑 5 秒` | 用**当前全部参数**（手改过就用手改的）从「预览位置」起真转 5 秒 → `%TEMP%\NewToys\trial\`；成功后**只回一个信号**：状态栏 `✔ 试跑通过（体积 / 秒数）` + 工具条出现 `▶ 播放小样` | 失败时状态栏显示 ffmpeg 原始错误尾行；不写正式输出、不改任务；⛔ 不在界面并排画小样（NT-098b 去掉对比栏） |
+| **留空 = 用默认的字段**（NT-098b） | 卡内「分辨率」「裁剪」「CRF」「GIF 宽度」「输出文件」 | 留空 / 0 时输入框**空着**，水印直接写**当前实际生效的值**（原片宽高 / 预设 CRF / 自动命名后的真实输出路径）—— 一眼分清「手填的」和「自动的」；手填即覆盖，清空回到水印 | 只对「0 = 不改」这类字段生效；`0` 本身有意义的字段⛔ 不开 |
 | **播放小样**（NT-098） | 工具条 `▶ 播放小样` | 外部播放器（设置 → 路径配置）优先，其次 `ffplay -autoexit` | 两者都没有 ⇒ 明确提示去配置；没有小样时播源片 |
 | 发送到批处理 | `➡ 发送到批处理` | 加入队列，**不立刻跑** | 视频详情卡工具条 |
 
@@ -118,7 +120,11 @@
 - 顶部工具条（页面级动作都归这里）：`📂 选择视频` / `➡ 发送到批处理` / `↺ 区间重置` / `❮❯ 详情`（末位绑 `ToggleDetailPanelCommand`，**会通知 Shell**）；卡内动作（如 `📂 选择输出文件…`）走描述符 `Actions` 区。
 - VM **不继承 `ListPageViewModelBase`**（不是列表页）→ `ObservableObject, IStatusProvider`；已实现 `IDetailPanelProvider` + `IDetailCardSource`（`HasDetailPanel => true`、`DetailContent => null`）。
 
-**三条时间条（预览位置 / 开始 / 结束）**
+**时间轴轨道 + 两条时间条（NT-105）**
+- 「预览位置」行 = `Controls/TimelineTrack`（自绘 `Control`，高 44）：底轨 + 刻度尺 + 播放头 + 区间块。**开始 / 结束两条滑条保留**，负责微调。
+- 区间块判定与命令同源：`Segments.Count >= 2` 逐段画，否则画 `Start → End`（`End=0` 按片尾处理）。未勾选「剪辑」时 `PushOpacity(0.35)` 淡显。
+- 控件属性：`Duration` / `Position`（TwoWay）/ `Start` / `End` / `Segments` / `IsRangeEnabled` + 5 个 Brush。XAML 里 `Duration` 绑 `TimelineMax`（未知给占位 1，见下条）。
+- 刻度：间隔在 `0.5s ~ 4h` 的候选表里选第一个「标签数 ≤ 宽度/76」的档；标签 `mm:ss` / `h:mm:ss`。
 - ⛔ **滑条别直接绑模型属性** —— 一律走 VM 手动属性（`PreviewTime` / `StartSeconds` / `EndSeconds`），setter 里改一处 → 时间码文本 + 大画面 + 命令预览一起刷新（避免"拖了滑条、时间码没跟上 → 保存被旧值覆盖"）。
 - `Maximum` 绑 `TimelineMax`（时长未知时给**占位 1**）：⛔ 别在 `Maximum==Minimum==0` 时直绑 `Duration` → `(Value-Min)/(Max-Min)=0/0=NaN` → **整页布局算不过去**。
 - 大画面 `Image Source="{Binding PreviewImage}"`（`Bitmap`）；拖滑条用**"最新值优先"节流**（`_extracting` + `_pendingPreview`）。⛔ **不铺 `ItemsControl` 缩略图墙**，只保留"当前帧"一张大图。
@@ -150,7 +156,8 @@
 ### 3.5 参数预检 / 试跑 / GIF（NT-098 · NT-099）
 
 - **预检**：`CommandLint.Check(args, output, source)` 吃**含输出路径的完整参数列表**（两页都从各自的 `Build*Args` 拿，手改过就是手改那条），返回 `LintIssue(IsError, Text)` 列表；`Describe()` 拼成多行（最多 4 条）。详情卡里是一条 `FieldKind.Hint` + `ValuePath=LintText` + `VisibleWhen=HasLint`。
-- **试跑**：预览页 `RunTrialAsync` 直接改任务的区间字段后调同一个 `Build*Args`（⛔ 不另写拼参逻辑），产物落 `%TEMP%\NewToys\trial\trial_HHmmss.<ext>`，再用 `ExtractFrameAsync(0.05s)` 出右栏对比图（帧文件跟小样同名 → 不会与上一张 Bitmap 抢文件）。批量页 `TrialSelectedAsync` 走 `BuildArgs(t, includeRaw: true, overrideOutput: 临时路径)`，没区间时在输出路径**前**插 `-t 5`。
+- **试跑**：预览页 `RunTrialAsync` 直接改任务的区间字段后调同一个 `Build*Args`（⛔ 不另写拼参逻辑），产物落 `%TEMP%\NewToys\trial\trial_HHmmss.<ext>`；**NT-098b 起不再抽帧做对比栏**（`TrialImage` / `HasTrialImage` / `LoadTrialFrameAsync` 已删），成功只置 `TrialFile`（工具条 `▶ 播放小样` 靠它显隐）+ 状态栏 `✔ 试跑通过`。批量页 `TrialSelectedAsync` 走 `BuildArgs(t, includeRaw: true, overrideOutput: 临时路径)`，没区间时在输出路径**前**插 `-t 5`。
+- **留空字段的水印**（NT-098b）：`DetailField.PlaceholderPath`（动态水印路径）+ `ZeroAsPlaceholder`（0/空按未填处理，提交空写回 `0`）—— 预览页 `TargetWidthPlaceholder` / `TargetHeightPlaceholder` / `CropWidthPlaceholder` / `CropHeightPlaceholder` / `GifWidthPlaceholder`（源宽高，未探测给「原宽 / 原高」）、`TranscodeCrfPlaceholder`（预设自带 CRF）、`OutputPlaceholder`（`ResolveOutput()` = 自动命名的真实路径）。水印随 `SourceWidth/Height`、预设、任意参数变化由 `RefreshCommand()` / `NotifyPlaceholders()` 发通知，⛔ 不靠重建卡片。
 - **GIF**：`TranscodePreset.Id="gif"` + `FfmpegService.IsGif()` 判定 → `BuildTranscodeArgs` **独立分支**（`-an -c:v gif -loop 0` + `GifFilterChain` 单遍调色板）；`TranscodeTask.ContainerDisplay` 对 GIF 强制 `.gif`（容器下拉无效）。**单遍**而不是两遍：两遍要在预览里显示两条命令，「看到的 ≠ 跑的」；单遍代价是整段帧过内存 ⇒ 预检对 >30 秒给提示。
 - **进度**：`-progress pipe:1 -nostats` 必须放在**业务参数之前**；只认 `out_time_us` 与 `out_time=`（时间码），⛔ 不读 `out_time_ms`（多版本里实际是微秒）。
 
@@ -185,6 +192,7 @@
 |---|---|
 | 菜单注册（Key 权威源） | `VideoToolsModule.cs` |
 | 预览页 | `Views/VideoPreviewView.axaml(+.cs)` + `ViewModels/VideoPreviewViewModel.cs` |
+| 时间轴轨道（自绘控件，NT-105） | `Controls/TimelineTrack.cs` |
 | 批量页 | `Views/VideoBatchView.axaml(+.cs)` + `ViewModels/VideoBatchViewModel.cs` + `Models/VideoTask.cs` |
 | ffmpeg | `Services/FfmpegService.cs` |
 
@@ -209,6 +217,8 @@
 15. 🔴 **`-af` 只能作用于重编码音频**（NT-103）：`-c:a copy` + `volume` 会让 ffmpeg 报 "Filtergraph…not supported"，所以音量增益遇到 copy 预设要把音频改 `aac`。
 16. 🔴 **替换音轨与软字幕的 `-map` 会打架**（NT-103）：两处都要 `-map`，同时开一定出错 ⇒ 预检拦死，不做"自动二选一"。
 17. 🔴 **目标体积依赖源时长**（NT-104）：`SourceDuration` 为 0 时算不出码率，预检红字；换源文件要清零（时长换了）。
+18. 🔴 **自绘控件写回 TwoWay 属性必须用 `SetCurrentValue`**（NT-105）：`SetValue` 会把 VM 那条绑定**整条掐断**（拖一次之后控件与数据脱钩）。另外自绘 `Control` 要在 `Render` 里先 `FillRectangle(Transparent, bounds)` 一次，否则命中测试没有绘制内容 ⇒ **收不到指针事件**。
+19. 🔴 **`TimelineTrack` 的轨道左右各内缩 10px**（`RailPad`）：和下面两条 Slider 的 thumb 内缩对齐；改滑条模板高度/内边距时这条要跟着核。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

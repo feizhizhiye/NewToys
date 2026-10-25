@@ -76,7 +76,7 @@
 | `skill/scripts/check.ps1` | `.axaml` XML 合法性 / `.axaml`↔`.axaml.cs` 配对 / **`.axaml.cs` 是否调用 `InitializeComponent()`**（2026-10-17 新增：Avalonia 不自动生成构造函数，漏写 ⇒ XAML 静默不加载、具名字段 null ⇒ NRE，NT-063 连挂两次）/ `*Brush` 主题键白名单（白名单外的键 = 旧键或拼错） |
 | `skill/scripts/check-axaml-props.ps1` | XAML **属性名存在性**（逐个到 Avalonia ref 程序集核对 + 本仓自定义属性豁免），专治 Avalonia ≠ WPF 名字差异：`SelectedValuePath` / `SelectedValue` / `StrokeLineJoin`（Avalonia 叫 `StrokeJoin`）/ `Watermark`（→ `PlaceholderText`）/ `DisplayMemberPath` / `SharedSizeGroup` / `ValidatesOnExceptions` / `IsCheckable`。另：勾选按钮 ⛔ 无 `IsCheckable`（用 `ToggleType=CheckBox`），`IsChecked` 本项目约定须 `Mode=OneWay` |
 | `skill/scripts/check-comments.ps1` | 注释健康度 **C-01 ~ C-06**（见 §3.1）+ **View 类名唯一性**（C-05 是唯一能提前拦住「反射导航静默错页」的检查） |
-| `skill/scripts/check-view-pairs.ps1` | 页面契约 **P-01 / P-02**：`Views/` 下 `XxxView` 在本程序集找不到 `XxxViewModel`（豁免标记 `// lint:view-no-vm`，用于设置节子视图）；`RegisterFunction` 第 5 个实参 `viewName` 在 `src/` 里没有同名 View 类。两者都表现为「编译通过、运行期无异常，只是页面空白 / 菜单项打不开」 |
+| `skill/scripts/check-view-pairs.ps1` | 页面契约 **P-01 / P-02**：`Views/` 下 `XxxView` 在本程序集找不到 `XxxViewModel`（豁免标记 `// lint:view-no-vm`，用于设置节子视图）；`RegisterFunction<TView>` 的泛型实参不是 `*View` 命名或 `src/` 里没有该 View 类（类型存在性已由编译器保证，这里只补「必须是真 View」）。两者都表现为「编译通过、运行期无异常，只是页面空白 / 菜单项打不开」 |
 
 ### 3.1 注释健康度（`check-comments.ps1` · C-01 ~ C-06）
 

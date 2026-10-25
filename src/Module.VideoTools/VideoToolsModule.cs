@@ -44,18 +44,18 @@ public class VideoToolsModule : IModule
         menu.RegisterModule("video", "视频工具", "IconVideo", 40);
         // 「视频库」→「视频列表」（v1.35）：本页不是"库"（没有默认目录、不做登记），
         // 只是一个"比资源管理器显示更多信息"的查看器，名字照实改。
-        menu.RegisterFunction("video", "video-list",  "视频列表", "📁", "VideoListView",  0, "本地视频查看器：分辨率 / 编码 / 码率 / 时长，可多选发送到批量处理");
+        menu.RegisterFunction<Views.VideoListView>("video", "video-list", "视频列表", "📁", 0, "本地视频查看器：分辨率 / 编码 / 码率 / 时长，可多选发送到批量处理");
         // v3.12：「命令生成」→「视频预览」。View / VM 的类名与文件名一并改成 VideoPreview*；
         // ⚠️ **菜单 key 仍是 video-cut** —— 它落config\columnlayout.json 的页键（详情栏开合 / 列显隐都按它记），
         // 改名会让已有用户的偏好失效；类名 / 文件名改名则零成本。
         // 改名理由：这一页的独有价值是**边看画面边定参数**，详情卡与批量页完全一致；叫「命令生成」名不副实。
-        menu.RegisterFunction("video", "video-cut",   "视频预览", "✂",  "VideoPreviewView", 1, "边预览画面边制定单个剪辑 / 转码任务，生成 ffmpeg 命令后发送到批量处理");
+        menu.RegisterFunction<Views.VideoPreviewView>("video", "video-cut", "视频预览", "✂", 1, "边预览画面边制定单个剪辑 / 转码任务，生成 ffmpeg 命令后发送到批量处理");
         // v3.8：原「格式转码」→「批量处理」（剪辑 + 转码混排的任务队列）
-        menu.RegisterFunction("video", "video-batch", "批量处理", "🧺", "VideoBatchView", 2, "剪辑 + 转码混排的任务队列：逐条改参数 / 编辑命令、批量运行");
+        menu.RegisterFunction<Views.VideoBatchView>("video", "video-batch", "批量处理", "🧺", 2, "剪辑 + 转码混排的任务队列：逐条改参数 / 编辑命令、批量运行");
 
         // v3.64：模块设置页通则 —— View/VM 归本模块。
         // v3.66：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
-        menu.RegisterFunction("video", "settings-video-tools", "视频工具设置", "🎬", "SettingsVideoToolsView", 100,
+        menu.RegisterFunction<Views.SettingsVideoToolsView>("video", "settings-video-tools", "视频工具设置", "🎬", 100,
             "并发数与 ffmpeg / 播放器 / 导入导出目录（后三项是全局项，本页只展示）");
     }
 

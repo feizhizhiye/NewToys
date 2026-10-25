@@ -105,7 +105,7 @@ $staticChecks = @(
         Warn = @('\[WARN\]\s*([1-9]\d*) 条')
         SupportsAll = $true
     }
-    # 页面契约（P-01 View 找不到同名 VM / P-02 注册的 viewName 无对应 View 类）：
+    # 页面契约（P-01 View 找不到同名 VM / P-02 泛型实参不是真 View 类）：
     # 两条都是 ERROR —— 名字对不上时运行期不报错，只是页面空白或打不开。
     [pscustomobject]@{
         Name = '页面契约（View ↔ ViewModel / 菜单注册）'

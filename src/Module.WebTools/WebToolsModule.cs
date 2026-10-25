@@ -37,16 +37,16 @@ public class WebToolsModule : IModule
     {
         var menu = services.GetRequiredService<IMenuService>();
         menu.RegisterModule("web", "网络工具", "IconWeb", 30);
-        menu.RegisterFunction("web", "web-http",     "HTTP 测试",  "🧪", "WebHttpView", 1, "构造请求并查看响应");
-        menu.RegisterFunction("web", "web-bookmark", "书签管理",   "🔖", "BookmarkView", 2, "收藏与整理常用网址、导入浏览器书签");
-        menu.RegisterFunction("web", "web-ping",     "网络 Ping",  "📡", "PingView",     3, "测试主机连通性与延迟，支持切 DNS");
+        menu.RegisterFunction<Views.WebHttpView>("web", "web-http", "HTTP 测试", "🧪", 1, "构造请求并查看响应");
+        menu.RegisterFunction<Views.BookmarkView>("web", "web-bookmark", "书签管理", "🔖", 2, "收藏与整理常用网址、导入浏览器书签");
+        menu.RegisterFunction<Views.PingView>("web", "web-ping", "网络 Ping", "📡", 3, "测试主机连通性与延迟，支持切 DNS");
         // `web-scrape` / `web-rule-editor` / `web-crawl` 三页迁入脚本中心组（Key 与标题 ⛔ 不改）。
         // 抓取三页迁出后，Hosts 保留原 Order 7（⛔ 不重排，免动既有排序偏好）。
-        menu.RegisterFunction("web", "web-hosts",    "Hosts 管理", "🗂", "HostsView",    7, "切换 hosts 方案、网络导入、编辑系统 hosts");
+        menu.RegisterFunction<Views.HostsView>("web", "web-hosts", "Hosts 管理", "🗂", 7, "切换 hosts 方案、网络导入、编辑系统 hosts");
 
         // v3.64：模块设置页通则 —— View/VM 归本模块。
         // v3.66：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
-        menu.RegisterFunction("web", "settings-web-tools", "网络工具设置", "🌐", "SettingsWebToolsView", 100,
+        menu.RegisterFunction<Views.SettingsWebToolsView>("web", "settings-web-tools", "网络工具设置", "🌐", 100,
             "网页抓取的默认 User-Agent 与单次抓取超时");
     }
 

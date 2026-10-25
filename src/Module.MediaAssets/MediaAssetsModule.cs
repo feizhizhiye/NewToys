@@ -80,19 +80,19 @@ public class MediaAssetsModule : IModule
         // 🔴 v3.69：5 个类型二级项（assets-video / music / book / image / document）**已撤销**
         //    （用户 2026-10-16 拍板，菜单 Key 铁律的一次例外）—— 类型切换改由「全部资产」页**筛选栏的类型控件**承担，
         //    列集合 / 列表数据 / 详情卡字段集 / 状态栏前缀随之切换（需求 §6.6「类型切换」）。
-        menu.RegisterFunction(GroupKey, "assets-all",         "全部资产", "🗂", "AssetAllView",         0, "混合视图：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源");
-        menu.RegisterFunction(GroupKey, "assets-tags",        "标签管理", "🏷", "AssetTagsView",        6, "标签：名称 / 命名空间 / 颜色 / 使用数；支持合并与清理未使用");
-        menu.RegisterFunction(GroupKey, "assets-categories",  "分类管理", "🗃", "AssetCategoriesView",  7, "分类树 + 成员列表（本模块唯一的非列表页）");
-        menu.RegisterFunction(GroupKey, "assets-collections", "集合管理", "📦", "AssetCollectionsView", 8, "手动 / 智能集合；成员可拖拽排序");
-        menu.RegisterFunction(GroupKey, "assets-storages",    "存储源",   "💾", "AssetStoragesView",    9, "local / removable / nas；在线状态；移除只移索引、不删磁盘文件");
-        menu.RegisterFunction(GroupKey, "assets-tasks",       "任务中心", "⏳", "AssetTasksView",      10, "扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图任务：取消 / 重试 / 日志");
-        menu.RegisterFunction(GroupKey, "assets-trash",       "回收站",   "🗑", "AssetTrashView",      11, "已软删除资产：恢复 / 永久删除（二次确认）/ 清空");
+        menu.RegisterFunction<Views.AssetAllView>(GroupKey, "assets-all", "全部资产", "🗂", 0, "混合视图：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源");
+        menu.RegisterFunction<Views.AssetTagsView>(GroupKey, "assets-tags", "标签管理", "🏷", 6, "标签：名称 / 命名空间 / 颜色 / 使用数；支持合并与清理未使用");
+        menu.RegisterFunction<Views.AssetCategoriesView>(GroupKey, "assets-categories", "分类管理", "🗃", 7, "分类树 + 成员列表（本模块唯一的非列表页）");
+        menu.RegisterFunction<Views.AssetCollectionsView>(GroupKey, "assets-collections", "集合管理", "📦", 8, "手动 / 智能集合；成员可拖拽排序");
+        menu.RegisterFunction<Views.AssetStoragesView>(GroupKey, "assets-storages", "存储源", "💾", 9, "local / removable / nas；在线状态；移除只移索引、不删磁盘文件");
+        menu.RegisterFunction<Views.AssetTasksView>(GroupKey, "assets-tasks", "任务中心", "⏳", 10, "扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图任务：取消 / 重试 / 日志");
+        menu.RegisterFunction<Views.AssetTrashView>(GroupKey, "assets-trash", "回收站", "🗑", 11, "已软删除资产：恢复 / 永久删除（二次确认）/ 清空");
 
         // 模块设置页的 View / VM **归本模块**（需求 §6.6「模块设置页归本模块」）。
         // v3.66：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）：
         //     全应用口径 = 应用级设置在**一页**（Shell 的设置页），模块设置在各模块**一级菜单下**。
         // Key `settings-media-assets` ⛔不改（首页跳转 / 收藏白名单按 Key 寻址）；Order 99 = 本组末位。
-        menu.RegisterFunction(GroupKey, "settings-media-assets", "媒体资产设置", "🎬", "SettingsMediaAssetsView", 99,
+        menu.RegisterFunction<Views.SettingsMediaAssetsView>(GroupKey, "settings-media-assets", "媒体资产设置", "🎬", 99,
             "扫描忽略规则 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据提取");
 
         // ===== 把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====

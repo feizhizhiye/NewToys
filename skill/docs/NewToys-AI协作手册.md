@@ -92,7 +92,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 · 分层单向 Shared←Core←Shell←Module.*；模块禁引 Shell、禁互引；Shared/Core 不引 Avalonia。
 · 框架层(Shared/Core/Shell)冻结，新功能只在 Module.*；改框架层先问。
 · 命名空间 NewToys.<模块>.Views/.ViewModels（无 .Module 段）；View 与 VM 成对。
-· IModule{RegisterServices,Initialize}；菜单只在 Initialize 注册；viewName=View 类名；icon=Geometry 资源键（不是 emoji）；Key=小写连字符。
+· IModule{RegisterServices,Initialize}；菜单只在 Initialize 注册；视图名由 `RegisterFunction<TView>` 泛型参数决定（⛔ 不传字符串）；icon=Geometry 资源键（不是 emoji）；Key=小写连字符。
 · .axaml 扩展名；编译绑定关→写 {Binding}、不写 x:DataType；改 .axaml 必同步 .axaml.cs；⛔ WPF 写法。
 · 颜色一律 DynamicResource；主题键只用 *Brush 语义键（条数以 `check.ps1` 白名单为准，⛔ 除白名单外不新增）；code-behind 不写死 #RRGGBB。
 · 图标：**一级菜单 = 矢量**（`App.axaml` 的 `Application.Resources` 里 `Icon*` Geometry，24 网格**描边型**，用 `<Path Stroke=… Stretch="Uniform"/>` 而非 `PathIcon`）；**二级菜单不显示图标**；**标签页无图标**；仅标题栏 4 个工具按钮仍是 emoji（放大到 18px）。模块 `RegisterModule` 的 icon 传几何键；VM 解析用 `Application.Current.TryFindResource(key, out var v)`（**Try 模式**，需 `using Avalonia.Controls;`）。

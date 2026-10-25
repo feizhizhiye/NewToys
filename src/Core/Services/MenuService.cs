@@ -65,9 +65,15 @@ public class MenuService : IMenuService
         }
     }
 
-    public void RegisterFunction(string moduleKey, string key, string title, string icon,
-                                  string viewName, int order = 0, string desc = "",
-                                  SettingsCategory category = SettingsCategory.None)
+    public void RegisterFunction<TView>(string moduleKey, string key, string title, string icon,
+                                        int order = 0, string desc = "",
+                                        SettingsCategory category = SettingsCategory.None)
+        where TView : class
+        => RegisterFunctionCore(moduleKey, key, title, icon, typeof(TView).Name, order, desc, category);
+
+    /// <summary>注册本体：视图名已由调用方的泛型参数解析完毕（<c>typeof(TView).Name</c>）。锁内追加 / 更新菜单项。</summary>
+    private void RegisterFunctionCore(string moduleKey, string key, string title, string icon,
+                                      string viewName, int order, string desc, SettingsCategory category)
     {
         lock (_groups)
         {

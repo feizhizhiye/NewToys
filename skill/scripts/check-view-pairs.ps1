@@ -9,8 +9,8 @@
 #
 # P-01 ERROR  Views/ 下声明的 XxxView 在本程序集里找不到对应 XxxViewModel
 #             （豁免：类声明上方 5 行内写 `// lint:view-no-vm`，用于纯静态壳页面）
-# P-02 ERROR  RegisterFunction 第 5 个实参（viewName）在 src/ 里找不到同名 View 类
-#             （名称拼错 / View 改名后漏改注册 ⇒ 菜单项永远打不开）
+# P-02 ERROR  RegisterFunction<TView> 的泛型实参不是 *View 命名，或 src/ 里没有该 View 类
+#             （类型存在性由编译器保证；这里补「必须真是一个 View」这一层）
 #
 # ⛔ 只报告，不修改任何文件，不以非零码退出（自检是参考，不是门禁）。
 
@@ -90,67 +90,32 @@ foreach ($v in $viewDecls) {
     }
 }
 
-# ---------- 3) P-02：RegisterFunction 的 viewName 必须能对上 View 类 ----------
-# 参数位序：moduleKey, key, title, icon, viewName, order, desc, category
-function Get-CallArgs([string]$text, [int]$openIdx) {
-    $depth = 0; $start = $openIdx + 1
-    $list = New-Object System.Collections.ArrayList
-    $inStr = $false; $verbatim = $false
-    for ($i = $openIdx; $i -lt $text.Length; $i++) {
-        $c = $text[$i]
-        if ($inStr) {
-            if ($verbatim) {
-                if ($c -eq '"') {
-                    if ($i + 1 -lt $text.Length -and $text[$i + 1] -eq '"') { $i++ } else { $inStr = $false }
-                }
-            }
-            else {
-                if ($c -eq '\') { $i++ }
-                elseif ($c -eq '"') { $inStr = $false }
-            }
-            continue
-        }
-        if ($c -eq '"') {
-            $verbatim = ($i -gt 0 -and $text[$i - 1] -eq '@')
-            $inStr = $true; continue
-        }
-        if ($c -eq '(') { $depth++; continue }
-        if ($c -eq ')') {
-            $depth--
-            if ($depth -eq 0) { [void]$list.Add($text.Substring($start, $i - $start)); return $list }
-            continue
-        }
-        if ($c -eq ',' -and $depth -eq 1) {
-            [void]$list.Add($text.Substring($start, $i - $start)); $start = $i + 1; continue
-        }
-    }
-    return $null
-}
-
-$callRe = [regex]'RegisterFunction\s*\('
+# ---------- 3) P-02：RegisterFunction<TView> 的泛型实参必须真是一个 View 类 ----------
+# 视图名由泛型参数决定（typeof(TView).Name）⇒ 改名时编译器强制跟随，编译期已保证「类型存在」。
+# 编译期管不到的只剩两条：写成 *View 之外的命名、或误传了 VM / 其它类。
+$callRe = [regex]'RegisterFunction\s*<\s*([A-Za-z_][\w\.]*)\s*>'
 $checkedCalls = 0
 foreach ($f in $allCs) {
     if ($f.Name -eq 'MenuService.cs' -or $f.Name -eq 'IMenuService.cs') { continue }
     $text = Get-CodeText $f.FullName
-    if ($text -notmatch 'RegisterFunction\s*\(') { continue }
+    if ($text -notmatch 'RegisterFunction\s*<') { continue }
     $rel = $f.FullName.Substring($src.Length + 1)
+    if (($rel -split '\\')[0] -eq 'NewToys.Tests') { continue }   # 测试里的页面替身不是真注册点
 
     foreach ($m in $callRe.Matches($text)) {
-        $openIdx = $m.Index + $m.Length - 1
-        $args = Get-CallArgs $text $openIdx
-        if ($null -eq $args -or $args.Count -lt 5) { continue }
-        $raw = $args[4].Trim()
-        if ($raw -notmatch '^"([^"]+)"$') { continue }   # 非字面量（nameof / 变量）⇒ 跳过
-        $viewName = $Matches[1]
         $checkedCalls++
-        if (-not $viewNames.Contains($viewName)) {
-            $line = (($text.Substring(0, $m.Index) -split "\r?\n").Count)
-            Add-Finding 'P-02' 'ERROR' "${rel}:$line" ("注册的 viewName「{0}」在 src/ 里找不到同名 View 类" -f $viewName)
+        $simple = ($m.Groups[1].Value -split '\.')[-1]
+        $line = (($text.Substring(0, $m.Index) -split "\r?\n").Count)
+        if ($simple -notlike '*View') {
+            Add-Finding 'P-02' 'ERROR' "${rel}:$line" ("泛型实参「{0}」不是 *View 命名 —— 菜单项注册的应是页面类" -f $simple)
+        }
+        elseif (-not $viewNames.Contains($simple)) {
+            Add-Finding 'P-02' 'ERROR' "${rel}:$line" ("泛型实参「{0}」在 src/ 里找不到对应的 View 类" -f $simple)
         }
     }
 }
 
-Write-Host ("RegisterFunction 注册点（字面量）{0} 处" -f $checkedCalls) -ForegroundColor Gray
+Write-Host ("RegisterFunction 注册点（泛型）{0} 处" -f $checkedCalls) -ForegroundColor Gray
 
 # ---------- 4) 汇总 ----------
 $errors = @($findings | Where-Object { $_.Level -eq 'ERROR' })

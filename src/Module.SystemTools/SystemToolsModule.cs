@@ -62,16 +62,16 @@ public class SystemToolsModule : IModule
         // 🔴 函数 Key 一律不改：`script-commands` / `script-favorites` 沿用从脚本中心平移过来的键
         // （页键落 columnlayout.json，改了用户列偏好失效）。**组键与页键是两回事**，组键可改。
         // `system-quick` 快捷命令页已删（内容并入命令库预设）；收藏夹升为模块下第一个页面。
-        menu.RegisterFunction(GroupKey, "script-favorites", "收藏夹",   "★", "FavoritesView",            1,
+        menu.RegisterFunction<Views.FavoritesView>(GroupKey, "script-favorites", "收藏夹", "★", 1,
             "收藏的命令：按钮墙，点一下就跑");
-        menu.RegisterFunction(GroupKey, "script-commands",  "命令库",   "⚙", "SystemCommandLibraryView", 2,
+        menu.RegisterFunction<Views.SystemCommandLibraryView>(GroupKey, "script-commands", "命令库", "⚙", 2,
             "只产生副作用的命令行清单（Windows 设置 / 控制面板 / 管理工具 / 快捷设置 / winget），首次运行带预设，点一下即执行");
         // 软件包页整体从脚本中心迁入（Key / 标题 ⛔ 不改 —— 页键落 columnlayout.json）。
-        menu.RegisterFunction(GroupKey, "script-packages",  "软件包",   "📦", "PackageView",             3,
+        menu.RegisterFunction<Views.PackageView>(GroupKey, "script-packages", "软件包", "📦", 3,
             "搜索、安装、升级、卸载软件包（winget；Linux 上走 dpkg 只读适配器）");
 
         // 模块设置页（通则：挂回本模块的一级菜单，Order 100）。
-        menu.RegisterFunction(GroupKey, "settings-system", "系统工具设置", "🖥", "SettingsSystemView", 100,
+        menu.RegisterFunction<Views.SettingsSystemView>(GroupKey, "settings-system", "系统工具设置", "🖥", 100,
             "命令超时、本模块的数据文件位置");
     }
 

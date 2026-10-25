@@ -37,35 +37,35 @@ internal static class AppSettingsRegistration
 
         // ⚠️ Key 全部是 v3.62 之前发布过的**节锚点**（§5.1 Key 一经发布⛔不改；首页跳转 / 收藏白名单 /
         //    托盘「打开设置」按 Key 寻址）⇒ 只改标题与内容，不改 Key。Order 只作宿主组内排序。
-        menu.RegisterFunction(HiddenGroupKey, "settings-general", "启动与退出", "⚙", "SettingsView", 0,
+        menu.RegisterFunction<Views.SettingsView>(HiddenGroupKey, "settings-general", "启动与退出", "⚙", 0,
             "开机启动 / 托盘 / 关闭按钮行为", SettingsCategory.General);
         // v3.66 第五轮：原「通用」节（一页塞三组设置）**拆成三个节**（用户要求"拆开、删除通用"）——
         // `settings-general`（启动与退出，Key ⛔ 不变，首页收藏卡 / 收藏白名单仍按它寻址）+
         // `settings-theme`（主题外观，即 v3.40 合并前的页 Key）。
-        menu.RegisterFunction(HiddenGroupKey, "settings-theme", "主题外观", "🎨", "SettingsView", 1,
+        menu.RegisterFunction<Views.SettingsView>(HiddenGroupKey, "settings-theme", "主题外观", "🎨", 1,
             "明暗模式与强调色", SettingsCategory.Theme);
         // v3.53：「路径配置」+「配置」合并为一张**设置总表**（分类列区分行类型）；
         // v3.62 起它是应用级设置页的「运行环境」节（配置档 + 外部程序路径），标题保持「路径与配置」。
-        menu.RegisterFunction(HiddenGroupKey, "settings-path", "路径与配置", "📁", "SettingsView", 2,
+        menu.RegisterFunction<Views.SettingsView>(HiddenGroupKey, "settings-path", "路径与配置", "📁", 2,
             "运行环境路径 + 多套配置档（分类列区分，可新增 / 切换 / 重命名 / 删除）", SettingsCategory.Environment);
         // 「启动配置」→「一键按钮」：首页三个一键按钮的**全部**配置都在这页（名称 / 程序 / 参数 / 网址）。
-        menu.RegisterFunction(HiddenGroupKey, "settings-launch", "一键按钮", "🚀", "SettingsView", 3,
+        menu.RegisterFunction<Views.SettingsView>(HiddenGroupKey, "settings-launch", "一键按钮", "🚀", 3,
             "首页一键按钮的程序与网址", SettingsCategory.Launch);
-        menu.RegisterFunction(HiddenGroupKey, "settings-dns", "加密 DNS", "🛡", "SettingsView", 4,
+        menu.RegisterFunction<Views.SettingsView>(HiddenGroupKey, "settings-dns", "加密 DNS", "🛡", 4,
             "加密 DNS 与网络配置", SettingsCategory.Network);
-        menu.RegisterFunction(HiddenGroupKey, "settings-data", "数据管理", "💾", "SettingsView", 6,
+        menu.RegisterFunction<Views.SettingsView>(HiddenGroupKey, "settings-data", "数据管理", "💾", 6,
             "备份 / 导入 config 配置", SettingsCategory.Data);
 
         // 🔴 v3.67（用户 2026-10-18 拍板）：原「更新」+「关于」**合并**成「版本与更新」节
         //    （两者都围绕版本号）⇒ 8 节变 7 节。Key 保留 `settings-update`（原菜单 Key，⛔ 不改）；
         //    `settings-about` 退成**内部别名**（SettingsViewModel.OpenSection 里映射，⛔ 不再注册）。
-        menu.RegisterFunction(HiddenGroupKey, "settings-update", "版本与更新", "🔄", "SettingsView", 8,
+        menu.RegisterFunction<Views.SettingsView>(HiddenGroupKey, "settings-update", "版本与更新", "🔄", 8,
             "版本号 / 检查更新 / 功能清单 / 重载模块", SettingsCategory.Update);
 
         // 功能清单（Key `settings-all` ⛔ 不改）：v3.65 起是**独立页**（⛔ 不在设置内），
         // v3.66 起**同时内嵌在首页**（收藏卡尾部「显示更多」展开）；独立页仍保留 —— 标题栏 `＋` 与
         // 「关于」节的按钮都按 Key 寻址到它（当"选择器"用，不切走当前页）。
-        menu.RegisterFunction(HiddenGroupKey, "settings-all", "功能清单", "📋", "AllFunctionsView", 7,
+        menu.RegisterFunction<Views.AllFunctionsView>(HiddenGroupKey, "settings-all", "功能清单", "📋", 7,
             "所有模块与功能总览（收藏卡是它的常用子集）");
     }
 }

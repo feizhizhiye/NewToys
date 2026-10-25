@@ -225,8 +225,8 @@
 2. 写 `XxxModule.cs : IModule`，命名空间 `NewToys.<Xxx>`。
 3. `src/NewToys.slnx` 加 `<Project Path="Module.Xxx/Module.Xxx.csproj" Type="C#" />`。
 4. **Debug 链路两处登记**：`Shell.csproj` Debug 条件 `ProjectReference` + `App.axaml.cs` 的 `#if DEBUG` 清单。
-5. `Initialize` 里 `RegisterModule` + `RegisterFunction`，`viewName` = View 类名，`icon` = Geometry 键。
-6. **有设置页时**：View/VM 放**本模块** `Views/SettingsXxxView.axaml(+.cs)` + `ViewModels/SettingsXxxViewModel.cs`；`RegisterFunction(<本模块分组键>, "settings-<模块键>", …, Order)` 注册进**本模块的一级菜单**（⛔ 不跨组，Order 排本组末位）。设置落 `config\<模块>.json`，模块只读、唯一写入点 = 该设置页。🔴 菜单标题**保持长名**（如「脚本管理器设置」）—— 它是独立标签页标题。
+5. `Initialize` 里 `RegisterModule` + `RegisterFunction<TView>`（视图名由泛型参数决定），`icon` = Geometry 键。
+6. **有设置页时**：View/VM 放**本模块** `Views/SettingsXxxView.axaml(+.cs)` + `ViewModels/SettingsXxxViewModel.cs`；`RegisterFunction<SettingsXxxView>(<本模块分组键>, "settings-<模块键>", …, Order)` 注册进**本模块的一级菜单**（⛔ 不跨组，Order 排本组末位）。设置落 `config\<模块>.json`，模块只读、唯一写入点 = 该设置页。🔴 菜单标题**保持长名**（如「脚本管理器设置」）—— 它是独立标签页标题。
 7. **建 `modules/<模块>.md`**（照 7 节模板，含 §2.5 操作逻辑）+ `backlog/<模块>/` 目录。
 
 ```csharp
@@ -267,13 +267,14 @@ public interface IModule {
 ```csharp
 AppMenuGroup RegisterModule(string key, string title, string icon, int order,
                            bool isBottom=false, bool isHome=false);
-void RegisterFunction(string moduleKey, string key, string title, string icon, string viewName,
-                      int order=0, string desc="", SettingsCategory category=SettingsCategory.None);
+void RegisterFunction<TView>(string moduleKey, string key, string title, string icon,
+                             int order=0, string desc="", SettingsCategory category=SettingsCategory.None)
+    where TView : class;
 ```
 
 - `category`（追加在参数表末尾、带默认值）：`通用｜一键按钮｜运行环境｜网络｜数据｜关于｜模块设置｜None`。取代「0~99 框架 / 100+ 模块」的 Order 段位隐式约定；`Order` **只作组内排序**。
 - 先 `RegisterModule` 拿分组，再 `RegisterFunction`；⛔ 菜单只能在 `Initialize` 注册。
-- `viewName` 传**视图类名**（如 `"ScriptLibraryView"`），不是 VM 名。
+- 🔴 `TView` 传**视图类**（如 `RegisterFunction<Views.ScriptLibraryView>(...)`）—— 菜单项视图名取 `typeof(TView).Name`，⛔ **不再接受字符串**：View 类改名时编译器强制注册处跟随，杜绝「注册名与类名不一致 ⇒ 菜单项永远打不开」。
 - 菜单 Key 规范：`<模块缩写>-<页面名>`，全小写连字符。🔴 **Key 一经发布 ⛔ 不改**（改 = 用户列布局 / 收藏 / 标签偏好全丢）。
 - **`icon`**：一级分组传 **Geometry 资源键**（`"IconPc"` / `"IconWeb"` / `"IconVideo"` / `"IconMediaAssets"` / `"IconSettings"`）；二级功能仍传 emoji（左树不显示；首页收藏卡 / 功能清单页用）。
 - `desc`（功能简介）务必填写。
@@ -462,7 +463,7 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 - Shell 自带页面同样走 `ResolveView`（先例 `HomeView` / `HomeViewModel`）。
 - 可以先注册菜单、后补页面。
 - 🔴 **交付前跑 `check-view-pairs.ps1`**：`P-01` = `Views/` 下的 View 在本程序集找不到同名 VM（页面会静默空白）；
-  `P-02` = `RegisterFunction` 第 5 个实参（viewName）在 `src/` 里没有同名 View 类（菜单项永远打不开）。
+  `P-02` = `RegisterFunction<TView>` 的泛型实参不是 `*View` 命名或 `src/` 里没有该 View 类（类型存在性已由编译器保证）。
 
 ---
 
@@ -711,7 +712,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B1 编译绑定** | 开启编译绑定 | 全工程关闭，不写 `x:DataType` | **保持关闭**（用户拍板） | 全部 View |
 | **B2 VM 基类** | 统一继承 `Shared/ViewModelBase` | 模块内多直接继承 `ObservableObject`，仅 Shell/Home 用 `ViewModelBase` | 某模块改造时逐模块统一 | 各模块 VM |
 | **B3 全局样式** | 显式 `x:Key` 样式键 | 用 `Classes` 隐式样式 | 收益足够大时整体改造 | `App.axaml` |
-| **B4 导航服务** | 统一走 `INavigationService` | 主流程由 `ShellViewModel` 自解析；`NavigationService` 仅被模块内跳转经 `Navigated` 事件复用 | 删闲置服务或改用它（属框架层需同意） | Shell/Core |
+| **B4 导航服务** | 命名与实际职责一致 | `NavigationService` **不是** `ShellViewModel` 的替代/重复实现，而是**出站**通道（模块 → Shell，经 `Navigated` 事件）；入站解析（Key → View → VM）归 `ShellViewModel.Resolve*` | 无需合并；若要清理，只把该服务定位写清（出站事件总线） | Shell/Core |
 | **B5 平台后端** | 完全跨平台 | 后端仍调 winget / ffmpeg 命令行；`Package*` 类型已中立；**解析器未分层**（winget 启发式解析与 VM 字段映射混在模块内） | 迁 Debian 时替换：先发布链冒烟（RID 条件化 + 守卫收口），再按 §2.1 抽适配器与通用 TSV 解析 | Core 服务 / Module.ScriptManager |
 | **B6 仓库根 slnx** | 唯一入口 `src/NewToys.slnx` | 仓库根残留旧 `NewToys.slnx` 副本 | 直接删除即可 | 仓库 |
 | **B7 Modules 冗余 DLL** | `Modules\` 仅含模块 DLL | 会多出 `NewToys.Shared.dll` / `NewToys.Core.dll` | 无害暂留 | Release 产物 |
@@ -863,6 +864,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT-104 | 按目标体积压缩（ABR 码率反算） |
 | NT-105 | 时间轴区间标记（`TimelineTrack`） |
 | NT-106 | 书签树状展开（整页单树） |
+| NT-107 | 页面注册编译期化（`RegisterFunction<TView>`）+ 菜单注册回归测试 |
 
 
 ---

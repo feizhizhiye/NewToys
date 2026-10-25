@@ -322,6 +322,13 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 提交：与 `Text` 一致（`Commit=OnBlur` 时模板挂 `LostFocus="OnPairLostFocus"`，其余即时写回）。
 - 用途：**天然成对的数值**（宽 × 高 / 上下限）。⛔ 别把两个不相关的字段塞进 `Pair`。
 
+### 7.3d 动态水印 / 零值视同未填（2026-10-24）
+
+- 件：`DetailField.PlaceholderPath` / `SecondPlaceholderPath`（`FieldKind.Text` / `Pair`）+ `ZeroAsPlaceholder` + 行对象上**可变**的 `Placeholder` / `FirstPlaceholder` / `SecondPlaceholder`。
+- 用途：字段「留空 / 0 = 不改」，但用户必须看得见**实际生效的值** ⇒ 值留空时框里是空的，水印写真实值（视频卡：原片宽高 / 预设 CRF / 自动命名后的输出路径）。
+- `ZeroAsPlaceholder=true`：值为 `0` / `0.0` / 空 → 显示空（露出水印）；提交空文本写回 **`0`**（⛔ 写空串 —— `DetailPath.Coerce` 转 int 失败会被静默丢弃，表现为"清空无效"）。
+- 刷新：`PlaceholderPath` 在 `RefreshCore()` 里重解析 ⇒ VM 只要 `OnPropertyChanged(<水印属性>)` 即可，⛔ 不必重建卡片。
+
 ### 7.4 迁移页三件事（缺一不可）
 
 1. VM 实现 `IDetailPanelProvider` + `IDetailCardSource`，并加一个**会通知 Shell** 的开合命令（⛔ 直接用基类 `ToggleDetailCommand`：只翻 `IsDetailVisible`、**不发 `DetailChanged`**）；`ToggleDetail` / `OpenDetail` 建议**显式实现接口**（基类已有同名 private 方法）。

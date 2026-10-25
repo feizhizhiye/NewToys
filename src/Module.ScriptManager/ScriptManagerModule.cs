@@ -93,20 +93,20 @@ public class ScriptManagerModule : IModule
         // `script-commands` 与标题一律 ⛔ 不改 —— 页键落 columnlayout.json，改了用户列偏好失效）。
         // 的原顺序（收藏夹 / 脚本库 / 命令库 / 软件包 / 信息面板 / 设置）⇒
         // 迁出收藏夹 / 命令库，迁出软件包 ⇒ 本组只剩 脚本库 / 集合 / 信息面板 + 抓取三页。
-        menu.RegisterFunction("script", "script-library",   "脚本库",   "▤",  "ScriptLibraryView",  1, "较复杂的系统设置项与常用脚本，可运行 / 增删改查 / 收藏");
-        menu.RegisterFunction("script", "script-collections", "脚本集合", "🗂", "CollectionView",     4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
-        menu.RegisterFunction("script", "script-info",      "信息面板", "💻", "ScriptInfoView",     99, "按集合分节展示采集器输出；顶部「集合 ▾」一次显示一个集合");
+        menu.RegisterFunction<Views.ScriptLibraryView>("script", "script-library", "脚本库", "▤", 1, "较复杂的系统设置项与常用脚本，可运行 / 增删改查 / 收藏");
+        menu.RegisterFunction<Views.CollectionView>("script", "script-collections", "脚本集合", "🗂", 4, "按需组合采集器的容器：一个集合 = 一组条目，可在信息面板里整屏切换");
+        menu.RegisterFunction<Views.ScriptInfoView>("script", "script-info", "信息面板", "💻", 99, "按集合分节展示采集器输出；顶部「集合 ▾」一次显示一个集合");
 
         // 🔴 抓取三页从「网络工具」迁入本组（Key `web-scrape` / `web-rule-editor` / `web-crawl`
         // 与标题一律 ⛔ 不改 —— 页键落 columnlayout.json，改了用户列偏好失效）。
-        menu.RegisterFunction("script", "web-scrape",   "抓取规则",   "🕷", "RuleCatalogView", 5, "管理抓取规则集（一条规则集 = 一个 .py 文件）");
-        menu.RegisterFunction("script", "web-rule-editor", "调试集合", "🧩", "RuleEditorView", 6, "把段脚本装配成流水线：五段槽位 + 试跑推荐 + 表达式检验");
-        menu.RegisterFunction("script", "web-crawl", "运行结果", "🕸", "CrawlPanelView", 7,
+        menu.RegisterFunction<Views.RuleCatalogView>("script", "web-scrape", "抓取规则", "🕷", 5, "管理抓取规则集（一条规则集 = 一个 .py 文件）");
+        menu.RegisterFunction<Views.RuleEditorView>("script", "web-rule-editor", "调试集合", "🧩", 6, "把段脚本装配成流水线：五段槽位 + 试跑推荐 + 表达式检验");
+        menu.RegisterFunction<Views.CrawlPanelView>("script", "web-crawl", "运行结果", "🕸", 7,
             "跑抓取脚本看目录条目：动态列 + 双击下钻 + 下载，④ 节可回看最近 10 次运行（目录 / 日志 / 诊断）");
 
         // v3.64：**模块设置页通则** —— 每个功能模块一个设置页、View/VM 归本模块。
         // v3.66：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
-        menu.RegisterFunction("script", "settings-script", "脚本管理器设置", "🛠", "SettingsScriptView", 100,
+        menu.RegisterFunction<Views.SettingsScriptView>("script", "settings-script", "脚本管理器设置", "🛠", 100,
             "脚本库扫描的根目录与设置文件位置");
 
         // 删除等破坏性操作的二次确认：走公共对话框钩子（由 Shell 注入到 DialogHooks），

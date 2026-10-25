@@ -95,7 +95,7 @@
 - 跨程序集引用 UI 库控件：`xmlns:v="using:NewToys.UI.Controls"`（⛔ 不用 `clr-namespace` + `assembly=`）。
 - 颜色一律 DynamicResource；主题键只用 `*Brush` 语义键，**数量不写死在本文件**（以 `check.ps1` 白名单为准）；⛔ 不新增、不用旧键 `AppBg/AppBackground/TextPrimary`；code-behind ⛔ 写死 `#RRGGBB`。
 - `App.ApplyTheme` 幂等，⛔ 禁 `MergedDictionaries.Clear()`。
-- 菜单：`icon` 传几何资源键（24 网格描边型，`<Path Stroke=… Stretch="Uniform"/>`），不是 emoji；Key = 小写连字符；viewName = View 类名。
+- 菜单：`icon` 传几何资源键（24 网格描边型，`<Path Stroke=… Stretch="Uniform"/>`），不是 emoji；Key = 小写连字符；视图名由 `RegisterFunction<TView>` 的泛型参数决定（`typeof(TView).Name`，⛔ 不再传字符串）。
 - 🔴 **菜单 Key 一经发布 ⛔ 不改**（例外须用户亲自拍板——已用两次：NT-063 P2-a 删 5 类型页、NT-068 全量 `pc-*`→`script-*`）；应用级设置页（`settings-general/-launch/-path/-dns/-data` + `settings-all`）挂在 **`IsHome` 不可见宿主分组 `system`** 上：⛔ 不进左树 / 首页计数 / 功能清单，但 `FindItem` 仍解析。
 - 跨页投递数据在 `OnAttachedToVisualTree` 取（⛔ 不是 `OnDataChanged`；必须 `protected override`，public 报 CS0507）。
 - 设置类 `config\*.json` 模块只读，唯一写入点 = 该模块设置页；功能数据由功能页读写。

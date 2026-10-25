@@ -78,6 +78,9 @@ public class App : Application
             services.AddSingleton<IAppConfigService, AppConfigService>();
             services.AddSingleton<ILaunchConfigService, LaunchConfigService>();
             services.AddSingleton<IMenuService, MenuService>();
+            // 页面类型索引（菜单项上的 ViewTypeName 是字符串，View/VM 只能反射落地）——
+            // 单例 + 缓存，避免每次导航全量扫程序集；模块热加载后由 ModuleReloadService 失效重建。
+            services.AddSingleton<IPageCatalog, PageCatalog>();
             services.AddSingleton<IThemeService, ThemeService>();
             services.AddSingleton<INavigationService, NavigationService>();
             // 模块热加载契约（标题栏按钮移入功能清单页；Shell 订阅 Reloaded 重建左树）。

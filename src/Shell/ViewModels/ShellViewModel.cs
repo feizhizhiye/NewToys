@@ -56,6 +56,9 @@ public partial class ShellViewModel : ViewModelBase
     private readonly IProfileService _profiles;
     private readonly IModuleReloadService _reload;
 
+    /// <summary>页面 View / ViewModel 的类型检索（菜单项的 <c>ViewTypeName</c> 是字符串，只能靠它落地）。</summary>
+    private readonly IPageCatalog _pages;
+
     /// <summary>当前标签页的契约绑定（详情 / 历史栈 / 状态栏 / 工具条）—— 独立成类见 <see cref="ShellPageBinder"/>。</summary>
     private readonly ShellPageBinder _binder;
 
@@ -154,9 +157,11 @@ public partial class ShellViewModel : ViewModelBase
 
     public ShellViewModel(IServiceProvider sp, IMenuService menu,
                           INavigationService nav, IColumnLayoutService cols,
-                          IProfileService profiles, IModuleReloadService reload)
+                          IProfileService profiles, IModuleReloadService reload,
+                          IPageCatalog pages)
     {
         _sp = sp; _menu = menu; _nav = nav; _cols = cols; _profiles = profiles; _reload = reload;
+        _pages = pages;
 
         _binder = new ShellPageBinder(this, cols);
 
@@ -739,16 +744,8 @@ public partial class ShellViewModel : ViewModelBase
     /// </summary>
     private Control ResolveView(AppMenuItem it)
     {
-        Type? viewType = null;
-        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            if (asm.IsDynamic) continue;
-            var t = SafeTypes(asm).FirstOrDefault(x =>
-                x.Name == it.ViewTypeName
-                && !x.IsAbstract && x.IsClass
-                && typeof(Control).IsAssignableFrom(x));
-            if (t != null) { viewType = t; break; }
-        }
+        var viewType = _pages.FindByName(it.ViewTypeName)
+            .FirstOrDefault(t => t.IsClass && !t.IsAbstract && typeof(Control).IsAssignableFrom(t));
         if (viewType == null) return BuildErrorView($"找不到视图类型：{it.ViewTypeName}");
 
         Control? view;
@@ -757,48 +754,16 @@ public partial class ShellViewModel : ViewModelBase
         if (view == null) return BuildErrorView($"视图 {it.ViewTypeName} 实例化返回 null");
 
         // DataContext 解析失败不该把整次导航也搭进去 —— 顶多这一页没数据，不能连页面都不给。
-        try { view.DataContext = ResolveViewModel(viewType, it.ViewTypeName); }
+        try { view.DataContext = ResolveViewModel(viewType); }
         catch (Exception ex) { return BuildErrorView($"视图 {it.ViewTypeName} 的 ViewModel 解析失败：{ex.Message}"); }
         return view;
     }
 
-    /// <summary>
-    /// 安全枚举程序集里的类型。
-    /// <see cref="System.Reflection.Assembly.GetTypes"/> 只要**任意一个**类型依赖加载不了就整体抛
-    /// <see cref="System.Reflection.ReflectionTypeLoadException"/>；这里退化成用异常的 <c>Types</c> 继续找。
-    /// </summary>
-    private static IEnumerable<Type> SafeTypes(System.Reflection.Assembly asm)
+    /// <summary>按命名约定解析并实例化 VM（规则见 <see cref="ViewNaming"/>）：先按候选类型逐个试，都不成返回 null。</summary>
+    private object? ResolveViewModel(Type viewType)
     {
-        try { return asm.GetTypes(); }
-        catch (System.Reflection.ReflectionTypeLoadException ex)
+        foreach (var vmType in _pages.ViewModelCandidates(viewType))
         {
-            return ex.Types.Where(t => t != null).Select(t => t!);
-        }
-        catch { return Array.Empty<Type>(); }
-    }
-
-    /// <summary>按「命名空间 .Views → .ViewModels + 类名 View→ViewModel」的约定解析 VM。</summary>
-    private object? ResolveViewModel(Type viewType, string viewName)
-    {
-        var vmName = viewName.EndsWith("View", StringComparison.Ordinal)
-            ? viewName[..^4] + "ViewModel"
-            : viewName + "ViewModel";
-
-        var candidates = new List<Type?>();
-        if (viewType.Namespace?.EndsWith(".Views", StringComparison.Ordinal) == true)
-        {
-            var ns = viewType.Namespace[..^".Views".Length] + ".ViewModels";
-            candidates.Add(viewType.Assembly.GetType($"{ns}.{vmName}", throwOnError: false));
-        }
-        // 兜底：全程序集按类名找（用于 View 命名空间不合规的历史页面）
-        candidates.Add(AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => !a.IsDynamic)
-            .Select(a => SafeTypes(a).FirstOrDefault(t => t.Name == vmName && !t.IsAbstract && t.IsClass))
-            .FirstOrDefault(t => t != null));
-
-        foreach (var vmType in candidates)
-        {
-            if (vmType == null) continue;
             try { return ActivatorUtilities.GetServiceOrCreateInstance(_sp, vmType); }
             catch { /* 换下一个候选 */ }
         }

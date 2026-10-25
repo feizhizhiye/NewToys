@@ -105,10 +105,19 @@ $staticChecks = @(
         Warn = @('\[WARN\]\s*([1-9]\d*) 条')
         SupportsAll = $true
     }
+    # 页面契约（P-01 View 找不到同名 VM / P-02 注册的 viewName 无对应 View 类）：
+    # 两条都是 ERROR —— 名字对不上时运行期不报错，只是页面空白或打不开。
+    [pscustomobject]@{
+        Name = '页面契约（View ↔ ViewModel / 菜单注册）'
+        File = 'skill\scripts\check-view-pairs.ps1'
+        Fail = @('\[ERROR\]\s*([1-9]\d*) 条')
+        Warn = @('\[WARN\]\s*([1-9]\d*) 条')
+        SupportsAll = $true
+    }
 )
 
 if (-not $SkipStatic) {
-    Write-Host "`n──── 1/5 静态检查 ────" -ForegroundColor Cyan
+    Write-Host "`n──── 1/6 静态检查 ────" -ForegroundColor Cyan
     foreach ($c in $staticChecks) {
         $full = Join-Path $repoRoot $c.File
         if (-not (Test-Path $full)) {
@@ -150,7 +159,7 @@ $outDir = if ($Configuration -eq 'Release') {
 $exe = Join-Path $outDir 'NewToys.exe'
 
 if (-not $SkipBuild) {
-    Write-Host "`n──── 2/5 构建（$Configuration）────" -ForegroundColor Cyan
+    Write-Host "`n──── 2/6 构建（$Configuration）────" -ForegroundColor Cyan
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
         Add-Row '构建' 'dotnet build' 'FAIL' '找不到 dotnet'
         Write-Host '  [FAIL] 找不到 dotnet —— 请确认 SDK 已安装且在 PATH' -ForegroundColor Red
@@ -189,7 +198,7 @@ if ($Test) {
         Add-Row '测试' 'dotnet test' 'SKIP' '-SkipBuild'
     }
     else {
-        Write-Host "`n──── 2.5/5 单元测试 ────" -ForegroundColor Cyan
+        Write-Host "`n──── 2.5/6 单元测试 ────" -ForegroundColor Cyan
         $testProj = Join-Path $src 'NewToys.Tests\NewToys.Tests.csproj'
         if (-not (Test-Path $testProj)) {
             Add-Row '测试' 'dotnet test' 'SKIP' '未找到 NewToys.Tests'
@@ -220,7 +229,7 @@ else {
 
 # ═════════ 3) 产物核对 ═════════
 if (-not $SkipBuild) {
-    Write-Host "`n──── 3/5 产物核对 ────" -ForegroundColor Cyan
+    Write-Host "`n──── 3/6 产物核对 ────" -ForegroundColor Cyan
     $msgs = New-Object System.Collections.ArrayList
     if (-not (Test-Path $exe)) { [void]$msgs.Add("缺 $exe") }
 
@@ -252,7 +261,7 @@ else {
 }
 
 # ═════════ 4) 铁律 1：改动是否只在 src/（skill/ scripts/ AGENTS.md 经授权可改）═════════
-Write-Host "`n──── 4/5 铁律 1（改动范围）────" -ForegroundColor Cyan
+Write-Host "`n──── 4/6 铁律 1（改动范围）────" -ForegroundColor Cyan
 $changed = @()
 if (Get-Command git -ErrorAction SilentlyContinue) {
     $porcelain = @(& git -C $repoRoot status --porcelain -uall 2>$null)
@@ -281,7 +290,7 @@ else {
 
 # ═════════ 5) 冒烟 ═════════
 if ($Run) {
-    Write-Host "`n──── 5/5 冒烟（$SmokeSeconds s）────" -ForegroundColor Cyan
+    Write-Host "`n──── 5/6 冒烟（$SmokeSeconds s）────" -ForegroundColor Cyan
     if (-not (Test-Path $exe)) {
         Add-Row '冒烟' '启动' 'FAIL' '可执行文件不存在（先构建）'
         Write-Host '  [FAIL] 可执行文件不存在' -ForegroundColor Red

@@ -16,6 +16,9 @@ public sealed class ModuleReloadService : IModuleReloadService
     public (int Added, int Skipped, int Failed) HotReload()
     {
         var result = ModuleLoader.HotReload(_sp);
+        // 🔴 新程序集带来新页面类型 ⇒ 类型索引必须重建，否则热加载后点新页面一律「找不到视图」。
+        // 放在 Reloaded 之前：Shell 收到通知就会重建左树并允许点击。
+        _sp.GetService<IPageCatalog>()?.Invalidate();
         Reloaded?.Invoke(result);
         return result;
     }

@@ -410,12 +410,23 @@ void RegisterFunction(string moduleKey, string key, string title, string icon, s
 ## §5 页面解析与 VM 定位
 
 - View：`UserControl`，放模块 `Views/`，`.axaml` + `.axaml.cs`。
-- VM：`NewToys.<模块>.Views.XxxView` ↔ `NewToys.<模块>.ViewModels.XxxViewModel`，**必须成对**。
-- 解析（`ShellViewModel.ResolveView`）：① 遍历全部已加载程序集匹配 `Type.Name`（`Control` 子类）**取首个命中** → ② `ActivatorUtilities.CreateInstance` → ③ 推导 VM 优先限定在 View 自己的程序集（`.Views`→`.ViewModels`），找不到才降级全 `AppDomain` 扫。
-- 🔴 **类名必须全局唯一**：解析未按程序集限定，同名 View 会撞车（历史两处 `DnsView`）。
+- VM：`NewToys.<模块>.Views.XxxView` ↔ `NewToys.<模块>.ViewModels.XxxViewModel`，**必须成对**（设置页的节子视图除外，
+  在类声明上方写 `// lint:view-no-vm` 声明豁免）。
+- 🔴 **命名约定的唯一实现 = `Shared/Services/ViewNaming.cs`**（`ViewModelName` / `ViewModelNamespace`）。
+  解析与静态检查都调它，⛔ 不要在别处再写一份字符串处理 —— 两处规则漂移的后果是「页面打得开、整页空白、无异常」。
+- 类型检索：`IPageCatalog`（实现在 `Core/Services/PageCatalog.cs`）—— 首次访问把已加载程序集的类型
+  按**简单类名**建索引并缓存，`FindByName` / `ViewModelCandidates` 走字典，⛔ 不再每次导航全量扫程序集。
+  索引顺序 = `AppDomain.GetAssemblies()` 顺序 + 程序集内声明顺序 ⇒ 「同名取首个」的结果与逐次扫描一致。
+  🔴 **模块热加载后必须 `Invalidate()`**（`ModuleReloadService.HotReload` 已调，且在 `Reloaded` 之前），
+  否则新程序集里的页面类型永远查不到，点开全是「找不到视图类型」。
+- 解析（`ShellViewModel.ResolveView`）：① `IPageCatalog.FindByName` 取首个 `Control` 子类 → ② `ActivatorUtilities.CreateInstance`
+  → ③ 推导 VM 优先限定在 View 自己的程序集（`.Views`→`.ViewModels`），找不到才降级全 `AppDomain` 扫。
+- 🔴 **类名必须全局唯一**：同名 View 会撞车（历史两处 `DnsView`）。静态检查 = `check-comments.ps1` 的 `C-05`。
 - 无占位页：兜底 = `ShellViewModel.BuildErrorView()` 现场构造的红字 + `ScrollViewer`。
 - Shell 自带页面同样走 `ResolveView`（先例 `HomeView` / `HomeViewModel`）。
 - 可以先注册菜单、后补页面。
+- 🔴 **交付前跑 `check-view-pairs.ps1`**：`P-01` = `Views/` 下的 View 在本程序集找不到同名 VM（页面会静默空白）；
+  `P-02` = `RegisterFunction` 第 5 个实参（viewName）在 `src/` 里没有同名 View 类（菜单项永远打不开）。
 
 ---
 

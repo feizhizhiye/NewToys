@@ -190,6 +190,12 @@
 > | `FfmpegService`（932 → 306） | `.cs` 探测·抽帧·关键帧·剪切参数；`.Filters.cs` 编码器/滤镜链/裁剪探测/字幕/GIF；`.Transcode.cs` 转码参数与命令描述·输出路径；`.Run.cs` 执行与进度解析·外部播放·清理 |
 > | `RuleRunService`（922 → 214） | `.cs` 构造·缓存路径·抓取与字符集嗅探·命令列表；`.Probe.cs` 探针与站点探测；`.Run.cs` 抓行与单步执行；`.Python.cs` 规则脚本调用与输出解析 |
 > | `ListPageViewModelBase`（731 → 308） | `.cs` 构造·分页导航·列可见性缓存装载；`.Columns.cs` 列宽锁定/拖拽/显隐与布局持久化；`.DetailSort.cs` 详情开关与排序；`.Filters.cs` 筛选条件与快捷筛选 |
+> | `CrawlPanelViewModel`（856 → 264） | `.cs` 字段·构造·抓链；`.Result.cs` 结果落表·排序·行钩子；`.DrillDown.cs` 下钻与试跑；`.Download.cs` 下载编排与事件；`.History.cs` 历史记录与诊断复制 |
+> | `AssetMergeService`（850 → 233） | `.cs` `MergePreview`/`MergeResult` + 预览·读库·组织文本；`.Merge.cs` 合并入口与另存；`.MergeCore.cs` 存储源/资产/位置合并与孤儿清理；`.MergeNames.cs` 按名合并·分类父级修正·关联表·工具方法 |
+> | `ScanService`（822 → 248） | `.cs` 构造·预览·设置·整库扫描；`.Storage.cs` 单个存储源扫描；`.Index.cs` 文件列表索引；`.IndexOne.cs` 单文件判定与落表·批量补全；`.Util.cs` 索引装载·枚举·哈希·类型嗅探；`StorageIndex` 独立成 `StorageIndex.cs` |
+> | `ShellViewModel`（785 → 344） | `.cs` 字段·构造·标签开关与排序；`.Search.cs` 全局搜索索引与结果跳转；`.Tree.cs` 左树构建·高亮·键盘导航·模块重载；`.Resolve.cs` 标签创建与视图/VM 解析 |
+> | `RuleEditorViewModel`（774 → 234） | `.cs` 字段·构造·阶段槽位·脚本列表·规则挂载；`.Run.cs` 抓网页·分段跑·推荐·命令表装载；`.Flow.cs` 流程（Flow）存取；`.Edit.cs` 保存·增删命令·过滤·诊断复制；`.Find.cs` 查找/定位/行号与规则块替换 |
+> | `DownloadService`（729 → 162） | `.cs` 构造·脚本元数据·试跑；`.Download.cs` 下载主流程与事件回报；`.Plan.cs` 产物规划与 URL/类型判定；`.Save.cs` 落盘·命名去重·限速闸门 · 文件工具 |
 >
 > **多类型同文件**（`VideoTask.cs`、`DetailCardRender.cs`）改为按语义分组拆成独立文件，不做 partial：
 > `VideoTask` → `.Cut.cs` 剪切相关类型 / `.Presets.cs` 预设与模式枚举 / `.Transcode.cs` 转码任务（主文件留 `VideoTaskBase` 与状态常量）；

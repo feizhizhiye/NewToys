@@ -62,8 +62,8 @@ public class VideoToolsModule : IModule
     /// <summary>
     /// 旧表清理 + 建表搬到 <see cref="Services.VideoToolsSchemaContributor"/>（总库 schema 统一入口）。
     /// <para>
-    /// 为什么搬：总库是多模块共享的，原来这段 DROP 在 `InitializeDeferred` 里**每次启动都跑**，
-    /// 属于无护栏的破坏性语句；现在改成「缓存版本号变化才清一次」，并且排在建表之前。
+    /// 为什么搬：总库是多模块共享的 —— ⛔ 破坏性 DROP 不能放在每次启动都跑的路径里（无护栏），
+    /// 统一入口按「缓存版本号变化才清一次」执行，并且排在建表之前。
     /// </para>
     /// </summary>
     public void InitializeDeferred(IServiceProvider services) { }

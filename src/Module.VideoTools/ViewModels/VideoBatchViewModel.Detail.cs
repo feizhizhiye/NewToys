@@ -381,7 +381,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 }
             },
 
-            // ===== ③ 输出 + 命令（原来没有分区标题，这里也不给） =====
+            // ===== ③ 输出 + 命令（无分区标题） =====
             new DetailSection
             {
                 Fields =
@@ -473,8 +473,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         },
         Actions =
         {
-            // 原来这个 📂 是「输出文件」输入框右侧的内联按钮（code-behind 挂 Click）——
-            // 声明式卡里统一收进 Actions 区（需求 §4.5.1：Actions = 与该卡内容强绑定的卡内动作）。
+            // 📂 收进 Actions 区：声明式卡的输入框在 Shell 侧，页面 code-behind 够不着
+            //（需求 §4.5.1：Actions = 与该卡内容强绑定的卡内动作）。
             new DetailAction
             {
                 Text = "📂 选择输出文件…",

@@ -22,8 +22,7 @@ public partial class VideoPreviewView : UserControl
     {
         InitializeComponent();
         // 选源文件 / 输出文件都要走平台选择器 —— VM 不引用 Avalonia 的 UI 类型，所以在这一层选完交给 VM。
-        // ⚠️ 原来卡片里那个内联「📂」按钮（PickOutputBtn）随页内卡一起删了 ——
-        //    现在它是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
+        // ⚠️ 「📂 选择输出文件」是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
     }
 
     /// <summary>

@@ -73,9 +73,8 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Description = "没配 pwsh 时 .ps1 用它；留空 = 用系统自带的 powershell.exe",
             Value = _cfg.PowerShell51Path
         });
-        // 「导入导出默认目录」可编辑项**已删除** —— 它原来把某个 profile 的绝对路径写进
-        // 跨配置共享的 app.json（切配置后指向别人的目录）。现在一律由「数据目录」推导，
-        // 也就没有再让用户手填的必要。
+        // 「导入导出默认目录」⛔ 不做可编辑项 —— 写进 app.json 会把某个 profile 的绝对路径
+        // 带过配置边界（切配置后指向别人的目录）。一律由「数据目录」推导，无需用户手填。
         Items.Add(new PathSettingItem
         {
             Key = "DataDir", Name = "数据目录", Kind = PathItemKind.ReadOnly,

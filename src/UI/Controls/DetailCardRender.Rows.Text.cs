@@ -234,7 +234,7 @@ public sealed class IndexSelectFieldRow : DetailFieldRow
             if (Field.LiteralOptions is not null)
                 Options = new List<string>(Field.LiteralOptions);
             else if (DetailPath.Resolve(Source, Field.OptionsPath) is IEnumerable opts)
-                // 索引通道也支持 `OptionsPath`（原来只认 `LiteralOptions` ⇒ 给了 OptionsPath 就**下拉空白**）
+                // 索引通道也认 `OptionsPath`；⛔ 只处理 `LiteralOptions` 会让给了 OptionsPath 的下拉**空白**
                 Options = opts.Cast<object?>().Select(x => x?.ToString() ?? "").ToList();
         }
 

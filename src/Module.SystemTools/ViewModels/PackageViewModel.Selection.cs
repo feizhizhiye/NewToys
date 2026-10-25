@@ -48,7 +48,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         p.InstallLocation = detail.InstallLocation;
 
         // PackageInfo 已是 ObservableObject → 上面的赋值直接通知详情卡 / 列表行刷新，
-        // ⛔ 不用再整体重建列表（以前是普通类才需要 ApplyView，且重建会重置滚动位）。
+        // ⛔ 不用整体重建列表：重建会重置滚动位。
         DetailExtra = detail.Description;
         StatusText = msg;
     }

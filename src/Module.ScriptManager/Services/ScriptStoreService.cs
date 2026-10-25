@@ -10,8 +10,8 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <see cref="IScriptStoreService"/> 实现：手工数据落**总库的 <c>script_docs</c> 表**（此前是
-/// <c>config\script\script.json</c>），写入即一条 upsert。
+/// <see cref="IScriptStoreService"/> 实现：手工数据落**总库的 <c>script_docs</c> 表**
+///（⛔ 不再写 <c>config\script\script.json</c>），写入即一条 upsert。
 /// </summary>
 /// <remarks>
 /// <para>

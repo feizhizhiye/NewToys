@@ -18,7 +18,7 @@ public class ScriptManagerModule : IModule
         services.AddSingleton<IQuickActionService, QuickActionService>();
 
         // 本模块设置（脚本目录 + 三个解释器路径）——**本模块配置的唯一写入点**，
-        // 落 config\script-manager.json（经 Core 的 IOptionsStore）。旧值原来在 app.json，首次运行自动搬迁。
+        // 落 config\script-manager.json（经 Core 的 IOptionsStore）。app.json 里的旧值首次运行自动搬迁。
         services.AddSingleton<IScriptManagerSettingsService, ScriptManagerSettingsService>();
 
         // 脚本执行底座（静默跑、捕获输出）在 NewToys.Core.Services —— 系统工具模块也要执行条目，
@@ -109,7 +109,7 @@ public class ScriptManagerModule : IModule
     }
 
     /// <summary>
-    /// （启动提速）：原来写在 Initialize 里的启动重活 —— 打开两个数据层 + 播种。
+    /// （启动提速）：打开两个数据层 + 播种这类重活 ⛔ 不放 <c>Initialize</c>。
     /// 挪到首帧之后执行，启动时不再被 SQLite 打开 / 写库 / 复制示例脚本挡住。
     /// <para>
     /// 落位三份数据 —— config\script-manager.json（设置，解析设置服务时建）、

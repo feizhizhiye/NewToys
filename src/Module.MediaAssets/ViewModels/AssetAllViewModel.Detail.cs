@@ -149,7 +149,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         VisibleWhen = "!" + nameof(HasCollectionPicks)
                     },
                     // ===== 样板顺序：**固定只读项 → 标签 / 分类 / 集合 → 动作按钮组 → 评分 → 描述** =====
-                    // ===== 图标动作组（高频动作收成一行，替掉原来一排撑满宽度的文字按钮） =====
+                    // ===== 图标动作组（高频动作收成一行，⛔ 不要一排撑满宽度的文字按钮） =====
                     new DetailField
                     {
                         Kind = FieldKind.IconBar,
@@ -441,8 +441,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     // ==================== 工具条「⋯ 更多」开合（v3.41：用户定调） ====================
 
     // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================
-    // 🔴 v3.53：本页工具条改由 **Shell 的 ToolbarHost 统一渲染**（折叠 / 「⋯」/ 详情开关浮层都在那边实现），
-    //    页内 `Border.toolbar` 与原来的 `ApplyToolbarLayout()` / `IsToolbarExpanded` 一并删除。
+    // 🔴 本页工具条由 **Shell 的 ToolbarHost 统一渲染**（折叠 / 「⋯」/ 详情开关浮层都在那边实现），
+    //    ⛔ 不建页内 `Border.toolbar`、不做 `ApplyToolbarLayout()` / `IsToolbarExpanded`。
     //    顺序 = 优先级顺序（越靠前越不会被折进「⋯」）。
     // ⚠️ v3.69 起 5 个类型薄壳页已合并⇒ 本工具条只服务「全部资产」一页。
 

@@ -169,7 +169,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     /// <summary>
     /// 📂 选输出文件。平台文件选择器**只能在 View 层用**（VM 不引 Avalonia）⇒ 由 <c>VideoPreviewView</c>
-    /// 在 <c>OnDataContextChanged</c> 里注入实现（原来那个按钮在页内卡片里、走 code-behind 直接挂 Click）。
+    /// 在 <c>OnDataContextChanged</c> 里注入实现（声明式卡的动作按钮没有本页 code-behind 可挂）。
     /// </summary>
     public ICommand? PickOutputCommand { get; set; }
 

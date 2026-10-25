@@ -10,8 +10,8 @@ namespace NewToys.SystemTools.Models;
 /// （见规范 3.8「列表页布局规范」）。
 /// </para>
 /// <para>
-/// 改成 <see cref="ObservableObject"/> —— 详情卡绑 <c>Selected.Publisher</c> 等，
-/// 「🔎 读取详情」回填字段后**必须通知 UI 才会补充显示**（以前是普通类，改了不刷新 = 详情不补充）。
+/// 继承 <see cref="ObservableObject"/> —— 详情卡绑 <c>Selected.Publisher</c> 等，
+/// 「🔎 读取详情」回填字段后**必须通知 UI 才会补充显示**（改了不刷新 = 详情不补充）。
 /// </para>
 /// </summary>
 public partial class PackageInfo : ObservableObject
@@ -130,7 +130,7 @@ public class PackageSourceInfo
 /// （见规范 3.9「设置数据可备份，模块只读设置」）。
 /// </para>
 /// <para>
-/// ⚠️ 🔴 v3.80：**源相关偏好全部删除**（原来存过 defaultSource / 源分类 / 源定义快照）。
+/// ⚠️ 🔴 **⛔ 不存源相关偏好**（defaultSource / 源分类 / 源定义快照这类字段别再回来）。
 /// 源是系统 winget 的东西，增删 / 切换一律走「命令库」里的命令条目；本文件只剩安装偏好与排序。
 /// </para>
 /// </summary>

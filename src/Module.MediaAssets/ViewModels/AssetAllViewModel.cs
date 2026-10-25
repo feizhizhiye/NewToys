@@ -380,7 +380,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     /// <summary>
     /// 状态栏前缀**随筛选类型切换**（v3.69，需求 §6.6「类型切换」）：视频：/ 音乐：/ 书籍：/ 图片：/ 文档：；
-    /// 「全部」= 空串。原来由 5 个类型页 VM 覆写 <c>StatusPrefix</c>，合并后改由本属性按 <see cref="FilterType"/> 推导。
+    /// 「全部」= 空串。由本属性按 <see cref="FilterType"/> 推导（类型页合并后不再有子类覆写）。
     /// </summary>
     private string StatusPrefix => FilterType?.Value switch
     {

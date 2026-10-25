@@ -83,7 +83,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
                         Kind = FieldKind.Text,
                         Selectable = true
                     },
-                    // 原来「类型 / 大小」是**同行并排**两个值 → 按 已拍板的降级口径拆成两行
+                    // 「类型 / 大小」按已拍板口径拆成两行（⛔ 不并排：并排会让用户以为是两个字段）
                     new DetailField
                     {
                         Label = "类型",
@@ -145,9 +145,8 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         },
         Actions =
         {
-            // 原来改名是「详情卡的 TextBox 回车 / 失焦」→ code-behind 挂 KeyDown / LostFocus。
-            // 声明式卡里输入框在 Shell 侧，页面 code-behind 够不着 ⇒ 收进 Actions 区补一个显式按钮
-            //（失焦自动提交仍保留，见 OnEditNameChanged）。
+            // 改名：声明式卡的输入框在 Shell 侧，页面 code-behind 够不着 ⇒ 收进 Actions 区补一个显式按钮
+            //（回车 / 失焦自动提交仍保留，见 OnEditNameChanged）。
             new DetailAction
             {
                 Text = "✏ 应用新文件名",

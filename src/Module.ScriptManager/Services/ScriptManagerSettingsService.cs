@@ -9,7 +9,7 @@ namespace NewToys.ScriptManager.Services;
 /// <see cref="IScriptManagerSettingsService"/> 的实现（v3.64）：把本模块的选项存进
 /// <c>config\script-manager.json</c>（经 Core 的 <see cref="IOptionsStore"/>，KV + 按模块分区）。
 /// <para>
-/// <b>一次性迁移</b>：脚本目录原来在 <c>app.json</c> 里，首次运行只要 <c>script-manager.json</c>
+/// <b>一次性迁移</b>：脚本目录的旧位置是 <c>app.json</c>，首次运行只要 <c>script-manager.json</c>
 /// 还没该键就搬过来（⛔ 不丢用户配置）。
 /// </para>
 /// <para>

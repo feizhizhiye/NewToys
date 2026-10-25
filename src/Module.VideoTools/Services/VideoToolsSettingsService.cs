@@ -9,8 +9,8 @@ namespace NewToys.VideoTools.Services;
 /// <summary>
 /// <see cref="IVideoToolsSettingsService"/> 的实现（v3.64）：落 <c>config\video-tools.json</c>。
 /// <para>
-/// <b>一次性迁移</b>：并发数原来在 <c>app.json</c> 的 <c>MaxConcurrency</c>（没有界面、只能手改文件）。
-/// 首次运行本服务时把它搬进 <c>video-tools.json</c>（⛔ 不丢配置）；之后 <c>app.json</c> 那个字段不再被读写。
+/// <b>一次性迁移</b>：并发数的旧位置是 <c>app.json</c> 的 <c>MaxConcurrency</c>（无界面、只能手改文件）。
+/// 首次运行本服务时把它搬进 <c>video-tools.json</c>（⛔ 不丢配置）；<c>app.json</c> 那个字段之后不再被读写。
 /// </para>
 /// </summary>
 public class VideoToolsSettingsService : IVideoToolsSettingsService
@@ -20,7 +20,7 @@ public class VideoToolsSettingsService : IVideoToolsSettingsService
 
     private const string KeyMaxConcurrency = "maxConcurrency";
 
-    /// <summary>并发数上下限（与 <c>VideoListViewModel</c> 原来的 <c>Math.Clamp(…, 1, 16)</c> 同一口径）。</summary>
+    /// <summary>并发数上下限（与 <c>VideoListViewModel</c> 的 <c>Math.Clamp(…, 1, 16)</c> 同一口径）。</summary>
     public const int MinConcurrency = 1;
     public const int MaxConcurrencyLimit = 16;
 

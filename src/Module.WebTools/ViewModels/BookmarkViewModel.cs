@@ -227,7 +227,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         },
         Actions =
         {
-            // 原来这四个按钮是页内卡里的 WrapPanel（只在有选中时显示）；声明式卡里进 Actions 区。
+            // 四个按钮进 Actions 区（声明式卡没有页内 WrapPanel）；只在有选中时显示靠 <c>IsVisiblePath</c>。
             new DetailAction
             {
                 Text = "💾 保存",

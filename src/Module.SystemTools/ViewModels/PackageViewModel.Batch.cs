@@ -109,8 +109,8 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     /// <summary>
     /// 📤 导出当前列表为 json（建议先点「📥 已安装」再导）。
-    /// <para>原来在 <c>PackageView.axaml.cs</c>（要 TopLevel / StorageProvider），
-    /// 工具条改由 Shell 渲染后搬进 VM，选择器走 <see cref="DialogHooks"/>（VM ⛔ 不引 Avalonia UI 类型）。</para>
+    /// <para>选择器走 <see cref="DialogHooks"/>（VM ⛔ 不引 Avalonia UI 类型）；
+    /// ⛔ 别回到 <c>PackageView.axaml.cs</c> 挂 TopLevel / StorageProvider。</para>
     /// </summary>
     [RelayCommand]
     private async Task ExportPackagesAsync()

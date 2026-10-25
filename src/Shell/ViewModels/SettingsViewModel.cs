@@ -37,7 +37,7 @@ namespace NewToys.Shell.ViewModels;
 ///   <item>**页内搜索整体删除**（页面标题栏与搜索框都撤了）⇒ 搜索入口 = 标题栏窗口按钮组左侧的搜索按钮；
 ///         🔴 搜索**不再只搜本页的节** —— 统一走 <c>ShellViewModel</c> 的索引（菜单项 + 本节清单），
 ///         命中本节清单的项 ⇒ <c>OpenTab(节锚点)</c> 归一成本页并展开该节（本页不再有自己的搜索入口）。</item>
-///   <item>**「通用」节点拆成三个**（原来一页塞了启动与退出 / 更新检查 / 主题外观三组设置，
+///   <item>**「通用」节点拆成三个**（启动与退出 / 更新检查 / 主题外观 ⛔ 不塞回一页，
 ///         用户要求"拆开、删除通用"）：节锚点 = `settings-general`（启动与退出，⛔ Key 不变）+
 ///         新增 `settings-update` / `settings-theme`；三个节**共用同一个 <c>GeneralViewModel</c>**。</item>
 /// </list>

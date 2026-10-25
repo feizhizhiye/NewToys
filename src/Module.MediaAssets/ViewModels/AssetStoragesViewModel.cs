@@ -501,7 +501,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（迁移：原来的 <c>StorageDetailView</c> 已停用）。</summary>
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不返回自绘视图（有卡就不该再出自绘视图）。</summary>
     public object? DetailContent => null;
 
     private DetailCardDescriptor? _card;
@@ -522,10 +522,10 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
             {
                 Fields =
                 {
-                    // 原来卡首是动态标题 `{Binding DetailStorage.Name}`；描述符的分区标题是静态串 ⇒ 改成一个「名称」字段
+                    // 描述符的分区标题是静态串 ⇒ 卡名走一个「名称」字段（⛔ 动态标题表达不了）
                     new DetailField { Label = "名称", ValuePath = "DetailStorage.Name", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "根路径", ValuePath = nameof(DetailRootPath), Kind = FieldKind.Text, Selectable = true },
-                    // 原来「类型 / 状态」是**同行并排** → 按 已拍板口径拆成两行
+                    // 「类型 / 状态」按已拍板口径拆成两行
                     new DetailField { Label = "类型", ValuePath = nameof(DetailType), Kind = FieldKind.Text },
                     new DetailField { Label = "状态", ValuePath = nameof(DetailStatus), Kind = FieldKind.Text },
                     new DetailField { Kind = FieldKind.Divider },

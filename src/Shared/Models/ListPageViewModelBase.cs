@@ -227,7 +227,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
 
     /// <summary>
     /// 排序 / 筛选条件变了 ⇒ 回到第一页（🔴 ⛔ 不停在旧结果集的第 N 页 = 空页或错页）。
-    /// 已在第一页时直接重算。未启用分页的页 = 与原来的 RefreshView() 完全等价。
+    /// 已在第一页时直接重算。未启用分页的页 = 与 RefreshView() 完全等价。
     /// </summary>
     protected void ResetToFirstPage()
     {

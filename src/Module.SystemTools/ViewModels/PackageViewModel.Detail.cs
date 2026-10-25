@@ -82,7 +82,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                         Kind = FieldKind.Text,
                         Selectable = true
                     },
-                    // 原来「版本 / 可升级到」是**同行并排**（版本 → 可升级）→ 按 已拍板口径拆成两行
+                    // 「版本 / 可升级到」按已拍板口径拆成两行（版本 → 可升级）
                     new DetailField
                     {
                         Label = "版本",

@@ -25,8 +25,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     /// <summary>
     /// 工具条末位的详情开关 → 走本命令。
-    /// <para>⛔ 原来那个 <c>ToggleDetailCommand</c> 只翻 <c>IsDetailVisible</c>、**不通知 Shell**，
-    /// Shell 的右列（由 <c>DetailCardHost</c> 承载）就不会跟着出现 / 消失。</para>
+    /// <para>⚠️ Shell 右列由 <c>DetailCardHost</c> 承载，靠 <c>IsDetailVisible</c> 联动；
+    /// ⛔ 另起一个只翻标志位的开关会与 Shell 脱节（右列不跟着出现 / 消失）。</para>
     /// </summary>
     [RelayCommand]
     private void ToggleDetailPanel()
@@ -369,7 +369,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                 }
             },
 
-            // ===== ③ 输出 + 命令（原来没有分区标题，这里也不给） =====
+            // ===== ③ 输出 + 命令（无分区标题） =====
             new DetailSection
             {
                 Fields =
@@ -435,8 +435,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         },
         Actions =
         {
-            // 原来这个 📂 是「输出文件」输入框右侧的内联按钮（code-behind 挂 Click）——
-            // 声明式卡里统一收进 Actions 区（需求 §4.5.1：Actions = 与该卡内容强绑定的卡内动作）。
+            // 📂 收进 Actions 区：声明式卡的输入框在 Shell 侧，页面 code-behind 够不着
+            //（需求 §4.5.1：Actions = 与该卡内容强绑定的卡内动作）。
             new DetailAction
             {
                 Text = "📂 选择输出文件…",

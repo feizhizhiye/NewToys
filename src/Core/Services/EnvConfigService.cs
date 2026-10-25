@@ -11,7 +11,7 @@ namespace NewToys.Core.Services;
 /// <para>
 /// 语义：这里是「本机怎么跑外部程序」，**跟随机器、⛔ 不随配置档切换**
 /// （换配置只隔离 <c>config / data / logs</c>，ffmpeg / 解释器路径不该跟着变）。
-/// 原来这些键混在 <c>app.json</c> 里，与配置档参数混在一起 ⇒ 拆出来。
+/// ⛔ 这些键不放进 <c>app.json</c>：那是配置档内参数，混在一起会被切配置带走。
 /// </para>
 /// <para>
 /// 🔴 覆盖链（读）：命令行 <c>--python</c> / <c>--pwsh</c> / <c>--ffmpeg</c> ＞ 环境变量

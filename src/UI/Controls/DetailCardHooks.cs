@@ -7,7 +7,7 @@ namespace NewToys.UI.Controls;
 /// 详情卡动作的「确认弹窗」钩子：
 /// <para>
 /// 🔴 为什么需要它：详情卡渲染层随控件库搬进 <c>NewToys.UI</c> 后 **⛔ 不引 Core / Shell**，
-/// 而带 <c>ConfirmText</c> 的动作按钮原来直接调 <c>Core.Services.DialogHooks.ConfirmAsync</c>。
+/// 而带 <c>ConfirmText</c> 的动作按钮需要 <c>Core.Services.DialogHooks.ConfirmAsync</c>。
 /// 解耦办法 = 与 DialogHooks 同套路：UI 侧只声明钩子，宿主（Shell）启动时把
 /// <c>DialogHooks.ConfirmHandler</c> 转接进来（见 <c>App.axaml.cs</c>）。
 /// </para>

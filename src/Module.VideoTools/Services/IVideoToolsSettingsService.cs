@@ -6,7 +6,7 @@ namespace NewToys.VideoTools.Services;
 /// 「视频工具」模块设置的读写契约（v3.64，需求 §3.5 + §4.9）：**本模块配置的唯一写入点**。
 /// <list type="bullet">
 ///   <item>数据落 <c>&lt;配置根&gt;\config\video-tools.json</c>（走 Core 的 <c>IOptionsStore</c>）。</item>
-///   <item>本模块独有的可配项很少 —— <b>批处理 / 媒体信息并发数</b>（原来只能手改 <c>app.json</c> 且没有界面）。</item>
+///   <item>本模块独有的可配项很少 —— <b>批处理 / 媒体信息并发数</b>（旧值在 <c>app.json</c>，无界面、只能手改文件）。</item>
 ///   <item>⚠️ <c>ffmpeg</c> / 外部播放器 / 导入导出目录是**全局项**（「设置 → 路径与配置」，<c>app.json</c>）：
 ///   媒体资产模块也在用同一份 ⇒ ⛔ 不下沉、⛔ 不另存一份（与 §4.9「复用全局项」同一条规则）。</item>
 /// </list>

@@ -14,8 +14,8 @@ using NewToys.WebTools.Models;
 namespace NewToys.WebTools.Services;
 
 /// <summary>
-/// 书签持久化与导入：数据落**总库 <c>web_docs</c> 的 <c>bookmarks</c> 文档**（此前是
-/// <c>config\bookmarks.json</c>，旧文件由 <see cref="WebToolsSchemaContributor"/> 一次性搬入并改名 <c>.legacy</c>）。
+/// 书签持久化与导入：数据落**总库 <c>web_docs</c> 的 <c>bookmarks</c> 文档**（旧
+/// <c>config\bookmarks.json</c> 由 <see cref="WebToolsSchemaContributor"/> 一次性搬入并改名 <c>.legacy</c>）。
 /// <para>导入浏览器书签：用 <see cref="AngleSharp"/> 解析 Netscape 书签 HTML（<c>&lt;A HREF&gt;</c> + 文件夹 <c>&lt;H3&gt;</c>）。</para>
 /// <para>联通检测：发一个带超时的 HTTP 请求，反馈状态码 / 超时 / 异常。</para>
 /// </summary>

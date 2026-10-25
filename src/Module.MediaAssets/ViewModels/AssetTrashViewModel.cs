@@ -345,7 +345,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（迁移：原来的 <c>TrashDetailView</c> 已删）。</summary>
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不返回自绘视图（有卡就不该再出自绘视图）。</summary>
     public object? DetailContent => null;
 
     private DetailCardDescriptor? _card;

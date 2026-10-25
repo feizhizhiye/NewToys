@@ -18,7 +18,7 @@ namespace NewToys.VideoTools.Services;
 /// 页面 VM 是**瞬态**的（每次导航都重建，见规范 6.5），任务若挂在 VM 上，切走一次就全没了。
 /// </para>
 /// <para>
-/// 落**总库 <c>video_docs</c> 的 <c>tasks</c> 文档**（此前是 <c>config\video-tasks.json</c>）。
+/// 落**总库 <c>video_docs</c> 的 <c>tasks</c> 文档**（⛔ 不再写 <c>config\video-tasks.json</c>）。
 /// 它跟随配置档 —— 换配置就是另一套任务缓存，与视频库本身一致。
 /// </para>
 /// </summary>

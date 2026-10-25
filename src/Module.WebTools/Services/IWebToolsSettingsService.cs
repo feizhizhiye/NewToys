@@ -6,8 +6,8 @@ namespace NewToys.WebTools.Services;
 /// 「网页工具」模块设置的读写契约（v3.64，需求 §3.5 + §4.9）：**本模块配置的唯一写入点**。
 /// <list type="bullet">
 ///   <item>数据落 <c>&lt;配置根&gt;\config\web-tools.json</c>（走 Core 的 <c>IOptionsStore</c>）。</item>
-///   <item>本模块可配项 = <b>网页抓取的默认 User-Agent 与单次抓取超时</b>（原来硬编码在
-///   <c>ScrapeService</c> 里，现在下沉为可手改的模块配置）。</item>
+///   <item>本模块可配项 = <b>网页抓取的默认 User-Agent 与单次抓取超时</b>（可手改的模块配置；
+///   ⛔ 不要硬编码在 <c>ScrapeService</c>）。</item>
 ///   <item>⚠️ 书签 / Ping / Hosts 三个功能**没有模块级配置**（它们是数据清单，落各自的
 ///   <c>config\*.json</c>，由页面自身维护）—— 所以本页只有抓取默认项。</item>
 /// </list>

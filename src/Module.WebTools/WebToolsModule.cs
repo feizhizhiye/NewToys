@@ -29,7 +29,7 @@ public class WebToolsModule : IModule
         services.AddTransient<Views.HostsView>();      services.AddTransient<HostsViewModel>();
 
         // 本模块设置（网页抓取默认 UA + 单次抓取超时）——**本模块配置的唯一写入点**，
-        // 落 config\web-tools.json（经 Core 的 IOptionsStore）；原来这两个值硬编码在 ScrapeService 里。
+        // 落 config\web-tools.json（经 Core 的 IOptionsStore）⇒ 可手改、可备份；⛔ 不要硬编码进 ScrapeService。
         services.AddSingleton<IWebToolsSettingsService, WebToolsSettingsService>();
         services.AddTransient<Views.SettingsWebToolsView>();  services.AddTransient<SettingsWebToolsViewModel>();
     }

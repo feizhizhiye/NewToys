@@ -225,7 +225,7 @@ public partial class PingViewModel : ListPageViewModelBase, IDetailPanelProvider
         },
         Actions =
         {
-            // 原来这三个按钮是页内卡里的 WrapPanel；声明式卡里进 Actions 区。
+            // 三个按钮进 Actions 区（声明式卡没有页内 WrapPanel）。
             new DetailAction
             {
                 Text = "📡 Ping",

@@ -11,8 +11,8 @@ namespace NewToys.Shared.Details;
 /// （配一个 <c>DataTemplate</c>），不影响既有卡。
 /// </para>
 /// <para>
-/// ⚠️ 2026-10-15 打样补记：<see cref="List"/> 是**用户拍板新增的第 8 种** —— 详情卡里的「只读列表」
-/// （VideoBatch 的「处理前 → 处理后」、资产卡的「关联 / 文件位置」）用原来 7 种表达不了，
+/// ⚠️ <see cref="List"/> 是**用户拍板新增的第 8 种** —— 详情卡里的「只读列表」
+/// （VideoBatch 的「处理前 → 处理后」、资产卡的「关联 / 文件位置」）其余 7 种 Kind 都表达不了，
 /// 而它不是"新交互"而是既有形态 ⇒ 补一个 Kind 比让整卡走 <see cref="DetailCardDescriptor.Custom"/> 更划算。
 /// </para>
 /// </summary>
@@ -36,7 +36,7 @@ public enum FieldKind
     /// <summary>
     /// **成对输入**（2026-10-24 新增）：一行里两个输入框，中间一个固定符号（默认 <c>×</c>）。
     /// <para>
-    /// 给「宽 × 高」这类**天然成对**的数值用（分辨率 / 尺寸上下限）—— 原来拆成上下两行，
+    /// 给「宽 × 高」这类**天然成对**的数值用（分辨率 / 尺寸上下限）—— 拆成上下两行会让
     /// 用户看不出这两个数是一件事。取数见 <see cref="DetailField.ValuePath"/>（左）+
     /// <see cref="DetailField.SecondValuePath"/>（右）。
     /// </para>

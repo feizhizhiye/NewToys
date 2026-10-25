@@ -173,6 +173,18 @@
 > `App.Theme.cs` 主题跟随与强调色；`App.Pickers.cs` 文件夹 / 文件 / 保存 / 确认 / 输入钩子的宿主实现。
 > ⛔ 别在 `App.axaml.cs` 里加新章节 —— 放进对应的 partial 文件。
 
+> **巨型 ViewModel 同样按职责拆 partial**（同一 `public partial class XxxViewModel`，同目录、同命名空间；字段与属性集中在主文件，partial 只放方法）：
+>
+> | 类 | 文件分工 |
+> |---|---|
+> | `AssetAllViewModel`（2022 → 544） | `.cs` 字段/列定义/列偏好/刷新与分页查询；`.Preview.cs` 预览与草稿；`.FileOps.cs` 打开文件·文件夹·启动；`.Scan.cs` 扫描任务与进度；`.Selection.cs` 全选·反选·勾选同步；`.Tags.cs` 标签/分类/收藏/评分；`.Edit.cs` 保存详情与磁盘写操作；`.Detail.cs` 详情卡（`BuildCard`）与选项重建；`.Io.cs` 库合并/另存/扫描文件夹/导入导出；`.View.cs` 过滤·排序·列头 |
+> | `VideoBatchViewModel`（2117 → 451） | `.cs` 字段与任务导入导出·裁剪探测；`.Selection.cs` 勾选；`.Command.cs` 类型切换·参数·命令行·校验·试跑；`.Detail.cs` 详情卡；`.Page.cs` 构造/`RefreshView`/列映射/编辑器填充；`.TaskEdit.cs` 加文件·删除·保存·清空；`.Run.cs` 运行/停止/输出目录·任务单导入导出 |
+> | `VideoPreviewViewModel`（1765 → 190） | `.cs` 字段与选源·状态前缀；`.Detail.cs` 详情卡；`.Preview.cs` 预览帧与视频信息；`.Crop.cs` 黑边探测；`.Command.cs` 参数构建·校验·试跑；`.Task.cs` 转码/剪切任务构建与发送；`.Player.cs` 命令行文本·播放计时·构造 |
+> | `PackageViewModel`（1676 → 353） | `.cs` 字段·源标记·列映射；`.Detail.cs` 详情卡；`.Page.cs` 构造·初始化·搜索·列表装载·视图；`.Actions.cs` 安装/升级/卸载/固定/后端调用；`.Selection.cs` 勾选与详情装载；`.Batch.cs` 批量操作·导入导出·右键动作 |
+> | `QuickActionListViewModel`（1559 → 399） | `.cs` 字段与命令库（切换/导入导出）；`.Scripts.cs` 脚本目录；`.Detail.cs` 详情卡与操作栏；`.Page.cs` 构造·分类·视图；`.Run.cs` 运行与脚本导入；`.Scan.cs` 扫描候选与页面导入导出；`.Item.cs` 增删改查·收藏·打开方式 |
+>
+> ⛔ 新增逻辑按职责投递到对应 partial，别往主文件堆；拆分只搬方法、不改一行实现。
+
 ### 3.2 双轨加载
 
 | | Debug | Release |

@@ -30,6 +30,8 @@
     <!--  列表页公共基类（ListPageViewModelBase / ListColumn / FilterClause）在 Shared；
           分页溢出、隐藏列占位、锁定列不可拖这些判据是纯逻辑，必须能独立断言。 -->
     <ProjectReference Include="../Shared/Shared.csproj" />
+    <!--  页面类型索引（PageCatalog）：索引语义走样 = 页面空白 / 错页，运行期不报错，必须能独立断言。 -->
+    <ProjectReference Include="../Core/Core.csproj" />
   </ItemGroup>
 
 </Project>

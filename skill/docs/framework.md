@@ -167,6 +167,12 @@
 > 契约绑定（详情面板 / 历史栈 / 状态栏 / 声明式工具条）由 **`Shell/Services/ShellPageBinder.cs`** 独立承担：
 > 切标签 / 刷新页 / 设置页切节都只调 `ShellPageBinder.Bind(tab)`，`ShellViewModel` 只保留标签管理与左树逻辑。
 
+> **`App` 按职责拆成 partial 文件**（`public partial class App : Application`，全部在 `src/Shell/`）：
+> `App.axaml.cs` 只留启动装配（`Initialize` / `OnFrameworkInitializationCompleted` / 检查更新 / 必备模块表）；
+> `App.Crash.cs` 全局异常捕获；`App.Profile.cs` `--profile` 多实例与启动日志；`App.Tray.cs` 托盘与窗口显隐；
+> `App.Theme.cs` 主题跟随与强调色；`App.Pickers.cs` 文件夹 / 文件 / 保存 / 确认 / 输入钩子的宿主实现。
+> ⛔ 别在 `App.axaml.cs` 里加新章节 —— 放进对应的 partial 文件。
+
 ### 3.2 双轨加载
 
 | | Debug | Release |

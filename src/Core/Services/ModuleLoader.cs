@@ -11,9 +11,9 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// 模块加载器（v3.26 起，需求 §3.4）：**必载清单 + 目录扫描**两步——
+/// 模块加载器：**必载清单 + 目录扫描**两步——
 /// <list type="bullet">
-///   <item><b>必载清单</b>：由调用方传入，先于目录扫描加载（NT-062 起 Release 为空 —— 应用级设置已归 Shell 自带）；
+///   <item><b>必载清单</b>：由调用方传入，先于目录扫描加载（Release 下为空 —— 应用级设置已归 Shell 自带）；
 ///         Debug 同时把功能模块也放进清单（程序集延迟加载，纯扫描一个都扫不到 →「左侧菜单全空」）。</item>
 ///   <item><b>目录扫描</b>：随后扫 <c>&lt;程序目录&gt;\Modules\</c> 下的 DLL 补功能模块，
 ///         跳过已加载同名（Shared/Core、以及清单里已加载的模块由此跳过）。</item>
@@ -27,7 +27,7 @@ public static class ModuleLoader
     public const string ModulesSubDirectory = "Modules";
 
     /// <summary>
-    /// Shell 的**不渲染宿主分组**键（v3.66）：应用级设置的节锚点 + 功能清单页挂它名下
+    /// Shell 的**不渲染宿主分组**键：应用级设置的节锚点 + 功能清单页挂它名下
     /// （<c>IsHome=true</c> ⇒ 左树 / 首页模块计数 / 功能清单页都跳过它）。
     /// ⚠️ 与 <c>AppSettingsRegistration.HiddenGroupKey</c> 必须一致（跨程序集，故此处各留一份常量）。
     /// </summary>
@@ -64,7 +64,7 @@ public static class ModuleLoader
     /// <summary>
     /// 在 ServiceProvider 构建完成后、**首帧之前**调用；单个模块初始化失败不影响其它模块。
     /// <para>
-    /// 🔴 NT-070：这里只应剩菜单注册与轻量接线。重活（建库 / 读配置 / 播种 / 扫描）走
+    /// 🔴 这里只应剩菜单注册与轻量接线。重活（建库 / 读配置 / 播种 / 扫描）走
     /// <see cref="InitializeAllDeferred"/>，由宿主在 <c>Window.Show()</c> 之后驱动。
     /// </para>
     /// </summary>
@@ -76,9 +76,8 @@ public static class ModuleLoader
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"模块 {m.GetType().Name} 初始化失败: {ex.Message}"); }
         }
 
-        // 健全性检查（v3.26，需求 §3.4；v3.66 口径更新）：Shell 的 AppSettingsRegistration 会建一个
-        // **IsHome 的不渲染宿主分组** `system`（应用级设置的节锚点 + 功能清单页挂它名下；
-        // v3.66 起左树不再有「设置」一级菜单项，模块设置各自挂回本模块分组）。
+        // 健全性检查：Shell 的 AppSettingsRegistration 会建一个 **IsHome 的不渲染宿主分组** `system`
+        // （应用级设置的节锚点 + 功能清单页挂它名下；左树没有「设置」一级菜单项，模块设置各自挂回本模块分组）。
         // 它没建上（漏调 / 抛异常被上面的逐模块 try-catch 吞了）→ 报一行，⛔ 不静默。
         // 启动不中断——框架自给（首页 / 一键启动不依赖任何功能模块），仅设置入口与跳转不可用。
         var menu = sp.GetService<IMenuService>();
@@ -92,7 +91,7 @@ public static class ModuleLoader
     }
 
     /// <summary>
-    /// 首帧之后执行的重活（NT-070 启动提速）：数据库打开与清理、配置读取、种子播种、
+    /// 首帧之后执行的重活：数据库打开与清理、配置读取、种子播种、
     /// 扫描器接线、过期数据清理入队。
     /// <para>
     /// 调用时机 = 宿主 <c>Window.Show()</c> 之后、<c>DispatcherPriority.Background</c> 队列
@@ -108,7 +107,7 @@ public static class ModuleLoader
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        // NT-076：先跑「总库建表 / 补列 / 一次性数据迁移」—— 任何页面的首次查询都必须看到完整的表。
+        // 先跑「总库建表 / 补列 / 一次性数据迁移」—— 任何页面的首次查询都必须看到完整的表。
         // 单模块失败只记日志（LibrarySchemaService 内部已逐模块 try/catch）。
         try
         {
@@ -150,7 +149,7 @@ public static class ModuleLoader
         var dir = Path.Combine(baseDir, ModulesSubDirectory);
         if (!Directory.Exists(dir)) dir = baseDir;
 
-        // ⚠️ NT-070（启动提速，实测该段 2.1s）：**只枚举 `Module.*.dll`**，⛔ 别扫全部 *.dll。
+        // ⚠️ **只枚举 `Module.*.dll`**，⛔ 别扫全部 *.dll —— 实测该段占启动 2.1s：
         //    Debug 的程序目录里有 49 个 DLL（Avalonia / AngleSharp / SQLite / 工具包…），
         //    逐个 Assembly.LoadFrom + GetTypes() 要 2 秒 —— 而其中根本没有 IModule。
         //    模块程序集命名铁律 = `Module.<名>.dll`（build.ps1 / Directory.Build.props 同口径），
@@ -183,19 +182,19 @@ public static class ModuleLoader
     private static bool IsAlreadyLoaded(string simpleName)
         => AppDomain.CurrentDomain.GetAssemblies().Any(a => !a.IsDynamic && a.GetName().Name == simpleName);
 
-    // ==================== 运行期热加载（NT-005，规范 §3.7） ====================
+    // ==================== 运行期热加载 ====================
 
     /// <summary>
     /// 热加载：重扫 <c>&lt;程序目录&gt;\Modules\</c>，把**新**的模块 DLL 装进来（注册菜单）。
     /// <para>
-    /// 🔴 设计约束（规范 §3.7 / B10）：
-    /// ① 只认 <c>Module.&lt;名&gt;.dll</c>；② ⛔ 跳过已加载同名程序集 → 本版**只做「新增」**（移除模块要重启）；
-    /// ③ 每个 DLL 用**独立 collectible ALC**，契约程序集（Shared/Core 等已加载的）转交默认 ALC——
-    ///    否则 <c>IModule</c> 强转必失败、菜单全空；④ 已 <c>BuildServiceProvider()</c> 的容器
-    ///    **无法再追加服务** → 热加载模块的 <c>RegisterServices</c> 跳过（优先**页面型**模块：
-    ///    页面 VM 走 <c>ActivatorUtilities.GetServiceOrCreateInstance</c> 现造，只依赖已注册的框架服务）；
-    /// ⑤ 单个 DLL 失败被 try-catch 隔离（⛔ 不拖垮宿主）；⑥ ⛔ 只读本地目录、不联网；
-    /// ⑦ collectible 只是"允许"卸载——本版加载后**不主动 Unload**（类型被菜单引用着，进程退出随进程释放）。
+    /// 🔴 四条硬约束：
+    /// ① 只认 <c>Module.&lt;名&gt;.dll</c>，⛔ 跳过已加载同名 ⇒ 本版**只做「新增」**，移除模块要重启；
+    /// ② 每个 DLL 用**独立 collectible ALC**，依赖一律转交默认 ALC —— 否则 <c>IModule</c>
+    ///    会成为两个不同的类型标识，强转必失败、菜单全空；
+    /// ③ 容器已 <c>BuildServiceProvider()</c> ⇒ **无法再追加服务**，<c>RegisterServices</c> 跳过
+    ///    （只适合页面型模块：页面 VM 走 <c>ActivatorUtilities</c> 现造，只依赖已注册的框架服务）；
+    /// ④ 单个 DLL 失败被 try-catch 隔离（⛔ 不拖垮宿主）；⛔ 只读本地目录、不联网；
+    ///    collectible 只是"允许"卸载，加载后**不主动 Unload**（类型被菜单引用着，随进程释放）。
     /// </para>
     /// </summary>
     /// <returns>新增 N / 跳过 M / 失败 K。</returns>
@@ -235,7 +234,7 @@ public static class ModuleLoader
                     if (Activator.CreateInstance(t) is not IModule m) continue;
                     // ⛔ RegisterServices 跳过（容器已构建）；Initialize 内部逐项 try-catch 由调用方约定
                     m.Initialize(sp);
-                    // NT-070：热加载的模块**也要**跑延迟层 —— 否则把重活搬进 InitializeDeferred 的模块
+                    // 热加载的模块**也要**跑延迟层 —— 否则把重活搬进 InitializeDeferred 的模块
                     // 热加载后永远拿不到数据（页面全空）。
                     try { m.InitializeDeferred(sp); }
                     catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"热加载 {name} 延迟初始化失败: {ex.Message}"); }

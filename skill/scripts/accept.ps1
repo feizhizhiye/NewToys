@@ -35,7 +35,7 @@ param(
     [int]$SmokeSeconds = 8,
     # 写 artifacts/accept-report.md
     [switch]$Report,
-    # 追加单元测试（src/NewToys.Tests，只测纯函数解析器，秒级）
+    # 追加单元测试（src/NewToys.Tests：包管理器输出解析 + 列表页基类纯逻辑，秒级）
     [switch]$Test,
     # 透传 -All 给支持的子脚本（WARN 明细全展开）
     [switch]$All
@@ -94,6 +94,15 @@ $staticChecks = @(
         File = 'skill\scripts\check-detail-paths.ps1'
         Fail = @()
         Warn = @('\[WARN\]\s*([1-9]\d*) 条绑定路径')
+        SupportsAll = $true
+    }
+    # 注释健康度（C-01 版本前缀 / C-02 长注释块 / C-04 历史叙事 = WARN；C-05 View 重名 = ERROR）
+    # 🔴 C-05 是唯一能提前拦住「两个程序集有同名 View ⇒ 反射导航静默错页」的检查。
+    [pscustomobject]@{
+        Name = '注释健康度 / View 类名唯一性'
+        File = 'skill\scripts\check-comments.ps1'
+        Fail = @('\[ERROR\]\s*([1-9]\d*) 条')
+        Warn = @('\[WARN\]\s*([1-9]\d*) 条')
         SupportsAll = $true
     }
 )

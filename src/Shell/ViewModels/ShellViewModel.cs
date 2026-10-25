@@ -16,7 +16,7 @@ using NewToys.Shell.Views;
 namespace NewToys.Shell.ViewModels;
 
 /// <summary>
-/// Shell 根视图模型（v3.1 · 仿浏览器标签页导航模型）。
+/// Shell 根视图模型。
 /// <para>
 /// 由 v1.35 的「三栏 + CurrentGroup/CurrentItem/CurrentContent」改为「标签页驱动」：
 /// 一个标签页 = 一个缓存的 View + 一份 VM + 一个历史栈。
@@ -34,7 +34,7 @@ public partial class ShellViewModel : ViewModelBase
     private const string HomeKey = "home";
 
     /// <summary>
-    /// 应用级设置页的**页 Key**（v3.65 / NT-062，需求 §4.9.2）：八个节共用这一个页 Key，
+    /// 应用级设置页的**页 Key**（需求 §4.9.2）：八个节共用这一个页 Key，
     /// 七个**节锚点 Key**（`settings-general` …）在 <see cref="OpenTab"/> 里被归一成它 + 激活对应节。
     /// </summary>
     private const string SettingsKey = "settings";
@@ -44,7 +44,7 @@ public partial class ShellViewModel : ViewModelBase
     {
         "settings-general", "settings-update", "settings-theme",
         "settings-launch", "settings-path", "settings-dns", "settings-data",
-        // v3.67：「关于」已并入「版本与更新」，此键退成**别名**（不注册菜单，但旧链接仍能打开设置页）
+        // 「关于」已并入「版本与更新」，此键退成**别名**（不注册菜单，但旧链接仍能打开设置页）
         "settings-about"
     };
 
@@ -64,7 +64,7 @@ public partial class ShellViewModel : ViewModelBase
     private SettingsViewModel? _settingsVm;
 
     /// <summary>
-    /// 全部标签页（v3.66 第十八轮）：**不再区分「固定首页 + 可滚动标签」两套集合** ——
+    /// 全部标签页：**不再区分「固定首页 + 可滚动标签」两套集合** ——
     /// 首页与其余标签一样进滚动区，标签栏直接绑本集合（`ItemsControl ItemsSource="{Binding Tabs}"`）。
     /// </summary>
     public ObservableCollection<TabItemViewModel> Tabs { get; } = new();
@@ -104,11 +104,11 @@ public partial class ShellViewModel : ViewModelBase
 
     [ObservableProperty] private string _statusText = "NewToys · 已就绪";
 
-    /// <summary>底部状态栏文本（v3.9）：来自当前页的 <see cref="IStatusProvider"/>；页面没接契约就为空。</summary>
+    /// <summary>底部状态栏文本：来自当前页的 <see cref="IStatusProvider"/>；页面没接契约就为空。</summary>
     [ObservableProperty] private string _statusBarText = "";
 
     /// <summary>
-    /// 底栏是否按**警示态**（红字）显示（v3.64 / NT-061）：判定 = 文本以 `⚠` 开头 ——
+    /// 底栏是否按**警示态**（红字）显示：判定 = 文本以 `⚠` 开头 ——
     /// 这是仓内既有的失败约定（如 <c>GeneralViewModel</c> 的 <c>"⚠ " + msg</c>），⛔ 不改 <see cref="IStatusProvider"/> 契约。
     /// </summary>
     public bool IsStatusError => StatusBarText.StartsWith("⚠", StringComparison.Ordinal);
@@ -116,7 +116,7 @@ public partial class ShellViewModel : ViewModelBase
     partial void OnStatusBarTextChanged(string value) => OnPropertyChanged(nameof(IsStatusError));
 
     /// <summary>
-    /// 状态栏那一行是否**可点击跳转**（v3.65 / NT-062，需求 §4.9.2 第 5 条）：
+    /// 状态栏那一行是否**可点击跳转**（需求 §4.9.2）：
     /// 当前页实现了 <see cref="IStatusActionProvider"/> 且给了目标 Key。
     /// </summary>
     [ObservableProperty] private bool _hasStatusAction;
@@ -136,7 +136,7 @@ public partial class ShellViewModel : ViewModelBase
         => ActiveTab?.ViewModel is SettingsViewModel svm ? svm.ActiveSectionKey : ActiveTab?.Key;
 
     /// <summary>
-    /// 左树底部的「当前配置 · 版本号」（v3.28）。
+    /// 左树底部的「当前配置 · 版本号」。
     /// 版本取 <see cref="UpdateService.CurrentVersion"/>（编译时自动生成的 `1.yyyyMMdd.HH.mm0`，⛔ 禁手写）；
     /// 配置名取 <see cref="IProfileService.ActiveProfile"/>（多实例时每窗口可不同 → 一眼看出这个窗口在用哪套数据）。
     /// </summary>
@@ -153,7 +153,7 @@ public partial class ShellViewModel : ViewModelBase
     /// <summary>左树是否展开（= 未折叠）。UI 用它控制标题/子级显隐。</summary>
     public bool IsTreeExpanded => !IsTreeCollapsed;
 
-    /// <summary>左树宽度：展开 150px（v3.7 由 240 收窄）、折叠 48px。</summary>
+    /// <summary>左树宽度：展开 150px、折叠 48px。</summary>
     public double TreePanelWidth => IsTreeCollapsed ? 48d : 150d;
 
     public ShellViewModel(IServiceProvider sp, IMenuService menu,
@@ -173,9 +173,8 @@ public partial class ShellViewModel : ViewModelBase
         // ShellViewModel 是进程级单例（AddSingleton）⇒ 订阅随进程生命周期，无需退订。
         _reload.Reloaded += OnModulesReloaded;
 
-        // 🔴 v3.66 第十八轮：标签栏**不再有固定列** ⇒ `HomeTab` / `ScrollableTabs` 镜像与 `SyncTabMirror()`
-        //    整体删除（标签栏直接绑 `Tabs`，集合通知由 Avalonia 自己处理，⛔ 无需手工镜像）。
-        //    v3.45~v3.66 期间"每处集合修改点显式调 SyncTabMirror()"的做法随之作废（Add / Remove 共 3 处调用点已删）。
+        // 🔴 标签栏**不再有固定列** ⇒ `HomeTab` / `ScrollableTabs` 镜像与 `SyncTabMirror()`
+        // 整体删除（标签栏直接绑 `Tabs`，集合通知由 Avalonia 自己处理，⛔ 无需手工镜像）。
         BuildTree();
         // 首导：首页作为第一个标签页（§5.4）。
         OpenTab(HomeKey);
@@ -192,11 +191,11 @@ public partial class ShellViewModel : ViewModelBase
 
     partial void OnActiveTabChanged(TabItemViewModel? value)
     {
-        // 🔴 v3.66 第九轮：这段是"切页的后续重活"（标签高亮 / 契约绑定 / 左树高亮 / 分组展开）。
-        //    ⚠️ MVVM Toolkit 生成的 `ActiveTab` 属性 setter 里，**`OnPropertyChanged(ActiveTab)` 排在
-        //    本方法之后** ⇒ 这里一旦抛异常，那条通知就永远发不出（内容区绑的是 `ActiveTab.Content`，
-        //    是**链式绑定**，靠这条通知重求值）⇒ 症状 = "标签切了 / 状态栏也变了，内容区却还是上一页，
-        //    再点一次才好"。所以这里必须**不许抛**：异常一律变成底栏红字（可诊断，不静默）。
+        // 🔴 这段是"切页的后续重活"（标签高亮 / 契约绑定 / 左树高亮 / 分组展开）。
+        // ⚠️ MVVM Toolkit 生成的 `ActiveTab` 属性 setter 里，**`OnPropertyChanged(ActiveTab)` 排在
+        // 本方法之后** ⇒ 这里一旦抛异常，那条通知就永远发不出（内容区绑的是 `ActiveTab.Content`，
+        // 是**链式绑定**，靠这条通知重求值）⇒ 症状 = "标签切了 / 状态栏也变了，内容区却还是上一页，
+        // 再点一次才好"。所以这里必须**不许抛**：异常一律变成底栏红字（可诊断，不静默）。
         try
         {
             foreach (var t in Tabs) t.IsActive = ReferenceEquals(t, value);
@@ -220,7 +219,7 @@ public partial class ShellViewModel : ViewModelBase
     /// <summary>
     /// 打开或激活某个 key 的标签页（单例）。找不到 key → 忽略并记一行状态，不抛（§5.5）。
     /// <para>
-    /// v3.65 / NT-062：五个**设置节锚点 Key** 先归一成页 Key <see cref="SettingsKey"/>，
+    /// 五个**设置节锚点 Key** 先归一成页 Key <see cref="SettingsKey"/>，
     /// 再在已打开（或新建）的设置页上激活对应节 —— **切节⛔ 不新开标签页**（需求 §4.9.2 第 1 条）。
     /// </para>
     /// </summary>
@@ -252,10 +251,10 @@ public partial class ShellViewModel : ViewModelBase
         }
         if (tab == null) { StatusBarText = $"⚠ 找不到页面：{key}"; return; }
 
-        // 🔴 v3.66 第八轮：**先激活、后入集合** —— `ActiveTab = tab` 会同步完成"切内容区 + 绑契约"，
-        //    放在 `Tabs.Add` **之前**，就不存在"入集合那一步出问题 ⇒ 标签亮着但内容没切"的窗口。
-        //    ⚠️ 代价：此刻 `Tabs` 里还没有它 ⇒ `OnActiveTabChanged` 的 IsActive 循环轮不到它，
-        //    故入集合后补一遍高亮。
+        // 🔴 **先激活、后入集合** —— `ActiveTab = tab` 会同步完成"切内容区 + 绑契约"，
+        // 放在 `Tabs.Add` **之前**，就不存在"入集合那一步出问题 ⇒ 标签亮着但内容没切"的窗口。
+        // ⚠️ 代价：此刻 `Tabs` 里还没有它 ⇒ `OnActiveTabChanged` 的 IsActive 循环轮不到它，
+        // 故入集合后补一遍高亮。
         ActiveTab = tab;
         try
         {
@@ -263,10 +262,10 @@ public partial class ShellViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            // 🔴 兜底可见化（v3.66 第八轮）：历史上"标签出现了、内容区却没切、再点一次才好"的根因就在
-            //    `Tabs.Add` 触发的集合通知链里（异常被框架吞掉，连 logs 都不写）⇒ 这里把它变成**看得见**的
-            //    底栏红字（`⚠` 前缀 = 红字，见 IsStatusError）。本页内容此时**已经**切过去了（上面两行在前），
-            //    所以即使走到这里，用户看到的是正常页面 + 一行提示。
+            // 🔴 兜底可见化：历史上"标签出现了、内容区却没切、再点一次才好"的根因就在
+            // `Tabs.Add` 触发的集合通知链里（异常被框架吞掉，连 logs 都不写）⇒ 这里把它变成**看得见**的
+            // 底栏红字（`⚠` 前缀 = 红字，见 IsStatusError）。本页内容此时**已经**切过去了（上面两行在前），
+            // 所以即使走到这里，用户看到的是正常页面 + 一行提示。
             StatusBarText = $"⚠ 打开「{tab.Title}」时出错：{ex.Message}";
         }
         foreach (var t in Tabs) t.IsActive = ReferenceEquals(t, tab);
@@ -348,11 +347,11 @@ public partial class ShellViewModel : ViewModelBase
         var rebuilt = CreateTab(tab.Key);
         if (rebuilt == null) return;
 
-        // ⚠️ v3.66 第九轮：这里曾试过"先把内容区置空再挂新 View"，实测会让页面**整片空白**
-        //    （内容区的 Content 换成新 View 时挂不上）⇒ 已回滚。现在就按"原地换 View"来。
+        // ⚠️ 这里曾试过"先把内容区置空再挂新 View"，实测会让页面**整片空白**
+        // （内容区的 Content 换成新 View 时挂不上）⇒ 已回滚。现在就按"原地换 View"来。
         tab.Replace(rebuilt.Content, rebuilt.ViewModel);
         BindContracts(tab);
-        // v3.66 第十二轮：内容区由 Shell 侧**显式挂载**（见 ShellView.SyncContentHost）——
+        // 内容区由 Shell 侧**显式挂载**（见 ShellView.SyncContentHost）——
         // 标签还是同一个、只是它缓存的 View 换了 ⇒ 这里补发一次"当前标签变了"，让内容区重挂。
         OnPropertyChanged(nameof(ActiveTab));
         StatusText = $"已重建：{tab.Title}";
@@ -360,14 +359,14 @@ public partial class ShellViewModel : ViewModelBase
 
     // ==================== 标题栏 / 左树 ====================
 
-    // 注：v3.4 起标题栏删掉了 🏠 主页 / ⚙ 设置 / 🌓 主题三个按钮 →
-    //     OpenSettings / ToggleTheme 两个命令随之移除（设置走左树 / Ctrl+,、主题走设置页）。
-    // 🔴 v3.66 第十八轮：标签栏 `＋` 从「打开功能清单页」改为「**导航到首页**」——
-    //     首页收藏卡尾部自带功能清单入口（内嵌 `AllFunctionsView`），`＋` 不再直达 `settings-all`。
+    // 注：标题栏删掉了 🏠 主页 / ⚙ 设置 / 🌓 主题三个按钮 →
+    // OpenSettings / ToggleTheme 两个命令随之移除（设置走左树 / Ctrl+,、主题走设置页）。
+    // 🔴 标签栏 `＋` 从「打开功能清单页」改为「**导航到首页**」——
+    // 首页收藏卡尾部自带功能清单入口（内嵌 `AllFunctionsView`），`＋` 不再直达 `settings-all`。
     [RelayCommand] private void OpenHomeTab() => OpenTab(HomeKey);
 
     /// <summary>
-    /// 打开**应用级设置页**（v3.65 / NT-062，需求 §4.3 / §4.9.2）：入口 = 左树底部版本行的**设置齿轮**
+    /// 打开**应用级设置页**（需求 §4.3）：入口 = 左树底部版本行的**设置齿轮**
     /// 与 `Ctrl+,`。默认落在「通用」节（页内可再切到其它节）。
     /// </summary>
     [RelayCommand] private void OpenSettings() => OpenTab("settings-general");
@@ -511,7 +510,7 @@ public partial class ShellViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 状态栏 `⚠` 那一行**可点击跳转**（v3.65 / NT-062，需求 §4.9.2 第 5 条）：目标 Key 由当前页的
+    /// 状态栏 `⚠` 那一行**可点击跳转**（需求 §4.9.2）：目标 Key 由当前页的
     /// <see cref="IStatusActionProvider"/> 给（典型 = 外部程序缺失 → 跳到「运行环境」节）。
     /// </summary>
     [RelayCommand]
@@ -522,7 +521,7 @@ public partial class ShellViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 折叠 / 展开左树（v3.5）：
+    /// 折叠 / 展开左树：
     /// **折叠时顺手把全部一级分组也收起**（用户要求"折叠菜单栏时自动折叠全部二级菜单"），并落盘。
     /// </summary>
     [RelayCommand]
@@ -604,8 +603,8 @@ public partial class ShellViewModel : ViewModelBase
         StatusBarText = msg;
     }
 
-    // ==================== 历史栈（v3.5：契约保留、UI 已移除） ====================
-    // 标题栏的「前进 / 后退」按钮已在 v3.5 删除（各页几乎全程灰显、无实际意义）。
+    // ==================== 历史栈 ====================
+    // 标题栏的「前进 / 后退」按钮已在 删除（各页几乎全程灰显、无实际意义）。
     // IHistoryProvider 契约与下面的订阅**保留** —— 将来要恢复按钮，把命令接回来即可。
 
     private void OnStatePushed(object? sender, EventArgs e)
@@ -635,7 +634,7 @@ public partial class ShellViewModel : ViewModelBase
         _statusActionProvider = null;
         RefreshStatusAction();
 
-        // v3.65 / NT-062：应用级设置页是**复合 VM** —— 它把契约转发给当前节，
+        // 应用级设置页是**复合 VM** —— 它把契约转发给当前节，
         // 切节时发 SectionChanged ⇒ 这里重新探测一遍（工具条 / 详情卡 / 状态栏随节变）。
         if (tab?.ViewModel is SettingsViewModel settings)
         {
@@ -643,10 +642,10 @@ public partial class ShellViewModel : ViewModelBase
             settings.SectionChanged += OnSettingsSectionChanged;
         }
 
-        // v3.53 / NT-055：声明式工具条 —— 页面没接契约（或工具条为空）= 本页没有工具条（⛔ 不留空行）
-        // v3.66 / NT-062：复合页可经 IToolbarOwner 把承载者换成**子 VM**（描述符里的 CommandPath 相对它解析）。
-        //   ⚠️ 第五轮起应用级设置页**不再实现**该契约（节工具条改为在节点内渲染，用户要求"放回本节顶部"）
-        //   ⇒ 该分支当前只为将来的复合页保留。
+        // 声明式工具条 —— 页面没接契约（或工具条为空）= 本页没有工具条（⛔ 不留空行）
+        // 复合页可经 IToolbarOwner 把承载者换成**子 VM**（描述符里的 CommandPath 相对它解析）。
+        // ⚠️ 第五轮起应用级设置页**不再实现**该契约（节工具条改为在节点内渲染，用户要求"放回本节顶部"）
+        // ⇒ 该分支当前只为将来的复合页保留。
         var toolbarOwner = tab?.ViewModel is IToolbarOwner owner ? owner.ToolbarOwner : tab?.ViewModel;
         var toolbar = (toolbarOwner as IToolbarSource)?.Toolbar;
         IsToolbarActive = toolbar is { Count: > 0 };
@@ -668,7 +667,7 @@ public partial class ShellViewModel : ViewModelBase
             h.StatePushed += OnStatePushed;
         }
 
-        // v3.9：底部状态栏 —— 页面实现 IStatusProvider 就把状态文本交给 Shell 显示
+        // 底部状态栏 —— 页面实现 IStatusProvider 就把状态文本交给 Shell 显示
         if (tab?.ViewModel is IStatusProvider sp)
         {
             _statusProvider = sp;
@@ -676,12 +675,12 @@ public partial class ShellViewModel : ViewModelBase
             StatusBarText = sp.StatusText;
         }
 
-        // v3.65 / NT-062：状态栏 `⚠` 可点击跳转（目标由页面给；没有目标就不可点）
+        // 状态栏 `⚠` 可点击跳转（目标由页面给；没有目标就不可点）
         _statusActionProvider = tab?.ViewModel as IStatusActionProvider;
         RefreshStatusAction();
     }
 
-    /// <summary>设置页**切节**（v3.65 / NT-062）：重绑契约 + 刷左树高亮（左树子项 = 节锚点）。</summary>
+    /// <summary>设置页**切节**：重绑契约 + 刷左树高亮（左树子项 = 节锚点）。</summary>
     private void OnSettingsSectionChanged(object? sender, EventArgs e)
     {
         var tab = ActiveTab;
@@ -709,9 +708,9 @@ public partial class ShellViewModel : ViewModelBase
         IsDetailPanelVisible = p.HasDetailPanel && p.IsDetailOpen;
 
         // 两轨择一（NT-054 需求 §4.5.1）：
-        //   ① 页面实现 IDetailCardSource 且 Card 非空 → 走声明式（DetailCardHost 统一渲染），
-        //      ⛔ 此时**不碰** p.DetailContent（否则白建一个自绘视图）；
-        //   ② 否则退回老路（页面自绘 DetailContent），直到该页完成 L2 迁移。
+        // ① 页面实现 IDetailCardSource 且 Card 非空 → 走声明式（DetailCardHost 统一渲染），
+        // ⛔ 此时**不碰** p.DetailContent（否则白建一个自绘视图）；
+        // ② 否则退回老路（页面自绘 DetailContent），直到该页完成 L2 迁移。
         var card = (p as IDetailCardSource)?.Card;
         IsDetailCardActive = card is not null;
         DetailCard = card;
@@ -744,7 +743,7 @@ public partial class ShellViewModel : ViewModelBase
                 Icon = g.Icon,
                 VectorIcon = ResolveIcon(g.Icon),   // v3.2：一级分组 icon = Geometry 资源键
                 IsGroup = true,
-                // v3.6：展开态恢复落盘（它是**用户状态**，不是派生状态）——首次运行默认不展开
+                // 展开态恢复落盘（它是**用户状态**，不是派生状态）——首次运行默认不展开
                 IsExpanded = _cols.LoadFlag(ShellPageKey, "treeGroup:" + g.Key, false)
             };
             foreach (var it in g.Items)
@@ -762,7 +761,7 @@ public partial class ShellViewModel : ViewModelBase
             foreach (var child in node.Children)
                 child.IsActive = string.Equals(child.Key, key, StringComparison.Ordinal);
 
-            // 一级：首页等叶子看自身；分组则**任一子项命中时也高亮**（v3.4：二级选中时父级一级同亮）
+            // 一级：首页等叶子看自身；分组则**任一子项命中时也高亮**
             node.IsActive = node.IsGroup
                 ? node.Children.Any(c => c.IsActive)
                 : string.Equals(node.Key, key, StringComparison.Ordinal);
@@ -770,12 +769,12 @@ public partial class ShellViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 自动导航（v3.6，**替代 v3.5 的手风琴**）：切标签时**确保当前页所属的一级分组是展开的**，
+    /// 自动导航：切标签时**确保当前页所属的一级分组是展开的**，
     /// ⛔ 但**不收起其它已经展开的一级** —— 用户手动展开的分组要保留。
     /// <list type="bullet">
-    ///   <item>**折叠态**下什么都不做（二级本来就不显示），一级高亮交给 <see cref="UpdateTreeActive"/>；</item>
-    ///   <item>切到**首页**（不属于任何一级分组）→ 同样不动展开态；</item>
-    ///   <item>展开态**落盘**（它是用户状态，不是派生状态）。</item>
+    /// <item>**折叠态**下什么都不做（二级本来就不显示），一级高亮交给 <see cref="UpdateTreeActive"/>；</item>
+    /// <item>切到**首页**（不属于任何一级分组）→ 同样不动展开态；</item>
+    /// <item>展开态**落盘**（它是用户状态，不是派生状态）。</item>
     /// </list>
     /// </summary>
     private void EnsureActiveGroupExpanded(TabItemViewModel? tab)
@@ -796,7 +795,7 @@ public partial class ShellViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 把菜单里的图标键解析成 <see cref="Geometry"/>（v3.2）。
+    /// 把菜单里的图标键解析成 <see cref="Geometry"/>。
     /// 取不到（旧的 emoji / 未知键）返回 null → UI 回退成文本图标，不会崩。
     /// <para>⚠️ Avalonia 12 的 <c>ResourceNodeExtensions.TryFindResource</c> 是 Try 模式（<c>out</c> 参数），
     /// 不是直接返回值 —— 别写成 <c>FindResource(key)</c>。</para>
@@ -828,7 +827,7 @@ public partial class ShellViewModel : ViewModelBase
                                         canClose: false);
         }
 
-        // v3.65 / NT-062：应用级设置页（**一页多节**）—— 与首页同构：从 DI 取 View + VM。
+        // 应用级设置页（**一页多节**）—— 与首页同构：从 DI 取 View + VM。
         // ⛔ 不走菜单项解析：`settings` 是**分组**键，压根没有对应的 AppMenuItem。
         if (string.Equals(key, SettingsKey, StringComparison.Ordinal))
         {

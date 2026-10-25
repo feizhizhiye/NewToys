@@ -714,8 +714,8 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B3 全局样式** | 显式 `x:Key` 样式键 | 用 `Classes` 隐式样式 | 收益足够大时整体改造 | `App.axaml` |
 | **B4 导航服务** | 命名与实际职责一致 | `NavigationService` **不是** `ShellViewModel` 的替代/重复实现，而是**出站**通道（模块 → Shell，经 `Navigated` 事件）；入站解析（Key → View → VM）归 `ShellViewModel.Resolve*` | 无需合并；若要清理，只把该服务定位写清（出站事件总线） | Shell/Core |
 | **B5 平台后端** | 完全跨平台 | 后端仍调 winget / ffmpeg 命令行；`Package*` 类型已中立；**解析器未分层**（winget 启发式解析与 VM 字段映射混在模块内） | 迁 Debian 时替换：先发布链冒烟（RID 条件化 + 守卫收口），再按 §2.1 抽适配器与通用 TSV 解析 | Core 服务 / Module.ScriptManager |
-| **B6 仓库根 slnx** | 唯一入口 `src/NewToys.slnx` | 仓库根残留旧 `NewToys.slnx` 副本 | 直接删除即可 | 仓库 |
-| **B7 Modules 冗余 DLL** | `Modules\` 仅含模块 DLL | 会多出 `NewToys.Shared.dll` / `NewToys.Core.dll` | 无害暂留 | Release 产物 |
+| ~~**B6 仓库根 slnx**~~ | 唯一入口 `src/NewToys.slnx` | ✅ **已结清（2026-10-25 核查：仓库根已无 `NewToys.slnx` 副本）** | — | 仓库 |
+| ~~**B7 Modules 冗余 DLL**~~ | `Modules\` 仅含模块 DLL | ✅ **已定性为非缺陷（2026-10-25）**：实测 `Private="false"` / `ExcludeAssets=runtime` 均压不住 ProjectReference 复制（见 `src/Directory.Build.props` 末尾注释）；`ModuleLoader` 又跳过「已加载的同名程序集」⇒ 永远不会加载成第二份，⛔ 别再为此改 csproj | — | Release 产物 |
 | **B10 运行期热加载** | 任意模块随时加载 / 卸载 / 替换 | 仅支持「新增未加载过的模块」；容器已 build，模块不能注册新服务 | 引入可卸载 ALC + 模块级容器 | ModuleLoader + Shell |
 | **B11 反射使用** | 最小魔法 | 模块装配 / 热加载 / 视图解析三处用反射 | 机制必需暂不改；⛔ 仅限这三处 | ModuleLoader / ShellViewModel |
 | **B12 前进/后退** | 所有页面丰富页内导航 | 仅 `video-list` 有目录语义；多数页灰显 | 各页逐步实现 `IHistoryProvider` | 各模块页面 |
@@ -743,7 +743,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT-088 | **执行器上提 Core**（`ScriptRunner` + `InterpreterResolver`：`Module.ScriptManager` → `NewToys.Core`）：为新增的 `system` 系统工具模块提供跨模块执行契约（模块禁互引），并为命令链（NT-092）铺路；行为零变化，纯重构 | 🔄 **已实施（⏳ 待 build 验收）** —— 2026-10-22 用户指令「执行 nt-088/089」= 批准（卡：`backlog/framework/NT-088.md`）|
 | NT-094 | **重划分收尾**：设置拆分（`config\web\*` 瘦身：超时 / 并发 / 解析器 → script）+ 一级菜单显示名「脚本中心」+ `system` 组一级图标落地 + 备份段重复显示检查 | 📝 草稿（待细化；依赖 NT-088 ~ NT-093；卡：`backlog/framework/NT-094.md`） |
 
-**已结清并移出本表**（结论已蒸馏进正文，状态与日期以台账为准）：NT-064 分页数据层 / NT-066 标题栏搜索扩范围 / NT-067 信息展示脚本化底座 / NT-068 脚本管理器重构 / NT-075 配置写入基建 / NT-076 单库收编 / NT-077 配置分层 / NT-078 备份路由 / NT-085 `DynamicColumnGrid` 上提 UI 库。
+**已结清并移出本表**（结论已蒸馏进正文，状态与日期以台账为准）：NT-064 分页数据层 / NT-066 标题栏搜索扩范围 / NT-067 信息展示脚本化底座 / NT-068 脚本管理器重构 / NT-069 跨模块文件操作契约 / NT-075 配置写入基建 / NT-076 单库收编 / NT-077 配置分层 / NT-078 备份路由 / NT-085 `DynamicColumnGrid` 上提 UI 库。
 
 ### 11.1 技术债：注释治理（2026-10-25 落地，机制化而非一次性清洗）
 

@@ -274,8 +274,8 @@
 | 菜单注册（Key 权威源） | `ScriptManagerModule.cs` |
 | 数据模型 | `Models/ScriptStore.cs` / `Models/InfoOptions.cs` / `Models/SysInfoRow.cs` |
 | 执行底座 | `Services/ScriptRunner.cs` / `InterpreterResolver.cs` / `SysInfoOutputParser.cs`；进程本体在框架层 `IProcessRunner`（Shared 契约 / Core 实现，Shell 注册单例） |
-| 采集呈现 | `Services/CollectorService.cs` / `InfoRowFactory.cs` / `Controls/SysInfoGrid.cs` / `ViewModels/InfoSectionViewModel.cs` |
-| 软件包 | `ViewModels/PackageViewModel.cs` + **本模块** `Services/PackageManagerService.cs` / `PackageOutputParser.cs` / `PackageSettingsService.cs` / `Models/PackageModels.cs`（NT-074：整套从 Core / Shared 下放，只有本模块用；源管理 View/VM 已在 NT-080 v3.80 删除） |
+| 采集呈现 | `Services/CollectorService.cs` / `InfoRowFactory.cs` / `ViewModels/InfoSectionViewModel.cs`；动态列表格已上提控件库 `src/UI/Controls/DynamicColumnGrid.cs`（XAML 用 `v:DynamicColumnGrid`，⛔ 本模块无 `Controls/`） |
+| 软件包 | ⛔ **不在本模块**：NT-096 起整套在 `Module.SystemTools`（`PackageManagerService` / `PackageOutputParser` / `PackageSettingsService` / `PackageView`）；本模块只剩 `ScriptLibraryPackageService.cs`（脚本库导出 / 导入 zip） |
 | 解析分层（NT-081 步骤4） | 通用机械 `Services/FixedWidthTable.cs`（固定列宽：清洗 / 显示宽度 / 切片 / 溢出回填 / 噪行）+ 机读 `Services/TsvRows.cs`（TSV → 行模型）；winget 固有启发式（别名表 / 续行合并 / pin 兜底 / 标签-值）留在 `PackageOutputParser.cs` |
 | 后端适配器（NT-081 步骤5） | `Services/AptPackageService.cs`（Linux 只读：dpkg-query TSV / `apt list --upgradable` / sources.list / `apt-mark showhold`；写操作未实装）；`ScriptManagerModule` 按平台二选一注册 |
 

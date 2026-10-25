@@ -182,6 +182,10 @@
 > | `VideoPreviewViewModel`（1765 → 190） | `.cs` 字段与选源·状态前缀；`.Detail.cs` 详情卡；`.Preview.cs` 预览帧与视频信息；`.Crop.cs` 黑边探测；`.Command.cs` 参数构建·校验·试跑；`.Task.cs` 转码/剪切任务构建与发送；`.Player.cs` 命令行文本·播放计时·构造 |
 > | `PackageViewModel`（1676 → 353） | `.cs` 字段·源标记·列映射；`.Detail.cs` 详情卡；`.Page.cs` 构造·初始化·搜索·列表装载·视图；`.Actions.cs` 安装/升级/卸载/固定/后端调用；`.Selection.cs` 勾选与详情装载；`.Batch.cs` 批量操作·导入导出·右键动作 |
 > | `QuickActionListViewModel`（1559 → 399） | `.cs` 字段与命令库（切换/导入导出）；`.Scripts.cs` 脚本目录；`.Detail.cs` 详情卡与操作栏；`.Page.cs` 构造·分类·视图；`.Run.cs` 运行与脚本导入；`.Scan.cs` 扫描候选与页面导入导出；`.Item.cs` 增删改查·收藏·打开方式 |
+> | `ScriptInfoViewModel`（1142 → 240） | `.cs` 字段与构造；`.Detail.cs` 详情卡；`.Columns.cs` 列标题/显隐 chip 与面板开合；`.Collections.cs` 集合载入与恢复；`.Sections.cs` 节创建·投影·排序；`.Refresh.cs` 刷新编排·定时器·页脚·空态；`.Actions.cs` 节设置·复制·打开脚本 |
+> | `CollectionViewModel`（924 → 250） | `.cs` 字段与构造；`.Detail.cs` 详情卡与编辑态装载；`.Members.cs` 集合刷新·成员表·详情编辑落库；`.Edit.cs` 新建/复制/删除/归档/送往页面；`.Export.cs` 导出与扫描入集合 |
+> | `VideoListViewModel`（991 → 211） | `.cs` 字段与选文件；`.Detail.cs` 详情卡；`.Page.cs` 构造·扫描·列映射·视图；`.Selection.cs` 勾选与转码/剪切跳转；`.MediaInfo.cs` 媒体信息探测；`.Actions.cs` 导入·播放·打开·重命名·删除 |
+> | `PathViewModel`（834 → 170） | `.cs` 字段与选项模型；`.State.cs` 动作可用性·构造；`.Probe.cs` 外部工具探测与 Python 行；`.Rows.cs` 行构建·列·视图；`.Save.cs` 保存/恢复默认/浏览/打开/写回；`.Profile.cs` 多实例 Profile 增删改切 |
 >
 > ⛔ 新增逻辑按职责投递到对应 partial，别往主文件堆；拆分只搬方法、不改一行实现。
 

@@ -187,6 +187,13 @@
 > | `VideoListViewModel`（991 → 211） | `.cs` 字段与选文件；`.Detail.cs` 详情卡；`.Page.cs` 构造·扫描·列映射·视图；`.Selection.cs` 勾选与转码/剪切跳转；`.MediaInfo.cs` 媒体信息探测；`.Actions.cs` 导入·播放·打开·重命名·删除 |
 > | `PathViewModel`（834 → 170） | `.cs` 字段与选项模型；`.State.cs` 动作可用性·构造；`.Probe.cs` 外部工具探测与 Python 行；`.Rows.cs` 行构建·列·视图；`.Save.cs` 保存/恢复默认/浏览/打开/写回；`.Profile.cs` 多实例 Profile 增删改切 |
 > | `AssetService`（1513 → 247） | `.cs` 字段·构造·存储源（增删查·统计·扫描错误）；`.Asset.cs` 资产查询/插入/更新/删除/收藏评分；`.Location.cs` 文件位置读写与缺失标记；`.Query.cs` 行查询 + SQL 条件/排序构建；`.Org.cs` 名称映射与标签·分类·集合选项；`.Commit.cs` 批量行落库与显示名；`.ScanJob.cs` 扫描任务 + 数据读取映射 |
+> | `FfmpegService`（932 → 306） | `.cs` 探测·抽帧·关键帧·剪切参数；`.Filters.cs` 编码器/滤镜链/裁剪探测/字幕/GIF；`.Transcode.cs` 转码参数与命令描述·输出路径；`.Run.cs` 执行与进度解析·外部播放·清理 |
+> | `RuleRunService`（922 → 214） | `.cs` 构造·缓存路径·抓取与字符集嗅探·命令列表；`.Probe.cs` 探针与站点探测；`.Run.cs` 抓行与单步执行；`.Python.cs` 规则脚本调用与输出解析 |
+> | `ListPageViewModelBase`（731 → 308） | `.cs` 构造·分页导航·列可见性缓存装载；`.Columns.cs` 列宽锁定/拖拽/显隐与布局持久化；`.DetailSort.cs` 详情开关与排序；`.Filters.cs` 筛选条件与快捷筛选 |
+>
+> **多类型同文件**（`VideoTask.cs`、`DetailCardRender.cs`）改为按语义分组拆成独立文件，不做 partial：
+> `VideoTask` → `.Cut.cs` 剪切相关类型 / `.Presets.cs` 预设与模式枚举 / `.Transcode.cs` 转码任务（主文件留 `VideoTaskBase` 与状态常量）；
+> `DetailCardRender` → `.Rows.Text.cs` / `.Rows.List.cs` / `.Rows.Choice.cs` 三组字段行、`.Sections.cs` 节与图标动作、`.Renderer.cs` 卡片渲染器（主文件留 `DetailPath` 与 `DetailFieldRow` 基类）。
 >
 > ⛔ 新增逻辑按职责投递到对应 partial，别往主文件堆；拆分只搬方法、不改一行实现。
 

@@ -2,7 +2,7 @@
 # 用法（在仓库根执行）：pwsh skill/scripts/check-comments.ps1 [-All]
 #   -All  同时列出 WARN 明细（默认只列 ERROR 明细 + WARN 计数，保持输出短）
 #
-# 规则清单唯一源 = skill/references/tech-guard.md 第二节（C-01 ~ C-05）—— 改这里必须同步改那边。
+# 规则清单唯一源 = skill/references/tech-guard.md 第二节（C-01 ~ C-06）—— 改这里必须同步改那边。
 # ⛔ 只报告，不修改任何文件，不以非零码退出（自检是参考，不是门禁）。
 #
 # 定位：注释腐烂的四种形态，每种一条机器判据 ——
@@ -11,6 +11,7 @@
 #   C-03 单文件注释率排行                          = 仅统计（Top5 参考），**不告警**：model/接口类天然偏高
 #   C-04 历史叙事词（"原来 / 此前 / 曾经"）       = 同 C-01，且更难检索
 #   C-05 View 类名重复（ERROR）                   = NavigationService 靠类名反射找 View，重名 = 静默错页
+#   C-06 注释里出现 NT-xxx 任务编号               = 编号属叙事；编号→结论的唯一索引在 framework.md §11.2
 
 param([switch]$All)
 
@@ -76,7 +77,7 @@ foreach ($f in $targets) {
             $blockLen = 0
         }
 
-        # ---- C-01 / C-04 单行判据 ----
+        # ---- C-01 / C-04 / C-06 单行判据 ----
         if ($line -match '^\s*//') {
             if ($line -match $reVersionPrefix) {
                 Add-Finding 'C-01' 'WARN' $f.FullName ($i + 1) "版本/轮次前缀叙事 —— 删前缀，只留 WHY（git log 已记录）"
@@ -84,6 +85,11 @@ foreach ($f in $targets) {
             elseif ($line -match $reHistoryWord) {
                 Add-Finding 'C-04' 'WARN' $f.FullName ($i + 1) "历史叙事 —— 描述过去状态，无法据此判断当前正确性"
             }
+        }
+
+        # ---- C-06 任务编号不进注释（编号 → 结论的唯一索引在 framework.md §11.2）----
+        if ($isAnyComment -and $line -match 'NT-\d{3}') {
+            Add-Finding 'C-06' 'WARN' $f.FullName ($i + 1) "注释里出现任务编号 —— 删编号，结论查 framework.md §11.2"
         }
     }
     # 文件尾部未闭合的注释块
@@ -155,5 +161,5 @@ if ($All -and $warns.Count -gt 0) {
     }
 }
 
-Write-Host "`n提示：C-01/C-02/C-04 是 WARN（不阻断），C-05 是 ERROR（View 重名会静默错页）。" -ForegroundColor Gray
+Write-Host "`n提示：C-01/C-02/C-04/C-06 是 WARN（不阻断），C-05 是 ERROR（View 重名会静默错页）。" -ForegroundColor Gray
 Write-Host "      C-03 只出排行不告警（审美判据做 lint 会烂成噪音）。" -ForegroundColor Gray

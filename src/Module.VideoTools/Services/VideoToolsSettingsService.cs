@@ -7,7 +7,7 @@ using NewToys.Shared.Services;
 namespace NewToys.VideoTools.Services;
 
 /// <summary>
-/// <see cref="IVideoToolsSettingsService"/> 的实现（v3.64 / NT-061）：落 <c>config\video-tools.json</c>。
+/// <see cref="IVideoToolsSettingsService"/> 的实现（v3.64）：落 <c>config\video-tools.json</c>。
 /// <para>
 /// <b>一次性迁移</b>：并发数原来在 <c>app.json</c> 的 <c>MaxConcurrency</c>（没有界面、只能手改文件）。
 /// 首次运行本服务时把它搬进 <c>video-tools.json</c>（⛔ 不丢配置）；之后 <c>app.json</c> 那个字段不再被读写。

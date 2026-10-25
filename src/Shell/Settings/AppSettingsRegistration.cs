@@ -5,10 +5,10 @@ using NewToys.Shared.Services;
 namespace NewToys.Shell.Settings;
 
 /// <summary>
-/// 应用级设置的菜单注册（NT-062）：原 <c>Module.Settings</c> 的框架职责收归 Shell ——
+/// 应用级设置的菜单注册：原 <c>Module.Settings</c> 的框架职责收归 Shell ——
 /// 它本就是框架组件（只是名字里带「Module」），撤销该程序集后由这里注册。
 /// <para>
-/// v3.66 / NT-062 细节调整（用户 2026-10-16 反馈）：**「设置」一级菜单项已删除** ——
+/// v3.66：细节调整（用户 2026-10-16 反馈）：**「设置」一级菜单项已删除** ——
 /// 应用级设置是**一个整页**（六个节），模块设置各自归到**所属模块的一级菜单下**（见各模块 <c>Initialize</c>）。
 /// </para>
 /// <para>
@@ -44,7 +44,7 @@ internal static class AppSettingsRegistration
         // `settings-theme`（主题外观，即 v3.40 合并前的页 Key）。
         menu.RegisterFunction(HiddenGroupKey, "settings-theme", "主题外观", "🎨", "SettingsView", 1,
             "明暗模式与强调色", SettingsCategory.Theme);
-        // v3.53 / NT-056：「路径配置」+「配置」合并为一张**设置总表**（分类列区分行类型）；
+        // v3.53：「路径配置」+「配置」合并为一张**设置总表**（分类列区分行类型）；
         // v3.62 起它是应用级设置页的「运行环境」节（配置档 + 外部程序路径），标题保持「路径与配置」。
         menu.RegisterFunction(HiddenGroupKey, "settings-path", "路径与配置", "📁", "SettingsView", 2,
             "运行环境路径 + 多套配置档（分类列区分，可新增 / 切换 / 重命名 / 删除）", SettingsCategory.Environment);

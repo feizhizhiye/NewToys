@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using NewToys.Core.Services;   // NT-088：ScriptRunner 已上提 Core
+using NewToys.Core.Services;   // ScriptRunner 已上提 Core
 using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>一次采集的结果（NT-068 S5 / §三.11）。</summary>
+/// <summary>一次采集的结果（/ §三.11）。</summary>
 public sealed class CollectOutcome
 {
     /// <summary>被取消（主动放弃，不算失败）。</summary>
@@ -43,7 +43,7 @@ public sealed class CollectOutcome
 }
 
 /// <summary>
-/// <b>采集器执行</b>（NT-068 S5）：跑一个条目（脚本或命令）→ 解析输出 → 写观测库 → 生成列 schema。
+/// <b>采集器执行</b>：跑一个条目（脚本或命令）→ 解析输出 → 写观测库 → 生成列 schema。
 /// </summary>
 /// <remarks>
 /// <para>

@@ -4,7 +4,7 @@ using System.Linq;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 试跑推荐的一条结果（NT-086 批 C / NT-084 J4）：候选脚本对<b>同一份 HTML</b> 求值后的
+/// 试跑推荐的一条结果：候选脚本对<b>同一份 HTML</b> 求值后的
 /// 条数 / 字段完整度 / 错误。
 /// <para>
 /// 🔴 排序判据：<b>条数 &gt; 0</b> 优先，其次按「必填字段非空率」降序（同一份 HTML ⇒ 可比）。

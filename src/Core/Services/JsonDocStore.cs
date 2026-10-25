@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// <b>内容型 JSON 文档表</b>（NT-076 第二批）：把原来散在 <c>config\*.json</c> 的「功能数据」
+/// <b>内容型 JSON 文档表</b>：把原来散在 <c>config\*.json</c> 的「功能数据」
 /// （书签 / ping 目标 / 抓取任务 / hosts 方案 / 视频任务队列 / 脚本手工数据）收进总库。
 /// <para>
 /// 表结构 = <c>&lt;前缀&gt;_docs(name TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL)</c>：

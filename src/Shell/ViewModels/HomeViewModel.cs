@@ -25,9 +25,9 @@ public class QuickBtn
 }
 
 /// <summary>
-/// 首页「常用功能」墙里的一张卡（v3.19 / NT-009）。
+/// 首页「常用功能」墙里的一张卡（v3.19）。
 /// <para>
-/// v3.66 / NT-062 细节调整：尾部追加一张**「显示更多」卡**（<see cref="IsMore"/> = true）——
+/// v3.66：细节调整：尾部追加一张**「显示更多」卡**（<see cref="IsMore"/> = true）——
 /// 它与收藏按钮**同容器同流转**（同一个 <c>WrapPanel</c>）、恒排最后，点开把**功能清单就地展开**在下方
 /// （⛔ 不再跳独立页）。故命令与命令参数下沉到卡片自身（收藏卡 → 导航；更多卡 → 折叠切换）。
 /// </para>
@@ -82,7 +82,7 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
 
     private Control? _functionList;
 
-    // ==================== 内嵌功能清单（v3.66 / NT-062 细节调整） ====================
+    // ==================== 内嵌功能清单（v3.66：细节调整） ====================
 
     /// <summary>
     /// 功能清单是否已就地展开（收藏卡尾部「显示更多」切换）。
@@ -104,7 +104,7 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
         return view;
     }
 
-    // ==================== 底部状态栏（IStatusProvider，v3.19 / NT-009）：仅首页显示模块/功能数 ====================
+    // ==================== 底部状态栏（IStatusProvider，v3.19）：仅首页显示模块/功能数 ====================
 
     /// <summary>
     /// 首页底部状态栏文本：已加载**模块数 / 功能数**（需求 §6.1）。

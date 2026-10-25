@@ -9,7 +9,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Shell.Services;
 
 /// <summary>
-/// <b>本机环境节</b>（NT-078）：<c>%LOCALAPPDATA%\NewToys\env.json</c> —— 解释器 / ffmpeg / 播放器 / 更新地址 / 加密 DNS。
+/// <b>本机环境节</b>：<c>%LOCALAPPDATA%\NewToys\env.json</c> —— 解释器 / ffmpeg / 播放器 / 更新地址 / 加密 DNS。
 /// <para>
 /// 🔴 语义上是**机器级**（含绝对路径），所以 <see cref="DefaultSelected"/> = false
 /// （默认只备份设置；换机器才需要勾它）；<see cref="IsMachineBound"/> = true ⇒ 恢复时界面会提示

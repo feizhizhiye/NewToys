@@ -6,8 +6,8 @@ using NewToys.MediaAssets.Models;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 标签服务（NT-018）：`tags` + `asset_tags` 的全部读写。
-/// <para>🔴 标签是**用户手动数据**（R1 例外）：重建数据库会丢，靠「导出用户数据」兜底（NT-022）。</para>
+/// 标签服务：`tags` + `asset_tags` 的全部读写。
+/// <para>🔴 标签是**用户手动数据**（R1 例外）：重建数据库会丢，靠「导出用户数据」兜底。</para>
 /// <para>⛔ 库不可用时全部降级（空列表 / 返回 0），⛔ 不抛。</para>
 /// </summary>
 public class TagService

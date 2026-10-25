@@ -5,7 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace NewToys.MediaAssets.Models;
 
 /// <summary>
-/// 标签管理页的一行（NT-018）：`tags` + 使用数（`asset_tags` 计数）。
+/// 标签管理页的一行：`tags` + 使用数（`asset_tags` 计数）。
 /// <para>列：名称 / 命名空间 / 颜色 / 使用数 / 创建时间（需求 §6.6 页面清单）。</para>
 /// </summary>
 public class TagRow
@@ -66,7 +66,7 @@ public class TagAssetRef
 }
 
 /// <summary>
-/// 「详情卡里可点的色片」（NT-018）：标签 / 分类 / 集合三种多选项共用。
+/// 「详情卡里可点的色片」：标签 / 分类 / 集合三种多选项共用。
 /// 点一下 = 给当前资产打上 / 取消；<see cref="IsSelected"/> 决定实心还是淡显。
 /// </summary>
 public partial class PickItem : ObservableObject
@@ -84,7 +84,7 @@ public partial class PickItem : ObservableObject
     public string Name { get; }
 
     /// <summary>
-    /// **分组键**（NT-058）：详情卡 chips 的 <c>ChipGroupPath="Group"</c> 用它分组显示
+    /// **分组键**：详情卡 chips 的 <c>ChipGroupPath="Group"</c> 用它分组显示
     /// （标签 = 命名空间；分类 / 集合 / 评分给 null = 不分组，一大排显示）。
     /// </summary>
     public string? Group { get; }

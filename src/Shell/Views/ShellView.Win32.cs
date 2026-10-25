@@ -10,7 +10,7 @@ namespace NewToys.Shell.Views;
 /// <see cref="ShellView"/> 的 **Windows 平台专属部分**（partial，2026-10-21 收敛）。
 /// <para>
 /// 收纳：外框几何的 Win32 读写（<c>SetWindowPos</c> / <c>GetWindowRect</c> / <c>GetWindowPlacement</c>）、
-/// DWM 圆角压制 + 矩形窗口区域兜底（NT-034 / NT-042）、官方 WndProc 钩子（零内缩 + 方角同步 + 贴靠几何纠偏）。
+/// DWM 圆角压制 + 矩形窗口区域兜底、官方 WndProc 钩子（零内缩 + 方角同步 + 贴靠几何纠偏）。
 /// 业务逻辑（标签栏 / 缩放热区 / 全屏 / 搜索 / 窗口记忆的存取口径）留在 <c>ShellView.axaml.cs</c>。
 /// </para>
 /// <para>
@@ -28,7 +28,7 @@ public partial class ShellView
     /// </summary>
     private void ApplyWindowFrame(PixelRect frame)
     {
-        // NT-081：Win32 handle 在 X11 / Wayland 上**也能取到非零值** ⇒ 必须显式平台守卫，
+        // Win32 handle 在 X11 / Wayland 上**也能取到非零值** ⇒ 必须显式平台守卫，
         //   否则 SetWindowPos 会走到 user32.dll 直接 DllNotFoundException。
         if (!OperatingSystem.IsWindows()) return;   // 内联 IsWindows()：CA1416 只认这种写法
         var h = TryGetPlatformHandle()?.Handle;
@@ -73,10 +73,10 @@ public partial class ShellView
         catch { return false; }   // 读不到就沿用上次记录（不覆盖）
     }
 
-    // ==================== DWM 圆角（NT-034，需求 §4.1） ====================
+    // ==================== DWM 圆角（需求 §4.1） ====================
 
     /// <summary>
-    /// NT-034：走 Avalonia 官方圆角开关（<c>Win32Properties.WindowCornerPreference</c>）。
+    /// 走 Avalonia 官方圆角开关（<c>Win32Properties.WindowCornerPreference</c>）。
     /// <para>
     /// 🔴 **版本事实**（2026-10-14 用本地 <c>avalonia.win32\12.1.3</c> 二进制核实，⛔ 别再照抄旧源码结论）：
     /// 12.1.3 **没有** <c>HintsToCornerPreference</c> / <c>_cornerHints</c> / <c>SetWindowCornerHints</c>
@@ -116,25 +116,25 @@ public partial class ShellView
     {
         try
         {
-            // NT-081：DWM / gdi32 / user32 全是 Windows-only ⇒ 非 Windows 直接降级为系统默认外观
+            // DWM / gdi32 / user32 全是 Windows-only ⇒ 非 Windows 直接降级为系统默认外观
             if (!OperatingSystem.IsWindows()) return;   // 内联 IsWindows()：CA1416 只认这种写法
             var h = TryGetPlatformHandle()?.Handle;
             if (h is not { } hwnd || hwnd == IntPtr.Zero) return;
 
             SetCornerPreferenceNoRound(hwnd);
 
-            // NT-034：设完必须**让 DWM 重算非客户区**，否则典型症状就是"属性设进去了、画面没变"。
+            // 设完必须**让 DWM 重算非客户区**，否则典型症状就是"属性设进去了、画面没变"。
             // 只重算边框（不动位置 / 尺寸 / 层级 / 焦点），对窗口状态无副作用。
             SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
                          SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 
-            ApplySquareRegion(hwnd);   // NT-034 兜底：矩形窗口区域 → 强制方角
+            ApplySquareRegion(hwnd);   // 兜底：矩形窗口区域 → 强制方角
         }
         catch { /* 非 Win11 / 调用失败 → 维持系统默认（仅观感，不影响功能） */ }
     }
 
     /// <summary>
-    /// NT-044：是否处于**全屏态**。
+    /// 是否处于**全屏态**。
     /// <para>
     /// 🔴 为什么需要这个标记：`WINDOWPLACEMENT.showCmd` 在全屏时**未必**是 `SW_SHOWMAXIMIZED`
     /// （12.1.3 的全屏是「无边框 + 铺满屏」），但同样**必须清掉矩形窗口区域** ——
@@ -144,7 +144,7 @@ public partial class ShellView
     private static bool _isFullScreen;
 
     /// <summary>
-    /// 🔴 **保留开关，且恒为 <c>true</c>**（NT-042 结论，2026-10-15 实测）：
+    /// 🔴 **保留开关，且恒为 <c>true</c>**（结论，2026-10-15 实测）：
     /// <para>
     /// 基准测试（置 <c>false</c> = 不套矩形区域）实测结果：
     /// ① **DWM 阴影没有回来** → 阴影消失**不是** `SetWindowRgn` 的代价，而是客户区扩展（CSD 官方路线）的固有结果；
@@ -156,10 +156,10 @@ public partial class ShellView
     /// </summary>
     // ⚠️ 刻意**不用 const**：置 false 时若用 const，编译器会判后面的代码不可达 →
     //    CS0162 警告（本项目开 TreatWarningsAsErrors → 直接编译失败），基准测试就跑不起来了。
-    private static bool UseSquareRegionHack = true;    // NT-042 结论：保留（阴影与 region 无关）
+    private static bool UseSquareRegionHack = true;    // 结论：保留（阴影与 region 无关）
 
     /// <summary>
-    /// NT-034 兜底（硬手段）：给窗口套一个**矩形窗口区域**（<c>SetWindowRgn</c>）。
+    /// 兜底（硬手段）：给窗口套一个**矩形窗口区域**（<c>SetWindowRgn</c>）。
     /// <para>
     /// 🔴 为什么需要它：corner preference 在本窗口上试了 5 轮都没稳定生效（普通窗 / 分屏仍圆角；
     /// 而「最大化没圆角」是 Win11 的固有行为，⛔ 不能算我们的功劳）。
@@ -168,20 +168,20 @@ public partial class ShellView
     /// </para>
     /// <para>
     /// ⚠️ 最大化 / 全屏**必须清掉 region**（传 NULL）—— 否则矩形区域会跟最大化几何打架（露边 / 裁内容）。
-    /// ✅ **原「代价 = DWM 阴影消失」已被 NT-042 实测证伪**：置 <c>false</c> 完全不套 region 时阴影同样没有
-    ///    → 阴影消失是客户区扩展（CSD）的固有结果，与本 region 无关。边界层次由 NT-039 自绘 1px 外框补。
+    /// ✅ **原「代价 = DWM 阴影消失」已被 实测证伪**：置 <c>false</c> 完全不套 region 时阴影同样没有
+    ///    → 阴影消失是客户区扩展（CSD）的固有结果，与本 region 无关。边界层次由 自绘 1px 外框补。
     /// </para>
     /// </summary>
     private static void ApplySquareRegion(IntPtr hwnd)
     {
         try
         {
-            if (!UseSquareRegionHack) return;    // NT-042 复核开关；置 false = 完全不套 region（仅复核用）
-            // NT-081：gdi32 / user32 调用前显式守卫（调用方虽已门控，这里兜住后续新入口）
+            if (!UseSquareRegionHack) return;    // 复核开关；置 false = 完全不套 region（仅复核用）
+            // gdi32 / user32 调用前显式守卫（调用方虽已门控，这里兜住后续新入口）
             if (!OperatingSystem.IsWindows()) return;   // 内联 IsWindows()：CA1416 只认这种写法
             if (hwnd == IntPtr.Zero) return;
 
-            // NT-044：全屏与最大化一视同仁 → 清 region
+            // 全屏与最大化一视同仁 → 清 region
             if (IsWindowMaximized(hwnd) || _isFullScreen)
             {
                 SetWindowRgn(hwnd, IntPtr.Zero, true);
@@ -258,7 +258,7 @@ public partial class ShellView
     [DllImport("dwmapi.dll", SetLastError = false)]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 
-    // 🔴 NT-034 排查期曾在此处挂过一段诊断（读回 DWM 圆角值 + 写 corner-probe.txt）——
+    // 🔴 排查期曾在此处挂过一段诊断（读回 DWM 圆角值 + 写 corner-probe.txt）——
     //    2026-10-14 验证通过后已删除。两条结论留档，⛔ 以后再排查别再走这两条死路：
     //    ① 输出到 `Window.Title` 无效：本窗口无边框自绘，标题栏是自己画的 Grid，根本不显示 Title；
     //    ② `DwmGetWindowAttribute` **不支持读** `DWMWA_WINDOW_CORNER_PREFERENCE`(33)（该属性只用于 Set）
@@ -281,7 +281,7 @@ public partial class ShellView
     /// </para>
     /// <para>
     /// 🔴 历史留档（⛔ 别再加回来）：
-    /// ① NT-048 的「贴靠几何外部纠偏」（按屏幕自检强行 SetWindowPos）—— 判据不成立，已删；
+    /// ① 的「贴靠几何外部纠偏」（按屏幕自检强行 SetWindowPos）—— 判据不成立，已删；
     ///    ⚠️ 2026-10-21 的 <see cref="FixTiledGeometry"/> 形似但**判据明确**（只认 tile 矩形），不是它的复活。
     /// ② 手搓的 <c>SetWindowLongPtr(GWLP_WNDPROC)</c> 子类化 + <c>Marshal.GetFunctionPointerForDelegate</c>
     ///    + <c>CallWindowProc</c> + <c>_originalWndProc / _snapFixProc</c> 静态字段 —— 已被官方钩子整体取代后删除。
@@ -388,7 +388,7 @@ public partial class ShellView
     /// </para>
     /// <para>
     /// 为什么不是「去掉零内缩」：去掉就等于恢复那圈 ≈8px 非客户区，贴靠态系统不画 → 露缝（v3.29 的原始问题）。
-    /// 为什么不是「事后按屏幕自检纠偏」（NT-048，已删）：那是**无判据的强行 SetWindowPos**；
+    /// 为什么不是「事后按屏幕自检纠偏」（已删）：那是**无判据的强行 SetWindowPos**；
     /// 这里只认「矩形正好是某个 tile ±32px」这一种明确的系统贴靠请求，其余一切不动。
     /// </para>
     /// <para>
@@ -536,7 +536,7 @@ public partial class ShellView
             return IntPtr.Zero;      // 返回 0 = 已处理
         }
 
-        // NT-034：方角同步（DWM 圆角偏好 + 矩形窗口区域）。
+        // 方角同步（DWM 圆角偏好 + 矩形窗口区域）。
         // ⚠️ 本钩子在 Avalonia **处理之前**调用，而压制必须在框架**处理完之后**
         //    （框架会重算并回写偏好）→ 用 Post 保序，见 PostChromeReassert。
         if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE || msg == WM_STYLECHANGED || msg == WM_SHOWWINDOW)
@@ -579,7 +579,7 @@ public partial class ShellView
         catch { return false; }
     }
 
-    // 🔴 NT-041：样式位常量（`GWL_STYLE` / `WS_*`）与 `GetWindowLongPtr` 曾用于 v3.28 的「手工补贴靠资格样式」
+    // 🔴 样式位常量（`GWL_STYLE` / `WS_*`）与 `GetWindowLongPtr` 曾用于 v3.28 的「手工补贴靠资格样式」
     //    （`ApplySnapEligibleStyles`）。官方 `WindowDecorations="Full"` 自带这些样式位 ⇒ 补丁与常量随之清理。
     //    ⛔ 若日后贴靠再失效，**先怀疑装饰是不是被改成 `BorderOnly` / `None`**，⛔ 别把手工补位抄回来。
     private const uint SWP_NOSIZE = 0x0001;

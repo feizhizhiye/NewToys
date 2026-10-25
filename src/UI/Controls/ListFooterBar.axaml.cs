@@ -12,13 +12,13 @@ using NewToys.Shared.Models;
 namespace NewToys.UI.Controls;
 
 /// <summary>
-/// 列表页底栏（NT-063，UI 壳）：计数 + 分页跳转链。
+/// 列表页底栏（UI 壳）：计数 + 分页跳转链。
 /// <para>
 /// 🔴 显隐由**宿主页**决定：把本控件的 <see cref="Visual.IsVisible"/> 绑到 VM 的
 /// <c>HasFooterContent</c>（列表超出页面底部 或 有多页才 true）—— 控件自己不判断高度。
 /// </para>
 /// <para>
-/// 🔴 NT-064：内部一律 **code-behind 按属性直配**（⛔ 不用祖先绑定，见 axaml 顶部注释）；
+/// 🔴 内部一律 **code-behind 按属性直配**（⛔ 不用祖先绑定，见 axaml 顶部注释）；
 /// 分页命令 / 页大小 / 页码直达经宿主（<c>ListPageSkeleton</c>）转发进来。
 /// 布局（2026-10-16 用户定稿）：左计数，中「共 N 页 « ‹ 1 2 3 4 5 › » 跳转到[ ]」，
 /// 右「每页 [25/50/100/500]」；当前页码按钮用 <c>primary</c> 强调色。
@@ -203,7 +203,7 @@ public partial class ListFooterBar : UserControl
     }
 
     /// <summary>
-    /// 把当前属性值直配到具名控件（NT-064：⛔ 不用绑定 —— 祖先绑定解析失败是静默空白）。
+    /// 把当前属性值直配到具名控件（⛔ 不用绑定 —— 祖先绑定解析失败是静默空白）。
     /// XAML 未加载（具名控件 null）时整体跳过 —— 与 ListPageSkeleton 同口径的护栏。
     /// </summary>
     private void Apply()

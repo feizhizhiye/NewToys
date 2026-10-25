@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 一次「▶ 跑这段」的运行记录（NT-086 批 G）—— 落 <c>runs\&lt;脚本&gt;\&lt;时间戳&gt;_&lt;URL哈希&gt;\result.json</c>。
+/// 一次「▶ 跑这段」的运行记录—— 落 <c>runs\&lt;脚本&gt;\&lt;时间戳&gt;_&lt;URL哈希&gt;\result.json</c>。
 /// </summary>
 public sealed class RunRecord
 {
@@ -34,7 +34,7 @@ public sealed class RunRecord
     [JsonIgnore] public string Dir { get; set; } = "";
 }
 
-/// <summary>运行记录里的一个字段（NT-086 批 G）。</summary>
+/// <summary>运行记录里的一个字段。</summary>
 public sealed class RunField
 {
     public string Key { get; set; } = "";

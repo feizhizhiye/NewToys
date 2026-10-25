@@ -157,7 +157,15 @@
 4. `ModuleLoader.InitializeAll(sp)`（**必须在 3 之后**）；
 5. 应用主题（订阅 `ThemeChanged`）；
 6. `new ShellView{DataContext=ShellViewModel} → win.Show()`；
-7. 首导由 `ShellViewModel` 构造函数末尾 `OpenTab("home")` 触发。
+7. 首导由 `ShellViewModel` 构造函数末尾 `OpenTab("home")` 触发；
+8. `Show()` 之后按 `DispatcherPriority.Background` 跑 `ModuleLoader.InitializeAllDeferred(sp)`：**第一件事**是
+   `ConfigStoreService.InitializeDeferred()`（框架级小文件并入 `shell.json` / 模块设置归位 `config\modules\` /
+   清空壳配置），随后才是总库 schema（`LibrarySchemaService.EnsureAll`）与各模块的 `InitializeDeferred`。
+   ⚠️ 构造函数只算路径、不碰磁盘；唯一例外 = `ShellConfigStore` 首次读盘前兜一次 `EnsureShellMigrated()`
+   （它缓存整份文档，迁移排在读之后会导致下次保存把搬来的节抹掉）。
+
+> 契约绑定（详情面板 / 历史栈 / 状态栏 / 声明式工具条）由 **`Shell/Services/ShellPageBinder.cs`** 独立承担：
+> 切标签 / 刷新页 / 设置页切节都只调 `ShellPageBinder.Bind(tab)`，`ShellViewModel` 只保留标签管理与左树逻辑。
 
 ### 3.2 双轨加载
 
@@ -711,8 +719,103 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 
 **存量处置原则**：⛔ 不清零、⛔ 不排一次性清洗批次（600+ 处无功能改动混进一次 build，出错无法定位）。
 按「改到哪清到哪」消化；lint 只保证**新增代码不再产生**。已清理样板：`Core/Services/ModuleLoader.cs`、`Shell/ViewModels/ShellViewModel.cs`。
+**唯一例外（2026-10-25 用户拍板）**：`NT-xxx` 编号引用一次性全清（1121 处 / 245 文件，纯注释），编号→结论收口到 **§11.2**；
+版本号前缀（`vX.Y`）与轮次叙事仍按「改到哪清到哪」，⛔ 不再按批次清洗。
 
 **配套测试**：`src/NewToys.Tests/ListPageBaseTests.cs`（26 个测试方法 / 33 个用例，覆盖分页溢出 / 隐藏列写 0 占位 / 锁定列不可拖 / 筛选「且」语义 / 页大小跨页收敛）。跑法：`pwsh skill/scripts/accept.ps1 -Test`。
+
+### 11.2 NT 编号索引（代码注释里不再写 NT 号，追溯查这里）
+
+> 2026-10-25：`src/` 注释里的 1121 处 `NT-xxx` 引用已全部清除（纯注释改动，零功能变化）。
+> 理由 = 注释三分法的 D 类：**编号属于叙事，不是契约**。但编号→结论的对应关系要留一份，
+> 因为任务卡会随滑动窗口淘汰（每目录 ≤5 张），全靠 git log 找回成本太高。
+> 下表覆盖**代码里出现过的全部编号**（一行结论）；细节与验收状态以《项目状态与路线图》三、和 git log 为准。
+
+| NT | 一行结论 |
+|---|---|
+| NT-001 | web-http 页面实装（最后一个骨架页） |
+| NT-002 | 软件包页收尾：解析器实机 + 批量队列 |
+| NT-005 | 模块热加载（`IModuleReloadService`） |
+| NT-006 | 快捷设置：可见终端运行 / 隐藏运行 / 切 shell + 导入导出 |
+| NT-007 | 设置与脚本：导入导出 + 右键编辑 / 运行如双击 |
+| NT-008 | 软件包：可升级对齐 / Pin 显示 / 详情修正 / 导入导出 |
+| NT-009 | 首页：收藏配色 + 一键操作固定底部 |
+| NT-010 | 通用样式统一（按钮 / 输入框水印 / 弹层） |
+| NT-012 | 视频预览：旋转播放按钮 + 命令卡 |
+| NT-013 | ffmpeg 卡：剪辑转码输入对齐 + 默认 H.265 / CRF23 |
+| NT-014 | 媒体资产模块骨架（项目 + 菜单 + 空页面） |
+| NT-015 | 媒体资产数据层（13 表）+ 扫描 + 任务队列 |
+| NT-016 | `assets-all` 列表页（详情 + 工具条 + 筛选） |
+| NT-018 | 标签 / 分类 / 集合三页 + 操作日志表 |
+| NT-019 | 物理操作（日志先行 / 防穿越 / 回收站）+ 任务中心 |
+| NT-020 | 存储源页 + 移动硬盘离线 / 上线校准 |
+| NT-021 | 媒体资产设置页（元数据 + 缩略图） |
+| NT-022 | 列表 JSON 导入导出 + 用户数据导出 |
+| NT-026 | 媒体资产多库融合（工作副本模型） |
+| NT-030 | 移动 / 复制 UI 入口 |
+| NT-031 | 视频类型专属列 |
+| NT-032 | 修扫描「大小 + 修改时间」识别键碰撞 |
+| NT-033 | 修多库融合重复并入产生的孤儿资产 |
+| NT-034 | 修最大化 / 分屏圆角 |
+| NT-035 | 左树一级图标矢量化 |
+| NT-037 | 左树一级展开整组滚入视野 |
+| NT-038 | 三配置档（debug / default / release） |
+| NT-039 | 窗口外框 1px + 激活 / 失焦两态 |
+| NT-041 | 清理 Win32 窗口补丁（逐处删 + 逐处回归） |
+| NT-042 | DWM 阴影与方角方案复核（`SetWindowRgn` 去留） |
+| NT-044 | 标题栏全屏按钮 + `F11` / `Esc` |
+| NT-045 | 图标实现统一：全框架矢量 `Geometry` |
+| NT-046 | 图标收尾（最小化居中 / 拼图 / 全屏改型） |
+| NT-048 | 分屏贴靠几何不收敛（**已作废**：根因是零内缩窗口，改 `FixTiledGeometry`） |
+| NT-051 | 设置页合并：主题 + 关于 → 通用 |
+| NT-052 | 「重载模块」移入功能清单页 |
+| NT-054 | 详情卡声明式三区模型 + 字段 Kind |
+| NT-055 | 工具条 Shell 声明式承载（`IToolbarSource`） |
+| NT-056 | 设置总表：路径 + 配置合并一表 |
+| NT-057 | 系统托盘增强 + 托盘图标用应用图标 |
+| NT-058 | 详情卡 `IconBar` 图标动作组 |
+| NT-059 | 「设置与脚本」改脚本索引库 |
+| NT-060 | 干净启动：空态引导，删示例数据 |
+| NT-061 | 配置下沉 `IOptionsStore` + 各模块设置页 |
+| NT-062 | 应用级设置归位 Shell（撤 `Module.Settings`） |
+| NT-063 | 控件库 `NewToys.UI` + 列表页控件化 |
+| NT-064 | 列表分页数据层（LIMIT/OFFSET + 排序下推） |
+| NT-066 | 标题栏搜索扩到全部菜单项 + 设置节 |
+| NT-067 | 信息展示页脚本化（`ScriptRunner` + manifest） |
+| NT-068 | 脚本管理器：改名 + 数据库化 + 集合 |
+| NT-069 | 跨模块文件操作契约 `IFileOperationService` |
+| NT-070 | 启动提速：模块初始化两段式（`InitializeDeferred`） |
+| NT-072 | 集合页防误删（使用中沉底 + 二次确认） |
+| NT-073 | 脚本 / 命令多库索引 + `kind` 真正生效 |
+| NT-074 | 软件包管理整套下放模块 |
+| NT-075 | 配置写入基建（`AtomicJsonFile` / 默认值不落盘） |
+| NT-076 | 单库收编（`script.db` → `newtoys.db`） |
+| NT-077 | 配置分层（env / shell / modules 三层） |
+| NT-078 | 备份路由（`IBackupSection` + zip 分节） |
+| NT-080 | 软件包定位收敛 + winget 源模型重写 |
+| NT-081 | 跨平台中立化（守卫层 / `IProcessRunner` / 解析分层） |
+| NT-082 | 软件包集合 + 集合右键发送 |
+| NT-083 | Python 运行时底座（共享 venv） |
+| NT-084 | 抓取规则两页（目录 + 规则编辑器） |
+| NT-085 | `DynamicColumnGrid` 上提 UI 库 |
+| NT-086 | 爬虫脚本面板（期①） |
+| NT-087 | 爬虫脚本下载（期②：试下载 / 批量 / next 分页） |
+| NT-088 | 执行器上提 Core（`ScriptRunner` / `InterpreterResolver`） |
+| NT-089 | 脚本中心：规则侧搬家 |
+| NT-090 | 脚本中心：运行台搬家 |
+| NT-091 | 新建 `Module.SystemTools`（命令库 + 收藏夹） |
+| NT-094 | 设置拆分与文案收尾 |
+| NT-096 | 软件包页迁入系统工具 |
+| NT-097 | 系统工具页面重构（命令库对标脚本库） |
+| NT-098 | 命令编辑增强（参数预检 / 试跑 / 播放小样） |
+| NT-099 | 转码 GIF 输出（单遍调色板） |
+| NT-100 | 字幕：软字幕封装 / 硬字幕烧入 |
+| NT-101 | 多段剪切 + 拼接（`trim`/`atrim` → `concat`） |
+| NT-102 | 画面裁剪 + 黑边探测（`cropdetect`） |
+| NT-103 | 音轨：静音 / 音量增益 / 替换 |
+| NT-104 | 按目标体积压缩（ABR 码率反算） |
+| NT-105 | 时间轴区间标记（`TimelineTrack`） |
+| NT-106 | 书签树状展开（整页单树） |
 
 
 ---

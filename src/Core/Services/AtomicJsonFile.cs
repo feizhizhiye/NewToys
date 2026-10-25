@@ -4,7 +4,7 @@ using System.IO;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// 配置文件写盘工具（NT-075）：**原子写 + 默认值不落盘**。
+/// 配置文件写盘工具：**原子写 + 默认值不落盘**。
 /// <list type="bullet">
 ///   <item><b>原子写</b>：同目录 <c>.&lt;名&gt;.&lt;guid&gt;.tmp</c> → <c>File.Move(overwrite)</c>（同卷 rename 是原子操作）。
 ///     进程崩溃 / 断电只会留下临时文件，⛔ 不会得到半截正式文件（旧的 <c>File.WriteAllText</c> 会）。</item>

@@ -17,23 +17,23 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-// v3.66 / NT-069：Core 里也有一个 FileOperationService（纯磁盘动作，跨模块共用）。
+// v3.66：Core 里也有一个 FileOperationService（纯磁盘动作，跨模块共用）。
 // 本页用的是**带库表日志**的模块版，显式取别名，免得两个 using 撞名（CS0104）。
 using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
-/// 「全部资产」页（NT-016）—— 本模块的**样板列表页**：标签 / 集合 / 存储源 / 任务 / 回收站页都照这个
+/// 「全部资产」页—— 本模块的**样板列表页**：标签 / 集合 / 存储源 / 任务 / 回收站页都照这个
 /// 模式复刻（列显隐 / 排序 / 筛选由基类承载，详情面板由 **Shell** 承载）。
 /// <para>
-/// 🔴 v3.69 / NT-063 P2：5 个类型页（视频 / 音乐 / 书籍 / 图片 / 文档）已**合并进本页** ——
+/// 🔴 v3.69：5 个类型页（视频 / 音乐 / 书籍 / 图片 / 文档）已**合并进本页** ——
 /// 由筛选栏的**类型控件**驱动列表数据 / 列集合 / 详情卡字段集 / 状态栏前缀（需求 §6.6「类型切换」）。
 /// </para>
 /// <para>
 /// 三个要点：
 /// <list type="number">
-///   <item>本页是**索引视图**：显示名这类逻辑改动直接改库；**重命名 / 移动 / 删除磁盘文件归 NT-019**，一个都不做。</item>
+///   <item>本页是**索引视图**：显示名这类逻辑改动直接改库；**重命名 / 移动 / 删除磁盘文件**由文件操作服务负责，本页一个都不做。</item>
 ///   <item>详情面板实现 <see cref="IDetailPanelProvider"/>，<see cref="DetailContent"/> 返回 <c>AssetDetailView</c>
 ///        → 页面 XAML 里 **⛔ 不再自带右栏**（否则会出现两个详情卡）。</item>
 ///   <item>列键与行模型属性名**不一致**的列，必须在 <see cref="FieldText"/> 里显式映射 ——
@@ -76,7 +76,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>当前选中资产的**全部文件位置**（详情卡列出；一个资产可能有多份拷贝）。</summary>
     public ObservableCollection<FileLocation> Locations { get; } = new();
 
-    // ===== NT-030：移动 / 复制目标存储源（防穿越由 FileOperationService 保证） =====
+    // ===== 移动 / 复制目标存储源（防穿越由 FileOperationService 保证） =====
     public ObservableCollection<StorageSource> TargetStorages { get; } = new();
     [ObservableProperty] private long _selectedTargetStorageId;
 
@@ -110,7 +110,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [ObservableProperty] private string _modifiedHeader = "修改时间";
     [ObservableProperty] private string _storageHeader = "存储源";
 
-    // NT-031：视频专属列表头（带排序箭头）
+    // 视频专属列表头（带排序箭头）
     [ObservableProperty] private string _durationHeader = "时长";
     [ObservableProperty] private string _resolutionHeader = "分辨率";
     [ObservableProperty] private string _codecHeader = "编码";
@@ -129,7 +129,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsStorageVisible => Vis("Storage");
 
-    // NT-031：视频专属列可见性（默认隐藏，仅视频页开启）
+    // 视频专属列可见性（默认隐藏，仅视频页开启）
     public bool IsDurationVisible => Vis("Duration");
     public bool IsResolutionVisible => Vis("Resolution");
     public bool IsCodecVisible => Vis("Codec");
@@ -138,7 +138,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // 🔴 v3.34 / NT-018：首列 = **勾选列**（Pick）——
+        // 🔴 v3.34：首列 = **勾选列**（Pick）——
         //    加了首列后，表头 / 行模板里**所有 Grid.Column 索引都要 +1**（⛔ 别漏一处）。
         new("Pick", "", "34", sortable: false),
         // Sample 要给"典型内容宽度"（v3.22）：示例宽 ≤ 表头宽的列会被锁成表头宽、不可拖
@@ -151,7 +151,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         new("Modified", "修改时间", "1.3*", sample: "2026-10-13 21:04"),
         new("Storage", "存储源", "1.2*", sample: "移动硬盘 D"),
 
-        // 🔴 NT-031：视频专属列（试点）—— 默认隐藏；v3.69 起由**筛选类型**驱动
+        // 🔴 视频专属列（试点）—— 默认隐藏；v3.69 起由**筛选类型**驱动
         //    （选「视频」时可见，⛔ 不落盘；用户右键改过的偏好优先，见 ApplyTypeColumnDefaults）。
         //    键名 ≠ 属性名（Duration→DurationText），已在 FieldText / SortColumn 显式映射。
         new("Duration", "时长", "0.9*", sample: "02:14:33"),
@@ -159,7 +159,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         new("Codec", "编码", "0.9*", sample: "h264")
     };
 
-    /// <summary>NT-064：基类的翻页 / 排序 / 筛选变化都转到这里 —— 库态按新状态重取一页，草稿态内存重算。</summary>
+    /// <summary>基类的翻页 / 排序 / 筛选变化都转到这里 —— 库态按新状态重取一页，草稿态内存重算。</summary>
     protected override void RefreshView()
     {
         if (IsDraft) { ApplyViewMemory(); return; }
@@ -209,15 +209,15 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;
-    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
     public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
-    // ==================== NT-022：列表 JSON 导入 / 导出 ====================
+    // ==================== 列表 JSON 导入 / 导出 ====================
 
     /// <summary>
     /// 📤 导出**当前列表**（<c>_all</c>，即当前模式的全量、⛔ 不含筛选后的可见集）为 JSON 文本。
     /// 组织信息（标签 / 分类 / 集合）按**名字**导出（⛔ 不存内部 id）——换机 / 合并都能用。
-    /// <para>⚠️ NT-064 起库态 <c>_all</c> = **当前页**（分页批量口径统一为当前页）⇒ 导出即当前页。</para>
+    /// <para>⚠️ 库态 <c>_all</c> = **当前页**（分页批量口径统一为当前页）⇒ 导出即当前页。</para>
     /// </summary>
     public string ExportAssetsJson()
     {
@@ -225,7 +225,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         return _impExp.Export(_all, scope);
     }
 
-    // ==================== NT-026：多库融合（并库 / 另存 / 勾选删除） ====================
+    // ==================== 多库融合（并库 / 另存 / 勾选删除） ====================
 
     /// <summary>
     /// 「🗄 合并库文件」：预览 → 确认摘要 → 合并进主库（走任务队列，进度在「任务中心」看）。
@@ -309,7 +309,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 「🗑 移入回收站（选中 N）」：NT-026 的"减"——勾选行批量软删除（进回收站可恢复；⛔ 不动磁盘）。
+    /// 「🗑 移入回收站（选中 N）」：的"减"——勾选行批量软删除（进回收站可恢复；⛔ 不动磁盘）。
     /// </summary>
     [RelayCommand]
     private async Task TrashCheckedAsync()
@@ -369,14 +369,14 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         Reload();                           // 存储源 / 标签下拉要读库 → 放在读库之后
         LoadDetail(null);
 
-        _booted = true;                     // NT-064：ctor 期间的筛选默认值不触发重取（Reload 已统一加载）
+        _booted = true;                     // ctor 期间的筛选默认值不触发重取（Reload 已统一加载）
         StatusText = StatusSummary();
     }
 
-    /// <summary>NT-064：构造期卫哨 —— BuildStaticOptions 设的筛选默认值⛔不各触发一次全页重取。</summary>
+    /// <summary>构造期卫哨 —— BuildStaticOptions 设的筛选默认值⛔不各触发一次全页重取。</summary>
     private bool _booted;
 
-    // ==================== v3.69：类型切换（NT-063 P2，取代原「类型页薄壳」）====================
+    // ==================== v3.69：类型切换（取代原「类型页薄壳」）====================
 
     /// <summary>
     /// 状态栏前缀**随筛选类型切换**（v3.69，需求 §6.6「类型切换」）：视频：/ 音乐：/ 书籍：/ 图片：/ 文档：；
@@ -421,15 +421,15 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         foreach (var k in _columnLayout.LoadPage(PageKey).Keys) _userColumnKeys.Add(k);
     }
 
-    /// <summary>一次读库的最大行数（v3.34）：NT-064 分页后本页不再整表读，
+    /// <summary>一次读库的最大行数（v3.34）：分页后本页不再整表读，
     /// 该上限仅剩同模块其它页（回收站 / 分类 / 集合）在用。</summary>
     public const int QueryLimit = 2000;
 
-    /// <summary>NT-064：本页为分页样板页 —— 库模式走 SQL 侧筛/排/分页（⛔ 不再整表入内存）。</summary>
+    /// <summary>本页为分页样板页 —— 库模式走 SQL 侧筛/排/分页（⛔ 不再整表入内存）。</summary>
     protected override bool PagingEnabled => true;
 
     /// <summary>
-    /// NT-064：草稿态同样分页 —— 2026-10-16 用户定：**扫描预览也要能翻页 + 显示底栏跳转链**。
+    /// 草稿态同样分页 —— 2026-10-16 用户定：**扫描预览也要能翻页 + 显示底栏跳转链**。
     /// ⛔ 因此不再 override <c>IsPagingSuspended</c>（基类默认 false = 不挂起）：
     /// 草稿态在 <see cref="ApplyViewMemory"/> 里用 LINQ 的 Skip/Take 做**内存切片**（比 SQL 更简单）。
     /// </summary>
@@ -463,7 +463,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// NT-064：按当前筛选 / 排序 / 分页状态从库里取一页。
+    /// 按当前筛选 / 排序 / 分页状态从库里取一页。
     /// 🔴 计数与列表传**同一个** <see cref="AssetQuery"/>（WHERE 只在 SQL 侧写一份）⇒ 总数与列表永不错位。
     /// </summary>
     private void LoadPageFromDb()
@@ -501,7 +501,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [ObservableProperty] private bool _isDraft;
 
     /// <summary>
-    /// NT-064：草稿态⇄库态切换 ⇒ <see cref="ListPageViewModelBase.IsPagingSuspended"/> 变了，
+    /// 草稿态⇄库态切换 ⇒ <see cref="ListPageViewModelBase.IsPagingSuspended"/> 变了，
     /// 底栏显隐（HasFooterContent）/ 页码跳组（HasPaging）必须重算 —— ⛔ 没有这一跳，
     /// 「扫描预览（挂起不显示）→ 加入库 / 清除（恢复分页）」后底栏显隐停在旧值。
     /// </summary>
@@ -513,7 +513,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// NT-064：宿主页挂载时强制重算一次底栏显隐 —— 兜住「View 绑定建立早于 VM 数据就绪」
+    /// 宿主页挂载时强制重算一次底栏显隐 —— 兜住「View 绑定建立早于 VM 数据就绪」
     /// 的时序漏推（绑定求值一次后若无属性变更事件，底栏显隐会停在旧值）。
     /// </summary>
     public void RefreshFooterVisibility()
@@ -609,7 +609,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         AddRows(rows);
         Selected = null;
         IsDraft = true;
-        TotalCount = rows.Count;   // NT-064：草稿态总数 = 预览行数（分页挂起，⛔ 不走 SQL）
+        TotalCount = rows.Count;   // 草稿态总数 = 预览行数（分页挂起，⛔ 不走 SQL）
         ApplyView();
     }
 
@@ -796,7 +796,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         finally { IsBusy = false; }
     }
 
-    // ==================== v3.34 / NT-018：勾选列 + 批量逻辑操作 ====================
+    // ==================== v3.34：勾选列 + 批量逻辑操作 ====================
 
     /// <summary>
     /// 行被勾了几条（工具条「🏷 加标签」「📚 加集合」按它操作）。
@@ -932,7 +932,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             : $"已把 {n} 个资产加进集合「{name.Trim()}」。";
     }
 
-    // ==================== v3.34 / NT-018：详情卡编辑（显示名 / 评分 / 描述 / 标签 / 分类 / 集合） ====================
+    // ==================== v3.34：详情卡编辑（显示名 / 评分 / 描述 / 标签 / 分类 / 集合） ====================
 
     /// <summary>详情卡的标签色片（点一下即选；「💾 保存」统一落库）。</summary>
     public ObservableCollection<PickItem> TagPicks { get; } = new();
@@ -943,7 +943,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>详情卡的集合色片。</summary>
     public ObservableCollection<PickItem> CollectionPicks { get; } = new();
 
-    // ===== NT-058：评分改成「一排 1~5 小按钮」（点一下即生效并落盘，与图标组同一口径） =====
+    // ===== 评分改成「一排 1~5 小按钮」（点一下即生效并落盘，与图标组同一口径） =====
 
     /// <summary>评分可点按钮（1~5；<see cref="PickItem.Id"/> 就是分值）。</summary>
     public ObservableCollection<PickItem> RatingPicks { get; } = new();
@@ -959,7 +959,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     [ObservableProperty] private int _editRating;
 
-    // ===== NT-058：状态改**单选下拉**（预设三档；索引 ↔ 状态 key 的映射只在这里） =====
+    // ===== 状态改**单选下拉**（预设三档；索引 ↔ 状态 key 的映射只在这里） =====
 
     /// <summary>状态下拉的显示文案（顺序 = <see cref="StatusKeys"/>）。</summary>
     public string[] StatusChoices { get; } = { "正常", "已归档", "文件缺失" };
@@ -991,7 +991,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [RelayCommand]
     private void ToggleCollection(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
 
-    // ===== NT-058：详情卡**图标动作组**（收藏 / 评分 ±1 / 保存 / 刷新 / 删除） =====
+    // ===== 详情卡**图标动作组**（收藏 / 评分 ±1 / 保存 / 刷新 / 删除） =====
     // 🔴 与「💾 保存」的分工：收藏 / 评分是**单项即时生效即落盘**（点一下就写库，⛔ 不用再点保存）；
     //    显示名 / 描述 / 标签 / 分类 / 集合仍是**编辑态 + 显式保存**（多字段表单）。
 
@@ -1060,7 +1060,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (target.Id <= 0) return;   // 未入库（Id<=0）：不给色片
 
         var tagIds = _tagSvc.ListTagIdsOfAsset(target.Id);
-        // NT-058：标签**按命名空间分组**显示 ⇒ 先按 ns 排序（分组靠"键连续"，乱序会拆出很多组）
+        // 标签**按命名空间分组**显示 ⇒ 先按 ns 排序（分组靠"键连续"，乱序会拆出很多组）
         foreach (var t in _tagSvc.List().OrderBy(t => t.Namespace ?? "").ThenBy(t => t.Name, StringComparer.CurrentCulture))
             TagPicks.Add(new PickItem(t.Id, t.Name, t.ChipBrush, tagIds.Contains(t.Id), t.Namespace));
 
@@ -1081,7 +1081,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     /// <summary>
     /// 详情卡「💾 保存」：一次把**显示名 / 评分 / 描述 / 标签 / 分类 / 集合**全部落库，并写一条 `operation_logs`。
-    /// ⛔ 不动磁盘文件（物理重命名是 NT-019 的「↗ 应用到文件」）。
+    /// ⛔ 不动磁盘文件（物理重命名是 的「↗ 应用到文件」）。
     /// </summary>
     [RelayCommand]
     private void SaveAssetDetail()
@@ -1118,12 +1118,12 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _opLog.Log("display_name", "asset", row.Id, beforeJson: before,
             afterJson: $"{{\"name\":\"{row.Name}\",\"rating\":{EditRating},\"tags\":{tagIds.Count},\"categories\":{catIds.Count},\"collections\":{colIds.Count}}}");
 
-        RefreshView();   // NT-064：标签/分类/集合变了 ⇒ 按当前筛重排重取（选中项按 Id 认领，⛔ 不跳走）
+        RefreshView();   // 标签/分类/集合变了 ⇒ 按当前筛重排重取（选中项按 Id 认领，⛔ 不跳走）
         StatusText = $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。";
     }
 
     /// <summary>
-    /// 详情卡「↗ 应用到文件」（NT-019）：⚠️ 与「💾 保存」完全不同 ——
+    /// 详情卡「↗ 应用到文件」：⚠️ 与「💾 保存」完全不同 ——
     /// 「保存」只写**库里的显示名**（⛔ 不动磁盘）；这个才是**把名字真写到磁盘文件上**。
     /// <para>物理操作 → 走任务队列 + 日志先行；同名冲突按「追加序号」处理（⛔ 不覆盖，覆盖会丢文件）。</para>
     /// </summary>
@@ -1178,7 +1178,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 列表右键「⛔ 从磁盘删除」（NT-058）：**本程序唯一**直接删磁盘文件的入口。
+    /// 列表右键「⛔ 从磁盘删除」：**本程序唯一**直接删磁盘文件的入口。
     /// <para>
     /// 🔴 三重防误触（这是索引库里**破坏性最大**的操作，故意把点击成本做高）：
     /// ① 不进详情卡 / 不上工具条，**只在行右键菜单里**；② 二次确认（文案写明"不进回收站、不可还原"）；
@@ -1218,7 +1218,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = $"已把「{name}」的永久删除排进任务队列（进度看「任务中心」）。";
     }
 
-    // ==================== NT-030：移动 / 复制（目标 = 已登记存储源根；防穿越由 FileOperationService 保证） ====================
+    // ==================== 移动 / 复制（目标 = 已登记存储源根；防穿越由 FileOperationService 保证） ====================
 
     private FileLocation? PrimaryLocationOf(AssetRow row)
         => _assets.FindPrimaryLocation(row.Id) ?? _assets.ListLocations(row.Id).FirstOrDefault();
@@ -1275,7 +1275,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = $"已把复制排进任务队列（进度看「任务中心」）。";
     }
 
-    // ==================== 跨页取件（NT-018：标签 / 分类页点资产 → 跳到这里并选中） ====================
+    // ==================== 跨页取件（标签 / 分类页点资产 → 跳到这里并选中） ====================
 
     /// <summary>
     /// 取件点（由 View 在 <c>OnAttachedToVisualTree</c> 调 —— 🔴 **不是** `OnDataContextChanged`，规范 §4.8 硬规则 8）：
@@ -1308,13 +1308,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（NT-054 迁移：原来的 <c>AssetDetailView</c> 已停用）。</summary>
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（迁移：原来的 <c>AssetDetailView</c> 已停用）。</summary>
     public object? DetailContent => null;
 
     private DetailCardDescriptor? _card;
 
     /// <summary>
-    /// 本页详情卡描述符（NT-054 / 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// 本页详情卡描述符（/ 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
     /// <para>结构与迁移前的 <c>AssetDetailView</c> 1:1 对应；三组 chips 带**色块**（`ChipBrushPath`）、
     /// 目标是「编辑 + 保存」这套卡内动作。</para>
     /// </summary>
@@ -1358,7 +1358,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Kind = FieldKind.Text,
                         Selectable = true
                     },
-                    // ===== v3.69 / NT-063 P2：视频专属字段（仅筛选类型 = 视频时显示；列同理）=====
+                    // ===== v3.69：视频专属字段（仅筛选类型 = 视频时显示；列同理）=====
                     new DetailField
                     {
                         Label = "时长",
@@ -1383,8 +1383,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Selectable = true,
                         VisibleWhen = nameof(IsVideoType)
                     },
-                    // ⛔ 已删：原「重命名 / 移动 / 复制 / 删除磁盘文件在 NT-019 落地」这句提示 —— 那些操作早已落地，
-                    //    提示留着只是噪声（NT-058 样板：固定项区只留**事实**，不放实现进度）。
+                    // ⛔ 已删：原「重命名 / 移动 / 复制 / 删除磁盘文件在 落地」这句提示 —— 那些操作早已落地，
+                    //    提示留着只是噪声（样板：固定项区只留**事实**，不放实现进度）。
                     // ===== 三组 chips（标签 / 分类 / 集合）：点一下打上 / 取消，每项带一个颜色块 =====
                     new DetailField
                     {
@@ -1435,7 +1435,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Hint = "（还没有集合：到「集合管理」页新建）",
                         VisibleWhen = "!" + nameof(HasCollectionPicks)
                     },
-                    // ===== NT-058 样板顺序：**固定只读项 → 标签 / 分类 / 集合 → 动作按钮组 → 评分 → 描述** =====
+                    // ===== 样板顺序：**固定只读项 → 标签 / 分类 / 集合 → 动作按钮组 → 评分 → 描述** =====
                     // ===== 图标动作组（高频动作收成一行，替掉原来一排撑满宽度的文字按钮） =====
                     new DetailField
                     {
@@ -1510,7 +1510,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Rows = 52,
                         Placeholder = "随手记点什么（可留空）"
                     },
-                    // ⛔ 原「移动到 / 复制到（目标存储源）」整块已删（NT-058）：
+                    // ⛔ 原「移动到 / 复制到（目标存储源）」整块已删：
                     //    这两个是**低频的重操作**，详情卡样板只留「查看 + 改元数据」，不再摆两个物理量操作入口。
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
@@ -1528,7 +1528,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         VisibleWhen = "!" + nameof(HasRelations)
                     },
                     // ⛔ 原「文件位置」List 已删：它与上面的「文件路径」是同一份信息（磁盘路径），
-                    //    只读展示一次就够（NT-058 详情卡样板：去重 + 直接读取的信息一律只读）。
+                    //    只读展示一次就够（详情卡样板：去重 + 直接读取的信息一律只读）。
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
@@ -1539,7 +1539,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "操作日志（谁在什么时候改了什么）随 NT-018 / NT-019 一起落地，届时会在这里给出入口。"
+                        Hint = "操作日志（谁在什么时候改了什么）的入口会在这里给出。"
                     },
                     // ===== 卡底部：改名输入框（⛔ 只改库里的显示名；真改磁盘文件名走下面的「应用到文件」） =====
                     new DetailField { Kind = FieldKind.Divider },
@@ -1556,7 +1556,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         },
         Actions =
         {
-            // ⛔ 「💾 保存」「🗑 移入回收站」已上提到**顶部图标动作组**（NT-058），这里不再重复。
+            // ⛔ 「💾 保存」「🗑 移入回收站」已上提到**顶部图标动作组**，这里不再重复。
             new DetailAction
             {
                 Text = "↗ 应用到文件",
@@ -1565,7 +1565,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = ApplyToFileCommand
             },
-            // ⛔ 「📁 移动到此源」「📋 复制到此源」已删（NT-058）：物理搬运归任务中心 / 后续入口，
+            // ⛔ 「📁 移动到此源」「📋 复制到此源」已删：物理搬运归任务中心 / 后续入口，
             //    详情卡样板只保留「↗ 应用到文件」这一个**写磁盘**的显式动作。
         }
     };
@@ -1635,7 +1635,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     /// <summary>
     /// 保存显示名（详情卡改名框**失焦**时由 View 调）：只写 <c>display_name</c>，
-    /// ⛔ **绝不动磁盘文件名**（物理改名是显式操作，归 NT-019）。
+    /// ⛔ **绝不动磁盘文件名**（物理改名是显式操作，由文件操作服务负责）。
     /// </summary>
     [RelayCommand]
     private void SaveDisplayName()
@@ -1648,7 +1648,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         Selected.DisplayName = name.Length == 0 ? null : name;
         Selected.Name = name.Length == 0 ? (Selected.Title ?? $"资产 #{Selected.Id}") : name;
 
-        RefreshView();   // NT-064：显示名变了 ⇒ 按当前排序重取（选中项按 Id 认领，⛔ 不跳走）
+        RefreshView();   // 显示名变了 ⇒ 按当前排序重取（选中项按 Id 认领，⛔ 不跳走）
         StatusText = name.Length == 0
             ? "已清除显示名（回退到标题）。"
             : $"已把显示名改为「{name}」（⛔ 未动磁盘文件）。";
@@ -1686,7 +1686,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         var keep = FilterTag?.Value ?? "";
         TagOptions.Clear();
         TagOptions.Add(new FilterOption("全部标签", ""));
-        // NT-018 之前标签表是空的 → 下拉只有「全部标签」，属预期（⛔ 不是 bug）
+        // 之前标签表是空的 → 下拉只有「全部标签」，属预期（⛔ 不是 bug）
         foreach (var (id, name) in _assets.ListTagOptions())
             TagOptions.Add(new FilterOption(name, id.ToString(CultureInfo.InvariantCulture)));
         FilterTag = TagOptions.FirstOrDefault(o => o.Value == keep) ?? TagOptions[0];
@@ -1709,7 +1709,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         ApplyTypeColumnDefaults();               // v3.69：列集合随类型切换（⛔ 不落盘、不覆盖用户偏好）
         OnPropertyChanged(nameof(IsVideoType));  // v3.69：详情卡字段集随类型切换（VisibleWhen 重解析）
-        if (_booted) ResetToFirstPage();         // NT-064：筛选变了回第一页（库态 ⇒ 重取一页）
+        if (_booted) ResetToFirstPage();         // 筛选变了回第一页（库态 ⇒ 重取一页）
         StatusText = StatusSummary();            // v3.69：状态栏前缀随类型切换
     }
     partial void OnFilterStorageChanged(FilterOption? value)
@@ -1725,13 +1725,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (_booted) ResetToFirstPage();
     }
 
-    // ==================== 工具条「⋯ 更多」开合（v3.41 / 用户定调） ====================
+    // ==================== 工具条「⋯ 更多」开合（v3.41：用户定调） ====================
 
-    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+    // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================
     // 🔴 v3.53：本页工具条改由 **Shell 的 ToolbarHost 统一渲染**（折叠 / 「⋯」/ 详情开关浮层都在那边实现），
     //    页内 `Border.toolbar` 与原来的 `ApplyToolbarLayout()` / `IsToolbarExpanded` 一并删除。
     //    顺序 = 优先级顺序（越靠前越不会被折进「⋯」）。
-    // ⚠️ v3.69 起 5 个类型薄壳页已合并（NT-063 P2）⇒ 本工具条只服务「全部资产」一页。
+    // ⚠️ v3.69 起 5 个类型薄壳页已合并⇒ 本工具条只服务「全部资产」一页。
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
@@ -1901,7 +1901,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     private void ApplyView()
     {
-        // NT-064：草稿态（扫描预览）走内存路径；库态 _all 即当前页（SQL 已筛/排过分）⇒ 直接渲染
+        // 草稿态（扫描预览）走内存路径；库态 _all 即当前页（SQL 已筛/排过分）⇒ 直接渲染
         if (IsDraft) { ApplyViewMemory(); return; }
 
         Items.Clear();
@@ -1970,7 +1970,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         var ordered = q.ToList();
 
-        // 🔴 NT-064（2026-10-16 用户定：草稿态跟随分页）：**内存侧** Skip/Take 切片
+        // 🔴 （2026-10-16 用户定：草稿态跟随分页）：**内存侧** Skip/Take 切片
         //    —— 上面的筛选 / 排序已经做完，这里切出来的就是「当前页」。
         //    ⛔ TotalCount 必须是**筛选后**的总数（不能用 Items.Count = 当页行数，否则「共 N 页」永远是 1）。
         //    PageSize = AllPageSize（下拉选「全部」）⇒ 不分片，等于不分页。

@@ -17,7 +17,7 @@ public partial class VideoBatchView : UserControl
         InitializeComponent();
 
         // 平台文件选择器只能在 View 层用（VM 不引 Avalonia），选完把结果交给 VM
-        // ⚠️ NT-054：原来卡片里那个内联「📂」按钮（PickOutputBtn）随页内卡一起删了 ——
+        // ⚠️ 原来卡片里那个内联「📂」按钮（PickOutputBtn）随页内卡一起删了 ——
         //    现在它是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
         // v3.20 §6.4.15：拖动表头列边界 → VM 改「手动列宽」→ 表头与所有行同规格重建
         HeaderGrid.ColumnResize += (_, e) =>
@@ -45,7 +45,7 @@ public partial class VideoBatchView : UserControl
         // v3.16.1：菜单挪到 HeaderCheckHost（透明 Border = 整格热区）上。
         if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
 
-        // NT-054：把「📂 选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
+        // 把「📂 选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
         // 每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
         if (DataContext is VideoBatchViewModel vmb)
         {
@@ -97,7 +97,7 @@ public partial class VideoBatchView : UserControl
         }
     }
 
-    /// <summary>📝 为当前选中任务挑一个字幕文件（.srt / .ass；NT-100）。</summary>
+    /// <summary>📝 为当前选中任务挑一个字幕文件（.srt / .ass）。</summary>
     private async System.Threading.Tasks.Task PickSubtitleAsync()
     {
         if (DataContext is not VideoBatchViewModel vm) return;
@@ -133,7 +133,7 @@ public partial class VideoBatchView : UserControl
         }
     }
 
-    /// <summary>🎵 为当前选中任务挑替换用的音频文件（NT-103）。</summary>
+    /// <summary>🎵 为当前选中任务挑替换用的音频文件。</summary>
     private async System.Threading.Tasks.Task PickAudioAsync()
     {
         if (DataContext is not VideoBatchViewModel vm) return;

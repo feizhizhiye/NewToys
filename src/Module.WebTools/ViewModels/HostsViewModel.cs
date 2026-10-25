@@ -20,7 +20,7 @@ namespace NewToys.WebTools.ViewModels;
 /// </summary>
 public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
-    // ==================== 声明式工具条（NT-055 / 需求 §4.8.5） ====================
+    // ==================== 声明式工具条（/ 需求 §4.8.5） ====================
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
         new() { Text = "🌐 导入", CommandPath = nameof(ImportCommand), IsEnabledPath = "!" + nameof(IsBusy),
@@ -84,7 +84,7 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;
-    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+    // ==================== 详情面板 + 声明式详情卡（的 L2 迁移页，需求 §4.5.1） ====================
 
     /// <summary>无权限写系统 hosts 时给出的可复制受管块是否非空（原 XAML 用 <c>ObjectConverters.IsNotNull</c>，描述符只认布尔路径）。</summary>
     public bool HasBlockPreview => !string.IsNullOrWhiteSpace(BlockPreview);

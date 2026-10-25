@@ -10,7 +10,7 @@ using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <b>数据节 · 脚本实体文件</b>（NT-078 批次 C）：脚本管理器采集的 <c>.ps1 / .py / …</c> 本体。
+/// <b>数据节 · 脚本实体文件</b>（批次 C）：脚本管理器采集的 <c>.ps1 / .py / …</c> 本体。
 /// <para>
 /// 🔴 为什么由**本模块**注册：脚本目录 = 「默认脚本目录（`IQuickActionService.ScriptsDirectory`）+
 /// 各库的 <c>RootPath</c>」两段解析，这段知识只有脚本管理器有；框架层（Shell）⛔ 不引模块，

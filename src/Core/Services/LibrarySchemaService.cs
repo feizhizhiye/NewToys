@@ -7,7 +7,7 @@ using System.Text;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// 总库建表的**唯一入口**（NT-076）：容器里所有 <see cref="NewToys.Shared.Services.ILibrarySchemaContributor"/>
+/// 总库建表的**唯一入口**：容器里所有 <see cref="NewToys.Shared.Services.ILibrarySchemaContributor"/>
 /// 按 <c>ModuleKey</c> 排序依次建表，并把每个模块的 schema 版本写进 <c>meta</c>（键 <c>schema.&lt;模块键&gt;</c>）。
 /// <para>
 /// 调用时机：`ModuleLoader.InitializeAllDeferred` 的**第一步**（首帧之后、各模块重活之前）——
@@ -18,7 +18,7 @@ namespace NewToys.Core.Services;
 /// **不回写版本号**，只记 <see cref="AheadModules"/>，由调用方决定是否提示。
 /// </para>
 /// <para>
-/// NT-076 第二批补充：**任何模块的 schema 要升级前先 <c>VACUUM INTO</c> 快照**（<c>data\backups\</c>），
+/// 补充：**任何模块的 schema 要升级前先 <c>VACUUM INTO</c> 快照**（<c>data\backups\</c>），
 /// 失败写 <c>logs\migrate-*.log</c>（不可逆操作必须留证据；WAL 下不能靠拷 .db 当备份）。
 /// </para>
 /// </summary>

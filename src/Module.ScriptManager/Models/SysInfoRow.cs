@@ -6,7 +6,7 @@ namespace NewToys.ScriptManager.Models;
 
 /// <summary>
 /// 采集状态（节头 / 行）：<c>ok</c> / <c>warn</c> / <c>error</c> / <c>idle</c>。
-/// <para>NT-068 起<b>着色</b>（节头状态点），配色走主题语义键：ok=AccentBrush / warn=CardSelectedTextBrush / error=DangerBrush / idle=SecondaryTextBrush。</para>
+/// <para><b>着色</b>（节头状态点），配色走主题语义键：ok=AccentBrush / warn=CardSelectedTextBrush / error=DangerBrush / idle=SecondaryTextBrush。</para>
 /// </summary>
 public static class SysInfoStatus
 {
@@ -41,7 +41,7 @@ public static class SysInfoStatus
 
 /// <summary>
 /// 信息面板里的一行：某采集器某个 <c>row_key</c> 的一组属性值。
-/// <para>🔴 单元格模型 <see cref="SysInfoCell"/> / <see cref="SysInfoHeaderCell"/> 已随 NT-085 上提
+/// <para>🔴 单元格模型 <see cref="SysInfoCell"/> / <see cref="SysInfoHeaderCell"/> 已随 
 /// <c>NewToys.UI.Controls</c>（<see cref="DynamicColumnGrid"/> 同文件），本模块只留行模型。</para>
 /// </summary>
 public sealed partial class SysInfoRow : ObservableObject

@@ -5,7 +5,7 @@ using System.Windows.Input;
 namespace NewToys.Shared.Details;
 
 /// <summary>
-/// 字段 Kind（**11 种**，需求 §4.5.1 / NT-054；2026-10-19 增 <see cref="EditableList"/>；2026-10-24 增 <see cref="Pair"/>）。
+/// 字段 Kind（**11 种**，需求 §4.5.1；2026-10-19 增 <see cref="EditableList"/>；2026-10-24 增 <see cref="Pair"/>）。
 /// <para>
 /// 🔴 **加新 Kind 是「加法」**：新需求优先用「现有 Kind + 修饰位」表达；确实需要新交互时才加一个枚举值
 /// （配一个 <c>DataTemplate</c>），不影响既有卡。
@@ -56,7 +56,7 @@ public enum FieldKind
     List,
 
     /// <summary>
-    /// **图标动作组**（NT-058）：一行方形小图标按钮（32×32），给「收藏 / 点赞 / 点踩 / 保存 / 刷新 / 删除」
+    /// **图标动作组**：一行方形小图标按钮（32×32），给「收藏 / 点赞 / 点踩 / 保存 / 刷新 / 删除」
     /// 这类**高频、语义靠图标就够**的动作用，替掉一排撑满宽度的文字按钮。
     /// <para>
     /// 成员见 <see cref="DetailField.IconActions"/>（列表 → 顺序即渲染顺序、数量不限、可出现多次）；
@@ -100,7 +100,7 @@ public enum EditCommitMode
 }
 
 /// <summary>
-/// 详情卡描述符（NT-054）：**声明式**描述一张详情卡的「三区模型」= <see cref="Sections"/>（Fields 区）
+/// 详情卡描述符：**声明式**描述一张详情卡的「三区模型」= <see cref="Sections"/>（Fields 区）
 /// + <see cref="Actions"/>（动作区）+ <see cref="Custom"/>（逃生舱）。
 /// <para>
 /// 🔴 走 **C# 对象字面量**声明（⛔ 不做运行时 JSON / XAML 加载）—— 享受编译期检查 + IDE 补全。
@@ -279,12 +279,12 @@ public sealed class DetailField
     public string? ChipToolTipPath { get; set; }
 
     /// <summary>
-    /// chip **分组**的路径（相对候选项，如标签的 <c>"Namespace"</c>；NT-058）。
+    /// chip **分组**的路径（相对候选项，如标签的 <c>"Namespace"</c>）。
     /// <para>非空 = 按这个键**分组显示**（每组一个小标题 + 一组 chips，空键归到「其它」）；null = 一大排不分组。</para>
     /// </summary>
     public string? ChipGroupPath { get; set; }
 
-    // ===== IconBar 专用（NT-058：一行图标动作） =====
+    // ===== IconBar 专用（一行图标动作） =====
 
     /// <summary>
     /// 图标动作组（<see cref="FieldKind.IconBar"/> 专用）：**顺序即渲染顺序**、数量不限、溢出自动换行。
@@ -319,7 +319,7 @@ public sealed class DetailField
 }
 
 /// <summary>
-/// 图标动作组（<see cref="FieldKind.IconBar"/>）里的**一个图标按钮**（NT-058）。
+/// 图标动作组（<see cref="FieldKind.IconBar"/>）里的**一个图标按钮**。
 /// <para>
 /// 🔴 全部走**路径字符串**（相对卡片 DataContext = 页面 VM），由 Shell 渲染层解析成强类型属性 —— 与
 /// <see cref="DetailAction"/> 同一口径（其余 Kind 的路径也是这么解析的）。

@@ -6,7 +6,7 @@ using Avalonia.Platform.Storage;
 namespace NewToys.ScriptManager.Views;
 
 /// <summary>
-/// 抓取规则 · 规则目录页（NT-084 批 A/B；页 Key 仍为 <c>web-scrape</c>）。
+/// 抓取规则 · 规则目录页（/B；页 Key 仍为 <c>web-scrape</c>）。
 /// </summary>
 public partial class RuleCatalogView : UserControl
 {
@@ -19,7 +19,7 @@ public partial class RuleCatalogView : UserControl
         if (RuleSetList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
 
-        // NT-086 批 G：把「另存为」选择器注入 VM（VM ⛔ 不直接碰 StorageProvider）
+        // 把「另存为」选择器注入 VM（VM ⛔ 不直接碰 StorageProvider）
         if (DataContext is ViewModels.RuleCatalogViewModel vm)
             vm.PickSaveFile = PickSaveFileAsync;
     }

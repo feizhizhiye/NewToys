@@ -19,22 +19,22 @@ namespace NewToys.Shared.Services
         string PlayerPath { get; set; }
 
         /// <summary>
-        /// 🔴 v3.64 / NT-061：**已下沉到「视频工具」模块设置**（<c>config\video-tools.json</c> 的 <c>maxConcurrency</c>，
+        /// 🔴 v3.64：**已下沉到「视频工具」模块设置**（<c>config\video-tools.json</c> 的 <c>maxConcurrency</c>，
         /// 唯一写入点 =「设置 → 视频工具设置」页）。这里**只为一次性迁移保留读取**（`VideoToolsSettingsService`
         /// 首次运行会搬过去），搬完即不再读写。
         /// </summary>
         int MaxConcurrency { get; set; }
-        // v3.65 / NT-062：GpuAcceleration 已删除（无消费方）。旧 app.json 里的该键由
+        // v3.65：GpuAcceleration 已删除（无消费方）。旧 app.json 里的该键由
         // System.Text.Json 默认忽略未知属性 ⇒ 反序列化容错，不报错。
 
         /// <summary>
-        /// <c>app.json</c> 全路径（v3.65 / NT-062：落**应用根**，即 <c>profiles\</c> 的同级 ——
+        /// <c>app.json</c> 全路径（v3.65：落**应用根**，即 <c>profiles\</c> 的同级 ——
         /// 「运行环境」是应用级路由，⛔ 不随配置档切换；环境变量 <c>NEWTOYS_HOME</c> 可整体换根）。
         /// </summary>
         string ConfigFilePath { get; }
 
         /// <summary>
-        /// v3.65 / NT-062：<c>app.json</c> 由旧位置（<c>&lt;配置根&gt;\config\</c>）上提到**应用根**时留下的说明；
+        /// v3.65：<c>app.json</c> 由旧位置（<c>&lt;配置根&gt;\config\</c>）上提到**应用根**时留下的说明；
         /// <c>null</c> = 本机没发生过迁移。设置页 / 排障可展示（记录迁移来源与时间点）。
         /// </summary>
         string? LegacyMigrationNote { get; }
@@ -67,7 +67,7 @@ namespace NewToys.Shared.Services
         // 前三个**留空 = 用系统默认**（从 PATH 里找 python / pwsh / powershell）；
         // 不填也能跑，只是机器上得真有那个解释器。
         //
-        // 🔴 v3.65 / NT-062：**判据 = 语义** —— 外部程序路径描述"本机怎么跑外部程序"（应用级路由），
+        // 🔴 v3.65：**判据 = 语义** —— 外部程序路径描述"本机怎么跑外部程序"（应用级路由），
         //    ⛔ 不随配置档切换 ⇒ 三个解释器路径**回迁为应用级**（唯一写入点 =「设置 → 路径与配置」页）。
         //    仅 **ScriptFolder 留模块级**（「脚本管理器」设置，<c>config\script-manager.json</c>）。
 
@@ -88,20 +88,20 @@ namespace NewToys.Shared.Services
         string UpdateUrl { get; set; }
 
         /// <summary>
-        /// ⚠️ 已定为**模块级**（v3.65 / NT-062）：脚本目录的唯一写入点 = 「设置 → 脚本管理器设置」
+        /// ⚠️ 已定为**模块级**（v3.65）：脚本目录的唯一写入点 = 「设置 → 脚本管理器设置」
         /// （<c>config\script-manager.json</c> 的 <c>scriptsFolder</c>）。这里**只为一次性迁移保留读取**，
         /// ⛔ 不再有 UI 写入它；值为空时**不落盘**（v3.66 起 app.json 里不会再出现这个键）。
         /// </summary>
         string ScriptFolder { get; set; }
 
         /// <summary>
-        /// 一键按钮 + 行为开关（v3.66 / 2026-10-18）：原 <c>config\launch.json</c> 已并入 <c>app.json</c>，
+        /// 一键按钮 + 行为开关（v3.66：2026-10-18）：原 <c>config\launch.json</c> 已并入 <c>app.json</c>，
         /// 唯一写入点仍是「设置 → 启动与行为」页（经 <see cref="ILaunchConfigService"/> 转手，⛔ 别直接写这个属性）。
         /// <para>理由：同为**应用级行为**（开机自启 / 关窗到托盘 / 一键按钮），按配置档隔离没有意义；合并后少一个文件、少一处双写。</para>
         /// </summary>
         LaunchConfig Launch { get; set; }
 
-        // ==================== 导入 / 导出默认目录（v3.15 全局 → NT-077 第二批：改由 DataDir 推导） ====================
+        // ==================== 导入 / 导出默认目录（v3.15 全局 → 改由 DataDir 推导） ====================
         //
         // 🔴 `VideoDbFolder` 字段已**删除**（2026-10-19）：它把某个 profile 的绝对路径写进跨配置共享的 app.json，
         // 切配置后导入/导出会指向别人的目录 —— 属现存缺陷。现在一律用 <see cref="DataDirectory"/>（

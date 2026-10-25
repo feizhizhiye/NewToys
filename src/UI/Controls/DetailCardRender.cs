@@ -16,7 +16,7 @@ using NewToys.Shared.Details;
 namespace NewToys.UI.Controls;
 
 // ============================================================================
-// NT-054 · L1 渲染层：把「描述符」翻译成「可绑定行」
+// · L1 渲染层：把「描述符」翻译成「可绑定行」
 // 需求 §4.5.1 / 规范 §3.6「详情卡声明式渲染」。
 //
 // 🔴 为什么不让 XAML 直接绑描述符里的字符串路径？
@@ -363,7 +363,7 @@ public sealed class IndexSelectFieldRow : DetailFieldRow
             if (Field.LiteralOptions is not null)
                 Options = new List<string>(Field.LiteralOptions);
             else if (DetailPath.Resolve(Source, Field.OptionsPath) is IEnumerable opts)
-                // NT-058：索引通道也支持 `OptionsPath`（原来只认 `LiteralOptions` ⇒ 给了 OptionsPath 就**下拉空白**）
+                // 索引通道也支持 `OptionsPath`（原来只认 `LiteralOptions` ⇒ 给了 OptionsPath 就**下拉空白**）
                 Options = opts.Cast<object?>().Select(x => x?.ToString() ?? "").ToList();
         }
 
@@ -593,7 +593,7 @@ public sealed class DetailChip : ObservableObject
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
 }
 
-/// <summary>chips 的一个**分组**（NT-058：标签按命名空间分组显示时用）。</summary>
+/// <summary>chips 的一个**分组**（标签按命名空间分组显示时用）。</summary>
 public sealed class DetailChipGroup
 {
     /// <summary>组标题（<c>ChipGroupPath</c> 取到的键；空键归到「其它」）。</summary>
@@ -609,7 +609,7 @@ public sealed class DetailChipGroup
 
 /// <summary>
 /// <see cref="FieldKind.Chips"/>：集合编辑器（标签：点一下打上 / 取消）。
-/// <para>NT-058：<see cref="DetailField.ChipGroupPath"/> 非空 ⇒ 按这个键**分组显示**（每组一个小标题 + 一组 chips）。</para>
+/// <para><see cref="DetailField.ChipGroupPath"/> 非空 ⇒ 按这个键**分组显示**（每组一个小标题 + 一组 chips）。</para>
 /// </summary>
 public sealed class ChipsFieldRow : DetailFieldRow
 {
@@ -724,7 +724,7 @@ public sealed class DividerFieldRow : DetailFieldRow
 }
 
 /// <summary>
-/// <see cref="FieldKind.IconBar"/> 里的一个图标按钮（NT-058）。
+/// <see cref="FieldKind.IconBar"/> 里的一个图标按钮。
 /// <para>
 /// 图标由 <c>App.axaml</c> 的 <c>Icon*</c> <c>StreamGeometry</c> **按资源键**解析成 <see cref="Avalonia.Media.Geometry"/>
 /// （模板里 <c>Path.Data</c> 直接绑它 —— XAML 写不出动态资源键，所以这一步只能在 C# 侧做）。

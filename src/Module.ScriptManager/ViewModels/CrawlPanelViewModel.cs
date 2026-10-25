@@ -21,11 +21,11 @@ using NewToys.ScriptManager.Services;
 namespace NewToys.ScriptManager.ViewModels;
 
 /// <summary>
-/// 爬虫面板（<c>web-crawl</c>，NT-086 批 D + NT-087 期②）：跑一个抓取脚本 → 目录节看条目 → 试下载 / 批量下载。
+/// 爬虫面板（<c>web-crawl</c>，+ ）：跑一个抓取脚本 → 目录节看条目 → 试下载 / 批量下载。
 /// <para>
 /// 🔴 四节：① 链接·目录（动态列 + 双击 url 下钻 + 行勾选 + 右键试下载/诊断）；
 /// ② 试下载预览（单条跑 content 段，⛔ 不落最终产物）；③ 下载进度（批量 + 取消）；
-/// ④ 运行记录（NT-090：历史 run + 打开目录 / 日志 / 复制诊断）。
+/// ④ 运行记录（历史 run + 打开目录 / 日志 / 复制诊断）。
 /// </para>
 /// <para>
 /// 🔴 下载 = <see cref="DownloadService"/> 内置（并发 / 限速 / 去重 / 续跑 / 取消），⛔ 不脚本化；
@@ -103,7 +103,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         OnPropertyChanged(nameof(DlMax));
     }
 
-    // ==================== 工具条（NT-055：Shell 统一承载） ====================
+    // ==================== 工具条（Shell 统一承载） ====================
 
     public IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
@@ -262,7 +262,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
     // ==================== 抓链接 ====================
 
     /// <summary>
-    /// 🔗 抓链接（NT-086 批 D）：抓起始网址 → 跑入口脚本 → 目录节出行表。
+    /// 🔗 抓链接：抓起始网址 → 跑入口脚本 → 目录节出行表。
     /// 🔴 落一条运行记录（⛔ 失败不打断）；结果同时回写底栏摘要。
     /// </summary>
     [RelayCommand]
@@ -482,7 +482,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         catch (Exception ex) { StatusText = "⚠ 读流水线失败：" + FirstLine(ex.Message); }
     }
 
-    // ==================== 🧪 试下载（NT-087） ====================
+    // ==================== 🧪 试下载 ====================
 
     /// <summary>
     /// 对一行跑 content 段（含 next 跟进）→ ② 节出预览。⛔ 不落最终产物（临时副本在 trials\）。
@@ -547,7 +547,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         }
     }
 
-    // ==================== ⬇ 批量下载（NT-087） ====================
+    // ==================== ⬇ 批量下载 ====================
 
     /// <summary>
     /// 下载勾选的行；一行都不勾 = 链式模式（起始网址起，content + next 边跑边累积）。
@@ -690,7 +690,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         _links.EmptyText = "链式下载进行中：每完成一条就往这里累积一行。";
     }
 
-    // ==================== ④ 运行记录（NT-090） ====================
+    // ==================== ④ 运行记录 ====================
 
     /// <summary>当前「脚本 ▾」选中脚本的最近运行记录（新 → 旧）。</summary>
     public ObservableCollection<RunHistoryRow> HistoryRows { get; } = new();

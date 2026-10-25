@@ -15,12 +15,12 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
-/// 「标签管理」页（NT-018）：标签列表 + 详情卡（用了该标签的资产）。
+/// 「标签管理」页：标签列表 + 详情卡（用了该标签的资产）。
 /// <para>
 /// 逻辑操作（新建 / 改名 / 改色 / 合并 / 删除 / 清理未使用）**直接改库**并写 <c>operation_logs</c>
-/// （<c>reversible=1</c>）—— ⛔ 不走任务队列（那是物理操作，NT-019）。
+/// （<c>reversible=1</c>）—— ⛔ 不走任务队列（那是物理操作，）。
 /// </para>
-/// <para>⚠️ 标签是用户手动数据（R1 例外）：重建库会丢，靠 NT-022 的「导出用户数据」兜底。</para>
+/// <para>⚠️ 标签是用户手动数据（R1 例外）：重建库会丢，靠 的「导出用户数据」兜底。</para>
 /// </summary>
 public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
@@ -65,7 +65,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     public bool IsUsageVisible => Vis("Usage");
     public bool IsCreatedVisible => Vis("Created");
 
-    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+    // ==================== 工具条（/ 需求 §4.8.5：由 Shell 统一渲染） ====================
 
     /// <summary>
     /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>（含自绘的 <c>detail-toggle</c>），
@@ -414,13 +414,13 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（NT-054 迁移：原来的 <c>TagDetailView</c> 已停用）。</summary>
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（迁移：原来的 <c>TagDetailView</c> 已停用）。</summary>
     public object? DetailContent => null;
 
     private DetailCardDescriptor? _card;
 
     /// <summary>
-    /// 本页详情卡描述符（NT-054 / 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// 本页详情卡描述符（/ 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
     /// <para>结构与迁移前的 <c>TagDetailView</c> 1:1 对应：名称 / 命名空间可编辑 + **色板**（色块 chips，点一下即改）
     /// + 只读信息 + 「用了这个标签的资产」（**可点击行**，跳「全部资产」并选中）。</para>
     /// </summary>

@@ -9,7 +9,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 流水线配置的读写（NT-086 批 C）：一个 flow = 一个 <c>flows\&lt;名&gt;.json</c>。
+/// 流水线配置的读写：一个 flow = 一个 <c>flows\&lt;名&gt;.json</c>。
 /// <para>
 /// 🔴 <b>不开 DB 表</b>：flow 是「段名 → 脚本名」的轻量映射，随 rules 一起被人肉看懂 / 手改 / 拷走，
 /// 落 JSON 与「脚本即资产」的范式一致（DB 用来存 runs 之类的大批量数据）。
@@ -22,7 +22,7 @@ public sealed class FlowService
 
     public FlowService(ConfigStoreService cfg) => _cfg = cfg;
 
-    /// <summary>flows 目录：<c>&lt;DataDir&gt;\script\flows</c>（NT-090 从 <c>web-tools\flows</c> 归位）。</summary>
+    /// <summary>flows 目录：<c>&lt;DataDir&gt;\script\flows</c>（从 <c>web-tools\flows</c> 归位）。</summary>
     public string FlowsDir
     {
         get
@@ -34,7 +34,7 @@ public sealed class FlowService
     }
 
     /// <summary>
-    /// NT-090：与 <see cref="RuleFileService"/> 同款的一次性搬迁 —— 旧 <c>web-tools\flows\*.json</c> 搬进新目录
+    /// 与 <see cref="RuleFileService"/> 同款的一次性搬迁 —— 旧 <c>web-tools\flows\*.json</c> 搬进新目录
     /// （只搬一次、⛔ 不覆盖同名新文件、整段 try/catch）。
     /// </summary>
     private void MigrateLegacyFlows(string dir)
@@ -124,7 +124,7 @@ public sealed class FlowService
     }
 
     /// <summary>
-    /// 引用某脚本的流水线名（NT-087 删除引用检查）：脚本被 flow 任一槽位挂着 ⇒ 删不得静默。
+    /// 引用某脚本的流水线名（删除引用检查）：脚本被 flow 任一槽位挂着 ⇒ 删不得静默。
     /// </summary>
     public IReadOnlyList<string> ReferencesOf(string scriptName)
     {

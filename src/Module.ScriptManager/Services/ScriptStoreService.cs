@@ -10,7 +10,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <see cref="IScriptStoreService"/> 实现：手工数据落**总库的 <c>script_docs</c> 表**（NT-076 第二批；此前是
+/// <see cref="IScriptStoreService"/> 实现：手工数据落**总库的 <c>script_docs</c> 表**（此前是
 /// <c>config\script\script.json</c>），写入即一条 upsert。
 /// </summary>
 /// <remarks>
@@ -82,7 +82,7 @@ public class ScriptStoreService : IScriptStoreService
 
             if (string.IsNullOrWhiteSpace(raw))
             {
-                // 首次运行：落一份带两个内置集合的空文档（需求 §6.2.5 / NT-068 §三.7）。
+                // 首次运行：落一份带两个内置集合的空文档（需求 §6.2.5 / §三.7）。
                 Data = CreateSeed();
                 IsLoaded = true;
                 Save();
@@ -202,7 +202,7 @@ public class ScriptStoreService : IScriptStoreService
     }
 
     /// <summary>
-    /// <b>内置集合成员同步</b>（NT-068 §三.7，NT-073 D10 修订）：只把<b>还没有归属</b>的条目收进默认库。
+    /// <b>内置集合成员同步</b>（§三.7，D10 修订）：只把<b>还没有归属</b>的条目收进默认库。
     /// <para>🔴 不再全量同步 —— 否则多库时默认库会吞掉用户归到其他库的条目。</para>
     /// </summary>
     /// <returns>是否有成员变化（需要回写磁盘）。</returns>
@@ -226,7 +226,7 @@ public class ScriptStoreService : IScriptStoreService
 
     // ==================== 内部 ====================
 
-    /// <summary>首次运行的种子：只有两个内置集合，⛔ 不预置任何条目（NT-060 干净启动）。</summary>
+    /// <summary>首次运行的种子：只有两个内置集合，⛔ 不预置任何条目（干净启动）。</summary>
     private static ScriptStoreRoot CreateSeed()
     {
         var root = new ScriptStoreRoot();
@@ -247,7 +247,7 @@ public class ScriptStoreService : IScriptStoreService
         root.Views ??= new List<ScriptView>();
         root.LastCollectionIdByKind ??= new Dictionary<string, string>();
 
-        // NT-073 迁移：老 lastCollectionId → byKind["info"]（不动老字段，保存后仍是兼容别名）。
+        // 迁移：老 lastCollectionId → byKind["info"]（不动老字段，保存后仍是兼容别名）。
         if (!root.LastCollectionIdByKind.ContainsKey(ScriptCollectionKind.Info)
             && !string.IsNullOrWhiteSpace(root.LastCollectionId))
         {
@@ -264,7 +264,7 @@ public class ScriptStoreService : IScriptStoreService
             c.Tags ??= new List<string>();
             c.RootPath = (c.RootPath ?? "").Trim().TrimEnd('\\', '/');
 
-            // NT-073：内置两库改名（只改仍叫旧默认名的，⛔ 不动用户自定义名）。
+            // 内置两库改名（只改仍叫旧默认名的，⛔ 不动用户自定义名）。
             if (c.Builtin && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Script && c.Name == "脚本库")
             { c.Name = "默认脚本库"; dirty = true; }
             if (c.Builtin && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Command && c.Name == "命令库")
@@ -301,7 +301,7 @@ public class ScriptStoreService : IScriptStoreService
                 sc.Widths ??= new Dictionary<string, string>();
             }
 
-            // NT-069 一次性迁移：老文件里「列显隐」写在脚本 schema 上（全局），
+            // 一次性迁移：老文件里「列显隐」写在脚本 schema 上（全局），
             // 首次加载按成员默认值把它们收进该集合视图的覆盖记录，之后切列只影响本视图。
             if (v.SectionColumns.Count == 0)
             {

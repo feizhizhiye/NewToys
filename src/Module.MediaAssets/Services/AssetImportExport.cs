@@ -10,7 +10,7 @@ using NewToys.MediaAssets.Services;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>资产列表 JSON 的一条（NT-022）。路径是主键；组织信息按**名字**存（⛔ 不存内部 id）。</summary>
+/// <summary>资产列表 JSON 的一条。路径是主键；组织信息按**名字**存（⛔ 不存内部 id）。</summary>
 public sealed class AssetJsonItem
 {
     public string FilePath { get; set; } = "";
@@ -38,7 +38,7 @@ public sealed class AssetJsonFile
 }
 
 /// <summary>
-/// 资产列表的 JSON 导入 / 导出（NT-022，R1 缓解的一部分）。
+/// 资产列表的 JSON 导入 / 导出（R1 缓解的一部分）。
 /// <para>
 /// 🔴 **导入 = 追加合并**（⛔ 不静默覆盖）：按绝对路径去重（已有 → 跳过），新的按所在目录
 /// 登记 / 复用存储源后入库（复用 <see cref="AssetService.CommitRows"/> 的事务），再补

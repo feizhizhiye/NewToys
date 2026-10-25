@@ -7,7 +7,7 @@ using NewToys.ScriptManager.Services;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 集合页<b>左栏</b>的一行（NT-068 §三.7）：集合本身 + 成员数等派生显示值。
+/// 集合页<b>左栏</b>的一行（§三.7）：集合本身 + 成员数等派生显示值。
 /// </summary>
 /// <remarks>
 /// ⚠️ 名字叫 <c>CollectionRow</c> 而不是 <c>ScriptCollection</c> —— 后者是落盘模型（<c>script.json</c>），
@@ -54,7 +54,7 @@ public partial class CollectionRow : ObservableObject
     /// <summary>成员数（打开集合时由页面算一次）。</summary>
     [ObservableProperty] private int _memberCount;
 
-    /// <summary>正在被其他页面使用（各页面的 <c>lastCollectionId</c> / 默认库恒真，NT-072）。</summary>
+    /// <summary>正在被其他页面使用（各页面的 <c>lastCollectionId</c> / 默认库恒真，）。</summary>
     [ObservableProperty] private bool _isInUse;
 
     /// <summary>左栏「在用」短标（空 = 不显示）。</summary>
@@ -105,7 +105,7 @@ public partial class CollectionRow : ObservableObject
 }
 
 /// <summary>
-/// 集合页<b>右栏</b>的一行 = 全库条目 + 「是否属于当前集合」的勾选（NT-068 §三.7）。
+/// 集合页<b>右栏</b>的一行 = 全库条目 + 「是否属于当前集合」的勾选（§三.7）。
 /// </summary>
 /// <remarks>
 /// 布局是「全库清单 + 勾选」而不是「先挑条目再加」：勾 = 在集合内，取消勾 = 移出，

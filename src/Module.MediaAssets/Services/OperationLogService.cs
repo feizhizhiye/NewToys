@@ -5,7 +5,7 @@ using NewToys.MediaAssets.Models;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 操作日志（`operation_logs`，NT-018 / NT-019）—— 模块内**唯一**写日志的入口。
+/// 操作日志（`operation_logs`，）—— 模块内**唯一**写日志的入口。
 /// <para>
 /// <b>两种用法</b>：
 /// <list type="number">

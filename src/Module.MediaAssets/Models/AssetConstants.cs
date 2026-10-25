@@ -59,7 +59,7 @@ public static class StorageTypes
     public const string Nas = "nas";
 }
 
-/// <summary>关联类型（`relations.relation_type`，NT-018 用）。</summary>
+/// <summary>关联类型（`relations.relation_type`，用）。</summary>
 public static class RelationTypes
 {
     public const string SubtitleOf = "subtitle_of";

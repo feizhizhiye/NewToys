@@ -7,7 +7,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 内置采集器 + 内置集合的<b>播种器</b>（NT-068 §三.12，取代 NT-067 的 <c>SysInfoSeeder</c>）。
+/// 内置采集器 + 内置集合的<b>播种器</b>（§三.12，取代 的 <c>SysInfoSeeder</c>）。
 /// </summary>
 /// <remarks>
 /// <para>

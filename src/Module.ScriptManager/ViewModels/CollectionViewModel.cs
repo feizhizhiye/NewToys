@@ -18,7 +18,7 @@ using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.ViewModels;
 
 /// <summary>
-/// 「脚本管理器 → 集合」页（NT-068 §三.7）：<b>主从两栏</b> —— 左 280px 集合列表 + 右成员表；
+/// 「脚本管理器 → 集合」页（§三.7）：<b>主从两栏</b> —— 左 280px 集合列表 + 右成员表；
 /// 详情卡走标准右侧声明式卡（<see cref="IDetailCardSource"/>，与全应用一致）。
 /// </summary>
 /// <remarks>
@@ -108,7 +108,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     }
 
     /// <summary>
-    /// 右键菜单「📤 发送到{目标页}」的动态文案（NT-082 微调）：按选中集合的类别实时变
+    /// 右键菜单「📤 发送到{目标页}」的动态文案（微调）：按选中集合的类别实时变
     /// （信息面板 / 脚本库 / 命令库 / 软件包）；未选中时落信息面板（点击后命令会提示先选集合）。
     /// </summary>
     public string SendToPageMenuText
@@ -135,7 +135,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private bool _showNonCollectable;
 
     /// <summary>
-    /// 「显示全部类型」（NT-073 D13）：默认候选池按当前集合的 kind 过滤；
+    /// 「显示全部类型」（D13）：默认候选池按当前集合的 kind 过滤；
     /// 打开后可把别的 kind 的条目也勾进来（信息面板集合默认就允许混）。
     /// </summary>
     [ObservableProperty] private bool _showAllKinds;
@@ -156,7 +156,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private string _editRefreshMode = ScriptRefreshMode.OnEnter;
     [ObservableProperty] private string _editRefreshSeconds = "";
 
-    /// <summary>库的脚本根目录（NT-073；只对 kind=script 有意义，空 = 全局脚本目录）。</summary>
+    /// <summary>库的脚本根目录（只对 kind=script 有意义，空 = 全局脚本目录）。</summary>
     [ObservableProperty] private string _editRootPath = "";
 
     /// <summary>★ 置顶（左栏五角星 / 信息面板集合下拉排最前）。</summary>
@@ -421,7 +421,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         var kindFilter = SelectedKindFilter?.Value ?? "";
         var group = SelectedGroup?.Value ?? "";
 
-        // NT-072 / NT-073：各页面（信息面板 / 脚本库 / 命令库）正在使用的集合 ⇒ 标「在用」；
+        // 各页面（信息面板 / 脚本库 / 命令库）正在使用的集合 ⇒ 标「在用」；
         // 沉底只对 info 集合（库页高频切库，沉底反而难找）；默认库恒「在用」，不参与沉底（否则会挤掉置顶）。
         int InUseRank(ScriptCollection c)
             => !c.Builtin && ScriptCollectionKind.Normalize(c.Kind) == ScriptCollectionKind.Info && IsActive(c) ? 1 : 0;
@@ -469,7 +469,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     }
 
     /// <summary>
-    /// NT-072：页面重新显示时重算「在用」标记与沉底顺序。
+    /// 页面重新显示时重算「在用」标记与沉底顺序。
     /// <para>信息面板切集合只会改 <c>lastCollectionId</c>，本页 VM 收不到通知 ⇒ 由 View 在挂上视觉树时调一次。</para>
     /// </summary>
     public void RefreshUsageState() => RefreshCollections();
@@ -482,7 +482,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     private static DateTime SafeDate(string? iso)
         => DateTime.TryParse(iso, out var dt) ? dt : DateTime.MinValue;
 
-    /// <summary>重建右栏成员表：候选池（按集合 kind 过滤）+ 是否属于当前集合（NT-073 D13）。</summary>
+    /// <summary>重建右栏成员表：候选池（按集合 kind 过滤）+ 是否属于当前集合（D13）。</summary>
     private void LoadMemberTable()
     {
         if (_store == null) return;
@@ -497,7 +497,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
         foreach (var item in _store.Data.Items)
         {
-            // 🔴 v3.81（NT-082）：软件包条目 ↔ 软件包集合是**一对一**的容器关系 ——
+            // 🔴 v3.81：软件包条目 ↔ 软件包集合是**一对一**的容器关系 ——
             // 包条目只在「软件包」类集合的候选池里出现，其他集合完全看不到（反之亦然）。
             var isPackageItem = ScriptItemRole.Normalize(item.Role) == ScriptItemRole.Package;
             if (isPackageItem != isPackageCol) continue;
@@ -712,7 +712,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         foreach (var item in _store.Data.Items.Where(i => i.Collections.Contains(src.Id)))
             item.Collections.Add(col.Id);
 
-        // NT-069：视图也要一起复制 —— 视图承载「每节显示哪些列 / 节顺序」，不复制副本就变成全默认。
+        // 视图也要一起复制 —— 视图承载「每节显示哪些列 / 节顺序」，不复制副本就变成全默认。
         foreach (var srcView in _store.Data.Views.Where(v => v.CollectionId == src.Id).ToList())
         {
             var newView = new ScriptView
@@ -778,7 +778,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         foreach (var item in _store.Data.Items) item.Collections.RemoveAll(c => c == col.Id);
         _store.Data.Collections.RemoveAll(c => c.Id == col.Id);
 
-        // NT-073 D8：只属于这个库的条目 ⇒ 收回同 kind 的默认库（⛔ 不删条目 / 文件）。
+        // D8：只属于这个库的条目 ⇒ 收回同 kind 的默认库（⛔ 不删条目 / 文件）。
         var def = _store.Data.Collections.FirstOrDefault(c => c.Builtin && !c.Archived
                                                               && ScriptCollectionKind.Normalize(c.Kind) == kind);
         if (def != null)
@@ -810,7 +810,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     /// <summary>
     /// 「📤 发送到对应页面」：按集合类别决定目标页（信息面板 / 脚本库 / 命令库 / 软件包），
     /// 先记下「在用」集合再跳过去 —— 目标页构造时按 <c>LastCollectionIdByKind</c> 自动选中同一个集合。
-    /// <para>v3.81（NT-082）取代原来只认信息面板的 <c>SendToInfoPanelCommand</c>。</para>
+    /// <para>v3.81取代原来只认信息面板的 <c>SendToInfoPanelCommand</c>。</para>
     /// </summary>
     [RelayCommand]
     private void SendToPage()
@@ -880,7 +880,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         if (_store == null || SelectedCollection == null) { StatusText = "先选中一个集合。"; return; }
 
-        // NT-073：优先从当前集合的根目录（脚本库）开始扫。
+        // 优先从当前集合的根目录（脚本库）开始扫。
         var colRoot = _store.RootOf(SelectedCollection.Id);
         var dir = await DialogHooks.PickFolderAsync("扫描脚本目录（新脚本会入库并加入当前集合）",
             colRoot.Length > 0 ? colRoot : (_settings?.EffectiveScriptsFolder ?? _svc?.ScriptsDirectory ?? ""));

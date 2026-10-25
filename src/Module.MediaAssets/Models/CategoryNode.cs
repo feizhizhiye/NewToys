@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace NewToys.MediaAssets.Models;
 
 /// <summary>
-/// 分类管理页的一个节点（NT-018）：`categories` + 成员数。
+/// 分类管理页的一个节点：`categories` + 成员数。
 /// <para>🔴 分类页是**树形页**（本模块唯一非列表页）：左边自绘树、右边成员列表。
 /// 树按 <see cref="Depth"/> **扁平化**后交给 `ItemsControl`（⛔ 不用递归模板、⛔ 不用 `TreeView`，规范 §2.1）。</para>
 /// </summary>

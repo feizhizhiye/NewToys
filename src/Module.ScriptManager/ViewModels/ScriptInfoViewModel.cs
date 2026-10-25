@@ -22,7 +22,7 @@ using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.ViewModels;
 
 /// <summary>
-/// 「脚本管理器 → 信息面板」页（NT-068 S5/S6；取代 NT-067 的 manifest 驱动模型）。
+/// 「脚本管理器 → 信息面板」页（/S6；取代 的 manifest 驱动模型）。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -48,7 +48,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
     private readonly CollectorService? _collector;
     private readonly INavigationService? _nav;
 
-    /// <summary>并发上限 4（沿 NT-067）。</summary>
+    /// <summary>并发上限 4（沿 ）。</summary>
     private readonly SemaphoreSlim _gate = new(4, 4);
 
     /// <summary>条目 → 上次采集时刻（定时刷新到期判定用）。</summary>
@@ -199,7 +199,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         if (SettingsSection == null) SettingsSection = Sections.FirstOrDefault();
     }
 
-    // ==================== 详情卡（针对「节」，NT-069） ====================
+    // ==================== 详情卡（针对「节」，） ====================
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
     public object? DetailContent => null;
@@ -495,7 +495,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
 
         _view = _store.Data.Views.FirstOrDefault(v => v.Id == value.Id);
 
-        // NT-069：视图决定「每节显示哪些列 / 节怎么排」，切换后整页按新视图重投影。
+        // 视图决定「每节显示哪些列 / 节怎么排」，切换后整页按新视图重投影。
         ApplyViewProjection();
     }
 
@@ -574,7 +574,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
             CollapseChanged = PersistCollapsed,
             ColumnToggled = (s, col) =>
             {
-                // NT-069：显隐记在**当前视图**，不再回写脚本 schema（否则一个集合切列会连累全部集合）。
+                // 显隐记在**当前视图**，不再回写脚本 schema（否则一个集合切列会连累全部集合）。
                 ViewColumnProjection.Toggle(s.Item, _view, col.Key);
                 _store?.Save();
             },
@@ -619,7 +619,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
             s.IsCollapsed = collapsed != null && collapsed.Contains(s.ItemId);
     }
 
-    /// <summary>按当前视图重投影全部节：列（显隐 / 标题 / 宽度）+ 折叠 + 顺序（NT-069）。</summary>
+    /// <summary>按当前视图重投影全部节：列（显隐 / 标题 / 宽度）+ 折叠 + 顺序。</summary>
     private void ApplyViewProjection()
     {
         foreach (var s in Sections)
@@ -1039,7 +1039,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
             col.RefreshSeconds = Math.Max(0, int.TryParse((CollectionRefreshSeconds ?? "").Trim(), out var s) ? s : 0);
         }
 
-        // NT-069：列宽属于「显示方式」⇒ 记在当前视图（脚本 schema 只留默认值）。
+        // 列宽属于「显示方式」⇒ 记在当前视图（脚本 schema 只留默认值）。
         if (_view != null && SettingsSection != null)
         {
             ViewColumnProjection.SetWidths(_view, SettingsSection.Item,

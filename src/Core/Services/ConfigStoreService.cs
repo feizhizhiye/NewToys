@@ -59,9 +59,42 @@ public class ConfigStoreService
         ProfileOverride = overrideName;
         ProfileOverrideError = error;
         _profileRoot = ResolveProfileRoot(_appRoot);
-        MigrateLegacyShellFiles();    // NT-077：5 份框架级小文件 → shell.json
-        MigrateModuleConfigFiles();   // NT-077 第二批：模块设置 → config\modules\（纯整理，只搬文件）
-        PruneEmptyConfigFiles();      // NT-075：清掉内容等价于「没有配置」的空壳文件
+        // ⛔ 构造函数只算路径、不碰磁盘：一次性迁移 / 清理都走 InitializeDeferred（启动热路径上省 IO）。
+    }
+
+    private bool _deferredDone;
+
+    /// <summary>
+    /// 一次性磁盘整理（首帧之后由 <c>ModuleLoader.InitializeAllDeferred</c> 调用，幂等）：
+    /// 框架级小文件并入 <c>shell.json</c> / 模块设置归位 <c>config\modules\</c> / 清掉空壳配置。
+    /// <para>⚠️ 内部 try/catch：失败只记调试日志，读方各自的兜底路径仍能工作，⛔ 不拦启动。</para>
+    /// </summary>
+    public void InitializeDeferred()
+    {
+        if (_deferredDone) return;
+        _deferredDone = true;
+
+        EnsureShellMigrated();        // 框架级小文件 → shell.json（读方也会兜一次）
+        MigrateModuleConfigFiles();   // 模块设置 → config\modules\（纯整理，只搬文件）
+        PruneEmptyConfigFiles();      // 清掉内容等价于「没有配置」的空壳文件
+    }
+
+    private bool _shellMigrated;
+
+    /// <summary>
+    /// 把 5 份框架级小文件并进 <c>shell.json</c>（幂等，只跑一次）。
+    /// <para>
+    /// ⚠️ 必须**早于第一次读 shell.json**：<see cref="ShellConfigStore"/> 缓存整份文档，
+    /// 迁移排在它后面会导致缓存里没有搬过来的节，下一次保存就把那几节从磁盘上抹掉。
+    /// 所以 <see cref="ShellConfigStore"/> 读盘前也会调这里一次。
+    /// </para>
+    /// </summary>
+    /// <returns>本次是否真的合并了东西（调用方据此决定要不要丢弃缓存）。</returns>
+    public bool EnsureShellMigrated()
+    {
+        if (_shellMigrated) return false;
+        _shellMigrated = true;
+        return MigrateLegacyShellFiles();
     }
 
     /// <summary>模块设置文件名（不含扩展名）—— 全部迁进 <c>config\modules\</c>。</summary>
@@ -73,7 +106,7 @@ public class ConfigStoreService
     };
 
     /// <summary>
-    /// NT-077 第二批一次性迁移：<c>config\&lt;模块&gt;.json</c> → <c>config\modules\&lt;模块&gt;.json</c>。
+    /// 一次性迁移：<c>config\&lt;模块&gt;.json</c> → <c>config\modules\&lt;模块&gt;.json</c>。
     /// <list type="bullet">
     ///   <item>幂等：源文件不存在就跳过（搬过一次之后永远不走）；</item>
     ///   <item>⛔ 不覆盖：目标已有同名文件 ⇒ 旧文件改名 <c>.legacy</c> 留档（用户数据优先）；</item>
@@ -111,7 +144,7 @@ public class ConfigStoreService
     }
 
     /// <summary>
-    /// NT-075：清掉**等价于默认值**的配置文件（内容只有 <c>{}</c> / <c>[]</c> / <c>null</c> / 空串）。
+    /// 清掉**等价于默认值**的配置文件（内容只有 <c>{}</c> / <c>[]</c> / <c>null</c> / 空串）。
     /// <para>
     /// 依据：全工程读配置的统一约定是「文件不存在 ⇒ 用默认值」，所以这类文件删掉**语义完全等价**，
     /// 只是把 2 字节的空壳从配置目录里清掉（`hosts-profiles.json` / `scrape-tasks.json` 这类）。
@@ -148,7 +181,7 @@ public class ConfigStoreService
     }
 
     /// <summary>
-    /// NT-077 一次性迁移：把 5 份框架级小文件并进 <c>shell.json</c>（每份一个节）。
+    /// 一次性迁移：把 5 份框架级小文件并进 <c>shell.json</c>（每份一个节）。
     /// <para>
     /// 只在 <c>shell.json</c> **不存在**时执行（幂等）；搬完把旧文件改名 <c>.legacy</c>（⛔ 不删）。
     /// 迁移只做「读文件 → 放进节」，**不认识任何字段名** —— 字段解析留给各自读方
@@ -160,7 +193,7 @@ public class ConfigStoreService
     /// <c>shell.json</c> 的 <c>ui</c> 节，所以**旧的改名逻辑已删除**——留着它每次启动都会把新 shell.json 改走。
     /// </para>
     /// </summary>
-    private void MigrateLegacyShellFiles()
+    private bool MigrateLegacyShellFiles()
     {
         try
         {
@@ -207,7 +240,7 @@ public class ConfigStoreService
                 catch { /* 坏文件不搬：原样留着，由用户自查 */ }
             }
 
-            if (!changed) return;
+            if (!changed) return false;
 
             AtomicJsonFile.Write(target, doc.ToJsonString(new JsonSerializerOptions
             {
@@ -216,10 +249,12 @@ public class ConfigStoreService
             }));
 
             System.Diagnostics.Debug.WriteLine("[NewToys][迁移] 框架级配置已并入 shell.json");
+            return true;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine("[NewToys][迁移] shell.json 合并失败：" + ex.Message);
+            return false;
         }
     }
 
@@ -287,14 +322,14 @@ public class ConfigStoreService
     public string? ProfileMigrationError { get; private set; }
 
     /// <summary>&lt;配置根&gt;\config —— 本配置档的配置（shell.json / 各模块设置 …；应用行为在应用根 app.json）。
-    /// <para>⚠️ v3.65 / NT-062 起 <c>app.json</c>（运行环境）**不在**这里 —— 它上提到应用根（跨配置共享）。</para></summary>
+    /// <para>⚠️ v3.65：<c>app.json</c>（运行环境）**不在**这里 —— 它上提到应用根（跨配置共享）。</para></summary>
     public string ConfigDir => EnsureDir("config");
 
     /// <summary>&lt;配置根&gt;\data —— 可重建的缓存（`newtoys.db` 等），不进备份。</summary>
     public string DataDir => EnsureDir("data");
 
     /// <summary>
-    /// &lt;配置根&gt;\config\modules —— **模块设置**的统一落点（NT-077 第二批）。
+    /// &lt;配置根&gt;\config\modules —— **模块设置**的统一落点。
     /// <para>
     /// 语义分层：<c>shell.json</c> = 框架偏好、<c>modules\&lt;模块&gt;.json</c> = 模块设置。
     /// 「设置 → 数据管理」的备份 / 导入按 <c>config</c> 递归收集 <c>*.json</c>，所以子目录天然被覆盖。
@@ -349,10 +384,10 @@ public class ConfigStoreService
     public string GetProfileDirectory(string name)
         => Path.Combine(_appRoot, ProfilesFolderName, name);
 
-    // ==================== 内置三档已撤销（v3.66 / 2026-10-18） ====================
+    // ==================== 内置三档已撤销（v3.66：2026-10-18） ====================
     //
     // 「配置」= **纯根目录**：一个配置 = 一套独立的 config / data / logs，由用户自建自删。
-    // ⛔ 不再有 debug / default / release 的档位语义（原 NT-038 的播种与「重置为初始态」全部删除），
+    // ⛔ 不再有 debug / default / release 的档位语义（原 的播种与「重置为初始态」全部删除），
     //    ⛔ 也不自动创建任何配置目录 —— 除了首次启动缺省的那个（ResolveProfileRoot 负责）。
     // 依据：档位语义会让"切换配置"变成两件事（换根 + 换身份），而真正需要的只是换根。
 
@@ -484,7 +519,7 @@ public class ConfigStoreService
     }
 
     /// <summary>
-    /// 导入 **v1 旧格式**（单 JSON）备份 —— NT-078 起只保留**只读兼容**，新备份走
+    /// 导入 **v1 旧格式**（单 JSON）备份 —— 只保留**只读兼容**，新备份走
     /// <see cref="BackupService"/> 的 zip 分节格式。
     /// <para>
     /// 两种旧写法都认：<c>Files[{RelativePath,Content}]</c>（本类早期导出）与
@@ -519,7 +554,7 @@ public class ConfigStoreService
             // 路径穿越防御（⚠️ 必须比到 `config\` 这一级：只 StartsWith(ConfigDir) 会放过 `config2\...`）
             if (!full.StartsWith(ConfigDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) { skipped++; continue; }
             var content = GetString(e, "Content") ?? GetString(e, "content") ?? "";
-            // NT-075：恢复也走原子写（每个文件独立 rename，中断时最多剩一份半成品tmp）
+            // 恢复也走原子写（每个文件独立 rename，中断时最多剩一份半成品tmp）
             AtomicJsonFile.Write(full, content);
             ok++;
         }

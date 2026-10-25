@@ -208,7 +208,7 @@ public partial class CutTask : VideoTaskBase
     /// <summary>重编码时用的 CRF（越小越清晰越大；18~28 常用）。</summary>
     [ObservableProperty] private int _crf = 20;
 
-    // ==================== 多段剪切 / 拼接（NT-101） ====================
+    // ==================== 多段剪切 / 拼接 ====================
 
     /// <summary>
     /// **多段剪切串**（每行一段：<c>00:00:05-00:00:12</c>）。解析出 **≥2 段** ⇒ 走「逐段裁剪 + 拼接」，
@@ -332,7 +332,7 @@ public sealed class TranscodePreset
     /// <summary>附加快慢预设（preset）。</summary>
     public string Speed { get; set; } = "medium";
 
-    /// <summary>输出文件名后缀（v3.19 / NT-013：默认 H.265 转码加 <c>_H265</c>）。空 = 不加。</summary>
+    /// <summary>输出文件名后缀（v3.19：默认 H.265 转码加 <c>_H265</c>）。空 = 不加。</summary>
     public string OutputSuffix { get; set; } = "";
 
     public static System.Collections.Generic.List<TranscodePreset> All { get; } = new()
@@ -342,7 +342,7 @@ public sealed class TranscodePreset
         new TranscodePreset { Id = "av1",    Name = "AV1 MP4（最小，最慢）",          VideoCodec = "libsvtav1", Crf = 32, Extension = ".mp4", Speed = "8", OutputSuffix = "_AV1" },
         new TranscodePreset { Id = "copy",   Name = "只换容器（不重编码，秒完成）",     VideoCodec = "copy",      AudioCodec = "copy", Extension = ".mp4", OutputSuffix = "_copy" },
         new TranscodePreset { Id = "audio",  Name = "仅提取音频 MP3",                 VideoCodec = "",          AudioCodec = "libmp3lame", AudioBitrate = "192k", Extension = ".mp3", OutputSuffix = "_audio" },
-        // NT-099：GIF 走**独立命令分支**（`BuildTranscodeArgs` 里 `IsGif` 判定）——
+        // GIF 走**独立命令分支**（`BuildTranscodeArgs` 里 `IsGif` 判定）——
         // 无音轨、无限循环、不吃 CRF/preset，滤镜链自带 palettegen/paletteuse。
         new TranscodePreset { Id = "gif",    Name = "GIF 动图（无声，循环）",          VideoCodec = "gif",       AudioCodec = "", Extension = ".gif", Speed = "", OutputSuffix = "_GIF" },
     };
@@ -352,7 +352,7 @@ public sealed class TranscodePreset
 }
 
 /// <summary>
-/// 字幕处理方式（NT-100）。
+/// 字幕处理方式。
 /// <para><see cref="Soft"/> = 只把字幕**封装**进容器（视频/音频 <c>-c copy</c>，秒完成、可在播放器里开关）；
 /// <see cref="Hard"/> = 把字幕**烧进画面**（必须重新编码，画面上永久带字）。</para>
 /// </summary>
@@ -389,7 +389,7 @@ public sealed class SubtitleModeOption
 }
 
 /// <summary>
-/// 音频处理方式（NT-103）：一个下拉单选，⛔ 不用三个独立开关（互斥关系靠界面管不住）。
+/// 音频处理方式：一个下拉单选，⛔ 不用三个独立开关（互斥关系靠界面管不住）。
 /// </summary>
 public static class AudioModes
 {
@@ -435,7 +435,7 @@ public readonly record struct CutSegment(double Start, double End)
 }
 
 /// <summary>
-/// **多段剪切串**的解析（NT-101）：一行一段，形如 <c>00:00:05-00:00:12</c> / <c>5-12.5</c>。
+/// **多段剪切串**的解析：一行一段，形如 <c>00:00:05-00:00:12</c> / <c>5-12.5</c>。
 /// <para>分隔符支持 <c>-</c> / <c>~</c> / <c>→</c> / 逗号 / 空白；时间码的冒号与小数点不受影响。</para>
 /// <para>⛔ 解析失败的行**直接丢掉**（界面会显示解析出几段，用户能立刻发现写错），不做"猜一个"。</para>
 /// </summary>
@@ -482,7 +482,7 @@ public sealed class RotateOption
 }
 
 /// <summary>
-/// 视频「旋转 / 翻转」选项（v3.19 / NT-012，需求 §6.4.13）：命令卡旋转字段 + 预览旋转按钮共用这一份。
+/// 视频「旋转 / 翻转」选项（v3.19，需求 §6.4.13）：命令卡旋转字段 + 预览旋转按钮共用这一份。
 /// <para>值存进 <see cref="TranscodeTask.Rotate"/>，<see cref="ToFilter"/> 映射到 ffmpeg <c>-vf</c> 过滤器；
 /// 预览的 ↻/↺ 按钮经 <see cref="FromAngle"/> / <see cref="ToAngle"/> 与角度互转，实现"转预览 → 同步字段"。</para>
 /// </summary>
@@ -571,15 +571,15 @@ public partial class TranscodeTask : VideoTaskBase
     [ObservableProperty] private int _targetHeight;
 
     /// <summary>
-    /// **GIF 帧率**（NT-099；只对 GIF 预设生效）：12 是「体积 / 流畅度」的常用折中，24 = 接近原速。
+    /// **GIF 帧率**（只对 GIF 预设生效）：12 是「体积 / 流畅度」的常用折中，24 = 接近原速。
     /// </summary>
     [ObservableProperty] private int _frameRate = 12;
 
-    /// <summary>**GIF 宽度**（NT-099；只对 GIF 预设生效）：0 = 保持原宽（体积会很大），默认 480。</summary>
+    /// <summary>**GIF 宽度**（只对 GIF 预设生效）：0 = 保持原宽（体积会很大），默认 480。</summary>
     [ObservableProperty] private int _gifWidth = 480;
 
     /// <summary>
-    /// **默认宽 / 高上限**（v3.19 / NT-013；0 = 不启用）：源宽高**大于**它才缩到它，**小于等于**则保持原始大小
+    /// **默认宽 / 高上限**（v3.19；0 = 不启用）：源宽高**大于**它才缩到它，**小于等于**则保持原始大小
     /// （ffmpeg <c>scale=W:H:force_original_aspect_ratio=decrease</c>，只缩不放、保比例）。
     /// 与 <see cref="TargetWidth"/>/<see cref="TargetHeight"/>（显式宽高）二选一，优先用显式宽高。
     /// </summary>
@@ -610,7 +610,7 @@ public partial class TranscodeTask : VideoTaskBase
     [ObservableProperty] private double _trimEnd;
 
     /// <summary>
-    /// 旋转 / 翻转（v3.19 / NT-012，取值见 <see cref="RotateOptions"/>；空 = 不旋转）。
+    /// 旋转 / 翻转（v3.19，取值见 <see cref="RotateOptions"/>；空 = 不旋转）。
     /// 映射到 ffmpeg <c>-vf</c>（<c>transpose</c> / <c>hflip</c>），保证转码后视频方向正确。
     /// </summary>
     [ObservableProperty] private string _rotate = "";
@@ -618,7 +618,7 @@ public partial class TranscodeTask : VideoTaskBase
     /// <summary>旋转的中文名（详情卡 / 命令摘要显示）。</summary>
     public string RotateLabel => RotateOptions.Find(Rotate).Label;
 
-    // ==================== 字幕（NT-100：软字幕 / 硬字幕烧入） ====================
+    // ==================== 字幕（软字幕 / 硬字幕烧入） ====================
 
     /// <summary>字幕文件全路径（<c>.srt / .ass / .ssa / .vtt</c>；空 = 不加字幕）。</summary>
     [ObservableProperty] private string _subtitlePath = "";
@@ -664,7 +664,7 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(ParamDisplay));
     }
 
-    // ==================== 画面裁剪（NT-102：去黑边 / 只留画面一块） ====================
+    // ==================== 画面裁剪（去黑边 / 只留画面一块） ====================
 
     /// <summary>裁剪宽（像素；0 = 不裁剪）。必须与 <see cref="CropHeight"/> 同时 &gt; 0 才生效。</summary>
     [ObservableProperty] private int _cropWidth;
@@ -697,7 +697,7 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(ParamDisplay));
     }
 
-    // ==================== 音轨（NT-103：静音 / 音量 / 替换） ====================
+    // ==================== 音轨（静音 / 音量 / 替换） ====================
 
     /// <summary>音频方式（取值见 <see cref="AudioModes"/>；<c>""</c> = 保持原音频）。</summary>
     [ObservableProperty] private string _audioMode = AudioModes.Keep;
@@ -744,7 +744,7 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(ParamDisplay));
     }
 
-    // ==================== 目标体积（NT-104：按 MB 反算码率） ====================
+    // ==================== 目标体积（按 MB 反算码率） ====================
 
     /// <summary>
     /// 目标体积（MB；0 = 不用）。启用后按 <see cref="SourceDuration"/> 反算视频码率
@@ -851,7 +851,7 @@ public partial class TranscodeTask : VideoTaskBase
         {
             var head = HasTrim ? TrimDisplay + " · " + PresetName : PresetName;
             if (IsSoftSubtitle || IsHardSubtitle) head += " · " + SubtitleDisplay;
-            // NT-102 / NT-103 / NT-104：非默认值才追加，避免列表里堆一串"不裁剪 · 原音频"
+            // 非默认值才追加，避免列表里堆一串"不裁剪 · 原音频"
             if (IsCropping) head += " · 裁剪 " + CropDisplay;
             if (!string.IsNullOrEmpty(AudioMode)) head += " · " + AudioDisplay;
             if (HasTargetSize) head += $" · 目标 {TargetSizeMb:0.#} MB";
@@ -865,7 +865,7 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(Preset));
         OnPropertyChanged(nameof(PresetName));
         OnPropertyChanged(nameof(ParamDisplay));
-        // NT-099：预设变了 → 容器（GIF 强制 .gif）、编码器、码率、分辨率显示都要跟着变
+        // 预设变了 → 容器（GIF 强制 .gif）、编码器、码率、分辨率显示都要跟着变
         OnPropertyChanged(nameof(ContainerDisplay));
         OnPropertyChanged(nameof(EncoderDisplay));
         OnPropertyChanged(nameof(RateDisplay));

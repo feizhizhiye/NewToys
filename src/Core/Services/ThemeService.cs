@@ -60,7 +60,7 @@ public class ThemeService : IThemeService
     // ==================== 持久化 ====================
 
     /// <summary>
-    /// 读 <c>shell.json</c> 的 <c>theme</c> 节（NT-077 前是独立的 <c>theme.json</c>，迁移由
+    /// 读 <c>shell.json</c> 的 <c>theme</c> 节（前是独立的 <c>theme.json</c>，迁移由
     /// <see cref="ConfigStoreService"/> 一次性完成）。两种格式都认：
     /// - 现格式：<c>{ "Mode": "System", "AccentId": "blue", "IsDark": true }</c>；
     /// - **旧格式**（v1.18 之前只有 <c>{ "IsDark": true }</c>）→ 映射成 Dark / Light，老用户的偏好不丢。

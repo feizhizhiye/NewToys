@@ -9,7 +9,7 @@ using Avalonia.Interactivity;
 namespace NewToys.Shell.Behaviors;
 
 /// <summary>
-/// 给 <see cref="TextBox"/> 统一挂上「剪切 / 复制 / 粘贴 / 全选」右键菜单（v3.19 / 需求 §4.10.4）。
+/// 给 <see cref="TextBox"/> 统一挂上「剪切 / 复制 / 粘贴 / 全选」右键菜单（v3.19：需求 §4.10.4）。
 /// <para>
 /// ⚠️ 本类**不能是 static class**：附加属性的 owner 要作为 <c>RegisterAttached</c> 的类型参数，
 /// 而 C# 规定静态类型不能用作类型参数（CS0718）—— 所以是普通类，成员仍全为 static。

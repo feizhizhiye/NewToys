@@ -7,11 +7,11 @@ using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 脚本管理器在**总库**里的建表 + 老数据合并（NT-076）。
+/// 脚本管理器在**总库**里的建表 + 老数据合并。
 /// <list type="bullet">
 ///   <item><b>建表</b>：<c>pc_observations</c> / <c>pc_runs</c>（原 <c>ScriptDatabase.EnsureSchema</c> 搬来，DDL 一字未改）
 ///     + <c>script_docs</c>（第二批：脚本手工数据的文档表，见 <see cref="JsonDocStore"/>）。</item>
-///   <item><b>老库合并</b>：<c>data\script\script.db</c>（NT-068 时期独立库）→ 并入总库；
+///   <item><b>老库合并</b>：<c>data\script\script.db</c>（时期独立库）→ 并入总库；
 ///     判定 = 总库 <c>pc_observations</c> 为空才搬（幂等），搬完把老文件改名 <c>.legacy</c>（⛔ 不删）。</item>
 ///   <item><b>老 JSON 合并</b>（第二批）：<c>config\script\script.json</c> → <c>script_docs</c>。</item>
 /// </list>
@@ -31,7 +31,7 @@ public sealed class ScriptManagerSchemaContributor : ILibrarySchemaContributor
 
     public string ModuleKey => "script-manager";
 
-    /// <summary>v2 = NT-076 第二批（<c>script_docs</c> + script.json 入表）。</summary>
+    /// <summary>v2 = （<c>script_docs</c> + script.json 入表）。</summary>
     public int SchemaVersion => 2;
 
     public void EnsureSchema()
@@ -51,7 +51,7 @@ public sealed class ScriptManagerSchemaContributor : ILibrarySchemaContributor
         JsonDocMigration.ImportOnce(_docs, ScriptStoreService.DocName, ScriptStoreService.LegacyFile(_cfg));
     }
 
-    /// <summary>建表 DDL（幂等）。注意 <c>pc_</c> 前缀是历史遗留（NT-068 前叫 PcTools），⛔ 不要跟表前缀纪律硬对齐，改名要迁移数据。</summary>
+    /// <summary>建表 DDL（幂等）。注意 <c>pc_</c> 前缀是历史遗留（前叫 PcTools），⛔ 不要跟表前缀纪律硬对齐，改名要迁移数据。</summary>
     private const string Ddl = """
         CREATE TABLE IF NOT EXISTS pc_observations (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,

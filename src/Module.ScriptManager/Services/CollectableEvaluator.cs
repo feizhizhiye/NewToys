@@ -6,7 +6,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <b>可采集判定</b>（NT-068 §三.5）：一条条目能不能当采集器用。
+/// <b>可采集判定</b>（§三.5）：一条条目能不能当采集器用。
 /// </summary>
 /// <remarks>
 /// <para>

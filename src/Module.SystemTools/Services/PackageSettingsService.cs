@@ -32,7 +32,7 @@ public class PackageSettingsService : IPackageSettingsService
 
     public PackageSettings Settings { get; }
 
-    /// <summary>本模块设置文件（NT-077 第二批起落 <c>config\modules\package.json</c>）。</summary>
+    /// <summary>本模块设置文件（起落 <c>config\modules\package.json</c>）。</summary>
     public string FilePath => Path.Combine(_cfg.ModulesConfigDir, "package.json");
 
     public event Action? Changed;
@@ -70,7 +70,7 @@ public class PackageSettingsService : IPackageSettingsService
     {
         try
         {
-            // NT-075：原子写（目录由 AtomicJsonFile 负责创建）
+            // 原子写（目录由 AtomicJsonFile 负责创建）
             AtomicJsonFile.Write(FilePath, JsonSerializer.Serialize(Settings, JsonOpts));
         }
         catch { /* 保存失败不打断 UI；界面的状态行会显示上一次成功时间 */ }

@@ -17,7 +17,7 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
-/// 「存储源」页（NT-020）：local / removable / nas 的登记 / 编辑 / 移除（⛔ 只移索引）+ 扫描入口。
+/// 「存储源」页：local / removable / nas 的登记 / 编辑 / 移除（⛔ 只移索引）+ 扫描入口。
 /// <para>
 /// 三个要点：
 /// <list type="number">
@@ -74,7 +74,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     public bool IsFilesVisible => Vis("Files");
     public bool IsLastScanVisible => Vis("LastScan");
 
-    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+    // ==================== 工具条（/ 需求 §4.8.5：由 Shell 统一渲染） ====================
 
     /// <summary>
     /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>（含自绘的 <c>detail-toggle</c>），
@@ -123,7 +123,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
 
     /// <summary>
     /// ➕ 添加存储源：选一个目录 → 登记（⛔ 不扫描）。
-    /// <para>NT-055 三轮：原 <c>AssetStoragesView.axaml.cs</c> 的 Click（要 TopLevel / StorageProvider）
+    /// <para>原 <c>AssetStoragesView.axaml.cs</c> 的 Click（要 TopLevel / StorageProvider）
     /// 搬进 VM，选择器走 <see cref="DialogHooks"/>（VM ⛔ 不引 Avalonia UI 类型）。</para>
     /// </summary>
     [RelayCommand]
@@ -501,13 +501,13 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（NT-054 迁移：原来的 <c>StorageDetailView</c> 已停用）。</summary>
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（迁移：原来的 <c>StorageDetailView</c> 已停用）。</summary>
     public object? DetailContent => null;
 
     private DetailCardDescriptor? _card;
 
     /// <summary>
-    /// 本页详情卡描述符（NT-054 / 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// 本页详情卡描述符（/ 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
     /// <para>结构与迁移前的 <c>StorageDetailView</c> 对应：基本信息 / 统计 / 按类型分布 / 最近扫描错误 / 时间戳，**无卡内动作**（编辑走行右键）。</para>
     /// </summary>
     public DetailCardDescriptor? Card => _card ??= BuildCard();
@@ -525,7 +525,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
                     // 原来卡首是动态标题 `{Binding DetailStorage.Name}`；描述符的分区标题是静态串 ⇒ 改成一个「名称」字段
                     new DetailField { Label = "名称", ValuePath = "DetailStorage.Name", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "根路径", ValuePath = nameof(DetailRootPath), Kind = FieldKind.Text, Selectable = true },
-                    // 原来「类型 / 状态」是**同行并排** → 按 NT-054 已拍板口径拆成两行
+                    // 原来「类型 / 状态」是**同行并排** → 按 已拍板口径拆成两行
                     new DetailField { Label = "类型", ValuePath = nameof(DetailType), Kind = FieldKind.Text },
                     new DetailField { Label = "状态", ValuePath = nameof(DetailStatus), Kind = FieldKind.Text },
                     new DetailField { Kind = FieldKind.Divider },

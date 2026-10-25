@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace NewToys.Shared.Services;
 
 /// <summary>
-/// 一个**外部程序**的探测结果（v3.65 / NT-062，需求 §4.9.2 第 5 条）。
+/// 一个**外部程序**的探测结果（v3.65，需求 §4.9.2 第 5 条）。
 /// </summary>
 public sealed class ExternalToolStatus
 {
@@ -38,7 +38,7 @@ public sealed class ExternalToolStatus
 }
 
 /// <summary>
-/// 「外部程序注册表」契约（v3.65 / NT-062，需求 §4.9.2 第 5 条）。
+/// 「外部程序注册表」契约（v3.65，需求 §4.9.2 第 5 条）。
 /// <para>
 /// 清单（键 / 显示名 / 默认候选 / 是否硬依赖 / 被谁使用）**只在这里定义一处**，
 /// ⛔ 不在页面里散落特判；实现放 Core（可读 <c>IAppConfigService</c> + PATH）。

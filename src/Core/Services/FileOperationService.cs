@@ -6,7 +6,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// v3.66 / NT-069：<see cref="IFileOperationService"/> 的唯一实现 —— **纯磁盘动作**。
+/// v3.66：<see cref="IFileOperationService"/> 的唯一实现 —— **纯磁盘动作**。
 /// <para>
 /// 迁移来源：媒体资产 <c>Module.MediaAssets/Services/FileOperationService</c> 里的磁盘部分
 /// + 视频工具 <c>VideoFileService</c> 里的 <c>SHFileOperationW</c> 块（两处各写过一遍，现已合一）。

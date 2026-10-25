@@ -4,7 +4,7 @@ using NewToys.SystemTools.Models;
 namespace NewToys.SystemTools.Services;
 
 /// <summary>
-/// 系统工具**命令条目**的存储（NT-091）：<c>config\system\commands.json</c>，本模块唯一手工数据落点。
+/// 系统工具**命令条目**的存储：<c>config\system\commands.json</c>，本模块唯一手工数据落点。
 /// <para>⛔ 不开 DB：system 没有观测数据（需求 §6.7：不做采集 / 间隔刷新）。</para>
 /// </summary>
 public interface ISystemCommandStore

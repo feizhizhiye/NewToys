@@ -18,7 +18,7 @@ public partial class TreeMenuItem : ObservableObject
 
     /// <summary>图标文本（历史字段：v3.2 前用 emoji 占位；一级图标已全走 <see cref="VectorIcon"/>）。</summary>
     /// <remarks>
-    /// ⚠️ 当前**不参与渲染**：NT-045 删掉了视图里的 emoji 回退分支，NT-046 又去掉了行首展开箭头，
+    /// ⚠️ 当前**不参与渲染**：删掉了视图里的 emoji 回退分支，又去掉了行首展开箭头，
     /// 一/二级行的图标位置都只认 <see cref="VectorIcon"/>。保留字段是因为模块注册仍带 icon 值
     /// （数据驱动图标属技术债，见《工程规范》§2 末条）。
     /// </remarks>

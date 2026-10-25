@@ -9,7 +9,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Shell.Services;
 
 /// <summary>
-/// <b>数据节 · 总库</b>（NT-078 批次 B）：<c>data\newtoys.db</c> 的一致快照。
+/// <b>数据节 · 总库</b>（批次 B）：<c>data\newtoys.db</c> 的一致快照。
 /// <para>
 /// 🔴 导出**必须**走 <c>VACUUM INTO</c>（<see cref="SqliteDatabase.VacuumInto"/>）：
 /// 库开了 WAL，直接 <c>File.Copy</c> 会漏掉还没落盘的 <c>-wal</c> 事务，恢复出来是"少一截"的库。
@@ -103,7 +103,7 @@ public sealed class DataDbBackupSection : IBackupSection
 }
 
 /// <summary>
-/// <b>数据节 · 缩略图</b>（NT-078 批次 B）：<c>data\thumbs</c>（设置里改过目录则用改过的）。
+/// <b>数据节 · 缩略图</b>（批次 B）：<c>data\thumbs</c>（设置里改过目录则用改过的）。
 /// <para>
 /// 目录来源：<c>config\modules\media-assets.json</c> 的 <c>ThumbsDirectory</c>（空 = <c>data\thumbs</c>）。
 /// Shell 只读这个字段，⛔ 不引 <c>Module.MediaAssets</c>（Release 下 Shell 不引任何模块）。

@@ -17,7 +17,7 @@ namespace NewToys.Shell.ViewModels;
 /// 每个功能卡片支持**右键 → 固定 / 取消固定到首页收藏夹**，固定状态实时同步（经 <see cref="IFavoritesService.Changed"/>）。
 /// </para>
 /// <para>
-/// 🔴 v3.65 / NT-062：本页**移出设置 = 独立页**（Key `settings-all` ⛔ 不改），入口 = 首页收藏卡尾部
+/// 🔴 v3.65：本页**移出设置 = 独立页**（Key `settings-all` ⛔ 不改），入口 = 首页收藏卡尾部
 /// 「显示更多」+ 「设置 → 关于」节的功能清单按钮；页内「🔄 重载模块」已**移入关于节**。
 /// </para>
 /// </summary>
@@ -56,7 +56,7 @@ public partial class AllFunctionsViewModel : ViewModelBase
     private void BuildGroups()
     {
         Groups.Clear();
-        // 🔴 v3.65 / NT-062：`IsHome` 分组（如承载「功能清单」自身的 `system` 宿主组）**不进清单** ——
+        // 🔴 v3.65：`IsHome` 分组（如承载「功能清单」自身的 `system` 宿主组）**不进清单** ——
         //    与左树（ShellViewModel.BuildTree）和首页模块计数（HomeViewModel.StatusText）同一口径。
         foreach (var g in _menu.Groups.Where(x => !x.IsHome))
         {

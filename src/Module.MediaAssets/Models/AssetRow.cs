@@ -20,7 +20,7 @@ namespace NewToys.MediaAssets.Models;
 public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableObject
 {
     /// <summary>
-    /// v3.34 / NT-018：**勾选列**的状态（「🏷 加标签」「🗂 加集合」按勾选批量操作）。
+    /// v3.34：**勾选列**的状态（「🏷 加标签」「🗂 加集合」按勾选批量操作）。
     /// ⚠️ 只是界面态，⛔ 不落库、⛔ 不参与筛选 / 排序 / 导入导出。
     /// </summary>
     [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty] private bool _isChecked;
@@ -40,7 +40,7 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
     public int Rating { get; set; }
 
     /// <summary>
-    /// 是否收藏（NT-058；库列 <c>assets.is_favorite</c>，由 <c>AssetDatabase</c> 的 <c>EnsureColumn</c> 补）。
+    /// 是否收藏（库列 <c>assets.is_favorite</c>，由 <c>AssetDatabase</c> 的 <c>EnsureColumn</c> 补）。
     /// 详情卡图标组的「★ 收藏」按钮直接改它（⛔ 不走保存：即时生效即落盘）。
     /// </summary>
     public bool IsFavorite { get; set; }

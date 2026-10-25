@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 「节详情卡 → 显示列」里的一个 chip（NT-069）：点一下切这一列在当前视图里的显隐。
+/// 「节详情卡 → 显示列」里的一个 chip：点一下切这一列在当前视图里的显隐。
 /// <para>由页面 VM 按节当前投影重建（<c>Title</c> 已是视图覆盖后的标题）。</para>
 /// </summary>
 public sealed partial class SectionColumnChip : ObservableObject
@@ -20,7 +20,7 @@ public sealed partial class SectionColumnChip : ObservableObject
 }
 
 /// <summary>
-/// 信息面板顶部「集合 ▾」下拉里的一项（NT-068 §三.8）。
+/// 信息面板顶部「集合 ▾」下拉里的一项（§三.8）。
 /// <para>下拉文案 = <c>名称 · 成员数</c>；排序 = ★置顶 → 最近使用 → 名称。</para>
 /// </summary>
 public sealed class InfoCollectionOption

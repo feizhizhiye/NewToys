@@ -4,12 +4,12 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
-using NewToys.Core.Services;   // NT-088：QuickActionShell（解释器 / 宿主常量已上提 Core）
+using NewToys.Core.Services;   // QuickActionShell（解释器 / 宿主常量已上提 Core）
 using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>库包里的一个条目（NT-073 S7）。脚本条目的 <see cref="Target"/> 是**相对库根**的路径。</summary>
+/// <summary>库包里的一个条目。脚本条目的 <see cref="Target"/> 是**相对库根**的路径。</summary>
 public class LibraryPackageItem
 {
     public string Title { get; set; } = "";
@@ -38,7 +38,7 @@ public class LibraryPackage
 }
 
 /// <summary>
-/// 库级导入导出（NT-073 S7）：只服务库页，⛔ 不进 Shared/Core。
+/// 库级导入导出：只服务库页，⛔ 不进 Shared/Core。
 /// <para>索引包 = 定义 + 成员（脚本用相对路径）；全量包 = 索引包 + 脚本文件本体。</para>
 /// </summary>
 public static class ScriptLibraryPackageService

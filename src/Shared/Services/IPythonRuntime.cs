@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace NewToys.Shared.Services;
 
 /// <summary>
-/// 一次 Python 执行请求（NT-083）。<b>C# 只做调度，不解释规则</b> —— 解析/净化全部在 Python 侧。
+/// 一次 Python 执行请求。<b>C# 只做调度，不解释规则</b> —— 解析/净化全部在 Python 侧。
 /// </summary>
 public sealed class PyRequest
 {
@@ -66,7 +66,7 @@ public sealed class PyEnvStatus
 }
 
 /// <summary>
-/// Python 运行时底座（NT-083）：探测解释器 / 长驻 worker / 超时杀进程树 / traceback 回传。
+/// Python 运行时底座：探测解释器 / 长驻 worker / 超时杀进程树 / traceback 回传。
 /// <para>
 /// 🔴 <b>跨模块共用</b>（网络工具的规则集、脚本管理器的 .py 命令）⇒ 接口在 Shared、实现在 Core。
 /// 🔴 <b>⛔ 不引 pythonnet</b>：子进程 + 行分隔 JSON（stdin/stdout），保持平台中立（framework.md §2.1）。

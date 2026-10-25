@@ -14,7 +14,7 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
-/// 「分类管理」页（NT-018）—— 本模块**唯一的非列表页**：左树（自绘，<c>ItemsControl</c> + 按钮行）＋ 右成员列表。
+/// 「分类管理」页—— 本模块**唯一的非列表页**：左树（自绘，<c>ItemsControl</c> + 按钮行）＋ 右成员列表。
 /// <para>⚠️ 本页**不实现** <c>IDetailPanelProvider</c>（<c>HasDetailPanel=false</c>）→ Shell 不显示右详情列。</para>
 /// <para>树按 <see cref="CategoryNode.Depth"/> 扁平化后渲染：只有「父节点已展开」的节点才进可见集合。</para>
 /// <para>逻辑操作（新建 / 改名 / 删除子树 / 摘出成员）直接改库并写 <c>operation_logs</c>（reversible=1）。</para>
@@ -53,7 +53,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsStorageVisible => Vis("Storage");
 
-    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+    // ==================== 工具条（/ 需求 §4.8.5：由 Shell 统一渲染） ====================
 
     /// <summary>
     /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。

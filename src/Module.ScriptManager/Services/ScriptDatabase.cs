@@ -13,11 +13,11 @@ namespace NewToys.ScriptManager.Services;
 public readonly record struct ScriptObservation(string RowKey, string Attr, string Value);
 
 /// <summary>
-/// 观测表 <c>pc_observations</c> + <c>pc_runs</c>（NT-068 §三.3 建；NT-076 起落**总库** <c>data\newtoys.db</c>）。
+/// 观测表 <c>pc_observations</c> + <c>pc_runs</c>（§三.3 建；落**总库** <c>data\newtoys.db</c>）。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🔴 NT-076 起**并进总库**（<c>data\newtoys.db</c>）：连接一律向 <see cref="SqliteDatabase"/> 要，
+/// 🔴 **并进总库**（<c>data\newtoys.db</c>）：连接一律向 <see cref="SqliteDatabase"/> 要，
 /// ⛔ 不再自建连接串 / 不再单独一个 <c>script.db</c>。建表搬到
 /// <see cref="ScriptManagerSchemaContributor"/>（总库 schema 统一入口），本类只读写。
 /// </para>
@@ -176,7 +176,7 @@ public sealed class ScriptDatabase
     }
 
     /// <summary>
-    /// 保留策略（NT-068 §三.10）：
+    /// 保留策略（§三.10）：
     /// <list type="bullet">
     ///   <item><c>latest</c>：删同条目的旧观测，只留 <paramref name="currentRunId"/> 这一批（只读条目强制本模式）；</item>
     ///   <item><c>count</c>：只留最近 <c>retentionN</c> 次 run 的观测；</item>

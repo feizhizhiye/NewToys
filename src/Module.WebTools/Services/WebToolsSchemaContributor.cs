@@ -6,7 +6,7 @@ using NewToys.Shared.Services;
 namespace NewToys.WebTools.Services;
 
 /// <summary>
-/// 网络工具在**总库**里的 schema 贡献者（NT-076 第二批）。
+/// 网络工具在**总库**里的 schema 贡献者。
 /// <list type="bullet">
 ///   <item>建 <c>web_docs</c>（书签 / ping 目标 / 抓取任务 / hosts 方案四份文档，见 <see cref="JsonDocStore"/>）。</item>
 ///   <item>把 <c>config\</c> 下 4 个旧 JSON 一次性搬进表，旧文件改名 <c>.legacy</c>（⛔ 不删）。</item>

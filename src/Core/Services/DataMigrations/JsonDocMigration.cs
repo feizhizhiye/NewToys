@@ -4,7 +4,7 @@ using System.IO;
 namespace NewToys.Core.Services.DataMigrations;
 
 /// <summary>
-/// <b>旧 JSON 文件 → 文档表</b> 的一次性搬运（NT-076 第二批）。
+/// <b>旧 JSON 文件 → 文档表</b> 的一次性搬运。
 /// <list type="bullet">
 ///   <item>只在「目标文档还不存在 且 源文件存在」时搬（幂等：重复启动不重复搬）；</item>
 ///   <item>搬成功后把源文件改名 <c>.json.legacy</c>（⛔ 不删 —— 用户数据永远留一份可手工考回的原文）；</item>

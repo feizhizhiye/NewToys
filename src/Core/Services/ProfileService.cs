@@ -57,7 +57,7 @@ public class ProfileService : IProfileService
         Directory.CreateDirectory(_cfg.GetProfileDirectory(name));
     }
 
-    // ==================== 内置配置档已撤销（v3.66 / 2026-10-18） ====================
+    // ==================== 内置配置档已撤销（v3.66：2026-10-18） ====================
     // 配置 = 纯根目录：只有 Create / Rename / Delete / Switch / SetAsDefault。
     // ⛔ 不要再加"播种 / 重置为初始态"这类档位语义 —— 空的配置由用户自己「＋ 新建配置」得到。
 

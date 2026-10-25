@@ -2,7 +2,7 @@ namespace NewToys.Shared.Models;
 
 using System.Collections.Generic;
 
-/// <summary>工具条里一项的类型（v3.53 / NT-055，见需求 §4.8.5）。</summary>
+/// <summary>工具条里一项的类型（v3.53，见需求 §4.8.5）。</summary>
 public enum ToolbarItemKind
 {
     /// <summary>普通按钮（默认）。</summary>
@@ -31,12 +31,12 @@ public enum ToolbarItemKind
     /// 生成一排按钮，每项文案取 <see cref="ToolbarItemDescriptor.DisplayPath"/>、高亮跟随数据项上的
     /// <see cref="ToolbarItemDescriptor.SelectedPath"/>，点击把**数据项本身**当参数执行
     /// <see cref="ToolbarItemDescriptor.CommandPath"/>。
-    /// <para>v3.54 / NT-055 补迁 <c>script-packages</c> 时新增（既有页不受影响）。</para>
+    /// <para>v3.54：补迁 <c>script-packages</c> 时新增（既有页不受影响）。</para>
     /// </summary>
     ChipGroup,
 
     /// <summary>
-    /// **多选下拉**（v3.77 / 2026-10-19 用户定调：软件包的「源」要能多选）：
+    /// **多选下拉**（v3.77：2026-10-19 用户定调：软件包的「源」要能多选）：
     /// 按钮上显示汇总文案（<see cref="ToolbarItemDescriptor.TextPath"/>，如 <c>winget, msstore</c>），
     /// 点开是浮层，每行一个可勾选项（文案取 <see cref="ToolbarItemDescriptor.DisplayPath"/>），
     /// 勾选状态**双向绑数据项上的** <see cref="ToolbarItemDescriptor.SelectedPath"/>（bool），右侧显示 ✓。
@@ -49,9 +49,9 @@ public enum ToolbarItemKind
 }
 
 /// <summary>
-/// 工具条里的**一项**（v3.53 / NT-055）—— 纯数据（⛔ 不引 Avalonia），命令用 BCL <see cref="System.Windows.Input.ICommand"/>。
+/// 工具条里的**一项**（v3.53）—— 纯数据（⛔ 不引 Avalonia），命令用 BCL <see cref="System.Windows.Input.ICommand"/>。
 /// <para>
-/// 所有 <c>*Path</c> 都是**相对页面 VM** 的属性名（与 NT-054 详情卡描述符同一口径；
+/// 所有 <c>*Path</c> 都是**相对页面 VM** 的属性名（与 详情卡描述符同一口径；
 /// 描述符只描述"长什么样、绑什么"，渲染在 <c>Shell/Controls/ToolbarHost</c>）。
 /// </para>
 /// <para>🔴 加新 Kind 是**加法**：确实需要新交互时才加（配一个渲染分支），不影响既有页。</para>
@@ -117,7 +117,7 @@ public sealed class ToolbarItemDescriptor
     public bool IsReadOnly { get; init; }
 
     /// <summary>
-    /// 「空闲态水印化」（v3.68 / 用户定调）：失焦时框里只留 <see cref="Placeholder"/>，聚焦才露出真实值。
+    /// 「空闲态水印化」（v3.68：用户定调）：失焦时框里只留 <see cref="Placeholder"/>，聚焦才露出真实值。
     /// <para>
     /// 与 <see cref="IsReadOnly"/> 无关：只读框靠 <c>Tag</c> 暂存真实值（原有机制），可编辑框靠
     /// **临时解挂 TwoWay 绑定**实现（⛔ 不能直接改 <c>Text</c>，会写回 VM）。用于「常态不必看值、
@@ -164,7 +164,7 @@ public sealed class ToolbarItemDescriptor
     public IReadOnlyList<ToolbarMenuItemDescriptor>? Items { get; init; }
 }
 
-/// <summary>工具条按钮 / 拆分按钮的下拉菜单项（v3.53 / NT-055）。</summary>
+/// <summary>工具条按钮 / 拆分按钮的下拉菜单项（v3.53）。</summary>
 public sealed class ToolbarMenuItemDescriptor
 {
     /// <summary>菜单文字。</summary>

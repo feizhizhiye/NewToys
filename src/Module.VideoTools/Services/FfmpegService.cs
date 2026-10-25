@@ -177,7 +177,7 @@ public static class FfmpegService
     /// </summary>
     public static List<string> BuildCutArgs(CutTask task, string? output)
     {
-        // NT-101：多段（≥2 段）= 逐段裁剪 + 拼成一条流。单条命令做不到"先切再拼"，
+        // 多段（≥2 段）= 逐段裁剪 + 拼成一条流。单条命令做不到"先切再拼"，
         // 所以走 -filter_complex（trim/atrim + concat）。⇒ 必须重新编码（copy 无法拼时间轴）。
         if (task.Segments.Count > 1) return BuildMultiCutArgs(task, output);
 
@@ -198,7 +198,7 @@ public static class FfmpegService
         else
         {
             args.AddRange(new[] { "-c", "copy" });
-            // NT-098：`-ss` 在 `-i` 前（快速定位）+ copy 时，首段的 DTS 可能早于 0，
+            // `-ss` 在 `-i` 前（快速定位）+ copy 时，首段的 DTS 可能早于 0，
             // 播放器表现是「开头黑屏 / 卡一下」。make_zero 把时间轴挪到 0 起。
             args.AddRange(new[] { "-avoid_negative_ts", "make_zero" });
         }
@@ -216,7 +216,7 @@ public static class FfmpegService
     }
 
     /// <summary>
-    /// 多段剪切 + 拼接（NT-101）：一条 <c>-filter_complex</c> 命令 = 每段 trim/atrim → concat。
+    /// 多段剪切 + 拼接：一条 <c>-filter_complex</c> 命令 = 每段 trim/atrim → concat。
     /// <para>⚠️ 假设源有音轨：无音轨文件会因 <c>[0:a]</c> 不存在而报错（页面上如实显示 ffmpeg 的报错，不猜）。</para>
     /// </summary>
     private static List<string> BuildMultiCutArgs(CutTask task, string? output)
@@ -337,7 +337,7 @@ public static class FfmpegService
          : $"scale={width}:-2";
 
     /// <summary>
-    /// 「不超 WxH」过滤器（v3.19 / NT-013 默认宽高）：源**大于** WxH 才缩到框内、**小于等于**保持原始大小，
+    /// 「不超 WxH」过滤器（v3.19：默认宽高）：源**大于** WxH 才缩到框内、**小于等于**保持原始大小，
     /// 且保持宽高比 —— <c>force_original_aspect_ratio=decrease</c> 只缩不放。
     /// </summary>
     public static string FitFilter(int width, int height)
@@ -348,7 +348,7 @@ public static class FfmpegService
         => string.Equals(preset.Id, "gif", StringComparison.OrdinalIgnoreCase)
         || string.Equals(preset.VideoCodec, "gif", StringComparison.OrdinalIgnoreCase);
 
-    // ==================== 字幕（NT-100） ====================
+    // ==================== 字幕 ====================
 
     /// <summary>输出扩展名（**软字幕固定 <c>.mkv</c>**、GIF 固定 <c>.gif</c>，其余按容器）。</summary>
     public static string OutputExtension(TranscodeTask task)
@@ -359,7 +359,7 @@ public static class FfmpegService
     }
 
     /// <summary>
-    /// 裁剪滤镜（NT-102）：<c>crop=w:h:x:y</c>。
+    /// 裁剪滤镜：<c>crop=w:h:x:y</c>。
     /// <para>🔴 宽高**必须取偶**：H.264/H.265 的 yuv420p 色度是 2×2 采样，奇数边长直接被编码器拒绝。</para>
     /// </summary>
     public static string CropFilter(TranscodeTask task)
@@ -370,12 +370,12 @@ public static class FfmpegService
         return $"crop={w}:{h}:{Math.Max(0, task.CropX)}:{Math.Max(0, task.CropY)}";
     }
 
-    /// <summary>音量滤镜（NT-103）：<c>volume=6dB</c> / <c>volume=-6dB</c>（0 不产生滤镜）。</summary>
+    /// <summary>音量滤镜：<c>volume=6dB</c> / <c>volume=-6dB</c>（0 不产生滤镜）。</summary>
     public static string VolumeFilter(double db)
         => Math.Abs(db) < 0.001 ? "" : "volume=" + db.ToString("0.#", CultureInfo.InvariantCulture) + "dB";
 
     /// <summary>
-    /// 按**目标体积**反算视频码率（NT-104），单位 kbps；返回 0 = 算不出来（没填体积 / 时长未知）。
+    /// 按**目标体积**反算视频码率，单位 kbps；返回 0 = 算不出来（没填体积 / 时长未知）。
     /// <para>算法：<c>MB × 8192 ÷ 秒数 = 总 kbps</c>（1 MB = 8192 kbit），再扣掉音频码率与容器开销。</para>
     /// </summary>
     public static int AutoBitrateKbps(TranscodeTask task)
@@ -401,7 +401,7 @@ public static class FfmpegService
     }
 
     /// <summary>
-    /// 探测黑边（NT-102）：跑 2 秒 <c>cropdetect</c>，解析最后一条 <c>crop=W:H:X:Y</c>。
+    /// 探测黑边：跑 2 秒 <c>cropdetect</c>，解析最后一条 <c>crop=W:H:X:Y</c>。
     /// <para>返回 null = 探测失败 / 取不到（源无画面 / ffmpeg 缺失）—— 页面照实提示，⛔ 不编一个值。</para>
     /// </summary>
     public static async Task<(int Width, int Height, int X, int Y)?> DetectCropAsync(
@@ -515,12 +515,12 @@ public static class FfmpegService
         //    v3.16：终点留空（0）= 从起点一直到文件末尾，此时不能加 -to（否则算出负数时长）。
         AppendTrimAndInput(args, task);
 
-        // ①-b 替换音轨（NT-103）：音频文件作为**第二条输入**，视频仍取 0 号输入的源片。
+        // ①-b 替换音轨：音频文件作为**第二条输入**，视频仍取 0 号输入的源片。
         //     🔴 必须在所有输出选项之前加 -i；软字幕分支自己也要 -i（两者互斥，预检会拦）。
         if (task.IsReplaceAudio && !task.IsSoftSubtitle && !string.IsNullOrWhiteSpace(task.ReplaceAudioPath))
             args.AddRange(new[] { "-i", task.ReplaceAudioPath });
 
-        // ② 软字幕（NT-100）：**只封装** —— 视频/音频原样 copy，字幕作为第 2 条输入单独成轨。
+        // ② 软字幕：**只封装** —— 视频/音频原样 copy，字幕作为第 2 条输入单独成轨。
         //    容器必须是 .mkv（mp4 装不了 srt 轨），所以编码/分辨率等设置在本模式下不生效（详情卡有提示）。
         if (task.IsSoftSubtitle)
         {
@@ -537,7 +537,7 @@ public static class FfmpegService
             return args;
         }
 
-        // ② GIF（NT-099）：gif 编码器不吃 -crf / -preset / 码率 / 音频参数 ⇒ 走独立分支。
+        // ② GIF：gif 编码器不吃 -crf / -preset / 码率 / 音频参数 ⇒ 走独立分支。
         //    单遍调色板（split 同图）：一条命令 = 看到的即执行的，⛔ 不做两遍临时文件（预览不可见会骗人）；
         //    代价是整段帧要在内存里过一遍 ⇒ 预检（CommandLint）会提示「GIF 建议 ≤30 秒」。
         if (IsGif(preset))
@@ -556,7 +556,7 @@ public static class FfmpegService
         }
 
         var baseCodec = preset.VideoCodec ?? "";
-        // 硬字幕（NT-100）/ 裁剪（NT-102）/ 音轨处理（NT-103）/ 目标体积（NT-104）都必须重新编码：
+        // 硬字幕/ 裁剪/ 音轨处理/ 目标体积都必须重新编码：
         // copy 预设自动升级成 libx264（否则滤镜和码率控制都没有落脚处）
         var needsReEncode = task.IsHardSubtitle || task.IsCropping || task.HasTargetSize
                             || task.IsReplaceAudio || task.IsVolumeMode;
@@ -613,12 +613,12 @@ public static class FfmpegService
                 args.AddRange(new[] { "-preset", preset.Speed });
             }
 
-            // ④ 视频过滤器：旋转 / 翻转（v3.19 / NT-012）+ 分辨率，合并进同一个 -vf（逗号分隔、按序生效；
+            // ④ 视频过滤器：旋转 / 翻转（v3.19）+ 分辨率，合并进同一个 -vf（逗号分隔、按序生效；
             //    旋转放前面——transpose 会交换宽高，之后的 scale 作用在旋转后的尺寸上）
             var filters = new List<string>();
             var rotate = RotateOptions.ToFilter(task.Rotate);
             if (rotate.Length > 0) filters.Add(rotate);
-            // 裁剪（NT-102）紧跟旋转：transpose 会换宽高，坐标必须作用在旋转后的画幅上；
+            // 裁剪紧跟旋转：transpose 会换宽高，坐标必须作用在旋转后的画幅上；
             // 又必须在缩放**之前**——先缩再裁，用户填的像素坐标就对不上了。
             var crop = CropFilter(task);
             if (crop.Length > 0) filters.Add(crop);
@@ -633,7 +633,7 @@ public static class FfmpegService
             if (filters.Count > 0)
                 args.AddRange(new[] { "-vf", string.Join(",", filters) });
 
-            // ⑤ 音频（NT-103：静音 / 替换 / 音量增益都优先于预设的音频设置）
+            // ⑤ 音频（静音 / 替换 / 音量增益都优先于预设的音频设置）
             if (task.IsAudioMuted)
             {
                 args.AddRange(new[] { "-an" });
@@ -732,7 +732,7 @@ public static class FfmpegService
                 StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8
             };
-            // NT-098：`-progress` / `-nostats` 是**全局选项**，必须放在输出路径之前 ——
+            // `-progress` / `-nostats` 是**全局选项**，必须放在输出路径之前 ——
             // 追加到参数末尾（输出路径之后）时 ffmpeg 会告警 "Trailing option(s) found in the command"，
             // 且不保证被识别（进度会掉）。所以先写全局项，再写业务参数。
             psi.ArgumentList.Add("-progress");
@@ -800,7 +800,7 @@ public static class FfmpegService
         }
     }
 
-    // ==================== 外部播放（NT-098） ====================
+    // ==================== 外部播放 ====================
 
     /// <summary>
     /// 用外部程序播放一个文件：**配置的播放器优先**，其次 `ffplay`（与 ffmpeg 同目录 → PATH）。
@@ -872,7 +872,7 @@ public static class FfmpegService
         return sibling;
     }
 
-    // ==================== 进度解析（NT-098） ====================
+    // ==================== 进度解析 ====================
 
     /// <summary>
     /// 从 <c>-progress</c> 的一行里读出「已输出秒数」。

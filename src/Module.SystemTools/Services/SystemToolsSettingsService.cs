@@ -7,7 +7,7 @@ using NewToys.Shared.Services;
 namespace NewToys.SystemTools.Services;
 
 /// <summary>
-/// <see cref="ISystemToolsSettingsService"/> 实现（NT-091）。
+/// <see cref="ISystemToolsSettingsService"/> 实现。
 /// <para>🔴 与 ScriptManager 的设置服务同口径：<b>默认值不落盘</b>、读不到就用默认值、写失败由调用方转成状态栏红字。</para>
 /// </summary>
 public sealed class SystemToolsSettingsService : ISystemToolsSettingsService

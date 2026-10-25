@@ -7,7 +7,7 @@ namespace NewToys.WebTools.Views;
 public partial class BookmarkView : UserControl
 {
     /// <summary>
-    /// ⚠️ NT-055（需求 §4.8.5）：页内工具条已迁到 **Shell 承载** ⇒ 「📥 导入书签」的文件选择器改由
+    /// ⚠️ （需求 §4.8.5）：页内工具条已迁到 **Shell 承载** ⇒ 「📥 导入书签」的文件选择器改由
     /// <c>BookmarkViewModel.ImportBookmarksCommand</c> 经 <c>Core.DialogHooks</c> 触发（VM ⛔ 不引 Avalonia UI），
     /// 这里不再有 <c>BtnImport</c> 接线。
     /// </summary>

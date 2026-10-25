@@ -9,7 +9,7 @@ using NewToys.MediaAssets.ViewModels;
 namespace NewToys.MediaAssets.Views;
 
 /// <summary>
-/// 「媒体资产」模块设置页 code-behind（NT-021）：只做 **View 才做得了的事**（选目录），业务逻辑全在 VM。
+/// 「媒体资产」模块设置页 code-behind：只做 **View 才做得了的事**（选目录），业务逻辑全在 VM。
 /// </summary>
 public partial class SettingsMediaAssetsView : UserControl
 {

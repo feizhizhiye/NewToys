@@ -3,7 +3,7 @@ using NewToys.UI.Settings;
 
 namespace NewToys.SystemTools.Views;
 
-/// <summary>「系统工具设置」页（`settings-system`，NT-091）。</summary>
+/// <summary>「系统工具设置」页（`settings-system`，）。</summary>
 public partial class SettingsSystemView : UserControl
 {
     public SettingsSystemView()

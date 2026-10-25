@@ -6,7 +6,7 @@ using NewToys.MediaAssets.Models;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 集合服务（NT-018）：`collections` + `collection_assets`（成员 + 拖拽排序）。
+/// 集合服务：`collections` + `collection_assets`（成员 + 拖拽排序）。
 /// <para>手动集合成员可增删 / 可拖排序（写 `sort_order`）；智能集合成员由 <c>rule_json</c> 决定，⛔ 手工增删要被拒。</para>
 /// <para>⛔ 库不可用时降级（空 / 0），⛔ 不抛。</para>
 /// </summary>

@@ -15,7 +15,7 @@ using NewToys.Shell.Views;
 namespace NewToys.Shell.ViewModels;
 
 /// <summary>
-/// 应用级设置页（v3.65 / NT-062，需求 §4.9.2 / §6.5）：**一页多节**的复合 VM。
+/// 应用级设置页（v3.65，需求 §4.9.2 / §6.5）：**一页多节**的复合 VM。
 /// <para>
 /// 七个节 = 启动与退出 / 主题外观 / 一键按钮 / 运行环境 / 网络 / 数据 / 版本与更新，整体竖向排列成一棵**树**（手风琴）：
 /// 每个节 = **一个节点**（抬头 = ⌄/› + 图标 + 标题 + 一句话说明，点一下开 / 收；正文 = 该节的 View），
@@ -24,7 +24,7 @@ namespace NewToys.Shell.ViewModels;
 /// （见 <c>SettingsView.axaml.cs</c>）。
 /// </para>
 /// <para>
-/// 🔴 v3.66 / NT-062 细节调整（用户 2026-10-16 验收前反馈，多轮）：
+/// 🔴 v3.66：细节调整（用户 2026-10-16 验收前反馈，多轮）：
 /// <list type="number">
 ///   <item>**树状滚动 + 节点抬头磁吸**：⛔ 无标题栏、⛔ 无分栏、⛔ 无节导航栏；
 ///         滚动判定（磁吸 / Push / 滚到即展开）全在 View 的 code-behind；</item>
@@ -35,7 +35,7 @@ namespace NewToys.Shell.ViewModels;
 ///         改为**在节内渲染**：节点抬头下方由 <c>SettingsView</c> 挂 <c>ToolbarHost</c>
 ///         （<see cref="SettingsSection.HasToolbar"/> 门控，用户要求"放回本节内容顶部"）；</item>
 ///   <item>**页内搜索整体删除**（页面标题栏与搜索框都撤了）⇒ 搜索入口 = 标题栏窗口按钮组左侧的搜索按钮；
-///         🔴 NT-066 起搜索**不再只搜本页的节** —— 统一走 <c>ShellViewModel</c> 的索引（菜单项 + 本节清单），
+///         🔴 搜索**不再只搜本页的节** —— 统一走 <c>ShellViewModel</c> 的索引（菜单项 + 本节清单），
 ///         命中本节清单的项 ⇒ <c>OpenTab(节锚点)</c> 归一成本页并展开该节（本页不再有自己的搜索入口）。</item>
 ///   <item>**「通用」节点拆成三个**（原来一页塞了启动与退出 / 更新检查 / 主题外观三组设置，
 ///         用户要求"拆开、删除通用"）：节锚点 = `settings-general`（启动与退出，⛔ Key 不变）+
@@ -54,13 +54,13 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
     public ObservableCollection<SettingsSection> Sections { get; } = new();
 
     /// <summary>
-    /// 一个设置节的**元数据**（NT-066）：标题 / 图标 / 一句话说明。
+    /// 一个设置节的**元数据**：标题 / 图标 / 一句话说明。
     /// <para>View 与 VM 由 <see cref="BuildSections"/> 现场从 DI 装配，⛔ 元数据不再散落在 <c>Add(...)</c> 实参里。</para>
     /// </summary>
     public sealed record SectionMeta(string Key, string Title, string Icon, string Desc);
 
     /// <summary>
-    /// 全部节的元数据 = **单一来源**（NT-066）：节装配按它、标题栏搜索的「设置项」索引也按它。
+    /// 全部节的元数据 = **单一来源**：节装配按它、标题栏搜索的「设置项」索引也按它。
     /// 🔴 顺序 = 页内显示顺序；⛔ 增删节时同步改这里（漏改 ⇒ 搜索不到 / 标题过时）。
     /// </summary>
     public static readonly IReadOnlyList<SectionMeta> Catalog = new SectionMeta[]
@@ -99,7 +99,7 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         BuildSections();
 
         // 契约聚合：订阅**每节的每个 VM**（状态栏 / 工具条随时可能变），由本页统一转成一份对外契约。
-        // 🔴 NT-068：「全部收起 / 全部展开」文案与折叠动作已搬进 UI 库的设置页骨架
+        // 🔴 「全部收起 / 全部展开」文案与折叠动作已搬进 UI 库的设置页骨架
         //    （`SettingsSectionHost`）⇒ 本 VM ⛔ 不再订阅节的 IsExpanded。
         foreach (var s in Sections)
         {
@@ -173,7 +173,7 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         Sections.Add(new SettingsSection
         {
             Key = meta.Key, Title = meta.Title, Icon = meta.Icon, Desc = meta.Desc,
-            // 🔴 NT-068：`HasToolbar` 改为模型上的**计算属性**（VM 是否实现 IToolbarSource 且非空），
+            // 🔴 `HasToolbar` 改为模型上的**计算属性**（VM 是否实现 IToolbarSource 且非空），
             //    ⛔ 不再在构建时赋值 —— 模块设置页在 XAML 里声明节，也能自动判定。
             Content = view, ViewModels = vms, OnActivated = onActivated
         });
@@ -215,7 +215,7 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         ScrollRequested?.Invoke(target);   // v3.67：光换节不够，还要**滚过去**（否则视口停在原处 = "跳错地方"）
     }
 
-    // ==================== 折叠（NT-068：动作在 UI 库骨架里，本 VM 只收结果） ====================
+    // ==================== 折叠（动作在 UI 库骨架里，本 VM 只收结果） ====================
 
     /// <summary>
     /// 用户折叠 / 展开后由 <c>SettingsView</c> 转进来（宿主的 <c>SectionToggled</c>）：
@@ -248,11 +248,11 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         newValue.OnActivated.Invoke();
     }
 
-    // ==================== 页内搜索：已删除（v3.66 / NT-066 起统一到标题栏） ====================
+    // ==================== 页内搜索：已删除（v3.66：统一到标题栏） ====================
     //
     // 原「页内搜索框 + 结果列表 / 过滤节」两版都撤了 —— 入口统一搬到**标题栏**的搜索按钮
     // （`ShellView` 的 `BtnSettingsSearch` → `ShellViewModel` 的统一搜索结果列表）。
-    // 🔴 NT-066：**节的关键词匹配搬到 Shell**（索引来自 `Catalog`），本页只负责"按节锚点展开 + 滚动"，
+    // 🔴 **节的关键词匹配搬到 Shell**（索引来自 `Catalog`），本页只负责"按节锚点展开 + 滚动"，
     //    即 `OpenSection` / `ExpandOnly`（`OpenTab` 归一后调用），⛔ 本页不再持有搜索逻辑。
     // 页面顶部现在只留**冻结首行**的节导航（点一下快速折叠 / 切换）。
 

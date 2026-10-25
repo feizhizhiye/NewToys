@@ -16,7 +16,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Shell.ViewModels;
 
 /// <summary>
-/// 应用级设置页的「运行环境」节（原「设置 → 路径与配置」，v3.53 / NT-056 起是**设置总表**）：
+/// 应用级设置页的「运行环境」节（原「设置 → 路径与配置」，v3.53：是**设置总表**）：
 /// 一张列表按**分类列**承载两类行 —— `路径`（`app.json` 的运行环境路径，可编辑）
 /// 与 `配置`（`profiles\` 下多套独立 config/data/logs）。
 /// <para>
@@ -24,8 +24,8 @@ namespace NewToys.Shell.ViewModels;
 /// 与分类无关的工具（📂 打开配置目录 / ＋ 新建配置）恒可用。
 /// </para>
 /// <para>
-/// 工具条由 Shell 声明式承载（NT-055 / 需求 §4.8.5），本页只输出描述符。
-/// 🔴 v3.66 / NT-062 细节调整：**本页详情卡已删除**（⛔ 不再实现 <c>IDetailPanelProvider</c> /
+/// 工具条由 Shell 声明式承载（/ 需求 §4.8.5），本页只输出描述符。
+/// 🔴 v3.66：细节调整：**本页详情卡已删除**（⛔ 不再实现 <c>IDetailPanelProvider</c> /
 /// <c>IDetailCardSource</c>）—— 设置页是**一页多节**（节 = 竖向折叠块），右详情列在同页里无处安放；
 /// 全应用口径 = 设置页不分左右栏。列表本体、右键菜单、工具条（含「💾 保存」）全部保留。
 /// </para>
@@ -44,16 +44,16 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     private readonly ConfigStoreService? _store;
     private readonly IProfileService? _profiles;
 
-    /// <summary>外部程序注册表（v3.65 / NT-062）：进本页时才做**惰性探测**，缺失 ⇒ 状态栏 `⚠` 可点击。</summary>
+    /// <summary>外部程序注册表（v3.65）：进本页时才做**惰性探测**，缺失 ⇒ 状态栏 `⚠` 可点击。</summary>
     private readonly IExternalToolRegistry? _ext;
 
     /// <summary>外部程序缺失的警示文案（null = 没问题）；它同时决定状态栏那一行**是否可点击**。</summary>
     private string? _externalWarn;
 
-    /// <summary>Python 运行时（NT-083）：只为「Python 共享环境」只读行提供状态文案 + 目录。</summary>
+    /// <summary>Python 运行时：只为「Python 共享环境」只读行提供状态文案 + 目录。</summary>
     private readonly IPythonRuntime? _py;
 
-    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
     public string ImportExportDefaultDir => _cfg?.DataDirectory ?? "";
 
     private bool _syncing;
@@ -101,7 +101,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
 
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
-    // ==================== v3.53 / NT-056：工具可用性（按选中行的分类） ====================
+    // ==================== v3.53：工具可用性（按选中行的分类） ====================
 
     /// <summary>当前选中的是路径行。</summary>
     public bool IsPathRowSelected => Selected?.IsPathRow == true;
@@ -237,7 +237,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         EditValue = value is { IsPathRow: true } ? value.Value : "";        _syncing = false;
         OnPropertyChanged(nameof(HasSelection));
 
-        RaiseActionStates();   // v3.53 / NT-056：工具条按分类启停，靠这批通知刷新
+        RaiseActionStates();   // v3.53：工具条按分类启停，靠这批通知刷新
     }
 
     partial void OnEditValueChanged(string value)
@@ -269,7 +269,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         SelectActiveProfile();            // v3.53：默认选中「正在使用」的配置行（一眼看到我在哪）
     }
 
-    // ==================== 外部程序「惰性探测」 + 状态栏 ⚠ 可跳转（v3.65 / NT-062） ====================
+    // ==================== 外部程序「惰性探测」 + 状态栏 ⚠ 可跳转（v3.65） ====================
 
     /// <summary>
     /// 惰性探测外部程序（需求 §4.9.2 第 5 条）：**进入「运行环境」节时**由设置页触发 ——
@@ -278,7 +278,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// </summary>
     public void ProbeExternalTools()
     {
-        RefreshPythonRow();   // NT-083：Python 共享环境与外部程序一起惰性探测（重建行文案，不动其它行）
+        RefreshPythonRow();   // Python 共享环境与外部程序一起惰性探测（重建行文案，不动其它行）
 
         if (_ext == null) return;
 
@@ -297,7 +297,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     }
 
     /// <summary>
-    /// 「Python 共享环境」行的说明文案（NT-083）：一句话说清现在用的是哪个解释器、共享 venv 建没建。
+    /// 「Python 共享环境」行的说明文案：一句话说清现在用的是哪个解释器、共享 venv 建没建。
     /// <para>
     /// 🔴 未装 Python ⛔ 不阻断任何功能 —— 只有"跑 .py 脚本 / 抓取规则"才需要它，本行只是**如实告知**。
     /// </para>
@@ -370,7 +370,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     {
         if (_cfg == null) return;
 
-        // v3.64 / NT-061：下面两者是**跨模块共用的全局项** ⇒ 保持应用级、⛔ 不下沉。
+        // v3.64：下面两者是**跨模块共用的全局项** ⇒ 保持应用级、⛔ 不下沉。
         //   ffmpeg：媒体资产（缩略图抽帧）与视频工具都用同一份；外部播放器：视频列表「▶ 播放」用。
         Items.Add(new PathSettingItem
         {
@@ -384,8 +384,8 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Description = "视频「▶ 播放」用它打开；留空 = 系统默认关联程序",
             Value = _cfg.PlayerPath
         });
-        // v3.65 / NT-062：三个解释器路径**回迁应用级**（判据 = 语义：「怎么跑外部程序」= 运行环境 ⇒ 应用级路由，
-        // ⛔ 不随配置档切换）。它们曾于 NT-061 下沉到「脚本管理器设置」，现回到本页（唯一写入点），落 app.json。
+        // v3.65：三个解释器路径**回迁应用级**（判据 = 语义：「怎么跑外部程序」= 运行环境 ⇒ 应用级路由，
+        // ⛔ 不随配置档切换）。它们曾于 下沉到「脚本管理器设置」，现回到本页（唯一写入点），落 app.json。
         // ⚠️ 脚本目录仍归「脚本管理器设置」（模块级，config\script-manager.json）。
         Items.Add(new PathSettingItem
         {
@@ -393,7 +393,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Description = "「设置与脚本」里 .py 脚本的解释器；留空 = 用 PATH 里的 python",
             Value = _cfg.PythonPath
         });
-        // NT-083：Python **共享环境**（venv）状态行 —— 只读展示，↗ 打开工具根目录。
+        // Python **共享环境**（venv）状态行 —— 只读展示，↗ 打开工具根目录。
         // 🔴 「当前值」= 目录（供 ↗ 使用），环境状态写进「说明」列；进本节时由 ProbeExternalTools() 刷新。
         Items.Add(new PathSettingItem
         {
@@ -413,7 +413,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Description = "没配 pwsh 时 .ps1 用它；留空 = 用系统自带的 powershell.exe",
             Value = _cfg.PowerShell51Path
         });
-        // NT-077 第二批：「导入导出默认目录」可编辑项**已删除** —— 它原来把某个 profile 的绝对路径写进
+        // 「导入导出默认目录」可编辑项**已删除** —— 它原来把某个 profile 的绝对路径写进
         // 跨配置共享的 app.json（切配置后指向别人的目录）。现在一律由「数据目录」推导，
         // 也就没有再让用户手填的必要。
         Items.Add(new PathSettingItem
@@ -422,7 +422,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Description = "本地数据库 newtoys.db（视频媒体信息缓存）等数据放这里；由应用决定，可用环境变量 NEWTOYS_HOME 整根切换",
             Value = _cfg.DataDirectory
         });
-        // v3.65 / NT-062：app.json 已上提到**应用根**（与 profiles\ 同级）—— 它是应用级「运行环境」，
+        // v3.65：app.json 已上提到**应用根**（与 profiles\ 同级）—— 它是应用级「运行环境」，
         // ⛔ 不再随配置档切换，也不再位于 <配置根>\config。这里如实展示新位置（只读）。
         Items.Add(new PathSettingItem
         {
@@ -439,7 +439,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     }
 
     /// <summary>
-    /// 配置行（v3.53 / NT-056 由「设置 → 配置」页并入）：`Kind` 借只读展示位（它的「当前值」= 数据目录，
+    /// 配置行（v3.53：由「设置 → 配置」页并入）：`Kind` 借只读展示位（它的「当前值」= 数据目录，
     /// 只读展示），⛔ 不新增行类型。
     /// </summary>
     private void BuildProfileRows()
@@ -669,11 +669,11 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             {
                 case "FfmpegPath": _cfg.FfmpegPath = v; break;
                 case "PlayerPath": _cfg.PlayerPath = v; break;
-                // v3.65 / NT-062：三个解释器路径回迁应用级（app.json）—— 本页是它们的唯一写入点。
+                // v3.65：三个解释器路径回迁应用级（app.json）—— 本页是它们的唯一写入点。
                 case "PythonPath": _cfg.PythonPath = v; break;
                 case "PwshPath": _cfg.PwshPath = v; break;
                 case "PowerShell51Path": _cfg.PowerShell51Path = v; break;
-                // NT-077 第二批：以上五项已下沉 env.json（机器级，⛔ app.json 里不再有这些键）。
+                // 以上五项已下沉 env.json（机器级，⛔ app.json 里不再有这些键）。
                 // ⚠️ 脚本目录（ScriptFolder）仍归「设置 → 脚本管理器设置」（config\modules\script-manager.json），⛔ 本页不写它。
                 // DataDir / ConfigDir / AppConfigFile 是只读展示项，不写；配置行（Key = "profile:<名>"）不属于 app.json
             }
@@ -681,7 +681,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         _cfg.Save();
     }
 
-    // ==================== 配置侧动作（v3.53 / NT-056：由「设置 → 配置」页原样并入） ====================
+    // ==================== 配置侧动作（v3.53：由「设置 → 配置」页原样并入） ====================
     //
     // 🔴 语义**零改动**：⇄ 切换仍二次确认 + 本窗重启；🗑 删除仍禁删当前配置并二次确认。
     // v3.66：♻ 重置（内置档语义）已撤销 —— 配置只是根目录，没有"初始态"这个概念。

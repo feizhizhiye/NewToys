@@ -16,7 +16,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Shell.Views;
 
 /// <summary>
-/// 「设置 → 数据」节的 code-behind（NT-078）。
+/// 「设置 → 数据」节的 code-behind。
 /// <para>
 /// 🔴 本页只做三件事：把节清单灌进 VM / 弹文件选择器 / 转交 <see cref="BackupService"/>。
 /// 打包、版本校验、路径防御全在服务里 —— ⛔ 别在这里再写一份读盘逻辑（历史上
@@ -137,7 +137,7 @@ public partial class DataView : UserControl
             vm.ConfigFiles.Clear();
             if (!Directory.Exists(cfgStore.ConfigDir)) return;
 
-            // NT-077 第二批：模块设置已归位 config\modules\ ⇒ 递归列举（备份 / 导入本来就是递归，列表要和它一致）
+            // 模块设置已归位 config\modules\ ⇒ 递归列举（备份 / 导入本来就是递归，列表要和它一致）
             foreach (var f in Directory.GetFiles(cfgStore.ConfigDir, "*.json", SearchOption.AllDirectories)
                                          .Where(x => !x.Contains($"{Path.DirectorySeparatorChar}.", StringComparison.Ordinal))
                                          .OrderBy(x => x))
@@ -147,7 +147,7 @@ public partial class DataView : UserControl
                 vm.ConfigFiles.Add(new ConfigFileDisplay { Name = rel, SizeBytes = fi.Length, LastWrite = fi.LastWriteTime });
             }
 
-            // NT-076 第二批：总库建表 / 迁移失败时在这里给红字提示（状态栏是页面级契约，
+            // 总库建表 / 迁移失败时在这里给红字提示（状态栏是页面级契约，
             // 而 schema 跑在任何页面出现之前 ⇒ 由本页承担"看得见"的责任）
             var schema = AppServices.Get<LibrarySchemaService>();
             vm.StatusText = schema != null && schema.Failed.Count > 0
@@ -369,7 +369,7 @@ public partial class DataView : UserControl
         LoadSections();
     }
 
-    // ==================== 对话框（NT-084：统一走全局弹出卡片 DialogCardHost） ====================
+    // ==================== 对话框（统一走全局弹出卡片 DialogCardHost） ====================
 
     private Task ShowMessageAsync(string title, string message)
         => DialogAsync(title, message, "知道了", showCancel: false);

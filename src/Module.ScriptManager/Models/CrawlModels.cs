@@ -7,7 +7,7 @@ using NewToys.UI.Controls;
 
 namespace NewToys.ScriptManager.Models;
 
-/// <summary>爬虫面板结果里的一列（NT-086 批 D）。</summary>
+/// <summary>爬虫面板结果里的一列。</summary>
 public sealed class CrawlColumn
 {
     public string Key { get; set; } = "";
@@ -28,7 +28,7 @@ public sealed class CrawlColumn
     public List<string> Preview => Values.Take(3).ToList();
 }
 
-/// <summary>一次「🔗 抓链接」的结果（NT-086 批 D）：列元数据 + 行表。</summary>
+/// <summary>一次「🔗 抓链接」的结果：列元数据 + 行表。</summary>
 public sealed class CrawlResult
 {
     public List<CrawlColumn> Columns { get; } = new();
@@ -40,7 +40,7 @@ public sealed class CrawlResult
     public int Total { get; set; }
 }
 
-/// <summary>目录节里的一行（NT-086 批 D）：<see cref="DynamicColumnGrid"/> 的 Cells + 下钻要用的 url。</summary>
+/// <summary>目录节里的一行：<see cref="DynamicColumnGrid"/> 的 Cells + 下钻要用的 url。</summary>
 public sealed partial class CrawlEntry : ObservableObject
 {
     public CrawlEntry(IReadOnlyList<SysInfoCell> cells, string url, string title)
@@ -59,7 +59,7 @@ public sealed partial class CrawlEntry : ObservableObject
     /// <summary>这一行的 title（没有 url 时的展示兜底）。</summary>
     public string Title { get; }
 
-    /// <summary>行首勾选框（NT-087：「⬇ 下载」只下勾选的行）。</summary>
+    /// <summary>行首勾选框（「⬇ 下载」只下勾选的行）。</summary>
     [ObservableProperty] private bool _isSelected;
 
     /// <summary>行右键「🧪 试下载」（🔴 每项自带命令：菜单在弹出树里取不到页面 VM 的命令）。</summary>
@@ -70,7 +70,7 @@ public sealed partial class CrawlEntry : ObservableObject
 }
 
 /// <summary>
-/// 爬虫面板里的**一节**（NT-086 批 D；节头仿信息面板：状态点 / 标题 / 计数 / ⟳ / 折叠）。
+/// 爬虫面板里的**一节**（节头仿信息面板：状态点 / 标题 / 计数 / ⟳ / 折叠）。
 /// <para>🔴 状态常量⛔ 不复用 <c>Module.ScriptManager</c> 的 <c>SysInfoStatus</c>（模块禁互引），本地一份。</para>
 /// </summary>
 public sealed partial class CrawlSection : ObservableObject
@@ -100,13 +100,13 @@ public sealed partial class CrawlSection : ObservableObject
     /// <summary>是否为「链接·目录」节（期①唯一有数据 / 可跑的节）。</summary>
     public bool IsLinks { get; }
 
-    /// <summary>是否为「② 试下载预览」节（NT-087）。</summary>
+    /// <summary>是否为「② 试下载预览」节。</summary>
     public bool IsPreview { get; }
 
-    /// <summary>是否为「③ 下载进度」节（NT-087）。</summary>
+    /// <summary>是否为「③ 下载进度」节。</summary>
     public bool IsProgress { get; }
 
-    /// <summary>是否为「④ 运行记录」节（NT-090：历史 run 列表 + 打开目录 / 日志）。</summary>
+    /// <summary>是否为「④ 运行记录」节（历史 run 列表 + 打开目录 / 日志）。</summary>
     public bool IsHistory { get; }
 
     [ObservableProperty] private string _status = Idle;
@@ -149,8 +149,8 @@ public sealed partial class CrawlSection : ObservableObject
 }
 
 /// <summary>
-/// 爬虫面板的列宽算法（NT-086 批 D）。
-/// 🔴 与 <c>Module.ScriptManager</c> 的 <c>InfoRowFactory.Specs()</c> **故意分叉**（NT-085 约定：
+/// 爬虫面板的列宽算法。
+/// 🔴 与 <c>Module.ScriptManager</c> 的 <c>InfoRowFactory.Specs()</c> **故意分叉**（约定：
 /// 两份用法稳定后再评估合并）；这里按内容估值：中文记 2 宽，钳在 [90, 360]。
 /// </summary>
 public static class CrawlSpecs

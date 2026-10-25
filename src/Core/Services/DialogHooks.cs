@@ -24,18 +24,18 @@ public static class DialogHooks
     public static Func<string, string, Task<string?>>? InputHandler { get; set; }
 
     /// <summary>
-    /// 选目录钩子（宿主注入，v3.53 / NT-055）：(标题, 起始目录) → 选中目录的本地路径；null = 用户取消。
+    /// 选目录钩子（宿主注入，v3.53）：(标题, 起始目录) → 选中目录的本地路径；null = 用户取消。
     /// <para>工具条改由 Shell 声明式承载后，页面 VM 也要能"弹选择器" —— 这是唯一干净的解（VM ⛔ 不引 Avalonia）。</para>
     /// </summary>
     public static Func<string, string?, Task<string?>>? PickFolderHandler { get; set; }
 
     /// <summary>
-    /// 选文件钩子（宿主注入，v3.53 / NT-055）：(标题, 起始目录, 允许多选, 过滤模式如 <c>*.json</c>) → 选中文件路径集合；空 = 取消。
+    /// 选文件钩子（宿主注入，v3.53）：(标题, 起始目录, 允许多选, 过滤模式如 <c>*.json</c>) → 选中文件路径集合；空 = 取消。
     /// </summary>
     public static Func<string, string?, bool, string, Task<IReadOnlyList<string>>>? PickFilesHandler { get; set; }
 
     /// <summary>
-    /// 另存为钩子（宿主注入，v3.53 / NT-055）：(标题, 起始目录, 建议文件名, 过滤模式) → 目标路径；null = 取消。
+    /// 另存为钩子（宿主注入，v3.53）：(标题, 起始目录, 建议文件名, 过滤模式) → 目标路径；null = 取消。
     /// </summary>
     public static Func<string, string?, string, string, Task<string?>>? SaveFileHandler { get; set; }
 
@@ -48,18 +48,18 @@ public static class DialogHooks
     public static async Task<string?> InputAsync(string title, string initialValue)
         => InputHandler == null ? null : await InputHandler(title, initialValue).ConfigureAwait(false);
 
-    /// <summary>选一个目录（v3.53 / NT-055）。没接钩子时返回 <c>null</c>（= 当作用户取消）。</summary>
+    /// <summary>选一个目录（v3.53）。没接钩子时返回 <c>null</c>（= 当作用户取消）。</summary>
     public static async Task<string?> PickFolderAsync(string title, string? initialDir = null)
         => PickFolderHandler == null ? null : await PickFolderHandler(title, initialDir).ConfigureAwait(false);
 
-    /// <summary>选若干文件（v3.53 / NT-055）。没接钩子时返回空集合（= 当作用户取消）。</summary>
+    /// <summary>选若干文件（v3.53）。没接钩子时返回空集合（= 当作用户取消）。</summary>
     public static async Task<IReadOnlyList<string>> PickFilesAsync(
         string title, string? initialDir = null, bool allowMultiple = false, string pattern = "*")
         => PickFilesHandler == null
             ? Array.Empty<string>()
             : await PickFilesHandler(title, initialDir, allowMultiple, pattern).ConfigureAwait(false);
 
-    /// <summary>另存为（v3.53 / NT-055）。没接钩子时返回 <c>null</c>（= 当作用户取消）。</summary>
+    /// <summary>另存为（v3.53）。没接钩子时返回 <c>null</c>（= 当作用户取消）。</summary>
     public static async Task<string?> SaveFileAsync(
         string title, string? initialDir, string suggestedName, string pattern = "*")
         => SaveFileHandler == null

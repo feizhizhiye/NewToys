@@ -22,12 +22,12 @@ public partial class VideoPreviewView : UserControl
     {
         InitializeComponent();
         // 选源文件 / 输出文件都要走平台选择器 —— VM 不引用 Avalonia 的 UI 类型，所以在这一层选完交给 VM。
-        // ⚠️ NT-054：原来卡片里那个内联「📂」按钮（PickOutputBtn）随页内卡一起删了 ——
+        // ⚠️ 原来卡片里那个内联「📂」按钮（PickOutputBtn）随页内卡一起删了 ——
         //    现在它是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
     }
 
     /// <summary>
-    /// NT-054：把「📂 选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
+    /// 把「📂 选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
     /// 每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
     /// </summary>
     protected override void OnDataContextChanged(EventArgs e)
@@ -97,7 +97,7 @@ public partial class VideoPreviewView : UserControl
         }
     }
 
-    /// <summary>📝 给当前任务挑字幕文件（.srt / .ass；NT-100）。</summary>
+    /// <summary>📝 给当前任务挑字幕文件（.srt / .ass）。</summary>
     private async System.Threading.Tasks.Task PickSubtitleFileAsync()
     {
         if (DataContext is not VideoPreviewViewModel vm) return;
@@ -131,7 +131,7 @@ public partial class VideoPreviewView : UserControl
         }
     }
 
-    /// <summary>🎵 挑替换音轨用的音频文件（NT-103）。</summary>
+    /// <summary>🎵 挑替换音轨用的音频文件。</summary>
     private async System.Threading.Tasks.Task PickAudioFileAsync()
     {
         if (DataContext is not VideoPreviewViewModel vm) return;

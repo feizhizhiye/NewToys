@@ -6,7 +6,7 @@ using System.IO.Compression;
 namespace NewToys.Shared.Services;
 
 /// <summary>
-/// 备份节的**归属层级**（NT-078）：决定它落在哪个入口的默认勾选里。
+/// 备份节的**归属层级**：决定它落在哪个入口的默认勾选里。
 /// <list type="bullet">
 ///   <item><see cref="Env"/> —— 机器级（绝对路径 / 外部程序），跨机恢复有副作用 ⇒ 默认不勾；</item>
 ///   <item><see cref="Shell"/> —— 框架偏好（<c>config\shell.json</c>）⇒ 默认勾；</item>
@@ -23,7 +23,7 @@ public enum BackupScope
 }
 
 /// <summary>
-/// 一份可**独立打包 / 独立恢复**的备份节（NT-078，需求 §3.5）。
+/// 一份可**独立打包 / 独立恢复**的备份节（需求 §3.5）。
 /// <para>
 /// 🔴 容器是 zip（<c>System.IO.Compression</c>，⛔ 不引第三方压缩库）：
 /// db / 缩略图放不进 JSON，zip 还能做到「只恢复其中一节」。
@@ -78,7 +78,7 @@ public interface IBackupSection
 }
 
 /// <summary>
-/// 备份节的公共小工具（NT-078）：路径防御 + 内层 zip 的读写。
+/// 备份节的公共小工具：路径防御 + 内层 zip 的读写。
 /// <para>
 /// 🔴 **校验顺序固定**（历史坑）：先判 <c>..</c> / 绝对路径（**拒绝**）→ 再跳过
 /// <c>.seeded</c> / <c>.bak</c> / <c>.legacy</c> 这类归档产物。顺序反了，<c>../evil.ps1</c>

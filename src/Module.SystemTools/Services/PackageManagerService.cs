@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using NewToys.Core.Services;   // DialogHooks（二次确认钩子，由 Shell 注入）+ IProcessRunner（NT-081 步骤3）
+using NewToys.Core.Services;   // DialogHooks（二次确认钩子，由 Shell 注入）+ IProcessRunner
 using NewToys.SystemTools.Models;
 using NewToys.Shared.Services;
 
@@ -29,7 +29,7 @@ public class PackageManagerService : IPackageManagerService
     private static string? _exePath;
     private readonly IProcessRunner _runner;
 
-    /// <summary>NT-081 步骤 3：进程执行本体走统一底座（编码 / 超时 / 取消杀进程树）。</summary>
+    /// <summary>进程执行本体走统一底座（编码 / 超时 / 取消杀进程树）。</summary>
     public PackageManagerService(IProcessRunner runner) => _runner = runner;
 
     /// <summary>
@@ -40,7 +40,7 @@ public class PackageManagerService : IPackageManagerService
     /// 旧正则不认 <c>\</c> 会把这类已安装条目整批丢掉（v1.33 修正，也是"列表少东西"的原因之一）。
     /// </para>
     /// <para>
-    /// 🔴 v3.37 / NT-002 实测再修正（winget 1.29 真实 <c>winget list</c> 输出）：合法 Id 远不止"点分命名"——
+    /// 🔴 v3.37：实测再修正（winget 1.29 真实 <c>winget list</c> 输出）：合法 Id 远不止"点分命名"——
     /// 实测存在 <b>带空格</b>的 <c>ARP\Machine\X64\Steam App 570</c>、<b>带花括号</b>的
     /// <c>ARP\Machine\X86\{{GUID}}</c>、乃至 <b>带中文</b>的 <c>ARP\Machine\X86\天翼云盘</c>，
     /// 旧白名单把它们全误杀了。现将空格 / 花括号 / 方括号 / 圆括号 / 中文块加入白名单；
@@ -153,7 +153,7 @@ public class PackageManagerService : IPackageManagerService
         var r = await RunAsync(new[] { "pin", "list" }, ct, ReadTimeout).ConfigureAwait(false);
 
         var list = new List<PackageInfo>();
-        // NT-075：走表头切片拿「Id + 被 pin 住的版本」（⛔ 老实现会把版本号当成 Id 混进来）。
+        // 走表头切片拿「Id + 被 pin 住的版本」（⛔ 老实现会把版本号当成 Id 混进来）。
         foreach (var (id, ver) in PackageOutputParser.ParsePins(r.Out))
             list.Add(new PackageInfo { Id = id, Version = ver, PinnedVersion = ver, IsPinned = true });
         return (true, list.Count == 0 ? "没有已 Pin 的包" : $"已 Pin {list.Count} 个包", list);
@@ -283,7 +283,7 @@ public class PackageManagerService : IPackageManagerService
     /// <summary>
     /// 不可逆操作（卸载 / 删源）前的二次确认 —— 规范 3.7 的第三个分界。
     /// <para>
-    /// NT-074：本服务从 Core 下放到模块后，**Shell 不能再直接给它接钩子**（Release 下 Shell 不引模块）
+    /// 本服务从 Core 下放到模块后，**Shell 不能再直接给它接钩子**（Release 下 Shell 不引模块）
     /// ⇒ 改走 Core 的公共钩子 <see cref="DialogHooks.ConfirmAsync"/>（Shell 已注入同一套模态框）。
     /// **钩子没接上时返回 false** —— 宁可什么都不做，也不能在用户没确认的情况下卸载软件。
     /// </para>
@@ -349,7 +349,7 @@ public class PackageManagerService : IPackageManagerService
     private async Task<(int Code, string Out, string Err)> RunAsync(
         IReadOnlyList<string> args, CancellationToken ct, TimeSpan timeout)
     {
-        // NT-081 步骤3：本体在 IProcessRunner。winget 输出宽容解（历史行为：Encoding.UTF8 不抛）。
+        // 本体在 IProcessRunner。winget 输出宽容解（历史行为：Encoding.UTF8 不抛）。
         var r = await _runner.RunAsync(new ProcessRunRequest
         {
             FileName = ResolveExe(),

@@ -20,7 +20,7 @@ namespace NewToys.MediaAssets.Services;
 ///   <item><b>quick_hash（读前 N MB）只在"库里存在同大小且已有 quick_hash 的位置"时才算</b>
 ///         —— 否则算了也没处匹配。**首次扫描因此完全不读文件内容**（纯元数据遍历）；</item>
 ///   <item><b>新文件⛔ 不算完整内容哈希</b>（那会把每个文件整读一遍，是之前慢的根因）。
-///         完整哈希与元数据一起归 NT-021 的「补全哈希」任务；需要立即算可开
+///         完整哈希与元数据一起交给任务队列的「补全哈希」任务；需要立即算可开
 ///         <see cref="ComputeFullHashForNewFiles"/>；</item>
 ///   <item><b>匹配全在内存做</b>：扫描前把该存储源的现有位置**一次**读进 <see cref="StorageIndex"/>，
 ///         ⛔ 不 per-file SELECT（1 万文件 = 4 万次查询 → 4 次）；</item>
@@ -33,7 +33,7 @@ namespace NewToys.MediaAssets.Services;
 /// ①② 都不命中，会当成新资产（旧的留 missing）。内容完全一样的重复由将来「补全哈希」校准。
 /// </para>
 /// <para>
-/// ⚠️ 元数据 / 缩略图**不在本项**（NT-021）：本类只留 <c>enricher</c> 回调挂钩，扫描到新文件时调用它。
+/// ⚠️ 元数据 / 缩略图**不在本项**：本类只留 <c>enricher</c> 回调挂钩，扫描到新文件时调用它。
 /// </para>
 /// </summary>
 public class ScanService
@@ -95,34 +95,34 @@ public class ScanService
             return rows;
         }, ct);
 
-    /// <summary>扫描时跳过的目录名（用户可配，见 NT-021 设置页）。</summary>
+    /// <summary>扫描时跳过的目录名（用户可配，见 设置页）。</summary>
     public HashSet<string> IgnoreDirectoryNames { get; private set; } = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git", ".svn", ".hg", "node_modules", "$RECYCLE.BIN", "System Volume Information",
         ".cache", "AppData", ".thumbnails"
     };
 
-    /// <summary>扫描时跳过的扩展名（临时 / 系统文件；用户可配，见 NT-021 设置页）。</summary>
+    /// <summary>扫描时跳过的扩展名（临时 / 系统文件；用户可配，见 设置页）。</summary>
     public HashSet<string> IgnoreExtensions { get; private set; } = new(StringComparer.OrdinalIgnoreCase)
     {
         ".tmp", ".part", ".crdownload", ".partial", ".lnk", ".ini", ".db", ".db-wal", ".db-shm"
     };
 
-    /// <summary>NT-021：忽略隐藏文件 / 目录（文件属性 Hidden；用户可配）。</summary>
+    /// <summary>忽略隐藏文件 / 目录（文件属性 Hidden；用户可配）。</summary>
     public bool IgnoreHiddenFiles { get; private set; } = true;
 
-    /// <summary>NT-021：忽略临时文件（<c>~$*</c> Office 临时副本等；用户可配）。</summary>
+    /// <summary>忽略临时文件（<c>~$*</c> Office 临时副本等；用户可配）。</summary>
     public bool IgnoreTempFiles { get; private set; } = true;
 
     /// <summary>
-    /// NT-021：新文件入库后的**增强回调**（元数据提取 + 缩略图生成）。
+    /// 新文件入库后的**增强回调**（元数据提取 + 缩略图生成）。
     /// 由模块初始化时接线（读设置的自动开关）；传 null 即跳过。
     /// ⚠️ 只在**新位置**批量落库后调（⛔ 不对"已见过"的位置重复跑）。
     /// </summary>
     public Func<FileLocation, CancellationToken, Task>? Enricher { get; set; }
 
     /// <summary>
-    /// NT-021：把模块设置应用到扫描器（忽略规则 / 采样大小）。设置页保存后由调用方调一次。
+    /// 把模块设置应用到扫描器（忽略规则 / 采样大小）。设置页保存后由调用方调一次。
     /// </summary>
     public void ApplySettings(MediaAssetsSettings s)
     {
@@ -141,7 +141,7 @@ public class ScanService
     /// <summary>
     /// 新入库的文件是否**立即**算完整内容哈希。默认 <c>false</c>。
     /// 🔴 打开它会把每个新文件整读一遍 —— 首次扫描立刻退化成"几分钟扫不完一个目录 + 硬盘狂响"。
-    /// 正式用途 = 需要立刻得到内容指纹做去重时；常规索引交给 NT-021 的异步「补全哈希」。
+    /// 正式用途 = 需要立刻得到内容指纹做去重时；常规索引交给 的异步「补全哈希」。
     /// </summary>
     public bool ComputeFullHashForNewFiles { get; set; }
 
@@ -160,7 +160,7 @@ public class ScanService
 
     /// <summary>
     /// 扫描（异步 / 可取消 / 带进度文本）。<paramref name="storageId"/> = null 表示**全部在线存储源**。
-    /// <paramref name="enricher"/>：新文件入库后回调（NT-021 接元数据 + 缩略图；传 null 即跳过）。
+    /// <paramref name="enricher"/>：新文件入库后回调（接元数据 + 缩略图；传 null 即跳过）。
     /// 返回已回填计数的 <see cref="ScanJob"/>（也写回了 <c>scan_jobs</c> 表）。
     /// </summary>
     public async Task<ScanJob> ScanAsync(long? storageId,
@@ -452,7 +452,7 @@ public class ScanService
 
         // ② size + mtime（零 IO）：内容没动、路径变了 → 视为**移动**
         //    ⛔ 守卫：相同 (size,mtime) 可能是不同文件（复制且保留时间戳）→ 只认**唯一**候选；
-        //    多候选视为歧义，回落到"新文件"，避免把原文件位置误改写到副本上（NT-032）。
+        //    多候选视为歧义，回落到"新文件"，避免把原文件位置误改写到副本上。
         var bySizeMtime = index.TryGetSingleBySizeMtime(size, mtime);
         if (bySizeMtime != null)
         {
@@ -482,7 +482,7 @@ public class ScanService
         }
 
         // ④ 全新文件：建资产 + 排队等批量写入
-        //    ⛔ **不读文件内容**（完整哈希延后到 NT-021）—— 这是 v3.29 性能重修的核心。
+        //    ⛔ **不读文件内容**（完整哈希延后到 ）—— 这是 v3.29 性能重修的核心。
         var asset = new Asset
         {
             Type = GuessAssetType(ext),
@@ -571,7 +571,7 @@ public class ScanService
         _assets.InsertLocations(pending);                       // 一个事务写完，回填 Id
         foreach (var l in pending) if (l.Id != 0) index.Add(l); // 立刻进内存索引（同批里的重复不会重复建）
 
-        // NT-021：调用方没传 enricher 时用模块接线的那个（元数据 + 缩略图）
+        // 调用方没传 enricher 时用模块接线的那个（元数据 + 缩略图）
         var en = enricher ?? Enricher;
         if (en != null)
         {
@@ -669,7 +669,7 @@ public class ScanService
                 else
                 {
                     if (IgnoreExtensions.Contains(Path.GetExtension(entry))) continue;
-                    // NT-021：Office 等程序的临时副本（~$开头）—— 扩展名管不到它
+                    // Office 等程序的临时副本（~$开头）—— 扩展名管不到它
                     if (IgnoreTempFiles && Path.GetFileName(entry).StartsWith("~$", StringComparison.Ordinal)) continue;
                     yield return entry;
                 }

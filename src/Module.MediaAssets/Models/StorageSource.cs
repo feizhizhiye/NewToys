@@ -30,7 +30,7 @@ public class StorageSource
 }
 
 /// <summary>
-/// 存储源统计（NT-020 存储源页详情卡）：文件位置数 / 已用大小 / 缺失数 / 按资产类型分布。
+/// 存储源统计（存储源页详情卡）：文件位置数 / 已用大小 / 缺失数 / 按资产类型分布。
 /// </summary>
 public sealed class StorageStats
 {
@@ -56,7 +56,7 @@ public sealed class StorageStats
 }
 
 /// <summary>
-/// 存储源页的一行（NT-020）：库里的 <see cref="StorageSource"/> + 页面显示的统计 / 时间文本。
+/// 存储源页的一行：库里的 <see cref="StorageSource"/> + 页面显示的统计 / 时间文本。
 /// ⚠️ 纯展示模型（没有逐行交互态）→ 普通类即可；刷新整表重建。
 /// </summary>
 public sealed class StorageRow

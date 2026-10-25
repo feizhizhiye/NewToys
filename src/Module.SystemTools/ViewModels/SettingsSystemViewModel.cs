@@ -9,10 +9,10 @@ using NewToys.SystemTools.Services;
 namespace NewToys.SystemTools.ViewModels;
 
 /// <summary>
-/// 「系统工具设置」页（`settings-system`，NT-091）：本模块配置的**唯一写入点**。
+/// 「系统工具设置」页（`settings-system`，）：本模块配置的**唯一写入点**。
 /// <para>🔴 写入一律经 <see cref="ISystemToolsSettingsService"/>（Core 的 <c>IOptionsStore</c>，落 <c>config\system.json</c>）；
 /// 命令条目清单本身在 <c>config\system\commands.json</c>（<see cref="ISystemCommandStore"/>，页里只显示路径）。
-/// <para>🔴 NT-096 返工：「软件源（winget）」节**删除**（用户 2026-10-22：「系统工具模块下有软件设置页的节，没必要」）。
+/// <para>🔴 「软件源（winget）」节**删除**（用户 2026-10-22：「系统工具模块下有软件设置页的节，没必要」）。
 /// 源 = 系统 winget 自己的配置，要改直接 <c>winget source …</c>；本页 ⛔ 不再陈列命令清单。</para>
 /// </summary>
 public partial class SettingsSystemViewModel : ObservableObject, IStatusProvider

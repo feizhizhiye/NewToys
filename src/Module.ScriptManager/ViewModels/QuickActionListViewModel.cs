@@ -62,13 +62,13 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     private readonly IQuickActionService? _svc;
     private readonly IAppConfigService? _app;
 
-    /// <summary>本模块设置（v3.64 / NT-061：脚本目录 + 解释器路径的唯一写入点，落 config\script-manager.json）。</summary>
+    /// <summary>本模块设置（v3.64：脚本目录 + 解释器路径的唯一写入点，落 config\script-manager.json）。</summary>
     private readonly IScriptManagerSettingsService? _pc;
 
-    /// <summary>手工数据（NT-073：库列表 / 当前库 / 根目录）。</summary>
+    /// <summary>手工数据（库列表 / 当前库 / 根目录）。</summary>
     private readonly IScriptStoreService? _store;
 
-    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
     public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
     /// <summary>本页归属的 <see cref="QuickAction.Page"/>（<see cref="QuickActionPage"/> 之一）。</summary>
@@ -131,7 +131,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         new("Classify", "分类", "1.1*", sortable: false, sample: ".ps1"),
         new("Description", "简介", "4*", sortable: false, sample: "删除 %TEMP% 下的临时文件"),
         new("Favorite", "★", "0.9*", sample: "★"),
-        // NT-068 S3：「可采集」= 能不能当采集器用（✔ / ✖，✖ 悬浮看原因）；派生值，不落盘
+        // 「可采集」= 能不能当采集器用（✔ / ✖，✖ 悬浮看原因）；派生值，不落盘
         new("Collectable", "可采集", "0.9*", sample: "✔"),
         new("Action", "操作", "1.5*", sortable: false),
     };
@@ -144,7 +144,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     [ObservableProperty] private string _editCommand = "";
     [ObservableProperty] private bool _editNeedAdmin;
 
-    // ---- 运行窗口行为（v3.19 / NT-006，仅命令行命令有意义）----
+    // ---- 运行窗口行为（v3.19，仅命令行命令有意义）----
 
     /// <summary>编辑缓冲：是否「隐藏终端窗口」（GUI 启动类静默跑、不弹终端；管理员时失效）。</summary>
     [ObservableProperty] private bool _editRunHidden;
@@ -219,7 +219,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// <summary>是否显示 Shell / 隐藏终端窗口 两个运行选项（v3.32：详情卡正文显示时且是命令行命令）。</summary>
     public bool ShowCommandRunOptions => ShowDetailBody && IsCommandKind;
 
-    // ==================== 库选择（NT-073） ====================
+    // ==================== 库选择 ====================
 
     /// <summary>
     /// 本页的库 kind（<c>script</c> / <c>command</c>）；空 = 本页不启用库选择（脚本收集 / 命令收集仍按全量清单）。
@@ -298,7 +298,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         return item.CollectionIds.Contains(id);
     }
 
-    // ==================== 库级导入导出（NT-073 S7） ====================
+    // ==================== 库级导入导出 ====================
 
     /// <summary>导出当前库的**索引包**（json：定义 + 成员 + 根目录）。</summary>
     [RelayCommand]
@@ -374,7 +374,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     // ==================== 脚本目录（v3.64：唯一写入点 = 本模块设置页；这里的框只是同一份值的另一个视图） ====================
 
     /// <summary>脚本目录（生效值），详情卡里提示"文件放哪"。
-    /// <para>NT-073：选了具体库时 = 该库的 <c>rootPath</c>（空则回全局目录）；「全部库」= 全局目录。</para></summary>
+    /// <para>选了具体库时 = 该库的 <c>rootPath</c>（空则回全局目录）；「全部库」= 全局目录。</para></summary>
     public virtual string ScriptsDirectory
     {
         get
@@ -391,7 +391,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     public bool IsDefaultScriptFolder => string.IsNullOrWhiteSpace(_pc?.ScriptsFolder);
 
     /// <summary>
-    /// 工具条「脚本目录」框的**编辑态草稿**（v3.64 / NT-061）：框 TwoWay 绑到它，
+    /// 工具条「脚本目录」框的**编辑态草稿**（v3.64）：框 TwoWay 绑到它，
     /// 回车 / 失焦时由 <see cref="CommitScriptsFolderCommand"/> 一次提交 —— ⛔ 不每敲一个字就写盘。
     /// </summary>
     [ObservableProperty] private string _scriptsFolderDraft = "";
@@ -472,7 +472,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;
-    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+    // ==================== 详情面板 + 声明式详情卡（的 L2 迁移页，需求 §4.5.1） ====================
     //    本基类被两页共用（「脚本库」/「命令库」）⇒ 契约在这里实现一次，
     //    **卡片描述符由两个子类各自 override <see cref="BuildCard"/>**（两页字段本来就不同：
     //    脚本页有「类型 / 脚本文件 / 解释器」，命令库页有「Shell / 隐藏终端窗口」）。
@@ -514,7 +514,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     protected abstract DetailCardDescriptor BuildCard();
 
     /// <summary>
-    /// 详情卡的**图标动作组**（NT-059 / <see cref="FieldKind.IconBar"/>）：运行 / 收藏 / 保存 / 删除
+    /// 详情卡的**图标动作组**（/ <see cref="FieldKind.IconBar"/>）：运行 / 收藏 / 保存 / 删除
     /// 合成**一行 32×32 小图标按钮**（替代原来四个撑满宽度的文字按钮）。
     /// <para>
     /// 两页**完全一致** ⇒ 基类给一份，子类把它插进字段区末尾。
@@ -642,7 +642,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     public string FavoriteButtonText => DetailItem?.IsFavorite == true ? "★ 取消收藏" : "☆ 收藏";
 
     /// <summary>底部提示：数据落在哪、会不会被备份（规范 §9）。
-    /// 🔴 NT-068 S3 起脚本库 / 命令库**共用** <c>config\script\script.json</c>（按条目角色区分归属）。</summary>
+    /// 🔴 起脚本库 / 命令库**共用** <c>config\script\script.json</c>（按条目角色区分归属）。</summary>
     public string DataFileHint =>
         $"本页数据文件：{FilePath}\n（两个页面的文件都在 config\\ 下，会被「设置 → 数据管理」的备份 / 导入一起覆盖）";
 
@@ -685,7 +685,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         FillEditors(null);
     }
 
-    // ==================== 数据层计数戳（NT-080 v3.80） ====================
+    // ==================== 数据层计数戳（v3.80） ====================
 
     /// <summary>数据层「条目数 + 集合数」的组合戳（见 <see cref="RefreshIfStoreChanged"/>）。</summary>
     private int _storeStamp;
@@ -728,7 +728,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         "Category" => ((QuickAction)row).Category,
         "Description" => ((QuickAction)row).Description,
         "Favorite" => ((QuickAction)row).FavoriteMark,
-        // NT-068 S3：可采集（✔ / ✖）——「仅可采集」筛选与表头右键都走这一列。
+        // 可采集（✔ / ✖）——「仅可采集」筛选与表头右键都走这一列。
         "Collectable" => ((QuickAction)row).CollectableMark,
         _ => null
     };
@@ -752,8 +752,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
             CategoryOptions.Add(new ActionCategoryOption { Label = c, Value = c });
         SelectedCategory = CategoryOptions.FirstOrDefault(o => o.Value == keep) ?? CategoryOptions[0];
 
-        // v3.19 / NT-006：分类也进表头右键「🔎 筛选」子菜单（原工具条「分类筛选框」移入这里）
-        // NT-068 S3：追加「仅可采集」—— 按需生成集合的入口（卡 §三.5）。
+        // v3.19：分类也进表头右键「🔎 筛选」子菜单（原工具条「分类筛选框」移入这里）
+        // 追加「仅可采集」—— 按需生成集合的入口（卡 §三.5）。
         var quick = CategoryOptions.Where(o => !string.IsNullOrEmpty(o.Value))
                                    .Select(o => (o.Label, "Category", o.Value!))
                                    .Append(("仅可采集", "Collectable", "✔"));
@@ -948,7 +948,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
             item.Description = $"导入：{Path.GetFileName(file)}";
             item.ScriptFile = stored;
             item.Interpreter = ScriptInterpreter.Auto;
-            AttachToCurrentLibrary(item);   // NT-073：收录进当前库（「全部库」= 默认库）
+            AttachToCurrentLibrary(item);   // 收录进当前库（「全部库」= 默认库）
             existing.Add(stored);
             added++;
             first ??= item;
@@ -1002,7 +1002,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
             ? file[scriptsDir.Length..].TrimStart('\\', '/')
             : file;
 
-    // ==================== 工具条（NT-055 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+    // ==================== 工具条（/ 需求 §4.8.5：由 Shell 统一渲染） ====================
 
     /// <summary>导出时建议的文件名（两页不同：<c>script-library-export.json</c> / <c>script-commands-export.json</c>）。</summary>
     protected virtual string ExportSuggestedName => "script-export.json";
@@ -1020,7 +1020,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// 排在**共用搜索框之后**的页专属项（v3.61）：给「入口动作 / 输入框 / 搜索框」三件套后面还要挂按钮的页用
     /// （如 <c>script-library</c> 的「含子目录」；⛔ 别塞进 <see cref="ToolbarExtras"/>，否则会把搜索框挤到后面）。
     /// </summary>
-    // ==================== 手动扫描（NT-068 §三.6：用户自己扫，⛔ 不自动登记） ====================
+    // ==================== 手动扫描（§三.6：用户自己扫，⛔ 不自动登记） ====================
 
     /// <summary>扫描候选（页内候选面板的数据源）。</summary>
     public ObservableCollection<ScanCandidateItem> ScanCandidates { get; } = new();
@@ -1100,7 +1100,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     };
 
     /// <summary>
-    /// 工具条（NT-055 / 需求 §4.8.5）：页面⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。
+    /// 工具条（/ 需求 §4.8.5）：页面⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。
     /// <para>
     /// 顺序按「全部资产」同一口径：**入口动作（<see cref="ToolbarExtras"/>）→ 输入框 → 搜索框**，
     /// 页专属项在前，共用搜索框紧随其后，末尾是共用的「导入 / 导出 + 清空本页」。
@@ -1112,7 +1112,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         {
             var items = new List<ToolbarItemDescriptor>();
 
-            // NT-073：库页最前 = 库选择 + 库级导入导出。
+            // 库页最前 = 库选择 + 库级导入导出。
             if (LibraryKind.Length > 0)
             {
                 items.Add(new()
@@ -1160,7 +1160,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
             // 搜索框之后的页专属项（⛔ 别塞进 ToolbarExtras —— 那会把搜索框从「入口动作 / 输入框」后面挤开）。
             items.AddRange(ToolbarTailExtras);
 
-            // NT-068 S3：扫描候选面板的两个动作（只在有候选时出现，⛔ 不占常态工具条）。
+            // 扫描候选面板的两个动作（只在有候选时出现，⛔ 不占常态工具条）。
             if (HasScanResult)
             {
                 items.Add(new()
@@ -1205,7 +1205,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         }
     }
 
-    /// <summary>📤 导出：把本页全条目存成 json 文件（NT-055：原 code-behind 的 Click 搬进 VM，选择器走 DialogHooks）。</summary>
+    /// <summary>📤 导出：把本页全条目存成 json 文件（原 code-behind 的 Click 搬进 VM，选择器走 DialogHooks）。</summary>
     [RelayCommand]
     private async Task ExportPageAsync()
     {
@@ -1228,7 +1228,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     [RelayCommand]
     private Task ImportPageReplaceAsync() => ImportPageFromFileAsync(replace: true);
 
-    /// <summary>📥 导入：选 json 文件 → 合并 / 整页替换导入本页（NT-055：原 code-behind 的 Click 搬进 VM）。</summary>
+    /// <summary>📥 导入：选 json 文件 → 合并 / 整页替换导入本页（原 code-behind 的 Click 搬进 VM）。</summary>
     private async Task ImportPageFromFileAsync(bool replace)
     {
         var files = await DialogHooks.PickFilesAsync(
@@ -1241,7 +1241,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
     }
 
-    // ==================== 整页导入 / 导出（v3.19 / NT-006、NT-007；NT-055 收尾后控件样式由 Shell 的 ToolbarHost 统一） ====================
+    // ==================== 整页导入 / 导出（v3.19；收尾后控件样式由 Shell 的 ToolbarHost 统一） ====================
 
     /// <summary>导出本页**全条目** json 文本（供 View「📤 导出」存盘）。</summary>
     public string ExportPageJson() => _svc?.ExportPage(_pageKind) ?? "[]";
@@ -1265,7 +1265,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         return (replace ? "已整页替换：" : "已合并导入：") + summary + $"（写入 {FilePath}）";
     }
 
-    /// <summary>🧹 清空本页（v3.19 / NT-006，方案③：**真删除并落盘**）：删掉本页全部条目，二次确认。</summary>
+    /// <summary>🧹 清空本页（v3.19，方案③：**真删除并落盘**）：删掉本页全部条目，二次确认。</summary>
     [RelayCommand]
     private async Task ClearPageAsync()
     {
@@ -1293,7 +1293,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     // ==================== 增删改查 ====================
 
     /// <summary>
-    /// 把新建 / 导入的条目归到**当前库**（NT-073：收录必须归属一个库）。
+    /// 把新建 / 导入的条目归到**当前库**（收录必须归属一个库）。
     /// <para>「全部库」时不动（保持 <c>Add</c> 给它的默认库归属）。</para>
     /// </summary>
     private void AttachToCurrentLibrary(QuickAction? item)
@@ -1409,7 +1409,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         var item = Selected;
         if (item == null || _svc == null) return;
 
-        // NT-073 D15：选了具体库时，删除 = **从当前库移出**（⛔ 不删条目本体 / 文件）。
+        // D15：选了具体库时，删除 = **从当前库移出**（⛔ 不删条目本体 / 文件）。
         if (LibraryKind.Length > 0 && CurrentLibraryId.Length > 0 && _store != null)
         {
             var okMove = await DialogHooks.ConfirmAsync(
@@ -1502,7 +1502,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         catch (Exception ex) { StatusText = "复制失败：" + ex.Message; }
     }
 
-    // ==================== 右键「编辑」脚本（v3.19 / NT-007，需求 §6.2.2） ====================
+    // ==================== 右键「编辑」脚本（v3.19，需求 §6.2.2） ====================
 
     /// <summary>选中项是否可「编辑」：是脚本类型且脚本文件已在磁盘上。</summary>
     public bool CanEditScript => Selected != null

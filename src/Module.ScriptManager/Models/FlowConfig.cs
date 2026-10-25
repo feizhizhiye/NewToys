@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 流水线（flow）配置（NT-086 批 C）—— 五段槽位各挂一个脚本名，落
+/// 流水线（flow）配置—— 五段槽位各挂一个脚本名，落
 /// <c>&lt;DataDir&gt;\web-tools\flows\&lt;名&gt;.json</c>（⛔ 不开 DB 表）。
 /// <para>
 /// 🔴 <b>段位</b>：<c>probe</c>（内置）→ <c>entry</c> → <c>pick</c> → <c>toc</c> → <c>content</c> → <c>save</c>（内置）。

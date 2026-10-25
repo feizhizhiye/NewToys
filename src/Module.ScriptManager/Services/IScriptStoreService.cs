@@ -4,7 +4,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <c>config\script\script.json</c> 的读写契约（NT-068 §三.4）：<b>手工数据</b>（集合 / 条目 / 标签 / 视图）
+/// <c>config\script\script.json</c> 的读写契约（§三.4）：<b>手工数据</b>（集合 / 条目 / 标签 / 视图）
 /// 的<b>唯一写入点</b>。
 /// </summary>
 /// <remarks>
@@ -19,7 +19,7 @@ namespace NewToys.ScriptManager.Services;
 /// </remarks>
 public interface IScriptStoreService
 {
-    /// <summary>手工数据的旧目录 = <c>&lt;配置根&gt;\config\script</c>（NT-076 第二批起数据已进总库，这里只剩迁移痕迹）。</summary>
+    /// <summary>手工数据的旧目录 = <c>&lt;配置根&gt;\config\script</c>（起数据已进总库，这里只剩迁移痕迹）。</summary>
     string ConfigDir { get; }
 
     /// <summary>数据实际落点 = 总库文件 <c>data\newtoys.db</c> 的 <c>script_docs</c> 表（界面展示用）。</summary>
@@ -66,7 +66,7 @@ public interface IScriptStoreService
     /// <summary>取集合的脚本根目录（<see cref="ScriptCollection.RootPath"/>；空 = 用全局脚本目录）。</summary>
     string RootOf(string collectionId);
 
-    /// <summary>条目所属库的第一个非空根目录（空 = 用全局脚本目录；NT-073 多库）。</summary>
+    /// <summary>条目所属库的第一个非空根目录（空 = 用全局脚本目录；多库）。</summary>
     string RootOfItem(ScriptItem item);
 
     /// <summary>取某页面「正在用」的集合 id（<see cref="ScriptStoreRoot.LastCollectionIdByKind"/>）。</summary>
@@ -76,7 +76,7 @@ public interface IScriptStoreService
     void SetLastCollectionId(string kind, string id);
 
     /// <summary>
-    /// 内置集合成员同步：只把<b>还没有任何归属</b>的条目收进对应默认库（NT-073 D10）。
+    /// 内置集合成员同步：只把<b>还没有任何归属</b>的条目收进对应默认库（D10）。
     /// </summary>
     /// <returns>是否有变化（需要回写磁盘）。</returns>
     bool SyncBuiltinCollections();

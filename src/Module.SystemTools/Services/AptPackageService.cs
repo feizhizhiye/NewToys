@@ -11,14 +11,14 @@ using NewToys.Shared.Services;
 namespace NewToys.SystemTools.Services;
 
 /// <summary>
-/// <see cref="IPackageManagerService"/> 的 **apt/dpkg 后端**（NT-081 步骤 5，结构验证适配器）。
+/// <see cref="IPackageManagerService"/> 的 **apt/dpkg 后端**（结构验证适配器）。
 /// <para>
 /// 目的：证明「换后端 = 加一个适配器 + 命令模板，**页面 / VM 零改动**」——
 /// 页面只认 <see cref="IPackageManagerService"/>，Shell 按平台二选一注册（见 <c>ScriptManagerModule</c>）。
 /// </para>
 /// <para>
 /// 范围（刻意克制，YAGNI）：只读清单（dpkg-query 机读 TSV + <c>apt list --upgradable</c> +
-/// sources.list 直读 + <c>apt-mark showhold</c>）。**写操作未实装** —— 按 NT-081 定调
+/// sources.list 直读 + <c>apt-mark showhold</c>）。**写操作未实装** —— 按既定结论
 /// （写操作⛔ 不脚本化：提权 sudo vs UAC、交互确认、失败原因都会退化），留给命令库条目。
 /// </para>
 /// </summary>
@@ -86,7 +86,7 @@ public sealed class AptPackageService : IPackageManagerService
     {
         if (!IsSupported) return (false, "apt 后端仅支持 Linux。", Array.Empty<PackageInfo>());
 
-        // 机读输出：dpkg-query 自己吐 TSV（⛔ 不解析人读表格，见 NT-081 架构结论 1）
+        // 机读输出：dpkg-query 自己吐 TSV（⛔ 不解析人读表格，见 架构结论 1）
         var r = await _runner.RunAsync(new ProcessRunRequest
         {
             FileName = "dpkg-query",
@@ -176,7 +176,7 @@ public sealed class AptPackageService : IPackageManagerService
     public Task<(bool Ok, string Message, PackageInfo? Detail)> ShowAsync(string id, string? source = null, CancellationToken ct = default)
         => Task.FromResult<(bool, string, PackageInfo?)>((false, "apt 后端未实装详情（适配器只做只读清单）。", null));
 
-    /// <summary>写操作统一口径：需提权（sudo），按 NT-081 定调⛔ 不脚本化，走命令库条目。</summary>
+    /// <summary>写操作统一口径：需提权（sudo），按既定结论⛔ 不脚本化，走命令库条目。</summary>
     private static (bool Ok, string Message) WriteNotSupported(string what)
         => (false, $"apt {what}需要管理员权限（sudo），未内置 —— 请在命令库里执行。");
 

@@ -20,13 +20,13 @@ public sealed class ParsedInfoRow
 }
 
 /// <summary>
-/// 采集输出 → 行数组的宽松解析器（NT-068 §三.11 / §三.13）。
+/// 采集输出 → 行数组的宽松解析器（§三.11 / §三.13）。
 /// </summary>
 /// <remarks>
 /// <para>支持 4 种 <see cref="ScriptParseMode"/>：</para>
 /// <list type="number">
 ///   <item><c>json</c>（默认）：<c>{ "rows": [ { "key": "...", "status": "ok", "attrs": { "项目": "...", "值": "..." } } ] }</c>；
-///   兼容 NT-067 的旧形态 <c>values: [...]</c>（此时属性名退化成 <c>列1…列N</c>，⚠️ 建议改写成 <c>attrs</c>）；</item>
+///   兼容 的旧形态 <c>values: [...]</c>（此时属性名退化成 <c>列1…列N</c>，⚠️ 建议改写成 <c>attrs</c>）；</item>
 ///   <item><c>line</c>：每行一个值 → 属性名固定 <see cref="LineAttr"/>；</item>
 ///   <item><c>csv</c>：首行 = 属性名，其后每行 = 一行数据（逗号分隔，支持双引号包裹）；</item>
 ///   <item><c>regex</c>：⚠️ 本期<b>未定义 pattern 字段</b>（卡面没定落点）⇒ 按 <c>line</c> 处理，等 pattern 落位后另立卡。</item>
@@ -127,7 +127,7 @@ public static class SysInfoOutputParser
         }
         else if (TryGetProperty(item, out var valuesEl, "values") && valuesEl.ValueKind == JsonValueKind.Array)
         {
-            // NT-067 旧形态：属性名退化成 列1 / 列2 …
+            // 旧形态：属性名退化成 列1 / 列2 …
             var n = 0;
             foreach (var v in valuesEl.EnumerateArray())
             {

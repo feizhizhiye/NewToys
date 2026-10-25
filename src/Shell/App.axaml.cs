@@ -50,7 +50,7 @@ public class App : Application
 
         try
         {
-            // NT-070（启动提速）：打点 —— 相对本方法进入时刻的累计毫秒，首帧后写一行到 logs\startup-*.log。
+            // （启动提速）：打点 —— 相对本方法进入时刻的累计毫秒，首帧后写一行到 logs\startup-*.log。
             // 用途：判断「延迟初始化」到底省了多少（⛔ 靠猜）。Debug 下同时进调试输出。
             var swStartup = System.Diagnostics.Stopwatch.StartNew();
             var startupMarks = new List<(string Name, long Ms)>();
@@ -63,16 +63,16 @@ public class App : Application
 
             // Core services
             services.AddSingleton(sp => new ConfigStoreService(profileOverride));
-            // NT-077：框架级偏好（主题 / 窗口 / 收藏 / 列宽 / 页码大小）统一落 config\shell.json
+            // 框架级偏好（主题 / 窗口 / 收藏 / 列宽 / 页码大小）统一落 config\shell.json
             services.AddSingleton<ShellConfigStore>();
-            // NT-061 / 需求 §3.5：按模块分区的 KV 选项存储（落 config\<module>.json；换 profile ⇒ 天然读到另一份）。
+            // / 需求 §3.5：按模块分区的 KV 选项存储（落 config\<module>.json；换 profile ⇒ 天然读到另一份）。
             // 模块只依赖 IOptionsStore、⛔ 不碰文件；将来整体换 SQLite 调用方零改动。
             services.AddSingleton<IOptionsStore>(sp => new JsonOptionsStore(
                 sp.GetRequiredService<ConfigStoreService>(),
                 sp.GetRequiredService<ShellConfigStore>()));
-            // NT-077 第二批：机器级配置（解释器 / ffmpeg / 播放器 / 更新地址 / DNS）落 %LOCALAPPDATA%\NewToys\env.json
+            // 机器级配置（解释器 / ffmpeg / 播放器 / 更新地址 / DNS）落 %LOCALAPPDATA%\NewToys\env.json
             services.AddSingleton<EnvConfigService>();
-            // NT-083：Python 运行时底座（跨模块共用 —— 网络工具的规则集 / 脚本管理器的 .py 命令）。
+            // Python 运行时底座（跨模块共用 —— 网络工具的规则集 / 脚本管理器的 .py 命令）。
             // 长驻 worker + stdin/stdout 行分隔 JSON；⛔ 不引 pythonnet（保持平台中立，framework.md §2.1）。
             services.AddSingleton<IPythonRuntime, PythonRuntime>();
             services.AddSingleton<IAppConfigService, AppConfigService>();
@@ -80,9 +80,9 @@ public class App : Application
             services.AddSingleton<IMenuService, MenuService>();
             services.AddSingleton<IThemeService, ThemeService>();
             services.AddSingleton<INavigationService, NavigationService>();
-            // NT-052：模块热加载契约（标题栏按钮移入功能清单页；Shell 订阅 Reloaded 重建左树）。
+            // 模块热加载契约（标题栏按钮移入功能清单页；Shell 订阅 Reloaded 重建左树）。
             services.AddSingleton<IModuleReloadService, ModuleReloadService>();
-            // v3.65 / NT-062：外部程序注册表（清单 + **惰性探测**，需求 §4.9.2 第 5 条）——
+            // v3.65：外部程序注册表（清单 + **惰性探测**，需求 §4.9.2 第 5 条）——
             // 单例 + 结果缓存：进「运行环境」节 / 功能首次要用到时才真探，⛔ 不拖启动。
             services.AddSingleton<IExternalToolRegistry, ExternalToolRegistry>();
             services.AddSingleton<LaunchRunner>();
@@ -92,8 +92,8 @@ public class App : Application
             services.AddSingleton<EncryptedDnsService>();
             services.AddSingleton<IEncryptedDnsService>(sp => sp.GetRequiredService<EncryptedDnsService>());
 
-            // NT-074：「软件包管理」的两项服务（IPackageManagerService / IPackageSettingsService）
-            // 已随整套代码下放到功能模块 ⇒ DI 注册在模块内（NT-096 起归 Module.SystemTools，不再在脚本中心），
+            // 「软件包管理」的两项服务（IPackageManagerService / IPackageSettingsService）
+            // 已随整套代码下放到功能模块 ⇒ DI 注册在模块内（归 Module.SystemTools，不再在脚本中心），
             // Shell 这里不再注册、也不再给它的确认钩子接线（改走 Core.DialogHooks，见下面）。
 
             // 首页收藏夹：落 config\favorites.json（可被数据管理备份），单一真相源，标题/图标/简介现从菜单取。
@@ -108,19 +108,19 @@ public class App : Application
             // 工程内唯一的本地数据库（data\newtoys.db）：当前给「视频工具 → 视频库」的媒体信息索引用；
             // 后续更多结构化数据也走它（见 SqliteDatabase 的类注释）。
             services.AddSingleton<SqliteDatabase>();
-            // NT-076：总库 schema 统一入口 —— 容器里所有 ILibrarySchemaContributor（由各模块 RegisterServices 注册）
+            // 总库 schema 统一入口 —— 容器里所有 ILibrarySchemaContributor（由各模块 RegisterServices 注册）
             // 在首帧之后由 ModuleLoader.InitializeAllDeferred 统一跑一遍（建表 / 补列 / 一次性迁移）。
             services.AddSingleton<NewToys.Core.Services.LibrarySchemaService>();
 
-            // v3.66 / NT-070：跨模块共用的文件系统动作（改名 / 移动 / 复制 / 回收站删除）。
+            // v3.66：跨模块共用的文件系统动作（改名 / 移动 / 复制 / 回收站删除）。
             // 只管磁盘，不记账、不弹窗 —— 库表日志与确认框留在各模块自己那层。
             services.AddSingleton<IFileOperationService, FileOperationService>();
 
-            // NT-081 步骤3：外部工具执行底座（捕获式：显式 UTF-8 / 超时 / 取消杀进程树）。
+            // 外部工具执行底座（捕获式：显式 UTF-8 / 超时 / 取消杀进程树）。
             // 接口在 Shared、实现在 Core；平台能力（打开文件）与可见控制台/提权不走这里（见 IProcessRunner 注释）。
             services.AddSingleton<IProcessRunner, ProcessRunner>();
 
-            // NT-078：备份路由 —— 框架节在这里注册，模块节在各自 RegisterServices 里注册
+            // 备份路由 —— 框架节在这里注册，模块节在各自 RegisterServices 里注册
             // （同一个 IBackupSection 契约，BackupService 经 IEnumerable<IBackupSection> 聚合）。
             services.AddSingleton<IBackupSection, NewToys.Shell.Services.ShellBackupSection>();
             services.AddSingleton<IBackupSection, NewToys.Shell.Services.EnvBackupSection>();
@@ -138,7 +138,7 @@ public class App : Application
             services.AddTransient<HomeView>();
             services.AddTransient<HomeViewModel>();
 
-            // NT-062：应用级设置 6 页（原 Module.Settings 的框架职责收归 Shell，View/VM 已在 src/Shell 下）。
+            // 应用级设置 6 页（原 Module.Settings 的框架职责收归 Shell，View/VM 已在 src/Shell 下）。
             services.AddTransient<GeneralView>();        services.AddTransient<GeneralViewModel>();
             // v3.66 第五轮：「通用」节拆成三个节（启动与退出 / 更新 / 主题外观）⇒ 两个新 View，
             // 三节共用同一个 GeneralViewModel（只在上面注册一次）。
@@ -151,14 +151,14 @@ public class App : Application
             services.AddTransient<DnsView>();            services.AddTransient<DnsViewModel>();
             services.AddTransient<DataView>();           services.AddTransient<DataViewModel>();
             services.AddTransient<AllFunctionsView>();   services.AddTransient<AllFunctionsViewModel>();
-            // v3.65 / NT-062：「一页多节」复合页 + 「关于」节（需求 §4.9.2）
+            // v3.65：「一页多节」复合页 + 「关于」节（需求 §4.9.2）
             services.AddTransient<SettingsView>();       services.AddTransient<SettingsViewModel>();
             services.AddTransient<AboutSettingsView>();  services.AddTransient<AboutSettingsViewModel>();
 
             // v3.26：主窗口大小 / 位置记忆（落本配置 config\window.json；多实例各记各的，需求 §四）
             services.AddSingleton<NewToys.Shell.Services.WindowBoundsService>();
 
-            // 模块加载（v3.26，需求 §3.4）：必载清单（NT-062 起为空 —— 应用级设置归 Shell 自带，不再单独成程序集）
+            // 模块加载（v3.26，需求 §3.4）：必载清单（为空 —— 应用级设置归 Shell 自带，不再单独成程序集）
             // + ModuleLoader 扫 Modules\ 补功能模块。新增功能模块两处登记：Shell.csproj 的 Debug ProjectReference
             // + 下面 GetMandatoryModuleTypes 的 #if DEBUG 追加。
             Mark("DI注册");
@@ -179,7 +179,7 @@ public class App : Application
 
             // v3.66：内置三档（debug / default / release）已撤销 —— 配置 = 纯根目录，⛔ 不再自动播种任何档。
 
-            // NT-062：应用级设置的菜单注册归 Shell（原 Module.Settings 的 Initialize 职责）——
+            // 应用级设置的菜单注册归 Shell（原 Module.Settings 的 Initialize 职责）——
             // v3.66 起左树**没有**「设置」一级菜单项：注册的是一个 IsHome 的不渲染宿主分组
             // （挂应用级设置的节锚点 + 功能清单页），设置页入口 = 左树底部齿轮 / Ctrl+, / 首页一键操作的齿轮。
             // 🔴 必须先于 InitializeAll：功能模块要在自己的分组下注册菜单（分组先存在才命中）。
@@ -200,22 +200,22 @@ public class App : Application
             // v3.26：标题带配置名（多实例在任务栏里可区分，需求 §3.5）
             win.Title = $"NewToys · {store.ActiveProfileName}";
 
-            // NT-057：窗口图标 = 应用图标（与托盘同源同一份，底色随当前强调色）
+            // 窗口图标 = 应用图标（与托盘同源同一份，底色随当前强调色）
             win.Icon = CreateAppIcon(CurrentAccent());
 
             // 公共对话框钩子（Core.DialogHooks）：给各模块用（视频工具的重命名 / 删除文件 / 清空缓存 …）。
-            // NT-074：软件包的「卸载 / 删源」二次确认也走这一条（原 PackageManagerService.ConfirmHandler 已删）。
+            // 软件包的「卸载 / 删源」二次确认也走这一条（原 PackageManagerService.ConfirmHandler 已删）。
             // ⛔ 模块不能反向引用 Shell，所以只能由这里注入；没注入时钩子一律按"用户取消"处理。
-            // NT-084：宿主实现改为页内**弹出卡片**（DialogCardHost）——原独立系统 Window 的标题栏是系统装饰，
+            // 宿主实现改为页内**弹出卡片**（DialogCardHost）——原独立系统 Window 的标题栏是系统装饰，
             //   明暗主题下与主窗口割裂；现在遮罩 + 主题色卡片铺在主窗口上，所有页面同一套视觉。
             DialogHooks.ConfirmHandler = msg => ConfirmAsync(msg);
             DialogHooks.InputHandler = (title, initial) => InputAsync(title, initial);
 
-            // NT-063：详情卡渲染器随控件库搬进 NewToys.UI（⛔ 不引 Core/Shell）⇒ 它的「确认弹窗」
+            // 详情卡渲染器随控件库搬进 NewToys.UI（⛔ 不引 Core/Shell）⇒ 它的「确认弹窗」
             // 钩子在 UI 侧声明（DetailCardHooks），这里把 Core 的 DialogHooks.ConfirmHandler 转接过去。
             DetailCardHooks.ConfirmHandler = DialogHooks.ConfirmHandler;
 
-            // v3.53 / NT-055：选择器钩子 —— 工具条由 Shell 声明式承载后，页面 VM 也要能"弹选择器"
+            // v3.53：选择器钩子 —— 工具条由 Shell 声明式承载后，页面 VM 也要能"弹选择器"
             // （VM ⛔ 不引 Avalonia，所以统一走 Core.DialogHooks，与上面两条同一个套路）。
             DialogHooks.PickFolderHandler = (title, initialDir) => PickFolderAsync(win, title, initialDir);
             DialogHooks.PickFilesHandler = (title, initialDir, multi, pattern) => PickFilesAsync(win, title, initialDir, multi, pattern);
@@ -246,7 +246,7 @@ public class App : Application
                 win.Show();
             }
 
-            // ==================== NT-070：模块重活延迟到首帧之后 ====================
+            // ==================== 模块重活延迟到首帧之后 ====================
             // Show() 只是把窗口挂到窗口管理器上，首帧还没画。把「建库 / 读配置 / 种子播种 /
             // 扫描器接线」排进 Background 优先级的 UI 队列 ⇒ 排在首帧渲染之后执行：
             // 用户先看到完整界面（左树菜单在首帧前已注册，⛔ 不会先空后跳），再跑这些 IO。
@@ -264,7 +264,7 @@ public class App : Application
                 },
                 Avalonia.Threading.DispatcherPriority.Background);
 
-            // NT-057：托盘建不起来（平台不支持 / 无托盘环境）⇒ 如实提示一次，行为退化成普通最小化
+            // 托盘建不起来（平台不支持 / 无托盘环境）⇒ 如实提示一次，行为退化成普通最小化
             if (!trayOk && launchCfg.Config.StartMinimized)
             {
                 ShowPlatformMessage("系统托盘不可用，「启动时最小化到托盘」已改为普通最小化。", "NewToys");
@@ -445,7 +445,7 @@ public class App : Application
     private const uint MB_ICONINFORMATION = 0x00000040;
 
     /// <summary>
-    /// 平台门控的系统提示框（NT-081）。
+    /// 平台门控的系统提示框。
     /// <para>🔴 <c>MessageBoxW</c> 是 user32 的 P/Invoke：非 Windows 上一调就 <c>DllNotFoundException</c>。
     /// 这里统一降级为「静默跳过」（调用点都已同时写启动日志，信息不丢）。</para>
     /// </summary>
@@ -464,7 +464,7 @@ public class App : Application
 
     private static TrayIcon? _tray;
 
-    /// <summary>主窗口（NT-057：托盘菜单「先拉起窗口、再导航」要用它；主题切换后重画窗口图标也要用它）。</summary>
+    /// <summary>主窗口（托盘菜单「先拉起窗口、再导航」要用它；主题切换后重画窗口图标也要用它）。</summary>
     private static Window? _mainWindow;
 
     /// <summary>托盘 / 窗口导航用的固定页 key（首页与设置总表，见需求 §5）。</summary>
@@ -613,7 +613,7 @@ public class App : Application
     }
 
     /// <summary>
-    /// **唯一的应用图标工厂**（NT-057 / 需求 §4.6.1）：窗口标题栏图标与托盘图标**用同一份**，
+    /// **唯一的应用图标工厂**（/ 需求 §4.6.1）：窗口标题栏图标与托盘图标**用同一份**，
     /// 形状与 <c>Resources/app.ico</c>（exe 图标，由 <c>&lt;ApplicationIcon&gt;</c> 编进 exe）一致；
     /// 底色取**当前强调色**（⛔ 不写死），换主题 / 换强调色图标跟着变。
     /// <para>⛔ 改这里的圆角 / N 笔画比例，必须同步 <c>Resources/app.ico</c> 的形状口径，否则三处会走形。</para>
@@ -746,7 +746,7 @@ public class App : Application
     }
 
     /// <summary>
-    /// 必载模块清单（v3.26，需求 §3.4）：NT-062 起 **Release 为空** —— 原唯一的框架组件
+    /// 必载模块清单（v3.26，需求 §3.4）：**Release 为空** —— 原唯一的框架组件
     /// <c>Module.Settings</c> 已撤销，应用级设置归 Shell 自带（<c>AppSettingsRegistration</c> 建 <c>system</c> 宿主分组）。
     /// <para>Release 全部功能模块由 ModuleLoader 扫 Modules\ 补全；Debug 见下。</para>
     /// </summary>
@@ -809,21 +809,21 @@ public class App : Application
         if (dark)
         {
             S("ContentBrush","#191919");
-            // NT-039：窗口外框（自绘 1px）。激活态要能在同色窗口上分辨出来 → 比 DividerBrush(#333) 更亮；
+            // 窗口外框（自绘 1px）。激活态要能在同色窗口上分辨出来 → 比 DividerBrush(#333) 更亮；
             // 失焦态压暗到接近底色，形成「哪个窗口在前台」的直接视觉信号。
             S("WindowBorderBrush","#4A4A4A"); S("WindowBorderInactiveBrush","#2A2A2A");
             S("TitleBarCloseHoverBrush","#E81123"); S("TitleBarCloseHoverTextBrush","#FFFFFF");
             S("SiderBrush","#202020"); S("SiderTextBrush","#FFFFFF"); S("SiderIconBrush","#9A9A9A"); S("SiderIconActiveBrush","#FFFFFF"); S("SiderSelectedBrush","#2E2E2E"); S("SiderDividerBrush","#2E2E2E");
             S("SubSiderBrush","#262626"); S("SubSiderHeaderBrush","#2B2B2B");
             // 「选中的卡片」用强调色派生：底 ≈ 强调色压暗到深色面板上，字 ≈ 强调色提亮（深色底上才看得清）
-            // v3.19（NT-010 / 需求 §4.10.4「激活态加深」）：原强调色占比 22% 太淡，菜单/标签/列表选中不凸显；
+            // v3.19（/ 需求 §4.10.4「激活态加深」）：原强调色占比 22% 太淡，菜单/标签/列表选中不凸显；
             //   加深到 34%（选中 vs 悬停/常规对比更明显），字色同步提亮到 34% 保证深色底上可读。
             S("CardSelectedBrush", Hex(Blend(accentColor, Color.Parse("#262626"), 0.34)));
             S("CardSelectedTextBrush", Hex(Blend(accentColor, Colors.White, 0.34)));
             S("ContentBrush","#191919"); S("ContentHeaderBrush","#1F1F1F"); S("StatusBarBrush","#1F1F1F");
             S("PanelBrush","#262626"); S("CardHoverBrush","#333333"); S("DividerBrush","#333333"); S("DangerBrush","#F85149"); S("LoadingOverlayBrush","#80000000");
             S("PrimaryTextBrush","#E5E5E5"); S("SecondaryTextBrush","#9E9E9E"); S("SiderIconHoverBrush","#3A3A3A");
-            // 输入框水印（v3.68 / 用户定调「太重」）：比次要文字再淡一档，只给 PlaceholderText 用
+            // 输入框水印（v3.68：用户定调「太重」）：比次要文字再淡一档，只给 PlaceholderText 用
             S("PlaceholderTextBrush","#6B6B6B");
             S("AccentBrush", accent.Color); S("AccentHoverBrush", accent.HoverColor); S("AccentTextBrush","#FFFFFF");
             S("CodeBlockBrush","#1F1F1F"); S("InputBorderBrush","#3D3D3D"); S("InputHoverBorderBrush", accent.Color);
@@ -831,14 +831,14 @@ public class App : Application
         else
         {
             S("ContentBrush","#FFFFFF");
-            // NT-039：浅色下窗口底色就是白的 → 边框必须够深才看得见（比 DividerBrush(#E6E8EC) 深一档）；
+            // 浅色下窗口底色就是白的 → 边框必须够深才看得见（比 DividerBrush(#E6E8EC) 深一档）；
             // 失焦态退回 DividerBrush 同档，几乎融进白底。
             S("WindowBorderBrush","#C8CCD2"); S("WindowBorderInactiveBrush","#E6E8EC");
             S("TitleBarCloseHoverBrush","#E81123"); S("TitleBarCloseHoverTextBrush","#FFFFFF");
             S("SiderBrush","#2E2E2E"); S("SiderTextBrush","#FFFFFF"); S("SiderIconBrush","#B7B7B7"); S("SiderIconActiveBrush","#FFFFFF"); S("SiderSelectedBrush","#444444"); S("SiderDividerBrush","#3F3F3F");
             S("SubSiderBrush","#F3F3F3"); S("SubSiderHeaderBrush","#F7F7F7");
             // 浅色底上的选中卡片：底 ≈ 强调色冲淡到接近白，字 = 强调色本身
-            // v3.19（NT-010）：浅色选中底同样加深（16%→26%），选中态更清晰、不易被忽略。
+            // v3.19：浅色选中底同样加深（16%→26%），选中态更清晰、不易被忽略。
             S("CardSelectedBrush", Hex(Blend(accentColor, Colors.White, 0.26)));
             S("CardSelectedTextBrush", accent.Color);
             S("ContentBrush","#FFFFFF"); S("ContentHeaderBrush","#FFFFFF"); S("StatusBarBrush","#FAFBFC");
@@ -858,7 +858,7 @@ public class App : Application
             _themeDictionary = d;
         }
 
-        // NT-057：强调色可能刚变过 ⇒ 窗口 / 托盘图标一起重画
+        // 强调色可能刚变过 ⇒ 窗口 / 托盘图标一起重画
         RefreshAppIcon();
     }
 
@@ -872,7 +872,7 @@ public class App : Application
     /// <summary><c>#RRGGBB</c> 文本（<c>Color.Parse</c> 能原样读回）。</summary>
     private static string Hex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
 
-    // ==================== 选择器钩子的宿主实现（v3.53 / NT-055） ====================
+    // ==================== 选择器钩子的宿主实现（v3.53） ====================
 
     /// <summary>把选择器的起始位置定到某个目录（拿不到就交给系统默认位置，⛔ 不抛）。</summary>
     private static async Task<IStorageFolder?> TryStartFolderAsync(IStorageProvider sp, string? dir)
@@ -952,14 +952,14 @@ public class App : Application
     }
 
     /// <summary>
-    /// 通用二次确认对话框（NT-084 起 = 页内弹出卡片，见 <see cref="DialogCardHost"/>）。
+    /// 通用二次确认对话框（= 页内弹出卡片，见 <see cref="DialogCardHost"/>）。
     /// <para>钩子没接上（主窗口未构造）时返回 false = 当作用户没同意。</para>
     /// </summary>
     private static Task<bool> ConfirmAsync(string message)
         => (_mainWindow as ShellView)?.DialogCards?.ConfirmAsync(message) ?? Task.FromResult(false);
 
     /// <summary>
-    /// 通用单行输入对话框（NT-084 起 = 页内弹出卡片；取消返回 null）。
+    /// 通用单行输入对话框（= 页内弹出卡片；取消返回 null）。
     /// </summary>
     private static Task<string?> InputAsync(string title, string initialValue)
         => (_mainWindow as ShellView)?.DialogCards?.InputAsync(title, initialValue)

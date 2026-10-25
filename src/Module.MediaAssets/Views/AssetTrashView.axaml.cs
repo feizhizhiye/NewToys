@@ -4,7 +4,7 @@ using NewToys.MediaAssets.ViewModels;
 
 namespace NewToys.MediaAssets.Views;
 
-/// <summary>「回收站」页 code-behind（NT-019）：只转发表头拖拽 / 测宽事件 + 同步弹出菜单 DataContext。</summary>
+/// <summary>「回收站」页 code-behind：只转发表头拖拽 / 测宽事件 + 同步弹出菜单 DataContext。</summary>
 public partial class AssetTrashView : UserControl
 {
     public AssetTrashView()

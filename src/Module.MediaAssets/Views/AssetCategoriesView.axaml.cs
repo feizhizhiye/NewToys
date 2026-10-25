@@ -5,7 +5,7 @@ using NewToys.MediaAssets.ViewModels;
 namespace NewToys.MediaAssets.Views;
 
 /// <summary>
-/// 「分类管理」页 code-behind（NT-018）：只转发表头拖拽 / 测宽事件 + 同步弹出菜单 DataContext。
+/// 「分类管理」页 code-behind：只转发表头拖拽 / 测宽事件 + 同步弹出菜单 DataContext。
 /// 树的展开 / 选中 / 成员加载全在 VM（⛔ 不用 TreeView，所以没有树事件要接线）。
 /// </summary>
 public partial class AssetCategoriesView : UserControl

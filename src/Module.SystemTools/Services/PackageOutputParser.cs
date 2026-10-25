@@ -8,7 +8,7 @@ namespace NewToys.SystemTools.Services;
 /// <summary>
 /// winget 命令行输出的解析器（**纯函数**，不碰进程、不碰 UI）。
 /// <para>
-/// 分层（NT-081 步骤 4）：固定列宽表格的**通用机械**（清洗 / 显示宽度 / 切片 / 溢出回填 /
+/// 分层：固定列宽表格的**通用机械**（清洗 / 显示宽度 / 切片 / 溢出回填 /
 /// 噪行过滤）已抽到 <see cref="FixedWidthTable"/>；本文件只留 winget **固有启发式**：
 /// 本地化表头别名、续行合并、pin 兜底、<c>show</c> 的标签-值解析。机读 TSV 后端走 <see cref="TsvRows"/>。
 /// </para>
@@ -160,7 +160,7 @@ internal static class PackageOutputParser
     }
 
     // ==================== 显示宽度 / 切片 / 回填 / 噪行 ====================
-    // 🔴 全部在 FixedWidthTable（NT-081 步骤 4 通用化；winget 实测判据四条不变）。
+    // 🔴 全部在 FixedWidthTable（通用化；winget 实测判据四条不变）。
     // winget 只通过上面的包装调用；本文件只剩固有启发式（别名表 / 续行合并 / pin 兜底 / 标签-值）。
 
     /// <summary>Id 是否就是本行**有值的最右一列**（⇒ 换行时它会被从中间切断）。</summary>
@@ -206,7 +206,7 @@ internal static class PackageOutputParser
         => ParsePins(raw).Select(p => p.Id).ToList();
 
     /// <summary>
-    /// 解析 <c>winget pin list</c>（NT-075）：按**表头切片**取 Id 与版本。
+    /// 解析 <c>winget pin list</c>：按**表头切片**取 Id 与版本。
     /// <para>
     /// 🔴 老实现 <see cref="ParsePackageIds"/> 是"扫所有带点号的词" ⇒ 版本号（<c>24.08</c>、<c>1.2.3</c>）
     /// 长得跟包 Id 一样，会被当成 Id 混进来（表现：列表里多出一堆"版本号行"，Id 列还串了位）。

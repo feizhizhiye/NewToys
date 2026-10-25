@@ -20,11 +20,11 @@ namespace NewToys.Shell.Views;
 /// ① 关闭拦截（「关闭到托盘」）；② 窗口按钮；③ 标题栏拖拽 + 双击最大化；
 /// ④ 标签页区域滚轮切换标签；⑤ 切换后把当前标签**滚进视野**（v3.6）；
 /// ⑥ 窗口缩放抓取区 + 大小 / 位置记忆（v3.26）；
-/// ⑦ DWM 圆角 / 矩形区域压制（NT-034 三保险）+ 零内缩（消灭 ≈8px 非客户区边框）+ 接管窗口过程做「转发后置」压制
-/// —— 贴靠资格由官方 `WindowDecorations="Full"` 自带（手工补 `WS_CAPTION` 的 `ApplySnapEligibleStyles` 已删，NT-041）；
+/// ⑦ DWM 圆角 / 矩形区域压制（三保险）+ 零内缩（消灭 ≈8px 非客户区边框）+ 接管窗口过程做「转发后置」压制
+/// —— 贴靠资格由官方 `WindowDecorations="Full"` 自带（手工补 `WS_CAPTION` 的 `ApplySnapEligibleStyles` 已删，）；
 /// —— `WM_NCCALCSIZE` 零内缩是**Windows 独有的例外**（钩子只在 Windows 装得上，Linux 自然不走）；
 /// —— 🔴 2026-10-15 定案：**官方 CSD 路线 + 这一处零内缩**（跨平台只有官方 CSD 能对接，需求 §4.1.1）。
-/// ⑧ 全屏按钮 + <c>F11</c> / <c>Esc</c>（NT-044）。
+/// ⑧ 全屏按钮 + <c>F11</c> / <c>Esc</c>。
 /// </para>
 /// <para>
 /// 🔴 ⑦ 的全部实现（DllImport / Win32 结构 / 钩子 / 贴靠纠偏）在 **`ShellView.Win32.cs`**（partial，2026-10-21 收敛）：
@@ -51,7 +51,7 @@ public partial class ShellView : Window
     public bool ForceClose { get; set; }
 
     /// <summary>
-    /// 全局弹出卡片层（NT-084，确认 / 提示 / 输入的唯一呈现器）。
+    /// 全局弹出卡片层（确认 / 提示 / 输入的唯一呈现器）。
     /// 🔴 **⛔ 不在 XAML 里声明**：XAML 引用该 UserControl 会连带整个窗口的 x:Name 回填失败
     /// （运行时表现 = 启动即崩在 OnLoaded 的 BtnMin，2026-10-20 实测；IL 侧 29 个 stfld 都在、
     /// 树却拿不到字段）⇒ 由构造末尾**代码挂到根 Grid**，叠在最顶层、不占布局。
@@ -62,7 +62,7 @@ public partial class ShellView : Window
     {
         InitializeComponent();
 
-        // NT-084：弹出卡片层代码挂载（原因见 DialogCards 注释）——根 Grid 的最后一个子元素，
+        // 弹出卡片层代码挂载（原因见 DialogCards 注释）——根 Grid 的最后一个子元素，
         // 绘制在窗口外框 / 缩放热区之上；未展示时整层 IsVisible=False ⇒ 不吃命中测试。
         var cards = new DialogCardHost();
         DialogCards = cards;
@@ -70,7 +70,7 @@ public partial class ShellView : Window
 
         _bounds = App.GetService<WindowBoundsService>();
         RestoreWindowBounds();
-        // ⛔ NT-034 的圆角开关**不在这里调**：它靠「属性 Changed」下发，且要求 PlatformImpl 已就绪；
+        // ⛔ 的圆角开关**不在这里调**：它靠「属性 Changed」下发，且要求 PlatformImpl 已就绪；
         //    构造期调一次若没下发成功，OnOpened 再设同一个值就不会再触发 Changed（值没变）→ 永久失效。
         //    统一放到 OnOpened（句柄已稳）。
     }
@@ -104,7 +104,7 @@ public partial class ShellView : Window
         // v3.29：句柄到这一刻才稳 → 在这里装窗口过程钩子（贴靠缝隙的根治）
         InstallSnapFrameFix();
 
-        // NT-034：关闭 DWM 圆角（Win11 顶部两个圆角 → 最大化 / 分屏时露缝）
+        // 关闭 DWM 圆角（Win11 顶部两个圆角 → 最大化 / 分屏时露缝）
         ApplyCornerPreference();
         ApplyNoRoundCorners();
 
@@ -132,7 +132,7 @@ public partial class ShellView : Window
         if (_vm != null)
         {
             _vm.PropertyChanged += OnVmPropertyChanged;
-            _vm.TreeNodeExpanded += OnTreeNodeExpanded;   // NT-037：展开一级分组后把整组滚入视野
+            _vm.TreeNodeExpanded += OnTreeNodeExpanded;   // 展开一级分组后把整组滚入视野
         }
     }
 
@@ -140,7 +140,7 @@ public partial class ShellView : Window
     {
         base.OnLoaded(e);
 
-        // NT-084 防御（2026-10-20 启动崩溃复盘）：x:Name 回填异常时字段全为 null（BtnMin 首当其冲）。
+        // 防御（2026-10-20 启动崩溃复盘）：x:Name 回填异常时字段全为 null（BtnMin 首当其冲）。
         // 先按名字兜底找一次；兜底也拿不到就放弃接线（崩溃 log 已留现场，总比启动即崩好）。
         if (BtnMin is null) BtnMin = this.FindControl<Button>("BtnMin");
         if (BtnMin is null) return;
@@ -148,10 +148,10 @@ public partial class ShellView : Window
         BtnMin.Click += (s, ev) => { WindowState = WindowState.Minimized; ev.Handled = true; };
         BtnMax.Click += (s, ev) => { ToggleMaxRestore(); ev.Handled = true; };
         BtnClose.Click += (s, ev) => { Close(); ev.Handled = true; };
-        BtnFullScreen.Click += (s, ev) => { ToggleFullScreen(); ev.Handled = true; };   // NT-044
+        BtnFullScreen.Click += (s, ev) => { ToggleFullScreen(); ev.Handled = true; };   // 
         UpdateMaxIcon();
 
-        // NT-044：F11 切全屏 / Esc 退全屏。⚠️ 用**隧道**注册（参照标签栏滚轮的先例）——
+        // F11 切全屏 / Esc 退全屏。⚠️ 用**隧道**注册（参照标签栏滚轮的先例）——
         // 事件从根往下传，Window 先拿到，页面内的输入框 / 列表不会把它吃掉。
         AddHandler(InputElement.KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
 
@@ -164,7 +164,7 @@ public partial class ShellView : Window
         WireResizeGrips();
         UpdateResizeGrips();
 
-        // NT-039：窗口外框（厚度 / 颜色由样式给，这里只切 .maximized / .inactive 两个伪类）
+        // 窗口外框（厚度 / 颜色由样式给，这里只切 .maximized / .inactive 两个伪类）
         UpdateWindowFrame();
 
         // 标签页区域滚轮 = 切换标签。用 **隧道** 方式注册：滚动容器（ScrollViewer）会先把
@@ -211,7 +211,7 @@ public partial class ShellView : Window
     }
 
     /// <summary>
-    /// NT-037：一级分组展开后，把**整组（分组头 + 子项）**滚入视野 ——
+    /// 一级分组展开后，把**整组（分组头 + 子项）**滚入视野 ——
     /// 否则靠底部的分组展开后，子项被左树 ScrollViewer 裁掉、看不见。
     /// 收起时不触发（只在展开时滚）；延后到本帧布局跑完，容器才存在、尺寸才定。
     /// </summary>
@@ -274,7 +274,7 @@ public partial class ShellView : Window
 
     /// <summary>
     /// 最大化 / **全屏**时整层关掉命中测试（⛔ 不只视觉隐藏——热区必须真关，否则还能拖出缩放）。
-    /// <para>NT-044：全屏态同样不能缩放（窗口本就铺满屏，拖边只会把状态搞乱）。</para>
+    /// <para>全屏态同样不能缩放（窗口本就铺满屏，拖边只会把状态搞乱）。</para>
     /// </summary>
     private void UpdateResizeGrips()
     {
@@ -283,7 +283,7 @@ public partial class ShellView : Window
                                        && WindowState != WindowState.FullScreen;
     }
 
-    // ==================== 窗口外框（NT-039，需求 §4.1.1 ③） ====================
+    // ==================== 窗口外框（需求 §4.1.1 ③） ====================
 
     /// <summary>
     /// 同步窗口外框的两个状态：**最大化**（收掉外框）与**激活 / 失焦**（切淡色）。
@@ -300,7 +300,7 @@ public partial class ShellView : Window
     {
         if (WindowFrameBorder == null) return;
 
-        // NT-044：全屏态与最大化同处理 —— 1px 外框收掉（不贴屏幕边）。
+        // 全屏态与最大化同处理 —— 1px 外框收掉（不贴屏幕边）。
         WindowFrameBorder.Classes.Set("maximized", WindowState == WindowState.Maximized
                                                    || WindowState == WindowState.FullScreen);
         WindowFrameBorder.Classes.Set("inactive", !IsActive);
@@ -365,7 +365,7 @@ public partial class ShellView : Window
         {
             if (_bounds == null) return;
             if (WindowState == WindowState.Minimized) return;
-            // NT-081：窗口几何只能从 Win32 读（GetWindowPlacement / GetWindowRect）⇒ 非 Windows 直接跳过落盘
+            // 窗口几何只能从 Win32 读（GetWindowPlacement / GetWindowRect）⇒ 非 Windows 直接跳过落盘
             if (!OperatingSystem.IsWindows()) return;   // 内联 IsWindows()：CA1416 只认这种写法
 
             var h = TryGetPlatformHandle()?.Handle;
@@ -378,7 +378,7 @@ public partial class ShellView : Window
             //
             // ⚠️ 最大化时要存「还原后的矩形」（rcNormalPosition），
             //    否则存下来的是比屏幕还大一圈的最大化外框，下次还原会偏。
-            // NT-044：全屏态与最大化同处理 —— 存**还原后的矩形**。
+            // 全屏态与最大化同处理 —— 存**还原后的矩形**。
             // ⛔ 否则存下来的是铺满整屏的外框 → 下次启动是一个「跟屏幕一样大的普通窗口」（位置还偏）。
             //
             // ⚠️ 2026-10-21：读外框的两条 Win32 路径（GetWindowPlacement / GetWindowRect）收进
@@ -440,22 +440,22 @@ public partial class ShellView : Window
         base.OnPropertyChanged(change);
         if (change.Property == WindowStateProperty)
         {
-            _isFullScreen = WindowState == WindowState.FullScreen;   // NT-044：先记状态，下面 region 要用
+            _isFullScreen = WindowState == WindowState.FullScreen;   // 先记状态，下面 region 要用
             UpdateMaxIcon();
             UpdateResizeGrips();   // v3.26：最大化时关掉缩放热区
-            UpdateWindowFrame();   // NT-039：最大化 / 全屏时收掉外框
-            ApplyNoRoundCorners();       // NT-034：状态变化时也重设 DWM 圆角偏好（防被重算抹掉）
+            UpdateWindowFrame();   // 最大化 / 全屏时收掉外框
+            ApplyNoRoundCorners();       // 状态变化时也重设 DWM 圆角偏好（防被重算抹掉）
         }
         else if (change.Property == IsActiveProperty)
         {
-            UpdateWindowFrame();   // NT-039：失焦 → 外框切 WindowBorderInactiveBrush
+            UpdateWindowFrame();   // 失焦 → 外框切 WindowBorderInactiveBrush
         }
     }
 
     private void ToggleMaxRestore()
         => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
-    // ==================== 全屏（NT-044，需求 §4.1） ====================
+    // ==================== 全屏（需求 §4.1） ====================
 
     /// <summary>
     /// 全屏开关。12.1.3 **没有** `ToggleFullScreen` / `ExitFullScreen`（已核实）→ 自己切 `WindowState`。
@@ -468,9 +468,9 @@ public partial class ShellView : Window
         => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
 
     /// <summary>
-    /// NT-044：`F11` 切换全屏；`Esc` **仅在全屏态下**退出（⛔ 平时不吞 Esc —— 页面里的取消 / 关闭浮层要用它）。
+    /// `F11` 切换全屏；`Esc` **仅在全屏态下**退出（⛔ 平时不吞 Esc —— 页面里的取消 / 关闭浮层要用它）。
     /// <para>
-    /// v3.65 / NT-062：`Ctrl+,` = 打开**应用级设置页**（需求 §4.3 / §4.9.2）。
+    /// v3.65：`Ctrl+,` = 打开**应用级设置页**（需求 §4.3 / §4.9.2）。
     /// 🔴 折叠左树后版本行的齿轮仍在，`Ctrl+,` 是它的备用入口（约定俗成的设置快捷键）。
     /// ⚠️ 走隧道路由（Tunnel）⇒ 即使焦点在页内输入框也照样命中；判定用 `KeyModifiers` 而不是 `KeyGesture`。
     /// </para>
@@ -495,7 +495,7 @@ public partial class ShellView : Window
     }
 
     /// <summary>
-    /// 搜索框挂上视觉树（NT-066）：**清空上次状态 + 聚焦 + 全选**（弹出即可直接打字）。
+    /// 搜索框挂上视觉树：**清空上次状态 + 聚焦 + 全选**（弹出即可直接打字）。
     /// <para>⚠️ 弹窗内容在**弹出树**里、不在本窗口的 NameScope ⇒ 不给它 `x:Name`，一律从 `sender` 取。</para>
     /// <para>🔴 弹出内容在**弹出树**里 ⇒ 绑定的 `DataContext` 未必继承到本窗口；这里兜底补一次
     /// （补不上 ⇒ 结果列表静默空白，且不报错）。</para>
@@ -510,7 +510,7 @@ public partial class ShellView : Window
     }
 
     /// <summary>
-    /// 搜索结果键盘操作（NT-066）：**↑↓** 移动高亮、**回车**打开高亮项（无高亮则取第一条）。
+    /// 搜索结果键盘操作：**↑↓** 移动高亮、**回车**打开高亮项（无高亮则取第一条）。
     /// 打开后关掉弹窗；未命中不做事（提示已由 <c>SearchHint</c> 显示）。
     /// </summary>
     private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
@@ -541,7 +541,7 @@ public partial class ShellView : Window
     }
 
     /// <summary>
-    /// 结果列表**双击** = 打开（NT-066）：单击只改高亮，⛔ 不导航 —— 免得手滑点到就跳走。
+    /// 结果列表**双击** = 打开：单击只改高亮，⛔ 不导航 —— 免得手滑点到就跳走。
     /// </summary>
     private void OnSearchResultDoubleTapped(object? sender, TappedEventArgs e)
     {
@@ -553,13 +553,13 @@ public partial class ShellView : Window
 
     private void UpdateMaxIcon()
     {
-        // NT-045：四个图标都是矢量 `Path`（几何键见 App.axaml 的 Icon* 资源），两组各显其一。
+        // 四个图标都是矢量 `Path`（几何键见 App.axaml 的 Icon* 资源），两组各显其一。
         // 最大化态 → 显示「还原」双框；全屏态 → 显示「退出全屏」图标。
         var maximized = WindowState == WindowState.Maximized;
         MaximizeIcon.IsVisible = !maximized;
         RestoreIcon.IsVisible = maximized;
 
-        // NT-044 全屏按钮图标随状态切换；NT-046 改型：进入 = 两箭头朝外 / 退出 = 两箭头朝内。
+        // 全屏按钮图标随状态切换；改型：进入 = 两箭头朝外 / 退出 = 两箭头朝内。
         FullScreenIcon.IsVisible = WindowState != WindowState.FullScreen;
         ExitFullScreenIcon.IsVisible = WindowState == WindowState.FullScreen;
     }

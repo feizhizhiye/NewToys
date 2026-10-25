@@ -13,13 +13,13 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
-// v3.66 / NT-069：与 Core 的同名服务区分（本页用带库表日志的模块版）。
+// v3.66：与 Core 的同名服务区分（本页用带库表日志的模块版）。
 using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
-/// 「回收站」页（NT-019）：`assets.status='trashed'` 的资产列表。
+/// 「回收站」页：`assets.status='trashed'` 的资产列表。
 /// <para>
 /// ⚠️ 分清两层：
 /// <list type="bullet">
@@ -57,7 +57,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsStorageVisible => Vis("Storage");
 
-    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+    // ==================== 工具条（/ 需求 §4.8.5：由 Shell 统一渲染） ====================
 
     /// <summary>
     /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>（含自绘的 <c>detail-toggle</c>），
@@ -345,13 +345,13 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
 
-    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（NT-054 迁移：原来的 <c>TrashDetailView</c> 已删）。</summary>
+    /// <summary>声明式卡（<see cref="Card"/> 非 null）⇒ ⛔ 不再返回自绘视图（迁移：原来的 <c>TrashDetailView</c> 已删）。</summary>
     public object? DetailContent => null;
 
     private DetailCardDescriptor? _card;
 
     /// <summary>
-    /// 本页详情卡描述符（NT-054 / 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
+    /// 本页详情卡描述符（/ 需求 §4.5.1，**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
     /// <para>结构与迁移前的 <c>TrashDetailView</c> 1:1 对应：资产只读信息 + 受影响的文件位置列表 + 两个卡内动作。</para>
     /// </summary>
     public DetailCardDescriptor? Card => _card ??= BuildCard();

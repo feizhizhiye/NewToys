@@ -1,7 +1,7 @@
 namespace NewToys.SystemTools.Services;
 
 /// <summary>
-/// 系统工具设置（NT-091）：本模块配置的**唯一写入点**，经 Core 的 <c>IOptionsStore</c> 落
+/// 系统工具设置：本模块配置的**唯一写入点**，经 Core 的 <c>IOptionsStore</c> 落
 /// <c>config\system.json</c>（分区名 <c>system</c>）。
 /// </summary>
 public interface ISystemToolsSettingsService

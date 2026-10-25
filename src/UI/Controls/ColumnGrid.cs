@@ -37,7 +37,7 @@ namespace NewToys.UI.Controls;
 /// <c>Grid.MeasureCell → Grid.MeasureCellsGroup → Grid.MeasureOverride → VirtualizingStackPanel.RealizeElements</c>。
 /// </para>
 /// <para>
-/// 📌 NT-063 起本控件**只有这一份**（收进 <c>NewToys.UI</c> 控件库）：此前因「模块禁互引 + 模块禁引 Shell
+/// 📌 本控件**只有这一份**（收进 <c>NewToys.UI</c> 控件库）：此前因「模块禁互引 + 模块禁引 Shell
 /// + Shared/Core 不引 Avalonia」而在 4 个模块与 Shell 各存一份副本（五份、2086 行、已开始漂移）。
 /// </para>
 /// </summary>

@@ -47,7 +47,7 @@ namespace NewToys.VideoTools.ViewModels;
 /// </summary>
 public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, IDetailPanelProvider, IDetailCardSource, IToolbarSource
 {
-    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+    // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================
     // ⚠️ 本页 VM 不是 ListPageViewModelBase ⇒ 契约成员自己实现（其余 12 页由基类统一实现）。
 
     /// <summary>工具条构成变化时通知 Shell（本页工具条静态 ⇒ 不主动触发；留契约给"项随状态增删"的将来）。</summary>
@@ -165,7 +165,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     [ObservableProperty] private bool _isDetailVisible = true;
 
-    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+    // ==================== 详情面板 + 声明式详情卡（的 L2 迁移页，需求 §4.5.1） ====================
 
     /// <summary>
     /// 📂 选输出文件。平台文件选择器**只能在 View 层用**（VM 不引 Avalonia）⇒ 由 <c>VideoPreviewView</c>
@@ -173,10 +173,10 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// </summary>
     public ICommand? PickOutputCommand { get; set; }
 
-    /// <summary>📝 选择字幕文件（NT-100；code-behind 挂真正实现）。</summary>
+    /// <summary>📝 选择字幕文件（code-behind 挂真正实现）。</summary>
     public ICommand? PickSubtitleCommand { get; set; }
 
-    /// <summary>🎵 选择替换用的音频文件（NT-103；code-behind 挂真正实现）。</summary>
+    /// <summary>🎵 选择替换用的音频文件（code-behind 挂真正实现）。</summary>
     public ICommand? PickAudioCommand { get; set; }
 
     public bool HasDetailPanel => true;
@@ -200,7 +200,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         DetailChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Shell 恢复到「展开」时调（<c>BindContracts</c> 里按 config 回放），同样要通知 Shell。</summary>
+    /// <summary>Shell 恢复到「展开」时调（Shell 侧契约绑定按 config 回放），同样要通知 Shell。</summary>
     [RelayCommand]
     private void OpenDetailPanel()
     {
@@ -249,7 +249,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         Commit = EditCommitMode.OnBlur,
                         Mono = true
                     },
-                    // NT-101：多段剪切 + 拼接（≥2 段时忽略上面的开始 / 结束）
+                    // 多段剪切 + 拼接（≥2 段时忽略上面的开始 / 结束）
                     new DetailField
                     {
                         Label = "多段剪切（每行一段：开始-结束；≥2 段 = 切完再拼成一条）",
@@ -371,7 +371,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         OptionDisplayPath = "Label",
                         ValuePath = nameof(SelectedRotate)
                     },
-                    // ===== 裁剪（NT-102）：宽 × 高 + 左上角坐标 =====
+                    // ===== 裁剪：宽 × 高 + 左上角坐标 =====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -395,7 +395,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         SecondValuePath = nameof(EditCropY),
                         SecondPlaceholder = "Y"
                     },
-                    // ===== 字幕（NT-100）=====
+                    // ===== 字幕=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -438,7 +438,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         Mono = true,
                         VisibleWhen = nameof(IsHardSubtitleEdit)
                     },
-                    // ===== 音轨（NT-103）=====
+                    // ===== 音轨=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -494,7 +494,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         Placeholder = "5000k",
                         VisibleWhen = "!" + nameof(UseCrf)
                     },
-                    // ===== 目标体积（NT-104）=====
+                    // ===== 目标体积=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -511,7 +511,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         ValuePath = nameof(TargetSizeHint),
                         VisibleWhen = nameof(HasTargetSizeHint)
                     },
-                    // NT-099：仅 GIF 预设可见（其它预设这些参数没有意义）
+                    // 仅 GIF 预设可见（其它预设这些参数没有意义）
                     new DetailField
                     {
                         Label = "GIF 帧率（12 常用；越大越流畅、体积越大）",
@@ -554,7 +554,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                         Kind = FieldKind.Text,
                         Selectable = true
                     },
-                    // NT-098：参数预检（有意见才显示）
+                    // 参数预检（有意见才显示）
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
@@ -608,7 +608,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                 ToolTip = "挑一个输出文件；留空 = 自动命名（⛔ 绝不覆盖已有文件）",
                 Command = new RelayCommand(() => PickOutputCommand?.Execute(null))
             },
-            // NT-100：字幕文件（.srt / .ass）
+            // 字幕文件（.srt / .ass）
             new DetailAction
             {
                 Text = "📝 选择字幕文件…",
@@ -616,7 +616,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                 ToolTip = "挑一个 .srt / .ass 字幕，再把上面的「字幕方式」选成软字幕或硬字幕",
                 Command = new RelayCommand(() => PickSubtitleCommand?.Execute(null))
             },
-            // NT-102：探测黑边（从预览位置取 2 秒跑 cropdetect）
+            // 探测黑边（从预览位置取 2 秒跑 cropdetect）
             new DetailAction
             {
                 Text = "🖼 探测黑边",
@@ -624,7 +624,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                 ToolTip = "自动算出去掉黑边后的画面尺寸与起点，填进上面的裁剪框（从当前预览位置取 2 秒）",
                 Command = DetectCropCommand
             },
-            // NT-103：替换音轨用的音频文件
+            // 替换音轨用的音频文件
             new DetailAction
             {
                 Text = "🎵 选择音频文件…",
@@ -699,9 +699,9 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         Duration = 0;
         EditOutput = "";
         EditEnd = "";              // v3.16.1：换文件 → 结束归零，探测到新时长后自动填成"整段末尾"（停最右）
-        PreviewRotation = 0;       // v3.19 / NT-012：换文件 → 预览旋转角度与「旋转」字段归零
+        PreviewRotation = 0;       // v3.19：换文件 → 预览旋转角度与「旋转」字段归零
         EditRotate = "";
-        // NT-102 ~ NT-104：裁剪坐标 / 替换音轨 / 目标体积都跟具体文件绑定，换文件必须作废
+        // ~ 裁剪坐标 / 替换音轨 / 目标体积都跟具体文件绑定，换文件必须作废
         EditCropWidth = 0;
         EditCropHeight = 0;
         EditCropX = 0;
@@ -712,7 +712,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         OnPropertyChanged(nameof(HasSource));
         RefreshCommand();
         RefreshStatusPrefix();     // v3.16：换文件 → 状态栏前缀立刻跟上
-        NotifyToolbarChanged();    // NT-098：工具条按钮的可用性跟着「有没有源」走
+        NotifyToolbarChanged();    // 工具条按钮的可用性跟着「有没有源」走
     }
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
@@ -722,7 +722,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         OnPropertyChanged(nameof(TimelineMax));
         OnPropertyChanged(nameof(HasDuration));
         OnPropertyChanged(nameof(DurationDisplay));
-        OnPropertyChanged(nameof(TargetSizeHint));      // NT-104：体积反算依赖时长
+        OnPropertyChanged(nameof(TargetSizeHint));      // 体积反算依赖时长
         OnPropertyChanged(nameof(HasTargetSizeHint));
         RefreshStatusPrefix();     // v3.16：探测到时长 → 状态栏前缀里的时长补上
 
@@ -739,7 +739,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// <summary>当前预览的大画面。</summary>
     [ObservableProperty] private Bitmap? _previewImage;
 
-    /// <summary>预览画面旋转角度（0 / 90 / 180 / 270；纯视觉 <c>RenderTransform</c>，⛔ 不改文件）。v3.19 / NT-012。</summary>
+    /// <summary>预览画面旋转角度（0 / 90 / 180 / 270；纯视觉 <c>RenderTransform</c>，⛔ 不改文件）。v3.19。</summary>
     [ObservableProperty] private double _previewRotation;
 
     public bool HasPreviewImage => PreviewImage != null;
@@ -808,7 +808,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                 if (ok && info != null)
                 {
                     if (info.Duration != null) Duration = info.Duration.Value;
-                    if (info.Width is > 0) SourceWidth = info.Width.Value;    // v3.19 / NT-013：顺手记下源宽高供参考
+                    if (info.Width is > 0) SourceWidth = info.Width.Value;    // v3.19：顺手记下源宽高供参考
                     if (info.Height is > 0) SourceHeight = info.Height.Value;
                     if (info.Codec is { Length: > 0 }) SourceCodec = info.Codec;
                     if (info.BitRate is > 0) SourceBitRate = info.BitRate;
@@ -914,13 +914,13 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// <summary>目标高（0 = 不约束高，按宽度等比）。</summary>
     [ObservableProperty] private int _editTargetHeight;
 
-    /// <summary>默认宽上限（0 = 不用；源更宽才缩到它，否则保原始，v3.19 / NT-013）。</summary>
+    /// <summary>默认宽上限（0 = 不用；源更宽才缩到它，否则保原始，v3.19）。</summary>
     [ObservableProperty] private int _editDefaultWidth = 1920;
 
     /// <summary>默认高上限（0 = 不用；配合 <see cref="EditDefaultWidth"/>）。</summary>
     [ObservableProperty] private int _editDefaultHeight = 1080;
 
-    /// <summary>源视频宽 / 高（v3.19 / NT-013：探测后显示，供设「默认宽高上限」时参考）。</summary>
+    /// <summary>源视频宽 / 高（v3.19：探测后显示，供设「默认宽高上限」时参考）。</summary>
     [ObservableProperty] private int _sourceWidth;
     [ObservableProperty] private int _sourceHeight;
     partial void OnSourceWidthChanged(int value) => OnPropertyChanged(nameof(SourceResolutionDisplay));
@@ -930,7 +930,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     public string SourceResolutionDisplay =>
         SourceWidth > 0 && SourceHeight > 0 ? $"{SourceWidth}×{SourceHeight}" : "未读取（载入后自动探测）";
 
-    /// <summary>v3.19 / NT-013：源视频编码 / 码率 / 容器（探测时填充，供右键「视频信息」）。</summary>
+    /// <summary>v3.19：源视频编码 / 码率 / 容器（探测时填充，供右键「视频信息」）。</summary>
     [ObservableProperty] private string _sourceCodec = "";
     [ObservableProperty] private long? _sourceBitRate;
     [ObservableProperty] private string _sourceContainerFormat = "";
@@ -939,7 +939,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     [ObservableProperty] private long _sourceSize;
 
     /// <summary>
-    /// 预览画面右键「视频信息」的多行文本（v3.19 / NT-013：编辑命令时快速查看名称/大小/编码/时长/码率/容器/分辨率/旋转）。
+    /// 预览画面右键「视频信息」的多行文本（v3.19：编辑命令时快速查看名称/大小/编码/时长/码率/容器/分辨率/旋转）。
     /// </summary>
     public string VideoInfoText
     {
@@ -983,10 +983,10 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     [ObservableProperty] private int _editTranscodeCrf;
     [ObservableProperty] private string _editTargetBitrate = "";
 
-    /// <summary>GIF 帧率（NT-099；只对 GIF 预设生效）。</summary>
+    /// <summary>GIF 帧率（只对 GIF 预设生效）。</summary>
     [ObservableProperty] private int _editFrameRate = 12;
 
-    /// <summary>GIF 宽度（NT-099；0 = 保持原宽）。</summary>
+    /// <summary>GIF 宽度（0 = 保持原宽）。</summary>
     [ObservableProperty] private int _editGifWidth = 480;
 
     /// <summary>当前转码预设是不是 GIF（详情卡据此显隐两个 GIF 字段）。</summary>
@@ -995,7 +995,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     partial void OnEditFrameRateChanged(int value) => RefreshCommand();
     partial void OnEditGifWidthChanged(int value) => RefreshCommand();
 
-    // ---- 旋转 / 翻转（v3.19 / NT-012）----
+    // ---- 旋转 / 翻转（v3.19）----
 
     /// <summary>旋转 / 翻转编辑缓冲（取值见 <see cref="RotateOptions"/>；空 = 不旋转）。</summary>
     [ObservableProperty] private string _editRotate = "";
@@ -1009,7 +1009,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     partial void OnSelectedRotateChanged(RotateOption? value)
     {
         if (value != null) EditRotate = value.Value;
-        NotifyVideoInfo();   // v3.19 / NT-013：旋转方向进了右键「视频信息」
+        NotifyVideoInfo();   // v3.19：旋转方向进了右键「视频信息」
     }
 
     partial void OnEditRotateChanged(string value)
@@ -1019,7 +1019,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         PreviewRotation = RotateOptions.ToAngle(value);
     }
 
-    // ---- 转码参数变化 → 刷新命令预览（v3.19 / NT-013 补齐预览页缺口，与「批量处理」页一致）----
+    // ---- 转码参数变化 → 刷新命令预览（v3.19：补齐预览页缺口，与「批量处理」页一致）----
     // ⚠️ 预览页此前缺这些 On*Changed：改预设 / 编码器 / 分辨率 / CRF / 码率 / 容器时命令预览不刷新（批量页一直有）。
 
     partial void OnEditTranscodePresetIdChanged(string value)
@@ -1053,7 +1053,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     partial void OnEditTranscodeCrfChanged(int value) => RefreshCommand();
     partial void OnEditTargetBitrateChanged(string value) => RefreshCommand();
 
-    // ==================== 字幕（NT-100）/ 多段剪切（NT-101） ====================
+    // ==================== 字幕/ 多段剪切 ====================
 
     /// <summary>字幕文件（<c>.srt / .ass</c>；空 = 不加字幕）。</summary>
     [ObservableProperty] private string _editSubtitlePath = "";
@@ -1088,7 +1088,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     partial void OnEditSubtitleFontSizeChanged(int value) => RefreshCommand();
     partial void OnEditSubtitleMarginVChanged(int value) => RefreshCommand();
 
-    // ==================== 裁剪 / 音轨 / 目标体积（NT-102 ~ NT-104） ====================
+    // ==================== 裁剪 / 音轨 / 目标体积（~ ） ====================
 
     /// <summary>裁剪宽（0 = 不裁剪；必须与高同时 &gt; 0）。</summary>
     [ObservableProperty] private int _editCropWidth;
@@ -1340,7 +1340,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         RefreshLint();
     }
 
-    // ==================== 参数预检（NT-098） ====================
+    // ==================== 参数预检 ====================
 
     /// <summary>预检结果（多行文本；空 = 没有意见）。命令区上方常显，命中冲突时列出来。</summary>
     [ObservableProperty] private string _lintText = "";
@@ -1375,7 +1375,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         return args;
     }
 
-    // ==================== 试跑小样（NT-098） ====================
+    // ==================== 试跑小样 ====================
 
     /// <summary>上次试跑的成品（临时目录）。</summary>
     [ObservableProperty] private string _trialFile = "";
@@ -1521,7 +1521,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         if (IsTranscode)
         {
             var preset = TranscodePreset.Find(EditTranscodePresetId);
-            // NT-099：GIF 只认 .gif；NT-100：软字幕只认 .mkv
+            // GIF 只认 .gif；软字幕只认 .mkv
             var ext = FfmpegService.IsGif(preset) ? ".gif"
                     : (IsSoftSubtitleEdit && !string.IsNullOrWhiteSpace(EditSubtitlePath)) ? ".mkv"
                     : NormalizeExt(EditContainer, preset.Extension);
@@ -1594,7 +1594,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         StatusText = "区间已重置（整段）。";
     }
 
-    /// <summary>↻ 预览顺时针旋转 90°（纯视觉 <c>RenderTransform</c>；经 <see cref="SelectedRotate"/> 同步命令卡「旋转」字段）。v3.19 / NT-012。</summary>
+    /// <summary>↻ 预览顺时针旋转 90°（纯视觉 <c>RenderTransform</c>；经 <see cref="SelectedRotate"/> 同步命令卡「旋转」字段）。v3.19。</summary>
     [RelayCommand]
     private void RotatePreviewCw()
     {

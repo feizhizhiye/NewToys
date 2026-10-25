@@ -36,7 +36,7 @@ public class ColumnLayoutService : IColumnLayoutService
     {
         try
         {
-            // NT-075/077：原子写 + 空集合即删（整节为空 ⇒ 文件里不留这一节）
+            // 原子写 + 空集合即删（整节为空 ⇒ 文件里不留这一节）
             _shell.Set("columnLayout", all.Count == 0 ? null : JsonSerializer.SerializeToNode(all));
         }
         catch

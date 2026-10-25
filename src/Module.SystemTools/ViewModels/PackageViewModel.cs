@@ -21,7 +21,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.SystemTools.ViewModels;
 
-/// <summary>导入 / 导出用的最小包记录（只要 <see cref="Id"/> 就能重装；Name / Version 仅供人看）。v3.19 / NT-008。</summary>
+/// <summary>导入 / 导出用的最小包记录（只要 <see cref="Id"/> 就能重装；Name / Version 仅供人看）。v3.19。</summary>
 public class PackageExportItem
 {
     public string Id { get; set; } = "";
@@ -38,8 +38,8 @@ public class PackageExportItem
 /// <para>
 /// <b>本页没有任何「保存」按钮</b>（规范 3.7）：源、静默安装、排序列都是点一下就生效并写
 /// <c>config\package.json</c>（由 <see cref="IPackageSettingsService"/> 落盘）。
-/// NT-074 / v3.80：源的**增删 / 切换**全要 UAC ⇒ 归「命令库 → winget 源」集合的命令；本页只管"查包"。
-/// NT-076：**勾一下源就立刻生效** —— 勾上但系统里没有的源（如默认未启用的 <c>msstore</c>）
+/// / v3.80：源的**增删 / 切换**全要 UAC ⇒ 归「命令库 → winget 源」集合的命令；本页只管"查包"。
+/// **勾一下源就立刻生效** —— 勾上但系统里没有的源（如默认未启用的 <c>msstore</c>）
 /// 会标「（未启用）」，勾它立刻跑 <c>winget source enable</c>（⛔ 工具条不再有「✅ 生效」按钮）。
 /// 本页进入时读一次源列表，因此设置页改完再回到本页即生效（页面每次导航都会重建 VM，见规范 6.5）。
 /// </para>
@@ -63,7 +63,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>后端可执行文件名（切后端时改这里）。</summary>
     private const string BackendExeName = "winget.exe";
 
-    // 🔴 NT-074：工具条每个按钮的 ToolTip = 它真正执行的 winget 命令（用户定调：⛔ 不写抽象描述）。
+    // 🔴 工具条每个按钮的 ToolTip = 它真正执行的 winget 命令（用户定调：⛔ 不写抽象描述）。
     // 下面每条既是文档也是提示词来源；<占位符> 会原样显示给用户（告诉他这里填什么）。
 
     /// <summary>列出已安装（<c>winget list</c>）。</summary>
@@ -110,7 +110,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     private readonly IAppConfigService? _app;
 
-    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
     public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
     /// <summary>已安装包 Id 的缓存（搜索结果要靠它把「状态」列标准）。</summary>
@@ -134,12 +134,12 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     public ObservableCollection<PackageInfo> Packages { get; } = new();
 
     /// <summary>
-    /// 工具条（NT-055 / 需求 §4.8.5：**由 Shell 统一渲染**，页面⛔ 不再自写 <c>Border.toolbar</c>）。
+    /// 工具条（/ 需求 §4.8.5：**由 Shell 统一渲染**，页面⛔ 不再自写 <c>Border.toolbar</c>）。
     /// 顺序 = 折叠顺序的**反序**（越靠前越不易被折进「⋯」）。
     /// <para>
     /// 🔴 2026-10-17 动词层：**按钮文案**一律用通用动词（列出 / 搜索 / 升级 / 锁定 / 卸载 …），
     /// ⛔ 不出现后端名 —— 换后端时按钮文案一个字都不用改。
-    /// 🔴 NT-074 反转：**ToolTip 一律给真实 winget 命令**（用户定调）—— 用户要看的是"到底跑了什么"。
+    /// 🔴 反转：**ToolTip 一律给真实 winget 命令**（用户定调）—— 用户要看的是"到底跑了什么"。
     /// 分组顺序 = 查看（源 / 搜索 / 三种列表）→ 刷新 → 写操作 → 偏好 → 导入导出。
     /// </para>
     /// </summary>
@@ -281,12 +281,12 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     public bool IsSourceVisible => Vis("Source");
     public bool IsStatusVisible => Vis("Status");
 
-    /// <summary>v3.37 / NT-002：勾选列（Pick）恒可见 —— 它是批量操作的前提。</summary>
+    /// <summary>v3.37：勾选列（Pick）恒可见 —— 它是批量操作的前提。</summary>
     public bool IsPickVisible => true;
 
     protected override string PageKey => "script-packages";
 
-    // ==================== 分页（NT-075） ====================
+    // ==================== 分页 ====================
     //
     // 数据全在内存（winget 一次性吐完），分页只做**切片**（⛔ 不回查后端）；
     // 预设 20 / 50 / 100 / 全部 —— 用户定调，⛔ 别动全局那档（25/50/100/500/全部）。
@@ -302,7 +302,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // v3.37 / NT-002：首列 = **勾选列**（Pick）——
+        // v3.37：首列 = **勾选列**（Pick）——
         //    加了首列后，表头 / 行模板里**所有 Grid.Column 索引都要 +1**（⛔ 别漏一处）。
         new("Pick", "", "34", sortable: false),
         // v3.22 §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
@@ -340,7 +340,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;
-    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+    // ==================== 详情面板 + 声明式详情卡（的 L2 迁移页，需求 §4.5.1） ====================
 
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
@@ -392,7 +392,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                 Header = "选中包",
                 Fields =
                 {
-                    // NT-068 S7'：11 个只读字段一律 Selectable=true（SelectableTextBlock = 只读可选可复制）。
+                    // '：11 个只读字段一律 Selectable=true（SelectableTextBlock = 只读可选可复制）。
                     // ⛔ 包装成可编辑 TextBox 会让「详情卡」变成第二个写入点，与「设置页是唯一写入点」冲突。
                     new DetailField
                     {
@@ -408,7 +408,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                         Kind = FieldKind.Text,
                         Selectable = true
                     },
-                    // 原来「版本 / 可升级到」是**同行并排**（版本 → 可升级）→ 按 NT-054 已拍板口径拆成两行
+                    // 原来「版本 / 可升级到」是**同行并排**（版本 → 可升级）→ 按 已拍板口径拆成两行
                     new DetailField
                     {
                         Label = "版本",
@@ -720,7 +720,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             BuildInstalledCache();
             await ApplyPinnedAsync();
             ApplyView();
-            // v3.19 / NT-008：明确「已 Pin 的不出现在可升级列表」是 winget 行为、非漏报（需求 §6.2.3）。
+            // v3.19：明确「已 Pin 的不出现在可升级列表」是 winget 行为、非漏报（需求 §6.2.3）。
             StatusText = $"{msg} · 已 Pin 的不会出现在此列表（winget 行为）";
         }
         finally { IsBusy = false; }
@@ -735,14 +735,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         {
             case ListMode.Search: await SearchAsync(); break;
             case ListMode.Upgrades: await LoadUpgradesAsync(); break;
-            case ListMode.Pinned: await LoadPinnedAsync(); break;   // NT-075：按当前列表重跑
+            case ListMode.Pinned: await LoadPinnedAsync(); break;   // 按当前列表重跑
             default: await LoadInstalledAsync(); break;
         }
     }
 
     private void BeginList(List<PackageInfo> items, ListMode mode)
     {
-        // v3.37 / NT-002：旧行先解绑勾选监听，新行挂上（⛔ 别直接 AddRange，否则计数不更新）
+        // v3.37：旧行先解绑勾选监听，新行挂上（⛔ 别直接 AddRange，否则计数不更新）
         foreach (var p in _all) p.PropertyChanged -= OnRowPropertyChanged;
         _all.Clear();
         foreach (var p in items) p.PropertyChanged += OnRowPropertyChanged;
@@ -886,7 +886,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             var (ok, msg, pinned) = await _pkg.ListPinnedAsync();
             if (!ok) { StatusText = "读取 Pin 列表失败：" + msg; return; }
 
-            // 🔴 NT-075：点「🔒 已锁定」= **换一个列表**（⛔ 不清空就是"把 pin 项塞进上一次的结果"，
+            // 🔴 点「🔒 已锁定」= **换一个列表**（⛔ 不清空就是"把 pin 项塞进上一次的结果"，
             // 用户看不出哪些才是被锁定的）。pin list 只给 Id / 版本 ⇒ 再跑一次 winget list 补齐名称 / 源 / 状态。
             var ids = pinned.Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var rows = new List<PackageInfo>();
@@ -939,7 +939,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (InstalledOnly && _mode == ListMode.Search)
             q = q.Where(p => p.IsInstalled);
 
-        // v3.19 / NT-008：可升级列表**不显示已 Pin 的**（winget 会跳过它们 —— 需求 §6.2.3；也让它更贴近终端 winget upgrade 的条数）
+        // v3.19：可升级列表**不显示已 Pin 的**（winget 会跳过它们 —— 需求 §6.2.3；也让它更贴近终端 winget upgrade 的条数）
         if (_mode == ListMode.Upgrades)
             q = q.Where(p => !p.IsPinned);
 
@@ -980,7 +980,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
                                  : q.OrderBy(p => p.Name, byText)
         };
 
-        // ---- NT-075 分页切片（数据已在内存 ⇒ 只切不回查；选「全部」= 不切） ----
+        // ---- 分页切片（数据已在内存 ⇒ 只切不回查；选「全部」= 不切） ----
         var ordered = q.ToList();
         TotalCount = ordered.Count;
 
@@ -1006,7 +1006,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (Selected != null && !Packages.Contains(Selected)) Selected = null;
 
         UpdateHeaders();
-        RefreshChecked();                         // v3.37 / NT-002：列表重建 → 勾选计数 / 表头三态跟上
+        RefreshChecked();                         // v3.37：列表重建 → 勾选计数 / 表头三态跟上
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
         NotifyActionVisibility();                 // 列表重建可能把选中项换掉 → 动作组合跟着重算
@@ -1169,7 +1169,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     /// <summary>
     /// 跑一条后端命令（命令型条目走 <c>cmd.exe /c</c>，⛔ 不经 pwsh ⇒ 无冷启动开销）。
-    /// <para>用 Core 的 <see cref="ScriptRunner"/>（NT-088 上提）而非给 <see cref="IPackageManagerService"/> 加方法 —— 后者在 Shared（框架层冻结）。</para>
+    /// <para>用 Core 的 <see cref="ScriptRunner"/>而非给 <see cref="IPackageManagerService"/> 加方法 —— 后者在 Shared（框架层冻结）。</para>
     /// </summary>
     private async Task<ScriptRunResult> RunBackendAsync(string command, int timeoutSeconds = ScriptRunner.MaxTimeoutSeconds)
     {
@@ -1336,7 +1336,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
         if (!string.IsNullOrWhiteSpace(detail.Name)) p.Name = detail.Name;
         // ⛔ 不覆盖 Version：winget show 的 Version 是「最新可用版」——覆盖已安装项会把「⬆ 升级到 X」错显成「已安装」
-        //    （v3.19 / NT-008 修的 bug：点一下详情，状态就从"升级"变"已安装"）。只在原本为空时才补。
+        //    （v3.19：修的 bug：点一下详情，状态就从"升级"变"已安装"）。只在原本为空时才补。
         if (string.IsNullOrWhiteSpace(p.Version) && !string.IsNullOrWhiteSpace(detail.Version)) p.Version = detail.Version;
         p.Publisher = detail.Publisher;
         p.Description = detail.Description;
@@ -1344,13 +1344,13 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         p.License = detail.License;
         p.InstallLocation = detail.InstallLocation;
 
-        // v3.19 / NT-008：PackageInfo 已是 ObservableObject → 上面的赋值直接通知详情卡 / 列表行刷新，
+        // v3.19：PackageInfo 已是 ObservableObject → 上面的赋值直接通知详情卡 / 列表行刷新，
         // ⛔ 不用再整体重建列表（以前是普通类才需要 ApplyView，且重建会重置滚动位）。
         DetailExtra = detail.Description;
         StatusText = msg;
     }
 
-    // ==================== v3.37 / NT-002：勾选列 + 批量安装 / 升级队列 ====================
+    // ==================== v3.37：勾选列 + 批量安装 / 升级队列 ====================
 
     /// <summary>行被勾了几条（工具条「⬇ 安装选中」「⬆ 升级选中」按它操作）。</summary>
     public int CheckedCount => _all.Count(p => p.IsChecked);
@@ -1501,11 +1501,11 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         finally { IsBusy = false; }
     }
 
-    // ==================== 导入 / 导出（v3.19 / NT-008：换机恢复） ====================
+    // ==================== 导入 / 导出（v3.19：换机恢复） ====================
 
     /// <summary>
     /// 📤 导出当前列表为 json（建议先点「📥 已安装」再导）。
-    /// <para>NT-055：原来在 <c>PackageView.axaml.cs</c>（要 TopLevel / StorageProvider），
+    /// <para>原来在 <c>PackageView.axaml.cs</c>（要 TopLevel / StorageProvider），
     /// 工具条改由 Shell 渲染后搬进 VM，选择器走 <see cref="DialogHooks"/>（VM ⛔ 不引 Avalonia UI 类型）。</para>
     /// </summary>
     [RelayCommand]
@@ -1522,7 +1522,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         catch (Exception ex) { StatusText = "导出失败：" + ex.Message; }
     }
 
-    /// <summary>📥 导入导出的 json → 生成 winget 批量安装脚本(.bat)（NT-055：同「📤 导出」搬进 VM）。</summary>
+    /// <summary>📥 导入导出的 json → 生成 winget 批量安装脚本(.bat)（同「📤 导出」搬进 VM）。</summary>
     [RelayCommand]
     private async Task ImportPackagesAsync()
     {
@@ -1655,7 +1655,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     // ==================== 即时写盘（无保存按钮，规范 3.7） ====================
 
-    /// <summary>v3.19 / NT-008：「仅看已安装」从工具条勾选并入表头右键菜单（切换过滤）。</summary>
+    /// <summary>v3.19：「仅看已安装」从工具条勾选并入表头右键菜单（切换过滤）。</summary>
     [RelayCommand]
     private void ToggleInstalledOnly()
     {

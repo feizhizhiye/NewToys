@@ -5,7 +5,7 @@ using System.Linq;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 站点探测的**一个候选路径**的命中结果（NT-086 批 E）。
+/// 站点探测的**一个候选路径**的命中结果。
 /// </summary>
 public sealed class SiteProbeHit
 {
@@ -32,7 +32,7 @@ public sealed class SiteProbeHit
 }
 
 /// <summary>
-/// 站点探测的汇总（NT-086 批 E）：每候选一命中 + 推荐。
+/// 站点探测的汇总：每候选一命中 + 推荐。
 /// <para>
 /// 🔴 **只推荐不代选**：<see cref="Best"/> 只是建议，⛔ 不自动创建 / 不自动选中任何预设。
 /// </para>

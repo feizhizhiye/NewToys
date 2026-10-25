@@ -5,7 +5,7 @@ using Avalonia.Controls;
 namespace NewToys.UI.Controls;
 
 /// <summary>
-/// 空态块（NT-063 P1，NT-060 口径）：说明文案 + 复用本页现有命令的入口。
+/// 空态块（口径）：说明文案 + 复用本页现有命令的入口。
 /// <para>
 /// 由宿主页经 <see cref="Message"/> / <see cref="ActionText"/> / <see cref="ActionCommand"/> 下发；
 /// <see cref="ActionText"/> 为空时按钮不占位（纯文案空态）。
@@ -54,7 +54,7 @@ public partial class EmptyStateBlock : UserControl
     }
 
     /// <summary>
-    /// 🔴 v3.71 / NT-063 P2：属性变化 ⇒ 直接写进具名元素（⛔ 不用祖先绑定，见 axaml 顶部注释）。
+    /// 🔴 v3.71：属性变化 ⇒ 直接写进具名元素（⛔ 不用祖先绑定，见 axaml 顶部注释）。
     /// </summary>
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {

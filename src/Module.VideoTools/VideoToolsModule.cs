@@ -12,7 +12,7 @@ public class VideoToolsModule : IModule
         // 媒体信息缓存（SQLite，库文件在 <应用根>\data\newtoys.db；SqliteDatabase 由 Shell 注册）
         services.AddSingleton<Services.VideoMediaIndex>();
 
-        // NT-076：本模块在总库里的 schema 贡献者（旧表清理由它按版本号做一次，建表仍由 VideoMediaIndex 构造完成）
+        // 本模块在总库里的 schema 贡献者（旧表清理由它按版本号做一次，建表仍由 VideoMediaIndex 构造完成）
         services.AddSingleton<ILibrarySchemaContributor, Services.VideoToolsSchemaContributor>();
 
         // 剪切 / 转码的**任务清单**（单例）：页面 VM 是瞬态的，任务挂在 VM 上切一次页就没了。
@@ -31,14 +31,14 @@ public class VideoToolsModule : IModule
         // v3.8：原「格式转码」页改名改造为「批量处理」页（列表 = 剪辑 + 转码混排的统一队列）
         services.AddTransient<Views.VideoBatchView>();  services.AddTransient<VideoBatchViewModel>();
 
-        // v3.64 / NT-061：本模块设置（并发数）——**本模块配置的唯一写入点**，落 config\video-tools.json
+        // v3.64：本模块设置（并发数）——**本模块配置的唯一写入点**，落 config\video-tools.json
         // （经 Core 的 IOptionsStore）。ffmpeg / 外部播放器 / 导入导出目录是全局项，⛔ 不在这里另存一份。
         services.AddSingleton<IVideoToolsSettingsService, VideoToolsSettingsService>();
         services.AddTransient<Views.SettingsVideoToolsView>();  services.AddTransient<SettingsVideoToolsViewModel>();
     }
     public void Initialize(IServiceProvider services)
     {
-        // 🔴 NT-070（启动提速）：建库/删表的 IO 已搬到 InitializeDeferred（首帧之后）。
+        // 🔴 （启动提速）：建库/删表的 IO 已搬到 InitializeDeferred（首帧之后）。
         // 这里只留菜单注册（纯内存，必须首帧前完成）。
         var menu = services.GetRequiredService<IMenuService>();
         menu.RegisterModule("video", "视频工具", "IconVideo", 40);
@@ -53,14 +53,14 @@ public class VideoToolsModule : IModule
         // v3.8：原「格式转码」→「批量处理」（剪辑 + 转码混排的任务队列）
         menu.RegisterFunction("video", "video-batch", "批量处理", "🧺", "VideoBatchView", 2, "剪辑 + 转码混排的任务队列：逐条改参数 / 编辑命令、批量运行");
 
-        // v3.64 / NT-061：模块设置页通则 —— View/VM 归本模块。
-        // v3.66 / NT-062：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
+        // v3.64：模块设置页通则 —— View/VM 归本模块。
+        // v3.66：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。
         menu.RegisterFunction("video", "settings-video-tools", "视频工具设置", "🎬", "SettingsVideoToolsView", 100,
             "并发数与 ffmpeg / 播放器 / 导入导出目录（后三项是全局项，本页只展示）");
     }
 
     /// <summary>
-    /// NT-076：旧表清理 + 建表搬到 <see cref="Services.VideoToolsSchemaContributor"/>（总库 schema 统一入口）。
+    /// 旧表清理 + 建表搬到 <see cref="Services.VideoToolsSchemaContributor"/>（总库 schema 统一入口）。
     /// <para>
     /// 为什么搬：总库是多模块共享的，原来这段 DROP 在 `InitializeDeferred` 里**每次启动都跑**，
     /// 属于无护栏的破坏性语句；现在改成「缓存版本号变化才清一次」，并且排在建表之前。

@@ -6,7 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 期②下载的字段求值结果（NT-087）：<see cref="RuleRunService"/> 的 <c>mode=step</c> 回包。
+/// 期②下载的字段求值结果：<see cref="RuleRunService"/> 的 <c>mode=step</c> 回包。
 /// <para>
 /// 🔴 与 <see cref="CrawlResult"/> 的分工：那个按索引合成行表（面板列表用），这个回**全量值**（下载落盘用，⛔ 不截断）。
 /// </para>
@@ -36,7 +36,7 @@ public enum ArtifactKind
 }
 
 /// <summary>
-/// 一个条目解析出的产物计划（NT-087）：下载器按它落盘。
+/// 一个条目解析出的产物计划：下载器按它落盘。
 /// </summary>
 public sealed class ArtifactPlan
 {
@@ -139,7 +139,7 @@ public sealed class DownloadOutcome
     public string StopReason { get; set; } = "";
 }
 
-/// <summary>下载请求（NT-087）：勾选的行（非链式）或起始网址（链式，<see cref="Entries"/> 空）。</summary>
+/// <summary>下载请求：勾选的行（非链式）或起始网址（链式，<see cref="Entries"/> 空）。</summary>
 public sealed class DownloadRequest
 {
     /// <summary>content 段脚本名。</summary>

@@ -3,11 +3,11 @@ using System;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 「脚本管理器」模块设置的读写契约（v3.64 / NT-061，需求 §3.5 + §4.9）：**本模块配置的唯一写入点**。
+/// 「脚本管理器」模块设置的读写契约（v3.64，需求 §3.5 + §4.9）：**本模块配置的唯一写入点**。
 /// <list type="bullet">
 ///   <item>数据落 <c>&lt;配置根&gt;\config\script-manager.json</c>（走 Core 的 <c>IOptionsStore</c>，按模块分区、随 profile 隔离）。</item>
 ///   <item>「脚本库」页的脚本目录框、本模块设置页（<c>settings-script</c>）都只调本服务 ⇒ 一处写、多处读。</item>
-///   <item>🔴 v3.65 / NT-062：三个解释器路径（pwsh / python / powershell 5.1）**已回迁应用级**
+///   <item>🔴 v3.65：三个解释器路径（pwsh / python / powershell 5.1）**已回迁应用级**
 ///   （<c>app.json</c>，判据 =「运行环境」是应用级路由）⇒ 本契约只剩**脚本目录**一项。</item>
 /// </list>
 /// <para>

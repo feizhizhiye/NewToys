@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// <b>L0 机器环境配置</b>（NT-077 第二批）：<c>%LOCALAPPDATA%\NewToys\env.json</c> 的**唯一读写入口**。
+/// <b>L0 机器环境配置</b>：<c>%LOCALAPPDATA%\NewToys\env.json</c> 的**唯一读写入口**。
 /// <para>
 /// 语义：这里是「本机怎么跑外部程序」，**跟随机器、⛔ 不随配置档切换**
 /// （换配置只隔离 <c>config / data / logs</c>，ffmpeg / 解释器路径不该跟着变）。

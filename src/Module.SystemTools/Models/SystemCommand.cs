@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace NewToys.SystemTools.Models;
 
 /// <summary>
-/// 系统工具里的一条 <b>命令条目</b>（NT-091）：执行完<b>只产生副作用、不产出数据</b>的那一类
+/// 系统工具里的一条 <b>命令条目</b>：执行完<b>只产生副作用、不产出数据</b>的那一类
 /// （打开设置面板 / 开关注册表 / 跑一条命令行命令）。
 /// <para>
 /// 🔴 与 ScriptManager 的条目模型是<b>两套</b>（模块禁互引 ⇒ 各持一份）：本模块条目落

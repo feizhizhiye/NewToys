@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace NewToys.Shared.Services;
 
-/// <summary>外部工具执行请求（NT-081 步骤 3）。</summary>
+/// <summary>外部工具执行请求。</summary>
 public sealed class ProcessRunRequest
 {
     /// <summary>可执行文件 / 命令名（按 PATH 解析）。</summary>
@@ -27,7 +27,7 @@ public sealed class ProcessRunRequest
     public bool StrictOutput { get; init; } = true;
 }
 
-/// <summary>外部工具执行结果（NT-081 步骤 3）。</summary>
+/// <summary>外部工具执行结果。</summary>
 public sealed class ProcessRunResult
 {
     /// <summary>进程是否成功启动（起不来时 <see cref="Error"/> 有人话说明）。</summary>
@@ -56,7 +56,7 @@ public sealed class ProcessRunResult
 }
 
 /// <summary>
-/// 「跑外部工具并拿回文本」的统一底座（NT-081 步骤 3，平台中立）。
+/// 「跑外部工具并拿回文本」的统一底座（平台中立）。
 /// <para>
 /// 语义：隐藏窗口 + 重定向 stdout/stderr + **显式 UTF-8** + 超时 / 取消**杀进程树**。
 /// 先起读取任务再等待（避免输出超过管道缓冲把子进程卡死）。
@@ -65,7 +65,7 @@ public sealed class ProcessRunResult
 /// 🔴 不在本契约内的两类（刻意保留现状，⛔ 不一刀切合并）：① **平台能力**（打开文件夹 / 文件 / URL，
 /// <c>UseShellExecute=true</c>）——VM 层直接用 BCL，换平台时改的是"explorer → xdg-open"这一处；
 /// ② **可见控制台 / 提权**（<c>Verb=runas</c>，窗口留着给用户看）——见 <c>QuickActionService.StartVisible</c>
-/// 与 NT-080 定调（winget 源命令走命令库 + UAC）。
+/// 与 定调（winget 源命令走命令库 + UAC）。
 /// </para>
 /// </summary>
 public interface IProcessRunner

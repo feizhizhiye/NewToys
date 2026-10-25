@@ -7,7 +7,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// <see cref="IExternalToolRegistry"/> 实现（v3.65 / NT-062，需求 §4.9.2 第 5 条）。
+/// <see cref="IExternalToolRegistry"/> 实现（v3.65，需求 §4.9.2 第 5 条）。
 /// <para>
 /// 判据：用户**显式配了**值 → 只认那个文件（<see cref="File.Exists(string)"/>，不解析相对名）；
 /// **留空** → 走"系统默认"：先探常见安装位，再按 <c>PATH</c> 找可执行名。

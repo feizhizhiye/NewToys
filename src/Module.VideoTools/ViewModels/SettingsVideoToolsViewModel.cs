@@ -6,7 +6,7 @@ using NewToys.VideoTools.Services;
 namespace NewToys.VideoTools.ViewModels;
 
 /// <summary>
-/// 「视频工具」模块设置页（v3.64 / NT-061，需求 §4.9）：View/VM 归 <c>Module.VideoTools</c>，
+/// 「视频工具」模块设置页（v3.64，需求 §4.9）：View/VM 归 <c>Module.VideoTools</c>，
 /// 由 <c>VideoToolsModule.Initialize</c> 自注册进**本模块分组 <c>video</c>**（Key <c>settings-video-tools</c>，Order 100）。
 /// <para>
 /// 本模块**独有的**可配项 = 并发数（ffprobe 媒体信息 / 批处理），落 <c>config\video-tools.json</c>；

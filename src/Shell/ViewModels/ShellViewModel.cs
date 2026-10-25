@@ -11,6 +11,7 @@ using NewToys.Core.Services;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.Shell.Models;
+using NewToys.Shell.Services;
 using NewToys.Shell.Views;
 
 namespace NewToys.Shell.ViewModels;
@@ -55,13 +56,8 @@ public partial class ShellViewModel : ViewModelBase
     private readonly IProfileService _profiles;
     private readonly IModuleReloadService _reload;
 
-    private IDetailPanelProvider? _detailProvider;
-    private IHistoryProvider? _historyProvider;
-    private IStatusProvider? _statusProvider;
-    private IStatusActionProvider? _statusActionProvider;
-
-    /// <summary>当前标签是否就是应用级设置页（切节要重绑契约 / 刷左树高亮）。</summary>
-    private SettingsViewModel? _settingsVm;
+    /// <summary>当前标签页的契约绑定（详情 / 历史栈 / 状态栏 / 工具条）—— 独立成类见 <see cref="ShellPageBinder"/>。</summary>
+    private readonly ShellPageBinder _binder;
 
     /// <summary>
     /// 全部标签页：**不再区分「固定首页 + 可滚动标签」两套集合** ——
@@ -74,7 +70,7 @@ public partial class ShellViewModel : ViewModelBase
     /// <summary>左树节点（首页叶子 + 一级分组 + 二级功能叶子）。</summary>
     public ObservableCollection<TreeMenuItem> TreeNodes { get; } = new();
 
-    /// <summary>一级分组**展开**时触发（NT-037）：ShellView 据此把整组滚入视野（⛔ 收起不触发）。</summary>
+    /// <summary>一级分组**展开**时触发：ShellView 据此把整组滚入视野（⛔ 收起不触发）。</summary>
     public event EventHandler<TreeMenuItem>? TreeNodeExpanded;
 
     [ObservableProperty] private bool _isTreeCollapsed;
@@ -82,7 +78,7 @@ public partial class ShellViewModel : ViewModelBase
     [ObservableProperty] private object? _detailPanelContent;
 
     /// <summary>
-    /// 声明式详情卡（NT-054）：当前页描述符。非 null → 右列走 <c>DetailCardHost</c> 统一渲染，
+    /// 声明式详情卡：当前页描述符。非 null → 右列走 <c>DetailCardHost</c> 统一渲染，
     /// ⛔ 此时不再取 <see cref="DetailPanelContent"/>（老路留给尚未迁移的页）。
     /// </summary>
     [ObservableProperty] private NewToys.Shared.Details.DetailCardDescriptor? _detailCard;
@@ -94,7 +90,7 @@ public partial class ShellViewModel : ViewModelBase
     [ObservableProperty] private bool _isDetailCardActive;
 
     /// <summary>
-    /// 声明式工具条（NT-055 / 需求 §4.8.5）：当前页 VM 若实现 <c>IToolbarSource</c> 且**工具条非空**，
+    /// 声明式工具条（/ 需求 §4.8.5）：当前页 VM 若实现 <c>IToolbarSource</c> 且**工具条非空**，
     /// 这里就是它 —— <c>ToolbarHost</c> 据此渲染；否则为 null（Shell ⛔ 不留空行，页面继续用页内自绘工具条）。
     /// </summary>
     [ObservableProperty] private object? _toolbarSource;
@@ -122,12 +118,12 @@ public partial class ShellViewModel : ViewModelBase
     [ObservableProperty] private bool _hasStatusAction;
 
     /// <summary>状态栏点击提示（tooltip；没有目标时为空）。</summary>
-    public string StatusActionTip => _statusActionProvider?.StatusActionTip ?? "";
+    public string StatusActionTip => _binder.StatusActionTip;
 
-    /// <summary>重算「状态栏可点击跳转」的两个派生属性。</summary>
-    private void RefreshStatusAction()
+    /// <summary>重算「状态栏可点击跳转」的两个派生属性（绑定器每次重绑后回调）。</summary>
+    internal void RefreshStatusAction()
     {
-        HasStatusAction = !string.IsNullOrWhiteSpace(_statusActionProvider?.StatusActionKey);
+        HasStatusAction = _binder.HasStatusAction;
         OnPropertyChanged(nameof(StatusActionTip));
     }
 
@@ -162,6 +158,8 @@ public partial class ShellViewModel : ViewModelBase
     {
         _sp = sp; _menu = menu; _nav = nav; _cols = cols; _profiles = profiles; _reload = reload;
 
+        _binder = new ShellPageBinder(this, cols);
+
         // 左树折叠态从壳级 Flag 恢复。
         _isTreeCollapsed = _cols.LoadFlag(ShellPageKey, "treeCollapsed", false);
 
@@ -169,7 +167,7 @@ public partial class ShellViewModel : ViewModelBase
         // 这里统一接住 —— 模块无需引用 Shell 程序集即可导航。
         _nav.Navigated += (_, e) => OpenTab(e.key);
 
-        // NT-052：模块热加载（入口 = 功能清单页「增加功能」操作区，标题栏按钮已移入）→ 重建左树 + 底栏消息。
+        // 模块热加载（入口 = 功能清单页「增加功能」操作区，标题栏按钮已移入）→ 重建左树 + 底栏消息。
         // ShellViewModel 是进程级单例（AddSingleton）⇒ 订阅随进程生命周期，无需退订。
         _reload.Reloaded += OnModulesReloaded;
 
@@ -199,7 +197,7 @@ public partial class ShellViewModel : ViewModelBase
         try
         {
             foreach (var t in Tabs) t.IsActive = ReferenceEquals(t, value);
-            BindContracts(value);
+            _binder.Bind(value);
             UpdateTreeActive();
             EnsureActiveGroupExpanded(value);   // v3.6：确保当前页所属一级是展开的（不收起其它）
         }
@@ -350,7 +348,7 @@ public partial class ShellViewModel : ViewModelBase
         // ⚠️ 这里曾试过"先把内容区置空再挂新 View"，实测会让页面**整片空白**
         // （内容区的 Content 换成新 View 时挂不上）⇒ 已回滚。现在就按"原地换 View"来。
         tab.Replace(rebuilt.Content, rebuilt.ViewModel);
-        BindContracts(tab);
+        _binder.Bind(tab);
         // 内容区由 Shell 侧**显式挂载**（见 ShellView.SyncContentHost）——
         // 标签还是同一个、只是它缓存的 View 换了 ⇒ 这里补发一次"当前标签变了"，让内容区重挂。
         OnPropertyChanged(nameof(ActiveTab));
@@ -371,7 +369,7 @@ public partial class ShellViewModel : ViewModelBase
     /// </summary>
     [RelayCommand] private void OpenSettings() => OpenTab("settings-general");
 
-    // ==================== 标题栏搜索（NT-066） ====================
+    // ==================== 标题栏搜索 ====================
 
     /// <summary>结果条数上限（下拉列表不撑爆弹窗；再多请把关键词写细）。</summary>
     private const int MaxSearchResults = 12;
@@ -405,7 +403,7 @@ public partial class ShellViewModel : ViewModelBase
 
     /// <summary>
     /// 关键词变了 ⇒ 重建结果列表（**子串匹配**，标题命中优先于说明命中）。
-    /// <para>🔴 NT-066：范围 = **全部已注册的二级菜单项**（含各模块设置页本身）+ **应用级设置页的节**；
+    /// <para>🔴 范围 = **全部已注册的二级菜单项**（含各模块设置页本身）+ **应用级设置页的节**；
     /// ⛔ 不搜模块私有内容（资产名 / 脚本名），⛔ 不给拼音 / 首字母匹配。</para>
     /// </summary>
     private void RefreshSearch(string? keyword)
@@ -516,7 +514,7 @@ public partial class ShellViewModel : ViewModelBase
     [RelayCommand]
     private void InvokeStatusAction()
     {
-        var key = _statusActionProvider?.StatusActionKey;
+        var key = _binder.StatusActionKey;
         if (!string.IsNullOrWhiteSpace(key)) OpenTab(key);
     }
 
@@ -560,7 +558,7 @@ public partial class ShellViewModel : ViewModelBase
     }
 
     /// <summary>右详情开合（供标题栏/快捷键调用；列表页表头 ▤ 直接调 VM 自己的契约方法）。</summary>
-    [RelayCommand] private void ToggleDetail() => _detailProvider?.ToggleDetail();
+    [RelayCommand] private void ToggleDetail() => _binder.ToggleDetail();
 
     /// <summary>左树节点点击：一级分组折叠/展开（不打开页）；叶子打开/激活标签页。</summary>
     [RelayCommand]
@@ -574,7 +572,7 @@ public partial class ShellViewModel : ViewModelBase
             _cols.SaveFlag(ShellPageKey, "treeGroup:" + node.Key, node.IsExpanded);   // v3.6：手动展开态落盘
             // 折叠态下点分组 → 先展开整棵树（简化实现，不做浮出面板）
             if (IsTreeCollapsed) IsTreeCollapsed = false;
-            // NT-037：展开后通知 ShellView 把整组滚入视野（靠底部的分组展开后子项会被 ScrollViewer 裁掉）
+            // 展开后通知 ShellView 把整组滚入视野（靠底部的分组展开后子项会被 ScrollViewer 裁掉）
             if (node.IsExpanded) TreeNodeExpanded?.Invoke(this, node);
             return;
         }
@@ -583,7 +581,7 @@ public partial class ShellViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 模块热加载完成（NT-052：入口已由标题栏移入**功能清单页**「增加功能」操作区）：
+    /// 模块热加载完成（入口已由标题栏移入**功能清单页**「增加功能」操作区）：
     /// 重建左树 + 底栏消息（文案与旧标题栏按钮逐字一致）。
     /// <para>
     /// 规范 §3.7：只做「新增」（移除模块要重启）；单个 DLL 失败被隔离（⛔ 不拖垮宿主）；
@@ -603,126 +601,16 @@ public partial class ShellViewModel : ViewModelBase
         StatusBarText = msg;
     }
 
-    // ==================== 历史栈 ====================
-    // 标题栏的「前进 / 后退」按钮已在 删除（各页几乎全程灰显、无实际意义）。
-    // IHistoryProvider 契约与下面的订阅**保留** —— 将来要恢复按钮，把命令接回来即可。
-
-    private void OnStatePushed(object? sender, EventArgs e)
+    /// <summary>设置页切节后：重绑由绑定器完成，这里只补左树高亮与分组展开。</summary>
+    internal void AfterSettingsSectionRebound(TabItemViewModel tab)
     {
-        var tab = ActiveTab;
-        if (tab == null || _historyProvider == null) return;
-        tab.BackStack.Push(_historyProvider.CaptureState());
-        tab.ForwardStack.Clear();
-    }
-
-    // ==================== 契约绑定（详情面板 / 历史栈） ====================
-
-    private void BindContracts(TabItemViewModel? tab)
-    {
-        // 先解绑旧 Tab 的订阅（防内存泄漏）
-        if (_detailProvider != null) { _detailProvider.DetailChanged -= OnDetailChanged; _detailProvider = null; }
-        if (_historyProvider != null) { _historyProvider.StatePushed -= OnStatePushed; _historyProvider = null; }
-        if (_statusProvider != null) { _statusProvider.StatusChanged -= OnStatusChanged; _statusProvider = null; }
-        if (_settingsVm != null) { _settingsVm.SectionChanged -= OnSettingsSectionChanged; _settingsVm = null; }
-
-        IsDetailPanelVisible = false;
-        DetailPanelContent = null;
-        DetailCard = null;
-        DetailCardSource = null;
-        IsDetailCardActive = false;
-        StatusBarText = "";
-        _statusActionProvider = null;
-        RefreshStatusAction();
-
-        // 应用级设置页是**复合 VM** —— 它把契约转发给当前节，
-        // 切节时发 SectionChanged ⇒ 这里重新探测一遍（工具条 / 详情卡 / 状态栏随节变）。
-        if (tab?.ViewModel is SettingsViewModel settings)
-        {
-            _settingsVm = settings;
-            settings.SectionChanged += OnSettingsSectionChanged;
-        }
-
-        // 声明式工具条 —— 页面没接契约（或工具条为空）= 本页没有工具条（⛔ 不留空行）
-        // 复合页可经 IToolbarOwner 把承载者换成**子 VM**（描述符里的 CommandPath 相对它解析）。
-        // ⚠️ 第五轮起应用级设置页**不再实现**该契约（节工具条改为在节点内渲染，用户要求"放回本节顶部"）
-        // ⇒ 该分支当前只为将来的复合页保留。
-        var toolbarOwner = tab?.ViewModel is IToolbarOwner owner ? owner.ToolbarOwner : tab?.ViewModel;
-        var toolbar = (toolbarOwner as IToolbarSource)?.Toolbar;
-        IsToolbarActive = toolbar is { Count: > 0 };
-        ToolbarSource = IsToolbarActive ? toolbarOwner : null;
-
-        if (tab?.ViewModel is IDetailPanelProvider p)
-        {
-            _detailProvider = p;
-            // 初值从 config 恢复（Shell 统一持久化，见 §3.6 / §3.8）
-            var open = _cols.LoadFlag(tab.Key, IColumnLayoutService.FlagDetailPanel);
-            if (open && !p.IsDetailOpen) p.OpenDetail();
-            p.DetailChanged += OnDetailChanged;
-            RefreshDetail(tab.Key, p);
-        }
-
-        if (tab?.ViewModel is IHistoryProvider h)
-        {
-            _historyProvider = h;
-            h.StatePushed += OnStatePushed;
-        }
-
-        // 底部状态栏 —— 页面实现 IStatusProvider 就把状态文本交给 Shell 显示
-        if (tab?.ViewModel is IStatusProvider sp)
-        {
-            _statusProvider = sp;
-            sp.StatusChanged += OnStatusChanged;
-            StatusBarText = sp.StatusText;
-        }
-
-        // 状态栏 `⚠` 可点击跳转（目标由页面给；没有目标就不可点）
-        _statusActionProvider = tab?.ViewModel as IStatusActionProvider;
-        RefreshStatusAction();
-    }
-
-    /// <summary>设置页**切节**：重绑契约 + 刷左树高亮（左树子项 = 节锚点）。</summary>
-    private void OnSettingsSectionChanged(object? sender, EventArgs e)
-    {
-        var tab = ActiveTab;
-        if (tab == null || !ReferenceEquals(tab.ViewModel, _settingsVm)) return;
-        BindContracts(tab);
         UpdateTreeActive();
         EnsureActiveGroupExpanded(tab);
     }
 
-    /// <summary>页面状态变了 → 刷新底部状态栏。</summary>
-    private void OnStatusChanged(object? sender, EventArgs e)
-    {
-        StatusBarText = _statusProvider?.StatusText ?? "";
-        RefreshStatusAction();     // 状态文本与「可点击目标」同生同灭（如 `⚠ 未找到 ffmpeg`）
-    }
-
-    private void OnDetailChanged(object? sender, EventArgs e)
-    {
-        if (_detailProvider != null && ActiveTab != null)
-            RefreshDetail(ActiveTab.Key, _detailProvider);
-    }
-
-    private void RefreshDetail(string pageKey, IDetailPanelProvider p)
-    {
-        IsDetailPanelVisible = p.HasDetailPanel && p.IsDetailOpen;
-
-        // 两轨择一（NT-054 需求 §4.5.1）：
-        // ① 页面实现 IDetailCardSource 且 Card 非空 → 走声明式（DetailCardHost 统一渲染），
-        // ⛔ 此时**不碰** p.DetailContent（否则白建一个自绘视图）；
-        // ② 否则退回老路（页面自绘 DetailContent），直到该页完成 L2 迁移。
-        var card = (p as IDetailCardSource)?.Card;
-        IsDetailCardActive = card is not null;
-        DetailCard = card;
-        DetailCardSource = card is null ? null : p;
-        DetailPanelContent = card is null ? p.DetailContent : null;
-
-        _cols.SaveFlag(pageKey, IColumnLayoutService.FlagDetailPanel, p.IsDetailOpen);
-    }
-
     // ==================== 左树构建 / 高亮 ====================
 
-    /// <summary>左树构建 / 高亮（NT-005 起 public：热加载重扫后要能重建）。</summary>
+    /// <summary>左树构建 / 高亮（public：热加载重扫后要能重建）。</summary>
     public void BuildTree()
     {
         TreeNodes.Clear();

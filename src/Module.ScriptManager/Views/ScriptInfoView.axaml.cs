@@ -9,7 +9,7 @@ using NewToys.ScriptManager.ViewModels;
 namespace NewToys.ScriptManager.Views;
 
 /// <summary>
-/// 信息面板（NT-068 S5）：节列表 + 节内行点选 + 定时刷新生命周期。
+/// 信息面板：节列表 + 节内行点选 + 定时刷新生命周期。
 /// </summary>
 /// <remarks>
 /// 🔴 行用 <c>ItemsControl</c> + <c>PointerPressed</c> 而不是 <c>ListBox</c>：

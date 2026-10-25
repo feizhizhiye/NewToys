@@ -11,7 +11,7 @@ namespace NewToys.VideoTools.Services;
 public sealed record LintIssue(bool IsError, string Text);
 
 /// <summary>
-/// **预检的补充上下文**（NT-102 / NT-103 / NT-104）：这些值不是从命令行文本能反推出来的
+/// **预检的补充上下文**：这些值不是从命令行文本能反推出来的
 /// （裁剪坐标、音频方式、目标体积都在任务对象上），所以由调用方显式传入。
 /// </summary>
 public sealed record LintExtra(
@@ -23,7 +23,7 @@ public sealed record LintExtra(
     double Duration = 0);
 
 /// <summary>
-/// **ffmpeg 参数预检**（NT-098）：纯静态分析，不跑 ffmpeg、不碰 UI。
+/// **ffmpeg 参数预检**：纯静态分析，不跑 ffmpeg、不碰 UI。
 /// <para>
 /// 只做「已知冲突」白名单 —— ⛔ 不做完整 ffmpeg 语法解析（那是不可能维护的）。
 /// 目标是「用户手改命令后的常见踩坑，在点运行之前就看得见」。
@@ -55,7 +55,7 @@ public static class CommandLint
         var ext = outPath.Length > 0 ? Path.GetExtension(outPath).ToLowerInvariant() : "";
         var isGifOut = ext == ".gif";
 
-        // ①-b 字幕（NT-100）：选了方式没挑文件 / 文件不存在 / 软字幕装进了非 mkv 容器
+        // ①-b 字幕：选了方式没挑文件 / 文件不存在 / 软字幕装进了非 mkv 容器
         var subPath = (subtitlePath ?? "").Trim();
         var subMode = (subtitleMode ?? "").Trim().ToLowerInvariant();
         if (subMode.Length > 0 && subPath.Length == 0)
@@ -65,7 +65,7 @@ public static class CommandLint
         if (subMode == "soft" && ext.Length > 0 && ext != ".mkv")
             list.Add(new(true, "软字幕的输出必须是 .mkv —— mp4 / mov 装不了 srt 字幕轨。"));
 
-        // ①-c 裁剪 / 音轨 / 目标体积（NT-102 ~ NT-104）
+        // ①-c 裁剪 / 音轨 / 目标体积（~ ）
         var codec = LastValue(args, CodecFlags);
         var isCopy = string.Equals(codec, "copy", StringComparison.OrdinalIgnoreCase);
 

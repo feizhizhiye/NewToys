@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
-using NewToys.Core.Services;   // NT-088：ScriptInterpreter / QuickActionShell 常量已上提 Core
+using NewToys.Core.Services;   // ScriptInterpreter / QuickActionShell 常量已上提 Core
 
 namespace NewToys.ScriptManager.Models;
 
@@ -52,7 +52,7 @@ public static class QuickActionKind
 /// <see cref="NeedAdmin"/> 为真时统一走 UAC 提权。
 /// </para>
 /// <para>
-/// ⛔ 默认清单<b>既不写死在代码里、也不随程序预置</b>（v3.60 §三 / NT-060）：<c>config\script\script.json</c> /
+/// ⛔ 默认清单<b>既不写死在代码里、也不随程序预置</b>（v3.60 §三）：<c>config\script\script.json</c> /
 /// <c>config\script\script.json</c> 首次运行就是**空清单**，条目全部由用户导入 / 新建（见 <c>QuickActionService</c>）。
 /// </para>
 /// </summary>
@@ -100,14 +100,14 @@ public partial class QuickAction : ObservableObject
     [ObservableProperty] private bool _isFavorite;
 
     /// <summary>
-    /// 「隐藏终端窗口」（v3.19 / NT-006，仅对<b>命令行命令</b>有意义）：
+    /// 「隐藏终端窗口」（v3.19，仅对<b>命令行命令</b>有意义）：
     /// 勾上 = GUI 启动类语义，运行时不弹终端窗口（<c>cmd /c</c> + 隐藏窗口静默跑，目标 GUI 正常打开）。
     /// 默认 false（弹窗看输出）。<b>需要管理员时本开关失效</b>（仍 runas + 可见 UAC）。
     /// </summary>
     [ObservableProperty] private bool _runHidden;
 
     /// <summary>
-    /// 命令行宿主选择（取值见 <see cref="QuickActionShell"/>，v3.19 / NT-006）：
+    /// 命令行宿主选择（取值见 <see cref="QuickActionShell"/>，v3.19）：
     /// Auto / Cmd / Pwsh；旧数据缺省 = <see cref="QuickActionShell.Auto"/>（行为不变）。
     /// </summary>
     [ObservableProperty] private string _shell = QuickActionShell.Auto;
@@ -117,7 +117,7 @@ public partial class QuickAction : ObservableObject
     public string FavoriteMark => IsFavorite ? "★" : "";
 
     /// <summary>
-    /// <b>可采集</b>（NT-068 §三.5）：由 <c>CollectableEvaluator</c> 判定后填进来，供库页「可采集」列显示。
+    /// <b>可采集</b>（§三.5）：由 <c>CollectableEvaluator</c> 判定后填进来，供库页「可采集」列显示。
     /// <para>⚠️ <b>派生值</b>，⛔ 不从本类回写数据层（真相源是 <c>ScriptItem.Collectable</c>）。</para>
     /// </summary>
     [ObservableProperty] private bool _collectable = true;
@@ -126,7 +126,7 @@ public partial class QuickAction : ObservableObject
     [ObservableProperty] private string _ineligibleReason = "";
 
     /// <summary>
-    /// 所属库的集合 id（NT-073，派生自 <see cref="ScriptItem.Collections"/>，⛔ 不写盘）。
+    /// 所属库的集合 id（派生自 <see cref="ScriptItem.Collections"/>，⛔ 不写盘）。
     /// <para>库页按它过滤 / 显示「所属库」。</para>
     /// </summary>
     [JsonIgnore]

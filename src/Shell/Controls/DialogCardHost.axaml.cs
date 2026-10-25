@@ -9,7 +9,7 @@ using Avalonia.Media;
 namespace NewToys.Shell.Controls;
 
 /// <summary>
-/// 全局弹出卡片层（NT-084）：确认框 / 提示框 / 输入框的唯一呈现器（替代原独立系统 Window）。
+/// 全局弹出卡片层：确认框 / 提示框 / 输入框的唯一呈现器（替代原独立系统 Window）。
 /// <para>
 /// 调用方（⛔ 页面不得自造弹窗）：① <c>App.axaml.cs</c> 给 <c>Core.DialogHooks</c> 的
 /// <c>ConfirmHandler / InputHandler</c> 做宿主实现 ⇒ 所有模块的 <c>DialogHooks.ConfirmAsync</c>

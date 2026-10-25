@@ -5,7 +5,7 @@ using System.Linq;
 namespace NewToys.SystemTools.Services;
 
 /// <summary>
-/// **机读输出**（TSV）的通用解析（NT-081 步骤 4，与具体包管理器无关）。
+/// **机读输出**（TSV）的通用解析（与具体包管理器无关）。
 /// <para>
 /// 对应后端姿势：<c>dpkg-query -W -f='${{Package}}\t${{Version}}\t${{Status}}\n'</c> 之类
 /// —— 命令自己吐带分隔符的机读数据，⛔ 不碰固定列宽、⛔ 不关心中文表头。

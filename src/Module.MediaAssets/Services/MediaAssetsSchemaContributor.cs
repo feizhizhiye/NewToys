@@ -5,7 +5,7 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 媒体资产在**总库**里的 schema 贡献者（NT-076）。
+/// 媒体资产在**总库**里的 schema 贡献者。
 /// <para>
 /// 本模块的建表逻辑（幂等 <c>CREATE IF NOT EXISTS</c> + 只加可空列的 <c>ALTER TABLE ADD COLUMN</c>）
 /// 一直写在 <see cref="AssetDatabase"/> 的构造里（`AssetDatabase.cs:42-43`）。本类不改写 DDL，

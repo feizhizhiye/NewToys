@@ -14,7 +14,7 @@ using NewToys.WebTools.Models;
 namespace NewToys.WebTools.Services;
 
 /// <summary>
-/// 书签持久化与导入：数据落**总库 <c>web_docs</c> 的 <c>bookmarks</c> 文档**（NT-076 第二批；此前是
+/// 书签持久化与导入：数据落**总库 <c>web_docs</c> 的 <c>bookmarks</c> 文档**（此前是
 /// <c>config\bookmarks.json</c>，旧文件由 <see cref="WebToolsSchemaContributor"/> 一次性搬入并改名 <c>.legacy</c>）。
 /// <para>导入浏览器书签：用 <see cref="AngleSharp"/> 解析 Netscape 书签 HTML（<c>&lt;A HREF&gt;</c> + 文件夹 <c>&lt;H3&gt;</c>）。</para>
 /// <para>联通检测：发一个带超时的 HTTP 请求，反馈状态码 / 超时 / 异常。</para>
@@ -49,7 +49,7 @@ public class BookmarkService
         try
         {
             var list = items.ToList();
-            // 空列表即删（沿用 NT-075「懒创建」语义：没有书签就不留空文档）
+            // 空列表即删（沿用 「懒创建」语义：没有书签就不留空文档）
             if (list.Count == 0) { _docs.Delete(WebToolsSchemaContributor.DocBookmarks); return; }
             _docs.Save(WebToolsSchemaContributor.DocBookmarks, list);
         }

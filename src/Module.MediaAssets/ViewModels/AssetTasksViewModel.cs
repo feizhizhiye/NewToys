@@ -14,7 +14,7 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
-/// 「任务中心」页（NT-019）：三块 —— ① 运行态任务队列（可取消）② 最近扫描任务（可重扫）③ 操作日志。
+/// 「任务中心」页：三块 —— ① 运行态任务队列（可取消）② 最近扫描任务（可重扫）③ 操作日志。
 /// <para>
 /// ⚠️ 队列**不持久化**（进程退出即清，需求 §6.6）：长期记录在 `scan_jobs` / `operation_logs`，就是这页的后两块。
 /// </para>
@@ -22,7 +22,7 @@ namespace NewToys.MediaAssets.ViewModels;
 /// </summary>
 public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IToolbarSource
 {
-    // ==================== 声明式工具条（NT-055 三轮 / 需求 §4.8.5） ====================
+    // ==================== 声明式工具条（/ 需求 §4.8.5） ====================
     // ⚠️ 本页 VM 不是 ListPageViewModelBase ⇒ 契约成员自己实现（与 VideoPreviewViewModel 同一套路）。
 
     /// <summary>工具条构成变化时通知 Shell（本页工具条**静态** ⇒ 不主动触发；留契约给"项随状态增删"的将来）。</summary>

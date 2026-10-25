@@ -7,7 +7,7 @@ using NewToys.WebTools.Services;
 namespace NewToys.WebTools.ViewModels;
 
 /// <summary>
-/// 「网页工具」模块设置页（v3.64 / NT-061，需求 §4.9）：View/VM 归 <c>Module.WebTools</c>，
+/// 「网页工具」模块设置页（v3.64，需求 §4.9）：View/VM 归 <c>Module.WebTools</c>，
 /// 由 <c>WebToolsModule.Initialize</c> 自注册进**本模块分组 <c>web</c>**（Key <c>settings-web-tools</c>，Order 100）。
 /// <para>
 /// 内容 = 网页抓取的**默认 UA + 单次抓取超时**（原来硬编码在 <c>ScrapeService</c>，现在落

@@ -13,12 +13,12 @@ using NewToys.UI.Controls;
 namespace NewToys.ScriptManager.ViewModels;
 
 /// <summary>
-/// 信息面板里的**一个节** = 一个采集器（NT-068 §三.8）。
+/// 信息面板里的**一个节** = 一个采集器（§三.8）。
 /// </summary>
 /// <remarks>
 /// <para>
 /// 节头：采集器标题 + 状态点（ok / warn / error <b>着色</b>）+ 上次采集时间 + 行数 + 折叠 + 局部刷新；
-/// 节体：这一采集器**在本视图下的列**（<see cref="ScriptItem.Columns"/> 经视图投影后，§三.13 / NT-069），预览 20 行 + 「展开全部」。
+/// 节体：这一采集器**在本视图下的列**（<see cref="ScriptItem.Columns"/> 经视图投影后，§三.13），预览 20 行 + 「展开全部」。
 /// </para>
 /// <para>
 /// 🔴 状态着色只能绑 <b>bool 具名属性</b>（XAML 绑不了枚举比较）：<see cref="IsOk"/> / <see cref="IsWarn"/> /

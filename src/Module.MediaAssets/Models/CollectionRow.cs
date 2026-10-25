@@ -4,7 +4,7 @@ using Avalonia.Media;
 namespace NewToys.MediaAssets.Models;
 
 /// <summary>
-/// 集合管理页的一行（NT-018）：`collections` + 成员数。
+/// 集合管理页的一行：`collections` + 成员数。
 /// <para>手动集合（<c>manual</c>）成员靠人和拖拽排序；智能集合（<c>smart</c>）成员由 <c>rule_json</c> 规则筛出来。</para>
 /// </summary>
 public partial class CollectionRow : CommunityToolkit.Mvvm.ComponentModel.ObservableObject

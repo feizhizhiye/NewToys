@@ -17,7 +17,7 @@ using NewToys.UI.Settings;
 namespace NewToys.UI.Controls;
 
 /// <summary>
-/// 设置页骨架（NT-068）：<b>应用级设置页 + 4 个模块设置页共用</b>。
+/// 设置页骨架：<b>应用级设置页 + 4 个模块设置页共用</b>。
 /// <para>
 /// 整页是一棵"树"（手风琴）：每个节 = 抬头 + 正文，整体参与滚动；<see cref="Sticky"/>=true 时
 /// 抬头滚出顶沿由**覆盖层浮层**钉在顶部（含 Push），并可「全部收起」。

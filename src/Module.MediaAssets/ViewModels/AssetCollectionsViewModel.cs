@@ -14,9 +14,9 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
-/// 「集合管理」页（NT-018）：左集合列表（📦 手动 / ⚡ 智能）+ 右成员列表。
+/// 「集合管理」页：左集合列表（📦 手动 / ⚡ 智能）+ 右成员列表。
 /// <para>成员顺序 = `collection_assets.sort_order`：⚙ 本页用「⬆ 上移 / ⬇ 下移」写它，效果与拖拽一致
-/// （⛔ 未做鼠标拖放 —— 见 NT-018 执行记录里对"拖拽排序"的实现说明）。</para>
+/// （⛔ 未做鼠标拖放 —— 见 执行记录里对"拖拽排序"的实现说明）。</para>
 /// <para>⚠️ 智能集合（`rule_json`）本轮只区分类型 / 图标与存规则文本，**规则求值未实装**。</para>
 /// <para>⛔ 本页不实现 <c>IDetailPanelProvider</c>（左右两栏都在页内）。</para>
 /// </summary>
@@ -48,7 +48,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase
     public bool IsModifiedVisible => Vis("Modified");
     public bool IsStorageVisible => Vis("Storage");
 
-    // ==================== 工具条（NT-055 三轮 / 需求 §4.8.5：由 Shell 统一渲染） ====================
+    // ==================== 工具条（/ 需求 §4.8.5：由 Shell 统一渲染） ====================
 
     /// <summary>
     /// 工具条：页内 ⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。

@@ -58,7 +58,7 @@ public interface IQuickActionService
     Task<bool> RemoveAsync(QuickAction item);
 
     /// <summary>
-    /// 删除一条**但不弹确认**（NT-059：从磁盘删除那一路 —— 确认框由调用方自己弹，
+    /// 删除一条**但不弹确认**（从磁盘删除那一路 —— 确认框由调用方自己弹，
     /// ⛔ 否则"确认删文件 + 确认删条目"会出现两次，且第二次取消时文件已经没了）。
     /// </summary>
     bool RemoveSilent(QuickAction item);
@@ -69,7 +69,7 @@ public interface IQuickActionService
     /// <summary>把一条在两个页面之间移动（改归属 + 落盘）。</summary>
     void Move(QuickAction item, string page);
 
-    /// <summary>导出某页**全条目**为 json 文本（<see cref="QuickActionPage.Quick"/> / <see cref="QuickActionPage.Shortcuts"/>；v3.19 NT-006/007）。</summary>
+    /// <summary>导出某页**全条目**为 json 文本（<see cref="QuickActionPage.Quick"/> / <see cref="QuickActionPage.Shortcuts"/>；v3.19 ）。</summary>
     string ExportPage(string page);
 
     /// <summary>
@@ -78,7 +78,7 @@ public interface IQuickActionService
     /// <returns>(新增, 更新, 跳过/无效)；<c>Skipped=-1</c> 表示 json 解析失败。</returns>
     (int Added, int Updated, int Skipped) ImportPage(string page, string json, bool replace);
 
-    /// <summary>清空某页**全部条目**并落盘（v3.19「🧹 清空本页」= 真删除，NT-006）。</summary>
+    /// <summary>清空某页**全部条目**并落盘（v3.19「🧹 清空本页」= 真删除，）。</summary>
     void ClearPage(string page);
 
     /// <summary>
@@ -99,7 +99,7 @@ public interface IQuickActionService
     void Reload();
 
     /// <summary>
-    /// <b>手动扫描</b>（NT-068 §三.6）：把目录里的脚本列成候选（三态：新文件 / 已入库 / 不可采集）。
+    /// <b>手动扫描</b>（§三.6）：把目录里的脚本列成候选（三态：新文件 / 已入库 / 不可采集）。
     /// <para>⛔ 只列不建 —— 入库动作由界面的「➕ 加入库」触发（用户拍板「用户自己扫描」）。</para>
     /// </summary>
     IReadOnlyList<ScriptCandidate> Scan(string directory, bool includeSubFolders);

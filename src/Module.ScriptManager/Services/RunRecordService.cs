@@ -12,7 +12,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 运行记录（NT-086 批 G）：每次「▶ 跑这段」落一条
+/// 运行记录：每次「▶ 跑这段」落一条
 /// <c>runs\&lt;脚本&gt;\&lt;时间戳&gt;_&lt;URL哈希&gt;\</c>（<c>result.json</c> + <c>page.html</c> + <c>diag.txt</c>）。
 /// <para>
 /// 🔴 每脚本只保留最近 <see cref="KeepRuns"/> 条（目录名时间戳前缀 ⇒ 字典序 = 时间序）；
@@ -34,7 +34,7 @@ public sealed class RunRecordService
         _catalog = catalog;
     }
 
-    /// <summary>运行记录根：<c>&lt;DataDir&gt;\script\runs</c>（NT-090 从 <c>web-tools\runs</c> 归位）。</summary>
+    /// <summary>运行记录根：<c>&lt;DataDir&gt;\script\runs</c>（从 <c>web-tools\runs</c> 归位）。</summary>
     public string RunsRoot
     {
         get
@@ -46,7 +46,7 @@ public sealed class RunRecordService
     }
 
     /// <summary>
-    /// NT-090：一次性把旧 <c>web-tools\runs</c> 下的**脚本子目录**整体搬进新根
+    /// 一次性把旧 <c>web-tools\runs</c> 下的**脚本子目录**整体搬进新根
     /// （只搬一次、同名目标已存在则跳过、整段 try/catch）。
     /// </summary>
     private void MigrateLegacyRuns(string dir)
@@ -74,7 +74,7 @@ public sealed class RunRecordService
     }
 
     /// <summary>
-    /// 某脚本最近的运行记录（NT-090「运行结果」页 ④ 节用）：按目录名字典序倒序（= 时间倒序）取前 <paramref name="take"/> 条。
+    /// 某脚本最近的运行记录（「运行结果」页 ④ 节用）：按目录名字典序倒序（= 时间倒序）取前 <paramref name="take"/> 条。
     /// <para>🔴 读不出来 / 坏 json 一律跳过（⛔ 不打断页面）。</para>
     /// </summary>
     public IReadOnlyList<RunRecord> History(string script, int take = KeepRuns)

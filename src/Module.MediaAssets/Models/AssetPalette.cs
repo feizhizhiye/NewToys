@@ -1,7 +1,7 @@
 namespace NewToys.MediaAssets.Models;
 
 /// <summary>
-/// 标签 / 分类 / 集合的**数据色板**（NT-018）—— 仿视频工具 <c>TagPalette</c> 先例（`Services/TagPalette.cs`）：
+/// 标签 / 分类 / 集合的**数据色板**—— 仿视频工具 <c>TagPalette</c> 先例（`Services/TagPalette.cs`）：
 /// 颜色是**数据**（可落库、可被用户改），⛔ **不走主题键**、⛔ **不在 XAML 里写死色值**。
 /// <para>取色按名称做 FNV-1a 稳定散列 → **同名同色**（重启、换页、换机器都不变）。</para>
 /// </summary>

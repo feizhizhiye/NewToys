@@ -7,7 +7,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 规则目录的元数据与迁移（NT-084）：
+/// 规则目录的元数据与迁移：
 /// <list type="bullet">
 ///   <item>把磁盘上的 <c>.py</c>（<see cref="RuleFileService.Scan"/>）与 <c>web_docs</c> 里的
 ///         启用状态 / 最近运行合并成列表行。</item>
@@ -24,7 +24,7 @@ public sealed class RuleCatalogService
     public const string DocRuleMeta = "rule-meta";
 
     /// <summary>
-    /// 旧「网页抓取」任务文档名（NT-089：原取自 <c>WebToolsSchemaContributor.DocScrapeTasks</c>；
+    /// 旧「网页抓取」任务文档名（原取自 <c>WebToolsSchemaContributor.DocScrapeTasks</c>；
     /// 该类型留在网络工具模块，模块禁互引 ⇒ 这里留一份同名常量，值必须与之一致）。
     /// </summary>
     private const string DocScrapeTasks = "scrape-tasks";
@@ -82,7 +82,7 @@ public sealed class RuleCatalogService
     }
 
     /// <summary>
-    /// 记一次运行（NT-086 批 G：目录页「最近运行」列 / 详情卡的数据源）—— 只写元数据，⛔ 不碰文件。
+    /// 记一次运行（目录页「最近运行」列 / 详情卡的数据源）—— 只写元数据，⛔ 不碰文件。
     /// </summary>
     public void MarkRun(string name, DateTime at, int count)
     {

@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 规则编辑器里的一行命令（NT-084 批 C）：<c>(字段名, 表达式)</c> + 上次运行的命中信息。
+/// 规则编辑器里的一行命令：<c>(字段名, 表达式)</c> + 上次运行的命中信息。
 /// <para>一个规则集 = 它的 <c>RULES</c> 列表；一条命令 = 这里的一行。</para>
 /// </summary>
 public partial class RuleCommand : ObservableObject
@@ -13,11 +13,11 @@ public partial class RuleCommand : ObservableObject
     [ObservableProperty] private string _hitText = "—";
     [ObservableProperty] private string _preview = "";
 
-    /// <summary>命中条数（NT-086 批 G：运行记录 / 导出用；出错 = 0）。</summary>
+    /// <summary>命中条数（运行记录 / 导出用；出错 = 0）。</summary>
     [ObservableProperty] private int _count;
 
     /// <summary>
-    /// Python 侧的错误 / 异常文本（NT-086 批 C：**错误必须回显**，⛔ 禁止静默显示「0 条」）。
+    /// Python 侧的错误 / 异常文本（**错误必须回显**，⛔ 禁止静默显示「0 条」）。
     /// </summary>
     [ObservableProperty] private string _error = "";
 

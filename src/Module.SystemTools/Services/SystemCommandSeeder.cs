@@ -7,13 +7,13 @@ using NewToys.SystemTools.Models;
 namespace NewToys.SystemTools.Services;
 
 /// <summary>
-/// 一条命令库预设（NT-097）：<see cref="SystemCommand"/> 的播种用投影（Id 固定 ⇒ 幂等）。
+/// 一条命令库预设：<see cref="SystemCommand"/> 的播种用投影（Id 固定 ⇒ 幂等）。
 /// </summary>
 internal sealed record PresetCommand(
     string Id, string Title, string Category, string Description, string Command, bool NeedAdmin = false);
 
 /// <summary>
-/// 命令库<b>随包预设</b>的播种器（NT-097 / 需求 §6.7 v3.90）：Windows 常用命令（设置面板 / 控制面板 /
+/// 命令库<b>随包预设</b>的播种器（/ 需求 §6.7 v3.90）：Windows 常用命令（设置面板 / 控制面板 /
 /// 管理工具）+ 快捷设置（原 <c>system-quick</c> 十项，已补全缺 <c>/d</c> 取值的 reg 命令）+ winget 命令。
 /// <para>
 /// 🔴 <b>只播种一次</b>：<c>config\system\commands.seeded</c> 标记存在 ⇒ 整体跳过 —— 用户删掉的预设

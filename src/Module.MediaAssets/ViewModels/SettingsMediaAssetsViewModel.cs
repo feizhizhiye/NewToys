@@ -10,7 +10,7 @@ using NewToys.MediaAssets.Models;
 using NewToys.MediaAssets.Services;
 using NewToys.Shared.Services;
 
-// v3.66 / NT-069：与 Core 的同名服务区分（本页用带库表日志的模块版）。
+// v3.66：与 Core 的同名服务区分（本页用带库表日志的模块版）。
 using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 
 namespace NewToys.MediaAssets.ViewModels;
@@ -24,7 +24,7 @@ public sealed class ChoiceOption
 }
 
 /// <summary>
-/// 「媒体资产」模块设置页（NT-021）：View/VM 归 <c>Module.MediaAssets</c>，由
+/// 「媒体资产」模块设置页：View/VM 归 <c>Module.MediaAssets</c>，由
 /// <c>MediaAssetsModule.Initialize</c> 自行注册进**本模块分组**（Order 99，本组末位）。
 /// <para>
 /// 两类生效方式（规范 §4.9）：开关 / 数值 / 路径 = **即时生效**（改即写 <c>config\media-assets.json</c>，
@@ -191,7 +191,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
     /// <summary>缩略图目录（生效值：配置为空 → <c>&lt;应用根&gt;\data\thumbs</c>）。</summary>
     public string ThumbsDirectoryEffective => _io.ThumbsDirectory;
 
-    /// <summary>导入导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批，⛔ 本页不新建字段）。</summary>
+    /// <summary>导入导出默认目录（当前配置档 <c>data\</c>；，⛔ 本页不新建字段）。</summary>
     public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
     public bool HasImportExportDir => !string.IsNullOrWhiteSpace(ImportExportDefaultDir);
@@ -264,7 +264,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
     /// <summary>📂 选缩略图目录（留空 = 恢复默认 <c>data\thumbs</c>）。</summary>
     public void SetThumbsDirectory(string dir) => ThumbsDirectory = dir ?? "";
 
-    // ==================== NT-022：用户数据导出 / 恢复（R1 缓解） ====================
+    // ==================== 用户数据导出 / 恢复（R1 缓解） ====================
 
     /// <summary>用户数据导出文件全路径（<c>config\media-assets-user-data.json</c>）。</summary>
     public string UserDataFilePath => _userData.FilePath;

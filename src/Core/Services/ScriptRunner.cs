@@ -6,7 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>一次脚本执行的入参（NT-067 §二.1）。</summary>
+/// <summary>一次脚本执行的入参（§二.1）。</summary>
 public sealed class ScriptRunRequest
 {
     /// <summary>脚本绝对路径。</summary>
@@ -25,7 +25,7 @@ public sealed class ScriptRunRequest
     public IReadOnlyDictionary<string, string>? Environment { get; init; }
 }
 
-/// <summary>一次命令行执行的入参（NT-068 §三.11：命令即采集器）。</summary>
+/// <summary>一次命令行执行的入参（§三.11：命令即采集器）。</summary>
 public sealed class CommandRunRequest
 {
     /// <summary>要跑的命令行。</summary>
@@ -68,11 +68,11 @@ public sealed class ScriptRunResult
 }
 
 /// <summary>
-/// 「跑脚本 / 跑命令并拿回文本」的**唯一入口**（NT-067 §二.1 / NT-068 §三.11）。
+/// 「跑脚本 / 跑命令并拿回文本」的**唯一入口**（§二.1 / §三.11）。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🔴 NT-088：本类从 <c>Module.ScriptManager</c> 上提 <c>NewToys.Core</c> —— system 系统工具模块
+/// 🔴 本类从 <c>Module.ScriptManager</c> 上提 <c>NewToys.Core</c> —— system 系统工具模块
 /// （收藏夹 / 快捷命令）要执行条目，而**模块禁互引**（§3.1），执行契约只能放框架层。
 /// 行为零变化，纯搬家；<c>InterpreterResolver</c> 与解释器常量 <c>ScriptInterpreter</c> /
 /// <c>QuickActionShell</c> 同批上提（否则 Core 会反向依赖模块）。
@@ -86,7 +86,7 @@ public sealed class ScriptRunResult
 /// ⛔ 不复用 <c>QuickActionService.BuildRunPlan</c>（那个是可见窗口给用户看的）。
 /// </para>
 /// <para>
-/// 🔴 进程执行本体在 NT-081 步骤 3 起下沉 <see cref="IProcessRunner"/>（Core）：编码 / 超时 / 杀进程树
+/// 🔴 进程执行本体在 起下沉 <see cref="IProcessRunner"/>（Core）：编码 / 超时 / 杀进程树
 /// 与 <c>PackageManagerService</c> 共用一份；本类只留脚本特有部分（解释器解析、环境变量、结果语义）。
 /// </para>
 /// </remarks>
@@ -107,10 +107,10 @@ public sealed class ScriptRunner
     /// <summary>超时上限（秒）。</summary>
     public const int MaxTimeoutSeconds = 300;
 
-    /// <summary>命令型执行的默认超时（秒）（NT-088：从 <c>CollectorService</c> 上提，沿用原名）。</summary>
+    /// <summary>命令型执行的默认超时（秒）（从 <c>CollectorService</c> 上提，沿用原名）。</summary>
     public const int CommandDefaultTimeout = 15;
 
-    /// <summary>命令型执行的超时上限（秒）（NT-088：从 <c>CollectorService</c> 上提，沿用原名）。</summary>
+    /// <summary>命令型执行的超时上限（秒）（从 <c>CollectorService</c> 上提，沿用原名）。</summary>
     public const int CommandMaxTimeout = 120;
 
     /// <summary>跑一个脚本（永不抛异常：所有失败都折成 <see cref="ScriptRunResult.Error"/>）。</summary>
@@ -128,7 +128,7 @@ public sealed class ScriptRunner
     }
 
     /// <summary>
-    /// 跑一条命令行（命令即采集器，NT-068 §三.11）。
+    /// 跑一条命令行（命令即采集器，§三.11）。
     /// <para>宿主：<c>Cmd</c> → <c>cmd.exe /c</c>；<c>Pwsh</c> / <c>Auto</c> → pwsh（拿不到退回 5.1）。</para>
     /// </summary>
     public async Task<ScriptRunResult> RunCommandAsync(CommandRunRequest req, CancellationToken ct = default)

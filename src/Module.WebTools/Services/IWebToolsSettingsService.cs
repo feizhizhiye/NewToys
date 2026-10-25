@@ -3,7 +3,7 @@ using System;
 namespace NewToys.WebTools.Services;
 
 /// <summary>
-/// 「网页工具」模块设置的读写契约（v3.64 / NT-061，需求 §3.5 + §4.9）：**本模块配置的唯一写入点**。
+/// 「网页工具」模块设置的读写契约（v3.64，需求 §3.5 + §4.9）：**本模块配置的唯一写入点**。
 /// <list type="bullet">
 ///   <item>数据落 <c>&lt;配置根&gt;\config\web-tools.json</c>（走 Core 的 <c>IOptionsStore</c>）。</item>
 ///   <item>本模块可配项 = <b>网页抓取的默认 User-Agent 与单次抓取超时</b>（原来硬编码在

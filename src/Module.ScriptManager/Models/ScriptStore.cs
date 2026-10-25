@@ -1,13 +1,13 @@
 using System.Collections.Generic;
-using NewToys.Core.Services;   // NT-088：QuickActionShell（解释器 / 宿主常量已上提 Core）
+using NewToys.Core.Services;   // QuickActionShell（解释器 / 宿主常量已上提 Core）
 
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// <b>集合类别</b>（<see cref="ScriptCollection.Kind"/> 的合法取值，NT-068 §三.0）。
+/// <b>集合类别</b>（<see cref="ScriptCollection.Kind"/> 的合法取值，§三.0）。
 /// <para>决定集合归属哪一页：<c>script</c> / <c>command</c> / <c>info</c> / <c>package</c>。</para>
 /// <para>
-/// 🔴 v3.81（NT-082，用户定调）：**加回 <c>package</c> 一档** —— 它不是「用集合冒充 winget 查询结果」，
+/// 🔴 v3.81（用户定调）：**加回 <c>package</c> 一档** —— 它不是「用集合冒充 winget 查询结果」，
 /// 而是**包清单**：成员是 <see cref="ScriptItemRole.Package"/> 条目（Target = 包 Id），
 /// 发送到软件包页按清单显示安装状态。定位是**跨包管理器的架构预设**：
 /// 将来 apt / flatpak / snap 各有后端，集合按后端归类，页面上再把成员命令绑定成按钮。
@@ -20,7 +20,7 @@ public static class ScriptCollectionKind
     public const string Command = "command";
     public const string Info = "info";
     public const string Package = "package";
-    /// <summary>抓取集合（NT-090）：成员 = 脚本条目（<c>Target</c> = 起始网址），发送到「运行结果」页。</summary>
+    /// <summary>抓取集合：成员 = 脚本条目（<c>Target</c> = 起始网址），发送到「运行结果」页。</summary>
     public const string Crawl = "crawl";
 
     /// <summary>认得的返回值，其余（含 null / 空）回退 <see cref="Info"/>。</summary>
@@ -49,7 +49,7 @@ public static class ScriptCollectionKind
 }
 
 /// <summary>
-/// <b>条目角色</b>（<see cref="ScriptItem.Role"/> 的合法取值，NT-068 §三.0）。
+/// <b>条目角色</b>（<see cref="ScriptItem.Role"/> 的合法取值，§三.0）。
 /// <para><c>collector</c> 仅用于内置播种脚本的角色标记；采集能力本身看 <see cref="ScriptItem.Capture"/>。</para>
 /// </summary>
 public static class ScriptItemRole
@@ -63,7 +63,7 @@ public static class ScriptItemRole
         => role == Command || role == Collector || role == Package ? role : Script;
 }
 
-/// <summary><b>保留策略</b>（<see cref="ScriptItem.RetentionMode"/> 的合法取值，NT-068 §三.10）。</summary>
+/// <summary><b>保留策略</b>（<see cref="ScriptItem.RetentionMode"/> 的合法取值，§三.10）。</summary>
 public static class ScriptRetentionMode
 {
     /// <summary>只留最新一批观测（只读条目<b>强制</b>本模式）。</summary>
@@ -79,7 +79,7 @@ public static class ScriptRetentionMode
         => mode == Count || mode == Days ? mode : Latest;
 }
 
-/// <summary><b>刷新模式</b>（集合 / 视图共用，NT-068 §三.9）。</summary>
+/// <summary><b>刷新模式</b>（集合 / 视图共用，§三.9）。</summary>
 public static class ScriptRefreshMode
 {
     public const string Manual = "manual";
@@ -94,7 +94,7 @@ public static class ScriptRefreshMode
         => mode == Manual || mode == OnEnter || mode == Timer ? mode : "";
 }
 
-/// <summary><b>视图布局</b>（<see cref="ScriptView.Layout"/> 的合法取值，NT-068 §三.13）。</summary>
+/// <summary><b>视图布局</b>（<see cref="ScriptView.Layout"/> 的合法取值，§三.13）。</summary>
 public static class ScriptViewLayout
 {
     /// <summary>按采集器分节（默认）：每节用自己的 <see cref="ScriptItem.Columns"/>。</summary>
@@ -106,7 +106,7 @@ public static class ScriptViewLayout
     public static string Normalize(string? layout) => layout == Merged ? Merged : Sectioned;
 }
 
-/// <summary><b>输出解析器</b>（<see cref="ScriptItem.ParseMode"/> 的合法取值，NT-068 §三.11）。</summary>
+/// <summary><b>输出解析器</b>（<see cref="ScriptItem.ParseMode"/> 的合法取值，§三.11）。</summary>
 public static class ScriptParseMode
 {
     public const string Json = "json";
@@ -131,7 +131,7 @@ public static class ScriptCollectableSource
 }
 
 /// <summary>
-/// <c>config\script\script.json</c> 的根结构（NT-068 §三.4）。
+/// <c>config\script\script.json</c> 的根结构（§三.4）。
 /// <para>
 /// 这里放的是<b>手工数据</b>：集合 / 条目 / 标签 / 视图 / 上次选中的集合 —— 可手改、可备份、可 diff。
 /// 观测快照与运行日志是"会长大要查询"的数据，进 <c>data\script\script.db</c>（见 <c>ScriptDatabase</c>）。
@@ -154,7 +154,7 @@ public class ScriptStoreRoot
     public string LastCollectionId { get; set; } = "";
 
     /// <summary>
-    /// 各页面「正在用」的集合（NT-073）：键 = <see cref="ScriptCollectionKind"/>（info / script / command），值 = 集合 id。
+    /// 各页面「正在用」的集合：键 = <see cref="ScriptCollectionKind"/>（info / script / command），值 = 集合 id。
     /// <para>老字段 <see cref="LastCollectionId"/> 只作 info 的兼容读入。</para>
     /// </summary>
     public Dictionary<string, string> LastCollectionIdByKind { get; set; } = new();
@@ -208,7 +208,7 @@ public class ScriptCollection
     public string DefaultViewId { get; set; } = "";
 
     /// <summary>
-    /// 这个库的脚本根目录（NT-073；只有 <c>kind=script</c> 有意义）。
+    /// 这个库的脚本根目录（只有 <c>kind=script</c> 有意义）。
     /// <para>空 = 用设置页的全局脚本目录；相对路径的 <see cref="ScriptItem.Target"/> 按本字段解析。</para>
     /// </summary>
     public string RootPath { get; set; } = "";
@@ -294,7 +294,7 @@ public class ScriptItem
     public double AvgMs { get; set; }
 
     /// <summary>
-    /// 列 schema（NT-068 §三.13）：<b>分节模式</b>下每采集器一份，列宽 / 列序独立。
+    /// 列 schema（§三.13）：<b>分节模式</b>下每采集器一份，列宽 / 列序独立。
     /// <para>列 <see cref="ScriptColumn.Key"/> = 输出 <c>attrs</c> 的属性名字符串（与 <c>pc_observations.attr</c> 同一键空间）。</para>
     /// </summary>
     public List<ScriptColumn> Columns { get; set; } = new();
@@ -345,7 +345,7 @@ public class ScriptView
     public List<string> Collapsed { get; set; } = new();
 
     /// <summary>
-    /// <b>逐节的列显示覆盖</b>（视图级，NT-069）：键 = 采集器 item id。
+    /// <b>逐节的列显示覆盖</b>（视图级，）：键 = 采集器 item id。
     /// <para>
     /// 🔴 只存「覆盖」⛔ 不复制列 schema —— 列能力归 <see cref="ScriptItem.Columns"/>，
     /// 脚本后来新增的 key 默认可见，不会因为视图没登记就消失。
@@ -365,7 +365,7 @@ public class ScriptView
 }
 
 /// <summary>
-/// 一个视图里**某一节**的列显示覆盖（NT-069）。
+/// 一个视图里**某一节**的列显示覆盖。
 /// <para>
 /// 三个容器都只存「与脚本 schema 不同的地方」：不在 <see cref="Hidden"/> 里的 key 就按脚本默认显示；
 /// <see cref="Titles"/> / <see cref="Widths"/> 没登记的 key 就用脚本给的默认标题 / 宽度。
@@ -388,8 +388,8 @@ public class SectionViewColumns
 }
 
 /// <summary>
-/// 一列的定义（列 schema，NT-068 §三.13）。
-/// <para>⚠️ <see cref="Key"/> 是<b>属性名字符串</b>，⛔ 不是 NT-067 的 1-based 列位。</para>
+/// 一列的定义（列 schema，§三.13）。
+/// <para>⚠️ <see cref="Key"/> 是<b>属性名字符串</b>，⛔ 不是 的 1-based 列位。</para>
 /// </summary>
 public class ScriptColumn
 {
@@ -400,7 +400,7 @@ public class ScriptColumn
     public string Title { get; set; } = "";
 
     /// <summary>
-    /// ⚠️ NT-069 起 = **脚本默认可见性**（只作为新视图 / 新成员的初值），
+    /// ⚠️ = **脚本默认可见性**（只作为新视图 / 新成员的初值），
     /// 用户在某个视图里切列的显隐记在 <see cref="SectionViewColumns.Hidden"/>，⛔ 不再回写这里。
     /// </summary>
     public bool Visible { get; set; } = true;

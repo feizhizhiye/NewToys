@@ -1,7 +1,7 @@
 namespace NewToys.MediaAssets.Models;
 
 /// <summary>
-/// 资产关联（`relations`，NT-018）：字幕之于正片 / 封面之于作品 / 同一作品的不同版本…
+/// 资产关联（`relations`，）：字幕之于正片 / 封面之于作品 / 同一作品的不同版本…
 /// <para>关系类型取 <see cref="RelationTypes"/>（定义在 `AssetConstants.cs`）。</para>
 /// </summary>
 public class Relation

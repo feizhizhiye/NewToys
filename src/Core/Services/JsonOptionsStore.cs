@@ -9,7 +9,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// <see cref="IOptionsStore"/> 的 json 实现（v3.60 §3.5 / NT-061）：每个 module 一个
+/// <see cref="IOptionsStore"/> 的 json 实现（v3.60 §3.5）：每个 module 一个
 /// <c>&lt;配置根&gt;\config\&lt;module&gt;.json</c>，内容是**扁平的** <c>{ "key": "value" }</c>。
 /// <list type="bullet">
 ///   <item><b>profile 隔离</b>：路径取自 <see cref="ConfigStoreService.ConfigDir"/>（= <c>profiles\&lt;当前配置&gt;\config</c>），
@@ -52,7 +52,7 @@ public class JsonOptionsStore : IOptionsStore
     }
 
     /// <summary>
-    /// NT-077：分区 <c>ui</c>（列表页大小等框架级 KV）**不再单独占一个 <c>ui.json</c>**，
+    /// 分区 <c>ui</c>（列表页大小等框架级 KV）**不再单独占一个 <c>ui.json</c>**，
     /// 而是读写 <c>shell.json</c> 的 <c>ui</c> 节。其余分区仍是 <c>config\&lt;分区&gt;.json</c>。
     /// </summary>
     private const string ShellPartition = "ui";
@@ -61,7 +61,7 @@ public class JsonOptionsStore : IOptionsStore
 
     /// <summary>
     /// 某个 module 的配置文件全路径（设置页展示 / 排障用；模块自身⛔不该知道这个）。
-    /// <para>NT-077 第二批：分区文件统一落 <c>config\modules\&lt;分区&gt;.json</c>；<c>ui</c> 分区仍走 <c>shell.json</c>。</para>
+    /// <para>分区文件统一落 <c>config\modules\&lt;分区&gt;.json</c>；<c>ui</c> 分区仍走 <c>shell.json</c>。</para>
     /// </summary>
     public string FilePath(string module)
         => IsShellPartition(module) ? _shell.FilePath : Path.Combine(_cfg.ModulesConfigDir, Validate(module) + ".json");
@@ -146,7 +146,7 @@ public class JsonOptionsStore : IOptionsStore
         }
 
         var path = FilePath(module);
-        // 迁移兜底（NT-077 第二批）：config\modules\ 里没有、但旧的 config\<分区>.json 还在 ⇒ 读旧的
+        // 迁移兜底：config\modules\ 里没有、但旧的 config\<分区>.json 还在 ⇒ 读旧的
         // （搬文件被占用 / 只读时不让用户"设置全丢"）
         var legacy = Path.Combine(_cfg.ConfigDir, Validate(module) + ".json");
         if (!File.Exists(path) && File.Exists(legacy)) path = legacy;
@@ -185,7 +185,7 @@ public class JsonOptionsStore : IOptionsStore
             return;
         }
 
-        // NT-075：原子写 + 空表即删文件 —— 模块设置全是默认值时不再留一个 2 字节的 `{}`。
+        // 原子写 + 空表即删文件 —— 模块设置全是默认值时不再留一个 2 字节的 `{}`。
         AtomicJsonFile.Write(FilePath(module), JsonSerializer.Serialize(map, WriteOpts));
     }
 

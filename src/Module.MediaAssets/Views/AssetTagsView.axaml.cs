@@ -5,7 +5,7 @@ using NewToys.MediaAssets.ViewModels;
 namespace NewToys.MediaAssets.Views;
 
 /// <summary>
-/// 「标签管理」页 code-behind（NT-018）：只做 **View 才做得了的事**
+/// 「标签管理」页 code-behind：只做 **View 才做得了的事**
 /// （给弹出树补 DataContext / 转发表头拖拽与测宽事件），业务逻辑全在 VM。
 /// </summary>
 public partial class AssetTagsView : UserControl

@@ -6,7 +6,7 @@ using NewToys.MediaAssets.Models;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 分类服务（NT-018）：`categories` + `asset_categories`。
+/// 分类服务：`categories` + `asset_categories`。
 /// <para>分类是**树**（`parent_id`）：分类页是左树 + 右成员列表，树由 VM 按 <c>Depth</c> 扁平化后交给 `ItemsControl` 自绘。</para>
 /// <para>⛔ 库不可用时降级（空 / 0），⛔ 不抛。</para>
 /// </summary>

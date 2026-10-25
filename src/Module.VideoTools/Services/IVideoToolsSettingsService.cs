@@ -3,7 +3,7 @@ using System;
 namespace NewToys.VideoTools.Services;
 
 /// <summary>
-/// 「视频工具」模块设置的读写契约（v3.64 / NT-061，需求 §3.5 + §4.9）：**本模块配置的唯一写入点**。
+/// 「视频工具」模块设置的读写契约（v3.64，需求 §3.5 + §4.9）：**本模块配置的唯一写入点**。
 /// <list type="bullet">
 ///   <item>数据落 <c>&lt;配置根&gt;\config\video-tools.json</c>（走 Core 的 <c>IOptionsStore</c>）。</item>
 ///   <item>本模块独有的可配项很少 —— <b>批处理 / 媒体信息并发数</b>（原来只能手改 <c>app.json</c> 且没有界面）。</item>

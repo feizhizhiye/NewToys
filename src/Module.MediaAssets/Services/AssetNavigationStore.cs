@@ -7,13 +7,13 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 跨页投递（NT-018）：模块内**单例**，仿视频工具 <c>VideoTaskStore</c> 的做法。
+/// 跨页投递：模块内**单例**，仿视频工具 <c>VideoTaskStore</c> 的做法。
 /// <para>
 /// 场景：在「标签管理」详情卡里点某个资产 → 想跳到它所在的页并选中它。<see cref="Request"/> 登记，
 /// 目标页在 <c>OnAttachedToVisualTree</c>（🔴 **不是** `OnDataContextChanged`，规范 §4.8 硬规则 8）
 /// 调 <see cref="Take"/> 取件；取完即清空（⛔ 不重复消费）。
 /// </para>
-/// <para>NT-020 / NT-026 起也承担「跳到某页（不选资产）」——合并 / 扫描任务入队后跳「任务中心」看进度。</para>
+/// <para>也承担「跳到某页（不选资产）」——合并 / 扫描任务入队后跳「任务中心」看进度。</para>
 /// </summary>
 public class AssetNavigationStore
 {

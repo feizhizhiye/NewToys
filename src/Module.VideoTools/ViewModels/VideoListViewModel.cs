@@ -45,7 +45,7 @@ namespace NewToys.VideoTools.ViewModels;
 /// </summary>
 public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
-    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+    // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================
 
     private const string VideoFilePatterns =
         "*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.ts;*.m4v;*.mpg;*.mpeg";
@@ -102,7 +102,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     private readonly VideoTaskStore? _store;
     private readonly INavigationService? _nav;
 
-    /// <summary>本模块设置（v3.64 / NT-061：并发数已从 app.json 下沉到 config\video-tools.json）。</summary>
+    /// <summary>本模块设置（v3.64：并发数已从 app.json 下沉到 config\video-tools.json）。</summary>
     private readonly IVideoToolsSettingsService? _vt;
 
     private readonly List<VideoItem> _all = new();
@@ -198,7 +198,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;
-    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+    // ==================== 详情面板 + 声明式详情卡（的 L2 迁移页，需求 §4.5.1） ====================
 
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
@@ -267,7 +267,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
                         Kind = FieldKind.Text,
                         Selectable = true
                     },
-                    // 原来「类型 / 大小」是**同行并排**两个值 → 按 NT-054 已拍板的降级口径拆成两行
+                    // 原来「类型 / 大小」是**同行并排**两个值 → 按 已拍板的降级口径拆成两行
                     new DetailField
                     {
                         Label = "类型",
@@ -342,7 +342,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         }
     };
 
-    /// <summary>全局导入/导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    /// <summary>全局导入/导出默认目录（当前配置档 <c>data\</c>）。</summary>
     public string ImportExportDefaultDir => _cfg?.DataDirectory ?? "";
 
     /// <summary>已勾选的文件数（工具条上的「发送到…」按钮据此启用 / 显示数量）。</summary>
@@ -729,7 +729,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
 
     /// <summary>
     /// 并发读取列表里**所有还没有媒体信息**的视频（已缓存的跳过，不重复跑）。
-    /// 并发度取「设置 → 视频工具设置」里的**并发数**（v3.64 / NT-061：落 <c>config\video-tools.json</c>）。
+    /// 并发度取「设置 → 视频工具设置」里的**并发数**（v3.64：落 <c>config\video-tools.json</c>）。
     /// </summary>
     [RelayCommand]
     private async Task LoadAllMediaInfoAsync()

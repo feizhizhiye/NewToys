@@ -11,7 +11,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// Python 运行时实现（NT-083）。
+/// Python 运行时实现。
 /// <para>
 /// <b>形态</b>：长驻 worker 子进程 + stdin/stdout **行分隔 JSON**；冷启动一次，之后每任务毫秒级。
 /// <br/>**环境**：优先共享 venv <c>%LOCALAPPDATA%\NewToys\tools\py\venv</c>，否则用「运行环境 → Python 解释器」或 PATH 里的 <c>python</c>/<c>python3</c>。

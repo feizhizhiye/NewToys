@@ -13,7 +13,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 期②下载器（NT-087）：对目录条目跑 <c>content</c> 段 → 按产物形态落盘。
+/// 期②下载器：对目录条目跑 <c>content</c> 段 → 按产物形态落盘。
 /// <para>
 /// 🔴 <b>内置</b>（并发 / 限速 / 去重 / 续跑 / 命名 / 取消）—— ⛔ 不脚本化：脚本只负责「这一页能取出什么」。
 /// </para>

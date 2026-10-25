@@ -21,7 +21,7 @@ public sealed record HttpTestResult(
     string ResponseHeaders, string ResponseBody, string? Error);
 
 /// <summary>
-/// HTTP 测试（v3.19 / NT-001）：用 <see cref="System.Net.Http.HttpClient"/>（栈锁定，⛔ 不引第三方 HTTP 库）发一次请求，
+/// HTTP 测试（v3.19）：用 <see cref="System.Net.Http.HttpClient"/>（栈锁定，⛔ 不引第三方 HTTP 库）发一次请求，
 /// 返回状态码 / 耗时 / 响应头 / 响应体 / 可读错误。异常一律捕获成 <see cref="HttpTestResult.Error"/>（不抛给 UI）。
 /// </summary>
 public class HttpTestService

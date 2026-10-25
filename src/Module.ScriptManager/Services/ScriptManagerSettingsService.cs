@@ -6,14 +6,14 @@ using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <see cref="IScriptManagerSettingsService"/> 的实现（v3.64 / NT-061）：把本模块的选项存进
+/// <see cref="IScriptManagerSettingsService"/> 的实现（v3.64）：把本模块的选项存进
 /// <c>config\script-manager.json</c>（经 Core 的 <see cref="IOptionsStore"/>，KV + 按模块分区）。
 /// <para>
-/// <b>一次性迁移</b>（NT-061）：脚本目录原来在 <c>app.json</c> 里，首次运行只要 <c>script-manager.json</c>
+/// <b>一次性迁移</b>：脚本目录原来在 <c>app.json</c> 里，首次运行只要 <c>script-manager.json</c>
 /// 还没该键就搬过来（⛔ 不丢用户配置）。
 /// </para>
 /// <para>
-/// 🔴 <b>反向迁移</b>（v3.65 / NT-062）：三个解释器路径在 NT-061 曾下沉到本模块，NT-062 判定它们属
+/// 🔴 <b>反向迁移</b>（v3.65）：三个解释器路径在 曾下沉到本模块，判定它们属
 /// 「运行环境」= 应用级 ⇒ **回迁 <c>app.json</c>**。首次运行把 <c>script-manager.json</c> 里的旧值搬回去
 /// （⛔ 只在 <c>app.json</c> 对应字段为空时搬，用户在新页改过的一律不覆盖）；本文件里遗留的三个键
 /// <b>不再被读写</b>，下次写盘时会自然保留（无害）。
@@ -26,7 +26,7 @@ public class ScriptManagerSettingsService : IScriptManagerSettingsService
 
     // 键名：camelCase，与 KV 里其它模块同一个口径（换 SQLite 时就是 key 列）。
     private const string KeyScriptsFolder = "scriptsFolder";
-    // ⚠️ 下面三个 key ⛔ 已不是本模块设置项（v3.65 / NT-062 回迁应用级），仅用于反向迁移时**读旧值**。
+    // ⚠️ 下面三个 key ⛔ 已不是本模块设置项（v3.65：回迁应用级），仅用于反向迁移时**读旧值**。
     private const string KeyPwshPath = "pwshPath";
     private const string KeyPythonPath = "pythonPath";
     private const string KeyPowerShell51Path = "powershell51Path";
@@ -116,8 +116,8 @@ public class ScriptManagerSettingsService : IScriptManagerSettingsService
     /// <summary>
     /// 双向一次性迁移（构造函数里跑一次，失败不阻断启动）：
     /// <list type="number">
-    ///   <item>NT-061 **正向**：<c>app.json</c> 的脚本目录 → <c>script-manager.json</c>（脚本目录仍归本模块）；</item>
-    ///   <item>NT-062 **反向**：<c>script-manager.json</c> 的三个解释器路径 → <c>app.json</c>（回迁应用级）。</item>
+    ///   <item>**正向**：<c>app.json</c> 的脚本目录 → <c>script-manager.json</c>（脚本目录仍归本模块）；</item>
+    ///   <item>**反向**：<c>script-manager.json</c> 的三个解释器路径 → <c>app.json</c>（回迁应用级）。</item>
     /// </list>
     /// </summary>
     private void MigrateLegacyOnce(IAppConfigService? legacy)
@@ -127,7 +127,7 @@ public class ScriptManagerSettingsService : IScriptManagerSettingsService
         MigrateBackToApp(legacy);
     }
 
-    /// <summary>反向迁移（v3.65 / NT-062）：本模块遗留的三个解释器路径 → <c>app.json</c>，⛔ 只在应用级该字段为空时写（不覆盖用户新改的值）。</summary>
+    /// <summary>反向迁移（v3.65）：本模块遗留的三个解释器路径 → <c>app.json</c>，⛔ 只在应用级该字段为空时写（不覆盖用户新改的值）。</summary>
     private void MigrateBackToApp(IAppConfigService legacy)
     {
         try

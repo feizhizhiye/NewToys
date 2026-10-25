@@ -12,7 +12,7 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.WebTools.Models;
-using NewToys.UI.Services;   // NT-089：跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
+using NewToys.UI.Services;   // 跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
 using NewToys.WebTools.Services;
 
 namespace NewToys.WebTools.ViewModels;
@@ -27,7 +27,7 @@ namespace NewToys.WebTools.ViewModels;
 /// </summary>
 public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
-    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+    // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================
 
     /// <summary>
     /// 📥 导入书签：弹文件选择器（宿主经 <c>Core.DialogHooks</c> 注入 —— VM ⛔ 不引 Avalonia），
@@ -109,7 +109,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;
-    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 迁移页，需求 §4.5.1） ====================
+    // ==================== 详情面板 + 声明式详情卡（的 L2 迁移页，需求 §4.5.1） ====================
 
     /// <summary>
     /// 「最近检测」块是否要显示（原 XAML 用 <c>ObjectConverters.IsNotNull</c>，描述符只认布尔路径）。
@@ -266,7 +266,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
 
     private readonly IAppConfigService? _app;
 
-    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
     public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
 
     public BookmarkViewModel() { }

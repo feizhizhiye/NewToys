@@ -8,7 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace NewToys.UI.Controls;
 
 /// <summary>
-/// 表格里的一格（NT-068 §三.13；NT-085 随 <see cref="DynamicColumnGrid"/> 上提 UI 库）。
+/// 表格里的一格（§三.13；随 <see cref="DynamicColumnGrid"/> 上提 UI 库）。
 /// <para>🔴 <see cref="Attr"/> = 输出属性的<b>属性名字符串</b>（列 key），⛔ 不是列位号。</para>
 /// <para><see cref="Text"/> 可观察：刷新时就地改值 ⇒ 行对象与选中项不换、界面不闪。</para>
 /// </summary>
@@ -39,7 +39,7 @@ public sealed partial class SysInfoCell : ObservableObject
 }
 
 /// <summary>
-/// 表头的一格：表头按钮（点 = 按该列排序）+ 列显隐菜单（NT-085 随 <see cref="DynamicColumnGrid"/> 上提 UI 库）。
+/// 表头的一格：表头按钮（点 = 按该列排序）+ 列显隐菜单（随 <see cref="DynamicColumnGrid"/> 上提 UI 库）。
 /// </summary>
 public sealed partial class SysInfoHeaderCell : ObservableObject
 {
@@ -75,7 +75,7 @@ public sealed partial class SysInfoHeaderCell : ObservableObject
 }
 
 /// <summary>
-/// **动态列**容器（NT-067 §三.5 / 决策 D1；NT-085 上提 UI 库改名）：把「列宽规格串 + 单元格集合」
+/// **动态列**容器（§三.5 / 决策 D1；UI 库改名）：把「列宽规格串 + 单元格集合」
 /// 渲染成一格一行。
 /// <para>
 /// 🔴 为什么需要它：<c>Shared/ListPageViewModelBase</c> 的列机制是「<c>Columns</c> 元数据 + 每列一个具名

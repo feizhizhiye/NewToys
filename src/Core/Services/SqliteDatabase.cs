@@ -47,7 +47,7 @@ public class SqliteDatabase
             Directory.CreateDirectory(_store.DataDir);
             using var conn = Open();
 
-            // NT-076：总库由多模块共用 ⇒ 开 WAL（读不阻塞写，单库并发下必须）。
+            // 总库由多模块共用 ⇒ 开 WAL（读不阻塞写，单库并发下必须）。
             // ⚠️ 副作用：db 旁边会多出 -wal / -shm，**备份必须用 VACUUM INTO**，⛔ 不能直接 File.Copy（会漏未落盘事务）。
             // 这两个 PRAGMA 是持久化 / 连接级设置，失败（只读盘 / 网络盘）不影响后续建表，故单独 try。
             try
@@ -142,7 +142,7 @@ public class SqliteDatabase
     }
 
     /// <summary>
-    /// 把当前库**完整快照**到 <paramref name="directory"/> 下的一个新文件（NT-076 第二批）。
+    /// 把当前库**完整快照**到 <paramref name="directory"/> 下的一个新文件。
     /// <para>
     /// 🔴 用 <c>VACUUM INTO</c> 而不是 <see cref="System.IO.File"/> 复制：WAL 模式下未 checkpoint 的事务
     /// 还在 <c>-wal</c> 里，直接拷 <c>.db</c> 拿到的是**旧快照**（甚至半截）。<c>VACUUM INTO</c> 由 SQLite 保证一致性。

@@ -5,7 +5,7 @@ using NewToys.MediaAssets.ViewModels;
 namespace NewToys.MediaAssets.Views;
 
 /// <summary>
-/// 「集合管理」页 code-behind（NT-018）：只转发表头拖拽 / 测宽事件 + 同步弹出菜单 DataContext。
+/// 「集合管理」页 code-behind：只转发表头拖拽 / 测宽事件 + 同步弹出菜单 DataContext。
 /// 集合选择、成员排序全在 VM。
 /// </summary>
 public partial class AssetCollectionsView : UserControl

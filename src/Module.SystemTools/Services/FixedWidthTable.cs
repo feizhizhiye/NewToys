@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 namespace NewToys.SystemTools.Services;
 
 /// <summary>
-/// **固定列宽表格**的通用解析机械（NT-081 步骤 4，与具体包管理器无关）。
+/// **固定列宽表格**的通用解析机械（与具体包管理器无关）。
 /// <para>
 /// 适用后端：winget / flatpak <c>--columns</c> / snap list 之类「按列对齐、表头在上」的人读输出。
 /// 机读输出（TSV / JSON）⛔ 不走这里，见 <see cref="TsvRows"/>。

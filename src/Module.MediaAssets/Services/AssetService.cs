@@ -18,7 +18,7 @@ namespace NewToys.MediaAssets.Services;
 /// ③ inode+device（仅本地）→ ④ 调用方算完完整 hash 后再走 <see cref="FindLocationByHash"/>。
 /// ⛔ 全程参数化 SQL，⛔ 不拼字符串（路径里可能有引号）。
 /// </para>
-/// <para>物理操作（重命名 / 移动 / 复制 / 删除）与操作日志在 NT-019；本类只做数据层。</para>
+/// <para>物理操作（重命名 / 移动 / 复制 / 删除）与操作日志在 ；本类只做数据层。</para>
 /// </summary>
 public class AssetService
 {
@@ -158,7 +158,7 @@ public class AssetService
         catch { /* 忽略 */ }
     }
 
-    // ==================== 存储源统计 / 错误（NT-020 存储源页） ====================
+    // ==================== 存储源统计 / 错误（存储源页） ====================
 
     /// <summary>
     /// 一个存储源的统计：文件位置数 / 已用大小 / 缺失位置数 / 按资产类型分布。
@@ -245,7 +245,7 @@ public class AssetService
     }
 
     /// <summary>
-    /// NT-021：回收站里**过期**的资产（<c>status='trashed'</c> 且 <c>updated_at</c> 早于 cutoff）。
+    /// 回收站里**过期**的资产（<c>status='trashed'</c> 且 <c>updated_at</c> 早于 cutoff）。
     /// 供「到期自动清理」用；只读 id + 名字（⛔ 不读位置——删除时再按需取）。
     /// </summary>
     public List<(long Id, string Name)> ListExpiredTrashedAssets(string cutoffText)
@@ -361,7 +361,7 @@ public class AssetService
     }
 
     /// <summary>
-    /// NT-018：改**评分 + 描述**（详情卡的逻辑操作；两者一起写，避免两次 UPDATE）。
+    /// 改**评分 + 描述**（详情卡的逻辑操作；两者一起写，避免两次 UPDATE）。
     /// ⛔ 不动磁盘、⛔ 不动显示名（显示名走 <see cref="SetDisplayName"/>）。
     /// </summary>
     public bool SetRatingAndDescription(long assetId, int rating, string? description)
@@ -382,7 +382,7 @@ public class AssetService
     }
 
     /// <summary>
-    /// NT-058：改**收藏**（详情卡图标组的「★」；即时生效即落盘，⛔ 不走「保存」、⛔ 不动磁盘）。
+    /// 改**收藏**（详情卡图标组的「★」；即时生效即落盘，⛔ 不走「保存」、⛔ 不动磁盘）。
     /// </summary>
     public bool SetFavorite(long assetId, bool favorite)
     {
@@ -401,7 +401,7 @@ public class AssetService
     }
 
     /// <summary>
-    /// NT-019：删掉一条文件位置（**永久删除**流程用 —— 磁盘文件已经真删了，库里这条索引就没意义了）。
+    /// 删掉一条文件位置（**永久删除**流程用 —— 磁盘文件已经真删了，库里这条索引就没意义了）。
     /// ⛔ 只删索引行，⛔ 不碰磁盘。
     /// </summary>
     public bool DeleteLocation(long locationId)
@@ -419,7 +419,7 @@ public class AssetService
     }
 
     /// <summary>
-    /// NT-019：删掉资产本体（**永久删除**流程用）—— 连带它的文件位置 / 标签 / 分类 / 集合挂接 / 关联。
+    /// 删掉资产本体（**永久删除**流程用）—— 连带它的文件位置 / 标签 / 分类 / 集合挂接 / 关联。
     /// ⛔ 只删索引，⛔ 不碰磁盘（磁盘文件的删除由 <c>FileOperationService</c> 负责）。
     /// </summary>
     public bool DeleteAsset(long assetId)
@@ -677,7 +677,7 @@ public class AssetService
         catch { /* 忽略：最坏结果是这些位置被判 missing，下次扫描会回来 */ }
     }
 
-    // ==================== 列表页行查询（NT-016） ====================
+    // ==================== 列表页行查询 ====================
 
     /// <summary>
     /// 一次查询拼出列表页的行（**资产 + 主位置 + 存储源名**），再把标签 / 分类 / 集合**批量**补齐。
@@ -757,7 +757,7 @@ public class AssetService
         return rows;
     }
 
-    // ==================== NT-064：分页查询（列表与计数共用同一套 WHERE） ====================
+    // ==================== 分页查询（列表与计数共用同一套 WHERE） ====================
 
     /// <summary>
     /// 分页查询条件（列表 <see cref="QueryPage"/> 与计数 <see cref="CountAssets"/> 传同一个对象）。
@@ -811,7 +811,7 @@ public class AssetService
         "LEFT JOIN storages s ON s.id = l.storage_id ";
 
     /// <summary>
-    /// 符合条件的总条数（NT-064：独立 COUNT(*)，⛔ 不用「当前页条数」充当总数）。
+    /// 符合条件的总条数（独立 COUNT(*)，⛔ 不用「当前页条数」充当总数）。
     /// 库不可用 / 查询失败 → 0（调用方按空页处理并提示）。
     /// </summary>
     public int CountAssets(AssetQuery q)
@@ -829,7 +829,7 @@ public class AssetService
     }
 
     /// <summary>
-    /// 取一页资产（NT-064：ORDER BY 下推 SQL + LIMIT/OFFSET 按需取页，⛔ 不再整表入内存）。
+    /// 取一页资产（ORDER BY 下推 SQL + LIMIT/OFFSET 按需取页，⛔ 不再整表入内存）。
     /// 组织信息（标签 / 分类 / 集合）只查本页 id 的映射（⛔ 不拉全表映射 —— 那是分页最贵的隐藏 N²）。
     /// </summary>
     public List<AssetRow> QueryPage(AssetQuery q)
@@ -898,7 +898,7 @@ public class AssetService
     }
 
     /// <summary>
-    /// WHERE 子句构造（NT-064 唯一一份；列表与计数共用）。
+    /// WHERE 子句构造（唯一一份；列表与计数共用）。
     /// 页面级条件（类型 / 状态 / 存储源 / 标签 / 关键字）+ 表头右键的多项筛选（<see cref="FilterClause"/>）。
     /// </summary>
     private static string BuildWhere(AssetQuery q, SqliteCommand cmd)
@@ -958,7 +958,7 @@ public class AssetService
     }
 
     /// <summary>
-    /// ORDER BY 下推（NT-064：⛔ 排序不准留在内存做 —— 分页后页内排序 = 每页各自排，排错序）。
+    /// ORDER BY 下推（⛔ 排序不准留在内存做 —— 分页后页内排序 = 每页各自排，排错序）。
     /// 文本列一律 <c>COLLATE NOCASE</c>（贴合原内存排序的大小写不敏感口径）；
     /// 恒定加 <c>a.id</c> 次级键（同值行翻页不串位）。
     /// </summary>
@@ -1065,7 +1065,7 @@ public class AssetService
         => s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 
     /// <summary>
-    /// NT-031：把 <c>metadata_json</c> 里的视频元数据填进 <see cref="AssetRow"/> 的视频专属字段。
+    /// 把 <c>metadata_json</c> 里的视频元数据填进 <see cref="AssetRow"/> 的视频专属字段。
     /// <para>逐行独立解析、吞掉一切异常（JSON 损坏 / 缺键 / 类型不符都不影响列表其余行）。
     /// 键名沿用 <see cref="MetadataService"/> 的写入：<c>duration_seconds</c> / <c>width</c> / <c>height</c> / <c>video_codec</c>。</para>
     /// </summary>
@@ -1090,7 +1090,7 @@ public class AssetService
     /// <summary>
     /// 取「资产 id → 逗号分隔的名字串」（标签 / 分类 / 集合通用）。
     /// <paramref name="linkTable"/> 必须有 <c>asset_id</c> 与 <c>{tag|category|collection}_id</c> 两列。
-    /// <paramref name="ids">NT-064 分页：只查这些资产的映射（⛔ 不拉全表 —— 全量映射是分页最贵的隐藏消耗）；
+    /// <paramref name="ids">分页：只查这些资产的映射（⛔ 不拉全表 —— 全量映射是分页最贵的隐藏消耗）；
     /// <c>null</c> = 全量（非分页调用方用）。</paramref>
     /// </summary>
     private Dictionary<long, string> LoadNameMap(string linkTable, string nameTable, IReadOnlyCollection<long>? ids = null)
@@ -1133,7 +1133,7 @@ public class AssetService
         return map;
     }
 
-    /// <summary>按**绝对路径**找资产 id（NT-022 导入去重 / 用户数据恢复按路径重建映射用；找不到 → null）。</summary>
+    /// <summary>按**绝对路径**找资产 id（导入去重 / 用户数据恢复按路径重建映射用；找不到 → null）。</summary>
     public long? FindAssetIdByPath(string path)
     {
         if (!IsAvailable || string.IsNullOrWhiteSpace(path)) return null;
@@ -1150,7 +1150,7 @@ public class AssetService
     }
 
     /// <summary>
-    /// 批量取「资产 id → 组织名**列表**」（标签 / 分类 / 集合；NT-022 导出用，保真名字不丢逗号）。
+    /// 批量取「资产 id → 组织名**列表**」（标签 / 分类 / 集合；导出用，保真名字不丢逗号）。
     /// 分块 <c>IN (...)</c>（⛔ 不 per-row 查；SQLite 参数上限远大于每块 400）。
     /// </summary>
     public Dictionary<long, List<string>> LoadOrgLists(IReadOnlyCollection<long> assetIds, string linkTable, string nameTable)
@@ -1193,7 +1193,7 @@ public class AssetService
         return map;
     }
 
-    /// <summary>筛选下拉用：全部标签（id + 名字）。NT-018 建好标签后才有内容，之前为空列表。</summary>
+    /// <summary>筛选下拉用：全部标签（id + 名字）。建好标签后才有内容，之前为空列表。</summary>
     public List<(long Id, string Name)> ListTagOptions() => LoadOptions("tags");
 
     /// <summary>筛选下拉用：全部分类（id + 名字）。</summary>
@@ -1220,7 +1220,7 @@ public class AssetService
 
     /// <summary>
     /// 只改显示名（`display_name`）—— 详情卡改名走这里。
-    /// ⛔ **绝不动磁盘文件**：物理改名是显式操作，归 NT-019。
+    /// ⛔ **绝不动磁盘文件**：物理改名是显式操作，由文件操作服务负责。
     /// </summary>
     public void SetDisplayName(long assetId, string? name)
     {

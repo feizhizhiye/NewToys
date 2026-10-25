@@ -4,7 +4,7 @@ using System.IO;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 随包<b>预设规则集</b>的播种器（NT-086 批 E）：
+/// 随包<b>预设规则集</b>的播种器：
 /// <c>&lt;程序目录&gt;\defaults\presets\*.py</c> → <c>&lt;DataDir&gt;\script\rules\</c>（只加不覆盖）。
 /// <para>
 /// 🔴 **只播种一次**（<c>rules\.seeded</c> 标记）：用户删掉的预设<b>不会复活</b> ——

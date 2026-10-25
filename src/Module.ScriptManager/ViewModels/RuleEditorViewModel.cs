@@ -11,18 +11,18 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
-using NewToys.UI.Services;   // NT-089：跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
+using NewToys.UI.Services;   // 跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
 using NewToys.ScriptManager.Models;
 using NewToys.ScriptManager.Services;
 
 namespace NewToys.ScriptManager.ViewModels;
 
 /// <summary>
-/// 调试集合（<c>web-rule-editor</c>，NT-086 批 C 重构）—— **装配流水线**的页：
+/// 调试集合（<c>web-rule-editor</c>，重构）—— **装配流水线**的页：
 /// 左 = 五段槽位 + 试跑推荐 ／ 中 = HTML 源码（查找 / 定位命中）／ 右 = 选中段脚本的表达式检验。
 /// <para>
 /// 🔴 范式：脚本从「一个 <c>.py</c> = 一个站点」降为「一个 <c>.py</c> = **一段**」，本页把段装成 flow，
-/// 跑通后交给面板（NT-086 批 D / NT-087）批量下载。**本页 ⛔ 不做批量下载**。
+/// 跑通后交给面板批量下载。**本页 ⛔ 不做批量下载**。
 /// </para>
 /// <para>
 /// 🔴 槽位一律**可选、可留空**（<c>toc</c> 留空 = 链式模式）；<c>save</c> 是内置下载器，⛔ 不为下载写脚本。
@@ -83,7 +83,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         ? "（未选段位）"
         : SelectedSlot.Label + " · " + (SelectedSlot.ScriptName.Length == 0 ? "留空" : SelectedSlot.ScriptName);
 
-    // ==================== 工具条（NT-055：Shell 统一承载） ====================
+    // ==================== 工具条（Shell 统一承载） ====================
 
     public IReadOnlyList<ToolbarItemDescriptor> Toolbar => new ToolbarItemDescriptor[]
     {
@@ -126,7 +126,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         _ = LoadCommandsAsync();
     }
 
-    // ==================== HTML 面板：查找 / 定位（NT-084 收尾，保留） ====================
+    // ==================== HTML 面板：查找 / 定位（收尾，保留） ====================
 
     [ObservableProperty] private string _findText = "";
     [ObservableProperty] private string _findHint = "";
@@ -296,7 +296,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
             MergeCommands(rows);
             slot.HitText = Summarize(rows, out var missUrl);
 
-            // NT-086 批 G：落一条运行记录（⛔ 记录失败不打断本次运行）
+            // 落一条运行记录（⛔ 记录失败不打断本次运行）
             try { _records.Save(slot.ScriptName, StartUrl, rows, _run.DebugHtmlPath); }
             catch { /* 运行记录是附属产物，失败只当没记 */ }
 
@@ -311,7 +311,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
     }
 
     /// <summary>
-    /// 试跑推荐（NT-084 J4）：当前槽位的**全部候选**对同一份 HTML 求值 → 排序展示。
+    /// 试跑推荐：当前槽位的**全部候选**对同一份 HTML 求值 → 排序展示。
     /// ⛔ 只推荐不代选（用户点「✅ 用它」才写进槽位）。
     /// </summary>
     [RelayCommand]
@@ -620,7 +620,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         catch (Exception ex) { StatusText = "⚠ 复制失败：" + ex.Message; }
     }
 
-    // ==================== 查找 / 定位（保留 NT-084 收尾能力） ====================
+    // ==================== 查找 / 定位（保留 收尾能力） ====================
 
     private void Find(int direction)
     {

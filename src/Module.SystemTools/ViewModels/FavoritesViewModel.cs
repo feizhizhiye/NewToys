@@ -12,9 +12,9 @@ using NewToys.SystemTools.Services;
 namespace NewToys.SystemTools.ViewModels;
 
 /// <summary>
-/// 「系统工具 → 收藏夹」页（`script-favorites`，NT-091 自脚本中心平移）。
+/// 「系统工具 → 收藏夹」页（`script-favorites`，自脚本中心平移）。
 /// <para>
-/// 🔴 <b>数据源换了</b>（NT-091 拍板 2）：这里展示的是<b>本模块命令条目</b>里 `IsFavorite` 的那些，
+/// 🔴 <b>数据源换了</b>（拍板 2）：这里展示的是<b>本模块命令条目</b>里 `IsFavorite` 的那些，
 /// 落 `config\system\commands.json`。⛔ 不是 Core 的 `IFavoritesService`（那份是首页卡片的「菜单功能 key」收藏）。
 /// ⇒ 已知回退：脚本库条目的收藏不再出现在本页（用户 2026-10-22 接受）。
 /// </para>
@@ -75,7 +75,7 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
 
         if (item.NeedAdmin)
         {
-            // NT-097 补充（用户 2026-10-23：勾了需要管理员的也能直接运行）。
+            // 补充（用户 2026-10-23：勾了需要管理员的也能直接运行）。
             if (_launcher is null) { StatusText = "提权运行不可用（DI 未注册）。"; return; }
             var (_, msg) = _launcher.RunElevated(item);
             StatusText = msg;

@@ -7,7 +7,7 @@ using NewToys.MediaAssets.Models;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 存储源服务（NT-020）：在线探测 + 统计编排。
+/// 存储源服务：在线探测 + 统计编排。
 /// <para>
 /// 数据查询一律走 <see cref="AssetService"/>（数据层唯一入口），本类只做"页面要的组装"：
 /// ① 根目录可访问性探测（⛔ 不抛异常，读不到 = 离线）；② 探测结果写回 <c>storages.online</c>。

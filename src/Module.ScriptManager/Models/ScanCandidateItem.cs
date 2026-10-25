@@ -4,7 +4,7 @@ using NewToys.ScriptManager.Services;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 扫描候选的<b>界面行</b>（NT-068 §三.6）：在 <see cref="ScriptCandidate"/> 之上加勾选状态。
+/// 扫描候选的<b>界面行</b>（§三.6）：在 <see cref="ScriptCandidate"/> 之上加勾选状态。
 /// <para>三态文案：新文件（默认勾选）/ 已入库（灰，不可勾）/ 不可采集（灰，不可勾 + 原因）。</para>
 /// </summary>
 public partial class ScanCandidateItem : ObservableObject

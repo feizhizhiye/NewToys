@@ -43,7 +43,7 @@ public sealed class MergeResult
 }
 
 /// <summary>
-/// 多库融合（NT-026）：把另一个 <c>newtoys.db</c> **合并进主库**（工作副本 = 主库，见 NT-026 未决 1 裁决）。
+/// 多库融合：把另一个 <c>newtoys.db</c> **合并进主库**（工作副本 = 主库，见 未决 1 裁决）。
 /// <para>
 /// 🔴 实现要点：
 /// ① <b>源库只读</b>——<c>ATTACH</c> 挂载后只 <c>SELECT</c>，⛔ 绝不写 src.*（源文件一个字节都不改）；
@@ -288,7 +288,7 @@ public class AssetMergeService
             // relations：两端重映射（同向同类型已存在 → 跳过）
             var rels = MergeRelations(conn, tx, have, assetMap, progress);
 
-            // ② 修正（NT-033）：本次并入、却没有任何文件位置落到主库（重复并入同一库 / 与现有库共享文件）的资产是孤儿，
+            // ② 修正：本次并入、却没有任何文件位置落到主库（重复并入同一库 / 与现有库共享文件）的资产是孤儿，
             //    连同其标签 / 分类 / 集合挂接 / 关联一并清除，避免主库堆积零位置资产、计数虚高。
             SweepOrphanAssets(conn, tx, assetMap, locatedAssetIds, out var sweptAssets, progress);
             newAssets = locatedAssetIds.Count;
@@ -344,7 +344,7 @@ public class AssetMergeService
 
     /// <summary>
     /// 💿 另存库文件（另存为）：把主库**在线备份**成一个新 .db。
-    /// <para>🔴 NT-078 收编：实现统一走 <see cref="NewToys.Core.Services.SqliteDatabase.VacuumIntoFile"/> ——
+    /// <para>🔴 收编：实现统一走 <see cref="NewToys.Core.Services.SqliteDatabase.VacuumIntoFile"/> ——
     /// 与备份数据节（`data.db`）是**同一个** `VACUUM INTO` 实现，⛔ 不再这里单独写一份 SQL。</para>
     /// </summary>
     public (bool Ok, string Message) SaveAs(string targetPath)
@@ -525,7 +525,7 @@ public class AssetMergeService
 
         var added = 0;
         var skipped = 0;
-        var located = new HashSet<long>();   // 本次实际落到主库位置的资产 id（用于事务内清除孤儿资产，NT-033）
+        var located = new HashSet<long>();   // 本次实际落到主库位置的资产 id（用于事务内清除孤儿资产，）
         foreach (var l in srcRows)
         {
             ct.ThrowIfCancellationRequested();

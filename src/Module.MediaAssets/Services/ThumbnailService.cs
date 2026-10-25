@@ -10,7 +10,7 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 缩略图生成（NT-021）：视频抽帧 / 图片缩放，落 <c>data\thumbs\{sha1(path)}.jpg</c>（复用视频工具约定）。
+/// 缩略图生成：视频抽帧 / 图片缩放，落 <c>data\thumbs\{sha1(path)}.jpg</c>（复用视频工具约定）。
 /// <para>
 /// 🔴 两条硬经验（视频工具先例）：
 /// ① 先写 <c>.tmp.jpg</c> 再 <see cref="File.Move(string,string, bool)"/> 替换 —— 收藏页 / 列表的 Bitmap

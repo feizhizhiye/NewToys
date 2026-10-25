@@ -32,7 +32,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
 
     protected override string PageDisplayName => "脚本库";
 
-    // ==================== 工具条（NT-055 / 需求 §4.8.5） ====================
+    // ==================== 工具条（/ 需求 §4.8.5） ====================
 
     protected override string ExportSuggestedName => "script-library-export.json";
 
@@ -44,7 +44,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
 
     /// <summary>
     /// 本页专属的工具条项（插在搜索框之前）：「📂 导入」（一个按钮 + 下拉：**导入文件 / 导入文件夹**两路）
-    /// + 脚本目录框（**v3.64 / NT-061 起可编辑**：回车 / 失焦都提交，交模块设置服务落盘；
+    /// + 脚本目录框（**v3.64：可编辑**：回车 / 失焦都提交，交模块设置服务落盘；
     /// 唯一写入点仍是「设置 → 脚本管理器设置」那个模块设置页）。
     /// </summary>
 
@@ -78,7 +78,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
         {
             Kind = ToolbarItemKind.TextField,
             Width = 88,
-            // v3.64 / NT-061：**可编辑** —— 写的是草稿，回车 / 失焦由 CommitScriptsFolderCommand 校验 + 落盘。
+            // v3.64：**可编辑** —— 写的是草稿，回车 / 失焦由 CommitScriptsFolderCommand 校验 + 落盘。
             // v3.68：**空闲态水印化** —— 失焦时框里只剩「脚本目录」水印，点进去才露出当前值（与命令库那个框观感一致）。
             Placeholder = "脚本目录",
             PlaceholderWhenIdle = true,
@@ -88,7 +88,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
         },
         new()
         {
-            // NT-068 S3：手动扫描（⛔ 不自动登记）—— 候选面板的动作项随后出现在工具条右侧
+            // 手动扫描（⛔ 不自动登记）—— 候选面板的动作项随后出现在工具条右侧
             Kind = ToolbarItemKind.Button,
             Text = "🔍 扫描目录",
             Classes = "ghost",
@@ -178,7 +178,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
         StatusText = $"已从磁盘删除：{Path.GetFileName(path)}（清单里的这条也一并移除）";
     }
 
-    /// <summary>本页详情卡（NT-054 / 需求 §4.5.1）：类型 = 脚本后缀 + 「脚本文件 / 解释器」两套字段。</summary>
+    /// <summary>本页详情卡（/ 需求 §4.5.1）：类型 = 脚本后缀 + 「脚本文件 / 解释器」两套字段。</summary>
 
     protected override DetailCardDescriptor BuildCard()
     {
@@ -289,12 +289,12 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
                 }
             }
         };
-        // 🔴 NT-059：卡内动作不再用一排文字按钮 —— 运行 / 收藏 / 保存 / 删除合成字段区末尾的**图标动作组**；
+        // 🔴 卡内动作不再用一排文字按钮 —— 运行 / 收藏 / 保存 / 删除合成字段区末尾的**图标动作组**；
         //    「📂 选脚本文件」按钮删除（脚本文件字段手写相对文件名即可，批量添加走工具条「📥 导入脚本」）。
         return card;
     }
 
-    /// <summary>NT-073：本页按 <c>kind=script</c> 的库过滤（工具条「库 ▾」）。</summary>
+    /// <summary>本页按 <c>kind=script</c> 的库过滤（工具条「库 ▾」）。</summary>
     protected override string LibraryKind => ScriptCollectionKind.Script;
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>

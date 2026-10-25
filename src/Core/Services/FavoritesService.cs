@@ -8,7 +8,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// <see cref="IFavoritesService"/> 实现：落到 <c>config\shell.json</c> 的 <c>favorites</c> 节（NT-077 前是独立的 favorites.json）。
+/// <see cref="IFavoritesService"/> 实现：落到 <c>config\shell.json</c> 的 <c>favorites</c> 节（前是独立的 favorites.json）。
 /// 首次运行（尚无该文件）时用一组默认常用功能做种子，保持与旧版首页硬编码一致 —— 升级不清空。
 /// </summary>
 public class FavoritesService : IFavoritesService
@@ -30,7 +30,7 @@ public class FavoritesService : IFavoritesService
 
     public IReadOnlyList<string> Keys => _keys;
 
-    /// <summary>收藏所在的配置文件（<c>shell.json</c>，NT-077 前是独立的 <c>favorites.json</c>）。</summary>
+    /// <summary>收藏所在的配置文件（<c>shell.json</c>，前是独立的 <c>favorites.json</c>）。</summary>
     public string FilePath => _shell.FilePath;
 
     public event Action? Changed;

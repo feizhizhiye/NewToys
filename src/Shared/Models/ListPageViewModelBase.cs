@@ -33,7 +33,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
 {
     private readonly IColumnLayoutService? _cols;
 
-    /// <summary>页大小等全局选项的落盘处（NT-064；无注入 = 不记忆，⛔ 不碰文件）。</summary>
+    /// <summary>页大小等全局选项的落盘处（无注入 = 不记忆，⛔ 不碰文件）。</summary>
     private readonly IOptionsStore? _opts;
 
     /// <summary>列可见性（只有被显式保存过的列才在字典里；不在字典里的列 = 默认可见）。</summary>
@@ -98,7 +98,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// <summary>状态文本变化 → 通知 Shell 刷新底栏。</summary>
     public event EventHandler? StatusChanged;
 
-    // ==================== 声明式工具条（v3.53 / NT-055：提到基类，Shell 统一承载） ====================
+    // ==================== 声明式工具条（v3.53：提到基类，Shell 统一承载） ====================
 
     /// <summary>
     /// 工具条内容（需求 §4.8.5）。**默认 <c>null</c> = 本页没有声明式工具条**（Shell ⛔ 不留空行，
@@ -116,13 +116,13 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
 
     partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 
-    // ==================== 分页（NT-064：数据层 LIMIT/OFFSET + 排序下推 + COUNT(*)） ====================
+    // ==================== 分页（数据层 LIMIT/OFFSET + 排序下推 + COUNT(*)） ====================
 
     /// <summary>页大小预设（底栏下拉用；<see cref="PageSize"/> 记忆上次选择）。</summary>
     public static readonly int[] PageSizeOptions = { 25, 50, 100, 500, AllPageSize };
 
     /// <summary>页大小预设的实例视图（XAML 绑 ItemsSource 用；⛔ 不直接绑静态字段）。
-    /// NT-075：改 **virtual** —— 个别页（如软件包）要自己的一档预设，override 即可，⛔ 别改全局数组。</summary>
+    /// 改 **virtual** —— 个别页（如软件包）要自己的一档预设，override 即可，⛔ 别改全局数组。</summary>
     public virtual IReadOnlyList<int> PageSizeChoices => PageSizeOptions;
 
     /// <summary>默认页大小（2026-10-16 用户定：25）。</summary>
@@ -140,7 +140,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     private const string PageSizeKey = "list-page-size";
 
     /// <summary>
-    /// 本页是否启用分页（NT-064）：<b>默认 false = 旧行为</b>（全量进内存，内存里筛/排）。
+    /// 本页是否启用分页：<b>默认 false = 旧行为</b>（全量进内存，内存里筛/排）。
     /// 派生页 override 成 true ⇒ <see cref="RefreshView"/> 自己按 <see cref="PageIndex"/> /
     /// <see cref="PageSize"/> 从数据源按需取页（SQL 侧筛/排，⛔ 不再整表入内存）。
     /// </summary>
@@ -175,7 +175,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// <summary>
     /// 底栏显隐（宿主绑 <c>ListPageSkeleton.ShowFooter</c>）：<b>列表未超出页面底部不显示</b>。
     /// 口径 = 分页启用 +（有多页要翻 或 宿主量到内容超出视口）。
-    /// <para>🔴 NT-064 修订：⛔ 不再要求「未挂起」—— 草稿态（扫描预览）列表同样会超出视口，
+    /// <para>🔴 修订：⛔ 不再要求「未挂起」—— 草稿态（扫描预览）列表同样会超出视口，
     /// 那时底栏只出计数（共 N 条 / 已选 M），翻页按钮组仍由 <see cref="HasPaging"/> 把守
     /// （挂起 或 单页 ⇒ 不显示跳转按钮，内存预览数据翻页无意义）。</para>
     /// </summary>
@@ -313,7 +313,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     {
         LoadVisibility();
         IsDetailVisible = _cols?.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel) ?? false;
-        SeedStandardQuickFilters();   // v3.19 / NT-006：表头右键「筛选」子菜单的标准项（页有分类再 SetQuickFilters 覆盖）
+        SeedStandardQuickFilters();   // v3.19：表头右键「筛选」子菜单的标准项（页有分类再 SetQuickFilters 覆盖）
     }
 
     private void LoadVisibility()
@@ -342,7 +342,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     }
 
     /// <summary>
-    /// v3.19 / NT-006：**必须始终可见的列**（右键菜单里不可隐藏、<see cref="VisibleColumnSpecs"/> 恒给它宽度）。
+    /// v3.19：**必须始终可见的列**（右键菜单里不可隐藏、<see cref="VisibleColumnSpecs"/> 恒给它宽度）。
     /// 默认自动识别「名称 / 标题 / 主机」这类标识列；派生类可 override 明确指定。
     /// </summary>
     protected virtual string? MandatoryColumnKey
@@ -479,7 +479,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     private void ToggleColumn(string? key)
     {
         if (string.IsNullOrWhiteSpace(key)) return;
-        if (key == MandatoryColumnKey) return;   // v3.19 / NT-006：标识列（名称）必须显示，忽略隐藏请求
+        if (key == MandatoryColumnKey) return;   // v3.19：标识列（名称）必须显示，忽略隐藏请求
         _visibility[key] = !Vis(key);
         SaveVisibility();
         OnPropertyChanged("Is" + key + "Visible");
@@ -555,7 +555,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
             _sortColumn = column;
             _sortDescending = column == "Favorite" || column == "Pinned";   // ★ / 📌 这类：首点即把「有」的排前面
         }
-        ResetToFirstPage();   // NT-064：排序变了回第一页（⛔ 不停在旧顺序的第 N 页）
+        ResetToFirstPage();   // 排序变了回第一页（⛔ 不停在旧顺序的第 N 页）
     }
 
     // ==================== 多项筛选 ====================
@@ -605,7 +605,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         ResetToFirstPage();
     }
 
-    // ==================== 表头右键「🔎 筛选」子菜单的快捷项（v3.19 / NT-006） ====================
+    // ==================== 表头右键「🔎 筛选」子菜单的快捷项（v3.19） ====================
 
     /// <summary>表头右键「🔎 筛选」子菜单的快捷项（统一项：添加列 / 清空 + 本页分类值或占位）。</summary>
     public ObservableCollection<FilterQuickItem> QuickFilters { get; } = new();

@@ -11,7 +11,7 @@ using NewToys.SystemTools.Models;
 namespace NewToys.SystemTools.Services;
 
 /// <summary>
-/// <see cref="ISystemCommandStore"/> 实现（NT-091）：一份 JSON 清单，落
+/// <see cref="ISystemCommandStore"/> 实现：一份 JSON 清单，落
 /// <c>&lt;ConfigDir&gt;\system\commands.json</c>（<c>config\</c> 下的 json 才进备份）。
 /// <para>🔴 写盘走 Core 的 <c>AtomicJsonFile</c>（temp + Move）；读失败 / 坏文件 ⇒ 按空清单处理（⛔ 不拦启动）。</para>
 /// </summary>

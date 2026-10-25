@@ -8,7 +8,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// <see cref="IProcessRunner"/> 实现（NT-081 步骤 3）。
+/// <see cref="IProcessRunner"/> 实现。
 /// <para>
 /// 行为与原 <c>ScriptRunner.RunCoreAsync</c> / <c>PackageManagerService.RunAsync</c> 逐条对齐：
 /// 隐藏 + 重定向；stdout 严格 UTF-8 / stderr 宽容；先起读任务再 <c>WaitForExitAsync</c>；

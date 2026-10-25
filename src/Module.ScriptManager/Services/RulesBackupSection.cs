@@ -7,7 +7,7 @@ using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <b>数据节 · 抓取规则</b>（NT-084）：<c>&lt;DataDir&gt;\script\rules\*.py</c> 本体。
+/// <b>数据节 · 抓取规则</b>：<c>&lt;DataDir&gt;\script\rules\*.py</c> 本体。
 /// <para>
 /// 🔴 为什么**默认勾选**且必须由本模块注册：规则是「唯一无法重建的资产」（缓存 HTML 可重建、
 /// 库里的元数据可重建，唯有用户手写的表达式丢了就没了）；而规则目录的位置只有 RuleFileService 知道，

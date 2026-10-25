@@ -1,7 +1,7 @@
 namespace NewToys.Shared.Services;
 
 /// <summary>
-/// 按模块分区的键值选项存储（v3.60 §3.5 / NT-061）。
+/// 按模块分区的键值选项存储（v3.60 §3.5）。
 /// <para>
 /// 模块只调本接口 —— ⛔ 不碰文件、不知道底下是 json 还是 SQLite。默认实现落
 /// <c>&lt;配置根&gt;\config\&lt;module&gt;.json</c>（可读 / 可手改 / 随 profile 目录天然隔离）；

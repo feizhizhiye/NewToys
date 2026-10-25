@@ -6,7 +6,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 「环境维护」内置集合的播种器（NT-083 批 3 · 2026-10-19 用户定调）。
+/// 「环境维护」内置集合的播种器（批 3 · 2026-10-19 用户定调）。
 /// <para>
 /// <b>为什么放集合里</b>：环境准备脚本（建 Python venv / 装依赖）本来就是"软件自己的维护脚本"，
 /// 塞进脚本管理器的**集合列表**后：① 不用记路径，点一下就跑；② 复用现有的运行 / 输出捕获 / 超时；

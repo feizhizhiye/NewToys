@@ -15,7 +15,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 抓取 + 跑规则（NT-084 批 C）。
+/// 抓取 + 跑规则。
 /// <para>
 /// 🔴 <b>C# 不做任何规则解析</b>：把 HTML 存成文件，交给 Python（<see cref="IPythonRuntime"/>）跑
 /// <c>RULES</c>，C# 只负责"取 HTML / 送路径 / 解析返回的 JSON"。
@@ -31,12 +31,12 @@ public sealed class RuleRunService
     private readonly RuleFileService _files;
     private readonly ConfigStoreService _cfg;
     /// <summary>
-    /// 抓取默认项（UA / 超时）的取值处（NT-089）。
+    /// 抓取默认项（UA / 超时）的取值处。
     /// <para>
     /// 🔴 设置页「网络工具设置」仍留在网络工具模块（菜单 Key `settings-web-tools` ⛔ 不改），
     /// 它把值写进 <c>config\web-tools.json</c>；而抓取服务现在归脚本中心（模块禁互引 ⛔ 不能引用
     /// <c>IWebToolsSettingsService</c>）⇒ 这里经 **Core 的 <see cref="IOptionsStore"/>** 只读同一份文件，
-    /// 键名 / 默认值与设置页保持逐字一致。NT-094 设置拆分后再归位到 <c>config\script-manager.json</c>。
+    /// 键名 / 默认值与设置页保持逐字一致。设置拆分后再归位到 <c>config\script-manager.json</c>。
     /// </para>
     /// </summary>
     private readonly IOptionsStore? _opts;
@@ -57,7 +57,7 @@ public sealed class RuleRunService
         }
     }
 
-    // ==================== 抓取默认项（NT-089：经 Core 的 IOptionsStore 读 config\web-tools.json） ====================
+    // ==================== 抓取默认项（经 Core 的 IOptionsStore 读 config\web-tools.json） ====================
 
     /// <summary>设置分区名（= 配置文件名基名）；与「网络工具设置」页写入的文件同源。</summary>
     private const string ScrapeModule = "web-tools";
@@ -115,12 +115,12 @@ public sealed class RuleRunService
     }
 
     /// <summary>
-    /// 调试集合共用的那份 HTML（NT-086 批 C）：<c>cache\_debug\page.html</c>。
+    /// 调试集合共用的那份 HTML：<c>cache\_debug\page.html</c>。
     /// 🔴 试跑推荐的前提是「多个候选脚本对<b>同一份</b> HTML 求值」，⛔ 不能各抓各的。
     /// </summary>
     public string DebugHtmlPath => Path.Combine(_cfg.DataDir, "script", "cache", "_debug", "page.html");
 
-    /// <summary>爬虫面板共用的那份 HTML（NT-086 批 D）：<c>cache\_crawl\page.html</c>。</summary>
+    /// <summary>爬虫面板共用的那份 HTML：<c>cache\_crawl\page.html</c>。</summary>
     public string CrawlHtmlPath => Path.Combine(_cfg.DataDir, "script", "cache", "_crawl", "page.html");
 
     // ==================== 抓取 ====================
@@ -212,7 +212,7 @@ public sealed class RuleRunService
     }
 
     /// <summary>
-    /// 试跑推荐（NT-084 J4 / NT-086 批 C）：**一次 Python 进程**把 N 个候选脚本对<b>同一份 HTML</b>
+    /// 试跑推荐：**一次 Python 进程**把 N 个候选脚本对<b>同一份 HTML</b>
     /// 全求值，按「条数 &gt; 0 且字段非空率最高」排序返回。
     /// <para>🔴 一个脚本一次进程会慢到没法用（N 个候选 = N 次解释器启动），故循环放在 Python 侧。</para>
     /// </summary>
@@ -274,7 +274,7 @@ public sealed class RuleRunService
     }
 
     /// <summary>
-    /// 站点探测（NT-086 批 E）：对站点根试各预设的探测路径 —— 抓下来后用预设解析，
+    /// 站点探测：对站点根试各预设的探测路径 —— 抓下来后用预设解析，
     /// 以「**能解析出条目**」为准（⛔ 不看 HTTP 200），🔴 **只推荐不代选**。
     /// <para>抓取并行；评估只起**一次** Python 进程（⛔ 不逐候选启动解释器）。</para>
     /// </summary>
@@ -402,7 +402,7 @@ public sealed class RuleRunService
     }
 
     /// <summary>
-    /// 爬虫面板（NT-086 批 D）：跑脚本 → 按索引合成**行表**（columns + rows + total）。
+    /// 爬虫面板：跑脚本 → 按索引合成**行表**（columns + rows + total）。
     /// 🔴 与 <see cref="RunScriptAsync"/> 的分工：那个按字段回命中数（编辑器检验用），这个回行表（面板列表用）。
     /// </summary>
     public async Task<CrawlResult> RunRowsAsync(string ruleName, string htmlPath, string baseUrl, CancellationToken ct = default)
@@ -472,7 +472,7 @@ public sealed class RuleRunService
     }
 
     /// <summary>
-    /// 期②下载（NT-087）：对一份 HTML 只求值 <paramref name="keys"/>（逗号分隔，如 <c>content,next</c>），回**全量值**。
+    /// 期②下载：对一份 HTML 只求值 <paramref name="keys"/>（逗号分隔，如 <c>content,next</c>），回**全量值**。
     /// 🔴 与 <see cref="RunRowsAsync"/> 的分工：那个按索引合成行表（面板列表用），这个回全量值（下载落盘用）。
     /// </summary>
     public async Task<StepResult> RunStepAsync(string ruleName, string htmlPath, string baseUrl, string keys, CancellationToken ct = default)
@@ -584,7 +584,7 @@ public sealed class RuleRunService
                 }
             }
 
-            // 🔴 错误回显（NT-086 批 C）：Python 侧的异常必须搬到界面上，⛔ 不静默显示「0 条」
+            // 🔴 错误回显：Python 侧的异常必须搬到界面上，⛔ 不静默显示「0 条」
             if (el.TryGetProperty("error", out var err))
             {
                 cmd.Error = err.GetString() ?? "";
@@ -722,7 +722,7 @@ def _json_walk(doc, path):
     return [v for v in out if v]
 
 def _xpath_by_text(t, tag=""):
-    # 三个语义操作符的公共转写：按**可见文本**找元素（NT-086 批 F）。
+    # 三个语义操作符的公共转写：按**可见文本**找元素。
     # ⛔ 不做绝对位置路径（/html/body/div[3]…）—— 契约明令禁用，一改版式就断。
     q = (t or "").replace("'", "").strip()
     if not q:
@@ -743,7 +743,7 @@ def _one(root, cand, base):
         return ["(js: 规则暂未支持 —— 需要 JS 引擎，⛔ 不做)"]
     if low.startswith("regex:"):
         return [m for m in re.findall(c[6:], ROOT_HTML, re.S) if m]
-    # 语义操作符（NT-086 批 F）：text: 任意元素按文本（优先 a）／ link: 只找 a 按文本／ url: 按 href 片段找 a
+    # 语义操作符：text: 任意元素按文本（优先 a）／ link: 只找 a 按文本／ url: 按 href 片段找 a
     if low.startswith("text:"):
         q, take = _split_take(c[5:])
         nodes = root.xpath(_xpath_by_text(q, "a"))
@@ -775,7 +775,7 @@ def _one(root, cand, base):
 _PREFIXES = ("css:", "xpath:", "json:", "regex:", "text:", "link:", "url:", "js:")
 
 def _norm_cands(core):
-    # 🔴 || 的后续候选省写前缀时继承前一个的（css:a||b 的 b 也按 css 解析）—— NT-086 批 E 修
+    # 🔴 || 的后续候选省写前缀时继承前一个的（css:a||b 的 b 也按 css 解析）—— 修
     out, inherit = [], ""
     for c in core.split("||"):
         c = c.strip()
@@ -812,8 +812,8 @@ if mode == "list":
     print(json.dumps([{"key": str(k), "expr": str(e)} for k, e in rules], ensure_ascii=False))
 
 elif mode == "probe":
-    # 试跑推荐（NT-084 J4）：N 个候选脚本对**同一份 HTML** 全求值（一次进程跑完，⛔ 不逐个启动）。
-    # 站点探测（NT-086 批 E）：候选可带自己的 html_path / base（N 个候选 = N 份不同内容，缺省回落全局）。
+    # 试跑推荐：N 个候选脚本对**同一份 HTML** 全求值（一次进程跑完，⛔ 不逐个启动）。
+    # 站点探测：候选可带自己的 html_path / base（N 个候选 = N 份不同内容，缺省回落全局）。
     # 条数 = url 字段命中数（段间契约要求入口 / 中间段输出含 url），没有 url 时取最大字段命中数；
     # fill = 各字段 min(count, 条数)/条数 的平均 ⇒ 「必填字段非空率」。
     from parsel import Selector
@@ -850,7 +850,7 @@ elif mode == "probe":
     print(json.dumps(out, ensure_ascii=False))
 
 elif mode == "rows":
-    # 爬虫面板（NT-086 批 D）：按字段独立求值后**按索引合成行表**。
+    # 爬虫面板：按字段独立求值后**按索引合成行表**。
     # 段间契约：入口 / 中间段输出含 url；缺字段的格子补空串（⛔ 不按索引硬取 ⇒ 不错位）。
     from parsel import Selector
     rules = _load_rules(vars.get("path") or "")
@@ -881,7 +881,7 @@ elif mode == "rows":
     print(json.dumps({"columns": cols, "rows": rows, "total": n}, ensure_ascii=False))
 
 elif mode == "step":
-    # 期②下载（NT-087）：对**一份 HTML** 只求值指定字段（content / next），回**全量值**（⛔ 不截断、⛔ 不预览）。
+    # 期②下载：对**一份 HTML** 只求值指定字段（content / next），回**全量值**（⛔ 不截断、⛔ 不预览）。
     # C# 侧驱动跟进循环：next 的 URL、翻页停止条件、并发都在外面。
     from parsel import Selector
     rules = _load_rules(vars.get("path") or "")

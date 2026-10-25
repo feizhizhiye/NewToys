@@ -3,7 +3,7 @@ using NewToys.Shared.Details;
 namespace NewToys.Shared.Services;
 
 /// <summary>
-/// 「详情卡声明式来源」契约（NT-054，需求 §4.5.1）：页面 VM **可选实现**，与
+/// 「详情卡声明式来源」契约（需求 §4.5.1）：页面 VM **可选实现**，与
 /// <see cref="IDetailPanelProvider"/> **并列**（一个页面通常两个都实现）。
 /// <para>
 /// <see cref="IDetailPanelProvider"/> 管「有没有右列 / 开合状态 / 通知刷新」，

@@ -13,13 +13,13 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.ScriptManager.Models;
-using NewToys.UI.Services;   // NT-089：跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
+using NewToys.UI.Services;   // 跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
 using NewToys.ScriptManager.Services;
 
 namespace NewToys.ScriptManager.ViewModels;
 
 /// <summary>
-/// 抓取规则 · **规则目录**（`web-scrape`，NT-084 批 A/B）。
+/// 抓取规则 · **规则目录**（`web-scrape`，/B）。
 /// <para>
 /// 🔴 本页只管**目录**：列出 <c>&lt;DataDir&gt;\script\rules\*.py</c>，做新建 / 删除 / 启停 / 重读。
 /// 规则的编辑与调试在**另一页**（`web-rule-editor`「规则编辑器」，批 C）—— 本页 ⛔ 不放命令列表与 HTML 面板。
@@ -30,11 +30,11 @@ namespace NewToys.ScriptManager.ViewModels;
 /// </summary>
 public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
-    // ==================== 声明式工具条（NT-055） ====================
+    // ==================== 声明式工具条 ====================
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
         new() { Text = "➕ 新建规则集", Classes = "ghost", CommandPath = nameof(NewRuleSetCommand) },
-        // NT-086 批 E：站点探测（输入主页地址 → 试各预设的探测路径 → 推荐预设；🔴 只推荐不代选）
+        // 站点探测（输入主页地址 → 试各预设的探测路径 → 推荐预设；🔴 只推荐不代选）
         new()
         {
             Kind = ToolbarItemKind.TextField,
@@ -42,10 +42,10 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             Placeholder = "站点网址…",
             ValuePath = nameof(ProbeUrl),
             EnterCommandPath = nameof(ProbeSiteCommand),
-            ToolTip = "站点主页地址（如 example.com，可省略 https://）。「🔍 探测」按站点根路径试各预设的探测路径，以「能解析出条目」为准（⛔ 不看 200）"
+            ToolTip = "站点主页地址（如 example.com，可省略 https:/）。「🔍 探测」按站点根路径试各预设的探测路径，以「能解析出条目」为准（⛔ 不看 200）"
         },
         new() { Text = "🔍 探测", CommandPath = nameof(ProbeSiteCommand), IsEnabledPath = "!" + nameof(IsBusy) },
-        // NT-086 批 E：从预设创建（选中即创建；⛔ 不覆盖同名，先「🔍 探测」看适合哪种）
+        // 从预设创建（选中即创建；⛔ 不覆盖同名，先「🔍 探测」看适合哪种）
         new()
         {
             Kind = ToolbarItemKind.Combo,
@@ -55,7 +55,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             SelectedItemPath = nameof(SelectedPreset),
             ToolTip = "选一个预设即按它新建规则集（⛔ 不覆盖同名）；先「🔍 探测」看站点适合哪种预设"
         },
-        // NT-086：分类筛选下拉 —— 按文件里实际出现的值动态生成（⛔ 不硬编码五档）
+        // 分类筛选下拉 —— 按文件里实际出现的值动态生成（⛔ 不硬编码五档）
         new()
         {
             Kind = ToolbarItemKind.Combo,
@@ -85,13 +85,13 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
     [ObservableProperty] private RuleSetMeta? _selected;
     [ObservableProperty] private string _searchText = "";
 
-    /// <summary>工具条「分类 ▾」数据源（NT-086：按文件里实际出现的分类值动态生成）。</summary>
+    /// <summary>工具条「分类 ▾」数据源（按文件里实际出现的分类值动态生成）。</summary>
     public ObservableCollection<CategoryOption> CategoryOptions { get; } = new();
 
     /// <summary>当前选中的分类筛选（空值 = 全部分类）。</summary>
     [ObservableProperty] private CategoryOption? _selectedCategory;
 
-    /// <summary>「预设 ▾」数据源（NT-086 批 E：七预设 + 首位提示项）。</summary>
+    /// <summary>「预设 ▾」数据源（七预设 + 首位提示项）。</summary>
     public ObservableCollection<CategoryOption> PresetOptions { get; } = new();
 
     /// <summary>当前选中的预设（选中真预设 ⇒ 立即创建；提示项 / null = 不动）。</summary>
@@ -137,7 +137,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
 
-    /// <summary>选中的规则集是否有运行记录（NT-086 批 G：导出类动作的可用条件）。</summary>
+    /// <summary>选中的规则集是否有运行记录（导出类动作的可用条件）。</summary>
     public bool HasRun => Selected != null && _records.Latest(Selected.Name) is not null;
 
     /// <summary>
@@ -174,7 +174,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
     void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
     void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
 
-    // ==================== 详情卡（声明式，NT-054） ====================
+    // ==================== 详情卡（声明式，） ====================
 
     private DetailCardDescriptor? _card;
 
@@ -350,7 +350,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             o => string.Equals(o.Value, previous, StringComparison.OrdinalIgnoreCase)) ?? CategoryOptions[0];
     }
 
-    /// <summary>状态栏计数 + 脚本头脏值警告汇总（NT-086：⚠ 前缀，最多列 2 条）。</summary>
+    /// <summary>状态栏计数 + 脚本头脏值警告汇总（⚠ 前缀，最多列 2 条）。</summary>
     private void SetCountStatus()
     {
         var warns = _all.SelectMany(m => m.HeaderWarnings).ToList();
@@ -379,7 +379,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
         StatusText = "已新建规则集，点「📝 打开文件」填域名与命令。";
     }
 
-    // ==================== 预设库 + 站点探测（NT-086 批 E） ====================
+    // ==================== 预设库 + 站点探测 ====================
 
     /// <summary>建「预设 ▾」数据源：七预设 + 首位提示项（Value 空 = 不动）。</summary>
     private void BuildPresetOptions()
@@ -430,7 +430,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
     }
 
     /// <summary>
-    /// 站点探测（NT-086 批 E）：试各预设的探测路径，以「能解析出条目」为准；
+    /// 站点探测：试各预设的探测路径，以「能解析出条目」为准；
     /// 🔴 只推荐不代选 —— 结果与推荐写状态栏，创建仍由「预设 ▾」显式触发。
     /// </summary>
     [RelayCommand]
@@ -522,7 +522,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
         catch (Exception ex) { StatusText = "⚠ 打不开目录：" + ex.Message; }
     }
 
-    // ==================== 运行记录（NT-086 批 G） ====================
+    // ==================== 运行记录 ====================
 
     /// <summary>打开选中规则集的运行记录目录（runs\&lt;名&gt;\；没跑过给指引）。</summary>
     [RelayCommand]
@@ -602,7 +602,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
 
         var name = Selected.Name;
 
-        // NT-087：被流水线引用的脚本 ⛔ 不静默删（删了 flow 会缺段，且用户多半忘了挂在哪）
+        // 被流水线引用的脚本 ⛔ 不静默删（删了 flow 会缺段，且用户多半忘了挂在哪）
         var refs = _flows.ReferencesOf(name);
         if (refs.Count > 0)
         {
@@ -636,7 +636,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             q = q.Where(t => t.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
                           || t.BaseUrl.Contains(text, StringComparison.OrdinalIgnoreCase));
 
-        // NT-086：分类筛选（工具条下拉；值来自文件 # category:）
+        // 分类筛选（工具条下拉；值来自文件 # category:）
         var category = SelectedCategory?.Value ?? "";
         if (category.Length > 0)
             q = q.Where(t => string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase));

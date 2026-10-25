@@ -7,7 +7,7 @@ using NewToys.MediaAssets.Models;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 媒体资产设置的读写（NT-021）：落 <c>&lt;应用根&gt;\config\media-assets.json</c>。
+/// 媒体资产设置的读写：落 <c>&lt;应用根&gt;\config\media-assets.json</c>。
 /// <para>
 /// 单例；<see cref="Settings"/> 是**活实例**（消费者每次读最新值，⛔ 不各存一份快照）。
 /// 设置页 <c>Save</c> 后由调用方把新值应用到 <see cref="ScanService"/>（忽略规则 / 采样大小）。
@@ -28,7 +28,7 @@ public class MediaAssetsSettingsIO
     /// <summary>活实例（属性可被设置页直接改；改完调 <see cref="Save"/> 落盘）。</summary>
     public MediaAssetsSettings Settings { get; }
 
-    /// <summary>本模块设置文件（NT-077 第二批起落 <c>config\modules\media-assets.json</c>）。</summary>
+    /// <summary>本模块设置文件（起落 <c>config\modules\media-assets.json</c>）。</summary>
     public string FilePath => Path.Combine(_cfg.ModulesConfigDir, "media-assets.json");
 
     /// <summary>迁移前的旧位置（<c>config\media-assets.json</c>）；搬文件被占用时按它兜底读。</summary>
@@ -65,7 +65,7 @@ public class MediaAssetsSettingsIO
     {
         try
         {
-            // NT-075：原子写（目录由 AtomicJsonFile 负责创建）
+            // 原子写（目录由 AtomicJsonFile 负责创建）
             AtomicJsonFile.Write(FilePath, JsonSerializer.Serialize(Settings, JsonOpts));
         }
         catch { /* 保存失败不打断 UI；状态栏会给反馈 */ }

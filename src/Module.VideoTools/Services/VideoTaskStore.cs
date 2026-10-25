@@ -18,7 +18,7 @@ namespace NewToys.VideoTools.Services;
 /// 页面 VM 是**瞬态**的（每次导航都重建，见规范 6.5），任务若挂在 VM 上，切走一次就全没了。
 /// </para>
 /// <para>
-/// 落**总库 <c>video_docs</c> 的 <c>tasks</c> 文档**（NT-076 第二批；此前是 <c>config\video-tasks.json</c>）。
+/// 落**总库 <c>video_docs</c> 的 <c>tasks</c> 文档**（此前是 <c>config\video-tasks.json</c>）。
 /// 它跟随配置档 —— 换配置就是另一套任务缓存，与视频库本身一致。
 /// </para>
 /// </summary>
@@ -159,7 +159,7 @@ public class VideoTaskStore
             };
             if (data.Cut.Count == 0 && data.Transcode.Count == 0)
             {
-                _docs.Delete(DocName);      // 两队都空 ⇒ 删文档（沿用 NT-075「空即删」语义）
+                _docs.Delete(DocName);      // 两队都空 ⇒ 删文档（沿用 「空即删」语义）
                 return;
             }
             _docs.Save(DocName, data, JsonOpts);

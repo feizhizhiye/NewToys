@@ -9,7 +9,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 规则集文件读写（NT-084）：**一条规则集 = 一个 <c>.py</c> 文件**，落
+/// 规则集文件读写：**一条规则集 = 一个 <c>.py</c> 文件**，落
 /// <c>&lt;DataDir&gt;\script\rules\</c>（模块独有目录）。
 /// <para>
 /// 文件头用注释块写元数据 —— C# 侧<b>只按行读这些键</b>，⛔ 不解析 Python 语法（真正的执行在 Python 侧）：
@@ -21,7 +21,7 @@ namespace NewToys.ScriptManager.Services;
 /// </list>
 /// </para>
 /// <para>
-/// 🔴 类名刻意不叫 <c>ScrapeService</c>（旧实现已删）—— 见 NT-084 命名表。
+/// 🔴 类名刻意不叫 <c>ScrapeService</c>（旧实现已删）—— 见 命名表。
 /// </para>
 /// </summary>
 public sealed class RuleFileService
@@ -42,7 +42,7 @@ public sealed class RuleFileService
 
     public RuleFileService(ConfigStoreService cfg) => _cfg = cfg;
 
-    /// <summary>NT-089：旧规则目录（<c>web-tools\rules</c>）一次性搬迁标记。</summary>
+    /// <summary>旧规则目录（<c>web-tools\rules</c>）一次性搬迁标记。</summary>
     private static bool _legacyMigrated;
 
     /// <summary>规则目录：<c>&lt;DataDir&gt;\script\rules</c>（懒创建）。</summary>
@@ -58,7 +58,7 @@ public sealed class RuleFileService
     }
 
     /// <summary>
-    /// NT-089：抓取能力从「网络工具」迁到「脚本中心」，规则目录随之从 <c>web-tools\rules</c> 挪到 <c>script\rules</c>。
+    /// 抓取能力从「网络工具」迁到「脚本中心」，规则目录随之从 <c>web-tools\rules</c> 挪到 <c>script\rules</c>。
     /// 老用户磁盘上已播种 / 手写过规则 ⇒ 首次访问目录时把旧目录里的 <c>.py</c> **搬过来**（只搬一次，⛔ 不覆盖同名新文件）。
     /// <para>⚠️ 内部自己 try/catch —— 搬不动就按空目录处理（⛔ 不拦启动、不弹错）。</para>
     /// </summary>
@@ -117,7 +117,7 @@ public sealed class RuleFileService
                     ModifiedAt = info.LastWriteTime,
                     Enabled = true,
 
-                    // NT-086 脚本头配置
+                    // 脚本头配置
                     Desc = header.Scalar("desc"),
                     Category = header.Scalar("category"),
                     Role = header.Scalar("role"),
@@ -177,7 +177,7 @@ public sealed class RuleFileService
         catch { return false; }
     }
 
-    // ==================== 预设（NT-086 批 E） ====================
+    // ==================== 预设 ====================
 
     /// <summary>预设文件路径（预设由 <see cref="PresetSeeder"/> 播种进 rules 目录，⛔ 不去随包目录找）。</summary>
     public string PresetPath(string presetId) => Path.Combine(RulesDir, SafeName(presetId) + Extension);
@@ -186,7 +186,7 @@ public sealed class RuleFileService
     public bool PresetExists(string presetId) => File.Exists(PresetPath(presetId));
 
     /// <summary>
-    /// 从预设创建规则集（NT-086 批 E）：复制预设文件 + 写 <c># base:</c>。
+    /// 从预设创建规则集：复制预设文件 + 写 <c># base:</c>。
     /// 已存在 / 预设不在 ⇒ false（⛔ 不覆盖）。
     /// </summary>
     public bool CreateFromPreset(PresetInfo preset, string name, string baseUrl)
@@ -239,7 +239,7 @@ public sealed class RuleFileService
         return insert + eol + text;
     }
 
-    /// <summary>新规则集模板（用户看得懂、能直接改；NT-086 起带全部脚本头键说明）。</summary>
+    /// <summary>新规则集模板（用户看得懂、能直接改；带全部脚本头键说明）。</summary>
     /// <remarks>
     /// 🔴 说明块里的键名**刻意不用英文冒号**（<c># desc —— …</c>）—— 解析器只认
     /// <c># 键名: 值</c>（英文冒号），否则文档行会被当成真键读进去（如 UA 池混进说明文字）。
@@ -298,7 +298,7 @@ RULES = [
         return (header.Scalar("base"), NonEmpty(header.Scalar("encoding"), "utf8"));
     }
 
-    // ==================== 脚本头解析（NT-086） ====================
+    // ==================== 脚本头解析 ====================
 
     /// <summary>
     /// 脚本头解析结果：标量键（首个值）+ 多行键（<c>ua</c> / <c>header</c>）+ 脏值提示。

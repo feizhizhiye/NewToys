@@ -18,19 +18,19 @@ using NewToys.SystemTools.Services;
 namespace NewToys.SystemTools.ViewModels;
 
 /// <summary>
-/// 「系统工具 → 命令库」页（<c>script-commands</c>，NT-097 对标脚本库重做）：一张<b>只产生副作用</b>的命令行清单
+/// 「系统工具 → 命令库」页（<c>script-commands</c>，对标脚本库重做）：一张<b>只产生副作用</b>的命令行清单
 /// （Windows 设置面板 / 控制面板 / 管理工具 / 快捷设置 / winget）。
 /// <para>
 /// 🔴 类名必须与 View 成对：<c>SystemCommandLibraryView</c> ↔ <see cref="SystemCommandLibraryViewModel"/>
 /// （Shell 按「XxxView → XxxViewModel」约定反查 VM，名字对不上 ⇒ DataContext = null ⇒ 整页绑定静默失效）。
-/// NT-091 平移时类名没跟着改（旧名 <c>SystemCommandListViewModel</c>）⇒ 命令库页自此不渲染，NT-097 改名修复。
+/// 平移时类名没跟着改（旧名 <c>SystemCommandListViewModel</c>）⇒ 命令库页自此不渲染，改名修复。
 /// </para>
 /// <para>
-/// 🔴 NT-097 起继承 <see cref="ListPageViewModelBase"/>（Shared）⇒ 与脚本库<b>同一套</b>列显隐 / 表头排序 /
+/// 🔴 继承 <see cref="ListPageViewModelBase"/>（Shared）⇒ 与脚本库<b>同一套</b>列显隐 / 表头排序 /
 /// 多项筛选 / 声明式工具条 / 详情栏开合（偏好落 <c>config\columnlayout.json</c>，页键仍是 <c>script-commands</c>）。
 /// 早期精简版（固定四列 + 页内工具条 + 无详情卡）已废除。
 /// </para>
-/// <para>🔴 执行一律走 Core 的 <c>ScriptRunner</c>（NT-088 上提），⛔ 不自己起进程；需要管理员的项只复制命令。</para>
+/// <para>🔴 执行一律走 Core 的 <c>ScriptRunner</c>，⛔ 不自己起进程；需要管理员的项只复制命令。</para>
 /// </summary>
 public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
@@ -250,7 +250,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
 
         if (item.NeedAdmin)
         {
-            // NT-097 补充（用户 2026-10-23：勾了需要管理员的也能直接运行）：弹 UAC，提权后在可见窗口里执行。
+            // 补充（用户 2026-10-23：勾了需要管理员的也能直接运行）：弹 UAC，提权后在可见窗口里执行。
             // 想手动跑还有「📋 复制命令」（工具条 / 行右键）。
             if (_launcher is null) { StatusText = "提权运行不可用（DI 未注册）。"; return; }
             var (_, msg) = _launcher.RunElevated(item);
@@ -389,7 +389,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         catch (Exception ex) { StatusText = "⚠ 复制失败：" + ex.Message; }
     }
 
-    // ==================== 详情面板 + 声明式详情卡（NT-054 L2；NT-097 补上右栏渲染） ====================
+    // ==================== 详情面板 + 声明式详情卡（L2；补上右栏渲染） ====================
 
     public bool HasDetailPanel => true;
     public bool IsDetailOpen => IsDetailVisible;
@@ -460,7 +460,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         };
     }
 
-    // ==================== 声明式工具条（NT-055：由 Shell 统一渲染，页面⛔ 不再自绘） ====================
+    // ==================== 声明式工具条（由 Shell 统一渲染，页面⛔ 不再自绘） ====================
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {

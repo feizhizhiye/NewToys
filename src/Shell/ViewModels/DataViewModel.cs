@@ -7,7 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 namespace NewToys.Shell.ViewModels;
 
 /// <summary>
-/// 「设置 → 数据」节（NT-078）：备份节清单 + 勾选状态 + 配置文件清单。
+/// 「设置 → 数据」节：备份节清单 + 勾选状态 + 配置文件清单。
 /// <para>
 /// 🔴 真正的打包 / 恢复逻辑在 <c>Core.Services.BackupService</c>，本 VM **不碰磁盘** —— 
 /// 勾选状态与大小只用于界面展示；导出 / 恢复由 code-behind 走文件选择器后调用服务。
@@ -78,7 +78,7 @@ public partial class DataViewModel : ObservableObject, NewToys.Shared.Services.I
     }
 }
 
-/// <summary>一节在界面上的行（NT-078）：标题 / 说明 / 大小 / 层级 + 勾选。</summary>
+/// <summary>一节在界面上的行：标题 / 说明 / 大小 / 层级 + 勾选。</summary>
 public partial class BackupSectionRow : ObservableObject
 {
     public string Id { get; init; } = "";

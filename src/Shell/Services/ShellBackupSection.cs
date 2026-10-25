@@ -8,7 +8,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Shell.Services;
 
 /// <summary>
-/// <b>设置节</b>（NT-078）：<c>&lt;配置根&gt;\config\**\*.json</c> —— <c>shell.json</c> + <c>modules\&lt;模块&gt;.json</c>。
+/// <b>设置节</b>：<c>&lt;配置根&gt;\config\**\*.json</c> —— <c>shell.json</c> + <c>modules\&lt;模块&gt;.json</c>。
 /// <para>
 /// 这是「设置备份」入口的**主体**（框架与模块设置都在 <c>config</c> 下，一层递归就够，不必按模块拆节）。
 /// 恢复 = 覆盖原文件，覆盖前先把现有配置整体归档到 <c>config\.bak-&lt;时间戳&gt;\</c>。

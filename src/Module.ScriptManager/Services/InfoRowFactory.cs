@@ -8,7 +8,7 @@ using NewToys.UI.Controls;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 「属性值 → <see cref="SysInfoRow"/>」的**只读呈现内核**（NT-068 S5 / §三.13）。
+/// 「属性值 → <see cref="SysInfoRow"/>」的**只读呈现内核**（/ §三.13）。
 /// </summary>
 /// <remarks>
 /// <para>

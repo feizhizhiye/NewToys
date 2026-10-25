@@ -9,7 +9,7 @@ using NewToys.Shared.Services;
 namespace NewToys.UI.Settings;
 
 /// <summary>
-/// 设置页里的**一个节**（NT-068：从 <c>Shell.Models</c> 上移进 UI 库，应用级设置页与各模块设置页共用）。
+/// 设置页里的**一个节**（从 <c>Shell.Models</c> 上移进 UI 库，应用级设置页与各模块设置页共用）。
 /// <para>
 /// <see cref="Key"/> = **节锚点**（原菜单 Key，⛔ 一经发布不改）；<see cref="Content"/> = 节的 View（XAML 内容属性，
 /// 模块页可直接写 <c>&lt;ui:SettingsSection&gt;…&lt;/ui:SettingsSection&gt;</c>），

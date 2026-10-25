@@ -6,7 +6,7 @@ using System.Windows.Input;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 「运行结果」页 ④ 运行记录节里的一行（NT-090）= 一次 run 的摘要。
+/// 「运行结果」页 ④ 运行记录节里的一行= 一次 run 的摘要。
 /// <para>🔴 行右键挂在行对象上（ContextMenu 在弹出树，取不到页面 VM 的命令）⇒ 三项命令自带。</para>
 /// </summary>
 public sealed class RunHistoryRow

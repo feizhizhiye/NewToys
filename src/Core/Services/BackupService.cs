@@ -9,7 +9,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>备份包的 manifest（<c>manifest.json</c>，NT-078）。</summary>
+/// <summary>备份包的 manifest（<c>manifest.json</c>，）。</summary>
 public sealed class BackupManifest
 {
     /// <summary>写备份时的程序版本（<c>AssemblyInformationalVersion</c>，形如 <c>1.20261019.14.20</c>）。</summary>
@@ -45,7 +45,7 @@ public sealed record BackupExportResult(string Path, long Bytes, IReadOnlyList<s
 public sealed record BackupRestoreResult(int Ok, int Skipped, IReadOnlyList<string> Notes);
 
 /// <summary>
-/// 备份 / 恢复的**唯一入口**（NT-078，需求 §3.5）。
+/// 备份 / 恢复的**唯一入口**（需求 §3.5）。
 /// <para>
 /// 容器 = 一个 zip：<c>manifest.json</c> + 每个节一个 <c>&lt;id&gt;.zip</c>（内层 zip，见
 /// <see cref="IBackupSection"/>）。节由 DI 收集（框架节在 Shell，模块节在各自 <c>Module.*</c> 里注册）。

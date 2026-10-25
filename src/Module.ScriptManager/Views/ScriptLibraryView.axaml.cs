@@ -8,7 +8,7 @@ public partial class ScriptLibraryView : UserControl
     public ScriptLibraryView()
     {
         InitializeComponent();
-        // NT-055（需求 §4.8.5）：页内工具条已删，按钮全部由工具条描述符的命令承担
+        // （需求 §4.8.5）：页内工具条已删，按钮全部由工具条描述符的命令承担
         // （命令在 VM 里，需要选择器的走 Core.DialogHooks ⇒ VM ⛔ 不引 Avalonia）。
     }
 

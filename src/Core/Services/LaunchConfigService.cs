@@ -4,7 +4,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// <see cref="ILaunchConfigService"/> 实现（v3.66 / 2026-10-18）：**已并入 <c>app.json</c>**，
+/// <see cref="ILaunchConfigService"/> 实现（v3.66：2026-10-18）：**已并入 <c>app.json</c>**，
 /// 本类退化为 <see cref="IAppConfigService"/> 的薄转接层 —— 目的是**保住调用方签名不变**
 /// （<c>GeneralViewModel</c> / <c>HomeViewModel</c> / <c>LaunchConfigViewModel</c> / <c>ShellView</c> 全都不用改）。
 /// <para>

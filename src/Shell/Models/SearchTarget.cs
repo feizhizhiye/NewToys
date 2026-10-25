@@ -14,7 +14,7 @@ public enum SearchTargetKind
 }
 
 /// <summary>
-/// 标题栏搜索的一条结果（NT-066）：统一「二级菜单项」与「设置页节点」两种目标，
+/// 标题栏搜索的一条结果：统一「二级菜单项」与「设置页节点」两种目标，
 /// ⛔ 不搜模块私有内容（资产名 / 脚本名）。
 /// <para>
 /// 索引由 <see cref="ShellViewModel"/> 现场构建（菜单项来自 <c>IMenuService.Groups</c>，

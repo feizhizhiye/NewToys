@@ -14,7 +14,7 @@ using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <see cref="IQuickActionService"/> 实现：<b>两页共用一份手工数据</b>（NT-068 S3 起）。
+/// <see cref="IQuickActionService"/> 实现：<b>两页共用一份手工数据</b>（起）。
 /// <para>
 /// 「脚本库」与「命令库」都读写 <c>&lt;配置根&gt;\config\script\script.json</c>，
 /// 用条目角色 <c>role</c>（<c>script</c> / <c>command</c> / <c>collector</c>）区分归属；
@@ -22,12 +22,12 @@ namespace NewToys.ScriptManager.Services;
 /// 再把库页的改动 upsert 回仓储。
 /// </para>
 /// <para>
-/// <b>命令内容不写死在代码里，也不随程序预置</b>（v3.60 §3.6 / NT-060）：<b>干净启动</b> —— 两个配置文件
+/// <b>命令内容不写死在代码里，也不随程序预置</b>（v3.60 §3.6）：<b>干净启动</b> —— 两个配置文件
 /// 首次运行落盘成**空清单**，条目全部由用户自己导入 / 新建。软件只提供**默认路径**
 /// （<see cref="ScriptsDirectory"/> 这类常量），⛔ 不再读 <c>defaults\*.default.json</c> 播种。
 /// </para>
 /// <para>
-/// 🔴 NT-068 起<b>不做旧数据迁移</b>（用户 2026-10-17「无所谓老用户」）：
+/// 🔴 <b>不做旧数据迁移</b>（用户 2026-10-17「无所谓老用户」）：
 /// <c>pc-scripts.json</c> / <c>pc-quick.json</c> / <c>quickactions.json</c> 一律<b>静默忽略</b>
 /// （不读、不写、不删，文件留在原地）。
 /// </para>
@@ -42,9 +42,9 @@ public class QuickActionService : IQuickActionService
 
     private readonly ConfigStoreService _cfg;
     private readonly IScriptManagerSettingsService? _pc;
-    /// <summary>应用级配置（v3.65 / NT-062）：pwsh 路径已回迁为「运行环境」= 应用级。</summary>
+    /// <summary>应用级配置（v3.65）：pwsh 路径已回迁为「运行环境」= 应用级。</summary>
     private readonly IAppConfigService? _appCfg;
-    /// <summary>手工数据层（NT-068 S3）：脚本库 / 命令库的条目真身已切到 <c>config\script\script.json</c>。</summary>
+    /// <summary>手工数据层：脚本库 / 命令库的条目真身已切到 <c>config\script\script.json</c>。</summary>
     private readonly IScriptStoreService? _store;
 
     private readonly List<QuickAction> _shortcuts = new();
@@ -73,13 +73,13 @@ public class QuickActionService : IQuickActionService
     public IReadOnlyList<QuickAction> QuickSettings => _quick;
     public IReadOnlyList<QuickAction> Favorites => _shortcuts.Concat(_quick).Where(i => i.IsFavorite).ToList();
 
-    /// <summary>手工数据文件全路径（<c>config\script\script.json</c>）：两个库页共用同一份（NT-068 S3 切库后）。</summary>
+    /// <summary>手工数据文件全路径（<c>config\script\script.json</c>）：两个库页共用同一份（切库后）。</summary>
     public string ScriptsFilePath => _store?.FilePath ?? Path.Combine(_cfg.DataDir, "newtoys.db");
 
     /// <summary>与 <see cref="ScriptsFilePath"/> 相同 —— 命令库与脚本库已合并到同一个数据文件。</summary>
     public string QuickFilePath => ScriptsFilePath;
 
-    /// <summary>脚本目录（生效值）：v3.64 起取自本模块设置（<c>config\script-manager.json</c>，NT-061）；配置为空时用 <c>&lt;应用根&gt;\scripts</c>。</summary>
+    /// <summary>脚本目录（生效值）：v3.64 起取自本模块设置（<c>config\script-manager.json</c>，）；配置为空时用 <c>&lt;应用根&gt;\scripts</c>。</summary>
     public string ScriptsDirectory => _pc?.EffectiveScriptsFolder ?? Path.Combine(AppContext.BaseDirectory, "scripts");
 
     public event Action? Changed;
@@ -91,7 +91,7 @@ public class QuickActionService : IQuickActionService
         Changed?.Invoke();
     }
 
-    /// <summary>手动扫描目录（NT-068 §三.6）：只产出候选，⛔ 不自动入库。</summary>
+    /// <summary>手动扫描目录（§三.6）：只产出候选，⛔ 不自动入库。</summary>
     public IReadOnlyList<ScriptCandidate> Scan(string directory, bool includeSubFolders)
         => ScriptScanner.Scan(directory, includeSubFolders, _store?.Data.Items ?? Enumerable.Empty<ScriptItem>());
 
@@ -116,7 +116,7 @@ public class QuickActionService : IQuickActionService
             IsFavorite = false
         };
 
-        // NT-073：新条目必须有归属 —— 落同 kind 的默认库（与 Persist → SyncBuiltinCollections 的结果一致）。
+        // 新条目必须有归属 —— 落同 kind 的默认库（与 Persist → SyncBuiltinCollections 的结果一致）。
         var defKind = quick ? ScriptCollectionKind.Command : ScriptCollectionKind.Script;
         var def = _store?.Data.Collections.FirstOrDefault(c => c.Builtin && !c.Archived
                                                               && ScriptCollectionKind.Normalize(c.Kind) == defKind);
@@ -194,7 +194,7 @@ public class QuickActionService : IQuickActionService
         Persist();
     }
 
-    // ==================== 导入 / 导出（v3.19 / NT-006、NT-007） ====================
+    // ==================== 导入 / 导出（v3.19） ====================
 
     /// <summary>导出某页**全条目**为 json 文本（<see cref="QuickActionPage.Quick"/> / <see cref="QuickActionPage.Shortcuts"/>）。</summary>
     public string ExportPage(string page)
@@ -244,7 +244,7 @@ public class QuickActionService : IQuickActionService
         return (added, updated, skipped);
     }
 
-    /// <summary>清空某页**全部条目**并落盘（v3.19 / NT-006「🧹 清空本页」= 真删除，会写空列表进 json）。</summary>
+    /// <summary>清空某页**全部条目**并落盘（v3.19：「🧹 清空本页」= 真删除，会写空列表进 json）。</summary>
     public void ClearPage(string page)
     {
         if (page == QuickActionPage.Quick) _quick.Clear();
@@ -263,7 +263,7 @@ public class QuickActionService : IQuickActionService
         var isCommand = !string.Equals(item.Kind, QuickActionKind.Script, StringComparison.OrdinalIgnoreCase);
         var verb = item.NeedAdmin ? "runas" : "";
 
-        // 「隐藏终端窗口」（RunHidden，v3.19 / NT-006）：GUI 启动类命令用 cmd /c 静默跑、不弹终端，
+        // 「隐藏终端窗口」（RunHidden，v3.19）：GUI 启动类命令用 cmd /c 静默跑、不弹终端，
         // 目标 GUI 正常打开。仅对命令行命令生效；**需要管理员时忽略本开关**（仍走下面 runas + 可见 UAC）。
         if (item.RunHidden && !item.NeedAdmin && isCommand && !string.IsNullOrWhiteSpace(item.Command))
         {
@@ -302,7 +302,7 @@ public class QuickActionService : IQuickActionService
     /// <list type="bullet">
     /// <item><see cref="QuickActionKind.Command"/>：优先 pwsh（<c>-NoExit -EncodedCommand</c> 跑原始命令、窗口留着），
     /// 拿不到 pwsh 就 <c>cmd /k</c>；命令本身原样透传，不做引号转义（用 base64 避开特殊字符）。</item>
-    /// <item><see cref="QuickActionKind.Script"/>：**运行如双击**（v3.19 / NT-007，需求 §6.2.2）—— 直接用系统文件关联
+    /// <item><see cref="QuickActionKind.Script"/>：**运行如双击**（v3.19，需求 §6.2.2）—— 直接用系统文件关联
     /// 启动脚本文件（<c>UseShellExecute</c>），像在资源管理器里双击它；工作目录取脚本所在目录（相对路径才好使）。</item>
     /// </list>
     /// </summary>
@@ -315,7 +315,7 @@ public class QuickActionService : IQuickActionService
             var cmd = (item.Command ?? "").Trim();
             if (cmd.Length == 0) return (false, "", "", "", "这条还没有命令内容。");
 
-            // 宿主选择（Shell，v3.19 / NT-006）：Auto=优先 pwsh、Cmd=强制 cmd /k、Pwsh=强制 pwsh。
+            // 宿主选择（Shell，v3.19）：Auto=优先 pwsh、Cmd=强制 cmd /k、Pwsh=强制 pwsh。
             var shell = QuickActionShell.Normalize(item.Shell);
             var hasPwsh = TryGetPwsh(out var pwsh);
             if (shell == QuickActionShell.Pwsh || (shell == QuickActionShell.Auto && hasPwsh))
@@ -339,7 +339,7 @@ public class QuickActionService : IQuickActionService
         if (!File.Exists(path))
             return (false, "", "", "", $"找不到脚本文件：{path}（脚本目录可在「设置 → 路径配置」里改）");
 
-        // 运行如双击（v3.19 / NT-007，需求 §6.2.2）：直接用**系统文件关联**启动该脚本文件（UseShellExecute），
+        // 运行如双击（v3.19，需求 §6.2.2）：直接用**系统文件关联**启动该脚本文件（UseShellExecute），
         // 像在资源管理器里双击它一样；不再用 cmd /k 包解释器。.py 若无关联会弹"如何打开"，与双击行为一致。
         // 工作目录取脚本所在目录（脚本里的相对路径才好使）。
         var scriptDir = Path.GetDirectoryName(path);
@@ -348,7 +348,7 @@ public class QuickActionService : IQuickActionService
     }
 
     /// <summary>本机能不能拿到 pwsh（PowerShell 7+）：配置里填了用配置（存在才用），否则探常见安装位、再退回 PATH 里的 pwsh。
-    /// <para>v3.65 / NT-062：读的值来自**应用级**「运行环境」（<c>app.json</c>，与「设置 → 路径与配置」同一份）。</para></summary>
+    /// <para>v3.65：读的值来自**应用级**「运行环境」（<c>app.json</c>，与「设置 → 路径与配置」同一份）。</para></summary>
     private bool TryGetPwsh(out string exe)
     {
         var cfg = (_appCfg?.PwshPath ?? "").Trim();
@@ -399,7 +399,7 @@ public class QuickActionService : IQuickActionService
 
     /// <summary>
     /// 包一层 pwsh 脚本：先回显命令本身（形如 <c>PS> &lt;命令&gt;</c>）再执行，
-    /// 让可见终端里的显示像用户手动输入命令一样完整（v3.19 / NT-006，需求 §6.2.1）。
+    /// 让可见终端里的显示像用户手动输入命令一样完整（v3.19，需求 §6.2.1）。
     /// <para>用户命令用 here-string 字面量（<c>@' … '@</c>）装，避开引号 / <c>$</c> / 反引杠被 pwsh 二次解析；
     /// 唯一禁忌是命令里出现**单独一行且内容恰为 <c>'@</c>**（会提前终结 here-string），真实命令不会触发。</para>
     /// </summary>
@@ -415,7 +415,7 @@ public class QuickActionService : IQuickActionService
     }
 
     /// <summary>
-    /// 静默启动（不弹终端窗口）：给「隐藏终端窗口」的 GUI 启动类命令用（v3.19 / NT-006）。
+    /// 静默启动（不弹终端窗口）：给「隐藏终端窗口」的 GUI 启动类命令用（v3.19）。
     /// <para>用 <c>UseShellExecute=true</c>（协议 / 文件关联才解析得动，如 <c>ms-settings:</c>、<c>explorer</c>）
     /// + <c>WindowStyle=Hidden</c> 藏掉 cmd 控制台窗口；目标 GUI 仍正常显示。</para>
     /// </summary>
@@ -454,7 +454,7 @@ public class QuickActionService : IQuickActionService
 
     // ==================== 落盘 / 加载 ====================
 
-    /// <summary>把两个内存镜像回写到 <c>script.json</c>（NT-068 S3 起两个库页共用这一份数据文件）。</summary>
+    /// <summary>把两个内存镜像回写到 <c>script.json</c>（起两个库页共用这一份数据文件）。</summary>
     private void Persist()
     {
         try
@@ -492,7 +492,7 @@ public class QuickActionService : IQuickActionService
     }
 
     /// <summary>
-    /// 从 <c>script.json</c> 投影出两个库页的内存镜像（NT-068 S3 切库）。
+    /// 从 <c>script.json</c> 投影出两个库页的内存镜像（切库）。
     /// <para>
     /// 🔴 旧的两份 JSON（<c>pc-scripts.json</c> / <c>pc-quick.json</c>）与更早的 <c>quickactions.json</c>
     /// <b>静默忽略</b>：不读、不写、不删（卡 §四「不做旧数据迁移」）。
@@ -509,7 +509,7 @@ public class QuickActionService : IQuickActionService
         foreach (var si in _store.Data.Items)
         {
             // 可采集判定是派生值：每次加载重算（用户覆盖过的行由 Apply 自己跳过）。
-            // NT-073：按条目所属库的根目录判定（空 = 全局脚本目录）。
+            // 按条目所属库的根目录判定（空 = 全局脚本目录）。
             var root = _store.RootOfItem(si);
             if (CollectableEvaluator.Apply(si, root.Length > 0 ? root : ScriptsDirectory)) dirty = true;
 
@@ -594,7 +594,7 @@ public class QuickActionService : IQuickActionService
     /// <summary>
     /// 确保脚本目录存在（<see cref="ScriptsDirectory"/>）。
     /// <para>
-    /// v3.60 §一 / NT-060：⛔ <b>不再复制示例脚本</b> —— 软件只提供默认路径，脚本内容由用户自己放 / 导入。
+    /// v3.60 §一 / ⛔ <b>不再复制示例脚本</b> —— 软件只提供默认路径，脚本内容由用户自己放 / 导入。
     /// </para>
     /// </summary>
     private void EnsureScriptsDirectory()

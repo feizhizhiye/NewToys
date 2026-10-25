@@ -14,7 +14,7 @@ public class AppConfigService : IAppConfigService
         // 主题（深色/浅色/强调色）不在这里 —— 统一由 ThemeService 落到 shell.json 的 theme 节，
         // 避免出现两份"当前是不是深色"的真相（v1.18 移除历史字段 IsDarkTheme）。
 
-        // ==================== 迁移遗留（NT-077 第二批：机器级项已下沉 %LOCALAPPDATA%\NewToys\env.json） ====================
+        // ==================== 迁移遗留（机器级项已下沉 %LOCALAPPDATA%\NewToys\env.json） ====================
         // 🔴 这些字段**只为一次性下沉保留读取**：搬进 env.json 之后立刻清空 + 立即 Save，
         //    配合 [JsonIgnore(WhenWritingDefault)] ⇒ 下一次保存就从 app.json 里消失，⛔ 不会长期挂着两份真相。
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -47,7 +47,7 @@ public class AppConfigService : IAppConfigService
         // 注：浏览器 1/2 的程序路径与参数**不在这里**，见 IAppConfigService 的注释（v1.19 收敛到 launch.json）。
         // 旧版本写过 Browser1Path / Browser1Args / Browser2Path / Browser2Args 四个字段，
         // 反序列化时会被忽略、下次保存即从 app.json 里消失，无需迁移。
-        // 🔴 NT-077 第二批：VideoDbFolder 已删除（写死某个 profile 绝对路径的缺陷）——导入/导出默认目录
+        // 🔴 VideoDbFolder 已删除（写死某个 profile 绝对路径的缺陷）——导入/导出默认目录
         //    一律用 ConfigStoreService.DataDir 推导（见 IAppConfigService.DataDirectory）。
     }
 
@@ -67,7 +67,7 @@ public class AppConfigService : IAppConfigService
     }
 
     /// <summary>
-    /// 一次性下沉（NT-077 第二批）：<c>app.json</c> 里的**机器级**项（解释器 / ffmpeg / 播放器 / 更新地址 / DNS）
+    /// 一次性下沉：<c>app.json</c> 里的**机器级**项（解释器 / ffmpeg / 播放器 / 更新地址 / DNS）
     /// → <c>%LOCALAPPDATA%\NewToys\env.json</c>。
     /// <list type="bullet">
     ///   <item>只填空字段（env.json 已有值 ⇒ 用户数据优先，⛔ 不覆盖）；</item>
@@ -122,7 +122,7 @@ public class AppConfigService : IAppConfigService
         try
         {
             if ((_data.ScriptFolder ?? "").Length == 0) return;
-            // NT-077 第二批：模块设置已归位 config\modules\（旧位置兜底：搬文件被占用时还能判到）
+            // 模块设置已归位 config\modules\（旧位置兜底：搬文件被占用时还能判到）
             var moduleFile = Path.Combine(_cfg.ModulesConfigDir, "script-manager.json");
             if (!File.Exists(moduleFile)) moduleFile = Path.Combine(_cfg.ConfigDir, "script-manager.json");
             if (!File.Exists(moduleFile)) return;
@@ -135,7 +135,7 @@ public class AppConfigService : IAppConfigService
     }
 
     /// <summary>
-    /// <c>app.json</c> 全路径（v3.65 / NT-062）：落在**应用根**，与 <c>profiles\</c> / <c>active-profile.txt</c> 同级。
+    /// <c>app.json</c> 全路径（v3.65）：落在**应用根**，与 <c>profiles\</c> / <c>active-profile.txt</c> 同级。
     /// <para>理由：「运行环境」（外部程序路径 / 运行行为）是**应用级路由**，⛔ 不随配置档切换 —— 换配置只隔离
     /// <c>config / data / logs</c>，解释器与 ffmpeg 的路径不该跟着变。</para>
     /// </summary>
@@ -144,11 +144,11 @@ public class AppConfigService : IAppConfigService
     public string ConfigFilePath => ConfigFile;
     public string DataDirectory => _cfg.DataDir;
 
-    /// <summary>v3.65 / NT-062：<c>app.json</c> 由旧位置上提到应用根时留下的说明（null = 没发生迁移）。供设置页 / 排障展示。</summary>
+    /// <summary>v3.65：<c>app.json</c> 由旧位置上提到应用根时留下的说明（null = 没发生迁移）。供设置页 / 排障展示。</summary>
     public string? LegacyMigrationNote { get; private set; }
 
     /// <summary>
-    /// 一次性迁移（v3.65 / NT-062）：把 <c>&lt;配置根&gt;\config\app.json</c> 复制到 <c>&lt;应用根&gt;\app.json</c>。
+    /// 一次性迁移（v3.65）：把 <c>&lt;配置根&gt;\config\app.json</c> 复制到 <c>&lt;应用根&gt;\app.json</c>。
     /// <list type="bullet">
     ///   <item>⛔ 只在**新位置还没有**该文件时搬一次（已有 ⇒ 一律不覆盖，用户数据优先）；</item>
     ///   <item>⛔ **复制不移除**老文件（保守，留作回退），老文件不再被读写；</item>
@@ -175,7 +175,7 @@ public class AppConfigService : IAppConfigService
         }
     }
 
-    // ==================== 机器级项：⛔ 不再存在 app.json，读写都走 env.json（NT-077 第二批） ====================
+    // ==================== 机器级项：⛔ 不再存在 app.json，读写都走 env.json ====================
     // 唯一写入点仍是「设置 → 路径与配置」页；模块只读。命令行 / 环境变量覆盖只影响读取，不写进文件。
 
     /// <summary>ffmpeg 可执行文件（覆盖链见 <see cref="EnvConfigService"/>）。</summary>
@@ -190,7 +190,7 @@ public class AppConfigService : IAppConfigService
     public string EncryptedDnsProviderId { get => _env.EncryptedDnsProviderId; set => _env.SetEncryptedDnsProviderId(value); }
     public string EncryptedDnsCustomUrl { get => _env.EncryptedDnsCustomUrl; set => _env.SetEncryptedDnsCustomUrl(value); }
 
-    // ==================== 运行环境（v1.33；NT-077 第二批起 = 机器级 env.json） ====================
+    // ==================== 运行环境（v1.33；现为机器级 env.json） ====================
     // 三个解释器路径 = 「运行环境」（描述"本机怎么跑外部程序"），故跟着机器、跨配置共享。
 
     public string PythonPath { get => _env.PythonPath; set => _env.SetPythonPath(value); }
@@ -266,7 +266,7 @@ public class AppConfigService : IAppConfigService
     {
         try
         {
-            // NT-075：原子写（目录由 AtomicJsonFile 负责创建）
+            // 原子写（目录由 AtomicJsonFile 负责创建）
             AtomicJsonFile.Write(ConfigFile, JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { }

@@ -6,7 +6,7 @@ using Avalonia.Controls;
 namespace NewToys.UI.Controls;
 
 /// <summary>
-/// 列表页骨架（NT-063 P1）：四段容器 —— 顶工具条区 / 列表区 / 空态区 / 底栏区。
+/// 列表页骨架：四段容器 —— 顶工具条区 / 列表区 / 空态区 / 底栏区。
 /// <para>
 /// 页面把自己的内容填进三个内容槽：
 /// <list type="bullet">
@@ -19,7 +19,7 @@ namespace NewToys.UI.Controls;
 /// </para>
 /// <para>
 /// 底栏 = <see cref="ListFooterBar"/>（UI 壳）：<see cref="ShowFooter"/> 由宿主绑 VM 的
-/// <c>HasFooterContent</c>（列表超出页面底部才 true，NT-064 接入前无该属性 ⇒ 不显示）。
+/// <c>HasFooterContent</c>（列表超出页面底部才 true，接入前无该属性 ⇒ 不显示）。
 /// </para>
 /// </summary>
 public partial class ListPageSkeleton : UserControl
@@ -34,7 +34,7 @@ public partial class ListPageSkeleton : UserControl
         Footer.IsVisible = ShowFooter;
         ApplyEmptyState();
 
-        // NT-064：用户在底栏改了页大小 ⇒ 回填骨架属性（⇒ 经宿主页的双向绑写回 VM）。
+        // 用户在底栏改了页大小 ⇒ 回填骨架属性（⇒ 经宿主页的双向绑写回 VM）。
         // 🔴 没有这一跳，ComboBox 只改到 Footer.PageSize 就断了 —— VM 的 PageSize 永远不变。
         Footer.PropertyChanged += (_, e) =>
         {
@@ -74,55 +74,55 @@ public partial class ListPageSkeleton : UserControl
     public static readonly StyledProperty<bool> ShowFooterProperty =
         AvaloniaProperty.Register<ListPageSkeleton, bool>(nameof(ShowFooter));
 
-    /// <summary>底栏「共 N 条」（NT-064 接入前宿主可不绑）。</summary>
+    /// <summary>底栏「共 N 条」（接入前宿主可不绑）。</summary>
     public static readonly StyledProperty<int> TotalCountProperty =
         AvaloniaProperty.Register<ListPageSkeleton, int>(nameof(TotalCount));
 
-    /// <summary>底栏「已选 M」（NT-064 接入前宿主可不绑）。</summary>
+    /// <summary>底栏「已选 M」（接入前宿主可不绑）。</summary>
     public static readonly StyledProperty<int> SelectedCountProperty =
         AvaloniaProperty.Register<ListPageSkeleton, int>(nameof(SelectedCount));
 
-    /// <summary>底栏页码文本（NT-064：「第 x / y 页」）。</summary>
+    /// <summary>底栏页码文本（「第 x / y 页」）。</summary>
     public static readonly StyledProperty<string?> PageTextProperty =
         AvaloniaProperty.Register<ListPageSkeleton, string?>(nameof(PageText));
 
-    /// <summary>底栏跳第一页（NT-064）。</summary>
+    /// <summary>底栏跳第一页。</summary>
     public static readonly StyledProperty<ICommand?> FirstCommandProperty =
         AvaloniaProperty.Register<ListPageSkeleton, ICommand?>(nameof(FirstCommand));
 
-    /// <summary>底栏跳上一页（NT-064）。</summary>
+    /// <summary>底栏跳上一页。</summary>
     public static readonly StyledProperty<ICommand?> PrevCommandProperty =
         AvaloniaProperty.Register<ListPageSkeleton, ICommand?>(nameof(PrevCommand));
 
-    /// <summary>底栏跳下一页（NT-064）。</summary>
+    /// <summary>底栏跳下一页。</summary>
     public static readonly StyledProperty<ICommand?> NextCommandProperty =
         AvaloniaProperty.Register<ListPageSkeleton, ICommand?>(nameof(NextCommand));
 
-    /// <summary>底栏跳最后一页（NT-064）。</summary>
+    /// <summary>底栏跳最后一页。</summary>
     public static readonly StyledProperty<ICommand?> LastCommandProperty =
         AvaloniaProperty.Register<ListPageSkeleton, ICommand?>(nameof(LastCommand));
 
-    /// <summary>底栏页大小候选项（NT-064）。</summary>
+    /// <summary>底栏页大小候选项。</summary>
     public static readonly StyledProperty<IEnumerable?> PageSizesProperty =
         AvaloniaProperty.Register<ListPageSkeleton, IEnumerable?>(nameof(PageSizes));
 
-    /// <summary>底栏当前页大小（NT-064，双向）。</summary>
+    /// <summary>底栏当前页大小（双向）。</summary>
     public static readonly StyledProperty<int> PageSizeProperty =
         AvaloniaProperty.Register<ListPageSkeleton, int>(nameof(PageSize));
 
-    /// <summary>底栏是否显示页码跳组（NT-064：宿主从 VM 的 HasPaging 下发）。</summary>
+    /// <summary>底栏是否显示页码跳组（宿主从 VM 的 HasPaging 下发）。</summary>
     public static readonly StyledProperty<bool> ShowPagingProperty =
         AvaloniaProperty.Register<ListPageSkeleton, bool>(nameof(ShowPaging));
 
-    /// <summary>底栏总页数（「共 N 页」+ 页码按钮组渲染用；NT-064）。</summary>
+    /// <summary>底栏总页数（「共 N 页」+ 页码按钮组渲染用）。</summary>
     public static readonly StyledProperty<int> PageCountProperty =
         AvaloniaProperty.Register<ListPageSkeleton, int>(nameof(PageCount));
 
-    /// <summary>底栏当前页码（页码按钮强调色；NT-064）。</summary>
+    /// <summary>底栏当前页码（页码按钮强调色）。</summary>
     public static readonly StyledProperty<int> CurrentPageProperty =
         AvaloniaProperty.Register<ListPageSkeleton, int>(nameof(CurrentPage));
 
-    /// <summary>底栏「跳转到」/ 页码按钮的直达命令（参数 = 页码；NT-064）。</summary>
+    /// <summary>底栏「跳转到」/ 页码按钮的直达命令（参数 = 页码）。</summary>
     public static readonly StyledProperty<ICommand?> JumpToPageCommandProperty =
         AvaloniaProperty.Register<ListPageSkeleton, ICommand?>(nameof(JumpToPageCommand));
 
@@ -253,7 +253,7 @@ public partial class ListPageSkeleton : UserControl
     }
 
     /// <summary>
-    /// 🔴 v3.71 / NT-063 P2：属性变化 ⇒ **直接给宿主控件赋值**（⛔ 不用祖先绑定，见 axaml 顶部注释）。
+    /// 🔴 v3.71：属性变化 ⇒ **直接给宿主控件赋值**（⛔ 不用祖先绑定，见 axaml 顶部注释）。
     /// 页面在 XAML 里设属性一定发生在本构造（InitializeComponent）之后 ⇒ 具名宿主都已就绪。
     /// </summary>
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -270,7 +270,7 @@ public partial class ListPageSkeleton : UserControl
         else if (change.Property == ShowFooterProperty) Footer.IsVisible = ShowFooter;
         else if (change.Property == TotalCountProperty) Footer.TotalCount = TotalCount;
         else if (change.Property == SelectedCountProperty) Footer.SelectedCount = SelectedCount;
-        // NT-064：分页插槽整组转发给底栏（缺一个 ⇒ 该功能在底栏上不出现）
+        // 分页插槽整组转发给底栏（缺一个 ⇒ 该功能在底栏上不出现）
         else if (change.Property == PageTextProperty) Footer.PageText = PageText;
         else if (change.Property == FirstCommandProperty) Footer.FirstCommand = FirstCommand;
         else if (change.Property == PrevCommandProperty) Footer.PrevCommand = PrevCommand;
@@ -279,7 +279,7 @@ public partial class ListPageSkeleton : UserControl
         else if (change.Property == PageSizesProperty) Footer.PageSizes = PageSizes;
         else if (change.Property == PageSizeProperty) Footer.PageSize = PageSize;
         else if (change.Property == ShowPagingProperty) Footer.ShowPaging = ShowPaging;
-        // NT-064：页码直达组（共 N 页 / 当前页 / 跳转命令）
+        // 页码直达组（共 N 页 / 当前页 / 跳转命令）
         else if (change.Property == PageCountProperty) Footer.PageCount = PageCount;
         else if (change.Property == CurrentPageProperty) Footer.CurrentPage = CurrentPage;
         else if (change.Property == JumpToPageCommandProperty) Footer.JumpToPageCommand = JumpToPageCommand;

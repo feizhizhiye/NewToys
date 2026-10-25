@@ -18,7 +18,7 @@ public partial class VideoListView : UserControl
 
         // 目录框回车 = 扫描（Avalonia 的 TextBox 没有 AcceptButton 之类的属性）
         // §6.4.7：详情卡「文件名」原先是**回车 / 失焦即提交**（详情卡内不放按钮），由这里挂 NameBox 的
-        // KeyDown / LostFocus 触发。NT-054 迁移后输入框归 Shell 的声明式卡渲染，页面 code-behind 够不着它 ⇒
+        // KeyDown / LostFocus 触发。迁移后输入框归 Shell 的声明式卡渲染，页面 code-behind 够不着它 ⇒
         // 改由 VM 的 OnEditNameChanged（失焦写回 → 自动提交）+ 卡里「✏ 应用新文件名」按钮承担（见 VideoListViewModel）。
 
         // 双击列表项 = 播放（和资源管理器习惯一致）

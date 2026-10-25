@@ -5,7 +5,7 @@ using NewToys.MediaAssets.Models;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 资产关联服务（NT-018）：`relations` —— 字幕之于正片 / 封面之于作品 / 同一作品的不同版本。
+/// 资产关联服务：`relations` —— 字幕之于正片 / 封面之于作品 / 同一作品的不同版本。
 /// <para>关联是**逻辑数据**（不动磁盘），每次增删都写 <c>operation_logs</c>（由调用方 VM 负责记）。</para>
 /// </summary>
 public class RelationService

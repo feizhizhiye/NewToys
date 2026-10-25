@@ -6,7 +6,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// 「脚本 → (解释器 exe, 参数)」的唯一解析处（NT-067 §二.1）。
+/// 「脚本 → (解释器 exe, 参数)」的唯一解析处（§二.1）。
 /// <para>
 /// 为什么单独抽出来：<c>QuickActionService</c> 只**开可见窗口**跑脚本（不捕获输出），本页要的是
 /// 「静默跑 + 拿回文本」；两者共用同一套解释器路径来源，所以把路径解析独立成 static 工具类
@@ -120,7 +120,7 @@ public static class InterpreterResolver
 /// <c>.bat/.cmd</c>→cmd。各解释器的**路径**在「设置 → 路径配置」里配，留空 = 用系统 PATH 里的。
 /// </para>
 /// </summary>
-/// <remarks>NT-088：随 <see cref="InterpreterResolver"/> 从 <c>NewToys.ScriptManager.Models</c> 上提 Core（Core ⛔ 反向依赖模块）。</remarks>
+/// <remarks>随 <see cref="InterpreterResolver"/> 从 <c>NewToys.ScriptManager.Models</c> 上提 Core（Core ⛔ 反向依赖模块）。</remarks>
 public static class ScriptInterpreter
 {
     /// <summary>按扩展名自动挑（默认）。</summary>
@@ -138,13 +138,13 @@ public static class ScriptInterpreter
 }
 
 /// <summary>
-/// 命令行的**宿主 / 窗口行为**（<c>QuickAction.Shell</c> 的取值，v3.19 / NT-006）。
+/// 命令行的**宿主 / 窗口行为**（<c>QuickAction.Shell</c> 的取值，v3.19）。
 /// <para>
 /// <see cref="Auto"/>（默认）= 当前智能行为：有输出的命令用 pwsh 弹可见终端并回显命令、GUI 启动类命令静默；
 /// 显式 <see cref="Cmd"/> / <see cref="Pwsh"/> 覆盖 Auto，强制用哪个宿主跑。
 /// </para>
 /// </summary>
-/// <remarks>NT-088：随 <see cref="InterpreterResolver"/> 从 <c>NewToys.ScriptManager.Models</c> 上提 Core。</remarks>
+/// <remarks>随 <see cref="InterpreterResolver"/> 从 <c>NewToys.ScriptManager.Models</c> 上提 Core。</remarks>
 public static class QuickActionShell
 {
     /// <summary>自动：有输出→pwsh 可见终端（回显命令）；GUI 启动类→cmd 静默。默认。</summary>

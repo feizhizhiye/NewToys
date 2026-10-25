@@ -16,7 +16,7 @@ using NewToys.Shared.Services;
 namespace NewToys.Shell.Controls;
 
 /// <summary>
-/// 工具条宿主（NT-055，需求 §4.8.5）：把 <see cref="IToolbarSource"/> 的**描述符**渲染成真实工具条。
+/// 工具条宿主（需求 §4.8.5）：把 <see cref="IToolbarSource"/> 的**描述符**渲染成真实工具条。
 /// <para>职责两件：① 按容器宽度**自动折叠**（两行放得下就全显示，放不下才把尾部收进「⋯」）；
 /// ② **详情开关浮层**（右上角、⛔ 不占独立列，但容量计算给它留安全区）。</para>
 /// <para>🔴 折叠算法由「全部资产」页（<c>AssetAllView.axaml.cs</c>）**原样搬迁**，两条防抖必须保留：
@@ -230,7 +230,7 @@ public partial class ToolbarHost : UserControl
 
         if (d.EnterCommandPath is { } enterPath)
         {
-            // 提交通道（v3.64 / NT-061）：`EnterCommandPath` = 该框的**唯一提交入口**，**回车 + 失焦都走它**
+            // 提交通道（v3.64）：`EnterCommandPath` = 该框的**唯一提交入口**，**回车 + 失焦都走它**
             // （⛔ 不再加第二处反射）。可编辑框靠 TwoWay 绑定把新值写回 VM，命令只负责「校验 + 落盘」；
             // 只读框没有提交语义 ⇒ 不挂失焦（否则每个只读框一失焦就触发一次动作）。
             Action commit = () =>
@@ -278,7 +278,7 @@ public partial class ToolbarHost : UserControl
     }
 
     /// <summary>
-    /// 多选 / 单选按钮组（<c>ChipGroup</c>；v3.54 / NT-055 补迁 <c>script-packages</c> 时新增）：
+    /// 多选 / 单选按钮组（<c>ChipGroup</c>；v3.54：补迁 <c>script-packages</c> 时新增）：
     /// 按 <c>ItemsPath</c> 生成一排按钮（样式类 = 页面里「源」按钮用的 <c>src-btn</c>），
     /// 每项文案取 <c>DisplayPath</c>、高亮跟随数据项的 <c>SelectedPath</c>，
     /// 点击把**数据项本身**当参数执行 <c>CommandPath</c>。

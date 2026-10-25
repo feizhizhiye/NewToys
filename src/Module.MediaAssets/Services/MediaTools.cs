@@ -10,7 +10,7 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// ffprobe / ffmpeg 的**最小封装**（NT-021）：模块内自建，⛔ 不引 <c>Module.VideoTools</c>（模块禁互引）。
+/// ffprobe / ffmpeg 的**最小封装**：模块内自建，⛔ 不引 <c>Module.VideoTools</c>（模块禁互引）。
 /// <para>
 /// 可执行文件路径取自全局设置 <see cref="IAppConfigService.FfmpegPath"/>（「设置 → 路径配置」里配）：
 /// 配的是 <c>ffmpeg</c> 裸名 → 走 PATH；配的是全路径 → 同目录换 <c>ffprobe.exe</c>。

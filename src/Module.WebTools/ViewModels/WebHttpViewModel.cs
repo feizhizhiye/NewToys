@@ -8,7 +8,7 @@ using NewToys.WebTools.Services;
 namespace NewToys.WebTools.ViewModels;
 
 /// <summary>
-/// HTTP 测试 页 ViewModel（v3.19 / NT-001 实装）：选方法 + 填 URL / 请求头 / 请求体 → 发送 → 看 状态码 / 耗时 / 响应头 / 响应体。
+/// HTTP 测试 页 ViewModel（v3.19：实装）：选方法 + 填 URL / 请求头 / 请求体 → 发送 → 看 状态码 / 耗时 / 响应头 / 响应体。
 /// <para>栈锁定：用 <see cref="System.Net.Http.HttpClient"/>（⛔ 不引第三方 HTTP 库）。</para>
 /// </summary>
 public partial class WebHttpViewModel : ObservableObject, NewToys.Shared.Services.IStatusProvider

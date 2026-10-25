@@ -13,7 +13,7 @@ namespace NewToys.WebTools.Services;
 
 /// <summary>
 /// hosts 方案管理：多套方案落**总库 <c>web_docs</c> 的 <c>hosts-profiles</c> 文档**
-/// （NT-076 第二批；此前是 <c>config\hosts-profiles.json</c>）。
+/// （此前是 <c>config\hosts-profiles.json</c>）。
 /// <para>
 /// <b>切换到系统 hosts</b>：在系统 <c>drivers\etc\hosts</c> 里维护一段
 /// <c># === NewToys hosts start === … end ===</c> 的受管块，应用某方案时只替换这段块，

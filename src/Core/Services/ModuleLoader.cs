@@ -107,6 +107,17 @@ public static class ModuleLoader
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
+        // 配置目录的一次性整理（框架级小文件合并 / 模块设置归位 / 清空壳）——
+        // 必须早于各模块读配置，且⛔ 不放在 ConfigStoreService 构造函数里（会拖启动热路径）。
+        try
+        {
+            sp.GetService<ConfigStoreService>()?.InitializeDeferred();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys] 配置目录整理异常：" + ex.Message);
+        }
+
         // 先跑「总库建表 / 补列 / 一次性数据迁移」—— 任何页面的首次查询都必须看到完整的表。
         // 单模块失败只记日志（LibrarySchemaService 内部已逐模块 try/catch）。
         try

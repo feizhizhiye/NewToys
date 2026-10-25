@@ -10,7 +10,7 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 元数据提取（NT-021）：视频走 ffprobe（时长 / 分辨率 / 编码），图片读文件头（尺寸）。
+/// 元数据提取：视频走 ffprobe（时长 / 分辨率 / 编码），图片读文件头（尺寸）。
 /// <para>
 /// ⚠️ 只做**最小实现**：音乐 / 书籍 / 文档本轮只落基础文件信息（ mutagen / exif / PDF 解析等
 /// 第三方库 ⛔ 不擅引——先问用户）。结果写进 <c>assets.metadata_json</c>（按类型分键，⛔ 不覆盖别的类型的键）。

@@ -1,7 +1,7 @@
 namespace NewToys.Shared.Services;
 
 /// <summary>
-/// 总库（<c>data\newtoys.db</c>）的**建表贡献者**（NT-076）：每个用到结构化数据的模块实现一个，
+/// 总库（<c>data\newtoys.db</c>）的**建表贡献者**：每个用到结构化数据的模块实现一个，
 /// 由 <c>LibrarySchemaService</c> 在库打开后统一调用。
 /// <para>
 /// 🔴 为什么需要它：总库由多个模块共建表，而建表原先埋在各自 DB 服务的构造函数里 ——

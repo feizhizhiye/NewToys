@@ -7,7 +7,7 @@ using NewToys.ScriptManager.ViewModels;
 namespace NewToys.ScriptManager.Views;
 
 /// <summary>
-/// 爬虫面板（<c>web-crawl</c>，NT-086 批 D）。
+/// 爬虫面板（<c>web-crawl</c>，）。
 /// </summary>
 public partial class CrawlPanelView : UserControl
 {
@@ -21,7 +21,7 @@ public partial class CrawlPanelView : UserControl
             vm.DrillDownCommand.Execute(entry);
     }
 
-    /// <summary>双击运行记录行 = 打开那次运行的目录（NT-090）。</summary>
+    /// <summary>双击运行记录行 = 打开那次运行的目录。</summary>
     private void OnHistoryDoubleTapped(object? sender, TappedEventArgs e)
     {
         if (sender is not Border { DataContext: RunHistoryRow row }) return;

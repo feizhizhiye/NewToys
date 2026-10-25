@@ -13,7 +13,7 @@ namespace NewToys.MediaAssets;
 /// </para>
 /// <para>
 /// ⚠️ 本模块的设置页 <c>settings-media-assets</c> 由本模块 <c>Initialize</c> **自注册**进**本模块分组**
-/// （跨组注册由框架**延迟补登**保障，规范 §3.2）——NT-021 已落地：View/VM 均在本模块（⛔ 不依赖框架程序集）。
+/// （跨组注册由框架**延迟补登**保障，规范 §3.2）——已落地：View/VM 均在本模块（⛔ 不依赖框架程序集）。
 /// </para>
 /// </summary>
 public class MediaAssetsModule : IModule
@@ -23,37 +23,37 @@ public class MediaAssetsModule : IModule
 
     public void RegisterServices(IServiceCollection services)
     {
-        // ===== 数据层（NT-015）：13 张表落同一个 data\newtoys.db（与视频工具共库、表级隔离） =====
+        // ===== 数据层：13 张表落同一个 data\newtoys.db（与视频工具共库、表级隔离） =====
         // AssetDatabase 负责建表 / 补列；三个服务都是**单例**（库是全局资源，任务队列要跨页共享）。
         services.AddSingleton<Services.AssetDatabase>();
         services.AddSingleton<Services.AssetService>();
         services.AddSingleton<Services.ScanService>();
         services.AddSingleton<Services.TaskQueue>();
-        // NT-018：逻辑操作 / 标签 / 分类 / 集合 / 关联 / 操作日志 / 跨页投递（全部模块内单例，页面共享一份）
+        // 逻辑操作 / 标签 / 分类 / 集合 / 关联 / 操作日志 / 跨页投递（全部模块内单例，页面共享一份）
         services.AddSingleton<Services.TagService>();
         services.AddSingleton<Services.CategoryService>();
         services.AddSingleton<Services.CollectionService>();
         services.AddSingleton<Services.RelationService>();
         services.AddSingleton<Services.OperationLogService>();
         services.AddSingleton<Services.AssetNavigationStore>();
-        // NT-019：物理操作（唯一动磁盘的地方）+ 任务队列已在上面注册
+        // 物理操作（唯一动磁盘的地方）+ 任务队列已在上面注册
         services.AddSingleton<Services.FileOperationService>();
-        // NT-020：存储源（在线探测 + 统计编排）
+        // 存储源（在线探测 + 统计编排）
         services.AddSingleton<Services.StorageService>();
-        // NT-021：模块设置（config\media-assets.json）+ 元数据 / 缩略图（ffprobe / ffmpeg 最小封装）
+        // 模块设置（config\media-assets.json）+ 元数据 / 缩略图（ffprobe / ffmpeg 最小封装）
         services.AddSingleton<Services.MediaAssetsSettingsIO>();
         services.AddSingleton<Services.MetadataService>();
         services.AddSingleton<Services.ThumbnailService>();
-        // NT-022：资产列表 JSON 导入 / 导出 + 用户数据（标签/分类/集合/关联）导出 / 恢复
+        // 资产列表 JSON 导入 / 导出 + 用户数据（标签/分类/集合/关联）导出 / 恢复
         services.AddSingleton<Services.AssetImportExport>();
         services.AddSingleton<Services.UserDataExport>();
-        // NT-026：多库融合（ATTACH 只读合并 + VACUUM INTO 另存）
+        // 多库融合（ATTACH 只读合并 + VACUUM INTO 另存）
         services.AddSingleton<Services.AssetMergeService>();
 
-        // NT-076：本模块在总库里的 schema 贡献者（DDL 仍在 AssetDatabase 构造里，贡献者只负责「库打开时就建表」）
+        // 本模块在总库里的 schema 贡献者（DDL 仍在 AssetDatabase 构造里，贡献者只负责「库打开时就建表」）
         services.AddSingleton<ILibrarySchemaContributor, Services.MediaAssetsSchemaContributor>();
 
-        // ===== 页面 View / VM（NT-014 骨架：全是空页面；页面实现 NT-016~022 依次落地） =====
+        // ===== 页面 View / VM（骨架：全是空页面；页面实现 ~022 依次落地） =====
         services.AddTransient<Views.AssetAllView>();        services.AddTransient<ViewModels.AssetAllViewModel>();
         services.AddTransient<Views.AssetTagsView>();       services.AddTransient<ViewModels.AssetTagsViewModel>();
         services.AddTransient<Views.AssetCategoriesView>(); services.AddTransient<ViewModels.AssetCategoriesViewModel>();
@@ -62,7 +62,7 @@ public class MediaAssetsModule : IModule
         services.AddTransient<Views.AssetTasksView>();      services.AddTransient<ViewModels.AssetTasksViewModel>();
         services.AddTransient<Views.AssetTrashView>();      services.AddTransient<ViewModels.AssetTrashViewModel>();
 
-        // NT-021：模块设置页（View/VM 归本模块，自注册进**本模块分组** —— 见 Initialize）
+        // 模块设置页（View/VM 归本模块，自注册进**本模块分组** —— 见 Initialize）
         services.AddTransient<Views.SettingsMediaAssetsView>();
         services.AddTransient<ViewModels.SettingsMediaAssetsViewModel>();
     }
@@ -72,12 +72,12 @@ public class MediaAssetsModule : IModule
         var menu = services.GetRequiredService<IMenuService>();
 
         // 一级分组：Order 50（视频工具 40 之后、系统设置 999 之前）。
-        // NT-035：一级图标已矢量化（IconMediaAssets）——与其他一级分组同为 24 网格描边 Path；
+        // 一级图标已矢量化（IconMediaAssets）——与其他一级分组同为 24 网格描边 Path；
         //    左树仍保留「矢量键取不到 → 回退 emoji 文本」机制作兜底。
         menu.RegisterModule(GroupKey, "媒体资产", "IconMediaAssets", 50);
 
         // 二级项：Order 0~11，与需求 §6.6 的菜单表逐条对应；二级用 emoji 占位（功能清单页 / 首页收藏卡要用它）。
-        // 🔴 v3.69 / NT-063 P2：5 个类型二级项（assets-video / music / book / image / document）**已撤销**
+        // 🔴 v3.69：5 个类型二级项（assets-video / music / book / image / document）**已撤销**
         //    （用户 2026-10-16 拍板，菜单 Key 铁律的一次例外）—— 类型切换改由「全部资产」页**筛选栏的类型控件**承担，
         //    列集合 / 列表数据 / 详情卡字段集 / 状态栏前缀随之切换（需求 §6.6「类型切换」）。
         menu.RegisterFunction(GroupKey, "assets-all",         "全部资产", "🗂", "AssetAllView",         0, "混合视图：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源");
@@ -88,20 +88,20 @@ public class MediaAssetsModule : IModule
         menu.RegisterFunction(GroupKey, "assets-tasks",       "任务中心", "⏳", "AssetTasksView",      10, "扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图任务：取消 / 重试 / 日志");
         menu.RegisterFunction(GroupKey, "assets-trash",       "回收站",   "🗑", "AssetTrashView",      11, "已软删除资产：恢复 / 永久删除（二次确认）/ 清空");
 
-        // NT-021：模块设置页的 View / VM **归本模块**（需求 §6.6「模块设置页归本模块」）。
-        // v3.66 / NT-062：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）：
+        // 模块设置页的 View / VM **归本模块**（需求 §6.6「模块设置页归本模块」）。
+        // v3.66：菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）：
         //     全应用口径 = 应用级设置在**一页**（Shell 的设置页），模块设置在各模块**一级菜单下**。
         // Key `settings-media-assets` ⛔不改（首页跳转 / 收藏白名单按 Key 寻址）；Order 99 = 本组末位。
         menu.RegisterFunction(GroupKey, "settings-media-assets", "媒体资产设置", "🎬", "SettingsMediaAssetsView", 99,
             "扫描忽略规则 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据提取");
 
-        // ===== NT-021：把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====
-        // 🔴 NT-070（启动提速）：这段接线要读 config\media-assets.json 并可能扫库入队，
+        // ===== 把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====
+        // 🔴 （启动提速）：这段接线要读 config\media-assets.json 并可能扫库入队，
         // 已整体搬到 InitializeDeferred（首帧之后）。上面的菜单注册全部保留在首帧前。
     }
 
     /// <summary>
-    /// NT-070（启动提速）：模块设置读取 + 扫描器接线 + 回收站到期清理入队 —— 首帧之后执行。
+    /// （启动提速）：模块设置读取 + 扫描器接线 + 回收站到期清理入队 —— 首帧之后执行。
     /// <para>
     /// ⚠️ 顺序不变：<c>ApplySettings</c> 仍要在用户第一次点「扫描」之前生效。
     /// 延迟层排在首帧渲染之后，而窗口可交互也在首帧之后 —— 实际不会漏。
@@ -109,7 +109,7 @@ public class MediaAssetsModule : IModule
     /// </summary>
     public void InitializeDeferred(IServiceProvider services)
     {
-        // ===== NT-021：把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====
+        // ===== 把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====
         var io = services.GetRequiredService<Services.MediaAssetsSettingsIO>();
         var scan = services.GetRequiredService<Services.ScanService>();
         scan.ApplySettings(io.Settings);

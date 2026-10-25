@@ -43,7 +43,7 @@ public sealed class CompareRow
 /// </summary>
 public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
-    // ==================== 声明式工具条 + 选择器命令（NT-055 / 需求 §4.8.5） ====================
+    // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================
 
     private const string VideoFilePatterns =
         "*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.ts;*.m4v;*.mpg;*.mpeg";
@@ -116,7 +116,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool IsNotBusy => !IsBusy && !IsRunning;
     public bool HasSelection => Selected != null;
 
-    /// <summary>全局导入/导出默认目录（当前配置档 <c>data\</c>；NT-077 第二批）。</summary>
+    /// <summary>全局导入/导出默认目录（当前配置档 <c>data\</c>）。</summary>
     public string ImportExportDefaultDir => _cfg?.DataDirectory ?? "";
 
     /// <summary>队列里有没有任务。
@@ -160,7 +160,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private int _editCrf;
     [ObservableProperty] private int _editMaxHeight;
 
-    // 默认宽 / 高上限（v3.19 / NT-013；0 = 不用，源更大才缩、否则保原始）
+    // 默认宽 / 高上限（v3.19；0 = 不用，源更大才缩、否则保原始）
     [ObservableProperty] private int _editDefaultWidth = 1920;
     [ObservableProperty] private int _editDefaultHeight = 1080;
 
@@ -171,7 +171,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private string _editExtraArgs = "";
     [ObservableProperty] private int _editCutCrf = 20;
 
-    /// <summary>多段剪切串（NT-101；每行一段 <c>开始-结束</c>）。</summary>
+    /// <summary>多段剪切串（每行一段 <c>开始-结束</c>）。</summary>
     [ObservableProperty] private string _editSegmentsText = "";
 
     /// <summary>多段解析的即时反馈（详情卡提示行；空 = 没填 / 一行都没解析出来）。</summary>
@@ -196,7 +196,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         RefreshCommand();
     }
 
-    // 字幕（NT-100）
+    // 字幕
     [ObservableProperty] private string _editSubtitlePath = "";
     [ObservableProperty] private string _editSubtitleMode = SubtitleModes.None;
     [ObservableProperty] private int _editSubtitleFontSize = 22;
@@ -227,7 +227,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     partial void OnEditSubtitleFontSizeChanged(int value) => RefreshCommand();
     partial void OnEditSubtitleMarginVChanged(int value) => RefreshCommand();
 
-    // ==================== 裁剪 / 音轨 / 目标体积（NT-102 ~ NT-104） ====================
+    // ==================== 裁剪 / 音轨 / 目标体积（~ ） ====================
 
     /// <summary>裁剪宽（0 = 不裁剪）。</summary>
     [ObservableProperty] private int _editCropWidth;
@@ -306,7 +306,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         RefreshCommand();
     }
 
-    /// <summary>🖼 探测选中任务的黑边（NT-102）：结果只填编辑缓冲，点「💾 保存」才写回任务。</summary>
+    /// <summary>🖼 探测选中任务的黑边：结果只填编辑缓冲，点「💾 保存」才写回任务。</summary>
     [RelayCommand]
     private async Task DetectCropAsync()
     {
@@ -364,16 +364,16 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     /// <summary>目标码率文本（<c>bitrate</c> 模式才用）。</summary>
     [ObservableProperty] private string _editTargetBitrate = "";
 
-    /// <summary>GIF 帧率（NT-099；只对 GIF 预设生效）。</summary>
+    /// <summary>GIF 帧率（只对 GIF 预设生效）。</summary>
     [ObservableProperty] private int _editFrameRate = 12;
 
-    /// <summary>GIF 宽度（NT-099；0 = 保持原宽）。</summary>
+    /// <summary>GIF 宽度（0 = 保持原宽）。</summary>
     [ObservableProperty] private int _editGifWidth = 480;
 
     /// <summary>当前编辑的转码预设是不是 GIF（详情卡据此显隐两个 GIF 字段）。</summary>
     public bool IsGifPreset => FfmpegService.IsGif(TranscodePreset.Find(EditPresetId));
 
-    // ---- 旋转 / 翻转（v3.19 / NT-012）----
+    // ---- 旋转 / 翻转（v3.19）----
 
     /// <summary>旋转 / 翻转编辑缓冲（取值见 <see cref="RotateOptions"/>；空 = 不旋转）。</summary>
     [ObservableProperty] private string _editRotate = "";
@@ -705,7 +705,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         RefreshLint();
     }
 
-    // ==================== 参数预检（NT-098，与「视频预览」页同源） ====================
+    // ==================== 参数预检（与「视频预览」页同源） ====================
 
     /// <summary>预检结果（多行；空 = 没意见）。选中任务变化 / 参数变化都会重算。</summary>
     [ObservableProperty] private string _lintText = "";
@@ -721,7 +721,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         var args = BuildArgs(task);                 // 手改过就是手改那条
         var sub = task as TranscodeTask;
-        // NT-102 ~ NT-104：命令是由**任务上的值**生成的，所以补充上下文也取任务的值（⛔ 别取编辑缓冲，否则提示与命令对不上）
+        // ~ 命令是由**任务上的值**生成的，所以补充上下文也取任务的值（⛔ 别取编辑缓冲，否则提示与命令对不上）
         var extra = sub == null
             ? null
             : new LintExtra(sub.CropWidth, sub.CropHeight, sub.AudioMode, sub.ReplaceAudioPath,
@@ -730,7 +730,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                                                           sub?.SubtitlePath, sub?.SubtitleMode, extra));
     }
 
-    // ==================== 试跑选中（NT-098） ====================
+    // ==================== 试跑选中 ====================
 
     /// <summary>
     /// 🧪 试跑选中：用小样验证「这条任务」的参数 —— 有区间就只跑区间（最多截 5 秒由区间决定），
@@ -901,7 +901,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;
-    // ==================== 详情面板 + 声明式详情卡（NT-054 的 L2 打样页，需求 §4.5.1） ====================
+    // ==================== 详情面板 + 声明式详情卡（的 L2 打样页，需求 §4.5.1） ====================
 
     /// <summary>
     /// 📂 选输出文件。平台文件选择器**只能在 View 层用**（VM 不引 Avalonia）⇒ 由 <c>VideoBatchView</c>
@@ -909,10 +909,10 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     /// </summary>
     public ICommand? PickOutputCommand { get; set; }
 
-    /// <summary>📝 选择字幕文件（NT-100；code-behind 挂真正实现）。</summary>
+    /// <summary>📝 选择字幕文件（code-behind 挂真正实现）。</summary>
     public ICommand? PickSubtitleCommand { get; set; }
 
-    /// <summary>🎵 选择替换用的音频文件（NT-103；code-behind 挂真正实现）。</summary>
+    /// <summary>🎵 选择替换用的音频文件（code-behind 挂真正实现）。</summary>
     public ICommand? PickAudioCommand { get; set; }
 
     public bool HasDetailPanel => true;
@@ -1001,7 +1001,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Commit = EditCommitMode.Explicit,
                         Placeholder = "00:00:10.000"
                     },
-                    // NT-101：多段剪切 + 拼接（≥2 段时忽略上面的开始 / 结束）
+                    // 多段剪切 + 拼接（≥2 段时忽略上面的开始 / 结束）
                     new DetailField
                     {
                         Label = "多段剪切（每行一段：开始-结束；≥2 段 = 切完再拼成一条）",
@@ -1118,7 +1118,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         OptionDisplayPath = "Label",
                         ValuePath = nameof(SelectedRotate)
                     },
-                    // ===== 裁剪（NT-102）=====
+                    // ===== 裁剪=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -1142,7 +1142,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         SecondValuePath = nameof(EditCropY),
                         SecondPlaceholder = "Y"
                     },
-                    // ===== 字幕（NT-100）=====
+                    // ===== 字幕=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -1185,7 +1185,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Mono = true,
                         VisibleWhen = nameof(IsHardSubtitleEdit)
                     },
-                    // ===== 音轨（NT-103）=====
+                    // ===== 音轨=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -1241,7 +1241,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Placeholder = "5000k",
                         VisibleWhen = "!" + nameof(UseCrf)
                     },
-                    // ===== 目标体积（NT-104）=====
+                    // ===== 目标体积=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -1258,7 +1258,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         ValuePath = nameof(TargetSizeHint),
                         VisibleWhen = nameof(HasTargetSizeHint)
                     },
-                    // NT-099：仅 GIF 预设可见
+                    // 仅 GIF 预设可见
                     new DetailField
                     {
                         Label = "GIF 帧率（12 常用；越大越流畅、体积越大）",
@@ -1301,7 +1301,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Kind = FieldKind.Text,
                         Selectable = true
                     },
-                    // NT-098：参数预检（有意见才显示）
+                    // 参数预检（有意见才显示）
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
@@ -1381,7 +1381,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 ToolTip = "挑一个输出文件；留空 = 按预设自动命名（⛔ 绝不覆盖已有文件）",
                 Command = new RelayCommand(() => PickOutputCommand?.Execute(null))
             },
-            // NT-100：字幕文件（.srt / .ass）
+            // 字幕文件（.srt / .ass）
             new DetailAction
             {
                 Text = "📝 选择字幕文件…",
@@ -1389,7 +1389,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 ToolTip = "挑一个 .srt / .ass 字幕，再把上面的「字幕方式」选成软字幕或硬字幕",
                 Command = new RelayCommand(() => PickSubtitleCommand?.Execute(null))
             },
-            // NT-098：先用小样验证这条任务的参数（不改状态、不落正式输出）
+            // 先用小样验证这条任务的参数（不改状态、不落正式输出）
             new DetailAction
             {
                 Text = "🧪 试跑选中",
@@ -1397,7 +1397,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 ToolTip = "用当前参数真转一小段（有区间就只跑区间，否则前 5 秒）到临时目录，成功自动播放 —— 验完再批量跑",
                 Command = TrialSelectedCommand
             },
-            // NT-102：探测黑边（填进编辑缓冲，保存后才写回任务）
+            // 探测黑边（填进编辑缓冲，保存后才写回任务）
             new DetailAction
             {
                 Text = "🖼 探测黑边",
@@ -1405,7 +1405,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 ToolTip = "从源文件（有区间就从区间起点）取 2 秒跑 cropdetect，把结果填进上面的裁剪框",
                 Command = DetectCropCommand
             },
-            // NT-103：替换音轨用的音频文件
+            // 替换音轨用的音频文件
             new DetailAction
             {
                 Text = "🎵 选择音频文件…",
@@ -1876,7 +1876,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             var end = string.IsNullOrWhiteSpace(EditEnd) ? 0 : (CutTask.ParseTime(EditEnd) ?? 0);
             if (c.Duration > 0 && end > c.Duration) end = c.Duration;
 
-            // NT-101：多段（≥2 段）时单段的开始 / 结束不参与，不校验
+            // 多段（≥2 段）时单段的开始 / 结束不参与，不校验
             var segs = CutSegments.Parse(EditSegmentsText);
             if (segs.Count < 2 && end > 0 && end <= start) { StatusText = "结束时间必须大于开始时间。"; return; }
 

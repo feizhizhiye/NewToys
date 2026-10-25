@@ -16,7 +16,7 @@ public enum PathItemKind
 }
 
 /// <summary>
-/// 行分类（v3.53 / NT-056，需求 §4.9.1）：「设置 → 路径与配置」是一张**设置总表**，
+/// 行分类（v3.53，需求 §4.9.1）：「设置 → 路径与配置」是一张**设置总表**，
 /// 用分类列区分行类型、并据此决定"哪些工具可用"。
 /// <para>
 /// 🔴 分类是**开放集合**：以后若要「指定某个功能默认使用哪个 json / 配置」，只加一个枚举值
@@ -33,7 +33,7 @@ public enum SettingCategory
 }
 
 /// <summary>
-/// 「设置 → 路径与配置」列表里的一行（v3.53 / NT-056 起承载**两类**行）。
+/// 「设置 → 路径与配置」列表里的一行（v3.53：承载**两类**行）。
 /// <para>
 /// 本页原先是一张"若干 TextBox + 一个💾 保存"的表单，v1.34 起改成与其他列表页一致的
 /// **列表 + 详情**布局（左可排序表头、右详情卡、表头右侧小按钮展开详情）：
@@ -52,7 +52,7 @@ public partial class PathSettingItem : ObservableObject
     public string Name { get; set; } = "";
 
     /// <summary>一句话说明（第三列 / 详情卡）。</summary>
-    /// <remarks>NT-083：改成**可通知**属性 —— 「Python 共享环境」行的说明随探测结果就地更新。</remarks>
+    /// <remarks>改成**可通知**属性 —— 「Python 共享环境」行的说明随探测结果就地更新。</remarks>
     public string Description
     {
         get => _description;
@@ -63,7 +63,7 @@ public partial class PathSettingItem : ObservableObject
 
     public PathItemKind Kind { get; set; } = PathItemKind.File;
 
-    // ==================== v3.53 / NT-056：分类（设置总表） ====================
+    // ==================== v3.53：分类（设置总表） ====================
 
     /// <summary>行分类（默认路径行）；「操作」列与工具可用性都按它分派。</summary>
     public SettingCategory Category { get; set; } = SettingCategory.Path;
@@ -113,7 +113,7 @@ public partial class PathSettingItem : ObservableObject
         : (IsReadOnly ? "—" : (DefaultValue.Length > 0 ? $"（默认：{DefaultValue}）" : "（留空 = 用系统默认）"));
 
     /// <summary>
-    /// 行内「↗ 打开位置 / 打开配置目录」的完整提示（v3.65 / NT-062，需求 §4.9.2 第 3 条「每行打开配置目录 / 文件」）：
+    /// 行内「↗ 打开位置 / 打开配置目录」的完整提示（v3.65，需求 §4.9.2 第 3 条「每行打开配置目录 / 文件」）：
     /// **每行**都给出实际文件 / 目录路径（配置行 = 该配置的目录；路径行留空时说明"用系统默认"）。
     /// </summary>
     public string OpenTargetTip => Value.Length > 0

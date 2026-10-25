@@ -75,9 +75,9 @@
 |---|---|
 | `skill/scripts/check.ps1` | `.axaml` XML 合法性 / `.axaml`↔`.axaml.cs` 配对 / **`.axaml.cs` 是否调用 `InitializeComponent()`**（2026-10-17 新增：Avalonia 不自动生成构造函数，漏写 ⇒ XAML 静默不加载、具名字段 null ⇒ NRE，NT-063 连挂两次）/ `*Brush` 主题键白名单（白名单外的键 = 旧键或拼错） |
 | `skill/scripts/check-axaml-props.ps1` | XAML **属性名存在性**（逐个到 Avalonia ref 程序集核对 + 本仓自定义属性豁免），专治 Avalonia ≠ WPF 名字差异：`SelectedValuePath` / `SelectedValue` / `StrokeLineJoin`（Avalonia 叫 `StrokeJoin`）/ `Watermark`（→ `PlaceholderText`）/ `DisplayMemberPath` / `SharedSizeGroup` / `ValidatesOnExceptions` / `IsCheckable`。另：勾选按钮 ⛔ 无 `IsCheckable`（用 `ToggleType=CheckBox`），`IsChecked` 本项目约定须 `Mode=OneWay` |
-| `skill/scripts/check-comments.ps1` | 注释健康度 **C-01 ~ C-05**（见 §3.1）+ **View 类名唯一性**（C-05 是唯一能提前拦住「反射导航静默错页」的检查） |
+| `skill/scripts/check-comments.ps1` | 注释健康度 **C-01 ~ C-06**（见 §3.1）+ **View 类名唯一性**（C-05 是唯一能提前拦住「反射导航静默错页」的检查） |
 
-### 3.1 注释健康度（`check-comments.ps1` · C-01 ~ C-05）
+### 3.1 注释健康度（`check-comments.ps1` · C-01 ~ C-06）
 
 > 背景：注释腐烂不是「写得太多」，而是**缺少生命周期规则** —— 每轮改代码都追加一段「vX.Y 第 N 轮：…」，
 > 旧结论又不删，半年后没人分得清哪句还成立。规则在此收敛，脚本在 `check-comments.ps1`。
@@ -98,9 +98,10 @@
 | `C-03` | 单文件注释率排行 | **仅统计** | 审美判据做 lint 必然烂成噪音：`ListColumn` 47%、`DetailCardDescriptor` 51%，而它们属性上的注释**就是**契约。只出 Top5 供人参考，不计入告警 |
 | `C-04` | 注释行含 `原来` / `此前是` / `以前是` / `曾经是` / `早先是` | WARN | 历史叙事，描述过去状态；⛔ 不收「改为 / 改成」（正常语义里也会出现，误报率高） |
 | `C-05` | 两个程序集里有**同名 View 类** | **ERROR** | `NavigationService` 按 `ViewTypeName` 字符串遍历程序集找同名类、`FirstOrDefault` 命中即用 ⇒ 重名时先加载者获胜，表现「点开是另一个页面」，编译期不报错、运行期无异常 |
+| `C-06` | 注释行出现 `NT-xxx` 任务编号 | WARN | 编号属 D 类叙事：它指向一张会被滑动窗口淘汰的卡，读者看到的只是编号。**编号→结论的唯一索引 = `framework.md` §11.2**（2026-10-25 已把存量 1121 处一次清空） |
 
 ```
-实测基线（2026-10-25 首跑）：C-01 172 / C-02 16 / C-04 55 / C-05 0
+实测基线（2026-10-25 首跑）：C-01 172 / C-02 16 / C-04 55 / C-05 0；同日清空 NT 编号后 C-06 = 0
 ```
 
 

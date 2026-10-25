@@ -5,13 +5,13 @@ using System.Linq;
 namespace NewToys.ScriptManager.Models;
 
 /// <summary>
-/// 规则目录里的一行（NT-084）。**不含规则内容** —— 内容在 <c>.py</c> 文件里，
+/// 规则目录里的一行。**不含规则内容** —— 内容在 <c>.py</c> 文件里，
 /// 这里只放列表要展示的元信息 + 启用状态 / 最近运行（这两项落 `web_docs` 的 `rule-meta` 文档）。
 /// <para>
-/// 🔴 类名刻意<b>不</b>叫 <c>ScrapeTask</c>（旧模型已删）—— 见 NT-084 命名表，避免与旧实现混淆。
+/// 🔴 类名刻意<b>不</b>叫 <c>ScrapeTask</c>（旧模型已删）—— 见 命名表，避免与旧实现混淆。
 /// </para>
 /// <para>
-/// NT-086 期①：文件头（<c># key: value</c>）扩充为完整脚本头配置 —— 分类 / 说明 / 角色 /
+/// 文件头（<c># key: value</c>）扩充为完整脚本头配置 —— 分类 / 说明 / 角色 /
 /// 适用站点 / 产物形态 / UA 池 / 请求头 / 并发 / 限速 / 超时 / 上限。C# 侧**只读这些键**，
 /// ⛔ 不解析 Python 语法。
 /// </para>
@@ -45,7 +45,7 @@ public class RuleSetMeta
     /// <summary>文件最后修改时间。</summary>
     public DateTime? ModifiedAt { get; set; }
 
-    // ==================== NT-086 脚本头配置（# key: value，只读展示） ====================
+    // ==================== 脚本头配置（# key: value，只读展示） ====================
 
     /// <summary>说明（<c># desc:</c>）—— 目录页「说明」列 + 详情卡。</summary>
     public string Desc { get; set; } = "";

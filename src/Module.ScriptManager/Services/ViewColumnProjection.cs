@@ -6,7 +6,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <b>视图级列投影</b>（NT-069）：把「脚本的列能力」投影成「某个视图里这一节实际显示哪些列」。
+/// <b>视图级列投影</b>：把「脚本的列能力」投影成「某个视图里这一节实际显示哪些列」。
 /// </summary>
 /// <remarks>
 /// <para>

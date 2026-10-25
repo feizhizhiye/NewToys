@@ -3,7 +3,7 @@ using System;
 namespace NewToys.Shared.Services;
 
 /// <summary>
-/// 「状态栏可点击跳转」契约（v3.65 / NT-062，需求 §4.9.2 第 5 条）：页面 VM **可选实现**。
+/// 「状态栏可点击跳转」契约（v3.65，需求 §4.9.2 第 5 条）：页面 VM **可选实现**。
 /// <para>
 /// 与 <see cref="IStatusProvider"/> 同一套路 —— Shell 在切换标签时探测；实现了且
 /// <see cref="StatusActionKey"/> 非空 ⇒ 底部状态栏那一行**可点击**，点击 = 打开该 Key 对应的页面 / 节

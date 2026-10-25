@@ -6,9 +6,9 @@ using NewToys.Shell.ViewModels;
 namespace NewToys.Shell.Views;
 
 /// <summary>
-/// 应用级设置页（v3.65 / NT-062，需求 §4.9.2）。
+/// 应用级设置页（v3.65，需求 §4.9.2）。
 /// <para>
-/// 🔴 NT-068（2026-10-18）：**折叠 / 磁吸 / 滚动定位整体搬进 UI 库** <see cref="NewToys.UI.Controls.SettingsSectionHost"/>
+/// 🔴 （2026-10-18）：**折叠 / 磁吸 / 滚动定位整体搬进 UI 库** <see cref="NewToys.UI.Controls.SettingsSectionHost"/>
 /// （与 4 个模块设置页共用同一套骨架）⇒ 本文件只剩两件**本页特有**的事：
 /// </para>
 /// <list type="number">

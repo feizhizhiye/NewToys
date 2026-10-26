@@ -10,7 +10,7 @@ namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// 规则集文件读写：**一条规则集 = 一个 <c>.py</c> 文件**，落
-/// <c>&lt;DataDir&gt;\script\rules\</c>（模块独有目录）。
+/// <c>&lt;StoreDir&gt;\script\rules\</c>（模块独有目录，用户数据）。
 /// <para>
 /// 文件头用注释块写元数据 —— C# 侧<b>只按行读这些键</b>，⛔ 不解析 Python 语法（真正的执行在 Python 侧）：
 /// <list type="bullet">
@@ -45,12 +45,12 @@ public sealed class RuleFileService
     /// <summary>旧规则目录（<c>web-tools\rules</c>）一次性搬迁标记。</summary>
     private static bool _legacyMigrated;
 
-    /// <summary>规则目录：<c>&lt;DataDir&gt;\script\rules</c>（懒创建）。</summary>
+    /// <summary>规则目录：<c>&lt;StoreDir&gt;\script\rules</c>（懒创建）。</summary>
     public string RulesDir
     {
         get
         {
-            var dir = Path.Combine(_cfg.DataDir, "script", "rules");
+            var dir = Path.Combine(_cfg.StoreDir, "script", "rules");
             MigrateLegacyRules(dir);
             try { Directory.CreateDirectory(dir); } catch { /* 只读环境退化为空列表 */ }
             return dir;
@@ -68,7 +68,7 @@ public sealed class RuleFileService
         _legacyMigrated = true;
         try
         {
-            var old = Path.Combine(_cfg.DataDir, "web-tools", "rules");
+            var old = Path.Combine(_cfg.StoreDir, "web-tools", "rules");
             if (!Directory.Exists(old)) return;
             foreach (var f in Directory.GetFiles(old, "*" + Extension))
             {

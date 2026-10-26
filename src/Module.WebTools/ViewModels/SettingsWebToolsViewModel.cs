@@ -49,7 +49,7 @@ public partial class SettingsWebToolsViewModel : ObservableObject, IStatusProvid
 
     // ==================== Hosts 开源项目源 ====================
 
-    /// <summary>hosts 源清单（预设 + 自定义；落总库 <c>web_docs/hosts-sources</c>）。</summary>
+    /// <summary>hosts 源清单（预设 + 自定义；落本模块库 <c>web_docs/hosts-sources</c>）。</summary>
     public ObservableCollection<HostsSource> HostSources { get; } = new();
 
     [ObservableProperty] private HostsSource? _selectedHostSource;

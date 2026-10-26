@@ -22,12 +22,12 @@ public sealed class FlowService
 
     public FlowService(ConfigStoreService cfg) => _cfg = cfg;
 
-    /// <summary>flows 目录：<c>&lt;DataDir&gt;\script\flows</c>（从 <c>web-tools\flows</c> 归位）。</summary>
+    /// <summary>flows 目录：<c>&lt;StoreDir&gt;\script\flows</c>（用户数据，进备份）。</summary>
     public string FlowsDir
     {
         get
         {
-            var dir = Path.Combine(_cfg.DataDir, "script", "flows");
+            var dir = Path.Combine(_cfg.StoreDir, "script", "flows");
             MigrateLegacyFlows(dir);
             return dir;
         }
@@ -43,7 +43,7 @@ public sealed class FlowService
         _legacyMigrated = true;
         try
         {
-            var old = Path.Combine(_cfg.DataDir, "web-tools", "flows");
+            var old = Path.Combine(_cfg.StoreDir, "web-tools", "flows");
             if (!Directory.Exists(old)) return;
             foreach (var f in Directory.GetFiles(old, "*.json"))
             {

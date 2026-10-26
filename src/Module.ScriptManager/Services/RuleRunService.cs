@@ -21,7 +21,7 @@ namespace NewToys.ScriptManager.Services;
 /// <c>RULES</c>，C# 只负责"取 HTML / 送路径 / 解析返回的 JSON"。
 /// </para>
 /// <para>
-/// 缓存：<c>&lt;DataDir&gt;\script\cache\&lt;规则集名&gt;\page.html</c>（单文件覆盖）——
+/// 缓存：<c>&lt;CacheDir&gt;\script\page\&lt;规则集名&gt;\page.html</c>（单文件覆盖）——
 /// 调试时反复跑命令 **不再重复发请求**。
 /// </para>
 /// </summary>
@@ -99,7 +99,7 @@ public sealed partial class RuleRunService
 
     // ==================== 缓存路径 ====================
 
-    public string CacheDir(string ruleName) => Path.Combine(_cfg.DataDir, "script", "cache", RuleFileService.SafeName(ruleName));
+    public string CacheDir(string ruleName) => Path.Combine(_cfg.CacheDir, "script", "page", RuleFileService.SafeName(ruleName));
 
     public string HtmlPath(string ruleName) => Path.Combine(CacheDir(ruleName), "page.html");
 
@@ -118,10 +118,10 @@ public sealed partial class RuleRunService
     /// 调试集合共用的那份 HTML：<c>cache\_debug\page.html</c>。
     /// 🔴 试跑推荐的前提是「多个候选脚本对<b>同一份</b> HTML 求值」，⛔ 不能各抓各的。
     /// </summary>
-    public string DebugHtmlPath => Path.Combine(_cfg.DataDir, "script", "cache", "_debug", "page.html");
+    public string DebugHtmlPath => Path.Combine(_cfg.CacheDir, "script", "page", "_debug", "page.html");
 
     /// <summary>爬虫面板共用的那份 HTML：<c>cache\_crawl\page.html</c>。</summary>
-    public string CrawlHtmlPath => Path.Combine(_cfg.DataDir, "script", "cache", "_crawl", "page.html");
+    public string CrawlHtmlPath => Path.Combine(_cfg.CacheDir, "script", "page", "_crawl", "page.html");
 
     // ==================== 抓取 ====================
 

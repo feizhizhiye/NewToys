@@ -99,7 +99,7 @@ public sealed partial class RuleRunService
             return result;
         }
 
-        var probeDir = Path.Combine(_cfg.DataDir, "script", "cache", "_probe");
+        var probeDir = Path.Combine(_cfg.CacheDir, "script", "page", "_probe");
         var candidates = new List<(PresetInfo Preset, string Path, string Url, string File)>();
         var seq = 0;
         foreach (var p in presets)

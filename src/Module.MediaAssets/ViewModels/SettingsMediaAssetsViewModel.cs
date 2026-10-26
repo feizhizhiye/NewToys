@@ -192,7 +192,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
     public string ThumbsDirectoryEffective => _io.ThumbsDirectory;
 
     /// <summary>导入导出默认目录（当前配置档 <c>data\</c>；，⛔ 本页不新建字段）。</summary>
-    public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
+    public string ImportExportDefaultDir => _app?.StoreDirectory ?? "";
 
     public bool HasImportExportDir => !string.IsNullOrWhiteSpace(ImportExportDefaultDir);
 
@@ -279,7 +279,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
 
     /// <summary>
     /// 📥 恢复用户数据：从一段 JSON **合并**恢复（⛔ 不清空、不覆盖已有数据）。
-    /// 典型场景：删了 <c>newtoys.db</c> 之后，用手工数据备份把标签 / 分类 / 集合 / 关联找回来。
+    /// 典型场景：换配置档 / 换机器时，用手工数据备份把标签 / 分类 / 集合 / 关联带走。
     /// </summary>
     public (bool Ok, string Message) RestoreUserData(string json) => _userData.RestoreFromJson(json);
 

@@ -14,7 +14,7 @@ namespace NewToys.Shell.Services;
 /// 恢复 = 覆盖原文件，覆盖前先把现有配置整体归档到 <c>config\.bak-&lt;时间戳&gt;\</c>。
 /// </para>
 /// <para>
-/// 🔴 <c>data\</c>（库 / 缩略图）**不在**本节里 —— 它属 <c>DataBackupSection</c>（批次 B），默认不勾。
+/// 🔴 <c>store\</c>（模块库）与 <c>cache\</c>（缩略图）**不在**本节里 —— 它们属 <c>DataBackupSection</c>，默认不勾。
 /// </para>
 /// </summary>
 public sealed class ShellBackupSection : IBackupSection

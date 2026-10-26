@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using NewToys.Core.Services;
+using NewToys.Shared.Services;
 using NewToys.VideoTools.Models;
 
 namespace NewToys.VideoTools.Services;
 
 /// <summary>
-/// 视频媒体信息的 <b>SQLite 缓存</b>（表 <c>video_media</c>，库文件 <c>&lt;应用根&gt;\data\newtoys.db</c>）。
+/// 视频媒体信息的 <b>SQLite 缓存</b>（表 <c>video_media</c>，库文件 <c>&lt;配置根&gt;\store\video\video.db</c>）。
 /// <para>
 /// 为什么值得缓存：ffprobe 每个文件要起一次进程，几百个文件就是几百次进程启动，很慢；
 /// 而"这个文件的分辨率 / 编码 / 码率"只要文件没被改动就永远不变。
@@ -35,9 +36,16 @@ public class VideoMediaIndex
     /// <summary>数据库文件全路径（页面提示用）。</summary>
     public string DatabasePath => _db.DatabasePath;
 
-    public VideoMediaIndex(SqliteDatabase db)
+    public SchemaOutcome SchemaOutcome { get; }
+
+    public VideoMediaIndex(VideoDb db)
     {
         _db = db;
+        SchemaOutcome = db.ApplySchema(VideoToolsSchemaContributor.Key, VideoToolsSchemaContributor.Version, EnsureTable);
+    }
+
+    private void EnsureTable()
+    {
         _db.EnsureTable(
             $"CREATE TABLE IF NOT EXISTS {Table} (" +
             "  path      TEXT PRIMARY KEY," +

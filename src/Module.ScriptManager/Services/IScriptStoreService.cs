@@ -19,10 +19,10 @@ namespace NewToys.ScriptManager.Services;
 /// </remarks>
 public interface IScriptStoreService
 {
-    /// <summary>手工数据的旧目录 = <c>&lt;配置根&gt;\config\script</c>（起数据已进总库，这里只剩迁移痕迹）。</summary>
+    /// <summary>手工数据的旧目录 = <c>&lt;配置根&gt;\config\script</c>（数据已进模块库，这里只剩迁移痕迹）。</summary>
     string ConfigDir { get; }
 
-    /// <summary>数据实际落点 = 总库文件 <c>data\newtoys.db</c> 的 <c>script_docs</c> 表（界面展示用）。</summary>
+    /// <summary>数据实际落点 = 本模块库 <c>store\script\script.db</c> 的 <c>script_docs</c> 表（界面展示用）。</summary>
     string FilePath { get; }
 
     /// <summary>已加载的根结构（进程内唯一实例；改动后由调用方调 <see cref="Save"/>）。</summary>

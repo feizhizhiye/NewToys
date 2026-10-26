@@ -24,7 +24,7 @@ public sealed record VideoMediaInfo(
 /// <para>
 /// <see cref="Name"/> / <see cref="SizeBytes"/> / <see cref="Modified"/> 是扫描目录就能拿到的；
 /// 时长 / 分辨率 / 编码 / 码率要跑一次 ffprobe（<c>VideoScanner.ProbeAsync</c>），
-/// 探测结果会缓存进 <c>data\newtoys.db</c>（<c>VideoMediaIndex</c>），下次扫同一个目录直接命中、不再跑 ffprobe。
+/// 探测结果会缓存进 <c>store\video\video.db</c>（<c>VideoMediaIndex</c>），下次扫同一个目录直接命中、不再跑 ffprobe。
 /// </para>
 /// <para>
 /// 本类型是 <see cref="ObservableObject"/>：批量探测时结果**逐个异步到达**，让行自己刷新，

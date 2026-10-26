@@ -66,7 +66,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [RelayCommand]
     private async Task MergeDbAsync()
     {
-        var files = await DialogHooks.PickFilesAsync("选择要并入当前库的 newtoys.db", ImportExportDefaultDir, false, "*.db;*.db3;*.sqlite");
+        var files = await DialogHooks.PickFilesAsync("选择要并入当前库的资产库文件", ImportExportDefaultDir, false, "*.db;*.db3;*.sqlite");
         var path = files.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(path)) return;
         MergeLibraryCommand.Execute(path);
@@ -80,7 +80,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [RelayCommand]
     private async Task PickSaveLibraryAsAsync()
     {
-        var path = await DialogHooks.SaveFileAsync("保存资产库为", ImportExportDefaultDir, "newtoys.db", "*.db");
+        var path = await DialogHooks.SaveFileAsync("保存资产库为", ImportExportDefaultDir, "assets.db", "*.db");
         if (string.IsNullOrWhiteSpace(path)) return;
         SaveLibraryAsCommand.Execute(path);
     }
@@ -115,7 +115,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [RelayCommand]
     private async Task ImportAssetsAsync()
     {
-        var files = await DialogHooks.PickFilesAsync("选择要导入预览的资产（json 列表 / newtoys.db）",
+        var files = await DialogHooks.PickFilesAsync("选择要导入预览的资产（json 列表 / 资产库 *.db）",
             ImportExportDefaultDir, false, "*.json;*.db");
         var src = files.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(src)) return;

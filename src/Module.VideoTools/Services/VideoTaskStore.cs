@@ -18,7 +18,7 @@ namespace NewToys.VideoTools.Services;
 /// 页面 VM 是**瞬态**的（每次导航都重建，见规范 6.5），任务若挂在 VM 上，切走一次就全没了。
 /// </para>
 /// <para>
-/// 落**总库 <c>video_docs</c> 的 <c>tasks</c> 文档**（⛔ 不再写 <c>config\video-tasks.json</c>）。
+/// 落本模块库 <c>video.db</c> 的 <c>video_docs</c> 表（文档名 <c>tasks</c>；⛔ 不写 <c>config\video-tasks.json</c>）。
 /// 它跟随配置档 —— 换配置就是另一套任务缓存，与视频库本身一致。
 /// </para>
 /// </summary>
@@ -34,6 +34,7 @@ public class VideoTaskStore
     public const string DocName = "tasks";
 
     private readonly ConfigStoreService _cfg;
+    private readonly VideoDb _db;
     private readonly JsonDocStore _docs;
 
     public ObservableCollection<CutTask> CutTasks { get; } = new();
@@ -47,17 +48,18 @@ public class VideoTaskStore
     /// <summary>「视频列表」页多选后要送过来的文件（剪切页进来时取走）。</summary>
     private readonly List<string> _pendingCut = new();
 
-    public VideoTaskStore(ConfigStoreService cfg, SqliteDatabase db)
+    public VideoTaskStore(ConfigStoreService cfg, VideoDb db)
     {
         _cfg = cfg;
+        _db = db;
         _docs = new JsonDocStore(db, "video");
         // 1：⛔ 构造时**不自动载入**任务缓存 —— 那个文档只是"缓存 / 备份"，
         // 批处理列表在程序刚打开时就是空白的（需求 §6.4.4）；要恢复上一次的任务显式点「📥 导入任务」。
         // ⛔ 偷偷自动恢复会让用户莫名其妙："我明明清空了，怎么一开机又有一堆旧任务"。
     }
 
-    /// <summary>缓存落点（展示 / 排障用；数据在总库 <c>video_docs</c> 表）。</summary>
-    public string FilePath => Path.Combine(_cfg.DataDir, "newtoys.db");
+    /// <summary>库文件全路径（展示 / 排障用；数据在 <c>video_docs</c> 表）。</summary>
+    public string FilePath => _db.DatabasePath;
 
     /// <summary>旧文件（迁移源；搬完是 <c>video-tasks.json.legacy</c>）。</summary>
     private string LegacyFile => Path.Combine(_cfg.ConfigDir, "video-tasks.json");
@@ -214,7 +216,7 @@ public class VideoTaskStore
     }
 
     /// <summary>
-    /// 把总库里的任务缓存**读回**当前队列（追加，⛔ 不清空已有）。旧 <c>video-tasks.json</c> 先搬进表（幂等）。
+    /// 把库里的任务缓存**读回**当前队列（追加，⛔ 不清空已有）。旧 <c>video-tasks.json</c> 先搬进表（幂等）。
     /// <para>v3.16.1：⛔ **构造时不再自动调它** —— 那个缓存只是备份，批处理页刚打开时列表是空的；
     /// 想恢复上一次的任务，由用户显式点「📥 导入任务」。</para>
     /// </summary>

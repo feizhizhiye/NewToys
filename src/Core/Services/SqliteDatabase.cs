@@ -1,32 +1,35 @@
 using System;
 using System.IO;
 using Microsoft.Data.Sqlite;
+using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
 /// <summary>
-/// 工程内**唯一的 SQLite 入口**：所有结构化本地数据（当前是视频库的媒体信息索引，
-/// 后续更多配置项也会陆续搬进来）都落同一个库文件 <c>&lt;应用根&gt;\data\newtoys.db</c>。
+/// 模块自有 SQLite 库的入口：**一个模块一个库文件**，落 <c>&lt;配置根&gt;\store\&lt;库键&gt;\&lt;库键&gt;.db</c>。
 /// <para>
-/// 为什么放 <c>data\</c> 而不是 <c>config\</c>：<c>config\</c> 下的 <c>*.json</c> 会被
-/// 「设置 → 数据管理」整份备份 / 导入，而这里的索引是**可重建的缓存**（文件没了重新探测即可），
-/// 不该跟着备份来回搬（见规范 §9 对"设置数据 / 功能数据"的划分）。
+/// 为什么放 <c>store\</c> 而不是 <c>config\</c>：<c>config\</c> 是「人手能看懂能改的 json」，
+/// 而这里的表是程序写的数据（部分不可重建，如标签 / 分类 / 集合）——
+/// 目录语义按「能不能删」分家：<c>store\</c> 删了就丢、<c>cache\</c> 随便删。
 /// </para>
 /// <para>
-/// 本类只做三件事：定位库文件、建库（schema 由各功能自己建，见 <see cref="EnsureTable"/>）、
-/// 发连接。它**不认识任何业务表**，因此新增数据表不需要动它。
+/// 本类只做四件事：定位库文件、建库、发连接、**按模块版本记账**（见 <see cref="ApplySchema"/>）。
+/// 它**不认识任何业务表**，因此新增数据表不需要动它。
 /// </para>
 /// <para>
 /// ⚠️ 取连接用 <see cref="Open"/>，用完即 <c>Dispose</c>（连接池由 Microsoft.Data.Sqlite 自己管）。
-/// 并发写入很轻（只在 UI 线程上按批落库），所以不做跨线程互斥；<c>busy_timeout</c> 兜住偶发争用。
+/// 单库写入很轻（只在 UI 线程上按批落库），不做跨线程互斥；<c>busy_timeout</c> 兜住偶发争用。
 /// </para>
 /// </summary>
 public class SqliteDatabase
 {
     private readonly ConfigStoreService _store;
 
-    /// <summary>数据库文件全路径（界面提示用）。</summary>
-    public string DatabasePath => Path.Combine(_store.DataDir, "newtoys.db");
+    /// <summary>库键（= <c>store\</c> 下的子目录名）。</summary>
+    public string ModuleKey { get; }
+
+    /// <summary>数据库文件全路径（界面提示 / 备份 / 快照用）。</summary>
+    public string DatabasePath { get; }
 
     /// <summary>数据库是否可用（库建不出来时为 false，依赖它的页面应给出自己的提示而不是崩）。</summary>
     public bool IsAvailable { get; private set; }
@@ -34,9 +37,14 @@ public class SqliteDatabase
     /// <summary>建库失败的原因（<see cref="IsAvailable"/> 为 false 时有效）。</summary>
     public string LastError { get; private set; } = "";
 
-    public SqliteDatabase(ConfigStoreService store)
+    /// <param name="store">路径唯一决定者。</param>
+    /// <param name="moduleKey">库键，同时是 <c>store\</c> 下的子目录名。</param>
+    /// <param name="fileName">库文件名（含扩展名，如 <c>assets.db</c>）。</param>
+    public SqliteDatabase(ConfigStoreService store, string moduleKey, string fileName)
     {
         _store = store;
+        ModuleKey = moduleKey;
+        DatabasePath = Path.Combine(store.StoreDir, moduleKey, fileName);
         Initialize();
     }
 
@@ -44,10 +52,10 @@ public class SqliteDatabase
     {
         try
         {
-            Directory.CreateDirectory(_store.DataDir);
+            Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
             using var conn = Open();
 
-            // 总库由多模块共用 ⇒ 开 WAL（读不阻塞写，单库并发下必须）。
+            // 每个库独立文件，按库开 WAL（读不阻塞写）。
             // ⚠️ 副作用：db 旁边会多出 -wal / -shm，**备份必须用 VACUUM INTO**，⛔ 不能直接 File.Copy（会漏未落盘事务）。
             // 这两个 PRAGMA 是持久化 / 连接级设置，失败（只读盘 / 网络盘）不影响后续建表，故单独 try。
             try
@@ -75,6 +83,55 @@ public class SqliteDatabase
         {
             IsAvailable = false;
             LastError = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// 按模块版本记账地跑一次 schema：读 <c>meta.schema.&lt;模块键&gt;</c> → 需要升级时先
+    /// <c>VACUUM INTO cache\db-backups\</c> 留快照 → 执行 <paramref name="ensureTables"/> → 回写版本。
+    /// <para>
+    /// 🔴 快照只在「版本要变」时做：每次启动都 VACUUM 会白白写几十 MB。
+    /// 库版本高于代码版本（旧软件打开新库）⇒ ⛔ 不执行 DDL、⛔ 不改版本号。
+    /// </para>
+    /// <para>⛔ 不抛：任何失败都归成 <see cref="SchemaOutcome.Failed"/>，由调用方汇总。</para>
+    /// </summary>
+    /// <param name="moduleKey">模块键（版本记录键后缀）。</param>
+    /// <param name="version">代码里的目标版本。</param>
+    /// <param name="ensureTables">幂等 DDL（<c>CREATE IF NOT EXISTS</c> / <c>ALTER ADD COLUMN</c>）。</param>
+    public SchemaOutcome ApplySchema(string moduleKey, int version, Action ensureTables)
+    {
+        if (!IsAvailable) return SchemaOutcome.Failed;
+
+        try
+        {
+            var metaKey = "schema." + moduleKey;
+            var hasStored = int.TryParse(GetMeta(metaKey), out var stored);
+            var needsUpgrade = !hasStored || stored < version;
+
+            if (hasStored && stored > version) return SchemaOutcome.Ahead;
+
+            // 只有「库里有旧版本数据」才值得快照；首次建库（含迁移刚拆出来的库）快照出来是空文件。
+            if (hasStored && stored < version)
+            {
+                var snap = VacuumInto(Path.Combine(_store.CacheDir, "db-backups"),
+                    $"{Path.GetFileNameWithoutExtension(DatabasePath)}-pre-v{version}");
+                if (snap is null)
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[NewToys][schema] {moduleKey} 升级前快照失败（继续执行，⛔ 请勿手工清库）");
+            }
+
+            ensureTables();
+
+            if (needsUpgrade) SetMeta(metaKey, version.ToString());
+            SetUserVersion(version);
+
+            return needsUpgrade ? SchemaOutcome.Applied : SchemaOutcome.UpToDate;
+        }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"[NewToys][schema] {moduleKey} 建表失败：{ex.Message}");
+            return SchemaOutcome.Failed;
         }
     }
 
@@ -107,7 +164,7 @@ public class SqliteDatabase
         cmd.ExecuteNonQuery();
     }
 
-    /// <summary>写 <c>PRAGMA user_version</c>（外部工具看的总 schema 版本；分模块版本在 <c>meta</c> 里）。</summary>
+    /// <summary>写 <c>PRAGMA user_version</c>（外部工具看的库版本；按模块的版本在 <c>meta</c> 里）。</summary>
     public void SetUserVersion(int version)
     {
         if (!IsAvailable || version <= 0) return;
@@ -175,8 +232,7 @@ public class SqliteDatabase
     /// <summary>
     /// 把当前库**在线另存**到指定文件（`VACUUM INTO`，一致快照、不锁库）。
     /// <para>
-    /// 🔴 全工程唯一的「把库写成另一个 .db」实现：备份数据节（`DataDbBackupSection`）与
-    /// 资产页「💿 另存库文件」都走它 —— 以前两处各写一份 SQL，口径容易漂。
+    /// 🔴 全工程唯一的「把库写成另一个 .db」实现：备份数据节与资产页「另存库文件」都走它。
     /// </para>
     /// <para>⚠️ 目标文件**必须不存在**（SQLite 限制）—— 调用方自己决定要不要先删 / 改名。</para>
     /// </summary>

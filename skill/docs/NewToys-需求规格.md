@@ -199,7 +199,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 ### 3.5 配置与数据
 
-- **多配置**：`<应用根>\profiles\<配置名>\{config,data,logs}`；**当前配置**记在 `<应用根>\active-profile.txt`（必须在 `profiles\` **之外**，否则切换时把自己也换掉）。
+- **多配置**：`<应用根>\profiles\<配置名>\{config,store,cache,logs}`；**当前配置**记在 `<应用根>\active-profile.txt`（必须在 `profiles\` **之外**，否则切换时把自己也换掉）。
 - 🧩 **三层配置（NT-077 第二批定稿，取代 v3.62 的「两层」）**——按"**归谁管**"切分：
   - **L0 机器级**（`<应用根>\env.json`，默认 `%LOCALAPPDATA%\NewToys\env.json`）：**运行环境**（ffmpeg / 播放器 / python / pwsh / PS5.1 路径）+ 加密 DNS + 更新地址。🔴 **⛔ 不随配置切换**（随 `NEWTOYS_HOME` 整根切换）。覆盖链：命令行 `--python` 等 ＞ 环境变量 `NEWTOYS_PYTHON` 等 ＞ `env.json` ＞ 内置默认；覆盖值⛔ 不落盘。唯一写入点 = `EnvConfigService`。
   - **L2 框架偏好**（`<配置根>\config\shell.json`）：主题 / 窗口 / 收藏 / 列宽 / 页面级 KV（五节）。
@@ -209,15 +209,15 @@ Module.*（功能模块，只引 Shared + Core）
 - **配置级设置落 `<配置根>\config\*.json`**（才能被数据管理页备份 / 导入）。
 - **新建配置 = 只建目录**（各服务首次读写自行播种）⇒ 天然得到"**全清、各项留空即系统默认**"的干净配置；⛔ 不做"从哪个配置继承"的复制逻辑（`default` / `debug` / `release` 三档的内置播种是唯一例外，见下）。
 - **用户功能数据**同样落 `config\`、一样进备份。
-- **本地数据库**落 `<配置根>\data\newtoys.db`（可随时重建的缓存，**不进备份**）；日志落 `<配置根>\logs\`。
-- 🧩 **单一数据总库（NT-076 定稿，取代 v3.71「模块独立库」）**：**一个配置档 = 一个 `<配置根>\data\newtoys.db`**。脚本观测、媒体资产索引、视频索引、以及全部内容型数据（书签 / ping 目标 / 抓取任务 / hosts 方案 / 视频任务队列 / 脚本集合与条目）都在这个库里。
+- **模块库**落 `<配置根>\store\<库键>\<库键>.db`（用户数据，进备份）；**可重建内容**落 `<配置根>\cache\`（缩略图 / 页面缓存 / 下载中间产物 / 升级前快照）；日志落 `<配置根>\logs\`。
+- 🧩 **一个模块一个库（NT-113 定稿，取代 NT-076「单一总库」）**：资产 / 视频 / 网络 / 脚本各用一个库文件（`store\assets\assets.db` / `store\video\video.db` / `store\web\web.db` / `store\script\script.db`），模块与库**一一固定绑定**。⛔ 仍不做多库切换 / 库指针 / 热切换（那件事 NT-076 已否决，与本条无关）。
   - 建表**只有一个入口**：`LibrarySchemaService` 在启动时按各模块的 `ILibrarySchemaContributor` 跑 DDL，并维护 `meta['schema.<模块>']` + `PRAGMA user_version`（只升不降）。
-  - **表名前缀纪律**：模块只许建 `<模块前缀>_*`，⛔ 不建第二份文件索引。
+  - **库与表归属**：模块只在自己库里建表，前缀纪律仍守 `<模块前缀>_*`，⛔ 不建第二份文件索引。
   - **内容型数据用文档表**（`script_docs` / `web_docs` / `video_docs`，列 = `name / payload / updated_at`），`payload` 存整份 JSON；旧 `config\*.json` 一次性搬入后改名 `.legacy`（⛔ 不删）。JSON 只作导入导出格式。
-  - **升级前必须 `VACUUM INTO` 快照**到 `data\backups\pre-migrate-*.db`（WAL 下⛔ 不能拷 `.db` 当备份）；失败写 `logs\migrate-*.log`。
-  - 用户要做"同一批文件、多套标签"用库内 `tags` / `collections` 表达；要彻底隔离就新建配置档（= 新库）。⛔ 不做多库切换 / 库指针 / 热切换。
+  - **升级前必须 `VACUUM INTO` 快照**到 `cache\db-backups\<库名>-pre-v<n>-*.db`（WAL 下⛔ 不能拷 `.db` 当备份）；失败写 `logs\migrate-*.log`。
+  - 用户要做"同一批文件、多套标签"用库内 `tags` / `collections` 表达；要彻底隔离就新建配置档（= 一套新库）。
 - **应用根** = `%LocalAppData%\NewToys`，环境变量 **`NEWTOYS_HOME`** 整根切换（test vs prod）。
-- **数据迁移**：首次运行新版时，若 `<应用根>\config` 存在而 `profiles\` 不存在 → 现有 `config/data/logs` **整体移动**到 `profiles\default\` 并写 `active-profile.txt = default`；失败则**保持旧结构运行**并在「设置 → 配置」提示。
+- **数据迁移**：① 首次运行新版时，若 `<应用根>\config` 存在而 `profiles\` 不存在 → 现有 `config/data/logs` **整体移动**到 `profiles\default\` 并写 `active-profile.txt = default`；失败则**保持旧结构运行**并在「设置 → 配置」提示。② NT-113 存储分层：`data\` 存在时整目录改名为 `store\`，再把旧总库按表拆进 4 个模块库（旧库改名 `store\legacy\newtoys-v1.db`，⛔ 不删），可重建内容搬进 `cache\`，完成写 `store\.layout-v2.done`；每步幂等、可重入。
 - **切换配置 = 重启应用**（本窗重启到目标配置，显式传 `--profile`；⛔ **不写** `active-profile.txt`——那是全局默认指针，多实例下会互偷；热切换改动面大、极易残留半新半旧状态）。**设为默认配置**（设置 → 配置页）才写 `active-profile.txt`，影响以后**无参启动**的实例。
 - **多实例（一个配置一个窗口）**：可同时启动多个实例各跑不同配置——数据隔离靠**目录天然达成**（每配置独立 `config/data/logs`，SQLite / 配置 / 缩略图 / 任务 / 日志全隔离）；`NEWTOYS_HOME` 可整根切换（两个不同根 = 完全隔离）。
   - 启动参数 `NewToys.exe [--profile <配置名>]`：无参 = 读 `active-profile.txt`（全局默认）；参数非法 / 配置不存在 → 回退默认 + 状态栏一行提示。
@@ -1204,7 +1204,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 **任务入口（四处，全部打通）**
 
-1. 「批量处理」页工具条「📂 添加文件」→ 选源文件建任务（按工具条上选的预设 / 类型）。
+1. 「批量处理」页工具条「📂 添加文件」→ 选源文件建任务（类型按左侧选择；转码预设取详情卡当前预设，工具条⛔不设预设框）。
 2. 「视频列表」页多选 → 「➡ 批量处理·转码」/「✂ 视频预览·剪辑」（走 `VideoTaskStore.EnqueueForTranscode` / `EnqueueForCut`，进对应页时取走建任务）。
 3. 「视频预览」页编好一个任务 → 「➡ 发送到批处理」入队（`VideoTaskStore.AddCut` / `AddTranscode`）。
 4. **「批量处理」页 → 反向送「视频预览」**（本次新增）：选中一条任务 → 「➡ 送预览」把该任务源文件送入预览页（复用 `EnqueueForCut` 同一取件通道；预览页一次只编一个，多送只取首条并提示）。
@@ -1237,7 +1237,7 @@ Module.*（功能模块，只引 Shared + Core）
 #### 6.4.5 导入 / 导出默认目录（NT-077 第二批改口径：不再可配）
 
 - 🔴 **「设置 → 路径配置」的「导入导出默认目录」一行已删除**（2026-10-19）。原因：它落 `app.json`（跨配置共享）却存着**某一个 profile 的绝对路径**，切配置后导入/导出会指向别人的目录 —— 属缺陷字段，不是功能。
-- **现行口径**：导入 / 导出对话框的起点目录一律 = **当前配置档的 `data\`**（`IAppConfigService.DataDirectory`），跟随配置档自动正确，用户无需维护。
+- **现行口径**：导入 / 导出对话框的起点目录一律 = **当前配置档的 `store\`**（`IAppConfigService.StoreDirectory`），跟随配置档自动正确，用户无需维护。
 - **适用范围不变**：凡打开文件选择器做「导入」或「导出」，都把该目录设为 `SuggestedStartLocation`。当前覆盖：批量任务 `.json` 导入 / 导出；媒体资产库文件打开 / 保存、导入 / 导出（§6.6）。
 - 读取：`IAppConfigService.DataDirectory`（`VideoDbFolder` 属性已从接口删除）。
 
@@ -1344,8 +1344,8 @@ Module.*（功能模块，只引 Shared + Core）
 
 **旧数据清理**
 
-- 旧库 `data\newtoys.db` 里的 `video_catalog` / `video_tags` / `video_favorites` 三张表**不再被任何代码使用** → 启动时**一次性 `DROP TABLE IF EXISTS` 清理**（幂等；模块初始化执行，⛔ 不动 `video_media`，⛔ 不改框架层 `SqliteDatabase`）。
-- 收藏缩略图目录 `data\thumbs\` **不清理** —— 该目录是**视频工具 / 媒体资产共用约定**（§6.6 缩略图同用 `data\thumbs\{sha1(path)}.jpg`）；残留文件无引用但无害，未来媒体资产会用它。
+- 旧表 `video_catalog` / `video_tags` / `video_favorites` **不再被任何代码使用** → 启动时**一次性 `DROP TABLE IF EXISTS` 清理**（幂等 + 缓存版本号护栏；⛔ 不动 `video_media`）。
+- 缩略图目录 `cache\assets\thumbs\` **不清理** —— 该目录是**视频工具 / 媒体资产共用约定**（§6.6 缩略图同用 `cache\assets\thumbs\{sha1(path)}.jpg`）；残留文件无引用但无害。
 
 **定位收窄**
 
@@ -1456,7 +1456,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 **模块级设置页**（View/VM 归模块；🔴 **v3.66 起菜单项挂在各模块自己的一级菜单下**，⛔ 不再进「设置」组 —— 该一级菜单项已删除）：**媒体资产设置**（Module.MediaAssets，Key `settings-media-assets`）/ **脚本管理器设置**（Module.ScriptManager，Key `settings-script`，v3.62 曾含「软件源」、v3.88 已删）/ **视频工具设置**（Module.VideoTools，Key `settings-video-tools`）/ **网络工具设置**（Module.WebTools，Key `settings-web-tools`）。四项**标题保持长名**（`媒体资产设置` / `脚本管理器设置` / `视频工具设置` / `网络工具设置`）—— 它们是**独立页面**、标签页标题用的就是它，短名认不出是哪一页。原「**软件源**」（Key `settings-package`，数据仍落 `config\package.json`）v3.62 **归位到「脚本管理器设置」内**（⛔ 不再单独占一个菜单项）；🔴 v3.80 起该节只剩命令说明 + 一键加入命令库，**v3.88 起整节删除**（App 内不再有任何源 UI）。
 
-- **「配置档」**（分类 = `配置`；原菜单项 `settings-profile` 已于 v3.53 从菜单移除，v3.62 归入「运行环境」节）：多配置管理（新增 / 切换 / 重命名 / 删除 / **设为默认** / **🚀 新开** / **♻ 重置为初始态**）。每个配置**隔离整个数据根**（config + data + logs），**可同时开多个实例各跑一个配置**（每配置单例，§3.5）；**切换 = 二次确认后本窗重启到目标配置**（⛔ 不写全局默认）；**设为默认**才写 `active-profile.txt`；删除前二次确认，且**不允许删除当前正在使用的配置**；数据落 `<应用根>\profiles\<配置名>\`。**新建配置 = 只建目录** ⇒ 天然"全清、各项留空即系统默认"（§3.5）。
+- **「配置档」**（分类 = `配置`；原菜单项 `settings-profile` 已于 v3.53 从菜单移除，v3.62 归入「运行环境」节）：多配置管理（新增 / 切换 / 重命名 / 删除 / **设为默认** / **🚀 新开** / **♻ 重置为初始态**）。每个配置**隔离整个数据根**（config + store + cache + logs），**可同时开多个实例各跑一个配置**（每配置单例，§3.5）；**切换 = 二次确认后本窗重启到目标配置**（⛔ 不写全局默认）；**设为默认**才写 `active-profile.txt`；删除前二次确认，且**不允许删除当前正在使用的配置**；数据落 `<应用根>\profiles\<配置名>\`。**新建配置 = 只建目录** ⇒ 天然"全清、各项留空即系统默认"（§3.5）。
 - **「加密 DNS」**：写 `<应用根>\app.json`（应用级，⛔ 不随配置切换），Core 服务；**保留"改完立刻测试解析"**的验证能力。⛔ 与「网络工具」模块内的 DNS 解析选择（`DnsResolver` + 逐目标 `DnsOverride`）**不是同一件事**，⛔ 不合并、⛔ 不互相搬。
 - **「🔄 重载模块」入口**（v3.41 / NT-052；v3.62 由功能清单页移入「关于」节）：语义 = 规范 §3.7 热加载（只新增；移除要重启）；走 `IModuleReloadService`（`HotReload()` + `Reloaded` 事件，Shell 订阅后重建左树）。
 - **「功能清单」**（Key `settings-all`）：**独立于设置页的页面**（⛔ 不在设置内）；🔴 v3.66 起入口 = 首页收藏卡尾部「显示更多」**就地展开**（§6.1），独立页保留给标题栏 `＋` 与本节按钮当"选择器"用。
@@ -1465,7 +1465,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 **定位**：把本地视频 / 音乐 / 文档 / 书籍 / 图片等文件索引进 SQLite，并在库里完成标签、分类、集合、关联、重命名 / 移动 / 复制 / 删除管理的**通用文件资产库**（视频只是其中一类）。
 
-- 与**视频工具**定位不同：视频工具 = ffmpeg 命令制定 + 批量执行；本模块 = 资产库。两模块**共库（`data\newtoys.db`）表级隔离、互不引用**；视频工具仅保留 `video_media`（ffprobe 扫描缓存），其原 `video_catalog` / `video_tags` / `video_favorites` 三表已于 **v3.32 移除**（§6.4.16）并**收编进本模块**——数据库 / 标签 / 收藏三类能力今后**只在本模块提供**。
+- 与**视频工具**定位不同：视频工具 = ffmpeg 命令制定 + 批量执行；本模块 = 资产库。两模块**各用自有库（`store\assets\assets.db` vs `store\video\video.db`）互不引用**；视频工具仅保留 `video_media`（ffprobe 扫描缓存），其原 `video_catalog` / `video_tags` / `video_favorites` 三表已于 **v3.32 移除**（§6.4.16）并**收编进本模块**——数据库 / 标签 / 收藏三类能力今后**只在本模块提供**。
 - 与**系统设置·数据管理**不同：数据管理管配置文件；本模块管**用户文件本体**（仅索引 + 显式物理操作）。
 - 与**首页·收藏夹**不同：首页收藏 = 常用功能按钮；本模块的"常用文件"语义由**集合**承担。
 
@@ -1500,7 +1500,7 @@ Module.*（功能模块，只引 Shared + Core）
 | 存储源 | `assets-storages` | 列表页 | local / removable / nas；在线状态；移除仅移索引、⛔ 不删磁盘文件 |
 | 任务中心 | `assets-tasks` | 列表页 | Scan / Rename / Move / Copy / Delete / ExtractMeta / Thumbnail；取消 / 重试 / 日志 |
 | 回收站 | `assets-trash` | 列表页 | `status='trashed'`；恢复 / 永久删除（二次确认）/ 清空 |
-| 模块设置 | `settings-media-assets` | 设置页（`Module.MediaAssets`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（导入导出默认目录 = 当前配置档 `data\`）；由本模块 `Initialize` 注册进本模块一级菜单（Order 99） |
+| 模块设置 | `settings-media-assets` | 设置页（`Module.MediaAssets`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（导入导出默认目录 = 当前配置档 `store\`）；由本模块 `Initialize` 注册进本模块一级菜单（Order 99） |
 
 - **类型切换（🔴 v3.69 取代原「类型页 = 薄壳 + 预设类型」；用户 2026-10-16 拍板）**：
   - **只有一页**：`assets-all`（`AssetAllView` / `AssetAllViewModel`）是唯一资产浏览页；5 个类型菜单项与 Key（`assets-video` / `assets-music` / `assets-book` / `assets-image` / `assets-document`）**已撤销**，不再有各自的 View / VM。
@@ -1511,10 +1511,10 @@ Module.*（功能模块，只引 Shared + Core）
   - ⚠️ **类型专属列**（视频 时长 / 分辨率 / 编码；音乐 艺术家 / 专辑；书籍 作者 / ISBN；图片 尺寸 / 相机；文档 页数）**暂不做**：它们的数据源是 `assets.metadata_json`，而**元数据提取尚未实装**（现在该列恒为 `{}`）→ 做了也是空列。待元数据落地（NT-021 或其后）再加；`assets-all` 当前按类型切换的是**通用列** + 预设类型。
   - 列的**默认显隐**随类型切换即时设定（⛔ 不落盘）；用户右键改过的偏好统一落在 `assets-all` 单个页键下（⛔ 不再按类型分区），二者不互相覆盖。
 
-**数据模型**（13 张表，落 `data\newtoys.db`，与视频工具共库、表级隔离）：
+**数据模型**（13 张表，落本模块库 `store\assets\assets.db`）：
 `storages`（存储源）/ `assets`（资产主表）/ `file_locations`（一资产多位置）/ `tags`+`asset_tags` / `categories`+`asset_categories` / `collections`+`collection_assets` / `relations`（关联）/ `operation_logs`（操作日志）/ `scan_jobs`+`scan_errors`（扫描任务）。完整 DDL 与索引见 `modules/media-assets.md`（卡已归档）。类型扩展表（video_meta 等）**不预拆**，先塞 `assets.metadata_json`。
 
-- 缩略图：`data\thumbs\{sha1(path)}.jpg`（复用视频工具约定）。
+- 缩略图：`cache\assets\thumbs\{sha1(path)}.jpg`（可重建，不进备份）。
 - 模块设置：`config\media-assets.json`（设置模型类 `MediaAssetsSettings` 放**本模块** `Models/`——读者（扫描 / 元数据 / 缩略图服务）与写者（本模块设置页）都在 `Module.MediaAssets`，没有跨模块共用，按规范 §3.4「被两模块共用时才放 Shared」；⛔ 双真相源）。
 - 列显隐 / 详情开合：`config\columnlayout.json`（页键 = 菜单 key）。
 - ⚠️ **R1（记例外）**：标签 / 分类 / 集合 / 关联是**用户手动数据**，与 §3.5「本地数据库 = 可随时重建的缓存，不进备份」冲突——重建数据库会丢这些数据。本轮接受；缓解 = 设置页提供「导出用户数据为 JSON」（4 类表）；长期独立库 / 纳入备份留待后续。

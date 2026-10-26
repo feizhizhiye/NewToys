@@ -162,7 +162,7 @@ public sealed class ScriptsBackupSection : IBackupSection
     public (int Ok, int Skipped) RestoreFrom(ZipArchiveEntry entry)
     {
         // ⚠️ 恢复不去碰原脚本目录：统一落到 data\restore-<ts>\scripts\（用户自己决定要不要覆盖回去）
-        var root = Path.Combine(BackupPaths.CurrentRestoreDir(_cfg.DataDir), "scripts");
+        var root = Path.Combine(BackupPaths.CurrentRestoreDir(_cfg.StoreDir), "scripts");
         var ok = 0;
         var skipped = 0;
 

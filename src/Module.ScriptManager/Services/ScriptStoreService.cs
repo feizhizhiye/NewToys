@@ -10,12 +10,12 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <see cref="IScriptStoreService"/> 实现：手工数据落**总库的 <c>script_docs</c> 表**
+/// <see cref="IScriptStoreService"/> 实现：手工数据落**本模块库的 <c>script_docs</c> 表**
 ///（⛔ 不再写 <c>config\script\script.json</c>），写入即一条 upsert。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🔴 落点在总库里而不是 <c>config\</c>：脚本库的集合 / 条目 / 视图是**功能数据**，与资产表、观测表同库
+/// 🔴 落点在库里而不是 <c>config\</c>：集合 / 条目 / 视图是**功能数据**，与观测表同库
 /// （一个配置档 = 一个库）。旧 <c>script.json</c> 由 <see cref="ScriptManagerSchemaContributor"/> 在启动时
 /// 一次性搬进表并改名 <c>.legacy</c>（⛔ 不删）。
 /// </para>
@@ -47,7 +47,7 @@ public class ScriptStoreService : IScriptStoreService
     private readonly JsonDocStore _docs;
     private readonly string _legacyFile;
 
-    public ScriptStoreService(ConfigStoreService cfg, SqliteDatabase db)
+    public ScriptStoreService(ConfigStoreService cfg, ScriptDb db)
     {
         _docs = new JsonDocStore(db, "script");
         ConfigDir = Path.Combine(cfg.ConfigDir, "script");

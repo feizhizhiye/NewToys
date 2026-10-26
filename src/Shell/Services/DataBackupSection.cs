@@ -1,44 +1,43 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.Json.Nodes;
+using Microsoft.Data.Sqlite;
 using NewToys.Core.Services;
 using NewToys.Shared.Services;
 
 namespace NewToys.Shell.Services;
 
 /// <summary>
-/// <b>数据节 · 总库</b>（批次 B）：<c>data\newtoys.db</c> 的一致快照。
+/// <b>数据节 · 模块数据库</b>：<c>store\&lt;库键&gt;\&lt;库键&gt;.db</c> 全部库文件的一致快照。
 /// <para>
-/// 🔴 导出**必须**走 <c>VACUUM INTO</c>（<see cref="SqliteDatabase.VacuumInto"/>）：
-/// 库开了 WAL，直接 <c>File.Copy</c> 会漏掉还没落盘的 <c>-wal</c> 事务，恢复出来是"少一截"的库。
+/// 🔴 导出**必须**走 <c>VACUUM INTO</c>：库开了 WAL，直接 <c>File.Copy</c> 会漏掉还没落盘的 <c>-wal</c> 事务，
+/// 恢复出来是"少一截"的库。
 /// </para>
 /// <para>
-/// 🔴 恢复**落到新文件**：<c>data\restore-&lt;时间戳&gt;\newtoys.db</c> —— ⛔ 不覆盖当前库
+/// 🔴 恢复**落到新文件**：<c>store\restore-&lt;时间戳&gt;\&lt;库键&gt;\&lt;库键&gt;.db</c> —— ⛔ 不覆盖当前库
 /// （当前库还被进程持有，覆盖 = 让正在跑的页面全部指向一份半截数据）。
-/// 用户要拿它当当前库，自己改名 / 换配置档。
+/// 用户要拿它当当前库，自己替换 / 换配置档。
+/// </para>
+/// <para>
+/// 本类刻意只按<b>文件</b>处理（扫 <c>store\</c> 下的 <c>*.db</c>，跳过 <c>legacy\</c> 归档与 <c>restore-*</c> 副本）
+/// —— Shell 不引任何模块程序集，不能依赖各模块的库类型。
 /// </para>
 /// <para>默认不勾：库可能几十上百 MB，绝大多数「备份设置」的场景不需要它。</para>
 /// </summary>
 public sealed class DataDbBackupSection : IBackupSection
 {
-    private const string EntryName = "newtoys.db";
-
     private readonly ConfigStoreService _store;
-    private readonly SqliteDatabase _db;
 
-    public DataDbBackupSection(ConfigStoreService store, SqliteDatabase db)
-    {
-        _store = store;
-        _db = db;
-    }
+    public DataDbBackupSection(ConfigStoreService store) => _store = store;
 
     public string Id => "data.db";
 
-    public string Title => "数据库（newtoys.db）";
+    public string Title => "模块数据库";
 
-    public string Description => "索引与手工数据总库：资产 / 视频索引 / 脚本库 / 书签等（VACUUM INTO 一致快照）";
+    public string Description => "store\\<模块>\\<模块>.db（媒体资产 / 视频 / 网络 / 脚本，逐个 VACUUM INTO 快照）";
 
     public BackupScope Scope => BackupScope.Data;
 
@@ -48,18 +47,39 @@ public sealed class DataDbBackupSection : IBackupSection
 
     public bool IsMachineBound => false;
 
-    public int SchemaVersion => 1;
+    public int SchemaVersion => 2;
+
+    /// <summary>要打包的库文件（<c>store\</c> 下的 <c>*.db</c>）。</summary>
+    private List<string> EnumerateDatabases()
+    {
+        var root = _store.StoreDir;
+        if (!Directory.Exists(root)) return new List<string>();
+
+        return Directory.EnumerateFiles(root, "*.db", SearchOption.AllDirectories)
+            .Where(f =>
+            {
+                var rel = Path.GetRelativePath(root, f);
+                // 归档（legacy\）与恢复副本（restore-*）、半成品（*.partial）都不是"当前数据"
+                if (rel.StartsWith("legacy" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return false;
+                if (rel.StartsWith("restore-", StringComparison.OrdinalIgnoreCase)) return false;
+                if (f.EndsWith(".partial", StringComparison.OrdinalIgnoreCase)) return false;
+                return true;
+            })
+            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     public long EstimateBytes()
     {
         try
         {
-            var path = _db.DatabasePath;
-            long total = File.Exists(path) ? new FileInfo(path).Length : 0;
-
-            // WAL 里可能还压着没 checkpoint 的事务（估算用，不必精确）
-            var wal = path + "-wal";
-            if (File.Exists(wal)) total += new FileInfo(wal).Length;
+            long total = 0;
+            foreach (var path in EnumerateDatabases())
+            {
+                if (File.Exists(path)) total += new FileInfo(path).Length;
+                var wal = path + "-wal";                       // WAL 里可能还压着没 checkpoint 的事务（估算用，不必精确）
+                if (File.Exists(wal)) total += new FileInfo(wal).Length;
+            }
             return total;
         }
         catch { return 0; }
@@ -67,19 +87,29 @@ public sealed class DataDbBackupSection : IBackupSection
 
     public void ExportTo(Stream stream)
     {
+        var root = _store.StoreDir;
         var tmpDir = Path.Combine(Path.GetTempPath(), "newtoys-bk-" + Guid.NewGuid().ToString("N"));
 
         try
         {
             Directory.CreateDirectory(tmpDir);
-            // 🔴 与资产页「另存库文件」同一个实现（SqliteDatabase.VacuumIntoFile）
-            var snapshot = Path.Combine(tmpDir, EntryName);
-            if (!_db.VacuumIntoFile(snapshot, out var error))
-                throw new InvalidOperationException("数据库快照失败：" + error);
 
             using var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true);
-            // db 是二进制、压缩收益低且慢 ⇒ 内层也存不压
-            BackupPaths.AddFile(zip, EntryName, snapshot, CompressionLevel.NoCompression);
+            foreach (var db in EnumerateDatabases())
+            {
+                var rel = Path.GetRelativePath(root, db);      // assets\assets.db
+                var snapshot = Path.Combine(tmpDir, rel);
+                Directory.CreateDirectory(Path.GetDirectoryName(snapshot)!);
+
+                if (!Snapshot(db, snapshot))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[NewToys][备份] 快照失败，跳过：{db}");
+                    continue;
+                }
+
+                // db 是二进制、压缩收益低且慢 ⇒ 内层也存不压
+                BackupPaths.AddFile(zip, rel, snapshot, CompressionLevel.NoCompression);
+            }
         }
         finally
         {
@@ -87,28 +117,63 @@ public sealed class DataDbBackupSection : IBackupSection
         }
     }
 
+    /// <summary>单库一致快照（<c>VACUUM INTO</c>；只读打开源库，不干扰正在跑的应用）。</summary>
+    private static bool Snapshot(string source, string target)
+    {
+        try
+        {
+            using var conn = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = source,
+                Mode = SqliteOpenMode.ReadOnly,
+            }.ToString());
+            conn.Open();
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "VACUUM INTO $p;";
+            cmd.Parameters.AddWithValue("$p", target);
+            cmd.ExecuteNonQuery();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][备份] VACUUM INTO 失败：" + ex.Message);
+            return false;
+        }
+    }
+
     public (int Ok, int Skipped) RestoreFrom(ZipArchiveEntry entry)
     {
-        using var inner = new ZipArchive(entry.Open(), ZipArchiveMode.Read);
-        var item = inner.GetEntry(EntryName)
-                   ?? inner.Entries.FirstOrDefault(e => !e.FullName.EndsWith("/", StringComparison.Ordinal));
-        if (item == null) return (0, 1);
+        var root = BackupPaths.CurrentRestoreDir(_store.StoreDir);
+        var ok = 0;
+        var skipped = 0;
 
-        var target = Path.Combine(BackupPaths.CurrentRestoreDir(_store.DataDir), EntryName);
-        using var src = item.Open();
-        using var dst = File.Create(target);
-        src.CopyTo(dst);
-        return (1, 0);
+        using var inner = new ZipArchive(entry.Open(), ZipArchiveMode.Read);
+        foreach (var item in inner.Entries)
+        {
+            if (item.FullName.EndsWith("/", StringComparison.Ordinal)) continue;
+            if (!item.FullName.EndsWith(".db", StringComparison.OrdinalIgnoreCase)) { skipped++; continue; }
+            if (!BackupPaths.IsSafeRelativePath(item.FullName)) { skipped++; continue; }
+
+            var target = Path.Combine(root, BackupPaths.ToLocalPath(item.FullName));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            using var src = item.Open();
+            using var dst = File.Create(target);
+            src.CopyTo(dst);
+            ok++;
+        }
+
+        return (ok, skipped);
     }
 }
 
 /// <summary>
-/// <b>数据节 · 缩略图</b>（批次 B）：<c>data\thumbs</c>（设置里改过目录则用改过的）。
+/// <b>数据节 · 缩略图</b>：<c>cache\assets\thumbs</c>（设置里改过目录则用改过的）。
 /// <para>
-/// 目录来源：<c>config\modules\media-assets.json</c> 的 <c>ThumbsDirectory</c>（空 = <c>data\thumbs</c>）。
+/// 目录来源：<c>config\modules\media-assets.json</c> 的 <c>ThumbsDirectory</c>（空 = <c>cache\assets\thumbs</c>）。
 /// Shell 只读这个字段，⛔ 不引 <c>Module.MediaAssets</c>（Release 下 Shell 不引任何模块）。
 /// </para>
-/// <para>恢复同样落到 <c>data\restore-&lt;时间戳&gt;\thumbs\</c> —— ⛔ 不覆盖当前缩略图目录。</para>
+/// <para>恢复同样落到 <c>store\restore-&lt;时间戳&gt;\thumbs\</c> —— ⛔ 不覆盖当前缩略图目录。</para>
 /// </summary>
 public sealed class DataThumbsBackupSection : IBackupSection
 {
@@ -120,7 +185,7 @@ public sealed class DataThumbsBackupSection : IBackupSection
 
     public string Title => "缩略图缓存";
 
-    public string Description => "data\\thumbs（媒体资产与视频库的抽帧 / 缩放图）";
+    public string Description => "cache\\assets\\thumbs（媒体资产与视频库的抽帧 / 缩放图）";
 
     public BackupScope Scope => BackupScope.Data;
 
@@ -130,9 +195,9 @@ public sealed class DataThumbsBackupSection : IBackupSection
 
     public bool IsMachineBound => false;
 
-    public int SchemaVersion => 1;
+    public int SchemaVersion => 2;
 
-    /// <summary>生效的缩略图目录（设置里改过就用改过的；配置坏 / 没有 ⇒ 默认 <c>data\thumbs</c>）。</summary>
+    /// <summary>生效的缩略图目录（设置里改过就用改过的；配置坏 / 没有 ⇒ 默认 <c>cache\assets\thumbs</c>）。</summary>
     public string ThumbsDirectory
     {
         get
@@ -154,7 +219,7 @@ public sealed class DataThumbsBackupSection : IBackupSection
             {
                 System.Diagnostics.Debug.WriteLine("[NewToys][备份] 读取缩略图目录失败（用默认）：" + ex.Message);
             }
-            return Path.Combine(_store.DataDir, "thumbs");
+            return Path.Combine(_store.CacheDir, "assets", "thumbs");
         }
     }
 
@@ -185,7 +250,7 @@ public sealed class DataThumbsBackupSection : IBackupSection
 
     public (int Ok, int Skipped) RestoreFrom(ZipArchiveEntry entry)
     {
-        var root = Path.Combine(BackupPaths.CurrentRestoreDir(_store.DataDir), "thumbs");
+        var root = Path.Combine(BackupPaths.CurrentRestoreDir(_store.StoreDir), "thumbs");
         var ok = 0;
         var skipped = 0;
 

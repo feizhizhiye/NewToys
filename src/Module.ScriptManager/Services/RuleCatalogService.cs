@@ -32,9 +32,9 @@ public sealed class RuleCatalogService
     private readonly JsonDocStore _docs;
     private readonly RuleFileService _files;
 
-    public RuleCatalogService(SqliteDatabase db, RuleFileService files)
+    public RuleCatalogService(ScriptDb db, RuleFileService files)
     {
-        _docs = new JsonDocStore(db, "web");
+        _docs = new JsonDocStore(db, "script");
         _files = files;
     }
 

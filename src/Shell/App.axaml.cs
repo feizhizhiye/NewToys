@@ -108,11 +108,10 @@ public partial class App : Application
             // 多配置（一个配置 = 一套独立的 config+data+logs）；v3.26 起切换 = 本窗重启到目标配置（显式传 --profile）。
             services.AddSingleton<IProfileService, ProfileService>();
 
-            // 工程内唯一的本地数据库（data\newtoys.db）：当前给「视频工具 → 视频库」的媒体信息索引用；
-            // 后续更多结构化数据也走它（见 SqliteDatabase 的类注释）。
-            services.AddSingleton<SqliteDatabase>();
-            // 总库 schema 统一入口 —— 容器里所有 ILibrarySchemaContributor（由各模块 RegisterServices 注册）
-            // 在首帧之后由 ModuleLoader.InitializeAllDeferred 统一跑一遍（建表 / 补列 / 一次性迁移）。
+            // 模块数据库：**每个模块一个库文件**（store\<库键>\<库键>.db），由各模块在自己的
+            // RegisterServices 里注册派生库类型（AssetsDb / VideoDb / WebDb / ScriptDb）。
+            // ⛔ Shell 不再注册全局 SqliteDatabase —— 单例会被 4 个模块共用，正是要拆掉的那层耦合。
+            // 建库统一入口：容器里所有 ILibrarySchemaContributor（各模块注册）在首帧之后跑一遍。
             services.AddSingleton<NewToys.Core.Services.LibrarySchemaService>();
 
             // 跨模块共用的文件系统动作（改名 / 移动 / 复制 / 回收站删除）。
@@ -127,7 +126,7 @@ public partial class App : Application
             // （同一个 IBackupSection 契约，BackupService 经 IEnumerable<IBackupSection> 聚合）。
             services.AddSingleton<IBackupSection, NewToys.Shell.Services.ShellBackupSection>();
             services.AddSingleton<IBackupSection, NewToys.Shell.Services.EnvBackupSection>();
-            // 数据节（默认不勾）：总库走 VACUUM INTO 快照；缩略图目录读 media-assets 设置，空则 data\thumbs
+            // 数据节（默认不勾）：模块库逐个 VACUUM INTO 快照；缩略图目录读 media-assets 设置，空则 cache\assets\thumbs
             services.AddSingleton<IBackupSection, NewToys.Shell.Services.DataDbBackupSection>();
             services.AddSingleton<IBackupSection, NewToys.Shell.Services.DataThumbsBackupSection>();
             services.AddSingleton<BackupService>();

@@ -1,16 +1,17 @@
 using System;
 using NewToys.Core.Services;
+using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
 /// 媒体资产库的表结构（**13 张表 + 10 条索引**，需求 §6.6 数据模型）。
 /// <para>
-/// 落**同一个** <c>data\newtoys.db</c> —— 与视频工具**共库但表级隔离、互不引用**
-/// （那边是 ffmpeg 命令 + 批量执行，表名 <c>video_*</c>）。
+/// 落本模块自有库 <c>store\assets\assets.db</c>（见 <see cref="AssetsDb"/>）—— ⛔ 与视频 / 网络 / 脚本模块共库。
 /// </para>
 /// <para>
-/// 构造时幂等建表（<c>CREATE TABLE IF NOT EXISTS</c>）+ 老库补列（<c>ALTER TABLE ADD COLUMN</c>，⛔ 只加可空列）；
+/// 构造时跑 <see cref="SqliteDatabase.ApplySchema"/>：需要升级就先快照，再幂等建表
+/// （<c>CREATE TABLE IF NOT EXISTS</c>）+ 老库补列（<c>ALTER TABLE ADD COLUMN</c>，⛔ 只加可空列）；
 /// 库不可用（<see cref="SqliteDatabase.IsAvailable"/> = false）时**不抛**，各页面自行降级提示。
 /// </para>
 /// </summary>
@@ -18,11 +19,14 @@ public class AssetDatabase
 {
     private readonly SqliteDatabase _db;
 
-    public AssetDatabase(SqliteDatabase db)
+    public AssetDatabase(AssetsDb db)
     {
         _db = db;
-        EnsureSchema();
+        SchemaOutcome = db.ApplySchema(MediaAssetsSchemaContributor.Key, MediaAssetsSchemaContributor.Version, EnsureSchema);
     }
+
+    /// <summary>本次 schema 结果（供 <see cref="MediaAssetsSchemaContributor"/> 汇总，⛔ 不重复跑建表）。</summary>
+    public SchemaOutcome SchemaOutcome { get; }
 
     /// <summary>库是否可用（false = 资产库降级：页面照常显示 + 状态栏提示，⛔ 不崩）。</summary>
     public bool IsAvailable => _db.IsAvailable;

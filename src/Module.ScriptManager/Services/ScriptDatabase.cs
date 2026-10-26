@@ -13,13 +13,12 @@ namespace NewToys.ScriptManager.Services;
 public readonly record struct ScriptObservation(string RowKey, string Attr, string Value);
 
 /// <summary>
-/// 观测表 <c>pc_observations</c> + <c>pc_runs</c>（§三.3 建；落**总库** <c>data\newtoys.db</c>）。
+/// 观测表 <c>pc_observations</c> + <c>pc_runs</c>（§三.3 建；落本模块库 <c>store\script\script.db</c>）。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🔴 **并进总库**（<c>data\newtoys.db</c>）：连接一律向 <see cref="SqliteDatabase"/> 要，
-/// ⛔ 不再自建连接串 / 不再单独一个 <c>script.db</c>。建表搬到
-/// <see cref="ScriptManagerSchemaContributor"/>（总库 schema 统一入口），本类只读写。
+/// 🔴 连接一律向本模块库 <see cref="ScriptDb"/> 要，⛔ 不自建连接串。建表在
+/// <see cref="ScriptManagerSchemaContributor"/>（schema 统一入口），本类只读写。
 /// </para>
 /// <para>
 /// 连接生命周期 = <b>每次操作短连接</b>（SQLite 连接便宜，省掉线程 / 生命周期管理）。
@@ -33,9 +32,9 @@ public sealed class ScriptDatabase
 {
     private readonly SqliteDatabase _db;
 
-    public ScriptDatabase(SqliteDatabase db) => _db = db;
+    public ScriptDatabase(ScriptDb db) => _db = db;
 
-    /// <summary>总库文件全路径（排障 / 设置页展示用）。</summary>
+    /// <summary>库文件全路径（排障 / 设置页展示用）。</summary>
     public string DatabasePath => _db.DatabasePath;
 
     // ==================== runs ====================
@@ -229,7 +228,7 @@ public sealed class ScriptDatabase
 
     // ==================== 基础设施 ====================
 
-    /// <summary>取总库连接（调用方负责 Dispose；连接池由 Microsoft.Data.Sqlite 管）。</summary>
+    /// <summary>取库连接（调用方负责 Dispose；连接池由 Microsoft.Data.Sqlite 管）。</summary>
     private SqliteConnection Open() => _db.Open();
 
     private static string Now() => DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");

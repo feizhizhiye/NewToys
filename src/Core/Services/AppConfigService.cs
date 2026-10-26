@@ -48,7 +48,7 @@ public class AppConfigService : IAppConfigService
         // 旧版本写过 Browser1Path / Browser1Args / Browser2Path / Browser2Args 四个字段，
         // 反序列化时会被忽略、下次保存即从 app.json 里消失，无需迁移。
         // 🔴 VideoDbFolder 已删除（写死某个 profile 绝对路径的缺陷）——导入/导出默认目录
-        //    一律用 ConfigStoreService.DataDir 推导（见 IAppConfigService.DataDirectory）。
+        //    一律用 ConfigStoreService.StoreDir 推导（见 IAppConfigService.StoreDirectory）。
     }
 
     private ConfigData _data = new();
@@ -142,7 +142,7 @@ public class AppConfigService : IAppConfigService
     private string ConfigFile => Path.Combine(_cfg.AppRootDirectory, "app.json");
 
     public string ConfigFilePath => ConfigFile;
-    public string DataDirectory => _cfg.DataDir;
+    public string StoreDirectory => _cfg.StoreDir;
 
     /// <summary>v3.65：<c>app.json</c> 由旧位置上提到应用根时留下的说明（null = 没发生迁移）。供设置页 / 排障展示。</summary>
     public string? LegacyMigrationNote { get; private set; }

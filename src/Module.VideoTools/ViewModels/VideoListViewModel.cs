@@ -38,7 +38,7 @@ namespace NewToys.VideoTools.ViewModels;
 /// </para>
 /// <para>
 /// <b>媒体信息</b>（分辨率 / 编码 / 码率 / 时长）走 ffprobe：
-/// ① 扫描目录时先用 SQLite 缓存（<c>data\newtoys.db</c>）把已知信息填上，零成本；
+/// ① 扫描目录时先用 SQLite 缓存（<c>store\video\video.db</c>）把已知信息填上，零成本；
 /// ② 没缓存的点「🔎 读取全部」并发批量探测（并发度取「设置 → 通用」里的最大并发数），读完写回缓存。
 /// </para>
 /// <para><b>没有「保存」按钮</b>：这里没有任何"设置项"，全是动作按钮（规范 3.5）。</para>
@@ -81,7 +81,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "按文件名 / 类型过滤…", ValuePath = nameof(SearchText) },
         new() { Text = "🔄 重扫目录", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "重新枚举当前目录（按左边「含子目录」决定深不深扫）；勾选状态保留，媒体信息优先走 SQLite 缓存" },
         new() { Kind = ToolbarItemKind.Toggle, Text = "含子目录", ValuePath = nameof(Recursive) },
-        new() { Text = "🔎 读取全部媒体信息", CommandPath = nameof(LoadAllMediaInfoCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 data\\newtoys.db 缓存，下次扫描直接命中" },
+        new() { Text = "🔎 读取全部媒体信息", CommandPath = nameof(LoadAllMediaInfoCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "对还没有媒体信息的视频并发跑 ffprobe（并发度见「设置 → 通用」的最大并发数）；读完写进 store\\video\\video.db 缓存，下次扫描直接命中" },
         new() { Kind = ToolbarItemKind.Separator },
         // ⚠️ 原先 `TextPath = CheckedCount` + `TextFormat = "… ({0})"`，渲染出来的按钮是**空白**的
         //    （根因 = `ToolbarHost.BuildContent` 的动态文案绑定漏了 Source，⛔ Host 没有 DataContext）。

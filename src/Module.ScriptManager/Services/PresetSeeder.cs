@@ -5,7 +5,7 @@ namespace NewToys.ScriptManager.Services;
 
 /// <summary>
 /// 随包<b>预设规则集</b>的播种器：
-/// <c>&lt;程序目录&gt;\defaults\presets\*.py</c> → <c>&lt;DataDir&gt;\script\rules\</c>（只加不覆盖）。
+/// <c>&lt;程序目录&gt;\defaults\presets\*.py</c> → <c>&lt;StoreDir&gt;\script\rules\</c>（只加不覆盖）。
 /// <para>
 /// 🔴 **只播种一次**（<c>rules\.seeded</c> 标记）：用户删掉的预设<b>不会复活</b> ——
 /// 与 <c>Module.ScriptManager</c> 的 <c>ExampleSeeder</c> 同一套语义。

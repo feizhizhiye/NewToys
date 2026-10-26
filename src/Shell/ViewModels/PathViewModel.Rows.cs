@@ -77,9 +77,15 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         // 带过配置边界（切配置后指向别人的目录）。一律由「数据目录」推导，无需用户手填。
         Items.Add(new PathSettingItem
         {
-            Key = "DataDir", Name = "数据目录", Kind = PathItemKind.ReadOnly,
-            Description = "本地数据库 newtoys.db（视频媒体信息缓存）等数据放这里；由应用决定，可用环境变量 NEWTOYS_HOME 整根切换",
-            Value = _cfg.DataDirectory
+            Key = "StoreDir", Name = "数据目录", Kind = PathItemKind.ReadOnly,
+            Description = "本配置档的用户数据：各模块自有库（assets / video / web / script）、抓取规则、流程、脚本实体；删了不可恢复",
+            Value = _cfg.StoreDir
+        });
+        Items.Add(new PathSettingItem
+        {
+            Key = "CacheDir", Name = "缓存目录", Kind = PathItemKind.ReadOnly,
+            Description = "可重建内容：缩略图、页面缓存、下载中间产物、库升级前快照；随便删，不进备份",
+            Value = _cfg.CacheDir
         });
         // app.json 已上提到**应用根**（与 profiles\ 同级）—— 它是应用级「运行环境」，
         // ⛔ 不再随配置档切换，也不再位于 <配置根>\config。这里如实展示新位置（只读）。

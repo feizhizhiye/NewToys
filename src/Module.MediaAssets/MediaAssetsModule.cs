@@ -8,7 +8,7 @@ namespace NewToys.MediaAssets;
 /// 媒体资产模块（需求 §6.6）：把本地视频 / 音乐 / 文档 / 书籍 / 图片等文件索引进 SQLite，
 /// 并在库里完成标签、分类、集合、关联与重命名 / 移动 / 复制 / 删除管理的**通用文件资产库**。
 /// <para>
-/// 与「视频工具」共库（<c>data\newtoys.db</c>）但**表级隔离、互不引用**（对方是 ffmpeg 命令 + 批量执行）；
+/// 数据落本模块自有库 <c>store\assets\assets.db</c>（13 张表），⛔ 与其它模块共库；
 /// 与「设置 → 数据管理」的区别：那边管配置文件，这边管**用户文件本体**（只建索引 + 显式物理操作）。
 /// </para>
 /// <para>
@@ -23,8 +23,9 @@ public class MediaAssetsModule : IModule
 
     public void RegisterServices(IServiceCollection services)
     {
-        // ===== 数据层：13 张表落同一个 data\newtoys.db（与视频工具共库、表级隔离） =====
-        // AssetDatabase 负责建表 / 补列；三个服务都是**单例**（库是全局资源，任务队列要跨页共享）。
+        // ===== 数据层：本模块自有库 store\assets\assets.db（见 AssetsDb，⛔ 不与其它模块共库）=====
+        // 库实例单例；AssetDatabase 负责建表 / 补列（经 ApplySchema 做版本记账与升级前快照）。
+        services.AddSingleton<Services.AssetsDb>();
         services.AddSingleton<Services.AssetDatabase>();
         services.AddSingleton<Services.AssetService>();
         services.AddSingleton<Services.ScanService>();
@@ -50,7 +51,7 @@ public class MediaAssetsModule : IModule
         // 多库融合（ATTACH 只读合并 + VACUUM INTO 另存）
         services.AddSingleton<Services.AssetMergeService>();
 
-        // 本模块在总库里的 schema 贡献者（DDL 仍在 AssetDatabase 构造里，贡献者只负责「库打开时就建表」）
+        // 本模块自有库的 schema 贡献者（DDL 仍在 AssetDatabase 构造里，贡献者只负责「库打开时就建表」）
         services.AddSingleton<ILibrarySchemaContributor, Services.MediaAssetsSchemaContributor>();
 
         // ===== 页面 View / VM（骨架：全是空页面；页面实现 ~022 依次落地） =====

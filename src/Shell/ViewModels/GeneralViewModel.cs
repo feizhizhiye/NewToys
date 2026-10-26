@@ -132,7 +132,7 @@ public partial class GeneralViewModel : ObservableObject, IStatusProvider
 #else
         _buildConfiguration = "Release";
 #endif
-        _dataDirectory = store?.DataDir ?? app.DataDirectory ?? "";
+        _dataDirectory = store?.StoreDir ?? app.StoreDirectory ?? "";
 
         TechStack.Add(new TechStackItem { Name = ".NET", Ver = "10" });
         TechStack.Add(new TechStackItem { Name = "Avalonia UI", Ver = "12" });

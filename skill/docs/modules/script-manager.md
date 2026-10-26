@@ -248,8 +248,8 @@
 |---|---|---|
 | `config\modules\script-manager.json` | 脚本目录（`IOptionsStore` 分区，NT-077 第二批归位） | ✅ |
 | `config\modules\package.json` | 软件包查询偏好 | ✅ |
-| `data\newtoys.db` 的 `script_docs` | 手工数据：集合 / 条目（脚本·命令·采集器·软件包）/ 标签 / 视图 / `lastCollectionId`（整份 JSON 一条） | ⛔ 随库 |
-| `data\newtoys.db` 的 `pc_observations` / `pc_runs` | 采集观测 + 运行日志 | ⛔ 随库 |
+| `store\script\script.db` 的 `script_docs` | 手工数据：集合 / 条目（脚本·命令·采集器·软件包）/ 标签 / 视图 / `lastCollectionId`（整份 JSON 一条） | ✅ 随库 |
+| `store\script\script.db` 的 `pc_observations` / `pc_runs` | 采集观测 + 运行日志 | ✅ 随库 |
 | `<脚本目录>\sysinfo\*.ps1` | 内置采集脚本（播种） | — |
 | `<脚本目录>\examples\*` | 随包示例脚本（`.ps1` / `.py` / `.bat` + 采集器模板）+ `.seeded` 一次性标记 | — |
 | `<脚本目录>\env\*` | 随包环境脚本（`setup-python-env.ps1` + `python-requirements.txt`）+ `.seeded` 一次性标记（NT-083） | — |

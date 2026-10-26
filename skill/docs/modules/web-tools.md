@@ -106,7 +106,7 @@
 | 应用到左侧 | `⬅ 应用到左侧` / 右栏右键 | 右栏**启用**条目 → 替换左栏草稿的受管块 | ⛔ 不落盘；备份快照下不可用 |
 | 写入系统 hosts | `✅ 写入系统 hosts` | 二次确认 → 自动备份 → 整份写入草稿 | 🔴 需管理员；备份失败 ⇒ 放弃写入；**⛔ 静默失败** |
 | 文本视图 | `📄 文本` | 左栏变整份可编辑 `TextBox`（`AcceptsReturn` + `NoWrap`，自带双向滚动条） | 备份快照只读；改动同样只进草稿 |
-| 备份当前 | `📦 备份当前` | `data\web\hosts-backup\hosts-<时间戳>.bak`（**完整原文**） | 只读也能备份；超出保留份数删最旧 |
+| 备份当前 | `📦 备份当前` | `store\web\hosts-backup\hosts-<时间戳>.bak`（**完整原文**） | 只读也能备份；超出保留份数删最旧 |
 | 还原 | 左栏下拉选备份 → `♻ 还原` | 整份回写成该备份 | 二次确认；还原前先把当前文件再备份一份（可反悔） |
 | 删除备份 | `🗑 删备份` | 只删备份文件 | 二次确认；⛔ 不动系统 hosts |
 | 清除受管块 | `🧹 清除受管块` | 从草稿删掉 `start/end` 之间 | 用户自有行保留；仍需「✅ 写入」才落盘 |
@@ -151,7 +151,7 @@
 | `WebTransferService`（已上提 `NewToys.UI`） | 跨页一次性传参：书签 / Ping ↔ 抓取（脚本中心）；两侧共用同一单例 |
 | `WebToolsSettingsService` | `config\web-tools.json` |
 
-- 数据与配置：`config\web-tools.json`（设置：UA / 抓取超时 / Hosts 检测超时·并发·备份份数·刷新 DNS）；网址收藏、ping 目标、hosts 方案、hosts 源全部落总库 `data\newtoys.db` 的 `web_docs` 文档；系统 hosts 备份落 `data\web\hosts-backup\`。⛔ 模块内不自己拼 `ConfigStoreService` 的根路径。
+- 数据与配置：`config\web-tools.json`（设置：UA / 抓取超时 / Hosts 检测超时·并发·备份份数·刷新 DNS）；网址收藏、ping 目标、hosts 方案、hosts 源全部落本模块库 `store\web\web.db` 的 `web_docs` 表；系统 hosts 备份落 `store\web\hosts-backup\`。⛔ 模块内不自己拼 `ConfigStoreService` 的根路径。
 - 🔴 **NT-089 S1：抓取能力已整体迁出本模块** —— `RuleFileService` / `RuleCatalogService` / `RuleRunService` /
   `RunRecordService` / `DownloadService` / `FlowService` / `RulesBackupSection` + 三页 `web-scrape` /
   `web-rule-editor` / `web-crawl` 与规则备份节，现归 **`Module.ScriptManager`**（见 `modules/script-manager.md`）。

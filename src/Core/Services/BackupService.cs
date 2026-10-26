@@ -258,9 +258,9 @@ public sealed class BackupService
         var restoredData = false;
 
         using var zip = ZipFile.OpenRead(zipPath);
-        // 数据节统一落到同一个 data\restore-<时间戳>\（会话由节自己经 BackupPaths.CurrentRestoreDir 取）
+        // 数据节统一落到同一个 store\restore-<时间戳>\（会话由节自己经 BackupPaths.CurrentRestoreDir 取）
         var before = SnapshotRestoreDirs();
-        using var session = BackupPaths.BeginRestore(_store.DataDir);
+        using var session = BackupPaths.BeginRestore(_store.StoreDir);
         foreach (var record in manifest.Sections)
         {
             if (wanted != null && !wanted.Contains(record.Id)) continue;
@@ -314,12 +314,12 @@ public sealed class BackupService
         return new BackupRestoreResult(ok, skipped, notes);
     }
 
-    /// <summary><c>data\</c> 下现有的 <c>restore-*</c> 目录（恢复前后对比用）。</summary>
+    /// <summary><c>store\</c> 下现有的 <c>restore-*</c> 目录（恢复前后对比用）。</summary>
     private IReadOnlyCollection<string> SnapshotRestoreDirs()
     {
         try
         {
-            var dir = _store.DataDir;
+            var dir = _store.StoreDir;
             return Directory.Exists(dir)
                 ? Directory.GetDirectories(dir, "restore-*")
                 : Array.Empty<string>();

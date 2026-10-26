@@ -7,7 +7,7 @@ using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// <b>数据节 · 抓取规则</b>：<c>&lt;DataDir&gt;\script\rules\*.py</c> 本体。
+/// <b>数据节 · 抓取规则</b>：<c>&lt;StoreDir&gt;\script\rules\*.py</c> 本体。
 /// <para>
 /// 🔴 为什么**默认勾选**且必须由本模块注册：规则是「唯一无法重建的资产」（缓存 HTML 可重建、
 /// 库里的元数据可重建，唯有用户手写的表达式丢了就没了）；而规则目录的位置只有 RuleFileService 知道，
@@ -73,7 +73,7 @@ public sealed class RulesBackupSection : IBackupSection
     public (int Ok, int Skipped) RestoreFrom(ZipArchiveEntry entry)
     {
         // ⚠️ 恢复不覆盖现有规则：统一落到 data\restore-<ts>\web-rules\（用户自己决定要不要挪回去）
-        var root = Path.Combine(BackupPaths.CurrentRestoreDir(_cfg.DataDir), "web-rules");
+        var root = Path.Combine(BackupPaths.CurrentRestoreDir(_cfg.StoreDir), "web-rules");
         var ok = 0;
         var skipped = 0;
 

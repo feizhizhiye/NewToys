@@ -623,18 +623,21 @@ public interface IDetailCardSource
 
 - `IOptionsStore` 的分区名仍**不带路径**（`Validate` 禁分隔符），目录由 `ConfigStoreService.ModulesConfigDir` 决定 ⇒ 分区 `x` → `config\modules\x.json`。
 - 应用级行为（**不是机器环境**）留 `app.json`：`MaxConcurrency` + `Launch`（三按钮 + 通用开关）。
-- 🔴 **`app.json.VideoDbFolder` 已删除**（NT-077 第二批）：它是跨配置共享却写着某个 profile 绝对路径的缺陷字段。导入/导出默认目录一律 = `IAppConfigService.DataDirectory`（当前配置档 `data\`），设置页不再有这一行。
-- ⛔ 模块不自建 `config\` 子目录：手工数据 / 功能数据一律进总库（见 7.3）。
+- 🔴 **`app.json.VideoDbFolder` 已删除**（NT-077 第二批）：它是跨配置共享却写着某个 profile 绝对路径的缺陷字段。导入/导出默认目录一律 = `IAppConfigService.StoreDirectory`（当前配置档 `store\`），设置页不再有这一行。
+- ⛔ 模块不自建 `config\` 子目录：手工数据 / 功能数据一律进本模块库（见 7.3）。
 
-### 7.3 单一数据总库（NT-076 定稿：一个配置档 = 一个 `data\newtoys.db`）
+### 7.3 模块自有库（NT-113：一个模块 = 一个 `store\<库键>\<库键>.db`）
 
-- **入口唯一**：`SqliteDatabase`（连接 + `meta` 表 + WAL）；建表唯一入口 = `LibrarySchemaService.EnsureAll()`，跑在 `InitializeAllDeferred` 第一步。
-- **契约**：`Shared/Services/ILibrarySchemaContributor`（`ModuleKey` / `SchemaVersion` / `EnsureSchema()`），每个模块一个，在 `RegisterServices` 注册。版本写 `meta['schema.<模块键>']`，总版本写 `PRAGMA user_version`；库里版本更高 ⇒ 只告警不降级。
-- **不可逆操作先快照**：任何模块 `SchemaVersion` 升级前 `VACUUM INTO data\backups\pre-migrate-<时间戳>.db`（⛔ 不许 `File.Copy`，WAL 下会漏事务）。
-- **失败留证据**：写 `logs\migrate-<时间戳>.log` + `meta['migrate.last-warning']`；「设置 → 数据管理」页顶部（`DataView`）红字显示。
-- **表名前缀纪律**：模块只许 `<模块前缀>_*`（`asset_` / `video_` / `script_` / `web_`），外键挂 `asset_id`，⛔ 不建第二份文件索引。历史例外：脚本观测表叫 `pc_*`（NT-068 前的 PcTools），改名要迁移数据。
+- 🔴 **目录分层（NT-113，2026-10-26）**：`<配置根>\store\` = **用户数据**（模块库 / 抓取规则 / 流程 / 运行记录 / 脚本实体，删了不可恢复）；`<配置根>\cache\` = **可重建**（缩略图 / 页面缓存 / 下载中间产物 / 升级前快照 / 恢复副本）。旧 `data\` 目录已撤销，由 `Core/Services/DataMigrations/StorageLayoutV2` 一次性迁移（整目录 rename + 拆库 + 分家，可重入，完成标记 `store\.layout-v2.done`）。
+- 🔴 **库文件**：`store\assets\assets.db`（13 张资产表）/ `store\video\video.db`（`video_media` + `video_docs`）/ `store\web\web.db`（`web_docs`）/ `store\script\script.db`（`script_docs` + `pc_observations` / `pc_runs`）。
+- 🔴 **模块与库一一固定绑定**：每个模块在自己的程序集里派生一个 `XxxDb : SqliteDatabase`（`AssetsDb` / `VideoDb` / `WebDb` / `ScriptDb`）并注册为单例，模块内服务只注入**自己的派生类型** —— 同一个 DI 容器里 4 个库互不干扰，也不会误拿别人的库。⛔ 没有库指针、没有 UI 选库：**NT-076 否决的是「多库切换」，不是「一模块一库」**。
+- **入口唯一**：`SqliteDatabase`（连接 + `meta` 表 + WAL + `ApplySchema`）；建表统一入口 = `LibrarySchemaService.EnsureAll()`，跑在 `InitializeAllDeferred` 第一步。
+- **契约**：`Shared/Services/ILibrarySchemaContributor`（`ModuleKey` / `DatabaseKey` / `SchemaVersion` / `EnsureSchema(): SchemaOutcome`），每个模块一个，在 `RegisterServices` 注册。版本写各库的 `meta['schema.<模块键>']`，同时写 `PRAGMA user_version`；库里版本更高 ⇒ 返回 `Ahead`，只告警不降级。
+- **不可逆操作先快照**：`SqliteDatabase.ApplySchema` 在「库里有旧版本」时先 `VACUUM INTO cache\db-backups\<库名>-pre-v<n>-<时间戳>.db`（⛔ 不许 `File.Copy`，WAL 下会漏事务）；首次建库不快照（空文件没意义）。
+- **失败留证据**：写 `logs\migrate-<时间戳>.log`；「设置 → 数据管理」页顶部（`DataView`）红字显示。
+- **表前缀纪律**：模块只许 `<模块前缀>_*`（`asset_` / `video_` / `script_` / `web_`），外键挂 `asset_id`，⛔ 不建第二份文件索引。历史例外：脚本观测表叫 `pc_*`（NT-068 前的 PcTools），改名要迁移数据。
 - **内容型 JSON → 文档表**：`script_docs` / `web_docs` / `video_docs`，结构 `(name, payload, updated_at)`，`payload` = 整份 JSON 原文。读写统一走 `Core/Services/JsonDocStore`，旧文件由各模块贡献者用 `JsonDocMigration.ImportOnce` 一次性搬入并改名 `.legacy`（⛔ 不删）。要按字段查时用 `json_extract(payload,'$.x')`。
-- **`data\` 进不进备份由用户勾**：NT-078 起 `data\` 是独立备份节（`data.db` / `data.thumbs` / `data.scripts`），默认**不勾**；勾上才导出。见 §7.4。
+- **`store\` 进不进备份由用户勾**：`store\*\*.db` 是独立备份节（`data.db`，逐个库 `VACUUM INTO`）、`cache\assets\thumbs` 是 `data.thumbs`、`store\scripts` 是 `data.scripts`，默认**不勾**；勾上才导出。见 §7.4。
 
 ### 7.4 备份路由（NT-078：zip 分节）
 
@@ -643,8 +646,8 @@ public interface IDetailCardSource
 - **节的落点**：框架节在 `src/Shell/Services/`（`shell` = `config\**\*.json`、`env` = 应用根 `env.json`、`data.*`）；模块节放各 `Module.*`，`RegisterServices` 里 `services.AddSingleton<IBackupSection, XxxBackupSection>()`（⛔ 模块不引 Shell）。
 - **节 ID / 顺序**（发布后⛔ 不改）：`env`(Env,10) / `shell`(Shell,20) / `module.<模块键>`(Module,30+) / `data.db` `data.thumbs` `data.scripts`(Data,90/91/92)。
 - **默认勾选** = 设置备份：`shell` + 全部 `module.*`；`env` 与 `data.*` **默认不勾**（前者含绝对路径、后者可能几百 MB）。
-- **恢复落点**：设置节 = 覆盖原文件，**覆盖前整目录归档到 `config\.bak-<时间戳>\`**；数据节 = **写成新副本**（`data\restore-<时间戳>\`，一次恢复里所有数据节共用同一个目录，由 `BackupPaths.BeginRestore` 会话决定），⛔ 不覆盖当前库。恢复完成会弹框给出副本路径。
-- **已实现的数据节**（批次 B/C）：`data.db` = `data\newtoys.db` 的 `VACUUM INTO` 快照（内层不压缩）；`data.thumbs` = 缩略图目录（从 `config\modules\media-assets.json` 的 `thumbsDirectory` 解析，空 ⇒ `data\thumbs`，Shell **只读字段、⛔ 不引模块**）；`data.scripts` = 脚本实体文件（由 **`Module.ScriptManager`** 注册：默认脚本目录 + 各库 `RootPath`，`<别名>/<相对路径>` + `_roots.txt` 记录来源）。
+- **恢复落点**：设置节 = 覆盖原文件，**覆盖前整目录归档到 `config\.bak-<时间戳>\`**；数据节 = **写成新副本**（`store\restore-<时间戳>\`，一次恢复里所有数据节共用同一个目录，由 `BackupPaths.BeginRestore` 会话决定），⛔ 不覆盖当前库。恢复完成会弹框给出副本路径。
+- **已实现的数据节**（NT-113 修订）：`data.db` = `store\*\*.db` 全部模块库的 `VACUUM INTO` 快照（扫文件、跳过 `store\legacy\` 归档与 `store\restore-*` 副本；内层不压缩）；`data.thumbs` = 缩略图目录（从 `config\modules\media-assets.json` 的 `thumbsDirectory` 解析，空 ⇒ `cache\assets\thumbs`，Shell **只读字段、⛔ 不引模块**）；`data.scripts` = 脚本实体文件（由 **`Module.ScriptManager`** 注册：默认脚本目录 + 各库 `RootPath`，`<别名>/<相对路径>` + `_roots.txt` 记录来源）。
 - 🔴 **`VACUUM INTO` 只有一处实现**：`SqliteDatabase.VacuumIntoFile(targetPath, out error)` —— 数据节与资产页「💿 另存库文件」共用，⛔ 别再写第二份 SQL。
 - **批次 C 的决定**：4 个模块**不**各注册一个「模块设置节」—— `shell` 节已递归打包 `config\**\*.json`（含 `modules\*.json`），再做模块节只会让同一份文件在包里出现两次。模块自主注册的节只用于**模块自己的数据**（当前只有 `data.scripts`）。
 - **体积闸**：勾了数据节且估算合计 > 100 MB ⇒ 导出前弹确认（⛔ 不做进度条 / 取消，卡内拍板）；节大小在**后台线程**估算（缩略图可能几万个文件）。
@@ -721,7 +724,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | **B10 运行期热加载** | 任意模块随时加载 / 卸载 / 替换 | 仅支持「新增未加载过的模块」；容器已 build，模块不能注册新服务 | 引入可卸载 ALC + 模块级容器 | ModuleLoader + Shell |
 | **B11 反射使用** | 最小魔法 | 模块装配 / 热加载 / 视图解析三处用反射 | 机制必需暂不改；⛔ 仅限这三处 | ModuleLoader / ShellViewModel |
 | **B12 前进/后退** | 所有页面丰富页内导航 | 仅 `video-list` 有目录语义；多数页灰显 | 各页逐步实现 `IHistoryProvider` | 各模块页面 |
-| **B14 媒体资产用户数据落库** | 手动数据落 `config\` 进备份 | 标签 / 分类 / 集合 / 关联暂存 `data\newtoys.db`，与需求 §3.5 定位冲突 | 用户拍板独立库 / 纳入备份时 | Module.MediaAssets |
+| ~~**B14 媒体资产用户数据落库**~~ | 手动数据进备份 | ✅ **已结清（NT-113）**：标签 / 分类 / 集合 / 关联随 `store\assets\assets.db` 落 `store\`，已是用户数据区，`data.db` 备份节覆盖 | — | — |
 | **B15 数据驱动图标** | 全矢量 | 二级菜单 `icon` / 首页一键按钮 / 模块页内数据行仍 emoji | 收敛工作项 **NT-047** | 各模块注册 + 首页 |
 | **B16 `SetWindowRgn` 方角硬手段** | 官方 corner preference 稳定生效 | 保留 `ApplySquareRegion()` + `SetCornerPreferenceNoRound()` 双保险 | NT-042 已裁决保留（阴影代价已证伪） | `ShellView.Win32.cs` |
 | **B17 窗口装饰 Win32 补丁残留** | 零补丁 | 方角两处 + `WM_NCCALCSIZE` 零内缩 + 贴靠矩形纠偏 `FixTiledGeometry`（Windows 独有例外）；样式位补位已删 | 见 B16 + Avalonia 提供等价开关；迁非 Windows 前须补外框门控与窗口记忆回退 | `ShellView.axaml(.cs)` + `ShellView.Win32.cs`（**Windows 专属代码全在此 partial**）+ `App.axaml` |

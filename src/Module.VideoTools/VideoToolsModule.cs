@@ -9,14 +9,15 @@ public class VideoToolsModule : IModule
 {
     public void RegisterServices(IServiceCollection services)
     {
-        // 媒体信息缓存（SQLite，库文件在 <应用根>\data\newtoys.db；SqliteDatabase 由 Shell 注册）
+        // 本模块自有库 store\video\video.db（video_media + video_docs）
+        services.AddSingleton<Services.VideoDb>();
         services.AddSingleton<Services.VideoMediaIndex>();
 
-        // 本模块在总库里的 schema 贡献者（旧表清理由它按版本号做一次，建表仍由 VideoMediaIndex 构造完成）
+        // 本模块自有库的 schema 贡献者（旧表清理由它按版本号做一次，建表仍由 VideoMediaIndex 构造完成）
         services.AddSingleton<ILibrarySchemaContributor, Services.VideoToolsSchemaContributor>();
 
         // 剪切 / 转码的**任务清单**（单例）：页面 VM 是瞬态的，任务挂在 VM 上切一次页就没了。
-        // 落 config\video-tasks.json（会被「设置 → 数据管理」一起备份）。
+        // 落 video.db 的 video_docs 表（随模块库一起备份）。
         services.AddSingleton<Services.VideoTaskStore>();
 
         services.AddTransient<Views.VideoListView>();    services.AddTransient<VideoListViewModel>(s =>
@@ -60,9 +61,9 @@ public class VideoToolsModule : IModule
     }
 
     /// <summary>
-    /// 旧表清理 + 建表搬到 <see cref="Services.VideoToolsSchemaContributor"/>（总库 schema 统一入口）。
+    /// 旧表清理 + 建表搬到 <see cref="Services.VideoToolsSchemaContributor"/>（schema 统一入口）。
     /// <para>
-    /// 为什么搬：总库是多模块共享的 —— ⛔ 破坏性 DROP 不能放在每次启动都跑的路径里（无护栏），
+    /// 为什么搬：⛔ 破坏性 DROP 不能放在每次启动都跑的路径里（无护栏），
     /// 统一入口按「缓存版本号变化才清一次」执行，并且排在建表之前。
     /// </para>
     /// </summary>

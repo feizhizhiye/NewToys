@@ -18,15 +18,15 @@ public class ConfigFileEntry
 }
 
 /// <summary>
-/// 「应用根 → 配置（profile）→ config/data/logs」三级路径的唯一决定者。
+/// 「应用根 → 配置（profile）→ config/store/cache/logs」路径的唯一决定者。
 /// <para>
-/// 支持**多配置**：<c>&lt;应用根&gt;\profiles\&lt;配置名&gt;\{config,data,logs}</c>；
+/// 支持**多配置**：<c>&lt;应用根&gt;\profiles\&lt;配置名&gt;\{config,store,cache,logs}</c>；
 /// 当前配置名写在 <c>&lt;应用根&gt;\active-profile.txt</c>（**故意放在 profiles 之外** ——
 /// 否则切换配置时会把自己也换掉）。
 /// </para>
 /// <para>
-/// ⚠️ 全工程的服务都只向本类要路径（<see cref="ConfigDir"/> / <see cref="DataDir"/> /
-/// <see cref="LogsDirectory"/>），所以「换配置」只需改变这里的计算 —— 不必逐个服务改造。
+/// ⚠️ 全工程的服务都只向本类要路径（<see cref="ConfigDir"/> / <see cref="StoreDir"/> /
+/// <see cref="CacheDir"/> / <see cref="LogsDirectory"/>），所以「换配置」只需改变这里的计算 —— 不必逐个服务改造。
 /// </para>
 /// <para>
 /// 环境变量 <c>NEWTOYS_HOME</c> 可把**整个应用根**换掉（测试 / 便携版），且不做迁移。
@@ -77,6 +77,9 @@ public class ConfigStoreService
         EnsureShellMigrated();        // 框架级小文件 → shell.json（读方也会兜一次）
         MigrateModuleConfigFiles();   // 模块设置 → config\modules\（纯整理，只搬文件）
         PruneEmptyConfigFiles();      // 清掉内容等价于「没有配置」的空壳文件
+
+        // 数据目录分层：data\ → store\ + cache\，并把旧总库拆成每模块一个（幂等，重入安全）
+        DataMigrations.StorageLayoutV2.Run(this);
     }
 
     private bool _shellMigrated;
@@ -325,8 +328,17 @@ public class ConfigStoreService
     /// <para>⚠️ v3.65：<c>app.json</c>（运行环境）**不在**这里 —— 它上提到应用根（跨配置共享）。</para></summary>
     public string ConfigDir => EnsureDir("config");
 
-    /// <summary>&lt;配置根&gt;\data —— 可重建的缓存（`newtoys.db` 等），不进备份。</summary>
-    public string DataDir => EnsureDir("data");
+    /// <summary>
+    /// &lt;配置根&gt;\store —— **模块数据**（各模块自有库 + 规则 / 流程 / 运行记录 / 脚本实体）。
+    /// <para>语义 = 删了不可恢复 ⇒ 「设置 → 数据管理」默认进备份。</para>
+    /// </summary>
+    public string StoreDir => EnsureDir("store");
+
+    /// <summary>
+    /// &lt;配置根&gt;\cache —— **可重建**（缩略图 / 页面缓存 / 下载中间产物 / 库升级前快照 / 恢复副本）。
+    /// <para>语义 = 随便删 ⇒ 不进备份。</para>
+    /// </summary>
+    public string CacheDir => EnsureDir("cache");
 
     /// <summary>
     /// &lt;配置根&gt;\config\modules —— **模块设置**的统一落点。

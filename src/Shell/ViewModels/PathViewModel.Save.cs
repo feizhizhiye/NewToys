@@ -158,7 +158,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
                 case "PowerShell51Path": _cfg.PowerShell51Path = v; break;
                 // 以上五项已下沉 env.json（机器级，⛔ app.json 里不再有这些键）。
                 // ⚠️ 脚本目录（ScriptFolder）仍归「设置 → 脚本管理器设置」（config\modules\script-manager.json），⛔ 本页不写它。
-                // DataDir / ConfigDir / AppConfigFile 是只读展示项，不写；配置行（Key = "profile:<名>"）不属于 app.json
+                // StoreDir / CacheDir / ConfigDir / AppConfigFile 是只读展示项，不写；配置行（Key = "profile:<名>"）不属于 app.json
             }
         }
         _cfg.Save();

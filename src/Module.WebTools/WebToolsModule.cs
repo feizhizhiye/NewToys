@@ -23,7 +23,8 @@ public class WebToolsModule : IModule
         // （`Module.ScriptManager`）；本模块收窄为「网络配置与诊断」（§2.3 §6.6），
         // 且不再依赖 Python 运行时。
 
-        // 本模块的总库 schema（web_docs + 4 份旧 JSON 一次性入表）。
+        // 本模块自有库 store\web\web.db（web_docs + 4 份旧 JSON 一次性入表）
+        services.AddSingleton<Services.WebDb>();
         services.AddSingleton<ILibrarySchemaContributor, WebToolsSchemaContributor>();
 
         services.AddTransient<Views.WebHttpView>();    services.AddTransient<WebHttpViewModel>();

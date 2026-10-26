@@ -81,7 +81,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         new() { Text = "📂 添加文件", Classes = "ghost", CommandPath = nameof(PickFilesCommand), ToolTip = "按左边选的类型建任务；只是建任务，不立刻跑" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "按文件名 / 输出过滤…", ValuePath = nameof(SearchText) },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Kind = ToolbarItemKind.Combo, Width = 220, ItemsPath = nameof(Presets), DisplayPath = "Name", SelectedValuePath = nameof(DefaultPresetId), SelectedValueBindingPath = "Id", ToolTip = "只影响随后加入的**转码**任务；已存在的任务在右侧详情卡里单独改" },
         new() { Text = "▶▶ 批量运行", Classes = "ghost", CommandPath = nameof(RunAllCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "按列表顺序依次处理（剪辑 / 转码各按自己的参数），跑完自动探测输出文件" },
         new() { Text = "▶ 只跑选中", CommandPath = nameof(RunSelectedCommand), IsEnabledPath = nameof(IsNotBusy) },
         new() { Text = "⏹ 停止", CommandPath = nameof(StopCommand), IsEnabledPath = nameof(IsRunning) },
@@ -117,7 +116,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool HasSelection => Selected != null;
 
     /// <summary>全局导入/导出默认目录（当前配置档 <c>data\</c>）。</summary>
-    public string ImportExportDefaultDir => _cfg?.DataDirectory ?? "";
+    public string ImportExportDefaultDir => _cfg?.StoreDirectory ?? "";
 
     /// <summary>队列里有没有任务。
     /// ⚠️ <see cref="ItemsRaw"/> 是 <c>IEnumerable</c>，只有 LINQ 的 <c>Count()</c> 方法、**没有** <c>Count</c> 属性
@@ -421,8 +420,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             ? FfmpegService.ResolveEncoder(TranscodePreset.Find(EditPresetId).VideoCodec, EditUseGpu)
             : "—";
 
-    /// <summary>新建转码任务时用的预设 / 最大高度（工具条上选，只影响随后加入的条目）。</summary>
-    [ObservableProperty] private string _defaultPresetId = "h265";
+    /// <summary>新建转码任务的初始最大高度（超出才缩，0 = 保原始）。预设取详情卡当前值。</summary>
     [ObservableProperty] private int _defaultMaxHeight;
 
     /// <summary>当前选中项是不是剪辑任务（详情卡据此切换两套参数区）。</summary>

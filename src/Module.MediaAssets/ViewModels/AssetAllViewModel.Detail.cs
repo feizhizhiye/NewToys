@@ -476,7 +476,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "重新读取资产库（⛔ 不扫描磁盘）" },
         new() { Kind = ToolbarItemKind.SplitButton, Text = "🗄 并入…", CommandPath = nameof(MergeDbCommand), IsEnabledPath = nameof(IsDbAvailable),
-                ToolTip = "把另一个 newtoys.db 合并进当前库（按路径/内容去重；源库只读；进度看任务中心）",
+                ToolTip = "把另一个资产库（*.db）合并进当前库（按路径/内容去重；源库只读；进度看任务中心）",
                 Items = new ToolbarMenuItemDescriptor[]
                 {
                     new() { Text = "📂 打开库所在文件夹", CommandPath = nameof(OpenDbFileCommand), ToolTipPath = nameof(DatabasePath),
@@ -487,7 +487,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         new() { Text = "📤 导出", CommandPath = nameof(ExportAssetsCommand),
                 ToolTip = "导出当前列表：.json = 列表（含标签 / 分类 / 集合名字）；.db = 整个资产库另存（备份 / 交付）" },
         new() { Text = "📥 导入", CommandPath = nameof(ImportAssetsCommand),
-                ToolTip = "把 json 列表 / newtoys.db 加载到列表**预览**（⛔ 不写库）；看完点「💾 加入库」才写入" },
+                ToolTip = "把 json 列表 / 资产库（*.db）加载到列表**预览**（⛔ 不写库）；看完点「💾 加入库」才写入" },
         new() { Text = "🧠 存为智能集合", IsEnabled = false, ToolTip = "智能集合需要规则求值（未实装）" },
     };
 

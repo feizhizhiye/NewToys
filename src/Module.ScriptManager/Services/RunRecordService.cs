@@ -34,12 +34,12 @@ public sealed class RunRecordService
         _catalog = catalog;
     }
 
-    /// <summary>运行记录根：<c>&lt;DataDir&gt;\script\runs</c>（从 <c>web-tools\runs</c> 归位）。</summary>
+    /// <summary>运行记录根：<c>&lt;StoreDir&gt;\script\runs</c>（用户数据，进备份）。</summary>
     public string RunsRoot
     {
         get
         {
-            var dir = Path.Combine(_cfg.DataDir, "script", "runs");
+            var dir = Path.Combine(_cfg.StoreDir, "script", "runs");
             MigrateLegacyRuns(dir);
             return dir;
         }
@@ -55,7 +55,7 @@ public sealed class RunRecordService
         _legacyMigrated = true;
         try
         {
-            var old = Path.Combine(_cfg.DataDir, "web-tools", "runs");
+            var old = Path.Combine(_cfg.StoreDir, "web-tools", "runs");
             if (!Directory.Exists(old)) return;
             foreach (var d in Directory.GetDirectories(old))
             {

@@ -57,16 +57,16 @@ public sealed partial class DownloadService
         _cfg = cfg;
     }
 
-    /// <summary>最终产物：<c>&lt;DataDir&gt;\script\downloads\&lt;脚本&gt;\&lt;条目名&gt;\</c>（⛔ 不进备份，可再生）。</summary>
-    public string DownloadsDir => Path.Combine(_cfg.DataDir, "script", "downloads");
+    /// <summary>最终产物：<c>&lt;CacheDir&gt;\script\downloads\&lt;脚本&gt;\&lt;条目名&gt;\</c>（⛔ 不进备份，可再生）。</summary>
+    public string DownloadsDir => Path.Combine(_cfg.CacheDir, "script", "downloads");
 
-    /// <summary>试下载临时产物：<c>&lt;DataDir&gt;\script\trials\&lt;脚本&gt;\&lt;条目名&gt;\</c>。</summary>
-    public string TrialsDir => Path.Combine(_cfg.DataDir, "script", "trials");
+    /// <summary>试下载临时产物：<c>&lt;CacheDir&gt;\script\trials\&lt;脚本&gt;\&lt;条目名&gt;\</c>。</summary>
+    public string TrialsDir => Path.Combine(_cfg.CacheDir, "script", "trials");
 
     /// <summary>抓取暂存（每页一份 HTML，按序覆盖）：<c>cache\_dl\&lt;脚本&gt;\&lt;n&gt;.html</c>。</summary>
     private string NextScratch(string script)
     {
-        var dir = Path.Combine(_cfg.DataDir, "script", "cache", "_dl", RuleFileService.SafeName(script));
+        var dir = Path.Combine(_cfg.CacheDir, "script", "page", "_dl", RuleFileService.SafeName(script));
         Directory.CreateDirectory(dir);
         var n = Interlocked.Increment(ref _scratchSeq);
         return Path.Combine(dir, n + ".html");

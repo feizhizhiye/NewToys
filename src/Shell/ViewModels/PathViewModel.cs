@@ -53,8 +53,8 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// <summary>Python 运行时：只为「Python 共享环境」只读行提供状态文案 + 目录。</summary>
     private readonly IPythonRuntime? _py;
 
-    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
-    public string ImportExportDefaultDir => _cfg?.DataDirectory ?? "";
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>store\</c>）。</summary>
+    public string ImportExportDefaultDir => _cfg?.StoreDirectory ?? "";
 
     private bool _syncing;
 

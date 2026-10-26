@@ -525,11 +525,13 @@
 | `launch.json` | 配置 | ✅ | 首页一键按钮 |
 | `script-manager.json` / `web-tools.json` / `video-tools.json` / `media-assets.json` | 配置 | ✅ | 模块设置（⚠️ 分区名 ≠ 模块键；`script` 模块落 `script-manager.json`） |
 | `config\script\script.json` | 配置 | ✅ | 脚本管理器手工数据（可手改） |
-| `data\newtoys.db` | 数据 | ⛔ | 媒体资产 + 视频 ffprobe 缓存 |
-| `data\script\script.db` | 数据 | ⛔ | 观测快照与运行日志（可重建） |
-| `data\thumbs\*.jpg` | 数据 | ⛔ | 缩略图 |
-| `data\script\rules\*.py` | 数据 | ✅ | **抓取规则（唯一默认勾的数据节）** —— 手写 / AI 生成，丢了重建不了（NT-089 自 `web-tools\rules` 迁入）|
-| `data\script\downloads\` `trials\` `cache\` `runs\` | 数据 | ⛔ | 下载产物 / 试下载临时件 / 抓取缓存 / 运行记录（都能重建；NT-090 自 `web-tools\` 归位） |
+| `store\assets\assets.db` | 数据 | 可选 | 媒体资产库：资产索引 + 标签 / 分类 / 集合 / 关联（**手工数据，删了不可恢复**） |
+| `store\video\video.db` | 数据 | 可选 | 视频 ffprobe 缓存 + 批量任务清单 |
+| `store\web\web.db` | 数据 | 可选 | 网址收藏 / Ping 目标 / Hosts 方案 / Hosts 源清单 |
+| `store\script\script.db` | 数据 | 可选 | 脚本集合与条目 / 抓取目录 / 观测快照 / 运行记录 |
+| `cache\assets\thumbs\*.jpg` | 缓存 | ⛔ | 缩略图（可重建） |
+| `store\script\rules\*.py` | 数据 | ✅ | **抓取规则（唯一默认勾的数据节）** —— 手写 / AI 生成，丢了重建不了 |
+| `store\script\downloads\` `trials\` `cache\` `runs\` | 数据 | ⛔ | 下载产物 / 试下载临时件 / 抓取缓存 / 运行记录（都能重建；NT-090 自 `web-tools\` 归位） |
 | `logs\` | 数据 | ⛔ | 日志 |
 
 ### 7.3 术语表

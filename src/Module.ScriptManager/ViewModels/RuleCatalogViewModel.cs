@@ -21,7 +21,7 @@ namespace NewToys.ScriptManager.ViewModels;
 /// <summary>
 /// 抓取规则 · **规则目录**（`web-scrape`，/B）。
 /// <para>
-/// 🔴 本页只管**目录**：列出 <c>&lt;DataDir&gt;\script\rules\*.py</c>，做新建 / 删除 / 启停 / 重读。
+/// 🔴 本页只管**目录**：列出 <c>&lt;StoreDir&gt;\script\rules\*.py</c>，做新建 / 删除 / 启停 / 重读。
 /// 规则的编辑与调试在**另一页**（`web-rule-editor`「规则编辑器」，批 C）—— 本页 ⛔ 不放命令列表与 HTML 面板。
 /// </para>
 /// <para>

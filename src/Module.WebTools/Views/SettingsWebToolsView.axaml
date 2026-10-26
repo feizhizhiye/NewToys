@@ -117,7 +117,7 @@
         <TextBlock
             Classes="hint-text"
             TextWrapping="Wrap"
-            Text="网址收藏 / 网络 Ping / Hosts 方案的**清单数据**不在本文件里 —— 它们落总库 newtoys.db 的 web_docs 文档（bookmarks / ping-targets / hosts-profiles / hosts-sources），由各自页面维护；系统 hosts 的备份在 data\web\hosts-backup\ 下。" />
+            Text="网址收藏 / 网络 Ping / Hosts 方案的清单数据不在本文件里 —— 它们落本模块库 store\web\web.db 的 web_docs 表（bookmarks / ping-targets / hosts-profiles / hosts-sources），由各自页面维护；系统 hosts 的备份在 store\web\hosts-backup\ 下。" />
         <Border Classes="divider-line" />
         <TextBlock Classes="field-label" Text="设置文件" />
         <TextBlock

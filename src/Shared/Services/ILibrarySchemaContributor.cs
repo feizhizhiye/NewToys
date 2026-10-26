@@ -1,11 +1,11 @@
 namespace NewToys.Shared.Services;
 
 /// <summary>
-/// 总库（<c>data\newtoys.db</c>）的**建表贡献者**：每个用到结构化数据的模块实现一个，
-/// 由 <c>LibrarySchemaService</c> 在库打开后统一调用。
+/// 模块自有库的**建表贡献者**：每个用到结构化数据的模块实现一个，
+/// 由 <c>LibrarySchemaService</c> 在首帧之后统一调用。
 /// <para>
-/// 🔴 为什么需要它：总库由多个模块共建表，而建表原先埋在各自 DB 服务的构造函数里 ——
-/// 用户只打开「资产」页时脚本模块的表压根不存在。统一入口后，「库一打开 ⇒ 所有模块的表都在」。
+/// 🔴 一个模块 = 一个库文件（<c>store\&lt;库键&gt;\&lt;库键&gt;.db</c>），库之间不共享连接、不跨库查询。
+/// 建表统一在这个入口跑，是为了「库一打开 ⇒ 该模块的表都在」，不依赖用户先点开某个页面。
 /// </para>
 /// <para>
 /// 🔴 契约：<see cref="EnsureSchema"/> 必须**幂等**（<c>CREATE IF NOT EXISTS</c> + 只加可空列的
@@ -14,17 +14,20 @@ namespace NewToys.Shared.Services;
 /// </para>
 /// <para>
 /// ⚠️ 本接口**不带 SqliteConnection 参数**：`Shared` 不引 `Microsoft.Data.Sqlite`。
-/// 实现方自己注入模块 / Core 的 DB 服务即可。
+/// 实现方注入本模块的库服务（<c>AssetsDb</c> / <c>VideoDb</c> …）并调它的 <c>ApplySchema</c>。
 /// </para>
 /// </summary>
 public interface ILibrarySchemaContributor
 {
-    /// <summary>模块键（唯一；建议与菜单分组键一致，如 <c>script-manager</c> / <c>media-assets</c>）。用作版本记录键 <c>schema.&lt;键&gt;</c>。</summary>
+    /// <summary>模块键（唯一；与菜单分组键一致，如 <c>script-manager</c>）。用作版本记录键 <c>schema.&lt;键&gt;</c>。</summary>
     string ModuleKey { get; }
+
+    /// <summary>模块自有库的键 = <c>store\</c> 下的子目录名（<c>assets</c> / <c>video</c> / <c>web</c> / <c>script</c>）。</summary>
+    string DatabaseKey { get; }
 
     /// <summary>本模块表的 schema 版本（只增不减）。库里的版本更高 ⇒ 说明库来自更新版软件，只告警、不降级。</summary>
     int SchemaVersion { get; }
 
-    /// <summary>幂等建表 / 补列（实现在内部必须自己 try/catch 兜住，⛔ 不许抛出去拖垮其它模块）。</summary>
-    void EnsureSchema();
+    /// <summary>幂等建表 / 补列 / 版本记账（实现在内部必须自己兜住异常，⛔ 不许抛出去拖垮其它模块）。</summary>
+    SchemaOutcome EnsureSchema();
 }

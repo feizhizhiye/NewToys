@@ -5,7 +5,7 @@ namespace NewToys.Core.Services;
 
 /// <summary>
 /// <b>内容型 JSON 文档表</b>：把散在 <c>config\*.json</c> 的「功能数据」
-/// （书签 / ping 目标 / 抓取任务 / hosts 方案 / 视频任务队列 / 脚本手工数据）收进总库。
+/// （书签 / ping 目标 / 抓取任务 / hosts 方案 / 视频任务队列 / 脚本手工数据）收进模块库。
 /// <para>
 /// 表结构 = <c>&lt;前缀&gt;_docs(name TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL)</c>：
 /// 一条文档一行，<c>payload</c> 存**整份 JSON 原文**。
@@ -18,7 +18,7 @@ namespace NewToys.Core.Services;
 /// </para>
 /// <para>
 /// 表名前缀纪律（framework §7）：模块只能用自己的前缀（<c>script_ / web_ / video_ / asset_</c>）。
-/// DDL **不在这里执行** —— 由各模块的 <c>ILibrarySchemaContributor</c> 统一建（总库建表只有一个入口）。
+/// DDL **不在这里执行** —— 由各模块的 <c>ILibrarySchemaContributor</c> 统一建（建表只有一个入口）。
 /// </para>
 /// </summary>
 public sealed class JsonDocStore
@@ -27,7 +27,7 @@ public sealed class JsonDocStore
     private readonly string _table;
     private bool _ensured;
 
-    /// <param name="db">总库。</param>
+    /// <param name="db">本模块的库。</param>
     /// <param name="modulePrefix">模块表前缀（<c>script</c> / <c>web</c> / <c>video</c>），最终表名 = <c>&lt;前缀&gt;_docs</c>。</param>
     public JsonDocStore(SqliteDatabase db, string modulePrefix)
     {
@@ -42,7 +42,7 @@ public sealed class JsonDocStore
     /// <summary>表名（诊断 / 日志用）。</summary>
     public string TableName => _table;
 
-    /// <summary>总库是否可用（false 时读一律返回 null、写静默跳过）。</summary>
+    /// <summary>库是否可用（false 时读一律返回 null、写静默跳过）。</summary>
     public bool IsAvailable => _db.IsAvailable;
 
     /// <summary>本表 DDL（幂等）。给模块的 schema 贡献者拼接用。</summary>

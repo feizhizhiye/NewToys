@@ -34,13 +34,13 @@ public class MediaAssetsSettingsIO
     /// <summary>迁移前的旧位置（<c>config\media-assets.json</c>）；搬文件被占用时按它兜底读。</summary>
     private string LegacyPath => Path.Combine(_cfg.ConfigDir, "media-assets.json");
 
-    /// <summary>缩略图目录（生效值）：配置为空时用 <c>&lt;应用根&gt;\data\thumbs</c>。</summary>
+    /// <summary>缩略图目录（生效值）：配置为空时用 <c>&lt;配置根&gt;\cache\assets\thumbs</c>（可重建，不进备份）。</summary>
     public string ThumbsDirectory
     {
         get
         {
             var custom = (Settings.ThumbsDirectory ?? "").Trim();
-            return custom.Length > 0 ? custom : Path.Combine(_cfg.DataDir, "thumbs");
+            return custom.Length > 0 ? custom : Path.Combine(_cfg.CacheDir, "assets", "thumbs");
         }
     }
 

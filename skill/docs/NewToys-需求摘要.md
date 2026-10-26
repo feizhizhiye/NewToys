@@ -71,9 +71,9 @@ Shared（契约 / 模型，不引 Avalonia）
 
 ### 3.5 配置与数据
 
-- 多配置：`<应用根>\profiles\<配置>\{config,data,logs}`；当前配置在 `<应用根>\active-profile.txt`（必须在 `profiles\` 之外）。
-- **三层 + 一个总库**：L0 机器级 `<应用根>\env.json`（外部程序路径 / DNS / 更新地址，⛔ 不随配置切换）· L2 框架偏好 `config\shell.json` · L3 模块设置 `config\modules\<模块>.json` · 应用行为 `<应用根>\app.json`。
-- **内容型数据**（书签 / ping 目标 / 抓取任务 / hosts 方案 / 视频任务队列 / 脚本集合与条目 / 资产索引）→ `<配置根>\data\newtoys.db`（**一个配置档一个库**，表名 `<模块前缀>_*`，DDL 唯一入口 `LibrarySchemaService`）。**配置类**才进 `config\*.json`（能被备份）。
+- 多配置：`<应用根>\profiles\<配置>\{config,store,cache,logs}`；当前配置在 `<应用根>\active-profile.txt`（必须在 `profiles\` 之外）。
+- **三层 + 每模块一库**：L0 机器级 `<应用根>\env.json`（外部程序路径 / DNS / 更新地址，⛔ 不随配置切换）· L2 框架偏好 `config\shell.json` · L3 模块设置 `config\modules\<模块>.json` · 应用行为 `<应用根>\app.json`。
+- **内容型数据 → 本模块库**：`store\assets\assets.db` / `store\video\video.db` / `store\web\web.db` / `store\script\script.db`（**一个模块一个库、固定绑定**，建表唯一入口 `LibrarySchemaService`）。**配置类**才进 `config\*.json`；**可重建内容**（缩略图 / 页面缓存 / 下载中间产物）进 `cache\`。
 - 切换配置 = 重启（显式传 `--profile`，⛔ 不写 `active-profile.txt`）；每配置单例。
 - 模块设置**只读**，唯一写入点 = 该模块设置页；功能页 ⛔ 直接写文件。路径无效 ⇒ 状态栏红字 + ⛔ 不写盘。
 - 改系统级配置的页面必须二次确认。

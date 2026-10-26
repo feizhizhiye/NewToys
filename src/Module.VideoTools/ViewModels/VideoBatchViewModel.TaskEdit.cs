@@ -43,12 +43,12 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         IsBusy = true;
         var probe = VideoScanner.DeriveFfprobe(_cfg?.FfmpegPath);
+        var preset = TranscodePreset.Find(string.IsNullOrWhiteSpace(EditPresetId) ? "h265" : EditPresetId);
         var added = 0;
         try
         {
             foreach (var path in files)
             {
-                var preset = TranscodePreset.Find(DefaultPresetId);
                 var task = new TranscodeTask
                 {
                     SourcePath = path,
@@ -73,7 +73,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             }
 
             RefreshView();
-            StatusText = $"已生成 {added} 个转码任务（预设：{TranscodePreset.Find(DefaultPresetId).Name}）；可逐条改参数，再点「▶▶ 批量运行」。";
+            StatusText = $"已生成 {added} 个转码任务（预设：{preset.Name}）；可逐条改参数，再点「▶▶ 批量运行」。";
         }
         catch (Exception ex) { StatusText = "生成任务失败：" + ex.Message; }
         finally { IsBusy = false; }

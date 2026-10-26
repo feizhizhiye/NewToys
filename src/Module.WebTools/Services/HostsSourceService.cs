@@ -11,7 +11,7 @@ using NewToys.WebTools.Models;
 namespace NewToys.WebTools.Services;
 
 /// <summary>
-/// hosts **源订阅**：预设 + 自定义源清单（落总库 <c>web_docs</c> 的 <c>hosts-sources</c> 文档）与拉取解析。
+/// hosts **源订阅**：预设 + 自定义源清单（落本模块库 <c>web_docs</c> 的 <c>hosts-sources</c> 文档）与拉取解析。
 /// <para>
 /// 🔴 为什么落库而不落 <c>config\web-tools.json</c>：那份配置的唯一写入点是设置页，而源管理入口在方案页 ——
 /// 落配置就会出现两个写入点（<c>framework.md</c> §7 配置纪律）。
@@ -30,7 +30,7 @@ public class HostsSourceService
     private readonly JsonDocStore _docs;
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
-    public HostsSourceService(ConfigStoreService cfg, SqliteDatabase db)
+    public HostsSourceService(ConfigStoreService cfg, WebDb db)
     {
         _cfg = cfg;
         _docs = new JsonDocStore(db, "web");

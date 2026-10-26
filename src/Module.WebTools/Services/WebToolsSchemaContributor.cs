@@ -6,7 +6,7 @@ using NewToys.Shared.Services;
 namespace NewToys.WebTools.Services;
 
 /// <summary>
-/// 网络工具在**总库**里的 schema 贡献者。
+/// 网络工具在自有库（<c>store\web\web.db</c>）里的 schema 贡献者。
 /// <list type="bullet">
 ///   <item>建 <c>web_docs</c>（书签 / ping 目标 / 抓取任务 / hosts 方案四份文档，见 <see cref="JsonDocStore"/>）。</item>
 ///   <item>把 <c>config\</c> 下 4 个旧 JSON 一次性搬进表，旧文件改名 <c>.legacy</c>（⛔ 不删）。</item>
@@ -30,25 +30,35 @@ public sealed class WebToolsSchemaContributor : ILibrarySchemaContributor
     /// <summary>hosts 方案文档名。</summary>
     public const string DocHostsProfiles = "hosts-profiles";
 
+    /// <summary>模块键（版本记录键 <c>schema.web-tools</c>）。</summary>
+    public const string Key = "web-tools";
+
+    /// <summary>本模块 schema 版本。</summary>
+    public const int Version = 1;
+
     private readonly JsonDocStore _docs;
     private readonly ConfigStoreService _cfg;
 
-    public WebToolsSchemaContributor(SqliteDatabase db, ConfigStoreService cfg)
+    public WebToolsSchemaContributor(WebDb db, ConfigStoreService cfg)
     {
         _docs = new JsonDocStore(db, "web");
         _cfg = cfg;
     }
 
-    public string ModuleKey => "web-tools";
+    public string ModuleKey => Key;
 
-    public int SchemaVersion => 1;
+    public string DatabaseKey => WebDb.Key;
 
-    public void EnsureSchema()
+    public int SchemaVersion => Version;
+
+    public SchemaOutcome EnsureSchema()
     {
-        if (!_docs.EnsureSchema()) return;
+        if (!_docs.EnsureSchema()) return SchemaOutcome.Failed;
 
         foreach (var (doc, file) in Pairs())
             JsonDocMigration.ImportOnce(_docs, doc, System.IO.Path.Combine(_cfg.ConfigDir, file));
+
+        return SchemaOutcome.UpToDate;
     }
 
     /// <summary>文档名 ↔ 旧文件名的对应（迁移与排障共用一份）。</summary>

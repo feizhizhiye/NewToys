@@ -118,7 +118,7 @@ public static class ModuleLoader
             System.Diagnostics.Debug.WriteLine("[NewToys] 配置目录整理异常：" + ex.Message);
         }
 
-        // 先跑「总库建表 / 补列 / 一次性数据迁移」—— 任何页面的首次查询都必须看到完整的表。
+        // 先跑「各模块库建表 / 补列 / 一次性数据迁移」—— 任何页面的首次查询都必须看到完整的表。
         // 单模块失败只记日志（LibrarySchemaService 内部已逐模块 try/catch）。
         try
         {
@@ -128,14 +128,14 @@ public static class ModuleLoader
                 var (applied, failed, ahead) = schema.EnsureAll();
                 if (failed > 0 || ahead > 0)
                     System.Diagnostics.Debug.WriteLine(
-                        $"[NewToys] 总库 schema：成功 {applied} / 失败 {failed} / 版本超前 {ahead}" +
+                        $"[NewToys] 模块库 schema：成功 {applied} / 失败 {failed} / 版本超前 {ahead}" +
                         (failed > 0 ? $"（失败：{string.Join(", ", schema.Failed)}）" : "") +
                         (ahead > 0 ? $"（超前：{string.Join(", ", schema.AheadModules)}）" : ""));
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine("[NewToys] 总库 schema 初始化异常：" + ex.Message);
+            System.Diagnostics.Debug.WriteLine("[NewToys] 模块库 schema 初始化异常：" + ex.Message);
         }
 
         foreach (var m in _modules)

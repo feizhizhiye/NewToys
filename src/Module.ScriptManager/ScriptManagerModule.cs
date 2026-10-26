@@ -28,12 +28,12 @@ public class ScriptManagerModule : IModule
             sp.GetRequiredService<IAppConfigService>(),
             sp.GetRequiredService<IProcessRunner>()));
 
-        // 数据层 —— 手工数据（集合/条目/视图）落 config\script\script.json，
-        // 观测缓存落 data\script\script.db。两者都**不进** Core（框架层冻结）。
+        // 数据层 —— 本模块自有库 store\script\script.db：
+        // script_docs（集合 / 条目 / 视图 / 抓取目录元数据）+ pc_observations / pc_runs（观测与运行记录）。
+        services.AddSingleton<ScriptDb>();
         services.AddSingleton<IScriptStoreService, ScriptStoreService>();
-        // 观测表**并进总库** `data\newtoys.db`（连接向 Core 的 SqliteDatabase 要，⛔ 不再单独 script.db）
         services.AddSingleton<ScriptDatabase>();
-        // 本模块在总库里的建表（+ 老 script.db 一次性合并），由总库 schema 统一入口调用
+        // 本模块 schema 统一入口（建表 + 老 script.json 入表）
         services.AddSingleton<ILibrarySchemaContributor, ScriptManagerSchemaContributor>();
         // ==================== 抓取能力整体平移（自 Module.WebTools 迁入，功能与交互零变化） ====================
         // 规则集 = 磁盘 .py 文件（RuleFileService）+ 目录元数据（RuleCatalogService）。
@@ -138,7 +138,7 @@ public class ScriptManagerModule : IModule
             EnvScriptsSeeder.Seed(store, settings);
 
             // 随包预设规则集播种（自 WebToolsModule 迁来）——
-            // `<程序目录>\defaults\presets\*.py` → `<DataDir>\script\rules\`（只加不覆盖、只播种一次）。
+            // `<程序目录>\defaults\presets\*.py` → `<StoreDir>\script\rules\`（只加不覆盖、只播种一次）。
             PresetSeeder.Seed(services.GetRequiredService<RuleFileService>());
         }
         catch

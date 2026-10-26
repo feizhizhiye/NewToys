@@ -256,7 +256,7 @@ public partial class PingViewModel : ListPageViewModelBase, IDetailPanelProvider
     private readonly IAppConfigService? _app;
 
     /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
-    public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
+    public string ImportExportDefaultDir => _app?.StoreDirectory ?? "";
 
     public PingViewModel() { }
 

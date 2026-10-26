@@ -8,7 +8,7 @@ namespace NewToys.WebTools.Services;
 ///   <item>数据落 <c>&lt;配置根&gt;\config\web-tools.json</c>（走 Core 的 <c>IOptionsStore</c>）。</item>
 ///   <item>本模块可配项 = <b>网页抓取的默认 User-Agent 与单次抓取超时</b>（可手改的模块配置；
 ///   ⛔ 不要硬编码在 <c>ScrapeService</c>）。</item>
-///   <item>⚠️ 书签 / Ping / Hosts 的**清单数据**不在本文件（它们是数据，落总库 <c>web_docs</c>，由页面自身维护）；
+///   <item>⚠️ 书签 / Ping / Hosts 的**清单数据**不在本文件（它们是数据，落本模块库 <c>web_docs</c>，由页面自身维护）；
 ///   Hosts 的**检测超时 / 并发 / 备份份数 / 是否刷新 DNS** 属模块配置，收在下方「Hosts」一节。</item>
 /// </list>
 /// </summary>

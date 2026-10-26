@@ -39,11 +39,10 @@ namespace NewToys.Shared.Services
         string? LegacyMigrationNote { get; }
 
         /// <summary>
-        /// 应用数据根目录（媒体库 library.json、缩略图、各模块自己的数据都放这里）。
-        /// 默认 <c>%LocalAppData%\NewToys\data</c>；环境变量 <c>NEWTOYS_HOME</c> 可把整个应用根（config/data/logs）一起换掉（便携版/测试），
-        /// 用户目录不可写时兜底到程序目录的 <c>Data\</c>。放在用户目录是为了**跨 Debug/Release、跨清理输出目录都不丢数据**。
+        /// 当前配置档的**数据根**（= <c>&lt;配置根&gt;\store</c>：各模块自有库 / 规则 / 流程 / 脚本实体）。
+        /// <para>默认导入 / 导出对话框就定位到这里；<c>NEWTOYS_HOME</c> 可把整个应用根换掉（便携版 / 测试）。</para>
         /// </summary>
-        string DataDirectory { get; }
+        string StoreDirectory { get; }
 
         /// <summary>是否启用**加密 DNS（DoH）**——只作用于本软件自己的网络请求，不动系统设置。</summary>
         bool EncryptedDnsEnabled { get; set; }
@@ -95,10 +94,10 @@ namespace NewToys.Shared.Services
         /// </summary>
         LaunchConfig Launch { get; set; }
 
-        // ==================== 导入 / 导出默认目录（v3.15 全局 → 改由 DataDir 推导） ====================
+        // ==================== 导入 / 导出默认目录（v3.15 全局 → 改由 store 目录推导） ====================
         // 🔴 `VideoDbFolder` 字段已**删除**（2026-10-19）：它把某个 profile 的绝对路径写进跨配置共享的 app.json，
-        // 切配置后导入/导出会指向别人的目录 —— 属现存缺陷。现在一律用 <see cref="DataDirectory"/>（
-        // = 当前配置档的 <c>data\</c>）推导，既跟随配置档，也不再需要用户维护这个路径。
+        // 切配置后导入/导出会指向别人的目录 —— 属现存缺陷。现在一律用 <see cref="StoreDirectory"/>（
+        // = 当前配置档的 <c>store\</c>）推导，既跟随配置档，也不再需要用户维护这个路径。
 
         void Save();
         void Load();

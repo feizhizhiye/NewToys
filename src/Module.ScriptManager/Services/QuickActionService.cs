@@ -74,7 +74,7 @@ public class QuickActionService : IQuickActionService
     public IReadOnlyList<QuickAction> Favorites => _shortcuts.Concat(_quick).Where(i => i.IsFavorite).ToList();
 
     /// <summary>手工数据文件全路径（<c>config\script\script.json</c>）：两个库页共用同一份（切库后）。</summary>
-    public string ScriptsFilePath => _store?.FilePath ?? Path.Combine(_cfg.DataDir, "newtoys.db");
+    public string ScriptsFilePath => _store?.FilePath ?? Path.Combine(_cfg.StoreDir, "script", "script.db");
 
     /// <summary>与 <see cref="ScriptsFilePath"/> 相同 —— 命令库与脚本库已合并到同一个数据文件。</summary>
     public string QuickFilePath => ScriptsFilePath;

@@ -55,7 +55,7 @@ public sealed class RelationJson
 /// <summary>
 /// **用户手动数据**的导出 / 恢复（R1 缓解）：标签 / 分类 / 集合 / 关联 4 类。
 /// <para>
-/// 🔴 为什么需要它：这 4 类是用户手工维护的，却落在"不进备份"的 <c>data\newtoys.db</c>——
+/// 用途：这 4 类是用户手工维护的（标签 / 分类 / 集合 / 关联）——
 /// 删库重建就会全丢。导出成 <c>config\media-assets-user-data.json</c> 就能进「数据管理」的备份。
 /// </para>
 /// <para>

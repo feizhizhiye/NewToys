@@ -29,7 +29,7 @@ public readonly struct PingResult
 /// 再对解析出的 IP 发 ICMP；若未指定 DNS 则回退系统解析。主机已是 IP 时直接 ping。
 /// </para>
 /// <para>
-/// 目标清单落**总库 <c>web_docs</c> 的 <c>ping-targets</c> 文档**（⛔ 不再写 <c>config\ping-targets.json</c>）。
+/// 目标清单落**本模块库 <c>web_docs</c> 的 <c>ping-targets</c> 文档**（⛔ 不再写 <c>config\ping-targets.json</c>）。
 /// </para>
 /// </summary>
 public class PingService
@@ -38,7 +38,7 @@ public class PingService
     private readonly DnsResolver _dns;
     private readonly JsonDocStore _docs;
 
-    public PingService(ConfigStoreService cfg, DnsResolver dns, SqliteDatabase db)
+    public PingService(ConfigStoreService cfg, DnsResolver dns, WebDb db)
     {
         _cfg = cfg;
         _dns = dns;

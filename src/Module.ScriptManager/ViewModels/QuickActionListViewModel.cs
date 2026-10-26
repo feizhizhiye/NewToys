@@ -69,7 +69,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     private readonly IScriptStoreService? _store;
 
     /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
-    public string ImportExportDefaultDir => _app?.DataDirectory ?? "";
+    public string ImportExportDefaultDir => _app?.StoreDirectory ?? "";
 
     /// <summary>本页归属的 <see cref="QuickAction.Page"/>（<see cref="QuickActionPage"/> 之一）。</summary>
     private readonly string _pageKind;

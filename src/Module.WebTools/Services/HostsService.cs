@@ -12,7 +12,7 @@ using NewToys.WebTools.Models;
 namespace NewToys.WebTools.Services;
 
 /// <summary>
-/// hosts 方案管理：多套方案落**总库 <c>web_docs</c> 的 <c>hosts-profiles</c> 文档**
+/// hosts 方案管理：多套方案落**本模块库 <c>web_docs</c> 的 <c>hosts-profiles</c> 文档**
 /// （⛔ 不再写 <c>config\hosts-profiles.json</c>）。
 /// <para>
 /// <b>切到系统 hosts</b>：在系统 hosts 里维护一段
@@ -41,7 +41,7 @@ public class HostsService
 
     public HostsService(
         ConfigStoreService cfg,
-        SqliteDatabase db,
+        WebDb db,
         IHostsPlatform platform,
         IWebToolsSettingsService settings)
     {
@@ -57,8 +57,8 @@ public class HostsService
     /// <summary>系统 hosts 文件路径。</summary>
     public string SystemHostsPath => _platform.SystemHostsPath;
 
-    /// <summary>备份目录（<c>&lt;DataDir&gt;\web\hosts-backup\</c>）。</summary>
-    public string BackupDir => Path.Combine(_cfg.DataDir, "web", "hosts-backup");
+    /// <summary>备份目录（<c>&lt;配置根&gt;\store\web\hosts-backup\</c>）。</summary>
+    public string BackupDir => Path.Combine(_cfg.StoreDir, "web", "hosts-backup");
 
     // ==================== 方案 ====================
 

@@ -69,6 +69,7 @@
             <MenuItem Header="🔗 联通检测" Command="{Binding CheckCommand}"/>
             <MenuItem Header="📌 加入 / 移出批量打开" Command="{Binding ToggleBatchCommand}"/>
             <MenuItem Header="🌐 打开" Command="{Binding OpenCommand}"/>
+            <MenuItem Header="📋 复制网址" Command="{Binding CopySelectedCommand}"/>
             <MenuItem Header="🕷 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
             <Separator/>
             <MenuItem Header="✏ 编辑" Command="{Binding ShowDetailCommand}"/>

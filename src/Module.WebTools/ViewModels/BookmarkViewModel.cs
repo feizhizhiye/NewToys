@@ -5,6 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
@@ -283,6 +286,14 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             },
             new DetailAction
             {
+                Text = "📋 复制网址",
+                Classes = "ghost",
+                ToolTip = "把这条书签的网址复制到剪贴板",
+                IsVisiblePath = nameof(IsItemSelected),
+                Command = CopyUrlCommand
+            },
+            new DetailAction
+            {
                 Text = "🔗 检测",
                 Classes = "ghost",
                 ToolTip = "检测这条书签的连通性（HTTP 状态）",
@@ -346,6 +357,14 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
                 ToolTip = "把这个文件夹下（含子文件夹）的所有网址交给所选浏览器 —— 不改设置里的网址列表",
                 IsVisiblePath = nameof(IsFolderSelected),
                 Command = OpenFolderCommand
+            },
+            new DetailAction
+            {
+                Text = "📋 复制全部网址",
+                Classes = "ghost",
+                ToolTip = "把这个文件夹下（含子文件夹）的所有网址一行一个复制到剪贴板",
+                IsVisiblePath = nameof(IsFolderSelected),
+                Command = CopyFolderUrlsCommand
             },
             new DetailAction
             {
@@ -627,6 +646,45 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             return;
         }
         _runner.OpenBrowser(cfg.ProgramPath, cfg.Arguments, urls);
+    }
+
+    // ============ 复制网址 ============
+
+    [RelayCommand(CanExecute = nameof(IsItemSelected))]
+    private Task CopyUrlAsync()
+    {
+        if (Selected is not { } item) return Task.CompletedTask;
+        return CopyTextAsync((item.Url ?? "").Trim(), "网址");
+    }
+
+    /// <summary>文件夹行的「📋 复制全部网址」：子树网址一行一个进剪贴板（粘去别的工具批量用）。</summary>
+    [RelayCommand(CanExecute = nameof(IsFolderSelected))]
+    private Task CopyFolderUrlsAsync()
+    {
+        if (SelectedNode is not { IsFolder: true } node) return Task.CompletedTask;
+        var urls = FolderItems(node)
+            .Select(b => (b.Url ?? "").Trim())
+            .Where(u => u.Length > 0)
+            .ToList();
+        if (urls.Count == 0) { StatusText = "这个文件夹下没有可复制的网址。"; return Task.CompletedTask; }
+        return CopyTextAsync(string.Join(Environment.NewLine, urls), $"「{node.DisplayName}」下 {urls.Count} 个网址");
+    }
+
+    /// <summary>右键「📋 复制网址」：按选中类型分流 —— 文件夹 = 子树全部网址，书签 = 单条网址。</summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private Task CopySelectedAsync() => IsFolderSelected ? CopyFolderUrlsAsync() : CopyUrlAsync();
+
+    private async Task CopyTextAsync(string text, string what)
+    {
+        if (string.IsNullOrWhiteSpace(text)) { StatusText = "没有可复制的内容。"; return; }
+        try
+        {
+            var win = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if (win?.Clipboard == null) { StatusText = "剪贴板不可用。"; return; }
+            await win.Clipboard.SetTextAsync(text);
+            StatusText = $"已复制{what}。";
+        }
+        catch (Exception ex) { StatusText = "复制失败：" + ex.Message; }
     }
 
     // ============ 写入浏览器配置 ============
@@ -961,6 +1019,9 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         OpenFolderCommand.NotifyCanExecuteChanged();
         CheckFolderCommand.NotifyCanExecuteChanged();
         WriteToBrowserConfigCommand.NotifyCanExecuteChanged();
+        CopyUrlCommand.NotifyCanExecuteChanged();
+        CopyFolderUrlsCommand.NotifyCanExecuteChanged();
+        CopySelectedCommand.NotifyCanExecuteChanged();
 
         // 书签卡 ↔ 文件夹卡是两张不同实例 ⇒ 只在**换形态**时通知 Shell 重挂（同形态只换字段，渲染器会自己跟）
         if (value?.Kind != _lastKind)

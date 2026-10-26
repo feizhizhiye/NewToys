@@ -507,6 +507,85 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = "已删除网址。";
     }
 
+    // ============ 行内重命名 ============
+
+    /// <summary>正在行内重命名的节点（null = 无）；View 据此把焦点送进名称输入框。</summary>
+    [ObservableProperty] private BookmarkNode? _editingNode;
+
+    /// <summary>右键「✏ 重命名」/ F2：进入行内重命名（文件夹改目录名、书签改标题）。</summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void Rename()
+    {
+        if (SelectedNode is { } node) BeginRename(node);
+    }
+
+    public void BeginRename(BookmarkNode node)
+    {
+        if (EditingNode is { } prev && !ReferenceEquals(prev, node)) prev.IsEditing = false;
+        node.EditName = node.DisplayName;
+        node.IsEditing = true;
+        EditingNode = node;
+    }
+
+    /// <summary>提交行内重命名（Enter / 失焦）：文件夹改名 ⇒ 整棵子树换路径前缀；书签 ⇒ 改标题。</summary>
+    [RelayCommand]
+    private async Task CommitRenameAsync()
+    {
+        if (EditingNode is not { } node) return;
+        var name = (node.EditName ?? "").Trim();
+        node.IsEditing = false;
+        EditingNode = null;
+
+        if (name.Length == 0 || string.Equals(name, node.DisplayName, StringComparison.Ordinal)) return;
+
+        if (node.IsFolder)
+        {
+            if (name.Contains('/')) { StatusText = "文件夹名不能含 /（层级用「📁 移动到」表达）。"; return; }
+
+            var oldPath = node.Path;
+            var cut = oldPath.LastIndexOf('/');
+            var newPath = cut < 0 ? name : oldPath[..(cut + 1)] + name;
+
+            var hit = _all.Where(i => SamePath(i.Folder, oldPath) || UnderPath(i.Folder, oldPath)).ToList();
+            if (hit.Count == 0) { StatusText = "这个文件夹下没有网址。"; return; }
+
+            foreach (var i in hit) i.Folder = newPath + i.Folder[oldPath.Length..];
+            foreach (var c in _collapsed.Where(c => SamePath(c, oldPath) || UnderPath(c, oldPath)).ToList())
+            {
+                _collapsed.Remove(c);
+                _collapsed.Add(newPath + c[oldPath.Length..]);
+            }
+
+            ExpandAncestors(newPath);
+            await PersistAsync();
+            RebuildTree();
+            ApplyView();
+            UpdateStatus();
+            SelectedNode = VisibleNodes.FirstOrDefault(n => n.IsFolder && SamePath(n.Path, newPath)) ?? SelectedNode;
+            StatusText = $"文件夹已改名为「{name}」。";
+            return;
+        }
+
+        if (node.Item is not { } item) return;
+        item.Title = name;
+        await PersistAsync();
+        NotifyRowsChanged();
+        UpdateStatus();
+        StatusText = $"已改名为「{name}」。";
+    }
+
+    /// <summary>取消行内重命名（Esc）。</summary>
+    [RelayCommand]
+    private void CancelRename()
+    {
+        if (EditingNode is { } node) node.IsEditing = false;
+        EditingNode = null;
+    }
+
+    private static bool SamePath(string? a, string b) => string.Equals(a ?? "", b, StringComparison.OrdinalIgnoreCase);
+
+    private static bool UnderPath(string? a, string b) => (a ?? "").StartsWith(b + "/", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>把某条路径及其全部祖先记为展开（新建 / 改分组后要能立刻看到那一行）。</summary>
     private void ExpandAncestors(string folder)
     {
@@ -1012,6 +1091,9 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>先序拍平：只把**当前展开的**节点放进 <see cref="VisibleNodes"/>。</summary>
     private void Materialize()
     {
+        // 行内重命名中的节点马上会被换掉 / 移出可见集合 ⇒ 先收掉输入态
+        if (EditingNode != null) CancelRename();
+
         // 🔴 先记住选中行：列表清空时 ListBox 会把 SelectedItem 写回 null（TwoWay），清完必须还原
         var keep = SelectedNode;
 
@@ -1146,6 +1228,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         CopyUrlCommand.NotifyCanExecuteChanged();
         CopyFolderUrlsCommand.NotifyCanExecuteChanged();
         CopySelectedCommand.NotifyCanExecuteChanged();
+        RenameCommand.NotifyCanExecuteChanged();
         MoveToCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanMove));
 

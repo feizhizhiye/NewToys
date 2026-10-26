@@ -1,7 +1,11 @@
 using System;
+using System.ComponentModel;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NewToys.WebTools.Models;
 using NewToys.WebTools.ViewModels;
 
@@ -12,12 +16,24 @@ public partial class BookmarkView : UserControl
     /// <summary>程序化回填选中集合时抑制自己的 <c>SelectionChanged</c> 回抛。</summary>
     private bool _syncingSelection;
 
+    private BookmarkViewModel? _vm;
+
+    /// <summary>Shift 连选的基准行（上一次普通点击 / Ctrl 点击的行）。</summary>
+    private BookmarkNode? _anchor;
+
     /// <summary>
     /// ⚠️ 页内工具条由 **Shell 承载** ⇒「📥 导入书签」的文件选择器改由
     /// <c>BookmarkViewModel.ImportBookmarksCommand</c> 经 <c>Core.DialogHooks</c> 触发（VM ⛔ 不引 Avalonia UI），
-    /// 这里只留列表的展开 / 折叠 + 多选交互。
+    /// 这里只留列表的展开 / 折叠 + 多选 / 行内重命名交互。
     /// </summary>
-    public BookmarkView() => InitializeComponent();
+    public BookmarkView()
+    {
+        InitializeComponent();
+
+        // 多选修饰键（Ctrl / Shift）自己算：ListBoxItem 默认逻辑只认「点谁选谁」，
+        // 隧道阶段先截住修饰键点击，避免与默认选中来回打架。
+        BookmarkList.AddHandler(PointerPressedEvent, OnListPointerPressed, RoutingStrategies.Tunnel);
+    }
 
     /// <summary>⚠️ ContextMenu 挂在独立弹出树上，DataContext 不随宿主继承，必须手工同步（规范 3.8）。</summary>
     protected override void OnDataContextChanged(EventArgs e)
@@ -26,12 +42,95 @@ public partial class BookmarkView : UserControl
         if (BookmarkList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
 
-        if (_vm != null) _vm.SelectionRestoreRequested -= OnSelectionRestoreRequested;
+        if (_vm != null)
+        {
+            _vm.SelectionRestoreRequested -= OnSelectionRestoreRequested;
+            _vm.PropertyChanged -= OnViewModelPropertyChanged;
+        }
+
         _vm = DataContext as BookmarkViewModel;
-        if (_vm != null) _vm.SelectionRestoreRequested += OnSelectionRestoreRequested;
+
+        if (_vm != null)
+        {
+            _vm.SelectionRestoreRequested += OnSelectionRestoreRequested;
+            _vm.PropertyChanged += OnViewModelPropertyChanged;
+        }
     }
 
-    private BookmarkViewModel? _vm;
+    // ==================== 多选（Ctrl 增选 / Shift 连选） ====================
+
+    /// <summary>
+    /// 修饰键点击在**隧道**阶段接管：Ctrl = 切换该行，Shift = 从基准行连选到该行（Ctrl+Shift = 追加连选）。
+    /// 无修饰键 ⇒ 直接返回，选中 / 双击展开交给默认逻辑。
+    /// </summary>
+    private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_vm == null || BookmarkList == null) return;
+        if (_vm.EditingNode != null) return;                                  // 正在改名：让输入框自己收
+        if (!e.GetCurrentPoint(BookmarkList).Properties.IsLeftButtonPressed) return;
+        if ((e.Source as Control)?.DataContext is not BookmarkNode node) return;
+
+        var ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+
+        if (!ctrl && !shift)
+        {
+            _anchor = node;        // 普通点击 = 重设连选基准，选中仍走默认逻辑
+            return;
+        }
+
+        e.Handled = true;
+        (e.Source as Control)?.FindAncestorOfType<ListBoxItem>()?.Focus();
+
+        if (shift) SelectRange(node, additive: ctrl);
+        else ToggleNode(node);
+
+        _anchor = node;
+    }
+
+    private void ToggleNode(BookmarkNode node)
+    {
+        if (BookmarkList?.SelectedItems is not { } items) return;
+        if (items.Contains(node)) items.Remove(node);
+        else items.Add(node);
+    }
+
+    private void SelectRange(BookmarkNode target, bool additive)
+    {
+        if (BookmarkList?.SelectedItems is not { } items || _vm == null) return;
+
+        var nodes = _vm.VisibleNodes;
+        var to = nodes.IndexOf(target);
+        if (to < 0) return;
+
+        var from = _anchor != null ? nodes.IndexOf(_anchor) : -1;
+        if (from < 0) from = to;
+
+        if (!additive) items.Clear();
+        for (var i = Math.Min(from, to); i <= Math.Max(from, to); i++)
+        {
+            var node = nodes[i];
+            if (!items.Contains(node)) items.Add(node);
+        }
+    }
+
+    /// <summary>Ctrl+A：把当前可见行全选（VM 侧只把书签行计入多选快照）。</summary>
+    private void SelectAllVisible()
+    {
+        if (BookmarkList?.SelectedItems is not { } items || _vm == null) return;
+
+        var nodes = _vm.VisibleNodes.ToList();
+        _syncingSelection = true;
+        try
+        {
+            items.Clear();
+            foreach (var node in nodes) items.Add(node);
+        }
+        finally { _syncingSelection = false; }
+
+        _vm.SetSelectionFromView(nodes);
+        _anchor = nodes.FirstOrDefault();
+    }
 
     /// <summary>多选回填：只收书签行，文件夹行混选时由 VM 忽略。</summary>
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -55,13 +154,60 @@ public partial class BookmarkView : UserControl
         finally { _syncingSelection = false; }
     }
 
+    // ==================== 行内重命名 ====================
+
+    /// <summary>VM 刚进入改名态 ⇒ 把焦点送进这一行的输入框并全选原名。</summary>
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(BookmarkViewModel.EditingNode)) return;
+        if (_vm?.EditingNode is not { } node) return;
+
+        // 输入框刚由隐藏转可见，这一帧还没布局 ⇒ 让出一个渲染节拍再抢焦点
+        Dispatcher.UIThread.Post(() => FocusEditor(node), DispatcherPriority.Background);
+    }
+
+    private void FocusEditor(BookmarkNode node)
+    {
+        var box = BookmarkList?.GetVisualDescendants().OfType<TextBox>()
+            .FirstOrDefault(t => ReferenceEquals(t.DataContext, node) && t.IsVisible);
+        if (box == null) return;
+        box.Focus();
+        box.SelectAll();
+    }
+
+    /// <summary>输入框：Enter 提交、Esc 取消（其余键交给输入框）。</summary>
+    private void OnEditKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not BookmarkViewModel vm) return;
+
+        if (e.Key is Key.Enter or Key.Return)
+        {
+            vm.CommitRenameCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            vm.CancelRenameCommand.Execute(null);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>失焦视为提交（与详情卡「失焦保存」一致）。</summary>
+    private void OnEditLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is BookmarkViewModel { EditingNode: not null } vm)
+            vm.CommitRenameCommand.Execute(null);
+    }
+
+    // ==================== 行交互 ====================
+
     /// <summary>
     /// 双击文件夹整行 = 展开 / 折叠（走系统双击间隔，⛔ 不自写计时器）。
     /// 书签行双击放行 —— 留给以后「双击打开网址」。
     /// </summary>
     private void OnRowDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (DataContext is not BookmarkViewModel vm || !vm.IsFolderSelected) return;
+        if (DataContext is not BookmarkViewModel vm || vm.EditingNode != null || !vm.IsFolderSelected) return;
         vm.ToggleExpandCommand.Execute(null);
         e.Handled = true;
     }
@@ -80,12 +226,25 @@ public partial class BookmarkView : UserControl
         BookmarkList?.SelectedItems?.Clear();
         BookmarkList?.SelectedItems?.Add(node);
         vm.SelectedNode = node;
+        _anchor = node;
     }
 
-    /// <summary>键盘 ← / →：折叠 / 展开当前文件夹（双击之外的键盘通道）。</summary>
+    /// <summary>键盘：F2 改名、Ctrl+A 全选、← / → 折叠 / 展开当前文件夹。</summary>
     private void OnRowKeyDown(object? sender, KeyEventArgs e)
     {
-        if (DataContext is not BookmarkViewModel vm || !vm.IsFolderSelected) return;
+        if (DataContext is not BookmarkViewModel vm) return;
+        if (vm.EditingNode != null) return;      // 改名中：键盘归输入框
+
+        if (e.Key == Key.F2) { vm.RenameCommand.Execute(null); e.Handled = true; return; }
+
+        if (e.Key == Key.A && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            SelectAllVisible();
+            e.Handled = true;
+            return;
+        }
+
+        if (!vm.IsFolderSelected) return;
 
         if (e.Key == Key.Left) { vm.CollapseCommand.Execute(null); e.Handled = true; }
         else if (e.Key == Key.Right) { vm.ExpandCommand.Execute(null); e.Handled = true; }

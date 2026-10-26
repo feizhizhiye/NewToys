@@ -49,6 +49,12 @@ public partial class BookmarkNode : ObservableObject
     /// <summary>展开态（一期不持久化；页面 VM 用内存集合记住用户折叠过的路径）。</summary>
     [ObservableProperty] private bool _isExpanded = true;
 
+    /// <summary>行内重命名进行中（名称列换成输入框）。</summary>
+    [ObservableProperty] private bool _isEditing;
+
+    /// <summary>行内重命名的输入框内容（进入编辑时用当前显示名填好）。</summary>
+    [ObservableProperty] private string _editName = "";
+
     public bool IsFolder => Kind == BookmarkNodeKind.Folder;
 
     public bool IsBookmark => Kind == BookmarkNodeKind.Bookmark;

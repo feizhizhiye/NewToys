@@ -21,7 +21,7 @@
     </Style>
   </UserControl.Styles>
 
-  <v:ListPageSkeleton EmptyMessage="没有可显示的书签。点「📥 导入书签」选浏览器导出的 HTML 文件。"
+  <v:ListPageSkeleton EmptyMessage="没有可显示的网址。点「📥 导入书签」选浏览器导出的 HTML 文件。"
                       EmptyActionText="📥 导入书签"
                       EmptyActionCommand="{Binding ImportBookmarksCommand}"
                       IsEmpty="{Binding !HasItems}">

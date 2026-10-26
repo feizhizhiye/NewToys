@@ -30,6 +30,10 @@ public partial class SettingsWebToolsViewModel : ObservableObject, IStatusProvid
         _syncing = true;
         DefaultUserAgent = settings.DefaultUserAgent;
         ScrapeTimeoutSeconds = settings.ScrapeTimeoutSeconds;
+        HostsCheckTimeoutSeconds = settings.HostsCheckTimeoutSeconds;
+        HostsCheckConcurrency = settings.HostsCheckConcurrency;
+        HostsBackupKeep = settings.HostsBackupKeep;
+        HostsFlushDns = settings.HostsFlushDnsAfterApply;
         _syncing = false;
 
         StatusText = $"本模块设置就绪 · 写入 {settings.FilePath}";
@@ -52,6 +56,43 @@ public partial class SettingsWebToolsViewModel : ObservableObject, IStatusProvid
         if (_syncing) return;
         StatusText = _settings.SetScrapeTimeoutSeconds(value);
     }
+
+    // ==================== Hosts 检测与备份 ====================
+
+    [ObservableProperty] private int _hostsCheckTimeoutSeconds = WebToolsSettingsService.DefaultHostsTimeout;
+    [ObservableProperty] private int _hostsCheckConcurrency = WebToolsSettingsService.DefaultHostsConcurrency;
+    [ObservableProperty] private int _hostsBackupKeep = WebToolsSettingsService.DefaultHostsKeep;
+    [ObservableProperty] private bool _hostsFlushDns = true;
+
+    partial void OnHostsCheckTimeoutSecondsChanged(int value)
+    {
+        if (_syncing) return;
+        StatusText = _settings.SetHostsCheckTimeoutSeconds(value);
+    }
+
+    partial void OnHostsCheckConcurrencyChanged(int value)
+    {
+        if (_syncing) return;
+        StatusText = _settings.SetHostsCheckConcurrency(value);
+    }
+
+    partial void OnHostsBackupKeepChanged(int value)
+    {
+        if (_syncing) return;
+        StatusText = _settings.SetHostsBackupKeep(value);
+    }
+
+    partial void OnHostsFlushDnsChanged(bool value)
+    {
+        if (_syncing) return;
+        StatusText = _settings.SetHostsFlushDnsAfterApply(value);
+    }
+
+    /// <summary>Hosts 各项的取值范围说明（与服务里的钳位口径一致）。</summary>
+    public string HostsRangesHint =>
+        $"检测超时 {WebToolsSettingsService.MinHostsTimeout}~{WebToolsSettingsService.MaxHostsTimeout} 秒 · " +
+        $"并发 {WebToolsSettingsService.MinHostsConcurrency}~{WebToolsSettingsService.MaxHostsConcurrency} · " +
+        $"备份保留 {WebToolsSettingsService.MinHostsKeep}~{WebToolsSettingsService.MaxHostsKeep} 份。";
 
     // ==================== 只读展示 ====================
 

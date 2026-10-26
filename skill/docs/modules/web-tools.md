@@ -3,7 +3,7 @@
 > **程序集**：`src/Module.WebTools`（`NewToys.WebTools`）
 > **模块键**：`web` ｜ **一级菜单**：Order 30 · 图标 `IconWeb`
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：✅ 稳定（**4 页** + 1 设置页）
+> **状态**：✅ 稳定（**5 页** + 1 设置页）
 > **最后校对**：2026-10-22（🔴 **NT-089 S1**：抓取能力 —— `RuleFileService` / `RuleCatalogService` /
 > `RuleRunService` / `RunRecordService` / `DownloadService` / `FlowService` + 三页 `web-scrape` /
 > `web-rule-editor` / `web-crawl` —— **整体迁出至脚本中心**（`Module.ScriptManager`，见
@@ -14,19 +14,20 @@
 
 ## 1. 职责与边界
 
-- **定位**：一次性网络诊断与配置工具（HTTP 测试 / 书签 / Ping / hosts），不做常驻代理、不做抓包。
+- **定位**：一次性网络诊断与配置工具（HTTP 测试 / 网址收藏 / Ping / hosts），不做常驻代理、不做抓包。
 - 🔴 NT-089 起：**网页抓取（规则集 / 调试集合 / 运行结果）已迁出本模块**（详见 §2 表与 `modules/script-manager.md`）。
-- 系统级写入只发生在 hosts 管理（需管理员权限）；其余均为只读探测或模块内数据。
+- 系统级写入只发生在 hosts（方案应用 / 手动编辑 / 还原，需管理员权限）；其余均为只读探测或模块内数据。
 
-## 2. 当前功能（4 页 + 1 设置页）
+## 2. 当前功能（5 页 + 1 设置页）
 
 | 菜单 Key | 标题 | Order | View/VM | 说明 |
 |---|---|---|---|---|
 | `web-http` | HTTP 测试 | 1 | `WebHttpView` / `WebHttpViewModel` | 构造请求并查看响应。⚠️ **工具条逃生舱**：页内自绘 `Border.toolbar`（表单式撑满布局），不套统一工具条 |
-| `web-bookmark` | 书签管理 | 2 | `BookmarkView` / `BookmarkViewModel` | 收藏与整理网址、导入浏览器书签 |
+| `web-bookmark` | 网址收藏（原「书签管理」） | 2 | `BookmarkView` / `BookmarkViewModel` | 收藏与整理网址、导入浏览器书签（Key / 类名 ⛔ 不改，只改显示名） |
 | `web-ping` | 网络 Ping | 3 | `PingView` / `PingViewModel` | 测试主机连通性与延迟，支持切 DNS |
-| `web-hosts` | Hosts 管理 | 7 | `HostsView` / `HostsViewModel` | 切换 hosts 方案、网络导入、编辑系统 hosts（Order 7 = NT-089 迁出抓取三页后保留的原值，⛔ 不重排） |
-| `settings-web-tools` | 网络工具设置 | 100 | `SettingsWebToolsView` | 超时 / 并发 / 默认解析器 |
+| `web-hosts` | Hosts 管理 | 7 | `HostsView` / `HostsViewModel` | hosts 方案 + 源订阅 + 三项检测 + 预检后按需替换（Order 7 = 原值，⛔ 不重排） |
+| `web-hosts-system` | 系统 Hosts | 8 | `SystemHostsView` / `SystemHostsViewModel` | 系统 hosts 展示（受管块区间 / 只看受管块）+ 手动编辑 + 备份 / 还原 / 删除 + 清除受管块 |
+| `settings-web-tools` | 网络工具设置 | 100 | `SettingsWebToolsView` | 抓取默认 UA / 超时 + **Hosts** 检测超时 / 并发 / 备份份数 / 刷新 DNS |
 
 - 页 Key 一经发布 **⛔ 不改**。
 
@@ -41,14 +42,14 @@
 | 发送请求 | 页内表单 + `▶ 发送` | 发请求并在下方显示响应 | 请求中禁用；**⛔ 不套统一工具条**（表单式撑满布局是刻意例外） |
 | 清空 | `🗑 清空` | 清表单与响应区 | — |
 
-### 书签管理 `web-bookmark`
+### 网址收藏 `web-bookmark`（原「书签管理」）
 
 **整页 = 一棵树**（NT-106）：文件夹行（带 `(N)` 条数、行首 `▾/▸` 仅作**静态指示**）与书签行同列表混排，缩进 16/级；
 **折叠入口 = 双击文件夹整行**（键盘 ← / →），⛔ 无独立箭头按钮；树由扁平列表按 `Folder` 全路径派生，老数据（单层名）零迁移。
 列表**多选**（`Ctrl` 增选 / `Shift` 连选，`SelectionMode=Multiple`）—— 多选只为「📁 移动到」整批与状态栏计数，其余命令仍只作用于主选中行。
 列 = 标题 / 网址 / 状态（「分组」列已删 —— 树缩进已表达层级）。
 
-工具条：`📥 导入书签` / 搜索框 / `➕ 新建` / `🔗 检测全部` / `🚀 批量打开` / `🔄 重读书签` / **打开方式下拉**(190)；
+工具条：`📥 导入书签` / 搜索框 / `➕ 新建` / `🔗 检测全部` / `🚀 批量打开` / `🔄 重读收藏` / **打开方式下拉**(190)；
 行右键：`🔗 联通检测` / `📌 加入·移出批量打开` / `🌐 打开` / `📋 复制网址` / `🕷 发送到网页抓取` / **`📁 移动到`**（子菜单）/ `✏ 编辑` / `🗑 删除`。
 
 | 操作 | 触发 | 结果 | 约束 |
@@ -88,14 +89,39 @@
 
 ### Hosts 管理 `web-hosts`
 
-工具条：`🌐 导入` / `➕ 新建方案` / `🔄 重读方案`；行右键：`✅ 应用到系统 hosts` / `📤 导出受管块` / `🗑 删除方案`。
+工具条：`📂 导入文件` / **源下拉**(170) / `⬇ 拉取源` / `➕ 源` / `➕ 新建方案` / `🔍 检测`（检测中变 `⏹ 停止`）/ `🔄 重读方案`；
+行右键：`🧪 预检差异` / `🔍 检测可用性` / `✅ 应用到系统 hosts` / `📤 导出受管块` / `🗑 删除方案`。
+详情卡：名称（失焦提交）+ 条目文本框 + **预检差异 / 检测结果 / 安全检查**（只读、有问题才显示）+ 受管块预览 + 五个动作。
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| 应用到系统 hosts | 行右键 `✅ 应用到系统 hosts` | 把该方案写进系统 hosts 的**受管块** | 🔴 需管理员：失败必须给可读提示，**⛔ 静默失败** |
-| 导出受管块 | 行右键 | 导出为文件 | — |
-| 删除方案 | 行右键 | 删模块内方案 | ⛔ 不动系统 hosts |
-| 重读方案 | `🔄 重读方案` | 重读本地方案清单 | **⛔ 不动系统 hosts、不导入** |
+| 导入文件 | `📂 导入文件` | 本地 hosts 文本 → 解析成条目写进**当前方案** | 路径 `Path.GetFullPath` 校验；无选中不执行 |
+| 拉取源 | 选源 + `⬇ 拉取源` | 按源的地址列表逐个试，第一个拉到 ≥N 条的胜出 → 覆盖同名源方案 / 新建方案 | 🔴 **⛔ 不自动写系统 hosts**；预设源要求 ≥20 条（防抓到错误页），自定义源只要求 ≥1 条；比上次少一半 ⇒ 标「疑似失效」 |
+| 添加自定义源 | `➕ 源` | 两个输入框（名称 / 地址，空格分隔多个）→ 加进源清单 | 落 `web_docs/hosts-sources`（⛔ 不进 config） |
+| 检测可用性 | `🔍 检测` / 右键 | 逐条：本机 DNS 解析 vs 映射 IP + TCP 443（失败回退 80）+ 时延；顺带跑静态安全检查 | 只测**启用**条目；并发 / 超时读设置页；**可取消**；结果**不落库**（重读即清空） |
+| 预检差异 | `🧪 预检` | 与系统受管块比对 → 「新增 N / 删除 M / 改动 K」 | 只读系统文件，不写 |
+| 应用到系统 hosts | `✅ 应用`（右键同） | 二次确认 → 自动备份 → 替换受管块 →（可选）刷新 DNS | 🔴 需管理员；无权限必须给可读提示 + 可复制受管块，**⛔ 静默失败**；备份失败 ⇒ 放弃写入 |
+| 导出受管块 | `📤 导出` | 另存为 `.hosts` 文本（含起止标记），同时填进详情卡预览 | — |
+| 删除方案 | `🗑 删除方案` | 删模块内方案 | ⛔ 不动系统 hosts |
+| 重读方案 | `🔄 重读方案` | 重读本地方案清单，清空所有检测结论 | **⛔ 不动系统 hosts、不导入** |
+
+- 列：名称 / 条目数 / **健康**（`✅n ⚠n`，未检测 = `—`）/ 来源（`source:<id>` / `file:<名>` / 空 = 本地新建）。
+- **健康列与检测结果的边界**：检测只写内存里的条目对象；换方案 / 重读后归零 —— ⛔ 别把结论当持久状态。
+
+### 系统 Hosts `web-hosts-system`
+
+自绘四段（⛔ 不是列表页）：① 信息条（路径 / 字节·行数·修改时间 / 受管块区间 / 权限）② 动作条 + 正文（只读预览 ↔ 编辑态）③ 备份列表 + 备份动作。
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 重读 | `🔄 重读` | 重读系统 hosts 全文 + 刷新区间 / 权限 / 备份列表 | — |
+| 只看受管块 | 勾选框 | 只读预览只留 `start/end` 之间的行 | 编辑态下不可用（隐藏） |
+| 编辑并保存 | `✏ 编辑` → `💾 保存` | 整份覆盖系统 hosts | 🔴 需管理员（无权限时入口置灰）；**保存前二次确认 + 自动备份** |
+| 新建备份 | `📦 新建备份` | `data\web\hosts-backup\hosts-<时间戳>.bak`（**完整原文**） | 只读也能备份；超出保留份数删最旧 |
+| 还原 | 选备份 → `♻ 还原选中` | 整份回写成该备份 | 二次确认；**还原前先把当前文件再备份一份**（可反悔）；需管理员 |
+| 删除备份 | `🗑 删除备份` | 只删备份文件 | 二次确认；⛔ 不动系统 hosts |
+| 打开备份目录 | `📂 打开备份目录` | 资源管理器打开备份目录 | 目录不存在先创建 |
+| 清除受管块 | `🧹 清除受管块` | 删掉 `start/end` 之间的内容 | 二次确认 + 自动备份；用户自有行保留；需管理员 |
 
 ### 网络工具设置 `settings-web-tools`
 
@@ -115,14 +141,17 @@
 | 文件 | 职责 |
 |---|---|
 | `HttpTestService` | HTTP 请求构造 / 发送 / 响应解析（`web-http`） |
-| `BookmarkService` | 书签 CRUD + 浏览器书签导入（`web-bookmark`） |
+| `BookmarkService` | 网址收藏 CRUD + 浏览器书签导入（`web-bookmark`） |
 | `PingService` | Ping 执行与延迟统计（`web-ping`） |
 | `DnsResolver` | DNS 解析（工具条切 DNS 的来源） |
-| `HostsService` | hosts 方案读写 / 系统 hosts 落盘（需管理员，`web-hosts`） |
+| `HostsService` | hosts 方案读写 / 系统 hosts 读·写·备份·还原·清除 / 受管块 diff（`web-hosts` + `web-hosts-system`） |
+| `HostsSourceService` | hosts 源订阅（预设 + 自定义，落 `web_docs/hosts-sources`）+ 拉取解析（镜像 fallback、跌幅判失效） |
+| `HostsCheckService` | 条目可用性（DNS 对比 + TCP）+ 静态安全规则 |
+| `IHostsPlatform` / `WindowsHostsPlatform` | 平台底座：系统 hosts 路径 + `ipconfig /flushdns`（其它平台返回不支持） |
 | `WebTransferService`（已上提 `NewToys.UI`） | 跨页一次性传参：书签 / Ping ↔ 抓取（脚本中心）；两侧共用同一单例 |
 | `WebToolsSettingsService` | `config\web-tools.json` |
 
-- 数据与配置：`config\web-tools.json`（设置）；书签与 hosts 方案落模块数据目录（见 `WebToolsSettingsService` 与各 Service 的路径来源）。⛔ 模块内不自己拼 `ConfigStoreService` 的根路径。
+- 数据与配置：`config\web-tools.json`（设置：UA / 抓取超时 / Hosts 检测超时·并发·备份份数·刷新 DNS）；网址收藏、ping 目标、hosts 方案、hosts 源全部落总库 `data\newtoys.db` 的 `web_docs` 文档；系统 hosts 备份落 `data\web\hosts-backup\`。⛔ 模块内不自己拼 `ConfigStoreService` 的根路径。
 - 🔴 **NT-089 S1：抓取能力已整体迁出本模块** —— `RuleFileService` / `RuleCatalogService` / `RuleRunService` /
   `RunRecordService` / `DownloadService` / `FlowService` / `RulesBackupSection` + 三页 `web-scrape` /
   `web-rule-editor` / `web-crawl` 与规则备份节，现归 **`Module.ScriptManager`**（见 `modules/script-manager.md`）。
@@ -138,7 +167,11 @@
 |---|---|
 | 菜单注册（Key 权威源） | `WebToolsModule.cs` |
 | 工具条逃生舱样板 | `Views/WebHttpView.axaml` |
-| 系统写入点 | `Services/HostsService.cs` |
+| 系统写入点 | `Services/HostsService.cs`（任何写系统 hosts 的路都由它落地） |
+| 备份与受管块 | `Services/HostsService.cs`（`BackupNow` / `Restore` / `ManagedRange` / `DiffAgainstManaged`） |
+| 源订阅 | `Services/HostsSourceService.cs`（预设清单在文件头，改预设 = 改这里） |
+| 检测 | `Services/HostsCheckService.cs`（可用性 + 静态安全规则） |
+| 系统 hosts 页 | `Views/SystemHostsView.axaml` + `ViewModels/SystemHostsViewModel.cs` |
 
 ## 5. 坑点（🔴 已知）
 
@@ -177,7 +210,14 @@
 28. 🔴 **书签树⛔ 用 `TreeView`**（NT-106）：`TreeViewItem` 的层级缩进会把**整行**（含右侧网址 / 状态列）一起右移 ⇒ 与表头必然错位。实现 = 树先序拍平成 `VisibleNodes` + 缩进只作用于第一列的 `Width=Depth×16` 占位 Border（vm `BookmarkViewModel.ApplyView/Materialize`）。要加列 / 改列宽只动列规格串，别碰缩进。
 29. 🔴 **`BookmarkItem.Folder` 是「全路径」**（NT-106）：`/` 分隔（`工作/项目A`），老数据单层名等价单层路径。派生树只能从「有书签的路径」长出中间节点 ⇒ 纯空文件夹导入后消失（接受）。文件夹名自身含 `/` 会被拆级（罕见，接受）。
 30. ⚠️ **工具条 `Combo` 不支持逐项禁用**（NT-106）：「未配置」的浏览器项只能靠**文案标注 + 相关命令 `CanExecute` 置灰**表达，⛔ 不能真的把下拉项灰掉（`ToolbarMenuItemDescriptor` 没有 `IsEnabledPath`）。
-31. ⚠️ **`ListFooterBar` 的「每页」组恒显示**（NT-106）：它不在 `HasPaging` 的显隐控制里 ⇒ 树形态（无分页）**不显示底栏**，计数改由 Shell 底部状态栏承载（VM `StatusText` =「共 N 条书签 · M 个文件夹」）。
+31. ⚠️ **`ListFooterBar` 的「每页」组恒显示**（NT-106）：它不在 `HasPaging` 的显隐控制里 ⇒ 树形态（无分页）**不显示底栏**，计数改由 Shell 底部状态栏承载（VM `StatusText` =「共 N 条网址 · M 个文件夹」）。
+32. 🔴 **备份存的是「完整系统 hosts 原文」，不是受管块**：还原 = 整份回写（用户手改的行也一起回来）。⛔ 别图省事只存受管段 —— 那样「还原」和「应用方案」就没区别了。
+33. 🔴 **写系统 hosts 一律「先备份、备份失败就放弃写入」**：`WriteWithBackup` 是唯一落点（应用 / 手动保存 / 清除 / 还原都走它）。⛔ 别在任何路径上先写后备份。
+34. 🔴 **权限判定用「能不能打开文件写」而不是「是否管理员」**：`CanWrite()` 探测 `FileStream(ReadWrite)` —— 有 ACL 授权的普通用户也能写，反过来只看 `IsElevated` 会误判。
+35. ⚠️ **`DetailAction.ConfirmText` 是静态字符串**（渲染层不绑 VM）：动态 diff 文案进不了确认框 ⇒ diff 由「🧪 预检」显示在字段里，确认框只给固定提示。要动态文案得改 `Shared`（框架层，另立项）。
+36. 🔴 **检测结果必须 `[JsonIgnore]`**：`HostsEntry` 的 `Status` / `LatencyMs` / `ResolvedIp` / `Port` 与 `HostsProfile.HealthText` 都只存内存 —— 落库就会拿上次的陈旧结论冒充本次检测。
+37. 🔴 **预设源地址必须实测过才准加**（HTTP 200 + 可解析条目 ≥ 20）：GitHub 加速类项目地址常变，`raw.githubusercontent.com` 在国内多数不可达。当前两个预设（GitHub520 / ineo6-hosts）走 `raw.hellogithub.com` 与 `fastly.jsdelivr.net`，均实测 200。
+38. ⚠️ **系统 hosts 页的预览框用 `TextBox` 自带滚动**（`AcceptsReturn` + `NoWrap` + 双向 scrollbar），⛔ 别外面再套 `ScrollViewer`（抢滚动 + 行宽失控）。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

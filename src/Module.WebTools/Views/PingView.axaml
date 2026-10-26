@@ -55,7 +55,7 @@
               <ContextMenu>
                 <Separator/>
                 <MenuItem Header="📡 Ping" Command="{Binding PingCommand}"/>
-                <MenuItem Header="🔖 发送到书签" Command="{Binding SendToBookmarkCommand}"/>
+                <MenuItem Header="🔖 发送到网址收藏" Command="{Binding SendToBookmarkCommand}"/>
                 <MenuItem Header="🕷 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
                 <Separator/>
                 <MenuItem Header="✏ 编辑" Command="{Binding ShowDetailCommand}"/>

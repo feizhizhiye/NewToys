@@ -28,7 +28,7 @@
 | 模块 | 程序集 | 模块键 | 菜单 Key 前缀 | 文档 | 状态 |
 |---|---|---|---|---|---|
 | **脚本中心**（显示名 v3.86 起；原名「脚本管理器」） | `Module.ScriptManager` | `script` | `script-*` + `web-scrape`/`web-rule-editor`/`web-crawl` | `modules/script-manager.md` | ✅ NT-089 S1 已实施；命令库 / 收藏夹（NT-091）与软件包（NT-096）已迁出 ⇒ 剩 脚本库 / 集合 / 信息面板 / 抓取三页 / 设置 |
-| 网络工具 | `Module.WebTools` | `web` | `web-*` | `modules/web-tools.md` | ✅ 稳定（7 页 + 设置，NT-084/086/087 已验收 2026-10-20）；🔄 **v3.86 起收窄为「网络配置与诊断」**（三页迁出至 script，新增出口代理 NT-093） |
+| 网络工具 | `Module.WebTools` | `web` | `web-*` | `modules/web-tools.md` | ✅ 稳定（**5 页 + 设置**：HTTP 测试 / 网址收藏 / Ping / Hosts 管理 / 系统 Hosts）；🔄 **v3.86 起收窄为「网络配置与诊断」**（三页迁出至 script）；出口代理（NT-093）仍是草稿 |
 | 视频工具 | `Module.VideoTools` | `video` | `video-*` | `modules/video-tools.md` | ✅ 稳定（3 页 + 设置） |
 | **系统工具**（v3.86 立项 / v3.87 定位收紧） | `Module.SystemTools` | `system-tools`（🔴 组键，非页 Key） | `script-commands` / `script-favorites` / `script-packages` / `system-*` | `modules/system-tools.md` | ✅ 已实施（NT-091 建模块 · NT-096 收编软件包；⏳ 待 build 验收） |
 | 媒体资产 | `Module.MediaAssets` | `assets` | `assets-*` | `modules/media-assets.md` | ✅ 稳定（7 页 + 设置） |

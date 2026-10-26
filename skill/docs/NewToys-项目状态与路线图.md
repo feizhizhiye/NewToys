@@ -1,6 +1,6 @@
 # NewToys 项目状态与路线图
 
-> v3.84 · 2026-10-26 · 台账
+> v3.85 · 2026-10-26 · 台账
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **项目状态与路线图**（Status & Roadmap），三、节 = **Backlog 工作项台账**。
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
@@ -23,7 +23,7 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.96 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.84 |
+| 文档版本 | 需求 v3.96 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.85 |
 | 技术栈 | .NET 10 + Avalonia 12.1.4 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
 | 代码规模 | 8 项目 / 272 个 `.cs+.axaml+.csproj` / 约 51000 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |
@@ -203,8 +203,8 @@
 | NT-105 | **时间轴区间标记（视频预览）**（2026-10-24 用户指令「按你推荐的做一版」）：新增自绘控件 `Controls/TimelineTrack` 替掉「预览位置」滑条 —— 底轨 + 刻度尺（0.5s~4h 自动选档）+ 播放头 + **剪辑区间块**（单段整块 / 多段 ≥2 段逐段色块 / 未勾选「剪辑」35% 淡显）；点一下或拖动定位；VM 加 `SegmentList`（`CutSegments.Parse` 缓存，与命令同源）。开始 / 结束滑条保留 | P1 | ✔ **已完成（2026-10-25 用户本地 build 通过）** —— 改动全落 `Module.VideoTools` | backlog/video-tools/NT-105.md |
 | NT-083 | **Python 运行时底座**：`env.json` 增 `python` 项（空 = PATH 探测，平台中立）/ 共享环境 **`%LOCALAPPDATA%\NewToys\tools\py`**（与 `env.json` 同级，⛔ 不进 profiles）/ 长驻 worker（行分隔 JSON + `-u -X utf8` + 超时杀进程树 + traceback 回传 + 空闲 10 分钟自动退出）/ **依赖安装交给随包脚本**（C# ⛔ 不写 pip 逻辑，播种成集合「环境维护」）/ 「运行环境」节显示共享环境状态 / ⛔ 不引 pythonnet；供 web-tools 与 script-manager 共用 ⇒ **落 Core（已批准）** | P1 | ✔ **批 1~4 已实施（2026-10-19）**：运行时 + worker + 环境脚本集合 + 「Python 共享环境（venv）」状态行；2026-10-25 编译通过；实机功能验收待用户 | backlog/framework/NT-083.md |
 | NT-108 | **书签「移动到其他节点」**（2026-10-26 用户指令）：行右键新增 `📁 移动到` 子菜单 —— 目标 = 「（根级 · 未分组）」+ 树里全部文件夹（排除当前所在文件夹），选中文件夹行时置灰；执行 = 改 `BookmarkItem.Folder` 全路径 → 落盘 → 重建树 → 目标祖先自动展开 + 选中跟到新行。配套修「右键默认不改选中项」：`ContextRequested` 先把命中行设为 `SelectedNode`。**追加（用户拍板 1.1）**：列表改 `SelectionMode=Multiple`（`Ctrl`/`Shift`）⇒ 同一子菜单对整批生效（磁盘只写一次），多选高亮重建后按 `BookmarkItem.Id` 回填、`Materialize` 期间忽略 View 回抛。⛔ 不做行拖拽（页面是扁列表，不是 `TreeView`） | P1 | ✔ **已完成（2026-10-26 实施，待用户本地 build）** —— 改动全落 `Module.WebTools` | backlog/web-tools/NT-108.md |
-| NT-109 | **「书签管理」显示名改「网址收藏」**（2026-10-26 用户指令）：菜单项 / 说明书 / 状态栏 / 空态文案统一为「网址收藏」；🔴 菜单 Key `web-bookmark` 与类名 `Bookmark*` **⛔ 不改**（改 Key 会让 `columnlayout.json` 偏好失效、改类名零收益）；「导入浏览器导出的书签 HTML」动作仍叫「导入书签」（文件语义）。功能零变化 | P2 | ✅ **就绪** | backlog/web-tools/NT-109.md |
-| NT-110 | **Hosts 管理扩展**（2026-10-26 用户指令）：① 新增 `web-hosts-system`「系统 Hosts」页 = 系统 hosts 现状展示（受管块高亮）+ 手动编辑保存 + **备份 / 还原 / 删除 / 打开目录** + 清除受管块；② 方案页加**源订阅**（预设 GitHub 加速类项目 + 镜像 fallback + 自定义源）、**三项检测**（条目可用性 DNS 对比 + TCP、源失效跌幅判定、静态安全规则）、**diff 预检 + 二次确认 + 自动备份**的按需替换；③ 导入本地文件 / 导出到文件 / 条目搜索 / 「健康」列 | P1 | ✅ **就绪** | backlog/web-tools/NT-110.md |
+| NT-109 | **「书签管理」显示名改「网址收藏」**（2026-10-26 用户指令）：菜单项 / 说明书 / 状态栏 / 空态文案统一为「网址收藏」；🔴 菜单 Key `web-bookmark` 与类名 `Bookmark*` **⛔ 不改**（改 Key 会让 `columnlayout.json` 偏好失效、改类名零收益）；「导入浏览器导出的书签 HTML」动作仍叫「导入书签」（文件语义）。功能零变化 | P2 | ✔ **已完成（2026-10-26 实施，待用户本地 build）** | backlog/web-tools/NT-109.md |
+| NT-110 | **Hosts 管理扩展**（2026-10-26 用户指令）：① 新增 `web-hosts-system`「系统 Hosts」页 = 系统 hosts 现状展示（受管块高亮）+ 手动编辑保存 + **备份 / 还原 / 删除 / 打开目录** + 清除受管块；② 方案页加**源订阅**（预设 GitHub 加速类项目 + 镜像 fallback + 自定义源）、**三项检测**（条目可用性 DNS 对比 + TCP、源失效跌幅判定、静态安全规则）、**diff 预检 + 二次确认 + 自动备份**的按需替换；③ 导入本地文件 / 导出到文件 / 条目搜索 / 「健康」列 | P1 | ✔ **已完成（2026-10-26 实施，待用户本地 build）** —— 改动全落 `Module.WebTools` | backlog/web-tools/NT-110.md |
 | NT-107 | **页面注册编译期化**（2026-10-25 用户指令「按你推荐的继续」）：`IMenuService.RegisterFunction` 改泛型 `RegisterFunction<TView>`（视图名取 `typeof(TView).Name`，**删除字符串版**）⇒ View 类改名漏改注册 = 编译不过，不再靠 lint 兜；36 处注册点机械迁移（MediaAssets 8 / ScriptManager 7 / Shell 8 / WebTools 5 / VideoTools 4 / SystemTools 4）；`check-view-pairs.ps1` P-02 改判泛型实参；新增 `MenuServiceTests`（视图名 / 排序 / 同 Key 更新语义 / 跨组暂存补登）。**零可见变化** | P1 | ✔ **已完成（2026-10-25 用户本地 build 通过）** —— 改动落 Shared/Core + 6 模块注册点 | backlog/framework/NT-107.md |
 | NT-106 | **书签树状展开（整页单树）**（2026-10-24 用户定调「不要左树，整页按树展开」）：`BookmarkItem.Folder` 由「末级名」升为「`/` 分隔全路径」（老数据零迁移）；修 `ImportHtml` —— 改成**按 `<A>` 祖先链反推**全路径（不再依赖 H3/DL 遍历顺序，两种导出解析形态都认）；列表改**树**（`BookmarkNode` 视图节点混排文件夹行/书签行，缩进 16/级，行高 28，一期无图标）—— ⚠️ 实现用「先序拍平 + 缩进列」而非 `TreeView`（`TreeViewItem` 自动缩进会把整行右移、列必然与表头错位）；筛选重建只留命中+祖先并自动展开；排序收窄为同级内、「分组」列置灰；树形态取消分页只留计数（计数落 Shell 状态栏）。**追加（同批）**：工具条 `打开方式` 下拉复用「设置 → 启动与行为」的浏览器1/2 —— 文件夹行 `全部打开`/`全部检测` 走 `LaunchRunner.OpenBrowser` **临时调用、不写配置**，书签行 `写入浏览器配置` 经 `ILaunchConfigService.Save` **追加去重**（app.json `Launch` 增第二写入点，用户已授权） | P1 | ✔ **已完成（2026-10-25 用户本地 build 通过）** —— 改动全落 `Module.WebTools` | backlog/web-tools/NT-106.md |
 | NT-082 | **软件包集合（跨后端包清单预设）+ 集合右键发送到对应页面**：① 集合类别加回 `package`（成员 `role=package`，`Target`=包 Id；与包条目一对一容器）；② 「📤 发送到信息面板」→「📤 发送到对应页面」，按 kind 跳 info / script / command / packages 并写 `lastCollectionIdByKind`；左栏集合行右键同项（2026-10-19 追加微调：右键文案动态化「📤 发送到{目标页名}」，随选中集合类别变）；③ 软件包页 `集合 ▾` 显示包清单（状态按 `winget list` 比对）+ 行右键 `📥 加入集合`（幂等）。源命令（含中科大）已由 NT-080 提供，本次未改 | P1 | ✔ **已完成（2026-10-25 编译通过）** | backlog/script-manager/NT-082.md |

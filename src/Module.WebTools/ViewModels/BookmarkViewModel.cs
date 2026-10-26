@@ -22,7 +22,7 @@ using NewToys.WebTools.Services;
 namespace NewToys.WebTools.ViewModels;
 
 /// <summary>
-/// 书签管理页：整页一棵树（文件夹行 + 书签行同列表混排，缩进表示层级）+ 右侧详情卡。
+/// 网址收藏页：整页一棵树（文件夹行 + 书签行同列表混排，缩进表示层级）+ 右侧详情卡。
 /// <para>
 /// 功能：导入浏览器书签（AngleSharp 解析 Netscape HTML，保留文件夹层级）、展开 / 折叠、
 /// 联通检测、批量打开、跨页发送到网页抓取、按所选浏览器配置打开。
@@ -54,10 +54,10 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         new() { Text = "📥 导入书签", Classes = "ghost", CommandPath = nameof(ImportBookmarksCommand), ToolTip = "选择浏览器导出的书签 HTML 文件（保留文件夹层级）" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索标题 / 网址 / 分组…", ValuePath = nameof(SearchText) },
-        new() { Text = "➕ 新建", CommandPath = nameof(NewBookmarkCommand), ToolTip = "新书签落在当前选中的文件夹下" },
+        new() { Text = "➕ 新建", CommandPath = nameof(NewBookmarkCommand), ToolTip = "新网址落在当前选中的文件夹下" },
         new() { Text = "🔗 检测全部", CommandPath = nameof(CheckAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new() { Text = "🚀 批量打开", CommandPath = nameof(OpenBatchCommand) },
-        new() { Text = "🔄 重读书签", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地书签库（⛔ 不联网、不导浏览器）" },
+        new() { Text = "🔄 重读收藏", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地收藏库（⛔ 不联网、不导浏览器）" },
         new()
         {
             Kind = ToolbarItemKind.Combo,
@@ -155,7 +155,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     public string FolderPathText =>
         SelectedNode?.IsFolder == true ? (SelectedNode.Path.Length > 0 ? SelectedNode.Path : "（未分组）") : "";
 
-    /// <summary>文件夹行的书签数（含子孙）。</summary>
+    /// <summary>文件夹行的网址数（含子孙）。</summary>
     public string FolderCountText => SelectedNode?.IsFolder == true ? $"{SelectedNode.Count} 条" : "";
 
     private void NotifyCheckInfo()
@@ -205,7 +205,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     private DetailCardDescriptor BuildItemCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在左侧列表里选中一条书签",
+        EmptyText = "在左侧列表里选中一条网址",
         Sections =
         {
             new DetailSection
@@ -273,7 +273,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             {
                 Text = "💾 保存",
                 Classes = "primary",
-                ToolTip = "把当前内容写回书签库",
+                ToolTip = "把当前内容写回收藏库",
                 IsVisiblePath = nameof(IsItemSelected),
                 Command = SaveCommand
             },
@@ -281,7 +281,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             {
                 Text = "🌐 打开",
                 Classes = "ghost",
-                ToolTip = "按工具条的「打开方式」打开这条书签",
+                ToolTip = "按工具条的「打开方式」打开这条网址",
                 IsVisiblePath = nameof(IsItemSelected),
                 Command = OpenCommand
             },
@@ -289,7 +289,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             {
                 Text = "📋 复制网址",
                 Classes = "ghost",
-                ToolTip = "把这条书签的网址复制到剪贴板",
+                ToolTip = "把这条网址的网址复制到剪贴板",
                 IsVisiblePath = nameof(IsItemSelected),
                 Command = CopyUrlCommand
             },
@@ -297,7 +297,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             {
                 Text = "🔗 检测",
                 Classes = "ghost",
-                ToolTip = "检测这条书签的连通性（HTTP 状态）",
+                ToolTip = "检测这条网址的连通性（HTTP 状态）",
                 IsVisiblePath = nameof(IsItemSelected),
                 Command = CheckCommand
             },
@@ -314,7 +314,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             {
                 Text = "🗑 删除",
                 Classes = "ghost",
-                ToolTip = "删除这条书签",
+                ToolTip = "删除这条网址",
                 IsVisiblePath = nameof(IsItemSelected),
                 Command = DeleteCommand
             }
@@ -325,7 +325,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     private DetailCardDescriptor BuildFolderCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在左侧列表里选中一条书签或文件夹",
+        EmptyText = "在左侧列表里选中一条网址或文件夹",
         Sections =
         {
             new DetailSection
@@ -341,7 +341,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
                     },
                     new DetailField
                     {
-                        Label = "书签数",
+                        Label = "网址数",
                         ValuePath = nameof(FolderCountText),
                         Kind = FieldKind.Text,
                         Selectable = true
@@ -371,7 +371,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             {
                 Text = "🔗 全部检测",
                 Classes = "ghost",
-                ToolTip = "逐条检测这个文件夹下的所有书签",
+                ToolTip = "逐条检测这个文件夹下的所有网址",
                 IsVisiblePath = nameof(IsFolderSelected),
                 Command = CheckFolderCommand
             }
@@ -400,7 +400,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         LoadLayout();
         Refresh();
 
-        // 跨页「发送到书签」：消费待处理 URL，直接建一条待补全的书签并打开详情。
+        // 跨页「发送到网址收藏」：消费待处理 URL，直接建一条待补全的书签并打开详情。
         var pending = _transfer.TakeUrl();
         if (!string.IsNullOrWhiteSpace(pending))
         {
@@ -434,7 +434,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     private void UpdateStatus()
     {
         var folders = CountFolders(_tree);
-        StatusText = folders > 0 ? $"共 {_all.Count} 条书签 · {folders} 个文件夹" : $"共 {_all.Count} 条书签";
+        StatusText = folders > 0 ? $"共 {_all.Count} 条网址 · {folders} 个文件夹" : $"共 {_all.Count} 条网址";
     }
 
     // ============ 导入浏览器书签 ============
@@ -446,13 +446,13 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             IsBusy = true;
             var html = await File.ReadAllTextAsync(path).ConfigureAwait(false);
             var res = _svc.ImportHtml(html, _all);
-            if (res.Added == 0) { StatusText = "没有新的书签（可能都已存在）。"; return; }
+            if (res.Added == 0) { StatusText = "没有新的网址（可能都已存在）。"; return; }
 
             foreach (var b in res.Items) _all.Add(b);
             RebuildTree();
             ApplyView();
             await PersistAsync();
-            StatusText = $"已导入 {res.Added} 条书签" + (res.Folders > 0 ? $"（含 {res.Folders} 个文件夹）" : "");
+            StatusText = $"已导入 {res.Added} 条网址" + (res.Folders > 0 ? $"（含 {res.Folders} 个文件夹）" : "");
         }
         catch (Exception ex)
         {
@@ -468,7 +468,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         // 落在当前选中文件夹：选中文件夹行 = 它本身；选中书签行 = 它所属文件夹；无选中 = 未分组
         var folder = SelectedNode is { IsFolder: true } f ? f.Path : SelectedNode?.Item?.Folder ?? "";
-        var b = new BookmarkItem { Title = "新书签", Url = "https://", Folder = folder };
+        var b = new BookmarkItem { Title = "新网址", Url = "https://", Folder = folder };
         _all.Add(b);
         ExpandAncestors(folder);
         RebuildTree();
@@ -477,7 +477,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         IsDetailVisible = true;
         SaveDetailFlag();
         UpdateStatus();
-        StatusText = "已新建书签，填写信息后点「保存」。";
+        StatusText = "已新建网址，填写信息后点「保存」。";
     }
 
     [RelayCommand(CanExecute = nameof(IsItemSelected))]
@@ -504,7 +504,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         ApplyView();
         if (SelectedNode?.Item == gone) SelectedNode = null;
         UpdateStatus();
-        StatusText = "已删除书签。";
+        StatusText = "已删除网址。";
     }
 
     /// <summary>把某条路径及其全部祖先记为展开（新建 / 改分组后要能立刻看到那一行）。</summary>
@@ -539,7 +539,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         try
         {
             IsBusy = true;
-            StatusText = $"正在检测 {_all.Count} 条书签的连通性……";
+            StatusText = $"正在检测 {_all.Count} 条网址的连通性……";
             await RunChecksAsync(_all);
             StatusText = "批量检测完成。";
         }
@@ -552,11 +552,11 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         if (SelectedNode is not { IsFolder: true } node) return;
         var items = FolderItems(node);
-        if (items.Count == 0) { StatusText = "这个文件夹下没有书签。"; return; }
+        if (items.Count == 0) { StatusText = "这个文件夹下没有网址。"; return; }
         try
         {
             IsBusy = true;
-            StatusText = $"正在检测「{node.DisplayName}」下的 {items.Count} 条书签……";
+            StatusText = $"正在检测「{node.DisplayName}」下的 {items.Count} 条网址……";
             await RunChecksAsync(items);
             StatusText = $"「{node.DisplayName}」检测完成（{items.Count} 条）。";
         }
@@ -607,7 +607,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         var urls = FolderItems(node).Select(b => b.Url).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
         if (urls.Count == 0) { StatusText = "这个文件夹下没有可打开的网址。"; return; }
         OpenUrls(urls);
-        StatusText = $"已用「{SelectedOpenWith?.Label}」打开「{node.DisplayName}」下 {urls.Count} 个书签。";
+        StatusText = $"已用「{SelectedOpenWith?.Label}」打开「{node.DisplayName}」下 {urls.Count} 个网址。";
     }
 
     [RelayCommand(CanExecute = nameof(IsItemSelected))]
@@ -630,9 +630,9 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         else
             urls = _all.Where(b => b.IsBatchOpen).Select(b => b.Url).Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
 
-        if (urls.Count == 0) { StatusText = "没有可批量打开的书签（先选中一项，或勾选「批量打开」）。"; return; }
+        if (urls.Count == 0) { StatusText = "没有可批量打开的网址（先选中一项，或勾选「批量打开」）。"; return; }
         OpenUrls(urls);
-        StatusText = $"已批量打开 {urls.Count} 个书签（{SelectedOpenWith?.Label}）。";
+        StatusText = $"已批量打开 {urls.Count} 个网址（{SelectedOpenWith?.Label}）。";
     }
 
     private void OpenUrl(string url) => OpenUrls(new[] { url });
@@ -680,7 +680,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         RebuildMoveTargets();
 
         if (_multiSelected.Count > 1)
-            StatusText = $"已选 {_multiSelected.Count} 条书签（右键「📁 移动到」可整批移动）。";
+            StatusText = $"已选 {_multiSelected.Count} 条网址（右键「📁 移动到」可整批移动）。";
     }
 
     /// <summary>回填多选高亮用：当前可见行里对应已选书签的节点。</summary>
@@ -1056,7 +1056,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         return null;
     }
 
-    /// <summary>找出当前树里指向某条书签的节点（保存 / 新建后定位用）。</summary>
+    /// <summary>找出当前树里指向某条网址的节点（保存 / 新建后定位用）。</summary>
     private BookmarkNode? FindNode(BookmarkItem item)
         => VisibleNodes.FirstOrDefault(n => ReferenceEquals(n.Item, item));
 

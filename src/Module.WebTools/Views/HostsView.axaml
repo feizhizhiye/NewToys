@@ -1,14 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
-             xmlns:conv="using:Avalonia.Data.Converters"
              x:Class="NewToys.WebTools.Views.HostsView">
-  <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
+  <!--  三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条都收进列表列，
         详情卡在右列、从页面顶到底（加上左树就是三列）。
         NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。  -->
-  <v:ListPageSkeleton EmptyMessage="没有可显示的方案。点「🌐 导入」从网络 hosts 源导入，或「➕ 新建方案」。"
-                      EmptyActionText="🌐 导入"
-                      EmptyActionCommand="{Binding ImportCommand}"
+  <v:ListPageSkeleton EmptyMessage="没有可显示的方案。用工具条的「⬇ 拉取源」从预设源生成一份，或「➕ 新建方案」手写。"
+                      EmptyActionText="➕ 新建方案"
+                      EmptyActionCommand="{Binding NewProfileCommand}"
                       IsEmpty="{Binding !HasItems}">
 
     <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
@@ -20,7 +19,9 @@
                       IsVisible="{Binding IsNameVisible}"/>
               <Button Grid.Column="1" Classes="col-header" Content="{Binding EntriesHeader}"
                       IsVisible="{Binding IsEntriesVisible}"/>
-              <Button Grid.Column="2" Classes="col-header" Content="{Binding SourceHeader}"
+              <Button Grid.Column="2" Classes="col-header" Content="{Binding HealthHeader}"
+                      IsVisible="{Binding IsHealthVisible}"/>
+              <Button Grid.Column="3" Classes="col-header" Content="{Binding SourceHeader}"
                       IsVisible="{Binding IsSourceVisible}"/>
               <v:ColumnGrid.ContextMenu>
                 <ContextMenu>
@@ -37,6 +38,8 @@
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
                   <MenuItem Header="条目数" ToggleType="CheckBox" IsChecked="{Binding IsEntriesVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Entries"/>
+                  <MenuItem Header="健康" ToggleType="CheckBox" IsChecked="{Binding IsHealthVisible, Mode=OneWay}"
+                            Command="{Binding ToggleColumnCommand}" CommandParameter="Health"/>
                   <MenuItem Header="来源" ToggleType="CheckBox" IsChecked="{Binding IsSourceVisible, Mode=OneWay}"
                             Command="{Binding ToggleColumnCommand}" CommandParameter="Source"/>
                 </ContextMenu>
@@ -51,6 +54,8 @@
                    SelectionMode="Single">
             <ListBox.ContextMenu>
               <ContextMenu>
+                <MenuItem Header="🧪 预检差异" Command="{Binding PreviewDiffCommand}"/>
+                <MenuItem Header="🔍 检测可用性" Command="{Binding CheckCommand}"/>
                 <Separator/>
                 <MenuItem Header="✅ 应用到系统 hosts" Command="{Binding ApplyCommand}"/>
                 <MenuItem Header="📤 导出受管块" Command="{Binding ExportCommand}"/>
@@ -66,7 +71,10 @@
                   <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Entries.Count}"
                              Foreground="{DynamicResource SecondaryTextBrush}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsEntriesVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Source}"
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding HealthText}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsHealthVisible}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Source}"
                              Foreground="{DynamicResource SecondaryTextBrush}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsSourceVisible}"/>
                 </v:ColumnGrid>

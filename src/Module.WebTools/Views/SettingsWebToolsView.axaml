@@ -48,12 +48,38 @@
       </StackPanel>
     </StackPanel>
 
+    <StackPanel x:Key="Sec2" Spacing="10">
+      <TextBlock
+          Classes="hint-text"
+          TextWrapping="Wrap"
+          Text="只影响「Hosts 管理」页的检测与应用，不改系统 hosts 文件本身；四项都是失焦即生效。" />
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="检测单条超时（秒）" />
+        <TextBox Width="120" Text="{Binding HostsCheckTimeoutSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="检测并发数" />
+        <TextBox Width="120" Text="{Binding HostsCheckConcurrency, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="备份保留份数（超出删最旧）" />
+        <TextBox Width="120" Text="{Binding HostsBackupKeep, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+      </StackPanel>
+
+      <CheckBox Content="应用方案后自动刷新 DNS 缓存（ipconfig /flushdns）" IsChecked="{Binding HostsFlushDns, Mode=TwoWay}" />
+
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding HostsRangesHint}" />
+    </StackPanel>
+
     <StackPanel x:Key="Sec1" Spacing="10">
       <StackPanel Spacing="6">
         <TextBlock
             Classes="hint-text"
             TextWrapping="Wrap"
-            Text="书签 / 网络 Ping / Hosts 管理没有模块级配置 —— 它们的数据就是各自的清单文件（bookmarks.json / ping-targets.json / hosts-profiles.json），由页面自己维护；网络请求超时各自按用途定，不共用这里这一项。" />
+            Text="网址收藏 / 网络 Ping / Hosts 方案的**清单数据**不在本文件里 —— 它们落总库 newtoys.db 的 web_docs 文档（bookmarks / ping-targets / hosts-profiles / hosts-sources），由各自页面维护；系统 hosts 的备份在 data\web\hosts-backup\ 下。" />
         <Border Classes="divider-line" />
         <TextBlock Classes="field-label" Text="设置文件" />
         <TextBlock

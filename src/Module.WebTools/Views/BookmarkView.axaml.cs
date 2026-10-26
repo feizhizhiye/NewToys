@@ -1,10 +1,8 @@
 using System;
-using System.ComponentModel;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NewToys.WebTools.Models;
 using NewToys.WebTools.ViewModels;
@@ -16,15 +14,13 @@ public partial class BookmarkView : UserControl
     /// <summary>程序化回填选中集合时抑制自己的 <c>SelectionChanged</c> 回抛。</summary>
     private bool _syncingSelection;
 
-    private BookmarkViewModel? _vm;
-
     /// <summary>Shift 连选的基准行（上一次普通点击 / Ctrl 点击的行）。</summary>
     private BookmarkNode? _anchor;
 
     /// <summary>
     /// ⚠️ 页内工具条由 **Shell 承载** ⇒「📥 导入书签」的文件选择器改由
     /// <c>BookmarkViewModel.ImportBookmarksCommand</c> 经 <c>Core.DialogHooks</c> 触发（VM ⛔ 不引 Avalonia UI），
-    /// 这里只留列表的展开 / 折叠 + 多选 / 行内重命名交互。
+    /// 这里只留列表的展开 / 折叠 + 多选交互。
     /// </summary>
     public BookmarkView()
     {
@@ -42,20 +38,12 @@ public partial class BookmarkView : UserControl
         if (BookmarkList?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
 
-        if (_vm != null)
-        {
-            _vm.SelectionRestoreRequested -= OnSelectionRestoreRequested;
-            _vm.PropertyChanged -= OnViewModelPropertyChanged;
-        }
-
+        if (_vm != null) _vm.SelectionRestoreRequested -= OnSelectionRestoreRequested;
         _vm = DataContext as BookmarkViewModel;
-
-        if (_vm != null)
-        {
-            _vm.SelectionRestoreRequested += OnSelectionRestoreRequested;
-            _vm.PropertyChanged += OnViewModelPropertyChanged;
-        }
+        if (_vm != null) _vm.SelectionRestoreRequested += OnSelectionRestoreRequested;
     }
+
+    private BookmarkViewModel? _vm;
 
     // ==================== 多选（Ctrl 增选 / Shift 连选） ====================
 
@@ -66,7 +54,6 @@ public partial class BookmarkView : UserControl
     private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_vm == null || BookmarkList == null) return;
-        if (_vm.EditingNode != null) return;                                  // 正在改名：让输入框自己收
         if (!e.GetCurrentPoint(BookmarkList).Properties.IsLeftButtonPressed) return;
         if ((e.Source as Control)?.DataContext is not BookmarkNode node) return;
 
@@ -154,51 +141,6 @@ public partial class BookmarkView : UserControl
         finally { _syncingSelection = false; }
     }
 
-    // ==================== 行内重命名 ====================
-
-    /// <summary>VM 刚进入改名态 ⇒ 把焦点送进这一行的输入框并全选原名。</summary>
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(BookmarkViewModel.EditingNode)) return;
-        if (_vm?.EditingNode is not { } node) return;
-
-        // 输入框刚由隐藏转可见，这一帧还没布局 ⇒ 让出一个渲染节拍再抢焦点
-        Dispatcher.UIThread.Post(() => FocusEditor(node), DispatcherPriority.Background);
-    }
-
-    private void FocusEditor(BookmarkNode node)
-    {
-        var box = BookmarkList?.GetVisualDescendants().OfType<TextBox>()
-            .FirstOrDefault(t => ReferenceEquals(t.DataContext, node) && t.IsVisible);
-        if (box == null) return;
-        box.Focus();
-        box.SelectAll();
-    }
-
-    /// <summary>输入框：Enter 提交、Esc 取消（其余键交给输入框）。</summary>
-    private void OnEditKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (DataContext is not BookmarkViewModel vm) return;
-
-        if (e.Key is Key.Enter or Key.Return)
-        {
-            vm.CommitRenameCommand.Execute(null);
-            e.Handled = true;
-        }
-        else if (e.Key == Key.Escape)
-        {
-            vm.CancelRenameCommand.Execute(null);
-            e.Handled = true;
-        }
-    }
-
-    /// <summary>失焦视为提交（与详情卡「失焦保存」一致）。</summary>
-    private void OnEditLostFocus(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is BookmarkViewModel { EditingNode: not null } vm)
-            vm.CommitRenameCommand.Execute(null);
-    }
-
     // ==================== 行交互 ====================
 
     /// <summary>
@@ -207,14 +149,14 @@ public partial class BookmarkView : UserControl
     /// </summary>
     private void OnRowDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (DataContext is not BookmarkViewModel vm || vm.EditingNode != null || !vm.IsFolderSelected) return;
+        if (DataContext is not BookmarkViewModel vm || !vm.IsFolderSelected) return;
         vm.ToggleExpandCommand.Execute(null);
         e.Handled = true;
     }
 
     /// <summary>
     /// 右键先校正选中：点击**未被选中**的行 ⇒ 改为单选它；点在**已选中**的行上 ⇒ 保持当前多选，
-    /// 让「📁 移动到」对整批生效（列表右键默认不动选中项）。
+    /// 让「📁 移动到」/「🗑 删除」对整批生效（列表右键默认不动选中项）。
     /// </summary>
     private void OnRowContextRequested(object? sender, ContextRequestedEventArgs e)
     {
@@ -229,13 +171,10 @@ public partial class BookmarkView : UserControl
         _anchor = node;
     }
 
-    /// <summary>键盘：F2 改名、Ctrl+A 全选、← / → 折叠 / 展开当前文件夹。</summary>
+    /// <summary>键盘：Ctrl+A 全选、← / → 折叠 / 展开当前文件夹。</summary>
     private void OnRowKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not BookmarkViewModel vm) return;
-        if (vm.EditingNode != null) return;      // 改名中：键盘归输入框
-
-        if (e.Key == Key.F2) { vm.RenameCommand.Execute(null); e.Handled = true; return; }
 
         if (e.Key == Key.A && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {

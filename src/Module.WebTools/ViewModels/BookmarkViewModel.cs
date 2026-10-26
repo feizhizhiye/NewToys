@@ -321,7 +321,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         }
     };
 
-    /// <summary>文件夹行的卡：只有路径 / 条数 + 两个子树级动作（保存 / 删除 / 送抓取对文件夹无意义）。</summary>
+    /// <summary>文件夹行的卡：名称可改（保存 = 整棵子树换前缀）+ 路径 / 条数 + 子树级动作。</summary>
     private DetailCardDescriptor BuildFolderCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
@@ -334,7 +334,15 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
                 {
                     new DetailField
                     {
-                        Label = "文件夹",
+                        Label = "名称",
+                        ValuePath = nameof(FolderNameDraft),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        Placeholder = "本层文件夹名（改完点「💾 保存改名」）"
+                    },
+                    new DetailField
+                    {
+                        Label = "路径",
                         ValuePath = nameof(FolderPathText),
                         Kind = FieldKind.Text,
                         Selectable = true
@@ -353,8 +361,16 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         {
             new DetailAction
             {
-                Text = "🌐 全部打开",
+                Text = "💾 保存改名",
                 Classes = "primary",
+                ToolTip = "改本层文件夹名 —— 子文件夹与其中的网址一起跟着换路径",
+                IsVisiblePath = nameof(IsFolderSelected),
+                Command = RenameFolderCommand
+            },
+            new DetailAction
+            {
+                Text = "🌐 全部打开",
+                Classes = "ghost",
                 ToolTip = "把这个文件夹下（含子文件夹）的所有网址交给所选浏览器 —— 不改设置里的网址列表",
                 IsVisiblePath = nameof(IsFolderSelected),
                 Command = OpenFolderCommand
@@ -494,92 +510,67 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = $"已保存「{item.Title}」。";
     }
 
-    [RelayCommand(CanExecute = nameof(IsItemSelected))]
+    /// <summary>删除：多选（≥2）时整批删，单选时删这一条；**一次落盘**。</summary>
+    [RelayCommand(CanExecute = nameof(CanDelete))]
     private async Task DeleteAsync()
     {
-        if (Selected is not { } gone) return;
-        _all.Remove(gone);
+        var gone = ActionCandidates();
+        if (gone.Count == 0) return;
+
+        foreach (var item in gone) _all.Remove(item);
+        _multiSelected.Clear();          // 删掉的书签不能再留在多选快照里
+        MoveToCommand.NotifyCanExecuteChanged();
+        DeleteCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanMove));
+        OnPropertyChanged(nameof(CanDelete));
+
         await PersistAsync();
         RebuildTree();
         ApplyView();
-        if (SelectedNode?.Item == gone) SelectedNode = null;
         UpdateStatus();
-        StatusText = "已删除网址。";
+        StatusText = gone.Count == 1 ? $"已删除「{gone[0].Title}」。" : $"已删除 {gone.Count} 条网址。";
     }
 
-    // ============ 行内重命名 ============
+    /// <summary>有可删的书签（选中书签行 / 多选里含书签行）⇒ 删除可用；文件夹行本身不可删。</summary>
+    public bool CanDelete => ActionCandidates().Count > 0;
 
-    /// <summary>正在行内重命名的节点（null = 无）；View 据此把焦点送进名称输入框。</summary>
-    [ObservableProperty] private BookmarkNode? _editingNode;
+    // ============ 文件夹改名（详情卡） ============
 
-    /// <summary>右键「✏ 重命名」/ F2：进入行内重命名（文件夹改目录名、书签改标题）。</summary>
-    [RelayCommand(CanExecute = nameof(HasSelection))]
-    private void Rename()
+    /// <summary>文件夹卡「名称」输入框的草稿；换选中行时用当前文件夹名重置。</summary>
+    [ObservableProperty] private string _folderNameDraft = "";
+
+    /// <summary>详情卡「💾 保存改名」：改本层目录名 ⇒ 整棵子树换路径前缀（子文件夹 / 网址一起走）。</summary>
+    [RelayCommand(CanExecute = nameof(IsFolderSelected))]
+    private async Task RenameFolderAsync()
     {
-        if (SelectedNode is { } node) BeginRename(node);
-    }
+        if (SelectedNode is not { IsFolder: true } node) return;
 
-    public void BeginRename(BookmarkNode node)
-    {
-        if (EditingNode is { } prev && !ReferenceEquals(prev, node)) prev.IsEditing = false;
-        node.EditName = node.DisplayName;
-        node.IsEditing = true;
-        EditingNode = node;
-    }
+        var name = (FolderNameDraft ?? "").Trim();
+        if (name.Length == 0) { StatusText = "文件夹名不能为空。"; FolderNameDraft = node.Name; return; }
+        if (name.Contains('/')) { StatusText = "文件夹名不能含 /（层级用「📁 移动到」表达）。"; return; }
+        if (string.Equals(name, node.Name, StringComparison.Ordinal)) { StatusText = "名称没有变化。"; return; }
 
-    /// <summary>提交行内重命名（Enter / 失焦）：文件夹改名 ⇒ 整棵子树换路径前缀；书签 ⇒ 改标题。</summary>
-    [RelayCommand]
-    private async Task CommitRenameAsync()
-    {
-        if (EditingNode is not { } node) return;
-        var name = (node.EditName ?? "").Trim();
-        node.IsEditing = false;
-        EditingNode = null;
+        var oldPath = node.Path;
+        var cut = oldPath.LastIndexOf('/');
+        var newPath = cut < 0 ? name : oldPath[..(cut + 1)] + name;
 
-        if (name.Length == 0 || string.Equals(name, node.DisplayName, StringComparison.Ordinal)) return;
+        var hit = _all.Where(i => SamePath(i.Folder, oldPath) || UnderPath(i.Folder, oldPath)).ToList();
+        if (hit.Count == 0) { StatusText = "这个文件夹下没有网址。"; return; }
 
-        if (node.IsFolder)
+        foreach (var i in hit) i.Folder = newPath + i.Folder[oldPath.Length..];
+        foreach (var c in _collapsed.Where(c => SamePath(c, oldPath) || UnderPath(c, oldPath)).ToList())
         {
-            if (name.Contains('/')) { StatusText = "文件夹名不能含 /（层级用「📁 移动到」表达）。"; return; }
-
-            var oldPath = node.Path;
-            var cut = oldPath.LastIndexOf('/');
-            var newPath = cut < 0 ? name : oldPath[..(cut + 1)] + name;
-
-            var hit = _all.Where(i => SamePath(i.Folder, oldPath) || UnderPath(i.Folder, oldPath)).ToList();
-            if (hit.Count == 0) { StatusText = "这个文件夹下没有网址。"; return; }
-
-            foreach (var i in hit) i.Folder = newPath + i.Folder[oldPath.Length..];
-            foreach (var c in _collapsed.Where(c => SamePath(c, oldPath) || UnderPath(c, oldPath)).ToList())
-            {
-                _collapsed.Remove(c);
-                _collapsed.Add(newPath + c[oldPath.Length..]);
-            }
-
-            ExpandAncestors(newPath);
-            await PersistAsync();
-            RebuildTree();
-            ApplyView();
-            UpdateStatus();
-            SelectedNode = VisibleNodes.FirstOrDefault(n => n.IsFolder && SamePath(n.Path, newPath)) ?? SelectedNode;
-            StatusText = $"文件夹已改名为「{name}」。";
-            return;
+            _collapsed.Remove(c);
+            _collapsed.Add(newPath + c[oldPath.Length..]);
         }
 
-        if (node.Item is not { } item) return;
-        item.Title = name;
+        ExpandAncestors(newPath);
         await PersistAsync();
-        NotifyRowsChanged();
+        RebuildTree();
+        ApplyView();
         UpdateStatus();
-        StatusText = $"已改名为「{name}」。";
-    }
-
-    /// <summary>取消行内重命名（Esc）。</summary>
-    [RelayCommand]
-    private void CancelRename()
-    {
-        if (EditingNode is { } node) node.IsEditing = false;
-        EditingNode = null;
+        SelectedNode = VisibleNodes.FirstOrDefault(n => n.IsFolder && SamePath(n.Path, newPath)) ?? SelectedNode;
+        StatusText = $"文件夹已改名为「{name}」。";
     }
 
     private static bool SamePath(string? a, string b) => string.Equals(a ?? "", b, StringComparison.OrdinalIgnoreCase);
@@ -755,11 +746,13 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         foreach (var node in nodes) if (node.Item is { } item) _multiSelected.Add(item);
 
         MoveToCommand.NotifyCanExecuteChanged();
+        DeleteCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanMove));
+        OnPropertyChanged(nameof(CanDelete));
         RebuildMoveTargets();
 
         if (_multiSelected.Count > 1)
-            StatusText = $"已选 {_multiSelected.Count} 条网址（右键「📁 移动到」可整批移动）。";
+            StatusText = $"已选 {_multiSelected.Count} 条网址（右键「📁 移动到」/「🗑 删除」可整批处理）。";
     }
 
     /// <summary>回填多选高亮用：当前可见行里对应已选书签的节点。</summary>
@@ -771,8 +764,8 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         return VisibleNodes.Where(n => n.Item is { } item && ids.Contains(item.Id)).ToList();
     }
 
-    /// <summary>本次要移动的书签：多选（≥2）优先，否则当前主选中项，再退回多选快照（主选中是文件夹行时）。</summary>
-    private List<BookmarkItem> MoveCandidates()
+    /// <summary>本次要动（移动 / 删除）的书签：多选（≥2）优先，否则当前主选中项，再退回多选快照（主选中是文件夹行时）。</summary>
+    private List<BookmarkItem> ActionCandidates()
     {
         if (_multiSelected.Count > 1) return _multiSelected.ToList();
         if (Selected is { } single) return new List<BookmarkItem> { single };
@@ -780,14 +773,14 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>有可移动的书签（选中书签行 / 多选里含书签行）⇒ 子菜单可用。</summary>
-    public bool CanMove => MoveCandidates().Count > 0;
+    public bool CanMove => ActionCandidates().Count > 0;
 
     /// <summary>把选中的书签（单选 / 多选）改到目标文件夹；多选一次落盘。</summary>
     [RelayCommand(CanExecute = nameof(CanMove))]
     private async Task MoveToAsync(string? targetPath)
     {
         var target = (targetPath ?? "").Trim();
-        var moved = MoveCandidates()
+        var moved = ActionCandidates()
             .Where(i => !string.Equals(i.Folder ?? "", target, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
@@ -1091,9 +1084,6 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>先序拍平：只把**当前展开的**节点放进 <see cref="VisibleNodes"/>。</summary>
     private void Materialize()
     {
-        // 行内重命名中的节点马上会被换掉 / 移出可见集合 ⇒ 先收掉输入态
-        if (EditingNode != null) CancelRename();
-
         // 🔴 先记住选中行：列表清空时 ListBox 会把 SelectedItem 写回 null（TwoWay），清完必须还原
         var keep = SelectedNode;
 
@@ -1177,6 +1167,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(IsFolderSelected));
         OnPropertyChanged(nameof(IsItemSelected));
+        OnPropertyChanged(nameof(CanDelete));
 
         RebuildMoveTargets();
     }
@@ -1206,6 +1197,9 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         Selected = value?.Item;
 
+        // 文件夹卡的「名称」草稿跟着换行重置（书签行 = 清空）
+        FolderNameDraft = value is { IsFolder: true } ? value.Name : "";
+
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(IsFolderSelected));
         OnPropertyChanged(nameof(IsItemSelected));
@@ -1217,6 +1211,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         CheckCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
         DeleteCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanDelete));
         ToggleBatchCommand.NotifyCanExecuteChanged();
         SendToScrapeCommand.NotifyCanExecuteChanged();
         ToggleExpandCommand.NotifyCanExecuteChanged();
@@ -1228,7 +1223,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         CopyUrlCommand.NotifyCanExecuteChanged();
         CopyFolderUrlsCommand.NotifyCanExecuteChanged();
         CopySelectedCommand.NotifyCanExecuteChanged();
-        RenameCommand.NotifyCanExecuteChanged();
+        RenameFolderCommand.NotifyCanExecuteChanged();
         MoveToCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanMove));
 

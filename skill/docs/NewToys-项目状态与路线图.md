@@ -1,6 +1,6 @@
 # NewToys 项目状态与路线图
 
-> v3.82 · 2026-10-22 · 台账
+> v3.84 · 2026-10-26 · 台账
 > **标准角色（术语见《AI协作手册》【术语对照】）**：本文件 = **项目状态与路线图**（Status & Roadmap），三、节 = **Backlog 工作项台账**。
 > **只回答「做到哪了」**——基线 / 已完成 / 待办三节。
 > ⛔ **只保留最近三次变更需求**（更早的逐次记录一律看 `git log`）。
@@ -8,6 +8,7 @@
 > 配套：`index.md`（文档地图）/ 需求规格 / `framework.md` / `ui.md` / `modules/<模块>.md` / AI 协作手册 / AGENTS.md（跨 AI 入口）
 
 **最近三次变更**
+- **v3.84（🧭 立项 2026-10-26）**：**网络工具两处调整立项**（用户「把书签管理改为网址收藏；hosts 管理功能要扩展些，主要用于修改系统 hosts，增加备份、展示、按需替换，预设一些开源 GitHub 加速 hosts 项目链接，要能检测可用性 / 失效 / 安全」）—— ① 「书签管理」显示名改「网址收藏」（菜单 Key `web-bookmark` ⛔ 不改）；② 新增 `web-hosts-system`「系统 Hosts」页（展示 + 受管块高亮 + 手动编辑 + 备份 / 还原 + 清除受管块）；③ 方案页加源订阅（预设 + 镜像 fallback）、三项检测（可用 / 失效 / 静态安全）、diff 预检 + 二次确认 + 自动备份。登记 **NT-109 / NT-110**，需求规格升 v3.96（新增 §6.3.3）。⛔ 未动 `src/`。
 - **v3.82（🧭 立项 2026-10-22）**：**模块重划分 v1.1 立项**（用户「把脚本管理器抽象成新模块、webtools 的脚本/集合集成进脚本管理器」→ 拍板 4 项 →「立项」）—— 需求规格升 **v3.86** 并**新增 §2.3**（唯一权威口径）+ §6.7 系统工具，§6.2 / §6.3 加迁移指针；🔴 用户口头「流水线」= **§2.2 L3 命令链**（复用集合 + `▶ 依次运行`，⛔ 不新造 Step 模型 / ⛔ 不连线 / **线性 only**）；显示名改「**脚本中心**」（Key 全不改）；`script-commands` + `script-favorites` → 新 `system` 模块（Order 25）；web 三页（`web-scrape` / `web-rule-editor` / `web-crawl`）→ script；WebTools 收窄为「网络配置与诊断」+ 新增出口代理。登记 **NT-088 ~ NT-094**；NT-088（执行器上提 Core）= 改框架层，**待用户批准**才可执行。⛔ 未动 `src/`。
 - **v3.81（🗂 整理期 2026-10-21）**：**全库过时内容清理**（用户「清理文档中过时的内容」，⛔ 未改代码）—— ① 关键文件索引订正：`QuickActionListViewModel` 路径 `Module.PcTools` → `Module.ScriptManager`、winget 服务 `Core/` → `Module.ScriptManager/Services/`（NT-074 下放）；② `framework.md` §11 已完成项（NT-064/065/066/067/068/075/076/077/078/085）收拢为「已结清」一行，NT-085 状态按本台账订正；③ `ui.md` §10 子节顺序订正（`10.6 空态` 归位到 `10.7 弹出卡片` 前）；④ 需求规格：系统级配置二次确认举例换成 Hosts、删 `VideoDbFolder` 与「5 个类型页」旧表述、版本记录压到三次；⑤ 模块文档：网络工具页数 5/6 → **7 页** + Order 订正、脚本管理器删已删文件 `PackageSourceViewModel` 并重编坑点编号（原有重复编号 7/7、13/13、17/17）；⑥ `index.md` 模块状态列与代码/台账对齐；⑦ NT-080 卡删除已作废的旧方案行（原 #3~#10、验收 #2~#4）。
 - **v3.79（2026-10-19 · NT-080）**：**软件包定位收敛 + winget 源模型重写** —— ① 集合页**删「软件包」类别**（`ScriptCollectionKind.Package` 删除；老数据 `kind=package` 归 `info`，`role=package` 不进集合候选池）；② 软件包页**后端只支持 winget**，跨平台（apt 等）另开独立页面；③ 🔴 修「工具条源多选框勾 store 源不生效」：源多选改为**只写 `package.json → defaultSource`**（⛔ 不再勾一下就跑 `source enable` + 重读列表把状态冲掉），全勾 / 全不勾 = 全部源 ⇒ 搜索不传 `--source`；④ 修源分类：`winget`→社区源、`winget-font`→**字体源**、`msstore`→商店源、其它→自定义源，**互斥只发生在社区源内部与字体源内部**（`/fonts` 判定必须先于 `winget`）；⑤ **商店源不可切换**（开关置灰）；⑥ 实测 winget 1.29 **无 `source enable/disable`** ⇒ 关 = `source remove`、开 = 按 `winget source export` 快照 `source add`（回放 `--type` / `--explicit`），两向都要管理员权限（UAC）。改动局限在 `Module.ScriptManager`（未碰框架层）。
@@ -22,7 +23,7 @@
 | 项 | 内容 |
 |---|---|
 | 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
-| 文档版本 | 需求 v3.91 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.83 |
+| 文档版本 | 需求 v3.96 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.84 |
 | 技术栈 | .NET 10 + Avalonia 12.1.4 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
 | 代码规模 | 8 项目 / 272 个 `.cs+.axaml+.csproj` / 约 51000 行 |
 | 仓库根 | 能看到 `src/` 的那一级 |
@@ -74,7 +75,7 @@
 | 首页 | — | — | `IconHome` | （树的叶子节点；也是**默认页**，与其他标签一样常驻标签栏、不可关闭） |
 | 脚本中心 | script | 20 | `IconPc` | `script-library`脚本库/1/✅ ｜ `script-collections`脚本集合/4/✅ ｜ `script-info`**信息面板**/99/✅ ｜ `web-scrape`**抓取规则**/5/✅ ｜ `web-rule-editor`**调试集合**/6/✅ ｜ `web-crawl`**运行结果**/7/✅ ｜ **`settings-script`脚本中心设置/100/✅** |
 | **系统工具** | system-tools | 25 | `IconSystem` | `script-favorites`收藏夹/1/✅ ｜ `script-commands`命令库/2/✅ ｜ `script-packages`软件包/3/✅ ｜ **`settings-system`系统工具设置/100/✅**（🔴 `system-quick` 快捷命令页 NT-097 已删） |
-| 网络工具 | web | 30 | `IconWeb` | `web-http`HTTP 测试/1/✅（工具条逃生舱）｜ `web-bookmark`书签管理/2/✅ ｜ `web-ping`网络 Ping/3/✅ ｜ `web-hosts`Hosts 管理/7/✅（Order 保留原值）｜ **`settings-web-tools`网络工具设置/100/✅** |
+| 网络工具 | web | 30 | `IconWeb` | `web-http`HTTP 测试/1/✅（工具条逃生舱）｜ `web-bookmark`**网址收藏**（原书签管理）/2/✅ ｜ `web-ping`网络 Ping/3/✅ ｜ `web-hosts`Hosts 管理/7/✅（Order 保留原值）｜ **`web-hosts-system`系统 Hosts/8**（NT-110 新增）｜ **`settings-web-tools`网络工具设置/100/✅** |
 | 视频工具 | video | 40 | `IconVideo` | `video-list`视频列表/0/✅ ｜ `video-cut`**视频预览**/1/✅ ｜ `video-batch`**批量处理**/2/✅ ｜ **`settings-video-tools`视频工具设置/100/✅** |
 | 媒体资产 | assets | 50 | `IconMediaAssets` | `assets-all`全部资产/0/✅ ｜ `assets-tags`标签管理/6/✅ ｜ `assets-categories`分类管理/7/✅ ｜ `assets-collections`集合管理/8/✅ ｜ `assets-storages`存储源/9/✅ ｜ `assets-tasks`任务中心/10/✅ ｜ `assets-trash`回收站/11/✅ ｜ **`settings-media-assets`媒体资产设置/99/✅** |
 | ~~设置~~ | — | — | — | 🔴 **v3.66：该一级菜单项已删除**。应用级设置 = **一个整页**（入口 = 左树版本行齿轮 / `Ctrl+,` / 标题栏搜索按钮），**模块设置页已挂回各自模块**（见表内加粗项）。 |
@@ -202,6 +203,8 @@
 | NT-105 | **时间轴区间标记（视频预览）**（2026-10-24 用户指令「按你推荐的做一版」）：新增自绘控件 `Controls/TimelineTrack` 替掉「预览位置」滑条 —— 底轨 + 刻度尺（0.5s~4h 自动选档）+ 播放头 + **剪辑区间块**（单段整块 / 多段 ≥2 段逐段色块 / 未勾选「剪辑」35% 淡显）；点一下或拖动定位；VM 加 `SegmentList`（`CutSegments.Parse` 缓存，与命令同源）。开始 / 结束滑条保留 | P1 | ✔ **已完成（2026-10-25 用户本地 build 通过）** —— 改动全落 `Module.VideoTools` | backlog/video-tools/NT-105.md |
 | NT-083 | **Python 运行时底座**：`env.json` 增 `python` 项（空 = PATH 探测，平台中立）/ 共享环境 **`%LOCALAPPDATA%\NewToys\tools\py`**（与 `env.json` 同级，⛔ 不进 profiles）/ 长驻 worker（行分隔 JSON + `-u -X utf8` + 超时杀进程树 + traceback 回传 + 空闲 10 分钟自动退出）/ **依赖安装交给随包脚本**（C# ⛔ 不写 pip 逻辑，播种成集合「环境维护」）/ 「运行环境」节显示共享环境状态 / ⛔ 不引 pythonnet；供 web-tools 与 script-manager 共用 ⇒ **落 Core（已批准）** | P1 | ✔ **批 1~4 已实施（2026-10-19）**：运行时 + worker + 环境脚本集合 + 「Python 共享环境（venv）」状态行；2026-10-25 编译通过；实机功能验收待用户 | backlog/framework/NT-083.md |
 | NT-108 | **书签「移动到其他节点」**（2026-10-26 用户指令）：行右键新增 `📁 移动到` 子菜单 —— 目标 = 「（根级 · 未分组）」+ 树里全部文件夹（排除当前所在文件夹），选中文件夹行时置灰；执行 = 改 `BookmarkItem.Folder` 全路径 → 落盘 → 重建树 → 目标祖先自动展开 + 选中跟到新行。配套修「右键默认不改选中项」：`ContextRequested` 先把命中行设为 `SelectedNode`。**追加（用户拍板 1.1）**：列表改 `SelectionMode=Multiple`（`Ctrl`/`Shift`）⇒ 同一子菜单对整批生效（磁盘只写一次），多选高亮重建后按 `BookmarkItem.Id` 回填、`Materialize` 期间忽略 View 回抛。⛔ 不做行拖拽（页面是扁列表，不是 `TreeView`） | P1 | ✔ **已完成（2026-10-26 实施，待用户本地 build）** —— 改动全落 `Module.WebTools` | backlog/web-tools/NT-108.md |
+| NT-109 | **「书签管理」显示名改「网址收藏」**（2026-10-26 用户指令）：菜单项 / 说明书 / 状态栏 / 空态文案统一为「网址收藏」；🔴 菜单 Key `web-bookmark` 与类名 `Bookmark*` **⛔ 不改**（改 Key 会让 `columnlayout.json` 偏好失效、改类名零收益）；「导入浏览器导出的书签 HTML」动作仍叫「导入书签」（文件语义）。功能零变化 | P2 | ✅ **就绪** | backlog/web-tools/NT-109.md |
+| NT-110 | **Hosts 管理扩展**（2026-10-26 用户指令）：① 新增 `web-hosts-system`「系统 Hosts」页 = 系统 hosts 现状展示（受管块高亮）+ 手动编辑保存 + **备份 / 还原 / 删除 / 打开目录** + 清除受管块；② 方案页加**源订阅**（预设 GitHub 加速类项目 + 镜像 fallback + 自定义源）、**三项检测**（条目可用性 DNS 对比 + TCP、源失效跌幅判定、静态安全规则）、**diff 预检 + 二次确认 + 自动备份**的按需替换；③ 导入本地文件 / 导出到文件 / 条目搜索 / 「健康」列 | P1 | ✅ **就绪** | backlog/web-tools/NT-110.md |
 | NT-107 | **页面注册编译期化**（2026-10-25 用户指令「按你推荐的继续」）：`IMenuService.RegisterFunction` 改泛型 `RegisterFunction<TView>`（视图名取 `typeof(TView).Name`，**删除字符串版**）⇒ View 类改名漏改注册 = 编译不过，不再靠 lint 兜；36 处注册点机械迁移（MediaAssets 8 / ScriptManager 7 / Shell 8 / WebTools 5 / VideoTools 4 / SystemTools 4）；`check-view-pairs.ps1` P-02 改判泛型实参；新增 `MenuServiceTests`（视图名 / 排序 / 同 Key 更新语义 / 跨组暂存补登）。**零可见变化** | P1 | ✔ **已完成（2026-10-25 用户本地 build 通过）** —— 改动落 Shared/Core + 6 模块注册点 | backlog/framework/NT-107.md |
 | NT-106 | **书签树状展开（整页单树）**（2026-10-24 用户定调「不要左树，整页按树展开」）：`BookmarkItem.Folder` 由「末级名」升为「`/` 分隔全路径」（老数据零迁移）；修 `ImportHtml` —— 改成**按 `<A>` 祖先链反推**全路径（不再依赖 H3/DL 遍历顺序，两种导出解析形态都认）；列表改**树**（`BookmarkNode` 视图节点混排文件夹行/书签行，缩进 16/级，行高 28，一期无图标）—— ⚠️ 实现用「先序拍平 + 缩进列」而非 `TreeView`（`TreeViewItem` 自动缩进会把整行右移、列必然与表头错位）；筛选重建只留命中+祖先并自动展开；排序收窄为同级内、「分组」列置灰；树形态取消分页只留计数（计数落 Shell 状态栏）。**追加（同批）**：工具条 `打开方式` 下拉复用「设置 → 启动与行为」的浏览器1/2 —— 文件夹行 `全部打开`/`全部检测` 走 `LaunchRunner.OpenBrowser` **临时调用、不写配置**，书签行 `写入浏览器配置` 经 `ILaunchConfigService.Save` **追加去重**（app.json `Launch` 增第二写入点，用户已授权） | P1 | ✔ **已完成（2026-10-25 用户本地 build 通过）** —— 改动全落 `Module.WebTools` | backlog/web-tools/NT-106.md |
 | NT-082 | **软件包集合（跨后端包清单预设）+ 集合右键发送到对应页面**：① 集合类别加回 `package`（成员 `role=package`，`Target`=包 Id；与包条目一对一容器）；② 「📤 发送到信息面板」→「📤 发送到对应页面」，按 kind 跳 info / script / command / packages 并写 `lastCollectionIdByKind`；左栏集合行右键同项（2026-10-19 追加微调：右键文案动态化「📤 发送到{目标页名}」，随选中集合类别变）；③ 软件包页 `集合 ▾` 显示包清单（状态按 `winget list` 比对）+ 行右键 `📥 加入集合`（幂等）。源命令（含中科大）已由 NT-080 提供，本次未改 | P1 | ✔ **已完成（2026-10-25 编译通过）** | backlog/script-manager/NT-082.md |

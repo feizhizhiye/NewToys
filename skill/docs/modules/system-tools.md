@@ -21,7 +21,7 @@
 
 | 菜单 Key | 标题 | Order | View / VM | 说明 |
 |---|---|---|---|---|
-| `script-favorites` | 收藏夹 | **1**（模块下第一个页面） | `FavoritesView` / `FavoritesViewModel` | 按钮墙：**本模块命令条目**里 `IsFavorite` 的那些，点一下执行；✕ 移出收藏 |
+| `script-favorites` | 收藏夹 | **1**（模块下第一个页面） | `FavoritesView` / `FavoritesViewModel` | 按钮墙：**本模块命令条目**里 `IsFavorite` 的那些；左键点击执行，右键「▶ 运行 / ✕ 移出收藏夹」（与首页「常用功能」按钮同一套操作逻辑） |
 | `script-commands` | 命令库 | 2 | `SystemCommandLibraryView` / `SystemCommandLibraryViewModel` | **对标脚本库**（NT-097 重做）：Windows 常用命令 / 控制面板 / 管理工具 / 快捷设置 / winget 的命令行清单；列显隐 / 表头排序 / 筛选 / 行内 ▶ 运行 / 增改删 / ★ 收藏 / 📋 复制 / 导入导出 json；**首次运行随包预设** |
 | `script-packages` | 软件包 | 3 | `PackageView` / `PackageViewModel`（NT-096 自脚本中心迁入） | winget GUI：搜索 / 安装 / 升级 / 卸载 / 锁定 / 详情 / 导入导出已装清单；Linux 走 dpkg 只读适配器 |
 | `settings-system` | 系统工具设置 | 100 | `SettingsSystemView` / `SettingsSystemViewModel` | 唯一写入点：命令超时 + 数据文件位置（🔴 2026-10-22 返工：**不再有「软件源」节**） |
@@ -29,6 +29,14 @@
 ## 2.5 操作逻辑（交互契约）
 
 > 每页一张表：**操作 → 触发 → 结果 / 状态变化 → 约束**。跨模块共用语义见 `../ui.md` §10。
+
+### 收藏夹 `script-favorites`
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 执行 | 左键点按钮 | 普通项走 Core `ScriptRunner`；`NeedAdmin` 项弹 UAC 提权执行（优先 Windows 终端） | 执行中整排按钮禁用（`IsNotBusy`）；结果落状态条 |
+| ▶ 运行 | 右键菜单 | 等同左键点按钮 | 菜单与首页「常用功能」同结构：主动作 + 分隔线 + 移除项 |
+| ✕ 移出收藏夹 | 右键菜单 | 置 `IsFavorite = false` 并保存 ⇒ 本页即时移除 | ⛔ 无行内 ✕ 按钮（避免与主按钮误点）；右键菜单在 code-behind 现构造（弹出树取不到页面 VM） |
 
 ### 命令库 `script-commands`（NT-097 对标脚本库重做）
 

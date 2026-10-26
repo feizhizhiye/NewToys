@@ -18,7 +18,7 @@ namespace NewToys.SystemTools.ViewModels;
 /// 落 `config\system\commands.json`。⛔ 不是 Core 的 `IFavoritesService`（那份是首页卡片的「菜单功能 key」收藏）。
 /// ⇒ 已知回退：脚本库条目的收藏不再出现在本页（用户 2026-10-22 接受）。
 /// </para>
-/// <para>界面仍是**一排按钮**：收藏 = 常用动作，点一下就跑；「✕」移出收藏。</para>
+/// <para>界面是**一排按钮**，操作逻辑与首页「常用功能」一致：左键点击执行，右键菜单「▶ 运行 / ✕ 移出收藏夹」。</para>
 /// </summary>
 public partial class FavoritesViewModel : ObservableObject, IStatusProvider
 {
@@ -48,7 +48,7 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
 
     public string Hint =>
         "★ 收藏来自「命令库」页：选中一条后点「★ 收藏」。\n" +
-        "点按钮直接执行；点 ✕ 移出收藏夹。🔴 需要管理员的条目点按钮会弹 UAC，提权后在 Windows 终端里执行（取消则不执行）。";
+        "点按钮直接执行；右键「✕ 移出收藏夹」移出。🔴 需要管理员的条目点按钮会弹 UAC，提权后在 Windows 终端里执行（取消则不执行）。";
 
     public string DataFileHint => "数据文件：" + (_store?.FilePath ?? "");
 

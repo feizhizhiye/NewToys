@@ -3,8 +3,8 @@
              x:Class="NewToys.SystemTools.Views.FavoritesView">
   <!--
     「系统工具 → 收藏夹」（`script-favorites`，NT-091 自脚本中心平移）。
-    形态沿用原页：**按钮墙**（收藏 = 常用动作，点一下就跑，不放卡片信息）。
-    🔴 取消收藏用行内「✕」按钮（⛔ 不用右键菜单 —— ContextMenu 在弹出树里取不到页面 VM 的命令）。
+    形态 = **按钮墙**；操作逻辑与首页「常用功能」按钮一致：
+    左键点击执行 · 右键菜单「▶ 运行 / ✕ 移出收藏夹」（⛔ 不再用行内 ✕ 按钮）。
   -->
   <Grid RowDefinitions="Auto,Auto,*">
 
@@ -35,17 +35,13 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <StackPanel Orientation="Horizontal" Margin="0,0,6,6">
-                <Button Classes="fav-btn accent" Content="{Binding Title}"
-                        Command="{Binding $parent[UserControl].DataContext.RunCommand}"
-                        CommandParameter="{Binding}"
-                        IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
-                        ToolTip.Tip="{Binding Command}"/>
-                <Button Classes="ghost" Content="✕" Width="24" Height="22" Padding="0"
-                        Margin="2,0,0,0" ToolTip.Tip="移出收藏夹"
-                        Command="{Binding $parent[UserControl].DataContext.UnfavoriteCommand}"
-                        CommandParameter="{Binding}"/>
-              </StackPanel>
+              <!--  右键菜单在 code-behind 现场构造（ContextMenu 挂在独立弹出树里，模板内声明取不到页面 VM）。  -->
+              <Button Classes="fav-btn accent" Content="{Binding Title}"
+                      Command="{Binding $parent[UserControl].DataContext.RunCommand}"
+                      CommandParameter="{Binding}"
+                      IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
+                      ContextRequested="OnItemContextRequested"
+                      ToolTip.Tip="{Binding Command}"/>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>

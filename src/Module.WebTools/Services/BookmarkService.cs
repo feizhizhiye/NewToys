@@ -57,6 +57,11 @@ public class BookmarkService
     }
 
     /// <summary>解析浏览器导出的书签 HTML，返回新增条目（已按 URL 去重，跳过 JS/空链接）。</summary>
+    /// <remarks>
+    /// 文件夹用**全路径**记到 <see cref="BookmarkItem.Folder"/>（<c>/</c> 分隔），页面据此派生树。
+    /// 🔴 ⛔ 按「遍历到 H3 就改当前文件夹」的写法：浏览器导出里 <c>H3</c> 可能在紧邻的 <c>&lt;DT&gt;</c>，
+    /// 也可能与 <c>&lt;DL&gt;</c> 同在一个 <c>&lt;DT&gt;</c> 里，顺序不可靠 ⇒ 只认 <c>&lt;A&gt;</c> 的祖先链。
+    /// </remarks>
     public BookmarkImportResult ImportHtml(string html, IReadOnlyList<BookmarkItem> existing)
     {
         var parser = new HtmlParser();
@@ -66,36 +71,66 @@ public class BookmarkService
         var added = new List<BookmarkItem>();
         var folderSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // 递归遍历：遇到 H3 更新当前文件夹，遇到 A 收一条；文件夹随层级向下传递，正确处理嵌套分组。
-        void Walk(INode node, string folder)
+        foreach (var el in doc.QuerySelectorAll("a"))
         {
-            foreach (var child in node.ChildNodes)
-            {
-                if (child is not IElement el) continue;
-                if (el.LocalName == "h3") { folder = (el.TextContent ?? "").Trim(); continue; }
-                if (el.LocalName == "a")
-                {
-                    var href = (el.GetAttribute("href") ?? "").Trim();
-                    if (string.IsNullOrWhiteSpace(href)
-                        || href.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase)
-                        || href.StartsWith("place:", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (known.Contains(href) || added.Any(x => x.Url.Equals(href, StringComparison.OrdinalIgnoreCase))) continue;
+            var href = (el.GetAttribute("href") ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(href)
+                || href.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase)
+                || href.StartsWith("place:", StringComparison.OrdinalIgnoreCase)) continue;
+            if (known.Contains(href) || added.Any(x => x.Url.Equals(href, StringComparison.OrdinalIgnoreCase))) continue;
 
-                    var title = (el.TextContent ?? "").Trim();
-                    if (title.Length == 0) title = href;
-                    var item = new BookmarkItem { Title = title, Url = href, Folder = folder };
-                    if (!string.IsNullOrWhiteSpace(folder)) folderSet.Add(folder);
-                    added.Add(item);
-                    known.Add(href);
-                    continue;
+            var title = (el.TextContent ?? "").Trim();
+            if (title.Length == 0) title = href;
+
+            var folder = FolderPathOf(el);
+            if (folder.Length > 0)
+            {
+                // 路径本身 + 全部祖先前缀都算「导入到的文件夹」（状态栏报的文件夹数 = 路径数）
+                var prefix = "";
+                foreach (var part in folder.Split('/'))
+                {
+                    prefix = prefix.Length == 0 ? part : prefix + "/" + part;
+                    folderSet.Add(prefix);
                 }
-                Walk(el, folder);
             }
+
+            added.Add(new BookmarkItem { Title = title, Url = href, Folder = folder });
+            known.Add(href);
         }
 
-        var root = (INode?)doc.DocumentElement ?? (INode?)doc.Body ?? doc;
-        Walk(root, "");
         return new BookmarkImportResult { Added = added.Count, Folders = folderSet.Count, Items = added };
+    }
+
+    /// <summary>由书签的祖先链反推文件夹全路径（<c>/</c> 分隔，根级书签 = 空串）。</summary>
+    private static string FolderPathOf(IElement anchor)
+    {
+        var names = new List<string>();
+        for (var n = anchor.ParentElement; n != null; n = n.ParentElement)
+        {
+            if (n.LocalName != "dl") continue;
+            var name = FolderNameOf(n);
+            if (name.Length > 0) names.Insert(0, name);
+        }
+        return string.Join('/', names);
+    }
+
+    /// <summary><c>&lt;DL&gt;</c> 对应的文件夹名：同 <c>&lt;DT&gt;</c> 内的 <c>H3</c> 优先，否则回溯前面的兄弟节点。</summary>
+    private static string FolderNameOf(IElement dl)
+    {
+        if (dl.ParentElement is { LocalName: "dt" } dt)
+        {
+            foreach (var c in dt.Children)
+                if (c.LocalName == "h3") return (c.TextContent ?? "").Trim();
+        }
+
+        for (var prev = dl.PreviousElementSibling; prev != null; prev = prev.PreviousElementSibling)
+        {
+            if (prev.LocalName == "h3") return (prev.TextContent ?? "").Trim();
+            foreach (var c in prev.Children)
+                if (c.LocalName == "h3") return (c.TextContent ?? "").Trim();
+            if (prev.LocalName is "dl" or "a") return "";   // 已越过上一个文件夹 ⇒ 本级无名字（根 DL）
+        }
+        return "";
     }
 
     /// <summary>联通检测：发 HTTP 请求，返回 (是否成功, 状态文本)。</summary>

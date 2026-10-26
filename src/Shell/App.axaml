@@ -205,8 +205,9 @@
                                Maximum="{TemplateBinding Maximum}"
                                Value="{TemplateBinding Value, Mode=TwoWay}"
                                ViewportSize="{TemplateBinding ViewportSize, Converter={StaticResource ScrollThumbRatio}}"
-                               Orientation="{TemplateBinding Orientation}"
-                               IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                               Orientation="{TemplateBinding Orientation}">
+                            <!--  ⚠️ 不绑定 `IsDirectionReversed`：`ScrollBar` 上没有这个属性（它属于 `Track`），
+                                  `Track` 默认值就是「竖 = 最小值在顶 / 横 = 最小值在左」，正是需要的行为。  -->
                             <Track.DecreaseButton>
                                 <RepeatButton Name="PART_PageUpButton" Opacity="0" Focusable="False" IsHitTestVisible="False"
                                               MinWidth="0" MinHeight="0" Width="0" Height="0" Background="Transparent"/>
@@ -222,14 +223,15 @@
                     </Border>
                 </ControlTemplate>
             </Setter>
+            <!--  ⚠️ 长度方向必须是 `NaN`（= Auto），⛔ 写 "Auto" 会报 AVLN1000：`Width` / `Height` 是 double。  -->
             <Style Selector="^[Orientation=Vertical]">
-                <Setter Property="Height" Value="Auto"/>
+                <Setter Property="Height" Value="NaN"/>
                 <Setter Property="Width" Value="8"/>
                 <Setter Property="HorizontalAlignment" Value="Right"/>
             </Style>
             <Style Selector="^[Orientation=Horizontal]">
                 <Setter Property="Height" Value="8"/>
-                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="Width" Value="NaN"/>
                 <Setter Property="VerticalAlignment" Value="Bottom"/>
             </Style>
         </ControlTheme>

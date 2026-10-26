@@ -85,7 +85,7 @@
               </MenuItem.ItemContainerTheme>
             </MenuItem>
             <Separator/>
-            <MenuItem Header="✏ 编辑" Command="{Binding ShowDetailCommand}"/>
+            <MenuItem Header="✏ 编辑" Command="{Binding EditSelectedCommand}" ToolTip.Tip="展开右侧详情卡修改这一条"/>
             <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" ToolTip.Tip="多选后 = 整批删除（文件夹行不参与）"/>
           </ContextMenu>
         </ListBox.ContextMenu>

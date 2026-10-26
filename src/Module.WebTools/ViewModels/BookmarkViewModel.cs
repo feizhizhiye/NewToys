@@ -188,6 +188,26 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         DetailChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// 行右键「✏ 编辑」：展开详情栏 + 通知 Shell（⛔ 直接绑基类 <c>ShowDetailCommand</c> 只改内存标志、右列不动），
+    /// 并给一句状态提示 —— 详情栏本来就开着时也有可见反馈。
+    /// </summary>
+    [RelayCommand]
+    private void EditSelected()
+    {
+        var wasOpen = IsDetailVisible;
+        ShowDetailCommand.Execute(null);
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+
+        StatusText = (IsFolderSelected, wasOpen) switch
+        {
+            (true, true) => "在右侧详情卡改「名称」，再点「💾 保存改名」。",
+            (true, false) => "已展开右侧详情卡：改「名称」后点「💾 保存改名」。",
+            (false, true) => "在右侧详情卡改标题 / 网址 / 分组 / 备注，再点「💾 保存」。",
+            _ => "已展开右侧详情卡：改完点「💾 保存」。"
+        };
+    }
+
     void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
     void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
 

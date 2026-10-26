@@ -143,6 +143,7 @@ public class AppConfigService : IAppConfigService
 
     public string ConfigFilePath => ConfigFile;
     public string StoreDirectory => _cfg.StoreDir;
+    public string CacheDirectory => _cfg.CacheDir;
 
     /// <summary>v3.65：<c>app.json</c> 由旧位置上提到应用根时留下的说明（null = 没发生迁移）。供设置页 / 排障展示。</summary>
     public string? LegacyMigrationNote { get; private set; }

@@ -44,6 +44,12 @@ namespace NewToys.Shared.Services
         /// </summary>
         string StoreDirectory { get; }
 
+        /// <summary>
+        /// 当前配置档的**缓存根**（= <c>&lt;配置根&gt;\cache</c>：缩略图 / 页面缓存 / 下载中间产物 / 库升级前快照）。
+        /// <para>可重建 ⇒ 不进备份；只读展示用（「设置 → 路径配置」）。</para>
+        /// </summary>
+        string CacheDirectory { get; }
+
         /// <summary>是否启用**加密 DNS（DoH）**——只作用于本软件自己的网络请求，不动系统设置。</summary>
         bool EncryptedDnsEnabled { get; set; }
 

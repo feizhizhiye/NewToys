@@ -454,7 +454,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 10. 🔴 **全局滚动条（v3.80）= `App.axaml` 里隐式键 `{x:Type ScrollBar}` 的 `ControlTheme`**（8px 槽 / 6px 圆角胶囊滑块 / 轨道透明无箭头 / `AllowAutoHide=False` 常驻），点滑块悬停变强调色。⇒ 全应用（含 `Module.*` 页、`NewToys.UI` 控件、`ComboBox` 下拉）自动生效，⛔ 页面里别再自写 `ScrollBar` 样式；槽宽 8 与滚动条走廊（§2.2 / 本文件第 64 行）对齐，⛔ 改宽会压内容。
 11. 🔴 **`AllowAutoHide=False` ⇒ `ScrollBar.IsExpanded` 恒为 `true`**（源码 `UpdateIsExpandedState`）。所以滚动条悬停态**只认 `:pointerover`**，⛔ 别用 `^[IsExpanded=true]` 选择器 —— 它会永远命中，滑块变常年强调色。
 12. 🔴 **`Track` 的属性不会自动接上 `ScrollBar`**（`ScrollBar.cs` 与 `Track` 之间零绑定，`OnThumbDragDelta` 只发 `Scroll` 事件、**不写值**）：自定义 `ScrollBar` 模板时 `Track` 的 `Minimum` / `Maximum` / `Value` / `ViewportSize` **必须逐个 `TemplateBinding`**；其中 **`Value` 必须 `Mode=TwoWay`** —— 拖拽是 `Track` 自己 `SetCurrentValue(Value)`，单向绑定会把它立刻覆盖回去 ⇒ **滑块能拖、内容纹丝不动**（2026-10-24 实锤）。`PART_PageUpButton` / `PART_PageDownButton` 两个 `RepeatButton` 也必须留（否则点轨道不翻页）。
-13. 🔴 **滑块长度要缩只能改 `Track` 的 `ViewportSize`（过 `ScrollThumbRatioConverter`），⛔ 别用 `Thumb` 的 `ScaleTransform`**：Track 用 `ViewportSize / (Maximum + ViewportSize)` 算长度、用**同一个长度**算位置 ⇒ 用 render 缩放只改视觉不改布局，滑块「居中缩」后拖到底部会空出一截，现象就是**拖不到底**（2026-10-24 实锤）。系数在 `App.axaml` 的 `ScrollThumbRatio`（默认 0.55，越小滑块越短）。
+13. 🔴 **滑块长度要缩只能改 `Track` 的 `ViewportSize`（过 `ScrollThumbRatioConverter`），⛔ 别用 `Thumb` 的 `ScaleTransform`**：Track 用 `ViewportSize / (Maximum + ViewportSize)` 算长度、用**同一个长度**算位置 ⇒ 用 render 缩放只改视觉不改布局，滑块「居中缩」后拖到底部会空出一截，现象就是**拖不到底**（2026-10-24 实锤）。系数在 `App.axaml` 的 `ScrollThumbRatio`（默认 0.4，越小滑块越短）。
 
 ---
 

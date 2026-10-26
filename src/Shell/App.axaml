@@ -170,7 +170,7 @@
               ③ 滑块长度只能缩 `ViewportSize`（走 `ScrollThumbRatio`），⛔ 别用 `Thumb` 的 `ScaleTransform`：
                  Track 用同一个长度算位置 ⇒ 渲染缩放只改视觉，拖到底会空出一截。
               ④ `AllowAutoHide=False` ⇒ `ScrollBar.IsExpanded` 恒为 true ⇒ 悬停态只认 `:pointerover`，⛔ 别用 `^[IsExpanded=true]`。  -->
-        <conv:ScrollThumbRatioConverter x:Key="ScrollThumbRatio" Ratio="0.55"/>
+        <conv:ScrollThumbRatioConverter x:Key="ScrollThumbRatio" Ratio="0.4"/>
 
         <ControlTheme x:Key="NewToysScrollThumb" TargetType="Thumb">
             <Setter Property="Background" Value="{DynamicResource ScrollThumbBrush}"/>

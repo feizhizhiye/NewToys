@@ -24,7 +24,7 @@ namespace NewToys.WebTools.Services;
 public class HostsSourceService
 {
     private const string DocSources = "hosts-sources";
-    private const string MinPresetEntries = 20;
+    private const int MinPresetEntries = 20;
 
     private readonly ConfigStoreService _cfg;
     private readonly JsonDocStore _docs;

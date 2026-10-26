@@ -30,7 +30,6 @@ public class WebToolsModule : IModule
         services.AddTransient<Views.BookmarkView>();   services.AddTransient<BookmarkViewModel>();
         services.AddTransient<Views.PingView>();       services.AddTransient<PingViewModel>();
         services.AddTransient<Views.HostsView>();      services.AddTransient<HostsViewModel>();
-        services.AddTransient<Views.SystemHostsView>(); services.AddTransient<SystemHostsViewModel>();
 
         // 本模块设置（网页抓取默认 UA + 单次抓取超时）——**本模块配置的唯一写入点**，
         // 落 config\web-tools.json（经 Core 的 IOptionsStore）⇒ 可手改、可备份；⛔ 不要硬编码进 ScrapeService。
@@ -46,8 +45,10 @@ public class WebToolsModule : IModule
         menu.RegisterFunction<Views.PingView>("web", "web-ping", "网络 Ping", "📡", 3, "测试主机连通性与延迟，支持切 DNS");
         // `web-scrape` / `web-rule-editor` / `web-crawl` 三页迁入脚本中心组（Key 与标题 ⛔ 不改）。
         // 抓取三页迁出后，Hosts 保留原 Order 7（⛔ 不重排，免动既有排序偏好）。
-        menu.RegisterFunction<Views.HostsView>("web", "web-hosts", "Hosts 管理", "🗂", 7, "切换 hosts 方案、源订阅、检测可用性、按需替换系统 hosts");
-        menu.RegisterFunction<Views.SystemHostsView>("web", "web-hosts-system", "系统 Hosts", "📄", 8, "查看 / 编辑系统 hosts，备份与还原受管块");
+        // 原 `web-hosts-system`「系统 Hosts」页已撤（2026-10-26 用户指令）：双列表工作台、备份 / 还原 /
+        // 文本视图全部并入本页（`web-hosts`），⛔ 别再单独开「系统 hosts」页。
+        menu.RegisterFunction<Views.HostsView>("web", "web-hosts", "Hosts 管理", "🗂", 7,
+            "左看系统 hosts（或备份）、右看拉取的方案，条目级增删改 + 备份 / 还原 + 写入");
 
         // 模块设置页通则 —— View/VM 归本模块。
         // 菜单项**挂回本模块的一级菜单**（⛔ 不再进「设置」组 —— 该一级菜单项已删除）。

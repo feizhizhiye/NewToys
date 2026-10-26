@@ -102,9 +102,14 @@ public class HostsService
                 if (line.StartsWith("===")) continue;   // 跳过 NewToys 受管块标记
             }
 
-            // 去掉行尾注释
+            // 去掉行尾注释（保留它，供行级编辑回显）
             var hash = line.IndexOf('#');
-            if (hash >= 0) line = line[..hash].Trim();
+            var comment = "";
+            if (hash >= 0)
+            {
+                comment = line[(hash + 1)..].Trim();
+                line = line[..hash].Trim();
+            }
 
             var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length < 2) continue;
@@ -114,10 +119,83 @@ public class HostsService
             {
                 Ip = parts[0],
                 Host = parts[1],
+                Comment = comment,
                 Enabled = enabled
             });
         }
         return entries;
+    }
+
+    /// <summary>把一份 hosts 文本拆成行模型（保留非条目行原文 + 标出受管块区间）。</summary>
+    public static List<HostsLine> ParseLines(string text)
+    {
+        var lines = new List<HostsLine>();
+        if (text is null) return lines;
+
+        var arr = text.Replace("\r\n", "\n").Split('\n');
+        var (found, startLine, endLine, _) = ManagedRange(text);
+
+        for (var i = 0; i < arr.Length; i++)
+        {
+            var no = i + 1;
+            var line = new HostsLine
+            {
+                No = no,
+                Raw = arr[i],
+                InManaged = found && no >= startLine && no <= endLine
+            };
+
+            var t = arr[i].Trim().TrimStart('\uFEFF');
+            if (t.Length == 0 || t.StartsWith('!')) { lines.Add(line); continue; }
+
+            var enabled = true;
+            if (t.StartsWith('#'))
+            {
+                enabled = false;
+                t = t[1..].Trim();
+                if (t.StartsWith("===")) { lines.Add(line); continue; }   // 受管块标记行
+            }
+
+            var hash = t.IndexOf('#');
+            var comment = "";
+            if (hash >= 0)
+            {
+                comment = t[(hash + 1)..].Trim();
+                t = t[..hash].Trim();
+            }
+
+            var parts = t.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 2 || !System.Net.IPAddress.TryParse(parts[0], out _)) { lines.Add(line); continue; }
+
+            line.IsEntry = true;
+            line.Enabled = enabled;
+            line.Ip = parts[0];
+            line.Host = parts[1];
+            line.Comment = comment;
+            lines.Add(line);
+        }
+
+        return lines;
+    }
+
+    /// <summary>把行模型还原成 hosts 全文（条目行重新对齐渲染，非条目行原样输出）。</summary>
+    public static string RenderLines(IEnumerable<HostsLine> lines)
+    {
+        var sb = new StringBuilder();
+        foreach (var l in lines)
+            sb.AppendLine(l.IsEntry ? HostsText.RenderEntry(l.Ip, l.Host, l.Comment, l.Enabled) : l.Raw);
+        return sb.ToString().TrimEnd('\n') + "\n";
+    }
+
+    /// <summary>读任意 hosts 文本文件（备份快照 / 导入用）。</summary>
+    public static (bool Ok, string Text, string Msg) ReadTextFile(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return (false, "", "文件不存在：" + path);
+            return (true, File.ReadAllText(Path.GetFullPath(path)), "");
+        }
+        catch (Exception ex) { return (false, "", "读取失败：" + ex.Message); }
     }
 
     /// <summary>下载并解析远程 hosts 文本。</summary>
@@ -231,11 +309,14 @@ public class HostsService
     }
 
     /// <summary>生成的受管块文本（含起止标记）。</summary>
-    public static string BuildManagedBlock(HostsProfile profile)
+    public static string BuildManagedBlock(HostsProfile profile) => BuildManagedBlock(profile.Entries);
+
+    /// <summary>生成的受管块文本（含起止标记）。</summary>
+    public static string BuildManagedBlock(IEnumerable<HostsEntry> entries)
     {
         var sb = new StringBuilder();
         sb.AppendLine(ManagedStart);
-        foreach (var e in profile.Entries) sb.AppendLine(e.ToLine());
+        foreach (var e in entries) sb.AppendLine(e.ToLine());
         sb.AppendLine(ManagedEnd);
         return sb.ToString();
     }
@@ -299,12 +380,20 @@ public class HostsService
         var (found, startLine, endLine, _) = ManagedRange(text);
         if (!found) return (true, "系统 hosts 里没有本程序的受管块，无需清除。");
 
-        var lines = text.Replace("\r\n", "\n").Split('\n').ToList();
-        lines.RemoveRange(startLine - 1, endLine - startLine + 1);
-        var next = string.Join("\n", lines).TrimEnd('\n') + "\n";
-
+        var next = StripManagedBlock(text);
         var (written, writeMsg) = WriteWithBackup(next, "清除受管块");
         return written ? (true, $"已清除受管块（原第 {startLine}~{endLine} 行）· {writeMsg}") : (false, writeMsg);
+    }
+
+    /// <summary>去掉受管块后的全文（纯函数，供草稿用；⛔ 不落盘）。</summary>
+    public static string StripManagedBlock(string text)
+    {
+        var (found, startLine, endLine, _) = ManagedRange(text);
+        if (!found) return text;
+
+        var lines = text.Replace("\r\n", "\n").Split('\n').ToList();
+        lines.RemoveRange(startLine - 1, endLine - startLine + 1);
+        return string.Join("\n", lines).TrimEnd('\n') + "\n";
     }
 
     /// <summary>手动保存系统 hosts 全文（高危：调用方必须先二次确认）。</summary>

@@ -1,86 +1,191 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.WebTools.Views.HostsView">
-  <!--  三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条都收进列表列，
-        详情卡在右列、从页面顶到底（加上左树就是三列）。
-        NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。  -->
-  <v:ListPageSkeleton EmptyMessage="没有可显示的方案。用工具条的「⬇ 拉取源」从预设源生成一份，或「➕ 新建方案」手写。"
-                      EmptyActionText="➕ 新建方案"
-                      EmptyActionCommand="{Binding NewProfileCommand}"
-                      IsEmpty="{Binding !HasItems}">
+  <!--
+    Hosts 管理页（Key web-hosts）= 双列表工作台。
+    ① 信息条（路径 / 文件信息 / 受管块 / 权限 / 差异汇总）
+    ② 左「目标」（当前系统 hosts 或备份快照，可切文本视图）| 右「来源」（拉取的方案）
+    ③ 底栏：应用与写入按钮
+    🔴 左栏改动是内存草稿，「✅ 写入系统 hosts」才落盘（二次确认 + 自动备份）。
+  -->
+  <Grid Margin="12" RowDefinitions="Auto,*,Auto" RowSpacing="10">
 
-    <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
-    <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
-              <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Name" ToolTip.Tip="点一下按名称排序"
-                      IsVisible="{Binding IsNameVisible}"/>
-              <Button Grid.Column="1" Classes="col-header" Content="{Binding EntriesHeader}"
-                      IsVisible="{Binding IsEntriesVisible}"/>
-              <Button Grid.Column="2" Classes="col-header" Content="{Binding HealthHeader}"
-                      IsVisible="{Binding IsHealthVisible}"/>
-              <Button Grid.Column="3" Classes="col-header" Content="{Binding SourceHeader}"
-                      IsVisible="{Binding IsSourceVisible}"/>
-              <v:ColumnGrid.ContextMenu>
-                <ContextMenu>
-                  <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                    <MenuItem.ItemContainerTheme>
-                      <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                        <Setter Property="Header" Value="{Binding Label}"/>
-                        <Setter Property="Command" Value="{Binding Command}"/>
-                      </ControlTheme>
-                    </MenuItem.ItemContainerTheme>
-                  </MenuItem>
-                  <Separator/>
-                  <MenuItem Header="名称" IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
-                  <MenuItem Header="条目数" ToggleType="CheckBox" IsChecked="{Binding IsEntriesVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Entries"/>
-                  <MenuItem Header="健康" ToggleType="CheckBox" IsChecked="{Binding IsHealthVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Health"/>
-                  <MenuItem Header="来源" ToggleType="CheckBox" IsChecked="{Binding IsSourceVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Source"/>
-                </ContextMenu>
-              </v:ColumnGrid.ContextMenu>
-            </v:ColumnGrid>
-      </Border>
-    </v:ListPageSkeleton.HeaderArea>
+    <!--  ① 信息条  -->
+    <Border Grid.Row="0" Classes="card" Padding="12,8">
+      <StackPanel Orientation="Horizontal" Spacing="18">
+        <TextBlock Classes="hint-text" Text="{Binding SystemHostsPath}" FontFamily="Consolas"/>
+        <TextBlock Classes="hint-text" Text="{Binding FileInfoText}"/>
+        <TextBlock Classes="hint-text" Text="{Binding ManagedInfoText}"/>
+        <TextBlock Classes="hint-text" Text="{Binding PermissionText}"/>
+        <TextBlock Classes="hint-text" Text="{Binding DiffSummary}"/>
+      </StackPanel>
+    </Border>
 
-    <v:ListPageSkeleton.ListArea>
-          <ListBox x:Name="ProfileList" Classes="list-page"
-                   ItemsSource="{Binding Profiles}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+    <!--  ② 双列表  -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,10,*">
+
+      <!--  左：目标（系统 hosts / 备份）  -->
+      <Border Grid.Column="0" Classes="card" Padding="8">
+        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
+
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="section-title" Text="目标" VerticalAlignment="Center"/>
+            <ComboBox x:Name="TargetBox" MinWidth="0" Width="230" VerticalAlignment="Center"
+                      ItemsSource="{Binding TargetSources}"
+                      SelectedItem="{Binding SelectedTarget, Mode=TwoWay}"
+                      ToolTip.Tip="左栏看什么：当前系统 hosts，或某一份备份（备份只读，可直接还原）">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Display}" VerticalAlignment="Center"/>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <CheckBox Content="差异" IsChecked="{Binding LeftDiffOnly, Mode=TwoWay}" VerticalAlignment="Center"/>
+            <CheckBox Content="条目" IsChecked="{Binding ShowEntriesOnly, Mode=TwoWay}" VerticalAlignment="Center"/>
+            <TextBlock Classes="hint-text" Text="{Binding LeftCountText}" VerticalAlignment="Center"/>
+          </StackPanel>
+
+          <Border Grid.Row="1" Classes="list-header">
+            <Grid ColumnDefinitions="26,140,*,64">
+              
+              <Button Grid.Column="1" Classes="col-header" Content="IP" IsHitTestVisible="False"/>
+              <Button Grid.Column="2" Classes="col-header" Content="主机名" IsHitTestVisible="False"/>
+              <Button Grid.Column="3" Classes="col-header" Content="状态" IsHitTestVisible="False"/>
+            </Grid>
+          </Border>
+
+          <!--  条目视图  -->
+          <ListBox Grid.Row="2" x:Name="SystemList" Classes="list-page"
+                   IsVisible="{Binding IsListMode}"
+                   ItemsSource="{Binding SystemRows}"
+                   SelectedItem="{Binding SelectedSystemRow, Mode=TwoWay}"
                    SelectionMode="Single">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="🧪 预检差异" Command="{Binding PreviewDiffCommand}"/>
-                <MenuItem Header="🔍 检测可用性" Command="{Binding CheckCommand}"/>
+                <MenuItem Header="📦 备份当前" Command="{Binding BackupNowCommand}"/>
+                <MenuItem Header="🧹 清除受管块" Command="{Binding ClearManagedCommand}"/>
                 <Separator/>
-                <MenuItem Header="✅ 应用到系统 hosts" Command="{Binding ApplyCommand}"/>
-                <MenuItem Header="📤 导出受管块" Command="{Binding ExportCommand}"/>
-                <MenuItem Header="🗑 删除方案" Command="{Binding DeleteCommand}"/>
+                <MenuItem Header="✅ 写入系统 hosts" Command="{Binding WriteCommand}"/>
               </ContextMenu>
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                  <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Name}"
-                             Foreground="{DynamicResource PrimaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Entries.Count}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsEntriesVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding HealthText}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsHealthVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Source}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsSourceVisible}"/>
-                </v:ColumnGrid>
+                <Grid ColumnDefinitions="26,140,*,64" Height="28">
+                  <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Mark}"
+                             Foreground="{DynamicResource AccentBrush}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Ip}" FontFamily="Consolas"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Host}" FontFamily="Consolas"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StateText}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-    </v:ListPageSkeleton.ListArea>
-  </v:ListPageSkeleton>
+
+          <!--  文本视图（可改整份文件；备份快照只读）  -->
+          <TextBox Grid.Row="2" Classes="code" IsVisible="{Binding IsTextView}"
+                   IsReadOnly="{Binding TargetIsBackup}"
+                   AcceptsReturn="True" TextWrapping="NoWrap"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto"
+                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                   Text="{Binding DraftText, Mode=TwoWay}"/>
+
+          <TextBlock Grid.Row="2" Classes="hint-text" Text="{Binding EmptyLeftHint}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                     IsVisible="{Binding HasNoSystemRows}"/>
+        </Grid>
+      </Border>
+
+      <!--  右：来源（拉取的方案）  -->
+      <Border Grid.Column="2" Classes="card" Padding="8">
+        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
+
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+            <TextBlock Classes="section-title" Text="来源" VerticalAlignment="Center"/>
+            <ComboBox x:Name="ProfileBox" MinWidth="0" Width="170" VerticalAlignment="Center"
+                      ItemsSource="{Binding Profiles}"
+                      SelectedItem="{Binding SelectedProfile, Mode=TwoWay}"
+                      ToolTip.Tip="右栏看哪份方案（拉取结果也是方案）">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <ComboBox MinWidth="0" Width="140" VerticalAlignment="Center"
+                      ItemsSource="{Binding Sources}"
+                      SelectedItem="{Binding SelectedSource, Mode=TwoWay}"
+                      ToolTip.Tip="{Binding SourceHint}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Display}" VerticalAlignment="Center"/>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Classes="ghost" Content="⬇ 拉取" Command="{Binding FetchSourceCommand}"
+                    IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="按源的地址逐个试，拉到一份映射集写进右栏方案（⛔ 不自动写系统 hosts）"/>
+            <CheckBox Content="差异" IsChecked="{Binding RightDiffOnly, Mode=TwoWay}" VerticalAlignment="Center"/>
+            <TextBlock Classes="hint-text" Text="{Binding RightCountText}" VerticalAlignment="Center"/>
+          </StackPanel>
+
+          <Border Grid.Row="1" Classes="list-header">
+            <Grid ColumnDefinitions="26,140,*,64">
+              
+              <Button Grid.Column="1" Classes="col-header" Content="IP" IsHitTestVisible="False"/>
+              <Button Grid.Column="2" Classes="col-header" Content="主机名" IsHitTestVisible="False"/>
+              <Button Grid.Column="3" Classes="col-header" Content="状态" IsHitTestVisible="False"/>
+            </Grid>
+          </Border>
+
+          <ListBox Grid.Row="2" x:Name="ProfileList" Classes="list-page"
+                   ItemsSource="{Binding ProfileRows}"
+                   SelectedItem="{Binding SelectedProfileRow, Mode=TwoWay}"
+                   SelectionMode="Single">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="⬅ 应用到左侧" Command="{Binding ApplyToTargetCommand}"/>
+                <MenuItem Header="🔍 检测可用性" Command="{Binding CheckCommand}"/>
+                <Separator/>
+                <MenuItem Header="💾 保存方案" Command="{Binding SaveProfileCommand}"/>
+                <MenuItem Header="🗑 删除方案" Command="{Binding DeleteProfileCommand}"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="26,140,*,64" Height="28">
+                  <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Mark}"
+                             Foreground="{DynamicResource AccentBrush}"/>
+                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Ip}" FontFamily="Consolas"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Host}" FontFamily="Consolas"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StateText}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+
+          <TextBlock Grid.Row="2" Classes="hint-text" Text="{Binding EmptyRightHint}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                     IsVisible="{Binding HasNoProfileRows}"/>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!--  ③ 底栏：应用 + 写入  -->
+    <Border Grid.Row="2" Classes="card" Padding="12,8">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+        <TextBlock Grid.Column="0" Classes="hint-text" VerticalAlignment="Center" TextWrapping="NoWrap"
+                   Text="左栏改动先存草稿：改完点「⬅ 应用到左侧」再「✅ 写入系统 hosts」；写入前自动备份。"/>
+        <Button Grid.Column="1" Classes="ghost" Content="⬅ 应用到左侧"
+                Command="{Binding ApplyToTargetCommand}"
+                IsEnabled="{Binding CanApplyToTarget}"
+                ToolTip.Tip="把右栏方案的启用条目写进左栏草稿的受管块（⛔ 先不落盘）"/>
+        <Button Grid.Column="2" Classes="primary" Content="{Binding WriteButtonText}"
+                Command="{Binding WriteCommand}"
+                IsEnabled="{Binding CanEditTarget}"
+                ToolTip.Tip="把左栏草稿写入系统 hosts（需管理员；写前自动备份 + 二次确认）"/>
+      </Grid>
+    </Border>
+  </Grid>
 </UserControl>

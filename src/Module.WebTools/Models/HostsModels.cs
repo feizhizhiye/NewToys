@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.WebTools.Models;
 
@@ -42,11 +43,59 @@ public class HostsEntry
     [JsonIgnore] public bool IsProblem => Status is HostsEntryStatus.Mismatch or HostsEntryStatus.Unreachable or HostsEntryStatus.Timeout;
 
     /// <summary>渲染成一行 hosts 文本（禁用行加 # 前缀）。</summary>
-    public string ToLine()
+    public string ToLine() => HostsText.RenderEntry(Ip, Host, Comment, Enabled);
+}
+
+/// <summary>
+/// hosts 文件里的**一行**（页面投影，⛔ 不落库）：条目行带 IP / 主机名 / 注释，
+/// 非条目行（空行 / 纯注释 / 受管块标记）只保留原文，写回时原样输出。
+/// </summary>
+public partial class HostsLine : ObservableObject
+{
+    public int No { get; set; }
+
+    /// <summary>原始行文本（非条目行写回时用）。</summary>
+    [ObservableProperty] private string _raw = "";
+
+    /// <summary>能否解析成条目（空行 / 纯注释 / 非法行 = false）。</summary>
+    [ObservableProperty] private bool _isEntry;
+
+    [ObservableProperty] private bool _enabled = true;
+    [ObservableProperty] private string _ip = "";
+    [ObservableProperty] private string _host = "";
+    [ObservableProperty] private string _comment = "";
+
+    /// <summary>位于本程序的受管块区间内。</summary>
+    [ObservableProperty] private bool _inManaged;
+
+    /// <summary>与另一侧的差异标记：<c>＋</c> 仅本侧 / <c>－</c> 对方缺失 / <c>≠</c> IP 不同。</summary>
+    [ObservableProperty] private string _mark = "";
+
+    public string IpHost => IsEntry ? $"{Ip,-16}{Host}" : Raw.Trim();
+
+    public string StateText => !IsEntry ? "" : Enabled ? "" : "禁用";
+
+    public string ManagedText => InManaged ? "受管" : "";
+
+    partial void OnIpChanged(string value) => OnPropertyChanged(nameof(IpHost));
+
+    partial void OnHostChanged(string value) => OnPropertyChanged(nameof(IpHost));
+
+    partial void OnRawChanged(string value) => OnPropertyChanged(nameof(IpHost));
+
+    partial void OnIsEntryChanged(bool value) => OnPropertyChanged(nameof(IpHost));
+
+    partial void OnEnabledChanged(bool value) => OnPropertyChanged(nameof(StateText));
+}
+
+/// <summary>把条目渲染成一行 hosts 文本的**唯一**口径（条目行 / 行模型 / 受管块共用）。</summary>
+public static class HostsText
+{
+    public static string RenderEntry(string ip, string host, string? comment, bool enabled)
     {
-        var body = $"{Ip,-18}{Host}";
-        if (Comment.Length > 0) body += "  # " + Comment;
-        return Enabled ? body : "# " + body;
+        var body = $"{ip,-18}{host}";
+        if (!string.IsNullOrWhiteSpace(comment)) body += "  # " + comment.Trim();
+        return enabled ? body : "# " + body;
     }
 }
 
@@ -135,9 +184,22 @@ public class HostsSource
     }
 }
 
-/// <summary>一份系统 hosts 备份。</summary>
-public class HostsBackupInfo
+/// <summary>页面左栏「目标」的数据源：当前系统 hosts，或某一份备份快照。</summary>
+public sealed class HostsTargetSource
 {
+    public bool IsCurrent { get; init; }
+    public HostsBackupInfo? Backup { get; init; }
+
+    public string Display => IsCurrent
+        ? "当前系统 hosts"
+        : $"备份 {Backup!.TimeText}（{Backup.SizeText}）";
+
+    public static HostsTargetSource Current() => new() { IsCurrent = true };
+    public static HostsTargetSource Of(HostsBackupInfo backup) => new() { Backup = backup };
+}
+
+/// <summary>一份系统 hosts 备份。</summary>
+public class HostsBackupInfo{
     public string Path { get; set; } = "";
     public string Name => System.IO.Path.GetFileName(Path);
     public DateTime Time { get; set; }

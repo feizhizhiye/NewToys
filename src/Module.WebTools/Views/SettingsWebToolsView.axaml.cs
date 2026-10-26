@@ -13,6 +13,7 @@ public partial class SettingsWebToolsView : UserControl
         InitializeComponent();
         Add("网页抓取", "🌐", "默认 UA 与单次抓取超时", "Sec0");
         Add("Hosts 检测与备份", "🗂", "检测超时 / 并发 / 备份保留份数 / 应用后是否刷新 DNS", "Sec2");
+        Add("Hosts 开源项目源", "🔗", "拉取用的源清单：预设可删、也能新建", "Sec3");
         Add("设置文件与其它功能", "📄", "配置落在哪 / 哪些数据不在本文件里", "Sec1");
     }
 

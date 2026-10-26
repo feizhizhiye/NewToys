@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,298 +17,203 @@ using NewToys.WebTools.Services;
 namespace NewToys.WebTools.ViewModels;
 
 /// <summary>
-/// hosts 管理页：多套方案（列表）+ 右侧详情（编辑条目 / 预检差异 / 三路检测 / 应用到系统 hosts）。
+/// hosts 管理页（<c>web-hosts</c>）= **双列表工作台**：左「目标」（当前系统 hosts 或某份备份）
+/// 与右「来源」（拉取的方案）并排对照，详情卡做条目级增删改，工具条管备份 / 还原 / 写入。
 /// <para>
-/// 系统 hosts 本身的展示、备份、手动编辑与还原在**另一个页面** <c>web-hosts-system</c>——
-/// 本页只管「方案」这个对象，⛔ 不显示系统文件全文。
+/// 🔴 左侧可编辑内容是**内存草稿** <c>_draftText</c>（全文）：条目行编辑与文本视图改的都是它，
+/// 点「✅ 写入系统 hosts」才落盘（一次二次确认 + 一次备份）；备份快照只读。
 /// </para>
+/// <para>🔴 备份只针对系统 hosts 原文（整份），⛔ 不备份拉取来的方案。</para>
 /// </summary>
-public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
+public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolbarSource, IDetailPanelProvider, IDetailCardSource
 {
-    // ==================== 声明式工具条（需求 §4.8.5） ====================
-    public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
-    {
-        new() { Text = "📂 导入文件", CommandPath = nameof(ImportFileCommand), IsEnabledPath = "!" + nameof(IsBusy),
-                ToolTip = "选一份本地 hosts 文本，解析成条目写进当前方案" },
-        new() { Kind = ToolbarItemKind.Combo, Width = 170, ItemsPath = nameof(Sources), DisplayPath = nameof(HostsSource.Display),
-                SelectedItemPath = nameof(SelectedSource), ToolTipPath = nameof(SourceHint),
-                ToolTip = "hosts 源（预设 + 自定义）；选定后点「⬇ 拉取源」" },
-        new() { Text = "⬇ 拉取源", CommandPath = nameof(FetchSourceCommand), IsEnabledPath = "!" + nameof(IsBusy),
-                ToolTip = "按选中源的地址列表逐个尝试，拉到一份映射集写进当前方案（⛔ 不会自动写系统 hosts）" },
-        new() { Text = "➕ 源", Classes = "ghost", CommandPath = nameof(AddSourceCommand),
-                ToolTip = "添加一个自定义源（名称 + 地址；多个地址用空格分隔，第一个是主地址）" },
-        new() { Text = "➕ 新建方案", Classes = "ghost", CommandPath = nameof(NewProfileCommand) },
-        new() { Text = "🔍 检测", AltText = "⏹ 停止", AltTextPath = nameof(IsChecking),
-                CommandPath = nameof(CheckCommand), IsEnabledPath = nameof(HasSelection),
-                ToolTip = "逐条检测：本机 DNS 与映射 IP 是否一致 + 目标端口是否可达（可取消），并跑一遍静态安全规则" },
-        new() { Text = "🔄 重读方案", CommandPath = nameof(RefreshCommand),
-                ToolTip = "重新读一遍本地的 hosts 方案清单（⛔ 不动系统 hosts、不导入）" }
-    };
-
     private readonly HostsService _svc = null!;
     private readonly HostsSourceService? _sources;
     private readonly HostsCheckService? _check;
     private readonly IWebToolsSettingsService? _settings;
 
+    /// <summary>左栏草稿全文（唯一真相；行模型是它的投影）。</summary>
+    private string _draftText = "";
+
     private CancellationTokenSource? _checkCts;
-
-    public ObservableCollection<HostsProfile> Profiles { get; } = new();
-
-    /// <summary>源清单（工具条下拉的数据源）。</summary>
-    public ObservableCollection<HostsSource> Sources { get; } = new();
-
-    [ObservableProperty] private bool _isBusy;
-    [ObservableProperty] private bool _isChecking;
-    [ObservableProperty] private HostsProfile? _selected;
-    [ObservableProperty] private HostsSource? _selectedSource;
-    [ObservableProperty] private string _entriesText = "";
-    [ObservableProperty] private string _blockPreview = "";
-    [ObservableProperty] private string _diffText = "";
-    [ObservableProperty] private string _checkReportText = "";
-    [ObservableProperty] private string _securityText = "";
-
-    // ============ 表头 ============
-    [ObservableProperty] private string _nameHeader = "名称 ▲";
-    [ObservableProperty] private string _entriesHeader = "条目数";
-    [ObservableProperty] private string _healthHeader = "健康";
-    [ObservableProperty] private string _sourceHeader = "来源";
-
-    // ============ 列显隐 / 详情开合 / 排序 / 多项筛选：继承自 ListPageViewModelBase ============
-
-    public bool IsNameVisible => Vis("Name");
-    public bool IsEntriesVisible => Vis("Entries");
-    public bool IsHealthVisible => Vis("Health");
-    public bool IsSourceVisible => Vis("Source");
-
-    protected override string PageKey => "web-hosts";
-
-    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
-    {
-        new("Name", "名称", "3*", sample: "开发环境 hosts"),
-        new("Entries", "条目数", "1*", sample: "12"),
-        new("Health", "健康", "1.4*", sortable: false, sample: "✅20 ⚠2"),
-        new("Source", "来源", "2*", sample: "GitHub520"),
-    };
-
-    protected override void RefreshView() => ApplyView();
-
-    protected override void EnsureDetailSelection()
-    {
-        if (Selected == null && Profiles.Count > 0) Selected = Profiles[0];
-    }
-
-    public bool HasSelection => Selected != null;
-    public bool HasItems => Profiles.Count > 0;
-
-    /// <summary>详情卡的数据源。</summary>
-    public HostsProfile? DetailItem => Selected;
-
-    /// <summary>详情卡正文是否显示（有选中项）。</summary>
-    public bool ShowDetailBody => HasSelection;
-
-    /// <summary>选中源的悬停说明（地址 / 上次拉取）。</summary>
-    public string SourceHint => SelectedSource?.Hint ?? "还没有可用的源";
-
-    // ==================== 详情面板 + 声明式详情卡 ====================
-
-    public bool HasBlockPreview => !string.IsNullOrWhiteSpace(BlockPreview);
-    public bool HasDiff => !string.IsNullOrWhiteSpace(DiffText);
-    public bool HasCheckReport => !string.IsNullOrWhiteSpace(CheckReportText);
-    public bool HasSecurity => !string.IsNullOrWhiteSpace(SecurityText);
-
-    partial void OnBlockPreviewChanged(string value) => OnPropertyChanged(nameof(HasBlockPreview));
-    partial void OnDiffTextChanged(string value) => OnPropertyChanged(nameof(HasDiff));
-    partial void OnCheckReportTextChanged(string value) => OnPropertyChanged(nameof(HasCheckReport));
-    partial void OnSecurityTextChanged(string value) => OnPropertyChanged(nameof(HasSecurity));
-
-    partial void OnSelectedSourceChanged(HostsSource? value) => OnPropertyChanged(nameof(SourceHint));
-
-    public bool HasDetailPanel => true;
-    public bool IsDetailOpen => IsDetailVisible;
-
-    public object? DetailContent => null;
-
-    public event EventHandler? DetailChanged;
-
-    [RelayCommand]
-    private void ToggleDetailPanel()
-    {
-        ToggleDetailCommand.Execute(null);
-        DetailChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    [RelayCommand]
-    private void OpenDetailPanel()
-    {
-        ShowDetailCommand.Execute(null);
-        DetailChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
-    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
-
     private DetailCardDescriptor? _card;
-
-    public DetailCardDescriptor? Card => _card ??= BuildCard();
-
-    private DetailCardDescriptor BuildCard() => new()
-    {
-        BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在左侧列表里选中一套方案",
-        Sections =
-        {
-            new DetailSection
-            {
-                Fields =
-                {
-                    new DetailField
-                    {
-                        Label = "方案名称",
-                        ValuePath = "DetailItem.Name",
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur
-                    },
-                    new DetailField
-                    {
-                        Label = "条目（每行一条：IP 主机名 # 注释；行首 # 表示禁用）",
-                        ValuePath = nameof(EntriesText),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        Mono = true,
-                        MultiLine = true,
-                        Rows = 150
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "与当前系统 hosts 受管块的差异（点「🧪 预检」刷新）：",
-                        VisibleWhen = nameof(HasDiff)
-                    },
-                    new DetailField
-                    {
-                        ValuePath = nameof(DiffText),
-                        Kind = FieldKind.Text,
-                        Selectable = true,
-                        Mono = true,
-                        MultiLine = true,
-                        Rows = 70,
-                        VisibleWhen = nameof(HasDiff)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "检测结果（只列有问题的条目 + 汇总）：",
-                        VisibleWhen = nameof(HasCheckReport)
-                    },
-                    new DetailField
-                    {
-                        ValuePath = nameof(CheckReportText),
-                        Kind = FieldKind.Text,
-                        Selectable = true,
-                        Mono = true,
-                        MultiLine = true,
-                        Rows = 100,
-                        VisibleWhen = nameof(HasCheckReport)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "静态安全检查（不联网，只查一眼能看出的风险；不等于无毒）：",
-                        VisibleWhen = nameof(HasSecurity)
-                    },
-                    new DetailField
-                    {
-                        ValuePath = nameof(SecurityText),
-                        Kind = FieldKind.Text,
-                        Selectable = true,
-                        MultiLine = true,
-                        Rows = 80,
-                        VisibleWhen = nameof(HasSecurity)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "无权限写入系统 hosts 时，下方会显示可复制的受管块：",
-                        VisibleWhen = nameof(HasBlockPreview)
-                    },
-                    new DetailField
-                    {
-                        ValuePath = nameof(BlockPreview),
-                        Kind = FieldKind.Text,
-                        Selectable = true,
-                        Mono = true,
-                        VisibleWhen = nameof(HasBlockPreview)
-                    }
-                }
-            }
-        },
-        Actions =
-        {
-            new DetailAction
-            {
-                Text = "💾 保存",
-                Classes = "primary",
-                ToolTip = "把当前条目写回方案（落模块数据库）",
-                IsVisiblePath = nameof(ShowDetailBody),
-                Command = SaveCommand
-            },
-            new DetailAction
-            {
-                Text = "🧪 预检",
-                Classes = "ghost",
-                ToolTip = "与当前系统 hosts 的受管块比对，看这次应用会改哪些行",
-                IsVisiblePath = nameof(ShowDetailBody),
-                Command = PreviewDiffCommand
-            },
-            new DetailAction
-            {
-                Text = "✅ 应用",
-                Classes = "ghost",
-                ToolTip = "把这套方案写进系统 hosts 的受管块（需管理员；写前自动备份）",
-                ConfirmText = "将替换系统 hosts 里本程序的受管块（用户自己写的其它行不动）。\n写入前会自动备份原文件，可在「系统 Hosts」页还原。继续？",
-                IsVisiblePath = nameof(ShowDetailBody),
-                Command = ApplyCommand
-            },
-            new DetailAction
-            {
-                Text = "📤 导出",
-                Classes = "ghost",
-                ToolTip = "把当前方案导出一份 hosts 文本文件",
-                IsVisiblePath = nameof(ShowDetailBody),
-                Command = ExportCommand
-            },
-            new DetailAction
-            {
-                Text = "🗑 删除",
-                Classes = "ghost",
-                ToolTip = "删除这套方案（⛔ 不动系统 hosts）",
-                IsVisiblePath = nameof(ShowDetailBody),
-                Command = DeleteCommand
-            }
-        }
-    };
 
     public HostsViewModel() { }
 
     public HostsViewModel(
         HostsService svc,
-        IColumnLayoutService cols,
         HostsSourceService sources,
         HostsCheckService check,
         IWebToolsSettingsService settings)
-        : base(cols)
     {
         _svc = svc;
         _sources = sources;
         _check = check;
         _settings = settings;
 
-        LoadLayout();
         LoadSources();
         Refresh();
     }
 
-    // ============ 加载 ============
+    // ==================== 工具条 ====================
+
+    public IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    {
+        new() { Text = "📦 备份当前", CommandPath = nameof(BackupNowCommand),
+                ToolTip = "把当前系统 hosts 整份复制到备份目录（只读也能备份）" },
+        new() { Text = "♻ 还原", CommandPath = nameof(RestoreCommand), IsEnabledPath = nameof(CanRestore),
+                ToolTip = "把系统 hosts 整份换回左栏选中的那份备份（还原前会再备份当前文件）" },
+        new() { Text = "🗑 删备份", Classes = "ghost", CommandPath = nameof(DeleteBackupCommand), IsEnabledPath = nameof(CanRestore),
+                ToolTip = "只删备份文件，⛔ 不动系统 hosts" },
+        new() { Text = "📄 文本", AltText = "📋 条目", AltTextPath = nameof(IsTextView),
+                CommandPath = nameof(ToggleTextViewCommand),
+                ToolTip = "左栏在「条目列表」和「原文全文」之间切换（文本视图可直接改整份文件）" },
+        new() { Text = "🧹 清除受管块", Classes = "ghost", CommandPath = nameof(ClearManagedCommand),
+                IsEnabledPath = nameof(CanEditTarget),
+                ToolTip = "从草稿里删掉本程序写的那一段（用户自己写的行保留），仍需点「✅ 写入」才落盘" },
+        new() { Text = "📂 备份目录", Classes = "ghost", CommandPath = nameof(OpenBackupFolderCommand),
+                ToolTip = "打开 hosts 备份所在文件夹" },
+        new() { Text = "🔍 检测", AltText = "⏹ 停止", AltTextPath = nameof(IsChecking),
+                CommandPath = nameof(CheckCommand), IsEnabledPath = nameof(HasProfileSelection),
+                ToolTip = "逐条检测右栏方案：本机 DNS 与映射 IP 是否一致 + 目标端口是否可达（可取消），并跑静态安全规则" },
+        new() { Text = "➕ 新建方案", Classes = "ghost", CommandPath = nameof(NewProfileCommand) },
+        new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand),
+                ToolTip = "重读系统 hosts 与方案清单（丢弃左栏未写入的改动）" }
+    };
+
+    /// <summary>工具条构成变化（增删项 / 换页）时通知 Shell 重建。</summary>
+    public event EventHandler? ToolbarChanged;
+
+    private void NotifyToolbarChanged() => ToolbarChanged?.Invoke(this, EventArgs.Empty);
+
+    // ==================== 集合 ====================
+
+    /// <summary>左栏行（草稿投影）。</summary>
+    public ObservableCollection<HostsLine> SystemRows { get; } = new();
+
+    /// <summary>右栏行（选中方案条目的投影）。</summary>
+    public ObservableCollection<HostsLine> ProfileRows { get; } = new();
+
+    public ObservableCollection<HostsProfile> Profiles { get; } = new();
+
+    public ObservableCollection<HostsSource> Sources { get; } = new();
+
+    public ObservableCollection<HostsTargetSource> TargetSources { get; } = new();
+
+    // ==================== 选中 ====================
+
+    [ObservableProperty] private HostsTargetSource? _selectedTarget;
+    [ObservableProperty] private HostsProfile? _selectedProfile;
+    [ObservableProperty] private HostsSource? _selectedSource;
+
+    /// <summary>左栏选中行（与右栏互斥）。</summary>
+    [ObservableProperty] private HostsLine? _selectedSystemRow;
+
+    /// <summary>右栏选中行（与左栏互斥）。</summary>
+    [ObservableProperty] private HostsLine? _selectedProfileRow;
+
+    // ==================== 状态 ====================
+
+    [ObservableProperty] private bool _isBusy;
+    [ObservableProperty] private bool _isChecking;
+    [ObservableProperty] private bool _isTextView;
+    [ObservableProperty] private bool _isDirty;
+    [ObservableProperty] private bool _showEntriesOnly = true;
+    [ObservableProperty] private bool _leftDiffOnly;
+    [ObservableProperty] private bool _rightDiffOnly;
+    [ObservableProperty] private bool _isDetailVisible = true;
+
+    [ObservableProperty] private string _statusText = "";
+    [ObservableProperty] private string _fileInfoText = "";
+    [ObservableProperty] private string _managedInfoText = "";
+    [ObservableProperty] private string _permissionText = "";
+    [ObservableProperty] private string _diffSummary = "";
+    [ObservableProperty] private string _leftCountText = "";
+    [ObservableProperty] private string _rightCountText = "";
+    [ObservableProperty] private string _checkReportText = "";
+    [ObservableProperty] private string _securityText = "";
+
+    /// <summary>系统 hosts 是否可写（无管理员时为 false）。</summary>
+    [ObservableProperty] private bool _canWriteSystem;
+
+    /// <summary>左栏是否在看备份快照（只读）。</summary>
+    public bool TargetIsBackup => SelectedTarget is { IsCurrent: false };
+
+    public bool CanEditTarget => !TargetIsBackup && CanWriteSystem;
+
+    public bool CanRestore => TargetIsBackup;
+
+    public bool HasProfileSelection => SelectedProfile != null;
+
+    public bool HasProfiles => Profiles.Count > 0;
+
+    public bool HasSources => Sources.Count > 0;
+
+    public bool HasCheckReport => !string.IsNullOrWhiteSpace(CheckReportText);
+
+    public bool HasSecurity => !string.IsNullOrWhiteSpace(SecurityText);
+
+    public bool IsListMode => !IsTextView;
+
+    public string SourceHint => SelectedSource?.Hint ?? "设置页里还没有可用源";
+
+    public string SystemHostsPath => _svc?.SystemHostsPath ?? "";
+
+    public string EmptyLeftHint => TargetIsBackup
+        ? "这份备份是空的（切「📄 文本」看原文）"
+        : "没有可显示的条目（切「📄 文本」看原文）";
+
+    public string EmptyRightHint => Profiles.Count == 0
+        ? "还没有方案：在右栏顶部选一个源，点「⬇ 拉取」。"
+        : "这个方案没有条目";
+
+    // ==================== 属性联动 ====================
+
+    partial void OnSelectedTargetChanged(HostsTargetSource? value)
+    {
+        LoadTarget(value);
+        OnPropertyChanged(nameof(TargetIsBackup));
+        OnPropertyChanged(nameof(CanEditTarget));
+        OnPropertyChanged(nameof(CanRestore));
+        OnPropertyChanged(nameof(EmptyLeftHint));
+        NotifyToolbarChanged();
+    }
+
+    partial void OnSelectedProfileChanged(HostsProfile? value)
+    {
+        OnPropertyChanged(nameof(HasProfileSelection));
+        OnPropertyChanged(nameof(EmptyRightHint));
+        NotifyToolbarChanged();
+        CheckReportText = "";
+        SecurityText = value == null ? "" : BuildSecurityText(value.Entries);
+        RefreshRows();
+    }
+
+    partial void OnSelectedSourceChanged(HostsSource? value) => OnPropertyChanged(nameof(SourceHint));
+
+    partial void OnIsTextViewChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsListMode));
+        RebuildRows();
+    }
+
+    partial void OnIsDirtyChanged(bool value) => OnPropertyChanged(nameof(WriteButtonText));
+
+    public string WriteButtonText => IsDirty ? "✅ 写入系统 hosts（有改动）" : "✅ 写入系统 hosts";
+
+    partial void OnCanWriteSystemChanged(bool value) => OnPropertyChanged(nameof(CanEditTarget));
+
+    partial void OnCheckReportTextChanged(string value) => OnPropertyChanged(nameof(HasCheckReport));
+
+    partial void OnSecurityTextChanged(string value) => OnPropertyChanged(nameof(HasSecurity));
+
+    partial void OnShowEntriesOnlyChanged(bool value) => RebuildRows();
+
+    partial void OnLeftDiffOnlyChanged(bool value) => RebuildRows();
+
+    partial void OnRightDiffOnlyChanged(bool value) => RebuildRows();
+
+    // ==================== 加载 ====================
 
     private void LoadSources()
     {
@@ -315,113 +221,403 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
         if (_sources is null) return;
         foreach (var s in _sources.Load().Where(s => s.Enabled)) Sources.Add(s);
         SelectedSource = Sources.FirstOrDefault();
+        OnPropertyChanged(nameof(HasSources));
     }
 
     [RelayCommand]
     private void Refresh()
     {
+        var keepName = SelectedProfile?.Name;
+
         Profiles.Clear();
         foreach (var p in _svc.Load().OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase))
         {
             HostsCheckService.ResetResults(p.Entries);
             Profiles.Add(p);
         }
+        OnPropertyChanged(nameof(HasProfiles));
 
-        if (Selected != null && !Profiles.Contains(Selected)) Selected = null;
-        ApplyView();
-        StatusText = $"共 {Profiles.Count} 套方案 · 系统 hosts：{_svc.SystemHostsPath}";
+        RefreshTargetSources();
+        SelectedTarget = TargetSources[0];
+        SelectedProfile = Profiles.FirstOrDefault(p => p.Name == keepName) ?? Profiles.FirstOrDefault();
+        NotifyToolbarChanged();
     }
 
-    // ============ 排序 / 过滤 ============
-
-    private void ApplyView()
+    /// <summary>重建左栏数据源下拉（当前系统 hosts + 备份快照，新的在前）。</summary>
+    private void RefreshTargetSources()
     {
-        IEnumerable<HostsProfile> q = ApplyFilters(Profiles);
-
-        q = SortDescending
-            ? q.OrderByDescending(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-            : q.OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase);
-
-        var ordered = q.ToList();
-        Profiles.Clear();
-        foreach (var p in ordered) Profiles.Add(p);
-        UpdateHeaders();
-        OnPropertyChanged(nameof(HasItems));
+        var keep = SelectedTarget?.Backup?.Path;
+        TargetSources.Clear();
+        TargetSources.Add(HostsTargetSource.Current());
+        foreach (var b in _svc.ListBackups()) TargetSources.Add(HostsTargetSource.Of(b));
+        SelectedTarget = TargetSources.FirstOrDefault(t => t.Backup?.Path == keep) ?? TargetSources[0];
     }
 
-    private void UpdateHeaders() => NameHeader = "名称" + SortArrow("Name");
-
-    // ============ 选中 → 同步详情编辑区 ============
-
-    partial void OnSelectedChanged(HostsProfile? value)
+    /// <summary>按当前数据源装载左栏草稿。</summary>
+    private void LoadTarget(HostsTargetSource? target)
     {
-        OnPropertyChanged(nameof(DetailItem));
-        EntriesText = value == null ? "" : string.Join("\n", value.Entries.Select(e => e.ToLine()));
-        BlockPreview = "";
-        DiffText = "";
-        CheckReportText = "";
-        SecurityText = value == null ? "" : BuildSecurityText(value.Entries);
-        OnPropertyChanged(nameof(HasSelection));
+        _draftText = "";
+        IsDirty = false;
+
+        if (target is null) { RebuildRows(); return; }
+
+        var (ok, text, msg) = target.IsCurrent
+            ? _svc.ReadSystemHosts()
+            : HostsService.ReadTextFile(target.Backup!.Path);
+
+        var (canWrite, why) = _svc.CanWrite();
+        CanWriteSystem = canWrite && target.IsCurrent;
+        PermissionText = target.IsCurrent
+            ? canWrite ? "🔓 可写" : "🔒 只读（" + why + "）"
+            : "🔒 备份快照 · 只读";
+
+        if (!ok)
+        {
+            FileInfoText = msg;
+            ManagedInfoText = "—";
+            RebuildRows();
+            StatusText = "⚠ " + msg;
+            return;
+        }
+
+        _draftText = text;
+        FileInfoText = BuildFileInfo(text, target);
+        var (found, startLine, endLine, count) = HostsService.ManagedRange(text);
+        ManagedInfoText = found ? $"受管块 第 {startLine}~{endLine} 行 · {count} 条" : "无受管块";
+
+        RebuildRows();
+        StatusText = target.IsCurrent
+            ? $"已读入系统 hosts（{text.Replace("\r\n", "\n").Split('\n').Length} 行）"
+            : $"正在查看备份 {target.Backup!.TimeText}（只读，可点「♻ 还原」）";
     }
 
-    // ============ 增删改 ============
+    private string BuildFileInfo(string text, HostsTargetSource target)
+    {
+        var lines = text.Replace("\r\n", "\n").Split('\n').Length;
+        if (!target.IsCurrent) return $"{target.Backup!.SizeText} · {lines} 行 · {target.Backup.TimeText}";
+
+        try
+        {
+            var info = new FileInfo(_svc.SystemHostsPath);
+            return info.Exists
+                ? $"{info.Length} 字节 · {lines} 行 · 修改于 {info.LastWriteTime:yyyy-MM-dd HH:mm:ss}"
+                : $"{lines} 行";
+        }
+        catch { return $"{lines} 行"; }
+    }
+
+    // ==================== 行投影 + 差异 ====================
+
+    /// <summary>重算差异并重建两侧行集合（唯一入口：任何改动后都调它）。</summary>
+    private void RefreshRows()
+    {
+        var prevLeftNo = SelectedSystemRow?.No;
+        var prevRightNo = SelectedProfileRow?.No;
+
+        var leftRows = HostsService.ParseLines(_draftText);
+        var leftEntries = leftRows.Where(r => r.IsEntry).ToList();
+
+        var rightRows = new List<HostsLine>();
+        if (SelectedProfile is { } profile)
+        {
+            for (var i = 0; i < profile.Entries.Count; i++)
+            {
+                var e = profile.Entries[i];
+                rightRows.Add(new HostsLine
+                {
+                    No = i + 1,
+                    Raw = e.ToLine(),
+                    IsEntry = true,
+                    Enabled = e.Enabled,
+                    Ip = e.Ip,
+                    Host = e.Host,
+                    Comment = e.Comment,
+                    InManaged = true
+                });
+            }
+        }
+
+        var leftMap = ToMap(leftEntries);
+        var rightMap = ToMap(rightRows);
+
+        foreach (var r in leftEntries)
+            r.Mark = !rightMap.TryGetValue(r.Host, out var ip) ? "－"
+                : !string.Equals(ip, r.Ip, StringComparison.OrdinalIgnoreCase) ? "≠" : "";
+        foreach (var r in rightRows)
+            r.Mark = !leftMap.TryGetValue(r.Host, out var ip) ? "＋"
+                : !string.Equals(ip, r.Ip, StringComparison.OrdinalIgnoreCase) ? "≠" : "";
+
+        var added = rightMap.Keys.Count(k => !leftMap.ContainsKey(k));
+        var removed = leftMap.Keys.Count(k => !rightMap.ContainsKey(k));
+        var changed = rightMap.Count(kv => leftMap.TryGetValue(kv.Key, out var ip) && !string.Equals(ip, kv.Value, StringComparison.OrdinalIgnoreCase));
+        DiffSummary = added + removed + changed == 0
+            ? "两侧条目一致"
+            : $"右栏相对左栏：＋{added} 新增 · －{removed} 缺失 · ≠{changed} 改 IP";
+
+        SystemRows.Clear();
+        if (!IsTextView)
+        {
+            foreach (var r in leftRows)
+            {
+                if (ShowEntriesOnly && !r.IsEntry) continue;
+                if (LeftDiffOnly && r.Mark.Length == 0) continue;
+                SystemRows.Add(r);
+            }
+        }
+        LeftCountText = IsTextView
+            ? $"原文 {_draftText.Replace("\r\n", "\n").Split('\n').Length} 行"
+            : $"共 {SystemRows.Count} 行 · 条目 {leftEntries.Count}";
+
+        ProfileRows.Clear();
+        foreach (var r in rightRows)
+        {
+            if (RightDiffOnly && r.Mark.Length == 0) continue;
+            ProfileRows.Add(r);
+        }
+        RightCountText = $"共 {ProfileRows.Count} 条";
+
+        _suppressSelectionSync = true;
+        SelectedSystemRow = prevLeftNo == null ? null : SystemRows.FirstOrDefault(r => r.No == prevLeftNo);
+        SelectedProfileRow = prevRightNo == null ? null : ProfileRows.FirstOrDefault(r => r.No == prevRightNo);
+        _suppressSelectionSync = false;
+
+        if (SelectedProfileRow is { } rightRow) LoadEditBuffer(rightRow, false);
+        else if (SelectedSystemRow is { } leftRow) LoadEditBuffer(leftRow, true);
+        else ClearEditBuffer();
+
+        OnPropertyChanged(nameof(EmptyLeftHint));
+        OnPropertyChanged(nameof(EmptyRightHint));
+        OnPropertyChanged(nameof(HasNoSystemRows));
+        OnPropertyChanged(nameof(HasNoProfileRows));
+        OnPropertyChanged(nameof(CanApplyToTarget));
+    }
+
+    private void RebuildRows() => RefreshRows();
+
+    private static Dictionary<string, string> ToMap(IEnumerable<HostsLine> rows)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows) map[r.Host] = r.Ip;
+        return map;
+    }
+
+    // ==================== 左侧草稿 ====================
+
+    /// <summary>文本视图的双向绑定（条目视图下不参与编辑）。</summary>
+    public string DraftText
+    {
+        get => _draftText;
+        set
+        {
+            if (_draftText == value) return;
+            _draftText = value ?? "";
+            OnPropertyChanged();
+            if (IsTextView)
+            {
+                IsDirty = true;
+                RefreshRows();
+            }
+        }
+    }
 
     [RelayCommand]
-    private void NewProfile()
+    private void ToggleTextView() => IsTextView = !IsTextView;
+
+    [RelayCommand]
+    private void ClearManaged()
     {
-        var p = new HostsProfile { Name = "新方案 " + (Profiles.Count + 1) };
+        if (!CanEditTarget) { StatusText = "⚠ 备份快照 / 只读文件不能改。"; return; }
+
+        _draftText = HostsService.StripManagedBlock(_draftText);
+        IsDirty = true;
+        RefreshRows();
+        StatusText = "已从草稿移除受管块（点「✅ 写入系统 hosts」才落盘）。";
+    }
+
+    /// <summary>把右栏方案（启用条目）写进左栏草稿的受管块。</summary>
+    [RelayCommand]
+    private void ApplyToTarget()
+    {
+        if (TargetIsBackup) { StatusText = "⚠ 备份快照只读：切回「当前系统 hosts」再应用。"; return; }
+        if (SelectedProfile is not { } profile || profile.Entries.Count == 0)
+        {
+            StatusText = "⚠ 右栏没有可应用的条目。";
+            return;
+        }
+
+        var enabled = profile.Entries.Where(e => e.Enabled).ToList();
+        _draftText = HostsService.StripManagedBlock(_draftText).TrimEnd('\n') + "\n\n" + HostsService.BuildManagedBlock(enabled);
+
+        IsDirty = true;
+        RefreshRows();
+        StatusText = $"已把「{profile.Name}」写入左侧草稿（受管块 {enabled.Count} 条），点「✅ 写入系统 hosts」落盘。";
+    }
+
+    /// <summary>草稿写盘（二次确认 + 自动备份）。</summary>
+    [RelayCommand]
+    private async Task WriteAsync()
+    {
+        if (TargetIsBackup) { StatusText = "⚠ 备份快照只读：切回「当前系统 hosts」再写入。"; return; }
+        if (!CanWriteSystem) { StatusText = "⚠ 没有写权限：" + PermissionText + " —— 请以管理员身份运行本程序。"; return; }
+
+        var ok = await DialogHooks.ConfirmAsync(
+            "要把左侧草稿写入系统 hosts 吗？\n" +
+            "写入前会自动备份当前文件（可在左栏下拉里选中备份还原）。");
+        if (!ok) { StatusText = "已取消写入。"; return; }
+
+        var (written, msg) = _svc.WriteRaw(_draftText);
+        if (!written) { StatusText = "⚠ " + msg; return; }
+
+        IsDirty = false;
+        RefreshTargetSources();
+        SelectedTarget = TargetSources[0];
+        StatusText = msg + (_settings?.HostsFlushDnsAfterApply == true ? "（DNS 刷新请在「网络 Ping」页操作）" : "");
+    }
+
+    // ==================== 备份 ====================
+
+    [RelayCommand]
+    private void BackupNow()
+    {
+        var (ok, msg, _) = _svc.BackupNow("手动备份");
+        StatusText = ok ? msg : "⚠ " + msg;
+        RefreshTargetSources();
+    }
+
+    [RelayCommand]
+    private async Task RestoreAsync()
+    {
+        if (SelectedTarget?.Backup is not { } backup) return;
+
+        var ok = await DialogHooks.ConfirmAsync(
+            $"要把系统 hosts 整份换回 {backup.TimeText} 那份备份吗？\n" +
+            "还原前的当前文件会再备份一份，可以再换回来。");
+        if (!ok) { StatusText = "已取消还原。"; return; }
+
+        var (done, msg) = _svc.Restore(backup.Path);
+        StatusText = done ? msg : "⚠ " + msg;
+        Refresh();
+    }
+
+    [RelayCommand]
+    private async Task DeleteBackupAsync()
+    {
+        if (SelectedTarget?.Backup is not { } backup) return;
+
+        var ok = await DialogHooks.ConfirmAsync($"删除备份 {backup.Name}？\n（只删备份文件，不动系统 hosts）");
+        if (!ok) return;
+
+        var (done, msg) = _svc.DeleteBackup(backup.Path);
+        StatusText = done ? msg : "⚠ " + msg;
+        RefreshTargetSources();
+        SelectedTarget = TargetSources[0];
+    }
+
+    [RelayCommand]
+    private void OpenBackupFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(_svc.BackupDir);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_svc.BackupDir) { UseShellExecute = true });
+        }
+        catch (Exception ex) { StatusText = "⚠ 打不开备份目录：" + ex.Message; }
+    }
+
+    // ==================== 方案 ====================
+
+    [RelayCommand]
+    private async Task NewProfileAsync()
+    {
+        var name = await DialogHooks.InputAsync("新建方案", "新方案");
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var p = new HostsProfile { Name = name.Trim() };
         Profiles.Add(p);
-        Selected = p;
-        IsDetailVisible = true;
-        StatusText = "已新建方案，编辑条目后点「保存」。";
+        OnPropertyChanged(nameof(HasProfiles));
+        SelectedProfile = p;
+        await PersistAsync();
+        StatusText = "已新建空方案：在右栏详情卡点「➕ 新增条目」。";
     }
 
     [RelayCommand]
-    private async Task DeleteAsync()
+    private async Task DeleteProfileAsync()
     {
-        if (Selected == null) return;
-        Profiles.Remove(Selected);
+        if (SelectedProfile is not { } profile) return;
+
+        var ok = await DialogHooks.ConfirmAsync($"删除方案「{profile.Name}」？\n（⛔ 不动系统 hosts）");
+        if (!ok) return;
+
+        Profiles.Remove(profile);
         await PersistAsync();
-        Selected = null;
+        SelectedProfile = Profiles.FirstOrDefault();
         StatusText = "已删除方案。";
     }
 
+    /// <summary>把右栏条目落库（条目编辑本身即时改内存，这里只持久化）。</summary>
     [RelayCommand]
-    private async Task SaveAsync()
+    private async Task SaveProfileAsync()
     {
-        if (Selected == null) return;
-        Selected.Entries = HostsService.ParseText(EntriesText);
-        HostsCheckService.ResetResults(Selected.Entries);
+        if (SelectedProfile is not { } profile) return;
+
+        HostsCheckService.ResetResults(profile.Entries);
         await PersistAsync();
-        OnPropertyChanged(nameof(DetailItem));
-        StatusText = $"已保存「{Selected.Name}」（{Selected.Entries.Count} 条）。";
+        RefreshRows();
+        StatusText = $"已保存方案「{profile.Name}」（{profile.Entries.Count} 条）。";
     }
 
-    private async Task PersistAsync()
+    [RelayCommand]
+    private async Task ExportAsync()
     {
-        await Task.Run(() => _svc.Save(Profiles.ToList()));
+        if (SelectedProfile is not { } profile) return;
+
+        var path = await DialogHooks.SaveFileAsync("导出 hosts 文本", null, SafeFileName(profile.Name) + ".hosts", "*.hosts|*.*");
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try
+        {
+            File.WriteAllText(path, HostsService.BuildManagedBlock(profile));
+            StatusText = $"已导出受管块 → {path}";
+        }
+        catch (Exception ex) { StatusText = "⚠ 导出失败：" + ex.Message; }
     }
 
-    // ============ 源订阅 ============
+    [RelayCommand]
+    private async Task ImportFileAsync()
+    {
+        if (SelectedProfile is not { } profile) { StatusText = "先选一个方案（或新建一个）再导入。"; return; }
+
+        var files = await DialogHooks.PickFilesAsync("导入 hosts 文件", null, false, "*.hosts|*.txt|*.*");
+        if (files.Count == 0) return;
+
+        var (ok, msg, entries) = HostsService.ImportFile(files[0]);
+        if (!ok) { StatusText = "⚠ " + msg; return; }
+
+        profile.Entries = entries;
+        profile.Source = "file:" + Path.GetFileName(files[0]);
+        HostsCheckService.ResetResults(entries);
+        await PersistAsync();
+        RefreshRows();
+        StatusText = msg;
+    }
+
+    private async Task PersistAsync() => await Task.Run(() => _svc.Save(Profiles.ToList()));
+
+    // ==================== 源订阅 ====================
 
     [RelayCommand]
     private async Task FetchSourceAsync()
     {
         if (_sources is null) return;
-        if (SelectedSource is not { } source) { StatusText = "请先在工具条下拉里选一个源。"; return; }
+        if (SelectedSource is not { } source) { StatusText = "先在「网络工具设置」里添加一个 hosts 源。"; return; }
 
         try
         {
             IsBusy = true;
             StatusText = $"正在拉取「{source.Name}」…";
             var result = await _sources.FetchAsync(source);
-            if (!result.Ok)
-            {
-                StatusText = "⚠ 拉取失败：" + result.Message;
-                return;
-            }
+            if (!result.Ok) { StatusText = "⚠ 拉取失败：" + result.Message; return; }
 
-            // 有同名源方案就覆盖，否则新建（⛔ 不自动写系统 hosts）
             var target = Profiles.FirstOrDefault(p =>
                 string.Equals(p.Source, "source:" + source.Id, StringComparison.OrdinalIgnoreCase));
             if (target == null)
@@ -431,47 +627,25 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
             }
 
             target.Entries = result.Entries;
-            target.Source = "source:" + source.Id;
             target.LastFetchedAt = source.LastFetchedAt;
             target.LastFetchedCount = source.LastCount;
 
             _sources.Save(Sources);
             await PersistAsync();
 
-            Selected = target;
-            OnPropertyChanged(nameof(DetailItem));
-            ApplyView();
-            StatusText = result.Message + "（已写入方案，点「✅ 应用」才动系统 hosts）";
+            OnPropertyChanged(nameof(HasProfiles));
+            SelectedProfile = target;
+            StatusText = result.Message + "（已写入右栏，点「⬅ 应用到左侧」+「✅ 写入系统 hosts」才动系统文件）";
         }
         finally { IsBusy = false; }
     }
 
-    [RelayCommand]
-    private async Task AddSourceAsync()
-    {
-        if (_sources is null) return;
-
-        var name = await DialogHooks.InputAsync("添加 hosts 源", "自定义源");
-        if (string.IsNullOrWhiteSpace(name)) return;
-
-        var urls = await DialogHooks.InputAsync("源地址（多个用空格分隔，第一个为主地址）", "https://");
-        if (string.IsNullOrWhiteSpace(urls)) return;
-
-        var source = HostsSourceService.NewCustom(name, urls.Split(' ', StringSplitOptions.RemoveEmptyEntries));
-        if (source.Urls.Count == 0) { StatusText = "⚠ 没填有效地址，未添加。"; return; }
-
-        Sources.Add(source);
-        _sources.Save(Sources);
-        SelectedSource = source;
-        StatusText = $"已添加自定义源「{source.Name}」，点「⬇ 拉取源」开始下载。";
-    }
-
-    // ============ 检测（可用性 + 静态安全） ============
+    // ==================== 检测 ====================
 
     [RelayCommand]
     private async Task CheckAsync()
     {
-        if (_check is null || Selected is not { } profile) return;
+        if (_check is null || SelectedProfile is not { } profile) return;
 
         if (IsChecking)
         {
@@ -497,14 +671,13 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
 
             SecurityText = BuildSecurityText(profile.Entries);
             CheckReportText = BuildCheckReport(profile);
-            OnPropertyChanged(nameof(DetailItem));
-            ApplyView();
+            RefreshRows();
 
             var ok = profile.Entries.Count(e => e.Status == HostsEntryStatus.Ok);
             var mismatch = profile.Entries.Count(e => e.Status == HostsEntryStatus.Mismatch);
             var fail = profile.Entries.Count(e => e.Status is HostsEntryStatus.Unreachable or HostsEntryStatus.Timeout);
             StatusText = (fail + mismatch) == 0
-                ? $"检测完成：{ok} 条可达 · 未发现问题（含未检测的禁用行）"
+                ? $"检测完成：{ok} 条可达 · 未发现问题"
                 : $"检测完成：✅{ok} · ⚠{mismatch} · ❌{fail}（明细见右侧「检测结果」）";
         }
         catch (OperationCanceledException)
@@ -555,79 +728,44 @@ public partial class HostsViewModel : ListPageViewModelBase, IDetailPanelProvide
         return sb.ToString().TrimEnd();
     }
 
-    // ============ 应用 / 预检 / 导出 / 导入 ============
-
-    [RelayCommand]
-    private void PreviewDiff()
-    {
-        if (Selected is not { } profile) return;
-        var diff = _svc.DiffAgainstManaged(profile);
-        DiffText = diff.Summary;
-        StatusText = "预检：" + diff.Summary;
-    }
-
-    [RelayCommand]
-    private async Task ApplyAsync()
-    {
-        if (Selected is not { } profile) return;
-
-        // 编辑框里的改动先落进模型（用户可能改完直接点应用）
-        profile.Entries = HostsService.ParseText(EntriesText);
-
-        var (ok, msg) = await _svc.ApplyAsync(profile);
-        StatusText = msg;
-        if (!ok) BlockPreview = _svc.ExportBlock(profile);   // 无权限时给可复制的块
-
-        DiffText = _svc.DiffAgainstManaged(profile).Summary;
-    }
-
-    [RelayCommand]
-    private async Task ExportAsync()
-    {
-        if (Selected is not { } profile) return;
-
-        var path = await DialogHooks.SaveFileAsync("导出 hosts 文本", null, SafeFileName(profile.Name) + ".hosts", "*.hosts|*.*");
-        if (string.IsNullOrWhiteSpace(path)) return;
-
-        try
-        {
-            System.IO.File.WriteAllText(path, HostsService.BuildManagedBlock(profile));
-            BlockPreview = _svc.ExportBlock(profile);
-            StatusText = $"已导出受管块 → {path}";
-        }
-        catch (Exception ex)
-        {
-            StatusText = "⚠ 导出失败：" + ex.Message;
-        }
-    }
-
-    [RelayCommand]
-    private async Task ImportFileAsync()
-    {
-        if (Selected == null) { StatusText = "先选一套方案（或新建一个）再导入。"; return; }
-
-        var files = await DialogHooks.PickFilesAsync("导入 hosts 文件", null, false, "*.hosts|*.txt|*.*");
-        if (files.Count == 0) return;
-
-        var (ok, msg, entries) = HostsService.ImportFile(files[0]);
-        if (!ok) { StatusText = "⚠ " + msg; return; }
-
-        Selected.Entries = entries;
-        Selected.Source = "file:" + System.IO.Path.GetFileName(files[0]);
-        HostsCheckService.ResetResults(entries);
-        EntriesText = string.Join("\n", entries.Select(e => e.ToLine()));
-        CheckReportText = "";
-        SecurityText = BuildSecurityText(entries);
-        await PersistAsync();
-        OnPropertyChanged(nameof(DetailItem));
-        ApplyView();
-        StatusText = msg;
-    }
-
     private static string SafeFileName(string name)
     {
-        foreach (var c in System.IO.Path.GetInvalidFileNameChars())
-            name = name.Replace(c, '_');
+        foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
         return name.Length == 0 ? "hosts" : name;
     }
+
+    // ==================== 详情面板 ====================
+
+    public bool HasDetailPanel => true;
+    public bool IsDetailOpen => IsDetailVisible;
+    public object? DetailContent => null;
+
+    public event EventHandler? DetailChanged;
+
+    [RelayCommand]
+    private void ToggleDetailPanel()
+    {
+        IsDetailVisible = !IsDetailVisible;
+        OnPropertyChanged(nameof(IsDetailOpen));
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void OpenDetailPanel()
+    {
+        IsDetailVisible = true;
+        OnPropertyChanged(nameof(IsDetailOpen));
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    void IDetailPanelProvider.ToggleDetail() => ToggleDetailPanelCommand.Execute(null);
+    void IDetailPanelProvider.OpenDetail() => OpenDetailPanelCommand.Execute(null);
+
+    public DetailCardDescriptor? Card => _card ??= BuildCard();
+
+    // ==================== 状态栏 ====================
+
+    partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
+
+    public event EventHandler? StatusChanged;
 }

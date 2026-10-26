@@ -74,6 +74,44 @@
       <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding HostsRangesHint}" />
     </StackPanel>
 
+    <StackPanel x:Key="Sec3" Spacing="10">
+      <TextBlock
+          Classes="hint-text"
+          TextWrapping="Wrap"
+          Text="「Hosts 管理」页右侧「⬇ 拉取」用的就是这里列出的开源 hosts 项目。预设源也可以删（删了不会自己回来）；新建的源填名称 + 地址，多个地址用空格分隔（第一个是主地址，其余是镜像，按顺序试）。" />
+
+      <ListBox Height="170" MinWidth="0"
+               ItemsSource="{Binding HostSources}"
+               SelectedItem="{Binding SelectedHostSource, Mode=TwoWay}">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnDefinitions="220,*" Height="28">
+              <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Display}" />
+              <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Hint}"
+                         Foreground="{DynamicResource SecondaryTextBrush}" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="ghost" Content="➕ 新建" Command="{Binding AddHostSourceCommand}"
+                ToolTip.Tip="新建一个开源 hosts 项目源" />
+        <Button Classes="ghost" Content="✏ 编辑" Command="{Binding EditHostSourceCommand}"
+                IsEnabled="{Binding HasHostSourceSelection}"
+                ToolTip.Tip="改名称 / 地址（预设源也能改）" />
+        <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteHostSourceCommand}"
+                IsEnabled="{Binding HasHostSourceSelection}"
+                ToolTip.Tip="只删源清单，已拉取的方案不受影响" />
+        <Button Classes="ghost" Content="⬇ 测试拉取" Command="{Binding TestHostSourceCommand}"
+                IsEnabled="{Binding HasHostSourceSelection}"
+                ToolTip.Tip="按地址逐个试一次，报条目数（⛔ 不写方案、不动系统 hosts）" />
+      </StackPanel>
+
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding HostSourceHint}" />
+      <TextBlock Classes="hint-text" Text="还没有源：点「➕ 新建」填名称和地址。" IsVisible="{Binding !HasHostSources}" />
+    </StackPanel>
+
     <StackPanel x:Key="Sec1" Spacing="10">
       <StackPanel Spacing="6">
         <TextBlock

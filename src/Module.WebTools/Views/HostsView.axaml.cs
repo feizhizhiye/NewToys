@@ -1,6 +1,5 @@
 using System;
 using Avalonia.Controls;
-using NewToys.WebTools.ViewModels;
 
 namespace NewToys.WebTools.Views;
 
@@ -14,7 +13,7 @@ public partial class HostsView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (ProfileList?.ContextMenu is { } menu) menu.DataContext = DataContext;
-        if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+        if (SystemList?.ContextMenu is { } left) left.DataContext = DataContext;
+        if (ProfileList?.ContextMenu is { } right) right.DataContext = DataContext;
     }
 }

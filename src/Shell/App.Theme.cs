@@ -87,6 +87,8 @@ public partial class App : Application
             S("PlaceholderTextBrush","#6B6B6B");
             S("AccentBrush", accent.Color); S("AccentHoverBrush", accent.HoverColor); S("AccentTextBrush","#FFFFFF");
             S("CodeBlockBrush","#1F1F1F"); S("InputBorderBrush","#3D3D3D"); S("InputHoverBorderBrush", accent.Color);
+            // 滚动条滑块：深色底上要能看出「有一根条」，但不能抢眼；悬停切强调色
+            S("ScrollThumbBrush","#4A4A4A"); S("ScrollThumbHoverBrush", accent.Color);
         }
         else
         {
@@ -108,6 +110,8 @@ public partial class App : Application
             S("PlaceholderTextBrush","#B4B4BA");
             S("AccentBrush", accent.Color); S("AccentHoverBrush", accent.HoverColor); S("AccentTextBrush","#FFFFFF");
             S("CodeBlockBrush","#FFFFFF"); S("InputBorderBrush","#D1D5DB"); S("InputHoverBorderBrush", accent.Color);
+            // 滚动条滑块：白底上要比 DividerBrush(#E6E8EC) 深一档才看得见；悬停切强调色
+            S("ScrollThumbBrush","#C6CAD0"); S("ScrollThumbHoverBrush", accent.Color);
         }
         if (Resources != null)
         {

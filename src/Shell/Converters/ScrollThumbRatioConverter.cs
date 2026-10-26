@@ -15,8 +15,8 @@ namespace NewToys.Shell.Converters;
 /// </summary>
 public sealed class ScrollThumbRatioConverter : IValueConverter
 {
-    /// <summary>缩放系数（&lt;1 = 更短）。默认 0.6。</summary>
-    public double Ratio { get; set; } = 0.6;
+    /// <summary>缩放系数（&lt;1 = 更短）。默认 0.55。</summary>
+    public double Ratio { get; set; } = 0.55;
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value is double d && !double.IsNaN(d) && !double.IsInfinity(d) ? d * Ratio : value;

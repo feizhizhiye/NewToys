@@ -1,6 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:chrome="using:Avalonia.Controls.Chrome"
+             xmlns:conv="using:NewToys.Shell.Converters"
              x:Class="NewToys.Shell.App">
 
     <!--  ==================== v3.2 矢量图标（Geometry） ====================
@@ -156,6 +157,81 @@
             <Setter Property="DefaultFrameThickness" Value="0"/>
             <Setter Property="DefaultShadowThickness" Value="0"/>
             <!--  🔴 故意**不设 Template**：见上方版本事实说明。⛔ 不要试图在这里补模板。  -->
+        </ControlTheme>
+
+        <!--  ==================== 全局滚动条（隐式主题） ====================
+              应用层唯一实现：所有 `ScrollViewer` / 列表 / `ComboBox` 下拉自动生效，
+              ⛔ 页面里不要再自写 `ScrollBar` 样式。规格：8px 槽 / 6px 圆角胶囊滑块 / 轨道透明无箭头 / 常驻不自动隐藏。
+              🔴 四条硬约束（踩过坑，改之前读完）：
+              ① `Track` 与 `ScrollBar` 之间**零绑定** ⇒ `Minimum` / `Maximum` / `Value` / `ViewportSize` 必须逐个
+                 `TemplateBinding`；其中 `Value` 必须 `Mode=TwoWay`，单向会把 Track 拖拽时的 `SetCurrentValue` 顶回去
+                 ⇒ 现象是「滑块拖不动」。
+              ② `PART_PageUpButton` / `PART_PageDownButton` 必须留（`ScrollBar.ApplyTemplate` 按名取），视觉上用零尺寸 + 透明。
+              ③ 滑块长度只能缩 `ViewportSize`（走 `ScrollThumbRatio`），⛔ 别用 `Thumb` 的 `ScaleTransform`：
+                 Track 用同一个长度算位置 ⇒ 渲染缩放只改视觉，拖到底会空出一截。
+              ④ `AllowAutoHide=False` ⇒ `ScrollBar.IsExpanded` 恒为 true ⇒ 悬停态只认 `:pointerover`，⛔ 别用 `^[IsExpanded=true]`。  -->
+        <conv:ScrollThumbRatioConverter x:Key="ScrollThumbRatio" Ratio="0.55"/>
+
+        <ControlTheme x:Key="NewToysScrollThumb" TargetType="Thumb">
+            <Setter Property="Background" Value="{DynamicResource ScrollThumbBrush}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <!--  Margin=1 把 6px 胶囊放进 8px 槽中央；圆角 3 = 两端全圆  -->
+                    <Border Background="{TemplateBinding Background}" CornerRadius="3" Margin="1">
+                        <Border.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.12"/>
+                            </Transitions>
+                        </Border.Transitions>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover">
+                <Setter Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}"/>
+            </Style>
+        </ControlTheme>
+
+        <ControlTheme x:Key="{x:Type ScrollBar}" TargetType="ScrollBar">
+            <Setter Property="AllowAutoHide" Value="False"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}">
+                        <Track Name="PART_Track"
+                               Minimum="{TemplateBinding Minimum}"
+                               Maximum="{TemplateBinding Maximum}"
+                               Value="{TemplateBinding Value, Mode=TwoWay}"
+                               ViewportSize="{TemplateBinding ViewportSize, Converter={StaticResource ScrollThumbRatio}}"
+                               Orientation="{TemplateBinding Orientation}"
+                               IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                            <Track.DecreaseButton>
+                                <RepeatButton Name="PART_PageUpButton" Opacity="0" Focusable="False" IsHitTestVisible="False"
+                                              MinWidth="0" MinHeight="0" Width="0" Height="0" Background="Transparent"/>
+                            </Track.DecreaseButton>
+                            <Track.Thumb>
+                                <Thumb Name="PART_Thumb" Theme="{StaticResource NewToysScrollThumb}"/>
+                            </Track.Thumb>
+                            <Track.IncreaseButton>
+                                <RepeatButton Name="PART_PageDownButton" Opacity="0" Focusable="False" IsHitTestVisible="False"
+                                              MinWidth="0" MinHeight="0" Width="0" Height="0" Background="Transparent"/>
+                            </Track.IncreaseButton>
+                        </Track>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^[Orientation=Vertical]">
+                <Setter Property="Height" Value="Auto"/>
+                <Setter Property="Width" Value="8"/>
+                <Setter Property="HorizontalAlignment" Value="Right"/>
+            </Style>
+            <Style Selector="^[Orientation=Horizontal]">
+                <Setter Property="Height" Value="8"/>
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="VerticalAlignment" Value="Bottom"/>
+            </Style>
         </ControlTheme>
     </Application.Resources>
 

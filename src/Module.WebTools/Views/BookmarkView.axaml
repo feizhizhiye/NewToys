@@ -60,7 +60,8 @@
       <ListBox x:Name="BookmarkList" Classes="list-page"
                ItemsSource="{Binding VisibleNodes}"
                SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
-               SelectionMode="Single"
+               SelectionMode="Multiple"
+               SelectionChanged="OnSelectionChanged"
                DoubleTapped="OnRowDoubleTapped"
                ContextRequested="OnRowContextRequested"
                KeyDown="OnRowKeyDown">
@@ -72,9 +73,9 @@
             <MenuItem Header="🌐 打开" Command="{Binding OpenCommand}"/>
             <MenuItem Header="📋 复制网址" Command="{Binding CopySelectedCommand}"/>
             <MenuItem Header="🕷 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
-            <!--  移动到其他文件夹节点：目标列表由 VM 按树重建（排除当前所在文件夹）  -->
-            <MenuItem Header="📁 移动到" IsEnabled="{Binding IsItemSelected}" ItemsSource="{Binding MoveTargets}"
-                      ToolTip.Tip="把选中的网址改挂到另一个文件夹节点下">
+            <!--  移动到其他文件夹节点：单选 = 该条，Ctrl/Shift 多选 = 整批；目标列表由 VM 按树重建  -->
+            <MenuItem Header="📁 移动到" IsEnabled="{Binding CanMove}" ItemsSource="{Binding MoveTargets}"
+                      ToolTip.Tip="单选移动这一条；Ctrl/Shift 多选后即整批移动">
               <MenuItem.ItemContainerTheme>
                 <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                   <Setter Property="Header" Value="{Binding Label}"/>

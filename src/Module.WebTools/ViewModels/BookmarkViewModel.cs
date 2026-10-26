@@ -649,48 +649,102 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         _runner.OpenBrowser(cfg.ProgramPath, cfg.Arguments, urls);
     }
 
-    // ============ 移动到其他节点 ============
+    // ============ 移动到其他节点（单条 / 多选批量） ============
 
     /// <summary>
-    /// 右键「📁 移动到」子菜单的数据源：根级 + 全部文件夹（**排除当前所在文件夹**，避免同义动作）。
+    /// 右键「📁 移动到」子菜单的数据源：根级 + 全部文件夹（**排除当前所在文件夹**，避免同义动作；
+    /// 多选时无从排除 ⇒ 全列）。
     /// 用子菜单而不是拖拽 —— 页面是扁平先序列表（⛔ 不是 <c>TreeView</c>），拖拽要自己算落点 / 高亮 / 自动展开。
     /// </summary>
     public ObservableCollection<MoveTarget> MoveTargets { get; } = new();
 
-    /// <summary>把选中的书签改到目标文件夹（只改 <see cref="BookmarkItem.Folder"/>，路径即层级）。</summary>
-    [RelayCommand(CanExecute = nameof(IsItemSelected))]
+    /// <summary>多选中的书签（⛔ 不含文件夹行 —— 混选时文件夹行被忽略）；由 View 的 <c>SelectionChanged</c> 回填。</summary>
+    private readonly List<BookmarkItem> _multiSelected = new();
+
+    /// <summary>树重建期间忽略 View 回抛的选中变化（那时的「清空」是程序化的）。</summary>
+    private bool _rebuilding;
+
+    /// <summary>请 View 回填多选高亮（树重建后节点实例会换 ⇒ 按 <see cref="BookmarkItem.Id"/> 重新匹配）。</summary>
+    public event EventHandler? SelectionRestoreRequested;
+
+    /// <summary>View 的 <c>SelectionChanged</c> 回填入口。</summary>
+    public void SetSelectionFromView(IEnumerable<BookmarkNode> nodes)
+    {
+        if (_rebuilding) return;
+
+        _multiSelected.Clear();
+        foreach (var node in nodes) if (node.Item is { } item) _multiSelected.Add(item);
+
+        MoveToCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanMove));
+        RebuildMoveTargets();
+
+        if (_multiSelected.Count > 1)
+            StatusText = $"已选 {_multiSelected.Count} 条书签（右键「📁 移动到」可整批移动）。";
+    }
+
+    /// <summary>回填多选高亮用：当前可见行里对应已选书签的节点。</summary>
+    public IReadOnlyList<BookmarkNode> SelectionToHighlight()
+    {
+        if (_multiSelected.Count == 0) return Array.Empty<BookmarkNode>();
+
+        var ids = new HashSet<string>(_multiSelected.Select(i => i.Id), StringComparer.Ordinal);
+        return VisibleNodes.Where(n => n.Item is { } item && ids.Contains(item.Id)).ToList();
+    }
+
+    /// <summary>本次要移动的书签：多选（≥2）优先，否则当前主选中项，再退回多选快照（主选中是文件夹行时）。</summary>
+    private List<BookmarkItem> MoveCandidates()
+    {
+        if (_multiSelected.Count > 1) return _multiSelected.ToList();
+        if (Selected is { } single) return new List<BookmarkItem> { single };
+        return _multiSelected.ToList();
+    }
+
+    /// <summary>有可移动的书签（选中书签行 / 多选里含书签行）⇒ 子菜单可用。</summary>
+    public bool CanMove => MoveCandidates().Count > 0;
+
+    /// <summary>把选中的书签（单选 / 多选）改到目标文件夹；多选一次落盘。</summary>
+    [RelayCommand(CanExecute = nameof(CanMove))]
     private async Task MoveToAsync(string? targetPath)
     {
-        if (Selected is not { } item) return;
-
         var target = (targetPath ?? "").Trim();
-        if (string.Equals(item.Folder ?? "", target, StringComparison.OrdinalIgnoreCase))
-        {
-            StatusText = "已经在该文件夹里了。";
-            return;
-        }
+        var moved = MoveCandidates()
+            .Where(i => !string.Equals(i.Folder ?? "", target, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        var title = item.Title;
-        item.Folder = target;
+        if (moved.Count == 0) { StatusText = "已经在该文件夹里了。"; return; }
+
+        foreach (var item in moved) item.Folder = target;
         ExpandAncestors(target);
         await PersistAsync();
         RebuildTree();                 // 路径变了 ⇒ 挂载点变了
         ApplyView();
         UpdateStatus();
 
-        SelectedNode = FindNode(item)
-                       ?? VisibleNodes.FirstOrDefault(n => n.IsFolder
-                           && string.Equals(n.Path, target, StringComparison.OrdinalIgnoreCase))
-                       ?? SelectedNode;
-        StatusText = target.Length == 0
-            ? $"已把「{title}」移到根级（未分组）。"
-            : $"已把「{title}」移到「{target}」。";
+        if (moved.Count == 1)
+        {
+            var item = moved[0];
+            SelectedNode = FindNode(item)
+                           ?? VisibleNodes.FirstOrDefault(n => n.IsFolder
+                               && string.Equals(n.Path, target, StringComparison.OrdinalIgnoreCase))
+                           ?? SelectedNode;
+            StatusText = target.Length == 0
+                ? $"已把「{item.Title}」移到根级（未分组）。"
+                : $"已把「{item.Title}」移到「{target}」。";
+        }
+        else
+        {
+            StatusText = target.Length == 0
+                ? $"已把 {moved.Count} 条网址移到根级（未分组）。"
+                : $"已把 {moved.Count} 条网址移到「{target}」。";
+        }
     }
 
     /// <summary>重建移动目标列表（树 / 选中项变化时调）。</summary>
     private void RebuildMoveTargets()
     {
-        var current = Selected?.Folder ?? "";
+        var multi = _multiSelected.Count > 1;
+        var current = multi ? null : Selected?.Folder ?? "";
 
         MoveTargets.Clear();
         MoveTargets.Add(new MoveTarget { Label = "（根级 · 未分组）", Path = "", Command = MoveToCommand });
@@ -700,7 +754,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             foreach (var node in nodes)
             {
                 if (!node.IsFolder) continue;
-                if (!string.Equals(node.Path, current, StringComparison.OrdinalIgnoreCase))
+                if (multi || !string.Equals(node.Path, current, StringComparison.OrdinalIgnoreCase))
                     MoveTargets.Add(new MoveTarget { Label = node.Path, Path = node.Path, Command = MoveToCommand });
                 Walk(node.Children);
             }
@@ -961,24 +1015,31 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         // 🔴 先记住选中行：列表清空时 ListBox 会把 SelectedItem 写回 null（TwoWay），清完必须还原
         var keep = SelectedNode;
 
-        VisibleNodes.Clear();
-
-        void Walk(IEnumerable<BookmarkNode> nodes)
+        // 这段里的选中变化都是程序化的（清空 / 还原），⛔ 别让 View 回抛覆盖多选快照
+        _rebuilding = true;
+        try
         {
-            foreach (var node in nodes)
+            VisibleNodes.Clear();
+
+            void Walk(IEnumerable<BookmarkNode> nodes)
             {
-                VisibleNodes.Add(node);
-                if (node.IsFolder && node.IsExpanded) Walk(node.Children);
+                foreach (var node in nodes)
+                {
+                    VisibleNodes.Add(node);
+                    if (node.IsFolder && node.IsExpanded) Walk(node.Children);
+                }
             }
+
+            Walk(_display);
+
+            // 折叠后原选中行可能已不可见 ⇒ 落到最近一个仍可见的祖先文件夹
+            if (keep != null)
+                SelectedNode = VisibleNodes.Contains(keep) ? keep : NearestVisibleFolder(keep);
         }
-
-        Walk(_display);
-
-        // 折叠后原选中行可能已不可见 ⇒ 落到最近一个仍可见的祖先文件夹
-        if (keep != null)
-            SelectedNode = VisibleNodes.Contains(keep) ? keep : NearestVisibleFolder(keep);
+        finally { _rebuilding = false; }
 
         OnPropertyChanged(nameof(HasItems));
+        if (_multiSelected.Count > 0) SelectionRestoreRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private BookmarkNode? NearestVisibleFolder(BookmarkNode node)
@@ -1086,6 +1147,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         CopyFolderUrlsCommand.NotifyCanExecuteChanged();
         CopySelectedCommand.NotifyCanExecuteChanged();
         MoveToCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanMove));
 
         // 目标列表要排除「当前所在文件夹」⇒ 换选中就重算
         RebuildMoveTargets();

@@ -62,6 +62,7 @@
                SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
                SelectionMode="Single"
                DoubleTapped="OnRowDoubleTapped"
+               ContextRequested="OnRowContextRequested"
                KeyDown="OnRowKeyDown">
         <ListBox.ContextMenu>
           <ContextMenu>
@@ -71,6 +72,17 @@
             <MenuItem Header="🌐 打开" Command="{Binding OpenCommand}"/>
             <MenuItem Header="📋 复制网址" Command="{Binding CopySelectedCommand}"/>
             <MenuItem Header="🕷 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
+            <!--  移动到其他文件夹节点：目标列表由 VM 按树重建（排除当前所在文件夹）  -->
+            <MenuItem Header="📁 移动到" IsEnabled="{Binding IsItemSelected}" ItemsSource="{Binding MoveTargets}"
+                      ToolTip.Tip="把选中的网址改挂到另一个文件夹节点下">
+              <MenuItem.ItemContainerTheme>
+                <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                  <Setter Property="Header" Value="{Binding Label}"/>
+                  <Setter Property="Command" Value="{Binding Command}"/>
+                  <Setter Property="CommandParameter" Value="{Binding Path}"/>
+                </ControlTheme>
+              </MenuItem.ItemContainerTheme>
+            </MenuItem>
             <Separator/>
             <MenuItem Header="✏ 编辑" Command="{Binding ShowDetailCommand}"/>
             <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}"/>

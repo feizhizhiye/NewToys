@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
@@ -648,6 +649,66 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         _runner.OpenBrowser(cfg.ProgramPath, cfg.Arguments, urls);
     }
 
+    // ============ 移动到其他节点 ============
+
+    /// <summary>
+    /// 右键「📁 移动到」子菜单的数据源：根级 + 全部文件夹（**排除当前所在文件夹**，避免同义动作）。
+    /// 用子菜单而不是拖拽 —— 页面是扁平先序列表（⛔ 不是 <c>TreeView</c>），拖拽要自己算落点 / 高亮 / 自动展开。
+    /// </summary>
+    public ObservableCollection<MoveTarget> MoveTargets { get; } = new();
+
+    /// <summary>把选中的书签改到目标文件夹（只改 <see cref="BookmarkItem.Folder"/>，路径即层级）。</summary>
+    [RelayCommand(CanExecute = nameof(IsItemSelected))]
+    private async Task MoveToAsync(string? targetPath)
+    {
+        if (Selected is not { } item) return;
+
+        var target = (targetPath ?? "").Trim();
+        if (string.Equals(item.Folder ?? "", target, StringComparison.OrdinalIgnoreCase))
+        {
+            StatusText = "已经在该文件夹里了。";
+            return;
+        }
+
+        var title = item.Title;
+        item.Folder = target;
+        ExpandAncestors(target);
+        await PersistAsync();
+        RebuildTree();                 // 路径变了 ⇒ 挂载点变了
+        ApplyView();
+        UpdateStatus();
+
+        SelectedNode = FindNode(item)
+                       ?? VisibleNodes.FirstOrDefault(n => n.IsFolder
+                           && string.Equals(n.Path, target, StringComparison.OrdinalIgnoreCase))
+                       ?? SelectedNode;
+        StatusText = target.Length == 0
+            ? $"已把「{title}」移到根级（未分组）。"
+            : $"已把「{title}」移到「{target}」。";
+    }
+
+    /// <summary>重建移动目标列表（树 / 选中项变化时调）。</summary>
+    private void RebuildMoveTargets()
+    {
+        var current = Selected?.Folder ?? "";
+
+        MoveTargets.Clear();
+        MoveTargets.Add(new MoveTarget { Label = "（根级 · 未分组）", Path = "", Command = MoveToCommand });
+
+        void Walk(IEnumerable<BookmarkNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                if (!node.IsFolder) continue;
+                if (!string.Equals(node.Path, current, StringComparison.OrdinalIgnoreCase))
+                    MoveTargets.Add(new MoveTarget { Label = node.Path, Path = node.Path, Command = MoveToCommand });
+                Walk(node.Children);
+            }
+        }
+
+        Walk(_tree);
+    }
+
     // ============ 复制网址 ============
 
     [RelayCommand(CanExecute = nameof(IsItemSelected))]
@@ -973,6 +1034,8 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(IsFolderSelected));
         OnPropertyChanged(nameof(IsItemSelected));
+
+        RebuildMoveTargets();
     }
 
     private bool IsFiltering => (SearchText ?? "").Trim().Length > 0 || ActiveFilterCount > 0;
@@ -1022,6 +1085,10 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         CopyUrlCommand.NotifyCanExecuteChanged();
         CopyFolderUrlsCommand.NotifyCanExecuteChanged();
         CopySelectedCommand.NotifyCanExecuteChanged();
+        MoveToCommand.NotifyCanExecuteChanged();
+
+        // 目标列表要排除「当前所在文件夹」⇒ 换选中就重算
+        RebuildMoveTargets();
 
         // 书签卡 ↔ 文件夹卡是两张不同实例 ⇒ 只在**换形态**时通知 Shell 重挂（同形态只换字段，渲染器会自己跟）
         if (value?.Kind != _lastKind)
@@ -1046,4 +1113,15 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     partial void OnSearchTextChanged(string value) => ApplyView();
+}
+
+/// <summary>右键「📁 移动到」子菜单的一项：显示名 / 目标文件夹全路径（空 = 根级）/ 要执行的命令。</summary>
+public sealed class MoveTarget
+{
+    public string Label { get; init; } = "";
+
+    /// <summary>目标文件夹全路径（<c>/</c> 分隔；空串 = 根级未分组）。</summary>
+    public string Path { get; init; } = "";
+
+    public ICommand? Command { get; init; }
 }

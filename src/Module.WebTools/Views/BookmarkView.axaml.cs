@@ -1,6 +1,7 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Input;
+using NewToys.WebTools.Models;
 using NewToys.WebTools.ViewModels;
 
 namespace NewToys.WebTools.Views;
@@ -31,6 +32,16 @@ public partial class BookmarkView : UserControl
         if (DataContext is not BookmarkViewModel vm || !vm.IsFolderSelected) return;
         vm.ToggleExpandCommand.Execute(null);
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// 右键时先把命中行设为选中 —— 列表右键默认不改选中项，而菜单命令都作用于
+    /// <c>SelectedNode</c>（「📁 移动到」尤其依赖它来排除当前所在文件夹）。
+    /// </summary>
+    private void OnRowContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (DataContext is not BookmarkViewModel vm) return;
+        if ((e.Source as Control)?.DataContext is BookmarkNode node) vm.SelectedNode = node;
     }
 
     /// <summary>键盘 ← / →：折叠 / 展开当前文件夹（双击之外的键盘通道）。</summary>

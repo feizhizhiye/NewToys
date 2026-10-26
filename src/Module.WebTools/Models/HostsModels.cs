@@ -30,14 +30,7 @@ public class HostsEntry
 
     /// <summary>行的检测摘要（列表「状态」列 / 详情卡用）。</summary>
     [JsonIgnore]
-    public string StatusText => Status switch
-    {
-        HostsEntryStatus.Ok => LatencyMs > 0 ? $"✅ 可达 {LatencyMs}ms" : "✅ 可达",
-        HostsEntryStatus.Mismatch => string.IsNullOrEmpty(ResolvedIp) ? "⚠ 解析不一致" : $"⚠ 解析不一致（本机 {ResolvedIp}）",
-        HostsEntryStatus.Unreachable => "❌ 不可达",
-        HostsEntryStatus.Timeout => "⏱ 超时",
-        _ => "—"
-    };
+    public string StatusText => HostsStatusText.Describe(Status, LatencyMs, ResolvedIp);
 
     /// <summary>是否有问题（未检测不算问题）。</summary>
     [JsonIgnore] public bool IsProblem => Status is HostsEntryStatus.Mismatch or HostsEntryStatus.Unreachable or HostsEntryStatus.Timeout;
@@ -71,6 +64,25 @@ public partial class HostsLine : ObservableObject
     /// <summary>与另一侧的差异标记：<c>＋</c> 仅本侧 / <c>－</c> 对方缺失 / <c>≠</c> IP 不同。</summary>
     [ObservableProperty] private string _mark = "";
 
+    // ==================== 检测结论（页面会话内有效，⛔ 不落库） ====================
+
+    /// <summary>该行的可用性结论（「检测选中」写这里）。</summary>
+    [ObservableProperty] private HostsEntryStatus _status = HostsEntryStatus.Unknown;
+
+    [ObservableProperty] private int _latencyMs;
+
+    /// <summary>本机 DNS 解析出的真实 IP（与 <see cref="Ip"/> 不同即「解析不一致」）。</summary>
+    [ObservableProperty] private string _resolvedIp = "";
+
+    /// <summary>检测结论文案（未检测 = 「—」）。</summary>
+    public string StatusText => HostsStatusText.Describe(Status, LatencyMs, ResolvedIp);
+
+    /// <summary>列表「状态」列：有结论就显示结论，没测过才显示「禁用」这类静态状态。</summary>
+    public string StatusColumnText => Status == HostsEntryStatus.Unknown ? StateText : StatusText;
+
+    /// <summary>检测出问题（未检测不算问题）。</summary>
+    public bool IsProblem => Status is HostsEntryStatus.Mismatch or HostsEntryStatus.Unreachable or HostsEntryStatus.Timeout;
+
     public string IpHost => IsEntry ? $"{Ip,-16}{Host}" : Raw.Trim();
 
     public string StateText => !IsEntry ? "" : Enabled ? "" : "禁用";
@@ -85,7 +97,35 @@ public partial class HostsLine : ObservableObject
 
     partial void OnIsEntryChanged(bool value) => OnPropertyChanged(nameof(IpHost));
 
-    partial void OnEnabledChanged(bool value) => OnPropertyChanged(nameof(StateText));
+    partial void OnEnabledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(StateText));
+        OnPropertyChanged(nameof(StatusColumnText));
+    }
+
+    partial void OnStatusChanged(HostsEntryStatus value)
+    {
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(StatusColumnText));
+        OnPropertyChanged(nameof(IsProblem));
+    }
+
+    partial void OnLatencyMsChanged(int value) => OnPropertyChanged(nameof(StatusText));
+
+    partial void OnResolvedIpChanged(string value) => OnPropertyChanged(nameof(StatusText));
+}
+
+/// <summary>检测结论 → 一行摘要文案的**唯一**口径（条目 / 行模型共用）。</summary>
+public static class HostsStatusText
+{
+    public static string Describe(HostsEntryStatus status, int latencyMs, string resolvedIp) => status switch
+    {
+        HostsEntryStatus.Ok => latencyMs > 0 ? $"✅ 可达 {latencyMs}ms" : "✅ 可达",
+        HostsEntryStatus.Mismatch => string.IsNullOrEmpty(resolvedIp) ? "⚠ 解析不一致" : $"⚠ 解析不一致（本机 {resolvedIp}）",
+        HostsEntryStatus.Unreachable => "❌ 不可达",
+        HostsEntryStatus.Timeout => "⏱ 超时",
+        _ => "—"
+    };
 }
 
 /// <summary>把条目渲染成一行 hosts 文本的**唯一**口径（条目行 / 行模型 / 受管块共用）。</summary>

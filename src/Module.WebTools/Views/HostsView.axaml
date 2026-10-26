@@ -46,7 +46,7 @@
           </StackPanel>
 
           <Border Grid.Row="1" Classes="list-header">
-            <Grid ColumnDefinitions="26,140,*,64">
+            <Grid ColumnDefinitions="26,140,*,132">
               
               <Button Grid.Column="1" Classes="col-header" Content="IP" IsHitTestVisible="False"/>
               <Button Grid.Column="2" Classes="col-header" Content="主机名" IsHitTestVisible="False"/>
@@ -54,14 +54,22 @@
             </Grid>
           </Border>
 
-          <!--  条目视图  -->
+          <!--  条目视图（Ctrl 增选 / Shift 连选 / Ctrl+A 全选，见 ui.md §6.10）  -->
           <ListBox Grid.Row="2" x:Name="SystemList" Classes="list-page"
                    IsVisible="{Binding IsListMode}"
                    ItemsSource="{Binding SystemRows}"
                    SelectedItem="{Binding SelectedSystemRow, Mode=TwoWay}"
-                   SelectionMode="Single">
+                   SelectionMode="Multiple"
+                   SelectionChanged="OnSystemSelectionChanged"
+                   KeyDown="OnListKeyDown"
+                   ContextRequested="OnRowContextRequested">
             <ListBox.ContextMenu>
               <ContextMenu>
+                <MenuItem Header="🧪 检测选中" Command="{Binding CheckSelectedCommand}"
+                          ToolTip.Tip="只测选中行（未多选 = 检测右栏整份方案）"/>
+                <MenuItem Header="✅ 启用选中" Command="{Binding EnableSelectedCommand}"/>
+                <MenuItem Header="⏸ 禁用选中" Command="{Binding DisableSelectedCommand}"/>
+                <Separator/>
                 <MenuItem Header="📦 备份当前" Command="{Binding BackupNowCommand}"/>
                 <MenuItem Header="🧹 清除受管块" Command="{Binding ClearManagedCommand}"/>
                 <Separator/>
@@ -70,12 +78,12 @@
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <Grid ColumnDefinitions="26,140,*,64" Height="28">
+                <Grid ColumnDefinitions="26,140,*,132" Height="28">
                   <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Mark}"
                              Foreground="{DynamicResource AccentBrush}"/>
                   <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Ip}" FontFamily="Consolas"/>
                   <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Host}" FontFamily="Consolas"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StateText}"
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StatusColumnText}"
                              Foreground="{DynamicResource SecondaryTextBrush}"/>
                 </Grid>
               </DataTemplate>
@@ -130,7 +138,7 @@
           </StackPanel>
 
           <Border Grid.Row="1" Classes="list-header">
-            <Grid ColumnDefinitions="26,140,*,64">
+            <Grid ColumnDefinitions="26,140,*,132">
               
               <Button Grid.Column="1" Classes="col-header" Content="IP" IsHitTestVisible="False"/>
               <Button Grid.Column="2" Classes="col-header" Content="主机名" IsHitTestVisible="False"/>
@@ -141,9 +149,17 @@
           <ListBox Grid.Row="2" x:Name="ProfileList" Classes="list-page"
                    ItemsSource="{Binding ProfileRows}"
                    SelectedItem="{Binding SelectedProfileRow, Mode=TwoWay}"
-                   SelectionMode="Single">
+                   SelectionMode="Multiple"
+                   SelectionChanged="OnProfileSelectionChanged"
+                   KeyDown="OnListKeyDown"
+                   ContextRequested="OnRowContextRequested">
             <ListBox.ContextMenu>
               <ContextMenu>
+                <MenuItem Header="🧪 检测选中" Command="{Binding CheckSelectedCommand}"
+                          ToolTip.Tip="只测选中行（未多选 = 检测右栏整份方案）"/>
+                <MenuItem Header="✅ 启用选中" Command="{Binding EnableSelectedCommand}"/>
+                <MenuItem Header="⏸ 禁用选中" Command="{Binding DisableSelectedCommand}"/>
+                <Separator/>
                 <MenuItem Header="⬅ 应用到左侧" Command="{Binding ApplyToTargetCommand}"/>
                 <MenuItem Header="🔍 检测可用性" Command="{Binding CheckCommand}"/>
                 <Separator/>
@@ -153,12 +169,12 @@
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <Grid ColumnDefinitions="26,140,*,64" Height="28">
+                <Grid ColumnDefinitions="26,140,*,132" Height="28">
                   <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Mark}"
                              Foreground="{DynamicResource AccentBrush}"/>
                   <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Ip}" FontFamily="Consolas"/>
                   <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Host}" FontFamily="Consolas"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StateText}"
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StatusColumnText}"
                              Foreground="{DynamicResource SecondaryTextBrush}"/>
                 </Grid>
               </DataTemplate>

@@ -112,6 +112,100 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
     /// <summary>右栏选中行（与左栏互斥）。</summary>
     [ObservableProperty] private HostsLine? _selectedProfileRow;
 
+    // ==================== 多选（Ctrl 增选 / Shift 连选 / Ctrl+A 全选） ====================
+
+    /// <summary>左栏多选快照（View 的 SelectedItems 回填；详情卡仍只认单一 <see cref="SelectedSystemRow"/>）。</summary>
+    private readonly List<HostsLine> _selectedSystemRows = new();
+
+    private readonly List<HostsLine> _selectedProfileRows = new();
+
+    /// <summary>重投影后要高亮的行号（左右各一组，行号 = 侧内序号）。</summary>
+    private readonly HashSet<int> _leftSelNos = new();
+    private readonly HashSet<int> _rightSelNos = new();
+
+    /// <summary>左栏检测结论缓存：草稿行每次重投影都是新对象，结论按「行号 + IP + 主机名」挂这里（三者对上才复用）。</summary>
+    private readonly Dictionary<int, (string Ip, string Host, HostsEntryStatus Status, int LatencyMs, string ResolvedIp)> _leftProbeCache = new();
+
+    private int _leftEntryCount;
+
+    /// <summary>行集合重建后请求 View 按行号补回多选高亮。</summary>
+    public event EventHandler? SelectionRestoreRequested;
+
+    public IReadOnlyList<HostsLine> SelectedSystemRows => _selectedSystemRows;
+
+    public IReadOnlyList<HostsLine> SelectedProfileRows => _selectedProfileRows;
+
+    public bool HasRowsSelection => _selectedSystemRows.Count > 0 || _selectedProfileRows.Count > 0;
+
+    /// <summary>View 的多选回填入口。</summary>
+    public void SetSelectionFromView(bool isSystem, IReadOnlyList<HostsLine> rows)
+    {
+        var target = isSystem ? _selectedSystemRows : _selectedProfileRows;
+        var keys = isSystem ? _leftSelNos : _rightSelNos;
+
+        target.Clear();
+        target.AddRange(rows);
+
+        keys.Clear();
+        foreach (var r in rows) keys.Add(r.No);
+
+        UpdateCountTexts();
+        OnPropertyChanged(nameof(HasRowsSelection));
+    }
+
+    /// <summary>重建后要高亮的行（View 拿它回填 SelectedItems）。</summary>
+    public IReadOnlyList<HostsLine> HighlightRows(bool isSystem)
+    {
+        var keys = isSystem ? _leftSelNos : _rightSelNos;
+        var rows = isSystem ? SystemRows : ProfileRows;
+        return rows.Where(r => keys.Contains(r.No)).ToList();
+    }
+
+    /// <summary>重投影后把多选补回去（行号还在就保留，行没了自然掉选）。</summary>
+    private void RestoreRowSelection()
+    {
+        _selectedSystemRows.Clear();
+        _selectedSystemRows.AddRange(SystemRows.Where(r => _leftSelNos.Contains(r.No)));
+        _selectedProfileRows.Clear();
+        _selectedProfileRows.AddRange(ProfileRows.Where(r => _rightSelNos.Contains(r.No)));
+
+        UpdateCountTexts();
+        OnPropertyChanged(nameof(HasRowsSelection));
+        SelectionRestoreRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>两侧计数（多选时追加「已选 N」，⛔ 不放状态栏）。</summary>
+    private void UpdateCountTexts()
+    {
+        LeftCountText = IsTextView
+            ? $"原文 {_draftText.Replace("\r\n", "\n").Split('\n').Length} 行"
+            : $"共 {SystemRows.Count} 行 · 条目 {_leftEntryCount}" + (_selectedSystemRows.Count > 1 ? $" · 已选 {_selectedSystemRows.Count}" : "");
+
+        RightCountText = $"共 {ProfileRows.Count} 条" + (_selectedProfileRows.Count > 1 ? $" · 已选 {_selectedProfileRows.Count}" : "");
+    }
+
+    /// <summary>当前要批量操作的侧：有右栏多选就用右栏，否则左栏。</summary>
+    private bool BatchIsSystem => _selectedProfileRows.Count == 0;
+
+    private List<HostsLine> BatchRows =>
+        (BatchIsSystem ? _selectedSystemRows : _selectedProfileRows).Where(r => r.IsEntry).ToList();
+
+    /// <summary>左栏草稿行的检测结论回填（草稿文本本身不存结论）。</summary>
+    private void ApplyLeftProbeCache(List<HostsLine> leftRows)
+    {
+        foreach (var r in leftRows)
+        {
+            if (!r.IsEntry) continue;
+            if (!_leftProbeCache.TryGetValue(r.No, out var c)) continue;
+            if (!string.Equals(c.Ip, r.Ip, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!string.Equals(c.Host, r.Host, StringComparison.OrdinalIgnoreCase)) continue;
+
+            r.Status = c.Status;
+            r.LatencyMs = c.LatencyMs;
+            r.ResolvedIp = c.ResolvedIp;
+        }
+    }
+
     // ==================== 状态 ====================
 
     [ObservableProperty] private bool _isBusy;
@@ -316,6 +410,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
 
         var leftRows = HostsService.ParseLines(_draftText);
         var leftEntries = leftRows.Where(r => r.IsEntry).ToList();
+        ApplyLeftProbeCache(leftRows);
 
         var rightRows = new List<HostsLine>();
         if (SelectedProfile is { } profile)
@@ -332,7 +427,10 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
                     Ip = e.Ip,
                     Host = e.Host,
                     Comment = e.Comment,
-                    InManaged = true
+                    InManaged = true,
+                    Status = e.Status,
+                    LatencyMs = e.LatencyMs,
+                    ResolvedIp = e.ResolvedIp
                 });
             }
         }
@@ -364,9 +462,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
                 SystemRows.Add(r);
             }
         }
-        LeftCountText = IsTextView
-            ? $"原文 {_draftText.Replace("\r\n", "\n").Split('\n').Length} 行"
-            : $"共 {SystemRows.Count} 行 · 条目 {leftEntries.Count}";
+        _leftEntryCount = leftEntries.Count;
 
         ProfileRows.Clear();
         foreach (var r in rightRows)
@@ -374,12 +470,13 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
             if (RightDiffOnly && r.Mark.Length == 0) continue;
             ProfileRows.Add(r);
         }
-        RightCountText = $"共 {ProfileRows.Count} 条";
 
         _suppressSelectionSync = true;
         SelectedSystemRow = prevLeftNo == null ? null : SystemRows.FirstOrDefault(r => r.No == prevLeftNo);
         SelectedProfileRow = prevRightNo == null ? null : ProfileRows.FirstOrDefault(r => r.No == prevRightNo);
         _suppressSelectionSync = false;
+
+        RestoreRowSelection();
 
         if (SelectedProfileRow is { } rightRow) LoadEditBuffer(rightRow, false);
         else if (SelectedSystemRow is { } leftRow) LoadEditBuffer(leftRow, true);
@@ -691,6 +788,144 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
             _checkCts?.Dispose();
             _checkCts = null;
         }
+    }
+
+    /// <summary>
+    /// 批量检测**选中行**（左栏草稿也能测）：无多选时退回整份方案检测。
+    /// 选中即测 —— 禁用行也测（副本强制 Enabled），结论写回行模型 / 方案条目。
+    /// </summary>
+    [RelayCommand]
+    private async Task CheckSelectedAsync()
+    {
+        if (_check is null) return;
+        if (!HasRowsSelection) { await CheckAsync(); return; }
+
+        if (IsChecking)
+        {
+            _checkCts?.Cancel();
+            return;
+        }
+
+        var isSystem = BatchIsSystem;
+        var rows = BatchRows;
+        if (rows.Count == 0) { StatusText = "⚠ 选中的都是空行 / 注释行，没有可检测的条目。"; return; }
+
+        _checkCts = new CancellationTokenSource();
+        IsChecking = true;
+        try
+        {
+            var options = new HostsCheckOptions
+            {
+                TimeoutSeconds = _settings?.HostsCheckTimeoutSeconds ?? 3,
+                Concurrency = _settings?.HostsCheckConcurrency ?? 8
+            };
+
+            var probes = rows.Select(r => new HostsEntry { Ip = r.Ip, Host = r.Host, Enabled = true }).ToList();
+            var total = probes.Count;
+            StatusText = $"正在检测选中的 {total} 条…（点「⏹ 停止」可取消）";
+
+            var progress = new Progress<int>(n => StatusText = $"检测选中 {n}/{total}…");
+            await _check.CheckAsync(probes, options, progress, _checkCts.Token);
+
+            for (var i = 0; i < rows.Count; i++) ApplyProbe(rows[i], probes[i], isSystem);
+            RefreshRows();
+
+            var ok = probes.Count(p => p.Status == HostsEntryStatus.Ok);
+            var bad = probes.Count(p => p.IsProblem);
+            var unknown = probes.Count(p => p.Status == HostsEntryStatus.Unknown);
+
+            StatusText = unknown > 0
+                ? $"检测选中：{total} 条中 {total - unknown} 条有结论（✅{ok} · 有问题 {bad}），其余未完成。"
+                : bad == 0
+                    ? $"检测选中：{ok} 条全部可达。"
+                    : $"检测选中：✅{ok} · 有问题 {bad}（明细见行「状态」列）。";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "已停止检测选中（保留已完成的结论）。";
+        }
+        finally
+        {
+            IsChecking = false;
+            _checkCts?.Dispose();
+            _checkCts = null;
+        }
+    }
+
+    /// <summary>把一条检测结论写回行模型；方案侧同时写回真条目，左栏只写缓存（草稿文本不存结论）。</summary>
+    private void ApplyProbe(HostsLine row, HostsEntry probe, bool isSystem)
+    {
+        row.Status = probe.Status;
+        row.LatencyMs = probe.LatencyMs;
+        row.ResolvedIp = probe.ResolvedIp;
+
+        if (isSystem)
+        {
+            _leftProbeCache[row.No] = (row.Ip, row.Host, probe.Status, probe.LatencyMs, probe.ResolvedIp);
+            return;
+        }
+
+        if (SelectedProfile is not { } profile) return;
+        var index = row.No - 1;
+        if (index < 0 || index >= profile.Entries.Count) return;
+
+        var entry = profile.Entries[index];
+        entry.Status = probe.Status;
+        entry.LatencyMs = probe.LatencyMs;
+        entry.ResolvedIp = probe.ResolvedIp;
+        entry.Port = probe.Port;
+    }
+
+    [RelayCommand]
+    private void EnableSelected() => SetSelectedEnabled(true);
+
+    [RelayCommand]
+    private void DisableSelected() => SetSelectedEnabled(false);
+
+    /// <summary>批量启用 / 禁用选中行（左栏改草稿、右栏改方案内存，都不落盘）。</summary>
+    private void SetSelectedEnabled(bool enabled)
+    {
+        var rows = BatchRows;
+        if (rows.Count == 0) { StatusText = "⚠ 先选中至少一行条目。"; return; }
+
+        var verb = enabled ? "启用" : "禁用";
+
+        if (BatchIsSystem)
+        {
+            if (TargetIsBackup) { StatusText = "⚠ 备份快照只读：切回「当前系统 hosts」再改。"; return; }
+
+            var all = HostsService.ParseLines(_draftText);
+            var nos = rows.Select(r => r.No).ToHashSet();
+            var changed = 0;
+            foreach (var line in all)
+            {
+                if (!line.IsEntry || !nos.Contains(line.No)) continue;
+                line.Enabled = enabled;
+                changed++;
+            }
+            if (changed == 0) { StatusText = "⚠ 选中的行在草稿里已不存在，请「🔄 重读」。"; return; }
+
+            _draftText = HostsService.RenderLines(all);
+            IsDirty = true;
+            RefreshRows();
+            StatusText = $"已{verb}草稿里 {changed} 条（点「✅ 写入系统 hosts」落盘）。";
+            return;
+        }
+
+        if (SelectedProfile is not { } profile) return;
+
+        var count = 0;
+        foreach (var r in rows)
+        {
+            var index = r.No - 1;
+            if (index < 0 || index >= profile.Entries.Count) continue;
+            profile.Entries[index].Enabled = enabled;
+            count++;
+        }
+        RefreshRows();
+        StatusText = count == 0
+            ? "⚠ 选中的条目已不在方案里，请「🔄 重读」。"
+            : $"已{verb}右栏 {count} 条（点「💾 保存方案」落库）。";
     }
 
     private static string BuildCheckReport(HostsProfile profile)

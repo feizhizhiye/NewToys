@@ -112,6 +112,8 @@
 | 清除受管块 | `🧹 清除受管块` | 从草稿删掉 `start/end` 之间 | 用户自有行保留；仍需「✅ 写入」才落盘 |
 | 拉取源 | 右栏源下拉 + `⬇ 拉取` | 按地址逐个试，第一个拉到 ≥N 条的胜出 → 覆盖同名源方案 / 新建方案 | ⛔ 不自动写系统 hosts；预设源要求 ≥20 条（防错误页），自定义 ≥1；比上次少一半 ⇒ 标注疑似失效 |
 | 检测可用性 | `🔍 检测` / 右键 / 详情卡 `🧪 检测此条` | 本机 DNS vs 映射 IP + TCP 443（失败回退 80）+ 时延 + 静态安全 | 只测**启用**条目；并发 / 超时读设置页；可取消；**结论不落库** |
+| 多选批量 | `Ctrl` 增选 / `Shift` 连选 / `Ctrl+A` 全选（左右任一列表） | 列表计数追加「· 已选 N」；右键 `🧪 检测选中` / `✅ 启用选中` / `⏸ 禁用选中` 作用于整批 | 口径见 `../../ui.md` §6.10；两侧互斥、只吃条目行；左栏改草稿、右栏改方案内存 |
+| 检测选中 | 右键 `🧪 检测选中`（多选后） | 只测选中的条目，结论写回行「状态」列；方案侧同时写回条目 | 未多选 ⇒ 退回整份方案检测；选中即测（**禁用行也测**）；左栏结论只存页面缓存，⛔ 不改草稿文本 |
 | 导入 / 导出 | 详情卡 `📥 导入文件` / `📤 导出方案` | 本地 hosts 文本 → 当前方案 / 方案 → `.hosts` | 路径 `Path.GetFullPath` 校验；无选中不执行 |
 | 保存方案 | `💾 保存方案` | 右栏条目落库（`web_docs/hosts-profiles`） | 左栏草稿不受影响 |
 | 删除方案 | `🗑 删除方案` | 删模块内方案 | ⛔ 不动系统 hosts |
@@ -220,9 +222,12 @@
 40. 🔴 **行模型是全文的投影**：`HostsService.ParseLines` 保留非条目行原文，`RenderLines` 条目行重新对齐渲染 ⇒ 编辑一行不会丢注释行 / 受管块标记行；行号会随增删变化，删除 / 保存按 `No` 重新查，⛔ 别缓存行对象当索引。
 41. 🔴 **差异标记按 host 比对**（不是行），与系统实际生效一致（重复域名以最后一条为准）；两栏标记在 `RefreshRows` 里一次算完，⛔ 别在行模板里各算各的。
 42. 🔴 **选中联动要抑制**：两栏 `SelectedItem` 互斥，`RefreshRows` 恢复选中时必须置 `_suppressSelectionSync`，否则重建会把编辑目标来回清空（表现为详情卡空白）。
-43. 🔴 **书签页的 Ctrl / Shift 多选是自己算的**：`SelectionMode=Multiple` 只管「能选多个」，修饰键点击由 `BookmarkView` 在**隧道**阶段截（`e.Handled=true` + 手工 `SelectedItems` 增删 + 手工 `Focus()` 容器），Shift 连选基准 `_anchor` 在这里维护。⛔ 别指望改 `SelectionMode` 就自动有 Shift 连选；也别在隧道之外补 —— 会和默认「点谁选谁」打架。
+43. 🔴 **书签页的 Ctrl / Shift 多选是自己算的**（通用口径 = `../../ui.md` §6.10）：`SelectionMode=Multiple` 只管「能选多个」，修饰键点击由 `BookmarkView` 在**隧道**阶段截（`e.Handled=true` + 手工 `SelectedItems` 增删 + 手工 `Focus()` 容器），Shift 连选基准 `_anchor` 在这里维护。⛔ 别指望改 `SelectionMode` 就自动有 Shift 连选；也别在隧道之外补 —— 会和默认「点谁选谁」打架。
 44. 🔴 **批量动作的候选集只有一个来源**：`ActionCandidates()`（多选 ≥2 → 多选快照；否则主选中；再退回快照）。移动 / 删除都走它，⛔ 别在命令里各自读 `Selected` —— 多选时会退化成只处理一条。多选快照 `_multiSelected` 只由 View 的 `SelectionChanged` 回填（`_rebuilding` 期间忽略），删除后必须 `Clear()`。
 45. ⚠️ **文件夹卡「名称」是草稿属性**：`BookmarkNode.Name` 是 `init` 快照 ⇒ 输入框绑 `FolderNameDraft`（`OnSelectedNodeChanged` 里按当前文件夹重置），「💾 保存改名」才把整棵子树换前缀。
+46. 🔴 **Hosts 页两栏都开了多选**（写法同 `ui.md` §6.10）：多选快照 `_selectedSystemRows` / `_selectedProfileRows` **只**由 View 的 `SelectionChanged` 回填；批量命令一律走 `BatchRows`（已选 ∩ 条目行），⛔ 在命令里读 `SelectedSystemRow` / `SelectedProfileRow` —— 那是详情卡的单一选中，多选时只指向最后点的那行。
+47. 🔴 **左栏检测结论只能挂页面缓存**：草稿行每次 `RefreshRows` 都是新对象，草稿文本里也不存结论 ⇒ `_leftProbeCache` 按「行号 + IP + 主机名」三者对上才复用；⛔ 把结论写进 `_draftText`（那会被写进系统 hosts）。
+48. ⚠️ **「检测选中」恒测**：`HostsCheckService` 只测 `Enabled` 条目，但用户显式选中就代表要验 ⇒ 左栏/右栏都造 `Enabled=true` 的临时 `HostsEntry` 去测，结果再回写行 + 方案条目；⛔ 直接拿被禁用的真条目去测（会静默跳过）。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

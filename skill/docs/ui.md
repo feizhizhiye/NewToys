@@ -1,8 +1,8 @@
 # NewToys UI 规范
 
+> v4.5 · 2026-10-26 · **新增 §6.10 列表多选** —— `Ctrl` 增选 / `Shift` 连选 / `Ctrl+A` 全选的标准写法（隧道 `PointerPressed` 接管 + `SelectionChanged` 回抛 + 重建后按稳定键回填），与 Windows 资源管理器一致；现状落地页 = 网址收藏、Hosts 管理。
 > v4.4 · 2026-10-24 · **全局滚动条换版（v3.80）** —— `App.axaml` 隐式 `{x:Type ScrollBar}` 主题：8px 槽 / 6px 圆角胶囊滑块 / 轨道透明无箭头 / 常驻；新增主题键 `ScrollThumbBrush`、`ScrollThumbHoverBrush` 与 `ScrollThumbRatioConverter`（滑块长度系数）；§9 补 4 条坑（`Track` 零绑定 / `Value` 必须 TwoWay / 缩长度禁 ScaleTransform / `IsExpanded` 恒真）。
 > v4.3 · 2026-10-21 · **过时内容清理** —— §10 子节顺序订正（`10.6 空态` 归位到 `10.7 弹出卡片` 之前，编号与正文顺序一致）；版本记录压到最近三次。
-> v4.2 · 2026-10-18 · **§8 工具条整理成唯一真源** —— 8.1 项类型表 / 8.2 尺寸·配色·宽度速查表 + 顺序铁律 / 8.3 渲染与折叠 / **8.4 输入框三态表**（新增「空闲态水印」`PlaceholderWhenIdle`、统一水印色 `PlaceholderTextBrush`）/ **8.5 交付自检**。⛔ 工具条样式规则⛔ 不要再散落到模块文档。
 > 本文件 = **一切 `.axaml` / 视觉 / 控件尺寸 / 样式约定的唯一入口**（原 `NewToys-工程规范.md` §2 / §3.6 / §3.8 渲染层 / §3.10）。
 > 契约接口定义（`IDetailCardSource` / `IToolbarSource` …）在 `framework.md` §6；模块专属版式在 `modules/<模块>.md`。
 > 权威源 = `src/` 源码，冲突以源码为准并回写本文。
@@ -275,6 +275,23 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 底栏**默认隐藏**，行数超出页底才显示；批量操作**只作用于当前页选中项**。
 - 页大小落 `shell` 分区（`shell.json`），⛔ 不落 `columnlayout.json`。
 - 现状：仅「全部资产」与「软件包」两页走底栏分页，其余列表页仍是内存切片 + 滚动（量级小，暂无推广需求；原推广卡 NT-065 已作废）。
+
+### 6.10 多选（Ctrl / Shift / Ctrl+A）
+
+- 适用范围：**行能承接批量动作**的列表（现值：网址收藏 `BookmarkView`、Hosts 管理 `HostsView`）。分页页多选只作用于当前页（§6.9）。
+- 交互口径（对齐 Windows 资源管理器）：
+  - 无修饰键 ⇒ 放行默认逻辑，只重设**连选基准**（`_anchor`）；
+  - `Ctrl` ⇒ 切换这一行；`Shift` ⇒ 从基准行连选到这一行；`Ctrl+Shift` ⇒ 追加连选；
+  - `Ctrl+A`（`KeyDown`）⇒ 本侧条目行全选。
+- 实现固定三件（照抄 `BookmarkView.axaml.cs` / `HostsView.axaml.cs`）：
+  1. `SelectionMode="Multiple"` + `AddHandler(PointerPressedEvent, OnListPointerPressed, RoutingStrategies.Tunnel)` —— 修饰键点击在**隧道**阶段接管，⛔ 不去改 `ListBoxItem` 主题；
+  2. `SelectionChanged` → `vm.SetSelectionFromView(side, list.SelectedItems.OfType<T>().ToList())`，用 `_syncingSelection` 护栏防回抛；
+  3. 行集合重建后 VM 抛 `SelectionRestoreRequested` → View 按**稳定键**（行号 / `Id`）回填 `SelectedItems` —— 重建产生新对象，⛔ 靠引用保持选中。
+- `SelectedItem` 只服务**详情卡**（单一侧别）；多选快照单独一份，⛔ 两者混用。
+- 多栏 / 多个列表 **互斥**：一侧开始多选即清空另一侧（详情卡只认一侧）。
+- 右键语义：点在**已选中**行 ⇒ 保持整批（批量命令吃整批）；点在未选中行 ⇒ 改为单选它。
+- 计数写**列表内计数文本**（「共 N 行 · 已选 M」），⛔ 进状态栏（§10.4）。
+- 批量动作 **一次** 生效 / 一次确认（§10.2），⛔ 逐行弹窗；批量命令只吃**条目行**，空行 / 注释行自动跳过并给提示。
 
 ---
 

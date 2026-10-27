@@ -568,6 +568,7 @@ public interface IDetailCardSource
 | 件 | 位置 | 说明 |
 |---|---|---|
 | `IProcessRunner` + `ProcessRunRequest` / `ProcessRunResult` | `Shared/Services/IProcessRunner.cs` | `RunAsync(request, timeout, ct)`：隐藏 + 重定向 + **显式 UTF-8**（stdout 严格 / stderr 宽容，`StrictOutput` 开关）+ 先读后等 + 超时 / 取消**杀进程树**；结果带 `Started` / `ExitCode` / `TimedOut` / `Canceled` / `StdOut` / `StdErr` / `OutputDecodeFailed` / `Error` |
+| 🔴 输出读取宽限 | `Core/Services/ProcessRunner.cs::OutputDrainGrace` | 进程退出后，输出读取最多再等 **500ms**，到点用**已读到的部分**返回。原因：`ms-settings:` / `.cpl` / `.msc` / `start xxx` 起的 GUI 孙进程会**继承并长期占住** stdout/stderr 管道 ⇒ 等 EOF 会永久挂住 ⇒ 调用方的 `await`（以及 `AsyncRelayCommand.IsRunning` / `IsBusy`）再也不返回，同类按钮一起变灰。⛔ 不许改回 `ReadToEndAsync` 无限等 |
 | 实现 | `Core/Services/ProcessRunner.cs` | 无状态；Shell 注册单例（`App.axaml.cs`，与 `IFileOperationService` 同处） |
 
 🔴 **三类进程用法分立，⛔ 不一刀切收口**：① **捕获式外部工具**（脚本 / 命令 / winget，输出当数据解析）⇒ 走本接口（已迁 `ScriptRunner` / `PackageManagerService`）；② **平台能力**（打开文件夹 / 文件 / URL，`UseShellExecute=true`）⇒ VM 直接用 BCL，换平台只改"explorer → xdg-open"这一处；③ **可见控制台 / 提权**（`Verb=runas`）⇒ `QuickActionService.StartVisible`（NT-080 定调：winget 源命令走命令库 + UAC）。`PythonRuntime` 长驻 worker 自有双向协议，不迁。
@@ -629,6 +630,7 @@ public interface IDetailCardSource
 ### 7.3 模块自有库（NT-113：一个模块 = 一个 `store\<库键>\<库键>.db`）
 
 - 🔴 **目录分层（NT-113，2026-10-26）**：`<配置根>\store\` = **用户数据**（模块库 / 抓取规则 / 流程 / 运行记录 / 脚本实体，删了不可恢复）；`<配置根>\cache\` = **可重建**（缩略图 / 页面缓存 / 下载中间产物 / 升级前快照 / 恢复副本）。旧 `data\` 目录已撤销，由 `Core/Services/DataMigrations/StorageLayoutV2` 一次性迁移（整目录 rename + 拆库 + 分家，可重入，完成标记 `store\.layout-v2.done`）。
+- 🔴 **配置里的旧绝对路径**（`scriptsFolder` / `thumbsDirectory` 这类用户录入值）不会被目录改名带走 ⇒ 同文件内的 `RewriteLegacyConfigPaths` 扫 `config\**\*.json`，把 `<配置根>\data\<rest>` 改成 `store\<rest>` / `cache\<rest>`（**映射目标存在才改**，别的机器 / 离线盘原样留着）。它用**独立标记** `store\.layout-v2-paths.done` —— 布局早已完成的用户也会补跑这一次。模块侧另有运行时兜底（`EffectiveScriptsFolder` / `ThumbsDirectory` 读到失效的 data 路径就地改回）。
 - 🔴 **库文件**：`store\assets\assets.db`（13 张资产表）/ `store\video\video.db`（`video_media` + `video_docs`）/ `store\web\web.db`（`web_docs`）/ `store\script\script.db`（`script_docs` + `pc_observations` / `pc_runs`）。
 - 🔴 **模块与库一一固定绑定**：每个模块在自己的程序集里派生一个 `XxxDb : SqliteDatabase`（`AssetsDb` / `VideoDb` / `WebDb` / `ScriptDb`）并注册为单例，模块内服务只注入**自己的派生类型** —— 同一个 DI 容器里 4 个库互不干扰，也不会误拿别人的库。⛔ 没有库指针、没有 UI 选库：**NT-076 否决的是「多库切换」，不是「一模块一库」**。
 - **入口唯一**：`SqliteDatabase`（连接 + `meta` 表 + WAL + `ApplySchema`）；建表统一入口 = `LibrarySchemaService.EnsureAll()`，跑在 `InitializeAllDeferred` 第一步。
@@ -969,3 +971,23 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | 窗口不能拖边框缩放 | — | 走官方 CSD（见 `ui.md` §4） |
 
 > 模块专属编译坑见各 `modules/<模块>.md` §5 坑点。
+
+### 11.3 横展审计：静默失败 / UI 线程阻塞（2026-10-27）
+
+> 触发：修「资产库搜索恒 0 行」后做的全仓横展。本节只记**结论与处置策略**，细则在各模块 md §5 与本文件 §6。
+> 🔴 **用户 2026-10-27 定：② ③ 不单独开工作项** —— 一律按「改到哪清哪」执行，⛔ 不批量排期、⛔ 不为此新建 NT。
+
+**① SQL 聚合表达式写法（已全部修完）**
+- 病灶：`group_concat(n.name, …)` 外层引用的是内层子查询的**表别名**，而内层 `SELECT n.name` 的输出列名是 `name` ⇒ SQLite 抛 `no such column: n.name`。
+- 全仓只有 `Module.MediaAssets/Services/AssetService.Query.cs` 三处（`TagsExpr` / `CategoriesExpr` / `CollectionsExpr`），已改内层 `SELECT n.name AS name`；其他有 SQL 的地方（`ScriptDatabase` / `VideoMediaIndex` / `JsonDocStore` / `DataBackupSection`）**没有 `group_concat`**，不受影响。
+- 为什么难发现：这三个表达式只出现在 **WHERE（搜索）/ ORDER BY（那三列排序）/ 表头筛选**，不在 `QueryPage` 的 SELECT 里 ⇒ 列表正常显示、只有搜索与三列排序恒空，极易误判成「搜索功能坏了」。坑点记 `modules/media-assets.md` §5-10。
+
+**② 「查询失败 → 返回空集合」缺错误出口（规则已立，改造未做）**
+- 规则进 `references/newtoys-spec.md` §六；现有样板 = `AssetService.LastQueryError` → assets-all 状态栏 `⚠ 查询失败：…`。
+- 尚未接同类出口：`Module.ScriptManager/Services/ScriptDatabase`、`Module.VideoTools/Services/VideoMediaIndex`、`Core/Services/JsonDocStore`、`Shell/Services/DataBackupSection`。
+- 处置：**改到哪清哪**，⛔ 不排一次性批次（无功能改动的批量改动混进 build，出错无法定位）。
+
+**③ UI 线程直接做磁盘 / shell 动作（同类风险，未改）**
+- 规则进 `references/newtoys-spec.md` §六；样板 = `AssetAllViewModel.FileOps.cs::RunOffUiThread`（线程池 + `Dispatcher.UIThread.Post` 回投文案）。
+- 存量位置（`File.Exists` / `Directory.Exists` / `File.ReadAllText` / `Process.Start` 在 VM 里同步调用）：`Module.ScriptManager/ViewModels/` 的 `CrawlPanelViewModel.History.cs`、`QuickActionListViewModel.Item.cs`、`QuickActionListViewModel.Run.cs`、`QuickActionListViewModel.Scan.cs`、`QuickActionListViewModel.Scripts.cs`、`RuleCatalogViewModel.cs`、`ScriptInfoViewModel.Actions.cs`；`Module.VideoTools/ViewModels/VideoListViewModel.Actions.cs`。
+- 影响面：目标在休眠机械硬盘 / 网络盘时才明显，本地 SSD 基本无感 ⇒ 不紧急，碰这些文件时顺手改。

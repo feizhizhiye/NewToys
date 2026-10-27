@@ -101,6 +101,8 @@
 - 设置类 `config\*.json` 模块只读，唯一写入点 = 该模块设置页；功能数据由功能页读写。
 - 🔴 **导入 / 解压白名单顺序**：**先判 `..` 与绝对路径，再跳过 `.seeded` 等标记文件**——顺序反了会让 `../evil.ps1` 被静默放过。
 - 🔴 **随包 `.ps1` 必须 UTF-8 带 BOM**（PS 5.1 无 BOM 按 ANSI 解码 ⇒ 中文 literal 乱码）；脚本往 stdout 输出数据用 `[Console]::Out.Write`，⛔ 把日志打进 stdout。
+- 🔴 **服务层「查询失败 → 返回空集合」必须带错误出口**：把异常吞掉换空列表时，同时把消息存到一个可读属性（如 `AssetService.LastQueryError`），页面**必须显示到状态栏 `⚠`**。⛔ 静默空页 —— 用户只会得出「搜索/查询坏了」的结论，而日志里什么都没有。
+- 🔴 **UI 线程 ⛔ 不做 `File.Exists` / `Process.Start(UseShellExecute)` / `Directory.Enumerate*` / `File.ReadAllText`**：机械硬盘休眠唤醒要数秒、网络盘掉线要等超时，放 UI 线程 = 整窗冻结（用户会觉得「比资源管理器慢」）。做法：`Task.Run` 执行 + `Dispatcher.UIThread.Post` 回投状态文案（样板 `AssetAllViewModel.FileOps.cs::RunOffUiThread`）。
 - 摸底一律 grep/read **定向检索**：⛔ 不整读文档、⛔ 不读 `artifacts/` `bin/` `obj/`（省 token、提速）。
 
 ---

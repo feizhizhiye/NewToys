@@ -345,7 +345,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         if (Selected == null) { StatusText = "先选中一个存储源。"; return; }
 
         var row = Selected;
-        var name = await DialogHooks.InputAsync("重命名存储源", row.Name).ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync("重命名存储源", row.Name).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name) || name.Trim() == row.Name) { StatusText = "已取消（名字没变）。"; return; }
 
         _assets.UpsertStorage(new StorageSource
@@ -403,7 +403,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         var warn = $"移除存储源「{row.Name}」（{row.RootPath}）？\n" +
                    $"只删索引：该源下的 {locations} 个文件位置将删除，资产记录保留（重新登记 + 扫描即可找回）。\n" +
                    "⛔ 磁盘上的文件一个都不会动。";
-        if (!await DialogHooks.ConfirmAsync(warn).ConfigureAwait(false)) { StatusText = "已取消。"; return; }
+        if (!await DialogHooks.ConfirmAsync(warn).ConfigureAwait(true)) { StatusText = "已取消。"; return; }
 
         _assets.DeleteStorage(row.Id);
         Reload();
@@ -480,7 +480,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         var warn = $"发现 {groups} 组「同一个文件挂在多条资产下」的重复。\n" +
                    "合并后每组只保留一条资产：其余资产的标签 / 分类 / 集合 / 关联与文件位置会并到保留的那条，多余的资产记录删除。\n" +
                    "🔴 磁盘上的文件一个都不会动。继续？";
-        if (!await DialogHooks.ConfirmAsync(warn).ConfigureAwait(false)) { StatusText = "已取消。"; return; }
+        if (!await DialogHooks.ConfirmAsync(warn).ConfigureAwait(true)) { StatusText = "已取消。"; return; }
 
         IsBusy = true;
         string done;

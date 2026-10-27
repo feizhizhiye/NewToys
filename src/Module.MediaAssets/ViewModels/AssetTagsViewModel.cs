@@ -237,7 +237,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     [RelayCommand]
     private async Task NewTagAsync()
     {
-        var name = await DialogHooks.InputAsync("新建标签", "").ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync("新建标签", "").ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消（没输入名字）。"; return; }
 
         var id = _tags.Create(name.Trim());
@@ -256,7 +256,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         if (Selected == null) { StatusText = "先选中一个标签。"; return; }
 
         var old = Selected.Name;
-        var name = await DialogHooks.InputAsync("重命名标签", old).ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync("重命名标签", old).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name) || name.Trim() == old) { StatusText = "已取消（名字没变）。"; return; }
 
         var ok = _tags.Rename(Selected.Id, name.Trim());
@@ -286,7 +286,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         if (Selected == null) { StatusText = "先选中一个标签。"; return; }
 
         var name = Selected.Name;
-        var input = await DialogHooks.InputAsync("改成什么颜色？（#RRGGBB）", Selected.ColorHex).ConfigureAwait(false);
+        var input = await DialogHooks.InputAsync("改成什么颜色？（#RRGGBB）", Selected.ColorHex).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(input)) { StatusText = "已取消。"; return; }
 
         var hex = input.Trim();
@@ -307,7 +307,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         if (Selected == null) { StatusText = "先选中要合并掉的标签。"; return; }
 
         var src = Selected;
-        var target = await DialogHooks.InputAsync("合并到哪个标签？（输入目标标签名）", "").ConfigureAwait(false);
+        var target = await DialogHooks.InputAsync("合并到哪个标签？（输入目标标签名）", "").ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(target)) { StatusText = "已取消。"; return; }
 
         var dst = _all.FirstOrDefault(t => string.Equals(t.Name, target.Trim(), StringComparison.OrdinalIgnoreCase));
@@ -330,7 +330,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         var warn = row.UsageCount > 0
             ? $"「{row.Name}」正在被 {row.UsageCount} 个资产使用，删除后这些资产就失去该标签（⛔ 不动磁盘文件）。继续？"
             : $"删除标签「{row.Name}」？";
-        if (!await DialogHooks.ConfirmAsync(warn).ConfigureAwait(false)) { StatusText = "已取消。"; return; }
+        if (!await DialogHooks.ConfirmAsync(warn).ConfigureAwait(true)) { StatusText = "已取消。"; return; }
 
         var ok = _tags.Delete(row.Id);
         if (ok) _log.Log("tag", "tag", row.Id, beforeJson: $"{{\"name\":\"{row.Name}\"}}");
@@ -344,7 +344,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     {
         var unused = _all.Count(t => t.IsUnused);
         if (unused == 0) { StatusText = "没有未使用的标签。"; return; }
-        if (!await DialogHooks.ConfirmAsync($"删除 {unused} 个未使用的标签？").ConfigureAwait(false)) { StatusText = "已取消。"; return; }
+        if (!await DialogHooks.ConfirmAsync($"删除 {unused} 个未使用的标签？").ConfigureAwait(true)) { StatusText = "已取消。"; return; }
 
         var n = _tags.DeleteUnused();
         _log.Log("tag", "tag", null, afterJson: $"{{\"deletedUnused\":{n}}}");

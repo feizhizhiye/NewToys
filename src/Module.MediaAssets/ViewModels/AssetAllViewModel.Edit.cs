@@ -88,7 +88,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         var suggested = row.DisplayName ?? row.Title ?? Path.GetFileNameWithoutExtension(current);
         var newName = await DialogHooks.InputAsync(
             $"把磁盘文件改成什么名字？\n当前：{current}\n（这是**真改磁盘文件名**；只改库里的显示名请用「💾 保存」）",
-            suggested).ConfigureAwait(false);
+            suggested).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(newName)) { StatusText = "已取消（没改磁盘文件）。"; return; }
 
         var name = newName.Trim();
@@ -115,7 +115,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (Selected == null) { StatusText = "先选中一个资产。"; return; }
 
         var row = Selected;
-        if (!await DialogHooks.ConfirmAsync($"把「{row.Name}」移入回收站？（⛔ 只改库里的状态，**不动磁盘文件**；回收站里能恢复）").ConfigureAwait(false))
+        if (!await DialogHooks.ConfirmAsync($"把「{row.Name}」移入回收站？（⛔ 只改库里的状态，**不动磁盘文件**；回收站里能恢复）").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
         _assets.SetAssetStatus(row.Id, AssetStatuses.Trashed);
@@ -144,7 +144,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         var name = Path.GetFileName(loc.Path);
         if (!await DialogHooks.ConfirmAsync(
-                $"⛔ 从磁盘**永久删除**这个文件？\n\n{name}\n\n· 不进系统回收站、无法还原；\n· 库里这条文件索引也会一起删掉（还有其它位置的不会删）；\n· 只想从库里移除、文件留着 ⇒ 用详情卡的「🗑 移入回收站」。").ConfigureAwait(false))
+                $"⛔ 从磁盘**永久删除**这个文件？\n\n{name}\n\n· 不进系统回收站、无法还原；\n· 库里这条文件索引也会一起删掉（还有其它位置的不会删）；\n· 只想从库里移除、文件留着 ⇒ 用详情卡的「🗑 移入回收站」。").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
         _fileOps.Queue.Enqueue($"从磁盘删除 {name}", async (ct, p) =>
@@ -180,7 +180,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (target == null) { StatusText = "先选一个目标存储源。"; return; }
         if (!target.Online) { StatusText = $"目标存储源「{target.Name}」当前离线。"; return; }
         if (!await DialogHooks.ConfirmAsync(
-                $"把「{Path.GetFileName(loc.Path)}」移动到「{target.Name}」？\n⛔ 只移到已登记存储源根内（不越界写盘）；同名按「追加序号」处理。").ConfigureAwait(false))
+                $"把「{Path.GetFileName(loc.Path)}」移动到「{target.Name}」？\n⛔ 只移到已登记存储源根内（不越界写盘）；同名按「追加序号」处理。").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
         _fileOps.Queue.Enqueue($"移动到 {target.Name}", async (ct, p) =>
@@ -206,7 +206,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (target == null) { StatusText = "先选一个目标存储源。"; return; }
         if (!target.Online) { StatusText = $"目标存储源「{target.Name}」当前离线。"; return; }
         if (!await DialogHooks.ConfirmAsync(
-                $"把「{Path.GetFileName(loc.Path)}」复制到「{target.Name}」？\n⛔ 只复制到已登记存储源根内；同名按「追加序号」处理。").ConfigureAwait(false))
+                $"把「{Path.GetFileName(loc.Path)}」复制到「{target.Name}」？\n⛔ 只复制到已登记存储源根内；同名按「追加序号」处理。").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
         _fileOps.Queue.Enqueue($"复制到 {target.Name}", async (ct, p) =>

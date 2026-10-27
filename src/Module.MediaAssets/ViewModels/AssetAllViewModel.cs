@@ -209,8 +209,16 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     /// <summary>详情卡正文是否显示（有选中项）。</summary>
     public bool ShowDetailBody => HasSelection;
-    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
-    public string ImportExportDefaultDir => _app?.StoreDirectory ?? "";
+    /// <summary>导入 / 导出默认目录：本模块的 <c>store\assets</c>（目录尚未建出 ⇒ 退回 <c>store\</c>）。</summary>
+    public string ImportExportDefaultDir => ModuleStoreDir(_app?.StoreDirectory);
+
+    /// <summary>把 <c>store\</c> 收窄到本模块子目录；子目录不存在时退回传入的根（对话框起始位置必须有效）。</summary>
+    private static string ModuleStoreDir(string? storeDirectory)
+    {
+        if (string.IsNullOrEmpty(storeDirectory)) return "";
+        var dir = Path.Combine(storeDirectory, AssetsDb.Key);
+        return Directory.Exists(dir) ? dir : storeDirectory;
+    }
 
     // ==================== 列表 JSON 导入 / 导出 ====================
 
@@ -254,9 +262,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             var missing = preview.MissingTables.Count > 0
                 ? $"\n⚠️ 源库缺 {preview.MissingTables.Count} 张表（{string.Join("、", preview.MissingTables)}）——按老库兼容处理，缺的跳过。"
                 : "";
+            // ⛔ 确认后不带 ConfigureAwait(false)：后面的 Enqueue / 导航 / StatusText 都必须在 UI 线程上执行
+            //    （在后台线程导航会当场把任务中心页的控件建成"别的线程的对象"，随后一刷新就崩）
             if (!await DialogHooks.ConfirmAsync(
                     $"把库文件合并进当前资产库？\n{dbPath}\n\n该库规模：{preview.SummaryText}{missing}\n\n" +
-                    "按路径 / 内容去重（重复并入第二次基本全跳过）；源库不会被修改。").ConfigureAwait(false))
+                    "按路径 / 内容去重（重复并入第二次基本全跳过）；源库不会被修改。"))
             {
                 StatusText = "已取消合并。";
                 return;
@@ -295,7 +305,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         if (File.Exists(targetPath))
         {
-            if (!await DialogHooks.ConfirmAsync($"「{targetPath}」已存在——覆盖它？（⛔ 不可恢复）").ConfigureAwait(false))
+            if (!await DialogHooks.ConfirmAsync($"「{targetPath}」已存在——覆盖它？（⛔ 不可恢复）").ConfigureAwait(true))
             {
                 StatusText = "已取消保存（换个文件名即可）。";
                 return;
@@ -319,7 +329,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         if (!await DialogHooks.ConfirmAsync(
                 $"把勾选的 {rows.Count} 个资产移入回收站？\n" +
-                "⛔ 只改库里的状态，**不动磁盘文件**；回收站里能恢复，也能永久删除。").ConfigureAwait(false))
+                "⛔ 只改库里的状态，**不动磁盘文件**；回收站里能恢复，也能永久删除。").ConfigureAwait(true))
         {
             StatusText = "已取消。";
             return;
@@ -435,11 +445,30 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// </summary>
 
     /// <summary>列表概况文案（状态栏用）：类型前缀（v3.69 起随筛选类型切换）+ 总数（COUNT(*)）+ 当前页位置。</summary>
-    protected string StatusSummary() => IsDbAvailable
-        ? $"{StatusPrefix}共 {TotalCount} 个资产"
-          + (TotalCount == 0 ? "（点「📂 导入」添加存储源或文件）" : "")
-          + (PagingEnabled && PageCount > 1 ? $"（{PageText}）" : "")
-        : $"{StatusPrefix}资产库不可用（数据库打不开）——本页只读，不会崩。";
+    protected string StatusSummary()
+    {
+        if (IsDraft)
+            return $"{StatusPrefix}预览结果 {TotalCount} 个（⛔ 还没入库，点「💾 加入库」保存）";
+
+        // 查询被 catch 吞掉时总数与列表会不一致（总数有值、列表空）⇒ 必须把原因摆到状态栏
+        var err = _assets?.LastQueryError ?? "";
+        if (err.Length > 0) return $"⚠ 资产查询失败：{err}（列表因此显示为空）";
+
+        if (!IsDbAvailable)
+            return $"{StatusPrefix}资产库不可用（数据库打不开）——本页只读，不会崩。";
+
+        return $"{StatusPrefix}共 {TotalCount} 个资产"
+               + (TotalCount == 0 ? "（点「📂 导入」添加存储源或文件）" : "")
+               + TableFilterHint()
+               + (PagingEnabled && PageCount > 1 ? $"（{PageText}）" : "");
+    }
+
+    /// <summary>
+    /// 表头右键「🔎 筛选」的条件没有独立入口 ⇒ 拼进状态栏；
+    /// 否则它和四个下拉是「且」叠加，用户看到空列表时无从判断是谁在筛。
+    /// </summary>
+    private string TableFilterHint()
+        => ActiveFilterCount == 0 ? "" : $"（表头筛选 {ActiveFilterCount} 条生效）";
 
     // ==================== 加载 ====================
 
@@ -454,6 +483,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     private void Reload()
     {
+        // 🔴 后台线程误调会在这里碰 UI 对象（Items.Clear / Selected setter → Shell 工具条）→ 直接抛跨线程异常崩窗口。
+        //    统一回投 UI 线程；调用方不必各自记得切线程（对话框 await 之后最容易踩）。
+        if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(Reload); return; }
+
+        // 重新从库里读 ⇒ 扫描预览的草稿作废：⛔ 否则并入 / 导入 / 重读之后还停在草稿态，
+        // 列表继续显示预览行、状态栏还写「还没入库」。
+        IsDraft = false;
         _all.Clear();
         if (!IsDbAvailable) { TotalCount = 0; ApplyView(); return; }
         RebuildStorageOptions();
@@ -476,6 +512,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (PageIndex != before) return;           // 已收敛 ⇒ 嵌套的 RefreshView 按新页码重取过了，⛔ 外层别再取一遍
         AddRows(_assets.QueryPage(q with { Offset = (PageIndex - 1) * PageSize, Limit = PageSize }));
         ApplyView();
+        // 🔴 查询异常在服务层被吞成空页（⛔ 不让异常穿透），这里必须把它显出来 ——
+        //    否则 SQL 一报错表现就是「列表恒空 / 搜不到」，用户只能猜「搜索是不是失效了」。
+        if (_assets.LastQueryError.Length > 0) StatusText = "⚠ 查询失败：" + _assets.LastQueryError;
     }
 
     /// <summary>把页面上的筛选 / 排序状态打成 <see cref="AssetService.AssetQuery"/>（计数与取页共用）。</summary>
@@ -484,10 +523,10 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         Type: FilterType?.Value,
         Status: FilterStatus?.Value,
         StorageId: FilterStorage?.Value,
-        // 标签下拉存的是 id，SQL 侧按名字匹配（⛔ 别拿 id 比文本）
-        TagName: FilterTag != null
-            ? TagOptions.FirstOrDefault(o => o.Value == FilterTag.Value)?.Label
-            : null,
+        // 标签下拉存的是 id（「全部标签」= 空串），SQL 侧按**名字**匹配（⛔ 别拿 id 比文本）
+        // 🔴 判空必须按 Value：只看 FilterTag 非 null 会把占位项的 Label「全部标签」当标签名传下去
+        //    ⇒ EXISTS(tg.name='全部标签') 恒不成立，整页永远 0 行。
+        TagName: string.IsNullOrEmpty(FilterTag?.Value) ? null : FilterTag!.Label,
         Clauses: Filters.Where(f => f.IsActive).ToList(),
         SortColumn: SortColumn,
         SortDescending: SortDescending);
@@ -510,7 +549,19 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         OnPropertyChanged(nameof(HasFooterContent));
         OnPropertyChanged(nameof(HasPaging));
         OnPropertyChanged(nameof(PageText));
+        OnPropertyChanged(nameof(CanFilterByStorageOrTag));
+        if (!value) return;
+
+        // 进入草稿态：预览行没有库存储源 id、没有标签关联 ⇒ 这两个条件留着只会筛出 0 条
+        if (StorageOptions.Count > 0) FilterStorage = StorageOptions[0];
+        if (TagOptions.Count > 0) FilterTag = TagOptions[0];
     }
+
+    /// <summary>
+    /// 存储源 / 标签两个下拉只对**库里的资产**有意义：草稿行（扫描预览）只有类型 / 状态 / 文件名，
+    /// <see cref="AssetRow.StorageId"/> 恒为 0、标签串为空 ⇒ 草稿态一选必空，直接置灰。
+    /// </summary>
+    public bool CanFilterByStorageOrTag => !IsDraft;
 
     /// <summary>
     /// 宿主页挂载时强制重算一次底栏显隐 —— 兜住「View 绑定建立早于 VM 数据就绪」

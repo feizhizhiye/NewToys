@@ -255,7 +255,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase
     [RelayCommand]
     private async Task NewCollectionAsync()
     {
-        var name = await DialogHooks.InputAsync("新建集合（手动）", "").ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync("新建集合（手动）", "").ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
 
         var id = _cols.Create(name.Trim(), CollectionTypes.Manual);
@@ -271,10 +271,10 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase
     [RelayCommand]
     private async Task NewSmartAsync()
     {
-        var name = await DialogHooks.InputAsync("新建智能集合（名字）", "").ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync("新建智能集合（名字）", "").ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
 
-        var rule = await DialogHooks.InputAsync("规则描述（先存文本；规则求值未实装）", "").ConfigureAwait(false);
+        var rule = await DialogHooks.InputAsync("规则描述（先存文本；规则求值未实装）", "").ConfigureAwait(true);
         var id = _cols.Create(name.Trim(), CollectionTypes.Smart, $"{{\"desc\":\"{(rule ?? "").Replace("\"", "'")}\"}}");
         if (id <= 0) { StatusText = "新建失败（库不可用？）。"; return; }
 
@@ -291,7 +291,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase
 
         var row = SelectedCollection;
         var old = row.Name;
-        var name = await DialogHooks.InputAsync("重命名集合", old).ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync("重命名集合", old).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name) || name.Trim() == old) { StatusText = "已取消。"; return; }
 
         var ok = _cols.Rename(row.Id, name.Trim());
@@ -309,7 +309,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase
         if (SelectedCollection == null) { StatusText = "先选一个集合。"; return; }
 
         var row = SelectedCollection;
-        if (!await DialogHooks.ConfirmAsync($"删除集合「{row.Name}」？（⛔ 只删集合与成员关系，不删资产、不动磁盘文件）").ConfigureAwait(false))
+        if (!await DialogHooks.ConfirmAsync($"删除集合「{row.Name}」？（⛔ 只删集合与成员关系，不删资产、不动磁盘文件）").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
         var ok = _cols.Delete(row.Id);
@@ -359,7 +359,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase
 
         var coll = SelectedCollection;
         var member = SelectedMember;
-        if (!await DialogHooks.ConfirmAsync($"把「{member.Name}」移出集合「{coll.Name}」？（⛔ 不删资产、⛔ 不动磁盘文件）").ConfigureAwait(false))
+        if (!await DialogHooks.ConfirmAsync($"把「{member.Name}」移出集合「{coll.Name}」？（⛔ 不删资产、⛔ 不动磁盘文件）").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
         var n = _cols.RemoveAssets(coll.Id, new List<long> { member.Id });

@@ -174,6 +174,9 @@
 11. 🔴 **登记父子目录 = 同一文件入库两次**：扫描匹配（`存储源+相对路径` → `大小+修改时间` → `快速哈希`）全部只在**当前存储源的索引**内做，⛔ 不跨源 ⇒ 父源与其子目录源各扫一遍，同一物理文件落成两条资产、列表里同一个文件出现多行。
     - 已封口的三处：登记入口拒绝互为父子的源（`AssetService.FindOverlappingStorage`）、子目录归到覆盖它的源（`FindCoveringStorage`，`💾 加入库` 与按目录导入都走它）、扫描时跳过被在线父源覆盖的子源 + 父源扫描按完整路径**认领**子源既有位置（`LoadOverlappingLocations`）。
     - 存量重复靠 `🧹 合并重复`（`MergeDuplicatePaths`）清：合并只认**物理路径完全一致**（`AssetService.PathKey`：小写 + 统一分隔符 + 去尾斜杠）；映射盘 `Z:\` 与 `\\nas\` 双写法路径不同，合并看不到，要手动移除其中一个源。
+12. 🔴 **对话框 `await` 之后必须回到 UI 线程**：`await DialogHooks.ConfirmAsync(...).ConfigureAwait(false)` 会让后续代码跑在线程池上，紧接着的 `Reload()` → `Items.Clear()` / `Selected` setter → Shell `ToolbarHost` 改可视属性，直接抛 `InvalidOperationException: The calling thread cannot access this object…`（未捕获 ⇒ **整个窗口崩掉**，日志 `logs\crash-*.log`）。
+    - 规则：模块内所有 `DialogHooks.*Async` 一律 `ConfigureAwait(true)`（本项目 `RuleCatalogViewModel` / `VideoFileService` 同口径）；`Reload()` 自身还有一道 `Dispatcher.UIThread.CheckAccess()` 兜底。
+    - 别在 `DialogHooks` 的调用点上写 `ConfigureAwait(false)` 图"性能"——它换来的是跨线程崩溃。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

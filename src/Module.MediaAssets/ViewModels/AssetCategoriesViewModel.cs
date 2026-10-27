@@ -285,7 +285,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
     [RelayCommand]
     private async Task NewRootAsync()
     {
-        var name = await DialogHooks.InputAsync("新建分类（根）", "").ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync("新建分类（根）", "").ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
         await CreateAsync(name.Trim(), null).ConfigureAwait(false);
     }
@@ -297,7 +297,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
         if (SelectedCategory == null) { StatusText = "先选中一个分类，再新建子分类（没选中就给根分类用「➕ 新建分类」）。"; return; }
 
         var parent = SelectedCategory;
-        var name = await DialogHooks.InputAsync($"在「{parent.Name}」下新建子分类", "").ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync($"在「{parent.Name}」下新建子分类", "").ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
         await CreateAsync(name.Trim(), parent.Id).ConfigureAwait(false);
     }
@@ -322,7 +322,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
 
         var node = SelectedCategory;
         var old = node.Name;
-        var name = await DialogHooks.InputAsync("重命名分类", old).ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync("重命名分类", old).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name) || name.Trim() == old) { StatusText = "已取消。"; return; }
 
         var ok = _cats.Rename(node.Id, name.Trim());
@@ -346,7 +346,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
         var warn = children > 0
             ? $"「{node.Name}」下面还有 {children} 个子分类，删除会**连带删掉整棵子树**（含成员归属关系；⛔ 不动磁盘文件）。继续？"
             : $"删除分类「{node.Name}」？（⛔ 只删归属关系，不动磁盘文件）";
-        if (!await DialogHooks.ConfirmAsync(warn).ConfigureAwait(false)) { StatusText = "已取消。"; return; }
+        if (!await DialogHooks.ConfirmAsync(warn).ConfigureAwait(true)) { StatusText = "已取消。"; return; }
 
         var n = _cats.DeleteSubtree(node.Id);
         if (n > 0) _log.Log("category", "category", node.Id, beforeJson: $"{{\"name\":\"{node.Name}\",\"subtree\":{n}}}");
@@ -364,7 +364,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
         var cid = SelectedCategory.Id;
         var catName = SelectedCategory.Name;
         var ids = new List<long> { SelectedMember.Id };
-        if (!await DialogHooks.ConfirmAsync($"把资产「{SelectedMember.Name}」从「{catName}」摘出？（⛔ 不删资产、⛔ 不动磁盘文件）").ConfigureAwait(false))
+        if (!await DialogHooks.ConfirmAsync($"把资产「{SelectedMember.Name}」从「{catName}」摘出？（⛔ 不删资产、⛔ 不动磁盘文件）").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
         var n = _cats.RemoveAssets(cid, ids);

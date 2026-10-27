@@ -33,7 +33,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         var ids = _all.Where(r => r.IsChecked).Select(r => r.Id).ToList();
         if (ids.Count == 0) { StatusText = "先在左边勾选要打标签的资产。"; return; }
 
-        var name = await DialogHooks.InputAsync($"给勾选的 {ids.Count} 个资产打什么标签？", "").ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync($"给勾选的 {ids.Count} 个资产打什么标签？", "").ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
 
         var tagId = _tagSvc.Ensure(name.Trim());
@@ -52,7 +52,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         var ids = _all.Where(r => r.IsChecked).Select(r => r.Id).ToList();
         if (ids.Count == 0) { StatusText = "先在左边勾选要加入集合的资产。"; return; }
 
-        var name = await DialogHooks.InputAsync($"把勾选的 {ids.Count} 个资产加进哪个集合？（没有就新建）", "").ConfigureAwait(false);
+        var name = await DialogHooks.InputAsync($"把勾选的 {ids.Count} 个资产加进哪个集合？（没有就新建）", "").ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
 
         var hit = _colSvc.List().FirstOrDefault(c => string.Equals(c.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));

@@ -31,6 +31,30 @@
       <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
+    <!--
+      左树容器：ListBox 自带 VirtualizingStackPanel + ScrollViewer。
+      🔴 别换回 ItemsControl + StackPanel —— 那是不虚拟化的，节点一多（几百个目录）
+      首屏就要为每一项建 Button 容器，进页面会白等几秒。
+      容器底色/hover 全清空：高亮画在 Button.tree-row 自己身上（与图标卡同一套路）。
+    -->
+    <Style Selector="ListBox#TreeList">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="ListBox#TreeList ListBoxItem">
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0,0,0,2"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="ListBox#TreeList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="ListBox#TreeList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+
     <Style Selector="Button.crumb">
       <Setter Property="Padding" Value="4,1"/>
       <Setter Property="FontSize" Value="11"/>
@@ -96,32 +120,31 @@
           <Button Classes="ghost" Content="↕ 折叠全部" Command="{Binding CollapseAllCommand}"/>
         </WrapPanel>
 
-        <ScrollViewer Grid.Row="1" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto">
-          <StackPanel Spacing="2">
-            <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasTree}"
-                       Text="索引里还没有目录。先到「全部资产」用 📁 扫描把文件入库。"/>
-            <ItemsControl ItemsSource="{Binding TreeNodes}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Button Classes="tree-row" Classes.selected="{Binding IsSelected}"
-                          Margin="{Binding Indent}"
-                          ToolTip.Tip="{Binding ToolTipText}"
-                          Command="{Binding $parent[UserControl].DataContext.SelectNodeCommand}"
-                          CommandParameter="{Binding}">
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                      <TextBlock Text="{Binding Arrow}" FontSize="11" VerticalAlignment="Center"/>
-                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                      <TextBlock Text="{Binding OfflineText}" FontSize="10" VerticalAlignment="Center"
-                                 Foreground="{DynamicResource SecondaryTextBrush}"/>
-                      <TextBlock Text="{Binding CountText}" FontSize="10" VerticalAlignment="Center"
-                                 Foreground="{DynamicResource SecondaryTextBrush}"/>
-                    </StackPanel>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-        </ScrollViewer>
+        <Grid Grid.Row="1" Margin="0,6,0,0">
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasTree}"
+                     Text="索引里还没有目录。先到「全部资产」用 📁 扫描把文件入库。"/>
+          <ListBox x:Name="TreeList" ItemsSource="{Binding TreeNodes}"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Button Classes="tree-row" Classes.selected="{Binding IsSelected}"
+                        Margin="{Binding Indent}"
+                        ToolTip.Tip="{Binding ToolTipText}"
+                        Command="{Binding $parent[UserControl].DataContext.SelectNodeCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="{Binding Arrow}" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding OfflineText}" FontSize="10" VerticalAlignment="Center"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Text="{Binding CountText}" FontSize="10" VerticalAlignment="Center"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
       </Grid>
     </Border>
 

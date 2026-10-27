@@ -62,7 +62,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             IsEnabledPath = nameof(CanGenerateThumbs), ShowToolTipOnDisabled = true,
             ToolTip = "给本目录里还没有缩略图的视频 / 图片逐条生成（走任务队列，可取消，单条失败不停批）"
         },
-        new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand), ToolTip = "重新读取索引（⛔ 不扫盘）" },
+        new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "重新读取索引（⛔ 不扫盘）" },
         new() { Kind = ToolbarItemKind.Separator },
         new()
         {

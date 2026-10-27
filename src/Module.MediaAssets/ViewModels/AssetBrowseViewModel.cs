@@ -47,11 +47,32 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     /// <summary>全部可浏览的位置行（一次入内存；目录切换 = 内存筛选，⛔ 不逐目录查库）。</summary>
     private readonly List<BrowseEntry> _entries = new();
 
+    /// <summary>
+    /// 「存储源 + 相对目录」→ 该目录的位置行。切目录 / 改搜索 / 排序都是**取一个桶**而不是扫全表
+    /// （全表 1w 行 × 每次按键 = 白烧 CPU，见 <see cref="ApplyView"/>）。
+    /// </summary>
+    private Dictionary<string, List<BrowseEntry>> _byDir = new(StringComparer.Ordinal);
+
+    /// <summary>「存储源 + 相对目录」→ 目录节点（找父子 / 面包屑用，替代每次扫 <see cref="_allNodes"/>）。</summary>
+    private Dictionary<string, AssetDirNode> _nodeByKey = new(StringComparer.Ordinal);
+
+    private static string DirKey(long storageId, string dir)
+        => storageId.ToString(CultureInfo.InvariantCulture) + "|" + dir;
+
+    /// <summary>读库代数：异步重读期间又发起一次重读 ⇒ 旧结果直接丢（⛔ 别用旧数据覆盖新的）。</summary>
+    private int _loadVersion;
+
+    /// <summary>当前列表的代数：切目录 / 翻页 / 换尺寸都会 +1，逐批填卡时用它作废上一批。</summary>
+    private int _viewVersion;
+
+    /// <summary>图标卡每批追加的张数（首屏先给一屏，其余按后台优先级续上）。</summary>
+    private const int TileChunkSize = 24;
+
     /// <summary>存储源级根节点（未扁平化）。</summary>
     private readonly List<AssetDirNode> _roots = new();
 
     /// <summary>全部节点的扁平副本（找父子 / 面包屑用，与「可见节点」无关）。</summary>
-    private readonly List<AssetDirNode> _allNodes = new();
+    private List<AssetDirNode> _allNodes = new();
 
     private CancellationTokenSource? _thumbCts;
 
@@ -65,8 +86,14 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     // ==================== 绑定集合 ====================
 
-    /// <summary>左树可见节点（按展开状态扁平化）。</summary>
-    public ObservableCollection<AssetDirNode> TreeNodes { get; } = new();
+    /// <summary>左树可见节点（按展开状态扁平化）。整体替换而非逐项 Add —— 每次 Add 都是一轮列表更新。</summary>
+    public ObservableCollection<AssetDirNode> TreeNodes
+    {
+        get => _treeNodes;
+        private set { _treeNodes = value; OnPropertyChanged(); }
+    }
+
+    private ObservableCollection<AssetDirNode> _treeNodes = new();
 
     /// <summary>右侧当前页的位置行（图标卡与详细视图**共用**这一个集合）。</summary>
     public ObservableCollection<AssetTile> Items { get; } = new();
@@ -101,6 +128,9 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     [ObservableProperty] private bool _isTileView = true;
     [ObservableProperty] private int _iconSize = 144;
     [ObservableProperty] private bool _isTreeVisible = true;
+
+    /// <summary>正在后台读索引（首载 / 重读）。空态文案与工具条可用性都看它。</summary>
+    [ObservableProperty] private bool _isBusy;
 
     /// <summary>图标卡尺寸档位（工具条按钮组 / 校验用）。</summary>
     public static readonly int[] IconSizeChoices = { 96, 144, 200 };
@@ -146,10 +176,12 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     public bool CanGoUp => SelectedNode is { IsStorageRoot: false, DirPath.Length: > 0 };
     public bool CanGenerateThumbs => _hasMissingThumbs && SelectedNode is { IsStorageRoot: false };
 
-    /// <summary>空态文案：区分「目录本来就空」与「筛选 / 搜索没命中」。</summary>
-    public string EmptyText => _dirCount > 0
-        ? "当前筛选 / 搜索没有匹配项。清空搜索或把「类型」换成「全部类型」再看。"
-        : "该目录下没有已索引资产。新文件请到「全部资产」用 📁 扫描入库。";
+    /// <summary>空态文案：区分「还在读索引」「目录本来就空」与「筛选 / 搜索没命中」。</summary>
+    public string EmptyText => IsBusy
+        ? "正在读取索引…读完自动刷新列表（索引很大时首次会慢一点）。"
+        : _dirCount > 0
+            ? "当前筛选 / 搜索没有匹配项。清空搜索或把「类型」换成「全部类型」再看。"
+            : "该目录下没有已索引资产。新文件请到「全部资产」用 📁 扫描入库。";
 
     /// <summary>详情卡数据源（当前选中位置行的资产行）。</summary>
     public AssetRow? DetailRow => Selected?.Row;
@@ -194,7 +226,6 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
         Reload(restoreLastFolder: true);
         _booted = true;
-        StatusText = StatusSummary();
     }
 
     // ==================== 初始化 ====================
@@ -238,9 +269,9 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     // ==================== 加载 ====================
 
     [RelayCommand]
-    private void Refresh()
+    private async Task RefreshAsync()
     {
-        Reload(restoreLastFolder: false);
+        await ReloadAsync(restoreLastFolder: false).ConfigureAwait(true);
         StatusText = IsDbAvailable
             ? $"已重读索引：{_entries.Count} 个文件位置 / {CountDirectoryNodes()} 个目录"
             : "⚠ 资产库不可用（数据库打不开）——本页只读，不会崩。";
@@ -248,50 +279,116 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     private int CountDirectoryNodes() => _allNodes.Count(n => !n.IsStorageRoot);
 
-    private void Reload(bool restoreLastFolder)
+    /// <summary>重读索引（调用方不关心完成时机，结果回来自己刷界面）。</summary>
+    private void Reload(bool restoreLastFolder) => _ = ReloadAsync(restoreLastFolder);
+
+    /// <summary>
+    /// 读索引 + 建树 + 建目录索引（**全部在后台线程**，⛔ 不在 UI 线程读 1w 行 JOIN）。
+    /// 完成后回 UI 线程一次性替换数据、重建树、按上次目录恢复选中。
+    /// </summary>
+    private async Task ReloadAsync(bool restoreLastFolder)
     {
         var keepKey = restoreLastFolder
             ? _io.Settings.LastBrowseFolder
             : AssetBrowseService.KeyOf(SelectedNode);
 
-        _entries.Clear();
-        _roots.Clear();
-        _allNodes.Clear();
+        var version = ++_loadVersion;
+        IsBusy = true;
+        StatusText = "正在读取索引…";
+
+        var entries = new List<BrowseEntry>();
+        var roots = new List<AssetDirNode>();
+        var byDir = new Dictionary<string, List<BrowseEntry>>(StringComparer.Ordinal);
+        var allNodes = new List<AssetDirNode>();
+        var nodeByKey = new Dictionary<string, AssetDirNode>(StringComparer.Ordinal);
         if (IsDbAvailable)
         {
-            _entries.AddRange(_browse.LoadEntries());
-            _roots.AddRange(_browse.BuildTree(_entries, _assets.ListStorages()));
+            try
+            {
+                // 分桶 / 扁平化也是 O(行数)：一并丢后台，回 UI 只做整体替换
+                (entries, roots, byDir, allNodes, nodeByKey) = await Task.Run(() =>
+                {
+                    var list = _browse.LoadEntries();
+                    var tree = _browse.BuildTree(list, _assets.ListStorages());
+                    var dirs = BuildDirIndex(list);
+                    var (flat, index) = CollectNodes(tree);
+                    return (list, tree, dirs, flat, index);
+                }).ConfigureAwait(true);
+            }
+            catch { /* 读库 / 建树失败 ⇒ 按空索引处理，页面走空态（⛔ 不抛到 UI） */ }
         }
 
-        CollectNodes();
+        if (version != _loadVersion) return;   // 期间又发起了一次重读 ⇒ 本次作废
+
+        _entries.Clear();
+        _entries.AddRange(entries);
+        _roots.Clear();
+        _roots.AddRange(roots);
+        _byDir = byDir;
+        _allNodes = allNodes;
+        _nodeByKey = nodeByKey;
+        _selectedDirNode = null;   // 旧节点实例已作废（SelectInitial 会重新认领）
+
         RebuildTree();
+
+        IsBusy = false;
         SelectInitial(keepKey);
+        if (SelectedNode == null) StatusText = StatusSummary();
     }
 
-    /// <summary>把全部节点（含未展开的子节点）收进扁平副本。</summary>
-    private void CollectNodes()
+    /// <summary>按「存储源 + 目录」重建分桶（切目录时只取一个桶，⛔ 不再扫全表）。</summary>
+    private static Dictionary<string, List<BrowseEntry>> BuildDirIndex(List<BrowseEntry> entries)
     {
+        var byDir = new Dictionary<string, List<BrowseEntry>>(StringComparer.Ordinal);
+        foreach (var e in entries)
+        {
+            var key = DirKey(e.Row.StorageId, e.Dir);
+            if (!byDir.TryGetValue(key, out var bucket))
+                byDir[key] = bucket = new List<BrowseEntry>(8);
+            bucket.Add(e);
+        }
+        return byDir;
+    }
+
+    /// <summary>取某个目录的全部位置行（没有 ⇒ 空）。</summary>
+    private IReadOnlyList<BrowseEntry> RowsOf(long storageId, string dir)
+        => _byDir.TryGetValue(DirKey(storageId, dir), out var bucket)
+            ? bucket
+            : Array.Empty<BrowseEntry>();
+
+    /// <summary>把全部节点（含未展开的子节点）收进扁平副本 + 建键索引。</summary>
+    private static (List<AssetDirNode> Flat, Dictionary<string, AssetDirNode> Index) CollectNodes(
+        List<AssetDirNode> roots)
+    {
+        var flat = new List<AssetDirNode>();
+        var index = new Dictionary<string, AssetDirNode>(StringComparer.Ordinal);
+
         void Walk(AssetDirNode n)
         {
-            _allNodes.Add(n);
+            flat.Add(n);
+            if (!n.IsStorageRoot) index[DirKey(n.StorageId, n.DirPath)] = n;
             foreach (var c in n.Children) Walk(c);
         }
-        foreach (var root in _roots) Walk(root);
+        foreach (var root in roots) Walk(root);
+        return (flat, index);
     }
 
     /// <summary>按展开状态扁平化（只保留「祖先链全展开」的节点）。</summary>
     private void RebuildTree()
     {
+        var flat = new ObservableCollection<AssetDirNode>();
+
         void Add(AssetDirNode n, int depth)
         {
             n.Depth = depth;
-            TreeNodes.Add(n);
+            flat.Add(n);
             if (!n.IsExpanded) return;
             foreach (var c in n.Children) Add(c, depth + 1);
         }
 
-        TreeNodes.Clear();
         foreach (var root in _roots) Add(root, 0);
+
+        TreeNodes = flat;       // 一次性换源：⛔ 别 Clear + 逐项 Add（N 轮列表更新）
         OnPropertyChanged(nameof(HasTree));
     }
 
@@ -299,7 +396,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     private void SelectInitial(string? key)
     {
         var (sid, dir) = AssetBrowseService.ParseKey(key);
-        var target = _allNodes.FirstOrDefault(n => !n.IsStorageRoot && n.StorageId == sid && n.DirPath == dir)
+        var target = (sid > 0 ? _nodeByKey.GetValueOrDefault(DirKey(sid, dir)) : null)
                      ?? _allNodes.FirstOrDefault(n => !n.IsStorageRoot && n.TotalCount > 0)
                      ?? _allNodes.FirstOrDefault(n => !n.IsStorageRoot);
 
@@ -330,10 +427,13 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             return;
         }
 
-        foreach (var n in _allNodes) n.IsSelected = ReferenceEquals(n, node);
+        SetSelectedDirNode(node);
         SelectedNode = node;
-        ExpandAncestors(node);
-        RebuildTree();
+
+        // 🔴 只在展开状态真的变了才重建树：树不虚拟化，重建 = 全部可见节点销毁 + 重建容器，
+        // 已展开很多目录时点一下就是几秒白等。
+        if (ExpandAncestors(node)) RebuildTree();
+
         BuildCrumbs();
 
         _io.Settings.LastBrowseFolder = AssetBrowseService.KeyOf(node);
@@ -343,23 +443,35 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         StatusText = StatusSummary();
     }
 
-    private void ExpandAncestors(AssetDirNode node)
+    /// <summary>切节点高亮：只动「旧 + 新」两个节点，⛔ 别遍历 <see cref="_allNodes"/> 逐个写。</summary>
+    private void SetSelectedDirNode(AssetDirNode node)
     {
+        if (ReferenceEquals(_selectedDirNode, node)) return;
+        if (_selectedDirNode != null) _selectedDirNode.IsSelected = false;
+        _selectedDirNode = node;
+        node.IsSelected = true;
+    }
+
+    private AssetDirNode? _selectedDirNode;
+
+    /// <summary>把目标节点的祖先链展开；返回**是否有节点的展开状态被改动**（调用方据此决定要不要重建树）。</summary>
+    private bool ExpandAncestors(AssetDirNode node)
+    {
+        var changed = false;
         var cur = ParentOf(node);
         while (cur != null)
         {
-            cur.IsExpanded = true;
+            if (!cur.IsExpanded) { cur.IsExpanded = true; changed = true; }
             cur = cur.IsStorageRoot ? null : ParentOf(cur);
         }
+        return changed;
     }
 
     private AssetDirNode? ParentOf(AssetDirNode node)
     {
         if (node.IsStorageRoot) return null;
-        var root = _roots.FirstOrDefault(r => r.StorageId == node.StorageId);
-        if (node.DirPath.Length == 0) return root;
-        return _allNodes.FirstOrDefault(n => !n.IsStorageRoot && n.StorageId == node.StorageId
-                                             && n.DirPath == AssetService.ParentDir(node.DirPath));
+        if (node.DirPath.Length == 0) return _roots.FirstOrDefault(r => r.StorageId == node.StorageId);
+        return _nodeByKey.GetValueOrDefault(DirKey(node.StorageId, AssetService.ParentDir(node.DirPath)));
     }
 
     [RelayCommand]
@@ -371,8 +483,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         if (parent == null) return;
         // 上一级是存储源抬头（不可承载文件）⇒ 落到它的「（根目录）」
         if (parent.IsStorageRoot)
-            parent = _allNodes.FirstOrDefault(n => !n.IsStorageRoot && n.StorageId == parent.StorageId && n.DirPath.Length == 0)
-                     ?? parent;
+            parent = _nodeByKey.GetValueOrDefault(DirKey(parent.StorageId, "")) ?? parent;
         SelectNode(parent);
     }
 
@@ -428,13 +539,20 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     protected override void RefreshView() => ApplyView();
 
+    /// <summary>当前目录的行数超过它 ⇒ 筛选 / 排序先丢后台（文化比较器在几万行上是秒级）。</summary>
+    private const int SyncSortThreshold = 2000;
+
     private void ApplyView()
     {
+        var version = ++_viewVersion;          // 作废上一批还没填完的卡
+        var thumbCt = BeginThumbBatch();        // 上一批的缩略图解码一并取消
         Items.Clear();
         _dirCount = 0;
 
-        if (SelectedNode == null)
+        var node = SelectedNode;
+        if (node == null)
         {
+            IsBusy = false;
             TotalCount = 0;
             _hasMissingThumbs = false;
             OnPropertyChanged(nameof(CanGenerateThumbs));
@@ -442,55 +560,127 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             return;
         }
 
-        var dirRows = _entries
-            .Where(e => e.Row.StorageId == SelectedNode.StorageId && e.Dir == SelectedNode.DirPath)
-            .ToList();
+        // 只取当前目录的桶（⛔ 不扫全部位置行）
+        var dirRows = RowsOf(node.StorageId, node.DirPath);
         _dirCount = dirRows.Count;
 
-        IEnumerable<BrowseEntry> q = dirRows;
         var type = FilterType?.Value ?? "";
-        if (type.Length > 0) q = q.Where(e => string.Equals(e.Row.Type, type, StringComparison.Ordinal));
-        if (!string.IsNullOrWhiteSpace(SearchText)) q = q.Where(e => AssetService.MatchesKeyword(e.Row, SearchText));
+        var search = SearchText;
 
-        var list = SortEntries(q).ToList();
+        if (dirRows.Count <= SyncSortThreshold)
+        {
+            ApplyPage(FilterAndSort(dirRows, type, search, SortColumn, SortDescending), version, thumbCt);
+            return;
+        }
 
+        // 大目录：筛选 + 排序（`StringComparer.CurrentCulture` 逐项比较）挪出 UI 线程，
+        // 回来再填卡；期间又切目录 / 改筛选 ⇒ version 对不上，结果直接作废。
+        IsBusy = true;      // 空态文案换成「正在…」，别让用户看到一瞬的空白目录
+        _ = ApplyLargeDirAsync(dirRows, type, search, SortColumn, SortDescending, version, thumbCt);
+    }
+
+    private async Task ApplyLargeDirAsync(
+        IReadOnlyList<BrowseEntry> dirRows, string type, string search,
+        string? sortColumn, bool sortDescending, int version, CancellationToken thumbCt)
+    {
+        List<BrowseEntry> list;
+        try
+        {
+            list = await Task.Run(() => FilterAndSort(dirRows, type, search, sortColumn, sortDescending))
+                               .ConfigureAwait(true);
+        }
+        catch { return; }   // 后台算失败 ⇒ 保持空列表，⛔ 不把异常抛到 UI
+
+        if (version != _viewVersion) return;
+        ApplyPage(list, version, thumbCt);
+    }
+
+    /// <summary>把算好的当前目录行填成当前页（⛔ 只做 UI 侧的事，筛选排序已在 <see cref="FilterAndSort"/> 完成）。</summary>
+    private void ApplyPage(List<BrowseEntry> list, int version, CancellationToken thumbCt)
+    {
+        if (version != _viewVersion) return;
+
+        IsBusy = false;
         TotalCount = list.Count;
         var before = PageIndex;
         ClampPageIndex();
         if (PageIndex != before) return;   // 页码收敛后已按新页重取，⛔ 外层别再取一遍
 
+        var width = IconSize;
         var offset = (long)(PageIndex - 1) * PageSize;
         var page = list.Skip((int)Math.Min(offset, int.MaxValue)).Take(PageSize).ToList();
+        var tiles = page.Select(e => new AssetTile(e.Row, e.LocationId, e.Dir, width)).ToList();
 
-        foreach (var e in page) Items.Add(new AssetTile(e.Row, e.LocationId, e.Dir, IconSize));
-
-        ReconcileSelection();
-        RefreshMissingThumbFlag(dirRows);   // 🔴 逐个 File.Exists 会碰磁盘 ⇒ 放后台，⛔ 别卡在切目录的这 200ms 里
+        FillChunk(tiles, 0, version, thumbCt, width);   // 首屏同步填一屏，剩余后台续
 
         SyncChoiceSelection();
         UpdateHeaders();
         NotifyItemsChanged();
         OnPropertyChanged(nameof(CanGenerateThumbs));
 
-        LoadThumbs();
+        // 🔴 逐个 File.Exists 会碰磁盘 ⇒ 放后台，⛔ 别卡在切目录的这 200ms 里
+        if (SelectedNode != null) RefreshMissingThumbFlag(RowsOf(SelectedNode.StorageId, SelectedNode.DirPath));
     }
 
-    private List<BrowseEntry> SortEntries(IEnumerable<BrowseEntry> rows)
+    /// <summary>按类型 / 搜索过滤 + 排序（纯 CPU，可在后台线程跑）。</summary>
+    private static List<BrowseEntry> FilterAndSort(
+        IEnumerable<BrowseEntry> rows, string type, string search, string? sortColumn, bool sortDescending)
     {
-        var key = string.IsNullOrEmpty(SortColumn) ? "Name" : SortColumn;
+        IEnumerable<BrowseEntry> q = rows;
+        if (type.Length > 0) q = q.Where(e => string.Equals(e.Row.Type, type, StringComparison.Ordinal));
+        if (!string.IsNullOrWhiteSpace(search)) q = q.Where(e => AssetService.MatchesKeyword(e.Row, search));
+        return SortEntries(q, sortColumn, sortDescending);
+    }
+
+    /// <summary>
+    /// 分批填卡：一次最多 <see cref="TileChunkSize"/> 张，剩下的按 <see cref="DispatcherPriority.Background"/> 续上。
+    /// <para>🔴 为什么不在循环里一次 Add 完：每 Add 一项 <c>ListBox</c> 就建容器 + 量布局 + 起缩略图解码，
+    /// 一页 500 张会让切目录僵住好几秒；分批后第一屏立刻出现，用户已经能点、能滚。</para>
+    /// <para>批次用 <paramref name="version"/> 作废：中途切目录 / 翻页 / 换尺寸 ⇒ 旧批直接返回，⛔ 不往新列表里塞旧卡。</para>
+    /// </summary>
+    private void FillChunk(List<AssetTile> tiles, int from, int version, CancellationToken thumbCt, int width)
+    {
+        if (version != _viewVersion) return;
+
+        var to = Math.Min(from + TileChunkSize, tiles.Count);
+        for (var i = from; i < to; i++)
+        {
+            var tile = tiles[i];
+            Items.Add(tile);
+            if (tile.WantsThumb) _ = AssignThumbAsync(tile, width, thumbCt);   // 并发闸在缓存里（4）
+        }
+
+        if (to >= tiles.Count)
+        {
+            ReconcileSelection();   // 全部到位后再裁选中（⛔ 别在第一批就裁，会把还不存在的行丢掉）
+            return;
+        }
+
+        if (from == 0 && Selected == null && Items.Count > 0)
+            Selected = Items[0];    // 详情卡先有内容可显示，选中态等收尾统一认领
+
+        Dispatcher.UIThread.Post(
+            () => FillChunk(tiles, to, version, thumbCt, width),
+            DispatcherPriority.Background);
+    }
+
+    private static List<BrowseEntry> SortEntries(IEnumerable<BrowseEntry> rows, string? sortColumn, bool sortDescending)
+    {
+        var key = string.IsNullOrEmpty(sortColumn) ? "Name" : sortColumn;
+        var desc = sortDescending;
         IOrderedEnumerable<BrowseEntry> ordered = key switch
         {
-            "Type" => SortDescending ? rows.OrderByDescending(e => e.Row.TypeText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.TypeText, StringComparer.CurrentCulture),
-            "Size" => SortDescending ? rows.OrderByDescending(e => e.Row.Size) : rows.OrderBy(e => e.Row.Size),
-            "Modified" => SortDescending ? rows.OrderByDescending(e => e.Row.Mtime ?? "") : rows.OrderBy(e => e.Row.Mtime ?? ""),
-            "Storage" => SortDescending ? rows.OrderByDescending(e => e.Row.StorageName, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.StorageName, StringComparer.CurrentCulture),
-            "Duration" => SortDescending ? rows.OrderByDescending(e => e.Row.DurationSeconds) : rows.OrderBy(e => e.Row.DurationSeconds),
-            "Resolution" => SortDescending ? rows.OrderByDescending(e => e.Row.ResolutionText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.ResolutionText, StringComparer.CurrentCulture),
-            "Codec" => SortDescending ? rows.OrderByDescending(e => e.Row.CodecText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.CodecText, StringComparer.CurrentCulture),
-            "Tags" => SortDescending ? rows.OrderByDescending(e => e.Row.TagsText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.TagsText, StringComparer.CurrentCulture),
-            "Categories" => SortDescending ? rows.OrderByDescending(e => e.Row.CategoriesText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.CategoriesText, StringComparer.CurrentCulture),
-            "Collections" => SortDescending ? rows.OrderByDescending(e => e.Row.CollectionsText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.CollectionsText, StringComparer.CurrentCulture),
-            _ => SortDescending ? rows.OrderByDescending(e => e.Row.Name, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.Name, StringComparer.CurrentCulture)
+            "Type" => desc ? rows.OrderByDescending(e => e.Row.TypeText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.TypeText, StringComparer.CurrentCulture),
+            "Size" => desc ? rows.OrderByDescending(e => e.Row.Size) : rows.OrderBy(e => e.Row.Size),
+            "Modified" => desc ? rows.OrderByDescending(e => e.Row.Mtime ?? "") : rows.OrderBy(e => e.Row.Mtime ?? ""),
+            "Storage" => desc ? rows.OrderByDescending(e => e.Row.StorageName, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.StorageName, StringComparer.CurrentCulture),
+            "Duration" => desc ? rows.OrderByDescending(e => e.Row.DurationSeconds) : rows.OrderBy(e => e.Row.DurationSeconds),
+            "Resolution" => desc ? rows.OrderByDescending(e => e.Row.ResolutionText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.ResolutionText, StringComparer.CurrentCulture),
+            "Codec" => desc ? rows.OrderByDescending(e => e.Row.CodecText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.CodecText, StringComparer.CurrentCulture),
+            "Tags" => desc ? rows.OrderByDescending(e => e.Row.TagsText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.TagsText, StringComparer.CurrentCulture),
+            "Categories" => desc ? rows.OrderByDescending(e => e.Row.CategoriesText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.CategoriesText, StringComparer.CurrentCulture),
+            "Collections" => desc ? rows.OrderByDescending(e => e.Row.CollectionsText, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.CollectionsText, StringComparer.CurrentCulture),
+            _ => desc ? rows.OrderByDescending(e => e.Row.Name, StringComparer.CurrentCulture) : rows.OrderBy(e => e.Row.Name, StringComparer.CurrentCulture)
         };
         return ordered.ThenBy(e => e.LocationId).ToList();
     }
@@ -533,7 +723,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
         var missing = 0;
         if (SelectedNode != null)
-            missing = _entries.Count(e => e.Row.StorageId == SelectedNode.StorageId && e.Dir == SelectedNode.DirPath && e.Row.IsMissing);
+            missing = RowsOf(SelectedNode.StorageId, SelectedNode.DirPath).Count(e => e.Row.IsMissing);
 
         var text = $"{dir}：{TotalCount} 项";
         if (_dirCount != TotalCount) text += $"（目录共 {_dirCount} 项，已筛选）";
@@ -592,6 +782,12 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     }
 
     partial void OnIconSizeChanged(int value) => SyncChoiceSelection();
+
+    partial void OnIsBusyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(EmptyText));
+        OnPropertyChanged(nameof(HasItems));
+    }
 
     partial void OnSelectedNodeChanged(AssetDirNode? value)
     {
@@ -688,18 +884,23 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     // ==================== 缩略图 ====================
 
-    private void LoadThumbs()
+    /// <summary>起一批新的缩略图解码（取消上一批）。只取消不 Dispose：正在等信号量的任务还握着这个 token。</summary>
+    private CancellationToken BeginThumbBatch()
     {
-        // 只取消不 Dispose：正在等待的信号量/任务还握着这个 token（Dispose 后注册会抛 ObjectDisposedException）
         _thumbCts?.Cancel();
         _thumbCts = new CancellationTokenSource();
-        var ct = _thumbCts.Token;
+        return _thumbCts.Token;
+    }
 
+    /// <summary>给当前已有的全部卡片补缩略图（生成完成后重放用）。</summary>
+    private void LoadThumbs()
+    {
+        var ct = BeginThumbBatch();
         var width = IconSize;
         foreach (var tile in Items)
         {
             if (!tile.WantsThumb) continue;
-            _ = AssignThumbAsync(tile, width, ct);   // 并发闸在缓存里（4）；⛔ 不要在这里串行 await 120 张
+            _ = AssignThumbAsync(tile, width, ct);   // ⛔ 不要在这里串行 await 120 张
         }
     }
 
@@ -722,19 +923,9 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     }
 
     /// <summary>本目录里有没有「缺缩略图」的视频 / 图片（决定工具条按钮可用性）。后台算，结果回投 UI 线程。</summary>
-    private void RefreshMissingThumbFlag(List<BrowseEntry> list)
+    private void RefreshMissingThumbFlag(IReadOnlyList<BrowseEntry> list)
     {
         var version = ++_thumbScanVersion;
-
-        var paths = new List<string>();
-        foreach (var e in list)
-            if (WantsThumb(e.Row)) paths.Add(_thumbGen.ThumbPathFor(e.Row.FilePath));
-
-        if (paths.Count == 0)
-        {
-            SetMissingThumbs(false, version);
-            return;
-        }
 
         _ = Task.Run(async () =>
         {
@@ -745,8 +936,14 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
                 await Task.Delay(180).ConfigureAwait(false);
                 if (version != _thumbScanVersion) return;
 
-                foreach (var p in paths)
-                    if (!File.Exists(p)) { missing = true; break; }
+                // 拼缩略图路径也是 O(目录行数) 的字符串活 ⇒ 一起在后台
+                foreach (var e in list)
+                {
+                    if (!WantsThumb(e.Row)) continue;
+                    if (File.Exists(_thumbGen.ThumbPathFor(e.Row.FilePath))) continue;
+                    missing = true;
+                    break;
+                }
             }
             catch { /* 盘符掉线 / 权限不足 ⇒ 当作没有缺口 */ }
             Dispatcher.UIThread.Post(() => SetMissingThumbs(missing, version));
@@ -769,9 +966,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         if (SelectedNode == null) { StatusText = "先在左边选一个目录。"; return; }
 
         var node = SelectedNode;
-        var candidates = _entries
-            .Where(e => e.Row.StorageId == node.StorageId && e.Dir == node.DirPath && WantsThumb(e.Row))
-            .ToList();
+        var candidates = RowsOf(node.StorageId, node.DirPath).Where(e => WantsThumb(e.Row)).ToList();
         if (candidates.Count == 0) { StatusText = "这个目录里没有视频 / 图片（缩略图只对这两类生成）。"; return; }
 
         _queue.Enqueue($"生成缩略图（{node.Name}）", async (ct, p) =>
@@ -811,8 +1006,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
                 LoadThumbs();
                 // 只重算**本目录**的缺口标记（按钮只管当前目录）
                 if (SelectedNode != null)
-                    RefreshMissingThumbFlag(_entries.Where(e => e.Row.StorageId == SelectedNode.StorageId
-                                                               && e.Dir == SelectedNode.DirPath).ToList());
+                    RefreshMissingThumbFlag(RowsOf(SelectedNode.StorageId, SelectedNode.DirPath));
             });
         });
 

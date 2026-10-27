@@ -47,6 +47,9 @@ public partial class AssetDirNode : ObservableObject
 
     [ObservableProperty] private bool _isSelected;
 
+    /// <summary>
+    /// 是否展开（新建节点默认展开：本页树没有「点箭头展开」的交互，只有「↕ 展开全部 / 折叠全部」）。
+    /// </summary>
     [ObservableProperty] private bool _isExpanded = true;
 
     public bool HasChildren => Children.Count > 0;

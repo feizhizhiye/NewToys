@@ -82,6 +82,13 @@ public partial class FavoritesViewModel : ObservableObject, IStatusProvider
             return;
         }
 
+        // 「打开一个窗口」类（start … / *.msc / *.cpl / ms-settings: / explorer …）：不等结束，否则整个列表变灰。
+        if (SystemCommandLauncher.TryStartWindowCommand(item.Command, out var openMsg))
+        {
+            StatusText = openMsg.Length > 0 ? openMsg : $"已打开「{item.Title}」（不等待窗口关闭）。";
+            return;
+        }
+
         IsBusy = true;
         StatusText = "正在运行：" + item.Title + " …";
         try

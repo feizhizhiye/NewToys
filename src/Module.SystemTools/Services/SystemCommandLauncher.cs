@@ -126,4 +126,71 @@ public sealed class SystemCommandLauncher : ISystemCommandLauncher
         wt = "wt.exe";
         return true;
     }
+
+    /// <summary>
+    /// 「打开一个窗口」类命令：判定 + 用 ShellExecute 直接打开，**不等待窗口关闭**。
+    /// <para>🔴 为什么必须单独走这条路：`cmd /c diskmgmt.msc` 里 cmd 会**一直等到 mmc 关闭**，
+    /// 捕获式执行（<c>ScriptRunner.RunCommandAsync</c>）就卡在 <c>WaitForExit</c>；
+    /// 而「▶ 运行」绑的是同一个 <c>AsyncRelayCommand</c>（默认不并发）⇒ 窗口开着期间**全表按钮变灰**，
+    /// 超时后还会 <c>Kill(entireProcessTree)</c> 把用户刚打开的窗口杀掉。</para>
+    /// <para>判定只覆盖「起窗口」的形态（<c>start …</c> / <c>*.msc</c> / <c>*.cpl</c> / <c>ms-settings:</c> /
+    /// <c>explorer</c> / <c>taskmgr</c> / <c>control</c> / <c>regedit</c> / <c>msconfig</c>）；其余命令照旧捕获输出。</para>
+    /// </summary>
+    /// <returns>命中返回 true（<paramref name="message"/> 为状态栏文案）；未命中返回 false，调用方走捕获式执行。</returns>
+    public static bool TryStartWindowCommand(string? command, out string message)
+    {
+        message = "";
+        var target = NormalizeWindowTarget(command);
+        if (target.Length == 0) return false;
+
+        try
+        {
+            // 🔴 必须拆成 FileName + Arguments：`ShellExecute` 不会把整串当命令行解析，
+            //    直接把 `explorer.exe C:\x` 塞进 FileName 会报「找不到文件」。
+            var (file, args) = SplitTarget(target);
+            var p = Process.Start(new ProcessStartInfo { FileName = file, Arguments = args, UseShellExecute = true });
+            message = p is null ? "⚠ 打开失败：系统没有创建进程。" : "";
+        }
+        catch (Exception ex)
+        {
+            message = "⚠ 打开失败：" + ex.Message;
+        }
+        return true;
+    }
+
+    /// <summary>把「目标 + 参数」拆成两段（首个引号串优先，其次按第一个空格）。</summary>
+    private static (string File, string Args) SplitTarget(string target)
+    {
+        target = (target ?? "").Trim();
+        if (target.Length == 0) return ("", "");
+        if (target[0] == '"')
+        {
+            var end = target.IndexOf('"', 1);
+            if (end > 0) return (target.Substring(1, end - 1), target.Substring(end + 1).Trim());
+        }
+        var sp = target.IndexOf(' ');
+        return sp < 0 ? (target, "") : (target.Substring(0, sp), target.Substring(sp + 1).Trim());
+    }
+
+    /// <summary>命令文本 → 可直接交给 ShellExecute 的目标；不属于「起窗口」类 ⇒ 空串。</summary>
+    private static string NormalizeWindowTarget(string? command)
+    {
+        var c = (command ?? "").Trim();
+        if (c.Length == 0) return "";
+        var lower = c.ToLowerInvariant();
+
+        // `start …` 一律当「分离启动」：把 start 与它的空标题（""）剥掉，剩下的交给 shell
+        if (lower.StartsWith("start "))
+        {
+            c = c.Substring("start ".Length).Trim();
+            if (c.StartsWith("\"\"")) c = c.Substring(2).Trim();
+            if (c.Length > 1 && c.StartsWith("\"") && c.EndsWith("\"")) c = c.Substring(1, c.Length - 2);
+            return c;
+        }
+
+        if (lower.Contains(".msc") || lower.Contains(".cpl") || lower.Contains("ms-settings:")) return c;
+        if (lower.StartsWith("explorer")) return c;
+        if (lower is "taskmgr" or "control" or "regedit" or "msconfig") return c;
+        return "";
+    }
 }

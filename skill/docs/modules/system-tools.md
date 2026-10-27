@@ -42,7 +42,7 @@
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| ▶ 运行 | 行内按钮 / 行右键 / 工具条 | 普通项走 Core `ScriptRunner` 静默跑 + 捕获输出；**`NeedAdmin` 项弹 UAC 提权执行**（**优先 Windows 终端** `wt.exe <命令>`，没装 WT 才回退系统终端 conhost；跑完不自动关；UAC 取消则不执行） | 超时用设置页 `CommandTimeoutSeconds`（5~300，默认 30）；提权路忽略「隐藏终端窗口」开关（必须可见） |
+| ▶ 运行 | 行内按钮 / 行右键 / 工具条 | **分两类**：① **起窗口类**（`start …` / `*.msc` / `*.cpl` / `ms-settings:` / `explorer` / `taskmgr` / `control` / `regedit` / `msconfig`）⇒ `ShellExecute` 直接打开，**不等待窗口关闭**、不占用 `IsBusy`；② 其余命令 ⇒ Core `ScriptRunner` 静默跑 + 捕获输出。**`NeedAdmin` 项弹 UAC 提权执行**（**优先 Windows 终端** `wt.exe <命令>`，没装 WT 才回退系统终端 conhost；跑完不自动关；UAC 取消则不执行） | 超时用设置页 `CommandTimeoutSeconds`（5~300，默认 30），只对 ② 生效；提权路忽略「隐藏终端窗口」开关（必须可见） |
 | 增 / 改 / 删 | 工具条 ＋ / 详情卡 / 行右键 | 直接落 `config\system\commands.json`（无保存按钮） | 删除**二次确认**（`DialogHooks`） |
 | 收藏 | 工具条 ★ / 行右键 | 置 `IsFavorite` ⇒ 收藏夹页出现 | 只影响本模块条目，⛔ 与 Core `IFavoritesService` 无关 |
 | 复制命令 | 工具条 📋 / 行右键 | 复制到剪贴板 | `NeedAdmin` 的项运行时也自动复制 |
@@ -74,7 +74,7 @@
 | 全部升级 | ⬆⬆ 全部升级 | 所有可升级包升到最新 | 已锁定跳过；执行前确认一次 |
 | 锁定 / 解除 | 行右键 🔒 | Pin / Unpin（暂停更新） | — |
 | 详情 / 主页 / 在线索引 | 行右键 🔎 / 🌐 / 🔗 | 读 `winget show` / 开主页 / 开 winget.run | 详情联网失败 ⇒ 状态栏提示，⛔ 不抛 |
-| 导出 / 导入已装清单 | 工具条 📤 / 📥 | json（`PackageExportItem`：Id / Name / Version） | 默认目录 = 当前配置档 `data\` |
+| 导出 / 导入已装清单 | 工具条 📤 / 📥 | json（`PackageExportItem`：Id / Name / Version） | 默认目录 = 当前配置档 `store\`（本模块无自有子目录） |
 | 🔴 已删除（NT-096） | — | 工具条 `集合 ▾`、行右键 `📥 加入集合` **都不再存在** | 原逻辑写的是脚本库 `script.json`（跨模块依赖，模块禁互引）；已存「软件包」类集合仍可在集合页看到并发送回本页 |
 
 ### 系统工具设置 `settings-system`（2 节）
@@ -134,8 +134,9 @@
 6. **软件包集合已断链**：页内「集合」入口删除后，`ScriptCollectionKind.Package` 的成员只能从集合页维护；`PageKey` 映射仍指向 `script-packages`（Key 未变 ⇒ 跳转仍通）。
 7. **测试引用**：`FixedWidthTable` / `TsvRows` / `PackageOutputParser` 是 internal，靠本程序集的 `InternalsVisibleTo("NewToys.Tests")`；⛔ 改回 public。
 8. 🔴🔴 **组键不能叫 `system`**（2026-10-23 踩坑）：`system` 是 Shell 的 `isHome:true` **隐藏宿主组**（`ModuleLoader.HostGroupKey` / `AppSettingsRegistration.HiddenGroupKey`），应用级设置的 8 个节锚点 + 功能清单页挂它名下。`RegisterModule` 遇同名键会**复用该组**并覆盖 `Title/Order/IsHome` + 补登暂存项 ⇒ 那 8 个设置页直接渲染进「系统工具」。本模块组键 = **`system-tools`**（⛔ 页 Key 不是组键，页 Key 一律未动）。
-9. **导入导出不走对话框**（NT-097 起仍是固定路径）：命令库 📤/📥 固定读写数据文件同目录的 `commands-export.json`；⛔ 别照抄脚本库的 `DialogHooks` 版（那套不在本卡范围）。
-10. 🔴🔴 **View 与 VM 必须同名对**（`XxxView` ↔ `XxxViewModel`，2026-10-23 踩坑）：Shell 的 `ResolveViewModel` 按约定从 View 名反查 VM 类名，**对不上 ⇒ `view.DataContext = null` ⇒ 整页绑定静默失效**——症状 = 页面只剩静态文本（如只剩表头「操作」二字）、工具条 / 列表 / 空态全无、**无报错无日志**。NT-091 平移命令库时 VM 名没跟着 View 改（`SystemCommandListViewModel` vs `SystemCommandLibraryView`）⇒ 该页自平移起就不渲染，NT-097 改名 `SystemCommandLibraryViewModel` 修复。新增 / 改名页面后必须核对这一对。
+9. 🔴 **命令库点「▶ 运行」后所有行一起灰掉 = 把「打开窗口」当成了「跑命令」**：`cmd /c diskmgmt.msc` 里 cmd 会**一直等到窗口关闭**（`start ms-settings:` 则是孙进程占住 stdout/stderr 管道等不到 EOF），捕获式执行卡在 `WaitForExit` / 读取；而「▶ 运行」绑的是同一个 `RunCommand`（`AsyncRelayCommand` 默认不并发）⇒ 窗口开着期间全表禁用，超时后还会 `Kill(entireProcessTree)` 把用户刚开的窗口杀掉。**修法 = 起窗口类命令改走 `SystemCommandLauncher.TryStartWindowCommand`（`ShellExecute` 直接打开、不等待、不占 `IsBusy`）**；`ProcessRunner.OutputDrainGrace`（退出后最多再读 500ms，见 `framework.md` §6.7）只是兜住采集路里同类的管道占用。⛔ 不要把整个「运行」改成 fire-and-forget —— ② 类命令（winget / reg / netsh）仍需退出码与失败提示。
+10. **导入导出不走对话框**（NT-097 起仍是固定路径）：命令库 📤/📥 固定读写数据文件同目录的 `commands-export.json`；⛔ 别照抄脚本库的 `DialogHooks` 版（那套不在本卡范围）。
+11. 🔴🔴 **View 与 VM 必须同名对**（`XxxView` ↔ `XxxViewModel`，2026-10-23 踩坑）：Shell 的 `ResolveViewModel` 按约定从 View 名反查 VM 类名，**对不上 ⇒ `view.DataContext = null` ⇒ 整页绑定静默失效**——症状 = 页面只剩静态文本（如只剩表头「操作」二字）、工具条 / 列表 / 空态全无、**无报错无日志**。NT-091 平移命令库时 VM 名没跟着 View 改（`SystemCommandListViewModel` vs `SystemCommandLibraryView`）⇒ 该页自平移起就不渲染，NT-097 改名 `SystemCommandLibraryViewModel` 修复。新增 / 改名页面后必须核对这一对。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

@@ -264,6 +264,14 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
             return;
         }
 
+        // 「打开一个窗口」类（start … / *.msc / *.cpl / ms-settings: / explorer …）：直接 shell 打开、**不等结束**。
+        // 走捕获路的话 cmd 会等到窗口关闭，共用的 RunCommand 一直 IsRunning ⇒ 全表按钮变灰（见 launcher 注释）。
+        if (SystemCommandLauncher.TryStartWindowCommand(item.Command, out var openMsg))
+        {
+            StatusText = openMsg.Length > 0 ? openMsg : $"已打开「{item.Title}」（不等待窗口关闭）。";
+            return;
+        }
+
         IsBusy = true;
         StatusText = "正在运行：" + item.Title + " …";
         try

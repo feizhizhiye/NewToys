@@ -50,12 +50,16 @@ public class MediaAssetsModule : IModule
         services.AddSingleton<Services.UserDataExport>();
         // 多库融合（ATTACH 只读合并 + VACUUM INTO 另存）
         services.AddSingleton<Services.AssetMergeService>();
+        // 资产浏览（左树 + 双视图）：目录聚合 + 缩略图 LRU 缓存
+        services.AddSingleton<Services.AssetBrowseService>();
+        services.AddSingleton<Services.AssetThumbCache>();
 
         // 本模块自有库的 schema 贡献者（DDL 仍在 AssetDatabase 构造里，贡献者只负责「库打开时就建表」）
         services.AddSingleton<ILibrarySchemaContributor, Services.MediaAssetsSchemaContributor>();
 
         // ===== 页面 View / VM（骨架：全是空页面；页面实现 ~022 依次落地） =====
         services.AddTransient<Views.AssetAllView>();        services.AddTransient<ViewModels.AssetAllViewModel>();
+        services.AddTransient<Views.AssetBrowseView>();     services.AddTransient<ViewModels.AssetBrowseViewModel>();
         services.AddTransient<Views.AssetTagsView>();       services.AddTransient<ViewModels.AssetTagsViewModel>();
         services.AddTransient<Views.AssetCategoriesView>(); services.AddTransient<ViewModels.AssetCategoriesViewModel>();
         services.AddTransient<Views.AssetCollectionsView>(); services.AddTransient<ViewModels.AssetCollectionsViewModel>();
@@ -82,6 +86,10 @@ public class MediaAssetsModule : IModule
         //    （用户 2026-10-16 拍板，菜单 Key 铁律的一次例外）—— 类型切换改由「全部资产」页**筛选栏的类型控件**承担，
         //    列集合 / 列表数据 / 详情卡字段集 / 状态栏前缀随之切换（需求 §6.6「类型切换」）。
         menu.RegisterFunction<Views.AssetAllView>(GroupKey, "assets-all", "全部资产", "🗂", 0, "混合视图：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源");
+        // 资产浏览（需求 §6.6.1）：按**磁盘位置**翻 —— 左目录树 → 右「图标卡 / 详细信息」双视图 → 双击打开。
+        // 与「全部资产」分工：那边按元数据找（搜索 / 标签 / 筛选），这里按文件夹翻。
+        menu.RegisterFunction<Views.AssetBrowseView>(GroupKey, "assets-browse", "资产浏览", "📁", 1,
+            "资源管理器形态：目录树 + 图标卡 / 详细信息双视图；双击用默认程序打开；缩略图按目录生成");
         menu.RegisterFunction<Views.AssetTagsView>(GroupKey, "assets-tags", "标签管理", "🏷", 6, "标签：名称 / 命名空间 / 颜色 / 使用数；支持合并与清理未使用");
         menu.RegisterFunction<Views.AssetCategoriesView>(GroupKey, "assets-categories", "分类管理", "🗃", 7, "分类树 + 成员列表（本模块唯一的非列表页）");
         menu.RegisterFunction<Views.AssetCollectionsView>(GroupKey, "assets-collections", "集合管理", "📦", 8, "手动 / 智能集合；成员可拖拽排序");

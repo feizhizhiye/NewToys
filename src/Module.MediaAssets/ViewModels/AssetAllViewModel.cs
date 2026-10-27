@@ -134,25 +134,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     protected override string PageKey => "assets-all";
 
-    protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
-    {
-        // Sample 要给"典型内容宽度"（v3.22）：示例宽 ≤ 表头宽的列会被锁成表头宽、不可拖
-        new("Name", "名称", "2.6*", sample: "The.Matrix.1999.1080p.mkv"),
-        new("Type", "类型", "0.8*", sample: "视频"),
-        new("Tags", "标签", "1.4*", sample: "科幻, 收藏"),
-        new("Categories", "分类", "1.2*", sample: "电影 / 动作"),
-        new("Collections", "集合", "1.2*", sample: "周末片单"),
-        new("Size", "大小", "0.9*", sample: "4.2 GB"),
-        new("Modified", "修改时间", "1.3*", sample: "2026-10-13 21:04"),
-        new("Storage", "存储源", "1.2*", sample: "移动硬盘 D"),
-
-        // 🔴 视频专属列（试点）—— 默认隐藏；v3.69 起由**筛选类型**驱动
-        //    （选「视频」时可见，⛔ 不落盘；用户右键改过的偏好优先，见 ApplyTypeColumnDefaults）。
-        //    键名 ≠ 属性名（Duration→DurationText），已在 FieldText / SortColumn 显式映射。
-        new("Duration", "时长", "0.9*", sample: "02:14:33"),
-        new("Resolution", "分辨率", "0.9*", sample: "1920×1080"),
-        new("Codec", "编码", "0.9*", sample: "h264")
-    };
+    /// <summary>列定义与「资产浏览」页**共用一份**（<see cref="AssetColumns"/>）；显隐 / 列宽仍按本页页键落盘。</summary>
+    protected override IReadOnlyList<ListColumn> Columns => AssetColumns.All;
 
     /// <summary>基类的翻页 / 排序 / 筛选变化都转到这里 —— 库态按新状态重取一页，草稿态内存重算。</summary>
     protected override void RefreshView()

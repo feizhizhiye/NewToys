@@ -3,8 +3,8 @@
 > **程序集**：`src/Module.MediaAssets`（`NewToys.MediaAssets`）
 > **模块键**：`assets` ｜ **一级菜单**：Order 50 · 图标 `IconMediaAssets`
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：✅ 稳定（7 页 + 1 设置页）
-> **最后校对**：2026-10-18（对照 `MediaAssetsModule.cs` / 文件清单 / NT-063 P2 执行记录；§2.5 对照 8 个页面 VM 的 `Toolbar` 与 `Views` 右键菜单）
+> **状态**：✅ 稳定（8 页 + 1 设置页）
+> **最后校对**：2026-10-27（NT-115 新增「资产浏览」页；对照 `MediaAssetsModule.cs` / 文件清单 / §2.5 对照 9 个页面 VM 的 `Toolbar` 与右键菜单）
 
 ---
 
@@ -14,13 +14,14 @@
 - 🔴 **`FileOperationService` = 唯一动磁盘处**；其它服务只改索引。
 - 物理删除唯一入口 = 列表右键「⛔ 从磁盘删除」（二次确认 + 任务队列 + 删索引）；详情卡 IconBar 的 🗑 只做**软删除**（移入回收站）。
 
-## 2. 当前功能（7 页 + 1 设置页）
+## 2. 当前功能（8 页 + 1 设置页）
 
 | 菜单 Key | 标题 | Order | View | 说明 |
 |---|---|---|---|---|
-| `assets-all` | 全部资产 | 0 | `AssetAllView` | **唯一资产浏览页**：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源；筛选栏内**类型切换**驱动列集合 |
+| `assets-all` | 全部资产 | 0 | `AssetAllView` | **按元数据找**：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源；筛选栏内**类型切换**驱动列集合 |
+| `assets-browse` | 资产浏览 | 1 | `AssetBrowseView` | **按磁盘位置翻**（§6.6.1）：左目录树 + 图标卡 / 详细双视图 + 双击系统关联打开；缩略图首个消费页 |
 | `assets-tags` | 标签管理 | 6 | `AssetTagsView` | 名称 / 命名空间 / 颜色 / 使用数；合并与清理未使用 |
-| `assets-categories` | 分类管理 | 7 | `AssetCategoriesView` | 分类树 + 成员列表（本模块唯一非列表页） |
+| `assets-categories` | 分类管理 | 7 | `AssetCategoriesView` | 分类树 + 成员列表（非列表页） |
 | `assets-collections` | 集合管理 | 8 | `AssetCollectionsView` | 手动 / 智能集合；成员排序 |
 | `assets-storages` | 存储源 | 9 | `AssetStoragesView` | local / removable / nas；在线状态；移除只移索引不删磁盘文件 |
 | `assets-tasks` | 任务中心 | 10 | `AssetTasksView` | 扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图：取消 / 重试 / 日志 |
@@ -66,6 +67,35 @@
 | 导出 / 导入 | `📤 导出` / `📥 导入` | 列表 JSON | 默认目录 = `store\assets\`（未建出退回 `store\`） |
 | 勾选 | 表头 `☑` 右键 → 全选 / 取消 / 反选 | 勾选状态变化 | — |
 | 详情卡编辑 | 选中 → 卡内改字段 | 收藏 / 评分 / chips **即时落盘**；文件名改完需 `✏ 应用新文件名` 才动磁盘 | ⛔ 收藏/评分不走「保存」 |
+
+### 资产浏览 `assets-browse`（资源管理器形态 · NT-115）
+
+**分工**：`assets-all` 按**元数据**找（搜索 / 标签 / 筛选），`assets-browse` 按**磁盘位置**翻（我知道它大概在哪个盘哪个文件夹）。
+🔴 目录数据**只认库里的索引**（`file_locations.relative_path` 聚合），⛔ 不实时枚举磁盘 —— NAS / 移动盘离线时枚举会卡死界面。
+
+**布局**：左「目录树」（宽 240，工具条 `◧ 目录树` 可整体收起）｜ 右「面包屑 + 双视图 + 底栏」；右侧详情卡由 Shell 统一承载（本页实现 `IDetailPanelProvider` / `IDetailCardSource`，工具条末位详情开关照旧）。
+
+工具条顺序：`▦ 图标卡 / ☰ 详细信息`（按钮组）→ 图标尺寸 `96 / 144 / 200 px`（按钮组，仅图标视图可见）→ 排序（名称 / 大小 / 修改时间 / 类型，再点同一项 = 反向）→ 类型下拉 → 搜索框 → `🖼 生成本目录缩略图` → `🔄 重读` → `↥ 上一级` → `◧ 目录树`。
+
+| 操作 | 触发 | 结果 / 状态变化 | 约束 |
+|---|---|---|---|
+| 选目录 | 点左树节点 / 面包屑任一段 | 右侧换成该目录的内容；上次选中目录落 `media-assets.json` 的 `LastBrowseFolder`，下次进页面自动回到 | 存储源节点（一级抬头）只展开 / 折叠，不承载内容；直接落在源根下的文件在「（根目录）」节点 |
+| 展开 / 折叠 | 点节点箭头（有子目录时）/「↕ 展开全部」「↕ 折叠全部」 | 左树扁平化重建 | 展开状态在页面生命周期内保持 |
+| 视图切换 | 工具条 `▦ 图标卡` / `☰ 详细信息` | 即时生效，落 `media-assets.json` 的 `BrowseViewMode`（重启恢复） | 两套视图**共用一份数据**（切视图不清选中） |
+| 图标尺寸 | 工具条 `96 / 144 / 200 px` | 卡片宽高与解码宽度一起变；落 `BrowseIconSize` | 切档整页重建，选中按位置认领 |
+| 图标卡内容 | — | 缩略图（无图 ⇒ 类型占位）+ 文件名（单行省略）+ 副行「大小 · 修改时间」 | 缩略图**只读缓存**，⛔ 浏览时现场生成；LRU 上限 300 张，按当前档位解码 |
+| 详细视图 | 表头 + 行 | 与 `assets-all` **同一套列定义**（`Models/AssetColumns.cs` 共享）；列显隐 / 列宽按本页页键 `assets-browse` 落 `config\columnlayout.json` | 视频三列（时长 / 分辨率 / 编码）默认隐藏，用表头右键开 |
+| 筛选 / 搜索 | 工具条「类型」下拉 / 搜索框 | 只在**当前目录**内过滤；搜索复用 `AssetService.MatchesKeyword`（与库态 SQL 同一套分词口径） | ⛔ 不另写一套分词 |
+| 多选 | 无修饰键 = 只选该项、`Ctrl` = 增选 / 取消、`Shift` = 连选、`Ctrl+A` = 全选当前页 | 选中真相在 VM `SelectedRows`；View 只回填 `SelectedItems` | 与 `assets-all` 同口径（code-behind 隧道阶段接管）；⛔ 无勾选列、⛔ 两套状态 |
+| 打开 | 双击卡片 / 行、`Enter`、右键「📂 打开」、详情卡「📂 打开」 | 系统关联程序打开 | 文件已不在磁盘 ⇒ 状态栏提示，不弹窗 |
+| 打开所在文件夹 | 右键 / 详情卡 | 资源管理器选中该文件 | — |
+| 重命名 | 右键「✏ 重命名…」 | 真改磁盘文件名（走任务队列 + 日志先行；同名冲突「追加序号」，⛔ 不覆盖） | 只对**单个**文件开放 |
+| 移入回收站 | `Delete` / 右键「🗑 移入回收站」 | 软删（只改库状态，⛔ 不动磁盘文件；可恢复） | 批量 + 二次确认 |
+| 从库移除 | 右键「⤫ 从库移除」 | 只删这几条**文件位置**索引（磁盘文件一个都不动）；资产没有其它位置就一起清掉 | 批量 + 二次确认 |
+| ⛔ 从磁盘删除 | 右键「⛔ 从磁盘删除…」 | 永久删除磁盘文件 + 删索引 | 唯一物理删除入口；二次确认写明「不进回收站、不可还原」；走任务队列 |
+| 生成缩略图 | 工具条 `🖼 生成本目录缩略图` | 给**当前目录**里还缺缓存的视频 / 图片逐条跑 `ThumbnailService.GenerateAsync` | 无缺口时按钮禁用；可取消、逐条报进度、单条失败不停批 |
+| 空态 | — | 目录里没有已索引资产 → 提示到「全部资产」扫描入库；筛选 / 搜索没命中 → 另一种文案 | 🔴 本页**不提供扫描 / 导入入口**（避免与 `assets-all` 抢职责） |
+| 离线 / 缺失 | — | 存储源离线在节点上标「（离线）」；位置 `missing`（文件被外部删掉）的行**标灰**（`Opacity 0.45`），资产本体在回收站的不进树 | — |
 
 ### 标签管理 `assets-tags`
 
@@ -150,13 +180,17 @@
 | `AssetImportExport` / `UserDataExport` | 列表 JSON 导入导出 / 用户数据导出（B14 缓解） |
 | `AssetNavigationStore` | 跨页导航状态（详情 → 关联页） |
 | `OperationLogService` | `operation_logs` |
+| `AssetService.Browse` | 资产浏览页的数据源：`LoadBrowseEntries()` = 按文件位置建行（非主位置也列）+ 目录派生 `DirOf`/`ParentDir` |
+| `AssetBrowseService` | 目录树聚合（存储源 → 目录层级 + 子孙计数）、`LastBrowseFolder` 键的序列化 |
+| `AssetThumbCache` | 缩略图 LRU（上限 300、并发闸 4、按档位解码；淘汰只丢引用不 Dispose） |
 
 ### 3.2 数据与配置
 
 | 位置 | 内容 | 备份 |
 |---|---|---|
 | `store\assets\assets.db` | 资产索引 13 表 + 组织维度 + `operation_logs` | ✅（`data.db` 备份节覆盖） |
-| `config\media-assets.json` | 设置（元数据 / 缩略图 / 扫描） | ✅ |
+| `config\media-assets.json` | 设置（元数据 / 缩略图 / 扫描）+ 资产浏览偏好（`BrowseViewMode` / `BrowseIconSize` / `LastBrowseFolder`；经 `MediaAssetsSettingsIO` 唯一写入通道，不另开文件） | ✅ |
+| `config\columnlayout.json` | 列显隐 / 列宽 / 详情栏开合（`assets-all` 与 `assets-browse` **各一个页键**） | — |
 
 ## 4. 关键文件
 
@@ -164,6 +198,8 @@
 |---|---|
 | 菜单注册（Key 权威源） | `MediaAssetsModule.cs` |
 | 样板列表页（列宽 / 工具条 / 筛选 / 类型切换 / 骨架） | `Views/AssetAllView.axaml(+.cs)` + `ViewModels/AssetAllViewModel.cs` |
+| 资产浏览页（树 + 双视图 + 缩略图） | `Views/AssetBrowseView.axaml(+.cs)` + `ViewModels/AssetBrowseViewModel*.cs` + `Models/AssetDirNode.cs` / `AssetTile.cs` / `BrowseParts.cs` |
+| 两页共用列定义 | `Models/AssetColumns.cs`（⛔ 各页别再各写一份） |
 | 磁盘操作 | `Services/FileOperationService.cs` + `Models/OperationLog.cs` |
 | 详情卡样板顺序 | 文件名（只读）→ 固定只读项 → 标签(分组)/分类/集合 chips → **IconBar** → 评分 chips → 描述 → 关联/提示 → 底部改名框 |
 
@@ -186,6 +222,9 @@
     - 规则：模块内所有 `DialogHooks.*Async` 一律 `ConfigureAwait(true)`（本项目 `RuleCatalogViewModel` / `VideoFileService` 同口径）；`Reload()` 自身还有一道 `Dispatcher.UIThread.CheckAccess()` 兜底。
     - 别在 `DialogHooks` 的调用点上写 `ConfigureAwait(false)` 图"性能"——它换来的是跨线程崩溃。
 13. 🔴 **批量改 `ListBox.SelectedItems` 必须先关 `AutoScrollToSelectedItem`**：`SelectingItemsControl` 默认每 `Add` 一项就把该项滚进视野（虚拟化下还要实例化容器 + 触发布局）⇒ 全选 / 大范围 `Shift` 连选上百行 = 上百次滚动，表现为「列表自己往下滚 + 界面卡死」。`AssetAllView.BulkUpdateSelection` 统一处理（临时关滚动 + `_syncingSelection` 抑制回抛 + `finally` 恢复，保证键盘方向键仍自动滚动）。
+14. 🔴 **资产浏览页的「一行」= 一个文件位置，不是资产**：同一资产在 A / B 两个目录各出现一次是正确语义 ⇒ 目录内查询 / 选中 / 计数都按 `file_locations`（`AssetService.LoadBrowseEntries` 取非主位置），⛔ 别复用 `QueryPage`（它只带**主位置**，多目录的资产会整体失踪）。
+15. 🔴 **缩略图缓存淘汰时⛔ 不许 `Dispose`**：被淘汰的 `Bitmap` 可能正被界面的 `Image` 持有，释放后下一帧渲染会崩在 Skia 里。`AssetThumbCache` 只丢引用、交给 GC；LRU 上限 300 远大于一页（≤500，默认 120），正常使用不会淘汰正在显示的图。
+16. 🔴 **目录树节点数按「子孙位置数」累加，不是 `Children.Count`**：聚合时对每条位置行从自身目录一路加到存储源根（父目录的计数 = 自己 + 全部子孙），⛔ 只在叶子上加一次（否则父目录显示 0）。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 
@@ -193,3 +232,4 @@
 |---|---|---|
 | B14 | 用户手动数据（标签/分类/集合/关联）落 `data\` 与需求 §3.5「手动数据进备份」冲突 | ✅ 已结清（NT-113：库统一落 `store\assets\assets.db`，进备份） |
 | NT-018 遗留 | 智能集合规则未实装 | 📝 未立项（沿用卡内偏差记录） |
+| NT-115 | **资产浏览页** `assets-browse`（左目录树 + 图标卡 / 详细双视图，缩略图首次接 UI） | ✅ 已交付（2026-10-27；需求 §6.6.1） |

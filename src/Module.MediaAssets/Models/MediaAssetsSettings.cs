@@ -73,6 +73,17 @@ public class MediaAssetsSettings
     /// <summary>破坏性物理操作前二次确认（强制开；设置页置灰）。</summary>
     public bool ConfirmBeforeOperation { get; set; } = true;
 
+    // ==================== 资产浏览页（assets-browse） ====================
+
+    /// <summary>视图模式：<c>tiles</c>（图标卡）/ <c>details</c>（详细信息）。</summary>
+    public string BrowseViewMode { get; set; } = "tiles";
+
+    /// <summary>图标卡尺寸档位（像素，96 / 144 / 200 三档）。</summary>
+    public int BrowseIconSize { get; set; } = 144;
+
+    /// <summary>上次选中目录（<c>存储源id|相对目录</c>；空 = 没选过，进页面落到第一个目录）。</summary>
+    public string LastBrowseFolder { get; set; } = "";
+
     // ==================== 元数据 / 缩略图 ====================
 
     /// <summary>扫描到新文件时自动提取元数据（视频走 ffprobe；图片读尺寸）。</summary>

@@ -162,15 +162,17 @@
         <!--  ==================== 全局滚动条（隐式主题） ====================
               应用层唯一实现：所有 `ScrollViewer` / 列表 / `ComboBox` 下拉自动生效，
               ⛔ 页面里不要再自写 `ScrollBar` 样式。规格：8px 槽 / 6px 圆角胶囊滑块 / 轨道透明无箭头 / 常驻不自动隐藏。
-              🔴 四条硬约束（踩过坑，改之前读完）：
+              🔴 五条硬约束（踩过坑，改之前读完）：
               ① `Track` 与 `ScrollBar` 之间**零绑定** ⇒ `Minimum` / `Maximum` / `Value` / `ViewportSize` 必须逐个
                  `TemplateBinding`；其中 `Value` 必须 `Mode=TwoWay`，单向会把 Track 拖拽时的 `SetCurrentValue` 顶回去
                  ⇒ 现象是「滑块拖不动」。
               ② `PART_PageUpButton` / `PART_PageDownButton` 必须留（`ScrollBar.ApplyTemplate` 按名取），视觉上用零尺寸 + 透明。
               ③ 滑块长度只能缩 `ViewportSize`（走 `ScrollThumbRatio`），⛔ 别用 `Thumb` 的 `ScaleTransform`：
                  Track 用同一个长度算位置 ⇒ 渲染缩放只改视觉，拖到底会空出一截。
-              ④ `AllowAutoHide=False` ⇒ `ScrollBar.IsExpanded` 恒为 true ⇒ 悬停态只认 `:pointerover`，⛔ 别用 `^[IsExpanded=true]`。  -->
+              ④ `AllowAutoHide=False` ⇒ `ScrollBar.IsExpanded` 恒为 true ⇒ 悬停态只认 `:pointerover`，⛔ 别用 `^[IsExpanded=true]`。
+              ⑤ `Track.IsDirectionReversed` 必须按方向给（竖向 true / 横向 false），否则「值增大 ⇒ 滑块上移」，滑块初始停在底部、往下滚反而往上爬。  -->
         <conv:ScrollThumbRatioConverter x:Key="ScrollThumbRatio" Ratio="0.4"/>
+        <conv:VerticalDirectionConverter x:Key="VerticalReversed"/>
 
         <ControlTheme x:Key="NewToysScrollThumb" TargetType="Thumb">
             <Setter Property="Background" Value="{DynamicResource ScrollThumbBrush}"/>
@@ -205,9 +207,11 @@
                                Maximum="{TemplateBinding Maximum}"
                                Value="{TemplateBinding Value, Mode=TwoWay}"
                                ViewportSize="{TemplateBinding ViewportSize, Converter={StaticResource ScrollThumbRatio}}"
-                               Orientation="{TemplateBinding Orientation}">
-                            <!--  ⚠️ 不绑定 `IsDirectionReversed`：`ScrollBar` 上没有这个属性（它属于 `Track`），
-                                  `Track` 默认值就是「竖 = 最小值在顶 / 横 = 最小值在左」，正是需要的行为。  -->
+                               Orientation="{TemplateBinding Orientation}"
+                               IsDirectionReversed="{TemplateBinding Orientation, Converter={StaticResource VerticalReversed}}">
+                            <!--  🔴 `IsDirectionReversed` 必须给：`Track` 垂直方向默认「值增大 ⇒ 滑块上移」，
+                                 与滚动条相反（现象：滑块初始在底部、往下滚反而往上爬）。走 `VerticalDirectionConverter`
+                                 让竖向反转、横向保持不反转。`ScrollBar` 自身没有这个属性，⛔ 不能直接 TemplateBinding 自己。  -->
                             <Track.DecreaseButton>
                                 <RepeatButton Name="PART_PageUpButton" Opacity="0" Focusable="False" IsHitTestVisible="False"
                                               MinWidth="0" MinHeight="0" Width="0" Height="0" Background="Transparent"/>

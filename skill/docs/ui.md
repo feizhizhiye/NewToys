@@ -455,6 +455,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 11. 🔴 **`AllowAutoHide=False` ⇒ `ScrollBar.IsExpanded` 恒为 `true`**（源码 `UpdateIsExpandedState`）。所以滚动条悬停态**只认 `:pointerover`**，⛔ 别用 `^[IsExpanded=true]` 选择器 —— 它会永远命中，滑块变常年强调色。
 12. 🔴 **`Track` 的属性不会自动接上 `ScrollBar`**（`ScrollBar.cs` 与 `Track` 之间零绑定，`OnThumbDragDelta` 只发 `Scroll` 事件、**不写值**）：自定义 `ScrollBar` 模板时 `Track` 的 `Minimum` / `Maximum` / `Value` / `ViewportSize` **必须逐个 `TemplateBinding`**；其中 **`Value` 必须 `Mode=TwoWay`** —— 拖拽是 `Track` 自己 `SetCurrentValue(Value)`，单向绑定会把它立刻覆盖回去 ⇒ **滑块能拖、内容纹丝不动**（2026-10-24 实锤）。`PART_PageUpButton` / `PART_PageDownButton` 两个 `RepeatButton` 也必须留（否则点轨道不翻页）。
 13. 🔴 **滑块长度要缩只能改 `Track` 的 `ViewportSize`（过 `ScrollThumbRatioConverter`），⛔ 别用 `Thumb` 的 `ScaleTransform`**：Track 用 `ViewportSize / (Maximum + ViewportSize)` 算长度、用**同一个长度**算位置 ⇒ 用 render 缩放只改视觉不改布局，滑块「居中缩」后拖到底部会空出一截，现象就是**拖不到底**（2026-10-24 实锤）。系数在 `App.axaml` 的 `ScrollThumbRatio`（默认 0.4，越小滑块越短）。
+14. 🔴 **`Track.IsDirectionReversed` 必须按方向给（竖向 `true` / 横向 `false`）**：`Track` 垂直方向默认「值增大 ⇒ 滑块**上**移」，与滚动条语义相反 ⇒ 现象是「滑块初始停在最下、往下滚反而向上爬」。`ScrollBar` 自身没有这个属性，所以模板里走 `VerticalDirectionConverter` 从 `Orientation` 转：`IsDirectionReversed="{TemplateBinding Orientation, Converter={StaticResource VerticalReversed}}"`，⛔ 别无脑 `IsDirectionReversed="True"`（会把横向滚动条反过来）。
 
 ---
 

@@ -22,6 +22,9 @@ public partial class ScanService
 
         // 🔴 一次查询把该存储源的现有位置读进内存 → 之后**匹配全在内存做**（⛔ 不 per-file SELECT）
         var index = LoadStorageIndex(storage.Id);
+
+        // 登记在其下的子目录源：它们的既有位置按完整路径先认领（⛔ 否则父源会为同一文件再建一条资产）
+        var shared = _assets.LoadOverlappingLocations(storage);
         progress?.Report(index.Count == 0
             ? $"「{storage.Name}」首次扫描：只读文件信息，不读内容（很快）"
             : $"「{storage.Name}」已在库 {index.Count} 个位置，开始校准…");
@@ -39,7 +42,7 @@ public partial class ScanService
                 job.TotalFiles++;
                 try
                 {
-                    IndexOne(storage, file, index, job, pending, touched);
+                    IndexOne(storage, file, index, shared, job, pending, touched);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)

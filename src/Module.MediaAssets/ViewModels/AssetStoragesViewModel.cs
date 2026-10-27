@@ -112,6 +112,13 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
             IsEnabledPath = nameof(IsDbAvailable),
             ToolTip = "所有存储源扫一遍（离线的自动跳过）"
         },
+        new()
+        {
+            Text = "🧹 合并重复",
+            CommandPath = nameof(MergeDuplicatesCommand),
+            IsEnabledPath = nameof(IsDbAvailable),
+            ToolTip = "同一文件因登记了父子目录而在库里有好几条资产时，并成一条（⛔ 不动磁盘文件）"
+        },
         // 🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库 + 逐个体探测在线状态
         new()
         {
@@ -309,6 +316,16 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
             return;
         }
 
+        // 与已有源互为父子 ⇒ 同一批文件会被重复扫入库（列表里同一个文件出现多行）
+        var overlap = _assets.FindOverlappingStorage(dir);
+        if (overlap != null)
+        {
+            StatusText = overlap.NewIsInside
+                ? $"「{dir}」在已登记的「{overlap.Other.Name}」（{overlap.Other.RootPath}）里面——同一批文件会被重复入库，已拒绝。"
+                : $"「{dir}」包含已登记的「{overlap.Other.Name}」（{overlap.Other.RootPath}）——两者会重复扫同一批文件，已拒绝。";
+            return;
+        }
+
         var name = Path.GetFileName(dir.TrimEnd('\\', '/'));
         if (string.IsNullOrEmpty(name)) name = dir;
 
@@ -445,6 +462,49 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
             });
         });
         StatusText = $"已把「{title}」排进任务队列——正在打开「任务中心」看进度。";
+    }
+
+    /// <summary>
+    /// 「🧹 合并重复」：同一物理路径挂在多条资产下（登记过父子目录导致）→ 并成一条，⛔ 不动磁盘。
+    /// <para>合并后保留的一条继承其余资产的标签 / 分类 / 集合 / 关联与全部文件位置。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task MergeDuplicatesAsync()
+    {
+        if (!IsDbAvailable) { StatusText = "资产库不可用。"; return; }
+        if (IsBusy) return;
+
+        var groups = _assets.CountDuplicatePaths();
+        if (groups <= 0) { StatusText = "没有重复资产（同一路径只挂在一条资产下）。"; return; }
+
+        var warn = $"发现 {groups} 组「同一个文件挂在多条资产下」的重复。\n" +
+                   "合并后每组只保留一条资产：其余资产的标签 / 分类 / 集合 / 关联与文件位置会并到保留的那条，多余的资产记录删除。\n" +
+                   "🔴 磁盘上的文件一个都不会动。继续？";
+        if (!await DialogHooks.ConfirmAsync(warn).ConfigureAwait(false)) { StatusText = "已取消。"; return; }
+
+        IsBusy = true;
+        string done;
+        try
+        {
+            var r = await Task.Run(() => _assets.MergeDuplicatePaths()).ConfigureAwait(false);
+            done = r.IsEmpty
+                ? "没有需要合并的重复资产。"
+                : $"已合并 {r.Groups} 组：删除 {r.RemovedAssets} 条重复资产，重挂 {r.MovedLocations} 个文件位置，清掉 {r.PrunedLocations} 条冗余位置（磁盘未动）。";
+        }
+        catch (Exception ex) { done = "合并失败：" + ex.Message; }
+
+        // 合并跑在线程池上 → 列表重建 / 状态栏 / IsBusy 一律回 UI 线程再做
+        try
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                Reload();
+                LoadDetail(Selected);
+                StatusText = done;
+                IsBusy = false;
+            });
+        }
+        catch { IsBusy = false; }
     }
 
     // ==================== 详情卡 ====================

@@ -69,7 +69,7 @@ public partial class ScanService
                     var dirName = Path.GetFileName(trimmed);
                     if (string.IsNullOrEmpty(dirName)) dirName = trimmed;
 
-                    var storage = _assets.FindStorageByRoot(dir) ?? new StorageSource
+                    var storage = _assets.FindCoveringStorage(dir) ?? new StorageSource
                     {
                         Name = dirName,
                         RootPath = dir,
@@ -84,6 +84,7 @@ public partial class ScanService
                     }
 
                     var index = LoadStorageIndex(storage.Id);
+                    var shared = _assets.LoadOverlappingLocations(storage);
                     var pending = new List<FileLocation>();
                     var touched = new List<long>();
 
@@ -94,7 +95,7 @@ public partial class ScanService
                         try
                         {
                             if (!File.Exists(f)) { job.ErrorCount++; continue; }
-                            IndexOne(storage, f, index, job, pending, touched);
+                            IndexOne(storage, f, index, shared, job, pending, touched);
                         }
                         catch (OperationCanceledException) { throw; }
                         catch (Exception ex)

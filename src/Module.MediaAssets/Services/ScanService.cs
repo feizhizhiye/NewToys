@@ -59,8 +59,13 @@ public partial class ScanService
             var rows = new List<AssetRow>();
             var sw = Stopwatch.StartNew();
             var lastReport = 0L;
-            var rootName = Path.GetFileName(rootPath.TrimEnd('\\', '/'));
-            if (string.IsNullOrEmpty(rootName)) rootName = rootPath;
+            // 落在已登记源里面 → 显示那个源的名字（入库时也归它，⛔ 不另建源）
+            var rootName = _assets.FindCoveringStorage(rootPath)?.Name ?? "";
+            if (string.IsNullOrEmpty(rootName))
+            {
+                rootName = Path.GetFileName(rootPath.TrimEnd('\\', '/'));
+                if (string.IsNullOrEmpty(rootName)) rootName = rootPath;
+            }
 
             foreach (var file in EnumerateFiles(rootPath, ct, recursive))
             {
@@ -217,6 +222,15 @@ public partial class ScanService
                     _assets.AddScanError(job.Id, storage.RootPath, "access", "存储源根目录不存在（离线？）");
                     job.ErrorCount++;
                     progress?.Report($"「{storage.Name}」根目录不存在，已跳过。");
+                    continue;
+                }
+
+                // 根目录落在另一个**在线**源之下：父源扫一遍就包含它，再扫子源只会把同一批文件重复入库
+                var parent = storages.FirstOrDefault(o => o.Id != storage.Id && o.Online
+                                                          && AssetService.IsUnderPath(storage.RootPath, o.RootPath));
+                if (parent != null)
+                {
+                    progress?.Report($"「{storage.Name}」的根目录在「{parent.Name}」之下，已跳过（扫父源即可覆盖；建议移除它）。");
                     continue;
                 }
 

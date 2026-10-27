@@ -56,6 +56,9 @@ public partial class AssetService
         }
         if (groups.Count == 0) return 0;
 
+        // 事务外先读一次存储源清单：事务内另开连接会和写事务抢锁；它同时用来把子目录归到覆盖它的源
+        var known = ListStorages();
+
         var done = 0;
         try
         {
@@ -68,7 +71,9 @@ public partial class AssetService
                 var dirName = Path.GetFileName(trimmed);
                 if (string.IsNullOrEmpty(dirName)) dirName = trimmed;
 
-                var storage = FindStorageByRoot(dir);
+                // 覆盖该目录的已有源（含根目录正好等于它的情况）优先：⛔ 不为子目录另建源，否则同一文件会被重复入库
+                var storage = FindCoveringStorage(known, dir);
+                var storageIsNew = storage == null;
                 if (storage == null)
                 {
                     // ⚠️ 内联登记（⛔ 不能调 UpsertStorage —— 它自己开连接，会跑出本事务）
@@ -82,10 +87,28 @@ public partial class AssetService
                     sCmd.Parameters.AddWithValue("$c", Now());
                     sCmd.Parameters.AddWithValue("$u", Now());
                     storage = new StorageSource { Id = Convert.ToInt64(sCmd.ExecuteScalar()), RootPath = trimmed, Name = dirName };
+                    known.Add(storage);          // 同批后续目录若在它之下 → 复用，⛔ 不再建源
+                }
+
+                // 同一存储源内「路径」只许入库一次：重复点「💾 加入库」/ 重复扫描预览 ⛔ 不再产生重复资产。
+                // 只在已有存储源上读一次本源的路径集合（新源必然为空，⛔ 别为此多跑一次查询）。
+                var existingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (!storageIsNew)
+                {
+                    using var pCmd = conn.CreateCommand();
+                    pCmd.Transaction = tx;
+                    pCmd.CommandText = "SELECT path FROM file_locations WHERE storage_id=$sid;";
+                    pCmd.Parameters.AddWithValue("$sid", storage.Id);
+                    using var pr = pCmd.ExecuteReader();
+                    while (pr.Read())
+                        if (!pr.IsDBNull(0)) existingPaths.Add(pr.GetString(0));
                 }
 
                 foreach (var r in list)
                 {
+                    // 已存在（含本批内重复）⇒ 跳过：不改库、不复活回收站里的行
+                    if (string.IsNullOrEmpty(r.FilePath) || !existingPaths.Add(r.FilePath)) continue;
+
                     using var aCmd = conn.CreateCommand();
                     aCmd.Transaction = tx;
                     aCmd.CommandText =
@@ -108,7 +131,7 @@ public partial class AssetService
                     lCmd.Parameters.AddWithValue("$aid", assetId);
                     lCmd.Parameters.AddWithValue("$sid", storage.Id);
                     lCmd.Parameters.AddWithValue("$path", r.FilePath);
-                    lCmd.Parameters.AddWithValue("$rel", Path.GetRelativePath(trimmed, r.FilePath));
+                    lCmd.Parameters.AddWithValue("$rel", Path.GetRelativePath(storage.RootPath, r.FilePath));
                     lCmd.Parameters.AddWithValue("$fn", r.FileName);
                     lCmd.Parameters.AddWithValue("$ext", (object?)ext ?? DBNull.Value);
                     lCmd.Parameters.AddWithValue("$mime", (object?)ScanService.GuessMimeType(ext) ?? DBNull.Value);

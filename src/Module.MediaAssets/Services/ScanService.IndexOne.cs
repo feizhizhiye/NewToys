@@ -14,10 +14,12 @@ public partial class ScanService
 {
 
     /// <summary>
-    /// 处理一个文件：① 相对路径（零 IO） → ② size+mtime（零 IO） → ③ quick_hash（读前 N MB，
-    /// 仅当库里有同大小**且带 quick_hash** 的位置时才算） → ④ 全新（⛔ 不读内容）。
+    /// 处理一个文件：⓪ 重叠源按完整路径认领（同一物理文件已有位置） → ① 相对路径（零 IO） →
+    /// ② size+mtime（零 IO） → ③ quick_hash（读前 N MB，仅当库里有同大小**且带 quick_hash** 的位置时才算） →
+    /// ④ 全新（⛔ 不读内容）。
     /// </summary>
-    private void IndexOne(StorageSource storage, string fullPath, StorageIndex index, ScanJob job,
+    private void IndexOne(StorageSource storage, string fullPath, StorageIndex index,
+                          Dictionary<string, FileLocation> shared, ScanJob job,
                           List<FileLocation> pending, List<long> touched)
     {
         var info = new FileInfo(fullPath);
@@ -25,6 +27,17 @@ public partial class ScanService
         var mtime = info.LastWriteTime.ToString(TimeFormat);
         var relative = MakeRelative(storage.RootPath, fullPath);
         var ext = info.Extension;
+
+        // ⓪ 重叠源认领：子目录源已索引过的同一物理文件 → 位置改归当前源，⛔ 不新建资产
+        if (shared.Count > 0 && shared.Remove(AssetService.PathKey(fullPath), out var adopted))
+        {
+            job.ScannedFiles++;
+            ApplyMove(adopted, storage, fullPath, relative, info, size, mtime, ext, null);
+            _assets.UpdateLocation(adopted);
+            index.Reindex(adopted);
+            job.UpdatedFiles++;
+            return;
+        }
 
         // ① 存储源 + 相对路径（同存储源内最可靠；零 IO）
         if (index.ByRelPath.TryGetValue(relative, out var loc))

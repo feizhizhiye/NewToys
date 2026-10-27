@@ -43,33 +43,56 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private void OpenFolder()
     {
         if (Selected == null) return;
-        try
+        var path = Selected.FilePath;
+        StatusText = "正在定位该文件…";
+        RunOffUiThread(() =>
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
             {
                 UseShellExecute = true,
-                Arguments = $"/select,\"{Selected.FilePath}\""
+                Arguments = $"/select,\"{path}\""
             });
-            StatusText = "已在资源管理器中定位该文件。";
-        }
-        catch (Exception ex) { StatusText = "打开文件夹失败：" + ex.Message; }
+            return "已在资源管理器中定位该文件。";
+        }, "打开文件夹失败：");
     }
 
     /// <summary>用系统默认程序打开一个路径（<paramref name="isDb"/> 只影响提示文案）。</summary>
     private void Launch(string path, bool isDb, string what)
     {
-        if (string.IsNullOrEmpty(path) || !File.Exists(path)) { StatusText = $"{what}不存在：{path}"; return; }
-        try
+        if (string.IsNullOrEmpty(path)) { StatusText = $"{what}不存在：{path}"; return; }
+        StatusText = $"正在打开{what}…";
+        RunOffUiThread(() =>
         {
+            if (!File.Exists(path)) return $"{what}不存在：{path}";
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
-            StatusText = isDb
+            return isDb
                 ? "已用系统默认程序打开库文件（没反应多半是没装能开 .db 的工具）。"
                 : $"已用系统默认程序打开{what}。";
-        }
-        catch (Exception ex)
+        }, $"打开{what}失败：", isDb
+            ? " —— 需要先装一个能打开 .db 的工具（如 DB Browser for SQLite）。"
+            : "");
+    }
+
+    /// <summary>
+    /// 在**线程池**里执行一次 shell 启动，再把结果文案回投到 UI 线程。
+    /// <para>⛔ 涉及目标文件的 IO / shell 启动一律走这里，别占 UI 线程（坑点见模块文档 §5）。</para>
+    /// </summary>
+    /// <param name="work">返回要显示的文案；抛异常则按 <paramref name="failPrefix"/> + 异常消息显示。</param>
+    private void RunOffUiThread(Func<string> work, string failPrefix, string failSuffix = "")
+    {
+        _ = Task.Run(() =>
         {
-            StatusText = $"打开{what}失败：" + ex.Message + (isDb ? " —— 需要先装一个能打开 .db 的工具（如 DB Browser for SQLite）。" : "");
-        }
+            string text;
+            try
+            {
+                text = work();
+            }
+            catch (Exception ex)
+            {
+                text = failPrefix + ex.Message + failSuffix;
+            }
+            Dispatcher.UIThread.Post(() => StatusText = text);
+        });
     }
 
     /// <summary>
@@ -110,6 +133,15 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         var name = Path.GetFileName(dir.TrimEnd('\\', '/'));
         if (string.IsNullOrEmpty(name)) name = dir;
 
+        // 与已有源互为父子 ⇒ 同一批文件会被重复扫入库
+        var overlap = _assets.FindOverlappingStorage(dir);
+        if (overlap != null)
+        {
+            StatusText = overlap.NewIsInside
+                ? $"「{dir}」在已登记的「{overlap.Other.Name}」（{overlap.Other.RootPath}）里面——同一批文件会被重复入库，已拒绝。"
+                : $"「{dir}」包含已登记的「{overlap.Other.Name}」（{overlap.Other.RootPath}）——两者会重复扫同一批文件，已拒绝。";
+            return;
+        }
         var storage = new StorageSource { Name = name, RootPath = dir, Type = StorageTypes.Local };
         _assets.UpsertStorage(storage);
         if (!PendingFolders.Contains(dir)) PendingFolders.Add(dir);

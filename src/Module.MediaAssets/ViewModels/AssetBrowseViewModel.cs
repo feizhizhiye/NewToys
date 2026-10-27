@@ -71,6 +71,17 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     /// <summary>右侧当前页的位置行（图标卡与详细视图**共用**这一个集合）。</summary>
     public ObservableCollection<AssetTile> Items { get; } = new();
 
+    /// <summary>
+    /// 两套视图各自的数据源：**只有当前视图拿得到 <see cref="Items"/>**，另一套为 null。
+    /// <para>🔴 为什么不让两个 <c>ListBox</c> 都直接绑 <see cref="Items"/>：隐藏的列表照样会为每一项建容器
+    /// （120 张卡 = 120 个 <c>ListBoxItem</c>，详细视图那一份还是 11 列的 <c>ColumnGrid</c>）⇒ 切目录时
+    /// 双份容器 + 双份绑定求值，白等几百毫秒到几秒。数据源置空后隐藏列表不建容器。</para>
+    /// </summary>
+    public ObservableCollection<AssetTile>? TileSource => IsTileView ? Items : null;
+
+    /// <summary>详细视图的数据源（图标视图下为 null，见 <see cref="TileSource"/>）。</summary>
+    public ObservableCollection<AssetTile>? DetailSource => IsTileView ? null : Items;
+
     /// <summary>选中行（唯一真相在本集合；批量动作的对象）。</summary>
     public ObservableCollection<AssetRow> SelectedRows { get; } = new();
 
@@ -454,7 +465,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         foreach (var e in page) Items.Add(new AssetTile(e.Row, e.LocationId, e.Dir, IconSize));
 
         ReconcileSelection();
-        _hasMissingThumbs = list.Any(e => WantsThumb(e.Row) && !File.Exists(_thumbGen.ThumbPathFor(e.Row.FilePath)));
+        RefreshMissingThumbFlag(dirRows);   // 🔴 逐个 File.Exists 会碰磁盘 ⇒ 放后台，⛔ 别卡在切目录的这 200ms 里
 
         SyncChoiceSelection();
         UpdateHeaders();
@@ -573,6 +584,9 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     partial void OnIsTileViewChanged(bool value)
     {
+        // 切视图 ⇒ 只让当前视图持有数据源（隐藏那套不建容器）
+        OnPropertyChanged(nameof(TileSource));
+        OnPropertyChanged(nameof(DetailSource));
         OnPropertyChanged(nameof(CanGenerateThumbs));
         SyncChoiceSelection();
     }
@@ -681,31 +695,71 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         _thumbCts = new CancellationTokenSource();
         var ct = _thumbCts.Token;
 
-        var tiles = Items.Where(t => t.WantsThumb).ToList();
-        if (tiles.Count == 0) return;
-        _ = LoadThumbsAsync(tiles, ct);
+        var width = IconSize;
+        foreach (var tile in Items)
+        {
+            if (!tile.WantsThumb) continue;
+            _ = AssignThumbAsync(tile, width, ct);   // 并发闸在缓存里（4）；⛔ 不要在这里串行 await 120 张
+        }
     }
 
-    /// <summary>后台解码、UI 线程赋值；解码失败 / 文件已删 ⇒ 保持占位（⛔ 不抛、⛔ 不弹窗）。</summary>
-    private async Task LoadThumbsAsync(List<AssetTile> tiles, CancellationToken ct)
+    /// <summary>单张缩略图：后台解码 → UI 线程赋值。解码失败 / 文件已删 ⇒ 保持占位（⛔ 不抛、⛔ 不弹窗）。</summary>
+    private async Task AssignThumbAsync(AssetTile tile, int width, CancellationToken ct)
     {
         try
         {
-            var width = IconSize;
-            foreach (var tile in tiles)
+            if (ct.IsCancellationRequested) return;
+            var path = _thumbGen.ThumbPathFor(tile.Row.FilePath);
+            var bmp = await _thumbCache.GetAsync(path, width, ct).ConfigureAwait(false);
+            if (bmp == null || ct.IsCancellationRequested) return;
+            Dispatcher.UIThread.Post(() =>
             {
-                if (ct.IsCancellationRequested) return;
-                var path = _thumbGen.ThumbPathFor(tile.Row.FilePath);
-                var bmp = await _thumbCache.GetAsync(path, width, ct).ConfigureAwait(false);
-                if (bmp == null || ct.IsCancellationRequested) continue;
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (!ct.IsCancellationRequested) tile.Thumb = bmp;
-                });
-            }
+                if (!ct.IsCancellationRequested) tile.Thumb = bmp;
+            });
         }
         catch (OperationCanceledException) { /* 切目录 / 换尺寸 ⇒ 正常取消 */ }
         catch { /* 解码链上的任何异常都不许冒到 UI 线程 */ }
+    }
+
+    /// <summary>本目录里有没有「缺缩略图」的视频 / 图片（决定工具条按钮可用性）。后台算，结果回投 UI 线程。</summary>
+    private void RefreshMissingThumbFlag(List<BrowseEntry> list)
+    {
+        var version = ++_thumbScanVersion;
+
+        var paths = new List<string>();
+        foreach (var e in list)
+            if (WantsThumb(e.Row)) paths.Add(_thumbGen.ThumbPathFor(e.Row.FilePath));
+
+        if (paths.Count == 0)
+        {
+            SetMissingThumbs(false, version);
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            var missing = false;
+            try
+            {
+                // 搜索框每敲一个字都会走到这里 ⇒ 短延迟去抖，只为最后一次真正扫磁盘
+                await Task.Delay(180).ConfigureAwait(false);
+                if (version != _thumbScanVersion) return;
+
+                foreach (var p in paths)
+                    if (!File.Exists(p)) { missing = true; break; }
+            }
+            catch { /* 盘符掉线 / 权限不足 ⇒ 当作没有缺口 */ }
+            Dispatcher.UIThread.Post(() => SetMissingThumbs(missing, version));
+        });
+    }
+
+    private int _thumbScanVersion;
+
+    private void SetMissingThumbs(bool missing, int version)
+    {
+        if (version != _thumbScanVersion || _hasMissingThumbs == missing) return;
+        _hasMissingThumbs = missing;
+        OnPropertyChanged(nameof(CanGenerateThumbs));
     }
 
     /// <summary>工具条「🖼 生成本目录缩略图」：只处理**当前目录**里还缺缓存的视频 / 图片。</summary>
@@ -715,14 +769,19 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         if (SelectedNode == null) { StatusText = "先在左边选一个目录。"; return; }
 
         var node = SelectedNode;
-        var targets = _entries
-            .Where(e => e.Row.StorageId == node.StorageId && e.Dir == node.DirPath && WantsThumb(e.Row)
-                        && !File.Exists(_thumbGen.ThumbPathFor(e.Row.FilePath)))
+        var candidates = _entries
+            .Where(e => e.Row.StorageId == node.StorageId && e.Dir == node.DirPath && WantsThumb(e.Row))
             .ToList();
-        if (targets.Count == 0) { StatusText = "这个目录没有缺缩略图的视频 / 图片。"; return; }
+        if (candidates.Count == 0) { StatusText = "这个目录里没有视频 / 图片（缩略图只对这两类生成）。"; return; }
 
         _queue.Enqueue($"生成缩略图（{node.Name}）", async (ct, p) =>
         {
+            // 有没有缓存要碰磁盘 ⇒ 在队列线程里筛，⛔ 不在 UI 线程逐个 File.Exists
+            var targets = await Task.Run(
+                () => candidates.Where(e => !File.Exists(_thumbGen.ThumbPathFor(e.Row.FilePath))).ToList(), ct)
+                .ConfigureAwait(false);
+            if (targets.Count == 0) { p.Report("这个目录的缩略图都齐了，无需生成。"); return; }
+
             var ok = 0;
             var fail = 0;
             for (var i = 0; i < targets.Count; i++)
@@ -747,9 +806,16 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
                 else { fail++; p.Report($"跳过 {e.Row.FileName}：{msg}"); }
             }
             p.Report($"缩略图完成：成功 {ok}，失败 {fail}。");
-            Dispatcher.UIThread.Post(LoadThumbs);
+            Dispatcher.UIThread.Post(() =>
+            {
+                LoadThumbs();
+                // 只重算**本目录**的缺口标记（按钮只管当前目录）
+                if (SelectedNode != null)
+                    RefreshMissingThumbFlag(_entries.Where(e => e.Row.StorageId == SelectedNode.StorageId
+                                                               && e.Dir == SelectedNode.DirPath).ToList());
+            });
         });
 
-        StatusText = $"已把 {targets.Count} 个缩略图任务排进队列（进度看「任务中心」，可取消）。";
+        StatusText = $"已把「{node.Name}」的缩略图任务排进队列（进度看「任务中心」，可取消）。";
     }
 }

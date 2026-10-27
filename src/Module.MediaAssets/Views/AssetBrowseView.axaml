@@ -49,6 +49,38 @@
       <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
       <Setter Property="BorderThickness" Value="1"/>
     </Style>
+
+    <!--
+      图标卡的选中 / 悬停高亮：**画在卡片自己身上**，不画在列表项容器上。
+      🔴 应用级样式把高亮放在 `ListBoxItem /template/ ContentPresenter#PART_ContentPresenter` 的
+      Background 上（`ListBox.list-page` 那两条）—— 那是**直角矩形**，而卡片自带 6px 圆角 + 外边距
+      ⇒ 选中时强调色会从圆角与卡片边缘漏出来（用户实测：左上圆角、右下边缘露色）。
+      这里把本列表的容器底色清空，改由卡片边框 / 底色表达选中态。
+    -->
+    <Style Selector="ListBox#TileList ListBoxItem">
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0,0,8,8"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="HorizontalAlignment" Value="Left"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="VerticalContentAlignment" Value="Top"/>
+    </Style>
+    <Style Selector="ListBox#TileList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="ListBox#TileList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="ListBox#TileList ListBoxItem:pointerover Border.tile">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
+    <Style Selector="ListBox#TileList ListBoxItem:selected Border.tile">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="BorderThickness" Value="2"/>
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
   </UserControl.Styles>
 
   <Grid ColumnDefinitions="Auto,*" Margin="12">
@@ -203,7 +235,7 @@
           <!--  ① 图标卡视图：WrapPanel 换行；分页默认 120 ⇒ 不做虚拟化也不会建几千个容器  -->
           <ListBox x:Name="TileList" Classes="list-page" SelectionMode="Multiple"
                    IsVisible="{Binding IsTileView}"
-                   ItemsSource="{Binding Items}">
+                   ItemsSource="{Binding TileSource}">
             <ListBox.ItemsPanel>
               <ItemsPanelTemplate>
                 <WrapPanel Orientation="Horizontal"/>
@@ -232,7 +264,7 @@
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <Border Classes="tile" Width="{Binding Width}" Margin="0,0,8,8"
+                <Border Classes="tile" Width="{Binding Width}"
                         Opacity="{Binding RowOpacity}">
                   <StackPanel Spacing="4">
                     <Border Height="{Binding ThumbHeight}" CornerRadius="4" ClipToBounds="True"
@@ -265,7 +297,7 @@
           <!--  ② 详细视图：与「全部资产」同一套列（列定义共享 AssetColumns）  -->
           <ListBox x:Name="DetailList" Classes="list-page" SelectionMode="Multiple"
                    IsVisible="{Binding !IsTileView}"
-                   ItemsSource="{Binding Items}">
+                   ItemsSource="{Binding DetailSource}">
             <ListBox.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="📂 打开" Command="{Binding OpenSelectedCommand}"/>

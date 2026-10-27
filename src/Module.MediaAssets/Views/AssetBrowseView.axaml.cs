@@ -67,12 +67,23 @@ public partial class AssetBrowseView : UserControl
         var list = ActiveList;
         if (list == null) return;
 
+        // 切视图后可见列表换了实例 ⇒ 在新列表上重放一次选中（此时它的 ItemsSource 已就位）。
+        // 🔴 不能只靠 VM 的属性通知：那一瞬绑定还没更新完，新列表的源仍是 null。
+        if (!ReferenceEquals(list, _lastSyncedList))
+        {
+            _lastSyncedList = list;
+            SyncSelection();
+        }
+
         _scroller ??= list.FindDescendantOfType<ScrollViewer>();
         if (_scroller is not { } sv) return;
         vm.SetContentOverflow(sv.Extent.Height - sv.Viewport.Height > 1);
     }
 
     private ScrollViewer? _scroller;
+
+    /// <summary>上一次把选中回放进哪个列表（切视图时变）。</summary>
+    private ListBox? _lastSyncedList;
 
     protected override void OnDataContextChanged(EventArgs e)
     {
@@ -211,6 +222,9 @@ public partial class AssetBrowseView : UserControl
     private void OnListSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_syncingSelection || sender is not ListBox list) return;
+        // 隐藏视图的数据源是 null（见 VM 的 TileSource / DetailSource）：源被置空 / 重建时的
+        // 选中清空**不是**用户操作，⛔ 不能拿它去清 VM 的选中集。
+        if (!ReferenceEquals(list, ActiveList) || list.ItemsSource == null) return;
         PushSelectionToVm(list, null);
     }
 
@@ -228,7 +242,7 @@ public partial class AssetBrowseView : UserControl
         if (_vm == null) return;
         foreach (var list in Lists)
         {
-            if (list == null) continue;
+            if (list?.ItemsSource == null) continue;   // 隐藏视图没有数据源 ⇒ 不碰它的 SelectedItems
             BulkUpdate(list, items =>
             {
                 items.Clear();

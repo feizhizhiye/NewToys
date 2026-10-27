@@ -15,6 +15,12 @@ public partial class AssetService
 {
 
     /// <summary>
+    /// 最近一次查询失败的原因（查询成功即清空）。界面把它拼进状态栏：
+    /// <c>QueryPage</c> 这类方法会把异常吞掉并返回空集合，没有这条提示时「列表恒空」只能靠猜。
+    /// </summary>
+    public string LastQueryError { get; private set; } = "";
+
+    /// <summary>
     /// 一次查询拼出列表页的行（**资产 + 主位置 + 存储源名**），再把标签 / 分类 / 集合**批量**补齐。
     /// <para>
     /// ⛔ 为什么不在 VM 里对每个资产再查位置：那是 N+1（500 行 = 500 次查询）。这里主位置用
@@ -77,7 +83,7 @@ public partial class AssetService
                 rows.Add(row);
             }
         }
-        catch { return rows; }
+        catch (Exception ex) { LastQueryError = ex.Message; return rows; }
 
         // 三类组织信息：各一条查询拉全量映射（行数有限，⛔ 不 per-row 查）
         var tags = LoadNameMap("asset_tags", "tags");
@@ -121,12 +127,21 @@ public partial class AssetService
         int Limit = DefaultPageSize);
 
     /// <summary>SQL 侧共用的列表达式（🔴 筛选 / 排序 / 关键字共用同一份定义，⛔ 不各写一遍）。</summary>
-    private const string NameExpr = "IFNULL(NULLIF(a.display_name,''), NULLIF(a.title,''), '资产 #' || a.id)";
-    private const string TagsExpr = "(SELECT group_concat(n.name, ', ') FROM (SELECT n.name FROM asset_tags at " +
+    /// <remarks>
+    /// 三级兜底必须用 <c>COALESCE</c>：SQLite 的 <c>IFNULL</c> **只收两个参数**，
+    /// 写成 <c>IFNULL(a,b,c)</c> 会让整条 SELECT 抛 "wrong number of arguments"，
+    /// 而 <c>QueryPage</c> 的 catch 吞掉异常 ⇒ 页码/总数正常但列表恒空。
+    /// </remarks>
+    private const string NameExpr = "COALESCE(NULLIF(a.display_name,''), NULLIF(a.title,''), '资产 #' || a.id)";
+    // 🔴 分组聚合的三列必须走「内层排序 + 外层 group_concat」，而外层只能引用**内层的输出列名**：
+    //    内层 `SELECT n.name` 的输出列叫 `name`，外层写 `group_concat(n.name, …)` 会让 SQLite 抛
+    //    "no such column: n.name"（整条查询失败，被 catch 吞成 0 行 —— 表现就是「搜索随便填都搜不到」）。
+    //    内层必须显式 `AS name`，外层一律用 `name`。
+    private const string TagsExpr = "(SELECT group_concat(name, ', ') FROM (SELECT n.name AS name FROM asset_tags at " +
         "JOIN tags n ON n.id=at.tag_id WHERE at.asset_id=a.id ORDER BY n.name))";
-    private const string CategoriesExpr = "(SELECT group_concat(n.name, ', ') FROM (SELECT n.name FROM asset_categories ac " +
+    private const string CategoriesExpr = "(SELECT group_concat(name, ', ') FROM (SELECT n.name AS name FROM asset_categories ac " +
         "JOIN categories n ON n.id=ac.category_id WHERE ac.asset_id=a.id ORDER BY n.name))";
-    private const string CollectionsExpr = "(SELECT group_concat(n.name, ', ') FROM (SELECT n.name FROM collection_assets ca " +
+    private const string CollectionsExpr = "(SELECT group_concat(name, ', ') FROM (SELECT n.name AS name FROM collection_assets ca " +
         "JOIN collections n ON n.id=ca.collection_id WHERE ca.asset_id=a.id ORDER BY n.name))";
     // 🔴 json_extract 遇损坏 JSON 会**炸整条查询**（内存路径是逐行容错）⇒ 一律 json_valid 守卫
     private const string DurationExpr = "IFNULL(CASE WHEN json_valid(a.metadata_json) THEN " +
@@ -158,9 +173,10 @@ public partial class AssetService
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM assets a " + QueryJoins + BuildWhere(q, cmd) + ";";
             var v = cmd.ExecuteScalar();
+            LastQueryError = "";
             return v is null || v is DBNull ? 0 : Convert.ToInt32(v);
         }
-        catch { return 0; }
+        catch (Exception ex) { LastQueryError = ex.Message; return 0; }
     }
 
     /// <summary>
@@ -215,8 +231,9 @@ public partial class AssetService
                 ApplyVideoMeta(row, meta);   // 逐行独立解析（损坏的 metadata_json 不影响整批）
                 rows.Add(row);
             }
+            LastQueryError = "";
         }
-        catch { return rows; }
+        catch (Exception ex) { LastQueryError = ex.Message; return rows; }
 
         // 三类组织信息：只查本页 id 的映射（行数有限，⛔ 不 per-row 查、⛔ 不拉全表）
         var ids = rows.Select(x => x.Id).ToArray();
@@ -238,13 +255,18 @@ public partial class AssetService
     /// </summary>
     private static string BuildWhere(AssetQuery q, SqliteCommand cmd)
     {
-        var sql = new StringBuilder("WHERE 1=1 AND a.status <> 'trashed'");
+        var sql = new StringBuilder("WHERE 1=1");
 
-        // 状态筛选优先：显式选了「回收站」等状态时，⛔ 不再叠加默认的「非回收站」条件
+        // 状态筛选优先：显式选了状态时只按该状态过滤（含「回收站」），
+        // ⛔ 不能再叠加默认的「非回收站」条件 —— 两个条件同时存在时选回收站恒为 0 行。
         if (!string.IsNullOrWhiteSpace(q.Status))
         {
             sql.Append(" AND a.status=$s");
             cmd.Parameters.AddWithValue("$s", q.Status);
+        }
+        else
+        {
+            sql.Append(" AND a.status <> 'trashed'");
         }
 
         if (!string.IsNullOrWhiteSpace(q.Type))
@@ -272,10 +294,16 @@ public partial class AssetService
         var search = (q.Search ?? "").Trim();
         if (search.Length > 0)
         {
-            // 与内存版口径一致：名称 / 路径 / 标签文本「包含」（LIKE 通配符转义，⛔ 不当 wildcard 用）
-            sql.Append(" AND (" + NameExpr + " LIKE $q ESCAPE '\\' OR IFNULL(l.path,'') LIKE $q ESCAPE '\\' OR " +
-                       TagsExpr + " LIKE $q ESCAPE '\\')");
-            cmd.Parameters.AddWithValue("$q", "%" + EscapeLike(search) + "%");
+            // 🔴 分词 AND：关键字按空白/文件名分隔符拆成多个词，每个词都要在「名称 / 路径 / 标签」任一字段里出现
+            //    ⇒ 「熊出 01」也能搜到 `熊出没_01.mp4`（整串连续匹配时中间隔字就搜不到，看起来像搜索失效）。
+            var tokens = SplitSearchTokens(search);
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                var p = "$qs" + i.ToString(CultureInfo.InvariantCulture);
+                sql.Append(" AND (" + NameExpr + " LIKE " + p + " ESCAPE '\\' OR IFNULL(l.path,'') LIKE " + p +
+                           " ESCAPE '\\' OR " + TagsExpr + " LIKE " + p + " ESCAPE '\\')");
+                cmd.Parameters.AddWithValue(p, "%" + EscapeLike(tokens[i]) + "%");
+            }
         }
 
         if (q.Clauses != null)
@@ -398,6 +426,52 @@ public partial class AssetService
     /// <summary>LIKE 通配符转义（% _ \ 三个字符；⛔ 用户输入不当 wildcard 用）。</summary>
     private static string EscapeLike(string s)
         => s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
+    /// <summary>关键字分词分隔符：半角/全角空白 + 常见文件名里的分隔符（`_` `-` `.` `,` `;` 及全角版）。</summary>
+    private static readonly char[] SearchSeparators =
+        { ' ', '\t', '\u3000', ',', '，', ';', '；', '_', '-', '.', '、' };
+
+    /// <summary>关键字最多拆成几个词（⛔ 不设上限的话一长串空格能拼出上百个 AND 条件）。</summary>
+    private const int MaxSearchTokens = 8;
+
+    /// <summary>
+    /// 关键字 → 词列表（去空、忽略大小写去重、封顶 <see cref="MaxSearchTokens"/>）。
+    /// <para>🔴 SQL 与内存两条路径必须用**同一份**分词口径，否则草稿态与库态的搜索结果对不上。</para>
+    /// </summary>
+    public static IReadOnlyList<string> SplitSearchTokens(string? search)
+    {
+        var text = (search ?? "").Trim();
+        if (text.Length == 0) return Array.Empty<string>();
+
+        var list = new List<string>(MaxSearchTokens);
+        foreach (var raw in text.Split(SearchSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (raw.Length == 0) continue;
+            if (list.Contains(raw, StringComparer.OrdinalIgnoreCase)) continue;
+            list.Add(raw);
+            if (list.Count >= MaxSearchTokens) break;
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// 内存版关键字匹配（草稿态 / 扫描预览用）：每个词都要在名称、路径、标签串任一里出现。
+    /// <para>与 SQL 侧 <c>BuildWhere</c> 同口径（名称 / 路径 / 标签，忽略大小写）。</para>
+    /// </summary>
+    public static bool MatchesKeyword(AssetRow row, string? search)
+    {
+        var tokens = SplitSearchTokens(search);
+        if (tokens.Count == 0) return true;
+
+        foreach (var t in tokens)
+        {
+            if (!Hit(row.Name, t) && !Hit(row.FilePath, t) && !Hit(row.TagsText, t)) return false;
+        }
+        return true;
+
+        static bool Hit(string? value, string token)
+            => !string.IsNullOrEmpty(value) && value.Contains(token, StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// 把 <c>metadata_json</c> 里的视频元数据填进 <see cref="AssetRow"/> 的视频专属字段。

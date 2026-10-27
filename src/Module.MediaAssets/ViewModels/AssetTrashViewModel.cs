@@ -311,16 +311,24 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     private void OpenFolder()
     {
         if (Selected == null) return;
-        try
+        // 定位同样要碰目标卷（休眠的机械硬盘会卡数秒）⇒ 丢线程池，⛔ 不占 UI 线程。
+        var path = Selected.FilePath;
+        StatusText = "正在定位该文件…";
+        _ = Task.Run(() =>
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
+            string text;
+            try
             {
-                UseShellExecute = true,
-                Arguments = $"/select,\"{Selected.FilePath}\""
-            });
-            StatusText = "已在资源管理器中定位该文件。";
-        }
-        catch (Exception ex) { StatusText = "打开文件夹失败：" + ex.Message; }
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
+                {
+                    UseShellExecute = true,
+                    Arguments = $"/select,\"{path}\""
+                });
+                text = "已在资源管理器中定位该文件。";
+            }
+            catch (Exception ex) { text = "打开文件夹失败：" + ex.Message; }
+            Dispatcher.UIThread.Post(() => StatusText = text);
+        });
     }
 
     // ==================== 详情面板（Shell 承载） ====================

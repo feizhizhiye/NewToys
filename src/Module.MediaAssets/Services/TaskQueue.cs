@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using NewToys.MediaAssets.Models;
 
@@ -114,38 +115,48 @@ public class TaskQueue
             _cts = new CancellationTokenSource();
             var ct = _cts.Token;
             _currentKey = item.Key;
-            item.Status = TaskStatuses.Running;
-            item.StartedAt = DateTime.Now;
-            item.ProgressText = "开始…";
+            OnUi(() =>
+            {
+                item.Status = TaskStatuses.Running;
+                item.StartedAt = DateTime.Now;
+                item.ProgressText = "开始…";
+            });
             Raise();
 
-            var progress = new Progress<string>(text =>
-            {
-                item.ProgressText = text;
-                Raise();
-            });
+            var progress = new Progress<string>(text => OnUi(() => item.ProgressText = text));
 
             try
             {
                 await work(ct, progress).ConfigureAwait(false);
-                item.Status = ct.IsCancellationRequested ? TaskStatuses.Cancelled : TaskStatuses.Success;
-                if (item.Status == TaskStatuses.Success) item.ProgressText = "已完成";
+                var done = ct.IsCancellationRequested ? TaskStatuses.Cancelled : TaskStatuses.Success;
+                OnUi(() =>
+                {
+                    item.Status = done;
+                    if (done == TaskStatuses.Success) item.ProgressText = "已完成";
+                });
             }
             catch (OperationCanceledException)
             {
-                item.Status = TaskStatuses.Cancelled;
-                item.ProgressText = "已取消";
+                OnUi(() =>
+                {
+                    item.Status = TaskStatuses.Cancelled;
+                    item.ProgressText = "已取消";
+                });
             }
             catch (Exception ex)
             {
                 // 失败隔离：一件失败不拖累后续任务
-                item.Status = TaskStatuses.Failed;
-                item.Error = ex.Message;
-                item.ProgressText = "失败：" + ex.Message;
+                OnUi(() =>
+                {
+                    item.Status = TaskStatuses.Failed;
+                    item.Error = ex.Message;
+                    item.ProgressText = "失败：" + ex.Message;
+                });
             }
             finally
             {
-                item.FinishedAt = DateTime.Now;
+                var finishedAt = DateTime.Now;
+                OnUi(() => item.FinishedAt = finishedAt);
                 _cts?.Dispose();
                 _cts = null;
                 _currentKey = null;
@@ -155,6 +166,24 @@ public class TaskQueue
         {
             _gate.Release();
             Raise();
+        }
+    }
+
+    /// <summary>
+    /// 把 <see cref="TaskItem"/> 的写入切到 UI 线程：它是 <c>ObservableObject</c>，在跑任务的后台线程上直接赋值
+    /// 会让绑定跨线程更新控件（<c>InvalidOperationException</c> → 进程崩溃）。
+    /// <para>已在 UI 线程时同步执行（保持赋值顺序）；否则 Post 到 UI 队列（同优先级 FIFO，顺序不乱）。</para>
+    /// </summary>
+    private static void OnUi(Action action)
+    {
+        try
+        {
+            if (Dispatcher.UIThread.CheckAccess()) { action(); return; }
+            Dispatcher.UIThread.Post(action);
+        }
+        catch
+        {
+            // 设计期 / Dispatcher 已停：任务本身不该因为刷不了界面而失败
         }
     }
 

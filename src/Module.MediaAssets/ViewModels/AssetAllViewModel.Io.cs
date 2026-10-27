@@ -109,38 +109,33 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 「📥 导入」：把 db / json 的内容**加载到列表显示（草稿态预览）**——⛔ 不写库、⛔ 不弹确认、⛔ 不入队。
-    /// 2026-10-16 用户定稿：导入只作为草稿上列表，要不要进库由「💾 加入库」决定（与扫描预览同语义）。
+    /// 「📥 导入」：json 列表 → **草稿态预览**（要不要进库由「💾 加入库」决定，与扫描预览同语义）；
+    /// <c>*.db</c> → 直接转「并入」（本身就是一个完整资产库，⛔ 不该先当草稿再手动入库：
+    /// 那样既要多点一次「💾 加入库」，又会丢掉库里的评分 / 描述 / 标签）。
     /// </summary>
     [RelayCommand]
     private async Task ImportAssetsAsync()
     {
-        var files = await DialogHooks.PickFilesAsync("选择要导入预览的资产（json 列表 / 资产库 *.db）",
+        var files = await DialogHooks.PickFilesAsync("导入资产（json 列表预览 / 资产库 *.db 并入）",
             ImportExportDefaultDir, false, "*.json;*.db");
         var src = files.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(src)) return;
+
+        if (string.Equals(Path.GetExtension(src), ".db", StringComparison.OrdinalIgnoreCase))
+        {
+            await MergeLibraryAsync(src).ConfigureAwait(true);
+            return;
+        }
+
         try
         {
-            List<AssetRow> rows;
-            string what;
-            if (string.Equals(Path.GetExtension(src), ".db", StringComparison.OrdinalIgnoreCase))
-            {
-                var (ok, msg, dbRows) = _merge.ReadAssets(src);
-                if (!ok) { StatusText = msg; return; }
-                rows = dbRows;
-                what = $"从「{Path.GetFileName(src)}」";
-            }
-            else
-            {
-                var (ok, msg, jsonRows) = _impExp.Parse(File.ReadAllText(src));
-                if (!ok) { StatusText = msg; return; }
-                rows = jsonRows;
-                what = $"从「{Path.GetFileName(src)}」";
-            }
+            var (ok, msg, rows) = _impExp.Parse(File.ReadAllText(src));
+            if (!ok) { StatusText = msg; return; }
             if (rows.Count == 0) { StatusText = "没有可显示的条目。"; return; }
 
             LoadDraft(rows);
-            StatusText = $"已导入预览 {rows.Count} 条{what}（未入库存）：点「💾 加入库」写入资产库，或「🧹 清除列表」放弃。";
+            StatusText = $"已导入预览 {rows.Count} 条（从「{Path.GetFileName(src)}」，⛔ 未入库）：" +
+                         "点「💾 加入库」写入资产库，或「🧹 清除列表」放弃。";
         }
         catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
     }

@@ -46,7 +46,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             IsBusy = true;
             StatusText = $"正在预览扫描「{dir}」（只读文件信息，不写库）…";
             var progress = PostProgress();
-            var rows = await _scan.PreviewAsync(dir, Recursive, progress, CancellationToken.None).ConfigureAwait(false);
+            // ⛔ 不带 ConfigureAwait(false)：LoadDraft 要改列表集合，必须在 UI 线程上做
+            var rows = await _scan.PreviewAsync(dir, Recursive, progress, CancellationToken.None);
             LoadDraft(rows);
             StatusText = $"预览到 {TotalCount} 个：点「💾 加入库」保存，或「🧹 清除列表」换文件夹重扫。";
         }
@@ -105,10 +106,15 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         if (!IsDraft || _all.Count == 0) { StatusText = "没有待入库的预览结果。"; return; }
 
+        var total = _all.Count;
         var n = _assets.CommitRows(_all);
         IsDraft = false;
         Reload();
-        StatusText = n == 0 ? "入库失败（数据库不可用？）。" : $"已把 {n} 个加入资产库。";
+        StatusText = n > 0
+            ? $"已把 {n} 个加入资产库" + (total > n ? $"（{total - n} 个已在库里，按路径跳过）。" : "。")
+            : IsDbAvailable
+                ? $"这 {total} 条都已在资产库里（按路径去重），没有新增。"
+                : "入库失败（数据库不可用？）。";
     }
 
     [RelayCommand]

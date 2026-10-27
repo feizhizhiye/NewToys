@@ -19,7 +19,7 @@
                       IsEmpty="{Binding !HasItems}"
                       ShowFooter="{Binding HasFooterContent}"
                       TotalCount="{Binding TotalCount}"
-                      SelectedCount="{Binding CheckedCount}"
+                      SelectedCount="{Binding SelectedCount}"
                       PageText="{Binding PageText}"
                       ShowPaging="{Binding HasPaging}"
                       PageCount="{Binding PageCount}"
@@ -52,7 +52,8 @@
                   ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding FilterType, Mode=TwoWay}"/>
         <ComboBox Grid.Column="2" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
                   HorizontalAlignment="Left"
-                  ToolTip.Tip="按存储源筛选"
+                  IsEnabled="{Binding CanFilterByStorageOrTag}"
+                  ToolTip.Tip="按存储源筛选（扫描预览态不可用：预览行还没入库）"
                   ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding FilterStorage, Mode=TwoWay}"/>
         <ComboBox Grid.Column="3" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
                   HorizontalAlignment="Left"
@@ -60,7 +61,8 @@
                   ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding FilterStatus, Mode=TwoWay}"/>
           <ComboBox Grid.Column="4" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
                     HorizontalAlignment="Left"
-                    ToolTip.Tip="按标签筛选"
+                    IsEnabled="{Binding CanFilterByStorageOrTag}"
+                    ToolTip.Tip="按标签筛选（扫描预览态不可用：预览行还没有标签）"
                     ItemsSource="{Binding TagOptions}" SelectedItem="{Binding FilterTag, Mode=TwoWay}"/>
       </Grid>
     </Border>
@@ -74,61 +76,42 @@
                         IsResizable="True"
                         LockedColumns="{Binding LockedColumnMask}"
                         SampleSpecs="{Binding SampleSpecs}">
-            <!--  v3.34 / NT-018：勾选列表头 —— 🔴 **原生三态 CheckBox**（⛔ 别用字符"☑"画，字体会渲染成深色块）；
-                  右键菜单挂在外层透明 Border 上（整格都能右键）。
-                  🔴 2026-10-16：左键点表头勾选框 = **全选 / 全不选切换**（ToggleAllCommand）；
-                  IsChecked 改 **OneWay**（只让 VM 刷新显示：全选=true / 全不选=false / 部分=indeterminate）
-                  —— ⛔ 不再 TwoWay 写回（写回会把三态循环 null 也当一次切换，行为不可预期）。
-                  🔴 v3.42.1 修崩溃：菜单**只挂 Border、⛔ 不挂 CheckBox、⛔ code-behind 不手动 Open**
-                  —— 挂 CheckBox 上时原生右键已自动弹一次，code-behind 再 Open 一次 → 二次 Open 抛异常直接崩。
-                  与 VideoTools v3.16.1 写法对齐（那边一直是这么做的）。  -->
-            <Border Grid.Column="0" x:Name="HeaderCheckHost" Background="Transparent"
-                    ToolTip.Tip="左键全选 / 全不选；勾选的行由「🏷 加标签 / 📚 加集合」批量操作（右键：全选 / 取消 / 反选）">
-              <CheckBox x:Name="HeaderCheckBox" HorizontalAlignment="Center" VerticalAlignment="Center" IsThreeState="True"
-                        IsChecked="{Binding AllCheckedState, Mode=OneWay}"
-                        Command="{Binding ToggleAllCommand}"/>
-              <Border.ContextMenu>
-                <ContextMenu>
-                  <MenuItem Header="☑ 全选" Command="{Binding ToggleAllCommand}"/>
-                  <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
-                  <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
-                </ContextMenu>
-              </Border.ContextMenu>
-            </Border>
+            <!--  🔴 无勾选列：多选走列表原生选中（Ctrl 增选 / Shift 连选 / Ctrl+A 全选，见 code-behind）。
+                  批量操作的对象 = 选中行数（底栏「已选 N」），⛔ 不再有第二套勾选状态。  -->
 
-            <Button Grid.Column="1" Classes="col-header" Content="{Binding NameHeader}"
+            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Name"
                     IsVisible="{Binding IsNameVisible}"/>
-            <Button Grid.Column="2" Classes="col-header" Content="{Binding TypeHeader}"
+            <Button Grid.Column="1" Classes="col-header" Content="{Binding TypeHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Type"
                     IsVisible="{Binding IsTypeVisible}"/>
-            <Button Grid.Column="3" Classes="col-header" Content="{Binding TagsHeader}"
+            <Button Grid.Column="2" Classes="col-header" Content="{Binding TagsHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Tags"
                     IsVisible="{Binding IsTagsVisible}"/>
-            <Button Grid.Column="4" Classes="col-header" Content="{Binding CategoriesHeader}"
+            <Button Grid.Column="3" Classes="col-header" Content="{Binding CategoriesHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Categories"
                     IsVisible="{Binding IsCategoriesVisible}"/>
-            <Button Grid.Column="5" Classes="col-header" Content="{Binding CollectionsHeader}"
+            <Button Grid.Column="4" Classes="col-header" Content="{Binding CollectionsHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Collections"
                     IsVisible="{Binding IsCollectionsVisible}"/>
-            <Button Grid.Column="6" Classes="col-header" Content="{Binding SizeHeader}"
+            <Button Grid.Column="5" Classes="col-header" Content="{Binding SizeHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Size"
                     IsVisible="{Binding IsSizeVisible}"/>
-            <Button Grid.Column="7" Classes="col-header" Content="{Binding ModifiedHeader}"
+            <Button Grid.Column="6" Classes="col-header" Content="{Binding ModifiedHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Modified"
                     IsVisible="{Binding IsModifiedVisible}"/>
-            <Button Grid.Column="8" Classes="col-header" Content="{Binding StorageHeader}"
+            <Button Grid.Column="7" Classes="col-header" Content="{Binding StorageHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Storage"
                     IsVisible="{Binding IsStorageVisible}"/>
 
             <!--  NT-031：视频专属列表头（仅视频页可见；非视频页 IsVisible=false 自动隐藏）  -->
-            <Button Grid.Column="9" Classes="col-header" Content="{Binding DurationHeader}"
+            <Button Grid.Column="8" Classes="col-header" Content="{Binding DurationHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Duration"
                     IsVisible="{Binding IsDurationVisible}"/>
-            <Button Grid.Column="10" Classes="col-header" Content="{Binding ResolutionHeader}"
+            <Button Grid.Column="9" Classes="col-header" Content="{Binding ResolutionHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Resolution"
                     IsVisible="{Binding IsResolutionVisible}"/>
-            <Button Grid.Column="11" Classes="col-header" Content="{Binding CodecHeader}"
+            <Button Grid.Column="10" Classes="col-header" Content="{Binding CodecHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Codec"
                     IsVisible="{Binding IsCodecVisible}"/>
 
@@ -173,9 +156,11 @@
     </v:ListPageSkeleton.HeaderArea>
 
     <v:ListPageSkeleton.ListArea>
+        <!--  多选走列表原生选中：Ctrl 增选 / Shift 连选 / Ctrl+A 全选（code-behind 隧道接管）；
+             无修饰键点击 = 单选替换（与资源管理器一致）。  -->
         <ListBox x:Name="AssetList" Classes="list-page"
-                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
-                 SelectionMode="Single">
+                 SelectionMode="Multiple"
+                 ItemsSource="{Binding Items}">
           <!--
             行右键菜单 = **针对单条**的动作（§4.8 硬规则 9）：打开 / 定位 / 打开库文件。
             ⛔ 这些⛔ 不上工具条（工具条只放页面级功能：扫描 / 筛选 / 入库 / 清除…）。
@@ -193,47 +178,49 @@
                     ⛔ 不上工具条、⛔ 不进详情卡（想从库里移除文件留着 ⇒ 详情卡图标组的「🗑 移入回收站」）。  -->
               <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"
                         ToolTip.Tip="永久删除磁盘文件：不进回收站、不可还原，库里的文件索引一起删"/>
+              <Separator/>
+              <!--  选择类动作（整页语义）放右键尾部：勾选列已撤，全选 / 反选 / 清空需要一个入口  -->
+              <MenuItem Header="☑ 全选当前页" Command="{Binding SelectAllCommand}"
+                        ToolTip.Tip="选中当前页所有行（等价 Ctrl+A）"/>
+              <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
+              <MenuItem Header="⇄ 反选当前页" Command="{Binding InvertSelectionCommand}"/>
             </ContextMenu>
           </ListBox.ContextMenu>
           <ListBox.ItemTemplate>
             <DataTemplate>
               <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                <!--  v3.34 / NT-018：勾选列（行首；勾了几个就是几个，语义天然是批量）  -->
-                <CheckBox Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
-                          IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                          IsVisible="{Binding $parent[ListBox].DataContext.IsPickVisible}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell primary" Text="{Binding Name}"
+                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
                            Foreground="{DynamicResource PrimaryTextBrush}"
                            ToolTip.Tip="{Binding FilePath}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TypeText}"
+                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding TagsText}"
+                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TagsText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsTagsVisible}"/>
-                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding CategoriesText}"
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding CategoriesText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsCategoriesVisible}"/>
-                <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding CollectionsText}"
+                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding CollectionsText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsCollectionsVisible}"/>
-                <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding SizeText}"
+                <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding SizeText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
-                <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding ModifiedText}"
+                <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding ModifiedText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
-                <TextBlock Grid.Column="8" Classes="list-cell" Text="{Binding StorageName}"
+                <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding StorageName}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
-                <TextBlock Grid.Column="9" Classes="list-cell" Text="{Binding DurationText}"
+                <TextBlock Grid.Column="8" Classes="list-cell" Text="{Binding DurationText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsDurationVisible}"/>
-                <TextBlock Grid.Column="10" Classes="list-cell" Text="{Binding ResolutionText}"
+                <TextBlock Grid.Column="9" Classes="list-cell" Text="{Binding ResolutionText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsResolutionVisible}"/>
-                <TextBlock Grid.Column="11" Classes="list-cell" Text="{Binding CodecText}"
+                <TextBlock Grid.Column="10" Classes="list-cell" Text="{Binding CodecText}"
                            Foreground="{DynamicResource SecondaryTextBrush}"
                            IsVisible="{Binding $parent[ListBox].DataContext.IsCodecVisible}"/>
               </v:ColumnGrid>

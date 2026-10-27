@@ -38,14 +38,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         // 翻页 / 重取后选中项落到页内第一条（验收标准②；⛔ 不留在已不可见的旧行上）。
         // 同一资产换了对象实例（重取）⇒ 按 Id 认领，保详情卡不跳走；真不在本页才落到第一条。
-        if (Selected != null && !Items.Contains(Selected))
-            Selected = Items.FirstOrDefault(r => r.Id == Selected.Id)
-                       ?? (Items.Count > 0 ? Items[0] : null);
-
+        ReconcileSelection();
         UpdateHeaders();
-        RefreshChecked();                          // 列表重建 → 勾选计数 / 表头三态跟上
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
+        StatusText = StatusSummary();              // 筛选 / 翻页 / 表头筛选任何一处变了，状态栏数字都要跟上
     }
 
     /// <summary>草稿态专用：筛选 + 排序全在内存做（数据不在库里，⛔ 无分页）。</summary>
@@ -55,9 +52,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         var text = (SearchText ?? "").Trim();
         if (text.Length > 0)
-            q = q.Where(r => r.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
-                             || r.FilePath.Contains(text, StringComparison.OrdinalIgnoreCase)
-                             || r.TagsText.Contains(text, StringComparison.OrdinalIgnoreCase));
+            q = q.Where(r => AssetService.MatchesKeyword(r, text));   // 分词 AND，与 SQL 侧同口径
 
         var type = FilterType?.Value ?? "";
         if (type.Length > 0) q = q.Where(r => string.Equals(r.Type, type, StringComparison.Ordinal));
@@ -123,12 +118,12 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             foreach (var r in ordered.Skip((PageIndex - 1) * PageSize).Take(PageSize)) Items.Add(r);
         }
 
-        if (Selected != null && !Items.Contains(Selected)) Selected = null;
         UpdateHeaders();
-        RefreshChecked();                          // 列表重建 → 勾选计数 / 表头三态跟上
+        ReconcileSelection();                      // 列表重建 → 选中按 Id 认领 + 回填高亮
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(HasPaging));       // 切片后页数变了 ⇒ 底栏跳转链跟着出现/消失
+        StatusText = StatusSummary();               // 草稿态筛选后状态栏同样是"当前结果数"
     }
 
     private IOrderedEnumerable<AssetRow> Order<TKey>(IEnumerable<AssetRow> q, Func<AssetRow, TKey> key)

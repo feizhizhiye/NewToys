@@ -56,6 +56,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private readonly AssetImportExport _impExp = null!;
     private readonly AssetMergeService _merge = null!;
     private readonly TaskQueue _queue = null!;
+    private readonly MetadataService _meta = null!;
 
     /// <summary>应用级配置（只读：取 <c>StoreDirectory</c> 当导入/导出默认目录）。</summary>
     private readonly IAppConfigService? _app;
@@ -117,9 +118,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     // ==================== 列显隐（XAML 只能绑具名属性；状态在基类，落 config\columnlayout.json） ====================
 
-    /// <summary>勾选列（Pick）恒可见 —— 它是批量操作的前提。</summary>
-    public bool IsPickVisible => true;
-
     public bool IsNameVisible => Vis("Name");
     public bool IsTypeVisible => Vis("Type");
     public bool IsTagsVisible => Vis("Tags");
@@ -138,9 +136,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // 🔴 v3.34：首列 = **勾选列**（Pick）——
-        //    加了首列后，表头 / 行模板里**所有 Grid.Column 索引都要 +1**（⛔ 别漏一处）。
-        new("Pick", "", "34", sortable: false),
         // Sample 要给"典型内容宽度"（v3.22）：示例宽 ≤ 表头宽的列会被锁成表头宽、不可拖
         new("Name", "名称", "2.6*", sample: "The.Matrix.1999.1080p.mkv"),
         new("Type", "类型", "0.8*", sample: "视频"),
@@ -319,16 +314,16 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 「🗑 移入回收站（选中 N）」：的"减"——勾选行批量软删除（进回收站可恢复；⛔ 不动磁盘）。
+    /// 「🗑 移入回收站」：选中行批量软删除（进回收站可恢复；⛔ 不动磁盘）。
     /// </summary>
     [RelayCommand]
     private async Task TrashCheckedAsync()
     {
-        var rows = _all.Where(r => r.IsChecked).ToList();
-        if (rows.Count == 0) { StatusText = "先勾选要移除的资产（行首勾选框，或表头 ☑ 全选）。"; return; }
+        var rows = BatchRows();
+        if (rows.Count == 0) { StatusText = "先选中要移除的资产（Ctrl / Shift 可多选，Ctrl+A 全选当前页）。"; return; }
 
         if (!await DialogHooks.ConfirmAsync(
-                $"把勾选的 {rows.Count} 个资产移入回收站？\n" +
+                $"把选中的 {rows.Count} 个资产移入回收站？\n" +
                 "⛔ 只改库里的状态，**不动磁盘文件**；回收站里能恢复，也能永久删除。").ConfigureAwait(true))
         {
             StatusText = "已取消。";
@@ -354,7 +349,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         TagService? tagSvc = null, CategoryService? catSvc = null, CollectionService? colSvc = null,
         RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null,
         FileOperationService? fileOps = null, AssetImportExport? impExp = null, AssetMergeService? merge = null,
-        TaskQueue? queue = null, IOptionsStore? opts = null)
+        TaskQueue? queue = null, IOptionsStore? opts = null, MetadataService? metadata = null)
         : base(cols, opts)
     {
         _assets = assets;
@@ -370,6 +365,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _impExp = impExp!;
         _merge = merge!;
         _queue = queue!;
+        _meta = metadata!;
 
         _columnLayout = cols;
 

@@ -65,7 +65,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 catch { /* 设计期 / 还没有 UI 线程：忽略，不影响任务本身 */ }
             });
 
-            var job = await work(CancellationToken.None, progress).ConfigureAwait(false);
+            // ⛔ 这里不带 ConfigureAwait(false)：下面的 Reload / StatusText / IsBusy 都在 UI 线程上收尾
+            var job = await work(CancellationToken.None, progress);
 
             Reload();
             StatusText = job.Status == ScanStatuses.Cancelled
@@ -79,26 +80,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         finally { IsBusy = false; }
     }
 
-    // ==================== v3.34：勾选列 + 批量逻辑操作 ====================
+    // ==================== 批量逻辑操作 ====================
 
-    /// <summary>
-    /// 行被勾了几条（工具条「🏷 加标签」「📚 加集合」按它操作）。
-    /// <para>口径 = <c>_all</c> 里被勾的行数，而 <c>_all</c> 的语义分两态：
-    /// <b>库态</b> = 当前页（翻页会重建 ⇒ 勾选**不跨页保留**）；
-    /// <b>草稿态</b> = 全部预览行（对象一直在内存 ⇒ 勾选**天然跨页保留**）。
-    /// 这是分页列表的常规行为，⛔ 别理解成 bug —— 想一次勾全部就把底栏「每页」切到「全部」。</para>
-    /// </summary>
-    public int CheckedCount => _all.Count(r => r.IsChecked);
-
-    public bool HasChecked => CheckedCount > 0;
-
-    // （用户定调）：⛔ 工具条不再放「未勾选 / 已勾选 N 个」指示文字 ——
-    // 「需先勾选」这件事改用按钮自己的 ToolTip（+ ToolTip.ShowOnDisabled）表达，勾选数由列表左列勾选框直接可见。
-
-    /// <summary>
-    /// 表头 ☑ 的三态（🔴 用**原生三态 CheckBox**，⛔ 别用字符"☑"画 —— 字体会渲染成深色块，v3.16 连踩两轮）：
-    /// <c>true</c> = 全选、<c>false</c> = 全不选、<c>null</c> = 部分选中。
-    /// </summary>
-    [ObservableProperty] private bool? _allCheckedState = false;
+    // 选中口径见 AssetAllViewModel.Selection.cs（SelectedRows / SelectedCount / HasSelectedRows）；
+    // ⛔ 工具条不放「已选 N」指示文字 —— 数量由底栏显示，批量按钮的 ToolTip 说明前提。
 
 }

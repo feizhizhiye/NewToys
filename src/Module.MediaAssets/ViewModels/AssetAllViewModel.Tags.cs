@@ -30,7 +30,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [RelayCommand]
     private async Task AddTagToCheckedAsync()
     {
-        var ids = _all.Where(r => r.IsChecked).Select(r => r.Id).ToList();
+        var ids = BatchRows().Select(r => r.Id).ToList();
         if (ids.Count == 0) { StatusText = "先在左边勾选要打标签的资产。"; return; }
 
         var name = await DialogHooks.InputAsync($"给勾选的 {ids.Count} 个资产打什么标签？", "").ConfigureAwait(true);
@@ -49,7 +49,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [RelayCommand]
     private async Task AddToCollectionCheckedAsync()
     {
-        var ids = _all.Where(r => r.IsChecked).Select(r => r.Id).ToList();
+        var ids = BatchRows().Select(r => r.Id).ToList();
         if (ids.Count == 0) { StatusText = "先在左边勾选要加入集合的资产。"; return; }
 
         var name = await DialogHooks.InputAsync($"把勾选的 {ids.Count} 个资产加进哪个集合？（没有就新建）", "").ConfigureAwait(true);

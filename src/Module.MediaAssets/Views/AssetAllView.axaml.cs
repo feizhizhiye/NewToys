@@ -1,22 +1,31 @@
 using System;
-using Avalonia;
+using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using NewToys.MediaAssets.Models;
 using NewToys.MediaAssets.ViewModels;
 
 namespace NewToys.MediaAssets.Views;
 
 /// <summary>
-/// 「全部资产」页的 code-behind：只做**三件 View 才做得了的事**
-/// （转发表头拖拽 / 表头测量事件、给 ContextMenu 补 DataContext、取跨页投递的件），业务逻辑一律在 VM。
-/// <para>🔴 （需求 §4.8.5）：页内工具条已迁到 **Shell 承载** —— 全部按钮 / 输入框 / 勾选框在
-/// <c>AssetAllViewModel.Toolbar</c> 里声明（5 个类型薄壳页继承本 VM ⇒ 一处覆盖 6 个页面）；
-/// 文件 / 目录选择器也改由 VM 经 <c>Core.DialogHooks</c> 触发 ⇒ 这里不再接线，
-/// 原 v3.42 的按宽度折叠算法（<c>ApplyToolbarLayout</c> / <c>FitTwoRows</c>）整体搬进
-/// <c>Shell/Controls/ToolbarHost</c>（两条防抖原样保留）。</para>
+/// 「全部资产」页的 code-behind：只做**View 才做得了的事**
+/// （表头拖拽 / 测量转发、给 ContextMenu 补 DataContext、多选的修饰键接管、量列表是否溢出）。
+/// <para>🔴 选中真相在 VM（<c>SelectedRows</c>）：本类只负责把鼠标行为翻译成
+/// <c>SelectedItems</c> 的变化，再把结果回填给 VM；VM 侧改了选中（全选 / 反选 / 重建认领）
+/// 走 <c>SelectionSyncRequested</c> 事件反向回填。</para>
 /// </summary>
 public partial class AssetAllView : UserControl
 {
+    private AssetAllViewModel? _vm;
+
+    /// <summary>Shift 连选的基准行。</summary>
+    private AssetRow? _anchor;
+
+    /// <summary>程序化改 <c>SelectedItems</c> 时抑制自己的 <c>SelectionChanged</c> 回抛。</summary>
+    private bool _syncingSelection;
+
     public AssetAllView()
     {
         InitializeComponent();
@@ -34,18 +43,13 @@ public partial class AssetAllView : UserControl
             if (DataContext is AssetAllViewModel vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
         };
 
-        // ③ v3.42.1：表头 ☑ 上的右键菜单（全选 / 取消选择 / 反选）**只挂外层 Border**（HeaderCheckHost），
-        //    右键由 Avalonia 原生弹出 —— ⛔ 不要再手动 menu.Open()（二次 Open 会抛异常直接崩）。
-
-        // ③b 右键菜单在**独立弹出树**上，DataContext 不随宿主继承 ⇒ 每次弹之前重新同步一次。
-        //    （OnDataContextChanged 只在 DataContext 变化时同步；菜单可能早于宿主 DataContext 最终态构建，
-        //    晚同步一次最稳 —— MenuItem 的 Command 绑不到 VM 时表现为「菜单在但点了没反应」。）
-        if (HeaderCheckHost?.ContextMenu is { } checkMenu)
-            checkMenu.Opening += (_, _) => checkMenu.DataContext = DataContext;
+        // ③ 多选：修饰键在**隧道**阶段接管（ListBox 自己在 Multiple 下单击是「追加」，
+        //    与资源管理器「单击 = 只选这一行」不一致 ⇒ 无修饰键也一并接管）
+        AssetList.AddHandler(PointerPressedEvent, OnListPointerPressed, RoutingStrategies.Tunnel);
+        AssetList.AddHandler(KeyDownEvent, OnListKeyDown, RoutingStrategies.Tunnel);
+        AssetList.SelectionChanged += OnListSelectionChanged;
 
         // ④ 底栏显隐的另一半口径 = 列表内容是否超出视口（滚动出现）。
-        //    布局每帧都可能变（开合详情栏 / 改窗口大小 / 翻页）⇒ 挂 LayoutUpdated 量一次；
-        //    VM 侧 SetContentOverflow 对同值 no-op，⛔ 不会抖动。
         LayoutUpdated += (_, _) => ReportListOverflow();
     }
 
@@ -55,16 +59,14 @@ public partial class AssetAllView : UserControl
         if (DataContext is not AssetAllViewModel vm) return;
         _listScroller ??= AssetList?.FindDescendantOfType<ScrollViewer>();
         if (_listScroller is not { } sv) return;
-        // Avalonia 的 ScrollViewer 是 Extent / Viewport（Size），⛔ 不是 WPF 的 ExtentHeight / ViewportHeight
         vm.SetContentOverflow(sv.Extent.Height - sv.Viewport.Height > 1);
     }
 
     private ScrollViewer? _listScroller;
 
     /// <summary>
-    /// 🔴 跨页取件点（规范 §4.8 硬规则 8）：别的页面（标签管理 / 分类管理）请求"打开某个资产"时，
-    /// 在这里取件并选中。⛔ 不能放 `OnDataContextChanged` —— 标签已存在、切回来的那次只有可视树重挂，
-    /// DataContext 不变、那个回调**不会触发**。
+    /// 🔴 跨页取件点（规范 §4.8 硬规则 8）：别的页面请求"打开某个资产"时在这里取件并选中。
+    /// ⛔ 不能放 <c>OnDataContextChanged</c> —— 切回来的那次只有可视树重挂，DataContext 不变。
     /// </summary>
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
@@ -80,8 +82,133 @@ public partial class AssetAllView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+
+        if (_vm != null) _vm.SelectionSyncRequested -= OnSelectionSyncRequested;
+        _vm = DataContext as AssetAllViewModel;
+        if (_vm != null) _vm.SelectionSyncRequested += OnSelectionSyncRequested;
+
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
         if (AssetList?.ContextMenu is { } amenu) amenu.DataContext = DataContext;
-        if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
+    }
+
+    // ==================== 选中（Ctrl 增选 / Shift 连选 / Ctrl+A 全选） ====================
+
+    /// <summary>
+    /// 鼠标点行：无修饰键 = 只选这一行；`Ctrl` = 切换该行；`Shift` = 从基准行连选；
+    /// `Ctrl+Shift` = 追加连选。右键不管（行右键菜单用单条 <c>Selected</c>）。
+    /// </summary>
+    private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_vm == null) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        if ((e.Source as Control)?.DataContext is not AssetRow row) return;
+
+        var ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+
+        // 行要拿到键盘焦点，否则 Ctrl+A 之类的键事件到不了列表
+        (e.Source as Control)?.FindAncestorOfType<ListBoxItem>()?.Focus();
+        e.Handled = true;
+
+        if (shift) SelectRange(row, additive: ctrl);
+        else if (ctrl) Toggle(row);
+        else ReplaceWith(row);
+
+        if (!shift) _anchor = row;
+        _vm.Selected = row;          // 详情卡跟最后一次点击走
+        PushSelectionToVm(row);
+    }
+
+    /// <summary>Shift 连选：从基准行到目标行整段选中；<paramref name="additive"/> = 保留原有选中（Ctrl+Shift）。</summary>
+    private void SelectRange(AssetRow target, bool additive)
+    {
+        if (_vm == null) return;
+
+        var rows = _vm.Items.ToList();
+        var to = rows.IndexOf(target);
+        if (to < 0) return;
+
+        var from = _anchor != null ? rows.IndexOf(_anchor) : to;
+        if (from < 0) from = to;
+
+        BulkUpdateSelection(items =>
+        {
+            if (!additive) items.Clear();
+            for (var i = Math.Min(from, to); i <= Math.Max(from, to); i++)
+                if (!items.Contains(rows[i])) items.Add(rows[i]);
+        });
+    }
+
+    /// <summary>Ctrl 点击：已选中就去掉，没选中就加上。</summary>
+    private void Toggle(AssetRow row)
+    {
+        BulkUpdateSelection(items =>
+        {
+            if (items.Contains(row)) items.Remove(row);
+            else items.Add(row);
+        });
+    }
+
+    /// <summary>无修饰键：清空其余、只留这一行（资源管理器语义）。</summary>
+    private void ReplaceWith(AssetRow row)
+    {
+        BulkUpdateSelection(items =>
+        {
+            items.Clear();
+            items.Add(row);
+        });
+    }
+
+    /// <summary>
+    /// 批量改 <c>SelectedItems</c>：**期间关掉自动滚动**。
+    /// <para>🔴 每 <c>Add</c> 一项 ListBox 都会把该项滚进视野（虚拟化下还要建容器 + 触发布局）——
+    /// 全选 / 大范围连选上百行就是上百次滚动，界面看起来像卡死。</para>
+    /// </summary>
+    private void BulkUpdateSelection(Action<System.Collections.IList> mutate)
+    {
+        if (AssetList?.SelectedItems is not { } items) return;
+
+        var autoScroll = AssetList.AutoScrollToSelectedItem;
+        AssetList.AutoScrollToSelectedItem = false;
+        _syncingSelection = true;
+        try { mutate(items); }
+        finally
+        {
+            _syncingSelection = false;
+            AssetList.AutoScrollToSelectedItem = autoScroll;
+        }
+    }
+
+    /// <summary>Ctrl+A：交给 VM 的全选命令（与右键「☑ 全选当前页」同一入口）。</summary>
+    private void OnListKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.A || !e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+        e.Handled = true;
+        _vm?.SelectAllCommand.Execute(null);
+    }
+
+    /// <summary>列表自身的选中变化（键盘方向键 / 程序化）→ 回填 VM。</summary>
+    private void OnListSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingSelection) return;
+        PushSelectionToVm(null);
+    }
+
+    private void PushSelectionToVm(AssetRow? clicked)
+    {
+        if (_vm == null || AssetList?.SelectedItems is not { } items) return;
+        _vm.SetSelectionFromView(items.OfType<AssetRow>().ToList(), clicked);
+    }
+
+    /// <summary>VM 侧改了选中（全选 / 反选 / 清空 / 列表重建认领）⇒ 回填 SelectedItems。</summary>
+    private void OnSelectionSyncRequested(object? sender, EventArgs e)
+    {
+        if (_vm == null) return;
+
+        BulkUpdateSelection(items =>
+        {
+            items.Clear();
+            foreach (var r in _vm.SelectedRows) items.Add(r);
+        });
     }
 }

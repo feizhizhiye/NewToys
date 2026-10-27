@@ -187,6 +187,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                             },
                             new DetailIconAction
                             {
+                                IconKey = "IconZap",
+                                ToolTip = "读媒体信息：对这个文件跑一次 ffprobe（视频=时长/分辨率/编码；图片=尺寸），即时写库",
+                                CommandPath = nameof(ReadMediaInfoCommand),
+                                IsEnabledPath = nameof(HasSelection)
+                            },
+                            new DetailIconAction
+                            {
                                 IconKey = "IconRefresh",
                                 ToolTip = "刷新：重读资产库（列表 + 详情）",
                                 CommandPath = nameof(RefreshCommand),
@@ -384,25 +391,42 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         FilterStatus = StatusOptions[0];
     }
 
+    /// <summary>
+    /// 重建下拉期间置位：<c>Clear()</c> 会让绑定中的 ComboBox 把 <c>SelectedItem</c> 回写成 null，
+    /// 那会顺带触发一次「无筛选」的重取（大库上等于白跑一次 COUNT + 一页查询）。
+    /// 只在 <see cref="Reload"/> 里调用，重建完由 Reload 统一取页，所以抑制是安全的。
+    /// </summary>
+    private bool _rebuildingOptions;
+
     private void RebuildStorageOptions()
     {
         var keep = FilterStorage?.Value ?? "";
-        StorageOptions.Clear();
-        StorageOptions.Add(new FilterOption("全部存储源", ""));
-        foreach (var s in _assets.ListStorages())
-            StorageOptions.Add(new FilterOption(s.Name, s.Id.ToString(CultureInfo.InvariantCulture)));
-        FilterStorage = StorageOptions.FirstOrDefault(o => o.Value == keep) ?? StorageOptions[0];
+        _rebuildingOptions = true;
+        try
+        {
+            StorageOptions.Clear();
+            StorageOptions.Add(new FilterOption("全部存储源", ""));
+            foreach (var s in _assets.ListStorages())
+                StorageOptions.Add(new FilterOption(s.Name, s.Id.ToString(CultureInfo.InvariantCulture)));
+            FilterStorage = StorageOptions.FirstOrDefault(o => o.Value == keep) ?? StorageOptions[0];
+        }
+        finally { _rebuildingOptions = false; }
     }
 
     private void RebuildTagOptions()
     {
         var keep = FilterTag?.Value ?? "";
-        TagOptions.Clear();
-        TagOptions.Add(new FilterOption("全部标签", ""));
-        // 之前标签表是空的 → 下拉只有「全部标签」，属预期（⛔ 不是 bug）
-        foreach (var (id, name) in _assets.ListTagOptions())
-            TagOptions.Add(new FilterOption(name, id.ToString(CultureInfo.InvariantCulture)));
-        FilterTag = TagOptions.FirstOrDefault(o => o.Value == keep) ?? TagOptions[0];
+        _rebuildingOptions = true;
+        try
+        {
+            TagOptions.Clear();
+            TagOptions.Add(new FilterOption("全部标签", ""));
+            // 之前标签表是空的 → 下拉只有「全部标签」，属预期（⛔ 不是 bug）
+            foreach (var (id, name) in _assets.ListTagOptions())
+                TagOptions.Add(new FilterOption(name, id.ToString(CultureInfo.InvariantCulture)));
+            FilterTag = TagOptions.FirstOrDefault(o => o.Value == keep) ?? TagOptions[0];
+        }
+        finally { _rebuildingOptions = false; }
     }
 
     private void RebuildTargetStorages()
@@ -427,15 +451,15 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
     partial void OnFilterStorageChanged(FilterOption? value)
     {
-        if (_booted) ResetToFirstPage();
+        if (_booted && !_rebuildingOptions) ResetToFirstPage();
     }
     partial void OnFilterStatusChanged(FilterOption? value)
     {
-        if (_booted) ResetToFirstPage();
+        if (_booted && !_rebuildingOptions) ResetToFirstPage();
     }
     partial void OnFilterTagChanged(FilterOption? value)
     {
-        if (_booted) ResetToFirstPage();
+        if (_booted && !_rebuildingOptions) ResetToFirstPage();
     }
 
     // ==================== 工具条「⋯ 更多」开合（v3.41：用户定调） ====================
@@ -457,17 +481,23 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 } },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "路径（回车预览）", ValuePath = nameof(ImportPath),
                 EnterCommandPath = nameof(PreviewPathCommand), ToolTip = "填文件夹路径，回车即预览扫描（也可用左侧「📁 扫描」选目录）" },
-        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索…", ValuePath = nameof(SearchText), ToolTip = "按名称 / 路径 / 标签搜索" },
+        new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索…", ValuePath = nameof(SearchText), ToolTip = "按名称 / 路径 / 标签搜索（空格分词，多个词要同时命中）" },
         new() { Text = "➕ 登记", CommandPath = nameof(RegisterFolderCommand), IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "加入待扫文件夹列表（⛔ 不扫描），攒几个后点「🔄 扫描全部」" },
         new() { Text = "🔄 扫描全部", CommandPath = nameof(ScanAllCommand), IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "把所有已登记的存储源扫一遍，直接入库" },
-        new() { Text = "🏷 加标签", CommandPath = nameof(AddTagToCheckedCommand), IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true,
-                ToolTip = "先在列表里勾选行，再点这里打标签（输入标签名，不存在就新建）" },
-        new() { Text = "📚 加集合", CommandPath = nameof(AddToCollectionCheckedCommand), IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true,
-                ToolTip = "先在列表里勾选行，再点这里加进集合（输入集合名，不存在就新建一个手动集合）" },
-        new() { Text = "🗑 移入回收站", CommandPath = nameof(TrashCheckedCommand), IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true,
-                ToolTip = "先在列表里勾选行，再点这里移入回收站（只改库状态，磁盘文件不动；可恢复）" },
+        new() { Text = "🏷 加标签", CommandPath = nameof(AddTagToCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
+                ToolTip = "先选中行（Ctrl 增选 / Shift 连选 / Ctrl+A 全选），再点这里打标签（输入标签名，不存在就新建）" },
+        new() { Text = "📚 加集合", CommandPath = nameof(AddToCollectionCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
+                ToolTip = "先选中行（Ctrl 增选 / Shift 连选 / Ctrl+A 全选），再点这里加进集合（输入集合名，不存在就新建一个手动集合）" },
+        new() { Text = "🗑 移入回收站", CommandPath = nameof(TrashCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
+                ToolTip = "先选中行，再点这里移入回收站（只改库状态，磁盘文件不动；可恢复）" },
+        new() { Text = "⤫ 从库移除", CommandPath = nameof(RemoveCheckedFromLibraryCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
+                ToolTip = "选中后点这里：只删库存记录（含文件位置），⛔ 磁盘文件一个都不动 —— 清理重复行的正确手段" },
+        new() { Text = "📊 读媒体信息", CommandPath = nameof(ReadMediaInfoCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
+                ToolTip = "选中后点这里：给还没读过的视频 / 图片跑 ffprobe 补时长 / 分辨率 / 编码（走任务队列，可取消）" },
+        new() { Text = "🔍 查重合并", CommandPath = nameof(MergeDuplicateAssetsCommand), IsEnabledPath = nameof(IsDbAvailable),
+                ToolTip = "把「同一个物理文件被多条资产重复收录」的组并成一条（标签 / 评分 / 关联都保住；⛔ 磁盘文件不动）" },
         new() { Text = "💾 加入库", CommandPath = nameof(CommitDraftCommand), IsEnabledPath = nameof(IsDraft),
                 ToolTip = "把当前预览结果写入资产库（⛔ 不动磁盘文件）" },
         new() { Text = "🧹 清除列表", CommandPath = nameof(ClearListCommand),

@@ -108,13 +108,21 @@ public partial class AssetService
         catch { return 0; }
     }
 
+    /// <summary>上一次 <see cref="MergeDuplicatePaths"/> 的失败原因（空 = 没失败）；VM 用它把「为什么没合并」说出来。</summary>
+    public string LastDedupError { get; private set; } = "";
+
     /// <summary>
     /// 合并「同一物理路径挂在多条资产下」的重复：每组保留一条资产（active 优先、id 最小），
     /// 其余资产的文件位置与标签 / 分类 / 集合 / 关联全部重挂过去后删除，🔴 **磁盘文件一个都不动**。
-    /// <para>回收站里的资产不参与合并（否则会把回收站内容并回在用资产）。</para>
+    /// <para>
+    /// 🔴 口径必须与 <see cref="CountDuplicatePaths"/> 一致：**含回收站资产的组也参与合并**。
+    /// 若跳过这类组，就会出现「点一次报 N 组、点完还报 N 组」—— 计数看得到、合并永远碰不到。
+    /// 组内排序已保证 active 优先，所以保留的一定是在用那条，回收站记录只贡献挂接后被删掉。
+    /// </para>
     /// </summary>
     public DuplicateMergeResult MergeDuplicatePaths()
     {
+        LastDedupError = "";
         if (!IsAvailable) return new DuplicateMergeResult(0, 0, 0);
         try
         {
@@ -141,7 +149,11 @@ public partial class AssetService
             tx.Commit();
             return new DuplicateMergeResult(merged, removed, moved, pruned);
         }
-        catch { return new DuplicateMergeResult(0, 0, 0); }
+        catch (Exception ex)
+        {
+            LastDedupError = ex.Message;
+            return new DuplicateMergeResult(0, 0, 0);
+        }
     }
 
     /// <summary>
@@ -162,8 +174,7 @@ public partial class AssetService
     }
 
     /// <summary>读出「同一路径对应多条资产」的组，每组内按「active 优先、id 最小」排序（首元素 = 保留者）。</summary>
-    private static List<List<long>> LoadDuplicateGroups(SqliteConnection conn, SqliteTransaction tx)
-    {
+    private static List<List<long>> LoadDuplicateGroups(SqliteConnection conn, SqliteTransaction tx)    {
         var byPath = new Dictionary<string, List<(long Id, string Status)>>(StringComparer.Ordinal);
 
         using (var cmd = conn.CreateCommand())
@@ -190,7 +201,8 @@ public partial class AssetService
         foreach (var list in byPath.Values)
         {
             if (list.Count < 2) continue;
-            if (list.Any(x => string.Equals(x.Status, AssetStatuses.Trashed, StringComparison.Ordinal))) continue;
+            // ⛔ 不按状态过滤：口径必须与 CountDuplicatePaths 一致（否则「报 N 组、点完还是 N 组」）。
+            //    active 优先的排序已保证保留在用那条；回收站记录只贡献挂接，随后被删掉。
             groups.Add(list
                 .OrderBy(x => string.Equals(x.Status, AssetStatuses.Active, StringComparison.Ordinal) ? 0 : 1)
                 .ThenBy(x => x.Id)
@@ -216,7 +228,7 @@ public partial class AssetService
         Exec(conn, tx, "UPDATE relations SET target_asset_id=$k WHERE target_asset_id=$o;", ("$k", keep), ("$o", oldAsset));
         Exec(conn, tx, "DELETE FROM relations WHERE source_asset_id=$k AND target_asset_id=$k;", ("$k", keep));
 
-        // 位置重挂：⛔ 不抢主位置（is_primary 归零），"主位置"仍由保留资产原来那条担任
+        // 位置重挂：⛔ 不抢主位置（is_primary 归零）—— 主位置始终归 keep 自己的那条担任
         var moved = Exec(conn, tx,
             "UPDATE file_locations SET asset_id=$k, is_primary=0, updated_at=$u WHERE asset_id=$o;",
             ("$k", keep), ("$o", oldAsset), ("$u", Now()));

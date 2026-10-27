@@ -157,8 +157,17 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         }
     };
 
-    /// <summary>全局导入/导出默认目录（当前配置档 <c>data\</c>）。</summary>
-    public string ImportExportDefaultDir => _cfg?.StoreDirectory ?? "";
+    /// <summary>导入 / 导出默认目录：本模块的 <c>store\video</c>（未建出 ⇒ 退回 <c>store\</c>）。</summary>
+    public string ImportExportDefaultDir
+    {
+        get
+        {
+            var root = _cfg?.StoreDirectory;
+            if (string.IsNullOrEmpty(root)) return "";
+            var dir = Path.Combine(root, VideoDb.Key);
+            return Directory.Exists(dir) ? dir : root;
+        }
+    }
 
     /// <summary>已勾选的文件数（工具条上的「发送到…」按钮据此启用 / 显示数量）。</summary>
     public int CheckedCount => _all.Count(v => v.IsChecked);

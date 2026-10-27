@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -65,6 +66,8 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
         ThumbFramePercent = s.ThumbFramePercent;
         ThumbFrameSeconds = s.ThumbFrameSeconds;
         ImageThumbSize = s.ImageThumbSize;
+        // 先让生效值跑一遍旧布局自愈（<配置根>\data\… → cache\ / store\），再取用户值显示。
+        _ = _io.ThumbsDirectory;
         ThumbsDirectory = s.ThumbsDirectory;
         TrashRetentionDays = s.TrashRetentionDays;
         AutoCleanupTrash = s.AutoCleanupTrash;
@@ -188,11 +191,20 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
 
     public string ConfigFilePath => _io.FilePath;
 
-    /// <summary>缩略图目录（生效值：配置为空 → <c>&lt;应用根&gt;\data\thumbs</c>）。</summary>
+    /// <summary>缩略图目录（生效值：配置为空 → <c>&lt;配置根&gt;\cache\assets\thumbs</c>）。</summary>
     public string ThumbsDirectoryEffective => _io.ThumbsDirectory;
 
-    /// <summary>导入导出默认目录（当前配置档 <c>data\</c>；，⛔ 本页不新建字段）。</summary>
-    public string ImportExportDefaultDir => _app?.StoreDirectory ?? "";
+    /// <summary>导入导出默认目录：本模块的 <c>store\assets</c>（未建出 ⇒ 退回 <c>store\</c>；⛔ 本页不新建字段）。</summary>
+    public string ImportExportDefaultDir
+    {
+        get
+        {
+            var root = _app?.StoreDirectory;
+            if (string.IsNullOrEmpty(root)) return "";
+            var dir = Path.Combine(root, AssetsDb.Key);
+            return Directory.Exists(dir) ? dir : root;
+        }
+    }
 
     public bool HasImportExportDir => !string.IsNullOrWhiteSpace(ImportExportDefaultDir);
 

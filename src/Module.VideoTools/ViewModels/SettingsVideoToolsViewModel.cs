@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using NewToys.Shared.Services;
 using NewToys.VideoTools.Services;
@@ -60,8 +61,17 @@ public partial class SettingsVideoToolsViewModel : ObservableObject, IStatusProv
     /// <summary>外部播放器（全局项）。</summary>
     public string PlayerPathDisplay => Or(_app?.PlayerPath, "未配置（用系统默认关联程序）");
 
-    /// <summary>导入导出默认目录（全局项）。</summary>
-    public string ImportExportDirDisplay => Or(_app?.StoreDirectory, "当前配置档的 store 目录");
+    /// <summary>导入导出默认目录（本模块 <c>store\video</c>，未建出 ⇒ <c>store\</c>）。</summary>
+    public string ImportExportDirDisplay
+    {
+        get
+        {
+            var root = _app?.StoreDirectory;
+            if (string.IsNullOrEmpty(root)) return "当前配置档的 store 目录";
+            var dir = Path.Combine(root, VideoDb.Key);
+            return Directory.Exists(dir) ? dir : root;
+        }
+    }
 
     /// <summary>本模块设置文件全路径。</summary>
     public string ConfigFilePath => _settings?.FilePath ?? "";

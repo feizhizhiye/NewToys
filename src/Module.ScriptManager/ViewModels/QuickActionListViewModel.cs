@@ -68,8 +68,17 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// <summary>手工数据（库列表 / 当前库 / 根目录）。</summary>
     private readonly IScriptStoreService? _store;
 
-    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
-    public string ImportExportDefaultDir => _app?.StoreDirectory ?? "";
+    /// <summary>导入 / 导出默认目录：本模块的 <c>store\script</c>（未建出 ⇒ 退回 <c>store\</c>）。</summary>
+    public string ImportExportDefaultDir
+    {
+        get
+        {
+            var root = _app?.StoreDirectory;
+            if (string.IsNullOrEmpty(root)) return "";
+            var dir = Path.Combine(root, ScriptDb.Key);
+            return Directory.Exists(dir) ? dir : root;
+        }
+    }
 
     /// <summary>本页归属的 <see cref="QuickAction.Page"/>（<see cref="QuickActionPage"/> 之一）。</summary>
     private readonly string _pageKind;

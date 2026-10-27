@@ -83,8 +83,8 @@
 | **字幕 / 多段**（NT-100 / NT-101） | 同上（与预览页同一套字段） | 字段只是编辑缓冲，`💾 保存修改` 后写回任务并重算命令 | 软字幕保存时输出后缀自动改 `.mkv` |
 | **裁剪 / 音频 / 目标体积**（NT-102 ~ NT-104） | 同上（与预览页同一套字段） | 同样是编辑缓冲；`🖼 探测黑边` 只填缓冲，`💾 保存修改` 才写回任务 | 命令与预检都基于**任务上的值**（保存前改框不会改命令），卡内有提示 |
 | 删除任务 | `🗑 删除` | 只删队列条目 | ⛔ 不删源文件 |
-| 导入任务 | `📥 导入任务` | 从导出 JSON **追加**进队列 | ⛔ 不覆盖已有 |
-| 导出任务 | `📤 导出任务` | 队列 → JSON（可外部加工再导入） | — |
+| 导入任务 | `📥 导入任务` | 从导出 JSON **追加**进队列 | ⛔ 不覆盖已有；默认目录 = `store\video\` |
+| 导出任务 | `📤 导出任务` | 队列 → JSON（可外部加工再导入） | 默认目录 = `store\video\` |
 | 清理已结束 | `🧹 清理已结束` | 从列表移除已完成条目 | — |
 | 清除缓存 | `🧹 清除缓存` | 只清页面列表显示 | `config\video-tasks.json` **不动**，可「📥 导入任务」读回 |
 | 送预览 | `➡ 送预览` | 选中任务的源文件送进 `video-cut` | 一次只编一个 |
@@ -109,7 +109,7 @@
 | `FfmpegService` | 命令拼装 + 执行 + `ExtractFrameAsync`（抽帧）/ 探测时长 / `Play`（外部播放器 → ffplay） |
 | **`CommandLint`**（NT-098） | 参数**静态预检**：copy 配滤镜/CRF、`.gif` 配 x264、NVENC 用 `-crf`、多个 `-vf`、`-vf`+`-filter_complex`、CRF 越界、GIF 超 30 秒… 只做已知冲突白名单，⛔ 不解析 ffmpeg 语法 |
 | `VideoScanner` | 目录扫描入库 |
-| `VideoMediaIndex` | 本地索引（`data\` 侧，轻量） |
+| `VideoMediaIndex` | 本地索引（`store\video\` 侧，轻量） |
 | `VideoTaskStore` | 跨页投递（`TakePendingCut` / `TakePendingTranscode`，**取一次即清空**） |
 | `VideoFileService` | 文件选择 / 打开 + 改名 / 删除的**弹窗确认层**（磁盘动作 v3.66 起委托 `IFileOperationService`，见 framework.md §6.6） |
 | `VideoToolsSettingsService` | `config\video-tools.json` |

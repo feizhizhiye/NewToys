@@ -192,7 +192,7 @@
             Classes="hint-text"
             TextWrapping="Wrap"
             IsVisible="{Binding !HasImportExportDir}"
-            Text="尚未设置「导入导出默认目录」——到「设置 → 运行环境」里配（全局项，本模块复用，⛔ 不另存一份）。" />
+            Text="当前配置档的 store 目录尚未就绪，导入 / 导出对话框将用系统默认位置。" />
         <TextBlock
             Classes="field-value"
             IsVisible="{Binding HasImportExportDir}"

@@ -1237,9 +1237,9 @@ Module.*（功能模块，只引 Shared + Core）
 #### 6.4.5 导入 / 导出默认目录（NT-077 第二批改口径：不再可配）
 
 - 🔴 **「设置 → 路径配置」的「导入导出默认目录」一行已删除**（2026-10-19）。原因：它落 `app.json`（跨配置共享）却存着**某一个 profile 的绝对路径**，切配置后导入/导出会指向别人的目录 —— 属缺陷字段，不是功能。
-- **现行口径**：导入 / 导出对话框的起点目录一律 = **当前配置档的 `store\`**（`IAppConfigService.StoreDirectory`），跟随配置档自动正确，用户无需维护。
+- **现行口径**：导入 / 导出对话框的起点目录 = **当前配置档里本模块的 store 子目录**（`IAppConfigService.StoreDirectory` + 模块库键：`store\script` / `store\assets` / `store\video` / `store\web`；子目录未建出时退回 `store\`），跟随配置档自动正确，用户无需维护。
 - **适用范围不变**：凡打开文件选择器做「导入」或「导出」，都把该目录设为 `SuggestedStartLocation`。当前覆盖：批量任务 `.json` 导入 / 导出；媒体资产库文件打开 / 保存、导入 / 导出（§6.6）。
-- 读取：`IAppConfigService.DataDirectory`（`VideoDbFolder` 属性已从接口删除）。
+- 读取：`IAppConfigService.StoreDirectory` / `CacheDirectory`（`VideoDbFolder`、`DataDirectory` 属性均已删除）。
 
 #### 6.4.6 视频标签（tags）—— ⛔ 已移除（v3.32）
 
@@ -1500,7 +1500,7 @@ Module.*（功能模块，只引 Shared + Core）
 | 存储源 | `assets-storages` | 列表页 | local / removable / nas；在线状态；移除仅移索引、⛔ 不删磁盘文件 |
 | 任务中心 | `assets-tasks` | 列表页 | Scan / Rename / Move / Copy / Delete / ExtractMeta / Thumbnail；取消 / 重试 / 日志 |
 | 回收站 | `assets-trash` | 列表页 | `status='trashed'`；恢复 / 永久删除（二次确认）/ 清空 |
-| 模块设置 | `settings-media-assets` | 设置页（`Module.MediaAssets`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（导入导出默认目录 = 当前配置档 `store\`）；由本模块 `Initialize` 注册进本模块一级菜单（Order 99） |
+| 模块设置 | `settings-media-assets` | 设置页（`Module.MediaAssets`） | 扫描 / 缩略图 / 命名模板 / 回收站 / 物理操作 / 元数据 / 导入导出（默认目录 = 当前配置档 `store\assets\`）；由本模块 `Initialize` 注册进本模块一级菜单（Order 99） |
 
 - **类型切换（🔴 v3.69 取代原「类型页 = 薄壳 + 预设类型」；用户 2026-10-16 拍板）**：
   - **只有一页**：`assets-all`（`AssetAllView` / `AssetAllViewModel`）是唯一资产浏览页；5 个类型菜单项与 Key（`assets-video` / `assets-music` / `assets-book` / `assets-image` / `assets-document`）**已撤销**，不再有各自的 View / VM。

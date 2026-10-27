@@ -108,7 +108,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     private readonly IAppConfigService? _app;
 
-    /// <summary>导入 / 导出默认目录（当前配置档 <c>data\</c>）。</summary>
+    /// <summary>导入 / 导出默认目录（当前配置档 <c>store\</c>；本模块没有自己的库子目录）。</summary>
     public string ImportExportDefaultDir => _app?.StoreDirectory ?? "";
 
     /// <summary>已安装包 Id 的缓存（搜索结果要靠它把「状态」列标准）。</summary>

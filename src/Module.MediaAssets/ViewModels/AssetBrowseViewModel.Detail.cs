@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
 using NewToys.MediaAssets.Models;
+using NewToys.MediaAssets.Services;
 using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;

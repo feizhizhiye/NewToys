@@ -40,6 +40,9 @@ public partial class SettingsScriptViewModel : ObservableObject, IStatusProvider
         _settings = settings;
 
         _syncing = true;
+        // 先让生效值跑一遍旧布局自愈（<配置根>\data\… → store\ / cache\），再取用户值显示，
+        // 否则文本框里会留着一个已经不存在的旧路径。
+        _ = settings.EffectiveScriptsFolder;
         ScriptsFolder = settings.ScriptsFolder;
         _syncing = false;
         StatusText = $"本模块设置就绪 · 写入 {settings.FilePath}";

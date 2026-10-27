@@ -113,7 +113,7 @@ public class ScriptManagerModule : IModule
     /// 挪到首帧之后执行，启动时不再被 SQLite 打开 / 写库 / 复制示例脚本挡住。
     /// <para>
     /// 落位三份数据 —— config\script-manager.json（设置，解析设置服务时建）、
-    /// config\script\script.json（手工数据）、data\script\script.db（观测缓存）。
+    /// config\script\script.json（手工数据）、store\script\script.db（观测缓存）。
     /// 库坏 / 目录只读都不该拦住整个应用（⛔ 不抛），页面按空数据处理。
     /// </para>
     /// </summary>

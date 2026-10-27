@@ -14,7 +14,7 @@ namespace NewToys.ScriptManager.Services;
 /// 框架层 ⛔ 不引模块 ⇒ 按 <see cref="IBackupSection"/> 契约由模块自己提供（与脚本文件节同一套通道）。
 /// </para>
 /// <para>只备 <c>rules\</c>，⛔ 不备 <c>cache\</c>（抓下来的 HTML 随时能重抓）。</para>
-/// <para>恢复落到 <c>data\restore-&lt;时间戳&gt;\web-rules\</c> —— ⛔ 不覆盖现有规则目录。</para>
+/// <para>恢复落到 <c>store\restore-&lt;时间戳&gt;\web-rules\</c> —— ⛔ 不覆盖现有规则目录。</para>
 /// </summary>
 public sealed class RulesBackupSection : IBackupSection
 {
@@ -72,7 +72,7 @@ public sealed class RulesBackupSection : IBackupSection
 
     public (int Ok, int Skipped) RestoreFrom(ZipArchiveEntry entry)
     {
-        // ⚠️ 恢复不覆盖现有规则：统一落到 data\restore-<ts>\web-rules\（用户自己决定要不要挪回去）
+        // ⚠️ 恢复不覆盖现有规则：统一落到 store\restore-<ts>\web-rules\（用户自己决定要不要挪回去）
         var root = Path.Combine(BackupPaths.CurrentRestoreDir(_cfg.StoreDir), "web-rules");
         var ok = 0;
         var skipped = 0;

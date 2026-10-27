@@ -42,7 +42,7 @@ public class MediaAssetsSettings
     /// <summary>图片 / 抽帧的缩略图尺寸（长边像素；只缩不放）。</summary>
     public int ImageThumbSize { get; set; } = 320;
 
-    /// <summary>缩略图目录（空 = <c>&lt;应用根&gt;\data\thumbs</c>）。</summary>
+    /// <summary>缩略图目录（空 = <c>&lt;配置根&gt;\cache\assets\thumbs</c>）。</summary>
     public string ThumbsDirectory { get; set; } = "";
 
     // ==================== 命名模板 + 冲突策略（命名功能落地时启用） ====================

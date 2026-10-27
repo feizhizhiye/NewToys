@@ -20,7 +20,7 @@ namespace NewToys.ScriptManager.Services;
 /// 内容布局：<c>&lt;别名&gt;/&lt;相对路径&gt;</c>，别名 = 「默认」或集合名（非法字符换成 <c>_</c>）；
 /// 另外写一份 <c>_roots.txt</c> 列出「别名 → 原始目录」，恢复出来能对得上来源。
 /// </para>
-/// <para>恢复落到 <c>data\restore-&lt;时间戳&gt;\scripts\&lt;别名&gt;\…</c> —— ⛔ 不覆盖原脚本目录。</para>
+/// <para>恢复落到 <c>store\restore-&lt;时间戳&gt;\scripts\&lt;别名&gt;\…</c> —— ⛔ 不覆盖原脚本目录。</para>
 /// <para>默认不勾：脚本目录可能装着几百个文件，且多数人「备份设置」不需要它。</para>
 /// </summary>
 public sealed class ScriptsBackupSection : IBackupSection
@@ -161,7 +161,7 @@ public sealed class ScriptsBackupSection : IBackupSection
 
     public (int Ok, int Skipped) RestoreFrom(ZipArchiveEntry entry)
     {
-        // ⚠️ 恢复不去碰原脚本目录：统一落到 data\restore-<ts>\scripts\（用户自己决定要不要覆盖回去）
+        // ⚠️ 恢复不去碰原脚本目录：统一落到 store\restore-<ts>\scripts\（用户自己决定要不要覆盖回去）
         var root = Path.Combine(BackupPaths.CurrentRestoreDir(_cfg.StoreDir), "scripts");
         var ok = 0;
         var skipped = 0;

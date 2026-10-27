@@ -303,7 +303,7 @@ public sealed class BackupService
         }
 
         // 数据节是"恢复成新副本" ⇒ 必须告诉用户副本在哪，否则等于没恢复。
-        // 口径 = 恢复前后 data\ 下 restore-* 目录的差集（比"猜最近一个"可靠）。
+        // 口径 = 恢复前后 store\ 下 restore-* 目录的差集（比"猜最近一个"可靠）。
         if (restoredData)
         {
             var created = SnapshotRestoreDirs().Except(before).OrderByDescending(d => d, StringComparer.OrdinalIgnoreCase).FirstOrDefault();

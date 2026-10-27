@@ -10,7 +10,7 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 缩略图生成：视频抽帧 / 图片缩放，落 <c>data\thumbs\{sha1(path)}.jpg</c>（复用视频工具约定）。
+/// 缩略图生成：视频抽帧 / 图片缩放，落 <c>cache\assets\thumbs\{sha1(path)}.jpg</c>（复用视频工具约定）。
 /// <para>
 /// 🔴 两条硬经验（视频工具先例）：
 /// ① 先写 <c>.tmp.jpg</c> 再 <see cref="File.Move(string,string, bool)"/> 替换 —— 收藏页 / 列表的 Bitmap
@@ -28,7 +28,7 @@ public class ThumbnailService
         _app = app;
     }
 
-    /// <summary>缩略图目录（生效值，配置为空 → <c>&lt;应用根&gt;\data\thumbs</c>）。</summary>
+    /// <summary>缩略图目录（生效值，配置为空 → <c>&lt;配置根&gt;\cache\assets\thumbs</c>）。</summary>
     public string ThumbsDirectory => _io.ThumbsDirectory;
 
     /// <summary>一个路径对应的缩略图文件全路径（<c>{sha1(path)}.jpg</c>）。</summary>

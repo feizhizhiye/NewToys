@@ -134,7 +134,7 @@ public static class ScriptCollectableSource
 /// <c>config\script\script.json</c> 的根结构（§三.4）。
 /// <para>
 /// 这里放的是<b>手工数据</b>：集合 / 条目 / 标签 / 视图 / 上次选中的集合 —— 可手改、可备份、可 diff。
-/// 观测快照与运行日志是"会长大要查询"的数据，进 <c>data\script\script.db</c>（见 <c>ScriptDatabase</c>）。
+/// 观测快照与运行日志是"会长大要查询"的数据，进 <c>store\script\script.db</c>（见 <c>ScriptDatabase</c>）。
 /// </para>
 /// </summary>
 public class ScriptStoreRoot

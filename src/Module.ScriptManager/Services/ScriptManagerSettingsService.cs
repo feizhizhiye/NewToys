@@ -48,7 +48,7 @@ public class ScriptManagerSettingsService : IScriptManagerSettingsService
     public string ScriptsFolder => Read(KeyScriptsFolder);
 
     /// <summary>
-    /// 默认脚本目录：<c>&lt;配置根&gt;\data\scripts</c>。
+    /// 默认脚本目录：<c>&lt;配置根&gt;\store\scripts</c>。
     /// <para>🔴 v3.66 改动：原先是 <c>&lt;应用根&gt;\scripts</c>（跨配置共享、在应用根裸奔）。
     /// 按「配置 = 根目录导航」的定位，脚本是**这个配置的数据** ⇒ 跟着配置走、跟着 data 一起备份 / 一起删。</para>
     /// </summary>
@@ -59,8 +59,41 @@ public class ScriptManagerSettingsService : IScriptManagerSettingsService
         get
         {
             var custom = ScriptsFolder;
-            return custom.Length > 0 ? custom : DefaultScriptsFolder;
+            if (custom.Length == 0) return DefaultScriptsFolder;
+            if (Directory.Exists(custom)) return custom;
+
+            // 存储分层前的绝对路径（<配置根>\data\…）在 data 目录整体搬到 store\ / cache\ 后失效：
+            // 目录确实在新位置 ⇒ 就地改回配置，设置页与扫描 / 运行立刻一致。
+            var healed = MapLegacyDataPath(custom);
+            if (healed == null) return custom;
+
+            try { _store.Set(Module, KeyScriptsFolder, healed); } catch { /* 写盘失败不阻断，本次按新路径用 */ }
+            return healed;
         }
+    }
+
+    /// <summary>
+    /// 把旧的 <c>&lt;配置根&gt;\data\&lt;rest&gt;</c> 映射到 <c>store\&lt;rest&gt;</c> / <c>cache\&lt;rest&gt;</c>（存在才认）。
+    /// </summary>
+    private string? MapLegacyDataPath(string path)
+    {
+        try
+        {
+            var prefix = Path.Combine(_cfg.ProfileRootDirectory, "data") + Path.DirectorySeparatorChar;
+            if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return null;
+
+            var rest = path[prefix.Length..];
+            foreach (var candidate in new[]
+                     {
+                         Path.Combine(_cfg.StoreDir, rest),
+                         Path.Combine(_cfg.CacheDir, rest),
+                     })
+            {
+                if (Directory.Exists(candidate)) return candidate;
+            }
+        }
+        catch { /* 路径非法 ⇒ 不认，按原值返回 */ }
+        return null;
     }
 
     public event Action? Changed;

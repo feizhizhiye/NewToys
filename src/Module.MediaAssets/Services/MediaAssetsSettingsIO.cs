@@ -40,8 +40,39 @@ public class MediaAssetsSettingsIO
         get
         {
             var custom = (Settings.ThumbsDirectory ?? "").Trim();
-            return custom.Length > 0 ? custom : Path.Combine(_cfg.CacheDir, "assets", "thumbs");
+            if (custom.Length == 0) return Path.Combine(_cfg.CacheDir, "assets", "thumbs");
+            if (Directory.Exists(custom)) return custom;
+
+            // 存储分层前的绝对路径（<配置根>\data\thumbs）已随迁移搬到 cache\ / store\：目录在就改回配置。
+            var healed = MapLegacyDataPath(custom);
+            if (healed == null) return custom;
+
+            Settings.ThumbsDirectory = healed;
+            Save();
+            return healed;
         }
+    }
+
+    /// <summary>把旧的 <c>&lt;配置根&gt;\data\&lt;rest&gt;</c> 映射到 <c>store\&lt;rest&gt;</c> / <c>cache\&lt;rest&gt;</c>（存在才认）。</summary>
+    private string? MapLegacyDataPath(string path)
+    {
+        try
+        {
+            var prefix = Path.Combine(_cfg.ProfileRootDirectory, "data") + Path.DirectorySeparatorChar;
+            if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return null;
+
+            var rest = path[prefix.Length..];
+            foreach (var candidate in new[]
+                     {
+                         Path.Combine(_cfg.CacheDir, rest),
+                         Path.Combine(_cfg.StoreDir, rest),
+                     })
+            {
+                if (Directory.Exists(candidate)) return candidate;
+            }
+        }
+        catch { /* 路径非法 ⇒ 不认，按原值返回 */ }
+        return null;
     }
 
     public event Action? Changed;

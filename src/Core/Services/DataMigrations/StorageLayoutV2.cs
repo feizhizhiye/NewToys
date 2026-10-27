@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
 
@@ -27,6 +29,11 @@ public static class StorageLayoutV2
     private const string MarkerFile = ".layout-v2.done";
     private const string LegacyDbName = "newtoys.db";
 
+    /// <summary>「配置值路径重写」独立标记（与布局标记分开：布局早就搬完的用户也要补跑这次）。</summary>
+    private const string PathsMarker = ".layout-v2-paths.done";
+
+    private static readonly JsonSerializerOptions JsonIndented = new() { WriteIndented = true };
+
     /// <summary>旧总库里各表的归属（库键 → 文件名 → 表名）。</summary>
     private static readonly (string Key, string File, string[] Tables)[] Libraries =
     {
@@ -46,6 +53,9 @@ public static class StorageLayoutV2
     {
         try
         {
+            // 配置值里的旧绝对路径独立于布局标记：目录早就搬完的用户，配置里仍指着 data\ ⇒ 每次启动先校一遍。
+            RewriteLegacyConfigPaths(cfg);
+
             var profileRoot = cfg.ProfileRootDirectory;
             var storeDir = Path.Combine(profileRoot, "store");
             var cacheDir = Path.Combine(profileRoot, "cache");
@@ -92,6 +102,115 @@ public static class StorageLayoutV2
         {
             System.Diagnostics.Debug.WriteLine("[NewToys][migrate] 存储分层迁移失败（下次启动重试）：" + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 把**配置里的旧绝对路径**（<c>&lt;配置根&gt;\data\…</c>）改成新位置（<c>store\</c> / <c>cache\</c>）。
+    /// <para>
+    /// 目录整体改名不会顺手改用户录入的绝对路径（<c>scriptsFolder</c> / <c>thumbsDirectory</c> 等），
+    /// 这类值迁移后就指向不存在的目录 ⇒ 扫描 / 缩略图失效。只改「映射后的目录确实存在」的值；
+    /// 其余（别的机器、离线移动盘）原样保留。
+    /// </para>
+    /// </summary>
+    private static void RewriteLegacyConfigPaths(ConfigStoreService cfg)
+    {
+        string marker;
+        try { marker = Path.Combine(cfg.StoreDir, PathsMarker); }
+        catch { return; }
+        if (File.Exists(marker)) return;
+
+        var rewritten = 0;
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(cfg.ConfigDir, "*.json", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    var text = File.ReadAllText(file);
+                    if (!text.Contains(@"\data\", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (JsonNode.Parse(text) is not JsonObject root) continue;
+                    if (!RewriteNode(root, cfg)) continue;
+
+                    AtomicJsonFile.Write(file, root.ToJsonString(JsonIndented));
+                    rewritten++;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[NewToys][migrate] 配置路径重写失败（跳过）：{file}：{ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][migrate] 配置目录遍历失败：" + ex.Message);
+        }
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(marker)!);
+            File.WriteAllText(marker, $"v2-paths · {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n改写 {rewritten} 个配置文件。\n");
+        }
+        catch { /* 标记写不出 ⇒ 下次启动再跑一遍（幂等） */ }
+    }
+
+    /// <summary>深度改写：把对象 / 数组里所有 <c>&lt;配置根&gt;\data\…</c> 字符串值换成新位置。</summary>
+    private static bool RewriteNode(JsonNode node, ConfigStoreService cfg)
+    {
+        var changed = false;
+        switch (node)
+        {
+            case JsonObject obj:
+                foreach (var key in obj.Select(kv => kv.Key).ToList())
+                {
+                    var value = obj[key];
+                    if (value is JsonValue v && v.TryGetValue<string>(out var s) && MapLegacyPath(s, cfg) is { } mapped)
+                    {
+                        obj[key] = mapped;
+                        changed = true;
+                    }
+                    else if (value != null)
+                    {
+                        changed |= RewriteNode(value, cfg);
+                    }
+                }
+                break;
+
+            case JsonArray arr:
+                for (var i = 0; i < arr.Count; i++)
+                {
+                    var value = arr[i];
+                    if (value is JsonValue v && v.TryGetValue<string>(out var s) && MapLegacyPath(s, cfg) is { } mapped)
+                    {
+                        arr[i] = mapped;
+                        changed = true;
+                    }
+                    else if (value != null)
+                    {
+                        changed |= RewriteNode(value, cfg);
+                    }
+                }
+                break;
+        }
+        return changed;
+    }
+
+    /// <summary><c>&lt;配置根&gt;\data\&lt;rest&gt;</c> → <c>store\&lt;rest&gt;</c> / <c>cache\&lt;rest&gt;</c>（目录存在才认）。</summary>
+    private static string? MapLegacyPath(string value, ConfigStoreService cfg)
+    {
+        try
+        {
+            var prefix = Path.Combine(cfg.ProfileRootDirectory, "data") + Path.DirectorySeparatorChar;
+            if (!value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return null;
+
+            var rest = value[prefix.Length..];
+            foreach (var root in new[] { cfg.StoreDir, cfg.CacheDir })
+            {
+                var candidate = Path.Combine(root, rest);
+                if (Directory.Exists(candidate)) return candidate;
+            }
+        }
+        catch { /* 路径非法 ⇒ 不改 */ }
+        return null;
     }
 
     /// <summary>把 <paramref name="src"/> 下的每一项并进 <paramref name="dst"/>（同名已存在 ⇒ 旧项改名 <c>.legacy</c>）。</summary>

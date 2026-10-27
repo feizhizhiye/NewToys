@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,15 +11,21 @@ namespace NewToys.Core.Services;
 /// <summary>
 /// <see cref="IProcessRunner"/> 实现。
 /// <para>
-/// 行为与原 <c>ScriptRunner.RunCoreAsync</c> / <c>PackageManagerService.RunAsync</c> 逐条对齐：
-/// 隐藏 + 重定向；stdout 严格 UTF-8 / stderr 宽容；先起读任务再 <c>WaitForExitAsync</c>；
+/// 隐藏 + 重定向；stdout 严格 UTF-8 / stderr 宽容；先起**增量读取**任务再 <c>WaitForExitAsync</c>；
 /// 超时或取消 ⇒ <c>Kill(entireProcessTree: true)</c>；<c>finally</c> 必 Dispose。
 /// </para>
 /// <para>无状态 ⇒ 单例 / 瞬态皆可（Shell 注册为单例）。</para>
-/// </para>
 /// </summary>
 public sealed class ProcessRunner : IProcessRunner
 {
+    /// <summary>
+    /// 进程退出后，等输出读完的宽限期。
+    /// <para>🔴 孙进程（`ms-settings:` / `.cpl` / `.msc` / `start xxx` 起的 GUI 程序）会**继承并长期占住** stdout/stderr 管道，
+    /// 等 EOF 会永久挂住，调用方的 `await`（以及 `AsyncRelayCommand.IsRunning` / `IsBusy`）就再也回不来。
+    /// 超过这个宽限一律收尾，用已经读到的内容返回。</para>
+    /// </summary>
+    private static readonly TimeSpan OutputDrainGrace = TimeSpan.FromMilliseconds(500);
+
     public async Task<ProcessRunResult> RunAsync(ProcessRunRequest request, TimeSpan timeout, CancellationToken ct = default)
     {
         var psi = new ProcessStartInfo
@@ -57,9 +64,11 @@ public sealed class ProcessRunner : IProcessRunner
 
         try
         {
-            // 先起读取任务（边跑边读，避免输出超过管道缓冲把子进程卡死）
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
+            // 先起读取任务（边跑边读，避免输出超过管道缓冲把子进程卡死）。
+            // 读取阶段可以被取消 ⇒ 进程退出后最多再等 OutputDrainGrace。
+            using var drainCts = new CancellationTokenSource();
+            var stdoutTask = ReadAllAsync(proc.StandardOutput, drainCts.Token);
+            var stderrTask = ReadAllAsync(proc.StandardError, drainCts.Token);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout);
@@ -77,16 +86,18 @@ public sealed class ProcessRunner : IProcessRunner
                 TryKill(proc);
             }
 
-            var stdout = await SafeReadAsync(stdoutTask).ConfigureAwait(false);
-            var stderr = await SafeReadAsync(stderrTask).ConfigureAwait(false);
+            drainCts.CancelAfter(OutputDrainGrace);
+            var (stdout, stdoutBad) = await stdoutTask.ConfigureAwait(false);
+            var (stderr, stderrBad) = await stderrTask.ConfigureAwait(false);
 
-            if (stdout is null || stderr is null)
+            if (stdoutBad || stderrBad)
                 return new ProcessRunResult
                 {
                     Started = true,
                     TimedOut = timedOut,
                     Canceled = canceled,
-                    StdErr = stderr ?? "",
+                    StdOut = stdout,
+                    StdErr = stderr,
                     OutputDecodeFailed = true,
                     Error = "输出编码非 UTF-8（中文会乱码，请把输出改成 UTF-8）"
                 };
@@ -120,11 +131,28 @@ public sealed class ProcessRunner : IProcessRunner
         }
     }
 
-    /// <summary>读 stdout/stderr；解码非法（严格 UTF-8）时任务以异常结束 ⇒ 返回 null。</summary>
-    private static async Task<string?> SafeReadAsync(Task<string> task)
+    /// <summary>
+    /// 增量读完一个流（取消 ⇒ 立刻收尾，返回**已读到的部分**）。
+    /// <para>返回 <c>Failed = true</c> 表示解码失败（严格 UTF-8 遇到非法字节）。</para>
+    /// </summary>
+    private static async Task<(string Text, bool Failed)> ReadAllAsync(StreamReader reader, CancellationToken ct)
     {
-        try { return await task.ConfigureAwait(false); }
-        catch { return null; }
+        var sb = new StringBuilder();
+        var buffer = new char[8 * 1024];
+        while (true)
+        {
+            int n;
+            try
+            {
+                n = await reader.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { return (sb.ToString(), false); }
+            catch (DecoderFallbackException) { return (sb.ToString(), true); }
+            catch { return (sb.ToString(), false); }   // 流已被释放 / 管道断开
+
+            if (n <= 0) return (sb.ToString(), false);
+            sb.Append(buffer, 0, n);
+        }
     }
 
     /// <summary>强杀进程树（吞掉所有异常：目标可能已经自己退了）。</summary>

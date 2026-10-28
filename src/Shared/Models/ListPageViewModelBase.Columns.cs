@@ -98,6 +98,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         {
             var col = Columns[i];
             if (string.IsNullOrEmpty(col.Sample)) continue;          // 没给示例值 → 不参与判定
+            if (_manualWidths.ContainsKey(col.Key)) continue;        // 用户手调过（拖 / 双击自适应）→ 不再锁
             var hw = headerWidths[i];
             if (hw <= 0) continue;                                   // 隐藏列 / 还没测到
             var sw = sampleWidths != null && i < sampleWidths.Count ? sampleWidths[i] : double.MaxValue;
@@ -140,21 +141,24 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         => index >= 0 && index < Columns.Count && _lockedWidths.ContainsKey(Columns[index].Key);
 
     /// <summary>
-    /// 拖动表头列边界 → 改这一列的像素宽（由 View 的 <c>ColumnGrid.ColumnResize</c> 事件转调）。
+    /// 拖动表头列边界 / 双击自适应 → 改这一列的像素宽（由 <c>ColumnGrid</c> 直接调 DataContext）。
     /// <para>索引越界 / 同一列自己拖自己 → 忽略；改完只发 <see cref="VisibleColumnSpecs"/> 通知，
     /// 表头与所有行同规格重建（列索引永不错位）。</para>
+    /// <para>被锁成「表头宽」的列同样可拖：一旦手调就解除锁定（手动宽优先，后续测量不再把它锁回去）。</para>
     /// </summary>
     public void ResizeColumns(int leftIndex, double leftWidthPx, int rightIndex, double rightWidthPx)
     {
         if (leftIndex < 0 || rightIndex != leftIndex + 1) return;
         if (leftIndex >= Columns.Count || rightIndex >= Columns.Count) return;
         if (leftWidthPx < 0 || rightWidthPx < 0) return;
-        // 锁定列（内容没超过表头宽）**不可拖拽** —— 两侧任一被锁就拒绝
-        if (IsLocked(leftIndex) || IsLocked(rightIndex)) return;
+
+        var unlocked = _lockedWidths.Remove(Columns[leftIndex].Key);
+        unlocked |= _lockedWidths.Remove(Columns[rightIndex].Key);
 
         _manualWidths[Columns[leftIndex].Key] = leftWidthPx;
         _manualWidths[Columns[rightIndex].Key] = rightWidthPx;
         OnPropertyChanged(nameof(VisibleColumnSpecs));
+        if (unlocked) OnPropertyChanged(nameof(LockedColumnMask));
     }
 
     /// <summary>

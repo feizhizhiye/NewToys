@@ -14,16 +14,6 @@ public partial class AssetCollectionsView : UserControl
     {
         InitializeComponent();
 
-        HeaderGrid.ColumnResize += (_, e) =>
-        {
-            if (DataContext is AssetCollectionsViewModel vm)
-                vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
-        };
-
-        HeaderGrid.HeaderMeasured += (_, e) =>
-        {
-            if (DataContext is AssetCollectionsViewModel vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
-        };
     }
 
     /// <summary>⚠️ ContextMenu 在独立弹出树上，DataContext 不随宿主继承，必须手工同步（规范 §3.8）。</summary>

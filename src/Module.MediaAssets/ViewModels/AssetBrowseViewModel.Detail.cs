@@ -23,7 +23,8 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     // ==================== 工具条（由 Shell 统一渲染） ====================
 
     /// <summary>
-    /// 工具条：视图模式 / 图标尺寸 / 排序（都是按钮组）+ 类型 + 搜索 + 生成本目录缩略图 + 重读 + 上一级 + 目录树开合。
+    /// 工具条：视图模式 / 排序（按钮组）+ 类型 + 搜索 + 加入资产库 + 重读 + 上一级 + 目录树开合。
+    /// <para>缩略图**进目录即自动补**（见 <c>AutoGenerateThumbs</c>），⛔ 不占工具条位置。</para>
     /// <para>单项操作（打开 / 重命名 / 删除）按 §4.8 硬规则 9 归**右键菜单**，⛔ 不上工具条。</para>
     /// </summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
@@ -33,12 +34,6 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             Kind = ToolbarItemKind.ChipGroup, ItemsPath = nameof(ViewModes), DisplayPath = nameof(ChoiceItem.Label),
             SelectedPath = nameof(ChoiceItem.IsSelected), CommandPath = nameof(SetViewModeCommand),
             ToolTip = "图标卡 / 详细信息两种视图（即时切换，选择会被记住）"
-        },
-        new()
-        {
-            Kind = ToolbarItemKind.ChipGroup, ItemsPath = nameof(IconSizes), DisplayPath = nameof(ChoiceItem.Label),
-            SelectedPath = nameof(ChoiceItem.IsSelected), CommandPath = nameof(SetIconSizeCommand),
-            IsVisiblePath = nameof(IsTileView), ToolTip = "图标卡尺寸（96 / 144 / 200）"
         },
         new()
         {
@@ -54,15 +49,15 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         new()
         {
             Kind = ToolbarItemKind.TextField, Width = 110, Placeholder = "在当前目录搜索…",
-            ValuePath = nameof(SearchText), ToolTip = "按名称 / 路径 / 标签搜索当前目录（空格分词，多个词要同时命中）"
+            ValuePath = nameof(SearchText), ToolTip = "按名称 / 路径搜索当前目录（空格分词，多个词要同时命中）"
         },
         new()
         {
-            Text = "🖼 生成本目录缩略图", CommandPath = nameof(GenerateThumbsCommand),
-            IsEnabledPath = nameof(CanGenerateThumbs), ShowToolTipOnDisabled = true,
-            ToolTip = "给本目录里还没有缩略图的视频 / 图片逐条生成（走任务队列，可取消，单条失败不停批）"
+            Text = "➕ 加入资产库", CommandPath = nameof(AddToLibraryCommand), IsEnabledPath = "!" + nameof(IsBusy),
+            ShowToolTipOnDisabled = true,
+            ToolTip = "把选中的文件 / 文件夹（或当前目录）加入资产库：文件只索引自身，文件夹递归扫描"
         },
-        new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "重新读取索引（⛔ 不扫盘）" },
+        new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "重新读取索引（⛔ 不扫盘，目录内容本来就是实时的）" },
         new() { Kind = ToolbarItemKind.Separator },
         new()
         {
@@ -79,12 +74,12 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     private DetailCardDescriptor? _card;
 
     /// <summary>
-    /// 本页详情卡：**只读展示 + 两个打开动作**（重命名 / 删除这类写操作留在右键菜单）。
+    /// 本页详情卡：**只读展示 + 打开动作**（重命名 / 删除这类写操作留在右键菜单）。
     /// </summary>
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在右侧选一个文件，这里显示它的详情。",
+        EmptyText = "在右侧选一项，这里显示它的详情。",
         Sections =
         {
             new DetailSection
@@ -93,7 +88,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
                 {
                     new DetailField
                     {
-                        Label = "文件名", ValuePath = "DetailRow.FileName", Kind = FieldKind.Text,
+                        Label = "名称", ValuePath = "DetailRow.Name", Kind = FieldKind.Text,
                         Selectable = true, Mono = true
                     },
                     new DetailField { Label = "类型", ValuePath = "DetailRow.TypeText", Kind = FieldKind.Text, Selectable = true },
@@ -101,13 +96,25 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
                     new DetailField { Label = "修改时间", ValuePath = "DetailRow.ModifiedText", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "存储源", ValuePath = "DetailRow.StorageName", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "所在目录", ValuePath = nameof(DetailFolder), Kind = FieldKind.Text, Selectable = true },
-                    new DetailField { Label = "文件路径", ValuePath = "DetailRow.FilePath", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "完整路径", ValuePath = nameof(DetailPath), Kind = FieldKind.Text, Selectable = true, Mono = true },
                     new DetailField { Label = "时长", ValuePath = "DetailRow.DurationText", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "分辨率", ValuePath = "DetailRow.ResolutionText", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "编码", ValuePath = "DetailRow.CodecText", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "标签", ValuePath = "DetailRow.TagsText", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "分类", ValuePath = "DetailRow.CategoriesText", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "集合", ValuePath = "DetailRow.CollectionsText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "📁 这是一个文件夹：双击进入，右键可把整棵目录加入资产库。",
+                        VisibleWhen = nameof(DetailIsFolder)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "⚠ 这一项还没加入资产库（列表里标灰）：能打开 / 定位，库操作请先「➕ 加入资产库」。",
+                        VisibleWhen = "!DetailIsInLibrary"
+                    },
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
@@ -122,27 +129,43 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             new DetailAction
             {
                 Text = "📂 打开", Classes = "primary", Command = OpenSelectedCommand,
-                IsVisiblePath = nameof(ShowDetailBody), ToolTip = "用系统默认程序打开（视频 = 播放 / 图片 = 看图）"
+                IsVisiblePath = nameof(ShowDetailBody), ToolTip = "用系统默认程序打开（文件夹 = 进入）；也可以双击"
             },
             new DetailAction
             {
                 Text = "📁 打开所在文件夹", Classes = "ghost", Command = OpenFolderSelectedCommand,
-                IsVisiblePath = nameof(ShowDetailBody), ToolTip = "在资源管理器里选中这个文件"
+                IsVisiblePath = nameof(ShowDetailBody), ToolTip = "在资源管理器里定位它"
+            },
+            new DetailAction
+            {
+                Text = "➕ 加入资产库", Classes = "ghost", Command = AddToLibraryCommand,
+                IsVisiblePath = "!DetailIsInLibrary", ToolTip = "把这一项加入资产库（文件夹会递归扫描）"
             }
         }
     };
 
-    /// <summary>详情卡「所在目录」显示串（存储源内的相对目录；根目录给个明确说法）。</summary>
+    /// <summary>详情卡「所在目录」显示串（相对存储源内的目录；未入库给绝对上级目录）。</summary>
     public string DetailFolder
     {
         get
         {
             if (Selected == null) return "";
+            if (!Selected.InLibrary) return AssetBrowseService.ParentDir(Selected.AbsPath) ?? "";
+
             var dir = Selected.Dir.Length == 0 ? AssetBrowseService.RootDirName : Selected.Dir;
             var storage = Selected.Row.StorageName;
             return string.IsNullOrEmpty(storage) ? dir : $"{storage} › {dir}";
         }
     }
+
+    /// <summary>详情卡「完整路径」。</summary>
+    public string DetailPath => Selected?.AbsPath ?? "";
+
+    /// <summary>当前选中项是否已入库（详情卡提示 / 加入按钮的可见性）。</summary>
+    public bool DetailIsInLibrary => Selected?.InLibrary ?? true;
+
+    /// <summary>当前选中项是不是文件夹。</summary>
+    public bool DetailIsFolder => Selected?.IsFolder ?? false;
 
     // ==================== IDetailPanelProvider ====================
 
@@ -177,14 +200,20 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     // ==================== 单条动作（右键菜单 / 键盘） ====================
 
-    /// <summary>📂 打开（双击 / Enter / 右键）：用系统默认程序打开选中的文件。</summary>
+    /// <summary>📂 打开（双击 / Enter / 右键）：文件夹 = 进入；文件 = 系统默认程序打开。</summary>
     [RelayCommand]
     private void OpenSelected()
     {
         var tile = Selected;
         if (tile == null) return;
 
-        var path = tile.Row.FilePath;
+        if (tile.IsFolder)
+        {
+            _ = NavigateToAsync(tile.AbsPath);
+            return;
+        }
+
+        var path = tile.AbsPath;
         RunOffUiThread(() =>
         {
             if (!File.Exists(path)) return $"文件不存在（可能已被移动或删除）：{path}";
@@ -193,16 +222,24 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         }, "打开失败：");
     }
 
-    /// <summary>📁 打开所在文件夹：在资源管理器里选中该文件。</summary>
+    /// <summary>📁 打开所在文件夹：文件 = 在资源管理器里选中它；文件夹 = 打开该文件夹本身。</summary>
     [RelayCommand]
     private void OpenFolderSelected()
     {
         var tile = Selected;
         if (tile == null) return;
 
-        var path = tile.Row.FilePath;
+        var path = tile.AbsPath;
+        var isFolder = tile.IsFolder;
         RunOffUiThread(() =>
         {
+            if (isFolder)
+            {
+                if (!Directory.Exists(path)) return $"目录不存在（可能已被移动或删除）：{path}";
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+                return "已在资源管理器中打开该文件夹。";
+            }
+
             if (!File.Exists(path)) return $"文件不存在（可能已被移动或删除）：{path}";
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
             {
@@ -227,13 +264,27 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     /// <summary>
     /// ✏ 重命名（真改磁盘文件名，走任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）。
-    /// 只对**单个**文件开放：批量重命名需要命名模板，不在本页职责内。
+    /// <para>只对**单个已入库文件**开放：文件夹与未入库项请回「📁 打开所在文件夹」用资源管理器改。</para>
     /// </summary>
     [RelayCommand]
     private async Task RenameSelectedAsync()
     {
         if (Selected == null) { StatusText = "先选中一个文件。"; return; }
-        if (SelectedRows.Count > 1) { StatusText = "重命名一次只能改一个文件。"; return; }
+
+        if (Selected.IsFolder)
+        {
+            StatusText = "⚠ 文件夹不支持在这里重命名 —— 用「📁 打开所在文件夹」在资源管理器里改名。";
+            return;
+        }
+
+        if (!Selected.InLibrary)
+        {
+            StatusText = $"⚠「{Selected.Name}」还没加入资产库：先右键「➕ 加入资产库」再重命名。";
+            return;
+        }
+
+        var tiles = BatchTiles();
+        if (tiles.Count > 1) { StatusText = "重命名一次只能改一个文件。"; return; }
 
         var tile = Selected;
         var old = tile.Row.FileName;
@@ -262,8 +313,8 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     [RelayCommand]
     private async Task TrashSelectedAsync()
     {
-        var tiles = BatchTiles();
-        if (tiles.Count == 0) { StatusText = "先选中要移除的文件。"; return; }
+        var tiles = LibraryFileTiles();
+        if (tiles.Count == 0) { WarnNoLibrarySelection("移入回收站"); return; }
 
         if (!await DialogHooks.ConfirmAsync(
                 $"把选中的 {tiles.Count} 项移入回收站？\n" +
@@ -285,8 +336,8 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     [RelayCommand]
     private async Task RemoveFromLibraryAsync()
     {
-        var tiles = BatchTiles();
-        if (tiles.Count == 0) { StatusText = "先选中要移除的文件。"; return; }
+        var tiles = LibraryFileTiles();
+        if (tiles.Count == 0) { WarnNoLibrarySelection("从库移除"); return; }
 
         if (!await DialogHooks.ConfirmAsync(
                 $"从库里移除选中的 {tiles.Count} 项索引？\n" +
@@ -311,8 +362,8 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     [RelayCommand]
     private async Task DeleteFromDiskAsync()
     {
-        var tiles = BatchTiles();
-        if (tiles.Count == 0) { StatusText = "先选中要删除的文件。"; return; }
+        var tiles = LibraryFileTiles();
+        if (tiles.Count == 0) { WarnNoLibrarySelection("从磁盘删除"); return; }
 
         if (!await DialogHooks.ConfirmAsync(
                 $"⛔ 从磁盘**永久删除**选中的 {tiles.Count} 个文件？\n\n" +
@@ -342,15 +393,38 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         StatusText = $"已把 {jobs.Count} 个文件的永久删除排进任务队列（进度看「任务中心」）。";
     }
 
+    /// <summary>
+    /// 批量库操作的候选：当前选中里**已入库的文件**。
+    /// 文件夹与未入库项不在此列（它们没有 location id，做不了库操作）。
+    /// </summary>
+    private List<AssetTile> LibraryFileTiles()
+        => BatchTiles().Where(t => t.InLibrary && !t.IsFolder).ToList();
+
+    /// <summary>
+    /// 「未入库 / 全是文件夹」时的统一提醒（用户要求：功能置灰但可点，点了要说清为什么）。
+    /// </summary>
+    private void WarnNoLibrarySelection(string action)
+    {
+        if (Selected is { IsFolder: true })
+        {
+            StatusText = $"⚠ 文件夹不支持「{action}」—— 先进去选中文件，或用「📁 打开所在文件夹」在资源管理器里处理。";
+            return;
+        }
+
+        StatusText = BatchTiles().Count == 0
+            ? "先选中要操作的项。"
+            : $"⚠ 选中的项都还没加入资产库，不能「{action}」—— 先右键「➕ 加入资产库」。";
+    }
+
     /// <summary>位置行 → <see cref="FileLocation"/>（只带物理操作需要的字段）。</summary>
     private static FileLocation LocationOf(AssetTile tile) => new()
     {
         Id = tile.LocationId,
         AssetId = tile.Row.Id,
         StorageId = tile.Row.StorageId,
-        Path = tile.Row.FilePath,
+        Path = tile.AbsPath,
         FileName = tile.Row.FileName,
-        Ext = Path.GetExtension(tile.Row.FilePath),
+        Ext = Path.GetExtension(tile.AbsPath),
         Size = tile.Row.Size,
         Mtime = tile.Row.Mtime
     };

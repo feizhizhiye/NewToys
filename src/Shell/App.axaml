@@ -238,6 +238,15 @@
                 <Setter Property="Width" Value="NaN"/>
                 <Setter Property="VerticalAlignment" Value="Bottom"/>
             </Style>
+            <!--  滑块最小长度（🔴 只能这样设）：`Track.ComputeScrollBarLengths` 在 `ViewportSize` 非 NaN 时读
+                  `Thumb.MinHeight` / `MinWidth`（`IsSet` 才生效，默认兜底仅 10px）⇒ 条目上千时滑块仍有能抓的一段。
+                  必须分方向给：Thumb 主题里同时写 MinHeight 会顶大横向条的滑块高度。  -->
+            <Style Selector="^[Orientation=Vertical] /template/ Thumb">
+                <Setter Property="MinHeight" Value="32"/>
+            </Style>
+            <Style Selector="^[Orientation=Horizontal] /template/ Thumb">
+                <Setter Property="MinWidth" Value="32"/>
+            </Style>
         </ControlTheme>
     </Application.Resources>
 

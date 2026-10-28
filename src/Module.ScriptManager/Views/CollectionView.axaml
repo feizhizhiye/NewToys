@@ -75,7 +75,9 @@
                         EmptyMessage="没有可显示的条目。先去「脚本库」扫描 / 导入脚本，或在工具条切「📦 归档」外的下拉看全部。">
       <v:ListPageSkeleton.HeaderArea>
         <Border Classes="list-header">
-          <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+          <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
+                        IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
+                        SampleSpecs="{Binding SampleSpecs}">
             <TextBlock Grid.Column="0" Classes="list-cell" Text="加入" FontWeight="SemiBold"
                        ToolTip.Tip="勾上 = 加进当前集合；取消勾 = 移出（即时生效，无保存按钮）"/>
             <TextBlock Grid.Column="1" Classes="list-cell" Text="名称" FontWeight="SemiBold"/>

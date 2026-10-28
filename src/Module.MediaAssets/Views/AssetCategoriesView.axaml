@@ -44,8 +44,8 @@
         </WrapPanel>
 
         <WrapPanel Grid.Row="1" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4" Margin="0,6,0,0">
-          <Button Classes="ghost" Content="↕ 展开全部" Command="{Binding ExpandAllCommand}"/>
-          <Button Classes="ghost" Content="↕ 折叠全部" Command="{Binding CollapseAllCommand}"/>
+          <Button Classes="ghost" Content="{Binding ExpandAllText}" Command="{Binding ToggleExpandAllCommand}"
+                  ToolTip.Tip="还有折叠着的分类就展开，全展开了再点就折叠"/>
           <Button Classes="ghost" Content="🔄 重读分类" Command="{Binding RefreshCategoriesCommand}"
                   ToolTip.Tip="重新读取分类树（⛔ 不扫盘）"/>
         </WrapPanel>

@@ -175,6 +175,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
             AddVisible(root, 0);
 
         OnPropertyChanged(nameof(HasNodes));
+        OnPropertyChanged(nameof(ExpandAllText));
     }
 
     private void AddVisible(CategoryNode node, int depth)
@@ -263,7 +264,17 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
         StatusText = node == null ? "未选中分类。" : $"分类「{node.Name}」：{Members.Count} 个成员";
     }
 
+    /// <summary>「展开 / 折叠」单键文案：还有折叠着的分类 ⇒ 显示「展开全部」。</summary>
+    public string ExpandAllText => _allCats.Any(n => n.HasChildren && !n.IsExpanded) ? "↕ 展开全部" : "↕ 折叠全部";
+
+    /// <summary>展开 / 折叠一把开关（⛔ 两个按钮）。</summary>
     [RelayCommand]
+    private void ToggleExpandAll()
+    {
+        if (_allCats.Any(n => n.HasChildren && !n.IsExpanded)) ExpandAll();
+        else CollapseAll();
+    }
+
     private void ExpandAll()
     {
         foreach (var n in _allCats) n.IsExpanded = true;
@@ -271,7 +282,6 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
         StatusText = "已展开全部分类。";
     }
 
-    [RelayCommand]
     private void CollapseAll()
     {
         foreach (var n in _allCats) n.IsExpanded = false;

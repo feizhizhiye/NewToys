@@ -221,8 +221,9 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 ### 6.3 列宽三态 + 手动拖拽
 
 - 三态：**星号比例**（`Columns` 元数据默认值，如 `3.2*`）→ **手动像素**（拖表头边界产生，规格串写 `NNN`）→ **隐藏**（`0`，列索引保持不动）。
-- 表头两列交界处 5px 透明把手：`ColumnGrid.IsResizable="True"` 时自动生成（**只生成在相邻两个可见列之间**）；`Cursor = StandardCursorType.SizeWestEast`；拖动经 `ColumnResize` 事件 → VM `ResizeColumns(i, w, i+1, w)`（基类 `ListPageViewModelBase` 提供）→ `VisibleColumnSpecs` 重出 → 表头与行**同规格重建**。每列 ≥24px、左右总宽守恒；⛔ 不拖最后一列右缘。
-- ⛔ **没有「自动调整列宽」开关**（长内容列按未截断全文测宽会把其余列挤到接近 0，像"整行消失"）。
+- 表头两列交界处 5px 透明把手：`ColumnGrid.IsResizable="True"` 时自动生成（**只生成在相邻两个可见列之间**，被锁成表头宽的列**也生成**）；`Cursor = StandardCursorType.SizeWestEast`；拖动**直接调 `DataContext`（须是 `ListPageViewModelBase`）的 `ResizeColumns`** → `VisibleColumnSpecs` 重出 → 表头与行**同规格重建** —— 🔴 **页面不必再写 code-behind 接线**（`ColumnResize` / `HeaderMeasured` 事件保留给非列表场景）。每列 ≥ `max(24, 表头文字宽)`（拖到最窄也不会裁掉表头文字）、左右总宽守恒；⛔ 不拖最后一列右缘。
+- **双击把手 = 该列自适应**：宽 = `max(表头文字宽, 示例值宽) + 4`，右侧列吸收差额（总宽守恒）。示例值缺省的列退化为「表头宽」。
+- ⛔ **没有「自动调整全部列宽」开关**（长内容列按未截断全文测宽会把其余列挤到接近 0，像"整行消失"）；单列等效行为只走**双击把手**，且只认示例值宽、⛔ 不测真实行。
 - 手调列宽**只存会话**（⛔ 不落 `columnlayout.json`）：切标签页不丢、重启还原。
 - ✅ `ColumnGrid` **全库仅一份** = `src/UI/Controls/ColumnGrid.cs`（NT-063 P0-a 已合并，此前 5 份 2086 行）。列数防线（`ColumnDefinitions.Count` ≥ 子元素最大 `Grid.Column` + 1）**原样保留**（合并时最易丢的一段）。
 
@@ -239,7 +240,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 每列给 `ListColumn.Sample`（示例值）—— **唯一用途 = 列宽判定**；基类暴露 `SampleSpecs`（';' 分隔，⛔ 不用逗号）。
 - ⛔ **示例值不显示在任何地方**（v3.60 / NT-060 已删「示例行 / 水印行」与详情卡示例态）。
 - 表头 `ColumnGrid` 绑 `SampleSpecs`；首次布局测出表头宽与示例宽（临时 `TextBlock` `Measure(∞)`，字号 12 + 单元格内边距 16；测不到记 `double.MaxValue`）→ `HeaderMeasured` → VM `LockColumnsBySample(header, sample)`：示例宽 ≤ 表头宽 → 锁成表头宽，且不小于 `MinLockedWidth = 34`。
-- 锁定列的边界**不生成把手**，`ResizeColumns` 也拒绝；VM `LockedColumnMask` → `ColumnGrid.LockedColumns`。
+- 锁定列**照样生成把手、可拖、可双击自适应**：一动手即解除锁定（手动宽优先；`LockColumnsBySample` 此后跳过该列，不会把它锁回去）。`LockedColumnMask` → `ColumnGrid.LockedColumns` 保留，含义只是「这一列当前仍是表头宽」。
 
 ### 6.5 空态引导（v3.60 / NT-060）
 
@@ -455,6 +456,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 11. 🔴 **`AllowAutoHide=False` ⇒ `ScrollBar.IsExpanded` 恒为 `true`**（源码 `UpdateIsExpandedState`）。所以滚动条悬停态**只认 `:pointerover`**，⛔ 别用 `^[IsExpanded=true]` 选择器 —— 它会永远命中，滑块变常年强调色。
 12. 🔴 **`Track` 的属性不会自动接上 `ScrollBar`**（`ScrollBar.cs` 与 `Track` 之间零绑定，`OnThumbDragDelta` 只发 `Scroll` 事件、**不写值**）：自定义 `ScrollBar` 模板时 `Track` 的 `Minimum` / `Maximum` / `Value` / `ViewportSize` **必须逐个 `TemplateBinding`**；其中 **`Value` 必须 `Mode=TwoWay`** —— 拖拽是 `Track` 自己 `SetCurrentValue(Value)`，单向绑定会把它立刻覆盖回去 ⇒ **滑块能拖、内容纹丝不动**（2026-10-24 实锤）。`PART_PageUpButton` / `PART_PageDownButton` 两个 `RepeatButton` 也必须留（否则点轨道不翻页）。
 13. 🔴 **滑块长度要缩只能改 `Track` 的 `ViewportSize`（过 `ScrollThumbRatioConverter`），⛔ 别用 `Thumb` 的 `ScaleTransform`**：Track 用 `ViewportSize / (Maximum + ViewportSize)` 算长度、用**同一个长度**算位置 ⇒ 用 render 缩放只改视觉不改布局，滑块「居中缩」后拖到底部会空出一截，现象就是**拖不到底**（2026-10-24 实锤）。系数在 `App.axaml` 的 `ScrollThumbRatio`（默认 0.4，越小滑块越短）。
+    - **最小长度**：`Track.ComputeScrollBarLengths` 在 `ViewportSize` 有值时读 `Thumb.MinHeight` / `MinWidth`（`IsSet` 才生效，源码兜底只有 10px）⇒ 全局在 `ScrollBar` 主题里按方向各给一条 `^[Orientation=Vertical] /template/ Thumb` 的 `MinHeight=32`（横向 `MinWidth=32`）。⛔ 别在 `Thumb` 主题里不分方向地写 `MinHeight`：横向条的滑块高度会被顶大。
 14. 🔴 **`Track.IsDirectionReversed` 必须按方向给（竖向 `true` / 横向 `false`）**：`Track` 垂直方向默认「值增大 ⇒ 滑块**上**移」，与滚动条语义相反 ⇒ 现象是「滑块初始停在最下、往下滚反而向上爬」。`ScrollBar` 自身没有这个属性，所以模板里走 `VerticalDirectionConverter` 从 `Orientation` 转：`IsDirectionReversed="{TemplateBinding Orientation, Converter={StaticResource VerticalReversed}}"`，⛔ 别无脑 `IsDirectionReversed="True"`（会把横向滚动条反过来）。
 
 ---

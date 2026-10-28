@@ -14,18 +14,6 @@ public partial class AssetTagsView : UserControl
     {
         InitializeComponent();
 
-        // 拖表头列边界 → 转给 VM（Grid.ColumnDefinitions 不能绑，只能这样转）
-        HeaderGrid.ColumnResize += (_, e) =>
-        {
-            if (DataContext is AssetTagsViewModel vm)
-                vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
-        };
-
-        // 表头首次测量完 → 按「示例宽 ≤ 表头宽」锁列宽（v3.22 §4.8.1）
-        HeaderGrid.HeaderMeasured += (_, e) =>
-        {
-            if (DataContext is AssetTagsViewModel vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
-        };
     }
 
     /// <summary>⚠️ ContextMenu 挂在独立弹出树上，DataContext 不随宿主继承，必须手工同步（规范 §3.8）。</summary>

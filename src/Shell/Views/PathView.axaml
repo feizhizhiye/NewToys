@@ -21,7 +21,9 @@
       <Border Classes="list-header">
             <!-- ⚠️ 表头与行模板用同一份列宽规格（规范 3.6 对齐铁律①）；列宽绑 VM 的 VisibleColumnSpecs。
                  ⚠️ 必须用 ColumnGrid 而不是 Grid：Grid.ColumnDefinitions 是 CLR 属性、XAML 里不能 {Binding}（AVLN3000）。 -->
-            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
+                          IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
+                          SampleSpecs="{Binding SampleSpecs}">
               <!--  v3.53 / NT-056：分类列 = 行类型判别列（路径 / 配置），可排序 + 可筛选  -->
               <Button Grid.Column="0" Classes="col-header" Content="{Binding CategoryHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Category" ToolTip.Tip="点一下按分类排序（同类聚在一起）"

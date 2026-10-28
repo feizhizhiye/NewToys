@@ -14,7 +14,9 @@
     <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
     <v:ListPageSkeleton.HeaderArea>
       <Border Classes="list-header">
-            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
+                          IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
+                          SampleSpecs="{Binding SampleSpecs}">
               <Button Grid.Column="0" Classes="col-header" Content="{Binding HostHeader}"
                       Command="{Binding SortCommand}" CommandParameter="Host" IsVisible="{Binding IsHostVisible}"/>
               <Button Grid.Column="1" Classes="col-header" Content="{Binding IpHeader}"

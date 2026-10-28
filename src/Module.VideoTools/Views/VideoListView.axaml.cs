@@ -27,17 +27,6 @@ public partial class VideoListView : UserControl
             if (DataContext is VideoListViewModel vm) vm.PlayCommand.Execute(null);
         };
 
-        // §6.4.15：拖动表头列边界 → VM 改「手动列宽」→ 表头与所有行同规格重建
-        HeaderGrid.ColumnResize += (_, e) =>
-        {
-            if (DataContext is ListPageViewModelBase vm)
-                vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
-        };
-        // §4.8.1：表头首次布局后把「表头宽 + 示例值宽」交给 VM —— 示例 ≤ 表头的列锁成表头宽
-        HeaderGrid.HeaderMeasured += (_, e) =>
-        {
-            if (DataContext is ListPageViewModelBase vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
-        };
     }
 
     /// <summary>

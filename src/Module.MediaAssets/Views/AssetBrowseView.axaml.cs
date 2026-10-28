@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.ComponentModel;
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -35,16 +36,6 @@ public partial class AssetBrowseView : UserControl
     {
         InitializeComponent();
 
-        HeaderGrid.ColumnResize += (_, e) =>
-        {
-            if (DataContext is AssetBrowseViewModel vm)
-                vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
-        };
-        HeaderGrid.HeaderMeasured += (_, e) =>
-        {
-            if (DataContext is AssetBrowseViewModel vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
-        };
-
         foreach (var list in Lists)
         {
             if (list == null) continue;
@@ -52,6 +43,9 @@ public partial class AssetBrowseView : UserControl
             list.AddHandler(KeyDownEvent, OnListKeyDown, RoutingStrategies.Tunnel);
             list.SelectionChanged += OnListSelectionChanged;
         }
+
+        if (TreeList != null)
+            TreeList.AddHandler(PointerPressedEvent, OnTreePointerPressed, RoutingStrategies.Tunnel);
 
         LayoutUpdated += (_, _) => ReportListOverflow();
     }
@@ -63,7 +57,7 @@ public partial class AssetBrowseView : UserControl
 
     private void ReportListOverflow()
     {
-        if (DataContext is not AssetBrowseViewModel vm) return;
+        if (DataContext is not AssetBrowseViewModel) return;
         var list = ActiveList;
         if (list == null) return;
 
@@ -72,13 +66,66 @@ public partial class AssetBrowseView : UserControl
         if (!ReferenceEquals(list, _lastSyncedList))
         {
             _lastSyncedList = list;
+            DetachScroller();
             SyncSelection();
         }
 
-        _scroller ??= list.FindDescendantOfType<ScrollViewer>();
-        if (_scroller is not { } sv) return;
-        vm.SetContentOverflow(sv.Extent.Height - sv.Viewport.Height > 1);
+        // 第一次布局时 ListBox 模板可能还没建出 ScrollViewer ⇒ 每轮都补找一次（找到后就只靠属性通知）
+        if (_scroller == null)
+        {
+            _scroller = list.FindDescendantOfType<ScrollViewer>();
+            if (_scroller is { } found) found.PropertyChanged += OnScrollMetricsChanged;
+        }
+
+        if (_scroller is null) return;
+
+        // 首次 / 换列表后补报一次；后续滚动由 ScrollViewer 的属性通知驱动（见 OnScrollMetricsChanged）
+        ReportViewport();
     }
+
+    /// <summary>
+    /// 滚动驱动缩略图：盯 <c>Offset</c> / <c>Extent</c> / <c>Viewport</c> 三个属性。
+    /// <para>🔴 不靠 <c>LayoutUpdated</c>：滚动只改 ScrollViewer 偏移，不保证每帧都触发本页布局回调 ⇒
+    /// 滚到底部时可视区从没上报过，缩略图就一直停在首屏那 36 张。</para>
+    /// </summary>
+    private void OnScrollMetricsChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property != ScrollViewer.OffsetProperty
+            && e.Property != ScrollViewer.ExtentProperty
+            && e.Property != ScrollViewer.ViewportProperty) return;
+
+        ReportViewport();
+    }
+
+    /// <summary>把当前滚动位置报给 VM（位置 / 内容高度都没变 ⇒ 不重复报）。</summary>
+    private void ReportViewport()
+    {
+        if (_vm == null || _scroller is not { } sv) return;
+
+        var offset = sv.Offset.Y;
+        var extent = sv.Extent.Height;
+        if (!double.IsNaN(_lastReportedOffset)
+            && Math.Abs(offset - _lastReportedOffset) <= 1
+            && Math.Abs(extent - _lastReportedExtent) <= 1) return;
+
+        _lastReportedOffset = offset;
+        _lastReportedExtent = extent;
+        _vm.ReportViewport(offset, sv.Viewport.Height, extent);
+        _vm.SetContentOverflow(extent - sv.Viewport.Height > 1);
+    }
+
+    private void DetachScroller()
+    {
+        if (_scroller != null) _scroller.PropertyChanged -= OnScrollMetricsChanged;
+        _scroller = null;
+        _lastReportedOffset = double.NaN;
+        _lastReportedExtent = double.NaN;
+    }
+
+    /// <summary>上一次上报的滚动位置 / 内容高度（<c>NaN</c> = 下次一定上报：换视图 / 换列表后要重算窗口）。</summary>
+    private double _lastReportedOffset = double.NaN;
+
+    private double _lastReportedExtent = double.NaN;
 
     private ScrollViewer? _scroller;
 
@@ -106,6 +153,19 @@ public partial class AssetBrowseView : UserControl
         foreach (var list in Lists)
             if (list?.ContextMenu is { } menu) menu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
+        if (TreeList?.ContextMenu is { } tmenu) tmenu.DataContext = DataContext;
+    }
+
+    /// <summary>
+    /// 树行右键：把右键瞄准的节点报给 VM，菜单项据此决定能不能点。
+    /// <para>🔴 右键**只瞄准**：⛔ 不改 <c>SelectedNode</c>、⛔ 不导航（那会让右键顺手切了目录）。</para>
+    /// <para>🔴 在 <c>PointerPressed</c> 上记而不是 <c>ContextRequested</c>：后者常被菜单自己先吃掉。</para>
+    /// </summary>
+    private void OnTreePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_vm == null) return;
+        if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed) return;
+        _vm.ContextNode = (e.Source as Control)?.DataContext as AssetDirNode;
     }
 
     /// <summary>视图切换 / 列表重建后：新显示的列表要把选中回填成 VM 的选中集。</summary>
@@ -113,7 +173,7 @@ public partial class AssetBrowseView : UserControl
     {
         if (e.PropertyName is nameof(AssetBrowseViewModel.IsTileView) or nameof(AssetBrowseViewModel.IconSize))
         {
-            _scroller = null;
+            DetachScroller();
             SyncSelection();
         }
     }
@@ -246,10 +306,12 @@ public partial class AssetBrowseView : UserControl
             BulkUpdate(list, items =>
             {
                 items.Clear();
-                foreach (var row in _vm.SelectedRows)
+                // 🔴 按**绝对路径**认领：未入库项没有 Id（合成行 Id=0），用 Id 会把它们全匹配上
+                foreach (var tile in _vm.SelectedTiles)
                 {
-                    var tile = _vm.Items.FirstOrDefault(t => t.Row.Id == row.Id);
-                    if (tile != null) items.Add(tile);
+                    var hit = _vm.Items.FirstOrDefault(t =>
+                        string.Equals(t.AbsPath, tile.AbsPath, StringComparison.OrdinalIgnoreCase));
+                    if (hit != null) items.Add(hit);
                 }
             });
         }

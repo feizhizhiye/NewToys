@@ -18,7 +18,9 @@
     <!--  ==================== 表头（与行模板共用同一份列宽规格）  ====================  -->
     <v:ListPageSkeleton.HeaderArea>
       <Border Classes="list-header">
-        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
+                      IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
+                      SampleSpecs="{Binding SampleSpecs}">
           <Button Grid.Column="0" Classes="col-header" Content="{Binding TitleHeader}"
                   Command="{Binding SortCommand}" CommandParameter="Title" ToolTip.Tip="点一下按名称排序"
                   IsVisible="{Binding IsTitleVisible}"/>

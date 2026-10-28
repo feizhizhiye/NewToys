@@ -39,7 +39,13 @@ public class ThumbnailService
     }
 
     /// <summary>
-    /// 给一个文件位置生成缩略图（视频 → 抽帧；图片 → 缩放）。返回（成功 / 消息 / 缩略图路径）。
+    /// 给一个文件位置生成缩略图（视频 → ffmpeg 抽帧；图片 → **原生解码缩放**）。
+    /// 返回（成功 / 消息 / 缩略图路径）。
+    /// <para>
+    /// 🔴 图片不再走 ffmpeg：一次子进程启动 + JPEG 编码要 80~150ms，而 Skia 解码缩放只要几毫秒
+    /// （本机 CPU，无需外部进程）。视频仍用 ffmpeg —— 原生解码要靠平台 API（Windows = Media Foundation），
+    /// 那会把缩略图变成平台相关代码，与「新代码必须平台中立」冲突，且收益远小于图片这一档。
+    /// </para>
     /// </summary>
     public async Task<(bool Ok, string Message, string? ThumbPath)> GenerateAsync(FileLocation loc, CancellationToken ct)
     {
@@ -51,6 +57,8 @@ public class ThumbnailService
         var isImage = ScanService.GuessAssetType(ext) == AssetTypes.Image;
         if (!isVideo && !isImage) return (false, "这个类型不生成缩略图（本轮只做视频 / 图片）。", null);
 
+        if (isImage) return await GenerateImageAsync(loc.Path, ct).ConfigureAwait(false);
+
         try
         {
             Directory.CreateDirectory(ThumbsDirectory);
@@ -59,16 +67,15 @@ public class ThumbnailService
 
             var args = new System.Collections.Generic.List<string>
             {
-                "-hide_banner", "-loglevel", "error", "-y"
+                "-hide_banner", "-loglevel", "error", "-y",
+                "-threads", "1",        // 单帧抽图：多线程只会抢 CPU，反而不快
+                "-an", "-sn"            // 不要音轨 / 字幕流（省解析时间）
             };
 
-            if (isVideo)
-            {
-                var at = await ResolveFramePositionAsync(loc.Path, ct).ConfigureAwait(false);
-                if (at < 0) at = 0;
-                args.Add("-ss");
-                args.Add(at.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
-            }
+            var at = await ResolveFramePositionAsync(loc.Path, ct).ConfigureAwait(false);
+            if (at < 0) at = 0;
+            args.Add("-ss");
+            args.Add(at.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
 
             args.Add("-i");
             args.Add(loc.Path);
@@ -76,6 +83,8 @@ public class ThumbnailService
             args.Add("1");
             args.Add("-vf");
             args.Add($"scale='min({Size},iw)':-2");
+            args.Add("-q:v");
+            args.Add("4");              // 缩略图不需要高质量 JPEG（体积 / 编码时间都省一半）
             args.Add(tmp);
 
             var (code, _, stderr) = await MediaTools.RunAsync(
@@ -92,6 +101,38 @@ public class ThumbnailService
         {
             return (false, "生成缩略图失败：" + ex.Message, null);
         }
+    }
+
+    /// <summary>
+    /// 图片缩略图：本机解码 → 按长边缩放 → 编码成 JPEG 落到缓存路径。
+    /// <para>编码要显式给 <see cref="Avalonia.Media.Imaging.BitmapEncoderOptions"/>（无参重载已过时）：
+    /// 用 JPEG quality 85 —— 缩略图不需要原图质量，体积与编码时间都省一半，且扩展名与实际格式一致。</para>
+    /// </summary>
+    private async Task<(bool Ok, string Message, string? ThumbPath)> GenerateImageAsync(string path, CancellationToken ct)
+    {
+        try
+        {
+            Directory.CreateDirectory(ThumbsDirectory);
+            var target = ThumbPathFor(path);
+            var tmp = target + ".tmp.jpg";
+
+            var ok = await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                using var fs = File.OpenRead(path);
+                using var bmp = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(fs, Size);
+                if (bmp == null) return false;
+                bmp.Save(tmp, new Avalonia.Media.Imaging.JpegBitmapEncoderOptions { Quality = 85 });
+                return File.Exists(tmp);
+            }, ct).ConfigureAwait(false);
+
+            if (!ok) return (false, "图片解码失败（格式不支持 / 文件损坏）。", null);
+
+            File.Move(tmp, target, overwrite: true);
+            return (true, "已生成缩略图。", target);
+        }
+        catch (OperationCanceledException) { return (false, "已取消。", null); }
+        catch (Exception ex) { return (false, "生成缩略图失败：" + ex.Message, null); }
     }
 
     /// <summary>缩略图长边像素（生效值）。</summary>

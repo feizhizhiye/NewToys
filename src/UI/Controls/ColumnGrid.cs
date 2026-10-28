@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
+using NewToys.Shared.Models;
 
 namespace NewToys.UI.Controls;
 
@@ -109,6 +110,12 @@ public class ColumnGrid : Grid
 
     private bool _measured;
 
+    /// <summary>表头各列内容的期望宽（<see cref="HeaderMeasured"/> 那次测量的结果，双击自适应用）。</summary>
+    private double[]? _headerWidths;
+
+    /// <summary>各列示例值文本宽（同上；<c>double.MaxValue</c> = 该列没给示例值）。</summary>
+    private double[]? _sampleWidths;
+
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
@@ -170,7 +177,11 @@ public class ColumnGrid : Grid
         if (!any) return;      // 首帧还没测出来 → 等下一次布局
 
         _measured = true;
-        HeaderMeasured?.Invoke(this, new HeaderMeasuredEventArgs(widths, MeasureSampleWidths(widths.Length)));
+        var samples = MeasureSampleWidths(widths.Length);
+        _headerWidths = widths;
+        _sampleWidths = samples;
+        HeaderMeasured?.Invoke(this, new HeaderMeasuredEventArgs(widths, samples));
+        (DataContext as ListPageViewModelBase)?.LockColumnsBySample(widths, samples);
     }
 
     /// <summary>
@@ -251,8 +262,18 @@ public class ColumnGrid : Grid
 
     // ==================== 表头列宽拖拽把手（v3.20，需求 §6.4.15） ====================
 
-    /// <summary>拖动时每列至少保留的宽度（px）。</summary>
+    /// <summary>拖动时每列的兜底最小宽（px）：表头宽度测不出来时用它。</summary>
     private const double MinColWidth = 24;
+
+    /// <summary>
+    /// 某一列允许的最小宽 = max(兜底 24, 表头文字宽) —— 拖到最窄也不会把表头文字裁掉。
+    /// <para>表头宽来自 <see cref="HeaderMeasured"/> 那次测量；还没测到 / 隐藏列 → 用兜底值。</para>
+    /// </summary>
+    private double MinWidthFor(int i)
+    {
+        var hw = _headerWidths != null && i >= 0 && i < _headerWidths.Length ? _headerWidths[i] : 0;
+        return Math.Max(MinColWidth, Math.Ceiling(hw));
+    }
 
     /// <summary>把手宽（px）：贴在列右缘，半在左列半在右列上方。</summary>
     private const double GripWidth = 5;
@@ -269,6 +290,10 @@ public class ColumnGrid : Grid
     private double _dragLeft0;
     private double _dragRight0;
 
+    // 双击检测（同把手 500ms 内两次按下 = 自适应内容宽）
+    private DateTime _lastPressAt;
+    private int _lastPressCol = -1;
+
     /// <summary>按当前「可见性掩码」重建把手；掩码没变（只是宽度变了）→ 什么都不做。</summary>
     private void RebuildGrips()
     {
@@ -282,7 +307,6 @@ public class ColumnGrid : Grid
         for (var i = 0; i + 1 < ColumnDefinitions.Count; i++)
         {
             if (!ColVisible(i) || !ColVisible(i + 1)) continue;   // 隐藏列（宽 0）的边界不放把手
-            if (IsLockedCol(i) || IsLockedCol(i + 1)) continue;   // v3.21：锁定列（表头宽）不可拖
 
             var grip = new Border
             {
@@ -315,21 +339,13 @@ public class ColumnGrid : Grid
         _grips.Clear();
     }
 
-    /// <summary>当前「可见性掩码 + 锁定掩码」：任一变化都要重建把手。</summary>
+    /// <summary>当前「可见性掩码」：可见性一变就要重建把手（列宽变化时把手靠 Grid 布局自动跟随）。</summary>
     private string CurrentMask()
     {
         var sb = new System.Text.StringBuilder(ColumnDefinitions.Count + 8);
         for (var i = 0; i < ColumnDefinitions.Count; i++)
             sb.Append(ColVisible(i) ? '1' : '0');
-        sb.Append('|').Append(LockedColumns ?? "");
         return sb.ToString();
-    }
-
-    /// <summary>该列是否被 VM 锁成「表头宽」（见 <see cref="LockedColumnsProperty"/>）。</summary>
-    private bool IsLockedCol(int i)
-    {
-        var m = LockedColumns;
-        return !string.IsNullOrEmpty(m) && i < m!.Length && m[i] == '1';
     }
 
     private bool ColVisible(int i)
@@ -347,6 +363,18 @@ public class ColumnGrid : Grid
         if (i < 0 || i + 1 >= ColumnDefinitions.Count) return;
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed != true) return;   // 只要左键
 
+        // 双击同一把手 = 按内容自适应（表头宽 / 示例值宽取大者）
+        var now = DateTime.UtcNow;
+        if (i == _lastPressCol && (now - _lastPressAt).TotalMilliseconds <= 500)
+        {
+            _lastPressCol = -1;
+            AutoFitColumn(i);
+            e.Handled = true;
+            return;
+        }
+        _lastPressCol = i;
+        _lastPressAt = now;
+
         _dragIndex = i;
         _dragStartX = e.GetPosition(this).X;
         _dragLeft0 = ColumnDefinitions[i].ActualWidth;
@@ -362,15 +390,50 @@ public class ColumnGrid : Grid
         if (_dragIndex < 0) return;
 
         var total = _dragLeft0 + _dragRight0;
-        if (total < MinColWidth * 2) return;   // 两列加起来都塞不下两个最小宽 → 没得让，不拖
+        var minLeft = MinWidthFor(_dragIndex);
+        var minRight = MinWidthFor(_dragIndex + 1);
+        if (total < minLeft + minRight) return;   // 两列加起来都塞不下各自最小宽 → 没得让，不拖
 
-        // 左列目标宽：夹在 [Min, total-Min] → 右列等宽变窄，总宽守恒
-        var target = Math.Clamp(_dragLeft0 + (e.GetPosition(this).X - _dragStartX), MinColWidth, total - MinColWidth);
+        // 左列目标宽：夹在 [左最小, total-右最小] → 右列等宽变窄，总宽守恒
+        var target = Math.Clamp(_dragLeft0 + (e.GetPosition(this).X - _dragStartX), minLeft, total - minRight);
         var applied = target - _dragLeft0;
         if (Math.Abs(applied) < 0.5) return;   // 亚像素抖动不发事件（免得每动一像素就全表重建）
 
-        ColumnResize?.Invoke(this, new ColumnResizeEventArgs(_dragIndex, target, _dragIndex + 1, _dragRight0 - applied));
+        ApplyResize(_dragIndex, target, _dragIndex + 1, _dragRight0 - applied);
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// 双击把手：该列宽 = max(表头宽, 示例值宽) + 一点余量，右侧列让出/吃进差额（总宽守恒）。
+    /// <para>⛔ 不用行内容的真实宽：虚拟化下只有可见行存在，且行在另一个控件树里，测不到「最长的那条」。</para>
+    /// </summary>
+    private void AutoFitColumn(int i)
+    {
+        if (i < 0 || i + 1 >= ColumnDefinitions.Count) return;
+
+        var total = ColumnDefinitions[i].ActualWidth + ColumnDefinitions[i + 1].ActualWidth;
+        var minLeft = MinWidthFor(i);
+        var minRight = MinWidthFor(i + 1);
+        if (total < minLeft + minRight) return;
+
+        var hw = _headerWidths != null && i < _headerWidths.Length ? _headerWidths[i] : 0;
+        var sw = _sampleWidths != null && i < _sampleWidths.Length ? _sampleWidths[i] : 0;
+        if (sw > 5000) sw = 0;                     // double.MaxValue = 该列没给示例值
+
+        var want = Math.Max(hw, sw);
+        if (want <= 0) want = ColumnDefinitions[i].ActualWidth;
+        else want += 4;
+
+        var target = Math.Clamp(want, minLeft, total - minRight);
+        if (Math.Abs(target - ColumnDefinitions[i].ActualWidth) < 0.5) return;
+        ApplyResize(i, target, i + 1, total - target);
+    }
+
+    /// <summary>把新宽度交出去：先抛事件（老调用方），再直接转给 VM —— 后者让页面无需再写 code-behind 接线。</summary>
+    private void ApplyResize(int leftIndex, double leftWidth, int rightIndex, double rightWidth)
+    {
+        ColumnResize?.Invoke(this, new ColumnResizeEventArgs(leftIndex, leftWidth, rightIndex, rightWidth));
+        (DataContext as ListPageViewModelBase)?.ResizeColumns(leftIndex, leftWidth, rightIndex, rightWidth);
     }
 
     private void OnGripReleased(object? sender, PointerReleasedEventArgs e)

@@ -50,9 +50,10 @@ public class MediaAssetsModule : IModule
         services.AddSingleton<Services.UserDataExport>();
         // 多库融合（ATTACH 只读合并 + VACUUM INTO 另存）
         services.AddSingleton<Services.AssetMergeService>();
-        // 资产浏览（左树 + 双视图）：目录聚合 + 缩略图 LRU 缓存
+        // 资产浏览（左树 + 双视图）：目录聚合 + 缩略图 LRU 缓存 + 入库动作
         services.AddSingleton<Services.AssetBrowseService>();
         services.AddSingleton<Services.AssetThumbCache>();
+        services.AddSingleton<Services.AssetLibraryAddService>();
 
         // 本模块自有库的 schema 贡献者（DDL 仍在 AssetDatabase 构造里，贡献者只负责「库打开时就建表」）
         services.AddSingleton<ILibrarySchemaContributor, Services.MediaAssetsSchemaContributor>();

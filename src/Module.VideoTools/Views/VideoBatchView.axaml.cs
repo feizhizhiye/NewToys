@@ -15,20 +15,6 @@ public partial class VideoBatchView : UserControl
     public VideoBatchView()
     {
         InitializeComponent();
-
-        // 平台文件选择器只能在 View 层用（VM 不引 Avalonia），选完把结果交给 VM
-        // ⚠️ 「📂 选择输出文件」是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
-        // §6.4.15：拖动表头列边界 → VM 改「手动列宽」→ 表头与所有行同规格重建
-        HeaderGrid.ColumnResize += (_, e) =>
-        {
-            if (DataContext is ListPageViewModelBase vm)
-                vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
-        };
-        // §4.8.1：表头首次布局后把「表头宽 + 示例值宽」交给 VM —— 示例 ≤ 表头的列锁成表头宽
-        HeaderGrid.HeaderMeasured += (_, e) =>
-        {
-            if (DataContext is ListPageViewModelBase vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
-        };
     }
 
     /// <summary>
@@ -44,8 +30,8 @@ public partial class VideoBatchView : UserControl
         // 1：菜单挪到 HeaderCheckHost（透明 Border = 整格热区）上。
         if (HeaderCheckHost?.ContextMenu is { } cmenu) cmenu.DataContext = DataContext;
 
-        // 把「📂 选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
-        // 每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
+        // 平台文件选择器只能在 View 层用（VM 不引 Avalonia）：本页把「📂 选择输出文件」等真实实现
+        // 注入给声明式卡的动作。每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
         if (DataContext is VideoBatchViewModel vmb)
         {
             vmb.PickOutputCommand = new RelayCommand(() => _ = PickOutputAsync());

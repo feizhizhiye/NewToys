@@ -30,26 +30,13 @@ public partial class AssetAllView : UserControl
     {
         InitializeComponent();
 
-        // ① 拖表头列边界 → 转给 VM（Grid.ColumnDefinitions 不能绑，只能这样转）
-        HeaderGrid.ColumnResize += (_, e) =>
-        {
-            if (DataContext is AssetAllViewModel vm)
-                vm.ResizeColumns(e.LeftIndex, e.LeftWidth, e.RightIndex, e.RightWidth);
-        };
-
-        // ② 表头首次测量完 → 让 VM 按「示例宽 ≤ 表头宽」锁列宽（v3.22 §4.8.1）
-        HeaderGrid.HeaderMeasured += (_, e) =>
-        {
-            if (DataContext is AssetAllViewModel vm) vm.LockColumnsBySample(e.Widths, e.SampleWidths);
-        };
-
-        // ③ 多选：修饰键在**隧道**阶段接管（ListBox 自己在 Multiple 下单击是「追加」，
-        //    与资源管理器「单击 = 只选这一行」不一致 ⇒ 无修饰键也一并接管）
+        // 多选：修饰键在**隧道**阶段接管（ListBox 自己在 Multiple 下单击是「追加」，
+        // 与资源管理器「单击 = 只选这一行」不一致 ⇒ 无修饰键也一并接管）
         AssetList.AddHandler(PointerPressedEvent, OnListPointerPressed, RoutingStrategies.Tunnel);
         AssetList.AddHandler(KeyDownEvent, OnListKeyDown, RoutingStrategies.Tunnel);
         AssetList.SelectionChanged += OnListSelectionChanged;
 
-        // ④ 底栏显隐的另一半口径 = 列表内容是否超出视口（滚动出现）。
+        // 底栏显隐的另一半口径 = 列表内容是否超出视口（滚动出现）。
         LayoutUpdated += (_, _) => ReportListOverflow();
     }
 

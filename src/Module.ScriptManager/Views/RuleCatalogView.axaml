@@ -12,7 +12,9 @@
 
     <v:ListPageSkeleton.HeaderArea>
       <Border Classes="list-header">
-        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}">
+        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
+                      IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
+                      SampleSpecs="{Binding SampleSpecs}">
           <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
                   Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
           <Button Grid.Column="1" Classes="col-header" Content="{Binding BaseUrlHeader}"

@@ -6,8 +6,11 @@
     「资产浏览」页（需求 §6.6.1）—— 资源管理器形态：左目录树 + 右「图标卡 / 详细信息」双视图。
 
     🔴 与「全部资产」的分工：那边按**元数据**找（搜索 / 标签 / 筛选），这里按**磁盘位置**翻。
-    🔴 目录数据取库里的索引，⛔ 不实时枚举磁盘（NAS / 移动盘离线会卡死界面）。
-    🔴 树是**自绘**（ItemsControl + Button.tree-row + 按 Depth 扁平化，⛔ 不用 TreeView）—— 与分类页同一套路。
+    🔴 数据来源 = **磁盘实时枚举**：树是盘符 / 共享根 + 逐层子目录（展开才读，⛔ 不递归），
+       右侧是当前目录的真实内容（子目录 + 全部文件）；索引只用来叠加「是否已入库」。
+       未入库的条目**标灰但仍可打开 / 定位**，库操作点了会给提醒（先「➕ 加入资产库」）。
+    🔴 树是**自绘**（ListBox + Button.tree-row + 按 Depth 扁平化，⛔ 不用 TreeView）—— 与分类页同一套路。
+    🔴 树的**顶级是盘符 / 共享根**（资源管理器口径：源不占层级）——建树在 AssetBrowseService。
     🔴 右列沿用列表页骨架（顶区 / 表头 / 列表 / 空态 / 底栏）；两套视图共用 VM 的 Items，
        只切 IsVisible —— ⛔ 不要为两套视图各存一份数据（选中 / 详情会打架）。
   -->
@@ -66,6 +69,15 @@
       <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
     </Style>
 
+    <!--  筛选按钮激活态：只换描边 / 文字色，⛔ 不给文案加 `✓` 之类前缀（会撑宽导致换行）。  -->
+    <Style Selector="Button.ghost.active">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+    <Style Selector="Button.ghost.active:pointerover">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
+
     <Style Selector="Border.tile">
       <Setter Property="CornerRadius" Value="6"/>
       <Setter Property="Padding" Value="6"/>
@@ -115,27 +127,41 @@
             Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}"
             BorderThickness="1" CornerRadius="8" Padding="8">
       <Grid RowDefinitions="Auto,*">
+        <!--  两个动作必须并排一行（240px 树宽内）：文案已收短，沿用 `ghost` 默认字号 / 内边距即可不换行。  -->
         <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
-          <Button Classes="ghost" Content="↕ 展开全部" Command="{Binding ExpandAllCommand}"/>
-          <Button Classes="ghost" Content="↕ 折叠全部" Command="{Binding CollapseAllCommand}"/>
+          <Button Classes="ghost" Content="{Binding ExpandAllText}" Command="{Binding ToggleExpandAllCommand}"
+                  ToolTip.Tip="展开 / 折叠已读取的层级"/>
+          <Button Classes="ghost" Classes.active="{Binding OnlyLibrary}" Content="已加入资产库"
+                  Command="{Binding ToggleOnlyLibraryCommand}"
+                  ToolTip.Tip="左树只显示已加入资产库的目录"/>
         </WrapPanel>
 
         <Grid Grid.Row="1" Margin="0,6,0,0">
-          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding !HasTree}"
-                     Text="索引里还没有目录。先到「全部资产」用 📁 扫描把文件入库。"/>
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding ShowNoDiskHint}"
+                     Text="没有可浏览的磁盘 / 共享目录。"/>
+          <TextBlock Classes="hint-text" TextWrapping="Wrap" IsVisible="{Binding ShowLibraryEmptyHint}"
+                     Text="还没有已加入资产库的目录。关掉筛选，右键一个磁盘目录 → 加入资产库。"/>
           <ListBox x:Name="TreeList" ItemsSource="{Binding TreeNodes}"
                    ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="➕ 加入资产库" Command="{Binding AddContextNodeToLibraryCommand}"
+                          IsEnabled="{Binding CanAddContextNodeToLibrary}"
+                          ToolTip.Tip="把右键的这个目录递归加入资产库（所在目录已在库里 ⇒ 整行不标灰，菜单项不可用）"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
               <DataTemplate>
                 <Button Classes="tree-row" Classes.selected="{Binding IsSelected}"
                         Margin="{Binding Indent}"
+                        Opacity="{Binding RowOpacity}"
                         ToolTip.Tip="{Binding ToolTipText}"
                         Command="{Binding $parent[UserControl].DataContext.SelectNodeCommand}"
                         CommandParameter="{Binding}">
                   <StackPanel Orientation="Horizontal" Spacing="4">
                     <TextBlock Text="{Binding Arrow}" FontSize="11" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding OfflineText}" FontSize="10" VerticalAlignment="Center"
+                    <TextBlock Text="{Binding HintText}" FontSize="10" VerticalAlignment="Center"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding CountText}" FontSize="10" VerticalAlignment="Center"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
@@ -255,7 +281,8 @@
 
       <v:ListPageSkeleton.ListArea>
         <Panel>
-          <!--  ① 图标卡视图：WrapPanel 换行；分页默认 120 ⇒ 不做虚拟化也不会建几千个容器  -->
+          <!--  ① 图标卡视图：WrapPanel 换行；缩略图**按可视区懒解码**（VM.ReportViewport），
+               容器数上限 = 当前页 ⇒ 大目录靠分页把容器量与解码量一起压住  -->
           <ListBox x:Name="TileList" Classes="list-page" SelectionMode="Multiple"
                    IsVisible="{Binding IsTileView}"
                    ItemsSource="{Binding TileSource}">
@@ -266,10 +293,13 @@
             </ListBox.ItemsPanel>
             <ListBox.ContextMenu>
               <ContextMenu>
+                <MenuItem Header="➕ 加入资产库" Command="{Binding AddToLibraryCommand}"
+                          ToolTip.Tip="把选中的文件 / 文件夹加入资产库（文件夹递归扫描）；已在库里的自动跳过"/>
+                <Separator/>
                 <MenuItem Header="📂 打开" Command="{Binding OpenSelectedCommand}"
-                          ToolTip.Tip="用系统默认程序打开（视频 = 播放 / 图片 = 看图）；也可以双击卡片"/>
+                          ToolTip.Tip="用系统默认程序打开（文件夹 = 进入）；也可以双击卡片"/>
                 <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderSelectedCommand}"
-                          ToolTip.Tip="在资源管理器里选中这个文件"/>
+                          ToolTip.Tip="在资源管理器里定位它（未入库的项也能用）"/>
                 <Separator/>
                 <MenuItem Header="✏ 重命名…" Command="{Binding RenameSelectedCommand}"
                           ToolTip.Tip="真改磁盘文件名（走任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）"/>
@@ -323,6 +353,8 @@
                    ItemsSource="{Binding DetailSource}">
             <ListBox.ContextMenu>
               <ContextMenu>
+                <MenuItem Header="➕ 加入资产库" Command="{Binding AddToLibraryCommand}"/>
+                <Separator/>
                 <MenuItem Header="📂 打开" Command="{Binding OpenSelectedCommand}"/>
                 <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderSelectedCommand}"/>
                 <Separator/>

@@ -39,8 +39,8 @@ public class MediaAssetsSettings
     /// <summary>抽帧位置（秒；<see cref="ThumbFrameMode"/> = seconds 时用）。</summary>
     public double ThumbFrameSeconds { get; set; } = 5;
 
-    /// <summary>图片 / 抽帧的缩略图尺寸（长边像素；只缩不放）。</summary>
-    public int ImageThumbSize { get; set; } = 320;
+    /// <summary>图片 / 抽帧的缩略图尺寸（长边像素；只缩不放）。默认值须 ≥ 资产浏览图标卡宽，否则竖图卡片会上采样发虚。</summary>
+    public int ImageThumbSize { get; set; } = 512;
 
     /// <summary>缩略图目录（空 = <c>&lt;配置根&gt;\cache\assets\thumbs</c>）。</summary>
     public string ThumbsDirectory { get; set; } = "";
@@ -78,8 +78,8 @@ public class MediaAssetsSettings
     /// <summary>视图模式：<c>tiles</c>（图标卡）/ <c>details</c>（详细信息）。</summary>
     public string BrowseViewMode { get; set; } = "tiles";
 
-    /// <summary>图标卡尺寸档位（像素，96 / 144 / 200 三档）。</summary>
-    public int BrowseIconSize { get; set; } = 144;
+    /// <summary>图标卡宽度（像素；固定 300，仅保留字段以承载历史配置）。</summary>
+    public int BrowseIconSize { get; set; } = 300;
 
     /// <summary>上次选中目录（<c>存储源id|相对目录</c>；空 = 没选过，进页面落到第一个目录）。</summary>
     public string LastBrowseFolder { get; set; } = "";

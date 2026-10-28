@@ -103,7 +103,7 @@
           <StackPanel Classes="field">
             <TextBlock Classes="field-label" Text="还原到"/>
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBox Width="380" Text="{Binding RestoreTargetDir}" Watermark="选择目标目录…"/>
+              <TextBox Width="380" Text="{Binding RestoreTargetDir}" PlaceholderText="选择目标目录…"/>
               <Button Classes="ghost" Content="📂 选择" Command="{Binding PickRestoreFolderCommand}"/>
             </StackPanel>
           </StackPanel>

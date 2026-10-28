@@ -113,7 +113,7 @@
             <StackPanel Spacing="10">
               <StackPanel Classes="field">
                 <TextBlock Classes="field-label" Text="任务名"/>
-                <TextBox Text="{Binding EditName}" Watermark="例如：工作文档每日备份"/>
+                <TextBox Text="{Binding EditName}" PlaceholderText="例如：工作文档每日备份"/>
               </StackPanel>
 
               <StackPanel Classes="field">
@@ -135,7 +135,7 @@
               <StackPanel Classes="field">
                 <TextBlock Classes="field-label" Text="排除规则（一行一条，7z 通配）"/>
                 <TextBox Text="{Binding EditExcludes}" AcceptsReturn="True" Height="66"
-                         Watermark="例如：*.tmp / cache\* / node_modules\*"/>
+                         PlaceholderText="例如：*.tmp / cache\* / node_modules\*"/>
                 <TextBlock Classes="hint-text" TextWrapping="Wrap"
                            Text="每行一条，按 -xr! 递归排除；留空 = 全量备份。"/>
               </StackPanel>
@@ -149,7 +149,7 @@
 
               <StackPanel Classes="field">
                 <TextBlock Classes="field-label" Text="备注"/>
-                <TextBox Text="{Binding EditNote}" AcceptsReturn="True" Height="56" Watermark="可选"/>
+                <TextBox Text="{Binding EditNote}" AcceptsReturn="True" Height="56" PlaceholderText="可选"/>
               </StackPanel>
 
               <TextBlock Classes="hint-text" Text="{Binding StatusText}" TextWrapping="Wrap"/>

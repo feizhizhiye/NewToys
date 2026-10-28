@@ -341,6 +341,7 @@ public partial class App : Application
         list.Add(typeof(NewToys.VideoTools.VideoToolsModule));
         list.Add(typeof(NewToys.MediaAssets.MediaAssetsModule));
         list.Add(typeof(NewToys.SystemTools.SystemToolsModule));
+        list.Add(typeof(NewToys.BackupCenter.BackupCenterModule));
 #endif
         return list.ToArray();
     }

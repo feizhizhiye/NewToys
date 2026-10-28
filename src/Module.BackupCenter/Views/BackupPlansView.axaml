@@ -1,0 +1,162 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.UI.Controls"
+             x:Class="NewToys.BackupCenter.Views.BackupPlansView">
+  <!--
+    「备份中心 → 备份任务」（`backup-plans`）：任务清单 + 声明式工具条 + 详情卡 + 编辑弹层。
+    🔴 工具条 / 详情卡由 Shell 按 VM 契约渲染，页内 ⛔ 不再自绘工具条。
+    🔴 颜色一律 DynamicResource 主题语义键（⛔ 不写死色值）。
+  -->
+  <Grid>
+    <v:ListPageSkeleton EmptyMessage="还没有备份任务。点「➕ 新建任务」选几个目录，就能生成一个加密归档包。"
+                        EmptyActionText="➕ 新建任务"
+                        EmptyActionCommand="{Binding NewPlanCommand}"
+                        IsEmpty="{Binding !HasItems}">
+
+      <v:ListPageSkeleton.TopArea>
+        <Border Background="{DynamicResource ContentHeaderBrush}" Padding="12,6" IsVisible="{Binding IsBusy}">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="hint-text" Text="{Binding BusyPhase}"/>
+            <ProgressBar IsIndeterminate="True" Height="3"/>
+          </StackPanel>
+        </Border>
+      </v:ListPageSkeleton.TopArea>
+
+      <v:ListPageSkeleton.HeaderArea>
+        <Border Classes="list-header">
+          <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
+                        IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
+                        SampleSpecs="{Binding SampleSpecs}">
+            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
+            <Button Grid.Column="1" Classes="col-header" Content="{Binding SourcesHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Sources" IsVisible="{Binding IsSourcesVisible}"/>
+            <Button Grid.Column="2" Classes="col-header" Content="{Binding KeepHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Keep" IsVisible="{Binding IsKeepVisible}"/>
+            <Button Grid.Column="3" Classes="col-header" Content="{Binding LastRunHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="LastRun" IsVisible="{Binding IsLastRunVisible}"/>
+            <Button Grid.Column="4" Classes="col-header" Content="{Binding ArchivesHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Archives" IsVisible="{Binding IsArchivesVisible}"/>
+            <Button Grid.Column="5" Classes="col-header" Content="{Binding PasswordHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Password" IsVisible="{Binding IsPasswordVisible}"/>
+            <v:ColumnGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="任务" IsEnabled="False" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
+                <MenuItem Header="源目录" ToggleType="CheckBox" IsChecked="{Binding IsSourcesVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Sources"/>
+                <MenuItem Header="保留" ToggleType="CheckBox" IsChecked="{Binding IsKeepVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Keep"/>
+                <MenuItem Header="最近运行" ToggleType="CheckBox" IsChecked="{Binding IsLastRunVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="LastRun"/>
+                <MenuItem Header="包数" ToggleType="CheckBox" IsChecked="{Binding IsArchivesVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Archives"/>
+                <MenuItem Header="包密码" ToggleType="CheckBox" IsChecked="{Binding IsPasswordVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Password"/>
+              </ContextMenu>
+            </v:ColumnGrid.ContextMenu>
+          </v:ColumnGrid>
+        </Border>
+      </v:ListPageSkeleton.HeaderArea>
+
+      <v:ListPageSkeleton.ListArea>
+        <ListBox x:Name="PlanList" Classes="list-page"
+                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}" SelectionMode="Single">
+          <ListBox.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="▶ 立即备份" Command="{Binding RunBackupCommand}" IsEnabled="{Binding IsNotBusy}"/>
+              <MenuItem Header="✏ 编辑任务" Command="{Binding EditPlanCommand}" IsEnabled="{Binding HasSelection}"/>
+              <Separator/>
+              <MenuItem Header="📋 复制包密码" Command="{Binding CopyPasswordCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="🔄 重生成包密码" Command="{Binding RegeneratePasswordCommand}" IsEnabled="{Binding HasSelection}"/>
+              <Separator/>
+              <MenuItem Header="🗑 删除任务" Command="{Binding DeletePlanCommand}" IsEnabled="{Binding HasSelection}"/>
+            </ContextMenu>
+          </ListBox.ContextMenu>
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
+                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
+                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SourcesText}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsSourcesVisible}"/>
+                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding KeepText}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsKeepVisible}"/>
+                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding LastRunText}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsLastRunVisible}"/>
+                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding ArchiveCountText}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsArchivesVisible}"/>
+                <TextBlock Grid.Column="5" Classes="list-cell accent" Text="{Binding PasswordText}"
+                           IsVisible="{Binding $parent[ListBox].DataContext.IsPasswordVisible}"/>
+              </v:ColumnGrid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </v:ListPageSkeleton.ListArea>
+    </v:ListPageSkeleton>
+
+    <!--  ==================== 新建 / 编辑弹层  ====================  -->
+    <Border Background="{DynamicResource LoadingOverlayBrush}" IsVisible="{Binding IsEditorOpen}">
+      <Border Width="600" MaxHeight="640" VerticalAlignment="Center" HorizontalAlignment="Center"
+              Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource InputBorderBrush}"
+              BorderThickness="1" CornerRadius="8" Padding="18">
+        <DockPanel LastChildFill="True">
+          <TextBlock DockPanel.Dock="Top" Classes="section-title" Text="{Binding EditorTitle}"/>
+
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
+                      Spacing="8" Margin="0,14,0,0">
+            <Button Classes="ghost" Content="取消" Command="{Binding CloseEditorCommand}"/>
+            <Button Classes="primary" Content="💾 保存" Command="{Binding SaveEditorCommand}"/>
+          </StackPanel>
+
+          <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+            <StackPanel Spacing="10">
+              <StackPanel Classes="field">
+                <TextBlock Classes="field-label" Text="任务名"/>
+                <TextBox Text="{Binding EditName}" Watermark="例如：工作文档每日备份"/>
+              </StackPanel>
+
+              <StackPanel Classes="field">
+                <TextBlock Classes="field-label" Text="源目录（1~N 个）"/>
+                <ListBox x:Name="SourceList" ItemsSource="{Binding EditorSources}"
+                         SelectedItem="{Binding EditorSourceSelected, Mode=TwoWay}" Height="120">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Classes="list-cell" Text="{Binding}" TextTrimming="CharacterEllipsis"/>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+                  <Button Classes="ghost" Content="➕ 添加目录" Command="{Binding AddSourceFolderCommand}"/>
+                  <Button Classes="ghost" Content="➖ 移除选中" Command="{Binding RemoveSourceFolderCommand}"/>
+                </StackPanel>
+              </StackPanel>
+
+              <StackPanel Classes="field">
+                <TextBlock Classes="field-label" Text="排除规则（一行一条，7z 通配）"/>
+                <TextBox Text="{Binding EditExcludes}" AcceptsReturn="True" Height="66"
+                         Watermark="例如：*.tmp / cache\* / node_modules\*"/>
+                <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                           Text="每行一条，按 -xr! 递归排除；留空 = 全量备份。"/>
+              </StackPanel>
+
+              <StackPanel Classes="field">
+                <TextBlock Classes="field-label" Text="保留份数（本地）"/>
+                <TextBox Text="{Binding EditKeepText}" Width="120" HorizontalAlignment="Left"/>
+                <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                           Text="新包生成成功后，超过这个份数的旧包会被自动删除（最旧的先删）。"/>
+              </StackPanel>
+
+              <StackPanel Classes="field">
+                <TextBlock Classes="field-label" Text="备注"/>
+                <TextBox Text="{Binding EditNote}" AcceptsReturn="True" Height="56" Watermark="可选"/>
+              </StackPanel>
+
+              <TextBlock Classes="hint-text" Text="{Binding StatusText}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Border>
+  </Grid>
+</UserControl>

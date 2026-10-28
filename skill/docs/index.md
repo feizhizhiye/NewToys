@@ -32,6 +32,7 @@
 | 视频工具 | `Module.VideoTools` | `video` | `video-*` | `modules/video-tools.md` | ✅ 稳定（3 页 + 设置） |
 | **系统工具**（v3.86 立项 / v3.87 定位收紧） | `Module.SystemTools` | `system-tools`（🔴 组键，非页 Key） | `script-commands` / `script-favorites` / `script-packages` / `system-*` | `modules/system-tools.md` | ✅ 已实施（NT-091 建模块 · NT-096 收编软件包；⏳ 待 build 验收） |
 | 媒体资产 | `Module.MediaAssets` | `assets` | `assets-*` | `modules/media-assets.md` | ✅ 稳定（7 页 + 设置） |
+| **备份中心**（v3.92 立项） | `Module.BackupCenter` | `backup` | `backup-*` | `modules/backup-center.md` | ✅ **NT-117 本地闭环已实施**（⏳ 待 build 验收）：2 页 + 设置（7z 加密归档 / 包清单 / 还原 / 主密码密码库）；投递（NT-118）仍是草稿。需求 §6.8 |
 
 > **应用级设置 / 首页 / 功能清单不属于模块**：它们归**框架层** `src/Shell`（`Module.Settings` 已于 NT-062 撤销），规格见 **`framework.md` §4.6**。⛔ 不要再为它们建 `modules/*.md`。
 
@@ -91,7 +92,7 @@
 
 ## 五、任务卡目录规则
 
-- 一个模块一个目录：`backlog/script-manager/` · `media-assets/` · `video-tools/` · `web-tools/`；跨模块放 `backlog/framework/`（应用级设置 / 首页的卡也归 framework，`settings-app/` 已于 2026-10-18 删除）。
+- 一个模块一个目录：`backlog/script-manager/` · `media-assets/` · `video-tools/` · `web-tools/` · `system-tools/` · `backup/`；跨模块放 `backlog/framework/`（应用级设置 / 首页的卡也归 framework，`settings-app/` 已于 2026-10-18 删除）。
 - **每目录最多 5 张卡**；超了删**最旧且已验收**的那张；`📝草稿 / ✅就绪 / 🔄执行中 / ✔已完成（待验收）`不参与淘汰。
 - **验收即蒸馏**：卡验收后把结论 / 偏差 / 坑写进 `modules/<模块>.md`，卡才可被淘汰。
 - 格式与状态机见 `backlog/README.md`；流程与术语见 `NewToys-AI协作手册.md`。

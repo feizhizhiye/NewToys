@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:NewToys.UI.Controls"
+             x:Class="NewToys.BackupCenter.Views.SettingsBackupView">
+  <!--
+    「备份中心设置」（`settings-backup`）：归档引擎 / 主密码 / 保留份数与目录 / 文件位置。
+    🔴 节内容写在 <UserControl.Resources> 的 SecN 面板里，节元数据由 code-behind 的 Add(...) 建
+      （⛔ 别在 XAML 里直接写 ui:SettingsSection：该页会不被预编译）；节内 ⛔ 再包 ScrollViewer。
+  -->
+  <UserControl.Resources>
+
+    <!--  ==================== 归档引擎 ====================  -->
+    <StackPanel x:Key="Sec0" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="7z.exe 路径（留空 = 自动探测）"/>
+        <TextBox Text="{Binding SevenZipPathText}" Watermark="D:\Tools\7-Zip\7z.exe"/>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+          <Button Classes="ghost" Content="🔍 探测" Command="{Binding DetectSevenZipCommand}"/>
+          <Button Classes="ghost" Content="📂 选择 exe" Command="{Binding BrowseSevenZipCommand}"/>
+          <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveSevenZipCommand}"/>
+          <Button Classes="ghost" Content="清空" Command="{Binding ClearSevenZipCommand}"/>
+        </StackPanel>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding SevenZipStatusText}"/>
+      </StackPanel>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 Text="备份中心用外置 7-Zip 做 AES-256 加密归档（含 -mhe=on 头部加密）；本机没装 7-Zip 时这里会提示找不到。自动探测顺序 = 常见安装位 → PATH 里的 7z。"/>
+    </StackPanel>
+
+    <!--  ==================== 主密码 ====================  -->
+    <StackPanel x:Key="Sec1" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="密码库状态"/>
+        <TextBlock Classes="field-value" Text="{Binding VaultStateText}"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                   Text="包密码与（以后的）投递凭据都保存在一个加密密码库里；主密码本身不落盘，只用来派生加解密密钥。"/>
+      </StackPanel>
+
+      <!--  首次设置  -->
+      <StackPanel Classes="field" Spacing="6" IsVisible="{Binding ShowSetupVault}">
+        <TextBlock Classes="field-label" Text="设置主密码（至少 8 位）"/>
+        <TextBox PasswordChar="●" Text="{Binding MasterInput}" Watermark="主密码"/>
+        <TextBox PasswordChar="●" Text="{Binding MasterConfirmInput}" Watermark="再输一次"/>
+        <Button Classes="primary" Content="🔐 设置主密码" Command="{Binding SetupVaultCommand}"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                   Text="🔴 主密码丢了，密码库里的包密码就再也取不回来（归档包也会打不开）。请记到你的密码管理器里。"/>
+      </StackPanel>
+
+      <!--  解锁  -->
+      <StackPanel Classes="field" Spacing="6" IsVisible="{Binding ShowUnlockVault}">
+        <TextBlock Classes="field-label" Text="解锁密码库（本次会话有效）"/>
+        <TextBox PasswordChar="●" Text="{Binding MasterInput}" Watermark="主密码"/>
+        <Button Classes="primary" Content="🔓 解锁" Command="{Binding UnlockVaultCommand}"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding RemainingAttemptsText}"/>
+      </StackPanel>
+
+      <!--  已解锁：锁库 / 改密码  -->
+      <StackPanel Classes="field" Spacing="6" IsVisible="{Binding ShowUnlockedActions}">
+        <Button Classes="ghost" HorizontalAlignment="Left" Content="🔒 锁库" Command="{Binding LockVaultCommand}"/>
+        <TextBlock Classes="field-label" Text="修改主密码"/>
+        <TextBox PasswordChar="●" Text="{Binding OldMasterInput}" Watermark="旧主密码"/>
+        <TextBox PasswordChar="●" Text="{Binding NewMasterInput}" Watermark="新主密码"/>
+        <TextBox PasswordChar="●" Text="{Binding NewMasterConfirmInput}" Watermark="再输一次新主密码"/>
+        <Button Classes="ghost" HorizontalAlignment="Left" Content="💾 更换主密码" Command="{Binding ChangeMasterCommand}"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                   Text="改主密码会用新密码把库里所有条目重新加密一次；已经生成的归档包⛔ 不受影响（它们用各自的包密码）。"/>
+      </StackPanel>
+    </StackPanel>
+
+    <!--  ==================== 保留份数 / 目录 ====================  -->
+    <StackPanel x:Key="Sec2" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="新建任务的默认保留份数"/>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBox Width="120" Text="{Binding KeepText}"/>
+          <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveKeepCommand}"/>
+        </StackPanel>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="1~999；只影响新建任务的初值，单个任务的份数在任务里改。"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="归档包目录"/>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBox Width="380" Text="{Binding ArchiveDirText}"/>
+          <Button Classes="ghost" Content="📂 选择" Command="{Binding BrowseArchiveDirCommand}"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveArchiveDirCommand}"/>
+          <Button Classes="ghost" Content="恢复默认" Command="{Binding ResetArchiveDirCommand}"/>
+        </StackPanel>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding DefaultArchiveDir}"/>
+      </StackPanel>
+    </StackPanel>
+
+    <!--  ==================== 文件位置 ====================  -->
+    <StackPanel x:Key="Sec3" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="设置文件"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding SettingsFile}"/>
+      </StackPanel>
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="密码库 / 任务 / 包清单 / 运行记录"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding DataDir}"/>
+      </StackPanel>
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="还原暂存目录（可随时清理）"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StagingRoot}"/>
+      </StackPanel>
+      <Button Classes="ghost" HorizontalAlignment="Left" Content="📂 打开数据目录" Command="{Binding OpenDataDirCommand}"/>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StatusText}"/>
+    </StackPanel>
+  </UserControl.Resources>
+
+  <ui:SettingsSectionHost x:Name="Host" Sticky="False"/>
+</UserControl>

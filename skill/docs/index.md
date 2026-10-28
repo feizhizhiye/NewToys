@@ -32,7 +32,7 @@
 | 视频工具 | `Module.VideoTools` | `video` | `video-*` | `modules/video-tools.md` | ✅ 稳定（3 页 + 设置） |
 | **系统工具**（v3.86 立项 / v3.87 定位收紧） | `Module.SystemTools` | `system-tools`（🔴 组键，非页 Key） | `script-commands` / `script-favorites` / `script-packages` / `system-*` | `modules/system-tools.md` | ✅ 已实施（NT-091 建模块 · NT-096 收编软件包；⏳ 待 build 验收） |
 | 媒体资产 | `Module.MediaAssets` | `assets` | `assets-*` | `modules/media-assets.md` | ✅ 稳定（7 页 + 设置） |
-| **备份中心**（v3.92 立项） | `Module.BackupCenter` | `backup` | `backup-*` | `modules/backup-center.md` | ✅ **NT-117 本地闭环已实施**（⏳ 待 build 验收）：2 页 + 设置（7z 加密归档 / 包清单 / 还原 / 主密码密码库）；投递（NT-118）仍是草稿。需求 §6.8 |
+| **备份中心**（v3.92 立项） | `Module.BackupCenter` | `backup` | `backup-*` | `modules/backup-center.md` | ✅ **NT-117 + NT-119 已实施**（⏳ 待 build 验收）：3 页 + 设置（7z 加密归档 / 包清单 / 还原 / 主密码密码库 / 备份日历）；数据落 SQLite `store\backup\backup.db`；投递（NT-118）仍是草稿。需求 §6.8 |
 
 > **应用级设置 / 首页 / 功能清单不属于模块**：它们归**框架层** `src/Shell`（`Module.Settings` 已于 NT-062 撤销），规格见 **`framework.md` §4.6**。⛔ 不要再为它们建 `modules/*.md`。
 

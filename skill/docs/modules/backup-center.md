@@ -3,26 +3,28 @@
 > **程序集**：`src/Module.BackupCenter`（`NewToys.BackupCenter`，产物 `Module.BackupCenter.dll`）
 > **模块键**：`backup` ｜ **一级菜单**：Order **60** · 图标 `IconBackup`（StreamGeometry）
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：✅ 已实施（NT-117 本地闭环）｜⏳ 待用户本地 `accept.ps1` 验收；投递（WebDAV / SMTP）在 NT-118
+> **状态**：✅ 已实施（NT-117 + NT-119 本地闭环）｜⏳ 待用户本地 `accept.ps1` 验收；投递（WebDAV / SMTP）在 NT-118
 > **最后校对**：2026-10-28
 
 ---
 
 ## 1. 职责与边界
 
-- **定位**：把指定目录压成**加密归档包**放在本地，并能按原样还原回去。判据 = 产出**一个可搬运的包**，不产生业务数据。
+- **定位**：把指定目录压成**加密归档包**放在本地，并能按原样还原回去；同时用一张月历管「哪天备份过 / 哪天打算备份」。判据 = 产出**一个可搬运的包**，不产生业务数据。
 - 🔴 加密后端 = **外置 7-Zip**（`7z a -t7z -mhe=on -mx=5 -p<密码>`，AES-256 + 头部加密）；⛔ 不自带压缩库、⛔ 不用 DPAPI（保持跨平台中立）。
+- 🔴 **加密防的是什么**（用户 2026-10-28 定调）：主要是**包离开本机之后**被查看 —— 传到网盘 / 云端 / 别人拿到文件时，`-mhe=on` 连文件名与目录结构都看不到。它⛔ 不是防本机他人登录（那要靠系统账户）。
 - ⛔ 不复用 Core 的 `BackupService`（那是「配置档备份」），本模块类名一律 `Archive* / Vault* / BackupPlan*`。
-- 本期**只做本地闭环**：手动触发 + 全量归档 + 本地保留轮转。定时 / 增量 / 断点续传 / 远端投递属 NT-118 及以后。
+- 本期**只做本地闭环**：手动触发 + 全量归档 + 本地保留轮转 + 日历待办备忘。定时 / 增量 / 断点续传 / 远端投递属 NT-118 及以后。
 - 密码只能走命令行 `-p`（7z 无 stdin），因此**包级独立密码** + 密码库加密 + 界面只显示指纹（`sha256(密码)[0..8]`）。
 
-## 2. 当前功能（2 页 + 1 设置页）
+## 2. 当前功能（3 页 + 1 设置页）
 
 | 菜单 Key | 标题 | Order | View / VM | 说明 |
 |---|---|---|---|---|
 | `backup-plans` | 备份任务 | 1 | `BackupPlansView` / `BackupPlansViewModel` | 任务清单（名称 / 源目录 / 保留份数 / 最近运行 / 包数 / 包密码指纹）；工具条 新建 / 编辑 / 立即备份 / 取消 / 复制密码 / 删除 / 搜索 / 包目录；行右键同套命令；编辑走页内弹层 |
 | `backup-archives` | 备份包 | 2 | `BackupArchivesView` / `BackupArchivesViewModel` | 本地包清单（文件 / 任务 / 大小 / 时间 / SHA256 前 12 位 / 加密=是）；重新扫描对账 / 还原（弹层填目标目录 + 冲突策略）/ 删除包 / 复制 SHA256 |
-| `settings-backup` | 备份中心设置 | 100 | `SettingsBackupView` / `SettingsBackupViewModel` | 4 节：归档引擎（7z 探测 / 指定 / 版本）、主密码（设置 / 解锁 / 锁库 / 更换）、保留与目录、文件位置 |
+| `backup-calendar` | 备份日历 | 3 | `BackupCalendarView` / `BackupCalendarViewModel` | 6×7 月历（备份数 / 待办数 / 失败红点 / 今天）+ 右栏当天明细（待办可勾可删、当天包、当天运行记录）+ 加待办 |
+| `settings-backup` | 备份中心设置 | 100 | `SettingsBackupView` / `SettingsBackupViewModel` | 4 节：归档引擎（7z 探测 / 指定 / 版本）、主密码（设置 / 解锁 / 锁库 / 更换）、保留与**默认备份目录**、文件位置（含 SQLite 库路径） |
 
 ## 2.5 操作逻辑（交互契约）
 
@@ -30,7 +32,7 @@
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| 新建 / 编辑 | 工具条 ➕ / ✏ | 弹层（任务名 / 源目录多行 + 添加移除 / 排除规则 / 保留份数 / 备注）→ 「💾 保存」落 `plans.json` | 任务名必填且自动去重；源目录至少 1 个；保留份数 1~999 |
+| 新建 / 编辑 | 工具条 ➕ / ✏ | 弹层（任务名 / 源目录多行 + 添加移除 / 排除规则 / 保留份数 / 备注）→ 「💾 保存」落库 | 任务名必填且自动去重；源目录至少 1 个；保留份数 1~999 |
 | 添加源目录 | 弹层「➕ 添加目录」 | 走 `DialogHooks.PickFolderAsync` 选系统目录追加到清单 | 同一目录不重复加入 |
 | ▶ 立即备份 | 工具条 / 行右键 | 链路：探测 7z → 取包密码（无则生成并入密码库）→ 7z 建包 → 算 SHA256 登记 → 按保留份数删最旧 → 写运行记录 | 密码库**未设置 / 未解锁**一律拒跑并给方向；`IsBusy` 期间按钮置灰，顶部出现阶段条（收集 / 压缩加密 / 校验） |
 | 取消 | 工具条 ⏹ / 关页 | 杀 7z 进程树 + 删半成品包 | 取消不计失败，运行记录写「已取消」 |
@@ -39,53 +41,74 @@
 | 删除任务 | 工具条 🗑 / 行右键 | 二次确认 → 删任务 + 删其密码库条目 | ⛔ 不删已生成的归档包 |
 | 搜索 | 工具条关键字框 | 任务名 / 源目录 / 备注即时过滤 | 纯内存 |
 | 排序 / 列显隐 | 点表头 / 表头右键 | 6 列；标识列（任务）不可隐藏 | 偏好落 `columnlayout.json`，页键 `backup-plans` |
-| 详情栏 | 工具条末位详情开关 | 声明式详情卡：任务字段 + 源目录列表 + 最近 5 次运行 + 归档引擎（包目录 / 密码库状态） | 开合状态落 `columnlayout.json` |
+| 详情栏 | 工具条末位详情开关 | 声明式详情卡：任务字段 + 源目录列表 + 最近 5 次运行 + 归档引擎（默认备份目录 / 密码库状态 / 加密说明） | 开合状态落 `columnlayout.json` |
 
 ### 备份包 `backup-archives`
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| 重新扫描 | 工具条 🔄 | 按包目录对账：补新包（顺带算 SHA256）、剔掉文件已不在的记录 | 手工拷进/删掉的包都能反映出来 |
+| 重新扫描 | 工具条 🔄 | 按默认备份目录对账：补新包（顺带算 SHA256）、剔掉文件已不在的记录 | 手工拷进/删掉的包都能反映出来 |
 | ↩ 还原 | 工具条 / 行右键 | 弹层填目标目录 + 同名策略 → 解包到暂存目录 → 逐条目校验名 → 按策略搬到目标 | 需解锁密码库；包没登记任务（手工拷入）取不到密码 ⇒ 拒绝 |
 | 同名策略 | 弹层下拉 | 跳过（默认）/ 覆盖 / 重命名（加 `(1)(2)`） | 默认「跳过」⛔ 不动目标目录已有文件 |
 | 删除包 | 工具条 🗑 / 行右键 | 直接从磁盘删 + 剔清单记录 | 不可恢复，⛔ 无二次确认（与「删除任务」刻意不同：任务删了包还在，包删了就是删数据） |
 | 复制 SHA256 | 工具条 📋 / 行右键 | 复制整包校验值 | 拷到别的机器后先比它 |
 | 搜索 / 排序 / 列显隐 / 详情栏 | 同其它列表页 | 6 列；默认按生成时间倒序 | 页键 `backup-archives` |
 
+### 备份日历 `backup-calendar`
+
+| 操作 | 触发 | 结果 | 约束 |
+|---|---|---|---|
+| 选某天 | 点格子 | 右栏换成那天的待办 / 归档包 / 运行记录 | 前后补齐的淡字格子也能选（看得到那天的记录） |
+| 翻月 / 回今天 | 顶部 `‹` `›` / 「今天」 | 重画 42 格并选中该月 1 号（回今天则选中今天） | 周一为一周开头 |
+| ＋ 加待办 | 右栏底部输入框 + 按钮 | 写 `todos` 表（关联选中日期，可留空任务） | ⛔ 不触发自动备份；标题为空拒绝 |
+| 勾完成 / 取消 | 待办前的 `☐` / `☑` | 写 / 清 `done_at` | 完成后待办仍显示（不自动消失） |
+| 删待办 | 待办后的 🗑 | 直接从库里删 | 不可恢复，无二次确认（一条备忘） |
+| 🔄 刷新 | 工具条 | 重读库 + 重画月历 | 在别的页备份完回来点一下 |
+| 📂 默认备份目录 | 工具条 | 打开归档包所在目录 | 目录不存在则先建 |
+
 ### 备份中心设置 `settings-backup`
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| 7z 探测 | 「🔍 探测」 | 自动顺序：设置里显式路径 → `%ProgramFiles%\7-Zip\7z.exe` → x86 → `PATH` 的 `7z`；读版本横幅 | 配了路径但文件不在 ⇒ **直接判不可用**（⛔ 不偷偷退回自动探测） |
-| 保存 7z 路径 / 清空 | 「💾 保存」/「清空」 | 落 `config\backup-center.json`；清空 = 走自动探测 | 保存后需点探测验证版本 |
+| 7z 探测 | 「🔍 探测」 | 自动顺序：显式路径 → `%ProgramFiles%\7-Zip\7z.exe` → x86 → `PATH` 的 `7z`；读版本横幅 | 配了路径但文件不在 ⇒ **直接判不可用**（⛔ 不偷偷退回自动探测） |
+| 保存 7z 路径 / 清空 | 「💾 保存」/「清空」 | 写机器级 `env.json`（与「设置 → 运行环境 → 7-Zip」同一份值） | 保存后需点探测验证版本 |
 | 设置主密码 | 首次「🔐 设置主密码」 | PBKDF2-SHA256（30 万次）派生 → 建库并解锁 | 至少 8 位、两次一致；🔴 丢了主密码，包密码取不回来 |
 | 解锁 / 锁库 | 「🔓 解锁」/「🔒 锁库」 | 解锁仅在**本次会话**有效 | 连续失败 5 次 ⇒ 本会话锁库（重启才可重试） |
 | 更换主密码 | 已解锁时的「💾 更换主密码」 | 用旧密码解出全部条目 → 新密码重新加密 | 已生成的包不受影响（各用自己的包密码） |
-| 保留份数 / 包目录 | 「💾 保存」 | 落选项；包目录留空 = `store\backup\archives` | 保留份数只影响新建任务的初值 |
+| 保留份数 | 「💾 保存」 | 只影响新建任务的初值 | 1~999 |
+| 默认备份目录 | 输入框 +「📂 选择」/「💾 保存」/「恢复默认」/「↗ 打开」 | 落选项；留空 = `%USERPROFILE%\NewToys\Backup` | 改目录**不会**搬已有的包（文案写明） |
 
 ## 3. 实现逻辑
 
+- **存储 = 一个 SQLite 库** `store\backup\backup.db`（`BackupDb : SqliteDatabase`，表：`plans` / `archives` / `runs` / `todos` / `vault_meta` / `vault_items`）。
+  - 为什么不继续用四个 JSON：日历要「按天聚合备份次数」，那是 SQL 的 `GROUP BY`；JSON 只能每次全量读进内存再 LINQ。
+  - 四个存储类（`BackupPlanStore` / `ArchiveCatalog` / `BackupRunLog` / `VaultService`）**公开 API 不变**，内部换实现 ⇒ 页面 VM 零改动。
+  - 旧 `config\backup\*.json` 首次启动一次性导入，写 `meta.migrated.<名字>` 标记；⛔ 旧文件不删（迁移出错还能翻查）。
 - **一个任务 = 一个包密码**：密码存在密码库里，条目 Id = 任务 Id（改名不影响）；包密码指纹用 `sha256(密码)` 前 8 位展示。
 - **建包**：`ArchiveService.CreateAsync` → `IProcessRunner`（隐藏窗口 + 杀进程树 + 取消）跑 7z，超时上限 6 小时；退出码 1 当「完成（有跳过）」而非失败（源目录遇独占文件不改判整个任务）。
 - **还原**：解到 `cache\backup\staging\restore-<时间戳>` → 枚举文件校验（拒绝 `..` / 绝对路径 / 盘符 / `ReparsePoint`）→ 逐文件按策略搬运 → 记录本次创建的文件，异常/取消时**回滚这些文件** → `finally` 删暂存目录。
 - **对账**：`ArchiveCatalog.SyncWithDisk` 用「文件名在不在磁盘」双向对齐；SHA256 只给新出现的文件算（已有记录不重算，避免每次进页都读整包）。
 - **保留轮转**：任务跑成功后按 `KeepCount` 取最新的 N 条记录，多出来的先删文件再删记录；删不掉（被占用）就留着下轮再删。
+- **日历聚合**：格子备份数取 `archives.created_at`（有包才算备份过，历史比 200 条运行记录长），失败红点取 `runs` 里状态含「失败」的条数，待办数取 `todos.due_date` 分组。
 - **状态反馈**：阶段文案 + 不确定进度条（7z 不流式回报百分比）；失败按 7z 退出码分级（2 致命 / 7 参数 / 8 内存 / 255 中断）。
 
 ## 4. 关键文件
 
 | 路径 | 作用 |
 |---|---|
-| `Services/BackupSettingsService.cs` | 唯一的选项写入点 + 全部路径的决定者 |
-| `Services/VaultService.cs` | 主密码密码库（PBKDF2 → AES-GCM，条目级 nonce） |
+| `Services/BackupDb.cs` | SQLite 库 + 六张表 + schema 版本 + 迁移标记 |
+| `Services/BackupSettingsService.cs` | 唯一的选项写入点 + 全部路径的决定者（7z 路径转发到应用级 `env.json`） |
+| `Services/VaultService.cs` | 主密码密码库（PBKDF2 → AES-GCM，条目级 nonce，密文进库） |
 | `Services/PasswordGenerator.cs` | 24 位密码生成（剔除 `0OoIl1\|`）+ 指纹 |
 | `Services/SevenZipLocator.cs` | 7z 定位与版本探测（带缓存，可 `Reset`） |
 | `Services/ArchiveService.cs` | 建包 / 还原（路径穿越校验 + 回滚） |
-| `Services/BackupPlanStore.cs` | `plans.json` 任务清单 |
-| `Services/ArchiveCatalog.cs` | `catalog.json` 包清单 + 磁盘对账 + SHA256 |
-| `Services/BackupRunLog.cs` | `runs.json` 运行记录（最近 200 条） |
+| `Services/BackupPlanStore.cs` | `plans` 表读写 |
+| `Services/ArchiveCatalog.cs` | `archives` 表 + 磁盘对账 + SHA256 |
+| `Services/BackupRunLog.cs` | `runs` 表（最近 200 条）+ 按天查询 |
+| `Services/BackupTodoStore.cs` | `todos` 表（日历待办） |
 | `ViewModels/BackupPlansViewModel.cs` | 任务页（工具条 / 详情卡 / 编辑弹层 / 备份链路） |
 | `ViewModels/BackupArchivesViewModel.cs` | 包页（对账 / 还原弹层 / 删除） |
+| `ViewModels/BackupCalendarViewModel.cs` | 日历页（42 格重建 / 右栏三段 / 待办增删勾） |
 | `ViewModels/SettingsBackupViewModel.cs` | 设置页（4 节） |
 
 ## 5. 坑点（🔴 实测/必守）
@@ -94,11 +117,14 @@
 - 🔴 **密码走命令行**：同机其他用户用进程查看器能看到 `-p...`；缓解只有「一任务一密码 + 密码库加密 + ⛔ 日志/错误串里不回显命令原文」。清空密码后**旧包永久打不开**。
 - 🔴 **还原必须防路径穿越**：7z 解包本身不保证拒绝 `..`；先解到独立暂存目录再校验搬运（同时避免污染目标目录）。
 - 🔴 **`Module.BackupCenter` 设置页的节内容必须放 `<UserControl.Resources>`**：在 XAML 里直接写 `ui:SettingsSection` 会让该页不被预编译（运行时报 `No precompiled XAML found`）；节内 ⛔ 再包 `ScrollViewer`（与 `SettingsSectionHost` 抢滚动）。
-- 🔴 **类名与 View 配对**：`SettingsBackupView` ↔ `SettingsBackupViewModel`（⛔ 叫 `BackupSettingsViewModel`，Shell 按名字反查，对不上整页静默空白）。
+- 🔴 **类名与 View 配对**：`SettingsBackupView` ↔ `SettingsBackupViewModel`、`BackupCalendarView` ↔ `BackupCalendarViewModel`（Shell 按名字反查，对不上整页静默空白）。
+- 🔴 **迁移只做一次**：导入旧 JSON 后必须写 `meta.migrated.*`，否则每次启动都把旧数据重新灌一遍（用户删掉的包会"复活"）。
+- 🔴 **改默认备份目录不会搬包**：旧目录里的包留在原地，`archives` 表仍记着文件名 ⇒ 对账时会被判成"文件不在"而剔记录。换目录前先把旧包搬过去（设置页文案已提示）。
+- 🔴 **日历格子用 `ListBox + UniformGrid(7×6)`**：选中态交给 `ListBox`，格子只是 ItemTemplate；⛔ 不要自己用 42 个 Button 手搓选中态（重画和键盘导航都要自己写）。
 - ⚠️ 页内弹层用 `LoadingOverlayBrush` 做遮罩、`PanelBrush` 做卡面（⛔ 不写死色值）；弹层里的「移除选中源目录」不能靠 `$parent[ListBox]`（按钮在 ListBox 外），改由 VM 的 `EditorSourceSelected` 取。
 - ⚠️ 7z 退出码 1 = 警告（多半是文件被独占跳过）；按 `Can not open` 行数估「跳过 N 个文件」只是近似。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 
 - NT-118：投递通道（WebDAV / SMTP）+ 远端包清单 + 按通道保留轮转；凭据进同一个密码库。
-- v2 候选：定时任务（计划触发器）、增量 / 断点续传（7z `-u` 语义有限，需另设计）、VSS 快照（现在遇独占文件只跳过）。
+- v2 候选：定时任务（计划触发器，可直接复用 `todos` 的到期数据）、增量 / 断点续传（7z `-u` 语义有限，需另设计）、VSS 快照（现在遇独占文件只跳过）。

@@ -80,6 +80,12 @@ namespace NewToys.Shared.Services
         string PowerShell51Path { get; set; }
 
         /// <summary>
+        /// 7-Zip 命令行（<c>7z.exe</c>）路径。留空 = 自动探测（常见安装位 → PATH 里的 <c>7z</c>）。
+        /// <para>唯一写入点 =「设置 → 运行环境」；备份中心的归档引擎读它（⛔ 不再自己存一份）。</para>
+        /// </summary>
+        string SevenZipPath { get; set; }
+
+        /// <summary>
         /// 更新检查用的**纯文本版本文件地址**（「设置 → 通用 → 启动时检查更新」用它）。
         /// 留空 = 不检查（页面会如实显示「未配置更新地址」，不假装检查过）。
         /// 内容期望是形如 <c>1.20261010.00.10</c> 的版本号（任意文本里有这么一串即可）。

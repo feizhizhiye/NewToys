@@ -1,0 +1,186 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.BackupCenter.Views.BackupCalendarView">
+  <!--
+    「备份中心 → 备份日历」（`backup-calendar`）：月视图 + 当天明细 + 待办。
+    左列 = 6×7 月历（ListBox + UniformGrid：选中态交给 ListBox，格子只是内容模板）；
+    右列 = 选中那天的待办 / 归档包 / 运行记录。
+    ⚠️ 待办只是备忘，⛔ 不触发自动备份。
+  -->
+  <Grid Margin="12" RowDefinitions="Auto,*" RowSpacing="10">
+
+    <!--  ==================== 顶部：月份导航 + 目录  ====================  -->
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Button Classes="ghost" Content="‹" Command="{Binding PrevMonthCommand}" ToolTip.Tip="上一个月"/>
+        <TextBlock Text="{Binding MonthTitle}" Classes="section-title" VerticalAlignment="Center" MinWidth="120"
+                   TextAlignment="Center"/>
+        <Button Classes="ghost" Content="›" Command="{Binding NextMonthCommand}" ToolTip.Tip="下一个月"/>
+        <Button Classes="ghost" Content="今天" Command="{Binding GoTodayCommand}" Margin="6,0,0,0"/>
+      </StackPanel>
+
+      <TextBlock Grid.Column="1" Classes="hint-text" Text="{Binding StatusText}" VerticalAlignment="Center"
+                 Margin="12,0" TextTrimming="CharacterEllipsis"/>
+
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+        <Button Classes="ghost" Content="🔄 刷新" Command="{Binding RefreshCommand}"
+                ToolTip.Tip="重新读取数据库（在别的页备份完回来点一下）"/>
+        <Button Classes="ghost" Content="📂 默认备份目录" Command="{Binding OpenBackupDirCommand}"
+                ToolTip.Tip="{Binding BackupDir}"/>
+      </StackPanel>
+    </Grid>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,320" ColumnSpacing="12">
+
+      <!--  ==================== 左：月历  ====================  -->
+      <Border Grid.Column="0" Classes="card" Padding="10">
+        <Grid RowDefinitions="Auto,*" RowSpacing="6">
+
+          <!-- 周标题（周一开始） -->
+          <ItemsControl Grid.Row="0" ItemsSource="{Binding WeekHeadList}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <UniformGrid Columns="7"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}" Classes="hint-text" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <ListBox Grid.Row="1" x:Name="DayList" ItemsSource="{Binding Days}"
+                   SelectedItem="{Binding SelectedDay, Mode=TwoWay}" SelectionMode="Single"
+                   Background="Transparent" BorderThickness="0" Padding="0">
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate>
+                <UniformGrid Columns="7" Rows="6"/>
+              </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="Margin" Value="2"/>
+                <Setter Property="CornerRadius" Value="6"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+              </Style>
+              <Style Selector="ListBoxItem:selected">
+                <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="6"
+                        Padding="6" MinHeight="70" ToolTip.Tip="{Binding TipText}">
+                  <Grid RowDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding DayText}" Classes="list-cell primary"
+                                 IsVisible="{Binding IsCurrentMonth}"/>
+                      <TextBlock Text="{Binding DayText}" Classes="list-cell"
+                                 Foreground="{DynamicResource SecondaryTextBrush}"
+                                 IsVisible="{Binding !IsCurrentMonth}"/>
+                      <!--  备份过 = 强调色点；有失败 = 红点；有待办 = 空心方框  -->
+                      <Border Width="6" Height="6" CornerRadius="3" VerticalAlignment="Center"
+                              Background="{DynamicResource AccentBrush}" IsVisible="{Binding HasBackup}"/>
+                      <Border Width="6" Height="6" CornerRadius="3" VerticalAlignment="Center"
+                              Background="{DynamicResource DangerBrush}" IsVisible="{Binding HasFailure}"/>
+                      <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                              BorderBrush="{DynamicResource SecondaryTextBrush}" BorderThickness="1"
+                              IsVisible="{Binding HasTodo}"/>
+                      <TextBlock Text="今" Classes="hint-text" FontSize="10"
+                                 Foreground="{DynamicResource AccentBrush}" IsVisible="{Binding IsToday}"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="2" Classes="hint-text" FontSize="10" TextWrapping="Wrap"
+                               Text="{Binding Summary}"/>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!--  ==================== 右：当天明细  ====================  -->
+      <Border Grid.Column="1" Classes="card" Padding="12">
+        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+
+          <TextBlock Grid.Row="0" Classes="section-title" Text="{Binding SelectedDateText}"/>
+
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="10">
+
+              <!-- 待办 -->
+              <StackPanel Spacing="4">
+                <TextBlock Classes="field-label" Text="当天待办"/>
+                <ItemsControl ItemsSource="{Binding DayTodos}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                        <Button Grid.Column="0" Classes="ghost small" Content="{Binding CheckMark}"
+                                Command="{Binding $parent[ItemsControl].DataContext.ToggleTodoCommand}"
+                                CommandParameter="{Binding}" ToolTip.Tip="勾上 / 取消"/>
+                        <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Title}" Margin="6,0"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        <Button Grid.Column="2" Classes="ghost small" Content="🗑"
+                                Command="{Binding $parent[ItemsControl].DataContext.DeleteTodoCommand}"
+                                CommandParameter="{Binding}" ToolTip.Tip="删除这条待办"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Classes="hint-text" Text="当天没有待办" IsVisible="{Binding !HasDayTodos}"/>
+              </StackPanel>
+
+              <!-- 当天的归档包 -->
+              <StackPanel Spacing="4">
+                <TextBlock Classes="field-label" Text="当天生成的归档包"/>
+                <ItemsControl ItemsSource="{Binding DayArchives}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Margin="0,2" Spacing="1">
+                        <TextBlock Classes="list-cell primary" Text="{Binding FileName}"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Classes="hint-text" Text="{Binding PlanName}"/>
+                        <TextBlock Classes="hint-text" Text="{Binding MetaText}"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Classes="hint-text" Text="当天没有生成归档包" IsVisible="{Binding !HasDayArchives}"/>
+              </StackPanel>
+
+              <!-- 当天的运行记录（失败原因在这看） -->
+              <StackPanel Spacing="4">
+                <TextBlock Classes="field-label" Text="当天运行记录"/>
+                <ItemsControl ItemsSource="{Binding DayRuns}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Margin="0,2" Spacing="1">
+                        <TextBlock Classes="list-cell" Text="{Binding Status}"/>
+                        <TextBlock Classes="hint-text" Text="{Binding Message}" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Classes="hint-text" Text="当天没有运行记录" IsVisible="{Binding !HasDayRuns}"/>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- 新增待办 -->
+          <StackPanel Grid.Row="2" Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox Width="200" Text="{Binding NewTodoTitle}" PlaceholderText="这一天要备份什么…"/>
+              <Button Classes="primary" Content="＋ 加待办" Command="{Binding AddTodoCommand}"/>
+            </StackPanel>
+            <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                       Text="待办只是备忘：到点了自己去「备份任务」页点「▶ 立即备份」（自动执行属后续版本）。"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

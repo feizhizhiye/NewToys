@@ -46,6 +46,9 @@ public sealed class ArchiveRecord
 
     [JsonIgnore] public string CreatedText => CreatedAt == default ? "" : CreatedAt.ToString("yyyy-MM-dd HH:mm");
 
+    /// <summary>「大小 · 时间」一行摘要（日历右栏用）。</summary>
+    [JsonIgnore] public string MetaText => SizeText + " · " + CreatedText;
+
     /// <summary>归档一律 AES-256 + 头部加密 ⇒ 恒为「是」（字段保留给将来的明文包）。</summary>
     [JsonIgnore] public string EncryptedText => "是";
 
@@ -94,4 +97,85 @@ public enum RestoreConflictPolicy
 
     /// <summary>改名成「名字 (1).ext」再放。</summary>
     Rename
+}
+
+/// <summary>备份日历上的一条待办（<c>todos</c> 表）：哪天要备份、做了没。⛔ 不参与自动执行。</summary>
+public sealed class BackupTodo
+{
+    public long Id { get; set; }
+
+    /// <summary>关联任务（可为空 = 只是提醒，没绑具体任务）。</summary>
+    public string PlanId { get; set; } = "";
+
+    /// <summary>计划日期（只用到日）。</summary>
+    public DateTime DueDate { get; set; }
+
+    public string Title { get; set; } = "";
+
+    public string Note { get; set; } = "";
+
+    /// <summary>完成时间（null = 未完成）。</summary>
+    public DateTime? DoneAt { get; set; }
+
+    [JsonIgnore] public bool IsDone => DoneAt != null;
+
+    [JsonIgnore] public string CheckMark => IsDone ? "☑" : "☐";
+
+    [JsonIgnore] public string DueText => DueDate == default ? "" : DueDate.ToString("yyyy-MM-dd");
+
+    [JsonIgnore] public string PlanName { get; set; } = "";
+}
+
+/// <summary>
+/// 日历格子（月视图的一格）：当天备份次数 + 待办数。
+/// <para>纯展示模型，由 <c>BackupCalendarViewModel</c> 每次重建 —— 一个月的格子最多 42 个，重建比增量更新简单。</para>
+/// </summary>
+public sealed class CalendarDay
+{
+    public DateTime Date { get; set; }
+
+    /// <summary>是否属于当前显示月份（前后补齐的空格显示淡字）。</summary>
+    public bool IsCurrentMonth { get; set; }
+
+    public bool IsToday { get; set; }
+
+    public int BackupCount { get; set; }
+
+    public int FailedCount { get; set; }
+
+    public int TodoCount { get; set; }
+
+    [JsonIgnore] public string DayText => Date.Day.ToString();
+
+    /// <summary>格子右下角的一句话摘要（空 = 不显示）。</summary>
+    [JsonIgnore]
+    public string Summary
+    {
+        get
+        {
+            if (BackupCount == 0 && TodoCount == 0) return "";
+            var parts = new List<string>();
+            if (BackupCount > 0) parts.Add("备份 " + BackupCount);
+            if (TodoCount > 0) parts.Add("待办 " + TodoCount);
+            return string.Join(" · ", parts);
+        }
+    }
+
+    [JsonIgnore] public bool HasBackup => BackupCount > 0;
+
+    [JsonIgnore] public bool HasTodo => TodoCount > 0;
+
+    [JsonIgnore] public bool HasFailure => FailedCount > 0;
+
+    [JsonIgnore] public string TipText
+    {
+        get
+        {
+            var parts = new List<string> { Date.ToString("yyyy-MM-dd") };
+            if (BackupCount > 0) parts.Add($"备份 {BackupCount} 次");
+            if (FailedCount > 0) parts.Add($"其中失败 {FailedCount} 次");
+            if (TodoCount > 0) parts.Add($"待办 {TodoCount} 条");
+            return string.Join(" · ", parts);
+        }
+    }
 }

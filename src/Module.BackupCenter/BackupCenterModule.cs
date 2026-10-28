@@ -15,10 +15,12 @@ public sealed class BackupCenterModule : IModule
 {
     public void RegisterServices(IServiceCollection services)
     {
+        services.AddSingleton<BackupDb>();
         services.AddSingleton<BackupSettingsService>();
         services.AddSingleton<BackupPlanStore>();
         services.AddSingleton<ArchiveCatalog>();
         services.AddSingleton<BackupRunLog>();
+        services.AddSingleton<BackupTodoStore>();
         services.AddSingleton<VaultService>();
         services.AddSingleton<SevenZipLocator>();
         services.AddSingleton<ArchiveService>();
@@ -27,6 +29,8 @@ public sealed class BackupCenterModule : IModule
         services.AddTransient<BackupPlansViewModel>();
         services.AddTransient<BackupArchivesView>();
         services.AddTransient<BackupArchivesViewModel>();
+        services.AddTransient<BackupCalendarView>();
+        services.AddTransient<BackupCalendarViewModel>();
         services.AddTransient<SettingsBackupView>();
         services.AddTransient<SettingsBackupViewModel>();
     }
@@ -40,7 +44,9 @@ public sealed class BackupCenterModule : IModule
             "选目录 → 7z 加密归档 → 按份数轮转");
         menu.RegisterFunction<BackupArchivesView>("backup", "backup-archives", "备份包", "📦", 2,
             "本地归档包清单、校验值与还原");
+        menu.RegisterFunction<BackupCalendarView>("backup", "backup-calendar", "备份日历", "📅", 3,
+            "按天看备份记录，写下哪天要备份");
         menu.RegisterFunction<SettingsBackupView>("backup", "settings-backup", "备份中心设置", "🔐", 100,
-            "7z 路径、主密码密码库、保留份数与目录");
+            "7z 路径、主密码密码库、默认备份目录");
     }
 }

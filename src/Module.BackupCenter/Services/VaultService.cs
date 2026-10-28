@@ -4,12 +4,12 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using NewToys.Core.Services;
+using Microsoft.Data.Sqlite;
 
 namespace NewToys.BackupCenter.Services;
 
 /// <summary>
-/// 主密码密码库：包密码与投递凭据的**唯一保存处**（<c>config\backup\vault.json</c>）。
+/// 主密码密码库：包密码与投递凭据的**唯一保存处**（SQLite <c>backup.db</c> 的 <c>vault_meta</c> / <c>vault_items</c> 表）。
 /// <para>
 /// 主密码本身⛔ 不落盘：只存 PBKDF2-SHA256（30 万次）派生的盐，以及用派生密钥做的
 /// AES-GCM 校验块；每条目各自一个 nonce，密钥只在解锁后存在于内存。
@@ -17,15 +17,24 @@ namespace NewToys.BackupCenter.Services;
 /// <para>
 /// 连续解锁失败 5 次后本会话锁库（重启程序才重试），避免在线暴力猜主密码。
 /// </para>
+/// <para>
+/// 🔴 条目是**密文进库**（<c>blob</c> = base64(nonce|cipher|tag)）：库文件被人拷走时看不到密码，
+/// 也没有主密码可派生密钥 —— 与归档包的加密目标一致（防的是"文件到了别人手上"）。
+/// </para>
 /// </summary>
 public sealed class VaultService
 {
     private const int DefaultIterations = 300_000;
     private const int MaxFailures = 5;
+    private const string LegacyMigration = "vault-json";
 
-    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
+    private const string MetaSalt = "vault.salt";
+    private const string MetaIterations = "vault.iterations";
+    private const string MetaVerifier = "vault.verifier";
+
     private static readonly byte[] VerifierPlain = Encoding.UTF8.GetBytes("newtoys-backup-vault");
 
+    /// <summary>旧 <c>vault.json</c> 的结构（只用于一次性导入）。</summary>
     private sealed class VaultFile
     {
         public int Version { get; set; } = 1;
@@ -35,19 +44,26 @@ public sealed class VaultService
         public Dictionary<string, string> Entries { get; set; } = new();
     }
 
+    private readonly BackupDb _db;
     private readonly BackupSettingsService _paths;
-    private VaultFile _file = new();
+
+    private string _salt = "";
+    private int _iterations = DefaultIterations;
+    private string _verifier = "";
+    private readonly Dictionary<string, string> _entries = new(StringComparer.Ordinal);
+
     private byte[]? _key;
     private int _failures;
 
-    public VaultService(BackupSettingsService paths)
+    public VaultService(BackupDb db, BackupSettingsService paths)
     {
+        _db = db;
         _paths = paths;
         Load();
     }
 
-    /// <summary>密码库文件是否已经建过（= 用户设过主密码）。</summary>
-    public bool IsInitialized => _file.Salt.Length > 0 && _file.Verifier.Length > 0;
+    /// <summary>密码库是否已经建过（= 用户设过主密码）。</summary>
+    public bool IsInitialized => _salt.Length > 0 && _verifier.Length > 0;
 
     /// <summary>本次会话是否已解锁（内存里有派生密钥）。</summary>
     public bool IsUnlocked => _key != null;
@@ -57,10 +73,11 @@ public sealed class VaultService
 
     public int RemainingAttempts => Math.Max(0, MaxFailures - _failures);
 
-    public string FilePath => _paths.VaultFile;
+    /// <summary>库文件全路径（界面显示用）。</summary>
+    public string FilePath => _db.DatabasePath;
 
     /// <summary>条目数（界面显示用）。</summary>
-    public int EntryCount => _file.Entries.Count;
+    public int EntryCount => _entries.Count;
 
     /// <summary>首次设置主密码（已存在 ⇒ 返回 false，改用 <see cref="ChangeMaster"/>）。</summary>
     public bool Initialize(string master)
@@ -68,12 +85,10 @@ public sealed class VaultService
         if (IsInitialized || string.IsNullOrEmpty(master)) return false;
         var salt = RandomNumberGenerator.GetBytes(16);
         var key = Derive(master, salt, DefaultIterations);
-        _file = new VaultFile
-        {
-            Salt = Convert.ToBase64String(salt),
-            Iterations = DefaultIterations,
-            Verifier = Seal(key, VerifierPlain)
-        };
+        _salt = Convert.ToBase64String(salt);
+        _iterations = DefaultIterations;
+        _verifier = Seal(key, VerifierPlain);
+        _entries.Clear();
         _key = key;
         _failures = 0;
         Save();
@@ -84,8 +99,8 @@ public sealed class VaultService
     public bool Unlock(string master)
     {
         if (!IsInitialized || IsLockedOut || string.IsNullOrEmpty(master)) return false;
-        var key = Derive(master, Convert.FromBase64String(_file.Salt), _file.Iterations);
-        var plain = Open(key, _file.Verifier);
+        var key = Derive(master, Convert.FromBase64String(_salt), _iterations);
+        var plain = Open(key, _verifier);
         if (plain == null || !plain.AsSpan().SequenceEqual(VerifierPlain))
         {
             _failures++;
@@ -106,8 +121,8 @@ public sealed class VaultService
         if (!IsInitialized || string.IsNullOrEmpty(newMaster)) return false;
         if (!Unlock(oldMaster)) return false;
 
-        var plain = new Dictionary<string, byte[]>();
-        foreach (var (id, blob) in _file.Entries)
+        var plain = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+        foreach (var (id, blob) in _entries)
         {
             var raw = Open(_key!, blob);
             if (raw != null) plain[id] = raw;
@@ -115,11 +130,11 @@ public sealed class VaultService
 
         var salt = RandomNumberGenerator.GetBytes(16);
         var key = Derive(newMaster, salt, DefaultIterations);
-        _file.Salt = Convert.ToBase64String(salt);
-        _file.Iterations = DefaultIterations;
-        _file.Verifier = Seal(key, VerifierPlain);
-        _file.Entries.Clear();
-        foreach (var (id, raw) in plain) _file.Entries[id] = Seal(key, raw);
+        _salt = Convert.ToBase64String(salt);
+        _iterations = DefaultIterations;
+        _verifier = Seal(key, VerifierPlain);
+        _entries.Clear();
+        foreach (var (id, raw) in plain) _entries[id] = Seal(key, raw);
 
         _key = key;
         _failures = 0;
@@ -131,7 +146,7 @@ public sealed class VaultService
     public string? Get(string id)
     {
         if (_key == null || string.IsNullOrEmpty(id)) return null;
-        if (!_file.Entries.TryGetValue(id, out var blob)) return null;
+        if (!_entries.TryGetValue(id, out var blob)) return null;
         var plain = Open(_key, blob);
         return plain == null ? null : Encoding.UTF8.GetString(plain);
     }
@@ -140,7 +155,7 @@ public sealed class VaultService
     public bool Set(string id, string value)
     {
         if (_key == null || string.IsNullOrEmpty(id)) return false;
-        _file.Entries[id] = Seal(_key, Encoding.UTF8.GetBytes(value));
+        _entries[id] = Seal(_key, Encoding.UTF8.GetBytes(value));
         Save();
         return true;
     }
@@ -149,32 +164,118 @@ public sealed class VaultService
     public bool Remove(string id)
     {
         if (_key == null || string.IsNullOrEmpty(id)) return false;
-        if (!_file.Entries.Remove(id)) return false;
+        if (!_entries.Remove(id)) return false;
         Save();
         return true;
     }
 
-    /// <summary>密码库文件是否存在（页面提示用；不读内容）。</summary>
-    public bool FileExists => File.Exists(FilePath);
+    /// <summary>密码库是否已经建过（页面提示用；不读条目内容）。</summary>
+    public bool FileExists => IsInitialized;
 
     /// <summary>某个标识在库里是否已有条目（不需要解锁：只查密文索引）。</summary>
-    public bool HasEntry(string id) => !string.IsNullOrEmpty(id) && _file.Entries.ContainsKey(id);
+    public bool HasEntry(string id) => !string.IsNullOrEmpty(id) && _entries.ContainsKey(id);
 
     private void Load()
     {
+        if (!_db.IsReady) return;
         try
         {
-            if (!File.Exists(FilePath)) return;
-            var loaded = JsonSerializer.Deserialize<VaultFile>(File.ReadAllText(FilePath));
-            if (loaded != null) _file = loaded;
+            using var conn = _db.Open();
+            _salt = ReadMeta(conn, MetaSalt) ?? "";
+            _verifier = ReadMeta(conn, MetaVerifier) ?? "";
+            _iterations = int.TryParse(ReadMeta(conn, MetaIterations), out var it) && it > 0 ? it : DefaultIterations;
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT id, blob FROM vault_items;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read()) _entries[reader.GetString(0)] = reader.GetString(1);
         }
-        catch { /* 文件损坏 ⇒ 当成"没建过"，界面提示重新设置主密码 */ }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][backup] 密码库读取失败：" + ex.Message);
+        }
+        MigrateLegacyJson();
+    }
+
+    private static string? ReadMeta(SqliteConnection conn, string key)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT value FROM vault_meta WHERE key = $k;";
+        cmd.Parameters.AddWithValue("$k", key);
+        return cmd.ExecuteScalar() as string;
     }
 
     private void Save()
     {
-        Directory.CreateDirectory(_paths.DataDir);
-        AtomicJsonFile.Write(FilePath, JsonSerializer.Serialize(_file, JsonOpts));
+        if (!_db.IsReady) return;
+        try
+        {
+            using var conn = _db.Open();
+            using var tx = conn.BeginTransaction();
+            WriteMeta(conn, tx, MetaSalt, _salt);
+            WriteMeta(conn, tx, MetaIterations, _iterations.ToString());
+            WriteMeta(conn, tx, MetaVerifier, _verifier);
+
+            using (var del = conn.CreateCommand())
+            {
+                del.Transaction = tx;
+                del.CommandText = "DELETE FROM vault_items;";
+                del.ExecuteNonQuery();
+            }
+            foreach (var (id, blob) in _entries)
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = "INSERT INTO vault_items (id, blob) VALUES ($id, $blob);";
+                cmd.Parameters.AddWithValue("$id", id);
+                cmd.Parameters.AddWithValue("$blob", blob);
+                cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][backup] 密码库写入失败：" + ex.Message);
+        }
+    }
+
+    private static void WriteMeta(SqliteConnection conn, SqliteTransaction tx, string key, string value)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText =
+            "INSERT INTO vault_meta (key, value) VALUES ($k, $v) " +
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value;";
+        cmd.Parameters.AddWithValue("$k", key);
+        cmd.Parameters.AddWithValue("$v", value);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>首次启动把旧 <c>vault.json</c> 导进库（导完标记，⛔ 旧文件不删）。</summary>
+    private void MigrateLegacyJson()
+    {
+        if (!_db.IsReady || _db.IsMigrated(LegacyMigration)) return;
+        try
+        {
+            if (File.Exists(_paths.VaultFile))
+            {
+                var legacy = JsonSerializer.Deserialize<VaultFile>(File.ReadAllText(_paths.VaultFile));
+                if (legacy is { Salt.Length: > 0, Verifier.Length: > 0 })
+                {
+                    _salt = legacy.Salt;
+                    _iterations = legacy.Iterations > 0 ? legacy.Iterations : DefaultIterations;
+                    _verifier = legacy.Verifier;
+                    _entries.Clear();
+                    foreach (var (id, blob) in legacy.Entries) _entries[id] = blob;
+                    Save();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][backup] vault.json 迁移失败（按未设置主密码处理）：" + ex.Message);
+        }
+        _db.MarkMigrated(LegacyMigration);
     }
 
     private static byte[] Derive(string master, byte[] salt, int iterations)

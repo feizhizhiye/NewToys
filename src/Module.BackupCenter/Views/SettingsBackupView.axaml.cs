@@ -11,8 +11,8 @@ public partial class SettingsBackupView : UserControl
         InitializeComponent();
         Add("归档引擎", "🗜", "7z 在哪、版本对不对", "Sec0");
         Add("主密码", "🔐", "密码库的设置 / 解锁 / 更换", "Sec1");
-        Add("保留与目录", "📦", "默认保留份数、包放哪", "Sec2");
-        Add("文件位置", "📄", "设置 / 密码库 / 暂存目录", "Sec3");
+        Add("保留与目录", "📦", "默认保留份数、默认备份目录", "Sec2");
+        Add("文件位置", "📄", "设置文件 / 数据库 / 暂存目录", "Sec3");
     }
 
     /// <summary>把 XAML 资源里的节内容挂成设置节（折叠 / 磁吸 / 密度由骨架提供）。</summary>

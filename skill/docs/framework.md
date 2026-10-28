@@ -604,7 +604,7 @@ public interface IDetailCardSource
 
 | 文件 | 归属 | 内容 |
 |---|---|---|
-| `<应用根>\env.json`（默认 `%LOCALAPPDATA%\NewToys\env.json`） | 框架层 | 唯一写入点 = `Core/Services/EnvConfigService`：ffmpeg / 播放器 / Python / pwsh / PS5.1 路径、更新地址、加密 DNS 三项。**覆盖链**（读）：命令行 `--ffmpeg/--player/--python/--pwsh/--pwsh51/--update-url` ＞ 环境变量 `NEWTOYS_FFMPEG` 等 ＞ `env.json` ＞ 内置默认。覆盖值⛔ 不落盘 |
+| `<应用根>\env.json`（默认 `%LOCALAPPDATA%\NewToys\env.json`） | 框架层 | 唯一写入点 = `Core/Services/EnvConfigService`：ffmpeg / 播放器 / Python / pwsh / PS5.1 / **7z** 路径、更新地址、加密 DNS 三项。**覆盖链**（读）：命令行 `--ffmpeg/--player/--python/--pwsh/--pwsh51/--7z/--update-url` ＞ 环境变量 `NEWTOYS_FFMPEG` 等 ＞ `env.json` ＞ 内置默认。覆盖值⛔ 不落盘 |
 
 **L2 框架偏好**（跟随配置档）
 

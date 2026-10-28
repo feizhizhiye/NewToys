@@ -73,6 +73,13 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
             Description = "没配 pwsh 时 .ps1 用它；留空 = 用系统自带的 powershell.exe",
             Value = _cfg.PowerShell51Path
         });
+        // 7-Zip：备份中心的归档引擎（唯一写入点在本页，⛔ 备份中心设置页不再单独存一份）。
+        Items.Add(new PathSettingItem
+        {
+            Key = "SevenZipPath", Name = "7-Zip（7z.exe）", Kind = PathItemKind.File, DefaultValue = "7z",
+            Description = "备份中心的加密归档用它（AES-256 + 头部加密）；留空 = 自动探常见安装位、再退回 PATH 里的 7z",
+            Value = _cfg.SevenZipPath
+        });
         // 「导入导出默认目录」⛔ 不做可编辑项 —— 写进 app.json 会把某个 profile 的绝对路径
         // 带过配置边界（切配置后指向别人的目录）。一律由「数据目录」推导，无需用户手填。
         Items.Add(new PathSettingItem

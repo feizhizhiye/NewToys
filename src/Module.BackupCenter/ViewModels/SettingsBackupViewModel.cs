@@ -20,6 +20,7 @@ public partial class SettingsBackupViewModel : ObservableObject
     private readonly BackupSettingsService _settings;
     private readonly VaultService _vault;
     private readonly SevenZipLocator _locator;
+    private readonly BackupDb _db;
 
     [ObservableProperty] private string _sevenZipPathText = "";
     [ObservableProperty] private string _sevenZipStatusText = "还没探测";
@@ -36,11 +37,13 @@ public partial class SettingsBackupViewModel : ObservableObject
     public SettingsBackupViewModel(
         BackupSettingsService settings,
         VaultService vault,
-        SevenZipLocator locator)
+        SevenZipLocator locator,
+        BackupDb db)
     {
         _settings = settings;
         _vault = vault;
         _locator = locator;
+        _db = db;
 
         SevenZipPathText = settings.ConfiguredSevenZip;
         KeepText = settings.DefaultKeepCount.ToString();
@@ -52,9 +55,12 @@ public partial class SettingsBackupViewModel : ObservableObject
 
     public string SettingsFile => _settings.SettingsFile;
 
+    /// <summary>任务 / 包清单 / 运行记录 / 待办 / 密码库都在这个 SQLite 库里。</summary>
+    public string DatabaseFile => _db.DatabasePath;
+
     public string DataDir => _settings.DataDir;
 
-    public string DefaultArchiveDir => _settings.DefaultArchiveDir;
+    public string DefaultBackupDir => _settings.DefaultBackupDir;
 
     public string StagingRoot => _settings.StagingRoot;
 
@@ -202,7 +208,7 @@ public partial class SettingsBackupViewModel : ObservableObject
     [RelayCommand]
     private async Task BrowseArchiveDirAsync()
     {
-        var picked = await DialogHooks.PickFolderAsync("选择归档包目录", ArchiveDirText).ConfigureAwait(true);
+        var picked = await DialogHooks.PickFolderAsync("选择默认备份目录", ArchiveDirText).ConfigureAwait(true);
         if (!string.IsNullOrWhiteSpace(picked)) ArchiveDirText = picked;
     }
 
@@ -212,14 +218,27 @@ public partial class SettingsBackupViewModel : ObservableObject
         _settings.ArchiveDir = ArchiveDirText;
         if (_settings.LastError != null) { StatusText = "⚠ 保存失败：" + _settings.LastError; return; }
         ArchiveDirText = _settings.ArchiveDir;
-        StatusText = "已保存包目录：" + ArchiveDirText;
+        StatusText = "已保存默认备份目录：" + ArchiveDirText + "（已有的包不会自己搬过去）";
     }
 
     [RelayCommand]
     private void ResetArchiveDir()
     {
-        ArchiveDirText = DefaultArchiveDir;
+        ArchiveDirText = DefaultBackupDir;
         SaveArchiveDir();
+    }
+
+    [RelayCommand]
+    private void OpenBackupDir()
+    {
+        try
+        {
+            var dir = string.IsNullOrWhiteSpace(ArchiveDirText) ? _settings.ArchiveDir : ArchiveDirText.Trim();
+            Directory.CreateDirectory(dir);
+            Process.Start(new ProcessStartInfo("explorer.exe", "\"" + dir + "\"") { UseShellExecute = true });
+            StatusText = "已打开：" + dir;
+        }
+        catch (Exception ex) { StatusText = "⚠ 打开目录失败：" + ex.Message; }
     }
 
     [RelayCommand]
@@ -227,8 +246,9 @@ public partial class SettingsBackupViewModel : ObservableObject
     {
         try
         {
-            Directory.CreateDirectory(DataDir);
-            Process.Start(new ProcessStartInfo("explorer.exe", "\"" + DataDir + "\"") { UseShellExecute = true });
+            var dir = Path.GetDirectoryName(DatabaseFile) ?? DataDir;
+            Directory.CreateDirectory(dir);
+            Process.Start(new ProcessStartInfo("explorer.exe", "\"" + dir + "\"") { UseShellExecute = true });
         }
         catch (Exception ex) { StatusText = "⚠ 打开目录失败：" + ex.Message; }
     }

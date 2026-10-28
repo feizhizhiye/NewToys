@@ -690,9 +690,9 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
                 Header = "归档引擎",
                 Fields =
                 {
-                    new DetailField { Label = "包目录", ValuePath = nameof(ArchiveDir), Kind = FieldKind.Text, Selectable = true, Mono = true },
+                    new DetailField { Label = "默认备份目录", ValuePath = nameof(ArchiveDir), Kind = FieldKind.Text, Selectable = true, Mono = true },
                     new DetailField { Label = "密码库", ValuePath = nameof(VaultStateText), Kind = FieldKind.Text },
-                    new DetailField { Kind = FieldKind.Hint, Hint = "包用 7z AES-256 加密，且开了头部加密（-mhe=on）—— 不解密连包里的文件名都看不到。" },
+                    new DetailField { Kind = FieldKind.Hint, Hint = "包用 7z AES-256 加密，且开了头部加密（-mhe=on）—— 主要防的是包传到云端 / 别人拿到文件后偷看：不解密连包里的文件名都看不到。" },
                 }
             }
         }

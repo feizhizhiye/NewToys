@@ -198,6 +198,9 @@ public class AppConfigService : IAppConfigService
     public string PwshPath { get => _env.PwshPath; set => _env.SetPwshPath(value); }
     public string PowerShell51Path { get => _env.PowerShell51Path; set => _env.SetPowerShell51Path(value); }
 
+    /// <summary>7-Zip 命令行路径（空 = 备份中心自动探测）。</summary>
+    public string SevenZipPath { get => _env.SevenZipPath; set => _env.SetSevenZipPath(value); }
+
     /// <summary>⚠️ 已定为**模块级**（<c>config\modules\script-manager.json</c>）：这里只为一次性下沉迁移保留读取，⛔ 不再有 UI 写入它。</summary>
     public string ScriptFolder { get => _data.ScriptFolder; set { _data.ScriptFolder = value; Save(); } }
 

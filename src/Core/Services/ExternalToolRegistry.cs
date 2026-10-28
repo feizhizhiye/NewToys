@@ -37,7 +37,27 @@ public class ExternalToolRegistry : IExternalToolRegistry
             new[] { "pwsh" }, KnownPwsh()),
         new("PowerShell51Path", "Windows PowerShell 5.1", "「设置与脚本」的 .ps1（无 pwsh 时）", false,
             new[] { "powershell" }),
+        // 7-Zip：备份中心的归档引擎（AES-256 + 头部加密）。非硬依赖 —— 没装只是备份中心用不了，
+        // 不该让整个程序在状态栏报红（缺失原因由备份中心自己的页面说明）。
+        new("SevenZipPath", "7-Zip（7z）", "备份中心的加密归档", false,
+            new[] { "7z" }, KnownSevenZip()),
     };
+
+    private static string? KnownSevenZip()
+    {
+        foreach (var root in new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 })
+        {
+            try
+            {
+                var dir = Environment.GetFolderPath(root);
+                if (string.IsNullOrEmpty(dir)) continue;
+                var p = Path.Combine(dir, "7-Zip", "7z.exe");
+                if (File.Exists(p)) return p;
+            }
+            catch { /* 探不到就退回 PATH */ }
+        }
+        return null;
+    }
 
     private static string? KnownPwsh()
     {
@@ -102,6 +122,7 @@ public class ExternalToolRegistry : IExternalToolRegistry
         "PythonPath" => _cfg.PythonPath,
         "PwshPath" => _cfg.PwshPath,
         "PowerShell51Path" => _cfg.PowerShell51Path,
+        "SevenZipPath" => _cfg.SevenZipPath,
         _ => null
     };
 

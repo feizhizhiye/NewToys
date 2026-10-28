@@ -43,6 +43,7 @@ public sealed class EnvConfigService
         public string Python { get; set; } = "";
         public string Pwsh { get; set; } = "";
         public string Pwsh51 { get; set; } = "";
+        public string SevenZip { get; set; } = "";
         public string UpdateUrl { get; set; } = "";
         public bool DnsEnabled { get; set; }
         public string DnsProviderId { get; set; } = "";
@@ -89,6 +90,9 @@ public sealed class EnvConfigService
     /// <summary>Windows PowerShell 5.1 路径（空 = 用系统内置）。</summary>
     public string PowerShell51Path => Resolve(_override.Pwsh51, "NEWTOYS_PWSH51", _data.Pwsh51, "");
 
+    /// <summary>7z.exe 路径（空 = 自动探测常见安装位 → PATH）。</summary>
+    public string SevenZipPath => Resolve(_override.SevenZip, "NEWTOYS_7Z", _data.SevenZip, "");
+
     /// <summary>更新检查地址（空 = 不检查）。</summary>
     public string UpdateUrl => Resolve(_override.UpdateUrl, "NEWTOYS_UPDATE_URL", _data.UpdateUrl, "");
 
@@ -117,6 +121,7 @@ public sealed class EnvConfigService
     public void SetPythonPath(string? value) => Set(d => d.Python = value ?? "");
     public void SetPwshPath(string? value) => Set(d => d.Pwsh = value ?? "");
     public void SetPowerShell51Path(string? value) => Set(d => d.Pwsh51 = value ?? "");
+    public void SetSevenZipPath(string? value) => Set(d => d.SevenZip = value ?? "");
     public void SetUpdateUrl(string? value) => Set(d => d.UpdateUrl = value ?? "");
 
     public void SetEncryptedDnsEnabled(bool value) => Set(d => d.DnsEnabled = value);
@@ -205,6 +210,7 @@ public sealed class EnvConfigService
         public string Python = "";
         public string Pwsh = "";
         public string Pwsh51 = "";
+        public string SevenZip = "";
         public string UpdateUrl = "";
     }
 
@@ -241,6 +247,7 @@ public sealed class EnvConfigService
                     case "python": o.Python = value; break;
                     case "pwsh": o.Pwsh = value; break;
                     case "pwsh51": o.Pwsh51 = value; break;
+                    case "7z": o.SevenZip = value; break;
                     case "update-url": o.UpdateUrl = value; break;
                 }
             }
@@ -260,6 +267,7 @@ public sealed class EnvConfigService
             if (_override.Python.Length > 0 || Env("NEWTOYS_PYTHON").Length > 0) list.Add("Python");
             if (_override.Pwsh.Length > 0 || Env("NEWTOYS_PWSH").Length > 0) list.Add("PowerShell");
             if (_override.Pwsh51.Length > 0 || Env("NEWTOYS_PWSH51").Length > 0) list.Add("PowerShell 5.1");
+            if (_override.SevenZip.Length > 0 || Env("NEWTOYS_7Z").Length > 0) list.Add("7-Zip");
             if (_override.UpdateUrl.Length > 0 || Env("NEWTOYS_UPDATE_URL").Length > 0) list.Add("更新地址");
             return list.Count == 0 ? "" : string.Join(" / ", list);
         }

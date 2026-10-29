@@ -298,10 +298,12 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
                 }
                 p.Report($"完成：删除 {done} 个文件，失败 {failed} 个");
             }, ct).ConfigureAwait(false);
+
+            // 刷新必须等任务体跑完再发：入队时刷读到的是删除前的数据，删完就再没人刷了。
+            try { Dispatcher.UIThread.Post(Reload); } catch { /* 窗口已关闭 */ }
         });
 
         StatusText = $"已把 {rows.Count} 个资产的永久删除排进任务队列（进度看「任务中心」）。";
-        Dispatcher.UIThread.Post(Reload);
     }
 
     // ==================== 单条动作（右键） ====================

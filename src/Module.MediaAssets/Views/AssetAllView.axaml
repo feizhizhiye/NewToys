@@ -172,6 +172,8 @@
                         ToolTip.Tip="用系统默认程序打开（视频=播放 / 书=阅读 / 图=看图）"/>
               <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderCommand}"
                         ToolTip.Tip="在资源管理器里选中这个文件"/>
+              <MenuItem Header="➡ 发送到视频工具" Command="{Binding SendToVideoToolsCommand}"
+                        ToolTip.Tip="把选中的视频送到「视频工具 → 视频列表」页，接着定剪辑 / 转码参数（非视频自动跳过）"/>
               <!--  「🗄 打开库文件」是**库级**操作 → 回工具条（§4.8 硬规则 9），⛔ 不放这儿重复一份  -->
               <Separator/>
               <!--  NT-058：**唯一**直接物理删磁盘文件的入口（破坏性最大 ⇒ 故意只放右键、还要二次确认 + 走任务队列）；

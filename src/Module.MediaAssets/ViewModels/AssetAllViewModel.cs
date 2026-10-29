@@ -61,6 +61,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>模块设置（只读：取「读媒体信息」的并发度）。</summary>
     private readonly MediaAssetsSettingsIO? _io;
 
+    /// <summary>跨模块消息通道（本页 → 视频工具投递待导入的视频路径）。</summary>
+    private readonly IModuleBus? _bus;
+
     /// <summary>应用级配置（只读：取 <c>StoreDirectory</c> 当导入/导出默认目录）。</summary>
     private readonly IAppConfigService? _app;
 
@@ -336,7 +339,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null,
         FileOperationService? fileOps = null, AssetImportExport? impExp = null, AssetMergeService? merge = null,
         TaskQueue? queue = null, IOptionsStore? opts = null, MetadataService? metadata = null,
-        MediaAssetsSettingsIO? io = null)
+        MediaAssetsSettingsIO? io = null, IModuleBus? bus = null)
         : base(cols, opts)
     {
         _assets = assets;
@@ -354,6 +357,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _queue = queue!;
         _meta = metadata!;
         _io = io;
+        _bus = bus;
 
         _columnLayout = cols;
 

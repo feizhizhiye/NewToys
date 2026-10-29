@@ -33,8 +33,9 @@ namespace NewToys.VideoTools.ViewModels;
 /// （视频 / 音乐这类库常常分散在好几个文件夹，写死一个默认目录只会误导）。只在**本次程序运行内**记住上次选的目录。
 /// </para>
 /// <para>
-/// <b>多选</b>（v1.35）：行首的勾选框用来挑一批文件，然后「➡ 发送到转码」/「➡ 发送到剪切」
-/// —— 两页的任务清单由单例 <see cref="VideoTaskStore"/> 持有，切页不丢。
+/// <b>多选</b>：与「媒体资产 → 全部资产」同一套（原生多选，无修饰键 = 单选 / `Ctrl` 增选 / `Shift` 连选 /
+/// `Ctrl+A` 全选），选中一批后「➡ 发送到批量处理」建任务 —— 任务清单由单例 <see cref="VideoTaskStore"/>
+/// 持有，切页不丢。
 /// </para>
 /// <para>
 /// <b>媒体信息</b>（分辨率 / 编码 / 码率 / 时长）走 ffprobe：
@@ -86,12 +87,10 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         // ⚠️ 原先 `TextPath = CheckedCount` + `TextFormat = "… ({0})"`，渲染出来的按钮是**空白**的
         //    （根因 = `ToolbarHost.BuildContent` 的动态文案绑定漏了 Source，⛔ Host 没有 DataContext）。
         //    已按需求 §4.8.4 第 3 条改回纯文案（⛔ 工具条不放计数指示文字），渲染侧那条也已修。
-        new() { Kind = ToolbarItemKind.Button, Classes = "ghost", Text = "➡ 批量处理", CommandPath = nameof(SendToTranscodeCommand),
-                IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true, ToolTip = "先把视频勾选上，再点这里：批量生成**转码**任务送到「批量处理」页（只是建任务，不立刻跑）" },
-        new() { Text = "➡ 视频预览", CommandPath = nameof(SendToCutCommand), IsEnabledPath = nameof(HasChecked), ShowToolTipOnDisabled = true,
-                ToolTip = "先把视频勾选上，再点这里：送进「视频预览」页，边看画面边定剪辑区间" },
+        new() { Text = "➡ 发送到批量处理", CommandPath = nameof(SendToBatchCommand),
+                IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true, ToolTip = "先选中视频（Ctrl 增选 / Shift 连选 / Ctrl+A 全选），再点这里：批量生成**转码**任务送到「批量处理」页（只是建任务，不立刻跑）" },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Text = "🧹 清除列表", CommandPath = nameof(ClearListCommand), ToolTip = "清空当前列表（含勾选 / 筛选），回到空态；⛔ 不删除任何视频文件、不重扫目录" }
+        new() { Text = "🧹 清除列表", CommandPath = nameof(ClearListCommand), ToolTip = "清空当前列表（含选中 / 筛选），回到空态；⛔ 不删除任何视频文件、不重扫目录" }
     };
 
     /// <summary>上次选的目录（**只在本次运行内**记住；不写配置，见类注释）。</summary>
@@ -101,6 +100,9 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     private readonly VideoMediaIndex? _index;
     private readonly VideoTaskStore? _store;
     private readonly INavigationService? _nav;
+
+    /// <summary>跨模块消息通道（媒体资产 → 本页投递待导入的视频路径）。</summary>
+    private readonly IModuleBus? _bus;
 
     /// <summary>本模块设置（v3.64：并发数已从 app.json 下沉到 config\video-tools.json）。</summary>
     private readonly IVideoToolsSettingsService? _vt;
@@ -155,7 +157,6 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     public bool IsCodecVisible => Vis("Codec");
     public bool IsBitrateVisible => Vis("Bitrate");
     public bool IsModifiedVisible => Vis("Modified");
-    public bool IsPickVisible => Vis("Pick");
     // 扩充列
     public bool IsFpsVisible => Vis("Fps");
     public bool IsContainerVisible => Vis("Container");
@@ -167,13 +168,11 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
 
     /// <summary>
     /// 列的元数据（顺序即表头与行的列顺序）。
-    /// <para>第一列 <c>Pick</c> = 行首勾选框（多选，用来「发送到转码 / 剪切」）；
-    /// 最后一列 <c>Detail</c> 是表头右侧那个无文字小按钮的固定窄列。</para>
+    /// <para>最后一列 <c>Detail</c> 是表头右侧那个无文字小按钮的固定窄列。</para>
     /// </summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         // §4.8.1：每列给一条**示例值** —— 用「示例宽 ≤ 表头宽」判定该列是否锁成表头宽（锁了就不可拖，且不低于 MinLockedWidth=34 保证把手可拖）。
-        new("Pick", "", "34", sortable: false),
         new("Name", "名称", "3.2*", sample: "示例视频 2026.mp4"),
         new("Type", "类型", "0.9*", sample: ".mp4"),
         new("Size", "大小", "1*", sample: "1.5 GB"),

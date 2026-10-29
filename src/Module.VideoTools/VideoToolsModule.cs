@@ -27,7 +27,8 @@ public class VideoToolsModule : IModule
                 s.GetRequiredService<VideoMediaIndex>(),
                 s.GetRequiredService<VideoTaskStore>(),
                 s.GetRequiredService<INavigationService>(),
-                s.GetRequiredService<IVideoToolsSettingsService>()));
+                s.GetRequiredService<IVideoToolsSettingsService>(),
+                s.GetRequiredService<IModuleBus>()));
         services.AddTransient<Views.VideoPreviewView>(); services.AddTransient<VideoPreviewViewModel>();
         // 原「格式转码」页改名改造为「批量处理」页（列表 = 剪辑 + 转码混排的统一队列）
         services.AddTransient<Views.VideoBatchView>();  services.AddTransient<VideoBatchViewModel>();

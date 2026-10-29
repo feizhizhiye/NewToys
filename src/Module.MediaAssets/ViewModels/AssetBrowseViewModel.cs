@@ -44,6 +44,12 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     private readonly TaskQueue _queue = null!;
     private readonly OperationLogService _opLog = null!;
 
+    /// <summary>跨模块消息通道（本页 → 视频工具投递待导入的视频路径）。</summary>
+    private readonly IModuleBus? _bus;
+
+    /// <summary>模块内导航（发送完顺带跳到视频列表页）。</summary>
+    private readonly AssetNavigationStore? _navStore;
+
     /// <summary>全部可浏览的位置行（一次入内存，用来做「已入库」叠加与树上的计数徽标）。</summary>
     private readonly List<BrowseEntry> _entries = new();
 
@@ -227,9 +233,12 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     public AssetBrowseViewModel(AssetService assets, AssetBrowseService browse, AssetLibraryAddService lib,
         AssetThumbCache thumbs, MediaAssetsSettingsIO io, ThumbnailService thumbGen,
-        FileOperationService fileOps, TaskQueue queue, OperationLogService log, IColumnLayoutService cols)
+        FileOperationService fileOps, TaskQueue queue, OperationLogService log, IColumnLayoutService cols,
+        IModuleBus? bus = null, AssetNavigationStore? navStore = null)
         : base(cols)
     {
+        _bus = bus;
+        _navStore = navStore;
         _assets = assets;
         _browse = browse;
         _lib = lib;
@@ -1050,6 +1059,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     {
         OnPropertyChanged(nameof(SelectedCount));
         OnPropertyChanged(nameof(HasSelectedRows));
+        OnPropertyChanged(nameof(HasSelectedTiles));
     }
 
     /// <summary>列表重建 / 尺寸切档后按**绝对路径**认领选中项（Items 里都是新实例）。</summary>

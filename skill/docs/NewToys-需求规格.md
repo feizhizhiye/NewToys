@@ -156,6 +156,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 - **单向依赖**，禁止反向。
 - **禁止模块引用 Shell**（循环依赖）；**禁止模块之间互相引用**；跨模块协作走 `Shared` 契约。
+  - 🔴 **跨模块传东西的唯一通道 = `IModuleBus`**（`Shared/Services/IModuleBus.cs`，实现在 Core）：`Post(topic, payload)` 投递、接收方 `TakeAll` / `Subscribe` 取件，主题常量集中放 `ModuleTopics`。契约细节见 `framework.md` §6.8。⛔ 再新造「模块 A 引模块 B」「Shell 当业务中转」「模块各写一个 Transfer 服务」的做法。
 - **Shared / Core 禁止引用 Avalonia**（系统明暗、平台能力由 Shell 探测后注入）。
 - 公共基类 / 契约放 `Shared`；被 ≥2 模块用或属应用级能力才上提，判断不清默认放模块内部。
 - **UI 契约**（定义在 `Shared/Services/`，页面 VM 可选实现、Shell 统一消费）：

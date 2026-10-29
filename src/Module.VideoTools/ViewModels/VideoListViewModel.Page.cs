@@ -29,7 +29,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
 
     public VideoListViewModel(IAppConfigService cfg, IColumnLayoutService cols, VideoMediaIndex index,
                               VideoTaskStore store, INavigationService nav,
-                              IVideoToolsSettingsService? vt = null)
+                              IVideoToolsSettingsService? vt = null, IModuleBus? bus = null)
         : base(cols)
     {
         _cfg = cfg;
@@ -37,16 +37,56 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         _store = store;
         _nav = nav;
         _vt = vt;
+        _bus = bus;
         LoadLayout();
         Folder = _lastFolder;                                                            // 本次运行内记住上次选的目录
         UpdateHeaders();
 
-        // 目录**不来自设置**（v1.34 解绑）：没选过就如实提示，由用户点「📂 导入」选
-        if (string.IsNullOrWhiteSpace(Folder))
+        // 跨模块投递（媒体资产 → 本页）：先取存量、再订阅（页面已经开着时后续投递即时落地）。
+        var incoming = FlattenPaths(_bus?.TakeAll(ModuleTopics.VideoImport));
+        _bus?.Subscribe(ModuleTopics.VideoImport, this, OnVideoImportPosted);
+
+        if (incoming.Count > 0)
+        {
+            // 有投递 ⇒ 只显示这批文件，⛔ 不自动扫描目录（扫描会清空 _all，把刚送来的冲掉）
+            ImportVideoFiles(incoming);
+            StatusText = $"已从资产库接收 {incoming.Count} 个视频（追加到当前列表；想扫描别的目录点「📂 导入」）。";
+        }
+        else if (string.IsNullOrWhiteSpace(Folder))
             StatusText = "点「📂 导入」选一个视频目录（每次都手动选，不与设置绑定）；扫描后可从表头看到分辨率 / 编码 / 码率 / 时长。";
         else if (!Directory.Exists(Folder))
             StatusText = $"上次的目录已经不在了：{Folder} —— 重新选一个。";
         else _ = ScanAsync();
+    }
+
+    /// <summary>把投递载荷摊平成路径表：既接受单条 <c>string</c>，也接受 <c>IEnumerable&lt;string&gt;</c> 批次。</summary>
+    private static IReadOnlyList<string> FlattenPaths(IReadOnlyList<object?>? payloads)
+    {
+        if (payloads == null || payloads.Count == 0) return Array.Empty<string>();
+
+        var paths = new List<string>();
+        foreach (var p in payloads)
+        {
+            switch (p)
+            {
+                case string one when !string.IsNullOrWhiteSpace(one):
+                    paths.Add(one);
+                    break;
+                case IEnumerable<string> many:
+                    paths.AddRange(many.Where(s => !string.IsNullOrWhiteSpace(s)));
+                    break;
+            }
+        }
+        return paths;
+    }
+
+    /// <summary>订阅回调：页面开着时收到投递，直接追加进列表。</summary>
+    private void OnVideoImportPosted(object? payload)
+    {
+        var paths = FlattenPaths(new[] { payload });
+        if (paths.Count == 0) return;
+        ImportVideoFiles(paths);
+        StatusText = $"已从资产库接收 {paths.Count} 个视频（追加到当前列表）。";
     }
 
     // ==================== 扫描 ====================
@@ -81,11 +121,6 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
                 foreach (var v in items)
                     if (_index.TryApplyCached(v)) cached++;
             }
-
-            // 保留上次的勾选状态（重扫不该把用户挑好的一批弄丢）
-            var checkedPaths = new HashSet<string>(_all.Where(v => v.IsChecked).Select(v => v.FullPath),
-                                                   StringComparer.OrdinalIgnoreCase);
-            foreach (var v in items) v.IsChecked = checkedPaths.Contains(v.FullPath);
 
             _all.Clear();
             _all.AddRange(items);
@@ -235,13 +270,11 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         SummaryText = _all.Count == 0
             ? "尚未扫描"
             : $"共 {Videos.Count} / {_all.Count} 个视频 · 合计 {FormatSize(total)}"
-              + (CheckedCount > 0 ? $" · 已勾选 {CheckedCount}" : "")
-              + (Selected != null ? $" · 已选：{Selected.Name}" : "");
+              + (SelectedCount > 0 ? $" · 已选 {SelectedCount}" : "")
+              + (Selected != null ? $" · 当前：{Selected.Name}" : "");
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(CheckedCount));
-        OnPropertyChanged(nameof(HasChecked));
-        OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：导入 / 清除 / 重扫后表头三态刷新
+        ReconcileSelection();
     }
 
     /// <summary>v3.21 §4.8.2：表头右键「🔎 筛选」的分类项 = **类型（扩展名）**。</summary>

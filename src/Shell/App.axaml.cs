@@ -83,6 +83,8 @@ public partial class App : Application
             services.AddSingleton<IPageCatalog, PageCatalog>();
             services.AddSingleton<IThemeService, ThemeService>();
             services.AddSingleton<INavigationService, NavigationService>();
+            // 跨模块消息通道（单例 = 全容器唯一信箱）：模块之间传东西只走这里，⛔ 模块互引 / Shell 当中转。
+            services.AddSingleton<IModuleBus, ModuleBus>();
             // 模块热加载契约（标题栏按钮移入功能清单页；Shell 订阅 Reloaded 重建左树）。
             services.AddSingleton<IModuleReloadService, ModuleReloadService>();
             // 外部程序注册表（清单 + **惰性探测**，需求 §4.9.2 第 5 条）——

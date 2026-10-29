@@ -1,120 +1,131 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Input;
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Input.Platform;
-using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using NewToys.Core.Services;
-using NewToys.Shared.Details;
-using NewToys.Shared.Models;
-using NewToys.Shared.Services;
 using NewToys.VideoTools.Models;
-using NewToys.VideoTools.Services;
 
 namespace NewToys.VideoTools.ViewModels;
 
-public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
+/// <summary>
+/// 视频列表的选中模型 —— **唯一真相在 VM**（<see cref="SelectedRows"/>），View 只负责回填高亮。
+/// <para>
+/// 交互口径与「媒体资产 → 全部资产」一致：无修饰键 = 单选替换、`Ctrl` 增选 / 取消、`Shift` 连选、`Ctrl+A` 全选；
+/// 修饰键接管在 <c>VideoListView.axaml.cs</c> 的**隧道**阶段完成（ListBox 默认在 Multiple 下单击是「追加」）。
+/// </para>
+/// <para>选中只在**当前列表**有效（翻页 / 重扫后按路径认领）。</para>
+/// </summary>
+public partial class VideoListViewModel
 {
+    /// <summary>当前选中行（多选口径；单选时只有一条）。批量动作的对象 = 这里。</summary>
+    public ObservableCollection<VideoItem> SelectedRows { get; } = new();
 
-    /// <summary>勾选状态变了 → 刷新「已勾选几个」与统计行。</summary>
-    public void OnItemCheckedChanged()
-    {
-        OnPropertyChanged(nameof(CheckedCount));
-        OnPropertyChanged(nameof(HasChecked));
-        OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：表头三态勾选框跟着走
-        SummaryText = _all.Count == 0
-            ? "尚未扫描"
-            : $"共 {Videos.Count} / {_all.Count} 个视频 · 合计 {FormatSize(_all.Sum(v => v.SizeBytes))}"
-              + (CheckedCount > 0 ? $" · 已勾选 {CheckedCount}" : "");
-    }
+    public int SelectedCount => SelectedRows.Count;
 
-    /// <summary>行首勾选框被点了一下（只刷新"已勾选几个"，不重排列表 —— 重排会把正在勾的那行挪走）。</summary>
-    [RelayCommand]
-    private void ItemChecked() => OnItemCheckedChanged();
+    /// <summary>「➡ 发送到批量处理」的启用条件。</summary>
+    public bool HasSelectedRows => SelectedRows.Count > 0;
 
     /// <summary>
-    /// 表头勾选框的三态（v3.16.1）：null = 部分勾选（显示为实心方块）。
-    /// ⚠️ 行勾选变化 / 列表刷新后要 `OnPropertyChanged(AllCheckedState)`，否则表头不跟着走。
+    /// 列表正在重建（清空 → 逐项 Add）。View 的 <c>SelectionChanged</c> 回填要据此跳过，
+    /// 否则重建过程中框架抛的「选中被清空」会把用户选好的一批冲掉。
     /// </summary>
-    public bool? AllCheckedState
+    public bool IsSyncingView => _syncing;
+
+    /// <summary>VM 侧改了选中 ⇒ 请 View 把 <c>SelectedItems</c> 回填成 <see cref="SelectedRows"/>。</summary>
+    public event EventHandler? SelectionSyncRequested;
+
+    private void RaiseSelectionSync() => SelectionSyncRequested?.Invoke(this, EventArgs.Empty);
+
+    private void NotifySelectionMeta()
     {
-        get
-        {
-            if (_all.Count == 0) return false;
-            var c = CheckedCount;
-            return c == 0 ? false : (c >= _all.Count ? true : null);
-        }
+        OnPropertyChanged(nameof(SelectedCount));
+        OnPropertyChanged(nameof(HasSelectedRows));
     }
 
-    /// <summary>点表头勾选框：已全勾 → 取消；否则 → 全选。</summary>
-    [RelayCommand]
-    private void ToggleAll()
+    /// <summary>
+    /// View 的选中变化回填（点行 / Ctrl 增选 / Shift 连选 / Ctrl+A 全走这里）。
+    /// <paramref name="clicked"/> = 本次点击的行（详情卡跟它走）；为 null 时取最后一条。
+    /// </summary>
+    public void SetSelectionFromView(IReadOnlyList<VideoItem> rows, VideoItem? clicked)
     {
-        if (CheckedCount >= _all.Count && _all.Count > 0) UncheckAll();
-        else CheckAll();
+        SelectedRows.Clear();
+        foreach (var r in rows) SelectedRows.Add(r);
+
+        NotifySelectionMeta();
+
+        if (clicked != null) Selected = clicked;
+        else if (SelectedRows.Count > 0) Selected = SelectedRows[^1];
     }
 
-    /// <summary>☑ 全选（当前列表里显示的全部勾上）。</summary>
-    [RelayCommand]
-    private void CheckAll()
+    /// <summary>
+    /// 列表重算后按 <c>FullPath</c> 认领选中项（列表里是同一批对象引用，但过滤 / 排序会换集合实例），
+    /// 再把选中回填给 View。⛔ 不做这一步 ⇒ 刷新后高亮全丢、详情卡与列表对不上。
+    /// </summary>
+    private void ReconcileSelection()
     {
-        foreach (var v in Videos) v.IsChecked = true;
-        OnItemCheckedChanged();
-        StatusText = $"已勾选 {CheckedCount} 个文件。";
+        var mapped = SelectedRows
+            .Select(old => Videos.FirstOrDefault(v => string.Equals(v.FullPath, old.FullPath, StringComparison.OrdinalIgnoreCase)))
+            .Where(v => v != null)
+            .Select(v => v!)
+            .ToList();
+
+        SelectedRows.Clear();
+        foreach (var v in mapped) SelectedRows.Add(v);
+
+        if (Selected != null && !Videos.Contains(Selected))
+            Selected = SelectedRows.Count > 0 ? SelectedRows[^1] : null;
+
+        NotifySelectionMeta();
+        RaiseSelectionSync();
     }
 
-    /// <summary>☑ 反选。</summary>
+    /// <summary>右键「☑ 全选」：只选当前列表里的（与勾选时代的分页口径一致）。</summary>
     [RelayCommand]
-    private void InvertChecked()
+    private void SelectAll()
     {
-        foreach (var v in Videos) v.IsChecked = !v.IsChecked;
-        OnItemCheckedChanged();
-        StatusText = $"反选后已勾选 {CheckedCount} 个文件。";
+        SelectedRows.Clear();
+        foreach (var v in Videos) SelectedRows.Add(v);
+        Selected = Videos.Count > 0 ? Videos[0] : null;
+
+        NotifySelectionMeta();
+        RaiseSelectionSync();
+        StatusText = $"已全选 {Videos.Count} 个视频。";
     }
 
-    /// <summary>☐ 取消全部勾选。</summary>
+    /// <summary>右键「☐ 取消选择」：清空选中（详情卡保留当前行，避免右栏突然空白）。</summary>
     [RelayCommand]
-    private void UncheckAll()
+    private void SelectNone()
     {
-        foreach (var v in _all) v.IsChecked = false;
-        OnItemCheckedChanged();
-        StatusText = "已取消全部勾选。";
+        SelectedRows.Clear();
+        NotifySelectionMeta();
+        RaiseSelectionSync();
+        StatusText = "已取消选择。";
     }
 
-    /// <summary>➡ 批量处理·转码：把勾选的文件交给「批量处理」页批量生成转码任务（v3.8：原"发送到转码页"）。</summary>
+    /// <summary>右键「🔄 反选」：当前列表里没选中的变成选中，已选中的去掉。</summary>
     [RelayCommand]
-    private void SendToTranscode()
+    private void InvertSelection()
     {
-        var paths = _all.Where(v => v.IsChecked).Select(v => v.FullPath).ToList();
-        if (paths.Count == 0) { StatusText = "先勾几个文件（行首的勾选框）。"; return; }
+        var picked = SelectedRows.Select(v => v.FullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        SelectedRows.Clear();
+        foreach (var v in Videos)
+            if (!picked.Contains(v.FullPath)) SelectedRows.Add(v);
+
+        NotifySelectionMeta();
+        RaiseSelectionSync();
+        StatusText = $"已反选，选中 {SelectedRows.Count} 个视频。";
+    }
+
+    /// <summary>➡ 发送到批量处理：为选中视频批量建**转码**任务（只建任务，不立刻跑）。</summary>
+    [RelayCommand]
+    private void SendToBatch()
+    {
+        var paths = SelectedRows.Select(v => v.FullPath).ToList();
+        if (paths.Count == 0) { StatusText = "先选中几个视频（鼠标点选，Ctrl 增选 / Shift 连选 / Ctrl+A 全选）。"; return; }
 
         if (_store == null) { StatusText = "任务服务未就绪。"; return; }
         _store.EnqueueForTranscode(paths);
         StatusText = $"已把 {paths.Count} 个文件送去「批量处理」建转码任务……";
         _nav?.NavigateTo("video-batch");
     }
-
-    /// <summary>✂ 视频预览·剪辑：把勾选的文件送进「视频预览」页的剪辑任务编辑器。</summary>
-    [RelayCommand]
-    private void SendToCut()
-    {
-        var paths = _all.Where(v => v.IsChecked).Select(v => v.FullPath).ToList();
-        if (paths.Count == 0) { StatusText = "先勾几个文件（行首的勾选框）。"; return; }
-
-        if (_store == null) { StatusText = "任务服务未就绪。"; return; }
-        _store.EnqueueForCut(paths);
-        StatusText = $"已把 {paths.Count} 个文件送去「视频预览」页……";
-        _nav?.NavigateTo("video-cut");
-    }
-
-    // ==================== 媒体信息（ffprobe + 多线程） ====================
-
 }

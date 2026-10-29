@@ -169,9 +169,4 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         }
     }
 
-    /// <summary>已勾选的文件数（工具条上的「发送到…」按钮据此启用 / 显示数量）。</summary>
-    public int CheckedCount => _all.Count(v => v.IsChecked);
-
-    public bool HasChecked => CheckedCount > 0;
-
 }

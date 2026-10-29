@@ -2,7 +2,10 @@ using System;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
 using NewToys.VideoTools.Models;
@@ -15,6 +18,17 @@ public partial class VideoBatchView : UserControl
     public VideoBatchView()
     {
         InitializeComponent();
+
+        // 「已完成」区的右键菜单作用于命中的那一行：Avalonia 右键不自带选行，
+        // 在**按压阶段**补选中（ContextRequested 常被菜单自己先吃掉）。
+        FinishedList.AddHandler(PointerPressedEvent, OnFinishedPointerPressed, RoutingStrategies.Tunnel);
+    }
+
+    private void OnFinishedPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed) return;
+        if (e.Source is Visual src && src.FindAncestorOfType<ListBoxItem>() is { } item)
+            item.IsSelected = true;
     }
 
     /// <summary>
@@ -25,6 +39,7 @@ public partial class VideoBatchView : UserControl
     {
         base.OnDataContextChanged(e);
         if (TaskList?.ContextMenu is { } menu) menu.DataContext = DataContext;
+        if (FinishedList?.ContextMenu is { } fmenu) fmenu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
         // §6.4.10：表头勾选框的「全选 / 取消选择 / 反选」菜单同理（不同步的话右键点了没反应）。
         // 1：菜单挪到 HeaderCheckHost（透明 Border = 整格热区）上。

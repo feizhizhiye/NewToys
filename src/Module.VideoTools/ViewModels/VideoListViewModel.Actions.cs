@@ -161,7 +161,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     private async Task DeleteAsync()
     {
         var v = Selected;
-        if (v == null) return;
+        if (v == null) { StatusText = "先在列表里选中一个视频（右键会自动选中该行）。"; return; }
 
         var (ok, msg) = await VideoFileService.DeleteAsync(v.FullPath);
         StatusText = msg;

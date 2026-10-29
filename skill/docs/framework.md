@@ -575,6 +575,34 @@ public interface IDetailCardSource
 
 ⚠️ 契约**不含提权参数**：当前无捕获式提权消费方（YAGNI，不预留）；真需要时在可见控制台路径上扩展。
 
+### 6.8 `IModuleBus`（跨模块消息通道，NT-121）
+
+需求规格 §3.6 定的是「模块禁互引，跨模块协作走 `Shared` 契约」。此前该「契约」是空的，于是各模块各自造私货（`WebTransferService` / `VideoTaskStore` / `AssetNavigationStore`）。本契约是**今后唯一的跨模块投递通道**。
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| `IModuleBus` | `Shared/Services/IModuleBus.cs` | `Post(topic, payload)` / `object? Take(topic)` / `IReadOnlyList<object?> TakeAll(topic)` / `int PendingCount(topic)` / `IDisposable Subscribe(topic, owner, handler)` |
+| `ModuleTopics` | 同上 | 主题常量，命名 `域.动作`。已有 `VideoImport = "video.import"`（载荷 `IReadOnlyList<string>` = 绝对路径） |
+| 实现 | `Core/Services/ModuleBus.cs` | 单例；一主题一条 **FIFO 信箱** + 一张弱引用订阅表；单把锁，**派发在锁外**（订阅者顺手再 `Post` 不自锁） |
+
+🔴 **信箱 + 订阅双路，缺一即丢消息**：`NavigationService.NavigateTo` 每次都新建 View，而 `ShellViewModel.OpenTab` 遇到已存在的标签只切 `ActiveTab`（VM 不重建）⇒ 接收方「可能不存在」也「可能常驻」。所以：
+
+| 时序 | 走哪条 | 落点 |
+|---|---|---|
+| 目标页**还没创建** | 消息入信箱 | 接收方构造时 `TakeAll(topic)` 取存量 |
+| 目标页**已经打开** | 订阅当场回调 | 接收方构造时 `Subscribe(...)` |
+| 订阅者全被回收 | 退回信箱 | 等页面重建时取（`Post` 内兜底） |
+
+🔴 **订阅按弱引用持有 owner**，调用方不需要注销：
+```csharp
+_bus.Subscribe(ModuleTopics.VideoImport, this, OnVideoImportPosted);   // ✅ 实例方法
+_bus.Subscribe(ModuleTopics.VideoImport, this, p => Handle(p));        // ⛔ 闭包，绑不回 owner
+```
+`ModuleBus` 存 `WeakReference(owner)` + `handler.Method`，派发时 `MethodInfo.Invoke(owner, payload)`；owner 被 GC ⇒ 该订阅自动作废并从表里剔除（VM 是 `AddTransient`，标签关掉就该被回收，⛔ 不能被订阅表钉住）。
+
+⛔ 不做跨进程（Redis / MQ 对单进程桌面应用过重）；⛔ 不做消息持久化（进程内语义，重启即清）。
+现有三处模块内投递保持原样，迁移另开卡（卡：`backlog/framework/NT-121.md`）。
+
 ---
 
 ## §7 配置与路径
@@ -872,6 +900,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT-105 | 时间轴区间标记（`TimelineTrack`） |
 | NT-106 | 书签树状展开（整页单树） |
 | NT-107 | 页面注册编译期化（`RegisterFunction<TView>`）+ 菜单注册回归测试 |
+| NT-121 | 跨模块消息通道 `IModuleBus`（信箱 + 弱引用订阅）+ 资产库 → 视频工具交接 |
 
 
 ---

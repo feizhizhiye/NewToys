@@ -89,15 +89,20 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         };
 
         Items.Clear();
+        FinishedItems.Clear();
         foreach (var t in q)
         {
             // 「命令摘要」列：模型自己拼不出 ffmpeg 参数（拿不到 ffmpeg 路径），由 VM 填一次
             t.CommandSummaryDisplay = CommandSummaryOf(t);
-            Items.Add(t);
+            // 已完成 ⇒ 沉到下方独立分区（上面那块只剩还有事要做的）
+            if (t.Status == VideoTaskStatus.Done) FinishedItems.Add(t);
+            else Items.Add(t);
         }
 
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(HasFinished));
+        OnPropertyChanged(nameof(FinishedHeaderText));
         OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：清队列 / 导入任务后表头三态刷新
         UpdateSummaryText();
         OnPropertyChanged(nameof(CheckedCount));

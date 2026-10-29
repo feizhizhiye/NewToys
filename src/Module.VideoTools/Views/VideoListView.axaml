@@ -25,37 +25,9 @@
                             IsResizable="True"
                             LockedColumns="{Binding LockedColumnMask}"
                             SampleSpecs="{Binding SampleSpecs}">
-                            <!--
-                                第一列 = 行首勾选框（多选，用来「发送到转码 / 剪切」）。
-                                v3.16.1：表头改用**原生 CheckBox**（三态：全勾 ✓ / 部分 ■ / 没勾）——
-                                之前用字符"☑"，字体渲染成一坨深色块，跟行内勾选框风格完全不搭。
-                                点它 = 全选/取消（已全勾则取消）；右键 = 菜单（全选 / 取消选择 / 反选）。
-                                外面套一层透明 Border：整个 34px 列格都是右键热区（列太窄，框本身不好点）。
-                                ⚠️ ContextMenu 挂在 Border 上，code-behind 同步 DataContext 用 HeaderCheckHost。
-                            -->
-                            <Border
-                                x:Name="HeaderCheckHost"
-                                Grid.Column="0"
-                                Background="Transparent"
-                                Cursor="Hand"
-                                IsEnabled="{Binding HasItems}"
-                                IsVisible="{Binding IsPickVisible}"
-                                ToolTip.Tip="点 = 全选 / 取消；右键 = 全选 / 取消选择 / 反选">
-                                <CheckBox
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Command="{Binding ToggleAllCommand}"
-                                    IsChecked="{Binding AllCheckedState, Mode=OneWay}" />
-                                <Border.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Command="{Binding CheckAllCommand}" Header="☑ 全选（当前列表）" />
-                                        <MenuItem Command="{Binding UncheckAllCommand}" Header="☐ 取消选择" />
-                                        <MenuItem Command="{Binding InvertCheckedCommand}" Header="🔄 反选" />
-                                    </ContextMenu>
-                                </Border.ContextMenu>
-                            </Border>
+
                             <Button
-                                Grid.Column="1"
+                                Grid.Column="0"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Name"
@@ -63,49 +35,49 @@
                                 IsVisible="{Binding IsNameVisible}"
                                 ToolTip.Tip="点一下按名称排序（同一列再点一次反向）" />
                             <Button
-                                Grid.Column="2"
+                                Grid.Column="1"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Type"
                                 Content="{Binding TypeHeader}"
                                 IsVisible="{Binding IsTypeVisible}" />
                             <Button
-                                Grid.Column="3"
+                                Grid.Column="2"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Size"
                                 Content="{Binding SizeHeader}"
                                 IsVisible="{Binding IsSizeVisible}" />
                             <Button
-                                Grid.Column="4"
+                                Grid.Column="3"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Duration"
                                 Content="{Binding DurationHeader}"
                                 IsVisible="{Binding IsDurationVisible}" />
                             <Button
-                                Grid.Column="5"
+                                Grid.Column="4"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Resolution"
                                 Content="{Binding ResolutionHeader}"
                                 IsVisible="{Binding IsResolutionVisible}" />
                             <Button
-                                Grid.Column="6"
+                                Grid.Column="5"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Codec"
                                 Content="{Binding CodecHeader}"
                                 IsVisible="{Binding IsCodecVisible}" />
                             <Button
-                                Grid.Column="7"
+                                Grid.Column="6"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Bitrate"
                                 Content="{Binding BitrateHeader}"
                                 IsVisible="{Binding IsBitrateVisible}" />
                             <Button
-                                Grid.Column="8"
+                                Grid.Column="7"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Modified"
@@ -113,35 +85,35 @@
                                 IsVisible="{Binding IsModifiedVisible}" />
                             <!--  v3.15 §6.4.8 扩充列（列索引 9~13，与 Columns 元数据一一对应）  -->
                             <Button
-                                Grid.Column="9"
+                                Grid.Column="8"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Fps"
                                 Content="{Binding FpsHeader}"
                                 IsVisible="{Binding IsFpsVisible}" />
                             <Button
-                                Grid.Column="10"
+                                Grid.Column="9"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Container"
                                 Content="{Binding ContainerHeader}"
                                 IsVisible="{Binding IsContainerVisible}" />
                             <Button
-                                Grid.Column="11"
+                                Grid.Column="10"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Audio"
                                 Content="{Binding AudioHeader}"
                                 IsVisible="{Binding IsAudioVisible}" />
                             <Button
-                                Grid.Column="12"
+                                Grid.Column="11"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Path"
                                 Content="{Binding PathHeader}"
                                 IsVisible="{Binding IsPathVisible}" />
                             <Button
-                                Grid.Column="13"
+                                Grid.Column="12"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Created"
@@ -159,12 +131,6 @@
                                 </MenuItem>
                                     <Separator />
                                     <!--  ⚠️ IsChecked 必须显式 Mode=OneWay：翻转由 ToggleColumnCommand 独家负责  -->
-                                    <MenuItem
-                                        Command="{Binding ToggleColumnCommand}"
-                                        CommandParameter="Pick"
-                                        Header="勾选框"
-                                        IsChecked="{Binding IsPickVisible, Mode=OneWay}"
-                                        ToggleType="CheckBox" />
                                     <MenuItem
                                         Command="{Binding ToggleColumnCommand}"
                                         CommandParameter="Name"
@@ -255,8 +221,7 @@
                         x:Name="VideoList"
                         Classes="list-page"
                         ItemsSource="{Binding Videos}"
-                        SelectedItem="{Binding Selected, Mode=TwoWay}"
-                        SelectionMode="Single">
+                        SelectionMode="Multiple">
                         <!--  v3.19 / NT-011：显式虚拟化 —— 数千视频只实例化可见行，滚动不卡（默认即是，这里写明意图）。  -->
                         <ListBox.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -273,13 +238,13 @@
                                 <MenuItem Command="{Binding CopyFfmpegCommand}" Header="🧪 复制 ffmpeg 转码命令" />
                                 <Separator />
                                 <MenuItem
-                                    Command="{Binding SendToTranscodeCommand}"
-                                    Header="➡ 发送到转码（勾选的）"
-                                    IsEnabled="{Binding HasChecked}" />
-                                <MenuItem
-                                    Command="{Binding SendToCutCommand}"
-                                    Header="➡ 发送到剪切（勾选的）"
-                                    IsEnabled="{Binding HasChecked}" />
+                                    Command="{Binding SendToBatchCommand}"
+                                    Header="➡ 发送到批量处理"
+                                    IsEnabled="{Binding HasSelectedRows}" />
+                                <Separator />
+                                <MenuItem Command="{Binding SelectAllCommand}" Header="☑ 全选" />
+                                <MenuItem Command="{Binding InvertSelectionCommand}" Header="🔄 反选" />
+                                <MenuItem Command="{Binding SelectNoneCommand}" Header="☐ 取消选择" />
                                 <Separator />
                                 <MenuItem Command="{Binding LoadMediaInfoCommand}" Header="🔎 读取媒体信息（ffprobe）" />
                                 <MenuItem
@@ -296,77 +261,70 @@
                             <DataTemplate>
                                 <!--  行与表头共用同一份 VisibleColumnSpecs（规范 3.6 对齐铁律①）；每格 IsVisible 跟随列显隐。  -->
                                 <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                                    <CheckBox
-                                        Grid.Column="0"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Command="{Binding $parent[ListBox].DataContext.ItemCheckedCommand}"
-                                        IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                        IsVisible="{Binding $parent[ListBox].DataContext.IsPickVisible}"
-                                        ToolTip.Tip="勾上后可以批量「发送到转码 / 剪切」" />
+                                    
                                     <TextBlock
-                                        Grid.Column="1"
+                                        Grid.Column="0"
                                         Classes="list-cell primary"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"
                                         Text="{Binding Name}" />
                                     <TextBlock
-                                        Grid.Column="2"
+                                        Grid.Column="1"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"
                                         Text="{Binding Extension}" />
                                     <TextBlock
-                                        Grid.Column="3"
+                                        Grid.Column="2"
                                         Classes="list-cell primary"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"
                                         Text="{Binding SizeDisplay}" />
                                     <TextBlock
-                                        Grid.Column="4"
+                                        Grid.Column="3"
                                         Classes="list-cell accent"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsDurationVisible}"
                                         Text="{Binding DurationDisplay}" />
                                     <TextBlock
-                                        Grid.Column="5"
+                                        Grid.Column="4"
                                         Classes="list-cell primary"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsResolutionVisible}"
                                         Text="{Binding ResolutionDisplay}" />
                                     <TextBlock
-                                        Grid.Column="6"
+                                        Grid.Column="5"
                                         Classes="list-cell primary"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsCodecVisible}"
                                         Text="{Binding CodecDisplay}" />
                                     <TextBlock
-                                        Grid.Column="7"
+                                        Grid.Column="6"
                                         Classes="list-cell primary"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsBitrateVisible}"
                                         Text="{Binding BitRateDisplay}" />
                                     <TextBlock
-                                        Grid.Column="8"
+                                        Grid.Column="7"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"
                                         Text="{Binding ModifiedDisplay}" />
                                     <!--  v3.15 §6.4.8 扩充列  -->
                                     <TextBlock
-                                        Grid.Column="9"
+                                        Grid.Column="8"
                                         Classes="list-cell primary"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsFpsVisible}"
                                         Text="{Binding FpsDisplay}" />
                                     <TextBlock
-                                        Grid.Column="10"
+                                        Grid.Column="9"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsContainerVisible}"
                                         Text="{Binding ContainerDisplay}" />
                                     <TextBlock
-                                        Grid.Column="11"
+                                        Grid.Column="10"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsAudioVisible}"
                                         Text="{Binding AudioCodecDisplay}" />
                                     <TextBlock
-                                        Grid.Column="12"
+                                        Grid.Column="11"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsPathVisible}"
                                         Text="{Binding FullPath}" />
                                     <TextBlock
-                                        Grid.Column="13"
+                                        Grid.Column="12"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsCreatedVisible}"
                                         Text="{Binding CreatedDisplay}" />

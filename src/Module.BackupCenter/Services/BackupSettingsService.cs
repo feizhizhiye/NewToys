@@ -28,6 +28,19 @@ public sealed class BackupSettingsService
 
     private const string KeyKeepCount = "defaultKeepCount";
     private const string KeyArchiveDir = "archiveDir";
+    private const string KeyMail = "mail";
+
+    /// <summary>密码库里存邮箱授权码的条目 Id（SMTP / IMAP 共用一个授权码）。</summary>
+    public const string MailAuthVaultId = "mail.auth";
+
+    /// <summary>投递成功后本地分卷的缓冲天数（到期才删，留出重发 / 复查的窗口）。</summary>
+    public const int MailBufferDays = 3;
+
+    private static readonly System.Text.Json.JsonSerializerOptions MailJson = new()
+    {
+        WriteIndented = false,
+        PropertyNameCaseInsensitive = true
+    };
 
     private readonly IOptionsStore _opts;
     private readonly ConfigStoreService _cfg;
@@ -106,6 +119,49 @@ public sealed class BackupSettingsService
 
     /// <summary>解包暂存根（每次还原用一个新的子目录，结束即删）。</summary>
     public string StagingRoot => Path.Combine(_cfg.CacheDir, "backup", "staging");
+
+    /// <summary>
+    /// 邮件通道的待发目录（分卷落这里，发送成功后保留 <see cref="MailBufferDays"/> 天）。
+    /// <para>刻意**与本地备份目录分开**：本地包受「保留份数」轮转，待发箱受「发完即清」管，两套规则混在一起会互相删错。</para>
+    /// </summary>
+    public string OutboxDir
+    {
+        get
+        {
+            var configured = MailSettings.OutboxDir;
+            return string.IsNullOrWhiteSpace(configured)
+                ? Path.Combine(DefaultBackupDir, "outbox")
+                : configured.Trim();
+        }
+    }
+
+    /// <summary>
+    /// 邮件通道配置（<c>config\backup-center.json</c> 的 <c>mail</c> 键，值是一段 JSON）。
+    /// <para>🔴 授权码⛔ 不在这里 —— 它在密码库（<see cref="MailAuthVaultId"/>），密文。</para>
+    /// </summary>
+    public Models.MailSettingsDto MailSettings
+    {
+        get
+        {
+            string raw;
+            try { raw = _opts.Get(Section, KeyMail) ?? ""; }
+            catch { return new Models.MailSettingsDto(); }
+            if (string.IsNullOrWhiteSpace(raw)) return new Models.MailSettingsDto();
+
+            try { return System.Text.Json.JsonSerializer.Deserialize<Models.MailSettingsDto>(raw, MailJson) ?? new(); }
+            catch { return new Models.MailSettingsDto(); }
+        }
+    }
+
+    /// <summary>整体替换邮件配置（页面「保存」= 一次写全，⛔ 不逐字段写）。</summary>
+    public void SaveMailSettings(Models.MailSettingsDto value)
+    {
+        try
+        {
+            Write(KeyMail, System.Text.Json.JsonSerializer.Serialize(value ?? new Models.MailSettingsDto(), MailJson));
+        }
+        catch (Exception ex) { LastError = ex.Message; }
+    }
 
     /// <summary>本模块的数据目录（旧 JSON 的归档位，也是迁移来源）。</summary>
     public string DataDir => Path.Combine(_cfg.ConfigDir, "backup");

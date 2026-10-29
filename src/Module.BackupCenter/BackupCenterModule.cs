@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using NewToys.BackupCenter.Services;
+using NewToys.BackupCenter.Services.Mail;
 using NewToys.BackupCenter.ViewModels;
 using NewToys.BackupCenter.Views;
 using NewToys.Shared.Models;
@@ -24,6 +25,11 @@ public sealed class BackupCenterModule : IModule
         services.AddSingleton<VaultService>();
         services.AddSingleton<SevenZipLocator>();
         services.AddSingleton<ArchiveService>();
+        services.AddSingleton<MailJobStore>();
+        services.AddSingleton<MailIndexStore>();
+        services.AddSingleton<BackupMailService>();
+        services.AddSingleton<ImapMailService>();
+        services.AddSingleton<OutboxService>();
 
         services.AddTransient<BackupPlansView>();
         services.AddTransient<BackupPlansViewModel>();
@@ -31,6 +37,8 @@ public sealed class BackupCenterModule : IModule
         services.AddTransient<BackupArchivesViewModel>();
         services.AddTransient<BackupCalendarView>();
         services.AddTransient<BackupCalendarViewModel>();
+        services.AddTransient<BackupMailView>();
+        services.AddTransient<BackupMailViewModel>();
         services.AddTransient<SettingsBackupView>();
         services.AddTransient<SettingsBackupViewModel>();
     }
@@ -46,7 +54,9 @@ public sealed class BackupCenterModule : IModule
             "本地归档包清单、校验值与还原");
         menu.RegisterFunction<BackupCalendarView>("backup", "backup-calendar", "备份日历", "📅", 3,
             "按天看备份记录，写下哪天要备份");
+        menu.RegisterFunction<BackupMailView>("backup", "backup-mail", "备份邮件", "📧", 4,
+            "邮箱里的邮件与备份分卷，搜索 / 下载 / 还原");
         menu.RegisterFunction<SettingsBackupView>("backup", "settings-backup", "备份中心设置", "🔐", 100,
-            "7z 路径、主密码密码库、默认备份目录");
+            "主密码密码库、保留份数与目录、邮件投递");
     }
 }

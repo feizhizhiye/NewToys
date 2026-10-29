@@ -9,8 +9,8 @@ using NewToys.Shared.Services;
 
 namespace NewToys.BackupCenter.Services;
 
-/// <summary>归档结果。</summary>
-public sealed record ArchiveOutcome(bool Ok, bool Canceled, string Message, int SkippedFiles);
+/// <summary>归档结果（<paramref name="Parts"/> 仅分卷时有值，按 <c>.001 .002 …</c> 升序）。</summary>
+public sealed record ArchiveOutcome(bool Ok, bool Canceled, string Message, int SkippedFiles, List<string>? Parts = null);
 
 /// <summary>还原结果。</summary>
 public sealed record RestoreOutcome(bool Ok, bool Canceled, int Restored, int Skipped, string Message);
@@ -42,10 +42,14 @@ public sealed class ArchiveService
 
     /// <summary>
     /// 建一个加密归档。<paramref name="phase"/> 收到的是**阶段文案**（7z 不流式回报百分比）。
+    /// <para>
+    /// <paramref name="volumeBytes"/> &gt; 0 时 7z 按该大小**分卷**（产出 <c>包名.7z.001/.002…</c>）；
+    /// 🔴 分卷只能在压缩时决定（<c>-v</c>），事后无法切分 —— 邮件投递必须走这里。
+    /// </para>
     /// </summary>
     public async Task<ArchiveOutcome> CreateAsync(
         string sevenZip, BackupPlan plan, string archiveFile, string password,
-        IProgress<string>? phase, CancellationToken ct)
+        IProgress<string>? phase, CancellationToken ct, long volumeBytes = 0)
     {
         if (string.IsNullOrWhiteSpace(sevenZip))
             return new ArchiveOutcome(false, false, "没有可用的 7z。", 0);
@@ -57,13 +61,15 @@ public sealed class ArchiveService
         var dir = Path.GetDirectoryName(archiveFile);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         if (File.Exists(archiveFile)) TryDelete(archiveFile);
+        foreach (var stale in ListVolumes(archiveFile)) TryDelete(stale);
 
-        phase?.Report("压缩 + 加密中…");
+        phase?.Report(volumeBytes > 0 ? "压缩 + 加密 + 分卷中…" : "压缩 + 加密中…");
 
         var args = new List<string>
         {
             "a", "-t7z", "-mhe=on", "-mx=5", "-y", "-p" + password, archiveFile
         };
+        if (volumeBytes > 0) args.Add("-v" + Math.Max(1, volumeBytes / (1024 * 1024)) + "m");
         args.AddRange(sources);
         foreach (var pattern in SplitExcludes(plan.Excludes)) args.Add("-xr!" + pattern);
 
@@ -91,18 +97,78 @@ public sealed class ArchiveService
         }
 
         var skipped = CountSkipped(res.StdOut);
+        var parts = ListVolumes(archiveFile);
         switch (res.ExitCode)
         {
             case 0:
-                return new ArchiveOutcome(true, false, "完成。", 0);
+                return new ArchiveOutcome(true, false, "完成。", 0, parts);
             case 1:
                 return new ArchiveOutcome(true, false,
                     skipped > 0 ? $"完成（跳过 {skipped} 个被占用/无权限的文件）。" : "完成（7z 报了警告，通常是个别文件被跳过）。",
-                    skipped);
+                    skipped, parts);
             default:
+                foreach (var part in parts) TryDelete(part);
                 TryDelete(archiveFile);
                 return new ArchiveOutcome(false, false, ExplainExit(res.ExitCode, res.StdErr), skipped);
         }
+    }
+
+    /// <summary>
+    /// 校验一个包（含分卷，传 <c>.001</c> 即可）能否完整解开。
+    /// <para>邮件投递前必做：分卷缺一封或压缩半截时，先在本地发现，⛔ 不发到邮箱再等还原失败。</para>
+    /// </summary>
+    public async Task<(bool Ok, string Message)> TestAsync(
+        string sevenZip, string archiveFile, string password, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(sevenZip))
+            return (false, "没有可用的 7z。");
+        if (!File.Exists(archiveFile))
+            return (false, "包不存在：" + archiveFile);
+
+        var res = await _runner.RunAsync(new ProcessRunRequest
+        {
+            FileName = sevenZip,
+            ArgumentList = new List<string> { "t", archiveFile, "-y", "-p" + password },
+            StrictOutput = false
+        }, LongRun, ct).ConfigureAwait(true);
+
+        if (res.Canceled) return (false, "已取消。");
+        if (!res.Started) return (false, "启动 7z 失败：" + (res.Error ?? sevenZip));
+        if (res.TimedOut) return (false, "7z 校验超时。");
+        if (res.ExitCode == 0 || res.ExitCode == 1) return (true, "校验通过。");
+        return (false, ExplainExit(res.ExitCode, res.StdErr));
+    }
+
+    /// <summary>
+    /// 枚举一个包的分卷文件（按序号升序）。无分卷 ⇒ 返回包本体（存在时）；都不存在 ⇒ 空表。
+    /// <para>7z 分卷命名 = <c>包名.7z.001</c>，所以按「包名 + .数字」匹配。</para>
+    /// </summary>
+    public static List<string> ListVolumes(string archiveFile)
+    {
+        var result = new List<string>();
+        if (string.IsNullOrWhiteSpace(archiveFile)) return result;
+
+        var dir = Path.GetDirectoryName(archiveFile);
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        {
+            if (File.Exists(archiveFile)) result.Add(archiveFile);
+            return result;
+        }
+
+        var baseName = Path.GetFileName(archiveFile);
+        try
+        {
+            result.AddRange(Directory.EnumerateFiles(dir, baseName + ".*")
+                .Where(p => Path.GetExtension(p).Length == 4 && int.TryParse(Path.GetExtension(p)[1..], out _))
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][backup] 枚举分卷失败：" + ex.Message);
+        }
+
+        if (result.Count == 0 && File.Exists(archiveFile)) result.Add(archiveFile);
+        return result;
     }
 
     /// <summary>

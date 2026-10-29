@@ -141,6 +141,13 @@
               </StackPanel>
 
               <StackPanel Classes="field">
+                <TextBlock Classes="field-label" Text="投递方式"/>
+                <CheckBox IsChecked="{Binding EditMailDeliver}" Content="发到邮箱（分卷 + 索引号）"/>
+                <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                           Text="勾上：包按 30 MB 分卷落到待发目录，逐封发到「备份中心设置 → 邮件投递」里的邮箱，成功后保留 3 天再清本地；包不进本地包清单、也不受下面的保留份数管。不勾：照旧落在默认备份目录。"/>
+              </StackPanel>
+
+              <StackPanel Classes="field">
                 <TextBlock Classes="field-label" Text="保留份数（本地）"/>
                 <TextBox Text="{Binding EditKeepText}" Width="120" HorizontalAlignment="Left"/>
                 <TextBlock Classes="hint-text" TextWrapping="Wrap"

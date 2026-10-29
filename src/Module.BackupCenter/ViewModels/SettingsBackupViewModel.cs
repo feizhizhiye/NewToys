@@ -1,29 +1,34 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NewToys.BackupCenter.Models;
 using NewToys.BackupCenter.Services;
+using NewToys.BackupCenter.Services.Mail;
 using NewToys.Core.Services;
 
 namespace NewToys.BackupCenter.ViewModels;
 
 /// <summary>
-/// 「备份中心设置」页（<c>settings-backup</c>）：归档引擎（7z）、主密码密码库、保留份数与目录。
+/// 「备份中心设置」页（<c>settings-backup</c>）：主密码密码库、保留份数与目录、邮件投递、文件位置。
 /// <para>
 /// 主密码⛔ 不落盘：这里只管设置 / 解锁 / 改密码 / 锁库，密码库本体由 <see cref="VaultService"/> 封装。
 /// </para>
+/// <para>7z 路径不在这里 —— 它属应用级运行环境（「设置 → 运行环境」），⛔ 同一份值存两处。</para>
 /// </summary>
 public partial class SettingsBackupViewModel : ObservableObject
 {
     private readonly BackupSettingsService _settings;
     private readonly VaultService _vault;
-    private readonly SevenZipLocator _locator;
     private readonly BackupDb _db;
+    private readonly BackupMailService _mailer;
+    private readonly ImapMailService _imap;
+    private readonly OutboxService _outbox;
 
-    [ObservableProperty] private string _sevenZipPathText = "";
-    [ObservableProperty] private string _sevenZipStatusText = "还没探测";
     [ObservableProperty] private string _vaultStateText = "";
     [ObservableProperty] private string _masterInput = "";
     [ObservableProperty] private string _masterConfirmInput = "";
@@ -32,22 +37,41 @@ public partial class SettingsBackupViewModel : ObservableObject
     [ObservableProperty] private string _newMasterConfirmInput = "";
     [ObservableProperty] private string _keepText = "5";
     [ObservableProperty] private string _archiveDirText = "";
+    [ObservableProperty] private string _smtpHostText = "";
+    [ObservableProperty] private string _smtpPortText = "465";
+    [ObservableProperty] private string _smtpUserText = "";
+    [ObservableProperty] private string _smtpToText = "";
+    [ObservableProperty] private string _imapHostText = "";
+    [ObservableProperty] private string _imapPortText = "993";
+    [ObservableProperty] private string _imapUserText = "";
+    [ObservableProperty] private string _authCodeInput = "";
+    [ObservableProperty] private string _authStateText = "";
+    [ObservableProperty] private int _volumeMb = 30;
+    [ObservableProperty] private string _outboxDirText = "";
+    [ObservableProperty] private string _mailStatusText = "";
     [ObservableProperty] private string _statusText = "就绪";
+
+    /// <summary>分卷大小候选（MB）。🔴 上限 30：再大 base64 编码后会超 QQ 的 50 M 单封限制。</summary>
+    public IReadOnlyList<int> VolumeOptions { get; } = new[] { 10, 20, 30 };
 
     public SettingsBackupViewModel(
         BackupSettingsService settings,
         VaultService vault,
-        SevenZipLocator locator,
-        BackupDb db)
+        BackupDb db,
+        BackupMailService mailer,
+        ImapMailService imap,
+        OutboxService outbox)
     {
         _settings = settings;
         _vault = vault;
-        _locator = locator;
         _db = db;
+        _mailer = mailer;
+        _imap = imap;
+        _outbox = outbox;
 
-        SevenZipPathText = settings.ConfiguredSevenZip;
         KeepText = settings.DefaultKeepCount.ToString();
         ArchiveDirText = settings.ArchiveDir;
+        LoadMailSettings();
         RefreshVaultState();
     }
 
@@ -87,47 +111,135 @@ public partial class SettingsBackupViewModel : ObservableObject
         ? "⚠ 失败次数已用尽，本会话不再接受解锁（重启程序再试）"
         : $"还剩 {_vault.RemainingAttempts} 次尝试机会";
 
-    // ==================== 归档引擎 ====================
+    // ==================== 邮件投递 ====================
+
+    /// <summary>授权码是否已存进密码库（只显示状态，⛔ 不回显密文）。</summary>
+    public bool HasAuthCode => _vault.IsUnlocked && _vault.HasEntry(BackupSettingsService.MailAuthVaultId);
+
+    public string AuthCodePlaceholder => HasAuthCode ? "已保存（重输会覆盖）" : "授权码（不是登录密码）";
+
+    /// <summary>把库里的配置摊到界面字段上（每次进页面 / 保存后都走一遍，保证显示与文件一致）。</summary>
+    private void LoadMailSettings()
+    {
+        var mail = _settings.MailSettings;
+        SmtpHostText = mail.SmtpHost;
+        SmtpPortText = mail.SmtpPort.ToString();
+        SmtpUserText = mail.SmtpUser;
+        SmtpToText = mail.SmtpTo;
+        ImapHostText = mail.ImapHost;
+        ImapPortText = mail.ImapPort.ToString();
+        ImapUserText = mail.ImapUser;
+        VolumeMb = mail.VolumeMb is 10 or 20 or 30 ? mail.VolumeMb : 30;
+        OutboxDirText = _settings.OutboxDir;
+        AuthCodeInput = "";
+        RefreshAuthState();
+    }
+
+    private void RefreshAuthState()
+    {
+        OnPropertyChanged(nameof(HasAuthCode));
+        OnPropertyChanged(nameof(AuthCodePlaceholder));
+        AuthStateText = !_vault.IsUnlocked
+            ? "🔒 密码库没解锁 —— 解锁后才能存取授权码"
+            : HasAuthCode ? "✅ 授权码已保存在密码库（密文）" : "⚠ 还没存授权码";
+    }
+
+    /// <summary>保存整份邮件配置（主机 / 端口 / 账号 / 分卷 / 待发目录）；授权码单独走密码库。</summary>
+    [RelayCommand]
+    private void SaveMail()
+    {
+        if (!int.TryParse(SmtpPortText, out var smtpPort) || smtpPort < 1 || smtpPort > 65535)
+        {
+            MailStatusText = "⚠ 发信端口要填 1~65535。";
+            return;
+        }
+        if (!int.TryParse(ImapPortText, out var imapPort) || imapPort < 1 || imapPort > 65535)
+        {
+            MailStatusText = "⚠ 收信端口要填 1~65535。";
+            return;
+        }
+
+        var mail = new MailSettingsDto
+        {
+            SmtpHost = (SmtpHostText ?? "").Trim(),
+            SmtpPort = smtpPort,
+            SmtpUser = (SmtpUserText ?? "").Trim(),
+            SmtpTo = (SmtpToText ?? "").Trim(),
+            ImapHost = (ImapHostText ?? "").Trim(),
+            ImapPort = imapPort,
+            ImapUser = (ImapUserText ?? "").Trim(),
+            VolumeMb = VolumeMb is 10 or 20 or 30 ? VolumeMb : 30,
+            OutboxDir = (OutboxDirText ?? "").Trim()
+        };
+
+        _settings.SaveMailSettings(mail);
+        if (_settings.LastError != null) { MailStatusText = "⚠ 保存失败：" + _settings.LastError; return; }
+
+        // 授权码：只有用户这次输了新值才写（空 = 保留库里原来的）
+        var auth = (AuthCodeInput ?? "").Trim();
+        if (auth.Length > 0)
+        {
+            if (!_vault.IsUnlocked) { MailStatusText = "⚠ 配置已保存，但密码库没解锁 ⇒ 授权码没存进去。"; return; }
+            if (!_vault.Set(BackupSettingsService.MailAuthVaultId, auth))
+            {
+                MailStatusText = "⚠ 授权码存进密码库失败。";
+                return;
+            }
+            AuthCodeInput = "";
+        }
+
+        LoadMailSettings();
+        MailStatusText = "已保存邮件配置。" + (mail.IsConfigured ? "点「🔌 测试连接」验证一下。" : "");
+    }
 
     [RelayCommand]
-    private async Task DetectSevenZipAsync()
+    private void ClearAuth()
     {
-        StatusText = "正在探测 7z…";
+        if (!_vault.IsUnlocked) { MailStatusText = "⚠ 密码库没解锁。"; return; }
+        _vault.Remove(BackupSettingsService.MailAuthVaultId);
+        AuthCodeInput = "";
+        RefreshAuthState();
+        MailStatusText = "已清除密码库里的邮箱授权码。";
+    }
+
+    [RelayCommand]
+    private async Task TestMailAsync()
+    {
+        MailStatusText = "正在测试连接…";
         try
         {
-            var status = await _locator.LocateAsync(force: true).ConfigureAwait(true);
-            SevenZipStatusText = status.Found
-                ? $"✅ {status.Version} · {status.Path}"
-                : "⚠ " + status.Message;
-            if (status.Found) SevenZipPathText = status.Path;
-            StatusText = status.Found ? "探测到 7z：" + status.Version : "⚠ " + status.Message;
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+            var smtp = await _mailer.TestAsync(cts.Token).ConfigureAwait(true);
+            var imap = await _imap.TestAsync(cts.Token).ConfigureAwait(true);
+            MailStatusText = smtp.Message + " ｜ " + imap.Message;
         }
-        catch (Exception ex) { StatusText = "⚠ 探测失败：" + ex.Message; }
+        catch (Exception ex) { MailStatusText = "⚠ 测试失败：" + ex.Message; }
     }
 
     [RelayCommand]
-    private async Task BrowseSevenZipAsync()
+    private async Task BrowseOutboxDirAsync()
     {
-        var files = await DialogHooks.PickFilesAsync("选择 7z.exe", null, false, "7z.exe").ConfigureAwait(true);
-        if (files.Count > 0) SevenZipPathText = files[0];
+        var picked = await DialogHooks.PickFolderAsync("选择邮件待发目录", OutboxDirText).ConfigureAwait(true);
+        if (!string.IsNullOrWhiteSpace(picked)) { OutboxDirText = picked; SaveMail(); }
     }
 
     [RelayCommand]
-    private void SaveSevenZip()
+    private void OpenOutboxDir()
     {
-        _settings.ConfiguredSevenZip = SevenZipPathText;
-        if (_settings.LastError != null) { StatusText = "⚠ 保存失败：" + _settings.LastError; return; }
-        _locator.Reset();
-        StatusText = string.IsNullOrWhiteSpace(SevenZipPathText)
-            ? "已清空：以后走自动探测（常见安装位 → PATH）。"
-            : "已保存 7z 路径（点「🔍 探测」验证一下版本）。";
+        try
+        {
+            var dir = string.IsNullOrWhiteSpace(OutboxDirText) ? _settings.OutboxDir : OutboxDirText.Trim();
+            Directory.CreateDirectory(dir);
+            Process.Start(new ProcessStartInfo("explorer.exe", "\"" + dir + "\"") { UseShellExecute = true });
+        }
+        catch (Exception ex) { MailStatusText = "⚠ 打开目录失败：" + ex.Message; }
     }
 
     [RelayCommand]
-    private void ClearSevenZip()
+    private void PurgeOutbox()
     {
-        SevenZipPathText = "";
-        SaveSevenZip();
+        var result = _outbox.PurgeAllSent();
+        MailStatusText = result.Message;
     }
 
     // ==================== 主密码 ====================
@@ -267,5 +379,6 @@ public partial class SettingsBackupViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowUnlockVault));
         OnPropertyChanged(nameof(ShowUnlockedActions));
         OnPropertyChanged(nameof(RemainingAttemptsText));
+        RefreshAuthState();
     }
 }

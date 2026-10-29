@@ -21,6 +21,12 @@ public sealed class BackupPlan
     /// <summary>本地保留份数（归档成功后按份数轮转删最旧的）。</summary>
     public int KeepCount { get; set; } = 5;
 
+    /// <summary>
+    /// 产出通道：本地归档（默认）或邮件投递。
+    /// <para>选 <see cref="BackupDeliver.Mail"/> 时：包直接分卷进待发目录、发到邮箱，⛔ 不进本地包清单、⛔ 不受 <see cref="KeepCount"/> 管。</para>
+    /// </summary>
+    public BackupDeliver Deliver { get; set; } = BackupDeliver.Local;
+
     public string Note { get; set; } = "";
 }
 

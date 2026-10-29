@@ -25,7 +25,7 @@ public sealed class BackupDb : SqliteDatabase
     public const string FileName = "backup.db";
 
     /// <summary>代码里的 schema 目标版本（加表 / 加列时 +1）。</summary>
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
 
     public BackupDb(ConfigStoreService store) : base(store, Key, FileName)
     {
@@ -78,8 +78,74 @@ public sealed class BackupDb : SqliteDatabase
 
             // 密码库：参数（盐 / 迭代次数 / 校验块）+ 条目（AES-GCM 密文）
             "CREATE TABLE IF NOT EXISTS vault_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);" +
-            "CREATE TABLE IF NOT EXISTS vault_items (id TEXT PRIMARY KEY, blob TEXT NOT NULL);";
+            "CREATE TABLE IF NOT EXISTS vault_items (id TEXT PRIMARY KEY, blob TEXT NOT NULL);" +
+
+            // ===== v2：邮件投递 + 邮箱缓存 =====
+
+            // 索引号计数器：按本地日期分组，一天一行（单机单进程，事务内 +1）
+            "CREATE TABLE IF NOT EXISTS mail_seq (" +
+            "  day TEXT PRIMARY KEY, last_no INTEGER NOT NULL DEFAULT 0);" +
+
+            // 一次投递（一个索引号 = 一个加密包的 n 个分卷）
+            "CREATE TABLE IF NOT EXISTS mail_job (" +
+            "  index_no TEXT PRIMARY KEY, plan_id TEXT NOT NULL DEFAULT '', plan_name TEXT NOT NULL DEFAULT ''," +
+            "  package_name TEXT NOT NULL DEFAULT '', total_bytes INTEGER NOT NULL DEFAULT 0," +
+            "  part_count INTEGER NOT NULL DEFAULT 0, sha256 TEXT NOT NULL DEFAULT ''," +
+            "  status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL," +
+            "  sent_at TEXT NOT NULL DEFAULT '', purge_after TEXT NOT NULL DEFAULT ''," +
+            "  error TEXT NOT NULL DEFAULT '');" +
+            "CREATE INDEX IF NOT EXISTS ix_mail_job_created ON mail_job(created_at);" +
+            "CREATE INDEX IF NOT EXISTS ix_mail_job_purge ON mail_job(purge_after);" +
+
+            // 分卷明细：邮件里的附件与本地文件一一对应（文件名即还原顺序）
+            "CREATE TABLE IF NOT EXISTS mail_part (" +
+            "  index_no TEXT NOT NULL, part_no INTEGER NOT NULL, file_name TEXT NOT NULL," +
+            "  size_bytes INTEGER NOT NULL DEFAULT 0, sha256 TEXT NOT NULL DEFAULT ''," +
+            "  message_id TEXT NOT NULL DEFAULT '', local_path TEXT NOT NULL DEFAULT ''," +
+            "  sent_at TEXT NOT NULL DEFAULT '', purged INTEGER NOT NULL DEFAULT 0," +
+            "  PRIMARY KEY (index_no, part_no));" +
+
+            // 服务器侧邮件头缓存（按 mailbox+uid 唯一，增量同步的落点）
+            "CREATE TABLE IF NOT EXISTS mail_index (" +
+            "  mailbox TEXT NOT NULL DEFAULT 'INBOX', uid INTEGER NOT NULL," +
+            "  subject TEXT NOT NULL DEFAULT '', from_addr TEXT NOT NULL DEFAULT ''," +
+            "  date_utc TEXT NOT NULL DEFAULT '', size_bytes INTEGER NOT NULL DEFAULT 0," +
+            "  attach_count INTEGER NOT NULL DEFAULT 0, index_no TEXT NOT NULL DEFAULT ''," +
+            "  is_seen INTEGER NOT NULL DEFAULT 0, synced_at TEXT NOT NULL DEFAULT ''," +
+            "  PRIMARY KEY (mailbox, uid));" +
+            "CREATE INDEX IF NOT EXISTS ix_mail_index_date ON mail_index(date_utc);" +
+            "CREATE INDEX IF NOT EXISTS ix_mail_index_no ON mail_index(index_no);";
 
         EnsureTable(ddl);
+
+        // v2 给 plans 补「投递通道」（旧库的 plans 表已存在，CREATE TABLE IF NOT EXISTS 不会加列）
+        EnsureColumn("plans", "deliver", "TEXT NOT NULL DEFAULT 'Local'");
+    }
+
+    /// <summary>
+    /// 幂等加列：<c>PRAGMA table_info</c> 里没有才 <c>ALTER TABLE ADD COLUMN</c>。
+    /// <para>SQLite 的 <c>ADD COLUMN</c> 没有 <c>IF NOT EXISTS</c>，重复执行会抛「duplicate column」。</para>
+    /// </summary>
+    private void EnsureColumn(string table, string column, string definition)
+    {
+        if (!IsAvailable) return;
+        try
+        {
+            using var conn = Open();
+            using (var check = conn.CreateCommand())
+            {
+                check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = $n;";
+                check.Parameters.AddWithValue("$n", column);
+                if (Convert.ToInt64(check.ExecuteScalar() ?? 0L) > 0) return;
+            }
+
+            using var alter = conn.CreateCommand();
+            alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition};";
+            alter.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[NewToys][backup] 加列失败 " + table + "." + column + "：" + ex.Message);
+        }
     }
 }

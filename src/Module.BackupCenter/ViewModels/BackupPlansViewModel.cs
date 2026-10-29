@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.BackupCenter.Models;
 using NewToys.BackupCenter.Services;
+using NewToys.BackupCenter.Services.Mail;
 using NewToys.Core.Services;
 using NewToys.Shared.Details;
 using NewToys.Shared.Models;
@@ -51,6 +52,9 @@ public sealed class PlanRow
 
     public string KeepText => Plan.KeepCount + " 份";
 
+    /// <summary>产出去哪：本地归档目录，还是切成 ≤30 MB 的分卷发到邮箱。</summary>
+    public string DeliverText => Plan.Deliver == BackupDeliver.Mail ? "邮件（分卷投递）" : "本地归档目录";
+
     public string ArchiveCountText => ArchiveCount + " 个";
 
     public string LastRunText { get; }
@@ -74,6 +78,8 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
     private readonly BackupSettingsService _settings = null!;
     private readonly ArchiveService _archives = null!;
     private readonly SevenZipLocator _locator = null!;
+    private readonly BackupMailService _mailer = null!;
+    private readonly OutboxService _outbox = null!;
 
     private readonly List<PlanRow> _all = new();
     private BackupPlan? _editing;
@@ -89,6 +95,9 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
     [ObservableProperty] private string _editNote = "";
     [ObservableProperty] private string _editExcludes = "";
     [ObservableProperty] private string _editKeepText = "5";
+
+    /// <summary>投递通道：勾上 = 分卷发邮件（本地包清单 / 保留份数都不参与）。</summary>
+    [ObservableProperty] private bool _editMailDeliver;
     [ObservableProperty] private string _editorSourceSelected = "";
 
     [ObservableProperty] private string _nameHeader = "任务";
@@ -109,6 +118,8 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
         BackupSettingsService settings,
         ArchiveService archives,
         SevenZipLocator locator,
+        BackupMailService mailer,
+        OutboxService outbox,
         IColumnLayoutService? cols = null,
         IOptionsStore? opts = null)
         : base(cols, opts)
@@ -120,6 +131,8 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
         _settings = settings;
         _archives = archives;
         _locator = locator;
+        _mailer = mailer;
+        _outbox = outbox;
         LoadLayout();
         Reload();
     }
@@ -223,7 +236,9 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
         if (keepId != null) Selected = Items.FirstOrDefault(r => r.Plan.Id == keepId);
         OnPropertyChanged(nameof(VaultStateText));
         OnPropertyChanged(nameof(ArchiveDir));
-        StatusText = $"共 {_all.Count} 个任务 · 包目录 {ArchiveDir}";
+        // 顺带清掉缓冲期已到的待发分卷（以天计，不需要定时器）
+        var purged = _outbox is null ? "" : _outbox.PurgeDue().Message;
+        StatusText = $"共 {_all.Count} 个任务 · 包目录 {ArchiveDir}" + (purged.Length > 0 ? " · " + purged : "");
     }
 
     [RelayCommand]
@@ -234,6 +249,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
         EditNote = "";
         EditExcludes = "";
         EditKeepText = (_settings?.DefaultKeepCount ?? 5).ToString();
+        EditMailDeliver = false;
         EditorSources.Clear();
         IsEditorOpen = true;
         StatusText = "新建任务：填名称、加源目录，然后「💾 保存」。";
@@ -249,6 +265,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
         EditNote = row.Plan.Note;
         EditExcludes = row.Plan.Excludes;
         EditKeepText = row.Plan.KeepCount.ToString();
+        EditMailDeliver = row.Plan.Deliver == BackupDeliver.Mail;
         EditorSources.Clear();
         foreach (var s in row.Plan.Sources) EditorSources.Add(s);
         IsEditorOpen = true;
@@ -290,6 +307,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
         if (EditorSources.Count == 0) { StatusText = "⚠ 至少要加一个源目录。"; return; }
 
         var keep = int.TryParse(EditKeepText, out var k) ? Math.Clamp(k, 1, 999) : 5;
+        var deliver = EditMailDeliver ? BackupDeliver.Mail : BackupDeliver.Local;
 
         if (_editing is null)
         {
@@ -298,6 +316,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
             plan.Excludes = EditExcludes ?? "";
             plan.Note = EditNote ?? "";
             plan.KeepCount = keep;
+            plan.Deliver = deliver;
             _store.Save();
         }
         else
@@ -307,6 +326,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
             _editing.Excludes = EditExcludes ?? "";
             _editing.Note = EditNote ?? "";
             _editing.KeepCount = keep;
+            _editing.Deliver = deliver;
             _store!.Save();
         }
 
@@ -382,6 +402,44 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
                     StatusText = "⚠ 包密码写不进密码库，已中止。";
                     return;
                 }
+            }
+
+            // 邮件通道：分卷 → 落库 → 发信，⛔ 不进本地包清单、⛔ 不走保留份数轮转
+            if (plan.Deliver == BackupDeliver.Mail)
+            {
+                BusyPhase = "准备邮件投递…";
+                var mailProgress = new Progress<string>(s => BusyPhase = s);
+                var delivered = await _mailer!.DeliverAsync(zip.Path, plan, password, mailProgress, _runCts.Token)
+                    .ConfigureAwait(true);
+
+                if (delivered.Canceled)
+                {
+                    _runs!.Append(new BackupRunRecord
+                    {
+                        PlanId = plan.Id, StartedAt = started, Status = "已取消", Message = delivered.Message
+                    });
+                    StatusText = "已取消本次投递。";
+                    return;
+                }
+                if (!delivered.Ok)
+                {
+                    _runs!.Append(new BackupRunRecord
+                    {
+                        PlanId = plan.Id, StartedAt = started, Status = "失败",
+                        ArchiveFile = delivered.IndexNo, Message = delivered.Message
+                    });
+                    StatusText = "⚠ 投递失败：" + delivered.Message;
+                    return;
+                }
+
+                _runs!.Append(new BackupRunRecord
+                {
+                    PlanId = plan.Id, StartedAt = started, Status = "成功",
+                    ArchiveFile = delivered.IndexNo, Message = delivered.Message
+                });
+                StatusText = "✅ " + delivered.Message;
+                Reload();
+                return;
             }
 
             BusyPhase = "收集源目录…";
@@ -629,6 +687,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
     public string DetailName => Selected?.Name ?? "";
     public string DetailSources => Selected?.SourcesText ?? "";
     public string DetailKeepText => Selected?.KeepText ?? "";
+    public string DetailDeliverText => Selected?.DeliverText ?? "";
     public string DetailNote => Selected?.Plan.Note ?? "";
     public string DetailPasswordText => Selected?.PasswordText ?? "";
     public string DetailLastRunText => Selected?.LastRunText ?? "";
@@ -651,6 +710,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
                 Fields =
                 {
                     new DetailField { Label = "名称", ValuePath = nameof(DetailName), Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "投递", ValuePath = nameof(DetailDeliverText), Kind = FieldKind.Text },
                     new DetailField { Label = "保留份数", ValuePath = nameof(DetailKeepText), Kind = FieldKind.Text },
                     new DetailField { Label = "包密码", ValuePath = nameof(DetailPasswordText), Kind = FieldKind.Text },
                     new DetailField { Label = "最近运行", ValuePath = nameof(DetailLastRunText), Kind = FieldKind.Text },

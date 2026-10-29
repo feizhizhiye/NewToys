@@ -1,0 +1,112 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.BackupCenter.Views.BackupMailView">
+  <!--
+    「备份中心 → 备份邮件」（`backup-mail`）：IMAP 邮箱管理器 + 备份邮件搜索 / 下载 / 还原。
+    🔴 列表先读本地缓存（mail_index），点「⟳ 同步」才连服务器；打开邮件不改已读状态。
+  -->
+  <Grid RowDefinitions="Auto,*,Auto" Margin="12">
+
+    <!--  ==================== 工具条 ====================  -->
+    <Border Grid.Row="0" Classes="card" Padding="12,8">
+      <StackPanel Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBox Width="320" Text="{Binding SearchText}" PlaceholderText="索引号 / 主题 / 发件人"/>
+          <Button Classes="ghost" Content="🔍 搜索" Command="{Binding SearchCommand}"/>
+          <Button Classes="ghost" Content="🔍 搜索服务器" Command="{Binding SearchServerCommand}"/>
+          <Button Classes="ghost" Content="⟳ 同步" Command="{Binding SyncCommand}"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="16">
+          <TextBlock Classes="hint-text" Text="{Binding CachedText}"/>
+          <TextBlock Classes="hint-text" Text="{Binding QuotaText}"/>
+          <TextBlock Classes="hint-text" Text="{Binding BusyPhase}" IsVisible="{Binding IsBusy}"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!--  ==================== 列表 + 详情 ====================  -->
+    <Grid Grid.Row="1" ColumnDefinitions="360,12,*" Margin="0,12,0,0">
+
+      <Border Grid.Column="0" Classes="card" Padding="4">
+        <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto" Background="Transparent">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="{Binding Subject}" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                  <TextBlock Classes="hint-text" Text="{Binding FromText}" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                  <TextBlock Classes="hint-text" Text="{Binding DateText}"/>
+                  <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                    <TextBlock Classes="hint-text" Text="{Binding BackupMark}"/>
+                    <TextBlock Classes="hint-text" Text="{Binding AttachText}"/>
+                  </StackPanel>
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <Border Grid.Column="2" Classes="card" Padding="12">
+        <ScrollViewer>
+          <StackPanel Spacing="10">
+
+            <TextBlock Text="{Binding DetailSubject}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock Classes="hint-text" Text="{Binding DetailFrom}" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+              <TextBlock Classes="hint-text" Text="{Binding DetailDate}"/>
+            </StackPanel>
+
+            <!--  备份邮件：索引号 + 本地记录 + 还原入口  -->
+            <Border Classes="card" Padding="10" IsVisible="{Binding IsBackupMail}">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="hint-text" Text="{Binding DetailBackupInfo}" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="primary" Content="📥 下载并还原" Command="{Binding RestoreCommand}"/>
+                  <ComboBox Width="120" ItemsSource="{Binding PolicyOptions}" SelectedItem="{Binding RestorePolicy}"/>
+                  <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="目标已存在时"/>
+                </StackPanel>
+                <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                           Text="🔴 还原要用包里那把密码（存在密码库里）⇒ 先在「备份中心设置 → 主密码」解锁。全部分卷会先下载到暂存目录并逐个校验 SHA256，缺卷 / 校验不过就中止。"/>
+              </StackPanel>
+            </Border>
+
+            <!--  附件  -->
+            <StackPanel Spacing="6" IsVisible="{Binding HasAttachments}">
+              <TextBlock Classes="field-label" Text="附件"/>
+              <ListBox ItemsSource="{Binding Attachments}" SelectedItem="{Binding SelectedAttachment}" MaxHeight="140">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                      <TextBlock Grid.Column="1" Classes="hint-text" Text="{Binding SizeText}"/>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="ghost" Content="⬇ 保存附件到…" Command="{Binding SaveAttachmentCommand}"/>
+              </StackPanel>
+            </StackPanel>
+
+            <!--  正文  -->
+            <TextBlock Classes="field-label" Text="正文"/>
+            <SelectableTextBlock Text="{Binding DetailBody}" TextWrapping="Wrap"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="ghost" Content="🗑 删除这封邮件" Command="{Binding DeleteMailCommand}"/>
+            </StackPanel>
+
+            <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding HintText}"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <!--  ==================== 状态 ====================  -->
+    <TextBlock Grid.Row="2" Classes="hint-text" Margin="2,8,0,0" TextWrapping="Wrap" Text="{Binding StatusText}"/>
+  </Grid>
+</UserControl>

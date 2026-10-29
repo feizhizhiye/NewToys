@@ -56,8 +56,8 @@ public sealed class BackupPlanStore
                 using var cmd = conn.CreateCommand();
                 cmd.Transaction = tx;
                 cmd.CommandText =
-                    "INSERT INTO plans (id, name, sources, excludes, keep_count, note, sort_order) " +
-                    "VALUES ($id, $name, $sources, $excludes, $keep, $note, $order);";
+                    "INSERT INTO plans (id, name, sources, excludes, keep_count, note, sort_order, deliver) " +
+                    "VALUES ($id, $name, $sources, $excludes, $keep, $note, $order, $deliver);";
                 cmd.Parameters.AddWithValue("$id", p.Id);
                 cmd.Parameters.AddWithValue("$name", p.Name);
                 cmd.Parameters.AddWithValue("$sources", JsonSerializer.Serialize(p.Sources, JsonOpts));
@@ -65,6 +65,7 @@ public sealed class BackupPlanStore
                 cmd.Parameters.AddWithValue("$keep", p.KeepCount);
                 cmd.Parameters.AddWithValue("$note", p.Note ?? "");
                 cmd.Parameters.AddWithValue("$order", i);
+                cmd.Parameters.AddWithValue("$deliver", p.Deliver.ToString());
                 cmd.ExecuteNonQuery();
             }
             tx.Commit();
@@ -106,7 +107,7 @@ public sealed class BackupPlanStore
             using var conn = _db.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText =
-                "SELECT id, name, sources, excludes, keep_count, note FROM plans ORDER BY sort_order, name;";
+                "SELECT id, name, sources, excludes, keep_count, note, deliver FROM plans ORDER BY sort_order, name;";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -117,7 +118,9 @@ public sealed class BackupPlanStore
                     Sources = ParseSources(reader.GetString(2)),
                     Excludes = reader.GetString(3),
                     KeepCount = reader.GetInt32(4),
-                    Note = reader.GetString(5)
+                    Note = reader.GetString(5),
+                    Deliver = Enum.TryParse<BackupDeliver>(reader.IsDBNull(6) ? "" : reader.GetString(6), out var d)
+                        ? d : BackupDeliver.Local
                 });
             }
         }

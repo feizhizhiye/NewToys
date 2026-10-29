@@ -9,25 +9,6 @@
   -->
   <UserControl.Resources>
 
-    <!--  ==================== 归档引擎 ====================  -->
-    <StackPanel x:Key="Sec0" Spacing="10">
-      <StackPanel Classes="field">
-        <TextBlock Classes="field-label" Text="7z.exe 路径（留空 = 自动探测）"/>
-        <TextBox Text="{Binding SevenZipPathText}" PlaceholderText="D:\Tools\7-Zip\7z.exe"/>
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
-          <Button Classes="ghost" Content="🔍 探测" Command="{Binding DetectSevenZipCommand}"/>
-          <Button Classes="ghost" Content="📂 选择 exe" Command="{Binding BrowseSevenZipCommand}"/>
-          <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveSevenZipCommand}"/>
-          <Button Classes="ghost" Content="清空" Command="{Binding ClearSevenZipCommand}"/>
-        </StackPanel>
-        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding SevenZipStatusText}"/>
-      </StackPanel>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                 Text="备份中心用外置 7-Zip 做 AES-256 加密归档（含 -mhe=on 头部加密）；本机没装 7-Zip 时这里会提示找不到。自动探测顺序 = 常见安装位 → PATH 里的 7z。"/>
-      <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                 Text="🔗 这个路径与「设置 → 运行环境 → 7-Zip（7z.exe）」是同一份值（存在机器级 env.json）：在哪边改都生效，不会存两份。"/>
-    </StackPanel>
-
     <!--  ==================== 主密码 ====================  -->
     <StackPanel x:Key="Sec1" Spacing="10">
       <StackPanel Classes="field">
@@ -94,6 +75,79 @@
                    Text="归档包生成到哪。默认放在用户目录下一层（默认值见下），想手动翻包 / 往里丢文件都不用再钻配置档目录；改成 D:\ 之类的浅路径更顺手。"/>
         <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding DefaultBackupDir}"/>
       </StackPanel>
+    </StackPanel>
+
+    <!--  ==================== 邮件投递 ====================  -->
+    <StackPanel x:Key="SecMail" Spacing="12">
+      <TextBlock Classes="field-label" Text="发信（SMTP）"/>
+      <Grid ColumnDefinitions="*,90" >
+        <StackPanel Spacing="4">
+          <TextBox Text="{Binding SmtpHostText}" PlaceholderText="smtp.qq.com"/>
+          <TextBlock Classes="hint-text" Text="服务器地址"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4">
+          <TextBox Text="{Binding SmtpPortText}" PlaceholderText="465"/>
+          <TextBlock Classes="hint-text" Text="端口"/>
+        </StackPanel>
+      </Grid>
+      <StackPanel Spacing="4">
+        <TextBox Text="{Binding SmtpUserText}" PlaceholderText="yourname@qq.com"/>
+        <TextBlock Classes="hint-text" Text="发信账号（也是收信账号，除非下面另填）"/>
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBox Text="{Binding SmtpToText}" PlaceholderText="留空 = 发给自己"/>
+        <TextBlock Classes="hint-text" Text="收件人"/>
+      </StackPanel>
+
+      <TextBlock Classes="field-label" Text="收信（IMAP）"/>
+      <Grid ColumnDefinitions="*,90">
+        <StackPanel Spacing="4">
+          <TextBox Text="{Binding ImapHostText}" PlaceholderText="imap.qq.com"/>
+          <TextBlock Classes="hint-text" Text="服务器地址"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="4">
+          <TextBox Text="{Binding ImapPortText}" PlaceholderText="993"/>
+          <TextBlock Classes="hint-text" Text="端口"/>
+        </StackPanel>
+      </Grid>
+      <StackPanel Spacing="4">
+        <TextBox Text="{Binding ImapUserText}" PlaceholderText="留空 = 与发信账号相同"/>
+        <TextBlock Classes="hint-text" Text="收信账号"/>
+      </StackPanel>
+
+      <TextBlock Classes="field-label" Text="授权码"/>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox Width="320" PasswordChar="●" Text="{Binding AuthCodeInput}"
+                 PlaceholderText="{Binding AuthCodePlaceholder}"/>
+        <Button Classes="ghost" Content="💾 存入密码库" Command="{Binding SaveMailCommand}"/>
+        <Button Classes="ghost" Content="🗑 清除授权码" Command="{Binding ClearAuthCommand}"/>
+      </StackPanel>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding AuthStateText}"/>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 Text="🔴 QQ / 163 邮箱要用「授权码」而不是登录密码：网页版 → 设置 → 账户 → 开启 IMAP/SMTP 服务 → 生成授权码。授权码存在密码库里（密文），⛔ 不写配置文件。"/>
+
+      <TextBlock Classes="field-label" Text="分卷大小"/>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <ComboBox Width="120" ItemsSource="{Binding VolumeOptions}" SelectedItem="{Binding VolumeMb}"/>
+        <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="MB（上限 30）"/>
+      </StackPanel>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 Text="🔴 别再调大：邮件附件走 base64 编码，体积会涨约 1/3 —— 30 MB 的包编码后约 40 MB，正好在 QQ 邮箱单封 50 MB 之内；填 48 MB 必然被服务器拒收。"/>
+
+      <TextBlock Classes="field-label" Text="待发目录"/>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox Width="380" Text="{Binding OutboxDirText}"/>
+        <Button Classes="ghost" Content="📂 选择" Command="{Binding BrowseOutboxDirCommand}"/>
+        <Button Classes="ghost" Content="↗ 打开" Command="{Binding OpenOutboxDirCommand}"/>
+      </StackPanel>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 Text="分卷先落这里再发信；发完保留 3 天（留出复查 / 重发的窗口），到期自动清理。⛔ 与「默认备份目录」是两套规则：那里按保留份数轮转，这里发完即清。"/>
+
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="ghost" Content="🔌 测试连接" Command="{Binding TestMailCommand}"/>
+        <Button Classes="ghost" Content="🧹 清理已发送分卷" Command="{Binding PurgeOutboxCommand}"/>
+      </StackPanel>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding MailStatusText}"/>
     </StackPanel>
 
     <!--  ==================== 文件位置 ====================  -->

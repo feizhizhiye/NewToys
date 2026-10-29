@@ -92,6 +92,27 @@ public partial class AssetBrowseViewModel
         EnqueueFolderAdd(new[] { node.AbsPath });
     }
 
+    /// <summary>
+    /// 树节点右键「🔄 重新扫描此目录」：把右键目录里**还没入库**的文件补进来。
+    /// <para>走的还是入库那条链路（<see cref="AssetLibraryAddService.AddFolderAsync"/> 按路径去重）——
+    /// 对已在库的目录就是一次增量重扫，⛔ 不会重复索引已入库的文件。</para>
+    /// </summary>
+    [RelayCommand]
+    private void RescanContextNode()
+    {
+        var node = ContextNode;
+        if (node == null) return;
+        if (!IsDbAvailable) { StatusText = "⚠ 资产库不可用（数据库打不开）—— 没法扫描。"; return; }
+        if (!node.HasPending) { StatusText = $"「{node.Name}」里没有待加入的文件（折起来再展开一次可重新检查）。"; return; }
+        if (IsBusy) { StatusText = "正在忙，等这一步完成再扫。"; return; }
+
+        node.PendingCount = 0;      // 乐观清零：任务在跑时先别继续飘红
+        node.RefreshDerived();
+        OnPropertyChanged(nameof(CanRescanContextNode));
+
+        EnqueueFolderAdd(new[] { node.AbsPath });
+    }
+
     /// <summary>文件夹入库统一走任务队列（可能几百上千个文件 ⇒ 可取消、有进度）。</summary>
     private void EnqueueFolderAdd(IReadOnlyList<string> folders)
     {

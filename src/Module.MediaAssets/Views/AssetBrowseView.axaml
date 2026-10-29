@@ -148,6 +148,9 @@
                 <MenuItem Header="➕ 加入资产库" Command="{Binding AddContextNodeToLibraryCommand}"
                           IsEnabled="{Binding CanAddContextNodeToLibrary}"
                           ToolTip.Tip="把右键的这个目录递归加入资产库（所在目录已在库里 ⇒ 整行不标灰，菜单项不可用）"/>
+                <MenuItem Header="🔄 重新扫描此目录" Command="{Binding RescanContextNodeCommand}"
+                          IsEnabled="{Binding CanRescanContextNode}"
+                          ToolTip.Tip="把这个目录里还没入库的文件补进来（已入库的按路径去重，不会重复索引）"/>
               </ContextMenu>
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
@@ -165,6 +168,10 @@
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding CountText}" FontSize="10" VerticalAlignment="Center"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Text="{Binding PendingText}" FontSize="10" VerticalAlignment="Center"
+                               IsVisible="{Binding HasPending}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               ToolTip.Tip="这个目录里有还没加入资产库的文件 —— 右键「🔄 重新扫描此目录」补进来"/>
                   </StackPanel>
                 </Button>
               </DataTemplate>

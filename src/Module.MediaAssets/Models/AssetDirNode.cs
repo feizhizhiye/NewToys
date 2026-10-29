@@ -12,7 +12,8 @@ namespace NewToys.MediaAssets.Models;
 /// </para>
 /// <para>
 /// 🔴 **子目录懒加载**：节点首次展开才枚举磁盘（<see cref="IsLoaded"/>），⛔ 不在进页面时递归扫全盘。
-/// <see cref="InLibrary"/> 只看路径是否落在某个已登记存储源之内 —— 未入库目录照样可展开浏览，只是标灰。
+/// <see cref="InLibrary"/> 只看路径是否落在某个已登记存储源之内（操作判定用）；着色另看
+/// <see cref="HasLibraryContent"/> —— 未登记目录里只要有已入库文件就不标灰。
 /// </para>
 /// </summary>
 public partial class AssetDirNode : ObservableObject
@@ -37,6 +38,23 @@ public partial class AssetDirNode : ObservableObject
 
     /// <summary>本目录 + 所有子孙目录里**已入库**的文件数（0 ⇒ 不显示计数）。</summary>
     public int TotalCount { get; set; }
+
+    /// <summary>
+    /// 本目录（含子孙）里**有**已入库文件 —— 只用于着色（<see cref="RowOpacity"/>），
+    /// ⛔ 不参与「是否已在库里」的操作判定（那个看 <see cref="InLibrary"/>）。
+    /// </summary>
+    public bool HasLibraryContent { get; set; }
+
+    /// <summary>
+    /// 本目录**直属**文件里还没入库的个数（0 ⇒ 不提示）。只在展开枚举时算一次，⛔ 不递归。
+    /// </summary>
+    public int PendingCount { get; set; }
+
+    /// <summary>有未入库文件（决定「⟳ N 个待加入」提示是否显示）。</summary>
+    public bool HasPending => PendingCount > 0;
+
+    /// <summary>未入库文件提示文案（没有则空串；树宽有限，只给个数）。</summary>
+    public string PendingText => PendingCount <= 0 ? "" : $"⟳{PendingCount}";
 
     /// <summary>子节点（懒加载后填充；未加载时为空集合）。</summary>
     public List<AssetDirNode> Children { get; } = new();
@@ -64,8 +82,12 @@ public partial class AssetDirNode : ObservableObject
     /// <summary>不可读目录的后缀提示（可读 = 空串）。</summary>
     public string HintText => IsAccessible ? "" : "（无法访问）";
 
-    /// <summary>未入库目录整行标灰（仍可点 —— 「置灰但能用」是用户明确要的语义）。</summary>
-    public double RowOpacity => InLibrary ? 1.0 : 0.55;
+    /// <summary>
+    /// 未入库目录整行标灰（仍可点 —— 「置灰但能用」是用户明确要的语义）。
+    /// 目录**里面**有已入库文件（<see cref="HasLibraryContent"/>）就不标灰：路径本身不是存储源根，
+    /// 但内容已经在库里了，看起来不该像「完全没加入」。
+    /// </summary>
+    public double RowOpacity => InLibrary || HasLibraryContent ? 1.0 : 0.55;
 
     /// <summary>子目录枚举完成 / 展开态变化后，把派生属性一次性通知出去。</summary>
     public void RefreshDerived()
@@ -75,6 +97,8 @@ public partial class AssetDirNode : ObservableObject
         OnPropertyChanged(nameof(CountText));
         OnPropertyChanged(nameof(HintText));
         OnPropertyChanged(nameof(RowOpacity));
+        OnPropertyChanged(nameof(HasPending));
+        OnPropertyChanged(nameof(PendingText));
     }
 
     partial void OnIsExpandedChanged(bool value) => OnPropertyChanged(nameof(Arrow));

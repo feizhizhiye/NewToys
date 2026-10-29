@@ -194,6 +194,9 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     /// <summary>右键的目录还不在库里 ⇒ 菜单项可用。</summary>
     public bool CanAddContextNodeToLibrary => ContextNode is { InLibrary: false };
 
+    /// <summary>右键的目录里有未入库文件 ⇒ 「重新扫描此目录」可用（库不可用时不给点）。</summary>
+    public bool CanRescanContextNode => IsDbAvailable && ContextNode is { HasPending: true };
+
     /// <summary>顶级目录（盘符 / 共享根）没有「上一级」。</summary>
     public bool CanGoUp => SelectedNode != null && ParentOf(SelectedNode) != null;
 
@@ -374,6 +377,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     /// <summary>造一个树节点（计数徽标 / 灰度都按当前索引与存储源算）。</summary>
     private AssetDirNode MakeNode(string absPath, int depth)
     {
+        var count = _libCounts.GetValueOrDefault(absPath);
         var node = new AssetDirNode
         {
             AbsPath = absPath,
@@ -381,7 +385,8 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             ToolTipText = absPath,
             Depth = depth,
             InLibrary = IsInLibrary(absPath),
-            TotalCount = _libCounts.GetValueOrDefault(absPath)
+            TotalCount = count,
+            HasLibraryContent = count > 0
         };
         _nodeByKey[absPath] = node;
         return node;
@@ -453,22 +458,53 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     // ==================== 树 ====================
 
-    /// <summary>枚举一层子目录并挂到节点上（已枚举过 ⇒ 直接返回）。</summary>
+    /// <summary>
+    /// 枚举一层子目录并挂到节点上（已枚举过 ⇒ 直接返回）。顺手数一遍直属文件里还没入库的
+    /// —— 同一次目录枚举顺带取，不进额外 IO（⛔ 不递归）。
+    /// </summary>
     private async Task EnsureChildrenAsync(AssetDirNode node)
     {
         if (node.IsLoaded) return;
 
         var abs = node.AbsPath;
-        List<string>? children;
-        try { children = await Task.Run(() => AssetBrowseService.LoadChildDirectories(abs)).ConfigureAwait(true); }
-        catch { children = null; }
+        BrowseDirContent? content;
+        try { content = await Task.Run(() => AssetBrowseService.LoadDirectory(abs)).ConfigureAwait(true); }
+        catch { content = null; }
 
         node.IsLoaded = true;
-        node.IsAccessible = children != null;
-        if (children != null)
-            foreach (var c in children) node.Children.Add(MakeNode(c, node.Depth + 1));
+        node.IsAccessible = content is { Accessible: true };
+        if (content is { Accessible: true })
+        {
+            foreach (var d in content.Dirs) node.Children.Add(MakeNode(d.Path, node.Depth + 1));
+
+            // 只在**已经和库有关**的目录上提示待加入：完全没入库的目录一律不飘红，
+            // 否则整棵树每个目录都挂着 ⟳N（它们本来就是要用「➕ 加入资产库」的）。
+            if (node.InLibrary || node.HasLibraryContent)
+                node.PendingCount = CountPending(content.Files);
+        }
 
         node.RefreshDerived();
+    }
+
+    /// <summary>
+    /// 直属文件里**还没入库**的个数（与扫描器同一套忽略规则；库不可用 ⇒ 0，避免全盘误报）。
+    /// </summary>
+    private int CountPending(List<FsEntry> files)
+    {
+        if (!IsDbAvailable || files.Count == 0) return 0;
+
+        var s = _io.Settings;
+        var ignoreExt = MediaAssetsSettings.ParseList(s.IgnoreExtensions);
+
+        var n = 0;
+        foreach (var f in files)
+        {
+            if (_byPath.ContainsKey(f.Path)) continue;
+            if (ignoreExt.Contains(Path.GetExtension(f.Path))) continue;
+            if (s.IgnoreTempFiles && f.Name.StartsWith("~$", StringComparison.Ordinal)) continue;
+            n++;
+        }
+        return n;
     }
 
     /// <summary>按展开状态扁平化（只保留「祖先链全展开」的节点；筛选开着时再滤掉未入库分支）。</summary>
@@ -665,7 +701,10 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     }
 
     partial void OnContextNodeChanged(AssetDirNode? value)
-        => OnPropertyChanged(nameof(CanAddContextNodeToLibrary));
+    {
+        OnPropertyChanged(nameof(CanAddContextNodeToLibrary));
+        OnPropertyChanged(nameof(CanRescanContextNode));
+    }
 
     private async Task ExpandToLibraryAsync(bool quiet = false)
     {

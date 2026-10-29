@@ -92,6 +92,12 @@ public class MediaAssetsSettings
     /// <summary>扫描到新文件时自动生成缩略图（视频抽帧 / 图片缩放）。</summary>
     public bool AutoGenerateThumbnails { get; set; } = true;
 
+    /// <summary>
+    /// 「读媒体信息」的并发度（同时跑几个 ffprobe / 读几个图片头），1~16。
+    /// <para>每个视频要起一个 ffprobe 进程 ⇒ 太高会把磁盘 IO 拖成瓶颈，4 是常见甜点。</para>
+    /// </summary>
+    public int ProbeConcurrency { get; set; } = 4;
+
     // ==================== 工具方法（⛔ 不落盘） ====================
 
     /// <summary>把逗号 / 分号分隔的列表解析成 HashSet（去空 / 去首尾空白 / 忽略大小写）。</summary>

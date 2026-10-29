@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -148,21 +149,48 @@ public partial class AssetAllViewModel
 
         var name = $"读取媒体信息 {targets.Count} 个";
         StatusText = $"已把「{name}」排进任务队列（进度看「任务中心」）。";
+
+        // 并发度取模块设置（每个视频 = 一个 ffprobe 进程）；库写入仍是短连接 + busy_timeout 兜底。
+        var concurrency = Math.Clamp(_io?.Settings.ProbeConcurrency ?? 4, 1, 16);
+
         _queue.Enqueue(name, async (ct, p) =>
         {
             var ok = 0;
             var fail = 0;
-            for (var i = 0; i < targets.Count; i++)
+            var done = 0;
+
+            using var gate = new SemaphoreSlim(concurrency, concurrency);
+
+            var tasks = new List<Task>(targets.Count);
+            foreach (var row in targets)
             {
-                ct.ThrowIfCancellationRequested();
-                var row = targets[i];
-                p.Report($"正在读取 {row.Name}（{i + 1}/{targets.Count}）…");
+                tasks.Add(Task.Run(async () =>
+                {
+                    await gate.WaitAsync(ct).ConfigureAwait(false);   // ⛔ 放 try 外：没拿到锁就不会 Release
+                    try
+                    {
+                        ct.ThrowIfCancellationRequested();
 
-                var loc = _assets.FindPrimaryLocation(row.Id) ?? _assets.ListLocations(row.Id).FirstOrDefault();
-                if (loc == null) { fail++; continue; }
+                        var loc = _assets.FindPrimaryLocation(row.Id) ?? _assets.ListLocations(row.Id).FirstOrDefault();
+                        if (loc == null) { Interlocked.Increment(ref fail); return; }
 
-                var r = await _meta.ApplyAsync(loc, ct).ConfigureAwait(false);
-                if (r.Ok) ok++; else fail++;
+                        var r = await _meta.ApplyAsync(loc, ct).ConfigureAwait(false);
+                        if (r.Ok) Interlocked.Increment(ref ok); else Interlocked.Increment(ref fail);
+
+                        var n = Interlocked.Increment(ref done);
+                        p.Report($"已读取 {n}/{targets.Count}：{row.Name}");
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch { Interlocked.Increment(ref fail); }
+                    finally { gate.Release(); }
+                }, ct));
+            }
+
+            try { await Task.WhenAll(tasks).ConfigureAwait(false); }
+            catch (OperationCanceledException)
+            {
+                p.Report("已取消。");
+                return;
             }
 
             Dispatcher.UIThread.Post(() =>

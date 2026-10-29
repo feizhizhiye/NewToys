@@ -64,6 +64,15 @@
         <CheckBox Content="扫描到新文件时自动生成缩略图（视频抽帧 / 图片缩放）" IsChecked="{Binding AutoGenerateThumbnails, Mode=TwoWay}" />
 
         <StackPanel Classes="field">
+          <TextBlock Classes="field-label" Text="读媒体信息的并发数（1~16）" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox Width="120" Text="{Binding ProbeConcurrency, Mode=TwoWay}" ToolTip.Tip="同时跑几个 ffprobe 进程；太高会把磁盘 IO 拖慢，一般 4 即可" />
+            <TextBlock Classes="hint-text" VerticalAlignment="Center"
+                       Text="每个视频要起一个 ffprobe 进程 —— 太大会把磁盘 IO 拖成瓶颈。"/>
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Classes="field">
           <TextBlock Classes="field-label" Text="视频抽帧位置" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <ComboBox Width="160" ItemsSource="{Binding FrameModeOptions}" SelectedItem="{Binding SelectedFrameModeOption, Mode=TwoWay}">

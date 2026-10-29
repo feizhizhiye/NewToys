@@ -62,6 +62,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
         QuickHashSampleMb = s.QuickHashSampleMb;
         AutoExtractMetadata = s.AutoExtractMetadata;
         AutoGenerateThumbnails = s.AutoGenerateThumbnails;
+        ProbeConcurrency = s.ProbeConcurrency;
         ThumbFrameMode = string.Equals(s.ThumbFrameMode, "seconds", StringComparison.OrdinalIgnoreCase) ? "seconds" : "percent";
         ThumbFramePercent = s.ThumbFramePercent;
         ThumbFrameSeconds = s.ThumbFrameSeconds;
@@ -96,6 +97,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
     [ObservableProperty] private int _quickHashSampleMb = 1;
     [ObservableProperty] private bool _autoExtractMetadata = true;
     [ObservableProperty] private bool _autoGenerateThumbnails = true;
+    [ObservableProperty] private int _probeConcurrency = 4;
     [ObservableProperty] private int _imageThumbSize = 320;
     [ObservableProperty] private int _trashRetentionDays = 30;
     [ObservableProperty] private bool _autoCleanupTrash;
@@ -126,6 +128,9 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
 
     partial void OnAutoGenerateThumbnailsChanged(bool value)
         => SaveSetting(s => s.AutoGenerateThumbnails = value, value ? "扫描到新文件将自动生成缩略图。" : "已关闭自动生成缩略图。");
+
+    partial void OnProbeConcurrencyChanged(int value)
+        => SaveSetting(s => s.ProbeConcurrency = Math.Clamp(value, 1, 16), "读媒体信息并发数");
 
     partial void OnImageThumbSizeChanged(int value)
         => SaveSetting(s => s.ImageThumbSize = Math.Clamp(value, 16, 4096), "缩略图尺寸");
@@ -308,6 +313,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
             QuickHashSampleMb = fresh.QuickHashSampleMb;
             AutoExtractMetadata = fresh.AutoExtractMetadata;
             AutoGenerateThumbnails = fresh.AutoGenerateThumbnails;
+            ProbeConcurrency = fresh.ProbeConcurrency;
             ThumbFrameMode = fresh.ThumbFrameMode;
             ThumbFramePercent = fresh.ThumbFramePercent;
             ThumbFrameSeconds = fresh.ThumbFrameSeconds;
@@ -337,6 +343,7 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
         s.QuickHashSampleMb = fresh.QuickHashSampleMb;
         s.AutoExtractMetadata = fresh.AutoExtractMetadata;
         s.AutoGenerateThumbnails = fresh.AutoGenerateThumbnails;
+        s.ProbeConcurrency = fresh.ProbeConcurrency;
         s.ThumbFrameMode = fresh.ThumbFrameMode;
         s.ThumbFramePercent = fresh.ThumbFramePercent;
         s.ThumbFrameSeconds = fresh.ThumbFrameSeconds;

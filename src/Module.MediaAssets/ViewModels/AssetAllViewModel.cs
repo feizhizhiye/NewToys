@@ -58,6 +58,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private readonly TaskQueue _queue = null!;
     private readonly MetadataService _meta = null!;
 
+    /// <summary>模块设置（只读：取「读媒体信息」的并发度）。</summary>
+    private readonly MediaAssetsSettingsIO? _io;
+
     /// <summary>应用级配置（只读：取 <c>StoreDirectory</c> 当导入/导出默认目录）。</summary>
     private readonly IAppConfigService? _app;
 
@@ -332,7 +335,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         TagService? tagSvc = null, CategoryService? catSvc = null, CollectionService? colSvc = null,
         RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null,
         FileOperationService? fileOps = null, AssetImportExport? impExp = null, AssetMergeService? merge = null,
-        TaskQueue? queue = null, IOptionsStore? opts = null, MetadataService? metadata = null)
+        TaskQueue? queue = null, IOptionsStore? opts = null, MetadataService? metadata = null,
+        MediaAssetsSettingsIO? io = null)
         : base(cols, opts)
     {
         _assets = assets;
@@ -349,6 +353,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _merge = merge!;
         _queue = queue!;
         _meta = metadata!;
+        _io = io;
 
         _columnLayout = cols;
 

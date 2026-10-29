@@ -90,13 +90,16 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
     /// <summary>类型的中文显示名。</summary>
     public string TypeText => AssetTypeTexts.Of(Type);
 
+    /// <summary>
+    /// 状态列的显示文本。**资产自身状态**优先，但当资产仍是 <c>active</c>、主位置已是 <c>missing</c> 时按「已丢失」显示
+    /// —— 文件被外部删掉只改 <c>file_locations.status</c>，资产记录本身不会被改写（资产是库里的主人，位置只是落点）。
+    /// </summary>
     public string StatusText => Status switch
     {
-        AssetStatuses.Active => "正常",
         AssetStatuses.Trashed => "回收站",
         AssetStatuses.Missing => "已丢失",
         AssetStatuses.Archived => "已归档",
-        _ => Status
+        _ => LocationStatus == LocationStatuses.Missing ? "已丢失" : "正常"
     };
 
     /// <summary>大小的可读串（1.2 GB / 3.4 MB …）。</summary>

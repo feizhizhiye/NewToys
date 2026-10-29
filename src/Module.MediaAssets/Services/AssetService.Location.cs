@@ -146,6 +146,72 @@ public partial class AssetService
         catch { return 0; }
     }
 
+    // ==================== 手动校验文件是否还在磁盘上 ====================
+
+    /// <summary>手动校验的目标：一条文件位置（id + 路径 + 当前状态）。</summary>
+    public sealed record LocationCheckTarget(long Id, string Path, string Status);
+
+    /// <summary>
+    /// 取**可校验**的位置：只含 <c>active</c> / <c>missing</c>。
+    /// <para>deleted / moved / error 由写操作自己维护，手动查盘不该把它们翻回 active。</para>
+    /// </summary>
+    public List<LocationCheckTarget> ListCheckTargets()
+    {
+        var list = new List<LocationCheckTarget>();
+        if (!IsAvailable) return list;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT id, path, status FROM file_locations WHERE status IN ('active','missing') ORDER BY id;";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+                list.Add(new LocationCheckTarget(r.GetInt64(0), r.IsDBNull(1) ? "" : r.GetString(1),
+                    r.IsDBNull(2) ? LocationStatuses.Active : r.GetString(2)));
+        }
+        catch { /* 返回已读到的部分 */ }
+        return list;
+    }
+
+    /// <summary>
+    /// 回写手动校验结果：<paramref name="missingIds"/> 置 <c>missing</c>、<paramref name="restoredIds"/> 置 <c>active</c>。
+    /// 返回 (标记缺失数, 恢复数)。⛔ 不碰 <c>assets.status</c>、⛔ 不碰磁盘。
+    /// </summary>
+    public (int Marked, int Restored) ApplyLocationCheck(IReadOnlyList<long> missingIds, IReadOnlyList<long> restoredIds)
+    {
+        if (!IsAvailable || (missingIds.Count == 0 && restoredIds.Count == 0)) return (0, 0);
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var tx = conn.BeginTransaction();
+            var marked = SetLocationStatus(conn, tx, LocationStatuses.Missing, missingIds);
+            var restored = SetLocationStatus(conn, tx, LocationStatuses.Active, restoredIds);
+            tx.Commit();
+            return (marked, restored);
+        }
+        catch { return (0, 0); }
+    }
+
+    /// <summary>按 id 批量改位置状态（分块 IN，⛔ 不逐条 UPDATE）。</summary>
+    private int SetLocationStatus(SqliteConnection conn, SqliteTransaction tx, string status, IReadOnlyList<long> ids)
+    {
+        const int chunk = 500;
+        var total = 0;
+        for (var i = 0; i < ids.Count; i += chunk)
+        {
+            var batch = ids.Skip(i).Take(chunk).ToList();
+            var marks = string.Join(",", batch.Select((_, k) => "$p" + k));
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = $"UPDATE file_locations SET status=$st, updated_at=$u WHERE id IN ({marks}) AND status IN ('active','missing');";
+            cmd.Parameters.AddWithValue("$st", status);
+            cmd.Parameters.AddWithValue("$u", Now());
+            for (var k = 0; k < batch.Count; k++) cmd.Parameters.AddWithValue("$p" + k, batch[k]);
+            total += cmd.ExecuteNonQuery();
+        }
+        return total;
+    }
+
     /// <summary>取某个存储源下的**全部**文件位置（扫描前一次性建内存索引用；⛔ 别在遍历里 per-file 调）。</summary>
     public List<FileLocation> ListStorageLocations(long storageId)
     {

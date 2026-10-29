@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -235,5 +236,70 @@ public partial class AssetAllViewModel
         return row.DurationSeconds <= 0
                && row.ResolutionText.Length == 0
                && row.CodecText.Length == 0;
+    }
+
+    // ==================== ④ 校验文件是否还在磁盘上 ====================
+
+    /// <summary>
+    /// 「🔎 校验文件」：逐条查磁盘上还有没有这个文件，把结果回写成位置状态（不在 → 已丢失；回来 → 正常），再刷新列表。
+    /// <para>
+    /// 给「用资源管理器删 / 挪了文件，库里状态还是正常」的情况用 —— 扫描只在**存储源范围内**判缺失，
+    /// 源外登记的位置、以及很久没再扫描的存储源都不会被更新。
+    /// </para>
+    /// </summary>
+    [RelayCommand]
+    private async Task VerifyFilesAsync()
+    {
+        if (!IsDbAvailable) { StatusText = "资产库不可用。"; return; }
+        if (IsBusy) { StatusText = "还有任务在跑，等它结束再试。"; return; }
+
+        var targets = _assets.ListCheckTargets();
+        if (targets.Count == 0) { StatusText = "库里没有可校验的文件位置记录。"; return; }
+
+        IsBusy = true;
+        var progress = PostProgress();
+        progress.Report($"正在校验 {targets.Count} 个文件是否存在…");
+
+        (List<long> Missing, List<long> Restored) check;
+        try
+        {
+            check = await Task.Run(() =>
+            {
+                var miss = new List<long>();
+                var back = new List<long>();
+                var done = 0;
+                foreach (var t in targets)
+                {
+                    if (!PathExists(t.Path)) miss.Add(t.Id);
+                    else if (t.Status == LocationStatuses.Missing) back.Add(t.Id);
+                    if (++done % 200 == 0) progress.Report($"已校验 {done}/{targets.Count}…");
+                }
+                return (miss, back);
+            }).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            IsBusy = false;
+            StatusText = "校验失败：" + ex.Message;
+            return;
+        }
+
+        var r = _assets.ApplyLocationCheck(check.Missing, check.Restored);
+        IsBusy = false;
+        Reload();
+
+        StatusText = r.Marked == 0 && r.Restored == 0
+            ? $"校验完成：查了 {targets.Count} 个文件，都在磁盘上。"
+            : $"校验完成：查了 {targets.Count} 个文件，{r.Marked} 个不在磁盘上（标为已丢失）、{r.Restored} 个回来了（恢复正常）。";
+    }
+
+    /// <summary>
+    /// 文件是否还在。查不出来（权限 / 网络断开等异常）按「在」处理 —— 校验只纠正**确定**的缺失。
+    /// </summary>
+    private static bool PathExists(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        try { return File.Exists(path); }
+        catch { return true; }
     }
 }

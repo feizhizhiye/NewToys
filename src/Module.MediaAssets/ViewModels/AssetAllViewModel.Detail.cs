@@ -486,6 +486,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 ToolTip = "加入待扫文件夹列表（⛔ 不扫描），攒几个后点「🔄 扫描全部」" },
         new() { Text = "🔄 扫描全部", CommandPath = nameof(ScanAllCommand), IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "把所有已登记的存储源扫一遍，直接入库" },
+        new() { Text = "🔎 校验文件", CommandPath = nameof(VerifyFilesCommand), IsEnabledPath = "!" + nameof(IsBusy),
+                ToolTip = "逐条查磁盘：文件已不在的标为「已丢失」，回来的恢复「正常」（⛔ 不改磁盘、不删记录）" },
         new() { Text = "🏷 加标签", CommandPath = nameof(AddTagToCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
                 ToolTip = "先选中行（Ctrl 增选 / Shift 连选 / Ctrl+A 全选），再点这里打标签（输入标签名，不存在就新建）" },
         new() { Text = "📚 加集合", CommandPath = nameof(AddToCollectionCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,

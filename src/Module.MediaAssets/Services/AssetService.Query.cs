@@ -261,7 +261,16 @@ public partial class AssetService
         // ⛔ 不能再叠加默认的「非回收站」条件 —— 两个条件同时存在时选回收站恒为 0 行。
         if (!string.IsNullOrWhiteSpace(q.Status))
         {
-            sql.Append(" AND a.status=$s");
+            // 「已丢失」有两个来源：资产自身状态、主位置状态。只比 a.status 会让「文件已被外部删掉」的行筛不出来。
+            // 回收站里的资产必须仍然排除 —— 它的位置状态还是 missing，不排掉就会出现在「已丢失」筛选里。
+            if (q.Status == AssetStatuses.Missing)
+            {
+                sql.Append(" AND a.status <> 'trashed' AND (a.status=$s OR l.status=$s)");
+            }
+            else
+            {
+                sql.Append(" AND a.status=$s");
+            }
             cmd.Parameters.AddWithValue("$s", q.Status);
         }
         else

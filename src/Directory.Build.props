@@ -21,12 +21,13 @@
   </PropertyGroup>
 
   <!--  ===== 版本号：编译时自动生成，禁止手写  =====
-        显示版本 1.<yyyyMMdd>.<HH>.<mm 取整到十位>   例：1.20261010.00.10
-        文件版本 1.<yyyy>.<MMdd>.<HHmm>           例：1.2026.1010.0015
-        AssemblyVersion 固定 1.0.0.0（避免绑定重定向）                       -->
+        显示版本 1.<yyMMdd>.<HH>.<mm 取整到十位>     例：1.261030.01.40
+        文件版本 1.<yyyy>.<MMdd>.<HHmm>           例：1.2026.1030.0140
+        AssemblyVersion 固定 1.0.0.0（避免绑定重定向）
+        显示版本日期段用两位年（yyMMdd）—— 单段最长 6 位，短一些利于并排展示多程序集版本。   -->
   <PropertyGroup>
     <_NtNow>$([System.DateTime]::Now)</_NtNow>
-    <NewToysDate>$([System.DateTime]::Now.ToString('yyyyMMdd'))</NewToysDate>
+    <NewToysDate>$([System.DateTime]::Now.ToString('yyMMdd'))</NewToysDate>
     <NewToysYear>$([System.DateTime]::Now.ToString('yyyy'))</NewToysYear>
     <NewToysMonthDay>$([System.DateTime]::Now.ToString('MMdd'))</NewToysMonthDay>
     <NewToysHour>$([System.DateTime]::Now.ToString('HH'))</NewToysHour>

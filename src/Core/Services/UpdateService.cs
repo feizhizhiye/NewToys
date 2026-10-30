@@ -32,7 +32,7 @@ public class UpdateService
     public string LastError { get; private set; } = "";
 
     /// <summary>
-    /// 当前程序版本（取 <c>AssemblyInformationalVersion</c>，即编译时自动生成的 <c>1.yyyyMMdd.HH.mm0</c>）。
+    /// 当前程序版本（取 <c>AssemblyInformationalVersion</c>，即编译时自动生成的 <c>1.yyMMdd.HH.mm0</c>）。
     /// </summary>
     public static string CurrentVersion
     {

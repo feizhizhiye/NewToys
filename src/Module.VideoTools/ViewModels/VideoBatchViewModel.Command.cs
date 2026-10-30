@@ -109,7 +109,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         IsCutSectionExpanded = EditIsCut;
         IsTranscodeSectionExpanded = EditIsTranscode;
-        BuildCompareRows();
         RefreshCommand();
         StatusText = $"「{fresh.Name}」已改为「{kind}」任务 —— 参数回到该类型的默认值，改完点「💾 保存修改」。";
     }
@@ -121,6 +120,18 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     /// <summary>「转码」分区是否展开。</summary>
     [ObservableProperty] private bool _isTranscodeSectionExpanded = true;
+
+    /// <summary>「画面（裁剪 / 字幕）」分区是否展开 —— 切换任务时按「有没有裁剪 / 字幕」自动定。</summary>
+    [ObservableProperty] private bool _isCropSectionExpanded;
+
+    /// <summary>「音轨」分区是否展开 —— 音频不是「保持原样」才自动展开。</summary>
+    [ObservableProperty] private bool _isAudioSectionExpanded;
+
+    /// <summary>「码率与体积」分区是否展开 —— 目标体积 / 目标码率 / GIF 预设命中才自动展开。</summary>
+    [ObservableProperty] private bool _isBitrateSectionExpanded;
+
+    /// <summary>「ffmpeg 参数」分区是否展开（手改命令用）。</summary>
+    [ObservableProperty] private bool _isCommandSectionExpanded;
 
     /// <summary>选中的是不是"既剪又转"的任务（决定剪辑分区的开始 / 结束要不要显示）。</summary>
     public bool SelectedHasTrim => Selected is TranscodeTask { HasTrim: true };
@@ -354,6 +365,28 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         Selected.RawArgs = "";
         RefreshCommand();
         StatusText = "命令已恢复为由参数自动生成。";
+    }
+
+    /// <summary>
+    /// 💾 保存命令：只把「⌨ ffmpeg 参数」框里的内容写回选中任务的 <c>RawArgs</c>（⛔ 不动其它编辑缓冲）。
+    /// <para>与工具条「💾 保存修改」的分工：那个是全量提交（顺手把命令一起写回），这个是改完参数串就地落一次。</para>
+    /// </summary>
+    [RelayCommand]
+    private void SaveCommandLine()
+    {
+        var t = Selected;
+        if (t == null) { StatusText = "先在左侧选中一个任务。"; return; }
+
+        var args = (EditArgs ?? "").Trim();
+        var edited = IsArgsEdited && args.Length > 0;
+        t.RawArgs = edited ? args : "";
+        _store?.Save();
+
+        RefreshView();          // 让列表「命令摘要」列跟着变（选中项由 RefreshView 自己保住）
+        RefreshCommand();
+        StatusText = edited
+            ? $"已保存「{t.Name}」的手改命令 —— 跑的时候以它为准。"
+            : $"「{t.Name}」的参数与自动生成一致，已按自动生成执行。";
     }
 
     // ==================== 列表 ====================

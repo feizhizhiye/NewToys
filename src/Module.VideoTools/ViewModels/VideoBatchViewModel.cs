@@ -21,14 +21,6 @@ using NewToys.VideoTools.Services;
 
 namespace NewToys.VideoTools.ViewModels;
 
-/// <summary>「前后对比」的一行（详情卡里并排显示的两列）。</summary>
-public sealed class CompareRow
-{
-    public string Label { get; set; } = "";
-    public string Before { get; set; } = "";
-    public string After { get; set; } = "";
-}
-
 /// <summary>
 /// 「视频工具 → 批量处理」页（v3.8）。
 /// <para>
@@ -139,9 +131,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     /// <summary>排序 / 过滤后的统一队列（真正绑到 ListBox 的那个）。</summary>
     public ObservableCollection<VideoTaskBase> Items { get; } = new();
-
-    /// <summary>详情卡里的「前 → 后」对比表。</summary>
-    public ObservableCollection<CompareRow> CompareRows { get; } = new();
 
     /// <summary>预设下拉框的数据源（不写死在 XAML 里）。</summary>
     public IReadOnlyList<TranscodePreset> Presets => TranscodePreset.All;

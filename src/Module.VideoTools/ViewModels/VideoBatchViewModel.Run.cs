@@ -118,7 +118,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                     if (t is TranscodeTask tx) await FillOutputInfoAsync(tx);
                 }
 
-                if (ReferenceEquals(t, Selected)) BuildCompareRows();
                 _store.Save();
             }
 

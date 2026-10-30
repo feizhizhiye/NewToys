@@ -146,6 +146,13 @@ public sealed class DetailSection
     /// <summary>分区是否展开的布尔路径（可折叠分区）；null = 恒展开（不显示折叠箭头）。</summary>
     public string? IsExpandedPath { get; set; }
 
+    /// <summary>
+    /// 分区**整体是否可见**的布尔路径；null = 恒可见。
+    /// <para>给「只在某种模式下才有意义」的分区用（如批量队列里仅转码任务才显示的画面 / 音轨 / 码率节）——
+    /// 与 <see cref="IsExpandedPath"/> 的分工：可见性决定「存不存在」，展开态决定「展开还是收起」。</para>
+    /// </summary>
+    public string? VisiblePath { get; set; }
+
     /// <summary>本区字段（顺序即渲染顺序）。</summary>
     public List<DetailField> Fields { get; } = new();
 }

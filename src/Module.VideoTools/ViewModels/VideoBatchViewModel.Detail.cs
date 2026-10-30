@@ -52,14 +52,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     /// <summary>
     /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
-    /// <para>结构与迁移前的页内自绘卡片 1:1 对应：剪辑 / 转码两个可折叠分区（标题带勾选框）+ 输出 + 命令 + 处理前后对比。</para>
+    /// <para>分节原则：**一个能力一节** —— 剪辑 / 转码 / 画面 / 音轨 / 码率与体积，各自可折叠；
+    /// 转码专属的三节（画面 / 音轨 / 码率与体积）在没勾「🔁 转码」时整节不渲染（<see cref="DetailSection.VisiblePath"/>）。</para>
     /// </summary>
     public DetailCardDescriptor? Card => _card ??= BuildCard();
 
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在左侧选中一个任务：这里可以改它的参数（剪辑 = 区间 / 预设；转码 = 预设 / 编码器 / CRF / 分辨率），改完点工具条上的「💾 保存修改」。",
+        EmptyText = "在左侧选中一个任务：这里可以改它的参数（剪辑 = 区间 / 预设；转码 = 预设 / 编码器 / 码率 / 画面 / 音轨），改完点工具条上的「💾 保存修改」。",
         Sections =
         {
             // ===== 台头：类型 / 文件（不可编辑） =====
@@ -150,7 +151,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 }
             },
 
-            // ===== ② 转码 =====
+            // ===== ② 转码基础 =====
             new DetailSection
             {
                 Header = "🔁 转码（换编码 / 格式）",
@@ -218,9 +219,18 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         OptionsPath = nameof(RotateChoices),
                         OptionDisplayPath = "Label",
                         ValuePath = nameof(SelectedRotate)
-                    },
-                    // ===== 裁剪=====
-                    new DetailField { Kind = FieldKind.Divider },
+                    }
+                }
+            },
+
+            // ===== ③ 画面（裁剪 / 字幕；只对转码任务有意义） =====
+            new DetailSection
+            {
+                Header = "🎨 画面（裁剪 / 字幕）",
+                VisiblePath = nameof(EditIsTranscode),
+                IsExpandedPath = nameof(IsCropSectionExpanded),
+                Fields =
+                {
                     new DetailField
                     {
                         Label = "裁剪（宽 × 高；0 = 不裁剪。可用下面「🖼 探测黑边」自动填）",
@@ -243,7 +253,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         SecondValuePath = nameof(EditCropY),
                         SecondPlaceholder = "Y"
                     },
-                    // ===== 字幕=====
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
@@ -285,9 +294,18 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Commit = EditCommitMode.Explicit,
                         Mono = true,
                         VisibleWhen = nameof(IsHardSubtitleEdit)
-                    },
-                    // ===== 音轨=====
-                    new DetailField { Kind = FieldKind.Divider },
+                    }
+                }
+            },
+
+            // ===== ④ 音轨（只对转码任务有意义） =====
+            new DetailSection
+            {
+                Header = "🔊 音轨",
+                VisiblePath = nameof(EditIsTranscode),
+                IsExpandedPath = nameof(IsAudioSectionExpanded),
+                Fields =
+                {
                     new DetailField
                     {
                         Label = "音频",
@@ -315,7 +333,18 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Commit = EditCommitMode.Explicit,
                         Mono = true,
                         VisibleWhen = nameof(IsReplaceAudioEdit)
-                    },
+                    }
+                }
+            },
+
+            // ===== ⑤ 码率与体积（只对转码任务有意义） =====
+            new DetailSection
+            {
+                Header = "🎚 码率与体积",
+                VisiblePath = nameof(EditIsTranscode),
+                IsExpandedPath = nameof(IsBitrateSectionExpanded),
+                Fields =
+                {
                     new DetailField
                     {
                         Label = "码率模式",
@@ -342,8 +371,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Placeholder = "5000k",
                         VisibleWhen = "!" + nameof(UseCrf)
                     },
-                    // ===== 目标体积=====
-                    new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
                         Label = "目标体积（MB；0 = 不用。填了优先于 CRF / 目标码率）",
@@ -381,7 +408,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 }
             },
 
-            // ===== ③ 输出 + 命令（无分区标题） =====
+            // ===== ⑥ 输出（无分区标题） =====
             new DetailSection
             {
                 Fields =
@@ -393,16 +420,17 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                         Kind = FieldKind.Text,
                         Commit = EditCommitMode.Explicit,
                         Mono = true
-                    },
-                    new DetailField { Kind = FieldKind.Divider },
-                    new DetailField
-                    {
-                        Label = "将要执行的命令（改参数即时刷新，实际跑的就是这条）",
-                        ValuePath = nameof(CommandPreview),
-                        Kind = FieldKind.Text,
-                        Selectable = true
-                    },
-                    // 参数预检（有意见才显示）
+                    }
+                }
+            },
+
+            // ===== ⑦ 命令（手改 + 预检；末尾的「💾 保存命令」落这条） =====
+            new DetailSection
+            {
+                Header = "⌨ ffmpeg 参数（可直接改）",
+                IsExpandedPath = nameof(IsCommandSectionExpanded),
+                Fields =
+                {
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
@@ -411,7 +439,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                     },
                     new DetailField
                     {
-                        Label = "ffmpeg 参数（可手动编辑；不含 ffmpeg.exe 与输出路径）",
                         ValuePath = nameof(EditArgs),
                         Kind = FieldKind.Text,
                         Commit = EditCommitMode.Explicit,
@@ -427,25 +454,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 }
             },
 
-            // ===== ④ 处理前 → 处理后 + 任务状态 =====
+            // ===== ⑧ 任务状态 =====
             new DetailSection
             {
-                Header = "处理前 → 处理后",
+                Header = "📄 任务状态",
                 Fields =
                 {
                     new DetailField
                     {
-                        Kind = FieldKind.List,
-                        OptionsPath = nameof(CompareRows),
-                        ItemLabelPath = "Label",
-                        ItemTextPath = "Before",
-                        ItemSeparator = "→",
-                        ItemSubPath = "After",
-                        Hint = "「后」这一列在跑完之后才有值（转码会自动用 ffprobe 探测输出文件）。"
-                    },
-                    new DetailField
-                    {
-                        Label = "任务状态",
+                        Label = "状态",
                         ValuePath = "DetailTask.StatusDisplay",
                         Kind = FieldKind.Text,
                         Selectable = true
@@ -454,19 +471,12 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                     {
                         Kind = FieldKind.Hint,
                         ValuePath = "DetailTask.Message"
-                    }
-                }
-            },
-
-            // ===== ⑤ 收尾说明 =====
-            new DetailSection
-            {
-                Fields =
-                {
+                    },
+                    new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "任务只在这里排队：改完参数点工具条上的「💾 保存修改」，要跑的时候点「▶▶ 批量运行」。任务清单存 config\\video-tasks.json，关掉软件再回来还在。"
+                        Hint = "任务只在这里排队：改完参数点工具条上的「💾 保存修改」，动手改过参数串再点卡底的「💾 保存命令」，要跑的时候点「▶▶ 批量运行」。任务清单存 config\\video-tasks.json，关掉软件再回来还在。"
                     }
                 }
             }
@@ -487,7 +497,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             {
                 Text = "📝 选择字幕文件…",
                 Classes = "ghost",
-                ToolTip = "挑一个 .srt / .ass 字幕，再把上面的「字幕方式」选成软字幕或硬字幕",
+                IsVisiblePath = nameof(EditIsTranscode),
+                ToolTip = "挑一个 .srt / .ass 字幕，再把「字幕方式」选成软字幕或硬字幕",
                 Command = new RelayCommand(() => PickSubtitleCommand?.Execute(null))
             },
             // 先用小样验证这条任务的参数（不改状态、不落正式输出）
@@ -503,7 +514,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             {
                 Text = "🖼 探测黑边",
                 Classes = "ghost",
-                ToolTip = "从源文件（有区间就从区间起点）取 2 秒跑 cropdetect，把结果填进上面的裁剪框",
+                IsVisiblePath = nameof(EditIsTranscode),
+                ToolTip = "从源文件（有区间就从区间起点）取 2 秒跑 cropdetect，把结果填进「🎨 画面」的裁剪框",
                 Command = DetectCropCommand
             },
             // 替换音轨用的音频文件
@@ -511,8 +523,17 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             {
                 Text = "🎵 选择音频文件…",
                 Classes = "ghost",
+                IsVisiblePath = nameof(EditIsTranscode),
                 ToolTip = "先把「音频」选成「替换音轨」，再挑一个 mp3 / m4a / wav",
                 Command = new RelayCommand(() => PickAudioCommand?.Execute(null))
+            },
+            // 只落「手改的 ffmpeg 参数」这一项（⛔ 不碰其它编辑缓冲，避免顺手改掉别的参数）
+            new DetailAction
+            {
+                Text = "💾 保存命令",
+                Classes = "ghost",
+                ToolTip = "把「⌨ ffmpeg 参数」框里的内容直接写回选中的任务（跑的时候以它为准）；取消手改用工具条「↺ 重置为自动」",
+                Command = SaveCommandLineCommand
             }
         }
     };

@@ -231,7 +231,6 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         EditOutput = output;
         _store?.Save();
         RefreshView();
-        BuildCompareRows();
         RefreshCommand();
     }
 

@@ -19,7 +19,7 @@
   <UserControl.DataTemplates>
     <!--  ===== 分区：标题（可折叠按钮）+ 标题勾选框 + 字段列表  =====  -->
     <DataTemplate DataType="c:DetailSectionRender">
-      <StackPanel Spacing="8">
+      <StackPanel Spacing="8" IsVisible="{Binding IsVisible}">
         <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasHeader}">
           <Button
               Classes="section-toggle"

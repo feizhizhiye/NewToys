@@ -130,6 +130,11 @@ public sealed class DetailSectionRender : ObservableObject
 
     public bool IsCollapsible => !string.IsNullOrEmpty(Section.IsExpandedPath);
 
+    private bool _isVisible = true;
+
+    /// <summary>整节是否可见（<see cref="DetailSection.VisiblePath"/>；null = 恒可见）。</summary>
+    public bool IsVisible { get => _isVisible; private set => SetProperty(ref _isVisible, value); }
+
     private bool _isExpanded = true;
     public bool IsExpanded { get => _isExpanded; set => SetProperty(ref _isExpanded, value); }
 
@@ -157,6 +162,7 @@ public sealed class DetailSectionRender : ObservableObject
 
     public void Refresh()
     {
+        IsVisible = Section.VisiblePath is null || DetailPath.ResolveBool(Source, Section.VisiblePath);
         if (IsCollapsible) SetProperty(ref _isExpanded, DetailPath.ResolveBool(Source, Section.IsExpandedPath), nameof(IsExpanded));
         if (HasToggle) SetProperty(ref _toggleChecked, DetailPath.ResolveBool(Source, Section.TogglePath), nameof(ToggleChecked));
         ToggleEnabled = Section.ToggleEnabledPath is null || DetailPath.ResolveBool(Source, Section.ToggleEnabledPath);

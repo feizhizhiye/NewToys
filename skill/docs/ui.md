@@ -347,6 +347,13 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - `ZeroAsPlaceholder=true`：值为 `0` / `0.0` / 空 → 显示空（露出水印）；提交空文本写回 **`0`**（⛔ 写空串 —— `DetailPath.Coerce` 转 int 失败会被静默丢弃，表现为"清空无效"）。
 - 刷新：`PlaceholderPath` 在 `RefreshCore()` 里重解析 ⇒ VM 只要 `OnPropertyChanged(<水印属性>)` 即可，⛔ 不必重建卡片。
 
+### 7.3e 分区级显隐（`DetailSection.VisiblePath`，2026-10-30）
+
+- 件：`DetailSection.VisiblePath`（`Shared/Details/DetailCardDescriptor.cs`）+ `DetailSectionRender.IsVisible`（`UI/Controls/DetailCardRender.Sections.cs`）+ `DetailCardHost.axaml` 分区根节点一条 `IsVisible` 绑定。
+- 语义：`null` = 恒可见（既有卡零影响）；非空 = **整节连抬头一起**按路径显隐。与 `IsExpandedPath` 的分工：可见性决定「存不存在」，展开态决定「展开还是收起」。
+- 用途：只在某种模式下才有意义的节（批量队列的「画面 / 音轨 / 码率与体积」= 仅 `EditIsTranscode`）。⛔ 别拿它当「收起」用 —— 收起走 `IsExpandedPath`。
+- 🔴 已登记进 `check-detail-paths.ps1` 的 `$pathProps`：`VisiblePath = "..."` 的字符串路径会被静态校验，`nameof` 那批靠编译器。
+
 ### 7.4 迁移页三件事（缺一不可）
 
 1. VM 实现 `IDetailPanelProvider` + `IDetailCardSource`，并加一个**会通知 Shell** 的开合命令（⛔ 直接用基类 `ToggleDetailCommand`：只翻 `IsDetailVisible`、**不发 `DetailChanged`**）；`ToggleDetail` / `OpenDetail` 建议**显式实现接口**（基类已有同名 private 方法）。

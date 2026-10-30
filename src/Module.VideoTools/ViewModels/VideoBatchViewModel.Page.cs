@@ -64,6 +64,10 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     protected override void RefreshView()
     {
+        // 🔴 先记下选中项：Items.Clear() 会让 ListBox 把 SelectedItem 回写 null，
+        //    不补回来的话详情卡会掉回「未选中」空态（用户看到：一点保存，卡片就空白，得再点一次列表）。
+        var keep = Selected;
+
         IEnumerable<VideoTaskBase> q = ItemsRaw;
 
         var text = (SearchText ?? "").Trim();
@@ -107,6 +111,13 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         UpdateSummaryText();
         OnPropertyChanged(nameof(CheckedCount));
         OnPropertyChanged(nameof(HasChecked));
+
+        // 补回选中项（还在列表里才补；被筛掉 / 删掉的保持未选中）
+        if (keep != null && !ReferenceEquals(Selected, keep)
+            && (Items.Contains(keep) || FinishedItems.Contains(keep)))
+        {
+            Selected = keep;
+        }
     }
 
     /// <summary>任务类型（列表「类型」列 / 排序用）：剪辑 / 转码 / 剪辑+转码。</summary>
@@ -253,13 +264,30 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         EditArgs = IsArgsEdited ? value!.RawArgs : AutoArgsText;
         OnPropertyChanged(nameof(CommandPreview));
 
-        BuildCompareRows();
-
         // §6.4.1：两个分区的勾选框跟着任务类型走（剪辑任务 = 只勾剪辑；转码任务 = 勾转码，带区间时两段都勾）
         _converting = true;
         EditIsCut = value is CutTask || value is TranscodeTask { HasTrim: true };
         EditIsTranscode = value is TranscodeTask;
         _converting = false;
+
+        // 分区展开态：**没启用的功能一律收起**（勾选框显式赋值 —— 值没变时不会触发 OnXxxChanged，
+        // 之前就会出现"上一张卡展开着、换到不相关任务还开着"的残留）。
+        IsCutSectionExpanded = EditIsCut;
+        IsTranscodeSectionExpanded = EditIsTranscode;
+        if (value is TranscodeTask)
+        {
+            IsCropSectionExpanded = EditCropWidth > 0 || EditCropHeight > 0
+                                    || !string.IsNullOrWhiteSpace(EditSubtitlePath);
+            IsAudioSectionExpanded = !string.Equals(EditAudioMode, AudioModes.Keep, StringComparison.OrdinalIgnoreCase);
+            IsBitrateSectionExpanded = EditTargetSizeMb > 0 || !UseCrf || IsGifPreset;
+        }
+        else
+        {
+            IsCropSectionExpanded = false;
+            IsAudioSectionExpanded = false;
+            IsBitrateSectionExpanded = false;
+        }
+        IsCommandSectionExpanded = IsArgsEdited;
     }
 
     /// <summary>重算底部摘要（队列构成 + 已勾选数；勾选变化与刷新列表共用）。</summary>
@@ -277,31 +305,5 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
     partial void OnIsRunningChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
-
-    /// <summary>重建「前 → 后」对比表（选中项变了 / 跑完了都要刷）。</summary>
-    private void BuildCompareRows()
-    {
-        CompareRows.Clear();
-        CompareRows.Add(new CompareRow { Label = "类型", Before = DetailTask == null ? "—" : KindOf(DetailTask), After = "—" });
-
-        switch (DetailTask)
-        {
-            case TranscodeTask t:
-                CompareRows.Add(new CompareRow { Label = "大小", Before = t.SourceSizeDisplay, After = t.HasResult ? t.OutputSizeDisplay : "—" });
-                CompareRows.Add(new CompareRow { Label = "编码", Before = t.SourceCodec.NullDash(), After = t.HasResult ? t.OutputCodec.NullDash() : "—" });
-                CompareRows.Add(new CompareRow { Label = "分辨率", Before = t.SourceResolution.NullDash(), After = t.HasResult ? t.OutputResolution.NullDash() : "—" });
-                CompareRows.Add(new CompareRow { Label = "码率", Before = t.SourceBitRate.NullDash(), After = t.HasResult ? t.OutputBitRate.NullDash() : "—" });
-                CompareRows.Add(new CompareRow { Label = "时长", Before = t.SourceDurationDisplay, After = t.HasResult ? t.OutputDurationDisplay : "—" });
-                CompareRows.Add(new CompareRow { Label = "体积变化", Before = "—", After = t.HasResult ? t.SavingDisplay : "—" });
-                break;
-
-            case CutTask c:
-                CompareRows.Add(new CompareRow { Label = "源时长", Before = c.DurationDisplay, After = "—" });
-                CompareRows.Add(new CompareRow { Label = "区间", Before = c.RangeDisplay, After = "—" });
-                CompareRows.Add(new CompareRow { Label = "片段长", Before = c.LengthDisplay, After = "—" });
-                CompareRows.Add(new CompareRow { Label = "输出大小", Before = "—", After = c.OutputSize > 0 ? c.OutputSizeDisplay : "—" });
-                break;
-        }
-    }
 
 }

@@ -44,7 +44,7 @@ foreach ($f in $csFiles) {
 Write-Host ("属性 / 字段名共 {0} 个（用于比对）" -f $names.Count) -ForegroundColor Gray
 
 # ---------- 2) 扫含描述符路径的文件 ----------
-$pathProps = 'ValuePath|SecondValuePath|VisibleWhen|EnabledWhen|OptionsPath|OptionValuePath|OptionDisplayPath|ChipTextPath|ChipSelectedPath|ChipCommandPath|IsEnabledPath|IsVisiblePath|TogglePath|IsExpandedPath|BodyVisiblePath|SamplePath'
+$pathProps = 'ValuePath|SecondValuePath|VisibleWhen|EnabledWhen|OptionsPath|OptionValuePath|OptionDisplayPath|ChipTextPath|ChipSelectedPath|ChipCommandPath|IsEnabledPath|IsVisiblePath|TogglePath|IsExpandedPath|VisiblePath|BodyVisiblePath|SamplePath'
 $assignRe = [regex]("(?:$pathProps)\s*=\s*""([^""]*)""")
 
 $findings = New-Object System.Collections.ArrayList

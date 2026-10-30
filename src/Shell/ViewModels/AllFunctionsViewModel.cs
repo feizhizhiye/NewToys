@@ -11,14 +11,13 @@ using NewToys.Shared.Services;
 namespace NewToys.Shell.ViewModels;
 
 /// <summary>
-/// 功能清单 页面：按模块列出全部二级功能（图标 + 名称 + 简介），点击卡片直接跳转。
-/// 右侧的二级菜单「名称 / 功能简介」面板拆除后，统一收归到此页（见《状态与路线图》v1.20 后续）。
+/// 功能清单视图（**首页内嵌**，⛔ 不是独立页）：按模块列出全部二级功能（图标 + 名称 + 简介），点击卡片直接跳转。
 /// <para>
 /// 每个功能卡片支持**右键 → 固定 / 取消固定到首页收藏夹**，固定状态实时同步（经 <see cref="IFavoritesService.Changed"/>）。
 /// </para>
 /// <para>
-/// 🔴 v3.65：本页**移出设置 = 独立页**（Key `settings-all` ⛔ 不改），入口 = 首页收藏卡尾部
-/// 「显示更多」+ 「设置 → 关于」节的功能清单按钮；页内「🔄 重载模块」已**移入关于节**。
+/// 🔴 入口 = 首页收藏卡尾部「显示更多」就地展开（<c>HomeViewModel</c> 用 <c>GetRequiredService</c> 现行装配）；
+/// 本类不注册菜单项、不进标签栏。页内「🔄 重载模块」在「版本与更新」的关于部分。
 /// </para>
 /// </summary>
 public partial class AllFunctionsViewModel : ViewModelBase

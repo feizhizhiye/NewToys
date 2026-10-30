@@ -43,7 +43,7 @@ public partial class ShellViewModel : ViewModelBase
     // 注：标题栏删掉了 🏠 主页 / ⚙ 设置 / 🌓 主题三个按钮 →
     // OpenSettings / ToggleTheme 两个命令随之移除（设置走左树 / Ctrl+,、主题走设置页）。
     // 🔴 标签栏 `＋` 从「打开功能清单页」改为「**导航到首页**」——
-    // 首页收藏卡尾部自带功能清单入口（内嵌 `AllFunctionsView`），`＋` 不再直达 `settings-all`。
+    // 首页收藏卡尾部自带功能清单（内嵌 `AllFunctionsView`），功能清单已不是独立页。
     [RelayCommand] private void OpenHomeTab() => OpenTab(HomeKey);
 
     /// <summary>

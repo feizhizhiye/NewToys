@@ -136,7 +136,7 @@ public partial class ShellViewModel : ViewModelBase
 
     /// <summary>
     /// 左树底部的「当前配置 · 版本号」。
-    /// 版本取 <see cref="UpdateService.CurrentVersion"/>（编译时自动生成的 `1.yyyyMMdd.HH.mm0`，⛔ 禁手写）；
+    /// 版本取 <see cref="UpdateService.CurrentVersion"/>（编译时自动生成的 `1.yyMMdd.HH.mm0`，⛔ 禁手写）；
     /// 配置名取 <see cref="IProfileService.ActiveProfile"/>（多实例时每窗口可不同 → 一眼看出这个窗口在用哪套数据）。
     /// </summary>
     public string TreeVersionText

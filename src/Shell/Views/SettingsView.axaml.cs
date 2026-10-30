@@ -13,7 +13,7 @@ namespace NewToys.Shell.Views;
 /// </para>
 /// <list type="number">
 ///   <item>VM 的 <c>ScrollRequested</c>（外部寻址 / 搜索）→ 转给宿主去滚；</item>
-///   <item>宿主的 <c>SectionToggled</c>（用户点抬头 / 全部收起 / 滚动自动展开）→ 通知 VM 刷新
+///   <item>宿主的 <c>SectionToggled</c>（用户点抬头 / 全部收起）→ 通知 VM 刷新
 ///         状态栏聚合与当前节（状态栏按"哪几节展开"算，⛔ 不能只靠节自己）。</item>
 /// </list>
 /// <para>⚠️ 视口相关的数学全在宿主里，⛔ 本页不再有任何 <c>Offset</c> 补偿。</para>

@@ -20,8 +20,7 @@ namespace NewToys.Shell.ViewModels;
 /// 七个节 = 启动与退出 / 主题外观 / 一键按钮 / 运行环境 / 网络 / 数据 / 版本与更新，整体竖向排列成一棵**树**（手风琴）：
 /// 每个节 = **一个节点**（抬头 = ⌄/› + 图标 + 标题 + 一句话说明，点一下开 / 收；正文 = 该节的 View），
 /// 整页一起滚动；页面**没有标题栏** —— 当前节点的抬头由 View 用**浮层**钉在页面顶部（磁吸 / sticky），
-/// 节点与视口相交（滚到）时由 View 自动展开；🔴 本页**不自动折叠** ⇒ 高度只增不减，能一路滚到底
-/// （见 <c>SettingsView.axaml.cs</c>）。
+/// 一节开不开**只由点击决定**（滚动 ⛔ 不改展开状态，见 <c>SettingsView.axaml.cs</c>）。
 /// </para>
 /// <para>
 /// 🔴 v3.66：细节调整（用户 2026-10-16 验收前反馈，多轮）：
@@ -209,8 +208,6 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
         foreach (var s in Sections)
             if (!ReferenceEquals(s, target)) s.IsExpanded = false;
         target.IsExpanded = true;
-        target.UserCollapsed = false;   // v3.66 第七轮：外部寻址 / 搜索 = 明确要开它 ⇒ 清掉"手动收起"标记
-        target.CollapsedByAll = false;  // v3.68：同上，清掉「全部收起」的临时态
         Activate(target);
         ScrollRequested?.Invoke(target);   // v3.67：光换节不够，还要**滚过去**（否则视口停在原处 = "跳错地方"）
     }
@@ -221,9 +218,8 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
     /// 用户折叠 / 展开后由 <c>SettingsView</c> 转进来（宿主的 <c>SectionToggled</c>）：
     /// 展开的那节 = 当前节；并**重新发一次** <see cref="SectionChanged"/> ——
     /// 状态栏按"哪几节展开"聚合，折叠也要刷新。
-    /// <para>⚠️ 折叠动作本身（含 <see cref="SettingsSection.UserCollapsed"/> /
-    /// <see cref="SettingsSection.CollapsedByAll"/> 语义、"全部收起"文案、滚到视口顶部）
-    /// 全在 <c>NewToys.UI.Controls.SettingsSectionHost</c>，⛔ 本 VM 不再重复实现。</para>
+    /// <para>⚠️ 折叠动作本身（"全部收起"文案、滚到视口顶部）全在
+    /// <c>NewToys.UI.Controls.SettingsSectionHost</c>，⛔ 本 VM 不再重复实现。</para>
     /// </summary>
     /// <param name="section">变化的节；<c>null</c> = 「全部收起 / 全部展开」整批变化。</param>
     public void NotifySectionsToggled(SettingsSection? section)

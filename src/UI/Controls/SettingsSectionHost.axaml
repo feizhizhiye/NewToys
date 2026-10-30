@@ -7,10 +7,10 @@
       ① 整页一棵"树"：每个节 = 一张卡片（抬头 = ⌄/› + 图标 + 标题 + 说明），正文 = 节的 View；
       ② 抬头有**独立底色 + 下边框**（`ContentHeaderBrush`）⇒ 与正文一眼分得开；
       ③ `Sticky=True`（默认）⇒ 抬头滚出顶沿时由**覆盖层浮层**钉在顶部（含 Push），并可「全部收起」；
-         `Sticky=False`（模块设置页）⇒ ⛔ 不挂浮层、⛔ 不滚动自动展开，只保留**点抬头开收**；
+         `Sticky=False`（模块设置页）⇒ ⛔ 不挂浮层、⛔ 不显示「全部收起」，只保留**点抬头开收**；
       ④ 节自带工具条（`HasToolbar`）= 抬头下方、正文之上，模板由宿主页经 `ToolbarTemplate` 给
          （Shell 传 ToolbarHost；模块页不给 ⇒ 无工具条）。
-    🔴 折叠 / 磁吸 / Push / 自动展开 / 滚动定位全在 SettingsSectionHost.axaml.cs，⛔ VM 不认识视口。
+    🔴 折叠 / 磁吸 / Push / 滚动定位全在 SettingsSectionHost.axaml.cs，⛔ VM 不认识视口；滚动 ⛔ 不改展开状态。
     🔴 节列表 = `Sections`（模块页用属性元素 `<ui:SettingsSectionHost.Sections>` 写；应用级走 `ItemsSource` 绑定）——
        ⛔ 该属性不能标 `[Content]`（会抢掉 `UserControl.Content`，本文件根 `<Panel PageRoot>` 会被当成一个节 ⇒ AVLN3000）。
     ⚠️ 箭头几何 `IconChevronDown/Right` 引用 App 级资源（`ui.md` §5 图标唯一源）。
@@ -189,7 +189,7 @@
             VerticalContentAlignment="Center"
             Click="OnToggleAllClick"
             FontSize="16"
-            ToolTip.Tip="全部收起 = 一屏看全所有节点，点标题直接跳过去；再点一次全部展开" />
+            ToolTip.Tip="全部收起 = 一屏看全所有节点，点哪条只展开哪条（滚动不会自己展开）；再点一次全部展开" />
       </Grid>
     </Border>
   </Panel>

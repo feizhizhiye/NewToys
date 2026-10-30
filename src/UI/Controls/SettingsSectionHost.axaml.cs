@@ -23,9 +23,13 @@ namespace NewToys.UI.Controls;
 /// 抬头滚出顶沿由**覆盖层浮层**钉在顶部（含 Push），并可「全部收起」。
 /// </para>
 /// <para>
-/// 🔴 本控件承载**全部视口相关逻辑**（折叠 / 磁吸 / Push / 滚动自动展开 / 定位收敛），
+/// 🔴 本控件承载**全部视口相关逻辑**（折叠 / 磁吸 / Push / 定位收敛），
 /// ⛔ VM 不认识视口。折叠意图通过 <see cref="SectionToggled"/> 抛给宿主页（应用级设置页用它刷新状态栏聚合），
 /// 模块设置页**零订阅**也能正常工作。
+/// </para>
+/// <para>
+/// 🔴 **滚动只滚动，⛔ 不改任何节的展开状态**：用户滚到哪节都不会被"擅自弹开"，
+/// 一节开没开**只由点击**（抬头 /「全部收起」）决定。
 /// </para>
 /// <para>
 /// 🔴 两种用法：
@@ -43,12 +47,6 @@ public partial class SettingsSectionHost : UserControl
 
     /// <summary>重入期间又来了新通知 ⇒ 收尾后再算一轮（⛔ 别漏掉展开节点引起的那次 <c>Extent</c> 变化）。</summary>
     private bool _pending;
-
-    /// <summary>重入期间攒下的「这次算不算用户往下滚」（收尾补算时沿用）。</summary>
-    private bool _pendingScrollDown;
-
-    /// <summary>上一次的滚动量：用来判定"这一轮是**用户往下滚**，还是内容变短引起的 clamp"。</summary>
-    private double _lastOffsetY;
 
     /// <summary>待定位的节：布局稳定后由 <see cref="TryPerformScroll"/> 消费。</summary>
     private SettingsSection? _scrollTarget;
@@ -101,8 +99,8 @@ public partial class SettingsSectionHost : UserControl
         AvaloniaProperty.Register<SettingsSectionHost, IEnumerable?>(nameof(ItemsSource));
 
     /// <summary>
-    /// 是否启用**磁吸抬头 + 滚动自动展开 + 全部收起**（默认 true）。
-    /// <para>模块设置页只有 2~3 节 ⇒ 置 false：不挂浮层、不自动展开，只保留点抬头开收。</para>
+    /// 是否启用**磁吸抬头 + 全部收起**（默认 true）。
+    /// <para>模块设置页只有 2~3 节 ⇒ 置 false：不挂浮层、不显示「全部收起」，只保留点抬头开收。</para>
     /// </summary>
     public static readonly StyledProperty<bool> StickyProperty =
         AvaloniaProperty.Register<SettingsSectionHost, bool>(nameof(Sticky), true);
@@ -142,7 +140,7 @@ public partial class SettingsSectionHost : UserControl
     /// </summary>
     public ObservableCollection<SettingsSection> Sections { get; } = new();
 
-    /// <summary>任一节折叠 / 展开（含「全部收起」与滚动自动展开）后触发；<c>null</c> = 整批变化。</summary>
+    /// <summary>任一节折叠 / 展开（含「全部收起」）后触发；<c>null</c> = 整批变化。</summary>
     public event EventHandler<SettingsSection?>? SectionToggled;
 
     /// <summary>
@@ -247,7 +245,7 @@ public partial class SettingsSectionHost : UserControl
         ToggleAllButton.Content = Items.Any(s => s.IsExpanded) ? "全部收起" : "全部展开";
     }
 
-    /// <summary><see cref="Sticky"/>=false ⇒ 浮层（含「全部收起」）整块不参与，也不做滚动自动展开。</summary>
+    /// <summary><see cref="Sticky"/>=false ⇒ 浮层（含「全部收起」）整块不参与。</summary>
     private void ApplyStickyMode()
     {
         if (StuckHeader is null) return;
@@ -267,8 +265,6 @@ public partial class SettingsSectionHost : UserControl
         if ((sender as Button)?.DataContext is not SettingsSection section) return;
 
         section.IsExpanded = !section.IsExpanded;
-        section.UserCollapsed = !section.IsExpanded;
-        section.CollapsedByAll = false;   // 手动点过 = 表态明确，不再算「全部收起」的临时态
 
         if (section.IsExpanded) ScrollTo(section);
         UpdateToggleAllText();
@@ -276,8 +272,7 @@ public partial class SettingsSectionHost : UserControl
     }
 
     /// <summary>
-    /// 一键全收 / 全开：全收 = 每节记 <see cref="SettingsSection.UserCollapsed"/>（用户表态"我全收起了"）
-    /// ⇒ 之后滚动不再自动展开，页面只剩 N 条抬头；全开 = 清标记 + 全展开。
+    /// 一键全收 / 全开：全收 = 只剩 N 条抬头（一屏看全，点哪条开哪条）；全开 = 所有节一起展开。
     /// <para>⚠️ 全收**不滚动**：内容变短时 offset 会被自动 clamp，无需补偿。</para>
     /// </summary>
     private void OnToggleAllClick(object? sender, RoutedEventArgs e)
@@ -285,29 +280,10 @@ public partial class SettingsSectionHost : UserControl
         // 只要还有节点开着 ⇒ 全部收起（一键看全）；一个都没开 ⇒ 全部展开
         var collapse = Items.Any(s => s.IsExpanded);
         foreach (var s in Items)
-        {
             s.IsExpanded = !collapse;
-            s.UserCollapsed = collapse;
-            s.CollapsedByAll = collapse;   // 全部收起只是"总览态"，滚动到哪节照样展开哪节
-        }
+
         UpdateToggleAllText();
         SectionToggled?.Invoke(this, null);
-    }
-
-    /// <summary>
-    /// 滚动让某节**进入视口** ⇒ 自动展开（只自动展开、⛔ 不自动折叠：折叠会减高度导致滚动位置来回跳）。
-    /// <para>⚠️ 单节手动收起（<see cref="SettingsSection.UserCollapsed"/>）跳过；「全部收起」留下的临时态放行。</para>
-    /// </summary>
-    private void ExpandAuto(SettingsSection section)
-    {
-        if (section.IsExpanded) return;
-        if (section.UserCollapsed && !section.CollapsedByAll) return;
-
-        section.UserCollapsed = false;
-        section.CollapsedByAll = false;
-        section.IsExpanded = true;
-        UpdateToggleAllText();
-        SectionToggled?.Invoke(this, section);
     }
 
     // ==================== 定位 ====================
@@ -351,23 +327,13 @@ public partial class SettingsSectionHost : UserControl
 
     // ==================== 磁吸 ====================
 
-    /// <summary>滚动 / 内容高度 / 视口尺寸变了 ⇒ 重算「磁吸节点 / 自动展开」。</summary>
+    /// <summary>滚动 / 内容高度 / 视口尺寸变了 ⇒ 重算浮层抬头（含 Push）。</summary>
     private void OnSectionScrollPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        // 🔴 只有**用户往下滚**（Offset 变大）才允许自动展开：内容变短会让 Offset 被 clamp（变小），
-        //    那不是"往下滚" —— 否则点「全部收起」的瞬间 Offset 回弹，顶部那节立刻被弹开，全收白点。
-        var scrolledDown = false;
-        if (e.Property == ScrollViewer.OffsetProperty)
-        {
-            var y = SectionScroll.Offset.Y;
-            scrolledDown = y > _lastOffsetY + 0.5;
-            _lastOffsetY = y;
-        }
-
         if (e.Property == ScrollViewer.OffsetProperty
             || e.Property == ScrollViewer.ExtentProperty
             || e.Property == ScrollViewer.ViewportProperty)
-            SyncStickyHeader(scrolledDown);
+            SyncStickyHeader();
     }
 
     /// <summary>浮层上的滚轮 ⇒ 转给 ScrollViewer（浮层是覆盖层，事件默认到不了下面的 ScrollViewer）。</summary>
@@ -383,17 +349,14 @@ public partial class SettingsSectionHost : UserControl
     }
 
     /// <summary>
-    /// 一轮滚动 = 「钉住当前节点抬头（含 Push）+ 把滚到的节点展开」。
-    /// ⚠️ 展开是幂等的、节点数有限 ⇒ 必然收敛，不会死循环。
+    /// 一轮滚动 = 钉住当前节点抬头（含 Push）。**⛔ 不改任何节的展开状态**（滚动只负责看）。
     /// </summary>
-    /// <param name="scrolledDown">这一轮是不是"用户往下滚"（只有它是 true 才自动展开）。</param>
-    private void SyncStickyHeader(bool scrolledDown = false)
+    private void SyncStickyHeader()
     {
-        if (_syncing) { _pending = true; _pendingScrollDown |= scrolledDown; return; }
+        if (_syncing) { _pending = true; return; }
         if (!Sticky || SectionScroll is null) return;
 
         _syncing = true;
-        _pendingScrollDown = false;
         try
         {
             var viewport = SectionScroll.Viewport.Height;
@@ -402,36 +365,21 @@ public partial class SettingsSectionHost : UserControl
             var rows = MeasureRows();
             if (rows.Count == 0) return;
 
-            // ---- 1) 磁吸节点 = 抬头已滚到视口顶沿之上、但节点还没滚完的那个（取最后一个） ----
+            // ---- 磁吸节点 = 抬头已滚到视口顶沿之上、但节点还没滚完的那个（取最后一个） ----
             //    🔴 **真·顶部（Offset≈0）一律不挂浮层**：首节 Margin=12 在高 DPI / 取整下可能被算成 ≈0 或负值
             //    ⇒ 顶部残留一条带底色的抬头（看着像"标题栏没留空白"）。加 Offset 硬门槛：没滚出去就没有被顶出去的东西。
             var stuck = SectionScroll.Offset.Y <= 0.5
                 ? default(Row)
                 : rows.LastOrDefault(r => r.Top < -0.5 && r.Bottom > 0.5);
             ApplyStuckHeader(stuck, rows);
-
-            // ---- 2) 自动展开：往下滚时，视口**上半部**里最靠上、还没展开的那一节，每轮只开一个 ----
-            if (!scrolledDown) return;
-
-            // 到底了就别再用"上半部"卡它：最后一节可能永远升不到上半部 ⇒ 放宽到整个视口。
-            var maxOffset = Math.Max(0, SectionScroll.Extent.Height - SectionScroll.Viewport.Height);
-            var band = SectionScroll.Offset.Y >= maxOffset - 1 ? viewport : viewport * 0.5;
-            foreach (var row in rows)
-            {
-                if (row.Section.IsExpanded) continue;
-                if (row.Top > band || row.Bottom <= 0.5) continue;
-                ExpandAuto(row.Section);
-                break;
-            }
         }
         finally
         {
             _syncing = false;
             if (_pending)
             {
-                var again = _pendingScrollDown;
                 _pending = false;
-                SyncStickyHeader(again);   // 重入期间攒下的通知，收尾补算
+                SyncStickyHeader();   // 重入期间攒下的通知，收尾补算
             }
         }
     }

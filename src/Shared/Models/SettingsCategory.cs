@@ -38,7 +38,7 @@ public enum SettingsCategory
     /// <summary>应用级 · 数据（备份 / 导入 config）。节锚点 `settings-data`。</summary>
     Data = 5,
 
-    /// <summary>应用级 · 关于（版本 / 功能清单入口 / 重载模块）。v3.67 起**已并入 <see cref="Update"/>**（节锚点 `settings-about` 退成内部别名），枚举值保留以兼容旧数据。</summary>
+    /// <summary>应用级 · 关于（版本 / 组件版本 / 重载模块）。v3.67 起**已并入 <see cref="Update"/>**（节锚点 `settings-about` 退成内部别名），枚举值保留以兼容旧数据。</summary>
     About = 6,
 
     /// <summary>模块级设置（View/VM 归模块、自注册进 `settings` 组，需求 §4.9）。</summary>

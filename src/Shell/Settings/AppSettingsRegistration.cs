@@ -16,10 +16,10 @@ namespace NewToys.Shell.Settings;
 /// （跳 `settings-launch`，归一成页 Key `settings`）。
 /// </para>
 /// <para>
-/// 但五个**节锚点 Key** + `settings-all` 仍必须注册：<c>ShellViewModel.OpenTab</c> 靠
-/// <c>IMenuService.FindItem</c> 解析（首页收藏卡 / 默认收藏种子 <c>settings-dns</c> / <c>settings-general</c> /
-/// 功能清单页），⛔ 不注册这些入口会静默失效。故把它们挂在一个 <c>IsHome</c> 的**不渲染宿主分组**上：
-/// 左树（<c>BuildTree</c>）、首页模块计数、功能清单页都按 <c>!IsHome</c> 过滤 ⇒ 它不出现在任何菜单里。
+/// 但各**节锚点 Key** 仍必须注册：<c>ShellViewModel.OpenTab</c> 靠
+/// <c>IMenuService.FindItem</c> 解析（首页收藏卡 / 默认收藏种子 <c>settings-dns</c> / <c>settings-general</c>），
+/// ⛔ 不注册这些入口会静默失效。故把它们挂在一个 <c>IsHome</c> 的**不渲染宿主分组**上：
+/// 左树（<c>BuildTree</c>）与首页模块计数都按 <c>!IsHome</c> 过滤 ⇒ 它不出现在任何菜单里。
 /// </para>
 /// </summary>
 internal static class AppSettingsRegistration
@@ -60,12 +60,9 @@ internal static class AppSettingsRegistration
         //    （两者都围绕版本号）⇒ 8 节变 7 节。Key 保留 `settings-update`（原菜单 Key，⛔ 不改）；
         //    `settings-about` 退成**内部别名**（SettingsViewModel.OpenSection 里映射，⛔ 不再注册）。
         menu.RegisterFunction<Views.SettingsView>(HiddenGroupKey, "settings-update", "版本与更新", "🔄", 8,
-            "版本号 / 检查更新 / 功能清单 / 重载模块", SettingsCategory.Update);
+            "版本号 / 检查更新 / 组件版本 / 重载模块", SettingsCategory.Update);
 
-        // 功能清单（Key `settings-all` ⛔ 不改）：v3.65 起是**独立页**（⛔ 不在设置内），
-        // **同时内嵌在首页**（收藏卡尾部「显示更多」展开）；独立页仍保留 —— 标题栏 `＋` 与
-        // 「关于」节的按钮都按 Key 寻址到它（当"选择器"用，不切走当前页）。
-        menu.RegisterFunction<Views.AllFunctionsView>(HiddenGroupKey, "settings-all", "功能清单", "📋", 7,
-            "所有模块与功能总览（收藏卡是它的常用子集）");
+        // 功能清单不再是独立页：⛔ 不注册 `settings-all` —— 它是首页收藏卡尾部「显示更多」就地展开的
+        // 内嵌视图（复用 AllFunctionsView / AllFunctionsViewModel，见 HomeViewModel），没有独立标签页。
     }
 }

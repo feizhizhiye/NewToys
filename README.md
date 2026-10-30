@@ -63,7 +63,7 @@ NewToys/
 
 ## 版本号
 
-**编译时自动生成**（`src/Directory.Build.props`），格式 `1.<yyyyMMdd>.<HH>.<mm 取整到十位>`，
+**编译时自动生成**（`src/Directory.Build.props`），格式 `1.<yyMMdd>.<HH>.<mm 取整到十位>`，
 「设置 · 关于」页显示。**不要手写版本号。**
 
 ## 当前状态

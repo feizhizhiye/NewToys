@@ -1,8 +1,8 @@
 # NewToys UI 规范
 
+> v4.6 · 2026-10-30 · **骨架行为订正**：`SettingsSectionHost` 滚动 ⛔ 不改展开状态（「滚动自动展开」已移除），§11.2 与 §11 骨架表格同步。
 > v4.5 · 2026-10-26 · **新增 §6.10 列表多选** —— `Ctrl` 增选 / `Shift` 连选 / `Ctrl+A` 全选的标准写法（隧道 `PointerPressed` 接管 + `SelectionChanged` 回抛 + 重建后按稳定键回填），与 Windows 资源管理器一致；现状落地页 = 网址收藏、Hosts 管理。
 > v4.4 · 2026-10-24 · **全局滚动条换版（v3.80）** —— `App.axaml` 隐式 `{x:Type ScrollBar}` 主题：8px 槽 / 6px 圆角胶囊滑块 / 轨道透明无箭头 / 常驻；新增主题键 `ScrollThumbBrush`、`ScrollThumbHoverBrush` 与 `ScrollThumbRatioConverter`（滑块长度系数）；§9 补 4 条坑（`Track` 零绑定 / `Value` 必须 TwoWay / 缩长度禁 ScaleTransform / `IsExpanded` 恒真）。
-> v4.3 · 2026-10-21 · **过时内容清理** —— §10 子节顺序订正（`10.6 空态` 归位到 `10.7 弹出卡片` 之前，编号与正文顺序一致）；版本记录压到最近三次。
 > 本文件 = **一切 `.axaml` / 视觉 / 控件尺寸 / 样式约定的唯一入口**（原 `NewToys-工程规范.md` §2 / §3.6 / §3.8 渲染层 / §3.10）。
 > 契约接口定义（`IDetailCardSource` / `IToolbarSource` …）在 `framework.md` §6；模块专属版式在 `modules/<模块>.md`。
 > 权威源 = `src/` 源码，冲突以源码为准并回写本文。
@@ -541,7 +541,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 层 | 是什么 | 谁给 |
 |---|---|---|
 | 节模型 | `NewToys.UI.Settings.SettingsSection`（`Key` / `Title` / `Icon` / `Desc` / `Content` / `ViewModels` / `IsExpanded`） | 应用级 = VM 代码构建；模块页 = **XAML 属性元素**（见 11.2） |
-| 骨架 | `SettingsSectionHost`：节卡片渲染 + 折叠 + 磁吸抬头 + Push + 滚动自动展开 + 全部收起 + 节内工具条 + 滚动定位 | UI 库（一份） |
+| 骨架 | `SettingsSectionHost`：节卡片渲染 + 折叠（只点不改滚）+ 磁吸抬头 + Push + 全部收起 + 节内工具条 + 滚动定位 | UI 库（一份） |
 | 节内工具条 | `ToolbarTemplate` 插槽（DataContext = 节 VM） | Shell 传 `ToolbarHost`；模块页不给 = 无工具条 |
 
 - 节抬头 = `⌄/› + 图标(14) + 标题(14 SemiBold) + 说明(12 次要色，右对齐)`，底色 `ContentHeaderBrush`、圆角 8；
@@ -586,7 +586,7 @@ private void Add(string title, string icon, string desc, string key)
   该页 XAML **不被预编译**（编译通过、运行时报 `No precompiled XAML found for …SettingsXxxView`）；给 `Sections` 标 `[Content]`
   则会抢掉 `UserControl.Content` ⇒ `AVLN3000`。⇒ 模块页一律「Resources 放内容 + code-behind 建节」。
 - 节内容的 DataContext 由骨架补成页面 VM（见 11.3），⛔ 手写 `DataContext`。
-- `Sticky=false` ⇒ ⛔ 不挂浮层、⛔ 不滚动自动展开、⛔ 不显示「全部收起」，只保留**点抬头开收**。
+- `Sticky=false` ⇒ ⛔ 不挂浮层、⛔ 不显示「全部收起」，只保留**点抬头开收**。（滚动 ⛔ 改展开状态 —— 与 `Sticky` 无关，两种模式都一样）
 - 模块页节内容**直接放字段**（`StackPanel Classes="field"` / `CheckBox` / 按钮），⛔ 再包一层 `Border.card`（会套两层卡片）。
 
 ### 11.3 🔴 硬规则

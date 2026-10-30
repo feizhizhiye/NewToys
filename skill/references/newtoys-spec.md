@@ -19,7 +19,7 @@
 - 编译绑定关闭 → XAML 不写 `x:DataType`；禁第三方 UI 库 / 图标字体
 - 数据落 `<应用根>\profiles\<配置>\{config,data,logs}`；**`active-profile.txt` 与 `app.json` 在应用根**（应用级，不随配置走，NT-062）；`NEWTOYS_HOME` 可整根切换；**`ConfigStoreService` = 路径唯一决定者**；路径一律 `Path.Combine`
 - SQLite 入口 `Core/Services/SqliteDatabase.cs`：**一个模块一个库** = `<应用根>\profiles\<配置>\store\<库键>\<库键>.db`（`store` 非 `config`；可重建内容在 `cache\`）；各模块派生 `XxxDb` 注册为单例；失败不抛（IsAvailable/LastError）
-- 版本号编译时生成 `1.<yyyyMMdd>.<HH>.<m0>`，禁手写
+- 版本号编译时生成 `1.<yyMMdd>.<HH>.<m0>`（例 `1.261030.01.40`），禁手写
 
 ---
 
@@ -96,7 +96,7 @@
 - 颜色一律 DynamicResource；主题键只用 `*Brush` 语义键，**数量不写死在本文件**（以 `check.ps1` 白名单为准）；⛔ 不新增、不用旧键 `AppBg/AppBackground/TextPrimary`；code-behind ⛔ 写死 `#RRGGBB`。
 - `App.ApplyTheme` 幂等，⛔ 禁 `MergedDictionaries.Clear()`。
 - 菜单：`icon` 传几何资源键（24 网格描边型，`<Path Stroke=… Stretch="Uniform"/>`），不是 emoji；Key = 小写连字符；视图名由 `RegisterFunction<TView>` 的泛型参数决定（`typeof(TView).Name`，⛔ 不再传字符串）。
-- 🔴 **菜单 Key 一经发布 ⛔ 不改**（例外须用户亲自拍板——已用两次：NT-063 P2-a 删 5 类型页、NT-068 全量 `pc-*`→`script-*`）；应用级设置页（`settings-general/-launch/-path/-dns/-data` + `settings-all`）挂在 **`IsHome` 不可见宿主分组 `system`** 上：⛔ 不进左树 / 首页计数 / 功能清单，但 `FindItem` 仍解析。
+- 🔴 **菜单 Key 一经发布 ⛔ 不改**（例外须用户亲自拍板——已用三次：NT-063 P2-a 删 5 类型页、NT-068 全量 `pc-*`→`script-*`、撤销功能清单独立页 `settings-all`）；应用级设置页（`settings-general/-launch/-path/-dns/-data`）挂在 **`IsHome` 不可见宿主分组 `system`** 上：⛔ 不进左树 / 首页计数，但 `FindItem` 仍解析。
 - 跨页投递数据在 `OnAttachedToVisualTree` 取（⛔ 不是 `OnDataChanged`；必须 `protected override`，public 报 CS0507）。
 - 设置类 `config\*.json` 模块只读，唯一写入点 = 该模块设置页；功能数据由功能页读写。
 - 🔴 **导入 / 解压白名单顺序**：**先判 `..` 与绝对路径，再跳过 `.seeded` 等标记文件**——顺序反了会让 `../evil.ps1` 被静默放过。

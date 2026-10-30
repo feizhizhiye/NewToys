@@ -25,7 +25,7 @@
 
 | 项 | 内容 |
 |---|---|
-| 工程版本 | 编译自动生成 `1.<yyyyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
+| 工程版本 | 编译自动生成 `1.<yyMMdd>.<HH>.<m0>`（`src/Directory.Build.props`），禁手写 |
 | 文档版本 | 需求 v3.96 ｜ framework v4.0 ｜ ui v4.0 ｜ 模块 md v1.1 ｜ 协作手册 v3.24 ｜ 本台账 v3.85 |
 | 技术栈 | .NET 10 + Avalonia 12.1.4 + CommunityToolkit.Mvvm 8.4.2 + MEDI 9.0.0 + Microsoft.Data.Sqlite 9.0.0 |
 | 代码规模 | 8 项目 / 272 个 `.cs+.axaml+.csproj` / 约 51000 行 |
@@ -82,7 +82,7 @@
 | 视频工具 | video | 40 | `IconVideo` | `video-list`视频列表/0/✅ ｜ `video-cut`**视频预览**/1/✅ ｜ `video-batch`**批量处理**/2/✅ ｜ **`settings-video-tools`视频工具设置/100/✅** |
 | 媒体资产 | assets | 50 | `IconMediaAssets` | `assets-all`全部资产/0/✅ ｜ `assets-tags`标签管理/6/✅ ｜ `assets-categories`分类管理/7/✅ ｜ `assets-collections`集合管理/8/✅ ｜ `assets-storages`存储源/9/✅ ｜ `assets-tasks`任务中心/10/✅ ｜ `assets-trash`回收站/11/✅ ｜ **`settings-media-assets`媒体资产设置/99/✅** |
 | ~~设置~~ | — | — | — | 🔴 **v3.66：该一级菜单项已删除**。应用级设置 = **一个整页**（入口 = 左树版本行齿轮 / `Ctrl+,` / 标题栏搜索按钮），**模块设置页已挂回各自模块**（见表内加粗项）。 |
-| **宿主分组（不渲染）** | system | 999 | `IconSettings` | `IsHome=true` ⇒ 左树 / 首页模块计数 / 功能清单页都跳过；只承载寻址（8 项）：`settings-general`**启动与退出**/0 ｜ `settings-update`更新/1 ｜ `settings-theme`主题外观/1 ｜ `settings-path`**路径与配置**（配置档 + 外部程序路径）/2 ｜ `settings-launch`一键按钮/3 ｜ `settings-dns`加密 DNS/4 ｜ `settings-data`数据管理/6 ＋ `settings-all`功能清单/7（**首页「显示更多」就地展开**；独立页保留给标题栏 `＋` 与「关于」节按钮）。🔴 **所有 Key ⛔ 一律未改**；「关于」节无锚点 Key |
+| **宿主分组（不渲染）** | system | 999 | `IconSettings` | `IsHome=true` ⇒ 左树 / 首页模块计数都跳过；只承载寻址（7 项）：`settings-general`**启动与退出**/0 ｜ `settings-update`更新/1 ｜ `settings-theme`主题外观/1 ｜ `settings-path`**路径与配置**（配置档 + 外部程序路径）/2 ｜ `settings-launch`一键按钮/3 ｜ `settings-dns`加密 DNS/4 ｜ `settings-data`数据管理/6。🔴 功能清单**不是独立页**（`settings-all` 已撤销，只剩首页「显示更多」内嵌）；「关于」节无锚点 Key |
 
 ---
 

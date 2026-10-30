@@ -1,8 +1,8 @@
 # NewToys 框架层（Framework）
 
+> v4.6 · 2026-10-30 · **设置页「滚动自动展开」整体移除** —— 一节开没开**只由点击决定**；`SettingsSection` 删 `UserCollapsed` / `CollapsedByAll`，三层优先级压回两层（点 / 外部寻址）。
 > v4.5 · 2026-10-21 · **过时内容清理** —— §11 已完成项（NT-064/065/066/067/068/075/076/077/078/085）收拢为「已结清」一行，NT-085 状态按台账订正为已完成；版本记录按「只保留最近三次」压缩。
 > v4.4 · 2026-10-19 · 新增 **§2.1 跨平台中立约束**（长期架构约束，本期不实施）—— 三层分工 / 包管理器取数分级（只有 winget 需要复杂解析） / 写操作 ⛔ 不脚本化 / 六条新增代码硬约束；同步更新 §10 B5、§11 登记 NT-081。
-> v4.3 · 2026-10-18 · NT-070 卡淘汰并蒸馏进 §3.3 —— 补「模块扫描必须按 `Module.*.dll` 过滤」「单次启动日志不可作结论 + 787~826ms 基线」；§6.6 新增 `IFileOperationService`（跨模块磁盘动作下沉 `Core`，两处 `SHFileOperationW` 合一）。
 > **标准角色：工程规范（框架层部分）**。本文件 = **框架层（Shared / Core / Shell / NewToys.UI）的实现约定**，外加**跨模块待办**的唯一收口处。
 > 原 `NewToys-工程规范.md` 已于 2026-10-18 拆分：**框架层 → 本文件**｜**UI 规范 → `ui.md`**｜**各模块 → `modules/<模块>.md`**。
 > 权威源 = `src/` 源码；代码与文档冲突以源码为准并回写本文。
@@ -255,7 +255,9 @@ public interface IModule {
 - 加载后调 `IMenuService.RegisterModule/RegisterFunction`，通知 `ShellViewModel` 重建左树（`BuildTree()`）。
 - **失败隔离（硬要求）**：单 DLL 异常 `try-catch` 兜住，只记日志 + 一行 StatusText；完成后报「本次新增 N / 跳过 M / 失败 K」。
 - ⛔ 只读本地 `Modules\`；不联网；加载前 `Path.GetFullPath` 校验路径在 `Modules\` 内。
-- **入口**：功能清单页（`settings-all`）「增加功能」区的「🔄 重载模块」→ `AllFunctionsViewModel.ReloadModulesCommand` → `IModuleReloadService.HotReload()`；`ShellViewModel` 订阅 `Reloaded` 重建左树（进程级单例，无需退订）。设置页 VM ⛔ 不直接调 `ModuleLoader`。
+- **入口**：「版本与更新」节的关于部分「🔄 重载模块」→ `AboutSettingsViewModel.ReloadModulesCommand` → `IModuleReloadService.HotReload()`；`ShellViewModel` 订阅 `Reloaded` 重建左树（进程级单例，无需退订），成功后该节「组件版本」自动重取。设置页 VM ⛔ 不直接调 `ModuleLoader`。
+- **旁边「📁 打开模块文件夹」**：`OpenModulesFolderCommand` 在文件管理器里打开 `<程序目录>\Modules\`（不存在即建）—— 同节 VM 内一行 `Process.Start`，按 Windows/macOS/Linux 分支选 `explorer.exe` / `open` / `xdg-open`（⛔ 不为此新增服务）。
+- **技术栈取数**：`TechStackProbe.Collect()`（`Shell/ViewModels/TechStackProbe.cs`）扫程序目录 + `Modules\` 的 `*.deps.json`，只保留**各项目直接引用**的包（`targets.dependencies` 反推被依赖集合，全量减被依赖者），`Avalonia.*` 家族折叠成一行「Avalonia」+ 版本 +「合并 N 个包」。同名多版本取最高；**传递依赖不展示**（用户明确：只列直接引用）。🔴 反推时只统计 **package 条目**的 dependencies —— 项目自身条目（`Shell/1.0.0`）的 dependencies 就是全部直接引用，算进来差集恒为空。⛔ 不读 `Directory.Packages.props`（发布后不存在）；⛔ 别改成白名单硬编码（新增包会漏）。
 - 🔴 `Reloaded` 事件签名 = `event Action<(int Added, int Skipped, int Failed)>?` —— 裸 `Action?` 承载不了「本次新增 / 跳过 / 失败」计数（NT-052 对验收标准的细化）。
 
 ---
@@ -292,7 +294,7 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 
 > 🔴 **`system` 是框架保留键**（`ModuleLoader.HostGroupKey` / `AppSettingsRegistration.HiddenGroupKey`）：功能模块⛔ 不得用同名组键 —— `RegisterModule` 同名会复用 + 覆盖 `Title/Order/IsHome` 并补登暂存项 ⇒ 宿主组的设置锚点会被渲染进那个模块（NT-091 踩过，系统工具改用 `system-tools`）。
 
-- 宿主分组 `IsHome=true` ⇒ 左树 / 首页模块计数 / 功能清单页都按 `!IsHome` 过滤；只承载应用级设置的节锚点 + `settings-all` 寻址。
+- 宿主分组 `IsHome=true` ⇒ 左树 / 首页模块计数都按 `!IsHome` 过滤；只承载应用级设置的节锚点寻址。
 - **v3.66 起左树无「设置」一级菜单项**；模块设置项挂回**本模块分组末位**（`assets`=99、其余=100）。
 - `isBottom` 保留但当前**无分组使用**。
 - 排序：`OrderBy(Order)`；分组内 `Items` 按 `Order` 重排。
@@ -303,7 +305,7 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 - 🔴 **首页常驻标签栏**（v3.69）：`TabItemViewModel` **无可见性开关**（`ShowInTabStrip` / `IsVisibleInStrip` 已删），首页与其余标签一视同仁显示，仅 `CanClose=false`；零标签兜底照旧回首页。
 - 标签栏 = `Grid ColumnDefinitions="Auto,Auto"`：`Auto` 列 `ScrollViewer(TabsScroll)` 内 `ItemsControl` **直接绑 `Tabs`**（横排 `ItemsPanel` 必须显式写，否则默认竖排 + 竖滚禁用 = 只显示第一个）；`Auto` 列 `＋`（`NewTabButton`）**紧跟最后一个标签**。
 - 🔴 **宽度类浏览器行为**：标签少 ⇒ 滚动区按内容量，`＋` 贴着最后一个标签；标签溢出 ⇒ code-behind `SyncTabStripWidthCap()` 把 `TabsScroll.MaxWidth` 收到「标签栏宽 − `＋` 宽 − 左边距」⇒ 滚动区收窄、`＋` 常驻最右且始终可见（挂 `TabStrip` / `TabsControl` / `NewTabButton` 三处 `SizeChanged`）。⛔ 别再改回 `*` 列（`＋` 会被推到整条最右、脱离标签）。
-- `＋` = `OpenHomeTabCommand` → `OpenTab(HomeKey)`（⛔ 不指 `settings-all`）。
+- `＋` = `OpenHomeTabCommand` → `OpenTab(HomeKey)`（功能清单在首页内嵌，已无独立页）。
 - 滚轮切标签 = `PrevTabCommand` / `NextTabCommand`（仅此处使用），**到头即止、不循环**（`Math.Clamp`，v3.69）。
 - ⛔ 不做「固定其他标签页」（固定需求走首页收藏夹）⇒ 无通用「固定位」机制。
 - 旧机制 `ScrollableTabs` / `HomeTab` / `SyncTabMirror` / `SyncScrollableTabs` **全部已删**。
@@ -338,7 +340,7 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 | `settings-path` | 路径与配置 | 2 | `Environment` | 运行环境路径 + 多配置档（分类列区分行） |
 | `settings-dns` | 加密 DNS | 4 | `Network` | 加密 DNS / 网络 |
 | `settings-data` | 数据管理 | 6 | `Data` | 备份 / 导入 `config` |
-| `settings-update` | **版本与更新** | 8 | `Update` | 版本号 / 版本文件地址 / 检查更新 / 功能清单入口 / 重载模块 |
+| `settings-update` | **版本与更新** | 8 | `Update` | 版本号 / 版本文件地址 / 检查更新 / **组件版本** / 技术栈 / 重载模块 + 打开模块文件夹 |
 
 - 🔴 **所有 Key ⛔ 不改**：首页跳转 / 收藏白名单 / 托盘「打开设置」都按 Key 寻址。
 - 「通用」已拆成 `settings-general` / `-update` / `-theme` **三节共用一个 VM**。
@@ -347,7 +349,7 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
   ⛔ 不再注册菜单、⛔ 不再是一个节点）。该节由 `UpdateAboutView`（**拼装壳**）装 `UpdateView` + `AboutSettingsView`，
   子 View 的 DataContext 由 `Init(...)` 分别赋（⛔ 靠继承只能给到一个）；节上有**两个 VM** ⇒ `SettingsSection.ViewModels`
   是列表，状态栏 / 工具条契约按列表逐个聚合。
-- 另有 `settings-all`（功能清单页，Order 7，`AllFunctionsView`）。
+- 功能清单**不是独立页**（⛔ 不注册菜单 Key）：`AllFunctionsView` / `AllFunctionsViewModel` 由首页收藏卡尾部「显示更多」就地展开（`HomeViewModel.BuildFunctionList` 现装配）。
 
 **页面结构机制**（`SettingsView.axaml(.cs)`）
 
@@ -370,16 +372,17 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 - 浮层右上「全部收起 / 全部展开」`FontSize=13` + `Padding=10,4`（v3.69 放大；11 号字用户看不清）。
 - 每节内含工具条（`HasToolbar` 门控，`ToolbarHost` 挂在节抬头下方）；⛔ **工具条不上抛页顶**；节 View **⛔ 带内层 `ScrollViewer`**（会出现双滚动条 + 磁吸失效）。
 - 切节 ⇒ `ActiveSection` 变 ⇒ `SectionChanged` ⇒ Shell 重绑工具条 / 状态栏 / 详情卡（漏了就"画得出来、点不动"）。
-- 用户**手动收起**的节记 `UserCollapsed`，滚动自动展开时跳过（用户意图优先）。
+- 🔴 **滚动 ⛔ 不改任何节的展开状态**：一节开没开**只由点击决定**（点抬头 / 「全部收起」）。早先做过"滚到哪节自动展开哪节"，实测与用户意图冲突（想看最下面一节，滚一下上面几节全被弹开）⇒ 已整体移除，⛔ 别再恢复。
 - `settings-path` 节正文用 `ListPageSkeleton` 且 `Margin="0"`。
 
 **三层优先级（v3.67，改这块前必须遵守）**
 
 | 层 | 触发 | 行为 |
 |---|---|---|
-| 1 | 用户点抬头 / 「全部收起·全部展开」 | 立即生效；单节收起写 `UserCollapsed`（滚动不再弹开）；「全部收起」写 `CollapsedByAll`（**临时总览态**，滚到哪节照样展开哪节，v3.68） |
+| 1 | 用户点抬头 / 「全部收起·全部展开」 | 立即生效；点抬头 = 只切这一节（其余不动）、展开时滚到它贴视口顶；「全部收起」= 全部收起（一屏看全抬头） |
 | 2 | 外部寻址（首页 ⚙ / 收藏 / 搜索） | 目标展开 + 其余折叠 + **滚到目标贴视口顶**（`ScrollRequested`） |
-| 3 | 滚动 | **只有"往下滚"（`Offset.Y` 变大）才自动展开**，且每轮只开视口上半部最靠上的那一节；到底时放宽到整视口。⛔ 只展开、不自动折叠。`UserCollapsed` 拦、`CollapsedByAll` 放行 |
+
+- 🔴 无第三层：**滚动不参与折叠状态**（`SettingsSection` 只剩 `IsExpanded`，`UserCollapsed` / `CollapsedByAll` 已删）。
 
 - 🔴 **v3.69：激活色整套已删**（用户："激活色始终不可见"）——`SettingsSection.IsActive` 属性、`Button.sec-head.active`、
   `Button.settings-nav.active`、"被钉住的那节上激活色"的 View 逻辑全部撤销。**"当前在哪一节"只由顶栏表达**：
@@ -407,9 +410,9 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 
 | 操作 | 触发 | 结果 / 状态变化 | 约束 |
 |---|---|---|---|
-| 展开 / 折叠节 | 点节抬头 | 手风琴：展开一节其余收起 | 手动收起的节不被自动展开 |
+| 展开 / 折叠节 | 点节抬头 | **只切这一节**（其余节保持原状），展开时滚到本节点贴视口顶 | 滚动 ⛔ 不改展开状态 |
 | 切节 | 点另一节抬头 / 页内搜索命中 | 工具条 / 状态栏 / 详情卡重绑到该节 VM | 见上「SectionChanged」 |
-| 滚动 | 滚轮 | 当前节抬头磁吸顶部；**滚到最顶部（`Offset≈0`）时浮层自动消失**，页顶只留卡片自己的 12px 留白 | v3.69 |
+| 滚动 | 滚轮 / 滚动条 | 只滚内容：当前节点抬头磁吸顶部（含 Push）；**滚到最顶部（`Offset≈0`）时浮层自动消失**，页顶只留卡片自己的 12px 留白 | 不改任何节的展开状态；想换节就点抬头 |
 | 标题栏搜索（NT-066） | 标题栏搜索按钮 → 输入框 | 统一索引 = **全部二级菜单项** + **本页 7 个节**；输入即出列表，↑↓ / 回车 / 双击打开 | 设置节 Key 由 `OpenTab` 归一成 `settings` + 展开滚动；⛔ 不搜模块私有内容、⛔ 拼音 |
 
 **各节写入方式**（每项只有本页一个写入点）
@@ -420,12 +423,11 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 | 路径与配置 | 编辑即落盘 | **切换配置二次确认 + 本窗重启**；`🚀 新开` 同时开两套；外部程序路径**惰性探测**，缺失 ⇒ 状态栏 `⚠` 可点提示，⛔ 不崩 |
 | 数据管理 | 显式动作 | 备份 = **zip 分节包**（`manifest.json` + 每节一个内层 zip）；默认只勾设置节（`shell` + `module.*`），`env` / `data.*` 默认不勾；恢复先归档 `.bak-<时间戳>`；旧的 v1 单 JSON 只读导入 | 见 §7.4 |
 
-**功能清单页 `settings-all`**
+**功能清单（首页内嵌，非独立页）**
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| 重载模块 | 增加功能区 `🔄 重载模块` | 扫 `Modules\` 新增模块并加载 | **只新增**，移除要重启 |
-| 当选择器用 | 标题栏 `＋` / 关于节按钮 | 选中功能开标签，**不切走当前页** | — |
+| 展开 / 收起 | 首页收藏卡尾部「显示更多」 | 就地展开全量功能卡片墙，右键「📌 固定到首页」 | 只存在于首页内；⛔ 没有菜单 Key、⛔ 不进标签栏；「🔄 重载模块」在「版本与更新」节的关于部分 |
 
 **首页 `home`**
 
@@ -717,9 +719,14 @@ _bus.Subscribe(ModuleTopics.VideoImport, this, p => Handle(p));        // ⛔ �
 - 产物落 `artifacts\tests\`（Release 的 `OutDir` 被项目级覆盖）——⛔ 不许进 `artifacts\release\`，那里是交付产物区，多出 TestHost 会污染产物核对。
 
 **版本号**（`src/Directory.Build.props` 编译时自动生成，⛔ 禁止手写）：
-- `InformationalVersion` = `1.<yyyyMMdd>.<HH>.<mm取整到十位>`（显示用）
+- `InformationalVersion` = `1.<yyMMdd>.<HH>.<mm取整到十位>`（显示用，例 `1.261030.01.40`）
 - `FileVersion` = `1.<yyyy>.<MMdd>.<HHmm>`；`AssemblyVersion` 固定 `1.0.0.0`
 - 「设置·关于」读 `InformationalVersion`；左树底部 `TreeVersionText` 显示同一值。
+
+**组件版本**（关于节，`LoadedComponentProbe`）：
+- 只读**当前进程已加载**的程序集（⛔ 不扫盘、⛔ 不额外加载 DLL）：外壳 = 入口 `NewToys` + `NewToys.*`，模块 = `Module.*`；热加载的模块在 `AppDomain.GetAssemblies()` 里，天然被统计。
+- 每项显示 名称 / 版本（`InformationalVersion`，去 `+sha`）/ 编译时间（从版本串解析）/ 模块与外壳的差异标记（`⚠ 比外壳新/旧`，比较前把日期段归一成 8 位，避免历史 `1.yyyyMMdd.*` 旧 DLL 被误判更新）。
+- 刷新时机：构造 VM 时 + 「🔄 刷新」+ 「🔄 重载模块」成功后。
 
 **产物路径**：
 

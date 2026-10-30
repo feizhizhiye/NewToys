@@ -96,6 +96,14 @@ $staticChecks = @(
         Warn = @('\[WARN\]\s*([1-9]\d*) 条绑定路径')
         SupportsAll = $true
     }
+    # 视频详情卡同源（V-01 别处又 new 一份卡 / V-02 卡引用的属性两页缺一个）
+    [pscustomobject]@{
+        Name = '视频详情卡同源（预览 = 批量）'
+        File = 'skill\scripts\check-video-card.ps1'
+        Fail = @('\[ERROR\]\s*([1-9]\d*)\s*条')
+        Warn = @()
+        SupportsAll = $true
+    }
     # 注释健康度（C-01 版本前缀 / C-02 长注释块 / C-04 历史叙事 = WARN；C-05 View 重名 = ERROR）
     # 🔴 C-05 是唯一能提前拦住「两个程序集有同名 View ⇒ 反射导航静默错页」的检查。
     [pscustomobject]@{

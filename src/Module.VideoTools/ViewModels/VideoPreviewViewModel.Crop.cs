@@ -129,7 +129,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     }
 
     /// <summary>当前会用的编码器名（详情卡里显示出来，避免以为用了 GPU 其实没用）。</summary>
-    public string EncoderPreview =>
+    public string SelectedEncoder =>
         FfmpegService.ResolveEncoder(TranscodePreset.Find(EditTranscodePresetId).VideoCodec, EditUseGpu);
 
     /// <summary>码率模式下拉框绑它（0 = CRF、1 = 目标码率），理由同 <see cref="EncoderIndex"/>。</summary>
@@ -163,7 +163,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         get
         {
             if (!HasSource) return "（先点「📂 选择视频」挑一个文件）";
-            if (!IsCut && !IsTranscode) return "（至少勾选一种任务类型：剪辑 / 转码）";
+            if (!EditIsCut && !EditIsTranscode) return "（至少勾选一种任务类型：剪辑 / 转码）";
 
             var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
             var args = BuildAutoArgs();

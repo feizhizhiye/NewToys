@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -401,9 +401,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private string _sourceHeader = "源文件";
     [ObservableProperty] private string _commandHeader = "命令摘要";
     [ObservableProperty] private string _createdHeader = "创建时间";
-
-    /// <summary>v3.16：行首勾选列是否显示（表头右键「列显隐」可关）。</summary>
-    public bool IsPickVisible => Vis("Pick");
+    [ObservableProperty] private string _finishedHeader = "完成时间";
 
     public bool IsKindVisible => Vis("Kind");
     public bool IsNameVisible => Vis("Name");
@@ -416,14 +414,13 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool IsSourceVisible => Vis("Source");
     public bool IsCommandVisible => Vis("Command");
     public bool IsCreatedVisible => Vis("Created");
+    public bool IsFinishedVisible => Vis("Finished");
 
     protected override string PageKey => "video-batch";
 
     /// <summary>v3.22 §4.8.1：每列一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // §6.4.10：行首勾选框（表头 ☑ 的 全选 / 取消选择 / 反选 改它）
-        new("Pick", "", "34", sortable: false),
         new("Kind", "类型", "1.0*", sample: "剪辑+转码"),
         new("Name", "文件", "2.6*", sample: "示例视频 2026.mp4"),
         new("Param", "参数", "2.2*", sample: "00:00:10 - 00:01:30"),
@@ -435,6 +432,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         new("Source", "源文件", "2.2*", sample: @"D:\Videos\示例视频 2026.mp4"),
         new("Command", "命令摘要", "2.4*", sample: "-c:v libx265 -crf 23"),
         new("Created", "创建时间", "1.3*", sample: "2026-10-13 15:00"),
+        // 运行记录：跑完一个任务写一行（完成时间 + 耗时），也是"这条已完成、别重复跑"的凭据
+        new("Finished", "完成时间", "1.5*", sample: "10-30 15:32 · 1m20s"),
     };
 
     /// <summary>详情卡的数据源：有选中项时显示它（v3.60 §4.8.1：⛔ 没选中不填示例值）。</summary>

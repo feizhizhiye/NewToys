@@ -37,13 +37,13 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// </summary>
     private List<string> BuildAutoArgs()
     {
-        if (IsTranscode)
+        if (EditIsTranscode)
         {
             var t = BuildTranscodeTask();
-            if (IsCut) { t.TrimStart = StartSeconds; t.TrimEnd = EndSeconds; }
+            if (EditIsCut) { t.TrimStart = StartSeconds; t.TrimEnd = EndSeconds; }
             return FfmpegService.BuildTranscodeArgs(t, null);
         }
-        return IsCut ? FfmpegService.BuildCutArgs(BuildCutTask(), null) : new List<string>();
+        return EditIsCut ? FfmpegService.BuildCutArgs(BuildCutTask(), null) : new List<string>();
     }
 
     /// <summary>刷新命令（未手改过 → 参数文本始终跟随参数走）。</summary>
@@ -106,7 +106,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     public bool HasTrial => !string.IsNullOrWhiteSpace(TrialFile) && File.Exists(TrialFile);
     public bool HasTrialImage => TrialImage != null;
-    public bool CanTrial => HasSource && !IsTrialing && (IsCut || IsTranscode);
+    public bool CanTrial => HasSource && !IsTrialing && (EditIsCut || EditIsTranscode);
 
     partial void OnTrialFileChanged(string value)
     {
@@ -147,11 +147,11 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                 // 手改过：原样用用户写的参数（只补输出路径）
                 args = FfmpegService.SplitArgs(EditArgs);
                 var preset = TranscodePreset.Find(EditTranscodePresetId);
-                ext = IsTranscode
+                ext = EditIsTranscode
                     ? (FfmpegService.IsGif(preset) ? ".gif" : NormalizeExt(EditContainer, preset.Extension))
                     : ".mp4";
             }
-            else if (IsTranscode)
+            else if (EditIsTranscode)
             {
                 var t = BuildTranscodeTask();
                 t.TrimStart = start;

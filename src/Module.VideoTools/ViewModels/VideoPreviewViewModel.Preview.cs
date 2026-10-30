@@ -111,15 +111,15 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     [ObservableProperty] private string _editStart = "00:00:00.000";
     [ObservableProperty] private string _editEnd = "";
-    [ObservableProperty] private string _editPresetId = CutPresets.Copy;
-    [ObservableProperty] private int _editCrf = 20;
+    [ObservableProperty] private string _editCutPresetId = CutPresets.Copy;
+    [ObservableProperty] private int _editCutCrf = 20;
     [ObservableProperty] private string _editExtraArgs = "";
 
     /// <summary>剪切预设下拉框的数据源（不写死在 XAML 里）。</summary>
     public IReadOnlyList<CutPresetOption> CutPresetOptions => CutPresets.All;
 
     /// <summary>当前剪切预设是不是「重新编码」（决定 CRF 输入框显不显示）。</summary>
-    public bool IsReEncode => string.Equals(EditPresetId, CutPresets.ReEncode, StringComparison.OrdinalIgnoreCase);
+    public bool IsCutReEncode => string.Equals(EditCutPresetId, CutPresets.ReEncode, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 「开始」时间条绑它（秒）。
@@ -161,7 +161,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     partial void OnEditPresetIdChanged(string value)
     {
-        OnPropertyChanged(nameof(IsReEncode));
+        OnPropertyChanged(nameof(IsCutReEncode));
         RefreshCommand();
     }
 
@@ -294,7 +294,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     partial void OnEditTranscodePresetIdChanged(string value)
     {
-        OnPropertyChanged(nameof(EncoderPreview));
+        OnPropertyChanged(nameof(SelectedEncoder));
         OnPropertyChanged(nameof(IsGifPreset));
         RefreshCommand();
     }
@@ -302,7 +302,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     partial void OnEditUseGpuChanged(bool value)
     {
         OnPropertyChanged(nameof(EncoderIndex));
-        OnPropertyChanged(nameof(EncoderPreview));
+        OnPropertyChanged(nameof(SelectedEncoder));
         RefreshCommand();
     }
 

@@ -42,6 +42,24 @@ public class VideoTaskStore
 
     // ==================== 跨页面交接（不落盘） ====================
 
+    /// <summary>「批量处理」→「视频预览」：要带过去**整条编辑**的任务（同一实例，取走即清空）。</summary>
+    private VideoTaskBase? _previewTarget;
+
+    /// <summary>
+    /// 批量页「🎬 预览编辑」用：把选中的任务交给预览页。
+    /// <para>Why 不用 <see cref="EnqueueForCut"/>：那条通道只传路径，预览页拿不到区间 / 预设 / 裁剪等参数，
+    /// 复杂任务就没法「先预览再改」。</para>
+    /// </summary>
+    public void AttachPreviewTarget(VideoTaskBase task) => _previewTarget = task;
+
+    /// <summary>取走待编辑的任务（取一次就清空）。</summary>
+    public VideoTaskBase? TakePreviewTarget()
+    {
+        var t = _previewTarget;
+        _previewTarget = null;
+        return t;
+    }
+
     /// <summary>「视频列表」页多选后要送过来的文件（转码页进来时取走）。</summary>
     private readonly List<string> _pendingTranscode = new();
 
@@ -53,9 +71,10 @@ public class VideoTaskStore
         _cfg = cfg;
         _db = db;
         _docs = new JsonDocStore(db, "video");
-        // 1：⛔ 构造时**不自动载入**任务缓存 —— 那个文档只是"缓存 / 备份"，
-        // 批处理列表在程序刚打开时就是空白的（需求 §6.4.4）；要恢复上一次的任务显式点「📥 导入任务」。
-        // ⛔ 偷偷自动恢复会让用户莫名其妙："我明明清空了，怎么一开机又有一堆旧任务"。
+        // 打开软件即恢复上次的队列：任务清单是「工作现场」而不是临时缓存（用户关掉软件后
+        // 攒了半天的 20 条任务必须还在）。上次没跑完的「运行中」条目由 LoadFromFile 标成失败。
+        // 想清空就点「🧹 清除缓存」—— 那条会连库里的文档一起删，重开不会自己长回来。
+        LoadFromFile();
     }
 
     /// <summary>库文件全路径（展示 / 排障用；数据在 <c>video_docs</c> 表）。</summary>
@@ -120,17 +139,17 @@ public class VideoTaskStore
         Save();
     }
 
-    /// <summary>v3.16.1 §6.4.11：清掉**页面上的这条缓存**（两类一起清，⛔ **不落盘**）；返回清掉条数。
-    /// <para>磁盘上的 <c>video-tasks.json</c> 原样留着 —— 那是缓存 / 备份，不是"工作现场"；
-    /// 想再要回来点「📥 导入任务」读它（或 <see cref="LoadFromFile"/> 直接读本应用的那份）。</para>
+    /// <summary>清掉页面上的这条队列（两类一起清，**并落盘**）；返回清掉条数。
+    /// <para>必须落盘：<see cref="VideoTaskStore"/> 构造时会自动恢复，若只清内存，重开软件旧任务就全回来了
+    /// —— 那是「我明明清空了」的另一半。想再要回来用导出的 JSON 走「📥 导入任务」。</para>
     /// </summary>
     public int ClearCache()
     {
         var n = CutTasks.Count + TranscodeTasks.Count;
-        if (n == 0) return 0;
         CutTasks.Clear();
         TranscodeTasks.Clear();
-        return n;                 // ⛔ 故意不 Save()：清的是页面缓存，不是那份备份
+        Save();                   // 两队都空 ⇒ Save 内部删文档
+        return n;
     }
 
     /// <summary>清掉已经跑完 / 失败 / 取消的任务（保留还没跑的）。</summary>
@@ -216,9 +235,8 @@ public class VideoTaskStore
     }
 
     /// <summary>
-    /// 把库里的任务缓存**读回**当前队列（追加，⛔ 不清空已有）。旧 <c>video-tasks.json</c> 先搬进表（幂等）。
-    /// <para>v3.16.1：⛔ **构造时不再自动调它** —— 那个缓存只是备份，批处理页刚打开时列表是空的；
-    /// 想恢复上一次的任务，由用户显式点「📥 导入任务」。</para>
+    /// 把库里的任务队列**读回**当前队列（追加，⛔ 不清空已有）。旧 <c>video-tasks.json</c> 先搬进表（幂等）。
+    /// <para>构造时自动调用一次 —— 队列是「工作现场」，关掉软件再打开必须还在。</para>
     /// </summary>
     /// <returns>读入的条数。</returns>
     public int LoadFromFile()

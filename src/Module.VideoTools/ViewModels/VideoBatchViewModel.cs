@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -73,22 +73,22 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         new() { Text = "📂 添加文件", Classes = "ghost", CommandPath = nameof(PickFilesCommand), ToolTip = "按左边选的类型建任务；只是建任务，不立刻跑" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "按文件名 / 输出过滤…", ValuePath = nameof(SearchText) },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Text = "▶▶ 批量运行", Classes = "ghost", CommandPath = nameof(RunAllCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "按列表顺序依次处理（剪辑 / 转码各按自己的参数），跑完自动探测输出文件" },
-        new() { Text = "▶ 只跑选中", CommandPath = nameof(RunSelectedCommand), IsEnabledPath = nameof(IsNotBusy) },
+        new() { Text = "▶▶ 批量运行", Classes = "ghost", CommandPath = nameof(RunAllCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "按列表顺序依次处理（已完成的不重复跑），跑完自动探测输出文件" },
+        new() { Text = "▶ 只跑选中", CommandPath = nameof(RunSelectedCommand), IsEnabledPath = nameof(CanActOnSelection), ToolTip = "处理选中行（可多选）—— 已完成的任务不会再跑，想重跑先右键「↺ 重新排队」" },
         new() { Text = "⏹ 停止", CommandPath = nameof(StopCommand), IsEnabledPath = nameof(IsRunning) },
         new() { Kind = ToolbarItemKind.Separator },
         new() { Text = "💾 保存修改", CommandPath = nameof(SaveCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把详情卡里改的参数写回选中的任务" },
-        new() { Text = "🗑 删除", CommandPath = nameof(DeleteCommand), IsEnabledPath = nameof(IsNotBusy) },
-        new() { Text = "📂 输出目录", CommandPath = nameof(OpenOutputFolderCommand), IsEnabledPath = nameof(HasSelection) },
+        new() { Text = "🗑 删除", CommandPath = nameof(DeleteCommand), IsEnabledPath = nameof(CanActOnSelection) },
+        new() { Text = "📂 输出目录", CommandPath = nameof(OpenOutputFolderCommand), IsEnabledPath = nameof(CanActOnSelection) },
         new() { Text = "📋 复制命令", CommandPath = nameof(CopyCommandLineCommand), IsEnabledPath = nameof(HasSelection) },
         new() { Text = "↺ 重置为自动", CommandPath = nameof(ResetCommandCommand), IsEnabledPath = nameof(IsArgsEdited), IsVisiblePath = nameof(IsArgsEdited), ToolTip = "丢弃手改的命令，恢复成由参数自动生成" },
         new() { Kind = ToolbarItemKind.Separator },
         new() { Text = "📤 导出任务", CommandPath = nameof(ExportTasksCommand), ToolTip = "把当前队列（剪辑 + 转码）导出成 JSON 文件，可用外部脚本批量加工后再导入" },
         new() { Text = "📥 导入任务", CommandPath = nameof(ImportTasksCommand), ToolTip = "从导出的 JSON 里追加任务进当前队列（不覆盖已有）" },
         new() { Text = "🧹 清理已结束", CommandPath = nameof(ClearFinishedCommand), IsEnabledPath = nameof(IsNotBusy) },
-        new() { Text = "🧹 清除缓存", CommandPath = nameof(ClearCacheCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "只清页面上的这条列表（不再显示它们）：⛔ 磁盘上的 config\\video-tasks.json 不会动，点「📥 导入任务」可以再读回来" },
+        new() { Text = "🧹 清空队列", CommandPath = nameof(ClearCacheCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "清掉整条队列并写进库（重开软件不会再冒出来）；磁盘上的源 / 输出文件一个都不动" },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Text = "➡ 送预览", Classes = "ghost", CommandPath = nameof(SendToPreviewCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把选中的任务源文件送进「视频预览」页（一次只编一个，进入后自动载入）" },
+        new() { Text = "🎬 预览编辑", Classes = "ghost", CommandPath = nameof(SendToPreviewCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把选中的任务（连全部参数）送进「视频预览」页，边看画面边改；改完用那边的「✔ 保存回任务」写回本队列（不新增一条）" },
     };
 
     private readonly VideoTaskStore? _store;
@@ -105,7 +105,12 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private bool _isRunning;
 
     public bool IsNotBusy => !IsBusy && !IsRunning;
+
+    /// <summary>详情卡 / 单行命令（保存修改 / 复制命令 / 送预览）的启用条件。</summary>
     public bool HasSelection => Selected != null;
+
+    /// <summary>批量动作（跑选中 / 删除 / 输出目录）的启用条件：有选中（多选集合或详情卡当前行）+ 当前没在跑。</summary>
+    public bool CanActOnSelection => IsNotBusy && (HasSelectedRows || Selected != null);
 
     /// <summary>导入 / 导出默认目录：本模块的 <c>store\video</c>（未建出 ⇒ 退回 <c>store\</c>）。</summary>
     public string ImportExportDefaultDir
@@ -133,7 +138,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     public ObservableCollection<VideoTaskBase> Items { get; } = new();
 
     /// <summary>预设下拉框的数据源（不写死在 XAML 里）。</summary>
-    public IReadOnlyList<TranscodePreset> Presets => TranscodePreset.All;
+    public IReadOnlyList<TranscodePreset> TranscodePresets => TranscodePreset.All;
     public IReadOnlyList<CutPresetOption> CutPresetOptions => CutPresets.All;
     public IReadOnlyList<string> ContainerOptions => FfmpegService.Containers;
 
@@ -153,8 +158,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     // ==================== 编辑缓冲（两套，按选中任务类型生效） ====================
 
     // 转码
-    [ObservableProperty] private string _editPresetId = "h265";
-    [ObservableProperty] private int _editCrf;
+    [ObservableProperty] private string _editTranscodePresetId = "h265";
+    [ObservableProperty] private int _editTranscodeCrf;
     [ObservableProperty] private int _editMaxHeight;
 
     // 默认宽 / 高上限（v3.19；0 = 不用，源更大才缩、否则保原始）
@@ -267,7 +272,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
             var probe = new TranscodeTask
             {
-                PresetId = EditPresetId,
+                PresetId = EditTranscodePresetId,
                 AudioMode = string.IsNullOrWhiteSpace(EditAudioMode) ? AudioModes.Keep : EditAudioMode,
                 TargetSizeMb = EditTargetSizeMb,
                 SourceDuration = duration
@@ -368,7 +373,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     [ObservableProperty] private int _editGifWidth = 480;
 
     /// <summary>当前编辑的转码预设是不是 GIF（详情卡据此显隐两个 GIF 字段）。</summary>
-    public bool IsGifPreset => FfmpegService.IsGif(TranscodePreset.Find(EditPresetId));
+    public bool IsGifPreset => FfmpegService.IsGif(TranscodePreset.Find(EditTranscodePresetId));
 
     // ---- 旋转 / 翻转（v3.19）----
 
@@ -415,7 +420,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     /// <summary>当前会用的视频编码器名（CPU / GPU 一眼可见，避免以为用了 GPU 其实没用）。</summary>
     public string SelectedEncoder
         => DetailTask is TranscodeTask
-            ? FfmpegService.ResolveEncoder(TranscodePreset.Find(EditPresetId).VideoCodec, EditUseGpu)
+            ? FfmpegService.ResolveEncoder(TranscodePreset.Find(EditTranscodePresetId).VideoCodec, EditUseGpu)
             : "—";
 
     /// <summary>新建转码任务的初始最大高度（超出才缩，0 = 保原始）。预设取详情卡当前值。</summary>
@@ -425,23 +430,9 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     public bool SelectedIsCut => Selected is CutTask;
     public bool SelectedIsTranscode => Selected is TranscodeTask;
 
-    // ==================== 勾选（v3.16 §6.4.10：行首勾选框 + 表头 ☑ 的右键菜单） ====================
+    // ==================== 选中（多选：VM 是唯一真相，见 VideoBatchViewModel.Selection.cs） ====================
 
-    /// <summary>已勾选的任务数（勾选只做**多选标记**，⛔ 不参与命令生成）。</summary>
-    public int CheckedCount => ItemsRaw.Count(t => t.IsChecked);
-
-    public bool HasChecked => CheckedCount > 0;
-
-    /// <summary>表头勾选框的三态（v3.16.1）：null = 部分勾选（显示为实心方块）。</summary>
-    public bool? AllCheckedState
-    {
-        get
-        {
-            var total = ItemsRaw.Count();
-            if (total == 0) return false;
-            var c = CheckedCount;
-            return c == 0 ? false : (c >= total ? true : null);
-        }
-    }
+    /// <summary>列表重建中（View 的选中回填据此跳过）。</summary>
+    private bool _syncing;
 
 }

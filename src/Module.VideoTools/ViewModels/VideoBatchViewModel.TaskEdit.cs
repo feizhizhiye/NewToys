@@ -43,7 +43,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         IsBusy = true;
         var probe = VideoScanner.DeriveFfprobe(_cfg?.FfmpegPath);
-        var preset = TranscodePreset.Find(string.IsNullOrWhiteSpace(EditPresetId) ? "h265" : EditPresetId);
+        var preset = TranscodePreset.Find(string.IsNullOrWhiteSpace(EditTranscodePresetId) ? "h265" : EditTranscodePresetId);
         var added = 0;
         try
         {
@@ -121,19 +121,25 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     private static string FormatBitRate(long bps)
         => bps >= 1_000_000 ? $"{bps / 1_000_000.0:0.0} Mbps" : $"{bps / 1000.0:0} kbps";
 
-    /// <summary>🗑 删除选中任务。</summary>
+    /// <summary>🗑 删除选中任务（可多选；⛔ 不动磁盘上的源 / 输出文件）。</summary>
     [RelayCommand]
     private void Delete()
     {
-        if (Selected == null || _store == null) return;
-        var name = Selected.Name;
+        var rows = SelectionList();
+        if (rows.Count == 0 || _store == null) { StatusText = "先选中要删除的任务。"; return; }
+        if (IsRunning) { StatusText = "正在跑任务 —— 先「⏹ 停止」再删。"; return; }
 
-        if (Selected is CutTask c) _store.RemoveCut(c);
-        else if (Selected is TranscodeTask t) _store.RemoveTranscode(t);
+        foreach (var t in rows)
+        {
+            if (t is CutTask c) _store.RemoveCut(c);
+            else if (t is TranscodeTask x) _store.RemoveTranscode(x);
+        }
 
         Selected = null;
         RefreshView();
-        StatusText = "已删除任务：" + name;
+        StatusText = rows.Count == 1
+            ? "已删除任务：" + rows[0].Name
+            : $"已删除 {rows.Count} 个任务。";
     }
 
     /// <summary>💾 保存：把详情卡里的参数写回任务（改完自动回到"等待中"，下次按新参数跑）。</summary>
@@ -149,8 +155,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         if (Selected is TranscodeTask x)
         {
-            x.PresetId = string.IsNullOrWhiteSpace(EditPresetId) ? "h265" : EditPresetId;
-            x.Crf = EditCrf;
+            x.PresetId = string.IsNullOrWhiteSpace(EditTranscodePresetId) ? "h265" : EditTranscodePresetId;
+            x.Crf = EditTranscodeCrf;
             x.MaxHeight = EditMaxHeight;
             x.Container = x.IsSoftSubtitle ? ".mkv"
                         : FfmpegService.IsGif(x.Preset) ? ".gif"

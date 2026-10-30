@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -89,28 +89,35 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             "Source" => SortDescending ? q.OrderByDescending(t => t.SourcePath, byText) : q.OrderBy(t => t.SourcePath, byText),
             "Command" => SortDescending ? q.OrderByDescending(CommandSummaryOf, byText) : q.OrderBy(CommandSummaryOf, byText),
             "Created" => SortDescending ? q.OrderByDescending(t => t.Created) : q.OrderBy(t => t.Created),
+            "Finished" => SortDescending
+                ? q.OrderByDescending(t => t.FinishedAt ?? DateTime.MinValue)
+                : q.OrderBy(t => t.FinishedAt ?? DateTime.MinValue),
             _ => SortDescending ? q.OrderByDescending(t => t.Name, byText) : q.OrderBy(t => t.Name, byText)
         };
 
-        Items.Clear();
-        FinishedItems.Clear();
-        foreach (var t in q)
+        // 🔴 `_syncing` 必须**罩住 Clear**：清空那一刻 ListBox 会把 SelectedItems 抛空并回传，
+        //    View 若照收就会把用户选好的一批冲掉（与「视频列表」页同一处坑）。
+        _syncing = true;
+        try
         {
-            // 「命令摘要」列：模型自己拼不出 ffmpeg 参数（拿不到 ffmpeg 路径），由 VM 填一次
-            t.CommandSummaryDisplay = CommandSummaryOf(t);
-            // 已完成 ⇒ 沉到下方独立分区（上面那块只剩还有事要做的）
-            if (t.Status == VideoTaskStatus.Done) FinishedItems.Add(t);
-            else Items.Add(t);
+            Items.Clear();
+            FinishedItems.Clear();
+            foreach (var t in q)
+            {
+                // 「命令摘要」列：模型自己拼不出 ffmpeg 参数（拿不到 ffmpeg 路径），由 VM 填一次
+                t.CommandSummaryDisplay = CommandSummaryOf(t);
+                // 已完成 ⇒ 沉到下方独立分区（上面那块只剩还有事要做的）
+                if (t.Status == VideoTaskStatus.Done) FinishedItems.Add(t);
+                else Items.Add(t);
+            }
         }
+        finally { _syncing = false; }
 
         UpdateHeaders();
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasFinished));
         OnPropertyChanged(nameof(FinishedHeaderText));
-        OnPropertyChanged(nameof(AllCheckedState));   // v3.16.1：清队列 / 导入任务后表头三态刷新
         UpdateSummaryText();
-        OnPropertyChanged(nameof(CheckedCount));
-        OnPropertyChanged(nameof(HasChecked));
 
         // 补回选中项（还在列表里才补；被筛掉 / 删掉的保持未选中）
         if (keep != null && !ReferenceEquals(Selected, keep)
@@ -118,6 +125,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         {
             Selected = keep;
         }
+
+        ReconcileSelection();
     }
 
     /// <summary>任务类型（列表「类型」列 / 排序用）：剪辑 / 转码 / 剪辑+转码。</summary>
@@ -162,6 +171,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         "Source" => ((VideoTaskBase)row).SourcePath,
         "Command" => CommandSummaryOf((VideoTaskBase)row),
         "Created" => ((VideoTaskBase)row).CreatedDisplay,
+        "Finished" => ((VideoTaskBase)row).FinishedDisplay,
         "Progress" => ((VideoTaskBase)row).Progress.ToString(),
         _ => null
     };
@@ -172,6 +182,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         "After" => ((VideoTaskBase)row).OutputSize,
         "Progress" => ((VideoTaskBase)row).Progress,
         "Created" => ((VideoTaskBase)row).Created.ToOADate(),
+        "Finished" => ((VideoTaskBase)row).FinishedAt?.ToOADate() ?? 0,
         _ => null
     };
 
@@ -191,6 +202,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         SourceHeader = "源文件" + SortArrow("Source");
         CommandHeader = "命令摘要" + SortArrow("Command");
         CreatedHeader = "创建时间" + SortArrow("Created");
+        FinishedHeader = "完成时间" + SortArrow("Finished");
     }
 
     partial void OnSearchTextChanged(string value) => RefreshView();
@@ -202,6 +214,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         FillEditors(DetailTask);             // 填充详情卡编辑缓冲
 
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(CanActOnSelection));
         OnPropertyChanged(nameof(SelectedIsCut));
         OnPropertyChanged(nameof(SelectedIsTranscode));
         OnPropertyChanged(nameof(SelectedHasTrim));
@@ -218,8 +231,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         if (value is TranscodeTask x)
         {
-            EditPresetId = x.PresetId;
-            EditCrf = x.Crf;
+            EditTranscodePresetId = x.PresetId;
+            EditTranscodeCrf = x.Crf;
             EditMaxHeight = x.MaxHeight;
             EditContainer = x.Container;
             EditUseGpu = x.UseGpuEncoder;
@@ -290,7 +303,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         IsCommandSectionExpanded = IsArgsEdited;
     }
 
-    /// <summary>重算底部摘要（队列构成 + 已勾选数；勾选变化与刷新列表共用）。</summary>
+    /// <summary>重算底部摘要（队列构成 + 已选数；选中变化与刷新列表共用）。</summary>
     private void UpdateSummaryText()
     {
         var all = ItemsRaw.ToList();
@@ -300,10 +313,16 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
               + $" · 已完成 {all.Count(t => t.Status == VideoTaskStatus.Done)}"
               + (all.Count(t => t.Status == VideoTaskStatus.Failed) > 0
                   ? $" · 失败 {all.Count(t => t.Status == VideoTaskStatus.Failed)}" : "")
-              + (CheckedCount > 0 ? $" · 已勾选 {CheckedCount}" : "");
+              + (SelectedCount > 0 ? $" · 已选 {SelectedCount}" : "");
     }
 
-    partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
-    partial void OnIsRunningChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
+    partial void OnIsBusyChanged(bool value) => NotifyBusyChanged();
+    partial void OnIsRunningChanged(bool value) => NotifyBusyChanged();
+
+    private void NotifyBusyChanged()
+    {
+        OnPropertyChanged(nameof(IsNotBusy));
+        OnPropertyChanged(nameof(CanActOnSelection));
+    }
 
 }

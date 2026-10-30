@@ -65,7 +65,7 @@
                          VerticalAlignment="Center" Text="{Binding PreviewTimeDisplay}"/>
             </Grid>
 
-            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}" Margin="0,-14,0,0">
+            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding EditIsCut}" Margin="0,-14,0,0">
               <TextBlock Grid.Column="0" Classes="field-label" Text="开始" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding StartSeconds, Mode=TwoWay}"
@@ -75,7 +75,7 @@
                          VerticalAlignment="Center" Text="{Binding EditStart}"/>
             </Grid>
 
-            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding IsCut}" Margin="0,-14,0,0">
+            <Grid ColumnDefinitions="56,*,84" IsEnabled="{Binding EditIsCut}" Margin="0,-14,0,0">
               <TextBlock Grid.Column="0" Classes="field-label" Text="结束" VerticalAlignment="Center"/>
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding EndSeconds, Mode=TwoWay}"

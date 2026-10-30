@@ -25,9 +25,9 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 {
 
     /// <summary>
-    /// 🧹 清除缓存（v3.16.1 更名 + 改语义，需求 §6.4.11）：**只清页面上的这条缓存** ——
-    /// 内存里的队列清空回到空白，⛔ 磁盘上的 `video-tasks.json` **不动**（不删、也不把空队列写回去），
-    /// 想再要回来就点「📥 导入任务」。⛔ 别叫"清除队列"，那是"连备份一起清"的口径。
+    /// 🧹 清空队列：内存队列清空**并写进库**（库里那条文档一起删）。
+    /// <para>必须落盘：软件启动时会自动恢复上次的队列，只清内存的话重开就全回来了。
+    /// 想再要回来用导出的 JSON 走「📥 导入任务」；磁盘上的源 / 输出文件一个都不动。</para>
     /// </summary>
     [RelayCommand]
     private async Task ClearCacheAsync()
@@ -35,27 +35,26 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         if (_store == null) { StatusText = "任务服务未就绪。"; return; }
 
         var n = ItemsRaw.Count();
-        if (n == 0) { StatusText = "列表已经是空的。"; return; }
-        if (IsRunning) { StatusText = "正在跑任务 —— 先「⏹ 停止」再清除。"; return; }
+        if (n == 0) { StatusText = "队列已经是空的。"; return; }
+        if (IsRunning) { StatusText = "正在跑任务 —— 先「⏹ 停止」再清空。"; return; }
 
-        var msg = $"清除页面上的 {n} 个任务（只是不再显示它们）？" + Environment.NewLine
-                + "⛔ 磁盘上的 video-tasks.json 不会动、已生成的视频文件也不会删 —— 想再要回来点「📥 导入任务」。";
-        if (!await NewToys.Core.Services.DialogHooks.ConfirmAsync(msg)) { StatusText = "已取消清除。"; return; }
+        var msg = $"清空队列里的 {n} 个任务？（重开软件也不会再回来）" + Environment.NewLine
+                + "⛔ 磁盘上的源文件 / 已生成的视频一个都不删。";
+        if (!await NewToys.Core.Services.DialogHooks.ConfirmAsync(msg)) { StatusText = "已取消。"; return; }
 
         _runCts?.Cancel();
         var cleared = _store.ClearCache();
         Selected = null;
         RefreshView();
-        StatusText = $"已清除页面缓存（{cleared} 个任务）—— 磁盘上的 video-tasks.json 没动，点「📥 导入任务」可以再读回来；"
-                   + "下次打开程序也不会自动载入它。";
+        StatusText = $"已清空队列（{cleared} 个任务，库里也删了）—— 磁盘上的文件没动。";
     }
 
     // ==================== 运行 ====================
 
-    /// <summary>▶ 只跑选中的一条。</summary>
+    /// <summary>▶ 只跑选中：跑选中行（可多选，Ctrl 增选 / Shift 连选；已完成的不重复跑）。</summary>
     [RelayCommand]
     private async Task RunSelectedAsync()
-        => await RunTasksAsync(Selected != null ? new List<VideoTaskBase> { Selected } : new List<VideoTaskBase>());
+        => await RunTasksAsync(SelectionList().ToList());
 
     /// <summary>▶▶ 批量运行：按列表顺序跑全部「还没成功」的任务（剪辑 / 转码按各自参数分派）。</summary>
     [RelayCommand]
@@ -66,7 +65,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         if (_store == null) return;
         if (IsRunning) { StatusText = "已经在跑了，先「⏹ 停止」再开始。"; return; }
-        if (targets.Count == 0) { StatusText = "没有要跑的任务。"; return; }
+
+        // 🔴 已完成的任务**不再执行**（`Status` 就是运行记录）：重新开始只续跑没完成的。
+        //    想重跑某条 ⇒ 选中它右键「↺ 重新排队」（清掉状态 = 明确表示要再跑一次）。
+        targets = targets.Where(t => t.Status != VideoTaskStatus.Done).ToList();
+        if (targets.Count == 0)
+        {
+            StatusText = "没有要跑的任务 —— 已完成的不重复跑；想重跑先选中它右键「↺ 重新排队」。";
+            return;
+        }
 
         var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);
         var (okCheck, msgCheck) = await FfmpegService.CheckAsync(ffmpeg);
@@ -75,6 +82,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         _runCts = new CancellationTokenSource();
         IsRunning = true;
         var okCount = 0;
+        // 跑批期间别让系统睡着（人离开了转码还在继续）
+        using var keepAwake = KeepAwakeScope.Acquire();
         try
         {
             for (var i = 0; i < targets.Count; i++)
@@ -86,6 +95,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 t.Status = VideoTaskStatus.Running;
                 t.Progress = 0;
                 t.Message = "";
+                var watch = Stopwatch.StartNew();
 
                 // 按类型分派：剪辑 → BuildCutArgs；转码 → BuildTranscodeArgs
                 // 🔴 手改过命令 → **原样执行**（RawArgs 按约定不含输出路径，这里补在末尾）
@@ -112,6 +122,10 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 t.Message = message;
                 t.OutputSize = size;
 
+                // 运行记录：跑完（成功 / 失败 / 取消）都记一行完成时间 + 耗时，落盘后关掉软件也还在
+                t.FinishedAt = DateTime.Now;
+                t.ElapsedSeconds = (int)Math.Round(watch.Elapsed.TotalSeconds);
+
                 if (ok)
                 {
                     okCount++;
@@ -122,8 +136,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             }
 
             StatusText = _runCts.IsCancellationRequested
-                ? $"已停止：完成 {okCount}/{targets.Count}"
-                : $"批量处理完成：{okCount}/{targets.Count} 成功";
+                ? $"已停止：本轮完成 {okCount}/{targets.Count} —— 剩下没跑完的留着，再点「▶▶ 批量运行」只跑它们（已完成的不会重跑）。"
+                : $"批量处理完成：{okCount}/{targets.Count} 成功（完成时间 / 耗时已记进列表）。";
         }
         catch (Exception ex)
         {
@@ -164,14 +178,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         StatusText = "正在停止……（当前这条会被中止，半成品输出已删除）";
     }
 
-    /// <summary>📂 打开输出文件所在目录。</summary>
+    /// <summary>📂 打开输出文件所在目录（多选时取第一条）。</summary>
     [RelayCommand]
     private void OpenOutputFolder()
     {
-        if (Selected == null) return;
-        var dir = File.Exists(Selected.OutputPath)
-            ? Path.GetDirectoryName(Selected.OutputPath)
-            : Path.GetDirectoryName(Selected.SourcePath);
+        var t = SelectionList().FirstOrDefault();
+        if (t == null) return;
+        var dir = File.Exists(t.OutputPath)
+            ? Path.GetDirectoryName(t.OutputPath)
+            : Path.GetDirectoryName(t.SourcePath);
         try
         {
             if (string.IsNullOrEmpty(dir)) return;
@@ -182,15 +197,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     // ==================== 反向发送 / 导入导出 ====================
 
-    /// <summary>➡ 把选中的一条任务送进「视频预览」页（复用 EnqueueForCut 取件通道；预览页一次只编一个）。</summary>
+    /// <summary>🎬 预览编辑：把选中的任务（**连参数**）送进「视频预览」页，改完可用「✔ 保存回任务」写回原位置。</summary>
     [RelayCommand]
     private void SendToPreview()
     {
         if (Selected == null) { StatusText = "先在列表里选中一个任务。"; return; }
         if (_store == null) { StatusText = "任务服务未就绪。"; return; }
-        _store.EnqueueForCut(new[] { Selected.SourcePath });
+        _store.AttachPreviewTarget(Selected);
         _nav?.NavigateTo("video-cut");
-        StatusText = $"已把「{Selected.Name}」送去视频预览页（本页一次只编一个，进入后自动载入）。";
+        StatusText = $"已带着参数把「{Selected.Name}」送去视频预览页 —— 改完点「✔ 保存回任务」写回本队列（不新增一条）。";
     }
 
     /// <summary>📤 导出任务：把当前队列（剪辑 + 转码）序列化成 JSON 文件。</summary>

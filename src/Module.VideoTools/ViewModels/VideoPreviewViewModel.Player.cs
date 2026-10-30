@@ -124,12 +124,17 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     }
 
     /// <summary>
-    /// 进入本页时取走「视频列表」页送来的文件（<c>EnqueueForCut</c>）。
+    /// 进入本页时取走别处送来的东西：优先「批量处理」的**带参任务**（整条参数一起编辑），
+    /// 其次「视频列表」送来的文件（只有路径）。
     /// <para>⚠️ 本页一次只编辑**一个**任务，所以只载入第一个；其余在状态栏里如实说明。</para>
     /// </summary>
     public void ConsumePending()
     {
         if (_store == null) return;
+
+        var target = _store.TakePreviewTarget();
+        if (target != null) { LoadTaskForEdit(target); return; }
+
         var pending = _store.TakePendingCut();
         if (pending.Count == 0) return;
 

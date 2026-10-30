@@ -21,104 +21,85 @@
                             IsResizable="True"
                             LockedColumns="{Binding LockedColumnMask}"
                             SampleSpecs="{Binding SampleSpecs}">
-                            <!--
-                                v3.16.1：第一列 = 行首勾选框；表头改用**原生 CheckBox**（三态：全勾 ✓ / 部分 ■ / 没勾）
-                                —— 之前用字符"☑"，字体渲染成一坨深色块，跟行内勾选框风格不搭。
-                                点 = 全选/取消；右键 = 菜单（全选 / 取消选择 / 反选，与「视频列表」页同一套）。
-                                外面套透明 Border：整个 34px 列格都是右键热区。
-                                ⚠️ ContextMenu 挂在 Border 上，code-behind 同步 DataContext 用 HeaderCheckHost。
-                            -->
-                            <Border
-                                x:Name="HeaderCheckHost"
-                                Grid.Column="0"
-                                Background="Transparent"
-                                Cursor="Hand"
-                                IsEnabled="{Binding HasItems}"
-                                IsVisible="{Binding IsPickVisible}"
-                                ToolTip.Tip="点 = 全选 / 取消；右键 = 全选 / 取消选择 / 反选">
-                                <CheckBox
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Command="{Binding ToggleAllCommand}"
-                                    IsChecked="{Binding AllCheckedState, Mode=OneWay}" />
-                                <Border.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Command="{Binding CheckAllCommand}" Header="☑ 全选（当前列表）" />
-                                        <MenuItem Command="{Binding UncheckAllCommand}" Header="☐ 取消选择" />
-                                        <MenuItem Command="{Binding InvertCheckedCommand}" Header="🔄 反选" />
-                                    </ContextMenu>
-                                </Border.ContextMenu>
-                            </Border>
+                            <!--  列：类型 / 文件 / 参数 / 处理前 / 处理后 / 状态 / 进度 / 源文件 / 命令摘要 / 创建时间 / 完成时间
+                                  勾选列已撤（多选走原生 Ctrl / Shift 点选，见 code-behind）  -->
                             <Button
-                                Grid.Column="1"
+                                Grid.Column="0"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Kind"
                                 Content="{Binding KindHeader}"
                                 IsVisible="{Binding IsKindVisible}" />
                             <Button
-                                Grid.Column="2"
+                                Grid.Column="1"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Name"
                                 Content="{Binding NameHeader}"
                                 IsVisible="{Binding IsNameVisible}" />
                             <Button
-                                Grid.Column="3"
+                                Grid.Column="2"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Param"
                                 Content="{Binding ParamHeader}"
                                 IsVisible="{Binding IsParamVisible}" />
                             <Button
-                                Grid.Column="4"
+                                Grid.Column="3"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Before"
                                 Content="{Binding BeforeHeader}"
                                 IsVisible="{Binding IsBeforeVisible}" />
                             <Button
-                                Grid.Column="5"
+                                Grid.Column="4"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="After"
                                 Content="{Binding AfterHeader}"
                                 IsVisible="{Binding IsAfterVisible}" />
                             <Button
-                                Grid.Column="6"
+                                Grid.Column="5"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Status"
                                 Content="{Binding StatusHeader}"
                                 IsVisible="{Binding IsStatusVisible}" />
                             <TextBlock
-                                Grid.Column="7"
+                                Grid.Column="6"
                                 Classes="list-cell"
                                 FontWeight="SemiBold"
                                 IsVisible="{Binding IsProgressVisible}"
                                 Text="进度" />
-                            <!--  v3.15 §6.4.8 扩充列（列索引 7~9，与 Columns 元数据一一对应）  -->
+                            <!--  v3.15 §6.4.8 扩充列（列索引 7~10，与 Columns 元数据一一对应）  -->
                             <Button
-                                Grid.Column="8"
+                                Grid.Column="7"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Source"
                                 Content="{Binding SourceHeader}"
                                 IsVisible="{Binding IsSourceVisible}" />
                             <Button
-                                Grid.Column="9"
+                                Grid.Column="8"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Command"
                                 Content="{Binding CommandHeader}"
                                 IsVisible="{Binding IsCommandVisible}" />
                             <Button
-                                Grid.Column="10"
+                                Grid.Column="9"
                                 Classes="col-header"
                                 Command="{Binding SortCommand}"
                                 CommandParameter="Created"
                                 Content="{Binding CreatedHeader}"
                                 IsVisible="{Binding IsCreatedVisible}" />
+                            <Button
+                                Grid.Column="10"
+                                Classes="col-header"
+                                Command="{Binding SortCommand}"
+                                CommandParameter="Finished"
+                                Content="{Binding FinishedHeader}"
+                                IsVisible="{Binding IsFinishedVisible}" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
                                 <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
@@ -130,13 +111,6 @@
                                   </MenuItem.ItemContainerTheme>
                                 </MenuItem>
                                     <Separator />
-                                    <!--  v3.16：勾选列也进「列显隐」（⛔ IsChecked 必须 Mode=OneWay，翻转由 ToggleColumnCommand 独家负责）  -->
-                                    <MenuItem
-                                        Command="{Binding ToggleColumnCommand}"
-                                        CommandParameter="Pick"
-                                        Header="勾选框"
-                                        IsChecked="{Binding IsPickVisible, Mode=OneWay}"
-                                        ToggleType="CheckBox" />
                                     <MenuItem
                                         Command="{Binding ToggleColumnCommand}"
                                         CommandParameter="Kind"
@@ -198,6 +172,12 @@
                                         Header="创建时间"
                                         IsChecked="{Binding IsCreatedVisible, Mode=OneWay}"
                                         ToggleType="CheckBox" />
+                                    <MenuItem
+                                        Command="{Binding ToggleColumnCommand}"
+                                        CommandParameter="Finished"
+                                        Header="完成时间"
+                                        IsChecked="{Binding IsFinishedVisible, Mode=OneWay}"
+                                        ToggleType="CheckBox" />
                                 </ContextMenu>
                             </v:ColumnGrid.ContextMenu>
                         </v:ColumnGrid>
@@ -212,21 +192,27 @@
                         x:Name="TaskList"
                         Classes="list-page"
                         ItemsSource="{Binding Items}"
-                        SelectedItem="{Binding Selected, Mode=TwoWay}"
-                        SelectionMode="Single">
+                        SelectionMode="Multiple">
                         <ListBox.ContextMenu>
                             <ContextMenu>
+                                <MenuItem Command="{Binding SelectAllCommand}" Header="☑ 全选（当前列表）" />
+                                <MenuItem Command="{Binding SelectNoneCommand}" Header="☐ 取消选择" />
+                                <MenuItem Command="{Binding InvertSelectionCommand}" Header="🔄 反选" />
                                 <Separator />
                                 <MenuItem Command="{Binding SaveCommand}" Header="💾 保存修改" />
                                 <MenuItem
                                     Command="{Binding RunSelectedCommand}"
                                     Header="▶ 只跑选中"
-                                    IsEnabled="{Binding IsNotBusy}" />
+                                    IsEnabled="{Binding CanActOnSelection}" />
+                                <MenuItem
+                                    Command="{Binding RequeueSelectedCommand}"
+                                    Header="↺ 重新排队（清状态再跑）"
+                                    IsEnabled="{Binding CanActOnSelection}" />
                                 <Separator />
                                 <MenuItem
                                     Command="{Binding DeleteCommand}"
                                     Header="🗑 删除任务"
-                                    IsEnabled="{Binding IsNotBusy}" />
+                                    IsEnabled="{Binding CanActOnSelection}" />
                                 <MenuItem Command="{Binding OpenOutputFolderCommand}" Header="📂 打开输出目录" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
@@ -234,71 +220,67 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                                    <!--  v3.16 §6.4.10：行首勾选框（配合表头 ☑ 的 全选 / 取消 / 反选）  -->
-                                    <CheckBox
-                                        Grid.Column="0"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Command="{Binding $parent[ListBox].DataContext.ItemCheckedCommand}"
-                                        IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                        IsVisible="{Binding $parent[ListBox].DataContext.IsPickVisible}"
-                                        ToolTip.Tip="勾上后可以配合表头 ☑ 做批量勾选" />
                                     <TextBlock
-                                        Grid.Column="1"
+                                        Grid.Column="0"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsKindVisible}"
                                         Text="{Binding KindDisplay}" />
                                     <TextBlock
-                                        Grid.Column="2"
+                                        Grid.Column="1"
                                         Classes="list-cell primary"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"
                                         Text="{Binding Name}" />
                                     <TextBlock
-                                        Grid.Column="3"
+                                        Grid.Column="2"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsParamVisible}"
                                         Text="{Binding ParamDisplay}" />
                                     <TextBlock
-                                        Grid.Column="4"
+                                        Grid.Column="3"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsBeforeVisible}"
                                         Text="{Binding BeforeDisplay}" />
                                     <TextBlock
-                                        Grid.Column="5"
+                                        Grid.Column="4"
                                         Classes="list-cell accent"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsAfterVisible}"
                                         Text="{Binding OutputSizeDisplay}" />
                                     <TextBlock
-                                        Grid.Column="6"
+                                        Grid.Column="5"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"
                                         Text="{Binding StatusDisplay}" />
                                     <ProgressBar
-                                        Grid.Column="7"
+                                        Grid.Column="6"
                                         Classes="task-progress"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsProgressVisible}"
                                         Maximum="100"
                                         Value="{Binding Progress}" />
                                     <!--  v3.15 §6.4.8 扩充列  -->
                                     <TextBlock
-                                        Grid.Column="8"
+                                        Grid.Column="7"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsSourceVisible}"
                                         Text="{Binding SourcePath}" />
                                     <!--
                                         命令摘要是 **VM 现算的**（不是模型属性）：往上找 ListBox 的 DataContext 调不了带参方法，
-                                        所以这里绑到模型自带的 RawArgs / ParamDisplay 兜底显示；完整命令行仍在详情卡命令区。
+                                        所以这里绑到模型自带的 CommandSummaryDisplay（VM 刷新时填）；完整命令行仍在详情卡命令区。
                                     -->
                                     <TextBlock
-                                        Grid.Column="9"
+                                        Grid.Column="8"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsCommandVisible}"
                                         Text="{Binding CommandSummaryDisplay}" />
                                     <TextBlock
-                                        Grid.Column="10"
+                                        Grid.Column="9"
                                         Classes="list-cell"
                                         IsVisible="{Binding $parent[ListBox].DataContext.IsCreatedVisible}"
                                         Text="{Binding CreatedDisplay}" />
+                                    <TextBlock
+                                        Grid.Column="10"
+                                        Classes="list-cell"
+                                        IsVisible="{Binding $parent[ListBox].DataContext.IsFinishedVisible}"
+                                        Text="{Binding FinishedDisplay}" />
                                 </v:ColumnGrid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -323,10 +305,10 @@
                                     ColumnSpecs="{Binding VisibleColumnSpecs}"
                                     LockedColumns="{Binding LockedColumnMask}"
                                     SampleSpecs="{Binding SampleSpecs}">
-                                    <TextBlock Grid.Column="2" Classes="list-cell" FontWeight="SemiBold" Text="文件" IsVisible="{Binding IsNameVisible}" />
-                                    <TextBlock Grid.Column="5" Classes="list-cell" FontWeight="SemiBold" Text="处理后" IsVisible="{Binding IsAfterVisible}" />
-                                    <TextBlock Grid.Column="6" Classes="list-cell" FontWeight="SemiBold" Text="状态" IsVisible="{Binding IsStatusVisible}" />
-                                    <TextBlock Grid.Column="9" Classes="list-cell" FontWeight="SemiBold" Text="命令摘要" IsVisible="{Binding IsCommandVisible}" />
+                                    <TextBlock Grid.Column="1" Classes="list-cell" FontWeight="SemiBold" Text="文件" IsVisible="{Binding IsNameVisible}" />
+                                    <TextBlock Grid.Column="4" Classes="list-cell" FontWeight="SemiBold" Text="处理后" IsVisible="{Binding IsAfterVisible}" />
+                                    <TextBlock Grid.Column="5" Classes="list-cell" FontWeight="SemiBold" Text="状态" IsVisible="{Binding IsStatusVisible}" />
+                                    <TextBlock Grid.Column="10" Classes="list-cell" FontWeight="SemiBold" Text="完成时间" IsVisible="{Binding IsFinishedVisible}" />
                                 </v:ColumnGrid>
                             </Border>
                             <ListBox
@@ -350,25 +332,25 @@
                                     <DataTemplate>
                                         <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
                                             <TextBlock
-                                                Grid.Column="2"
+                                                Grid.Column="1"
                                                 Classes="list-cell primary"
                                                 IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"
                                                 Text="{Binding Name}" />
                                             <TextBlock
-                                                Grid.Column="5"
+                                                Grid.Column="4"
                                                 Classes="list-cell accent"
                                                 IsVisible="{Binding $parent[ListBox].DataContext.IsAfterVisible}"
                                                 Text="{Binding OutputSizeDisplay}" />
                                             <TextBlock
-                                                Grid.Column="6"
+                                                Grid.Column="5"
                                                 Classes="list-cell"
                                                 IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"
                                                 Text="{Binding StatusDisplay}" />
                                             <TextBlock
-                                                Grid.Column="9"
+                                                Grid.Column="10"
                                                 Classes="list-cell"
-                                                IsVisible="{Binding $parent[ListBox].DataContext.IsCommandVisible}"
-                                                Text="{Binding CommandSummaryDisplay}" />
+                                                IsVisible="{Binding $parent[ListBox].DataContext.IsFinishedVisible}"
+                                                Text="{Binding FinishedDisplay}" />
                                         </v:ColumnGrid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>

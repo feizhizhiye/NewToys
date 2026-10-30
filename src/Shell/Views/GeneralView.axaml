@@ -11,8 +11,8 @@
     三个 View 共用同一个 `GeneralViewModel`（数据同源，只是显示位置分开）。
   -->
   <StackPanel
-      HorizontalAlignment="Left"
-      MaxWidth="720"
+      HorizontalAlignment="Stretch"
+      MaxWidth="1080"
       Spacing="10">
 
     <CheckBox Content="开机时启动 NewToys" IsChecked="{Binding StartWithSystem, Mode=TwoWay}" />

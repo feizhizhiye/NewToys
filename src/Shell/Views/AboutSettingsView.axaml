@@ -2,15 +2,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Shell.Views.AboutSettingsView">
   <!--
-    v3.65 / NT-062 · 应用级设置页「关于」节（需求 §4.9.2 / §6.5）：版本 / 关于 / **功能清单入口** / 🔄 重载模块。
-    ⚠️ 「版本 + 技术栈」两张卡 v3.65 由「通用」节**平移**过来（原页里是重复的），本节是它们唯一的家。
-    窄界面基线（NT-053）：内容 MaxWidth 720、左对齐。
-    🔴 v3.66 / NT-062 第五轮：**内层 ScrollViewer 删除** —— 设置页整页就是滚动流，内层再套一个会
-       **吃掉滚轮**（鼠标停在本节上时滚的是本节、不是整页 ⇒ 感受成"滚不动 / 像循环"）。
+    应用级设置页「关于」节（需求 §4.9.2 / §6.5）：版本 / 技术栈 / **组件版本** / 🔄 重载模块。
+    宽度基线：各节正文根容器统一 `Stretch` + MaxWidth 1080（与应用级设置页其余节同宽）。
+    🔴 本节**不套内层 ScrollViewer** —— 设置页整页就是滚动流，内层再套一个会吃掉滚轮。
+    🔴「组件版本」只列**已加载的程序集**，取数在 LoadedComponentProbe；⛔ 别在这里写文件扫描逻辑。
   -->
   <StackPanel
-      HorizontalAlignment="Left"
-      MaxWidth="720"
+      HorizontalAlignment="Stretch"
+      MaxWidth="1080"
       Spacing="10">
 
     <Border Classes="card">
@@ -29,37 +28,145 @@
     </Border>
 
     <Border Classes="card">
-      <StackPanel Margin="4" Spacing="4">
-        <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" Text="技术栈" />
-        <TextBlock
-            Foreground="{DynamicResource SecondaryTextBrush}"
-            Text=".NET 10 · Avalonia 12.1.4 · CommunityToolkit.Mvvm 8.4.2 · Microsoft.Extensions.DependencyInjection 9.0.0"
-            TextWrapping="Wrap" />
-      </StackPanel>
-    </Border>
-
-    <!--  ============ 功能清单入口（v3.62 移出设置 = 独立页；Key settings-all ⛔ 不改） ============  -->
-    <Border Classes="card">
       <StackPanel Spacing="8">
         <TextBlock
-            FontSize="14"
             FontWeight="SemiBold"
             Foreground="{DynamicResource PrimaryTextBrush}"
-            Text="功能清单" />
+            Text="技术栈" />
         <TextBlock
             Classes="hint-text"
-            Text="全部模块与功能的合集（首页收藏卡只是其中的常用子集）。在清单里右键一个功能可「📌 固定到首页」。"
+            Text=".NET 10 运行时 + Avalonia 桌面框架，以及各项目直接引用的库。"
             TextWrapping="Wrap" />
-        <Button
-            Classes="ghost"
-            HorizontalAlignment="Left"
-            Command="{Binding OpenFunctionListCommand}"
-            Content="📋 打开功能清单"
-            ToolTip.Tip="打开功能清单页（首页收藏卡尾部「显示更多」是同一个入口）" />
+        <ItemsControl ItemsSource="{Binding Libraries}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid Height="22" ColumnDefinitions="300,Auto">
+                <StackPanel
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                  <TextBlock
+                      MaxWidth="220"
+                      FontSize="12"
+                      Foreground="{DynamicResource PrimaryTextBrush}"
+                      Text="{Binding Name}"
+                      TextTrimming="CharacterEllipsis"
+                      ToolTip.Tip="{Binding Name}" />
+                  <TextBlock
+                      VerticalAlignment="Center"
+                      Classes="hint-text"
+                      Text="{Binding Note}" />
+                </StackPanel>
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    FontSize="12"
+                    Foreground="{DynamicResource SecondaryTextBrush}"
+                    Text="{Binding Version}" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
       </StackPanel>
     </Border>
 
-    <!--  ============ 🔄 重载模块（v3.62 由功能清单页移入本节） ============  -->
+    <!--  ============ 组件版本（只编一个模块时用来对照各 DLL 的编译时间） ============  -->
+    <Border Classes="card">
+      <StackPanel Spacing="8">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock
+              VerticalAlignment="Center"
+              FontSize="14"
+              FontWeight="SemiBold"
+              Foreground="{DynamicResource PrimaryTextBrush}"
+              Text="组件版本" />
+          <Button
+              Grid.Column="1"
+              Classes="ghost"
+              Command="{Binding RefreshVersionsCommand}"
+              Content="🔄 刷新"
+              ToolTip.Tip="重新读取当前已加载的程序集版本" />
+        </Grid>
+
+        <TextBlock
+            Classes="hint-text"
+            Text="版本号 = 该 DLL 的编译时间（1.yyMMdd.HH.mm0）。单独重编某个模块后，它的版本/编译时间会与「外壳」不同并标 ⚠；重载模块后列表自动刷新。"
+            TextWrapping="Wrap" />
+
+        <TextBlock
+            Margin="0,4,0,0"
+            FontWeight="SemiBold"
+            Foreground="{DynamicResource SecondaryTextBrush}"
+            Text="外壳" />
+        <ItemsControl ItemsSource="{Binding ShellComponents}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="190,150,140,*" Height="24">
+                <TextBlock
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource PrimaryTextBrush}"
+                    Text="{Binding Name}" />
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource SecondaryTextBrush}"
+                    Text="{Binding Version}" />
+                <TextBlock
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource SecondaryTextBrush}"
+                    Text="{Binding BuiltAt}" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Grid Margin="0,8,0,0" ColumnDefinitions="*,Auto">
+          <TextBlock
+              VerticalAlignment="Center"
+              FontWeight="SemiBold"
+              Foreground="{DynamicResource SecondaryTextBrush}"
+              Text="模块" />
+          <TextBlock
+              Grid.Column="1"
+              VerticalAlignment="Center"
+              Classes="hint-text"
+              Text="{Binding ModuleSummary}" />
+        </Grid>
+        <ItemsControl ItemsSource="{Binding ModuleComponents}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="190,150,140,*" Height="24">
+                <TextBlock
+                    Grid.Column="0"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource PrimaryTextBrush}"
+                    Text="{Binding Name}" />
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource SecondaryTextBrush}"
+                    Text="{Binding Version}" />
+                <TextBlock
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource SecondaryTextBrush}"
+                    Text="{Binding BuiltAt}" />
+                <TextBlock
+                    Grid.Column="3"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource DangerBrush}"
+                    Text="{Binding Note}" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="hint-text" IsVisible="{Binding HasNoModules}" Text="未加载任何模块。" />
+      </StackPanel>
+    </Border>
+
+    <!--  ============ 🔄 重载模块 ============  -->
     <Border Classes="card">
       <StackPanel Spacing="8">
         <TextBlock
@@ -71,12 +178,18 @@
             Classes="hint-text"
             Text="把新的模块 DLL 放进 Modules\ 目录后，点「🔄 重载模块」即可装进来 —— 重载后功能清单与左侧菜单会立即刷新（只新增；移除模块要重启）。"
             TextWrapping="Wrap" />
-        <Button
-            Classes="ghost"
-            HorizontalAlignment="Left"
-            Command="{Binding ReloadModulesCommand}"
-            Content="🔄 重载模块"
-            ToolTip.Tip="重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）" />
+        <StackPanel HorizontalAlignment="Left" Orientation="Horizontal" Spacing="8">
+          <Button
+              Classes="ghost"
+              Command="{Binding ReloadModulesCommand}"
+              Content="🔄 重载模块"
+              ToolTip.Tip="重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）" />
+          <Button
+              Classes="ghost"
+              Command="{Binding OpenModulesFolderCommand}"
+              Content="📁 打开模块文件夹"
+              ToolTip.Tip="在文件管理器里打开 &lt;程序目录&gt;\Modules\，可直接往里复制 DLL" />
+        </StackPanel>
         <TextBlock Classes="hint-text" Text="{Binding StatusText, StringFormat='状态：{0}'}" />
       </StackPanel>
     </Border>

@@ -13,7 +13,7 @@
   -->
   <StackPanel
       HorizontalAlignment="Left"
-      MaxWidth="720"
+      MaxWidth="1080"
       Spacing="16">
     <views:UpdateView x:Name="UpdatePart" />
     <views:AboutSettingsView x:Name="AboutPart" />

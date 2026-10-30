@@ -8,7 +8,7 @@
         **zip 分节备份**：上半 = 可勾选的备份节（设置 = 默认勾，数据 / 本机环境 = 默认不勾），
         下半 = 当前配置文件清单（只读，用来确认设置到底落在哪几个文件里）。
         ⚠️ 节内**不套 Border.card**（设置页宿主的 sec-body 已提供留白）。  -->
-  <StackPanel HorizontalAlignment="Left" MaxWidth="720" Spacing="10">
+  <StackPanel HorizontalAlignment="Stretch" MaxWidth="1080" Spacing="10">
 
     <!--  ==================== 操作行  ====================  -->
     <StackPanel Orientation="Horizontal" Spacing="8">

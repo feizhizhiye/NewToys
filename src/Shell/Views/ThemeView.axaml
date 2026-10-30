@@ -6,8 +6,8 @@
     即 v3.40 合并前的那个页 Key）。DataContext = 共用的 `GeneralViewModel`。
   -->
   <StackPanel
-      HorizontalAlignment="Left"
-      MaxWidth="720"
+      HorizontalAlignment="Stretch"
+      MaxWidth="1080"
       Spacing="12">
 
     <Grid ColumnDefinitions="*,Auto">

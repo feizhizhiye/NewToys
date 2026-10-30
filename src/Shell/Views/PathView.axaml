@@ -11,6 +11,8 @@
         渲染（抬头下方、正文之上），本页⛔ 依旧不写工具条。
         NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。 -->
   <v:ListPageSkeleton Margin="0"
+                      HorizontalAlignment="Stretch"
+                      MaxWidth="1080"
                       EmptyMessage="没有可显示的配置行。点「＋ 新建配置」建一个新的配置档。"
                       EmptyActionText="＋ 新建配置"
                       EmptyActionCommand="{Binding NewProfileCommand}"

@@ -6,13 +6,13 @@
     DataContext = 共用的 `GeneralViewModel`（⛔ 本 View 没有自己的 VM）。
   -->
   <StackPanel
-      HorizontalAlignment="Left"
-      MaxWidth="720"
+      HorizontalAlignment="Stretch"
+      MaxWidth="1080"
       Spacing="10">
 
     <StackPanel Classes="field">
       <TextBlock Classes="field-label" Text="版本文件地址（纯文本，内容里含形如 1.20261010.00.10 的版本号）" />
-      <TextBox Classes="code" Text="{Binding UpdateUrl, Mode=TwoWay}" PlaceholderText="留空 = 不检查更新" />
+      <TextBox Classes="code" MaxWidth="620" HorizontalAlignment="Left" Text="{Binding UpdateUrl, Mode=TwoWay}" PlaceholderText="留空 = 不检查更新" />
     </StackPanel>
 
     <StackPanel Orientation="Horizontal" Spacing="6">

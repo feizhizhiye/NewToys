@@ -4,8 +4,8 @@
   <!--  v3.66 / NT-062 第五轮：**内层 ScrollViewer 删除** + 间距收紧（设置页整页已是滚动流，
         内层再套一个会**吃掉滚轮** ⇒ 鼠标停在本节上时整页滚不动）。  -->
   <StackPanel
-      HorizontalAlignment="Left"
-      MaxWidth="720"
+      HorizontalAlignment="Stretch"
+      MaxWidth="1080"
       Spacing="10">
 
         <Border Classes="card">

@@ -1,6 +1,7 @@
 using System;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Details;
+using NewToys.Shared.Services;
 using NewToys.VideoTools.Details;
 
 namespace NewToys.VideoTools.ViewModels;

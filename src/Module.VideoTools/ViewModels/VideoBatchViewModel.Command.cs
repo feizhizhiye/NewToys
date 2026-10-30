@@ -305,7 +305,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             : $"试跑成功（{size / 1024.0:0} KB）：{outFile} · {playMsg}";
     }
 
-    partial void OnEditPresetIdChanged(string value)
+    partial void OnEditTranscodePresetIdChanged(string value)
     {
         OnPropertyChanged(nameof(IsGifPreset));
         RefreshCommand();
@@ -313,7 +313,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     partial void OnEditFrameRateChanged(int value) => RefreshCommand();
     partial void OnEditGifWidthChanged(int value) => RefreshCommand();
-    partial void OnEditCrfChanged(int value) => RefreshCommand();
+    partial void OnEditTranscodeCrfChanged(int value) => RefreshCommand();
     partial void OnEditMaxHeightChanged(int value) => RefreshCommand();
     partial void OnEditDefaultWidthChanged(int value) => RefreshCommand();
     partial void OnEditDefaultHeightChanged(int value) => RefreshCommand();

@@ -49,8 +49,10 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         if (incoming.Count > 0)
         {
             // 有投递 ⇒ 只显示这批文件，⛔ 不自动扫描目录（扫描会清空 _all，把刚送来的冲掉）
-            ImportVideoFiles(incoming);
-            StatusText = $"已从资产库接收 {incoming.Count} 个视频（追加到当前列表；想扫描别的目录点「📂 导入」）。";
+            var carried = ImportVideoFiles(incoming);
+            StatusText = $"已从资产库接收 {incoming.Count} 个视频（追加到当前列表"
+                         + (carried > 0 ? $"，其中 {carried} 个直接带上了媒体信息" : "，媒体信息需自行读取")
+                         + "；想扫描别的目录点「📂 导入」）。";
         }
         else if (string.IsNullOrWhiteSpace(Folder))
             StatusText = "点「📂 导入」选一个视频目录（每次都手动选，不与设置绑定）；扫描后可从表头看到分辨率 / 编码 / 码率 / 时长。";
@@ -59,34 +61,44 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         else _ = ScanAsync();
     }
 
-    /// <summary>把投递载荷摊平成路径表：既接受单条 <c>string</c>，也接受 <c>IEnumerable&lt;string&gt;</c> 批次。</summary>
-    private static IReadOnlyList<string> FlattenPaths(IReadOnlyList<object?>? payloads)
+    /// <summary>
+    /// 把投递载荷摊平成「路径 + 资产库元数据」表。接受四种：单条 <c>string</c>、
+    /// <c>IEnumerable&lt;string&gt;</c>（老式，只有路径）、单条 / 批量的 <c>(string Path, string MetaJson)</c>。
+    /// </summary>
+    private static IReadOnlyList<(string Path, string MetaJson)> FlattenPaths(IReadOnlyList<object?>? payloads)
     {
-        if (payloads == null || payloads.Count == 0) return Array.Empty<string>();
+        if (payloads == null || payloads.Count == 0) return Array.Empty<(string, string)>();
 
-        var paths = new List<string>();
+        var entries = new List<(string Path, string MetaJson)>();
         foreach (var p in payloads)
         {
             switch (p)
             {
                 case string one when !string.IsNullOrWhiteSpace(one):
-                    paths.Add(one);
+                    entries.Add((one, ""));
                     break;
                 case IEnumerable<string> many:
-                    paths.AddRange(many.Where(s => !string.IsNullOrWhiteSpace(s)));
+                    entries.AddRange(many.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => (s, "")));
+                    break;
+                case IEnumerable<(string Path, string MetaJson)> items:
+                    entries.AddRange(items.Where(x => !string.IsNullOrWhiteSpace(x.Path)));
+                    break;
+                case ValueTuple<string, string> one:
+                    if (!string.IsNullOrWhiteSpace(one.Item1)) entries.Add((one.Item1, one.Item2));
                     break;
             }
         }
-        return paths;
+        return entries;
     }
 
     /// <summary>订阅回调：页面开着时收到投递，直接追加进列表。</summary>
     private void OnVideoImportPosted(object? payload)
     {
-        var paths = FlattenPaths(new[] { payload });
-        if (paths.Count == 0) return;
-        ImportVideoFiles(paths);
-        StatusText = $"已从资产库接收 {paths.Count} 个视频（追加到当前列表）。";
+        var entries = FlattenPaths(new[] { payload });
+        if (entries.Count == 0) return;
+        var carried = ImportVideoFiles(entries);
+        StatusText = $"已从资产库接收 {entries.Count} 个视频（追加到当前列表"
+                     + (carried > 0 ? $"，其中 {carried} 个直接带上了媒体信息" : "") + "）。";
     }
 
     // ==================== 扫描 ====================

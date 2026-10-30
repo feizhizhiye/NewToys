@@ -159,7 +159,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         RefreshCommand();
     }
 
-    partial void OnEditPresetIdChanged(string value)
+    partial void OnEditCutPresetIdChanged(string value)
     {
         OnPropertyChanged(nameof(IsCutReEncode));
         RefreshCommand();

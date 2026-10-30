@@ -24,39 +24,65 @@ namespace NewToys.VideoTools.ViewModels;
 public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
 
-    /// <summary>📂 导入 → 视频文件…：把所选的一个 / 多个视频文件**追加**进当前列表（不扫描整目录、媒体信息留空待按需读）。
-    /// 与「文件夹…」（替换整列）不同，这里是累加；同路径去重，避免重复条目。</summary>
-    public void ImportVideoFiles(IEnumerable<string> paths)
+    /// <summary>只有路径的导入（📂 导入 → 视频文件…、资产库投递的兼容分支）：等价于「路径 + 空元数据」。</summary>
+    public int ImportVideoFiles(IEnumerable<string> paths)
+        => ImportVideoFiles(paths.Select(p => (Path: p, MetaJson: "")).ToList());
+
+    /// <summary>
+    /// 📂 导入 / 资产库投递：把一批「路径 + 资产库元数据」**追加**进列表（不扫描整目录；同路径去重），
+    /// 返回**带上了媒体信息**的条数。
+    /// <para>元数据顺序：资产库带来的 <c>metadata_json</c>（资产页已经 ffprobe 过）→ 本地 video.db 缓存 → 都没有就留空
+    /// （用户再点「🔎 读取信息」）。⛔ 不在导入时同步跑 ffprobe：几十个文件会把界面卡住。</para>
+    /// </summary>
+    public int ImportVideoFiles(IReadOnlyList<(string Path, string MetaJson)> entries)
     {
         var existing = new HashSet<string>(_all.Select(v => v.FullPath), StringComparer.OrdinalIgnoreCase);
         var added = 0;
-        foreach (var p in paths)
+        var carried = 0;
+
+        foreach (var (path, metaJson) in entries)
         {
-            if (string.IsNullOrWhiteSpace(p)) continue;
-            var ext = Path.GetExtension(p).ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(path)) continue;
+            var ext = Path.GetExtension(path).ToLowerInvariant();
             if (!VideoScanner.Extensions.Contains(ext)) continue;   // 只收认得的视频，挡掉误选
-            if (existing.Contains(p)) continue;
-            existing.Add(p);
-            _all.Add(new VideoItem
+            if (existing.Contains(path)) continue;
+            existing.Add(path);
+
+            var info = File.Exists(path) ? new FileInfo(path) : null;
+            var item = new VideoItem
             {
-                Name = Path.GetFileName(p),
-                FullPath = p,
+                Name = Path.GetFileName(path),
+                FullPath = path,
                 Extension = ext,
-                SizeBytes = File.Exists(p) ? new FileInfo(p).Length : 0,
-                Modified = File.Exists(p) ? File.GetLastWriteTime(p) : default
-            });
+                SizeBytes = info?.Length ?? 0,
+                Modified = info?.LastWriteTime ?? default
+            };
+
+            var media = VideoScanner.TryParseAssetMeta(metaJson);
+            if (media != null)
+            {
+                item.ApplyMedia(media);
+                _index?.Upsert(item);      // 顺手写进本地缓存，下次扫描这个目录直接命中
+                carried++;
+            }
+            else _index?.TryApplyCached(item);
+
+            _all.Add(item);
             added++;
         }
 
         if (added == 0)
         {
             StatusText = "没有可导入的视频文件（仅支持 " + string.Join(" / ", VideoScanner.Extensions) + "）。";
-            return;
+            return 0;
         }
 
         RebuildQuickFilters();
         ApplyView();
-        StatusText = $"已导入 {added} 个视频文件（追加到当前列表；媒体信息留空，选中后可点「🔎 读取信息」）。";
+        StatusText = carried > 0
+            ? $"已导入 {added} 个视频文件（其中 {carried} 个带上了资产库读到的媒体信息）。"
+            : $"已导入 {added} 个视频文件（追加到当前列表；媒体信息留空，选中后可点「🔎 读取信息」）。";
+        return carried;
     }
 
     // ==================== 右键菜单 / 详情列的动作 ====================

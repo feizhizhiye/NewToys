@@ -72,15 +72,48 @@ public abstract partial class VideoTaskBase : ObservableObject
     [ObservableProperty] private string _rawArgs = "";
 
     /// <summary>
-    /// 批量处理列表**行首勾选框**（表头 ☑ 的「全选 / 取消选择 / 反选」改它）。
-    /// <para>⛔ 只是界面上的多选标记，**不参与命令生成**（跑哪些任务由「▶ 跑选中 / ▶▶ 批量运行」决定）。</para>
+    /// 最后一次运行的结束时间（成功 / 失败 / 取消都写；<c>null</c> = 还没跑过）。
+    /// <para>这就是列表里的「运行记录」：跑完一个任务留一行，关掉软件再导入也还在。
+    /// 批量运行的「跳过已完成」判断的是 <see cref="Status"/>，本字段只负责展示。</para>
     /// </summary>
-    [ObservableProperty] private bool _isChecked;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FinishedDisplay))]
+    private DateTime? _finishedAt;
 
-    [ObservableProperty] private string _status = VideoTaskStatus.Pending;
+    /// <summary>最后一次运行的耗时（秒；0 = 未记录）。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FinishedDisplay))]
+    private int _elapsedSeconds;
 
-    /// <summary>进度 0~100（ffmpeg 的 -progress 输出解析得到；跑完置 100）。</summary>
-    [ObservableProperty] private int _progress;
+    /// <summary>「完成时间」列：<c>10-30 15:32 · 1m20s</c>；没跑过显示破折号。</summary>
+    public string FinishedDisplay
+    {
+        get
+        {
+            if (FinishedAt is not { } t) return "—";
+            var stamp = t.ToString("MM-dd HH:mm");
+            if (ElapsedSeconds <= 0) return stamp;
+            var span = ElapsedSeconds < 60
+                ? $"{ElapsedSeconds}s"
+                : ElapsedSeconds < 3600
+                    ? $"{ElapsedSeconds / 60}m{ElapsedSeconds % 60:00}s"
+                    : $"{ElapsedSeconds / 3600}h{ElapsedSeconds % 3600 / 60:00}m";
+            return $"{stamp} · {span}";
+        }
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusDisplay))]
+    private string _status = VideoTaskStatus.Pending;
+
+    /// <summary>
+    /// 进度 0~100（ffmpeg 的 -progress 输出解析得到；跑完置 100）。
+    /// <para>🔴 必须通知 <see cref="StatusDisplay"/>：状态列显示的是「运行中 42%」这种拼出来的串，
+    /// 只通知 <c>Progress</c> 的话百分比只有在状态变化（一次运行结束）时才刷新 —— 看着像"进度不走了"。</para>
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusDisplay))]
+    private int _progress;
 
     /// <summary>结果 / 失败原因（状态行与详情卡都显示它）。</summary>
     [ObservableProperty] private string _message = "";
@@ -127,13 +160,15 @@ public abstract partial class VideoTaskBase : ObservableObject
     /// <summary>「处理前」列：转码 = 源大小，剪辑 = 源时长。</summary>
     public virtual string BeforeDisplay => "";
 
-    /// <summary>把任务恢复到"等待中"（改了参数后重新跑）。</summary>
+    /// <summary>把任务恢复到"等待中"（改了参数后重新跑）。<para>顺带清掉上次运行记录 —— 重新排队 = 新的一轮。</para></summary>
     public void Reset()
     {
         Status = VideoTaskStatus.Pending;
         Progress = 0;
         Message = "";
         OutputSize = 0;
+        FinishedAt = null;
+        ElapsedSeconds = 0;
     }
 
     public static string FormatSize(long bytes) => bytes switch

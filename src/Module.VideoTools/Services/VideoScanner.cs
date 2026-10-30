@@ -219,6 +219,35 @@ public static class VideoScanner
         }
     }
 
+    /// <summary>
+    /// 解析**媒体资产**随路带来的 <c>metadata_json</c>（键 = 资产库那边 ffprobe 写入的那几个：
+    /// <c>duration_seconds</c> / <c>width</c> / <c>height</c> / <c>video_codec</c> / <c>bit_rate</c> / <c>fps</c>）。
+    /// <para>拿到就直接套用，⛔ 不再为同一批文件重跑 ffprobe；解析不出（空的 / 老数据没读过）返回 null，
+    /// 调用方按原样走缓存或手动读取。</para>
+    /// </summary>
+    public static VideoMediaInfo? TryParseAssetMeta(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "{}") return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var duration = GetDouble(root, "duration_seconds");
+            var width = GetInt(root, "width");
+            var height = GetInt(root, "height");
+            if (width is <= 0) width = null;
+            if (height is <= 0) height = null;
+            var codec = GetString(root, "video_codec");
+            var bitRate = GetLong(root, "bit_rate");
+            var fps = GetDouble(root, "fps");
+
+            if (duration is not > 0 && width is null) return null;
+            return new VideoMediaInfo(duration, width, height, codec, bitRate, fps);
+        }
+        catch { return null; }   // 资产库的 JSON 坏了 ⇒ 当作没带信息
+    }
+
     /// <summary>解析 ffprobe 的 avg_frame_rate（"30000/1001" → 29.97；空 / 非分数 / 除零 → null）。</summary>
     private static double? ParseFrameRate(string? text)
     {

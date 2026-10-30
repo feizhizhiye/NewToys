@@ -112,7 +112,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// <summary>区间是否参与命令（勾选剪辑时才生效）。</summary>
     public bool RangeEnabled => EditIsCut;
 
-    partial void OnIsCutChanged(bool value)
+    partial void OnEditIsCutChanged(bool value)
     {
         IsCutSectionExpanded = value;
         OnPropertyChanged(nameof(RangeEnabled));
@@ -121,7 +121,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
         NotifyToolbarChanged();
     }
 
-    partial void OnIsTranscodeChanged(bool value)
+    partial void OnEditIsTranscodeChanged(bool value)
     {
         IsTranscodeSectionExpanded = value;
         RefreshCommand();

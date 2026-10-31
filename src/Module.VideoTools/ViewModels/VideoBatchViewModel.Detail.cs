@@ -60,4 +60,12 @@ public partial class VideoBatchViewModel
 
     /// <summary>与预览页同名的占位（<see cref="HasSourceResolution"/> 恒 false ⇒ 这一行永不渲染）。</summary>
     public string SourceResolutionDisplay => "—";
+
+    // ==================== 收益预估（转码前静态判定） ====================
+
+    /// <summary>选中任务的收益预估一行（建任务 / 改参数时算好，存在任务上）。</summary>
+    public string DetailAdvice => (DetailTask as Models.TranscodeTask)?.AdviceText ?? "";
+
+    /// <summary>没有预估（剪辑任务 / 源信息不全 / 判定关闭）⇒ 整行不渲染。</summary>
+    public bool HasDetailAdvice => DetailTask is Models.TranscodeTask { HasAdvice: true };
 }

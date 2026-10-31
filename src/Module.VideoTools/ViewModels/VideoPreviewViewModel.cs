@@ -88,6 +88,9 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     private readonly VideoTaskStore? _store;
     private readonly IAppConfigService? _cfg;
+
+    /// <summary>模块设置（收益判定策略 / 省幅门槛）；设计时可为 <c>null</c> ⇒ 用默认值。</summary>
+    private readonly IVideoToolsSettingsService? _vt;
     private readonly IColumnLayoutService? _cols;
 
     private bool _extracting;

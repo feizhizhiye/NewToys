@@ -203,18 +203,21 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(IsReplaceAudio));
         OnPropertyChanged(nameof(AudioDisplay));
         OnPropertyChanged(nameof(ParamDisplay));
+        RefreshAdvice();
     }
 
     partial void OnVolumeDbChanged(double value)
     {
         OnPropertyChanged(nameof(AudioDisplay));
         OnPropertyChanged(nameof(ParamDisplay));
+        RefreshAdvice();
     }
 
     partial void OnReplaceAudioPathChanged(string value)
     {
         OnPropertyChanged(nameof(AudioDisplay));
         OnPropertyChanged(nameof(ParamDisplay));
+        RefreshAdvice();
     }
 
     // ==================== 目标体积（按 MB 反算码率） ====================
@@ -231,6 +234,7 @@ public partial class TranscodeTask : VideoTaskBase
     {
         OnPropertyChanged(nameof(HasTargetSize));
         OnPropertyChanged(nameof(ParamDisplay));
+        RefreshAdvice();
     }
 
     // ==================== 转码前（源） ====================
@@ -240,6 +244,177 @@ public partial class TranscodeTask : VideoTaskBase
     [ObservableProperty] private string _sourceResolution = "";
     [ObservableProperty] private string _sourceBitRate = "";
     [ObservableProperty] private double _sourceDuration;
+
+    /// <summary>源宽（像素；收益判定用）。</summary>
+    [ObservableProperty] private int _sourceWidth;
+
+    /// <summary>源高（像素）。</summary>
+    [ObservableProperty] private int _sourceHeight;
+
+    /// <summary>源帧率（0 = 未知）。</summary>
+    [ObservableProperty] private double _sourceFps;
+
+    /// <summary>源总码率（bit/s）。</summary>
+    [ObservableProperty] private long _sourceBitRateBps;
+
+    /// <summary>源第一条音轨的码率（bit/s；0 = 未知）。</summary>
+    [ObservableProperty] private long _sourceAudioBitRate;
+
+    /// <summary>源音轨条数。</summary>
+    [ObservableProperty] private int _sourceAudioStreams;
+
+    // ==================== 收益预估（转码前静态判定） ====================
+
+    /// <summary>上一次判定用的省幅门槛（%）；参数变化时沿用，避免每次都要外部传。</summary>
+    private int _adviceMinSaving = TranscodeAdvisor.DefaultMinSavingPercent;
+
+    /// <summary>判定结论（<c>null</c> = 还没算 / 源信息不全）。</summary>
+    [ObservableProperty] private TranscodeAdvice? _advice;
+
+    /// <summary>详情卡上那一行（空串 = 不显示）。</summary>
+    public string AdviceText => Advice?.Headline ?? "";
+
+    /// <summary>判定明细（鼠标悬停 / 详情卡第二行）。</summary>
+    public string AdviceDetail => Advice?.Detail ?? "";
+
+    /// <summary>是否有可显示的判定。</summary>
+    public bool HasAdvice => Advice != null;
+
+    /// <summary>
+    /// 重新算一次「值不值得转」；<paramref name="minSavingPercent"/> 传 &lt; 0 表示沿用上次的门槛。
+    /// <para>只读源属性 + 本任务参数，⛔ 不跑 ffmpeg、不碰磁盘。</para>
+    /// </summary>
+    public void RefreshAdvice(int minSavingPercent = -1)
+    {
+        if (minSavingPercent >= 0) _adviceMinSaving = minSavingPercent;
+
+        FillMissingSourceNumbers();
+
+        // 目标体积模式：体积是硬约束，不需要预测 —— 直接比大小，结论确定
+        if (HasTargetSize && SourceSize > 0)
+        {
+            var ratio = TargetSizeMb * 1024 * 1024 / SourceSize;
+            var saving = (1 - ratio) * 100;
+            var ok = saving >= Math.Max(1, _adviceMinSaving);
+            SetAdvice(new TranscodeAdvice(
+                ok ? TranscodeVerdict.Worth : TranscodeVerdict.Marginal,
+                ratio, saving,
+                $"{(ok ? "值得" : "收益有限")}：目标 {TargetSizeMb:0.#} MB，确定 {(saving >= 0 ? $"−{saving:0}%" : $"+{Math.Abs(saving):0}%")}",
+                $"目标体积模式（按码率封顶）⇒ 结果体积可控，不看内容复杂度；源 {SourceSizeDisplay}。"));
+            return;
+        }
+
+        if (SourceDuration <= 0 || SourceBitRateBps <= 0 || IsGifPreset
+            || string.Equals(Preset.VideoCodec, "", StringComparison.Ordinal))
+        {
+            SetAdvice(null);
+            return;
+        }
+
+        var (w, h) = TargetPixelSize();
+        var src = new SourceProfile(SourceSize, SourceDuration, SourceWidth, SourceHeight,
+            SourceFps, SourceBitRateBps, SourceAudioBitRate, SourceCodec);
+        var dst = new TargetProfile(
+            Preset.VideoCodec,
+            AdviceAudioCodec(),
+            Preset.AudioBitrate,
+            w, h, SourceFps > 0 ? SourceFps : 25);
+
+        SetAdvice(TranscodeAdvisor.Evaluate(src, dst, _adviceMinSaving));
+    }
+
+    /// <summary>
+    /// 缺数值字段时用已有信息补一手：总码率可由「文件大小 ÷ 时长」反算，分辨率可从显示串还原。
+    /// <para>剪辑 ↔ 转码互转出来的任务没有 ffprobe 原始值，靠这一步也能给出方向性结论。</para>
+    /// </summary>
+    private void FillMissingSourceNumbers()
+    {
+        if (_filling) return;
+        _filling = true;
+        try
+        {
+            if (SourceBitRateBps <= 0 && SourceSize > 0 && SourceDuration > 0)
+                SourceBitRateBps = (long)(SourceSize * 8 / SourceDuration);
+
+            if ((SourceWidth <= 0 || SourceHeight <= 0) && SourceResolution.Length > 0)
+            {
+                var parts = SourceResolution.Split('×');
+                if (parts.Length == 2
+                    && int.TryParse(parts[0], out var w) && int.TryParse(parts[1], out var h)
+                    && w > 0 && h > 0)
+                {
+                    SourceWidth = w;
+                    SourceHeight = h;
+                }
+            }
+        }
+        finally { _filling = false; }
+    }
+
+    /// <summary>补值过程中抑制重入（属性 setter 会回调 <see cref="RefreshAdvice"/>）。</summary>
+    private bool _filling;
+
+    private void SetAdvice(TranscodeAdvice? value)
+    {        Advice = value;
+        OnPropertyChanged(nameof(AdviceText));
+        OnPropertyChanged(nameof(AdviceDetail));
+        OnPropertyChanged(nameof(HasAdvice));
+    }
+
+    /// <summary>
+    /// 把 ffprobe 探测结果灌进任务（显示串 + 判定需要的数值），随后重算收益预估。
+    /// <para>三个建任务入口（批量页 / 预览页 / 列表页发送）共用这一个方法，避免字段填一处漏一处。</para>
+    /// </summary>
+    public void ApplySourceMedia(VideoMediaInfo info, int minSavingPercent)
+    {
+        if (info is null) return;
+
+        SourceDuration = info.Duration ?? 0;
+        SourceCodec = VideoItem.FriendlyCodecName(info.Codec);
+        SourceResolution = info.Width is > 0 && info.Height is > 0 ? $"{info.Width}×{info.Height}" : "";
+        SourceBitRate = info.BitRate is > 0
+            ? (info.BitRate.Value >= 1_000_000
+                ? $"{info.BitRate.Value / 1_000_000.0:0.0} Mbps"
+                : $"{info.BitRate.Value / 1000.0:0} kbps")
+            : "";
+
+        SourceWidth = info.Width ?? 0;
+        SourceHeight = info.Height ?? 0;
+        SourceFps = info.Fps ?? 0;
+        SourceBitRateBps = info.BitRate ?? 0;
+        SourceAudioBitRate = info.AudioBitRate ?? 0;
+        SourceAudioStreams = info.AudioStreams ?? 0;
+
+        RefreshAdvice(minSavingPercent);
+    }
+
+    /// <summary>转码后的实际像素尺寸（缩放 / 限高 / 默认上限生效后；0 = 未知）。</summary>
+    private (int W, int H) TargetPixelSize()
+    {
+        if (TargetWidth > 0 && TargetHeight > 0) return (TargetWidth, TargetHeight);
+
+        var w = SourceWidth;
+        var h = SourceHeight;
+        if (w <= 0 || h <= 0) return (0, 0);
+
+        if (TargetWidth > 0) return (TargetWidth, (int)Math.Round(h * TargetWidth / (double)w));
+        if (TargetHeight > 0) return ((int)Math.Round(w * TargetHeight / (double)h), TargetHeight);
+        if (MaxHeight > 0 && h > MaxHeight) return ((int)Math.Round(w * MaxHeight / (double)h), MaxHeight);
+        if (DefaultWidth > 0 && DefaultHeight > 0 && (w > DefaultWidth || h > DefaultHeight))
+        {
+            var k = Math.Min(DefaultWidth / (double)w, DefaultHeight / (double)h);
+            return ((int)Math.Round(w * k), (int)Math.Round(h * k));
+        }
+        return (w, h);
+    }
+
+    /// <summary>判定用的目标音轨编码：静音 ⇒ 无音轨；音量 / 替换 ⇒ 强制重编码；否则跟预设。</summary>
+    private string AdviceAudioCodec()
+    {
+        if (IsAudioMuted) return "";
+        if (IsVolumeMode || IsReplaceAudio) return "aac";
+        return Preset.AudioCodec ?? "";
+    }
 
     // ==================== 转码后（输出） ====================
 
@@ -343,7 +518,25 @@ public partial class TranscodeTask : VideoTaskBase
         OnPropertyChanged(nameof(EncoderDisplay));
         OnPropertyChanged(nameof(RateDisplay));
         OnPropertyChanged(nameof(IsGifPreset));
+        RefreshAdvice();
     }
+
+    // 影响预估的参数一律重算（改一个数字就看到结论变化，才叫"提前对比"）
+    partial void OnCrfChanged(int value) => RefreshAdvice();
+    partial void OnMaxHeightChanged(int value) => RefreshAdvice();
+    partial void OnTargetWidthChanged(int value) => RefreshAdvice();
+    partial void OnTargetHeightChanged(int value) => RefreshAdvice();
+    partial void OnDefaultWidthChanged(int value) => RefreshAdvice();
+    partial void OnDefaultHeightChanged(int value) => RefreshAdvice();
+    partial void OnBitrateModeChanged(string value) => RefreshAdvice();
+    partial void OnTargetBitrateChanged(string value) => RefreshAdvice();
+
+    partial void OnSourceBitRateBpsChanged(long value) => RefreshAdvice();
+    partial void OnSourceWidthChanged(int value) => RefreshAdvice();
+    partial void OnSourceHeightChanged(int value) => RefreshAdvice();
+    partial void OnSourceFpsChanged(double value) => RefreshAdvice();
+    partial void OnSourceAudioBitRateChanged(long value) => RefreshAdvice();
+    partial void OnSourceDurationChanged(double value) => RefreshAdvice();
 
     /// <summary>是不是 GIF 预设（详情卡据此显隐「GIF 帧率 / 宽度」）。</summary>
     public bool IsGifPreset => FfmpegService.IsGif(Preset);

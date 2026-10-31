@@ -31,7 +31,10 @@ public static class VideoTaskStatus
     /// <summary>被用户取消。</summary>
     public const string Canceled = "已取消";
 
-    public static bool IsFinished(string? s) => s is Done or Failed or Canceled;
+    /// <summary>转码前判定「不值得」而主动跳过（没有跑 ffmpeg，<see cref="VideoTaskBase.Message"/> 里写原因）。</summary>
+    public const string Skipped = "已跳过";
+
+    public static bool IsFinished(string? s) => s is Done or Failed or Canceled or Skipped;
 }
 
 /// <summary>

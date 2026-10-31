@@ -59,7 +59,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     /// <summary>▶▶ 批量运行：按列表顺序跑全部「还没成功」的任务（剪辑 / 转码按各自参数分派）。</summary>
     [RelayCommand]
     private async Task RunAllAsync()
-        => await RunTasksAsync(ItemsRaw.Where(t => t.Status != VideoTaskStatus.Done).ToList());
+        => await RunTasksAsync(ItemsRaw.Where(t => t.Status != VideoTaskStatus.Done
+                                                   && t.Status != VideoTaskStatus.Skipped).ToList());
 
     private async Task RunTasksAsync(List<VideoTaskBase> targets)
     {
@@ -68,7 +69,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         // 🔴 已完成的任务**不再执行**（`Status` 就是运行记录）：重新开始只续跑没完成的。
         //    想重跑某条 ⇒ 选中它右键「↺ 重新排队」（清掉状态 = 明确表示要再跑一次）。
-        targets = targets.Where(t => t.Status != VideoTaskStatus.Done).ToList();
+        targets = targets.Where(t => t.Status != VideoTaskStatus.Done
+                                     && t.Status != VideoTaskStatus.Skipped).ToList();
         if (targets.Count == 0)
         {
             StatusText = "没有要跑的任务 —— 已完成的不重复跑；想重跑先选中它右键「↺ 重新排队」。";
@@ -92,6 +94,21 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 if (_runCts.IsCancellationRequested) break;
 
                 StatusText = $"正在处理（{i + 1}/{targets.Count}）[{KindOf(t)}]：{t.Name}";
+
+                // 转码前收益闸门（严格策略）：预估「不值得」就整条跳过，不跑 ffmpeg
+                if (t is TranscodeTask advTask && AdviceMode == AdviceModes.Strict)
+                {
+                    advTask.RefreshAdvice(AdviceMinSavingPercent);
+                    if (advTask.Advice is { ShouldSkip: true } advice)
+                    {
+                        t.Status = VideoTaskStatus.Skipped;
+                        t.Message = advice.Headline + " —— " + advice.Detail;
+                        t.FinishedAt = DateTime.Now;
+                        _store.Save();
+                        continue;
+                    }
+                }
+
                 t.Status = VideoTaskStatus.Running;
                 t.Progress = 0;
                 t.Message = "";

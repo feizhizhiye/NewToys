@@ -59,13 +59,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
                 };
 
                 var (ok, _, info) = await VideoScanner.ProbeAsync(path, probe);
-                if (ok && info != null)
-                {
-                    task.SourceDuration = info.Duration ?? 0;
-                    task.SourceCodec = VideoItem.FriendlyCodecName(info.Codec);
-                    task.SourceResolution = info.Width is > 0 && info.Height is > 0 ? $"{info.Width}×{info.Height}" : "";
-                    task.SourceBitRate = info.BitRate is > 0 ? FormatBitRate(info.BitRate.Value) : "";
-                }
+                if (ok && info != null) task.ApplySourceMedia(info, AdviceMinSavingPercent);
 
                 _store.AddTranscode(task);
                 added++;

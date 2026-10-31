@@ -90,6 +90,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         }
 
         if (fresh == null) return;
+        if (fresh is TranscodeTask nt) nt.RefreshAdvice(AdviceMinSavingPercent);
         FinishKindChange(Selected, fresh, kind);
     }
 

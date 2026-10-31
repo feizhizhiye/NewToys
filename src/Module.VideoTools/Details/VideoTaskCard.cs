@@ -177,6 +177,13 @@ public static class VideoTaskCard
                         },
                         new DetailField
                         {
+                            Kind = FieldKind.Hint,
+                            Prefix = "收益预估：",
+                            ValuePath = DetailAdvice,
+                            VisibleWhen = HasDetailAdvice
+                        },
+                        new DetailField
+                        {
                             Label = "编码器",
                             Kind = FieldKind.Select,
                             IndexPath = EncoderIndex,
@@ -589,6 +596,12 @@ public static class VideoTaskCard
     public const string EditTargetHeight = "EditTargetHeight";
     public const string SourceResolutionDisplay = "SourceResolutionDisplay";
     public const string HasSourceResolution = "HasSourceResolution";
+
+    /// <summary>转码前收益预估那一行（批量页有值；预览页恒隐藏）。</summary>
+    public const string DetailAdvice = "DetailAdvice";
+
+    /// <summary>是否显示收益预估行。</summary>
+    public const string HasDetailAdvice = "HasDetailAdvice";
     public const string EditDefaultWidth = "EditDefaultWidth";
     public const string EditDefaultHeight = "EditDefaultHeight";
     public const string RotateChoices = "RotateChoices";

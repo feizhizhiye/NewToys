@@ -17,7 +17,8 @@ namespace NewToys.VideoTools.Models;
 /// <param name="AudioCodec">音频编码名（音频流 codec_name，无音频流为 null）。</param>
 public sealed record VideoMediaInfo(
     double? Duration, int? Width, int? Height, string Codec, long? BitRate,
-    double? Fps = null, string? ContainerFormat = null, string? AudioCodec = null);
+    double? Fps = null, string? ContainerFormat = null, string? AudioCodec = null,
+    long? AudioBitRate = null, int? AudioStreams = null);
 
 /// <summary>
 /// 视频列表的一行（= 磁盘上的一个视频文件）。
@@ -65,6 +66,12 @@ public partial class VideoItem : ObservableObject
 
     /// <summary>音频编码名（ffprobe 音频流 codec_name）。v3.15 表头列。</summary>
     [ObservableProperty] private string _audioCodec = "";
+
+    /// <summary>第一条音轨的码率（bit/s；ffprobe 不给时为 null）。收益判定算「音轨重编码会不会变大」用。</summary>
+    [ObservableProperty] private long? _audioBitRate;
+
+    /// <summary>音轨条数（ffprobe 的音频流数量；无音轨为 0）。</summary>
+    [ObservableProperty] private int _audioStreams;
 
     /// <summary>文件创建时间（v3.15 表头「创建时间」列；扫描时取，不重扫不丢）。</summary>
     public DateTime Created { get; set; }
@@ -148,6 +155,8 @@ public partial class VideoItem : ObservableObject
         Fps = info.Fps;
         ContainerFormat = info.ContainerFormat ?? "";
         AudioCodec = info.AudioCodec ?? "";
+        AudioBitRate = info.AudioBitRate;
+        AudioStreams = info.AudioStreams ?? 0;
         MediaStatus = $"{ResolutionDisplay} · {CodecDisplay} · {BitRateDisplay} · {DurationDisplay}";
     }
 

@@ -23,6 +23,25 @@
               TextWrapping="Wrap"
               Text="{Binding ConcurrencyHint}" />
         </StackPanel>
+
+        <StackPanel Classes="field">
+          <TextBlock Classes="field-label" Text="转码前收益判定" />
+          <ComboBox
+              MinWidth="240"
+              ItemsSource="{Binding AdviceModeChoices}"
+              DisplayMemberBinding="{Binding Label}"
+              SelectedValueBinding="{Binding Value}"
+              SelectedValue="{Binding SelectedAdviceMode, Mode=TwoWay}" />
+        </StackPanel>
+
+        <StackPanel Classes="field">
+          <TextBlock Classes="field-label" Text="省幅门槛（%；低于它算「不值得」）" />
+          <TextBox Width="120" Text="{Binding AdviceMinSaving, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+          <TextBlock
+              Classes="hint-text"
+              TextWrapping="Wrap"
+              Text="{Binding AdviceHint}" />
+        </StackPanel>
       </StackPanel>
     </StackPanel>
 

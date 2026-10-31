@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using NewToys.Shared.Services;
@@ -32,6 +33,8 @@ public partial class SettingsVideoToolsViewModel : ObservableObject, IStatusProv
 
         _syncing = true;
         MaxConcurrency = settings.MaxConcurrency;
+        SelectedAdviceMode = settings.AdviceMode;
+        AdviceMinSaving = settings.AdviceMinSavingPercent;
         _syncing = false;
 
         StatusText = $"本模块设置就绪 · 写入 {settings.FilePath}";
@@ -52,6 +55,35 @@ public partial class SettingsVideoToolsViewModel : ObservableObject, IStatusProv
         $"建议 1~4：视频列表「补媒体信息」一次并行 ffprobe，批量处理按它并行跑任务。" +
         $"范围 {VideoToolsSettingsService.MinConcurrency}~{VideoToolsSettingsService.MaxConcurrencyLimit}，" +
         $"默认 {_settings?.DefaultMaxConcurrency ?? VideoToolsSettingsService.DefaultMaxConcurrencyValue}。";
+
+    // ==================== 转码前收益判定（省体积闸门） ====================
+
+    /// <summary>策略下拉项。</summary>
+    public IReadOnlyList<AdviceModeOption> AdviceModeChoices => AdviceModes.All;
+
+    /// <summary>当前策略（<c>suggest</c> / <c>strict</c> / <c>off</c>）。</summary>
+    [ObservableProperty] private string _selectedAdviceMode = AdviceModes.Suggest;
+
+    partial void OnSelectedAdviceModeChanged(string value)
+    {
+        if (_syncing) return;
+        StatusText = _settings.SetAdviceMode(value);
+    }
+
+    /// <summary>省幅门槛（%）。</summary>
+    [ObservableProperty] private int _adviceMinSaving = TranscodeAdvisor.DefaultMinSavingPercent;
+
+    partial void OnAdviceMinSavingChanged(int value)
+    {
+        if (_syncing) return;
+        StatusText = _settings.SetAdviceMinSavingPercent(value);
+    }
+
+    /// <summary>判定机制说明。</summary>
+    public string AdviceHint =>
+        "转码前用源属性（码率 / 分辨率 / 帧率 / 编码族）算 bpp，对照目标编码族的「视觉透明线」，"
+        + "判断这次转码还能不能真的省体积 —— 源码率已经压到线下时，再转只会变大。"
+        + "严格档会直接跳过这类任务并写明原因；目标体积模式不看内容，直接按体积比给结论。";
 
     // ==================== 全局项（只读展示；⛔ 本页不写） ====================
 

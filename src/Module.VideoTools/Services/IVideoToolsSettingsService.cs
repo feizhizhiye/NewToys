@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace NewToys.VideoTools.Services;
 
@@ -30,4 +32,52 @@ public interface IVideoToolsSettingsService
 
     /// <summary>写「并发数」；返回状态文案（失败 ⇒ <c>⚠</c> 开头 + 未写盘）。</summary>
     string SetMaxConcurrency(int value);
+
+    /// <summary>
+    /// 转码前收益判定的策略：<see cref="AdviceModes.Off"/>（不判）/ <see cref="AdviceModes.Suggest"/>
+    /// （只标黄，照跑）/ <see cref="AdviceModes.Strict"/>（不值得就跳过）。
+    /// </summary>
+    string AdviceMode { get; }
+
+    /// <summary>写判定策略；返回状态文案。</summary>
+    string SetAdviceMode(string value);
+
+    /// <summary>省幅门槛（%）：低于它就算「不值得」。</summary>
+    int AdviceMinSavingPercent { get; }
+
+    /// <summary>写省幅门槛；返回状态文案。</summary>
+    string SetAdviceMinSavingPercent(int value);
+}
+
+/// <summary>收益判定策略的取值（存进 <c>video-tools.json</c> 的 <c>adviceMode</c>）。</summary>
+public static class AdviceModes
+{
+    /// <summary>不判定（回到旧行为）。</summary>
+    public const string Off = "off";
+
+    /// <summary>只在列表 / 详情卡提示，任务照跑（默认）。</summary>
+    public const string Suggest = "suggest";
+
+    /// <summary>预估不值得的任务直接跳过（记一条原因，不算失败）。</summary>
+    public const string Strict = "strict";
+
+    /// <summary>下拉选项（<c>Value</c> = 存盘值）。</summary>
+    public static IReadOnlyList<AdviceModeOption> All { get; } = new[]
+    {
+        new AdviceModeOption { Value = Suggest, Label = "建议（标黄提示，照跑）" },
+        new AdviceModeOption { Value = Strict,  Label = "严格（不值得就跳过，不执行）" },
+        new AdviceModeOption { Value = Off,     Label = "关闭（不判定）" },
+    };
+
+    public static string Normalize(string? value)
+        => All.Any(o => string.Equals(o.Value, value, StringComparison.OrdinalIgnoreCase))
+            ? value!.ToLowerInvariant()
+            : Suggest;
+}
+
+/// <summary>「收益判定策略」下拉项。</summary>
+public sealed class AdviceModeOption
+{
+    public string Value { get; set; } = "";
+    public string Label { get; set; } = "";
 }

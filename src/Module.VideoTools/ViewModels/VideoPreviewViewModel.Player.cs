@@ -106,11 +106,13 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     public VideoPreviewViewModel() { }
 
-    public VideoPreviewViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService? cols = null)
+    public VideoPreviewViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService? cols = null,
+        IVideoToolsSettingsService? settings = null)
     {
         _store = store;
         _cfg = cfg;
         _cols = cols;
+        _vt = settings;
         if (cols != null)
             IsDetailVisible = cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel, true);
     }

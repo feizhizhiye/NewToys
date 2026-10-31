@@ -83,6 +83,15 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// <summary>源分辨率是否已知（未知就不显示「原视频宽高」提示行）。</summary>
     public bool HasSourceResolution => SourceWidth > 0 && SourceHeight > 0;
 
+    /// <summary>
+    /// 预览页不出收益预估行：这里是「边看画面边调参」，判定结论在生成任务后到批量页看
+    /// （与批量页同名的占位，恒 false ⇒ 整行不渲染）。
+    /// </summary>
+    public bool HasDetailAdvice => false;
+
+    /// <summary>与批量页同名的占位。</summary>
+    public string DetailAdvice => "—";
+
     /// <summary>「🎨 画面」节折叠状态。</summary>
     [ObservableProperty] private bool _isCropSectionExpanded = true;
 

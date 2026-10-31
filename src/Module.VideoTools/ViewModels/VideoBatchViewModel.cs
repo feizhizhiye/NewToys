@@ -95,6 +95,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     private readonly IAppConfigService? _cfg;
     private readonly INavigationService? _nav;
 
+    /// <summary>模块设置（收益判定策略 / 省幅门槛）；设计时 / 单测可为 <c>null</c> ⇒ 用默认值。</summary>
+    private readonly IVideoToolsSettingsService? _vt;
+
+    /// <summary>省幅门槛（%）：低于它的任务判为「不值得」。</summary>
+    public int AdviceMinSavingPercent => _vt?.AdviceMinSavingPercent ?? TranscodeAdvisor.DefaultMinSavingPercent;
+
+    /// <summary>判定策略（<c>suggest</c> / <c>strict</c> / <c>off</c>）。</summary>
+    private string AdviceMode => _vt?.AdviceMode ?? AdviceModes.Suggest;
+
     private CancellationTokenSource? _runCts;
 
     // StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。

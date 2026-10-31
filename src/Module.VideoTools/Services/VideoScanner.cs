@@ -103,7 +103,6 @@ public static class VideoScanner
                  {
                      "-v", "error",
                      "-hide_banner",
-                     "-select_streams", "v:0",
                      "-show_format",
                      "-show_streams",
                      "-of", "json",
@@ -174,26 +173,34 @@ public static class VideoScanner
             string? containerFormat = null;
             string? audioCodec = null;
 
-            if (root.TryGetProperty("streams", out var streams)
-                && streams.ValueKind == JsonValueKind.Array && streams.GetArrayLength() > 0)
+            if (root.TryGetProperty("streams", out var all)
+                && all.ValueKind == JsonValueKind.Array)
             {
-                var s = streams[0];
-                codec = GetString(s, "codec_name");
-                width = GetInt(s, "width");
-                height = GetInt(s, "height");
-                fps = ParseFrameRate(GetString(s, "avg_frame_rate"));
+                foreach (var s in all.EnumerateArray())
+                {
+                    if (GetString(s, "codec_type") != "video") continue;
+                    codec = GetString(s, "codec_name");
+                    width = GetInt(s, "width");
+                    height = GetInt(s, "height");
+                    fps = ParseFrameRate(GetString(s, "avg_frame_rate"));
+                    break;
+                }
             }
 
-            // 音频流编码（第一个音频流）
+            // 音频流：编码 / 第一条的码率 / 总条数（收益判定要靠码率算「音轨重编码会不会变大」）
+            int audioStreams = 0;
+            long? audioBitRate = null;
             if (root.TryGetProperty("streams", out var streams2)
                 && streams2.ValueKind == JsonValueKind.Array)
             {
                 foreach (var st in streams2.EnumerateArray())
                 {
-                    if (GetString(st, "codec_type") == "audio")
+                    if (GetString(st, "codec_type") != "audio") continue;
+                    audioStreams++;
+                    if (audioStreams == 1)
                     {
                         audioCodec = GetString(st, "codec_name");
-                        break;
+                        audioBitRate = GetLong(st, "bit_rate");
                     }
                 }
             }
@@ -211,7 +218,8 @@ public static class VideoScanner
             }
 
             if (width is null && height is null && duration is null && codec.Length == 0) return null;
-            return new VideoMediaInfo(duration, width, height, codec, bitRate, fps, containerFormat, audioCodec);
+            return new VideoMediaInfo(duration, width, height, codec, bitRate, fps, containerFormat,
+                audioCodec, audioBitRate, audioStreams);
         }
         catch
         {

@@ -26,12 +26,14 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     public VideoBatchViewModel() { }
 
-    public VideoBatchViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService cols, INavigationService nav)
+    public VideoBatchViewModel(VideoTaskStore store, IAppConfigService cfg, IColumnLayoutService cols,
+        INavigationService nav, IVideoToolsSettingsService? settings = null)
         : base(cols)
     {
         _store = store;
         _cfg = cfg;
         _nav = nav;
+        _vt = settings;
         LoadLayout();
         // §4.8.2：类型（剪辑 / 转码 / 剪辑+转码，与 VideoTask.KindDisplay 同字面量）进表头右键「筛选」
         SetQuickFilters(new[]
@@ -313,6 +315,8 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
               + $" · 已完成 {all.Count(t => t.Status == VideoTaskStatus.Done)}"
               + (all.Count(t => t.Status == VideoTaskStatus.Failed) > 0
                   ? $" · 失败 {all.Count(t => t.Status == VideoTaskStatus.Failed)}" : "")
+              + (all.Count(t => t.Status == VideoTaskStatus.Skipped) > 0
+                  ? $" · 已跳过 {all.Count(t => t.Status == VideoTaskStatus.Skipped)}（预估不值得转）" : "")
               + (SelectedCount > 0 ? $" · 已选 {SelectedCount}" : "");
     }
 

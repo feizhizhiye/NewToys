@@ -60,7 +60,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     private TranscodeTask BuildTranscodeTask()
     {
         var preset = TranscodePreset.Find(EditTranscodePresetId);
-        return new TranscodeTask
+        var task = new TranscodeTask
         {
             SourcePath = SourcePath,
             PresetId = preset.Id,
@@ -90,8 +90,19 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
             ReplaceAudioPath = (EditAudioPath ?? "").Trim(),
             TargetSizeMb = EditTargetSizeMb,
             SourceDuration = Duration,
+            SourceSize = SourceSize,
+            SourceWidth = SourceWidth,
+            SourceHeight = SourceHeight,
+            SourceFps = SourceFps,
+            SourceBitRateBps = SourceBitRate ?? 0,
+            SourceAudioBitRate = SourceAudioBitRate,
+            SourceResolution = SourceWidth > 0 && SourceHeight > 0 ? $"{SourceWidth}×{SourceHeight}" : "",
             OutputPath = ResolveOutput()
         };
+
+        // 送进批量队列前就把收益预估算好（批量页选中即能看到，不必重跑 ffprobe）
+        task.RefreshAdvice(_vt?.AdviceMinSavingPercent ?? TranscodeAdvisor.DefaultMinSavingPercent);
+        return task;
     }
 
     // ==================== 操作 ====================

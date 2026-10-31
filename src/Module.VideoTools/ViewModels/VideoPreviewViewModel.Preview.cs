@@ -82,6 +82,8 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
                     if (info.Height is > 0) SourceHeight = info.Height.Value;
                     if (info.Codec is { Length: > 0 }) SourceCodec = info.Codec;
                     if (info.BitRate is > 0) SourceBitRate = info.BitRate;
+                    if (info.Fps is > 0) SourceFps = info.Fps.Value;
+                    if (info.AudioBitRate is > 0) SourceAudioBitRate = info.AudioBitRate.Value;
                     if (!string.IsNullOrWhiteSpace(info.ContainerFormat)) SourceContainerFormat = info.ContainerFormat!;
                     try { var fi = new System.IO.FileInfo(path); if (fi.Exists) SourceSize = fi.Length; } catch { /* 忽略 */ }
                 }
@@ -207,6 +209,10 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     /// <summary>源文件大小（探测时顺手取）。</summary>
     [ObservableProperty] private long _sourceSize;
+
+    /// <summary>源帧率 / 音轨码率（收益判定用；0 = 未知）。</summary>
+    [ObservableProperty] private double _sourceFps;
+    [ObservableProperty] private long _sourceAudioBitRate;
 
     /// <summary>
     /// 预览画面右键「视频信息」的多行文本（v3.19：编辑命令时快速查看名称/大小/编码/时长/码率/容器/分辨率/旋转）。

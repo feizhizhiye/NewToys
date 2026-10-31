@@ -1,4 +1,5 @@
 using System;
+using NewToys.Shared.Formatting;
 
 namespace NewToys.MediaAssets.Models;
 
@@ -66,6 +67,15 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
     /// <summary>视频编码（"h264"，来自 <c>metadata_json.video_codec</c>）；无则空串。</summary>
     public string CodecText { get; set; } = "";
 
+    /// <summary>视频总码率（bit/s，来自 <c>metadata_json.bit_rate</c>，取容器 format 段）；0 = 没有 / 还没读过。</summary>
+    public long BitRateBps { get; set; }
+
+    /// <summary>
+    /// 库里的**原始** <c>metadata_json</c>：交给视频工具时随行带走，
+    /// 对方直接套用探测结果，⛔ 不用再为同一批文件跑一次 ffprobe。
+    /// </summary>
+    public string MetadataJson { get; set; } = "";
+
     // ===== 主文件位置 =====
     public string FileName { get; set; } = "";
     public string FilePath { get; set; } = "";
@@ -127,6 +137,9 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
 
     /// <summary>时长的人类可读串（HH:MM:SS / MM:SS；拿不到就空串）。</summary>
     public string DurationText => FormatDuration(DurationSeconds);
+
+    /// <summary>码率的可读串（8.5 Mbps / 640 kbps；拿不到就空串）。口径见 <see cref="MediaText.BitRate"/>。</summary>
+    public string BitRateText => MediaText.BitRate(BitRateBps);
 
     /// <summary>行是否"文件已不在磁盘上"（列表里给它一个提示色）。</summary>
     public bool IsMissing => LocationStatus == LocationStatuses.Missing || Status == AssetStatuses.Missing;

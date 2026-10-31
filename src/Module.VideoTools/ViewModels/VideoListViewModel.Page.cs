@@ -62,8 +62,8 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     }
 
     /// <summary>
-    /// 把投递载荷摊平成「路径 + 资产库元数据」表。接受四种：单条 <c>string</c>、
-    /// <c>IEnumerable&lt;string&gt;</c>（老式，只有路径）、单条 / 批量的 <c>(string Path, string MetaJson)</c>。
+    /// 把投递载荷摊平成「路径 + 资产库元数据」表。只认当前契约的两种形态：
+    /// 整批 <c>(string Path, string MetaJson)</c> 列表、以及订阅回调进来的单条元组。
     /// </summary>
     private static IReadOnlyList<(string Path, string MetaJson)> FlattenPaths(IReadOnlyList<object?>? payloads)
     {
@@ -74,17 +74,11 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         {
             switch (p)
             {
-                case string one when !string.IsNullOrWhiteSpace(one):
-                    entries.Add((one, ""));
-                    break;
-                case IEnumerable<string> many:
-                    entries.AddRange(many.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => (s, "")));
-                    break;
                 case IEnumerable<(string Path, string MetaJson)> items:
                     entries.AddRange(items.Where(x => !string.IsNullOrWhiteSpace(x.Path)));
                     break;
-                case ValueTuple<string, string> one:
-                    if (!string.IsNullOrWhiteSpace(one.Item1)) entries.Add((one.Item1, one.Item2));
+                case ValueTuple<string, string> one when !string.IsNullOrWhiteSpace(one.Item1):
+                    entries.Add((one.Item1, one.Item2));
                     break;
             }
         }

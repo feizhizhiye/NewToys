@@ -17,10 +17,18 @@
        改这个数就改这一处（⛔ 不要改共享的 `Border.detail-card`）。
   -->
   <UserControl.DataTemplates>
-    <!--  ===== 分区：标题（可折叠按钮）+ 标题勾选框 + 字段列表  =====  -->
+    <!--  ===== 分区：标题（可折叠按钮）+ 标题勾选框 + 字段列表  =====
+          层级（三级字重/字号单调递减，⛔ 别让标题与值同号）：
+            分区标题 13 SemiBold 主色 ＞ 字段值 12 主色 ＞ 字段标签 / 提示 11 次要色。
+          树状感靠「左侧引导线 + 内容缩进 15」表达，⛔ 不靠加框（340px 放不下）。  -->
     <DataTemplate DataType="c:DetailSectionRender">
       <StackPanel Spacing="8" IsVisible="{Binding IsVisible}">
-        <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasHeader}">
+        <!--  ⚠️ 标题行自带上下 Margin：分区间距 10 只够展开态（标题→内容），
+              折叠态会退化成「两行标题紧贴」⇒ 相邻折叠标题实际间距 = 10 + 4 + 2 = 16。  -->
+        <Grid
+            Margin="0,4,0,2"
+            ColumnDefinitions="Auto,*,Auto"
+            IsVisible="{Binding HasHeader}">
           <Button
               Classes="section-toggle"
               Command="{Binding ToggleExpandCommand}"
@@ -45,6 +53,8 @@
           <SelectableTextBlock
               Grid.Column="0"
               Classes="section-title"
+              FontSize="13"
+              Foreground="{DynamicResource PrimaryTextBrush}"
               Text="{Binding Header}"
               VerticalAlignment="Center"
               IsVisible="{Binding !IsCollapsible}" />
@@ -58,15 +68,26 @@
               ToolTip.Tip="勾选 = 本分区参与本次操作" />
         </Grid>
 
-        <StackPanel Spacing="8" IsVisible="{Binding IsExpanded}">
-          <ItemsControl ItemsSource="{Binding Fields}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Spacing="8" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-          </ItemsControl>
-        </StackPanel>
+        <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding IsExpanded}">
+          <Border
+              Width="1"
+              Margin="0,2,0,2"
+              Background="{DynamicResource DividerBrush}"
+              IsVisible="{Binding HasHeader}"
+              Opacity="0.7" />
+          <StackPanel
+              Grid.Column="1"
+              Margin="15,0,0,0"
+              Spacing="8">
+            <ItemsControl ItemsSource="{Binding Fields}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="8" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </StackPanel>
+        </Grid>
       </StackPanel>
     </DataTemplate>
 

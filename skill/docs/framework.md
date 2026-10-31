@@ -584,7 +584,7 @@ public interface IDetailCardSource
 | 件 | 位置 | 说明 |
 |---|---|---|
 | `IModuleBus` | `Shared/Services/IModuleBus.cs` | `Post(topic, payload)` / `object? Take(topic)` / `IReadOnlyList<object?> TakeAll(topic)` / `int PendingCount(topic)` / `IDisposable Subscribe(topic, owner, handler)` |
-| `ModuleTopics` | 同上 | 主题常量，命名 `域.动作`。已有 `VideoImport = "video.import"`（载荷 `IReadOnlyList<string>` = 绝对路径） |
+| `ModuleTopics` | 同上 | 主题常量，命名 `域.动作`。已有 `VideoImport = "video.import"`（载荷 `IReadOnlyList<(string Path, string MetaJson)>` = 绝对路径 + 资产库 `metadata_json`） |
 | 实现 | `Core/Services/ModuleBus.cs` | 单例；一主题一条 **FIFO 信箱** + 一张弱引用订阅表；单把锁，**派发在锁外**（订阅者顺手再 `Post` 不自锁） |
 
 🔴 **信箱 + 订阅双路，缺一即丢消息**：`NavigationService.NavigateTo` 每次都新建 View，而 `ShellViewModel.OpenTab` 遇到已存在的标签只切 `ActiveTab`（VM 不重建）⇒ 接收方「可能不存在」也「可能常驻」。所以：

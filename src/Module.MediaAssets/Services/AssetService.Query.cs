@@ -152,6 +152,8 @@ public partial class AssetService
         "THEN json_extract(a.metadata_json,'$.width') || '×' || json_extract(a.metadata_json,'$.height') ELSE '' END";
     private const string CodecExpr = "IFNULL(CASE WHEN json_valid(a.metadata_json) THEN " +
         "json_extract(a.metadata_json,'$.video_codec') END,'')";
+    private const string BitRateExpr = "IFNULL(CASE WHEN json_valid(a.metadata_json) THEN " +
+        "json_extract(a.metadata_json,'$.bit_rate') END,0)";
 
     private const int DefaultPageSize = 50;
 
@@ -348,6 +350,7 @@ public partial class AssetService
             "Duration" => DurationExpr,
             "Resolution" => ResolutionExpr + " COLLATE NOCASE",
             "Codec" => CodecExpr + " COLLATE NOCASE",
+            "Bitrate" => BitRateExpr,
             _ => NameExpr + " COLLATE NOCASE"   // 空 / "Name" = 按名称（与原默认一致）
         };
         return " ORDER BY " + expr + (q.SortDescending ? " DESC" : " ASC") + ", a.id ASC";
@@ -368,6 +371,7 @@ public partial class AssetService
         "Duration" => (DurationExpr, true),
         "Resolution" => (ResolutionExpr, false),
         "Codec" => (CodecExpr, false),
+        "Bitrate" => (BitRateExpr, true),
         _ => null   // 取不到值的列 ⇒ 条件不生效（与内存版「列键对不上 ⇒ 跳过」同口径）
     };
 
@@ -485,10 +489,12 @@ public partial class AssetService
     /// <summary>
     /// 把 <c>metadata_json</c> 里的视频元数据填进 <see cref="AssetRow"/> 的视频专属字段。
     /// <para>逐行独立解析、吞掉一切异常（JSON 损坏 / 缺键 / 类型不符都不影响列表其余行）。
-    /// 键名沿用 <see cref="MetadataService"/> 的写入：<c>duration_seconds</c> / <c>width</c> / <c>height</c> / <c>video_codec</c>。</para>
+    /// 键名沿用 <see cref="MetadataService"/> 的写入：<c>duration_seconds</c> / <c>width</c> / <c>height</c> / <c>video_codec</c> / <c>bit_rate</c>。
+    /// 顺带把原始 JSON 挂到 <see cref="AssetRow.MetadataJson"/>（转给视频工具时随行带走，对方不必再探测）。</para>
     /// </summary>
     private static void ApplyVideoMeta(AssetRow row, string json)
     {
+        if (!string.IsNullOrWhiteSpace(json)) row.MetadataJson = json;
         if (string.IsNullOrWhiteSpace(json) || json == "{}") return;
         try
         {
@@ -501,6 +507,9 @@ public partial class AssetService
                 row.ResolutionText = $"{w.GetInt32()}×{h.GetInt32()}";
             if (root.TryGetProperty("video_codec", out var c) && c.ValueKind == JsonValueKind.String)
                 row.CodecText = c.GetString() ?? "";
+            if (root.TryGetProperty("bit_rate", out var br) && br.ValueKind == JsonValueKind.Number
+                && br.TryGetInt64(out var bps) && bps > 0)
+                row.BitRateBps = bps;
         }
         catch { /* 元数据损坏：本行视频列留空，不拖垮整批 */ }
     }

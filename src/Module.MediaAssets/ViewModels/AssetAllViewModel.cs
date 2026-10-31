@@ -121,6 +121,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [ObservableProperty] private string _durationHeader = "时长";
     [ObservableProperty] private string _resolutionHeader = "分辨率";
     [ObservableProperty] private string _codecHeader = "编码";
+    [ObservableProperty] private string _bitrateHeader = "码率";
 
     // ==================== 列显隐（XAML 只能绑具名属性；状态在基类，落 config\columnlayout.json） ====================
 
@@ -137,10 +138,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool IsDurationVisible => Vis("Duration");
     public bool IsResolutionVisible => Vis("Resolution");
     public bool IsCodecVisible => Vis("Codec");
+    public bool IsBitrateVisible => Vis("Bitrate");
 
     protected override string PageKey => "assets-all";
 
-    /// <summary>列定义与「资产浏览」页**共用一份**（<see cref="AssetColumns"/>）；显隐 / 列宽仍按本页页键落盘。</summary>
+    /// <summary>列定义取自 <see cref="AssetColumns"/>（两页共用一份）；显隐 / 列宽仍按本页页键落盘。</summary>
     protected override IReadOnlyList<ListColumn> Columns => AssetColumns.All;
 
     /// <summary>基类的翻页 / 排序 / 筛选变化都转到这里 —— 库态按新状态重取一页，草稿态内存重算。</summary>
@@ -177,6 +179,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             "Duration" => a.DurationText,
             "Resolution" => a.ResolutionText,
             "Codec" => a.CodecText,
+            "Bitrate" => a.BitRateText,
             _ => base.FieldText(row, columnKey)
         };
     }

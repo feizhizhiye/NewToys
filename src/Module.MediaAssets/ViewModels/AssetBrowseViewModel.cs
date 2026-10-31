@@ -165,6 +165,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     [ObservableProperty] private string _durationHeader = "时长";
     [ObservableProperty] private string _resolutionHeader = "分辨率";
     [ObservableProperty] private string _codecHeader = "编码";
+    [ObservableProperty] private string _bitrateHeader = "码率";
 
     public bool IsNameVisible => Vis("Name");
     public bool IsTypeVisible => Vis("Type");
@@ -177,6 +178,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     public bool IsDurationVisible => Vis("Duration");
     public bool IsResolutionVisible => Vis("Resolution");
     public bool IsCodecVisible => Vis("Codec");
+    public bool IsBitrateVisible => Vis("Bitrate");
 
     // ==================== 派生状态 ====================
 
@@ -250,9 +252,9 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         _opLog = log;
 
         LoadLayout();
-        // 视频专属三列在本页默认隐藏（本页没有「筛选类型 = 视频」这层语义）；用户改过的偏好优先
+        // 视频专属四列在本页默认隐藏（本页没有「筛选类型 = 视频」这层语义）；用户改过的偏好优先
         var saved = cols.LoadPage(PageKey);
-        foreach (var key in new[] { "Duration", "Resolution", "Codec" })
+        foreach (var key in new[] { "Duration", "Resolution", "Codec", "Bitrate" })
             if (!saved.ContainsKey(key)) SetColumnVisible(key, false);
 
         BuildChoices();
@@ -893,6 +895,19 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             "Modified" => sortDescending
                 ? ordered.ThenByDescending(t => t.Row.Mtime ?? "")
                 : ordered.ThenBy(t => t.Row.Mtime ?? ""),
+            // 视频专属四列（本页默认隐藏，用户手动打开后可排序）—— 缺这些分支会静默退回「按名称」
+            "Duration" => sortDescending
+                ? ordered.ThenByDescending(t => t.Row.DurationSeconds)
+                : ordered.ThenBy(t => t.Row.DurationSeconds),
+            "Resolution" => sortDescending
+                ? ordered.ThenByDescending(t => t.Row.ResolutionText, StringComparer.CurrentCulture)
+                : ordered.ThenBy(t => t.Row.ResolutionText, StringComparer.CurrentCulture),
+            "Codec" => sortDescending
+                ? ordered.ThenByDescending(t => t.Row.CodecText, StringComparer.CurrentCulture)
+                : ordered.ThenBy(t => t.Row.CodecText, StringComparer.CurrentCulture),
+            "Bitrate" => sortDescending
+                ? ordered.ThenByDescending(t => t.Row.BitRateBps)
+                : ordered.ThenBy(t => t.Row.BitRateBps),
             _ => sortDescending
                 ? ordered.ThenByDescending(t => t.Name, StringComparer.CurrentCulture)
                 : ordered.ThenBy(t => t.Name, StringComparer.CurrentCulture)
@@ -946,6 +961,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         DurationHeader = "时长" + SortArrow("Duration");
         ResolutionHeader = "分辨率" + SortArrow("Resolution");
         CodecHeader = "编码" + SortArrow("Codec");
+        BitrateHeader = "码率" + SortArrow("Bitrate");
     }
 
     private void NotifyItemsChanged()

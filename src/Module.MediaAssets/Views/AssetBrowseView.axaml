@@ -255,6 +255,8 @@
                     Command="{Binding SortCommand}" CommandParameter="Resolution" IsVisible="{Binding IsResolutionVisible}"/>
             <Button Grid.Column="10" Classes="col-header" Content="{Binding CodecHeader}"
                     Command="{Binding SortCommand}" CommandParameter="Codec" IsVisible="{Binding IsCodecVisible}"/>
+            <Button Grid.Column="11" Classes="col-header" Content="{Binding BitrateHeader}"
+                    Command="{Binding SortCommand}" CommandParameter="Bitrate" IsVisible="{Binding IsBitrateVisible}"/>
 
             <v:ColumnGrid.ContextMenu>
               <ContextMenu>
@@ -280,6 +282,8 @@
                           Command="{Binding ToggleColumnCommand}" CommandParameter="Resolution"/>
                 <MenuItem Header="编码" ToggleType="CheckBox" IsChecked="{Binding IsCodecVisible, Mode=OneWay}"
                           Command="{Binding ToggleColumnCommand}" CommandParameter="Codec"/>
+                <MenuItem Header="码率" ToggleType="CheckBox" IsChecked="{Binding IsBitrateVisible, Mode=OneWay}"
+                          Command="{Binding ToggleColumnCommand}" CommandParameter="Bitrate"/>
               </ContextMenu>
             </v:ColumnGrid.ContextMenu>
           </v:ColumnGrid>
@@ -415,6 +419,9 @@
                   <TextBlock Grid.Column="10" Classes="list-cell" Text="{Binding Row.CodecText}"
                              Foreground="{DynamicResource SecondaryTextBrush}"
                              IsVisible="{Binding $parent[ListBox].DataContext.IsCodecVisible}"/>
+                  <TextBlock Grid.Column="11" Classes="list-cell" Text="{Binding Row.BitRateText}"
+                             Foreground="{DynamicResource SecondaryTextBrush}"
+                             IsVisible="{Binding $parent[ListBox].DataContext.IsBitrateVisible}"/>
                 </v:ColumnGrid>
               </DataTemplate>
             </ListBox.ItemTemplate>

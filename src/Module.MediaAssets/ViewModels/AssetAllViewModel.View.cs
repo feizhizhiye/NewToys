@@ -89,6 +89,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             "Duration" => Order(q, r => r.DurationSeconds),
             "Resolution" => Order(q, r => r.ResolutionText),
             "Codec" => Order(q, r => r.CodecText),
+            "Bitrate" => Order(q, r => r.BitRateBps),
             _ => Order(q, r => r.Name)
         };
 
@@ -142,6 +143,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         DurationHeader = "时长" + SortArrow("Duration");
         ResolutionHeader = "分辨率" + SortArrow("Resolution");
         CodecHeader = "编码" + SortArrow("Codec");
+        BitrateHeader = "码率" + SortArrow("Bitrate");
     }
 
 }

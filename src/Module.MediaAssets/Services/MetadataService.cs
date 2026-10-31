@@ -10,7 +10,7 @@ using NewToys.Shared.Services;
 namespace NewToys.MediaAssets.Services;
 
 /// <summary>
-/// 元数据提取：视频走 ffprobe（时长 / 分辨率 / 编码），图片读文件头（尺寸）。
+/// 元数据提取：视频走 ffprobe（时长 / 分辨率 / 编码 / 码率），图片读文件头（尺寸）。
 /// <para>
 /// ⚠️ 只做**最小实现**：音乐 / 书籍 / 文档本轮只落基础文件信息（ mutagen / exif / PDF 解析等
 /// 第三方库 ⛔ 不擅引——先问用户）。结果写进 <c>assets.metadata_json</c>（按类型分键，⛔ 不覆盖别的类型的键）。
@@ -97,8 +97,12 @@ public class MetadataService
             var root = doc.RootElement;
 
             double? duration = null;
+            long? bitRate = null;
             if (root.TryGetProperty("format", out var fmt))
+            {
                 duration = GetDouble(fmt, "duration");
+                bitRate = GetLong(fmt, "bit_rate");     // 容器段的总码率（容器没写 ⇒ null）
+            }
 
             var width = 0; var height = 0; var codec = ""; var fpsText = "";
             if (root.TryGetProperty("streams", out var streams) && streams.ValueKind == JsonValueKind.Array && streams.GetArrayLength() > 0)
@@ -115,6 +119,7 @@ public class MetadataService
             if (duration is > 0) sb.Append("\"duration_seconds\":").Append(duration.Value.ToString("0.###", CultureInfo.InvariantCulture)).Append(',');
             if (width > 0 && height > 0) sb.Append("\"width\":").Append(width).Append(",\"height\":").Append(height).Append(',');
             if (codec.Length > 0) sb.Append("\"video_codec\":\"").Append(codec).Append("\",");
+            if (bitRate is > 0) sb.Append("\"bit_rate\":").Append(bitRate.Value).Append(',');
             if (double.TryParse(FpsToNumber(fpsText), NumberStyles.Float, CultureInfo.InvariantCulture, out var fps) && fps > 0)
                 sb.Append("\"fps\":").Append(fps.ToString("0.##", CultureInfo.InvariantCulture)).Append(',');
             var json = sb.ToString().TrimEnd(',');
@@ -263,6 +268,17 @@ public class MetadataService
             JsonValueKind.Number => v.GetInt32(),
             JsonValueKind.String when int.TryParse(v.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) => i,
             _ => 0
+        };
+    }
+
+    private static long? GetLong(JsonElement el, string name)
+    {
+        if (!el.TryGetProperty(name, out var v)) return null;
+        return v.ValueKind switch
+        {
+            JsonValueKind.Number when v.TryGetInt64(out var n) => n,
+            JsonValueKind.String when long.TryParse(v.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) => n,
+            _ => null
         };
     }
 

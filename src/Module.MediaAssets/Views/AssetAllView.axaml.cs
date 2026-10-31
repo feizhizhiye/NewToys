@@ -37,6 +37,7 @@ public partial class AssetAllView : UserControl
         AssetList.SelectionChanged += OnListSelectionChanged;
 
         // 底栏显隐的另一半口径 = 列表内容是否超出视口（滚动出现）。
+        // 筛选下拉的弹出位置由 <c>ui:FilterDropDownAlign</c>（XAML 根节点挂载）负责，本类不再管。
         LayoutUpdated += (_, _) => ReportListOverflow();
     }
 

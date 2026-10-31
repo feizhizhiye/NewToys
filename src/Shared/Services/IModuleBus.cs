@@ -38,8 +38,10 @@ public interface IModuleBus
 public static class ModuleTopics
 {
     /// <summary>
-    /// 媒体资产 → 视频工具（`video-list`）：待导入的视频文件路径。
-    /// <para>载荷类型 = <c>IReadOnlyList&lt;string&gt;</c>（绝对路径，已按视频扩展名筛过）。</para>
+    /// 媒体资产 → 视频工具（`video-list`）：待导入的视频文件。
+    /// <para>载荷类型 = <c>IReadOnlyList&lt;(string Path, string MetaJson)&gt;</c> —— 绝对路径（已按视频扩展名筛过）
+    /// + 资产库那边的 <c>metadata_json</c>，对方直接套用、不再重跑 ffprobe；
+    /// <c>MetaJson</c> 为空表示"没读过媒体信息"。</para>
     /// </summary>
     public const string VideoImport = "video.import";
 }

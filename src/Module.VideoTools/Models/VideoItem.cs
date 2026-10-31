@@ -1,5 +1,6 @@
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
+using NewToys.Shared.Formatting;
 
 namespace NewToys.VideoTools.Models;
 
@@ -120,10 +121,7 @@ public partial class VideoItem : ObservableObject
         get
         {
             var b = BitRate;
-            if (b is not > 0) return "—";
-            return b.Value >= 1_000_000
-                ? $"{b.Value / 1_000_000.0:0.0} Mbps"
-                : $"{b.Value / 1000.0:0} kbps";
+            return b is > 0 ? MediaText.BitRate(b.Value) : "—";
         }
     }
 

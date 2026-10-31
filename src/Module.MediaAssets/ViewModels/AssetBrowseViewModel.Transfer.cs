@@ -37,9 +37,9 @@ public partial class AssetBrowseViewModel
 
         var videos = tiles
             .Where(t => !t.IsFolder && VideoExtensions.Contains(Path.GetExtension(t.AbsPath)))
-            .Select(t => t.AbsPath)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(t => !string.IsNullOrWhiteSpace(t.AbsPath))
+            .Select(t => (Path: t.AbsPath, MetaJson: t.Row.MetadataJson))   // 入库项带着库里的媒体信息
+            .DistinctBy(v => v.Path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (videos.Count == 0)
@@ -48,7 +48,7 @@ public partial class AssetBrowseViewModel
             return;
         }
 
-        _bus?.Post(ModuleTopics.VideoImport, (IReadOnlyList<string>)videos);
+        _bus?.Post(ModuleTopics.VideoImport, (IReadOnlyList<(string Path, string MetaJson)>)videos);
         _navStore?.NavigateTo("video-list");
 
         var skipped = tiles.Count - videos.Count;

@@ -23,6 +23,7 @@ public static class AssetColumns
         new("Storage", "存储源", "1.2*", sample: "移动硬盘 D"),
         new("Duration", "时长", "0.9*", sample: "02:14:33"),
         new("Resolution", "分辨率", "0.9*", sample: "1920×1080"),
-        new("Codec", "编码", "0.9*", sample: "h264")
+        new("Codec", "编码", "0.9*", sample: "h264"),
+        new("Bitrate", "码率", "0.9*", sample: "8.5 Mbps")
     };
 }

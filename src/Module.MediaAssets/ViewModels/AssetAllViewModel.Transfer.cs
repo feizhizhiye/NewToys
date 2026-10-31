@@ -13,7 +13,10 @@ namespace NewToys.MediaAssets.ViewModels;
 /// </summary>
 public partial class AssetAllViewModel
 {
-    /// <summary>右键「➡ 发送到视频工具」：投递选中视频的磁盘路径，然后跳到视频列表页。</summary>
+    /// <summary>
+    /// 右键「➡ 发送到视频工具」：投递选中视频的磁盘路径**连同库里已读到的媒体信息**（<c>metadata_json</c>），
+    /// 然后跳到视频列表页 —— 对方直接套用，不必为同一批文件重跑一遍 ffprobe。
+    /// </summary>
     [RelayCommand]
     private void SendToVideoTools()
     {
@@ -26,9 +29,9 @@ public partial class AssetAllViewModel
 
         var videos = rows
             .Where(r => string.Equals(r.Type, AssetTypes.Video, StringComparison.OrdinalIgnoreCase))
-            .Select(r => r.FilePath)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(r => !string.IsNullOrWhiteSpace(r.FilePath))
+            .Select(r => (Path: r.FilePath, MetaJson: r.MetadataJson))
+            .DistinctBy(v => v.Path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (videos.Count == 0)
@@ -37,7 +40,7 @@ public partial class AssetAllViewModel
             return;
         }
 
-        _bus?.Post(ModuleTopics.VideoImport, (IReadOnlyList<string>)videos);
+        _bus?.Post(ModuleTopics.VideoImport, (IReadOnlyList<(string Path, string MetaJson)>)videos);
         _navStore?.NavigateTo("video-list");
 
         var skipped = rows.Count - videos.Count;

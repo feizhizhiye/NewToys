@@ -294,6 +294,12 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 计数写**列表内计数文本**（「共 N 行 · 已选 M」），⛔ 进状态栏（§10.4）。
 - 批量动作 **一次** 生效 / 一次确认（§10.2），⛔ 逐行弹窗；批量命令只吃**条目行**，空行 / 注释行自动跳过并给提示。
 
+### 6.11 筛选栏下拉的展开位置
+
+- `Classes="filter-combo"` 的下拉吃主题模板的 `Placement=Bottom`（水平居中）⇒ 候选比框宽时向两侧同时伸，选项文字长短一变列表就左右跳。
+- 统一用 UI 库附加行为 **`NewToys.UI.Behaviors.FilterDropDownAlign`**：页面根节点设 `ui:FilterDropDownAlign.Attach="True"`，页内所有 `filter-combo` 自动改 `PlacementMode.BottomEdgeAlignedLeft`。
+- 实现写的是 `Popup` **实例**的本地值（优先级高于模板里的字面值）；⛔ 靠 XAML 样式改不动模板目标，⛔ 别在页面 code-behind 里再抄一份遍历逻辑。
+
 ---
 
 ## §7 详情卡（声明式渲染）
@@ -307,6 +313,8 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 刷新契约：渲染器**订阅源 VM 一次**（`PropertyChanged`）→ 任一属性变化整体重解析。⛔ 动作级改动（落盘 / 加标签 / 删除）由**页面 VM 自己回刷**，描述符不参与。
 - 提交语义：`Instant` / `Explicit` → 值写回绑 `PropertyChanged`（`Explicit` 写的是 VM 的**编辑态草稿**，落盘由工具条「💾 保存修改」负责）；`OnBlur` → 模板挂 `LostFocus="OnTextLostFocus"` → `TextFieldRow.Commit()`。
 - 外壳（340px 容器 / 覆盖式滚动条留位 / 空态 / 分区与字段间距）**只实现一次**（`DetailCardHost.axaml`）。
+- 🔴 **字号三级单调递减**（2026-10-30 定，改任一级必须三处同看）：分区标题 **13 SemiBold 主色**（`Button.section-toggle` / `TextBlock.section-title`）＞ 字段值 **12 主色**（`.field-value`）＞ 字段标签 / 提示 **11 次要色**（`.field-label` / `.hint-text`）。⛔ 分区标题与字段值同号 —— 节标题会"沉"进正文、层级消失（旧版都是 12）。
+- 树状感靠**左侧 1px 引导线 + 内容缩进 15**（`DividerBrush` @0.7，仅 `HasHeader` 的节才画）；⛔ 不靠加框分层（340px 装不下）。
 - ⛔ 不给 `DetailCardHost` 设 `DataContext`。
 
 ### 7.2 描述符关键口径

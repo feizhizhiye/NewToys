@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using NewToys.Shared.Formatting;
 using NewToys.VideoTools.Services;
 
 namespace NewToys.VideoTools.Models;
@@ -372,11 +373,7 @@ public partial class TranscodeTask : VideoTaskBase
         SourceDuration = info.Duration ?? 0;
         SourceCodec = VideoItem.FriendlyCodecName(info.Codec);
         SourceResolution = info.Width is > 0 && info.Height is > 0 ? $"{info.Width}×{info.Height}" : "";
-        SourceBitRate = info.BitRate is > 0
-            ? (info.BitRate.Value >= 1_000_000
-                ? $"{info.BitRate.Value / 1_000_000.0:0.0} Mbps"
-                : $"{info.BitRate.Value / 1000.0:0} kbps")
-            : "";
+        SourceBitRate = info.BitRate is > 0 ? MediaText.BitRate(info.BitRate.Value) : "";
 
         SourceWidth = info.Width ?? 0;
         SourceHeight = info.Height ?? 0;

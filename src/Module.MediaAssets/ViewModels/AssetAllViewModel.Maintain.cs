@@ -213,7 +213,13 @@ public partial class AssetAllViewModel
         if (_meta == null) { StatusText = "媒体信息服务不可用。"; return; }
 
         var row = Selected;
-        if (!CanReadMediaInfo(row)) { StatusText = "这个类型没有可读的媒体信息（只支持视频 / 图片）。"; return; }
+        if (!CanReadMediaInfo(row))
+        {
+            StatusText = row.Type is AssetTypes.Video or AssetTypes.Image
+                ? "这个资产的媒体信息已经读全了（只有缺字段时才会再跑一次 ffprobe）。"
+                : "这个类型没有可读的媒体信息（只支持视频 / 图片）。";
+            return;
+        }
 
         var loc = _assets.FindPrimaryLocation(row.Id) ?? _assets.ListLocations(row.Id).FirstOrDefault();
         if (loc == null) { StatusText = "这个资产没有登记文件位置。"; return; }
@@ -227,15 +233,19 @@ public partial class AssetAllViewModel
     }
 
     /// <summary>
-    /// 可以读媒体信息：类型是视频 / 图片，且**还没有**任何一项媒体值（已读过的跳过，保证重复点击不白跑进程）。
+    /// 可以读媒体信息：类型是视频 / 图片，且**还有**没读到的字段（读全了的跳过，保证重复点击不白跑进程）。
+    /// <para>🔴 判定不能写成「三项全空」：码率是后加的字段，老数据时长 / 分辨率 / 编码都有、唯独缺码率 ——
+    /// 用「全空」当闸门会让这些记录永远补不上码率（列表那一列恒空）。</para>
     /// </summary>
     private static bool CanReadMediaInfo(AssetRow row)
     {
-        var typed = row.Type is AssetTypes.Video or AssetTypes.Image;
-        if (!typed) return false;
-        return row.DurationSeconds <= 0
-               && row.ResolutionText.Length == 0
-               && row.CodecText.Length == 0;
+        return row.Type switch
+        {
+            AssetTypes.Video => row.DurationSeconds <= 0 || row.ResolutionText.Length == 0
+                                || row.CodecText.Length == 0 || row.BitRateBps <= 0,
+            AssetTypes.Image => row.ResolutionText.Length == 0,
+            _ => false
+        };
     }
 
     // ==================== ④ 校验文件是否还在磁盘上 ====================

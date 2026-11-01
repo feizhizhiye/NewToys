@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.UI.Viewers.TextViewer">
+  <!--
+    文本渲染器（只读）：整体滚动阅读，⛔ 不做分页切页。
+    字号 / 行距 / 页边距由宿主经属性写入（ViewerHost.ApplyTextOptions）；
+    🔴 库内 XAML ⛔ 不写死色值，只用主题键 DynamicResource。
+  -->
+  <ScrollViewer x:Name="Scroller"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Auto">
+    <Border x:Name="Pad" Padding="32,24">
+      <SelectableTextBlock x:Name="Body"
+                           FontSize="15"
+                           LineHeight="26"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryTextBrush}" />
+    </Border>
+  </ScrollViewer>
+</UserControl>

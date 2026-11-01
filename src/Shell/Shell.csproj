@@ -52,5 +52,7 @@
     <ProjectReference Include="../Module.SystemTools/Module.SystemTools.csproj" />
     <!--  备份中心（Order 60）  -->
     <ProjectReference Include="../Module.BackupCenter/Module.BackupCenter.csproj" />
+    <!--  查看器（Order 55，NT-124）  -->
+    <ProjectReference Include="../Module.Viewer/Module.Viewer.csproj" />
   </ItemGroup>
 </Project>

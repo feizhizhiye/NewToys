@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:NewToys.UI.Viewers"
+             x:Class="NewToys.Viewer.Views.ViewerView">
+  <!--
+    查看器（`viewer-main`）：最近打开条 + 渲染区。
+    🔴 工具条由 Shell 的 ToolbarHost 渲染（VM 实现 IToolbarSource），本页 ⛔ 不写 Border.toolbar。
+    🔴 渲染器全部来自 NewToys.UI.Viewers（媒体资产 / 视频工具将来可直接复用，⛔ 不依赖本模块）。
+  -->
+  <Grid RowDefinitions="Auto,*">
+
+    <Border Grid.Row="0"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="0,0,0,1"
+            IsVisible="{Binding !HasContent}"
+            Padding="16,6">
+      <ListBox x:Name="RecentList"
+               Background="Transparent"
+               BorderThickness="0"
+               ItemsSource="{Binding RecentItems}"
+               SelectionChanged="OnRecentSelected">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="6" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Classes="hint-text"
+                       MaxWidth="220"
+                       Text="{Binding}"
+                       TextTrimming="CharacterEllipsis" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+
+    <ui:ViewerHost x:Name="Host" Grid.Row="1" />
+
+  </Grid>
+</UserControl>

@@ -1,5 +1,6 @@
 # NewToys 框架层（Framework）
 
+> v4.7 · 2026-11-01 · **查看器框架层新增点登记** —— §11 登记 NT-124：`NewToys.UI/Viewers/`（渲染器族）+ `Shared/Services/IViewerRegistry`（认领契约）+ 新模块 `Module.Viewer` 薄壳。🔴 三条新增点均属框架层，**须用户确认后才可动手**；V2 音视频另需媒体后端拍板。
 > v4.6 · 2026-10-30 · **设置页「滚动自动展开」整体移除** —— 一节开没开**只由点击决定**；`SettingsSection` 删 `UserCollapsed` / `CollapsedByAll`，三层优先级压回两层（点 / 外部寻址）。
 > v4.5 · 2026-10-21 · **过时内容清理** —— §11 已完成项（NT-064/065/066/067/068/075/076/077/078/085）收拢为「已结清」一行，NT-085 状态按台账订正为已完成；版本记录按「只保留最近三次」压缩。
 > v4.4 · 2026-10-19 · 新增 **§2.1 跨平台中立约束**（长期架构约束，本期不实施）—— 三层分工 / 包管理器取数分级（只有 winget 需要复杂解析） / 写操作 ⛔ 不脚本化 / 六条新增代码硬约束；同步更新 §10 B5、§11 登记 NT-081。
@@ -784,6 +785,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 
 | NT-088 | **执行器上提 Core**（`ScriptRunner` + `InterpreterResolver`：`Module.ScriptManager` → `NewToys.Core`）：为新增的 `system` 系统工具模块提供跨模块执行契约（模块禁互引），并为命令链（NT-092）铺路；行为零变化，纯重构 | 🔄 **已实施（⏳ 待 build 验收）** —— 2026-10-22 用户指令「执行 nt-088/089」= 批准（卡：`backlog/framework/NT-088.md`）|
 | NT-094 | **重划分收尾**：设置拆分（`config\web\*` 瘦身：超时 / 并发 / 解析器 → script）+ 一级菜单显示名「脚本中心」+ `system` 组一级图标落地 + 备份段重复显示检查 | 📝 草稿（待细化；依赖 NT-088 ~ NT-093；卡：`backlog/framework/NT-094.md`） |
+| NT-124 | **查看器基础能力**：`NewToys.UI/Viewers/`（`ViewerHost` 外壳 + `IViewerRenderer` + 文本分页 / 图片缩放 / 音视频三个渲染器）+ `Shared/Services/IViewerRegistry` 认领契约 + 新模块 `Module.Viewer` 薄壳（菜单 Order 60）。V1 文本 + 图片零依赖；V2 音视频待媒体后端拍板（**Avalonia 无内置解码播放**）。动力：媒体资产 / 视频工具 / 将来书源阅读都要「打开并显示」，渲染器留业务模块会三处重写 | 📝 草稿（框架层 3 处新增待用户确认；卡：`backlog/framework/NT-124.md`） |
 
 **已结清并移出本表**（结论已蒸馏进正文，状态与日期以台账为准）：NT-064 分页数据层 / NT-066 标题栏搜索扩范围 / NT-067 信息展示脚本化底座 / NT-068 脚本管理器重构 / NT-069 跨模块文件操作契约 / NT-075 配置写入基建 / NT-076 单库收编 / NT-077 配置分层 / NT-078 备份路由 / NT-085 `DynamicColumnGrid` 上提 UI 库。
 

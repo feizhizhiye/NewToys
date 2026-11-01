@@ -10,6 +10,7 @@
     <Project Path="Module.MediaAssets/Module.MediaAssets.csproj" Type="C#" />
     <Project Path="Module.SystemTools/Module.SystemTools.csproj" Type="C#" />
     <Project Path="Module.BackupCenter/Module.BackupCenter.csproj" Type="C#" />
+    <Project Path="Module.Viewer/Module.Viewer.csproj" Type="C#" />
     <Project Path="NewToys.Tests/NewToys.Tests.csproj" Type="C#" />
   </Folder>
   <Folder Name="/src/Properties/">

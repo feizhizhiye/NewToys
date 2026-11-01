@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.UI.Viewers.ViewerHost">
+  <!--
+    查看器外壳：只做「换哪个渲染器 + 空态」，⛔ 不含业务逻辑、⛔ 不画工具条（工具条归宿主页面）。
+    渲染器由 code-behind 直接 new 并塞进 ContentHost —— 两个实现而已，⛔ 不为了「插件化」上 DataTemplate 注册表。
+  -->
+  <Grid>
+    <ContentControl x:Name="ContentHost" />
+
+    <StackPanel x:Name="EmptyPanel"
+                HorizontalAlignment="Center"
+                Spacing="8"
+                VerticalAlignment="Center">
+      <TextBlock Classes="hint-text"
+                 MaxWidth="460"
+                 Text="拖入文件，或点上方「📂 打开」选择要查看的文件"
+                 TextAlignment="Center"
+                 TextWrapping="Wrap" />
+      <TextBlock x:Name="EmptyDetail"
+                 Classes="hint-text"
+                 FontSize="12"
+                 MaxWidth="460"
+                 TextAlignment="Center"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+  </Grid>
+</UserControl>

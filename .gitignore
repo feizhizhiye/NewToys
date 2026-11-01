@@ -20,6 +20,9 @@
 /var/logs/
 /var/cache/
 /var/temp/
+# 本地调试散落物（临时文件、裁剪/对齐用的截图）
+/var/tmp/
+/var/crop_hint.png
 # 用户私有配置（浏览器路径、下载目录、配置备份等），默认不提交
 # 如需把默认配置纳入版本管理，删除下面这一行
 /var/config/

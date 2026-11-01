@@ -100,6 +100,7 @@
 
 | NT | 标题 | 优先级 | 状态 | 详情 |
 |---|---|---|---|---|
+| NT-125 | **阅读模块 批1**（用户定调「两个独立模块：一个抓网络内容，一个本地浏览文件」；本地浏览 = NT-124 `Module.Viewer`）：新模块 `Module.Reading` = 书源导入（legado JSON）+ **方言求值器**（默认简化语法 / `@css:` / `@json:` / `||` / `&&` 节点链 / `##` / `{{}}` / `@put@get`）+ 四段管线（搜索→详情→目录→正文）+ 书源页与搜索页；正文渲染复用 `NewToys.UI/Viewers/TextViewer`。🔴 求值器**必须返回联合体**（Texts/Nodes/Json），⛔ 不能 `List<string>`。批1 不含 JS（留 NT-126）。判据 = 30 条抽样源三段通过率 ≥ 60% | P1 | ✔ **批1 已实施（2026-11-01，⏳ 待用户本地 build）** —— `Module.Reading` 共 4 页（书源 / 发现 / 网上搜索 / 书架）+ 求值器（选择器 / `$` JSON / `@css:` / `{{}}` `{}` / `\|\|` `&&` `##` / `!` 排除索引 / `@put@get`）+ 四段管线 + 单测 30 条 + Shell 装配 4 处。**首轮实机验收「一个也搜不出来」已修**：根因是 `searchUrl` 多数为相对路径未拼书源地址（另修 `$` JSON 规则 / `{}` 插值 / GBK 搜索词 / `!` 排除语义 / `bookUrl`·`chapterUrl` 留空取元素链接）。静态检查 PASS 6 / WARN 2（存量） | backlog/reading/NT-125.md |
 | NT-124 | **查看器模块**（用户需求「为本软件提供基础的文档查看器、视频播放器、图片浏览器、音乐播放器」）：新增 `Module.Viewer` 薄壳 + `NewToys.UI/Viewers/` 渲染器族（`ViewerHost` 外壳 / `TextViewer` 分页排版 / `ImageViewer` 缩放平移 / `MediaRenderer` 音视频）。**V1 = 文本 + 图片（零第三方依赖）**，**V2 = 音视频（待「libvlc / WMF / 抽帧」拍板）**。🔴 渲染器必须上提 UI 库（模块禁互引，MediaAssets / VideoTools 要复用）；Text 层按「章节文本 + 排版参数 → 页」设计，作将来书源阅读的地基；⛔ 不做媒体中心 / ⛔ 编辑 / ⛔ PDF EPUB | P1 | ✔ **已完成 V1（2026-11-01，待用户本地 build）** —— 新增 `Module.Viewer` + `UI/Viewers/`（3 控件）+ Shell 装配 4 处；静态检查 PASS 6 / WARN 2（存量）；V2 待媒体后端拍板 | backlog/framework/NT-124.md |
 | NT-001 | web-http 实装（唯一剩余骨架页） | P2 | ✔ 已完成（已验收） | 🗑 已蒸馏（卡已删 → `modules/web-tools.md` §2.5 HTTP 测试） |
 | NT-002 | pc-package 收尾（Parser 实机 + 批量队列） | P2 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |

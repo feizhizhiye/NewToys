@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.UI.Controls"
+             x:Class="NewToys.Reading.Views.SourceListView">
+  <!--
+    阅读 → 书源（`reading-sources`）：书源清单 + 声明式工具条 + 详情卡。
+    🔴 工具条 / 详情卡由 Shell 按 VM 契约渲染，页内 ⛔ 不再自绘工具条。
+    🔴 颜色一律 DynamicResource 主题语义键（⛔ 不写死色值）。
+  -->
+  <Grid>
+    <v:ListPageSkeleton EmptyMessage="还没有书源 —— 点工具条「📥 导入书源」选一个 legado 书源 JSON。"
+                        IsEmpty="{Binding !HasItems}">
+
+      <v:ListPageSkeleton.TopArea>
+        <Border Background="{DynamicResource ContentHeaderBrush}" Padding="12,6" IsVisible="{Binding IsBusy}">
+          <TextBlock Classes="hint-text" Text="正在导入书源…"/>
+        </Border>
+      </v:ListPageSkeleton.TopArea>
+
+      <v:ListPageSkeleton.ListArea>
+        <v:TableViewHost x:Name="SourceList"
+                         ItemsSource="{Binding Items}"
+                         SelectedItem="{Binding Selected, Mode=TwoWay}"
+                         SelectionMode="Single">
+          <v:TableViewHost.Columns>
+            <TableViewColumn Width="240">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary"
+                             Text="{Binding Name}"
+                             TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{Binding Tip}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="150" Binding="{Binding Group}"/>
+            <TableViewColumn Width="70" Binding="{Binding Type}" HorizontalContentAlignment="Center"/>
+            <TableViewColumn Width="90" Binding="{Binding State}" HorizontalContentAlignment="Center"/>
+            <TableViewColumn Width="110" Binding="{Binding LastUsed}"/>
+          </v:TableViewHost.Columns>
+
+          <v:TableViewHost.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="🔍 用这个源搜索" Command="{Binding OpenSearchCommand}" IsEnabled="{Binding HasSelection}"/>
+              <Separator/>
+              <MenuItem Header="✅ 启用" Command="{Binding EnableCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="⏸ 停用" Command="{Binding DisableCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="📤 导出选中" Command="{Binding ExportCommand}" IsEnabled="{Binding HasSelection}"/>
+              <Separator/>
+              <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding HasSelection}"/>
+            </ContextMenu>
+          </v:TableViewHost.ContextMenu>
+        </v:TableViewHost>
+      </v:ListPageSkeleton.ListArea>
+    </v:ListPageSkeleton>
+  </Grid>
+</UserControl>

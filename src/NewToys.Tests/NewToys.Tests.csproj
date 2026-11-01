@@ -35,6 +35,9 @@
     <ProjectReference Include="../Module.VideoTools/Module.VideoTools.csproj" />
     <!--  页面类型索引（PageCatalog）：索引语义走样 = 页面空白 / 错页，运行期不报错，必须能独立断言。 -->
     <ProjectReference Include="../Core/Core.csproj" />
+    <!--  书源规则求值器（RuleEvaluator / RuleSyntax / JsonPathLite）：规则写错只表现为「这个字段空」，
+          运行期不报错，必须逐种语法元件独立断言。 -->
+    <ProjectReference Include="../Module.Reading/Module.Reading.csproj" />
   </ItemGroup>
 
 </Project>

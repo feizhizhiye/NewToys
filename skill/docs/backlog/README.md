@@ -15,7 +15,9 @@ backlog/
   media-assets/     媒体资产
   video-tools/      视频工具
   web-tools/        网络工具
+  reading/          阅读（Module.Reading，NT-125 起）
   (无 settings-app/ —— 应用级设置 + 首页的卡已于 2026-10-18 整目录删除，新卡一律放 framework/)
+  (无 viewer/ —— 查看器 NT-124 改 UI 库 + Shell，卡放 framework/)
 ```
 
 - **一个模块一个目录**；新增模块 ⇒ 新增同名目录（与 `docs/modules/<模块>.md` 同名）。

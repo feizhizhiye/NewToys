@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.UI.Controls"
+             x:Class="NewToys.Reading.Views.ShelfView">
+  <!--
+    阅读 → 书架（`reading-shelf`）：搜到后加进来的书。
+    🔴 工具条 / 详情卡由 Shell 按 VM 契约渲染，页内 ⛔ 不自绘工具条。
+  -->
+  <Grid>
+    <v:ListPageSkeleton EmptyMessage="书架是空的 —— 到「网上搜索」搜到书后，右键「＋ 加入书架」。"
+                        IsEmpty="{Binding !HasItems}">
+
+      <v:ListPageSkeleton.ListArea>
+        <v:TableViewHost x:Name="ShelfList"
+                         ItemsSource="{Binding Items}"
+                         SelectedItem="{Binding Selected, Mode=TwoWay}"
+                         SelectionMode="Single">
+          <v:TableViewHost.Columns>
+            <TableViewColumn Width="240">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary"
+                             Text="{Binding Name}"
+                             TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{Binding Tip}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="160" Binding="{Binding Author}"/>
+            <TableViewColumn Width="160" Binding="{Binding SourceName}"/>
+            <TableViewColumn Width="110" Binding="{Binding Added}"/>
+          </v:TableViewHost.Columns>
+
+          <v:TableViewHost.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="📖 继续阅读" Command="{Binding ReadCommand}" IsEnabled="{Binding HasSelection}"/>
+              <Separator/>
+              <MenuItem Header="🗑 移出书架" Command="{Binding RemoveCommand}" IsEnabled="{Binding HasSelection}"/>
+            </ContextMenu>
+          </v:TableViewHost.ContextMenu>
+        </v:TableViewHost>
+      </v:ListPageSkeleton.ListArea>
+    </v:ListPageSkeleton>
+  </Grid>
+</UserControl>

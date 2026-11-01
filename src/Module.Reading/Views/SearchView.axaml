@@ -1,0 +1,147 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:NewToys.UI.Viewers"
+             x:Class="NewToys.Reading.Views.SearchView">
+  <!--
+    阅读 → 网上搜索（`reading-search`）：一页三段。
+    上：书源多选 + 关键词；中：搜索结果；右：目录 + 正文（正文用 NewToys.UI 的 TextViewer 渲染）。
+    🔴 页面 ⛔ 不自己实现正文控件，⛔ 不写死色值。
+  -->
+  <Grid RowDefinitions="Auto,Auto,*">
+
+    <!--  ==================== 上段：选源 + 关键词  ====================  -->
+    <Border Grid.Row="0" Background="{DynamicResource ContentHeaderBrush}" Padding="12,8">
+      <StackPanel Spacing="6">
+        <DockPanel LastChildFill="True">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+            <Button Classes="primary" Content="🔍 搜索" Command="{Binding SearchCommand}"/>
+            <Button Classes="ghost" Content="✖ 取消" Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}"/>
+          </StackPanel>
+
+          <TextBox x:Name="KeywordBox"
+                   Text="{Binding Keyword, Mode=TwoWay}"
+                   PlaceholderText="书名 / 作者，回车即搜索"/>
+        </DockPanel>
+
+        <ScrollViewer MaxHeight="76" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Sources}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                          Content="{Binding Name}"
+                          ToolTip.Tip="{Binding Hint}"
+                          Margin="0,0,14,4"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Classes="ghost" Content="☑ 全选" Command="{Binding SelectAllSourcesCommand}"/>
+          <Button Classes="ghost" Content="☐ 全不选" Command="{Binding ClearSourcesCommand}"/>
+          <TextBlock Classes="hint-text" Text="{Binding SourceSummary}" VerticalAlignment="Center"/>
+          <Button Classes="ghost" Content="＋ 加入书架" Command="{Binding AddToShelfCommand}" Margin="8,0,0,0"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!--  ==================== 忙 / 错误条  ====================  -->
+    <StackPanel Grid.Row="1">
+      <Border Background="{DynamicResource ContentHeaderBrush}" Padding="12,4" IsVisible="{Binding IsBusy}">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="hint-text" Text="{Binding BusyPhase}"/>
+          <ProgressBar IsIndeterminate="True" Height="3"/>
+        </StackPanel>
+      </Border>
+
+      <Border Padding="12,4" IsVisible="{Binding HasError}">
+        <TextBlock Text="{Binding ErrorText}"
+                   Foreground="{DynamicResource SecondaryTextBrush}"
+                   TextWrapping="Wrap"
+                   FontSize="12"/>
+      </Border>
+    </StackPanel>
+
+    <!--  ==================== 中段：结果 / 目录 / 正文  ====================  -->
+    <Grid Grid.Row="2" ColumnDefinitions="300,220,*" Margin="12,0,12,12">
+
+      <Border Grid.Column="0"
+              Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              Margin="0,8,8,0">
+        <DockPanel LastChildFill="True">
+          <TextBlock DockPanel.Dock="Top" Classes="section-title" Margin="10,8,10,6"
+                     Text="搜索结果"/>
+          <ListBox ItemsSource="{Binding Results}"
+                   SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
+                   Background="Transparent"
+                   BorderThickness="0">
+            <ListBox.ContextMenu>
+              <ContextMenu x:Name="ResultMenu">
+                <MenuItem Header="＋ 加入书架" Command="{Binding AddToShelfCommand}"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Spacing="2" Margin="0,2">
+                  <TextBlock Classes="list-cell primary" Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Classes="hint-text"
+                             Text="{Binding AuthorText}"
+                             TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Classes="hint-text"
+                             Text="{Binding SourceName}"
+                             TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <Border Grid.Column="1"
+              Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              Margin="0,8,8,0">
+        <DockPanel LastChildFill="True">
+          <TextBlock DockPanel.Dock="Top" Classes="section-title" Margin="10,8,10,6"
+                     Text="{Binding BookInfoText}"/>
+          <ListBox ItemsSource="{Binding Chapters}"
+                   SelectedItem="{Binding SelectedChapter, Mode=TwoWay}"
+                   Background="Transparent"
+                   BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Classes="list-cell" Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <Border Grid.Column="2"
+              Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              Margin="0,8,0,0">
+        <DockPanel LastChildFill="True">
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="14,8,14,6">
+            <TextBlock Classes="section-title" Text="{Binding ContentTitle}" VerticalAlignment="Center"/>
+            <Button Classes="ghost" Content="▲ 上一章" Command="{Binding PrevChapterCommand}"/>
+            <Button Classes="ghost" Content="▼ 下一章" Command="{Binding NextChapterCommand}"/>
+          </StackPanel>
+          <ui:TextViewer x:Name="Body"/>
+        </DockPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -5,16 +5,90 @@
              ui:FilterDropDownAlign.Attach="True"
              x:Class="NewToys.MediaAssets.Views.AssetAllView">
   <!--
-    NT-016「全部资产」样板列表页。
+    「全部资产」样板列表页。
     🔴 与旧列表页（Ping / 视频列表）最大的不同：**本页没有右栏详情卡** —— 详情面板改由 **Shell**
        承载（VM 实现 IDetailPanelProvider，详情卡已改由 Shell 声明式渲染（NT-054））。
        ⛔ 若本页再自带一栏，右列会出现两个详情卡（Shell 一个、页面一个）。
 
-    NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（四段：顶区 = 筛选条 / 列表区 = 表头 + 列表 /
-        空态 / 底栏）—— card 容器、空态块、底栏壳由骨架统一提供（⛔ 行模板仍本页自写）。
-    NT-064：本页为分页样板页 —— 底栏插槽（计数 / 页码跳 / 页大小）整组绑 VM 的分页状态；
-        显隐 = HasFooterContent（VM：有多页 或 代码侧量到列表超出视口）。
+    列表页骨架 <v:ListPageSkeleton>（四段：顶区 = 筛选条 / 列表区 / 空态 / 底栏）—— card 容器、空态块、
+    底栏壳由骨架统一提供（⛔ 行模板仍本页自写）。
+
+    ⚠️ 列表本体已换 **Avalonia 12.1 核心控件 TableView**（列宽拖拽 / 行与单元格回收由框架提供）。
+       表头由 TableView 自带且粘顶（主题里表头在 ScrollContentPresenter 之外），因此骨架的 HeaderArea 留空；
+       列显隐仍由 VM 下发（IsXxxVisible），在 code-behind 里按索引绑定到对应的 TableViewColumn。
   -->
+
+  <UserControl.Resources>
+    <!--  🔴 主题给的是 6,9,6,12 —— 表头外层 Border 和每一行都吃这份 padding，
+         不覆盖的话表头再设 MinHeight 也压不矮（高 = 内容 + 9 + 12）。密度由行/单元格自己兜。  -->
+    <Thickness x:Key="TableViewRowPadding">0</Thickness>
+    <!--  单元格内边距同理：主题的 TableViewCellPadding 带垂直份量，会把行撑高并把文字顶到上方  -->
+    <Thickness x:Key="TableViewCellPadding">8,0</Thickness>
+    <!--  🔴 列宽拖拽把手（resizer）的命中区：主题是 0,-9,-6,-12，**下边多出 12px**，
+         且表头 ClipToBounds=False ⇒ 那根 1px 竖线会戳进表头下面第一行（肉眼像「表头没画完」）。
+         只留右侧 -6（让竖线正好压在列边界上），上下不再外扩。  -->
+    <Thickness x:Key="TableViewColumnResizerMargin">0,0,-6,0</Thickness>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <!--  与 ListBox.list-page 的密度基线对齐（行 28 / 字 12 / 表头 SemiBold 次要色）：
+         TableView 默认继承主题的 13px 与主色前景，不覆盖就会比其它列表页「字大一档」。  -->
+    <Style Selector="TableViewRow">
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="Padding" Value="0"/>
+    </Style>
+    <!--  选中 / 悬停底色：覆盖主题的 TableViewRowBackground*（那是 Fluent 强调色，不是本项目的语义键）  -->
+    <Style Selector="TableViewRow:pointerover /template/ Border#Border">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
+    <Style Selector="TableViewRow:selected /template/ Border#Border">
+      <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+    </Style>
+    <Style Selector="TableViewRow:selected:pointerover /template/ Border#Border">
+      <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+    </Style>
+    <Style Selector="TableViewCell">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+      <!--  行高 28 由行兜底后，单元格内容必须自己垂直居中（默认 Top，会顶着上沿）  -->
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="TableViewColumnHeader">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <!--  Transparent 才会参与命中测试：表头空白处也能点中（排序激活区 = 整列头，⛔ 只有文字能点是错的）  -->
+      <Setter Property="Background" Value="Transparent"/>
+      <!--  表头压矮：默认主题按 32 走，这里给 28 的基线与 8/0 内边距（与单元格 8,0 对齐，否则表头字比行字偏左）  -->
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="Padding" Value="8,0"/>
+    </Style>
+
+    <!--  筛选栏压矮：只覆盖本页（全局 filter-bar / filter-combo 仍是 12,4 + MinHeight 28）  -->
+    <Style Selector="Border.filter-bar">
+      <Setter Property="Padding" Value="8,2"/>
+    </Style>
+    <Style Selector="ComboBox.filter-combo">
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Height" Value="22"/>
+    </Style>
+
+    <!--  表头条：主题用 Fluent 的灰色 Chrome 笔刷 + 无分隔线；换成本项目的 SubSiderHeaderBrush + 1px 底边，
+         与其它列表页的 Border.list-header 视觉一致。  -->
+    <Style Selector="TableView ScrollViewer /template/ DockPanel#ContentPanel > Border">
+      <Setter Property="Background" Value="{DynamicResource SubSiderHeaderBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    </Style>
+
+    <!--  垂直滚动条从表头下沿开始：主题把滚动条铺在整个 ScrollViewer 上（含表头行），
+         这里按表头高度下移 28，避免滚动条顶到表格最上沿。  -->
+    <Style Selector="TableView ScrollViewer /template/ ScrollBar#PART_VerticalScrollBar">
+      <Setter Property="Margin" Value="0,28,0,0"/>
+    </Style>
+  </UserControl.Styles>
+
   <v:ListPageSkeleton EmptyMessage="没有可显示的资产。点「📥 导入」把导出的 json 合并进库，或用「📁 扫描」扫一个目录。"
                       EmptyActionText="📥 导入"
                       EmptyActionCommand="{Binding ImportAssetsCommand}"
@@ -37,7 +111,7 @@
     <!--  ==================== ② 筛选条（改任一条件即时重算：VM 的 OnFilterXxxChanged → ApplyView）  ====================  -->
     <v:ListPageSkeleton.TopArea>
     <Border Classes="filter-bar">
-      <!--  🔴 v3.41（用户定调）：筛选条**恒为一行、且⛔不许出现滚动条**。
+      <!--  🔴 筛选条**恒为一行、且⛔不许出现滚动条**。
             筛选器数量是固定的（类型 / 存储源 / 状态 / 标签）⇒ 用 Grid 排死：
             标签 Auto + 四个 combo 各占等分星号 ⇒ 窗口变窄时 combo **自己跟着变窄**，永远不会溢出、也不需要滚动条；
             再给 combo 设 MaxWidth 防止宽窗口下被拉得过宽（超出部分自然留在右侧空白）。
@@ -46,8 +120,7 @@
       <Grid ColumnDefinitions="Auto,*,*,*,*" ColumnSpacing="5">
         <TextBlock Grid.Column="0" Text="筛选" FontSize="11" VerticalAlignment="Center" Margin="0,0,2,0"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <!--  v3.41：combo 尺寸再压小（Padding 4,1 + MinWidth 0 覆盖全局 filter-combo 的 MinWidth=110；
-              MaxWidth 120 兜住宽窗口）—— 最窄窗口（960 + 详情栏展开）也放得下，一行不动。  -->
+        <!--  combo 尺寸压到最窄窗口（960 + 详情栏展开）也放得下一行。  -->
         <ComboBox Grid.Column="1" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
                   HorizontalAlignment="Left"
                   ToolTip.Tip="按类型筛选（视频 / 音乐 / 书籍 / 图片 / 文档）"
@@ -70,175 +143,105 @@
     </Border>
     </v:ListPageSkeleton.TopArea>
 
-    <!--  ==================== ③ 列表本体（card / 空行由骨架提供，本页只给表头与列表）  ====================  -->
-    <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-          <v:ColumnGrid x:Name="HeaderGrid"
-                        ColumnSpecs="{Binding VisibleColumnSpecs}"
-                        IsResizable="True"
-                        LockedColumns="{Binding LockedColumnMask}"
-                        SampleSpecs="{Binding SampleSpecs}">
-            <!--  🔴 无勾选列：多选走列表原生选中（Ctrl 增选 / Shift 连选 / Ctrl+A 全选，见 code-behind）。
-                  批量操作的对象 = 选中行数（底栏「已选 N」），⛔ 不再有第二套勾选状态。  -->
-
-            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Name"
-                    IsVisible="{Binding IsNameVisible}"/>
-            <Button Grid.Column="1" Classes="col-header" Content="{Binding TypeHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Type"
-                    IsVisible="{Binding IsTypeVisible}"/>
-            <Button Grid.Column="2" Classes="col-header" Content="{Binding TagsHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Tags"
-                    IsVisible="{Binding IsTagsVisible}"/>
-            <Button Grid.Column="3" Classes="col-header" Content="{Binding CategoriesHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Categories"
-                    IsVisible="{Binding IsCategoriesVisible}"/>
-            <Button Grid.Column="4" Classes="col-header" Content="{Binding CollectionsHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Collections"
-                    IsVisible="{Binding IsCollectionsVisible}"/>
-            <Button Grid.Column="5" Classes="col-header" Content="{Binding SizeHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Size"
-                    IsVisible="{Binding IsSizeVisible}"/>
-            <Button Grid.Column="6" Classes="col-header" Content="{Binding ModifiedHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Modified"
-                    IsVisible="{Binding IsModifiedVisible}"/>
-            <Button Grid.Column="7" Classes="col-header" Content="{Binding StorageHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Storage"
-                    IsVisible="{Binding IsStorageVisible}"/>
-
-            <!--  NT-031：视频专属列表头（仅视频页可见；非视频页 IsVisible=false 自动隐藏）  -->
-            <Button Grid.Column="8" Classes="col-header" Content="{Binding DurationHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Duration"
-                    IsVisible="{Binding IsDurationVisible}"/>
-            <Button Grid.Column="9" Classes="col-header" Content="{Binding ResolutionHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Resolution"
-                    IsVisible="{Binding IsResolutionVisible}"/>
-            <Button Grid.Column="10" Classes="col-header" Content="{Binding CodecHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Codec"
-                    IsVisible="{Binding IsCodecVisible}"/>
-            <Button Grid.Column="11" Classes="col-header" Content="{Binding BitrateHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Bitrate"
-                    IsVisible="{Binding IsBitrateVisible}"/>
-
-            <v:ColumnGrid.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                  <MenuItem.ItemContainerTheme>
-                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                      <Setter Property="Header" Value="{Binding Label}"/>
-                      <Setter Property="Command" Value="{Binding Command}"/>
-                    </ControlTheme>
-                  </MenuItem.ItemContainerTheme>
-                </MenuItem>
-                <Separator/>
-                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
-                          IsChecked="{Binding IsNameVisible, Mode=OneWay}"
-                          ToolTip.Tip="标识列固定显示，不可隐藏"/>
-                <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
-                <MenuItem Header="标签" ToggleType="CheckBox" IsChecked="{Binding IsTagsVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Tags"/>
-                <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsCategoriesVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Categories"/>
-                <MenuItem Header="集合" ToggleType="CheckBox" IsChecked="{Binding IsCollectionsVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Collections"/>
-                <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
-                <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
-                <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Storage"/>
-                <MenuItem Header="时长" ToggleType="CheckBox" IsChecked="{Binding IsDurationVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Duration"/>
-                <MenuItem Header="分辨率" ToggleType="CheckBox" IsChecked="{Binding IsResolutionVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Resolution"/>
-                <MenuItem Header="编码" ToggleType="CheckBox" IsChecked="{Binding IsCodecVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Codec"/>
-                <MenuItem Header="码率" ToggleType="CheckBox" IsChecked="{Binding IsBitrateVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Bitrate"/>
-              </ContextMenu>
-            </v:ColumnGrid.ContextMenu>
-          </v:ColumnGrid>
-      </Border>
-    </v:ListPageSkeleton.HeaderArea>
-
+    <!--  ==================== ③ 列表本体（表头由 TableView 自带，故骨架 HeaderArea 不填）  ====================  -->
     <v:ListPageSkeleton.ListArea>
         <!--  多选走列表原生选中：Ctrl 增选 / Shift 连选 / Ctrl+A 全选（code-behind 隧道接管）；
-             无修饰键点击 = 单选替换（与资源管理器一致）。  -->
-        <ListBox x:Name="AssetList" Classes="list-page"
-                 SelectionMode="Multiple"
-                 ItemsSource="{Binding Items}">
+             无修饰键点击 = 单选替换（与资源管理器一致）。
+             列显隐由 VM 的 IsXxxVisible 下发（code-behind 按索引绑定），⛔ 别在 XAML 里写死 IsVisible。  -->
+        <TableView x:Name="AssetList" Classes="list-page"
+                   SelectionMode="Multiple"
+                   ItemsSource="{Binding Items}">
+          <TableView.Columns>
+            <TableViewColumn Width="2*" Header="名称">
+              
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary" Text="{Binding Name}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             ToolTip.Tip="{Binding FilePath}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="54" Binding="{Binding TypeText}" Header="类型" HorizontalContentAlignment="Center"/>
+
+            <TableViewColumn Width="1.2*" Binding="{Binding TagsText}" Header="标签"/>
+
+            <TableViewColumn Width="1*" Binding="{Binding CategoriesText}" Header="分类"/>
+
+            <TableViewColumn Width="1*" Binding="{Binding CollectionsText}" Header="集合"/>
+
+            <!--  大小固定 90（按最长串 1023.99 MB 预留），与 VM 的 AssetColumns 口径一致  -->
+            <TableViewColumn Width="90" Binding="{Binding SizeText}" Header="大小" HorizontalContentAlignment="Center"/>
+
+            <TableViewColumn Width="124" Binding="{Binding ModifiedText}" Header="修改时间" HorizontalContentAlignment="Center"/>
+
+            <TableViewColumn Width="1*" Binding="{Binding StorageName}" Header="存储源"/>
+
+            <!--  视频专属列：非视频页由 VM 的 IsXxxVisible 关掉  -->
+            <TableViewColumn Width="72" Binding="{Binding DurationText}" Header="时长" HorizontalContentAlignment="Center"/>
+
+            <TableViewColumn Width="88" Binding="{Binding ResolutionText}" Header="分辨率" HorizontalContentAlignment="Center"/>
+
+            <TableViewColumn Width="60" Binding="{Binding CodecText}" Header="编码" HorizontalContentAlignment="Center"/>
+
+            <TableViewColumn Width="76" Binding="{Binding BitRateText}" Header="码率" HorizontalContentAlignment="Center"/>
+          </TableView.Columns>
+
           <!--
             行右键菜单 = **针对单条**的动作（§4.8 硬规则 9）：打开 / 定位 / 打开库文件。
             ⛔ 这些⛔ 不上工具条（工具条只放页面级功能：扫描 / 筛选 / 入库 / 清除…）。
             ⚠️ ContextMenu 在独立弹出树 → DataContext 由 code-behind 手工同步（硬规则 3）。
+            ⚠️ 列显隐菜单原先挂表头，TableView 表头无独立控件可挂 ⇒ 并入本菜单顶部。
           -->
-          <ListBox.ContextMenu>
+          <TableView.ContextMenu>
             <ContextMenu>
+              <MenuItem Header="▤ 列">
+                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
+                          IsChecked="{Binding IsNameVisible, Mode=OneWay}"
+                          ToolTip.Tip="标识列固定显示，不可隐藏"/>
+                <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Type"/>
+                <MenuItem Header="标签" ToggleType="CheckBox" IsChecked="{Binding IsTagsVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Tags"/>
+                <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsCategoriesVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Categories"/>
+                <MenuItem Header="集合" ToggleType="CheckBox" IsChecked="{Binding IsCollectionsVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Collections"/>
+                <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Size"/>
+                <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Modified"/>
+                <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Storage"/>
+                <MenuItem Header="时长" ToggleType="CheckBox" IsChecked="{Binding IsDurationVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Duration"/>
+                <MenuItem Header="分辨率" ToggleType="CheckBox" IsChecked="{Binding IsResolutionVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Resolution"/>
+                <MenuItem Header="编码" ToggleType="CheckBox" IsChecked="{Binding IsCodecVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Codec"/>
+                <MenuItem Header="码率" ToggleType="CheckBox" IsChecked="{Binding IsBitrateVisible, Mode=OneWay}"
+                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Bitrate"/>
+              </MenuItem>
+              <Separator/>
               <MenuItem Header="📂 打开" Command="{Binding OpenFileCommand}"
                         ToolTip.Tip="用系统默认程序打开（视频=播放 / 书=阅读 / 图=看图）"/>
               <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderCommand}"
                         ToolTip.Tip="在资源管理器里选中这个文件"/>
               <MenuItem Header="➡ 发送到视频工具" Command="{Binding SendToVideoToolsCommand}"
                         ToolTip.Tip="把选中的视频送到「视频工具 → 视频列表」页，接着定剪辑 / 转码参数（非视频自动跳过）"/>
-              <!--  「🗄 打开库文件」是**库级**操作 → 回工具条（§4.8 硬规则 9），⛔ 不放这儿重复一份  -->
               <Separator/>
-              <!--  NT-058：**唯一**直接物理删磁盘文件的入口（破坏性最大 ⇒ 故意只放右键、还要二次确认 + 走任务队列）；
-                    ⛔ 不上工具条、⛔ 不进详情卡（想从库里移除文件留着 ⇒ 详情卡图标组的「🗑 移入回收站」）。  -->
+              <!--  **唯一**直接物理删磁盘文件的入口（破坏性最大 ⇒ 故意只放右键、还要二次确认 + 走任务队列）；  -->
               <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"
                         ToolTip.Tip="永久删除磁盘文件：不进回收站、不可还原，库里的文件索引一起删"/>
               <Separator/>
-              <!--  选择类动作（整页语义）放右键尾部：勾选列已撤，全选 / 反选 / 清空需要一个入口  -->
               <MenuItem Header="☑ 全选当前页" Command="{Binding SelectAllCommand}"
                         ToolTip.Tip="选中当前页所有行（等价 Ctrl+A）"/>
               <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
               <MenuItem Header="⇄ 反选当前页" Command="{Binding InvertSelectionCommand}"/>
             </ContextMenu>
-          </ListBox.ContextMenu>
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
-                           Foreground="{DynamicResource PrimaryTextBrush}"
-                           ToolTip.Tip="{Binding FilePath}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TagsText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsTagsVisible}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding CategoriesText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsCategoriesVisible}"/>
-                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding CollectionsText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsCollectionsVisible}"/>
-                <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding SizeText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
-                <TextBlock Grid.Column="6" Classes="list-cell" Text="{Binding ModifiedText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
-                <TextBlock Grid.Column="7" Classes="list-cell" Text="{Binding StorageName}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
-                <TextBlock Grid.Column="8" Classes="list-cell" Text="{Binding DurationText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsDurationVisible}"/>
-                <TextBlock Grid.Column="9" Classes="list-cell" Text="{Binding ResolutionText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsResolutionVisible}"/>
-                <TextBlock Grid.Column="10" Classes="list-cell" Text="{Binding CodecText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsCodecVisible}"/>
-                <TextBlock Grid.Column="11" Classes="list-cell" Text="{Binding BitRateText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsBitrateVisible}"/>
-              </v:ColumnGrid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+          </TableView.ContextMenu>
+        </TableView>
     </v:ListPageSkeleton.ListArea>
   </v:ListPageSkeleton>
 </UserControl>

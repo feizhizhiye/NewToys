@@ -212,8 +212,6 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
             ScriptOptions.Add(new CategoryOption { Label = m.Name, Value = m.Name });
             ContentOptions.Add(new CategoryOption { Label = m.Name, Value = m.Name });
         }
-        if (ScriptOptions.Count > 0) SelectedScript = ScriptOptions[0];
-        if (ContentOptions.Count > 0) SelectedContentScript = ContentOptions[0];
 
         FlowOptions.Add(new CategoryOption { Label = "（手动选脚本）", Value = "" });
         foreach (var name in _flows.List()) FlowOptions.Add(new CategoryOption { Label = name, Value = name });
@@ -240,6 +238,12 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         _history.RefreshCommand = RefreshSectionCommand;
         _history.ToggleCommand = ToggleSectionCommand;
         Sections.Add(_history);
+
+        // 🔴 必须在四个节都建好之后再设 SelectedScript：它的 setter 立刻调 RefreshHistory()，
+        //    而 _history 是 null! 字段、此处才有值 ⇒ 提前赋值就是 NullReferenceException，
+        //    VM 构造崩掉 ⇒ DataContext 为 null ⇒ 整页空白且无任何提示。
+        if (ScriptOptions.Count > 0) SelectedScript = ScriptOptions[0];
+        if (ContentOptions.Count > 0) SelectedContentScript = ContentOptions[0];
         RefreshHistory();
 
         StatusText = ScriptOptions.Count == 0

@@ -43,6 +43,15 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     protected string SortColumn => _sortColumn;
     protected bool SortDescending => _sortDescending;
 
+    /// <summary>
+    /// 当前排序列键（只读视图，供视图层 <c>TableViewHost</c> 给表头加 ▲▼）。
+    /// <para>各页仍可自维护 <c>XxxHeader</c> 文案；本属性只是让「没有这些属性的页」也能显示排序方向。</para>
+    /// </summary>
+    public string SortColumnKey => _sortColumn;
+
+    /// <summary>当前是否降序（配合 <see cref="SortColumnKey"/>）。</summary>
+    public bool IsSortDescending => _sortDescending;
+
     /// <summary>直接指定当前排序（派生类从配置里恢复上次排序列时用；不落盘、不重排）。</summary>
     protected void SetSort(string column, bool descending)
     {

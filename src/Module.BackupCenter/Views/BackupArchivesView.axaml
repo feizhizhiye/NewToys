@@ -19,47 +19,27 @@
         </Border>
       </v:ListPageSkeleton.TopArea>
 
-      <v:ListPageSkeleton.HeaderArea>
-        <Border Classes="list-header">
-          <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
-                        IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
-                        SampleSpecs="{Binding SampleSpecs}">
-            <Button Grid.Column="0" Classes="col-header" Content="{Binding FileNameHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="FileName" IsVisible="{Binding IsNameVisible}"/>
-            <Button Grid.Column="1" Classes="col-header" Content="{Binding PlanNameHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="PlanName" IsVisible="{Binding IsPlanVisible}"/>
-            <Button Grid.Column="2" Classes="col-header" Content="{Binding SizeHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Size" IsVisible="{Binding IsSizeVisible}"/>
-            <Button Grid.Column="3" Classes="col-header" Content="{Binding CreatedHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Created" IsVisible="{Binding IsCreatedVisible}"/>
-            <Button Grid.Column="4" Classes="col-header" Content="{Binding ShaHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Sha" IsVisible="{Binding IsShaVisible}"/>
-            <Button Grid.Column="5" Classes="col-header" Content="{Binding EncryptedHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Encrypted" IsVisible="{Binding IsEncryptedVisible}"/>
-            <v:ColumnGrid.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="包文件" IsEnabled="False" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="FileName"/>
-                <MenuItem Header="任务" ToggleType="CheckBox" IsChecked="{Binding IsPlanVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="PlanName"/>
-                <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
-                <MenuItem Header="生成时间" ToggleType="CheckBox" IsChecked="{Binding IsCreatedVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Created"/>
-                <MenuItem Header="SHA256" ToggleType="CheckBox" IsChecked="{Binding IsShaVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Sha"/>
-                <MenuItem Header="加密" ToggleType="CheckBox" IsChecked="{Binding IsEncryptedVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Encrypted"/>
-              </ContextMenu>
-            </v:ColumnGrid.ContextMenu>
-          </v:ColumnGrid>
-        </Border>
-      </v:ListPageSkeleton.HeaderArea>
-
       <v:ListPageSkeleton.ListArea>
-        <ListBox x:Name="ArchiveList" Classes="list-page"
-                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}" SelectionMode="Single">
-          <ListBox.ContextMenu>
+        <v:TableViewHost x:Name="ArchiveList"
+                         ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}" SelectionMode="Single">
+          <v:TableViewHost.Columns>
+            <TableViewColumn Width="*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary" Text="{Binding FileName}"
+                             TextTrimming="CharacterEllipsis"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="180" Binding="{Binding PlanName}"/>
+            <TableViewColumn Width="90" Binding="{Binding SizeText}" HorizontalContentAlignment="Center"/>
+            <TableViewColumn Width="140" Binding="{Binding CreatedText}"/>
+            <TableViewColumn Width="120" Binding="{Binding ShaText}"/>
+            <TableViewColumn Width="60" Binding="{Binding EncryptedText}" HorizontalContentAlignment="Center"/>
+          </v:TableViewHost.Columns>
+
+          <v:TableViewHost.ContextMenu>
             <ContextMenu>
               <MenuItem Header="↩ 还原…" Command="{Binding BeginRestoreCommand}" IsEnabled="{Binding HasSelection}"/>
               <MenuItem Header="📋 复制 SHA256" Command="{Binding CopyShaCommand}" IsEnabled="{Binding HasSelection}"/>
@@ -68,27 +48,8 @@
               <Separator/>
               <MenuItem Header="🔄 重新扫描" Command="{Binding RefreshCommand}"/>
             </ContextMenu>
-          </ListBox.ContextMenu>
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding FileName}"
-                           TextTrimming="CharacterEllipsis"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding PlanName}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsPlanVisible}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SizeText}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding CreatedText}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsCreatedVisible}"/>
-                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding ShaText}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsShaVisible}"/>
-                <TextBlock Grid.Column="5" Classes="list-cell accent" Text="{Binding EncryptedText}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsEncryptedVisible}"/>
-              </v:ColumnGrid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+          </v:TableViewHost.ContextMenu>
+        </v:TableViewHost>
       </v:ListPageSkeleton.ListArea>
     </v:ListPageSkeleton>
 

@@ -67,10 +67,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>应用级配置（只读：取 <c>StoreDirectory</c> 当导入/导出默认目录）。</summary>
     private readonly IAppConfigService? _app;
 
-    /// <summary>v3.69：列布局服务（只用来记「用户显式设过」的列键；显隐 / 落盘本身在基类）。</summary>
-    private IColumnLayoutService? _columnLayout;
-
-    /// <summary>v3.69：用户显式设过（已落盘）的列键 —— 类型驱动的默认显隐**不覆盖**它们（二者不互相覆盖）。</summary>
+    /// <summary>「▤ 列」里用户亲手勾过 / 取消过的列键 —— 类型驱动的默认显隐**不覆盖**它们（二者不互相覆盖）。</summary>
     private readonly HashSet<string> _userColumnKeys = new();
 
     private readonly List<AssetRow> _all = new();
@@ -362,10 +359,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _io = io;
         _bus = bus;
 
-        _columnLayout = cols;
-
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
-        CaptureUserColumnPrefs();           // v3.69：记下用户显式设过的列 ⇒ 类型默认不覆盖它们
         BuildStaticOptions();               // 类型 / 状态（固定值；设 FilterType ⇒ 触发类型列默认 + 状态栏前缀）
         Reload();                           // 存储源 / 标签下拉要读库 → 放在读库之后
         LoadDetail(null);
@@ -393,19 +387,27 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _ => ""
     };
 
-    /// <summary>当前筛选类型 = 视频（v3.69）：驱动视频专属列与详情卡字段的显隐。</summary>
+    /// <summary>当前筛选类型 = 视频：驱动详情卡的视频专属字段（列显隐见 <see cref="ApplyTypeColumnDefaults"/>）。</summary>
     public bool IsVideoType => string.Equals(FilterType?.Value, AssetTypes.Video, StringComparison.Ordinal);
 
     /// <summary>
-    /// 类型驱动的列默认显隐 —— 视频 = 「时长 / 分辨率 / 编码」三列可见，其余类型隐藏。
+    /// 类型驱动的列默认显隐（「全部资产」页的专属列切表头）：
+    /// 视频 = 时长 / 分辨率 / 编码 / 码率；音乐 = 时长 / 码率；图片 = 分辨率；
+    /// 书籍 / 文档 / 其它 / 全部类型 = 四列全收起。
     /// <para>🔴 ⛔ **不落盘**（<c>SetColumnVisible</c> 只改内存）；用户右键改过的偏好（落盘的那些键）
     /// **不被覆盖** —— 需求 §6.6「二者不互相覆盖」。</para>
     /// </summary>
     private void ApplyTypeColumnDefaults()
     {
-        ApplyTypeColumnDefault("Duration", IsVideoType);
-        ApplyTypeColumnDefault("Resolution", IsVideoType);
-        ApplyTypeColumnDefault("Codec", IsVideoType);
+        var type = FilterType?.Value;
+        var isVideo = string.Equals(type, AssetTypes.Video, StringComparison.Ordinal);
+        var isMusic = string.Equals(type, AssetTypes.Music, StringComparison.Ordinal);
+        var isImage = string.Equals(type, AssetTypes.Image, StringComparison.Ordinal);
+
+        ApplyTypeColumnDefault("Duration", isVideo || isMusic);
+        ApplyTypeColumnDefault("Resolution", isVideo || isImage);
+        ApplyTypeColumnDefault("Codec", isVideo);
+        ApplyTypeColumnDefault("Bitrate", isVideo || isMusic);
     }
 
     private void ApplyTypeColumnDefault(string key, bool visible)
@@ -414,12 +416,17 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         SetColumnVisible(key, visible);
     }
 
-    /// <summary>v3.69：把「用户显式设过（落盘）的列键」记下来（类型驱动的默认不覆盖它们）。</summary>
-    private void CaptureUserColumnPrefs()
+    /// <summary>
+    /// 「▤ 列」菜单的勾选 = 用户显式偏好：记进 <see cref="_userColumnKeys"/> 后交给基类的切换命令。
+    /// <para>🔴 ⛔ 不能拿落盘的列布局当「用户设过」的依据 —— 基类 <c>SaveVisibility</c> 是**全量落盘**：
+    /// 用户点过任意一列，就会把当时所有列的显隐一起写进配置。若以落盘快照为准则，
+    /// 类型切换会永久失效（现象：快照里有的列一律不动，只有快照之后新增的列能切）。</para>
+    /// </summary>
+    [RelayCommand]
+    private void ToggleAssetColumn(string? key)
     {
-        _userColumnKeys.Clear();
-        if (_columnLayout == null) return;
-        foreach (var k in _columnLayout.LoadPage(PageKey).Keys) _userColumnKeys.Add(k);
+        if (!string.IsNullOrEmpty(key)) _userColumnKeys.Add(key);
+        ToggleColumnCommand.Execute(key);
     }
 
     /// <summary>一次读库的最大行数（v3.34）：分页后本页不再整表读，

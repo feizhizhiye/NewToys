@@ -11,49 +11,27 @@
                       EmptyActionCommand="{Binding ImportTargetsCommand}"
                       IsEmpty="{Binding !HasItems}">
 
-    <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
-    <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
-                          IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
-                          SampleSpecs="{Binding SampleSpecs}">
-              <Button Grid.Column="0" Classes="col-header" Content="{Binding HostHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Host" IsVisible="{Binding IsHostVisible}"/>
-              <Button Grid.Column="1" Classes="col-header" Content="{Binding IpHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Ip" IsVisible="{Binding IsIpVisible}"/>
-              <Button Grid.Column="2" Classes="col-header" Content="{Binding StatusHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Status" IsVisible="{Binding IsStatusVisible}"/>
-              <Button Grid.Column="3" Classes="col-header" Content="{Binding RoundtripHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Roundtrip" IsVisible="{Binding IsRoundtripVisible}"/>
-              <Button Grid.Column="4" Classes="col-header" Content="{Binding DnsHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Dns" IsVisible="{Binding IsDnsVisible}"/>
-              <v:ColumnGrid.ContextMenu>
-                <ContextMenu>
-                  <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                    <MenuItem.ItemContainerTheme>
-                      <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                        <Setter Property="Header" Value="{Binding Label}"/>
-                        <Setter Property="Command" Value="{Binding Command}"/>
-                      </ControlTheme>
-                    </MenuItem.ItemContainerTheme>
-                  </MenuItem>
-                  <Separator/>
-                  <MenuItem Header="主机" IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" ToggleType="CheckBox" IsChecked="{Binding IsHostVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Host"/>
-                  <MenuItem Header="解析 IP" ToggleType="CheckBox" IsChecked="{Binding IsIpVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Ip"/>
-                  <MenuItem Header="状态" ToggleType="CheckBox" IsChecked="{Binding IsStatusVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Status"/>
-                  <MenuItem Header="时延(ms)" ToggleType="CheckBox" IsChecked="{Binding IsRoundtripVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Roundtrip"/>
-                  <MenuItem Header="DNS" ToggleType="CheckBox" IsChecked="{Binding IsDnsVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Dns"/>
-                </ContextMenu>
-              </v:ColumnGrid.ContextMenu>
-            </v:ColumnGrid>
-      </Border>
-    </v:ListPageSkeleton.HeaderArea>
-
     <v:ListPageSkeleton.ListArea>
-          <ListBox x:Name="TargetList" Classes="list-page"
-                   ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
-                   SelectionMode="Single">
-            <ListBox.ContextMenu>
+          <v:TableViewHost x:Name="TargetList"
+                           ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                           SelectionMode="Single">
+            <v:TableViewHost.Columns>
+              <TableViewColumn Width="2.4*">
+                <TableViewColumn.CellTemplate>
+                  <DataTemplate>
+                    <TextBlock Classes="list-cell" Text="{Binding Host}"
+                               Foreground="{DynamicResource PrimaryTextBrush}"/>
+                  </DataTemplate>
+                </TableViewColumn.CellTemplate>
+              </TableViewColumn>
+
+              <TableViewColumn Width="1.6*" Binding="{Binding LastIp}"/>
+              <TableViewColumn Width="1.4*" Binding="{Binding LastStatus}"/>
+              <TableViewColumn Width="1*" Binding="{Binding LastRoundtripMs}" HorizontalContentAlignment="Center"/>
+              <TableViewColumn Width="1.2*" Binding="{Binding DnsOverride}"/>
+            </v:TableViewHost.Columns>
+
+            <v:TableViewHost.ContextMenu>
               <ContextMenu>
                 <Separator/>
                 <MenuItem Header="📡 Ping" Command="{Binding PingCommand}"/>
@@ -63,29 +41,8 @@
                 <MenuItem Header="✏ 编辑" Command="{Binding OpenDetailPanelCommand}"/>
                 <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}"/>
               </ContextMenu>
-            </ListBox.ContextMenu>
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                  <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Host}"
-                             Foreground="{DynamicResource PrimaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsHostVisible}"/>
-                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding LastIp}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsIpVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding LastStatus}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding LastRoundtripMs}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsRoundtripVisible}"/>
-                  <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding DnsOverride}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsDnsVisible}"/>
-                </v:ColumnGrid>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
+            </v:TableViewHost.ContextMenu>
+          </v:TableViewHost>
     </v:ListPageSkeleton.ListArea>
   </v:ListPageSkeleton>
 </UserControl>

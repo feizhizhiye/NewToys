@@ -3,10 +3,11 @@
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetTrashView">
   <!--
-    NT-019「回收站」页：`assets.status='trashed'` 的资产列表（右详情卡由 **Shell** 承载，⛔ 本页不自带右栏）。
+    「回收站」页：`assets.status='trashed'` 的资产表格（右详情卡由 **Shell** 承载，⛔ 本页不自带右栏）。
     ⚠️ 「♻ 恢复」= 只改库状态（逻辑操作）；「🗑 永久删除 / 清空」= 真删磁盘 + 删索引（物理操作 → 任务中心可见）。
-    NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（四段：顶区 = 筛选条 / 列表区 = 表头 + 列表 / 空态 / 底栏），
-        card 容器、空态块、底栏壳由骨架统一提供（⛔ 行模板仍本页自写）。
+
+    列表本体 = <v:TableViewHost>：表头自带、列宽可拖、行回收；列显隐 / 排序键按 VM 的 ColumnLayout 对齐
+    （🔴 Columns 声明顺序必须与之一致），故骨架的 HeaderArea 不填。
   -->
   <v:ListPageSkeleton EmptyMessage="没有可显示的资产。删除的资产会先放到回收站，可以在这儿恢复。"
                       EmptyActionText="🔄 重读回收站"
@@ -24,56 +25,28 @@
     </Border>
     </v:ListPageSkeleton.TopArea>
 
-    <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-          <v:ColumnGrid x:Name="HeaderGrid"
-                        ColumnSpecs="{Binding VisibleColumnSpecs}"
-                        IsResizable="True"
-                        LockedColumns="{Binding LockedColumnMask}"
-                        SampleSpecs="{Binding SampleSpecs}">
-            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
-            <Button Grid.Column="1" Classes="col-header" Content="{Binding TypeHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Type" IsVisible="{Binding IsTypeVisible}"/>
-            <Button Grid.Column="2" Classes="col-header" Content="{Binding SizeHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Size" IsVisible="{Binding IsSizeVisible}"/>
-            <Button Grid.Column="3" Classes="col-header" Content="{Binding ModifiedHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Modified" IsVisible="{Binding IsModifiedVisible}"/>
-            <Button Grid.Column="4" Classes="col-header" Content="{Binding StorageHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Storage" IsVisible="{Binding IsStorageVisible}"/>
-
-            <v:ColumnGrid.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                  <MenuItem.ItemContainerTheme>
-                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                      <Setter Property="Header" Value="{Binding Label}"/>
-                      <Setter Property="Command" Value="{Binding Command}"/>
-                    </ControlTheme>
-                  </MenuItem.ItemContainerTheme>
-                </MenuItem>
-                <Separator/>
-                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
-                          IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
-                <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
-                <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
-                <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
-                <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Storage"/>
-              </ContextMenu>
-            </v:ColumnGrid.ContextMenu>
-          </v:ColumnGrid>
-      </Border>
-    </v:ListPageSkeleton.HeaderArea>
-
     <v:ListPageSkeleton.ListArea>
-        <ListBox Grid.Row="2" x:Name="TrashList" Classes="list-page"
-                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
-                 SelectionMode="Single">
-          <ListBox.ContextMenu>
+        <v:TableViewHost x:Name="TrashList"
+                         ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                         SelectionMode="Single">
+          <v:TableViewHost.Columns>
+            <TableViewColumn Width="2.6*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary" Text="{Binding Name}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             ToolTip.Tip="{Binding FilePath}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="0.8*" Binding="{Binding TypeText}"/>
+            <TableViewColumn Width="90" Binding="{Binding SizeText}" HorizontalContentAlignment="Center"/>
+            <TableViewColumn Width="1.3*" Binding="{Binding ModifiedText}"/>
+            <TableViewColumn Width="1.2*" Binding="{Binding StorageName}"/>
+          </v:TableViewHost.Columns>
+
+          <v:TableViewHost.ContextMenu>
             <ContextMenu>
               <MenuItem Header="♻ 恢复" Command="{Binding RestoreCommand}"
                         ToolTip.Tip="改回「正常」状态（库操作，磁盘文件没动）"/>
@@ -82,30 +55,8 @@
               <MenuItem Header="🗑 永久删除" Command="{Binding PurgeSelectedCommand}"
                         ToolTip.Tip="真删磁盘文件（二次确认；无法还原）"/>
             </ContextMenu>
-          </ListBox.ContextMenu>
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
-                           Foreground="{DynamicResource PrimaryTextBrush}"
-                           ToolTip.Tip="{Binding FilePath}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SizeText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding ModifiedText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
-                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding StorageName}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
-              </v:ColumnGrid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+          </v:TableViewHost.ContextMenu>
+        </v:TableViewHost>
     </v:ListPageSkeleton.ListArea>
   </v:ListPageSkeleton>
 </UserControl>

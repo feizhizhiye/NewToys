@@ -53,17 +53,34 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         StatusText = msg;
     }
 
-    // ==================== v3.37：勾选列 + 批量安装 / 升级队列 ====================
+    // ==================== 批量作用域 = 列表选中行 ====================
 
-    /// <summary>行被勾了几条（工具条「⬇ 安装选中」「⬆ 升级选中」按它操作）。</summary>
-    public int CheckedCount => _all.Count(p => p.IsChecked);
+    /// <summary>
+    /// 批量命令（安装 / 升级 / 卸载）的作用域 = 列表当前选中的行。
+    /// <para>与 <c>TableView.SelectedItems</c> 双向绑定：控件侧 Ctrl / Shift 多选直接改它，
+    /// 反向「全选 / 取消 / 反选」也只改它，控件选择跟着走。</para>
+    /// </summary>
+    public ObservableCollection<PackageInfo> BatchSelection { get; } = new();
 
-    public bool HasChecked => CheckedCount > 0;
+    /// <summary>批量操作数（工具条「安装选中 / 升级选中 / 卸载选中」的可用态与计数都看它）。</summary>
+    public int BatchCount => BatchSelection.Count;
 
-    public string CheckedText => CheckedCount == 0 ? "未勾选" : $"已勾选 {CheckedCount} 个";
+    /// <summary>批量按钮的可用态：有选中行且不在忙（Avalonia 绑定不支逻辑运算符，⛔ 别在 XAML 里写 And）。</summary>
+    public bool CanRunBatch => BatchCount > 0 && !IsBusy;
 
-    /// <summary>批量按钮的可用态：有勾选且不在忙（Avalonia 绑定不支逻辑运算符，⛔ 别在 XAML 里写 And）。</summary>
-    public bool CanRunBatch => HasChecked && !IsBusy;
+    /// <summary>列表重建 / 翻页后，把已经不在当前页的选中项剔掉，避免对看不见的行执行批量。</summary>
+    private void RefreshBatchSelection()
+    {
+        for (var i = BatchSelection.Count - 1; i >= 0; i--)
+            if (!Packages.Contains(BatchSelection[i])) BatchSelection.RemoveAt(i);
+        NotifyBatchChanged();
+    }
+
+    private void NotifyBatchChanged()
+    {
+        OnPropertyChanged(nameof(BatchCount));
+        OnPropertyChanged(nameof(CanRunBatch));
+    }
 
     partial void OnIsBusyChanged(bool value)
     {
@@ -71,56 +88,36 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         OnPropertyChanged(nameof(CanUpgradeSelected));
     }
 
-    /// <summary>
-    /// 表头 ☑ 的三态（🔴 用**原生三态 CheckBox**，⛔ 别用字符"☑"画 —— 字体会渲染成深色块）：
-    /// <c>true</c> = 全选、<c>false</c> = 全不选、<c>null</c> = 部分选中。
-    /// </summary>
-    [ObservableProperty] private bool? _allCheckedState = false;
-
-    /// <summary>表头 ☑ 点一下：当前不是"全选"就全选，否则全不选。</summary>
+    /// <summary>右键「☑ 全选」：选中当前页全部行（不在当前页的保持原样）。</summary>
     [RelayCommand]
     private void ToggleAll()
     {
-        var target = AllCheckedState != true;
-        foreach (var p in _all) p.IsChecked = target;
-        RefreshChecked();
-        StatusText = target ? $"已全选 {_all.Count} 条。" : "已取消全选。";
+        var all = BatchCount > 0 && BatchCount == Packages.Count;
+        BatchSelection.Clear();
+        if (!all)
+            foreach (var p in Packages) BatchSelection.Add(p);
+        NotifyBatchChanged();
+        StatusText = all ? "已取消选择。" : $"已选中当前页 {Packages.Count} 条。";
     }
 
-    /// <summary>表头右键：取消选择。</summary>
+    /// <summary>右键「☐ 取消选择」。</summary>
     [RelayCommand]
     private void SelectNone()
     {
-        foreach (var p in _all) p.IsChecked = false;
-        RefreshChecked();
+        BatchSelection.Clear();
+        NotifyBatchChanged();
         StatusText = "已取消选择。";
     }
 
-    /// <summary>表头右键：反选。</summary>
+    /// <summary>右键「⇄ 反选」：当前页内反向选中。</summary>
     [RelayCommand]
     private void InvertSelection()
     {
-        foreach (var p in _all) p.IsChecked = !p.IsChecked;
-        RefreshChecked();
-        StatusText = $"已反选，当前勾选 {CheckedCount} 条。";
-    }
-
-    /// <summary>重算勾选计数与表头三态（行的 IsChecked 一变就会被调）。</summary>
-    public void RefreshChecked()
-    {
-        var total = _all.Count;
-        var n = _all.Count(p => p.IsChecked);
-        AllCheckedState = total == 0 ? false : n == 0 ? false : n == total ? true : null;
-
-        OnPropertyChanged(nameof(CheckedCount));
-        OnPropertyChanged(nameof(HasChecked));
-        OnPropertyChanged(nameof(CheckedText));
-        OnPropertyChanged(nameof(CanRunBatch));
-    }
-
-    private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(PackageInfo.IsChecked)) RefreshChecked();
+        var inverted = Packages.Where(p => !BatchSelection.Contains(p)).ToList();
+        BatchSelection.Clear();
+        foreach (var p in inverted) BatchSelection.Add(p);
+        NotifyBatchChanged();
+        StatusText = $"已反选，当前选中 {BatchCount} 条。";
     }
 
 }

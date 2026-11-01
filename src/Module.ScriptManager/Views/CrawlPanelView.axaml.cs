@@ -11,7 +11,18 @@ namespace NewToys.ScriptManager.Views;
 /// </summary>
 public partial class CrawlPanelView : UserControl
 {
-    public CrawlPanelView() => InitializeComponent();
+    public CrawlPanelView()
+    {
+        InitializeComponent();
+    }
+
+    /// <summary>单击目录行 = 勾选 / 取消勾选（「⬇ 下载」的作用域）；双击同一次点击会各切一次，净效果为不变。</summary>
+    private void OnRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Border { DataContext: CrawlEntry entry }) return;
+        if (!e.GetCurrentPoint((Control)sender).Properties.IsLeftButtonPressed) return;
+        entry.IsSelected = !entry.IsSelected;
+    }
 
     /// <summary>双击目录行 = 下钻（用这一行的 url 再抓一次；命令在 VM 上）。</summary>
     private void OnRowDoubleTapped(object? sender, TappedEventArgs e)

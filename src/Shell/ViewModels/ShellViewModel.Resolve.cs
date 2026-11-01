@@ -65,20 +65,60 @@ public partial class ShellViewModel : ViewModelBase
         if (view == null) return BuildErrorView($"视图 {it.ViewTypeName} 实例化返回 null");
 
         // DataContext 解析失败不该把整次导航也搭进去 —— 顶多这一页没数据，不能连页面都不给。
-        try { view.DataContext = ResolveViewModel(viewType); }
+        // 但**不能静默**：VM 构造函数抛异常时页面会全部绑定失败、只剩一个空壳（无卡片无提示），
+        // 事后根本看不出是哪一环。所以失败原因叠在页面顶部（⛔ 不写状态栏：切页时
+        // ShellPageBinder 会用页面的 StatusText 覆盖它，红字一闪就没）。
+        try
+        {
+            view.DataContext = ResolveViewModel(viewType, out var vmError);
+            if (vmError != null) return WithErrorBanner(view, $"⚠ 这一页的 ViewModel 创建失败：{vmError}");
+        }
         catch (Exception ex) { return BuildErrorView($"视图 {it.ViewTypeName} 的 ViewModel 解析失败：{ex.Message}"); }
         return view;
     }
 
     /// <summary>按命名约定解析并实例化 VM（规则见 <see cref="ViewNaming"/>）：先按候选类型逐个试，都不成返回 null。</summary>
-    private object? ResolveViewModel(Type viewType)
+    /// <param name="error">全部候选都失败时，最后一次失败的描述（成功为 null）。</param>
+    private object? ResolveViewModel(Type viewType, out string? error)
     {
+        error = null;
         foreach (var vmType in _pages.ViewModelCandidates(viewType))
         {
             try { return ActivatorUtilities.GetServiceOrCreateInstance(_sp, vmType); }
-            catch { /* 换下一个候选 */ }
+            catch (Exception ex)
+            {
+                // 换下一个候选；同时留住这条消息 —— 全部候选都失败时要报给用户。
+                error = string.IsNullOrWhiteSpace(ex.Message)
+                    ? $"{vmType.Name}：{ex.GetType().Name}"
+                    : $"{vmType.Name}：{ex.GetType().Name} — {ex.Message}";
+            }
         }
         return null;
+    }
+
+    /// <summary>
+    /// 在页面顶部叠一条红字说明（原页面照常显示）—— 专给「VM 创建失败 ⇒ 整页绑定全废」这种
+    /// 否则完全看不出原因的静默失败留痕。
+    /// </summary>
+    private static Control WithErrorBanner(Control page, string message)
+    {
+        var banner = new Border
+        {
+            Padding = new Avalonia.Thickness(12, 6),
+            Child = new TextBlock
+            {
+                Text = message,
+                Foreground = Avalonia.Media.Brushes.Red,
+                FontFamily = "Consolas",
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap
+            }
+        };
+        var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), DataContext = page.DataContext };
+        Grid.SetRow(banner, 0);
+        Grid.SetRow(page, 1);
+        grid.Children.Add(banner);
+        grid.Children.Add(page);
+        return grid;
     }
 
     private Control BuildErrorView(string msg)

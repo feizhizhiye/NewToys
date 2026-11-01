@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.ScriptManager.Views.CollectionView">
-  <!--  NT-068 S4 集合页：主从两栏 —— 左 240px 集合列表 + 右成员表（勾选即增删，即时生效）。
+  <!--  NT-068 S4 集合页：主从两栏 —— 左 240px 集合列表 + 右成员表（选中行 + 右键「加入 / 移出本集合」，即时生效）。
         详情卡走标准右侧声明式卡（IDetailCardSource），与全应用一致。  -->
   <Grid ColumnDefinitions="240,*" Margin="12">
 
@@ -70,41 +70,50 @@
       </Grid>
     </Border>
 
-    <!--  ==================== 右栏：成员表（全库清单 + 勾选）  ====================  -->
+    <!--  ==================== 右栏：成员表（全库清单 + 是否已加入）  ====================  -->
     <v:ListPageSkeleton Grid.Column="1" Margin="8,0,0,0" IsEmpty="{Binding !HasMembers}"
                         EmptyMessage="没有可显示的条目。先去「脚本库」扫描 / 导入脚本，或在工具条切「📦 归档」外的下拉看全部。">
-      <v:ListPageSkeleton.HeaderArea>
-        <Border Classes="list-header">
-          <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
-                        IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
-                        SampleSpecs="{Binding SampleSpecs}">
-            <TextBlock Grid.Column="0" Classes="list-cell" Text="加入" FontWeight="SemiBold"
-                       ToolTip.Tip="勾上 = 加进当前集合；取消勾 = 移出（即时生效，无保存按钮）"/>
-            <TextBlock Grid.Column="1" Classes="list-cell" Text="名称" FontWeight="SemiBold"/>
-            <TextBlock Grid.Column="2" Classes="list-cell" Text="类型" FontWeight="SemiBold"/>
-            <TextBlock Grid.Column="3" Classes="list-cell" Text="目标" FontWeight="SemiBold"
-                       ToolTip.Tip="脚本文件（相对脚本目录）或命令行命令"/>
-          </v:ColumnGrid>
-        </Border>
-      </v:ListPageSkeleton.HeaderArea>
-
       <v:ListPageSkeleton.ListArea>
-        <ListBox x:Name="MemberList" Classes="list-page" ItemsSource="{Binding Members}">
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                <CheckBox Grid.Column="0" IsChecked="{Binding IsMember, Mode=TwoWay}"
-                          IsEnabled="{Binding CanToggle}" MinWidth="0" MinHeight="0"
-                          ToolTip.Tip="{Binding Reason}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell primary" Text="{Binding Title}"
-                           TextTrimming="CharacterEllipsis"/>
-                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding RoleText}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Target}"
-                           TextTrimming="CharacterEllipsis"/>
-              </v:ColumnGrid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+        <v:TableViewHost x:Name="MemberList" ItemsSource="{Binding Members}"
+                         SelectedItem="{Binding SelectedMember, Mode=TwoWay}"
+                         SelectionMode="Single">
+          <v:TableViewHost.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="↩ 加入 / 移出本集合" Command="{Binding ToggleMembershipCommand}"
+                        ToolTip.Tip="对选中行生效：未加入 ⇒ 加入；已加入 ⇒ 移出"/>
+            </ContextMenu>
+          </v:TableViewHost.ContextMenu>
+          <v:TableViewHost.Columns>
+            <TableViewColumn Width="0.9*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell" Text="{Binding StateText}"
+                             ToolTip.Tip="{Binding Reason}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="3*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary" Text="{Binding Title}"
+                             TextTrimming="CharacterEllipsis"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="1*" Binding="{Binding RoleText}"/>
+
+            <TableViewColumn Width="4*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell" Text="{Binding Target}"
+                             TextTrimming="CharacterEllipsis"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+          </v:TableViewHost.Columns>
+        </v:TableViewHost>
       </v:ListPageSkeleton.ListArea>
     </v:ListPageSkeleton>
   </Grid>

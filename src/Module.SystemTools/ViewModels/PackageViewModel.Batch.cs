@@ -33,8 +33,8 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     {
         if (_pkg == null || IsBusy) return;
 
-        var targets = _all.Where(p => p.IsChecked).ToList();
-        if (targets.Count == 0) { StatusText = "先勾选要安装的包（行首勾选框，或表头 ☑ 全选）。"; return; }
+        var targets = BatchSelection.ToList();
+        if (targets.Count == 0) { StatusText = "先在列表里选中要安装的包（Ctrl / Shift 可多选）。"; return; }
 
         try
         {
@@ -70,14 +70,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     {
         if (_pkg == null || IsBusy) return;
 
-        var checkedAll = _all.Where(p => p.IsChecked).ToList();
-        if (checkedAll.Count == 0) { StatusText = "先勾选要升级的包（行首勾选框，或表头 ☑ 全选）。"; return; }
+        var checkedAll = BatchSelection.ToList();
+        if (checkedAll.Count == 0) { StatusText = "先在列表里选中要升级的包（Ctrl / Shift 可多选）。"; return; }
 
         var targets = checkedAll.Where(p => p.HasUpgrade).ToList();
         var skipped = checkedAll.Count - targets.Count;
         if (targets.Count == 0)
         {
-            StatusText = $"勾选的 {checkedAll.Count} 个都没有可升级版本（已是最新）。";
+            StatusText = $"选中的 {checkedAll.Count} 个都没有可升级版本（已是最新）。";
             return;
         }
 

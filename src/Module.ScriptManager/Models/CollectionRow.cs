@@ -140,6 +140,11 @@ public partial class MemberRow : ObservableObject
 
     [ObservableProperty] private bool _isMember;
 
+    partial void OnIsMemberChanged(bool value) => OnPropertyChanged(nameof(StateText));
+
+    /// <summary>「是否属于本集合」的可视状态（原行首勾选框的替代 —— 改用文字列 + 右键切换）。</summary>
+    public string StateText => IsMember ? "✔ 已加入" : "未加入";
+
     /// <summary>角色中文名。</summary>
     public string RoleText => Role switch
     {

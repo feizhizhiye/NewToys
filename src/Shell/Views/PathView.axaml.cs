@@ -1,27 +1,16 @@
-using System;
 using Avalonia.Controls;
 
 namespace NewToys.Shell.Views;
 
+/// <summary>
+/// 设置页「运行环境」节的正文（配置档 / 路径清单）。
+/// <para>文件 / 目录选择器走 <c>DialogHooks</c>（由 Shell 注入）；表格交互（排序 / 列宽 /
+/// 右键菜单 DataContext）由 <c>TableViewHost</c> 自理。</para>
+/// </summary>
 public partial class PathView : UserControl
 {
     public PathView()
     {
         InitializeComponent();
-    }
-
-    /// <summary>
-    /// ⚠️ <c>ContextMenu</c> 挂在**独立的弹出树**上，DataContext 不保证随宿主继承 ——
-    /// 不显式同步的话，菜单项里的 <c>{Binding XxxCommand}</c> 解析不到，右键点了没反应（见规范 3.6）。
-    /// <para>
-    /// 文件 / 目录选择器已改走 <c>DialogHooks</c>（由 Shell 注入），
-    /// 页内不再需要接管「📂 浏览」的点击 —— 本文件只保留这处菜单 DataContext 同步。
-    /// </para>
-    /// </summary>
-    protected override void OnDataContextChanged(EventArgs e)
-    {
-        base.OnDataContextChanged(e);
-        if (PathList?.ContextMenu is { } menu) menu.DataContext = DataContext;
-        if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
     }
 }

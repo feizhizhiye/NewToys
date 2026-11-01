@@ -12,12 +12,9 @@ public partial class RuleCatalogView : UserControl
 {
     public RuleCatalogView() => InitializeComponent();
 
-    /// <summary>⚠️ ContextMenu 挂在独立弹出树上，DataContext 不随宿主继承，必须手工同步（规范 3.8）。</summary>
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (RuleSetList?.ContextMenu is { } menu) menu.DataContext = DataContext;
-        if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
 
         // 把「另存为」选择器注入 VM（VM ⛔ 不直接碰 StorageProvider）
         if (DataContext is ViewModels.RuleCatalogViewModel vm)

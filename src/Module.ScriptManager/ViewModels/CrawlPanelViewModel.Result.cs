@@ -126,7 +126,6 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
             }));
         }
         _links.NotifyEntriesChanged();
-        OnPropertyChanged(nameof(LinksAllSelected));
 
         _links.EmptyText = result.Columns.Count == 0
             ? "这个脚本没有 RULES（或没解析出列）—— 表达式写在 RULES 列表里。"
@@ -135,15 +134,14 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         UpdateSortArrows();
     }
 
-    /// <summary>目录节表头的全选框（勾 = 全选；行勾选变化会回推这个属性）。</summary>
-    public bool LinksAllSelected
+    /// <summary>目录行「全选 / 取消勾选」（行右键；行首勾选框与表头全选框已撤，勾选状态看行底色）。</summary>
+    [RelayCommand]
+    private void ToggleAllLinks()
     {
-        get => _links.Entries.Count > 0 && _links.Entries.All(e => e.IsSelected);
-        set
-        {
-            foreach (var e in _links.Entries) e.IsSelected = value;
-            OnPropertyChanged();
-        }
+        if (_links.Entries.Count == 0) return;
+        var target = !_links.Entries.All(e => e.IsSelected);
+        foreach (var e in _links.Entries) e.IsSelected = target;
+        StatusText = target ? $"已勾选 {_links.Entries.Count} 行。" : "已取消勾选。";
     }
 
     // ==================== 排序（客户端字符串 / 数字排序） ====================
@@ -182,13 +180,10 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         foreach (var it in items) _links.Entries.Add(it);
     }
 
-    /// <summary>行勾选变化 → 回推表头全选框（<see cref="LinksAllSelected"/> 是计算属性，自己不会发通知）。</summary>
+    /// <summary>给行注入右键命令（🔴 菜单在弹出树里，取不到页面 VM 的命令）。</summary>
     private CrawlEntry HookEntry(CrawlEntry entry)
     {
-        entry.PropertyChanged += (_, a) =>
-        {
-            if (a.PropertyName == nameof(CrawlEntry.IsSelected)) OnPropertyChanged(nameof(LinksAllSelected));
-        };
+        entry.ToggleAllLinksCommand = ToggleAllLinksCommand;
         return entry;
     }
 

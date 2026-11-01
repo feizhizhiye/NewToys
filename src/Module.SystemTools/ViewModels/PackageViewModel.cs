@@ -279,9 +279,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     public bool IsSourceVisible => Vis("Source");
     public bool IsStatusVisible => Vis("Status");
 
-    /// <summary>v3.37：勾选列（Pick）恒可见 —— 它是批量操作的前提。</summary>
-    public bool IsPickVisible => true;
-
     protected override string PageKey => "script-packages";
 
     // ==================== 分页 ====================
@@ -296,12 +293,9 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>启用底栏分页（基类默认 false）；数据源在内存 ⇒ 切片由 <see cref="ApplyView"/> 做。</summary>
     protected override bool PagingEnabled => true;
 
-    /// <summary>列的元数据（顺序即表头与行的列顺序）；最后一列 Detail 是「▤」按钮的固定窄列。</summary>
+    /// <summary>列的元数据（顺序即表头与行的列顺序）。</summary>
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        // 首列 = **勾选列**（Pick）——
-        //    加了首列后，表头 / 行模板里**所有 Grid.Column 索引都要 +1**（⛔ 别漏一处）。
-        new("Pick", "", "34", sortable: false),
         // §4.8.1：每列给一条示例值（用于「示例宽 ≤ 表头宽 → 锁列宽」判定）
         new("Name", "名称", "3*", sample: "7-Zip 24.08"),
         new("Id", "Id", "3.6*", sample: "7zip.7zip"),

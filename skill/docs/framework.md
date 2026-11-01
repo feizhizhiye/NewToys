@@ -908,6 +908,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | NT-106 | 书签树状展开（整页单树） |
 | NT-107 | 页面注册编译期化（`RegisterFunction<TView>`）+ 菜单注册回归测试 |
 | NT-121 | 跨模块消息通道 `IModuleBus`（信箱 + 弱引用订阅）+ 资产库 → 视频工具交接 |
+| NT-123 | 列表页统一切换为原生表格（`NewToys.UI/Controls/TableViewHost`） |
 
 
 ---

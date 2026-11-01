@@ -203,6 +203,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         if (_initializing) return;                  // 构造期赋值（读盘 / 收成本页预设）不写盘、不重取
         _opts?.Set(OptionsModule, PageSizeKey, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
         OnPropertyChanged(nameof(PageCount));       // 页大小变了 ⇒ 总页数重算（底栏「共 N 页」/ 页码按钮）
+        OnPropertyChanged(nameof(HasPaging));       // 单页⇄多页切换（如「全部」→100）⇒ 分页链显隐必须重算
         OnPropertyChanged(nameof(HasFooterContent));
         // 页大小变了 ⇒ 当前页码可能越界：先收敛（越界时 setter 自带 RefreshView），没越界才手动重取
         var target = System.Math.Min(System.Math.Max(1, PageIndex), System.Math.Max(1, PageCount));

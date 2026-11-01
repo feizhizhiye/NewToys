@@ -272,10 +272,10 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     [RelayCommand]
     private async Task UninstallCheckedAsync()
     {
-        var targets = _all.Where(p => p.IsChecked).ToList();
-        if (targets.Count == 0) { StatusText = "先勾选要卸载的包（行首勾选框）。"; return; }
+        var targets = BatchSelection.ToList();
+        if (targets.Count == 0) { StatusText = "先在列表里选中要卸载的包（Ctrl / Shift 可多选）。"; return; }
         if (IsBusy) return;
-        if (!await ConfirmAsync($"确定卸载勾选的 {targets.Count} 个包吗？此操作不可撤销。"))
+        if (!await ConfirmAsync($"确定卸载选中的 {targets.Count} 个包吗？此操作不可撤销。"))
         {
             StatusText = "已取消卸载。";
             return;

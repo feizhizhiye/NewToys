@@ -175,7 +175,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         // §4.8.1：每列给一条**示例值** —— 用「示例宽 ≤ 表头宽」判定该列是否锁成表头宽（锁了就不可拖，且不低于 MinLockedWidth=34 保证把手可拖）。
         new("Name", "名称", "3.2*", sample: "示例视频 2026.mp4"),
         new("Type", "类型", "0.9*", sample: ".mp4"),
-        new("Size", "大小", "1*", sample: "1.5 GB"),
+        new("Size", "大小", "90", sample: "1023.99 MB"),
         new("Duration", "时长", "0.9*", sample: "1:02:03"),
         new("Resolution", "分辨率", "1.1*", sample: "1920×1080"),
         new("Codec", "编码", "1.1*", sample: "H.265/HEVC"),

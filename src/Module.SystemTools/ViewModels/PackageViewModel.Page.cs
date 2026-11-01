@@ -36,6 +36,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         _cols = cols;
 
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
+        BatchSelection.CollectionChanged += (_, _) => NotifyBatchChanged();   // 控件侧多选 → 批量按钮可用态
         _syncing = true;
         var s = settings.Settings;
         SetSort(string.IsNullOrWhiteSpace(s.SortColumn) ? "Name" : s.SortColumn, s.SortDescending);
@@ -196,10 +197,9 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     private void BeginList(List<PackageInfo> items, ListMode mode)
     {
-        // 旧行先解绑勾选监听，新行挂上（⛔ 别直接 AddRange，否则计数不更新）
-        foreach (var p in _all) p.PropertyChanged -= OnRowPropertyChanged;
+        // 列表换源 ⇒ 旧选中全是上一批对象，留着会对着看不见的行执行批量
+        if (BatchSelection.Count > 0) BatchSelection.Clear();
         _all.Clear();
-        foreach (var p in items) p.PropertyChanged += OnRowPropertyChanged;
         _all.AddRange(items);
         _mode = mode;
         ModeText = mode switch
@@ -211,7 +211,6 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             _ => "尚未加载"
         };
         if (mode != ListMode.Search && SearchText.Length > 0) SearchText = "";
-        RefreshChecked();
     }
 
     /// <summary>搜索结果没有"是否已安装"的信息 → 用已安装集合补上，让「状态」列说实话。</summary>
@@ -460,7 +459,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (Selected != null && !Packages.Contains(Selected)) Selected = null;
 
         UpdateHeaders();
-        RefreshChecked();                         // v3.37：列表重建 → 勾选计数 / 表头三态跟上
+        RefreshBatchSelection();                  // 列表重建 → 剔掉已不在当前页的选中项
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(HasSelection));
         NotifyActionVisibility();                 // 列表重建可能把选中项换掉 → 动作组合跟着重算

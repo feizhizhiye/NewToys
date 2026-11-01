@@ -22,47 +22,33 @@
         </Border>
       </v:ListPageSkeleton.TopArea>
 
-      <v:ListPageSkeleton.HeaderArea>
-        <Border Classes="list-header">
-          <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
-                        IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
-                        SampleSpecs="{Binding SampleSpecs}">
-            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
-            <Button Grid.Column="1" Classes="col-header" Content="{Binding SourcesHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Sources" IsVisible="{Binding IsSourcesVisible}"/>
-            <Button Grid.Column="2" Classes="col-header" Content="{Binding KeepHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Keep" IsVisible="{Binding IsKeepVisible}"/>
-            <Button Grid.Column="3" Classes="col-header" Content="{Binding LastRunHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="LastRun" IsVisible="{Binding IsLastRunVisible}"/>
-            <Button Grid.Column="4" Classes="col-header" Content="{Binding ArchivesHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Archives" IsVisible="{Binding IsArchivesVisible}"/>
-            <Button Grid.Column="5" Classes="col-header" Content="{Binding PasswordHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Password" IsVisible="{Binding IsPasswordVisible}"/>
-            <v:ColumnGrid.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="任务" IsEnabled="False" ToggleType="CheckBox" IsChecked="{Binding IsNameVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Name"/>
-                <MenuItem Header="源目录" ToggleType="CheckBox" IsChecked="{Binding IsSourcesVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Sources"/>
-                <MenuItem Header="保留" ToggleType="CheckBox" IsChecked="{Binding IsKeepVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Keep"/>
-                <MenuItem Header="最近运行" ToggleType="CheckBox" IsChecked="{Binding IsLastRunVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="LastRun"/>
-                <MenuItem Header="包数" ToggleType="CheckBox" IsChecked="{Binding IsArchivesVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Archives"/>
-                <MenuItem Header="包密码" ToggleType="CheckBox" IsChecked="{Binding IsPasswordVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Password"/>
-              </ContextMenu>
-            </v:ColumnGrid.ContextMenu>
-          </v:ColumnGrid>
-        </Border>
-      </v:ListPageSkeleton.HeaderArea>
-
       <v:ListPageSkeleton.ListArea>
-        <ListBox x:Name="PlanList" Classes="list-page"
-                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}" SelectionMode="Single">
-          <ListBox.ContextMenu>
+        <v:TableViewHost x:Name="PlanList"
+                         ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}" SelectionMode="Single">
+          <v:TableViewHost.Columns>
+            <TableViewColumn Width="220">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary" Text="{Binding Name}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell" Text="{Binding SourcesText}" TextTrimming="CharacterEllipsis"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="80" Binding="{Binding KeepText}" HorizontalContentAlignment="Center"/>
+            <TableViewColumn Width="170" Binding="{Binding LastRunText}"/>
+            <TableViewColumn Width="80" Binding="{Binding ArchiveCountText}" HorizontalContentAlignment="Center"/>
+            <TableViewColumn Width="150" Binding="{Binding PasswordText}"/>
+          </v:TableViewHost.Columns>
+
+          <v:TableViewHost.ContextMenu>
             <ContextMenu>
               <MenuItem Header="▶ 立即备份" Command="{Binding RunBackupCommand}" IsEnabled="{Binding IsNotBusy}"/>
               <MenuItem Header="✏ 编辑任务" Command="{Binding EditPlanCommand}" IsEnabled="{Binding HasSelection}"/>
@@ -72,26 +58,8 @@
               <Separator/>
               <MenuItem Header="🗑 删除任务" Command="{Binding DeletePlanCommand}" IsEnabled="{Binding HasSelection}"/>
             </ContextMenu>
-          </ListBox.ContextMenu>
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding SourcesText}" TextTrimming="CharacterEllipsis"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsSourcesVisible}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding KeepText}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsKeepVisible}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding LastRunText}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsLastRunVisible}"/>
-                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding ArchiveCountText}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsArchivesVisible}"/>
-                <TextBlock Grid.Column="5" Classes="list-cell accent" Text="{Binding PasswordText}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsPasswordVisible}"/>
-              </v:ColumnGrid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+          </v:TableViewHost.ContextMenu>
+        </v:TableViewHost>
       </v:ListPageSkeleton.ListArea>
     </v:ListPageSkeleton>
 

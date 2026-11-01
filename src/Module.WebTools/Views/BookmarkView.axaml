@@ -7,6 +7,8 @@
     🔴 不用 TreeView：它会把整行（含网址 / 状态列）随层级右移 ⇒ 与表头必然错位。
     这里列表绑 VM.VisibleNodes（先序拍平的可见节点），缩进只作用第一列内容 ⇒ 列边界永远与表头一致。
     折叠入口 = 双击文件夹整行（或选中后 ← / →），行首 ▾/▸ 只是静态指示符、不接收点击。
+
+    列表本体 = <v:TableViewHost>（多选 + 双击 / 右键 / 键盘交互仍由 code-behind 接线）。
   -->
   <UserControl.Styles>
     <!--  行首展开指示符：固定 14 宽（书签行空串也占位 ⇒ 同级名称对齐）；⛔ MinHeight=0 防隐式样式把行撑高  -->
@@ -26,48 +28,39 @@
                       EmptyActionCommand="{Binding ImportBookmarksCommand}"
                       IsEmpty="{Binding !HasItems}">
 
-    <!--  ==================== 表头（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
-    <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-        <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
-                      IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
-                      SampleSpecs="{Binding SampleSpecs}">
-          <Button Grid.Column="0" Classes="col-header" Content="{Binding TitleHeader}"
-                  Command="{Binding SortCommand}" CommandParameter="Title" IsVisible="{Binding IsTitleVisible}"/>
-          <Button Grid.Column="1" Classes="col-header" Content="{Binding UrlHeader}"
-                  Command="{Binding SortCommand}" CommandParameter="Url" IsVisible="{Binding IsUrlVisible}"/>
-          <Button Grid.Column="2" Classes="col-header" Content="{Binding StatusHeader}"
-                  Command="{Binding SortCommand}" CommandParameter="Status" IsVisible="{Binding IsStatusVisible}"/>
-          <v:ColumnGrid.ContextMenu>
-            <ContextMenu>
-              <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                <MenuItem.ItemContainerTheme>
-                  <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                    <Setter Property="Header" Value="{Binding Label}"/>
-                    <Setter Property="Command" Value="{Binding Command}"/>
-                  </ControlTheme>
-                </MenuItem.ItemContainerTheme>
-              </MenuItem>
-              <Separator/>
-              <MenuItem Header="标题" IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" ToggleType="CheckBox" IsChecked="{Binding IsTitleVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Title"/>
-              <MenuItem Header="网址" ToggleType="CheckBox" IsChecked="{Binding IsUrlVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Url"/>
-              <MenuItem Header="状态" ToggleType="CheckBox" IsChecked="{Binding IsStatusVisible, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="Status"/>
-            </ContextMenu>
-          </v:ColumnGrid.ContextMenu>
-        </v:ColumnGrid>
-      </Border>
-    </v:ListPageSkeleton.HeaderArea>
-
     <v:ListPageSkeleton.ListArea>
-      <ListBox x:Name="BookmarkList" Classes="list-page"
-               ItemsSource="{Binding VisibleNodes}"
-               SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
-               SelectionMode="Multiple"
-               SelectionChanged="OnSelectionChanged"
-               DoubleTapped="OnRowDoubleTapped"
-               ContextRequested="OnRowContextRequested"
-               KeyDown="OnRowKeyDown">
-        <ListBox.ContextMenu>
+      <v:TableViewHost x:Name="BookmarkList"
+                       ItemsSource="{Binding VisibleNodes}"
+                       SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                       SelectionMode="Multiple"
+                       SelectionChanged="OnSelectionChanged"
+                       DoubleTapped="OnRowDoubleTapped"
+                       ContextRequested="OnRowContextRequested"
+                       KeyDown="OnRowKeyDown">
+        <v:TableViewHost.Columns>
+          <!--  ① 标题列：缩进占位 + 展开指示符 + 名称（文件夹加条数）  -->
+          <TableViewColumn Width="2.6*">
+            <TableViewColumn.CellTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                  <Border Grid.Column="0" Width="{Binding IndentWidth}" IsHitTestVisible="False"/>
+                  <TextBlock Grid.Column="1" Classes="tree-chevron" Text="{Binding ChevronText}"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell primary" FontWeight="SemiBold"
+                             Text="{Binding DisplayName}" IsVisible="{Binding IsFolder}"/>
+                  <TextBlock Grid.Column="2" Classes="list-cell primary"
+                             Text="{Binding DisplayName}" IsVisible="{Binding IsBookmark}"/>
+                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding CountText}"
+                             IsVisible="{Binding IsFolder}"/>
+                </Grid>
+              </DataTemplate>
+            </TableViewColumn.CellTemplate>
+          </TableViewColumn>
+
+          <TableViewColumn Width="3*" Binding="{Binding Url}"/>
+          <TableViewColumn Width="1.2*" Binding="{Binding CheckStatus}"/>
+        </v:TableViewHost.Columns>
+
+        <v:TableViewHost.ContextMenu>
           <ContextMenu>
             <Separator/>
             <MenuItem Header="🔗 联通检测" Command="{Binding CheckCommand}"/>
@@ -90,30 +83,8 @@
             <MenuItem Header="✏ 编辑" Command="{Binding EditSelectedCommand}" ToolTip.Tip="展开右侧详情卡修改这一条"/>
             <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" ToolTip.Tip="多选后 = 整批删除（文件夹行不参与）"/>
           </ContextMenu>
-        </ListBox.ContextMenu>
-        <ListBox.ItemTemplate>
-          <DataTemplate>
-            <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-              <!--  ① 标题列：缩进占位 + 展开指示符 + 名称（文件夹加条数）  -->
-              <Grid Grid.Column="0" ColumnDefinitions="Auto,Auto,*,Auto"
-                    IsVisible="{Binding $parent[ListBox].DataContext.IsTitleVisible}">
-                <Border Grid.Column="0" Width="{Binding IndentWidth}" IsHitTestVisible="False"/>
-                <TextBlock Grid.Column="1" Classes="tree-chevron" Text="{Binding ChevronText}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell primary" FontWeight="SemiBold"
-                           Text="{Binding DisplayName}" IsVisible="{Binding IsFolder}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell primary"
-                           Text="{Binding DisplayName}" IsVisible="{Binding IsBookmark}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding CountText}"
-                           IsVisible="{Binding IsFolder}"/>
-              </Grid>
-              <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Url}"
-                         IsVisible="{Binding $parent[ListBox].DataContext.IsUrlVisible}"/>
-              <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding CheckStatus}"
-                         IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"/>
-            </v:ColumnGrid>
-          </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
+        </v:TableViewHost.ContextMenu>
+      </v:TableViewHost>
     </v:ListPageSkeleton.ListArea>
   </v:ListPageSkeleton>
 </UserControl>

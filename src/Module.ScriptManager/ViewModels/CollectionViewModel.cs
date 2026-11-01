@@ -210,13 +210,13 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        new("Member", "加入", "0.7*", sortable: false),
+        new("State", "状态", "0.9*", sortable: false),
         new("Title", "名称", "3*", sample: "磁盘使用"),
         new("Role", "类型", "1*", sample: "脚本"),
         new("Target", "目标", "4*", sortable: false, sample: "sysinfo/disk.ps1"),
     };
 
-    public bool IsMemberVisible => true;
+    public bool IsStateVisible => true;
     public bool IsTitleVisible => true;
     public bool IsRoleVisible => true;
     public bool IsTargetVisible => true;
@@ -228,6 +228,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         if (row is not MemberRow m) return base.FieldText(row, columnKey);
         return columnKey switch
         {
+            "State" => m.StateText,
             "Title" => m.Title,
             "Role" => m.RoleText,
             "Target" => m.Target,

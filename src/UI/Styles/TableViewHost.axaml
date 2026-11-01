@@ -1,0 +1,74 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!--
+    列表页表格 `<TableViewHost>`（= 原生 TableView 的派生类）的密度与配色：
+    TableView 默认吃 Fluent 主题 —— 字大一号、行高 32+、强调色选中，与其它列表页不同源。
+    这里统一压成项目列表基线：行 28 / 字 12 / 表头 SemiBold 次要色 / 选中用语义键。
+
+    🔴 选择器一律以 `TableView` 打头（含子类型选择器）：控件把自己的 `StyleKeyOverride` 指向
+    `TableView` 才拿得到主题模板，因此按 `TableViewHost` 写的选择器不会命中；而 `TableView` 打头
+    会连带命中「全部资产」页的原生 TableView —— 该页自带的局部样式优先级更高，结论一致，不冲突。
+  -->
+
+  <Styles.Resources>
+    <!--  主题给的是 6,9,6,12 —— 表头外层 Border 和每一行都吃这份 padding，
+         不覆盖的话表头再设 MinHeight 也压不矮（高 = 内容 + 9 + 12）。密度由行/单元格自己兜。  -->
+    <Thickness x:Key="TableViewRowPadding">0</Thickness>
+    <!--  单元格内边距同理：主题的 TableViewCellPadding 带垂直份量，会把行撑高并把文字顶到上方  -->
+    <Thickness x:Key="TableViewCellPadding">8,0</Thickness>
+    <!--  列宽拖拽把手（resizer）的命中区：主题是 0,-9,-6,-12，**下边多出 12px**，
+         且表头 ClipToBounds=False ⇒ 那根 1px 竖线会戳进表头下面第一行（肉眼像「表头没画完」）。
+         只留右侧 -6（让竖线正好压在列边界上），上下不再外扩。  -->
+    <Thickness x:Key="TableViewColumnResizerMargin">0,0,-6,0</Thickness>
+  </Styles.Resources>
+
+  <Style Selector="TableView TableViewRow">
+    <Setter Property="MinHeight" Value="28"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+
+  <!--  选中 / 悬停底色：覆盖主题的 TableViewRowBackground*（那是 Fluent 强调色，不是本项目的语义键）  -->
+  <Style Selector="TableView TableViewRow:pointerover /template/ Border#Border">
+    <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+  </Style>
+  <Style Selector="TableView TableViewRow:selected /template/ Border#Border">
+    <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+  </Style>
+  <Style Selector="TableView TableViewRow:selected:pointerover /template/ Border#Border">
+    <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+  </Style>
+
+  <Style Selector="TableView TableViewCell">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+    <Setter Property="Padding" Value="8,0"/>
+    <!--  行高 28 由行兜底后，单元格内容必须自己垂直居中（默认 Top，会顶着上沿）  -->
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="TableView TableViewColumnHeader">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <!--  Transparent 才会参与命中测试：表头空白处也能点中（排序激活区 = 整列头）  -->
+    <Setter Property="Background" Value="Transparent"/>
+    <!--  表头压矮：默认主题按 32 走，这里给 28 的基线与 8/0 内边距（与单元格 8,0 对齐，否则表头字比行字偏左）  -->
+    <Setter Property="MinHeight" Value="28"/>
+    <Setter Property="Padding" Value="8,0"/>
+  </Style>
+
+  <!--  表头条：主题用 Fluent 的灰色 Chrome 笔刷 + 无分隔线；换成本项目的 SubSiderHeaderBrush + 1px 底边，
+       与其它列表页的 Border.list-header 视觉一致。  -->
+  <Style Selector="TableView ScrollViewer /template/ DockPanel#ContentPanel > Border">
+    <Setter Property="Background" Value="{DynamicResource SubSiderHeaderBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+  </Style>
+
+  <!--  垂直滚动条从表头下沿开始：主题把滚动条铺在整个 ScrollViewer 上（含表头行），
+       这里按表头高度下移 28，避免滚动条顶到表格最上沿。  -->
+  <Style Selector="TableView ScrollViewer /template/ ScrollBar#PART_VerticalScrollBar">
+    <Setter Property="Margin" Value="0,28,0,0"/>
+  </Style>
+</Styles>

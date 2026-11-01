@@ -20,6 +20,29 @@ namespace NewToys.ScriptManager.ViewModels;
 public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
 
+    /// <summary>成员表当前选中的行（右键「加入 / 移出本集合」的作用对象）。</summary>
+    [ObservableProperty] private MemberRow? _selectedMember;
+
+    /// <summary>
+    /// 把选中行切到集合内 / 集合外 —— 原行首勾选框的等价入口。
+    /// <para>落库仍走 <see cref="OnMemberRowPropertyChanged"/>：改 <see cref="MemberRow.IsMember"/> 即可。</para>
+    /// </summary>
+    [RelayCommand]
+    private void ToggleMembership()
+    {
+        if (SelectedMember is not { } row) { StatusText = "先在列表里选中一条。"; return; }
+
+        if (!row.CanToggle)
+        {
+            StatusText = string.IsNullOrEmpty(row.Reason)
+                ? "这条不可采集，不能加入集合。"
+                : $"这条不可采集：{row.Reason}";
+            return;
+        }
+
+        row.IsMember = !row.IsMember;
+    }
+
     private void RefreshCollections()
     {
         if (_store == null) return;

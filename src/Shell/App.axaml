@@ -250,6 +250,13 @@
                 <Setter Property="MinWidth" Value="32"/>
             </Style>
         </ControlTheme>
+
+        <!--  ==================== TableView（列表页表格）密度 ====================
+              这三个键是 Fluent 主题 TableView 模板里用 DynamicResource 取的量，决定表头 / 行 / 单元格的内边距。
+              主题默认（6,9,6,12）会把行撑到 40+，与列表页 28 的基线不符 ⇒ 在这里统一压平。  -->
+        <Thickness x:Key="TableViewRowPadding">0</Thickness>
+        <Thickness x:Key="TableViewCellPadding">8,0</Thickness>
+        <Thickness x:Key="TableViewColumnResizerMargin">0,0,-6,0</Thickness>
     </Application.Resources>
 
     <Application.Styles>
@@ -262,6 +269,9 @@
 
         <!--  复用样式表（工具条 / 状态行 / 详情卡 / 表头 / 筛选条 …）  -->
         <StyleInclude Source="avares://NewToys/Styles/Controls.axaml"/>
+
+        <!--  列表页表格（TableViewHost）的密度 / 配色：按类型选择器作用，不影响其它 TableView  -->
+        <StyleInclude Source="avares://NewToys.UI/Styles/TableViewHost.axaml"/>
 
         <!--  ==================== v3.1 仿浏览器外壳 ====================  -->
 

@@ -18,7 +18,7 @@ public static class AssetColumns
         new("Tags", "标签", "1.4*", sample: "科幻, 收藏"),
         new("Categories", "分类", "1.2*", sample: "电影 / 动作"),
         new("Collections", "集合", "1.2*", sample: "周末片单"),
-        new("Size", "大小", "0.9*", sample: "4.2 GB"),
+        new("Size", "大小", "90", sample: "1023.99 MB"),
         new("Modified", "修改时间", "1.3*", sample: "2026-10-13 21:04"),
         new("Storage", "存储源", "1.2*", sample: "移动硬盘 D"),
         new("Duration", "时长", "0.9*", sample: "02:14:33"),

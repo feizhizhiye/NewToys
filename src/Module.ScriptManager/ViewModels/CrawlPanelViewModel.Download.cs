@@ -50,7 +50,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
             req.StartUrl = (StartUrl ?? "").Trim();
             if (req.StartUrl.Length == 0)
             {
-                StatusText = "勾选几行再下载；或一行不勾 + 填起始网址 = 链式模式。";
+                StatusText = "先点几行（行底色变深 = 已勾上）再下载；或一行不勾 + 填起始网址 = 链式模式。";
                 return;
             }
         }
@@ -141,7 +141,6 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
                 new("status", "状态", row.StatusText + " " + ev.Detail, true)
             }, ev.Url, ev.Name)));
             _links.NotifyEntriesChanged();
-            OnPropertyChanged(nameof(LinksAllSelected));
         }
     }
 

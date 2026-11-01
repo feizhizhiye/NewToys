@@ -235,6 +235,16 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 用法：信息面板（ScriptManager）+ 爬虫面板（WebTools）；跨程序集 xmlns 必须 `using:`（如 `xmlns:v="using:NewToys.UI.Controls"`）。
 - 🔴 行选择 / 右键用**外层 `Border`** 包（`Border.info-row` + 事件 / `ContextMenu`）；控件本身 ⛔ 不加这类参数（NT-085 铁律：只搬现状）。
 
+#### 6.3c 列表本体 `TableViewHost`（原生 TableView，**列表页默认写法**）
+
+- 组件：`src/UI/Controls/TableViewHost.cs`（继承 `Avalonia.Controls.TableView`）+ `src/UI/Styles/TableViewHost.axaml`（密度 / 配色，按类型选择器只作用本控件；`App.axaml` 用 `StyleInclude` 引入，并在 `Application.Resources` 里压平 `TableViewRowPadding` / `TableViewCellPadding` / `TableViewColumnResizerMargin`）。
+- 页面写法：`<v:ListPageSkeleton.ListArea>` 里放 `<v:TableViewHost ItemsSource=… SelectedItem=… SelectionMode="Single">`，列用 `<v:TableViewHost.Columns>` 内联 `TableViewColumn`（`Width` + `Binding` 或 `CellTemplate`）。**骨架的 `HeaderArea` 不填**（表头由 TableView 自带且粘顶）。
+- 🔴 **列顺序铁律**：XAML 里列的声明顺序必须与 VM 的 `ListPageViewModelBase.ColumnLayout` 完全一致（显隐 / 表头文案 / 排序键都按下标对齐）。
+- 控件自动完成：① 按 `ColumnLayout[i].Key` 绑定 `Is{Key}Visible`（列显隐）；② 表头文案 = `ListColumn.Header` + 排序箭头（读基类 `SortColumnKey` / `IsSortDescending`，⛔ 不再绑各页 `XxxHeader`）；③ 点表头 → `SortCommand(key)`；④ 拖列边界改列宽（相邻列互补、下限 = 表头文字宽）；⑤ 右键菜单顶部自动插「▤ 列」勾选子菜单（走 `ToggleColumnCommand`，首列固定显示）；⑥ `ContextMenu.DataContext` 自动同步。
+- 页面仍需自写的：`CellTemplate`（每列内容）、行右键菜单（单条动作 + 页内筛选项）、行内按钮（`$parent[UserControl].DataContext.XxxCommand`，⛔ 不用 `$parent[ListBox]`）。
+- 自备表头控件（如软件包页的三态 `CheckBox`）在 code-behind 里写 `Columns[0].Header = <Control>`；控件认「Header 是 Control」就跳过文案覆盖。
+- 仍在用 `ColumnGrid` 的场景：非列表页的固定表头（信息面板 / 爬虫面板 / 规则编辑 / 任务中心）与尚未迁移的磁贴式列表（`AssetBrowseView` / `VideoBatchView` / `VideoListView`）。
+
 ### 6.4 列宽锁定（示例值唯一用途）
 
 - 每列给 `ListColumn.Sample`（示例值）—— **唯一用途 = 列宽判定**；基类暴露 `SampleSpecs`（';' 分隔，⛔ 不用逗号）。

@@ -83,7 +83,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase
     {
         new("Name", "名称", "2.6*", sample: "The.Matrix.1999.1080p.mkv"),
         new("Type", "类型", "0.8*", sample: "视频"),
-        new("Size", "大小", "0.9*", sample: "4.2 GB"),
+        new("Size", "大小", "90", sample: "1023.99 MB"),
         new("Modified", "修改时间", "1.3*", sample: "2026-10-13 21:04"),
         new("Storage", "存储源", "1.2*", sample: "移动硬盘 D")
     };

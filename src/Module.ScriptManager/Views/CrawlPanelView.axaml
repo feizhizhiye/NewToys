@@ -58,6 +58,10 @@
     <Style Selector="Border.info-row:pointerover">
       <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
     </Style>
+    <!--  已勾选（= 「⬇ 下载」范围）：行底色即状态，⛔ 不用行首勾选框  -->
+    <Style Selector="Border.info-row.selected">
+      <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+    </Style>
   </UserControl.Styles>
 
   <Grid RowDefinitions="*,Auto" Margin="12">
@@ -103,37 +107,30 @@
 
                   <StackPanel IsVisible="{Binding IsExpanded}" Spacing="0">
 
-                    <!--  ① 链接·目录（NT-087：行首勾选框 = 「⬇ 下载」的作用域）  -->
+                    <!--  ① 链接·目录（行内勾选 = 「⬇ 下载」的作用域；单击行切换，⛔ 不再有勾选框列）  -->
                     <StackPanel IsVisible="{Binding IsLinks}" Spacing="0">
                       <Border Classes="list-header" Margin="0,4,0,0">
-                        <Grid ColumnDefinitions="28,*">
-                          <CheckBox Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    MinWidth="0" MinHeight="0" Padding="0"
-                                    ToolTip.Tip="全选 / 全不选（下载只跑勾住的行）"
-                                    IsChecked="{Binding $parent[ItemsControl].DataContext.LinksAllSelected, Mode=TwoWay}"/>
-                          <v:DynamicColumnGrid Grid.Column="1" ColumnSpecs="{Binding ColumnSpecs}"
-                                               HeaderCells="{Binding HeaderCells}"/>
-                        </Grid>
+                        <v:DynamicColumnGrid ColumnSpecs="{Binding ColumnSpecs}"
+                                             HeaderCells="{Binding HeaderCells}"/>
                       </Border>
 
                       <ItemsControl ItemsSource="{Binding Entries}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate>
-                            <Border Classes="info-row" DoubleTapped="OnRowDoubleTapped">
+                            <Border Classes="info-row" DoubleTapped="OnRowDoubleTapped"
+                                    Classes.selected="{Binding IsSelected}"
+                                    PointerPressed="OnRowPointerPressed">
                               <Border.ContextMenu>
                                 <ContextMenu>
+                                  <MenuItem Header="☑ 全选 / 取消勾选" Command="{Binding ToggleAllLinksCommand}"/>
+                                  <Separator/>
                                   <MenuItem Header="🧪 试下载" Command="{Binding TryDownloadCommand}"/>
                                   <MenuItem Header="📋 复制诊断" Command="{Binding CopyDiagCommand}"/>
                                 </ContextMenu>
                               </Border.ContextMenu>
-                              <Grid ColumnDefinitions="28,*">
-                                <CheckBox Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          MinWidth="0" MinHeight="0" Padding="0"
-                                          IsChecked="{Binding IsSelected}"/>
-                                <v:DynamicColumnGrid Grid.Column="1"
-                                                     ColumnSpecs="{Binding $parent[ItemsControl].DataContext.ColumnSpecs}"
-                                                     Cells="{Binding Cells}"/>
-                              </Grid>
+                              <v:DynamicColumnGrid
+                                  ColumnSpecs="{Binding $parent[ItemsControl].DataContext.ColumnSpecs}"
+                                  Cells="{Binding Cells}"/>
                             </Border>
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>

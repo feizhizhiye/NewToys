@@ -3,7 +3,6 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.VisualTree;
 using NewToys.WebTools.Models;
 using NewToys.WebTools.ViewModels;
 
@@ -35,8 +34,6 @@ public partial class BookmarkView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (BookmarkList?.ContextMenu is { } menu) menu.DataContext = DataContext;
-        if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
 
         if (_vm != null) _vm.SelectionRestoreRequested -= OnSelectionRestoreRequested;
         _vm = DataContext as BookmarkViewModel;
@@ -67,7 +64,7 @@ public partial class BookmarkView : UserControl
         }
 
         e.Handled = true;
-        (e.Source as Control)?.FindAncestorOfType<ListBoxItem>()?.Focus();
+        (e.Source as Control)?.Focus();
 
         if (shift) SelectRange(node, additive: ctrl);
         else ToggleNode(node);

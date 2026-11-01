@@ -3,10 +3,9 @@
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetStoragesView">
   <!--
-    NT-020「存储源」页：列表（名称 / 根路径 / 类型 / 状态 / 文件数 / 最近扫描）+ 详情卡（由 **Shell** 承载）。
-    🔴 与其它媒体资产列表页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，详情卡已改由 Shell 声明式渲染（NT-054））。
-    NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（四段：顶区 = 筛选条 / 列表区 = 表头 + 列表 / 空态 / 底栏），
-        card 容器、空态块、底栏壳由骨架统一提供（⛔ 行模板仍本页自写）。
+    「存储源」页：表格（名称 / 根路径 / 类型 / 状态 / 文件数 / 最近扫描）+ 详情卡（由 **Shell** 承载）。
+    列表本体 = <v:TableViewHost>：列显隐 / 排序键按 VM 的 ColumnLayout 自动对齐（🔴 声明顺序必须一致），
+    故骨架的 HeaderArea 不填。
   -->
   <v:ListPageSkeleton EmptyMessage="没有可显示的存储源。点「➕ 添加存储源」把要扫描的目录登记进来。"
                       EmptyActionText="➕ 添加存储源"
@@ -25,62 +24,30 @@
     </Border>
     </v:ListPageSkeleton.TopArea>
 
-    <!--  ==================== ③ 列表本体（card / 空行由骨架提供，本页只给表头与列表）  ====================  -->
-    <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-          <v:ColumnGrid x:Name="HeaderGrid"
-                        ColumnSpecs="{Binding VisibleColumnSpecs}"
-                        IsResizable="True"
-                        LockedColumns="{Binding LockedColumnMask}"
-                        SampleSpecs="{Binding SampleSpecs}">
-            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
-            <Button Grid.Column="1" Classes="col-header" Content="{Binding RootHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Root" IsVisible="{Binding IsRootVisible}"/>
-            <Button Grid.Column="2" Classes="col-header" Content="{Binding TypeHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Type" IsVisible="{Binding IsTypeVisible}"/>
-            <Button Grid.Column="3" Classes="col-header" Content="{Binding StatusHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Status" IsVisible="{Binding IsStatusVisible}"/>
-            <Button Grid.Column="4" Classes="col-header" Content="{Binding FilesHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Files" IsVisible="{Binding IsFilesVisible}"/>
-            <Button Grid.Column="5" Classes="col-header" Content="{Binding LastScanHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="LastScan" IsVisible="{Binding IsLastScanVisible}"/>
-
-            <v:ColumnGrid.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                  <MenuItem.ItemContainerTheme>
-                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                      <Setter Property="Header" Value="{Binding Label}"/>
-                      <Setter Property="Command" Value="{Binding Command}"/>
-                    </ControlTheme>
-                  </MenuItem.ItemContainerTheme>
-                </MenuItem>
-                <Separator/>
-                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
-                          IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
-                <MenuItem Header="根路径" ToggleType="CheckBox" IsChecked="{Binding IsRootVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Root"/>
-                <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
-                <MenuItem Header="状态" ToggleType="CheckBox" IsChecked="{Binding IsStatusVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Status"/>
-                <MenuItem Header="文件数" ToggleType="CheckBox" IsChecked="{Binding IsFilesVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Files"/>
-                <MenuItem Header="最近扫描" ToggleType="CheckBox" IsChecked="{Binding IsLastScanVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="LastScan"/>
-              </ContextMenu>
-            </v:ColumnGrid.ContextMenu>
-          </v:ColumnGrid>
-      </Border>
-    </v:ListPageSkeleton.HeaderArea>
-
     <v:ListPageSkeleton.ListArea>
-        <ListBox Grid.Row="2" x:Name="StorageList" Classes="list-page"
-                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
-                 SelectionMode="Single">
-          <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；ContextMenu 的 DataContext 由 code-behind 同步  -->
-          <ListBox.ContextMenu>
+        <v:TableViewHost x:Name="StorageList"
+                         ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                         SelectionMode="Single">
+          <v:TableViewHost.Columns>
+            <TableViewColumn Width="2.2*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary" Text="{Binding Name}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"
+                             ToolTip.Tip="{Binding RootPath}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="3*" Binding="{Binding RootPath}"/>
+            <TableViewColumn Width="0.9*" Binding="{Binding TypeText}"/>
+            <TableViewColumn Width="0.9*" Binding="{Binding StatusText}"/>
+            <TableViewColumn Width="0.9*" Binding="{Binding FileCountText}" HorizontalContentAlignment="Center"/>
+            <TableViewColumn Width="1.4*" Binding="{Binding LastScanText}"/>
+          </v:TableViewHost.Columns>
+
+          <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；DataContext 由控件同步  -->
+          <v:TableViewHost.ContextMenu>
             <ContextMenu>
               <MenuItem Header="🔍 重新扫描" Command="{Binding ScanSelectedCommand}"
                         ToolTip.Tip="把这个存储源再扫一遍（进度在「任务中心」看）"/>
@@ -95,33 +62,8 @@
               <MenuItem Header="🗑 移除存储源…" Command="{Binding RemoveStorageCommand}"
                         ToolTip.Tip="只删索引，⛔ 不删磁盘文件"/>
             </ContextMenu>
-          </ListBox.ContextMenu>
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
-                           Foreground="{DynamicResource PrimaryTextBrush}"
-                           ToolTip.Tip="{Binding RootPath}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding RootPath}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsRootVisible}"/>
-                <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding TypeText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StatusText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsStatusVisible}"/>
-                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding FileCountText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsFilesVisible}"/>
-                <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding LastScanText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsLastScanVisible}"/>
-              </v:ColumnGrid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+          </v:TableViewHost.ContextMenu>
+        </v:TableViewHost>
     </v:ListPageSkeleton.ListArea>
   </v:ListPageSkeleton>
 </UserControl>

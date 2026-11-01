@@ -20,7 +20,5 @@ public partial class ScriptLibraryView : UserControl
     {
         base.OnDataContextChanged(e);
         if (ActionList?.ContextMenu is { } menu) menu.DataContext = DataContext;
-        // 表头右键「显示 / 隐藏列」菜单同样挂在独立弹出树，必须手工同步 DataContext（见规范 3.6）。
-        if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
     }
 }

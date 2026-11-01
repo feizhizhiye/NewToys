@@ -3,10 +3,13 @@
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetTagsView">
   <!--
-    NT-018「标签管理」页：列表（名称 / 命名空间 / 颜色 / 使用数 / 创建时间）+ 详情卡（由 **Shell** 承载）。
-    🔴 与「全部资产」页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，详情卡已改由 Shell 声明式渲染（NT-054））。
-    NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（四段：顶区 = 筛选条 / 列表区 = 表头 + 列表 / 空态 / 底栏），
-        card 容器、空态块、底栏壳由骨架统一提供（⛔ 行模板仍本页自写）。
+    「标签管理」页：表格（名称 / 命名空间 / 颜色 / 使用数 / 创建时间）+ 详情卡（由 **Shell** 承载）。
+    🔴 与「全部资产」页同构：**本页不带右栏**（VM 实现 IDetailPanelProvider，详情卡由 Shell 声明式渲染）。
+
+    ⚠️ 列表本体 = <v:TableViewHost>（原生 TableView）：表头自带且粘顶、列宽可拖、行与单元格回收。
+       ⇒ 骨架的 HeaderArea 不填（⛔ 别再写 Border.list-header / ColumnGrid）。
+       ⇒ 列显隐 / 表头文案 / 排序键由控件按 VM 的 ColumnLayout 自动对齐，XAML ⛔ 不再写 IsXxxVisible 绑定。
+       🔴 Columns 的声明顺序必须与 VM 的 ColumnLayout 一致。
   -->
   <v:ListPageSkeleton EmptyMessage="没有可显示的标签。点「➕ 新建标签」建第一个。"
                       EmptyActionText="➕ 新建标签"
@@ -25,92 +28,62 @@
     </Border>
     </v:ListPageSkeleton.TopArea>
 
-    <!--  ==================== ③ 列表本体（card / 空行由骨架提供，本页只给表头与列表）  ====================  -->
-    <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-          <v:ColumnGrid x:Name="HeaderGrid"
-                        ColumnSpecs="{Binding VisibleColumnSpecs}"
-                        IsResizable="True"
-                        LockedColumns="{Binding LockedColumnMask}"
-                        SampleSpecs="{Binding SampleSpecs}">
-            <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
-            <Button Grid.Column="1" Classes="col-header" Content="{Binding NamespaceHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Namespace" IsVisible="{Binding IsNamespaceVisible}"/>
-            <Button Grid.Column="2" Classes="col-header" Content="{Binding ColorHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Color" IsVisible="{Binding IsColorVisible}"/>
-            <Button Grid.Column="3" Classes="col-header" Content="{Binding UsageHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Usage" IsVisible="{Binding IsUsageVisible}"/>
-            <Button Grid.Column="4" Classes="col-header" Content="{Binding CreatedHeader}"
-                    Command="{Binding SortCommand}" CommandParameter="Created" IsVisible="{Binding IsCreatedVisible}"/>
-
-            <v:ColumnGrid.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                  <MenuItem.ItemContainerTheme>
-                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                      <Setter Property="Header" Value="{Binding Label}"/>
-                      <Setter Property="Command" Value="{Binding Command}"/>
-                    </ControlTheme>
-                  </MenuItem.ItemContainerTheme>
-                </MenuItem>
-                <Separator/>
-                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
-                          IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
-                <MenuItem Header="命名空间" ToggleType="CheckBox" IsChecked="{Binding IsNamespaceVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Namespace"/>
-                <MenuItem Header="颜色" ToggleType="CheckBox" IsChecked="{Binding IsColorVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Color"/>
-                <MenuItem Header="使用数" ToggleType="CheckBox" IsChecked="{Binding IsUsageVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Usage"/>
-                <MenuItem Header="创建时间" ToggleType="CheckBox" IsChecked="{Binding IsCreatedVisible, Mode=OneWay}"
-                          Command="{Binding ToggleColumnCommand}" CommandParameter="Created"/>
-              </ContextMenu>
-            </v:ColumnGrid.ContextMenu>
-          </v:ColumnGrid>
-      </Border>
-    </v:ListPageSkeleton.HeaderArea>
-
+    <!--  ==================== ③ 列表本体  ====================  -->
     <v:ListPageSkeleton.ListArea>
-        <ListBox Grid.Row="2" x:Name="TagList" Classes="list-page"
-                 ItemsSource="{Binding Items}" SelectedItem="{Binding Selected, Mode=TwoWay}"
-                 SelectionMode="Single">
-          <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；ContextMenu 的 DataContext 由 code-behind 同步  -->
-          <ListBox.ContextMenu>
+        <v:TableViewHost x:Name="TagList" Classes="list-page"
+                         ItemsSource="{Binding Items}"
+                         SelectedItem="{Binding Selected, Mode=TwoWay}"
+                         SelectionMode="Single">
+          <v:TableViewHost.Columns>
+            <TableViewColumn Width="2*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary" Text="{Binding Name}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="1.2*" Binding="{Binding NamespaceText}"/>
+
+            <TableViewColumn Width="1*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Width="12" Height="12" CornerRadius="3" Background="{Binding ChipBrush}"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Classes="list-cell" Text="{Binding ColorHexText}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="0.9*" Binding="{Binding UsageText}"/>
+
+            <TableViewColumn Width="1.4*" Binding="{Binding CreatedText}"/>
+          </v:TableViewHost.Columns>
+
+          <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；菜单顶部「▤ 列」「🔎 筛选」由页面给，DataContext 由控件同步  -->
+          <v:TableViewHost.ContextMenu>
             <ContextMenu>
+              <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                <MenuItem.ItemContainerTheme>
+                  <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                    <Setter Property="Header" Value="{Binding Label}"/>
+                    <Setter Property="Command" Value="{Binding Command}"/>
+                  </ControlTheme>
+                </MenuItem.ItemContainerTheme>
+              </MenuItem>
+              <Separator/>
               <MenuItem Header="✏ 重命名…" Command="{Binding RenameTagCommand}"/>
               <MenuItem Header="🎨 改颜色…" Command="{Binding ChangeColorCommand}" ToolTip.Tip="输入 #RRGGBB；也可以在详情卡点色板"/>
               <MenuItem Header="🔗 合并到…" Command="{Binding MergeTagCommand}" ToolTip.Tip="把当前标签的资产转给另一个标签，然后删掉自己"/>
               <Separator/>
               <MenuItem Header="🗑 删除标签" Command="{Binding DeleteTagCommand}"/>
             </ContextMenu>
-          </ListBox.ContextMenu>
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
-                           Foreground="{DynamicResource PrimaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding NamespaceText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsNamespaceVisible}"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                            IsVisible="{Binding $parent[ListBox].DataContext.IsColorVisible}">
-                  <Border Width="12" Height="12" CornerRadius="3" Background="{Binding ChipBrush}"
-                          VerticalAlignment="Center"/>
-                  <TextBlock Classes="list-cell" Text="{Binding ColorHexText}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"/>
-                </StackPanel>
-                <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding UsageText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsUsageVisible}"/>
-                <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding CreatedText}"
-                           Foreground="{DynamicResource SecondaryTextBrush}"
-                           IsVisible="{Binding $parent[ListBox].DataContext.IsCreatedVisible}"/>
-              </v:ColumnGrid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+          </v:TableViewHost.ContextMenu>
+        </v:TableViewHost>
     </v:ListPageSkeleton.ListArea>
   </v:ListPageSkeleton>
 </UserControl>

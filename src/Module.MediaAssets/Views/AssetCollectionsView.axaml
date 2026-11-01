@@ -3,9 +3,10 @@
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetCollectionsView">
   <!--
-    NT-018「集合管理」页：左集合列表（📦 手动 / ⚡ 智能）+ 右成员列表。
-    🔴 成员顺序 = `collection_assets.sort_order`，用「⬆ 上移 / ⬇ 下移」写（⛔ 未做鼠标拖放，见 NT-018 执行记录）。
+    「集合管理」页：左集合列表（📦 手动 / ⚡ 智能）+ 右成员表格。
+    🔴 成员顺序 = `collection_assets.sort_order`，用「⬆ 上移 / ⬇ 下移」写（⛔ 未做鼠标拖放）。
     ⛔ 本页不实现 IDetailPanelProvider（两栏都在页内，Shell 不再显示右详情列）。
+    右侧表格 = <v:TableViewHost>（列显隐 / 排序键按 VM 的 ColumnLayout 对齐，🔴 声明顺序必须一致）。
   -->
   <UserControl.Styles>
     <Style Selector="Button.coll-row">
@@ -78,7 +79,6 @@
     </Border>
 
     <!--  ==================== 右：成员列表 ====================  -->
-    <!--  NT-063 P1：右列改用列表页骨架（四段；本列无空态 ⇒ 不设 EmptyMessage）。  -->
     <v:ListPageSkeleton Grid.Column="1" Margin="8,0,0,0">
 
       <v:ListPageSkeleton.TopArea>
@@ -92,85 +92,35 @@
       </Border>
       </v:ListPageSkeleton.TopArea>
 
-      <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-            <v:ColumnGrid x:Name="HeaderGrid"
-                          ColumnSpecs="{Binding VisibleColumnSpecs}"
-                          IsResizable="True"
-                          LockedColumns="{Binding LockedColumnMask}"
-                          SampleSpecs="{Binding SampleSpecs}">
-              <Button Grid.Column="0" Classes="col-header" Content="{Binding NameHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Name" IsVisible="{Binding IsNameVisible}"/>
-              <Button Grid.Column="1" Classes="col-header" Content="{Binding TypeHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Type" IsVisible="{Binding IsTypeVisible}"/>
-              <Button Grid.Column="2" Classes="col-header" Content="{Binding SizeHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Size" IsVisible="{Binding IsSizeVisible}"/>
-              <Button Grid.Column="3" Classes="col-header" Content="{Binding ModifiedHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Modified" IsVisible="{Binding IsModifiedVisible}"/>
-              <Button Grid.Column="4" Classes="col-header" Content="{Binding StorageHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Storage" IsVisible="{Binding IsStorageVisible}"/>
-
-              <v:ColumnGrid.ContextMenu>
-                <ContextMenu>
-                  <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                    <MenuItem.ItemContainerTheme>
-                      <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                        <Setter Property="Header" Value="{Binding Label}"/>
-                        <Setter Property="Command" Value="{Binding Command}"/>
-                      </ControlTheme>
-                    </MenuItem.ItemContainerTheme>
-                  </MenuItem>
-                  <Separator/>
-                  <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
-                            IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
-                  <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Type"/>
-                  <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Size"/>
-                  <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Modified"/>
-                  <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Storage"/>
-                </ContextMenu>
-              </v:ColumnGrid.ContextMenu>
-            </v:ColumnGrid>
-        </Border>
-      </v:ListPageSkeleton.HeaderArea>
-
       <v:ListPageSkeleton.ListArea>
-          <ListBox x:Name="MemberList" Classes="list-page"
-                   ItemsSource="{Binding Members}" SelectionMode="Single"
-                   SelectedItem="{Binding SelectedMember, Mode=TwoWay}">
-            <ListBox.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="⬆ 上移" Command="{Binding MoveUpCommand}"/>
-                <MenuItem Header="⬇ 下移" Command="{Binding MoveDownCommand}"/>
-                <Separator/>
-                <MenuItem Header="⛔ 移出本集合" Command="{Binding RemoveMemberCommand}"/>
-              </ContextMenu>
-            </ListBox.ContextMenu>
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Name}"
-                             Foreground="{DynamicResource PrimaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsNameVisible}"/>
-                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeText}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsTypeVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding SizeText}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsSizeVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding ModifiedText}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsModifiedVisible}"/>
-                  <TextBlock Grid.Column="4" Classes="list-cell" Text="{Binding StorageName}"
-                             Foreground="{DynamicResource SecondaryTextBrush}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsStorageVisible}"/>
-                </v:ColumnGrid>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
+        <v:TableViewHost x:Name="MemberList"
+                         ItemsSource="{Binding Members}" SelectionMode="Single"
+                         SelectedItem="{Binding SelectedMember, Mode=TwoWay}">
+          <v:TableViewHost.Columns>
+            <TableViewColumn Width="2.6*">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="list-cell primary" Text="{Binding Name}"
+                             Foreground="{DynamicResource PrimaryTextBrush}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
+            <TableViewColumn Width="0.8*" Binding="{Binding TypeText}"/>
+            <TableViewColumn Width="90" Binding="{Binding SizeText}" HorizontalContentAlignment="Center"/>
+            <TableViewColumn Width="1.3*" Binding="{Binding ModifiedText}"/>
+            <TableViewColumn Width="1.2*" Binding="{Binding StorageName}"/>
+          </v:TableViewHost.Columns>
+
+          <v:TableViewHost.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="⬆ 上移" Command="{Binding MoveUpCommand}"/>
+              <MenuItem Header="⬇ 下移" Command="{Binding MoveDownCommand}"/>
+              <Separator/>
+              <MenuItem Header="⛔ 移出本集合" Command="{Binding RemoveMemberCommand}"/>
+            </ContextMenu>
+          </v:TableViewHost.ContextMenu>
+        </v:TableViewHost>
       </v:ListPageSkeleton.ListArea>
     </v:ListPageSkeleton>
   </Grid>

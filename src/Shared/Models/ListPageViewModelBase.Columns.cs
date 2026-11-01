@@ -14,6 +14,13 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
 {
 
     /// <summary>
+    /// 列元数据的只读视图。
+    /// <para>给视图层用（<c>NewToys.UI.Controls.TableViewHost</c> 按下标对齐表头文案 / 列显隐 / 排序键）；
+    /// <see cref="Columns"/> 本身保持 protected，派生类不必为视图放开可见性。</para>
+    /// </summary>
+    public IReadOnlyList<ListColumn> ColumnLayout => Columns;
+
+    /// <summary>
     /// 读回上次保存的列显隐与详情栏开合状态。
     /// ⚠️ 必须等派生类的 <see cref="Columns"/> 就绪后再调（所以放在派生构造函数里，而不是基类构造里）。
     /// </summary>
@@ -34,10 +41,16 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         NotifyColumnsChanged();
     }
 
+    /// <summary>
+    /// 落盘本页列显隐。
+    /// <para>🔴 必须**合并写**（先读回本页已有的键，再覆盖列键）：<c>SavePage</c> 是整页替换，
+    /// 若只传列键，同一页里的页面级开关（详情栏的 <c>__detail</c> 等）会被一起抹掉 ——
+    /// 现象就是「点过一次列显隐，下次进页面详情栏开合状态丢了」。</para>
+    /// </summary>
     private void SaveVisibility()
     {
         if (_cols == null) return;
-        var map = new Dictionary<string, bool>();
+        var map = _cols.LoadPage(PageKey);
         foreach (var c in Columns) map[c.Key] = Vis(c.Key);
         _cols.SavePage(PageKey, map);
     }

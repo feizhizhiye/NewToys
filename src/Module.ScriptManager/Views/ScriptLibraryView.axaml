@@ -2,15 +2,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.ScriptManager.Views.ScriptLibraryView">
-  <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
-        详情卡在右列、从页面顶到底（加上左树就是三列）。
-        NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。  -->
+  <!--
+    「脚本库」页：三列布局（左树 | 列表 | 详情，列表列内含扫描面板）。
+    列表本体 = <v:TableViewHost>：列显隐 / 排序键按 VM 的 ColumnLayout 对齐（🔴 声明顺序必须一致），
+    故骨架的 HeaderArea 不填。
+  -->
   <v:ListPageSkeleton EmptyMessage="没有可显示的脚本条目。点「📂 导入」把脚本文件建成条目。"
                       EmptyActionText="📂 导入"
                       EmptyActionCommand="{Binding ImportScriptFolderCommand}"
                       IsEmpty="{Binding !HasItems}">
 
-    <!--  ==================== 扫描候选面板（NT-068 §三.6；有扫描结果才展开）  ====================  -->
+    <!--  ==================== 扫描候选面板（有扫描结果才展开）  ====================  -->
     <v:ListPageSkeleton.TopArea>
       <Border IsVisible="{Binding HasScanResult}"
               BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
@@ -38,72 +40,13 @@
       </Border>
     </v:ListPageSkeleton.TopArea>
 
-    <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 只放扫描面板）  ====================  -->
-    <v:ListPageSkeleton.HeaderArea>
-      <Border Classes="list-header">
-            <v:ColumnGrid x:Name="HeaderGrid" ColumnSpecs="{Binding VisibleColumnSpecs}"
-                          IsResizable="True" LockedColumns="{Binding LockedColumnMask}"
-                          SampleSpecs="{Binding SampleSpecs}">
-              <Button Grid.Column="0" Classes="col-header" Content="{Binding TitleHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Title" ToolTip.Tip="点一下按名称排序"
-                      IsVisible="{Binding IsTitleVisible}"/>
-              <Button Grid.Column="1" Classes="col-header" Content="{Binding CategoryHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Category" ToolTip.Tip="点一下按功能排序"
-                      IsVisible="{Binding IsCategoryVisible}"/>
-              <!-- v3.63 新增「分类」列：脚本 = 脚本后缀 / 命令行命令 = Shell 宿主；派生值，不可排序 -->
-              <TextBlock Grid.Column="2" Classes="list-cell" Text="分类" FontWeight="SemiBold"
-                         ToolTip.Tip="脚本 = 脚本后缀（.py/.ps1/.bat/.cmd）；命令行命令 = Shell 宿主（cmd / pwsh / 自动）"
-                         IsVisible="{Binding IsClassifyVisible}"/>
-              <Button Grid.Column="3" Classes="col-header" Content="简介"
-                      Command="{Binding SortCommand}" CommandParameter="Description"
-                      IsVisible="{Binding IsDescriptionVisible}"/>
-              <Button Grid.Column="4" Classes="col-header" Content="{Binding FavoriteHeader}"
-                      Command="{Binding SortCommand}" CommandParameter="Favorite" ToolTip.Tip="点一下把收藏的排在前面"
-                      IsVisible="{Binding IsFavoriteVisible}"/>
-              <TextBlock Grid.Column="5" Classes="list-cell" Text="可采集" FontWeight="SemiBold"
-                         ToolTip.Tip="✔ = 可当采集器（只读、无副作用）；✖ = 不可采集（悬浮看原因）"
-                         IsVisible="{Binding IsCollectableVisible}"/>
-              <TextBlock Grid.Column="6" Classes="list-cell" Text="操作" FontWeight="SemiBold"
-                         IsVisible="{Binding IsActionVisible}"/>
-              <v:ColumnGrid.ContextMenu>
-                <ContextMenu>
-                  <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
-                    <MenuItem.ItemContainerTheme>
-                      <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                        <Setter Property="Header" Value="{Binding Label}"/>
-                        <Setter Property="Command" Value="{Binding Command}"/>
-                      </ControlTheme>
-                    </MenuItem.ItemContainerTheme>
-                  </MenuItem>
-                  <Separator/>
-                  <!-- ⚠️ IsChecked 必须显式 Mode=OneWay：翻转由 ToggleColumnCommand 独家负责（默认双向会二次翻转）。 -->
-                  <MenuItem Header="名称" IsEnabled="False" ToolTip.Tip="标识列固定显示，不可隐藏" ToggleType="CheckBox" IsChecked="{Binding IsTitleVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Title"/>
-                  <MenuItem Header="功能" ToggleType="CheckBox" IsChecked="{Binding IsCategoryVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Category"/>
-                  <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsClassifyVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Classify"/>
-                  <MenuItem Header="简介" ToggleType="CheckBox" IsChecked="{Binding IsDescriptionVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Description"/>
-                  <MenuItem Header="★" ToggleType="CheckBox" IsChecked="{Binding IsFavoriteVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Favorite"/>
-                  <MenuItem Header="可采集" ToggleType="CheckBox" IsChecked="{Binding IsCollectableVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Collectable"/>
-                  <MenuItem Header="操作（▶ 运行）" ToggleType="CheckBox" IsChecked="{Binding IsActionVisible, Mode=OneWay}"
-                            Command="{Binding ToggleColumnCommand}" CommandParameter="Action"/>
-                </ContextMenu>
-              </v:ColumnGrid.ContextMenu>
-            </v:ColumnGrid>
-      </Border>
-    </v:ListPageSkeleton.HeaderArea>
-
     <v:ListPageSkeleton.ListArea>
-          <ListBox x:Name="ActionList" Classes="list-page"
-                   ItemsSource="{Binding Items}"
-                   SelectedItem="{Binding Selected, Mode=TwoWay}"
-                   SelectionMode="Single">
-            <!-- 右键 = 「选中项更多功能」的主入口（作用对象 = 当前选中行） -->
-            <ListBox.ContextMenu>
+          <v:TableViewHost x:Name="ActionList"
+                           ItemsSource="{Binding Items}"
+                           SelectedItem="{Binding Selected, Mode=TwoWay}"
+                           SelectionMode="Single">
+            <!-- 右键 =「选中项更多功能」的主入口（作用对象 = 当前选中行）  -->
+            <v:TableViewHost.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
                           IsEnabled="{Binding IsNotBusy}"/>
@@ -120,36 +63,46 @@
                 <MenuItem Header="🔥 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <MenuItem Header="🗑 从列表移除" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
               </ContextMenu>
-            </ListBox.ContextMenu>
+            </v:TableViewHost.ContextMenu>
 
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <v:ColumnGrid ColumnSpecs="{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}">
-                  <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding DisplayTitle}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsTitleVisible}"/>
-                  <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Category}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsCategoryVisible}"/>
-                  <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Classify}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsClassifyVisible}"/>
-                  <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding Description}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsDescriptionVisible}"/>
-                  <TextBlock Grid.Column="4" Classes="list-cell accent" Text="{Binding FavoriteMark}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsFavoriteVisible}"/>
-                  <!-- NT-068 S3：「可采集」—— ✖ 时悬浮显示不可采集的原因 -->
-                  <TextBlock Grid.Column="5" Classes="list-cell" Text="{Binding CollectableMark}"
-                             ToolTip.Tip="{Binding IneligibleReason}"
-                             IsVisible="{Binding $parent[ListBox].DataContext.IsCollectableVisible}"/>
-                  <!-- 行内「▶ 运行」：每行可直接运行 -->
-                  <Button Grid.Column="6" Classes="ghost row-btn" Content="▶ 运行"
-                          Command="{Binding $parent[ListBox].DataContext.RunCommand}"
-                          CommandParameter="{Binding}"
-                          IsEnabled="{Binding $parent[ListBox].DataContext.IsNotBusy}"
-                          IsVisible="{Binding $parent[ListBox].DataContext.IsActionVisible}"
-                          ToolTip.Tip="按条目类型运行：命令行命令 / 脚本文件（.py / .ps1 / .bat）"/>
-                </v:ColumnGrid>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
+            <v:TableViewHost.Columns>
+              <TableViewColumn Width="3*">
+                <TableViewColumn.CellTemplate>
+                  <DataTemplate>
+                    <TextBlock Classes="list-cell primary" Text="{Binding DisplayTitle}"/>
+                  </DataTemplate>
+                </TableViewColumn.CellTemplate>
+              </TableViewColumn>
+
+              <TableViewColumn Width="1.3*" Binding="{Binding Category}"/>
+              <TableViewColumn Width="1.1*" Binding="{Binding Classify}"/>
+              <TableViewColumn Width="4*" Binding="{Binding Description}"/>
+              <TableViewColumn Width="0.9*" Binding="{Binding FavoriteMark}" HorizontalContentAlignment="Center"/>
+
+              <!--  「可采集」—— ✖ 时悬浮显示不可采集的原因  -->
+              <TableViewColumn Width="0.9*" Header="可采集" HorizontalContentAlignment="Center">
+                <TableViewColumn.CellTemplate>
+                  <DataTemplate>
+                    <TextBlock Classes="list-cell" Text="{Binding CollectableMark}"
+                               ToolTip.Tip="{Binding IneligibleReason}"/>
+                  </DataTemplate>
+                </TableViewColumn.CellTemplate>
+              </TableViewColumn>
+
+              <!--  行内「▶ 运行」：每行可直接运行（命令取自页面 VM，故走 $parent[UserControl]）  -->
+              <TableViewColumn Width="1.5*" Header="操作">
+                <TableViewColumn.CellTemplate>
+                  <DataTemplate>
+                    <Button Classes="ghost row-btn" Content="▶ 运行"
+                            Command="{Binding $parent[UserControl].DataContext.RunCommand}"
+                            CommandParameter="{Binding}"
+                            IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
+                            ToolTip.Tip="按条目类型运行：命令行命令 / 脚本文件（.py / .ps1 / .bat）"/>
+                  </DataTemplate>
+                </TableViewColumn.CellTemplate>
+              </TableViewColumn>
+            </v:TableViewHost.Columns>
+          </v:TableViewHost>
     </v:ListPageSkeleton.ListArea>
   </v:ListPageSkeleton>
 </UserControl>

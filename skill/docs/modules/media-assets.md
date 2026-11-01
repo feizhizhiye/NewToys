@@ -29,10 +29,12 @@
 | `settings-media-assets` | 媒体资产设置 | 99 | `SettingsMediaAssetsView` | 元数据 / 缩略图 / 扫描偏好 |
 
 - 🔴 **5 个类型页已删除**（`assets-video` / `-music` / `-book` / `-image` / `-document`，NT-063 P2-a，2026-10-16）：类型切换改由 `assets-all` **筛选栏的既有类型下拉**驱动列集合 / 详情卡视频字段 / 状态栏前缀。
-  - 类型切换是**即时设定，⛔ 不落盘**；`CaptureUserColumnPrefs` 保住用户列偏好。
+  - 类型切换是**即时设定，⛔ 不落盘**；「▤ 列」里用户亲手勾过的列在本会话内优先（`_userColumnKeys` 仅由 `ToggleAssetColumn` 填充）。
   - `AssetAllViewModel` 的 `SetPresetType` / `PageKey` / `StatusPrefix` 三个虚成员已收窄，不再有派生子类。
 
 ## 2.5 操作逻辑（交互契约）
+
+> **列表本体**：表格型列表页 = `<v:TableViewHost>`（原生表格）。点表头排序、拖列边界调列宽（会话内有效）；**列显隐走「行右键 → ▤ 列」**（TableView 表头无独立右键）。磁贴页（`assets-browse`）仍用 ListBox。详见 `../ui.md` §6.3c。
 
 > 跨模块共用语义见 `../ui.md` §10。本模块**所有磁盘写入只经 `FileOperationService`**，其它操作只改索引。
 
@@ -62,7 +64,7 @@
 | 打开 / 定位 | 行右键「📂 打开」「📁 打开所在文件夹」 | 系统关联打开 / 资源管理器定位 | 状态栏先显示「正在打开/正在定位…」（慢盘唤醒期间有反馈、窗口不卡）；失败 ⇒ 状态栏 `⚠` |
 | 发送到视频工具 | 行右键「➡ 发送到视频工具」 | 把选中行里的**视频**按路径去重后投递给「视频工具 → 视频列表」页（`IModuleBus` 主题 `video.import`，载荷 = `(路径, metadata_json)`），随后自动导航过去 | 只挑 `Type == video` 的行，非视频跳过并在状态栏报数（「另有 N 个非视频已跳过」）；无选中 / 全非视频 ⇒ 只给提示、不跳页；**库里已读到的媒体信息随行带走**（对方不再重跑 ffprobe，没读过的字段留空）；跨模块通道见 `../framework.md` §6.8 |
 | 筛选下拉展开位置 | 筛选栏四个下拉任一 | 候选列表**贴住筛选框左边缘**向下展开（`PlacementMode.BottomEdgeAlignedLeft`） | 🔴 主题模板默认 `Bottom`（水平居中）⇒ 选项文字长短一变列表就左右跳；实现在 **UI 库附加行为** `NewToys.UI.Behaviors.FilterDropDownAlign`（页面根节点 `ui:FilterDropDownAlign.Attach="True"` 即对该页所有 `filter-combo` 生效），写的是 Popup **实例**的本地值（优先级高于模板字面值），⛔ 别改回仅靠 XAML 样式（盖不住模板值） |
-| 类型切换 | 筛选栏**既有类型下拉** | 列集合 / 详情卡视频字段 / 状态栏前缀一起切 | **即时设定、⛔ 不落盘**；`CaptureUserColumnPrefs` 保住用户列偏好 |
+| 类型切换 | 筛选栏**既有类型下拉** | 表头列集合 / 详情卡视频字段 / 状态栏前缀一起切 | 列预设：**视频** = 时长·分辨率·编码·码率；**音乐** = 时长·码率；**图片** = 分辨率；**书籍 / 文档 / 其它 / 全部类型** = 四列全收起（名称·类型·标签·分类·集合·大小·修改时间·存储源恒显示）。**即时设定、⛔ 不落盘**；右键「▤ 列」勾过的列**本会话内优先**（`_userColumnKeys` 只由 `ToggleAssetColumn` 记，⛔ 不读落盘快照——`SaveVisibility` 是全量落盘，拿它当「用户设过」会把类型切换永久锁死） |
 | 搜索 | 工具条搜索框（88 宽） | 名称 / 路径 / 标签「包含」；**空格分词后每词都要命中**（AND） | 分词口径唯一源 = `AssetService.SplitSearchTokens`；SQL 与草稿态内存筛共用，⛔ 不许两边各写一套 |
 | 并入其他库 | `🗄 并入…` | 打开库 A → 打开库 B → `💾 保存`（工作副本模型） | 合并后按主键去重 + 关系重挂（否则生孤儿资产） |
 | 导入资产 | `📥 导入` | 选 json 列表 → **草稿态预览**（再点 `💾 加入库`）；选 `*.db` → **等同「并入」**（摘要确认 → 任务队列 → 完成后自动刷新） | ⛔ 不静默入库（两条路都要确认）；`.db` 走合并才保得住评分 / 描述 / 标签 |
@@ -243,6 +245,7 @@
 18. 🔴 **切目录卡顿的三处真凶**：① 左树是 `ListBox#TreeList`（自带虚拟化；⛔ 换回 `ItemsControl` + `StackPanel` 就是给每个节点建 Button）且 `RebuildTree()` 一次性换 `TreeNodes` 引用；`SelectNode` 只在展开状态**真的**变了才重建，选高亮只动「旧 + 新」两个节点；② 目录内容枚举（`DirectoryInfo.EnumerateFileSystemInfos`）一律在**后台线程**，回 UI 按 `_viewVersion` 校验后填卡；③ 排序 / 筛选在 UI 线程也要 O(n) 文化比较 ⇒ 大目录先丢后台。
 19. 🔴 **缩略图只解「可视区」，⛔ 别在填卡时全量解；且只解已入库项**：未入库项 ⛔ 不读盘（`AssetTile.WantsThumb` 里已经排除）。口径 = `FillChunk` 只解首屏 `InitialThumbQuota`（36）张；其余靠 **`ScrollViewer` 的 `Offset` / `Extent` / `Viewport` 属性通知**驱动 `ReportViewport(offset, viewport, extent)`，VM 按「平均每项占高」估算索引范围、上下各预取一屏，`_thumbRequested`（按**绝对路径**）去重。🔴 **⛔ 用 `LayoutUpdated` 当滚动驱动**：滚动只改 ScrollViewer 偏移，不保证每帧都触发本页布局回调 ⇒ 滚到底部时可视区一次都没上报过，缩略图停在首屏那 36 张（本轮 bug 根因）。缺缓存的图由**生成泵**随滚动持续追加生成（不是进目录一次性整页批处理）。换视图 / 换尺寸时 View 要解绑旧 ScrollViewer 的监听并把 `_lastReportedOffset` / `_lastReportedExtent` 重置成 `NaN`。
 20. 🔴 **嵌套文件夹（用户明确点名）**：① 目标目录**在**某个已登记源之内 ⇒ 扫码归该源，⛔ 不新建重叠源；② 目标目录**包含**已登记的其它源 ⇒ 那部分文件**跳过**（`AssetLibraryAddService` 用 `FindCoveringStorage` 过滤），否则同一物理文件被两个源各索引一次（见坑点 11）；③ 单文件入库且没有任何源覆盖它时，登记的是**它所在的目录**，⛔ 不登记盘符根（否则一扫就是整个盘）。
+21. 🔴 **TableView 内置列宽拖拽不能直接用**（Avalonia 12.1 `TableViewColumnHeader.OnResizerDragDelta`）：① 下限取 `resizer.Bounds.Width`（12px）⇒ 表头文字能被拖没；② 每帧算 `ActualWidth + delta`，而把手随列宽移动 ⇒ 正反馈，轻推一下列宽就跳一大截。本页改成**自绘拖拽**（`AssetAllView.axaml.cs::TryBeginColumnResize`）：命中口径是**列边界**（先命中把手 `PART_Resizer` 的 Thumb，兜底 ±10px 几何；主题把把手 IsEnabled 绑到列的 CanUserEffectivelyResize，固定列需用本地值放开），按下即 `e.Handled = true` 拦掉 Thumb；XAML 里所有列都可拖（⛔ 别再写 `CanUserResize="False"`），边界两侧一增一减、总宽守恒，最右列无右邻时只改自己，位移一律用**指针绝对 X − 起始 X**；首次移动时把其余可见星号列按当前宽**固化像素**，之后只改「被拖列 + 右侧最近的一个可拖列」一增一减 ⇒ 总宽守恒、其它列（含中间固定列）纹丝不动；下限 = 表头文字测宽 + 18。换别的页用 TableView 同样要自绘，⛔ 别指望控件自带。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

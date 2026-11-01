@@ -1,26 +1,15 @@
-using System;
 using Avalonia.Controls;
-using NewToys.MediaAssets.ViewModels;
 
 namespace NewToys.MediaAssets.Views;
 
 /// <summary>
-/// 「分类管理」页 code-behind：只转发表头拖拽 / 测宽事件 + 同步弹出菜单 DataContext。
-/// 树的展开 / 选中 / 成员加载全在 VM（⛔ 不用 TreeView，所以没有树事件要接线）。
+/// 「分类管理」页 code-behind：树的展开 / 选中 / 成员加载全在 VM（⛔ 不用 TreeView，所以没有树事件要接线）；
+/// 成员表格的排序 / 列宽 / 右键菜单 DataContext 由 <c>TableViewHost</c> 自理。
 /// </summary>
 public partial class AssetCategoriesView : UserControl
 {
     public AssetCategoriesView()
     {
         InitializeComponent();
-
-    }
-
-    /// <summary>⚠️ ContextMenu 在独立弹出树上，DataContext 不随宿主继承，必须手工同步（规范 §3.8）。</summary>
-    protected override void OnDataContextChanged(EventArgs e)
-    {
-        base.OnDataContextChanged(e);
-        if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
-        if (MemberList?.ContextMenu is { } lmenu) lmenu.DataContext = DataContext;
     }
 }

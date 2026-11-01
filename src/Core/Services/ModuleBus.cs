@@ -153,8 +153,20 @@ public sealed class ModuleBus : IModuleBus
         public bool TryInvoke(object? payload)
         {
             if (!_owner.TryGetTarget(out var target)) return false;
-            try { _method.Invoke(target, new object?[] { payload }); }
-            catch { /* 单个订阅者抛异常不该把投递方一起拖垮 */ }
+            try
+            {
+                _method.Invoke(target, new object?[] { payload });
+            }
+            catch (TargetException)
+            {
+                // 传的是闭包 lambda 时，Method 是编译器生成类的方法，target 绑定不回去。
+                // 返回 false ⇒ 调用方退回信箱（页面重建时 TakeAll 还能取到），⛔ 不能当已派发。
+                return false;
+            }
+            catch
+            {
+                // 单个订阅者自己抛异常不该把投递方一起拖垮，也不重投（避免同一页重复收到）。
+            }
             return true;
         }
     }

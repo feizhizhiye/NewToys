@@ -37,6 +37,9 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     private readonly INavigationService? _nav;
     private readonly List<StorageRow> _all = new();
 
+    /// <summary>队列事件订阅句柄（<see cref="Dispose"/> 里要退订，故不能写成内联 lambda）。</summary>
+    private EventHandler? _onQueueChanged;
+
     public ObservableCollection<StorageRow> Items { get; } = new();
 
     // ==================== 详情卡：统计 + 最近错误 ====================
@@ -215,7 +218,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         // 队列跑完（变为空闲）→ 自动回读：扫描改了文件数 / 缺失数，详情卡与列表都要跟上。
         // ⚠️ TaskQueue.Changed 来自后台线程 → 必须 Post 回 UI 线程。
         var wasBusy = _queue.IsBusy;
-        _queue.Changed += (_, _) =>
+        _onQueueChanged = (_, _) =>
         {
             try
             {
@@ -228,6 +231,17 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
             }
             catch { /* 设计期 / 已关闭 */ }
         };
+        _queue.Changed += _onQueueChanged;
+    }
+
+    /// <summary>标签关闭：退订单例队列事件（否则本页 VM 被单例钉住，关掉后仍在后台回读）。</summary>
+    public override void Dispose()
+    {
+        if (_onQueueChanged != null)
+        {
+            _queue.Changed -= _onQueueChanged;
+            _onQueueChanged = null;
+        }
     }
 
     // ==================== 加载 ====================

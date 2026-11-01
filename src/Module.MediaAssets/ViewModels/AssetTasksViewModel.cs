@@ -20,7 +20,7 @@ namespace NewToys.MediaAssets.ViewModels;
 /// </para>
 /// <para>🔴 <see cref="TaskQueue.Changed"/> 是**后台线程**抛的 → 必须 `Dispatcher.UIThread.Post` 切回 UI 再重建列表。</para>
 /// </summary>
-public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IToolbarSource
+public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IToolbarSource, IDisposable
 {
     // ==================== 声明式工具条（/ 需求 §4.8.5） ====================
     // ⚠️ 本页 VM 不是 ListPageViewModelBase ⇒ 契约成员自己实现（与 VideoPreviewViewModel 同一套路）。
@@ -69,6 +69,9 @@ public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IT
     private readonly ScanService _scan = null!;
     private readonly OperationLogService _opLog = null!;
 
+    /// <summary>队列事件订阅句柄（<see cref="Dispose"/> 里要退订，故不能写成内联 lambda）。</summary>
+    private EventHandler? _onQueueChanged;
+
     /// <summary>队列快照（最近的在最前）。</summary>
     public ObservableCollection<TaskItem> Tasks { get; } = new();
 
@@ -105,11 +108,22 @@ public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IT
         StatusText = Summary();
 
         // 队列任何变化（入队 / 起跑 / 完成 / 取消）都刷新一次；⚠️ 回调来自后台线程
-        _queue.Changed += (_, _) =>
+        _onQueueChanged = (_, _) =>
         {
             try { Dispatcher.UIThread.Post(ReloadTasks); }
             catch { /* 设计期 / 已关闭 */ }
         };
+        _queue.Changed += _onQueueChanged;
+    }
+
+    /// <summary>标签关闭：退订单例队列事件（否则本页 VM 被单例钉住，关掉后仍在 UI 线程白读一遍库）。</summary>
+    public void Dispose()
+    {
+        if (_onQueueChanged != null)
+        {
+            _queue.Changed -= _onQueueChanged;
+            _onQueueChanged = null;
+        }
     }
 
     private string Summary()

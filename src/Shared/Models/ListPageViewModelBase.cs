@@ -29,7 +29,7 @@ namespace NewToys.Shared.Models;
 /// 为 <c>"Is" + key + "Visible"</c> 发一次通知，所以列键必须与该属性名对得上。
 /// </para>
 /// </summary>
-public abstract partial class ListPageViewModelBase : ObservableObject, IStatusProvider, IToolbarSource
+public abstract partial class ListPageViewModelBase : ObservableObject, IStatusProvider, IToolbarSource, IDisposable
 {
     private readonly IColumnLayoutService? _cols;
 
@@ -43,6 +43,13 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     private bool _sortDescending;
 
     protected ListPageViewModelBase() { }
+
+    /// <summary>
+    /// 页面标签关闭时由 Shell 调用。
+    /// <para>🔴 派生类凡订阅了**单例服务**的事件（<c>TaskQueue.Changed</c> 这类），必须在这里 <c>-=</c> 退订：
+    /// 单例活到进程结束，不退订会把整个页面 VM（连同 Items）钉在内存里，并在页面关掉后继续被回调。</para>
+    /// </summary>
+    public virtual void Dispose() { }
 
     protected ListPageViewModelBase(IColumnLayoutService? cols, IOptionsStore? opts = null)
     {

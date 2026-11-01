@@ -52,6 +52,11 @@ public partial class TabItemViewModel : ObservableObject
     /// <summary>「⟳ 刷新」用：原地换掉缓存的 View + VM（标签身份/位置不变）。</summary>
     internal void Replace(object content, object? viewModel)
     {
+        // ⚠️ 旧 VM 必须在这里释放：它可能订阅了单例服务的事件（TaskQueue.Changed 这类），
+        //    不释放就会在每次「⟳ 刷新」时留下一个不会再显示、却仍在被回调的 VM。
+        if (!ReferenceEquals(ViewModel, viewModel))
+            (ViewModel as IDisposable)?.Dispose();
+
         Content = content;
         ViewModel = viewModel;
         OnPropertyChanged(nameof(Content));

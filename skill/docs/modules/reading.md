@@ -27,8 +27,8 @@
 | `reading-explore` | 发现 | 2 | `ExploreView` | 左「书源 → 分类」折叠树（书源名**整段显示不截断**、`Hint` 10px 小字、分类名 14px 为主角）+ 右**书单行列表**；点一行弹**书籍卡**（封面 / 作者 / 分类 / 最新章节 / 简介 + 开始阅读 / 加书架）；分类可翻页 |
 | `reading-search` | 网上搜索 | 3 | `SearchView` | 关键词 + 结果行列表；书源多选收进顶栏「📚 书源」弹出的浮层；点一条结果弹同一张书籍卡 |
 | `reading-shelf` | 书架 | 4 | `ShelfView` | 加进来的书；分组 / 读到哪章；**「🆕 批量更新」回源站抓目录、标出「有 N 章更新」**；双击进阅读页 |
-| `reading-read` | 阅读 | 5 | `ReaderView` | 沉浸式阅读：正文占满，目录点「📑 目录」、样式点「🎨 样式」各弹出一层覆盖层；自动记进度、下次续读 |
-| `settings-reading` | 网络阅读设置 | 100 | `SettingsReadingView` | 抓取（并发 / 超时 / UA / 缓存）+ 阅读器（字号 / 行距 / 字体 / 宽度 / 留白 / 配色 / **首行缩进 / 段间距 / 自定义色** / 进度）+ **样式方案**（预设 / 导入 / 导出） |
+| `reading-read` | 阅读 | 5 | `ReaderView` | 沉浸式阅读：正文占满，目录点「📑 目录」、样式点「🎨 样式」各弹出一层覆盖层；**顶栏「🎧 听书」用系统语音朗读本章**（正文下方出控制条）；自动记进度、下次续读 |
+| `settings-reading` | 网络阅读设置 | 100 | `SettingsReadingView` | 抓取（并发 / 超时 / UA / 缓存）+ 阅读器（字号 / 行距 / 字体 / 宽度 / 留白 / 配色 / **首行缩进 / 段间距 / 自定义色** / 进度）+ **听书**（语速 / 音量 / 音色）+ **样式方案**（预设 / 导入 / 导出） |
 
 **导入格式**：legado 书源 JSON，兼容**顶层数组** `[{…}]` 与 `{"bookSources":[…]}` 两种形态；编码按 BOM → 严格 UTF-8 → GB18030 嗅探。
 
@@ -84,6 +84,8 @@
 | 整本下载 | 阅读页顶栏「⬇ 下载」 | 先选保存位置 → 逐章抓正文（命中缓存的直接跳过）→ 合成一份 TXT（书名 / 作者 / 每章标题 + 正文，章节间用 `-----` 分隔） | 中途取消只停后续章节，**已抓的照常合并保存**；失败章节列在结算文案里，再点一次即可（已下的走缓存） |
 | 预下载 | 打开 / 翻章后自动触发 | 后台串行把后面 N 章抓进正文缓存（N 来自设置，默认 5，0 = 关） | 换章即重起一轮（⛔ 不叠加）；已有缓存的不重抓；失败静默，翻到那章时再正常抓 |
 | 替换规则 | 设置页「替换规则」节 | 每行 `正则##替换`（只写正则 = 删除），行首 `#` 当注释；在书源内联 `replaceRule` **之后**执行 | 只作用于新抓的正文；已缓存的章节仍是旧正文 ⇒ 改完点「🧹 清空正文缓存」；单条正则写错只跳过那一条 |
+| 听书 | 阅读页顶栏「🎧 听书」 | 把本章正文切成句子，交 Windows 自带语音（SAPI）逐句读；正文下方出现控制条：⏸ 暂停 / ▶ 继续、语速 − ＋、⏹ 停止；进度写「第 N/M 句」 | 只读**当前已加载的正文**（⛔ 不自动翻章）；暂停 / 停止在**句子边界**生效；换章 / 关页即停；语速改了从当前句重起 |
+| 听书设置 | 设置页「听书」节 | 语速（−10~10，0 = 正常）/ 音量（0~100）/ 音色（本机已装语音包，空 = 系统默认） | 与阅读页控制条同一份 `reading.json`；音色下拉在后台枚举，没装中文语音包就只有「系统默认」 |
 | 取消 | 搜索页 / 发现页「✖ 取消」 | 中断正在进行的抓取 | 每步都带同一取消令牌 |
 | 失败提示 | 任一步失败 | 错误条显示「哪一步 · 哪条规则 · 什么原因」 | ⛔ 不只显示"失败了" |
 
@@ -151,6 +153,10 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
 `reader-padding` / `reader-theme` / `reader-indent` / `reader-paragraph-spacing` / `reader-bg` / `reader-fg` /
 `reader-remember-progress`（后两个自定义色留空 = 跟配色档走）。
 
+听书那组的键：`tts-rate`（−10~10）/ `tts-volume`（0~100）/ `tts-voice`（系统音色的完整描述，空 = 默认音色）。
+
+- 听书不落任何库表：句子切分与朗读状态全在内存，关页即丢。
+
 - 阅读进度在「记住阅读进度」关掉后不再写库（已写的旧进度保留，不清）。
 
 - 🔴 **一个模块一个库**：三张表只在 `reading.db`；`ReadingSchemaContributor` 在首帧后幂等建表（`DatabaseKey = "reading"`）。
@@ -209,9 +215,18 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
 - 🔴 **校验只写三列、不碰别的**：`check_state` / `check_note` / `checked_at` 由 `SourceStore.SetCheck` 单条更新；重新导入走 `ON CONFLICT` 更新时**故意不覆盖这三列**（重导入不该把校验结论清成"未校验"）。
 - 🔴 **替换规则有两套语法，⛔ 混用**：书源内联 `ruleContent.replaceRule` 是 legado 三段 `规则##正则##替换`
   （`RuleSyntax.SplitReplace`）；设置页的**全局规则**是本机两段 `正则##替换`（`ReplaceRuleService`，行首 `#` 为注释）。
+- 🔴 **听书不能引 `System.Speech`**：本模块 TFM 是 `net10.0`，那个包只支持 `net10.0-windows`（引了直接 NU1202）。
+  走 `Type.GetTypeFromProgID("SAPI.SpVoice")` + `InvokeMember` 后期绑定；非 Windows 时 `Type.GetTypeFromProgID`
+  直接抛 ⇒ 先 `OperatingSystem.IsWindows()` 守卫，再把失败原因写成可见文案（页面提示装语音包）。
+- 🔴 **暂停 / 停止只能落在句子边界**：`SpVoice.Speak` 是同步调用，中途没有回调可以打断 ⇒ 切句必须够细
+  （按行 + 句末标点切，超长句再按逗号切到 90 字内），否则按一次暂停要等十几秒。⛔ 别为了"精确暂停"去用 SAPI 的
+  `Pause/Resume`：那是跨线程调 COM 对象，且 RunState 在暂停时不可靠。
+- 🔴 **朗读对象同一时刻只能一个线程用**：改语速 = Stop 后立刻 Start（从当前句重起），两个任务会抢同一个 `SpVoice`
+  ⇒ `RunAsync` 里用 `_speakGate` 串行；旧任务靠 token 取消快速退出，新任务等它一下即可。
+- 🔴 **朗读线程 ⇒ 一律 `Dispatcher.UIThread.Post` 改属性**：`SegmentStarted` 在后台线程触发，直接改
+  `ObservableProperty` 会在 Avalonia 里抛「不在 UI 线程」。
 
 ## 6. 待办（未立项）
-
 - ~~书源编辑器 / 规则调试面板~~ ✅ 已实施：工具条「✎ 编辑」（原始 JSON + 解析校验）与「▶ 试跑」（四段管线各跑一遍，
   逐段报耗时与失败规则，`SourceDebugService`）。
 - ~~正文全局替换净化~~ ✅ 已实施：`ReplaceRuleService` + 设置页「替换规则」节，在 `ContentAsync` 末尾、书源内联规则之后执行。
@@ -220,7 +235,7 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
 - ~~书源分组管理与批量操作~~ ✅ 已实施（批8）：页内筛选条（类型 / 分组 / 校验）+ 列表多选 + 批量启停 / 导出 / 删除 + 「📁 改分组」。
 - ~~书源校验~~ ✅ 已实施（批8）：`SourceCheckService` 逐源跑一次搜索，结论落库三列，支持「只看失效」与「删除全部失效」。
 - ~~书架批量更新~~ ✅ 已实施（批9）：`ShelfUpdateService`（详情 + 目录 → 比章数）+ 「更新」列 + 筛选 + 「只看有更新」；`shelf` 表补 5 列（schema v5）。
-- **TTS 听书**（Windows SAPI / edge-tts，需音频播放契约，本批不做）、**本地 TXT/EPUB 导入**、**RSS 订阅**。
+- ~~TTS 听书~~ ✅ 已实施（NT-133）：`TtsService` 走 Windows 自带 SAPI（COM 后期绑定）逐句朗读 + 暂停 / 语速 / 停止，设置页「听书」节管语速 / 音量 / 音色。仍未立项：**本地 TXT/EPUB 导入**、**RSS 订阅**。
 - ~~正文缓存~~ ✅ 已实施（NT-129）：`content_cache` 表 + `ContentCacheStore`，`ContentAsync` 首查尾写、`cache-enabled` 开关。
 - ~~换源~~ ✅ 已实施（NT-129）：多源并发比对 → 按「书名匹配度 → 速度」排序 → 换源浮层选源原地续读（⛔ 不再带书名回搜索页）。
 - **`java.*` 未覆盖的少数派**：~~`t2s` 繁转简~~ ✅ 已实施（NT-129，`TraditionalToSimplified` 内置映射）；`java.webview` / `startBrowserAwait` 桌面端不实现（这类源已判「需 WebView」）。

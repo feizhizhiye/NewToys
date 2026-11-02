@@ -39,6 +39,9 @@
           <Button Classes="ghost" Content="🔀 换源" Command="{Binding SwitchSourceAsyncCommand}" ToolTip.Tip="多源比对这本书，选最优源续读"/>
           <Button Classes="ghost" Content="⬇ 下载" Command="{Binding DownloadBookCommand}"
                   ToolTip.Tip="整本下载：全部章节抓下来合成一份 TXT（已缓存的章节不再请求）"/>
+          <Button Classes="ghost" Content="🎧 听书" Command="{Binding StartListenCommand}"
+                  IsVisible="{Binding !IsListening}"
+                  ToolTip.Tip="用系统语音朗读本章；正文下方会出现暂停 / 语速 / 停止控制条"/>
         </StackPanel>
       </DockPanel>
     </Border>
@@ -69,6 +72,33 @@
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
               <Button Classes="ghost" Content="▲ 上一章" Command="{Binding PrevChapterCommand}"/>
               <Button Classes="ghost" Content="▼ 下一章" Command="{Binding NextChapterCommand}"/>
+            </StackPanel>
+          </DockPanel>
+        </Border>
+
+        <!--  听书控制条：开始朗读后才出现；暂停 / 继续只在句子边界生效  -->
+        <Border DockPanel.Dock="Bottom"
+                IsVisible="{Binding IsListening}"
+                Background="{DynamicResource ContentHeaderBrush}"
+                BorderBrush="{DynamicResource DividerBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="12,6">
+          <DockPanel LastChildFill="False">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Button Classes="ghost" Content="⏸ 暂停" Command="{Binding ToggleListenPauseCommand}"
+                      IsVisible="{Binding !IsListenPaused}" ToolTip.Tip="读完当前这句就停住"/>
+              <Button Classes="ghost" Content="▶ 继续" Command="{Binding ToggleListenPauseCommand}"
+                      IsVisible="{Binding IsListenPaused}"/>
+              <TextBlock Classes="hint-text" Text="{Binding ListenStatus}" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <TextBlock Classes="hint-text" Text="语速" VerticalAlignment="Center"/>
+              <Button Classes="ghost" Content="−" Command="{Binding TtsSlowerCommand}" ToolTip.Tip="读慢一点（从当前句重起）"/>
+              <TextBlock Classes="list-cell primary" Width="28" TextAlignment="Center"
+                         Text="{Binding TtsRate}" VerticalAlignment="Center"/>
+              <Button Classes="ghost" Content="＋" Command="{Binding TtsFasterCommand}" ToolTip.Tip="读快一点（从当前句重起）"/>
+              <Button Classes="ghost" Content="⏹ 停止" Command="{Binding StopListenCommand}"/>
             </StackPanel>
           </DockPanel>
         </Border>

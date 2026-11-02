@@ -68,6 +68,11 @@ public sealed class ReadingSettingsService
     public const int MaxParagraphSpacing = 3;
     public const int DefaultParagraphSpacing = 1;
 
+    public const int MinTtsRate = -10;
+    public const int MaxTtsRate = 10;
+    public const int DefaultTtsRate = 0;
+    public const int DefaultTtsVolume = 100;
+
     private readonly IOptionsStore? _opts;
     private readonly ConfigStoreService? _cfg;
 
@@ -161,6 +166,17 @@ public sealed class ReadingSettingsService
     /// <summary>是否记住阅读进度。</summary>
     public bool RememberProgress => ReadBool("reader-remember-progress", true);
 
+    // ==================== 听书 ====================
+
+    /// <summary>朗读语速（SAPI 约定 −10~10，0 = 正常；负数更慢）。</summary>
+    public int TtsRate => ReadInt("tts-rate", DefaultTtsRate, MinTtsRate, MaxTtsRate);
+
+    /// <summary>朗读音量（0~100）。</summary>
+    public int TtsVolume => ReadInt("tts-volume", DefaultTtsVolume, 0, 100);
+
+    /// <summary>音色（系统音色的完整描述）；空 = 系统默认音色。</summary>
+    public string TtsVoice => (_opts?.Get(Module, "tts-voice") ?? "").Trim();
+
     // ==================== 写入（设置页 / 阅读浮层共用） ====================
 
     public string SetConcurrency(int value)
@@ -225,6 +241,15 @@ public sealed class ReadingSettingsService
     public string SetCustomForeground(string? value) => Save("reader-fg", NormalizeColor(value), "文字色", 0, 0);
 
     public string SetRememberProgress(bool value) => Save("reader-remember-progress", value ? "true" : "false", "记住进度", 0, 0);
+
+    public string SetTtsRate(int value)
+        => Save("tts-rate", Clamp(value, MinTtsRate, MaxTtsRate).ToString(CultureInfo.InvariantCulture),
+            "朗读语速", MinTtsRate, MaxTtsRate);
+
+    public string SetTtsVolume(int value)
+        => Save("tts-volume", Clamp(value, 0, 100).ToString(CultureInfo.InvariantCulture), "朗读音量", 0, 100);
+
+    public string SetTtsVoice(string? value) => Save("tts-voice", (value ?? "").Trim(), "朗读音色", 0, 0);
 
     /// <summary>配色档的存储键（与 <see cref="ParseTheme"/> 对称）。</summary>
     public static string ThemeKey(ReaderTheme theme) => theme switch

@@ -145,6 +145,29 @@
       <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StyleHint}"/>
     </StackPanel>
 
+    <!--  听书：语速 / 音量 / 音色（读完即落盘，阅读页顶栏 🎧 听书 使用这一份）  -->
+    <StackPanel x:Key="Sec5" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="语速（−10 ~ 10，0 = 正常）"/>
+        <TextBox Width="120" Text="{Binding TtsRate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="音量（0 ~ 100）"/>
+        <TextBox Width="120" Text="{Binding TtsVolume, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="音色"/>
+        <ComboBox MinWidth="320"
+                  ItemsSource="{Binding VoiceChoices}"
+                  DisplayMemberBinding="{Binding Label}"
+                  SelectedValueBinding="{Binding Value}"
+                  SelectedValue="{Binding TtsVoice, Mode=TwoWay}"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding TtsHint}"/>
+      </StackPanel>
+    </StackPanel>
+
     <StackPanel x:Key="Sec3" Spacing="6">
       <TextBlock FontFamily="Consolas" FontSize="12" Text="{Binding ConfigFilePath}" TextWrapping="Wrap"/>
       <TextBlock Classes="hint-text" TextWrapping="Wrap"

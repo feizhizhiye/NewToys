@@ -40,6 +40,7 @@ public class ReadingModule : IModule
         services.AddSingleton<SourceDebugService>();
         services.AddSingleton<SourceCheckService>();
         services.AddSingleton<ShelfUpdateService>();
+        services.AddSingleton<TtsService>();
 
         services.AddTransient<Views.SourceListView>();
         services.AddTransient<SourceListViewModel>();
@@ -80,9 +81,9 @@ public class ReadingModule : IModule
             "搜到后加进书架的书；双击接着读，可分组");
 
         menu.RegisterFunction<Views.ReaderView>(GroupKey, "reading-read", "阅读", "📖", 5,
-            "沉浸式读一本书：目录按需弹出、字号行距配色、自动记住读到哪");
+            "沉浸式读一本书：目录按需弹出、字号行距配色、自动记住读到哪、听书朗读");
 
         menu.RegisterFunction<Views.SettingsReadingView>(GroupKey, "settings-reading", "网络阅读设置", "⚙", 100,
-            "抓取：并发 / 超时 / UA / 正文缓存；阅读器：字号 / 行距 / 字体 / 宽度 / 配色 / 进度");
+            "抓取：并发 / 超时 / UA / 正文缓存；阅读器：字号 / 行距 / 字体 / 宽度 / 配色 / 进度；听书：语速 / 音量 / 音色");
     }
 }

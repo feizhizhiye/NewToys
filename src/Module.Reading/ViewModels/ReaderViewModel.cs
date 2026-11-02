@@ -32,11 +32,15 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     private readonly INavigationService? _nav;
     private readonly PrefetchService? _prefetch;
     private readonly BookDownloadService? _download;
+    private readonly TtsService? _tts;
 
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _prefetchCts;
     private CancellationTokenSource? _downloadCts;
     private bool _syncing;
+
+    /// <summary>当前这一章的朗读句子（语速变了要从当前句重起，所以留一份）。</summary>
+    private IReadOnlyList<string> _ttsSentences = Array.Empty<string>();
 
     /// <summary>当前这本书来自哪个书源（换源 / 抓正文都要它）。</summary>
     private string _sourceUrl = "";
@@ -91,13 +95,28 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     /// <summary>样式卡是否展开（顶栏「🎨 样式」弹出；遮罩 / 关闭按钮收起）。</summary>
     [ObservableProperty] private bool _showStylePanel;
 
+    // ==================== 听书（TTS） ====================
+
+    /// <summary>听书进行中（正文下方控制栏的显示开关）。</summary>
+    [ObservableProperty] private bool _isListening;
+
+    /// <summary>听书已暂停（控制栏在「⏸ 暂停 / ▶ 继续」之间切换）。</summary>
+    [ObservableProperty] private bool _isListenPaused;
+
+    /// <summary>听书进度读数（「第 12/158 句」）。</summary>
+    [ObservableProperty] private string _listenStatus = "";
+
+    /// <summary>朗读语速（−10~10，与设置页同一份；听书中改会从当前句重起）。</summary>
+    [ObservableProperty] private int _ttsRate = ReadingSettingsService.DefaultTtsRate;
+
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
     public ReaderViewModel() : this(null!, null!, null!, null!, null!, null!, new ReadingSession()) { }
 
     public ReaderViewModel(
         SourceStore store, CrawlService crawl, ShelfStore shelf, ProgressStore progress,
         ReadingSettingsService settings, ReaderStyleService styles, ReadingSession session,
-        INavigationService? nav = null, PrefetchService? prefetch = null, BookDownloadService? download = null)
+        INavigationService? nav = null, PrefetchService? prefetch = null, BookDownloadService? download = null,
+        TtsService? tts = null)
     {
         _store = store;
         _crawl = crawl;
@@ -109,6 +128,13 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         _nav = nav;
         _prefetch = prefetch;
         _download = download;
+        _tts = tts;
+
+        if (_tts is not null)
+        {
+            _tts.StateChanged += OnTtsStateChanged;
+            _tts.SegmentStarted += OnTtsSegment;
+        }
 
         if (settings is not null)
         {
@@ -671,6 +697,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         ReaderPadding = _settings.ReaderPadding;
         Indent = _settings.Indent;
         ParagraphSpacing = _settings.ParagraphSpacing;
+        TtsRate = _settings.TtsRate;
         _syncing = false;
 
         OnPropertyChanged(nameof(TypographyText));
@@ -716,6 +743,102 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         TypographyChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    // ==================== 听书 ====================
+
+    /// <summary>从本章第一句开始朗读（顶栏「🎧 听书」）。</summary>
+    [RelayCommand]
+    private void StartListen()
+    {
+        if (_tts is null) { StatusText = "⚠ 听书服务未就绪。"; return; }
+        if (_tts.IsSpeaking) return;
+
+        var sentences = TtsService.SplitSentences(ContentText);
+        if (sentences.Count == 0) { StatusText = "⚠ 当前没有可朗读的正文。"; return; }
+
+        _ttsSentences = sentences;
+        var error = _tts.Start(sentences, 0, TtsRate,
+            _settings?.TtsVolume ?? ReadingSettingsService.DefaultTtsVolume, _settings?.TtsVoice ?? "");
+        if (error.Length > 0) { StatusText = error; return; }
+
+        IsListening = true;
+        IsListenPaused = false;
+        ListenStatus = $"第 1/{sentences.Count} 句";
+        StatusText = $"听书中 · {ChapterTitle}";
+    }
+
+    /// <summary>暂停 / 继续（在句子边界生效）。</summary>
+    [RelayCommand]
+    private void ToggleListenPause()
+    {
+        if (_tts is null || !_tts.IsSpeaking) return;
+
+        if (_tts.IsPaused) { _tts.Resume(); IsListenPaused = false; }
+        else { _tts.Pause(); IsListenPaused = true; }
+    }
+
+    /// <summary>停止朗读（当前句读完即止）。</summary>
+    [RelayCommand]
+    private void StopListen()
+    {
+        var wasListening = IsListening;
+
+        _tts?.Stop();
+        IsListening = false;
+        IsListenPaused = false;
+        ListenStatus = "";
+
+        if (wasListening) StatusText = $"{ChapterTitle} · 已停止听书";
+    }
+
+    [RelayCommand]
+    private void TtsFaster() => TtsRate = Math.Min(TtsRate + 1, ReadingSettingsService.MaxTtsRate);
+
+    [RelayCommand]
+    private void TtsSlower() => TtsRate = Math.Max(TtsRate - 1, ReadingSettingsService.MinTtsRate);
+
+    partial void OnTtsRateChanged(int value)
+    {
+        if (_syncing) return;
+
+        _settings?.SetTtsRate(value);
+
+        // 听书中改语速：从当前句重起（SAPI 的 Rate 只在 Speak 前读，改不了正在读的那句）
+        if (!IsListening || _tts is null) return;
+        if (_ttsSentences.Count == 0) return;
+
+        var error = _tts.Start(_ttsSentences, _tts.Index, value,
+            _settings?.TtsVolume ?? ReadingSettingsService.DefaultTtsVolume, _settings?.TtsVoice ?? "");
+        if (error.Length > 0) { StatusText = error; StopListen(); return; }
+
+        IsListenPaused = false;
+    }
+
+    /// <summary>换句通知在朗读线程上发 ⇒ 一律切回 UI 线程再改属性。</summary>
+    private void OnTtsSegment(object? sender, TtsProgress progress)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (!IsListening) return;
+            ListenStatus = $"第 {progress.Index + 1}/{progress.Count} 句";
+        });
+    }
+
+    /// <summary>朗读结束 / 失败：收起控制栏；有失败原因就报到状态栏。</summary>
+    private void OnTtsStateChanged(object? sender, EventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (_tts is null || _tts.IsSpeaking || !IsListening) return;
+
+            IsListening = false;
+            IsListenPaused = false;
+            ListenStatus = "";
+            StatusText = _tts.UnavailableReason.Length > 0
+                ? "⚠ " + _tts.UnavailableReason
+                : $"{ChapterTitle} · 听书结束";
+        });
+    }
+
     // ==================== 正文 ====================
 
     private async Task LoadContentAsync(Chapter chapter)
@@ -729,6 +852,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         }
 
         Cancel();
+        if (IsListening) StopListen();
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
@@ -815,6 +939,14 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         try { _downloadCts?.Cancel(); } catch { /* 已结束 */ }
         _prefetchCts?.Dispose();
         _downloadCts?.Dispose();
+
+        if (_tts is not null)
+        {
+            _tts.StateChanged -= OnTtsStateChanged;
+            _tts.SegmentStarted -= OnTtsSegment;
+            _tts.Stop();
+        }
+
         if (_settings is not null) _settings.Changed -= OnSettingsChanged;
         ContentChanged = null;
         TypographyChanged = null;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -13,6 +14,9 @@ namespace NewToys.Reading.ViewModels;
 /// <summary>配色下拉项。</summary>
 public sealed record ReaderThemeOption(ReaderTheme Value, string Label);
 
+/// <summary>音色下拉项（<c>Value</c> 空 = 系统默认音色）。</summary>
+public sealed record TtsVoiceOption(string Value, string Label);
+
 /// <summary>
 /// 「网络阅读 → 阅读设置」页（<c>settings-reading</c>）：抓取参数 + 阅读器参数，两节落在同一份
 /// <c>config\reading.json</c>；改即落盘（⛔ 无保存按钮）。
@@ -23,6 +27,7 @@ public partial class SettingsReadingViewModel : ObservableObject, IStatusProvide
     private readonly ReadingSettingsService _settings = null!;
     private readonly ReaderStyleService _styles = null!;
     private readonly ContentCacheStore? _cache;
+    private readonly TtsService? _tts;
 
     /// <summary>灌值时抑制「改属性 → 回写」。</summary>
     private bool _syncing;
@@ -30,9 +35,10 @@ public partial class SettingsReadingViewModel : ObservableObject, IStatusProvide
     public SettingsReadingViewModel() { }
 
     public SettingsReadingViewModel(ReadingSettingsService settings, ReaderStyleService styles,
-        ContentCacheStore? cache = null)
+        ContentCacheStore? cache = null, TtsService? tts = null)
     {
         _cache = cache;
+        _tts = tts;
         _settings = settings;
         _styles = styles;
 
@@ -55,9 +61,13 @@ public partial class SettingsReadingViewModel : ObservableObject, IStatusProvide
         CustomForeground = settings.CustomForeground;
         RememberProgress = settings.RememberProgress;
         ReplaceRules = settings.ReplaceRules;
+        TtsRate = settings.TtsRate;
+        TtsVolume = settings.TtsVolume;
+        TtsVoice = settings.TtsVoice;
         _syncing = false;
 
         StatusText = $"设置就绪 · 写入 {settings.FilePath}";
+        _ = LoadVoicesAsync();
     }
 
     // ==================== 抓取 ====================
@@ -199,6 +209,49 @@ public partial class SettingsReadingViewModel : ObservableObject, IStatusProvide
         new ReaderThemeOption(ReaderTheme.Sepia, "米黄"),
         new ReaderThemeOption(ReaderTheme.Dark, "暗色"),
     };
+
+    // ==================== 听书（TTS） ====================
+
+    [ObservableProperty] private int _ttsRate = ReadingSettingsService.DefaultTtsRate;
+
+    partial void OnTtsRateChanged(int value) => Save(_settings?.SetTtsRate(value));
+
+    [ObservableProperty] private int _ttsVolume = ReadingSettingsService.DefaultTtsVolume;
+
+    partial void OnTtsVolumeChanged(int value) => Save(_settings?.SetTtsVolume(value));
+
+    [ObservableProperty] private string _ttsVoice = "";
+
+    partial void OnTtsVoiceChanged(string value) => Save(_settings?.SetTtsVoice(value));
+
+    /// <summary>音色候选（首项 = 系统默认；其余来自本机已装语音包）。</summary>
+    public ObservableCollection<TtsVoiceOption> VoiceChoices { get; } = new()
+    {
+        new TtsVoiceOption("", "系统默认音色"),
+    };
+
+    /// <summary>听书说明。</summary>
+    public string TtsHint =>
+        $"语速 {ReadingSettingsService.MinTtsRate}~{ReadingSettingsService.MaxTtsRate}（0 = 正常，负数更慢），音量 0~100。"
+        + "音色来自本机已装的语音包；没有中文音色就先去「Windows 设置 → 时间和语言 → 语音」装一个。"
+        + "听书入口在阅读页顶栏「🎧 听书」。";
+
+    /// <summary>枚举本机音色（后台跑，回来补进下拉；当前值不在列表里也保留一项）。</summary>
+    private async Task LoadVoicesAsync()
+    {
+        if (_tts is null) return;
+
+        IReadOnlyList<string> voices;
+        try { voices = await _tts.LoadVoicesAsync().ConfigureAwait(true); }
+        catch { return; }
+
+        foreach (var name in voices)
+            if (!VoiceChoices.Any(o => string.Equals(o.Value, name, StringComparison.OrdinalIgnoreCase)))
+                VoiceChoices.Add(new TtsVoiceOption(name, name));
+
+        if (!string.IsNullOrWhiteSpace(TtsVoice) && !VoiceChoices.Any(o => o.Value == TtsVoice))
+            VoiceChoices.Insert(1, new TtsVoiceOption(TtsVoice, TtsVoice));
+    }
 
     // ==================== 样式方案（与阅读页「🎨 样式」卡同一套） ====================
 

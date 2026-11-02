@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using NewToys.UI.Readers;
 using NewToys.UI.Viewers;
@@ -34,6 +35,7 @@ public abstract class ViewerPageBase : UserControl
     private IReadOnlyList<string> _siblings = Array.Empty<string>();          // 同目录图片
     private int _entryIndex;                                                  // 当前第几张（两种来源共用）
     private int _navToken;                                                    // 丢弃过期的异步翻页结果
+    private long _lastWheelTick;                                              // 滚轮翻页节流（触控板防连翻）
     private bool _suppress;
 
     private string _readerPath = "";
@@ -56,6 +58,9 @@ public abstract class ViewerPageBase : UserControl
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
+
+        // 图片页滚轮翻页：走隧道阶段抢在 ScrollViewer 之前拦下
+        AddHandler(InputElement.PointerWheelChangedEvent, OnWheelNavigate, RoutingStrategies.Tunnel);
 
         // 页面卸载 / 切走时把进度存下来
         DetachedFromVisualTree += (_, _) => SaveProgress();
@@ -499,6 +504,27 @@ public abstract class ViewerPageBase : UserControl
     {
         if (EntryCount == 0) return;
         ShowEntry(_entryIndex + delta);
+    }
+
+    /// <summary>
+    /// 滚轮翻页（图片页）：无 Ctrl 且未放大时滚轮 = 上一张 / 下一张。
+    /// <para>🔴 隧道阶段拦截并 <c>Handled</c>，否则 <see cref="ScrollViewer"/> 会先把滚轮吃掉。</para>
+    /// <para>🔴 放大后（Zoom &gt; 1）放弃拦截 —— 此时用户要的是滚动查看局部，不是翻页。</para>
+    /// </summary>
+    private void OnWheelNavigate(object? sender, PointerWheelEventArgs e)
+    {
+        if (_vm is null || EntryCount < 2) return;
+        if (Host.Kind != ViewerKind.Image) return;
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;   // Ctrl + 滚轮 = 缩放
+        if (Host.Zoom > 1.01) return;
+        if (Math.Abs(e.Delta.Y) < 0.01) return;
+
+        var now = Environment.TickCount64;
+        if (now - _lastWheelTick < 180) { e.Handled = true; return; }   // 触控板一次滑动只算一格
+        _lastWheelTick = now;
+
+        e.Handled = true;
+        ShowEntry(_entryIndex + (e.Delta.Y > 0 ? -1 : 1));
     }
 
     // ==================== 音频 ====================

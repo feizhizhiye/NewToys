@@ -276,7 +276,7 @@ public partial class ViewerView : UserControl
         try
         {
             ArchiveList.SelectedIndex = target;
-            ArchiveList.ScrollIntoView(ArchiveList.SelectedItem);
+            if (ArchiveList.SelectedItem is { } selected) ArchiveList.ScrollIntoView(selected);
         }
         finally { _suppress = false; }
 

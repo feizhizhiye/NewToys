@@ -67,7 +67,7 @@
       <Grid RowDefinitions="Auto,*,Auto">
         <TextBox x:Name="TocFilter"
                  Margin="8"
-                 Watermark="过滤章节名"
+                 PlaceholderText="过滤章节名"
                  TextChanged="OnTocFilterChanged" />
         <ListBox x:Name="TocList"
                  Grid.Row="1"
@@ -115,7 +115,7 @@
             BorderThickness="1,0,0,0">
       <Grid RowDefinitions="Auto,*,Auto" Margin="10">
         <Grid ColumnDefinitions="*,Auto">
-          <TextBox x:Name="SearchBox" Watermark="全书搜索" KeyDown="OnSearchKeyDown" />
+          <TextBox x:Name="SearchBox" PlaceholderText="全书搜索" KeyDown="OnSearchKeyDown" />
           <Button Grid.Column="1"
                   Classes="primary"
                   Margin="6,0,0,0"

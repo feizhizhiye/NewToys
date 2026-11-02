@@ -104,8 +104,8 @@
         </ListBox>
 
         <StackPanel Grid.Row="2" Spacing="6" Margin="0,8,0,0">
-          <TextBox x:Name="RuleNameBox" Watermark="规则名（可空）" />
-          <TextBox x:Name="RulePatternBox" Watermark="正则，例如 ^\s*第\S+章" />
+          <TextBox x:Name="RuleNameBox" PlaceholderText="规则名（可空）" />
+          <TextBox x:Name="RulePatternBox" PlaceholderText="正则，例如 ^\s*第\S+章" />
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Button Classes="primary" Click="OnAddRule" Content="添加" />
             <Button Classes="ghost" Click="OnRemoveRule" Content="删除选中" />
@@ -119,7 +119,7 @@
                    Height="90"
                    AcceptsReturn="True"
                    TextWrapping="Wrap"
-                   Watermark="第一章 起点&#x0a;Chapter 2&#x0a;1、测试" />
+                   PlaceholderText="第一章 起点&#x0a;Chapter 2&#x0a;1、测试" />
           <Button Classes="ghost" Click="OnTestRules" Content="试跑当前正则" />
           <ScrollViewer Height="110">
             <TextBlock x:Name="TestResult" Classes="hint-text" TextWrapping="Wrap" />

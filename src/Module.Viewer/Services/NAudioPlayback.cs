@@ -106,7 +106,7 @@ public sealed class NAudioPlayback : IAudioPlayback
 
             try
             {
-                var output = new WaveOutEvent { DesiredLatency = 250, NumberOfBuffers = 3 };
+                var output = new WaveOut { BufferMilliseconds = 120, NumberOfBuffers = 3 };
                 output.Init(reader);
                 output.Volume = _volume;
                 output.PlaybackStopped += OnPlaybackStopped;

@@ -25,7 +25,9 @@ public sealed class NullAudioPlayback : IAudioPlayback
     public float Volume { get; set; } = 0.8f;
 
     public event EventHandler? StateChanged;
-    public event EventHandler? PlaybackEnded;
+
+    /// <summary>本平台不会播完（永远打不开），订阅方拿不到任何通知。</summary>
+    public event EventHandler? PlaybackEnded { add { } remove { } }
 
     /// <summary>永远失败，并说明原因。</summary>
     public bool Open(string path, out string error)

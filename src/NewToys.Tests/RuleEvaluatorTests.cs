@@ -255,7 +255,7 @@ public class RuleEvaluatorTests
         var ctx = Ctx("<div/>");
         ctx.Vars["key"] = "abc";
 
-        Assert.Equal("https://example.com/s?q=abc", RuleSyntax.Interpolate("https://example.com/s?q={{key}}", ctx, out _));
+        Assert.Equal("https://example.com/s?q=abc", RuleSyntax.Interpolate("https://example.com/s?q={{key}}", ctx, null, out _));
     }
 
     [Fact]
@@ -264,16 +264,27 @@ public class RuleEvaluatorTests
         var ctx = Ctx("<div/>");
         ctx.Vars["page"] = "3";
 
-        Assert.Equal("https://example.com/s?p=3", RuleSyntax.Interpolate("https://example.com/s?p={{page}}", ctx, out _));
+        Assert.Equal("https://example.com/s?p=3", RuleSyntax.Interpolate("https://example.com/s?p={{page}}", ctx, null, out _));
     }
 
     [Fact]
-    public void Interpolate_FunctionCallMarksNeedsJs()
+    public void Interpolate_FunctionCallWithoutJsRuntimeKeepsRawText()
     {
         var ctx = Ctx("<div/>");
-        RuleSyntax.Interpolate("{{java.base64('x')}}", ctx, out var needsJs);
+        var text = RuleSyntax.Interpolate("{{java.base64Decode('eA==')}}", ctx, null, out var needsJs);
 
         Assert.True(needsJs);
+        Assert.Contains("java.base64Decode", text);
+    }
+
+    [Fact]
+    public void Interpolate_FunctionCallUsesJsRuntime()
+    {
+        var ctx = Ctx("<div/>");
+        var text = RuleSyntax.Interpolate("a{{1+2}}b", ctx, _ => "3", out var needsJs);
+
+        Assert.False(needsJs);
+        Assert.Equal("a3b", text);
     }
 
     [Fact]
@@ -371,5 +382,96 @@ public class RuleEvaluatorTests
         Assert.Equal("li", RuleSyntax.ToCss("tag.li"));
         Assert.Equal("#m", RuleSyntax.ToCss("id.m"));
         Assert.Equal(".y", RuleSyntax.ToCss(".y"));
+    }
+
+    // ==================== @js: 兼容层 ====================
+
+    [Fact]
+    public void Js_ReceivesHeadResultAsVariable()
+    {
+        var value = Rules.Evaluate("class.title@text@js:result.replace('作者：','')", Ctx("<div class=\"title\">作者：张三</div>"));
+
+        Assert.Equal("张三", value.FirstText);
+    }
+
+    [Fact]
+    public void Js_TagFormWorksToo()
+    {
+        var value = Rules.Evaluate("class.title@text<js>result + '!'</js>", Ctx("<div class=\"title\">甲</div>"));
+
+        Assert.Equal("甲!", value.FirstText);
+    }
+
+    [Fact]
+    public void Js_DoesNotSplitOrOperator()
+    {
+        // @js: 之后是整段 JS，`||` 是 JS 逻辑或，⛔ 不能再当规则并列切
+        var value = Rules.Evaluate("@js:'x||y'", Ctx("<div/>"));
+
+        Assert.Equal("x||y", value.FirstText);
+    }
+
+    [Fact]
+    public void Js_GetStringResolvesInsideCurrentEntry()
+    {
+        var ctx = Ctx("<div class=\"item\"><h1>书甲</h1></div><div class=\"item\"><h1>书乙</h1></div>");
+        var entry = ctx.ForElement(Rules.Evaluate("class.item", ctx).Nodes[1]);
+
+        var value = Rules.Evaluate("@js:java.getString('tag.h1@text')", entry);
+
+        Assert.Equal("书乙", value.FirstText);
+    }
+
+    [Fact]
+    public void Js_GetElementsMapsTexts()
+    {
+        var html = "<ul class=\"list\"><li>甲</li><li>乙</li></ul>";
+
+        var value = Rules.Evaluate(
+            "@js:java.getElements('class.list@tag.li').map(function (e) { return e.text(); }).join('|')",
+            Ctx(html));
+
+        Assert.Equal("甲|乙", value.FirstText);
+    }
+
+    [Fact]
+    public void Js_UsefulJavaHelpers()
+    {
+        var ctx = Ctx("<div/>");
+
+        Assert.Equal("900150983cd24fb0d6963f7d28e17f72", Rules.Evaluate("@js:java.md5Encode('abc')", ctx).FirstText);
+        Assert.Equal("123", Rules.Evaluate("@js:java.toNumChapter('第123章 初入')", ctx).FirstText);
+        Assert.Equal("x", Rules.Evaluate("@js:java.base64Decode('eA==')", ctx).FirstText);
+    }
+
+    [Fact]
+    public void Js_ExceptionBecomesReadableError()
+    {
+        var ctx = Ctx("<div/>");
+        var value = Rules.Evaluate("@js:this is not javascript", ctx);
+
+        Assert.Equal(RuleValueKind.Empty, value.Kind);
+        Assert.Contains(ctx.Errors, error => error.Contains("JS 执行失败"));
+    }
+
+    [Fact]
+    public void Js_PutGetUsesSameStoreAsPlainRules()
+    {
+        var ctx = Ctx("<div/>");
+
+        var value = Rules.Evaluate("@js:java.put('n', '9'); java.get('n')", ctx);
+
+        Assert.Equal("9", value.FirstText);
+        Assert.Equal("9", ctx.Store["n"]);
+    }
+
+    [Fact]
+    public void Interpolate_ExpressionGoesThroughJs()
+    {
+        var ctx = Ctx("<div/>");
+        var text = RuleSyntax.Interpolate("p{{1+2}}", ctx, expr => Rules.EvaluateExpression(expr, ctx), out var needsJs);
+
+        Assert.False(needsJs);
+        Assert.Equal("p3", text);
     }
 }

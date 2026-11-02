@@ -68,6 +68,24 @@ public partial class TextViewer : UserControl
         Pad.Padding = new Avalonia.Thickness(pad, 24);
     }
 
+    /// <summary>
+    /// 字体与前景色（阅读器用自己的配色档时下发；<c>null</c> / 空白 ⇒ 保持父级继承）。
+    /// <para>背景色由宿主的容器给（本控件保持透明），⛔ 不在这里另存一份主题。</para>
+    /// </summary>
+    public void ApplyAppearance(string? fontFamily, string? foreground)
+    {
+        if (!string.IsNullOrWhiteSpace(fontFamily))
+        {
+            try { Body.FontFamily = new FontFamily(fontFamily.Trim()); }
+            catch { /* 字体名无效 ⇒ 用系统默认 */ }
+        }
+
+        if (string.IsNullOrWhiteSpace(foreground)) return;
+
+        try { Body.Foreground = new SolidColorBrush(Color.Parse(foreground.Trim())); }
+        catch { /* 色值写错 ⇒ 保持主题色 */ }
+    }
+
     /// <summary>按比例滚到某处（进度条 / 记忆位置调用）。</summary>
     public void ScrollToProgress(double progress)
     {

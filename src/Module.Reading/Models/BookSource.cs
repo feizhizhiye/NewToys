@@ -36,6 +36,9 @@ public enum SourceCheckState
 
     /// <summary>请求失败（超时 / 404 / 规则抛错 / 需 WebView）。</summary>
     Failed = 3,
+
+    /// <summary>跳过（没有搜索接口，只能「发现」浏览）—— ⛔ 不算失效，⛔ 不能被「删除失效」带走。</summary>
+    Skipped = 4,
 }
 
 /// <summary>
@@ -145,6 +148,7 @@ public sealed class BookSource
         SourceCheckState.Passed => "通过",
         SourceCheckState.NoResult => "无结果",
         SourceCheckState.Failed => "失败",
+        SourceCheckState.Skipped => "跳过",
         _ => "未校验",
     };
 

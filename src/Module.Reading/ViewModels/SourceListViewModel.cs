@@ -60,7 +60,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
     public IReadOnlyList<string> TypeOptions { get; } = new[] { AllTypes, "文本", "图片", "音频", "视频" };
 
     /// <summary>校验档筛选项（与 <see cref="BookSource.CheckText"/> 一一对应）。</summary>
-    public IReadOnlyList<string> CheckOptions { get; } = new[] { AllChecks, "未校验", "通过", "无结果", "失败" };
+    public IReadOnlyList<string> CheckOptions { get; } = new[] { AllChecks, "未校验", "通过", "无结果", "失败", "跳过" };
 
     /// <summary>分组筛选项（<c>全部分组</c> + 库里实际出现过的分组，导入 / 改分组后重建）。</summary>
     public ObservableCollection<string> GroupOptions { get; } = new() { AllGroups };

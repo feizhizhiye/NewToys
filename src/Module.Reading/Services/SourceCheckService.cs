@@ -31,6 +31,7 @@ public sealed class SourceCheckRow
         SourceCheckState.Passed => "✅ 通过",
         SourceCheckState.NoResult => "⚠ 无结果",
         SourceCheckState.Failed => "⛔ 失败",
+        SourceCheckState.Skipped => "— 跳过",
         _ => "未校验",
     };
 }
@@ -66,6 +67,25 @@ public sealed class SourceCheckService
         var key = (keyword ?? "").Trim();
         if (key.Length == 0) throw new ArgumentException("校验需要关键词", nameof(keyword));
 
+        // 🔴 没有搜索接口的源（只提供 exploreUrl 分类表）跑不了搜索 ⇒ 标「跳过」，
+        //    不能判失败：否则「删除全部失效」会把这类好源一起删掉。
+        var checkable = new List<BookSource>(sources.Count);
+        var skipped = new List<SourceCheckRow>();
+        foreach (var source in sources)
+        {
+            if (string.IsNullOrWhiteSpace(source.SearchUrl) || string.IsNullOrWhiteSpace(source.Search?.BookList))
+            {
+                const string note = "没有搜索接口（只能「发现」浏览），未参与校验";
+                _store.SetCheck(source.Url, SourceCheckState.Skipped, note, DateTimeOffset.UtcNow);
+                var row = new SourceCheckRow(source, SourceCheckState.Skipped, note);
+                skipped.Add(row);
+                onDone?.Invoke(row);
+            }
+            else checkable.Add(source);
+        }
+
+        if (checkable.Count == 0) return skipped;
+
         // 直接复用多源搜索：并发门 / 取消 / 逐源回调都是现成的
         var onSource = new Progress<SourceSearchResult>(result =>
         {
@@ -76,13 +96,13 @@ public sealed class SourceCheckService
             onDone?.Invoke(new SourceCheckRow(result.Source, state, note));
         });
 
-        var results = await _crawl.SearchManyAsync(sources, key, 1, ct, progress, onSource).ConfigureAwait(false);
+        var results = await _crawl.SearchManyAsync(checkable, key, 1, ct, progress, onSource).ConfigureAwait(false);
 
-        return results.Select(r =>
+        return skipped.Concat(results.Select(r =>
         {
             var (state, note) = Classify(r);
             return new SourceCheckRow(r.Source, state, note);
-        }).ToList();
+        })).ToList();
     }
 
     /// <summary>把搜索结论翻成校验档。命中 ≥1 条 = 通过；通了但 0 条 = 无结果；有错 = 失败。</summary>

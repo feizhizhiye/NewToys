@@ -7,6 +7,12 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <!--  本地音乐播放：解码 + WASAPI 输出（Windows 后端，⛔ 不进 NewToys.UI）  -->
+    <PackageReference Include="NAudio" />
+    <!--  音频标签与封面（只读，不写回文件）  -->
+    <PackageReference Include="TagLibSharp" />
+    <!--  压缩包内图片浏览（zip / rar / 7z，纯托管）  -->
+    <PackageReference Include="SharpCompress" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Shared/Shared.csproj" />

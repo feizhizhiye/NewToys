@@ -15,6 +15,9 @@ NewToys 以 **MIT License** 开源（见 `LICENSE`）。本文件列出本项目
 | Microsoft.Extensions.\*（DI / Configuration / Logging / Options） | 9.0.0 | MIT | https://github.com/dotnet/runtime |
 | AngleSharp | 1.3.0 | MIT | https://github.com/AngleSharp/AngleSharp |
 | Jint | 3.1.2 | **BSD 2-Clause** | https://github.com/sebastienros/jint |
+| NAudio | 3.3.0 | MIT | https://github.com/naudio/NAudio |
+| TagLibSharp | 2.3.0 | **LGPL-2.1**（动态链接、未修改源码；本程序不写回标签） | https://github.com/mono/taglib-sharp |
+| SharpCompress | 0.50.7 | MIT | https://github.com/adamhathcock/sharpcompress |
 
 > 版本集中管理在 `src/Directory.Packages.props`，改动只改这一处。
 

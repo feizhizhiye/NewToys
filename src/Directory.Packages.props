@@ -28,6 +28,12 @@
     <PackageVersion Include="Jint" Version="3.1.2" />
     <!-- 邮件收发（备份中心投递 + 邮箱管理页：SMTP / IMAP，纯托管、平台中立） -->
     <PackageVersion Include="MailKit" Version="4.18.2" />
+    <!-- 音频解码与输出（查看器本地播放器：WASAPI + Media Foundation，纯托管，平台中立由适配器隔离） -->
+    <PackageVersion Include="NAudio" Version="3.3.0" />
+    <!-- 音频标签与封面（ID3 / FLAC / MP4 元数据，只读） -->
+    <PackageVersion Include="TagLibSharp" Version="2.3.0" />
+    <!-- 压缩包读取（图片浏览器看 zip / rar / 7z 内的图，纯托管） -->
+    <PackageVersion Include="SharpCompress" Version="0.50.7" />
     <!-- 单元测试（src/NewToys.Tests，只测纯函数解析器；产物落 artifacts\tests\，⛔ 不进 Release 交付目录） -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />

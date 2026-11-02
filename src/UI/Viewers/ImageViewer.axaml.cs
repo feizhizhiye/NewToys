@@ -52,7 +52,23 @@ public partial class ImageViewer : UserControl
         error = "";
         try
         {
-            var bmp = new Bitmap(path);
+            using var stream = File.OpenRead(path);
+            return Load(stream, out error);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    /// <summary>从流载入图片（压缩包内的图片走这条；调用方负责关闭流）。</summary>
+    public bool Load(Stream stream, out string error)
+    {
+        error = "";
+        try
+        {
+            var bmp = new Bitmap(stream);
             _pixelWidth = bmp.PixelSize.Width;
             _pixelHeight = bmp.PixelSize.Height;
 
@@ -69,6 +85,16 @@ public partial class ImageViewer : UserControl
             error = ex.Message;
             return false;
         }
+    }
+
+    /// <summary>释放当前位图（宿主换内容 / 关闭时调用）。</summary>
+    public void Close()
+    {
+        Pic.Source = null;
+        _bitmap?.Dispose();
+        _bitmap = null;
+        _pixelWidth = 0;
+        _pixelHeight = 0;
     }
 
     /// <summary>适应窗口（只缩小，不放大）。</summary>

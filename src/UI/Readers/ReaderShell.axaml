@@ -1,0 +1,180 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.UI.Readers.ReaderShell">
+  <!--
+    文本阅读器壳（本地 txt / md / log）：目录 + 正文 + 书签 + 全书搜索 + 排版。
+    🔴 只吃「整本书字符串 + 章节切片」，⛔ 不读文件、⛔ 不写配置（编码 / 章节规则 / 书签持久化都在宿主）。
+    🔴 库内 XAML ⛔ 写死色值，只用主题键 DynamicResource；阅读配色由 code-behind 下发。
+  -->
+  <Grid RowDefinitions="Auto,*">
+
+    <Border Grid.Row="0"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="8,4">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Button Grid.Column="0"
+                Classes="ghost"
+                Click="OnToggleToc"
+                Content="目录"
+                ToolTip.Tip="章节列表（Ctrl+T）" />
+
+        <StackPanel Grid.Column="1"
+                    HorizontalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="6">
+          <Button Classes="ghost" Click="OnPrevChapter" Content="上一章" ToolTip.Tip="上一章（←）" />
+          <TextBlock x:Name="ChapterTitle"
+                     MaxWidth="420"
+                     VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis"
+                     FontWeight="SemiBold" />
+          <Button Classes="ghost" Click="OnNextChapter" Content="下一章" ToolTip.Tip="下一章（→）" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+          <Button Classes="ghost" Click="OnToggleBookmarks" Content="书签" ToolTip.Tip="书签列表（Ctrl+B）" />
+          <Button Classes="ghost" Click="OnToggleSearch" Content="搜索" ToolTip.Tip="全书搜索（Ctrl+F）" />
+          <Button Classes="ghost" Click="OnToggleType" Content="排版" ToolTip.Tip="字号 / 行距 / 边距 / 配色" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Border x:Name="ReaderBackground" Grid.Row="1">
+      <ScrollViewer x:Name="Scroller"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <Border x:Name="Pad" Padding="32,24">
+          <SelectableTextBlock x:Name="Body"
+                               FontSize="16"
+                               LineHeight="27"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource PrimaryTextBrush}" />
+        </Border>
+      </ScrollViewer>
+    </Border>
+
+    <!-- 目录抽屉（左） -->
+    <Border x:Name="TocPanel"
+            Grid.Row="1"
+            HorizontalAlignment="Left"
+            Width="280"
+            IsVisible="False"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="0,0,1,0">
+      <Grid RowDefinitions="Auto,*,Auto">
+        <TextBox x:Name="TocFilter"
+                 Margin="8"
+                 Watermark="过滤章节名"
+                 TextChanged="OnTocFilterChanged" />
+        <ListBox x:Name="TocList"
+                 Grid.Row="1"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 SelectionChanged="OnTocSelected" />
+        <TextBlock x:Name="TocCount"
+                   Grid.Row="2"
+                   Classes="hint-text"
+                   Margin="10,4,10,8" />
+      </Grid>
+    </Border>
+
+    <!-- 书签浮层（右） -->
+    <Border x:Name="BookmarkPanel"
+            Grid.Row="1"
+            HorizontalAlignment="Right"
+            Width="320"
+            IsVisible="False"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1,0,0,0">
+      <Grid RowDefinitions="Auto,*,Auto" Margin="10">
+        <TextBlock Text="书签" FontWeight="SemiBold" Margin="0,0,0,8" />
+        <ListBox x:Name="BookmarkList"
+                 Grid.Row="1"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 SelectionChanged="OnBookmarkActivated" />
+        <StackPanel Grid.Row="2" Margin="0,8,0,0" Orientation="Horizontal" Spacing="6">
+          <Button Classes="primary" Click="OnAddBookmark" Content="加书签" />
+          <Button Classes="ghost" Click="OnRemoveBookmark" Content="删除选中" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- 搜索浮层（右） -->
+    <Border x:Name="SearchPanel"
+            Grid.Row="1"
+            HorizontalAlignment="Right"
+            Width="360"
+            IsVisible="False"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1,0,0,0">
+      <Grid RowDefinitions="Auto,*,Auto" Margin="10">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox x:Name="SearchBox" Watermark="全书搜索" KeyDown="OnSearchKeyDown" />
+          <Button Grid.Column="1"
+                  Classes="primary"
+                  Margin="6,0,0,0"
+                  Click="OnDoSearch"
+                  Content="搜索" />
+        </Grid>
+        <ListBox x:Name="SearchList"
+                 Grid.Row="1"
+                 Margin="0,8,0,0"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 SelectionChanged="OnSearchHitSelected" />
+        <TextBlock x:Name="SearchInfo"
+                   Grid.Row="2"
+                   Classes="hint-text"
+                   Margin="0,6,0,0" />
+      </Grid>
+    </Border>
+
+    <!-- 排版浮层（右） -->
+    <Border x:Name="TypePanel"
+            Grid.Row="1"
+            HorizontalAlignment="Right"
+            Width="300"
+            IsVisible="False"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1,0,0,0">
+      <StackPanel Margin="12" Spacing="6">
+        <TextBlock Text="排版" FontWeight="SemiBold" />
+
+        <TextBlock Classes="hint-text" Text="字号" />
+        <Slider x:Name="FontSlider"
+                Minimum="12"
+                Maximum="34"
+                TickFrequency="1"
+                ValueChanged="OnSliderChanged" />
+
+        <TextBlock Classes="hint-text" Text="行距" />
+        <Slider x:Name="LineSlider"
+                Minimum="1.2"
+                Maximum="2.6"
+                TickFrequency="0.1"
+                ValueChanged="OnSliderChanged" />
+
+        <TextBlock Classes="hint-text" Text="页边距" />
+        <Slider x:Name="PadSlider"
+                Minimum="0"
+                Maximum="160"
+                TickFrequency="4"
+                ValueChanged="OnSliderChanged" />
+
+        <CheckBox x:Name="IndentBox" Content="首行缩进" Click="OnCheckChanged" />
+        <CheckBox x:Name="SpacingBox" Content="段间距" Click="OnCheckChanged" />
+
+        <TextBlock Classes="hint-text" Text="配色" Margin="0,4,0,0" />
+        <ComboBox x:Name="ThemeBox" SelectionChanged="OnThemeChanged" />
+      </StackPanel>
+    </Border>
+
+  </Grid>
+</UserControl>

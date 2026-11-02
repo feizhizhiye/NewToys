@@ -1,5 +1,6 @@
 # NewToys 文档地图（Index）
 
+> v1.9 · 2026-11-02 · **查看器 V2** —— 新增 `NewToys.UI/Readers/`（`ReaderShell` 阅读器壳）与 `Viewers/AudioPlayer`；长文本走阅读器（目录 / 书签 / 全书搜索 / 自定义章节正则 / 排版），图片支持压缩包内浏览，新增本地音乐播放器；视频仍走系统播放器。新增 `backlog/viewer/NT-134.md`，`modules/viewer.md` 全文重写（NT-134）。
 > v1.8 · 2026-11-01 · **网络阅读 批4** —— 菜单组名「阅读」→ **网络阅读**（Key `reading` 不变）、设置页「网络阅读设置」；发现 / 搜索页书单改行列表 + 共用书籍卡浮层（`BookCardOverlay`）、书源多选与阅读页目录改弹出；`modules/reading.md` 同步（NT-128）。
 > v1.7 · 2026-11-01 · **查看器立项 + V1 实施** —— §二 模块清单加「查看器」（`Module.Viewer` 薄壳 + `NewToys.UI/Viewers/` 渲染器，NT-124，V1 已实施待 build）；渲染器上提 UI 库的依据：模块禁互引，媒体资产 / 视频工具 / 将来书源阅读都要复用。新增 `modules/viewer.md`。
 > v1.6 · 2026-10-21 · **省 token 重构** —— ① 新增 **`NewToys-需求摘要.md`**（需求规格 174 KB 已不可整读，摘要 = AI 常读基线，原文只按 §九 定位 grep）；② §三 路由表升为**唯一源**（`AGENTS.md` 与 `references/newtoys-spec.md` 的同构表已删，只留 6 行速记 + 指回本表）；③ 主题键数量不再写死在文档里（以 `check.ps1` 白名单为准）。
@@ -35,7 +36,7 @@
 | **系统工具**（v3.86 立项 / v3.87 定位收紧） | `Module.SystemTools` | `system-tools`（🔴 组键，非页 Key） | `script-commands` / `script-favorites` / `script-packages` / `system-*` | `modules/system-tools.md` | ✅ 已实施（NT-091 建模块 · NT-096 收编软件包；⏳ 待 build 验收） |
 | 媒体资产 | `Module.MediaAssets` | `assets` | `assets-*` | `modules/media-assets.md` | ✅ 稳定（7 页 + 设置） |
 | **备份中心**（v3.92 立项） | `Module.BackupCenter` | `backup` | `backup-*` | `modules/backup-center.md` | ✅ **NT-117 + NT-119 + NT-118 + NT-120 已实施**（⏳ 待 build 验收）：4 页 + 设置（7z 加密归档 / 包清单 / 还原 / 主密码密码库 / 备份日历 / **邮件分卷投递 + 备份邮件页**）；数据落 SQLite `store\backup\backup.db`；WebDAV 属 v2。需求 §6.8 |
-| **查看器**（v3.102 立项） | `Module.Viewer`（薄壳）+ `NewToys.UI/Viewers/`（渲染器） | `viewer` | `viewer-*` | `modules/viewer.md` | ✅ **V1 已实施（NT-124，⏳ 待 build）**：文本（连续滚动 + 进度记忆）/ 图片（缩放 / 平移）/ 拖放 / 最近打开；⛔ 音视频与 PDF 属 V2（待媒体后端拍板）。需求 §6.9 |
+| **查看器**（v3.102 立项） | `Module.Viewer`（薄壳）+ `NewToys.UI/Viewers/`（渲染器）+ `NewToys.UI/Readers/`（阅读器壳） | `viewer` | `viewer-*` | `modules/viewer.md` | ✅ **V1 已验收 + V2 已实施（NT-134，⏳ 待 build）**：长文本阅读器（目录 / 书签 / 全书搜索 / 自定义章节正则 + 排版）/ 短文本与源码 / 图片 / **压缩包内图片（zip·rar·7z）** / **本地音乐播放器（列表 / 音量 / 单曲·随机 / LRC）**；⛔ 视频走系统播放器，⛔ PDF·EPUB 未做。需求 §6.9 |
 | **网络阅读**（v3.105） | `Module.Reading` | `reading` | `reading-*` / `settings-reading` | `modules/reading.md` | ✅ **批1 + 批2 + 批3 已实施（NT-125 / NT-126 / NT-127，5 页 + 1 设置页**：书源 / 发现 / 网上搜索 / 书架 / 阅读 / 阅读设置）**：legado 书源导入（幂等）+ 规则求值器（选择器 / `@css:` / `@json:` / `\|\|` `&&` `##` / `{{}}` / `@put@get`）+ **`@js:` JS 兼容层（Jint + `java.*` 桥）** + 四段管线（搜索→详情→目录→正文）+ **沉浸式阅读页（进度 / 排版）**；发现页支持换行分隔分类表与分类翻页。正文渲染复用 `NewToys.UI/Viewers/TextViewer`。可跑率 67.4% → **96.3%**，剩余为 WebView 专有。需求 §6.10 |
 
 > **应用级设置 / 首页 / 功能清单不属于模块**：它们归**框架层** `src/Shell`（`Module.Settings` 已于 NT-062 撤销），规格见 **`framework.md` §4.6**。⛔ 不要再为它们建 `modules/*.md`。

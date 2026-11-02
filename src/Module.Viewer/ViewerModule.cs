@@ -26,6 +26,12 @@ public class ViewerModule : IModule
     public void RegisterServices(IServiceCollection services)
     {
         services.AddSingleton<ViewerSettingsService>();
+        services.AddSingleton<TxtBookService>();
+        services.AddSingleton<ArchiveImageService>();
+        services.AddSingleton<AudioLibraryService>();
+
+        // 播放后端是跨平台契约的实现（Windows = NAudio）；单例 = 同一时间只播一首
+        services.AddSingleton<Shared.Services.IAudioPlayback, NAudioPlayback>();
 
         services.AddTransient<Views.ViewerView>();
         services.AddTransient<ViewerViewModel>();
@@ -39,6 +45,6 @@ public class ViewerModule : IModule
         menu.RegisterModule(GroupKey, "查看器", "IconViewer", 55);
 
         menu.RegisterFunction<Views.ViewerView>(GroupKey, "viewer-main", "查看器", "📄", 1,
-            "打开文本 / 源码 / HTML（取纯文本）/ 常见位图；支持拖入文件、记忆阅读位置");
+            "打开文本（txt / md 带目录、书签、全书搜索）、源码、图片、压缩包内图片（zip / rar / 7z）、音频播放；视频走系统播放器");
     }
 }

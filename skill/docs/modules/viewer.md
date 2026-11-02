@@ -16,11 +16,19 @@
 - ⛔ 不做：媒体库管理（归 `Module.MediaAssets`）、转码（归 `Module.VideoTools`）、标签写回、编辑（一律只读）、图库收藏评分。
 - ⛔ **不做视频内嵌播放**（2026-11-02 用户定）：视频调起系统默认程序。
 
-## 2. 当前功能（1 页）
+## 2. 当前功能（3 页）
 
-| 菜单 Key | 标题 | Order | View | 说明 |
+| 菜单 Key | 标题 | Order | View / VM | 说明 |
 |---|---|---|---|---|
-| `viewer-main` | 查看器 | 1 | `ViewerView` | 打开 / 拖入；最近打开；按扩展名自动分派；章节规则浮层 |
+| `viewer-text` | 文本阅读 | 1 | `ViewerTextView` / `ViewerTextViewModel` | txt / md / 源码；长文本自动进阅读器；章节规则浮层 |
+| `viewer-image` | 图片查看 | 2 | `ViewerImageView` / `ViewerImageViewModel` | 图片与压缩包内图片；缩放 / 适应窗口 / 逐张翻页 |
+| `viewer-audio` | 音频播放 | 3 | `ViewerAudioView` / `ViewerAudioViewModel` | 本地音频播放列表；播放/暂停、歌词、顺序/单曲/随机 |
+
+- 三页**共用**一套页面逻辑（`Views.ViewerPageBase`）与**同一份 XAML 内容**（只有 `x:Class` 不同）。
+- 页面范围由 `ViewerViewModel.Scope` 决定：`Text` 收 txt / md / 源码（含长文本），`Image` 收图片与压缩包，`Audio` 收音频。
+- 工具条按范围裁剪：文本页 ⛔ 无缩放 / 翻张 / 播放；图片页 ⛔ 无字号 / 章节规则；音频页 ⛔ 无字号 / 缩放 / 章节规则。
+- 最近打开按本页范围过滤显示（同一份 `viewer.json`，三页各显各的）。
+- ⛔ 旧统一页 `viewer-main` 已撤销（用户定：三页取代统一页）。
 
 **支持的类型**
 
@@ -40,9 +48,10 @@
 
 | 操作 | 触发 | 结果 / 状态变化 | 约束 |
 |---|---|---|---|
-| 打开文件 | 工具条「📂 打开」 | 按扩展名分派：阅读器 / 图片 / 压缩包 / 音频 / 短文本 | 取消 = 什么都不做；可多选，**多选且全是音频**才整批进播放列表 |
+| **跨页自动跳转** | 打开 / 拖入 / 点最近打开的文件不属于本页 | 投递给目标页并切过去，目标页当场打开该文件 | 投递走 `ModuleBus`（主题 `viewer.openfiles`，载荷 `ViewerOpenRequest`）；本页 ⛔ 不装载、⛔ 不报错 |
+| 打开文件 | 工具条「📂 打开」 | 本页范围内：阅读器 / 图片 / 压缩包 / 音频 / 短文本 | 取消 = 什么都不做；可多选，**多选且全是音频**才整批进播放列表 |
 | 拖入文件 | 拖到窗口任意位置 | 同上 | 多文件非全音频时只开第一个 |
-| 最近打开 | 空态顶部点一条 | 直接打开 | 已剔除不存在的路径；上限 20 |
+| 最近打开 | 空态顶部点一条 | 直接打开（不属于本页则转去对应页） | 已剔除不存在的路径；上限 20；按本页范围过滤显示 |
 | 关闭 | 工具条「✕ 关闭」 | 回空态；先存进度 | 音频同时停止 |
 | **阅读器：目录** | 阅读器顶栏「目录」（Ctrl+T） | 左侧抽屉列章节；过滤框按名筛 | 点一章即跳；当前章高亮 |
 | **阅读器：翻章** | 「上一章 / 下一章」或 ←/→ | 切章并回到章首 | 到头提示「已经是最后一章」，⛔ 不越界 |
@@ -60,9 +69,10 @@
 ## 3. 实现逻辑
 
 ```
-ViewerView（Module.Viewer）
+ViewerPageBase（Module.Viewer/Views，文本 / 图片 / 音频三页共用）
+  ├─ ViewerTextView / ViewerImageView / ViewerAudioView：只 `InitializeComponent()` + `InitPage()`
   ├─ 工具条 / 状态栏        → VM 实现 IToolbarSource / IStatusProvider
-  ├─ 文件选择 / 拖放 / 键盘  → View code-behind（VM ⛔ 不碰 StorageProvider）
+  ├─ 文件选择 / 拖放 / 键盘  → 基类 code-behind（VM ⛔ 不碰 StorageProvider）
   └─ 持有 ViewerHost ──────→ NewToys.UI.Viewers
                                ├─ KindOf(path) 扩展名分派
                                ├─ TextViewer（短文本）
@@ -76,7 +86,8 @@ NAudioPlayback        IAudioPlayback 的 Windows 实现（MF 解码 + WaveOut �
 ViewerSettingsService config\viewer.json 唯一写入点
 ```
 
-- **连线方式**：VM 发事件（`OpenRequested` / `ArchiveNavigateRequested` / `PlayToggleRequested` / `RulesEditRequested` / `ReaderOptionsChanged`），View 订阅后操作控件；VM ⛔ 不 new 控件。
+- **连线方式**：VM 发事件（`OpenRequested`（载荷 `IReadOnlyList<string>?`，`null` = 弹选择器）/ `ArchiveNavigateRequested` / `PlayToggleRequested` / `RulesEditRequested` / `ReaderOptionsChanged`），View 订阅后操作控件；VM ⛔ 不 new 控件。
+- 🔴 **跨页跳转 = `ModuleBus` 投递 + `NavigateTo`**：`ViewerOpenRequest` 带目标 `Scope`，收到请求的页先比对范围，不匹配直接忽略（三页共用一个主题，靠载荷分流）。投递前无订阅者则进信箱，目标页构造时 `TakeAll` 取走 ⇒ 两条路径都不丢。
 - 🔴 **长文本按「章」渲染，不整本塞进视觉树**：章节是整本书字符串上的区间（`Start/Length/BodyStart`），切章只重建当前章的行内元素。
 - 🔴 **音频走 `Shared/Services/IAudioPlayback` 契约**：`NewToys.UI` ⛔ 不引 NAudio；控件靠宿主注入，换后端（libvlc / mpv）只换 `NAudioPlayback`。
 - 🔴 **图片缩放改 `Image.Width/Height`，不用 `RenderTransform`**：占位尺寸不变则 `ScrollViewer.Extent` 不跟，放大后拖不到边缘。
@@ -101,6 +112,8 @@ ViewerSettingsService config\viewer.json 唯一写入点
 
 ## 5. 坑点（实测）
 
+- 🔴 **三页 XAML 必须是同一份内容**：`ViewerPageBase` 按 `x:Name`（`Host` / `RecentList` / `ArchiveList` / `RulePanel` / `RuleList` / `RuleNameBox` / `RulePatternBox` / `SampleBox` / `TestResult`）取控件；少一个就抛「ViewerPage 的 XAML 缺少名为 X 的控件」。改一页必须同步另两页。
+- 🔴 **XAML 里引用的事件处理必须是 `protected`**：处理器写在基类，XAML 编译生成的调用落在子类 partial 里，`private` 编译不过（`OnAddRule` / `OnRemoveRule` / `OnCloseRules` / `OnTestRules` / `OnArchiveSelected` / `OnRecentSelected`）。
 - 🔴 **`ViewerHost` 不能放在 `Module.Viewer` 里**：媒体资产详情卡要「用查看器打开」时会跨模块，模块禁互引 ⇒ 必须落 `NewToys.UI`。
 - 🔴 **`Avalonia.Media.Imaging.Bitmap` 没有「限定像素尺寸」的公开重载** ⇒ 无法解码期降采样；超大图首帧会卡一下（要优化就后台解码小图再换源）。
 - 🔴 文本编码：先认 BOM，再试**严格 UTF-8**，失败回落 **GB18030**。⛔ 别用 `File.ReadAllText` —— 默认静默替换非法字节，中文老文件变乱码且无从发现。

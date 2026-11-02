@@ -1,0 +1,135 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:NewToys.UI.Viewers"
+             x:Class="NewToys.Viewer.Views.ViewerAudioView">
+  <!--
+    查看器页内容（文本阅读 / 图片查看 / 音频播放三页**共用同一份 XAML**）：
+    最近打开条 + 压缩包条目条 + 渲染区 + 章节规则浮层。
+    🔴 三份 XAML 必须保持完全一致（只有 x:Class 不同）：基类 ViewerPageBase 按 x:Name 取控件，
+       少一个就抛「ViewerPage 的 XAML 缺少名为 X 的控件」。
+    🔴 工具条由 Shell 的 ToolbarHost 渲染（VM 实现 IToolbarSource），本页 ⛔ 不写 Border.toolbar。
+    🔴 渲染器全部来自 NewToys.UI（阅读器 / 图片 / 音频外壳），本模块只做分派与持久化。
+  -->
+  <Grid RowDefinitions="Auto,*">
+
+    <!-- 空态：最近打开 -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="0,0,0,1"
+            IsVisible="{Binding !HasContent}"
+            Padding="16,6">
+      <ListBox x:Name="RecentList"
+               Background="Transparent"
+               BorderThickness="0"
+               ItemsSource="{Binding RecentItems}"
+               SelectionChanged="OnRecentSelected">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="6" />
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Classes="hint-text"
+                       MaxWidth="220"
+                       Text="{Binding}"
+                       TextTrimming="CharacterEllipsis" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+
+    <!-- 压缩包：条目条 -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="0,0,0,1"
+            IsVisible="{Binding IsArchive}"
+            Padding="10,4">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock VerticalAlignment="Center"
+                   Classes="hint-text"
+                   Margin="0,0,10,0"
+                   Text="{Binding ArchiveInfo}" />
+        <ListBox x:Name="ArchiveList"
+                 Grid.Column="1"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 ItemsSource="{Binding ArchiveEntries}"
+                 SelectionChanged="OnArchiveSelected">
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="4" />
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock MaxWidth="200"
+                         Text="{Binding}"
+                         TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+
+    <ui:ViewerHost x:Name="Host" Grid.Row="1" />
+
+    <!-- 章节规则浮层 -->
+    <Border x:Name="RulePanel"
+            Grid.Row="1"
+            HorizontalAlignment="Right"
+            Width="400"
+            IsVisible="False"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1,0,0,0">
+      <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="12">
+        <TextBlock Text="章节识别规则"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,6" />
+
+        <ListBox x:Name="RuleList"
+                 Grid.Row="1"
+                 Background="Transparent"
+                 BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Spacing="1">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                <TextBlock Classes="hint-text"
+                           Text="{Binding Pattern}"
+                           TextTrimming="CharacterEllipsis" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Grid.Row="2" Spacing="6" Margin="0,8,0,0">
+          <TextBox x:Name="RuleNameBox" PlaceholderText="规则名（可空）" />
+          <TextBox x:Name="RulePatternBox" PlaceholderText="正则，例如 ^\s*第\S+章" />
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button Classes="primary" Click="OnAddRule" Content="添加" />
+            <Button Classes="ghost" Click="OnRemoveRule" Content="删除选中" />
+            <Button Classes="ghost" Click="OnCloseRules" Content="收起" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Spacing="6" Margin="0,10,0,0">
+          <TextBlock Classes="hint-text" Text="试跑（贴一段样本文本，看能切出哪些标题）" />
+          <TextBox x:Name="SampleBox"
+                   Height="90"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   PlaceholderText="第一章 起点&#x0a;Chapter 2&#x0a;1、测试" />
+          <Button Classes="ghost" Click="OnTestRules" Content="试跑当前正则" />
+          <ScrollViewer Height="110">
+            <TextBlock x:Name="TestResult" Classes="hint-text" TextWrapping="Wrap" />
+          </ScrollViewer>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+  </Grid>
+</UserControl>

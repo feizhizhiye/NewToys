@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 using NewToys.Viewer.Services;
-using NewToys.Viewer.ViewModels;
 
 namespace NewToys.Viewer;
 
@@ -37,8 +36,9 @@ public class ViewerModule : IModule
         else
             services.AddSingleton<Shared.Services.IAudioPlayback, NullAudioPlayback>();
 
-        services.AddTransient<Views.ViewerView>();
-        services.AddTransient<ViewerViewModel>();
+        services.AddTransient<Views.ViewerTextView>();
+        services.AddTransient<Views.ViewerImageView>();
+        services.AddTransient<Views.ViewerAudioView>();
     }
 
     public void Initialize(IServiceProvider services)
@@ -48,7 +48,14 @@ public class ViewerModule : IModule
         // Order 55 = 媒体资产（50）之后、备份中心（60）之前；图标 IconViewer 定义在 Shell/App.axaml。
         menu.RegisterModule(GroupKey, "查看器", "IconViewer", 55);
 
-        menu.RegisterFunction<Views.ViewerView>(GroupKey, "viewer-main", "查看器", "📄", 1,
-            "打开文本（txt / md 带目录、书签、全书搜索）、源码、图片、压缩包内图片（zip / rar / 7z）、音频播放；视频走系统播放器");
+        // 一页只处理一类：类型不符的文件由 VM 转去对应页并切过去（含拖入 / 选择器 / 最近打开）。
+        menu.RegisterFunction<Views.ViewerTextView>(GroupKey, "viewer-text", "文本阅读", "📖", 1,
+            "打开 txt / md / 源码：自动切章、目录、书签、全书搜索、排版（字号 / 行距 / 配色）");
+
+        menu.RegisterFunction<Views.ViewerImageView>(GroupKey, "viewer-image", "图片查看", "🖼", 2,
+            "打开图片与压缩包（zip / rar / 7z）内的图片：缩放、适应窗口、逐张翻页");
+
+        menu.RegisterFunction<Views.ViewerAudioView>(GroupKey, "viewer-audio", "音频播放", "🎵", 3,
+            "本地音频播放列表：顺序 / 单曲 / 随机、进度与音量、同名 lrc 歌词；视频走系统播放器");
     }
 }

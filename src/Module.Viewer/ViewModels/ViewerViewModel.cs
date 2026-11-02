@@ -23,6 +23,10 @@ namespace NewToys.Viewer.ViewModels;
 /// <para>
 /// 🔴 章节切分 / 压缩包遍历 / 音频标签 / 播放后端都走注入的服务；VM 只做状态与命令编排。
 /// </para>
+/// <para>
+/// 🔴 <see cref="Scope"/> 决定本页收哪类文件：不匹配时 <see cref="TryRouteElsewhere"/> 会投递给
+/// 目标页并切过去（<c>viewer-text</c> / <c>viewer-image</c> / <c>viewer-audio</c>），本页不装载。
+/// </para>
 /// </summary>
 public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolbarSource
 {
@@ -31,6 +35,11 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     private readonly ArchiveImageService _archive;
     private readonly AudioLibraryService _audio;
     private readonly IAudioPlayback _playback;
+    private readonly IModuleBus? _bus;
+    private readonly INavigationService? _nav;
+
+    private readonly List<string> _pending = new();
+    private bool _attached;
 
     [ObservableProperty] private string _statusText = "";
     [ObservableProperty] private string _hint = "";
@@ -44,6 +53,18 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     [ObservableProperty] private bool _hasContent;
     [ObservableProperty] private string _archiveInfo = "";
 
+    /// <summary>本页只处理哪一类内容（<see cref="ViewerScope.All"/> = 设计期不限）。</summary>
+    public ViewerScope Scope { get; private set; } = ViewerScope.All;
+
+    /// <summary>空态提示（按范围区分）。</summary>
+    public string ScopeHint => Scope switch
+    {
+        ViewerScope.Text => "拖入文本（txt / md / 源码）或点「📂 打开」：txt / md 自动切章，带目录、书签、全书搜索。",
+        ViewerScope.Image => "拖入图片（png / jpg / webp …）或压缩包（zip / rar / 7z），也可点「📂 打开」。",
+        ViewerScope.Audio => "拖入音频（mp3 / flac / m4a …，可一次多个）或点「📂 打开」，按列表顺序播放。",
+        _ => "拖入文件或点「📂 打开」开始。",
+    };
+
     /// <summary>设计期用。</summary>
     public ViewerViewModel()
     {
@@ -52,24 +73,34 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         _archive = null!;
         _audio = null!;
         _playback = null!;
+        _bus = null;
+        _nav = null;
     }
 
-    public ViewerViewModel(ViewerSettingsService settings, TxtBookService txt,
-        ArchiveImageService archive, AudioLibraryService audio, IAudioPlayback playback)
+    protected ViewerViewModel(ViewerScope scope, ViewerSettingsService settings, TxtBookService txt,
+        ArchiveImageService archive, AudioLibraryService audio, IAudioPlayback playback,
+        IModuleBus? bus, INavigationService? nav)
     {
+        Scope = scope;
         _settings = settings;
         _txt = txt;
         _archive = archive;
         _audio = audio;
         _playback = playback;
+        _bus = bus;
+        _nav = nav;
 
         RefreshRecent();
         RefreshCustomRules();
-        StatusText = "拖入文件或点「📂 打开」开始。";
+        StatusText = ScopeHint;
+
+        // 跨页投递：先取存量（本页刚被创建时投递还在信箱里），再订阅（本页已开着时后续投递即时落地）。
+        _pending.AddRange(Flatten(_bus?.TakeAll(ViewerTopics.OpenFiles)));
+        _bus?.Subscribe(ViewerTopics.OpenFiles, this, OnOpenFilesPosted);
     }
 
     /// <summary>请求 View 打开文件；参数 <c>null</c> = 由 View 弹选择器。</summary>
-    public event EventHandler<string?>? OpenRequested;
+    public event EventHandler<IReadOnlyList<string>?>? OpenRequested;
 
     /// <summary>请求 View 关闭当前内容。</summary>
     public event EventHandler? CloseRequested;
@@ -107,6 +138,100 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>播放后端。</summary>
     public IAudioPlayback Playback => _playback;
 
+    // ---------- 页面范围 ----------
+
+    /// <summary>查看器页 Key（按范围）。</summary>
+    public static string KeyOf(ViewerScope scope) => scope switch
+    {
+        ViewerScope.Text => "viewer-text",
+        ViewerScope.Image => "viewer-image",
+        ViewerScope.Audio => "viewer-audio",
+        _ => "viewer-text",
+    };
+
+    /// <summary>页面标题（按范围）。</summary>
+    public static string TitleOf(ViewerScope scope) => scope switch
+    {
+        ViewerScope.Text => "文本阅读",
+        ViewerScope.Image => "图片查看",
+        ViewerScope.Audio => "音频播放",
+        _ => "查看器",
+    };
+
+    /// <summary>某文件应落到哪一页；识别不出返回 <see cref="ViewerScope.All"/>。</summary>
+    public static ViewerScope TargetScopeOf(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return ViewerScope.All;
+        if (ViewerHost.IsArchive(path)) return ViewerScope.Image;
+
+        return ViewerHost.KindOf(path) switch
+        {
+            ViewerKind.Text or ViewerKind.Reader => ViewerScope.Text,
+            ViewerKind.Image => ViewerScope.Image,
+            ViewerKind.Audio => ViewerScope.Audio,
+            _ => ViewerScope.All,
+        };
+    }
+
+    /// <summary>本页是否接收该文件（设计期 / 识别不出的一律放行，由 View 报错）。</summary>
+    public bool Accepts(string path)
+        => Scope == ViewerScope.All || TargetScopeOf(path) is ViewerScope.All || TargetScopeOf(path) == Scope;
+
+    /// <summary>
+    /// 文件不属于本页时：投递给目标页并切过去。返回 <c>true</c> = 已转走，本页 ⛔ 不再装载。
+    /// </summary>
+    public bool TryRouteElsewhere(IReadOnlyList<string> paths)
+    {
+        if (paths.Count == 0) return false;
+
+        var target = paths.All(ViewerHost.IsAudio) ? ViewerScope.Audio : TargetScopeOf(paths[0]);
+        if (target == ViewerScope.All || target == Scope) return false;
+
+        var request = new ViewerOpenRequest(target, paths);
+        _bus?.Post(ViewerTopics.OpenFiles, request);
+        _nav?.NavigateTo(KeyOf(target));
+
+        StatusText = $"⚠ 这个文件属于「{TitleOf(target)}」页，已转过去打开。";
+        return true;
+    }
+
+    /// <summary>View 设好 DataContext 后调一次：此后投递立即落地，不再压信箱。</summary>
+    public void AttachView() => _attached = true;
+
+    /// <summary>取走还没打开的文件（本页创建时投递先到）。</summary>
+    public IReadOnlyList<string> TakePending()
+    {
+        if (_pending.Count == 0) return Array.Empty<string>();
+
+        var paths = _pending.ToList();
+        _pending.Clear();
+        return paths;
+    }
+
+    private void OnOpenFilesPosted(object? payload)
+    {
+        var paths = Flatten(new[] { payload });
+        if (paths.Count == 0) return;
+
+        if (_attached) OpenRequested?.Invoke(this, paths);
+        else _pending.AddRange(paths);
+    }
+
+    /// <summary>从信箱 / 订阅载荷里挑出属于本页的请求。</summary>
+    private IReadOnlyList<string> Flatten(IReadOnlyList<object?>? payloads)
+    {
+        var paths = new List<string>();
+        if (payloads == null) return paths;
+
+        foreach (var p in payloads)
+        {
+            if (p is not ViewerOpenRequest request || request.Scope != Scope) continue;
+            paths.AddRange(request.Paths.Where(path => !string.IsNullOrWhiteSpace(path)));
+        }
+
+        return paths;
+    }
+
     // ---------- 最近打开 ----------
 
     public ObservableCollection<string> RecentItems { get; } = new();
@@ -116,7 +241,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     private void RefreshRecent()
     {
         RecentItems.Clear();
-        foreach (var p in _settings.Recent) RecentItems.Add(p);
+        foreach (var p in _settings.Recent.Where(Accepts)) RecentItems.Add(p);
         OnPropertyChanged(nameof(HasRecent));
     }
 
@@ -344,7 +469,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         ClearArchive();
         CurrentTitle = "未打开文件";
         CurrentInfo = "";
-        StatusText = "已关闭。拖入文件或点「📂 打开」。";
+        StatusText = "已关闭。" + ScopeHint;
         NotifyToolbarChanged();
     }
 
@@ -363,7 +488,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     private void OpenRecent(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return;
-        OpenRequested?.Invoke(this, path);
+        OpenRequested?.Invoke(this, new[] { path });
     }
 
     [RelayCommand]
@@ -410,85 +535,111 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     // ---------- 工具条 ----------
 
-    public IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
+    /// <summary>工具条按页面范围裁剪：⛔ 不给文本页放「缩放」，⛔ 不给音频页放「章节规则」。</summary>
+    public IReadOnlyList<ToolbarItemDescriptor>? Toolbar
     {
-        new()
+        get
         {
-            Text = "📂 打开",
-            Classes = "primary",
-            CommandPath = nameof(OpenCommand),
-            ToolTip = "选择要查看的文件（也可直接把文件拖进窗口）",
-        },
-        new()
-        {
-            Text = "A-",
-            CommandPath = nameof(FontSmallerCommand),
-            IsEnabledPath = nameof(CanStepFont),
-            ToolTip = "字号减小",
-        },
-        new()
-        {
-            Text = "A+",
-            CommandPath = nameof(FontLargerCommand),
-            IsEnabledPath = nameof(CanStepFont),
-            ToolTip = "字号增大",
-        },
-        new()
-        {
-            Text = "⊞ 适应窗口",
-            CommandPath = nameof(FitCommand),
-            IsEnabledPath = nameof(IsImage),
-            ToolTip = "图片缩放到适应窗口（也可双击图片切换 1:1 / 适应）",
-        },
-        new()
-        {
-            Text = "－",
-            CommandPath = nameof(ZoomOutCommand),
-            IsEnabledPath = nameof(IsImage),
-            ToolTip = "缩小（Ctrl + 滚轮同样有效）",
-        },
-        new()
-        {
-            Text = "＋",
-            CommandPath = nameof(ZoomInCommand),
-            IsEnabledPath = nameof(IsImage),
-            ToolTip = "放大（Ctrl + 滚轮同样有效）",
-        },
-        new()
-        {
-            Text = "◀ 上一张",
-            CommandPath = nameof(PrevImageCommand),
-            IsEnabledPath = nameof(IsArchive),
-            ToolTip = "压缩包里的上一张（←）",
-        },
-        new()
-        {
-            Text = "下一张 ▶",
-            CommandPath = nameof(NextImageCommand),
-            IsEnabledPath = nameof(IsArchive),
-            ToolTip = "压缩包里的下一张（→）",
-        },
-        new()
-        {
-            Text = "⏯ 播放/暂停",
-            CommandPath = nameof(TogglePlayCommand),
-            IsEnabledPath = nameof(IsAudio),
-            ToolTip = "播放或暂停当前曲目",
-        },
-        new()
-        {
-            Text = "✕ 关闭",
-            CommandPath = nameof(CloseCommand),
-            IsEnabledPath = nameof(HasContent),
-            ToolTip = "关闭当前文件（回到空态）",
-        },
-        new()
-        {
-            Text = "⚙ 章节规则",
-            CommandPath = nameof(EditRulesCommand),
-            ToolTip = "自定义 txt 章节识别正则（带试跑）",
-        },
-    };
+            var items = new List<ToolbarItemDescriptor>
+            {
+                new()
+                {
+                    Text = "📂 打开",
+                    Classes = "primary",
+                    CommandPath = nameof(OpenCommand),
+                    ToolTip = "选择要查看的文件（也可直接把文件拖进窗口）",
+                },
+            };
+
+            if (Scope is ViewerScope.Text or ViewerScope.All)
+            {
+                items.Add(new()
+                {
+                    Text = "A-",
+                    CommandPath = nameof(FontSmallerCommand),
+                    IsEnabledPath = nameof(CanStepFont),
+                    ToolTip = "字号减小",
+                });
+                items.Add(new()
+                {
+                    Text = "A+",
+                    CommandPath = nameof(FontLargerCommand),
+                    IsEnabledPath = nameof(CanStepFont),
+                    ToolTip = "字号增大",
+                });
+            }
+
+            if (Scope is ViewerScope.Image or ViewerScope.All)
+            {
+                items.Add(new()
+                {
+                    Text = "⊞ 适应窗口",
+                    CommandPath = nameof(FitCommand),
+                    IsEnabledPath = nameof(IsImage),
+                    ToolTip = "图片缩放到适应窗口（也可双击图片切换 1:1 / 适应）",
+                });
+                items.Add(new()
+                {
+                    Text = "－",
+                    CommandPath = nameof(ZoomOutCommand),
+                    IsEnabledPath = nameof(IsImage),
+                    ToolTip = "缩小（Ctrl + 滚轮同样有效）",
+                });
+                items.Add(new()
+                {
+                    Text = "＋",
+                    CommandPath = nameof(ZoomInCommand),
+                    IsEnabledPath = nameof(IsImage),
+                    ToolTip = "放大（Ctrl + 滚轮同样有效）",
+                });
+                items.Add(new()
+                {
+                    Text = "◀ 上一张",
+                    CommandPath = nameof(PrevImageCommand),
+                    IsEnabledPath = nameof(IsArchive),
+                    ToolTip = "压缩包里的上一张（←）",
+                });
+                items.Add(new()
+                {
+                    Text = "下一张 ▶",
+                    CommandPath = nameof(NextImageCommand),
+                    IsEnabledPath = nameof(IsArchive),
+                    ToolTip = "压缩包里的下一张（→）",
+                });
+            }
+
+            if (Scope is ViewerScope.Audio or ViewerScope.All)
+            {
+                items.Add(new()
+                {
+                    Text = "⏯ 播放/暂停",
+                    CommandPath = nameof(TogglePlayCommand),
+                    IsEnabledPath = nameof(IsAudio),
+                    ToolTip = "播放或暂停当前曲目",
+                });
+            }
+
+            items.Add(new()
+            {
+                Text = "✕ 关闭",
+                CommandPath = nameof(CloseCommand),
+                IsEnabledPath = nameof(HasContent),
+                ToolTip = "关闭当前文件（回到空态）",
+            });
+
+            if (Scope is ViewerScope.Text or ViewerScope.All)
+            {
+                items.Add(new()
+                {
+                    Text = "⚙ 章节规则",
+                    CommandPath = nameof(EditRulesCommand),
+                    ToolTip = "自定义 txt 章节识别正则（带试跑）",
+                });
+            }
+
+            return items;
+        }
+    }
 
     /// <summary>字号按钮可用：短文本或长文本阅读器。</summary>
     public bool CanStepFont => IsText || IsReader;

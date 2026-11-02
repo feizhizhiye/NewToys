@@ -1,0 +1,29 @@
+namespace NewToys.Viewer.ViewModels;
+
+/// <summary>
+/// 查看器页的范围：一页只处理一类内容（菜单分「文本阅读 / 图片查看 / 音频播放」三页）。
+/// <para>
+/// 范围只用于**入口分流**，⛔ 不影响渲染器 —— 三类内容仍由 <c>NewToys.UI.Viewers.ViewerHost</c> 统一装。
+/// </para>
+/// </summary>
+public enum ViewerScope
+{
+    /// <summary>不限（设计期预览用；运行时不出这种页）。</summary>
+    All,
+
+    /// <summary>文本与长文本阅读器。</summary>
+    Text,
+
+    /// <summary>图片，以及压缩包内的图片。</summary>
+    Image,
+
+    /// <summary>本地音频。</summary>
+    Audio,
+}
+
+/// <summary>
+/// 跨页打开请求：文件不属于当前页时，投递给目标页。
+/// </summary>
+/// <param name="Scope">目标页范围 —— 收到请求的页先比对自己的范围，不匹配直接忽略。</param>
+/// <param name="Paths">要打开的文件（音频可以是多首）。</param>
+public sealed record ViewerOpenRequest(ViewerScope Scope, IReadOnlyList<string> Paths);

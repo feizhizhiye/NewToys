@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
@@ -13,9 +14,19 @@ using NewToys.Viewer.ViewModels;
 namespace NewToys.Viewer.Views;
 
 /// <summary>
-/// 查看器页。控件操作与文件选择都在本类（VM ⛔ 不碰 StorageProvider、⛔ 不 new 控件）。
+/// 查看器页的公共逻辑（文本 / 图片 / 音频三页共用一份）：控件操作与文件选择都在这里，
+/// VM ⛔ 不碰 StorageProvider、⛔ 不 new 控件。
+/// <para>
+/// 🔴 子类 XAML 必须给这些元件起同名：<c>Host</c> / <c>RecentList</c> / <c>ArchiveList</c> /
+/// <c>RulePanel</c> / <c>RuleList</c> / <c>RuleNameBox</c> / <c>RulePatternBox</c> / <c>SampleBox</c> /
+/// <c>TestResult</c>。基类按名字取控件（XAML 生成的字段在子类里，基类拿不到）。
+/// </para>
+/// <para>
+/// 🔴 本类不做范围判断 —— 收不收这个文件由 <see cref="ViewerViewModel.TryRouteElsewhere"/> 决定，
+/// 不属于本页的文件会转去目标页。
+/// </para>
 /// </summary>
-public partial class ViewerView : UserControl
+public abstract class ViewerPageBase : UserControl
 {
     private ViewerViewModel? _vm;
 
@@ -28,11 +39,18 @@ public partial class ViewerView : UserControl
     private List<ReaderBookmark> _bookmarks = new();
     private ReaderShell? _wiredReader;
 
-    public ViewerView()
-    {
-        InitializeComponent();
-        Focusable = true;
+    private ViewerHost? _host;
+    private ListBox? _recentList;
+    private ListBox? _archiveList;
+    private Border? _rulePanel;
+    private ListBox? _ruleList;
+    private TextBox? _ruleNameBox;
+    private TextBox? _rulePatternBox;
+    private TextBox? _sampleBox;
+    private TextBlock? _testResult;
 
+    protected ViewerPageBase()
+    {
         // 拖放：把文件直接拖进来
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -41,6 +59,31 @@ public partial class ViewerView : UserControl
         // 页面卸载 / 切走时把进度存下来
         DetachedFromVisualTree += (_, _) => SaveProgress();
     }
+
+    private ViewerHost Host => _host ??= Find<ViewerHost>("Host");
+
+    private ListBox RecentList => _recentList ??= Find<ListBox>("RecentList");
+
+    private ListBox ArchiveList => _archiveList ??= Find<ListBox>("ArchiveList");
+
+    private Border RulePanel => _rulePanel ??= Find<Border>("RulePanel");
+
+    private ListBox RuleList => _ruleList ??= Find<ListBox>("RuleList");
+
+    private TextBox RuleNameBox => _ruleNameBox ??= Find<TextBox>("RuleNameBox");
+
+    private TextBox RulePatternBox => _rulePatternBox ??= Find<TextBox>("RulePatternBox");
+
+    private TextBox SampleBox => _sampleBox ??= Find<TextBox>("SampleBox");
+
+    private TextBlock TestResult => _testResult ??= Find<TextBlock>("TestResult");
+
+    private T Find<T>(string name) where T : Control
+        => this.FindControl<T>(name)
+           ?? throw new InvalidOperationException($"ViewerPage 的 XAML 缺少名为 {name} 的 {typeof(T).Name}。");
+
+    /// <summary>子类构造函数在 <c>InitializeComponent()</c> 之后调用。</summary>
+    protected void InitPage() => Focusable = true;
 
     protected override void OnDataContextChanged(EventArgs e)
     {
@@ -75,25 +118,42 @@ public partial class ViewerView : UserControl
         _vm.ReaderOptionsChanged += OnReaderOptionsChanged;
 
         RuleList.ItemsSource = _vm.CustomRules;
+        Host.SetHint(_vm.ScopeHint);
 
-        Host.SetHint("支持：文本（txt / md 带目录与书签）、源码、图片、压缩包内图片（zip / rar / 7z）、音频（本地播放器）。" +
-                     "视频走系统默认播放器。");
+        // 本页是被跳转过来的：投递的文件已经躺在 VM 里，等页面挂上树再打开（控件此时才算就绪）。
+        _vm.AttachView();
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        if (_vm is null) return;
+
+        var pending = _vm.TakePending();
+        if (pending.Count > 0) OpenMany(pending);
     }
 
     // ==================== 打开 ====================
 
-    private async void OnOpenRequested(object? sender, string? path)
+    private async void OnOpenRequested(object? sender, IReadOnlyList<string>? paths)
     {
         if (_vm is null) return;
 
-        if (!string.IsNullOrEmpty(path))
+        if (paths is null)
         {
-            Open(path);
-            return;
+            paths = await PickFilesAsync();
+            if (paths.Count == 0) return;
         }
 
-        var paths = await PickFilesAsync();
-        if (paths.Count == 0) return;
+        OpenMany(paths);
+    }
+
+    /// <summary>打开一批文件：不属于本页的转去对应页，多首音频进播放列表。</summary>
+    private void OpenMany(IReadOnlyList<string> paths)
+    {
+        if (_vm is null || paths.Count == 0) return;
+        if (_vm.TryRouteElsewhere(paths)) return;
 
         if (paths.Count > 1 && paths.All(ViewerHost.IsAudio)) OpenAudioFiles(paths);
         else Open(paths[0]);
@@ -284,7 +344,7 @@ public partial class ViewerView : UserControl
         _vm.SetInfo("缩放 " + (Host.Zoom * 100).ToString("0") + "%");
     }
 
-    private void OnArchiveSelected(object? sender, SelectionChangedEventArgs e)
+    protected void OnArchiveSelected(object? sender, SelectionChangedEventArgs e)
     {
         if (_suppress) return;
         var index = ArchiveList.SelectedIndex;
@@ -419,9 +479,9 @@ public partial class ViewerView : UserControl
         if (RulePanel.IsVisible) RulePanel.ZIndex = 10;
     }
 
-    private void OnCloseRules(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => RulePanel.IsVisible = false;
+    protected void OnCloseRules(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => RulePanel.IsVisible = false;
 
-    private void OnAddRule(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    protected void OnAddRule(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_vm is null) return;
 
@@ -436,14 +496,14 @@ public partial class ViewerView : UserControl
         TestResult.Text = "已保存。下次打开 txt 时生效。";
     }
 
-    private void OnRemoveRule(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    protected void OnRemoveRule(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_vm is null) return;
         _vm.RemoveRule(RuleList.SelectedItem as TxtChapterRule);
         TestResult.Text = "已删除。";
     }
 
-    private void OnTestRules(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    protected void OnTestRules(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_vm is null) return;
 
@@ -493,16 +553,14 @@ public partial class ViewerView : UserControl
             .ToList();
 
         if (paths is null || paths.Count == 0) return;
-
-        if (paths.Count > 1 && paths.All(ViewerHost.IsAudio)) OpenAudioFiles(paths);
-        else Open(paths[0]);
+        OpenMany(paths);
     }
 
-    private void OnRecentSelected(object? sender, SelectionChangedEventArgs e)
+    protected void OnRecentSelected(object? sender, SelectionChangedEventArgs e)
     {
         if (RecentList.SelectedItem is not string path) return;
         RecentList.SelectedItem = null;   // 允许重复点同一条
-        Open(path);
+        OpenMany(new[] { path });
     }
 
     // ==================== 键盘 ====================

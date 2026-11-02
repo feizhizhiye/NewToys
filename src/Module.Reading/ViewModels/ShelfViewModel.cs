@@ -195,7 +195,9 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
     }
 
     /// <summary>筛选命中条数（筛选条右侧的「N / 共 M」）。</summary>
-    public string FilterSummary => Items.Count == _all.Count
+    /// <remarks>基类同名成员统计的是「生效筛选器个数」；本页筛选全在页面内（分组 / 更新状态 / 只看有更新），
+    /// 要看的是命中本数 ⇒ 有意隐藏。</remarks>
+    public new string FilterSummary => Items.Count == _all.Count
         ? $"共 {_all.Count} 本"
         : $"筛出 {Items.Count} / 共 {_all.Count} 本";
 

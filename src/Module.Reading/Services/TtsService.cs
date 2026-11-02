@@ -340,7 +340,8 @@ public sealed class TtsService : IDisposable
 
     private static void Release(object? comObject)
     {
-        if (comObject is null) return;
+        if (comObject is null || !OperatingSystem.IsWindows()) return;
+
         try
         {
             if (System.Runtime.InteropServices.Marshal.IsComObject(comObject))

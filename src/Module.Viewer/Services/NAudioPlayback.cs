@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.Versioning;
 using NAudio.Wave;
 using NewToys.Shared.Services;
 
@@ -12,9 +13,11 @@ namespace NewToys.Viewer.Services;
 /// 失败回退 <see cref="AudioFileReader"/>（wav / aiff / mp3）—— 后者是纯托管路径，覆盖面兜底。
 /// </para>
 /// <para>
-/// 🔴 <see cref="IAudioPlayback"/> 是跨平台契约，本类是 Windows 实现；换后端（mpv / libvlc）只换这个类。
+/// 🔴 <see cref="IAudioPlayback"/> 是跨平台契约，本类是 **Windows 平台底座**（`[SupportedOSPlatform]`）：
+/// 非 Windows 由 <see cref="NullAudioPlayback"/> 顶替，换后端（mpv / libvlc）只换这个类。
 /// </para>
 /// </summary>
+[SupportedOSPlatform("windows")]
 public sealed class NAudioPlayback : IAudioPlayback
 {
     private readonly object _gate = new();

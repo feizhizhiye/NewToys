@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
@@ -30,8 +31,11 @@ public class ViewerModule : IModule
         services.AddSingleton<ArchiveImageService>();
         services.AddSingleton<AudioLibraryService>();
 
-        // 播放后端是跨平台契约的实现（Windows = NAudio）；单例 = 同一时间只播一首
-        services.AddSingleton<Shared.Services.IAudioPlayback, NAudioPlayback>();
+        // 播放后端是跨平台契约的实现：Windows = NAudio（平台底座），其它平台先用明确失败的空实现
+        if (OperatingSystem.IsWindows())
+            services.AddSingleton<Shared.Services.IAudioPlayback, NAudioPlayback>();
+        else
+            services.AddSingleton<Shared.Services.IAudioPlayback, NullAudioPlayback>();
 
         services.AddTransient<Views.ViewerView>();
         services.AddTransient<ViewerViewModel>();

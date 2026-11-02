@@ -114,7 +114,7 @@ public sealed class ArchiveImageSession : IDisposable
         return buffer;
     }
 
-    internal static string Normalize(string key) => (key ?? "").Replace('\\', '/');
+    internal static string Normalize(string? key) => (key ?? "").Replace('\\', '/');
 
     public void Dispose()
     {

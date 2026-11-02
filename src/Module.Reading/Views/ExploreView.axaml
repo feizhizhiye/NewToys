@@ -1,33 +1,37 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:NewToys.Reading.Views"
              x:Class="NewToys.Reading.Views.ExploreView">
   <!--
-    阅读 → 发现（`reading-explore`）：按书源自带的分类表浏览，不用输关键词。
-    选源 → 左列分类 → 中间该书单；双击一本 = 去「网上搜索」读目录与正文。
+    网络阅读 → 发现（`reading-explore`）：左「书源 → 分类」树 + 右书单行列表。
+    点一行 = 弹书籍卡（阅读 / 加书架都在卡里），⛔ 本页不内嵌正文。
   -->
+  <UserControl.Styles>
+    <!--  树与列表的行都要撑满栏宽，否则每项底色只包住文字、宽度参差不齐  -->
+    <Style Selector="Expander /template/ ToggleButton">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Padding" Value="8,0"/>
+    </Style>
+  </UserControl.Styles>
+
   <Grid RowDefinitions="Auto,Auto,*">
 
     <Border Grid.Row="0" Background="{DynamicResource ContentHeaderBrush}" Padding="12,8">
       <DockPanel LastChildFill="False">
-        <TextBlock DockPanel.Dock="Left" Classes="hint-text" Text="书源" VerticalAlignment="Center" Margin="0,0,8,0"/>
+        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="ghost" Content="🔄 重读书源" Command="{Binding ReloadSourcesCommand}"/>
+          <Button Classes="ghost" Content="✖ 取消" Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}"/>
+        </StackPanel>
 
-        <ComboBox DockPanel.Dock="Left"
-                  Width="300"
-                  ItemsSource="{Binding Sources}"
-                  SelectedItem="{Binding SelectedSource, Mode=TwoWay}">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-
-        <Button DockPanel.Dock="Left" Classes="ghost" Content="🔄 重读书源"
-                Command="{Binding ReloadSourcesCommand}" Margin="8,0,0,0"/>
-        <Button DockPanel.Dock="Left" Classes="primary" Content="📖 读这本书"
-                Command="{Binding ReadCommand}" Margin="8,0,0,0"/>
-        <Button DockPanel.Dock="Left" Classes="ghost" Content="✖ 取消"
-                Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}" Margin="8,0,0,0"/>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                    IsVisible="{Binding CanPage}">
+          <Button Classes="ghost" Content="◀" Command="{Binding PrevPageCommand}" IsEnabled="{Binding CanPrevPage}"/>
+          <TextBlock Classes="hint-text" Text="{Binding PageText}" VerticalAlignment="Center"/>
+          <Button Classes="ghost" Content="▶" Command="{Binding NextPageCommand}"/>
+        </StackPanel>
       </DockPanel>
     </Border>
 
@@ -47,8 +51,9 @@
       </Border>
     </StackPanel>
 
-    <Grid Grid.Row="2" ColumnDefinitions="200,*" Margin="12,0,12,12">
+    <Grid Grid.Row="2" ColumnDefinitions="258,*" Margin="12,0,12,12">
 
+      <!--  ==================== 左：书源 → 分类（折叠树，行宽一致）  ====================  -->
       <Border Grid.Column="0"
               Background="{DynamicResource PanelBrush}"
               BorderBrush="{DynamicResource DividerBrush}"
@@ -56,20 +61,56 @@
               CornerRadius="6"
               Margin="0,8,8,0">
         <DockPanel LastChildFill="True">
-          <TextBlock DockPanel.Dock="Top" Classes="section-title" Margin="10,8,10,6" Text="分类"/>
-          <ListBox ItemsSource="{Binding Categories}"
-                   SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
-                   Background="Transparent"
-                   BorderThickness="0">
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <TextBlock Classes="list-cell" Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
+          <TextBlock DockPanel.Dock="Top" Classes="section-title" Margin="10,8,10,6" Text="书源 / 分类"/>
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="SourceTree" ItemsSource="{Binding Nodes}" Margin="4,0,4,8">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Expander HorizontalAlignment="Stretch"
+                            IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
+                            Margin="0,0,0,2">
+                    <Expander.Header>
+                      <!--  书源名整段显示（⛔ 不截断、宽度不够就换行），下面的能力 / 分类数用更小的字  -->
+                      <StackPanel Margin="0,3" Spacing="1">
+                        <TextBlock Classes="list-cell primary"
+                                   Text="{Binding Name}"
+                                   TextWrapping="Wrap"
+                                   Padding="0"
+                                   LineHeight="16"/>
+                        <TextBlock Classes="hint-text"
+                                   Text="{Binding Hint}"
+                                   FontSize="10"
+                                   TextTrimming="CharacterEllipsis"
+                                   Padding="0"/>
+                      </StackPanel>
+                    </Expander.Header>
+                    <ListBox x:Name="CategoryList"
+                             ItemsSource="{Binding Children}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0"
+                             Margin="6,2,0,4">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate>
+                          <!--  分类是这棵树的主角 ⇒ 比书源名大一号  -->
+                          <TextBlock Text="{Binding Name}"
+                                     FontSize="14"
+                                     Foreground="{DynamicResource PrimaryTextBrush}"
+                                     TextTrimming="CharacterEllipsis"
+                                     VerticalAlignment="Center"
+                                     Padding="8,0,0,0"/>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                  </Expander>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
         </DockPanel>
       </Border>
 
+      <!--  ==================== 右：书单行列表（点一行弹书籍卡）  ====================  -->
       <Border Grid.Column="1"
               Background="{DynamicResource PanelBrush}"
               BorderBrush="{DynamicResource DividerBrush}"
@@ -77,25 +118,48 @@
               CornerRadius="6"
               Margin="0,8,0,0">
         <DockPanel LastChildFill="True">
-          <TextBlock DockPanel.Dock="Top" Classes="section-title" Margin="10,8,10,6"
-                     Text="{Binding StatusText}"/>
+          <TextBlock DockPanel.Dock="Top" Classes="section-title" Margin="10,8,10,6" Text="{Binding ListTitle}"/>
+
           <ListBox x:Name="ResultList"
                    ItemsSource="{Binding Results}"
                    SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
-                   DoubleTapped="OnResultDoubleTapped"
                    Background="Transparent"
-                   BorderThickness="0">
+                   BorderThickness="0"
+                   Padding="8,0,8,8">
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <StackPanel Spacing="2" Margin="0,2">
-                  <TextBlock Classes="list-cell primary" Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
-                  <TextBlock Classes="hint-text" Text="{Binding AuthorText}" TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto" Height="46">
+                  <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center">
+                    <TextBlock Classes="list-cell primary"
+                               Text="{Binding Name}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Classes="hint-text"
+                               Text="{Binding AuthorText}"
+                               TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1"
+                              VerticalAlignment="Center"
+                              Margin="12,0,0,0">
+                    <TextBlock Classes="hint-text"
+                               Text="{Binding LastChapter}"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="240"
+                               HorizontalAlignment="Right"/>
+                    <TextBlock Classes="hint-text"
+                               Text="{Binding SourceName}"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="240"
+                               HorizontalAlignment="Right"/>
+                  </StackPanel>
+                </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
         </DockPanel>
       </Border>
     </Grid>
+
+    <!--  书籍卡浮层（盖住整页，IsVisible 由 VM 的 IsCardOpen 控制）  -->
+    <views:BookCardOverlay Grid.Row="0" Grid.RowSpan="3"/>
   </Grid>
 </UserControl>

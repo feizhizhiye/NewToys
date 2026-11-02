@@ -9,6 +9,8 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <!--  书源规则求值：HTML 选择器解析（legado 书源 0 条 XPath 用法 ⇒ 不引 XPath 库）  -->
     <PackageReference Include="AngleSharp" />
+    <!--  书源规则里的 @js: 片段（Jint + java.* 桥）  -->
+    <PackageReference Include="Jint" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Shared/Shared.csproj" />

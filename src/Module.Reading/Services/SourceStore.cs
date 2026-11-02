@@ -17,7 +17,7 @@ namespace NewToys.Reading.Services;
 /// </summary>
 public sealed class SourceStore
 {
-    private const string Columns = "url,name,group_name,source_type,enabled,rules_json,last_used_at";
+    private const string Columns = "url,name,group_name,source_type,enabled,rules_json,last_used_at,check_state,check_note,checked_at";
 
     private readonly ReadingDatabase _db;
 
@@ -157,6 +157,90 @@ ON CONFLICT(url) DO UPDATE SET
         return changed;
     }
 
+    /// <summary>
+    /// 批量改分组（<c>""</c> = 未分组）。
+    /// <para>🔴 必须同时回写 <c>rules_json</c> 里的 <c>bookSourceGroup</c>：导出走的是原始 JSON，
+    /// 只改 <c>group_name</c> 的话导出再导入分组就回去了。</para>
+    /// </summary>
+    public int SetGroup(IEnumerable<string> urls, string? group)
+    {
+        if (!_db.IsAvailable) return 0;
+
+        var name = (group ?? "").Trim();
+        var changed = 0;
+
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var tx = conn.BeginTransaction();
+
+            foreach (var url in urls.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct())
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = "UPDATE book_sources SET group_name = $group, rules_json = $rules WHERE url = $url;";
+                cmd.Parameters.AddWithValue("$group", name);
+                cmd.Parameters.AddWithValue("$rules", PatchGroup(ReadRaw(conn, tx, url), name));
+                cmd.Parameters.AddWithValue("$url", url);
+                changed += cmd.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+        }
+        catch { return changed; }
+
+        return changed;
+    }
+
+    /// <summary>写一次校验结论（通过 / 无结果 / 失败）。</summary>
+    public void SetCheck(string url, SourceCheckState state, string note, DateTimeOffset at)
+    {
+        if (!_db.IsAvailable || string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"UPDATE book_sources
+SET check_state = $state, check_note = $note, checked_at = $at
+WHERE url = $url;";
+            cmd.Parameters.AddWithValue("$state", (int)state);
+            cmd.Parameters.AddWithValue("$note", note ?? "");
+            cmd.Parameters.AddWithValue("$at", at.ToString("O", CultureInfo.InvariantCulture));
+            cmd.Parameters.AddWithValue("$url", url);
+            cmd.ExecuteNonQuery();
+        }
+        catch { /* 校验结论写不进去不影响本次校验 */ }
+    }
+
+    private static string ReadRaw(SqliteConnection conn, SqliteTransaction tx, string url)
+    {
+        try
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "SELECT rules_json FROM book_sources WHERE url = $url LIMIT 1;";
+            cmd.Parameters.AddWithValue("$url", url);
+            return cmd.ExecuteScalar() as string ?? "";
+        }
+        catch { return ""; }
+    }
+
+    /// <summary>把原始 JSON 里的 <c>bookSourceGroup</c> 改成目标分组（原文坏 / 空 ⇒ 原样返回，只改库列）。</summary>
+    private static string PatchGroup(string rawJson, string group)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson)) return rawJson;
+
+        try
+        {
+            if (System.Text.Json.Nodes.JsonNode.Parse(rawJson) is not System.Text.Json.Nodes.JsonObject obj) return rawJson;
+
+            if (group.Length == 0) obj.Remove("bookSourceGroup");
+            else obj["bookSourceGroup"] = group;
+            return obj.ToJsonString();
+        }
+        catch { return rawJson; }
+    }
+
     /// <summary>记一次「用过」（详情卡显示上次使用时间）。</summary>
     public void TouchUsed(string url)
     {
@@ -195,6 +279,12 @@ ON CONFLICT(url) DO UPDATE SET
         if (!reader.IsDBNull(6) && DateTimeOffset.TryParse(reader.GetString(6), CultureInfo.InvariantCulture,
                 DateTimeStyles.RoundtripKind, out var at))
             source.LastUsedAt = at;
+
+        source.CheckState = (SourceCheckState)reader.GetInt32(7);
+        source.CheckNote = reader.IsDBNull(8) ? "" : reader.GetString(8);
+        if (!reader.IsDBNull(9) && DateTimeOffset.TryParse(reader.GetString(9), CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind, out var checkedAt))
+            source.CheckedAt = checkedAt;
 
         var (capability, reason) = SourceAnalyzer.Analyze(source);
         source.Capability = capability;

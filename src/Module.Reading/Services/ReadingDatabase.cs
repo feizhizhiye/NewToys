@@ -5,7 +5,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>阅读模块自有库（<c>store\reading\reading.db</c>）。一个模块一个库，⛔ 与别模块共库。</summary>
+/// <summary>网络阅读模块自有库（<c>store\reading\reading.db</c>）。一个模块一个库，⛔ 与别模块共库。</summary>
 public sealed class ReadingDb : SqliteDatabase
 {
     /// <summary>库键 = <c>store\</c> 下的子目录名。</summary>
@@ -48,6 +48,37 @@ public sealed class ReadingDatabase
         if (!_db.IsAvailable) return;
         _db.EnsureTable(Tables);
         _db.EnsureTable(Indexes);
+
+        // 书架分组是本批新增列：老库只有建表 DDL 不够（表已存在），必须补列
+        EnsureColumn("shelf", "group_name", "TEXT NOT NULL DEFAULT ''");
+
+        // 书源校验（批8）：老库补三列，未校验 = 0
+        EnsureColumn("book_sources", "check_state", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn("book_sources", "check_note", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn("book_sources", "checked_at", "TEXT");
+    }
+
+    /// <summary>给已存在的表补列（列已在 ⇒ 什么都不做）。</summary>
+    private void EnsureColumn(string table, string column, string definition)
+    {
+        try
+        {
+            using var conn = _db.Open();
+            using var check = conn.CreateCommand();
+            check.CommandText = $"PRAGMA table_info({table});";
+            using (var reader = check.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase)) return;
+                }
+            }
+
+            using var alter = conn.CreateCommand();
+            alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition};";
+            alter.ExecuteNonQuery();
+        }
+        catch { /* 补列失败不阻断：读写层按「列可能不存在」降级 */ }
     }
 
     private const string Tables = @"
@@ -58,7 +89,10 @@ CREATE TABLE IF NOT EXISTS book_sources (
   source_type INTEGER NOT NULL DEFAULT 0,
   enabled INTEGER NOT NULL DEFAULT 1,
   rules_json TEXT NOT NULL DEFAULT '',
-  last_used_at TEXT
+  last_used_at TEXT,
+  check_state INTEGER NOT NULL DEFAULT 0,
+  check_note TEXT NOT NULL DEFAULT '',
+  checked_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS shelf (
@@ -67,6 +101,7 @@ CREATE TABLE IF NOT EXISTS shelf (
   name TEXT NOT NULL DEFAULT '',
   author TEXT NOT NULL DEFAULT '',
   cover_url TEXT NOT NULL DEFAULT '',
+  group_name TEXT NOT NULL DEFAULT '',
   added_at TEXT NOT NULL DEFAULT ''
 );
 
@@ -74,9 +109,15 @@ CREATE TABLE IF NOT EXISTS reading_progress (
   book_url TEXT NOT NULL,
   chapter_url TEXT NOT NULL,
   chapter_name TEXT NOT NULL DEFAULT '',
-  offset REAL NOT NULL DEFAULT 0,
+  ""offset"" REAL NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (book_url, chapter_url)
+);
+
+CREATE TABLE IF NOT EXISTS content_cache (
+  chapter_url TEXT PRIMARY KEY,
+  content TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT ''
 );
 ";
 
@@ -84,6 +125,7 @@ CREATE TABLE IF NOT EXISTS reading_progress (
 CREATE INDEX IF NOT EXISTS idx_reading_sources_name ON book_sources(name);
 CREATE INDEX IF NOT EXISTS idx_reading_sources_group ON book_sources(group_name);
 CREATE INDEX IF NOT EXISTS idx_reading_shelf_added ON shelf(added_at);
+CREATE INDEX IF NOT EXISTS idx_reading_cache_updated ON content_cache(updated_at);
 ";
 }
 
@@ -94,7 +136,7 @@ public sealed class ReadingSchemaContributor : ILibrarySchemaContributor
     public const string Key = "reading";
 
     /// <summary>本模块 schema 版本。</summary>
-    public const int Version = 1;
+    public const int Version = 4;
 
     private readonly IServiceProvider _sp;
 

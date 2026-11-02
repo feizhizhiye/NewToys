@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Reading.Models;
@@ -28,15 +29,16 @@ public partial class SourcePick : ObservableObject
     public string Hint => Source.GroupText;
 
     [ObservableProperty] private bool _isSelected;
+
+    partial void OnIsSelectedChanged(bool value) => SelectionChanged?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>勾选变了（页面据此刷新「已选 N / M」）。</summary>
+    public event EventHandler? SelectionChanged;
 }
 
 /// <summary>
-/// 「阅读 → 网上搜索」页（<c>reading-search</c>）：一页三段 —— 上段选源 + 关键词，
-/// 中段搜索结果，右段目录 + 正文。
-/// <para>
-/// 三步（搜索 / 目录 / 正文）失败时把 <see cref="Models.StepError"/> 的「哪一步、哪条规则、什么原因」
-/// 直接显示在错误条上，⛔ 不只是一句"失败了"。
-/// </para>
+/// 「网络阅读 → 网上搜索」页（<c>reading-search</c>）：左边书源多选，右边搜索结果。
+/// <para>点一本书 = 进「阅读」页读正文（本页 ⛔ 不内嵌目录与正文，与手机端一致）。</para>
 /// </summary>
 public partial class SearchViewModel : ObservableObject, IStatusProvider, IDisposable
 {
@@ -44,6 +46,8 @@ public partial class SearchViewModel : ObservableObject, IStatusProvider, IDispo
     private readonly CrawlService _crawl;
     private readonly ShelfStore _shelf;
     private readonly ReadingSession _session;
+    private readonly CoverLoader _covers;
+    private readonly INavigationService? _nav;
 
     private CancellationTokenSource? _cts;
 
@@ -51,45 +55,54 @@ public partial class SearchViewModel : ObservableObject, IStatusProvider, IDispo
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _busyPhase = "";
     [ObservableProperty] private SearchItem? _selectedResult;
-    [ObservableProperty] private Chapter? _selectedChapter;
     [ObservableProperty] private string _statusText = "就绪";
     [ObservableProperty] private string _errorText = "";
-    [ObservableProperty] private string _bookInfoText = "";
-    [ObservableProperty] private string _contentTitle = "";
-    [ObservableProperty] private string _contentText = "";
+    [ObservableProperty] private string _sourceFilter = "";
 
-    /// <summary>设置项兜底构造。</summary>
-    public SearchViewModel() : this(null!, null!, null!, new ReadingSession()) { }
+    /// <summary>书源多选浮层是否展开（默认收起，点工具条「📚 书源」才弹）。</summary>
+    [ObservableProperty] private bool _showSources;
 
-    public SearchViewModel(SourceStore store, CrawlService crawl, ShelfStore shelf, ReadingSession session)
+    /// <summary>书籍卡是否展开（点一条结果打开；遮罩 / 关闭按钮收起）。</summary>
+    [ObservableProperty] private bool _isCardOpen;
+    [ObservableProperty] private SearchItem? _cardBook;
+    [ObservableProperty] private Bitmap? _cardCover;
+
+    /// <summary>设计期兜底构造。</summary>
+    public SearchViewModel() : this(null!, null!, null!, new ReadingSession(), null!) { }
+
+    public SearchViewModel(SourceStore store, CrawlService crawl, ShelfStore shelf, ReadingSession session,
+        CoverLoader covers, INavigationService? nav = null)
     {
         _store = store;
         _crawl = crawl;
         _shelf = shelf;
         _session = session;
+        _covers = covers;
+        _nav = nav;
         ReloadSources();
     }
 
+    /// <summary>全部可用书源（多选框列表）。</summary>
     public ObservableCollection<SourcePick> Sources { get; } = new();
 
+    /// <summary>过滤后的书源（界面绑这个）。</summary>
+    public ObservableCollection<SourcePick> VisibleSources { get; } = new();
+
     public ObservableCollection<SearchItem> Results { get; } = new();
-
-    public ObservableCollection<Chapter> Chapters { get; } = new();
-
-    /// <summary>正文变化（视图层据此把文本推给 <c>TextViewer</c>）。</summary>
-    public event EventHandler? ContentChanged;
 
     public event EventHandler? StatusChanged;
 
     public bool HasResults => Results.Count > 0;
 
-    public bool HasChapters => Chapters.Count > 0;
-
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorText);
 
     public bool IsNotBusy => !IsBusy;
 
+    public bool HasSelection => SelectedResult is not null;
+
     public string SourceSummary => $"已选 {Sources.Count(s => s.IsSelected)} / {Sources.Count} 个可用书源";
+
+    public string ResultTitle => Results.Count == 0 ? "搜索结果" : $"搜索结果 · {Results.Count} 本";
 
     partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 
@@ -97,19 +110,55 @@ public partial class SearchViewModel : ObservableObject, IStatusProvider, IDispo
 
     partial void OnErrorTextChanged(string value) => OnPropertyChanged(nameof(HasError));
 
-    partial void OnContentTextChanged(string value) => ContentChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnSourceFilterChanged(string value) => RebuildVisibleSources();
 
     partial void OnSelectedResultChanged(SearchItem? value)
     {
-        Chapters.Clear();
-        SelectedChapter = null;
-        OnPropertyChanged(nameof(HasChapters));
-        if (value is not null) _ = LoadBookAsync(value);
+        OnPropertyChanged(nameof(HasSelection));
+        if (value is not null && !ReferenceEquals(CardBook, value)) CardBook = value;
     }
 
-    partial void OnSelectedChapterChanged(Chapter? value)
+    partial void OnCardBookChanged(SearchItem? value)
     {
-        if (value is not null) _ = LoadContentAsync(value);
+        IsCardOpen = value is not null;
+        CardCover = null;
+        if (value is null && SelectedResult is not null) SelectedResult = null;
+        OnPropertyChanged(nameof(CardCoverInitial));
+        if (value is not null) _ = LoadCoverAsync(value);
+    }
+
+    /// <summary>书籍卡上的「开始阅读」（与工具条同一个入口）。</summary>
+    [RelayCommand]
+    private void ReadCardBook() => OpenInReader();
+
+    /// <summary>书籍卡上的「加入书架」（与工具条同一个入口）。</summary>
+    [RelayCommand]
+    private void AddCardToShelf() => AddToShelf();
+
+    partial void OnCardCoverChanged(Bitmap? value) => OnPropertyChanged(nameof(HasCardCover));
+
+    /// <summary>有封面就显示图；没有则显示书名首字占位块。</summary>
+    public bool HasCardCover => CardCover is not null;
+
+    public string CardCoverInitial
+    {
+        get
+        {
+            var name = CardBook?.Name;
+            return string.IsNullOrWhiteSpace(name) ? "书" : name.Trim()[..1];
+        }
+    }
+
+    [RelayCommand]
+    private void CloseCard() => CardBook = null;
+
+    private async Task LoadCoverAsync(SearchItem book)
+    {
+        if (_covers is null || string.IsNullOrWhiteSpace(book.CoverUrl)) return;
+
+        var cover = await _covers.LoadAsync(book.CoverUrl).ConfigureAwait(true);
+        if (!ReferenceEquals(CardBook, book)) return;
+        CardCover = cover;
     }
 
     // ==================== 命令 ====================
@@ -117,76 +166,72 @@ public partial class SearchViewModel : ObservableObject, IStatusProvider, IDispo
     [RelayCommand]
     private void ReloadSources()
     {
-        var pending = _session.TakePendingSourceUrl();
-
         Sources.Clear();
         if (_store is not null)
         {
             foreach (var source in _store.LoadAll())
             {
                 if (!source.Enabled || source.Capability != SourceCapability.Ready) continue;
-                var selected = pending is null || string.Equals(pending, source.Url, StringComparison.OrdinalIgnoreCase);
-                Sources.Add(new SourcePick(source, selected));
+                var pick = new SourcePick(source, true);
+                pick.SelectionChanged += OnPickSelectionChanged;
+                Sources.Add(pick);
             }
         }
 
+        RebuildVisibleSources();
         OnPropertyChanged(nameof(SourceSummary));
         StatusText = Sources.Count == 0
-            ? "没有可用书源 —— 先到「阅读 → 书源」导入 JSON。"
+            ? "没有可用书源 —— 先到「网络阅读 → 书源」导入 JSON。"
             : $"可用书源 {Sources.Count} 个";
 
-        CheckPendingBook();
+        // 阅读页「换源」把书名带过来（取走即清空，⛔ 不残留到下次进页）
+        CheckPendingKeyword();
     }
 
     /// <summary>
-    /// 取走并打开「待读的书」（书架 / 发现页带过来的）。
-    /// <para>🔴 标签页复用时 VM 不会重建 ⇒ 每次页面重新挂载都要再查一次，否则第二次跳转没反应。</para>
+    /// 取走「换源」带过来的书名。
+    /// <para>🔴 标签页复用时 VM 不重建 ⇒ 页面重新挂载那一刻也要再查一次，否则第二次换源没反应。</para>
     /// </summary>
-    public void CheckPendingBook()
+    public void CheckPendingKeyword()
     {
-        if (_session.TakePendingBook() is { } pending) OpenPending(pending);
+        if (_session.TakePendingKeyword() is { } keyword) Keyword = keyword;
     }
 
-    /// <summary>从书架 / 发现页带过来的书：预选它的源并在结果里打开。</summary>
-    private void OpenPending(PendingBook pending)
+    private void OnPickSelectionChanged(object? sender, EventArgs e)
     {
-        var source = FindSource(pending.SourceUrl);
-        if (source is null)
-        {
-            ErrorText = $"《{pending.Name}》的来源书源已删除或已停用，换一个源重新搜。";
-            return;
-        }
+        OnPropertyChanged(nameof(SourceSummary));
+    }
 
+    private void RebuildVisibleSources()
+    {
+        var key = (SourceFilter ?? "").Trim();
+        VisibleSources.Clear();
         foreach (var pick in Sources)
-            pick.IsSelected = string.Equals(pick.Source.Url, pending.SourceUrl, StringComparison.OrdinalIgnoreCase);
-
-        var item = new SearchItem
         {
-            Name = pending.Name,
-            BookUrl = pending.BookUrl,
-            SourceUrl = pending.SourceUrl,
-            SourceName = source.Name,
-        };
-
-        Results.Insert(0, item);
-        OnPropertyChanged(nameof(HasResults));
-        SelectedResult = item;
+            if (key.Length > 0
+                && pick.Name.IndexOf(key, StringComparison.OrdinalIgnoreCase) < 0
+                && pick.Hint.IndexOf(key, StringComparison.OrdinalIgnoreCase) < 0) continue;
+            VisibleSources.Add(pick);
+        }
     }
 
-    /// <summary>全选 / 全不选书源。</summary>
+    /// <summary>全选 / 全不选（只作用于当前过滤出来的那些）。</summary>
     [RelayCommand]
     private void SelectAllSources()
     {
-        foreach (var pick in Sources) pick.IsSelected = true;
+        foreach (var pick in VisibleSources) pick.IsSelected = true;
         OnPropertyChanged(nameof(SourceSummary));
     }
 
     [RelayCommand]
     private void ClearSources()
     {
-        foreach (var pick in Sources) pick.IsSelected = false;
+        foreach (var pick in VisibleSources) pick.IsSelected = false;
         OnPropertyChanged(nameof(SourceSummary));
     }
+
+    [RelayCommand]
+    private void ToggleSources() => ShowSources = !ShowSources;
 
     /// <summary>把当前选中的结果加入书架。</summary>
     [RelayCommand]
@@ -208,22 +253,18 @@ public partial class SearchViewModel : ObservableObject, IStatusProvider, IDispo
             : "⚠ 加入书架失败（书库不可用）";
     }
 
-    /// <summary>上一章。</summary>
+    /// <summary>打开选中的书 → 阅读页（正文只在那一个页面上渲染）。</summary>
     [RelayCommand]
-    private void PrevChapter()
+    private void OpenInReader()
     {
-        if (Chapters.Count == 0) return;
-        var index = SelectedChapter is null ? 0 : Chapters.IndexOf(SelectedChapter);
-        if (index > 0) SelectedChapter = Chapters[index - 1];
-    }
+        if (SelectedResult is null) { StatusText = "先在结果里选一本书。"; return; }
+        if (string.IsNullOrWhiteSpace(SelectedResult.SourceUrl)) { StatusText = "这条结果没有来源书源。"; return; }
 
-    /// <summary>下一章。</summary>
-    [RelayCommand]
-    private void NextChapter()
-    {
-        if (Chapters.Count == 0) return;
-        var index = SelectedChapter is null ? -1 : Chapters.IndexOf(SelectedChapter);
-        if (index >= 0 && index < Chapters.Count - 1) SelectedChapter = Chapters[index + 1];
+        _session.PendingBook = new PendingBook(
+            SelectedResult.SourceUrl, SelectedResult.BookUrl, SelectedResult.Name);
+
+        if (_nav is null) { StatusText = "导航服务未就绪。"; return; }
+        _nav.NavigateTo("reading-read");
     }
 
     [RelayCommand]
@@ -243,35 +284,53 @@ public partial class SearchViewModel : ObservableObject, IStatusProvider, IDispo
 
         Results.Clear();
         SelectedResult = null;
-        Chapters.Clear();
-        SelectedChapter = null;
         ErrorText = "";
-        BookInfoText = "";
-        ContentTitle = "";
-        ContentText = "";
+        OnPropertyChanged(nameof(HasResults));
+        OnPropertyChanged(nameof(ResultTitle));
         IsBusy = true;
         BusyPhase = $"正在用 {picks.Count} 个书源搜索「{keyword}」…";
 
         try
         {
-            var progress = new Progress<(int Done, int Total)>(p =>
-                BusyPhase = $"正在搜索… 已完成 {p.Done} / {p.Total} 个源");
+            var arrived = 0;
+            var hit = 0;
+            var failures = new List<string>();
 
-            var results = await _crawl.SearchManyAsync(picks, keyword, 1, token, progress).ConfigureAwait(true);
+            // 🔴 逐源上屏：哪个源先回来就先显示它的结果 / 错误。
+            // ⛔ 不要等所有源都结束再合并——源多、个别站点不响应时，界面会长时间停在「正在搜索」且一条结果都没有。
+            var onSource = new Progress<SourceSearchResult>(r =>
+            {
+                arrived++;
+
+                if (r.Ok)
+                {
+                    foreach (var item in r.Items) Results.Add(item);
+                    hit += r.Items.Count;
+                }
+                else if (r.Error is not null)
+                {
+                    failures.Add(r.Source.Name + " · " + r.Error.Display);
+                }
+
+                BusyPhase = $"正在搜索… 已完成 {arrived} / {picks.Count} 个源 · 命中 {hit} 条";
+                OnPropertyChanged(nameof(HasResults));
+                OnPropertyChanged(nameof(ResultTitle));
+            });
+
+            var progress = new Progress<(int Done, int Total)>(p =>
+                BusyPhase = $"正在搜索… 已完成 {p.Done} / {p.Total} 个源 · 命中 {hit} 条");
+
+            var results = await _crawl.SearchManyAsync(picks, keyword, 1, token, progress, onSource)
+                .ConfigureAwait(true);
             if (token.IsCancellationRequested) return;
 
-            var merged = results.Where(r => r.Ok).SelectMany(r => r.Items).ToList();
-            foreach (var item in merged) Results.Add(item);
-
             OnPropertyChanged(nameof(HasResults));
+            OnPropertyChanged(nameof(ResultTitle));
 
-            var failed = results.Where(r => !r.Ok).ToList();
-            ErrorText = failed.Count == 0
-                ? ""
-                : string.Join("\n", failed.Take(5).Select(r => r.Source.Name + " · " + r.Error!.Display));
+            ErrorText = failures.Count == 0 ? "" : string.Join("\n", failures.Take(5));
 
-            StatusText = $"命中 {merged.Count} 条 · 成功 {results.Count(r => r.Ok)} / {results.Count} 个源";
-            if (merged.Count == 0 && failed.Count > 0) StatusText = "⚠ 没有命中，下面是被拒绝或失败的原因";
+            StatusText = $"命中 {hit} 条 · 成功 {results.Count(r => r.Ok)} / {results.Count} 个源";
+            if (hit == 0 && failures.Count > 0) StatusText = "⚠ 没有命中，下面是被拒绝或失败的原因";
         }
         catch (OperationCanceledException) { StatusText = "已取消"; }
         catch (Exception ex) { StatusText = "⚠ 搜索异常：" + ex.Message; }
@@ -290,100 +349,9 @@ public partial class SearchViewModel : ObservableObject, IStatusProvider, IDispo
         _cts = null;
     }
 
-    // ==================== 目录 / 正文 ====================
-
-    private BookSource? FindSource(string url)
-        => Sources.FirstOrDefault(s => string.Equals(s.Source.Url, url, StringComparison.OrdinalIgnoreCase))?.Source;
-
-    private async Task LoadBookAsync(SearchItem item)
-    {
-        Cancel();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        var source = FindSource(item.SourceUrl);
-        if (source is null) { ErrorText = "找不到这条结果对应的书源。"; return; }
-
-        IsBusy = true;
-        BusyPhase = "正在读详情与目录…";
-        ErrorText = "";
-
-        try
-        {
-            var detail = await _crawl.DetailAsync(source, item.BookUrl, token).ConfigureAwait(true);
-            if (token.IsCancellationRequested) return;
-
-            var name = string.IsNullOrWhiteSpace(detail.Value?.Name) ? item.Name : detail.Value!.Name;
-            var author = string.IsNullOrWhiteSpace(detail.Value?.Author) ? item.Author : detail.Value!.Author;
-            var tocUrl = detail.Value?.TocUrl ?? item.BookUrl;
-
-            var chapters = await _crawl.ChaptersAsync(source, tocUrl, token).ConfigureAwait(true);
-            if (token.IsCancellationRequested) return;
-
-            Chapters.Clear();
-            if (chapters.Value is not null)
-                foreach (var chapter in chapters.Value) Chapters.Add(chapter);
-
-            OnPropertyChanged(nameof(HasChapters));
-
-            BookInfoText = $"{name} · {author} · {Chapters.Count} 章";
-
-            var errors = new[] { detail.Error, chapters.Error }.Where(e => e is not null).Select(e => e!.Display).ToList();
-            ErrorText = string.Join("\n", errors);
-
-            StatusText = Chapters.Count > 0
-                ? $"《{name}》共 {Chapters.Count} 章 · 点章节看正文"
-                : "⚠ 目录为空";
-
-            if (Chapters.Count > 0) SelectedChapter = Chapters[0];
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { ErrorText = "读目录异常：" + ex.Message; }
-        finally
-        {
-            IsBusy = false;
-            BusyPhase = "";
-        }
-    }
-
-    private async Task LoadContentAsync(Chapter chapter)
-    {
-        Cancel();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        var source = SelectedResult is null ? null : FindSource(SelectedResult.SourceUrl);
-
-        if (source is null) return;
-        if (string.IsNullOrWhiteSpace(chapter.Url)) { ErrorText = "这一章没有链接（目录是纯标题）。"; return; }
-
-        IsBusy = true;
-        BusyPhase = "正在抓正文…";
-        ErrorText = "";
-        ContentTitle = chapter.Name;
-
-        try
-        {
-            var content = await _crawl.ContentAsync(source, chapter.Url, token).ConfigureAwait(true);
-            if (token.IsCancellationRequested) return;
-
-            ContentText = content.Value ?? "";
-            ErrorText = content.Error?.Display ?? "";
-            StatusText = ContentText.Length > 0 ? $"《{chapter.Name}》{ContentText.Length} 字" : "⚠ 正文为空";
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { ErrorText = "抓正文异常：" + ex.Message; }
-        finally
-        {
-            IsBusy = false;
-            BusyPhase = "";
-        }
-    }
-
     public void Dispose()
     {
         Cancel();
-        ContentChanged = null;
         StatusChanged = null;
     }
 }

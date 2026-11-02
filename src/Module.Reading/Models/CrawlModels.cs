@@ -31,7 +31,7 @@ public sealed class StepError
     /// <summary>该字段的原文（截断到 120 字，够定位）。</summary>
     public string Rule { get; }
 
-    /// <summary>可读原因：超时 / 404 / 编码 / 选择器空 / 需 JS / 规则不完整。</summary>
+    /// <summary>可读原因：超时 / 404 / 编码 / 选择器空 / JS 执行失败 / 规则不完整。</summary>
     public string Message { get; }
 
     public string StepText => Step switch
@@ -137,16 +137,30 @@ public sealed class Chapter
 /// <summary>发现页的一个分类（<c>exploreUrl</c> 里的一项）。</summary>
 public sealed class ExploreCategory
 {
-    public ExploreCategory(string name, string url)
+    public ExploreCategory(string name, string url) : this(name, url, null, null) { }
+
+    public ExploreCategory(string name, string url, string? method, string? body)
     {
         Name = name;
         Url = url;
+        Method = method;
+        Body = body;
     }
 
     public string Name { get; }
 
     /// <summary>分类地址（可能含 <c>{{page}}</c>，绝对地址）。</summary>
     public string Url { get; }
+
+    /// <summary>分类地址尾巴 <c>, {"method":"POST","body":"…"}</c> 里的方法（空 ⇒ GET）。</summary>
+    public string? Method { get; }
+
+    /// <summary>同上里的请求体（可能含 <c>{{page}}</c>）。</summary>
+    public string? Body { get; }
+
+    /// <summary>是否带分页占位（界面据此显示「下一页」）。</summary>
+    public bool HasPaging => Url.Contains("{{page}}", StringComparison.Ordinal)
+                             || (Body?.Contains("{{page}}", StringComparison.Ordinal) ?? false);
 }
 
 /// <summary>书架里的一本书（<c>shelf</c> 表的一行）。</summary>
@@ -162,13 +176,79 @@ public sealed class ShelfBook
 
     public string CoverUrl { get; set; } = "";
 
+    /// <summary>分组（空 ⇒ <c>未分组</c>，与书源分组同一套归一规则）。</summary>
+    public string? Group { get; set; }
+
     public DateTimeOffset AddedAt { get; set; }
+
+    /// <summary>最近一次读到的章节名（来自 <c>reading_progress</c>，没有 ⇒ 空）。</summary>
+    public string LastChapterName { get; set; } = "";
+
+    /// <summary>最近一次阅读时间（来自 <c>reading_progress</c>）。</summary>
+    public DateTimeOffset? LastReadAt { get; set; }
 
     public string AddedText => AddedAt == default
         ? ""
         : AddedAt.ToLocalTime().ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
     public string AuthorText => string.IsNullOrWhiteSpace(Author) ? "未知作者" : Author;
+
+    public string GroupText => string.IsNullOrWhiteSpace(Group) ? "未分组" : Group!.Trim();
+
+    /// <summary>书架列表里那行「读到哪」。</summary>
+    public string ProgressText => string.IsNullOrWhiteSpace(LastChapterName)
+        ? "还没开始读"
+        : "读到 " + LastChapterName;
+
+    /// <summary>最近阅读时间的人话（没有 ⇒ <c>未读</c>）。</summary>
+    public string ReadTimeText => LastReadAt is null ? "未读" : SourceTimeText.Of(LastReadAt);
+}
+
+/// <summary>某本书的阅读进度（<c>reading_progress</c> 表的一行）。</summary>
+public sealed class ReadingProgress
+{
+    public string BookUrl { get; set; } = "";
+
+    public string ChapterUrl { get; set; } = "";
+
+    public string ChapterName { get; set; } = "";
+
+    /// <summary>章节内滚动位置（0~1）。</summary>
+    public double Offset { get; set; }
+
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// 换源浮层里的一个候选源（阅读页「🔀 换源」多源比对的结果）。
+/// </summary>
+public sealed class SwitchCandidate
+{
+    public string SourceName { get; set; } = "";
+
+    public string SourceUrl { get; set; } = "";
+
+    public string BookUrl { get; set; } = "";
+
+    public string Name { get; set; } = "";
+
+    public string Author { get; set; } = "";
+
+    /// <summary>书名匹配度：2 = 精确相等，1 = 包含，0 = 源里命中但书名不同。</summary>
+    public int Match { get; set; }
+
+    /// <summary>搜索该源耗时（毫秒，同匹配度时越短越靠前）。</summary>
+    public double ElapsedMs { get; set; }
+
+    public string AuthorText => string.IsNullOrWhiteSpace(Author) ? "未知作者" : Author;
+
+    /// <summary>排序键：匹配度降序 → 耗时升序。</summary>
+    public string RankText => Match switch
+    {
+        2 => "书名完全一致",
+        1 => "书名包含",
+        _ => "命中（书名不同）",
+    };
 }
 
 /// <summary>书源在界面上的「上次使用」文本（列表 / 详情卡共用）。</summary>

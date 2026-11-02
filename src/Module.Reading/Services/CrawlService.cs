@@ -56,10 +56,14 @@ public sealed class CrawlService : IDisposable
 
     private readonly HttpClient _http;
     private readonly SemaphoreSlim _gate;
-    private readonly RuleEvaluator _rules = new();
+    private readonly RuleEvaluator _rules;
+    private readonly ReadingSettingsService _settings;
+    private readonly ContentCacheStore? _cache;
 
-    public CrawlService(ReadingSettingsService settings)
+    public CrawlService(ReadingSettingsService settings, ContentCacheStore? cache = null)
     {
+        _settings = settings;
+        _cache = cache;
         _gate = new SemaphoreSlim(settings.Concurrency, settings.Concurrency);
         _http = new HttpClient(new HttpClientHandler
         {
@@ -70,6 +74,27 @@ public sealed class CrawlService : IDisposable
             Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds),
         };
         _http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", settings.UserAgent);
+
+        // JS 里的 java.ajax 复用同一套请求层（同一 HttpClient / UA / 超时 / 重试）
+        _rules = new RuleEvaluator(FetchForJs);
+    }
+
+    /// <summary><c>java.ajax</c> 的同步入口：⛔ 不能直接在 UI 线程上阻塞 async（会死锁），必须扔线程池。</summary>
+    private string FetchForJs(string url, string method, string body)
+    {
+        try
+        {
+            var result = Task.Run(() => FetchAsync(
+                    url,
+                    string.IsNullOrWhiteSpace(method) ? null : method,
+                    string.IsNullOrWhiteSpace(body) ? null : body,
+                    referer: null,
+                    CancellationToken.None))
+                .GetAwaiter().GetResult();
+
+            return result.Error is null ? result.Body : "";
+        }
+        catch { return ""; }
     }
 
     // ==================== 搜索 ====================
@@ -90,12 +115,12 @@ public sealed class CrawlService : IDisposable
         var gbk = IsGbkText(template) || IsGbkText(options.Body);
         var vars = CreateVariables(source, key, page, gbk);
 
-        var url = RuleSyntax.Interpolate(template, vars, out var needsJs);
+        var url = InterpolateRule(template, vars, out var needsJs);
         if (needsJs) return Fail<IReadOnlyList<SearchItem>>(CrawlStep.Search, "searchUrl", template, "搜索地址含脚本函数，当前版本不支持");
 
         url = ResolveUrl(source.Url, url);
 
-        var body = options.Body is null ? null : RuleSyntax.Interpolate(options.Body, vars, out _);
+        var body = options.Body is null ? null : InterpolateRule(options.Body, vars, out _);
 
         var fetched = await FetchAsync(url, options.Method, body, source.Url, ct).ConfigureAwait(false);
         if (fetched.Error is not null)
@@ -108,82 +133,154 @@ public sealed class CrawlService : IDisposable
     /// <summary>
     /// 把一页列表解析成条目（搜索与发现共用）。
     /// <para>🔴 条目字段在**每个条目自己的节点 / JSON 元素内**求值，⛔ 不对整页求值再按索引拼。</para>
+    /// <para><paramref name="fallback"/> 只在 <paramref name="rule"/> 的**对应字段为空**时逐字段补位
+    /// （发现页常见写法：<c>ruleExplore</c> 只给 <c>bookList</c>，其余靠 <c>ruleSearch</c>）。</para>
     /// </summary>
     private StepResult<IReadOnlyList<SearchItem>> ParseItems(
-        BookSource source, RuleContext ctx, SearchRule? rule, string ruleOwner)
+        BookSource source, RuleContext ctx, SearchRule? rule, string ruleOwner, SearchRule? fallback = null)
     {
-        var list = _rules.Evaluate(rule?.BookList, ctx);
+        var effective = MergeRule(rule, fallback);
+        var list = _rules.Evaluate(effective?.BookList, ctx);
 
         var items = new List<SearchItem>();
         if (list.Kind == RuleValueKind.Nodes)
-            items.AddRange(list.Nodes.Select(node => ReadSearchItemFromNode(source, rule, ctx.ForElement(node))));
+            items.AddRange(list.Nodes.Select(node => ReadSearchItemFromNode(source, effective, ctx.ForElement(node))));
         else if (list.Kind == RuleValueKind.Json)
-            items.AddRange(list.JsonItems.Select(item => ReadSearchItemFromJson(source, rule, ctx.ForJson(item))));
+            items.AddRange(list.JsonItems.Select(item => ReadSearchItemFromJson(source, effective, ctx.ForJson(item))));
 
         items = items.Where(i => !string.IsNullOrWhiteSpace(i.Name) || !string.IsNullOrWhiteSpace(i.BookUrl)).ToList();
 
         if (items.Count == 0)
-            return Fail<IReadOnlyList<SearchItem>>(CrawlStep.Search, ruleOwner + ".bookList", rule?.BookList ?? "",
+            return Fail<IReadOnlyList<SearchItem>>(CrawlStep.Search, ruleOwner + ".bookList", effective?.BookList ?? "",
                 ctx.Errors.Count > 0 ? ctx.Errors[0]
                     : list.Kind == RuleValueKind.Empty ? "书单选择器未命中" : "命中条目但书名与详情链接都为空");
 
         return StepResult<IReadOnlyList<SearchItem>>.Success(items);
     }
 
+    /// <summary>逐字段合并：<paramref name="primary"/> 的空字段由 <paramref name="fallback"/> 补位。</summary>
+    private static SearchRule? MergeRule(SearchRule? primary, SearchRule? fallback)
+    {
+        if (primary is null) return fallback;
+        if (fallback is null) return primary;
+
+        static string? Pick(string? first, string? second)
+            => string.IsNullOrWhiteSpace(first) ? second : first;
+
+        return new SearchRule
+        {
+            BookList = Pick(primary.BookList, fallback.BookList),
+            Name = Pick(primary.Name, fallback.Name),
+            Author = Pick(primary.Author, fallback.Author),
+            Kind = Pick(primary.Kind, fallback.Kind),
+            LastChapter = Pick(primary.LastChapter, fallback.LastChapter),
+            UpdateTime = Pick(primary.UpdateTime, fallback.UpdateTime),
+            BookUrl = Pick(primary.BookUrl, fallback.BookUrl),
+            CoverUrl = Pick(primary.CoverUrl, fallback.CoverUrl),
+            Intro = Pick(primary.Intro, fallback.Intro),
+            WordCount = Pick(primary.WordCount, fallback.WordCount),
+        };
+    }
+
     // ==================== 发现页 ====================
 
-    /// <summary>解析 <c>exploreUrl</c> 的分类表（<c>分类名::地址&amp;&amp;…</c>）。</summary>
-    public static IReadOnlyList<ExploreCategory> ParseExploreCategories(BookSource source)
+    /// <summary>
+    /// 解析 <c>exploreUrl</c> 的分类表。
+    /// <para>🔴 分隔符有**两种**：<c>&amp;&amp;</c> 与换行（真实书源里换行占多数）。只认 <c>&amp;&amp;</c>
+    /// ⇒ 整张表被并成一条、地址里混进「分类名::」，请求出去必然 404，页面永远是空的。</para>
+    /// <para>🔴 每一项的尾巴 <c>, {"method":"POST","body":"…"}</c> 是**这一项自己的请求配置**，⛔ 不能丢。</para>
+    /// <para>🔴 整段 <c>@js:</c> 动态生成分类表：执行 JS 得到「分类::地址」列表串，再走同一套切分；失败则跳过该段。</para>
+    /// </summary>
+    public IReadOnlyList<ExploreCategory> ParseExploreCategories(BookSource source)
     {
         var raw = source.ExploreUrl;
         if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<ExploreCategory>();
 
         var categories = new List<ExploreCategory>();
-        foreach (var part in raw!.Split("&&"))
+        foreach (var part in Regex.Split(raw!, "&&|\\r\\n|\\n|\\r"))
         {
             var text = part.Trim();
             if (text.Length == 0) continue;
 
-            var sep = text.IndexOf("::", StringComparison.Ordinal);
-            if (sep <= 0) continue;
+            // 🔴 `@js:` 动态分类表：执行 JS 生成「分类::地址」列表，再逐项解析；失败只跳过这一段
+            if (RuleSyntax.ContainsJs(text))
+            {
+                var (_, code) = RuleSyntax.SplitJs(text);
+                if (string.IsNullOrWhiteSpace(code)) continue;
 
-            var name = text.Substring(0, sep).Trim();
-            var url = text.Substring(sep + 2).Trim();
-            if (name.Length == 0 || url.Length == 0) continue;
+                var jsCtx = CreateVariables(source, "", 1);
+                var jsResult = _rules.EvaluateJsBlock(code!, jsCtx);
+                if (string.IsNullOrWhiteSpace(jsResult)) continue;
 
-            var (clean, _) = SplitRequest(url);
-            categories.Add(new ExploreCategory(name, ResolveUrl(source.Url, clean)));
+                foreach (var line in Regex.Split(jsResult!, "&&|\\r\\n|\\n|\\r"))
+                {
+                    var lineText = line.Trim();
+                    if (lineText.Length == 0) continue;
+                    if (TryParseCategory(source, lineText, categories)) continue;
+                }
+                continue;
+            }
+
+            TryParseCategory(source, text, categories);
         }
 
         return categories;
     }
 
-    /// <summary>按分类抓一页书单（规则用 <c>ruleExplore</c>，没给就退回 <c>ruleSearch</c>）。</summary>
+    /// <summary>把一段「分类名::地址[, 请求配置]」解析成一个分类并加入列表；解析不出返回 false（⛔ 不抛）。</summary>
+    private static bool TryParseCategory(BookSource source, string text, List<ExploreCategory> categories)
+    {
+        var sep = text.IndexOf("::", StringComparison.Ordinal);
+        if (sep <= 0) return false;
+
+        var name = text.Substring(0, sep).Trim();
+        var urlText = text.Substring(sep + 2).Trim();
+        if (name.Length == 0) return false;
+        if (urlText.Length == 0) urlText = source.SearchUrl ?? "";   // 只写分类名 ⇒ 退回搜索地址
+        if (urlText.Length == 0) return false;
+
+        var (clean, options) = SplitRequest(urlText);
+        categories.Add(new ExploreCategory(name, ResolveUrl(source.Url, clean), options.Method, options.Body));
+        return true;
+    }
+
+    /// <summary>按分类抓一页书单（规则用 <c>ruleExplore</c>，字段空的由 <c>ruleSearch</c> 补位）。</summary>
     public async Task<StepResult<IReadOnlyList<SearchItem>>> ExploreAsync(
         BookSource source, ExploreCategory category, int page, CancellationToken ct)
     {
-        if (BlockedReason(source, CrawlStep.Search) is { } blocked)
-            return StepResult<IReadOnlyList<SearchItem>>.Fail(blocked);
+        // 发现页只看「能不能发请求」：⛔ 不用三段完整性判定（只带分类表、没有 searchUrl 的源同样能发现）
+        if (!source.Enabled)
+            return Fail<IReadOnlyList<SearchItem>>(CrawlStep.Search, "enabled", "", "书源已停用");
+        if (source.Capability == SourceCapability.NeedsWebView)
+            return Fail<IReadOnlyList<SearchItem>>(CrawlStep.Search, "source", "",
+                "该源依赖 WebView，桌面端无法执行：" + source.CapabilityReason);
 
         var vars = CreateVariables(source, "", page, IsGbkText(category.Url));
-        var url = RuleSyntax.Interpolate(category.Url, vars, out var needsJs);
+        var url = InterpolateRule(category.Url, vars, out var needsJs);
         if (needsJs)
             return Fail<IReadOnlyList<SearchItem>>(CrawlStep.Search, "exploreUrl", category.Url, "分类地址含脚本函数，当前版本不支持");
 
         url = ResolveUrl(source.Url, url);
+        var body = category.Body is null ? null : InterpolateRule(category.Body, vars, out _);
 
-        var fetched = await FetchAsync(url, null, null, source.Url, ct).ConfigureAwait(false);
+        var fetched = await FetchAsync(url, category.Method, body, source.Url, ct).ConfigureAwait(false);
         if (fetched.Error is not null)
             return Fail<IReadOnlyList<SearchItem>>(CrawlStep.Search, "exploreUrl", category.Url, fetched.Error);
 
         var ctx = BuildDocumentContext(vars, fetched.Body, fetched.Url);
-        return ParseItems(source, ctx, source.Explore ?? source.Search, "ruleExplore");
+        return ParseItems(source, ctx, source.Explore, "ruleExplore", source.Search);
     }
 
     /// <summary>多源并发搜索（并发上限来自设置，默认 3；<paramref name="progress"/> 报「已完成 / 总数」）。</summary>
+    /// <param name="onSourceDone">
+    /// 每完成**一个源**就回调一次（成功或失败都报）。界面靠它**逐源上屏**——
+    /// ⛔ 不攒到 <c>Task.WhenAll</c> 再一次性给：源多 / 站点慢时，整批等最慢的那个，
+    /// 用户看到的就是「一直在搜索、一条结果都没有」。
+    /// </param>
     public async Task<IReadOnlyList<SourceSearchResult>> SearchManyAsync(
         IReadOnlyList<BookSource> sources, string key, int page, CancellationToken ct,
-        IProgress<(int Done, int Total)>? progress = null)
+        IProgress<(int Done, int Total)>? progress = null,
+        IProgress<SourceSearchResult>? onSourceDone = null)
     {
         if (sources.Count == 0) return Array.Empty<SourceSearchResult>();
 
@@ -191,30 +288,37 @@ public sealed class CrawlService : IDisposable
         var finished = 0;
         var total = sources.Count;
 
-        var tasks = sources.Select(async (source, index) =>
+        // 🔴 每个源整体扔线程池：规则求值（含 @js: 的 Jint 执行）是**同步**的，
+        // 直接在 UI 线程上起跑会把界面一起冻住（进度条不动、取消按钮点不动）。
+        var tasks = sources.Select((source, index) => Task.Run(async () =>
         {
             await _gate.WaitAsync(ct).ConfigureAwait(false);
+
+            SourceSearchResult outcome;
             try
             {
                 var result = await SearchAsync(source, key, page, ct).ConfigureAwait(false);
-                results[index] = new SourceSearchResult(source, result.Value ?? Array.Empty<SearchItem>(), result.Error);
+                outcome = new SourceSearchResult(source, result.Value ?? Array.Empty<SearchItem>(), result.Error);
             }
             catch (OperationCanceledException)
             {
-                results[index] = new SourceSearchResult(source, Array.Empty<SearchItem>(),
+                outcome = new SourceSearchResult(source, Array.Empty<SearchItem>(),
                     new StepError(CrawlStep.Search, "searchUrl", "", "已取消"));
             }
             catch (Exception ex)
             {
-                results[index] = new SourceSearchResult(source, Array.Empty<SearchItem>(),
+                outcome = new SourceSearchResult(source, Array.Empty<SearchItem>(),
                     new StepError(CrawlStep.Search, "searchUrl", "", "抓取异常：" + ex.Message));
             }
             finally
             {
                 _gate.Release();
-                progress?.Report((Interlocked.Increment(ref finished), total));
             }
-        }).ToList();
+
+            results[index] = outcome;
+            onSourceDone?.Report(outcome);
+            progress?.Report((Interlocked.Increment(ref finished), total));
+        })).ToList();
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
         return results.Where(r => r is not null).ToList();
@@ -371,6 +475,11 @@ public sealed class CrawlService : IDisposable
         if (string.IsNullOrWhiteSpace(chapterUrl))
             return StepResult<string>.Fail(new StepError(CrawlStep.Content, "chapterUrl", "", "没有章节地址"));
 
+        // 正文缓存：**有缓存就直接用**（预下载写进来的也算），与此处是否「缓存正文」无关 ——
+        // 那个开关管的是「每章读完要不要顺手存」，不是「能不能用已存的」。
+        if (_cache is not null && _cache.Get(chapterUrl) is { } cached)
+            return StepResult<string>.Success(cached);
+
         var builder = new StringBuilder();
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var url = chapterUrl;
@@ -406,9 +515,15 @@ public sealed class CrawlService : IDisposable
         }
 
         var content = ApplyReplaceRules(builder.ToString().Trim(), source.Content?.ReplaceRule);
-        return content.Length > 0
-            ? StepResult<string>.Success(content)
-            : Fail<string>(CrawlStep.Content, "ruleContent.content", source.Content?.Content ?? "", "正文为空");
+        // 本机全局净化规则（设置页「替换规则」）在书源内联规则之后再走一遍
+        content = ReplaceRuleService.Apply(content, _settings.ReplaceRules).Trim();
+        if (content.Length == 0)
+            return Fail<string>(CrawlStep.Content, "ruleContent.content", source.Content?.Content ?? "", "正文为空");
+
+        // 正文缓存：抓成功就写缓存（⛔ 失败 / 部分成功不写，避免把残缺正文固化下来）
+        if (_cache is not null && _settings.CacheEnabled) _cache.Put(chapterUrl, content);
+
+        return StepResult<string>.Success(content);
     }
 
     /// <summary>
@@ -429,6 +544,11 @@ public sealed class CrawlService : IDisposable
         return stripped.Trim();
     }
 
+    /// <summary>
+    /// 执行书源自带的 <c>ruleContent.replaceRule</c>：每行 <c>规则##正则##替换串</c>（legado 的三段写法）。
+    /// <para>🔴 与设置页的**全局替换规则**（两段 <c>正则##替换</c>，见 <see cref="ReplaceRuleService"/>）不是同一套语法，
+    /// ⛔ 别把两者的解析混用。</para>
+    /// </summary>
     private static string ApplyReplaceRules(string text, string? rules)
     {
         if (string.IsNullOrWhiteSpace(rules)) return text;
@@ -491,7 +611,9 @@ public sealed class CrawlService : IDisposable
             }
             catch (TaskCanceledException)
             {
-                lastError = "超时";
+                // 超时不重试：重试等于把等待时间翻倍（每源 2×超时），而多源并发搜索里
+                // 一个站点不响应就足以让整批"永远在搜索"。
+                return new FetchResult("", url, "超时");
             }
             catch (HttpRequestException ex)
             {
@@ -571,6 +693,10 @@ public sealed class CrawlService : IDisposable
         catch { return (text, default); }
     }
 
+    /// <summary>插值请求地址 / 请求体：<c>{{key}}</c> 走变量表，<c>{{java.xxx()}}</c> 交给 JS。</summary>
+    private string InterpolateRule(string rule, RuleContext ctx, out bool needsJs)
+        => RuleSyntax.Interpolate(rule, ctx, expression => _rules.EvaluateExpression(expression, ctx), out needsJs);
+
     private static RuleContext CreateVariables(BookSource source, string key, int page, bool gbkKey = false)
     {
         var ctx = new RuleContext();
@@ -606,22 +732,34 @@ public sealed class CrawlService : IDisposable
                || text.Contains("gb18030", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// 把规则里的地址拼成绝对地址：<c>/search?q=…</c> 以书源地址为基准，
-    /// <c>//host/path</c> 补 https，已经是绝对地址的原样返回。
+    /// 把规则里的地址拼成绝对地址：<c>/search?q=…</c> 以书源地址的主机为基准，
+    /// <c>//host/path</c> 补协议，已经是绝对地址的原样返回。
+    /// <para>🔴 全程按**字符串**拼，⛔ 不走 <see cref="Uri"/> 合并 —— 规则地址里常带 <c>{{page}}</c>
+    /// 这类未插值占位（分类解析阶段就调用），Uri 规范化会失败或改写原串。</para>
     /// </summary>
     private static string ResolveUrl(string? baseUrl, string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return value;
         var text = value.Trim();
 
-        if (text.StartsWith("//", StringComparison.Ordinal)) return "https:" + text;
-        if (Uri.TryCreate(text, UriKind.Absolute, out var absolute)) return absolute.ToString();
-        if (string.IsNullOrWhiteSpace(baseUrl)) return text;
+        if (text.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            return text;
 
-        return Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri)
-               && Uri.TryCreate(baseUri, text, out var merged)
-            ? merged.ToString()
-            : text;
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri)) return text;
+
+        var authority = baseUri.GetLeftPart(UriPartial.Authority);
+
+        if (text.StartsWith("//", StringComparison.Ordinal))
+            return baseUri.Scheme + ":" + text;
+
+        if (text.StartsWith("/", StringComparison.Ordinal))
+            return authority + text;
+
+        var path = baseUri.AbsolutePath;
+        var slash = path.LastIndexOf('/');
+        var dir = slash >= 0 ? path.Substring(0, slash + 1) : "/";
+        return authority + dir + text;
     }
 
     private RuleContext BuildDocumentContext(RuleContext vars, string html, string url)
@@ -656,7 +794,7 @@ public sealed class CrawlService : IDisposable
 
         return source.Capability switch
         {
-            SourceCapability.NeedsJs => new StepError(step, "source", "", "该源这一步需要 JS，本版本不执行"),
+            SourceCapability.NeedsWebView => new StepError(step, "source", "", "该源依赖 WebView，桌面端无法执行：" + source.CapabilityReason),
             SourceCapability.Incomplete => new StepError(step, "source", "", "书源规则不完整：" + source.CapabilityReason),
             _ => null,
         };

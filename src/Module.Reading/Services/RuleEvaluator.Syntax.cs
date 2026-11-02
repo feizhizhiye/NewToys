@@ -18,7 +18,7 @@ namespace NewToys.Reading.Services;
 /// </summary>
 public static class RuleSyntax
 {
-    /// <summary>规则里是否含 JS 片段（本批次一律标记「需 JS」并返回空值）。</summary>
+    /// <summary>规则里是否含 JS 片段（判定书源档位、以及在成段切分时避免误拆 JS 逻辑符）。</summary>
     public static bool ContainsJs(string? rule)
     {
         if (string.IsNullOrEmpty(rule)) return false;
@@ -37,11 +37,37 @@ public static class RuleSyntax
     }
 
     /// <summary>
-    /// <c>{{key}}</c> 插值。
-    /// <para>🔴 含函数调用（<c>{{java.xxx(...)}}</c>、<c>{{(a+b)}}</c>）按 JS 处理：
-    /// <paramref name="needsJs"/> 置真，调用方应当整条规则放弃。</para>
+    /// 把规则拆成「选择器头」和「JS 代码」两段。
+    /// <para>
+    /// 🔴 <c>@js:</c> 之后是**整段 JS**，不参与 <c>||</c> / <c>&amp;&amp;</c> / <c>##</c> 切分（那里是 JS 逻辑或）；
+    /// <c>&lt;js&gt;…&lt;/js&gt;</c> 同义。两处标记取**最靠前**的一个。
+    /// </para>
+    /// <para>返回的 <c>Code</c> 为 null ⇒ 规则不含 JS，走原链路。</para>
     /// </summary>
-    public static string Interpolate(string rule, RuleContext ctx, out bool needsJs)
+    public static (string Head, string? Code) SplitJs(string rule)
+    {
+        if (string.IsNullOrEmpty(rule)) return (rule, null);
+
+        var atJs = rule.IndexOf("@js:", StringComparison.OrdinalIgnoreCase);
+        var openJs = rule.IndexOf("<js>", StringComparison.OrdinalIgnoreCase);
+
+        if (atJs >= 0 && (openJs < 0 || atJs < openJs))
+            return (rule.Substring(0, atJs), rule.Substring(atJs + 4));
+
+        if (openJs < 0) return (rule, null);
+
+        var head = rule.Substring(0, openJs);
+        var body = rule.Substring(openJs + 4);
+        var close = body.LastIndexOf("</js>", StringComparison.OrdinalIgnoreCase);
+        return (head, close >= 0 ? body.Substring(0, close) : body);
+    }
+
+    /// <summary>
+    /// <c>{{key}}</c> 插值。
+    /// <para>🔴 含函数调用（<c>{{java.xxx(...)}}</c>、<c>{{(a+b)}}</c>）时按 JS 求值：
+    /// <paramref name="jsEval"/> 给了就真算，没给（或算不出来）则 <paramref name="needsJs"/> 置真、原样保留。</para>
+    /// </summary>
+    public static string Interpolate(string rule, RuleContext ctx, Func<string, string?>? jsEval, out bool needsJs)
     {
         needsJs = false;
         if (string.IsNullOrEmpty(rule) || !rule.Contains("{{", StringComparison.Ordinal)) return rule;
@@ -60,9 +86,17 @@ public static class RuleSyntax
 
             if (expr.IndexOfAny(new[] { '(', ')', '+', '*', '/', '\'', '"' }) >= 0)
             {
-                // 函数调用 / 表达式 ⇒ 不是变量替换
-                needsJs = true;
-                sb.Append(rule, open, close + 2 - open);
+                // 函数调用 / 表达式 ⇒ 交给 JS
+                var computed = jsEval?.Invoke(expr);
+                if (computed is not null)
+                {
+                    sb.Append(computed);
+                }
+                else
+                {
+                    needsJs = true;
+                    sb.Append(rule, open, close + 2 - open);
+                }
             }
             else if (ctx.Vars.TryGetValue(expr, out var value))
             {

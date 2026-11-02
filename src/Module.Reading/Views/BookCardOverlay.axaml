@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.Reading.Views.BookCardOverlay"
+             IsVisible="{Binding IsCardOpen}">
+  <!--
+    书籍卡（发现页 / 网上搜索页共用）：遮罩 + **居中卡片**，与「确认对话卡片」同一套观感
+    （遮罩色 / 卡片底 / 1px 描边 / 圆角 8 / 投影 / 按钮行右对齐）——从弹窗里就认得出是同一个程序。
+    数据上下文 = 页面 VM —— 两个 VM 各自提供 CardBook / CardCover / IsCardOpen 与同名命令。
+    🔴 遮罩色用主题键 LoadingOverlayBrush（⛔ 不写死 ARGB），卡片底用 PanelBrush。
+  -->
+  <Grid>
+    <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnBackdropTapped"/>
+
+    <Border Width="540"
+            MaxHeight="560"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            BoxShadow="0 8 32 0 #66000000"
+            Padding="20">
+      <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!--  头部：封面 + 书目信息  -->
+        <DockPanel Grid.Row="0" LastChildFill="True">
+          <Border DockPanel.Dock="Left"
+                  Width="96"
+                  Height="128"
+                  Margin="0,0,14,0"
+                  CornerRadius="4"
+                  ClipToBounds="True"
+                  Background="{DynamicResource ContentHeaderBrush}"
+                  BorderBrush="{DynamicResource DividerBrush}"
+                  BorderThickness="1">
+            <Panel>
+              <Image Source="{Binding CardCover}" Stretch="UniformToFill" IsVisible="{Binding HasCardCover}"/>
+              <TextBlock Text="{Binding CardCoverInitial}"
+                         IsVisible="{Binding !HasCardCover}"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         FontSize="32"
+                         Foreground="{DynamicResource SecondaryTextBrush}"/>
+            </Panel>
+          </Border>
+
+          <StackPanel Spacing="4" VerticalAlignment="Top">
+            <TextBlock Text="{Binding CardBook.Name}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       TextWrapping="Wrap"
+                       MaxLines="3"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock Classes="hint-text" Text="{Binding CardBook.AuthorText}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Classes="hint-text" Text="{Binding CardBook.Kind}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Classes="hint-text" Text="{Binding CardBook.SourceName}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Classes="hint-text" Text="{Binding CardBook.LastChapter}" TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+        </DockPanel>
+
+        <Border Grid.Row="1" Height="1" Margin="0,14" Background="{DynamicResource DividerBrush}"/>
+
+        <!--  简介（可能很长 ⇒ 只在这里滚动）  -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="section-title" Text="简介"/>
+            <TextBlock Text="{Binding CardBook.Intro}"
+                       TextWrapping="Wrap"
+                       LineHeight="20"
+                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!--  按钮行：与确认卡片同口径（ghost 取消 / primary 主动作，右对齐）  -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10" Margin="0,16,0,0"
+                    HorizontalAlignment="Right">
+          <Button Classes="ghost" Width="88" Content="关闭" Command="{Binding CloseCardCommand}"/>
+          <Button Classes="ghost" Content="＋ 书架" Command="{Binding AddCardToShelfCommand}"
+                  ToolTip.Tip="把这本书加入书架"/>
+          <Button Classes="primary" Width="116" Content="📖 开始阅读" Command="{Binding ReadCardBookCommand}"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

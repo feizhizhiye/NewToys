@@ -54,7 +54,7 @@ public sealed class RuleContext
     /// <summary><c>@put:</c> / <c>@get:</c> 的字典。</summary>
     public IDictionary<string, string> Store => _store;
 
-    /// <summary>求值过程中的可读告警（未知前缀 / 需 JS / 选择器空）。</summary>
+    /// <summary>求值过程中的可读告警（未知前缀 / JS 失败 / 选择器空）。</summary>
     public List<string> Errors => _errors;
 
     /// <summary>以某个节点为新根（条目内求值）。</summary>

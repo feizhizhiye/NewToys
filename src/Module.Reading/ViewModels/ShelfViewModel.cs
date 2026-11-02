@@ -17,13 +17,22 @@ namespace NewToys.Reading.ViewModels;
 /// <summary>书架列表的一行。</summary>
 public sealed class ShelfRow
 {
-    public ShelfRow(ShelfBook book, string sourceName)
+    public ShelfRow(ShelfBook book, string sourceName, ReadingProgress? progress)
     {
         Book = book;
         SourceName = sourceName;
+        Progress = progress;
+
+        if (progress is not null)
+        {
+            Book.LastChapterName = progress.ChapterName;
+            Book.LastReadAt = progress.UpdatedAt;
+        }
     }
 
     public ShelfBook Book { get; }
+
+    public ReadingProgress? Progress { get; }
 
     public string Name => Book.Name;
 
@@ -33,17 +42,26 @@ public sealed class ShelfRow
 
     public string Added => Book.AddedText;
 
+    /// <summary>分组（空 ⇒ 未分组）。</summary>
+    public string Group => Book.GroupText;
+
+    /// <summary>读到哪一章 / 还没开始。</summary>
+    public string ProgressText => Book.ProgressText;
+
+    public string ReadTime => Book.ReadTimeText;
+
     public string Tip => Book.BookUrl;
 }
 
 /// <summary>
-/// 「阅读 → 书架」页（<c>reading-shelf</c>）：搜索结果里点「加入书架」存下来的书。
+/// 「网络阅读 → 书架」页（<c>reading-shelf</c>）：搜索结果里点「加入书架」存下来的书。
 /// <para>双击 / 右键「继续阅读」把书交给搜索页（那里有完整的目录 + 正文），⛔ 本页不重复实现阅读器。</para>
 /// </summary>
 public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly ShelfStore _store;
     private readonly SourceStore _sources;
+    private readonly ProgressStore _progress;
     private readonly ReadingSession _session;
     private readonly INavigationService? _nav;
 
@@ -57,6 +75,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
     {
         _store = null!;
         _sources = null!;
+        _progress = null!;
         _session = new ReadingSession();
         _nav = null;
     }
@@ -64,6 +83,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
     public ShelfViewModel(
         ShelfStore store,
         SourceStore sources,
+        ProgressStore progress,
         ReadingSession session,
         INavigationService? nav = null,
         IColumnLayoutService? cols = null,
@@ -72,6 +92,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
     {
         _store = store;
         _sources = sources;
+        _progress = progress;
         _session = session;
         _nav = nav;
 
@@ -92,13 +113,17 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Name", "书名", "240", sample: "剑来"),
-        new("Author", "作者", "160", sample: "烽火戏诸侯"),
+        new("Author", "作者", "140", sample: "烽火戏诸侯"),
+        new("Group", "分组", "120", sample: "未分组"),
+        new("ProgressText", "读到", "220", sample: "读到 第 12 章 风雪夜归人"),
         new("SourceName", "来源", "160", sample: "某某小说网（优）"),
         new("Added", "加入时间", "110", sample: "2026-11-01"),
     };
 
     public bool IsNameVisible => Vis("Name");
     public bool IsAuthorVisible => Vis("Author");
+    public bool IsGroupVisible => Vis("Group");
+    public bool IsProgressVisible => Vis("ProgressText");
     public bool IsSourceNameVisible => Vis("SourceName");
     public bool IsAddedVisible => Vis("Added");
 
@@ -149,6 +174,8 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         OnPropertyChanged(nameof(ShowDetailBody));
         OnPropertyChanged(nameof(DetailName));
         OnPropertyChanged(nameof(DetailAuthor));
+        OnPropertyChanged(nameof(DetailGroup));
+        OnPropertyChanged(nameof(DetailProgress));
         OnPropertyChanged(nameof(DetailSource));
         OnPropertyChanged(nameof(DetailAdded));
         OnPropertyChanged(nameof(DetailUrl));
@@ -167,10 +194,15 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
             if (_sources is not null)
                 foreach (var source in _sources.LoadAll()) names[source.Url] = source.Name;
 
+            // 一次取全部书的最新进度（⛔ 不逐书查库）
+            var progresses = _progress?.LoadLatest();
+
             foreach (var book in _store.LoadAll())
             {
                 var name = names.TryGetValue(book.SourceUrl, out var found) ? found : "（源已删除）";
-                _all.Add(new ShelfRow(book, name));
+                ReadingProgress? progress = null;
+                progresses?.TryGetValue(book.BookUrl, out progress);
+                _all.Add(new ShelfRow(book, name, progress));
             }
         }
 
@@ -186,7 +218,24 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         if (Selected is null) { StatusText = "先选中一本。"; return; }
 
         _session.PendingBook = new PendingBook(Selected.Book.SourceUrl, Selected.Book.BookUrl, Selected.Name);
-        _nav?.NavigateTo("reading-search");
+        _nav?.NavigateTo("reading-read");
+    }
+
+    /// <summary>改分组（空白 ⇒ 移回「未分组」）。</summary>
+    [RelayCommand]
+    private async Task SetGroupAsync()
+    {
+        if (Selected is null) { StatusText = "先选中一本。"; return; }
+
+        var input = await DialogHooks.InputAsync($"《{Selected.Name}》分到哪个组？", Selected.Book.GroupText).ConfigureAwait(true);
+        if (input is null) return;
+
+        var group = input.Trim();
+        var changed = _store.SetGroup(new[] { Selected.Book.BookUrl }, group);
+        Reload();
+        StatusText = changed > 0
+            ? (group.Length == 0 ? "已归到「未分组」" : $"已分到「{group}」")
+            : "⚠ 分组没改成（书库不可用）";
     }
 
     [RelayCommand]
@@ -229,7 +278,16 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
             CommandPath = "ReadCommand",
             IsEnabledPath = "HasSelection",
             ShowToolTipOnDisabled = true,
-            ToolTip = "打开这本书的目录与正文",
+            ToolTip = "打开阅读页，从上次读到的章节接着看",
+        },
+        new()
+        {
+            Kind = ToolbarItemKind.Button,
+            Text = "📁 分组",
+            CommandPath = "SetGroupCommand",
+            IsEnabledPath = "HasSelection",
+            ShowToolTipOnDisabled = true,
+            ToolTip = "给这本书设一个分组（留空 = 未分组）",
         },
         new()
         {
@@ -279,6 +337,10 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
 
     public string DetailAdded => Selected?.Added ?? "";
 
+    public string DetailGroup => Selected?.Group ?? "";
+
+    public string DetailProgress => Selected is null ? "" : $"{Selected.ProgressText}（{Selected.ReadTime}）";
+
     public string DetailUrl => Selected?.Book.BookUrl ?? "";
 
     private DetailCardDescriptor? _card;
@@ -298,6 +360,8 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
                 {
                     new DetailField { Label = "书名", ValuePath = nameof(DetailName), Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "作者", ValuePath = nameof(DetailAuthor), Kind = FieldKind.Text },
+                    new DetailField { Label = "分组", ValuePath = nameof(DetailGroup), Kind = FieldKind.Text },
+                    new DetailField { Label = "进度", ValuePath = nameof(DetailProgress), Kind = FieldKind.Text },
                     new DetailField { Label = "来源", ValuePath = nameof(DetailSource), Kind = FieldKind.Text },
                     new DetailField { Label = "加入时间", ValuePath = nameof(DetailAdded), Kind = FieldKind.Text },
                     new DetailField { Label = "详情地址", ValuePath = nameof(DetailUrl), Kind = FieldKind.Text, Selectable = true, Mono = true, MultiLine = true, Rows = 44 },

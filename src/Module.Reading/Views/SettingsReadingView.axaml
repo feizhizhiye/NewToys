@@ -1,0 +1,172 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:NewToys.UI.Controls"
+             x:Class="NewToys.Reading.Views.SettingsReadingView">
+  <!--
+    「网络阅读」模块设置页（`settings-reading`）：抓取参数 + 阅读器参数，两节写同一份 config/reading.json。
+    🔴 节内容放 <UserControl.Resources>，节元数据在 code-behind 的 Add(...)（⛔ 别在 XAML 里写 SettingsSection）。
+    🔴 即时生效（改即落盘，⛔ 无保存按钮）。
+  -->
+
+  <UserControl.Resources>
+    <StackPanel x:Key="Sec0" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="并发数"/>
+        <TextBox Width="120" Text="{Binding Concurrency, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding ConcurrencyHint}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="请求超时（秒）"/>
+        <TextBox Width="120" Text="{Binding TimeoutSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding TimeoutHint}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="User-Agent"/>
+        <TextBox Text="{Binding UserAgent, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" MinWidth="420"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding UserAgentHint}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <CheckBox IsChecked="{Binding CacheEnabled, Mode=TwoWay}" Content="缓存正文（同一章只抓一次）"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding CacheHint}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="阅读时预下载章数"/>
+        <TextBox Width="120" Text="{Binding PrefetchCount, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding PrefetchHint}"/>
+      </StackPanel>
+
+      <Button Classes="ghost"
+              Content="🧹 清空正文缓存"
+              HorizontalAlignment="Left"
+              Command="{Binding ClearCacheCommand}"
+              ToolTip.Tip="改完替换规则、或想让章节重新抓时点这里"/>
+    </StackPanel>
+
+    <StackPanel x:Key="Sec1" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="字号（px）"/>
+        <TextBox Width="120" Text="{Binding FontSize, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="行距倍数"/>
+        <TextBox Width="120" Text="{Binding LineSpacing, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="字体"/>
+        <ComboBox MinWidth="260"
+                  ItemsSource="{Binding FontChoices}"
+                  SelectedItem="{Binding FontFamily, Mode=TwoWay}"/>
+        <TextBox Text="{Binding FontFamily, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" MinWidth="260"
+                 PlaceholderText="也可以直接填字体名"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="正文宽度（px）"/>
+        <TextBox Width="120" Text="{Binding ContentWidth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="左右留白（px）"/>
+        <TextBox Width="120" Text="{Binding ReaderPadding, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="配色"/>
+        <ComboBox MinWidth="200"
+                  ItemsSource="{Binding ThemeChoices}"
+                  DisplayMemberBinding="{Binding Label}"
+                  SelectedValueBinding="{Binding Value}"
+                  SelectedValue="{Binding Theme, Mode=TwoWay}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="首行缩进（全角空格个数）"/>
+        <TextBox Width="120" Text="{Binding Indent, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="段间距（段与段之间的空行数）"/>
+        <TextBox Width="120" Text="{Binding ParagraphSpacing, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="自定义背景色（#RRGGBB）"/>
+        <TextBox Width="160" Text="{Binding CustomBackground, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                 PlaceholderText="留空 = 跟配色档走"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="自定义文字色（#RRGGBB）"/>
+        <TextBox Width="160" Text="{Binding CustomForeground, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                 PlaceholderText="留空 = 跟配色档走"/>
+      </StackPanel>
+
+      <StackPanel Classes="field">
+        <CheckBox IsChecked="{Binding RememberProgress, Mode=TwoWay}" Content="记住阅读进度（下次从上次的章节与位置续读）"/>
+      </StackPanel>
+
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding TypographyHint}"/>
+    </StackPanel>
+
+    <!--  样式方案：与阅读页「🎨 样式」卡同一套（预设 / 导入 / 导出）；改完两边即时同步  -->
+    <StackPanel x:Key="Sec2" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="内置样式"/>
+        <ItemsControl ItemsSource="{Binding StylePresets}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="2"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Button Classes="ghost" Margin="0,0,6,6" Content="{Binding Name}"
+                      Command="{Binding $parent[UserControl].DataContext.ApplyPresetCommand}"
+                      CommandParameter="{Binding}"
+                      ToolTip.Tip="整套套用（会覆盖字号 / 行距 / 配色等）"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="ghost" Content="📥 导入样式文件" Command="{Binding ImportStyleCommand}"
+                ToolTip.Tip="选一个样式 JSON 文件并套用（缺的项保持原值）"/>
+        <Button Classes="ghost" Content="📤 导出当前样式" Command="{Binding ExportStyleCommand}"
+                ToolTip.Tip="把当前排版导成一个样式 JSON 文件"/>
+      </StackPanel>
+
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StyleHint}"/>
+    </StackPanel>
+
+    <StackPanel x:Key="Sec3" Spacing="6">
+      <TextBlock FontFamily="Consolas" FontSize="12" Text="{Binding ConfigFilePath}" TextWrapping="Wrap"/>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 Text="抓取参数与阅读器参数同在这一个文件里；「设置 → 数据」的备份 / 导入会一起覆盖它。"/>
+      <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StatusText, StringFormat='状态：{0}'}"/>
+    </StackPanel>
+    <StackPanel x:Key="Sec4" Spacing="10">
+      <StackPanel Classes="field">
+        <TextBlock Classes="field-label" Text="替换规则（一行一条）"/>
+        <TextBox Text="{Binding ReplaceRules, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 Height="170"
+                 FontFamily="Consolas"
+                 FontSize="12"
+                 BorderBrush="{DynamicResource InputBorderBrush}"
+                 PlaceholderText="广告位.*##　← 只有正则 = 删掉命中的内容&#x0a;本章未完.*##（本章完）　← 正则##替换文本"/>
+        <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding ReplaceRulesHint}"/>
+      </StackPanel>
+    </StackPanel>
+
+  </UserControl.Resources>
+
+  <ui:SettingsSectionHost x:Name="Host" Sticky="False"/>
+</UserControl>

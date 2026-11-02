@@ -10,42 +10,73 @@ namespace NewToys.Reading.Services;
 /// <para>判据只看三段（搜索 / 目录 / 正文）的规则字段：</para>
 /// <list type="number">
 ///   <item>三段里有必填字段为空 ⇒ <see cref="SourceCapability.Incomplete"/>（连规则都不全，谈不上跑）；</item>
-///   <item>三段任一含 <c>@js:</c> / <c>&lt;js&gt;</c> / 函数调用式插值 ⇒ <see cref="SourceCapability.NeedsJs"/>；</item>
-///   <item>否则 ⇒ <see cref="SourceCapability.Ready"/>。</item>
+///   <item>三段任一用到 <c>webview</c> / <c>startBrowserAwait</c> ⇒ <see cref="SourceCapability.NeedsWebView"/>
+///     （桌面端没有 WebView，也没有「唤起浏览器等用户操作」这回事）；</item>
+///   <item>否则 ⇒ <see cref="SourceCapability.Ready"/>。含 <c>@js:</c> 片段**仍算可用** —— JS 兼容层已就位，
+///     只在原因里附一句「含 JS」提示。</item>
 /// </list>
 /// </summary>
 public static class SourceAnalyzer
 {
+    private static readonly string[] WebViewMarkers = { "webview", "startbrowserawait" };
+
     /// <summary>判定一条书源的档位与原因。</summary>
     public static (SourceCapability Capability, string Reason) Analyze(BookSource source)
     {
+        // 「能搜索」与「能发现」是两条独立入口：真实书源里有一批只提供分类表、没有 searchUrl。
+        var hasSearch = !string.IsNullOrWhiteSpace(source.SearchUrl)
+                        && !string.IsNullOrWhiteSpace(source.Search?.BookList);
+        var exploreBookList = string.IsNullOrWhiteSpace(source.Explore?.BookList)
+            ? source.Search?.BookList
+            : source.Explore!.BookList;
+        var hasExplore = !string.IsNullOrWhiteSpace(source.ExploreUrl)
+                         && !string.IsNullOrWhiteSpace(exploreBookList);
+
         var missing = new List<string>();
-        if (string.IsNullOrWhiteSpace(source.SearchUrl)) missing.Add("搜索地址");
-        if (string.IsNullOrWhiteSpace(source.Search?.BookList)) missing.Add("搜索书单");
+        if (!hasSearch && !hasExplore) missing.Add("搜索地址与书单");
         if (string.IsNullOrWhiteSpace(source.Toc?.ChapterList)) missing.Add("目录列表");
         if (string.IsNullOrWhiteSpace(source.Content?.Content)) missing.Add("正文规则");
 
         if (missing.Count > 0)
             return (SourceCapability.Incomplete, "缺 " + string.Join(" / ", missing));
 
+        var webView = new List<string>();
         var js = new List<string>();
-        Check(js, "搜索", source.SearchUrl, source.Search?.BookList, source.Search?.Name, source.Search?.BookUrl);
-        Check(js, "目录", source.Toc?.ChapterList, source.Toc?.ChapterName, source.Toc?.ChapterUrl, source.Toc?.NextTocUrl);
-        Check(js, "正文", source.Content?.Content, source.Content?.NextContentUrl);
+        var notes = new List<string>();
 
-        return js.Count > 0
-            ? (SourceCapability.NeedsJs, "含 JS：" + string.Join("、", js.Distinct()))
-            : (SourceCapability.Ready, "");
+        if (hasSearch)
+            Scan(webView, js, "搜索", source.SearchUrl, source.Search?.BookList, source.Search?.Name, source.Search?.BookUrl);
+        else
+            notes.Add("只能「发现」浏览（没有搜索地址）");
+
+        if (hasExplore)
+            Scan(webView, js, "发现", source.ExploreUrl, source.Explore?.BookList, source.Explore?.Name);
+
+        Scan(webView, js, "目录", source.Toc?.ChapterList, source.Toc?.ChapterName, source.Toc?.ChapterUrl, source.Toc?.NextTocUrl);
+        Scan(webView, js, "正文", source.Content?.Content, source.Content?.NextContentUrl);
+
+        if (webView.Count > 0)
+            return (SourceCapability.NeedsWebView, "需 WebView：" + string.Join("、", webView.Distinct()));
+
+        if (js.Count > 0) notes.Insert(0, "含 JS：" + string.Join("、", js.Distinct()));
+
+        return (SourceCapability.Ready, string.Join("；", notes));
     }
 
-    private static void Check(List<string> sink, string segment, params string?[] rules)
+    private static void Scan(List<string> webView, List<string> js, string segment, params string?[] rules)
     {
         foreach (var rule in rules)
-            if (RuleSyntax.ContainsJs(rule) || HasFunctionCall(rule))
+        {
+            if (string.IsNullOrWhiteSpace(rule)) continue;
+
+            if (WebViewMarkers.Any(marker => rule!.Contains(marker, StringComparison.OrdinalIgnoreCase)))
             {
-                sink.Add(segment);
+                webView.Add(segment);
                 return;
             }
+
+            if (RuleSyntax.ContainsJs(rule) || HasFunctionCall(rule)) js.Add(segment);
+        }
     }
 
     /// <summary><c>{{java.xxx(...)}}</c> / <c>{{(a+b)}}</c> 这类插值要 JS 才能算。</summary>

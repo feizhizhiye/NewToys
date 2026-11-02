@@ -3,25 +3,62 @@
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.Reading.Views.SourceListView">
   <!--
-    阅读 → 书源（`reading-sources`）：书源清单 + 声明式工具条 + 详情卡。
+    网络阅读 → 书源（`reading-sources`）：分段筛选条 + 书源清单（多选）+ 声明式工具条 + 详情卡。
     🔴 工具条 / 详情卡由 Shell 按 VM 契约渲染，页内 ⛔ 不再自绘工具条。
     🔴 颜色一律 DynamicResource 主题语义键（⛔ 不写死色值）。
+    🔴 多选的真相在 VM 的 BatchSelection（绑 TableView.SelectedItems）；⛔ 别在 code-behind 里另存一份。
   -->
   <Grid>
     <v:ListPageSkeleton EmptyMessage="还没有书源 —— 点工具条「📥 导入书源」选一个 legado 书源 JSON。"
                         IsEmpty="{Binding !HasItems}">
 
       <v:ListPageSkeleton.TopArea>
-        <Border Background="{DynamicResource ContentHeaderBrush}" Padding="12,6" IsVisible="{Binding IsBusy}">
-          <TextBlock Classes="hint-text" Text="正在导入书源…"/>
-        </Border>
+        <StackPanel Spacing="6" Margin="0,0,0,8">
+          <!--  筛选条：类型 / 分组 / 校验（互不影响，全部为 AND）  -->
+          <Border Classes="card" Padding="10,6">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                <TextBlock Classes="hint-text" Text="类型" VerticalAlignment="Center"/>
+                <ComboBox Width="104"
+                          ItemsSource="{Binding TypeOptions}"
+                          SelectedItem="{Binding TypeFilter, Mode=TwoWay}"/>
+              </StackPanel>
+
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="14,0,0,0">
+                <TextBlock Classes="hint-text" Text="分组" VerticalAlignment="Center"/>
+                <ComboBox Width="150"
+                          ItemsSource="{Binding GroupOptions}"
+                          SelectedItem="{Binding GroupFilter, Mode=TwoWay}"/>
+              </StackPanel>
+
+              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="14,0,0,0">
+                <TextBlock Classes="hint-text" Text="校验" VerticalAlignment="Center"/>
+                <ComboBox Width="110"
+                          ItemsSource="{Binding CheckOptions}"
+                          SelectedItem="{Binding CheckFilter, Mode=TwoWay}"/>
+                <Button Classes="ghost" Content="只看失效" Command="{Binding FilterFailedCommand}"
+                        ToolTip.Tip="筛选校验失败 / 无结果的源，配合「全选」一键删"/>
+              </StackPanel>
+
+              <TextBlock Grid.Column="4"
+                         Classes="hint-text"
+                         Text="{Binding FilterSummary}"
+                         VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+
+          <Border Background="{DynamicResource ContentHeaderBrush}" Padding="12,6" IsVisible="{Binding IsBusy}">
+            <TextBlock Classes="hint-text" Text="正在导入书源…"/>
+          </Border>
+        </StackPanel>
       </v:ListPageSkeleton.TopArea>
 
       <v:ListPageSkeleton.ListArea>
         <v:TableViewHost x:Name="SourceList"
                          ItemsSource="{Binding Items}"
                          SelectedItem="{Binding Selected, Mode=TwoWay}"
-                         SelectionMode="Single">
+                         SelectedItems="{Binding BatchSelection}"
+                         SelectionMode="Multiple">
           <v:TableViewHost.Columns>
             <TableViewColumn Width="240">
               <TableViewColumn.CellTemplate>
@@ -37,22 +74,222 @@
             <TableViewColumn Width="150" Binding="{Binding Group}"/>
             <TableViewColumn Width="70" Binding="{Binding Type}" HorizontalContentAlignment="Center"/>
             <TableViewColumn Width="90" Binding="{Binding State}" HorizontalContentAlignment="Center"/>
+            <TableViewColumn Width="90" Binding="{Binding Check}" HorizontalContentAlignment="Center"/>
             <TableViewColumn Width="110" Binding="{Binding LastUsed}"/>
           </v:TableViewHost.Columns>
 
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
+              <MenuItem Header="☑ 全选当前结果" Command="{Binding SelectAllVisibleCommand}"/>
+              <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
+              <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
+              <Separator/>
+              <MenuItem Header="📁 改分组…" Command="{Binding ChangeGroupCommand}" IsEnabled="{Binding CanAct}"
+                        ToolTip.Tip="把选中书源改成同一个分组（留空 = 未分组）；分组改名 / 归并都走这条"/>
+              <MenuItem Header="🔬 校验书源…" Command="{Binding OpenCheckCommand}"/>
+              <MenuItem Header="🗑 删除全部失效" Command="{Binding DeleteDeadCommand}"/>
+              <Separator/>
               <MenuItem Header="🔍 用这个源搜索" Command="{Binding OpenSearchCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="✅ 启用" Command="{Binding EnableCommand}" IsEnabled="{Binding CanAct}"/>
+              <MenuItem Header="⏸ 停用" Command="{Binding DisableCommand}" IsEnabled="{Binding CanAct}"/>
+              <MenuItem Header="📤 导出" Command="{Binding ExportCommand}" IsEnabled="{Binding CanAct}"/>
               <Separator/>
-              <MenuItem Header="✅ 启用" Command="{Binding EnableCommand}" IsEnabled="{Binding HasSelection}"/>
-              <MenuItem Header="⏸ 停用" Command="{Binding DisableCommand}" IsEnabled="{Binding HasSelection}"/>
-              <MenuItem Header="📤 导出选中" Command="{Binding ExportCommand}" IsEnabled="{Binding HasSelection}"/>
-              <Separator/>
-              <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanAct}"/>
             </ContextMenu>
           </v:TableViewHost.ContextMenu>
         </v:TableViewHost>
       </v:ListPageSkeleton.ListArea>
     </v:ListPageSkeleton>
+
+    <!--  ==================== 书源 JSON 编辑浮层  ====================  -->
+    <Grid IsVisible="{Binding IsEditorOpen}">
+      <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnEditorBackdropTapped"/>
+
+      <Border Width="780"
+              Height="580"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="1"
+              CornerRadius="8"
+              BoxShadow="0 8 32 0 #40000000">
+        <DockPanel LastChildFill="True" Margin="16">
+          <TextBlock DockPanel.Dock="Top"
+                     Classes="section-title"
+                     Text="{Binding EditorTitle}"
+                     Margin="0,0,0,8"/>
+
+          <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,10,0,0">
+            <TextBlock Classes="hint-text" Text="{Binding EditorStatus}" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+              <Button Classes="ghost" Content="关闭" Command="{Binding CloseEditorCommand}"/>
+              <Button Classes="primary" Content="💾 保存" Command="{Binding SaveEditorCommand}"
+                      ToolTip.Tip="校验通过才写库"/>
+            </StackPanel>
+          </StackPanel>
+
+          <TextBox Text="{Binding EditorJson, Mode=TwoWay}"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   VerticalContentAlignment="Top"
+                   FontFamily="Consolas"
+                   FontSize="12"
+                   BorderBrush="{DynamicResource InputBorderBrush}"/>
+        </DockPanel>
+      </Border>
+    </Grid>
+
+    <!--  ==================== 书源试跑浮层  ====================  -->
+    <Grid IsVisible="{Binding IsDebugOpen}">
+      <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnDebugBackdropTapped"/>
+
+      <Border Width="700"
+              Height="520"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="1"
+              CornerRadius="8"
+              BoxShadow="0 8 32 0 #40000000">
+        <DockPanel LastChildFill="True" Margin="16">
+          <TextBlock DockPanel.Dock="Top"
+                     Classes="section-title"
+                     Text="{Binding DebugTitle}"
+                     Margin="0,0,0,8"/>
+
+          <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,10">
+            <Button DockPanel.Dock="Right"
+                    Classes="primary"
+                    Content="▶ 开始试跑"
+                    Margin="8,0,0,0"
+                    Command="{Binding RunDebugCommand}"/>
+            <TextBox Text="{Binding DebugKeyword, Mode=TwoWay}"
+                     PlaceholderText="输一个书名或作者，回车即试跑"
+                     BorderBrush="{DynamicResource InputBorderBrush}">
+              <TextBox.KeyBindings>
+                <KeyBinding Gesture="Enter" Command="{Binding RunDebugCommand}"/>
+              </TextBox.KeyBindings>
+            </TextBox>
+          </DockPanel>
+
+          <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,10,0,0">
+            <TextBlock Classes="hint-text" Text="{Binding DebugPhase}" TextWrapping="Wrap"/>
+            <Button Classes="ghost"
+                    Content="关闭"
+                    HorizontalAlignment="Right"
+                    Command="{Binding CloseDebugCommand}"/>
+          </StackPanel>
+
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding DebugSteps}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource ContentHeaderBrush}"
+                          CornerRadius="4"
+                          Padding="10,7"
+                          Margin="0,0,0,6">
+                    <StackPanel Spacing="2">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding StateText}"/>
+                        <TextBlock Classes="list-cell primary" Text="{Binding Name}"/>
+                        <TextBlock Classes="hint-text" Text="{Binding ElapsedText}" VerticalAlignment="Center"/>
+                      </StackPanel>
+                      <TextBlock Classes="hint-text" Text="{Binding Summary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Grid>
+
+    <!--  ==================== 校验浮层  ====================  -->
+    <Grid IsVisible="{Binding IsCheckOpen}">
+      <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnCheckBackdropTapped"/>
+
+      <Border Width="760"
+              Height="560"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="1"
+              CornerRadius="8"
+              BoxShadow="0 8 32 0 #40000000">
+        <DockPanel LastChildFill="True" Margin="16">
+          <TextBlock DockPanel.Dock="Top"
+                     Classes="section-title"
+                     Text="校验书源"
+                     Margin="0,0,0,4"/>
+
+          <TextBlock DockPanel.Dock="Top"
+                     Classes="hint-text"
+                     Margin="0,0,0,10"
+                     TextWrapping="Wrap"
+                     Text="每个源各跑一次搜索（不发详情 / 目录 / 正文请求）；结论写进「校验」列，之后可筛「失败」批量删。"/>
+
+          <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,10">
+            <Button DockPanel.Dock="Right"
+                    Classes="primary"
+                    Content="🔬 开始校验"
+                    Margin="8,0,0,0"
+                    IsEnabled="{Binding !IsChecking}"
+                    Command="{Binding RunCheckCommand}"/>
+            <ComboBox DockPanel.Dock="Right"
+                      Width="128"
+                      Margin="8,0,0,0"
+                      ItemsSource="{Binding CheckScopeOptions}"
+                      SelectedItem="{Binding CheckScope, Mode=TwoWay}"/>
+            <TextBox Text="{Binding CheckKeyword, Mode=TwoWay}"
+                     PlaceholderText="校验关键词（书名 / 作者），回车即开始"
+                     BorderBrush="{DynamicResource InputBorderBrush}">
+              <TextBox.KeyBindings>
+                <KeyBinding Gesture="Enter" Command="{Binding RunCheckCommand}"/>
+              </TextBox.KeyBindings>
+            </TextBox>
+          </DockPanel>
+
+          <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,10,0,0">
+            <TextBlock Classes="hint-text" Text="{Binding CheckPhase}" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0"
+                         Classes="hint-text"
+                         Text="{Binding DeadText}"
+                         VerticalAlignment="Center"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button Classes="ghost" Content="只看失效" Command="{Binding FilterFailedCommand}"/>
+                <Button Classes="danger-btn" Content="🗑 删除失效" Command="{Binding DeleteDeadCommand}"/>
+                <Button Classes="ghost" Content="关闭" Command="{Binding CloseCheckCommand}"/>
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding CheckResults}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource ContentHeaderBrush}"
+                          CornerRadius="4"
+                          Padding="10,7"
+                          Margin="0,0,0,6">
+                    <StackPanel Spacing="2">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding StateText}"/>
+                        <TextBlock Classes="list-cell primary" Text="{Binding Name}"/>
+                      </StackPanel>
+                      <TextBlock Classes="hint-text" Text="{Binding Note}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Grid>
   </Grid>
 </UserControl>

@@ -3,7 +3,7 @@
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.Reading.Views.ShelfView">
   <!--
-    阅读 → 书架（`reading-shelf`）：搜到后加进来的书。
+    网络阅读 → 书架（`reading-shelf`）：搜到后加进来的书。
     🔴 工具条 / 详情卡由 Shell 按 VM 契约渲染，页内 ⛔ 不自绘工具条。
   -->
   <Grid>
@@ -27,7 +27,20 @@
               </TableViewColumn.CellTemplate>
             </TableViewColumn>
 
-            <TableViewColumn Width="160" Binding="{Binding Author}"/>
+            <TableViewColumn Width="140" Binding="{Binding Author}"/>
+            <TableViewColumn Width="120" Binding="{Binding Group}"/>
+
+            <TableViewColumn Width="220">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Classes="hint-text"
+                             Text="{Binding ProgressText}"
+                             TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{Binding ReadTime}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
             <TableViewColumn Width="160" Binding="{Binding SourceName}"/>
             <TableViewColumn Width="110" Binding="{Binding Added}"/>
           </v:TableViewHost.Columns>
@@ -35,6 +48,7 @@
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
               <MenuItem Header="📖 继续阅读" Command="{Binding ReadCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="📁 设置分组" Command="{Binding SetGroupCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
               <MenuItem Header="🗑 移出书架" Command="{Binding RemoveCommand}" IsEnabled="{Binding HasSelection}"/>
             </ContextMenu>

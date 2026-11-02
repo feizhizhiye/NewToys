@@ -20,35 +20,38 @@ namespace NewToys.Reading.Services;
 /// 🔴 未知前缀（<c>@XPath:</c> 等）与 JS 片段只**废掉当前字段并记错误**，⛔ 不抛异常、⛔ 不牵连同一条源的其它字段。
 /// </para>
 /// </summary>
-public sealed class RuleEvaluator
+public sealed partial class RuleEvaluator
 {
     /// <summary>求值。</summary>
     public RuleValue Evaluate(string? rule, RuleContext ctx)
     {
         if (string.IsNullOrWhiteSpace(rule)) return RuleValue.Empty;
 
-        if (RuleSyntax.ContainsJs(rule))
+        // 🔴 @js: / <js> 之后是整段 JS：先剥出来，前半段（选择器）照常求值，结果作为 JS 的 result
+        var (head, code) = RuleSyntax.SplitJs(rule!);
+        if (code is not null)
         {
-            Report(ctx, "规则含 JS 片段，本版本不执行", rule!);
-            return RuleValue.Empty;
+            var input = string.IsNullOrWhiteSpace(head) ? "" : JoinTexts(Evaluate(head, ctx));
+            var (ok, text) = EvaluateJs(code, input, ctx);
+            return ok ? RuleValue.FromText(text) : RuleValue.Empty;
         }
 
-        var text = RuleSyntax.Interpolate(rule!, ctx, out var needsJs);
+        var text2 = RuleSyntax.Interpolate(rule!, ctx, expression => EvalJsExpression(expression, ctx), out var needsJs);
         if (needsJs)
         {
-            Report(ctx, "规则含函数调用（按 JS 处理）", rule!);
+            Report(ctx, "规则含无法求值的插值表达式", rule!);
             return RuleValue.Empty;
         }
 
-        text = RuleSyntax.InterpolateJsonFields(text, ctx);
+        text2 = RuleSyntax.InterpolateJsonFields(text2, ctx);
 
         // 插值后已经是一个完整地址（JSON 源的详情 / 封面地址常这么写）⇒ 它就是值，⛔ 不再当选择器
-        if (text.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-            || text.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
-            || text.StartsWith("//", StringComparison.Ordinal))
-            return RuleValue.FromText(text);
+        if (text2.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || text2.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || text2.StartsWith("//", StringComparison.Ordinal))
+            return RuleValue.FromText(text2);
 
-        foreach (var branch in RuleSyntax.SplitOr(text))
+        foreach (var branch in RuleSyntax.SplitOr(text2))
         {
             var value = EvaluateChain(branch, ctx);
             if (value.Kind != RuleValueKind.Empty) return value;
@@ -158,7 +161,7 @@ public sealed class RuleEvaluator
 
             if (RuleSyntax.ContainsJs(step))
             {
-                Report(ctx, "步骤含 JS 片段，本版本不执行", step);
+                Report(ctx, "JS 片段只能写在规则末尾（@js: 之后整段都是 JS）", step);
                 return RuleValue.Empty;
             }
 

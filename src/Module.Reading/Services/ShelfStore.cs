@@ -12,7 +12,7 @@ namespace NewToys.Reading.Services;
 /// </summary>
 public sealed class ShelfStore
 {
-    private const string Columns = "book_url,source_url,name,author,cover_url,added_at";
+    private const string Columns = "book_url,source_url,name,author,cover_url,group_name,added_at";
 
     private readonly ReadingDatabase _db;
 
@@ -41,7 +41,8 @@ public sealed class ShelfStore
                     Name = reader.GetString(2),
                     Author = reader.GetString(3),
                     CoverUrl = reader.GetString(4),
-                    AddedAt = DateTimeOffset.TryParse(reader.GetString(5), out var at) ? at : default,
+                    Group = reader.GetString(5),
+                    AddedAt = DateTimeOffset.TryParse(reader.GetString(6), out var at) ? at : default,
                 });
             }
         }
@@ -76,8 +77,8 @@ public sealed class ShelfStore
             using var conn = _db.Db.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-INSERT INTO shelf(book_url,source_url,name,author,cover_url,added_at)
-VALUES($url,$source,$name,$author,$cover,$at)
+INSERT INTO shelf(book_url,source_url,name,author,cover_url,group_name,added_at)
+VALUES($url,$source,$name,$author,$cover,$group,$at)
 ON CONFLICT(book_url) DO UPDATE SET
   source_url = excluded.source_url,
   name = excluded.name,
@@ -88,10 +89,37 @@ ON CONFLICT(book_url) DO UPDATE SET
             cmd.Parameters.AddWithValue("$name", book.Name ?? "");
             cmd.Parameters.AddWithValue("$author", book.Author ?? "");
             cmd.Parameters.AddWithValue("$cover", book.CoverUrl ?? "");
+            cmd.Parameters.AddWithValue("$group", book.Group ?? "");
             cmd.Parameters.AddWithValue("$at", DateTimeOffset.UtcNow.ToString("O"));
             return cmd.ExecuteNonQuery() > 0;
         }
         catch { return false; }
+    }
+
+    /// <summary>改分组（<paramref name="group"/> 空白 ⇒ 归「未分组」）。</summary>
+    public int SetGroup(IEnumerable<string> bookUrls, string? group)
+    {
+        if (!_db.IsAvailable) return 0;
+
+        var changed = 0;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var tx = conn.BeginTransaction();
+            foreach (var url in bookUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct())
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = "UPDATE shelf SET group_name = $group WHERE book_url = $url;";
+                cmd.Parameters.AddWithValue("$group", (group ?? "").Trim());
+                cmd.Parameters.AddWithValue("$url", url);
+                changed += cmd.ExecuteNonQuery();
+            }
+            tx.Commit();
+        }
+        catch { return changed; }
+
+        return changed;
     }
 
     /// <summary>移出书架（不动源文件，只是不再列出）。</summary>

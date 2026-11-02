@@ -9,14 +9,33 @@ namespace NewToys.Reading.Models;
 /// </summary>
 public enum SourceCapability
 {
-    /// <summary>搜索 / 目录 / 正文三段都是纯选择器 —— 现在就能跑。</summary>
+    /// <summary>三段规则齐全且桌面端能跑（含 <c>@js:</c> 片段）。</summary>
     Ready = 0,
 
-    /// <summary>三段里含 <c>@js:</c> 或 <c>&lt;js&gt;</c> 片段 —— 等 JS 兼容层。</summary>
-    NeedsJs = 1,
+    /// <summary>依赖 WebView / 唤起浏览器 —— 桌面端没有对应能力。</summary>
+    NeedsWebView = 1,
 
     /// <summary>关键规则缺失（搜索地址 / 书单 / 目录 / 正文 任一为空）。</summary>
     Incomplete = 2,
+}
+
+/// <summary>
+/// 书源校验档（跑一次真实搜索后的结论，落库，用于筛「失效源」批量清理）。
+/// <para>与静态的 <see cref="SourceCapability"/> 是两回事：那个只看规则字段，这个看真实请求结果。</para>
+/// </summary>
+public enum SourceCheckState
+{
+    /// <summary>没校验过（新导入 / 重新导入后保持原值）。</summary>
+    Unchecked = 0,
+
+    /// <summary>搜到了书。</summary>
+    Passed = 1,
+
+    /// <summary>请求通了但一条都没搜到（站点改版 / 关键词不合 / 需要登录）。</summary>
+    NoResult = 2,
+
+    /// <summary>请求失败（超时 / 404 / 规则抛错 / 需 WebView）。</summary>
+    Failed = 3,
 }
 
 /// <summary>
@@ -25,7 +44,7 @@ public enum SourceCapability
 /// 🔴 字段名按 legado 的 JSON 契约映射，⛔ 不做 Kotlin 源码移植（GPL-3.0 与本项目 MIT 不兼容）；
 /// 只保留本软件用得到的部分，其余字段反序列化时忽略。
 /// </para>
-/// <para><see cref="RawJson"/> 保留导入时的原始对象，后续批次补 JS 兼容层时不必重新导入。</para>
+/// <para><see cref="RawJson"/> 保留导入时的原始对象，规则细节演进时不必重新导入。</para>
 /// </summary>
 public sealed class BookSource
 {
@@ -80,7 +99,19 @@ public sealed class BookSource
     [JsonIgnore]
     public SourceCapability Capability { get; set; }
 
-    /// <summary>判定为「需 JS / 不完整」时的具体原因（界面提示用）。</summary>
+    /// <summary>校验结论（跑过搜索才有值，落库）。</summary>
+    [JsonIgnore]
+    public SourceCheckState CheckState { get; set; }
+
+    /// <summary>校验说明（命中几条 / 失败原因）。</summary>
+    [JsonIgnore]
+    public string CheckNote { get; set; } = "";
+
+    /// <summary>上次校验的 UTC 时间。</summary>
+    [JsonIgnore]
+    public DateTimeOffset? CheckedAt { get; set; }
+
+    /// <summary>判定为「需 WebView / 不完整」或「含 JS」时的具体说明（界面提示用）。</summary>
     [JsonIgnore]
     public string CapabilityReason { get; set; } = "";
 
@@ -99,13 +130,31 @@ public sealed class BookSource
     public string CapabilityText => Capability switch
     {
         SourceCapability.Ready => "可用",
-        SourceCapability.NeedsJs => "需 JS",
+        SourceCapability.NeedsWebView => "需 WebView",
         _ => "不完整",
     };
 
     /// <summary>分组（空 ⇒ <c>未分组</c>，列表与筛选都按它归一）。</summary>
     [JsonIgnore]
     public string GroupText => string.IsNullOrWhiteSpace(Group) ? "未分组" : Group!.Trim();
+
+    /// <summary>校验状态文字（列表列 / 筛选 / 详情卡）。</summary>
+    [JsonIgnore]
+    public string CheckText => CheckState switch
+    {
+        SourceCheckState.Passed => "通过",
+        SourceCheckState.NoResult => "无结果",
+        SourceCheckState.Failed => "失败",
+        _ => "未校验",
+    };
+
+    /// <summary>是否已失效（校验失败或无结果 —— 「删除失效」按它取）。</summary>
+    [JsonIgnore]
+    public bool IsDead => CheckState is SourceCheckState.Failed or SourceCheckState.NoResult;
+
+    /// <summary>上次校验时间（没校验过 ⇒ 空串）。</summary>
+    [JsonIgnore]
+    public string CheckedText => CheckedAt is null ? "" : SourceTimeText.Of(CheckedAt);
 }
 
 /// <summary>搜索规则（<c>ruleSearch</c>）。</summary>

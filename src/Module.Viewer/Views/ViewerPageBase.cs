@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,6 +11,8 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NewToys.UI.Readers;
 using NewToys.UI.Viewers;
 using NewToys.Viewer.Services;
@@ -23,7 +26,7 @@ namespace NewToys.Viewer.Views;
 /// <para>
 /// 🔴 子类 XAML 必须给这些元件起同名：<c>Host</c> / <c>RecentList</c> / <c>ArchiveList</c> /
 /// <c>RulePanel</c> / <c>RuleList</c> / <c>RuleNameBox</c> / <c>RulePatternBox</c> / <c>SampleBox</c> /
-/// <c>TestResult</c>。基类按名字取控件（XAML 生成的字段在子类里，基类拿不到）。
+/// <c>TestResult</c> / <c>HistoryPanel</c> / <c>SplitGrid</c> / <c>SectionBox</c>。基类按名字取控件（XAML 生成的字段在子类里，基类拿不到）。
 /// </para>
 /// <para>
 /// 🔴 本类不做范围判断 —— 收不收这个文件由 <see cref="ViewerViewModel.TryRouteElsewhere"/> 决定，
@@ -34,9 +37,16 @@ public abstract class ViewerPageBase : UserControl
 {
     private ViewerViewModel? _vm;
 
+    /// <summary>一般目录的节大小（每节多少张）：超过这个数才分节，给「几千张图」提供跳节。</summary>
+    private const int SectionSize = 100;
+
+    /// <summary>分节的图片数门槛：低于这个数不分节（条目条本来就一眼看得完）。</summary>
+    private const int SectionMinCount = 20;
+
     private ArchiveImageSession? _session;                                    // 压缩包会话（zip 常开）
     private IReadOnlyList<string> _siblings = Array.Empty<string>();          // 同目录图片
     private int _entryIndex;                                                  // 当前第几张（两种来源共用）
+    private int _sectionSize;                                                 // 条目条分节大小（0 = 不分节）
     private int _navToken;                                                    // 丢弃过期的异步翻页结果
     private long _lastWheelTick;                                              // 滚轮翻页节流（触控板防连翻）
     private bool _suppress;
@@ -49,7 +59,9 @@ public abstract class ViewerPageBase : UserControl
     private Grid? _splitGrid;
     private ListBox? _recentList;
     private ListBox? _archiveList;
+    private ComboBox? _sectionBox;
     private Border? _rulePanel;
+    private Border? _historyPanel;
     private ListBox? _ruleList;
     private TextBox? _ruleNameBox;
     private TextBox? _rulePatternBox;
@@ -83,7 +95,11 @@ public abstract class ViewerPageBase : UserControl
 
     private ListBox ArchiveList => _archiveList ??= Find<ListBox>("ArchiveList");
 
+    private ComboBox SectionBox => _sectionBox ??= Find<ComboBox>("SectionBox");
+
     private Border RulePanel => _rulePanel ??= Find<Border>("RulePanel");
+
+    private Border HistoryPanel => _historyPanel ??= Find<Border>("HistoryPanel");
 
     private ListBox RuleList => _ruleList ??= Find<ListBox>("RuleList");
 
@@ -108,11 +124,13 @@ public abstract class ViewerPageBase : UserControl
 
         if (_vm is not null)
         {
+            _vm.PropertyChanged -= OnVmPropertyChanged;
             _vm.OpenRequested -= OnOpenRequested;
             _vm.CloseRequested -= OnCloseRequested;
             _vm.ZoomInRequested -= OnZoomIn;
             _vm.ZoomOutRequested -= OnZoomOut;
             _vm.FitRequested -= OnFit;
+            _vm.RotateRequested -= OnRotate;
             _vm.TypographyChanged -= OnTypographyChanged;
             _vm.ArchiveNavigateRequested -= OnArchiveNavigate;
             _vm.PlayToggleRequested -= OnPlayToggle;
@@ -124,11 +142,13 @@ public abstract class ViewerPageBase : UserControl
         _vm = DataContext as ViewerViewModel;
         if (_vm is null) return;
 
+        _vm.PropertyChanged += OnVmPropertyChanged;
         _vm.OpenRequested += OnOpenRequested;
         _vm.CloseRequested += OnCloseRequested;
         _vm.ZoomInRequested += OnZoomIn;
         _vm.ZoomOutRequested += OnZoomOut;
         _vm.FitRequested += OnFit;
+        _vm.RotateRequested += OnRotate;
         _vm.TypographyChanged += OnTypographyChanged;
         _vm.ArchiveNavigateRequested += OnArchiveNavigate;
         _vm.PlayToggleRequested += OnPlayToggle;
@@ -151,6 +171,41 @@ public abstract class ViewerPageBase : UserControl
 
         var pending = _vm.TakePending();
         if (pending.Count > 0) OpenMany(pending);
+    }
+
+    // ==================== 历史浮层 ====================
+
+    private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ViewerViewModel.IsHistoryOpen)) return;
+        if (_vm?.IsHistoryOpen == true) AlignHistoryPopup();
+    }
+
+    /// <summary>
+    /// 历史浮层的左边缘对齐工具条「历史」按钮。
+    /// <para>🔴 按钮在 Shell 的工具条里、页面拿不到引用 ⇒ 按**命令对象**在窗口视觉树里反查（⛔ 别按文案匹配，
+    /// 文案是本地化的）；查不到（被折进「⋯」）就退回右上角贴边。</para>
+    /// </summary>
+    private void AlignHistoryPopup()
+    {
+        var popup = HistoryPanel;
+        popup.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
+        popup.Margin = new Thickness(0, 6, 12, 0);
+
+        if (_vm is null) return;
+        if (popup.GetVisualParent() is not { } parent) return;
+
+        var anchor = TopLevel.GetTopLevel(this)?.GetVisualDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(b => b.IsEffectivelyVisible && ReferenceEquals(b.Command, _vm.ToggleHistoryCommand));
+        if (anchor is null) return;
+
+        var origin = anchor.TranslatePoint(new Point(0, 0), parent);
+        if (origin is null) return;
+
+        var maxLeft = Math.Max(0, parent.Bounds.Width - popup.Width - 8);
+        popup.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+        popup.Margin = new Thickness(Math.Clamp(origin.Value.X, 0, maxLeft), 6, 0, 0);
     }
 
     // ==================== 打开 ====================
@@ -369,18 +424,84 @@ public abstract class ViewerPageBase : UserControl
 
         if (names.Count <= 1)
         {
+            _sectionSize = 0;
             _vm.ClearArchive();   // 只有一张就不占顶部条带
             return;
         }
 
+        // 分节大小跟着总数走：固定 100 张一节时，几十张的目录永远看不到节信息。
+        _sectionSize = PickSectionSize(names.Count);
+
         _suppress = true;
         try
         {
-            _vm.SetArchiveEntries(names, index);
+            _vm.SetArchiveEntries(names, index, _sectionSize);
             ArchiveList.SelectedIndex = index;
-            if (ArchiveList.SelectedItem is { } selected) ArchiveList.ScrollIntoView(selected);
+            ScrollEntryIntoView(index);
+            SyncSectionBox(index);
         }
         finally { _suppress = false; }
+    }
+
+    /// <summary>把节下拉指到第 <paramref name="index"/> 张所在的节（<c>-1</c> = 清空选中）；⛔ 不触发跳节。</summary>
+    private void SyncSectionBox(int index)
+    {
+        var was = _suppress;
+        _suppress = true;
+        try
+        {
+            SectionBox.SelectedIndex = _sectionSize <= 0 || index < 0 ? -1 : index / _sectionSize;
+        }
+        finally { _suppress = was; }
+    }
+
+    /// <summary>节下拉换了一节 ⇒ 直接跳到该节第一张。</summary>
+    protected void OnSectionSelected(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppress || _sectionSize <= 0) return;
+
+        var section = SectionBox.SelectedIndex;
+        if (section < 0) return;
+
+        ShowEntry(section * _sectionSize);
+    }
+
+    /// <summary>
+    /// 按条目总数挑节大小：≈ 10 节（10 的倍数），最小 10 张、最大 <see cref="SectionSize"/> 张。
+    /// <para>总数 &lt; <see cref="SectionMinCount"/> 不分节（返回 0）。</para>
+    /// </summary>
+    private static int PickSectionSize(int count)
+    {
+        if (count < SectionMinCount) return 0;
+
+        var size = (int)Math.Ceiling(count / 10d / 10d) * 10;
+        return Math.Clamp(size, 10, SectionSize);
+    }
+
+    /// <summary>把条目条滚到第 <paramref name="index"/> 条。
+    /// <para>🔴 用 <c>BringIntoView</c>（与标签栏同一套做法）：条目条换过 ItemsSource 后容器要等布局才生成，
+    /// 自己算偏移会在容器为 <c>null</c> 时静默不滚 ⇒ 表现为「换图了条目条不动」。没容器就等下一轮再试。</para>
+    /// </summary>
+    private void ScrollEntryIntoView(int index)
+    {
+        if (index < 0) return;
+        ScrollEntryIntoViewCore(index, 0);
+    }
+
+    private void ScrollEntryIntoViewCore(int index, int attempt)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (index >= ArchiveList.ItemCount) return;
+
+            if (ArchiveList.ContainerFromIndex(index) is Control container)
+            {
+                container.BringIntoView();
+                return;
+            }
+
+            if (attempt < 2) ScrollEntryIntoViewCore(index, attempt + 1);
+        }, DispatcherPriority.Background);
     }
 
     private void OpenArchive(string path)
@@ -442,7 +563,7 @@ public abstract class ViewerPageBase : UserControl
 
         if (_vm.IsSplit && _vm.IsImage)
         {
-            _ = RefreshSplitAsync(target);
+            _ = RefreshSplitAsync(target, target);
             return;
         }
 
@@ -485,6 +606,7 @@ public abstract class ViewerPageBase : UserControl
 
         _vm.OnImageNavigated(session.Path + "!" + entry.Key);
         ApplyEntryIndex(index);
+        RestoreFocus();
     }
 
     /// <summary>同目录图片：直接按路径打开（宿主内部复用/重建渲染器）。</summary>
@@ -501,6 +623,7 @@ public abstract class ViewerPageBase : UserControl
 
         _vm.OnImageNavigated(path);
         ApplyEntryIndex(index);
+        RestoreFocus();
     }
 
     private void ApplyEntryIndex(int index)
@@ -511,7 +634,8 @@ public abstract class ViewerPageBase : UserControl
         try
         {
             ArchiveList.SelectedIndex = index;
-            if (ArchiveList.SelectedItem is { } selected) ArchiveList.ScrollIntoView(selected);
+            ScrollEntryIntoView(index);
+            SyncSectionBox(index);
         }
         finally { _suppress = false; }
 
@@ -577,12 +701,15 @@ public abstract class ViewerPageBase : UserControl
         }
 
         var wasActive = _splitActive;
+        var lastFocus = _splitFocus;
         _splitActive = false;
+        _splitFocus = -1;
         SplitGrid.IsVisible = false;
         Host.IsVisible = true;
         ClearSplitTiles();
 
-        if (wasActive && EntryCount > 0) ShowEntry(_entryIndex);   // 回到单图：显示当前张
+        // 回到单图：有选中格就显示那一格，否则显示当前屏起点那张
+        if (wasActive && EntryCount > 0) ShowEntry(lastFocus >= 0 ? lastFocus : _entryIndex);
     }
 
     /// <summary>按屏翻页（网格模式）：一屏 = N 张，到头即止。</summary>
@@ -590,7 +717,7 @@ public abstract class ViewerPageBase : UserControl
     {
         if (_vm is null || EntryCount == 0) return;
 
-        var n = Math.Clamp(_vm.SplitColumns, 2, 4);
+        var n = Math.Clamp(_vm.SplitRows * _vm.SplitColumns, 2, 4);
         var screens = (EntryCount + n - 1) / n;
         var current = _entryIndex / n;
         var target = Math.Clamp(current + delta, 0, screens - 1);
@@ -601,23 +728,24 @@ public abstract class ViewerPageBase : UserControl
 
     /// <summary>
     /// 铺一屏：<paramref name="index"/> 所在的那一屏（屏对齐），装载图片走后台解码。
+    /// <para>🔴 <paramref name="focus"/> = 要**选中**的格（-1 = 不选中任何一张，分屏默认就是这么铺的：
+    /// 刚开分屏 / 翻屏 / 换每屏张数都不该先替你「激活」一张）。</para>
     /// <para>🔴 每次重铺都递增 <c>_splitToken</c>：连按翻页时旧任务的结果直接丢弃（与压缩包翻页同一手法）。</para>
     /// </summary>
-    private async Task RefreshSplitAsync(int index)
+    private async Task RefreshSplitAsync(int index, int focus = -1)
     {
         if (_vm is null || EntryCount == 0) { ClearSplitTiles(); return; }
 
         var token = ++_splitToken;
-        var n = Math.Clamp(_vm.SplitColumns, 2, 4);
+        var cols = Math.Clamp(_vm.SplitColumns, 1, 2);
+        var rows = Math.Clamp(_vm.SplitRows, 1, 2);
+        var n = Math.Clamp(cols * rows, 2, 4);
         var total = EntryCount;
         var start = Math.Clamp(index / n * n, 0, Math.Max(total - 1, 0));
         var count = Math.Min(n, total - start);
 
         _entryIndex = start;
-        _splitFocus = Math.Clamp(index, start, start + count - 1);
-
-        var cols = n == 4 ? 2 : n;
-        var rows = n == 4 ? 2 : 1;
+        _splitFocus = focus < 0 ? -1 : Math.Clamp(focus, start, start + count - 1);
 
         ClearSplitTiles();
         var columnDefs = new ColumnDefinitions();
@@ -674,7 +802,10 @@ public abstract class ViewerPageBase : UserControl
 
         _vm.SetArchiveRange(start, count);
         _vm.SetInfo($"分屏 · 一屏 {count} 张");
-        SyncArchiveSelection(start);
+        SyncArchiveSelection(_splitFocus);
+        SyncSectionBox(_splitFocus >= 0 ? _splitFocus : start);   // 没选中格也要让节下拉指在本屏所在节
+        if (_splitFocus < 0) ScrollEntryIntoView(start);          // 没选中格：条目条只滚到本屏起点
+        RestoreFocus();
     }
 
     private void SetSplitFocus(Border cell, int index, IBrush accent)
@@ -685,7 +816,7 @@ public abstract class ViewerPageBase : UserControl
         foreach (var child in SplitGrid.Children.OfType<Border>())
             child.BorderBrush = ReferenceEquals(child, cell) ? accent : Brushes.Transparent;
 
-        _vm.SetArchiveRange(_entryIndex, Math.Min(_vm.SplitColumns, EntryCount - _entryIndex));
+        _vm.SetArchiveRange(_entryIndex, Math.Min(_vm.SplitRows * _vm.SplitColumns, EntryCount - _entryIndex));
         SyncArchiveSelection(index);
     }
 
@@ -753,14 +884,15 @@ public abstract class ViewerPageBase : UserControl
         _splitBitmaps.Clear();
     }
 
-    /// <summary>条目条选中项跟随当前屏起点（⛔ 不触发翻页）。</summary>
+    /// <summary>条目条选中项跟随当前屏（⛔ 不触发翻页）；<paramref name="index"/> = -1 表示**不选中任何一条**。</summary>
     private void SyncArchiveSelection(int index)
     {
         _suppress = true;
         try
         {
             ArchiveList.SelectedIndex = index;
-            if (ArchiveList.SelectedItem is { } selected) ArchiveList.ScrollIntoView(selected);
+            ScrollEntryIntoView(index);
+            SyncSectionBox(index);
         }
         finally { _suppress = false; }
     }
@@ -841,6 +973,16 @@ public abstract class ViewerPageBase : UserControl
     {
         Host.FitToWindow();
         UpdateZoomInfo();
+    }
+
+    /// <summary>旋转 90°（分屏网格里不生效：网格每格按自适应铺开）。</summary>
+    private void OnRotate(object? sender, EventArgs e)
+    {
+        if (_vm is { IsSplit: true }) return;
+
+        Host.Rotate();
+        UpdateZoomInfo();
+        _vm?.SetStatus("已旋转 90°。");
     }
 
     private void UpdateZoomInfo()
@@ -976,10 +1118,33 @@ public abstract class ViewerPageBase : UserControl
     {
         if (EntryCount > 1 && !RulePanel.IsVisible && !Host.IsInfoVisible)
         {
-            if (e.Key == Key.Left) { e.Handled = true; ShowEntry(_entryIndex - 1); return; }
-            if (e.Key == Key.Right) { e.Handled = true; ShowEntry(_entryIndex + 1); return; }
+            if (e.Key is Key.Left or Key.Right)
+            {
+                e.Handled = true;
+
+                var delta = e.Key == Key.Left ? -1 : 1;
+
+                // 分屏：方向键整屏翻（与滚轮一致），不是在一屏里挪一张
+                if (_vm is { IsSplit: true, IsImage: true }) GoToScreen(delta);
+                else ShowEntry(_entryIndex + delta);
+
+                return;
+            }
         }
 
         base.OnKeyDown(e);
+    }
+
+    /// <summary>
+    /// 翻页后把键盘焦点收回本页。
+    /// <para>🔴 目录里换图会重建渲染器 ⇒ 焦点回到窗口，方向键直接失效（必须再点一下图片才恢复）；
+    /// 规则浮层开着时 ⛔ 别抢焦点（用户可能正在输正则）。</para>
+    /// </summary>
+    private void RestoreFocus()
+    {
+        if (RulePanel.IsVisible) return;
+        if (IsKeyboardFocusWithin) return;
+
+        Focus();
     }
 }

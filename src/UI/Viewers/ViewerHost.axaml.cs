@@ -135,6 +135,16 @@ public partial class ViewerHost : UserControl
             return false;
         }
 
+        // 🔴 同类复用一个 ImageViewer：目录里翻图时不重建控件 ⇒ 缩放连续、键盘焦点不丢
+        //    （重建会让焦点回到窗口，方向键失效，必须再点一下图片才恢复）。
+        if (kind == ViewerKind.Image && Kind == ViewerKind.Image && _current is ImageViewer keep)
+        {
+            if (!keep.Load(path, out error)) return false;
+            CurrentPath = path;
+            Opened?.Invoke(this, path);
+            return true;
+        }
+
         Release();
         Kind = ViewerKind.None;
 
@@ -202,13 +212,17 @@ public partial class ViewerHost : UserControl
         return true;
     }
 
-    /// <summary>显示一张「来自流」的图片（压缩包内图片）；<paramref name="display"/> 写进 <see cref="CurrentPath"/>。</summary>
-    public bool OpenImageStream(Stream stream, string display, out string error)
+    /// <summary>
+    /// 显示一张「来自流」的图片（压缩包内图片）；<paramref name="display"/> 写进 <see cref="CurrentPath"/>。
+    /// <para><paramref name="size"/> = 未压缩字节数，<paramref name="archivePath"/> = 所属压缩包（信息浮层用），都可省。</para>
+    /// </summary>
+    public bool OpenImageStream(Stream stream, string display, out string error, long size = -1, string archivePath = "")
     {
         if (_current is ImageViewer existing && Kind == ViewerKind.Image)
         {
             // 复用同一个 ImageViewer：压缩包里翻页时不必重建控件（缩放状态连续）
             if (!existing.Load(stream, out error)) return false;
+            existing.SetArchiveSource(display, archivePath, size);
             CurrentPath = display;
             return true;
         }
@@ -217,6 +231,7 @@ public partial class ViewerHost : UserControl
         var viewer = new ImageViewer();
         if (!viewer.Load(stream, out error)) return false;
 
+        viewer.SetArchiveSource(display, archivePath, size);
         viewer.ZoomChanged += (_, _) => ZoomChanged?.Invoke(this, EventArgs.Empty);
         _current = viewer;
         Kind = ViewerKind.Image;
@@ -255,6 +270,12 @@ public partial class ViewerHost : UserControl
     public void ResetZoom() => (_current as ImageViewer)?.ResetZoom();
     public void ZoomBy(double factor) => (_current as ImageViewer)?.ZoomBy(factor);
     public double Zoom => (_current as ImageViewer)?.Zoom ?? 0;
+
+    /// <summary>顺时针旋转 90°（单图有效，分屏网格忽略）。</summary>
+    public void Rotate() => (_current as ImageViewer)?.Rotate();
+
+    /// <summary>图片信息浮层是否打开（宿主页据此屏蔽翻页 / 滚轮）。</summary>
+    public bool IsInfoVisible => (_current as ImageViewer)?.IsInfoVisible == true;
 
     private void Release()
     {

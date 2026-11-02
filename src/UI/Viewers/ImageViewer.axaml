@@ -2,17 +2,89 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.UI.Viewers.ImageViewer">
   <!--
-    图片渲染器（只读）：滚轮滚动 / Ctrl+滚轮缩放 / 按住左键拖拽平移 / 双击在「1:1」与「适应窗口」间切换。
+    图片渲染器（只读）：滚轮滚动 / Ctrl+滚轮缩放 / 按住左键拖拽平移 / 双击在「1:1」与「适应窗口」间切换 / 右键菜单。
     🔴 缩放靠直接改写 Image.Width/Height（而不是 RenderTransform）—— 只有前者会让 ScrollViewer 的
        Extent 跟着变大，否则放大后拖不到边缘。
   -->
-  <ScrollViewer x:Name="Scroller"
-                Background="Transparent"
-                HorizontalScrollBarVisibility="Auto"
-                VerticalScrollBarVisibility="Auto">
-    <Image x:Name="Pic"
-           HorizontalAlignment="Center"
-           VerticalAlignment="Center"
-           Stretch="Fill" />
-  </ScrollViewer>
+  <UserControl.ContextMenu>
+    <ContextMenu>
+      <MenuItem Header="图片信息" Click="OnImageInfoClick" />
+      <MenuItem Header="复制文件路径" Click="OnCopyPathClick" />
+      <Separator />
+      <MenuItem Header="适应窗口" Click="OnFitClick" />
+      <MenuItem Header="1:1 原始大小" Click="OnResetZoomClick" />
+      <MenuItem Header="旋转 90°" Click="OnRotateClick" />
+    </ContextMenu>
+  </UserControl.ContextMenu>
+
+  <Grid>
+    <ScrollViewer x:Name="Scroller"
+                  Background="Transparent"
+                  HorizontalScrollBarVisibility="Auto"
+                  VerticalScrollBarVisibility="Auto">
+      <!--
+        旋转靠「外层 Panel 占位 + 内层 Image 自转」：Panel 尺寸按旋转后的外框给（90°/270° 时宽高互换），
+        Image 保持未旋转尺寸绕中心转 90° 正好铺满外框 ⇒ ScrollViewer 的 Extent 才是对的。
+        ⛔ 别把旋转改成只给 Image 加 RenderTransform：那样布局尺寸不跟着换，放大后拖不到边缘。
+      -->
+      <Panel x:Name="PicBox"
+             HorizontalAlignment="Center"
+             VerticalAlignment="Center">
+        <Image x:Name="Pic"
+               Stretch="Fill"
+               RenderTransformOrigin="0.5,0.5" />
+      </Panel>
+    </ScrollViewer>
+
+    <!-- 图片信息浮层：遮罩铺满控件，卡片居中；点卡片外、按 Esc、「关闭」都收起 -->
+    <Border x:Name="InfoPanel"
+            IsVisible="False"
+            Focusable="True"
+            Background="{DynamicResource LoadingOverlayBrush}"
+            PointerPressed="OnInfoBackdropPressed"
+            KeyDown="OnInfoKeyDown">
+      <Border x:Name="InfoCard"
+              MinWidth="340"
+              MaxWidth="620"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              BoxShadow="0 8 32 0 #66000000"
+              Padding="16">
+        <Grid RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Text="图片信息"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource PrimaryTextBrush}" />
+
+          <ItemsControl x:Name="InfoList" Grid.Row="1" Margin="0,10,0,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="88,*" Margin="0,3">
+                  <TextBlock Classes="hint-text" Text="{Binding Label}" />
+                  <SelectableTextBlock Grid.Column="1"
+                                       Text="{Binding Value}"
+                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,14,0,0">
+            <TextBlock x:Name="InfoHint"
+                       Classes="hint-text"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+              <Button Classes="ghost" Click="OnCopyPathClick" Content="复制路径" />
+              <Button Classes="primary" Click="OnCloseInfoClick" Content="关闭" />
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </Border>
+    </Border>
+  </Grid>
 </UserControl>

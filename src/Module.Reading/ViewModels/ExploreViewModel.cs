@@ -278,8 +278,8 @@ public partial class ExploreViewModel : ObservableObject, IStatusProvider, IDisp
             foreach (var source in _store.LoadAll())
             {
                 if (!source.Enabled) continue;
-                // 发现页只要求「有分类表、且不是 WebView 源」—— 没有 searchUrl 的纯发现源同样可用
-                if (source.Capability == SourceCapability.NeedsWebView) continue;
+                // 发现页只要求「有分类表、且是文本源、且不是 WebView 源」—— 没有 searchUrl 的纯发现源同样可用
+                if (source.Capability is SourceCapability.NeedsWebView or SourceCapability.Unsupported) continue;
                 if (string.IsNullOrWhiteSpace(source.ExploreUrl)) continue;
 
                 var categories = _crawl.ParseExploreCategories(source);

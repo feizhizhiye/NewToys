@@ -17,6 +17,9 @@ public sealed class ImportResult
 
     public int Skipped { get; set; }
 
+    /// <summary>跳过的非文本源条数（图片 / 音频 / 视频 —— 本软件只做文本）。</summary>
+    public int Unsupported { get; set; }
+
     public List<string> Errors { get; } = new();
 
     public bool HasErrors => Errors.Count > 0;
@@ -27,6 +30,7 @@ public sealed class ImportResult
         {
             var text = $"导入完成：新增 {Added}，更新 {Updated}";
             if (Skipped > 0) text += $"，跳过 {Skipped}";
+            if (Unsupported > 0) text += $"，跳过非文本源 {Unsupported}（图片 / 音频 / 视频不导入）";
             if (Errors.Count > 0) text += " · " + Errors[0];
             return text;
         }
@@ -145,6 +149,13 @@ public sealed class SourceImportService
                     if (source is null || string.IsNullOrWhiteSpace(source.Url))
                     {
                         result.Skipped++;
+                        continue;
+                    }
+
+                    // 非文本源（图片 / 音频 / 视频）直接不入库：本软件只做文本正文，留着只会污染搜索与发现列表
+                    if (source.Type != 0)
+                    {
+                        result.Unsupported++;
                         continue;
                     }
 

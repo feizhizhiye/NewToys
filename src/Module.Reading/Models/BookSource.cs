@@ -17,6 +17,9 @@ public enum SourceCapability
 
     /// <summary>关键规则缺失（搜索地址 / 书单 / 目录 / 正文 任一为空）。</summary>
     Incomplete = 2,
+
+    /// <summary>非文本源（图片 / 音频 / 视频）—— 本软件只做文本，这类源不参与搜索与发现。</summary>
+    Unsupported = 3,
 }
 
 /// <summary>
@@ -134,6 +137,7 @@ public sealed class BookSource
     {
         SourceCapability.Ready => "可用",
         SourceCapability.NeedsWebView => "需 WebView",
+        SourceCapability.Unsupported => "非文本源",
         _ => "不完整",
     };
 

@@ -73,7 +73,15 @@ public sealed class SourceCheckService
         var skipped = new List<SourceCheckRow>();
         foreach (var source in sources)
         {
-            if (string.IsNullOrWhiteSpace(source.SearchUrl) || string.IsNullOrWhiteSpace(source.Search?.BookList))
+            if (source.Capability == SourceCapability.Unsupported)
+            {
+                const string note = "非文本源（图片 / 音频 / 视频），不参与校验";
+                _store.SetCheck(source.Url, SourceCheckState.Skipped, note, DateTimeOffset.UtcNow);
+                var row = new SourceCheckRow(source, SourceCheckState.Skipped, note);
+                skipped.Add(row);
+                onDone?.Invoke(row);
+            }
+            else if (string.IsNullOrWhiteSpace(source.SearchUrl) || string.IsNullOrWhiteSpace(source.Search?.BookList))
             {
                 const string note = "没有搜索接口（只能「发现」浏览），未参与校验";
                 _store.SetCheck(source.Url, SourceCheckState.Skipped, note, DateTimeOffset.UtcNow);

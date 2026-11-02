@@ -580,6 +580,27 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         StatusText = $"已删除 {deleted} 条失效书源";
     }
 
+    /// <summary>「🗑 删除非文本源」：清掉库里遗留的图片 / 音频 / 视频源（新导入的已在导入时跳过）。</summary>
+    [RelayCommand]
+    private async Task DeleteUnsupportedAsync()
+    {
+        if (_store is null) return;
+
+        var rows = _all.Where(r => r.Source.Capability == SourceCapability.Unsupported).ToList();
+        if (rows.Count == 0) { StatusText = "库里没有非文本源。"; return; }
+
+        var confirmed = await DialogHooks.ConfirmAsync(
+            $"删除 {rows.Count} 条非文本源？（图片 / 音频 / 视频源，本软件不支持阅读）").ConfigureAwait(true);
+        if (!confirmed) return;
+
+        var deleted = _store.Delete(rows.Select(r => r.Source.Url));
+
+        Selected = null;
+        BatchSelection.Clear();
+        Reload();
+        StatusText = $"已删除 {deleted} 条非文本源";
+    }
+
     // ==================== 编辑（原始 JSON）备用 ====================
 
     private static readonly System.Text.Json.JsonSerializerOptions PrettyJson = new() { WriteIndented = true };
@@ -846,10 +867,12 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         var ready = _all.Count(r => r.Source.Capability == SourceCapability.Ready);
         var webView = _all.Count(r => r.Source.Capability == SourceCapability.NeedsWebView);
         var incomplete = _all.Count(r => r.Source.Capability == SourceCapability.Incomplete);
+        var unsupported = _all.Count(r => r.Source.Capability == SourceCapability.Unsupported);
         var enabled = _all.Count(r => r.IsEnabled);
         var dead = _all.Count(r => r.Source.IsDead);
 
         var text = $"共 {_all.Count} 条 · 可用 {ready} / 需 WebView {webView} / 不完整 {incomplete} · 启用 {enabled}";
+        if (unsupported > 0) text += $" · 非文本源 {unsupported}（不参与搜索 / 发现）";
         if (dead > 0) text += $" · 失效 {dead}";
         if (Items.Count != _all.Count) text += $" · 当前筛出 {Items.Count}";
         return text;
@@ -1034,7 +1057,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "判定只看搜索 / 目录 / 正文三段的规则：缺关键字段 = 不完整；用到 WebView = 需 WebView；含 @js: 或 <js> 仍算可用（内置 JS 引擎）。",
+                        Hint = "判定只看搜索 / 目录 / 正文三段的规则：缺关键字段 = 不完整；用到 WebView = 需 WebView；含 @js: 或 <js> 仍算可用（内置 JS 引擎）；类型不是文本（图片 / 音频 / 视频）= 非文本源，不参与搜索与发现。",
                     },
                 }
             }

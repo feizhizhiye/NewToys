@@ -23,6 +23,10 @@ public static class SourceAnalyzer
     /// <summary>判定一条书源的档位与原因。</summary>
     public static (SourceCapability Capability, string Reason) Analyze(BookSource source)
     {
+        // 🔴 先按类型分流：本软件只处理文本正文，图片 / 音频 / 视频源（type 1/2/3）一律不参与搜索与发现
+        if (source.Type != 0)
+            return (SourceCapability.Unsupported, $"类型为{source.TypeText}，本软件只支持文本源");
+
         // 「能搜索」与「能发现」是两条独立入口：真实书源里有一批只提供分类表、没有 searchUrl。
         var hasSearch = !string.IsNullOrWhiteSpace(source.SearchUrl)
                         && !string.IsNullOrWhiteSpace(source.Search?.BookList);

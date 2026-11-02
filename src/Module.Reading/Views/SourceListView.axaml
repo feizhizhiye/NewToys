@@ -88,6 +88,8 @@
                         ToolTip.Tip="把选中书源改成同一个分组（留空 = 未分组）；分组改名 / 归并都走这条"/>
               <MenuItem Header="🔬 校验书源…" Command="{Binding OpenCheckCommand}"/>
               <MenuItem Header="🗑 删除全部失效" Command="{Binding DeleteDeadCommand}"/>
+              <MenuItem Header="🗑 删除非文本源" Command="{Binding DeleteUnsupportedCommand}"
+                        ToolTip.Tip="清掉库里遗留的图片 / 音频 / 视频源（本软件只支持文本源）"/>
               <Separator/>
               <MenuItem Header="🔍 用这个源搜索" Command="{Binding OpenSearchCommand}" IsEnabled="{Binding HasSelection}"/>
               <MenuItem Header="✅ 启用" Command="{Binding EnableCommand}" IsEnabled="{Binding CanAct}"/>

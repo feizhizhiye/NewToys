@@ -245,11 +245,12 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         OnPropertyChanged(nameof(HasRecent));
     }
 
-    // ---------- 压缩包条目 ----------
+    // ---------- 图片条目（压缩包 / 同目录） ----------
 
     public ObservableCollection<string> ArchiveEntries { get; } = new();
 
     /// <summary>压缩包内当前张数信息（「第 3 / 128 张」）。</summary>
+    /// <remarks><see cref="IsArchive"/> 语义 = 「有可翻页的条目」（压缩包内图片或同目录图片）。</remarks>
     public void SetArchiveEntries(IEnumerable<string> names, int index)
     {
         ArchiveEntries.Clear();
@@ -261,6 +262,17 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>更新压缩包内序号显示。</summary>
     public void UpdateArchiveIndex(int index)
         => ArchiveInfo = ArchiveEntries.Count == 0 ? "" : $"第 {index + 1} / {ArchiveEntries.Count} 张";
+
+    /// <summary>翻到同一批图片里的另一张（同目录 / 压缩包内）：只刷新标题，⛔ 不写「最近打开」。</summary>
+    public void OnImageNavigated(string path)
+    {
+        CurrentTitle = Path.GetFileName(path);
+        CurrentInfo = path;
+        IsImage = true;
+        HasContent = true;
+        Hint = "";
+        StatusText = "已打开";
+    }
 
     /// <summary>清空压缩包状态。</summary>
     public void ClearArchive()
@@ -597,14 +609,14 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                     Text = "◀ 上一张",
                     CommandPath = nameof(PrevImageCommand),
                     IsEnabledPath = nameof(IsArchive),
-                    ToolTip = "压缩包里的上一张（←）",
+                    ToolTip = "上一张（同目录图片 / 压缩包内，←）",
                 });
                 items.Add(new()
                 {
                     Text = "下一张 ▶",
                     CommandPath = nameof(NextImageCommand),
                     IsEnabledPath = nameof(IsArchive),
-                    ToolTip = "压缩包里的下一张（→）",
+                    ToolTip = "下一张（同目录图片 / 压缩包内，→）",
                 });
             }
 

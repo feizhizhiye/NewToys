@@ -37,8 +37,8 @@
 | 长文本阅读器 | `.txt .md .markdown .log` | 章节自动识别 + 目录抽屉 + 上一/下一章 + 章内进度 + **书签** + **全书搜索** + 排版（字号 / 行距 / 边距 / 缩进 / 段距 / 4 档配色）+ 快捷键 |
 | 短文本 / 源码 | `.json .xml .csv .ini .cfg .conf .cs .py .ps1 .js .ts .sql .bat .cmd .yaml .yml .toml` | 整篇滚动 + 字号 / 行距 / 边距 |
 | HTML | `.html .htm` | 去标签取纯文本（⛔ 不执行脚本、⛔ 不加载远程资源） |
-| 图片 | `.png .jpg .jpeg .bmp .gif .webp .ico` | 缩放 / 平移 / 双击切 1:1 与适应窗口 |
-| 压缩包内图片 | `.zip .rar .7z .cbz .cbr` | 列出包内图片 → 顶部条目条点选 → ←/→ 翻页；只列图片、⛔ 不解压到磁盘 |
+| 图片 | `.png .jpg .jpeg .bmp .gif .webp .ico` | 缩放 / 平移 / 双击切 1:1 与适应窗口；**同目录逐张翻页**（←/→） |
+| 压缩包内图片 | `.zip .rar .7z .cbz .cbr` | 列出包内图片 → 顶部条目条点选 → ←/→ 翻页；只列图片、⛔ 不解压到磁盘；**zip / cbz 只读中央目录**（2 GB 包也秒开） |
 | 音频 | `.mp3 .flac .wav .m4a .aac .wma .ogg .opus .aiff` | 播放列表 + 播放/暂停 + 进度 + 音量 + 上一首/下一首 + 顺序/单曲/随机 + 标签封面 + 同名 `.lrc` 歌词 |
 | 视频 | `.mp4 .mkv .avi …` | **不在本模块**：由系统默认播放器打开 |
 
@@ -60,7 +60,8 @@
 | **阅读器：搜索** | 顶栏「搜索」或 Ctrl+F | 全书搜索（≤500 条），点结果跳章并加粗定位 | 面板底部显示「第 N / M 处（本章）」 |
 | **阅读器：排版** | 顶栏「排版」 | 字号 12~34 / 行距 1.2~2.6 / 边距 0~160 / 首行缩进 / 段间距 / 4 档配色 | 改完立即生效并写 `viewer.json` |
 | **章节规则** | 工具条「⚙ 章节规则」 | 右侧浮层：自定义正则列表 + 增删 + **试跑** | 自定义规则排在内置规则之前；试跑只读不落盘；保存后**下次打开**生效 |
-| 压缩包翻页 | 点顶部条目条 / 工具条「◀ 上一张」「下一张 ▶」/ ←→ | 换成包里那张图 | 序号显示「第 N / M 张」 |
+| **图片翻页** | 点顶部条目条 / 工具条「◀ 上一张」「下一张 ▶」/ ←→ | 换成同一批里的那张图 | 来源两种：**同目录图片**（按文件名排序，自动带出）或**压缩包内图片**；序号显示「第 N / M 张」；只有 1 张时⛔ 不显示条带 |
+| **大压缩包** | 打开 `.zip` / `.cbz` | 状态栏先报「正在读取压缩包…」，读到后列出条目并显示第一张 | zip 家族只读**中央目录**（不解压任何数据）；rar / 7z 无等价 API，仍按条目顺序扫 |
 | 音频播放 | 打开音频或拖入多首 | 自动播第一首；底部条控制 | 切走页面即停播（⛔ 不留后台声音） |
 | 音频模式 | 底部「顺序 / 单曲 / 随机」 | 播完按模式决定下一首 | 「顺序」到末尾停止并提示 |
 | 音频歌词 | 同名 `.lrc` 存在时自动加载 | 当前行高亮 + 自动滚动 | 只认本地 `.lrc`，⛔ 不联网下载 |
@@ -80,7 +81,7 @@ ViewerPageBase（Module.Viewer/Views，文本 / 图片 / 音频三页共用）
                                ├─ AudioPlayer（播放列表 + 控制条 + 歌词）
                                └─ ReaderShell（长文本，来自 NewToys.UI.Readers）
 TxtBookService        编码嗅探 + 章节切分 + 规则试跑
-ArchiveImageService   SharpCompress 遍历 zip / rar / 7z，条目读进内存流
+ArchiveImageService   打开压缩包会话（zip 走 ZipArchive 中央目录，rar/7z 走 SharpCompress），条目读进内存流
 AudioLibraryService   TagLib 读标签 / 封面 / 同名 lrc
 NAudioPlayback        IAudioPlayback 的 Windows 实现（MF 解码 + WaveOut 输出）
 ViewerSettingsService config\viewer.json 唯一写入点
@@ -120,7 +121,9 @@ ViewerSettingsService config\viewer.json 唯一写入点
 - 🔴 装载后**不能立刻设 `ScrollViewer.Offset`**：此刻 `Extent` 是 0，赋值会被吞 ⇒ 必须 `Dispatcher.Post(…, DispatcherPriority.Loaded)`。
 - 🔴 **Avalonia 12 换掉了拖放 API**：`DragEventArgs.Data` / `DataFormats.Files` 不可用；用 `e.DataTransfer.Contains(DataFormat.File)` + `e.DataTransfer.TryGetFiles()`。
 - 🔴 **SharpCompress 的条目流依赖归档存活**：`OpenEntryStream()` 必须在 `using archive` 内读完；本模块统一「读进 `MemoryStream` 再关归档」，⛔ 不要把流交给上层长期持有。
-- 🔴 **压缩包随机取图要重新打开归档**：⛔ 不缓存 `IArchiveEntry` 跨操作（句柄失效 / 内存涨）。
+- 🔴 **压缩包必须「打开一次、翻页复用」**：`ArchiveImageService.OpenSession` 返回持有文件句柄的会话，翻页只按条目名取图。⛔ 别每翻一张重开归档 —— 旧的「每张重扫一遍包头」在 2 GB 包上要等几十秒。会话必须在换文件 / 关闭时 `Dispose`。
+- 🔴 **zip 只读中央目录，rar / 7z 只能顺序扫**：`ZipArchive` 构造即读完中央目录（不解压），取单张 O(1)；rar / 7z 没有等价 API，⛔ 不要试图在它们身上做随机定位。读包一律丢后台线程（`Task.Run`），UI 线程只负责解码最后一帧。
+- 🔴 **解码仍在 UI 线程**：`ViewerHost.OpenImageStream` 内部 `new Bitmap(stream)` 必须留在 UI 线程；后台只做解压。
 - 🔴 **章节切片必须用绝对偏移**：`BuildChapters` 产出整本书坐标，`Substring` 时⛔ 不能按「章内偏移」二次计算，否则目录跳转全错位。
 - 🔴 **阅读器滚动定位是近似的**：搜索命中只能按「命中位置 / 章长 × 可滚动高度」估算，无法精确到像素（Avalonia 无公开的文本命中矩形 API）。
 - 🔴 **`AudioPlayer` 必须在 `DetachedFromVisualTree` 停表停播**，否则切页后音乐继续放。

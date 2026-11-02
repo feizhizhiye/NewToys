@@ -30,9 +30,10 @@ public abstract class ViewerPageBase : UserControl
 {
     private ViewerViewModel? _vm;
 
-    private string _archivePath = "";
-    private IReadOnlyList<ArchiveImageEntry> _archiveEntries = Array.Empty<ArchiveImageEntry>();
-    private int _archiveIndex;
+    private ArchiveImageSession? _session;                                    // 压缩包会话（zip 常开）
+    private IReadOnlyList<string> _siblings = Array.Empty<string>();          // 同目录图片
+    private int _entryIndex;                                                  // 当前第几张（两种来源共用）
+    private int _navToken;                                                    // 丢弃过期的异步翻页结果
     private bool _suppress;
 
     private string _readerPath = "";
@@ -173,16 +174,22 @@ public abstract class ViewerPageBase : UserControl
         if (kind == ViewerKind.Reader) { OpenReaderFile(path); return; }
         if (kind == ViewerKind.Audio) { OpenAudioFiles(new[] { path }); return; }
 
+        IReadOnlyList<string> siblings = Array.Empty<string>();
+        var index = 0;
+        if (kind == ViewerKind.Image) siblings = LoadSiblings(path, out index);
+
         if (!Host.Open(path, _vm.GetProgress(path), out var error, () => _vm.Playback))
         {
             _vm.OnOpenFailed(error);
             return;
         }
 
-        _archiveEntries = Array.Empty<ArchiveImageEntry>();
-        _vm.ClearArchive();
+        ResetEntries();
+        _siblings = siblings;
+        _entryIndex = index;
         _vm.OnOpened(path, Host.Kind);
         ApplyTypography();
+        UpdateEntryList(index);
 
         if (Host.Kind == ViewerKind.Image)
             _vm.SetInfo("缩放 " + (Host.Zoom * 100).ToString("0") + "%");
@@ -205,8 +212,7 @@ public abstract class ViewerPageBase : UserControl
             return;
         }
 
-        _archiveEntries = Array.Empty<ArchiveImageEntry>();
-        _vm.ClearArchive();
+        ResetEntries();
         _readerPath = path;
         _bookmarks = _vm.LoadBookmarks(path).ToList();
 
@@ -286,75 +292,213 @@ public abstract class ViewerPageBase : UserControl
         Host.Reader?.ShowChapter(bookmark.ChapterIndex, bookmark.Ratio);
     }
 
-    // ==================== 压缩包 ====================
+    // ==================== 图片翻页（压缩包 / 同目录） ====================
+
+    /// <summary>可翻页条目数（压缩包条目或同目录图片）。</summary>
+    private int EntryCount => _session?.Entries.Count ?? _siblings.Count;
+
+    /// <summary>清空翻页来源（换文件 / 关闭时）。会话句柄一并释放。</summary>
+    private void ResetEntries()
+    {
+        _session?.Dispose();
+        _session = null;
+        _siblings = Array.Empty<string>();
+        _entryIndex = 0;
+        _navToken++;
+        _vm?.ClearArchive();
+    }
+
+    /// <summary>同目录图片（按文件名排序），并给回当前文件在其中的序号。</summary>
+    private static IReadOnlyList<string> LoadSiblings(string path, out int index)
+    {
+        index = 0;
+        try
+        {
+            var dir = System.IO.Path.GetDirectoryName(path);
+            if (string.IsNullOrEmpty(dir)) return new[] { path };
+
+            var list = System.IO.Directory.EnumerateFiles(dir)
+                .Where(ViewerHost.IsImage)
+                .OrderBy(p => System.IO.Path.GetFileName(p) ?? "", StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var self = list.FindIndex(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+            if (self < 0)
+            {
+                list.Add(path);
+                self = list.Count - 1;
+            }
+
+            index = self;
+            return list;
+        }
+        catch
+        {
+            return new[] { path };   // 目录读不了就只管这一张
+        }
+    }
+
+    /// <summary>把当前翻页来源铺到顶部条目条，并选中第 <paramref name="index"/> 张。</summary>
+    private void UpdateEntryList(int index)
+    {
+        if (_vm is null) return;
+
+        var names = _session is not null
+            ? _session.Entries.Select(e => e.Name).ToList()
+            : _siblings.Select(p => System.IO.Path.GetFileName(p) ?? "").ToList();
+
+        if (names.Count <= 1)
+        {
+            _vm.ClearArchive();   // 只有一张就不占顶部条带
+            return;
+        }
+
+        _suppress = true;
+        try
+        {
+            _vm.SetArchiveEntries(names, index);
+            ArchiveList.SelectedIndex = index;
+            if (ArchiveList.SelectedItem is { } selected) ArchiveList.ScrollIntoView(selected);
+        }
+        finally { _suppress = false; }
+    }
 
     private void OpenArchive(string path)
     {
         if (_vm is null) return;
 
-        var entries = _vm.Archive.List(path, out var error);
-        if (entries.Count == 0)
+        ResetEntries();
+        _vm.SetStatus("正在读取压缩包…");
+
+        var archive = _vm.Archive;
+        _ = ReadArchiveAsync(archive, path);
+    }
+
+    /// <summary>后台读包（zip 只读中央目录；大包 ⛔ 不要压在主线程）。</summary>
+    private async Task ReadArchiveAsync(ArchiveImageService archive, string path)
+    {
+        var token = _navToken;
+
+        var (session, error) = await Task.Run(() =>
         {
-            _vm.OnOpenFailed(string.IsNullOrWhiteSpace(error) ? "压缩包里没有图片。" : error);
+            var opened = archive.OpenSession(path, out var reason);
+            return (opened, reason);
+        }).ConfigureAwait(true);
+
+        if (_vm is null || token != _navToken) { session?.Dispose(); return; }
+
+        if (session is null)
+        {
+            _vm.OnOpenFailed(string.IsNullOrWhiteSpace(error) ? "读取压缩包失败。" : error);
             return;
         }
 
-        _archivePath = path;
-        _archiveEntries = entries;
-        _archiveIndex = 0;
+        if (session.Entries.Count == 0)
+        {
+            session.Dispose();
+            _vm.OnOpenFailed("压缩包里没有图片。");
+            return;
+        }
 
-        _vm.SetArchiveEntries(entries.Select(e => e.Name).ToList(), 0);
-        ShowArchiveImage(0);
+        _session = session;
+        _entryIndex = 0;
 
-        _vm.OnOpened(path, ViewerKind.Image, "压缩包 · " + entries.Count + " 张");
+        _vm.OnOpened(path, ViewerKind.Image, "压缩包 · " + session.Entries.Count + " 张");
+        UpdateEntryList(0);
         Focus();
+
+        ShowEntry(0);
     }
 
-    private void ShowArchiveImage(int index)
+    /// <summary>切到第 <paramref name="index"/> 张（按当前来源分派到压缩包 / 同目录）。</summary>
+    private void ShowEntry(int index)
     {
-        if (_vm is null || _archiveEntries.Count == 0) return;
+        if (_vm is null || EntryCount == 0) return;
 
-        var target = Math.Clamp(index, 0, _archiveEntries.Count - 1);
-        var entry = _archiveEntries[target];
+        var target = Math.Clamp(index, 0, EntryCount - 1);
+        if (_session is not null) _ = ShowArchiveEntryAsync(_session, target);
+        else ShowSibling(target);
+    }
 
-        using var stream = _vm.Archive.Open(_archivePath, entry.Key, out var error);
+    /// <summary>压缩包内取图：解压放后台，解码仍走 UI 线程（<see cref="ViewerHost.OpenImageStream"/>）。</summary>
+    private async Task ShowArchiveEntryAsync(ArchiveImageSession session, int index)
+    {
+        if (_vm is null) return;
+
+        var token = ++_navToken;
+        var entry = session.Entries[index];
+
+        var (stream, error) = await Task.Run(() =>
+        {
+            var opened = session.Open(entry.Key, out var reason);
+            return (opened, reason);
+        }).ConfigureAwait(true);
+
+        if (_vm is null) { stream?.Dispose(); return; }
+        if (token != _navToken) { stream?.Dispose(); return; }   // 连按 → 只认最新一次
+
         if (stream is null)
         {
             _vm.SetStatus("⚠ " + error);
             return;
         }
 
-        if (!Host.OpenImageStream(stream, _archivePath + "!" + entry.Key, out error))
+        using (stream)
+        {
+            if (!Host.OpenImageStream(stream, session.Path + "!" + entry.Key, out var loadError))
+            {
+                _vm.SetStatus("⚠ 打不开这张图：" + loadError);
+                return;
+            }
+        }
+
+        _vm.OnImageNavigated(session.Path + "!" + entry.Key);
+        ApplyEntryIndex(index);
+    }
+
+    /// <summary>同目录图片：直接按路径打开（宿主内部复用/重建渲染器）。</summary>
+    private void ShowSibling(int index)
+    {
+        if (_vm is null || _siblings.Count == 0) return;
+
+        var path = _siblings[index];
+        if (!Host.Open(path, 0, out var error, () => _vm.Playback))
         {
             _vm.SetStatus("⚠ 打不开这张图：" + error);
             return;
         }
 
-        _archiveIndex = target;
+        _vm.OnImageNavigated(path);
+        ApplyEntryIndex(index);
+    }
+
+    private void ApplyEntryIndex(int index)
+    {
+        _entryIndex = index;
 
         _suppress = true;
         try
         {
-            ArchiveList.SelectedIndex = target;
+            ArchiveList.SelectedIndex = index;
             if (ArchiveList.SelectedItem is { } selected) ArchiveList.ScrollIntoView(selected);
         }
         finally { _suppress = false; }
 
-        _vm.UpdateArchiveIndex(target);
-        _vm.SetInfo("缩放 " + (Host.Zoom * 100).ToString("0") + "%");
+        _vm?.UpdateArchiveIndex(index);
+        _vm?.SetInfo("缩放 " + (Host.Zoom * 100).ToString("0") + "%");
     }
 
     protected void OnArchiveSelected(object? sender, SelectionChangedEventArgs e)
     {
         if (_suppress) return;
         var index = ArchiveList.SelectedIndex;
-        if (index >= 0 && index != _archiveIndex) ShowArchiveImage(index);
+        if (index >= 0 && index != _entryIndex) ShowEntry(index);
     }
 
     private void OnArchiveNavigate(object? sender, int delta)
     {
-        if (_archiveEntries.Count == 0) return;
-        ShowArchiveImage(_archiveIndex + delta);
+        if (EntryCount == 0) return;
+        ShowEntry(_entryIndex + delta);
     }
 
     // ==================== 音频 ====================
@@ -388,8 +532,7 @@ public abstract class ViewerPageBase : UserControl
         player.SetVolume(_vm.AudioVolume);
         player.SetPlaylist(tracks, 0);
 
-        _archiveEntries = Array.Empty<ArchiveImageEntry>();
-        _vm.ClearArchive();
+        ResetEntries();
         _vm.OnOpened(paths[0], ViewerKind.Audio, tracks.Count + " 首");
     }
 
@@ -411,7 +554,7 @@ public abstract class ViewerPageBase : UserControl
     {
         SaveProgress();
         Host.Close();
-        _archiveEntries = Array.Empty<ArchiveImageEntry>();
+        ResetEntries();
         _bookmarks.Clear();
         _wiredReader = null;
         _vm?.ClearArchive();
@@ -567,10 +710,10 @@ public abstract class ViewerPageBase : UserControl
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (_archiveEntries.Count > 0 && !RulePanel.IsVisible)
+        if (EntryCount > 1 && !RulePanel.IsVisible)
         {
-            if (e.Key == Key.Left) { e.Handled = true; ShowArchiveImage(_archiveIndex - 1); return; }
-            if (e.Key == Key.Right) { e.Handled = true; ShowArchiveImage(_archiveIndex + 1); return; }
+            if (e.Key == Key.Left) { e.Handled = true; ShowEntry(_entryIndex - 1); return; }
+            if (e.Key == Key.Right) { e.Handled = true; ShowEntry(_entryIndex + 1); return; }
         }
 
         base.OnKeyDown(e);

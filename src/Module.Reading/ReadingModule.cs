@@ -39,6 +39,7 @@ public class ReadingModule : IModule
         services.AddSingleton<BookDownloadService>();
         services.AddSingleton<SourceDebugService>();
         services.AddSingleton<SourceCheckService>();
+        services.AddSingleton<ShelfUpdateService>();
 
         services.AddTransient<Views.SourceListView>();
         services.AddTransient<SourceListViewModel>();

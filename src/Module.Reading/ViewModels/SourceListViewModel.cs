@@ -635,7 +635,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
 
         parsed.RawJson = text;
 
-        // 编辑同一条源时沿用原来的启用状态：JSON 里常常没写 enabled，不能因为改规则就把它悄悄停用
+        // 编辑同一条源时保留已有的启用状态：JSON 里常常没写 enabled，不能因为改规则就把它悄悄停用
         if (Selected is not null && Selected.Source.Url == parsed.Url) parsed.Enabled = Selected.Source.Enabled;
 
         var written = store.Upsert(new[] { parsed });

@@ -12,7 +12,7 @@ namespace NewToys.Reading.Services;
 /// </summary>
 public sealed class ShelfStore
 {
-    private const string Columns = "book_url,source_url,name,author,cover_url,group_name,added_at";
+    private const string Columns = "book_url,source_url,name,author,cover_url,group_name,added_at,last_chapter,chapter_count,new_count,checked_at,update_note";
 
     private readonly ReadingDatabase _db;
 
@@ -43,6 +43,13 @@ public sealed class ShelfStore
                     CoverUrl = reader.GetString(4),
                     Group = reader.GetString(5),
                     AddedAt = DateTimeOffset.TryParse(reader.GetString(6), out var at) ? at : default,
+                    LatestChapter = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                    ChapterCount = reader.IsDBNull(8) ? 0 : reader.GetInt32(8),
+                    NewCount = reader.IsDBNull(9) ? 0 : reader.GetInt32(9),
+                    UpdateNote = reader.IsDBNull(11) ? "" : reader.GetString(11),
+                    CheckedAt = !reader.IsDBNull(10) && DateTimeOffset.TryParse(reader.GetString(10), out var checkedAt)
+                        ? checkedAt
+                        : null,
                 });
             }
         }
@@ -120,6 +127,43 @@ ON CONFLICT(book_url) DO UPDATE SET
         catch { return changed; }
 
         return changed;
+    }
+
+    /// <summary>
+    /// 写一次「批量更新」结论。
+    /// <para><paramref name="note"/> 非空 = 这次检查失败（只更新时间和原因，<b>保留上次的章数基线</b>，
+    /// 否则失败一次就把「有新章节」的对比基准冲掉了）。</para>
+    /// </summary>
+    public void SetUpdate(string bookUrl, string? latestChapter, int chapterCount, int newCount,
+        string? note, DateTimeOffset at)
+    {
+        if (!_db.IsAvailable || string.IsNullOrWhiteSpace(bookUrl)) return;
+
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            var failed = !string.IsNullOrWhiteSpace(note);
+
+            cmd.CommandText = failed
+                ? "UPDATE shelf SET checked_at = $at, update_note = $note WHERE book_url = $url;"
+                : @"UPDATE shelf
+SET last_chapter = $latest, chapter_count = $count, new_count = $new, checked_at = $at, update_note = ''
+WHERE book_url = $url;";
+
+            cmd.Parameters.AddWithValue("$url", bookUrl);
+            cmd.Parameters.AddWithValue("$at", at.ToString("O"));
+            cmd.Parameters.AddWithValue("$note", note ?? "");
+            if (!failed)
+            {
+                cmd.Parameters.AddWithValue("$latest", latestChapter ?? "");
+                cmd.Parameters.AddWithValue("$count", chapterCount);
+                cmd.Parameters.AddWithValue("$new", newCount);
+            }
+
+            cmd.ExecuteNonQuery();
+        }
+        catch { /* 更新结论写不进去不影响本次检查 */ }
     }
 
     /// <summary>移出书架（不动源文件，只是不再列出）。</summary>

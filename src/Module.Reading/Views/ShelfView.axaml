@@ -5,10 +5,38 @@
   <!--
     网络阅读 → 书架（`reading-shelf`）：搜到后加进来的书。
     🔴 工具条 / 详情卡由 Shell 按 VM 契约渲染，页内 ⛔ 不自绘工具条。
+    🔴 颜色一律 DynamicResource 主题语义键（⛔ 不写死色值）。
   -->
   <Grid>
     <v:ListPageSkeleton EmptyMessage="书架是空的 —— 到「网上搜索」搜到书后，右键「＋ 加入书架」。"
                         IsEmpty="{Binding !HasItems}">
+
+      <v:ListPageSkeleton.TopArea>
+        <Border Classes="card" Padding="10,6" Margin="0,0,0,8">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+              <TextBlock Classes="hint-text" Text="分组" VerticalAlignment="Center"/>
+              <ComboBox Width="150"
+                        ItemsSource="{Binding GroupOptions}"
+                        SelectedItem="{Binding GroupFilter, Mode=TwoWay}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="14,0,0,0">
+              <TextBlock Classes="hint-text" Text="更新" VerticalAlignment="Center"/>
+              <ComboBox Width="120"
+                        ItemsSource="{Binding UpdateOptions}"
+                        SelectedItem="{Binding UpdateFilter, Mode=TwoWay}"/>
+              <Button Classes="ghost" Content="只看有更新" Command="{Binding FilterWithUpdatesCommand}"
+                      ToolTip.Tip="只留「有 N 章更新」的书（跑完批量更新后看结果用）"/>
+            </StackPanel>
+
+            <TextBlock Grid.Column="4"
+                       Classes="hint-text"
+                       Text="{Binding FilterSummary}"
+                       VerticalAlignment="Center"/>
+          </Grid>
+        </Border>
+      </v:ListPageSkeleton.TopArea>
 
       <v:ListPageSkeleton.ListArea>
         <v:TableViewHost x:Name="ShelfList"
@@ -41,13 +69,27 @@
               </TableViewColumn.CellTemplate>
             </TableViewColumn>
 
+            <TableViewColumn Width="120">
+              <TableViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Update}"
+                             FontSize="12"
+                             TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{Binding UpdateTip}"/>
+                </DataTemplate>
+              </TableViewColumn.CellTemplate>
+            </TableViewColumn>
+
             <TableViewColumn Width="160" Binding="{Binding SourceName}"/>
             <TableViewColumn Width="110" Binding="{Binding Added}"/>
           </v:TableViewHost.Columns>
 
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
+              <MenuItem Header="🔔 只看有更新" Command="{Binding FilterWithUpdatesCommand}"/>
+              <Separator/>
               <MenuItem Header="📖 继续阅读" Command="{Binding ReadCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="🆕 更新这本" Command="{Binding UpdateOneCommand}" IsEnabled="{Binding IsNotUpdating}"/>
               <MenuItem Header="📁 设置分组" Command="{Binding SetGroupCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
               <MenuItem Header="🗑 移出书架" Command="{Binding RemoveCommand}" IsEnabled="{Binding HasSelection}"/>

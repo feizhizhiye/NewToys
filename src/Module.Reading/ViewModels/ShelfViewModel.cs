@@ -50,6 +50,12 @@ public sealed class ShelfRow
 
     public string ReadTime => Book.ReadTimeText;
 
+    /// <summary>「更新」列（未检查 / 有 N 章更新 / 已是最新 / 更新失败）。</summary>
+    public string Update => Book.UpdateText;
+
+    /// <summary>「更新」列的悬停提示（失败原因 / 最新章节 / 检查时间）。</summary>
+    public string UpdateTip => Book.UpdateTip;
+
     public string Tip => Book.BookUrl;
 }
 
@@ -63,6 +69,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
     private readonly SourceStore _sources;
     private readonly ProgressStore _progress;
     private readonly ReadingSession _session;
+    private readonly ShelfUpdateService? _update;
     private readonly INavigationService? _nav;
 
     private readonly List<ShelfRow> _all = new();
@@ -87,7 +94,8 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         ReadingSession session,
         INavigationService? nav = null,
         IColumnLayoutService? cols = null,
-        IOptionsStore? opts = null)
+        IOptionsStore? opts = null,
+        ShelfUpdateService? update = null)
         : base(cols, opts)
     {
         _store = store;
@@ -95,12 +103,22 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         _progress = progress;
         _session = session;
         _nav = nav;
+        _update = update;
 
         LoadLayout();
         Reload();
     }
 
     public ObservableCollection<ShelfRow> Items { get; } = new();
+
+    /// <summary>页面标签关闭：中断还在跑的批量更新（单例服务不会被它拖住）。</summary>
+    public override void Dispose()
+    {
+        try { _updateCts?.Cancel(); } catch { /* 已释放 */ }
+        _updateCts?.Dispose();
+        _updateCts = null;
+        base.Dispose();
+    }
 
     public bool HasItems => Items.Count > 0;
 
@@ -116,6 +134,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         new("Author", "作者", "140", sample: "烽火戏诸侯"),
         new("Group", "分组", "120", sample: "未分组"),
         new("ProgressText", "读到", "220", sample: "读到 第 12 章 风雪夜归人"),
+        new("Update", "更新", "120", sample: "有 3 章更新"),
         new("SourceName", "来源", "160", sample: "某某小说网（优）"),
         new("Added", "加入时间", "110", sample: "2026-11-01"),
     };
@@ -124,6 +143,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
     public bool IsAuthorVisible => Vis("Author");
     public bool IsGroupVisible => Vis("Group");
     public bool IsProgressVisible => Vis("ProgressText");
+    public bool IsUpdateVisible => Vis("Update");
     public bool IsSourceNameVisible => Vis("SourceName");
     public bool IsAddedVisible => Vis("Added");
 
@@ -134,13 +154,63 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         if (Selected is null && Items.Count > 0) Selected = Items[0];
     }
 
-    private void ApplyFilter(string? keyword = null)
+    private const string AllGroups = "全部分组";
+    private const string AllUpdates = "全部状态";
+
+    /// <summary>更新状态筛选项（与 <see cref="ShelfBook.UpdateText"/> 对齐 + 一个「有更新」归并档）。</summary>
+    public IReadOnlyList<string> UpdateOptions { get; } = new[] { AllUpdates, "有更新", "已是最新", "未检查", "更新失败" };
+
+    /// <summary>分组筛选项（<c>全部分组</c> + 书架里实际出现过的分组）。</summary>
+    public ObservableCollection<string> GroupOptions { get; } = new() { AllGroups };
+
+    private string _groupFilter = AllGroups;
+    private string _updateFilter = AllUpdates;
+
+    /// <summary>分组筛选。</summary>
+    public string GroupFilter
     {
-        var key = (keyword ?? "").Trim();
-        var rows = key.Length == 0
-            ? _all
-            : _all.Where(r => r.Name.Contains(key, StringComparison.OrdinalIgnoreCase)
-                              || r.Author.Contains(key, StringComparison.OrdinalIgnoreCase)).ToList();
+        get => _groupFilter;
+        set
+        {
+            var text = string.IsNullOrWhiteSpace(value) ? AllGroups : value;
+            if (_groupFilter == text) return;
+            _groupFilter = text;
+            OnPropertyChanged();
+            ApplyFilter();
+        }
+    }
+
+    /// <summary>更新状态筛选（有更新 / 已是最新 / 未检查 / 更新失败）。</summary>
+    public string UpdateFilter
+    {
+        get => _updateFilter;
+        set
+        {
+            var text = string.IsNullOrWhiteSpace(value) ? AllUpdates : value;
+            if (_updateFilter == text) return;
+            _updateFilter = text;
+            OnPropertyChanged();
+            ApplyFilter();
+        }
+    }
+
+    /// <summary>筛选命中条数（筛选条右侧的「N / 共 M」）。</summary>
+    public string FilterSummary => Items.Count == _all.Count
+        ? $"共 {_all.Count} 本"
+        : $"筛出 {Items.Count} / 共 {_all.Count} 本";
+
+    private void ApplyFilter()
+    {
+        var key = (_searchQuery ?? "").Trim();
+
+        IEnumerable<ShelfRow> rows = _all;
+
+        if (key.Length > 0)
+            rows = rows.Where(r => r.Name.Contains(key, StringComparison.OrdinalIgnoreCase)
+                                   || r.Author.Contains(key, StringComparison.OrdinalIgnoreCase));
+
+        if (_groupFilter != AllGroups) rows = rows.Where(r => r.Group == _groupFilter);
+        if (_updateFilter != AllUpdates) rows = rows.Where(r => MatchesUpdate(r, _updateFilter));
 
         var keep = Selected?.Book.BookUrl;
 
@@ -148,8 +218,34 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         foreach (var row in rows) Items.Add(row);
 
         OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(FilterSummary));
+
         if (keep is not null) Selected = Items.FirstOrDefault(r => r.Book.BookUrl == keep);
         if (Selected is null && Items.Count > 0 && IsDetailVisible) Selected = Items[0];
+    }
+
+    /// <summary>「有更新」是个归并档（只有 <c>new_count &gt; 0</c> 才算），其余按列文案精确匹配。</summary>
+    private static bool MatchesUpdate(ShelfRow row, string filter) => filter switch
+    {
+        "有更新" => row.Book.NewCount > 0 && string.IsNullOrWhiteSpace(row.Book.UpdateNote),
+        "已是最新" => row.Update == "已是最新",
+        "未检查" => row.Update == "未检查",
+        "更新失败" => row.Update == "⚠ 更新失败",
+        _ => true,
+    };
+
+    /// <summary>重建分组下拉；当前选中的分组没了就退回「全部分组」。</summary>
+    private void RefreshGroupOptions()
+    {
+        var desired = new List<string> { AllGroups };
+        desired.AddRange(_all.Select(r => r.Group).Distinct().OrderBy(g => g, StringComparer.CurrentCulture));
+
+        if (GroupOptions.SequenceEqual(desired)) return;
+
+        GroupOptions.Clear();
+        foreach (var group in desired) GroupOptions.Add(group);
+
+        if (!GroupOptions.Contains(_groupFilter)) GroupFilter = AllGroups;
     }
 
     private string _searchQuery = "";
@@ -164,7 +260,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
             if (_searchQuery == text) return;
             _searchQuery = text;
             OnPropertyChanged();
-            ApplyFilter(text);
+            ApplyFilter();
         }
     }
 
@@ -178,6 +274,9 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         OnPropertyChanged(nameof(DetailProgress));
         OnPropertyChanged(nameof(DetailSource));
         OnPropertyChanged(nameof(DetailAdded));
+        OnPropertyChanged(nameof(DetailLatest));
+        OnPropertyChanged(nameof(DetailUpdate));
+        OnPropertyChanged(nameof(DetailUpdateNote));
         OnPropertyChanged(nameof(DetailUrl));
         DetailChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -206,10 +305,117 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
             }
         }
 
-        ApplyFilter(_searchQuery);
-        StatusText = _all.Count == 0
-            ? "书架是空的 —— 到「网上搜索」搜到书后，右键「＋ 加入书架」。"
+        RefreshGroupOptions();
+        ApplyFilter();
+
+        if (_all.Count == 0)
+        {
+            StatusText = "书架是空的 —— 到「网上搜索」搜到书后，右键「＋ 加入书架」。";
+            return;
+        }
+
+        var updated = _all.Count(r => r.Book.NewCount > 0 && string.IsNullOrWhiteSpace(r.Book.UpdateNote));
+        StatusText = updated > 0
+            ? $"书架里 {_all.Count} 本 · 有新章节 {updated} 本"
             : $"书架里 {_all.Count} 本";
+    }
+
+    // ==================== 批量更新（回源站抓详情 + 目录） ====================
+
+    /// <summary>正在批量更新（按钮可用态 + 关闭页面时先取消）。</summary>
+    [ObservableProperty] private bool _isUpdating;
+
+    /// <summary>更新进度 / 结算文案。</summary>
+    [ObservableProperty] private string _updatePhase = "";
+
+    /// <summary>不在更新中（工具条按钮的可用态；Avalonia 绑定不支逻辑运算符，⛔ 别在 XAML 里写 And）。</summary>
+    public bool IsNotUpdating => !IsUpdating;
+
+    partial void OnIsUpdatingChanged(bool value) => OnPropertyChanged(nameof(IsNotUpdating));
+
+    private CancellationTokenSource? _updateCts;
+
+    /// <summary>
+    /// 「🔄 批量更新」：把**当前筛选结果**里的书逐本回源站抓详情 + 目录，比章数得出「多了几章」。
+    /// <para>🔴 首次检查只建基线；单本失败不中断整批，失败原因进「更新」列。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task BatchUpdateAsync()
+    {
+        var service = _update;
+        if (service is null) { StatusText = "⚠ 更新服务未就绪。"; return; }
+
+        var books = Items.Select(r => r.Book).ToList();
+        if (books.Count == 0) { StatusText = "没有要更新的书。"; return; }
+
+        await RunUpdateAsync(service, books).ConfigureAwait(true);
+    }
+
+    /// <summary>右键「🔄 更新这本」：只跑当前选中那本。</summary>
+    [RelayCommand]
+    private async Task UpdateOneAsync()
+    {
+        var service = _update;
+        if (service is null) { StatusText = "⚠ 更新服务未就绪。"; return; }
+        if (Selected is null) { StatusText = "先选中一本。"; return; }
+
+        await RunUpdateAsync(service, new List<ShelfBook> { Selected.Book }).ConfigureAwait(true);
+    }
+
+    private async Task RunUpdateAsync(ShelfUpdateService service, List<ShelfBook> books)
+    {
+        try { _updateCts?.Cancel(); } catch { /* 上一轮已结束 */ }
+        _updateCts?.Dispose();
+        _updateCts = new CancellationTokenSource();
+        var token = _updateCts.Token;
+
+        IsUpdating = true;
+        UpdatePhase = $"正在检查 {books.Count} 本…";
+
+        var fresh = 0;
+        var totalNew = 0;
+        var failed = 0;
+
+        try
+        {
+            var progress = new Progress<(int Done, int Total)>(p =>
+            {
+                UpdatePhase = $"正在检查… {p.Done} / {p.Total} 本";
+                StatusText = UpdatePhase;
+            });
+
+            await service.UpdateManyAsync(books, token, progress, result =>
+            {
+                if (result.Ok)
+                {
+                    if (result.NewCount > 0) fresh++;
+                    totalNew += result.NewCount;
+                }
+                else failed++;
+            }).ConfigureAwait(true);
+
+            if (token.IsCancellationRequested) { UpdatePhase = "已取消（已完成的那几本已写库）。"; return; }
+
+            UpdatePhase = fresh == 0
+                ? $"检查完 {books.Count} 本：都没新章节{(failed > 0 ? $"（{failed} 本失败）" : "")}"
+                : $"检查完 {books.Count} 本：{fresh} 本有新章节（共 {totalNew} 章）{(failed > 0 ? $"，{failed} 本失败" : "")}";
+        }
+        catch (OperationCanceledException) { UpdatePhase = "已取消（已完成的那几本已写库）。"; }
+        catch (Exception ex) { UpdatePhase = "⚠ 更新异常：" + ex.Message; }
+        finally
+        {
+            IsUpdating = false;
+            Reload();
+            StatusText = UpdatePhase;
+        }
+    }
+
+    /// <summary>「🔔 只看有更新」：筛选切到「有更新」（配合「批量更新」前后看结果）。</summary>
+    [RelayCommand]
+    private void FilterWithUpdates()
+    {
+        UpdateFilter = "有更新";
+        StatusText = $"只看有新章节的 · {FilterSummary}";
     }
 
     [RelayCommand]
@@ -261,6 +467,16 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
             Kind = ToolbarItemKind.Button,
             Text = "🔄 刷新书架",
             CommandPath = "ReloadCommand",
+            ToolTip = "只重新读本地书架（不发网络请求）",
+        },
+        new()
+        {
+            Kind = ToolbarItemKind.Button,
+            Text = "🆕 批量更新",
+            CommandPath = "BatchUpdateCommand",
+            IsEnabledPath = "IsNotUpdating",
+            ShowToolTipOnDisabled = true,
+            ToolTip = "回源站逐本抓详情 + 目录，标出「有 N 章更新」（作用域 = 当前筛选结果）",
         },
         new()
         {
@@ -341,6 +557,14 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
 
     public string DetailProgress => Selected is null ? "" : $"{Selected.ProgressText}（{Selected.ReadTime}）";
 
+    public string DetailLatest => Selected is null
+        ? ""
+        : (string.IsNullOrWhiteSpace(Selected.Book.LatestChapter) ? "（还没检查过）" : Selected.Book.LatestChapter);
+
+    public string DetailUpdate => Selected?.Book.UpdateText ?? "";
+
+    public string DetailUpdateNote => Selected?.Book.UpdateTip ?? "";
+
     public string DetailUrl => Selected?.Book.BookUrl ?? "";
 
     private DetailCardDescriptor? _card;
@@ -363,6 +587,9 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
                     new DetailField { Label = "分组", ValuePath = nameof(DetailGroup), Kind = FieldKind.Text },
                     new DetailField { Label = "进度", ValuePath = nameof(DetailProgress), Kind = FieldKind.Text },
                     new DetailField { Label = "来源", ValuePath = nameof(DetailSource), Kind = FieldKind.Text },
+                    new DetailField { Label = "更新", ValuePath = nameof(DetailUpdate), Kind = FieldKind.Text },
+                    new DetailField { Label = "最新章节", ValuePath = nameof(DetailLatest), Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "检查结果", ValuePath = nameof(DetailUpdateNote), Kind = FieldKind.Text, MultiLine = true, Rows = 40, Selectable = true },
                     new DetailField { Label = "加入时间", ValuePath = nameof(DetailAdded), Kind = FieldKind.Text },
                     new DetailField { Label = "详情地址", ValuePath = nameof(DetailUrl), Kind = FieldKind.Text, Selectable = true, Mono = true, MultiLine = true, Rows = 44 },
                 }

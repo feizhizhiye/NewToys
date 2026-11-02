@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace NewToys.Reading.Models;
 
@@ -186,6 +187,47 @@ public sealed class ShelfBook
 
     /// <summary>最近一次阅读时间（来自 <c>reading_progress</c>）。</summary>
     public DateTimeOffset? LastReadAt { get; set; }
+
+    /// <summary>上次「批量更新」时源站目录的最后一章（⛔ 与 <see cref="LastChapterName"/> 区分：那是「读到哪」）。</summary>
+    public string LatestChapter { get; set; } = "";
+
+    /// <summary>上次检查时源站目录的章数（0 / 未检查）。</summary>
+    public int ChapterCount { get; set; }
+
+    /// <summary>本次检查比上次多出来的章数（首次检查 = 0，只建基线）。</summary>
+    public int NewCount { get; set; }
+
+    /// <summary>上次检查时间。</summary>
+    public DateTimeOffset? CheckedAt { get; set; }
+
+    /// <summary>上次检查的失败原因（成功 ⇒ 空）。</summary>
+    public string UpdateNote { get; set; } = "";
+
+    /// <summary>「更新」列的文字。</summary>
+    public string UpdateText
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(UpdateNote)) return "⚠ 更新失败";
+            if (CheckedAt is null) return "未检查";
+            return NewCount > 0 ? $"有 {NewCount} 章更新" : "已是最新";
+        }
+    }
+
+    /// <summary>「更新」列的悬停提示：失败原因 / 最新章节 / 上次检查时间。</summary>
+    public string UpdateTip
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(UpdateNote)) return UpdateNote;
+            if (CheckedAt is null) return "还没检查过 —— 点「🔄 批量更新」抓一次源站目录";
+
+            var latest = string.IsNullOrWhiteSpace(LatestChapter) ? "" : $"最新：{LatestChapter}";
+            var count = ChapterCount > 0 ? $"共 {ChapterCount} 章" : "";
+            var at = "检查于 " + SourceTimeText.Of(CheckedAt);
+            return string.Join(" · ", new[] { latest, count, at }.Where(t => t.Length > 0));
+        }
+    }
 
     public string AddedText => AddedAt == default
         ? ""

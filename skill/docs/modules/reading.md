@@ -4,7 +4,7 @@
 > **模块键**：`reading`（菜单名 **网络阅读**）｜ **一级菜单**：Order 56 · 图标 `IconReading`
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
 > **状态**：批1 + 批2 + 批3 + 批4 已实施（NT-125 求值器与管线 / NT-126 JS 兼容层 / NT-127 发现页修复 + 阅读器 + 设置页 / NT-128 书单列表化 + 书籍卡 + 弹出式书源与目录 + 模块改名）；批5 已实施（未开卡：阅读样式卡 / 样式导入导出 / ReaderTypography / 书籍卡居中）；批6 已实施（NT-129：正文缓存 / 换源增强 / 发现页 @js: 动态分类 / t2s 繁转简）
-> **最后校对**：2026-11-02（批8 落地：书源分组管理 + 批量操作 + 校验）
+> **最后校对**：2026-11-02（批8 书源分组/校验、批9 书架批量更新落地）
 
 ---
 
@@ -14,7 +14,8 @@
 - 一句话链路：**导入 legado 书源 → 输入关键词 → 出结果 → 点开看目录 → 点章看正文**。
 - **规则引擎分两层**：默认简化语法（选择器 / JSON / 插值）＋ `@js:` 片段的 JS 兼容层（Jint + `java.*` 桥）。
   真实 383 条书源里纯选择器 67.4%、加 JS 后 **96.3% 可跑**；剩下 3.7% 依赖 WebView / 唤起浏览器，桌面端不等价，书源页标「需 WebView」并拒跑。
-- ⛔ 不做：书源编辑器 / 规则调试面板、TTS 听书、本地 TXT/EPUB 导入、RSS 订阅、**WebDAV 备份（2026-11-01 用户明确不做）**、正文缓存落地（`cache-enabled` 可配但未生效）。
+- 🔴 **只做文本源（`bookSourceType = 0`，2026-11-02 用户定）**：图片 / 漫画 / 音频 / 视频源与「正文里的图片」都不在范围内（`StripMarkup` 会去掉 `<img>`，这是设计如此，⛔ 别当 bug 修）。
+- ⛔ 不做：站点登录 / Cookie（2026-11-02 用户定）、书源编辑器 / 规则调试面板、TTS 听书、本地 TXT/EPUB 导入、RSS 订阅、**WebDAV 备份（2026-11-01 用户明确不做）**。
 - 🔴 **GPL 边界**：legado 是 GPL-3.0，本项目 MIT ⇒ ⛔ 不移植其 Kotlin 源码、⛔ 不翻译其实现；只按官方文档 + 真实书源行为重写。
 - 🔴 依赖只加 `AngleSharp`（本就在 `Directory.Packages.props`）；⛔ 不引 XPath 库（383 条真实书源里 XPath 用法为 **0**）。
 
@@ -25,7 +26,7 @@
 | `reading-sources` | 书源 | 1 | `SourceListView` | 导入 / 导出 / 启停 / 删除书源（**多选批量**）；顶部按「类型 / 分组 / 校验」筛选；「🔬 校验」批量跑搜索判定失效源；每条标「可用 / 需 WebView / 不完整」+「通过 / 无结果 / 失败」 |
 | `reading-explore` | 发现 | 2 | `ExploreView` | 左「书源 → 分类」折叠树（书源名**整段显示不截断**、`Hint` 10px 小字、分类名 14px 为主角）+ 右**书单行列表**；点一行弹**书籍卡**（封面 / 作者 / 分类 / 最新章节 / 简介 + 开始阅读 / 加书架）；分类可翻页 |
 | `reading-search` | 网上搜索 | 3 | `SearchView` | 关键词 + 结果行列表；书源多选收进顶栏「📚 书源」弹出的浮层；点一条结果弹同一张书籍卡 |
-| `reading-shelf` | 书架 | 4 | `ShelfView` | 加进来的书；分组 / 读到哪章；双击进阅读页 |
+| `reading-shelf` | 书架 | 4 | `ShelfView` | 加进来的书；分组 / 读到哪章；**「🆕 批量更新」回源站抓目录、标出「有 N 章更新」**；双击进阅读页 |
 | `reading-read` | 阅读 | 5 | `ReaderView` | 沉浸式阅读：正文占满，目录点「📑 目录」、样式点「🎨 样式」各弹出一层覆盖层；自动记进度、下次续读 |
 | `settings-reading` | 网络阅读设置 | 100 | `SettingsReadingView` | 抓取（并发 / 超时 / UA / 缓存）+ 阅读器（字号 / 行距 / 字体 / 宽度 / 留白 / 配色 / **首行缩进 / 段间距 / 自定义色** / 进度）+ **样式方案**（预设 / 导入 / 导出） |
 
@@ -73,6 +74,9 @@
 | 加书架 | 阅读页顶栏「＋ 书架」 | 已在书架则刷新书名 / 作者，保留分组与加入时间 | 失败（库不可用）红字提示 |
 | 换源 | 阅读页顶栏「🔀 换源」 | 以当前书名并发搜所有可用源 → 按「书名匹配度 → 速度」排序 → 弹换源浮层；选一个源原地重开这本书续读当前章 | ⛔ 不再带书名回搜索页；当前源也参与比对；浮层里点遮罩 / ✕ 收起 |
 | 读书架的书 | 书架双击 / 工具条「📖 继续阅读」 | 进阅读页续读 | 列的「读到」列显示上次读到的章节 |
+| 刷新书架 | 工具条「🔄 刷新书架」 | 只重读本地库（⛔ 不发网络请求） | 与「批量更新」区分：那个才回源站 |
+| 批量更新书架 | 工具条「🆕 批量更新」（作用域 = 当前筛选结果），或右键「🆕 更新这本」 | 逐本回源站抓**详情 + 目录**，用目录章数比上次基线 ⇒ 写「有 N 章更新 / 已是最新」；状态栏实时报「已完成 N / 总数」 | 并发 = 设置里的并发数（默认 3）；首次检查只建基线（`new_count = 0`，⛔ 不算有新章节）；单本失败不中断整批，原因进「更新」列 |
+| 书架筛选 | 页内筛选条：分组 / 更新状态（有更新 / 已是最新 / 未检查 / 更新失败）+ 「只看有更新」 | 与工具条搜索框 AND 叠加；右侧「筛出 N / 共 M 本」 | 即时生效，⛔ 不落盘 |
 | 分组 | 书架工具条「📁 分组」/ 右键 | 输入组名（留空 = 未分组），立刻回写并刷新列表 | `shelf.group_name`，与书源分组同一套「空 ⇒ 未分组」归一 |
 | 阅读设置 | 网络阅读 → 网络阅读设置 | 改并发 / 超时 / UA / 缓存 / **预下载章数** / 字号 / 行距 / 字体 / 宽度 / 留白 / 配色 / 进度 / **替换规则** | 即时落盘；⚠ 并发与超时要重开阅读页才生效（请求层在页面创建时定型） |
 | 整本下载 | 阅读页顶栏「⬇ 下载」 | 先选保存位置 → 逐章抓正文（命中缓存的直接跳过）→ 合成一份 TXT（书名 / 作者 / 每章标题 + 正文，章节间用 `-----` 分隔） | 中途取消只停后续章节，**已抓的照常合并保存**；失败章节列在结算文案里，再点一次即可（已下的走缓存） |
@@ -110,8 +114,9 @@ ExploreView ──────► ExploreViewModel ────► CrawlService.
   VM 拿到 `Bitmap` 只用于绑定，⛔ 不 Dispose（所有权在缓存）。
 
 ```
-ShelfView ─────► ShelfViewModel ──► ShelfStore.SetGroup / LoadAll
-                      └──────────► ProgressStore.LoadLatest（一次取全部书的最新进度）
+ShelfView ─────► ShelfViewModel ──► ShelfStore.SetGroup / LoadAll / SetUpdate
+                      ├──────────► ProgressStore.LoadLatest（一次取全部书的最新进度）
+                      └──────────► ShelfUpdateService（批量更新：详情 + 目录 → 比章数）
 
 ReaderView ────► ReaderViewModel ──► CrawlService（详情 → 目录 → 正文）
                       ├────────────► ProgressStore.Save（切章 / 定时 5s / 离开页面）
@@ -135,7 +140,7 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
 | 项 | 落点 | 写入点 |
 |---|---|---|
 | 书源（`book_sources`） | `store\reading\reading.db` | `SourceStore`（upsert / delete / setEnabled / setGroup / setCheck / touchUsed） |
-| 书架（`shelf`） | 同上（含 `group_name` 分组） | `ShelfStore`（Add / SetGroup / Remove） |
+| 书架（`shelf`） | 同上（含 `group_name` 分组 + `last_chapter` / `chapter_count` / `new_count` / `checked_at` / `update_note`） | `ShelfStore`（Add / SetGroup / Remove / SetUpdate）；批量更新写后者 |
 | 阅读进度（`reading_progress`） | 同上（每章一行，取最新一行为续读落点） | `ProgressStore`（Save / Get / LoadLatest / Remove） |
 | 正文缓存（`content_cache`） | 同上（每章一行，`chapter_url` PK） | `ContentCacheStore`（Get / Put；`cache-enabled` 开关控制，关时⛔ 不读不写） |
 | 并发 / 超时 / UA / 缓存 + 阅读器排版 | `config\reading.json` | 本模块设置页 + 阅读页顶栏 + 样式卡导入（同一个 `ReadingSettingsService`） |
@@ -193,6 +198,9 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
   重放 `ApplyTypography()`。背景色落在无绑定的 `Border` 上，所以它一直是对的——排查时别被它误导。
 - 🔴 **正文缓存的「读」与「写」是两件事**：`ContentAsync` **总是**先查缓存（预下载写进来的也算），
   是否**写**缓存在关「缓存正文」时由预下载自己 `Put`。⛔ 别把它再绑回同一个开关——那样预下载就白下载了。
+- 🔴 **书架「更新」不是「刷新」**：`🔄 刷新书架` 只重读本地库；`🆕 批量更新` 才回源站抓详情 + 目录（每本 2 个请求）。两者别混在一个命令里。
+- 🔴 **首次检查只建基线**：没有上次的章数就没法算「多了几章」⇒ 第一次 `new_count` 必须是 0（否则一导入就满屏"有 999 章更新"）。
+- 🔴 **检查失败要保住章数基线**：`ShelfStore.SetUpdate` 传了 `note` 时只写 `checked_at` / `update_note`，⛔ 不动 `chapter_count` —— 否则站点抽风一次，「有新章节」的对比基准就被清零了。
 - 🔴 **改分组必须同时回写 `rules_json`**：导出走的是导入原文（`RawJson`），只改 `group_name` 列的话，导出再导入分组就退回去了（`SourceStore.PatchGroup`）。
 - 🔴 **批量作用域只有一个来源**：`BatchSelection`（绑 `TableView.SelectedItems`）非空就用它，否则退回当前行；⛔ 别再加一套「勾选列」的选中状态，两处会打架。
 - 🔴 **校验只写三列、不碰别的**：`check_state` / `check_note` / `checked_at` 由 `SourceStore.SetCheck` 单条更新；重新导入走 `ON CONFLICT` 更新时**故意不覆盖这三列**（重导入不该把校验结论清成"未校验"）。
@@ -208,6 +216,7 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
 - ~~整本下载合并~~ ✅ 已实施：`BookDownloadService` + 阅读页「⬇ 下载」，合成单份 TXT。
 - ~~书源分组管理与批量操作~~ ✅ 已实施（批8）：页内筛选条（类型 / 分组 / 校验）+ 列表多选 + 批量启停 / 导出 / 删除 + 「📁 改分组」。
 - ~~书源校验~~ ✅ 已实施（批8）：`SourceCheckService` 逐源跑一次搜索，结论落库三列，支持「只看失效」与「删除全部失效」。
+- ~~书架批量更新~~ ✅ 已实施（批9）：`ShelfUpdateService`（详情 + 目录 → 比章数）+ 「更新」列 + 筛选 + 「只看有更新」；`shelf` 表补 5 列（schema v5）。
 - **TTS 听书**（Windows SAPI / edge-tts，需音频播放契约，本批不做）、**本地 TXT/EPUB 导入**、**RSS 订阅**。
 - ~~正文缓存~~ ✅ 已实施（NT-129）：`content_cache` 表 + `ContentCacheStore`，`ContentAsync` 首查尾写、`cache-enabled` 开关。
 - ~~换源~~ ✅ 已实施（NT-129）：多源并发比对 → 按「书名匹配度 → 速度」排序 → 换源浮层选源原地续读（⛔ 不再带书名回搜索页）。

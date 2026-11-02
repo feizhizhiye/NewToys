@@ -56,6 +56,13 @@ public sealed class ReadingDatabase
         EnsureColumn("book_sources", "check_state", "INTEGER NOT NULL DEFAULT 0");
         EnsureColumn("book_sources", "check_note", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn("book_sources", "checked_at", "TEXT");
+
+        // 书架批量更新（批9）：最新章节 / 章数 / 新增章数 / 检查时间 / 失败原因
+        EnsureColumn("shelf", "last_chapter", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn("shelf", "chapter_count", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn("shelf", "new_count", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn("shelf", "checked_at", "TEXT");
+        EnsureColumn("shelf", "update_note", "TEXT NOT NULL DEFAULT ''");
     }
 
     /// <summary>给已存在的表补列（列已在 ⇒ 什么都不做）。</summary>
@@ -102,7 +109,12 @@ CREATE TABLE IF NOT EXISTS shelf (
   author TEXT NOT NULL DEFAULT '',
   cover_url TEXT NOT NULL DEFAULT '',
   group_name TEXT NOT NULL DEFAULT '',
-  added_at TEXT NOT NULL DEFAULT ''
+  added_at TEXT NOT NULL DEFAULT '',
+  last_chapter TEXT NOT NULL DEFAULT '',
+  chapter_count INTEGER NOT NULL DEFAULT 0,
+  new_count INTEGER NOT NULL DEFAULT 0,
+  checked_at TEXT,
+  update_note TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS reading_progress (
@@ -136,7 +148,7 @@ public sealed class ReadingSchemaContributor : ILibrarySchemaContributor
     public const string Key = "reading";
 
     /// <summary>本模块 schema 版本。</summary>
-    public const int Version = 4;
+    public const int Version = 5;
 
     private readonly IServiceProvider _sp;
 

@@ -92,6 +92,28 @@ JOIN (SELECT book_url, MAX(updated_at) AS at FROM reading_progress GROUP BY book
         return map;
     }
 
+    /// <summary>
+    /// 换源后把进度挪到新书地址上（<c>book_url</c> 变 ⇒ 旧进度否则成孤儿，新源进来读不到「续读」）。
+    /// <para>章节地址仍是旧源的，只作「读到哪一章、叫什么名」的线索；<see cref="Get"/> 的排序仍按更新时间。</para>
+    /// </summary>
+    public int MoveTo(string oldBookUrl, string newBookUrl)
+    {
+        if (!_db.IsAvailable || string.IsNullOrWhiteSpace(oldBookUrl) || string.IsNullOrWhiteSpace(newBookUrl))
+            return 0;
+        if (string.Equals(oldBookUrl, newBookUrl, StringComparison.Ordinal)) return 0;
+
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE OR REPLACE reading_progress SET book_url = $new WHERE book_url = $old;";
+            cmd.Parameters.AddWithValue("$old", oldBookUrl);
+            cmd.Parameters.AddWithValue("$new", newBookUrl);
+            return cmd.ExecuteNonQuery();
+        }
+        catch { return 0; }
+    }
+
     /// <summary>移出书架时连带清进度。</summary>
     public int Remove(string bookUrl)
     {

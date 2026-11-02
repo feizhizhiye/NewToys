@@ -103,6 +103,37 @@ ON CONFLICT(book_url) DO UPDATE SET
         catch { return false; }
     }
 
+    /// <summary>
+    /// 换源后把书架这本书换成新源的地址（<c>book_url</c> 是主键，不重挂就成两本互不相干的书）。
+    /// <para>追更基线一并清空：章数来自旧源，留着会让下次「批量更新」误报「有 N 章更新」。</para>
+    /// </summary>
+    public bool SetBookIdentity(string oldBookUrl, string newBookUrl, string newSourceUrl)
+    {
+        if (!_db.IsAvailable || string.IsNullOrWhiteSpace(oldBookUrl) || string.IsNullOrWhiteSpace(newBookUrl))
+            return false;
+
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE OR REPLACE shelf SET
+  book_url = $new,
+  source_url = $source,
+  last_chapter = '',
+  chapter_count = 0,
+  new_count = 0,
+  checked_at = NULL,
+  update_note = ''
+WHERE book_url = $old;";
+            cmd.Parameters.AddWithValue("$old", oldBookUrl);
+            cmd.Parameters.AddWithValue("$new", newBookUrl);
+            cmd.Parameters.AddWithValue("$source", newSourceUrl ?? "");
+            return cmd.ExecuteNonQuery() > 0;
+        }
+        catch { return false; }
+    }
+
     /// <summary>改分组（<paramref name="group"/> 空白 ⇒ 归「未分组」）。</summary>
     public int SetGroup(IEnumerable<string> bookUrls, string? group)
     {

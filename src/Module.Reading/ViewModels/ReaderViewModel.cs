@@ -326,8 +326,14 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
                 _resumeChapterUrl = "";
             }
 
+            // 换源后章节地址必变 ⇒ 按章节名对齐（进度表里的地址同样只对原源有效）
+            resume ??= MatchChapter(Chapters, _resumeChapterName);
+            _resumeChapterName = "";
+
             if (resume is null && saved is not null)
                 resume = Chapters.FirstOrDefault(c => c.Url == saved.ChapterUrl);
+
+            resume ??= MatchChapter(Chapters, saved?.ChapterName);
 
             if (resume is not null)
             {
@@ -487,6 +493,29 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         }
     }
 
+    /// <summary>按章节名在新目录里找同一章（换源后地址必变，只能按名对齐；空白差异与「第N章 xxx」前缀差异都要容忍）。</summary>
+    private static Chapter? MatchChapter(IEnumerable<Chapter> chapters, string? name)
+    {
+        var key = Normalize(name);
+        if (key.Length == 0) return null;
+
+        Chapter? contains = null;
+        foreach (var chapter in chapters)
+        {
+            var candidate = Normalize(chapter.Name);
+            if (candidate.Length == 0) continue;
+            if (string.Equals(candidate, key, StringComparison.Ordinal)) return chapter;
+            contains ??= candidate.Contains(key, StringComparison.Ordinal) || key.Contains(candidate, StringComparison.Ordinal)
+                ? chapter
+                : null;
+        }
+
+        return contains;
+    }
+
+    private static string Normalize(string? text) =>
+        string.IsNullOrWhiteSpace(text) ? "" : string.Concat(text.Where(ch => !char.IsWhiteSpace(ch)));
+
     /// <summary>书名匹配度：2 = 精确相等，1 = 包含，0 = 其它。</summary>
     private static int MatchScore(string keyword, string? name)
     {
@@ -506,16 +535,30 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         ShowSwitchPanel = false;
 
         var chapter = SelectedChapter;
+        var oldBookUrl = BookUrl;
+
+        // 书架 / 进度都以 book_url 为主键：换源 = 换地址 ⇒ 先重挂再重开，否则书架留旧行、续读丢失
+        if (!string.IsNullOrWhiteSpace(oldBookUrl) &&
+            !string.Equals(oldBookUrl, candidate.BookUrl, StringComparison.Ordinal))
+        {
+            _shelf?.SetBookIdentity(oldBookUrl, candidate.BookUrl, candidate.SourceUrl);
+            _progress?.MoveTo(oldBookUrl, candidate.BookUrl);
+        }
+
         _session.PendingBook = new PendingBook(candidate.SourceUrl, candidate.BookUrl, candidate.Name);
         StatusText = $"切换书源：{candidate.SourceName}";
 
-        // 记下当前章节地址，OpenAsync 续读时优先回到它（找不到则从第 1 章）
+        // 不同源的章节地址必然不同 ⇒ 记章节名对齐；同源重开仍可走地址精确命中
         _resumeChapterUrl = chapter?.Url ?? "";
+        _resumeChapterName = chapter?.Name ?? "";
         _ = OpenAsync(new PendingBook(candidate.SourceUrl, candidate.BookUrl, candidate.Name));
     }
 
     /// <summary>换源后要优先续读的章节地址（<see cref="ChooseSwitchCandidate"/> 记下，<see cref="OpenAsync"/> 消费）。</summary>
     private string _resumeChapterUrl = "";
+
+    /// <summary>换源后要优先续读的章节名（地址垮源失效，按名对齐）。</summary>
+    private string _resumeChapterName = "";
 
     /// <summary>关闭换源浮层。</summary>
     [RelayCommand]

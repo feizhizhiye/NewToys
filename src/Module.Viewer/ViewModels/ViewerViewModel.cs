@@ -53,6 +53,15 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     [ObservableProperty] private bool _hasContent;
     [ObservableProperty] private string _archiveInfo = "";
 
+    /// <summary>分屏网格是否开启（一屏看多张，翻页一次换一屏）。</summary>
+    [ObservableProperty] private bool _isSplit;
+
+    /// <summary>分屏每屏张数（2 / 3 / 4）。</summary>
+    [ObservableProperty] private int _splitColumns = 2;
+
+    /// <summary>工具条「历史」下拉是否展开。</summary>
+    [ObservableProperty] private bool _isHistoryOpen;
+
     /// <summary>本页只处理哪一类内容（<see cref="ViewerScope.All"/> = 设计期不限）。</summary>
     public ViewerScope Scope { get; private set; } = ViewerScope.All;
 
@@ -111,6 +120,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     /// <summary>压缩包内翻页（参数 = +1 / -1）。</summary>
     public event EventHandler<int>? ArchiveNavigateRequested;
+
+    /// <summary>分屏开关或每屏张数变了（View 据此装载 / 卸载网格）。</summary>
+    public event EventHandler? SplitChanged;
 
     /// <summary>播放 / 暂停（音频）。</summary>
     public event EventHandler? PlayToggleRequested;
@@ -262,6 +274,18 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>更新压缩包内序号显示。</summary>
     public void UpdateArchiveIndex(int index)
         => ArchiveInfo = ArchiveEntries.Count == 0 ? "" : $"第 {index + 1} / {ArchiveEntries.Count} 张";
+
+    /// <summary>分屏时显示整屏范围（「第 5–8 / 120 张」）。</summary>
+    public void SetArchiveRange(int start, int count)
+    {
+        if (ArchiveEntries.Count == 0) { ArchiveInfo = ""; return; }
+
+        var first = Math.Clamp(start, 0, ArchiveEntries.Count - 1);
+        var last = Math.Min(first + Math.Max(count, 1), ArchiveEntries.Count) - 1;
+        ArchiveInfo = last <= first
+            ? $"第 {first + 1} / {ArchiveEntries.Count} 张"
+            : $"第 {first + 1}–{last + 1} / {ArchiveEntries.Count} 张";
+    }
 
     /// <summary>翻到同一批图片里的另一张（同目录 / 压缩包内）：只刷新标题，⛔ 不写「最近打开」。</summary>
     public void OnImageNavigated(string path)
@@ -440,6 +464,8 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         IsAudio = kind == ViewerKind.Audio;
         HasContent = true;
         Hint = "";
+        IsHistoryOpen = false;
+        if (kind != ViewerKind.Image) IsSplit = false;
 
         StatusText = kind switch
         {
@@ -467,6 +493,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         CurrentInfo = "";
         Hint = error;
         StatusText = "⚠ " + error;
+        IsSplit = false;
         NotifyToolbarChanged();
     }
 
@@ -482,6 +509,8 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         CurrentTitle = "未打开文件";
         CurrentInfo = "";
         StatusText = "已关闭。" + ScopeHint;
+        IsSplit = false;
+        IsHistoryOpen = false;
         NotifyToolbarChanged();
     }
 
@@ -539,6 +568,47 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     [RelayCommand]
     private void NextImage() => ArchiveNavigateRequested?.Invoke(this, 1);
 
+    // ---------- 分屏 / 历史 ----------
+
+    /// <summary>开关分屏网格（一屏看多张）。</summary>
+    [RelayCommand]
+    private void ToggleSplit()
+    {
+        if (!IsImage && !IsSplit) return;
+        IsSplit = !IsSplit;
+        if (IsSplit) IsHistoryOpen = false;
+        StatusText = IsSplit ? $"分屏：一屏 {SplitColumns} 张，翻页一次换一屏" : "已回到单图。";
+    }
+
+    [RelayCommand]
+    private void SplitTwo() => ApplySplitCount(2);
+
+    [RelayCommand]
+    private void SplitThree() => ApplySplitCount(3);
+
+    [RelayCommand]
+    private void SplitFour() => ApplySplitCount(4);
+
+    /// <summary>退出分屏（网格里双击某张 → 单图看这张）。</summary>
+    public void ExitSplit()
+    {
+        if (!IsSplit) return;
+        IsSplit = false;
+        StatusText = "已回到单图。";
+    }
+
+    /// <summary>展开 / 收起工具条的历史下拉。</summary>
+    [RelayCommand]
+    private void ToggleHistory() => IsHistoryOpen = !IsHistoryOpen;
+
+    private void ApplySplitCount(int count)
+    {
+        SplitColumns = Math.Clamp(count, 2, 4);
+        IsSplit = true;
+        IsHistoryOpen = false;
+        StatusText = $"分屏：一屏 {SplitColumns} 张，翻页一次换一屏";
+    }
+
     [RelayCommand]
     private void TogglePlay() => PlayToggleRequested?.Invoke(this, EventArgs.Empty);
 
@@ -560,6 +630,13 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                     Classes = "primary",
                     CommandPath = nameof(OpenCommand),
                     ToolTip = "选择要查看的文件（也可直接把文件拖进窗口）",
+                },
+                new()
+                {
+                    Text = "🕘 历史",
+                    CommandPath = nameof(ToggleHistoryCommand),
+                    IsEnabledPath = nameof(HasRecent),
+                    ToolTip = "最近打开：点一下展开，选一项重新打开",
                 },
             };
 
@@ -587,21 +664,21 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 {
                     Text = "⊞ 适应窗口",
                     CommandPath = nameof(FitCommand),
-                    IsEnabledPath = nameof(IsImage),
+                    IsEnabledPath = nameof(CanZoom),
                     ToolTip = "图片缩放到适应窗口（也可双击图片切换 1:1 / 适应）",
                 });
                 items.Add(new()
                 {
                     Text = "－",
                     CommandPath = nameof(ZoomOutCommand),
-                    IsEnabledPath = nameof(IsImage),
+                    IsEnabledPath = nameof(CanZoom),
                     ToolTip = "缩小（Ctrl + 滚轮同样有效）",
                 });
                 items.Add(new()
                 {
                     Text = "＋",
                     CommandPath = nameof(ZoomInCommand),
-                    IsEnabledPath = nameof(IsImage),
+                    IsEnabledPath = nameof(CanZoom),
                     ToolTip = "放大（Ctrl + 滚轮同样有效）",
                 });
                 items.Add(new()
@@ -617,6 +694,22 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                     CommandPath = nameof(NextImageCommand),
                     IsEnabledPath = nameof(IsArchive),
                     ToolTip = "下一张（同目录图片 / 压缩包内，→）",
+                });
+                items.Add(new()
+                {
+                    Kind = ToolbarItemKind.SplitButton,
+                    Text = "▦ 分屏",
+                    AltText = "▦ 单图",
+                    AltTextPath = nameof(IsSplit),
+                    CommandPath = nameof(ToggleSplitCommand),
+                    IsEnabledPath = nameof(IsImage),
+                    ToolTip = "一屏看多张：点一下开关，右侧箭头选每屏 2 / 3 / 4 张；翻页一次换一屏",
+                    Items = new List<ToolbarMenuItemDescriptor>
+                    {
+                        new() { Text = "一屏 2 张（左右并排）", CommandPath = nameof(SplitTwoCommand) },
+                        new() { Text = "一屏 3 张（三列）", CommandPath = nameof(SplitThreeCommand) },
+                        new() { Text = "一屏 4 张（2 × 2）", CommandPath = nameof(SplitFourCommand) },
+                    },
                 });
             }
 
@@ -656,6 +749,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>字号按钮可用：短文本或长文本阅读器。</summary>
     public bool CanStepFont => IsText || IsReader;
 
+    /// <summary>缩放按钮可用：图片单图模式（分屏网格按格自适应，缩放无意义）。</summary>
+    public bool CanZoom => IsImage && !IsSplit;
+
     private void NotifyToolbarChanged() => ToolbarChanged?.Invoke(this, EventArgs.Empty);
 
     partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
@@ -663,6 +759,16 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     partial void OnIsTextChanged(bool value) => OnPropertyChanged(nameof(CanStepFont));
 
     partial void OnIsReaderChanged(bool value) => OnPropertyChanged(nameof(CanStepFont));
+
+    partial void OnIsImageChanged(bool value) => OnPropertyChanged(nameof(CanZoom));
+
+    partial void OnIsSplitChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanZoom));
+        SplitChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    partial void OnSplitColumnsChanged(int value) => SplitChanged?.Invoke(this, EventArgs.Empty);
 
     private static ReaderTypography CopyReader(ReaderTypography source, double fontSize) => new()
     {

@@ -4,58 +4,48 @@
              x:Class="NewToys.Viewer.Views.ViewerImageView">
   <!--
     查看器页内容（文本阅读 / 图片查看 / 音频播放三页**共用同一份 XAML**）：
-    最近打开条 + 压缩包条目条 + 渲染区 + 章节规则浮层。
+    条目条 + 渲染区（单图宿主 / 分屏网格叠放）+ 章节规则浮层 + 历史浮层。
     🔴 三份 XAML 必须保持完全一致（只有 x:Class 不同）：基类 ViewerPageBase 按 x:Name 取控件，
        少一个就抛「ViewerPage 的 XAML 缺少名为 X 的控件」。
     🔴 工具条由 Shell 的 ToolbarHost 渲染（VM 实现 IToolbarSource），本页 ⛔ 不写 Border.toolbar。
     🔴 渲染器全部来自 NewToys.UI（阅读器 / 图片 / 音频外壳），本模块只做分派与持久化。
   -->
+  <UserControl.Styles>
+    <!--  条目条横向滚动，但⛔ 不出滚动条：滚轮在条上 = 翻图（与标签栏同一套做法），选中项自动滚入可见  -->
+    <Style Selector="ListBox#ArchiveList /template/ ScrollViewer">
+      <Setter Property="HorizontalScrollBarVisibility" Value="Hidden" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Disabled" />
+    </Style>
+    <!--  条目压到 20px 行高（默认项高撑得整条过高）  -->
+    <Style Selector="ListBox#ArchiveList ListBoxItem">
+      <Setter Property="MinHeight" Value="20" />
+      <Setter Property="Padding" Value="6,0" />
+      <Setter Property="Margin" Value="0,0,2,0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+  </UserControl.Styles>
+
   <Grid RowDefinitions="Auto,*">
 
-    <!-- 空态：最近打开 -->
-    <Border Grid.Row="0"
-            Background="{DynamicResource ContentHeaderBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="0,0,0,1"
-            IsVisible="{Binding !HasContent}"
-            Padding="16,6">
-      <ListBox x:Name="RecentList"
-               Background="Transparent"
-               BorderThickness="0"
-               ItemsSource="{Binding RecentItems}"
-               SelectionChanged="OnRecentSelected">
-        <ListBox.ItemsPanel>
-          <ItemsPanelTemplate>
-            <StackPanel Orientation="Horizontal" Spacing="6" />
-          </ItemsPanelTemplate>
-        </ListBox.ItemsPanel>
-        <ListBox.ItemTemplate>
-          <DataTemplate>
-            <TextBlock Classes="hint-text"
-                       MaxWidth="220"
-                       Text="{Binding}"
-                       TextTrimming="CharacterEllipsis" />
-          </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
-    </Border>
-
-    <!-- 压缩包：条目条 -->
+    <!--  条目条：压缩包内图片 / 同目录图片  -->
     <Border Grid.Row="0"
             Background="{DynamicResource ContentHeaderBrush}"
             BorderBrush="{DynamicResource DividerBrush}"
             BorderThickness="0,0,0,1"
             IsVisible="{Binding IsArchive}"
-            Padding="10,4">
+            Padding="10,2">
       <Grid ColumnDefinitions="Auto,*">
         <TextBlock VerticalAlignment="Center"
                    Classes="hint-text"
+                   FontSize="11"
                    Margin="0,0,10,0"
                    Text="{Binding ArchiveInfo}" />
         <ListBox x:Name="ArchiveList"
                  Grid.Column="1"
                  Background="Transparent"
                  BorderThickness="0"
+                 VerticalAlignment="Center"
                  ItemsSource="{Binding ArchiveEntries}"
                  SelectionChanged="OnArchiveSelected">
           <ListBox.ItemsPanel>
@@ -74,7 +64,13 @@
       </Grid>
     </Border>
 
-    <ui:ViewerHost x:Name="Host" Grid.Row="1" />
+    <!--  渲染区：单图宿主与分屏网格叠放，同一时刻只显示一个（切换由基类控制 IsVisible）  -->
+    <Grid Grid.Row="1">
+      <ui:ViewerHost x:Name="Host" />
+      <Grid x:Name="SplitGrid"
+            IsVisible="False"
+            Background="{DynamicResource ContentBrush}" />
+    </Grid>
 
     <!-- 章节规则浮层 -->
     <Border x:Name="RulePanel"
@@ -128,6 +124,58 @@
             <TextBlock x:Name="TestResult" Classes="hint-text" TextWrapping="Wrap" />
           </ScrollViewer>
         </StackPanel>
+      </Grid>
+    </Border>
+
+    <!--  历史浮层：工具条「🕘 历史」展开；点一项重新打开，打开后自动收起  -->
+    <Border Grid.Row="1"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            Width="320"
+            MaxHeight="320"
+            Margin="0,6,12,0"
+            IsVisible="{Binding IsHistoryOpen}"
+            Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1"
+            CornerRadius="6"
+            BoxShadow="0 8 24 0 #55000000">
+      <Grid RowDefinitions="Auto,*">
+        <Grid ColumnDefinitions="*,Auto" Margin="10,7,6,4">
+          <TextBlock Text="最近打开"
+                     FontWeight="SemiBold"
+                     VerticalAlignment="Center" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <Button Classes="ghost"
+                    FontSize="11"
+                    Padding="6,2"
+                    Content="清空"
+                    Command="{Binding ClearRecentCommand}" />
+            <Button Classes="ghost"
+                    FontSize="11"
+                    Padding="6,2"
+                    Content="✕"
+                    Command="{Binding ToggleHistoryCommand}" />
+          </StackPanel>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" MaxHeight="260" Padding="0,0,0,6">
+          <ListBox x:Name="RecentList"
+                   Background="Transparent"
+                   BorderThickness="0"
+                   ItemsSource="{Binding RecentItems}"
+                   SelectionChanged="OnRecentSelected">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock FontSize="11"
+                           MaxWidth="280"
+                           Text="{Binding}"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding}" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </ScrollViewer>
       </Grid>
     </Border>
 

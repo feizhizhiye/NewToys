@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using NewToys.UI.Readers;
 using NewToys.UI.Viewers;
@@ -43,6 +46,7 @@ public abstract class ViewerPageBase : UserControl
     private ReaderShell? _wiredReader;
 
     private ViewerHost? _host;
+    private Grid? _splitGrid;
     private ListBox? _recentList;
     private ListBox? _archiveList;
     private Border? _rulePanel;
@@ -51,6 +55,11 @@ public abstract class ViewerPageBase : UserControl
     private TextBox? _rulePatternBox;
     private TextBox? _sampleBox;
     private TextBlock? _testResult;
+
+    private readonly List<Bitmap> _splitBitmaps = new();
+    private bool _splitActive;        // 网格当前是否真的在显示（区分「VM 想开」与「已铺好」）
+    private int _splitFocus = -1;     // 网格里被点选的格（全局序号）
+    private int _splitToken;          // 丢弃过期的网格装载结果
 
     protected ViewerPageBase()
     {
@@ -67,6 +76,8 @@ public abstract class ViewerPageBase : UserControl
     }
 
     private ViewerHost Host => _host ??= Find<ViewerHost>("Host");
+
+    private Grid SplitGrid => _splitGrid ??= Find<Grid>("SplitGrid");
 
     private ListBox RecentList => _recentList ??= Find<ListBox>("RecentList");
 
@@ -107,6 +118,7 @@ public abstract class ViewerPageBase : UserControl
             _vm.PlayToggleRequested -= OnPlayToggle;
             _vm.RulesEditRequested -= OnRulesEdit;
             _vm.ReaderOptionsChanged -= OnReaderOptionsChanged;
+            _vm.SplitChanged -= OnSplitChanged;
         }
 
         _vm = DataContext as ViewerViewModel;
@@ -122,6 +134,7 @@ public abstract class ViewerPageBase : UserControl
         _vm.PlayToggleRequested += OnPlayToggle;
         _vm.RulesEditRequested += OnRulesEdit;
         _vm.ReaderOptionsChanged += OnReaderOptionsChanged;
+        _vm.SplitChanged += OnSplitChanged;
 
         RuleList.ItemsSource = _vm.CustomRules;
         Host.SetHint(_vm.ScopeHint);
@@ -198,6 +211,8 @@ public abstract class ViewerPageBase : UserControl
 
         if (Host.Kind == ViewerKind.Image)
             _vm.SetInfo("缩放 " + (Host.Zoom * 100).ToString("0") + "%");
+
+        ApplySplitState();   // 分屏开着换了新图 → 重铺一屏
     }
 
     private void OpenReaderFile(string path)
@@ -413,6 +428,9 @@ public abstract class ViewerPageBase : UserControl
         Focus();
 
         ShowEntry(0);
+
+        // 分屏已开但网格还没铺（从单图切到压缩包）→ 补铺一屏
+        if (_vm is { IsSplit: true, IsImage: true } && !_splitActive) ApplySplitState();
     }
 
     /// <summary>切到第 <paramref name="index"/> 张（按当前来源分派到压缩包 / 同目录）。</summary>
@@ -421,6 +439,13 @@ public abstract class ViewerPageBase : UserControl
         if (_vm is null || EntryCount == 0) return;
 
         var target = Math.Clamp(index, 0, EntryCount - 1);
+
+        if (_vm.IsSplit && _vm.IsImage)
+        {
+            _ = RefreshSplitAsync(target);
+            return;
+        }
+
         if (_session is not null) _ = ShowArchiveEntryAsync(_session, target);
         else ShowSibling(target);
     }
@@ -450,7 +475,8 @@ public abstract class ViewerPageBase : UserControl
 
         using (stream)
         {
-            if (!Host.OpenImageStream(stream, session.Path + "!" + entry.Key, out var loadError))
+            var display = session.Path + "!" + entry.Key;
+            if (!Host.OpenImageStream(stream, display, out var loadError, entry.Size, session.Path))
             {
                 _vm.SetStatus("⚠ 打不开这张图：" + loadError);
                 return;
@@ -503,6 +529,7 @@ public abstract class ViewerPageBase : UserControl
     private void OnArchiveNavigate(object? sender, int delta)
     {
         if (EntryCount == 0) return;
+        if (_vm is { IsSplit: true, IsImage: true }) { GoToScreen(delta); return; }
         ShowEntry(_entryIndex + delta);
     }
 
@@ -514,9 +541,10 @@ public abstract class ViewerPageBase : UserControl
     private void OnWheelNavigate(object? sender, PointerWheelEventArgs e)
     {
         if (_vm is null || EntryCount < 2) return;
-        if (Host.Kind != ViewerKind.Image) return;
+        if (!_vm.IsSplit && Host.Kind != ViewerKind.Image) return;   // 分屏不经过宿主，别用它判类型
+        if (!_vm.IsSplit && Host.IsInfoVisible) return;             // 信息卡片开着 → 不翻页
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;   // Ctrl + 滚轮 = 缩放
-        if (Host.Zoom > 1.01) return;
+        if (!_vm.IsSplit && Host.Zoom > 1.01) return;               // 放大后要的是滚动查看局部；分屏不看缩放
         if (Math.Abs(e.Delta.Y) < 0.01) return;
 
         var now = Environment.TickCount64;
@@ -524,7 +552,217 @@ public abstract class ViewerPageBase : UserControl
         _lastWheelTick = now;
 
         e.Handled = true;
-        ShowEntry(_entryIndex + (e.Delta.Y > 0 ? -1 : 1));
+
+        var step = e.Delta.Y > 0 ? -1 : 1;
+        if (_vm.IsSplit) GoToScreen(step);
+        else ShowEntry(_entryIndex + step);
+    }
+
+    // ==================== 分屏网格（一屏看多张） ====================
+
+    private void OnSplitChanged(object? sender, EventArgs e) => ApplySplitState();
+
+    /// <summary>按 VM 的开关状态切换「单图宿主 ↔ 网格」，退出分屏时把当前张重新装回宿主。</summary>
+    private void ApplySplitState()
+    {
+        if (_vm is null) return;
+
+        if (_vm.IsSplit && _vm.IsImage && EntryCount > 0)
+        {
+            _splitActive = true;
+            SplitGrid.IsVisible = true;
+            Host.IsVisible = false;
+            _ = RefreshSplitAsync(_entryIndex);
+            return;
+        }
+
+        var wasActive = _splitActive;
+        _splitActive = false;
+        SplitGrid.IsVisible = false;
+        Host.IsVisible = true;
+        ClearSplitTiles();
+
+        if (wasActive && EntryCount > 0) ShowEntry(_entryIndex);   // 回到单图：显示当前张
+    }
+
+    /// <summary>按屏翻页（网格模式）：一屏 = N 张，到头即止。</summary>
+    private void GoToScreen(int delta)
+    {
+        if (_vm is null || EntryCount == 0) return;
+
+        var n = Math.Clamp(_vm.SplitColumns, 2, 4);
+        var screens = (EntryCount + n - 1) / n;
+        var current = _entryIndex / n;
+        var target = Math.Clamp(current + delta, 0, screens - 1);
+        if (target == current) return;
+
+        _ = RefreshSplitAsync(target * n);
+    }
+
+    /// <summary>
+    /// 铺一屏：<paramref name="index"/> 所在的那一屏（屏对齐），装载图片走后台解码。
+    /// <para>🔴 每次重铺都递增 <c>_splitToken</c>：连按翻页时旧任务的结果直接丢弃（与压缩包翻页同一手法）。</para>
+    /// </summary>
+    private async Task RefreshSplitAsync(int index)
+    {
+        if (_vm is null || EntryCount == 0) { ClearSplitTiles(); return; }
+
+        var token = ++_splitToken;
+        var n = Math.Clamp(_vm.SplitColumns, 2, 4);
+        var total = EntryCount;
+        var start = Math.Clamp(index / n * n, 0, Math.Max(total - 1, 0));
+        var count = Math.Min(n, total - start);
+
+        _entryIndex = start;
+        _splitFocus = Math.Clamp(index, start, start + count - 1);
+
+        var cols = n == 4 ? 2 : n;
+        var rows = n == 4 ? 2 : 1;
+
+        ClearSplitTiles();
+        var columnDefs = new ColumnDefinitions();
+        for (var c = 0; c < cols; c++) columnDefs.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        SplitGrid.ColumnDefinitions = columnDefs;
+
+        var rowDefs = new RowDefinitions();
+        for (var r = 0; r < rows; r++) rowDefs.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        SplitGrid.RowDefinitions = rowDefs;
+
+        var accent = Application.Current?.FindResource("AccentBrush") as IBrush ?? Brushes.DodgerBlue;
+
+        for (var i = 0; i < count; i++)
+        {
+            var global = start + i;
+            var picture = new Image { Stretch = Stretch.Uniform, Margin = new Thickness(4) };
+
+            var indexLabel = new TextBlock
+            {
+                Text = (global + 1).ToString(),
+                FontSize = 10,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 6, 4),
+                Foreground = this.FindResource("SecondaryTextBrush") as IBrush ?? Brushes.Gray,
+            };
+
+            var cell = new Border
+            {
+                Margin = new Thickness(2),
+                Background = this.FindResource("ContentHeaderBrush") as IBrush,
+                BorderBrush = Brushes.Transparent,
+                BorderThickness = new Thickness(2),
+                IsHitTestVisible = true,
+                Child = new Grid { Children = { picture, indexLabel } },
+            };
+
+            if (global == _splitFocus)
+            {
+                cell.BorderBrush = accent;
+            }
+
+            cell.PointerPressed += (_, _) => SetSplitFocus(cell, global, accent);
+            cell.DoubleTapped += (_, _) => OpenFocusFromSplit(global);
+
+            Grid.SetColumn(cell, i % cols);
+            Grid.SetRow(cell, i / cols);
+            SplitGrid.Children.Add(cell);
+
+            await LoadTileAsync(picture, global, token);
+        }
+
+        if (token != _splitToken) return;
+
+        _vm.SetArchiveRange(start, count);
+        _vm.SetInfo($"分屏 · 一屏 {count} 张");
+        SyncArchiveSelection(start);
+    }
+
+    private void SetSplitFocus(Border cell, int index, IBrush accent)
+    {
+        if (_vm is null) return;
+
+        _splitFocus = index;
+        foreach (var child in SplitGrid.Children.OfType<Border>())
+            child.BorderBrush = ReferenceEquals(child, cell) ? accent : Brushes.Transparent;
+
+        _vm.SetArchiveRange(_entryIndex, Math.Min(_vm.SplitColumns, EntryCount - _entryIndex));
+        SyncArchiveSelection(index);
+    }
+
+    /// <summary>网格里双击某格 = 单图看这张（退出分屏）。</summary>
+    private void OpenFocusFromSplit(int index)
+    {
+        if (_vm is null) return;
+
+        _splitActive = false;   // 先降旗：让 ApplySplitState 别再装一遍屏起点那张
+        _vm.ExitSplit();
+        ShowEntry(index);
+    }
+
+    /// <summary>后台取一张图（压缩包内走会话，同目录读文件），解码完再回 UI 线程设源。</summary>
+    private async Task LoadTileAsync(Image target, int index, int token)
+    {
+        var (bitmap, error) = await Task.Run(() => ReadBitmap(index));
+
+        if (token != _splitToken) { bitmap?.Dispose(); return; }
+
+        if (bitmap is null)
+        {
+            target.Source = null;
+            ToolTip.SetTip(target, error);
+            return;
+        }
+
+        _splitBitmaps.Add(bitmap);
+        target.Source = bitmap;
+    }
+
+    /// <summary>读第 <paramref name="index"/> 张的解码结果（⛔ 不碰 UI 控件）。</summary>
+    private (Bitmap? Bmp, string Error) ReadBitmap(int index)
+    {
+        try
+        {
+            if (_session is not null)
+            {
+                if (index < 0 || index >= _session.Entries.Count) return (null, "序号越界");
+                using var stream = _session.Open(_session.Entries[index].Key, out var reason);
+                return stream is null ? (null, reason) : (new Bitmap(stream), "");
+            }
+
+            if (index < 0 || index >= _siblings.Count) return (null, "序号越界");
+            using var file = File.OpenRead(_siblings[index]);
+            return (new Bitmap(file), "");
+        }
+        catch (Exception ex)
+        {
+            return (null, ex.Message);
+        }
+    }
+
+    /// <summary>清空网格并把已解码的位图释放掉（先断源再 Dispose）。</summary>
+    private void ClearSplitTiles()
+    {
+        foreach (var picture in SplitGrid.Children.OfType<Border>()
+                     .Select(b => b.Child).OfType<Grid>()
+                     .SelectMany(g => g.Children).OfType<Image>())
+            picture.Source = null;
+
+        SplitGrid.Children.Clear();
+
+        foreach (var bitmap in _splitBitmaps) bitmap.Dispose();
+        _splitBitmaps.Clear();
+    }
+
+    /// <summary>条目条选中项跟随当前屏起点（⛔ 不触发翻页）。</summary>
+    private void SyncArchiveSelection(int index)
+    {
+        _suppress = true;
+        try
+        {
+            ArchiveList.SelectedIndex = index;
+            if (ArchiveList.SelectedItem is { } selected) ArchiveList.ScrollIntoView(selected);
+        }
+        finally { _suppress = false; }
     }
 
     // ==================== 音频 ====================
@@ -736,7 +974,7 @@ public abstract class ViewerPageBase : UserControl
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (EntryCount > 1 && !RulePanel.IsVisible)
+        if (EntryCount > 1 && !RulePanel.IsVisible && !Host.IsInfoVisible)
         {
             if (e.Key == Key.Left) { e.Handled = true; ShowEntry(_entryIndex - 1); return; }
             if (e.Key == Key.Right) { e.Handled = true; ShowEntry(_entryIndex + 1); return; }

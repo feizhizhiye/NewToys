@@ -32,6 +32,7 @@ public partial class AudioPlayer : UserControl
     private readonly List<(TimeSpan At, string Text, string Trans)> _lyrics = new();
     private readonly List<StackPanel> _lyricViews = new();
 
+    private IAudioPlayback? _playback;
     private List<AudioTrackItem> _tracks = new();
     private int _current = -1;
     private bool _suppress;
@@ -71,8 +72,22 @@ public partial class AudioPlayer : UserControl
         Shuffle = 2,
     }
 
-    /// <summary>播放后端（宿主注入）。</summary>
-    public IAudioPlayback? Playback { get; set; }
+    /// <summary>
+    /// 播放后端（宿主注入）。
+    /// <para>🔴 注入时接管 <see cref="IAudioPlayback.StateChanged"/>：轮询表⛔ 只在装载时起一次 ——
+    /// 播完 / 停止都会把表停掉，再起播必须重新起表，否则进度条与歌词永远不动。</para>
+    /// </summary>
+    public IAudioPlayback? Playback
+    {
+        get => _playback;
+        set
+        {
+            if (ReferenceEquals(_playback, value)) return;
+            if (_playback is not null) _playback.StateChanged -= OnPlaybackStateChanged;
+            _playback = value;
+            if (_playback is not null) _playback.StateChanged += OnPlaybackStateChanged;
+        }
+    }
 
     /// <summary>
     /// 译文歌词取用器（宿主注入：拿到音频路径，返回译文 LRC 文本或 <c>null</c>）。
@@ -183,7 +198,7 @@ public partial class AudioPlayer : UserControl
         LoadLyrics(track.Path);
 
         if (autoPlay) Playback.Play();
-        PlayButton.Content = Playback.State == AudioPlayState.Playing ? "⏸ 暂停" : "▶ 播放";
+        UpdatePlayButton();
 
         _timer.Start();
         TrackChanged?.Invoke(track);
@@ -195,9 +210,24 @@ public partial class AudioPlayer : UserControl
     public void TogglePlay()
     {
         if (Playback is null) return;
-        if (Playback.State == AudioPlayState.Playing) Playback.Pause();
-        else Playback.Play();
-        PlayButton.Content = Playback.State == AudioPlayState.Playing ? "⏸ 暂停" : "▶ 播放";
+
+        if (Playback.State == AudioPlayState.Playing)
+        {
+            Playback.Pause();
+            UpdatePlayButton();
+            return;
+        }
+
+        // 播完 / 停在末尾后重播：解码器已在末尾，不回零直接 Play 会立刻又「播完」（进度条原地不动）
+        var duration = Playback.Duration;
+        var position = Playback.Position;
+        if (duration > TimeSpan.Zero && position >= duration - TimeSpan.FromMilliseconds(500))
+            Playback.Seek(TimeSpan.Zero);
+
+        Playback.Play();
+        EnsureTimer();
+        UpdatePlayButton();
+        Tick();
     }
 
     /// <summary>下一首（<paramref name="auto"/> = 播完自动切，响应「单曲循环」）。</summary>
@@ -232,7 +262,7 @@ public partial class AudioPlayer : UserControl
         _spectrumTimer.Stop();
         Spectrum.Hide();
         Playback?.Stop();
-        PlayButton.Content = "▶ 播放";
+        UpdatePlayButton();
         _updating = true;
         try { ProgressSlider.Value = 0; }
         finally { _updating = false; }
@@ -391,10 +421,38 @@ public partial class AudioPlayer : UserControl
 
         PositionText.Text = Format(position);
         DurationText.Text = duration.TotalSeconds > 0.5 ? Format(duration) : "--:--";
-        PlayButton.Content = Playback.State == AudioPlayState.Playing ? "⏸ 暂停" : "▶ 播放";
+        UpdatePlayButton();
 
         UpdateLyric(position);
         SyncSpectrumTimer();
+    }
+
+    /// <summary>轮询表保活：切页回来 / 播完后再起播都要能重新走起来。</summary>
+    private void EnsureTimer()
+    {
+        if (!_timer.IsEnabled) _timer.Start();
+    }
+
+    /// <summary>
+    /// 播放键只显示图形（▶ / ⏸），文字进 ToolTip —— 无障碍名由 XAML 固定为「播放」。
+    /// </summary>
+    private void UpdatePlayButton()
+    {
+        var playing = Playback?.State == AudioPlayState.Playing;
+        PlayButton.Content = playing ? "⏸" : "▶";
+
+        var tip = playing ? "暂停" : "播放";
+        if (ToolTip.GetTip(PlayButton) as string != tip) ToolTip.SetTip(PlayButton, tip);
+    }
+
+    /// <summary>后端在音频线程上报状态：切回 UI 线程再动界面与轮询表。</summary>
+    private void OnPlaybackStateChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (Playback?.State == AudioPlayState.Playing) EnsureTimer();
+            UpdatePlayButton();
+        });
     }
 
     /// <summary>频谱表跟着播放状态走（暂停 / 停止 ⇒ 停表并收起，⛔ 留着柱子空转）。</summary>
@@ -543,18 +601,28 @@ public partial class AudioPlayer : UserControl
     {
         _mode = (PlayMode)(((int)_mode + 1) % 3);
         UpdateModeButton();
-        StatusChanged?.Invoke("播放模式：" + ModeButton.Content);
+        StatusChanged?.Invoke("播放模式：" + ModeName());
     }
 
     private void UpdateModeButton()
     {
         ModeButton.Content = _mode switch
         {
-            PlayMode.Single => "单曲",
-            PlayMode.Shuffle => "随机",
-            _ => "顺序",
+            PlayMode.Single => "🔂",
+            PlayMode.Shuffle => "🔀",
+            _ => "🔁",
         };
+
+        var tip = "播放模式：" + ModeName();
+        ToolTip.SetTip(ModeButton, tip);
     }
+
+    private string ModeName() => _mode switch
+    {
+        PlayMode.Single => "单曲循环",
+        PlayMode.Shuffle => "随机",
+        _ => "顺序",
+    };
 
     /// <summary>
     /// 跳到指定位置（续播恢复用）：只改进度，⛔ 顺手开播 —— 恢复后保持暂停态。
@@ -579,5 +647,5 @@ public partial class AudioPlayer : UserControl
     }
 
     /// <summary>宿主要求播完自动下一首时挂这个（在宿主里订阅 <see cref="IAudioPlayback.PlaybackEnded"/> 调用 <see cref="Next"/>）。</summary>
-    public void HandlePlaybackEnded() => Next(true);
+    public void HandlePlaybackEnded() => Dispatcher.UIThread.Post(() => Next(true));
 }

@@ -3,7 +3,7 @@
              xmlns:local="using:NewToys.UI.Viewers"
              x:Class="NewToys.UI.Viewers.AudioPlayer">
   <!--
-    本地音乐播放器（查看器内）：大封面 + 居中歌词 + 底部控制条；播放列表收在左侧抽屉（默认收起）。
+    本地音乐播放器（查看器内）：大封面 + 居中歌词 + 底部控制条；播放列表是右侧悬浮层（默认收起）。
     🔴 所有播放能力走注入的 IAudioPlayback（UI 库 ⛔ 不引 NAudio）；本控件只做界面与轮询刷新。
   -->
   <Grid RowDefinitions="Auto,*,Auto">
@@ -31,36 +31,17 @@
                 Grid.Column="1"
                 Classes="ghost"
                 VerticalAlignment="Center"
+                AutomationProperties.Name="播放列表"
                 Click="OnToggleList"
                 Content="☰ 列表"
                 ToolTip.Tip="显示 / 收起播放列表" />
       </Grid>
     </Border>
 
-    <!-- 主体：左（播放列表抽屉，默认收起）｜ 封面 ｜ 歌词 -->
-    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+    <!-- 主体：封面 ｜ 歌词；播放列表浮在右侧，⛔ 不再挤占布局宽度 -->
+    <Grid Grid.Row="1">
 
-      <Border x:Name="PlaylistPanel"
-              Grid.Column="0"
-              Width="240"
-              IsVisible="False"
-              Background="{DynamicResource ContentHeaderBrush}"
-              BorderBrush="{DynamicResource DividerBrush}"
-              BorderThickness="0,0,1,0">
-        <ListBox x:Name="TrackList"
-                 Background="Transparent"
-                 BorderThickness="0"
-                 DoubleTapped="OnTrackDoubleTapped"
-                 SelectionChanged="OnTrackSelected">
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis" />
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-      </Border>
-
-      <Grid Grid.Column="1" ColumnDefinitions="*,1.1*">
+      <Grid ColumnDefinitions="*,1.1*">
 
         <!-- 左：大封面 + 分频柱（封面下方，未播放时收起） -->
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
@@ -97,9 +78,56 @@
           </ScrollViewer>
         </Border>
       </Grid>
+
+      <!-- 播放列表悬浮层：贴右侧浮在内容之上，点条目即切歌 -->
+      <Border x:Name="PlaylistPanel"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Stretch"
+              Width="260"
+              Margin="0,8,10,8"
+              IsVisible="False"
+              Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              BoxShadow="0 8 24 0 #55000000">
+        <Grid RowDefinitions="Auto,*">
+          <Grid ColumnDefinitions="*,Auto" Margin="10,7,6,4">
+            <TextBlock Text="播放列表"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="1"
+                    Classes="ghost"
+                    Width="24"
+                    Height="24"
+                    Padding="0"
+                    FontSize="11"
+                    AutomationProperties.Name="收起播放列表"
+                    Click="OnToggleList"
+                    Content="✕"
+                    ToolTip.Tip="收起播放列表" />
+          </Grid>
+
+          <ScrollViewer Grid.Row="1" Padding="0,0,0,6">
+            <ListBox x:Name="TrackList"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     DoubleTapped="OnTrackDoubleTapped"
+                     SelectionChanged="OnTrackSelected">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Display}"
+                             FontSize="12"
+                             TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </ScrollViewer>
+        </Grid>
+      </Border>
     </Grid>
 
-    <!-- 底部：控制条 -->
+    <!-- 底部：控制条（按钮一律图标 + ToolTip，⛔ 不带文字） -->
     <Border Grid.Row="2"
             Padding="12,8"
             Background="{DynamicResource ContentHeaderBrush}"
@@ -107,9 +135,34 @@
             BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
-          <Button Classes="ghost" Click="OnPrevious" Content="⏮ 上一首" />
-          <Button x:Name="PlayButton" Classes="primary" Click="OnPlayPause" Content="▶ 播放" />
-          <Button Classes="ghost" Click="OnNext" Content="⏭ 下一首" />
+          <Button Width="34"
+                  Height="28"
+                  Padding="0"
+                  Classes="ghost"
+                  FontSize="14"
+                  AutomationProperties.Name="上一首"
+                  Click="OnPrevious"
+                  Content="⏮"
+                  ToolTip.Tip="上一首" />
+          <Button x:Name="PlayButton"
+                  Width="40"
+                  Height="28"
+                  Padding="0"
+                  Classes="primary"
+                  FontSize="14"
+                  AutomationProperties.Name="播放"
+                  Click="OnPlayPause"
+                  Content="▶"
+                  ToolTip.Tip="播放" />
+          <Button Width="34"
+                  Height="28"
+                  Padding="0"
+                  Classes="ghost"
+                  FontSize="14"
+                  AutomationProperties.Name="下一首"
+                  Click="OnNext"
+                  Content="⏭"
+                  ToolTip.Tip="下一首" />
         </StackPanel>
 
         <Grid Grid.Column="1" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
@@ -128,17 +181,26 @@
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
           <Button x:Name="ModeButton"
+                  Width="34"
+                  Height="28"
+                  Padding="0"
                   Classes="ghost"
+                  FontSize="14"
+                  AutomationProperties.Name="播放模式"
                   Click="OnSwitchMode"
-                  Content="顺序"
-                  ToolTip.Tip="播放模式：顺序 / 单曲 / 随机" />
-          <TextBlock Text="音量" Classes="hint-text" VerticalAlignment="Center" />
+                  Content="🔁"
+                  ToolTip.Tip="播放模式：顺序" />
+          <TextBlock Text="🔊"
+                     VerticalAlignment="Center"
+                     Margin="4,0,0,0"
+                     FontSize="12" />
           <Slider x:Name="VolumeSlider"
                   Width="90"
                   Minimum="0"
                   Maximum="100"
                   ValueChanged="OnVolumeChanged"
-                  VerticalAlignment="Center" />
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="音量" />
         </StackPanel>
       </Grid>
     </Border>

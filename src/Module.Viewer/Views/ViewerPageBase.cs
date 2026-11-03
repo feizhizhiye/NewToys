@@ -138,7 +138,6 @@ public abstract class ViewerPageBase : UserControl
             _vm.RotateRequested -= OnRotate;
             _vm.TypographyChanged -= OnTypographyChanged;
             _vm.ArchiveNavigateRequested -= OnArchiveNavigate;
-            _vm.PlayToggleRequested -= OnPlayToggle;
             _vm.AudioPlayRequested -= OnAudioPlayRequested;
             _vm.ImageSetRequested -= OnImageSetRequested;
             _vm.RulesEditRequested -= OnRulesEdit;
@@ -159,7 +158,6 @@ public abstract class ViewerPageBase : UserControl
         _vm.RotateRequested += OnRotate;
         _vm.TypographyChanged += OnTypographyChanged;
         _vm.ArchiveNavigateRequested += OnArchiveNavigate;
-        _vm.PlayToggleRequested += OnPlayToggle;
         _vm.AudioPlayRequested += OnAudioPlayRequested;
         _vm.ImageSetRequested += OnImageSetRequested;
         _vm.RulesEditRequested += OnRulesEdit;
@@ -1190,8 +1188,6 @@ public abstract class ViewerPageBase : UserControl
     private void OnAudioStatus(string text) => _vm?.SetStatus(text);
 
     private void OnPlaybackEnded(object? sender, EventArgs e) => Host.Audio?.HandlePlaybackEnded();
-
-    private void OnPlayToggle(object? sender, EventArgs e) => Host.Audio?.TogglePlay();
 
     // ==================== 关闭 / 缩放 / 排版 ====================
 

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using NewToys.UI.Viewers;
 
 namespace NewToys.Viewer.Services;
@@ -100,7 +101,8 @@ public sealed class AudioLibraryService
 
     /// <summary>
     /// 找封面：① 内嵌标签（已在 <see cref="Read"/> 里取过，这里只管磁盘上的）→
-    /// ② 同目录「同名图」→ ③ 同目录固定名（cover / folder / front / album…）→ ④ 上一级目录的固定名。
+    /// ② 同目录「同名图」→ ②b 宽松同名（歌曲名多带「歌手 - 」前缀 / 轨道号，图名只有歌名）→
+    /// ③ 同目录固定名（cover / folder / front / album…）→ ④ 上一级目录的固定名。
     /// <para>🔴 只读、⛔ 联网、⛔ 写回文件 —— 在线抓封面归媒体资产的标签服务。</para>
     /// </summary>
     private byte[]? CoverFromDisk(string audioPath)
@@ -116,10 +118,106 @@ public sealed class AudioLibraryService
             if (File.Exists(same)) return TryReadBytes(same);
         }
 
+        // ②b 宽松同名：图名与歌名互相包含即算（取字符覆盖最多的那张）
+        var loose = FindLooseCover(folder, baseName);
+        if (loose is not null) return TryReadBytes(loose);
+
         // ③ 同目录固定名 → ④ 上一级目录（专辑分碟 CD1/ 场景）
         var image = FindCoverImage(folder) ?? FindCoverImage(Path.GetDirectoryName(folder));
         return image is null ? null : TryReadBytes(image);
     }
+
+    /// <summary>
+    /// 宽松同名匹配：把文件名切成词（去括号内容 / 轨道号 / 分隔符 → 小写），
+    /// 图名词集合被歌名词集合包含（或反之）即命中，覆盖率 = 较短一侧的字符数。
+    /// <para>例：<c>周杰伦 - 稻香.mp3</c> ⇄ <c>稻香.jpg</c>、<c>01 稻香.flac</c> ⇄ <c>稻香 (Live).jpg</c>。</para>
+    /// <para>🔴 至少 2 个字符才认，否则 <c>a.jpg</c> 这种会乱配。</para>
+    /// </summary>
+    private string? FindLooseCover(string folder, string baseName)
+    {
+        var key = folder + "|" + baseName;
+        lock (_coverGate)
+        {
+            if (_looseCoverCache.TryGetValue(key, out var cached)) return cached;
+        }
+
+        string? best = null;
+        var bestScore = 0;
+        var song = NameTokens(baseName);
+
+        if (song.Length > 0)
+        {
+            foreach (var image in EnumerateImages(folder))
+            {
+                var score = LooseScore(song, NameTokens(Path.GetFileNameWithoutExtension(image)));
+                if (score <= bestScore) continue;
+                bestScore = score;
+                best = image;
+            }
+        }
+
+        lock (_coverGate)
+        {
+            if (_looseCoverCache.Count > 512) _looseCoverCache.Clear();
+            _looseCoverCache[key] = best;
+        }
+        return best;
+    }
+
+    private List<string> EnumerateImages(string folder)
+    {
+        lock (_coverGate)
+        {
+            if (_imageCache.TryGetValue(folder, out var cached)) return cached;
+        }
+
+        var list = new List<string>();
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(folder))
+            {
+                if (CoverExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                    list.Add(file);
+            }
+        }
+        catch { /* 目录不可读当作没有图 */ }
+
+        lock (_coverGate)
+        {
+            if (_imageCache.Count > 64) _imageCache.Clear();
+            _imageCache[folder] = list;
+        }
+        return list;
+    }
+
+    /// <summary>把文件名切成可比较的词：去括号内容、去轨道号、分隔符统一成空格、小写。</summary>
+    private static string[] NameTokens(string name)
+    {
+        var text = BracketContent.Replace(name.ToLowerInvariant(), " ");
+        text = TrackNumberPrefix.Replace(text, " ");
+
+        foreach (var sep in NameSeparators)
+            text = text.Replace(sep, " ");
+
+        return text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    }
+
+    /// <summary>互相包含则返回覆盖率（较短一侧字符数），否则 0。</summary>
+    private static int LooseScore(string[] song, string[] cover)
+    {
+        if (song.Length == 0 || cover.Length == 0) return 0;
+        if (!ContainsAll(song, cover) && !ContainsAll(cover, song)) return 0;
+
+        var score = Math.Min(song.Sum(t => t.Length), cover.Sum(t => t.Length));
+        if (score < 2) return 0;
+
+        // 歌名最后一个词通常就是标题：命中它压过只命中歌手的图（⛔ 把「歌手.jpg」当封面）
+        if (cover.Any(t => string.Equals(t, song[^1], StringComparison.Ordinal))) score += 100;
+        return score;
+    }
+
+    private static bool ContainsAll(string[] outer, string[] inner)
+        => inner.All(t => outer.Any(o => o.Contains(t, StringComparison.Ordinal)));
 
     private string? FindCoverImage(string? folder)
     {
@@ -161,7 +259,17 @@ public sealed class AudioLibraryService
 
     private static readonly string[] CoverExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".bmp" };
 
+    /// <summary>括号及其内容：<c>稻香 (Live)</c> ⇒ <c>稻香</c>。</summary>
+    private static readonly Regex BracketContent = new(@"[\(（\[【][^\)）\]】]*[\)）\]】]", RegexOptions.Compiled);
+
+    /// <summary>轨道号前缀：<c>01 - </c> / <c>01.</c> / <c>01_</c>。</summary>
+    private static readonly Regex TrackNumberPrefix = new(@"^\s*\d{1,3}\s*[-._]+\s*", RegexOptions.Compiled);
+
+    private static readonly string[] NameSeparators = { " - ", "-", "—", "_", "&", "、", ",", ".", "　" };
+
     private readonly Dictionary<string, string?> _coverCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string?> _looseCoverCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<string>> _imageCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _coverGate = new();
 
     /// <summary>

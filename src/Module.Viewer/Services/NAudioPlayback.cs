@@ -158,6 +158,10 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
             if (_output is null) return;
             try
             {
+                // 已在末尾（自然播完）⇒ 不回零就 Play，声卡拿不到样本会立刻再报一次「播完」
+                if (_reader is not null && _reader.CurrentTime >= _reader.TotalTime - TimeSpan.FromMilliseconds(200))
+                    _reader.CurrentTime = TimeSpan.Zero;
+
                 _stopping = false;
                 _output.Play();
                 State = AudioPlayState.Playing;

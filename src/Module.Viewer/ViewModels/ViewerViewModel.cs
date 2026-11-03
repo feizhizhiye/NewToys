@@ -234,9 +234,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>分屏开关或每屏张数变了（View 据此装载 / 卸载网格）。</summary>
     public event EventHandler? SplitChanged;
 
-    /// <summary>播放 / 暂停（音频）。</summary>
-    public event EventHandler? PlayToggleRequested;
-
     /// <summary>「媒体资产 → ▶ 播放」要求开播一批曲目（参数 = 按顺序排好的绝对路径）。</summary>
     public event EventHandler<IReadOnlyList<string>>? AudioPlayRequested;
 
@@ -802,9 +799,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     private void Rotate() => RotateRequested?.Invoke(this, EventArgs.Empty);
 
     [RelayCommand]
-    private void TogglePlay() => PlayToggleRequested?.Invoke(this, EventArgs.Empty);
-
-    [RelayCommand]
     private void EditRules() => RulesEditRequested?.Invoke(this, EventArgs.Empty);
 
     // ---------- 工具条 ----------
@@ -914,17 +908,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                     Items = SplitMenuItems,
                     IsEnabledPath = nameof(IsImage),
                     ToolTip = "点击展开分屏方式：单张 / 左右 / 上下 / 2×2；分屏时翻页一次换一屏",
-                });
-            }
-
-            if (Scope is ViewerScope.Audio or ViewerScope.All)
-            {
-                items.Add(new()
-                {
-                    Text = "⏯ 播放/暂停",
-                    CommandPath = nameof(TogglePlayCommand),
-                    IsEnabledPath = nameof(IsAudio),
-                    ToolTip = "播放或暂停当前曲目",
                 });
             }
 

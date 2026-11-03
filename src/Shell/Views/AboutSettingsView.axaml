@@ -76,7 +76,7 @@
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock
               VerticalAlignment="Center"
-              FontSize="14"
+              FontSize="13"
               FontWeight="SemiBold"
               Foreground="{DynamicResource PrimaryTextBrush}"
               Text="组件版本" />
@@ -170,14 +170,10 @@
     <Border Classes="card">
       <StackPanel Spacing="8">
         <TextBlock
-            FontSize="14"
+            FontSize="13"
             FontWeight="SemiBold"
             Foreground="{DynamicResource PrimaryTextBrush}"
             Text="增加功能" />
-        <TextBlock
-            Classes="hint-text"
-            Text="把新的模块 DLL 放进 Modules\ 目录后，点「🔄 重载模块」即可装进来 —— 重载后功能清单与左侧菜单会立即刷新（只新增；移除模块要重启）。"
-            TextWrapping="Wrap" />
         <StackPanel HorizontalAlignment="Left" Orientation="Horizontal" Spacing="8">
           <Button
               Classes="ghost"

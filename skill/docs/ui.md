@@ -1,8 +1,13 @@
 # NewToys UI 规范
 
+> v4.13 · 2026-11-03 · **文案判定从「枚举禁用」升级为「生成式判据 + 载体链」** —— §12.1 加第 4 条判据（值会变=数据 / 描述对象还是界面 / 删掉是否多试一次 / 想写解释=结构报警）、例外由 2 类扩为 **5 类「用户看不见的事」**；§12.2 加「载体优先级链」「删文字必须配平语义出口（`AutomationProperties.Name` / 灰态原因 / 错误行）」「`ToolTip` ⛔ 当唯一说明」「生命周期决定落点」「宽度按英文 1.8× 预留」；§12 抬头给出**可 Lint 的检测口径**（白名单 class + 禁用词）；§12.9 加 3 条自检（常驻说明 0 行 / 遮字测试 / 语义出口配平）。
+> v4.12 · 2026-11-03 · **控件前缀标签清零** —— §12.1 第 1 条由「按钮前 / 旁」扩为「**控件**前 / 旁」（按钮 · 下拉 · 文本框一体），新增「下拉首项已含维度名 ⇒ ⛔ 前缀标签」「文本框用 `PlaceholderText`、设置页 `field-label` 只写名词」；§2.1 第 2 条补筛选条 ⛔ 前缀标签；§12.2 表加「控件前缀标签 = 不许有」。落地删 3 页 6 处（`ShelfView` 分组 / 更新、`SourceListView` 类型 / 分组 / 校验、`AssetAllView` 筛选）。
+> v4.11 · 2026-11-03 · **按钮旁说明文字清零** —— §12.1 由「三条减法」扩为**四条**，新增「按钮前 / 旁 ⛔ 常驻说明文字」硬规则（例外仅破坏性警告与空态）；落地删 7 处（`AboutSettingsView` 重载模块、`DnsView` 测试解析、`UpdateView` 检查更新、`LaunchConfigView` 保存暂存、`HostsView` 底部应用链、`BackupCalendarView` 加待办、`SettingsMediaAssetsView` 用户数据导出），语义改挂 `ToolTip`；§12.9 自检补 1.1。
+> v4.10 · 2026-11-03 · **§12 落地检验** —— 布局级 emoji 换 `Path`（`LaunchConfigView` 3 处）；`WebHttpView` 响应状态、`BookCardOverlay`「简介」去掉 `section-title`（状态值 / 小标签不是节）；UI 文案中点 `·` 清理 9 处（编号用全角冒号、并列提示用 `；`、括号内用 `，`）；圆角补「微元素 2~3 / 正圆 = 边长÷2」并修 2 处（首页按钮卡 10→8、日历圆点 1→3）；§2.3 例外白名单补首页卡片 15/26。
+> v4.9 · 2026-11-03 · **左树层级归一 + 字号 Lint 落地** —— 左树一级 15→**13 SemiBold**（`App.axaml` 的 `.tree-row` 样式 14→13、`ShellView` 删本地 15）、二级 13→**12 次要色**；代码里 3 处非标字号归位（`12.5`→12、两处 `10`→11/12）；`lint.py --only props` 新增**字号白名单**核对（白名单外 / ≤10 直接报，已进 `accept.ps1`）；§2.3 补规则 8、9。
+> v4.8 · 2026-11-03 · **字号归一（全仓 31 处 + 新增 §2.3 文字角色表）** —— 区块标题统一 **13 SemiBold**（全局 `.section-title` 12→13、节抬头与各页手写 14→13）；详情卡窄栏降一档（分区标题 13→12，使详情卡轻于标签页 13）；`10px` 全部升 11（13 处，低于下限）；§7 / §11 / §12.3 / §12.9 同步；§12.7 补「分组门槛（节 vs 项）」。
+> v4.7 · 2026-11-03 · **新增 §12 视觉克制与判断清单** —— 「该不该加」的八条判断（减法 / 文案 / 字号 / 边框圆角阴影 / 动画 / 对齐 / 减少判断 / 状态可达性）+ 交付自检；**不可静态检测**，人工扫。同时给出与 §2 §3 §7 的取值边界（字号池、圆角档、1px 而非 0.5px）。
 > v4.6 · 2026-10-30 · **骨架行为订正**：`SettingsSectionHost` 滚动 ⛔ 不改展开状态（「滚动自动展开」已移除），§11.2 与 §11 骨架表格同步。
-> v4.5 · 2026-10-26 · **新增 §6.10 列表多选** —— `Ctrl` 增选 / `Shift` 连选 / `Ctrl+A` 全选的标准写法（隧道 `PointerPressed` 接管 + `SelectionChanged` 回抛 + 重建后按稳定键回填），与 Windows 资源管理器一致；现状落地页 = 网址收藏、Hosts 管理。
-> v4.4 · 2026-10-24 · **全局滚动条换版（v3.80）** —— `App.axaml` 隐式 `{x:Type ScrollBar}` 主题：8px 槽 / 6px 圆角胶囊滑块 / 轨道透明无箭头 / 常驻；新增主题键 `ScrollThumbBrush`、`ScrollThumbHoverBrush` 与 `ScrollThumbRatioConverter`（滑块长度系数）；§9 补 4 条坑（`Track` 零绑定 / `Value` 必须 TwoWay / 缩长度禁 ScaleTransform / `IsExpanded` 恒真）。
 > 本文件 = **一切 `.axaml` / 视觉 / 控件尺寸 / 样式约定的唯一入口**（原 `NewToys-工程规范.md` §2 / §3.6 / §3.8 渲染层 / §3.10）。
 > 契约接口定义（`IDetailCardSource` / `IToolbarSource` …）在 `framework.md` §6；模块专属版式在 `modules/<模块>.md`。
 > 权威源 = `src/` 源码，冲突以源码为准并回写本文。
@@ -20,6 +25,7 @@
 - §9 样式坑与已修 bug
 - §10 交互反馈约定（跨模块操作逻辑）
 - §11 设置页骨架（`SettingsSectionHost`）
+- §12 视觉克制与判断清单（该不该加）
 
 ---
 
@@ -32,7 +38,7 @@
 - XAML 与 code-behind 分离；交互复杂的列表在 code-behind 构建。
 - 🔴 **改 `.axaml` 必同步改 `.axaml.cs`**（`x:Name` / 控件类型 / `Grid.Row,Column` 越界 → `CS1061` / `CS0103`）。
 - **列定义**：⛔ 禁把 `ColumnDefinitions` 绑 `{Binding}`（`AVLN3000`）；动态列用列宽规格串 + `ColumnGrid`。
-- 🔴🔴 **`UserControl` 必须显式写 `public Xxx(){ InitializeComponent(); }`** —— 不会自动生成，漏了整块 XAML **静默不加载（无报错）**。`check.ps1` 已加静态检查兜底。
+- 🔴🔴 **`UserControl` 必须显式写 `public Xxx(){ InitializeComponent(); }`** —— 不会自动生成，漏了整块 XAML **静默不加载（无报错）**。`lint.py` 已加静态检查兜底。
 - 🔴 **跨程序集 xmlns 必须写 `using:`**：`xmlns:v="using:NewToys.UI.Controls"`（⛔ 不写 `clr-namespace:`）。
 - ⛔ 页面里不复制同名样式；本页专用样式写 `UserControl.Styles` 里加更具体选择器。
 
@@ -74,7 +80,8 @@
 **两条设计逻辑**：
 1. **工具条 = 能用多少宽度就显示多少按钮**（实现见 §8 折叠算法）⇒ 一套按钮在 392 / 712 / 1052 下自动表现为「少 → 多 → 全部」。
 2. **筛选条 = 一行排死、自适应收缩**：392px 是下限；筛选项一律**等分星号列 + `MaxWidth`**，⛔ 不写固定宽。
-   ⚠️ 设置类页面**无详情卡**，可用宽 ≠ 上表。
+   - 🔴 **筛选项 ⛔ 前缀标签**（「分组」「更新」「类型」「筛选」这类 `TextBlock` 一律不写）：下拉首项「全部分组 / 全部状态 / 全部类型」已含维度名，标签纯占横向空间；含义差异进该 combo 的 `ToolTip`。星号列直接从第一个 combo 起算。
+   - ⚠️ 设置类页面**无详情卡**，可用宽 ≠ 上表。
 
 ### 2.2 全局样式位置与类名
 
@@ -82,14 +89,38 @@
 - 在用类名：`Button.title-btn`、`Border.tab-item`/`.active`、`Button.tab-btn`、`Button.tab-close`、`Button.tree-row`/`.active`/`.sub`、`Border.tree-panel.collapsed`、`Border.tree-version`、`Button.win-btn`/`.close`、`Border.status-bar` + `TextBlock.status-bar-text`、`Button.primary`/`.ghost`/`.fav-btn`、`Border.card`、`Button.col-header`、`Border.list-header`、`TextBlock.list-cell`、`ListBox.list-page`、`Button.detail-toggle`、`TextBlock.hint-text`、`Button.icon-btn`(+`.active`/`.icon-danger`)、`Border.icon-sep`、`Button.section-toggle`、`Button.chip-toggle`(+`.selected`/`.swatch`)、`Button.list-row`(+`.link`)、`Button.ghost`、`Button.danger-btn`、`Button.src-btn`(+`.selected`)。
 - ⚠️ 已废弃：`Button.nav-btn`、`TreeView.tree-nav`（左树改 `ItemsControl` + `Button.tree-row` 自绘）、`io-bar` / `io-btn`（工具条统一后无引用）。
 
+### 2.3 文字角色表（🔴 **唯一源**：所有文字只许落这 7 个角色）
+
+| 角色 | 字号 · 字重 · 颜色 | 用在哪 | 每屏上限 |
+|---|---|---|---|
+| `display` | 16 SemiBold 主色 | 页面大标题（首页「常用功能」「一键操作」） | 1 |
+| `title` | **13 SemiBold 主色** | 区块标题（`.section-title` / `.sec-title`）、页内小标题、对话框标题、节抬头 | 3 |
+| `body` | 13 Regular 主色 | 标签页项、空态说明、按钮主文案 | — |
+| `cell` | 12 Regular 主色 | 列表单元格（`.list-cell`）、详情卡字段值、工具条 / 筛选条文字 | — |
+| `label` | 11 Regular 次要 | 字段标签（`.field-label`）、小按钮、徽章、状态栏、计数与元信息 | — |
+| `mono` | 12 等宽主色 | 路径、命令、数字列 | — |
+| `icon` | 14 / 16 / 18（按位置定） | `Path` / 符号图标，⛔ 与文字字号池混用 | — |
+
+**硬规则**
+
+1. **区块标题只有一种表现 = 13 SemiBold 主色**。全局 `.section-title` 已由 12 升到 13（2026-11-03）；⛔ 页面里再手写 `FontSize="14"` 当标题（存量 14 已全部归一）。
+2. 🔴 **1px 字号差不构成层级**：14 vs 13、13 vs 12 在 100% DPI 下几乎不可辨，两边又都是 SemiBold 时完全失效。层级优先级 = **容器边界 → 留白 → 字重 → 字号（且字号差必须 ≥2px）**。
+3. **窄栏降一档**：详情卡（340px）内分区标题用 **12 SemiBold**（`DetailCardHost.axaml` 唯一覆盖，已注释），使详情卡最重的一层（12）明确轻于标签页（13）。
+4. **下限 11**，只给 `label`（短、不承载操作）；⛔ 10 及以下（中文笔画糊 + 125% DPI 亚像素）。
+5. **12 是 DPI 安全基准**：12×1.25 = 15、12×1.5 = 18 都是整数像素；11 → 13.75、13 → 16.25、14 → 17.5 全落小数 ⇒ 非 100% 缩放下 11/13/14 有轻微亚像素模糊，**大面积正文优先 12**。
+6. 每屏 `SemiBold` **≤3 处** —— 加粗用滥即失去区分力。
+7. **例外白名单**（不参与上表）：分页箭头 `14`（符号，靠 `Padding` 光学居中）、阅读正文 `15`（用户可调）、**首页一键按钮卡标题 `15` + 卡内图标 `26`**（彩色大卡片，与主题无关）、首页大标题 `22/26/28/32`。
+8. **左树 = 导航，不是内容**：一级（模块组）＝ `title` **13 SemiBold 主色 + 16 图标**；二级（功能页）＝ **12 Regular 次要色 + 缩进 16**。⛔ 一级再放大（用过 15 ⇒ 成了全应用最重文字，比标签页还抢）。功能页少的模块靠**缩进 + 字重 + 次要色**分清层级，⛔ 靠字号。
+9. 🔴 **Lint 已拦**：`lint.py --only props` 逐个核对 `.axaml` 的 `FontSize` 值，白名单外 / `≤10` 直接报出（已进 `accept.ps1`）。要新增字号，先改本节并说明现有四档为什么不够，⛔ 页面里就地挑一个顺眼的值。
+
 ---
 
 ## §3 主题键（数量以白名单为准，⛔ 除白名单外不新增）
 
-> 🔴 **不在文档里写死数量**（历史踩过 31/32/34 三个数字并存）：实际条数 = 跑 `pwsh skill/scripts/check.ps1`，首行 `[主题键] 白名单 N 个 *Brush 键` 即权威值。
+> 🔴 **不在文档里写死数量**（历史踩过 31/32/34 三个数字并存）：实际条数 = 跑 `python skill/scripts/lint.py`，首行 `[主题键] 白名单 N 个 *Brush 键` 即权威值。
 
 - 一律 `*Brush` 语义键：`ContentBrush`/`PanelBrush`/`SubSiderBrush`/`SiderBrush`/`PrimaryTextBrush`/`SecondaryTextBrush`/**`PlaceholderTextBrush`**（输入框水印）/`AccentBrush`/`AccentHoverBrush`/`DangerBrush`/`DividerBrush`/`InputBorderBrush`/`CardHoverBrush`/`CardSelectedBrush`/`WindowBorderBrush`/`WindowBorderInactiveBrush` …（**完整清单以源码为准**）。
-- ✅ **白名单免维护**：`check.ps1` 动态扫描（`x:Key="*Brush"` + 代码里 `S("*Brush")` 调用），在 `ApplyTheme()` 补了色值就算入白名单，⛔ 不需要改脚本。
+- ✅ **白名单免维护**：`lint.py` 动态扫描（`x:Key="*Brush"` + 代码里 `S("*Brush")` 调用），在 `ApplyTheme()` 补了色值就算入白名单，⛔ 不需要改脚本。
 - 明暗两套**必须同时补齐**；引用不存在键**编译不报错、运行期才失败**。
 - ⛔ 新增键前先想「能不能复用现有键」；确实要加，两套同时补齐 + 写进本表。
 - ⛔ `MergedDictionaries.Clear()`。
@@ -323,13 +354,14 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 刷新契约：渲染器**订阅源 VM 一次**（`PropertyChanged`）→ 任一属性变化整体重解析。⛔ 动作级改动（落盘 / 加标签 / 删除）由**页面 VM 自己回刷**，描述符不参与。
 - 提交语义：`Instant` / `Explicit` → 值写回绑 `PropertyChanged`（`Explicit` 写的是 VM 的**编辑态草稿**，落盘由工具条「💾 保存修改」负责）；`OnBlur` → 模板挂 `LostFocus="OnTextLostFocus"` → `TextFieldRow.Commit()`。
 - 外壳（340px 容器 / 覆盖式滚动条留位 / 空态 / 分区与字段间距）**只实现一次**（`DetailCardHost.axaml`）。
-- 🔴 **字号三级单调递减**（2026-10-30 定，改任一级必须三处同看）：分区标题 **13 SemiBold 主色**（`Button.section-toggle` / `TextBlock.section-title`）＞ 字段值 **12 主色**（`.field-value`）＞ 字段标签 / 提示 **11 次要色**（`.field-label` / `.hint-text`）。⛔ 分区标题与字段值同号 —— 节标题会"沉"进正文、层级消失（旧版都是 12）。
+- 🔴 **字号两级 + 字重区分**（2026-11-03 起，见 §2.3 规则 3「窄栏降一档」）：分区标题 **12 SemiBold 主色**（`Button.section-toggle` / `SelectableTextBlock.section-title`）＞ 字段值 **12 主色**（`.field-value`）＞ 字段标签 / 提示 **11 次要色**（`.field-label` / `.hint-text`）。
+  - 分区标题与字段值**同号**，靠 **SemiBold + 上间距 10** 分层，⛔ 靠字号分层（13 vs 12 只差 1px，肉眼不可辨，反而让详情卡在 340px 窄栏里显得比标签页还重）。
 - 树状感靠**左侧 1px 引导线 + 内容缩进 15**（`DividerBrush` @0.7，仅 `HasHeader` 的节才画）；⛔ 不靠加框分层（340px 装不下）。
 - ⛔ 不给 `DetailCardHost` 设 `DataContext`。
 
 ### 7.2 描述符关键口径
 
-- 🔴 **路径优先用 `nameof(VM 属性)`**；只有跨对象路径（`"DetailTask.StatusDisplay"`、候选项 `"Id"` / `"Name"` / `"Label"`）才用字符串。`check-detail-paths.ps1` 只查字符串那一批，`nameof` 那批靠编译器 —— 两者互补，⛔ 别把 `nameof` 退回字符串。
+- 🔴 **路径优先用 `nameof(VM 属性)`**；只有跨对象路径（`"DetailTask.StatusDisplay"`、候选项 `"Id"` / `"Name"` / `"Label"`）才用字符串。`lint.py --only detail-paths` 只查字符串那一批，`nameof` 那批靠编译器 —— 两者互补，⛔ 别把 `nameof` 退回字符串。
 - 🔴 **`OptionsPath` 指向的集合必须是「稳定实例」**（静态表 / 常驻 `ObservableCollection`）。渲染器只在**集合实例换了**时才重建候选；每次取属性 `new List<>()` ⇒ ComboBox 把 `SelectedItem` 清掉并经 TwoWay **回写**，等于把页面 VM 的值抹掉。
 - 🔴 **空候选不回写**：候选为空时行对象**拒绝回写**（否则一进页面就把预设 / 编码器选择抹空）。
 - `Select` 两个落值通道：值（`SelectFieldRow`：`SelectedItem` + `OptionValuePath` 比对）与索引（`IndexSelectFieldRow`：`SelectedIndex` + `LiteralOptions` 或 `OptionsPath`）；`CreateRow` 按 `IndexPath` 是否为空分派。
@@ -370,7 +402,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 件：`DetailSection.VisiblePath`（`Shared/Details/DetailCardDescriptor.cs`）+ `DetailSectionRender.IsVisible`（`UI/Controls/DetailCardRender.Sections.cs`）+ `DetailCardHost.axaml` 分区根节点一条 `IsVisible` 绑定。
 - 语义：`null` = 恒可见（既有卡零影响）；非空 = **整节连抬头一起**按路径显隐。与 `IsExpandedPath` 的分工：可见性决定「存不存在」，展开态决定「展开还是收起」。
 - 用途：只在某种模式下才有意义的节（批量队列的「画面 / 音轨 / 码率与体积」= 仅 `EditIsTranscode`）。⛔ 别拿它当「收起」用 —— 收起走 `IsExpandedPath`。
-- 🔴 已登记进 `check-detail-paths.ps1` 的 `$pathProps`：`VisiblePath = "..."` 的字符串路径会被静态校验，`nameof` 那批靠编译器。
+- 🔴 已登记进 `lint.py --only detail-paths` 的 `$pathProps`：`VisiblePath = "..."` 的字符串路径会被静态校验，`nameof` 那批靠编译器。
 
 ### 7.4 迁移页三件事（缺一不可）
 
@@ -379,7 +411,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 3. 页内原来自绘的按钮（`StorageProvider` 选文件等）→ 改成 VM 上的 `ICommand` **属性**，由 View 在 `OnDataContextChanged` 注入实现（幂等），声明式卡用 `DetailAction.Command` 调它。
 
 - ⚠️ **已知布局降级（用户已接受）**：原「宽 / 高」同行并排字段改纵向堆叠；输入框右侧内联按钮收进 Actions 区。要 1:1 还原需给描述符加「同行并排 / 字段内联动作」两个能力（⛔ 未做）。
-- 🔴 描述符路径改名**不报错、不崩溃**，只是白板 ⇒ 交付前必跑 `check-detail-paths.ps1`（扫含 `IDetailCardSource|DetailCardDescriptor` 的 `.cs`，路径首段与全仓属性 / 字段名比对）。
+- 🔴 描述符路径改名**不报错、不崩溃**，只是白板 ⇒ 交付前必跑 `lint.py --only detail-paths`（扫含 `IDetailCardSource|DetailCardDescriptor` 的 `.cs`，路径首段与全仓属性 / 字段名比对）。
 
 ---
 
@@ -462,7 +494,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 2. 没给按钮写尺寸 / 字号 / 内边距（`Width` 只给输入框 88 与 `detail-toggle` 20）。
 3. 顺序符合 §8.2 顺序铁律；没有 `Label` 文字项。
 4. 输入框宽度 88；水印色没被页面覆盖。
-5. 新加/改动的 `*Path` 路径都能在 VM 上找到（`check-detail-paths.ps1` 不报）。
+5. 新加/改动的 `*Path` 路径都能在 VM 上找到（`lint.py --only detail-paths` 不报）。
 
 ---
 
@@ -473,7 +505,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 3. 🔴 **后代选择器也压不住时换「裸控件主题」**：`App.axaml` 的 `BareButtonTheme`（只有 `ContentPresenter`，零状态绘制），控件上写 `Theme="{StaticResource BareButtonTheme}"`。凡是要完全自绘的小按钮一律套它。
 4. **裸主题里 `Path` 渲染不出来真因**：模板把 `HorizontalContentAlignment` 绑到 `ContentPresenter` **自身**的 `HorizontalAlignment` → 用无限约束测量 → `Path`（`Stretch=Uniform`）算出 NaN 尺寸。改法 = TemplateBinding 到 `HorizontalContentAlignment` / `VerticalContentAlignment`（与 Fluent 模板一致）。✅ 已修。
 5. ⚠️ 历史留档：曾有期间用 `Segoe MDL2 Assets` 字形规避，NT-045 起**图标字体已全部弃用**。
-6. 🔴 **不可编译的坑**：`Classes.xxx="{Binding ...}"` 里的 `xxx` 是**本仓样式类名**、不是控件属性 ⇒ 会被 `check-axaml-props.ps1` 误报，**该脚本已加 `Classes.` 前缀豁免**，⛔ 别删这行豁免。
+6. 🔴 **不可编译的坑**：`Classes.xxx="{Binding ...}"` 里的 `xxx` 是**本仓样式类名**、不是控件属性 ⇒ 会被 `lint.py --only props` 误报，**该脚本已加 `Classes.` 前缀豁免**，⛔ 别删这行豁免。
 7. **`IndexSelectFieldRow` 只认 `LiteralOptions` 的 bug** ⇒ 给 `OptionsPath` 的索引下拉渲染空白。✅ 已修（补 `OptionsPath` 分支）。
 8. **`ApplyView()` 里 `Items.Clear()` 会让 ListBox 的 `SelectedItem` 双向绑定回写 null** ⇒ 点收藏 / 切分类后详情卡掉回示例态。✅ 已修（新增 `ApplyViewKeepSelection()`）。
 9. **`BuildContent` 的动态文案绑定必须显式给 `Source`**（`ToolbarHost` ⛔ 无 DataContext）⇒ 漏了就渲染成空白按钮。
@@ -569,7 +601,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 骨架 | `SettingsSectionHost`：节卡片渲染 + 折叠（只点不改滚）+ 磁吸抬头 + Push + 全部收起 + 节内工具条 + 滚动定位 | UI 库（一份） |
 | 节内工具条 | `ToolbarTemplate` 插槽（DataContext = 节 VM） | Shell 传 `ToolbarHost`；模块页不给 = 无工具条 |
 
-- 节抬头 = `⌄/› + 图标(14) + 标题(14 SemiBold) + 说明(12 次要色，右对齐)`，底色 `ContentHeaderBrush`、圆角 8；
+- 节抬头 = `⌄/› + 图标(14) + 标题(13 SemiBold) + 说明(12 次要色，右对齐)`，底色 `ContentHeaderBrush`、圆角 8；
 - 卡片 = `Border.card`（`PanelBrush` / 圆角 8）+ `Padding="0"` + `Margin="0,0,0,10"`；
 - 正文 = `Margin="14,10,14,12"`；展开时抬头与正文之间 1px `DividerBrush` 分隔线；
 - 页根 = `Panel(ContentBrush)` + `ClipToBounds`（⛔ 不透明背景，防切页透出旧页）；滚动内容 `Margin 12`，**铺满**（⛔ 不再 `MaxWidth=760`）。
@@ -622,3 +654,119 @@ private void Add(string title, string icon, string desc, string key)
 - **折叠 / 磁吸逻辑 ⛔ 进 VM**：全在骨架的 code-behind；应用级 VM 通过 `SectionToggled` 事件拿结果
   （只为刷新状态栏聚合），⛔ 不再有 `ToggleSectionCommand` 之类的命令。
 - 类名 `sec-head`（code-behind 找抬头）、`sec-body`（正文区）⛔ 别删；`StuckHeader.DataContext = null` ⛔ 别删（漏了整页挂载中断）。
+
+---
+
+## §12 视觉克制与判断清单（该不该加）
+
+> 本节只回答「**该不该加 / 要不要删**」，实现取值一律回 §2（尺寸）§3（主题键）§7（字号层级）§9（坑）。
+> 适用范围 = **UI 文案与视觉**；⛔ 不约束 `skill/docs/*.md` 正文（文档里 `·` 照用）。
+> 🔴 **静态检查抓不到本节**（Lint 只认语法与白名单）⇒ 交付前人工按 12.9 扫一遍。
+> 🔴 **可 Lint 的那一半**（供人工 grep，脚本尚未接入）：① 常驻文案必须落在**白名单 class**（`hint-text` / `empty-hint` / `field-label` / `section-title`）或挂 `⚠` / `🔴` 前缀，其余 `TextBlock` 一律当文案审；② 禁用词黑名单 —— `本页` `用于` `这里可以` `先点` `再点` `即可` `说明：` `提示：` `注：` `请先` `请注意`。命中即视为违规（`ToolTip` / 空态内的文字不参与扫描）。
+
+### 12.1 减法与判定（优先级高于任何美化）
+
+1. **删解释性文案**：界面里不写功能自述（「这里可以…」「用于…」「请先…」）。说明只在两处存在：`hint-text` 空态、`ToolTip`（且仅当前置条件不可见时）。
+   - 🔴 **控件前 / 旁 ⛔ 放说明或标签文字**（2026-11-03 全仓清理，按钮 / 文本框 / 下拉一体适用）：不写「点「〇〇」即可…」「先点 A 再点 B」「改动暂存、点保存才落盘」这类旁注，也不写「分组」「更新」「筛选」这类把控件内容重复一遍的短标签。
+     - 按钮：文案自己说清动作（§12.2 ≤4 汉字 + 动词开头），顺序由「按钮可用性」表达（前置未满足就禁用），语义差异进该按钮的 `ToolTip`。
+     - 下拉 / 多选：首项「全部 XX」本身已带维度名 ⇒ ⛔ 再挂前缀 `TextBlock`（筛选条最常见，见 §2.1 第 2 条）；多选下拉同理，靠 `ToolTip` 说「可多选 / 选了几个」。
+     - 文本框：预期输入写进 `PlaceholderText`（单位 / 格式 / 留空含义都在里面），⛔ 框前再写一行同义说明。**例外**：设置页的 `field-label` 保留 —— 那里控件的值不自述（「10 MB」「思源宋体」），标签只写名词，⛔ 写成句子。
+     - 同一条法则覆盖：节标题下的「本页用于…」、工具条尾部的「左键排序；右键筛选」这类**常驻旁注**——要留就转 `ToolTip`（挂在被说明的控件上），⛔ 常驻占位。
+     - 例外 = **用户从界面看不见的事**，只有五类（其余一律删）：**破坏性后果警告**（`🔴` / `⚠` 前缀，如「主密码丢了取不回来」）、**空态说明**（`hint-text` / `empty-hint`，容器本来就空着）、**时间预期**（「首次扫描约 20 秒」，不写会被当成卡死）、**提权说明**（UAC 为什么弹、谁在要权限）、**不可见副作用与来源滞后**（「会写入 `hosts`」「数据来自 winget，可能不是最新」）。
+       - 归纳：**只写「用户看不见的事」** —— 不可逆后果 / 界面之外的影响（改系统、写盘、联网）/ 前置条件为什么不满足 / 数据从哪来、何时来。这些是**安全与预期信息**，⛔ 当冗余删掉。
+       - 反例（⛔ 必删）：结果预告（「保存后立即生效」「修改会同步到本地」）、纯安抚（「安全可靠」「请放心使用」）、`说明` / `提示` / `注：` 开头的常驻段落、**节标题下的用途副标题**。
+2. **一处只说一次**：标题说过的正文不复述；状态在行上可见就 ⛔ 再进状态栏；同一信息 ⛔ 用「图标 + 文字 + 颜色」三重强调（留一种）。重复型双写最常见：`❌ 失败` 徽标 + 行尾再写「加载失败」；空态图标 + 「暂无数据」+ 「列表为空」。
+3. **分隔符**：⛔ 用中点 `·` 拼接多义信息（`已安装 · 2.3 MB · 昨天`）—— 拆成独立列 / 独立 `TextBlock`，靠列宽与色阶区分，不要塞进一个字符串。
+   - 例外：单一语义串内部（版本号 `1.2.3` 的 `.`、路径 `\`、日期 `2026-11-03` 的 `-`）照常。
+4. 🔴 **先判「数据还是文案」，再决定删**（生成式判据 —— 覆盖上面枚举不到的新写法）：
+   - **值会变 → 数据**（`3 个脚本失效`、`2 小时前同步`、`1.2 GB`）⇒ 留，⛔ 当解释删掉。
+   - **永远不变 → 文案** ⇒ 按本节审。
+   - **描述「对象」留，描述「界面 / 操作方式」删**：`本页用于…`、`这里可以…`、`先点 A 再点 B` 全属后者。
+   - **删掉后用户要多试一次才能完成任务 → 是位置错了，不是文案错了** ⇒ 去改控件（动词 / 首项 / `PlaceholderText` / 默认值，见 §12.2 载体链）或结构，⛔ 就地留着。
+   - **想写一段解释时，先当成结构报警**：多半是命名不准 / 分组错 / 顺序反 / 默认值不对（§12.7）。修结构的收益远大于写字，⛔ 用文字补结构。
+
+### 12.2 文案口径
+
+| 位置 | 长度上限 | 写法 |
+|---|---|---|
+| 按钮 | ≤4 汉字（+ 图标） | 动词开头：`🔄 重扫脚本目录`、`📤 导出` |
+| 控件前缀标签 | **不许有** | 语义交给控件内部：下拉首项 / `PlaceholderText` / `ToolTip`（例外 = 设置页 `field-label` 写名词） |
+| 菜单项 | ≤6 汉字 | 动作 + 对象，⛔ 只写动作（`刷新`→`重扫目录`） |
+| ToolTip | 一句 ≤20 字 | 只补「为什么灰 / 会发生什么」，⛔ 复述按钮名 |
+| 节 / 区块副标题 | **不许有** | 节标题已界定范围；要交代前提就进 `ToolTip` |
+| 空态说明 | ≤2 句 | 为什么空 + 下一步 |
+| 即时反馈（toast / 状态栏） | ≤1 句 | 限时消失，⛔ 同一句同时常驻在页面里 |
+| 状态栏 | ≤1 句 | 三态见 §10.4 |
+
+- 🔴 **载体优先级链（唯一合法落点，自上而下取第一个能用的）**：控件自述（按钮动词 / 下拉首项 / `PlaceholderText` / 合适的默认值）→ `ToolTip` → 空态（`hint-text` / `empty-hint`）→ 状态栏 / toast（限时）→ **常驻文字**（最后手段，等价于承认结构有问题）。
+  - ⛔ 把旁注直接删掉却不给落点 —— 用户会卡住；⛔ 删完又原样加回来（= 那本来就不是冗余，而是位置错了）。
+- 🔴 **删文字必须配平语义出口**（缺一条就算没删干净）：① 图标按钮 / 纯符号入口必须有 `AutomationProperties.Name`（屏幕阅读器与 `ToolTip` **复用同一串**，⛔ 只留图形）；② 因前置条件而 `disabled` 的控件必须有 `ToolTip` 说明**为什么灰**；③ 失败要有错误行 / 状态（§10.4），空容器要有空态。**删掉的只能是旁注，不是语义。**
+- 🔴 **`ToolTip` ⛔ 当唯一说明**：发现性≈0（用户不主动悬停）、键盘与触屏够不到、截图 / 录屏里不存在。**一个操作必须看 `ToolTip` 才会用 ⇒ 控件或交互有问题**，回去改动词 / 首项 / 默认值，⛔ 用 `ToolTip` 兜底。
+- **生命周期决定落点**：常驻（状态恒久不可见，如时间预期）→ `hint-text` / 行内小字；条件出现（失败、灰态原因）→ 错误行 / `ToolTip`；一次性（首次引导）→ 空态或首次弹层，**用过即消失**，⛔ 常驻。
+- **宽度按英文预留**（跨平台中立，`framework.md` §2.1）：按钮 / 标签按中文长度的 **1.8 倍**估算，⛔ 贴着中文刚好放下。
+- 读者 = **会用命令行 / 管脚本的 Windows 用户**：⛔ 降智口语（「马上就搞定啦」），⛔ 术语裸奔（`解析 ALC 失败` 改成 `加载模块失败：xxx`）。
+- **一个概念全应用只有一个词**：⛔ 同义混用（`源`/`书源`/`站点`、`配置`/`方案`/`档案`）。新词必须先进《AI协作手册》【术语对照】再上 UI。
+- ⛔ 自造缩写与英文缩写（`OK` `Cancel` 之外），⛔ 中文里混半角标点。
+
+### 12.3 字号与层级
+
+- 🔴 **字号表唯一源 = §2.3 文字角色表**（7 个角色、四档字号 11/12/13/16）。本节只说判断，⛔ 不另立数值。
+- **层级优先级 = 容器边界 → 留白 → 字重 → 字号**，且字号差 **≥2px 才有效**；1px（14 vs 13 / 13 vs 12）在 100% DPI 下肉眼不可辨，两边都 SemiBold 时完全失效。
+- ⛔ 用字号表达「重要」（真正重要的是**位置**，见 12.7）；⛔ 每屏 `SemiBold` 超过 3 处。
+- 新增字号 = 新增概念，先改 §2.3 并说明为什么现有四档不够，⛔ 页面里就地写一个新数值。
+
+### 12.4 边框 / 圆角 / 阴影
+
+- **边框一律 1px + 弱色键**（`DividerBrush` / `InputBorderBrush`）。⛔ 0.5px：半像素在 125% / 150% 缩放下被抗锯齿糊成**深浅不均**（同一条线一段深一段浅）；想要「更弱」就换更浅的键，⛔ 改线宽。
+- **圆角只有三类**：
+  - **面** = 卡片 `8` / 按钮 `6` / 输入框与标签页 `4`（§2 表）；⛔ 页面自造第 4 种。
+  - **微元素** = 色条 / 色板 / 徽章 / 角标，用 `2`~`3`（4×14 色条、16px 徽章这档）。
+  - **正圆 = 边长 ÷ 2**（18×18 色板 ⇒ `9`、6×6 圆点 ⇒ `3`、28×28 圆底图标 ⇒ `14`）；⛔ 圆形元素随手写个 1 或 99。
+- **同心圆角**：嵌套时 `内圆角 = 外圆角 − 内外间距`（外 8 + 内边距 4 ⇒ 内 4）；= 0 时用直角，⛔ 内外同写 8（看起来内圈更圆、发飘）。
+- **硬编码色值的唯一例外** = 彩色容器内的白色系文字（首页一键按钮卡的 `#B0FFFFFF`）：卡片底色由数据决定、与主题无关，此时必须写死。⛔ 其余任何 `Foreground="#…"` / `Background="#…"`。
+- **阴影只给浮层**（对话框 / 下拉 / 磁吸抬头 / 拖动中卡片）；页面内卡片靠 `PanelBrush` vs `ContentBrush` **色阶分工**，⛔ 用阴影分层级 —— 暗色主题下阴影几乎不可见，只剩一圈脏边。
+- ⛔ **卡片左边缘 / 顶部色条**、装饰性渐变、花纹、玻璃拟态：不承载信息，只制造噪音。要表达分类就用文字或图标。
+
+### 12.5 动画
+
+- **默认零动画**。允许清单只有三类：浮层淡入淡出、展开 / 收起、加载指示（进度 / 旋转）。
+- 时长 **150–250ms**，曲线 **ease-out**（进快出慢）；⛔ 弹性 / 回弹 / 元素飞来飞去的位移动画。
+- 同一时刻只允许**一个**动画元素；⛔ 列表整行逐条错峰入场。
+
+### 12.6 对齐
+
+- **光学对齐 > 数学居中**：文字按钮靠 `Padding` 上抬 1~2px 补视觉重心（§6.8 分页按钮已有先例）；图标与文字并排按**视觉重心**对齐，⛔ 按包围盒。
+- 数字列**右对齐 + 等宽数字**；数值与单位之间 ⛔ 断行。
+- 同列内容按「最长的那个」定左边距，⛔ 每行各自居中。
+
+### 12.7 减少需要判断的交互
+
+- **一个问题只问一次**：能替用户定的就定（默认值 + 可改），⛔ 让用户在弹窗里做「你想怎么做」的选择题。
+- **选项放在用户本来就在做选择的地方**：单条动作 → 行右键；视图开关 → 表头右键；全局配置 → 设置页。⛔ 弹「请选择操作」式中枢菜单。
+- **信息优先级即布局顺序**：`下一步要做的事` → `当前状态` → `元数据`。次要信息进详情卡 / ToolTip，⛔ 平铺在主列表挤占第一屏。
+- 🔴 **分组门槛（节 vs 项）**：分组本身有认知成本，只有「分组能减少歧义」时才加。
+  - 判据：**节** = 有独立名字 + **能看见的边界**（卡片 / 底色带 / 分隔线）+ **≥3 个项**；**项** = 行，无名字、无边界。
+  - 数量门槛：功能页 **<3 节**，或某节 **<3 项** ⇒ ⛔ 不设节，直接平铺项（页少还硬分层 ⇒ 必然出现「两个大标题各挂一行」）。
+  - ⛔ 只靠字号分节与项（13 SemiBold vs 12 Regular 差 1px + 字重，在没有边界时几乎无效）；⛔ 节标题带图标 + 项也带图标（两者形状趋同，越看越像）。
+
+### 12.8 状态与可达性（最常被漏）
+
+- 任何可交互元素四态齐全：`normal` / `pointerover` / `pressed` / `disabled`。**焦点态必须键盘可见**（⛔ 全局关掉 `FocusAdorner`）。
+- ⛔ **只靠颜色**区分状态（暗色下红绿更难辨）⇒ 配图标或文字（`⚠` 前缀即此例，§10.4）。
+- **Tab 顺序 = 视觉顺序**；⛔ 只给鼠标做、键盘到不了的入口。
+- ⛔ 唯一入口藏在 `pointerover` 才显形的位置（标签关闭按钮叠层是例外：同类操作还有右键菜单兜底）。
+
+### 12.9 交付自检（改完页面逐条过）
+
+1. 有没有一句能删的说明文字？删了用户会不会真的不会用？
+1.1 按钮前 / 旁还有常驻旁注吗（「点「〇〇」即可…」「先点 A 再点 B」）？——该删，语义进 `ToolTip`。
+2. 同一信息是否在两处出现（行上 + 状态栏 / 标题 + 正文）？
+3. 有没有 `·` 拼接、同义混用、自造词？
+4. 每处文字都能在 §2.3 找到角色？有没有靠 1px 字号差（14/13/12 相邻）分层级？
+5. 边框是否 1px 弱色？圆角是否 §2 已有档 + 内外同心？
+6. 阴影是否只出现在浮层？有没有装饰色条 / 渐变？
+7. 是否必须点开才知道该怎么操作 —— 有没有更「就地」的入口？
+8. 键盘走一遍：能到达每个入口吗？焦点看得见吗？禁用态有原因吗？
+9. **常驻说明文字是否为 0 行**？例外是否只落在五类「用户看不见的事」里，且都挂了白名单 class（`hint-text` / `empty-hint`）或 `⚠` / `🔴` 前缀（口径见 §12 抬头）？
+10. **遮字测试**：把常驻文字全遮住，只看结构与控件 —— 层级还读得懂吗？（读不懂 = 在用文字补结构，回去改布局）
+11. 删掉的旁注，**语义出口配平了吗**（`AutomationProperties.Name` / 灰态原因 `ToolTip` / 错误行 / 空态）？

@@ -39,14 +39,14 @@
         <Border Classes="card">
           <StackPanel Spacing="10">
             <StackPanel Spacing="2">
-              <TextBlock Text="测试解析" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource PrimaryTextBrush}"/>
-              <TextBlock Text="用当前配置真解析一次，验证 DoH 是否可用（未启用时走系统 DNS）。" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+              <TextBlock Text="测试解析" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource PrimaryTextBrush}"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBox Text="{Binding TestHost, Mode=TwoWay}" Width="260"
                        PlaceholderText="要解析的主机名，如 www.baidu.com"/>
               <Button Classes="primary" Content="🧪 解析" Command="{Binding TestCommand}"
-                      IsEnabled="{Binding !IsBusy}"/>
+                      IsEnabled="{Binding !IsBusy}"
+                      ToolTip.Tip="用当前配置真解析一次（未启用 DoH 时走系统 DNS）"/>
             </StackPanel>
             <TextBlock Text="{Binding TestResult}" FontSize="12" TextWrapping="Wrap"
                        Foreground="{DynamicResource PrimaryTextBrush}"/>

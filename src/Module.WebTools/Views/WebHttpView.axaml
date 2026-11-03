@@ -37,7 +37,7 @@
 
     <!--  响应状态行  -->
     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="2,10,0,0" IsVisible="{Binding HasResponse}">
-      <TextBlock Classes="section-title" VerticalAlignment="Center" Text="{Binding ResponseStatus}"/>
+      <TextBlock VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Text="{Binding ResponseStatus}"/>
       <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="{Binding ElapsedText, StringFormat='耗时：{0}'}"/>
     </StackPanel>
 

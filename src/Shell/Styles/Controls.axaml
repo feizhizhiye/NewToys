@@ -55,7 +55,7 @@
   </Style>
 
   <Style Selector="TextBlock.section-title">
-    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontSize" Value="13"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
   </Style>

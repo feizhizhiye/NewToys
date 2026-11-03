@@ -52,7 +52,7 @@
             Margin="6,0,0,0"
             VerticalAlignment="Center"
             Classes="sec-title"
-            FontSize="14"
+            FontSize="13"
             FontWeight="SemiBold"
             Text="{Binding Title}" />
         <TextBlock

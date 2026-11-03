@@ -162,7 +162,7 @@
           <DockPanel LastChildFill="True">
 
             <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,12">
-              <TextBlock DockPanel.Dock="Left" Text="阅读样式" FontSize="14" FontWeight="SemiBold"
+              <TextBlock DockPanel.Dock="Left" Text="阅读样式" FontSize="13" FontWeight="SemiBold"
                          Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
               <Button DockPanel.Dock="Right" Classes="ghost" Content="✕" Command="{Binding CloseStyleCommand}"
                       ToolTip.Tip="收起样式卡"/>
@@ -234,7 +234,7 @@
           <DockPanel LastChildFill="True">
 
             <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,12">
-              <TextBlock DockPanel.Dock="Left" Text="换源" FontSize="14" FontWeight="SemiBold"
+              <TextBlock DockPanel.Dock="Left" Text="换源" FontSize="13" FontWeight="SemiBold"
                          Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
               <TextBlock DockPanel.Dock="Right" Classes="hint-text" Text="{Binding BookName}"
                          VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -288,7 +288,7 @@
               BoxShadow="0 8 32 0 #40000000">
         <StackPanel Spacing="10">
           <TextBlock Text="整本下载"
-                     FontSize="14"
+                     FontSize="13"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource PrimaryTextBrush}"/>
           <TextBlock Classes="hint-text" Text="{Binding DownloadPhase}" TextWrapping="Wrap"/>

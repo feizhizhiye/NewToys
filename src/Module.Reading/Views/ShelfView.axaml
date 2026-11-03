@@ -13,16 +13,12 @@
 
       <v:ListPageSkeleton.TopArea>
         <Border Classes="card" Padding="10,6" Margin="0,0,0,8">
-          <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
-            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
-              <TextBlock Classes="hint-text" Text="分组" VerticalAlignment="Center"/>
-              <ComboBox Width="150"
-                        ItemsSource="{Binding GroupOptions}"
-                        SelectedItem="{Binding GroupFilter, Mode=TwoWay}"/>
-            </StackPanel>
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+            <ComboBox Grid.Column="0" Width="150"
+                      ItemsSource="{Binding GroupOptions}"
+                      SelectedItem="{Binding GroupFilter, Mode=TwoWay}"/>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="14,0,0,0">
-              <TextBlock Classes="hint-text" Text="更新" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0">
               <ComboBox Width="120"
                         ItemsSource="{Binding UpdateOptions}"
                         SelectedItem="{Binding UpdateFilter, Mode=TwoWay}"/>
@@ -30,7 +26,7 @@
                       ToolTip.Tip="只留「有 N 章更新」的书（跑完批量更新后看结果用）"/>
             </StackPanel>
 
-            <TextBlock Grid.Column="4"
+            <TextBlock Grid.Column="3"
                        Classes="hint-text"
                        Text="{Binding FilterSummary}"
                        VerticalAlignment="Center"/>

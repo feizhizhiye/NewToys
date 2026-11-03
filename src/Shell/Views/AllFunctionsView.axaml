@@ -39,7 +39,7 @@
                       <StackPanel Spacing="4">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                           <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center"/>
-                          <TextBlock Text="{Binding Title}" FontSize="14"
+                          <TextBlock Text="{Binding Title}" FontSize="13"
                                      Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
                           <!-- ★ 已固定标记：固定到首页收藏夹后显示 -->
                           <TextBlock Text="★" FontSize="12" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center">

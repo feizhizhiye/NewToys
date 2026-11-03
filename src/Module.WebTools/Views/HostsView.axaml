@@ -191,8 +191,6 @@
     <!--  ③ 底栏：应用 + 写入  -->
     <Border Grid.Row="2" Classes="card" Padding="12,8">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-        <TextBlock Grid.Column="0" Classes="hint-text" VerticalAlignment="Center" TextWrapping="NoWrap"
-                   Text="左栏改动先存草稿：改完点「⬅ 应用到左侧」再「✅ 写入系统 hosts」；写入前自动备份。"/>
         <Button Grid.Column="1" Classes="ghost" Content="⬅ 应用到左侧"
                 Command="{Binding ApplyToTargetCommand}"
                 IsEnabled="{Binding CanApplyToTarget}"

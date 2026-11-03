@@ -53,7 +53,7 @@
           <SelectableTextBlock
               Grid.Column="0"
               Classes="section-title"
-              FontSize="13"
+              FontSize="12"
               Foreground="{DynamicResource PrimaryTextBrush}"
               Text="{Binding Header}"
               VerticalAlignment="Center"

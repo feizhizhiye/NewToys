@@ -53,7 +53,7 @@
           </ListBox>
         </Border>
 
-        <TextBlock Grid.Row="3" Text="试跑推荐（同一份 HTML · 按条数与完整度排序）" Classes="hint-text"
+        <TextBlock Grid.Row="3" Text="试跑推荐（同一份 HTML，按条数与完整度排序）" Classes="hint-text"
                    Margin="2,8,0,4"/>
 
         <Border Grid.Row="4" Classes="card" Padding="0">

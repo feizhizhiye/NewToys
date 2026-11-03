@@ -65,7 +65,7 @@
         <!--  简介（可能很长 ⇒ 只在这里滚动）  -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
           <StackPanel Spacing="6">
-            <TextBlock Classes="section-title" Text="简介"/>
+            <TextBlock Classes="field-label" Text="简介"/>
             <TextBlock Text="{Binding CardBook.Intro}"
                        TextWrapping="Wrap"
                        LineHeight="20"

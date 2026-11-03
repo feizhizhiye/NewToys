@@ -84,6 +84,13 @@ public sealed class ToolbarItemDescriptor
     /// <summary>固定宽度（不写 = 由内容决定）。</summary>
     public double? Width { get; init; }
 
+    /// <summary>
+    /// 按钮里**字形的字号**（不写 = 沿用宿主默认 12）。
+    /// <para>只给「纯图标按钮」（<c>＋</c> / <c>←</c> 这类）放大字形用；⛔ 不改按钮高度与内边距，
+    /// 按钮整体尺寸仍由 <c>ToolbarHost</c> 统一给。</para>
+    /// </summary>
+    public double? GlyphSize { get; init; }
+
     /// <summary>悬停提示。</summary>
     public string? ToolTip { get; init; }
 

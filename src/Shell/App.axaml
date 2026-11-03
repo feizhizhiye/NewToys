@@ -492,7 +492,7 @@
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="Height" Value="30"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>

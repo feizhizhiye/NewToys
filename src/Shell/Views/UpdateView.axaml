@@ -18,10 +18,8 @@
     <StackPanel Orientation="Horizontal" Spacing="6">
       <Button Classes="primary" Content="💾 保存地址" Command="{Binding SaveUpdateUrlCommand}" />
       <Button Classes="ghost" Content="🔎 立即检查更新" Command="{Binding CheckUpdateCommand}"
-              IsEnabled="{Binding IsNotBusy}" />
+              IsEnabled="{Binding IsNotBusy}"
+              ToolTip.Tip="只做提示：不会下载、不会替换自身；没填地址就不检查" />
     </StackPanel>
-
-    <TextBlock Classes="hint-text"
-               Text="检查结果只做提示：NewToys 不会自己下载、也不会替换自己。没填地址就真的不检查（不会假装在检查）。" />
   </StackPanel>
 </UserControl>

@@ -54,7 +54,7 @@
                   StrokeJoin="Round" />
           </Border>
           <TextBlock x:Name="CardTitle"
-                     FontSize="14"
+                     FontSize="13"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource PrimaryTextBrush}"
                      VerticalAlignment="Center" />

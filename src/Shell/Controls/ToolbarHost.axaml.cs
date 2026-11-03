@@ -368,7 +368,7 @@ public partial class ToolbarHost : UserControl
         if (d.TextPath != null) Bind(label, TextBlock.TextProperty, src, d.TextPath);
         else if (d.Text != null) label.Text = d.Text;
 
-        var arrow = new TextBlock { Text = "▾", FontSize = 10, VerticalAlignment = VerticalAlignment.Center };
+        var arrow = new TextBlock { Text = "▾", FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
         arrow.Classes.Add("hint-text");
 
         var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
@@ -439,11 +439,16 @@ public partial class ToolbarHost : UserControl
     /// <summary>按钮 / 标签的内容：静态文案 / 动态文案 / 双文案互斥切换。</summary>
     private Control BuildContent(ToolbarItemDescriptor d, object src)
     {
+        // 纯图标按钮靠 GlyphSize 放大字形（按钮高度 / 内边距仍由本宿主统一样式给）。
+        // ⚠️ 不写 GlyphSize 时**不设** FontSize：让内容继续继承宿主样式，其它页面零变化。
+        var glyph = d.GlyphSize;
+
         if (d.AltText != null && d.AltTextPath != null)
         {
             var main = new TextBlock { Text = d.Text ?? "", VerticalAlignment = VerticalAlignment.Center };
-            Bind(main, Visual.IsVisibleProperty, src, "!" + d.AltTextPath);
             var alt = new TextBlock { Text = d.AltText, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
+            if (glyph is { } g1) { main.FontSize = g1; alt.FontSize = g1; }
+            Bind(main, Visual.IsVisibleProperty, src, "!" + d.AltTextPath);
             Bind(alt, Visual.IsVisibleProperty, src, d.AltTextPath);
             var panel = new Panel();
             panel.Children.Add(main);
@@ -454,6 +459,7 @@ public partial class ToolbarHost : UserControl
         if (d.TextPath != null)
         {
             var tb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+            if (glyph is { } g2) tb.FontSize = g2;
             // 🔴 必须显式给 Source：ToolbarHost ⛔ 没有 DataContext（与 Flyout 同一坑），
             //    漏了 Source ⇒ 绑定取不到值 ⇒ 按钮渲染成**空白无字**（v3.60 视频列表两按钮丢字就是这个根因）。
             var binding = new Binding(d.TextPath) { Source = src };
@@ -462,7 +468,9 @@ public partial class ToolbarHost : UserControl
             return tb;
         }
 
-        return new TextBlock { Text = d.Text ?? "", VerticalAlignment = VerticalAlignment.Center };
+        var plain = new TextBlock { Text = d.Text ?? "", VerticalAlignment = VerticalAlignment.Center };
+        if (glyph is { } g3) plain.FontSize = g3;
+        return plain;
     }
 
     private static FlyoutBase BuildFlyout(IReadOnlyList<ToolbarMenuItemDescriptor> items, object src)

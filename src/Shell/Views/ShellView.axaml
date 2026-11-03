@@ -430,7 +430,6 @@
                                                   Margin="8,0,0,0"
                                                   VerticalAlignment="Center"
                                                   Classes="tree-title"
-                                                  FontSize="15"
                                                   Text="{Binding Title}" />
                                           </Grid>
                                       </Button>
@@ -452,7 +451,7 @@
                                                       <TextBlock
                                                           VerticalAlignment="Center"
                                                           Classes="tree-title"
-                                                          FontSize="13"
+                                                          FontSize="12"
                                                           Text="{Binding Title}" />
                                                   </Button>
                                               </DataTemplate>

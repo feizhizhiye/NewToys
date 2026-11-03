@@ -79,7 +79,7 @@
                                    LineHeight="16"/>
                         <TextBlock Classes="hint-text"
                                    Text="{Binding Hint}"
-                                   FontSize="10"
+                                   FontSize="11"
                                    TextTrimming="CharacterEllipsis"
                                    Padding="0"/>
                       </StackPanel>
@@ -94,7 +94,7 @@
                         <DataTemplate>
                           <!--  分类是这棵树的主角 ⇒ 比书源名大一号  -->
                           <TextBlock Text="{Binding Name}"
-                                     FontSize="14"
+                                     FontSize="13"
                                      Foreground="{DynamicResource PrimaryTextBrush}"
                                      TextTrimming="CharacterEllipsis"
                                      VerticalAlignment="Center"

@@ -86,14 +86,14 @@
                               Background="{DynamicResource AccentBrush}" IsVisible="{Binding HasBackup}"/>
                       <Border Width="6" Height="6" CornerRadius="3" VerticalAlignment="Center"
                               Background="{DynamicResource DangerBrush}" IsVisible="{Binding HasFailure}"/>
-                      <Border Width="6" Height="6" CornerRadius="1" VerticalAlignment="Center"
+                      <Border Width="6" Height="6" CornerRadius="3" VerticalAlignment="Center"
                               BorderBrush="{DynamicResource SecondaryTextBrush}" BorderThickness="1"
                               IsVisible="{Binding HasTodo}"/>
-                      <TextBlock Text="今" Classes="hint-text" FontSize="10"
+                      <TextBlock Text="今" Classes="hint-text" FontSize="11"
                                  Foreground="{DynamicResource AccentBrush}" IsVisible="{Binding IsToday}"/>
                     </StackPanel>
 
-                    <TextBlock Grid.Row="2" Classes="hint-text" FontSize="10" TextWrapping="Wrap"
+                    <TextBlock Grid.Row="2" Classes="hint-text" FontSize="11" TextWrapping="Wrap"
                                Text="{Binding Summary}"/>
                   </Grid>
                 </Border>
@@ -174,10 +174,9 @@
           <StackPanel Grid.Row="2" Spacing="6">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBox Width="200" Text="{Binding NewTodoTitle}" PlaceholderText="这一天要备份什么…"/>
-              <Button Classes="primary" Content="＋ 加待办" Command="{Binding AddTodoCommand}"/>
+              <Button Classes="primary" Content="＋ 加待办" Command="{Binding AddTodoCommand}"
+                      ToolTip.Tip="只是备忘，到点需自己去「备份任务」页点「▶ 立即备份」（不会自动执行）"/>
             </StackPanel>
-            <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                       Text="待办只是备忘：到点了自己去「备份任务」页点「▶ 立即备份」（自动执行属后续版本）。"/>
           </StackPanel>
         </Grid>
       </Border>

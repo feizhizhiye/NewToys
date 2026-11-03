@@ -342,13 +342,13 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
     }
 
     /// <summary>音频线程侧：把刚解码的一块字节样本抄进环形缓冲（多声道混成单声道）。</summary>
-    private void PushSamples(byte[] buffer, int offset, int count, WaveFormat format)
+    private void PushSamples(ReadOnlySpan<byte> buffer, WaveFormat format)
     {
         var blockAlign = format.BlockAlign;
         if (blockAlign <= 0) return;
 
         var channels = format.Channels <= 0 ? 1 : format.Channels;
-        var frames = count / blockAlign;
+        var frames = buffer.Length / blockAlign;
         if (frames <= 0) return;
 
         var perChannel = blockAlign / channels;
@@ -358,8 +358,7 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
         {
             for (var f = 0; f < frames; f++)
             {
-                var baseIndex = offset + f * blockAlign;
-                if (baseIndex + blockAlign > buffer.Length) break;
+                var baseIndex = f * blockAlign;
 
                 var sum = 0f;
                 var ok = true;
@@ -382,7 +381,7 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
     }
 
     /// <summary>按位深把一个样本读成 -1~1 的 float（不认识的格式返回 false，频谱自动退化为不出数据）。</summary>
-    private static bool TryReadSample(byte[] buffer, int index, WaveFormat format, out float value)
+    private static bool TryReadSample(ReadOnlySpan<byte> buffer, int index, WaveFormat format, out float value)
     {
         value = 0f;
 
@@ -404,10 +403,10 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
                 if (index + 4 > buffer.Length) return false;
                 if (format.Encoding == WaveFormatEncoding.IeeeFloat)
                 {
-                    value = BitConverter.ToSingle(buffer, index);
+                    value = BitConverter.ToSingle(buffer.Slice(index, 4));
                     return true;
                 }
-                value = BitConverter.ToInt32(buffer, index) / 2147483648f;
+                value = BitConverter.ToInt32(buffer.Slice(index, 4)) / 2147483648f;
                 return true;
 
             case 8:
@@ -451,10 +450,10 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
 
         public WaveFormat WaveFormat => _source.WaveFormat;
 
-        public int Read(byte[] buffer, int offset, int count)
+        public int Read(Span<byte> buffer)
         {
-            var read = _source.Read(buffer, offset, count);
-            if (read > 0) _owner.PushSamples(buffer, offset, read, WaveFormat);
+            var read = _source.Read(buffer);
+            if (read > 0) _owner.PushSamples(buffer[..read], WaveFormat);
             return read;
         }
     }

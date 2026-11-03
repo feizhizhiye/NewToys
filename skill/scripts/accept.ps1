@@ -171,7 +171,7 @@ if (-not $SkipStatic -and $pyExe -and (Test-Path $syncPy)) {
         $se = [int]$Matches[1]; $sw = [int]$Matches[2]
     }
     $sStatus = if ($se -gt 0) { 'FAIL' } elseif ($sw -gt 0) { 'WARN' } else { 'PASS' }
-    Add-Row '文档一致性' '文档 ⇄ src（模块 / 页数 / 路径）' $sStatus ("{0} 阻断 / {1} 告警" -f $se, $sw) $syncOut
+    Add-Row '文档一致性' '文档 ⇄ src（AUTO 块 / 页数 / 路径）' $sStatus ("{0} 阻断 / {1} 告警" -f $se, $sw) $syncOut
     if (-not $Brief) {
         $tag = switch ($sStatus) { 'PASS' { '[PASS] ' } 'WARN' { '[WARN] ' } default { '[FAIL] ' } }
         $color = switch ($sStatus) { 'PASS' { 'Green' } 'WARN' { 'Yellow' } default { 'Red' } }

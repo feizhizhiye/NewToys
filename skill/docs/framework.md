@@ -1,5 +1,6 @@
 # NewToys 框架层（Framework）
 
+> v4.8 · 2026-11-03 · **§4.2 分组表改 AUTO 块** —— 分组 / Key / Order / 图标 全部由 `docs-sync.py --fix` 按 `RegisterModule` 生成（AUTO 块内 ⛔ 手改）；宿组 `system` 行由脚本固定输出。理由：机器事实与人写的说明混在一张表 ⇒ 必然人肉同步。⛔ 未动 `src/`。
 > v4.7 · 2026-11-01 · **查看器框架层新增点登记** —— §11 登记 NT-124：`NewToys.UI/Viewers/`（渲染器族）+ `Shared/Services/IViewerRegistry`（认领契约）+ 新模块 `Module.Viewer` 薄壳。🔴 三条新增点均属框架层，**须用户确认后才可动手**；V2 音视频另需媒体后端拍板。
 > v4.6 · 2026-10-30 · **设置页「滚动自动展开」整体移除** —— 一节开没开**只由点击决定**；`SettingsSection` 删 `UserCollapsed` / `CollapsedByAll`，三层优先级压回两层（点 / 外部寻址）。
 > v4.5 · 2026-10-21 · **过时内容清理** —— §11 已完成项（NT-064/065/066/067/068/075/076/077/078/085）收拢为「已结清」一行，NT-085 状态按台账订正为已完成；版本记录按「只保留最近三次」压缩。
@@ -285,6 +286,7 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 
 ### 4.2 分组现状
 
+<!-- AUTO:framework.groups -->
 | 分组 | Key | Order | 图标 |
 |---|---|---|---|
 | 脚本管理器 | `script` | 20 | `IconPc` |
@@ -296,8 +298,9 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 | 网络阅读 | `reading` | 56 | `IconReading` |
 | 备份中心 | `backup` | 60 | `IconBackup` |
 | 宿主分组（**不渲染**） | `system` | 999 | `IconSettings` |
+<!-- /AUTO:framework.groups -->
 
-> 本表由 `python skill/scripts/docs-sync.py --only menu` 对账（键 / Order / 图标 / 显示名 ⇄ 代码 `RegisterModule`）；增删模块时同步改此表与 `index.md` §二。
+> 本表由 `python skill/scripts/docs-sync.py --fix` 按 `RegisterModule` 生成，⛔ 不要手改块内；增删模块只改 `src/` 后跑一次 `--fix`。
 
 > 🔴 **`system` 是框架保留键**（`ModuleLoader.HostGroupKey` / `AppSettingsRegistration.HiddenGroupKey`）：功能模块⛔ 不得用同名组键 —— `RegisterModule` 同名会复用 + 覆盖 `Title/Order/IsHome` 并补登暂存项 ⇒ 宿主组的设置锚点会被渲染进那个模块（NT-091 踩过，系统工具改用 `system-tools`）。
 

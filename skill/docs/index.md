@@ -1,5 +1,6 @@
 # NewToys 文档地图（Index）
 
+> v1.13 · 2026-11-03 · **AUTO 块：机器事实由脚本生成** —— 「键 / Order / 图标 / 页数」这类机器事实与「状态 / 为什么」混在同一张表 ⇒ 必然人肉同步。改为拆表：`index.md` §二 / `framework.md` §4.2 / 台账 §2.3 三处的机器列包进 `<!-- AUTO:… -->` 块，由 `docs-sync.py --fix` 按 `RegisterModule` / `RegisterFunction` 生成（⛔ 手改块内）；块外只留人写的状态表（index §二 状态列原样搬运，台账「非模块行」手写，合计不再手写）。检查项由「逐格对账」改为「块内容 ⇄ 代码」，不一致即 ERROR 并提示跑 `--fix`。
 > v1.12 · 2026-11-03 · **文档 ⇄ src 五方对账** —— `docs-sync.py` 新增 `menu`（模块清单：键 / 显示名 / Order / 图标 / 页数，四处文档 ⇄ 代码 `RegisterModule` / `RegisterFunction`）与 `paths`（文档路径引用 ⇄ src 实际文件）；已并入 `accept.ps1`。同步修正：framework §4.2 分组表补 4 个模块、台账基线表补 3 个模块（37 → 52）、模块 md 页数 3 处、系统工具组键 `system` → `system-tools`、显示名定为「脚本管理器」（v3.86 的「脚本中心」作废）。
 > v1.11 · 2026-11-03 · **省 token 工具** —— 新增 `skill/scripts/ctx.py`（任务上下文打包：一次输出铁律 + 模块行 + 相关章节 + 任务卡，替代逐份 Read）与 `skill/scripts/docs-sync.py`（Key 三方对账 / 卡窗口 / NT 编号）；§三 顶部加两行路由；`accept.ps1 -Brief` 一行结论。
 > v1.10 · 2026-11-03 · **`ui.md` 新增 §12 视觉克制与判断清单** —— 「该不该加元素 / 文案 / 字号 / 边框圆角阴影 / 动画 / 对齐 / 减少判断 / 状态可达性」八条 + 交付自检；不可静态检测，改页面后人工扫。§三 补一行路由。
@@ -27,20 +28,35 @@
 
 ## 二、模块清单
 
-| 模块 | 程序集 | 模块键 | 菜单 Key 前缀 | 文档 | 状态 |
-|---|---|---|---|---|---|
-| **脚本管理器**（显示名保持原名；v3.86 曾定改「脚本中心」，2026-11-03 撤销） | `Module.ScriptManager` | `script` | `script-*` + `web-scrape`/`web-rule-editor`/`web-crawl` | `modules/script-manager.md` | ✅ NT-089 S1 已实施；命令库 / 收藏夹（NT-091）与软件包（NT-096）已迁出 ⇒ 剩 6 页 + 设置（脚本库 / 集合 / 信息面板 / 抓取三页） |
-| 网络工具 | `Module.WebTools` | `web` | `web-*` | `modules/web-tools.md` | ✅ 稳定（**4 页 + 设置**：HTTP 测试 / 网址收藏 / Ping / Hosts 管理〔双列表工作台〕）；🔄 **v3.86 起收窄为「网络配置与诊断」**（三页迁出至 script）；出口代理（NT-093）仍是草稿 |
-| 视频工具 | `Module.VideoTools` | `video` | `video-*` | `modules/video-tools.md` | ✅ 稳定（3 页 + 设置） |
-| **系统工具**（v3.86 立项 / v3.87 定位收紧） | `Module.SystemTools` | `system-tools`（🔴 组键，非页 Key） | `script-commands` / `script-favorites` / `script-packages` / `system-*` | `modules/system-tools.md` | ✅ 已实施（NT-091 建模块 · NT-096 收编软件包；⏳ 待 build 验收） |
-| 媒体资产 | `Module.MediaAssets` | `assets` | `assets-*` | `modules/media-assets.md` | ✅ 稳定（8 页 + 设置） |
-| **备份中心**（v3.92 立项） | `Module.BackupCenter` | `backup` | `backup-*` | `modules/backup-center.md` | ✅ **NT-117 + NT-119 + NT-118 + NT-120 已实施**（⏳ 待 build 验收）：4 页 + 设置（7z 加密归档 / 包清单 / 还原 / 主密码密码库 / 备份日历 / **邮件分卷投递 + 备份邮件页**）；数据落 SQLite `store\backup\backup.db`；WebDAV 属 v2。需求 §6.8 |
-| **查看器**（v3.102 立项） | `Module.Viewer`（薄壳）+ `NewToys.UI/Viewers/`（渲染器）+ `NewToys.UI/Readers/`（阅读器壳） | `viewer` | `viewer-*` | `modules/viewer.md` | ✅ **V1 已验收 + V2 已实施（NT-134，⏳ 待 build）**：长文本阅读器（目录 / 书签 / 全书搜索 / 自定义章节正则 + 排版）/ 短文本与源码 / 图片 / **压缩包内图片（zip·rar·7z）** / **本地音乐播放器（列表 / 音量 / 单曲·随机 / LRC）**；⛔ 视频走系统播放器，⛔ PDF·EPUB 未做。需求 §6.9 |
-| **网络阅读**（v3.105） | `Module.Reading` | `reading` | `reading-*` / `settings-reading` | `modules/reading.md` | ✅ **批1 + 批2 + 批3 已实施（NT-125 / NT-126 / NT-127，5 页 + 1 设置页**：书源 / 发现 / 网上搜索 / 书架 / 阅读 / 阅读设置）**：legado 书源导入（幂等）+ 规则求值器（选择器 / `@css:` / `@json:` / `\|\|` `&&` `##` / `{{}}` / `@put@get`）+ **`@js:` JS 兼容层（Jint + `java.*` 桥）** + 四段管线（搜索→详情→目录→正文）+ **沉浸式阅读页（进度 / 排版）**；发现页支持换行分隔分类表与分类翻页。正文渲染复用 `NewToys.UI/Viewers/TextViewer`。可跑率 67.4% → **96.3%**，剩余为 WebView 专有。需求 §6.10 |
+<!-- AUTO:index.modules -->
+| 模块 | 程序集 | 模块键 | 页数 | 文档 |
+|---|---|---|---|---|
+| 脚本管理器 | `Module.ScriptManager` | `script` | 6 + 1 | `modules/script-manager.md` |
+| 系统工具 | `Module.SystemTools` | `system-tools` | 3 + 1 | `modules/system-tools.md` |
+| 网络工具 | `Module.WebTools` | `web` | 4 + 1 | `modules/web-tools.md` |
+| 视频工具 | `Module.VideoTools` | `video` | 3 + 1 | `modules/video-tools.md` |
+| 媒体资产 | `Module.MediaAssets` | `assets` | 8 + 1 | `modules/media-assets.md` |
+| 查看器 | `Module.Viewer` | `viewer` | 3 | `modules/viewer.md` |
+| 网络阅读 | `Module.Reading` | `reading` | 5 + 1 | `modules/reading.md` |
+| 备份中心 | `Module.BackupCenter` | `backup` | 4 + 1 | `modules/backup-center.md` |
+<!-- /AUTO:index.modules -->
+
+> 上表由 `python skill/scripts/docs-sync.py --fix` 生成（⛔ 不要手改块内）；下表是人的判断，手写。
+
+| 模块 | 状态 |
+|---|---|
+| **脚本管理器**（显示名保持原名；v3.86 曾定改「脚本中心」，2026-11-03 撤销） | ✅ NT-089 S1 已实施；命令库 / 收藏夹（NT-091）与软件包（NT-096）已迁出 ⇒ 剩 6 页 + 设置（脚本库 / 集合 / 信息面板 / 抓取三页） |
+| 网络工具 | ✅ 稳定（**4 页 + 设置**：HTTP 测试 / 网址收藏 / Ping / Hosts 管理〔双列表工作台〕）；🔄 **v3.86 起收窄为「网络配置与诊断」**（三页迁出至 script）；出口代理（NT-093）仍是草稿 |
+| 视频工具 | ✅ 稳定（3 页 + 设置） |
+| **系统工具**（v3.86 立项 / v3.87 定位收紧） | ✅ 已实施（NT-091 建模块 · NT-096 收编软件包；⏳ 待 build 验收） |
+| 媒体资产 | ✅ 稳定（8 页 + 设置） |
+| **备份中心**（v3.92 立项） | ✅ **NT-117 + NT-119 + NT-118 + NT-120 已实施**（⏳ 待 build 验收）：4 页 + 设置（7z 加密归档 / 包清单 / 还原 / 主密码密码库 / 备份日历 / **邮件分卷投递 + 备份邮件页**）；数据落 SQLite `store\backup\backup.db`；WebDAV 属 v2。需求 §6.8 |
+| **查看器**（v3.102 立项） | ✅ **V1 已验收 + V2 已实施（NT-134，⏳ 待 build）**：长文本阅读器（目录 / 书签 / 全书搜索 / 自定义章节正则 + 排版）/ 短文本与源码 / 图片 / **压缩包内图片（zip·rar·7z）** / **本地音乐播放器（列表 / 音量 / 单曲·随机 / LRC）**；⛔ 视频走系统播放器，⛔ PDF·EPUB 未做。需求 §6.9 |
+| **网络阅读**（v3.105） | ✅ **批1 + 批2 + 批3 已实施（NT-125 / NT-126 / NT-127，5 页 + 1 设置页**：书源 / 发现 / 网上搜索 / 书架 / 阅读 / 阅读设置）**：legado 书源导入（幂等）+ 规则求值器（选择器 / `@css:` / `@json:` / `\|\|` `&&` `##` / `{{}}` / `@put@get`）+ **`@js:` JS 兼容层（Jint + `java.*` 桥）** + 四段管线（搜索→详情→目录→正文）+ **沉浸式阅读页（进度 / 排版）**；发现页支持换行分隔分类表与分类翻页。正文渲染复用 `NewToys.UI/Viewers/TextViewer`。可跑率 67.4% → **96.3%**，剩余为 WebView 专有。需求 §6.10 |
 
 > **应用级设置 / 首页 / 功能清单不属于模块**：它们归**框架层** `src/Shell`（`Module.Settings` 已于 NT-062 撤销），规格见 **`framework.md` §4.6**。⛔ 不要再为它们建 `modules/*.md`。
 
-**新增模块** = 建程序集（`framework.md` §3.3 七步）+ **新建 `modules/<模块>.md`**（照 7 节模板，含 §2.5 操作逻辑）+ 建 `backlog/<模块>/`。
+**新增模块** = 建程序集（`framework.md` §3.3 七步）+ **新建 `modules/<模块>.md`**（照 7 节模板，含 §2.5 操作逻辑）+ 建 `backlog/<模块>/` + **跑一次 `python skill/scripts/docs-sync.py --fix`** 刷新 §二 AUTO 表（⛔ 不手改表）。
 
 ### 模块 md 模板（7 节，固定）
 
@@ -62,7 +78,7 @@
 | 任务 | 读什么 |
 |---|---|
 | **会话开始 / 要读多份文档** | **`python skill/scripts/ctx.py --task <feature\|ui\|interaction\|fix\|usage\|verify\|card> --module <模块>`**（一次打包铁律 + 模块行 + 相关章节 + 任务卡；⛔ 逐份 Read）；精读单节 = `--doc <文件> --section <节号>` |
-| 文档与代码是否漂移 / 该淘汰哪张卡 | `python skill/scripts/docs-sync.py`（**五方对账**：菜单 Key · 模块清单「键/显示名/Order/图标/页数」· 路径引用 · 卡窗口 · NT 编号；只读。已并入 `accept.ps1`，交付时自动跑） |
+| 文档与代码是否漂移 / 该淘汰哪张卡 | `python skill/scripts/docs-sync.py`（**AUTO 块**：index §二 / framework §4.2 / 台账 §2.3 由 `--fix` 按代码生成 · 菜单 Key · 路径引用 · 卡窗口 · NT 编号；默认只读，已并入 `accept.ps1`） |
 | **建立全局 / 判断边界与功能范围** | **`NewToys-需求摘要.md`**（150 行）→ 不够再按它 §九 定位原文 |
 | 改某模块的一个页面 | `modules/<模块>.md` §2.5（操作逻辑）→ §3（实现）→ `ui.md`（列表页 / 详情卡 / 工具条对应节） |
 | 改交互行为 / 确认弹窗 / 状态反馈 | `ui.md` §10 → `modules/<模块>.md` §2.5 |

@@ -2,11 +2,17 @@
 """NewToys 文档同步检查（docs-sync）
 
 把「改交互必须双写」「任务卡滑动窗口」「台账 ↔ 卡双向」这些**靠人记的纪律**
-变成可跑的静态检查。只读，⛔ 不修改任何文件。
+变成可跑的静态检查。默认只读；只有 `--fix` 会写文件，且**只重写 AUTO 块内部**。
 
     python skill/scripts/docs-sync.py            # 全部检查，WARN 不阻断
     python skill/scripts/docs-sync.py --strict   # 有 ERROR 时退出码 1
     python skill/scripts/docs-sync.py --only keys
+    python skill/scripts/docs-sync.py --fix      # 按 src 重新生成三处 AUTO 块
+
+AUTO 块（机器事实由脚本生成，块外是人写的判断；⛔ 不要手改块内）
+    index.modules     index.md §二      模块 / 程序集 / 模块键 / 页数 / 文档
+    framework.groups  framework.md §4.2 分组 / Key / Order / 图标
+    ledger.pages      台账 §2.3          模块 / 菜单项 / 功能页 / 设置页
 
 检查项
     keys    菜单 Key：代码 ⇄ modules/<模块>.md ⇄ 软件说明书
@@ -51,9 +57,6 @@ RE_REG_MOD = re.compile(
 RE_GROUPKEY = re.compile(r'const\s+string\s+GroupKey\s*=\s*"([a-z0-9-]+)"')
 RE_MD_PAGES = re.compile(r"##\s*2\.\s*当前功能（(\d+)\s*页(?:\s*\+\s*(\d+)\s*设置页)?）")
 RE_MD_HEAD = re.compile(r"模块键\*\*：`([a-z0-9-]+)`.*?Order\s*\*{0,2}(\d+)\*{0,2}.*?图标\s*`([A-Za-z]+)`")
-RE_FW_ROW = re.compile(r"^\|\s*([^|]+?)\s*\|\s*`([a-z0-9-]+)`\s*\|\s*(\d+)\s*\|\s*`([A-Za-z]+)`\s*\|")
-RE_LEDGER_ROW = re.compile(r"^\|\s*([^|（]+?)（?`([a-z0-9-]+)`）?[^|]*\|\s*(\d+)")
-RE_IDX_ROW = re.compile(r"^\|\s*([^|]+?)\s*\|\s*`Module\.[A-Za-z]+`[^|]*\|\s*`([a-z0-9-]+)`")
 RE_PATH_TOK = re.compile(r"`([A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)+\.(?:cs|axaml))`")
 
 ERRORS: list[str] = []
@@ -65,6 +68,117 @@ def read(p: Path) -> str:
         return p.read_text(encoding="utf-8-sig")
     except OSError:
         return ""
+
+
+def read_raw(p: Path) -> str:
+    """原样读（保留 CRLF）；⛔ 别用 read_text 默认模式，否则写回会打乱行尾。"""
+    try:
+        return p.read_text(encoding="utf-8-sig", newline="")
+    except OSError:
+        return ""
+
+
+def write_raw(p: Path, text: str) -> None:
+    p.write_text(text, encoding="utf-8", newline="")
+
+
+# ── AUTO 块 ───────────────────────────────────────────────────────────────
+AUTO_INDEX = "index.modules"
+AUTO_FW = "framework.groups"
+AUTO_LEDGER = "ledger.pages"
+AUTO_TARGETS = (
+    ("index.md", AUTO_INDEX),
+    ("framework.md", AUTO_FW),
+    ("NewToys-项目状态与路线图.md", AUTO_LEDGER),
+)
+HOST_GROUP = ("宿主分组（**不渲染**）", "`system`", "999", "`IconSettings`")
+
+
+def _row(*cells: str) -> str:
+    return "| " + " | ".join(cells) + " |"
+
+
+def _table(headers: list[str], rows: list[list[str]]) -> str:
+    out = [_row(*headers), "|" + "---|" * len(headers)]
+    out += [_row(*r) for r in rows]
+    return "\n".join(out)
+
+
+def _pages_cell(g: dict) -> str:
+    return f"{g['pages']} + {g['settings']}" if g["settings"] else str(g["pages"])
+
+
+def expected_blocks() -> dict[str, str]:
+    """按 src 现状生成三处 AUTO 块的期望内容（纯机器事实，⛔ 不含状态 / 说明）。"""
+    groups = code_groups()
+    ordered = sorted((g for g in groups.values() if g["key"]), key=lambda g: g["order"])
+    asm = {doc: d for d, doc in MODULE_DIR.items()}
+    return {
+        AUTO_INDEX: _table(
+            ["模块", "程序集", "模块键", "页数", "文档"],
+            [[g["title"], f"`{asm.get(n, 'Module.' + n)}`", f"`{g['key']}`",
+              _pages_cell(g), f"`modules/{n}.md`"] for n, g in
+             sorted(((n, g) for n, g in groups.items() if g["key"]), key=lambda kv: kv[1]["order"])],
+        ),
+        AUTO_FW: _table(
+            ["分组", "Key", "Order", "图标"],
+            [[g["title"], f"`{g['key']}`", str(g["order"]), f"`{g['icon']}`"] for g in ordered]
+            + [list(HOST_GROUP)],
+        ),
+        AUTO_LEDGER: _table(
+            ["模块", "菜单项", "功能页", "设置页"],
+            [[f"{g['title']}（`{g['key']}`）", str(g["pages"] + g["settings"]),
+              str(g["pages"]), str(g["settings"])] for g in ordered]
+            + [["**模块小计**",
+                f"**{sum(g['pages'] + g['settings'] for g in ordered)}**",
+                f"**{sum(g['pages'] for g in ordered)}**",
+                f"**{sum(g['settings'] for g in ordered)}**"]],
+        ),
+    }
+
+
+def block_span(text: str, bid: str) -> tuple[int, int] | None:
+    """只认**独占一行的**标记：正文里提到 `<!-- AUTO:x -->` 不能当成块起点。"""
+    begin = re.compile(rf"^<!-- AUTO:{re.escape(bid)} -->[ \t\r]*$", re.M)
+    end = re.compile(rf"^<!-- /AUTO:{re.escape(bid)} -->[ \t\r]*$", re.M)
+    mb = begin.search(text)
+    if not mb:
+        return None
+    me = end.search(text, mb.end())
+    if not me:
+        return None
+    return mb.end(), me.start()
+
+
+def newline_of(text: str) -> str:
+    """按**多数行**判断行尾；⛔ 别用「存在即 CRLF」，一处残留 CR 会把整个块改成 CRLF。"""
+    return "\r\n" if text.count("\r\n") > text.count("\n") // 2 else "\n"
+
+
+def check_auto(fix: bool) -> None:
+    print("── 1b AUTO 块 ⇄ src（模块 / 程序集 / 页数 / Order / 图标）──")
+    exp = expected_blocks()
+    for fname, bid in AUTO_TARGETS:
+        p = DOCS / fname
+        raw = read_raw(p)
+        if not raw:
+            ERRORS.append(f"读不到 {fname}")
+            continue
+        span = block_span(raw, bid)
+        if span is None:
+            ERRORS.append(f"{fname} 缺 AUTO 块标记：<!-- AUTO:{bid} --> … <!-- /AUTO:{bid} -->")
+            continue
+        cur = raw[span[0]:span[1]].replace("\r\n", "\n").strip("\n")
+        want = exp[bid]
+        if cur == want:
+            print(f"   {fname:<28} AUTO:{bid:<18} 一致")
+            continue
+        if not fix:
+            ERRORS.append(f"{fname} AUTO:{bid} 与 src 不一致 ⇒ 跑 `python skill/scripts/docs-sync.py --fix`")
+            continue
+        nl = newline_of(raw)
+        write_raw(p, raw[:span[0]] + nl + want.replace("\n", nl) + nl + raw[span[1]:])
+        print(f"   {fname:<28} AUTO:{bid:<18} 已重写")
 
 
 def code_keys() -> tuple[dict[str, set[str]], dict[str, str]]:
@@ -160,49 +274,14 @@ def check_keys() -> None:
     print(f"   代码页 Key {len(all_code)} 个 ｜ 模块 md 命中 {total_md} ｜ 说明书命中 {len(all_code) - len(miss_manual)}")
 
 
-def check_menu() -> None:
-    print("── 1b 模块清单四方对账（代码 ⇄ framework §4.2 ⇄ index §二 ⇄ 台账 ⇄ 模块 md）──")
+def check_menu(fix: bool) -> None:
     groups = code_groups()
     if not groups:
         WARNS.append("未能从 src 解析出任何 RegisterModule")
         return
-    by_key = {g["key"]: (name, g) for name, g in groups.items() if g["key"]}
+    check_auto(fix)
 
-    # (a) framework.md §4.2 分组现状表
-    fw_rows = {}
-    for line in read(DOCS / "framework.md").splitlines():
-        if m := RE_FW_ROW.match(line):
-            fw_rows[m.group(2)] = (m.group(1).strip("* "), int(m.group(3)), m.group(4))
-    for k, (name, g) in by_key.items():
-        if k not in fw_rows:
-            ERRORS.append(f"framework.md §4.2 分组现状缺模块 `{k}`（{g['title']} / Order {g['order']} / {g['icon']}）")
-        else:
-            _n, order, icon = fw_rows[k]
-            if order != g["order"]:
-                ERRORS.append(f"framework.md §4.2 `{k}` Order 写 {order}，代码 {g['order']}")
-            if icon != g["icon"]:
-                ERRORS.append(f"framework.md §4.2 `{k}` 图标写 `{icon}`，代码 `{g['icon']}`")
-    extra = set(fw_rows) - set(by_key) - {"system"}
-    if extra:
-        ERRORS.append(f"framework.md §4.2 有、代码无分组：{', '.join(sorted(extra))}")
-
-    # (b) index.md §二 模块清单
-    idx_seen = set()
-    for line in read(DOCS / "index.md").splitlines():
-        m = RE_IDX_ROW.match(line)
-        if not m:
-            continue
-        idx_seen.add(m.group(2))
-        hit = by_key.get(m.group(2))
-        if not hit:
-            WARNS.append(f"index.md §二 有 `{m.group(2)}`，代码无此分组")
-        elif hit[1]["title"] not in m.group(1):
-            WARNS.append(f"index.md §二 `{m.group(2)}` 显示名写「{m.group(1).strip()}」，代码「{hit[1]['title']}」")
-    for k in by_key:
-        if k not in idx_seen:
-            ERRORS.append(f"index.md §二 模块清单缺 `{k}`（{by_key[k][1]['title']}）")
-
-    # (c) 模块 md 头部（键 / Order / 图标）+ §2 页数
+    # 模块 md 头部（键 / Order / 图标）+ §2 页数：散在散文里，AUTO 化不了，仍逐项对账
     for name, g in sorted(groups.items()):
         md = DOCS / "modules" / f"{name}.md"
         if not md.exists():
@@ -219,27 +298,14 @@ def check_menu() -> None:
         else:
             WARNS.append(f"modules/{name}.md 头部未按模板写「模块键 / Order / 图标」")
         if p := RE_MD_PAGES.search(t):
-            want = g["pages"] + g["settings"]
             if int(p.group(1)) != g["pages"]:
                 ERRORS.append(f"modules/{name}.md §2 写 {p.group(1)} 页，代码功能页 {g['pages']} 个")
             if g["settings"] and p.group(2) is None:
                 WARNS.append(f"modules/{name}.md §2 未写「+ {g['settings']} 设置页」，代码有设置页")
         else:
             WARNS.append(f"modules/{name}.md §2 标题未按「## 2. 当前功能（N 页 + M 设置页）」写")
-
-    # (d) 台账基线表（菜单项数）
-    ledger = {}
-    for line in read(DOCS / "NewToys-项目状态与路线图.md").splitlines():
-        if m := RE_LEDGER_ROW.match(line):
-            ledger[m.group(2)] = int(m.group(3))
-    for k, (name, g) in by_key.items():
-        if k not in ledger:
-            ERRORS.append(f"台账「一、当前基线」表缺模块 `{k}`")
-        elif ledger[k] != g["pages"] + g["settings"]:
-            ERRORS.append(f"台账基线 `{k}` 写 {ledger[k]} 个菜单项，代码 {g['pages'] + g['settings']} 个")
-
-    print(f"   代码模块 {len(groups)} ｜ framework 表 {len(fw_rows) - 1} 行 ｜ index 命中 {len(idx_seen)} ｜ 台账 {len(ledger)} 行")
-    print("   " + " ｜ ".join(f"{g['key']}={g['pages']}+{g['settings']}" for g in groups.values()))
+    print("   模块 " + " ｜ ".join(f"{g['key']}={g['pages']}+{g['settings']}"
+                                  for g in sorted(groups.values(), key=lambda g: g["order"])))
 
 
 def check_paths() -> None:
@@ -326,20 +392,23 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="NewToys 文档同步检查")
     ap.add_argument("--only", choices=sorted(CHECKS))
     ap.add_argument("--strict", action="store_true", help="有 ERROR 时退出码 1")
+    ap.add_argument("--fix", action="store_true", help="按 src 重写 AUTO 块（只写块内）")
     a = ap.parse_args()
 
     for name, fn in CHECKS.items():
         if a.only and name != a.only:
             continue
-        fn()
+        fn(a.fix) if name == "menu" else fn()
         print()
 
     for e in ERRORS:
         print(f"[ERROR] {e}")
     for w in WARNS:
         print(f"[WARN]  {w}")
-    print(f"\n结果：ERROR {len(ERRORS)} ｜ WARN {len(WARNS)} ｜ 只读检查，不改文件")
-    return 1 if (a.strict and ERRORS) else 0
+    tail = "（--fix 已重写 AUTO 块）" if a.fix else "只读检查，不改文件"
+    print(f"\n结果：ERROR {len(ERRORS)} ｜ WARN {len(WARNS)} ｜ {tail}")
+    return 1 if ((a.strict or a.fix) and ERRORS) else 0
+
 
 
 if __name__ == "__main__":

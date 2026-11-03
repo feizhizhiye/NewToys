@@ -5,7 +5,6 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using NewToys.Shared.Services;
-using NewToys.UI.Viewers;   // 临时：TextViewer 尚未下沉（批 3 后删除）
 
 namespace NewToys.Viewer.Controls;
 
@@ -20,18 +19,17 @@ public enum ViewerKind
     Image = 2,
     /// <summary>音频（本地音乐播放器）。</summary>
     Audio = 3,
-    /// <summary>长文本阅读器（章节 / 目录 / 书签）。</summary>
-    Reader = 4,
 }
-
-/// <summary>阅读位置（章 + 章内比例），宿主用来存进度。</summary>
-public readonly record struct ViewerReaderState(int ChapterIndex, double Ratio);
 
 /// <summary>
 /// 查看器外壳：按扩展名选渲染器并装载，记录阅读进度。
 /// <para>
-/// 🔴 消费方只需 <see cref="Open"/> / <see cref="OpenReader"/> / <see cref="ReadProgress"/>；媒体资产 / 视频工具将来要
-/// 「用查看器打开」，直接 new 本控件放进自己的面板即可，⛔ 不必依赖 <c>Module.Viewer</c>。
+/// 🔴 文档定位：本外壳只管「短文本 / 源码 / HTML / 图片 / 音频」的显示；
+/// 长文本阅读（txt / 网文，含目录 / 书签 / 听书）在「网络阅读」模块（<c>Module.Reading</c> 的 ReaderShell）。
+/// </para>
+/// <para>
+/// 🔴 消费方只需 <see cref="Open"/>；媒体资产 / 视频工具将来要「用查看器打开」，
+/// 直接 new 本控件放进自己的面板即可，⛔ 不必依赖 <c>Module.Viewer</c>。
 /// </para>
 /// <para>
 /// ⛔ 本类不写文件、不碰配置 —— 最近打开 / 位置记忆 / 压缩包遍历由宿主（<c>Module.Viewer</c>）负责。
@@ -44,12 +42,6 @@ public partial class ViewerHost : UserControl
         ".json", ".xml", ".csv", ".ini", ".cfg", ".conf",
         ".cs", ".py", ".ps1", ".js", ".ts", ".sql", ".bat", ".cmd", ".yaml", ".yml", ".toml",
         ".html", ".htm",
-    };
-
-    /// <summary>走阅读器壳的长文本（章节 / 目录 / 书签）。</summary>
-    private static readonly string[] ReaderExtensions =
-    {
-        ".txt", ".md", ".markdown", ".log",
     };
 
     private static readonly string[] ImageExtensions =
@@ -78,13 +70,6 @@ public partial class ViewerHost : UserControl
     /// <summary>短文本阅读进度（0~1）；其它类型恒 0。</summary>
     public double ReadProgress => _current is TextViewer t ? t.ReadProgress : 0;
 
-    /// <summary>长文本阅读位置（没有则 null）。</summary>
-    public ViewerReaderState? ReaderState =>
-        _current is ReaderShell r ? new ViewerReaderState(r.Position.ChapterIndex, r.Position.Ratio) : null;
-
-    /// <summary>当前阅读器（宿主接事件用）。</summary>
-    public ReaderShell? Reader => _current as ReaderShell;
-
     /// <summary>当前音频控件（宿主接事件用）。</summary>
     public AudioPlayer? Audio => _current as AudioPlayer;
 
@@ -100,7 +85,6 @@ public partial class ViewerHost : UserControl
         var ext = Path.GetExtension(path ?? "").ToLowerInvariant();
         if (Array.IndexOf(ImageExtensions, ext) >= 0) return ViewerKind.Image;
         if (Array.IndexOf(AudioExtensions, ext) >= 0) return ViewerKind.Audio;
-        if (Array.IndexOf(ReaderExtensions, ext) >= 0) return ViewerKind.Reader;
         if (Array.IndexOf(TextExtensions, ext) >= 0) return ViewerKind.Text;
         return ViewerKind.None;
     }
@@ -118,16 +102,15 @@ public partial class ViewerHost : UserControl
         return ext is ".zip" or ".rar" or ".7z" or ".cbz" or ".cbr";
     }
 
-    /// <summary>是否「索引书」目录文件（reading 模块落盘的 index.json，同目录须有 chapters/）。</summary>
-    public static bool IsReaderIndex(string path)
+    /// <summary>是否长文本阅读扩展名（txt / md / log）—— 本模块 ⛔ 不再阅读，提示去网络阅读。</summary>
+    public static bool IsLongFormText(string path)
     {
-        if (!string.Equals(Path.GetFileName(path), "index.json", StringComparison.OrdinalIgnoreCase)) return false;
-        var dir = Path.GetDirectoryName(path ?? "");
-        return dir is not null && Directory.Exists(Path.Combine(dir, "chapters"));
+        var ext = Path.GetExtension(path ?? "").ToLowerInvariant();
+        return ext is ".txt" or ".md" or ".markdown" or ".log";
     }
 
     /// <summary>
-    /// 打开文件（短文本 / 图片 / 音频）。长文本请走 <see cref="OpenReader"/>。
+    /// 打开文件（短文本 / 图片 / 音频）。
     /// <para><paramref name="progress"/> = 上次读到哪（0~1）；<paramref name="audioBackend"/> 为音频播放后端工厂。</para>
     /// </summary>
     public bool Open(string path, double progress, out string error, Func<IAudioPlayback?>? audioBackend = null)
@@ -139,7 +122,9 @@ public partial class ViewerHost : UserControl
         var kind = KindOf(path);
         if (kind == ViewerKind.None)
         {
-            error = "不支持的类型：" + Path.GetExtension(path);
+            error = IsLongFormText(path)
+                ? "长文本阅读已并入「网络阅读」—— 到那边点「📂 本地 TXT」打开。"
+                : "不支持的类型：" + Path.GetExtension(path);
             return false;
         }
 
@@ -187,10 +172,6 @@ public partial class ViewerHost : UserControl
                 _current = player;
                 break;
             }
-
-            case ViewerKind.Reader:
-                error = "长文本请用阅读器打开（宿主判断扩展名后调用 OpenReader）。";
-                return false;
         }
 
         Kind = kind;
@@ -198,43 +179,6 @@ public partial class ViewerHost : UserControl
         ContentHost.Content = _current;
         EmptyPanel.IsVisible = false;
         Opened?.Invoke(this, path);
-        return true;
-    }
-
-    /// <summary>打开长文本阅读器（文本 + 章节切片 + 续读位置）。</summary>
-    public bool OpenReader(string path, string text, IReadOnlyList<ReaderChapter> chapters,
-        ViewerReaderState state, out string error)
-    {
-        Release();
-
-        var shell = new ReaderShell();
-        if (!shell.Load(text, chapters, new ReaderPosition(state.ChapterIndex, state.Ratio), out error))
-            return false;
-
-        _current = shell;
-        Kind = ViewerKind.Reader;
-        CurrentPath = path;
-        ContentHost.Content = shell;
-        EmptyPanel.IsVisible = false;
-        Opened?.Invoke(this, path);
-        return true;
-    }
-
-    /// <summary>打开「索引书」（index.json + chapters/NNNN.txt；章内容按需读文件）+ 续读位置。</summary>
-    public bool OpenReaderIndex(string indexPath, ViewerReaderState state, out string error)
-    {
-        Release();
-
-        var shell = new ReaderShell();
-        if (!shell.LoadIndex(indexPath, new ReaderPosition(state.ChapterIndex, state.Ratio), out error))
-            return false;
-
-        _current = shell;
-        Kind = ViewerKind.Reader;
-        CurrentPath = indexPath;
-        ContentHost.Content = shell;
-        EmptyPanel.IsVisible = false;
-        Opened?.Invoke(this, indexPath);
         return true;
     }
 
@@ -285,10 +229,6 @@ public partial class ViewerHost : UserControl
     {
         if (_current is TextViewer t) t.ApplyTypography(fontSize, lineSpacing, padding);
     }
-
-    /// <summary>阅读器排版下发（长文本）。</summary>
-    public void ApplyReaderTypography(ReaderTypography typography)
-        => (_current as ReaderShell)?.ApplyTypography(typography);
 
     // ---------- 图片操作（图片类型下有效，其余忽略） ----------
 

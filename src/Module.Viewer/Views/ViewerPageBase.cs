@@ -25,12 +25,11 @@ namespace NewToys.Viewer.Views;
 /// VM ⛔ 不碰 StorageProvider、⛔ 不 new 控件。
 /// <para>
 /// 🔴 子类 XAML 必须给这些元件起同名：<c>Host</c> / <c>RecentList</c> / <c>ArchiveList</c> /
-/// <c>RulePanel</c> / <c>RuleList</c> / <c>RuleNameBox</c> / <c>RulePatternBox</c> / <c>SampleBox</c> /
-/// <c>TestResult</c> / <c>HistoryPanel</c> / <c>SplitGrid</c> / <c>SectionBox</c>。基类按名字取控件（XAML 生成的字段在子类里，基类拿不到）。
+/// <c>HistoryPanel</c> / <c>SplitGrid</c> / <c>SectionBox</c>。基类按名字取控件（XAML 生成的字段在子类里，基类拿不到）。
 /// </para>
 /// <para>
 /// 🔴 本类不做范围判断 —— 收不收这个文件由 <see cref="ViewerViewModel.TryRouteElsewhere"/> 决定，
-/// 不属于本页的文件会转去目标页。
+/// 不属于本页的文件会转去目标页。长文本阅读（txt / md / log）已并入「网络阅读」，本页打开时给指引提示。
 /// </para>
 /// </summary>
 public abstract class ViewerPageBase : UserControl
@@ -51,23 +50,13 @@ public abstract class ViewerPageBase : UserControl
     private long _lastWheelTick;                                              // 滚轮翻页节流（触控板防连翻）
     private bool _suppress;
 
-    private string _readerPath = "";
-    private List<ReaderBookmark> _bookmarks = new();
-    private ReaderShell? _wiredReader;
-
     private ViewerHost? _host;
     private Grid? _splitGrid;
     private ListBox? _recentList;
     private ListBox? _archiveList;
     private ComboBox? _sectionBox;
-    private Border? _rulePanel;
     private Border? _historyPanel;
     private TopLevel? _historyDismissHost;
-    private ListBox? _ruleList;
-    private TextBox? _ruleNameBox;
-    private TextBox? _rulePatternBox;
-    private TextBox? _sampleBox;
-    private TextBlock? _testResult;
 
     private readonly List<Bitmap> _splitBitmaps = new();
     private bool _splitActive;        // 网格当前是否真的在显示（区分「VM 想开」与「已铺好」）
@@ -102,19 +91,7 @@ public abstract class ViewerPageBase : UserControl
 
     private ComboBox SectionBox => _sectionBox ??= Find<ComboBox>("SectionBox");
 
-    private Border RulePanel => _rulePanel ??= Find<Border>("RulePanel");
-
     private Border HistoryPanel => _historyPanel ??= Find<Border>("HistoryPanel");
-
-    private ListBox RuleList => _ruleList ??= Find<ListBox>("RuleList");
-
-    private TextBox RuleNameBox => _ruleNameBox ??= Find<TextBox>("RuleNameBox");
-
-    private TextBox RulePatternBox => _rulePatternBox ??= Find<TextBox>("RulePatternBox");
-
-    private TextBox SampleBox => _sampleBox ??= Find<TextBox>("SampleBox");
-
-    private TextBlock TestResult => _testResult ??= Find<TextBlock>("TestResult");
 
     private T Find<T>(string name) where T : Control
         => this.FindControl<T>(name)
@@ -141,9 +118,6 @@ public abstract class ViewerPageBase : UserControl
             _vm.AudioPlayRequested -= OnAudioPlayRequested;
             _vm.PlaylistToggleRequested -= OnPlaylistToggle;
             _vm.ImageSetRequested -= OnImageSetRequested;
-            _vm.ReaderBookRequested -= OnReaderBookRequested;
-            _vm.RulesEditRequested -= OnRulesEdit;
-            _vm.ReaderOptionsChanged -= OnReaderOptionsChanged;
             _vm.SplitChanged -= OnSplitChanged;
             _vm.SavingAudioSnapshot = null;
         }
@@ -163,15 +137,11 @@ public abstract class ViewerPageBase : UserControl
         _vm.AudioPlayRequested += OnAudioPlayRequested;
         _vm.PlaylistToggleRequested += OnPlaylistToggle;
         _vm.ImageSetRequested += OnImageSetRequested;
-        _vm.ReaderBookRequested += OnReaderBookRequested;
-        _vm.RulesEditRequested += OnRulesEdit;
-        _vm.ReaderOptionsChanged += OnReaderOptionsChanged;
         _vm.SplitChanged += OnSplitChanged;
 
         // 关闭标签页时 VM 会先要一份续播快照再停播（顺序由 VM 保证：先存位置，再 Stop）
         _vm.SavingAudioSnapshot = SaveAudioPlaylist;
 
-        RuleList.ItemsSource = _vm.CustomRules;
         Host.SetHint(_vm.ScopeHint);
 
         // 本页是被跳转过来的：投递的文件已经躺在 VM 里，等页面挂上树再打开（控件此时才算就绪）。
@@ -191,10 +161,6 @@ public abstract class ViewerPageBase : UserControl
         // 「媒体资产 → 看这批图」：翻页集 = 投递的这批图（⛔ 不扫同目录）
         var pendingImages = _vm.TakePendingImageSet();
         if (pendingImages.Count > 0) { OpenImageSet(pendingImages); return; }
-
-        // 「网络阅读 → 在查看器中打开」：索引书（index.json + chapters/NNNN.txt）
-        var pendingBook = _vm.TakePendingReaderBook();
-        if (pendingBook is not null) { OpenReaderIndexFile(pendingBook); return; }
 
         var pending = _vm.TakePending();
         if (pending.Count > 0) { OpenMany(pending); return; }
@@ -382,13 +348,15 @@ public abstract class ViewerPageBase : UserControl
 
         if (ViewerHost.IsArchive(path)) { OpenArchive(path); return; }
 
-        // 索引书（reading 模块落盘的 index.json）：历史 / 拖入 / 最近打开都走这条
-        if (ViewerHost.IsReaderIndex(path)) { OpenReaderIndexFile(path); return; }
-
         var kind = ViewerHost.KindOf(path);
 
-        if (kind == ViewerKind.Reader) { OpenReaderFile(path); return; }
         if (kind == ViewerKind.Audio) { OpenAudioWithFolderPrompt(path); return; }
+
+        if (kind == ViewerKind.None && ViewerHost.IsLongFormText(path))
+        {
+            _vm.OnOpenFailed("长文本阅读已并入「网络阅读」—— 到那边点「📂 本地 TXT」打开。");
+            return;
+        }
 
         IReadOnlyList<string> siblings = Array.Empty<string>();
         var index = 0;
@@ -411,133 +379,6 @@ public abstract class ViewerPageBase : UserControl
             _vm.SetInfo("缩放 " + (Host.Zoom * 100).ToString("0") + "%");
 
         ApplySplitState();   // 分屏开着换了新图 → 重铺一屏
-    }
-
-    private void OpenReaderFile(string path)
-    {
-        if (_vm is null) return;
-
-        string text;
-        try { text = _vm.Txt.ReadText(path); }
-        catch (Exception ex) { _vm.OnOpenFailed("读取失败：" + ex.Message); return; }
-
-        var chapters = _vm.Txt.BuildChapters(text, _vm.CustomRules.ToList());
-        var state = _vm.GetReaderPosition(path) ?? new ViewerReaderState(0, 0);
-
-        if (!Host.OpenReader(path, text, chapters, state, out var error))
-        {
-            _vm.OnOpenFailed(error);
-            return;
-        }
-
-        ResetEntries();
-        _readerPath = path;
-        _bookmarks = _vm.LoadBookmarks(path).ToList();
-
-        WireReader();
-
-        _vm.OnOpened(path, ViewerKind.Reader, chapters.Count + " 章");
-        ApplyTypography();
-        Host.ApplyReaderTypography(_vm.ReaderOptions);
-    }
-
-    /// <summary>
-    /// 打开「索引书」（网络阅读落盘的 index.json）：章按需读文件，进度 / 书签 / 排版照常按路径记。
-    /// </summary>
-    private void OpenReaderIndexFile(string path)
-    {
-        if (_vm is null) return;
-
-        SaveProgress();          // 换书前先存上一本
-        Host.Audio?.Stop();
-
-        var state = _vm.GetReaderPosition(path) ?? new ViewerReaderState(0, 0);
-        if (!Host.OpenReaderIndex(path, state, out var error))
-        {
-            _vm.OnOpenFailed(error);
-            return;
-        }
-
-        ResetEntries();
-        _readerPath = path;
-        _bookmarks = _vm.LoadBookmarks(path).ToList();
-
-        WireReader();
-
-        _vm.OnOpened(path, ViewerKind.Reader, (Host.Reader?.ChapterCount ?? 0) + " 章");
-        ApplyTypography();
-        Host.ApplyReaderTypography(_vm.ReaderOptions);
-    }
-
-    private void OnReaderBookRequested(object? sender, string path) => OpenReaderIndexFile(path);
-
-    private void WireReader()
-    {
-        var reader = Host.Reader;
-        if (reader is null) return;
-
-        if (_wiredReader is not null)
-        {
-            _wiredReader.PositionChanged -= OnReaderPositionChanged;
-            _wiredReader.TypographyChanged -= OnReaderTypographyChanged;
-            _wiredReader.AddBookmarkRequested -= OnAddBookmark;
-            _wiredReader.RemoveBookmarkRequested -= OnRemoveBookmark;
-            _wiredReader.BookmarkActivated -= OnBookmarkActivated;
-            _wiredReader.StatusChanged -= OnReaderStatus;
-        }
-
-        reader.PositionChanged += OnReaderPositionChanged;
-        reader.TypographyChanged += OnReaderTypographyChanged;
-        reader.AddBookmarkRequested += OnAddBookmark;
-        reader.RemoveBookmarkRequested += OnRemoveBookmark;
-        reader.BookmarkActivated += OnBookmarkActivated;
-        reader.StatusChanged += OnReaderStatus;
-
-        reader.SetBookmarks(_bookmarks);
-        _wiredReader = reader;
-    }
-
-    // ==================== 阅读器事件 ====================
-
-    private void OnReaderPositionChanged(ReaderPosition position)
-    {
-        if (_vm is null || string.IsNullOrEmpty(_readerPath)) return;
-        try { _vm.SaveReaderPosition(_readerPath, new ViewerReaderState(position.ChapterIndex, position.Ratio)); }
-        catch { /* 进度是附属产物 */ }
-    }
-
-    private void OnReaderTypographyChanged(ReaderTypography typography)
-    {
-        if (_vm is null) return;
-        _vm.SaveReaderOptions(typography);
-    }
-
-    private void OnReaderStatus(string text) => _vm?.SetStatus(text);
-
-    private void OnAddBookmark()
-    {
-        if (_vm is null || Host.Reader is not { } reader) return;
-
-        var bookmark = reader.CreateBookmarkCore();
-        _bookmarks.Add(bookmark);
-        _vm.SaveBookmarks(_readerPath, _bookmarks);
-        reader.SetBookmarks(_bookmarks);
-        _vm.SetStatus("已加书签：" + bookmark.ChapterTitle);
-    }
-
-    private void OnRemoveBookmark(string id)
-    {
-        if (_vm is null || Host.Reader is not { } reader) return;
-
-        _bookmarks.RemoveAll(b => string.Equals(b.Id, id, StringComparison.Ordinal));
-        _vm.SaveBookmarks(_readerPath, _bookmarks);
-        reader.SetBookmarks(_bookmarks);
-        _vm.SetStatus("已删除书签。");
-    }
-
-    private void OnBookmarkActivated(ReaderBookmark bookmark)
-    {
-        Host.Reader?.ShowChapter(bookmark.ChapterIndex, bookmark.Ratio);
     }
 
     // ==================== 图片翻页（压缩包 / 同目录） ====================
@@ -1302,8 +1143,6 @@ public abstract class ViewerPageBase : UserControl
         SaveAudioPlaylist();   // 🔴 必须在 Host.Close() 之前：Stop 会把进度归零
         Host.Close();
         ResetEntries();
-        _bookmarks.Clear();
-        _wiredReader = null;
         _vm?.ClearArchive();
         _vm?.OnClosed();
     }
@@ -1344,11 +1183,6 @@ public abstract class ViewerPageBase : UserControl
 
     private void OnTypographyChanged(object? sender, EventArgs e) => ApplyTypography();
 
-    private void OnReaderOptionsChanged(object? sender, ReaderTypography typography)
-    {
-        Host.ApplyReaderTypography(typography);
-    }
-
     private void ApplyTypography()
     {
         if (_vm is null) return;
@@ -1365,52 +1199,8 @@ public abstract class ViewerPageBase : UserControl
         {
             if (Host.Kind == ViewerKind.Text)
                 _vm.SaveProgress(Host.CurrentPath, Host.ReadProgress);
-            else if (Host.Kind == ViewerKind.Reader && Host.ReaderState is { } state)
-                _vm.SaveReaderPosition(Host.CurrentPath, state);
         }
         catch { /* 进度是附属产物，写不进去不影响阅读 */ }
-    }
-
-    // ==================== 章节规则浮层 ====================
-
-    private void OnRulesEdit(object? sender, EventArgs e)
-    {
-        RulePanel.IsVisible = !RulePanel.IsVisible;
-        if (RulePanel.IsVisible) RulePanel.ZIndex = 10;
-    }
-
-    protected void OnCloseRules(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => RulePanel.IsVisible = false;
-
-    protected void OnAddRule(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (_vm is null) return;
-
-        if (!_vm.AddRule(RuleNameBox.Text ?? "", RulePatternBox.Text ?? "", out var error))
-        {
-            TestResult.Text = "⚠ " + error;
-            return;
-        }
-
-        RuleNameBox.Text = "";
-        RulePatternBox.Text = "";
-        TestResult.Text = "已保存。下次打开 txt 时生效。";
-    }
-
-    protected void OnRemoveRule(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (_vm is null) return;
-        _vm.RemoveRule(RuleList.SelectedItem as TxtChapterRule);
-        TestResult.Text = "已删除。";
-    }
-
-    protected void OnTestRules(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (_vm is null) return;
-
-        var hits = _vm.TestRule(SampleBox.Text ?? "", RulePatternBox.Text ?? "");
-        TestResult.Text = hits.Count == 0
-            ? "这段样本里没有命中。"
-            : "命中 " + hits.Count + " 行：\n" + string.Join("\n", hits);
     }
 
     // ==================== 文件选择 / 拖放 ====================
@@ -1467,7 +1257,7 @@ public abstract class ViewerPageBase : UserControl
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (EntryCount > 1 && !RulePanel.IsVisible && !Host.IsInfoVisible)
+        if (EntryCount > 1 && !Host.IsInfoVisible)
         {
             if (e.Key is Key.Left or Key.Right)
             {
@@ -1488,12 +1278,10 @@ public abstract class ViewerPageBase : UserControl
 
     /// <summary>
     /// 翻页后把键盘焦点收回本页。
-    /// <para>🔴 目录里换图会重建渲染器 ⇒ 焦点回到窗口，方向键直接失效（必须再点一下图片才恢复）；
-    /// 规则浮层开着时 ⛔ 别抢焦点（用户可能正在输正则）。</para>
+    /// <para>🔴 目录里换图会重建渲染器 ⇒ 焦点回到窗口，方向键直接失效（必须再点一下图片才恢复）。</para>
     /// </summary>
     private void RestoreFocus()
     {
-        if (RulePanel.IsVisible) return;
         if (IsKeyboardFocusWithin) return;
 
         Focus();

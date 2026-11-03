@@ -58,11 +58,4 @@ public static class ModuleTopics
     /// 与「同目录翻页」不同：收到这份清单后翻页集**就是这份清单**，⛔ 不再扫目录混进没被选中的图。</para>
     /// </summary>
     public const string ImageOpen = "viewer.imageopen";
-
-    /// <summary>
-    /// 网络阅读 → 查看器文本页（`viewer.reader.openbook`）：在查看器里读「索引书」。
-    /// <para>载荷类型 = <c>string</c> —— 书目录 <c>index.json</c> 的绝对路径（同目录 <c>chapters/NNNN.txt</c> 存逐章正文）。
-    /// 接收方按需读章（目录 / 书签 / 搜索 / 排版照常），⛔ 全量章进内存。</para>
-    /// </summary>
-    public const string ReaderOpenBook = "viewer.reader.openbook";
 }

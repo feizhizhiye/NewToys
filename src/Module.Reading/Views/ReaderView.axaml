@@ -1,10 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:NewToys.Reading.Controls"
              x:Class="NewToys.Reading.Views.ReaderView">
   <!--
-    网络阅读 → 阅读（`reading-read`）：管「选书 / 目录 / 抓取」——正文阅读在查看器的「文本阅读」页进行
-    （📖 在查看器中打开 → 索引书 index.json + chapters/NNNN.txt → ModuleTopics.ReaderOpenBook）。
-    本页只留章节预览（前 500 字）+ 目录浮层 + 换源 / 整本下载 / 听书；⛔ 不再内嵌正文渲染控件。
+    网络阅读 → 阅读（`reading-read`）：桌面 legado 的阅读器。
+    顶栏管「选书 / 换源 / 下载 / 听书」，正文渲染全在 ReaderShell（索引书模式：目录 / 书签 /
+    全书搜索 / 排版都在壳里）；本地 TXT 从这里直接导入；听书控制条压在页底。
   -->
   <UserControl.Styles>
     <Style Selector="ListBoxItem">
@@ -12,28 +13,26 @@
       <Setter Property="Padding" Value="8,0"/>
     </Style>
   </UserControl.Styles>
-  <Grid RowDefinitions="Auto,Auto,*">
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
 
     <Border Grid.Row="0" Background="{DynamicResource ContentHeaderBrush}" Padding="12,8">
       <DockPanel LastChildFill="False">
         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Button Classes="ghost" Content="📑 目录" Command="{Binding ToggleTocCommand}" ToolTip.Tip="弹出章节目录"/>
           <TextBlock Classes="section-title" Text="{Binding BookName}" VerticalAlignment="Center"/>
           <TextBlock Classes="hint-text" Text="{Binding Author}" VerticalAlignment="Center"/>
           <TextBlock Classes="hint-text" Text="{Binding SourceName}" VerticalAlignment="Center"/>
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Button Classes="primary" Content="📖 在查看器中打开" Command="{Binding OpenInViewerCommand}"
-                  ToolTip.Tip="把这本书交给查看器的「文本阅读」页：目录 / 书签 / 全书搜索 / 排版都在那边；未缓存的章翻到即补"/>
-          <Button Classes="ghost" Content="📑 目录" Command="{Binding ToggleTocCommand}" ToolTip.Tip="弹出章节目录"/>
+          <Button Classes="primary" Content="📂 本地 TXT" Command="{Binding OpenLocalTxtCommand}"
+                  ToolTip.Tip="打开本地 txt 文件：自动识别章节，目录 / 书签 / 搜索 / 听书照常，进度按文件路径记忆"/>
           <Button Classes="ghost" Content="＋ 书架" Command="{Binding AddToShelfCommand}" ToolTip.Tip="把这本书加进书架"/>
           <Button Classes="ghost" Content="🔀 换源" Command="{Binding SwitchSourceAsyncCommand}" ToolTip.Tip="多源比对这本书，选最优源续读"/>
           <Button Classes="ghost" Content="⬇ 下载" Command="{Binding DownloadBookCommand}"
-                  ToolTip.Tip="整本下载：全部章节抓下来合成一份 TXT（已缓存的章节不再请求）；下完自动补齐索引书"/>
+                  ToolTip.Tip="整本下载：全部章节抓下来合成一份 TXT（已缓存的章节不再请求）"/>
           <Button Classes="ghost" Content="🎧 听书" Command="{Binding StartListenCommand}"
                   IsVisible="{Binding !IsListening}"
-                  ToolTip.Tip="用系统语音朗读本章；正文下方会出现暂停 / 语速 / 停止控制条"/>
+                  ToolTip.Tip="用系统语音朗读当前章；页面底部会出现暂停 / 语速 / 停止控制条"/>
         </StackPanel>
       </DockPanel>
     </Border>
@@ -55,95 +54,19 @@
     </StackPanel>
 
     <Grid Grid.Row="2">
+      <!--  正文阅读壳：目录 / 书签 / 全书搜索 / 排版都在控件里（Ctrl+T / Ctrl+B / Ctrl+F）  -->
+      <controls:ReaderShell x:Name="Shell"/>
 
-      <!--  ==================== 正文  ====================  -->
-      <DockPanel LastChildFill="True">
-        <Border DockPanel.Dock="Top" Padding="16,10,16,6">
-          <DockPanel LastChildFill="False">
-            <TextBlock DockPanel.Dock="Left" Classes="section-title" Text="{Binding ChapterTitle}" VerticalAlignment="Center"/>
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
-              <Button Classes="ghost" Content="▲ 上一章" Command="{Binding PrevChapterCommand}"/>
-              <Button Classes="ghost" Content="▼ 下一章" Command="{Binding NextChapterCommand}"/>
-            </StackPanel>
-          </DockPanel>
-        </Border>
-
-        <!--  听书控制条：开始朗读后才出现；暂停 / 继续只在句子边界生效  -->
-        <Border DockPanel.Dock="Bottom"
-                IsVisible="{Binding IsListening}"
-                Background="{DynamicResource ContentHeaderBrush}"
-                BorderBrush="{DynamicResource DividerBrush}"
-                BorderThickness="0,1,0,0"
-                Padding="12,6">
-          <DockPanel LastChildFill="False">
-            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <Button Classes="ghost" Content="⏸ 暂停" Command="{Binding ToggleListenPauseCommand}"
-                      IsVisible="{Binding !IsListenPaused}" ToolTip.Tip="读完当前这句就停住"/>
-              <Button Classes="ghost" Content="▶ 继续" Command="{Binding ToggleListenPauseCommand}"
-                      IsVisible="{Binding IsListenPaused}"/>
-              <TextBlock Classes="hint-text" Text="{Binding ListenStatus}" VerticalAlignment="Center"/>
-            </StackPanel>
-
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-              <TextBlock Classes="hint-text" Text="语速" VerticalAlignment="Center"/>
-              <Button Classes="ghost" Content="−" Command="{Binding TtsSlowerCommand}" ToolTip.Tip="读慢一点（从当前句重起）"/>
-              <TextBlock Classes="list-cell primary" Width="28" TextAlignment="Center"
-                         Text="{Binding TtsRate}" VerticalAlignment="Center"/>
-              <Button Classes="ghost" Content="＋" Command="{Binding TtsFasterCommand}" ToolTip.Tip="读快一点（从当前句重起）"/>
-              <Button Classes="ghost" Content="⏹ 停止" Command="{Binding StopListenCommand}"/>
-            </StackPanel>
-          </DockPanel>
-        </Border>
-
-        <Border x:Name="ReaderSurface" Padding="0">
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <StackPanel MaxWidth="720" HorizontalAlignment="Center" Margin="0,28,0,28" Spacing="14">
-              <TextBlock Classes="section-title" Text="{Binding ChapterTitle}" TextWrapping="Wrap"/>
-              <TextBlock Text="{Binding PreviewText}" TextWrapping="Wrap" LineHeight="26"
-                         Foreground="{DynamicResource PrimaryTextBrush}"/>
-              <TextBlock Classes="hint-text" TextWrapping="Wrap"
-                         Text="完整阅读在查看器的「文本阅读」页进行（目录 / 书签 / 全书搜索 / 排版），点顶部「📖 在查看器中打开」跳过去；未缓存的章会显示占位，回本页翻到即补。"/>
-            </StackPanel>
-          </ScrollViewer>
-        </Border>
-      </DockPanel>
-
-      <!--  ==================== 目录浮层（点 📑 目录 才出现）  ====================  -->
-      <Grid IsVisible="{Binding ShowToc}">
-        <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnTocBackdropTapped"/>
-
-        <Border Width="320"
-                HorizontalAlignment="Left"
-                Background="{DynamicResource PanelBrush}"
-                BorderBrush="{DynamicResource DividerBrush}"
-                BorderThickness="0,0,1,0">
-          <DockPanel LastChildFill="True">
-            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="10,10,10,6">
-              <DockPanel LastChildFill="False">
-                <TextBlock DockPanel.Dock="Left" Classes="section-title" Text="目录" VerticalAlignment="Center"/>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4">
-                  <Button Classes="ghost" Content="▲" Command="{Binding PrevChapterCommand}" ToolTip.Tip="上一章"/>
-                  <Button Classes="ghost" Content="▼" Command="{Binding NextChapterCommand}" ToolTip.Tip="下一章"/>
-                  <Button Classes="ghost" Content="✕" Command="{Binding ToggleTocCommand}" ToolTip.Tip="收起目录"/>
-                </StackPanel>
-              </DockPanel>
-              <TextBox Text="{Binding TocFilter, Mode=TwoWay}" PlaceholderText="过滤章节名"/>
-            </StackPanel>
-
-            <ListBox ItemsSource="{Binding VisibleChapters}"
-                     SelectedItem="{Binding SelectedChapter, Mode=TwoWay}"
-                     Background="Transparent"
-                     BorderThickness="0"
-                     Padding="6,0,6,6">
-              <ListBox.ItemTemplate>
-                <DataTemplate>
-                  <TextBlock Classes="list-cell" Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </DockPanel>
-        </Border>
-      </Grid>
+      <!--  空态：还没打开任何书  -->
+      <Border IsVisible="{Binding !HasBook}"
+              Background="{DynamicResource ContentBrush}">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+          <TextBlock Classes="section-title" HorizontalAlignment="Center"
+                     Text="从书架或发现页打开一本书"/>
+          <TextBlock Classes="hint-text" HorizontalAlignment="Center"
+                     Text="或点顶部「📂 本地 TXT」直接读本地文件；本地 PDF / EPUB 支持规划中"/>
+        </StackPanel>
+      </Border>
 
       <!--  ==================== 换源浮层（点 🔀 换源 才出现；多源比对 + 选源续读）  ====================  -->
       <Grid IsVisible="{Binding ShowSwitchPanel}">
@@ -201,8 +124,35 @@
       </Grid>
     </Grid>
 
+    <!--  听书控制条：开始朗读后才出现；暂停 / 继续只在句子边界生效  -->
+    <Border Grid.Row="3"
+            IsVisible="{Binding IsListening}"
+            Background="{DynamicResource ContentHeaderBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="12,6">
+      <DockPanel LastChildFill="False">
+        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="ghost" Content="⏸ 暂停" Command="{Binding ToggleListenPauseCommand}"
+                  IsVisible="{Binding !IsListenPaused}" ToolTip.Tip="读完当前这句就停住"/>
+          <Button Classes="ghost" Content="▶ 继续" Command="{Binding ToggleListenPauseCommand}"
+                  IsVisible="{Binding IsListenPaused}"/>
+          <TextBlock Classes="hint-text" Text="{Binding ListenStatus}" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <TextBlock Classes="hint-text" Text="语速" VerticalAlignment="Center"/>
+          <Button Classes="ghost" Content="−" Command="{Binding TtsSlowerCommand}" ToolTip.Tip="读慢一点（从当前句重起）"/>
+          <TextBlock Classes="list-cell primary" Width="28" TextAlignment="Center"
+                     Text="{Binding TtsRate}" VerticalAlignment="Center"/>
+          <Button Classes="ghost" Content="＋" Command="{Binding TtsFasterCommand}" ToolTip.Tip="读快一点（从当前句重起）"/>
+          <Button Classes="ghost" Content="⏹ 停止" Command="{Binding StopListenCommand}"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
     <!--  ==================== 整本下载浮层（进度 / 取消）  ====================  -->
-    <Grid Grid.Row="0" Grid.RowSpan="3" IsVisible="{Binding DownloadIsOpen}">
+    <Grid Grid.Row="0" Grid.RowSpan="4" IsVisible="{Binding DownloadIsOpen}">
       <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnDownloadBackdropTapped"/>
 
       <Border Width="540"

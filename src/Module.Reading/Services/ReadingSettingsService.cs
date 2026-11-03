@@ -163,6 +163,12 @@ public sealed class ReadingSettingsService
     /// <summary>自定义前景色；空 = 跟配色档走。</summary>
     public string CustomForeground => ReadColor("reader-fg");
 
+    /// <summary>
+    /// 阅读器壳（ReaderShell）配色档序号：0 跟随主题 / 1 米黄护眼 / 2 淡绿 / 3 夜间。
+    /// <para>🔴 与 <see cref="Theme"/> 并存：壳的配色档自己一套（含淡绿），由壳的排版浮层读写。</para>
+    /// </summary>
+    public int ShellTheme => ReadInt("reader-shell-theme", 0, 0, 3);
+
     /// <summary>是否记住阅读进度。</summary>
     public bool RememberProgress => ReadBool("reader-remember-progress", true);
 
@@ -223,6 +229,8 @@ public sealed class ReadingSettingsService
             "正文宽度", MinContentWidth, MaxContentWidth);
 
     public string SetTheme(ReaderTheme value) => Save("reader-theme", ThemeKey(value), "配色", 0, 0);
+
+    public string SetShellTheme(int value) => Save("reader-shell-theme", Clamp(value, 0, 3).ToString(CultureInfo.InvariantCulture), "阅读配色", 0, 0);
 
     public string SetReaderPadding(int value)
         => Save("reader-padding", Clamp(value, 0, 120).ToString(CultureInfo.InvariantCulture), "左右留白", 0, 120);

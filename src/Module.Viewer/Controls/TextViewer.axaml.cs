@@ -4,7 +4,7 @@ using System.Text;
 using Avalonia.Controls;
 using Avalonia.Media;
 
-namespace NewToys.UI.Viewers;
+namespace NewToys.Viewer.Controls;
 
 /// <summary>
 /// 文本渲染器：整篇文本 + 垂直滚动，记录阅读进度（0~1）。

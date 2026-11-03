@@ -20,7 +20,8 @@ namespace NewToys.Viewer.ViewModels;
 /// 与项目既有约定一致（选择器 / 控件操作归 View）。
 /// </para>
 /// <para>
-/// 🔴 章节切分 / 压缩包遍历 / 音频标签 / 播放后端都走注入的服务；VM 只做状态与命令编排。
+/// 🔴 压缩包遍历 / 音频标签 / 播放后端都走注入的服务；VM 只做状态与命令编排。
+/// 长文本阅读（txt / 网文）不在本模块 —— 已并入「网络阅读」。
 /// </para>
 /// <para>
 /// 🔴 <see cref="Scope"/> 决定本页收哪类文件：不匹配时 <see cref="TryRouteElsewhere"/> 会投递给
@@ -30,7 +31,6 @@ namespace NewToys.Viewer.ViewModels;
 public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolbarSource, IDisposable
 {
     private readonly ViewerSettingsService _settings;
-    private readonly TxtBookService _txt;
     private readonly ArchiveImageService _archive;
     private readonly AudioLibraryService _audio;
     private readonly IAudioPlayback _playback;
@@ -45,7 +45,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>「媒体资产 → 看这批图」投递过来、但 View 还没挂上树的图片（挂树后按这批图翻页）。</summary>
     private readonly List<string> _pendingImageSet = new();
 
-    private readonly List<string> _pendingReaderBooks = new();
     private bool _attached;
 
     [ObservableProperty] private string _statusText = "";
@@ -54,7 +53,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     [ObservableProperty] private string _currentInfo = "";
     [ObservableProperty] private bool _isText;
     [ObservableProperty] private bool _isImage;
-    [ObservableProperty] private bool _isReader;
     [ObservableProperty] private bool _isAudio;
     [ObservableProperty] private bool _isArchive;
     [ObservableProperty] private bool _hasContent;
@@ -116,7 +114,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>空态提示（按范围区分）。</summary>
     public string ScopeHint => Scope switch
     {
-        ViewerScope.Text => "拖入文本（txt / md / 源码）或点「📂 打开」：txt / md 自动切章，带目录、书签、全书搜索。",
+        ViewerScope.Text => "拖入源码 / 短文本 / HTML 或点「📂 打开」；长文本阅读（txt / md）已并入「网络阅读」。",
         ViewerScope.Image => "拖入图片（png / jpg / webp …）或压缩包（zip / rar / 7z），也可点「📂 打开」。",
         ViewerScope.Audio => "拖入音频（mp3 / flac / m4a …，可一次多个）或播放列表（m3u / m3u8），也可点「📂 打开」；按列表顺序播放。",
         _ => "拖入文件或点「📂 打开」开始。",
@@ -126,7 +124,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     public ViewerViewModel()
     {
         _settings = null!;
-        _txt = null!;
         _archive = null!;
         _audio = null!;
         _playback = null!;
@@ -134,13 +131,12 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         _nav = null;
     }
 
-    protected ViewerViewModel(ViewerScope scope, ViewerSettingsService settings, TxtBookService txt,
+    protected ViewerViewModel(ViewerScope scope, ViewerSettingsService settings,
         ArchiveImageService archive, AudioLibraryService audio, IAudioPlayback playback,
         IModuleBus? bus, INavigationService? nav)
     {
         Scope = scope;
         _settings = settings;
-        _txt = txt;
         _archive = archive;
         _audio = audio;
         _playback = playback;
@@ -148,7 +144,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         _nav = nav;
 
         RefreshRecent();
-        RefreshCustomRules();
         StatusText = ScopeHint;
 
         // 跨页投递：先取存量（本页刚被创建时投递还在信箱里），再订阅（本页已开着时后续投递即时落地）。
@@ -169,14 +164,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
             foreach (var payload in _bus?.TakeAll(ModuleTopics.ImageOpen) ?? Array.Empty<object?>())
                 OnImageSetPosted(payload);
             _bus?.Subscribe(ModuleTopics.ImageOpen, this, OnImageSetPosted);
-        }
-
-        // 「网络阅读 → 在查看器中打开」：载荷 = 索引书 index.json 路径，只进文本页。
-        if (Scope is ViewerScope.Text or ViewerScope.All)
-        {
-            foreach (var payload in _bus?.TakeAll(ModuleTopics.ReaderOpenBook) ?? Array.Empty<object?>())
-                OnReaderBookPosted(payload);
-            _bus?.Subscribe(ModuleTopics.ReaderOpenBook, this, OnReaderBookPosted);
         }
     }
 
@@ -224,25 +211,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         return paths;
     }
 
-    /// <summary>「网络阅读 → 在查看器中打开」投递到达：View 已就绪就立刻开，否则先攒着等挂树。</summary>
-    private void OnReaderBookPosted(object? payload)
-    {
-        if (payload is not string path || string.IsNullOrWhiteSpace(path)) return;
-
-        if (_attached) ReaderBookRequested?.Invoke(this, path);
-        else _pendingReaderBooks.Add(path);
-    }
-
-    /// <summary>取走还没打开的投递索引书（本页创建时投递先到）。</summary>
-    public string? TakePendingReaderBook()
-    {
-        if (_pendingReaderBooks.Count == 0) return null;
-
-        var path = _pendingReaderBooks[0];
-        _pendingReaderBooks.RemoveAt(0);
-        return path;
-    }
-
     /// <summary>请求 View 打开文件；参数 <c>null</c> = 由 View 弹选择器。</summary>
     public event EventHandler<IReadOnlyList<string>?>? OpenRequested;
 
@@ -271,22 +239,10 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>「媒体资产 → 看这批图」要求打开一批图片（参数 = 按顺序排好的绝对路径，首张先显示）。</summary>
     public event EventHandler<IReadOnlyList<string>>? ImageSetRequested;
 
-    /// <summary>「网络阅读 → 在查看器中打开」要求装载一本索引书（参数 = index.json 绝对路径）。</summary>
-    public event EventHandler<string>? ReaderBookRequested;
-
-    /// <summary>打开章节规则浮层。</summary>
-    public event EventHandler? RulesEditRequested;
-
-    /// <summary>长文本排版参数变化（View 重新下发）。</summary>
-    public event EventHandler<ReaderTypography>? ReaderOptionsChanged;
-
     public event EventHandler? StatusChanged;
     public event EventHandler? ToolbarChanged;
 
     // ---------- 服务暴露（View 用） ----------
-
-    /// <summary>章节切分服务。</summary>
-    public TxtBookService Txt => _txt;
 
     /// <summary>压缩包图片服务。</summary>
     public ArchiveImageService Archive => _archive;
@@ -311,7 +267,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>页面标题（按范围）。</summary>
     public static string TitleOf(ViewerScope scope) => scope switch
     {
-        ViewerScope.Text => "文本阅读",
+        ViewerScope.Text => "文档查看",
         ViewerScope.Image => "图片查看",
         ViewerScope.Audio => "音乐播放",
         _ => "查看器",
@@ -325,7 +281,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
         return ViewerHost.KindOf(path) switch
         {
-            ViewerKind.Text or ViewerKind.Reader => ViewerScope.Text,
+            ViewerKind.Text => ViewerScope.Text,
             ViewerKind.Image => ViewerScope.Image,
             ViewerKind.Audio => ViewerScope.Audio,
             _ => ViewerScope.All,
@@ -489,39 +445,17 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     public double PagePadding => _settings.PagePadding;
 
-    /// <summary>长文本阅读器排版参数。</summary>
-    public ReaderTypography ReaderOptions => _settings.ReaderOptions;
-
-    /// <summary>字号加减：长文本走阅读器排版，其它走短文本排版。</summary>
+    /// <summary>字号加减（短文本排版；长文本排版在网络阅读的阅读器里）。</summary>
     public void StepFontSize(double delta)
     {
         try
         {
-            if (IsReader)
-            {
-                var current = _settings.ReaderOptions;
-                var next = CopyReader(current, current.FontSize + delta);
-                _settings.SetReaderOptions(next);
-                OnPropertyChanged(nameof(ReaderOptions));
-                ReaderOptionsChanged?.Invoke(this, next);
-                StatusText = "阅读字号 " + next.FontSize.ToString("0");
-                return;
-            }
-
             _settings.FontSize = FontSize + delta;
             OnPropertyChanged(nameof(FontSize));
             StatusText = "字号 " + FontSize.ToString("0");
             TypographyChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex) { StatusText = "⚠ 保存字号失败：" + ex.Message; }
-    }
-
-    /// <summary>保存阅读器排版（ReaderShell 的排版浮层改完就回写）。</summary>
-    public void SaveReaderOptions(ReaderTypography options)
-    {
-        try { _settings.SetReaderOptions(options); }
-        catch (Exception ex) { StatusText = "⚠ 保存排版失败：" + ex.Message; }
-        OnPropertyChanged(nameof(ReaderOptions));
     }
 
     /// <summary>排版参数变化（短文本：View 据此重新下发到渲染器）。</summary>
@@ -532,83 +466,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     /// <summary>存某文件的阅读进度（关闭 / 切文件 / 离开页面时调）。</summary>
     public void SaveProgress(string path, double progress) => _settings.SetProgress(path, progress);
-
-    /// <summary>取长文本阅读位置（章 + 章内比例）。</summary>
-    public ViewerReaderState? GetReaderPosition(string path) => _settings.GetReaderPosition(path);
-
-    /// <summary>存长文本阅读位置。</summary>
-    public void SaveReaderPosition(string path, ViewerReaderState state) => _settings.SetReaderPosition(path, state);
-
-    // ---------- 书签 ----------
-
-    /// <summary>读某本书的书签。</summary>
-    public IReadOnlyList<ReaderBookmark> LoadBookmarks(string path) => _settings.GetBookmarks(path);
-
-    /// <summary>存某本书的书签。</summary>
-    public void SaveBookmarks(string path, IEnumerable<ReaderBookmark> bookmarks)
-        => _settings.SetBookmarks(path, bookmarks);
-
-    // ---------- 章节规则 ----------
-
-    /// <summary>自定义章节规则（排在内置规则之前）。</summary>
-    public ObservableCollection<TxtChapterRule> CustomRules { get; } = new();
-
-    private void RefreshCustomRules()
-    {
-        CustomRules.Clear();
-        foreach (var rule in _settings.CustomTxtRules) CustomRules.Add(rule);
-    }
-
-    /// <summary>加一条规则并落盘。</summary>
-    public bool AddRule(string name, string pattern, out string error)
-    {
-        error = "";
-        if (string.IsNullOrWhiteSpace(pattern)) { error = "正则不能为空。"; return false; }
-
-        var probe = _txt.TestRule("第一章 测试\nChapter 1\n1、测试", pattern, 3);
-        if (probe.Count > 0 && probe[0].StartsWith("⚠", StringComparison.Ordinal))
-        {
-            error = probe[0];
-            return false;
-        }
-
-        CustomRules.Add(new TxtChapterRule
-        {
-            Name = string.IsNullOrWhiteSpace(name) ? "自定义规则 " + (CustomRules.Count + 1) : name.Trim(),
-            Pattern = pattern.Trim(),
-        });
-
-        SaveRules();
-        return true;
-    }
-
-    /// <summary>删除一条规则并落盘。</summary>
-    public void RemoveRule(TxtChapterRule? rule)
-    {
-        if (rule is null) return;
-        CustomRules.Remove(rule);
-        SaveRules();
-    }
-
-    private void SaveRules()
-    {
-        try { _settings.SetCustomTxtRules(CustomRules); }
-        catch (Exception ex) { StatusText = "⚠ 保存规则失败：" + ex.Message; }
-    }
-
-    /// <summary>规则试跑（设置界面预览用）。</summary>
-    public IReadOnlyList<string> TestRule(string sample, string pattern) => _txt.TestRule(sample, pattern, 30);
-
-    /// <summary>当前生效的规则文本（内置 + 自定义），给规则浮层展示。</summary>
-    public IReadOnlyList<(string Name, string Pattern, bool Custom)> AllRules
-    {
-        get
-        {
-            var list = CustomRules.Select(r => (r.Name, r.Pattern, true)).ToList();
-            list.AddRange(TxtBookService.BuiltinRules.Select(r => (r.Name, r.Pattern, false)));
-            return list;
-        }
-    }
 
     // ---------- 音频 ----------
 
@@ -670,7 +527,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         CurrentInfo = string.IsNullOrWhiteSpace(info) ? path : info;
         IsText = kind == ViewerKind.Text;
         IsImage = kind == ViewerKind.Image;
-        IsReader = kind == ViewerKind.Reader;
         IsAudio = kind == ViewerKind.Audio;
         HasContent = true;
         Hint = "";
@@ -679,7 +535,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
         StatusText = kind switch
         {
-            ViewerKind.Reader => "已打开（长文本阅读器）",
             ViewerKind.Text => "已打开",
             ViewerKind.Image => "已打开",
             ViewerKind.Audio => "已打开（播放列表就绪）",
@@ -696,7 +551,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         HasContent = false;
         IsText = false;
         IsImage = false;
-        IsReader = false;
         IsAudio = false;
         IsArchive = false;
         CurrentTitle = "未打开文件";
@@ -713,7 +567,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         HasContent = false;
         IsText = false;
         IsImage = false;
-        IsReader = false;
         IsAudio = false;
         ClearArchive();
         CurrentTitle = "未打开文件";
@@ -831,9 +684,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>顺时针旋转 90°（单图有效）。</summary>
     [RelayCommand]
     private void Rotate() => RotateRequested?.Invoke(this, EventArgs.Empty);
-
-    [RelayCommand]
-    private void EditRules() => RulesEditRequested?.Invoke(this, EventArgs.Empty);
 
     /// <summary>开 / 收播放列表浮层（工具条「☰ 列表」）。</summary>
     [RelayCommand]
@@ -969,22 +819,12 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 ToolTip = "关闭当前文件（回到空态）",
             });
 
-            if (Scope is ViewerScope.Text or ViewerScope.All)
-            {
-                items.Add(new()
-                {
-                    Text = "⚙ 章节规则",
-                    CommandPath = nameof(EditRulesCommand),
-                    ToolTip = "自定义 txt 章节识别正则（带试跑）",
-                });
-            }
-
             return items;
         }
     }
 
-    /// <summary>字号按钮可用：短文本或长文本阅读器。</summary>
-    public bool CanStepFont => IsText || IsReader;
+    /// <summary>字号按钮可用：短文本。</summary>
+    public bool CanStepFont => IsText;
 
     /// <summary>缩放按钮可用：图片单图模式（分屏网格按格自适应，缩放无意义）。</summary>
     public bool CanZoom => IsImage && !IsSplit;
@@ -994,8 +834,6 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 
     partial void OnIsTextChanged(bool value) => OnPropertyChanged(nameof(CanStepFont));
-
-    partial void OnIsReaderChanged(bool value) => OnPropertyChanged(nameof(CanStepFont));
 
     partial void OnIsImageChanged(bool value) => OnPropertyChanged(nameof(CanZoom));
 
@@ -1017,17 +855,4 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         SyncSplitMode();
         SplitChanged?.Invoke(this, EventArgs.Empty);
     }
-
-    private static ReaderTypography CopyReader(ReaderTypography source, double fontSize) => new()
-    {
-        FontSize = Math.Clamp(fontSize, 12, 34),
-        LineSpacing = source.LineSpacing,
-        Padding = source.Padding,
-        ParagraphSpacing = source.ParagraphSpacing,
-        Indent = source.Indent,
-        FontFamily = source.FontFamily,
-        Foreground = source.Foreground,
-        Background = source.Background,
-        Theme = source.Theme,
-    };
 }

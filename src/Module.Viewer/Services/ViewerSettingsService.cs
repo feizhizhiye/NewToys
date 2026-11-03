@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using NewToys.Shared.Services;
-using NewToys.Viewer.Controls;
 
 namespace NewToys.Viewer.Services;
 
@@ -59,136 +58,10 @@ public sealed class ViewerSettingsService
     }
 
     // ---------- 长文本阅读器（txt / md / log） ----------
+    // 🔴 长文本阅读已并入「网络阅读」模块；本节排版 / 位置 / 书签 / 章节规则的键随批 3 下线，
+    //    config\viewer.json 里的旧键成死数据（无害，不做迁移）。
 
-    private const string KeyReaderFontSize = "readerFontSize";
-    private const string KeyReaderLineSpacing = "readerLineSpacing";
-    private const string KeyReaderPadding = "readerPadding";
-    private const string KeyReaderIndent = "readerIndent";
-    private const string KeyReaderSpacing = "readerSpacing";
-    private const string KeyReaderTheme = "readerTheme";
-    private const string KeyReaderPositions = "readerPositions";
-    private const string KeyBookmarks = "bookmarks";
-    private const string KeyTxtRules = "txtRules";
     private const string KeyAudioVolume = "audioVolume";
-
-    /// <summary>长文本排版参数（阅读器壳的持久化来源）。</summary>
-    public ReaderTypography ReaderOptions => new()
-    {
-        FontSize = ReadDouble(KeyReaderFontSize, 17, 12, 34),
-        LineSpacing = ReadDouble(KeyReaderLineSpacing, 1.8, 1.2, 2.6),
-        Padding = ReadDouble(KeyReaderPadding, 48, 0, 160),
-        Indent = ReadBool(KeyReaderIndent, true),
-        ParagraphSpacing = ReadBool(KeyReaderSpacing, true) ? 1 : 0,
-        Theme = (int)ReadDouble(KeyReaderTheme, 0, 0, 3),
-    };
-
-    /// <summary>保存长文本排版参数。</summary>
-    public void SetReaderOptions(ReaderTypography options)
-    {
-        if (options is null) return;
-        WriteDouble(KeyReaderFontSize, Math.Clamp(options.FontSize, 12, 34));
-        WriteDouble(KeyReaderLineSpacing, Math.Clamp(options.LineSpacing, 1.2, 2.6));
-        WriteDouble(KeyReaderPadding, Math.Clamp(options.Padding, 0, 160));
-        WriteBool(KeyReaderIndent, options.Indent);
-        WriteBool(KeyReaderSpacing, options.ParagraphSpacing > 0);
-        WriteDouble(KeyReaderTheme, Math.Clamp(options.Theme, 0, 3));
-    }
-
-    /// <summary>取长文本阅读位置（章 + 章内比例）；没有记录返回 <c>null</c>。</summary>
-    public ViewerReaderState? GetReaderPosition(string path)
-    {
-        var key = ProgressKey(path);
-        if (key.Length == 0) return null;
-
-        var map = LoadJson<Dictionary<string, ReaderPositionDto>>(KeyReaderPositions)
-                  ?? new Dictionary<string, ReaderPositionDto>(StringComparer.OrdinalIgnoreCase);
-
-        return map.TryGetValue(key, out var dto)
-            ? new ViewerReaderState(dto.ChapterIndex, Math.Clamp(dto.Ratio, 0, 1))
-            : null;
-    }
-
-    /// <summary>存长文本阅读位置。</summary>
-    public void SetReaderPosition(string path, ViewerReaderState state)
-    {
-        var key = ProgressKey(path);
-        if (key.Length == 0) return;
-
-        var map = LoadJson<Dictionary<string, ReaderPositionDto>>(KeyReaderPositions)
-                  ?? new Dictionary<string, ReaderPositionDto>(StringComparer.OrdinalIgnoreCase);
-
-        map[key] = new ReaderPositionDto
-        {
-            ChapterIndex = Math.Max(0, state.ChapterIndex),
-            Ratio = Math.Clamp(state.Ratio, 0, 1),
-        };
-
-        if (map.Count > 500)
-        {
-            foreach (var k in map.Keys.Take(map.Count - 500).ToList()) map.Remove(k);
-        }
-
-        SaveJson(KeyReaderPositions, map);
-    }
-
-    /// <summary>取某本书的书签（按文件全路径存，不随文件修改时间失效）。</summary>
-    public IReadOnlyList<ReaderBookmark> GetBookmarks(string path)
-    {
-        var key = BookmarkKey(path);
-        if (key.Length == 0) return Array.Empty<ReaderBookmark>();
-
-        var map = LoadJson<Dictionary<string, List<BookmarkDto>>>(KeyBookmarks)
-                  ?? new Dictionary<string, List<BookmarkDto>>(StringComparer.OrdinalIgnoreCase);
-
-        if (!map.TryGetValue(key, out var list) || list is null) return Array.Empty<ReaderBookmark>();
-
-        return list.Select(dto => new ReaderBookmark
-        {
-            Id = dto.Id,
-            ChapterTitle = dto.Title,
-            ChapterIndex = dto.ChapterIndex,
-            Ratio = Math.Clamp(dto.Ratio, 0, 1),
-            Preview = dto.Preview,
-            CreatedAt = dto.CreatedAt,
-        }).ToList();
-    }
-
-    /// <summary>整本替换某本书的书签列表。</summary>
-    public void SetBookmarks(string path, IEnumerable<ReaderBookmark> bookmarks)
-    {
-        var key = BookmarkKey(path);
-        if (key.Length == 0) return;
-
-        var map = LoadJson<Dictionary<string, List<BookmarkDto>>>(KeyBookmarks)
-                  ?? new Dictionary<string, List<BookmarkDto>>(StringComparer.OrdinalIgnoreCase);
-
-        var list = bookmarks.Select(b => new BookmarkDto
-        {
-            Id = b.Id,
-            ChapterIndex = b.ChapterIndex,
-            Ratio = b.Ratio,
-            Title = b.ChapterTitle,
-            Preview = b.Preview,
-            CreatedAt = b.CreatedAt,
-        }).ToList();
-
-        if (list.Count == 0) map.Remove(key);
-        else map[key] = list;
-
-        SaveJson(KeyBookmarks, map);
-    }
-
-    /// <summary>用户自定义的 txt 章节规则（排在内置规则之前）。</summary>
-    public IReadOnlyList<TxtChapterRule> CustomTxtRules
-        => LoadJson<List<TxtChapterRule>>(KeyTxtRules) ?? new List<TxtChapterRule>();
-
-    /// <summary>保存自定义章节规则。</summary>
-    public void SetCustomTxtRules(IEnumerable<TxtChapterRule> rules)
-    {
-        var list = rules.Where(r => !string.IsNullOrWhiteSpace(r.Pattern)).ToList();
-        if (list.Count == 0) _opts.Remove(Module, KeyTxtRules);
-        else SaveJson(KeyTxtRules, list);
-    }
 
     /// <summary>播放器音量 0~100。</summary>
     public int AudioVolume
@@ -335,15 +208,6 @@ public sealed class ViewerSettingsService
 
     // ---------- 底层 ----------
 
-    private bool ReadBool(string key, bool fallback)
-    {
-        var raw = _opts.Get(Module, key);
-        if (string.IsNullOrWhiteSpace(raw)) return fallback;
-        return raw.Equals("true", StringComparison.OrdinalIgnoreCase) || raw == "1";
-    }
-
-    private void WriteBool(string key, bool value) => _opts.Set(Module, key, value ? "true" : "false");
-
     private T? LoadJson<T>(string key) where T : class
     {
         var raw = _opts.Get(Module, key);
@@ -353,34 +217,6 @@ public sealed class ViewerSettingsService
     }
 
     private void SaveJson<T>(string key, T value) => _opts.Set(Module, key, JsonSerializer.Serialize(value));
-
-    /// <summary>书签键 = 文件全路径（文件被修改 / 替换后书签仍指向同一本书）。</summary>
-    private static string BookmarkKey(string path)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(path)) return "";
-            var fi = new FileInfo(path);
-            return fi.Exists ? fi.FullName : "";
-        }
-        catch { return ""; }
-    }
-
-    private sealed class ReaderPositionDto
-    {
-        public int ChapterIndex { get; set; }
-        public double Ratio { get; set; }
-    }
-
-    private sealed class BookmarkDto
-    {
-        public string Id { get; set; } = "";
-        public int ChapterIndex { get; set; }
-        public double Ratio { get; set; }
-        public string Title { get; set; } = "";
-        public string Preview { get; set; } = "";
-        public DateTimeOffset CreatedAt { get; set; }
-    }
 
     private double ReadDouble(string key, double fallback, double min, double max)
     {

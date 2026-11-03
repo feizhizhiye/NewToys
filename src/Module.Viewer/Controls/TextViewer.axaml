@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="NewToys.UI.Viewers.TextViewer">
+             x:Class="NewToys.Viewer.Controls.TextViewer">
   <!--
     文本渲染器（只读）：整体滚动阅读，⛔ 不做分页切页。
     字号 / 行距 / 页边距由宿主经属性写入（ViewerHost.ApplyTextOptions）；

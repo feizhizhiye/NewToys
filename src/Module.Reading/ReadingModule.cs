@@ -7,12 +7,13 @@ using NewToys.Shared.Services;
 namespace NewToys.Reading;
 
 /// <summary>
-/// **网络阅读**模块（菜单组键 <c>reading</c>）：把 legado 书源跑起来 —— 导入书源、搜索 / 发现、看目录与正文、沉浸式阅读。
+/// **网络阅读**模块（菜单组键 <c>reading</c>）：桌面 legado —— 导入书源、搜索 / 发现、书架、
+/// 阅读器（索引书渲染 / 目录 / 书签 / 搜索 / 排版 / 听书）、本地 TXT 导入。
 /// <para>
-/// 依赖只有 Shared / Core / UI：⛔ 不引 Shell，⛔ 不引别的模块（正文渲染复用
-/// <c>NewToys.UI/Viewers/TextViewer</c>，<c>⛔</c> 不引用 <c>Module.Viewer</c>）。
+/// 依赖只有 Shared / Core / UI：⛔ 不引 Shell，⛔ 不引别的模块（阅读器壳住在本模块
+/// <c>Controls/ReaderShell</c>，查看器 / 其它模块要用阅读能力走各自的实现）。
 /// </para>
-/// <para>库 = <c>store\reading\reading.db</c>；设置 = <c>config\reading.json</c>（设置页与阅读页顶栏共同写入）。</para>
+/// <para>库 = <c>store\reading\reading.db</c>；设置 = <c>config\reading.json</c>（设置页与阅读页共同写入）。</para>
 /// </summary>
 public class ReadingModule : IModule
 {
@@ -42,6 +43,8 @@ public class ReadingModule : IModule
         services.AddSingleton<ShelfUpdateService>();
         services.AddSingleton<TtsService>();
         services.AddSingleton<BookIndexWriter>();
+        services.AddSingleton<BookmarksStore>();
+        services.AddSingleton<TxtBookService>();
 
         services.AddTransient<Views.SourceListView>();
         services.AddTransient<SourceListViewModel>();
@@ -82,7 +85,7 @@ public class ReadingModule : IModule
             "搜到后加进书架的书；双击接着读，可分组");
 
         menu.RegisterFunction<Views.ReaderView>(GroupKey, "reading-read", "阅读", "📖", 5,
-            "沉浸式读一本书：目录按需弹出、字号行距配色、自动记住读到哪、听书朗读");
+            "桌面 legado 阅读器：正文就地渲染，目录 / 书签 / 全书搜索 / 排版 / 听书；可导入本地 TXT，进度自动记忆");
 
         menu.RegisterFunction<Views.SettingsReadingView>(GroupKey, "settings-reading", "网络阅读设置", "⚙", 100,
             "抓取：并发 / 超时 / UA / 正文缓存；阅读器：字号 / 行距 / 字体 / 宽度 / 配色 / 进度；听书：语速 / 音量 / 音色");

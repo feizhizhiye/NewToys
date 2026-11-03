@@ -1,21 +1,21 @@
 # 模块 · 网络阅读（Reading）
 
-> **程序集**：`src/Module.Reading`（`NewToys.Reading`）；正文渲染复用 `src/UI/Viewers/TextViewer`
+> **程序集**：`src/Module.Reading`（`NewToys.Reading`）；阅读器壳住本模块 `Controls/ReaderShell`（索引书渲染，NT-144 批 3 迁入）
 > **模块键**：`reading`（菜单名 **网络阅读**）｜ **一级菜单**：Order 56 · 图标 `IconReading`
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：批1 + 批2 + 批3 + 批4 已实施（NT-125 求值器与管线 / NT-126 JS 兼容层 / NT-127 发现页修复 + 阅读器 + 设置页 / NT-128 书单列表化 + 书籍卡 + 弹出式书源与目录 + 模块改名）；批5 已实施（未开卡：阅读样式卡 / 样式导入导出 / ReaderTypography / 书籍卡居中）；批6 已实施（NT-129：正文缓存 / 换源增强 / 发现页 @js: 动态分类 / t2s 繁转简）
-> **最后校对**：2026-11-02（批8 书源分组/校验、批9 书架批量更新落地）
+> **状态**：NT-125~129、NT-133 已验收；NT-144 批 1/2/3 已实施（⏳ 批 2/3 待 build）：渲染器下沉 + 正文落盘索引书 + **阅读职责重划 —— 阅读器壳 / 本地 TXT / 听书全部收进本模块（桌面 legado），查看器文本页改「文档查看」**
+> **最后校对**：2026-11-04（NT-144 批 3 阅读职责重划）
 
 ---
 
 ## 1. 职责与边界
 
-- **定位**：抓网络内容（书源），与「本地浏览」的 `Module.Viewer` **是两个独立模块**。
-- 一句话链路：**导入 legado 书源 → 输入关键词 → 出结果 → 点开看目录 → 点章看正文**。
+- **定位**：**桌面 legado** —— 抓网络内容（书源）+ 本地 TXT 阅读 + 听书，阅读能力全在本模块；`Module.Viewer` 只管「文件预览」（文档查看 / 图片 / 音乐）。
+- 一句话链路：**导入 legado 书源 → 输入关键词 → 出结果 → 点开看目录 → 阅读页就地读正文（或「📂 本地 TXT」直接读本地文件）**。
 - **规则引擎分两层**：默认简化语法（选择器 / JSON / 插值）＋ `@js:` 片段的 JS 兼容层（Jint + `java.*` 桥）。
   真实 383 条书源里纯选择器 67.4%、加 JS 后 **96.3% 可跑**；剩下 3.7% 依赖 WebView / 唤起浏览器，桌面端不等价，书源页标「需 WebView」并拒跑。
 - 🔴 **只做文本源（`bookSourceType = 0`，2026-11-02 用户定）**：图片 / 漫画 / 音频 / 视频源与「正文里的图片」都不在范围内（`StripMarkup` 会去掉 `<img>`，这是设计如此，⛔ 别当 bug 修）。
-- ⛔ 不做：站点登录 / Cookie（2026-11-02 用户定）、书源编辑器 / 规则调试面板、TTS 听书、本地 TXT/EPUB 导入、RSS 订阅、**WebDAV 备份（2026-11-01 用户明确不做）**。
+- ⛔ 不做：站点登录 / Cookie（2026-11-02 用户定）、书源编辑器 / 规则调试面板、EPUB / MOBI 导入（PDF / EPUB / MOBI 查看 = 查看器「文档查看」页，另行立项）、RSS 订阅、**WebDAV 备份（2026-11-01 用户明确不做）**。
 - 🔴 **GPL 边界**：legado 是 GPL-3.0，本项目 MIT ⇒ ⛔ 不移植其 Kotlin 源码、⛔ 不翻译其实现；只按官方文档 + 真实书源行为重写。
 - 🔴 依赖只加 `AngleSharp`（本就在 `Directory.Packages.props`）；⛔ 不引 XPath 库（383 条真实书源里 XPath 用法为 **0**）。
 
@@ -27,7 +27,7 @@
 | `reading-explore` | 发现 | 2 | `ExploreView` | 左「书源 → 分类」折叠树（书源名**整段显示不截断**、`Hint` 10px 小字、分类名 14px 为主角）+ 右**书单行列表**；点一行弹**书籍卡**（封面 / 作者 / 分类 / 最新章节 / 简介 + 开始阅读 / 加书架）；分类可翻页 |
 | `reading-search` | 网上搜索 | 3 | `SearchView` | 关键词 + 结果行列表；书源多选收进顶栏「📚 书源」弹出的浮层；点一条结果弹同一张书籍卡 |
 | `reading-shelf` | 书架 | 4 | `ShelfView` | 加进来的书；分组 / 读到哪章；**「🆕 批量更新」回源站抓目录、标出「有 N 章更新」**；双击进阅读页 |
-| `reading-read` | 阅读 | 5 | `ReaderView` | 管「选书 / 目录 / 抓取」：章节预览（前 500 字）+ 目录浮层（「📑 目录」弹出）+ 换源 / 整本下载 / 听书；**顶栏「📖 在查看器中打开」把书交给查看器「文本阅读」页读正文**（目录 / 书签 / 全书搜索 / 排版在那边）；自动落盘索引书、下次续读 |
+| `reading-read` | 阅读 | 5 | `ReaderView` | **正文就地渲染**：内嵌 `ReaderShell`（索引书模式，目录 / 书签 / 全书搜索 / 排版 / 快捷键都在壳里，Ctrl+T / Ctrl+B / Ctrl+F）+ 顶栏「📂 本地 TXT / ＋ 书架 / 🔀 换源 / ⬇ 下载 / 🎧 听书」+ 页底听书控制条；翻到未缓存章自动补抓 |
 | `settings-reading` | 网络阅读设置 | 100 | `SettingsReadingView` | 抓取（并发 / 超时 / UA / 缓存）+ 阅读器（字号 / 行距 / 字体 / 宽度 / 留白 / 配色 / **首行缩进 / 段间距 / 自定义色** / 进度）+ **听书**（语速 / 音量 / 音色）+ **样式方案**（预设 / 导入 / 导出） |
 
 **导入格式**：legado 书源 JSON，兼容**顶层数组** `[{…}]` 与 `{"bookSources":[…]}` 两种形态；编码按 BOM → 严格 UTF-8 → GB18030 嗅探。
@@ -60,18 +60,18 @@
 | 搜索 | 搜索页输关键词 + 回车 / 点「🔍 搜索」 | 勾选的书源**并发**抓（默认 3 并发），结果**逐源上屏**（哪个源先回来先显示哪一条），顶部报「已完成 N / 总数 · 命中 X 条」 | 只列「可用 + 已启用」的源；默认全选，可用「☑ 全选 / ☐ 全不选」（只作用于当前过滤出来的那些）；单个源超时**不重试**（⛔ 不把等待翻倍） |
 | 选书源 | 顶栏「📚 书源 ▾」弹出浮层（左栏不常驻），里面勾哪个搜哪个 | 勾选状态只影响本次搜索，⛔ 不改库里的 `enabled`（要停用去书源页）；点「完成」或遮罩收起 | 过滤框按名称 / 分组筛；勾选数实时显示在顶栏 |
 | 加入书架 | 结果右键「＋ 加入书架」，或书籍卡「＋ 书架」 | 按详情地址幂等入库（重复加入只更新书名 / 作者） | 书架在「网络阅读 → 书架」 |
-| 打开一本书 | 列表里**点一行 = 弹书籍卡** → 卡里「📖 开始阅读」 | 进「阅读」页出目录 + 章节预览，后台把已缓存章落盘成索引书 | 源被删 / 停用会明确提示，⛔ 不静默空白 |
+| 打开一本书 | 列表里**点一行 = 弹书籍卡** → 卡里「📖 开始阅读」 | 进「阅读」页：抓目录 → 已缓存章落盘索引书（`store/reading/books/<bookId>/`）→ `ReaderShell.LoadIndex` 就地渲染并续读 | 源被删 / 停用会明确提示，⛔ 不静默空白 |
 | 发现浏览 | 网络阅读 → 发现 → 左栏展开书源 → 点分类 | 右侧铺该书单**行列表**；点一行弹书籍卡；点一棵树的根节点 = 展开 / 折叠 | 列「启用 + 非 WebView + `exploreUrl` 非空」的源（⛔ 不要求搜索段完整）；规则用 `ruleExplore`，**字段空**时逐个由 `ruleSearch` 补；左树每行等宽（⛔ 不随书名长短参差） |
 | 发现翻页 | 分类地址含 `{{page}}` 时出现「◀ 上一页 / 下一页 ▶」 | 抓第 N 页；失败不翻（避免停在空白页） | 地址里没有 `{{page}}` 的站点不显示翻页条 |
 | 关闭书籍卡 | 点遮罩 / 卡里「关闭」 | 收起浮层并清掉列表选中（否则再点同一行不会重新弹卡） | 卡片是**居中卡片**（与「确认对话卡片」同款：遮罩 + 圆角 8 + 投影 + 按钮右对齐），遮罩点击不穿透到卡片本体 |
 | 打开阅读页 | 书籍卡「📖 开始阅读」/ 书架双击 | 进「阅读」页续读 | 源被删 / 停用会明确提示，⛔ 不静默空白 |
-| 翻章 | 阅读页「▲ 上一章 / ▼ 下一章」或点目录 | 换章并抓正文（抓到即写正文缓存 + 落盘索引书），预览区显示前 500 字 | 目录过滤框只筛目录，不影响「上一章 / 下一章」顺序 |
-| **在查看器中打开** | 阅读页顶栏「📖 在查看器中打开」 | 后台导索引书（`store/reading/books/<bookId>/index.json + chapters/NNNN.txt`，已缓存章落盘 ⛔ 不联网）→ 交查看器「文本阅读」页（`ModuleTopics.ReaderOpenBook`）读正文：目录 / 书签 / 全书搜索 / 排版都在那边 | 🔴 正文阅读不在本页；未缓存的章在查看器里显示占位，回本页翻到即补；**翻章不联网、重启续读、离线可用** |
+| 翻章 | 壳顶栏「上一章 / 下一章」或 ←/→，或目录抽屉点章 | 章内容按需读落盘文件（⛔ 不联网）；文件缺失 → 占位 + 自动补抓（抓到写正文缓存 + 落盘 → 壳重载当前章） | 补抓命中正文缓存时不发网络请求 |
+| **本地 TXT 导入** | 阅读页顶栏「📂 本地 TXT」 | 读文件（BOM → 严格 UTF-8 → GB18030）→ 切章（内置规则，全不中按约 3000 字切块）→ 落盘索引书（`store/reading/local/<hash>/`，hash = 路径 + 大小 + 修改时间，没变就复用）→ 壳就地渲染；目录 / 书签 / 搜索 / 排版 / 听书照常 | 进度按**绝对路径**记 `ProgressStore`（章节键 = `#序号`）；本地文件 ⛔ 换源 / 整本下载 / 加书架；⛔ 不在 UI 线程切章落盘 |
 | 套用内置样式 | 设置页「样式方案」点「默认白底 / 护眼米黄 / 夜间暗色 / 大字宽松」 | 整套覆盖字号 / 行距 / 字体 / 宽度 / 留白 / 配色 / 缩进 / 段距，即时落盘 | 预设每格都填 ⇒ ⛔ 不是「挑着改」；状态栏报「已应用（N 项）」 |
 | 导入样式 | 设置页「📥 导入」→ 挑一个 `.json` | 逐项写 `config\reading.json` 并即时生效；状态栏报「样式「X」已应用（N 项）」 | 🔴 缺的项 = `null` ⇒ **保持原值**（手写两三项也能用）；认不出的字段忽略；非法 JSON / 读不出来只报状态，⛔ 不弹框 |
 | 导出样式 | 设置页「📤 导出」→ 选保存位置 | 把当前排版写成一份缩进 JSON（UTF-8 无 BOM），文件名默认 `reader-style.json` | 导出的就是「当前设置」快照，可带走 / 分享 |
 | 调段落 | 设置页直接填 | 缩进 = 段首补 N 个全角空格（0~4）；段距 = 段间插 N 个空行（0~3）；即时落盘 | 🔴 正文控件只有一个 `SelectableTextBlock`（无段落样式）⇒ 只在文本层做，⛔ 不为此改 NewToys.UI |
-| 目录弹出 | 顶栏「📑 目录」 | 左侧滑出覆盖层（带遮罩）；点章节 / 点遮罩 / 点「✕」收起 | 目录默认**收起**，正文占满内容区 |
+| 阅读壳快捷键 | 壳内键盘 | 空格 / PgDn·PgUp 翻页；←/→ 翻章；Ctrl+T 目录、Ctrl+B 书签、Ctrl+F 全书搜索；Esc 收浮层 | 输入框聚焦时按键归输入框 |
 | 加书架 | 阅读页顶栏「＋ 书架」 | 已在书架则刷新书名 / 作者，保留分组与加入时间 | 失败（库不可用）红字提示 |
 | 换源 | 阅读页顶栏「🔀 换源」 | 以当前书名并发搜所有可用源 → 按「书名匹配度 → 速度」排序 → 弹换源浮层；选一个源原地重开这本书续读当前章 | ⛔ 不再带书名回搜索页；当前源也参与比对；浮层里点遮罩 / ✕ 收起 |
 | 读书架的书 | 书架双击 / 工具条「📖 继续阅读」 | 进阅读页续读 | 列的「读到」列显示上次读到的章节 |
@@ -83,7 +83,7 @@
 | 整本下载 | 阅读页顶栏「⬇ 下载」 | 先选保存位置 → 逐章抓正文（命中缓存的直接跳过）→ 合成一份 TXT（书名 / 作者 / 每章标题 + 正文，章节间用 `-----` 分隔） | 中途取消只停后续章节，**已抓的照常合并保存**；失败章节列在结算文案里，再点一次即可（已下的走缓存） |
 | 预下载 | 打开 / 翻章后自动触发 | 后台串行把后面 N 章抓进正文缓存（N 来自设置，默认 5，0 = 关） | 换章即重起一轮（⛔ 不叠加）；已有缓存的不重抓；失败静默，翻到那章时再正常抓 |
 | 替换规则 | 设置页「替换规则」节 | 每行 `正则##替换`（只写正则 = 删除），行首 `#` 当注释；在书源内联 `replaceRule` **之后**执行 | 只作用于新抓的正文；已缓存的章节仍是旧正文 ⇒ 改完点「🧹 清空正文缓存」；单条正则写错只跳过那一条 |
-| 听书 | 阅读页顶栏「🎧 听书」 | 把本章正文切成句子，交 Windows 自带语音（SAPI）逐句读；正文下方出现控制条：⏸ 暂停 / ▶ 继续、语速 − ＋、⏹ 停止；进度写「第 N/M 句」 | 只读**当前已加载的正文**（⛔ 不自动翻章）；暂停 / 停止在**句子边界**生效；换章 / 关页即停；语速改了从当前句重起 |
+| 听书 | 阅读页顶栏「🎧 听书」 | 把**壳当前章**正文切成句子，交 Windows 自带语音（SAPI）逐句读；页底控制条：⏸ 暂停 / ▶ 继续、语速 − ＋、⏹ 停止；进度写「第 N/M 句」 | 朗读文本随壳切章自动跟上（位置变化即换文本，听书中换章 ⛔ 不自动重起）；暂停 / 停止在**句子边界**生效；语速改了从当前句重起 |
 | 听书设置 | 设置页「听书」节 | 语速（−10~10，0 = 正常）/ 音量（0~100）/ 音色（本机已装语音包，空 = 系统默认） | 与阅读页控制条同一份 `reading.json`；音色下拉在后台枚举，没装中文语音包就只有「系统默认」 |
 | 取消 | 搜索页 / 发现页「✖ 取消」 | 中断正在进行的抓取 | 每步都带同一取消令牌 |
 | 失败提示 | 任一步失败 | 错误条显示「哪一步 · 哪条规则 · 什么原因」 | ⛔ 不只显示"失败了" |
@@ -121,22 +121,21 @@ ShelfView ─────► ShelfViewModel ──► ShelfStore.SetGroup / Load
                       ├──────────► ProgressStore.LoadLatest（一次取全部书的最新进度）
                       └──────────► ShelfUpdateService（批量更新：详情 + 目录 → 比章数）
 
-ReaderView ────► ReaderViewModel ──► CrawlService（详情 → 目录 → 正文）
-                      ├────────────► ProgressStore.Save（切章 / 定时 5s / 离开页面）
-                      ├────────────► ReadingSettingsService（字号 / 行距 / 字体 / 宽度 / 配色 / 缩进 / 段距 / 自定义色）
-                      └────────────► ReaderStyleService（预设 / 导入 / 导出 —— 落点仍是同一个 settings）
-                                          └──► ReaderTypography.Apply（缩进 + 段距 → 重排后的正文串）
+ReaderView ────► ReaderViewModel ──► CrawlService（详情 → 目录；缺章补抓）
+                      ├────────────► ProgressStore（壳位置变化即存；本地 TXT 按路径记）
+                      ├────────────► ReadingSettingsService（壳排版唯一落点）
+                      ├────────────► BookIndexWriter（索引书落盘：books/<bookId> 与 local/<hash> 两族）
+                      └────────────► Controls.ReaderShell（渲染 + 目录 / 书签 / 搜索 / 排版；⛔ 壳不碰配置，事件外转）
 
 SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（唯一写入点 config\reading.json）
 ```
 
-- 🔴 **阅读页的排版是「服务即真相」**：VM 改属性 → 调服务写盘 → 回读服务值覆盖 VM 属性 → 发 `TypographyChanged`；
-  ⛔ 不在 VM 里自己留一份，否则阅读页与设置页会各记一套。
-- 🔴 **设置在别处被改（设置页 / 导入样式 / 套用预设）靠 `ReadingSettingsService.Changed` 回灌**：
-  阅读页 VM 订阅它 → `LoadTypography()` → 发 `TypographyChanged`。⛔ 不另开一条通知链。
-- 🔴 **正文续读位置走 `PendingProgress`**：`SetText(text, progress)` 之后由控件自己在布局完成后滚（0 则不滚）。
-- 🔴 **正文推给控件的是 `FormattedContent`（重排后的串）**，不是 `ContentText`：缩进 / 段距是「文本层」的变换
-  （`ReaderTypography.Apply`），⛔ 不碰 `NewToys.UI` 的 `TextViewer`。
+- 🔴 **壳 ⇄ VM 只走事件**（`ReaderView` code-behind 互转）：壳发 `PositionChanged / ChapterMissing / TypographyChanged / 书签三事件 / StatusChanged`，
+  VM 发 `BookReady / ChapterFetched / ShellTypographyReady`。VM ⛔ 碰控件、壳 ⛔ 碰配置 —— 双向都不许越界。
+- 🔴 **壳排版 = 服务即真相**：壳排版浮层改动 → VM 写 `ReadingSettingsService`（`reader-*` 既有键 + 新键 `reader-shell-theme`）
+  → `Changed` 回灌 → `ShellTypographyReady` → 壳 `ApplyTypography`；`_syncing` 闸门防回环。
+- 🔴 **续读 = `LoadIndex(path, position)` 一次到位**：`OpenAsync` 算好（章序号，章内比例）随 `BookReady` 发给视图；
+  网络书按 `ProgressStore` 的 chapter_url 对齐章，本地 TXT 按 `#序号` 解析。
 
 ## 4. 数据与配置
 
@@ -150,7 +149,9 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
 
 阅读器那组的键：`reader-font-size` / `reader-line-spacing` / `reader-font-family` / `reader-content-width` /
 `reader-padding` / `reader-theme` / `reader-indent` / `reader-paragraph-spacing` / `reader-bg` / `reader-fg` /
-`reader-remember-progress`（后两个自定义色留空 = 跟配色档走）。
+`reader-remember-progress`（后两个自定义色留空 = 跟配色档走）；**壳配色档** `reader-shell-theme`（0 跟随主题 / 1 米黄 / 2 淡绿 / 3 夜间）。
+🔴 索引书落盘：`store/reading/books/<bookId>/`（网文）与 `store/reading/local/<hash>/`（本地 TXT），各含
+`index.json` + `chapters/NNNN.txt` + `bookmarks.json`（书签，`BookmarksStore`）；索引自愈：重开书 / 整本下载后重导。
 
 听书那组的键：`tts-rate`（−10~10）/ `tts-volume`（0~100）/ `tts-voice`（系统音色的完整描述，空 = 默认音色）。
 
@@ -171,8 +172,6 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
   为空 ⇒ 条目全被判「书名与链接都为空」⇒ 看起来像"选择器没命中"。
 - 🔴 **`ResolveUrl` 必须按字符串拼**：分类解析阶段地址里还带 `{{page}}`，`Uri.TryCreate` 会失败或改写原串
   （花括号被转义），插值就白做了。
-- 🔴 **目录 → 正文交棒顺序**：目录流程的 `CancellationTokenSource` 要先 `Dispose` 再设 `SelectedChapter`，
-  否则正文加载开头的 `Cancel()` 会连还在收尾的目录流程一起取消。
 - 🔴 **条目字段的作用域**：`bookList` 求出节点集后，`name` / `author` 必须在**每个节点内**求值（`ctx.ForElement(node)`）；对整页求值再按索引拼 = 条目错位。
 - 🔴 **`@put:{k:rule}` 里的 `@` 不是步骤分隔符**：`SplitSteps` 遇到 `@put:` / `@get:` / `@var:` 必须**按花括号配平整段收下**，否则 `{k:tag.a@href}` 被腰斩成两段。
 - 🔴 **`{{key}}` 是已 URL 编码的值**：`CreateVariables` 里 `key` 放 `Uri.EscapeDataString(key)`，原文另存 `keyUnescaped`；POST body 里要原文就用后者。
@@ -192,17 +191,10 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
 - ⚠️ **关书籍卡必须同时清 `SelectedResult`**：`ListBox` 选中没变就不会再触发「选中变化」⇒ 卡片关掉后再点同一行打不开第二次。
 - ⚠️ **左树要显式 `HorizontalContentAlignment=Stretch`**：`Expander` 的 header 与 `ListBox` 项默认靠左，底色只包住文字 ⇒ 每行宽窄不一；
   两个都设 `Stretch`（页面局部 `Style`）才等宽。
-- ⚠️ **目录是覆盖层**：`ShowToc` 默认 `false`；`SelectedChapter` 一变就收起（「上一章 / 下一章」也会触发，无害），
-  否则换章后目录一直挡着正文。
-- 🔴🔴 **重排必须保住滚动位置**：`PendingProgress` 只在**换章**时有效（`LoadContentAsync` 里置 0、`OpenAsync` 里给续读值）。
-  若排版变化也走 `ContentChanged` → `SetText(text, PendingProgress)`，每调一次字号就把读者拽回本章开头。
-  ⇒ 视图侧分两条路：`OnContentChanged` 用 `PendingProgress`，`OnTypographyChanged` 用 `Body.ReadProgress`。
-- ⚠️ **`settings.Changed` 会连本 VM 自己的写盘一起回调**：`RaiseTypography` 写盘 → `Changed` → `LoadTypography()`。
-  靠 `_syncing` 闸门拦住「回灌再触发写盘」的回环，⛔ 不要在 `LoadTypography` 里再调服务写入。
-- 🔴🔴 **阅读配色要「挂树后再下发一次」**：`TextViewer` 内 `SelectableTextBlock.Foreground` 是 `DynamicResource`，
-  逻辑树挂载时会重新解析并**盖掉**宿主先前下发的显式前景色 ⇒ 首次进页表现为「背景按配色档、文字还是主题色」
-  （暗色主题 + 白底档 = 白底浅灰字，几乎看不见）。`ReaderView.AttachedToVisualTree` 里用 `DispatcherPriority.Loaded`
-  重放 `ApplyTypography()`。背景色落在无绑定的 `Border` 上，所以它一直是对的——排查时别被它误导。
+- 🔴🔴 **壳排版下发要等书装好**：`BookReady` 里先 `LoadIndex` 再 `ApplyTypography` —— 排版重排保滚动位置的逻辑只在有章时生效，顺序反了首屏会用默认排版。
+- 🔴🔴 **排版回环**：壳 `TypographyChanged` → VM 写盘 → `settings.Changed` → `ShellTypographyReady` → 壳 `ApplyTypography`；靠 `_syncing` 闸门拦住「回灌再触发写盘」，⛔ 不要在回灌路径里再调服务写入。
+- 🔴🔴 **缺章补抓要防重**：`ChapterMissing` 在 `ShowChapter` 与搜索跳章都会触发 ⇒ VM 用 `_fetchingIndex` 防同章重复抓；补抓完成发 `ChapterFetched` → 视图调 `ReloadChapter()`（保滚动位置），⛔ 不要整本重新 LoadIndex。
+- 🔴 **壳标签页复用**：阅读页 VM 与壳都不随书重建 ⇒ 每次 `BookReady` 都要重新 `LoadIndex` + 重挂书签，书签按书目录隔离。
 - 🔴 **正文缓存的「读」与「写」是两件事**：`ContentAsync` **总是**先查缓存（预下载写进来的也算），
   是否**写**缓存在关「缓存正文」时由预下载自己 `Put`。⛔ 别把它再绑回同一个开关——那样预下载就白下载了。
 - 🔴 **书架「更新」不是「刷新」**：`🔄 刷新书架` 只重读本地库；`🆕 批量更新` 才回源站抓详情 + 目录（每本 2 个请求）。两者别混在一个命令里。
@@ -234,7 +226,7 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
 - ~~书源分组管理与批量操作~~ ✅ 已实施（批8）：页内筛选条（类型 / 分组 / 校验）+ 列表多选 + 批量启停 / 导出 / 删除 + 「📁 改分组」。
 - ~~书源校验~~ ✅ 已实施（批8）：`SourceCheckService` 逐源跑一次搜索，结论落库三列，支持「只看失效」与「删除全部失效」。
 - ~~书架批量更新~~ ✅ 已实施（批9）：`ShelfUpdateService`（详情 + 目录 → 比章数）+ 「更新」列 + 筛选 + 「只看有更新」；`shelf` 表补 5 列（schema v5）。
-- ~~TTS 听书~~ ✅ 已实施（NT-133）：`TtsService` 走 Windows 自带 SAPI（COM 后期绑定）逐句朗读 + 暂停 / 语速 / 停止，设置页「听书」节管语速 / 音量 / 音色。仍未立项：**本地 TXT/EPUB 导入**、**RSS 订阅**。
+- ~~TTS 听书~~ ✅ 已实施（NT-133）：`TtsService` 走 Windows 自带 SAPI（COM 后期绑定）逐句朗读 + 暂停 / 语速 / 停止，设置页「听书」节管语速 / 音量 / 音色。~~本地 TXT 导入~~ ✅ 已实施（NT-144 批 3）：阅读页「📂 本地 TXT」→ `TxtBookService` 切章 → `ExportLocalText` 落盘索引书。仍未立项：**EPUB 导入**、**RSS 订阅**、**书架收编本地书**。
 - ~~正文缓存~~ ✅ 已实施（NT-129）：`content_cache` 表 + `ContentCacheStore`，`ContentAsync` 首查尾写、`cache-enabled` 开关。
 - ~~换源~~ ✅ 已实施（NT-129）：多源并发比对 → 按「书名匹配度 → 速度」排序 → 换源浮层选源原地续读（⛔ 不再带书名回搜索页）。
 - **`java.*` 未覆盖的少数派**：~~`t2s` 繁转简~~ ✅ 已实施（NT-129，`TraditionalToSimplified` 内置映射）；`java.webview` / `startBrowserAwait` 桌面端不实现（这类源已判「需 WebView」）。

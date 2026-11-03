@@ -1,9 +1,8 @@
 using System;
-using System.Collections.Generic;
 
-namespace NewToys.Viewer.Controls;
+namespace NewToys.Reading.Controls;
 
-/// <summary>文本阅读器的一章：整本书 <see cref="Text"/> 上的一段切片。</summary>
+/// <summary>文本阅读器的一章：整本书 <see cref="Text"/> 上的一段切片（用于切章落盘）。</summary>
 public sealed class ReaderChapter
 {
     /// <summary>章节标题（目录里显示）。</summary>
@@ -91,18 +90,4 @@ public sealed class ReaderTypography
     public int Theme { get; init; }
 
     public static ReaderTypography Default => new();
-}
-
-/// <summary>阅读器对宿主公开的接口（宿主是 <c>Module.Viewer</c>，控件本身不碰文件与配置）。</summary>
-public interface IReaderHost
-{
-    /// <summary>请求把当前阅读位置记下来。</summary>
-    void SavePosition(ReaderPosition position);
-}
-
-/// <summary>章节列表（供目录列表绑定，避免每次重建包装对象）。</summary>
-public sealed class ReaderChapterList : List<ReaderChapter>
-{
-    public ReaderChapterList() { }
-    public ReaderChapterList(IEnumerable<ReaderChapter> items) : base(items) { }
 }

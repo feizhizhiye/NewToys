@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Core.Services;
+using NewToys.Reading.Controls;
 using NewToys.Reading.Models;
 using NewToys.Reading.Services;
 using NewToys.Shared.Services;
@@ -16,9 +17,14 @@ using NewToys.Shared.Services;
 namespace NewToys.Reading.ViewModels;
 
 /// <summary>
-/// 「网络阅读 → 阅读」页（<c>reading-read</c>）：沉浸式读一本书 —— 左目录、右正文、顶部排版条。
+/// 「网络阅读 → 阅读」页（<c>reading-read</c>）：桌面 legado 的阅读器 —— 正文渲染交给
+/// <see cref="Controls.ReaderShell"/>（索引书模式），本 VM 管「选书 / 抓取 / 换源 / 下载 / 听书」。
 /// <para>入口：书架「继续阅读」、发现页「读这本书」，都靠 <see cref="ReadingSession.PendingBook"/> 带一本书进来。</para>
-/// <para>排版参数与「设置 → 网络阅读设置」是**同一份**（<c>config\reading.json</c>），本页改完即时重排并落盘。</para>
+/// <para>
+/// 🔴 章导航 / 目录 / 书签 / 搜索 / 排版都在壳里，壳只发事件不落盘：
+/// 进度 → <see cref="ProgressStore"/>（本地文件按绝对路径记，章节键 = <c>#序号</c>）；
+/// 排版 → <see cref="ReadingSettingsService"/>；书签 → 书目录的 <c>bookmarks.json</c>。
+/// </para>
 /// </summary>
 public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDisposable
 {
@@ -26,40 +32,46 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     private readonly CrawlService _crawl;
     private readonly ShelfStore _shelf;
     private readonly ProgressStore _progress;
-    private readonly ReadingSettingsService _settings;
-    private readonly ReaderStyleService _styles;
+    private readonly ReadingSettingsService? _settings;
     private readonly ReadingSession _session;
     private readonly INavigationService? _nav;
     private readonly PrefetchService? _prefetch;
     private readonly BookDownloadService? _download;
     private readonly TtsService? _tts;
-    private readonly IModuleBus? _bus;
     private readonly BookIndexWriter? _books;
+    private readonly BookmarksStore _bookmarksStore = new();
+    private readonly TxtBookService? _txt;
 
-    private CancellationTokenSource? _cts;
     private CancellationTokenSource? _prefetchCts;
     private CancellationTokenSource? _downloadCts;
     private bool _syncing;
 
-    /// <summary>当前这一章的朗读句子（语速变了要从当前句重起，所以留一份）。</summary>
-    private IReadOnlyList<string> _ttsSentences = Array.Empty<string>();
-
     /// <summary>当前这本书来自哪个书源（换源 / 抓正文都要它）。</summary>
     private string _sourceUrl = "";
+
+    /// <summary>非空 = 当前读的是本地 TXT（进度按路径记，⛔ 换源 / 整本下载）。</summary>
+    private string _localPath = "";
+
+    /// <summary>当前索引书目录（书签落这里）。</summary>
+    private string _bookDir = "";
+
+    /// <summary>壳当前章的正文与标题（听书朗读用，壳位置变化时由视图推过来）。</summary>
+    private string _readerText = "";
+    private string _readerTitle = "";
+
+    /// <summary>正在补抓的章序号（−1 = 空闲；防同一章重复抓）。</summary>
+    private int _fetchingIndex = -1;
+
+    private List<ReaderBookmark> _bookmarks = new();
 
     [ObservableProperty] private string _bookName = "";
     [ObservableProperty] private string _author = "";
     [ObservableProperty] private string _bookUrl = "";
     [ObservableProperty] private string _sourceName = "";
-    [ObservableProperty] private Chapter? _selectedChapter;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _busyPhase = "";
-    [ObservableProperty] private string _statusText = "从书架或发现页打开一本书";
+    [ObservableProperty] private string _statusText = "从书架或发现页打开一本书，或「📂 本地 TXT」直接读本地文件";
     [ObservableProperty] private string _errorText = "";
-    [ObservableProperty] private string _chapterTitle = "";
-    [ObservableProperty] private string _contentText = "";
-    [ObservableProperty] private bool _showToc;
-    [ObservableProperty] private string _tocFilter = "";
 
     /// <summary>换源浮层是否展开（顶栏「🔀 换源」弹出；选一个源 / 关闭收起）。</summary>
     [ObservableProperty] private bool _showSwitchPanel;
@@ -79,26 +91,6 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     /// <summary>换源比对进行中（浮层里显示「正在比对…」）。</summary>
     [ObservableProperty] private bool _isSwitching;
 
-    [ObservableProperty] private int _fontSize = ReadingSettingsService.DefaultFontSize;
-    [ObservableProperty] private double _lineSpacing = ReadingSettingsService.DefaultLineSpacing;
-    [ObservableProperty] private int _contentWidth = ReadingSettingsService.DefaultContentWidth;
-    [ObservableProperty] private string _fontFamily = ReadingSettingsService.DefaultFontFamily;
-    [ObservableProperty] private ReaderTheme _theme = ReaderTheme.Light;
-
-    /// <summary>首行缩进（全角空格个数）。</summary>
-    [ObservableProperty] private int _indent = ReadingSettingsService.DefaultIndent;
-
-    /// <summary>段间距（段与段之间的空行数）。</summary>
-    [ObservableProperty] private int _paragraphSpacing = ReadingSettingsService.DefaultParagraphSpacing;
-
-    /// <summary>正文左右留白（px）。</summary>
-    [ObservableProperty] private int _readerPadding = 28;
-
-    /// <summary>样式卡是否展开（顶栏「🎨 样式」弹出；遮罩 / 关闭按钮收起）。</summary>
-    [ObservableProperty] private bool _showStylePanel;
-
-    // ==================== 听书（TTS） ====================
-
     /// <summary>听书进行中（正文下方控制栏的显示开关）。</summary>
     [ObservableProperty] private bool _isListening;
 
@@ -112,27 +104,28 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     [ObservableProperty] private int _ttsRate = ReadingSettingsService.DefaultTtsRate;
 
     /// <summary>设计期 / 无 DI 兜底构造。</summary>
-    public ReaderViewModel() : this(null!, null!, null!, null!, null!, null!, new ReadingSession()) { }
+    public ReaderViewModel()
+        : this(null!, null!, null!, null!, null!, new ReadingSession())
+    { }
 
     public ReaderViewModel(
         SourceStore store, CrawlService crawl, ShelfStore shelf, ProgressStore progress,
-        ReadingSettingsService settings, ReaderStyleService styles, ReadingSession session,
+        ReadingSettingsService? settings, ReadingSession session,
         INavigationService? nav = null, PrefetchService? prefetch = null, BookDownloadService? download = null,
-        TtsService? tts = null, IModuleBus? bus = null, BookIndexWriter? books = null)
+        TtsService? tts = null, BookIndexWriter? books = null, TxtBookService? txt = null)
     {
         _store = store;
         _crawl = crawl;
         _shelf = shelf;
         _progress = progress;
         _settings = settings;
-        _styles = styles;
         _session = session;
         _nav = nav;
         _prefetch = prefetch;
         _download = download;
         _tts = tts;
-        _bus = bus;
         _books = books;
+        _txt = txt;
 
         if (_tts is not null)
         {
@@ -143,29 +136,29 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         if (settings is not null)
         {
             settings.Changed += OnSettingsChanged;
-            LoadTypography();
+            TtsRate = settings.TtsRate;
         }
     }
 
-    /// <summary>目录全量（<c>Chapters</c> 是它的过滤视图）。</summary>
+    /// <summary>目录全量（换源 / 整本下载 / 进度映射都用它；目录 UI 在壳里）。</summary>
     public ObservableCollection<Chapter> Chapters { get; } = new();
-
-    /// <summary>过滤后的目录（界面绑这个）。</summary>
-    public ObservableCollection<Chapter> VisibleChapters { get; } = new();
 
     /// <summary>换源比对的候选源（界面绑这个）。</summary>
     public ObservableCollection<SwitchCandidate> SwitchCandidates { get; } = new();
 
-    /// <summary>正文字变了（视图据此推给 <c>TextViewer</c>，并带上要续读的位置）。</summary>
-    public event EventHandler? ContentChanged;
+    /// <summary>
+    /// 书已就绪可以装进壳：参数 =（索引书 index.json 绝对路径, 续读章序号, 章内比例 0~1）。
+    /// <para>🔴 标签页复用时 VM 不重建 ⇒ 每次打开书都会再发一次，视图收到就重新 LoadIndex。</para>
+    /// </summary>
+    public event Action<string, int, double>? BookReady;
 
-    /// <summary>排版参数变了（字号 / 行距 / 字体 / 配色 / 页宽）。</summary>
-    public event EventHandler? TypographyChanged;
+    /// <summary>缺章补抓落盘完成（视图据此调壳的 <see cref="Controls.ReaderShell.ReloadChapter"/>）。</summary>
+    public event Action? ChapterFetched;
+
+    /// <summary>壳的排版参数就绪 / 被设置页改了（视图据此 ApplyTypography）。</summary>
+    public event Action<ReaderTypography>? ShellTypographyReady;
 
     public event EventHandler? StatusChanged;
-
-    /// <summary>正文重新加载后要滚到的位置（0~1）。</summary>
-    public double PendingProgress { get; private set; }
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorText);
 
@@ -173,33 +166,11 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
 
     public bool HasBook => !string.IsNullOrWhiteSpace(BookUrl);
 
-    public bool HasChapters => Chapters.Count > 0;
+    public bool HasChapters => Chapters.Count > 0 || _localPath.Length > 0;
 
     public bool HasSwitchCandidates => SwitchCandidates.Count > 0;
 
-    /// <summary>阅读区背景（自定义色优先，否则配色档）。</summary>
-    public string ReaderBackground => _settings is null
-        ? ReadingSettingsService.BackgroundOf(Theme)
-        : _settings.EffectiveBackground(Theme);
-
-    /// <summary>阅读区前景。</summary>
-    public string ReaderForeground => _settings is null
-        ? ReadingSettingsService.ForegroundOf(Theme)
-        : _settings.EffectiveForeground(Theme);
-
-    /// <summary>顶部排版条上的读数。</summary>
-    public string TypographyText =>
-        $"{FontSize}px · 行距 {LineSpacing:0.0} · {ReadingSettingsService.ThemeText(Theme)} · 缩进 {Indent} · 段距 {ParagraphSpacing}";
-
-    /// <summary>抓回来的正文按当前「缩进 / 段距」重排后的结果（视图推给 <c>TextViewer</c> 的就是这个）。</summary>
-    public string FormattedContent => ReaderTypography.Apply(ContentText, Indent, ParagraphSpacing);
-
-    /// <summary>本页预览文本（正文前 500 字；完整阅读在查看器的「文本阅读」页）。</summary>
-    public string PreviewText => ContentText.Length <= 500 ? ContentText : ContentText[..500] + "…";
-
-    /// <summary>样式卡里的内置预设。</summary>
-    public IReadOnlyList<Models.ReaderStyle> StylePresets =>
-        _styles?.Presets ?? (IReadOnlyList<Models.ReaderStyle>)Array.Empty<Models.ReaderStyle>();
+    public bool IsLocalBook => _localPath.Length > 0;
 
     partial void OnStatusTextChanged(string value) => StatusChanged?.Invoke(this, EventArgs.Empty);
 
@@ -209,49 +180,31 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
 
     partial void OnBookUrlChanged(string value) => OnPropertyChanged(nameof(HasBook));
 
-    partial void OnThemeChanged(ReaderTheme value)
-    {
-        OnPropertyChanged(nameof(ReaderBackground));
-        OnPropertyChanged(nameof(ReaderForeground));
-        OnPropertyChanged(nameof(TypographyText));
-        TypographyChanged?.Invoke(this, EventArgs.Empty);
-    }
-
     /// <summary>
-    /// 设置在别处被改了（设置页 / 导入样式 / 套用预设）⇒ 灌一次排版参数。
-    /// <para>🔴 只走 <see cref="TypographyChanged"/>（视图据此「保住当前滚动位置」重排），
-    /// ⛔ 不走 <see cref="ContentChanged"/> —— 那条路会把滚动位置拉回本章开头。</para>
+    /// 设置在别处被改了（设置页 / 套用样式预设）⇒ 把排版重新下发给壳（⛔ 与壳回写共用 <c>_syncing</c> 防环）。
     /// </summary>
-    private void OnSettingsChanged() => LoadTypography();
-
-    partial void OnFontSizeChanged(int value) => RaiseTypography("reader-font-size");
-
-    partial void OnLineSpacingChanged(double value) => RaiseTypography("reader-line-spacing");
-
-    partial void OnFontFamilyChanged(string value) => RaiseTypography("reader-font-family");
-
-    partial void OnContentWidthChanged(int value) => RaiseTypography("reader-content-width");
-
-    partial void OnReaderPaddingChanged(int value) => RaiseTypography("reader-padding");
-
-    partial void OnIndentChanged(int value) => RaiseTypography("reader-indent");
-
-    partial void OnParagraphSpacingChanged(int value) => RaiseTypography("reader-paragraph-spacing");
-
-    partial void OnContentTextChanged(string value)
+    private void OnSettingsChanged()
     {
-        OnPropertyChanged(nameof(PreviewText));
-        ContentChanged?.Invoke(this, EventArgs.Empty);
+        if (_syncing) return;
+        ShellTypographyReady?.Invoke(BuildShellTypography());
     }
 
-    partial void OnSelectedChapterChanged(Chapter? value)
+    partial void OnTtsRateChanged(int value)
     {
-        // 点选章节就把弹出来的目录收起（目录是覆盖层，不收起会一直挡着正文）
-        if (ShowToc) ShowToc = false;
-        if (value is not null) _ = LoadContentAsync(value);
-    }
+        if (_syncing) return;
 
-    partial void OnTocFilterChanged(string value) => RebuildVisibleChapters();
+        _settings?.SetTtsRate(value);
+
+        // 听书中改语速：从当前句重起（SAPI 的 Rate 只在 Speak 前读，改不了正在读的那句）
+        if (!IsListening || _tts is null) return;
+        if (_ttsSentences.Count == 0) return;
+
+        var error = _tts.Start(_ttsSentences, _tts.Index, value,
+            _settings?.TtsVolume ?? ReadingSettingsService.DefaultTtsVolume, _settings?.TtsVoice ?? "");
+        if (error.Length > 0) { StatusText = error; StopListen(); return; }
+
+        IsListenPaused = false;
+    }
 
     // ==================== 打开一本书 ====================
 
@@ -264,7 +217,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         if (_session.TakePendingBook() is { } pending) _ = OpenAsync(pending);
     }
 
-    /// <summary>按 <see cref="PendingBook"/> 打开：详情 → 目录 → 续读章节。</summary>
+    /// <summary>按 <see cref="PendingBook"/> 打开：详情 → 目录 → 落盘索引书 → 交给壳续读。</summary>
     public async Task OpenAsync(PendingBook pending)
     {
         if (_crawl is null) { StatusText = "⚠ 抓取服务未就绪。"; return; }
@@ -277,30 +230,25 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
             return;
         }
 
-        Cancel();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
+        StopListen();
+        ErrorText = "";
         BookUrl = pending.BookUrl;
         BookName = pending.Name;
         Author = "";
         SourceName = source.Name;
         _sourceUrl = source.Url;
+        _localPath = "";
+        _bookDir = "";
+        _bookmarks.Clear();
         Chapters.Clear();
-        VisibleChapters.Clear();
-        SelectedChapter = null;
-        ContentText = "";
-        ChapterTitle = "";
-        ErrorText = "";
         OnPropertyChanged(nameof(HasChapters));
+        OnPropertyChanged(nameof(IsLocalBook));
         IsBusy = true;
         BusyPhase = "正在读目录…";
 
         try
         {
-            var detail = await _crawl.DetailAsync(source, pending.BookUrl, token).ConfigureAwait(true);
-            if (token.IsCancellationRequested) return;
-
+            var detail = await _crawl.DetailAsync(source, pending.BookUrl, CancellationToken.None).ConfigureAwait(true);
             if (detail.Value is not null)
             {
                 if (!string.IsNullOrWhiteSpace(detail.Value.Name)) BookName = detail.Value.Name;
@@ -309,14 +257,12 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
             }
 
             var tocUrl = string.IsNullOrWhiteSpace(detail.Value?.TocUrl) ? pending.BookUrl : detail.Value!.TocUrl;
-            var chapters = await _crawl.ChaptersAsync(source, tocUrl, token).ConfigureAwait(true);
-            if (token.IsCancellationRequested) return;
+            var chapters = await _crawl.ChaptersAsync(source, tocUrl, CancellationToken.None).ConfigureAwait(true);
 
             if (chapters.Value is not null)
                 foreach (var chapter in chapters.Value) Chapters.Add(chapter);
 
             OnPropertyChanged(nameof(HasChapters));
-            RebuildVisibleChapters();
 
             ErrorText = string.Join("\n", new[] { detail.Error, chapters.Error }
                 .Where(e => e is not null).Select(e => e!.Display));
@@ -328,7 +274,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
             }
 
             // 续读：换源带来的章节优先 → 否则进度表 → 否则第 1 章
-            var saved = _progress?.Get(BookUrl);
+            var saved = _settings is { RememberProgress: false } ? null : _progress?.Get(BookUrl);
             Chapter? resume = null;
 
             if (!string.IsNullOrWhiteSpace(_resumeChapterUrl))
@@ -346,27 +292,39 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
 
             resume ??= MatchChapter(Chapters, saved?.ChapterName);
 
-            if (resume is not null)
+            var resumeIndex = resume is null ? 0 : Math.Max(0, Chapters.IndexOf(resume));
+            var ratio = resume is not null && saved is not null && resume.Url == saved.ChapterUrl
+                ? saved.Offset
+                : 0;
+
+            StatusText = resume is null
+                ? $"《{BookName}》共 {Chapters.Count} 章"
+                : $"《{BookName}》续读：{resume.Name}";
+
+            // 目录到手 ⇒ 落盘「索引书」（已缓存章直接落盘，⛔ 不联网），落完交给壳
+            BusyPhase = "正在整理这本书的索引…";
+            var url = BookUrl;
+            var title = BookName;
+            var author = Author;
+            var src = _sourceUrl;
+            var snapshot = Chapters.ToList();
+
+            var (indexPath, exportError) = await Task.Run(() =>
             {
-                PendingProgress = saved is not null && resume.Url == saved.ChapterUrl ? saved.Offset : 0;
-                StatusText = $"《{BookName}》续读：{resume.Name}";
-            }
-            else
+                var p = _books?.ExportBook(url, title, author, src, snapshot, out var err);
+                return (p, err);
+            }).ConfigureAwait(true);
+
+            if (indexPath is null)
             {
-                PendingProgress = 0;
-                StatusText = $"《{BookName}》共 {Chapters.Count} 章";
+                ErrorText = exportError;
+                StatusText = "⚠ " + exportError;
+                return;
             }
 
-            // 目录就绪 ⇒ 交棒给正文加载（🔴 先放掉目录流程的令牌，否则正文加载的 Cancel() 会把还没收尾的目录流程也取消）
-            try { _cts?.Dispose(); } catch { /* 已释放 */ }
-            _cts = null;
-
-            // 目录到手就后台落盘「索引书」（只导已缓存的章，⛔ 不联网）：查看器那本随时可开
-            ExportIndexInBackground();
-
-            SelectedChapter = resume ?? Chapters[0];
+            _bookDir = Path.GetDirectoryName(indexPath) ?? "";
+            BookReady?.Invoke(indexPath, resumeIndex, ratio);
         }
-        catch (OperationCanceledException) { }
         catch (Exception ex) { ErrorText = "打开失败：" + ex.Message; }
         finally
         {
@@ -375,108 +333,222 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         }
     }
 
-    // ==================== 翻章 / 目录 ====================
+    // ==================== 壳对接（视图转发） ====================
 
-    [RelayCommand]
-    private void PrevChapter()
+    /// <summary>壳位置变了：存进度 + 给听书换文本。参数 =（章序号, 章内比例, 章标题）。</summary>
+    public void SaveShellProgress(int chapterIndex, double ratio, string chapterTitle)
     {
-        if (Chapters.Count == 0) return;
-        var index = SelectedChapter is null ? 0 : Chapters.IndexOf(SelectedChapter);
-        if (index > 0) SelectedChapter = Chapters[index - 1];
-    }
+        _readerTitle = chapterTitle;
 
-    [RelayCommand]
-    private void NextChapter()
-    {
-        if (Chapters.Count == 0) return;
-        var index = SelectedChapter is null ? -1 : Chapters.IndexOf(SelectedChapter);
-        if (index >= 0 && index < Chapters.Count - 1) SelectedChapter = Chapters[index + 1];
-    }
+        if (_settings is { RememberProgress: false }) return;
+        if (_progress is null) return;
 
-    [RelayCommand]
-    private void ToggleToc() => ShowToc = !ShowToc;
-
-    [RelayCommand]
-    private void Cancel()
-    {
-        try { _cts?.Cancel(); } catch { /* 已释放 */ }
-        _cts?.Dispose();
-        _cts = null;
-    }
-
-    /// <summary>把当前进度写库（视图定时 / 离开页面时调）。</summary>
-    public void SaveProgress(double offset)
-    {
-        if (_settings is not null && !_settings.RememberProgress) return;
-        if (_progress is null || SelectedChapter is null || string.IsNullOrWhiteSpace(BookUrl)) return;
-        if (string.IsNullOrWhiteSpace(SelectedChapter.Url)) return;
-
-        _progress.Save(BookUrl, SelectedChapter.Url, SelectedChapter.Name, offset);
-    }
-
-    /// <summary>后台导「索引书」（index.json + 已缓存章落盘，⛔ 不联网、不阻塞翻章）。</summary>
-    private void ExportIndexInBackground()
-    {
-        var books = _books;
-        if (books is null) return;
-
-        var url = BookUrl;
-        var title = BookName;
-        var author = Author;
-        var source = _sourceUrl;
-        var snapshot = Chapters.ToList();
-        _ = Task.Run(() => books.ExportBook(url, title, author, source, snapshot, out _));
-    }
-
-    /// <summary>
-    /// 「📖 在查看器中打开」：把这本书导成索引书（已缓存章落盘）→ 交给查看器文本页（目录 / 书签 /
-    /// 全书搜索 / 排版在那边）。未缓存的章在查看器里显示占位，翻到即补。
-    /// </summary>
-    [RelayCommand]
-    private async Task OpenInViewerAsync()
-    {
-        var books = _books;
-        if (books is null) { StatusText = "⚠ 索引服务未就绪。"; return; }
-        if (Chapters.Count == 0) { StatusText = "先打开一本书。"; return; }
-
-        var url = BookUrl;
-        var title = BookName;
-        var author = Author;
-        var source = _sourceUrl;
-        var snapshot = Chapters.ToList();
-
-        StatusText = "正在整理这本书的索引…";
-        var exportError = "";
-        var path = await Task.Run(() => books.ExportBook(url, title, author, source, snapshot, out exportError))
-            .ConfigureAwait(true);
-
-        if (path is null)
+        if (_localPath.Length > 0)
         {
-            StatusText = "⚠ " + exportError;
+            _progress.Save(_localPath, "#" + chapterIndex, chapterTitle, ratio);
             return;
         }
 
-        _bus?.Post(ModuleTopics.ReaderOpenBook, path);
-        _nav?.NavigateTo("viewer-text");
-        StatusText = $"《{title}》已交给「文本阅读」在查看器中打开。";
+        if (chapterIndex < 0 || chapterIndex >= Chapters.Count || string.IsNullOrWhiteSpace(BookUrl)) return;
+
+        var chapter = Chapters[chapterIndex];
+        if (string.IsNullOrWhiteSpace(chapter.Url)) return;
+
+        _progress.Save(BookUrl, chapter.Url, chapter.Name, ratio);
     }
 
-    /// <summary>加入书架（已在则刷新书名作者）。</summary>
-    [RelayCommand]
-    private void AddToShelf()
+    /// <summary>壳把当前章正文推过来（听书朗读的就是它）。</summary>
+    public void SetReaderText(string text, string title)
     {
-        if (_shelf is null || string.IsNullOrWhiteSpace(BookUrl)) return;
-
-        var ok = _shelf.Add(new ShelfBook
-        {
-            BookUrl = BookUrl,
-            SourceUrl = FindSourceUrl(),
-            Name = BookName,
-            Author = Author,
-        });
-
-        StatusText = ok ? $"《{BookName}》已加入书架" : "⚠ 加入书架失败（书库不可用）";
+        _readerText = text ?? "";
+        _readerTitle = title ?? "";
     }
+
+    /// <summary>当前要下发的壳排版（读 <see cref="ReadingSettingsService"/> 同一份）。</summary>
+    public ReaderTypography BuildShellTypography() => _settings is null
+        ? ReaderTypography.Default
+        : new ReaderTypography
+        {
+            FontSize = _settings.FontSize,
+            LineSpacing = _settings.LineSpacing,
+            Padding = _settings.ReaderPadding,
+            ParagraphSpacing = _settings.ParagraphSpacing > 0 ? 1 : 0,
+            Indent = _settings.Indent > 0,
+            FontFamily = _settings.FontFamily,
+            Theme = _settings.ShellTheme,
+        };
+
+    /// <summary>壳的排版浮层改完了 → 写回设置（写盘触发 Changed ⇒ 自动重下发，<c>_syncing</c> 防环）。</summary>
+    public void SaveShellTypography(ReaderTypography typography)
+    {
+        if (_settings is null || _syncing || typography is null) return;
+
+        _syncing = true;
+        try
+        {
+            _settings.SetFontSize((int)Math.Round(typography.FontSize));
+            _settings.SetLineSpacing(typography.LineSpacing);
+            _settings.SetReaderPadding((int)Math.Round(typography.Padding));
+            _settings.SetIndent(typography.Indent ? 1 : 0);
+            _settings.SetParagraphSpacing(typography.ParagraphSpacing > 0 ? 1 : 0);
+            _settings.SetFontFamily(typography.FontFamily);
+            _settings.SetShellTheme(typography.Theme);
+        }
+        catch (Exception ex) { StatusText = "⚠ 保存排版失败：" + ex.Message; }
+        finally { _syncing = false; }
+    }
+
+    // ==================== 缺章补抓 ====================
+
+    /// <summary>
+    /// 壳翻到了文件缺失的章（网络书）：静默抓正文 → 落盘 → 通知视图重载当前章。
+    /// 本地书文件必然存在，⛔ 走这里。
+    /// </summary>
+    public async Task FetchChapterAsync(int chapterIndex)
+    {
+        if (_localPath.Length > 0) return;
+        if (_crawl is null || _books is null) return;
+        if (chapterIndex < 0 || chapterIndex >= Chapters.Count) return;
+        if (_fetchingIndex == chapterIndex) return;
+
+        var chapter = Chapters[chapterIndex];
+        if (string.IsNullOrWhiteSpace(chapter.Url)) return;
+
+        var source = FindSource(FindSourceUrl());
+        if (source is null) { StatusText = "⚠ 找不到这本书对应的书源，无法补抓本章。"; return; }
+
+        _fetchingIndex = chapterIndex;
+        StatusText = $"正在补抓：{chapter.Name}…";
+
+        try
+        {
+            var content = await _crawl.ContentAsync(source, chapter.Url, CancellationToken.None).ConfigureAwait(true);
+
+            if (content.Value is { Length: > 0 })
+            {
+                _books.WriteChapter(BookUrl, chapterIndex, content.Value);
+                StatusText = $"已补抓：{chapter.Name}";
+                ChapterFetched?.Invoke();
+            }
+            else
+            {
+                StatusText = "⚠ 本章补抓失败：" + (content.Error?.Display ?? "正文为空");
+            }
+
+            StartPrefetch(source, chapter);
+        }
+        catch (Exception ex)
+        {
+            StatusText = "⚠ 本章补抓异常：" + ex.Message;
+        }
+        finally
+        {
+            _fetchingIndex = -1;
+        }
+    }
+
+    // ==================== 书签（壳的增删跳都落到书目录 bookmarks.json） ====================
+
+    /// <summary>当前书的全量书签（视图装进壳）。</summary>
+    public IReadOnlyList<ReaderBookmark> LoadBookmarks() => _bookmarks;
+
+    /// <summary>视图装完壳后调一次：从书目录把书签读进来。</summary>
+    public void ReloadBookmarks()
+    {
+        _bookmarks = _bookDir.Length > 0
+            ? _bookmarksStore.Load(_bookDir).ToList()
+            : new List<ReaderBookmark>();
+    }
+
+    public void AddBookmark(ReaderBookmark bookmark)
+    {
+        _bookmarks.Add(bookmark);
+        _bookmarksStore.Save(_bookDir, _bookmarks);
+        StatusText = "已加书签：" + bookmark.ChapterTitle;
+    }
+
+    public void RemoveBookmark(string id)
+    {
+        _bookmarks.RemoveAll(b => string.Equals(b.Id, id, StringComparison.Ordinal));
+        _bookmarksStore.Save(_bookDir, _bookmarks);
+        StatusText = "已删除书签。";
+    }
+
+    // ==================== 本地 TXT ====================
+
+    /// <summary>
+    /// 「📂 本地 TXT」：读文件（BOM → 严格 UTF-8 → GB18030）→ 切章 → 落盘索引书 → 交给壳。
+    /// <para>🔴 落盘根 = <c>store/reading/local/&lt;hash&gt;/</c>，hash 含大小与修改时间 ⇒ 文件没变就复用。</para>
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenLocalTxtAsync()
+    {
+        if (_txt is null || _books is null) { StatusText = "⚠ 导入服务未就绪。"; return; }
+
+        var files = await DialogHooks.PickFilesAsync("打开本地 TXT", null, false, "*.txt").ConfigureAwait(true);
+        if (files.Count == 0) { StatusText = "已取消打开本地文件"; return; }
+
+        var path = files[0];
+        StopListen();
+        ErrorText = "";
+        IsBusy = true;
+        BusyPhase = "正在导入本地文件…";
+
+        try
+        {
+            var (indexPath, exportError) = await Task.Run(() =>
+            {
+                var text = _txt.ReadText(path);
+                var chapters = _txt.BuildChapters(text, null);
+                var exported = _books.ExportLocalText(path, text, chapters, out var err);
+                return (exported, err);
+            }).ConfigureAwait(true);
+
+            if (indexPath is null)
+            {
+                ErrorText = exportError;
+                StatusText = "⚠ " + exportError;
+                return;
+            }
+
+            _localPath = path;
+            _bookDir = Path.GetDirectoryName(indexPath) ?? "";
+            _bookmarks.Clear();
+            BookUrl = path;
+            BookName = Path.GetFileNameWithoutExtension(path);
+            Author = "";
+            SourceName = "本地文件";
+            Chapters.Clear();
+            OnPropertyChanged(nameof(HasChapters));
+            OnPropertyChanged(nameof(IsLocalBook));
+
+            // 续读：进度按绝对路径记，章节键 = #序号
+            var saved = _settings is { RememberProgress: false } ? null : _progress?.Get(path);
+            var resumeIndex = 0;
+            var ratio = 0.0;
+            if (saved is not null && saved.ChapterUrl.StartsWith("#", StringComparison.Ordinal)
+                && int.TryParse(saved.ChapterUrl[1..], out var parsed))
+            {
+                resumeIndex = parsed;
+                ratio = saved.Offset;
+            }
+
+            StatusText = $"《{BookName}》已打开";
+            BookReady?.Invoke(indexPath, resumeIndex, ratio);
+        }
+        catch (Exception ex)
+        {
+            ErrorText = "导入失败：" + ex.Message;
+            StatusText = "⚠ 导入失败";
+        }
+        finally
+        {
+            IsBusy = false;
+            BusyPhase = "";
+        }
+    }
+
+    // ==================== 换源 ====================
 
     /// <summary>
     /// 「🔀 换源」：以当前书名并发搜所有可用源 → 按「书名匹配度 → 响应速度」排序 → 弹换源浮层，
@@ -485,6 +557,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     [RelayCommand]
     private async Task SwitchSourceAsync()
     {
+        if (_localPath.Length > 0) { StatusText = "本地文件不支持换源。"; return; }
         if (string.IsNullOrWhiteSpace(BookName)) { StatusText = "先打开一本书。"; return; }
         if (_crawl is null || _store is null) { StatusText = "⚠ 换源服务未就绪。"; return; }
 
@@ -493,10 +566,6 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
             .Where(s => s.Enabled && s.Capability == SourceCapability.Ready)
             .ToList();
         if (sources.Count == 0) { StatusText = "没有可用书源可换。"; return; }
-
-        Cancel();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
 
         SwitchCandidates.Clear();
         OnPropertyChanged(nameof(HasSwitchCandidates));
@@ -507,8 +576,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         var start = DateTimeOffset.UtcNow;
         try
         {
-            var results = await _crawl.SearchManyAsync(sources, BookName, 1, token).ConfigureAwait(true);
-            if (token.IsCancellationRequested) return;
+            var results = await _crawl.SearchManyAsync(sources, BookName, 1, CancellationToken.None).ConfigureAwait(true);
 
             var candidates = new List<SwitchCandidate>();
             foreach (var result in results)
@@ -546,7 +614,6 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
                 ? "⚠ 没有源命中这本书 —— 换一个书名，或到「书源」补源"
                 : $"比对出 {candidates.Count} 个候选源，点一个即切换";
         }
-        catch (OperationCanceledException) { }
         catch (Exception ex) { StatusText = "⚠ 换源异常：" + ex.Message; }
         finally
         {
@@ -595,8 +662,8 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         if (candidate is null) return;
         ShowSwitchPanel = false;
 
-        var chapter = SelectedChapter;
         var oldBookUrl = BookUrl;
+        var currentTitle = _readerTitle;
 
         // 书架 / 进度都以 book_url 为主键：换源 = 换地址 ⇒ 先重挂再重开，否则书架留旧行、续读丢失
         if (!string.IsNullOrWhiteSpace(oldBookUrl) &&
@@ -610,12 +677,12 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         StatusText = $"切换书源：{candidate.SourceName}";
 
         // 不同源的章节地址必然不同 ⇒ 记章节名对齐；同源重开仍可走地址精确命中
-        _resumeChapterUrl = chapter?.Url ?? "";
-        _resumeChapterName = chapter?.Name ?? "";
+        _resumeChapterUrl = "";
+        _resumeChapterName = currentTitle;
         _ = OpenAsync(new PendingBook(candidate.SourceUrl, candidate.BookUrl, candidate.Name));
     }
 
-    /// <summary>换源后要优先续读的章节地址（<see cref="ChooseSwitchCandidate"/> 记下，<see cref="OpenAsync"/> 消费）。</summary>
+    /// <summary>换源后要优先续读的章节地址（保留字段，地址对齐目前只按名）。</summary>
     private string _resumeChapterUrl = "";
 
     /// <summary>换源后要优先续读的章节名（地址垮源失效，按名对齐）。</summary>
@@ -634,6 +701,8 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     [RelayCommand]
     private async Task DownloadBookAsync()
     {
+        if (_localPath.Length > 0) { DownloadPhase = "本地文件不需要下载。"; return; }
+
         var downloadService = _download;
         if (downloadService is null) { DownloadPhase = "⚠ 下载服务未就绪。"; return; }
         if (IsDownloading) return;
@@ -706,299 +775,42 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     [RelayCommand]
     private void CloseDownload() => DownloadIsOpen = false;
 
-
-    // ==================== 排版 ====================
-
-    [RelayCommand]
-    private void FontBigger() { if (_settings is not null) _settings.SetFontSize(FontSize + 1); else FontSize++; }
-
-    [RelayCommand]
-    private void FontSmaller() { if (_settings is not null) _settings.SetFontSize(FontSize - 1); else FontSize--; }
-
-    [RelayCommand]
-    private void LineWider() { if (_settings is not null) _settings.SetLineSpacing(LineSpacing + 0.1); else LineSpacing += 0.1; }
-
-    [RelayCommand]
-    private void LineNarrower() { if (_settings is not null) _settings.SetLineSpacing(LineSpacing - 0.1); else LineSpacing -= 0.1; }
-
-    /// <summary>在「白底 → 米黄 → 暗色」之间轮换。</summary>
-    [RelayCommand]
-    private void CycleTheme()
+    /// <summary>后台导「索引书」（index.json + 已缓存章落盘，⛔ 不联网、不阻塞阅读）。</summary>
+    private void ExportIndexInBackground()
     {
-        var next = Theme switch
+        var books = _books;
+        if (books is null || _localPath.Length > 0) return;
+
+        var url = BookUrl;
+        var title = BookName;
+        var author = Author;
+        var source = _sourceUrl;
+        var snapshot = Chapters.ToList();
+        _ = Task.Run(() => books.ExportBook(url, title, author, source, snapshot, out _));
+    }
+
+    /// <summary>加入书架（已在则刷新书名作者；本地文件暂不支持）。</summary>
+    [RelayCommand]
+    private void AddToShelf()
+    {
+        if (_localPath.Length > 0) { StatusText = "本地文件暂不支持加入书架。"; return; }
+        if (_shelf is null || string.IsNullOrWhiteSpace(BookUrl)) return;
+
+        var ok = _shelf.Add(new ShelfBook
         {
-            ReaderTheme.Light => ReaderTheme.Sepia,
-            ReaderTheme.Sepia => ReaderTheme.Dark,
-            _ => ReaderTheme.Light,
-        };
-
-        if (_settings is not null) _settings.SetTheme(next);
-        else Theme = next;
-    }
-
-    [RelayCommand]
-    private void IndentBigger() { if (_settings is not null) _settings.SetIndent(Indent + 1); else Indent++; }
-
-    [RelayCommand]
-    private void IndentSmaller() { if (_settings is not null) _settings.SetIndent(Indent - 1); else Indent--; }
-
-    [RelayCommand]
-    private void ParagraphWider() { if (_settings is not null) _settings.SetParagraphSpacing(ParagraphSpacing + 1); else ParagraphSpacing++; }
-
-    [RelayCommand]
-    private void ParagraphNarrower() { if (_settings is not null) _settings.SetParagraphSpacing(ParagraphSpacing - 1); else ParagraphSpacing--; }
-
-    // ==================== 样式卡（预设 / 导入 / 导出） ====================
-
-    [RelayCommand]
-    private void ToggleStyle() => ShowStylePanel = !ShowStylePanel;
-
-    [RelayCommand]
-    private void CloseStyle() => ShowStylePanel = false;
-
-    /// <summary>套用一张内置样式卡（整份覆盖，⛔ 不是挑着改）。</summary>
-    [RelayCommand]
-    private void ApplyPreset(Models.ReaderStyle? style)
-    {
-        if (style is null) return;
-        if (_styles is null) { StatusText = "⚠ 样式服务未就绪。"; return; }
-
-        StatusText = _styles.Apply(style);   // 写盘 ⇒ settings.Changed ⇒ 自动重排
-    }
-
-    /// <summary>导入一个样式文件（<c>.json</c>）并套用；字段缺失的项保持原值。</summary>
-    [RelayCommand]
-    private async Task ImportStyle()
-    {
-        if (_styles is null) { StatusText = "⚠ 样式服务未就绪。"; return; }
-
-        var files = await DialogHooks.PickFilesAsync("选择阅读样式 JSON", null, false, "*.json").ConfigureAwait(true);
-        if (files.Count == 0) { StatusText = "已取消导入样式"; return; }
-
-        StatusText = _styles.Import(files[0]);
-    }
-
-    /// <summary>把当前排版导成一份样式文件，可带走 / 分享。</summary>
-    [RelayCommand]
-    private async Task ExportStyle()
-    {
-        if (_styles is null) { StatusText = "⚠ 样式服务未就绪。"; return; }
-
-        var path = await DialogHooks.SaveFileAsync("导出阅读样式", null, "reader-style.json", "*.json").ConfigureAwait(true);
-        if (string.IsNullOrWhiteSpace(path)) { StatusText = "已取消导出样式"; return; }
-
-        StatusText = _styles.Export(path!);
-    }
-
-    /// <summary>从设置里灌一次排版参数（⛔ 不回写，避免刚打开就落盘）。</summary>
-    public void LoadTypography()
-    {
-        if (_settings is null) return;
-
-        _syncing = true;
-        FontSize = _settings.FontSize;
-        LineSpacing = _settings.LineSpacing;
-        FontFamily = _settings.FontFamily;
-        ContentWidth = _settings.ContentWidth;
-        Theme = _settings.Theme;
-        ReaderPadding = _settings.ReaderPadding;
-        Indent = _settings.Indent;
-        ParagraphSpacing = _settings.ParagraphSpacing;
-        TtsRate = _settings.TtsRate;
-        _syncing = false;
-
-        OnPropertyChanged(nameof(TypographyText));
-        OnPropertyChanged(nameof(ReaderBackground));
-        OnPropertyChanged(nameof(ReaderForeground));
-        TypographyChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void RaiseTypography(string changedKey)
-    {
-        if (_syncing) return;
-
-        if (_settings is not null)
-        {
-            var status = changedKey switch
-            {
-                "reader-font-size" => _settings.SetFontSize(FontSize),
-                "reader-line-spacing" => _settings.SetLineSpacing(LineSpacing),
-                "reader-font-family" => _settings.SetFontFamily(FontFamily),
-                "reader-indent" => _settings.SetIndent(Indent),
-                "reader-paragraph-spacing" => _settings.SetParagraphSpacing(ParagraphSpacing),
-                "reader-padding" => _settings.SetReaderPadding(ReaderPadding),
-                _ => _settings.SetContentWidth(ContentWidth),
-            };
-
-            // 服务会把值钳到范围内 ⇒ 回读一次，界面与磁盘保持一致
-            _syncing = true;
-            FontSize = _settings.FontSize;
-            LineSpacing = _settings.LineSpacing;
-            ContentWidth = _settings.ContentWidth;
-            ReaderPadding = _settings.ReaderPadding;
-            Indent = _settings.Indent;
-            ParagraphSpacing = _settings.ParagraphSpacing;
-            _syncing = false;
-
-            // 写盘已触发 settings.Changed ⇒ 视图会保住滚动位置重排；这里只报状态
-            StatusText = status;
-        }
-
-        OnPropertyChanged(nameof(TypographyText));
-        OnPropertyChanged(nameof(ReaderBackground));
-        OnPropertyChanged(nameof(ReaderForeground));
-        TypographyChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    // ==================== 听书 ====================
-
-    /// <summary>从本章第一句开始朗读（顶栏「🎧 听书」）。</summary>
-    [RelayCommand]
-    private void StartListen()
-    {
-        if (_tts is null) { StatusText = "⚠ 听书服务未就绪。"; return; }
-        if (_tts.IsSpeaking) return;
-
-        var sentences = TtsService.SplitSentences(ContentText);
-        if (sentences.Count == 0) { StatusText = "⚠ 当前没有可朗读的正文。"; return; }
-
-        _ttsSentences = sentences;
-        var error = _tts.Start(sentences, 0, TtsRate,
-            _settings?.TtsVolume ?? ReadingSettingsService.DefaultTtsVolume, _settings?.TtsVoice ?? "");
-        if (error.Length > 0) { StatusText = error; return; }
-
-        IsListening = true;
-        IsListenPaused = false;
-        ListenStatus = $"第 1/{sentences.Count} 句";
-        StatusText = $"听书中 · {ChapterTitle}";
-    }
-
-    /// <summary>暂停 / 继续（在句子边界生效）。</summary>
-    [RelayCommand]
-    private void ToggleListenPause()
-    {
-        if (_tts is null || !_tts.IsSpeaking) return;
-
-        if (_tts.IsPaused) { _tts.Resume(); IsListenPaused = false; }
-        else { _tts.Pause(); IsListenPaused = true; }
-    }
-
-    /// <summary>停止朗读（当前句读完即止）。</summary>
-    [RelayCommand]
-    private void StopListen()
-    {
-        var wasListening = IsListening;
-
-        _tts?.Stop();
-        IsListening = false;
-        IsListenPaused = false;
-        ListenStatus = "";
-
-        if (wasListening) StatusText = $"{ChapterTitle} · 已停止听书";
-    }
-
-    [RelayCommand]
-    private void TtsFaster() => TtsRate = Math.Min(TtsRate + 1, ReadingSettingsService.MaxTtsRate);
-
-    [RelayCommand]
-    private void TtsSlower() => TtsRate = Math.Max(TtsRate - 1, ReadingSettingsService.MinTtsRate);
-
-    partial void OnTtsRateChanged(int value)
-    {
-        if (_syncing) return;
-
-        _settings?.SetTtsRate(value);
-
-        // 听书中改语速：从当前句重起（SAPI 的 Rate 只在 Speak 前读，改不了正在读的那句）
-        if (!IsListening || _tts is null) return;
-        if (_ttsSentences.Count == 0) return;
-
-        var error = _tts.Start(_ttsSentences, _tts.Index, value,
-            _settings?.TtsVolume ?? ReadingSettingsService.DefaultTtsVolume, _settings?.TtsVoice ?? "");
-        if (error.Length > 0) { StatusText = error; StopListen(); return; }
-
-        IsListenPaused = false;
-    }
-
-    /// <summary>换句通知在朗读线程上发 ⇒ 一律切回 UI 线程再改属性。</summary>
-    private void OnTtsSegment(object? sender, TtsProgress progress)
-    {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            if (!IsListening) return;
-            ListenStatus = $"第 {progress.Index + 1}/{progress.Count} 句";
+            BookUrl = BookUrl,
+            SourceUrl = FindSourceUrl(),
+            Name = BookName,
+            Author = Author,
         });
+
+        StatusText = ok ? $"《{BookName}》已加入书架" : "⚠ 加入书架失败（书库不可用）";
     }
 
-    /// <summary>朗读结束 / 失败：收起控制栏；有失败原因就报到状态栏。</summary>
-    private void OnTtsStateChanged(object? sender, EventArgs e)
-    {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            if (_tts is null || _tts.IsSpeaking || !IsListening) return;
-
-            IsListening = false;
-            IsListenPaused = false;
-            ListenStatus = "";
-            StatusText = _tts.UnavailableReason.Length > 0
-                ? "⚠ " + _tts.UnavailableReason
-                : $"{ChapterTitle} · 听书结束";
-        });
-    }
-
-    // ==================== 正文 ====================
-
-    private async Task LoadContentAsync(Chapter chapter)
-    {
-        var source = FindSource(FindSourceUrl());
-        if (source is null) { ErrorText = "找不到这本书对应的书源。"; return; }
-        if (string.IsNullOrWhiteSpace(chapter.Url))
-        {
-            ErrorText = "这一章没有链接（目录是纯标题）。";
-            return;
-        }
-
-        Cancel();
-        if (IsListening) StopListen();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        IsBusy = true;
-        BusyPhase = "正在抓正文…";
-        ErrorText = "";
-        ChapterTitle = chapter.Name;
-        PendingProgress = 0;
-
-        try
-        {
-            var content = await _crawl.ContentAsync(source, chapter.Url, token).ConfigureAwait(true);
-            if (token.IsCancellationRequested) return;
-
-            ContentText = content.Value ?? "";
-            ErrorText = content.Error?.Display ?? "";
-            StatusText = ContentText.Length > 0
-                ? $"{chapter.Name} · {ContentText.Length} 字"
-                : "⚠ 正文为空";
-
-            // 抓到正文顺手落盘进索引书（覆盖写 ⇒ 换规则重抓后文件保持最新）
-            if (content.Value is { Length: > 0 })
-                _books?.WriteChapter(BookUrl, Chapters.IndexOf(chapter), content.Value);
-
-            SaveProgress(0);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { ErrorText = "抓正文异常：" + ex.Message; }
-        finally
-        {
-            IsBusy = false;
-            BusyPhase = "";
-        }
-
-        StartPrefetch(source, chapter);
-    }
+    // ==================== 预取 ====================
 
     /// <summary>
-    /// 后台把后面几章抓进正文缓存（章数来自设置）。换章就重起一轮：⛔ 不要在旧队列上叠加，
+    /// 后台把后面几章抓进正文缓存（章数来自设置）。补抓完一章就重起一轮：⛔ 不要在旧队列上叠加，
     /// 否则来回翻几章会攒出一堆并行请求。关掉「缓存正文」时服务自己会跳过。
     /// </summary>
     private void StartPrefetch(BookSource source, Chapter chapter)
@@ -1023,18 +835,6 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         _ = Task.Run(() => prefetch.RunAsync(source, snapshot, index + 1, count, token), token);
     }
 
-    private void RebuildVisibleChapters()
-    {
-        var keyword = (TocFilter ?? "").Trim();
-        VisibleChapters.Clear();
-
-        foreach (var chapter in Chapters)
-        {
-            if (keyword.Length > 0 && chapter.Name.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) < 0) continue;
-            VisibleChapters.Add(chapter);
-        }
-    }
-
     private string FindSourceUrl() => _sourceUrl;
 
     private BookSource? FindSource(string? url)
@@ -1043,9 +843,90 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         return _store.LoadAll().FirstOrDefault(s => string.Equals(s.Url, url, StringComparison.OrdinalIgnoreCase));
     }
 
+    // ==================== 听书 ====================
+
+    /// <summary>从当前章第一句开始朗读（顶栏「🎧 听书」）。</summary>
+    [RelayCommand]
+    private void StartListen()
+    {
+        if (_tts is null) { StatusText = "⚠ 听书服务未就绪。"; return; }
+        if (_tts.IsSpeaking) return;
+
+        var sentences = TtsService.SplitSentences(_readerText);
+        if (sentences.Count == 0) { StatusText = "⚠ 当前没有可朗读的正文（先打开一本书）。"; return; }
+
+        _ttsSentences = sentences;
+        var error = _tts.Start(sentences, 0, TtsRate,
+            _settings?.TtsVolume ?? ReadingSettingsService.DefaultTtsVolume, _settings?.TtsVoice ?? "");
+        if (error.Length > 0) { StatusText = error; return; }
+
+        IsListening = true;
+        IsListenPaused = false;
+        ListenStatus = $"第 1/{sentences.Count} 句";
+        StatusText = $"听书中 · {_readerTitle}";
+    }
+
+    /// <summary>暂停 / 继续（在句子边界生效）。</summary>
+    [RelayCommand]
+    private void ToggleListenPause()
+    {
+        if (_tts is null || !_tts.IsSpeaking) return;
+
+        if (_tts.IsPaused) { _tts.Resume(); IsListenPaused = false; }
+        else { _tts.Pause(); IsListenPaused = true; }
+    }
+
+    /// <summary>停止朗读（当前句读完即止）。</summary>
+    [RelayCommand]
+    private void StopListen()
+    {
+        var wasListening = IsListening;
+
+        _tts?.Stop();
+        IsListening = false;
+        IsListenPaused = false;
+        ListenStatus = "";
+
+        if (wasListening) StatusText = $"{_readerTitle} · 已停止听书";
+    }
+
+    [RelayCommand]
+    private void TtsFaster() => TtsRate = Math.Min(TtsRate + 1, ReadingSettingsService.MaxTtsRate);
+
+    [RelayCommand]
+    private void TtsSlower() => TtsRate = Math.Max(TtsRate - 1, ReadingSettingsService.MinTtsRate);
+
+    /// <summary>当前章的朗读句子（语速变了要从当前句重起，所以留一份）。</summary>
+    private IReadOnlyList<string> _ttsSentences = Array.Empty<string>();
+
+    /// <summary>换句通知在朗读线程上发 ⇒ 一律切回 UI 线程再改属性。</summary>
+    private void OnTtsSegment(object? sender, TtsProgress progress)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (!IsListening) return;
+            ListenStatus = $"第 {progress.Index + 1}/{progress.Count} 句";
+        });
+    }
+
+    /// <summary>朗读结束 / 失败：收起控制栏；有失败原因就报到状态栏。</summary>
+    private void OnTtsStateChanged(object? sender, EventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (_tts is null || _tts.IsSpeaking || !IsListening) return;
+
+            IsListening = false;
+            IsListenPaused = false;
+            ListenStatus = "";
+            StatusText = _tts.UnavailableReason.Length > 0
+                ? "⚠ " + _tts.UnavailableReason
+                : $"{_readerTitle} · 听书结束";
+        });
+    }
+
     public void Dispose()
     {
-        Cancel();
         try { _prefetchCts?.Cancel(); } catch { /* 已结束 */ }
         try { _downloadCts?.Cancel(); } catch { /* 已结束 */ }
         _prefetchCts?.Dispose();
@@ -1059,8 +940,9 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         }
 
         if (_settings is not null) _settings.Changed -= OnSettingsChanged;
-        ContentChanged = null;
-        TypographyChanged = null;
+        BookReady = null;
+        ChapterFetched = null;
+        ShellTypographyReady = null;
         StatusChanged = null;
     }
 }

@@ -5,11 +5,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using NewToys.Viewer.Controls;
+using NewToys.Reading.Controls;
 
-namespace NewToys.Viewer.Services;
+namespace NewToys.Reading.Services;
 
-/// <summary>一条 txt 章节识别规则（用户可增删，存 <c>config\viewer.json</c>）。</summary>
+/// <summary>一条 txt 章节识别规则。</summary>
 public sealed class TxtChapterRule
 {
     /// <summary>规则名（设置界面上显示）。</summary>

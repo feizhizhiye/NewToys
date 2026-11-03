@@ -12,18 +12,16 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 
-namespace NewToys.Viewer.Controls;
+namespace NewToys.Reading.Controls;
 
 /// <summary>
 /// 文本阅读器壳：目录抽屉 + 章内滚动 + 书签触发 + 全书搜索 + 排版下发。
 /// <para>
-/// 🔴 两种装载方式二选一：
-/// ① <see cref="Load"/> = 整本书字符串 + 章节切片（单 txt / 压缩包内 txt）；
-/// ② <see cref="LoadIndex"/> = 「索引书」（<c>index.json + chapters/NNNN.txt</c>）——
+/// 🔴 只吃「索引书」（<c>index.json + chapters/NNNN.txt</c>，见 <see cref="LoadIndex"/>）——
 /// 章内容按需从文件读，⛔ 全量进内存（几千章会吃掉几百 MB）。
 /// </para>
 /// <para>
-/// 🔴 本控件⛔ 不联网、⛔ 不写配置 —— 编码嗅探 / 章节规则 / 书签持久化全在宿主（<c>Module.Viewer</c>）。
+/// 🔴 本控件⛔ 不联网、⛔ 不写配置 —— 编码嗅探 / 章节规则 / 书签持久化全在宿主（<c>Module.Reading</c>）。
 /// </para>
 /// <para>
 /// 🔴 「章」是唯一的进度单位：切章只换正文，章内用滚动比例记位置；
@@ -43,7 +41,7 @@ public partial class ReaderShell : UserControl
 
     private string _book = "";
     private IReadOnlyList<ReaderChapter> _chapters = Array.Empty<ReaderChapter>();
-    private List<string>? _chapterFiles;   // 非 null = 索引书模式：与 _chapters 一一对应的章文件路径
+    private List<string> _chapterFiles = new();
     private int _index;
     private double _ratio;
     private bool _suppress;
@@ -86,6 +84,9 @@ public partial class ReaderShell : UserControl
     /// <summary>一句话状态（切章到头 / 搜索无结果等）。</summary>
     public event Action<string>? StatusChanged;
 
+    /// <summary>索引书模式下要显示的章文件缺失（宿主补抓后调 <see cref="ReloadChapter"/>）。</summary>
+    public event Action<int>? ChapterMissing;
+
     /// <summary>当前阅读位置。</summary>
     public ReaderPosition Position => new(_index, _ratio);
 
@@ -95,25 +96,13 @@ public partial class ReaderShell : UserControl
     /// <summary>章节数（状态栏显示用）。</summary>
     public int ChapterCount => _chapters.Count;
 
+    /// <summary>当前章全文（听书朗读用）。</summary>
+    public string CurrentChapterText => _book;
+
+    /// <summary>当前章标题（状态栏 / 听书提示用）。</summary>
+    public string CurrentChapterTitle => _chapters.Count == 0 ? "" : _chapters[_index].Title;
+
     // ==================== 装载 ====================
-
-    /// <summary>装载整本书并从 <paramref name="position"/> 续读；失败返回 false 并给出原因。</summary>
-    public bool Load(string text, IReadOnlyList<ReaderChapter> chapters, ReaderPosition position, out string error)
-    {
-        error = "";
-        if (string.IsNullOrEmpty(text) || chapters.Count == 0)
-        {
-            error = "没有可显示的正文（章节识别结果为空）。";
-            return false;
-        }
-
-        _book = text;
-        _chapters = chapters;
-        _chapterFiles = null;
-        TocList.ItemsSource = chapters;
-        ShowChapter(position.ChapterIndex, position.Ratio);
-        return true;
-    }
 
     /// <summary>
     /// 装载「索引书」（<c>index.json + chapters/NNNN.txt</c>）并续读；章内容按需读文件，失败返回 false 并给出原因。
@@ -157,30 +146,18 @@ public partial class ReaderShell : UserControl
         return true;
     }
 
-    /// <summary>是否索引书模式（章内容按需读文件）。</summary>
-    public bool IsIndexed => _chapterFiles is not null;
-
-    /// <summary>索引书模式下读一章的正文；文件缺失 / 读取失败给占位说明（⛔ 联网补抓）。</summary>
+    /// <summary>索引书模式下读一章的正文；文件缺失给占位说明并上报 <see cref="ChapterMissing"/>（补抓由宿主做）。</summary>
     private string LoadIndexedChapter(int index)
     {
         try
         {
-            var path = _chapterFiles![index];
+            var path = _chapterFiles[index];
             if (path.Length > 0 && File.Exists(path)) return File.ReadAllText(path);
         }
         catch { /* 坏章给占位 */ }
 
-        return "（本章尚未缓存 —— 回「网络阅读」页翻到这一章，或整本下载后再来看。）";
-    }
-
-    /// <summary>当前章正文在 <see cref="_book"/> 里的切片（单文本模式按章节偏移，索引书模式整章即正文）。</summary>
-    private (int Start, int End) BodySlice(ReaderChapter chapter)
-    {
-        if (_chapterFiles is not null) return (0, _book.Length);
-
-        var bodyStart = Math.Clamp(chapter.BodyStart, 0, _book.Length);
-        var bodyEnd = Math.Clamp(chapter.Start + chapter.Length, bodyStart, _book.Length);
-        return (bodyStart, bodyEnd);
+        Dispatcher.UIThread.Post(() => ChapterMissing?.Invoke(index));
+        return "（本章尚未缓存 —— 正在补抓，稍等片刻或翻走再回来。）";
     }
 
     /// <summary>跳转到指定章（<paramref name="ratio"/> = 章内比例）。</summary>
@@ -193,7 +170,7 @@ public partial class ReaderShell : UserControl
         _highlightStart = -1;
         _highlightLength = 0;
 
-        if (_chapterFiles is not null) _book = LoadIndexedChapter(_index);
+        _book = LoadIndexedChapter(_index);
 
         RenderBody();
         ChapterTitle.Text = _chapters[_index].Title;
@@ -202,6 +179,21 @@ public partial class ReaderShell : UserControl
         var target = _ratio;
         Dispatcher.UIThread.Post(() => ApplyScroll(target), DispatcherPriority.Loaded);
         RaisePosition(true);
+    }
+
+    /// <summary>
+    /// 重读当前章并重排（保住滚动位置）——宿主补抓完当前章后调用。
+    /// </summary>
+    public void ReloadChapter()
+    {
+        if (_chapters.Count == 0) return;
+
+        _book = LoadIndexedChapter(_index);
+        RenderBody();
+        ChapterTitle.Text = _chapters[_index].Title;
+
+        var keep = _ratio;
+        Dispatcher.UIThread.Post(() => ApplyScroll(keep), DispatcherPriority.Loaded);
     }
 
     /// <summary>下一章（末尾时提示，不越界）。</summary>
@@ -290,9 +282,7 @@ public partial class ReaderShell : UserControl
 
     private void RenderBody()
     {
-        var chapter = _chapters[_index];
-        var (bodyStart, bodyEnd) = BodySlice(chapter);
-        var raw = _book.Substring(bodyStart, bodyEnd - bodyStart);
+        var raw = _book;
 
         var lines = raw.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
         var separator = _typography.ParagraphSpacing > 0 ? "\n\n" : "\n";
@@ -300,7 +290,7 @@ public partial class ReaderShell : UserControl
 
         Body.Inlines?.Clear();
         var first = true;
-        var cursor = bodyStart;
+        var cursor = 0;
 
         foreach (var line in lines)
         {
@@ -439,14 +429,12 @@ public partial class ReaderShell : UserControl
         BookmarkList.ItemsSource = bookmarks.OrderByDescending(b => b.CreatedAt).ToList();
     }
 
-    /// <summary>按当前阅读位置生成一条书签（宿主负责加 Id 与持久化，见 <see cref="CreateBookmarkCore"/>）。</summary>
+    /// <summary>按当前阅读位置生成一条书签（宿主负责加 Id 与持久化）。</summary>
     public ReaderBookmark CreateBookmarkCore()
     {
         var chapter = _chapters[_index];
-        var (bodyStart, bodyEnd) = BodySlice(chapter);
-        var bodyLength = Math.Max(1, bodyEnd - bodyStart);
-        var at = Math.Clamp(bodyStart + (int)(bodyLength * _ratio), bodyStart, Math.Max(bodyStart, bodyEnd - 1));
-        var take = Math.Min(60, Math.Max(0, bodyEnd - at));
+        var at = Math.Clamp((int)(_book.Length * _ratio), 0, Math.Max(0, _book.Length - 1));
+        var take = Math.Min(60, Math.Max(0, _book.Length - at));
 
         var preview = take > 0
             ? _book.Substring(at, take).Replace("\r", "").Replace("\n", " ").Trim()
@@ -487,7 +475,7 @@ public partial class ReaderShell : UserControl
 
     // ==================== 搜索 ====================
 
-    /// <summary>全书搜索（区分大小写关闭，最多 500 条）。</summary>
+    /// <summary>全书搜索（区分大小写关闭，最多 500 条；索引书逐章读文件）。</summary>
     public void Search(string keyword)
     {
         var key = (keyword ?? "").Trim();
@@ -499,49 +487,25 @@ public partial class ReaderShell : UserControl
 
         var hits = new List<ReaderSearchHit>();
 
-        if (_chapterFiles is not null)
+        for (var i = 0; i < _chapterFiles.Count && hits.Count < 500; i++)
         {
-            // 索引书：逐章读文件搜（正文不在内存），命中位置 = 章内偏移
-            for (var i = 0; i < _chapterFiles.Count && hits.Count < 500; i++)
-            {
-                string text;
-                try { text = File.Exists(_chapterFiles[i]) ? File.ReadAllText(_chapterFiles[i]) : ""; }
-                catch { continue; }
+            string text;
+            try { text = File.Exists(_chapterFiles[i]) ? File.ReadAllText(_chapterFiles[i]) : ""; }
+            catch { continue; }
 
-                var from = 0;
-                while (hits.Count < 500)
-                {
-                    var at = text.IndexOf(key, from, StringComparison.OrdinalIgnoreCase);
-                    if (at < 0) break;
-
-                    hits.Add(new ReaderSearchHit
-                    {
-                        ChapterIndex = i,
-                        ChapterTitle = _chapters[i].Title,
-                        Position = at,
-                        Snippet = BuildSnippet(text, at, key.Length),
-                    });
-                    from = at + Math.Max(1, key.Length);
-                }
-            }
-        }
-        else
-        {
             var from = 0;
             while (hits.Count < 500)
             {
-                var at = _book.IndexOf(key, from, StringComparison.OrdinalIgnoreCase);
+                var at = text.IndexOf(key, from, StringComparison.OrdinalIgnoreCase);
                 if (at < 0) break;
 
-                var chapterIndex = FindChapterIndex(at);
                 hits.Add(new ReaderSearchHit
                 {
-                    ChapterIndex = chapterIndex,
-                    ChapterTitle = chapterIndex >= 0 ? _chapters[chapterIndex].Title : "（卷首）",
+                    ChapterIndex = i,
+                    ChapterTitle = _chapters[i].Title,
                     Position = at,
-                    Snippet = BuildSnippet(_book, at, key.Length),
+                    Snippet = BuildSnippet(text, at, key.Length),
                 });
-
                 from = at + Math.Max(1, key.Length);
             }
         }
@@ -570,21 +534,6 @@ public partial class ReaderShell : UserControl
         return "…" + text + "…";
     }
 
-    private int FindChapterIndex(int position)
-    {
-        var low = 0;
-        var high = _chapters.Count - 1;
-        while (low <= high)
-        {
-            var mid = (low + high) / 2;
-            var chapter = _chapters[mid];
-            if (position < chapter.Start) high = mid - 1;
-            else if (position >= chapter.Start + chapter.Length) low = mid + 1;
-            else return mid;
-        }
-        return -1;
-    }
-
     private void GoToHit(ReaderSearchHit hit)
     {
         if (hit.ChapterIndex < 0) return;
@@ -608,17 +557,15 @@ public partial class ReaderShell : UserControl
         _highlightTotal = total;
         _highlightOrdinal = ordinal;
 
-        if (_chapterFiles is not null) _book = LoadIndexedChapter(_index);
+        _book = LoadIndexedChapter(_index);
 
         RenderBody();
         ChapterTitle.Text = _chapters[_index].Title;
         SyncTocSelection();
 
         // 命中在章内的相对位置 → 近似滚动（无法直接量到像素）
-        var chapter = _chapters[_index];
-        var length = Math.Max(1, _chapterFiles is not null ? _book.Length : chapter.Length);
-        var basePos = _chapterFiles is not null ? 0 : chapter.Start;
-        var relative = Math.Clamp((hit.Position - basePos) / (double)length, 0, 1);
+        var length = Math.Max(1, _book.Length);
+        var relative = Math.Clamp(hit.Position / (double)length, 0, 1);
         Dispatcher.UIThread.Post(() => ApplyScroll(relative), DispatcherPriority.Loaded);
         RaisePosition(true);
 

@@ -5,17 +5,19 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using NewToys.Core.Services;
+using NewToys.Reading.Controls;
 using NewToys.Reading.Models;
 
 namespace NewToys.Reading.Services;
 
 /// <summary>
-/// 「索引书」落盘：把一本书导成查看器可直接读的目录 + 逐章正文 ——
-/// <c>store/reading/books/&lt;bookId&gt;/index.json</c>（书目 + 章节清单）+ <c>chapters/NNNN.txt</c>（清洗后正文，UTF-8）。
+/// 「索引书」落盘：把一本书导成阅读页可直接读的目录 + 逐章正文 ——
+/// <c>store/reading/books/&lt;bookId&gt;/index.json</c>（书目 + 章节清单）+ <c>chapters/NNNN.txt</c>（清洗后正文，UTF-8）；
+/// 本地 TXT / MD 走 <see cref="ExportLocalText"/> 落到 <c>store/reading/local/</c>。
 /// <para>
 /// 正文来源 = 正文缓存（<see cref="ContentCacheStore"/>）：抓过的章直接落盘，⛔ 不联网补抓 ——
 /// 缺章由阅读页翻到时补写（<see cref="WriteChapter"/>）或整本下载后再导一次。
-/// 查看器只认这两个东西 ⇒ 天然离线、重启续读、跨页复用。
+/// 阅读页只认这两个东西 ⇒ 天然离线、重启续读。
 /// </para>
 /// </summary>
 public sealed class BookIndexWriter
@@ -38,6 +40,70 @@ public sealed class BookIndexWriter
         var sb = new StringBuilder(16);
         for (var i = 0; i < 8; i++) sb.Append(bytes[i].ToString("x2"));
         return sb.ToString();
+    }
+
+    /// <summary>索引书目录（<c>store/reading/books/&lt;bookId&gt;/</c>）。</summary>
+    public string BookDirOf(string bookUrl)
+        => Path.Combine(_cfg.StoreDir, "reading", "books", BookIdOf(bookUrl));
+
+    /// <summary>
+    /// 本地 TXT / MD 落盘成索引书（<c>store/reading/local/&lt;hash&gt;/</c>）：
+    /// hash = 文件路径 + 大小 + 修改时间 ⇒ 文件变了自动换目录重导，没变则直接复用已有落盘。
+    /// </summary>
+    public string? ExportLocalText(string filePath, string text, IReadOnlyList<ReaderChapter> chapters, out string error)
+    {
+        error = "";
+        if (string.IsNullOrWhiteSpace(filePath) || chapters.Count == 0)
+        {
+            error = "没有可导入的内容。";
+            return null;
+        }
+
+        try
+        {
+            var info = new FileInfo(filePath);
+            var key = $"{filePath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}";
+            var dir = Path.Combine(_cfg.StoreDir, "reading", "local", BookIdOf(key));
+            var indexPath = Path.Combine(dir, "index.json");
+
+            if (File.Exists(indexPath)) return indexPath;   // 同一文件已导过 ⇒ 直接复用
+
+            Directory.CreateDirectory(Path.Combine(dir, "chapters"));
+
+            var dto = new IndexBookDto
+            {
+                BookId = BookIdOf(key),
+                Title = Path.GetFileNameWithoutExtension(filePath),
+                Author = "",
+                SourceUrl = filePath,
+            };
+            foreach (var chapter in chapters)
+            {
+                var index = dto.Chapters.Count;
+                dto.Chapters.Add(new IndexChapterDto
+                {
+                    Index = index,
+                    Title = chapter.Title ?? "",
+                    Url = "",
+                    File = $"{index + 1:D4}.txt",
+                });
+            }
+
+            File.WriteAllText(indexPath, JsonSerializer.Serialize(dto, JsonOpts), new UTF8Encoding(false));
+
+            for (var i = 0; i < chapters.Count; i++)
+            {
+                var slice = text.Substring(chapters[i].Start, Math.Min(chapters[i].Length, text.Length - chapters[i].Start));
+                WriteChapterFile(Path.Combine(dir, "chapters", $"{i + 1:D4}.txt"), slice);
+            }
+
+            return indexPath;
+        }
+        catch (Exception ex)
+        {
+            error = "导入本地文件失败：" + ex.Message;
+            return null;
+        }
     }
 
     /// <summary>写 index.json + 把已缓存章落盘（不联网）；返回索引文件绝对路径，失败返回 null。</summary>

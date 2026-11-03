@@ -9,8 +9,9 @@ namespace NewToys.Viewer;
 /// <summary>
 /// **查看器**模块（菜单组键 <c>viewer</c>，Order 55）：为本软件提供基础的「打开并显示」能力。
 /// <para>
-/// 🔴 渲染器（外壳 / 图片 / 音频 / 阅读排版）全部在本模块 <c>Controls/</c>；
-/// 只有 <c>TextViewer</c> 暂留 <c>NewToys.UI/Viewers/</c>（阅读模块还用它做正文预览，批 3 再下沉）。
+/// 🔴 渲染器（短文本 / 图片 / 音频外壳）全部在本模块 <c>Controls/</c>；
+/// 长文本阅读（ReaderShell）住「网络阅读」模块，本模块的文本页只做「文档查看」（源码 / 短文本 / HTML；
+/// PDF / EPUB / MOBI 支持另行立项）。
 /// </para>
 /// <para>
 /// 🔴 依赖只有 Shared / Core / UI：⛔ 不引 Shell、⛔ 不引其它模块。设置落 <c>config\viewer.json</c>
@@ -25,7 +26,6 @@ public class ViewerModule : IModule
     public void RegisterServices(IServiceCollection services)
     {
         services.AddSingleton<ViewerSettingsService>();
-        services.AddSingleton<TxtBookService>();
         services.AddSingleton<ArchiveImageService>();
         services.AddSingleton<AudioLibraryService>();
 
@@ -48,8 +48,8 @@ public class ViewerModule : IModule
         menu.RegisterModule(GroupKey, "查看器", "IconViewer", 55);
 
         // 一页只处理一类：类型不符的文件由 VM 转去对应页并切过去（含拖入 / 选择器 / 最近打开）。
-        menu.RegisterFunction<Views.ViewerTextView>(GroupKey, "viewer-text", "文本阅读", "📖", 1,
-            "打开 txt / md / 源码：自动切章、目录、书签、全书搜索、排版（字号 / 行距 / 配色）");
+        menu.RegisterFunction<Views.ViewerTextView>(GroupKey, "viewer-text", "文档查看", "📄", 1,
+            "打开源码 / 短文本 / HTML（去标签取纯文本）；长文本阅读（txt / md）在「网络阅读」；本地 PDF / EPUB / MOBI 支持规划中");
 
         menu.RegisterFunction<Views.ViewerImageView>(GroupKey, "viewer-image", "图片查看", "🖼", 2,
             "打开图片与压缩包（zip / rar / 7z）内的图片：缩放、适应窗口、逐张翻页");

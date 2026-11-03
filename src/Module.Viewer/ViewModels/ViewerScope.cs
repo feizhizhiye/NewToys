@@ -1,7 +1,7 @@
 namespace NewToys.Viewer.ViewModels;
 
 /// <summary>
-/// 查看器页的范围：一页只处理一类内容（菜单分「文本阅读 / 图片查看 / 音乐播放」三页）。
+/// 查看器页的范围：一页只处理一类内容（菜单分「文档查看 / 图片查看 / 音乐播放」三页）。
 /// <para>
 /// 范围只用于**入口分流**，⛔ 不影响渲染器 —— 三类内容仍由 <c>NewToys.Viewer.Controls.ViewerHost</c> 统一装。
 /// </para>
@@ -11,7 +11,7 @@ public enum ViewerScope
     /// <summary>不限（设计期预览用；运行时不出这种页）。</summary>
     All,
 
-    /// <summary>文本与长文本阅读器。</summary>
+    /// <summary>源码 / 短文本 / HTML（长文本阅读在「网络阅读」模块）。</summary>
     Text,
 
     /// <summary>图片，以及压缩包内的图片。</summary>

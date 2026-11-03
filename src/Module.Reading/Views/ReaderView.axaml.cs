@@ -1,88 +1,131 @@
 using System;
 using Avalonia.Controls;
-using Avalonia.Media;
-using Avalonia.Threading;
+using NewToys.Reading.Controls;
 using NewToys.Reading.ViewModels;
 
 namespace NewToys.Reading.Views;
 
 /// <summary>
-/// 阅读页 code-behind：管「选书 / 目录 / 抓取」的界面侧 —— 预览文本由绑定直出（<c>PreviewText</c>），
-/// 定时保存抓取进度；正文渲染在查看器的「文本阅读」页（<c>📖 在查看器中打开</c>）。
+/// 阅读页 code-behind：把 <see cref="ReaderViewModel"/>（抓取 / 进度 / 书签 / 排版的归属地）与
+/// <see cref="ReaderShell"/>（渲染）接起来 —— VM ⛔ 碰控件，壳 ⛔ 碰配置，事件在本类互转。
 /// </summary>
 public partial class ReaderView : UserControl
 {
     private ReaderViewModel? _vm;
-    private DispatcherTimer? _timer;
+    private bool _shellWired;
 
     public ReaderView()
     {
         InitializeComponent();
 
-        AttachedToVisualTree += (_, _) =>
-        {
-            _vm?.CheckPending();
-            StartTimer();
-            ApplySurfaceTheme();
-        };
-
-        DetachedFromVisualTree += (_, _) =>
-        {
-            _timer?.Stop();
-            SaveProgress();
-        };
+        AttachedToVisualTree += (_, _) => _vm?.CheckPending();
     }
 
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
 
-        if (_vm is not null) _vm.TypographyChanged -= OnTypographyChanged;
+        if (_vm is not null)
+        {
+            _vm.BookReady -= OnBookReady;
+            _vm.ChapterFetched -= OnChapterFetched;
+            _vm.ShellTypographyReady -= OnShellTypographyReady;
+        }
 
         _vm = DataContext as ReaderViewModel;
         if (_vm is null) return;
 
-        // 配色档变了（设置页 / CycleTheme）⇒ 预览区背景跟着换
-        _vm.TypographyChanged += OnTypographyChanged;
+        _vm.BookReady += OnBookReady;
+        _vm.ChapterFetched += OnChapterFetched;
+        _vm.ShellTypographyReady += OnShellTypographyReady;
 
-        ApplySurfaceTheme();
         _vm.CheckPending();
     }
 
-    private void OnTypographyChanged(object? sender, EventArgs e) => ApplySurfaceTheme();
+    // ==================== 壳事件 → VM（一次接线，VM 换了也照常用 _vm 现值） ====================
 
-    private void ApplySurfaceTheme()
+    private void WireShellOnce()
+    {
+        if (_shellWired) return;
+        _shellWired = true;
+
+        Shell.PositionChanged += OnShellPositionChanged;
+        Shell.ChapterMissing += OnShellChapterMissing;
+        Shell.TypographyChanged += OnShellTypographyChanged;
+        Shell.AddBookmarkRequested += OnShellAddBookmark;
+        Shell.RemoveBookmarkRequested += OnShellRemoveBookmark;
+        Shell.BookmarkActivated += OnShellBookmarkActivated;
+        Shell.StatusChanged += OnShellStatus;
+    }
+
+    private void OnShellPositionChanged(ReaderPosition position)
+    {
+        if (_vm is null) return;
+        _vm.SaveShellProgress(position.ChapterIndex, position.Ratio, Shell.CurrentChapterTitle);
+        _vm.SetReaderText(Shell.CurrentChapterText, Shell.CurrentChapterTitle);
+    }
+
+    private void OnShellChapterMissing(int index) => _ = _vm?.FetchChapterAsync(index);
+
+    private void OnShellTypographyChanged(ReaderTypography typography) => _vm?.SaveShellTypography(typography);
+
+    private void OnShellAddBookmark()
+    {
+        if (_vm is null) return;
+        _vm.AddBookmark(Shell.CreateBookmarkCore());
+        Shell.SetBookmarks(_vm.LoadBookmarks());
+    }
+
+    private void OnShellRemoveBookmark(string id)
+    {
+        if (_vm is null) return;
+        _vm.RemoveBookmark(id);
+        Shell.SetBookmarks(_vm.LoadBookmarks());
+    }
+
+    private void OnShellBookmarkActivated(ReaderBookmark bookmark)
+        => Shell.ShowChapter(bookmark.ChapterIndex, bookmark.Ratio);
+
+    private void OnShellStatus(string text)
+    {
+        if (_vm is not null) _vm.StatusText = text;
+    }
+
+    // ==================== VM 事件 → 壳 ====================
+
+    /// <summary>书就绪：装进壳（索引书模式）+ 书签 + 排版 + 听书文本。</summary>
+    private void OnBookReady(string indexPath, int chapterIndex, double ratio)
     {
         if (_vm is null) return;
 
-        try
+        WireShellOnce();
+        _vm.ReloadBookmarks();
+
+        if (!Shell.LoadIndex(indexPath, new ReaderPosition(chapterIndex, ratio), out var error))
         {
-            ReaderSurface.Background = new SolidColorBrush(Color.Parse(_vm.ReaderBackground));
+            _vm.StatusText = "⚠ " + error;
+            return;
         }
-        catch { /* 色值坏 ⇒ 保持主题默认 */ }
+
+        Shell.SetBookmarks(_vm.LoadBookmarks());
+        Shell.ApplyTypography(_vm.BuildShellTypography());
+        _vm.SetReaderText(Shell.CurrentChapterText, Shell.CurrentChapterTitle);
     }
 
-    /// <summary>抓取进度每 5 秒落一次库（切章 / 离开页面时各补一次）。</summary>
-    private void StartTimer()
+    /// <summary>缺章补抓落盘完成：重读当前章。</summary>
+    private void OnChapterFetched()
     {
-        _timer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-        _timer.Tick -= OnTimerTick;
-        _timer.Tick += OnTimerTick;
-        _timer.Start();
+        if (_vm is null) return;
+
+        Shell.ReloadChapter();
+        _vm.SetReaderText(Shell.CurrentChapterText, Shell.CurrentChapterTitle);
     }
 
-    private void OnTimerTick(object? sender, EventArgs e) => SaveProgress();
+    /// <summary>排版在设置页被改了：下发给壳。</summary>
+    private void OnShellTypographyReady(ReaderTypography typography) => Shell.ApplyTypography(typography);
 
-    private void SaveProgress() => _vm?.SaveProgress(0);
+    // ==================== 浮层遮罩 ====================
 
-    /// <summary>点目录浮层的遮罩 = 收起目录。</summary>
-    private void OnTocBackdropTapped(object? sender, Avalonia.Input.TappedEventArgs e)
-    {
-        e.Handled = true;
-        if (_vm is not null) _vm.ShowToc = false;
-    }
-
-    /// <summary>点换源浮层的遮罩 = 收起换源。</summary>
     private void OnSwitchBackdropTapped(object? sender, Avalonia.Input.TappedEventArgs e)
     {
         e.Handled = true;

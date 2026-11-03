@@ -149,6 +149,7 @@ ViewerSettingsService config\viewer.json 唯一写入点
 - 🔴 **阅读器滚动定位是近似的**：搜索命中只能按「命中位置 / 章长 × 可滚动高度」估算，无法精确到像素（Avalonia 无公开的文本命中矩形 API）。
 - 🔴 **`AudioPlayer` 卸载只停轮询表、⛔ 不停播**（NT-142 起改为后台播放）：切页后音乐要继续放，关标签页由 `ViewerViewModel` 释放时 `Stop`（NT-143 补）。⛔ 别在 `DetachedFromVisualTree` 里 `Stop` —— 那样切页就会断歌。
 - 🔴 **音频解码顺序**：先 `MediaFoundationReader`（mp3/m4a/flac/wma），失败回退 `AudioFileReader`（wav/aiff）；只用后者会让 m4a/flac 打不开。
+- 🔴 **NAudio 3.x 的 `IWaveProvider` 只有 `Read(Span<byte>)`**：自定义 `IWaveProvider`（频谱旁路 `SpectrumTap`）必须实现 Span 版，照 2.x 写 `Read(byte[], int, int)` 会 `CS0535`；同理⛔ 假设 `NAudio.Dsp.FastFourierTransform` 还在（FFT 已自写）。
 - 🔴 **压缩包来源由宿主标注**：`ImageViewer` 只认「本地路径」与「流」，包路径 / 条目大小靠 `ViewerHost.OpenImageStream(..., size, archivePath)` → `SetArchiveSource` 传入。⛔ 别在控件里按 `!` 拆 `包!条目` —— 包路径与条目名都可能含 `!`。
 
 ## 6. 待办（未立项）

@@ -33,7 +33,8 @@ namespace NewToys.MediaAssets.Services;
 /// ①② 都不命中，会当成新资产（旧的留 missing）。内容完全一样的重复由将来「补全哈希」校准。
 /// </para>
 /// <para>
-/// ⚠️ 元数据 / 缩略图**不在本项**：本类只留 <c>enricher</c> 回调挂钩，扫描到新文件时调用它。
+/// ⚠️ 元数据 / 缩略图**不在本项**：本类只留 <see cref="OnNewLocations"/> 回调（新位置批量交出去），
+/// 由模块接到后台任务队列慢慢补 —— 扫描自己 ⛔ 不读文件内容、不起 ffprobe/ffmpeg。
 /// </para>
 /// </summary>
 public partial class ScanService
@@ -59,27 +60,27 @@ public partial class ScanService
             var rows = new List<AssetRow>();
             var sw = Stopwatch.StartNew();
             var lastReport = 0L;
-            // 落在已登记源里面 → 显示那个源的名字（入库时也归它，⛔ 不另建源）
-            var rootName = _assets.FindCoveringStorage(rootPath)?.Name ?? "";
+            // 预览只是给人看的名字：该目录已登记源就用它的名字，否则用目录名（入库时按目录各自登记）
+            var rootName = _assets.FindStorageByRoot(rootPath)?.Name ?? "";
             if (string.IsNullOrEmpty(rootName))
             {
                 rootName = Path.GetFileName(rootPath.TrimEnd('\\', '/'));
                 if (string.IsNullOrEmpty(rootName)) rootName = rootPath;
             }
 
-            foreach (var file in EnumerateFiles(rootPath, ct, recursive))
+            foreach (var entry in EnumerateInfos(rootPath, ct, recursive))
             {
                 ct.ThrowIfCancellationRequested();
                 try
                 {
-                    var info = new FileInfo(file);
+                    var info = (FileInfo)entry;
                     var name = Path.GetFileNameWithoutExtension(info.Name);
                     rows.Add(new AssetRow
                     {
                         Name = name,
                         Title = name,
                         FileName = info.Name,
-                        FilePath = file,
+                        FilePath = info.FullName,
                         Type = GuessAssetType(info.Extension),
                         Size = info.Length,
                         Mtime = info.LastWriteTime.ToString(TimeFormat),
@@ -120,11 +121,13 @@ public partial class ScanService
     public bool IgnoreTempFiles { get; private set; } = true;
 
     /// <summary>
-    /// 新文件入库后的**增强回调**（元数据提取 + 缩略图生成）。
-    /// 由模块初始化时接线（读设置的自动开关）；传 null 即跳过。
-    /// ⚠️ 只在**新位置**批量落库后调（⛔ 不对"已见过"的位置重复跑）。
+    /// 新入库的位置**批量回调**（扫描不做任何读文件内容 / 起进程的事）。
+    /// <para>
+    /// 🔴 元数据与缩略图属于「读文件 + 起 ffprobe/ffmpeg 进程」，同步跑会把扫描拖成几分钟（用户实测）。
+    /// 现在只把新位置丢给这里，由模块接到任务队列后台补；缩略图另外按「浏览页滚动到才生成」走。
+    /// </para>
     /// </summary>
-    public Func<FileLocation, CancellationToken, Task>? Enricher { get; set; }
+    public Action<IReadOnlyList<FileLocation>>? OnNewLocations { get; set; }
 
     /// <summary>
     /// 把模块设置应用到扫描器（忽略规则 / 采样大小）。设置页保存后由调用方调一次。
@@ -165,13 +168,11 @@ public partial class ScanService
 
     /// <summary>
     /// 扫描（异步 / 可取消 / 带进度文本）。<paramref name="storageId"/> = null 表示**全部在线存储源**。
-    /// <paramref name="enricher"/>：新文件入库后回调（接元数据 + 缩略图；传 null 即跳过）。
     /// 返回已回填计数的 <see cref="ScanJob"/>（也写回了 <c>scan_jobs</c> 表）。
     /// </summary>
     public async Task<ScanJob> ScanAsync(long? storageId,
                                         IProgress<string>? progress,
-                                        CancellationToken ct,
-                                        Func<FileLocation, CancellationToken, Task>? enricher = null)
+                                        CancellationToken ct)
     {
         var job = new ScanJob
         {
@@ -225,16 +226,16 @@ public partial class ScanService
                     continue;
                 }
 
-                // 根目录落在另一个**在线**源之下：父源扫一遍就包含它，再扫子源只会把同一批文件重复入库
+                // 根目录落在另一个**在线**源之下：父源扫一遍就把子树按目录拆好源了，再扫子源只是重复遍历
                 var parent = storages.FirstOrDefault(o => o.Id != storage.Id && o.Online
                                                           && AssetService.IsUnderPath(storage.RootPath, o.RootPath));
                 if (parent != null)
                 {
-                    progress?.Report($"「{storage.Name}」的根目录在「{parent.Name}」之下，已跳过（扫父源即可覆盖；建议移除它）。");
+                    progress?.Report($"「{storage.Name}」的根目录在「{parent.Name}」之下，已跳过（扫父源会按文件夹各自归属）。");
                     continue;
                 }
 
-                await ScanOneStorageAsync(storage, job, progress, ct, enricher).ConfigureAwait(false);
+                await ScanOneStorageAsync(storage, job, progress, ct).ConfigureAwait(false);
             }
 
             job.Status = ScanStatuses.Success;

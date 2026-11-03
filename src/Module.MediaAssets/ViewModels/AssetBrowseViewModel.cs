@@ -43,6 +43,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     private readonly FileOperationService _fileOps = null!;
     private readonly TaskQueue _queue = null!;
     private readonly OperationLogService _opLog = null!;
+    private readonly ScanService _scan = null!;
 
     /// <summary>跨模块消息通道（本页 → 视频工具投递待导入的视频路径）。</summary>
     private readonly IModuleBus? _bus;
@@ -236,7 +237,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     public AssetBrowseViewModel(AssetService assets, AssetBrowseService browse, AssetLibraryAddService lib,
         AssetThumbCache thumbs, MediaAssetsSettingsIO io, ThumbnailService thumbGen,
         FileOperationService fileOps, TaskQueue queue, OperationLogService log, IColumnLayoutService cols,
-        IModuleBus? bus = null, AssetNavigationStore? navStore = null)
+        ScanService scan, IModuleBus? bus = null, AssetNavigationStore? navStore = null)
         : base(cols)
     {
         _bus = bus;
@@ -250,6 +251,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         _fileOps = fileOps;
         _queue = queue;
         _opLog = log;
+        _scan = scan;
 
         LoadLayout();
         // 视频专属四列在本页默认隐藏（本页没有「筛选类型 = 视频」这层语义）；用户改过的偏好优先
@@ -715,6 +717,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     {
         OnPropertyChanged(nameof(CanAddContextNodeToLibrary));
         OnPropertyChanged(nameof(CanRescanContextNode));
+        RefreshContextStorage();
     }
 
     private async Task ExpandToLibraryAsync(bool quiet = false)
@@ -1247,6 +1250,8 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     /// </summary>
     private void RequestThumbGeneration(int first, int last)
     {
+        if (!_io.Settings.AutoGenerateThumbnails) return;   // 设置里关了 → 只显示类型图标，⛔ 不读盘
+
         var window = new List<AssetTile>(last - first + 1);
         for (var i = first; i <= last; i++)
         {

@@ -124,10 +124,10 @@ public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusPro
         => SaveScanSetting(s => s.QuickHashSampleMb = Math.Clamp(value, 0, 64), "quick_hash 采样大小");
 
     partial void OnAutoExtractMetadataChanged(bool value)
-        => SaveSetting(s => s.AutoExtractMetadata = value, value ? "扫描到新文件将自动提取元数据。" : "已关闭自动提取元数据。");
+        => SaveSetting(s => s.AutoExtractMetadata = value, value ? "扫描后将在后台补读元数据（不影响扫描速度）。" : "已关闭后台补读元数据。");
 
     partial void OnAutoGenerateThumbnailsChanged(bool value)
-        => SaveSetting(s => s.AutoGenerateThumbnails = value, value ? "扫描到新文件将自动生成缩略图。" : "已关闭自动生成缩略图。");
+        => SaveSetting(s => s.AutoGenerateThumbnails = value, value ? "浏览页会在滚动到时按需生成缩略图。" : "已关闭缩略图（浏览页只显示类型图标）。");
 
     partial void OnProbeConcurrencyChanged(int value)
         => SaveSetting(s => s.ProbeConcurrency = Math.Clamp(value, 1, 16), "读媒体信息并发数");

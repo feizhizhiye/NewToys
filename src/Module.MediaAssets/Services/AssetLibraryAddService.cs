@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NewToys.MediaAssets.Models;
@@ -54,8 +53,8 @@ public class AssetLibraryAddService
         }, ct);
 
     /// <summary>
-    /// 把一整个**文件夹**（递归）加入资产库。落在已登记源之内的文件归该源；
-    /// 落在**别的**存储源里的文件跳过（子孙源已登记的情形）。
+    /// 把一整个**文件夹**（递归）加入资产库。每个文件归到它**上一级文件夹**对应的源
+    /// （该目录没有源就登记一个）；已在库里的同一路径按目录去重，⛔ 不重复建资产。
     /// </summary>
     public async Task<AddToLibraryResult> AddFolderAsync(string dir, IProgress<string>? progress, CancellationToken ct)
     {
@@ -68,32 +67,13 @@ public class AssetLibraryAddService
 
         if (rows.Count == 0) return new AddToLibraryResult(0, 0, "该目录下没有可入库的文件（排除项见「媒体资产设置」）。");
 
-        var known = _assets.ListStorages();
-        var target = AssetService.FindCoveringStorage(known, dir);
-
-        // ① 目标目录本身没被任何源覆盖 ⇒ 只有「完全没被覆盖」的文件留下（否则会重复索引子孙源）
-        // ② 目标目录已在某源内 ⇒ 只留属于该源的文件（别的源里的文件跳过）
-        var kept = new List<AssetRow>(rows.Count);
-        var skipped = 0;
-        foreach (var r in rows)
-        {
-            var cover = AssetService.FindCoveringStorage(known, r.FilePath);
-            if (cover == null || (target != null && cover.Id == target.Id)) kept.Add(r);
-            else skipped++;
-        }
-
-        if (kept.Count == 0)
-            return new AddToLibraryResult(0, skipped,
-                $"这 {rows.Count} 个文件都已属于其它已登记的存储源，本次没有新增（跳过 {skipped} 个）。");
-
-        var result = Commit(kept, skipped);
-        var note = target == null
-            ? "（已把该文件夹登记为新的存储源）"
-            : $"（归入已登记的存储源「{target.Name}」）";
+        var result = Commit(rows, 0);
+        var skipped = Math.Max(0, rows.Count - result.Added);
         return result with
         {
-            Message = $"已加入 {result.Added} 个文件{note}" +
-                      (result.Skipped > 0 ? $"，跳过 {result.Skipped} 个已在其它存储源里的文件。" : "。")
+            Skipped = skipped,
+            Message = $"已加入 {result.Added} 个文件（每个子文件夹登记为各自的存储源）" +
+                      (skipped > 0 ? $"，{skipped} 个已在库里、跳过。" : "。")
         };
     }
 

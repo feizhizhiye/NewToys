@@ -151,6 +151,28 @@
                 <MenuItem Header="🔄 重新扫描此目录" Command="{Binding RescanContextNodeCommand}"
                           IsEnabled="{Binding CanRescanContextNode}"
                           ToolTip.Tip="把这个目录里还没入库的文件补进来（已入库的按路径去重，不会重复索引）"/>
+                <Separator/>
+                <MenuItem Header="✏ 重命名目录源…" Command="{Binding RenameContextNodeStorageCommand}"
+                          ToolTip.Tip="只改库里的显示名（「全部资产」的「存储源」列），⛔ 不动磁盘目录名"/>
+                <MenuItem Header="🗄 目录源类型" IsEnabled="{Binding CanOperateContextStorage}"
+                          ToolTip.Tip="{Binding ContextStorageSummary}">
+                  <MenuItem Header="本地磁盘" ToggleType="Radio" GroupName="StorageType"
+                            IsChecked="{Binding IsContextStorageLocal, Mode=OneWay}"
+                            Command="{Binding SetContextStorageTypeCommand}" CommandParameter="local"/>
+                  <MenuItem Header="移动硬盘" ToggleType="Radio" GroupName="StorageType"
+                            IsChecked="{Binding IsContextStorageRemovable, Mode=OneWay}"
+                            Command="{Binding SetContextStorageTypeCommand}" CommandParameter="removable"/>
+                  <MenuItem Header="NAS / 网络共享" ToggleType="Radio" GroupName="StorageType"
+                            IsChecked="{Binding IsContextStorageNas, Mode=OneWay}"
+                            Command="{Binding SetContextStorageTypeCommand}" CommandParameter="nas"/>
+                </MenuItem>
+                <MenuItem Header="{Binding ContextOnlineMenuText}" Command="{Binding ToggleContextStorageOnlineCommand}"
+                          IsEnabled="{Binding CanOperateContextStorage}"
+                          ToolTip.Tip="下线 = 扫描跳过它（其下文件不会被标成丢失）；重新上线后再扫描即校准"/>
+                <MenuItem Header="🗑 移出资产库…" Command="{Binding RemoveContextNodeFromLibraryCommand}"
+                          ToolTip.Tip="只删这个目录的索引（文件位置），⛔ 不动磁盘文件"/>
+                <MenuItem Header="🔄 扫描全部已入库" Command="{Binding ScanAllLibraryCommand}"
+                          ToolTip.Tip="把所有已登记目录扫一遍（增量，进度在任务中心）"/>
               </ContextMenu>
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>

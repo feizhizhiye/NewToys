@@ -92,7 +92,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailP
 
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
-        new("Name", "名称", "2.4*", sample: "2026 科幻"},
+        new("Name", "名称", "2.4*", sample: "2026 科幻"),
         new("Type", "类型", "0.8*", sample: "手动"),
         new("Members", "成员数", "0.9*", sample: "12 个"),
         new("Created", "创建时间", "1.4*", sample: "2026-10-14 05:20")

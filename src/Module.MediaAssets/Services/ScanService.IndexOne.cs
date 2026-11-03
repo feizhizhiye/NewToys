@@ -2,10 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
-using System.Threading.Tasks;
 using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.Services;
@@ -28,15 +26,20 @@ public partial class ScanService
         var relative = MakeRelative(storage.RootPath, fullPath);
         var ext = info.Extension;
 
-        // ⓪ 重叠源认领：子目录源已索引过的同一物理文件 → 位置改归当前源，⛔ 不新建资产
-        if (shared.Count > 0 && shared.Remove(AssetService.PathKey(fullPath), out var adopted))
+        // ⓪ 历史归属认领：同一物理路径已有位置、但挂在其它的源（祖先 / 兄弟目录）下 →
+        //    改归当前目录源，⛔ 不新建资产。已是本源的位置交给 ① 走批量 touch。
+        if (shared.Count > 0 && shared.TryGetValue(AssetService.PathKey(fullPath), out var adopted))
         {
-            job.ScannedFiles++;
-            ApplyMove(adopted, storage, fullPath, relative, info, size, mtime, ext, null);
-            _assets.UpdateLocation(adopted);
-            index.Reindex(adopted);
-            job.UpdatedFiles++;
-            return;
+            shared.Remove(AssetService.PathKey(fullPath));
+            if (adopted.StorageId != storage.Id)
+            {
+                job.ScannedFiles++;
+                ApplyMove(adopted, storage, fullPath, relative, info, size, mtime, ext, null);
+                _assets.UpdateLocation(adopted);
+                index.Reindex(adopted);
+                job.UpdatedFiles++;
+                return;
+            }
         }
 
         // ① 存储源 + 相对路径（同存储源内最可靠；零 IO）
@@ -160,49 +163,18 @@ public partial class ScanService
 
     // ==================== 批量落库 ====================
 
-    private void FlushNew(List<FileLocation> pending, StorageIndex index,
-                          Func<FileLocation, CancellationToken, Task>? enricher, CancellationToken ct)
+    private void FlushNew(List<FileLocation> pending, StorageIndex? index)
     {
         if (pending.Count == 0) return;
 
         _assets.InsertLocations(pending);                       // 一个事务写完，回填 Id
-        foreach (var l in pending) if (l.Id != 0) index.Add(l); // 立刻进内存索引（同批里的重复不会重复建）
+        if (index != null)
+            foreach (var l in pending) if (l.Id != 0) index.Add(l); // 立刻进内存索引（同批里的重复不会重复建）
 
-        // 调用方没传 enricher 时用模块接线的那个（元数据 + 缩略图）
-        var en = enricher ?? Enricher;
-        if (en != null)
-        {
-            // 🔴 增强是**进程密集型**（每个文件一次 ffprobe / ffmpeg）——串行跑大目录要几分钟。
-            //    这里有界并发（4）折中：⛔ 不全并行（一批 200 个会同时起几百个进程）。
-            //    单个文件失败 ⛔ 不影响扫描本身（失败只是没有元数据 / 缩略图，下次重扫会补上）。
-            EnrichBatchAsync(pending, en, ct).GetAwaiter().GetResult();
-        }
-
+        // 新位置交给后台（元数据 / 缩略图），⛔ 不在这里同步跑 —— 那是扫描慢的根因
+        var added = new List<FileLocation>(pending.Count);
+        foreach (var l in pending) if (l.Id != 0) added.Add(l);
         pending.Clear();
+        if (added.Count > 0) OnNewLocations?.Invoke(added);
     }
-
-    /// <summary>一批新位置的有界并发增强（默认 4 路；⛔ 别调大——进程数是硬资源）。</summary>
-    private static async Task EnrichBatchAsync(List<FileLocation> pending,
-                                               Func<FileLocation, CancellationToken, Task> enricher,
-                                               CancellationToken ct)
-    {
-        using var gate = new SemaphoreSlim(EnrichConcurrency);
-        var tasks = pending
-            .Where(l => l.Id != 0)
-            .Select(async l =>
-            {
-                await gate.WaitAsync(ct).ConfigureAwait(false);
-                try { await enricher(l, ct).ConfigureAwait(false); }
-                catch (OperationCanceledException) { throw; }
-                catch { /* 单个文件增强失败：跳过，不中断整批 */ }
-                finally { gate.Release(); }
-            })
-            .ToList();
-        try { await Task.WhenAll(tasks).ConfigureAwait(false); }
-        catch (OperationCanceledException) { /* 扫描被取消：剩余增强不再等 */ }
-    }
-
-    /// <summary>增强并发度（进程密集型任务的折中值）。</summary>
-    private const int EnrichConcurrency = 4;
-
 }

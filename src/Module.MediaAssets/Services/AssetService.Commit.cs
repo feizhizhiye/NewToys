@@ -71,8 +71,9 @@ public partial class AssetService
                 var dirName = Path.GetFileName(trimmed);
                 if (string.IsNullOrEmpty(dirName)) dirName = trimmed;
 
-                // 覆盖该目录的已有源（含根目录正好等于它的情况）优先：⛔ 不为子目录另建源，否则同一文件会被重复入库
-                var storage = FindCoveringStorage(known, dir);
+                // 🔴 一个文件只属于它**上一级文件夹**对应的源：按目录精确匹配，
+                //    ⛔ 不归到祖先源（否则同一批文件混在父文件夹名下，列表里分不清来源）
+                var storage = FindExactStorage(known, dir);
                 var storageIsNew = storage == null;
                 if (storage == null)
                 {

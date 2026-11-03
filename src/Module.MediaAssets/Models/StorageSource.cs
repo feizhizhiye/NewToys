@@ -96,4 +96,10 @@ public sealed class StorageRow
             return DateTime.TryParse(LastScanAt, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : LastScanAt;
         }
     }
+
+    /// <summary>层级深度（有多少个已登记源是它的祖先）：树状缩进用，由页面在加载后计算。</summary>
+    public int Depth { get; set; }
+
+    /// <summary>名称列左缩进：让父子源看起来是树（⛔ 不是可折叠树，列表仍是平的）。</summary>
+    public Avalonia.Thickness Indent => new(Depth * 14, 0, 0, 0);
 }

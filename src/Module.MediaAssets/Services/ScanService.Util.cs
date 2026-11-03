@@ -35,11 +35,11 @@ public partial class ScanService
     /// 手写遍历（⛔ 不用 <c>Directory.EnumerateFiles(..., AllDirectories)</c>：它遇到**一个**没权限的
     /// 子目录就整体抛异常，整次扫描会断）。这里逐目录 try-catch：读不了的目录跳过，其余照常。
     /// <para>
-    /// ⚠️ 用 <c>EnumerateFileSystemEntries</c> 一次拿**全部条目**再自己分流目录 / 文件：
-    /// 比 <c>GetDirectories</c> + <c>GetFiles</c> 少一半系统调用（大目录上很明显）。
+    /// ⚠️ 用 <c>EnumerateFileSystemInfos</c> 一次拿**全部条目**（含已缓存的 Length / LastWriteTime / Attributes）：
+    /// 比 <c>GetFileSystemEntries</c> + 每个文件再 <c>new FileInfo</c> 少一轮 stat 系统调用（大目录上很明显）。
     /// </para>
     /// </summary>
-    private IEnumerable<string> EnumerateFiles(string root, CancellationToken ct, bool recursive = true)
+    private IEnumerable<FileSystemInfo> EnumerateInfos(string root, CancellationToken ct, bool recursive = true)
     {
         var stack = new Stack<string>();
         stack.Push(root);
@@ -49,34 +49,43 @@ public partial class ScanService
             ct.ThrowIfCancellationRequested();
             var dir = stack.Pop();
 
-            string[] entries;
-            try { entries = Directory.GetFileSystemEntries(dir); }
+            IEnumerator<FileSystemInfo>? it = null;
+            try { it = new DirectoryInfo(dir).EnumerateFileSystemInfos().GetEnumerator(); }
             catch { continue; }                       // 目录读不了 → 跳过
+            if (it == null) continue;
 
-            foreach (var entry in entries)
+            using (it)
             {
-                var isDir = false;
-                try
+                while (true)
                 {
-                    var attrs = File.GetAttributes(entry);
-                    // 隐藏 / 系统目录跳过（回收站、卷影等）；⛔ 不停在这类目录上浪费时间
-                    if (attrs.HasFlag(FileAttributes.System)) continue;
-                    if (IgnoreHiddenFiles && attrs.HasFlag(FileAttributes.Hidden)) continue;
-                    isDir = attrs.HasFlag(FileAttributes.Directory);
-                }
-                catch { continue; }
+                    FileSystemInfo entry;
+                    try
+                    {
+                        if (!it.MoveNext()) break;
+                        entry = it.Current;
+                    }
+                    catch { break; }                  // 枚举中途读不了 → 放弃该目录剩余条目
 
-                if (isDir)
-                {
-                    if (IgnoreDirectoryNames.Contains(Path.GetFileName(entry))) continue;
-                    if (recursive) stack.Push(entry);   // v3.29：关掉「含子目录」就只取当前这一层
-                }
-                else
-                {
-                    if (IgnoreExtensions.Contains(Path.GetExtension(entry))) continue;
-                    // Office 等程序的临时副本（~$开头）—— 扩展名管不到它
-                    if (IgnoreTempFiles && Path.GetFileName(entry).StartsWith("~$", StringComparison.Ordinal)) continue;
-                    yield return entry;
+                    FileAttributes attrs;
+                    try { attrs = entry.Attributes; }
+                    catch { continue; }
+
+                    // 隐藏 / 系统目录跳过（回收站、卷影等）；⛔ 不停在这类目录上浪费时间
+                    if ((attrs & FileAttributes.System) != 0) continue;
+                    if (IgnoreHiddenFiles && (attrs & FileAttributes.Hidden) != 0) continue;
+
+                    if ((attrs & FileAttributes.Directory) != 0)
+                    {
+                        if (IgnoreDirectoryNames.Contains(entry.Name)) continue;
+                        if (recursive) stack.Push(entry.FullName);
+                    }
+                    else
+                    {
+                        if (IgnoreExtensions.Contains(entry.Extension)) continue;
+                        // Office 等程序的临时副本（~$开头）—— 扩展名管不到它
+                        if (IgnoreTempFiles && entry.Name.StartsWith("~$", StringComparison.Ordinal)) continue;
+                        yield return entry;
+                    }
                 }
             }
         }

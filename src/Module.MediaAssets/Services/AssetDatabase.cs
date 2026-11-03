@@ -59,6 +59,7 @@ public class AssetDatabase
         EnsureColumn("assets", "is_favorite", "INTEGER");   // 详情卡「★ 收藏」
         EnsureColumn("operation_logs", "finished_at", "TEXT");
         EnsureColumn("scan_jobs", "error_count", "INTEGER");
+        EnsureColumn("storages", "last_scan_at", "TEXT");
     }
 
     /// <summary>给已有表补一列（幂等）：列已存在时 SQLite 报 duplicate column name，直接忽略。</summary>
@@ -82,6 +83,7 @@ CREATE TABLE IF NOT EXISTS storages (
   root_path TEXT NOT NULL,
   type TEXT NOT NULL DEFAULT 'local',      -- local/removable/nas
   online INTEGER NOT NULL DEFAULT 1,
+  last_scan_at TEXT,                       -- 本源最近一次被扫描（一次扫描可覆盖多个源）
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

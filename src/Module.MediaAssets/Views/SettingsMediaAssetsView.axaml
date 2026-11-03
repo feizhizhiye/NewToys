@@ -60,8 +60,8 @@
 
     <StackPanel x:Key="Sec1" Spacing="10">
       <StackPanel Spacing="10">
-        <CheckBox Content="扫描到新文件时自动提取元数据（视频 = ffprobe；图片 = 读尺寸）" IsChecked="{Binding AutoExtractMetadata, Mode=TwoWay}" />
-        <CheckBox Content="扫描到新文件时自动生成缩略图（视频抽帧 / 图片缩放）" IsChecked="{Binding AutoGenerateThumbnails, Mode=TwoWay}" />
+        <CheckBox Content="扫描到新文件后，在后台补读元数据（视频 = ffprobe；图片 = 读尺寸）—— 不影响扫描速度" IsChecked="{Binding AutoExtractMetadata, Mode=TwoWay}" />
+        <CheckBox Content="浏览页滚动到时按需生成缩略图（关闭 = 只显示类型图标，不读盘）" IsChecked="{Binding AutoGenerateThumbnails, Mode=TwoWay}" />
 
         <StackPanel Classes="field">
           <TextBlock Classes="field-label" Text="读媒体信息的并发数（1~16）" />

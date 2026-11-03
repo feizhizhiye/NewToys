@@ -86,10 +86,16 @@ public class MediaAssetsSettings
 
     // ==================== 元数据 / 缩略图 ====================
 
-    /// <summary>扫描到新文件时自动提取元数据（视频走 ffprobe；图片读尺寸）。</summary>
-    public bool AutoExtractMetadata { get; set; } = true;
+    /// <summary>
+    /// 扫描到新文件后，在**后台任务队列**补读元数据（视频走 ffprobe；图片读尺寸）。
+    /// <para>🔴 扫描本身只做索引：这个开关只决定要不要排队补元数据，⛔ 不会拖慢扫描。</para>
+    /// </summary>
+    public bool AutoExtractMetadata { get; set; }
 
-    /// <summary>扫描到新文件时自动生成缩略图（视频抽帧 / 图片缩放）。</summary>
+    /// <summary>
+    /// 浏览页滚动到时按需生成缩略图（视频抽帧 / 图片缩放）。关闭 = 只显示类型图标。
+    /// <para>🔴 扫描**永不**生成缩略图 —— 那会让一次扫描变成几千次 ffmpeg 调用。</para>
+    /// </summary>
     public bool AutoGenerateThumbnails { get; set; } = true;
 
     /// <summary>

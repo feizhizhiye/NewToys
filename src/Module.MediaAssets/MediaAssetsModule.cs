@@ -96,7 +96,8 @@ public class MediaAssetsModule : IModule
         menu.RegisterFunction<Views.AssetTagsView>(GroupKey, "assets-tags", "标签管理", "🏷", 6, "标签：名称 / 命名空间 / 颜色 / 使用数；支持合并、清理未使用与一键种入推荐标签");
         menu.RegisterFunction<Views.AssetCategoriesView>(GroupKey, "assets-categories", "分类管理", "🗃", 7, "分类：名称 / 路径 / 成员数 / 排序；层级靠路径列 + 缩进，改父级在详情卡");
         menu.RegisterFunction<Views.AssetCollectionsView>(GroupKey, "assets-collections", "集合管理", "📦", 8, "手动 / 智能集合；成员与顺序在详情卡（⬆⬇ 写 sort_order）");
-        menu.RegisterFunction<Views.AssetStoragesView>(GroupKey, "assets-storages", "存储源", "💾", 9, "local / removable / nas；在线状态；移除只移索引、不删磁盘文件");
+        // 「存储源」页已撤下菜单：目录级的库操作（加入 / 移出 / 重扫 / 扫描全部）全部在「资产浏览」页。
+        // View / VM 暂留（数据层的 storages 仍是索引的根），不再注册菜单项。
         menu.RegisterFunction<Views.AssetTasksView>(GroupKey, "assets-tasks", "任务中心", "⏳", 10, "扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图任务：取消 / 重试 / 日志");
         menu.RegisterFunction<Views.AssetTrashView>(GroupKey, "assets-trash", "回收站", "🗑", 11, "已软删除资产：恢复 / 永久删除（二次确认）/ 清空");
 
@@ -127,12 +128,24 @@ public class MediaAssetsModule : IModule
         scan.ApplySettings(io.Settings);
 
         var meta = services.GetRequiredService<Services.MetadataService>();
-        var thumbs = services.GetRequiredService<Services.ThumbnailService>();
-        scan.Enricher = async (loc, ct) =>
+        var queue = services.GetRequiredService<Services.TaskQueue>();
+
+        // 🔴 扫描**不读元数据、不生成缩略图**（同步起 ffprobe/ffmpeg 会把扫描拖成几分钟）。
+        // 元数据按设置里的开关在后台任务队列补；缩略图一律「浏览页滚动到才生成」。
+        scan.OnNewLocations = list =>
         {
-            var s = io.Settings;
-            if (s.AutoExtractMetadata) await meta.ApplyAsync(loc, ct).ConfigureAwait(false);
-            if (s.AutoGenerateThumbnails) await thumbs.GenerateAsync(loc, ct).ConfigureAwait(false);
+            if (!io.Settings.AutoExtractMetadata || list.Count == 0) return;
+            queue.Enqueue($"补元数据（{list.Count} 个）", async (ct, p) =>
+            {
+                var done = 0;
+                foreach (var loc in list)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    try { await meta.ApplyAsync(loc, ct).ConfigureAwait(false); }
+                    catch { /* 单个文件失败：跳过，不影响队列 */ }
+                    if (++done % 20 == 0) p.Report($"已补 {done}/{list.Count}");
+                }
+            });
         };
 
         // 首次建库：种入推荐标签（只种一次；用户之后把标签清空，⛔ 不再自动种回 —— 要补点标签页「🌱 推荐标签」）

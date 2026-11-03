@@ -257,10 +257,28 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     {
         _all.Clear();
         if (IsDbAvailable) foreach (var s in _storages.ListRows()) _all.Add(s);
+        ComputeDepth();
 
         var keep = Selected?.Id ?? 0;
         ApplyView();
         if (keep > 0) Selected = Items.FirstOrDefault(s => s.Id == keep) ?? Selected;
+    }
+
+    /// <summary>
+    /// 算每个源的层级深度（祖先是已登记源 +1）。按根路径排序后一遍走完，O(n log n)。
+    /// <para>父子源现在是正常数据（一个文件只属于它上一级文件夹的源），深度只影响名称列的缩进。</para>
+    /// </summary>
+    private void ComputeDepth()
+    {
+        var sorted = _all.OrderBy(s => s.RootPath, StringComparer.OrdinalIgnoreCase).ToList();
+        var ancestors = new List<StorageRow>();
+        foreach (var row in sorted)
+        {
+            while (ancestors.Count > 0 && !AssetService.IsUnderPath(row.RootPath, ancestors[^1].RootPath))
+                ancestors.RemoveAt(ancestors.Count - 1);
+            row.Depth = ancestors.Count;
+            ancestors.Add(row);
+        }
     }
 
     private string StatusSummary()
@@ -286,7 +304,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
             "Status" => Order(q, s => s.Online),
             "Files" => Order(q, s => s.FileCount),
             "LastScan" => Order(q, s => s.LastScanAt),
-            _ => Order(q, s => s.Name)
+            _ => Order(q, s => s.RootPath)      // 默认按路径：父子相邻，缩进才看得出层级
         };
 
         Items.Clear();
@@ -330,15 +348,8 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
             return;
         }
 
-        // 与已有源互为父子 ⇒ 同一批文件会被重复扫入库（列表里同一个文件出现多行）
+        // 父子源可以共存：一个文件只归它上一级文件夹的源，扫描时按目录各自归属，不会重复入库
         var overlap = _assets.FindOverlappingStorage(dir);
-        if (overlap != null)
-        {
-            StatusText = overlap.NewIsInside
-                ? $"「{dir}」在已登记的「{overlap.Other.Name}」（{overlap.Other.RootPath}）里面——同一批文件会被重复入库，已拒绝。"
-                : $"「{dir}」包含已登记的「{overlap.Other.Name}」（{overlap.Other.RootPath}）——两者会重复扫同一批文件，已拒绝。";
-            return;
-        }
 
         var name = Path.GetFileName(dir.TrimEnd('\\', '/'));
         if (string.IsNullOrEmpty(name)) name = dir;
@@ -347,8 +358,13 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         var id = _assets.UpsertStorage(s);
         Reload();
         Selected = Items.FirstOrDefault(x => x.Id == id);
+        var note = overlap == null
+            ? ""
+            : overlap.NewIsInside
+                ? $"（它在「{overlap.Other.Name}」之下，作为子源存在：父源扫描时各自的文件夹各归各的源）"
+                : $"（它包含已登记的「{overlap.Other.Name}」，扫这个源时会连带把子文件夹登记成子源）";
         StatusText = id > 0
-            ? $"已登记「{name}」——点「🔍 扫描选中」把它扫进库（或先「✏ 重命名」改个名字）。"
+            ? $"已登记「{name}」{note}——点「🔍 扫描选中」把它扫进库（或先「✏ 重命名」改个名字）。"
             : "登记失败（数据库不可用？）。";
     }
 

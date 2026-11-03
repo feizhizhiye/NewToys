@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using NewToys.MediaAssets.Models;
@@ -12,46 +10,110 @@ namespace NewToys.MediaAssets.Services;
 
 public partial class ScanService
 {
-
-    /// <summary>扫单个存储源：载入内存索引 → 遍历 → 批量落库 → 收尾 missing 校准。</summary>
+    /// <summary>
+    /// 扫单个存储源：递归遍历其根，**按文件所在目录就地归属存储源**（目录没有源就登记一个）→
+    /// 批量落库 → 收尾一次性校准 missing / 扫描时刻。
+    /// <para>
+    /// 🔴 <b>为什么不整棵子树挂在一个源上</b>：同一批文件若既被父源又被子目录源持有，列表里会出现重复行，
+    /// 且无法按文件夹分辨来源。规则统一为「一个文件只属于它**上一级文件夹**对应的源」。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>速度三件事</b>（缺一个都会退化成「扫一个目录几分钟」）：
+    /// ① 子树内所有源的位置**一次查完**分桶（<see cref="AssetService.ListLocationsForStorages"/>），换目录不查库；
+    /// ② 新目录的源直接 INSERT（<see cref="AssetService.InsertStorageFast"/>），⛔ 不走会全表查的 Upsert；
+    /// ③ 元数据 / 缩略图**不在扫描里做** —— 新位置交给 <see cref="OnNewLocations"/> 由后台任务慢慢补。
+    /// </para>
+    /// </summary>
     private async Task ScanOneStorageAsync(StorageSource storage, ScanJob job, IProgress<string>? progress,
-                                           CancellationToken ct, Func<FileLocation, CancellationToken, Task>? enricher)
+                                           CancellationToken ct)
     {
         // ⚠️ 先取「本次开始时刻」：扫描收尾用它判「本次没见到」→ missing
         var startedAt = AssetService.Now();
 
-        // 🔴 一次查询把该存储源的现有位置读进内存 → 之后**匹配全在内存做**（⛔ 不 per-file SELECT）
-        var index = LoadStorageIndex(storage.Id);
+        var known = _assets.ListStorages();
+        var byRoot = new Dictionary<string, StorageSource>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in known) byRoot[AssetService.PathKey(s.RootPath)] = s;
 
-        // 登记在其下的子目录源：它们的既有位置按完整路径先认领（⛔ 否则父源会为同一文件再建一条资产）
-        var shared = _assets.LoadOverlappingLocations(storage);
-        progress?.Report(index.Count == 0
-            ? $"「{storage.Name}」首次扫描：只读文件信息，不读内容（很快）"
-            : $"「{storage.Name}」已在库 {index.Count} 个位置，开始校准…");
+        // 子树（祖先 + 子孙）的位置一次读进内存，按源分桶 → 换目录只换桶，不再查库
+        var subtreeIds = new List<long>();
+        foreach (var s in known)
+            if (s.Id > 0 && (AssetService.PathKey(s.RootPath) == AssetService.PathKey(storage.RootPath)
+                             || AssetService.IsUnderPath(s.RootPath, storage.RootPath)
+                             || AssetService.IsUnderPath(storage.RootPath, s.RootPath)))
+                subtreeIds.Add(s.Id);
+
+        var buckets = _assets.ListLocationsForStorages(subtreeIds);
+        var indexes = new Dictionary<long, StorageIndex>();
+
+        StorageIndex IndexOf(long storageId)
+        {
+            if (indexes.TryGetValue(storageId, out var cached)) return cached;
+            var ix = new StorageIndex();
+            if (buckets.TryGetValue(storageId, out var list))
+                foreach (var l in list) ix.Add(l);
+            indexes[storageId] = ix;
+            return ix;
+        }
+
+        // 认领表：子树里所有已索引位置（跨源）→ 扫到同一路径时迁到它自己的目录源，⛔ 不重复建资产
+        var shared = new Dictionary<string, FileLocation>(StringComparer.Ordinal);
+        foreach (var kv in buckets)
+            foreach (var l in kv.Value)
+                if (!string.IsNullOrEmpty(l.Path)) shared[AssetService.PathKey(l.Path)] = l;
+
+        progress?.Report($"「{storage.Name}」开始扫描（按文件夹归属存储源）…");
 
         await Task.Run(() =>
         {
             var pending = new List<FileLocation>();
             var touched = new List<long>();
+            StorageIndex? index = null;
+            StorageSource? cur = storage;
+            var curDir = "";
             var sw = Stopwatch.StartNew();
             var lastReport = 0L;
 
-            foreach (var file in EnumerateFiles(storage.RootPath, ct))
+            void CloseDir()
+            {
+                FlushNew(pending, index);
+                FlushTouched(touched, startedAt);
+                pending = new List<FileLocation>();
+                touched = new List<long>();
+            }
+
+            foreach (var entry in EnumerateInfos(storage.RootPath, ct))
             {
                 ct.ThrowIfCancellationRequested();
+
+                // 同一目录的文件在遍历中连续出现 → 换目录时才切源 / 换索引
+                var dir = Path.GetDirectoryName(entry.FullName) ?? storage.RootPath;
+                if (!string.Equals(dir, curDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    CloseDir();
+                    curDir = dir;
+                    cur = EnsureStorageForDir(byRoot, dir);
+                    index = cur == null ? null : IndexOf(cur.Id);
+                }
+
                 job.TotalFiles++;
+                if (cur == null || index == null)
+                {
+                    job.ErrorCount++;
+                    continue;
+                }
+
                 try
                 {
-                    IndexOne(storage, file, index, shared, job, pending, touched);
+                    IndexOne(cur, entry.FullName, index, shared, job, pending, touched);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
                     job.ErrorCount++;
-                    _assets.AddScanError(job.Id, file, "io", ex.Message);
+                    _assets.AddScanError(job.Id, entry.FullName, "io", ex.Message);
                 }
 
-                if (pending.Count >= BatchSize) FlushNew(pending, index, enricher, ct);
+                if (pending.Count >= BatchSize) FlushNew(pending, index);
                 if (touched.Count >= BatchSize) FlushTouched(touched, startedAt);
 
                 // 进度按**时间**节流（⛔ 不按文件数：大文件会卡住状态栏）
@@ -62,16 +124,56 @@ public partial class ScanService
                 }
             }
 
-            FlushNew(pending, index, enricher, ct);
-            FlushTouched(touched, startedAt);
+            CloseDir();
         }, ct).ConfigureAwait(false);
 
-        // 收尾：本次没见到的旧位置 → missing（⛔ 不删资产）
-        var missing = _assets.MarkMissingLocations(storage.Id, startedAt);
+        // 收尾：一个事务里做完「本次没见到的 → missing」+「每个源记最近扫描」
+        var ids = new List<long>();
+        foreach (var s in SubtreeStorages(byRoot, storage)) ids.Add(s.Id);
+        var missing = _assets.FinishStorageScans(ids, startedAt);
         job.MissingFiles += missing;
         progress?.Report($"「{storage.Name}」完成：新增 {job.AddedFiles} / 更新 {job.UpdatedFiles} / 丢失 {missing} / 失败 {job.ErrorCount}");
     }
 
-    // ==================== 导入指定的一批文件 ====================
+    /// <summary>
+    /// 取该目录对应的存储源，没有就登记一个（名称 = 目录名）。
+    /// 🔴 这是「一个文件只属于它上一级文件夹」的落地点 —— ⛔ 别改成归到祖先源。
+    /// </summary>
+    private StorageSource? EnsureStorageForDir(Dictionary<string, StorageSource> byRoot, string dir)
+    {
+        var key = AssetService.PathKey(dir);
+        if (byRoot.TryGetValue(key, out var existing)) return existing;
 
+        var trimmed = dir.TrimEnd('\\', '/');
+        var name = Path.GetFileName(trimmed);
+        if (string.IsNullOrEmpty(name)) name = trimmed;      // 盘根（D:\）取不到目录名
+
+        var id = _assets.InsertStorageFast(name, trimmed);
+        if (id == 0) return null;
+
+        var created = new StorageSource
+        {
+            Id = id,
+            Name = name,
+            RootPath = trimmed,
+            Type = StorageTypes.Local,
+            Online = true
+        };
+        byRoot[key] = created;
+        return created;
+    }
+
+    /// <summary>该根之下的全部存储源（含根本身）：收尾校准与「最近扫描」都按它们整批处理。</summary>
+    private static List<StorageSource> SubtreeStorages(Dictionary<string, StorageSource> byRoot, StorageSource root)
+    {
+        var rootKey = AssetService.PathKey(root.RootPath);
+        var list = new List<StorageSource>();
+        foreach (var s in byRoot.Values)
+        {
+            var key = AssetService.PathKey(s.RootPath);
+            if (key.Length == 0) continue;
+            if (key == rootKey || AssetService.IsUnderPath(s.RootPath, root.RootPath)) list.Add(s);
+        }
+        return list;
+    }
 }

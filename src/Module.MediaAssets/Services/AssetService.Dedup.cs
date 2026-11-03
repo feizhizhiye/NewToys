@@ -85,6 +85,19 @@ public partial class AssetService
     /// <summary>同上（自己读一次存储源清单）。</summary>
     public StorageSource? FindCoveringStorage(string path) => FindCoveringStorage(ListStorages(), path);
 
+    /// <summary>
+    /// 在给定清单里找**根目录正好等于** <paramref name="rootPath"/> 的源；没有 → null。
+    /// <para>入库 / 扫描时「一个文件只属于它上一级文件夹」的判定就用它（⛔ 不用覆盖匹配）。</para>
+    /// </summary>
+    public static StorageSource? FindExactStorage(IEnumerable<StorageSource> storages, string rootPath)
+    {
+        var key = PathKey(rootPath);
+        if (key.Length == 0) return null;
+        foreach (var s in storages)
+            if (PathKey(s.RootPath) == key) return s;
+        return null;
+    }
+
     /// <summary>合并结果（页面状态栏用）。</summary>
     public sealed record DuplicateMergeResult(int Groups, int RemovedAssets, int MovedLocations, int PrunedLocations = 0)
     {
@@ -276,6 +289,34 @@ public partial class AssetService
             foreach (var l in ListStorageLocations(sid))
                 map[PathKey(l.Path)] = l;
 
+        return map;
+    }
+
+    /// <summary>
+    /// 该目录**整棵子树**相关的既有位置：自身、所有祖先源、所有子孙源（按路径索引）。
+    /// <para>
+    /// 扫描时拿它做「同一路径已有位置」的认领 —— 历史数据可能把这批文件挂在祖先源下，
+    /// 扫到时应改归它自己的目录源，⛔ 别再建一条资产。
+    /// </para>
+    /// </summary>
+    public Dictionary<string, FileLocation> LoadSubtreeLocations(StorageSource storage)
+    {
+        var map = new Dictionary<string, FileLocation>(StringComparer.Ordinal);
+        if (!IsAvailable) return map;
+
+        var root = PathKey(storage.RootPath);
+        if (root.Length == 0) return map;
+
+        foreach (var s in ListStorages())
+        {
+            if (s.Id == storage.Id) continue;
+            var other = PathKey(s.RootPath);
+            if (other.Length == 0) continue;
+            if (IsUnderKey(other, root) || IsUnderKey(root, other))   // 子孙源 / 祖先源
+            {
+                foreach (var l in ListStorageLocations(s.Id)) map[PathKey(l.Path)] = l;
+            }
+        }
         return map;
     }
 }

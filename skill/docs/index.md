@@ -28,14 +28,14 @@
 
 ## 二、模块清单
 
-<!-- AUTO:index.modules -->
+<!-- AUTO:index.modules -->
 | 模块 | 程序集 | 模块键 | 页数 | 文档 |
 |---|---|---|---|---|
 | 脚本管理器 | `Module.ScriptManager` | `script` | 6 + 1 | `modules/script-manager.md` |
 | 系统工具 | `Module.SystemTools` | `system-tools` | 3 + 1 | `modules/system-tools.md` |
 | 网络工具 | `Module.WebTools` | `web` | 4 + 1 | `modules/web-tools.md` |
 | 视频工具 | `Module.VideoTools` | `video` | 3 + 1 | `modules/video-tools.md` |
-| 媒体资产 | `Module.MediaAssets` | `assets` | 8 + 1 | `modules/media-assets.md` |
+| 媒体资产 | `Module.MediaAssets` | `assets` | 7 + 1 | `modules/media-assets.md` |
 | 查看器 | `Module.Viewer` | `viewer` | 3 | `modules/viewer.md` |
 | 网络阅读 | `Module.Reading` | `reading` | 5 + 1 | `modules/reading.md` |
 | 备份中心 | `Module.BackupCenter` | `backup` | 4 + 1 | `modules/backup-center.md` |

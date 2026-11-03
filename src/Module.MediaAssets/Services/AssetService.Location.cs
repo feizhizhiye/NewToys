@@ -231,6 +231,99 @@ public partial class AssetService
     }
 
     /// <summary>
+    /// 一次读多个存储源的全部位置（扫描提速：整棵子树一次查完，按源分组 → 换目录不再逐源查库）。
+    /// </summary>
+    public Dictionary<long, List<FileLocation>> ListLocationsForStorages(IReadOnlyCollection<long> storageIds)
+    {
+        var map = new Dictionary<long, List<FileLocation>>();
+        if (!IsAvailable || storageIds.Count == 0) return map;
+
+        foreach (var id in storageIds) map[id] = new List<FileLocation>();
+
+        // SQLite 参数上限 999 → 分批 IN
+        var ids = storageIds.ToList();
+        for (var i = 0; i < ids.Count; i += 500)
+        {
+            var chunk = ids.Skip(i).Take(500).ToList();
+            var names = new List<string>(chunk.Count);
+            try
+            {
+                using var conn = _db.Db.Open();
+                using var cmd = conn.CreateCommand();
+                for (var k = 0; k < chunk.Count; k++)
+                {
+                    names.Add("$s" + k);
+                    cmd.Parameters.AddWithValue("$s" + k, chunk[k]);
+                }
+                cmd.CommandText = "SELECT " + LocationColumns + " FROM file_locations WHERE storage_id IN (" +
+                                  string.Join(",", names) + ");";
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                {
+                    var loc = MapLocation(r);
+                    if (map.TryGetValue(loc.StorageId, out var list)) list.Add(loc);
+                    else map[loc.StorageId] = new List<FileLocation> { loc };
+                }
+            }
+            catch { /* 读不了就退化成空索引：扫描照常建新位置 */ }
+        }
+        return map;
+    }
+
+    /// <summary>
+    /// 扫描收尾（**一个事务**）：把所有本次没见到的位置标 missing + 给这些源记「最近扫描」。
+    /// <para>一次扫描现在会涉及整棵子树的多个源 ⇒ 逐个源跑两遍 UPDATE 会变成几千条往返。</para>
+    /// 返回标成 missing 的位置数。
+    /// </summary>
+    public int FinishStorageScans(IReadOnlyCollection<long> storageIds, string scannedFrom)
+    {
+        if (!IsAvailable || storageIds.Count == 0) return 0;
+
+        var ids = storageIds.Where(x => x > 0).Distinct().ToList();
+        if (ids.Count == 0) return 0;
+
+        var missing = 0;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var tx = conn.BeginTransaction();
+
+            for (var i = 0; i < ids.Count; i += 500)
+            {
+                var chunk = ids.Skip(i).Take(500).ToList();
+                var names = new List<string>(chunk.Count);
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                for (var k = 0; k < chunk.Count; k++)
+                {
+                    names.Add("$s" + k);
+                    cmd.Parameters.AddWithValue("$s" + k, chunk[k]);
+                }
+                var inList = string.Join(",", names);
+
+                cmd.CommandText =
+                    "UPDATE file_locations SET status='missing', updated_at=$u " +
+                    "WHERE status='active' AND (last_seen_at IS NULL OR last_seen_at < $from) " +
+                    "AND storage_id IN (" + inList + ");";
+                cmd.Parameters.AddWithValue("$u", Now());
+                cmd.Parameters.AddWithValue("$from", scannedFrom);
+                missing += cmd.ExecuteNonQuery();
+
+                using var stamp = conn.CreateCommand();
+                stamp.Transaction = tx;
+                for (var k = 0; k < chunk.Count; k++) stamp.Parameters.AddWithValue("$s" + k, chunk[k]);
+                stamp.CommandText = "UPDATE storages SET last_scan_at=$t WHERE id IN (" + inList + ");";
+                stamp.Parameters.AddWithValue("$t", scannedFrom);
+                stamp.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+        }
+        catch { /* 校准失败不影响已入库的数据 */ }
+        return missing;
+    }
+
+    /// <summary>
     /// **一个事务**批量写入新位置并回填 Id（扫描性能的关键之一）。
     /// 逐条 INSERT 时每条都要等一次 WAL 提交；成批提交通常快一个数量级。
     /// </summary>

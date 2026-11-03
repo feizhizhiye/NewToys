@@ -114,6 +114,45 @@ public partial class AssetService
         catch { return 0; }
     }
 
+    /// <summary>
+    /// 直接插入一个存储源并返回 id：**调用方必须已确认该 root 不存在**（如扫描时用内存字典判过）。
+    /// <para>⛔ 不走 <see cref="UpsertStorage"/>：后者每次都 <c>ListStorages()</c> 全表查，一目录一源时会被放大成 N 次全表扫。</para>
+    /// </summary>
+    public long InsertStorageFast(string name, string rootPath)
+    {
+        if (!IsAvailable) return 0;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "INSERT INTO storages(name,root_path,type,online,created_at,updated_at) " +
+                              "VALUES($n,$p,'local',1,$c,$u); SELECT last_insert_rowid();";
+            cmd.Parameters.AddWithValue("$n", name);
+            cmd.Parameters.AddWithValue("$p", NormalizeRoot(rootPath));
+            cmd.Parameters.AddWithValue("$c", Now());
+            cmd.Parameters.AddWithValue("$u", Now());
+            return Convert.ToInt64(cmd.ExecuteScalar());
+        }
+        catch { return 0; }
+    }
+
+    /// <summary>只改存储源的显示名（⛔ 不动 `root_path`、⛔ 不动磁盘目录名）。</summary>
+    public void RenameStorage(long id, string name)
+    {
+        if (!IsAvailable || id == 0 || string.IsNullOrWhiteSpace(name)) return;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE storages SET name=$n, updated_at=$u WHERE id=$id;";
+            cmd.Parameters.AddWithValue("$n", name.Trim());
+            cmd.Parameters.AddWithValue("$u", Now());
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.ExecuteNonQuery();
+        }
+        catch { /* 忽略 */ }
+    }
+
     /// <summary>置在线状态（移动硬盘 / NAS 离线 = 0 → 扫描**不动**其下位置）。</summary>
     public void SetStorageOnline(long id, bool online)
     {
@@ -124,6 +163,23 @@ public partial class AssetService
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE storages SET online=$o, updated_at=$u WHERE id=$id;";
             cmd.Parameters.AddWithValue("$o", online ? 1 : 0);
+            cmd.Parameters.AddWithValue("$u", Now());
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.ExecuteNonQuery();
+        }
+        catch { /* 忽略 */ }
+    }
+
+    /// <summary>改存储源类型（local / removable / nas）：只改分类，⛔ 不动位置索引与磁盘。</summary>
+    public void SetStorageType(long id, string type)
+    {
+        if (!IsAvailable || id == 0 || string.IsNullOrWhiteSpace(type)) return;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE storages SET type=$t, updated_at=$u WHERE id=$id;";
+            cmd.Parameters.AddWithValue("$t", type);
             cmd.Parameters.AddWithValue("$u", Now());
             cmd.Parameters.AddWithValue("$id", id);
             cmd.ExecuteNonQuery();
@@ -227,7 +283,11 @@ public partial class AssetService
         return list;
     }
 
-    /// <summary>某存储源最近一次扫描的开始时间（列表「最近扫描」列；没有过扫描 → 空串）。</summary>
+    /// <summary>某存储源最近一次扫描的时间（列表「最近扫描」列；没有过扫描 → 空串）。</summary>
+    /// <remarks>
+    /// 先读 <c>storages.last_scan_at</c>：一次「扫描全部」只建一条 scan_jobs（storage_id 为 NULL），
+    /// 按 job 查会把没单独扫过的源全显示成「从未扫描」。老库没这列的值时回退 scan_jobs。
+    /// </remarks>
     public string LastScanText(long storageId)
     {
         if (!IsAvailable) return "";
@@ -236,12 +296,33 @@ public partial class AssetService
             using var conn = _db.Db.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText =
-                "SELECT IFNULL(MAX(started_at),'') FROM scan_jobs WHERE storage_id=$sid;";
+                "SELECT IFNULL((SELECT last_scan_at FROM storages WHERE id=$sid AND last_scan_at IS NOT NULL), '');";
             cmd.Parameters.AddWithValue("$sid", storageId);
-            var v = cmd.ExecuteScalar();
-            return v is string s ? s : "";
+            if (cmd.ExecuteScalar() is string s && s.Length > 0) return s;
+
+            using var jobCmd = conn.CreateCommand();
+            jobCmd.CommandText =
+                "SELECT IFNULL(MAX(started_at),'') FROM scan_jobs WHERE storage_id=$sid;";
+            jobCmd.Parameters.AddWithValue("$sid", storageId);
+            return jobCmd.ExecuteScalar() is string v ? v : "";
         }
         catch { return ""; }
+    }
+
+    /// <summary>记一次某存储源的扫描时刻（扫描逐个源完成时写，⛔ 不走 scan_jobs）。</summary>
+    public void SetStorageLastScan(long storageId, string at)
+    {
+        if (!IsAvailable || storageId == 0) return;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE storages SET last_scan_at=$t WHERE id=$sid;";
+            cmd.Parameters.AddWithValue("$t", at);
+            cmd.Parameters.AddWithValue("$sid", storageId);
+            cmd.ExecuteNonQuery();
+        }
+        catch { /* 忽略：只是显示用的时间戳 */ }
     }
 
 }

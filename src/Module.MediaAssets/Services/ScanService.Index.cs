@@ -22,8 +22,7 @@ public partial class ScanService
     /// </summary>
     public async Task<ScanJob> IndexFilesAsync(IReadOnlyList<string> files,
                                                IProgress<string>? progress,
-                                               CancellationToken ct,
-                                               Func<FileLocation, CancellationToken, Task>? enricher = null)
+                                               CancellationToken ct)
     {
         var job = new ScanJob { Mode = "files", Status = ScanStatuses.Running, StartedAt = AssetService.Now() };
 
@@ -69,7 +68,8 @@ public partial class ScanService
                     var dirName = Path.GetFileName(trimmed);
                     if (string.IsNullOrEmpty(dirName)) dirName = trimmed;
 
-                    var storage = _assets.FindCoveringStorage(dir) ?? new StorageSource
+                    // 一个文件只归它**上一级文件夹**的源（⛔ 不归祖先源）：目录没源就登记一个
+                    var storage = _assets.FindStorageByRoot(dir) ?? new StorageSource
                     {
                         Name = dirName,
                         RootPath = dir,
@@ -84,7 +84,7 @@ public partial class ScanService
                     }
 
                     var index = LoadStorageIndex(storage.Id);
-                    var shared = _assets.LoadOverlappingLocations(storage);
+                    var shared = _assets.LoadSubtreeLocations(storage);
                     var pending = new List<FileLocation>();
                     var touched = new List<long>();
 
@@ -111,7 +111,7 @@ public partial class ScanService
                         }
                     }
 
-                    FlushNew(pending, index, enricher, ct);
+                    FlushNew(pending, index);
                     FlushTouched(touched, AssetService.Now());
                 }
             }, ct).ConfigureAwait(false);

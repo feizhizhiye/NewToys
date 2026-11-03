@@ -20,6 +20,8 @@
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
         <TextBlock Text="左键表头排序；右键表头选列 / 筛选" FontSize="11" VerticalAlignment="Center"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
+        <TextBlock Text="一个文件只归属它上一级文件夹的源（父子源按缩进分层）" FontSize="11" VerticalAlignment="Center"
+                   Margin="12,0,0,0" Foreground="{DynamicResource SecondaryTextBrush}"/>
       </WrapPanel>
     </Border>
     </v:ListPageSkeleton.TopArea>
@@ -33,6 +35,7 @@
               <TableViewColumn.CellTemplate>
                 <DataTemplate>
                   <TextBlock Classes="list-cell primary" Text="{Binding Name}"
+                             Margin="{Binding Indent}"
                              Foreground="{DynamicResource PrimaryTextBrush}"
                              ToolTip.Tip="{Binding RootPath}"/>
                 </DataTemplate>

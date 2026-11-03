@@ -14,19 +14,21 @@
 - 🔴 **`FileOperationService` = 唯一动磁盘处**；其它服务只改索引。
 - 物理删除唯一入口 = 列表右键「⛔ 从磁盘删除」（二次确认 + 任务队列 + 删索引）；详情卡 IconBar 的 🗑 只做**软删除**（移入回收站）。
 
-## 2. 当前功能（8 页 + 1 设置页）
+## 2. 当前功能（7 页 + 1 设置页）
 
 | 菜单 Key | 标题 | Order | View | 说明 |
 |---|---|---|---|---|
 | `assets-all` | 全部资产 | 0 | `AssetAllView` | **按元数据找**：文件名 / 类型 / 标签 / 分类 / 集合 / 大小 / 修改时间 / 存储源 / 时长 / 分辨率 / 编码 / 码率；筛选栏内**类型切换**驱动列集合 |
-| `assets-browse` | 资产浏览 | 1 | `AssetBrowseView` | **按磁盘位置翻**（§6.6.1）：左目录树（盘符逐层懒加载）+ 图标卡 / 详细双视图 + 双击打开；缩略图首个消费页；未入库项标灰可操作 + 右键「➕ 加入资产库」/「🔄 重新扫描此目录」+ 待加入文件 `⟳N` 提示 |
+| `assets-browse` | 资产浏览 | 1 | `AssetBrowseView` | **按磁盘位置翻**（§6.6.1）：左目录树（盘符逐层懒加载）+ 图标卡 / 详细双视图 + 双击打开；缩略图首个消费页；未入库项标灰可操作 + 右键「➕ 加入资产库」/「🔄 重新扫描此目录」/「✏ 重命名目录源」/「🗄 目录源类型」/「⬆ 上线 / ⬇ 下线」/「🗑 移出资产库」/「🔄 扫描全部已入库」+ 待加入文件 `⟳N` 提示 |
 | `assets-tags` | 标签管理 | 6 | `AssetTagsView` | 名称 / 命名空间 / 颜色 / 使用数；合并 / 清理未使用 / **🌱 一键种入推荐标签** |
 | `assets-categories` | 分类管理 | 7 | `AssetCategoriesView` | **列表页**：名称 / 路径 / 成员数 / 排序 / 创建时间；层级靠路径列 + 缩进，改父级在详情卡 chips |
 | `assets-collections` | 集合管理 | 8 | `AssetCollectionsView` | **列表页**：名称 / 类型 / 成员数 / 创建时间；成员与顺序在详情卡（⬆⬇ 写 sort_order） |
-| `assets-storages` | 存储源 | 9 | `AssetStoragesView` | local / removable / nas；在线状态；移除只移索引不删磁盘文件 |
 | `assets-tasks` | 任务中心 | 10 | `AssetTasksView` | 扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图：取消 / 重试 / 日志 |
 | `assets-trash` | 回收站 | 11 | `AssetTrashView` | 软删资产：恢复 / 永久删除（二次确认）/ 清空 |
+| `assets-storages` | ~~存储源~~（已撤下菜单） | — | `AssetStoragesView`（留档，不注册） | 目录级库操作已迁到「资产浏览」右键：加入 / 移出 / 重扫 / 扫描全部 |
 | `settings-media-assets` | 媒体资产设置 | 99 | `SettingsMediaAssetsView` | 元数据 / 缩略图 / 扫描偏好 |
+
+- 🔴 **「存储源」页已撤下菜单**（2026-11-03）：目录级的库操作（加入 / 移出 / 重扫 / 扫描全部）全部在「资产浏览」页；`assets-storages`（`AssetStoragesView(+ViewModel)`）留档、**不注册菜单项**（数据层的 `storages` 仍是索引的根，照常由扫描维护）。
 
 - 🔴 **5 个类型页已删除**（`assets-video` / `-music` / `-book` / `-image` / `-document`，NT-063 P2-a，2026-10-16）：类型切换改由 `assets-all` **筛选栏的既有类型下拉**驱动列集合 / 详情卡视频字段 / 状态栏前缀。
   - 类型切换是**即时设定，⛔ 不落盘**；「▤ 列」里用户亲手勾过的列在本会话内优先（`_userColumnKeys` 仅由 `ToggleAssetColumn` 填充）。
@@ -94,6 +96,7 @@
 | 展开 / 折叠 | 点节点（**首次展开才枚举该层子目录**；再点一次已选中的目录 = 收起 / 展开，不重载内容）/ 树工具条**单键「↕ 展开全部 / ↕ 折叠全部」** | 左树扁平化重建 | 🔴 默认全折叠；`展开全部` **只展开已枚举过的层级**（⛔ 不递归扫盘）。单键文案由 `ExpandAllText` 算（还有已读取的层级折叠着 ⇒ 显示「展开全部」，否则显示「折叠全部」），⛔ 不再两个按钮 |
 | 树筛选「已加入资产库」 | 树工具条 `已加入资产库`（开着时描边 / 文字变强调色，`Classes.active`） | 左树只留**已入库目录 + 它们的上级链**；开启时把每个存储源逐层展开到可见 | 🔴 保留判据 `IsLibraryBranch` = 自身 `InLibrary` **或**某存储源根在它下面（只留已入库节点的话连 `D:\` 都不出现，树会是空的）；⛔ 只筛**树**，右侧目录内容照常全显示；已入库节点的子孙必然也已入库，所以子树整体保留 |
 | 树节点右键 | 右键左树任一目录 →「➕ 加入资产库」（已在库里的目录该菜单项禁用）/「🔄 重新扫描此目录」（目录里没有待加入文件时禁用） | 「加入资产库」= 递归把这**一个**目录加入资产库；「重新扫描」= 把这个目录里**还没入库**的文件补进来（同一条入库链路，按路径去重 ⇒ 已在库的文件不会被重复索引）。都走任务队列，可取消；完成后重读索引 | 🔴 右键**只瞄准**：⛔ 不改选中、⛔ 不导航；瞄准节点记在 VM `ContextNode`（`AssetBrowseView.axaml.cs` 在 `PointerPressed` 隧道阶段记，⛔ 不用 `ContextRequested`——常被菜单自己先吃掉） |
+| 目录源运维（右键） | 右键左树 →「✏ 重命名目录源…」/「🗄 目录源类型 ▸ 本地磁盘 / 移动硬盘 / NAS」/「⬆ 上线 / ⬇ 下线」/「🗑 移出资产库…」/「🔄 扫描全部已入库」 | 前四项只改**右键那一个**目录对应的存储源（`storages.name` / `type` / `online`，或删源与位置索引）；「扫描全部已入库」= 所有登记目录跑一次增量扫描 | 只有右键目录**本身**是存储源时前四项才可用（`CanOperateContextStorage`，子层里的源要在那一层操作）；类型 / 上线**只改库字段**，⛔ 不动索引与磁盘；下线 ⇒ 扫描跳过它（其下位置不标 missing），上线前先 `ProbeOnline` 探根目录，读不到要二次确认；「移出资产库」二次确认且只删索引 |
 | 待加入提示 `⟳N` | 自动（展开该目录时算） | 节点名后显示 `⟳N` = 这个目录**直属**文件里还没入库的个数；点右键「🔄 重新扫描此目录」补进来 | 🔴 只在**展开枚举那一层**时算一次（同一次目录枚举顺带取文件表，⛔ 不额外扫盘、⛔ 不递归）；折叠再展开 = 重新检查。**只对已经和库有关的目录提示**（`InLibrary` 或 `HasLibraryContent`）—— 完全没入库的目录不飘红，否则整棵树每个目录都挂 `⟳N`（那种目录该走「➕ 加入资产库」）。忽略规则与扫描器一致（`IgnoreExtensions` / `~$` 临时副本）；库不可用时不提示（避免全盘误报） |
 | 未入库（标灰） | — | 目录节点 / 卡片 `Opacity 0.55` | 判定分两种语义：**操作判定** `InLibrary` = 路径落在某个已登记存储源之内（决定「➕ 加入资产库」是否禁用）；**着色** = `InLibrary` **或** 目录里已有已入库文件（`HasLibraryContent`，按 `CountByAncestor` 的计数）。⇒ 未登记目录里只要有已入库文件就不标灰（否则看起来像完全没加入）。卡片的灰/亮仍按**单个文件**是否在库 |
 | 视图切换 | 工具条 `▦ 图标卡` / `☰ 详细信息` | 即时生效，落 `media-assets.json` 的 `BrowseViewMode`（重启恢复） | 两套视图**共用一份数据**（切视图不清选中） |
@@ -148,14 +151,17 @@
 | 移出本集合 | 详情卡「⛔ 移出选中」 | 只移除关系 | 智能集合禁用 |
 | 改名称 / 说明 | 详情卡字段 + 「💾 保存」 | 落库 | — |
 
-### 存储源 `assets-storages`
+### 存储源（`assets-storages` 页已撤下菜单 · 下表是数据层语义，入口在「资产浏览」右键）
+
+> 已迁到「资产浏览」左树右键的动作：`➕ 加入资产库`、`🔄 重新扫描此目录`、`✏ 重命名目录源`（只改库里 `storages.name`，⛔ 不动磁盘目录名）、`🗄 目录源类型`（本地 / 移动 / NAS，只改 `storages.type`）、`⬆ 上线 / ⬇ 下线`（只写 `storages.online`）、`🗑 移出资产库`（删该目录的源与位置索引）、`🔄 扫描全部已入库`。
+> 仍未提供 UI 入口：`🧹 合并重复`（「全部资产」页有同款 `🔍 查重合并`）。
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| 添加存储源 | `➕ 添加存储源` | 登记 local / removable / nas | **与已有源互为父子的拒绝登记**（父目录源 + 子目录源 ⇒ 同一文件被扫两遍、列表里出现重复行）；重命名不看路径 |
-| 扫描 | `🔍 扫描选中` / `🔄 扫描全部` | 入库 / 更新 | 根目录落在另一个**在线**源之下的源直接跳过（父源扫一遍已覆盖）；父源扫描时按完整路径**认领**子源既有位置，⛔ 不新建资产 |
+| 添加存储源 | `➕ 添加存储源` | 登记 local / removable / nas | **允许与已有源互为父子**（父子源按名称列缩进分层显示；同一根重复添加仍复用原行并提示）|
+| 扫描 | `🔍 扫描选中` / `🔄 扫描全部` | 入库 / 更新 | 🔴 **按文件所在目录归属源**：目录没有源就就地登记一个（= 一个文件只属于它上一级文件夹的源）；父源扫描覆盖整棵子树，子源因「父源已按目录拆好」而跳过；历史挂在祖先源下的位置在扫到同一路径时改归自己的目录源 |
 | 合并重复 | `🧹 合并重复` | 同一物理路径挂在多条资产下 ⇒ 并成一条（保留 active 优先、id 最小；其余资产的标签 / 分类 / 集合 / 关联与位置全部重挂） | 二次确认并给出组数；**⛔ 不动磁盘文件**；只认路径完全相同（映射盘 / UNC 双写法需手动移除其中一个源）。🔴 **含回收站资产的组同样参与合并**（只删多余记录，保留 active）—— 否则「点一次报 N 组、点完还报 N 组」 |
-| 重命名 / 切换类型 / 上线下线 | 行右键 | 改存储源属性与在线状态 | — |
+| 重命名 / 切换类型 / 上线下线 | 「资产浏览」左树右键 | 改存储源属性与在线状态 | 只改库字段（`storages.name` / `type` / `online`），⛔ 不动位置索引与磁盘；右键的目录本身得是存储源（子层里的源在那一层操作）；上线前探根目录，读不到要二次确认（强制上线后扫描仍会失败） |
 | 移除存储源 | 行右键「🗑 移除存储源…」 | **只移索引，⛔ 不删磁盘文件** | 二次确认 |
 | 刷新 | `🔄 刷新存储源` | 重读清单 + 外部变更校准 | — |
 
@@ -195,7 +201,7 @@
 |---|---|
 | `AssetDatabase` | `store\assets\assets.db` 13 表 + 索引（NT-113 起落 `store\`，B14 已结清） |
 | `AssetService` | 资产查询（`AssetQuery` / `CountAssets` / `QueryPage`，**WHERE 只写一份**）—— 分页样板 |
-| `ScanService` | 扫描入库（识别键 = 大小 + 修改时间 + 路径） |
+| `ScanService` | 扫描入库（识别键 = 大小 + 修改时间 + 路径）；**按文件所在目录切源**（目录无源就地登记，见坑点 11）；**只做索引**，元数据 / 缩略图不在扫描里跑（见坑点 23） |
 | `FileOperationService` | **唯一磁盘写入点**：日志先行 + 防穿越 + 冲突策略 + 回收站 |
 | `TaskQueue` | 任务队列（扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图） |
 | `CategoryService` / `TagService` / `CollectionService` / `RelationService` | 组织维度 |
@@ -208,7 +214,7 @@
 | `OperationLogService` | `operation_logs` |
 | `AssetService.Browse` | 资产浏览页的**叠加层**数据源：`LoadBrowseEntries()` = 按文件位置建行（非主位置也列）+ 目录派生 `DirOf`/`ParentDir` |
 | `AssetBrowseService` | 磁盘访问层：树根（盘符 + 非盘符下的共享根）、**单层**子目录枚举、目录内容枚举（`BrowseDirContent` / `FsEntry`）、路径工具（`NormalizeDir` / `ParentDir` / `IsUnder` / `AbsDir`）、子孙计数、`LastBrowseFolder` 键（兼容旧 `id\|相对目录`） |
-| `AssetLibraryAddService` | 「加入资产库」：文件 → 只索引自身；文件夹 → 递归扫描入库；嵌套规则（祖先源复用 / 子孙源跳过） |
+| `AssetLibraryAddService` | 「加入资产库」：文件 → 只索引自身；文件夹 → 递归扫描，**每个文件归它上一级文件夹的源**（目录无源就地登记，见坑点 20） |
 | `AssetThumbCache` | 缩略图 LRU（上限 300、并发闸 4、按卡片宽 300 解码；淘汰只丢引用不 Dispose） |
 
 ### 3.2 数据与配置
@@ -246,9 +252,10 @@
 8. 空态引导只覆盖资产列表类页（`assets-all` 等）；`assets-categories` / `assets-collections` 数据源是左树 + 成员列表，**无空态也无 `HasItems`**（NT-060 遗留，未补）。
 9. 🔴 **右键「📂 打开 / 📁 打开所在文件夹」⛔ 不许在 UI 线程直接 `File.Exists` + `Process.Start`**：两者都要碰目标文件所在卷，机械硬盘休眠唤醒要数秒、网络盘还要等超时 ⇒ 整窗卡死，用户会以为「比资源管理器慢」。资源管理器双击快是因为它不做前置存在性检查、且关联处理器已在 shell 进程内热加载。现在统一走 `AssetAllViewModel.FileOps.cs::RunOffUiThread`（线程池 + `Dispatcher.UIThread.Post` 回投文案）。
 10. 🔴 **`TagsExpr` / `CategoriesExpr` / `CollectionsExpr` 内层必须 `SELECT n.name AS name`**：外层 `group_concat` 只能引用内层**输出列名**（`name`），写成 `group_concat(n.name, …)` 会让 SQLite 抛 `no such column: n.name`。这三个表达式只出现在 **WHERE（搜索）/ ORDER BY（按那三列排序）/ 表头筛选**，不在 `QueryPage` 的 SELECT 里 ⇒ 列表本身照常显示，但**任何关键字搜索恒返回 0 行、按标签/分类/集合排序恒空**，且异常被 `catch` 吞成空页（2026-10-27 修；`LastQueryError` 现在会上状态栏 `⚠`）。
-11. 🔴 **登记父子目录 = 同一文件入库两次**：扫描匹配（`存储源+相对路径` → `大小+修改时间` → `快速哈希`）全部只在**当前存储源的索引**内做，⛔ 不跨源 ⇒ 父源与其子目录源各扫一遍，同一物理文件落成两条资产、列表里同一个文件出现多行。
-    - 已封口的三处：登记入口拒绝互为父子的源（`AssetService.FindOverlappingStorage`）、子目录归到覆盖它的源（`FindCoveringStorage`，`💾 加入库` 与按目录导入都走它）、扫描时跳过被在线父源覆盖的子源 + 父源扫描按完整路径**认领**子源既有位置（`LoadOverlappingLocations`）。
-    - 存量重复靠 `🧹 合并重复`（`MergeDuplicatePaths`）清：合并只认**物理路径完全一致**（`AssetService.PathKey`：小写 + 统一分隔符 + 去尾斜杠）；映射盘 `Z:\` 与 `\\nas\` 双写法路径不同，合并看不到，要手动移除其中一个源。
+11. 🔴 **存储源 = 目录；一个文件只属于它上一级文件夹的源**（2026-11-03 口径**反转**，取代旧版「归覆盖它的祖先源 / 拒绝父子源」）：
+    - 扫描时按目录**就地登记**源（`ScanService.EnsureStorageForDir`）；父子源共存是正常数据，⛔ 不再拒绝登记。
+    - 历史挂在祖先源下的位置，扫到同一路径时**改归**自己的目录源（`LoadSubtreeLocations` 认领），⛔ 不重复建资产。
+    - 仍会重复的只剩映射盘 `Z:\` 与 `\\nas\` 双写法（路径不同）⇒ 手动移除其中一个源，或 `🧹 合并重复`。
 12. 🔴 **对话框 `await` 之后必须回到 UI 线程**：`await DialogHooks.ConfirmAsync(...).ConfigureAwait(false)` 会让后续代码跑在线程池上，紧接着的 `Reload()` → `Items.Clear()` / `Selected` setter → Shell `ToolbarHost` 改可视属性，直接抛 `InvalidOperationException: The calling thread cannot access this object…`（未捕获 ⇒ **整个窗口崩掉**，日志 `logs\crash-*.log`）。
     - 规则：模块内所有 `DialogHooks.*Async` 一律 `ConfigureAwait(true)`（本项目 `RuleCatalogViewModel` / `VideoFileService` 同口径）；`Reload()` 自身还有一道 `Dispatcher.UIThread.CheckAccess()` 兜底。
     - 别在 `DialogHooks` 的调用点上写 `ConfigureAwait(false)` 图"性能"——它换来的是跨线程崩溃。
@@ -259,8 +266,10 @@
 17. 🔴 **树 = 磁盘真实目录 + 懒加载，⛔ 别再按索引建树**：顶级 = 所有可访问盘符 + 不在任何盘符下的存储源根（UNC）；**节点首次展开才枚举它这一层**（`AssetBrowseService.LoadChildDirectories`，⛔ 不递归），权限 / 掉线 ⇒ `IsAccessible=false` 显示「（无法访问）」。`展开全部` 只展开**已枚举过的层级**（递归全盘展开等于进页面就把所有盘扫一遍）。节点是否「已入库」= 路径落在某个 `storages.root_path` 之内（`AssetBrowseService.IsUnder`）。
 18. 🔴 **切目录卡顿的三处真凶**：① 左树是 `ListBox#TreeList`（自带虚拟化；⛔ 换回 `ItemsControl` + `StackPanel` 就是给每个节点建 Button）且 `RebuildTree()` 一次性换 `TreeNodes` 引用；`SelectNode` 只在展开状态**真的**变了才重建，选高亮只动「旧 + 新」两个节点；② 目录内容枚举（`DirectoryInfo.EnumerateFileSystemInfos`）一律在**后台线程**，回 UI 按 `_viewVersion` 校验后填卡；③ 排序 / 筛选在 UI 线程也要 O(n) 文化比较 ⇒ 大目录先丢后台。
 19. 🔴 **缩略图只解「可视区」，⛔ 别在填卡时全量解；且只解已入库项**：未入库项 ⛔ 不读盘（`AssetTile.WantsThumb` 里已经排除）。口径 = `FillChunk` 只解首屏 `InitialThumbQuota`（36）张；其余靠 **`ScrollViewer` 的 `Offset` / `Extent` / `Viewport` 属性通知**驱动 `ReportViewport(offset, viewport, extent)`，VM 按「平均每项占高」估算索引范围、上下各预取一屏，`_thumbRequested`（按**绝对路径**）去重。🔴 **⛔ 用 `LayoutUpdated` 当滚动驱动**：滚动只改 ScrollViewer 偏移，不保证每帧都触发本页布局回调 ⇒ 滚到底部时可视区一次都没上报过，缩略图停在首屏那 36 张（本轮 bug 根因）。缺缓存的图由**生成泵**随滚动持续追加生成（不是进目录一次性整页批处理）。换视图 / 换尺寸时 View 要解绑旧 ScrollViewer 的监听并把 `_lastReportedOffset` / `_lastReportedExtent` 重置成 `NaN`。
-20. 🔴 **嵌套文件夹（用户明确点名）**：① 目标目录**在**某个已登记源之内 ⇒ 扫码归该源，⛔ 不新建重叠源；② 目标目录**包含**已登记的其它源 ⇒ 那部分文件**跳过**（`AssetLibraryAddService` 用 `FindCoveringStorage` 过滤），否则同一物理文件被两个源各索引一次（见坑点 11）；③ 单文件入库且没有任何源覆盖它时，登记的是**它所在的目录**，⛔ 不登记盘符根（否则一扫就是整个盘）。
+20. 🔴 **嵌套文件夹（2026-11-03 口径反转，取代旧版「归覆盖源 / 跳过子孙源」）**：① 目录加入库 ⇒ 每个文件归它**上一级文件夹**的源，该目录没有源就登记一个（`AssetService.FindExactStorage` / `CommitRows`），⛔ 不再归祖先源；② 父源扫描会为子树里每个文件夹各自登记源，子源因「父源已拆好」而跳过，⛔ 不是被排除；③ 单文件入库登记的是**它所在的目录**，⛔ 不登记盘符根（否则一扫就是整个盘）。
 21. 🔴 **TableView 内置列宽拖拽不能直接用**（Avalonia 12.1 `TableViewColumnHeader.OnResizerDragDelta`）：① 下限取 `resizer.Bounds.Width`（12px）⇒ 表头文字能被拖没；② 每帧算 `ActualWidth + delta`，而把手随列宽移动 ⇒ 正反馈，轻推一下列宽就跳一大截。本页改成**自绘拖拽**（`AssetAllView.axaml.cs::TryBeginColumnResize`）：命中口径是**列边界**（先命中把手 `PART_Resizer` 的 Thumb，兜底 ±10px 几何；主题把把手 IsEnabled 绑到列的 CanUserEffectivelyResize，固定列需用本地值放开），按下即 `e.Handled = true` 拦掉 Thumb；XAML 里所有列都可拖（⛔ 别再写 `CanUserResize="False"`），边界两侧一增一减、总宽守恒，最右列无右邻时只改自己，位移一律用**指针绝对 X − 起始 X**；首次移动时把其余可见星号列按当前宽**固化像素**，之后只改「被拖列 + 右侧最近的一个可拖列」一增一减 ⇒ 总宽守恒、其它列（含中间固定列）纹丝不动；下限 = 表头文字测宽 + 18。换别的页用 TableView 同样要自绘，⛔ 别指望控件自带。
+22. 🔴 **「最近扫描」⛔ 不能按 `scan_jobs` 查**：一次「扫描全部」只建**一条** job（`storage_id` 为 NULL），按 job 查会把没单独扫过的源全显示成「从未扫描」（用户实测报障）。现在扫到哪个源就写 `storages.last_scan_at`（`AssetService.SetStorageLastScan`），列优先读它、老库回退 job。扫描是按目录切源的，所以收尾时对**子树内每个源**都要写一次（`ScanService.SubtreeStorages`）。
+23. 🔴 **扫描里 ⛔ 不许读元数据 / 生成缩略图**（用户实测「扫描太慢」的根因）：`FlushNew` 曾经每 200 个新文件就 `GetAwaiter().GetResult()` 等一批 ffprobe / ffmpeg 跑完 —— 几百个视频 = 几分钟，遍历只占小头。现在扫描只写索引，新位置交给 `ScanService.OnNewLocations` → 模块接到 `TaskQueue` **后台**补元数据（开关 `AutoExtractMetadata`）；缩略图只在**浏览页滚动到可视区**时按需生成（开关 `AutoGenerateThumbnails`）。配套三处提速：① 子树内所有源的位置一次 `ListLocationsForStorages` 查完分桶，换目录不查库；② 新目录的源走 `InsertStorageFast`（⛔ 不用会全表查的 `UpsertStorage`）；③ 收尾的 missing 校准 + 最近扫描合成一个事务（`FinishStorageScans`）。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 
@@ -270,3 +279,4 @@
 | NT-018 遗留 | 智能集合规则未实装 | 📝 未立项（沿用卡内偏差记录） |
 | NT-116 | **资产浏览改真资源管理器**（磁盘实时枚举 + 懒加载树 + 未入库标灰 + 右键加入资产库 + 缩略图按可视区懒解码 + 图片原生缩略图） | ✅ 已交付（2026-10-28；需求 §6.6.1 / v3.100） |
 | NT-115 | **资产浏览页** `assets-browse`（左目录树 + 图标卡 / 详细双视图，缩略图首次接 UI） | ✅ 已交付（2026-10-27；需求 §6.6.1；数据源口径已被 NT-116 反转） |
+| NT-138 | **扫描提速 + 存储源页并入资产浏览页** | ✅ 已实施（2026-11-03，待 build；见卡内验收） |

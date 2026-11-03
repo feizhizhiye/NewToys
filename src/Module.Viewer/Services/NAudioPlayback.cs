@@ -299,7 +299,8 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
     /// </summary>
     private void ComputeSpectrum()
     {
-        for (var i = 1, j = 0; i < FftSize; i++)
+        var j = 0;
+        for (var i = 1; i < FftSize; i++)
         {
             var bit = FftSize >> 1;
             for (; (j & bit) != 0; bit >>= 1) j ^= bit;

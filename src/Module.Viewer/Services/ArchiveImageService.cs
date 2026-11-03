@@ -37,6 +37,9 @@ public sealed class ArchiveImageSession : IDisposable
     private readonly ZipArchive? _zip;
     private readonly Dictionary<string, ZipArchiveEntry>? _zipMap;
 
+    /// <summary>串行化「从包里取一张图」。ZipArchive 的条目流共享底层流，并发读取会错位；顺序格式则要反复扫包。</summary>
+    private readonly object _openGate = new();
+
     internal ArchiveImageSession(string path, ZipArchive? zip, Dictionary<string, ZipArchiveEntry>? zipMap,
         IReadOnlyList<ArchiveImageEntry> entries)
     {
@@ -60,14 +63,18 @@ public sealed class ArchiveImageSession : IDisposable
 
         try
         {
-            if (_zipMap is not null)
+            // 分屏各格并行取图 ⇒ 这里必须串行（只串读流，解码仍在调用方线程外并行）。
+            lock (_openGate)
             {
-                if (!_zipMap.TryGetValue(key, out var entry)) { error = "压缩包里找不到：" + key; return null; }
-                using var raw = entry.Open();
-                return CopyToMemory(raw, entry.Length);
-            }
+                if (_zipMap is not null)
+                {
+                    if (!_zipMap.TryGetValue(key, out var entry)) { error = "压缩包里找不到：" + key; return null; }
+                    using var raw = entry.Open();
+                    return CopyToMemory(raw, entry.Length);
+                }
 
-            return ReadSequential(key, out error);
+                return ReadSequential(key, out error);
+            }
         }
         catch (Exception ex)
         {

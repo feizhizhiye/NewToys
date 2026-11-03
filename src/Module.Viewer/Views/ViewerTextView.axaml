@@ -74,7 +74,7 @@
                         IsVisible="{Binding IsSectionStart}"
                         Background="{DynamicResource DividerBrush}" />
                 <TextBlock VerticalAlignment="Center"
-                           FontSize="10"
+                           FontSize="11"
                            Classes="hint-text"
                            IsVisible="{Binding IsSectionStart}"
                            Text="{Binding SectionLabel}" />

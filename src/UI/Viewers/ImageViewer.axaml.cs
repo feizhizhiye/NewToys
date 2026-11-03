@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
@@ -31,10 +32,19 @@ public sealed class ImageInfoRow
 /// </summary>
 public partial class ImageViewer : UserControl
 {
+    /// <summary>解码尺寸下限（像素）：小屏 / 折叠态也别解得太糊。</summary>
+    private const int MinDecodeSide = 1200;
+
+    /// <summary>解码尺寸上限（像素）：再大也只是吃内存，屏幕上看不出差别。</summary>
+    private const int MaxDecodeSide = 4096;
+
     private Bitmap? _bitmap;
     private int _pixelWidth;
     private int _pixelHeight;
+    private int _originalWidth;
+    private int _originalHeight;
     private int _rotation;   // 0 / 90 / 180 / 270
+    private int _loadToken;  // 丢弃过期的「适应窗口」回调
 
     private string _sourcePath = "";
     private string _archivePath = "";
@@ -93,22 +103,19 @@ public partial class ImageViewer : UserControl
         error = "";
         try
         {
-            var bmp = new Bitmap(stream);
+            var bmp = Decode(stream, DecodeSideLimit(), out var originalWidth, out var originalHeight);
+
             _pixelWidth = bmp.PixelSize.Width;
             _pixelHeight = bmp.PixelSize.Height;
+            _originalWidth = originalWidth;
+            _originalHeight = originalHeight;
 
             _sourcePath = "";
             _sourceSize = -1;
             _fromArchive = false;
             _archivePath = "";
 
-            _bitmap?.Dispose();
-            _bitmap = bmp;
-            _rotation = 0;
-            Pic.Source = bmp;
-            SetZoom(1);
-            // 首次显示按「适应窗口」，等布局有 Viewport 再算
-            Dispatcher.UIThread.Post(FitToWindow, DispatcherPriority.Loaded);
+            ApplyNewBitmap(bmp);
             return true;
         }
         catch (Exception ex)
@@ -116,6 +123,80 @@ public partial class ImageViewer : UserControl
             error = ex.Message;
             return false;
         }
+    }
+
+    /// <summary>
+    /// 显示新位图：换源 → 按视口适应 → 下一轮再兜底算一次并恢复滚动条。
+    /// <para>🔴 装载期间必须先把滚动条置 <c>Disabled</c>：换图那一帧 <c>Extent</c> 还没稳定，
+    /// <c>Auto</c> 会让竖直滚动条闪一下（用户实测「切图时右上角闪一下」）。</para>
+    /// <para>🔴 <c>_loadToken</c>：连按翻页时旧回调直接丢弃，⛔ 别让它把新图的缩放改回去。</para>
+    /// </summary>
+    private void ApplyNewBitmap(Bitmap bmp)
+    {
+        var token = ++_loadToken;
+
+        Scroller.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+        Scroller.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+
+        // 🔴 先换源再释放旧图：反了的话「已 Dispose 但仍挂在 Image.Source 上」会有一帧取不到像素
+        var previous = _bitmap;
+        _bitmap = bmp;
+        _rotation = 0;
+        Pic.RenderTransform = null;
+        Pic.Source = bmp;
+        previous?.Dispose();
+
+        Zoom = 1;
+        ApplyLayout();
+        FitToWindow();
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (token != _loadToken) return;
+
+            FitToWindow();
+            Scroller.Offset = new Vector(0, 0);
+            Scroller.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+            Scroller.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        }, DispatcherPriority.Loaded);
+
+        ZoomChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 解码图片：原图超过 <paramref name="maxSide"/> 时**降采样解码**（内存按面积平方级下降）。
+    /// <para>🔴 必须先探测原始尺寸：<c>DecodeToWidth/Height</c> 在目标大于原图时**会放大**，
+    /// 不看尺寸就调用会让小图反而多吃几倍内存。</para>
+    /// </summary>
+    private static Bitmap Decode(Stream stream, int maxSide, out int width, out int height)
+    {
+        var origin = stream.CanSeek ? stream.Position : 0;
+
+        if (ImageHeader.TryReadSize(stream, out width, out height) && (width > maxSide || height > maxSide))
+        {
+            stream.Position = origin;
+            return width >= height
+                ? Bitmap.DecodeToWidth(stream, maxSide)
+                : Bitmap.DecodeToHeight(stream, maxSide);
+        }
+
+        var bmp = new Bitmap(stream);
+        width = bmp.PixelSize.Width;
+        height = bmp.PixelSize.Height;
+        return bmp;
+    }
+
+    /// <summary>解码边长上限：视口物理像素宽 × 2（给放大留余量），夹在 <c>1200 ~ 4096</c>。</summary>
+    private int DecodeSideLimit()
+    {
+        var scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
+
+        var viewport = Scroller.Viewport.Width;
+        if (viewport <= 1) viewport = Bounds.Width;
+        if (viewport <= 1) viewport = 1280;
+
+        var px = (int)Math.Ceiling(viewport * scaling * 2);
+        return Math.Clamp(px, MinDecodeSide, MaxDecodeSide);
     }
 
     /// <summary>
@@ -139,6 +220,7 @@ public partial class ImageViewer : UserControl
     /// <summary>释放当前位图（宿主换内容 / 关闭时调用）。</summary>
     public void Close()
     {
+        _loadToken++;   // 让排队中的「适应窗口」回调失效
         Pic.Source = null;
         Pic.RenderTransform = null;
         PicBox.Width = double.NaN;
@@ -147,11 +229,15 @@ public partial class ImageViewer : UserControl
         _bitmap = null;
         _pixelWidth = 0;
         _pixelHeight = 0;
+        _originalWidth = 0;
+        _originalHeight = 0;
         _rotation = 0;
         _sourcePath = "";
         _archivePath = "";
         _sourceSize = -1;
         _fromArchive = false;
+        Scroller.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+        Scroller.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         InfoPanel.IsVisible = false;
     }
 
@@ -318,7 +404,11 @@ public partial class ImageViewer : UserControl
 
         if (name.Length > 0) rows.Add(InfoRow("名称", name));
 
-        rows.Add(InfoRow("尺寸", $"{_pixelWidth} × {_pixelHeight} 像素"));
+        rows.Add(InfoRow("尺寸", $"{_originalWidth} × {_originalHeight} 像素"));
+
+        // 大图按显示精度降采样解码（省内存）；这里说明清楚，免得用户以为「1:1」不准
+        if (_pixelWidth != _originalWidth || _pixelHeight != _originalHeight)
+            rows.Add(InfoRow("解码尺寸", $"{_pixelWidth} × {_pixelHeight} 像素（按屏幕精度降采样）"));
 
         if (_rotation != 0) rows.Add(InfoRow("旋转", _rotation + "°"));
 

@@ -243,7 +243,7 @@ public partial class AudioPlayer : UserControl
             {
                 Text = text,
                 TextWrapping = TextWrapping.Wrap,
-                FontSize = 12.5,
+                FontSize = 12,
                 Opacity = 0.55,
             };
             _lyricViews.Add(view);

@@ -62,13 +62,42 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>分屏每屏行数（左右分屏 = 1，上下分屏 = 2，2×2 = 2）。</summary>
     [ObservableProperty] private int _splitRows = 1;
 
-    /// <summary>工具条上的四档分屏（图标按钮组；高亮跟随选中模式）。</summary>
-    public ObservableCollection<SplitModeItem> SplitModes { get; } = new()
+    /// <summary>
+    /// 工具条分屏按钮的文案（点按钮展开四档菜单）。
+    /// <para>绑定在工具条上（<c>TextPath</c>）⇒ 改模式后由绑定自动刷新，⛔ 不必重建工具条。</para>
+    /// </summary>
+    public string SplitModeText => !IsSplit ? "▭ 单张"
+        : SplitRows <= 1 ? "◫ 左右"
+        : SplitColumns <= 1 ? "⊟ 上下"
+        : "▦ 2×2";
+
+    /// <summary>分屏菜单的四个选项（每项一个独立命令，避免菜单项带参数）。</summary>
+    private IReadOnlyList<ToolbarMenuItemDescriptor> SplitMenuItems => new[]
     {
-        new() { Label = "▭", Rows = 1, Cols = 1, IsSelected = true },   // 单张
-        new() { Label = "◫", Rows = 1, Cols = 2 },   // 左右
-        new() { Label = "⊟", Rows = 2, Cols = 1 },   // 上下
-        new() { Label = "▦", Rows = 2, Cols = 2 },   // 2 × 2
+        new ToolbarMenuItemDescriptor
+        {
+            Text = "▭ 单张（不分屏）",
+            CommandPath = nameof(SplitOneCommand),
+            ToolTip = "一屏一张，恢复缩放 / 旋转",
+        },
+        new ToolbarMenuItemDescriptor
+        {
+            Text = "◫ 左右分屏（一屏 2 张）",
+            CommandPath = nameof(SplitSideBySideCommand),
+            ToolTip = "左右并排看两张，翻页一次换一屏",
+        },
+        new ToolbarMenuItemDescriptor
+        {
+            Text = "⊟ 上下分屏（一屏 2 张）",
+            CommandPath = nameof(SplitStackedCommand),
+            ToolTip = "上下排列看两张，翻页一次换一屏",
+        },
+        new ToolbarMenuItemDescriptor
+        {
+            Text = "▦ 2 × 2 四格（一屏 4 张）",
+            CommandPath = nameof(SplitQuadCommand),
+            ToolTip = "四格看四张，双击任意一格 = 单图看这张",
+        },
     };
 
     /// <summary>工具条「历史」下拉是否展开。</summary>
@@ -613,42 +642,41 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     // ---------- 分屏 / 历史 ----------
 
-    /// <summary>
-    /// 选一档分屏：<c>▭</c> 单张（退出分屏）/ <c>◫</c> 左右 / <c>⊟</c> 上下 / <c>▦</c> 2×2。
-    /// <para>参数 = 按钮组的数据项本身（见 <see cref="SplitModes"/>）。</para>
-    /// </summary>
+    /// <summary>分屏菜单「单张」：退出分屏。</summary>
     [RelayCommand]
-    private void SetSplitMode(SplitModeItem? mode)
-    {
-        if (mode is null) return;
+    private void SplitOne() => ApplySplitMode(1, 1);
 
-        if (mode.Rows <= 1 && mode.Cols <= 1)
+    /// <summary>分屏菜单「左右」：两列一行。</summary>
+    [RelayCommand]
+    private void SplitSideBySide() => ApplySplitMode(1, 2);
+
+    /// <summary>分屏菜单「上下」：一列两行。</summary>
+    [RelayCommand]
+    private void SplitStacked() => ApplySplitMode(2, 1);
+
+    /// <summary>分屏菜单「2 × 2」：两列两行。</summary>
+    [RelayCommand]
+    private void SplitQuad() => ApplySplitMode(2, 2);
+
+    private void ApplySplitMode(int rows, int cols)
+    {
+        if (rows <= 1 && cols <= 1)
         {
             IsSplit = false;
             StatusText = "已回到单图。";
-            SyncSplitMode();
             return;
         }
 
         if (!IsImage) return;
 
-        SplitRows = mode.Rows;
-        SplitColumns = mode.Cols;
+        SplitRows = rows;
+        SplitColumns = cols;
         IsSplit = true;
         IsHistoryOpen = false;
-        StatusText = $"分屏：一屏 {mode.Rows * mode.Cols} 张，翻页一次换一屏";
-        SyncSplitMode();
+        StatusText = $"分屏：一屏 {rows * cols} 张，翻页一次换一屏";
     }
 
-    /// <summary>把按钮组的高亮对到当前模式（单图 = 第一档）。</summary>
-    private void SyncSplitMode()
-    {
-        var rows = IsSplit ? SplitRows : 1;
-        var cols = IsSplit ? SplitColumns : 1;
-
-        foreach (var mode in SplitModes)
-            mode.IsSelected = mode.Rows == rows && mode.Cols == cols;
-    }
+    private void SyncSplitMode() => OnPropertyChanged(nameof(SplitModeText));
 
     /// <summary>退出分屏（网格里双击某张 → 单图看这张）。</summary>
     public void ExitSplit()
@@ -727,7 +755,8 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 items.Add(new()
                 {
                     Text = "－",
-                    Width = 32,
+                    Width = 34,
+                    GlyphSize = 14,
                     CommandPath = nameof(ZoomOutCommand),
                     IsEnabledPath = nameof(CanZoom),
                     ToolTip = "缩小（Ctrl + 滚轮同样有效）",
@@ -735,7 +764,8 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 items.Add(new()
                 {
                     Text = "＋",
-                    Width = 32,
+                    Width = 34,
+                    GlyphSize = 14,
                     CommandPath = nameof(ZoomInCommand),
                     IsEnabledPath = nameof(CanZoom),
                     ToolTip = "放大（Ctrl + 滚轮同样有效）",
@@ -743,7 +773,8 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 items.Add(new()
                 {
                     Text = "↻",
-                    Width = 32,
+                    Width = 34,
+                    GlyphSize = 14,
                     CommandPath = nameof(RotateCommand),
                     IsEnabledPath = nameof(CanZoom),
                     ShowToolTipOnDisabled = true,
@@ -751,8 +782,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 });
                 items.Add(new()
                 {
-                    Text = "◀",
-                    Width = 32,
+                    Text = "←",
+                    Width = 34,
+                    GlyphSize = 14,
                     CommandPath = nameof(PrevImageCommand),
                     IsEnabledPath = nameof(IsArchive),
                     ShowToolTipOnDisabled = true,
@@ -760,8 +792,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 });
                 items.Add(new()
                 {
-                    Text = "▶",
-                    Width = 32,
+                    Text = "→",
+                    Width = 34,
+                    GlyphSize = 14,
                     CommandPath = nameof(NextImageCommand),
                     IsEnabledPath = nameof(IsArchive),
                     ShowToolTipOnDisabled = true,
@@ -769,13 +802,11 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 });
                 items.Add(new()
                 {
-                    Kind = ToolbarItemKind.ChipGroup,
-                    ItemsPath = nameof(SplitModes),
-                    DisplayPath = nameof(SplitModeItem.Label),
-                    SelectedPath = nameof(SplitModeItem.IsSelected),
-                    CommandPath = nameof(SetSplitModeCommand),
+                    // 点击展开四档分屏菜单（⛔ 不再是一排四个图标按钮：占位宽、还跟播放键撞脸）
+                    TextPath = nameof(SplitModeText),
+                    Items = SplitMenuItems,
                     IsEnabledPath = nameof(IsImage),
-                    ToolTip = "▭ 单张 / ◫ 左右分屏 / ⊟ 上下分屏 / ▦ 2×2；分屏时翻页一次换一屏",
+                    ToolTip = "点击展开分屏方式：单张 / 左右 / 上下 / 2×2；分屏时翻页一次换一屏",
                 });
             }
 

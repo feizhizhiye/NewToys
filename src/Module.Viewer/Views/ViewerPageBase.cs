@@ -62,6 +62,7 @@ public abstract class ViewerPageBase : UserControl
     private ComboBox? _sectionBox;
     private Border? _rulePanel;
     private Border? _historyPanel;
+    private TopLevel? _historyDismissHost;
     private ListBox? _ruleList;
     private TextBox? _ruleNameBox;
     private TextBox? _rulePatternBox;
@@ -84,7 +85,11 @@ public abstract class ViewerPageBase : UserControl
         AddHandler(InputElement.PointerWheelChangedEvent, OnWheelNavigate, RoutingStrategies.Tunnel);
 
         // 页面卸载 / 切走时把进度存下来
-        DetachedFromVisualTree += (_, _) => SaveProgress();
+        DetachedFromVisualTree += (_, _) =>
+        {
+            SaveProgress();
+            UnhookHistoryDismiss();
+        };
     }
 
     private ViewerHost Host => _host ??= Find<ViewerHost>("Host");
@@ -178,7 +183,67 @@ public abstract class ViewerPageBase : UserControl
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(ViewerViewModel.IsHistoryOpen)) return;
-        if (_vm?.IsHistoryOpen == true) AlignHistoryPopup();
+
+        if (_vm?.IsHistoryOpen == true)
+        {
+            AlignHistoryPopup();
+            HookHistoryDismiss();
+        }
+        else
+        {
+            UnhookHistoryDismiss();
+        }
+    }
+
+    /// <summary>
+    /// 历史浮层是页内 <c>Border</c>（不是 <c>Popup</c>），没有自带 light-dismiss ⇒ 自己在顶层挂监听：
+    /// 点面板以外任意处 / 按 Esc 收起。
+    /// </summary>
+    private void HookHistoryDismiss()
+    {
+        var host = TopLevel.GetTopLevel(this);
+        if (host is null || ReferenceEquals(host, _historyDismissHost)) return;
+
+        UnhookHistoryDismiss();
+        _historyDismissHost = host;
+        host.AddHandler(InputElement.PointerPressedEvent, OnHistoryDismissPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        host.AddHandler(InputElement.KeyDownEvent, OnHistoryDismissKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+    }
+
+    private void UnhookHistoryDismiss()
+    {
+        if (_historyDismissHost is null) return;
+
+        _historyDismissHost.RemoveHandler(InputElement.PointerPressedEvent, OnHistoryDismissPressed);
+        _historyDismissHost.RemoveHandler(InputElement.KeyDownEvent, OnHistoryDismissKeyDown);
+        _historyDismissHost = null;
+    }
+
+    private void OnHistoryDismissPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_vm?.IsHistoryOpen != true || e.Source is not Visual source) return;
+        if (IsHistorySurfaces(source)) return;
+
+        _vm.IsHistoryOpen = false;
+    }
+
+    private void OnHistoryDismissKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape || _vm?.IsHistoryOpen != true) return;
+
+        _vm.IsHistoryOpen = false;
+        e.Handled = true;
+    }
+
+    /// <summary>面板内部，或工具条上那颗「历史」按钮（它的 Click 自己会切换，别在这里抢着关）。</summary>
+    private bool IsHistorySurfaces(Visual source)
+    {
+        if (ReferenceEquals(source, HistoryPanel)) return true;
+        if (source.GetVisualAncestors().Contains(HistoryPanel)) return true;
+
+        var command = _vm?.ToggleHistoryCommand;
+        return command is not null
+               && source.GetVisualAncestors().OfType<Button>().Any(b => ReferenceEquals(b.Command, command));
     }
 
     /// <summary>
@@ -478,9 +543,12 @@ public abstract class ViewerPageBase : UserControl
         return Math.Clamp(size, 10, SectionSize);
     }
 
-    /// <summary>把条目条滚到第 <paramref name="index"/> 条。
-    /// <para>🔴 用 <c>BringIntoView</c>（与标签栏同一套做法）：条目条换过 ItemsSource 后容器要等布局才生成，
-    /// 自己算偏移会在容器为 <c>null</c> 时静默不滚 ⇒ 表现为「换图了条目条不动」。没容器就等下一轮再试。</para>
+    /// <summary>
+    /// 把条目条滚到第 <paramref name="index"/> 条。
+    /// <para>🔴 容器要等布局才生成（换过 ItemsSource 更是如此）：拿不到容器或滚动量还没实测出来就等下一帧再试，
+    /// ⛔ 别用 <c>BringIntoView</c> —— 它只会贴着边缘滚，激活项永远卡在边上。</para>
+    /// <para>🔴 定位策略：条目**没铺满**条目条 ⇒ 保持从头顺序排列（<c>Offset = 0</c>）；
+    /// **铺满或超出** ⇒ 把当前条滚到**正中**（贴边滚动的 BringIntoView 会让激活项永远卡在边缘，看不出前后关系）。</para>
     /// </summary>
     private void ScrollEntryIntoView(int index)
     {
@@ -494,14 +562,40 @@ public abstract class ViewerPageBase : UserControl
         {
             if (index >= ArchiveList.ItemCount) return;
 
-            if (ArchiveList.ContainerFromIndex(index) is Control container)
-            {
-                container.BringIntoView();
+            if (ArchiveList.ContainerFromIndex(index) is Control container && CenterEntryInStrip(container))
                 return;
-            }
 
-            if (attempt < 2) ScrollEntryIntoViewCore(index, attempt + 1);
+            // 容器 / 滚动量还没实测出来（刚换来源、刚显示条目条）⇒ 下一帧再试
+            if (attempt < 3) ScrollEntryIntoViewCore(index, attempt + 1);
         }, DispatcherPriority.Background);
+    }
+
+    /// <summary>把某条滚到条目条中央；整条放得下时归零（不居中、按顺序排列）。返回 false = 这一帧还算不出来，调用方可重试。</summary>
+    private bool CenterEntryInStrip(Control container)
+    {
+        var scroller = ArchiveList.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        if (scroller is null) return true;
+
+        var extent = scroller.Extent.Width;
+        var viewport = scroller.Viewport.Width;
+        if (extent <= 0 || viewport <= 0) return false;
+        if (container.Bounds.Width <= 0) return false;
+
+        if (extent <= viewport + 0.5)
+        {
+            scroller.Offset = new Vector(0, 0);   // 没铺满：从头排，⛔ 别把它推到中间
+            return true;
+        }
+
+        var anchor = container.TranslatePoint(new Point(0, 0), scroller);
+        if (anchor is not { } p) return false;
+
+        // 🔴 `TranslatePoint` 给的是**已经扣过当前 offset** 的坐标 ⇒ 必须把它加回去才是内容坐标系里的位置，
+        //    否则每次居中都会再少滚「当前偏移量」那么多，翻到后面越偏越多（看起来就是"激活项不居中"）。
+        var inContent = p.X + scroller.Offset.X;
+        var target = inContent + container.Bounds.Width / 2 - viewport / 2;
+        scroller.Offset = new Vector(Math.Clamp(target, 0, extent - viewport), scroller.Offset.Y);
+        return true;
     }
 
     private void OpenArchive(string path)
@@ -728,8 +822,7 @@ public abstract class ViewerPageBase : UserControl
 
     /// <summary>
     /// 铺一屏：<paramref name="index"/> 所在的那一屏（屏对齐），装载图片走后台解码。
-    /// <para>🔴 <paramref name="focus"/> = 要**选中**的格（-1 = 不选中任何一张，分屏默认就是这么铺的：
-    /// 刚开分屏 / 翻屏 / 换每屏张数都不该先替你「激活」一张）。</para>
+    /// <para>🔴 <paramref name="focus"/> = 要**激活**的格；<c>-1</c> = 取本屏第一张（开分屏 / 翻屏 / 换每屏张数都走这条）。</para>
     /// <para>🔴 每次重铺都递增 <c>_splitToken</c>：连按翻页时旧任务的结果直接丢弃（与压缩包翻页同一手法）。</para>
     /// </summary>
     private async Task RefreshSplitAsync(int index, int focus = -1)
@@ -745,7 +838,8 @@ public abstract class ViewerPageBase : UserControl
         var count = Math.Min(n, total - start);
 
         _entryIndex = start;
-        _splitFocus = focus < 0 ? -1 : Math.Clamp(focus, start, start + count - 1);
+        // 分屏一律以本屏**第一张**为激活项（⛔ 不是"不选中"）：目录条、节下拉、描边都指它。
+        _splitFocus = focus < 0 ? start : Math.Clamp(focus, start, start + count - 1);
 
         ClearSplitTiles();
         var columnDefs = new ColumnDefinitions();
@@ -758,6 +852,13 @@ public abstract class ViewerPageBase : UserControl
 
         var accent = Application.Current?.FindResource("AccentBrush") as IBrush ?? Brushes.DodgerBlue;
 
+        // 每格解码上限（像素）：格宽 × 2，给「点开单图」留一点余量；屏幕上看不出更多细节
+        var tileSide = TileDecodeSide(cols);
+
+        // 🔴 解码必须**并行**：逐格 `await` 会让第 2 格等第 1 格解码完才开工 ⇒
+        //    左右分屏时右边那张总比左边晚一大拍（分屏格数越多越明显）。
+        var loads = new Task[count];
+
         for (var i = 0; i < count; i++)
         {
             var global = start + i;
@@ -766,7 +867,7 @@ public abstract class ViewerPageBase : UserControl
             var indexLabel = new TextBlock
             {
                 Text = (global + 1).ToString(),
-                FontSize = 10,
+                FontSize = 11,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom,
                 Margin = new Thickness(0, 0, 6, 4),
@@ -795,16 +896,18 @@ public abstract class ViewerPageBase : UserControl
             Grid.SetRow(cell, i / cols);
             SplitGrid.Children.Add(cell);
 
-            await LoadTileAsync(picture, global, token);
+            loads[i] = LoadTileAsync(picture, global, token, tileSide);
         }
+
+        await Task.WhenAll(loads);
 
         if (token != _splitToken) return;
 
         _vm.SetArchiveRange(start, count);
         _vm.SetInfo($"分屏 · 一屏 {count} 张");
         SyncArchiveSelection(_splitFocus);
-        SyncSectionBox(_splitFocus >= 0 ? _splitFocus : start);   // 没选中格也要让节下拉指在本屏所在节
-        if (_splitFocus < 0) ScrollEntryIntoView(start);          // 没选中格：条目条只滚到本屏起点
+        SyncSectionBox(_splitFocus);
+        ScrollEntryIntoView(_splitFocus);
         RestoreFocus();
     }
 
@@ -818,6 +921,7 @@ public abstract class ViewerPageBase : UserControl
 
         _vm.SetArchiveRange(_entryIndex, Math.Min(_vm.SplitRows * _vm.SplitColumns, EntryCount - _entryIndex));
         SyncArchiveSelection(index);
+        ScrollEntryIntoView(index);   // 点哪格，条目条就把它居中（与翻页同一手法）
     }
 
     /// <summary>网格里双击某格 = 单图看这张（退出分屏）。</summary>
@@ -831,9 +935,9 @@ public abstract class ViewerPageBase : UserControl
     }
 
     /// <summary>后台取一张图（压缩包内走会话，同目录读文件），解码完再回 UI 线程设源。</summary>
-    private async Task LoadTileAsync(Image target, int index, int token)
+    private async Task LoadTileAsync(Image target, int index, int token, int maxSide)
     {
-        var (bitmap, error) = await Task.Run(() => ReadBitmap(index));
+        var (bitmap, error) = await Task.Run(() => ReadBitmap(index, maxSide));
 
         if (token != _splitToken) { bitmap?.Dispose(); return; }
 
@@ -848,8 +952,22 @@ public abstract class ViewerPageBase : UserControl
         target.Source = bitmap;
     }
 
-    /// <summary>读第 <paramref name="index"/> 张的解码结果（⛔ 不碰 UI 控件）。</summary>
-    private (Bitmap? Bmp, string Error) ReadBitmap(int index)
+    /// <summary>分屏每格的解码边长：格宽（物理像素）× 2，夹在 480 ~ 2048。</summary>
+    private int TileDecodeSide(int cols)
+    {
+        var width = SplitGrid.Bounds.Width > 1 ? SplitGrid.Bounds.Width : Bounds.Width;
+        if (width <= 1) width = 1280;
+
+        var scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
+        var side = (int)Math.Ceiling(width / Math.Max(cols, 1) * scaling * 2);
+        return Math.Clamp(side, 480, 2048);
+    }
+
+    /// <summary>
+    /// 读第 <paramref name="index"/> 张的解码结果（⛔ 不碰 UI 控件）。
+    /// <para><paramref name="maxSide"/> = 解码边长上限；原图更大就降采样（分屏四格全尺寸解码能吃掉几百 MB）。</para>
+    /// </summary>
+    private (Bitmap? Bmp, string Error) ReadBitmap(int index, int maxSide)
     {
         try
         {
@@ -857,17 +975,30 @@ public abstract class ViewerPageBase : UserControl
             {
                 if (index < 0 || index >= _session.Entries.Count) return (null, "序号越界");
                 using var stream = _session.Open(_session.Entries[index].Key, out var reason);
-                return stream is null ? (null, reason) : (new Bitmap(stream), "");
+                return stream is null ? (null, reason) : (DecodeTile(stream, maxSide), "");
             }
 
             if (index < 0 || index >= _siblings.Count) return (null, "序号越界");
             using var file = File.OpenRead(_siblings[index]);
-            return (new Bitmap(file), "");
+            return (DecodeTile(file, maxSide), "");
         }
         catch (Exception ex)
         {
             return (null, ex.Message);
         }
+    }
+
+    private static Bitmap DecodeTile(Stream stream, int maxSide)
+    {
+        var origin = stream.CanSeek ? stream.Position : 0;
+
+        if (ImageHeader.TryReadSize(stream, out var w, out var h) && (w > maxSide || h > maxSide))
+        {
+            stream.Position = origin;
+            return w >= h ? Bitmap.DecodeToWidth(stream, maxSide) : Bitmap.DecodeToHeight(stream, maxSide);
+        }
+
+        return new Bitmap(stream);
     }
 
     /// <summary>清空网格并把已解码的位图释放掉（先断源再 Dispose）。</summary>

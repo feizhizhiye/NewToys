@@ -127,7 +127,8 @@
       </Border>
     </Grid>
 
-    <!-- 底部：控制条（按钮一律图标 + ToolTip，⛔ 不带文字） -->
+    <!-- 底部：控制条（按钮一律图标 + ToolTip，⛔ 不带文字）。🔴 只用非 emoji 字符：
+         ⏮ ⏭ 🔁 这类码位会被 Segoe UI Emoji 接管，渲染成彩色方块，与主题完全不符 -->
     <Border Grid.Row="2"
             Padding="12,8"
             Background="{DynamicResource ContentHeaderBrush}"
@@ -135,14 +136,14 @@
             BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
-          <Button Width="34"
+          <Button Width="38"
                   Height="28"
                   Padding="0"
                   Classes="ghost"
-                  FontSize="14"
+                  FontSize="12"
                   AutomationProperties.Name="上一首"
                   Click="OnPrevious"
-                  Content="⏮"
+                  Content="◄◄"
                   ToolTip.Tip="上一首" />
           <Button x:Name="PlayButton"
                   Width="40"
@@ -152,16 +153,16 @@
                   FontSize="14"
                   AutomationProperties.Name="播放"
                   Click="OnPlayPause"
-                  Content="▶"
+                  Content="►"
                   ToolTip.Tip="播放" />
-          <Button Width="34"
+          <Button Width="38"
                   Height="28"
                   Padding="0"
                   Classes="ghost"
-                  FontSize="14"
+                  FontSize="12"
                   AutomationProperties.Name="下一首"
                   Click="OnNext"
-                  Content="⏭"
+                  Content="►►"
                   ToolTip.Tip="下一首" />
         </StackPanel>
 
@@ -180,20 +181,21 @@
         </Grid>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+          <!--  模式键不用 emoji 🔁/🔂/🔀（会渲染成彩色方块），改用两字文本：顺序 / 单曲 / 随机  -->
           <Button x:Name="ModeButton"
-                  Width="34"
                   Height="28"
-                  Padding="0"
+                  MinWidth="34"
+                  Padding="6,0"
                   Classes="ghost"
-                  FontSize="14"
+                  FontSize="11"
                   AutomationProperties.Name="播放模式"
                   Click="OnSwitchMode"
-                  Content="🔁"
+                  Content="顺序"
                   ToolTip.Tip="播放模式：顺序" />
-          <TextBlock Text="🔊"
+          <TextBlock Text="音量"
+                     Classes="hint-text"
                      VerticalAlignment="Center"
-                     Margin="4,0,0,0"
-                     FontSize="12" />
+                     Margin="4,0,0,0" />
           <Slider x:Name="VolumeSlider"
                   Width="90"
                   Minimum="0"

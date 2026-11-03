@@ -29,6 +29,7 @@ public partial class AudioPlayer : UserControl
 
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _spectrumTimer;
+    private readonly DispatcherTimer _lyricTimer;
     private readonly List<(TimeSpan At, string Text, string Trans)> _lyrics = new();
     private readonly List<StackPanel> _lyricViews = new();
 
@@ -51,17 +52,23 @@ public partial class AudioPlayer : UserControl
         _spectrumTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _spectrumTimer.Tick += (_, _) => Spectrum.Pump();
 
+        // 歌词滚动也独立一张表（40 ms）：目标偏移按播放时间连续插值，⛔ 到行首才跳一格（会一顿一顿）
+        _lyricTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
+        _lyricTimer.Tick += (_, _) => ScrollLyrics();
+
         // 离开视觉树（切页）⇒ 只停轮询，⛔ 不停播：音乐要能继续放（切回来时重新起表）。
         // 关闭标签页由宿主决定是否 Stop（本控件不揣测，避免切页与销毁分不清）。
         DetachedFromVisualTree += (_, _) =>
         {
             _timer.Stop();
             _spectrumTimer.Stop();
+            _lyricTimer.Stop();
             Spectrum.Hide();
         };
         AttachedToVisualTree += (_, _) =>
         {
-            if (Playback?.State == AudioPlayState.Playing) _timer.Start();
+            if (Playback?.State == AudioPlayState.Playing) EnsureTimer();
+            ScrollLyrics();
         };
     }
 
@@ -200,7 +207,7 @@ public partial class AudioPlayer : UserControl
         if (autoPlay) Playback.Play();
         UpdatePlayButton();
 
-        _timer.Start();
+        EnsureTimer();
         TrackChanged?.Invoke(track);
         StatusChanged?.Invoke("正在播放：" + track.Display);
         Tick();
@@ -260,6 +267,7 @@ public partial class AudioPlayer : UserControl
     {
         _timer.Stop();
         _spectrumTimer.Stop();
+        _lyricTimer.Stop();
         Spectrum.Hide();
         Playback?.Stop();
         UpdatePlayButton();
@@ -294,6 +302,7 @@ public partial class AudioPlayer : UserControl
         _lyricViews.Clear();
         LyricPanel.Children.Clear();
         _lyricIndex = -1;
+        SetLyricOffset(0);
 
         if (string.IsNullOrWhiteSpace(raw)) return;
 
@@ -431,6 +440,7 @@ public partial class AudioPlayer : UserControl
     private void EnsureTimer()
     {
         if (!_timer.IsEnabled) _timer.Start();
+        if (!_lyricTimer.IsEnabled) _lyricTimer.Start();
     }
 
     /// <summary>
@@ -439,7 +449,7 @@ public partial class AudioPlayer : UserControl
     private void UpdatePlayButton()
     {
         var playing = Playback?.State == AudioPlayState.Playing;
-        PlayButton.Content = playing ? "⏸" : "▶";
+        PlayButton.Content = playing ? "❚❚" : "►";
 
         var tip = playing ? "暂停" : "播放";
         if (ToolTip.GetTip(PlayButton) as string != tip) ToolTip.SetTip(PlayButton, tip);
@@ -495,10 +505,59 @@ public partial class AudioPlayer : UserControl
             _lyricViews[i].Opacity = active ? 1 : 0.55;
             if (_lyricViews[i].Children.Count > 0 && _lyricViews[i].Children[0] is TextBlock original)
                 original.FontWeight = active ? FontWeight.Bold : FontWeight.Normal;
-            if (!active) continue;
-            try { _lyricViews[i].BringIntoView(); }
-            catch { /* 尚未布局 */ }
         }
+
+        ScrollLyrics();
+    }
+
+    /// <summary>
+    /// 歌词平滑滚动：让「当前行」落在视口垂直中线，行与行之间按播放时间线性插值。
+    /// <para>🔴 偏移夹在 ≥0 —— 开头几行还没排满一屏时列表不动，高亮行从上往下逐行走，
+    /// 走到中线后列表才真正开始滚（这才是直觉；⛔ 不能一到行首就 <c>BringIntoView</c> 直接跳居中）。</para>
+    /// </summary>
+    private void ScrollLyrics()
+    {
+        if (_lyrics.Count == 0 || _lyricViews.Count != _lyrics.Count) return;
+        if (Playback is null || LyricScroller.Viewport.Height <= 1) return;
+
+        if (_lyricIndex < 0)
+        {
+            SetLyricOffset(0);
+            return;
+        }
+
+        var index = Math.Min(_lyricIndex, _lyricViews.Count - 1);
+        var center = LineCenter(index);
+        if (center < 0) return;
+
+        if (index + 1 < _lyricViews.Count)
+        {
+            var next = LineCenter(index + 1);
+            var span = (_lyrics[index + 1].At - _lyrics[index].At).TotalSeconds;
+            if (next > center && span > 0.2)
+            {
+                var progress = Math.Clamp((Playback.Position - _lyrics[index].At).TotalSeconds / span, 0, 1);
+                center += (next - center) * progress;
+            }
+        }
+
+        SetLyricOffset(center - LyricScroller.Viewport.Height / 2);
+    }
+
+    /// <summary>某行中心相对歌词面板的 Y（尚未布局返回 -1）。</summary>
+    private double LineCenter(int index)
+    {
+        if (index < 0 || index >= _lyricViews.Count) return -1;
+        var bounds = _lyricViews[index].Bounds;
+        return bounds.Height <= 0 ? -1 : bounds.Y + bounds.Height / 2;
+    }
+
+    private void SetLyricOffset(double y)
+    {
+        var max = Math.Max(0, LyricScroller.Extent.Height - LyricScroller.Viewport.Height);
+        var target = Math.Clamp(y, 0, max);
+        if (Math.Abs(LyricScroller.Offset.Y - target) < 0.5) return;
+        LyricScroller.Offset = new Vector(LyricScroller.Offset.X, target);
     }
 
     private void UpdateHeader(AudioTrackItem track)
@@ -608,9 +667,9 @@ public partial class AudioPlayer : UserControl
     {
         ModeButton.Content = _mode switch
         {
-            PlayMode.Single => "🔂",
-            PlayMode.Shuffle => "🔀",
-            _ => "🔁",
+            PlayMode.Single => "单曲",
+            PlayMode.Shuffle => "随机",
+            _ => "顺序",
         };
 
         var tip = "播放模式：" + ModeName();

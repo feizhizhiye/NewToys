@@ -33,10 +33,10 @@ agent_created: true
 - `references/collab-method.md` —— 通用协作方法论（跨项目母本；**§七 回复格式（编号段落）与会话成本管控 · 长会话提醒** —— 每次回复前对照）
 - `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / 主题键**数量以 lint 白名单为准** / 任务型→章节 / 文档路由）
 - `references/tech-guard.md` —— 技术栈硬伤唯一源（`G-01`~`G-11` + `G-14`~`G-17`，与 `lint.py --only techstack` 一一对应）
-- **`scripts/accept.ps1` —— 🔴 静态验收入口**：串起下面 6 个静态检查 + 改动范围，输出结论与退出码（0 = 通过 / 1 有 FAIL）。🔴 **不含构建 / 测试 / 产物核对 / 冒烟** —— skill/ 下脚本只做静态检查，编译一律走用户本地 `scripts/build.ps1`。
+- **`scripts/accept.ps1` —— 🔴 静态验收入口**：串起下面 6 个静态检查 + 文档一致性 + 改动范围，输出结论与退出码（0 = 通过 / 1 有 FAIL）。🔴 **不含构建 / 测试 / 产物核对 / 冒烟** —— skill/ 下脚本只做静态检查，编译一律走用户本地 `scripts/build.ps1`。手动用：终端里不带参数直接跑会弹**交互菜单**（全部 / 只静态 / 只文档 / 文档修复 / 只范围；跑完停住等按键，R 回菜单）；单项 = `-Only all|static|docs|fix|scope`；AI 一律 `-Brief`（一行结论，不弹菜单不等待）。
 - `scripts/lint.py` —— `.axaml` 合法性、`.axaml`↔`.axaml.cs` 配对、`InitializeComponent` 调用、主题键白名单
 - **`scripts/ctx.py` —— 🔴 上下文打包（省 token 首选）**：`python skill/scripts/ctx.py --task ui --module viewer` 一次输出该任务需要的文档段落（铁律 + 模块行 + 相关章节 + 任务卡），**替代逐份 Read 文档**；`--doc ui.md --section 12` 精读单节；`--list` 看任务类型。
-- **`scripts/docs-sync.py` —— 文档同步检查 / 生成**：`menu`（三处 AUTO 块 ⇄ 代码 `RegisterModule` / `RegisterFunction` + 模块 md 头部与页数）、`keys`（代码 ⇄ 模块 md ⇄ 说明书）、`paths`（文档路径引用 ⇄ src）、`cards`（每目录卡数 / §2.5 存在性）、`ledger`（NT 编号）。默认只读，`--only keys|menu|paths|cards|ledger`；**`--fix` 只重写 `<!-- AUTO:… -->` 块内部**（index §二 / framework §4.2 / 台账 §2.3），块外手写内容不动。
+- **`scripts/docs-sync.py` —— 文档同步检查 / 生成**：`menu`（四处 AUTO 块 ⇄ 代码 `RegisterModule` / `RegisterFunction` + 模块 md 头部与页数）、`keys`（代码 ⇄ 模块 md ⇄ 说明书）、`paths`（文档路径引用 ⇄ src）、`cards`（每目录卡数 / §2.5 存在性）、`ledger`（NT 编号）。默认只读，`--only keys|menu|paths|cards|ledger`；**`--fix` 只重写 `<!-- AUTO:… -->` 块内部**（index §二 / framework §4.2 / 台账 §一文档版本 与 §2.3），块外手写内容不动。
 - `scripts/lint.py --only props` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异）
 - `scripts/lint.py --only techstack` —— 技术栈硬伤 `G-01`~`G-14`（ERROR / WARN 分级；`-All` 看 WARN 明细）
 - `scripts/lint.py --only detail-paths` —— 声明式详情卡的字符串绑定路径首段是否存在（`-All` 看全）

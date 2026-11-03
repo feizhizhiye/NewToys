@@ -1,6 +1,6 @@
 # NewToys 文档地图（Index）
 
-> v1.13 · 2026-11-03 · **AUTO 块：机器事实由脚本生成** —— 「键 / Order / 图标 / 页数」这类机器事实与「状态 / 为什么」混在同一张表 ⇒ 必然人肉同步。改为拆表：`index.md` §二 / `framework.md` §4.2 / 台账 §2.3 三处的机器列包进 `<!-- AUTO:… -->` 块，由 `docs-sync.py --fix` 按 `RegisterModule` / `RegisterFunction` 生成（⛔ 手改块内）；块外只留人写的状态表（index §二 状态列原样搬运，台账「非模块行」手写，合计不再手写）。检查项由「逐格对账」改为「块内容 ⇄ 代码」，不一致即 ERROR 并提示跑 `--fix`。
+> v1.13 · 2026-11-03 · **AUTO 块：机器事实由脚本生成** —— 「键 / Order / 图标 / 页数」这类机器事实与「状态 / 为什么」混在同一张表 ⇒ 必然人肉同步。改为拆表：`index.md` §二 / `framework.md` §4.2 / 台账 §2.3 三处的机器列包进 `<!-- AUTO:… -->` 块，由 `docs-sync.py --fix` 按 `RegisterModule` / `RegisterFunction` 生成（⛔ 手改块内）；块外只留人写的状态表（index §二 状态列原样搬运，台账「非模块行」手写，合计不再手写）。检查项由「逐格对账」改为「块内容 ⇄ 代码」，不一致即 ERROR 并提示跑 `--fix`。台账 §一「文档版本」行同批改 AUTO 表（读各文档头部 `vX.Y`，替代早已脱节的手写行）。
 > v1.12 · 2026-11-03 · **文档 ⇄ src 五方对账** —— `docs-sync.py` 新增 `menu`（模块清单：键 / 显示名 / Order / 图标 / 页数，四处文档 ⇄ 代码 `RegisterModule` / `RegisterFunction`）与 `paths`（文档路径引用 ⇄ src 实际文件）；已并入 `accept.ps1`。同步修正：framework §4.2 分组表补 4 个模块、台账基线表补 3 个模块（37 → 52）、模块 md 页数 3 处、系统工具组键 `system` → `system-tools`、显示名定为「脚本管理器」（v3.86 的「脚本中心」作废）。
 > v1.11 · 2026-11-03 · **省 token 工具** —— 新增 `skill/scripts/ctx.py`（任务上下文打包：一次输出铁律 + 模块行 + 相关章节 + 任务卡，替代逐份 Read）与 `skill/scripts/docs-sync.py`（Key 三方对账 / 卡窗口 / NT 编号）；§三 顶部加两行路由；`accept.ps1 -Brief` 一行结论。
 > v1.10 · 2026-11-03 · **`ui.md` 新增 §12 视觉克制与判断清单** —— 「该不该加元素 / 文案 / 字号 / 边框圆角阴影 / 动画 / 对齐 / 减少判断 / 状态可达性」八条 + 交付自检；不可静态检测，改页面后人工扫。§三 补一行路由。
@@ -78,7 +78,7 @@
 | 任务 | 读什么 |
 |---|---|
 | **会话开始 / 要读多份文档** | **`python skill/scripts/ctx.py --task <feature\|ui\|interaction\|fix\|usage\|verify\|card> --module <模块>`**（一次打包铁律 + 模块行 + 相关章节 + 任务卡；⛔ 逐份 Read）；精读单节 = `--doc <文件> --section <节号>` |
-| 文档与代码是否漂移 / 该淘汰哪张卡 | `python skill/scripts/docs-sync.py`（**AUTO 块**：index §二 / framework §4.2 / 台账 §2.3 由 `--fix` 按代码生成 · 菜单 Key · 路径引用 · 卡窗口 · NT 编号；默认只读，已并入 `accept.ps1`） |
+| 文档与代码是否漂移 / 该淘汰哪张卡 | `python skill/scripts/docs-sync.py`（**AUTO 块**：index §二 / framework §4.2 / 台账 §一文档版本 与 §2.3 由 `--fix` 生成 · 菜单 Key · 路径引用 · 卡窗口 · NT 编号；默认只读，已并入 `accept.ps1`） |
 | **建立全局 / 判断边界与功能范围** | **`NewToys-需求摘要.md`**（150 行）→ 不够再按它 §九 定位原文 |
 | 改某模块的一个页面 | `modules/<模块>.md` §2.5（操作逻辑）→ §3（实现）→ `ui.md`（列表页 / 详情卡 / 工具条对应节） |
 | 改交互行为 / 确认弹窗 / 状态反馈 | `ui.md` §10 → `modules/<模块>.md` §2.5 |

@@ -5,7 +5,13 @@
 ────────────────────────────────────────────────────────────────────
   一条命令跑完「静态检查 → 铁律 1 改动范围」，给出 **通过 / 不通过** + 退出码。
 
-    pwsh skill/scripts/accept.ps1              # 全部静态检查
+  交互模式（手动执行）：
+    pwsh skill/scripts/accept.ps1            # 交互式菜单（终端里直接跑；脚本/管道下不会弹菜单）
+    pwsh skill/scripts/accept.ps1 -Menu      # 强制弹菜单
+    pwsh skill/scripts/accept.ps1 -Only docs # 指定单项：all|static|docs|fix|scope
+    pwsh skill/scripts/accept.ps1 -Only fix  # = docs-sync --fix 修 AUTO 块后再查一遍
+
+    pwsh skill/scripts/accept.ps1              # 非交互 = 全部静态检查
     pwsh skill/scripts/accept.ps1 -All         # WARN 明细全展开（透传给子检查）
     pwsh skill/scripts/accept.ps1 -Report      # 额外写 artifacts/accept-report.md
     pwsh skill/scripts/accept.ps1 -SkipStatic  # 只做改动范围检查（不跑 Lint）
@@ -30,7 +36,14 @@ param(
     # 透传 -All 给支持的子检查（WARN 明细全展开）
     [switch]$All,
     # 只输出一行结论（完整表格强制写入 artifacts/accept-report.md）—— 省 AI 读取成本
-    [switch]$Brief
+    [switch]$Brief,
+    # 只跑某一项：all（默认）| static 静态检查 | docs 文档一致性 | fix 文档一致性并修复 | scope 改动范围
+    [ValidateSet('all', 'static', 'docs', 'fix', 'scope')]
+    [string]$Only = 'all',
+    # 强制弹交互菜单（终端里无参数运行时也会自动弹）
+    [switch]$Menu,
+    # 跑完不等按键（脚本 / 自动化里用；手动跑默认停住看结果）
+    [switch]$NoPause
 )
 
 $ErrorActionPreference = 'Continue'
@@ -46,6 +59,55 @@ if (-not (Test-Path $src)) {
     Write-Host "[FAIL] 找不到 src/ —— 请从仓库内运行本脚本" -ForegroundColor Red
     exit 1
 }
+
+# ---------- 交互模式（手动执行）----------
+# 触发条件：显式 -Menu，或「终端里直接跑、没带任何参数」。管道 / 无终端 / AI 调用不弹菜单。
+function Read-MenuKey {
+    # 输入被重定向（管道 / 自动化）时退回 Read-Host，⛔ 别让 ReadKey 卡住
+    if ([Console]::IsInputRedirected) { return (Read-Host).Trim() }
+    try { return [string]$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown').Character }
+    catch { return (Read-Host).Trim() }
+}
+
+function Show-Menu {
+    $items = @(
+        [pscustomobject]@{ Key = '1'; Only = 'all';    Report = $true;  Label = '全部检查（静态 + 文档一致性 + 改动范围），完整表格' }
+        [pscustomobject]@{ Key = '2'; Only = 'all';    Report = $false; Label = '全部检查，一行结论（快速看通过没通过）' }
+        [pscustomobject]@{ Key = '3'; Only = 'static'; Report = $false; Label = '只跑静态检查（AXAML / 属性名 / 技术栈 / 详情卡 / 注释 / 页面契约）' }
+        [pscustomobject]@{ Key = '4'; Only = 'docs';   Report = $false; Label = '只跑文档一致性（AUTO 块 / 菜单 Key / 路径引用 / 卡窗口 / NT 编号）' }
+        [pscustomobject]@{ Key = '5'; Only = 'fix';    Report = $false; Label = '修复文档 AUTO 块后复查（docs-sync --fix，会写 index/framework/台账）' }
+        [pscustomobject]@{ Key = '6'; Only = 'scope';  Report = $false; Label = '只跑铁律 1（改动是否只在 src/ 与授权区）' }
+    )
+    Write-Host ''
+    Write-Host '  NewToys 静态验收 —— 选择要跑的项目' -ForegroundColor Cyan
+    Write-Host '  ────────────────────────────────────────────' -ForegroundColor DarkGray
+    foreach ($m in $items) { Write-Host ("   {0})  {1}" -f $m.Key, $m.Label) -ForegroundColor Gray }
+    Write-Host '   0)  退出' -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host '  按数字键即可（不用回车）… ' -ForegroundColor DarkYellow -NoNewline
+    $k = Read-MenuKey
+    Write-Host $k -ForegroundColor DarkGray
+    if ($k -eq '' -or $k -eq "`e") { return $null }
+    if ($k -eq '0') { return 'exit' }
+    $hit = $items | Where-Object { $_.Key -eq $k } | Select-Object -First 1
+    if (-not $hit) { return $null }
+    return $hit
+}
+
+$script:IsInteractive = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
+$explicitParams = @($PSBoundParameters.Keys | Where-Object { $_ -ne 'Menu' })
+if ($Menu -or ($script:IsInteractive -and $explicitParams.Count -eq 0)) {
+    $picked = Show-Menu
+    if ($picked -eq 'exit' -or $null -eq $picked) { exit 0 }
+    $Only   = $picked.Only
+    $Report = $picked.Report
+    $Brief  = ($picked.Key -eq '2')
+}
+if ($Brief) { $Report = $true }
+
+$RunStatic = (-not $SkipStatic) -and ($Only -in @('all', 'static'))
+$RunDocs   = (-not $SkipStatic) -and ($Only -in @('all', 'docs', 'fix'))
+$RunScope  = ($Only -in @('all', 'scope'))
 
 # ---------- 结果收集 ----------
 $script:rows = New-Object System.Collections.ArrayList
@@ -108,8 +170,8 @@ $staticChecks = @(
     }
 )
 
-if (-not $SkipStatic) {
-        if (-not $Brief) { Write-Host "`n──── 1/2 静态检查 ────" -ForegroundColor Cyan }
+if ($RunStatic) {
+        if (-not $Brief) { Write-Host "`n──── 1. 静态检查 ────" -ForegroundColor Cyan }
     $lintPy    = Join-Path $repoRoot 'skill\scripts\lint.py'
     $pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
 
@@ -152,18 +214,21 @@ if (-not $SkipStatic) {
     }
 }
 else {
-    Add-Row '静态检查' '全部' 'SKIP' '-SkipStatic'
+    if ($SkipStatic) { Add-Row '静态检查' '全部' 'SKIP' '-SkipStatic' }
 }
 
 # ═════════ 1b) 文档一致性（docs-sync.py：模块清单 / 页数 / 路径引用 ⇄ src）═════════
 # 只读、纯静态：把「文档说 A、代码是 B」变成可跑的 FAIL，避免文档靠人肉同步。
 $syncPy = Join-Path $repoRoot 'skill\scripts\docs-sync.py'
 $pyExe  = (Get-Command python -ErrorAction SilentlyContinue).Source
-if (-not $SkipStatic -and $pyExe -and (Test-Path $syncPy)) {
+if ($RunDocs -and -not $Brief) { Write-Host "`n──── 2. 文档一致性 ────" -ForegroundColor Cyan }
+if ($RunDocs -and $pyExe -and (Test-Path $syncPy)) {
     $prevEnc = [Console]::OutputEncoding
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     $env:PYTHONIOENCODING = 'utf-8'
-    try { $syncOut = (& $pyExe $syncPy 2>&1 | Out-String) }
+    $syncArg = @($syncPy)
+    if ($Only -eq 'fix') { $syncArg += '--fix' }
+    try { $syncOut = (& $pyExe @syncArg 2>&1 | Out-String) }
     finally { [Console]::OutputEncoding = $prevEnc }
 
     $se = 0; $sw = 0
@@ -180,11 +245,16 @@ if (-not $SkipStatic -and $pyExe -and (Test-Path $syncPy)) {
             $syncOut -split "\r?\n" | Where-Object { $_ -match '^\[(ERROR|WARN)\]' } |
                 Select-Object -First 8 | ForEach-Object { Write-Host "        $($_.Trim())" -ForegroundColor DarkGray }
         }
+        if ($Only -eq 'fix') {
+            $syncOut -split "\r?\n" | Where-Object { $_ -match '已重写|一致$' } |
+                ForEach-Object { Write-Host "        $($_.Trim())" -ForegroundColor DarkCyan }
+        }
     }
 }
 
-# ═════════ 2) 铁律 1：改动是否只在 src/（skill/ scripts/ AGENTS.md 经授权可改）═════════
-if (-not $Brief) { Write-Host "`n──── 2/2 铁律 1（改动范围）────" -ForegroundColor Cyan }
+# ═════════ 3) 铁律 1：改动是否只在 src/（skill/ scripts/ AGENTS.md 经授权可改）═════════
+if ($RunScope) {
+if (-not $Brief) { Write-Host "`n──── 3. 铁律 1（改动范围）────" -ForegroundColor Cyan }
 $changed = @()
 if (Get-Command git -ErrorAction SilentlyContinue) {
     $porcelain = @(& git -C $repoRoot status --porcelain -uall 2>$null)
@@ -211,6 +281,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 }
 else {
     Add-Row '铁律1' 'src/ 之外的改动' 'SKIP' '找不到 git'
+}
 }
 
 # ═════════ 汇总 ═════════
@@ -284,4 +355,18 @@ if ($Report) {
     Write-Host "  报告已写：$reportPath" -ForegroundColor Green
 }
 
-exit $(if ($fails.Count -eq 0) { 0 } else { 1 })
+$exitCode = if ($fails.Count -eq 0) { 0 } else { 1 }
+
+# 终端里手动跑：跑完停住等按键（窗口不会一闪而过），R 可回菜单再跑一次
+if ($script:IsInteractive -and -not $Brief -and -not $NoPause) {
+    Write-Host ''
+    Write-Host '  按任意键退出；R = 回菜单… ' -ForegroundColor DarkGray -NoNewline
+    $k = Read-MenuKey
+    if ($k -in @('r', 'R')) {
+        Write-Host ''
+        & $PSCommandPath -Menu
+        exit $LASTEXITCODE
+    }
+}
+exit $exitCode
+

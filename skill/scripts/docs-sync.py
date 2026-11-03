@@ -86,12 +86,27 @@ def write_raw(p: Path, text: str) -> None:
 AUTO_INDEX = "index.modules"
 AUTO_FW = "framework.groups"
 AUTO_LEDGER = "ledger.pages"
+AUTO_DOCVERS = "ledger.docversions"
 AUTO_TARGETS = (
     ("index.md", AUTO_INDEX),
     ("framework.md", AUTO_FW),
     ("NewToys-项目状态与路线图.md", AUTO_LEDGER),
+    ("NewToys-项目状态与路线图.md", AUTO_DOCVERS),
 )
 HOST_GROUP = ("宿主分组（**不渲染**）", "`system`", "999", "`IconSettings`")
+# 台账「文档版本」行：只列**头部自报版本**的文档；⛔ 不手写版本号
+DOC_VERSION_SPEC = (
+    ("需求规格", "NewToys-需求规格.md"),
+    ("需求摘要", "NewToys-需求摘要.md"),
+    ("framework", "framework.md"),
+    ("ui", "ui.md"),
+    ("协作手册", "NewToys-AI协作手册.md"),
+    ("软件说明书", "NewToys-软件说明书.md"),
+    ("模块 md", "modules/*.md"),
+    ("本台账", "NewToys-项目状态与路线图.md"),
+)
+RE_DOC_VER = re.compile(r"^>\s*v(\d+\.\d+(?:\.\d+)?)\b", re.M)
+
 
 
 def _row(*cells: str) -> str:
@@ -106,6 +121,30 @@ def _table(headers: list[str], rows: list[list[str]]) -> str:
 
 def _pages_cell(g: dict) -> str:
     return f"{g['pages']} + {g['settings']}" if g["settings"] else str(g["pages"])
+
+
+def _ver_key(v: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in v.split("."))
+
+
+def doc_rows() -> list[list[str]]:
+    """文档自报版本：读每份文档开头的 `> vX.Y · …`。取不到就写「—」，⛔ 不猜。"""
+    rows: list[list[str]] = []
+    for label, rel in DOC_VERSION_SPEC:
+        found: list[str] = []
+        for p in sorted(DOCS.glob(rel)):
+            m = RE_DOC_VER.search(read(p)[:400])
+            if m:
+                found.append(m.group(1))
+        if not found:
+            cells = "—（见各文件头）"
+        elif len(set(found)) == 1:
+            cells = f"v{found[0]}"
+        else:
+            lo, hi = min(found, key=_ver_key), max(found, key=_ver_key)
+            cells = f"v{lo} ~ v{hi}" if lo != hi else f"v{lo}"
+        rows.append([label, cells])
+    return rows
 
 
 def expected_blocks() -> dict[str, str]:
@@ -134,6 +173,7 @@ def expected_blocks() -> dict[str, str]:
                 f"**{sum(g['pages'] for g in ordered)}**",
                 f"**{sum(g['settings'] for g in ordered)}**"]],
         ),
+        AUTO_DOCVERS: _table(["文档", "当前版本"], doc_rows()),
     }
 
 

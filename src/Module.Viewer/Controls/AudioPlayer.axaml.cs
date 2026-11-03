@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -7,13 +7,15 @@ using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NewToys.Shared.Services;
 
-namespace NewToys.UI.Viewers;
+namespace NewToys.Viewer.Controls;
 
 /// <summary>
 /// 查看器内的本地音乐播放器：播放列表 + 控制条 + LRC 歌词。
@@ -30,19 +32,20 @@ public partial class AudioPlayer : UserControl
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _spectrumTimer;
     private readonly DispatcherTimer _lyricTimer;
+    private readonly DispatcherTimer _lyricResumeTimer;
     private readonly List<(TimeSpan At, string Text, string Trans)> _lyrics = new();
     private readonly List<StackPanel> _lyricViews = new();
 
     private IAudioPlayback? _playback;
     private IAudioTone? _tone;
     private bool _muted;
-    private bool _toneSyncing;
     private int _lastVolume = 80;
     private List<AudioTrackItem> _tracks = new();
     private int _current = -1;
     private bool _suppress;
     private bool _updating;
     private int _lyricIndex = -1;
+    private bool _lyricFollow = true;
     private PlayMode _mode = PlayMode.Order;
     private Bitmap? _cover;
 
@@ -60,6 +63,19 @@ public partial class AudioPlayer : UserControl
         _lyricTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
         _lyricTimer.Tick += (_, _) => ScrollLyrics();
 
+        // 手动查看歌词后的回归表：停手 3 秒自动回到跟随（只在用户滚动时起表）
+        _lyricResumeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _lyricResumeTimer.Tick += (_, _) =>
+        {
+            _lyricResumeTimer.Stop();
+            _lyricFollow = true;
+            ScrollLyrics();
+        };
+
+        // 手动滚动 = 滚轮 / 按住滚动条；两者都在隧道阶段拦，⛔ 挡住默认滚动行为
+        LyricScroller.AddHandler(InputElement.PointerWheelChangedEvent, OnLyricWheel, RoutingStrategies.Tunnel);
+        LyricScroller.AddHandler(InputElement.PointerPressedEvent, OnLyricPressed, RoutingStrategies.Tunnel);
+
         // 离开视觉树（切页）⇒ 只停轮询，⛔ 不停播：音乐要能继续放（切回来时重新起表）。
         // 关闭标签页由宿主决定是否 Stop（本控件不揣测，避免切页与销毁分不清）。
         DetachedFromVisualTree += (_, _) =>
@@ -67,6 +83,8 @@ public partial class AudioPlayer : UserControl
             _timer.Stop();
             _spectrumTimer.Stop();
             _lyricTimer.Stop();
+            _lyricResumeTimer.Stop();
+            _lyricFollow = true;
             Spectrum.Hide();
         };
         AttachedToVisualTree += (_, _) =>
@@ -101,7 +119,6 @@ public partial class AudioPlayer : UserControl
             // 音色是可选能力：后端不实现就不出音色键
             _tone = _playback as IAudioTone;
             UpdateToneButton();
-            SyncToneSelection();
         }
     }
 
@@ -205,6 +222,10 @@ public partial class AudioPlayer : UserControl
 
         _current = index;
         _lyricIndex = -1;
+
+        // 换曲即恢复跟随：上一首手动滚到哪都不该影响这一首
+        _lyricFollow = true;
+        _lyricResumeTimer.Stop();
 
         _suppress = true;
         try { TrackList.SelectedIndex = index; }
@@ -530,6 +551,7 @@ public partial class AudioPlayer : UserControl
     /// </summary>
     private void ScrollLyrics()
     {
+        if (!_lyricFollow) return;
         if (_lyrics.Count == 0 || _lyricViews.Count != _lyrics.Count) return;
         if (Playback is null || LyricScroller.Viewport.Height <= 1) return;
 
@@ -572,6 +594,24 @@ public partial class AudioPlayer : UserControl
         var target = Math.Clamp(y, 0, max);
         if (Math.Abs(LyricScroller.Offset.Y - target) < 0.5) return;
         LyricScroller.Offset = new Vector(LyricScroller.Offset.X, target);
+    }
+
+    private void OnLyricWheel(object? sender, PointerWheelEventArgs e) => SuspendLyricFollow();
+
+    /// <summary>只在命中滚动条（或它的滑块）时判定成手动滚动：点歌词正文也算停跟随太怪。</summary>
+    private void OnLyricPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is Visual v && v.FindAncestorOfType<ScrollBar>() is not null) SuspendLyricFollow();
+    }
+
+    /// <summary>暂停自动跟随（用户手动查看歌词），3 秒无新动作后由 <c>_lyricResumeTimer</c> 拉回。</summary>
+    private void SuspendLyricFollow()
+    {
+        if (_lyrics.Count == 0) return;
+
+        _lyricFollow = false;
+        _lyricResumeTimer.Stop();
+        _lyricResumeTimer.Start();
     }
 
     private void UpdateHeader(AudioTrackItem track)
@@ -633,13 +673,8 @@ public partial class AudioPlayer : UserControl
 
     private void OnNext(object? sender, RoutedEventArgs e) => Next();
 
-    /// <summary>播放列表开合（工具条按钮调用；与音色浮层互斥）。</summary>
-    public void TogglePlaylist()
-    {
-        var open = !PlaylistPanel.IsVisible;
-        PlaylistPanel.IsVisible = open;
-        if (open) TonePanel.IsVisible = false;
-    }
+    /// <summary>播放列表开合（工具条按钮调用）。</summary>
+    public void TogglePlaylist() => PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible;
 
     private void OnClosePlaylist(object? sender, RoutedEventArgs e) => PlaylistPanel.IsVisible = false;
 
@@ -683,51 +718,37 @@ public partial class AudioPlayer : UserControl
         if (ToolTip.GetTip(MuteButton) as string != tip) ToolTip.SetTip(MuteButton, tip);
     }
 
-    /// <summary>音色键：展开 / 收起音色浮层（与播放列表互斥；后端不实现 <see cref="IAudioTone"/> 时整键隐藏）。</summary>
+    /// <summary>音色键：点开弹出预设菜单，选中即生效（后端不实现 <see cref="IAudioTone"/> 时整键隐藏）。</summary>
     private void OnToggleTone(object? sender, RoutedEventArgs e)
     {
         if (_tone is null) return;
 
-        var open = !TonePanel.IsVisible;
-        TonePanel.IsVisible = open;
-        if (!open) return;
+        // 每次点开重建：预设与当前项都以服务为准，⛔ 缓存菜单项容易与后端状态漂移
+        var flyout = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedRight };
+        foreach (var preset in _tone.Presets)
+        {
+            var item = new MenuItem
+            {
+                Header = preset.Name,
+                ToggleType = MenuItemToggleType.Radio,
+                GroupName = "AudioTone",
+                IsChecked = preset.Key == _tone.CurrentPresetKey,
+            };
 
-        PlaylistPanel.IsVisible = false;
-        SyncToneSelection();
+            var key = preset.Key;
+            item.Click += (_, _) => ApplyTone(key);
+            flyout.Items.Add(item);
+        }
+
+        flyout.ShowAt(ToneButton);
     }
 
-    private void OnCloseTone(object? sender, RoutedEventArgs e) => TonePanel.IsVisible = false;
-
-    private void OnToneSelected(object? sender, SelectionChangedEventArgs e)
+    private void ApplyTone(string key)
     {
-        if (_toneSyncing || _tone is null) return;
-
-        if (ToneList.SelectedItem is not AudioTonePreset preset) return;
-        if (!_tone.ApplyPreset(preset.Key)) return;
+        if (_tone is null || !_tone.ApplyPreset(key)) return;
 
         UpdateToneButton();
-        StatusChanged?.Invoke("音色：" + preset.Name);
-    }
-
-    /// <summary>把浮层里的选中项对齐当前预设（⛔ 触发 ApplyPreset，靠 <c>_toneSyncing</c> 挡）。</summary>
-    private void SyncToneSelection()
-    {
-        if (_tone is null) return;
-
-        _toneSyncing = true;
-        try
-        {
-            ToneList.ItemsSource = _tone.Presets;
-
-            ToneList.SelectedItem = null;
-            foreach (var preset in _tone.Presets)
-            {
-                if (preset.Key != _tone.CurrentPresetKey) continue;
-                ToneList.SelectedItem = preset;
-                break;
-            }
-        }
-        finally { _toneSyncing = false; }
+        StatusChanged?.Invoke("音色：" + ToneButton.Content);
     }
 
     private void UpdateToneButton()
@@ -735,22 +756,17 @@ public partial class AudioPlayer : UserControl
         if (_tone is null)
         {
             ToneButton.IsVisible = false;
-            TonePanel.IsVisible = false;
             return;
         }
 
         ToneButton.IsVisible = true;
 
-        var name = "关闭";
-        foreach (var preset in _tone.Presets)
-        {
-            if (preset.Key != _tone.CurrentPresetKey) continue;
-            name = preset.Name;
-            break;
-        }
+        var current = _tone.Presets.FirstOrDefault(p => p.Key == _tone.CurrentPresetKey);
+        var off = current is null || (_tone.Presets.Count > 0 && _tone.Presets[0].Key == current.Key);
 
-        ToneButton.Content = name;
-        ToolTip.SetTip(ToneButton, "音色：" + name + "（点击选择）");
+        // 直通态显示「音色」（键上写「关闭」看不出这是在选音色），其余显示当前预设名
+        ToneButton.Content = off ? "音色" : current!.Name;
+        ToolTip.SetTip(ToneButton, "音色：" + (current?.Name ?? "关闭") + "（点击选择）");
     }
 
     private void OnTrackSelected(object? sender, SelectionChangedEventArgs e)

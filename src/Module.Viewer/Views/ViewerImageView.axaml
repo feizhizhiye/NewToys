@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="using:NewToys.UI.Viewers"
+             xmlns:ui="using:NewToys.Viewer.Controls"
              x:Class="NewToys.Viewer.Views.ViewerImageView">
   <!--
     查看器页内容（文本阅读 / 图片查看 / 音乐播放三页**共用同一份 XAML**）：

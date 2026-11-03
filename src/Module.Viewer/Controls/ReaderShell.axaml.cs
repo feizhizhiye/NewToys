@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
@@ -10,13 +12,18 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 
-namespace NewToys.UI.Readers;
+namespace NewToys.Viewer.Controls;
 
 /// <summary>
 /// 文本阅读器壳：目录抽屉 + 章内滚动 + 书签触发 + 全书搜索 + 排版下发。
 /// <para>
-/// 🔴 输入是「整本书字符串 + 章节切片」，本控件⛔ 不读文件、⛔ 不写配置 ——
-/// 编码嗅探 / 章节规则 / 书签持久化全在宿主（<c>Module.Viewer</c>）。
+/// 🔴 两种装载方式二选一：
+/// ① <see cref="Load"/> = 整本书字符串 + 章节切片（单 txt / 压缩包内 txt）；
+/// ② <see cref="LoadIndex"/> = 「索引书」（<c>index.json + chapters/NNNN.txt</c>）——
+/// 章内容按需从文件读，⛔ 全量进内存（几千章会吃掉几百 MB）。
+/// </para>
+/// <para>
+/// 🔴 本控件⛔ 不联网、⛔ 不写配置 —— 编码嗅探 / 章节规则 / 书签持久化全在宿主（<c>Module.Viewer</c>）。
 /// </para>
 /// <para>
 /// 🔴 「章」是唯一的进度单位：切章只换正文，章内用滚动比例记位置；
@@ -36,6 +43,7 @@ public partial class ReaderShell : UserControl
 
     private string _book = "";
     private IReadOnlyList<ReaderChapter> _chapters = Array.Empty<ReaderChapter>();
+    private List<string>? _chapterFiles;   // 非 null = 索引书模式：与 _chapters 一一对应的章文件路径
     private int _index;
     private double _ratio;
     private bool _suppress;
@@ -101,9 +109,78 @@ public partial class ReaderShell : UserControl
 
         _book = text;
         _chapters = chapters;
+        _chapterFiles = null;
         TocList.ItemsSource = chapters;
         ShowChapter(position.ChapterIndex, position.Ratio);
         return true;
+    }
+
+    /// <summary>
+    /// 装载「索引书」（<c>index.json + chapters/NNNN.txt</c>）并续读；章内容按需读文件，失败返回 false 并给出原因。
+    /// </summary>
+    public bool LoadIndex(string indexPath, ReaderPosition position, out string error)
+    {
+        error = "";
+        IndexBookDto? dto;
+        try
+        {
+            dto = JsonSerializer.Deserialize<IndexBookDto>(File.ReadAllText(indexPath));
+        }
+        catch (Exception ex)
+        {
+            error = "书目索引读取失败：" + ex.Message;
+            return false;
+        }
+
+        if (dto?.Chapters is not { Count: > 0 })
+        {
+            error = "书目索引里没有章节。";
+            return false;
+        }
+
+        var dir = Path.GetDirectoryName(indexPath) ?? "";
+        var chapters = new List<ReaderChapter>();
+        var files = new List<string>();
+        foreach (var chapter in dto.Chapters)
+        {
+            chapters.Add(new ReaderChapter
+            {
+                Title = string.IsNullOrWhiteSpace(chapter.Title) ? $"第 {chapters.Count + 1} 章" : chapter.Title,
+            });
+            files.Add(Path.Combine(dir, "chapters", chapter.File ?? ""));
+        }
+
+        _chapterFiles = files;
+        _chapters = chapters;
+        TocList.ItemsSource = chapters;
+        ShowChapter(position.ChapterIndex, position.Ratio);
+        return true;
+    }
+
+    /// <summary>是否索引书模式（章内容按需读文件）。</summary>
+    public bool IsIndexed => _chapterFiles is not null;
+
+    /// <summary>索引书模式下读一章的正文；文件缺失 / 读取失败给占位说明（⛔ 联网补抓）。</summary>
+    private string LoadIndexedChapter(int index)
+    {
+        try
+        {
+            var path = _chapterFiles![index];
+            if (path.Length > 0 && File.Exists(path)) return File.ReadAllText(path);
+        }
+        catch { /* 坏章给占位 */ }
+
+        return "（本章尚未缓存 —— 回「网络阅读」页翻到这一章，或整本下载后再来看。）";
+    }
+
+    /// <summary>当前章正文在 <see cref="_book"/> 里的切片（单文本模式按章节偏移，索引书模式整章即正文）。</summary>
+    private (int Start, int End) BodySlice(ReaderChapter chapter)
+    {
+        if (_chapterFiles is not null) return (0, _book.Length);
+
+        var bodyStart = Math.Clamp(chapter.BodyStart, 0, _book.Length);
+        var bodyEnd = Math.Clamp(chapter.Start + chapter.Length, bodyStart, _book.Length);
+        return (bodyStart, bodyEnd);
     }
 
     /// <summary>跳转到指定章（<paramref name="ratio"/> = 章内比例）。</summary>
@@ -115,6 +192,8 @@ public partial class ReaderShell : UserControl
         _ratio = Math.Clamp(ratio, 0, 1);
         _highlightStart = -1;
         _highlightLength = 0;
+
+        if (_chapterFiles is not null) _book = LoadIndexedChapter(_index);
 
         RenderBody();
         ChapterTitle.Text = _chapters[_index].Title;
@@ -212,8 +291,7 @@ public partial class ReaderShell : UserControl
     private void RenderBody()
     {
         var chapter = _chapters[_index];
-        var bodyStart = Math.Clamp(chapter.BodyStart, 0, _book.Length);
-        var bodyEnd = Math.Clamp(chapter.Start + chapter.Length, bodyStart, _book.Length);
+        var (bodyStart, bodyEnd) = BodySlice(chapter);
         var raw = _book.Substring(bodyStart, bodyEnd - bodyStart);
 
         var lines = raw.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
@@ -365,8 +443,7 @@ public partial class ReaderShell : UserControl
     public ReaderBookmark CreateBookmarkCore()
     {
         var chapter = _chapters[_index];
-        var bodyStart = Math.Clamp(chapter.BodyStart, 0, _book.Length);
-        var bodyEnd = Math.Clamp(chapter.Start + chapter.Length, bodyStart, _book.Length);
+        var (bodyStart, bodyEnd) = BodySlice(chapter);
         var bodyLength = Math.Max(1, bodyEnd - bodyStart);
         var at = Math.Clamp(bodyStart + (int)(bodyLength * _ratio), bodyStart, Math.Max(bodyStart, bodyEnd - 1));
         var take = Math.Min(60, Math.Max(0, bodyEnd - at));
@@ -421,22 +498,52 @@ public partial class ReaderShell : UserControl
         }
 
         var hits = new List<ReaderSearchHit>();
-        var from = 0;
-        while (hits.Count < 500)
+
+        if (_chapterFiles is not null)
         {
-            var at = _book.IndexOf(key, from, StringComparison.OrdinalIgnoreCase);
-            if (at < 0) break;
-
-            var chapterIndex = FindChapterIndex(at);
-            hits.Add(new ReaderSearchHit
+            // 索引书：逐章读文件搜（正文不在内存），命中位置 = 章内偏移
+            for (var i = 0; i < _chapterFiles.Count && hits.Count < 500; i++)
             {
-                ChapterIndex = chapterIndex,
-                ChapterTitle = chapterIndex >= 0 ? _chapters[chapterIndex].Title : "（卷首）",
-                Position = at,
-                Snippet = BuildSnippet(at, key.Length),
-            });
+                string text;
+                try { text = File.Exists(_chapterFiles[i]) ? File.ReadAllText(_chapterFiles[i]) : ""; }
+                catch { continue; }
 
-            from = at + Math.Max(1, key.Length);
+                var from = 0;
+                while (hits.Count < 500)
+                {
+                    var at = text.IndexOf(key, from, StringComparison.OrdinalIgnoreCase);
+                    if (at < 0) break;
+
+                    hits.Add(new ReaderSearchHit
+                    {
+                        ChapterIndex = i,
+                        ChapterTitle = _chapters[i].Title,
+                        Position = at,
+                        Snippet = BuildSnippet(text, at, key.Length),
+                    });
+                    from = at + Math.Max(1, key.Length);
+                }
+            }
+        }
+        else
+        {
+            var from = 0;
+            while (hits.Count < 500)
+            {
+                var at = _book.IndexOf(key, from, StringComparison.OrdinalIgnoreCase);
+                if (at < 0) break;
+
+                var chapterIndex = FindChapterIndex(at);
+                hits.Add(new ReaderSearchHit
+                {
+                    ChapterIndex = chapterIndex,
+                    ChapterTitle = chapterIndex >= 0 ? _chapters[chapterIndex].Title : "（卷首）",
+                    Position = at,
+                    Snippet = BuildSnippet(_book, at, key.Length),
+                });
+
+                from = at + Math.Max(1, key.Length);
+            }
         }
 
         SearchList.ItemsSource = hits;
@@ -455,11 +562,11 @@ public partial class ReaderShell : UserControl
         }
     }
 
-    private string BuildSnippet(int at, int length)
+    private string BuildSnippet(string source, int at, int length)
     {
         var start = Math.Max(0, at - 18);
-        var end = Math.Min(_book.Length, at + length + 26);
-        var text = _book.Substring(start, end - start).Replace("\r", "").Replace("\n", " ").Trim();
+        var end = Math.Min(source.Length, at + length + 26);
+        var text = source.Substring(start, end - start).Replace("\r", "").Replace("\n", " ").Trim();
         return "…" + text + "…";
     }
 
@@ -501,14 +608,17 @@ public partial class ReaderShell : UserControl
         _highlightTotal = total;
         _highlightOrdinal = ordinal;
 
+        if (_chapterFiles is not null) _book = LoadIndexedChapter(_index);
+
         RenderBody();
         ChapterTitle.Text = _chapters[_index].Title;
         SyncTocSelection();
 
         // 命中在章内的相对位置 → 近似滚动（无法直接量到像素）
         var chapter = _chapters[_index];
-        var length = Math.Max(1, chapter.Length);
-        var relative = Math.Clamp((hit.Position - chapter.Start) / (double)length, 0, 1);
+        var length = Math.Max(1, _chapterFiles is not null ? _book.Length : chapter.Length);
+        var basePos = _chapterFiles is not null ? 0 : chapter.Start;
+        var relative = Math.Clamp((hit.Position - basePos) / (double)length, 0, 1);
         Dispatcher.UIThread.Post(() => ApplyScroll(relative), DispatcherPriority.Loaded);
         RaisePosition(true);
 
@@ -679,5 +789,24 @@ public partial class ReaderShell : UserControl
         var max = Math.Max(0, Scroller.Extent.Height - Scroller.Viewport.Height);
         Scroller.Offset = new Vector(Scroller.Offset.X,
             Math.Clamp(Scroller.Offset.Y + direction * step, 0, max));
+    }
+
+    // ==================== 索引书 DTO ====================
+
+    private sealed class IndexBookDto
+    {
+        public string BookId { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string Author { get; set; } = "";
+        public string SourceUrl { get; set; } = "";
+        public List<IndexChapterDto> Chapters { get; set; } = new();
+    }
+
+    private sealed class IndexChapterDto
+    {
+        public int Index { get; set; }
+        public string Title { get; set; } = "";
+        public string Url { get; set; } = "";
+        public string File { get; set; } = "";
     }
 }

@@ -7,8 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
-using NewToys.UI.Readers;
-using NewToys.UI.Viewers;
+using NewToys.Viewer.Controls;
 using NewToys.Viewer.Services;
 
 namespace NewToys.Viewer.ViewModels;
@@ -16,7 +15,7 @@ namespace NewToys.Viewer.ViewModels;
 /// <summary>
 /// 查看器页 VM：只管「打开哪个文件 / 最近打开 / 排版参数 / 状态文案」。
 /// <para>
-/// 🔴 真正的装载与渲染在 <c>NewToys.UI.Viewers.ViewerHost</c>（View 持有它），VM 通过
+/// 🔴 真正的装载与渲染在 <c>NewToys.Viewer.Controls.ViewerHost</c>（View 持有它），VM 通过
 /// <see cref="OpenRequested"/> 请求 View 打开 —— VM ⛔ 不 new 控件、⛔ 不碰 StorageProvider，
 /// 与项目既有约定一致（选择器 / 控件操作归 View）。
 /// </para>
@@ -45,6 +44,8 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     /// <summary>「媒体资产 → 看这批图」投递过来、但 View 还没挂上树的图片（挂树后按这批图翻页）。</summary>
     private readonly List<string> _pendingImageSet = new();
+
+    private readonly List<string> _pendingReaderBooks = new();
     private bool _attached;
 
     [ObservableProperty] private string _statusText = "";
@@ -169,6 +170,14 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 OnImageSetPosted(payload);
             _bus?.Subscribe(ModuleTopics.ImageOpen, this, OnImageSetPosted);
         }
+
+        // 「网络阅读 → 在查看器中打开」：载荷 = 索引书 index.json 路径，只进文本页。
+        if (Scope is ViewerScope.Text or ViewerScope.All)
+        {
+            foreach (var payload in _bus?.TakeAll(ModuleTopics.ReaderOpenBook) ?? Array.Empty<object?>())
+                OnReaderBookPosted(payload);
+            _bus?.Subscribe(ModuleTopics.ReaderOpenBook, this, OnReaderBookPosted);
+        }
     }
 
     /// <summary>「媒体资产 → 看这批图」投递到达：View 已就绪就立刻打开，否则先攒着等挂树。</summary>
@@ -215,6 +224,25 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         return paths;
     }
 
+    /// <summary>「网络阅读 → 在查看器中打开」投递到达：View 已就绪就立刻开，否则先攒着等挂树。</summary>
+    private void OnReaderBookPosted(object? payload)
+    {
+        if (payload is not string path || string.IsNullOrWhiteSpace(path)) return;
+
+        if (_attached) ReaderBookRequested?.Invoke(this, path);
+        else _pendingReaderBooks.Add(path);
+    }
+
+    /// <summary>取走还没打开的投递索引书（本页创建时投递先到）。</summary>
+    public string? TakePendingReaderBook()
+    {
+        if (_pendingReaderBooks.Count == 0) return null;
+
+        var path = _pendingReaderBooks[0];
+        _pendingReaderBooks.RemoveAt(0);
+        return path;
+    }
+
     /// <summary>请求 View 打开文件；参数 <c>null</c> = 由 View 弹选择器。</summary>
     public event EventHandler<IReadOnlyList<string>?>? OpenRequested;
 
@@ -242,6 +270,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     /// <summary>「媒体资产 → 看这批图」要求打开一批图片（参数 = 按顺序排好的绝对路径，首张先显示）。</summary>
     public event EventHandler<IReadOnlyList<string>>? ImageSetRequested;
+
+    /// <summary>「网络阅读 → 在查看器中打开」要求装载一本索引书（参数 = index.json 绝对路径）。</summary>
+    public event EventHandler<string>? ReaderBookRequested;
 
     /// <summary>打开章节规则浮层。</summary>
     public event EventHandler? RulesEditRequested;

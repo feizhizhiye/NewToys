@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 
-namespace NewToys.UI.Viewers;
+namespace NewToys.Viewer.Controls;
 
 /// <summary>播放列表里的一首（标签由宿主读出来，控件只负责显示）。</summary>
 public sealed class AudioTrackItem

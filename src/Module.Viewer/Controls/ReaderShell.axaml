@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="NewToys.UI.Readers.ReaderShell">
+             x:Class="NewToys.Viewer.Controls.ReaderShell">
   <!--
     文本阅读器壳（本地 txt / md / log）：目录 + 正文 + 书签 + 全书搜索 + 排版。
     🔴 只吃「整本书字符串 + 章节切片」，⛔ 不读文件、⛔ 不写配置（编码 / 章节规则 / 书签持久化都在宿主）。

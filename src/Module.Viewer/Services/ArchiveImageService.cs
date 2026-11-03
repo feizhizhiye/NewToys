@@ -90,7 +90,7 @@ public sealed class ArchiveImageSession : IDisposable
         try
         {
             using var stream = File.OpenRead(_path);
-            using var reader = ReaderFactory.OpenReader(stream);
+            using var reader = ReaderFactory.Open(stream);
 
             while (reader.MoveToNextEntry())
             {
@@ -222,7 +222,7 @@ public sealed class ArchiveImageService
         try
         {
             using var stream = File.OpenRead(path);
-            using var reader = ReaderFactory.OpenReader(stream);
+            using var reader = ReaderFactory.Open(stream);
 
             var entries = new List<ArchiveImageEntry>();
             while (reader.MoveToNextEntry())

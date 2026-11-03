@@ -17,7 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="../Shared/Shared.csproj" />
     <ProjectReference Include="../Core/Core.csproj" />
-    <!--  渲染器（ViewerHost / TextViewer / ImageViewer）来自 NewToys.UI，模块禁互引  -->
+    <!--  通用控件与主题资源（渲染器主体已在本模块 Controls/，只剩 TextViewer 还在 UI 库）  -->
     <ProjectReference Include="../UI/NewToys.UI.csproj" />
   </ItemGroup>
 </Project>

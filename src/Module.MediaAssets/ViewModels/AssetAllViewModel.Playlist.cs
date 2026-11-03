@@ -21,7 +21,7 @@ namespace NewToys.MediaAssets.ViewModels;
 public partial class AssetAllViewModel
 {
     /// <summary>
-    /// 可播音频扩展名 —— 🔴 与 <c>NewToys.UI.Viewers.ViewerHost</c> 的音频扩展名集合**必须一致**：
+    /// 可播音频扩展名 —— 🔴 与 <c>NewToys.Viewer.Controls.ViewerHost</c> 的音频扩展名集合**必须一致**：
     /// 这里放行的文件到了查看器被判成「不认识」，就会静默少歌。
     /// </summary>
     private static readonly HashSet<string> PlayableAudioExtensions = new(StringComparer.OrdinalIgnoreCase)

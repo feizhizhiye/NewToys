@@ -5,9 +5,9 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using NewToys.Shared.Services;
-using NewToys.UI.Readers;
+using NewToys.UI.Viewers;   // 临时：TextViewer 尚未下沉（批 3 后删除）
 
-namespace NewToys.UI.Viewers;
+namespace NewToys.Viewer.Controls;
 
 /// <summary>渲染器类型。</summary>
 public enum ViewerKind
@@ -118,6 +118,14 @@ public partial class ViewerHost : UserControl
         return ext is ".zip" or ".rar" or ".7z" or ".cbz" or ".cbr";
     }
 
+    /// <summary>是否「索引书」目录文件（reading 模块落盘的 index.json，同目录须有 chapters/）。</summary>
+    public static bool IsReaderIndex(string path)
+    {
+        if (!string.Equals(Path.GetFileName(path), "index.json", StringComparison.OrdinalIgnoreCase)) return false;
+        var dir = Path.GetDirectoryName(path ?? "");
+        return dir is not null && Directory.Exists(Path.Combine(dir, "chapters"));
+    }
+
     /// <summary>
     /// 打开文件（短文本 / 图片 / 音频）。长文本请走 <see cref="OpenReader"/>。
     /// <para><paramref name="progress"/> = 上次读到哪（0~1）；<paramref name="audioBackend"/> 为音频播放后端工厂。</para>
@@ -209,6 +217,24 @@ public partial class ViewerHost : UserControl
         ContentHost.Content = shell;
         EmptyPanel.IsVisible = false;
         Opened?.Invoke(this, path);
+        return true;
+    }
+
+    /// <summary>打开「索引书」（index.json + chapters/NNNN.txt；章内容按需读文件）+ 续读位置。</summary>
+    public bool OpenReaderIndex(string indexPath, ViewerReaderState state, out string error)
+    {
+        Release();
+
+        var shell = new ReaderShell();
+        if (!shell.LoadIndex(indexPath, new ReaderPosition(state.ChapterIndex, state.Ratio), out error))
+            return false;
+
+        _current = shell;
+        Kind = ViewerKind.Reader;
+        CurrentPath = indexPath;
+        ContentHost.Content = shell;
+        EmptyPanel.IsVisible = false;
+        Opened?.Invoke(this, indexPath);
         return true;
     }
 

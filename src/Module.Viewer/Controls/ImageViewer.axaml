@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="NewToys.UI.Viewers.ImageViewer">
+             x:Class="NewToys.Viewer.Controls.ImageViewer">
   <!--
     图片渲染器（只读）：滚轮滚动 / Ctrl+滚轮缩放 / 按住左键拖拽平移 / 双击在「1:1」与「适应窗口」间切换 / 右键菜单。
     🔴 缩放靠直接改写 Image.Width/Height（而不是 RenderTransform）—— 只有前者会让 ScrollViewer 的

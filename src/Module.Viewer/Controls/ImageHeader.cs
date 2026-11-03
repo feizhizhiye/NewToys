@@ -2,7 +2,7 @@ using System;
 using System.Buffers.Binary;
 using System.IO;
 
-namespace NewToys.UI.Viewers;
+namespace NewToys.Viewer.Controls;
 
 /// <summary>
 /// 图片头部尺寸探测：只读文件头拿原始像素尺寸，**不解码像素**。

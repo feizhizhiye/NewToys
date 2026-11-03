@@ -173,10 +173,10 @@ Module.*（功能模块，只引 Shared + Core）
 | 组件 | 版本 |
 |---|---|
 | .NET | net10.0 |
-| Avalonia | 12.1.4 |
+| Avalonia | 12.1.5 |
 | CommunityToolkit.Mvvm | 8.4.2 |
-| Microsoft.Extensions.DependencyInjection | 9.0.0 |
-| Microsoft.Data.Sqlite | 9.0.0 |
+| Microsoft.Extensions.DependencyInjection | 10.0.14 |
+| Microsoft.Data.Sqlite | 10.0.14 |
 
 - **禁止引入任何第三方 UI 组件库**（Material / Suki / FluentAvalonia / Semi 等）。
 - **禁止引入第三方图标字体 / 图标包**；图标以 Avalonia 内置 `Geometry` 路径数据为**最终方案**（只可手工摘取公开图标集如 Lucide / Feather 的路径数据）。
@@ -1695,8 +1695,9 @@ Module.*（功能模块，只引 Shared + Core）
 
 | 层 | 落点 | 职责 |
 |---|---|---|
-| 渲染器 | **`NewToys.UI/Viewers/`** | 文本分页 / 图片缩放 / 音视频播放 —— 供**所有模块**复用 |
-| 外壳 | `NewToys.UI/Viewers/ViewerHost` | 统一工具条 / 内容区 / 全屏 / 快捷键 / 记忆位置 |
+| 渲染器 | **`Module.Viewer/Controls/`** | 文本分页 / 图片缩放 / 音频播放 / 长文阅读 —— 模块私有（2026-11-04 由 UI 库下沉） |
+| 外壳 | `Module.Viewer/Controls/ViewerHost` | 内容区 / 空态 / 类型分派（工具条在宿主页面） |
+| 遗留 | `NewToys.UI/Viewers/TextViewer` | 阅读模块正文预览暂用，批 3 随职责重划下沉 |
 | 入口 | **`Module.Viewer`（薄壳）** | 打开文件或 URL → 按类型分发渲染器 → 最近打开 |
 
 - ⛔ **不做「媒体中心」**：图库管理归 `Module.MediaAssets`、转码归 `Module.VideoTools`、书源抓取归脚本管理器。查看器只负责「打开并显示」。
@@ -1802,7 +1803,7 @@ Module.*（功能模块，只引 Shared + Core）
 | 落点 | 性质 |
 |---|---|
 | `Shared/Services/`（新增 `IAudioSpectrum`，实施时建文件） | 🔴 **框架层**（新增契约文件，⛔ 不改 `IAudioPlayback`） |
-| `UI/Viewers/AudioPlayer`（频谱自绘 + 快照 / 恢复 + 静态歌词模式） | 🔴 **框架层**（UI 库） |
+| `Module.Viewer/Controls/AudioPlayer`（频谱自绘 + 快照 / 恢复 + 静态歌词模式） | 模块内（2026-11-04 已由 UI 库下沉） |
 | `Module.Viewer/Services/NAudioPlayback`（PCM 旁路 + FFT）、`AudioLibraryService`（封面四级 + 歌词编码回退）、`ViewerSettingsService`（续播字段）、`ViewerPageBase`（关闭停播） | 模块内 |
 
 ### 6.10 网络阅读（`Module.Reading` · 立项 NT-125）
@@ -1845,7 +1846,7 @@ Module.*（功能模块，只引 Shared + Core）
 | 规则写法 | 规则条数 | 涉及源 | 首版 |
 |---|---|---|---|
 | 默认简化语法（`class.x@tag.a@text`） | 9768 | 383 | ✅ **必做，主体** |
-| `@js:` / `<js>` | 396 | 198 | ✅ 批2（NT-126，Jint 3.x + `java.*` 桥） |
+| `@js:` / `<js>` | 396 | 198 | ✅ 批2（NT-126，Jint 3.x + `java.*` 桥；2026-11-03 升 Jint 4.17，源码级兼容） |
 | `@json:` | 97 | 13 | ✅ 首版 |
 | `@css:` | 22 | 6 | ✅ 首版 |
 | `@XPath:` | **0** | **0** | ⛔ 不做（但要能识别并**只废该字段**，⛔ 不崩整条源） |

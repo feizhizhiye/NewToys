@@ -63,14 +63,15 @@
 | **阅读器：搜索** | 顶栏「搜索」或 Ctrl+F | 全书搜索（≤500 条），点结果跳章并加粗定位 | 面板底部显示「第 N / M 处（本章）」 |
 | **阅读器：排版** | 顶栏「排版」 | 字号 12~34 / 行距 1.2~2.6 / 边距 0~160 / 首行缩进 / 段间距 / 4 档配色 | 改完立即生效并写 `viewer.json` |
 | **章节规则** | 工具条「⚙ 章节规则」 | 右侧浮层：自定义正则列表 + 增删 + **试跑** | 自定义规则排在内置规则之前；试跑只读不落盘；保存后**下次打开**生效 |
+| **阅读器：索引书** | 「网络阅读 → 📖 在查看器中打开」（`ModuleTopics.ReaderOpenBook`），或历史 / 拖入落盘的 `index.json` | 装载 `index.json + chapters/NNNN.txt`（`store/reading/books/<bookId>/`）：目录 / 书签 / 进度 / 排版照常，章正文**按需读文件**；全书搜索逐章读文件（命中位置 = 章内偏移） | 🔴 ⛔ 全量章进内存（几千章会吃几百 MB）；**翻章不联网**，未缓存的章显示占位（回阅读页翻到即补）；进度 / 书签按 `index.json` 路径记，重启续读 |
 | **图片翻页** | 点顶部条目条 / 工具条「←」「→」/ ←→ | 换成同一批里的那张图 | 工具条只放箭头图标（`←` `→`，⛔ 不用播放键那种实心三角，⛔ 不带文字，说明靠悬停提示）；来源三种：**同目录图片**（按文件名排序，自动带出）、**压缩包内图片**、**外部投递的一批图**（`ModuleTopics.ImageOpen` ← 媒体资产「标签详情卡 → 🖼 图片」：翻页集**就是**这批图，⛔ 不再扫同目录混进没被选中的图）；序号显示「第 N / M 张」（分屏时「第 a–b / M 张」）；只有 1 张时⛔ 不显示条带 |
 | **大压缩包** | 打开 `.zip` / `.cbz` | 状态栏先报「正在读取压缩包…」，读到后列出条目并显示第一张 | zip 家族只读**中央目录**（不解压任何数据）；rar / 7z 无等价 API，仍按条目顺序扫 |
 | 音乐播放 | 打开音乐 / 拖入多首 / 拖入 m3u·m3u8 | 自动播第一首；底部条控制 | 🔴 **打开单首时会先问一句「把同一文件夹里另外 N 首也加进播放列表？」**（`DialogHooks.ConfirmAsync`，同目录音频按文件名排序并入，当前曲目定为起始项；选取消就只放这一首；⛔ 拖入多首 / 走「媒体资产 → ▶ 播放」/ m3u 这条路不问）；🔴 **切走页面 ⛔ 不停播**（`AudioPlayer` 卸载时只停轮询表、不 Stop），切回来界面照旧刷新、播完照常续播；列表重建与「续播」互不打架：`RestoreAudioPlaylist` 见到 `Host.Audio` 有待播内容且后端非 `Stopped` 就直接返回，⛔ 不重建列表；真正换文件（`Open` 打开非音频）前才 `Host.Audio.Stop()`；播放列表文件先展开成音频列表，路径失效的条目跳过；**关闭标签页即停播**（`ViewerViewModel.Dispose` → 先存续播快照再 `Stop`；文本 / 图片页的 VM 被关掉时⛔ 不掐音乐），重开音频页回到同一首 + 同一位置 + 同一模式与音量（**暂停态**，⛔ 自动播） |
-| 播放器界面 | — | 顶栏「曲名 / 艺术家·专辑 / 技术信息」+ 左侧大封面（260×260）+ 右侧**居中歌词**（当前行加粗高亮，走到中线后跟随滚动）+ 底部控制条（上一首 / 播放 / 下一首 / 进度 / 时间 / 模式 / 音色 / 音量）；**播放列表 = 右侧悬浮层**（工具条「☰ 列表」开合，默认收起，点条目切歌，层内 ✕ 收起，每行右侧显示该曲**时长**）；**音色 = 同一位置的悬浮层**（与播放列表互斥） | 底栏按钮 **22px**（`Padding="10,0"`，⛔ 再撑高）；按钮**一律纯图标**（`◄◄` `►`/`❚❚` `►►`）并显式 `Horizontal/VerticalContentAlignment=Center`，含义进 `ToolTip` + `AutomationProperties.Name`；🔴 **图标只用非 emoji 码位** —— `⏮ ⏭ ▶ ⏸ 🔁` 会被 Segoe UI Emoji 接管渲染成彩色方块（与主题冲突）；🔴 **两个 Slider ⛔ 设 Height / MinHeight**（模板被压扁 ⇒ 轨道与按钮错位，见 `ui.md` §9-15），只写 `VerticalAlignment=Center`；进度/时长文字 `VerticalAlignment=Center`；技术信息 = `格式 · 采样率 · 码率 · 声道`（TagLibSharp 读 `TagLib.Properties`，读不到只留扩展名）；歌词行字号 14 / 译文 12，居中排版；封面下方 **260×48 分频柱**（32 段竖条，对数分频 60 Hz~16 kHz，33 ms 刷新）：只在播放时出现，暂停 / 停止 / 后端不支持频谱即整块收起（⛔ 留空框）；封面取不到时显示音符占位（⛔ 空白边框） |
-| 播放列表 | 工具条「☰ 列表」（仅音频页可用） | 右侧悬浮层：曲名·艺术家 + 右侧时长（`mm:ss`，超 1 小时 `h:mm:ss`，未知留空） | 行模板是两列 Grid（`*,Auto`）；开关按钮在**工具条**而不是播放器顶栏（顶栏只留曲目信息）；打开时自动收起音色浮层 |
+| 播放器界面 | — | 顶栏「曲名 / 艺术家·专辑 / 技术信息」+ 左侧大封面（260×260）+ 右侧**居中歌词**（当前行加粗高亮，走到中线后跟随滚动）+ 底部控制条（上一首 / 播放 / 下一首 / 进度 / 时间 / 模式 / 音色 / 音量）；**播放列表 = 右侧悬浮层**（工具条「☰ 列表」开合，默认收起，点条目切歌，层内 ✕ 收起，每行右侧显示该曲**时长**）；**音色 = 底部音色键弹出的菜单**（点键即展开，点外即收） | 底栏按钮 **22px**（`Padding="10,0"`，⛔ 再撑高）；按钮**一律纯图标**（`◄◄` `►`/`❚❚` `►►`）并显式 `Horizontal/VerticalContentAlignment=Center`，含义进 `ToolTip` + `AutomationProperties.Name`；🔴 **图标只用非 emoji 码位** —— `⏮ ⏭ ▶ ⏸ 🔁` 会被 Segoe UI Emoji 接管渲染成彩色方块（与主题冲突）；🔴 **两个 Slider ⛔ 设 Height / MinHeight**（模板被压扁 ⇒ 轨道与按钮错位，见 `ui.md` §9-15），只写 `VerticalAlignment=Center`；进度/时长文字 `VerticalAlignment=Center`；技术信息 = `格式 · 采样率 · 码率 · 声道`（TagLibSharp 读 `TagLib.Properties`，读不到只留扩展名）；歌词行字号 14 / 译文 12，居中排版；封面下方 **260×48 分频柱**（32 段竖条，对数分频 60 Hz~16 kHz，33 ms 刷新）：只在播放时出现，暂停 / 停止 / 后端不支持频谱即整块收起（⛔ 留空框）；封面取不到时显示音符占位（⛔ 空白边框） |
+| 播放列表 | 工具条「☰ 列表」（仅音频页可用） | 右侧悬浮层：曲名·艺术家 + 右侧时长（`mm:ss`，超 1 小时 `h:mm:ss`，未知留空） | 行模板是两列 Grid（`*,Auto`）；开关按钮在**工具条**而不是播放器顶栏（顶栏只留曲目信息）；音色是底部键弹出的菜单，与列表互不干扰（点菜单外即收） |
 | 音量 / 静音 | 点底部「音量」键 | 一下静音（音量滑到 0），再一下回到**静音前**的音量 | 静音态键面变「静音」、提示变「恢复上次音量」；拖滑杆离开 0 即视为取消静音 |
-| 音色 | 点底部音色键 | 右侧浮层列出 5 档（关闭 / 低音增强 / 流行 / 人声 / 古典），点一项立即生效，当前项为选中态 | 能力 != 契约：后端实现 `IAudioTone` 才出现该键（`NullAudioPlayback` 不实现 ⇒ 自动隐藏）；播放中即时生效（滤波系数整体替换），⛔ 需重开文件；曲线 = 级联 biquad（RBJ：LowShelf / Peaking / HighShelf），⛔ 依赖 `NAudio.Dsp` |
-| 歌词滚动 | 随播放自动 | **当前行落在视口垂直中线**，行与行之间按播放时间线性插值滚动（40 ms 一帧） | 🔴 偏移夹在 `≥0`：开头几行没排满一屏时列表不动，高亮行从上往下逐行走，走到中线后列表才开始滚；⛔ 用 `BringIntoView()`（一到行首就跳居中，顿挫得像卡死）；暂停 / 停止即停表 |
+| 音色 | 点底部音色键 | 键下方弹出菜单，列出 5 档（关闭 / 低音增强 / 流行 / 人声 / 古典），点一项立即生效并收起菜单，当前项带单选勾 | 每次展开重建菜单项（以 `IAudioTone.CurrentPresetKey` 为准，⛔ 缓存项防漂移）；键面写**当前预设名**，直通态写「音色」（写「关闭」看不出这键在选音色）；能力 != 契约：后端实现 `IAudioTone` 才出现该键（`NullAudioPlayback` 不实现 ⇒ 自动隐藏）；播放中即时生效（滤波系数整体替换），⛔ 需重开文件；曲线 = 级联 biquad（RBJ：LowShelf / Peaking / HighShelf），⛔ 依赖 `NAudio.Dsp` |
+| 歌词滚动 | 随播放自动；滚轮 / 拖滚动条可手动查看 | **当前行落在视口垂直中线**，行与行之间按播放时间线性插值滚动（40 ms 一帧） | 🔴 偏移夹在 `≥0`：开头几行没排满一屏时列表不动，高亮行从上往下逐行走，走到中线后列表才开始滚；⛔ 用 `BringIntoView()`（一到行首就跳居中，顿挫得像卡死）；暂停 / 停止即停表；**手动查看**：滚轮或在滚动条上按下即暂停跟随，停手 **3 秒**（`_lyricResumeTimer`）自动拉回当前行；只在命中 `ScrollBar` 时算手动（点歌词正文不算），换曲 / 切页即恢复跟随；贴边滚动条**不留白缝**（Shell 的 `WM_NCHITTEST` 钩子让控件优先，见 `ui.md` §9-16） |
 | 音频模式 | 底部模式键（图标循环切换） | 播完按模式决定下一首 | 「顺序」到末尾停止并提示；键面 = `↓` 顺序 / `↻1` 单曲 / `⇄` 随机（三个都是非 emoji 码位），当前模式进 `ToolTip` 与状态栏 |
 | 歌词 | ① 同名 `.lrc`（+ 译文）② 内嵌标签 `Tag.Lyrics` ③「标题 - 艺术家.lrc」/「艺术家 - 标题.lrc」 | ①③ 带时间轴 ⇒ 当前行高亮 + 自动滚动；② 无时间轴 ⇒ **静态整段**平铺（⛔ 不高亮不滚动）；都没有 ⇒ 歌词区显示「这首歌没有歌词」 | 🔴 **编码回退**：BOM → UTF-8（严格）→ **GB18030**（中文老 LRC 多为 GBK，按 UTF-8 直读会花屏）→ Latin1；⛔ 联网下载歌词，⛔ 逐字卡拉 OK |
 | 封面 | ① 内嵌标签图（优先 `FrontCover`）② 同目录同名图 → ②b **宽松同名**（词集合互相包含，命中歌名末词优先）→ `cover` / `folder` / `front` / `album` 等固定名 ③ 上一级目录（分碟 `CD1/` 场景）④ 占位音符块 | 全部读不到时显示占位（⛔ 空白边框） | 🔴 只读、⛔ 联网、⛔ 写回文件（在线补封面归媒体资产的标签服务）；同目录图片**按目录缓存一次**；宽松匹配把文件名切成词（去括号内容 / 轨道号 / 分隔符）再比，`周杰伦 - 稻香.mp3` ⇄ `稻香.jpg` 能配上，⛔ 单字符词（至少 2 字符）防乱配 |
@@ -88,12 +89,12 @@ ViewerPageBase（Module.Viewer/Views，文本 / 图片 / 音频三页共用）
   ├─ ViewerTextView / ViewerImageView / ViewerAudioView：只 `InitializeComponent()` + `InitPage()`
   ├─ 工具条 / 状态栏        → VM 实现 IToolbarSource / IStatusProvider
   ├─ 文件选择 / 拖放 / 键盘  → 基类 code-behind（VM ⛔ 不碰 StorageProvider）
-  └─ 持有 ViewerHost ──────→ NewToys.UI.Viewers
+  └─ 持有 ViewerHost ──────→ Module.Viewer/Controls（命名空间 NewToys.Viewer.Controls）
                                ├─ KindOf(path) 扩展名分派
-                               ├─ TextViewer（短文本）
+                               ├─ TextViewer（短文本；暂留 NewToys.UI/Viewers，批 3 下沉）
                                ├─ ImageViewer（图片 / 压缩包内图片，支持流加载；自带右键菜单 + 信息浮层）
                                ├─ AudioPlayer（播放列表 + 控制条 + 歌词）
-                               └─ ReaderShell（长文本，来自 NewToys.UI.Readers）
+                               └─ ReaderShell（长文本，同命名空间）
 TxtBookService        编码嗅探 + 章节切分 + 规则试跑
 ArchiveImageService   打开压缩包会话（zip 走 ZipArchive 中央目录，rar/7z 走 SharpCompress），条目读进内存流
 AudioLibraryService   TagLib 读标签 / 封面 / 同名 lrc
@@ -137,9 +138,10 @@ ViewerSettingsService config\viewer.json 唯一写入点
 - 🔴 **三页 XAML 必须是同一份内容**：`ViewerPageBase` 按 `x:Name`（`Host` / `RecentList` / `ArchiveList` / `SectionBox` / `SplitGrid` / `HistoryPanel` / `RulePanel` / `RuleList` / `RuleNameBox` / `RulePatternBox` / `SampleBox` / `TestResult`）取控件；少一个就抛「ViewerPage 的 XAML 缺少名为 X 的控件」。改一页必须同步另两页。
 - 🔴 **XAML 里引用的事件处理必须是 `protected`**：处理器写在基类，XAML 编译生成的调用落在子类 partial 里，`private` 编译不过（`OnAddRule` / `OnRemoveRule` / `OnCloseRules` / `OnTestRules` / `OnArchiveSelected` / `OnSectionSelected` / `OnRecentSelected`）。
 - 🔴 **条目条里的 `ComboBox` 必须显式 `Height="22" MinHeight="0"`**：隐式样式 `MinHeight=28` 会把 22px 的条撑高，条带跟着变胖。
-- 🔴 **`ViewerHost` 不能放在 `Module.Viewer` 里**：媒体资产详情卡要「用查看器打开」时会跨模块，模块禁互引 ⇒ 必须落 `NewToys.UI`。
+- ~~🔴 `ViewerHost` 不能放在 `Module.Viewer` 里~~ **已作废（2026-11-04）**：当时担心媒体资产详情卡跨模块复用，实测 `Module.MediaAssets` 无代码引用（只靠 `IModuleBus` 发主题）⇒ 渲染器族已整体下沉到 `Module.Viewer/Controls/`。**只有 `TextViewer` 暂留 `NewToys.UI/Viewers`**（`Module.Reading/Views/ReaderView.axaml` 还在用），批 3 阅读职责重划后一并下沉。
 - 🔴 **降采样解码必须先探测原始尺寸**：`Bitmap.DecodeToWidth/Height(stream, n)` 是解码期缩放（省内存的唯一手段），但**目标尺寸大于原图时会放大** ⇒ 小图反而多吃内存。所以先走 `ImageHeader.TryReadSize`（只读文件头，png / jpeg / gif / bmp / webp）拿原始宽高，超限才降采样；探测不出来就整图解码。
 - 🔴 **解码边长上限 = 视口物理像素宽 × 2**（夹 `1200 ~ 4096`；分屏每格 `480 ~ 2048`）。超过屏幕精度的像素只是白占内存（漫画包四格全尺寸能吃掉几百 MB）。信息卡里「尺寸」仍报**原始**像素，「解码尺寸」另起一行说明降过采样。
+- 🔴 **SharpCompress 1.0 把 `ReaderFactory.OpenReader(stream)` 改名成 `Open(stream)`**（2026-11-04 实测编译报 CS0117）：`IReader` 的 `Entry` / `MoveToNextEntry` / `OpenEntryStream` 与 `IEntry` 的 `Key` / `IsDirectory` / `Size` 都没变 ⇒ 0.50 → 1.0 只需改这一处方法名，⛔ 别整体重写 `ArchiveImageService`。
 - 🔴 **换图那一帧必须先把滚动条置 `Disabled`**：新图 `Extent` 未稳定时 `Auto` 会让竖直滚动条闪一下；铺好（`DispatcherPriority.Loaded`）再恢复 `Auto`。回调自带 `_loadToken`，连按翻页时旧回调直接丢弃。
 
 - 🔴 文本编码：先认 BOM，再试**严格 UTF-8**，失败回落 **GB18030**。⛔ 别用 `File.ReadAllText` —— 默认静默替换非法字节，中文老文件变乱码且无从发现。

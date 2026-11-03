@@ -14,8 +14,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NewToys.Core.Services;
-using NewToys.UI.Readers;
-using NewToys.UI.Viewers;
+using NewToys.Viewer.Controls;
 using NewToys.Viewer.Services;
 using NewToys.Viewer.ViewModels;
 
@@ -142,6 +141,7 @@ public abstract class ViewerPageBase : UserControl
             _vm.AudioPlayRequested -= OnAudioPlayRequested;
             _vm.PlaylistToggleRequested -= OnPlaylistToggle;
             _vm.ImageSetRequested -= OnImageSetRequested;
+            _vm.ReaderBookRequested -= OnReaderBookRequested;
             _vm.RulesEditRequested -= OnRulesEdit;
             _vm.ReaderOptionsChanged -= OnReaderOptionsChanged;
             _vm.SplitChanged -= OnSplitChanged;
@@ -163,6 +163,7 @@ public abstract class ViewerPageBase : UserControl
         _vm.AudioPlayRequested += OnAudioPlayRequested;
         _vm.PlaylistToggleRequested += OnPlaylistToggle;
         _vm.ImageSetRequested += OnImageSetRequested;
+        _vm.ReaderBookRequested += OnReaderBookRequested;
         _vm.RulesEditRequested += OnRulesEdit;
         _vm.ReaderOptionsChanged += OnReaderOptionsChanged;
         _vm.SplitChanged += OnSplitChanged;
@@ -190,6 +191,10 @@ public abstract class ViewerPageBase : UserControl
         // 「媒体资产 → 看这批图」：翻页集 = 投递的这批图（⛔ 不扫同目录）
         var pendingImages = _vm.TakePendingImageSet();
         if (pendingImages.Count > 0) { OpenImageSet(pendingImages); return; }
+
+        // 「网络阅读 → 在查看器中打开」：索引书（index.json + chapters/NNNN.txt）
+        var pendingBook = _vm.TakePendingReaderBook();
+        if (pendingBook is not null) { OpenReaderIndexFile(pendingBook); return; }
 
         var pending = _vm.TakePending();
         if (pending.Count > 0) { OpenMany(pending); return; }
@@ -377,6 +382,9 @@ public abstract class ViewerPageBase : UserControl
 
         if (ViewerHost.IsArchive(path)) { OpenArchive(path); return; }
 
+        // 索引书（reading 模块落盘的 index.json）：历史 / 拖入 / 最近打开都走这条
+        if (ViewerHost.IsReaderIndex(path)) { OpenReaderIndexFile(path); return; }
+
         var kind = ViewerHost.KindOf(path);
 
         if (kind == ViewerKind.Reader) { OpenReaderFile(path); return; }
@@ -432,6 +440,36 @@ public abstract class ViewerPageBase : UserControl
         ApplyTypography();
         Host.ApplyReaderTypography(_vm.ReaderOptions);
     }
+
+    /// <summary>
+    /// 打开「索引书」（网络阅读落盘的 index.json）：章按需读文件，进度 / 书签 / 排版照常按路径记。
+    /// </summary>
+    private void OpenReaderIndexFile(string path)
+    {
+        if (_vm is null) return;
+
+        SaveProgress();          // 换书前先存上一本
+        Host.Audio?.Stop();
+
+        var state = _vm.GetReaderPosition(path) ?? new ViewerReaderState(0, 0);
+        if (!Host.OpenReaderIndex(path, state, out var error))
+        {
+            _vm.OnOpenFailed(error);
+            return;
+        }
+
+        ResetEntries();
+        _readerPath = path;
+        _bookmarks = _vm.LoadBookmarks(path).ToList();
+
+        WireReader();
+
+        _vm.OnOpened(path, ViewerKind.Reader, (Host.Reader?.ChapterCount ?? 0) + " 章");
+        ApplyTypography();
+        Host.ApplyReaderTypography(_vm.ReaderOptions);
+    }
+
+    private void OnReaderBookRequested(object? sender, string path) => OpenReaderIndexFile(path);
 
     private void WireReader()
     {

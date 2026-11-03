@@ -1,13 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="using:NewToys.UI.Viewers"
              x:Class="NewToys.Reading.Views.ReaderView">
   <!--
-    网络阅读 → 阅读（`reading-read`）：沉浸式读一本书。
-    正文占满内容区；目录改成「点 📑 目录 才弹出」的覆盖层（⛔ 不常驻占一栏）。
-    排版参数（字号 / 行距 / 字体 / 页宽 / 配色 / 首行缩进 / 段间距）与「设置 → 网络阅读设置」同一份；
-    「🎨 样式」弹出样式卡 —— 内置 4 套预设，可导入 / 导出一份 `.json` 样式文件。
-    🔴 正文控件 = NewToys.UI 的 TextViewer，⛔ 本页不自绘渲染；配色由 code-behind 写入（不写死色值）。
+    网络阅读 → 阅读（`reading-read`）：管「选书 / 目录 / 抓取」——正文阅读在查看器的「文本阅读」页进行
+    （📖 在查看器中打开 → 索引书 index.json + chapters/NNNN.txt → ModuleTopics.ReaderOpenBook）。
+    本页只留章节预览（前 500 字）+ 目录浮层 + 换源 / 整本下载 / 听书；⛔ 不再内嵌正文渲染控件。
   -->
   <UserControl.Styles>
     <Style Selector="ListBoxItem">
@@ -27,18 +24,13 @@
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <TextBlock Classes="hint-text" Text="{Binding TypographyText}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-          <Button Classes="ghost" Content="A-" Command="{Binding FontSmallerCommand}" ToolTip.Tip="字号变小"/>
-          <Button Classes="ghost" Content="A+" Command="{Binding FontBiggerCommand}" ToolTip.Tip="字号变大"/>
-          <Button Classes="ghost" Content="≡" Command="{Binding LineWiderCommand}" ToolTip.Tip="行距变宽"/>
-          <Button Classes="ghost" Content="⋮" Command="{Binding LineNarrowerCommand}" ToolTip.Tip="行距变窄"/>
-          <Button Classes="ghost" Content="🎨" Command="{Binding CycleThemeCommand}" ToolTip.Tip="白底 → 米黄 → 暗色"/>
-          <Button Classes="ghost" Content="🎨 样式" Command="{Binding ToggleStyleCommand}"
-                  ToolTip.Tip="内置样式 / 导入导出一份样式文件"/>
+          <Button Classes="primary" Content="📖 在查看器中打开" Command="{Binding OpenInViewerCommand}"
+                  ToolTip.Tip="把这本书交给查看器的「文本阅读」页：目录 / 书签 / 全书搜索 / 排版都在那边；未缓存的章翻到即补"/>
+          <Button Classes="ghost" Content="📑 目录" Command="{Binding ToggleTocCommand}" ToolTip.Tip="弹出章节目录"/>
           <Button Classes="ghost" Content="＋ 书架" Command="{Binding AddToShelfCommand}" ToolTip.Tip="把这本书加进书架"/>
           <Button Classes="ghost" Content="🔀 换源" Command="{Binding SwitchSourceAsyncCommand}" ToolTip.Tip="多源比对这本书，选最优源续读"/>
           <Button Classes="ghost" Content="⬇ 下载" Command="{Binding DownloadBookCommand}"
-                  ToolTip.Tip="整本下载：全部章节抓下来合成一份 TXT（已缓存的章节不再请求）"/>
+                  ToolTip.Tip="整本下载：全部章节抓下来合成一份 TXT（已缓存的章节不再请求）；下完自动补齐索引书"/>
           <Button Classes="ghost" Content="🎧 听书" Command="{Binding StartListenCommand}"
                   IsVisible="{Binding !IsListening}"
                   ToolTip.Tip="用系统语音朗读本章；正文下方会出现暂停 / 语速 / 停止控制条"/>
@@ -104,7 +96,15 @@
         </Border>
 
         <Border x:Name="ReaderSurface" Padding="0">
-          <ui:TextViewer x:Name="Body" HorizontalAlignment="Center"/>
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="720" HorizontalAlignment="Center" Margin="0,28,0,28" Spacing="14">
+              <TextBlock Classes="section-title" Text="{Binding ChapterTitle}" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding PreviewText}" TextWrapping="Wrap" LineHeight="26"
+                         Foreground="{DynamicResource PrimaryTextBrush}"/>
+              <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                         Text="完整阅读在查看器的「文本阅读」页进行（目录 / 书签 / 全书搜索 / 排版），点顶部「📖 在查看器中打开」跳过去；未缓存的章会显示占位，回本页翻到即补。"/>
+            </StackPanel>
+          </ScrollViewer>
         </Border>
       </DockPanel>
 
@@ -145,78 +145,6 @@
         </Border>
       </Grid>
 
-      <!--  ==================== 样式卡浮层（点 🎨 样式 才出现；与确认对话卡片同一套观感）  ====================  -->
-      <Grid IsVisible="{Binding ShowStylePanel}">
-        <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnStyleBackdropTapped"/>
-
-        <Border Width="460"
-                MaxHeight="520"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Background="{DynamicResource PanelBrush}"
-                BorderBrush="{DynamicResource DividerBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                BoxShadow="0 8 32 0 #66000000"
-                Padding="20">
-          <DockPanel LastChildFill="True">
-
-            <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,12">
-              <TextBlock DockPanel.Dock="Left" Text="阅读样式" FontSize="13" FontWeight="SemiBold"
-                         Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
-              <Button DockPanel.Dock="Right" Classes="ghost" Content="✕" Command="{Binding CloseStyleCommand}"
-                      ToolTip.Tip="收起样式卡"/>
-            </DockPanel>
-
-            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="10" Margin="0,14,0,0"
-                        HorizontalAlignment="Right">
-              <Button Classes="ghost" Content="📥 导入" Command="{Binding ImportStyleCommand}"
-                      ToolTip.Tip="选一个样式 JSON 文件并套用（缺的项保持原值）"/>
-              <Button Classes="ghost" Content="📤 导出" Command="{Binding ExportStyleCommand}"
-                      ToolTip.Tip="把当前排版导成一个样式 JSON 文件"/>
-            </StackPanel>
-
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-              <StackPanel Spacing="12">
-                <TextBlock Classes="hint-text" Text="{Binding TypographyText}"/>
-
-                <TextBlock Classes="section-title" Text="内置样式"/>
-                <ItemsControl ItemsSource="{Binding StylePresets}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <UniformGrid Columns="2"/>
-                    </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Button Classes="ghost" Margin="0,0,6,6" Content="{Binding Name}"
-                              Command="{Binding $parent[UserControl].DataContext.ApplyPresetCommand}"
-                              CommandParameter="{Binding}"
-                              ToolTip.Tip="整套套用（会覆盖字号 / 行距 / 配色等）"/>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <TextBlock Classes="section-title" Text="段落"/>
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                  <TextBlock Classes="hint-text" Text="首行缩进" VerticalAlignment="Center" Width="60"/>
-                  <Button Classes="ghost" Content="−" Command="{Binding IndentSmallerCommand}"/>
-                  <TextBlock Classes="list-cell primary" Width="24" TextAlignment="Center"
-                             Text="{Binding Indent}" VerticalAlignment="Center"/>
-                  <Button Classes="ghost" Content="＋" Command="{Binding IndentBiggerCommand}"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                  <TextBlock Classes="hint-text" Text="段间距" VerticalAlignment="Center" Width="60"/>
-                  <Button Classes="ghost" Content="−" Command="{Binding ParagraphNarrowerCommand}"/>
-                  <TextBlock Classes="list-cell primary" Width="24" TextAlignment="Center"
-                             Text="{Binding ParagraphSpacing}" VerticalAlignment="Center"/>
-                  <Button Classes="ghost" Content="＋" Command="{Binding ParagraphWiderCommand}"/>
-                </StackPanel>
-              </StackPanel>
-            </ScrollViewer>
-          </DockPanel>
-        </Border>
-      </Grid>
       <!--  ==================== 换源浮层（点 🔀 换源 才出现；多源比对 + 选源续读）  ====================  -->
       <Grid IsVisible="{Binding ShowSwitchPanel}">
         <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnSwitchBackdropTapped"/>

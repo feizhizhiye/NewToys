@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using NewToys.UI.Viewers;
+using NewToys.Viewer.Controls;
 
 namespace NewToys.Viewer.Services;
 

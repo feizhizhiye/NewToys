@@ -2,7 +2,9 @@ using System;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;   // Win32Properties 在 Avalonia.Controls.dll 的 Avalonia.Controls 命名空间（不是 Avalonia.Win32）
+using Avalonia.Controls.Primitives;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace NewToys.Shell.Views;
 
@@ -299,12 +301,16 @@ public partial class ShellView
 
             Win32Properties.AddWndProcHookCallback(this, OnWndProcHook);
             _wndProcHookInstalled = true;
+            _hookedView = this;                              // 边缘命中测试要用 Visual 树（见 HitTestEdgeControl）
         }
         catch { /* 挂不上就维持现状 */ }
     }
 
     /// <summary>官方钩子是否已挂（幂等标记）。</summary>
     private static bool _wndProcHookInstalled;
+
+    /// <summary>挂了钩子的窗口实例：<c>WM_NCHITTEST</c> 里做视觉命中要用（静态钩子拿不到 this）。</summary>
+    private static ShellView? _hookedView;
 
     // ===== 贴靠 / 分屏几何纠偏（2026-10-21 定案）=====
 
@@ -540,7 +546,47 @@ public partial class ShellView
         if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE || msg == WM_STYLECHANGED || msg == WM_SHOWWINDOW)
             PostChromeReassert(hWnd);
 
+        // 🔴 控件优先于系统 resize 边框：客户区已零内缩，最右/最下 ~8px 既是控件区域又是
+        //    WS_THICKFRAME 的拉伸热区（系统命中永远赢），不覆盖的话贴边滚动条整条抓不住。
+        if (msg == WM_NCHITTEST && HitTestEdgeControl(hWnd, lParam, ref handled))
+            return new IntPtr(HTCLIENT);
+
         return IntPtr.Zero;          // handled 保持 false → Avalonia 继续正常处理
+    }
+
+    private const uint WM_NCHITTEST = 0x0084;
+    private const int HTCLIENT = 1;
+
+    /// <summary>边缘命中带宽度（DIP）：必须 ≥ 系统拉伸边框（96 DPI 下 8px），否则滚动条尾巴仍被抢。</summary>
+    private const double EdgeResizeBandDip = 16;
+
+    /// <summary>
+    /// 边缘拉伸热区上的「可交互控件」优先：命中滚动条就返回 <c>HTCLIENT</c>（自己吃掉消息），
+    /// 其余情况一律不干预 → 贴靠 / 圆角 / 拖边框缩放全部维持原样。
+    /// <para>⚠️ 只在非最大化时接管：最大化没有可拉边框（见 <see cref="OnWndProcHook"/> 的注释）。</para>
+    /// </summary>
+    private static bool HitTestEdgeControl(IntPtr hwnd, IntPtr lParam, ref bool handled)
+    {
+        try
+        {
+            var view = _hookedView;
+            if (view is null || IsWindowMaximized(hwnd)) return false;
+
+            // lParam = 屏幕坐标（低 16 位 X / 高 16 位 Y，均为有符号 short）
+            var raw = lParam.ToInt64();
+            var point = view.PointToClient(new PixelPoint((short)(raw & 0xFFFF), (short)((raw >> 16) & 0xFFFF)));
+
+            // 廉价闸门：绝大多数移动不贴边，先挡掉再谈命中测试
+            var size = view.ClientSize;
+            if (point.X < size.Width - EdgeResizeBandDip && point.Y < size.Height - EdgeResizeBandDip) return false;
+
+            if (view.GetVisualAt(point) is not { } hit) return false;
+            if (hit is not ScrollBar && hit.FindAncestorOfType<ScrollBar>() is null) return false;
+
+            handled = true;
+            return true;
+        }
+        catch { return false; }   // 钩子里抛异常会卡死消息循环 ⇒ 失败一律不干预
     }
 
     /// <summary>方角重置的**待执行标志**（<c>SetWindowRgn</c> 会再触发同类消息 → 无它就会自激成环）。</summary>

@@ -33,6 +33,8 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     private readonly PrefetchService? _prefetch;
     private readonly BookDownloadService? _download;
     private readonly TtsService? _tts;
+    private readonly IModuleBus? _bus;
+    private readonly BookIndexWriter? _books;
 
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _prefetchCts;
@@ -116,7 +118,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         SourceStore store, CrawlService crawl, ShelfStore shelf, ProgressStore progress,
         ReadingSettingsService settings, ReaderStyleService styles, ReadingSession session,
         INavigationService? nav = null, PrefetchService? prefetch = null, BookDownloadService? download = null,
-        TtsService? tts = null)
+        TtsService? tts = null, IModuleBus? bus = null, BookIndexWriter? books = null)
     {
         _store = store;
         _crawl = crawl;
@@ -129,6 +131,8 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         _prefetch = prefetch;
         _download = download;
         _tts = tts;
+        _bus = bus;
+        _books = books;
 
         if (_tts is not null)
         {
@@ -190,6 +194,9 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     /// <summary>抓回来的正文按当前「缩进 / 段距」重排后的结果（视图推给 <c>TextViewer</c> 的就是这个）。</summary>
     public string FormattedContent => ReaderTypography.Apply(ContentText, Indent, ParagraphSpacing);
 
+    /// <summary>本页预览文本（正文前 500 字；完整阅读在查看器的「文本阅读」页）。</summary>
+    public string PreviewText => ContentText.Length <= 500 ? ContentText : ContentText[..500] + "…";
+
     /// <summary>样式卡里的内置预设。</summary>
     public IReadOnlyList<Models.ReaderStyle> StylePresets =>
         _styles?.Presets ?? (IReadOnlyList<Models.ReaderStyle>)Array.Empty<Models.ReaderStyle>();
@@ -231,7 +238,11 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
 
     partial void OnParagraphSpacingChanged(int value) => RaiseTypography("reader-paragraph-spacing");
 
-    partial void OnContentTextChanged(string value) => ContentChanged?.Invoke(this, EventArgs.Empty);
+    partial void OnContentTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(PreviewText));
+        ContentChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     partial void OnSelectedChapterChanged(Chapter? value)
     {
@@ -350,6 +361,9 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
             try { _cts?.Dispose(); } catch { /* 已释放 */ }
             _cts = null;
 
+            // 目录到手就后台落盘「索引书」（只导已缓存的章，⛔ 不联网）：查看器那本随时可开
+            ExportIndexInBackground();
+
             SelectedChapter = resume ?? Chapters[0];
         }
         catch (OperationCanceledException) { }
@@ -398,6 +412,53 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
         if (string.IsNullOrWhiteSpace(SelectedChapter.Url)) return;
 
         _progress.Save(BookUrl, SelectedChapter.Url, SelectedChapter.Name, offset);
+    }
+
+    /// <summary>后台导「索引书」（index.json + 已缓存章落盘，⛔ 不联网、不阻塞翻章）。</summary>
+    private void ExportIndexInBackground()
+    {
+        var books = _books;
+        if (books is null) return;
+
+        var url = BookUrl;
+        var title = BookName;
+        var author = Author;
+        var source = _sourceUrl;
+        var snapshot = Chapters.ToList();
+        _ = Task.Run(() => books.ExportBook(url, title, author, source, snapshot, out _));
+    }
+
+    /// <summary>
+    /// 「📖 在查看器中打开」：把这本书导成索引书（已缓存章落盘）→ 交给查看器文本页（目录 / 书签 /
+    /// 全书搜索 / 排版在那边）。未缓存的章在查看器里显示占位，翻到即补。
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenInViewerAsync()
+    {
+        var books = _books;
+        if (books is null) { StatusText = "⚠ 索引服务未就绪。"; return; }
+        if (Chapters.Count == 0) { StatusText = "先打开一本书。"; return; }
+
+        var url = BookUrl;
+        var title = BookName;
+        var author = Author;
+        var source = _sourceUrl;
+        var snapshot = Chapters.ToList();
+
+        StatusText = "正在整理这本书的索引…";
+        var exportError = "";
+        var path = await Task.Run(() => books.ExportBook(url, title, author, source, snapshot, out exportError))
+            .ConfigureAwait(true);
+
+        if (path is null)
+        {
+            StatusText = "⚠ " + exportError;
+            return;
+        }
+
+        _bus?.Post(ModuleTopics.ReaderOpenBook, path);
+        _nav?.NavigateTo("viewer-text");
+        StatusText = $"《{title}》已交给「文本阅读」在查看器中打开。";
     }
 
     /// <summary>加入书架（已在则刷新书名作者）。</summary>
@@ -623,6 +684,9 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
 
             // 章节全下过一遍 ⇒ 顺手把预取队列停掉，别和刚下完的缓存较劲
             try { _prefetchCts?.Cancel(); } catch { /* 已结束 */ }
+
+            // 整本下载完 ⇒ 索引书补齐（全部章已进正文缓存，后台落盘不联网）
+            ExportIndexInBackground();
         }
         catch (OperationCanceledException) { DownloadPhase = "已取消"; }
         catch (Exception ex) { DownloadPhase = "⚠ 下载失败：" + ex.Message; }
@@ -915,6 +979,10 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
             StatusText = ContentText.Length > 0
                 ? $"{chapter.Name} · {ContentText.Length} 字"
                 : "⚠ 正文为空";
+
+            // 抓到正文顺手落盘进索引书（覆盖写 ⇒ 换规则重抓后文件保持最新）
+            if (content.Value is { Length: > 0 })
+                _books?.WriteChapter(BookUrl, Chapters.IndexOf(chapter), content.Value);
 
             SaveProgress(0);
         }

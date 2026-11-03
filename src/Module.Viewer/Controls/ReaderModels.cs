@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace NewToys.UI.Readers;
+namespace NewToys.Viewer.Controls;
 
 /// <summary>文本阅读器的一章：整本书 <see cref="Text"/> 上的一段切片。</summary>
 public sealed class ReaderChapter

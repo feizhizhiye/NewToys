@@ -4,7 +4,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using NewToys.Shared.Services;
 
-namespace NewToys.UI.Viewers;
+namespace NewToys.Viewer.Controls;
 
 /// <summary>
 /// 分频柱（自绘）：等高竖条，柱高 = 频段能量。

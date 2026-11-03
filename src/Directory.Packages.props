@@ -5,27 +5,27 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Avalonia 最新稳定版 -->
-    <PackageVersion Include="Avalonia" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Desktop" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <PackageVersion Include="Avalonia" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.5" />
     <!-- MVVM 工具包 -->
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!-- 本地数据库（视频库媒体信息索引；后续更多配置项复用同一个 newtoys.db） -->
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <!-- 微软扩展 -->
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
     <!-- HTML 解析（浏览器书签导入，Netscape 书签格式） -->
-    <PackageVersion Include="AngleSharp" Version="1.3.0" />
+    <PackageVersion Include="AngleSharp" Version="1.9.1" />
     <!-- JS 引擎（网页抓取「整合脚本」对结果做二次处理） -->
-    <PackageVersion Include="Jint" Version="3.1.2" />
+    <PackageVersion Include="Jint" Version="4.17.0" />
     <!-- 邮件收发（备份中心投递 + 邮箱管理页：SMTP / IMAP，纯托管、平台中立） -->
     <PackageVersion Include="MailKit" Version="4.18.2" />
     <!-- 音频解码与输出（查看器本地播放器：WASAPI + Media Foundation，纯托管，平台中立由适配器隔离） -->
@@ -33,10 +33,11 @@
     <!-- 音频标签与封面（ID3 / FLAC / MP4 元数据，只读） -->
     <PackageVersion Include="TagLibSharp" Version="2.3.0" />
     <!-- 压缩包读取（图片浏览器看 zip / rar / 7z 内的图，纯托管） -->
-    <PackageVersion Include="SharpCompress" Version="0.50.7" />
+    <PackageVersion Include="SharpCompress" Version="1.0.0" />
     <!-- 单元测试（src/NewToys.Tests，只测纯函数解析器；产物落 artifacts\tests\，⛔ 不进 Release 交付目录） -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
+    <!-- 🔴 停在 3.x：4.x 只配 xunit v3，与上面的 xunit 2.9.3 不兼容 -->
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
 </Project>

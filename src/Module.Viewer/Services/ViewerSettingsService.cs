@@ -5,8 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using NewToys.Shared.Services;
-using NewToys.UI.Readers;
-using NewToys.UI.Viewers;
+using NewToys.Viewer.Controls;
 
 namespace NewToys.Viewer.Services;
 

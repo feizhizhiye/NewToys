@@ -11,7 +11,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 
-namespace NewToys.UI.Viewers;
+namespace NewToys.Viewer.Controls;
 
 /// <summary>信息浮层里的一行（键 + 值）。</summary>
 public sealed class ImageInfoRow

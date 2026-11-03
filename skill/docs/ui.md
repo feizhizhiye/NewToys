@@ -518,6 +518,9 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 15. 🔴 **`Slider` ⛔ 设 `Height` / `MinHeight`**（2026-11-03 实锤，与本文件第 13 条同源）：Fluent 模板的轨道高度按 `Track` + `Thumb` 自然尺寸算，硬压 20/22 会把轨道挤到控件下沿、thumb 相对轨道飘起 —— 夹在一排 22px 按钮中间时，看着就只是「**进度条没跟按钮对齐**」，很容易误判成容器对齐问题。
     - ✅ 正解：Slider **只写 `VerticalAlignment="Center"`**，高度交给模板；要紧凑就压**容器**（`Padding` 收 0、行间用负 `Margin`，见 `VideoPreviewView` 三条时间条的 `Margin="0,-14,0,0"`）。
     - ✅ 静态可查：`python skill/scripts/lint.py --only props` 的「硬压 Slider 高度」计数（已接入 `accept.ps1`，非 0 即 FAIL）。
+16. 🔴 **贴客户区右（下）缘的覆盖式滚动条会被窗口 resize 命中区吃掉**（2026-11-03 实锤，`AudioPlayer` 歌词区）：窗口开了 `ExtendClientAreaToDecorationsHint`，系统边框仍有 8~12px 属 `WM_NCHITTEST` 的 `HTRIGHT` / `HTBOTTOMRIGHT`，**优先级高于任何控件**；滚动条是 8px 覆盖层、贴着客户区边缘 ⇒ 整条落在 resize 带里，表现是「滚轮能动，按住滑块却变成拉窗口」。
+    - ✅ 正解（2026-11-04 定案）：**`ShellView.Win32.cs` 的 `HitTestEdgeControl`** —— 官方 WndProc 钩子里拦 `WM_NCHITTEST`，点落在边缘 16 DIP 带内且视觉命中 `ScrollBar`（含 Thumb 祖先）⇒ `handled=true` 返回 `HTCLIENT`（控件优先）；其余一律不干预（贴靠 / 圆角 / 拉边框原样）。**页面侧零处理、零留白**，所有贴边滚动条全局受益。
+    - ⛔ 旧思路作废：「滚动区 `Margin` 右留走廊」—— 缝宽 ≥ 系统边框才有用，视觉割裂，且每个页面都得留一遍。
 
 ---
 

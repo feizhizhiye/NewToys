@@ -9,9 +9,8 @@ namespace NewToys.Viewer;
 /// <summary>
 /// **查看器**模块（菜单组键 <c>viewer</c>，Order 55）：为本软件提供基础的「打开并显示」能力。
 /// <para>
-/// 🔴 本模块只是**薄壳**：渲染器（文本 / 图片 / 将来音视频）全部在 <c>NewToys.UI/Viewers/</c>，
-/// 媒体资产 / 视频工具将来要「用查看器打开」时直接复用那套控件，⛔ 不必引用本模块
-/// （模块禁互引，§3.1）。
+/// 🔴 渲染器（外壳 / 图片 / 音频 / 阅读排版）全部在本模块 <c>Controls/</c>；
+/// 只有 <c>TextViewer</c> 暂留 <c>NewToys.UI/Viewers/</c>（阅读模块还用它做正文预览，批 3 再下沉）。
 /// </para>
 /// <para>
 /// 🔴 依赖只有 Shared / Core / UI：⛔ 不引 Shell、⛔ 不引其它模块。设置落 <c>config\viewer.json</c>

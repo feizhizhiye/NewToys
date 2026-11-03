@@ -52,7 +52,7 @@ Shared（契约 / 模型，不引 Avalonia）
 
 ### 3.2 技术栈（锁定，禁擅升擅降）
 
-.NET 10 · Avalonia 12.1.4 · CommunityToolkit.Mvvm 8.4.2 · Microsoft.Extensions.DependencyInjection 9.0.0 · Microsoft.Data.Sqlite 9.0.0。
+.NET 10 · Avalonia 12.1.5 · CommunityToolkit.Mvvm 8.4.2 · Microsoft.Extensions.DependencyInjection 10.0.14 · Microsoft.Data.Sqlite 10.0.14。
 ⛔ 第三方 UI 组件库 / 图标字体 / 图标包；图标 = Avalonia `Geometry` 路径数据（可手摘 Lucide / Feather 路径）。
 版本只在 `src/Directory.Packages.props`；csproj ⛔ 写 `<PackageVersion>`。
 

@@ -41,6 +41,7 @@ public class ReadingModule : IModule
         services.AddSingleton<SourceCheckService>();
         services.AddSingleton<ShelfUpdateService>();
         services.AddSingleton<TtsService>();
+        services.AddSingleton<BookIndexWriter>();
 
         services.AddTransient<Views.SourceListView>();
         services.AddTransient<SourceListViewModel>();

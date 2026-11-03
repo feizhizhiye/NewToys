@@ -18,6 +18,21 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
+  <!--  ⛔ 模块独有第三方依赖「提级」到主程序声明（Release 依赖缺失修复）。
+        根因：功能模块都是类库，.NET 默认 CopyLocalLockFileAssemblies=false，类库 build 不复制
+        自己的 NuGet 依赖 DLL；Debug 下靠 Shell 的 ProjectReference 传递引用兜底，Release 下模块
+        独立编译 → 这些 DLL 丢失，运行时（默认 ALC 从程序根目录解析）找不到。
+        解法：把这些「模块独有、主程序本不引用」的包也声明在主程序，让 DLL 随主程序复制到
+        程序根目录一份，模块 LoadFrom 后默认 ALC 即可解析。版本走 Directory.Packages.props 集中管理。
+        ⚠️ 只覆盖「自己仓库里的模块」；「第三方编译、带全新依赖的模块」仍不在此列（见 ModuleLoader 的 ModuleAlc）。  -->
+  <ItemGroup>
+    <PackageReference Include="AngleSharp" />
+    <PackageReference Include="Jint" />
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="NAudio" />
+    <PackageReference Include="SharpCompress" />
+    <PackageReference Include="TagLibSharp" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Shared/Shared.csproj" />
     <ProjectReference Include="../Core/Core.csproj" />

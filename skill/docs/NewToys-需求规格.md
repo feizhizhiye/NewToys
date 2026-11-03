@@ -76,19 +76,20 @@
 
 | 模块 | 键 / Order / 程序集 | 职责 | 归属判据 |
 |---|---|---|---|
-| **脚本中心** | `script` / 20 / `Module.ScriptManager` | 可执行单元（脚本 / 规则）+ 集合容器 + 命令链编排与运行 | 产出**可解析数据**（能进集合 / 信息面板 / 命令链） |
-| **系统工具**（新） | `system` / **25** / `Module.SystemTools` | **当前操作系统的常用设置与快速命令**（收藏夹 / 命令库 / 软件包 winget） | 执行完**只产生副作用**，不产出数据（⛔ 不收应用级设置页的功能） |
+| **脚本管理器** | `script` / 20 / `Module.ScriptManager` | 可执行单元（脚本 / 规则）+ 集合容器 + 命令链编排与运行 | 产出**可解析数据**（能进集合 / 信息面板 / 命令链） |
+| **系统工具**（新） | `system-tools` / **25** / `Module.SystemTools` | **当前操作系统的常用设置与快速命令**（收藏夹 / 命令库 / 软件包 winget） | 执行完**只产生副作用**，不产出数据（⛔ 不收应用级设置页的功能） |
 | **网络工具** | `web` / 30 / `Module.WebTools` | 网络配置与诊断 + 出口代理 | — |
 
-- **显示名**：脚本管理器 → 「**脚本中心**」（仅显示名，模块 Key `script` 与页 Key 全部不变）。
+- **显示名**：保持「**脚本管理器**」（v3.86 曾定改为「脚本中心」，**2026-11-03 撤销** —— 代码 `RegisterModule("script", "脚本管理器", …)` 为准；模块 Key `script` 与页 Key 全部不变）。
+- 🔴 **系统工具的组键 = `system-tools`**（⛔ 不是 `system`：`system` 是 Shell 保留的宿主分组键，同名会复用并覆盖 ⇒ 应用级设置页被渲染进本组，NT-096 踩过）。
 - 系统工具 Order 25（紧邻 script），需**新增一个一级菜单 StreamGeometry 图标**（框架层 `App.axaml`，见 NT-091）。
 
 #### 2.3.2 页归属变更（⛔ Key 一律不改）
 
 | Key | 现 | 新 | 说明 |
 |---|---|---|---|
-| `script-commands` | script | **system** | 命令库平移，Key 保留 |
-| `script-favorites` | script | **system** | 收藏聚合页，按 `source` 分组显示全部来源收藏 |
+| `script-commands` | script | **system-tools** | 命令库平移，Key 保留 |
+| `script-favorites` | script | **system-tools** | 收藏聚合页，按 `source` 分组显示全部来源收藏 |
 | `web-scrape` | web | **script** | 退化为脚本库的 `category=rule` 筛选态（规则 = 带参数的 Python 脚本） |
 | `web-rule-editor` | web | **script** | 五段槽位 → 命令链编辑器（§2.3.4） |
 | `web-crawl` | web | **script** | 泛化为**运行结果查看台**（脚本 / 命令链的执行结果与日志） |
@@ -140,7 +141,7 @@ NT-088（执行器上提 Core，**2026-10-22 已批准并实施**）→ NT-089 �
 #### 2.3.7 🔴 待批准 / 已知成本
 
 1. **NT-088 = 改框架层（§3.3）**：把 `ScriptRunner` + `InterpreterResolver` 从 `Module.ScriptManager` 上提 `NewToys.Core`。**必须由用户明确同意后才可执行。** 原因：system 的收藏夹与快捷命令要执行条目，而模块 **禁互引**（§3.1）；二者不引 Avalonia，搬家安全。
-2. **列表页 VM 复用 Shared 基类**（v3.90 订正）：`ListPageViewModelBase`（列显隐 / 排序 / 筛选 / 声明式工具条 / 详情开合）在 Shared，各模块列表页 VM 继承它即获得脚本库同款布局与行为 —— 系统工具命令库 NT-097 起重写为该模式；脚本中心的 `QuickActionListViewModel` 是其上加脚本库特有逻辑的派生，⛔ 不再为「命令库」单独维护一份双写 VM。
+2. **列表页 VM 复用 Shared 基类**（v3.90 订正）：`ListPageViewModelBase`（列显隐 / 排序 / 筛选 / 声明式工具条 / 详情开合）在 Shared，各模块列表页 VM 继承它即获得脚本库同款布局与行为 —— 系统工具命令库 NT-097 起重写为该模式；脚本管理器的 `QuickActionListViewModel` 是其上加脚本库特有逻辑的派生，⛔ 不再为「命令库」单独维护一份双写 VM。
 3. **提权运行（v3.91）**：**命令库 / 收藏夹**的 `NeedAdmin` 条目 ▶ 运行 = 弹 UAC、提权后在**可见窗口**执行（§6.7；`cmd /k` 或 `pwsh -NoExit -EncodedCommand` + `Verb=runas`）⇒ 这两条路有提权机制；**其余路径仍无**（HostsService 只提示「请以管理员身份运行」）。
 
 ## 三、技术框架（硬约束）
@@ -556,7 +557,7 @@ Module.*（功能模块，只引 Shared + Core）
   3. `ContextMenu` 挂在独立弹出树，**不保证继承宿主 DataContext** → 必须在 code-behind `OnDataContextChanged` 里**手工同步**（行菜单 + 表头菜单都要）。
   4. 列显隐元数据 `ListColumn` + 服务 `IColumnLayoutService`（落 `config/columnlayout.json`）。⛔ 列元数据里**不再追加 `Detail` 占位列**——详情开关已移到工具条（§4.5）。
   5. 空态 / 选中态**显式处理**，不留白。
-  6. ⛔ 不改共享样式 `Border.detail-card` 的宽度；⛔ `Views/ColumnGrid.cs` 因模块间禁互引而**各模块各存一份**，改动必须同步。
+  6. ⛔ 不改共享样式 `Border.detail-card` 的宽度；⛔ `UI/Controls/ColumnGrid.cs` 因模块间禁互引而**各模块各存一份**，改动必须同步。
   7. **详情卡里的滚动条**：Avalonia 12 的 `ScrollBar` 是**覆盖式**，槽落在 `ScrollViewer` 右缘**之外 8px**（偏移写死在 Fluent 模板里）。要让它收在卡内，本页 `Border.detail-card` 的 `Padding` 右侧留 **8px**、滚动内容 `Margin` 右侧再留 **8px**（⛔ 改共享样式会波及 12 个列表页）。
   8. **详情开关 = 工具条容器右上角的浮层**（v3.53 收口，替代原 `Grid ColumnDefinitions="*,Auto"` 独立列口径）：⛔ 不占列、⛔ 不参与宽度计算；浮层样式与容器内按钮同源（`ghost`）、宽度更窄且固定；折叠算法容量预算内**预留其安全区**（⛔ 不遮按钮）。开关本身由 **Shell 统一渲染**，页面⛔ 不自写。
   9. **工具条 vs 右键菜单的职责划分**（v3.29 用户定调）：**工具条只放页面级功能**（扫描 / 导入 / 筛选 / 入库 / 清除列表 / 重载数据 …，作用于整个列表或页面）；
@@ -834,7 +835,7 @@ Module.*（功能模块，只引 Shared + Core）
 - **功能清单入口**：收藏卡**尾部**追加一张「显示更多」卡片（与收藏按钮**同一个换行容器**、**恒排最后**）→ 🔴 v3.66 起**就地展开内嵌的功能清单**（复用 `AllFunctionsView`；再点「收起」折回）。🔴 **v3.101 起这是功能清单的唯一形态**（独立页与 `settings-all` Key 已删除）；⛔ **不改动首页其余布局**（收藏卡是"常用子集"，功能清单是"全集"，语义与此一致）。
 - **一键操作区（v3.66 改）**：整页一个 `ScrollViewer`，内层 `Grid` 绑 `MinHeight = 视口高` ⇒ **折叠态一键操作钉在窗口底部**；**展开功能清单后内容超高 ⇒ 一键操作随页面向下滚动**。
 
-### 6.2 脚本中心（`Module.ScriptManager`，显示名 v3.86 起改「脚本中心」；原「脚本管理器 / 电脑工具 / `Module.PcTools`」）
+### 6.2 脚本管理器（`Module.ScriptManager`；原「脚本管理器 / 电脑工具 / `Module.PcTools`」。显示名 2026-11-03 定为不改，v3.86 的「脚本中心」作废）
 
 > 🔴 **v3.86 模块重划分（§2.3，工作项 NT-089 ~ NT-094）**：本模块 = **可执行单元 + 集合 + 命令链**平台；命令库 `script-commands` 与收藏夹 `script-favorites` 迁出至 **`system` 系统工具**（§6.7）；web 侧 `web-scrape` / `web-rule-editor` / `web-crawl` **迁入本模块**。⛔ 菜单 Key 一律不改。
 
@@ -1270,7 +1271,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 - **数据**：`video_catalog.tags` 列、`video_tags` 表、`TagPalette` 色板；
 - **UI**：视频列表「标签」列 + 其筛选项、详情卡标签选择器（`TagPick`）、「🏷 管理标签」弹层、`TagChip` 色片；
-- **代码**：`Models/TagChip.cs`、`Services/TagPalette.cs`、`VideoCatalogService` 的标签方法（`CreateTag` / `DeleteTagIndex` / `GetAllTags` / `UpdateTags` / `GetTags` / `RenameTag` / `DeleteTag` / `RewriteTags`）。
+- **代码**：`Module.MediaAssets/Models/AssetPalette.cs`、`VideoCatalogService` 的标签方法（`CreateTag` / `DeleteTagIndex` / `GetAllTags` / `UpdateTags` / `GetTags` / `RenameTag` / `DeleteTag` / `RewriteTags`）。
 
 > 历史实现（v3.20 / v3.21）见 `git log`。`Shell/Styles/Controls.axaml` 的 `.tag-chip*` 4 条样式**暂留**（框架层；无引用即死代码，⛔ 不为它单独改 Shell）。
 
@@ -1579,7 +1580,7 @@ Module.*（功能模块，只引 Shared + Core）
 - **外部变更**：文件不见 → `missing`；新路径 → hash 匹配视为移动；⛔ 移动硬盘离线（Storage `online=0`）时**不动**其下 file_locations，重新上线再扫描校准。
 - **跨页投递**：模块内单例 Store（仿 `VideoTaskStore`）；🔴 取件点在 `OnAttachedToVisualTree`（§4.8 硬规则 8）。
 
-**复用硬约束**（不在此复述，指向权威）：列表页一律继承 `ListPageViewModelBase`（`Shared/Models`）+ 三列布局 + 工具条 / 筛选条收进列表列 + 详情开关在工具条末位；`Views/ColumnGrid.cs` 本模块自建**第五份**副本（规范 §3.6，改动同步五处）；详情卡内容由 VM 实现 `IDetailPanelProvider.DetailContent` 提供（目标形态，规范 §3.8 / B13），详情卡内允许**编辑 + 「💾 保存」+「↗ 应用到文件」**（v3.29 用户定调，覆盖旧"零操作按钮"规则；⛔ 别放无关的全局动作）；状态栏由基类统一实现、每页 ≥1 行 `StatusText`；单元格内边距 8 / 表头 32 / 行 28（§4.10.2）。
+**复用硬约束**（不在此复述，指向权威）：列表页一律继承 `ListPageViewModelBase`（`Shared/Models`）+ 三列布局 + 工具条 / 筛选条收进列表列 + 详情开关在工具条末位；`UI/Controls/ColumnGrid.cs` 本模块自建**第五份**副本（规范 §3.6，改动同步五处）；详情卡内容由 VM 实现 `IDetailPanelProvider.DetailContent` 提供（目标形态，规范 §3.8 / B13），详情卡内允许**编辑 + 「💾 保存」+「↗ 应用到文件」**（v3.29 用户定调，覆盖旧"零操作按钮"规则；⛔ 别放无关的全局动作）；状态栏由基类统一实现、每页 ≥1 行 `StatusText`；单元格内边距 8 / 表头 32 / 行 28（§4.10.2）。
 
 #### 6.6.1 资产浏览页（`assets-browse` · v3.99 新增 · NT-115）
 
@@ -1604,7 +1605,7 @@ Module.*（功能模块，只引 Shared + Core）
 
 > 完整口径见 **§2.3**；工作项 **NT-091**（建模块）→ **NT-096**（收编软件包）→ **NT-097**（v3.90 页面重构）。
 
-- **定位**（v3.87 定调 / v3.90 收紧）：**当前操作系统的常用设置与快速命令** —— 收藏夹 / 命令库（Windows 常用命令与快捷设置预设）/ 软件包（按操作系统装软件）。判据 = 执行完**只产生副作用、不产出数据**（§2.3.3）；产出可解析数据的条目一律归 §6.2 脚本中心。
+- **定位**（v3.87 定调 / v3.90 收紧）：**当前操作系统的常用设置与快速命令** —— 收藏夹 / 命令库（Windows 常用命令与快捷设置预设）/ 软件包（按操作系统装软件）。判据 = 执行完**只产生副作用、不产出数据**（§2.3.3）；产出可解析数据的条目一律归 §6.2 脚本管理器。
 - ⛔ **不收应用级设置页的功能**（全局通用 / 启动与外观 / 路径与配置 / 网络与 DNS / 数据管理仍归框架层 `src/Shell`，见 §4.9）。
 - **模块**：菜单组键 **`system-tools`**（🔴 v3.89：NT-091 原用 `system`，与 Shell 的 `isHome:true` 宿主组撞键 ⇒ 应用级设置 8 页被渲染进「系统工具」组；页 Key 一律未变）/ Order **25** / 程序集 `Module.SystemTools` / 命名空间 `NewToys.SystemTools`；一级菜单图标需**新增 StreamGeometry**（框架层 `App.axaml`）。
 - **页面**（v3.90 重构后 3 页 + 1 设置页；**页 Key 一律不改**）：
@@ -1626,7 +1627,7 @@ Module.*（功能模块，只引 Shared + Core）
 > 工作项 **NT-117**。用户原述（2026-10-28）：「扫描一个指定文件夹里的数据，压缩后发送到邮箱或者上传到网盘里，需要一个密码生成器，这样压缩的时候就可以加密，上传后也是加密的，这些备份的文件要支持还原」。
 
 - **定位**：把**用户指定的任意文件夹**打成**加密归档**，投递到网盘（WebDAV）或邮箱，并可从备份包**还原**回指定目录。
-- ⛔ **不碰 NetToys 自身的配置备份**（那是 `Core/BackupService.cs` 的备份节机制，入口在「设置 → 数据管理」，见 §4.9）；⛔ **不做云同步 / 实时镜像 / 增量同步 / 双向同步**；⛔ 不做微信 / QQ 等 IM 通道。
+- ⛔ **不碰 NetToys 自身的配置备份**（那是 `Core/Services/BackupService.cs` 的备份节机制，入口在「设置 → 数据管理」，见 §4.9）；⛔ **不做云同步 / 实时镜像 / 增量同步 / 双向同步**；⛔ 不做微信 / QQ 等 IM 通道。
 - **模块**：菜单组键 **`backup`** / Order **60**（媒体资产之后）/ 程序集 `Module.BackupCenter` / 命名空间 `NewToys.BackupCenter`；一级菜单图标需新增 StreamGeometry（框架层 `App.axaml`）；页 Key 前缀 `backup-*`。
 - **页面**（v1 = 2 页 + 1 设置页）：
 
@@ -1698,7 +1699,7 @@ Module.*（功能模块，只引 Shared + Core）
 | 外壳 | `NewToys.UI/Viewers/ViewerHost` | 统一工具条 / 内容区 / 全屏 / 快捷键 / 记忆位置 |
 | 入口 | **`Module.Viewer`（薄壳）** | 打开文件或 URL → 按类型分发渲染器 → 最近打开 |
 
-- ⛔ **不做「媒体中心」**：图库管理归 `Module.MediaAssets`、转码归 `Module.VideoTools`、书源抓取归脚本中心。查看器只负责「打开并显示」。
+- ⛔ **不做「媒体中心」**：图库管理归 `Module.MediaAssets`、转码归 `Module.VideoTools`、书源抓取归脚本管理器。查看器只负责「打开并显示」。
 - ⛔ **不做编辑**（一律只读）：⛔ 改文本、⛔ 裁图、⛔ 剪辑音视频。
 - 🔴 **为什么渲染器必须上提 UI 库**：模块**禁互引**（§3.1），若渲染器留在 `Module.Viewer` 里，MediaAssets / VideoTools 想用只能经 `IModuleBus` 跳页，体验割裂；且四类渲染器留在业务模块会被反复重写。
 

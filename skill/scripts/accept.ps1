@@ -9,6 +9,7 @@
     pwsh skill/scripts/accept.ps1 -All         # WARN 明细全展开（透传给子检查）
     pwsh skill/scripts/accept.ps1 -Report      # 额外写 artifacts/accept-report.md
     pwsh skill/scripts/accept.ps1 -SkipStatic  # 只做改动范围检查（不跑 Lint）
+    pwsh skill/scripts/accept.ps1 -Brief       # 只打一行结论（完整表格强制写 artifacts/accept-report.md）
 
   退出码：0 = 全通过；1 = 存在 FAIL（脚本自身报错亦为 1）。
   ⛔ 本脚本只读，不修改 src/ 下任何源文件。
@@ -27,7 +28,9 @@ param(
     # 写 artifacts/accept-report.md
     [switch]$Report,
     # 透传 -All 给支持的子检查（WARN 明细全展开）
-    [switch]$All
+    [switch]$All,
+    # 只输出一行结论（完整表格强制写入 artifacts/accept-report.md）—— 省 AI 读取成本
+    [switch]$Brief
 )
 
 $ErrorActionPreference = 'Continue'
@@ -35,9 +38,10 @@ $ProgressPreference    = 'SilentlyContinue'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $src      = Join-Path $repoRoot 'src'
+if ($Brief) { $Report = $true }
 
-Write-Host "`n════════ NewToys 静态验收 ════════" -ForegroundColor Cyan
-Write-Host "仓库根 : $repoRoot" -ForegroundColor DarkGray
+if (-not $Brief) { Write-Host "`n════════ NewToys 静态验收 ════════" -ForegroundColor Cyan }
+if (-not $Brief) { Write-Host "仓库根 : $repoRoot" -ForegroundColor DarkGray }
 if (-not (Test-Path $src)) {
     Write-Host "[FAIL] 找不到 src/ —— 请从仓库内运行本脚本" -ForegroundColor Red
     exit 1
@@ -105,7 +109,7 @@ $staticChecks = @(
 )
 
 if (-not $SkipStatic) {
-    Write-Host "`n──── 1/2 静态检查 ────" -ForegroundColor Cyan
+        if (-not $Brief) { Write-Host "`n──── 1/2 静态检查 ────" -ForegroundColor Cyan }
     $lintPy    = Join-Path $repoRoot 'skill\scripts\lint.py'
     $pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
 
@@ -137,11 +141,13 @@ if (-not $SkipStatic) {
 
         $tag = switch ($status) { 'PASS' { '[PASS] ' } 'WARN' { '[WARN] ' } default { '[FAIL] ' } }
         $color = switch ($status) { 'PASS' { 'Green' } 'WARN' { 'Yellow' } default { 'Red' } }
-        Write-Host ("  {0}{1} —— {2}" -f $tag, $c.Name, $detail) -ForegroundColor $color
-        if ($status -ne 'PASS') {
-            # 打印带 [ERROR]/[WARN] 的明细行，帮定位
-            $raw -split "\r?\n" | Where-Object { $_ -match '\[(ERROR|WARN|XML失败|缺配对)\]' } |
-                Select-Object -First 12 | ForEach-Object { Write-Host "        $($_.Trim())" -ForegroundColor DarkGray }
+        if (-not $Brief) {
+            Write-Host ("  {0}{1} —— {2}" -f $tag, $c.Name, $detail) -ForegroundColor $color
+            if ($status -ne 'PASS') {
+                # 打印带 [ERROR]/[WARN] 的明细行，帮定位
+                $raw -split "\r?\n" | Where-Object { $_ -match '\[(ERROR|WARN|XML失败|缺配对)\]' } |
+                    Select-Object -First 12 | ForEach-Object { Write-Host "        $($_.Trim())" -ForegroundColor DarkGray }
+            }
         }
     }
 }
@@ -149,8 +155,36 @@ else {
     Add-Row '静态检查' '全部' 'SKIP' '-SkipStatic'
 }
 
+# ═════════ 1b) 文档一致性（docs-sync.py：模块清单 / 页数 / 路径引用 ⇄ src）═════════
+# 只读、纯静态：把「文档说 A、代码是 B」变成可跑的 FAIL，避免文档靠人肉同步。
+$syncPy = Join-Path $repoRoot 'skill\scripts\docs-sync.py'
+$pyExe  = (Get-Command python -ErrorAction SilentlyContinue).Source
+if (-not $SkipStatic -and $pyExe -and (Test-Path $syncPy)) {
+    $prevEnc = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $env:PYTHONIOENCODING = 'utf-8'
+    try { $syncOut = (& $pyExe $syncPy 2>&1 | Out-String) }
+    finally { [Console]::OutputEncoding = $prevEnc }
+
+    $se = 0; $sw = 0
+    if ($syncOut -match '结果：ERROR\s*(\d+)\s*｜\s*WARN\s*(\d+)') {
+        $se = [int]$Matches[1]; $sw = [int]$Matches[2]
+    }
+    $sStatus = if ($se -gt 0) { 'FAIL' } elseif ($sw -gt 0) { 'WARN' } else { 'PASS' }
+    Add-Row '文档一致性' '文档 ⇄ src（模块 / 页数 / 路径）' $sStatus ("{0} 阻断 / {1} 告警" -f $se, $sw) $syncOut
+    if (-not $Brief) {
+        $tag = switch ($sStatus) { 'PASS' { '[PASS] ' } 'WARN' { '[WARN] ' } default { '[FAIL] ' } }
+        $color = switch ($sStatus) { 'PASS' { 'Green' } 'WARN' { 'Yellow' } default { 'Red' } }
+        Write-Host ("  {0}文档 ⇄ src —— {1} 阻断 / {2} 告警" -f $tag, $se, $sw) -ForegroundColor $color
+        if ($sStatus -ne 'PASS') {
+            $syncOut -split "\r?\n" | Where-Object { $_ -match '^\[(ERROR|WARN)\]' } |
+                Select-Object -First 8 | ForEach-Object { Write-Host "        $($_.Trim())" -ForegroundColor DarkGray }
+        }
+    }
+}
+
 # ═════════ 2) 铁律 1：改动是否只在 src/（skill/ scripts/ AGENTS.md 经授权可改）═════════
-Write-Host "`n──── 2/2 铁律 1（改动范围）────" -ForegroundColor Cyan
+if (-not $Brief) { Write-Host "`n──── 2/2 铁律 1（改动范围）────" -ForegroundColor Cyan }
 $changed = @()
 if (Get-Command git -ErrorAction SilentlyContinue) {
     $porcelain = @(& git -C $repoRoot status --porcelain -uall 2>$null)
@@ -161,16 +195,18 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
             $changed += $p
         }
     }
-    # 授权区：src/（正文）+ skill/（知识库与权威文档）+ scripts/（构建脚本）+ AGENTS.md（文档体系入口）
-    $outside = @($changed | Where-Object { $_ -notmatch '^src/' -and $_ -notmatch '^skill/' -and $_ -notmatch '^scripts/' -and $_ -notmatch '^AGENTS\.md$' })
+    # 授权区：src/（正文）+ skill/（知识库与权威文档）+ scripts/（构建脚本）+ var/（用户自用脚本）+ AGENTS.md（入口）
+    $outside = @($changed | Where-Object { $_ -notmatch '^src/' -and $_ -notmatch '^skill/' -and $_ -notmatch '^scripts/' -and $_ -notmatch '^AGENTS\.md$' -and $_ -notmatch '^var/' })
     if ($outside.Count -gt 0) {
         Add-Row '铁律1' 'src/ 之外的改动' 'WARN' ("$($outside.Count) 处越界") ($outside -join "`n")
-        Write-Host "  [WARN] src/ 之外有 $($outside.Count) 处改动（skill/ scripts/ AGENTS.md 经授权可改，其余应确认）：" -ForegroundColor Yellow
-        $outside | Select-Object -First 10 | ForEach-Object { Write-Host "        $_" -ForegroundColor DarkGray }
+        if (-not $Brief) {
+            Write-Host "  [WARN] src/ 之外有 $($outside.Count) 处改动（skill/ scripts/ AGENTS.md 经授权可改，其余应确认）：" -ForegroundColor Yellow
+            $outside | Select-Object -First 10 | ForEach-Object { Write-Host "        $_" -ForegroundColor DarkGray }
+        }
     }
     else {
         Add-Row '铁律1' 'src/ 之外的改动' 'PASS' "工作区 $($changed.Count) 个文件，均在 src/ 或 skill/"
-        Write-Host "  [PASS] 工作区 $($changed.Count) 个改动，均在 src/ 或 skill/" -ForegroundColor Green
+        if (-not $Brief) { Write-Host "  [PASS] 工作区 $($changed.Count) 个改动，均在授权区" -ForegroundColor Green }
     }
 }
 else {
@@ -183,31 +219,41 @@ $warns = @($script:rows | Where-Object { $_.Status -eq 'WARN' })
 $skips = @($script:rows | Where-Object { $_.Status -eq 'SKIP' })
 $pass  = @($script:rows | Where-Object { $_.Status -eq 'PASS' })
 
-Write-Host "`n════════ 验收结果 ════════" -ForegroundColor Cyan
-foreach ($area in ($script:rows | Select-Object -ExpandProperty Area -Unique)) {
-    foreach ($r in ($script:rows | Where-Object { $_.Area -eq $area })) {
-        $mark = switch ($r.Status) {
-            'PASS'  { '[PASS]' } 'WARN' { '[WARN]' } 'FAIL' { '[FAIL]' } default { '[SKIP]' }
-        }
-        $color = switch ($r.Status) {
-            'PASS'  { 'Green' }  'WARN' { 'Yellow' } 'FAIL' { 'Red' }   default { 'DarkGray' }
-        }
-        Write-Host ("  {0} {1,-10} {2} —— {3}" -f $mark, $area, $r.Name, $r.Detail) -ForegroundColor $color
-    }
-}
-
+if (-not $Brief) { Write-Host "`n════════ 验收结果 ════════" -ForegroundColor Cyan }
 $verdict = if ($fails.Count -eq 0) { '✅ 通过' } else { '❌ 不通过' }
 $totalColor = if ($fails.Count -eq 0) { 'Green' } else { 'Red' }
-Write-Host "`n  $verdict  （PASS $($pass.Count) / WARN $($warns.Count) / FAIL $($fails.Count) / SKIP $($skips.Count)）" -ForegroundColor $totalColor
-if ($fails.Count -gt 0) {
-    Write-Host '  未通过项：' -ForegroundColor Red
-    $fails | ForEach-Object { Write-Host "    - [$($_.Area)] $($_.Name)：$($_.Detail)" -ForegroundColor Red }
+
+if ($Brief) {
+    # 一行结论：AI 只需读取这一行，完整表格在 artifacts/accept-report.md
+    $warnNames = ($warns | ForEach-Object { $_.Name }) -join '、'
+    $tail = if ($warnNames) { "  ｜ 告警：$warnNames" } else { '' }
+    Write-Host ("`naccept: {0} ｜ PASS {1} / WARN {2} / FAIL {3} / SKIP {4}{5} ｜ 明细 artifacts/accept-report.md" -f `
+        $verdict, $pass.Count, $warns.Count, $fails.Count, $skips.Count, $tail) -ForegroundColor $totalColor
 }
-if ($warns.Count -gt 0) {
-    Write-Host '  告警项（不阻断，建议确认）：' -ForegroundColor Yellow
-    $warns | ForEach-Object { Write-Host "    - [$($_.Area)] $($_.Name)：$($_.Detail)" -ForegroundColor Yellow }
+else {
+    foreach ($area in ($script:rows | Select-Object -ExpandProperty Area -Unique)) {
+        foreach ($r in ($script:rows | Where-Object { $_.Area -eq $area })) {
+            $mark = switch ($r.Status) {
+                'PASS'  { '[PASS]' } 'WARN' { '[WARN]' } 'FAIL' { '[FAIL]' } default { '[SKIP]' }
+            }
+            $color = switch ($r.Status) {
+                'PASS'  { 'Green' }  'WARN' { 'Yellow' } 'FAIL' { 'Red' }   default { 'DarkGray' }
+            }
+            Write-Host ("  {0} {1,-10} {2} —— {3}" -f $mark, $area, $r.Name, $r.Detail) -ForegroundColor $color
+        }
+    }
+
+    Write-Host "`n  $verdict  （PASS $($pass.Count) / WARN $($warns.Count) / FAIL $($fails.Count) / SKIP $($skips.Count)）" -ForegroundColor $totalColor
+    if ($fails.Count -gt 0) {
+        Write-Host '  未通过项：' -ForegroundColor Red
+        $fails | ForEach-Object { Write-Host "    - [$($_.Area)] $($_.Name)：$($_.Detail)" -ForegroundColor Red }
+    }
+    if ($warns.Count -gt 0) {
+        Write-Host '  告警项（不阻断，建议确认）：' -ForegroundColor Yellow
+        $warns | ForEach-Object { Write-Host "    - [$($_.Area)] $($_.Name)：$($_.Detail)" -ForegroundColor Yellow }
+    }
+    Write-Host "`n  注：本脚本只证明「静态硬伤为 0 + 改动不越界」；编译与运行由用户本地 build.ps1 / run.ps1 验证。" -ForegroundColor DarkGray
 }
-Write-Host "`n  注：本脚本只证明「静态硬伤为 0 + 改动不越界」；编译与运行由用户本地 build.ps1 / run.ps1 验证。" -ForegroundColor DarkGray
 
 # ═════════ 报告（可选）═════════
 if ($Report) {

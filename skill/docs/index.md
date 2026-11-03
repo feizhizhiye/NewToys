@@ -1,12 +1,10 @@
 # NewToys 文档地图（Index）
 
+> v1.12 · 2026-11-03 · **文档 ⇄ src 五方对账** —— `docs-sync.py` 新增 `menu`（模块清单：键 / 显示名 / Order / 图标 / 页数，四处文档 ⇄ 代码 `RegisterModule` / `RegisterFunction`）与 `paths`（文档路径引用 ⇄ src 实际文件）；已并入 `accept.ps1`。同步修正：framework §4.2 分组表补 4 个模块、台账基线表补 3 个模块（37 → 52）、模块 md 页数 3 处、系统工具组键 `system` → `system-tools`、显示名定为「脚本管理器」（v3.86 的「脚本中心」作废）。
+> v1.11 · 2026-11-03 · **省 token 工具** —— 新增 `skill/scripts/ctx.py`（任务上下文打包：一次输出铁律 + 模块行 + 相关章节 + 任务卡，替代逐份 Read）与 `skill/scripts/docs-sync.py`（Key 三方对账 / 卡窗口 / NT 编号）；§三 顶部加两行路由；`accept.ps1 -Brief` 一行结论。
 > v1.10 · 2026-11-03 · **`ui.md` 新增 §12 视觉克制与判断清单** —— 「该不该加元素 / 文案 / 字号 / 边框圆角阴影 / 动画 / 对齐 / 减少判断 / 状态可达性」八条 + 交付自检；不可静态检测，改页面后人工扫。§三 补一行路由。
 > v1.9 · 2026-11-02 · **查看器 V2** —— 新增 `NewToys.UI/Readers/`（`ReaderShell` 阅读器壳）与 `Viewers/AudioPlayer`；长文本走阅读器（目录 / 书签 / 全书搜索 / 自定义章节正则 / 排版），图片支持压缩包内浏览，新增本地音乐播放器；视频仍走系统播放器。新增 `backlog/viewer/NT-134.md`，`modules/viewer.md` 全文重写（NT-134）。
-> v1.8 · 2026-11-01 · **网络阅读 批4** —— 菜单组名「阅读」→ **网络阅读**（Key `reading` 不变）、设置页「网络阅读设置」；发现 / 搜索页书单改行列表 + 共用书籍卡浮层（`BookCardOverlay`）、书源多选与阅读页目录改弹出；`modules/reading.md` 同步（NT-128）。
-> v1.7 · 2026-11-01 · **查看器立项 + V1 实施** —— §二 模块清单加「查看器」（`Module.Viewer` 薄壳 + `NewToys.UI/Viewers/` 渲染器，NT-124，V1 已实施待 build）；渲染器上提 UI 库的依据：模块禁互引，媒体资产 / 视频工具 / 将来书源阅读都要复用。新增 `modules/viewer.md`。
-> v1.6 · 2026-10-21 · **省 token 重构** —— ① 新增 **`NewToys-需求摘要.md`**（需求规格 174 KB 已不可整读，摘要 = AI 常读基线，原文只按 §九 定位 grep）；② §三 路由表升为**唯一源**（`AGENTS.md` 与 `references/newtoys-spec.md` 的同构表已删，只留 6 行速记 + 指回本表）；③ 主题键数量不再写死在文档里（以 `lint.py` 白名单为准）。
-> v1.5 · 2026-10-21 · **过时内容清理** —— 模块清单状态列与代码/台账对齐（脚本管理器 NT-068 已验收、网络工具 7 页）；版本记录按「只保留最近三次」压缩。
-> v1.4 · 2026-10-19 · **新增跨平台中立约束的路由** —— `framework.md` §2.1 是「架构中立 / 后端适配 / 平台底座」的唯一源（本期不实施跨平台，但新增模块与后端必须遵守）；§三 补一行。
+> v1.8 及更早（归档）：网络阅读批4 改名 / 查看器立项 / 省 token 重构（需求摘要 + §三 路由升为唯一源）/ 模块清单对齐 / 跨平台中立路由 —— 明细查 `git log`。
 > 会话开始读本文件 + `NewToys-项目状态与路线图.md`「一、当前基线」，再按任务读对应文档。
 > ⛔ 不整读文档：一律按本表定位后**定向读**。
 
@@ -31,11 +29,11 @@
 
 | 模块 | 程序集 | 模块键 | 菜单 Key 前缀 | 文档 | 状态 |
 |---|---|---|---|---|---|
-| **脚本中心**（显示名 v3.86 起；原名「脚本管理器」） | `Module.ScriptManager` | `script` | `script-*` + `web-scrape`/`web-rule-editor`/`web-crawl` | `modules/script-manager.md` | ✅ NT-089 S1 已实施；命令库 / 收藏夹（NT-091）与软件包（NT-096）已迁出 ⇒ 剩 脚本库 / 集合 / 信息面板 / 抓取三页 / 设置 |
+| **脚本管理器**（显示名保持原名；v3.86 曾定改「脚本中心」，2026-11-03 撤销） | `Module.ScriptManager` | `script` | `script-*` + `web-scrape`/`web-rule-editor`/`web-crawl` | `modules/script-manager.md` | ✅ NT-089 S1 已实施；命令库 / 收藏夹（NT-091）与软件包（NT-096）已迁出 ⇒ 剩 6 页 + 设置（脚本库 / 集合 / 信息面板 / 抓取三页） |
 | 网络工具 | `Module.WebTools` | `web` | `web-*` | `modules/web-tools.md` | ✅ 稳定（**4 页 + 设置**：HTTP 测试 / 网址收藏 / Ping / Hosts 管理〔双列表工作台〕）；🔄 **v3.86 起收窄为「网络配置与诊断」**（三页迁出至 script）；出口代理（NT-093）仍是草稿 |
 | 视频工具 | `Module.VideoTools` | `video` | `video-*` | `modules/video-tools.md` | ✅ 稳定（3 页 + 设置） |
 | **系统工具**（v3.86 立项 / v3.87 定位收紧） | `Module.SystemTools` | `system-tools`（🔴 组键，非页 Key） | `script-commands` / `script-favorites` / `script-packages` / `system-*` | `modules/system-tools.md` | ✅ 已实施（NT-091 建模块 · NT-096 收编软件包；⏳ 待 build 验收） |
-| 媒体资产 | `Module.MediaAssets` | `assets` | `assets-*` | `modules/media-assets.md` | ✅ 稳定（7 页 + 设置） |
+| 媒体资产 | `Module.MediaAssets` | `assets` | `assets-*` | `modules/media-assets.md` | ✅ 稳定（8 页 + 设置） |
 | **备份中心**（v3.92 立项） | `Module.BackupCenter` | `backup` | `backup-*` | `modules/backup-center.md` | ✅ **NT-117 + NT-119 + NT-118 + NT-120 已实施**（⏳ 待 build 验收）：4 页 + 设置（7z 加密归档 / 包清单 / 还原 / 主密码密码库 / 备份日历 / **邮件分卷投递 + 备份邮件页**）；数据落 SQLite `store\backup\backup.db`；WebDAV 属 v2。需求 §6.8 |
 | **查看器**（v3.102 立项） | `Module.Viewer`（薄壳）+ `NewToys.UI/Viewers/`（渲染器）+ `NewToys.UI/Readers/`（阅读器壳） | `viewer` | `viewer-*` | `modules/viewer.md` | ✅ **V1 已验收 + V2 已实施（NT-134，⏳ 待 build）**：长文本阅读器（目录 / 书签 / 全书搜索 / 自定义章节正则 + 排版）/ 短文本与源码 / 图片 / **压缩包内图片（zip·rar·7z）** / **本地音乐播放器（列表 / 音量 / 单曲·随机 / LRC）**；⛔ 视频走系统播放器，⛔ PDF·EPUB 未做。需求 §6.9 |
 | **网络阅读**（v3.105） | `Module.Reading` | `reading` | `reading-*` / `settings-reading` | `modules/reading.md` | ✅ **批1 + 批2 + 批3 已实施（NT-125 / NT-126 / NT-127，5 页 + 1 设置页**：书源 / 发现 / 网上搜索 / 书架 / 阅读 / 阅读设置）**：legado 书源导入（幂等）+ 规则求值器（选择器 / `@css:` / `@json:` / `\|\|` `&&` `##` / `{{}}` / `@put@get`）+ **`@js:` JS 兼容层（Jint + `java.*` 桥）** + 四段管线（搜索→详情→目录→正文）+ **沉浸式阅读页（进度 / 排版）**；发现页支持换行分隔分类表与分类翻页。正文渲染复用 `NewToys.UI/Viewers/TextViewer`。可跑率 67.4% → **96.3%**，剩余为 WebView 专有。需求 §6.10 |
@@ -63,6 +61,8 @@
 
 | 任务 | 读什么 |
 |---|---|
+| **会话开始 / 要读多份文档** | **`python skill/scripts/ctx.py --task <feature\|ui\|interaction\|fix\|usage\|verify\|card> --module <模块>`**（一次打包铁律 + 模块行 + 相关章节 + 任务卡；⛔ 逐份 Read）；精读单节 = `--doc <文件> --section <节号>` |
+| 文档与代码是否漂移 / 该淘汰哪张卡 | `python skill/scripts/docs-sync.py`（**五方对账**：菜单 Key · 模块清单「键/显示名/Order/图标/页数」· 路径引用 · 卡窗口 · NT 编号；只读。已并入 `accept.ps1`，交付时自动跑） |
 | **建立全局 / 判断边界与功能范围** | **`NewToys-需求摘要.md`**（150 行）→ 不够再按它 §九 定位原文 |
 | 改某模块的一个页面 | `modules/<模块>.md` §2.5（操作逻辑）→ §3（实现）→ `ui.md`（列表页 / 详情卡 / 工具条对应节） |
 | 改交互行为 / 确认弹窗 / 状态反馈 | `ui.md` §10 → `modules/<模块>.md` §2.5 |

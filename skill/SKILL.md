@@ -20,21 +20,23 @@ agent_created: true
 
 ## 读取顺序
 
-1. 仓库根 `AGENTS.md`（定位 + 铁律 + 文档路由）
-2. `docs/index.md`（文档地图 + **任务型路由唯一源**）+ `docs/NewToys-项目状态与路线图.md`「一、当前基线」
+1. **一次打包（首选）**：`python skill/scripts/ctx.py --task <feature|ui|interaction|fix|usage|verify|card> --module <模块>` —— 输出铁律 + 模块行 + 基线 + 该任务相关章节 + 任务卡。⛔ 不要逐份 Read 文档
+2. 打包里缺的 → 按 `docs/index.md` §三 定位，用 `ctx.py --doc <文件> --section <节号>` 精读单节
 3. 涉及功能 / 边界 → **`docs/NewToys-需求摘要.md`**（150 行常读基线；原文 1331 行只按它的定位表 grep）
 4. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型速记）
 5. 按任务读 **`docs/framework.md`**（框架层）/ **`docs/ui.md`**（UI）/ **`docs/modules/<模块>.md`**（改哪个模块读哪个）对应节
 6. 术语 / 流程有疑问 → `docs/NewToys-AI协作手册.md`【术语对照】【研发流程】
-7. **交付前自检：`pwsh skill/scripts/accept.ps1`**（= 6 项静态检查 + 改动范围；退出码 0/1）。该脚本**纯静态**，编译与运行由用户本地 `scripts/build.ps1` / `run.ps1` 执行
+7. **交付前自检：`pwsh skill/scripts/accept.ps1`**（= 7 项静态检查 + 文档一致性对账 + 改动范围；退出码 0/1）。该脚本**纯静态**，编译与运行由用户本地 `scripts/build.ps1` / `run.ps1` 执行
 
 ## 目录
 
 - `references/collab-method.md` —— 通用协作方法论（跨项目母本；**§七 回复格式（编号段落）与会话成本管控 · 长会话提醒** —— 每次回复前对照）
-- `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / **31 个主题键** / 任务型→章节 / 文档路由）
+- `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / 主题键**数量以 lint 白名单为准** / 任务型→章节 / 文档路由）
 - `references/tech-guard.md` —— 技术栈硬伤唯一源（`G-01`~`G-11` + `G-14`~`G-17`，与 `lint.py --only techstack` 一一对应）
 - **`scripts/accept.ps1` —— 🔴 静态验收入口**：串起下面 6 个静态检查 + 改动范围，输出结论与退出码（0 = 通过 / 1 有 FAIL）。🔴 **不含构建 / 测试 / 产物核对 / 冒烟** —— skill/ 下脚本只做静态检查，编译一律走用户本地 `scripts/build.ps1`。
 - `scripts/lint.py` —— `.axaml` 合法性、`.axaml`↔`.axaml.cs` 配对、`InitializeComponent` 调用、主题键白名单
+- **`scripts/ctx.py` —— 🔴 上下文打包（省 token 首选）**：`python skill/scripts/ctx.py --task ui --module viewer` 一次输出该任务需要的文档段落（铁律 + 模块行 + 相关章节 + 任务卡），**替代逐份 Read 文档**；`--doc ui.md --section 12` 精读单节；`--list` 看任务类型。
+- **`scripts/docs-sync.py` —— 文档同步检查**：菜单 Key（代码 ⇄ `modules/<模块>.md` ⇄ 说明书）、backlog 每目录卡数、模块 md §2.5 存在性、NT 编号（卡 ⇄ 台账 / §11.2）三方对账。只读，`--only keys|cards|ledger`。
 - `scripts/lint.py --only props` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异）
 - `scripts/lint.py --only techstack` —— 技术栈硬伤 `G-01`~`G-14`（ERROR / WARN 分级；`-All` 看 WARN 明细）
 - `scripts/lint.py --only detail-paths` —— 声明式详情卡的字符串绑定路径首段是否存在（`-All` 看全）

@@ -288,10 +288,16 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 | 分组 | Key | Order | 图标 |
 |---|---|---|---|
 | 脚本管理器 | `script` | 20 | `IconPc` |
+| 系统工具 | `system-tools` | 25 | `IconSystem` |
 | 网络工具 | `web` | 30 | `IconWeb` |
 | 视频工具 | `video` | 40 | `IconVideo` |
 | 媒体资产 | `assets` | 50 | `IconMediaAssets` |
+| 查看器 | `viewer` | 55 | `IconViewer` |
+| 网络阅读 | `reading` | 56 | `IconReading` |
+| 备份中心 | `backup` | 60 | `IconBackup` |
 | 宿主分组（**不渲染**） | `system` | 999 | `IconSettings` |
+
+> 本表由 `python skill/scripts/docs-sync.py --only menu` 对账（键 / Order / 图标 / 显示名 ⇄ 代码 `RegisterModule`）；增删模块时同步改此表与 `index.md` §二。
 
 > 🔴 **`system` 是框架保留键**（`ModuleLoader.HostGroupKey` / `AppSettingsRegistration.HiddenGroupKey`）：功能模块⛔ 不得用同名组键 —— `RegisterModule` 同名会复用 + 覆盖 `Title/Order/IsHome` 并补登暂存项 ⇒ 宿主组的设置锚点会被渲染进那个模块（NT-091 踩过，系统工具改用 `system-tools`）。
 

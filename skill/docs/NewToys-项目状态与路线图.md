@@ -58,14 +58,19 @@
 
 | 模块 | 菜单项 | 真实逻辑 | 骨架 |
 |---|---|---|---|
-| 脚本中心（`script`） | 7（6 功能页 + 设置） | **7** | 0 |
+| 脚本管理器（`script`） | 7（6 功能页 + 设置） | **7** | 0 |
 | 网络工具（`web`） | 5（4 功能页 + 设置） | **5** | 0 |
 | 视频工具（`video`） | 4（3 功能页 + 设置） | **4** | 0 |
-| 媒体资产（`assets`） | 8（7 功能页 + 设置） | **8** | 0 |
+| 媒体资产（`assets`） | 9（8 功能页 + 设置） | **9** | 0 |
 | **系统工具（`system-tools`）** | 4（3 功能页 + 设置） | **4** | 0 |
+| **查看器（`viewer`）** | 3（3 功能页，无设置页） | **3** | 0 |
+| **网络阅读（`reading`）** | 6（5 功能页 + 设置） | **6** | 0 |
+| **备份中心（`backup`）** | 5（4 功能页 + 设置） | **5** | 0 |
 | 应用级设置（宿主 `system`） | 8 节锚点（六节 + 功能清单） | **8** | 0 |
 | 首页（`home`） | 1 | **1** | 0 |
-| **合计** | **37** | **37** | **0** |
+| **合计** | **52** | **52** | **0** |
+
+> 本表 = 代码菜单树快照，由 `python skill/scripts/docs-sync.py --only menu` 对账（模块页数 / 键 / Order / 图标）。
 
 > **骨架页**：无（`web-http` 已由 NT-001 落成真实页）。
 > v3.76：**媒体资产 5 个类型页已删**（`assets-video/-music/-book/-image/-document`，NT-063 P2-a）⇒ 8 = 7 功能页 + 设置；类型切换改由「全部资产」筛选栏驱动。
@@ -77,7 +82,7 @@
 | 分组 | Key | Order | 图标键 | 二级菜单（Key 标题/Order/✅） |
 |---|---|---|---|---|
 | 首页 | — | — | `IconHome` | （树的叶子节点；也是**默认页**，与其他标签一样常驻标签栏、不可关闭） |
-| 脚本中心 | script | 20 | `IconPc` | `script-library`脚本库/1/✅ ｜ `script-collections`脚本集合/4/✅ ｜ `script-info`**信息面板**/99/✅ ｜ `web-scrape`**抓取规则**/5/✅ ｜ `web-rule-editor`**调试集合**/6/✅ ｜ `web-crawl`**运行结果**/7/✅ ｜ **`settings-script`脚本中心设置/100/✅** |
+| 脚本管理器 | script | 20 | `IconPc` | `script-library`脚本库/1/✅ ｜ `script-collections`脚本集合/4/✅ ｜ `script-info`**信息面板**/99/✅ ｜ `web-scrape`**抓取规则**/5/✅ ｜ `web-rule-editor`**调试集合**/6/✅ ｜ `web-crawl`**运行结果**/7/✅ ｜ **`settings-script`脚本管理器设置/100/✅** |
 | **系统工具** | system-tools | 25 | `IconSystem` | `script-favorites`收藏夹/1/✅ ｜ `script-commands`命令库/2/✅ ｜ `script-packages`软件包/3/✅ ｜ **`settings-system`系统工具设置/100/✅**（🔴 `system-quick` 快捷命令页 NT-097 已删） |
 | 网络工具 | web | 30 | `IconWeb` | `web-http`HTTP 测试/1/✅（工具条逃生舱）｜ `web-bookmark`**网址收藏**（原书签管理）/2/✅ ｜ `web-ping`网络 Ping/3/✅ ｜ `web-hosts`**Hosts 管理**/7/✅（双列表工作台；原 `web-hosts-system` 已撤，NT-111）｜ **`settings-web-tools`网络工具设置/100/✅** |
 | 视频工具 | video | 40 | `IconVideo` | `video-list`视频列表/0/✅ ｜ `video-cut`**视频预览**/1/✅ ｜ `video-batch`**批量处理**/2/✅ ｜ **`settings-video-tools`视频工具设置/100/✅** |
@@ -111,8 +116,8 @@
 | NT-129 | **网络阅读 批6：正文缓存 + 换源增强 + 发现页 @js: 动态分类 + t2s 繁转简**（用户「1246」+「TTS 本批不做 / 只改 Module.Reading / 换源完整版」）：① 正文缓存（`content_cache` 表 + `ContentAsync` 读写下落，`cache-enabled` 开关）；② 换源增强（书名并发搜全部可用源 → 完整度/速度排序 → 换源浮层一键切源续读）；③ 发现页 `@js:` 动态分类（`ParseExploreCategories` 执行 JS）；④ `java.t2s` 繁转简映射。⛔ 未动框架层；TTS 听书转入后续 | P1 | ✔ **已实施（2026-11-02，待用户本地 build）** —— 新增 `ContentCacheStore` / `TraditionalToSimplified` + 改 `CrawlService`（缓存读写 + `ParseExploreCategories` 实例化 + `@js:` 分类）/ `RuleEvaluator.Js`（`__s_t2s` 桥）/ `ReaderViewModel`（多源换源 + 浮层）/ `ReaderView` / `ReadingDatabase`（schema v3）/ `ReadingModule` / `ExploreViewModel`；静态检查 0 ERROR（WARN 7 = 存量） | backlog/reading/NT-129.md |
 | NT-127 | **阅读模块 批3：发现页修复 + 阅读器 + 设置页（一次到位）**（用户反馈「发现页似乎不能使用」+「把手机 app 的功能一一复现，先讨论」→「写进一批，一次完成」）：① 发现页四处硬伤 —— `exploreUrl` **换行分隔**未支持（只认 `&&` ⇒ 整表并成一条 ⇒ 必 404）/ 分类自带的 `,{method,body}` 被丢 / `ruleExplore` **逐字段**回退缺失 / 只带分类表无 `searchUrl` 的源被「不完整」错杀；② 分类**翻页**（`{{page}}`）；③ 新增 `reading-read` **阅读页**（左目录 + 右正文 + 排版顶栏：字号 / 行距 / 配色 / 目录过滤 / 上一下一章 / 加书架 / 换源）；④ 新增 `settings-reading` **阅读设置页**（抓取 4 项 + 阅读器 6 项，`config\reading.json` 从只读变可写）；⑤ **阅读进度接界面**（`reading_progress`：切章 / 每 5 秒 / 离开页面写库，下次续读）；⑥ 书架升级（分组 `shelf.group_name` / 读到哪章 / 双击进阅读页）。🔴 `ResolveUrl` 改纯字符串拼接（`Uri` 合并会破坏 `{{page}}`）；🔴 发现页不用三段完整性判定 | P1 | ✔ **已实施（2026-11-01，待用户本地 build）** —— 改 `CrawlService`（分类解析 / 字段级回退 / 地址解析）+ `SourceAnalyzer`（放宽）+ `ReadingSettingsService`（可写 10 项）+ 新增 `ProgressStore` / `ReaderViewModel` / `ReaderView` / `SettingsReadingViewModel` / `SettingsReadingView` + 书架四列 + `shelf.group_name` 补列（schema v2）+ 框架层 `TextViewer.ApplyAppearance`（纯增量）。静态检查 PASS 6 / WARN 2（存量） | backlog/reading/NT-127.md |
 | NT-128 | **网络阅读 批4：书单列表化 + 书籍卡 + 弹出式书源与目录 + 模块改名**（用户「发现页书源分类宽度一致 / 书籍区域用列表 / 新增书籍卡（仿手机 App）/ 搜索页书源收进弹出列表 / 阅读页目录弹出 / 模块改名网络阅读」）：① 发现页左树 `Expander` header 与 `ListBox` 项 `HorizontalContentAlignment=Stretch`（每行等宽）；② 两页书单由窄卡网格改**行列表**；③ 新增 `Views/BookCardOverlay` **书籍卡浮层**（封面 / 书名 / 作者 / 分类 / 来源 / 最新章节 / 简介 + 开始阅读 / 加书架 / 关闭），两页共用、按同名成员绑定；④ 新增 `Services/CoverLoader` 封面下载 + 内存缓存；⑤ 搜索页书源多选收进「📚 书源 ▾」弹出面板（`ShowSources` 默认 false）；⑥ 阅读页目录改覆盖层（`ShowToc` 默认 false，换章即收起）；⑦ 菜单组名「阅读」→ **网络阅读**、设置页「网络阅读设置」（🔴 Key 全不变） | P1 | ✔ **已实施（2026-11-01，待用户本地 build）** —— 改 `ExploreView` / `ExploreViewModel` / `SearchView` / `SearchViewModel` / `ReaderView` / `ReaderViewModel` / `ReadingModule` + 新增 `BookCardOverlay` / `CoverLoader`；未动框架层 | backlog/reading/NT-128.md |
-| NT-125 | **阅读模块 批1**（用户定调「两个独立模块：一个抓网络内容，一个本地浏览文件」；本地浏览 = NT-124 `Module.Viewer`）：新模块 `Module.Reading` = 书源导入（legado JSON）+ **方言求值器**（默认简化语法 / `@css:` / `@json:` / `||` / `&&` 节点链 / `##` / `{{}}` / `@put@get`）+ 四段管线（搜索→详情→目录→正文）+ 书源页与搜索页；正文渲染复用 `NewToys.UI/Viewers/TextViewer`。🔴 求值器**必须返回联合体**（Texts/Nodes/Json），⛔ 不能 `List<string>`。批1 不含 JS（留 NT-126）。判据 = 30 条抽样源三段通过率 ≥ 60% | P1 | ✔ **批1 已完成（2026-11-01，已验收）** —— `Module.Reading` 共 4 页（书源 / 发现 / 网上搜索 / 书架）+ 求值器（选择器 / `$` JSON / `@css:` / `{{}}` `{}` / `\|\|` `&&` `##` / `!` 排除索引 / `@put@get`）+ 四段管线 + 单测 30 条 + Shell 装配 4 处。**首轮实机验收「一个也搜不出来」已修**：根因是 `searchUrl` 多数为相对路径未拼书源地址（另修 `$` JSON 规则 / `{}` 插值 / GBK 搜索词 / `!` 排除语义 / `bookUrl`·`chapterUrl` 留空取元素链接）。静态检查 PASS 6 / WARN 2（存量） | backlog/reading/NT-125.md |
-| NT-126 | **阅读模块 批2：JS 兼容层**（审计结论：383 条真实书源里 111 条是「JS + 已知 API」档、C 档未知 API = 0 ⇒ 补齐即可从 67.4% 抬到 96.3%）：`@js:` / `<js>` 片段求值 + 18 个 `java.*` 桥（ajax / getString / getElements / put·get / md5 / aes / timeFormat / toNumChapter …）+ 三档判定改为「可用 / 需 WebView / 不完整」（含 JS 不再拒跑）。🔴 桥的边界只走 **string 进 / string 出**（元素池 + JSON 索引、连接走 JSON 快照），⛔ 不直接暴露 CLR 对象；🔴 `@js:` 之后整段不参与 `||` / `&&` / `##` 切分；🔴 `java.ajax` 用 `Task.Run` 等请求层（⛔ UI 线程阻塞 async）。| P1 | ✔ **已完成（2026-11-01，待用户本地 build）** —— 新增 `RuleEvaluator.Js.cs`（Jint 3.x + prelude 桥）、`RuleSyntax.SplitJs`；改 `Analyze` 档位 / `CrawlService` 注入 fetch / 文案 6 处；单测 +9 条。静态检查 PASS 6 / WARN 2（存量） | backlog/reading/NT-126.md |
+| NT-125 | **阅读模块 批1**（用户定调「两个独立模块：一个抓网络内容，一个本地浏览文件」；本地浏览 = NT-124 `Module.Viewer`）：新模块 `Module.Reading` = 书源导入（legado JSON）+ **方言求值器**（默认简化语法 / `@css:` / `@json:` / `\|\|` / `&&` 节点链 / `##` / `{{}}` / `@put@get`）+ 四段管线（搜索→详情→目录→正文）+ 书源页与搜索页；正文渲染复用 `NewToys.UI/Viewers/TextViewer`。🔴 求值器**必须返回联合体**（Texts/Nodes/Json），⛔ 不能 `List<string>`。批1 不含 JS（留 NT-126）。判据 = 30 条抽样源三段通过率 ≥ 60% | P1 | ✔ **批1 已完成（2026-11-01，已验收）** —— `Module.Reading` 共 4 页（书源 / 发现 / 网上搜索 / 书架）+ 求值器（选择器 / `$` JSON / `@css:` / `{{}}` `{}` / `\|\|` `&&` `##` / `!` 排除索引 / `@put@get`）+ 四段管线 + 单测 30 条 + Shell 装配 4 处。**首轮实机验收「一个也搜不出来」已修**：根因是 `searchUrl` 多数为相对路径未拼书源地址（另修 `$` JSON 规则 / `{}` 插值 / GBK 搜索词 / `!` 排除语义 / `bookUrl`·`chapterUrl` 留空取元素链接）。静态检查 PASS 6 / WARN 2（存量） | backlog/reading/NT-125.md |
+| NT-126 | **阅读模块 批2：JS 兼容层**（审计结论：383 条真实书源里 111 条是「JS + 已知 API」档、C 档未知 API = 0 ⇒ 补齐即可从 67.4% 抬到 96.3%）：`@js:` / `<js>` 片段求值 + 18 个 `java.*` 桥（ajax / getString / getElements / put·get / md5 / aes / timeFormat / toNumChapter …）+ 三档判定改为「可用 / 需 WebView / 不完整」（含 JS 不再拒跑）。🔴 桥的边界只走 **string 进 / string 出**（元素池 + JSON 索引、连接走 JSON 快照），⛔ 不直接暴露 CLR 对象；🔴 `@js:` 之后整段不参与 `\|\|` / `&&` / `##` 切分；🔴 `java.ajax` 用 `Task.Run` 等请求层（⛔ UI 线程阻塞 async）。| P1 | ✔ **已完成（2026-11-01，待用户本地 build）** —— 新增 `RuleEvaluator.Js.cs`（Jint 3.x + prelude 桥）、`RuleSyntax.SplitJs`；改 `Analyze` 档位 / `CrawlService` 注入 fetch / 文案 6 处；单测 +9 条。静态检查 PASS 6 / WARN 2（存量） | backlog/reading/NT-126.md |
 | NT-124 | **查看器模块**（用户需求「为本软件提供基础的文档查看器、视频播放器、图片浏览器、音乐播放器」）：新增 `Module.Viewer` 薄壳 + `NewToys.UI/Viewers/` 渲染器族（`ViewerHost` 外壳 / `TextViewer` 分页排版 / `ImageViewer` 缩放平移 / `MediaRenderer` 音视频）。**V1 = 文本 + 图片（零第三方依赖）**，**V2 = 音视频（待「libvlc / WMF / 抽帧」拍板）**。🔴 渲染器必须上提 UI 库（模块禁互引，MediaAssets / VideoTools 要复用）；Text 层按「章节文本 + 排版参数 → 页」设计，作将来书源阅读的地基；⛔ 不做媒体中心 / ⛔ 编辑 / ⛔ PDF EPUB | P1 | ✔ **已完成 V1（2026-11-01，待用户本地 build）** —— 新增 `Module.Viewer` + `UI/Viewers/`（3 控件）+ Shell 装配 4 处；静态检查 PASS 6 / WARN 2（存量）；V2 待媒体后端拍板 | backlog/framework/NT-124.md |
 | NT-001 | web-http 实装（唯一剩余骨架页） | P2 | ✔ 已完成（已验收） | 🗑 已蒸馏（卡已删 → `modules/web-tools.md` §2.5 HTTP 测试） |
 | NT-002 | pc-package 收尾（Parser 实机 + 批量队列） | P2 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
@@ -204,10 +209,10 @@
 | NT-089 | **脚本中心：规则侧搬家** —— `web-scrape` 退化为脚本库 `category=rule` 筛选态；`rules\*.py` 迁入 `<DataDir>\script\rules\`；`RuleFileService` / `RuleCatalogService` / `RuleRunService` 迁 Module.ScriptManager；预设遷入脚本库 | P1 | ✅ **S1 已完成（2026-10-22 用户本地编译通过）**：抓取能力整体平移入脚本中心；S2（`web-scrape` 规则页终态）已拆出 ⇒ **NT-095**（📝 待拍板，A/B/C 三选一） | backlog/script-manager/NT-089.md |
 | NT-090 | **脚本中心：运行台搬家** —— `web-crawl` 泛化为「运行结果」（④ 运行记录节）；`flows\*.json` / `runs\` → `<DataDir>\script\`（含一次性搬迁）；集合新增类别 `crawl`（「抓取集合」） | P1 | ✅ **已完成（2026-10-22 用户本地编译通过）**：「运行结果」页（`web-crawl` 泛化）+ 运行记录节 | backlog/script-manager/NT-090.md |
 | NT-091 | **新建 `Module.SystemTools`（系统工具，Order 25）** —— 命令库 `script-commands` + 收藏夹 `script-favorites` 平移 + 新增 `system-quick` 快捷命令 + `settings-system`（`config\system\*`）+ 新增一级菜单图标 `IconSystem`；收藏夹 = 本模块命令条目收藏 | P0 | ✅ **已完成（2026-10-22 用户本地编译通过）**：`Module.SystemTools` 建档（`system` / Order 25 / `IconSystem`）+ 命令库 / 收藏夹 / 快捷命令 / 设置四页；详见 `modules/system-tools.md` | backlog/system-tools/NT-091.md |
-| NT-092 | **命令链 L3** —— 集合加执行语义：工具条 `▶ 依次运行` + `capture` 输出 + 变量占位符传参 + 失败策略（遇错停止 / 跳过继续）+ 可取消；⛔ 不新造 Step 模型、⛔ 不连线、线性 only；新增 **node(.js) 解释器**支持 | P1 | 📝 **草稿**（待细化；依赖 NT-089 + NT-090） | 📝 待建卡（backlog/script-manager/NT-092.md） |
-| NT-093 | **出口代理与防反爬（WebTools）** —— `web-egress` 出口管理页 + `IEgressProvider`（Core/Shared 契约，WebTools 实现）+ 轮询 / 失败切换策略 + 出口 IP 探活；`py_worker.py` 加 proxy / 节流 / 429-503 退避 / UA 池；🔴 netsh / 网卡类操作降级为「生成命令供用户自跑」（无提权） | P1 | 📝 **草稿**（待细化；依赖 NT-089 + NT-092） | 📝 待建卡（backlog/web-tools/NT-093.md） |
-| NT-094 | **设置拆分与文案收尾** —— WebTools 设置瘦身（超时 / 并发 / 解析器 → script）；一级菜单显示名「脚本中心」；新二级图标落地；备份段重复显示检查 | P2 | 📝 **草稿**（待细化；依赖以上全部） | 📝 待建卡（backlog/fr
-| NT-095 | **`web-scrape` 抓取规则页终态**（NT-089 S2 拆出）—— 三选一：**A** 保留独立目录页（089 就此结项）／**B** 合并退化为脚本库 `category=rule` 筛选态（规则页 10 项专属命令经基类 `ToolbarExtras` 插槽整体平移，功能零回退）／**C** 撤出左树、保留注册供跳转。🔴 属「删 / 改用户已确认的实现」⇒ **待拍板** | P2 | 📝 **草稿**（⏸ 待拍板，见卡 §二） | backlog/script-manager/NT-095.md |amework/NT-094.md） |
+| NT-092 | **命令链 L3** —— 集合加执行语义：工具条 `▶ 依次运行` + `capture` 输出 + 变量占位符传参 + 失败策略（遇错停止 / 跳过继续）+ 可取消；⛔ 不新造 Step 模型、⛔ 不连线、线性 only；新增 **node(.js) 解释器**支持 | P1 | 🗑 **已作废（卡已删）** | - |
+| NT-093 | **出口代理与防反爬（WebTools）** —— `web-egress` 出口管理页 + `IEgressProvider`（Core/Shared 契约，WebTools 实现）+ 轮询 / 失败切换策略 + 出口 IP 探活；`py_worker.py` 加 proxy / 节流 / 429-503 退避 / UA 池；🔴 netsh / 网卡类操作降级为「生成命令供用户自跑」（无提权） | P1 | 🗑 **已作废（卡已删）** | - |
+| NT-094 | **设置拆分与文案收尾** —— WebTools 设置瘦身（超时 / 并发 / 解析器 → script）；一级菜单显示名「脚本中心」；新二级图标落地；备份段重复显示检查 | P2 | 🗑 **已作废（卡已删）** | - |
+| NT-095 | **`web-scrape` 抓取规则页终态**（NT-089 S2 拆出）—— 三选一：**A** 保留独立目录页（089 就此结项）／**B** 合并退化为脚本库 `category=rule` 筛选态（规则页 10 项专属命令经基类 `ToolbarExtras` 插槽整体平移，功能零回退）／**C** 撤出左树、保留注册供跳转。🔴 属「删 / 改用户已确认的实现」⇒ **待拍板** | P2 | 📝 **草稿**（⏸ 待拍板，见卡 §二） | backlog/script-manager/NT-095.md |
 | NT-096 | **软件包页迁入系统工具 + 系统工具定位收紧**（2026-10-22 用户定调）：`script-packages`（winget GUI）整体从脚本中心平移到 `Module.SystemTools`（Key / 标题 ⛔ 不改）；~~「软件源（winget）」节从「脚本管理器设置」迁到「系统工具设置」~~（🔴 **同日返工：该节删除**，用户「系统工具模块下有软件设置页的节，没必要」）；软件包页的「集合」表达（工具条 `集合 ▾` + 行右键 `📥 加入集合`）删除；🔴 系统工具定位 = **当前操作系统的常用设置与快速命令**，⛔ 不收应用级设置页的功能 | P0 | ✔ **已完成（2026-10-25 编译通过）** —— 2026-10-22 用户指令「把软件包页移动到系统工具里」；返工：系统工具设置回到 2 节（执行 / 数据文件），源操作回归 `winget source …`；**组键 `system` → `system-tools`**（撞 Shell 隐藏宿主组，应用级设置 8 页曾被渲染进本组） | backlog/system-tools/NT-096.md |
 | NT-097 | **系统工具页面重构**（2026-10-23 用户指令）：① **删 `system-quick` 快捷命令页**（内容并入命令库预设）；② **命令库对标脚本库**重做（列显隐 / 表头排序 / 行内 ▶ / Shell 工具条 / 详情卡，VM 继承 `ListPageViewModelBase`）；③ **随包预设** Windows 常用命令 + 快捷设置 + winget（`commands.seeded` 只播种一次）；④ **收藏夹升为模块下第一个页面**（Order 1） | P0 | ✔ **已完成（2026-10-25 编译通过）** —— 代码已落地（改动全落 `Module.SystemTools`），等用户本地 `accept.ps1`（与 NT-096 同批一次 build） | backlog/system-tools/NT-097.md |
 | NT-098 | **命令编辑增强（视频工具）**：① `CommandLint` 参数预检（copy+滤镜/`-crf`+nvenc/`.gif`+x264/双 `-vf`/crf 越界…）→ 命令区上方黄字；② 预览页 `🧪 试跑 5 秒`（同源参数真转小样 + 右栏画面并排）+ `▶ 播放小样`（外部播放器 / `ffplay`）；③ 修 `-progress` 前置、进度改读 `out_time_us`/`out_time`、copy 剪切补 `-avoid_negative_ts make_zero`；批量页卡内 `🧪 试跑选中` | P1 | ✔ **已完成（2026-10-25 编译通过）** | 🗑 已蒸馏（卡已删 → `modules/video-tools.md` §3.5） |
@@ -271,14 +276,14 @@
 | 主题 / 强调色 | `Core/Services/ThemeService.cs` + `Shared/Services/AccentPalette.cs` |
 | 配置存储 / 多配置 | `src/Core/Services/ConfigStoreService.cs` + `ProfileService.cs` + `Shared/Services/IProfileService.cs` |
 | 列显隐 + 页面级开关 + 左树状态 | `Core/Services/ColumnLayoutService.cs` + `Shared/Services/IColumnLayoutService.cs` |
-| 脚本 / 命令共用基类 + 运行 | `Core/Services/QuickActionService.cs`（NT-068 起为 `script.json` 适配器）+ `Shared/Models/QuickAction.cs` + `Module.ScriptManager/ViewModels/QuickActionListViewModel.cs` |
+| 脚本 / 命令共用基类 + 运行 | `Module.ScriptManager/Services/QuickActionService.cs`（`script.json` 适配器）+ `Module.ScriptManager/Models/QuickAction.cs` + `Module.ScriptManager/ViewModels/QuickActionListViewModel.cs` |
 | 默认数据 | `src/Shell/defaults/sysinfo/*`（内置采集脚本，UTF-8 带 BOM + `.seeded` 只加不覆盖）；⛔ 无 `.default.json` 清单（v3.60 起） |
 | 本地数据库 | `Core/Services/SqliteDatabase.cs` + `Module.VideoTools/Services/VideoMediaIndex.cs` |
 | 会话 / 运行钩子 | `Core/Services/DialogHooks.cs` + `Module.VideoTools/Services/VideoFileService.cs` |
 | 视频工具 | `Module.VideoTools/Views/{VideoList,VideoPreview,VideoBatch}View.axaml` + `Services/{VideoScanner,FfmpegService,VideoTaskStore}.cs` |
 | 运行环境 | `Shared/Services/IAppConfigService.cs` + `Core/Services/AppConfigService.cs` |
 | 脚本管理器数据层 | `Module.ScriptManager/Services/{ScriptStoreService,ScriptDatabase,ScriptScanner,CollectableEvaluator}.cs` |
-| winget | `Module.ScriptManager/Services/PackageManagerService.cs` + `PackageOutputParser.cs` + `PackageSettingsService.cs`（NT-074：整套从 Core / Shared 下放；NT-080 v3.80 后源管理已删除） |
+| winget | `Module.SystemTools/Services/PackageManagerService.cs` + `PackageOutputParser.cs` + `PackageSettingsService.cs`（NT-074：整套从 Core / Shared 下放；NT-080 v3.80 后源管理已删除） |
 | 加密 DNS | `src/Core/Services/EncryptedDnsService.cs` |
 | 模块菜单注册（Key 权威源） | 各模块 `XxxModule.cs` |
 

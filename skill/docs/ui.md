@@ -298,7 +298,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 ### 6.7 详情卡滚动条（覆盖式）
 
 - Avalonia 12 的 `ScrollBar` 浮在内容之上，槽落在 `ScrollViewer` 右缘之外 8px（Fluent 模板写死）。
-- **统一走「收在卡内」**：`NewToys.UI/Controls/DetailCardHost.axaml` 内容 `Padding="0,0,14,0"` + `Margin="12,12,4,12"` —— **只写在这一处**，迁移页不必也不能再覆盖 `Padding`。v3.80 起滚动条槽宽 8 / 滑块 6，14px 留位仍然够（⛔ 别缩到 8，滑块贴字难看）。
+- **统一走「收在卡内」**：`UI/Controls/DetailCardHost.axaml` 内容 `Padding="0,0,14,0"` + `Margin="12,12,4,12"` —— **只写在这一处**，迁移页不必也不能再覆盖 `Padding`。v3.80 起滚动条槽宽 8 / 滑块 6，14px 留位仍然够（⛔ 别缩到 8，滑块贴字难看）。
 
 ### 6.8 底栏 `ListFooterBar`
 

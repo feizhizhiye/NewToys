@@ -10,11 +10,11 @@
 
 ## 1. 职责与边界
 
-- **定位**：脚本 / 命令 / 抓取规则的索引库 + 执行器（「脚本中心」）—— 可执行单元 + 集合容器 + 命令链编排。不联网抓取数据、不做云同步。
+- **定位**：脚本 / 命令 / 抓取规则的索引库 + 执行器（「脚本管理器」）—— 可执行单元 + 集合容器 + 命令链编排。不联网抓取数据、不做云同步。
 - ⛔ 不引 Shell；⛔ 不动 `ConfigStoreService` / `SqliteDatabase`（框架层冻结）—— 模块内自建子目录 + 自建连接。
 - 模块改名历史：`Module.PcTools` → `Module.ScriptManager`（NT-068 S1，commit `9eea91f`）；旧菜单 Key `pc-*` **已全部改为 `script-*`**（一次性改名，用户拍板）。
 
-## 2. 当前功能（7 页 + 1 设置页）
+## 2. 当前功能（6 页 + 1 设置页）
 
 > 🔴 **NT-089 S1**：原属网络工具的抓取能力 —— 规则文件（`RuleFileService`）/ 目录（`RuleCatalogService`）/
 > 抓取运行（`RuleRunService`）/ 运行记录（`RunRecordService`）/ 下载器（`DownloadService`）/ 流水线（`FlowService`）

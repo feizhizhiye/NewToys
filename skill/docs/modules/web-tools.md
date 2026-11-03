@@ -6,7 +6,7 @@
 > **状态**：✅ 稳定（**5 页** + 1 设置页）
 > **最后校对**：2026-10-22（🔴 **NT-089 S1**：抓取能力 —— `RuleFileService` / `RuleCatalogService` /
 > `RuleRunService` / `RunRecordService` / `DownloadService` / `FlowService` + 三页 `web-scrape` /
-> `web-rule-editor` / `web-crawl` —— **整体迁出至脚本中心**（`Module.ScriptManager`，见
+> `web-rule-editor` / `web-crawl` —— **整体迁出至脚本管理器**（`Module.ScriptManager`，见
 > `modules/script-manager.md`）；本模块收窄为「网络配置与诊断」，且**不再依赖 Python 运行时**。
 > 跨页传物 `WebTransferService` 上提 `NewToys.UI`（两侧共享同一实例）。
 
@@ -18,7 +18,7 @@
 - 🔴 NT-089 起：**网页抓取（规则集 / 调试集合 / 运行结果）已迁出本模块**（详见 §2 表与 `modules/script-manager.md`）。
 - 系统级写入只发生在 hosts（方案应用 / 手动编辑 / 还原，需管理员权限）；其余均为只读探测或模块内数据。
 
-## 2. 当前功能（5 页 + 1 设置页）
+## 2. 当前功能（4 页 + 1 设置页）
 
 | 菜单 Key | 标题 | Order | View/VM | 说明 |
 |---|---|---|---|---|

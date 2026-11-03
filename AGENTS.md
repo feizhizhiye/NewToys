@@ -1,10 +1,10 @@
 # AGENTS.md — NewToys 项目协作入口
 
+> v2.2 · 2026-11-03：新增 **会话交接包（Handoff）** 铁律 —— 提醒开新会话时**必须同时**给「可直接粘贴的续接包」，⛔ 只提醒不给包算交付未完成；`docs-sync.py` 扩 `menu`（模块清单五方对账）/ `paths`（路径引用）两项并接入 `accept.ps1`，静态验收由 6 项变「7 项 + 文档一致性」。
 > v2.1 · 2026-11-03：`ui.md` 新增 **§12 视觉克制与判断清单**（该不该加元素 / 文案口径 / 字号池 / 边框圆角阴影 / 动画 / 对齐 / 减少判断 / 状态可达性 + 交付自检；不可静态检测）。「改页面视觉」路由补 §12。
 > v2.0 · 2026-10-18
 > v2.0：🆕 **使用层写入规范** —— 口述的「操作逻辑 / 功能 / 使用方法 / 踩坑」按 `skill/docs/index.md` §四 落到唯一位置（新功能→需求规格+卡；交互行为→`modules/<模块>.md` §2.5；使用场景→软件说明书 §五；功能说明→说明书 §四；踩坑→模块 md §5）。**改用户可见交互必须双写**（§2.5 + 说明书），⛔ 只改一处算未完成。路由新增「问某功能怎么用」→ 说明书 §四 §五（⛔ 别读需求规格）。
-> v1.9（2026-10-18）：🔴 **应用级设置 / 首页 / 功能清单归还框架层** —— 它们属 `src/Shell`（`Module.Settings` 已于 NT-062 撤销），规格迁入 **`skill/docs/framework.md` §4.6**，删除 `skill/docs/modules/settings-app.md`；`modules/` 只保留 4 个真模块（script-manager / media-assets / video-tools / web-tools）。
-> v1.8 及更早（归档）：操作逻辑入档 / 文档按「框架层 · UI · 每模块一份」重构 / 文档搬入 `skill/` / 一键验收 `accept.ps1` / 术语标准化 / 入口去重 —— 明细见 `git log`。
+> v1.9 及更早（归档）：操作逻辑入档 / 文档按「框架层 · UI · 每模块一份」重构 / 文档搬入 `skill/` / 一键验收 / 术语标准化 —— 明细查 `git log`。
 > 深度约束 / 坑点 / 静态检查（Lint）脚本在仓库根 `skill/` 目录（`references/collab-method.md` 通用方法论 + `references/newtoys-spec.md` NewToys 专属约束 + `scripts/lint.py` + `scripts/lint.py --only props`）；WorkBuddy 经 `.workbuddy/skills/newtoys/` 指针、Hermes(DeepSeek Harness) 经本文件路由读取。
 > 本文件是**跨 AI 工具的通用入口**（Codex / Cursor / Devin / Jules / Amp 等自动读取 AGENTS.md）。
 > 权威规格在 `skill/docs/`，本文件只做「定位 + 铁律 + 路由」；**冲突时以 skill/docs 与 src/ 源码为准**。
@@ -87,12 +87,13 @@ NewToys = 带 GUI 的 Windows 桌面工具管理器（脚本管理器定位，�
 - **改用户可见交互必须双写**：`modules/<模块>.md` §2.5（契约）+ `NewToys-软件说明书.md` §四/§五（用户语言）；⛔ 只改一处视为交付未完成。落点与格式见 `skill/docs/index.md` §四。
 - 直接写工作区，用 read/ls 确认落盘；⛔ 不打 zip、不列下载链接、不做 sources md 快照。
 - 功能级交付 git commit（`<type>: 简述`）；纯修报错不回写台账。
+- 🔴 **会话交接**：提醒开新会话时（约 20 轮 / 一个工作项交付完毕），**必须同时给出可直接粘贴的续接包**（固定字段：任务 / 阶段 / 已落盘 / 未完成 / 关键上下文 / 待拍板 / 起步动作），用户复制后开新会话即可无损接续。⛔ 只提醒不给包 = 交付未完成。格式与三条硬约束见《AI协作手册》[5] ⑨。
 
 ## 会话启动 checklist
 
-- [ ] 已读本文件 + `skill/docs/index.md` + 《项目状态与路线图》「一、当前基线」
+- [ ] 已用 `python skill/scripts/ctx.py --task <feature|ui|interaction|fix|usage|verify|card> --module <模块>` 一次性拿到本次基线（⛔ 不逐份 Read 文档；需要更多用 `--doc <文件> --section <节号>` 精读）
 - [ ] 已定位本次任务对应的 `modules/<模块>.md` / `ui.md` / `framework.md` 章节（定向读，⛔ 不整读）
 - [ ] 动手前已给变更声明（文件清单 + 验收标准 + 风险/待拍板点）
-- [ ] 交付前跑**静态验收** `pwsh skill/scripts/accept.ps1`（= 6 项静态检查 + 改动范围；退出码 0/1。详见《AI协作手册》[4][6]）。⛔ 该脚本不含构建，编译由用户本地 `scripts/build.ps1` 执行
+- [ ] 交付前跑**静态验收** `pwsh skill/scripts/accept.ps1`（= 7 项静态检查 + 文档一致性对账 + 改动范围；退出码 0/1。详见《AI协作手册》[4][6]）。⛔ 该脚本不含构建，编译由用户本地 `scripts/build.ps1` 执行
 - [ ] 本批改动已攒成**一次 build**，未中途要求用户重建；未因样式/文案微调新开 NT
 - [ ] 交付时同步更新 `modules/<模块>.md`（功能 / 逻辑 / 坑点变了才改）

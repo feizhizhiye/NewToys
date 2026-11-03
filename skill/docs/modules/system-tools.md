@@ -1,7 +1,7 @@
 # 模块 · 系统工具（System Tools）
 
 > **程序集**：`src/Module.SystemTools`（`NewToys.SystemTools`，产物 `Module.SystemTools.dll`）
-> **模块键**：`system` ｜ **一级菜单**：Order **25** · 图标 `IconSystem`（StreamGeometry，NT-091 加进 `App.axaml`）
+> **模块键**：`system-tools`（🔴 组键，非页 Key；⛔ 不是 `system` —— 那是 Shell 保留的宿主分组）｜ **一级菜单**：Order **25** · 图标 `IconSystem`（StreamGeometry，NT-091 加进 `App.axaml`）
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
 > **状态**：✅ 已实施（NT-091 建模块 · NT-096 收编软件包 · **NT-097 页面重构**）｜⏳ 待用户本地 `accept.ps1` 验收
 > **最后校对**：2026-10-23
@@ -10,7 +10,7 @@
 
 ## 1. 职责与边界
 
-- **定位**（v3.87 用户定调 / v3.90 收紧）：**当前操作系统的常用设置与快速命令** —— 收藏夹（模块下第一个页面）/ 命令库（对标脚本库布局 + 随包预设）/ 软件包（按操作系统装软件）。判据 = 执行完**只产生副作用、不产出数据**（需求 §2.3.3）；产出可解析数据的条目一律归 `script` 脚本中心。
+- **定位**（v3.87 用户定调 / v3.90 收紧）：**当前操作系统的常用设置与快速命令** —— 收藏夹（模块下第一个页面）/ 命令库（对标脚本库布局 + 随包预设）/ 软件包（按操作系统装软件）。判据 = 执行完**只产生副作用、不产出数据**（需求 §2.3.3）；产出可解析数据的条目一律归 `script` 脚本管理器。
 - ⛔ **不收应用级设置页的功能**（全局通用 / 启动与外观 / 路径与配置 / 网络与 DNS / 数据管理仍归框架层 `src/Shell`，需求 §4.9）。
 - ⛔ 不做：采集器 / 间隔刷新 / 输出解析器 / 集合 / 命令链编排（属 `script`）。
 - ⛔ 不引 Shell、⛔ 不引其它模块（模块禁互引）。执行两条路：普通项走 Core 的 `ScriptRunner`（NT-088 上提，隐藏+捕获）；**提权项**走模块内 `ISystemCommandLauncher`（可见窗口 + `Verb=runas` 弹 UAC，与 ScriptManager 的 `QuickActionService.StartVisible` 同范式；Core `IProcessRunner` 契约刻意不含提权）。

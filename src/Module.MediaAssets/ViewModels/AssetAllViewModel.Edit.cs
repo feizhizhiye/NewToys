@@ -66,7 +66,22 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             afterJson: $"{{\"name\":\"{row.Name}\",\"rating\":{EditRating},\"tags\":{tagIds.Count},\"categories\":{catIds.Count},\"collections\":{colIds.Count}}}");
 
         RefreshView();   // 标签/分类/集合变了 ⇒ 按当前筛重排重取（选中项按 Id 认领，⛔ 不跳走）
-        StatusText = $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。";
+
+        // 写库是短连接 + 静默 catch ⇒ 只有**从库里读回来**才算数（否则界面骗自己「已保存」）
+        var fresh = Items.FirstOrDefault(r => r.Id == row.Id);
+        if (fresh != null)
+        {
+            Selected = fresh;     // 触发 LoadDetail：详情卡显示的是库里的值，不是内存草稿
+        }
+        else
+        {
+            RaiseDetailChanged();
+        }
+
+        var stuck = fresh != null && !string.Equals(fresh.Name, row.Name, StringComparison.Ordinal);
+        StatusText = stuck
+            ? "⚠ 显示名没写进资产库（库不可用 / 被占用？）—— 点「🔄 重读」后再试一次。"
+            : $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。";
     }
 
     /// <summary>

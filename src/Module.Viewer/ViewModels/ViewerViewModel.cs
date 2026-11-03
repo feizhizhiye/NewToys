@@ -42,6 +42,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     /// <summary>「媒体资产 → ▶ 播放」投递过来、但 View 还没挂上树的曲目（挂树后自动开播）。</summary>
     private readonly List<string> _pendingAudio = new();
+
+    /// <summary>「媒体资产 → 看这批图」投递过来、但 View 还没挂上树的图片（挂树后按这批图翻页）。</summary>
+    private readonly List<string> _pendingImageSet = new();
     private bool _attached;
 
     [ObservableProperty] private string _statusText = "";
@@ -158,6 +161,36 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 OnAudioPlayPosted(payload);
             _bus?.Subscribe(ModuleTopics.AudioPlay, this, OnAudioPlayPosted);
         }
+
+        // 「媒体资产 → 看这批图」：同类载荷（路径列表），但语义是「翻页集就是这批图」，与 OpenFiles 分开。
+        if (Scope is ViewerScope.Image or ViewerScope.All)
+        {
+            foreach (var payload in _bus?.TakeAll(ModuleTopics.ImageOpen) ?? Array.Empty<object?>())
+                OnImageSetPosted(payload);
+            _bus?.Subscribe(ModuleTopics.ImageOpen, this, OnImageSetPosted);
+        }
+    }
+
+    /// <summary>「媒体资产 → 看这批图」投递到达：View 已就绪就立刻打开，否则先攒着等挂树。</summary>
+    private void OnImageSetPosted(object? payload)
+    {
+        if (payload is not IReadOnlyList<string> paths || paths.Count == 0) return;
+
+        var list = paths.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+        if (list.Count == 0) return;
+
+        if (_attached) ImageSetRequested?.Invoke(this, list);
+        else _pendingImageSet.AddRange(list);
+    }
+
+    /// <summary>取走还没打开的投递图片（本页创建时投递先到）。</summary>
+    public IReadOnlyList<string> TakePendingImageSet()
+    {
+        if (_pendingImageSet.Count == 0) return Array.Empty<string>();
+
+        var paths = _pendingImageSet.ToList();
+        _pendingImageSet.Clear();
+        return paths;
     }
 
     /// <summary>「媒体资产 → ▶ 播放」投递到达：View 已就绪就立刻开播，否则先攒着等挂树。</summary>
@@ -206,6 +239,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     /// <summary>「媒体资产 → ▶ 播放」要求开播一批曲目（参数 = 按顺序排好的绝对路径）。</summary>
     public event EventHandler<IReadOnlyList<string>>? AudioPlayRequested;
+
+    /// <summary>「媒体资产 → 看这批图」要求打开一批图片（参数 = 按顺序排好的绝对路径，首张先显示）。</summary>
+    public event EventHandler<IReadOnlyList<string>>? ImageSetRequested;
 
     /// <summary>打开章节规则浮层。</summary>
     public event EventHandler? RulesEditRequested;

@@ -23,6 +23,9 @@ public sealed class AudioTrackItem
     /// <summary>封面原始字节（可空）。</summary>
     public byte[]? Cover { get; init; }
 
+    /// <summary>一行技术信息（例：<c>MP3 · 44.1 kHz · 320 kbps · 立体声</c>）；读不到时只有扩展名。</summary>
+    public string TechText { get; init; } = "";
+
     /// <summary>列表里显示的一行摘要。</summary>
     public string Display => string.IsNullOrWhiteSpace(Artist) ? Title : Title + " · " + Artist;
 

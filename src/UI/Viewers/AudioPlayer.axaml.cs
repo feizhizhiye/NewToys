@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -44,11 +44,12 @@ public partial class AudioPlayer : UserControl
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _timer.Tick += (_, _) => Tick();
 
-        // 离开视觉树（切页 / 关闭）⇒ 停表并停播，⛔ 不留后台声音
-        DetachedFromVisualTree += (_, _) =>
+        // 离开视觉树（切页）⇒ 只停轮询，⛔ 不停播：音乐要能继续放（切回来时重新起表）。
+        // 关闭标签页由宿主决定是否 Stop（本控件不揣测，避免切页与销毁分不清）。
+        DetachedFromVisualTree += (_, _) => _timer.Stop();
+        AttachedToVisualTree += (_, _) =>
         {
-            _timer.Stop();
-            try { Playback?.Stop(); } catch { }
+            if (Playback?.State == AudioPlayState.Playing) _timer.Start();
         };
     }
 
@@ -144,7 +145,7 @@ public partial class AudioPlayer : UserControl
         LoadLyrics(track.Path);
 
         if (autoPlay) Playback.Play();
-        PlayButton.Content = Playback.State == AudioPlayState.Playing ? "暂停" : "播放";
+        PlayButton.Content = Playback.State == AudioPlayState.Playing ? "⏸ 暂停" : "▶ 播放";
 
         _timer.Start();
         TrackChanged?.Invoke(track);
@@ -158,7 +159,7 @@ public partial class AudioPlayer : UserControl
         if (Playback is null) return;
         if (Playback.State == AudioPlayState.Playing) Playback.Pause();
         else Playback.Play();
-        PlayButton.Content = Playback.State == AudioPlayState.Playing ? "暂停" : "播放";
+        PlayButton.Content = Playback.State == AudioPlayState.Playing ? "⏸ 暂停" : "▶ 播放";
     }
 
     /// <summary>下一首（<paramref name="auto"/> = 播完自动切，响应「单曲循环」）。</summary>
@@ -191,7 +192,7 @@ public partial class AudioPlayer : UserControl
     {
         _timer.Stop();
         Playback?.Stop();
-        PlayButton.Content = "播放";
+        PlayButton.Content = "▶ 播放";
         _updating = true;
         try { ProgressSlider.Value = 0; }
         finally { _updating = false; }
@@ -252,12 +253,14 @@ public partial class AudioPlayer : UserControl
 
         foreach (var item in _lyrics)
         {
-            var panel = new StackPanel { Spacing = 1, Opacity = 0.55 };
+            var panel = new StackPanel { Spacing = 2, Opacity = 0.55, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch };
             panel.Children.Add(new TextBlock
             {
                 Text = item.Text,
                 TextWrapping = TextWrapping.Wrap,
-                FontSize = 12,
+                TextAlignment = TextAlignment.Center,
+                FontSize = 14,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
             });
 
             if (!string.IsNullOrWhiteSpace(item.Trans))
@@ -266,8 +269,10 @@ public partial class AudioPlayer : UserControl
                 {
                     Text = item.Trans,
                     TextWrapping = TextWrapping.Wrap,
-                    FontSize = 11,
+                    TextAlignment = TextAlignment.Center,
+                    FontSize = 12,
                     Opacity = 0.7,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
                 });
             }
 
@@ -325,7 +330,7 @@ public partial class AudioPlayer : UserControl
 
         PositionText.Text = Format(position);
         DurationText.Text = duration.TotalSeconds > 0.5 ? Format(duration) : "--:--";
-        PlayButton.Content = Playback.State == AudioPlayState.Playing ? "暂停" : "播放";
+        PlayButton.Content = Playback.State == AudioPlayState.Playing ? "⏸ 暂停" : "▶ 播放";
 
         UpdateLyric(position);
     }
@@ -367,6 +372,7 @@ public partial class AudioPlayer : UserControl
         ArtistText.Text = string.IsNullOrWhiteSpace(track.Album)
             ? track.Artist
             : track.Artist + " · " + track.Album;
+        TechText.Text = track.TechText;
 
         _cover?.Dispose();
         _cover = null;
@@ -398,6 +404,13 @@ public partial class AudioPlayer : UserControl
     private void OnPlayPause(object? sender, RoutedEventArgs e) => TogglePlay();
 
     private void OnNext(object? sender, RoutedEventArgs e) => Next();
+
+    /// <summary>播放列表抽屉：默认收起（截图那种「只有封面 + 歌词」的形态），需要时再展开。</summary>
+    private void OnToggleList(object? sender, RoutedEventArgs e)
+    {
+        PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible;
+        ListButton.Content = PlaylistPanel.IsVisible ? "☰ 收起" : "☰ 列表";
+    }
 
     private void OnPrevious(object? sender, RoutedEventArgs e) => Previous();
 

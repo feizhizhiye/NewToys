@@ -569,6 +569,8 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     {
         if (node == null) return;
 
+        ClearResultSetState();   // 点目录 = 主动回到目录浏览（否则结果集模式会一直压着树）
+
         if (ReferenceEquals(_selectedDirNode, node) && node.HasChildren)
         {
             node.IsExpanded = !node.IsExpanded;
@@ -775,6 +777,13 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         _dirCount = 0;
 
         var node = SelectedNode;
+        if (_resultSet != null)
+        {
+            IsBusy = true;
+            _ = LoadResultSetAsync(version, thumbCt);   // 结果集模式：来源是索引，⛔ 不枚举目录
+            return;
+        }
+
         if (node == null)
         {
             IsBusy = false;
@@ -1079,6 +1088,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         OnPropertyChanged(nameof(SelectedCount));
         OnPropertyChanged(nameof(HasSelectedRows));
         OnPropertyChanged(nameof(HasSelectedTiles));
+        OnPropertyChanged(nameof(CanBatchRename));
     }
 
     /// <summary>列表重建 / 尺寸切档后按**绝对路径**认领选中项（Items 里都是新实例）。</summary>

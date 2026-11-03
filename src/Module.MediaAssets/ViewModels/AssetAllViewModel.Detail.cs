@@ -155,7 +155,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     // ===== 三组 chips（标签 / 分类 / 集合）：点一下打上 / 取消，每项带一个颜色块 =====
                     new DetailField
                     {
-                        Label = "标签（点一下打上 / 取消；按命名空间分组）",
+                        Label = "标签（点一下打上 / 取消；按适用类型分组，只列本类型的）",
                         Kind = FieldKind.Chips,
                         OptionsPath = nameof(TagPicks),
                         ChipTextPath = "Name",
@@ -167,7 +167,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "（还没有标签：到「标签管理」页新建，或用工具条的「🏷 加标签」）",
+                        Hint = "（还没有标签：到「标签管理」页新建，或右键「🏷 加标签…」）",
                         VisibleWhen = "!" + nameof(HasTagPicks)
                     },
                     new DetailField
@@ -331,6 +331,23 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         Actions =
         {
             // ⛔ 「💾 保存」「🗑 移入回收站」已上提到**顶部图标动作组**，这里不再重复。
+            // 批量口径：选了多个资产时，这里出现「一起加标签 / 一起加集合」（单条走下面的色片）
+            new DetailAction
+            {
+                Text = "🏷 批量加标签…",
+                Classes = "ghost",
+                ToolTip = "给选中的多个资产一起加标签（多选弹层：可搜索 / 多选 / 新建；只加不减）",
+                IsVisiblePath = nameof(HasManySelected),
+                Command = AddTagToCheckedCommand
+            },
+            new DetailAction
+            {
+                Text = "📚 批量加集合…",
+                Classes = "ghost",
+                ToolTip = "把选中的多个资产一起加进集合（⚡ 智能集合不能手工加）",
+                IsVisiblePath = nameof(HasManySelected),
+                Command = AddToCollectionCheckedCommand
+            },
             new DetailAction
             {
                 Text = "↗ 应用到文件",
@@ -474,13 +491,18 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private void RebuildStorageOptions()
     {
         var keep = FilterStorage?.Value ?? "";
+        var typeKey = string.IsNullOrEmpty(FilterType?.Value) ? null : FilterType!.Value;
         _rebuildingOptions = true;
         try
         {
             StorageOptions.Clear();
             StorageOptions.Add(new FilterOption("全部存储源", ""));
-            foreach (var s in _assets.ListStorages())
-                StorageOptions.Add(new FilterOption(s.Name, s.Id.ToString(CultureInfo.InvariantCulture)));
+            // 只列**当前类型下真的有资产**的存储源（选了「音乐」却列出只有视频的盘 ⇒ 选了必然空）
+            var storages = typeKey == null
+                ? _assets.ListStorages().Select(s => (s.Id, s.Name)).ToList()
+                : _assets.ListStorageOptionsForType(typeKey);
+            foreach (var (id, name) in storages)
+                StorageOptions.Add(new FilterOption(name, id.ToString(CultureInfo.InvariantCulture)));
             FilterStorage = StorageOptions.FirstOrDefault(o => o.Value == keep) ?? StorageOptions[0];
         }
         finally { _rebuildingOptions = false; }
@@ -495,7 +517,10 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             TagOptions.Clear();
             TagOptions.Add(new FilterOption("全部标签", ""));
             // 之前标签表是空的 → 下拉只有「全部标签」，属预期（⛔ 不是 bug）
-            foreach (var (id, name) in _assets.ListTagOptions())
+            // 有类型筛选时只列**该类型下被用到**的标签（否则选了必然空）
+            var typeKey = string.IsNullOrEmpty(FilterType?.Value) ? null : FilterType!.Value;
+            var tags = typeKey == null ? _assets.ListTagOptions() : _assets.ListTagOptionsForType(typeKey);
+            foreach (var (id, name) in tags)
                 TagOptions.Add(new FilterOption(name, id.ToString(CultureInfo.InvariantCulture)));
             FilterTag = TagOptions.FirstOrDefault(o => o.Value == keep) ?? TagOptions[0];
         }
@@ -520,6 +545,12 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         ApplyTypeColumnDefaults();               // v3.69：列集合随类型切换（⛔ 不落盘、不覆盖用户偏好）
         OnPropertyChanged(nameof(IsVideoType));  // v3.69：详情卡字段集随类型切换（VisibleWhen 重解析）
         OnPropertyChanged(nameof(IsMusicType));
+        // 存储源 / 标签两个下拉跟着类型收窄（只留有该类型资产的），否则选了必然空
+        if (_booted)
+        {
+            RebuildStorageOptions();
+            RebuildTagOptions();
+        }
         if (_booted) ResetToFirstPage();         // 筛选变了回第一页（库态 ⇒ 重取一页）
         StatusText = StatusSummary();            // v3.69：状态栏前缀随类型切换
     }
@@ -562,10 +593,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 ToolTip = "把所有已登记的存储源扫一遍，直接入库" },
         new() { Text = "🔎 校验文件", CommandPath = nameof(VerifyFilesCommand), IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "逐条查磁盘：文件已不在的标为「已丢失」，回来的恢复「正常」（⛔ 不改磁盘、不删记录）" },
-        new() { Text = "🏷 加标签", CommandPath = nameof(AddTagToCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
-                ToolTip = "先选中行（Ctrl 增选 / Shift 连选 / Ctrl+A 全选），再点这里打标签（输入标签名，不存在就新建）" },
-        new() { Text = "📚 加集合", CommandPath = nameof(AddToCollectionCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
-                ToolTip = "先选中行（Ctrl 增选 / Shift 连选 / Ctrl+A 全选），再点这里加进集合（输入集合名，不存在就新建一个手动集合）" },
         new() { Kind = ToolbarItemKind.SplitButton, Text = "▶ 播放", CommandPath = nameof(PlaySelectedInPlayerCommand),
                 IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
                 ToolTip = "把选中的音乐交给「查看器 → 音乐播放」并立即开播（顺序 = 当前列表顺序）",
@@ -580,6 +607,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 ToolTip = "选中后点这里：只删库存记录（含文件位置），⛔ 磁盘文件一个都不动 —— 清理重复行的正确手段" },
         new() { Text = "📊 读媒体信息", CommandPath = nameof(ReadMediaInfoCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
                 ToolTip = "选中后点这里：给还没读过的视频 / 图片跑 ffprobe 补时长 / 分辨率 / 编码（走任务队列，可取消）" },
+        new() { Text = "✏ 批量重命名…", CommandPath = nameof(BatchRenameSelectedCommand), IsEnabledPath = nameof(CanBatchRename), ShowToolTipOnDisabled = true,
+                ToolTip = "选中 ≥2 个后点这里：按规则（查找替换 / 前缀后缀 / 编号 / 大小写）批量改磁盘文件名，先看预览再确认" },
         new() { Text = "🔍 查重合并", CommandPath = nameof(MergeDuplicateAssetsCommand), IsEnabledPath = nameof(IsDbAvailable),
                 ToolTip = "把「同一个物理文件被多条资产重复收录」的组并成一条（标签 / 评分 / 关联都保住；⛔ 磁盘文件不动）" },
         new() { Text = "💾 加入库", CommandPath = nameof(CommitDraftCommand), IsEnabledPath = nameof(IsDraft),

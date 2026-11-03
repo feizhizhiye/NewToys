@@ -65,6 +65,13 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             ShowToolTipOnDisabled = true, ToolTip = "回到上一层目录"
         },
         new() { Text = "◧ 目录树", CommandPath = nameof(ToggleTreeCommand), ToolTip = "显示 / 收起左侧目录树（腾出列表宽度）" },
+        // 结果集模式（标签 → 视频）才有：回到目录浏览
+        new()
+        {
+            Text = "✕ 退出结果集", CommandPath = nameof(ExitResultSetCommand),
+            IsVisiblePath = nameof(IsResultSetMode),
+            ToolTip = "这批资产是「按标签筛出来的结果」而不是某个目录：点这里回到目录浏览"
+        },
     };
 
     // ==================== 详情卡（只读；单条动作在右键菜单） ====================

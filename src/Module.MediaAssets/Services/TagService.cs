@@ -69,25 +69,32 @@ public class TagService
         return list;
     }
 
-    /// <summary>用了这个标签的资产（标签详情卡；点一下可跳过去）。</summary>
-    public List<(long Id, string Name)> ListAssetsOfTag(long tagId, int limit = 200)
+    /// <summary>某个标签下的资产（带类型与主位置路径）：标签详情卡的「按此标签浏览」按类型分流用。</summary>
+    public List<TaggedFile> ListTaggedFiles(long tagId, int limit = 500)
     {
-        var list = new List<(long, string)>();
+        var list = new List<TaggedFile>();
         if (!IsAvailable) return list;
         try
         {
             using var conn = _db.Db.Open();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"SELECT a.id, COALESCE(NULLIF(a.display_name,''), NULLIF(a.title,''), '资产 #' || a.id) AS nm
+            cmd.CommandText = @"SELECT a.id,
+                                       COALESCE(NULLIF(a.display_name,''), NULLIF(a.title,''), '资产 #' || a.id) AS nm,
+                                       IFNULL(a.type,'other'), IFNULL(l.path,''), IFNULL(l.is_primary,0)
                                 FROM assets a
                                 JOIN asset_tags at ON at.asset_id = a.id
+                                LEFT JOIN file_locations l ON l.id = (SELECT f.id FROM file_locations f
+                                    WHERE f.asset_id = a.id ORDER BY f.is_primary DESC, f.id LIMIT 1)
                                 WHERE at.tag_id = $t AND a.status <> 'trashed'
-                                ORDER BY nm COLLATE NOCASE
+                                ORDER BY a.type, nm COLLATE NOCASE
                                 LIMIT $lim;";
             cmd.Parameters.AddWithValue("$t", tagId);
             cmd.Parameters.AddWithValue("$lim", limit);
             using var r = cmd.ExecuteReader();
-            while (r.Read()) list.Add((r.GetInt64(0), r.GetString(1)));
+            while (r.Read())
+            {
+                list.Add(new TaggedFile(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetString(3)));
+            }
         }
         catch { /* 降级为空 */ }
         return list;
@@ -195,6 +202,26 @@ public class TagService
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "UPDATE tags SET color=$c, updated_at=$t WHERE id=$id;";
             cmd.Parameters.AddWithValue("$c", (object?)NullIfEmpty(color) ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$t", AssetService.Now());
+            cmd.Parameters.AddWithValue("$id", id);
+            return cmd.ExecuteNonQuery() > 0;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// 改标签的**适用类型**（写 <c>namespace</c> 列；空 = 通用）。
+    /// <para>口径：这一列不再当「命名空间」用 —— 只放 <see cref="Models.TagTypes.Choices"/> 里的值，决定这个标签出现在哪些类型的详情卡里。</para>
+    /// </summary>
+    public bool SetNamespace(long id, string? typeText)
+    {
+        if (id <= 0 || !IsAvailable) return false;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE tags SET namespace=$n, updated_at=$t WHERE id=$id;";
+            cmd.Parameters.AddWithValue("$n", (object?)NullIfEmpty(typeText) ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$t", AssetService.Now());
             cmd.Parameters.AddWithValue("$id", id);
             return cmd.ExecuteNonQuery() > 0;

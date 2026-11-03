@@ -34,6 +34,8 @@ public partial class AssetAllViewModel
     {
         OnPropertyChanged(nameof(SelectedCount));
         OnPropertyChanged(nameof(HasSelectedRows));
+        OnPropertyChanged(nameof(CanBatchRename));
+        OnPropertyChanged(nameof(HasManySelected));
     }
 
     /// <summary>

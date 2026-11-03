@@ -123,11 +123,74 @@ public partial class AssetService
     /// <summary>筛选下拉用：全部标签（id + 名字）。建好标签后才有内容，之前为空列表。</summary>
     public List<(long Id, string Name)> ListTagOptions() => LoadOptions("tags");
 
+    /// <summary>
+    /// 筛选下拉联动：**当前类型下真的有资产**的标签（<paramref name="typeKey"/> 空 = 全部类型）。
+    /// 选了「音乐」却在下拉里看到只挂在视频上的标签 ⇒ 选了必然空，不符合直觉。
+    /// </summary>
+    public List<(long Id, string Name)> ListTagOptionsForType(string? typeKey)
+        => LoadLinkedOptions("tags", "asset_tags", "tag_id", typeKey);
+
     /// <summary>筛选下拉用：全部分类（id + 名字）。</summary>
     public List<(long Id, string Name)> ListCategoryOptions() => LoadOptions("categories");
 
     /// <summary>筛选下拉用：全部集合（id + 名字）。</summary>
     public List<(long Id, string Name)> ListCollectionOptions() => LoadOptions("collections");
+
+    /// <summary>
+    /// 筛选下拉联动：**当前类型下真的有资产**的存储源（<paramref name="typeKey"/> 空 = 全部类型）。
+    /// </summary>
+    public List<(long Id, string Name)> ListStorageOptionsForType(string? typeKey)
+    {
+        var list = new List<(long, string)>();
+        if (!IsAvailable) return list;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                SELECT DISTINCT s.id, s.name
+                  FROM storages s
+                  JOIN file_locations fl ON fl.storage_id = s.id
+                  JOIN assets a ON a.id = fl.asset_id
+                 WHERE a.status <> $trashed
+                   AND ($type IS NULL OR a.type = $type)
+                 ORDER BY s.id;
+                """;
+            cmd.Parameters.AddWithValue("$trashed", AssetStatuses.Trashed);
+            cmd.Parameters.AddWithValue("$type", (object?)typeKey ?? DBNull.Value);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) list.Add((r.GetInt64(0), r.GetString(1)));
+        }
+        catch { /* 忽略：下拉退回全量，不影响列表 */ }
+        return list;
+    }
+
+    /// <summary>关联表型的下拉（标签）：只留当前类型下被用到的那些。</summary>
+    private List<(long Id, string Name)> LoadLinkedOptions(string table, string linkTable, string linkColumn, string? typeKey)
+    {
+        var list = new List<(long, string)>();
+        if (!IsAvailable) return list;
+        try
+        {
+            using var conn = _db.Db.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"""
+                SELECT DISTINCT x.id, x.name
+                  FROM {table} x
+                  JOIN {linkTable} l ON l.{linkColumn} = x.id
+                  JOIN assets a ON a.id = l.asset_id
+                 WHERE a.status <> $trashed
+                   AND ($type IS NULL OR a.type = $type)
+                 ORDER BY x.name;
+                """;
+            cmd.Parameters.AddWithValue("$trashed", AssetStatuses.Trashed);
+            cmd.Parameters.AddWithValue("$type", (object?)typeKey ?? DBNull.Value);
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) list.Add((r.GetInt64(0), r.GetString(1)));
+        }
+        catch { /* 忽略 */ }
+        return list;
+    }
 
     private List<(long Id, string Name)> LoadOptions(string table)
     {

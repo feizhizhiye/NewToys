@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.MediaAssets.Views.PickManyOverlay">
+  <!--
+    「批量加标签 / 加集合」多选弹层（标签与集合共用一套壳）。
+    数据上下文 = PickManyViewModel（页面 XAML 里写 DataContext="{Binding PickMany}"）。
+
+    🔴 语义只加不减：勾上 = 给所有目标加上；不勾 = 不动。
+    🔴 遮罩 / 卡片底 / 描边 / 圆角 / 投影 / 按钮行 与确认卡片同一套（⛔ 自造观感），颜色只走主题键。
+  -->
+  <Grid>
+    <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnBackdropTapped"/>
+
+    <Border Width="480"
+            MaxHeight="560"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            BoxShadow="0 8 32 0 #66000000"
+            Padding="18">
+      <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="10">
+
+        <StackPanel Grid.Row="0" Spacing="2">
+          <TextBlock Classes="section-title" Text="{Binding Title}"/>
+          <TextBlock Classes="hint-text" Text="{Binding Summary}"/>
+        </StackPanel>
+
+        <!--  搜索 + 新建（新建是唯一需要手打的地方）  -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,140" ColumnSpacing="6">
+          <TextBox Grid.Column="0" Text="{Binding SearchText, Mode=TwoWay}" MinHeight="0" Padding="6,2"
+                   FontSize="12" PlaceholderText="搜索…"
+                   ToolTip.Tip="按名字 / 类型过滤候选（只是过滤列表，不影响已勾选的项）"/>
+          <TextBlock Grid.Column="1" Classes="field-label" Text="新建" VerticalAlignment="Center" Margin="6,0,0,0"/>
+          <TextBox Grid.Column="2" Text="{Binding NewName, Mode=TwoWay}" MinHeight="0" Padding="6,2" FontSize="12"
+                   PlaceholderText="留空 = 不新建"
+                   ToolTip.Tip="输入一个还不存在的名字，确认时一起建出来并加到所有目标上"/>
+        </Grid>
+
+        <!--  候选列表（勾选 = 这次要加）  -->
+        <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="4">
+          <ListBox ItemsSource="{Binding Items}" Background="Transparent" BorderThickness="0" Padding="0,2">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="MinHeight" Value="26"/>
+                <Setter Property="Padding" Value="8,1"/>
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="6">
+                  <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                            IsEnabled="{Binding !Blocked}" MinHeight="0" FontSize="12"
+                            VerticalAlignment="Center"/>
+                  <Border Grid.Column="1" Width="10" Height="10" CornerRadius="2"
+                          VerticalAlignment="Center" Background="{Binding Brush}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="12" MaxLines="1"
+                             TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                             Foreground="{DynamicResource PrimaryTextBrush}"/>
+                  <TextBlock Grid.Column="3" Text="{Binding GroupText}" FontSize="11" MaxLines="1"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource SecondaryTextBrush}"/>
+                  <TextBlock Grid.Column="4" Text="{Binding Note}" FontSize="11" MaxLines="1"
+                             VerticalAlignment="Center" Margin="6,0,0,0"
+                             Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Border>
+
+        <TextBlock Grid.Row="3" Classes="hint-text" Text="{Binding StatusText}" TextWrapping="Wrap"/>
+
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Classes="hint-text" VerticalAlignment="Center"
+                     Text="勾上要加的项（只加，不会删掉已有的）"/>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button Classes="ghost" Width="88" Content="取消" Command="{Binding CloseCommand}"/>
+            <Button Classes="primary" Content="确认" Command="{Binding ConfirmCommand}"
+                    IsEnabled="{Binding CanConfirm}"/>
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

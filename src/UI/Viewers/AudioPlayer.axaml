@@ -2,25 +2,19 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.UI.Viewers.AudioPlayer">
   <!--
-    本地音乐播放器（查看器内）：封面 + 信息 + 播放列表 + 歌词 + 控制条。
+    本地音乐播放器（查看器内）：大封面 + 居中歌词 + 底部控制条；播放列表收在左侧抽屉（默认收起）。
     🔴 所有播放能力走注入的 IAudioPlayback（UI 库 ⛔ 不引 NAudio）；本控件只做界面与轮询刷新。
   -->
   <Grid RowDefinitions="Auto,*,Auto">
 
+    <!-- 顶部：曲名 / 艺术家·专辑 / 技术信息 + 列表开关 -->
     <Border Grid.Row="0"
-            Padding="12,10"
+            Padding="14,10"
             Background="{DynamicResource ContentHeaderBrush}"
             BorderBrush="{DynamicResource DividerBrush}"
             BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="Auto,*">
-        <Border Width="56"
-                Height="56"
-                CornerRadius="4"
-                ClipToBounds="True"
-                Background="{DynamicResource ContentBrush}">
-          <Image x:Name="Cover" Stretch="UniformToFill" />
-        </Border>
-        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Spacing="2">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel VerticalAlignment="Center" Spacing="2">
           <TextBlock x:Name="TitleText"
                      FontSize="15"
                      FontWeight="SemiBold"
@@ -28,44 +22,81 @@
           <TextBlock x:Name="ArtistText"
                      Classes="hint-text"
                      TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="TechText"
+                     Classes="hint-text"
+                     TextTrimming="CharacterEllipsis" />
         </StackPanel>
+        <Button x:Name="ListButton"
+                Grid.Column="1"
+                Classes="ghost"
+                VerticalAlignment="Center"
+                Click="OnToggleList"
+                Content="☰ 列表"
+                ToolTip.Tip="显示 / 收起播放列表" />
       </Grid>
     </Border>
 
-    <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
-      <ListBox x:Name="TrackList"
-               Background="Transparent"
-               BorderThickness="0"
-               DoubleTapped="OnTrackDoubleTapped"
-               SelectionChanged="OnTrackSelected">
-        <ListBox.ItemTemplate>
-          <DataTemplate>
-            <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis" />
-          </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
+    <!-- 主体：左（播放列表抽屉，默认收起）｜ 封面 ｜ 歌词 -->
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
 
-      <Border Grid.Column="1"
+      <Border x:Name="PlaylistPanel"
+              Grid.Column="0"
               Width="240"
+              IsVisible="False"
               Background="{DynamicResource ContentHeaderBrush}"
               BorderBrush="{DynamicResource DividerBrush}"
-              BorderThickness="1,0,0,0">
-        <ScrollViewer x:Name="LyricScroller" VerticalScrollBarVisibility="Auto">
-          <StackPanel x:Name="LyricPanel" Margin="10" Spacing="4" />
-        </ScrollViewer>
+              BorderThickness="0,0,1,0">
+        <ListBox x:Name="TrackList"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 DoubleTapped="OnTrackDoubleTapped"
+                 SelectionChanged="OnTrackSelected">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
       </Border>
+
+      <Grid Grid.Column="1" ColumnDefinitions="*,1.1*">
+
+        <!-- 左：大封面 -->
+        <Grid>
+          <Border Width="260"
+                  Height="260"
+                  CornerRadius="6"
+                  ClipToBounds="True"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  Background="{DynamicResource ContentBrush}">
+            <Image x:Name="Cover" Stretch="UniformToFill" />
+          </Border>
+        </Grid>
+
+        <!-- 右：歌词（居中，当前行高亮 + 自动滚入可视区） -->
+        <Border Grid.Column="1"
+                Background="{DynamicResource ContentHeaderBrush}"
+                BorderBrush="{DynamicResource DividerBrush}"
+                BorderThickness="1,0,0,0">
+          <ScrollViewer x:Name="LyricScroller" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="LyricPanel" Margin="20,32" Spacing="8" />
+          </ScrollViewer>
+        </Border>
+      </Grid>
     </Grid>
 
+    <!-- 底部：控制条 -->
     <Border Grid.Row="2"
-            Padding="10,6"
+            Padding="12,8"
             Background="{DynamicResource ContentHeaderBrush}"
             BorderBrush="{DynamicResource DividerBrush}"
             BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
-          <Button Classes="ghost" Click="OnPrevious" Content="上一首" />
-          <Button x:Name="PlayButton" Classes="primary" Click="OnPlayPause" Content="播放" />
-          <Button Classes="ghost" Click="OnNext" Content="下一首" />
+          <Button Classes="ghost" Click="OnPrevious" Content="⏮ 上一首" />
+          <Button x:Name="PlayButton" Classes="primary" Click="OnPlayPause" Content="▶ 播放" />
+          <Button Classes="ghost" Click="OnNext" Content="⏭ 下一首" />
         </StackPanel>
 
         <Grid Grid.Column="1" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">

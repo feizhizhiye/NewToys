@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:views="using:NewToys.MediaAssets.Views"
              x:Class="NewToys.MediaAssets.Views.AssetBrowseView">
   <!--
     「资产浏览」页（需求 §6.6.1）—— 资源管理器形态：左目录树 + 右「图标卡 / 详细信息」双视图。
@@ -338,6 +339,8 @@
                 <Separator/>
                 <MenuItem Header="✏ 重命名…" Command="{Binding RenameSelectedCommand}"
                           ToolTip.Tip="真改磁盘文件名（走任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）"/>
+                <MenuItem Header="✏ 批量重命名…" Command="{Binding BatchRenameSelectedCommand}"
+                          ToolTip.Tip="选中 ≥2 个已入库文件后按规则改名（查找替换 / 前缀后缀 / 编号 / 大小写），先看预览再确认"/>
                 <MenuItem Header="🗑 移入回收站" Command="{Binding TrashSelectedCommand}"
                           ToolTip.Tip="只改库里的状态，⛔ 不动磁盘文件；回收站里能恢复"/>
                 <MenuItem Header="⤫ 从库移除" Command="{Binding RemoveFromLibraryCommand}"
@@ -395,6 +398,7 @@
                 <MenuItem Header="➡ 发送到视频列表" Command="{Binding SendToVideoToolsCommand}"/>
                 <Separator/>
                 <MenuItem Header="✏ 重命名…" Command="{Binding RenameSelectedCommand}"/>
+                <MenuItem Header="✏ 批量重命名…" Command="{Binding BatchRenameSelectedCommand}"/>
                 <MenuItem Header="🗑 移入回收站" Command="{Binding TrashSelectedCommand}"/>
                 <MenuItem Header="⤫ 从库移除" Command="{Binding RemoveFromLibraryCommand}"/>
                 <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"/>
@@ -451,5 +455,8 @@
         </Panel>
       </v:ListPageSkeleton.ListArea>
     </v:ListPageSkeleton>
+
+    <!--  批量重命名弹层：跨两列盖整页（⛔ 只盖右半边会把左树露在外面）  -->
+    <views:BatchRenameOverlay Grid.ColumnSpan="2" DataContext="{Binding BatchRename}" IsVisible="{Binding IsOpen}"/>
   </Grid>
 </UserControl>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using NewToys.UI.Viewers;
@@ -44,6 +45,7 @@ public sealed class AudioLibraryService
                 Album = album,
                 Duration = file.Properties?.Duration ?? TimeSpan.Zero,
                 Cover = cover,
+                TechText = TechTextOf(path, file.Properties),
             };
         }
         catch
@@ -56,8 +58,35 @@ public sealed class AudioLibraryService
                 Album = "",
                 Duration = TimeSpan.Zero,
                 Cover = null,
+                TechText = TechTextOf(path, null),
             };
         }
+    }
+
+    /// <summary>
+    /// 一行技术信息：格式 / 采样率 / 码率 / 声道。
+    /// <para>🔴 全部读不出来也不算错 —— 至少给出扩展名，界面不留空行。</para>
+    /// </summary>
+    private static string TechTextOf(string path, TagLib.Properties? properties)
+    {
+        var parts = new List<string>(4)
+        {
+            Path.GetExtension(path).TrimStart('.').ToUpperInvariant()
+        };
+
+        if (properties is not null)
+        {
+            if (properties.AudioSampleRate > 0)
+                parts.Add((properties.AudioSampleRate / 1000.0).ToString("0.#", CultureInfo.InvariantCulture) + " kHz");
+            if (properties.AudioBitrate > 0)
+                parts.Add(properties.AudioBitrate.ToString(CultureInfo.InvariantCulture) + " kbps");
+            if (properties.AudioChannels == 1) parts.Add("单声道");
+            else if (properties.AudioChannels == 2) parts.Add("立体声");
+            else if (properties.AudioChannels > 2)
+                parts.Add(properties.AudioChannels.ToString(CultureInfo.InvariantCulture) + " 声道");
+        }
+
+        return string.Join(" · ", parts);
     }
 
     /// <summary>批量读（拖入整个文件夹 / 多选文件）。</summary>

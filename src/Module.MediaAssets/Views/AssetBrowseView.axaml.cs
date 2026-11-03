@@ -32,6 +32,16 @@ public partial class AssetBrowseView : UserControl
 
     private bool _syncingSelection;
 
+    /// <summary>
+    /// 🔴 跨页取件点（规范 §4.8 硬规则 8）：标签详情卡点「🎬 视频 → 资产浏览」时在这里取件，
+    /// 本页切到索引结果集模式。⛔ 不能放 <c>OnDataContextChanged</c> —— 切回来只有可视树重挂。
+    /// </summary>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (DataContext is AssetBrowseViewModel vm) vm.ConsumePendingResultSet();
+    }
+
     public AssetBrowseView()
     {
         InitializeComponent();

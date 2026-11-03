@@ -140,6 +140,7 @@ public abstract class ViewerPageBase : UserControl
             _vm.ArchiveNavigateRequested -= OnArchiveNavigate;
             _vm.PlayToggleRequested -= OnPlayToggle;
             _vm.AudioPlayRequested -= OnAudioPlayRequested;
+            _vm.ImageSetRequested -= OnImageSetRequested;
             _vm.RulesEditRequested -= OnRulesEdit;
             _vm.ReaderOptionsChanged -= OnReaderOptionsChanged;
             _vm.SplitChanged -= OnSplitChanged;
@@ -159,6 +160,7 @@ public abstract class ViewerPageBase : UserControl
         _vm.ArchiveNavigateRequested += OnArchiveNavigate;
         _vm.PlayToggleRequested += OnPlayToggle;
         _vm.AudioPlayRequested += OnAudioPlayRequested;
+        _vm.ImageSetRequested += OnImageSetRequested;
         _vm.RulesEditRequested += OnRulesEdit;
         _vm.ReaderOptionsChanged += OnReaderOptionsChanged;
         _vm.SplitChanged += OnSplitChanged;
@@ -180,6 +182,10 @@ public abstract class ViewerPageBase : UserControl
         var pendingAudio = _vm.TakePendingAudio();
         if (pendingAudio.Count > 0) { OpenAudioFiles(pendingAudio, autoPlay: true); return; }
 
+        // 「媒体资产 → 看这批图」：翻页集 = 投递的这批图（⛔ 不扫同目录）
+        var pendingImages = _vm.TakePendingImageSet();
+        if (pendingImages.Count > 0) { OpenImageSet(pendingImages); return; }
+
         var pending = _vm.TakePending();
         if (pending.Count > 0) { OpenMany(pending); return; }
 
@@ -190,6 +196,15 @@ public abstract class ViewerPageBase : UserControl
     private void RestoreAudioPlaylist()
     {
         if (_vm is null || _vm.Scope != ViewerScope.Audio) return;
+
+        // 🔴 已经有实例在播 / 暂停着（从别的页面切回来）⇒ ⛔ 不重建列表：
+        //    重建会 Stop + 重新 Open，正在放的歌会断掉、进度归零。
+        if (Host.Audio is { CurrentIndex: >= 0 } live
+            && _vm.Playback.State != NewToys.Shared.Services.AudioPlayState.Stopped)
+        {
+            _vm.SetStatus("正在播放：" + (live.Current?.Display ?? ""));
+            return;
+        }
 
         var (paths, index) = _vm.LoadAudioPlaylist();
         if (paths.Count == 0) return;
@@ -331,12 +346,19 @@ public abstract class ViewerPageBase : UserControl
         else Open(paths[0]);
     }
 
-    /// <summary>打开一个文件（拖放 / 最近打开 / 选择器都汇到这里）。</summary>
-    private void Open(string path)
+    /// <summary>
+    /// 打开一个文件（拖放 / 最近打开 / 选择器都汇到这里）。
+    /// <para><paramref name="siblingsOverride"/> 非空 = 翻页集由调用方指定（媒体资产按标签投递的那批图），
+    /// 此时 ⛔ 不再扫同目录。</para>
+    /// </summary>
+    private void Open(string path, IReadOnlyList<string>? siblingsOverride = null)
     {
         if (_vm is null) return;
 
         SaveProgress();   // 换文件前先存上一个的进度
+
+        // 换文件前先止住音乐：音频页打开了别的类型时，⛔ 不让上一首在后台继续响
+        Host.Audio?.Stop();
 
         if (ViewerHost.IsArchive(path)) { OpenArchive(path); return; }
 
@@ -347,7 +369,7 @@ public abstract class ViewerPageBase : UserControl
 
         IReadOnlyList<string> siblings = Array.Empty<string>();
         var index = 0;
-        if (kind == ViewerKind.Image) siblings = LoadSiblings(path, out index);
+        if (kind == ViewerKind.Image) siblings = siblingsOverride is { Count: > 1 } ? siblingsOverride : LoadSiblings(path, out index);
 
         if (!Host.Open(path, _vm.GetProgress(path), out var error, () => _vm.Playback))
         {
@@ -1105,6 +1127,20 @@ public abstract class ViewerPageBase : UserControl
     /// <summary>「媒体资产 → ▶ 播放」：整批换列表并开播。</summary>
     private void OnAudioPlayRequested(object? sender, IReadOnlyList<string> paths)
         => OpenAudioFiles(paths, autoPlay: true);
+
+    /// <summary>「媒体资产 → 看这批图」：打开第一张，翻页集就是这批图。</summary>
+    private void OnImageSetRequested(object? sender, IReadOnlyList<string> paths) => OpenImageSet(paths);
+
+    /// <summary>
+    /// 按投递顺序打开一批图片：首张显示，左右翻页只在这批里转（⛔ 不扫同目录，否则会混进没被选中的图）。
+    /// </summary>
+    private void OpenImageSet(IReadOnlyList<string> paths)
+    {
+        if (_vm is null || paths.Count == 0) return;
+        if (paths.Count == 1) { Open(paths[0]); return; }
+
+        Open(paths[0], paths);
+    }
 
     /// <summary>把当前列表 + 当前曲目记下来（关掉再开能续上）。</summary>
     private void SaveAudioPlaylist()

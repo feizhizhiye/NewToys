@@ -51,4 +51,11 @@ public static class ModuleTopics
     /// 由发送方按音乐扩展名筛过，接收方 ⛔ 不再判断类型。</para>
     /// </summary>
     public const string AudioPlay = "viewer.audioplay";
+
+    /// <summary>
+    /// 媒体资产 → 查看器（`viewer-image`）：直接看一批图片。
+    /// <para>载荷类型 = <c>IReadOnlyList&lt;string&gt;</c> —— 图片绝对路径，数组顺序 = 翻页顺序（第一张先显示）。
+    /// 与「同目录翻页」不同：收到这份清单后翻页集**就是这份清单**，⛔ 不再扫目录混进没被选中的图。</para>
+    /// </summary>
+    public const string ImageOpen = "viewer.imageopen";
 }

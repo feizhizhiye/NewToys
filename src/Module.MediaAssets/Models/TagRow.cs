@@ -50,19 +50,12 @@ public class TagRow
 }
 
 /// <summary>
-/// 「用了这个标签的一个资产」的轻量引用（标签详情卡里列出；点一下能跳到它所在的页）。
-/// <para>⛔ 不装整行 <c>AssetRow</c>：详情卡只需要 id + 名字，不必把文件位置等全查出来（省一次大查询）。</para>
+/// 某个标签下的一个资产（标签详情卡「按此标签浏览」分流用）：类型决定去哪个页面，路径决定能不能直接播 / 看。
 /// </summary>
-public class TagAssetRef
+public sealed record TaggedFile(long Id, string Name, string Type, string Path)
 {
-    public TagAssetRef(long id, string name)
-    {
-        Id = id;
-        Name = name;
-    }
-
-    public long Id { get; }
-    public string Name { get; }
+    /// <summary>能否直接交给图片查看器 / 音乐播放器（没有磁盘路径的挑不出来）。</summary>
+    public bool HasPath => !string.IsNullOrWhiteSpace(Path);
 }
 
 /// <summary>

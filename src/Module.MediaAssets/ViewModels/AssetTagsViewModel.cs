@@ -28,15 +28,16 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     private readonly OperationLogService _log = null!;
     private readonly AssetNavigationStore _store = null!;
     private readonly INavigationService? _nav;
+    private readonly IModuleBus? _bus;
     private readonly List<TagRow> _all = new();
+
+    /// <summary>当前选中标签下的资产（按类型分流用；带类型与主位置路径）。</summary>
+    private List<TaggedFile> _tagged = new();
 
     /// <summary>详情卡回填中（保存要跳过这一次，⛔ 别把"显示"当成"用户改了"）。</summary>
     private bool _loadingDetail;
 
     public ObservableCollection<TagRow> Items { get; } = new();
-
-    /// <summary>用了当前标签的资产（详情卡下半部分；点一下跳过去）。</summary>
-    public ObservableCollection<TagAssetRef> DetailAssets { get; } = new();
 
     /// <summary>详情卡的色板（8 色；点一下即选，立即落库；⛔ XAML 不写死色值 → 用 <see cref="ColorSwatch"/> 带画刷）。</summary>
     public ObservableCollection<ColorSwatch> Palette { get; }
@@ -51,9 +52,15 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     [ObservableProperty] private string _editNamespace = "";
     [ObservableProperty] private string _editColor = "";
 
+    /// <summary>标签的**适用类型**候选（通用 / 视频 / 音乐 / 图片 / 书籍 / 文档）。</summary>
+    public string[] TypeChoices => TagTypes.Choices;
+
+    /// <summary>详情卡「类型」下拉的选中索引（↔ <see cref="TagTypes.Choices"/>）。</summary>
+    [ObservableProperty] private int _editTypeIndex;
+
     // ===== 表头 =====
     [ObservableProperty] private string _nameHeader = "名称 ▲";
-    [ObservableProperty] private string _namespaceHeader = "命名空间";
+    [ObservableProperty] private string _namespaceHeader = "类型";
     [ObservableProperty] private string _colorHeader = "颜色";
     [ObservableProperty] private string _usageHeader = "使用数";
     [ObservableProperty] private string _createdHeader = "创建时间";
@@ -84,14 +91,14 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         {
             Kind = ToolbarItemKind.TextField,
             Width = 88,
-            Placeholder = "搜索标签名 / 命名空间…",
+            Placeholder = "搜索标签名 / 类型…",
             ValuePath = nameof(SearchText)
         },
         new()
         {
             Text = "🌱 推荐标签",
             CommandPath = nameof(SeedRecommendedTagsCommand),
-            ToolTip = "一键种入常用标签（视频 / 音乐 / 图片 / 文档分批命名空间；已有的跳过，⛔ 不动资产）"
+            ToolTip = "一键种入常用标签（按类型分批：视频 / 音乐 / 图片 / 文档；已有的跳过，⛔ 不动资产）"
         },
         new()
         {
@@ -113,7 +120,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     protected override IReadOnlyList<ListColumn> Columns { get; } = new List<ListColumn>
     {
         new("Name", "名称", "2*", sample: "科幻"),
-        new("Namespace", "命名空间", "1.2*", sample: "（默认）"),
+        new("Namespace", "类型", "1.2*", sample: "通用"),
         new("Color", "颜色", "1*", sample: "#4C8DFF"),
         new("Usage", "使用数", "0.9*", sample: "12 个"),
         new("Created", "创建时间", "1.4*", sample: "2026-10-14 05:20")
@@ -146,8 +153,36 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     public bool HasSelection => Selected != null;
     public bool HasItems => Items.Count > 0;
     public bool ShowDetailBody => HasSelection;
-    /// <summary>详情卡里"用了这个标签的资产"有没有内容（空 → 显示提示）。</summary>
-    public bool HasDetailAssets => DetailAssets.Count > 0;
+
+    // ===== 「按此标签浏览」：三个出口，按该标签下有没有对应类型的资产显隐 =====
+
+    /// <summary>标签下各类资产的数量（详情卡只读一行）。</summary>
+    public string TaggedCountsText
+    {
+        get
+        {
+            if (_tagged.Count == 0) return "（还没有资产用这个标签）";
+            var video = _tagged.Count(t => t.Type == AssetTypes.Video);
+            var image = _tagged.Count(t => t.Type == AssetTypes.Image);
+            var music = _tagged.Count(t => t.Type == AssetTypes.Music);
+            var other = _tagged.Count - video - image - music;
+            var parts = new List<string>(4);
+            if (video > 0) parts.Add($"视频 {video}");
+            if (image > 0) parts.Add($"图片 {image}");
+            if (music > 0) parts.Add($"音乐 {music}");
+            if (other > 0) parts.Add($"其它 {other}");
+            return string.Join(" · ", parts);
+        }
+    }
+
+    /// <summary>有视频 ⇒ 显示「在资产浏览中查看」（缩略图卡 + 索引结果集，不按目录）。</summary>
+    public bool HasTaggedVideos => _tagged.Any(t => t.Type == AssetTypes.Video);
+
+    /// <summary>有带磁盘路径的图片 ⇒ 显示「在图片查看中打开」。</summary>
+    public bool HasTaggedImages => _tagged.Any(t => t.Type == AssetTypes.Image && t.HasPath);
+
+    /// <summary>有带磁盘路径的音乐 ⇒ 显示「在音乐播放中播放」。</summary>
+    public bool HasTaggedMusic => _tagged.Any(t => t.Type == AssetTypes.Music && t.HasPath);
 
     /// <summary>详情卡当前显示的标签（有选中项时显示它）。</summary>
     public TagRow? DetailTag => Selected;
@@ -157,13 +192,14 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     public AssetTagsViewModel() { }
 
     public AssetTagsViewModel(TagService tags, OperationLogService log, AssetNavigationStore store,
-        IColumnLayoutService cols, INavigationService? nav = null)
+        IColumnLayoutService cols, INavigationService? nav = null, IModuleBus? bus = null)
         : base(cols)
     {
         _tags = tags;
         _log = log;
         _store = store;
         _nav = nav;
+        _bus = bus;
 
         LoadLayout();
         Reload();
@@ -229,7 +265,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     private void UpdateHeaders()
     {
         NameHeader = "名称" + SortArrow("Name");
-        NamespaceHeader = "命名空间" + SortArrow("Namespace");
+        NamespaceHeader = "类型" + SortArrow("Namespace");
         ColorHeader = "颜色" + SortArrow("Color");
         UsageHeader = "使用数" + SortArrow("Usage");
         CreatedHeader = "创建时间" + SortArrow("Created");
@@ -268,7 +304,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         var ok = _tags.Rename(Selected.Id, name.Trim());
         if (ok) _log.Log("tag", "tag", Selected.Id, beforeJson: $"{{\"name\":\"{old}\"}}", afterJson: $"{{\"name\":\"{name.Trim()}\"}}");
         Reload();
-        StatusText = ok ? $"已把「{old}」改名为「{name.Trim()}」。" : "改名失败（同命名空间下重名？）。";
+        StatusText = ok ? $"已把「{old}」改名为「{name.Trim()}」。" : "改名失败（同类型下重名？）。";
     }
 
     /// <summary>改颜色（详情卡色板点选 → 立即落库）。</summary>
@@ -344,7 +380,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         StatusText = ok ? $"已删除标签「{row.Name}」。" : "删除失败。";
     }
 
-    /// <summary>一键种入推荐标签（幂等：按命名空间 + 名字跳过已有的）。</summary>
+    /// <summary>一键种入推荐标签（幂等：按类型 + 名字跳过已有的）。</summary>
     [RelayCommand]
     private void SeedRecommendedTags()
     {
@@ -387,19 +423,75 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         _loadingDetail = true;
         try
         {
-            DetailAssets.Clear();
-            var target = row;            EditName = target?.Name ?? "";
+            var target = row;
+            EditName = target?.Name ?? "";
             EditNamespace = target?.Namespace ?? "";
+            // 类型下拉：库里的值命不中候选（老的自由文本命名空间）⇒ 落到「通用」
+            var ti = Array.IndexOf(TagTypes.Choices, target?.Namespace ?? TagTypes.General);
+            EditTypeIndex = ti < 0 ? 0 : ti;
             EditColor = target?.ColorHex ?? "";
 
-            if (target == null || target.Id <= 0) { OnPropertyChanged(nameof(HasDetailAssets)); return; }
-            foreach (var (id, name) in _tags.ListAssetsOfTag(target.Id)) DetailAssets.Add(new TagAssetRef(id, name));
-            OnPropertyChanged(nameof(HasDetailAssets));
+            if (target == null || target.Id <= 0) { SetTaggedFiles(Array.Empty<TaggedFile>()); return; }
+            SetTaggedFiles(_tags.ListTaggedFiles(target.Id));
         }
         finally { _loadingDetail = false; }
     }
 
-    /// <summary>详情卡「💾 保存」：把名称 / 命名空间 / 颜色一次落库。</summary>
+    /// <summary>换一批「标签下的资产」并让详情卡重算计数 / 三个出口的显隐。</summary>
+    private void SetTaggedFiles(IReadOnlyList<TaggedFile> files)
+    {
+        _tagged = files as List<TaggedFile> ?? files.ToList();
+        OnPropertyChanged(nameof(TaggedCountsText));
+        OnPropertyChanged(nameof(HasTaggedVideos));
+        OnPropertyChanged(nameof(HasTaggedImages));
+        OnPropertyChanged(nameof(HasTaggedMusic));
+    }
+
+    // ==================== 「按此标签浏览」三个出口 ====================
+
+    /// <summary>视频 → 「资产浏览」页的索引结果集模式（缩略图卡，不按目录树）。</summary>
+    [RelayCommand]
+    private void BrowseTaggedVideos()
+    {
+        if (Selected == null) return;
+
+        _store.RequestResultSet("assets-browse",
+            new ResultSetRequest($"标签「{Selected.Name}」· 视频", Selected.Name, AssetTypes.Video));
+        _nav?.NavigateTo("assets-browse");
+        StatusText = $"正在按标签「{Selected.Name}」浏览视频…";
+    }
+
+    /// <summary>图片 → 查看器「图片查看」（整批交给它，翻页集 = 这批图，⛔ 不混同目录其它图）。</summary>
+    [RelayCommand]
+    private void BrowseTaggedImages()
+    {
+        var paths = _tagged.Where(t => t.Type == AssetTypes.Image && t.HasPath)
+                           .Select(t => t.Path)
+                           .Distinct(StringComparer.OrdinalIgnoreCase)
+                           .ToList();
+        if (paths.Count == 0) { StatusText = "这个标签下没有带磁盘路径的图片。"; return; }
+
+        _bus?.Post(ModuleTopics.ImageOpen, (IReadOnlyList<string>)paths);
+        _nav?.NavigateTo("viewer-image");
+        StatusText = $"已把 {paths.Count} 张图片交给「图片查看」。";
+    }
+
+    /// <summary>音乐 → 查看器「音乐播放」（顺序 = 列表顺序，第一首开播）。</summary>
+    [RelayCommand]
+    private void PlayTaggedMusic()
+    {
+        var paths = _tagged.Where(t => t.Type == AssetTypes.Music && t.HasPath)
+                           .Select(t => t.Path)
+                           .Distinct(StringComparer.OrdinalIgnoreCase)
+                           .ToList();
+        if (paths.Count == 0) { StatusText = "这个标签下没有带磁盘路径的音乐。"; return; }
+
+        _bus?.Post(ModuleTopics.AudioPlay, (IReadOnlyList<string>)paths);
+        _nav?.NavigateTo("viewer-audio");
+        StatusText = $"已把 {paths.Count} 首交给「音乐播放」。";
+    }
+
+    /// <summary>详情卡「💾 保存」：把名称 / 类型 / 颜色一次落库。</summary>
     [RelayCommand]
     private void SaveDetail()
     {
@@ -411,22 +503,15 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         var before = $"{{\"name\":\"{Selected.Name}\",\"color\":\"{Selected.ColorHex}\"}}";
         var okName = name == Selected.Name || _tags.Rename(Selected.Id, name);
         var okColor = _tags.SetColor(Selected.Id, EditColor);
+        var typeText = TagTypes.Choices[Math.Clamp(EditTypeIndex, 0, TagTypes.Choices.Length - 1)];
+        var okType = string.Equals(typeText, Selected.Namespace ?? TagTypes.General, StringComparison.Ordinal)
+                     || _tags.SetNamespace(Selected.Id, typeText);
 
         _log.Log("tag", "tag", Selected.Id, beforeJson: before,
-            afterJson: $"{{\"name\":\"{name}\",\"color\":\"{EditColor}\"}}");
+            afterJson: $"{{\"name\":\"{name}\",\"type\":\"{typeText}\",\"color\":\"{EditColor}\"}}");
 
         Reload();
-        StatusText = okName && okColor ? $"已保存标签「{name}」。" : "部分字段保存失败（重名？）。";
-    }
-
-    /// <summary>详情卡里点某个资产 → 跳到「全部资产」并选中它（跨页投递；取件点在 OnAttachedToVisualTree）。</summary>
-    [RelayCommand]
-    private void OpenAsset(TagAssetRef? item)
-    {
-        if (item == null) return;
-        _store.Request("assets-all", item.Id);
-        _nav?.NavigateTo("assets-all");
-        StatusText = $"正在打开资产「{item.Name}」…";
+        StatusText = okName && okColor && okType ? $"已保存标签「{name}」。" : "部分字段保存失败（重名？）。";
     }
 
     // ==================== 详情面板（Shell 承载） ====================
@@ -466,11 +551,10 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
                     },
                     new DetailField
                     {
-                        Label = "命名空间（留空 = 默认）",
-                        ValuePath = nameof(EditNamespace),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        Placeholder = "如 影视 / 音乐（可留空）"
+                        Label = "类型（决定这个标签出现在哪些资产的详情卡里）",
+                        Kind = FieldKind.Select,
+                        OptionsPath = nameof(TypeChoices),
+                        IndexPath = nameof(EditTypeIndex)
                     },
                     // 色板：只有色块、点一下即改（命令参数取候选项的 Hex，不是整项）
                     new DetailField
@@ -489,21 +573,8 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
                     new DetailField { Label = "当前颜色", ValuePath = "DetailTag.ColorHexText", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Label = "创建时间", ValuePath = "DetailTag.CreatedText", Kind = FieldKind.Text, Selectable = true },
                     new DetailField { Kind = FieldKind.Divider },
-                    // 「用了这个标签的资产」：每行可点 → 打开「全部资产」并选中它
-                    new DetailField
-                    {
-                        Label = "使用了这个标签的资产（点一下打开）",
-                        Kind = FieldKind.List,
-                        OptionsPath = nameof(DetailAssets),
-                        ItemTextPath = "Name",
-                        ItemCommandPath = nameof(OpenAssetCommand)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "（还没有资产用这个标签）",
-                        VisibleWhen = "!" + nameof(HasDetailAssets)
-                    }
+                    // 资产清单不再堆在卡里：只报数量，看内容走下面三个出口（各进各的页面）
+                    new DetailField { Label = "这个标签下的资产", ValuePath = nameof(TaggedCountsText), Kind = FieldKind.Text }
                 }
             }
         },
@@ -516,6 +587,30 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
                 ToolTip = "把名称 / 命名空间 / 颜色写进标签库（⛔ 不动磁盘文件）",
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = SaveDetailCommand
+            },
+            new DetailAction
+            {
+                Text = "🎬 视频 → 资产浏览",
+                Classes = "ghost",
+                ToolTip = "在「资产浏览」里以缩略图卡看这个标签下的视频（结果集模式：不按目录，只这一批）",
+                IsVisiblePath = nameof(HasTaggedVideos),
+                Command = BrowseTaggedVideosCommand
+            },
+            new DetailAction
+            {
+                Text = "🖼 图片 → 图片查看",
+                Classes = "ghost",
+                ToolTip = "把这个标签下的图片整批交给「图片查看」，左右翻页只在这批图里转",
+                IsVisiblePath = nameof(HasTaggedImages),
+                Command = BrowseTaggedImagesCommand
+            },
+            new DetailAction
+            {
+                Text = "🎵 音乐 → 音乐播放",
+                Classes = "ghost",
+                ToolTip = "把这个标签下的音乐按列表顺序交给「音乐播放」并立即开播",
+                IsVisiblePath = nameof(HasTaggedMusic),
+                Command = PlayTaggedMusicCommand
             }
         }
     };

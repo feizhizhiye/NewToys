@@ -1,0 +1,167 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.MediaAssets.Views.BatchRenameOverlay">
+  <!--
+    批量重命名弹层（规则 → 预览 → 落盘）。
+    数据上下文 = BatchRenameViewModel（页面 XAML 里写 DataContext="{Binding BatchRename}"）。
+
+    🔴 与「确认 / 输入卡片」同一套观感（遮罩 / 卡片底 / 1px 描边 / 圆角 8 / 投影 / 按钮行右对齐）：
+       用户从外观就能认出是同一个程序的弹层；⛔ 不自造窗口，也⛔ 用系统对话框。
+    🔴 遮罩色用主题键 LoadingOverlayBrush、文字色全走主题键（⛔ 不写死 ARGB）。
+    🔴 预览表是唯一判断依据：红行（空名 / 非法字符 / 重名且策略=跳过）⇒「应用」禁用。
+  -->
+  <Grid>
+    <Border Background="{DynamicResource LoadingOverlayBrush}" Tapped="OnBackdropTapped"/>
+
+    <Border Width="660"
+            MaxHeight="620"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            BoxShadow="0 8 32 0 #66000000"
+            Padding="18">
+      <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="10">
+
+        <!--  ==================== 头部 ====================  -->
+        <StackPanel Grid.Row="0" Spacing="2">
+          <TextBlock Classes="section-title" Text="{Binding Title}"/>
+          <TextBlock Classes="hint-text" Text="{Binding Summary}" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!--  ==================== 规则区（3 行 × 2 组，密度按 12px / 24 高） ====================  -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto,*" RowDefinitions="Auto,Auto,Auto"
+              ColumnSpacing="6" RowSpacing="6">
+
+          <TextBlock Grid.Row="0" Grid.Column="0" Classes="field-label"
+                     Text="查找" VerticalAlignment="Center" Margin="0,0,0,0"/>
+          <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding FindText, Mode=TwoWay}"
+                   MinHeight="0" Padding="6,2" FontSize="12"
+                   ToolTip.Tip="按字面查找（勾「正则」后按正则解释）；留空 = 不替换"/>
+          <CheckBox Grid.Row="0" Grid.Column="2" Content="正则" IsChecked="{Binding UseRegex, Mode=TwoWay}"
+                    FontSize="12" MinHeight="0" VerticalAlignment="Center"
+                    ToolTip.Tip="勾上后「查找」按正则解释（替换里可用 $1 引用分组）"/>
+
+          <TextBlock Grid.Row="0" Grid.Column="3" Classes="field-label" Text="替换为"
+                     VerticalAlignment="Center" Margin="6,0,0,0"/>
+          <TextBox Grid.Row="0" Grid.Column="4" Text="{Binding ReplaceText, Mode=TwoWay}"
+                   MinHeight="0" Padding="6,2" FontSize="12"
+                   ToolTip.Tip="留空 = 把查到的内容删掉"/>
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Classes="field-label" Text="前缀" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Prefix, Mode=TwoWay}"
+                   MinHeight="0" Padding="6,2" FontSize="12" ToolTip.Tip="加在名字最前面"/>
+          <TextBlock Grid.Row="1" Grid.Column="3" Classes="field-label" Text="后缀"
+                     VerticalAlignment="Center" Margin="6,0,0,0"/>
+          <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding Suffix, Mode=TwoWay}"
+                   MinHeight="0" Padding="6,2" FontSize="12" ToolTip.Tip="加在扩展名之前"/>
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Classes="field-label" Text="大小写" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding CaseOptions}"
+                    SelectedIndex="{Binding CaseIndex, Mode=TwoWay}"
+                    MinHeight="0" Padding="6,1" FontSize="12" HorizontalAlignment="Stretch"/>
+          <CheckBox Grid.Row="2" Grid.Column="2" Content="保留扩展名" IsChecked="{Binding KeepExtension, Mode=TwoWay}"
+                    FontSize="12" MinHeight="0" VerticalAlignment="Center"
+                    ToolTip.Tip="默认开：查找替换 / 大小写只作用在主名上；关掉后扩展名也参与规则"/>
+          <TextBlock Grid.Row="2" Grid.Column="3" Classes="field-label" Text="撞名处理"
+                     VerticalAlignment="Center" Margin="6,0,0,0"/>
+          <ComboBox Grid.Row="2" Grid.Column="4" ItemsSource="{Binding ConflictOptions}"
+                    SelectedIndex="{Binding ConflictIndex, Mode=TwoWay}"
+                    MinHeight="0" Padding="6,1" FontSize="12" HorizontalAlignment="Stretch"
+                    ToolTip.Tip="自动加序号 = 改成「名字 (1).ext」；跳过 = 该行标红、且不能应用"/>
+        </Grid>
+
+        <!--  ==================== 序号行（勾了才生效，控件恒显 ⇒ ⛔ 不让界面跳高度） ====================  -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6">
+          <CheckBox Content="加序号" IsChecked="{Binding Numbering, Mode=TwoWay}" FontSize="12" MinHeight="0"
+                    VerticalAlignment="Center"
+                    ToolTip.Tip="按选中顺序编号（顺序 = 预览表从上到下）；不勾则下面几个框不参与"/>
+          <TextBlock Classes="field-label" Text="起始" VerticalAlignment="Center"/>
+          <TextBox Width="52" Text="{Binding NumberStart, Mode=TwoWay}" MinHeight="0" Padding="6,2" FontSize="12"
+                   ToolTip.Tip="第一个文件的编号"/>
+          <TextBlock Classes="field-label" Text="步长" VerticalAlignment="Center"/>
+          <TextBox Width="46" Text="{Binding NumberStep, Mode=TwoWay}" MinHeight="0" Padding="6,2" FontSize="12"
+                   ToolTip.Tip="相邻两个文件差几（1 = 连号，2 = 隔一个）"/>
+          <TextBlock Classes="field-label" Text="位数" VerticalAlignment="Center"/>
+          <TextBox Width="46" Text="{Binding NumberDigits, Mode=TwoWay}" MinHeight="0" Padding="6,2" FontSize="12"
+                   ToolTip.Tip="不足左补 0（2 位 ⇒ 01 / 02）"/>
+          <TextBlock Classes="field-label" Text="连接符" VerticalAlignment="Center"/>
+          <TextBox Width="46" Text="{Binding NumberSeparator, Mode=TwoWay}" MinHeight="0" Padding="6,2" FontSize="12"
+                   ToolTip.Tip="序号和名字之间的那个字符（默认下划线；留空 = 直接相连）"/>
+          <ComboBox Width="104" ItemsSource="{Binding PlacementOptions}"
+                    SelectedIndex="{Binding PlacementIndex, Mode=TwoWay}"
+                    MinHeight="0" Padding="6,1" FontSize="12"
+                    ToolTip.Tip="替换原名 = 只剩「前缀+序号」（旅途_01）；放在最前 / 最后 = 原名保留"/>
+        </StackPanel>
+
+        <!--  ==================== 预览表 ====================  -->
+        <Border Grid.Row="3" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="4">
+          <Grid RowDefinitions="Auto,*">
+            <Border Grid.Row="0" Background="{DynamicResource ContentHeaderBrush}" Padding="8,4">
+              <Grid ColumnDefinitions="*,Auto,*,*">
+                <TextBlock Grid.Column="0" Classes="field-label" Text="原名"/>
+                <TextBlock Grid.Column="1" Classes="field-label" Text="→" Margin="8,0"/>
+                <TextBlock Grid.Column="2" Classes="field-label" Text="新名"/>
+                <TextBlock Grid.Column="3" Classes="field-label" Text="说明" Margin="8,0,0,0"/>
+              </Grid>
+            </Border>
+
+            <ListBox Grid.Row="1" ItemsSource="{Binding Rows}" SelectionMode="Single"
+                     Background="Transparent" BorderThickness="0" Padding="0,2">
+              <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                  <Setter Property="MinHeight" Value="24"/>
+                  <Setter Property="Padding" Value="8,1"/>
+                </Style>
+                <Style Selector="TextBlock.new-name">
+                  <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                </Style>
+                <Style Selector="TextBlock.new-name.problem">
+                  <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+                </Style>
+                <Style Selector="TextBlock.row-note">
+                  <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+                </Style>
+                <Style Selector="TextBlock.row-note.problem">
+                  <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+                </Style>
+              </ListBox.Styles>
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="*,Auto,*,*">
+                    <TextBlock Grid.Column="0" Text="{Binding OldName}" FontSize="12" MaxLines="1"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               ToolTip.Tip="{Binding OldName}"/>
+                    <TextBlock Grid.Column="1" Text="→" FontSize="12" Margin="8,0"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Grid.Column="2" Classes="new-name" Classes.problem="{Binding IsProblem}"
+                               Text="{Binding NewName}" FontSize="12" MaxLines="1"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding NewName}"/>
+                    <TextBlock Grid.Column="3" Classes="row-note" Classes.problem="{Binding IsProblem}"
+                               Text="{Binding Note}" FontSize="11" MaxLines="1" Margin="8,0,0,0"
+                               TextTrimming="CharacterEllipsis"/>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </Border>
+
+        <!--  ==================== 底部：状态 + 按钮行（与确认卡片同口径） ====================  -->
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Classes="hint-text" Text="{Binding StatusText}"
+                     VerticalAlignment="Center" TextWrapping="Wrap"/>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button Classes="ghost" Width="88" Content="取消" Command="{Binding CloseCommand}"/>
+            <Button Classes="primary" Content="应用" Command="{Binding ConfirmCommand}"
+                    IsEnabled="{Binding CanConfirm}"
+                    ToolTip.Tip="按预览表逐个改名（走任务队列 + 日志先行；一条失败不影响其余）"/>
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

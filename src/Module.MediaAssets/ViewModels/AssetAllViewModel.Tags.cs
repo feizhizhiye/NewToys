@@ -26,46 +26,37 @@ namespace NewToys.MediaAssets.ViewModels;
 public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
 
-    /// <summary>工具条「🏷 加标签」：给**勾选的行**打一个标签（输入标签名，不存在就建）。</summary>
+    /// <summary>「加标签 / 加集合」多选弹层（右键进、批量生效）。</summary>
+    public PickManyViewModel PickMany { get; } = new();
+
+    /// <summary>选中了多个资产（详情卡的批量按钮 / 右键批量动作的启用条件）。</summary>
+    public bool HasManySelected => SelectedRows.Count > 1;
+
+    /// <summary>
+    /// 「🏷 加标签…」：给**选中的行**批量加标签。
+    /// <para>⛔ 不再弹「输入标签名」的输入框：手打看不到已有标签、还会拼错、一次只能加一个。
+    /// 改成多选弹层（可搜索 / 可多选 / 可新建，语义只加不减）。</para>
+    /// </summary>
     [RelayCommand]
-    private async Task AddTagToCheckedAsync()
-    {
-        var ids = BatchRows().Select(r => r.Id).ToList();
-        if (ids.Count == 0) { StatusText = "先在左边勾选要打标签的资产。"; return; }
+    private void AddTagToChecked() => OpenPickMany(PickManyViewModel.PickKind.Tag);
 
-        var name = await DialogHooks.InputAsync($"给勾选的 {ids.Count} 个资产打什么标签？", "").ConfigureAwait(true);
-        if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
-
-        var tagId = _tagSvc.Ensure(name.Trim());
-        if (tagId <= 0) { StatusText = "打标签失败（库不可用？）。"; return; }
-
-        var n = _tagSvc.AddTagToAssets(ids, tagId);
-        _opLog.Log("tag", "tag", tagId, afterJson: $"{{\"assets\":{ids.Count},\"added\":{n},\"name\":\"{name.Trim()}\"}}");
-        Reload();
-        StatusText = $"已给 {n} 个资产打上标签「{name.Trim()}」（原本已有该标签的不重复）。";
-    }
-
-    /// <summary>工具条「📚 加集合」：把**勾选的行**加进一个集合（输入集合名，不存在就建一个手动集合）。</summary>
+    /// <summary>「📚 加集合…」：把选中的行批量加进集合（同样走多选弹层；智能集合不可手工加）。</summary>
     [RelayCommand]
-    private async Task AddToCollectionCheckedAsync()
+    private void AddToCollectionChecked() => OpenPickMany(PickManyViewModel.PickKind.Collection);
+
+    private void OpenPickMany(PickManyViewModel.PickKind kind)
     {
-        var ids = BatchRows().Select(r => r.Id).ToList();
-        if (ids.Count == 0) { StatusText = "先在左边勾选要加入集合的资产。"; return; }
+        var rows = BatchRows();
+        var ids = rows.Select(r => r.Id).Where(id => id > 0).Distinct().ToList();
+        if (ids.Count == 0) { StatusText = "先在列表里选中要操作的资产（Ctrl / Shift 可多选）。"; return; }
 
-        var name = await DialogHooks.InputAsync($"把勾选的 {ids.Count} 个资产加进哪个集合？（没有就新建）", "").ConfigureAwait(true);
-        if (string.IsNullOrWhiteSpace(name)) { StatusText = "已取消。"; return; }
-
-        var hit = _colSvc.List().FirstOrDefault(c => string.Equals(c.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
-        var colId = hit?.Id ?? _colSvc.Create(name.Trim(), CollectionTypes.Manual);
-        if (colId <= 0) { StatusText = "加入集合失败（库不可用？）。"; return; }
-        if (hit != null && hit.IsSmart) { StatusText = $"「{hit.Name}」是智能集合，成员由规则决定，⛔ 不能手工加。"; return; }
-
-        var n = _colSvc.AddAssets(colId, ids);
-        _opLog.Log("collection", "collection", colId, afterJson: $"{{\"assets\":{ids.Count},\"added\":{n},\"name\":\"{name.Trim()}\"}}");
-        Reload();
-        StatusText = hit == null
-            ? $"已新建手动集合「{name.Trim()}」并加入 {n} 个资产。"
-            : $"已把 {n} 个资产加进集合「{name.Trim()}」。";
+        var noun = kind == PickManyViewModel.PickKind.Tag ? "标签" : "集合";
+        PickMany.Attach(_tagSvc, _colSvc, _opLog);
+        PickMany.Open(kind, ids, $"给 {ids.Count} 个资产加{noun}", message =>
+        {
+            StatusText = message;
+            Reload();
+        });
     }
 
     // ==================== v3.34：详情卡编辑（显示名 / 评分 / 描述 / 标签 / 分类 / 集合） ====================
@@ -196,8 +187,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (target.Id <= 0) return;   // 未入库（Id<=0）：不给色片
 
         var tagIds = _tagSvc.ListTagIdsOfAsset(target.Id);
-        // 标签**按命名空间分组**显示 ⇒ 先按 ns 排序（分组靠"键连续"，乱序会拆出很多组）
-        foreach (var t in _tagSvc.List().OrderBy(t => t.Namespace ?? "").ThenBy(t => t.Name, StringComparer.CurrentCulture))
+        // 标签按**适用类型**分组显示：只列「通用 + 当前资产类型」的，其余组不掺进来（视频标签不该出现在音乐详情里）
+        foreach (var t in _tagSvc.List()
+                     .Where(t => TagTypes.AppliesTo(t.Namespace, target.Type))
+                     .OrderBy(t => t.Namespace ?? "")
+                     .ThenBy(t => t.Name, StringComparer.CurrentCulture))
             TagPicks.Add(new PickItem(t.Id, t.Name, t.ChipBrush, tagIds.Contains(t.Id), t.Namespace));
 
         var catIds = _catSvc.ListCategoryIdsOfAsset(target.Id);

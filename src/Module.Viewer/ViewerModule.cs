@@ -55,7 +55,7 @@ public class ViewerModule : IModule
         menu.RegisterFunction<Views.ViewerImageView>(GroupKey, "viewer-image", "图片查看", "🖼", 2,
             "打开图片与压缩包（zip / rar / 7z）内的图片：缩放、适应窗口、逐张翻页");
 
-        menu.RegisterFunction<Views.ViewerAudioView>(GroupKey, "viewer-audio", "音频播放", "🎵", 3,
-            "本地音频播放列表：顺序 / 单曲 / 随机、进度与音量、同名 lrc 歌词；视频走系统播放器");
+        menu.RegisterFunction<Views.ViewerAudioView>(GroupKey, "viewer-audio", "音乐播放", "🎵", 3,
+            "本地音乐播放：播放列表（m3u / m3u8）/ 顺序 · 单曲 · 随机 / 进度与音量 / LRC 歌词（可双语）；视频走系统播放器");
     }
 }

@@ -89,6 +89,12 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         },
         new()
         {
+            Text = "🌱 推荐标签",
+            CommandPath = nameof(SeedRecommendedTagsCommand),
+            ToolTip = "一键种入常用标签（视频 / 音乐 / 图片 / 文档分批命名空间；已有的跳过，⛔ 不动资产）"
+        },
+        new()
+        {
             Text = "🧹 清理未使用",
             CommandPath = nameof(DeleteUnusedCommand),
             ToolTip = "删掉使用数为 0 的标签（二次确认）"
@@ -336,6 +342,20 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         if (ok) _log.Log("tag", "tag", row.Id, beforeJson: $"{{\"name\":\"{row.Name}\"}}");
         Reload();
         StatusText = ok ? $"已删除标签「{row.Name}」。" : "删除失败。";
+    }
+
+    /// <summary>一键种入推荐标签（幂等：按命名空间 + 名字跳过已有的）。</summary>
+    [RelayCommand]
+    private void SeedRecommendedTags()
+    {
+        if (!IsDbAvailable) { StatusText = "资产库不可用（数据库打不开）。"; return; }
+
+        var n = _tags.SeedRecommended();
+        if (n > 0) _log.Log("tag", "tag", null, afterJson: $"{{\"seededRecommended\":{n}}}");
+        Reload();
+        StatusText = n > 0
+            ? $"已种入 {n} 个推荐标签（候选共 {TagService.RecommendedTagCount} 个，已有的跳过）。"
+            : "推荐标签都已经在库里了（没新增）。";
     }
 
     /// <summary>清理未使用标签（工具条；二次确认）。</summary>

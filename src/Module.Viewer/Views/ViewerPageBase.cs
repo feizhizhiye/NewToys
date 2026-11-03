@@ -139,6 +139,7 @@ public abstract class ViewerPageBase : UserControl
             _vm.TypographyChanged -= OnTypographyChanged;
             _vm.ArchiveNavigateRequested -= OnArchiveNavigate;
             _vm.PlayToggleRequested -= OnPlayToggle;
+            _vm.AudioPlayRequested -= OnAudioPlayRequested;
             _vm.RulesEditRequested -= OnRulesEdit;
             _vm.ReaderOptionsChanged -= OnReaderOptionsChanged;
             _vm.SplitChanged -= OnSplitChanged;
@@ -157,6 +158,7 @@ public abstract class ViewerPageBase : UserControl
         _vm.TypographyChanged += OnTypographyChanged;
         _vm.ArchiveNavigateRequested += OnArchiveNavigate;
         _vm.PlayToggleRequested += OnPlayToggle;
+        _vm.AudioPlayRequested += OnAudioPlayRequested;
         _vm.RulesEditRequested += OnRulesEdit;
         _vm.ReaderOptionsChanged += OnReaderOptionsChanged;
         _vm.SplitChanged += OnSplitChanged;
@@ -174,8 +176,25 @@ public abstract class ViewerPageBase : UserControl
 
         if (_vm is null) return;
 
+        // 「媒体资产 → ▶ 播放」：投递到达时页面还没建，先攒着，挂树后开播
+        var pendingAudio = _vm.TakePendingAudio();
+        if (pendingAudio.Count > 0) { OpenAudioFiles(pendingAudio, autoPlay: true); return; }
+
         var pending = _vm.TakePending();
-        if (pending.Count > 0) OpenMany(pending);
+        if (pending.Count > 0) { OpenMany(pending); return; }
+
+        RestoreAudioPlaylist();
+    }
+
+    /// <summary>音乐页空着挂树时，把上次的播放列表摆回来（⛔ 不自动播，免得一进页面就出声）。</summary>
+    private void RestoreAudioPlaylist()
+    {
+        if (_vm is null || _vm.Scope != ViewerScope.Audio) return;
+
+        var (paths, index) = _vm.LoadAudioPlaylist();
+        if (paths.Count == 0) return;
+
+        OpenAudioFiles(paths, autoPlay: false, startIndex: index);
     }
 
     // ==================== 历史浮层 ====================
@@ -292,6 +311,20 @@ public abstract class ViewerPageBase : UserControl
     private void OpenMany(IReadOnlyList<string> paths)
     {
         if (_vm is null || paths.Count == 0) return;
+
+        // 播放列表文件（m3u / m3u8）先展开成音频列表，再按多首处理
+        if (paths.Count == 1 && AudioLibraryService.IsPlaylist(paths[0]))
+        {
+            var expanded = _vm.AudioLibrary.ReadPlaylist(paths[0]);
+            if (expanded.Count == 0)
+            {
+                _vm.OnOpenFailed("这个播放列表里没有可播的音频（路径失效或不是音频）。");
+                return;
+            }
+            OpenAudioFiles(expanded, autoPlay: true);
+            return;
+        }
+
         if (_vm.TryRouteElsewhere(paths)) return;
 
         if (paths.Count > 1 && paths.All(ViewerHost.IsAudio)) OpenAudioFiles(paths);
@@ -1030,11 +1063,13 @@ public abstract class ViewerPageBase : UserControl
 
     // ==================== 音频 ====================
 
-    private void OpenAudioFiles(IReadOnlyList<string> paths)
+    private void OpenAudioFiles(IReadOnlyList<string> paths, bool autoPlay = true, int startIndex = 0)
     {
         if (_vm is null || paths.Count == 0) return;
 
-        if (!Host.Open(paths[0], 0, out var error, () => _vm.Playback))
+        var first = Math.Clamp(startIndex, 0, paths.Count - 1);
+
+        if (!Host.Open(paths[first], 0, out var error, () => _vm.Playback))
         {
             _vm.OnOpenFailed(error);
             return;
@@ -1052,21 +1087,41 @@ public abstract class ViewerPageBase : UserControl
         player.TrackChanged += OnAudioTrackChanged;
         player.StatusChanged += OnAudioStatus;
 
+        // 译文歌词由宿主提供（UI 库不认识 .zh.lrc 这类约定）
+        player.TranslationLoader = p => _vm.AudioLibrary.ReadTranslation(p);
+
         _vm.Playback.PlaybackEnded -= OnPlaybackEnded;
         _vm.Playback.PlaybackEnded += OnPlaybackEnded;
 
         var tracks = _vm.AudioLibrary.ReadMany(paths);
         player.SetVolume(_vm.AudioVolume);
-        player.SetPlaylist(tracks, 0);
+        player.SetPlaylist(tracks, first, autoPlay);
 
         ResetEntries();
-        _vm.OnOpened(paths[0], ViewerKind.Audio, tracks.Count + " 首");
+        _vm.OnOpened(paths[first], ViewerKind.Audio, tracks.Count + " 首");
+        SaveAudioPlaylist();
+    }
+
+    /// <summary>「媒体资产 → ▶ 播放」：整批换列表并开播。</summary>
+    private void OnAudioPlayRequested(object? sender, IReadOnlyList<string> paths)
+        => OpenAudioFiles(paths, autoPlay: true);
+
+    /// <summary>把当前列表 + 当前曲目记下来（关掉再开能续上）。</summary>
+    private void SaveAudioPlaylist()
+    {
+        if (_vm is null) return;
+
+        var player = Host.Audio;
+        if (player is null || player.Tracks.Count == 0) return;
+
+        _vm.SaveAudioPlaylist(player.Tracks.Select(t => t.Path).ToList(), player.CurrentIndex);
     }
 
     private void OnAudioTrackChanged(AudioTrackItem? track)
     {
         if (track is null) return;
         _vm?.SetInfo(track.Display);
+        SaveAudioPlaylist();
     }
 
     private void OnAudioStatus(string text) => _vm?.SetStatus(text);

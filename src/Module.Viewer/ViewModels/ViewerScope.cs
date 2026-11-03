@@ -1,7 +1,7 @@
 namespace NewToys.Viewer.ViewModels;
 
 /// <summary>
-/// 查看器页的范围：一页只处理一类内容（菜单分「文本阅读 / 图片查看 / 音频播放」三页）。
+/// 查看器页的范围：一页只处理一类内容（菜单分「文本阅读 / 图片查看 / 音乐播放」三页）。
 /// <para>
 /// 范围只用于**入口分流**，⛔ 不影响渲染器 —— 三类内容仍由 <c>NewToys.UI.Viewers.ViewerHost</c> 统一装。
 /// </para>

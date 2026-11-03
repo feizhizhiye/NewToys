@@ -45,6 +45,8 @@ public class MediaAssetsModule : IModule
         services.AddSingleton<Services.MediaAssetsSettingsIO>();
         services.AddSingleton<Services.MetadataService>();
         services.AddSingleton<Services.ThumbnailService>();
+        // 音乐标签（ID3 / FLAC / MP4）读写 + 联网补全（MusicBrainz / Cover Art Archive）
+        services.AddSingleton<Services.MusicTagService>();
         // 资产列表 JSON 导入 / 导出 + 用户数据（标签/分类/集合/关联）导出 / 恢复
         services.AddSingleton<Services.AssetImportExport>();
         services.AddSingleton<Services.UserDataExport>();
@@ -91,9 +93,9 @@ public class MediaAssetsModule : IModule
         // 与「全部资产」分工：那边按元数据找（搜索 / 标签 / 筛选），这里按文件夹翻。
         menu.RegisterFunction<Views.AssetBrowseView>(GroupKey, "assets-browse", "资产浏览", "📁", 1,
             "资源管理器形态：目录树 + 图标卡 / 详细信息双视图；双击用默认程序打开；缩略图按目录生成");
-        menu.RegisterFunction<Views.AssetTagsView>(GroupKey, "assets-tags", "标签管理", "🏷", 6, "标签：名称 / 命名空间 / 颜色 / 使用数；支持合并与清理未使用");
-        menu.RegisterFunction<Views.AssetCategoriesView>(GroupKey, "assets-categories", "分类管理", "🗃", 7, "分类树 + 成员列表（本模块唯一的非列表页）");
-        menu.RegisterFunction<Views.AssetCollectionsView>(GroupKey, "assets-collections", "集合管理", "📦", 8, "手动 / 智能集合；成员可拖拽排序");
+        menu.RegisterFunction<Views.AssetTagsView>(GroupKey, "assets-tags", "标签管理", "🏷", 6, "标签：名称 / 命名空间 / 颜色 / 使用数；支持合并、清理未使用与一键种入推荐标签");
+        menu.RegisterFunction<Views.AssetCategoriesView>(GroupKey, "assets-categories", "分类管理", "🗃", 7, "分类：名称 / 路径 / 成员数 / 排序；层级靠路径列 + 缩进，改父级在详情卡");
+        menu.RegisterFunction<Views.AssetCollectionsView>(GroupKey, "assets-collections", "集合管理", "📦", 8, "手动 / 智能集合；成员与顺序在详情卡（⬆⬇ 写 sort_order）");
         menu.RegisterFunction<Views.AssetStoragesView>(GroupKey, "assets-storages", "存储源", "💾", 9, "local / removable / nas；在线状态；移除只移索引、不删磁盘文件");
         menu.RegisterFunction<Views.AssetTasksView>(GroupKey, "assets-tasks", "任务中心", "⏳", 10, "扫描 / 重命名 / 移动 / 复制 / 删除 / 元数据 / 缩略图任务：取消 / 重试 / 日志");
         menu.RegisterFunction<Views.AssetTrashView>(GroupKey, "assets-trash", "回收站", "🗑", 11, "已软删除资产：恢复 / 永久删除（二次确认）/ 清空");
@@ -132,6 +134,20 @@ public class MediaAssetsModule : IModule
             if (s.AutoExtractMetadata) await meta.ApplyAsync(loc, ct).ConfigureAwait(false);
             if (s.AutoGenerateThumbnails) await thumbs.GenerateAsync(loc, ct).ConfigureAwait(false);
         };
+
+        // 首次建库：种入推荐标签（只种一次；用户之后把标签清空，⛔ 不再自动种回 —— 要补点标签页「🌱 推荐标签」）
+        if (!io.Settings.SeededRecommendedTags)
+        {
+            var tags = services.GetRequiredService<Services.TagService>();
+            if (tags.IsAvailable && tags.List().Count == 0)
+            {
+                var seeded = tags.SeedRecommended();
+                if (seeded > 0)
+                    System.Diagnostics.Debug.WriteLine($"[NewToys] 已种入推荐标签 {seeded} 个。");
+            }
+            io.Settings.SeededRecommendedTags = true;
+            io.Save();
+        }
 
         // 回收站「到期自动清理」默认关；开了才在启动时把过期资产排进永久删除队列（任务中心可见、可取消）
         if (io.Settings.AutoCleanupTrash)

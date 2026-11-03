@@ -339,7 +339,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         RelationService? relationSvc = null, OperationLogService? opLog = null, AssetNavigationStore? navStore = null,
         FileOperationService? fileOps = null, AssetImportExport? impExp = null, AssetMergeService? merge = null,
         TaskQueue? queue = null, IOptionsStore? opts = null, MetadataService? metadata = null,
-        MediaAssetsSettingsIO? io = null, IModuleBus? bus = null)
+        MediaAssetsSettingsIO? io = null, IModuleBus? bus = null, MusicTagService? musicTags = null)
         : base(cols, opts)
     {
         _assets = assets;
@@ -358,6 +358,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _meta = metadata!;
         _io = io;
         _bus = bus;
+        _musicTags = musicTags;
 
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
         BuildStaticOptions();               // 类型 / 状态（固定值；设 FilterType ⇒ 触发类型列默认 + 状态栏前缀）

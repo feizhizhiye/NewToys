@@ -1,49 +1,45 @@
+using System;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.MediaAssets.Models;
 
 /// <summary>
-/// 分类管理页的一个节点：`categories` + 成员数。
-/// <para>🔴 分类页是**树形页**（本模块唯一非列表页）：左边自绘树、右边成员列表。
-/// 树按 <see cref="Depth"/> **扁平化**后交给 `ItemsControl`（⛔ 不用递归模板、⛔ 不用 `TreeView`，规范 §2.1）。</para>
+/// 分类管理页的一行：`categories` + 成员数（与标签 / 集合页同构的**列表页**）。
+/// <para>分类是树（`parent_id`）：列表用 <see cref="Depth"/> 缩进 + <see cref="PathText"/> 路径列表达层级，
+/// 改挂父级走详情卡的「父分类」chips（<c>CategoryService.Move</c> 自带防环）。</para>
 /// </summary>
-public partial class CategoryNode : ObservableObject
+public class CategoryNode
 {
     public long Id { get; set; }
     public string Name { get; set; } = "";
     public long? ParentId { get; set; }
     public int SortOrder { get; set; }
     public int MemberCount { get; set; }
+    public string CreatedAt { get; set; } = "";
 
-    /// <summary>树深度（0 = 根）；界面按它换算左缩进（<see cref="Indent"/>）。</summary>
+    /// <summary>层级深度（0 = 根）；列表首列的缩进按它算。</summary>
     public int Depth { get; set; }
 
-    /// <summary>子节点数（>0 才画展开 / 折叠箭头）。</summary>
-    public int ChildCount { get; set; }
+    /// <summary>完整路径（VM 按 <see cref="ParentId"/> 链拼，如 <c>影视 / 电影 / 动作</c>）。</summary>
+    public string FullPath { get; set; } = "";
 
-    /// <summary>当前选中（左树高亮；`Classes.selected` 绑它）。</summary>
-    [ObservableProperty] private bool _isSelected;
+    // ===== 界面派生（⛔ 不落库） =====
 
-    /// <summary>当前展开（有子节点时才有效）。</summary>
-    [ObservableProperty] private bool _isExpanded = true;
+    public Thickness Indent => new(Depth * 12, 0, 0, 0);
 
-    public bool HasChildren => ChildCount > 0;
-
-    /// <summary>展开箭头（自绘，⛔ 不用 TreeView 的三角）。</summary>
-    public string Arrow => !HasChildren ? "　" : (IsExpanded ? "▾" : "▸");
-
-    /// <summary>缩进（每层 14px）。</summary>
-    public Thickness Indent => new(Depth * 14, 0, 0, 0);
-
-    /// <summary>成员数文案。</summary>
     public string MemberText => MemberCount == 0 ? "（无成员）" : $"{MemberCount} 个";
 
-    partial void OnIsExpandedChanged(bool value) => OnPropertyChanged(nameof(Arrow));
+    public string PathText => string.IsNullOrWhiteSpace(FullPath) ? Name : FullPath;
+
+    public string SortText => SortOrder.ToString();
+
+    public string CreatedText
+        => DateTime.TryParse(CreatedAt, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : CreatedAt;
 }
 
 /// <summary>
-/// 「左树 + 右成员列表」这类页面里**成员列表**的一行 = 资产行（分类页 / 集合页共用）。
+/// 组织维度（分类 / 集合）详情卡里的成员列表行 = 资产行。
 /// </summary>
 public partial class AssetMember : ObservableObject
 {

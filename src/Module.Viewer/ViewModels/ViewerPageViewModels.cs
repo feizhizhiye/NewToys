@@ -19,7 +19,7 @@ public sealed class ViewerImageViewModel : ViewerViewModel
         : base(ViewerScope.Image, settings, txt, archive, audio, playback, bus, nav) { }
 }
 
-/// <summary>「音频播放」页 VM：只收本地音频（可一次多首）。</summary>
+/// <summary>「音乐播放」页 VM：只收本地音频（可一次多首）。</summary>
 public sealed class ViewerAudioViewModel : ViewerViewModel
 {
     public ViewerAudioViewModel(ViewerSettingsService settings, TxtBookService txt, ArchiveImageService archive,

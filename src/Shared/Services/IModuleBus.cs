@@ -44,4 +44,11 @@ public static class ModuleTopics
     /// <c>MetaJson</c> 为空表示"没读过媒体信息"。</para>
     /// </summary>
     public const string VideoImport = "video.import";
+
+    /// <summary>
+    /// 媒体资产 → 查看器（`viewer-audio`）：直接开播一批音乐。
+    /// <para>载荷类型 = <c>IReadOnlyList&lt;string&gt;</c> —— 音频文件绝对路径，数组顺序 = 播放顺序（第一首开始播）。
+    /// 由发送方按音乐扩展名筛过，接收方 ⛔ 不再判断类型。</para>
+    /// </summary>
+    public const string AudioPlay = "viewer.audioplay";
 }

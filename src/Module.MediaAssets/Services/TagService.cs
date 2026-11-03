@@ -93,6 +93,46 @@ public class TagService
         return list;
     }
 
+    // ==================== 推荐标签（预置常用标签） ====================
+
+    /// <summary>
+    /// 推荐标签种子（命名空间 → 标签名）。命名空间用中文，直接就是标签页「命名空间」列的显示值，
+    /// 也用于「全部资产」筛选时按大类收拢。
+    /// </summary>
+    private static readonly (string Ns, string[] Names)[] RecommendedTags =
+    {
+        ("视频", new[] { "4K", "1080p", "教程", "电影", "剧集", "素材" }),
+        ("音乐", new[] { "现场", "纯音乐", "OST", "无损", "中文" }),
+        ("图片", new[] { "壁纸", "截图", "素材" }),
+        ("文档", new[] { "手册", "合同", "笔记" }),
+        ("通用", new[] { "收藏", "待整理" }),
+    };
+
+    /// <summary>推荐标签总数（界面提示用）。</summary>
+    public static int RecommendedTagCount => RecommendedTags.Sum(x => x.Names.Length);
+
+    /// <summary>
+    /// 把推荐标签种进库（幂等：按「命名空间 + 名字」跳过已有的）。返回**新种入**的数量。
+    /// <para>⛔ 不动任何已有标签，⛔ 不动资产 —— 只往 <c>tags</c> 表补空行。</para>
+    /// </summary>
+    public int SeedRecommended()
+    {
+        if (!IsAvailable) return 0;
+
+        var existing = List()
+            .Select(t => (Ns: t.Namespace ?? "", Name: t.Name))
+            .ToHashSet();
+
+        var added = 0;
+        foreach (var (ns, names) in RecommendedTags)
+        foreach (var name in names)
+        {
+            if (!existing.Add((ns, name))) continue;
+            if (Create(name, ns) > 0) added++;
+        }
+        return added;
+    }
+
     // ==================== 写 ====================
 
     /// <summary>新建标签（重名 + 同命名空间 → 返回已有的 id，⛔ 不报错）。返回 id（0 = 失败）。</summary>

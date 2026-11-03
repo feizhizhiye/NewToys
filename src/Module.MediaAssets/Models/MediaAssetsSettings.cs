@@ -98,6 +98,14 @@ public class MediaAssetsSettings
     /// </summary>
     public int ProbeConcurrency { get; set; } = 4;
 
+    // ==================== 标签 / 播放 ====================
+
+    /// <summary>推荐标签是否已种入过（首次建库自动种一次；用户清空标签后 ⛔ 不再自动种回）。</summary>
+    public bool SeededRecommendedTags { get; set; }
+
+    /// <summary>导出播放列表时是否写相对路径（默认 true；换机器 / 挪盘后仍能播）。</summary>
+    public bool PlaylistRelativePaths { get; set; } = true;
+
     // ==================== 工具方法（⛔ 不落盘） ====================
 
     /// <summary>把逗号 / 分号分隔的列表解析成 HashSet（去空 / 去首尾空白 / 忽略大小写）。</summary>

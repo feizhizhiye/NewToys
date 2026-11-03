@@ -74,4 +74,62 @@ public sealed class AudioLibraryService
         }
         catch { return null; }
     }
+
+    /// <summary>
+    /// 读同名**译文**歌词：优先 <c>歌曲.zh.lrc</c>，其次 <c>歌曲.trans.lrc</c>、<c>歌曲.translation.lrc</c>。
+    /// <para>译文按时间戳与原文对齐（由播放器合并），没有就返回 <c>null</c> —— 单语歌词照常显示。</para>
+    /// </summary>
+    public string? ReadTranslation(string audioPath)
+    {
+        var baseName = Path.Combine(
+            Path.GetDirectoryName(audioPath) ?? "",
+            Path.GetFileNameWithoutExtension(audioPath));
+
+        foreach (var suffix in TranslationSuffixes)
+        {
+            try
+            {
+                var path = baseName + suffix;
+                if (File.Exists(path)) return File.ReadAllText(path);
+            }
+            catch { /* 译文是附属产物，读不到就当没有 */ }
+        }
+        return null;
+    }
+
+    private static readonly string[] TranslationSuffixes = { ".zh.lrc", ".trans.lrc", ".translation.lrc", ".cn.lrc" };
+
+    /// <summary>播放列表扩展名（m3u / m3u8）。</summary>
+    public static bool IsPlaylist(string path)
+    {
+        var ext = Path.GetExtension(path ?? "");
+        return ext.Equals(".m3u", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".m3u8", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 解析 m3u / m3u8：返回其中**磁盘上确实存在**的音频路径（顺序 = 文件里的顺序）。
+    /// <para>相对路径按播放列表所在目录解析；<c>#EXTINF</c> / 注释行跳过；去重。</para>
+    /// </summary>
+    public IReadOnlyList<string> ReadPlaylist(string playlistPath)
+    {
+        var result = new List<string>();
+        try
+        {
+            var dir = Path.GetDirectoryName(Path.GetFullPath(playlistPath)) ?? "";
+            foreach (var raw in File.ReadAllLines(playlistPath))
+            {
+                var line = raw.Trim();
+                if (line.Length == 0 || line.StartsWith("#", StringComparison.Ordinal)) continue;
+
+                var path = Path.IsPathRooted(line) ? line : Path.GetFullPath(Path.Combine(dir, line));
+                if (!File.Exists(path)) continue;
+                if (!ViewerHost.IsAudio(path)) continue;
+                if (result.Any(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase))) continue;
+                result.Add(path);
+            }
+        }
+        catch { /* 坏列表当空处理，界面提示「列表里没有可播的音频」 */ }
+        return result;
+    }
 }

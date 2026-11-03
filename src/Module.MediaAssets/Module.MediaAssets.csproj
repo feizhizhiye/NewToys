@@ -7,6 +7,8 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <!--  音乐标签（ID3v2 / FLAC / MP4）读写：属性编辑与联网补全用  -->
+    <PackageReference Include="TagLibSharp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Shared/Shared.csproj" />

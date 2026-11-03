@@ -198,6 +198,46 @@ public sealed class ViewerSettingsService
         set => WriteDouble(KeyAudioVolume, Math.Clamp(value, 0, 100));
     }
 
+    // ---------- 音乐播放列表（关掉再开能续上） ----------
+
+    private const string KeyAudioPlaylist = "audioPlaylist";
+
+    /// <summary>上次的播放列表（只留磁盘上还在的文件；没有返回空）。</summary>
+    public (IReadOnlyList<string> Paths, int Index) AudioPlaylist
+    {
+        get
+        {
+            var dto = LoadJson<AudioPlaylistDto>(KeyAudioPlaylist);
+            if (dto?.Paths is not { Count: > 0 }) return (Array.Empty<string>(), 0);
+
+            var paths = dto.Paths
+                .Where(static p => !string.IsNullOrWhiteSpace(p) && File.Exists(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return (paths, Math.Clamp(dto.Index, 0, Math.Max(paths.Count - 1, 0)));
+        }
+        set
+        {
+            var paths = value.Paths
+                .Where(static p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(500)
+                .ToList();
+            if (paths.Count == 0) { _opts.Remove(Module, KeyAudioPlaylist); return; }
+            SaveJson(KeyAudioPlaylist, new AudioPlaylistDto
+            {
+                Paths = paths,
+                Index = Math.Clamp(value.Index, 0, paths.Count - 1),
+            });
+        }
+    }
+
+    private sealed class AudioPlaylistDto
+    {
+        public List<string> Paths { get; set; } = new();
+        public int Index { get; set; }
+    }
+
     // ---------- 最近打开 ----------
 
     /// <summary>最近打开（新的在前，已剔除磁盘上不存在的路径）。</summary>

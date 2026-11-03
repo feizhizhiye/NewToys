@@ -27,8 +27,8 @@ public partial class AudioPlayer : UserControl
     private static readonly Regex TimeTag = new(@"\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]", RegexOptions.Compiled);
 
     private readonly DispatcherTimer _timer;
-    private readonly List<(TimeSpan At, string Text)> _lyrics = new();
-    private readonly List<TextBlock> _lyricViews = new();
+    private readonly List<(TimeSpan At, string Text, string Trans)> _lyrics = new();
+    private readonly List<StackPanel> _lyricViews = new();
 
     private List<AudioTrackItem> _tracks = new();
     private int _current = -1;
@@ -61,6 +61,15 @@ public partial class AudioPlayer : UserControl
 
     /// <summary>播放后端（宿主注入）。</summary>
     public IAudioPlayback? Playback { get; set; }
+
+    /// <summary>
+    /// 译文歌词取用器（宿主注入：拿到音频路径，返回译文 LRC 文本或 <c>null</c>）。
+    /// <para>🔴 UI 库不认识「.zh.lrc」这类约定，读文件归宿主；本控件只负责按时间戳对齐与显示。</para>
+    /// </summary>
+    public Func<string, string?>? TranslationLoader { get; set; }
+
+    /// <summary>当前曲目在列表里的下标（-1 = 还没播）。</summary>
+    public int CurrentIndex => _current;
 
     /// <summary>当前曲目变化（宿主记「最近打开」用）。</summary>
     public event Action<AudioTrackItem?>? TrackChanged;
@@ -202,8 +211,12 @@ public partial class AudioPlayer : UserControl
     /// <summary>当前音量 0~100。</summary>
     public int Volume => (int)Math.Round(VolumeSlider.Value);
 
-    /// <summary>载入歌词文本（宿主读同名 .lrc 后传入；<c>null</c> = 没有歌词）。</summary>
-    public void SetLyrics(string? raw)
+    /// <summary>
+    /// 载入歌词。
+    /// <para><paramref name="raw"/> = 原文 LRC；<paramref name="translation"/> = 译文 LRC（时间戳对齐，可空）。</para>
+    /// <para>双行歌词（同一时间戳重复写原文 + 译文）也会被识别：第 2 行起当作译文。</para>
+    /// </summary>
+    public void SetLyrics(string? raw, string? translation = null)
     {
         _lyrics.Clear();
         _lyricViews.Clear();
@@ -211,6 +224,62 @@ public partial class AudioPlayer : UserControl
         _lyricIndex = -1;
 
         if (string.IsNullOrWhiteSpace(raw)) return;
+
+        var originals = ParseLrc(raw);
+        if (originals.Count == 0) return;
+
+        // 译文：外置译文文件按时间戳对齐；同一时间戳的第 2 行起（双行写法）优先用文件自带的
+        var transMap = new Dictionary<TimeSpan, string>();
+        if (!string.IsNullOrWhiteSpace(translation))
+        {
+            foreach (var item in ParseLrc(translation))
+                transMap.TryAdd(item.At, item.Text);
+        }
+
+        foreach (var group in originals.GroupBy(x => x.At).OrderBy(g => g.Key))
+        {
+            var lines = group.Select(x => x.Text).Where(t => t.Length > 0).ToList();
+            if (lines.Count == 0) continue;
+
+            var text = lines[0];
+            var trans = lines.Count > 1
+                ? string.Join(" ", lines.Skip(1))
+                : (transMap.TryGetValue(group.Key, out var t) ? t : "");
+            _lyrics.Add((group.Key, text, trans));
+        }
+
+        if (_lyrics.Count == 0) return;
+
+        foreach (var item in _lyrics)
+        {
+            var panel = new StackPanel { Spacing = 1, Opacity = 0.55 };
+            panel.Children.Add(new TextBlock
+            {
+                Text = item.Text,
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 12,
+            });
+
+            if (!string.IsNullOrWhiteSpace(item.Trans))
+            {
+                panel.Children.Add(new TextBlock
+                {
+                    Text = item.Trans,
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 11,
+                    Opacity = 0.7,
+                });
+            }
+
+            _lyricViews.Add(panel);
+            LyricPanel.Children.Add(panel);
+        }
+    }
+
+    /// <summary>解析 LRC 文本为前提的（时间, 文本）序列（保留出现顺序，⛔ 不去重 —— 双行歌词要靠它配对）。</summary>
+    private static List<(TimeSpan At, string Text)> ParseLrc(string raw)
+    {
+        var list = new List<(TimeSpan At, string Text)>();
 
         foreach (var line in raw.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
         {
@@ -230,25 +299,11 @@ public partial class AudioPlayer : UserControl
                     var digits = match.Groups[3].Value.PadRight(3, '0')[..3];
                     fraction = int.Parse(digits, CultureInfo.InvariantCulture);
                 }
-                _lyrics.Add((new TimeSpan(0, 0, minutes, seconds, fraction), text));
+                list.Add((new TimeSpan(0, 0, minutes, seconds, fraction), text));
             }
         }
 
-        if (_lyrics.Count == 0) return;
-
-        _lyrics.Sort((a, b) => a.At.CompareTo(b.At));
-        foreach (var (_, text) in _lyrics)
-        {
-            var view = new TextBlock
-            {
-                Text = text,
-                TextWrapping = TextWrapping.Wrap,
-                FontSize = 12,
-                Opacity = 0.55,
-            };
-            _lyricViews.Add(view);
-            LyricPanel.Children.Add(view);
-        }
+        return list;
     }
 
     // ==================== 轮询 ====================
@@ -298,7 +353,8 @@ public partial class AudioPlayer : UserControl
         {
             var active = i == index;
             _lyricViews[i].Opacity = active ? 1 : 0.55;
-            _lyricViews[i].FontWeight = active ? FontWeight.Bold : FontWeight.Normal;
+            if (_lyricViews[i].Children.Count > 0 && _lyricViews[i].Children[0] is TextBlock original)
+                original.FontWeight = active ? FontWeight.Bold : FontWeight.Normal;
             if (!active) continue;
             try { _lyricViews[i].BringIntoView(); }
             catch { /* 尚未布局 */ }
@@ -331,7 +387,8 @@ public partial class AudioPlayer : UserControl
         try
         {
             var lrc = Path.ChangeExtension(path, ".lrc");
-            if (File.Exists(lrc)) SetLyrics(File.ReadAllText(lrc, System.Text.Encoding.UTF8));
+            var raw = File.Exists(lrc) ? File.ReadAllText(lrc, System.Text.Encoding.UTF8) : null;
+            SetLyrics(raw, TranslationLoader?.Invoke(path));
         }
         catch { /* 歌词是附属产物 */ }
     }

@@ -39,6 +39,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     private readonly INavigationService? _nav;
 
     private readonly List<string> _pending = new();
+
+    /// <summary>「媒体资产 → ▶ 播放」投递过来、但 View 还没挂上树的曲目（挂树后自动开播）。</summary>
+    private readonly List<string> _pendingAudio = new();
     private bool _attached;
 
     [ObservableProperty] private string _statusText = "";
@@ -111,7 +114,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     {
         ViewerScope.Text => "拖入文本（txt / md / 源码）或点「📂 打开」：txt / md 自动切章，带目录、书签、全书搜索。",
         ViewerScope.Image => "拖入图片（png / jpg / webp …）或压缩包（zip / rar / 7z），也可点「📂 打开」。",
-        ViewerScope.Audio => "拖入音频（mp3 / flac / m4a …，可一次多个）或点「📂 打开」，按列表顺序播放。",
+        ViewerScope.Audio => "拖入音频（mp3 / flac / m4a …，可一次多个）或播放列表（m3u / m3u8），也可点「📂 打开」；按列表顺序播放。",
         _ => "拖入文件或点「📂 打开」开始。",
     };
 
@@ -147,6 +150,36 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         // 跨页投递：先取存量（本页刚被创建时投递还在信箱里），再订阅（本页已开着时后续投递即时落地）。
         _pending.AddRange(Flatten(_bus?.TakeAll(ViewerTopics.OpenFiles)));
         _bus?.Subscribe(ViewerTopics.OpenFiles, this, OnOpenFilesPosted);
+
+        // 「媒体资产 → ▶ 播放」：载荷是路径列表，与 OpenFiles 不同（不是 ViewerOpenRequest），单独一条通道。
+        if (Scope is ViewerScope.Audio or ViewerScope.All)
+        {
+            foreach (var payload in _bus?.TakeAll(ModuleTopics.AudioPlay) ?? Array.Empty<object?>())
+                OnAudioPlayPosted(payload);
+            _bus?.Subscribe(ModuleTopics.AudioPlay, this, OnAudioPlayPosted);
+        }
+    }
+
+    /// <summary>「媒体资产 → ▶ 播放」投递到达：View 已就绪就立刻开播，否则先攒着等挂树。</summary>
+    private void OnAudioPlayPosted(object? payload)
+    {
+        if (payload is not IReadOnlyList<string> paths || paths.Count == 0) return;
+
+        var list = paths.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+        if (list.Count == 0) return;
+
+        if (_attached) AudioPlayRequested?.Invoke(this, list);
+        else _pendingAudio.AddRange(list);
+    }
+
+    /// <summary>取走还没开播的投递曲目（本页创建时投递先到）。</summary>
+    public IReadOnlyList<string> TakePendingAudio()
+    {
+        if (_pendingAudio.Count == 0) return Array.Empty<string>();
+
+        var paths = _pendingAudio.ToList();
+        _pendingAudio.Clear();
+        return paths;
     }
 
     /// <summary>请求 View 打开文件；参数 <c>null</c> = 由 View 弹选择器。</summary>
@@ -170,6 +203,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     /// <summary>播放 / 暂停（音频）。</summary>
     public event EventHandler? PlayToggleRequested;
+
+    /// <summary>「媒体资产 → ▶ 播放」要求开播一批曲目（参数 = 按顺序排好的绝对路径）。</summary>
+    public event EventHandler<IReadOnlyList<string>>? AudioPlayRequested;
 
     /// <summary>打开章节规则浮层。</summary>
     public event EventHandler? RulesEditRequested;
@@ -210,7 +246,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     {
         ViewerScope.Text => "文本阅读",
         ViewerScope.Image => "图片查看",
-        ViewerScope.Audio => "音频播放",
+        ViewerScope.Audio => "音乐播放",
         _ => "查看器",
     };
 
@@ -518,6 +554,16 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
             _settings.AudioVolume = value;
             OnPropertyChanged(nameof(AudioVolume));
         }
+    }
+
+    /// <summary>上次的音乐播放列表（关掉再开能续上；没有返回空列表 + 索引 0）。</summary>
+    public (IReadOnlyList<string> Paths, int Index) LoadAudioPlaylist() => _settings.AudioPlaylist;
+
+    /// <summary>存音乐播放列表（切歌 / 换列表 / 关页面时调）。</summary>
+    public void SaveAudioPlaylist(IReadOnlyList<string> paths, int index)
+    {
+        try { _settings.AudioPlaylist = (paths ?? Array.Empty<string>(), index); }
+        catch (Exception ex) { StatusText = "⚠ 保存播放列表失败：" + ex.Message; }
     }
 
     // ---------- View 回调 ----------

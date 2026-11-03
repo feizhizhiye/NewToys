@@ -96,6 +96,60 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Selectable = true,
                         VisibleWhen = nameof(IsVideoType)
                     },
+                    // ===== 音乐专属字段（仅筛选类型 = 音乐时显示）：改完点「💾 写入文件」才落盘 =====
+                    new DetailField
+                    {
+                        Kind = FieldKind.Divider,
+                        VisibleWhen = nameof(IsMusicType)
+                    },
+                    new DetailField
+                    {
+                        Label = "🎵 标题（标签，不改进库的显示名）",
+                        ValuePath = nameof(EditMusicTitle),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        VisibleWhen = nameof(IsMusicType)
+                    },
+                    new DetailField
+                    {
+                        Label = "艺术家",
+                        ValuePath = nameof(EditMusicArtist),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        VisibleWhen = nameof(IsMusicType)
+                    },
+                    new DetailField
+                    {
+                        Label = "专辑",
+                        ValuePath = nameof(EditMusicAlbum),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        VisibleWhen = nameof(IsMusicType)
+                    },
+                    new DetailField
+                    {
+                        Label = "年份（4 位）",
+                        ValuePath = nameof(EditMusicYear),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        VisibleWhen = nameof(IsMusicType)
+                    },
+                    new DetailField
+                    {
+                        Label = "流派",
+                        ValuePath = nameof(EditMusicGenre),
+                        Kind = FieldKind.Text,
+                        Commit = EditCommitMode.OnBlur,
+                        VisibleWhen = nameof(IsMusicType)
+                    },
+                    new DetailField
+                    {
+                        Label = "标签状态（联网补全只填编辑框，点「💾 写入文件」才落盘）",
+                        ValuePath = nameof(MusicStatusText),
+                        Kind = FieldKind.Text,
+                        Selectable = true,
+                        VisibleWhen = nameof(IsMusicType)
+                    },
                     // ⛔ 已删：原「重命名 / 移动 / 复制 / 删除磁盘文件在 落地」这句提示 —— 那些操作早已落地，
                     //    提示留着只是噪声（样板：固定项区只留**事实**，不放实现进度）。
                     // ===== 三组 chips（标签 / 分类 / 集合）：点一下打上 / 取消，每项带一个颜色块 =====
@@ -285,6 +339,22 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = ApplyToFileCommand
             },
+            new DetailAction
+            {
+                Text = "🌐 联网补全",
+                Classes = "ghost",
+                ToolTip = "按标题 + 艺术家查 MusicBrainz，取回专辑 / 年份 / 流派 / 封面并填进上面的编辑框（⛔ 此时还没写文件）",
+                IsVisiblePath = nameof(IsMusicType),
+                Command = FetchMusicOnlineCommand
+            },
+            new DetailAction
+            {
+                Text = "🎵 写入标签",
+                Classes = "primary",
+                ToolTip = "把上面的音乐标签（含封面）写进文件的 ID3 / FLAC / MP4 标签（⛔ 不动音频数据）",
+                IsVisiblePath = nameof(IsMusicType),
+                Command = SaveMusicTagsCommand
+            },
             // ⛔ 「📁 移动到此源」「📋 复制到此源」已删：物理搬运归任务中心 / 后续入口，
             //    详情卡样板只保留「↗ 应用到文件」这一个**写磁盘**的显式动作。
         }
@@ -325,6 +395,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         OnPropertyChanged(nameof(DetailRow));
         LoadDetail(value);
+        LoadMusicTags();
+        OnPropertyChanged(nameof(HasMusicSelection));
+        OnPropertyChanged(nameof(IsMusicType));
         OnPropertyChanged(nameof(HasSelection));
         RaiseDetailChanged();
     }
@@ -446,6 +519,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         ApplyTypeColumnDefaults();               // v3.69：列集合随类型切换（⛔ 不落盘、不覆盖用户偏好）
         OnPropertyChanged(nameof(IsVideoType));  // v3.69：详情卡字段集随类型切换（VisibleWhen 重解析）
+        OnPropertyChanged(nameof(IsMusicType));
         if (_booted) ResetToFirstPage();         // 筛选变了回第一页（库态 ⇒ 重取一页）
         StatusText = StatusSummary();            // v3.69：状态栏前缀随类型切换
     }
@@ -492,6 +566,14 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 ToolTip = "先选中行（Ctrl 增选 / Shift 连选 / Ctrl+A 全选），再点这里打标签（输入标签名，不存在就新建）" },
         new() { Text = "📚 加集合", CommandPath = nameof(AddToCollectionCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
                 ToolTip = "先选中行（Ctrl 增选 / Shift 连选 / Ctrl+A 全选），再点这里加进集合（输入集合名，不存在就新建一个手动集合）" },
+        new() { Kind = ToolbarItemKind.SplitButton, Text = "▶ 播放", CommandPath = nameof(PlaySelectedInPlayerCommand),
+                IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
+                ToolTip = "把选中的音乐交给「查看器 → 音乐播放」并立即开播（顺序 = 当前列表顺序）",
+                Items = new ToolbarMenuItemDescriptor[]
+                {
+                    new() { Text = "▶ 播放选中（音乐）", CommandPath = nameof(PlaySelectedInPlayerCommand), ToolTip = "在「音乐播放」里按当前列表顺序播" },
+                    new() { Text = "🎵 导出播放列表…（.m3u8）", CommandPath = nameof(ExportPlaylistCommand), ToolTip = "写一份 m3u8（默认相对路径），第三方播放器也能吃" },
+                } },
         new() { Text = "🗑 移入回收站", CommandPath = nameof(TrashCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
                 ToolTip = "先选中行，再点这里移入回收站（只改库状态，磁盘文件不动；可恢复）" },
         new() { Text = "⤫ 从库移除", CommandPath = nameof(RemoveCheckedFromLibraryCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,

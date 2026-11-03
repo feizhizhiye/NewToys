@@ -7,7 +7,7 @@ namespace NewToys.MediaAssets.Services;
 
 /// <summary>
 /// 分类服务：`categories` + `asset_categories`。
-/// <para>分类是**树**（`parent_id`）：分类页是左树 + 右成员列表，树由 VM 按 <c>Depth</c> 扁平化后交给 `ItemsControl` 自绘。</para>
+/// <para>分类是**树**（`parent_id`）：分类页是列表页，层级由 VM 换算 <c>Depth</c> / <c>FullPath</c> 后靠缩进与路径列表达。</para>
 /// <para>⛔ 库不可用时降级（空 / 0），⛔ 不抛。</para>
 /// </summary>
 public class CategoryService
@@ -30,7 +30,8 @@ public class CategoryService
             using var conn = _db.Db.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"SELECT c.id, c.name, c.parent_id, c.sort_order,
-                                       (SELECT COUNT(1) FROM asset_categories ac WHERE ac.category_id = c.id) AS member_count
+                                       (SELECT COUNT(1) FROM asset_categories ac WHERE ac.category_id = c.id) AS member_count,
+                                       c.created_at
                                 FROM categories c
                                 ORDER BY c.sort_order, c.name COLLATE NOCASE;";
             using var r = cmd.ExecuteReader();
@@ -42,7 +43,8 @@ public class CategoryService
                     Name = r.GetString(1),
                     ParentId = r.IsDBNull(2) ? null : r.GetInt64(2),
                     SortOrder = r.IsDBNull(3) ? 0 : Convert.ToInt32(r.GetInt64(3)),
-                    MemberCount = r.IsDBNull(4) ? 0 : Convert.ToInt32(r.GetInt64(4))
+                    MemberCount = r.IsDBNull(4) ? 0 : Convert.ToInt32(r.GetInt64(4)),
+                    CreatedAt = r.IsDBNull(5) ? "" : r.GetString(5)
                 });
             }
         }

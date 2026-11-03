@@ -13,6 +13,8 @@ using NewToys.Reading.Controls;
 using NewToys.Reading.Models;
 using NewToys.Reading.Services;
 using NewToys.Shared.Services;
+// 同名消歧：排版模型在 Controls，Services.ReaderTypography 是静态排版助手
+using ReaderTypography = NewToys.Reading.Controls.ReaderTypography;
 
 namespace NewToys.Reading.ViewModels;
 

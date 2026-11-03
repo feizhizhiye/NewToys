@@ -263,7 +263,9 @@ public partial class ReaderShell : UserControl
     private void ApplyVisuals()
     {
         Body.FontSize = _typography.FontSize;
-        Body.LineHeight = Math.Round(_typography.FontSize * _typography.LineSpacing);
+        // LineHeight <= 0 对 Avalonia 是非法值，NaN = 自动行高（兜底，正常路径不该走到）
+        var lh = Math.Round(_typography.FontSize * _typography.LineSpacing);
+        Body.LineHeight = lh > 0 ? lh : double.NaN;
         Pad.Padding = new Thickness(_typography.Padding, 24);
 
         if (!string.IsNullOrWhiteSpace(_typography.FontFamily))
@@ -613,13 +615,14 @@ public partial class ReaderShell : UserControl
 
     private void OnSliderChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
-        if (_suppress) return;
+        // Slider 初始化（Value=0）在挂树时就会触发一次；书没装进来前不落排版，⛔ 否则 LineHeight=0 直接抛
+        if (_suppress || _chapters.Count == 0) return;
         CommitTypography();
     }
 
     private void OnCheckChanged(object? sender, RoutedEventArgs e)
     {
-        if (_suppress) return;
+        if (_suppress || _chapters.Count == 0) return;
         CommitTypography();
     }
 

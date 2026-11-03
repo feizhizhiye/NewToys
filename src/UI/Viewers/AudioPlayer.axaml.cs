@@ -34,6 +34,9 @@ public partial class AudioPlayer : UserControl
     private readonly List<StackPanel> _lyricViews = new();
 
     private IAudioPlayback? _playback;
+    private IAudioTone? _tone;
+    private bool _muted;
+    private int _lastVolume = 80;
     private List<AudioTrackItem> _tracks = new();
     private int _current = -1;
     private bool _suppress;
@@ -93,6 +96,10 @@ public partial class AudioPlayer : UserControl
             if (_playback is not null) _playback.StateChanged -= OnPlaybackStateChanged;
             _playback = value;
             if (_playback is not null) _playback.StateChanged += OnPlaybackStateChanged;
+
+            // 音色是可选能力：后端不实现就不出音色键
+            _tone = _playback as IAudioTone;
+            UpdateToneButton();
         }
     }
 
@@ -285,6 +292,10 @@ public partial class AudioPlayer : UserControl
         try { VolumeSlider.Value = value; }
         finally { _suppress = false; }
         if (Playback is not null) Playback.Volume = (float)(value / 100.0);
+
+        _muted = value <= 0;
+        if (!_muted) _lastVolume = value;
+        UpdateMuteButton();
     }
 
     /// <summary>当前音量 0~100。</summary>
@@ -541,7 +552,8 @@ public partial class AudioPlayer : UserControl
             }
         }
 
-        SetLyricOffset(center - LyricScroller.Viewport.Height / 2);
+        // 行中心是「相对歌词面板」的坐标；面板自带 Margin.Top，滚动的却是整块内容 ⇒ 必须补上这段偏移
+        SetLyricOffset(center + LyricPanel.Margin.Top - LyricScroller.Viewport.Height / 2);
     }
 
     /// <summary>某行中心相对歌词面板的 Y（尚未布局返回 -1）。</summary>
@@ -639,7 +651,76 @@ public partial class AudioPlayer : UserControl
     private void OnVolumeChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
         if (_suppress || Playback is null) return;
+        var value = (int)Math.Round(VolumeSlider.Value);
+        _muted = value <= 0;
+        if (!_muted) _lastVolume = value;
         Playback.Volume = (float)(VolumeSlider.Value / 100.0);
+        UpdateMuteButton();
+    }
+
+    /// <summary>音量键：一下静音，再一下回到静音前的音量。</summary>
+    private void OnToggleMute(object? sender, RoutedEventArgs e)
+    {
+        if (_muted)
+        {
+            SetVolume(_lastVolume > 0 ? _lastVolume : 80);
+            return;
+        }
+
+        SetVolume(0);
+    }
+
+    private void UpdateMuteButton()
+    {
+        MuteButton.Content = _muted ? "静音" : "音量";
+
+        var tip = _muted ? "恢复上次音量" : "静音";
+        if (ToolTip.GetTip(MuteButton) as string != tip) ToolTip.SetTip(MuteButton, tip);
+    }
+
+    /// <summary>音色键按预设表循环切换（后端不实现 <see cref="IAudioTone"/> 时整键隐藏）。</summary>
+    private void OnSwitchTone(object? sender, RoutedEventArgs e)
+    {
+        if (_tone is null) return;
+
+        var presets = _tone.Presets;
+        if (presets.Count == 0) return;
+
+        var index = 0;
+        for (var i = 0; i < presets.Count; i++)
+        {
+            if (presets[i].Key != _tone.CurrentPresetKey) continue;
+            index = i;
+            break;
+        }
+
+        var next = presets[(index + 1) % presets.Count];
+        if (!_tone.ApplyPreset(next.Key)) return;
+
+        UpdateToneButton();
+        StatusChanged?.Invoke("音色：" + next.Name);
+    }
+
+    private void UpdateToneButton()
+    {
+        if (_tone is null)
+        {
+            ToneButton.IsVisible = false;
+            return;
+        }
+
+        ToneButton.IsVisible = true;
+
+        var name = "关闭";
+        foreach (var preset in _tone.Presets)
+        {
+            if (preset.Key != _tone.CurrentPresetKey) continue;
+            name = preset.Name;
+            break;
+        }
+
+        ToneButton.Content = name;
+        ToolTip.SetTip(ToneButton, "音色：" + name + "（点击切换）");
     }
 
     private void OnTrackSelected(object? sender, SelectionChangedEventArgs e)

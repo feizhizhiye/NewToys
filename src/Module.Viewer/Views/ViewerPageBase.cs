@@ -13,6 +13,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using NewToys.Core.Services;
 using NewToys.UI.Readers;
 using NewToys.UI.Viewers;
 using NewToys.Viewer.Services;
@@ -377,7 +378,7 @@ public abstract class ViewerPageBase : UserControl
         var kind = ViewerHost.KindOf(path);
 
         if (kind == ViewerKind.Reader) { OpenReaderFile(path); return; }
-        if (kind == ViewerKind.Audio) { OpenAudioFiles(new[] { path }); return; }
+        if (kind == ViewerKind.Audio) { OpenAudioWithFolderPrompt(path); return; }
 
         IReadOnlyList<string> siblings = Array.Empty<string>();
         var index = 0;
@@ -1148,6 +1149,68 @@ public abstract class ViewerPageBase : UserControl
     /// <summary>「媒体资产 → ▶ 播放」：整批换列表并开播。</summary>
     private void OnAudioPlayRequested(object? sender, IReadOnlyList<string> paths)
         => OpenAudioFiles(paths, autoPlay: true);
+
+    /// <summary>
+    /// 打开单首音乐：先问一句「要不要把同文件夹里剩下的也加进播放列表」。
+    /// <para>🔴 是 <c>async void</c>：入口在 UI 事件上、没人 await；列表装配全在 try 内，
+    /// 只有「定好要播哪些」之后才真正开播，⛔ 异常路径里二次打开。</para>
+    /// </summary>
+    private async void OpenAudioWithFolderPrompt(string path)
+    {
+        if (_vm is null) return;
+
+        var folder = Path.GetDirectoryName(path);
+        var others = new List<string>();
+
+        try
+        {
+            if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+            {
+                others = Directory.EnumerateFiles(folder)
+                    .Where(p => ViewerHost.IsAudio(p) && !string.Equals(p, path, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _vm.SetStatus("⚠ 读文件夹失败：" + ex.Message);
+        }
+
+        IReadOnlyList<string> playlist = new[] { path };
+
+        if (others.Count > 0)
+        {
+            bool ok;
+            try
+            {
+                ok = await DialogHooks.ConfirmAsync(
+                    $"把同一文件夹里的另外 {others.Count} 首也加进播放列表？\n\n{folder}");
+            }
+            catch
+            {
+                ok = false;
+            }
+
+            if (ok)
+            {
+                var all = new List<string>(others.Count + 1) { path };
+                all.AddRange(others);
+                all.Sort(StringComparer.OrdinalIgnoreCase);
+                playlist = all;
+            }
+        }
+
+        var start = 0;
+        for (var i = 0; i < playlist.Count; i++)
+        {
+            if (!string.Equals(playlist[i], path, StringComparison.OrdinalIgnoreCase)) continue;
+            start = i;
+            break;
+        }
+
+        OpenAudioFiles(playlist, autoPlay: true, startIndex: start);
+    }
 
     /// <summary>「媒体资产 → 看这批图」：打开第一张，翻页集就是这批图。</summary>
     private void OnImageSetRequested(object? sender, IReadOnlyList<string> paths) => OpenImageSet(paths);

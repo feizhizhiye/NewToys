@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Versioning;
 using NAudio.Wave;
@@ -22,7 +23,7 @@ namespace NewToys.Viewer.Services;
 /// </para>
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
+public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum, IAudioTone
 {
     private const int FftSize = 1024;
     private const int RingSize = 8192;
@@ -33,6 +34,10 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
     private readonly float[] _bands = new float[32];
     private readonly double[] _re = new double[FftSize];
     private readonly double[] _im = new double[FftSize];
+
+    /// <summary>音色滤波系数（挂解码器之后、频谱旁路之前）。</summary>
+    private readonly ToneSettings _tone = new();
+    private string _toneKey = "off";
 
     private WaveStream? _reader;
     private IWavePlayer? _output;
@@ -131,8 +136,9 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
                 ResetSpectrum();
 
                 var output = new WaveOut { BufferMilliseconds = 120, NumberOfBuffers = 3 };
-                // 采样链上挂一个旁路副本供频谱用：格式与改动前完全一致（⛔ 不改成 float 链路，免得老驱动不认）
-                output.Init(new SpectrumTap(reader, this));
+                // 采样链 = 解码器 → 音色滤波 → 频谱旁路 → 声卡（频谱看到的是实际输出的声音）
+                _tone.Apply(_toneKey, _sampleRate);
+                output.Init(new SpectrumTap(new ToneFilter(reader, _tone), this));
                 output.Volume = _volume;
                 output.PlaybackStopped += OnPlaybackStopped;
 
@@ -225,6 +231,29 @@ public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum
     public void Dispose()
     {
         lock (_gate) Cleanup();
+    }
+
+    // ==================== 音色（IAudioTone） ====================
+
+    /// <summary>音色预设。</summary>
+    public IReadOnlyList<AudioTonePreset> Presets => TonePresets.All;
+
+    /// <summary>当前音色预设键。</summary>
+    public string CurrentPresetKey => _toneKey;
+
+    /// <summary>音色切换（播放中即时生效）。</summary>
+    public event EventHandler? PresetChanged;
+
+    /// <summary>切换音色；未知键返回 <c>false</c> 且保持原样。</summary>
+    public bool ApplyPreset(string key)
+    {
+        if (!TonePresets.Exists(key)) return false;
+        if (key == _toneKey) return true;
+
+        _toneKey = key;
+        _tone.Apply(key, _sampleRate > 0 ? _sampleRate : 44100);
+        PresetChanged?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     // ==================== 频谱（IAudioSpectrum） ====================

@@ -234,6 +234,9 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>分屏开关或每屏张数变了（View 据此装载 / 卸载网格）。</summary>
     public event EventHandler? SplitChanged;
 
+    /// <summary>播放列表开合（音频页）。</summary>
+    public event EventHandler? PlaylistToggleRequested;
+
     /// <summary>「媒体资产 → ▶ 播放」要求开播一批曲目（参数 = 按顺序排好的绝对路径）。</summary>
     public event EventHandler<IReadOnlyList<string>>? AudioPlayRequested;
 
@@ -801,6 +804,10 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     [RelayCommand]
     private void EditRules() => RulesEditRequested?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>开 / 收播放列表浮层（工具条「☰ 列表」）。</summary>
+    [RelayCommand]
+    private void TogglePlaylist() => PlaylistToggleRequested?.Invoke(this, EventArgs.Empty);
+
     // ---------- 工具条 ----------
 
     /// <summary>工具条按页面范围裁剪：⛔ 不给文本页放「缩放」，⛔ 不给音频页放「章节规则」。</summary>
@@ -908,6 +915,18 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                     Items = SplitMenuItems,
                     IsEnabledPath = nameof(IsImage),
                     ToolTip = "点击展开分屏方式：单张 / 左右 / 上下 / 2×2；分屏时翻页一次换一屏",
+                });
+            }
+
+            if (Scope is ViewerScope.Audio or ViewerScope.All)
+            {
+                items.Add(new()
+                {
+                    Text = "☰ 列表",
+                    CommandPath = nameof(TogglePlaylistCommand),
+                    IsEnabledPath = nameof(IsAudio),
+                    ShowToolTipOnDisabled = true,
+                    ToolTip = "播放列表：点一下从右侧滑出，再点收起",
                 });
             }
 

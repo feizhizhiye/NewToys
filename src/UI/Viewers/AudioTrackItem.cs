@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace NewToys.UI.Viewers;
 
@@ -28,6 +29,13 @@ public sealed class AudioTrackItem
 
     /// <summary>列表里显示的一行摘要。</summary>
     public string Display => string.IsNullOrWhiteSpace(Artist) ? Title : Title + " · " + Artist;
+
+    /// <summary>时长文本（<c>mm:ss</c>，超 1 小时 <c>h:mm:ss</c>）；未知为空串（⛔ 显示 00:00）。</summary>
+    public string DurationText => Duration <= TimeSpan.Zero
+        ? ""
+        : Duration.TotalHours >= 1
+            ? Duration.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
+            : Duration.ToString(@"mm\:ss", CultureInfo.InvariantCulture);
 
     public override string ToString() => Display;
 }

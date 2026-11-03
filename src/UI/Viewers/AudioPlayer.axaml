@@ -3,42 +3,34 @@
              xmlns:local="using:NewToys.UI.Viewers"
              x:Class="NewToys.UI.Viewers.AudioPlayer">
   <!--
-    本地音乐播放器（查看器内）：大封面 + 居中歌词 + 底部控制条；播放列表是右侧悬浮层（默认收起）。
+    本地音乐播放器（查看器内）：大封面 + 居中歌词 + 底部控制条；播放列表与音色都是右侧悬浮层（默认收起）。
     🔴 所有播放能力走注入的 IAudioPlayback（UI 库 ⛔ 不引 NAudio）；本控件只做界面与轮询刷新。
+    🔴 Slider ⛔ 设 Height / MinHeight：Fluent 模板被压扁后轨道与按钮视觉错位（看着就是「不居中」）。
+    🔴 图标只用非 emoji 码位：⏮ ⏭ ▶ 🔁 会被 Segoe UI Emoji 接管，渲染成彩色方块。
   -->
   <Grid RowDefinitions="Auto,*,Auto">
 
-    <!-- 顶部：曲名 / 艺术家·专辑 / 技术信息 + 列表开关 -->
+    <!-- 顶部：曲名 / 艺术家·专辑 / 技术信息（播放列表开关在工具条） -->
     <Border Grid.Row="0"
-            Padding="14,10"
+            Padding="14,8"
             Background="{DynamicResource ContentHeaderBrush}"
             BorderBrush="{DynamicResource DividerBrush}"
             BorderThickness="0,0,0,1">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel VerticalAlignment="Center" Spacing="2">
-          <TextBlock x:Name="TitleText"
-                     FontSize="15"
-                     FontWeight="SemiBold"
-                     TextTrimming="CharacterEllipsis" />
-          <TextBlock x:Name="ArtistText"
-                     Classes="hint-text"
-                     TextTrimming="CharacterEllipsis" />
-          <TextBlock x:Name="TechText"
-                     Classes="hint-text"
-                     TextTrimming="CharacterEllipsis" />
-        </StackPanel>
-        <Button x:Name="ListButton"
-                Grid.Column="1"
-                Classes="ghost"
-                VerticalAlignment="Center"
-                AutomationProperties.Name="播放列表"
-                Click="OnToggleList"
-                Content="☰ 列表"
-                ToolTip.Tip="显示 / 收起播放列表" />
-      </Grid>
+      <StackPanel VerticalAlignment="Center" Spacing="2">
+        <TextBlock x:Name="TitleText"
+                   FontSize="15"
+                   FontWeight="SemiBold"
+                   TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="ArtistText"
+                   Classes="hint-text"
+                   TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="TechText"
+                   Classes="hint-text"
+                   TextTrimming="CharacterEllipsis" />
+      </StackPanel>
     </Border>
 
-    <!-- 主体：封面 ｜ 歌词；播放列表浮在右侧，⛔ 不再挤占布局宽度 -->
+    <!-- 主体：封面 ｜ 歌词；播放列表 / 音色浮在右侧 -->
     <Grid Grid.Row="1">
 
       <Grid ColumnDefinitions="*,1.1*">
@@ -68,7 +60,7 @@
                               Foreground="{DynamicResource AccentBrush}" />
         </StackPanel>
 
-        <!-- 右：歌词（居中，当前行高亮 + 自动滚入可视区） -->
+        <!-- 右：歌词（居中，当前行高亮 + 走到中线后跟随滚动） -->
         <Border Grid.Column="1"
                 Background="{DynamicResource ContentHeaderBrush}"
                 BorderBrush="{DynamicResource DividerBrush}"
@@ -83,7 +75,7 @@
       <Border x:Name="PlaylistPanel"
               HorizontalAlignment="Right"
               VerticalAlignment="Stretch"
-              Width="260"
+              Width="280"
               Margin="0,8,10,8"
               IsVisible="False"
               Background="{DynamicResource PanelBrush}"
@@ -102,8 +94,10 @@
                     Height="24"
                     Padding="0"
                     FontSize="11"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
                     AutomationProperties.Name="收起播放列表"
-                    Click="OnToggleList"
+                    Click="OnClosePlaylist"
                     Content="✕"
                     ToolTip.Tip="收起播放列表" />
           </Grid>
@@ -116,26 +110,81 @@
                      SelectionChanged="OnTrackSelected">
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding Display}"
-                             FontSize="12"
-                             TextTrimming="CharacterEllipsis" />
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Display}"
+                               FontSize="12"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="1"
+                               Margin="8,0,0,0"
+                               Classes="hint-text"
+                               Text="{Binding DurationText}" />
+                  </Grid>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
           </ScrollViewer>
         </Grid>
       </Border>
+
+      <!-- 音色悬浮层：与播放列表同一位置，两者互斥（开一个自动收另一个） -->
+      <Border x:Name="TonePanel"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Top"
+              Width="200"
+              MaxHeight="320"
+              Margin="0,8,10,0"
+              IsVisible="False"
+              Background="{DynamicResource PanelBrush}"
+              BorderBrush="{DynamicResource DividerBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              BoxShadow="0 8 24 0 #55000000">
+        <Grid RowDefinitions="Auto,Auto">
+          <Grid ColumnDefinitions="*,Auto" Margin="10,7,6,4">
+            <TextBlock Text="音色"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="1"
+                    Classes="ghost"
+                    Width="24"
+                    Height="24"
+                    Padding="0"
+                    FontSize="11"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    AutomationProperties.Name="收起音色面板"
+                    Click="OnCloseTone"
+                    Content="✕"
+                    ToolTip.Tip="收起音色面板" />
+          </Grid>
+
+          <ListBox x:Name="ToneList"
+                   Grid.Row="1"
+                   Margin="0,0,0,6"
+                   Background="Transparent"
+                   BorderThickness="0"
+                   SelectionChanged="OnToneSelected">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Name}" FontSize="12" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
     </Grid>
 
-    <!-- 底部：控制条（按钮一律图标 + ToolTip，⛔ 不带文字）。🔴 只用非 emoji 字符：
-         ⏮ ⏭ 🔁 这类码位会被 Segoe UI Emoji 接管，渲染成彩色方块，与主题完全不符 -->
+    <!-- 底部：控制条（按钮一律图标 + ToolTip，⛔ 不带文字） -->
     <Border Grid.Row="2"
-            Padding="10,3"
+            Padding="10,0"
             Background="{DynamicResource ContentHeaderBrush}"
             BorderBrush="{DynamicResource DividerBrush}"
             BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="Auto,*,Auto">
-        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+        <StackPanel Grid.Column="0"
+                    Orientation="Horizontal"
+                    Spacing="4"
+                    VerticalAlignment="Center">
           <Button Width="34"
                   Height="22"
                   Padding="0"
@@ -177,10 +226,9 @@
           <Slider x:Name="ProgressSlider"
                   Grid.Column="1"
                   Margin="8,0"
-                  MinHeight="0"
-                  Height="20"
                   Minimum="0"
                   Maximum="1"
+                  VerticalAlignment="Center"
                   ValueChanged="OnProgressChanged" />
           <TextBlock x:Name="DurationText"
                      Grid.Column="2"
@@ -188,8 +236,10 @@
                      VerticalAlignment="Center" />
         </Grid>
 
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-          <!--  模式键与音色键都用两字文本（emoji 🔁/🔂/🔀 会渲染成彩色方块）  -->
+        <StackPanel Grid.Column="2"
+                    Orientation="Horizontal"
+                    Spacing="4"
+                    VerticalAlignment="Center">
           <Button x:Name="ModeButton"
                   Height="22"
                   MinWidth="34"
@@ -200,7 +250,7 @@
                   VerticalContentAlignment="Center"
                   AutomationProperties.Name="播放模式"
                   Click="OnSwitchMode"
-                  Content="顺序"
+                  Content="↓"
                   ToolTip.Tip="播放模式：顺序" />
           <Button x:Name="ToneButton"
                   Height="22"
@@ -212,9 +262,9 @@
                   HorizontalContentAlignment="Center"
                   VerticalContentAlignment="Center"
                   AutomationProperties.Name="音色"
-                  Click="OnSwitchTone"
+                  Click="OnToggleTone"
                   Content="音色"
-                  ToolTip.Tip="音色：关闭（点击切换）" />
+                  ToolTip.Tip="音色：关闭（点击选择）" />
           <Button x:Name="MuteButton"
                   Height="22"
                   MinWidth="34"
@@ -229,12 +279,10 @@
                   ToolTip.Tip="静音" />
           <Slider x:Name="VolumeSlider"
                   Width="88"
-                  Height="20"
-                  MinHeight="0"
                   Minimum="0"
                   Maximum="100"
-                  ValueChanged="OnVolumeChanged"
                   VerticalAlignment="Center"
+                  ValueChanged="OnVolumeChanged"
                   ToolTip.Tip="音量" />
         </StackPanel>
       </Grid>

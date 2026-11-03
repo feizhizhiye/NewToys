@@ -36,6 +36,7 @@ public partial class AudioPlayer : UserControl
     private IAudioPlayback? _playback;
     private IAudioTone? _tone;
     private bool _muted;
+    private bool _toneSyncing;
     private int _lastVolume = 80;
     private List<AudioTrackItem> _tracks = new();
     private int _current = -1;
@@ -100,6 +101,7 @@ public partial class AudioPlayer : UserControl
             // 音色是可选能力：后端不实现就不出音色键
             _tone = _playback as IAudioTone;
             UpdateToneButton();
+            SyncToneSelection();
         }
     }
 
@@ -631,12 +633,15 @@ public partial class AudioPlayer : UserControl
 
     private void OnNext(object? sender, RoutedEventArgs e) => Next();
 
-    /// <summary>播放列表抽屉：默认收起（截图那种「只有封面 + 歌词」的形态），需要时再展开。</summary>
-    private void OnToggleList(object? sender, RoutedEventArgs e)
+    /// <summary>播放列表开合（工具条按钮调用；与音色浮层互斥）。</summary>
+    public void TogglePlaylist()
     {
-        PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible;
-        ListButton.Content = PlaylistPanel.IsVisible ? "☰ 收起" : "☰ 列表";
+        var open = !PlaylistPanel.IsVisible;
+        PlaylistPanel.IsVisible = open;
+        if (open) TonePanel.IsVisible = false;
     }
+
+    private void OnClosePlaylist(object? sender, RoutedEventArgs e) => PlaylistPanel.IsVisible = false;
 
     private void OnPrevious(object? sender, RoutedEventArgs e) => Previous();
 
@@ -678,27 +683,51 @@ public partial class AudioPlayer : UserControl
         if (ToolTip.GetTip(MuteButton) as string != tip) ToolTip.SetTip(MuteButton, tip);
     }
 
-    /// <summary>音色键按预设表循环切换（后端不实现 <see cref="IAudioTone"/> 时整键隐藏）。</summary>
-    private void OnSwitchTone(object? sender, RoutedEventArgs e)
+    /// <summary>音色键：展开 / 收起音色浮层（与播放列表互斥；后端不实现 <see cref="IAudioTone"/> 时整键隐藏）。</summary>
+    private void OnToggleTone(object? sender, RoutedEventArgs e)
     {
         if (_tone is null) return;
 
-        var presets = _tone.Presets;
-        if (presets.Count == 0) return;
+        var open = !TonePanel.IsVisible;
+        TonePanel.IsVisible = open;
+        if (!open) return;
 
-        var index = 0;
-        for (var i = 0; i < presets.Count; i++)
-        {
-            if (presets[i].Key != _tone.CurrentPresetKey) continue;
-            index = i;
-            break;
-        }
+        PlaylistPanel.IsVisible = false;
+        SyncToneSelection();
+    }
 
-        var next = presets[(index + 1) % presets.Count];
-        if (!_tone.ApplyPreset(next.Key)) return;
+    private void OnCloseTone(object? sender, RoutedEventArgs e) => TonePanel.IsVisible = false;
+
+    private void OnToneSelected(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_toneSyncing || _tone is null) return;
+
+        if (ToneList.SelectedItem is not AudioTonePreset preset) return;
+        if (!_tone.ApplyPreset(preset.Key)) return;
 
         UpdateToneButton();
-        StatusChanged?.Invoke("音色：" + next.Name);
+        StatusChanged?.Invoke("音色：" + preset.Name);
+    }
+
+    /// <summary>把浮层里的选中项对齐当前预设（⛔ 触发 ApplyPreset，靠 <c>_toneSyncing</c> 挡）。</summary>
+    private void SyncToneSelection()
+    {
+        if (_tone is null) return;
+
+        _toneSyncing = true;
+        try
+        {
+            ToneList.ItemsSource = _tone.Presets;
+
+            ToneList.SelectedItem = null;
+            foreach (var preset in _tone.Presets)
+            {
+                if (preset.Key != _tone.CurrentPresetKey) continue;
+                ToneList.SelectedItem = preset;
+                break;
+            }
+        }
+        finally { _toneSyncing = false; }
     }
 
     private void UpdateToneButton()
@@ -706,6 +735,7 @@ public partial class AudioPlayer : UserControl
         if (_tone is null)
         {
             ToneButton.IsVisible = false;
+            TonePanel.IsVisible = false;
             return;
         }
 
@@ -720,7 +750,7 @@ public partial class AudioPlayer : UserControl
         }
 
         ToneButton.Content = name;
-        ToolTip.SetTip(ToneButton, "音色：" + name + "（点击切换）");
+        ToolTip.SetTip(ToneButton, "音色：" + name + "（点击选择）");
     }
 
     private void OnTrackSelected(object? sender, SelectionChangedEventArgs e)
@@ -746,14 +776,15 @@ public partial class AudioPlayer : UserControl
 
     private void UpdateModeButton()
     {
+        // 纯图标（非 emoji 码位）：↓ 顺序 / ↻1 单曲 / ⇄ 随机
         ModeButton.Content = _mode switch
         {
-            PlayMode.Single => "单曲",
-            PlayMode.Shuffle => "随机",
-            _ => "顺序",
+            PlayMode.Single => "↻1",
+            PlayMode.Shuffle => "⇄",
+            _ => "↓",
         };
 
-        var tip = "播放模式：" + ModeName();
+        var tip = "播放模式：" + ModeName() + "（点击切换）";
         ToolTip.SetTip(ModeButton, tip);
     }
 

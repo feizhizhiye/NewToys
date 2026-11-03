@@ -515,6 +515,9 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 13. 🔴 **滑块长度要缩只能改 `Track` 的 `ViewportSize`（过 `ScrollThumbRatioConverter`），⛔ 别用 `Thumb` 的 `ScaleTransform`**：Track 用 `ViewportSize / (Maximum + ViewportSize)` 算长度、用**同一个长度**算位置 ⇒ 用 render 缩放只改视觉不改布局，滑块「居中缩」后拖到底部会空出一截，现象就是**拖不到底**（2026-10-24 实锤）。系数在 `App.axaml` 的 `ScrollThumbRatio`（默认 0.4，越小滑块越短）。
     - **最小长度**：`Track.ComputeScrollBarLengths` 在 `ViewportSize` 有值时读 `Thumb.MinHeight` / `MinWidth`（`IsSet` 才生效，源码兜底只有 10px）⇒ 全局在 `ScrollBar` 主题里按方向各给一条 `^[Orientation=Vertical] /template/ Thumb` 的 `MinHeight=32`（横向 `MinWidth=32`）。⛔ 别在 `Thumb` 主题里不分方向地写 `MinHeight`：横向条的滑块高度会被顶大。
 14. 🔴 **`Track.IsDirectionReversed` 必须按方向给（竖向 `true` / 横向 `false`）**：`Track` 垂直方向默认「值增大 ⇒ 滑块**上**移」，与滚动条语义相反 ⇒ 现象是「滑块初始停在最下、往下滚反而向上爬」。`ScrollBar` 自身没有这个属性，所以模板里走 `VerticalDirectionConverter` 从 `Orientation` 转：`IsDirectionReversed="{TemplateBinding Orientation, Converter={StaticResource VerticalReversed}}"`，⛔ 别无脑 `IsDirectionReversed="True"`（会把横向滚动条反过来）。
+15. 🔴 **`Slider` ⛔ 设 `Height` / `MinHeight`**（2026-11-03 实锤，与本文件第 13 条同源）：Fluent 模板的轨道高度按 `Track` + `Thumb` 自然尺寸算，硬压 20/22 会把轨道挤到控件下沿、thumb 相对轨道飘起 —— 夹在一排 22px 按钮中间时，看着就只是「**进度条没跟按钮对齐**」，很容易误判成容器对齐问题。
+    - ✅ 正解：Slider **只写 `VerticalAlignment="Center"`**，高度交给模板；要紧凑就压**容器**（`Padding` 收 0、行间用负 `Margin`，见 `VideoPreviewView` 三条时间条的 `Margin="0,-14,0,0"`）。
+    - ✅ 静态可查：`python skill/scripts/lint.py --only props` 的「硬压 Slider 高度」计数（已接入 `accept.ps1`，非 0 即 FAIL）。
 
 ---
 

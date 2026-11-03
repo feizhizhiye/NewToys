@@ -190,7 +190,7 @@ def check_props(all_: bool) -> None:
     axamls = [p for p in SRC.rglob("*.axaml") if p.is_file()]
     print(f"\n[AXAML] 核对 {len(axamls)} 个 .axaml 的属性名...")
 
-    problems = checked = font_problems = 0
+    problems = checked = font_problems = slider_problems = 0
     for f in axamls:
         raw = read(f)
         try:
@@ -199,6 +199,11 @@ def check_props(all_: bool) -> None:
             print(f"  [XML失败] {rel(f)} —— 属性核对已跳过（先修 XML）")
             continue
         for _name, attrs, line in tags:
+            # Slider ⛔ 硬压高度：Fluent 模板被压扁后轨道/thumb 与同一行按钮视觉错位
+            if _name.lower().endswith("slider") and ("Height" in attrs or "MinHeight" in attrs):
+                print(f"  [{rel(f)}:{line}] Slider 设了 Height / MinHeight —— 模板会被压变形（轨道与按钮错位）；"
+                      f"紧凑靠容器 Padding / 负 Margin")
+                slider_problems += 1
             for attr, val in attrs.items():
                 # 命名空间声明与带前缀的附加属性（xmlns:* / chrome:A.B / ui:C.D）不参与存在性判定
                 if attr in MARKUP or ":" in attr or attr.startswith("Classes."):
@@ -222,6 +227,7 @@ def check_props(all_: bool) -> None:
     print(f"  核对属性名出现次数 : {checked}")
     print(f"  疑似 WPF 专有 / 拼错 : {problems}")
     print(f"  字号越界（§2.3）    : {font_problems}")
+    print(f"  硬压 Slider 高度    : {slider_problems}")
     if problems == 0:
         print("\n✅ 全部属性名均在 Avalonia 程序集（或本仓自定义控件）中存在。")
     else:

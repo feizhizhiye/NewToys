@@ -130,7 +130,7 @@ $staticChecks = @(
     [pscustomobject]@{
         Name = 'XAML 属性名（Avalonia ≠ WPF）'
         Only = 'props'
-        Fail = @('疑似 WPF 专有 / 拼错\s*:\s*([1-9]\d*)')
+        Fail = @('疑似 WPF 专有 / 拼错\s*:\s*([1-9]\d*)', '硬压 Slider 高度\s*:\s*([1-9]\d*)')
         Warn = @()
     }
     [pscustomobject]@{

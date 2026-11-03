@@ -478,12 +478,31 @@ public partial class AssetAllView : UserControl
 
     /// <summary>
     /// 鼠标点行：无修饰键 = 只选这一行；`Ctrl` = 切换该行；`Shift` = 从基准行连选；
-    /// `Ctrl+Shift` = 追加连选。右键不管（行右键菜单用单条 <c>Selected</c>）。
+    /// `Ctrl+Shift` = 追加连选。
+    /// <para>
+    /// 🔴 右键：命中行**不在**当前多选里 ⇒ 单选替换成这一行（资源管理器语义，否则「从磁盘删除」会删掉
+    /// 上一批选中、而不是你右键的那行）；命中行已在多选里 ⇒ 保留整批，让批量菜单作用于整批。
+    /// </para>
     /// </summary>
     private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_vm == null) return;
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+
+        var props = e.GetCurrentPoint(this).Properties;
+
+        if (props.IsRightButtonPressed)
+        {
+            if ((e.Source as Control)?.DataContext is not AssetRow hit) return;
+            if (_vm.SelectedRows.Any(r => r.Id == hit.Id)) return;
+
+            _anchor = hit;
+            ReplaceWith(hit);
+            _vm.Selected = hit;
+            PushSelectionToVm(hit);
+            return;   // ⛔ 不 Handled：否则右键菜单弹不出来
+        }
+
+        if (!props.IsLeftButtonPressed) return;
         if (TryBeginColumnResize(e)) return;                            // 表头右缘：拖列宽（已 Handled）
         if ((e.Source as Control)?.DataContext is not AssetRow row) return;
 

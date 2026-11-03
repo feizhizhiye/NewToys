@@ -357,7 +357,8 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
     /// <summary>
     /// ⛔ 从磁盘删除：**破坏性最大**的操作（不进回收站、不可还原）——
-    /// 只放右键菜单 + 二次确认 + 走任务队列，⛔ 不在 UI 线程直接删。
+    /// 只放右键菜单 + 二次确认（列出文件清单）+ 走任务队列，⛔ 不在 UI 线程直接删。
+    /// <para>对象 = 当前选中的已入库文件；一条失败不影响其余，末尾报失败数。</para>
     /// </summary>
     [RelayCommand]
     private async Task DeleteFromDiskAsync()
@@ -365,29 +366,45 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         var tiles = LibraryFileTiles();
         if (tiles.Count == 0) { WarnNoLibrarySelection("从磁盘删除"); return; }
 
+        var names = tiles.Select(t => Path.GetFileName(t.AbsPath)).ToList();
+        var preview = string.Join("\n", names.Take(6).Select(n => "· " + n));
+        if (names.Count > 6) preview += $"\n· …（共 {names.Count} 个文件）";
+
         if (!await DialogHooks.ConfirmAsync(
-                $"⛔ 从磁盘**永久删除**选中的 {tiles.Count} 个文件？\n\n" +
+                $"⛔ 从磁盘**永久删除**这 {tiles.Count} 个文件？\n\n{preview}\n\n" +
                 "· 不进系统回收站、无法还原；\n" +
-                "· 库里对应的文件索引也会一起删掉（同一资产在别处的位置不受影响）；\n" +
+                "· 库里对应的文件位置记录一起删掉（资产还有其它位置的，资产本体保留）；\n" +
                 "· 只想从库里移除、文件留着 ⇒ 用「⤫ 从库移除」。").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
         var jobs = tiles.Select(LocationOf).Where(l => l != null).Select(l => l!).ToList();
         _queue.Enqueue($"从磁盘删除 {jobs.Count} 个文件", async (ct, p) =>
         {
+            var deleted = 0;
+            var failed = 0;
             await Task.Run(() =>
             {
-                foreach (var loc in jobs)
+                for (var i = 0; i < jobs.Count; i++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    p.Report($"正在永久删除「{Path.GetFileName(loc.Path)}」…");
+
+                    var loc = jobs[i];
+                    var name = Path.GetFileName(loc.Path);
+                    p.Report($"正在永久删除（{i + 1}/{jobs.Count}）「{name}」…");
+
                     var r = _fileOps.PermanentDelete(loc);
-                    p.Report(r.Message);
-                    if (!r.Ok) continue;
+                    if (!r.Ok) { failed++; p.Report($"「{name}」删除失败：{r.Message}"); continue; }
+
+                    deleted++;
                     _assets.DeleteLocation(loc.Id);
                     if (_assets.ListLocations(loc.AssetId).Count == 0) _assets.DeleteAsset(loc.AssetId);
                 }
             }, ct).ConfigureAwait(false);
+
+            p.Report(failed == 0
+                ? $"已永久删除 {deleted} 个文件。"
+                : $"已永久删除 {deleted} 个文件，{failed} 个失败（看任务中心明细）。");
+
             Dispatcher.UIThread.Post(() => Reload(restoreLastFolder: false));
         });
         StatusText = $"已把 {jobs.Count} 个文件的永久删除排进任务队列（进度看「任务中心」）。";

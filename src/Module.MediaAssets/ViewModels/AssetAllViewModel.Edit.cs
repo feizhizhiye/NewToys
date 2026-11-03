@@ -125,44 +125,91 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 列表右键「⛔ 从磁盘删除」：**本程序唯一**直接删磁盘文件的入口。
+    /// 列表右键「⛔ 从磁盘删除」：**本程序唯一**直接删磁盘文件的入口（批量口径 = 当前选中行）。
     /// <para>
     /// 🔴 三重防误触（这是索引库里**破坏性最大**的操作，故意把点击成本做高）：
-    /// ① 不进详情卡 / 不上工具条，**只在行右键菜单里**；② 二次确认（文案写明"不进回收站、不可还原"）；
-    /// ③ 真删走**任务队列**（任务中心可见），⛔ 不在 UI 线程上直接删。
+    /// ① 不进详情卡 / 不上工具条，**只在行右键菜单里**；② 二次确认（文案写明删几个、哪几个、"不进回收站、不可还原"）；
+    /// ③ 真删走**任务队列**（任务中心可见、可取消；一条失败不影响其余）。
     /// </para>
-    /// <para>只想从库里移除（文件留着）→ 用详情卡图标组的「🗑 移入回收站」。</para>
+    /// <para>只想从库里移除（文件留着）→ 用「⤫ 从库移除」；只想标记 → 详情卡「🗑 移入回收站」。</para>
     /// </summary>
     [RelayCommand]
     private async Task DeleteFromDiskAsync()
     {
-        if (Selected == null) { StatusText = "先选中一个资产。"; return; }
+        var rows = BatchRows();
+        if (rows.Count == 0)
+        {
+            StatusText = "先选中要从磁盘删除的资产（Ctrl 增选 / Shift 连选 / Ctrl+A 全选当前页）。";
+            return;
+        }
 
-        var row = Selected;
-        var loc = PrimaryLocationOf(row);
-        if (loc == null) { StatusText = "这个资产没有登记文件位置，没法从磁盘删除。"; return; }
+        var targets = new List<(AssetRow Row, FileLocation Loc)>();
+        var skipped = 0;
+        foreach (var row in rows)
+        {
+            var loc = PrimaryLocationOf(row);
+            if (loc is null) { skipped++; continue; }
+            targets.Add((row, loc));
+        }
 
-        var name = Path.GetFileName(loc.Path);
+        if (targets.Count == 0)
+        {
+            StatusText = "选中的资产都没有登记文件位置，没法从磁盘删除。";
+            return;
+        }
+
+        var names = targets.Select(t => Path.GetFileName(t.Loc.Path)).ToList();
+        var preview = string.Join("\n", names.Take(6).Select(n => "· " + n));
+        if (names.Count > 6) preview += $"\n· …（共 {names.Count} 个文件）";
+
+        var skipHint = skipped > 0 ? $"\n\n另有 {skipped} 条没有登记文件位置，将被跳过。" : "";
+
         if (!await DialogHooks.ConfirmAsync(
-                $"⛔ 从磁盘**永久删除**这个文件？\n\n{name}\n\n· 不进系统回收站、无法还原；\n· 库里这条文件索引也会一起删掉（还有其它位置的不会删）；\n· 只想从库里移除、文件留着 ⇒ 用详情卡的「🗑 移入回收站」。").ConfigureAwait(true))
+                $"⛔ 从磁盘**永久删除**这 {targets.Count} 个文件？\n\n{preview}{skipHint}\n\n" +
+                "· 不进系统回收站、无法还原；\n" +
+                "· 库里对应的文件位置记录一起删掉（资产还有其它位置的，资产本体保留）；\n" +
+                "· 只想从库里移除、文件留着 ⇒ 用「⤫ 从库移除」；\n" +
+                "· 只想打标记 ⇒ 详情卡「🗑 移入回收站」。").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
-        _fileOps.Queue.Enqueue($"从磁盘删除 {name}", async (ct, p) =>
+        var title = targets.Count == 1
+            ? $"从磁盘删除 {names[0]}"
+            : $"从磁盘删除 {targets.Count} 个文件";
+
+        _fileOps.Queue.Enqueue(title, async (ct, p) =>
         {
+            var deleted = 0;
+            var failed = 0;
             await Task.Run(() =>
             {
-                ct.ThrowIfCancellationRequested();
-                p.Report($"正在永久删除「{name}」…");
-                var r = _fileOps.PermanentDelete(loc);
-                p.Report(r.Message);
-                if (!r.Ok) return;
-                _assets.DeleteLocation(loc.Id);
-                // 这条资产的**所有**位置都删光了 ⇒ 资产本体也没意义了（连带挂接一起清）
-                if (_assets.ListLocations(row.Id).Count == 0) _assets.DeleteAsset(row.Id);
+                for (var i = 0; i < targets.Count; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var (row, loc) = targets[i];
+                    var name = Path.GetFileName(loc.Path);
+                    p.Report($"正在永久删除（{i + 1}/{targets.Count}）「{name}」…");
+
+                    var r = _fileOps.PermanentDelete(loc);
+                    if (!r.Ok) { failed++; p.Report($"「{name}」删除失败：{r.Message}"); continue; }
+
+                    deleted++;
+                    _assets.DeleteLocation(loc.Id);
+                    // 这条资产的**所有**位置都删光了 ⇒ 资产本体也没意义了（连带挂接一起清）
+                    if (_assets.ListLocations(row.Id).Count == 0) _assets.DeleteAsset(row.Id);
+                }
             }, ct).ConfigureAwait(false);
+
+            p.Report(failed == 0
+                ? $"已永久删除 {deleted} 个文件。"
+                : $"已永久删除 {deleted} 个文件，{failed} 个失败（看任务中心明细）。");
+
             try { Dispatcher.UIThread.Post(Reload); } catch { /* 已关闭 */ }
         });
-        StatusText = $"已把「{name}」的永久删除排进任务队列（进度看「任务中心」）。";
+
+        StatusText = targets.Count == 1
+            ? $"已把「{names[0]}」的永久删除排进任务队列（进度看「任务中心」）。"
+            : $"已把 {targets.Count} 个文件的永久删除排进任务队列（进度看「任务中心」）。";
     }
 
     // ==================== 移动 / 复制（目标 = 已登记存储源根；防穿越由 FileOperationService 保证） ====================

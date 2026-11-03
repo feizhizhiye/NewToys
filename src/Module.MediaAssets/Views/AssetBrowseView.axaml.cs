@@ -184,7 +184,25 @@ public partial class AssetBrowseView : UserControl
     {
         if (_vm == null) return;
         if (sender is not ListBox list) return;
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+
+        var props = e.GetCurrentPoint(this).Properties;
+
+        // 右键必须在按压阶段定行（ContextRequested 常被菜单自己吃掉）。
+        // 命中项已在选中集里 ⇒ 保留整批（批量菜单照样作用于整批）；否则替换为该项。
+        if (props.IsRightButtonPressed)
+        {
+            if ((e.Source as Control)?.DataContext is not AssetTile hit) return;
+            if (list.SelectedItems?.Contains(hit) != true)
+            {
+                SelectOnly(list, hit);
+                _anchor = hit;
+            }
+            _vm.Selected = hit;
+            PushSelectionToVm(list, hit);
+            return;   // ⛔ 不 Handled：否则右键菜单弹不出来
+        }
+
+        if (!props.IsLeftButtonPressed) return;
         if ((e.Source as Control)?.DataContext is not AssetTile tile) return;
 
         // 行要拿到键盘焦点，否则 Ctrl+A / Delete 到不了列表

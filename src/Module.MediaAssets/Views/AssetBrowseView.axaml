@@ -164,11 +164,11 @@
                   <StackPanel Orientation="Horizontal" Spacing="4">
                     <TextBlock Text="{Binding Arrow}" FontSize="11" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding HintText}" FontSize="10" VerticalAlignment="Center"
+                    <TextBlock Text="{Binding HintText}" FontSize="11" VerticalAlignment="Center"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
-                    <TextBlock Text="{Binding CountText}" FontSize="10" VerticalAlignment="Center"
+                    <TextBlock Text="{Binding CountText}" FontSize="11" VerticalAlignment="Center"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
-                    <TextBlock Text="{Binding PendingText}" FontSize="10" VerticalAlignment="Center"
+                    <TextBlock Text="{Binding PendingText}" FontSize="11" VerticalAlignment="Center"
                                IsVisible="{Binding HasPending}"
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                ToolTip.Tip="这个目录里有还没加入资产库的文件 —— 右键「🔄 重新扫描此目录」补进来"/>
@@ -342,7 +342,7 @@
                           <Path Data="{DynamicResource IconMediaAssets}" Width="26" Height="26"
                                 Stretch="Uniform" Stroke="{DynamicResource SecondaryTextBrush}"
                                 StrokeThickness="1.2" HorizontalAlignment="Center"/>
-                          <TextBlock Text="{Binding TypeText}" FontSize="10" HorizontalAlignment="Center"
+                          <TextBlock Text="{Binding TypeText}" FontSize="11" HorizontalAlignment="Center"
                                      Foreground="{DynamicResource SecondaryTextBrush}"/>
                         </StackPanel>
                         <Image Source="{Binding Thumb}" Stretch="UniformToFill" IsVisible="{Binding HasThumb}"/>
@@ -351,7 +351,7 @@
                     <TextBlock Text="{Binding Name}" FontSize="12" MaxLines="1"
                                TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource PrimaryTextBrush}"/>
-                    <TextBlock Text="{Binding SubText}" FontSize="10" MaxLines="1"
+                    <TextBlock Text="{Binding SubText}" FontSize="11" MaxLines="1"
                                TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
                   </StackPanel>

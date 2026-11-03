@@ -218,10 +218,6 @@
               导出成 config\media-assets-user-data.json 才能进「数据管理」的备份（R1 缓解）。  -->
         <StackPanel Spacing="4">
           <TextBlock Classes="field-label" Text="用户手动数据（标签 / 分类 / 集合 / 关联）" />
-          <TextBlock
-              Classes="hint-text"
-              TextWrapping="Wrap"
-              Text="手工维护的数据（标签 / 分类 / 集合 / 关联）导出成一份 json：换配置档 / 换机器时带得走，按名字 / 路径恢复，⛔ 不清空已有数据。" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button
                 Classes="primary"

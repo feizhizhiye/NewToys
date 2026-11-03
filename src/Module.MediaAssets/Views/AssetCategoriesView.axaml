@@ -65,7 +65,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="4">
                       <TextBlock Text="{Binding Arrow}" FontSize="11" VerticalAlignment="Center"/>
                       <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                      <TextBlock Text="{Binding MemberText}" FontSize="10" VerticalAlignment="Center"
+                      <TextBlock Text="{Binding MemberText}" FontSize="11" VerticalAlignment="Center"
                                  Foreground="{DynamicResource SecondaryTextBrush}"/>
                     </StackPanel>
                   </Button>

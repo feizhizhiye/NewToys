@@ -113,28 +113,26 @@
     <Border Classes="filter-bar">
       <!--  🔴 筛选条**恒为一行、且⛔不许出现滚动条**。
             筛选器数量是固定的（类型 / 存储源 / 状态 / 标签）⇒ 用 Grid 排死：
-            标签 Auto + 四个 combo 各占等分星号 ⇒ 窗口变窄时 combo **自己跟着变窄**，永远不会溢出、也不需要滚动条；
+            四个 combo 各占等分星号 ⇒ 窗口变窄时 combo **自己跟着变窄**，永远不会溢出、也不需要滚动条；
             再给 combo 设 MaxWidth 防止宽窗口下被拉得过宽（超出部分自然留在右侧空白）。
             ⚠️ ⛔ 别改回 WrapPanel（放不下就换行，条高会变）、⛔ 别套 ScrollViewer（用户明确不要滚动条）。
             ⚠️ 列间距用 Grid.ColumnSpacing（= §4.10.4 对横向流式容器的同一条要求），⛔ 不给每个 combo 写右 Margin。  -->
-      <Grid ColumnDefinitions="Auto,*,*,*,*" ColumnSpacing="5">
-        <TextBlock Grid.Column="0" Text="筛选" FontSize="11" VerticalAlignment="Center" Margin="0,0,2,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="5">
         <!--  combo 尺寸压到最窄窗口（960 + 详情栏展开）也放得下一行。  -->
-        <ComboBox Grid.Column="1" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+        <ComboBox Grid.Column="0" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
                   HorizontalAlignment="Left"
                   ToolTip.Tip="按类型筛选（视频 / 音乐 / 书籍 / 图片 / 文档）"
                   ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding FilterType, Mode=TwoWay}"/>
-        <ComboBox Grid.Column="2" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+        <ComboBox Grid.Column="1" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
                   HorizontalAlignment="Left"
                   IsEnabled="{Binding CanFilterByStorageOrTag}"
                   ToolTip.Tip="按存储源筛选（扫描预览态不可用：预览行还没入库）"
                   ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding FilterStorage, Mode=TwoWay}"/>
-        <ComboBox Grid.Column="3" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+        <ComboBox Grid.Column="2" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
                   HorizontalAlignment="Left"
                   ToolTip.Tip="按状态筛选（正常 / 已丢失 / 回收站 / 已归档）"
                   ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding FilterStatus, Mode=TwoWay}"/>
-          <ComboBox Grid.Column="4" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+          <ComboBox Grid.Column="3" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
                     HorizontalAlignment="Left"
                     IsEnabled="{Binding CanFilterByStorageOrTag}"
                     ToolTip.Tip="按标签筛选（扫描预览态不可用：预览行还没有标签）"
@@ -233,7 +231,7 @@
               <Separator/>
               <!--  **唯一**直接物理删磁盘文件的入口（破坏性最大 ⇒ 故意只放右键、还要二次确认 + 走任务队列）；  -->
               <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"
-                        ToolTip.Tip="永久删除磁盘文件：不进回收站、不可还原，库里的文件索引一起删"/>
+                        ToolTip.Tip="永久删除磁盘文件：不进回收站、不可还原，库里的文件索引一起删。选中多条 = 批量删除（逐个确认清单一次给出）"/>
               <Separator/>
               <MenuItem Header="☑ 全选当前页" Command="{Binding SelectAllCommand}"
                         ToolTip.Tip="选中当前页所有行（等价 Ctrl+A）"/>

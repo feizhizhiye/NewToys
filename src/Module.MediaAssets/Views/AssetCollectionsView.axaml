@@ -66,7 +66,7 @@
                               VerticalAlignment="Center"/>
                       <TextBlock Text="{Binding TypeIcon}" VerticalAlignment="Center"/>
                       <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                      <TextBlock Text="{Binding MemberText}" FontSize="10" VerticalAlignment="Center"
+                      <TextBlock Text="{Binding MemberText}" FontSize="11" VerticalAlignment="Center"
                                  Foreground="{DynamicResource SecondaryTextBrush}"/>
                     </StackPanel>
                   </Button>

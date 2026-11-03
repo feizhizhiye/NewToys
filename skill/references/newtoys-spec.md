@@ -4,7 +4,7 @@
 > v1.5 · 2026-10-17
 > v1.5：**与代码对齐 + 文档搬家**（NT-062~068）—— ① §一 补 `NewToys.UI` 程序集 + 数据落点改 `<应用根>\profiles\<配置>\`、`app.json` / `active-profile.txt` 在应用根；② §五 补底栏 28px 口径；③ §六 补 5 条踩过的硬约束（Avalonia 控件显式构造 / 跨程序集 `xmlns` / 菜单 Key 不改 / zip 白名单顺序 / 随包 `.ps1` BOM）+ 交付自检改 `accept.ps1`；④ §七 规则号订正 `G-01~G-11 + G-14`；⑤ 权威文档路径 `src/docs/` → **`skill/docs/`**（文档整体搬入 skill 封装，原 `src/docs/` 已删）。
 > v1.4：术语标准化（工作项 / 任务卡 / 立项 / 就绪闸门 DoR / 完成定义 DoD / 技术债 …）+ 主题键 32→34；🔴 术语唯一定义处 = 《AI协作手册》【术语对照】，本文件只引用、不另立。
-> v1.3：§七 新增「Avalonia ≠ WPF 的 XAML 属性名」坑 + 指向 `scripts/check-axaml-props.ps1`。
+> v1.3：§七 新增「Avalonia ≠ WPF 的 XAML 属性名」坑 + 指向 `scripts/lint.py --only props`。
 > v1.2：铁律 1 加例外——`scripts/` 构建脚本经用户明确授权可改（2026-10-13，Settings 物理必备改造，NT-023）。
 > 🔴 **本文件不定义工作流**：`研发流程（规划期 / 实施期）` 唯一定义处 = 《AI协作手册》；本文件只做约束 + 路由。
 
@@ -14,7 +14,7 @@
 
 - 程序集：`NewToys.Shared/Core`、`NewToys`(=Shell→NewToys.exe)、**`NewToys.UI`（控件库，NT-063）**、`Module.<名>`、**`NewToys.Tests`（单元测试，非交付、不进 `Modules\`）**；命名空间一律 `NewToys.*`
 - 分层单向：`Shared ← Core ← Shell ← Module.*`；模块禁引 Shell、禁互引；`Shared/Core` 不引 Avalonia
-- **`NewToys.UI` 引 Shared + Avalonia，⛔ 不引 Core / Shell**；被所有模块引用 ⇒ 改一次 = 全模块重编 ⇒ 只放**写完即冻结的稳定控件**；主题刷子留 Shell（`App.axaml` 的 `*Brush` 语义键 ⛔ 不搬；数量以 `check.ps1` 白名单为准），UI 内 XAML 只 `DynamicResource`
+- **`NewToys.UI` 引 Shared + Avalonia，⛔ 不引 Core / Shell**；被所有模块引用 ⇒ 改一次 = 全模块重编 ⇒ 只放**写完即冻结的稳定控件**；主题刷子留 Shell（`App.axaml` 的 `*Brush` 语义键 ⛔ 不搬；数量以 `lint.py` 白名单为准），UI 内 XAML 只 `DynamicResource`
 - 栈：.NET 10 / Avalonia 12.1.4 / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0；版本只在 `src/Directory.Packages.props`
 - 编译绑定关闭 → XAML 不写 `x:DataType`；禁第三方 UI 库 / 图标字体
 - 数据落 `<应用根>\profiles\<配置>\{config,data,logs}`；**`active-profile.txt` 与 `app.json` 在应用根**（应用级，不随配置走，NT-062）；`NEWTOYS_HOME` 可整根切换；**`ConfigStoreService` = 路径唯一决定者**；路径一律 `Path.Combine`
@@ -93,7 +93,7 @@
 - `.axaml` 改动必同步 `.axaml.cs`；编译绑定关闭 → 只写 `{Binding}`，⛔ 不写 `x:DataType`、⛔ WPF 写法。
 - 🔴🔴 **Avalonia `UserControl` 必须显式写 `public Xxx(){ InitializeComponent(); }`**——不会自动生成；漏写 ⇒ 整块 XAML **静默不加载**（无报错/无异常），`x:Name` 字段为 null ⇒ 运行时 NRE（NT-063 连挂两次：列表全白 / 视图创建失败）。新增控件后逐个核对。
 - 跨程序集引用 UI 库控件：`xmlns:v="using:NewToys.UI.Controls"`（⛔ 不用 `clr-namespace` + `assembly=`）。
-- 颜色一律 DynamicResource；主题键只用 `*Brush` 语义键，**数量不写死在本文件**（以 `check.ps1` 白名单为准）；⛔ 不新增、不用旧键 `AppBg/AppBackground/TextPrimary`；code-behind ⛔ 写死 `#RRGGBB`。
+- 颜色一律 DynamicResource；主题键只用 `*Brush` 语义键，**数量不写死在本文件**（以 `lint.py` 白名单为准）；⛔ 不新增、不用旧键 `AppBg/AppBackground/TextPrimary`；code-behind ⛔ 写死 `#RRGGBB`。
 - `App.ApplyTheme` 幂等，⛔ 禁 `MergedDictionaries.Clear()`。
 - 菜单：`icon` 传几何资源键（24 网格描边型，`<Path Stroke=… Stretch="Uniform"/>`），不是 emoji；Key = 小写连字符；视图名由 `RegisterFunction<TView>` 的泛型参数决定（`typeof(TView).Name`，⛔ 不再传字符串）。
 - 🔴 **菜单 Key 一经发布 ⛔ 不改**（例外须用户亲自拍板——已用三次：NT-063 P2-a 删 5 类型页、NT-068 全量 `pc-*`→`script-*`、撤销功能清单独立页 `settings-all`）；应用级设置页（`settings-general/-launch/-path/-dns/-data`）挂在 **`IsHome` 不可见宿主分组 `system`** 上：⛔ 不进左树 / 首页计数，但 `FindItem` 仍解析。
@@ -111,8 +111,8 @@
 
 🔴 **本节已收敛，⛔ 不在此重复维护**：Avalonia / 分析器 / API 层面的**技术栈硬伤清单**（含「只有编译器能抓」的那批：CA1416 / CS0507 / CS0272 / CS0759 / CS8087 / MVVMTK0034 / AVLN2000 / NETSDK1022 等）+ 静态检测规则 **G-01~G-11 + G-14~G-17**（G-12 / G-13 未启用，编号留空以防历史引用错位），唯一源 = **`skill/references/tech-guard.md`**（另含「只有跑起来才能抓」的窗口装饰 / 贴靠 / SQLite 清单）。
 
-- 配套脚本 `skill/scripts/check-techstack.ps1`（`-All` 看 WARN 明细；规则 ID 与 tech-guard.md 一一对应）。
-- 🔴 交付前一律跑**一键验收**：`pwsh skill/scripts/accept.ps1`（= `check.ps1` + `check-axaml-props.ps1` + `check-techstack.ps1` + `check-detail-paths.ps1` + 构建 + 产物核对 + 改动范围；只过静态检查加 `-SkipBuild`；退出码 0/1）。⛔ 不再分条手跑四个检查。
+- 配套脚本 `skill/scripts/lint.py --only techstack`（`-All` 看 WARN 明细；规则 ID 与 tech-guard.md 一一对应）。
+- 🔴 交付前一律跑**静态验收**：`pwsh skill/scripts/accept.ps1`（= `lint.py` 的 6 个子检查 + 改动范围；退出码 0/1）。**该脚本纯静态，⛔ 不含构建 / 测试 / 产物核对 / 冒烟** —— 编译验证始终是用户本地 `build.ps1`。⛔ 不再分条手跑各检查。
 - ⛔ 升级 Avalonia / .NET 后必须复核 tech-guard.md（标「版本相关」的条目会失效甚至反转）。
 - 编译器仍是唯一可信门禁：用户本地 `pwsh -File .\scripts\build.ps1`。
 

@@ -2,10 +2,10 @@
 
 > **版本锚点**：.NET 10 / Avalonia **12.1.4** / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0
 > **口径**：硬伤 = **框架 / 版本层面**的坑（Avalonia ≠ WPF、分析器行为、API 缺失、Win32 与客户区扩展的平台差异）。业务需求不在此。
-> **定位**：本文件是**技术栈硬伤的唯一源**；`G-xx` 与 `scripts/check-techstack.ps1` 的规则**一一对应**（改这张表必须同步改脚本，反之亦然）。
+> **定位**：本文件是**技术栈硬伤的唯一源**；`G-xx` 与 `scripts/lint.py --only techstack` 的规则**一一对应**（改这张表必须同步改脚本，反之亦然）。
 > ✅ §七 重叠**已收敛**：`references/newtoys-spec.md` §七 现只做引用，本文件 = 唯一源。
 > 🔴 **升级 Avalonia / .NET 后必须复核本文件**：标「版本相关 = 是」的条目会随升级失效甚至反转，不复核这里就会变成谎言。
-> 🔴 本文件**不替代编译器**。四个静态检查（`skill/scripts/accept.ps1` 一键编排）只是「编译前抓常见硬伤」，最终门禁仍是用户本地 `pwsh -File .\scripts\build.ps1`。
+> 🔴 本文件**不替代编译器**。静态检查（`skill/scripts/accept.ps1` 一键编排，纯静态、不含构建）只是「编译前抓常见硬伤」，最终门禁仍是用户本地 `pwsh -File .\scripts\build.ps1`。
 
 ---
 
@@ -73,15 +73,15 @@
 
 | 脚本 | 已覆盖的范围 |
 |---|---|
-| `skill/scripts/check.ps1` | `.axaml` XML 合法性 / `.axaml`↔`.axaml.cs` 配对 / **`.axaml.cs` 是否调用 `InitializeComponent()`**（2026-10-17 新增：Avalonia 不自动生成构造函数，漏写 ⇒ XAML 静默不加载、具名字段 null ⇒ NRE，NT-063 连挂两次）/ `*Brush` 主题键白名单（白名单外的键 = 旧键或拼错） |
-| `skill/scripts/check-axaml-props.ps1` | XAML **属性名存在性**（逐个到 Avalonia ref 程序集核对 + 本仓自定义属性豁免），专治 Avalonia ≠ WPF 名字差异：`SelectedValuePath` / `SelectedValue` / `StrokeLineJoin`（Avalonia 叫 `StrokeJoin`）/ `Watermark`（→ `PlaceholderText`）/ `DisplayMemberPath` / `SharedSizeGroup` / `ValidatesOnExceptions` / `IsCheckable`。另：勾选按钮 ⛔ 无 `IsCheckable`（用 `ToggleType=CheckBox`），`IsChecked` 本项目约定须 `Mode=OneWay` |
-| `skill/scripts/check-comments.ps1` | 注释健康度 **C-01 ~ C-06**（见 §3.1）+ **View 类名唯一性**（C-05 是唯一能提前拦住「反射导航静默错页」的检查） |
-| `skill/scripts/check-view-pairs.ps1` | 页面契约 **P-01 / P-02**：`Views/` 下 `XxxView` 在本程序集找不到 `XxxViewModel`（豁免标记 `// lint:view-no-vm`，用于设置节子视图）；`RegisterFunction<TView>` 的泛型实参不是 `*View` 命名或 `src/` 里没有该 View 类（类型存在性已由编译器保证，这里只补「必须是真 View」）。两者都表现为「编译通过、运行期无异常，只是页面空白 / 菜单项打不开」 |
+| `skill/scripts/lint.py` | `.axaml` XML 合法性 / `.axaml`↔`.axaml.cs` 配对 / **`.axaml.cs` 是否调用 `InitializeComponent()`**（2026-10-17 新增：Avalonia 不自动生成构造函数，漏写 ⇒ XAML 静默不加载、具名字段 null ⇒ NRE，NT-063 连挂两次）/ `*Brush` 主题键白名单（白名单外的键 = 旧键或拼错） |
+| `skill/scripts/lint.py --only props` | XAML **属性名存在性**（逐个到 Avalonia ref 程序集核对 + 本仓自定义属性豁免），专治 Avalonia ≠ WPF 名字差异：`SelectedValuePath` / `SelectedValue` / `StrokeLineJoin`（Avalonia 叫 `StrokeJoin`）/ `Watermark`（→ `PlaceholderText`）/ `DisplayMemberPath` / `SharedSizeGroup` / `ValidatesOnExceptions` / `IsCheckable`。另：勾选按钮 ⛔ 无 `IsCheckable`（用 `ToggleType=CheckBox`），`IsChecked` 本项目约定须 `Mode=OneWay`。**字号白名单**：所有 `.axaml` 的 `FontSize` 值必须落在 **11/12/13/14/15/16/18/22/26/28/32**（唯一源 `ui.md` §2.3），`≤10` 与白名单外（12.5 / 17 / 19 …）一律报出 |
+| `skill/scripts/lint.py --only comments` | 注释健康度 **C-01 ~ C-06**（见 §3.1）+ **View 类名唯一性**（C-05 是唯一能提前拦住「反射导航静默错页」的检查） |
+| `skill/scripts/lint.py --only view-pairs` | 页面契约 **P-01 / P-02**：`Views/` 下 `XxxView` 在本程序集找不到 `XxxViewModel`（豁免标记 `// lint:view-no-vm`，用于设置节子视图）；`RegisterFunction<TView>` 的泛型实参不是 `*View` 命名或 `src/` 里没有该 View 类（类型存在性已由编译器保证，这里只补「必须是真 View」）。两者都表现为「编译通过、运行期无异常，只是页面空白 / 菜单项打不开」 |
 
-### 3.1 注释健康度（`check-comments.ps1` · C-01 ~ C-06）
+### 3.1 注释健康度（`lint.py --only comments` · C-01 ~ C-06）
 
 > 背景：注释腐烂不是「写得太多」，而是**缺少生命周期规则** —— 每轮改代码都追加一段「vX.Y 第 N 轮：…」，
-> 旧结论又不删，半年后没人分得清哪句还成立。规则在此收敛，脚本在 `check-comments.ps1`。
+> 旧结论又不删，半年后没人分得清哪句还成立。规则在此收敛，脚本在 `lint.py --only comments`。
 
 **注释三分法**（判据决定去向，⛔ 不是「搬进文档」）：
 
@@ -112,10 +112,10 @@
 ## 四、用法（仓库根执行，交付前跑）
 
 ```powershell
-pwsh skill/scripts/check.ps1
-pwsh skill/scripts/check-axaml-props.ps1
-pwsh skill/scripts/check-techstack.ps1          # 加 -All 看 WARN 明细
-pwsh skill/scripts/check-comments.ps1           # 加 -All 看注释明细（C-01/C-02/C-04）
+python skill/scripts/lint.py                        # 全量 7 项
+python skill/scripts/lint.py --only props
+python skill/scripts/lint.py --only techstack --all   # 加 --all 看 WARN 明细
+python skill/scripts/lint.py --only comments --all    # 加 --all 看注释明细（C-01/C-02/C-04）
 ```
 
 四条都**只报告、不改文件、不以非零码退出**（自检是参考，不是门禁）；最终以用户本地 `pwsh -File .\scripts\build.ps1` 为准。
@@ -135,14 +135,14 @@ pwsh skill/scripts/check-comments.ps1           # 加 -All 看注释明细（C-0
 | `CS8087` / `CS1009` | 插值串转义非法 / 无法识别的转义序列 | 插值串里单个 `\` → 写 `\\`（**G-14**）；非插值串 `"C:\path"` 同样报 CS1009 |
 | `CA1416` | 平台兼容性分析器 | 只认**内联** `OperatingSystem.IsWindows()`；间接属性（`IsWindows => …`）不认 |
 | `MVVMTK0034` | 直接访问 backing field | 只在构造函数 / 字段初始化器内允许；改字段名须全仓搜（属性 + `_字段` + `nameof`） |
-| `AVLN2000` | Avalonia XAML 编译失败 | 九成是 WPF 专有属性名（`SelectedValuePath` / `StrokeLineJoin` / `Watermark` / `DisplayMemberPath` / `SharedSizeGroup`）→ 先跑 `check-axaml-props.ps1`（**§三**） |
+| `AVLN2000` | Avalonia XAML 编译失败 | 九成是 WPF 专有属性名（`SelectedValuePath` / `StrokeLineJoin` / `Watermark` / `DisplayMemberPath` / `SharedSizeGroup`）→ 先跑 `lint.py --only props`（**§三**） |
 | `NETSDK1022` | 重复的编译项 | `defaults\` 用了 `Include=` → 改 `None Update="defaults\**"`（**G-08**） |
 | `CS0103` | 找不到名称 | 删了带 `x:Name` 的 XAML 块（如迁走的页内工具条）但 code-behind 仍引用那个字段 ⇒ 全仓搜该 `x:Name`，把 code-behind 里的接线一并删掉。🔴 实例（NT-055）：`BtnImport` 随工具条一起删了，`BookmarkView` / `PingView` 的构造器还在 `BtnImport.Click += …` |
 | `MVVMTK0023` | 命令方法在类型内不唯一 | 新写的 `[RelayCommand] XxxAsync()` 与**同类型既有**方法**同名**（`Xxx` 与 `XxxAsync` 都生成 `XxxCommand`）⇒ 给新方法换名（如加 `Pick` 前缀）并同步描述符 / XAML 里的 `CommandPath`。🔴 实例（NT-055）：`AssetAllViewModel` 已有 `SaveLibraryAsAsync(string?)`，新加的选路径版同名 ⇒ 改成 `PickSaveLibraryAsAsync`（内部再调既有的 `SaveLibraryAsCommand.Execute(path)`） |
 | `CS0067` | 事件从未使用 | 不继承 `ListPageViewModelBase` 的自定义 VM（如 `VideoPreviewViewModel`）自己声明了 `ToolbarChanged` 却没有 `?.Invoke` 点 ⇒ 补一个 `private void NotifyToolbarChanged() => ToolbarChanged?.Invoke(this, EventArgs.Empty);`（继承基类的页不用管，基类已自带该辅助方法） |
 | `CS8619` | 空性与目标类型不匹配 | 🔴 实例（NT-055）：`items.ItemsPanel = new FuncTemplate<Panel>(…)` —— `ItemsControl.ItemsPanel` 的目标类型是 **`ITemplate<Panel?>`** ⇒ 类型参数必须写 **`FuncTemplate<Panel?>`**（写 `Panel` 只警告不报错，但污染输出）。同类坑：凡目标是 `ITemplate<X?>` / `Func<X?>`，泛型实参都要带 `?` |
 | `CS0136` | 局部变量重名（与封闭作用域冲突） | 🔴 实例（NT-058）：`DetailCardRender.cs` 的 `IndexSelectFieldRow.RefreshCore` 里新写的 `is IEnumerable raw`（OptionsPath 分支）与**同一方法后面已有的** `var raw = DetailPath.Resolve(Source, Field.IndexPath);` 撞名 ⇒ 新模式匹配引入的变量也算声明，⛔ 不能与同方法后续 `var` 同名。修法 = 新变量改名（如 `opts`）。**给既有的长方法补分支时，先 grep 该方法内已用的局部变量名** |
-| `CS0246` / `CS1061` | 找不到类型 / 找不到成员 | 先跑 `check-axaml-props.ps1`；再核命名空间与引用方向（**G-10** / **G-11**）。🔴 实例（v3.43 编译轮修）：`Core/Services/ModuleReloadService.cs` 实现 Shared 契约 `IModuleReloadService` 但漏 `using NewToys.Shared.Services;` —— `NewToys.Core.Services` 与 `NewToys.Shared.Services` 是 `NewToys` 下的**兄弟命名空间，不互达** ⇒ 报在类声明行（CS0246@`: IXxx`）。修法 = 补一行 using；「新建 Core 服务类实现 Shared 接口」时**先抄同目录现役服务的 using 头** |
+| `CS0246` / `CS1061` | 找不到类型 / 找不到成员 | 先跑 `lint.py --only props`；再核命名空间与引用方向（**G-10** / **G-11**）。🔴 实例（v3.43 编译轮修）：`Core/Services/ModuleReloadService.cs` 实现 Shared 契约 `IModuleReloadService` 但漏 `using NewToys.Shared.Services;` —— `NewToys.Core.Services` 与 `NewToys.Shared.Services` 是 `NewToys` 下的**兄弟命名空间，不互达** ⇒ 报在类声明行（CS0246@`: IXxx`）。修法 = 补一行 using；「新建 Core 服务类实现 Shared 接口」时**先抄同目录现役服务的 using 头** |
 
 **无错误码、但会静默失效（编译器抓不到 —— 优先查这里）**：
 

@@ -26,18 +26,18 @@ agent_created: true
 4. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型速记）
 5. 按任务读 **`docs/framework.md`**（框架层）/ **`docs/ui.md`**（UI）/ **`docs/modules/<模块>.md`**（改哪个模块读哪个）对应节
 6. 术语 / 流程有疑问 → `docs/NewToys-AI协作手册.md`【术语对照】【研发流程】
-7. **交付前 / 验收：一键 `pwsh skill/scripts/accept.ps1`**（= 4 个静态检查 + 构建 + 产物核对 + 改动范围，加 `-Run` 再冒烟；退出码 0/1 可直接给用户跑）
+7. **交付前自检：`pwsh skill/scripts/accept.ps1`**（= 6 项静态检查 + 改动范围；退出码 0/1）。该脚本**纯静态**，编译与运行由用户本地 `scripts/build.ps1` / `run.ps1` 执行
 
 ## 目录
 
 - `references/collab-method.md` —— 通用协作方法论（跨项目母本；**§七 回复格式（编号段落）与会话成本管控 · 长会话提醒** —— 每次回复前对照）
 - `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / **31 个主题键** / 任务型→章节 / 文档路由）
-- `references/tech-guard.md` —— 技术栈硬伤唯一源（`G-01`~`G-11` + `G-14`~`G-17`，与 `check-techstack.ps1` 一一对应）
-- **`scripts/accept.ps1` —— 🔴 一键验收总入口**：串起下面 4 个静态检查 + 构建 + 产物核对 + 改动范围（`-Test` 追加单元测试、`-Run` 再冒烟），输出结论与退出码（0 = 通过 / 1 有 FAIL）。用户自己验收就跑这一条。
-- `scripts/check.ps1` —— `.axaml` 合法性、`.axaml`↔`.axaml.cs` 配对、`InitializeComponent` 调用、主题键白名单
-- `scripts/check-axaml-props.ps1` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异）
-- `scripts/check-techstack.ps1` —— 技术栈硬伤 `G-01`~`G-14`（ERROR / WARN 分级；`-All` 看 WARN 明细）
-- `scripts/check-detail-paths.ps1` —— 声明式详情卡的字符串绑定路径首段是否存在（`-All` 看全）
+- `references/tech-guard.md` —— 技术栈硬伤唯一源（`G-01`~`G-11` + `G-14`~`G-17`，与 `lint.py --only techstack` 一一对应）
+- **`scripts/accept.ps1` —— 🔴 静态验收入口**：串起下面 6 个静态检查 + 改动范围，输出结论与退出码（0 = 通过 / 1 有 FAIL）。🔴 **不含构建 / 测试 / 产物核对 / 冒烟** —— skill/ 下脚本只做静态检查，编译一律走用户本地 `scripts/build.ps1`。
+- `scripts/lint.py` —— `.axaml` 合法性、`.axaml`↔`.axaml.cs` 配对、`InitializeComponent` 调用、主题键白名单
+- `scripts/lint.py --only props` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异）
+- `scripts/lint.py --only techstack` —— 技术栈硬伤 `G-01`~`G-14`（ERROR / WARN 分级；`-All` 看 WARN 明细）
+- `scripts/lint.py --only detail-paths` —— 声明式详情卡的字符串绑定路径首段是否存在（`-All` 看全）
 - `docs/` —— 🔴 **权威文档（自封装）**：
   - `index.md` 文档地图（**先读**）
   - `framework.md` 框架层工程规范 + **跨模块待办** ｜ `ui.md` UI 工程规范

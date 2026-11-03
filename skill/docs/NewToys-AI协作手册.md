@@ -36,7 +36,7 @@ A. 规划期（Planning，默认，只写文档，可多轮）：
    ⛔ 规划期**绝不改 `src/` 代码**，无论讨论几轮。
 B. 实施期（Implementation，显式触发才碰代码）：
    ④ 仅当用户发「**执行全部就绪待办**」/「执行 NT-xxx」时进入；筛 `✅ 就绪` 且依赖已完成的条目，按 依赖→优先级 排序；
-   ⑤ 逐条按 `NT-xxx.md` 任务卡 + `modules/<模块>.md` + `framework.md` / `ui.md` 改 src/ → 静态检查（`skill/scripts/accept.ps1 -SkipBuild` 一键过 6 项检查）→ 标 `🔄 执行中` → 落地标 `✔ 已完成（待验收）` + git commit + 回写《状态与路线图》+ 任务卡追加「执行记录」。
+   ⑤ 逐条按 `NT-xxx.md` 任务卡 + `modules/<模块>.md` + `framework.md` / `ui.md` 改 src/ → 静态检查（`skill/scripts/accept.ps1` 一键过 6 项检查，**纯静态、不含构建**）→ 标 `🔄 执行中` → 落地标 `✔ 已完成（待验收）` + git commit + 回写《状态与路线图》+ 任务卡追加「执行记录」。
    🔴 遇 5 种阻塞情形之一立即停并报，不偷偷跳过、不扩范围。
 C. 状态机（单个工作项）：
    📝 草稿 Draft（细节未展开，**不执行**）→ ✅ 就绪 Ready（过 DoR，可批量跑）→ 🔄 执行中 In Progress → ✔ 已完成 Done（待验收）→ 用户验收后 Accepted：台账翻 ✔、任务卡进入滑动窗口。
@@ -47,11 +47,11 @@ D. 归档策略（**2026-10-18 修订，滑动窗口**）：
    ④ 被后续工作项**整体取代 / 明确作废**的卡直接删除，台账行标 `🗑 已作废（卡已删）`。台账工作项行**始终保留**，只翻状态。
    ⑤ ⛔ 已废止：2026-10-14「全量保留」、2026-10-17「默认保留 + 仅删作废卡」、更早「只留最近 3 个」。
 E. 批次与验收闸门（2026-10-19 起，🔴 最高优先级之一）：
-   ① **一次 build 原则**：一个工作项（NT）的交付 = **一次** `accept.ps1`（6 静态检查 + 构建 + 产物核对）验收。⛔ 中途为「改个样式 / 改段文案 / 修个绑定」单独要求用户 build——把同批改动全部做完再一起验。
+   ① **一次 build 原则**：一个工作项（NT）的交付 = **一次**用户本地 `pwsh -File .\scripts\build.ps1`；AI 侧只跑 `accept.ps1`（纯静态检查 + 改动范围）。⛔ 中途为「改个样式 / 改段文案 / 修个绑定」单独要求用户 build——把同批改动全部做完再一起验。
    ② **攒批实施**：实施期把同一批 `✅ 就绪` 卡按「同程序集 / 同改动面」分组，一组做完再发**一次** build；跨组（落入 Shared/Shell 导致整体重编）时合并为一次验收。
    ③ **工作项粒度**：只按「用户可感知的功能单元」新开 NT。样式微调 / 文案 / 布局几像素 / 上一轮返工 → **并入当前进行中的卡**或当轮直接修，⛔ 不新开 NT（修复类一律当前会话修到闭环）。
    ④ **卡内累积**：一个 NT 可含多个子步骤（清单式验收标准），⛔ 不为每步拆一张卡；批次完成后在卡「执行记录」一次回填 commit + 验收结论。
-   ⑤ 单次 build 仍是**用户执行**，AI 只跑 `-SkipBuild` 静态检查（`accept.ps1 -SkipBuild`）自检。
+   ⑤ 单次 build 仍是**用户执行**，AI 只跑 `accept.ps1` 静态检查自检（skill/ 下脚本⛔ 不含构建能力）。
 🔴 Spec-first：需求未进《需求规格》不动代码；工作项未 `✅ 就绪` 不批量开工；未经用户验收不得标最终完成。
 ⚠️ 「睡觉让 AI 跑」= 睡前开会话发「执行全部就绪待办」，agent 循环跑完就绪项；⛔ 不用 automation 定时触发。
 
@@ -94,7 +94,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 · 命名空间 NewToys.<模块>.Views/.ViewModels（无 .Module 段）；View 与 VM 成对。
 · IModule{RegisterServices,Initialize}；菜单只在 Initialize 注册；视图名由 `RegisterFunction<TView>` 泛型参数决定（⛔ 不传字符串）；icon=Geometry 资源键（不是 emoji）；Key=小写连字符。
 · .axaml 扩展名；编译绑定关→写 {Binding}、不写 x:DataType；改 .axaml 必同步 .axaml.cs；⛔ WPF 写法。
-· 颜色一律 DynamicResource；主题键只用 *Brush 语义键（条数以 `check.ps1` 白名单为准，⛔ 除白名单外不新增）；code-behind 不写死 #RRGGBB。
+· 颜色一律 DynamicResource；主题键只用 *Brush 语义键（条数以 `lint.py` 白名单为准，⛔ 除白名单外不新增）；code-behind 不写死 #RRGGBB。
 · 图标：**一级菜单 = 矢量**（`App.axaml` 的 `Application.Resources` 里 `Icon*` Geometry，24 网格**描边型**，用 `<Path Stroke=… Stretch="Uniform"/>` 而非 `PathIcon`）；**二级菜单不显示图标**；**标签页无图标**；仅标题栏 4 个工具按钮仍是 emoji（放大到 18px）。模块 `RegisterModule` 的 icon 传几何键；VM 解析用 `Application.Current.TryFindResource(key, out var v)`（**Try 模式**，需 `using Avalonia.Controls;`）。
 · v3.8 视频工具三页：`video-list`（列表）/ `video-cut`（显示名与类名均为「**视频预览**`VideoPreviewView`」，**key 不变**：单任务编辑 + 预览画面 + 三条时间条、剪辑+转码两类、自带选文件）/ `video-batch`（**批量处理**：列表=剪辑+转码混排统一队列 + 详情卡）。⛔ 原 `video-transcode` 已并入 `video-batch`。
 · **v3.12 两页详情卡是同一套结构**：分区顺序=ffmpeg 命令书写顺序（剪辑→转码→输出→命令）；剪辑/转码的勾选框在 `Expander.Header` 里，⛔ 不另设「任务类型」块；⛔ **详情卡内不放任何操作按钮**（保存/跑/删/复制/重置全在工具条）；命令区同名属性 `CommandPreview` / `EditArgs` / `IsArgsEdited`，两页可照抄。
@@ -116,12 +116,12 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 · 改列表页：表头与行同套星号列定义？内边距一致？ContextMenu.DataContext 行菜单+表头菜单都在 code-behind 同步了？隐藏列用宽度 0？改 `Columns` 后表头/行模板的 `Grid.Column` 逐字核对了？
 · 改跨页投递：取件点是不是在 `OnAttachedToVisualTree`（`OnDataContextChanged` 在标签页已存在时不触发）？
 · 改标签/树/导航：OpenTab 做了单例判定？首页 CanClose=false？关闭最后一个自动回首页？Shell 订阅 IDetailPanelProvider/IHistoryProvider 前解绑旧 Tab？
-· 🔴 新增 / 改 `.axaml` 属性：跑 `pwsh skill/scripts/check-axaml-props.ps1` —— **Avalonia ≠ WPF 的属性名差异**（实测踩过 `SelectedValuePath` / `StrokeLineJoin`，编译期直接 AVLN2000）；⛔ 别凭记忆写，脚本会到 Avalonia ref 程序集里核对名字。
-· 🔴 **技术栈硬伤**（Avalonia / 分析器 / API / 架构边界）：唯一源 = `skill/references/tech-guard.md` —— §一 = 静态可检测规则 G-01~G-11 + G-14（G-12/13 未启用），§二 = 只有编译器或只有跑起来才能抓的清单，§五 = **按错误码索引**的编译错误速查。交付前跑 `skill/scripts/accept.ps1`（含该检查；`-All` 看 WARN 明细、`-SkipBuild` 只过静态检查）。
+· 🔴 新增 / 改 `.axaml` 属性：跑 `python skill/scripts/lint.py --only props` —— **Avalonia ≠ WPF 的属性名差异**（实测踩过 `SelectedValuePath` / `StrokeLineJoin`，编译期直接 AVLN2000）；⛔ 别凭记忆写，脚本会到 Avalonia ref 程序集里核对名字。
+· 🔴 **技术栈硬伤**（Avalonia / 分析器 / API / 架构边界）：唯一源 = `skill/references/tech-guard.md` —— §一 = 静态可检测规则 G-01~G-11 + G-14（G-12/13 未启用），§二 = 只有编译器或只有跑起来才能抓的清单，§五 = **按错误码索引**的编译错误速查。交付前跑 `skill/scripts/accept.ps1`（含该检查；`-All` 看 WARN 明细。该脚本**纯静态、不含构建**）。
 · 🔴 **回填纪律**：本轮只要出现本地编译失败，修复后**必须把「错误码 + 根因 + 一行修法」追加进 tech-guard.md §五** —— AI 不代跑编译，编译期知识只能从你这边回流；不回填 = 同一个坑反复踩。
 
 [5] 交付
-① 变更清单（增/改/删逐条一句话）+ 前置基线 + **唯一一条**验证命令（一批改动只跑一次 `pwsh -File .\scripts\build.ps1` 或 `pwsh skill/scripts/accept.ps1`；⛔ 不列多轮 build）。
+① 变更清单（增/改/删逐条一句话）+ 前置基线 + **唯一一条**用户侧验证命令（一批改动只跑一次 `pwsh -File .\scripts\build.ps1`；⛔ 不列多轮 build）。AI 自检用 `pwsh skill/scripts/accept.ps1`（纯静态检查，不构建）。
 ② 直接写工作区，用 read/ls 确认落盘；不列下载链接、不打 zip、不做 sources md 快照。
 ③ 实施期每完成一条工作项 → 在《状态与路线图》三、翻 `✔ 已完成（待验收）`，并在 `skill/docs/backlog/<模块>/NT-xxx.md` 追加「执行记录」；功能级交付 git commit（<type>: <简述>）；纯修报错不回写台账。⛔ 不写 md 日志——版本记录一律走 git。
 ④ ⛔ 不逐次改文档：需求/规范/协作手册是指导性文件，只在其内容真的过时/与代码冲突时才改；各文档独立升版本（不齐步）。
@@ -145,7 +145,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 ☐ 设置落 config\、模块只读？      ☐ 模块 DLL 无拷贝、OutDir 直出？
 ☐ 未谎报编译、写清用户命令？      ☐ 台账按功能级更新、版本号独立？
 ☐ 待回选 / 拍板的回复用了编号段落？☐ 会话过长已提醒开新会话？
-☐ 跑过一键验收 `skill/scripts/accept.ps1`（6 项静态检查 + 构建 + 产物核对）？
+☐ 跑过静态验收 `skill/scripts/accept.ps1`（6 项静态检查 + 改动范围）？
 ☐ 本次改动已攒成**一次 build**、未中途要求用户重建？卡未因微调而新开？
 ☐ 本轮编译报错已回填 tech-guard.md §五？
 

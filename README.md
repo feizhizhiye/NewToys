@@ -19,7 +19,7 @@ NewToys/
 ├── skill/                跨 AI 知识库（自封装）
 │   ├── docs/             4 份权威文档（宪法）+ backlog/ 任务卡
 │   ├── references/       项目约束 / 通用方法论 / 技术栈硬伤清单
-│   └── scripts/          4 项静态检查 + accept.ps1（一键验收）
+│   └── scripts/          lint.py 静态检查 + accept.ps1（静态验收，不含构建）
 ├── scripts/              构建 / 环境 / 发布 / 打包脚本
 ├── artifacts/            产物区（忽略）：bin\ release\ env\ context\
 └── production/           publish.ps1 的输出目标（忽略）

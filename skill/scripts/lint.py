@@ -1,0 +1,652 @@
+#!/usr/bin/env python3
+"""NewToys 静态自检（唯一实现）。
+
+规则出处：`skill/references/tech-guard.md`（G-* 技术栈 / C-* 注释）、
+`skill/docs/ui.md` §2.3（字号白名单）。改规则必须同步改文档。
+
+⛔ 只报告，不修改任何文件，恒以 0 退出（自检是参考，不是门禁）。
+用法：python skill/scripts/lint.py [--only KEY] [--all]
+     KEY = axaml | props | techstack | detail-paths | video-card | comments | view-pairs
+"""
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+import xml.parsers.expat as expat
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src"
+SKIP_DIRS = {"bin", "obj", "docs", ".git", "artifacts"}
+
+
+# ---------------------------------------------------------------- 通用工具
+
+def read(p: Path) -> str:
+    return p.read_text(encoding="utf-8-sig", errors="replace").replace("\r\n", "\n")
+
+
+def rel(p: Path) -> str:
+    return p.relative_to(SRC).as_posix()
+
+
+def lineno(text: str, idx: int) -> int:
+    return text.count("\n", 0, idx) + 1
+
+
+def _blank(m: re.Match) -> str:
+    return re.sub(r"[^\n]", " ", m.group(0))
+
+
+def strip_comments(text: str, axaml: bool = False) -> str:
+    text = re.sub(r"<!--.*?-->", _blank, text, flags=re.S)
+    if not axaml:
+        text = re.sub(r"/\*.*?\*/", _blank, text, flags=re.S)
+        text = re.sub(r"//[^\n]*", _blank, text)
+    return text
+
+
+def walk(exts: tuple[str, ...]) -> list[Path]:
+    return [p for p in SRC.rglob("*") if p.suffix in exts and p.is_file()
+            and not (SKIP_DIRS & set(p.parts))]
+
+
+def elements(text: str) -> list[tuple[str, dict[str, str], int]]:
+    """按 XML 解析 .axaml，产出 (元素名, 属性, 起始行号)。"""
+    p = expat.ParserCreate()
+    out: list[tuple[str, dict[str, str], int]] = []
+    p.StartElementHandler = lambda name, attrs: out.append((name, attrs, p.CurrentLineNumber))
+    p.Parse(text.encode("utf-8"), True)
+    return out
+
+
+def h(title: str) -> None:
+    print(f"\n=== {title} ===")
+
+
+# ---------------------------------------------------------------- 1) axaml 合法性 / 配对 / 主题键
+
+def check_axaml(all_: bool) -> None:
+    h("NewToys 静态自检")
+    print(f"仓库根: {ROOT}")
+    if not SRC.is_dir():
+        print("[FAIL] 找不到 src/")
+        return
+
+    brush: set[str] = set()
+    for p in walk((".axaml", ".cs")):
+        t = read(p)
+        brush.update(re.findall(r'x:Key="(\w*Brush)"', t))
+        brush.update(re.findall(r'S\("(\w*Brush)"', t))
+
+    axamls = [p for p in SRC.rglob("*.axaml") if p.is_file()]
+    print(f"\n[主题键] 白名单 {len(brush)} 个 *Brush 键")
+    print(f"\n[AXAML] 检查 {len(axamls)} 个 .axaml...")
+    bad = unpaired = no_init = 0
+    for f in axamls:
+        raw = read(f)
+        try:
+            elements(raw)
+        except expat.ExpatError as e:
+            print(f"  [XML失败] {f} : {e}")
+            bad += 1
+            continue
+        if "x:Class=" not in raw:
+            continue
+        cs = f.with_name(f.name + ".cs")
+        if not cs.exists():
+            print(f"  [缺配对] {f} 有 x:Class 但无 .axaml.cs")
+            unpaired += 1
+            continue
+        if f.stem == "App":
+            continue
+        if not re.search(r"InitializeComponent\s*\(\s*\)", read(cs)):
+            print(f"  [缺 InitializeComponent] {cs}")
+            no_init += 1
+
+    print("\n[初始化] 检查 .axaml.cs 是否调用 InitializeComponent()...")
+    unknown: set[str] = set()
+    for p in walk((".axaml", ".cs")):
+        if p.name.endswith(".axaml.cs"):
+            continue
+        for k in re.findall(r"\{(?:DynamicResource|StaticResource)\s+(\w+)", read(p)):
+            if k.endswith("Brush") and k not in brush:
+                unknown.add(k)
+
+    if unknown:
+        print("\n[主题键] 白名单外的 *Brush 引用（疑似旧键/拼错）：")
+        for k in sorted(unknown):
+            print(f"  - {k}")
+    else:
+        print("\n[主题键] 所有 *Brush 引用均在白名单内 ✅")
+
+    print("\n=== 汇总 ===")
+    print(f"  XML 不合法 .axaml : {bad}")
+    print(f"  缺 .axaml.cs 配对 : {unpaired}")
+    print(f"  缺 InitializeComponent : {no_init}")
+    print(f"  *Brush 白名单      : {len(brush)}")
+    print("\n提示：本脚本只做轻量静态检查；完整编译由用户本地 build.ps1 验证。")
+
+
+# ---------------------------------------------------------------- 2) XAML 属性名 / 字号白名单
+
+WPF_HINTS = {
+    "SelectedValuePath": "Avalonia 的 ComboBox ⛔ 没有它 → 改绑 SelectedItem 到**选项对象**",
+    "SelectedValue": "同上：Avalonia 用 SelectedItem",
+    "StrokeLineJoin": "Avalonia 叫 StrokeJoin",
+    "DisplayMemberPath": "Avalonia ⛔ 没有它 → 用 ItemTemplate",
+    "Watermark": "Avalonia 用 PlaceholderText",
+    "IsDefault": "Avalonia ⛔ 没有它 → 用按钮的 IsDefault 替代方案（回车键命令）",
+    "IsCancel": "同上",
+    "SharedSizeGroup": "Avalonia ⛔ 不支持 SharedSizeGroup",
+    "ValidatesOnExceptions": "Avalonia ⛔ 没有它",
+}
+
+MARKUP = {
+    "xmlns", "x", "Classes", "Name", "Grid", "Theme", "ItemsPanel", "ItemContainerTheme",
+    "DataType", "TargetType", "Selector", "BasedOn", "Property", "Value", "Mode", "Converter",
+    "ConverterParameter", "StringFormat", "FallbackValue", "RelativeSource", "ElementName",
+    "Source", "Path", "Priority", "UpdateSourceTrigger", "ReflectionBinding", "CompiledBinding",
+    "Binding", "StaticResource", "DynamicResource", "Key", "Class", "Style", "AvaloniaProperty",
+}
+
+FONT_WHITELIST = {"11", "12", "13", "14", "15", "16", "18", "22", "26", "28", "32"}
+
+
+def check_props(all_: bool) -> None:
+    h("NewToys XAML 属性名核对")
+    print(f"仓库根: {ROOT}")
+    if not SRC.is_dir():
+        print("[FAIL] 找不到 src/")
+        return
+
+    props_file = SRC / "Directory.Packages.props"
+    m = re.search(r'Include="Avalonia"\s+Version="([^"]+)"', read(props_file)) if props_file.exists() else None
+    if not m:
+        print("[FAIL] 读不到 Avalonia 版本（src/Directory.Packages.props）")
+        return
+    ver = m.group(1)
+    print(f"Avalonia 版本: {ver}")
+
+    nuget = Path.home() / ".nuget" / "packages"
+    blobs: list[bytes] = []
+    for pkg in ("avalonia", "avalonia.themes.fluent", "avalonia.desktop", "avalonia.fonts.inter"):
+        for dll in (nuget / pkg / ver / "ref").rglob("*.dll"):
+            blobs.append(dll.read_bytes())
+    if not blobs:
+        print("[WARN] 一个 Avalonia ref 程序集都没找到（NuGet 缓存路径变了？）——本检查无意义")
+        return
+    corpus = b"".join(blobs)
+    print(f"已载入 Avalonia ref 程序集: {len(blobs)} 个")
+
+    own: set[str] = set()
+    for p in walk((".cs",)):
+        own.update(re.findall(
+            r"(?:StyledProperty|DirectProperty|AttachedProperty)<(?:[^<>]|<[^<>]*>)*>\s+(\w+?)Property\b",
+            read(p)))
+    print(f"本仓自定义属性（豁免）: {len(own)} 个")
+
+    axamls = [p for p in SRC.rglob("*.axaml") if p.is_file()]
+    print(f"\n[AXAML] 核对 {len(axamls)} 个 .axaml 的属性名...")
+
+    problems = checked = font_problems = 0
+    for f in axamls:
+        raw = read(f)
+        try:
+            tags = elements(raw)
+        except expat.ExpatError:
+            print(f"  [XML失败] {rel(f)} —— 属性核对已跳过（先修 XML）")
+            continue
+        for _name, attrs, line in tags:
+            for attr, val in attrs.items():
+                # 命名空间声明与带前缀的附加属性（xmlns:* / chrome:A.B / ui:C.D）不参与存在性判定
+                if attr in MARKUP or ":" in attr or attr.startswith("Classes."):
+                    continue
+                checked += 1
+                for part in attr.split("."):
+                    if len(part) < 2 or part in own:
+                        continue
+                    if part.encode() in corpus:
+                        continue
+                    hint = f"  ← {WPF_HINTS[part]}" if part in WPF_HINTS else ""
+                    print(f'  [{rel(f)}:{line}] 属性名 "{attr}" 在 Avalonia 程序集里找不到{hint}')
+                    problems += 1
+                    break
+                if attr == "FontSize" and re.fullmatch(r"[0-9.]+", val or ""):
+                    if val not in FONT_WHITELIST:
+                        print(f"  [{rel(f)}:{line}] 字号 {val} 不在白名单（ui.md §2.3）")
+                        font_problems += 1
+
+    print("\n=== 汇总 ===")
+    print(f"  核对属性名出现次数 : {checked}")
+    print(f"  疑似 WPF 专有 / 拼错 : {problems}")
+    print(f"  字号越界（§2.3）    : {font_problems}")
+    if problems == 0:
+        print("\n✅ 全部属性名均在 Avalonia 程序集（或本仓自定义控件）中存在。")
+    else:
+        print("\n⚠️ 上面报出的名字多半是 WPF 专有写法（Avalonia 名字不同）或拼写错误 —— 编译期会抛 AVLN2000。")
+    print("\n提示：本检查按**名字存在性**判定（弱于编译器），只用来在编译前抓 WPF/Avalonia 名字差异。")
+
+
+# ---------------------------------------------------------------- 3) 技术栈硬伤
+
+CLASH = {
+    "TaskStatus", "MenuGroup", "MenuItem", "MenuFlyoutItem", "Menu", "MenuFlyout",
+    "Color", "Colors", "Brush", "SolidColorBrush", "Path", "Border", "Window", "Button",
+    "Panel", "Decorator", "Control", "Style", "Size", "Point", "Rect", "Grid", "Image",
+    "TextBlock", "Icon", "Thickness", "CornerRadius", "Theme", "ThemeVariant",
+}
+ICON_FONT = re.compile(
+    r"(awesome|fluent[\s\-]?icons|mdl2|material[\s\-]?icons|icomoon|iconfont"
+    r"|bootstrap[\s\-]?icons|octicons|tabler|remixicon|themify|glyphicons|devicon)", re.I)
+CHECK_CHAR = re.compile(r'(?:Text|Content)\s*=\s*"\s*[\u2611\u2610\u25A3]\s*"')
+EMOJI = re.compile(r"[\u2600-\u27BF\u2B00-\u2BFF\uFE0F]|[\U0001F000-\U0001FAFF]")
+MODULE_SETTINGS = re.compile(r"Module\.[^/]+/Views/[^/]*Settings[^/]*\.axaml$")
+CLR_ASSEMBLY = re.compile(r'clr-namespace:[^"]*;\s*assembly\s*=')
+
+
+def check_techstack(all_: bool) -> None:
+    h("NewToys 技术栈硬伤自检")
+    print(f"仓库根: {ROOT}")
+    if not SRC.is_dir():
+        print("[FAIL] 找不到 src/")
+        return
+
+    findings: list[tuple[str, str, str, str]] = []
+
+    def add(rid: str, level: str, p: Path, line: int, msg: str) -> None:
+        findings.append((rid, level, f"{rel(p)}:{line}", msg))
+
+    targets = walk((".cs", ".axaml", ".csproj"))
+    axamls = [p for p in targets if p.suffix == ".axaml"]
+    css = [p for p in targets if p.suffix == ".cs"]
+    projs = [p for p in targets if p.suffix == ".csproj"]
+    print(f"扫描：.axaml {len(axamls)} / .cs {len(css)} / .csproj {len(projs)}")
+
+    for f in axamls:
+        clean = strip_comments(read(f), axaml=True)
+        res_def = bool(re.search(r'x:Key="\w+Brush"', clean))
+        for i, ln in enumerate(clean.split("\n"), 1):
+            if re.search(r"x:DataType\s*=", ln):
+                add("G-09", "WARN", f, i, "出现 x:DataType —— 编译绑定已全工程关闭，只写 {Binding Xxx}")
+            if CHECK_CHAR.search(ln):
+                add("G-05", "ERROR", f, i, "用字符当勾选框（Text/Content = ☑/☐/▣）—— 表头勾选必须原生三态 CheckBox")
+            if re.search(r"MergedDictionaries\s*\.\s*Clear\s*\(", ln):
+                add("G-02", "ERROR", f, i, "MergedDictionaries.Clear() —— ApplyTheme 必须幂等，清空会丢 Fluent 内置样式")
+            if not res_def:
+                m = re.search(r"#[0-9A-Fa-f]{6}\b", ln)
+                if m:
+                    add("G-01", "WARN", f, i, f"硬编码颜色 {m.group(0)} —— 改用 DynamicResource 语义键")
+            m = re.search(r'FontFamily\s*=\s*"([^"]*)"', ln)
+            if m and ICON_FONT.search(m.group(1)):
+                add("G-06", "ERROR", f, i, f"FontFamily 指向图标字体（{m.group(1)}）—— 图标走 Path 几何资源键，禁图标字体")
+            if MODULE_SETTINGS.search(rel(f)) and "ScrollViewer" in ln:
+                add("G-16", "ERROR", f, i, "模块设置页里出现 ScrollViewer —— 滚动统一由 SettingsSectionHost 管，节内 ⛔ 再包滚动条（双滚动条/磁吸失效）")
+            if CLR_ASSEMBLY.search(ln):
+                add("G-17", "ERROR", f, i, 'xmlns 用了 clr-namespace + assembly= —— 跨程序集必须 xmlns:v="using:NewToys.UI.Controls"')
+        for m in re.finditer(r"(?s)<TextBlock\b(?:(?!>).)*?MinHeight\s*=", clean):
+            add("G-03", "WARN", f, lineno(clean, m.start()), "TextBlock 上用 MinHeight 撑行高 —— 文字会贴顶；行高基线放 ListBoxItem MinHeight=28")
+
+    for f in css:
+        clean = strip_comments(read(f))
+        for i, ln in enumerate(clean.split("\n"), 1):
+            if re.search(r"public\s+override\s+void\s+On(?:AttachedToVisualTree|DetachedFromVisualTree)\s*\(", ln):
+                add("G-04", "ERROR", f, i, "可视树回调写了 public override —— 必须是 protected override（否则 CS0507）")
+            if re.search(r"MergedDictionaries\s*\.\s*Clear\s*\(", ln):
+                add("G-02", "ERROR", f, i, "MergedDictionaries.Clear() —— ApplyTheme 必须幂等")
+            m = re.search(r"\b(?:class|record|struct|enum)\s+([A-Za-z_]\w*)\b", ln)
+            if m and m.group(1) in CLASH:      # 区分大小写：RECT/POINT 与 Rect/Point 不冲突
+                add("G-07", "ERROR", f, i, f"类型名 {m.group(1)} 撞框架类型 —— 改名避开（新增模型先 grep Avalonia ref）")
+            m = re.search(r'FontFamily\s*=\s*"([^"]*)"', ln)
+            if m and ICON_FONT.search(m.group(1)):
+                add("G-06", "ERROR", f, i, f"FontFamily 指向图标字体（{m.group(1)}）—— 图标走 Path 几何资源键，禁图标字体")
+            if not re.search(r'\$@"|@\$"', ln):
+                for im in re.finditer(r'\$"[^"\n]*"', ln):
+                    if re.search(r'(?<!\\)\\[^\\"0abfnrtvux{}]', im.group(0)):
+                        add("G-14", "ERROR", f, i, "插值串里有单个 \\ —— CS8087/CS1009；反斜杠必须写 \\\\")
+                        break
+            m = re.search(r'(?i)\bicon\s*[=:]\s*"([^"]*)"', ln)
+            if m and EMOJI.search(m.group(1)):
+                add("G-15", "WARN", f, i, "icon 字段用了 emoji —— 应收敛到几何资源键")
+
+    for p in projs:
+        name = p.stem
+        is_module = name.startswith("Module.")
+        is_base = name in ("Shared", "Core")
+        clean = strip_comments(read(p))
+        for i, ln in enumerate(clean.split("\n"), 1):
+            if re.search(r'Include\s*=\s*"[^"]*defaults[^"]*"', ln):
+                add("G-08", "ERROR", p, i, 'defaults\\ 用了 Include= —— 会 NETSDK1022；必须 None Update="defaults\\**"')
+            m = re.search(r'ProjectReference\s+Include\s*=\s*"([^"]+)"', ln)
+            if is_module and m:
+                ref = Path(m.group(1).replace("\\", "/")).stem
+                if "shell" in ref.lower():
+                    add("G-10", "ERROR", p, i, f"模块引了 Shell（{ref}）—— 分层单向 Shared <- Core <- Shell <- Module.*")
+                elif ref.startswith("Module.") and ref != name:
+                    add("G-10", "ERROR", p, i, f"模块互引（{name} -> {ref}）—— 跨模块契约只放 Shared / Core")
+            m = re.search(r'PackageReference\s+Include\s*=\s*"([^"]+)"', ln)
+            if is_base and m and "avalonia" in m.group(1).lower():
+                add("G-11", "ERROR", p, i, f"{name} 引了 Avalonia 包（{m.group(1)}）—— Shared / Core 不引 Avalonia")
+
+    errs = [x for x in findings if x[1] == "ERROR"]
+    warns = [x for x in findings if x[1] == "WARN"]
+    print("\n=== 汇总 ===")
+    if errs:
+        print(f"\n[ERROR] {len(errs)} 条（会编译失败 / 运行必错 / 破坏架构边界）：")
+        for rid, _l, loc, msg in errs:
+            print(f"  [{rid}] {loc}  {msg}")
+    else:
+        print("\n[ERROR] 0 条 ✅")
+    if warns:
+        if all_:
+            print(f"\n[WARN] {len(warns)} 条（违反约定但仍能编译）：")
+            for rid, _l, loc, msg in warns:
+                print(f"  [{rid}] {loc}  {msg}")
+        else:
+            print(f"[WARN] {len(warns)} 条（明细加 -All 查看）")
+    else:
+        print("[WARN] 0 条 ✅")
+    print("\n提示：规则出处 skill/references/tech-guard.md；本脚本只抓常见硬伤，完整编译由用户本地 build.ps1 验证。")
+
+
+# ---------------------------------------------------------------- 4) 详情卡绑定路径
+
+PATH_PROPS = ("ValuePath|SecondValuePath|VisibleWhen|EnabledWhen|OptionsPath|OptionValuePath"
+              "|OptionDisplayPath|ChipTextPath|ChipSelectedPath|ChipCommandPath|IsEnabledPath"
+              "|IsVisiblePath|TogglePath|IsExpandedPath|VisiblePath|BodyVisiblePath|SamplePath")
+DECL_RE = re.compile(r"(?:public|internal|protected)\s+(?:static\s+|readonly\s+|partial\s+|override\s+|virtual\s+)*"
+                     r"[A-Za-z_][\w<>\[\],\.\? ]*\s+([A-Za-z_]\w*)\s*(?:\{|=>|;|=)")
+
+
+def check_detail_paths(all_: bool) -> None:
+    h("NewToys 详情卡绑定路径自检")
+    print(f"仓库根: {ROOT}")
+    if not SRC.is_dir():
+        print("[FAIL] 找不到 src/")
+        return
+
+    names: set[str] = set()
+    for p in walk((".cs",)):
+        names.update(DECL_RE.findall(strip_comments(read(p))))
+    print(f"属性 / 字段名共 {len(names)} 个（用于比对）")
+
+    assign = re.compile(rf"(?:{PATH_PROPS})\s*=\s*\"([^\"]*)\"")
+    findings: list[tuple[str, str]] = []
+    scanned = 0
+    for p in walk((".cs",)):
+        txt = strip_comments(read(p))
+        if "IDetailCardSource" not in txt and "DetailCardDescriptor" not in txt:
+            continue
+        scanned += 1
+        for m in assign.finditer(txt):
+            path = m.group(1)
+            if not path.strip():
+                continue
+            head = path.lstrip("!").split(".")[0]
+            if not head:
+                continue
+            if head not in names:
+                findings.append((f"{rel(p)}:{lineno(txt, m.start())}", path))
+
+    print(f"含描述符的 .cs 文件 {scanned} 个")
+    if not findings:
+        print("[OK] 未发现可疑的绑定路径。")
+        return
+    print(f"[WARN] {len(findings)} 条绑定路径的首段在 src/ 里找不到同名属性（改名 / 拼错？）")
+    limit = len(findings) if all_ else min(30, len(findings))
+    for loc, path in findings[:limit]:
+        print(f"  {loc}  →  {path}")
+    if limit < len(findings):
+        print(f"  …另有 {len(findings) - limit} 条，加 -All 看全。")
+
+
+# ---------------------------------------------------------------- 5) 视频详情卡同源
+
+def check_video_card(all_: bool) -> None:
+    h("NewToys 视频详情卡同源自检")
+    module = SRC / "Module.VideoTools"
+    card = module / "Details" / "VideoTaskCard.cs"
+    if not card.exists():
+        print("[ERROR] 1 条  —— 找不到唯一卡定义：src/Module.VideoTools/Details/VideoTaskCard.cs")
+        return
+
+    errors: list[str] = []
+    for p in module.rglob("*.cs"):
+        if p.resolve() == card.resolve() or (SKIP_DIRS & set(p.parts)):
+            continue
+        n = len(re.findall(r"new\s+DetailCardDescriptor", read(p)))
+        if n:
+            errors.append(f"V-01  {p.relative_to(ROOT).as_posix()} 又新建了 DetailCardDescriptor（{n} 处）"
+                          " —— 卡只能由 Details/VideoTaskCard.cs 产出")
+
+    card_txt = read(card)
+    names = re.findall(r'public\s+const\s+string\s+\w+\s*=\s*"([^"]+)"', card_txt)
+    m = re.search(r"BatchOnlyPrefixes\s*=\s*\{([^}]*)\}", card_txt)
+    only = re.findall(r'"([^"]+)"', m.group(1)) if m else []
+
+    texts = {}
+    for label, pat in (("预览页", "VideoPreviewViewModel*.cs"), ("批量页", "VideoBatchViewModel*.cs")):
+        texts[label] = "\n".join(read(p) for p in (module / "ViewModels").glob(pat))
+
+    for name in names:
+        targets = ["批量页"] if any(name.startswith(x) for x in only) else ["预览页", "批量页"]
+        camel = "_" + name[:1].lower() + name[1:]
+        for page in targets:
+            if not (re.search(rf"\b{re.escape(name)}\b", texts[page])
+                    or re.search(rf"\b{re.escape(camel)}\b", texts[page])):
+                errors.append(f'V-02  {page} 缺属性 "{name}"（VideoTaskCard 的卡里引用了它）')
+
+    print(f"卡定义引用属性 {len(names)} 个；批量页专属前缀：{', '.join(only)}")
+    if not errors:
+        print("[OK] 0 条 —— 两页详情卡同源，属性齐全")
+        return
+    print(f"[ERROR] {len(errors)} 条")
+    for e in (errors if all_ else errors[:30]):
+        print(f"  {e}")
+    if not all_ and len(errors) > 30:
+        print(f"  …（还有 {len(errors) - 30} 条，加 -All 看全部）")
+
+
+# ---------------------------------------------------------------- 6) 注释健康度 / View 类名唯一性
+
+RE_VERSION = re.compile(r"^\s*//+\s*(v\d+\.\d+|NT-\d{3}\s*[:：]?\s*v\d+\.\d+|第[一二三四五六七八九十0-9]+轮)")
+RE_HISTORY = re.compile(r"原来|此前是|以前是|曾经是|早先是")
+MAX_BLOCK = 6
+
+
+def check_comments(all_: bool) -> None:
+    h("NewToys 注释健康度自检")
+    print(f"仓库根: {ROOT}")
+    if not SRC.is_dir():
+        print("[FAIL] 找不到 src/")
+        return
+
+    targets = [p for p in walk((".cs",)) if "NewToys.Tests" not in p.parts]
+    print(f"扫描：.cs {len(targets)} 个")
+
+    findings: list[tuple[str, str, str, str]] = []
+
+    def add(rid: str, level: str, loc: str, msg: str) -> None:
+        findings.append((rid, level, loc, msg))
+
+    stats: list[tuple[float, int, int, str]] = []
+    for f in targets:
+        lines = read(f).split("\n")
+        total = len(lines)
+        if not total:
+            continue
+        comments = block_start = block_len = 0
+        for i, ln in enumerate(lines, 1):
+            plain = re.match(r"^\s*//(?![/!])", ln)
+            any_comment = re.match(r"^\s*(///|//|\*|/\*)", ln)
+            if any_comment:
+                comments += 1
+            if plain:
+                if block_len == 0:
+                    block_start = i
+                block_len += 1
+            else:
+                if block_len >= MAX_BLOCK:
+                    add("C-02", "WARN", f"{rel(f)}:{block_start}",
+                        f"连续 {block_len} 行注释（阈值 {MAX_BLOCK}）—— 该进文档或压成 1-3 行 WHY")
+                block_len = 0
+            if ln.strip().startswith("//"):
+                if RE_VERSION.match(ln):
+                    add("C-01", "WARN", f"{rel(f)}:{i}", "版本/轮次前缀叙事 —— 删前缀，只留 WHY（git log 已记录）")
+                elif RE_HISTORY.search(ln):
+                    add("C-04", "WARN", f"{rel(f)}:{i}", "历史叙事 —— 描述过去状态，无法据此判断当前正确性")
+            if any_comment and re.search(r"NT-\d{3}", ln):
+                add("C-06", "WARN", f"{rel(f)}:{i}", "注释里出现任务编号 —— 删编号，结论查 framework.md §11.2")
+        if block_len >= MAX_BLOCK:
+            add("C-02", "WARN", f"{rel(f)}:{block_start}", f"连续 {block_len} 行注释（阈值 {MAX_BLOCK}）")
+
+        text = "\n".join(lines)
+        if (re.search(r"^\s*(public|internal)\s+(partial\s+)?interface\s", text, re.M)
+                and not re.search(r"^\s*(public|internal)\s+(sealed\s+|partial\s+|static\s+)*class\s", text, re.M)):
+            continue
+        stats.append((comments / total, comments, total, rel(f)))
+
+    # C-05：View 类名唯一性（反射导航的硬前提）
+    views: dict[str, list[Path]] = {}
+    for p in walk((".cs",)):
+        if not p.name.endswith(".axaml.cs"):
+            continue
+        for nm in re.findall(r"(?m)^\s*(?:public|internal)\s+(?:sealed\s+)?partial\s+class\s+([A-Za-z_]\w*)", read(p)):
+            views.setdefault(nm, []).append(p)
+    for nm, files in views.items():
+        if len(files) > 1:
+            where = " / ".join(rel(x) for x in files)
+            add("C-05", "ERROR", f"{rel(files[0])}:1", f"View 类名重复：{nm} —— {where}")
+
+    print("\n[注释率 Top5]")
+    for ratio, c, t, r in sorted(stats, reverse=True)[:5]:
+        print(f"  {ratio:6.0%}  {c:5}/{t:<5}  {r}")
+
+    errors = [x for x in findings if x[1] == "ERROR"]
+    warns = [x for x in findings if x[1] == "WARN"]
+    print("\n=== 汇总 ===")
+    print(f"  [ERROR] {len(errors)} 条")
+    print(f"  [WARN]  {len(warns)} 条")
+    if errors:
+        print("\n[ERROR 明细]")
+        for rid, _l, loc, msg in errors:
+            print(f"  {rid}  {loc}  {msg}")
+    if all_ and warns:
+        print("\n[WARN 明细]")
+        for rid in sorted({x[0] for x in warns}):
+            group = [x for x in warns if x[0] == rid]
+            print(f"  {rid}（{len(group)} 条）")
+            for _r, _l, loc, msg in group:
+                print(f"    {loc}  {msg}")
+    print("\n提示：C-01/C-02/C-04/C-06 是 WARN（不阻断），C-05 是 ERROR（View 重名会静默错页）。")
+    print("      C-03 只出排行不告警（审美判据做 lint 会烂成噪音）。")
+
+
+# ---------------------------------------------------------------- 7) 页面契约
+
+CLASS_RE = re.compile(r"(?m)^\s*(?:public|internal)\s+(?:sealed\s+|abstract\s+|partial\s+|static\s+)*class\s+([A-Za-z_]\w*)")
+
+
+def check_view_pairs(all_: bool) -> None:
+    h("NewToys 页面契约自检")
+    print(f"仓库根: {ROOT}")
+    if not SRC.is_dir():
+        print("[FAIL] 找不到 src/")
+        return
+
+    findings: list[tuple[str, str, str, str]] = []
+    by_project: dict[str, set[str]] = {}
+    view_decls: list[tuple[str, str, int, str]] = []
+
+    for p in walk((".cs",)):
+        rp = rel(p)
+        project = rp.split("/")[0]
+        text = read(p)
+        bucket = by_project.setdefault(project, set())
+        for m in CLASS_RE.finditer(text):
+            bucket.add(m.group(1))
+            if p.name.endswith(".axaml.cs"):
+                view_decls.append((m.group(1), rp, m.start(), text))
+
+    view_names = {v[0] for v in view_decls}
+    print(f"View 类 {len(view_decls)} 个 / 类型集合覆盖 {len(by_project)} 个项目")
+
+    for name, rp, idx, text in view_decls:
+        if "/Views/" not in rp or not name.endswith("View"):
+            continue
+        if "lint:view-no-vm" in "\n".join(text[:idx].split("\n")[-5:]):
+            continue
+        vm = name[:-4] + "ViewModel"
+        if vm not in by_project[rp.split("/")[0]]:
+            findings.append(("P-01", "ERROR", rp, f"{name} 找不到 {vm}（同程序集）—— 页面会静默空白"))
+
+    call_re = re.compile(r"RegisterFunction\s*<\s*([A-Za-z_][\w\.]*)\s*>")
+    calls = 0
+    for p in walk((".cs",)):
+        if p.name in ("MenuService.cs", "IMenuService.cs") or "NewToys.Tests" in p.parts:
+            continue
+        text = strip_comments(read(p))
+        if "RegisterFunction" not in text:
+            continue
+        rp = rel(p)
+        for m in call_re.finditer(text):
+            calls += 1
+            simple = m.group(1).split(".")[-1]
+            loc = f"{rp}:{lineno(text, m.start())}"
+            if not simple.endswith("View"):
+                findings.append(("P-02", "ERROR", loc, f"泛型实参「{simple}」不是 *View 命名 —— 菜单项注册的应是页面类"))
+            elif simple not in view_names:
+                findings.append(("P-02", "ERROR", loc, f"泛型实参「{simple}」在 src/ 里找不到对应的 View 类"))
+
+    print(f"RegisterFunction 注册点（泛型）{calls} 处")
+
+    errors = [x for x in findings if x[1] == "ERROR"]
+    warns = [x for x in findings if x[1] == "WARN"]
+    print("\n=== 汇总 ===")
+    print(f"  [ERROR] {len(errors)} 条")
+    print(f"  [WARN]  {len(warns)} 条")
+    if errors:
+        print("\n[ERROR 明细]")
+        for rid, _l, loc, msg in errors[: len(errors) if all_ else 30]:
+            print(f"  {rid}  {loc}  {msg}")
+        if not all_ and len(errors) > 30:
+            print(f"  …另有 {len(errors) - 30} 条，加 -All 看全。")
+    print("\n提示：P-01 / P-02 都是 ERROR —— 命名对不上时页面不报错，只是空白或打不开。")
+
+
+# ---------------------------------------------------------------- 入口
+
+CHECKS = {
+    "axaml": check_axaml,
+    "props": check_props,
+    "techstack": check_techstack,
+    "detail-paths": check_detail_paths,
+    "video-card": check_video_card,
+    "comments": check_comments,
+    "view-pairs": check_view_pairs,
+}
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="NewToys 静态检查")
+    ap.add_argument("--only", choices=sorted(CHECKS), help="只跑一项")
+    ap.add_argument("--all", action="store_true", help="列出全部 WARN 明细")
+    args = ap.parse_args()
+
+    for out in (sys.stdout, sys.stderr):
+        try:
+            out.reconfigure(encoding="utf-8", errors="replace")
+        except AttributeError:
+            pass
+
+    keys = [args.only] if args.only else list(CHECKS)
+    for k in keys:
+        CHECKS[k](args.all)
+        if len(keys) > 1:
+            print()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -38,12 +38,11 @@ NewToys 是**个人自用工具集**，开源是为了分享与可复用。接�
 ## 四、本地验证（⛔ 不接受"我没编译过"的 PR）
 
 ```powershell
-pwsh -File .\scripts\build.ps1            # Debug 构建
-pwsh skill/scripts/accept.ps1             # 一键验收：4 项静态检查 + 构建 + 产物核对
-pwsh skill/scripts/accept.ps1 -SkipBuild  # 只跑静态检查
+pwsh -File .\scripts\build.ps1            # Debug 构建（唯一编译入口）
+pwsh skill/scripts/accept.ps1             # 静态验收：6 项静态检查 + 改动范围（不含构建）
 ```
 
-验收脚本退出码 0 = 通过、1 = 失败。PR 里请贴上**验收结果汇总段**。
+`accept.ps1` 只做静态检查（skill/ 下脚本不构建），编译始终看 `build.ps1`。脚本退出码 0 = 通过、1 = 失败。PR 里请贴上**静态验收结果汇总段**。
 
 ## 五、提交信息格式
 

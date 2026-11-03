@@ -1,43 +1,32 @@
 #Requires -Version 7.0
 <#
 ════════════════════════════════════════════════════════════════════
-  NewToys 一键验收（accept）
+  NewToys 静态验收（accept）
 ────────────────────────────────────────────────────────────────────
-  一条命令跑完「静态检查 → 构建 → 产物核对 →(可选) 单元测试 / 冒烟 → 铁律检查」，
-  最后给出 **通过 / 不通过** 结论 + 退出码。
+  一条命令跑完「静态检查 → 铁律 1 改动范围」，给出 **通过 / 不通过** + 退出码。
 
-    pwsh skill/scripts/accept.ps1                  # 默认 Release：静态 + 构建 + 产物核对
-    pwsh skill/scripts/accept.ps1 -SkipBuild       # 只跑静态检查（秒级，改完文档用）
-    pwsh skill/scripts/accept.ps1 -Configuration Debug
-    pwsh skill/scripts/accept.ps1 -Run             # 追加启动冒烟（默认 8s 内不崩）
-    pwsh skill/scripts/accept.ps1 -Run -SmokeSeconds 15
-    pwsh skill/scripts/accept.ps1 -Report          # 额外写 artifacts/accept-report.md
-    pwsh skill/scripts/accept.ps1 -All             # WARN 明细全展开（透传给支持的子脚本）
-    pwsh skill/scripts/accept.ps1 -SkipStatic      # 只构建 + 产物核对（不跑 Lint）
-    pwsh skill/scripts/accept.ps1 -Test            # 追加单元测试（纯函数解析器）
+    pwsh skill/scripts/accept.ps1              # 全部静态检查
+    pwsh skill/scripts/accept.ps1 -All         # WARN 明细全展开（透传给子检查）
+    pwsh skill/scripts/accept.ps1 -Report      # 额外写 artifacts/accept-report.md
+    pwsh skill/scripts/accept.ps1 -SkipStatic  # 只做改动范围检查（不跑 Lint）
 
   退出码：0 = 全通过；1 = 存在 FAIL（脚本自身报错亦为 1）。
-  ⛔ 本脚本只读 src/ + 只做构建，不修改 src/ 下任何源文件。
-  ⛔ 构建用 dotnet 直调（与 scripts/build.ps1 同 slnx / 同配置）——避开
-     build.ps1 的 trap → Read-Host，非交互运行不会被挂住。
-  ⛔ 本脚本不替代人工回归；它证明「编译干净 + 架构不越界 + 起得来」，
-     不证明「功能符合验收标准」。验收标准仍逐条对任务卡。
+  ⛔ 本脚本只读，不修改 src/ 下任何源文件。
+  🔴 本脚本不含任何构建 / 测试 / 启动能力：编译验证归用户本地
+     `pwsh -File .\scripts\build.ps1`，运行归 `scripts\run.ps1`。
+     skill/ 下的脚本只做静态检查，⛔ 不加 dotnet build / dotnet test / 产物核对 / 冒烟。
+  ⛔ 本脚本不替代人工回归：它只证明「静态硬伤为 0 + 改动不越界」，
+     既不证明编译通过，也不证明功能符合验收标准。
 ════════════════════════════════════════════════════════════════════
 #>
 param(
-    [ValidateSet("Debug", "Release")]
-    [string]$Configuration = "Release",
-    # 只跑静态检查，跳过构建与产物核对
+    # 只做改动范围检查，跳过静态检查
     [switch]$SkipStatic,
+    # 兼容历史命令：本脚本已无构建步骤，传与不传等价
     [switch]$SkipBuild,
-    # 追加启动冒烟：起 exe，N 秒内不退出即视为通过，然后杀掉
-    [switch]$Run,
-    [int]$SmokeSeconds = 8,
     # 写 artifacts/accept-report.md
     [switch]$Report,
-    # 追加单元测试（src/NewToys.Tests：包管理器输出解析 + 列表页基类纯逻辑，秒级）
-    [switch]$Test,
-    # 透传 -All 给支持的子脚本（WARN 明细全展开）
+    # 透传 -All 给支持的子检查（WARN 明细全展开）
     [switch]$All
 )
 
@@ -46,12 +35,9 @@ $ProgressPreference    = 'SilentlyContinue'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $src      = Join-Path $repoRoot 'src'
-$pwshExe  = (Get-Process -Id $PID -ErrorAction SilentlyContinue).Path
-if (-not $pwshExe) { $pwshExe = 'pwsh' }
 
-Write-Host "`n════════ NewToys 一键验收 ════════" -ForegroundColor Cyan
+Write-Host "`n════════ NewToys 静态验收 ════════" -ForegroundColor Cyan
 Write-Host "仓库根 : $repoRoot" -ForegroundColor DarkGray
-Write-Host "配置   : $Configuration" -ForegroundColor DarkGray
 if (-not (Test-Path $src)) {
     Write-Host "[FAIL] 找不到 src/ —— 请从仓库内运行本脚本" -ForegroundColor Red
     exit 1
@@ -66,77 +52,82 @@ function Add-Row([string]$Area, [string]$Name, [string]$Status, [string]$Detail,
 }
 
 # ═════════ 1) 静态检查 ═════════
+# 全部实现在 skill/scripts/lint.py（一个文件多子命令），Only = 传给 --only 的子命令。
 # Fail 正则命中 ⇒ FAIL（阻断）；Warn 正则命中 ⇒ WARN（不阻断）。
 $staticChecks = @(
     [pscustomobject]@{
         Name = 'AXAML 合法性 / 配对 / 主题键'
-        File = 'skill\scripts\check.ps1'
+        Only = 'axaml'
         Fail = @('XML 不合法 \.axaml\s*:\s*([1-9]\d*)', '缺 \.axaml\.cs 配对\s*:\s*([1-9]\d*)')
         Warn = @('白名单外的 \*Brush 引用')
-        SupportsAll = $false
     }
     [pscustomobject]@{
         Name = 'XAML 属性名（Avalonia ≠ WPF）'
-        File = 'skill\scripts\check-axaml-props.ps1'
+        Only = 'props'
         Fail = @('疑似 WPF 专有 / 拼错\s*:\s*([1-9]\d*)')
         Warn = @()
-        SupportsAll = $false
     }
     [pscustomobject]@{
         Name = '技术栈硬伤（G-01~G-11 + G-14~G-17）'
-        File = 'skill\scripts\check-techstack.ps1'
+        Only = 'techstack'
         Fail = @('\[ERROR\]\s*([1-9]\d*) 条')
         Warn = @('\[WARN\]\s*([1-9]\d*) 条')
-        SupportsAll = $true
     }
     [pscustomobject]@{
         Name = '详情卡绑定路径'
-        File = 'skill\scripts\check-detail-paths.ps1'
+        Only = 'detail-paths'
         Fail = @()
         Warn = @('\[WARN\]\s*([1-9]\d*) 条绑定路径')
-        SupportsAll = $true
     }
     # 视频详情卡同源（V-01 别处又 new 一份卡 / V-02 卡引用的属性两页缺一个）
     [pscustomobject]@{
         Name = '视频详情卡同源（预览 = 批量）'
-        File = 'skill\scripts\check-video-card.ps1'
+        Only = 'video-card'
         Fail = @('\[ERROR\]\s*([1-9]\d*)\s*条')
         Warn = @()
-        SupportsAll = $true
     }
     # 注释健康度（C-01 版本前缀 / C-02 长注释块 / C-04 历史叙事 = WARN；C-05 View 重名 = ERROR）
     # 🔴 C-05 是唯一能提前拦住「两个程序集有同名 View ⇒ 反射导航静默错页」的检查。
     [pscustomobject]@{
         Name = '注释健康度 / View 类名唯一性'
-        File = 'skill\scripts\check-comments.ps1'
+        Only = 'comments'
         Fail = @('\[ERROR\]\s*([1-9]\d*) 条')
         Warn = @('\[WARN\]\s*([1-9]\d*) 条')
-        SupportsAll = $true
     }
     # 页面契约（P-01 View 找不到同名 VM / P-02 泛型实参不是真 View 类）：
     # 两条都是 ERROR —— 名字对不上时运行期不报错，只是页面空白或打不开。
     [pscustomobject]@{
         Name = '页面契约（View ↔ ViewModel / 菜单注册）'
-        File = 'skill\scripts\check-view-pairs.ps1'
+        Only = 'view-pairs'
         Fail = @('\[ERROR\]\s*([1-9]\d*) 条')
         Warn = @('\[WARN\]\s*([1-9]\d*) 条')
-        SupportsAll = $true
     }
 )
 
 if (-not $SkipStatic) {
-    Write-Host "`n──── 1/6 静态检查 ────" -ForegroundColor Cyan
+    Write-Host "`n──── 1/2 静态检查 ────" -ForegroundColor Cyan
+    $lintPy    = Join-Path $repoRoot 'skill\scripts\lint.py'
+    $pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
+
     foreach ($c in $staticChecks) {
-        $full = Join-Path $repoRoot $c.File
-        if (-not (Test-Path $full)) {
-            Add-Row '静态检查' $c.Name 'SKIP' '脚本不存在'
-            Write-Host ("  [SKIP] {0} —— {1}" -f $c.Name, $c.File) -ForegroundColor DarkYellow
+        if (-not (Test-Path $lintPy)) {
+            Add-Row '静态检查' $c.Name 'SKIP' 'lint.py 不存在'
+            Write-Host ("  [SKIP] {0} —— skill/scripts/lint.py 不存在" -f $c.Name) -ForegroundColor DarkYellow
             continue
         }
-        # 子进程内强制 PlainText，保证 Write-Host 的内容能被捕获成纯文本
-        $inner = "`$PSStyle.OutputRendering = 'PlainText'; & '$full'"
-        if ($c.SupportsAll -and $All) { $inner += ' -All' }
-        $raw = (& $pwshExe -NoProfile -NonInteractive -Command $inner 2>&1 | Out-String)
+        if (-not $pythonExe) {
+            Add-Row '静态检查' $c.Name 'SKIP' '找不到 python'
+            Write-Host ("  [SKIP] {0} —— 找不到 python，请在 PATH 中安装 Python 3" -f $c.Name) -ForegroundColor DarkYellow
+            continue
+        }
+
+        $argv = @($lintPy, '--only', $c.Only)
+        if ($All) { $argv += '--all' }
+        $prevEnc = [Console]::OutputEncoding
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        $env:PYTHONIOENCODING = 'utf-8'
+        try { $raw = (& $pythonExe @argv 2>&1 | Out-String) }
+        finally { [Console]::OutputEncoding = $prevEnc }
 
         $f = 0; foreach ($re in $c.Fail) { $f += ([regex]::Matches($raw, $re)).Count }
         $w = 0; foreach ($re in $c.Warn) { $w += ([regex]::Matches($raw, $re)).Count }
@@ -158,118 +149,8 @@ else {
     Add-Row '静态检查' '全部' 'SKIP' '-SkipStatic'
 }
 
-# ═════════ 2) 构建 ═════════
-$outDir = if ($Configuration -eq 'Release') {
-    Join-Path $repoRoot 'artifacts\release'
-} else {
-    Join-Path $repoRoot 'artifacts\bin\Shell\Debug\net10.0'
-}
-$exe = Join-Path $outDir 'NewToys.exe'
-
-if (-not $SkipBuild) {
-    Write-Host "`n──── 2/6 构建（$Configuration）────" -ForegroundColor Cyan
-    if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-        Add-Row '构建' 'dotnet build' 'FAIL' '找不到 dotnet'
-        Write-Host '  [FAIL] 找不到 dotnet —— 请确认 SDK 已安装且在 PATH' -ForegroundColor Red
-    }
-    else {
-        $sln = Join-Path $src 'NewToys.slnx'
-        $t0 = Get-Date
-        $buildRaw = (& dotnet build $sln -c $Configuration --nologo -v q 2>&1 | Out-String)
-        $ok = ($LASTEXITCODE -eq 0)
-        $sec = [Math]::Round(((Get-Date) - $t0).TotalSeconds, 1)
-        # 编译错误计数：按诊断号统计最稳（中英文摘要行格式会随 locale 变）
-        $errCount  = ([regex]::Matches($buildRaw, '(?i)\berror\s+(?:CS|AVLN|MSB|NETSDK|MVVMTK|NU)\d{3,5}')).Count
-        $warnCount = ([regex]::Matches($buildRaw, '(?i)\bwarning\s+(?:CS|AVLN|MSB|NETSDK|MVVMTK|NU)\d{3,5}')).Count
-        $detail = if ($ok) { "成功（{0} 错误 / {1} 警告，{2}s）" -f $errCount, $warnCount, $sec }
-                  else { "失败（{0} 错误）" -f $errCount }
-        Add-Row '构建' "dotnet build -c $Configuration" $(if ($ok) { 'PASS' } else { 'FAIL' }) $detail $buildRaw
-        $tag  = if ($ok) { '[PASS] ' } else { '[FAIL] ' }
-        $tcol = if ($ok) { 'Green' } else { 'Red' }
-        Write-Host ("  {0}{1}" -f $tag, $detail) -ForegroundColor $tcol
-        if (-not $ok) {
-            Write-Host '  ── 编译错误（前 15 行）──' -ForegroundColor DarkGray
-            $buildRaw -split "\r?\n" | Where-Object { $_ -match '(?i)\berror\b' } |
-                Select-Object -First 15 | ForEach-Object { Write-Host "        $($_.Trim())" -ForegroundColor DarkGray }
-            Write-Host '  提示：build.ps1 与本次构建同参数，可直接复现。' -ForegroundColor DarkGray
-        }
-    }
-}
-else {
-    Add-Row '构建' 'dotnet build' 'SKIP' '-SkipBuild'
-}
-
-# ═════════ 2.5) 单元测试（可选 -Test）════════
-# 只覆盖纯函数（包管理器输出解析），不碰 Avalonia / 文件系统 / VM ⇒ 秒级、无副作用。
-if ($Test) {
-    if ($SkipBuild) {
-        Add-Row '测试' 'dotnet test' 'SKIP' '-SkipBuild'
-    }
-    else {
-        Write-Host "`n──── 2.5/6 单元测试 ────" -ForegroundColor Cyan
-        $testProj = Join-Path $src 'NewToys.Tests\NewToys.Tests.csproj'
-        if (-not (Test-Path $testProj)) {
-            Add-Row '测试' 'dotnet test' 'SKIP' '未找到 NewToys.Tests'
-            Write-Host '  [SKIP] 未找到 src\NewToys.Tests' -ForegroundColor Yellow
-        }
-        else {
-            $t1 = Get-Date
-            # 不加 --no-build：测试项目的 Release OutDir 被覆盖到 artifacts\tests\，
-            # 让 MSBuild 自己评估输出路径比猜路径稳。
-            $testRaw = (& dotnet test $testProj -c $Configuration --nologo -v q 2>&1 | Out-String)
-            $tok = ($LASTEXITCODE -eq 0)
-            $tsec = [Math]::Round(((Get-Date) - $t1).TotalSeconds, 1)
-            $detail = if ($tok) { "全通过（{0}s）" -f $tsec } else { "有失败用例（{0}s）" -f $tsec }
-            Add-Row '测试' 'dotnet test（纯函数）' $(if ($tok) { 'PASS' } else { 'FAIL' }) $detail $testRaw
-            $ttag = if ($tok) { '[PASS] ' } else { '[FAIL] ' }
-            Write-Host ("  {0}{1}" -f $ttag, $detail) -ForegroundColor $(if ($tok) { 'Green' } else { 'Red' })
-            if (-not $tok) {
-                Write-Host '  ── 失败用例（前 15 行）──' -ForegroundColor DarkGray
-                $testRaw -split "\r?\n" | Where-Object { $_ -match '(?i)失败|failed|assert' } |
-                    Select-Object -First 15 | ForEach-Object { Write-Host "        $($_.Trim())" -ForegroundColor DarkGray }
-            }
-        }
-    }
-}
-else {
-    Add-Row '测试' 'dotnet test' 'SKIP' '未加 -Test'
-}
-
-# ═════════ 3) 产物核对 ═════════
-if (-not $SkipBuild) {
-    Write-Host "`n──── 3/6 产物核对 ────" -ForegroundColor Cyan
-    $msgs = New-Object System.Collections.ArrayList
-    if (-not (Test-Path $exe)) { [void]$msgs.Add("缺 $exe") }
-
-    if ($Configuration -eq 'Release') {
-        $modulesDir = Join-Path $outDir 'Modules'
-        $dlls     = @(Get-ChildItem $modulesDir -Filter 'Module.*.dll' -File -ErrorAction SilentlyContinue)
-        # NT-062：Module.Settings 已撤销 ⇒ 所有 Module.* 都进 Modules\。
-        $expected = @(Get-ChildItem $src -Directory -Filter 'Module.*').Count
-        if ($dlls.Count -ne $expected) {
-            [void]$msgs.Add("模块 DLL $($dlls.Count) 个 ≠ 期望 $expected 个（从解决方案构建？）")
-        }
-        $detail = "NewToys.exe + $($dlls.Count)/$expected 模块 DLL"
-    }
-    else {
-        $detail = "NewToys.exe（Debug 输出：$outDir）"
-    }
-
-    if ($msgs.Count -eq 0) {
-        Add-Row '产物' $Configuration 'PASS' $detail
-        Write-Host "  [PASS] $detail" -ForegroundColor Green
-    }
-    else {
-        Add-Row '产物' $Configuration 'FAIL' ($msgs -join '；')
-        Write-Host ('  [FAIL] ' + ($msgs -join '；')) -ForegroundColor Red
-    }
-}
-else {
-    Add-Row '产物' $Configuration 'SKIP' '-SkipBuild'
-}
-
-# ═════════ 4) 铁律 1：改动是否只在 src/（skill/ scripts/ AGENTS.md 经授权可改）═════════
-Write-Host "`n──── 4/6 铁律 1（改动范围）────" -ForegroundColor Cyan
+# ═════════ 2) 铁律 1：改动是否只在 src/（skill/ scripts/ AGENTS.md 经授权可改）═════════
+Write-Host "`n──── 2/2 铁律 1（改动范围）────" -ForegroundColor Cyan
 $changed = @()
 if (Get-Command git -ErrorAction SilentlyContinue) {
     $porcelain = @(& git -C $repoRoot status --porcelain -uall 2>$null)
@@ -294,44 +175,6 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 }
 else {
     Add-Row '铁律1' 'src/ 之外的改动' 'SKIP' '找不到 git'
-}
-
-# ═════════ 5) 冒烟 ═════════
-if ($Run) {
-    Write-Host "`n──── 5/6 冒烟（$SmokeSeconds s）────" -ForegroundColor Cyan
-    if (-not (Test-Path $exe)) {
-        Add-Row '冒烟' '启动' 'FAIL' '可执行文件不存在（先构建）'
-        Write-Host '  [FAIL] 可执行文件不存在' -ForegroundColor Red
-    }
-    else {
-        # ⚠️ 变量名**不能**叫 $home：PowerShell 的 $HOME 是只读自动变量，且变量名不分大小写
-        #    ⇒ 赋值会报「无法覆盖变量 HOME」，$env:NEWTOYS_HOME 就变成用户主目录，把配置建到用户主目录下。
-        $smokeHome = Join-Path $repoRoot 'artifacts\env\accept'
-        New-Item -ItemType Directory -Path $smokeHome -Force | Out-Null
-        $env:NEWTOYS_HOME = $smokeHome        # 隔离用户配置，避免验收污染真实根
-        try {
-            $p = Start-Process -FilePath $exe -WorkingDirectory $outDir -PassThru
-            Start-Sleep -Seconds $SmokeSeconds
-            $p.Refresh()
-            if ($p.HasExited) {
-                Add-Row '冒烟' '启动' 'FAIL' "启动 $SmokeSeconds s 内退出（ExitCode=$($p.ExitCode)）"
-                Write-Host "  [FAIL] 进程 $SmokeSeconds s 内退出，ExitCode=$($p.ExitCode) —— 看日志/事件查看器" -ForegroundColor Red
-            }
-            else {
-                [void]$p.CloseMainWindow()
-                Start-Sleep -Milliseconds 800
-                $p.Refresh(); if (-not $p.HasExited) { $p.Kill() }
-                Add-Row '冒烟' '启动' 'PASS' "$SmokeSeconds s 内未退出（NEWTOYS_HOME=$smokeHome）"
-                Write-Host "  [PASS] $SmokeSeconds s 内未退出（配置已隔离到 artifacts\env\accept）" -ForegroundColor Green
-            }
-        }
-        finally {
-            Remove-Item Env:NEWTOYS_HOME -ErrorAction SilentlyContinue
-        }
-    }
-}
-else {
-    Add-Row '冒烟' '启动' 'SKIP' '未加 -Run'
 }
 
 # ═════════ 汇总 ═════════
@@ -364,15 +207,14 @@ if ($warns.Count -gt 0) {
     Write-Host '  告警项（不阻断，建议确认）：' -ForegroundColor Yellow
     $warns | ForEach-Object { Write-Host "    - [$($_.Area)] $($_.Name)：$($_.Detail)" -ForegroundColor Yellow }
 }
-Write-Host "`n  注：本脚本证明「编译干净 + 架构不越界 + 起得来」，不替代逐条人工回归。" -ForegroundColor DarkGray
+Write-Host "`n  注：本脚本只证明「静态硬伤为 0 + 改动不越界」；编译与运行由用户本地 build.ps1 / run.ps1 验证。" -ForegroundColor DarkGray
 
 # ═════════ 报告（可选）═════════
 if ($Report) {
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.AppendLine('# NewToys 验收报告')
+    [void]$sb.AppendLine('# NewToys 静态验收报告')
     [void]$sb.AppendLine()
     [void]$sb.AppendLine("- 时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
-    [void]$sb.AppendLine("- 配置：$Configuration")
     [void]$sb.AppendLine("- 仓库：$repoRoot")
     [void]$sb.AppendLine("- 结论：**$verdict**（PASS $($pass.Count) / WARN $($warns.Count) / FAIL $($fails.Count) / SKIP $($skips.Count)）")
     [void]$sb.AppendLine()

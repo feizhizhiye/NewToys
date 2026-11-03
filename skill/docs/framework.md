@@ -97,7 +97,7 @@
 
 - 单向依赖：`Shared ← Core ← Shell ← Module.*`；`Shared ← UI`。
 - **接口一律放 `Shared/Services/`**；POCO 放 `Shared/Models/`。
-- 🔴 **`NewToys.UI` 纪律**：被所有模块引用 ⇒ 与 Shared/Core 同级 ⇒ **改一次 = 全模块重编**。只放**写完即冻结的稳定控件**；`App.axaml` 的 `*Brush` 主题刷子 ⛔ 不搬（条数以 `check.ps1` 白名单为准），UI 内 XAML 一律 `DynamicResource` 引用主题键。
+- 🔴 **`NewToys.UI` 纪律**：被所有模块引用 ⇒ 与 Shared/Core 同级 ⇒ **改一次 = 全模块重编**。只放**写完即冻结的稳定控件**；`App.axaml` 的 `*Brush` 主题刷子 ⛔ 不搬（条数以 `lint.py` 白名单为准），UI 内 XAML 一律 `DynamicResource` 引用主题键。
 - ⛔ 禁第三方 UI 库 / 图标字体。包版本只在 `src/Directory.Packages.props`。
 
 ### 2.1 跨平台中立约束（2026-10-19 · 长期约束；NT-081 步骤 1-2 已实施）
@@ -461,11 +461,11 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
   否则新程序集里的页面类型永远查不到，点开全是「找不到视图类型」。
 - 解析（`ShellViewModel.ResolveView`）：① `IPageCatalog.FindByName` 取首个 `Control` 子类 → ② `ActivatorUtilities.CreateInstance`
   → ③ 推导 VM 优先限定在 View 自己的程序集（`.Views`→`.ViewModels`），找不到才降级全 `AppDomain` 扫。
-- 🔴 **类名必须全局唯一**：同名 View 会撞车（历史两处 `DnsView`）。静态检查 = `check-comments.ps1` 的 `C-05`。
+- 🔴 **类名必须全局唯一**：同名 View 会撞车（历史两处 `DnsView`）。静态检查 = `lint.py --only comments` 的 `C-05`。
 - 无占位页：兜底 = `ShellViewModel.BuildErrorView()` 现场构造的红字 + `ScrollViewer`。
 - Shell 自带页面同样走 `ResolveView`（先例 `HomeView` / `HomeViewModel`）。
 - 可以先注册菜单、后补页面。
-- 🔴 **交付前跑 `check-view-pairs.ps1`**：`P-01` = `Views/` 下的 View 在本程序集找不到同名 VM（页面会静默空白）；
+- 🔴 **交付前跑 `lint.py --only view-pairs`**：`P-01` = `Views/` 下的 View 在本程序集找不到同名 VM（页面会静默空白）；
   `P-02` = `RegisterFunction<TView>` 的泛型实参不是 `*View` 命名或 `src/` 里没有该 View 类（类型存在性已由编译器保证）。
 
 ---
@@ -715,7 +715,7 @@ _bus.Subscribe(ModuleTopics.VideoImport, this, p => Handle(p));        // ⛔ �
 - 只测**纯函数**（`FixedWidthTable` / `TsvRows` / `PackageOutputParser` 这类「外部输出 → 行模型」的解析器）——⛔ 不 new VM、⛔ 不碰 Avalonia / 文件系统 / 进程。
 - 现有覆盖面（`src/NewToys.Tests`）：包管理器输出解析（`ParserTests`）/ 系统信息输出（`SysInfoOutputParserTests`）/ 列表页基类（`ListPageBaseTests`）/ 页面契约（`PageCatalogTests` + `ViewNamingTests` + `MenuServiceTests`）/ **备份路径防御（`BackupPathsTests`）** / **ffmpeg 命令拼装（`FfmpegArgsTests`：裁剪取偶、编码器映射、目标体积反算、copy→libx264 升级、软字幕强制 mkv、GIF 调色板链、多段剪切的 filter_complex）**。
 - 测试工程按需求引被测模块（当前 = `Module.ScriptManager` / `Module.SystemTools` / **`Module.VideoTools`** / `Shared` / `Core`）；⛔ 别为了测试把整个 `Shell` 拉进来。
-- 跑法：`pwsh skill/scripts/accept.ps1 -Test`（构建后追加，秒级）或直接 `dotnet test src\NewToys.Tests`。
+- 跑法：`dotnet test src\NewToys.Tests`（用户本地执行；⛔ 不进 `accept.ps1` —— skill/ 下脚本不做构建/测试）。
 - `internal` 的解析类**不为测试改 public**，用被测类型所在模块的 `<InternalsVisibleTo Include="NewToys.Tests" />` 打开（当前 = `Module.SystemTools.csproj`，NT-096 迁入软件包解析器）。
 - 产物落 `artifacts\tests\`（Release 的 `OutDir` 被项目级覆盖）——⛔ 不许进 `artifacts\release\`，那里是交付产物区，多出 TestHost 会污染产物核对。
 
@@ -804,7 +804,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | C 意图 | 为什么这样设计、踩过什么坑、代价是什么 | 文档一处（本节 / `modules/*.md` §5），代码留稳定 ID |
 | D 叙事 | 哪一版、第几轮、原来是 A 后来改 B | **删**（git log / git blame 的职责） |
 
-**已上线机制**：`skill/scripts/check-comments.ps1`（已接入 `accept.ps1` 静态检查第 5 项）
+**已上线机制**：`skill/scripts/lint.py --only comments`（已接入 `accept.ps1` 静态检查第 5 项）
 - `C-01` 版本/轮次前缀行 · `C-02` ≥6 行注释块 · `C-04` 历史叙事词 = **WARN**（不阻断）
 - `C-05` **两个程序集同名 View 类 = ERROR** —— 反射导航靠类名找页，重名会静默错页，这是唯一能提前拦它的检查
 - `C-03` 仅出注释率 Top5 排行，**不告警**（model / 接口类的属性注释就是契约，审美判据做 lint 必然烂成噪音）
@@ -814,7 +814,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 **唯一例外（2026-10-25 用户拍板）**：`NT-xxx` 编号引用一次性全清（1121 处 / 245 文件，纯注释），编号→结论收口到 **§11.2**；
 版本号前缀（`vX.Y`）与轮次叙事仍按「改到哪清到哪」，⛔ 不再按批次清洗。
 
-**配套测试**：`src/NewToys.Tests/ListPageBaseTests.cs`（26 个测试方法 / 33 个用例，覆盖分页溢出 / 隐藏列写 0 占位 / 锁定列不可拖 / 筛选「且」语义 / 页大小跨页收敛）。跑法：`pwsh skill/scripts/accept.ps1 -Test`。
+**配套测试**：`src/NewToys.Tests/ListPageBaseTests.cs`（26 个测试方法 / 33 个用例，覆盖分页溢出 / 隐藏列写 0 占位 / 锁定列不可拖 / 筛选「且」语义 / 页大小跨页收敛）。跑法：`dotnet test src\NewToys.Tests`（用户本地）。
 
 ### 11.2 NT 编号索引（代码注释里不再写 NT 号，追溯查这里）
 

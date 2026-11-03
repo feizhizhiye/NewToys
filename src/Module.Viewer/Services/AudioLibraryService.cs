@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using NewToys.UI.Viewers;
 
 namespace NewToys.Viewer.Services;
@@ -33,9 +34,13 @@ public sealed class AudioLibraryService
             var pictures = file.Tag.Pictures;
             if (pictures is { Length: > 0 })
             {
-                var data = pictures[0].Data?.Data;
+                var front = pictures.FirstOrDefault(p => p.Type == TagLib.PictureType.FrontCover);
+                var data = (front ?? pictures[0]).Data?.Data;
                 if (data is { Length: > 0 }) cover = data;
             }
+
+            // 内嵌没有 ⇒ 落到同目录 / 上一级目录的外挂图（多数 mp3 根本没内嵌封面）
+            if (cover is null) cover = CoverFromDisk(path);
 
             return new AudioTrackItem
             {
@@ -93,15 +98,153 @@ public sealed class AudioLibraryService
     public IReadOnlyList<AudioTrackItem> ReadMany(IEnumerable<string> paths)
         => paths.Where(p => !string.IsNullOrWhiteSpace(p)).Select(Read).ToList();
 
-    /// <summary>读同名 LRC 歌词文本（没有返回 <c>null</c>）。</summary>
-    public string? ReadLyrics(string audioPath)
+    /// <summary>
+    /// 找封面：① 内嵌标签（已在 <see cref="Read"/> 里取过，这里只管磁盘上的）→
+    /// ② 同目录「同名图」→ ③ 同目录固定名（cover / folder / front / album…）→ ④ 上一级目录的固定名。
+    /// <para>🔴 只读、⛔ 联网、⛔ 写回文件 —— 在线抓封面归媒体资产的标签服务。</para>
+    /// </summary>
+    private byte[]? CoverFromDisk(string audioPath)
+    {
+        var folder = Path.GetDirectoryName(audioPath);
+        if (string.IsNullOrEmpty(folder)) return null;
+
+        // ② 同名图
+        var baseName = Path.GetFileNameWithoutExtension(audioPath);
+        foreach (var ext in CoverExtensions)
+        {
+            var same = Path.Combine(folder, baseName + ext);
+            if (File.Exists(same)) return TryReadBytes(same);
+        }
+
+        // ③ 同目录固定名 → ④ 上一级目录（专辑分碟 CD1/ 场景）
+        var image = FindCoverImage(folder) ?? FindCoverImage(Path.GetDirectoryName(folder));
+        return image is null ? null : TryReadBytes(image);
+    }
+
+    private string? FindCoverImage(string? folder)
+    {
+        if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return null;
+
+        lock (_coverGate)
+        {
+            if (_coverCache.TryGetValue(folder, out var cached)) return cached;
+        }
+
+        string? found = null;
+        foreach (var name in CoverNames)
+        {
+            foreach (var ext in CoverExtensions)
+            {
+                var path = Path.Combine(folder, name + ext);
+                if (!File.Exists(path)) continue;
+                found = path;
+                break;
+            }
+            if (found is not null) break;
+        }
+
+        lock (_coverGate)
+        {
+            if (_coverCache.Count > 256) _coverCache.Clear();
+            _coverCache[folder] = found;
+        }
+        return found;
+    }
+
+    private static byte[]? TryReadBytes(string path)
+    {
+        try { return File.ReadAllBytes(path); }
+        catch { return null; }
+    }
+
+    private static readonly string[] CoverNames = { "cover", "folder", "front", "album", "albumart", "albumartsmall" };
+
+    private static readonly string[] CoverExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".bmp" };
+
+    private readonly Dictionary<string, string?> _coverCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _coverGate = new();
+
+    /// <summary>
+    /// 读歌词，返回「文本 + 是否带时间轴」：① 同名 <c>.lrc</c> → ② 内嵌标签（无时间轴）→
+    /// ③「标题 - 艺术家.lrc」/「艺术家 - 标题.lrc」→ 都没有返回 <c>(null, true)</c>。
+    /// </summary>
+    public (string? Text, bool Timed) ReadLyrics(string audioPath)
+    {
+        var lrc = ReadTextSmart(Path.ChangeExtension(audioPath, ".lrc"));
+        if (lrc is not null) return (lrc, true);
+
+        TagLib.File? file = null;
+        try
+        {
+            file = TagLib.File.Create(audioPath);
+
+            if (!string.IsNullOrWhiteSpace(file.Tag.Lyrics)) return (file.Tag.Lyrics, false);
+
+            var title = file.Tag.Title;
+            if (string.IsNullOrWhiteSpace(title)) return (null, true);
+
+            var folder = Path.GetDirectoryName(audioPath) ?? "";
+            var artist = file.Tag.FirstPerformer ?? file.Tag.FirstAlbumArtist;
+
+            var candidates = new List<string>(3);
+            if (!string.IsNullOrWhiteSpace(artist))
+            {
+                candidates.Add(Path.Combine(folder, title + " - " + artist + ".lrc"));
+                candidates.Add(Path.Combine(folder, artist + " - " + title + ".lrc"));
+            }
+            candidates.Add(Path.Combine(folder, title + ".lrc"));
+
+            foreach (var candidate in candidates)
+            {
+                var found = ReadTextSmart(candidate);
+                if (found is not null) return (found, true);
+            }
+        }
+        catch { /* 读不到标签不算失败，当没有歌词 */ }
+        finally { try { file?.Dispose(); } catch { } }
+
+        return (null, true);
+    }
+
+    /// <summary>
+    /// 读文本文件并做编码回退：BOM → UTF-8（严格）→ GB18030 → Latin1。
+    /// <para>🔴 中文老歌的 <c>.lrc</c> 绝大多数是 GBK：按 UTF-8 直读会整片乱码，这步不能省。</para>
+    /// </summary>
+    public static string? ReadTextSmart(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
+
+        try
+        {
+            var bytes = File.ReadAllBytes(path);
+            if (bytes.Length == 0) return "";
+
+            if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+                return Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
+            if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+                return Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2);
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+                return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+
+            try { return new UTF8Encoding(false, true).GetString(bytes); }
+            catch (DecoderFallbackException) { /* 不是合法 UTF-8 ⇒ 当中文 GBK 再试 */ }
+
+            try { return Gb18030.GetString(bytes); }
+            catch { return Encoding.Latin1.GetString(bytes); }
+        }
+        catch { return null; }
+    }
+
+    private static readonly Encoding Gb18030 = CreateGb18030();
+
+    private static Encoding CreateGb18030()
     {
         try
         {
-            var lrc = Path.ChangeExtension(audioPath, ".lrc");
-            return File.Exists(lrc) ? File.ReadAllText(lrc) : null;
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            return Encoding.GetEncoding("GB18030");
         }
-        catch { return null; }
+        catch { return Encoding.UTF8; }
     }
 
     /// <summary>
@@ -116,12 +259,11 @@ public sealed class AudioLibraryService
 
         foreach (var suffix in TranslationSuffixes)
         {
-            try
-            {
-                var path = baseName + suffix;
-                if (File.Exists(path)) return File.ReadAllText(path);
-            }
-            catch { /* 译文是附属产物，读不到就当没有 */ }
+            var path = baseName + suffix;
+            if (!File.Exists(path)) continue;
+
+            var text = ReadTextSmart(path);
+            if (!string.IsNullOrEmpty(text)) return text;
         }
         return null;
     }

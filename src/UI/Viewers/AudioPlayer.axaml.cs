@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
@@ -27,6 +28,7 @@ public partial class AudioPlayer : UserControl
     private static readonly Regex TimeTag = new(@"\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]", RegexOptions.Compiled);
 
     private readonly DispatcherTimer _timer;
+    private readonly DispatcherTimer _spectrumTimer;
     private readonly List<(TimeSpan At, string Text, string Trans)> _lyrics = new();
     private readonly List<StackPanel> _lyricViews = new();
 
@@ -44,9 +46,18 @@ public partial class AudioPlayer : UserControl
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _timer.Tick += (_, _) => Tick();
 
+        // 频谱单独一张表（33 ms ≈ 30 fps）：⛔ 塞进 250 ms 的进度轮询里，柱高会一跳一跳
+        _spectrumTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+        _spectrumTimer.Tick += (_, _) => Spectrum.Pump();
+
         // 离开视觉树（切页）⇒ 只停轮询，⛔ 不停播：音乐要能继续放（切回来时重新起表）。
         // 关闭标签页由宿主决定是否 Stop（本控件不揣测，避免切页与销毁分不清）。
-        DetachedFromVisualTree += (_, _) => _timer.Stop();
+        DetachedFromVisualTree += (_, _) =>
+        {
+            _timer.Stop();
+            _spectrumTimer.Stop();
+            Spectrum.Hide();
+        };
         AttachedToVisualTree += (_, _) =>
         {
             if (Playback?.State == AudioPlayState.Playing) _timer.Start();
@@ -68,6 +79,33 @@ public partial class AudioPlayer : UserControl
     /// <para>🔴 UI 库不认识「.zh.lrc」这类约定，读文件归宿主；本控件只负责按时间戳对齐与显示。</para>
     /// </summary>
     public Func<string, string?>? TranslationLoader { get; set; }
+
+    /// <summary>
+    /// 歌词取用器（宿主注入：返回「文本 + 是否带时间轴」）。
+    /// <para>🔴 内嵌歌词（USLT）没有时间轴 ⇒ 静态整段显示，不高亮不滚动；<c>null</c> 文本 = 没有歌词。</para>
+    /// </summary>
+    public Func<string, (string? Text, bool Timed)>? LyricsLoader { get; set; }
+
+    /// <summary>频谱数据源（宿主注入；后端不实现 <see cref="IAudioSpectrum"/> 时为 <c>null</c> ⇒ 不显示频谱）。</summary>
+    public IAudioSpectrum? SpectrumSource
+    {
+        get => Spectrum.Source;
+        set => Spectrum.Source = value;
+    }
+
+    /// <summary>播放模式（0 顺序 / 1 单曲 / 2 随机），供宿主存取续播快照。</summary>
+    public int ModeValue
+    {
+        get => (int)_mode;
+        set
+        {
+            _mode = (PlayMode)Math.Clamp(value, 0, 2);
+            UpdateModeButton();
+        }
+    }
+
+    /// <summary>当前位置（秒），供宿主写续播快照。</summary>
+    public double PositionSeconds => Playback?.Position.TotalSeconds ?? 0;
 
     /// <summary>当前曲目在列表里的下标（-1 = 还没播）。</summary>
     public int CurrentIndex => _current;
@@ -191,6 +229,8 @@ public partial class AudioPlayer : UserControl
     public void Stop()
     {
         _timer.Stop();
+        _spectrumTimer.Stop();
+        Spectrum.Hide();
         Playback?.Stop();
         PlayButton.Content = "▶ 播放";
         _updating = true;
@@ -216,8 +256,9 @@ public partial class AudioPlayer : UserControl
     /// 载入歌词。
     /// <para><paramref name="raw"/> = 原文 LRC；<paramref name="translation"/> = 译文 LRC（时间戳对齐，可空）。</para>
     /// <para>双行歌词（同一时间戳重复写原文 + 译文）也会被识别：第 2 行起当作译文。</para>
+    /// <para><paramref name="staticText"/> = 无时间轴的整段歌词（内嵌 USLT）：逐行平铺，⛔ 不高亮不滚动。</para>
     /// </summary>
-    public void SetLyrics(string? raw, string? translation = null)
+    public void SetLyrics(string? raw, string? translation = null, bool staticText = false)
     {
         _lyrics.Clear();
         _lyricViews.Clear();
@@ -225,6 +266,26 @@ public partial class AudioPlayer : UserControl
         _lyricIndex = -1;
 
         if (string.IsNullOrWhiteSpace(raw)) return;
+
+        if (staticText)
+        {
+            foreach (var line in raw.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+            {
+                var text = line.Trim();
+                if (text.Length == 0) continue;
+
+                LyricPanel.Children.Add(new TextBlock
+                {
+                    Text = text,
+                    TextWrapping = TextWrapping.Wrap,
+                    TextAlignment = TextAlignment.Center,
+                    FontSize = 14,
+                    Opacity = 0.85,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                });
+            }
+            return;
+        }
 
         var originals = ParseLrc(raw);
         if (originals.Count == 0) return;
@@ -333,6 +394,22 @@ public partial class AudioPlayer : UserControl
         PlayButton.Content = Playback.State == AudioPlayState.Playing ? "⏸ 暂停" : "▶ 播放";
 
         UpdateLyric(position);
+        SyncSpectrumTimer();
+    }
+
+    /// <summary>频谱表跟着播放状态走（暂停 / 停止 ⇒ 停表并收起，⛔ 留着柱子空转）。</summary>
+    private void SyncSpectrumTimer()
+    {
+        var running = Playback?.State == AudioPlayState.Playing && SpectrumSource is not null;
+
+        if (running)
+        {
+            if (!_spectrumTimer.IsEnabled) _spectrumTimer.Start();
+            return;
+        }
+
+        _spectrumTimer.Stop();
+        Spectrum.Hide();
     }
 
     private static string Format(TimeSpan span) =>
@@ -377,12 +454,14 @@ public partial class AudioPlayer : UserControl
         _cover?.Dispose();
         _cover = null;
         Cover.Source = null;
+        CoverPlaceholder.IsVisible = true;
 
         if (track.Cover is not { Length: > 0 }) return;
         try
         {
             _cover = new Bitmap(new MemoryStream(track.Cover));
             Cover.Source = _cover;
+            CoverPlaceholder.IsVisible = false;
         }
         catch { /* 封面坏了不影响播放 */ }
     }
@@ -392,11 +471,29 @@ public partial class AudioPlayer : UserControl
         SetLyrics(null);
         try
         {
-            var lrc = Path.ChangeExtension(path, ".lrc");
-            var raw = File.Exists(lrc) ? File.ReadAllText(lrc, System.Text.Encoding.UTF8) : null;
-            SetLyrics(raw, TranslationLoader?.Invoke(path));
+            var (text, timed) = LyricsLoader?.Invoke(path) ?? (null, true);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                ShowLyricPlaceholder();
+                return;
+            }
+
+            SetLyrics(text, timed ? TranslationLoader?.Invoke(path) : null, staticText: !timed);
         }
         catch { /* 歌词是附属产物 */ }
+    }
+
+    /// <summary>没歌词时的空态（⛔ 留空白面板 —— 用户会以为是加载卡住）。</summary>
+    private void ShowLyricPlaceholder()
+    {
+        LyricPanel.Children.Clear();
+        LyricPanel.Children.Add(new TextBlock
+        {
+            Text = "这首歌没有歌词",
+            Classes = { "hint-text" },
+            Margin = new Thickness(0, 24, 0, 0),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+        });
     }
 
     // ==================== 交互 ====================
@@ -445,13 +542,40 @@ public partial class AudioPlayer : UserControl
     private void OnSwitchMode(object? sender, RoutedEventArgs e)
     {
         _mode = (PlayMode)(((int)_mode + 1) % 3);
+        UpdateModeButton();
+        StatusChanged?.Invoke("播放模式：" + ModeButton.Content);
+    }
+
+    private void UpdateModeButton()
+    {
         ModeButton.Content = _mode switch
         {
             PlayMode.Single => "单曲",
             PlayMode.Shuffle => "随机",
             _ => "顺序",
         };
-        StatusChanged?.Invoke("播放模式：" + ModeButton.Content);
+    }
+
+    /// <summary>
+    /// 跳到指定位置（续播恢复用）：只改进度，⛔ 顺手开播 —— 恢复后保持暂停态。
+    /// </summary>
+    public void SeekTo(TimeSpan position)
+    {
+        if (Playback is null) return;
+
+        Playback.Seek(position);
+
+        var duration = Playback.Duration;
+        _updating = true;
+        try
+        {
+            ProgressSlider.Value = duration.TotalSeconds > 0.5
+                ? Math.Clamp(position.TotalSeconds / duration.TotalSeconds, 0, 1)
+                : 0;
+        }
+        finally { _updating = false; }
+
+        PositionText.Text = Format(Playback.Position);
     }
 
     /// <summary>宿主要求播完自动下一首时挂这个（在宿主里订阅 <see cref="IAudioPlayback.PlaybackEnded"/> 调用 <see cref="Next"/>）。</summary>

@@ -144,6 +144,7 @@ public abstract class ViewerPageBase : UserControl
             _vm.RulesEditRequested -= OnRulesEdit;
             _vm.ReaderOptionsChanged -= OnReaderOptionsChanged;
             _vm.SplitChanged -= OnSplitChanged;
+            _vm.SavingAudioSnapshot = null;
         }
 
         _vm = DataContext as ViewerViewModel;
@@ -164,6 +165,9 @@ public abstract class ViewerPageBase : UserControl
         _vm.RulesEditRequested += OnRulesEdit;
         _vm.ReaderOptionsChanged += OnReaderOptionsChanged;
         _vm.SplitChanged += OnSplitChanged;
+
+        // 关闭标签页时 VM 会先要一份续播快照再停播（顺序由 VM 保证：先存位置，再 Stop）
+        _vm.SavingAudioSnapshot = SaveAudioPlaylist;
 
         RuleList.ItemsSource = _vm.CustomRules;
         Host.SetHint(_vm.ScopeHint);
@@ -192,6 +196,16 @@ public abstract class ViewerPageBase : UserControl
         RestoreAudioPlaylist();
     }
 
+    /// <summary>
+    /// 离开视觉树（切到别的功能页 / 关闭标签页）⇒ 存一次续播快照（曲目 / 位置 / 模式）。
+    /// <para>🔴 ⛔ 在这里停播：切页要继续放；「关闭标签页即停」由 <c>ViewerViewModel.Dispose</c> 负责。</para>
+    /// </summary>
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        if (_vm is { Scope: ViewerScope.Audio }) SaveAudioPlaylist();
+    }
+
     /// <summary>音乐页空着挂树时，把上次的播放列表摆回来（⛔ 不自动播，免得一进页面就出声）。</summary>
     private void RestoreAudioPlaylist()
     {
@@ -206,10 +220,10 @@ public abstract class ViewerPageBase : UserControl
             return;
         }
 
-        var (paths, index) = _vm.LoadAudioPlaylist();
+        var (paths, index, position, mode) = _vm.LoadAudioPlaylist();
         if (paths.Count == 0) return;
 
-        OpenAudioFiles(paths, autoPlay: false, startIndex: index);
+        OpenAudioFiles(paths, autoPlay: false, startIndex: index, resumeSeconds: position, mode: mode);
     }
 
     // ==================== 历史浮层 ====================
@@ -1085,7 +1099,8 @@ public abstract class ViewerPageBase : UserControl
 
     // ==================== 音频 ====================
 
-    private void OpenAudioFiles(IReadOnlyList<string> paths, bool autoPlay = true, int startIndex = 0)
+    private void OpenAudioFiles(IReadOnlyList<string> paths, bool autoPlay = true, int startIndex = 0,
+        double resumeSeconds = 0, int mode = 0)
     {
         if (_vm is null || paths.Count == 0) return;
 
@@ -1112,12 +1127,20 @@ public abstract class ViewerPageBase : UserControl
         // 译文歌词由宿主提供（UI 库不认识 .zh.lrc 这类约定）
         player.TranslationLoader = p => _vm.AudioLibrary.ReadTranslation(p);
 
+        // 歌词来源（同名 .lrc / 内嵌 USLT / 标题-艺术家.lrc）与频谱数据源都由宿主注入
+        player.LyricsLoader = p => _vm.AudioLibrary.ReadLyrics(p);
+        player.SpectrumSource = _vm.Playback as NewToys.Shared.Services.IAudioSpectrum;
+
         _vm.Playback.PlaybackEnded -= OnPlaybackEnded;
         _vm.Playback.PlaybackEnded += OnPlaybackEnded;
 
         var tracks = _vm.AudioLibrary.ReadMany(paths);
         player.SetVolume(_vm.AudioVolume);
         player.SetPlaylist(tracks, first, autoPlay);
+
+        // 续播：模式与位置在列表装好之后再恢复（⛔ 顺手开播，保持暂停态）
+        player.ModeValue = mode;
+        if (resumeSeconds > 1) player.SeekTo(TimeSpan.FromSeconds(resumeSeconds));
 
         ResetEntries();
         _vm.OnOpened(paths[first], ViewerKind.Audio, tracks.Count + " 首");
@@ -1150,7 +1173,11 @@ public abstract class ViewerPageBase : UserControl
         var player = Host.Audio;
         if (player is null || player.Tracks.Count == 0) return;
 
-        _vm.SaveAudioPlaylist(player.Tracks.Select(t => t.Path).ToList(), player.CurrentIndex);
+        _vm.SaveAudioPlaylist(
+            player.Tracks.Select(t => t.Path).ToList(),
+            player.CurrentIndex,
+            player.PositionSeconds,
+            player.ModeValue);
     }
 
     private void OnAudioTrackChanged(AudioTrackItem? track)
@@ -1171,6 +1198,7 @@ public abstract class ViewerPageBase : UserControl
     private void OnCloseRequested(object? sender, EventArgs e)
     {
         SaveProgress();
+        SaveAudioPlaylist();   // 🔴 必须在 Host.Close() 之前：Stop 会把进度归零
         Host.Close();
         ResetEntries();
         _bookmarks.Clear();

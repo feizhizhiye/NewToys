@@ -28,7 +28,7 @@ namespace NewToys.Viewer.ViewModels;
 /// 目标页并切过去（<c>viewer-text</c> / <c>viewer-image</c> / <c>viewer-audio</c>），本页不装载。
 /// </para>
 /// </summary>
-public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolbarSource
+public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolbarSource, IDisposable
 {
     private readonly ViewerSettingsService _settings;
     private readonly TxtBookService _txt;
@@ -592,14 +592,39 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         }
     }
 
-    /// <summary>上次的音乐播放列表（关掉再开能续上；没有返回空列表 + 索引 0）。</summary>
-    public (IReadOnlyList<string> Paths, int Index) LoadAudioPlaylist() => _settings.AudioPlaylist;
+    /// <summary>上次的音乐播放列表 + 续播信息（关掉再开能续上；没有返回空列表 + 索引 0）。</summary>
+    public (IReadOnlyList<string> Paths, int Index, double PositionSeconds, int Mode) LoadAudioPlaylist()
+        => _settings.AudioPlaylist;
 
-    /// <summary>存音乐播放列表（切歌 / 换列表 / 关页面时调）。</summary>
-    public void SaveAudioPlaylist(IReadOnlyList<string> paths, int index)
+    /// <summary>存音乐播放列表与续播位置（切歌 / 换列表 / 关页面 / 关闭标签页时调）。</summary>
+    public void SaveAudioPlaylist(IReadOnlyList<string> paths, int index, double positionSeconds, int mode)
     {
-        try { _settings.AudioPlaylist = (paths ?? Array.Empty<string>(), index); }
+        try { _settings.AudioPlaylist = (paths ?? Array.Empty<string>(), index, positionSeconds, mode); }
         catch (Exception ex) { StatusText = "⚠ 保存播放列表失败：" + ex.Message; }
+    }
+
+    /// <summary>
+    /// 停播前要一份续播快照（由页面注册：把当前曲目 / 位置 / 模式写进配置）。
+    /// <para>🔴 必须早于 <see cref="Dispose"/> 里的 <c>Stop</c> —— Stop 会把进度归零。</para>
+    /// </summary>
+    public Action? SavingAudioSnapshot { get; set; }
+
+    /// <summary>
+    /// 标签页被关掉（Shell 释放 VM）⇒ 音乐**立刻停**。
+    /// <para>
+    /// 🔴 只有「音乐播放页」的 VM 才停播：文本 / 图片页也共用同一个播放单例，它们被关掉时⛔ 别把正在放的歌掐掉。
+    /// </para>
+    /// <para>🔴 切到别的功能页不会释放 VM，音乐照常继续（后台播放口径）。</para>
+    /// </summary>
+    public void Dispose()
+    {
+        if (Scope != ViewerScope.Audio) return;
+
+        try { SavingAudioSnapshot?.Invoke(); }
+        catch { /* 快照失败不影响停播 */ }
+
+        try { _playback.Stop(); }
+        catch { /* 设备已失效，忽略 */ }
     }
 
     // ---------- View 回调 ----------

@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:NewToys.UI.Viewers"
              x:Class="NewToys.UI.Viewers.AudioPlayer">
   <!--
     本地音乐播放器（查看器内）：大封面 + 居中歌词 + 底部控制条；播放列表收在左侧抽屉（默认收起）。
@@ -61,18 +62,30 @@
 
       <Grid Grid.Column="1" ColumnDefinitions="*,1.1*">
 
-        <!-- 左：大封面 -->
-        <Grid>
+        <!-- 左：大封面 + 分频柱（封面下方，未播放时收起） -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
           <Border Width="260"
                   Height="260"
                   CornerRadius="6"
                   ClipToBounds="True"
-                  HorizontalAlignment="Center"
-                  VerticalAlignment="Center"
                   Background="{DynamicResource ContentBrush}">
-            <Image x:Name="Cover" Stretch="UniformToFill" />
+            <Panel>
+              <TextBlock x:Name="CoverPlaceholder"
+                         Text="♪"
+                         FontSize="32"
+                         Opacity="0.22"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center" />
+              <Image x:Name="Cover" Stretch="UniformToFill" />
+            </Panel>
           </Border>
-        </Grid>
+
+          <local:SpectrumBars x:Name="Spectrum"
+                              Width="260"
+                              Height="48"
+                              IsVisible="False"
+                              Foreground="{DynamicResource AccentBrush}" />
+        </StackPanel>
 
         <!-- 右：歌词（居中，当前行高亮 + 自动滚入可视区） -->
         <Border Grid.Column="1"

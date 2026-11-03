@@ -202,19 +202,19 @@ public sealed class ViewerSettingsService
 
     private const string KeyAudioPlaylist = "audioPlaylist";
 
-    /// <summary>上次的播放列表（只留磁盘上还在的文件；没有返回空）。</summary>
-    public (IReadOnlyList<string> Paths, int Index) AudioPlaylist
+    /// <summary>上次的播放列表（只留磁盘上还在的文件；没有返回空）+ 续播信息（位置秒 / 模式）。</summary>
+    public (IReadOnlyList<string> Paths, int Index, double PositionSeconds, int Mode) AudioPlaylist
     {
         get
         {
             var dto = LoadJson<AudioPlaylistDto>(KeyAudioPlaylist);
-            if (dto?.Paths is not { Count: > 0 }) return (Array.Empty<string>(), 0);
+            if (dto?.Paths is not { Count: > 0 }) return (Array.Empty<string>(), 0, 0, 0);
 
             var paths = dto.Paths
                 .Where(static p => !string.IsNullOrWhiteSpace(p) && File.Exists(p))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            return (paths, Math.Clamp(dto.Index, 0, Math.Max(paths.Count - 1, 0)));
+            return (paths, Math.Clamp(dto.Index, 0, Math.Max(paths.Count - 1, 0)), Math.Max(0, dto.PositionSeconds), Math.Clamp(dto.Mode, 0, 2));
         }
         set
         {
@@ -228,6 +228,8 @@ public sealed class ViewerSettingsService
             {
                 Paths = paths,
                 Index = Math.Clamp(value.Index, 0, paths.Count - 1),
+                PositionSeconds = Math.Max(0, value.PositionSeconds),
+                Mode = Math.Clamp(value.Mode, 0, 2),
             });
         }
     }
@@ -236,6 +238,8 @@ public sealed class ViewerSettingsService
     {
         public List<string> Paths { get; set; } = new();
         public int Index { get; set; }
+        public double PositionSeconds { get; set; }
+        public int Mode { get; set; }
     }
 
     // ---------- 最近打开 ----------

@@ -313,7 +313,8 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
 
             var (indexPath, exportError) = await Task.Run(() =>
             {
-                var p = _books?.ExportBook(url, title, author, src, snapshot, out var err);
+                string err = "书籍服务未初始化";
+                var p = _books?.ExportBook(url, title, author, src, snapshot, out err);
                 return (p, err);
             }).ConfigureAwait(true);
 

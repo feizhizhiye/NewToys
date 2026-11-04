@@ -237,7 +237,7 @@ public sealed class ChipsFieldRow : DetailFieldRow
             || sender is null
             || !_chipByItem.TryGetValue(sender, out var chip)) return;
         var seg = DetailPath.Strip(Field.ChipSelectedPath).Split('.')[^1];
-        if (e.PropertyName.Length > 0 && e.PropertyName != seg) return;
+        if (!string.IsNullOrEmpty(e.PropertyName) && e.PropertyName != seg) return;
         chip.IsSelected = DetailPath.ResolveBool(sender, Field.ChipSelectedPath);
     }
 

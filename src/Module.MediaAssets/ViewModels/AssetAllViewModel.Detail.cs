@@ -105,6 +105,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     new DetailField
                     {
                         Label = "🎵 标题（标签，不改进库的显示名）",
+                        Hint = "这 5 项归「🎵 写入标签」管（写进音频文件）；「💾 保存」不覆盖它们",
                         ValuePath = nameof(EditMusicTitle),
                         Kind = FieldKind.Text,
                         Commit = EditCommitMode.OnBlur,
@@ -145,7 +146,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     new DetailField
                     {
                         Label = "标签状态",
-                        Hint = "联网补全只填编辑框，点「写入文件」才落盘",
+                        Hint = "联网补全只填编辑框，点「🎵 写入标签」才落盘",
                         ValuePath = nameof(MusicStatusText),
                         Kind = FieldKind.Text,
                         Selectable = true,

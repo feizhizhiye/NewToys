@@ -79,9 +79,13 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         }
 
         var stuck = fresh != null && !string.Equals(fresh.Name, row.Name, StringComparison.Ordinal);
+        // 音乐资产的 5 个标签框（标题/艺术家/专辑/年份/流派）归「🎵 写入标签」管，保存不覆盖 —— 必须在这里说破，否则看起来像"保存没生效"
+        var musicHint = string.Equals(row.Type, AssetTypes.Music, StringComparison.OrdinalIgnoreCase)
+            ? " 音乐的标题 / 艺术家 / 专辑 / 年份 / 流派请点下方「🎵 写入标签」落盘。"
+            : "";
         StatusText = stuck
             ? "⚠ 显示名没写进资产库（库不可用 / 被占用？）—— 点「重读」后再试一次。"
-            : $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。";
+            : $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。{musicHint}";
     }
 
     /// <summary>

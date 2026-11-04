@@ -49,8 +49,9 @@ public sealed class TextFieldRow : DetailFieldRow
         if (CommitOnBlur) DetailPath.Write(Source, Field.ValuePath, _text);
     }
 
+    // ⛔ null 归一成空串：VM 值为 null 时反复在 null ⇄ "" 之间推送会让空输入框闪（Avalonia 重新排版文本）。
     protected override void RefreshCore()
-        => SetProperty(ref _text, DetailPath.Resolve(Source, Field.ValuePath)?.ToString(), nameof(Text));
+        => SetProperty(ref _text, DetailPath.Resolve(Source, Field.ValuePath)?.ToString() ?? "", nameof(Text));
 }
 
 /// <summary>
@@ -104,8 +105,9 @@ public sealed class PairFieldRow : DetailFieldRow
 
     protected override void RefreshCore()
     {
-        SetProperty(ref _first, DetailPath.Resolve(Source, Field.ValuePath)?.ToString(), nameof(First));
-        SetProperty(ref _second, DetailPath.Resolve(Source, Field.SecondValuePath)?.ToString(), nameof(Second));
+        // null 归一成空串（理由同 TextFieldRow.RefreshCore）
+        SetProperty(ref _first, DetailPath.Resolve(Source, Field.ValuePath)?.ToString() ?? "", nameof(First));
+        SetProperty(ref _second, DetailPath.Resolve(Source, Field.SecondValuePath)?.ToString() ?? "", nameof(Second));
     }
 }
 

@@ -448,6 +448,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 描述符里的路径是**字符串**，XAML 写不出动态 `{Binding <字符串>}` ⇒ 渲染层在 C# 侧把 `ValuePath` / `VisibleWhen` / `EnabledWhen` / `OptionsPath` / `Chip*Path` / `*IsExpanded` 解析成真实值，行对象（`TextFieldRow` / `PairFieldRow` / `CheckFieldRow` / `SelectFieldRow` / `IndexSelectFieldRow` / `NumberFieldRow` / `ChipsFieldRow` / `HintFieldRow` / `DividerFieldRow` / `ListFieldRow` / `IconBarFieldRow` / `EditableListFieldRow`）**只暴露强类型属性** ⇒ 模板里**零字符串路径**。
 - `DetailSectionRender.CreateRow` 是 **Kind → 行对象**的**唯一分派点**；加新 Kind = 加一个 `case` + 一个 `DataTemplate`。
 - 刷新契约：渲染器**订阅源 VM 一次**（`PropertyChanged`）→ 任一属性变化整体重解析。⛔ 动作级改动（落盘 / 加标签 / 删除）由**页面 VM 自己回刷**，描述符不参与。
+- 🔴 **重解析 ≠ 重建**（2026-11-05，失焦闪烁教训）：`ChipsFieldRow` / 集合类行在**源集合实例不变**时只做**原地选中态同步**（`Clear()`+整排重建 = 每次刷新闪一下）；结构变化必须走 `CollectionChanged`（源用 `ObservableCollection`，⛔ 纯 `List` 原地改内容检测不到）。chip 选中态来自**源项的 `INotifyPropertyChanged` 订阅**（点一下立即变色，不等整卡重解析）；文本行 null 归一成空串，杜绝 null ⇄ "" 假推送。
 - 提交语义：`Instant` / `Explicit` → 值写回绑 `PropertyChanged`（`Explicit` 写的是 VM 的**编辑态草稿**，落盘由工具条「💾 保存修改」负责）；`OnBlur` → 模板挂 `LostFocus="OnTextLostFocus"` → `TextFieldRow.Commit()`。
 - 外壳（300px 容器 / 覆盖式滚动条留位 / 空态 / 分区与字段间距）**只实现一次**（`DetailCardHost.axaml`）。
 - 🔴 **详情卡三级：节 16 SemiBold 主色 ＞ 标签 14 SemiBold 次要色 ＞ 值 12 主色**（见 §2.3 规则 3）：分区标题（`Button.section-toggle` / `SelectableTextBlock.section-title`）与字段标签差 2px、标签与值差 2px。

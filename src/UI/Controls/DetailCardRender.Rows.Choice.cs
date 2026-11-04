@@ -96,6 +96,16 @@ public sealed class ChipsFieldRow : DetailFieldRow
 {
     private INotifyCollectionChanged? _watched;
 
+    /// <summary>上次构建 chip 用的源集合实例：同一个实例 ⇒ 结构只能经 <c>CollectionChanged</c> 变。</summary>
+    private IEnumerable? _boundRaw;
+
+    /// <summary>源集合结构变了（Clear / Add / Remove）⇒ 下次 Refresh 强制重建。</summary>
+    private bool _structureDirty = true;
+
+    /// <summary>源项 → chip（选中态变化时原地同步，⛔ 不重建集合）。</summary>
+    private readonly Dictionary<object, DetailChip> _chipByItem = new();
+    private readonly List<INotifyPropertyChanged> _subscribedItems = new();
+
     public ChipsFieldRow(DetailField field, object? source) : base(field, source) { }
 
     /// <summary>全部 chip（扁平；分组时 = 各组之和）。</summary>
@@ -123,10 +133,25 @@ public sealed class ChipsFieldRow : DetailFieldRow
             if (_watched is not null) _watched.CollectionChanged -= OnSourceCollectionChanged;
             _watched = ncc;
             _watched.CollectionChanged += OnSourceCollectionChanged;
+            _structureDirty = true;
         }
+
+        // 同一集合实例且结构没变 ⇒ 只同步选中态（🔴 Clear + 整排重建 = 每次刷新闪一下，失焦提交尤其明显）。
+        // ⚠️ 前提：源是 ObservableCollection（结构变化必发 CollectionChanged → _structureDirty）；
+        //    纯 List 原地改内容检测不到，换集合实例（发 VM 属性通知）才会重建。
+        if (!_structureDirty && ReferenceEquals(raw, _boundRaw))
+        {
+            SyncSelections();
+            return;
+        }
+
+        _boundRaw = raw;
+        _structureDirty = false;
+        UnsubscribeItems();
 
         Chips.Clear();
         Groups.Clear();
+        _chipByItem.Clear();
 
         var groupPath = Field.ChipGroupPath;
         var grouping = !string.IsNullOrWhiteSpace(groupPath);
@@ -167,6 +192,11 @@ public sealed class ChipsFieldRow : DetailFieldRow
                 };
                 Chips.Add(chip);
                 cur.Chips.Add(chip);
+                if (item is not null)
+                {
+                    _chipByItem[item] = chip;
+                    SubscribeItem(item);
+                }
             }
         }
         OnPropertyChanged(nameof(HasChips));
@@ -174,7 +204,48 @@ public sealed class ChipsFieldRow : DetailFieldRow
         OnPropertyChanged(nameof(IsSwatch));
     }
 
-    private void OnSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => Refresh();
+    /// <summary>同一集合实例的轻量刷新：只把 chip 选中态对齐源项（值没变不触发，无视觉扰动）。</summary>
+    private void SyncSelections()
+    {
+        if (Field.ChipSelectedPath is null) return;
+        foreach (var kv in _chipByItem)
+        {
+            var v = DetailPath.ResolveBool(kv.Key, Field.ChipSelectedPath);
+            if (kv.Value.IsSelected != v) kv.Value.IsSelected = v;
+        }
+    }
+
+    /// <summary>订阅源项的选中态变化（PickItem 等 ObservableObject）：点一下 chip 立即变色，不用等整卡重解析。</summary>
+    private void SubscribeItem(object? item)
+    {
+        if (item is INotifyPropertyChanged inpc)
+        {
+            inpc.PropertyChanged += OnItemPropertyChanged;
+            _subscribedItems.Add(inpc);
+        }
+    }
+
+    private void UnsubscribeItems()
+    {
+        foreach (var i in _subscribedItems) i.PropertyChanged -= OnItemPropertyChanged;
+        _subscribedItems.Clear();
+    }
+
+    private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (Field.ChipSelectedPath is null
+            || sender is null
+            || !_chipByItem.TryGetValue(sender, out var chip)) return;
+        var seg = DetailPath.Strip(Field.ChipSelectedPath).Split('.')[^1];
+        if (e.PropertyName.Length > 0 && e.PropertyName != seg) return;
+        chip.IsSelected = DetailPath.ResolveBool(sender, Field.ChipSelectedPath);
+    }
+
+    private void OnSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        _structureDirty = true;
+        Refresh();
+    }
 }
 
 /// <summary>

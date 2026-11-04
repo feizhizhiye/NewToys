@@ -24,7 +24,7 @@
     Height="800"
     MinWidth="960"
     MinHeight="640"
-    Background="{DynamicResource ContentBrush}"
+    Background="{DynamicResource WindowBackdropBrush}"
     ExtendClientAreaTitleBarHeightHint="32"
     ExtendClientAreaToDecorationsHint="True"
     WindowDecorations="Full"
@@ -90,9 +90,7 @@
               ⚠️ 拖拽过滤按「命中祖先是不是 Button」通用判定，新增按钮无需登记。 -->
         <Border
             Grid.Row="0"
-            Background="{DynamicResource ContentBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="0,0,0,1">
+            Background="{DynamicResource TitleBarBrush}">
             <!--  v3.28 修贴靠：标题栏标成 **TitleBar** 角色 → 由**系统**处理拖动（含拖到边缘贴靠、拖到顶边最大化、
                   双击最大化）；⛔ 不再依赖我们自己的 BeginMoveDrag（它发 WM_SYSCOMMAND/SC_MOUSEMOVE，
                   系统不认作"拖标题栏"→ 不触发贴靠，这正是之前贴靠失效的根因）。
@@ -227,7 +225,7 @@
                             <Flyout Placement="BottomEdgeAlignedRight">
                                 <StackPanel Width="300" Spacing="8">
                                     <TextBlock
-                                        FontSize="13"
+                                        FontSize="14"
                                         FontWeight="SemiBold"
                                         Foreground="{DynamicResource PrimaryTextBrush}"
                                         Text="搜索" />
@@ -247,7 +245,7 @@
                                             <DataTemplate>
                                                 <StackPanel Spacing="1">
                                                     <TextBlock
-                                                        FontSize="13"
+                                                        FontSize="14"
                                                         Text="{Binding Title}"
                                                         TextTrimming="CharacterEllipsis" />
                                                     <TextBlock
@@ -379,9 +377,7 @@
                 x:Name="TreePanel"
                 Grid.Column="0"
                 Width="{Binding TreePanelWidth}"
-                Background="{DynamicResource PanelBrush}"
-                BorderBrush="{DynamicResource DividerBrush}"
-                BorderThickness="0,0,1,0"
+                Background="{DynamicResource SiderBrush}"
                 Classes="tree-panel"
                 Classes.collapsed="{Binding IsTreeCollapsed}">
               <Grid RowDefinitions="*,Auto">
@@ -451,7 +447,7 @@
                                                       <TextBlock
                                                           VerticalAlignment="Center"
                                                           Classes="tree-title"
-                                                          FontSize="12"
+                                                          FontSize="14"
                                                           Text="{Binding Title}" />
                                                   </Button>
                                               </DataTemplate>
@@ -501,8 +497,11 @@
 
               <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
 
-                <!--  内容列 = 声明式工具条（NT-055）+ 页面本体  -->
-                <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                <!--  内容列 = 声明式工具条（NT-055）+ 页面本体。
+                     整列是**两张卡之一**（另一张是右侧详情列）：卡内所有面共用同一个档位、不画区域边框，
+                     圆角靠 ClipToBounds 裁掉内部直角子元素（工具条 / 表头 / 行区）。  -->
+                <Border Grid.Column="0" Classes="main-card" Margin="6,6,3,6">
+                <Grid RowDefinitions="Auto,*">
 
                   <!--  🔴 NT-055 / 需求 §4.8.5：工具条由 **Shell 统一承载**（页面 VM 实现 IToolbarSource 才有这一行；
                         未接契约的页继续用自己的页内自绘工具条 ⇒ ⛔ 不会两处同时渲染）。  -->
@@ -524,11 +523,13 @@
                   <ContentControl
                       x:Name="ContentArea"
                       Grid.Row="1"
-                      Background="{DynamicResource ContentBrush}"
+                      Classes.content-area="True"
+                      Classes.toolbar="{Binding IsToolbarActive}"
                       Content="{Binding ActiveTab.Content}" />
                 </Grid>
+                </Border>
 
-                <!--  右详情面板（340px，可开合）：由 Shell 统一承载。
+                <!--  右详情面板（300px，可开合）：由 Shell 统一承载。
                      内容两轨（NT-054 需求 §4.5.1）：
                      ① 声明式（新）—— 页面 VM 实现 IDetailCardSource 且 Card 非 null → 用 DetailCardHost 统一渲染
                         （外壳 / 滚动 / 空态 / 示例态只实现一次，页面不再各写一份）；
@@ -538,11 +539,11 @@
                 <Border
                     x:Name="DetailPanel"
                     Grid.Column="1"
-                    Width="340"
+                    Width="300"
+                    Classes="main-card"
+                    Margin="3,6,6,6"
                     IsVisible="{Binding IsDetailPanelVisible}"
-                    Background="{DynamicResource PanelBrush}"
-                    BorderBrush="{DynamicResource DividerBrush}"
-                    BorderThickness="1,0,0,0">
+                    Background="{DynamicResource DetailCardBrush}">
                     <Panel>
                         <ContentControl Content="{Binding DetailPanelContent}" IsVisible="{Binding !IsDetailCardActive}" />
                         <ui:DetailCardHost

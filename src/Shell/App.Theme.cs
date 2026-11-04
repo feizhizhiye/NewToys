@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,6 +13,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using NewToys.Core.Services;
@@ -25,6 +26,118 @@ namespace NewToys.Shell;
 
 public partial class App : Application
 {
+    // ==================== 色值唯一来源 ====================
+    // 🔴 全应用的颜色**只在这里出现一次**：一张中性色阶 + 若干语义色。
+    //    其它任何 XAML / C# 一律走 *Brush 语义键，⛔ 不要再出现 #RRGGBB。
+    //    色阶含义（**两档，只区分「卡内 / 卡外」**，⛔ 不要再插中间档）：
+    //      Bg0 平铺底（窗口根 · 标题栏 · 左菜单 · 版本行 · 状态栏 —— 所有 chrome 共用一个面）
+    //      / Bg1 卡片面（主显示区 · 详情列：窗口里**只有这两块是卡**）。
+    //    🔴 主次不靠色阶抢，靠「唯一凸起的面 + 留白」：卡外比卡内暗 8，视觉重量自然落在内容上。
+    //      用 4 档灰去划分区域边界会退化成「拼贴色块」—— 色差小就糊、大就像贴纸，中间值不稳定（实测三轮）。
+    //    具体谁落哪档只看 `RegionLayers`，⛔ 别按这里的措辞硬背。
+    //    Bg2 起是**控件层**（输入框 / 按钮面 / 浮层），不参与区域分档。
+    //              Ink0 主文字 → Ink1 次文字 → Ink2 三级（水印）。
+    private const string DarkBg0 = "#161616";
+    private const string DarkBg1 = "#1E1E1E";
+    private const string DarkBg2 = "#2A2A2A";
+    private const string DarkBg3 = "#333333";
+    private const string DarkBg4 = "#3C3C3C";
+    private const string DarkBorderStrong = "#4A4A4A";
+    private const string DarkInput = "#2A2A2A";
+    private const string DarkInk0 = "#E5E5E5";
+    private const string DarkInk1 = "#9E9E9E";
+    private const string DarkInk2 = "#6B6B6B";
+    private const string DarkDanger = "#F85149";
+
+    private const string LightBg0 = "#ECEDEF";
+    private const string LightBg1 = "#FFFFFF";
+    private const string LightBg2 = "#E2E4E7";
+    private const string LightBg3 = "#D8DBE0";
+    private const string LightBg4 = "#CFD3D8";
+    private const string LightBorderStrong = "#C8CCD2";
+    private const string LightInput = "#FFFFFF";
+    private const string LightInk0 = "#1F1F1F";
+    // 浅色下二级 / 三级文字压深一档：原来的 #8A8A8F 在白底上只有 3.5:1，12~13px 中文整片发虚
+    private const string LightInk1 = "#5F5F66";
+    private const string LightInk2 = "#8E8E96";
+    private const string LightDanger = "#D93026";
+
+    /// <summary>标题栏关闭按钮悬停红（Windows 通行的窗口语义色，不随主题变）。</summary>
+    private const string BrandCloseHover = "#E81123";
+
+    /// <summary>
+    /// 区域 → 色档（1 = 卡外平铺底，2 = 卡内卡片面）。**颜色分配的单一事实源**。
+    /// <para>
+    /// 窗口里只有两块是「卡」（主显示区 + 详情列）：卡内所有面共用 2 档、卡外 chrome 共用 1 档 ⇒
+    /// 卡内的相邻对（工具条 ⇄ 表头 ⇄ 行区 ⇄ 底栏 ⇄ 详情列）**本来就是同一个面**，同档是设计意图，
+    /// <c>lint.py</c> 用 <c>CARD_LAYER</c> 整体跳过；卡外只保留三对同面（标题栏 ⇄ 侧栏、侧栏 ⇄ 版本行、
+    /// 版本行 ⇄ 状态栏）在 <see cref="RegionAdjacency"/> 里标「允许同档」。
+    /// 所以改颜色只改这张表（改档位），<see cref="RegionAdjacency"/> 是配套的「谁跟谁相接」。
+    /// </para>
+    /// 🔴 格式被 <c>lint.py --only regions</c> 解析：一行一条 <c>("键", 档),</c>，⛔ 别换写法、⛔ 别加注释在同一条里。
+    /// </summary>
+    internal static readonly (string Key, int Layer)[] RegionLayers =
+    {
+        ("WindowBackdropBrush", 1),
+        ("TitleBarBrush", 1),
+        ("SiderBrush", 1),
+        ("SiderFootBrush", 1),
+        ("ToolbarBrush", 2),
+        ("ListHeaderBrush", 2),
+        ("ListBodyBrush", 2),
+        ("ContentBrush", 2),
+        ("ContentBareBrush", 2),
+        ("FooterBarBrush", 2),
+        ("StatusBarBrush", 1),
+        ("DetailCardBrush", 2),
+    };
+
+    /// <summary>
+    /// 直接相接的区域对 —— 两端**必须不同档**。<c>lint.py --only regions</c> 逐对核对。
+    /// <para>
+    /// 布局变了（新增一条横条 / 挪走一个面板）就补一条边，否则新接缝不会被检查到。
+    /// <see cref="RegionLayers"/> 里每个键至少要出现在一条边上（漏登记的键等同没检查）。
+    /// </para>
+    /// </summary>
+    internal static readonly (string A, string B)[] RegionAdjacency =
+    {
+        ("TitleBarBrush", "SiderBrush"),            // 都是 chrome 平铺面（允许同档）
+        ("TitleBarBrush", "ToolbarBrush"),
+        ("TitleBarBrush", "ContentBareBrush"),      // 无工具条的页面：标题栏直接压内容（允许同档）
+        ("TitleBarBrush", "ListHeaderBrush"),       // 无工具条但有表头
+        ("SiderBrush", "SiderFootBrush"),           // 版本行是侧栏的底边（允许同档）
+        ("SiderBrush", "ContentBrush"),
+        ("SiderBrush", "ListBodyBrush"),            // 列表铺满内容区：左树直接挨着行区
+        ("SiderBrush", "ListHeaderBrush"),          // 表头右端接左树
+        ("SiderFootBrush", "StatusBarBrush"),       // 版本行的右端接状态栏（同一条底边，允许同档）
+        ("SiderFootBrush", "FooterBarBrush"),       // 版本行的右端接底栏
+        ("ToolbarBrush", "ListHeaderBrush"),
+        ("ToolbarBrush", "ListBodyBrush"),          // 无表头的列表页
+        ("ToolbarBrush", "ContentBrush"),           // 无表头的页面
+        ("ListHeaderBrush", "ListBodyBrush"),       // 表头压在行区上（最容易撞的一对）
+        ("ListHeaderBrush", "ContentBrush"),
+        ("ListHeaderBrush", "StatusBarBrush"),      // 自定义列表页：表头下方直接状态栏
+        ("ListBodyBrush", "FooterBarBrush"),
+        ("ListBodyBrush", "StatusBarBrush"),        // 无底栏的列表页
+        ("ListBodyBrush", "DetailCardBrush"),       // 行区 ⇄ 右侧详情列（卡内同面）
+        ("ContentBrush", "FooterBarBrush"),
+        ("ContentBrush", "StatusBarBrush"),         // 无底栏的页面
+        ("ContentBrush", "DetailCardBrush"),        // 右侧详情列 / 页内详情卡（卡内同面）
+        ("ContentBareBrush", "StatusBarBrush"),     // 无工具条且无底栏的页面
+        ("ContentBareBrush", "DetailCardBrush"),    // 无工具条页的右侧详情列（卡内同面）
+        ("FooterBarBrush", "StatusBarBrush"),
+        ("ToolbarBrush", "DetailCardBrush"),        // 工具条右端接详情列
+        ("ListHeaderBrush", "DetailCardBrush"),     // 表头右端接详情列
+        ("FooterBarBrush", "DetailCardBrush"),      // 底栏右端接详情列
+        ("DetailCardBrush", "StatusBarBrush"),
+        ("WindowBackdropBrush", "ContentBrush"),    // 窗口底 ⇄ 主卡：卡四周的留白露出窗口底
+    };
+    /// <summary>压在彩色块 / 图片上的次要文字（半透明白）。</summary>
+    private const byte OnColorSecondaryAlpha = 0xB0;
+
+    /// <summary>加载遮罩：内容底色 + 50% 透明度。</summary>
+    private const byte OverlayAlpha = 0x80;
+
     /// <summary>
     /// 把「跟随系统」所需的系统明暗状态喂给 <see cref="IThemeService"/>。
     /// <para>
@@ -54,7 +167,9 @@ public partial class App : Application
 
     /// <summary>
     /// 按当前主题状态重建资源字典。**幂等**：随时可重复调用。
-    /// 深色 / 浅色两套基础色 + **强调色派生色**（强调色与「选中的卡片」底/字色联动，见 <see cref="AccentPalette"/>）。
+    /// 一套语义键 + 两个取值来源（皮肤）：<see cref="ThemeSkin.NewToys"/> 走自有色阶，
+    /// <see cref="ThemeSkin.Fluent"/> 全部指到 Fluent 主题自带资源。两套给的是**同一批键**，
+    /// 所以布局、密度、控件尺寸完全一致，差异只来自配色与圆角。
     /// </summary>
     private void ApplyTheme(IThemeService theme)
     {
@@ -62,57 +177,21 @@ public partial class App : Application
         RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
 
         var accent = AccentPalette.Find(theme.AccentId);
-        var accentColor = Color.Parse(accent.Color);
-
         var d = new ResourceDictionary();
-        void S(string k, string c) => d[k] = new Avalonia.Media.SolidColorBrush(Color.Parse(c));
-        if (dark)
-        {
-            S("ContentBrush","#191919");
-            // 窗口外框（自绘 1px）。激活态要能在同色窗口上分辨出来 → 比 DividerBrush(#333) 更亮；
-            // 失焦态压暗到接近底色，形成「哪个窗口在前台」的直接视觉信号。
-            S("WindowBorderBrush","#4A4A4A"); S("WindowBorderInactiveBrush","#2A2A2A");
-            S("TitleBarCloseHoverBrush","#E81123"); S("TitleBarCloseHoverTextBrush","#FFFFFF");
-            S("SiderBrush","#202020"); S("SiderTextBrush","#FFFFFF"); S("SiderIconBrush","#9A9A9A"); S("SiderIconActiveBrush","#FFFFFF"); S("SiderSelectedBrush","#2E2E2E"); S("SiderDividerBrush","#2E2E2E");
-            S("SubSiderBrush","#262626"); S("SubSiderHeaderBrush","#2B2B2B");
-            // 「选中的卡片」用强调色派生：底 ≈ 强调色压暗到深色面板上，字 ≈ 强调色提亮（深色底上才看得清）
-            // （/ 需求 §4.10.4「激活态加深」）：原强调色占比 22% 太淡，菜单/标签/列表选中不凸显；
-            //   加深到 34%（选中 vs 悬停/常规对比更明显），字色同步提亮到 34% 保证深色底上可读。
-            S("CardSelectedBrush", Hex(Blend(accentColor, Color.Parse("#262626"), 0.34)));
-            S("CardSelectedTextBrush", Hex(Blend(accentColor, Colors.White, 0.34)));
-            S("ContentBrush","#191919"); S("ContentHeaderBrush","#1F1F1F"); S("StatusBarBrush","#1F1F1F");
-            S("PanelBrush","#262626"); S("CardHoverBrush","#333333"); S("DividerBrush","#333333"); S("DangerBrush","#F85149"); S("LoadingOverlayBrush","#80000000");
-            S("PrimaryTextBrush","#E5E5E5"); S("SecondaryTextBrush","#9E9E9E"); S("SiderIconHoverBrush","#3A3A3A");
-            // 输入框水印（v3.68：用户定调「太重」）：比次要文字再淡一档，只给 PlaceholderText 用
-            S("PlaceholderTextBrush","#6B6B6B");
-            S("AccentBrush", accent.Color); S("AccentHoverBrush", accent.HoverColor); S("AccentTextBrush","#FFFFFF");
-            S("CodeBlockBrush","#1F1F1F"); S("InputBorderBrush","#3D3D3D"); S("InputHoverBorderBrush", accent.Color);
-            // 滚动条滑块：深色底上要能看出「有一根条」，但不能抢眼；悬停切强调色
-            S("ScrollThumbBrush","#4A4A4A"); S("ScrollThumbHoverBrush", accent.Color);
-        }
-        else
-        {
-            S("ContentBrush","#FFFFFF");
-            // 浅色下窗口底色就是白的 → 边框必须够深才看得见（比 DividerBrush(#E6E8EC) 深一档）；
-            // 失焦态退回 DividerBrush 同档，几乎融进白底。
-            S("WindowBorderBrush","#C8CCD2"); S("WindowBorderInactiveBrush","#E6E8EC");
-            S("TitleBarCloseHoverBrush","#E81123"); S("TitleBarCloseHoverTextBrush","#FFFFFF");
-            S("SiderBrush","#2E2E2E"); S("SiderTextBrush","#FFFFFF"); S("SiderIconBrush","#B7B7B7"); S("SiderIconActiveBrush","#FFFFFF"); S("SiderSelectedBrush","#444444"); S("SiderDividerBrush","#3F3F3F");
-            S("SubSiderBrush","#F3F3F3"); S("SubSiderHeaderBrush","#F7F7F7");
-            // 浅色底上的选中卡片：底 ≈ 强调色冲淡到接近白，字 = 强调色本身
-            // 浅色选中底同样加深（16%→26%），选中态更清晰、不易被忽略。
-            S("CardSelectedBrush", Hex(Blend(accentColor, Colors.White, 0.26)));
-            S("CardSelectedTextBrush", accent.Color);
-            S("ContentBrush","#FFFFFF"); S("ContentHeaderBrush","#FFFFFF"); S("StatusBarBrush","#FAFBFC");
-            S("PanelBrush","#F7F8FA"); S("CardHoverBrush","#EFEFEF"); S("DividerBrush","#E6E8EC"); S("DangerBrush","#D93026"); S("LoadingOverlayBrush","#80FFFFFF");
-            S("PrimaryTextBrush","#1F1F1F"); S("SecondaryTextBrush","#8A8A8F"); S("SiderIconHoverBrush","#E9E9E9");
-            // 输入框水印：浅色下同样比次要文字淡一档
-            S("PlaceholderTextBrush","#B4B4BA");
-            S("AccentBrush", accent.Color); S("AccentHoverBrush", accent.HoverColor); S("AccentTextBrush","#FFFFFF");
-            S("CodeBlockBrush","#FFFFFF"); S("InputBorderBrush","#D1D5DB"); S("InputHoverBorderBrush", accent.Color);
-            // 滚动条滑块：白底上要比 DividerBrush(#E6E8EC) 深一档才看得见；悬停切强调色
-            S("ScrollThumbBrush","#C6CAD0"); S("ScrollThumbHoverBrush", accent.Color);
-        }
+
+        // 🔴 先把强调色喂给 Fluent 主题本体：单选圆点 / 复选勾 / 开关滑块 / 列表选中条 / 滑块 / 进度条
+        //    这些模板内部的强调色只认 ColorPaletteResources.Accent，不认我们自己的 AccentBrush。
+        //    缺这一步 ⇒ 设置页里「自制键是微信绿、Fluent 控件是蓝」= 两套强调色并存。
+        ApplyFluentAccent(accent);
+
+        if (theme.Skin == ThemeSkin.Fluent) FillFluent(d, dark, accent);
+        else FillNewToys(d, dark, accent);
+
+        var (card, control, small) = Radii(theme.Skin);
+        d["RadiusCard"] = card;
+        d["RadiusControl"] = control;
+        d["RadiusSmall"] = small;
+
         if (Resources != null)
         {
             // 只移除上一次注入的 NewToys 主题字典，避免 Clear() 误删 FluentTheme 自带的系统资源字典
@@ -126,14 +205,254 @@ public partial class App : Application
         RefreshAppIcon();
     }
 
+    /// <summary>
+    /// 把强调色写进 <c>FluentTheme</c> 的调色板（官方入口 = <c>ColorPaletteResources.Accent</c>）。
+    /// <para>
+    /// 为什么必须走这里：Fluent 的控件模板（RadioButton 圆点、CheckBox 勾、ToggleSwitch 滑块、
+    /// ListBoxItem 选中条、Slider、ProgressBar）都从调色板的 Accent 派生颜色，
+    /// <c>DynamicResource AccentBrush</c> 管不到它们。逐个控件重写模板既脆弱又漏项。
+    /// </para>
+    /// 失败时静默：拿不到 FluentTheme（换主题包 / 测试宿主）就只是退回各自的默认强调色，不影响启动。
+    /// </summary>
+    private void ApplyFluentAccent(AccentPreset accent)
+    {
+        try
+        {
+            if (Styles?.OfType<FluentTheme>().FirstOrDefault() is not { } fluent) return;
+            var color = Color.Parse(accent.Color);
+
+            // 只改已有调色板的 Accent —— 官方约束：除 Accent 外的属性「启动后只读一次」，
+            // 整体替换调色板条目等于在运行期重建整套静态色，得不偿失。
+            foreach (var variant in new[] { ThemeVariant.Dark, ThemeVariant.Light })
+            {
+                if (!fluent.Palettes.TryGetValue(variant, out var palette) || palette is null)
+                {
+                    palette = new ColorPaletteResources();
+                    fluent.Palettes[variant] = palette;
+                }
+
+                palette.Accent = color;
+            }
+        }
+        catch { /* 调色板写入失败不阻断换肤 */ }
+    }
+
+    /// <summary>三档圆角（卡片 / 控件 / 小元素）。原生皮肤直接沿用 Fluent 的 ControlCornerRadius 派生。</summary>
+    private (CornerRadius Card, CornerRadius Control, CornerRadius Small) Radii(ThemeSkin skin)
+    {
+        if (skin == ThemeSkin.Fluent
+            && this.TryFindResource("ControlCornerRadius", out var o)
+            && o is CornerRadius c && c.TopLeft > 0)
+        {
+            return (new CornerRadius(c.TopLeft * 2), c, new CornerRadius(Math.Max(c.TopLeft / 2, 1)));
+        }
+
+        return (new CornerRadius(8), new CornerRadius(6), new CornerRadius(4));
+    }
+
+    /// <summary>
+    /// 自制皮肤：把中性色阶铺到全部语义键上。
+    /// 强调色只影响 6 个键，其余全部来自色阶 —— 这样"加一个主题"= 改这里一张表。
+    /// </summary>
+    private static void FillNewToys(ResourceDictionary d, bool dark, AccentPreset accent)
+    {
+        var bg0 = Color.Parse(dark ? DarkBg0 : LightBg0);
+        var bg1 = Color.Parse(dark ? DarkBg1 : LightBg1);
+        var bg2 = Color.Parse(dark ? DarkBg2 : LightBg2);
+        var bg3 = Color.Parse(dark ? DarkBg3 : LightBg3);
+        var bg4 = Color.Parse(dark ? DarkBg4 : LightBg4);
+        var strong = Color.Parse(dark ? DarkBorderStrong : LightBorderStrong);
+        var input = Color.Parse(dark ? DarkInput : LightInput);
+        var ink0 = Color.Parse(dark ? DarkInk0 : LightInk0);
+        var ink1 = Color.Parse(dark ? DarkInk1 : LightInk1);
+        var ink2 = Color.Parse(dark ? DarkInk2 : LightInk2);
+        var danger = Color.Parse(dark ? DarkDanger : LightDanger);
+        var accentColor = Color.Parse(accent.Color);
+
+        void S(string k, Color c) => d[k] = new SolidColorBrush(c);
+
+        // —— 底 ——
+        // 每个区域由 RegionLayers 派到某一档（⛔ 别在这里逐个手写，会跟相邻检查脱节）。
+        var layers = new[] { bg0, bg1, bg2, bg3, bg4 };
+        foreach (var (key, layer) in RegionLayers) S(key, layers[layer - 1]);
+
+        // 页内抬头条 / 设置节头（不是窗口区域，不参与相邻检查）：抬到控件层，压在卡面上高 12
+        S("ContentHeaderBrush", bg2);
+        // 面板 / 按钮常体 / 浮层底：控件层 —— 按钮才有实面、浮层才浮得起
+        S("PanelBrush", bg2);
+        // 侧栏悬停：按侧栏自己的底提亮（CardHoverBrush 按卡面算，压在侧栏上会亮一大块）
+        S("SiderHoverBrush", dark ? Blend(Colors.White, bg0, 0.08) : Blend(Colors.Black, bg0, 0.05));
+        // 卡内悬停 / 按下：比卡面再提一点，落在卡片面上的控件才看得出来
+        S("CardHoverBrush", dark ? Blend(Colors.White, bg1, 0.08) : Blend(Colors.Black, bg1, 0.05));
+
+        // —— 字 ——
+        S("PrimaryTextBrush", ink0);
+        S("SecondaryTextBrush", ink1);
+        S("PlaceholderTextBrush", ink2);
+        S("SiderTextBrush", Colors.White);
+        S("SiderIconActiveBrush", Colors.White);
+        S("SiderIconBrush", ink1);
+        S("OnColorSecondaryTextBrush", Color.FromArgb(OnColorSecondaryAlpha, 255, 255, 255));
+
+        // —— 语义 ——
+        S("DangerBrush", danger);
+        S("AccentBrush", accentColor);
+        // 强调色**文字/图标**专用：浅底上的强调色要压深，否则与淡强调底同色相、字糊在背景里
+        S("AccentInkBrush", dark ? accentColor : Blend(accentColor, Colors.Black, 0.45));
+        S("AccentHoverBrush", Color.Parse(accent.HoverColor));
+        S("AccentTextBrush", Colors.White);
+
+        // —— 线与滚动条 ——
+        S("InputBorderBrush", input);
+        // 表头下沿的 1px：卡内表头与行区同色，只能靠这条极淡线把「列标题」和「数据」分开
+        S("HairlineBrush", Color.Parse(dark ? "#2C2C2C" : "#E2E3E6"));
+        S("ScrollThumbBrush", strong);
+        S("ScrollThumbHoverBrush", accentColor);
+        S("WindowBorderBrush", strong);
+        // 失焦态要"几乎融进底色"：深色取标题条档（比底色亮一档），浅色取分隔线档
+        S("WindowBorderInactiveBrush", dark ? bg1 : bg3);
+
+        // —— 窗口按钮（系统语义，固定红）——
+        S("TitleBarCloseHoverBrush", Color.Parse(BrandCloseHover));
+        S("TitleBarCloseHoverTextBrush", Colors.White);
+
+        // —— 选中态：由强调色派生（深色底压暗、浅色底冲淡，对比度才够）——
+        S("CardSelectedBrush", dark ? Blend(accentColor, bg2, 0.34) : Blend(accentColor, bg0, 0.26));
+        S("CardSelectedTextBrush", dark ? Blend(accentColor, Colors.White, 0.34) : accentColor);
+
+        // 遮罩 = 内容底色 + 50% 透明度（两套皮肤共用同一条派生规则）
+        S("LoadingOverlayBrush", Color.FromArgb(OverlayAlpha, bg0.R, bg0.G, bg0.B));
+    }
+
+    /// <summary>
+    /// 原生皮肤：先用自制皮肤垫底，再把能查到的键逐个覆盖成 Fluent 自带资源。
+    /// 垫底是**故意的**——Avalonia 换版本时 Fluent 资源键可能改名，改动后最差也只是这几个键退回自有色阶，
+    /// 不会出现一片透明/黑块。
+    /// </summary>
+    private void FillFluent(ResourceDictionary d, bool dark, AccentPreset accent)
+    {
+        FillNewToys(d, dark, accent);
+
+        // 🔴 必须**显式传变体**查：ApplyTheme 刚设完 RequestedThemeVariant，Application 的
+        //    ActualThemeVariant 要到样式重估后才刷新，此时不带变体查会拿到上一个明暗的取值
+        //    （表现：切到原生皮肤后深色也一直是浅色）。
+        var variant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+        var accentColor = Color.Parse(accent.Color);
+
+        Color? Pick(string fluentKey)
+        {
+            if (!this.TryFindResource(fluentKey, variant, out var o)) return null;
+            return o switch
+            {
+                ISolidColorBrush sb => sb.Color,
+                Color c => c,
+                _ => null,
+            };
+        }
+
+        void S(string k, Color c) => d[k] = new SolidColorBrush(c);
+
+        void F(string key, string fluentKey)
+        {
+            if (Pick(fluentKey) is { } c) d[key] = new SolidColorBrush(c);
+        }
+
+        // 底（四档：内容底 → chrome → 面板 → 悬停；与自制皮肤同一套语义键）
+        F("ContentHeaderBrush", "SystemControlBackgroundChromeMediumLowBrush");
+        F("CardHoverBrush", "SystemControlHighlightListLowBrush");
+
+        // 区域底：按 RegionLayers 的同一个序号取底色。
+        // 🔴 Fluent 自带的 4 个 Chrome 刷子在暗色下实际只给出 2 档（工具条 / 表头 / 列表 / 状态栏挤在同一灰度，
+        //    去掉外缘后接缝直接消失 —— 用户实测「相邻区域没色差」）⇒ 以内容底为基准做明度阶梯：
+        //    相邻档按 5% / 10% / 15% 向白（暗色）或黑（亮色）混，档差 ≥10，再按 RegionLayers 分发。
+        var baseCol = Pick("SystemControlPageBackgroundChromeLowBrush")
+                      ?? Color.Parse(dark ? DarkBg0 : LightBg0);
+        var toward = dark ? Colors.White : Colors.Black;
+        var fluentLayers = new[]
+        {
+            baseCol,
+            Blend(toward, baseCol, 0.050),
+            Blend(toward, baseCol, 0.100),
+            Blend(toward, baseCol, 0.150),
+            Blend(toward, baseCol, 0.200),
+        };
+        foreach (var (key, layer) in RegionLayers)
+        {
+            S(key, fluentLayers[layer - 1]);
+        }
+        // 面板 / 按钮常体并入同一阶梯（否则与表头落在同一个系统灰上，行区与表头又糊成一片）
+        S("PanelBrush", fluentLayers[2]);
+
+        // 字
+        F("PrimaryTextBrush", "SystemControlForegroundBaseHighBrush");
+        // 🔴 浅色下二级 / 三级文字**不用** Fluent 的 BaseMedium / BaseLow：
+        //    它们是约 60% / 40% 黑，12~13px 中文压在 #F3F3F3 底上整片发虚（用户实测「明亮主题字体很淡」）。
+        //    改为「主文字色按比例混底」的派生值 —— 与自制皮肤同一套对比度，色相也不跑偏。
+        //    深色保持 Fluent 原值：暗底上 60% 白本来就合适，压低反而糊。
+        if (dark)
+        {
+            F("SecondaryTextBrush", "SystemControlForegroundBaseMediumBrush");
+            F("PlaceholderTextBrush", "SystemControlForegroundBaseLowBrush");
+        }
+        else
+        {
+            var inkForText = Pick("SystemControlForegroundBaseHighBrush") ?? Color.Parse(LightInk0);
+            var bgForText = Pick("SystemControlPageBackgroundChromeLowBrush") ?? Color.Parse(LightBg0);
+            S("SecondaryTextBrush", Blend(inkForText, bgForText, 0.70));
+            S("PlaceholderTextBrush", Blend(inkForText, bgForText, 0.45));
+        }
+        // 🔴 侧栏文字必须按明暗分两套：Fluent **浅色**的 ChromeMedium 是浅灰底，
+        //    再配 ChromeWhite 文字就整片糊掉（曾表现成「原生皮肤只有明色、切深色不生效」）。
+        if (dark)
+        {
+            F("SiderTextBrush", "SystemControlForegroundChromeWhiteBrush");
+            F("SiderIconActiveBrush", "SystemControlForegroundChromeWhiteBrush");
+            F("SiderIconBrush", "SystemControlForegroundChromeGrayBrush");
+        }
+        else
+        {
+            F("SiderTextBrush", "SystemControlForegroundBaseHighBrush");
+            F("SiderIconActiveBrush", "SystemControlForegroundBaseHighBrush");
+            F("SiderIconBrush", "SystemControlForegroundBaseMediumBrush");
+        }
+
+        // 语义
+        F("DangerBrush", "SystemControlErrorTextForegroundBrush");
+        // 🔴 强调色这 4 个键**不取 Fluent 的强调色资源**，一律用用户选的颜色派生：
+        //    Fluent 的 SystemControl*Accent* 在运行时不一定跟随调色板（有的模板把它硬编进笔刷），
+        //    要求「自制键 ↔ Fluent 控件」永远同色，只有自己算这条路可靠。
+        S("AccentBrush", accentColor);
+        S("AccentInkBrush", dark ? accentColor : Blend(accentColor, Colors.Black, 0.45));
+        S("AccentHoverBrush", Color.Parse(accent.HoverColor));
+        F("AccentTextBrush", "SystemControlForegroundChromeWhiteBrush");
+
+        // 线
+        F("InputBorderBrush", "TextControlBorderBrush");
+        // 表头下沿的 1px（与自制皮肤同一个用途：卡内表头与行区同色）
+        S("HairlineBrush", Blend(toward, baseCol, 0.10));
+        F("ScrollThumbBrush", "SystemControlForegroundBaseMediumLowBrush");
+        S("ScrollThumbHoverBrush", accentColor);
+        F("WindowBorderBrush", "SystemControlForegroundBaseLowBrush");
+        F("WindowBorderInactiveBrush", "SystemControlBackgroundBaseLowBrush");
+
+        // 选中态：与自制皮肤同一条派生规则 —— 底色千差万别，强调色的混合物必须自己算才跟用户走
+        var pageBg = Pick("SystemControlPageBackgroundChromeLowBrush") ?? Color.Parse(dark ? DarkBg0 : LightBg0);
+        var panelBg = Pick("SystemControlBackgroundChromeMediumBrush") ?? Color.Parse(dark ? DarkBg2 : LightBg2);
+        S("CardSelectedBrush", dark ? Blend(accentColor, panelBg, 0.34) : Blend(accentColor, pageBg, 0.26));
+        S("CardSelectedTextBrush", dark ? Blend(accentColor, Colors.White, 0.34) : accentColor);
+
+        // 遮罩跟着实际内容底色走（原生皮肤的底和自制不同，不能沿用垫底值）
+        if (Pick("SystemControlPageBackgroundChromeLowBrush") is { } overlayBg)
+            S("LoadingOverlayBrush", Color.FromArgb(OverlayAlpha, overlayBg.R, overlayBg.G, overlayBg.B));
+
+        // 侧栏悬停：按侧栏自己的底色提亮（CardHoverBrush 是按阅读底算的，压在侧栏上会亮一大块）
+        S("SiderHoverBrush", Blend(toward, baseCol, 0.09));
+    }
+
     /// <summary>按 <paramref name="fgWeight"/>（0~1，前景占比）做线性混色 —— 用来从强调色派生浅/深变体。</summary>
     private static Color Blend(Color fg, Color bg, double fgWeight)
     {
         byte Mix(byte a, byte b) => (byte)Math.Clamp(Math.Round(a * fgWeight + b * (1 - fgWeight)), 0, 255);
         return Color.FromArgb(255, Mix(fg.R, bg.R), Mix(fg.G, bg.G), Mix(fg.B, bg.B));
     }
-
-    /// <summary><c>#RRGGBB</c> 文本（<c>Color.Parse</c> 能原样读回）。</summary>
-    private static string Hex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
-
 }

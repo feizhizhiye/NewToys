@@ -1,5 +1,23 @@
-# NewToys UI 规范
+﻿# NewToys UI 规范
 
+> v4.28 · 2026-11-04 · **只保留两张卡（结构级简化）** —— 用户定调「只允许主显示区使用卡片」。色阶砍到 **2 档**（暗 `#161616` 卡外 / `#1E1E1E` 卡内，差 8；亮 `#ECEDEF` / `#FFFFFF`）：窗口里只有**主显示区**（内容列整块，含工具条）和**右侧详情列**是卡，其余 chrome（标题栏 / 左菜单 / 版本行 / 状态栏）全部平铺同一个面；卡内工具条 · 表头 · 行区 · 底栏 · 内容共用同一档，**不再用色阶划分**。`Border.card`（16 处页内卡片）改为**透明无圆角**，`Border.main-card` 是唯一有面的容器（圆角 + `ClipToBounds`，⛔ 不挂 BoxShadow）；表头靠 1px `HairlineBrush` 区分列标题与数据。页面根 `Margin 12 → 8`、卡外距 4~6。`lint.py` 新增 `CARD_LAYER`（卡内同档整体跳过），`MIN_DELTA_DARK` 6 / 浅 8。着色结论「最少 2 档」。§3 / §13 同步。
+
+> v4.27 · 2026-11-04 · **色阶翻向：阅读底最亮、chrome 退暗（4 档）** —— v4.26 把 chrome 推到最亮（左菜单 / 工具条 = 3 档），用户看截图一眼否掉（「大片侧栏抢眼、主区发闷」）。现改为 chrome 向两侧退暗、内容最亮：暗 `#101010/#161616/#1C1C1C/#222222`、亮 `#E4E5E7/#EDEEF0/#F6F7F8/#FFFFFF`。分配：**阅读底(4)** = 内容 · 行区 · 标题栏；**详情卡(3)** 暗 6（恢复与主显示区的区分）；**表头 · 底栏(2)** 暗 12；**工具条 · 状态栏 · 左菜单 · 版本行(1)** 暗 18。`lint.py` 的下限拆成 `MIN_DELTA_DARK = 5` / `MIN_DELTA_LIGHT = 8`（原来统一 10，会把深色下真能分辨的细缝误判为不足）；`SAME_LAYER_OK` 从「详情列」三对换成「同一个面」三对（标题栏⇄无工具条内容底、侧栏⇄版本行、版本行⇄状态栏）。着色结论回到「最少 4 档」。`DarkInput` 提到 5 档（`#282828`，比阅读底亮 6）；`PanelBrush` = 详情卡档 ⇒ 详情卡内的按钮退化成纯描边（工具条上仍有实面）；新增 `SiderHoverBrush`（侧栏悬停按侧栏底算 —— `CardHoverBrush` 是按阅读底算的，压在侧栏上会亮一大块）。§3 / §13 同步。
+
+> v4.26 · 2026-11-04 · **区域档位 4 → 3 档，档距按接缝频率分配** —— 用户定调「主要使用的色阶小、少用的大」：不再等距拉阶梯。阅读底(1) **吃掉标题栏 · 行区 · 有/无工具条的内容底 · 详情卡**（`ContentBareBrush` 4→1、`DetailCardBrush` 2→1）；表头 / 底栏 **2**（与行区只差 10 灰阶，是每页都有的高频缝）；工具条 / 状态栏 / 左菜单 **3**（大面积 chrome，差 20）。暗 `#141414/#1E1E1E/#282828`（跨度 51 → 20）、亮不变（本就 11~14）；Fluent 皮肤阶梯 6/12 → **5/10%**。新增「**同材质相接允许同档**」机制 —— `lint.py` 的 `SAME_LAYER_OK` 白名单 4 对（详情列 ⇄ 行区 / 内容底 / 无工具条内容底、标题栏 ⇄ 无工具条内容底），R-04 与着色都跳过；着色结论由「最少 4 档」变为「最少 3 档」。§3 / §13 同步。
+
+> v4.25 · 2026-11-04 · **区域档位回到 4 档（5 → 4）** —— 先钉死三条带（标题栏 1 / 左菜单 2 / 版本行 1 / 工具条 3 / 状态栏 3 / 详情卡 2），其余由相邻关系唯一推出：表头 **4**、行区 **1**、底栏 **4**、有工具条的内容底 **1**、无工具条的内容底 **4**（表头右端接详情卡 ⇒ 只能 4；行区四面被 4/3/2/3 围住 ⇒ 只能 1）。第 5 档（`#474747` / `#C9CDD4`）保留在常量表里但**没有区域使用**；`lint.py` 页面链补「工具条与状态栏之间的内容区」一段 ⇒ 删掉 `ToolbarBrush ⇄ StatusBarBrush`、`TitleBarBrush ⇄ ListBodyBrush` 两条假接缝，新增左树⇄表头、版本行⇄状态栏 / 底栏、无工具条内容底⇄状态栏 / 详情列四条真接缝；着色结论 =「相邻图最少需要 4 档」。§13 补「一页两块列表 ⇒ 留 12px 间隙，⛔ 再铺第二档底 / 包卡片」。
+> v4.24 · 2026-11-04 · **区域色差改成「页面级 + 真实灰度」双保险 + 档位重排** —— 新增 `ListBodyBrush`（列表行区独立成 2 档，⛔ 再蹭 `PanelBrush`：一个键两角色 ⇒ 表头与行区撞档）；重排 11 个区域（1 标题栏/状态栏 · 2 内容底/行区 · 3 左树/表头/底栏/按钮 · 4 工具条 · **5 详情卡**）；区域图含横向接缝（工具条 / 表头 / 底栏右端直接接详情列）⇒ 4 档无解、**加到第 5 档**（暗 `#474747` / 亮 `#C9CDD4`，与第 4 档差 15）；`lint.py --only regionpages`（R-10~R-13）逐页还原区域链、按 NewToys 色值与 Fluent 明度阶梯两种口径算灰度（下限 10），并拦住「档位不同但看着一样」（Fluent 的 4 个系统刷子实际只有 2 档）；`ListPageSkeleton` 的列表区去掉 `.card`（圆角在铺满时切缺口）改 `ListBodyBrush`；`CollectionView` 外缘归 0，成范本。
+> v4.23 · 2026-11-04 · **§13 列表页范本定稿** —— 外缘由「12 一次」改判为「默认 12、**密集列表页取 0**」：`CollectionView` 去掉 `Margin` + 页内把 `Border.card` 的 `CornerRadius` 压 0 ⇒ 工具条 / 表头 / 行区 / 状态栏四段直接相接，只靠区域底色差分；新列表页照抄，⛔ 再包 `Margin="12"`。
+> v4.22 · 2026-11-04 · **新增 §13 主显示区骨架（单层分区）** —— 把查看器 `ViewerHost` 的「一块整面」定为样板：外缘 12 只给一次、容器**两层封顶**（连续两层带 `Background` 即违规）、间距只留 8 / 12（微元素 4，`Spacing` 与子 `Margin` 二选一）、第三级分类一律进筛选条不做左栏。反例 `CollectionView` 的 12+8+8 三层内缩与 4/6/8 三套间距一并登记。
+> v4.21 · 2026-11-04 · **区域颜色编号化 + 相邻色差脚本化** —— 颜色分配从「各键各挑一档」改为**一张编号表**：`App.Theme.cs` 的 `RegionLayers`（区域 → 1~4 档）是唯一事实源，`RegionAdjacency`（谁跟谁直接相接）配合；主显示区按有无工具条切 `ContentBrush`(1) / `ContentBareBrush`(3)（`Classes.toolbar` 绑定 `IsToolbarActive`），否则无工具条的页面标题栏(1) 会直接压 1 档内容。`DetailPanelBrush` 并入 `DetailCardBrush`(4)（右侧详情列与页内详情卡是同一块面，内部不再分档）。新增静态检查 `lint.py --only regions`（R-02 档位越界 / R-04 相邻同档 / R-05 键漏登记相邻对）并接入 `accept.ps1` ⇒ 「相邻区域一定有色差」从此可被脚本拦住，不靠肉眼。
+> v4.20 · 2026-11-04 · **相邻区域必须有色差 + 详情卡层级反转** —— 4 档色阶不变、零新色值，新增 8 个**区域映射键**（`TitleBarBrush` / `ToolbarBrush` / `ListHeaderBrush` / `FooterBarBrush` / `StatusBarBrush` / `SiderBrush` / `SiderFootBrush` / `DetailPanelBrush`）：原来标题栏·工具条·表头同挂 `ContentHeaderBrush`、状态栏·分页底栏同挂 `PanelBrush` ⇒ 接缝两边一模一样；现按「标题栏→工具条→表头→内容→底栏→状态栏」链**一档一色**依次排布，菜单/版本行/详情面板同链处理；§3 补区域链与撞档规则。详情卡字号改为「节 16 ＞ 标签 14 SemiBold ＞ 值 12」（原「节 14 ＞ 值 14 ＞ 标签 12」会读成没有表头的表）；`Label = "X（说明）"` 一律拆成 `Label` + `Hint`（括号里是说明，跟正文同号就抢层级），`MediaAssets` 3 处 / `Categories` 2 处 / `Tags` 1 处 / `ScriptLibrary` 1 处已拆。
+> v4.19 · 2026-11-04 · **四色分区 + 按钮有面 + 详情卡三级字号** —— 色阶重排、相邻档差拉到 ≥10（暗 `#141414/#1E1E1E/#292929/#383838`，亮 `#FFFFFF/#F1F2F5/#E6E8EC/#D8DBE0`；`DarkInput` 并到 Bg1、`LightInput` 并到 Bg0）；`ghost` / `filter-btn` / `src-btn` 由透明底改为 `PanelBrush` 底 + 1px 描边（`row-btn` 只加描边），`SplitButton.ghost` 同步，`Button#DetailToggle` 在 `ToolbarHost` 内压回透明；树节点 hover `ContentBrush` → `CardHoverBrush`；详情卡分区标题 12 → **14 SemiBold 主色**、卡内字段值 12 → **14**（`ui|DetailCardHost` 作用域，卡外不变）；左树 `Border.tree-scroll-host` 右侧 padding 8 → 0（滚动条贴面板边）。
+> v4.18 · 2026-11-04 · **按钮符号词表 + 全仓文案精简** —— §12.2 新增「按钮符号词表」（20 组语义各一个符号，⛔ 再造同义符号）并列出 15 个已废符号；`src/` 侧统一 22 处 `➕→＋`、10 处 `📁→📂`、10 处 `🔎→🔍` 等，精简 60+ 处过长文案（`🧹 立即清理过期回收站 → 🧹 清理回收站`、`◫ 左右分屏（一屏 2 张）→ ◫ 左右`、`▦ 2 × 2 四格 → ▦ 四格` 等）；⛔ 文案精简不改变任何命令绑定。
+> v4.17 · 2026-11-04 · **切换态按钮文案收短** —— 「显示更多 → 更多」（配 `＋` / `－`）、「展开全部 / 折叠全部 → 展开 / 收起」、「只看前 20 行 → 收起」、「展开全部（N 行）→ 展开（N 行）」，音频布局菜单项去掉括号解释（说明移到 `ToolTip`）；§12.2 新增「切换态按钮 = 符号 + ≤2 汉字」一行，防止 `WrapPanel` / 240px 树栏里折行；批量操作为「↕ 全展开 / ↕ 全收起」。
+> v4.16 · 2026-11-04 · **窗口内部去边框，只留 4 档底色** —— 背景键 15 → 4（`ContentBrush` / `ContentHeaderBrush` / `PanelBrush` / `CardHoverBrush`）+ 2 状态（`CardSelectedBrush` / `LoadingOverlayBrush`）；删除 `DividerBrush`、`StatusBarBrush`、`CodeBlockBrush`、`SubSider*`、`Sider*`、`InputHoverBorderBrush` 共 9 个旧键；色阶拉开档差（暗 `#191919/#202020/#262626/#313131`，亮 `#FFFFFF/#F4F5F7/#EAECEF/#DFE2E7`）；`src/` 内 34 处容器描边 + 23 处单边分隔线 + 列表行线全部清除，仅保留输入框 `InputBorderBrush` 与窗口外框；§3 键表、§3 元素映射、§5 / §6.2 / §7 / §10.7 / §11 / §12.4 同步改写。
+> v4.15 · 2026-11-04 · **字号池收敛为 12 / 14 / 16 三档** —— 11 → 12（66 处）、13 → 14（44 处）、符号级 14 → 12 或 16；左树一级与二级**同字号**（14），改由字重 + 颜色 + 缩进分层（与标签页同级）；例外仅 6 项（版本号 10 / Glyph 10 / 产品名 22 / 欢迎标题 28 / 大字 32 / 阅读正文字号）；§2.3 全表重写，`lint.py` 白名单同步为 `{10,12,14,16,22,28,32}`。
+> v4.14 · 2026-11-04 · **层级 / 强调色落地** —— 左树节 vs 项激活**形状分离**（一级 = 左侧 3px `AccentBrush` 竖条、透明底；二级 = `CardSelectedBrush` 药丸，§3 表 + §2.3 规则 8 补注）；列表页行线统一进 `App.axaml`（§6.2 第 10 条）；强调色改为**全局唯一**：Fluent 控件的圆点 / 勾 / 滑块走 `FluentTheme.Palettes.Accent`（见 `framework.md`），⛔ 不再出现自制键与 Fluent 默认强调色并存。
 > v4.13 · 2026-11-03 · **文案判定从「枚举禁用」升级为「生成式判据 + 载体链」** —— §12.1 加第 4 条判据（值会变=数据 / 描述对象还是界面 / 删掉是否多试一次 / 想写解释=结构报警）、例外由 2 类扩为 **5 类「用户看不见的事」**；§12.2 加「载体优先级链」「删文字必须配平语义出口（`AutomationProperties.Name` / 灰态原因 / 错误行）」「`ToolTip` ⛔ 当唯一说明」「生命周期决定落点」「宽度按英文 1.8× 预留」；§12 抬头给出**可 Lint 的检测口径**（白名单 class + 禁用词）；§12.9 加 3 条自检（常驻说明 0 行 / 遮字测试 / 语义出口配平）。
 > v4.12 · 2026-11-03 · **控件前缀标签清零** —— §12.1 第 1 条由「按钮前 / 旁」扩为「**控件**前 / 旁」（按钮 · 下拉 · 文本框一体），新增「下拉首项已含维度名 ⇒ ⛔ 前缀标签」「文本框用 `PlaceholderText`、设置页 `field-label` 只写名词」；§2.1 第 2 条补筛选条 ⛔ 前缀标签；§12.2 表加「控件前缀标签 = 不许有」。落地删 3 页 6 处（`ShelfView` 分组 / 更新、`SourceListView` 类型 / 分组 / 校验、`AssetAllView` 筛选）。
 > v4.11 · 2026-11-03 · **按钮旁说明文字清零** —— §12.1 由「三条减法」扩为**四条**，新增「按钮前 / 旁 ⛔ 常驻说明文字」硬规则（例外仅破坏性警告与空态）；落地删 7 处（`AboutSettingsView` 重载模块、`DnsView` 测试解析、`UpdateView` 检查更新、`LaunchConfigView` 保存暂存、`HostsView` 底部应用链、`BackupCalendarView` 加待办、`SettingsMediaAssetsView` 用户数据导出），语义改挂 `ToolTip`；§12.9 自检补 1.1。
@@ -26,6 +44,7 @@
 - §10 交互反馈约定（跨模块操作逻辑）
 - §11 设置页骨架（`SettingsSectionHost`）
 - §12 视觉克制与判断清单（该不该加）
+- §13 主显示区骨架（单层分区）
 
 ---
 
@@ -47,27 +66,28 @@
 ## §2 尺寸与密度基线
 
 **主窗口**：`1280×800`，最小 `960×640`，可自由缩放（官方 CSD，见 §4）。
-**全局布局**：标题栏 **32px**（与系统原生标题栏齐平；标签栏并入其中段）、左树 **180px**（折叠 48px）、右详情 **340px**、底部状态栏 **26px**、页面根 `Margin="12"`。
+**全局布局**：标题栏 **32px**（与系统原生标题栏齐平；标签栏并入其中段）、左树 **150px**（折叠 48px）、右详情 **300px**、底部状态栏 **26px**、页面根 `Margin="8"`，主显示区与详情各是一张卡（卡外距 4~6）。
 
 | 元素 | 尺寸 |
 |---|---|
 | 卡片 `Border.card` | 圆角 8px、内边距 **12px** |
 | 按钮 `primary` / `ghost` | 圆角 6px；内边距 **12,6** / **10,5** |
 | 输入框 | 圆角 4px |
-| 标签页项 | 圆角 4px、内边距 8,3；只有标题（无图标）、文字 13px |
+| 标签页项 | 圆角 4px、内边距 8,3；只有标题（无图标）、文字 14px |
 | 标签关闭按钮 | 22×22、**叠在标题上层贴右端（不参与布局宽度）**；默认 `Opacity=0` + `IsHitTestVisible=False`，`Border.tab-item:pointerover` 时显形 |
 | 树节点行高 | **30px**；缩进每级 16px |
 | 工具条 / 筛选条内边距 | `12,6` / `12,4` |
 | 表头行高 / 表格行高 | **32px / 28px**；单元格左右内边距 **8px**（表头与行必须一致） |
-| 详情卡 | 宽 340px、内边距 **12px**；内容 `Margin="12,12,4,12"`（给覆盖式滚动条留位） |
+| 详情卡 | 宽 300px、内边距 **12px**；内容 `Margin="12,12,4,12"`（给覆盖式滚动条留位） |
 | 标题栏按钮 | **40×40**；图标 = 16px `Path`；窗口控制按钮 46×40 |
 | 底栏 `ListFooterBar` | 高 **28px** |
 
 ### 2.1 两种基准宽度下的可用宽度（🔴 排版前先按这张表算）
 
-> 固定件：左树 180（折叠 48）、右详情 340、页面根 `Margin="12"`、`Border.toolbar` 内边距 `12,6`、`Border.filter-bar` 内边距 `12,4`。
-> 🔴 左树**两块 padding 互不继承**（v3.69）：滚动区 `Border Padding="8,8"`（要给滚动条让位）、底部版本行 `Border.tree-version Padding="4,0"`（折叠态 `12,0`，让齿轮居中）。改一处⛔ 别指望另一处跟着变。
-> 🔴 左树滚动条走廊（v3.70 / 2026-10-18）：`ScrollViewer Padding="0,0,8,0"` —— Fluent 滚动条是**自动隐藏浮层**、不占布局列，走廊一没就压在树行按钮上（激活药丸被竖线穿过）。⛔ 别把右侧 padding 清成 0。
+> 固定件：左树 150（折叠 48）、右详情 300、**卡外距 4（两卡之间 6）**、页面根 `Margin="8"`、`Border.toolbar` 内边距 `12,6`、`Border.filter-bar` 内边距 `12,4`。
+> 🔴 左树**两块 padding 互不继承**（v3.69）：滚动区 `Border.tree-scroll-host Padding="8,8,0,8"`（左 / 上下留白，**右侧 0**）、底部版本行 `Border.tree-version Padding="4,0"`（折叠态 `12,0`，让齿轮居中）。改一处⛔ 别指望另一处跟着变。
+> 🔴 左树滚动条走廊（v3.70 / 2026-10-18）：走廊**只由** `ScrollViewer.tree-scroll Padding="0,0,8,0"` 给 —— Fluent 滚动条是**自动隐藏浮层**、不占布局列，走廊一没就压在树行按钮上（激活药丸被竖线穿过）。⛔ 别把 ScrollViewer 右侧 padding 清成 0。
+> ⚠️ 但**外框**右侧必须是 0：外框再留 8 + ScrollViewer 走廊 8 ⇒ 滑块缩在离面板边 16px 处，旁边挂一条空缝（用户实测「滚动条离边框有缝隙」）。
 > ⇒ **列表列 = 窗口宽 − 左树 − 详情 − 24**；**工具条 / 筛选条可用宽 = 列表列 − 24**。
 
 | 基准 | 窗口 | 列表列（详情展开） | 工具条 / 筛选条可用宽 |
@@ -89,29 +109,29 @@
 - 在用类名：`Button.title-btn`、`Border.tab-item`/`.active`、`Button.tab-btn`、`Button.tab-close`、`Button.tree-row`/`.active`/`.sub`、`Border.tree-panel.collapsed`、`Border.tree-version`、`Button.win-btn`/`.close`、`Border.status-bar` + `TextBlock.status-bar-text`、`Button.primary`/`.ghost`/`.fav-btn`、`Border.card`、`Button.col-header`、`Border.list-header`、`TextBlock.list-cell`、`ListBox.list-page`、`Button.detail-toggle`、`TextBlock.hint-text`、`Button.icon-btn`(+`.active`/`.icon-danger`)、`Border.icon-sep`、`Button.section-toggle`、`Button.chip-toggle`(+`.selected`/`.swatch`)、`Button.list-row`(+`.link`)、`Button.ghost`、`Button.danger-btn`、`Button.src-btn`(+`.selected`)。
 - ⚠️ 已废弃：`Button.nav-btn`、`TreeView.tree-nav`（左树改 `ItemsControl` + `Button.tree-row` 自绘）、`io-bar` / `io-btn`（工具条统一后无引用）。
 
-### 2.3 文字角色表（🔴 **唯一源**：所有文字只许落这 7 个角色）
+### 2.3 文字角色表（🔴 **唯一源**：所有文字只许落这 6 个角色）
 
 | 角色 | 字号 · 字重 · 颜色 | 用在哪 | 每屏上限 |
 |---|---|---|---|
-| `display` | 16 SemiBold 主色 | 页面大标题（首页「常用功能」「一键操作」） | 1 |
-| `title` | **13 SemiBold 主色** | 区块标题（`.section-title` / `.sec-title`）、页内小标题、对话框标题、节抬头 | 3 |
-| `body` | 13 Regular 主色 | 标签页项、空态说明、按钮主文案 | — |
-| `cell` | 12 Regular 主色 | 列表单元格（`.list-cell`）、详情卡字段值、工具条 / 筛选条文字 | — |
-| `label` | 11 Regular 次要 | 字段标签（`.field-label`）、小按钮、徽章、状态栏、计数与元信息 | — |
-| `mono` | 12 等宽主色 | 路径、命令、数字列 | — |
-| `icon` | 14 / 16 / 18（按位置定） | `Path` / 符号图标，⛔ 与文字字号池混用 | — |
+| `display` | **16 SemiBold 主色** | 页面大标题（首页「常用功能」「一键操作」） | 1 |
+| `title` | **14 SemiBold 主色** | 区块标题（`.section-title` / `.sec-title`）、页内小标题、对话框标题、节抬头 | 3 |
+| `body` | **14 Regular 主色** | 标签页项、按钮主文案、空态说明、树一级 / 二级 | — |
+| `cell` | **12 Regular** | 列表单元格（`.list-cell`）、详情卡字段值、工具条 / 筛选条文字 | — |
+| `label` | **12 Regular 次要色** | 字段标签、辅助说明（`hint-text`）、徽章、状态栏、分页控件、计数与元信息 | — |
+| `mono` | **12 等宽** | 路径、命令、数字列 | — |
+| `icon` | **16** | `Path` / 符号图标，⛔ 与文字字号池混用 | — |
 
 **硬规则**
 
-1. **区块标题只有一种表现 = 13 SemiBold 主色**。全局 `.section-title` 已由 12 升到 13（2026-11-03）；⛔ 页面里再手写 `FontSize="14"` 当标题（存量 14 已全部归一）。
-2. 🔴 **1px 字号差不构成层级**：14 vs 13、13 vs 12 在 100% DPI 下几乎不可辨，两边又都是 SemiBold 时完全失效。层级优先级 = **容器边界 → 留白 → 字重 → 字号（且字号差必须 ≥2px）**。
-3. **窄栏降一档**：详情卡（340px）内分区标题用 **12 SemiBold**（`DetailCardHost.axaml` 唯一覆盖，已注释），使详情卡最重的一层（12）明确轻于标签页（13）。
-4. **下限 11**，只给 `label`（短、不承载操作）；⛔ 10 及以下（中文笔画糊 + 125% DPI 亚像素）。
-5. **12 是 DPI 安全基准**：12×1.25 = 15、12×1.5 = 18 都是整数像素；11 → 13.75、13 → 16.25、14 → 17.5 全落小数 ⇒ 非 100% 缩放下 11/13/14 有轻微亚像素模糊，**大面积正文优先 12**。
+1. **字号池只有 12 / 14 / 16 三档**（+ `display` 复用 16）：11 已全量并入 12、13 并入 14、14（符号级）并入 12 或 16。⛔ 再出现 11 / 13 / 15。
+2. 🔴 **1px 字号差不构成层级**：层级优先级 = **容器边界 → 留白 → 字重 → 字号（差值必须 ≥2px）**。12 / 14 / 16 相邻差正好 2px，是这套池子的前提。
+3. **详情卡三级按字号分：节 ＞ 标签 ＞ 值**（🔴 标签是「小标题」，必须**比它下面那行值大**）：分区标题 **16 SemiBold 主色**（`DetailCardHost.axaml`）＞ 字段标签 **14 SemiBold 次要色**（`ui|DetailCardHost TextBlock.field-label`）＞ 字段值 **12 Regular 主色**（卡外仍是 12）＞ 说明 / 提示 **12 次要色**（`hint-text`，靠颜色弱化）。三档正好吃掉 16 / 14 / 12；⛔ 反过来（值大标签小）会读成一张糊掉的表。
+4. **下限 12**：⛔ 11 及以下（中文笔画糊 + 非整数 DPI 亚像素）；唯一例外见规则 7。
+5. **DPI 安全**：12×1.25 = 15、16×1.25 = 20、16×1.5 = 24 为整数；14×1.25 = 17.5 有轻微亚像素 —— 故 `label` / `cell` 用 12，大面积正文才用 14。
 6. 每屏 `SemiBold` **≤3 处** —— 加粗用滥即失去区分力。
-7. **例外白名单**（不参与上表）：分页箭头 `14`（符号，靠 `Padding` 光学居中）、阅读正文 `15`（用户可调）、**首页一键按钮卡标题 `15` + 卡内图标 `26`**（彩色大卡片，与主题无关）、首页大标题 `22/26/28/32`。
-8. **左树 = 导航，不是内容**：一级（模块组）＝ `title` **13 SemiBold 主色 + 16 图标**；二级（功能页）＝ **12 Regular 次要色 + 缩进 16**。⛔ 一级再放大（用过 15 ⇒ 成了全应用最重文字，比标签页还抢）。功能页少的模块靠**缩进 + 字重 + 次要色**分清层级，⛔ 靠字号。
-9. 🔴 **Lint 已拦**：`lint.py --only props` 逐个核对 `.axaml` 的 `FontSize` 值，白名单外 / `≤10` 直接报出（已进 `accept.ps1`）。要新增字号，先改本节并说明现有四档为什么不够，⛔ 页面里就地挑一个顺眼的值。
+7. **例外白名单**（不参与上表，逐处登记）：左下角版本号 `10`、功能清单 `Glyph` 图标 `10`、关于页产品名 `22`、首页欢迎标题 `28`、书封 / 播放器大字 `32`、阅读正文（用户可调，`ViewerHost.ApplyTextOptions` 下发，宿主的 `15` 只是默认值）。
+8. **左树 = 导航，不是内容**：一级（模块组）＝ `body` **14 SemiBold 主色 + 16 图标**；二级（功能页）＝ **14 Regular 次要色 + 缩进 16**。两级**同字号**，靠字重 + 颜色 + 缩进分层（与标签页同级）；⛔ 靠字号差分层。**激活态按形状再分一层**：一级 = 左侧 3px 强调竖条（透明底），二级 = 铺底药丸 —— 只靠字重差，两行同时激活时仍然分不出节与项（见 §3 表）。
+9. 🔴 **Lint 已拦**：`lint.py --only props` 逐个核对 `.axaml` 的 `FontSize` 值，白名单 `{10,12,14,16,22,28,32}` 之外直接报出（已进 `accept.ps1`）。要新增字号，先改本节并说明现有三档为什么不够，⛔ 页面里就地挑一个顺眼的值。
 
 ---
 
@@ -119,27 +139,65 @@
 
 > 🔴 **不在文档里写死数量**（历史踩过 31/32/34 三个数字并存）：实际条数 = 跑 `python skill/scripts/lint.py`，首行 `[主题键] 白名单 N 个 *Brush 键` 即权威值。
 
-- 一律 `*Brush` 语义键：`ContentBrush`/`PanelBrush`/`SubSiderBrush`/`SiderBrush`/`PrimaryTextBrush`/`SecondaryTextBrush`/**`PlaceholderTextBrush`**（输入框水印）/`AccentBrush`/`AccentHoverBrush`/`DangerBrush`/`DividerBrush`/`InputBorderBrush`/`CardHoverBrush`/`CardSelectedBrush`/`WindowBorderBrush`/`WindowBorderInactiveBrush` …（**完整清单以源码为准**）。
+- 一律 `*Brush` 语义键。**背景 2 档色阶**（⛔ 没有区域边框键、⛔ 没有分隔线键）：暗 `#161616`（卡外平铺底）/ `#1E1E1E`（卡内卡片面），亮 `#ECEDEF` / `#FFFFFF`，卡内外差 8。🔴 **窗口里只有两张卡**：**主显示区**（内容列整块，含工具条）+ **右侧详情列**；卡内所有面（工具条 · 表头 · 行区 · 底栏 · 内容 · 详情）**共用同一个档位**，靠间距和 1px 表头线分区，⛔ 卡内再套卡；
+- 🔴 **区域颜色 = 一张编号表**（不是每键各挑一档）：唯一事实源 = `App.Theme.cs` 的 `RegionLayers`（区域键 → 1~2 档）+ `RegionAdjacency`（哪两块直接相接）。**卡内同档是设计意图**（一张卡内部不该有色阶），卡外只保留四对同面走白名单；加档 / 给卡内造色差都要先过这一关。
+
+  | 区域 | 键 | 档 |
+  |---|---|---|
+  | 窗口根（卡四周留白露出的底） | `WindowBackdropBrush` | 1（卡外） |
+  | 标题栏 | `TitleBarBrush` | 1（卡外） |
+  | 左侧菜单 | `SiderBrush` | 1（卡外） |
+  | 菜单底部版本行 | `SiderFootBrush` | 1（卡外） |
+  | 状态栏 | `StatusBarBrush` | 1（卡外） |
+  | 工具条 | `ToolbarBrush` | 2（卡内） |
+  | 列表表头 | `ListHeaderBrush` | 2（卡内） |
+  | 列表行区（铺满的那块面） | `ListBodyBrush` | 2（卡内） |
+  | 主显示区（**有 / 无**工具条） | `ContentBrush` / `ContentBareBrush` | 2（卡内） |
+  | 列表底栏（分页条） | `FooterBarBrush` | 2（卡内） |
+  | 右侧详情列 / 页内详情卡 | `DetailCardBrush` | 2（卡内） |
+  | 按钮面 / 浮层底 / 抬头条（非区域） | `PanelBrush` / `ContentHeaderBrush` | 控件层（`Bg2`，不参与区域分档） |
+
+  🔴 **2 档就够，⛔ 不要加回第 3 档**（`lint.py --only regionpages` 的着色结论：相邻图最少需要 2 档）。分配逻辑 =「卡内 / 卡外」二分：卡内所有面共用一个档（`lint.py` 的 `CARD_LAYER` 整体跳过卡内相邻对），卡外 chrome 共用一个档；卡外还剩四对同面（标题栏⇄侧栏、标题栏⇄无工具条内容底、侧栏⇄版本行、版本行⇄状态栏）走 `SAME_LAYER_OK`。**再加一档等于重新回到「拼贴色块」**。
+  🔴 **主次靠「唯一凸起的面 + 留白」，不靠色阶**（2026-11-04 实测定案；前两版用 3~4 档划分区域，两轮都被否）：窗口里只要有两块凸起的卡、其余全平，视线自然落在内容上 —— 用色差去抢焦点反而会让侧栏 / 工具条变成色块。⚠ 深色卡内外差 8、浅色 18（`MIN_DELTA_DARK` 6 / `MIN_DELTA_LIGHT` 8 保底）。
+
+  **档位取序号而非色值**：1 档 = 卡外平铺底，2 档 = 卡内卡片面。改观感只改 `RegionLayers` 的序号，⛔ 不要新增色值。
+- ✅ **相邻色差有脚本兜底（两级）**：
+  - **键级** `lint.py --only regions`（R-02 档位越界 / R-04 相邻同档 / R-05 键漏登记相邻对）—— **卡内相邻对由 `CARD_LAYER` 整体跳过**，卡外只剩 4 对同面走 `SAME_LAYER_OK`；
+  - **页面级** `lint.py --only regionpages`（R-10 两档真实灰度差不足 / R-11 Fluent 皮肤下差不足 / R-12 页面出现未登记的接缝 / R-13 行区⇄详情列没登记）—— 逐页还原「标题栏 → 工具条 → 表头 → 行区 → 底栏 → 状态栏」区域链，按 NewToys 色值与 Fluent 明度阶梯两种口径算灰度（下限 10），并给相邻图着色、回答「4 档够不够」。
+  - 两者都接进 `accept.ps1`。新增/挪动区域 = 同时改 `RegionLayers` 与 `RegionAdjacency`，漏改会被拦；⚠️ **档位不同 ≠ 看着不同**（Fluent 皮肤的系统刷子挤在同一灰度，就是靠页面级这一项抓出来的）—— 所以 Fluent 皮肤不直接用系统刷子，改为按底色 5% / 10% / 15% 向白（暗）或向黑（亮）自建三档。
+  状态：`CardSelectedBrush`（选中）/`LoadingOverlayBrush`（遮罩）/`SiderHoverBrush`（侧栏悬停，按侧栏底算）/`AccentBrush`（**只做填充**）/`AccentInkBrush`（**强调色文字 / 图标**）/`AccentHoverBrush`/`DangerBrush`；
+  文字：`PrimaryTextBrush`/`SecondaryTextBrush`/**`PlaceholderTextBrush`**（输入框水印）；
+  线：`InputBorderBrush`（输入框 / 控件轮廓）、**`HairlineBrush`**（表头下沿 1px，卡内唯一的分隔线）、`ScrollThumbBrush`、`ScrollThumbHoverBrush`、`WindowBorderBrush`、`WindowBorderInactiveBrush`、`TitleBarCloseHoverBrush`（**完整清单以源码为准**）。
 - ✅ **白名单免维护**：`lint.py` 动态扫描（`x:Key="*Brush"` + 代码里 `S("*Brush")` 调用），在 `ApplyTheme()` 补了色值就算入白名单，⛔ 不需要改脚本。
 - 明暗两套**必须同时补齐**；引用不存在键**编译不报错、运行期才失败**。
 - ⛔ 新增键前先想「能不能复用现有键」；确实要加，两套同时补齐 + 写进本表。
 - ⛔ `MergedDictionaries.Clear()`。
 
+**皮肤 = 同一批键的两套取值**：`IThemeService.Skin` = `NewToys`（自有色阶）｜`Fluent`（把键指到 Avalonia Fluent 自带资源）。
+两套给的是**同一批语义键**，所以布局 / 密度 / 尺寸完全不变，差异只来自配色与圆角 —— 这是能直接对比观感的前提。
+
+- 色值**唯一来源** = `App.Theme.cs` 顶部常量：中性色阶 `Dark/Light Bg0~Bg3` + `Ink0~2` + `Danger` + 品牌红。⛔ 其它文件不出现 `#RRGGBB`。
+- 圆角三档 = `RadiusCard` / `RadiusControl` / `RadiusSmall`（资源键，随皮肤变；`Fluent` 派生自 `ControlCornerRadius`）。⛔ `Controls.axaml` 不写数字圆角。
+- 压在彩色块（首页一键按钮）上的次要文字 = `OnColorSecondaryTextBrush`。
+- 新增皮肤 = 在 `App.Theme.cs` 加一个 `FillXxx()`，产出的键必须覆盖上面全套；⛔ 不为皮肤在页面里分叉 XAML。
+
 **元素 → 键映射**：
 
 | 元素 | 键 |
 |---|---|
-| 标题栏 / 标签栏背景 | `ContentBrush`（底部 1px `DividerBrush`） |
+| 标题栏 / 标签栏背景 | `TitleBarBrush`（比工具条暗一档，⛔ 不画底部边线） |
 | 输入框水印（`PlaceholderText` 与只读假水印） | `PlaceholderTextBrush` |
 | 标题栏按钮 | 文字 / 图标 `PrimaryTextBrush`；hover 底 `CardHoverBrush`；关闭 hover `TitleBarCloseHoverBrush` |
 | 标签项（普通 / 激活） | 文字 `SecondaryTextBrush` / 背景 `CardSelectedBrush` + 文字 `PrimaryTextBrush` + 下方 2px `AccentBrush` 指示条 |
 | 树一级行 | 文字 `PrimaryTextBrush` + 加粗；图标 `SecondaryTextBrush` |
-| 树一级行（激活 / 折叠） | 行内 `Path` Stroke = `AccentBrush`（`Button.tree-row.active Path`） |
+| 树一级行（激活 / 折叠） | 行内 `Path` Stroke = `AccentInkBrush`；激活 = **左侧 3px `AccentBrush` 竖条**（透明底，`Button.tree-row.active`） |
 | 树二级行 | 文字 `SecondaryTextBrush`、缩进 16px |
-| 树节点（激活 / hover） | `CardSelectedBrush` + `AccentBrush` / `ContentBrush` |
-| 右详情面板背景 | `PanelBrush`，与内容区之间 `DividerBrush` 1px 竖线 |
+| 树二级行（激活） | `CardSelectedBrush` 铺底药丸（**无**竖条，`Button.tree-row.sub.active`）—— 与一级的「竖条 vs 药丸」形状差是节 / 项的唯一可靠区分，⛔ 别让两级都用铺底 |
+| 树节点（hover） | `CardHoverBrush`（在 `PanelBrush` 上差一档；⛔ 不用 `ContentBrush` —— 那比面板更暗，暗色主题下像"压下去"） |
+| 右详情面板背景 | `PanelBrush`，与内容区靠色阶差（⛔ 不画竖线） |
 | 窗口外框 | 激活 `WindowBorderBrush` ｜失焦 `WindowBorderInactiveBrush`；厚度 1px，最大化收掉；选择器 `Border.window-frame`（+ `.maximized` / `.inactive`），⛔ XAML 不写本地值 |
-| 输入框边框 | `InputBorderBrush`（`DividerBrush` 在暗色下看不出框） |
+| 输入框边框 | `InputBorderBrush`（窗口内部**唯一**保留的描边：输入框无色差可用，框必须画） |
+| **按钮本体**（`ghost` / `filter-btn` / `src-btn` / `row-btn`） | 常态底 `PanelBrush` + 1px `InputBorderBrush`；hover `CardHoverBrush`；按下 `CardSelectedBrush`。🔴 **透明底按钮一律废除** —— 一排 12px 文字排在一起，分不出哪个能点。行内按钮（`row-btn`）只给描边不铺底（铺底会和行 hover 打架） |
 | **滚动条滑块**（v3.80） | 常态 `ScrollThumbBrush`（暗 `#4A4A4A` / 亮 `#C6CAD0`）；悬停 `ScrollThumbHoverBrush` = 强调色 |
 
 - ⚠️ 标题栏底色跟随主题（`ContentBrush`）⇒ 文字必须用 `PrimaryTextBrush` 等主题色，⛔ 不要再用 `Sider*` 系（那是深色侧栏专用）。若以后改回深色标题栏，**底色与文字配色要成套同步改**。
@@ -248,6 +306,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 7. 列显隐：元数据 `Shared/Models/ListColumn`、服务 `IColumnLayoutService`（落 `config/columnlayout.json`）。隐藏列用宽度 0（不删列保一致）。
 8. 🔴 **跨页投递的数据在 `OnAttachedToVisualTree` 取**（不是 `OnDataContextChanged`）：标签页已存在时切回来只重新挂可视树，`DataContext` 不变 ⇒ 后者不触发，症状是"送过去的文件要刷新页面才出现"。⚠️ 必须写 `protected override`（基类 protected，写 public 报 CS0507）。
 9. 🔴 **任何"批量加条目"之后必须清筛选**（清 `SearchText` / 分类归"全部" / 清表头筛选 / 选中第一条新增）—— `script-library` 导入"没反应"的真因就是没清。
+10. 🔴 **列表行不画分隔线**（2026-11-04 起）：行间靠 28px 行高 + hover 底色（`CardHoverBrush`）区分，⛔ 给 `ListBoxItem` 加 1px 底边 —— 区域边界一律用底色差表达（§12.4）。
 
 ### 6.3 列宽三态 + 手动拖拽
 
@@ -306,7 +365,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 页码按钮 `Padding=(0,3,0,0)`、箭头 `Padding="0,0,0,4"` = **光学居中**（数字无降部偏上 ~2px、箭头偏下 ~2px）。
 - 页大小下拉 `Width=78`（64 会切掉「全部」的「部」字）。
 - 28px 底栏内的 `TextBox` / `ComboBox` 必须显式 `MinWidth=0 MinHeight=0`（隐式样式 `MinHeight=28` 会压掉 `Height=22`，控件撑满整条并把顶边线压断）。
-- 输入框边框用 `InputBorderBrush`（`DividerBrush` 在暗色下看不出框）。
+- 输入框边框用 `InputBorderBrush`（窗口内部唯一保留的描边，见 §12.4）。
 - 🔴 **页大小下拉的 `ItemsSource` 必须是恒定实例**（内部一个 `ObservableCollection` 就地增删改）。⛔ 运行时整体换 `ItemsSource`：下拉展开、用户点选的那一瞬集合被换 ⇒ Avalonia 用旧索引取新集合 ⇒ `ArgumentOutOfRangeException`（`ItemsSourceView.GetAt` ← `ListBoxItem.OnPointerReleased`），在输入事件栈里无法 catch，**整个进程直接退出**（2026-10-19 软件包页选「50」闪退实锤）。
 - 🔴 **「当前值不在候选项就补进下拉」这条兜底会诱发上一条**：页大小落盘是全局一份，各页预设不同（软件包 20/50/100/全部）。VM 侧必须在构造期把读到/默认的页大小**收成本页预设的第一档**（`ListPageViewModelBase.SnapPageSizeToChoices`），⛔ 不要靠底栏去"补一个非预设值"。
 
@@ -353,10 +412,11 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - `DetailSectionRender.CreateRow` 是 **Kind → 行对象**的**唯一分派点**；加新 Kind = 加一个 `case` + 一个 `DataTemplate`。
 - 刷新契约：渲染器**订阅源 VM 一次**（`PropertyChanged`）→ 任一属性变化整体重解析。⛔ 动作级改动（落盘 / 加标签 / 删除）由**页面 VM 自己回刷**，描述符不参与。
 - 提交语义：`Instant` / `Explicit` → 值写回绑 `PropertyChanged`（`Explicit` 写的是 VM 的**编辑态草稿**，落盘由工具条「💾 保存修改」负责）；`OnBlur` → 模板挂 `LostFocus="OnTextLostFocus"` → `TextFieldRow.Commit()`。
-- 外壳（340px 容器 / 覆盖式滚动条留位 / 空态 / 分区与字段间距）**只实现一次**（`DetailCardHost.axaml`）。
-- 🔴 **字号两级 + 字重区分**（2026-11-03 起，见 §2.3 规则 3「窄栏降一档」）：分区标题 **12 SemiBold 主色**（`Button.section-toggle` / `SelectableTextBlock.section-title`）＞ 字段值 **12 主色**（`.field-value`）＞ 字段标签 / 提示 **11 次要色**（`.field-label` / `.hint-text`）。
-  - 分区标题与字段值**同号**，靠 **SemiBold + 上间距 10** 分层，⛔ 靠字号分层（13 vs 12 只差 1px，肉眼不可辨，反而让详情卡在 340px 窄栏里显得比标签页还重）。
-- 树状感靠**左侧 1px 引导线 + 内容缩进 15**（`DividerBrush` @0.7，仅 `HasHeader` 的节才画）；⛔ 不靠加框分层（340px 装不下）。
+- 外壳（300px 容器 / 覆盖式滚动条留位 / 空态 / 分区与字段间距）**只实现一次**（`DetailCardHost.axaml`）。
+- 🔴 **详情卡三级：节 16 SemiBold 主色 ＞ 标签 14 SemiBold 次要色 ＞ 值 12 主色**（见 §2.3 规则 3）：分区标题（`Button.section-toggle` / `SelectableTextBlock.section-title`）与字段标签差 2px、标签与值差 2px。
+  - 层级顺序固定为「节 ＞ 标签 ＞ 值」：标签是这一段的小标题，⛔ 不要把值调得比标签大（那会让整张卡读成一张没有表头的表）。
+  - 分区标题走 16（`display` 档）—— 300px 窄栏里 14 与标签同号时，「换了一节」和「换了一个字段」看起来一样。
+- 树状感靠**内容缩进 15 + 字重**；⛔ 不画左侧引导线、⛔ 不靠加框分层（300px 装不下）。
 - ⛔ 不给 `DetailCardHost` 设 `DataContext`。
 
 ### 7.2 描述符关键口径
@@ -442,7 +502,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 字号 | 12 |
 | 按钮内边距 / 最小高 / 圆角 | `10,5` / 28 / 6 |
 | 输入框·下拉框内边距 | `8,4`（最小高 28、垂直居中，与按钮基线齐） |
-| 工具条容器 | `Border.toolbar` = `Padding 12,6` + 底部 1px `DividerBrush` |
+| 工具条容器 | `Border.toolbar` = `Padding 12,6` + 底色 `ToolbarBrush`（与标题栏、表头都不同档；⛔ 无底边线） |
 | 输入框 / 搜索框宽度 | **`88`（铁律）** |
 | 下拉框宽度 | 按内容（预设 220 / DNS 200），⛔ 不硬套 88 |
 | 详情节流按钮 | `Width/MinWidth 20`、`Padding 0`、`Margin 0,-2,-6,0`（贴右上角） |
@@ -450,6 +510,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 尺寸由 `ToolbarHost.axaml` 的 `<UserControl.Styles>` **一处给**（`Button` / `SplitButton` / `CheckBox` / `TextBox` / `ComboBox` 五条无类名选择器）；控件内样式优先级高于 App 级 ⇒ `primary` 的 12,6、`danger-btn` / `src-btn` 的 11 + 10,4 **全被压成同一档**。
 - ⇒ 描述符 `Classes` **只表达配色**；⛔ 别用 `io-btn`（已删）/ ⛔ 别靠换类改大小。
 - 🔴 **配色只剩两个在用变体**：`ghost`（默认，**也是主按钮**）/ `danger-btn`（红，只给会丢数据的动作）；`src-btn` + `selected` 只给 `ChipGroup` 高亮。⛔ 工具条不用 `primary`（实心绿只留给详情卡动作与对话框），⛔ 不用 `primary-outline`。
+- 🔴 **`ghost` 是「有面的按钮」**：常态 `PanelBrush` 底 + 1px `InputBorderBrush`，悬停 `CardHoverBrush`，按下 `CardSelectedBrush`。工具条整排按钮因此都能一眼认出是控件（旧口径 `Background=Transparent` 已废）。唯二例外：`ToolbarHost` 右上角的详情节流按钮（18px 浮层条，`Button#DetailToggle` 在控件内样式里压回透明 + 无描边）与图标类按钮（`icon-btn` / `detail-toggle`，靠图标识别）。
 - 🔴 **水印色 = `PlaceholderTextBrush`**（比 `SecondaryTextBrush` 再淡一档），由 `Controls.axaml` 的 `TextBox` 隐式样式统一设 `PlaceholderForeground`；⛔ 别在页面里单设。
 - 🔴 **输入框 / 搜索框宽度统一 `Width = 88`**；下拉框不受此限。
 - 🔴 **工具条里⛔ 不放任何说明 / 计数文字**：`Label` 项仍在描述符里但**已无页面使用**；含义写进按钮 `ToolTip`。
@@ -588,7 +649,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 - 全局唯一呈现器 = `Shell/Controls/DialogCardHost`（遮罩 + 居中卡片，挂在 `ShellView` 最外层 Grid 顶层）。**所有页面共用**：模块的 `DialogHooks.ConfirmAsync` / `InputAsync`、详情卡动作确认（`DetailCardHooks` 转接）、`DataView` 导入确认、启动检查更新提示，全部落到这一层。
 - ⛔ 页面 / 模块**不得自造弹窗**（`new Window` + `ShowDialog` 已全清）：系统窗口标题栏是系统装饰，明暗主题下与主窗口割裂。
-- 卡片配色**只许 DynamicResource 引主题键**：底 `PanelBrush` / 描边 `DividerBrush` / 圆角 8（同 `Border.card`）/ 投影 `#66000000`；标题行 = 强调色圆底白符号（三角=确认 / i=提示 / 铅笔=输入）；按钮沿用全局 `primary` / `ghost`；遮罩 = `LoadingOverlayBrush`。明暗切换自动跟随。
+- 卡片配色**只许 DynamicResource 引主题键**：底 `PanelBrush` / 圆角 8（同 `Border.card`）/ 投影 `#66000000`（⛔ 无描边，靠底色 + 投影浮起）；标题行 = 强调色圆底白符号（三角=确认 / i=提示 / 铅笔=输入）；按钮沿用全局 `primary` / `ghost`；遮罩 = `LoadingOverlayBrush`。明暗切换自动跟随。
 - 交互口径：点遮罩 / `Esc` = 取消；`Enter` = 确定（输入框内回车 = 确定）；消息区超 320 高才出滚动条。
 - 钩子未接上（主窗口未构造）时一律按「用户取消」（Confirm=false / Input=null / Notify 静默），⛔ 不抛。
 - 卡片宽 460；`DialogCardHost` 未展示时整层 `IsVisible=False` ⇒ 不吃命中测试，缩放热区 / 标题栏按钮照常。
@@ -607,9 +668,9 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 骨架 | `SettingsSectionHost`：节卡片渲染 + 折叠（只点不改滚）+ 磁吸抬头 + Push + 全部收起 + 节内工具条 + 滚动定位 | UI 库（一份） |
 | 节内工具条 | `ToolbarTemplate` 插槽（DataContext = 节 VM） | Shell 传 `ToolbarHost`；模块页不给 = 无工具条 |
 
-- 节抬头 = `⌄/› + 图标(14) + 标题(13 SemiBold) + 说明(12 次要色，右对齐)`，底色 `ContentHeaderBrush`、圆角 8；
+- 节抬头 = `⌄/› + 图标(16) + 标题(14 SemiBold) + 说明(12 次要色，右对齐)`，底色 `ContentHeaderBrush`、圆角 8；
 - 卡片 = `Border.card`（`PanelBrush` / 圆角 8）+ `Padding="0"` + `Margin="0,0,0,10"`；
-- 正文 = `Margin="14,10,14,12"`；展开时抬头与正文之间 1px `DividerBrush` 分隔线；
+- 正文 = `Margin="14,10,14,12"`；展开时抬头与正文之间靠间距分开，⛔ 不画 1px 分隔线；
 - 页根 = `Panel(ContentBrush)` + `ClipToBounds`（⛔ 不透明背景，防切页透出旧页）；滚动内容 `Margin 12`，**铺满**（⛔ 不再 `MaxWidth=760`）。
 
 ### 11.2 两种用法
@@ -698,11 +759,31 @@ private void Add(string title, string icon, string desc, string key)
 | 按钮 | ≤4 汉字（+ 图标） | 动词开头：`🔄 重扫脚本目录`、`📤 导出` |
 | 控件前缀标签 | **不许有** | 语义交给控件内部：下拉首项 / `PlaceholderText` / `ToolTip`（例外 = 设置页 `field-label` 写名词） |
 | 菜单项 | ≤6 汉字 | 动作 + 对象，⛔ 只写动作（`刷新`→`重扫目录`） |
+| 切换态按钮（展开 / 收起 / 更多） | **符号 + ≤2 汉字**（批量「全」字操作 ≤3） | `＋ 更多` / `－ 收起` / `↕ 展开` / `⌄ 展开（N 行）`；⛔「显示更多」「展开全部」「只看前 20 行」—— 长文案在 `WrapPanel` / 240px 树栏里必折行，补充信息进 `ToolTip` |
 | ToolTip | 一句 ≤20 字 | 只补「为什么灰 / 会发生什么」，⛔ 复述按钮名 |
 | 节 / 区块副标题 | **不许有** | 节标题已界定范围；要交代前提就进 `ToolTip` |
 | 空态说明 | ≤2 句 | 为什么空 + 下一步 |
 | 即时反馈（toast / 状态栏） | ≤1 句 | 限时消失，⛔ 同一句同时常驻在页面里 |
 | 状态栏 | ≤1 句 | 三态见 §10.4 |
+
+**按钮符号词表（唯一一套，⛔ 再造同义符号；语义重复的旧符号一律迁移）**：
+
+| 语义 | 符号 | 语义 | 符号 |
+|---|---|---|---|
+| 新建 / 添加 / 加入 | `＋` | 打开 / 目录 / 选择 | `📂` |
+| 删除 / 移除 | `🗑` | 导入 / 导出 | `📥` / `📤` |
+| 保存 | `💾` | 复制 | `📋` |
+| 编辑 / 改名 | `✏` | 运行 / 播放 / 继续 | `▶` |
+| 刷新 / 重读 / 重扫 | `🔄` | 停止 / 取消执行 | `⏹`（暂停 `⏸`） |
+| 搜索 / 扫描 | `🔍` | 上移 / 下移 | `⌃` / `⌄` |
+| 校验 / 检测 | `🔬` | 撤销 / 还原 / 重置 | `↺`（默认值）、`↩`（还原数据） |
+| 关闭 / 退出 / 取消 | `✕` | 下载 / 升级 | `⬇` / `⬆` |
+| 收藏 | `★` | 打开外链 / 网站 | `🌐` |
+| 完成 / 采用 | `✅` | 锁定 / 解锁 | `🔒` / `🔓` |
+
+- ⛔ **已废符号谁都不许再用**：`➕ ➖ ✖ 🔎 ⟳ ♻ 🔃 ⧉ ⤫ 🆕 ✎ 📁 🗄 💿 ✔`、`⛔`（曾当删除用）、`⬆⬇`（曾当上移 / 下移用，与升级冲突）。
+- 一个动作只对应一个符号；⛔ 同页出现两个同义不同号的按钮。
+- 符号后接 **一个半角空格** 再写文字（`▶ 运行`），⛔ `▶运行`。
 
 - 🔴 **载体优先级链（唯一合法落点，自上而下取第一个能用的）**：控件自述（按钮动词 / 下拉首项 / `PlaceholderText` / 合适的默认值）→ `ToolTip` → 空态（`hint-text` / `empty-hint`）→ 状态栏 / toast（限时）→ **常驻文字**（最后手段，等价于承认结构有问题）。
   - ⛔ 把旁注直接删掉却不给落点 —— 用户会卡住；⛔ 删完又原样加回来（= 那本来就不是冗余，而是位置错了）。
@@ -716,14 +797,14 @@ private void Add(string title, string icon, string desc, string key)
 
 ### 12.3 字号与层级
 
-- 🔴 **字号表唯一源 = §2.3 文字角色表**（7 个角色、四档字号 11/12/13/16）。本节只说判断，⛔ 不另立数值。
+- 🔴 **字号表唯一源 = §2.3 文字角色表**（6 个角色、三档字号 12/14/16）。本节只说判断，⛔ 不另立数值。
 - **层级优先级 = 容器边界 → 留白 → 字重 → 字号**，且字号差 **≥2px 才有效**；1px（14 vs 13 / 13 vs 12）在 100% DPI 下肉眼不可辨，两边都 SemiBold 时完全失效。
 - ⛔ 用字号表达「重要」（真正重要的是**位置**，见 12.7）；⛔ 每屏 `SemiBold` 超过 3 处。
 - 新增字号 = 新增概念，先改 §2.3 并说明为什么现有四档不够，⛔ 页面里就地写一个新数值。
 
 ### 12.4 边框 / 圆角 / 阴影
 
-- **边框一律 1px + 弱色键**（`DividerBrush` / `InputBorderBrush`）。⛔ 0.5px：半像素在 125% / 150% 缩放下被抗锯齿糊成**深浅不均**（同一条线一段深一段浅）；想要「更弱」就换更浅的键，⛔ 改线宽。
+- **窗口内部的容器一律不画边框**（2026-11-04 定案）：区域边界只靠 2 档底色差（卡内外）+ 间距表达，⛔ `BorderThickness` + 弱色描边。**保留四类** = 输入框 `InputBorderBrush`、窗口外框 `WindowBorderBrush`、**控件轮廓**（按钮 / 色块样本 / 标签徽章，`InputBorderBrush`）、**表头下沿 1px `HairlineBrush`**（卡内表头与行区同色，没有这条线表头就消失）。判据：**区域**（容器、行、分区）不画；**可点 / 可选的东西**要能看出边界才画。⛔ 0.5px：半像素在 125% / 150% 缩放下被抗锯齿糊成深浅不均。
 - **圆角只有三类**：
   - **面** = 卡片 `8` / 按钮 `6` / 输入框与标签页 `4`（§2 表）；⛔ 页面自造第 4 种。
   - **微元素** = 色条 / 色板 / 徽章 / 角标，用 `2`~`3`（4×14 色条、16px 徽章这档）。
@@ -731,6 +812,10 @@ private void Add(string title, string icon, string desc, string key)
 - **同心圆角**：嵌套时 `内圆角 = 外圆角 − 内外间距`（外 8 + 内边距 4 ⇒ 内 4）；= 0 时用直角，⛔ 内外同写 8（看起来内圈更圆、发飘）。
 - **硬编码色值的唯一例外** = 彩色容器内的白色系文字（首页一键按钮卡的 `#B0FFFFFF`）：卡片底色由数据决定、与主题无关，此时必须写死。⛔ 其余任何 `Foreground="#…"` / `Background="#…"`。
 - **阴影只给浮层**（对话框 / 下拉 / 磁吸抬头 / 拖动中卡片）；页面内卡片靠 `PanelBrush` vs `ContentBrush` **色阶分工**，⛔ 用阴影分层级 —— 暗色主题下阴影几乎不可见，只剩一圈脏边。
+- 🔴 **内部无边框，只靠底色（2026-11-04 定案）**：
+  - 区域边界 = **底色差 + 间距**：各区用自己的**区域键**（§3 那张分配表）落到不同档，⛔ 任何区域描边、⛔ 1px 分隔线元素、⛔ 列表行线。
+  - 相邻两块**同底色** = 视觉糊成一团 ⇒ 必须换档或留 ≥12px 间距，⛔ 靠加线补救；两区共用同一个档是**上次踩过的坑**（标题栏/工具条/表头全挂 `ContentHeaderBrush`，用户一眼看出“没做”）。**唯一例外 = 同材质**（详情列并进内容区、无工具条页的内容底并进阅读底）：这两处本来就该是一整片阅读底，⛔ 别再为它们造色差。
+  - **保留的两类线**：输入框边框 `InputBorderBrush`（靠「可输入」暗示存在，无色差可用）、窗口外框 `WindowBorderBrush`（系统外壳，不属窗口内部）。
 - ⛔ **卡片左边缘 / 顶部色条**、装饰性渐变、花纹、玻璃拟态：不承载信息，只制造噪音。要表达分类就用文字或图标。
 
 ### 12.5 动画
@@ -776,3 +861,53 @@ private void Add(string title, string icon, string desc, string key)
 9. **常驻说明文字是否为 0 行**？例外是否只落在五类「用户看不见的事」里，且都挂了白名单 class（`hint-text` / `empty-hint`）或 `⚠` / `🔴` 前缀（口径见 §12 抬头）？
 10. **遮字测试**：把常驻文字全遮住，只看结构与控件 —— 层级还读得懂吗？（读不懂 = 在用文字补结构，回去改布局）
 11. 删掉的旁注，**语义出口配平了吗**（`AutomationProperties.Name` / 灰态原因 `ToolTip` / 错误行 / 空态）？
+
+---
+
+## §13 主显示区骨架（单层分区，2026-11-04）
+
+> **样板** = 查看器（`Module.Viewer/Controls/ViewerHost.axaml`）：内容区就是一个铺满的 `Grid`，零 `Margin`、零 `Padding`、零 `Border`，空态也在这同一个 `Grid` 里居中。屏上只有「工具条 / 内容」一条边界，靠底色差分开。
+> **起因**：`CollectionView` 把「集合栏 + 成员表 + 详情」各包一层 `Border` + 内层 `Grid Margin="8"` + 子项 `Margin="0,6"` ⇒ 一道缝里叠了 12 + 8 + 8 三层内缩、4 / 6 / 8 三套间距，看上去「到处是缝」。不是层数本身难看，是**没人规定过能叠几层**。
+
+### 13.1 三条硬规则
+
+1. 🔴 **外缘只给一次**：§2.1 的「页面根 `Margin="12"`」是默认值；**密集列表页取 0**（表头直接接工具条、行区接状态栏，靠底色差分），⛔ 任何页面都不许在已有外缘上再叠一次，也 ⛔ 用 `Border` + 内边距二次缩进。
+2. 🔴 **容器两层封顶**：第 1 层 = 分区（可有 `Background` / `CornerRadius="8"`）；第 2 层 = 内容（⛔ 无背景、⛔ 无圆角、⛔ 无外 `Margin`）。**判据只有一条：连续两层带 `Background` 即违规**（⛔ 靠数层数判断）。
+3. 🔴 **间距只有两档**：分区之间 **12**、分区内控件之间 **8**、分区内边距 **12**（只在外层给一次，内层 0）。微元素（图标↔文字、徽章）可用 **4**。⛔ 6 / 10 / 16；`Spacing` 与子元素 `Margin` **二选一**，⛔ 都写。
+
+### 13.2 骨架形状
+
+```
+Grid（铺满）
+├ 工具条区  Auto   ← ToolbarHost，自带 padding 12,6
+├ 内容区    *      ← 一块整面：⛔ 不再包 Border，⛔ 不再加 Margin
+└ 底栏区    Auto   ← ListFooterBar，无内容时高 0
+```
+
+- **查看 / 阅读 / 播放类** = 上面三段，内容区就是渲染器本身（样板 `ViewerHost`）。
+- **列表类** = 上面三段 + **一个**右侧详情列（300 固定，由 `ListPageSkeleton` 内部负责）。
+- 🔴 **列表页范本 = `CollectionView`**：`ListPageSkeleton` ⛔ 不写 `Margin`，页内 `<Style Selector="Border.card">` 把 `CornerRadius` 压 `0` ⇒ 工具条 / 表头 / 行区 / 状态栏四段**直接相接**，只靠区域底色差分（不留白、也不留贴边圆角的四个缺口）。新页面照这份抄，⛔ 再按老样子包 `Margin="12"`。
+
+### 13.3 少一栏胜过少一条缝
+
+- 第三级横向分区（分类 / 分组 / 集合 / 标签）**一律进筛选条下拉**，⛔ 单独占一栏。多一栏 = 多一道 `Margin` + 一个 `Border` + 一层内边距，还吃掉主对象宽度（1015 宽窗口下 240 栏 ⇒ 主表只剩 231，列名直接截断）。
+- 一页确实要放**两块列表**（如「待处理 / 已完成」）⇒ **列表之间留 12px 间隙**露出内容底就算分开，⛔ 不给第二块铺另一档底色、⛔ 不再各包一张卡片 —— 区域档位只有 4 档，被第二块列表占掉就必然有一处接缝糊掉。
+- 确需常驻左栏（资源管理器式）→ 必须可折叠（240 ⇄ 48），默认按 §2.1 可用宽自动收起。
+
+### 13.4 反例：`CollectionView` 改造前后
+
+| | 改造前 | 改造后 |
+|---|---|---|
+| 外缘 | 根 `Margin="12"`（老写法） | 归 0，卡圆角压 0 ⇒ 列表铺满内容区 |
+| 集合栏 | `Border(PanelBrush, r4)` + 内 `Grid Margin="8"` + 子项 `Margin="0,6"` | 栏删除，集合进筛选条下拉 |
+| 间距档 | 12 / 8 / 6 / 4 混用 | 12 / 8 两档 |
+| 区块 | 集合卡 + 成员卡 + 详情卡 三块并排 | 成员区一块 + 详情列一块 |
+
+### 13.5 自检
+
+1. 页面根到最深控件，**同方向的 `Margin` + `Padding` 累加**是几层？（>2 层 = 回去删）
+2. 有没有**连续两层带 `Background`**？
+3. 一屏出现几种间距值？（应 ≤2；出现 6 / 10 = 违规）
+4. 第三级分类还能不能改成筛选条下拉？（能改就改）
+
+> **可 Lint 方向（未实现）**：`lint.py` 扫 `.axaml`，报「父子节点同方向同时带 `Margin`」与「`Margin` / `Padding` 出现 6 / 10 / 16」。4 与 2 属微元素，不拦。

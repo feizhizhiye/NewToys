@@ -1123,3 +1123,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 - 规则进 `references/newtoys-spec.md` §六；样板 = `AssetAllViewModel.FileOps.cs::RunOffUiThread`（线程池 + `Dispatcher.UIThread.Post` 回投文案）。
 - 存量位置（`File.Exists` / `Directory.Exists` / `File.ReadAllText` / `Process.Start` 在 VM 里同步调用）：`Module.ScriptManager/ViewModels/` 的 `CrawlPanelViewModel.History.cs`、`QuickActionListViewModel.Item.cs`、`QuickActionListViewModel.Run.cs`、`QuickActionListViewModel.Scan.cs`、`QuickActionListViewModel.Scripts.cs`、`RuleCatalogViewModel.cs`、`ScriptInfoViewModel.Actions.cs`；`Module.VideoTools/ViewModels/VideoListViewModel.Actions.cs`。
 - 影响面：目标在休眠机械硬盘 / 网络盘时才明显，本地 SSD 基本无感 ⇒ 不紧急，碰这些文件时顺手改。
+
+## 附录 · 淘汰卡结论留档
+
+- NT-085 / 088 · `DynamicColumnGrid` 上提 UI 库（跨程序集 xmlns 写 `using:`，UI 库只引 Shared + Avalonia）；`ScriptRunner` / `InterpreterResolver` 归 `Core/Services`，脚本语义层 ⛔ 不落 Shell / Module。

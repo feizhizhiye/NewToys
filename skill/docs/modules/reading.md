@@ -217,6 +217,7 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
   ⇒ `RunAsync` 里用 `_speakGate` 串行；旧任务靠 token 取消快速退出，新任务等它一下即可。
 - 🔴 **朗读线程 ⇒ 一律 `Dispatcher.UIThread.Post` 改属性**：`SegmentStarted` 在后台线程触发，直接改
   `ObservableProperty` 会在 Avalonia 里抛「不在 UI 线程」。
+- NT-126 / 127 / 128 · 书源规则求值走 `RuleEvaluator.Js.cs`（JS 兼容层）；发现页 `ExploreView` + 书籍卡 `BookCardOverlay` + 阅读页 `ReaderView` + 设置页 `SettingsReadingView` 同批落地；书单列表化后「点行弹书卡」是唯一进书路径。
 
 ## 6. 待办（未立项）
 - ~~书源编辑器 / 规则调试面板~~ ✅ 已实施：工具条「✎ 编辑」（原始 JSON + 解析校验）与「▶ 试跑」（四段管线各跑一遍，

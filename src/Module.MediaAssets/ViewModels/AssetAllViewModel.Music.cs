@@ -29,10 +29,10 @@ public partial class AssetAllViewModel
     [ObservableProperty] private string _editMusicGenre = "";
     [ObservableProperty] private string _musicStatusText = "";
 
-    /// <summary>封面文件感知（只读）：同目录找 cover/folder/front 图片；找不到给「未找到」文案。</summary>
+    /// <summary>封面文件感知（只读）：外挂图按「同名 → 宽松同名 → 固定名 → 上一级固定名」找；找不到给「未找到」文案。</summary>
     [ObservableProperty] private string _musicCoverInfo = "";
 
-    /// <summary>歌词文件感知（只读）：音频同名 .lrc 是否存在。</summary>
+    /// <summary>歌词文件感知（只读）：同名 .lrc → 标题组合 .lrc → 译文 .lrc。</summary>
     [ObservableProperty] private string _musicLyricsInfo = "";
 
     /// <summary>联网查回来的封面（点保存才写进文件）。</summary>
@@ -77,34 +77,6 @@ public partial class AssetAllViewModel
             return;
         }
 
-        // ===== 封面 / 歌词文件感知（只读，不碰文件内容）：同目录图片 + 同名 .lrc =====
-        try
-        {
-            var dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
-            {
-                MusicCoverInfo = Directory.EnumerateFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(f =>
-                    {
-                        var ext = Path.GetExtension(f).ToLowerInvariant();
-                        return ext is ".jpg" or ".jpeg" or ".png" or ".webp";
-                    })
-                    .Select(Path.GetFileName)
-                    .FirstOrDefault(n =>
-                        n.Contains("cover", StringComparison.OrdinalIgnoreCase) ||
-                        n.StartsWith("folder", StringComparison.OrdinalIgnoreCase) ||
-                        n.Contains("front", StringComparison.OrdinalIgnoreCase))
-                    ?? "未找到（同目录无 cover / folder / front 图片）";
-            }
-            else
-            {
-                MusicCoverInfo = "未找到";
-            }
-            var lrc = Path.ChangeExtension(path, ".lrc");
-            MusicLyricsInfo = File.Exists(lrc) ? Path.GetFileName(lrc) : "未找到（无同名 .lrc）";
-        }
-        catch { MusicCoverInfo = "无法读取目录"; MusicLyricsInfo = "无法读取目录"; }
-
         if (!_musicTags.TryRead(path, out var tags, out var error))
         {
             MusicStatusText = error;
@@ -117,6 +89,30 @@ public partial class AssetAllViewModel
         EditMusicYear = tags.Year;
         EditMusicGenre = tags.Genre;
         _pendingMusicCover = tags.Cover;
+
+        // ===== 封面 / 歌词文件感知（只读，不碰文件内容）——匹配规则与查看器播放器一致 =====
+        try
+        {
+            var dir = Path.GetDirectoryName(path);
+            var cover = MusicFileProbe.FindCover(path);
+            if (cover is null)
+            {
+                MusicCoverInfo = "未找到（无同名 / 固定名外挂图片）";
+            }
+            else
+            {
+                var inParent = !string.IsNullOrEmpty(dir)
+                    && !string.Equals(Path.GetDirectoryName(cover), dir, StringComparison.OrdinalIgnoreCase);
+                MusicCoverInfo = Path.GetFileName(cover) + (inParent ? "（上级目录）" : "");
+            }
+
+            var (lrc, lrcTrans) = MusicFileProbe.FindLyrics(path, tags.Title, tags.Artist);
+            MusicLyricsInfo = lrc is null
+                ? "未找到（无同名 / 标题 .lrc）"
+                : Path.GetFileName(lrc) + (lrcTrans is null ? "" : " + " + Path.GetFileName(lrcTrans));
+        }
+        catch { MusicCoverInfo = "无法读取目录"; MusicLyricsInfo = "无法读取目录"; }
+
         MusicStatusText = tags.Cover is { Length: > 0 } ? "已读取标签（含封面）。" : "已读取标签（无封面）。";
     }
 

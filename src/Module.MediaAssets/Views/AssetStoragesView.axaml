@@ -58,7 +58,7 @@
               <Separator/>
               <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameStorageCommand}"
                         ToolTip.Tip="只改库里的名称，⛔ 不动磁盘"/>
-              <MenuItem Header="🔁 切换类型" Command="{Binding CycleTypeCommand}"
+              <MenuItem Icon="🔁" Header="切换类型" Command="{Binding CycleTypeCommand}"
                         ToolTip.Tip="本地 → 移动 → NAS 循环"/>
               <MenuItem Header="上线 / 下线" Icon="{m:Glyph IconArrowUp}" Command="{Binding ToggleOnlineCommand}"
                         ToolTip.Tip="下线 = 扫描跳过它（其下文件不会被标成丢失）"/>

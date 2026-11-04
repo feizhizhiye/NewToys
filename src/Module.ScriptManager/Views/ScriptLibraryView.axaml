@@ -51,7 +51,7 @@
                 <MenuItem Header="运行" Icon="{m:Glyph IconPlay}" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
                           IsEnabled="{Binding IsNotBusy}"/>
                 <MenuItem Header="编辑（记事本）" Icon="{m:Glyph IconEdit}" Command="{Binding EditWithNotepadCommand}" IsEnabled="{Binding CanEditScript}"/>
-                <MenuItem Header="🧰 打开方式…" Command="{Binding OpenWithCommand}" IsEnabled="{Binding CanEditScript}"/>
+                <MenuItem Icon="🧰" Header="打开方式…" Command="{Binding OpenWithCommand}" IsEnabled="{Binding CanEditScript}"/>
                 <Separator/>
                 <MenuItem Header="保存修改" Icon="{m:Glyph IconSave}" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
                 <Separator/>
@@ -90,11 +90,14 @@
               </TableViewColumn>
 
               <!--  行内「运行」：每行可直接运行（命令取自页面 VM，故走 $parent[UserControl]）  -->
-              <TableViewColumn Width="1.5*" Header="操作">
+              <TableViewColumn Width="1.5*" Header="操作" HorizontalContentAlignment="Center">
                 <TableViewColumn.CellTemplate>
                   <DataTemplate>
                     <Button Classes="ghost row-btn" Content="{m:GlyphText IconPlay, '运行'}" Command="{Binding $parent[UserControl].DataContext.RunCommand}"
                             CommandParameter="{Binding}"
+                            HorizontalAlignment="Center"
+                            Margin="0"
+                            HorizontalContentAlignment="Center"
                             IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
                             ToolTip.Tip="按条目类型运行：命令行命令 / 脚本文件（.py / .ps1 / .bat）"/>
                   </DataTemplate>

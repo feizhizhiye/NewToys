@@ -361,9 +361,12 @@
     <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
   </Style>
 
-  <!--  ⑬ 筛选条：多项筛选那一行的容器与其中的控件  -->
+  <!--  ⑬ 筛选条：多项筛选那一行的容器与其中的控件。
+        底色 = ToolbarBrush（2026-11-04）：原 ContentHeaderBrush=bg2 与行区 ListBodyBrush(3 档=bg2) 撞色，
+        亮/暗两套都完全同色 ⇒ 筛选条看起来像行区的一部分、主显示区像被表头切断（用户实机截图）。
+        归位到工具条同款 2 档卡内面，与工具条 / 表头连成顶部操作区。  -->
   <Style Selector="Border.filter-bar">
-    <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource ToolbarBrush}"/>
     <Setter Property="Padding" Value="12,4"/>
   </Style>
   <Style Selector="ComboBox.filter-combo">
@@ -482,6 +485,14 @@
            看不出"还有下一级"）统一到本应用的正文语义键，保证明暗主题下都清晰可辨。
         ⚠️ 全局 Style 优先级高于 ControlTheme ⇒ 此 Fill 对 hover / pressed / disabled / 展开态**一律生效**
            （有子菜单的项本来也不该在禁用态出现，故放弃这几个状态色差是无损的）。  -->
+  <!--  ⑲ 菜单项图标列恒占位：Fluent 模板里 `PART_IconPresenter` 默认 `IsVisible=False`
+        （只有设了 Icon 的项才显示）⇒ 同一菜单里带图标项的文字被 16px 图标 + 12px 边距
+        = 28px 推右，无图标项顶到最左，左右错位。这里强制图标列永远可见（空占位），
+        所有菜单项文字统一左对齐 —— Win11 原生菜单同款做法，对纯勾选 / 单选菜单无影响。  -->
+  <Style Selector="MenuItem /template/ ContentControl#PART_IconPresenter">
+    <Setter Property="IsVisible" Value="True"/>
+  </Style>
+
   <Style Selector="MenuItem /template/ Path#PART_ChevronPath">
     <Setter Property="Fill" Value="{DynamicResource PrimaryTextBrush}"/>
   </Style>

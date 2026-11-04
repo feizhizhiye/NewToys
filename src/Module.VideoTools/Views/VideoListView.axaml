@@ -236,11 +236,11 @@
                                 <MenuItem Command="{Binding PlayCommand}" Header="播放" Icon="{m:Glyph IconPlay}" />
                                 <MenuItem Command="{Binding RevealInExplorerCommand}" Header="在文件管理器中定位" Icon="{m:Glyph IconOpen}" />
                                 <MenuItem Command="{Binding CopyPathCommand}" Header="复制完整路径" Icon="{m:Glyph IconCopy}" />
-                                <MenuItem Command="{Binding CopyFfmpegCommand}" Header="🧪 复制 ffmpeg 转码命令" />
+                                <MenuItem Icon="🧪" Command="{Binding CopyFfmpegCommand}" Header="复制 ffmpeg 转码命令" />
                                 <Separator />
                                 <MenuItem
                                     Command="{Binding SendToBatchCommand}"
-                                    Header="➡ 发批处理"
+                                    Header="发批处理"
                                     IsEnabled="{Binding HasSelectedRows}" />
                                 <Separator />
                                 <MenuItem Command="{Binding SelectAllCommand}" Header="全选" Icon="{m:Glyph IconCheckAll}" />

@@ -38,12 +38,12 @@
                 <MenuItem Header="还原默认" Icon="{m:Glyph IconReset}" Command="{Binding RestoreDefaultCommand}" IsEnabled="{Binding CanSavePath}"/>
                 <Separator/>
                 <MenuItem Header="切换到此配置" Icon="{m:Glyph IconInvert}" Command="{Binding SwitchProfileCommand}" IsEnabled="{Binding CanSwitchProfile}"/>
-                <MenuItem Header="🚀 新开一个窗口" Command="{Binding LaunchProfileNewCommand}" IsEnabled="{Binding CanSwitchProfile}"/>
+                <MenuItem Icon="🚀" Header="新开一个窗口" Command="{Binding LaunchProfileNewCommand}" IsEnabled="{Binding CanSwitchProfile}"/>
                 <MenuItem Header="设为默认" Icon="{m:Glyph IconStar}" Command="{Binding SetProfileDefaultCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
                 <MenuItem Header="重命名" Icon="{m:Glyph IconEdit}" Command="{Binding RenameProfileCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
                 <MenuItem Header="删除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteProfileCommand}" IsEnabled="{Binding CanDeleteProfile}"/>
                 <Separator/>
-                <MenuItem Header="＋ 新建配置" Command="{Binding NewProfileCommand}"/>
+                <MenuItem Icon="＋" Header="新建配置" Command="{Binding NewProfileCommand}"/>
                 <MenuItem Header="配置目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenConfigDirCommand}"/>
               </ContextMenu>
             </v:TableViewHost.ContextMenu>

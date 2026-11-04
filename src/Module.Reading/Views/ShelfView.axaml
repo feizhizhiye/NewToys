@@ -83,10 +83,10 @@
 
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="🔔 只看有更新" Command="{Binding FilterWithUpdatesCommand}"/>
+              <MenuItem Icon="🔔" Header="只看有更新" Command="{Binding FilterWithUpdatesCommand}"/>
               <Separator/>
-              <MenuItem Header="📖 继续阅读" Command="{Binding ReadCommand}" IsEnabled="{Binding HasSelection}"/>
-              <MenuItem Header="＋ 更新这本" Command="{Binding UpdateOneCommand}" IsEnabled="{Binding IsNotUpdating}"/>
+              <MenuItem Icon="📖" Header="继续阅读" Command="{Binding ReadCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Icon="＋" Header="更新这本" Command="{Binding UpdateOneCommand}" IsEnabled="{Binding IsNotUpdating}"/>
               <MenuItem Header="设置分组" Icon="{m:Glyph IconOpen}" Command="{Binding SetGroupCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
               <MenuItem Header="移出书架" Icon="{m:Glyph IconTrash}" Command="{Binding RemoveCommand}" IsEnabled="{Binding HasSelection}"/>

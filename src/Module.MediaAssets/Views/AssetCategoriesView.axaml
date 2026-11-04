@@ -62,7 +62,7 @@
               </MenuItem.ItemContainerTheme>
             </MenuItem>
             <Separator/>
-            <MenuItem Header="＋ 子分类…" Command="{Binding NewChildCommand}"/>
+            <MenuItem Icon="＋" Header="子分类…" Command="{Binding NewChildCommand}"/>
             <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameCategoryCommand}"/>
             <MenuItem Header="移到根分类" Icon="{m:Glyph IconArrowUp}" Command="{Binding MoveToRootCommand}"/>
             <Separator/>

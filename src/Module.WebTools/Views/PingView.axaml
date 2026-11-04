@@ -35,9 +35,9 @@
             <v:TableViewHost.ContextMenu>
               <ContextMenu>
                 <Separator/>
-                <MenuItem Header="📡 Ping" Command="{Binding PingCommand}"/>
-                <MenuItem Header="🔖 发送到网址收藏" Command="{Binding SendToBookmarkCommand}"/>
-                <MenuItem Header="🌐 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
+                <MenuItem Icon="📡" Header="Ping" Command="{Binding PingCommand}"/>
+                <MenuItem Icon="🔖" Header="发送到网址收藏" Command="{Binding SendToBookmarkCommand}"/>
+                <MenuItem Icon="🌐" Header="发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
                 <Separator/>
                 <MenuItem Header="编辑" Icon="{m:Glyph IconEdit}" Command="{Binding OpenDetailPanelCommand}"/>
                 <MenuItem Header="删除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCommand}"/>

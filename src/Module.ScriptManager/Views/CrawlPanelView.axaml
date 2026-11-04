@@ -123,7 +123,7 @@
                                 <ContextMenu>
                                   <MenuItem Header="全选 / 取消勾选" Icon="{m:Glyph IconCheckAll}" Command="{Binding ToggleAllLinksCommand}"/>
                                   <Separator/>
-                                  <MenuItem Header="🧪 试下载" Command="{Binding TryDownloadCommand}"/>
+                                  <MenuItem Icon="🧪" Header="试下载" Command="{Binding TryDownloadCommand}"/>
                                   <MenuItem Header="复制" Icon="{m:Glyph IconCopy}" Command="{Binding CopyDiagCommand}"/>
                                 </ContextMenu>
                               </Border.ContextMenu>
@@ -214,7 +214,7 @@
                               <Border.ContextMenu>
                                 <ContextMenu>
                                   <MenuItem Header="打开目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenDirCommand}"/>
-                                  <MenuItem Header="📄 打开日志" Command="{Binding OpenLogCommand}"/>
+                                  <MenuItem Icon="📄" Header="打开日志" Command="{Binding OpenLogCommand}"/>
                                   <MenuItem Header="复制" Icon="{m:Glyph IconCopy}" Command="{Binding CopyDiagCommand}"/>
                                 </ContextMenu>
                               </Border.ContextMenu>

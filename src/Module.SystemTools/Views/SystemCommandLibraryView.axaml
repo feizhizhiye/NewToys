@@ -33,7 +33,7 @@
             <Separator/>
             <MenuItem Header="编辑（显示详情栏）" Icon="{m:Glyph IconEdit}" Command="{Binding OpenDetailPanelCommand}"/>
             <Separator/>
-            <MenuItem Header="＋ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
+            <MenuItem Icon="＋" Header="新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
             <MenuItem Header="删除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCommand}" IsEnabled="{Binding HasSelection}"/>
           </ContextMenu>
         </v:TableViewHost.ContextMenu>

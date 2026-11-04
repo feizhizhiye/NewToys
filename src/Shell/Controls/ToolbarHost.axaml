@@ -77,15 +77,19 @@
                ItemSpacing="4"
                LineSpacing="4" />
 
-    <!--  v3.68：右上角详情节流按钮再往右上贴一点（用户反馈「离容器边距太大」）：
-          右移 6（工具条 Padding 12 ⇒ 实际留白 6），上移 2。负 Margin 不参与测量，
-          容量安全区仍按 ToggleReserve = 20 保守计算。  -->
+    <!--  右上角详情节流按钮（2026-11-04 对齐工具条）：**与第一行按钮同顶同高**
+          （28 高 = 本控件 `Button` 选择器的 MinHeight；宽 20 = 文档口径）。
+          只靠 `VerticalAlignment="Top"` + `Margin="0"` 对齐第一行上沿，
+          ⛔ 不再给上下偏移（旧的 `0,2,0,0` 让它比同排按钮低 2px，看着"没对齐"）。
+          容量安全区按 ToggleReserve = max(20, 实测宽) 保守计算。  -->
     <Button x:Name="DetailToggle"
             Classes="ghost"
-            Width="18"
-            MinWidth="18"
+            Width="20"
+            MinWidth="20"
+            Height="28"
+            MinHeight="28"
             Padding="0"
-            Margin="0,2,0,0"
+            Margin="0"
             HorizontalAlignment="Right"
             VerticalAlignment="Top"
             IsVisible="False"

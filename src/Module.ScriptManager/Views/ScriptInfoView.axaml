@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              xmlns:m="using:NewToys.UI.Markup"
@@ -99,10 +99,10 @@
                       <Border.ContextMenu>
                         <ContextMenu>
                           <MenuItem Header="显示这一节的详情 / 设置" Icon="{m:Glyph IconGear}" Command="{Binding OpenDetailCommand}"/>
-                          <MenuItem Header="⟳ 只刷新这一节" Command="{Binding RefreshCommand}"
+                          <MenuItem Icon="⟳" Header="只刷新这一节" Command="{Binding RefreshCommand}"
                                     IsEnabled="{Binding CanRefresh}"/>
                           <Separator/>
-                          <MenuItem Header="▾ 折叠 / 展开" Command="{Binding ToggleCollapseCommand}"/>
+                          <MenuItem Icon="▾" Header="折叠 / 展开" Command="{Binding ToggleCollapseCommand}"/>
                         </ContextMenu>
                       </Border.ContextMenu>
                       <Grid ColumnDefinitions="Auto,*,Auto,Auto">

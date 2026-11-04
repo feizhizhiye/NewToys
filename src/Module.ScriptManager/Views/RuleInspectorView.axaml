@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
+             x:Class="NewToys.ScriptManager.Views.RuleInspectorView">
+  <!--
+    调试集合的**右侧详情列**（原页内第 3 列 420px 搬迁而来，NT-086 收口）：
+    选中段脚本的字段检验 + 编辑 + 错误回显。
+    🔴 承载者 = Shell 的右详情列（`IDetailPanelProvider.DetailContent`，宽 300 已由 Shell 给、底色 `DetailCardBrush`）
+       ⇒ 本页 ⛔ 自带宽度 / 背景 / 折叠开关。
+    🔴 DataContext 由 VM 装配时显式给（Shell 的 ContentControl 外层是 Shell VM，继承不到页面 VM）。
+    🔴 **整卡只有一个 ScrollViewer**（`Padding="0,0,14,0"` + 内容 `Margin="8,8,4,8"`，与 `DetailCardHost` 同一口径）：
+       Avalonia 12 的 ScrollBar 浮在 ScrollViewer 右缘之外 8px —— 里面再套一个内层 ScrollViewer，
+       滑轨会落在卡片中间、并被详情列的 `Border` 裁掉一截（看着位置不对，鼠标也点不中）。
+       ⇒ 列表给 `MaxHeight`（⛔ 不用 `*` 行），滚动交给外层这一条。
+    ⚠️ 300px 窄栏：表格列宽按「字段名 72 / 类型 40 / 表达式 自适应 / 命中 40」压，⛔ 沿用旧的 110+64+56。
+  -->
+  <ScrollViewer Padding="0,0,14,0" VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="8,8,4,8" Spacing="6">
+
+      <StackPanel Spacing="2">
+        <TextBlock Text="{Binding HeaderTitle}"
+                   FontSize="14"
+                   FontWeight="SemiBold"
+                   Foreground="{DynamicResource PrimaryTextBrush}"
+                   TextTrimming="CharacterEllipsis"
+                   ToolTip.Tip="{Binding HeaderTitle}" />
+        <TextBlock Text="{Binding SelectedSlot.Hint}" Classes="hint-text" TextWrapping="Wrap" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,2">
+        <TextBox Grid.Column="0"
+                 MinWidth="0"
+                 MinHeight="28"
+                 Padding="8,4"
+                 FontSize="12"
+                 VerticalContentAlignment="Center"
+                 Text="{Binding Keyword, Mode=TwoWay}"
+                 PlaceholderText="搜索字段 / 表达式…" />
+        <Button Grid.Column="1"
+                Margin="6,0,0,0"
+                MinHeight="28"
+                Classes="ghost"
+                Content="{m:GlyphText IconCopy}"
+                Command="{Binding CopyDiagCommand}"
+                ToolTip.Tip="把段位 / 脚本 / 网址 / 每字段命中与错误打包复制（给 AI 复盘）" />
+      </Grid>
+
+      <!--  命令表：高度固定上限（详情卡整体滚动），两行标题粘在列宽规格上  -->
+      <Border Classes="list-header">
+        <v:ColumnGrid ColumnSpecs="72,40,*,40">
+          <TextBlock Grid.Column="0" Text="字段" Padding="8,0" FontSize="12" FontWeight="SemiBold"
+                     Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Text="类型" Padding="4,0" FontSize="12" FontWeight="SemiBold"
+                     Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="2" Text="表达式" Padding="4,0" FontSize="12" FontWeight="SemiBold"
+                     Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="3" Text="命中" Padding="4,0" FontSize="12" FontWeight="SemiBold"
+                     Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
+        </v:ColumnGrid>
+      </Border>
+
+      <ListBox Classes="list-page"
+               MaxHeight="200"
+               ItemsSource="{Binding Commands}"
+               SelectedItem="{Binding SelectedCommand, Mode=TwoWay}"
+               SelectionMode="Single">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <v:ColumnGrid ColumnSpecs="72,40,*,40">
+              <TextBlock Grid.Column="0" Classes="list-cell primary" Text="{Binding Key}"
+                         ToolTip.Tip="{Binding Key}" />
+              <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding TypeLabel}" />
+              <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Expr}" ToolTip.Tip="{Binding Expr}" />
+              <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding HitText}" />
+            </v:ColumnGrid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <!--  编辑区：🔴 错误必须回显（⚠ 前缀），⛔ 不静默显示「0 条」  -->
+      <TextBlock Text="字段名（输出列名）" Classes="hint-text" Margin="0,4,0,0" />
+      <TextBox Text="{Binding SelectedCommand.Key, Mode=TwoWay}" Height="28" PlaceholderText="title" />
+
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" Text="类型：" Classes="hint-text" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{Binding SelectedCommand.TypeLabel}" VerticalAlignment="Center"
+                   Foreground="{DynamicResource SecondaryTextBrush}" />
+      </Grid>
+
+      <TextBlock Text="表达式" Classes="hint-text" />
+      <TextBox Text="{Binding SelectedCommand.Expr, Mode=TwoWay}" Height="88" AcceptsReturn="True"
+               TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+               PlaceholderText="css:div.item &gt; a@href" />
+
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 Text="前缀：css: / xpath: / regex: / json: / text: / link: / url: / =常量（不写前缀默认按 CSS 解析）。多个候选用 || 连接；净化写 表达式##正则##替换。" />
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 Text="⛔ 禁止绝对位置路径（/html/body/… 、连续 div[3]）—— 改一次版式就断。优先写「功能文本锚」与「URL 模式」。" />
+
+      <TextBlock Classes="hint-text" TextWrapping="Wrap"
+                 IsVisible="{Binding SelectedCommand.HasError}"
+                 Text="{Binding SelectedCommand.Error, StringFormat='⚠ {0}'}" />
+
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <Button Classes="ghost" Content="＋ 新建" Command="{Binding AddCommandCommand}" />
+        <Button Classes="ghost" Content="{m:GlyphText IconTrash, '删除'}" Command="{Binding RemoveCommandCommand}" />
+        <Button Classes="ghost" Content="{m:GlyphText IconSave, '保存'}" Command="{Binding SaveCommand}"
+                ToolTip.Tip="把命令列表写回该脚本文件的 RULES 块（⛔ 无自动保存）" />
+      </StackPanel>
+
+      <TextBlock Text="预览（前 3 条）" Classes="hint-text" Margin="0,4,0,0" />
+      <TextBox IsReadOnly="True" AcceptsReturn="True" Height="110" TextWrapping="Wrap"
+               FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+               Text="{Binding SelectedCommand.Preview}"
+               PlaceholderText="点工具条「跑这段」看结果" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

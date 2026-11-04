@@ -56,7 +56,7 @@
                 Grid.Row="0"
                 Grid.RowSpan="2"
                 Grid.Column="1"
-                Background="{DynamicResource ContentHeaderBrush}">
+                Background="Transparent">
           <!--
             贴右边不留白：滚动条落在系统拉伸热区里也能抓（Shell 的 WM_NCHITTEST 钩子让控件优先，
             见 ShellView.Win32.cs 的 HitTestEdgeControl）。
@@ -150,10 +150,10 @@
       </Border>
     </Grid>
 
-    <!--  底部：控制条（按钮一律图标 + ToolTip，⛔ 不带文字）  -->
+    <!--  底部：控制条（按钮一律图标 + ToolTip，⛔ 不带文字）；容器**透明**，整条嵌在主显示区里  -->
     <Border Grid.Row="1"
             Padding="10,0"
-            Background="{DynamicResource ContentHeaderBrush}">
+            Background="Transparent">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <StackPanel Grid.Column="0"
                     Orientation="Horizontal"
@@ -214,6 +214,8 @@
                     Orientation="Horizontal"
                     Spacing="4"
                     VerticalAlignment="Center">
+          <!--  模式图标用 Path 画（字符里没有「三箭头 / 交叉双箭头」，⇶ 之类还会缺字形）：
+                顺序 = 三个并列右箭头 · 随机 = 两条交叉箭头 · 单曲 = ↻1 文字  -->
           <Button x:Name="ModeButton"
                   Height="22"
                   MinWidth="34"
@@ -224,8 +226,28 @@
                   VerticalContentAlignment="Center"
                   AutomationProperties.Name="播放模式"
                   Click="OnSwitchMode"
-                  Content="↓"
-                  ToolTip.Tip="播放模式：顺序" />
+                  ToolTip.Tip="播放模式：顺序">
+            <Panel Width="16" Height="12">
+              <Path x:Name="ModeSeqIcon"
+                    Data="M1.2,2 L11.5,2 M9,0.2 L11.5,2 L9,3.8 M1.2,6 L11.5,6 M9,4.2 L11.5,6 L9,7.8 M1.2,10 L11.5,10 M9,8.2 L11.5,10 L9,11.8"
+                    Stroke="{DynamicResource PrimaryTextBrush}"
+                    StrokeThickness="1.3"
+                    StrokeLineCap="Round"
+                    StrokeJoin="Round" />
+              <Path x:Name="ModeShuffleIcon"
+                    Data="M1.5,2 L12.5,10 M11.5,7 L12.5,10 L9.3,9.9 M12.5,2 L1.5,10 M2.5,7 L1.5,10 L4.7,9.9"
+                    IsVisible="False"
+                    Stroke="{DynamicResource PrimaryTextBrush}"
+                    StrokeThickness="1.3"
+                    StrokeLineCap="Round"
+                    StrokeJoin="Round" />
+              <TextBlock x:Name="ModeSingleText"
+                         Text="↻1"
+                         IsVisible="False"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center" />
+            </Panel>
+          </Button>
           <Button x:Name="ToneButton"
                   Height="22"
                   MinWidth="34"

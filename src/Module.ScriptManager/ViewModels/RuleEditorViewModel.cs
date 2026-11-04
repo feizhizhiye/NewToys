@@ -14,6 +14,7 @@ using NewToys.Shared.Services;
 using NewToys.UI.Services;   // 跨页传物（书签 / Ping → 抓取）已上提 NewToys.UI
 using NewToys.ScriptManager.Models;
 using NewToys.ScriptManager.Services;
+using NewToys.ScriptManager.Views;
 
 namespace NewToys.ScriptManager.ViewModels;
 
@@ -34,7 +35,7 @@ namespace NewToys.ScriptManager.ViewModels;
 /// 🔴 错误回显：Python 侧的 error / traceback 必须搬到界面上，⛔ 禁止静默显示「0 条」。
 /// </para>
 /// </summary>
-public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IToolbarSource
+public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IToolbarSource, IDetailPanelProvider
 {
     private readonly RuleFileService _files = null!;
     private readonly RuleRunService _run = null!;
@@ -42,6 +43,10 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
     private readonly WebTransferService _transfer = null!;
     private readonly RunRecordService _records = null!;
     private readonly INavigationService? _nav;
+    private readonly IColumnLayoutService? _cols;   // 只为读回「详情列开合」的持久化开关（写回由 Shell 做）
+
+    /// <summary>本页 Key（详情列开关按它存 <c>columnlayout.json</c>）。</summary>
+    private const string PageKey = "web-rule-editor";
 
     [ObservableProperty] private string _startUrl = "";
     [ObservableProperty] private string _encoding = "utf8";
@@ -82,6 +87,31 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
     public string HeaderTitle => SelectedSlot is null
         ? "（未选段位）"
         : SelectedSlot.Label + " · " + (SelectedSlot.ScriptName.Length == 0 ? "留空" : SelectedSlot.ScriptName);
+
+    // ==================== 右侧详情列（字段检验 + 编辑） ====================
+
+    private RuleInspectorView? _inspector;
+
+    /// <summary>右详情列是否展开（Shell 只读它决定可见性；本页进入时默认展开）。</summary>
+    [ObservableProperty] private bool _isDetailOpen = true;
+
+    public bool HasDetailPanel => true;
+
+    public object? DetailContent => _inspector ??= new RuleInspectorView { DataContext = this };
+
+    public event EventHandler? DetailChanged;
+
+    public void ToggleDetail()
+    {
+        IsDetailOpen = !IsDetailOpen;
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void OpenDetail()
+    {
+        IsDetailOpen = true;
+        DetailChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     // ==================== 工具条（Shell 统一承载） ====================
 
@@ -144,7 +174,8 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
     public RuleEditorViewModel() { }
 
     public RuleEditorViewModel(RuleFileService files, RuleRunService run, FlowService flows,
-                               WebTransferService transfer, RunRecordService records, INavigationService? nav = null)
+                               WebTransferService transfer, RunRecordService records, INavigationService? nav = null,
+                               IColumnLayoutService? cols = null)
     {
         _files = files;
         _run = run;
@@ -152,6 +183,11 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         _transfer = transfer;
         _records = records;
         _nav = nav;
+        _cols = cols;
+
+        // Shell 只按「配置里的开合」调 OpenDetail，⛔ 不会帮我们关；默认展开就必须自己读回持久值，
+        // 否则用户收起后重进又弹出来（Shell 那边还会把 true 再写回去）。
+        if (_cols is not null) IsDetailOpen = _cols.LoadFlag(PageKey, IColumnLayoutService.FlagDetailPanel, true);
 
         StatusText = "从「抓取规则」页点「🧩 调试集合」进来；本页只装配流水线，⛔ 不跑批量下载。";
 
@@ -211,7 +247,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
 
             var keep = slot.ScriptName;
             slot.Options.Clear();
-            slot.Options.Add(new SlotOption { Value = "", Label = "（留空 · 跳过）" });
+            slot.Options.Add(new SlotOption { Value = "", Label = "（跳过）" });
 
             foreach (var m in _scripts.Where(m => RoleMatches(m, slot.Key)))
                 slot.Options.Add(new SlotOption { Value = m.Name, Label = m.Name });

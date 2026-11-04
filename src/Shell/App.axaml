@@ -8,6 +8,10 @@
           一级菜单图标 + 首页图标。24×24 网格、描边型路径；使用时用 <Path Stroke=... Stretch="Uniform"/>。
           ⚠️ 需求 §3.2：模块 RegisterModule 的 icon 传的就是这里的键名（不再是 emoji）。  -->
     <Application.Resources>
+        <!--  子菜单弹卡水平偏移：Fluent 默认 -4 ⇒ 子菜单卡压在父菜单卡上（右键菜单首项
+              「▤ 列」展开时弹卡与父菜单重叠）。改 0 = 右缘对齐、不重叠。  -->
+        <x:Double x:Key="MenuFlyoutSubItemPopupHorizontalOffset">0</x:Double>
+
         <!--  首页：房子  -->
         <StreamGeometry x:Key="IconHome">M3,10 L12,3 L21,10 L21,21 L14,21 L14,15 L10,15 L10,21 L3,21 Z</StreamGeometry>
         <!--  脚本管理器：显示器  -->
@@ -390,6 +394,15 @@
         </Style>
         <Style Selector="MenuItem Path.icon-fg">
             <Setter Property="Stroke" Value="{Binding $parent[MenuItem].Foreground}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
+        </Style>
+        <!--  SplitButton 必须单列：它的 Fluent 模板里**没有** Button 部件（自绘边框 + ContentPresenter + RepeatButton），
+              `Button Path.icon-fg` 命中不了 ⇒ Stroke 落到 fallback（null）= 图标整只隐形。
+              现象：SplitButton（扫描 / 播放 / 并入）一律无图标，普通 Button 正常（2026-11-04 实机）。  -->
+        <Style Selector="SplitButton Path.icon-fg">
+            <Setter Property="Stroke" Value="{Binding $parent[SplitButton].Foreground}"/>
             <Setter Property="StrokeThickness" Value="1.5"/>
             <Setter Property="StrokeLineCap" Value="Round"/>
             <Setter Property="StrokeJoin" Value="Round"/>

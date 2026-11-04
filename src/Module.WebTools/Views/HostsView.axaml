@@ -66,12 +66,12 @@
                    ContextRequested="OnRowContextRequested">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="🧪 检测选中" Command="{Binding CheckSelectedCommand}"
+                <MenuItem Icon="🧪" Header="检测选中" Command="{Binding CheckSelectedCommand}"
                           ToolTip.Tip="只测选中行（未多选 = 检测右栏整份方案）"/>
                 <MenuItem Header="启用选中" Icon="{m:Glyph IconCheckAll}" Command="{Binding EnableSelectedCommand}"/>
                 <MenuItem Header="禁用选中" Icon="{m:Glyph IconPause}" Command="{Binding DisableSelectedCommand}"/>
                 <Separator/>
-                <MenuItem Header="📦 备份当前" Command="{Binding BackupNowCommand}"/>
+                <MenuItem Icon="📦" Header="备份当前" Command="{Binding BackupNowCommand}"/>
                 <MenuItem Header="清受管块" Icon="{m:Glyph IconEraser}" Command="{Binding ClearManagedCommand}"/>
                 <Separator/>
                 <MenuItem Header="写入系统 hosts" Icon="{m:Glyph IconCheckAll}" Command="{Binding WriteCommand}"/>
@@ -156,7 +156,7 @@
                    ContextRequested="OnRowContextRequested">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="🧪 检测选中" Command="{Binding CheckSelectedCommand}"
+                <MenuItem Icon="🧪" Header="检测选中" Command="{Binding CheckSelectedCommand}"
                           ToolTip.Tip="只测选中行（未多选 = 检测右栏整份方案）"/>
                 <MenuItem Header="启用选中" Icon="{m:Glyph IconCheckAll}" Command="{Binding EnableSelectedCommand}"/>
                 <MenuItem Header="禁用选中" Icon="{m:Glyph IconPause}" Command="{Binding DisableSelectedCommand}"/>

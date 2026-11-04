@@ -64,11 +64,11 @@
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
             <Separator/>
-            <MenuItem Header="🔗 联通检测" Command="{Binding CheckCommand}"/>
-            <MenuItem Header="📌 加入 / 移出批量打开" Command="{Binding ToggleBatchCommand}"/>
-            <MenuItem Header="🌐 打开" Command="{Binding OpenCommand}"/>
+            <MenuItem Icon="🔗" Header="联通检测" Command="{Binding CheckCommand}"/>
+            <MenuItem Icon="📌" Header="加入 / 移出批量打开" Command="{Binding ToggleBatchCommand}"/>
+            <MenuItem Icon="🌐" Header="打开" Command="{Binding OpenCommand}"/>
             <MenuItem Header="复制网址" Icon="{m:Glyph IconCopy}" Command="{Binding CopySelectedCommand}"/>
-            <MenuItem Header="🌐 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
+            <MenuItem Icon="🌐" Header="发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
             <!--  移动到其他文件夹节点：单选 = 该条，Ctrl/Shift 多选 = 整批；目标列表由 VM 按树重建  -->
             <MenuItem Header="移动到" Icon="{m:Glyph IconOpen}" IsEnabled="{Binding CanMove}" ItemsSource="{Binding MoveTargets}"
                       ToolTip.Tip="单选移动这一条；Ctrl/Shift 多选后即整批移动">

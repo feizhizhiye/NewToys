@@ -20,6 +20,9 @@
 > v4.24 · 2026-11-04 · **区域色差改成「页面级 + 真实灰度」双保险 + 档位重排** —— 新增 `ListBodyBrush`（列表行区独立成 2 档，⛔ 再蹭 `PanelBrush`：一个键两角色 ⇒ 表头与行区撞档）；重排 11 个区域（1 标题栏/状态栏 · 2 内容底/行区 · 3 左树/表头/底栏/按钮 · 4 工具条 · **5 详情卡**）；区域图含横向接缝（工具条 / 表头 / 底栏右端直接接详情列）⇒ 4 档无解、**加到第 5 档**（暗 `#474747` / 亮 `#C9CDD4`，与第 4 档差 15）；`lint.py --only regionpages`（R-10~R-13）逐页还原区域链、按 NewToys 色值与 Fluent 明度阶梯两种口径算灰度（下限 10），并拦住「档位不同但看着一样」（Fluent 的 4 个系统刷子实际只有 2 档）；`ListPageSkeleton` 的列表区去掉 `.card`（圆角在铺满时切缺口）改 `ListBodyBrush`；`CollectionView` 外缘归 0，成范本。
 > v4.26 · 2026-11-04 · **亮色档差按「感知比例」重定** —— v4.25 的 `#EEEFF2 / #E2E5EA`（差 17 / 10）实机仍是一片浅灰：暗色的 8~12 灰阶相对差 36~40%，亮色同样 8~12 只有 4~5% ⇒ ⛔ 不能照抄暗色绝对数值。改为卡外 `#FFFFFF` → 卡内 `#E9EBEF`（差 20）→ 行区 `#D7DAE0`（差 17），`Bg3/Bg4` 顺延 `#C9CDD4 / #BBC0C8`；`HairlineBrush` 浅色 `#D5D9DF → #C6CBD3`（行区变深后淡线会消失）。§3 补「感知比例」一条。
 > v4.25 · 2026-11-04 · **亮色改「白 chrome + 浅灰卡」** —— 原来是「浅灰 chrome(`#ECEDEF`) + 白卡」，两色只差 9 灰阶，表格区和背景糊成一片（暗色卡内外差 20 所以没事）。色阶重排：`LightBg0 #ECEDEF→#FFFFFF`（卡外）、`LightBg1 #FFFFFF→#EEEFF2`（卡内面，卡内外差 17）、`LightBg2 #E2E4E7→#E2E5EA`（行区）、`Bg3/Bg4` 顺延；`HairlineBrush` 浅色 `#E2E3E6→#D5D9DF`（表头下沿要在新色阶上仍看得出）；新增 `ListRowHoverBrush`（行区自成一档后，通用 `CardHoverBrush` 是按卡面算的，落在行区上只差 2 灰阶看不出来 ⇒ 行悬停单独一档「提到卡面色」，`TableViewHost` 行样式改用它）。⚠️ 档位序号坑：`layers = { bg0, bg1, bg2… }` ⇒ **1 档 = bg0、2 档 = bg1**，序号不等于常量名。§3 区域表同步。
+> v4.27 · 2026-11-04 · **SplitButton 图标隐形修复** —— 图标上色样式补 `SplitButton Path.icon-fg` 一条：Avalonia `SplitButton` 模板无 `Button` 部件，原「只挂 Button / MenuItem 祖先」的口径让它 Stroke=null 整只隐形（扫描 / 播放 / 并入 无图标）；§5 颜色条目登记。
+> v4.26 · 2026-11-04 · **详情节流按钮与工具条等高** —— `Button#DetailToggle` 18 → 20 宽、显式 28 高、`Margin 0`（去掉 `0,2` 下移）⇒ 与第一行按钮同顶同高；§8.2 表与 `ghost` 例外条同步。
+> v4.25 · 2026-11-04 · **筛选条底色撞行区修复** —— `Border.filter-bar` 由 `ContentHeaderBrush`（bg2）改挂 `ToolbarBrush`：bg2 与行区 3 档（ListBodyBrush=bg2）完全同色，亮暗两套都「主显示区像被切断」（用户实机截图）；§9.17 登记。根因口径：给压在卡面上的条挑底色先对 `RegionLayers` 档位色。
 > v4.24 · 2026-11-04 · **列表行区独立成 3 档** —— 行区与表头 / 工具条同为 2 档时，亮色下（`#E2E4E7` 一片）表格边界直接消失（用户实机截图）；暗色靠大面积深灰还能分辨。`ListBodyBrush` 2 → 3（亮 `LightBg3` `#D8DBE0` → `#D2D6DB`，与 2 档差 14；暗 `DarkBg3` `#333333` → `#313131`，与 2 档只差 7 ⇒ 暗色观感几乎不变）。§3 区域表同步；`RegionLayers` 注释改写「卡内同面」的例外。
 > v4.23 · 2026-11-04 · **§13 列表页范本定稿** —— 外缘由「12 一次」改判为「默认 12、**密集列表页取 0**」：`CollectionView` 去掉 `Margin` + 页内把 `Border.card` 的 `CornerRadius` 压 0 ⇒ 工具条 / 表头 / 行区 / 状态栏四段直接相接，只靠区域底色差分；新列表页照抄，⛔ 再包 `Margin="12"`。
 > v4.22 · 2026-11-04 · **新增 §13 主显示区骨架（单层分区）** —— 把查看器 `ViewerHost` 的「一块整面」定为样板：外缘 12 只给一次、容器**两层封顶**（连续两层带 `Background` 即违规）、间距只留 8 / 12（微元素 4，`Spacing` 与子 `Margin` 二选一）、第三级分类一律进筛选条不做左栏。反例 `CollectionView` 的 12+8+8 三层内缩与 4/6/8 三套间距一并登记。
@@ -298,8 +301,10 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 页面按钮 | `<Button Content="{m:GlyphText IconOpen, '选择目录'}" …/>`（纯图标按钮省第二个参数） |
 | 详情卡动作 | `DetailAction { Text = "保存", IconKey = "IconSave" }` |
 
-- **颜色**：以上位置的 `Path` 一律带 `icon-fg` 类 —— `Button Path.icon-fg` / `MenuItem Path.icon-fg` 把描边绑到宿主 `Foreground`，**禁用态自动变灰、主题切换自动跟随**。⛔ 写本地 `Stroke`（本地值压过样式，灰化失效）。
+- **颜色**：以上位置的 `Path` 一律带 `icon-fg` 类 —— `Button Path.icon-fg` / `MenuItem Path.icon-fg` / **`SplitButton Path.icon-fg`** 把描边绑到宿主 `Foreground`，**禁用态自动变灰、主题切换自动跟随**。⛔ 写本地 `Stroke`（本地值压过样式，灰化失效）。
+  - 🔴 **`SplitButton` 必须单列**（2026-11-04 实锤）：它的 Fluent 模板里**没有** `Button` 部件（自绘边框 + `ContentPresenter` + `RepeatButton`），`Button Path.icon-fg` 命中不了 ⇒ `Stroke` 落到 fallback（null）= 图标整只隐形。现象 = `SplitButton` 项（扫描 / 播放 / 并入）一律无图标而普通 `Button` 正常。修法 = `App.axaml` 里给 `SplitButton Path.icon-fg` 单独一条绑 `$parent[SplitButton].Foreground`。
 - **通用动作词表（22 个，语义唯一）**：`IconPlus` `IconOpen` `IconSave` `IconTrash` `IconEdit` `IconSearch` `IconRefresh` `IconReset` `IconCopy` `IconImport` `IconExport` `IconArrowUp` `IconArrowDown` `IconPlay` `IconStop` `IconPause` `IconEraser` `IconCheckAll` `IconUncheckAll` `IconInvert` `IconClose` `IconStar`。
+- 🔴 **字符图标（emoji / ＋ ➡ ▤ …）一律写 `Icon` 属性，⛔ 拼在 `Header` 里**（2026-11-05 用户定调）：MenuItem 图标列由 `Controls.axaml` §⑲ 全局恒占位（16px 列 + 12px 边距，所有菜单项文字左对齐）；字符拼在 `Header` 里宽度不一，跟矢量项错位。写法：字符直接 `Icon="📖"`（16px 列内渲染），矢量键 `Icon="{m:Glyph IconXxx}"`。同批：`App.axaml` 把 Fluent 的 `MenuFlyoutSubItemPopupHorizontalOffset` 从 -4 改 0 —— 子菜单弹卡贴父卡右缘、不再压在父菜单上。
   - 🔴 **一键一义**：`IconRefresh` 只做刷新（⛔ 兼重置 → `IconReset`）；`IconArrowUp/Down` 只做排序位移（⛔ 兼导入导出 / 升级）；`IconClose` 只做关闭取消。
   - 新增动作先看这 21 个能不能覆盖，覆盖不了才加键；**不为单个页面造键**（页面专属的用字符）。
 - **键名规范** `Icon<用途>`。其余已定义（完整清单以 `App.axaml` 为准）：`IconHome`/`IconPc`/`IconWeb`/`IconVideo`/`IconSettings`/`IconMediaAssets`/`IconSystem`/`IconBackup`/`IconViewer`/`IconReading`/`IconMenuPanel`/`IconPuzzle`/`IconWinMinimize`/`IconWinMaximize`/`IconWinRestore`/`IconFullScreen`/`IconExitFullScreen`/`IconChevronDown`/`IconChevronRight`/`IconChevronLeft`/`IconChevronsLeft`/`IconChevronsRight`/`IconZap`/`IconGear`/`IconThumbUp`/`IconThumbDown`/`IconPlay`。
@@ -537,12 +542,12 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 | 工具条容器 | `Border.toolbar` = `Padding 12,6` + 底色 `ToolbarBrush`（与标题栏、表头都不同档；⛔ 无底边线） |
 | 输入框 / 搜索框宽度 | **`88`（铁律）** |
 | 下拉框宽度 | 按内容（预设 220 / DNS 200），⛔ 不硬套 88 |
-| 详情节流按钮 | `Width/MinWidth 20`、`Padding 0`、`Margin 0,-2,-6,0`（贴右上角） |
+| 详情节流按钮 | `Width/MinWidth 20` + `Height/MinHeight 28`（**与第一行按钮同顶同高**）、`Padding 0`、`Margin 0`、`VerticalAlignment=Top`（贴右上角） |
 
 - 尺寸由 `ToolbarHost.axaml` 的 `<UserControl.Styles>` **一处给**（`Button` / `SplitButton` / `CheckBox` / `TextBox` / `ComboBox` 五条无类名选择器）；控件内样式优先级高于 App 级 ⇒ `primary` 的 12,6、`danger-btn` / `src-btn` 的 11 + 10,4 **全被压成同一档**。
 - ⇒ 描述符 `Classes` **只表达配色**；⛔ 别用 `io-btn`（已删）/ ⛔ 别靠换类改大小。
 - 🔴 **配色只剩两个在用变体**：`ghost`（默认，**也是主按钮**）/ `danger-btn`（红，只给会丢数据的动作）；`src-btn` + `selected` 只给 `ChipGroup` 高亮。⛔ 工具条不用 `primary`（实心绿只留给详情卡动作与对话框），⛔ 不用 `primary-outline`。
-- 🔴 **`ghost` 是「有面的按钮」**：常态 `PanelBrush` 底 + 1px `InputBorderBrush`，悬停 `CardHoverBrush`，按下 `CardSelectedBrush`。工具条整排按钮因此都能一眼认出是控件（旧口径 `Background=Transparent` 已废）。唯二例外：`ToolbarHost` 右上角的详情节流按钮（18px 浮层条，`Button#DetailToggle` 在控件内样式里压回透明 + 无描边）与图标类按钮（`icon-btn` / `detail-toggle`，靠图标识别）。
+- 🔴 **`ghost` 是「有面的按钮」**：常态 `PanelBrush` 底 + 1px `InputBorderBrush`，悬停 `CardHoverBrush`，按下 `CardSelectedBrush`。工具条整排按钮因此都能一眼认出是控件（旧口径 `Background=Transparent` 已废）。唯二例外：`ToolbarHost` 右上角的详情节流按钮（20×28 浮层条，`Button#DetailToggle` 在控件内样式里压回透明 + 无描边）与图标类按钮（`icon-btn` / `detail-toggle`，靠图标识别）。
 - 🔴 **水印色 = `PlaceholderTextBrush`**（比 `SecondaryTextBrush` 再淡一档），由 `Controls.axaml` 的 `TextBox` 隐式样式统一设 `PlaceholderForeground`；⛔ 别在页面里单设。
 - 🔴 **输入框 / 搜索框宽度统一 `Width = 88`**；下拉框不受此限。
 - 🔴 **工具条里⛔ 不放任何说明 / 计数文字**：`Label` 项仍在描述符里但**已无页面使用**；含义写进按钮 `ToolTip`。
@@ -614,6 +619,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 16. 🔴 **贴客户区右（下）缘的覆盖式滚动条会被窗口 resize 命中区吃掉**（2026-11-03 实锤，`AudioPlayer` 歌词区）：窗口开了 `ExtendClientAreaToDecorationsHint`，系统边框仍有 8~12px 属 `WM_NCHITTEST` 的 `HTRIGHT` / `HTBOTTOMRIGHT`，**优先级高于任何控件**；滚动条是 8px 覆盖层、贴着客户区边缘 ⇒ 整条落在 resize 带里，表现是「滚轮能动，按住滑块却变成拉窗口」。
     - ✅ 正解（2026-11-04 定案）：**`ShellView.Win32.cs` 的 `HitTestEdgeControl`** —— 官方 WndProc 钩子里拦 `WM_NCHITTEST`，点落在边缘 16 DIP 带内且视觉命中 `ScrollBar`（含 Thumb 祖先）⇒ `handled=true` 返回 `HTCLIENT`（控件优先）；其余一律不干预（贴靠 / 圆角 / 拉边框原样）。**页面侧零处理、零留白**，所有贴边滚动条全局受益。
     - ⛔ 旧思路作废：「滚动区 `Margin` 右留走廊」—— 缝宽 ≥ 系统边框才有用，视觉割裂，且每个页面都得留一遍。
+17. 🔴 **`Border.filter-bar` 底色 ⛔ 用 `ContentHeaderBrush`**（2026-11-04 实机截图定案）：`ContentHeaderBrush` = bg2，而行区 `ListBodyBrush`（3 档）**也是 bg2** ⇒ 亮暗两套都完全同色，筛选条看起来像行区的一部分、主显示区像被表头切断。✅ 已改挂 `ToolbarBrush`（`Controls.axaml` ⑬）—— 筛选条归「顶部操作区」，与工具条 / 表头同为 2 档卡内面，行区 3 档自然分开。**根因 = `ContentHeaderBrush`（控件层）与 3 档同取 bg2**：给「压在卡面上的条」挑底色时先对一遍 `RegionLayers` 的档位色，⛔ 只看键名猜深浅。
 
 ---
 

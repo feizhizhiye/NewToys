@@ -78,8 +78,8 @@
               </MenuItem>
               <Separator/>
               <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameTagCommand}"/>
-              <MenuItem Header="🎨 改颜色…" Command="{Binding ChangeColorCommand}" ToolTip.Tip="输入 #RRGGBB；也可以在详情卡点色板"/>
-              <MenuItem Header="🔗 合并到…" Command="{Binding MergeTagCommand}" ToolTip.Tip="把当前标签的资产转给另一个标签，然后删掉自己"/>
+              <MenuItem Icon="🎨" Header="改颜色…" Command="{Binding ChangeColorCommand}" ToolTip.Tip="输入 #RRGGBB；也可以在详情卡点色板"/>
+              <MenuItem Icon="🔗" Header="合并到…" Command="{Binding MergeTagCommand}" ToolTip.Tip="把当前标签的资产转给另一个标签，然后删掉自己"/>
               <Separator/>
               <MenuItem Header="删除标签" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteTagCommand}"/>
             </ContextMenu>

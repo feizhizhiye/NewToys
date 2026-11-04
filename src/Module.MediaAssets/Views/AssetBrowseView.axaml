@@ -144,7 +144,7 @@
                    ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="＋ 入库" Command="{Binding AddContextNodeToLibraryCommand}"
+                <MenuItem Icon="＋" Header="入库" Command="{Binding AddContextNodeToLibraryCommand}"
                           IsEnabled="{Binding CanAddContextNodeToLibrary}"
                           ToolTip.Tip="把右键的这个目录递归加入资产库（所在目录已在库里 ⇒ 整行不标灰，菜单项不可用）"/>
                 <MenuItem Header="重新扫描此目录" Icon="{m:Glyph IconRefresh}" Command="{Binding RescanContextNodeCommand}"
@@ -325,14 +325,14 @@
             </ListBox.ItemsPanel>
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="＋ 入库" Command="{Binding AddToLibraryCommand}"
+                <MenuItem Icon="＋" Header="入库" Command="{Binding AddToLibraryCommand}"
                           ToolTip.Tip="把选中的文件 / 文件夹加入资产库（文件夹递归扫描）；已在库里的自动跳过"/>
                 <Separator/>
                 <MenuItem Header="打开" Icon="{m:Glyph IconOpen}" Command="{Binding OpenSelectedCommand}"
                           ToolTip.Tip="用系统默认程序打开（文件夹 = 进入）；也可以双击卡片"/>
                 <MenuItem Header="所在目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFolderSelectedCommand}"
                           ToolTip.Tip="在资源管理器里定位它（未入库的项也能用）"/>
-                <MenuItem Header="➡ 发送到视频列表" Command="{Binding SendToVideoToolsCommand}"
+                <MenuItem Icon="➡" Header="发送到视频列表" Command="{Binding SendToVideoToolsCommand}"
                           ToolTip.Tip="把选中的视频送去「视频工具 → 视频列表」（非视频自动跳过；未入库的也能发）"/>
                 <Separator/>
                 <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameSelectedCommand}"
@@ -389,11 +389,11 @@
                    ItemsSource="{Binding DetailSource}">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="＋ 入库" Command="{Binding AddToLibraryCommand}"/>
+                <MenuItem Icon="＋" Header="入库" Command="{Binding AddToLibraryCommand}"/>
                 <Separator/>
                 <MenuItem Header="打开" Icon="{m:Glyph IconOpen}" Command="{Binding OpenSelectedCommand}"/>
                 <MenuItem Header="所在目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFolderSelectedCommand}"/>
-                <MenuItem Header="➡ 发送到视频列表" Command="{Binding SendToVideoToolsCommand}"/>
+                <MenuItem Icon="➡" Header="发送到视频列表" Command="{Binding SendToVideoToolsCommand}"/>
                 <Separator/>
                 <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameSelectedCommand}"/>
                 <MenuItem Header="重命名" Icon="{m:Glyph IconEdit}" Command="{Binding BatchRenameSelectedCommand}"/>

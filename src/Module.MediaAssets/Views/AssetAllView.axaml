@@ -195,7 +195,7 @@
           -->
           <TableView.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="▤ 列">
+              <MenuItem Icon="▤" Header="列">
                 <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
                           IsChecked="{Binding IsNameVisible, Mode=OneWay}"
                           ToolTip.Tip="标识列固定显示，不可隐藏"/>
@@ -227,15 +227,15 @@
                         ToolTip.Tip="用系统默认程序打开（视频=播放 / 书=阅读 / 图=看图）"/>
               <MenuItem Header="所在目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFolderCommand}"
                         ToolTip.Tip="在资源管理器里选中这个文件"/>
-              <MenuItem Header="➡ 发送到视频工具" Command="{Binding SendToVideoToolsCommand}"
+              <MenuItem Icon="➡" Header="发送到视频工具" Command="{Binding SendToVideoToolsCommand}"
                         ToolTip.Tip="把选中的视频送到「视频工具 → 视频列表」页，接着定剪辑 / 转码参数（非视频自动跳过）"/>
               <!--  批量重命名：多选后按规则改（≥2 个才可用；单选用详情卡的「↗ 应用到文件」）  -->
               <MenuItem Header="重命名" Icon="{m:Glyph IconEdit}" Command="{Binding BatchRenameSelectedCommand}"
                         ToolTip.Tip="选中 ≥2 个后按规则改名（查找替换 / 前缀后缀 / 编号 / 大小写），先看预览再确认"/>
               <!--  加标签 / 加集合：只在右键（工具条不再放），支持一次选多个一起加  -->
-              <MenuItem Header="🏷 加标签…" Command="{Binding AddTagToCheckedCommand}"
+              <MenuItem Icon="🏷" Header="加标签…" Command="{Binding AddTagToCheckedCommand}"
                         ToolTip.Tip="给选中的资产加标签：弹层里可搜索 / 多选 / 新建（只加不减，取消请到详情卡点色片）"/>
-              <MenuItem Header="📖 加集合…" Command="{Binding AddToCollectionCheckedCommand}"
+              <MenuItem Icon="📖" Header="加集合…" Command="{Binding AddToCollectionCheckedCommand}"
                         ToolTip.Tip="把选中的资产加进集合：智能集合成员由规则决定，不能手工加"/>
               <Separator/>
               <!--  **唯一**直接物理删磁盘文件的入口（破坏性最大 ⇒ 故意只放右键、还要二次确认 + 走任务队列）；  -->

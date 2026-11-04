@@ -908,13 +908,10 @@ public partial class AudioPlayer : UserControl
 
     private void UpdateModeButton()
     {
-        // 纯图标（非 emoji 码位）：↓ 顺序 / ↻1 单曲 / ⇄ 随机
-        ModeButton.Content = _mode switch
-        {
-            PlayMode.Single => "↻1",
-            PlayMode.Shuffle => "⇄",
-            _ => "↓",
-        };
+        // 图标三选一（顺序 / 随机用 Path 画，单曲用 ↻1 文字）：只切可见性，⛔ 换 Content
+        ModeSeqIcon.IsVisible = _mode == PlayMode.Order;
+        ModeShuffleIcon.IsVisible = _mode == PlayMode.Shuffle;
+        ModeSingleText.IsVisible = _mode == PlayMode.Single;
 
         var tip = "播放模式：" + ModeName() + "（点击切换）";
         ToolTip.SetTip(ModeButton, tip);

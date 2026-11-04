@@ -62,7 +62,7 @@
             </MenuItem>
             <Separator/>
             <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameCollectionCommand}"/>
-            <MenuItem Header="＋ 新建智能集合…" Command="{Binding NewSmartCommand}"/>
+            <MenuItem Icon="＋" Header="新建智能集合…" Command="{Binding NewSmartCommand}"/>
             <Separator/>
             <MenuItem Header="删除集合" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCollectionCommand}"/>
           </ContextMenu>

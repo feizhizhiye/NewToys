@@ -58,13 +58,13 @@
                 <MenuItem Header="升级到最新" Icon="{m:Glyph IconArrowUp}" Command="{Binding UpgradeCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <MenuItem Header="卸载…" Icon="{m:Glyph IconTrash}" Command="{Binding UninstallCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <Separator/>
-                <MenuItem Header="🔒 锁定版本（暂停更新）" Command="{Binding PinCommand}" IsEnabled="{Binding !IsBusy}"/>
-                <MenuItem Header="🔒 解除锁定" Command="{Binding UnpinCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Icon="🔒" Header="锁定版本（暂停更新）" Command="{Binding PinCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Icon="🔒" Header="解除锁定" Command="{Binding UnpinCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <Separator/>
                 <MenuItem Header="读取详情" Icon="{m:Glyph IconSearch}" Command="{Binding LoadDetailCommand}"/>
                 <MenuItem Header="复制 Id" Icon="{m:Glyph IconCopy}" Command="{Binding CopyIdCommand}"/>
-                <MenuItem Header="🌐 打开主页" Command="{Binding OpenHomepageCommand}"/>
-                <MenuItem Header="🔗 在 winget.run 查看" Command="{Binding OpenInWingetRunCommand}"/>
+                <MenuItem Icon="🌐" Header="打开主页" Command="{Binding OpenHomepageCommand}"/>
+                <MenuItem Icon="🔗" Header="在 winget.run 查看" Command="{Binding OpenInWingetRunCommand}"/>
               </ContextMenu>
             </v:TableViewHost.ContextMenu>
 

@@ -78,8 +78,8 @@
                  Padding="8,0,8,8">
           <ListBox.ContextMenu>
             <ContextMenu x:Name="ResultMenu">
-              <MenuItem Header="📖 阅读" Command="{Binding OpenInReaderCommand}"/>
-              <MenuItem Header="＋ 书架" Command="{Binding AddToShelfCommand}"/>
+              <MenuItem Icon="📖" Header="阅读" Command="{Binding OpenInReaderCommand}"/>
+              <MenuItem Icon="＋" Header="书架" Command="{Binding AddToShelfCommand}"/>
             </ContextMenu>
           </ListBox.ContextMenu>
           <ListBox.ItemTemplate>

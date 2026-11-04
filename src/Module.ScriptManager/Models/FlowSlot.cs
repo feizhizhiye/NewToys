@@ -30,7 +30,7 @@ public partial class FlowSlot : ObservableObject
     /// <summary>命中摘要（跑过之后填）：「12 条 · 3/3 字段」。</summary>
     [ObservableProperty] private string _hitText = "—";
 
-    /// <summary>下拉候选（首项是「（留空 · 跳过）」= 空值，由 VM 按 <c>role</c> 填充）。</summary>
+    /// <summary>下拉候选（首项是「（跳过）」= 空值，由 VM 按 <c>role</c> 填充）。</summary>
     public ObservableCollection<SlotOption> Options { get; } = new();
 
     /// <summary>当前选中的候选（<c>null</c> = 还没填）。</summary>

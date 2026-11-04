@@ -239,29 +239,61 @@
 
     <!--  ===== Kind ③ Select（下拉；显示文案 / 值回写都在渲染层收口）  =====  -->
     <DataTemplate DataType="c:SelectFieldRow">
-      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <SelectableTextBlock
-            Classes="field-label"
-            IsVisible="{Binding HasLabel}"
-            Text="{Binding Label}"
-            TextWrapping="Wrap" />
-        <ComboBox
-            HorizontalAlignment="Stretch"
-            ItemsSource="{Binding Options}"
-            PlaceholderText="{Binding Placeholder}"
-            SelectedItem="{Binding Selected, Mode=TwoWay}">
-          <ComboBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding Display}" />
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-        <SelectableTextBlock
-            Classes="hint-text"
-            IsVisible="{Binding HasHint}"
-            Text="{Binding Hint}"
-            TextWrapping="Wrap" />
-      </StackPanel>
+      <Panel IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <!--  常规排版：标签在上，下拉占满  -->
+        <StackPanel Spacing="4" IsVisible="{Binding !IsInline}">
+          <SelectableTextBlock
+              Classes="field-label"
+              IsVisible="{Binding HasLabel}"
+              Text="{Binding Label}"
+              TextWrapping="Wrap" />
+          <ComboBox
+              HorizontalAlignment="Stretch"
+              ItemsSource="{Binding Options}"
+              PlaceholderText="{Binding Placeholder}"
+              SelectedItem="{Binding Selected, Mode=TwoWay}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Display}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <SelectableTextBlock
+              Classes="hint-text"
+              IsVisible="{Binding HasHint}"
+              Text="{Binding Hint}"
+              TextWrapping="Wrap" />
+        </StackPanel>
+        <!--  行内排版：一行「标签：下拉」（短选项省竖向空间，与 Inline 文本框同式）  -->
+        <StackPanel IsVisible="{Binding IsInline}">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="3">
+            <StackPanel IsVisible="{Binding HasLabel}" Orientation="Horizontal" VerticalAlignment="Center">
+              <SelectableTextBlock Classes="field-label" Text="{Binding Label}" />
+              <TextBlock Classes="field-label" Text="：" />
+            </StackPanel>
+            <ComboBox
+                Grid.Column="1"
+                HorizontalAlignment="Stretch"
+                ItemsSource="{Binding Options}"
+                MinHeight="0"
+                PlaceholderText="{Binding Placeholder}"
+                SelectedItem="{Binding Selected, Mode=TwoWay}"
+                VerticalAlignment="Center">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Display}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </Grid>
+          <SelectableTextBlock
+              Classes="hint-text"
+              Margin="0,2,0,0"
+              IsVisible="{Binding HasHint}"
+              Text="{Binding Hint}"
+              TextWrapping="Wrap" />
+        </StackPanel>
+      </Panel>
     </DataTemplate>
 
     <!--  ===== Kind ④ Number（数值 / 评分）  =====  -->
@@ -534,22 +566,45 @@
     <!--  ===== Kind ③-b Select（**索引通道**）：页面 VM 上本来就是「第几个选项」+ 候选项写死  =====
           ⛔ 与值通道的模板互斥（IndexPath 非空才走这里），两个模板共存不算新增 Kind。  -->
     <DataTemplate DataType="c:IndexSelectFieldRow">
-      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <SelectableTextBlock
-            Classes="field-label"
-            IsVisible="{Binding HasLabel}"
-            Text="{Binding Label}"
-            TextWrapping="Wrap" />
-        <ComboBox
-            HorizontalAlignment="Stretch"
-            ItemsSource="{Binding Options}"
-            SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" />
-        <SelectableTextBlock
-            Classes="hint-text"
-            IsVisible="{Binding HasHint}"
-            Text="{Binding Hint}"
-            TextWrapping="Wrap" />
-      </StackPanel>
+      <Panel IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <StackPanel Spacing="4" IsVisible="{Binding !IsInline}">
+          <SelectableTextBlock
+              Classes="field-label"
+              IsVisible="{Binding HasLabel}"
+              Text="{Binding Label}"
+              TextWrapping="Wrap" />
+          <ComboBox
+              HorizontalAlignment="Stretch"
+              ItemsSource="{Binding Options}"
+              SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" />
+          <SelectableTextBlock
+              Classes="hint-text"
+              IsVisible="{Binding HasHint}"
+              Text="{Binding Hint}"
+              TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel IsVisible="{Binding IsInline}">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="3">
+            <StackPanel IsVisible="{Binding HasLabel}" Orientation="Horizontal" VerticalAlignment="Center">
+              <SelectableTextBlock Classes="field-label" Text="{Binding Label}" />
+              <TextBlock Classes="field-label" Text="：" />
+            </StackPanel>
+            <ComboBox
+                Grid.Column="1"
+                HorizontalAlignment="Stretch"
+                ItemsSource="{Binding Options}"
+                MinHeight="0"
+                SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}"
+                VerticalAlignment="Center" />
+          </Grid>
+          <SelectableTextBlock
+              Classes="hint-text"
+              Margin="0,2,0,0"
+              IsVisible="{Binding HasHint}"
+              Text="{Binding Hint}"
+              TextWrapping="Wrap" />
+        </StackPanel>
+      </Panel>
     </DataTemplate>
   </UserControl.DataTemplates>
 

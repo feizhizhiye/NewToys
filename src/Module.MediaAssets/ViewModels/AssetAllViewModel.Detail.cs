@@ -44,8 +44,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             {
                 Fields =
                 {
-                    new DetailField { Label = "名称", ValuePath = "DetailRow.Name", Kind = FieldKind.Text, Selectable = true },
-                    // ===== 文件名输入框（第 2 行）：改完点卡底「应用到文件」才真改磁盘文件 =====
+                    // ===== 文件名输入框（第 1 行）：改完点卡底「应用到文件」才真改磁盘文件 =====
+                    // ⛔ 不再有「名称」只读行 —— 与文件名重复（显示口径统一 = 文件名）。
                     new DetailField
                     {
                         Label = "文件名",
@@ -59,13 +59,14 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     new DetailField { Label = "大小", ValuePath = "DetailRow.SizeText", Kind = FieldKind.Text, Selectable = true, Inline = true },
                     new DetailField { Label = "修改时间", ValuePath = "DetailRow.ModifiedText", Kind = FieldKind.Text, Selectable = true, Inline = true },
                     new DetailField { Label = "存储源", ValuePath = "DetailRow.StorageName", Kind = FieldKind.Text, Selectable = true, Inline = true },
-                    // 状态：**单选下拉**（预设三档；改完点「保存」落库）
+                    // 状态：**单选下拉**（预设三档；改完点「保存」落库）—— 行内「状态：[下拉]」
                     new DetailField
                     {
                         Label = "状态",
                         Kind = FieldKind.Select,
                         OptionsPath = nameof(StatusChoices),
-                        IndexPath = nameof(EditStatusIndex)
+                        IndexPath = nameof(EditStatusIndex),
+                        Inline = true
                     },
                     new DetailField { Label = "文件路径", ValuePath = "DetailRow.FilePath", Kind = FieldKind.Text, Selectable = true },
                     // ===== 视频专属字段（仅筛选类型 = 视频时显示）=====
@@ -101,6 +102,56 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Kind = FieldKind.Hint,
                         Hint = "⚠ 这个文件在磁盘上找不到了（最近一次扫描没见到它）。",
                         VisibleWhen = "DetailRow.IsMissing"
+                    },
+                    // ===== 三组 chips（标签 / 分类 / 集合）：点一下打上 / 取消（编辑态，「保存」落库） =====
+                    new DetailField
+                    {
+                        Label = "标签",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(TagPicks),
+                        ChipTextPath = "Name",
+                        ChipBrushPath = "Brush",
+                        ChipSelectedPath = "IsSelected",
+                        ChipGroupPath = "Group",
+                        ChipCommandPath = nameof(ToggleTagCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有标签：到「标签管理」页新建，或右键「加标签…」）",
+                        VisibleWhen = "!" + nameof(HasTagPicks)
+                    },
+                    new DetailField
+                    {
+                        Label = "分类",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(CategoryPicks),
+                        ChipTextPath = "Name",
+                        ChipBrushPath = "Brush",
+                        ChipSelectedPath = "IsSelected",
+                        ChipCommandPath = nameof(ToggleCategoryCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有分类：到「分类管理」页新建）",
+                        VisibleWhen = "!" + nameof(HasCategoryPicks)
+                    },
+                    new DetailField
+                    {
+                        Label = "集合",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(CollectionPicks),
+                        ChipTextPath = "Name",
+                        ChipBrushPath = "Brush",
+                        ChipSelectedPath = "IsSelected",
+                        ChipCommandPath = nameof(ToggleCollectionCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有集合：到「集合管理」页新建）",
+                        VisibleWhen = "!" + nameof(HasCollectionPicks)
                     },
                     // ===== 图标动作组（高频动作收成一行；收藏 / 评分即时落库，保存 = 卡内编辑统一落库） =====
                     new DetailField
@@ -162,10 +213,20 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                                 IsDanger = true
                             }
                         }
+                    },
+                    // ===== 评分：一排 1~5 小按钮（点一下即时落库；要 0 分用图标组的「点踩」） =====
+                    new DetailField
+                    {
+                        Label = "评分",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(RatingPicks),
+                        ChipTextPath = "Name",
+                        ChipSelectedPath = "IsSelected",
+                        ChipCommandPath = nameof(SetRatingCommand)
                     }
                 }
             },
-            // ===== 节 2「更多」：可折叠（开合落盘记住）—— 音乐标签 / 三组 chips / 评分 / 描述 / 关联 =====
+            // ===== 节 2「更多」：可折叠（开合落盘记住）—— 音乐标签字段 / 描述 / 关联 =====
             new DetailSection
             {
                 Header = "更多",
@@ -184,66 +245,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         ValuePath = nameof(MusicStatusText),
                         VisibleWhen = nameof(IsMusicType)
                     },
-                    // ===== 三组 chips（标签 / 分类 / 集合）：点一下打上 / 取消（编辑态，「保存」落库） =====
-                    new DetailField
-                    {
-                        Label = "标签",
-                        Kind = FieldKind.Chips,
-                        OptionsPath = nameof(TagPicks),
-                        ChipTextPath = "Name",
-                        ChipBrushPath = "Brush",
-                        ChipSelectedPath = "IsSelected",
-                        ChipGroupPath = "Group",
-                        ChipCommandPath = nameof(ToggleTagCommand)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "（还没有标签：到「标签管理」页新建，或右键「加标签…」）",
-                        VisibleWhen = "!" + nameof(HasTagPicks)
-                    },
-                    new DetailField
-                    {
-                        Label = "分类",
-                        Kind = FieldKind.Chips,
-                        OptionsPath = nameof(CategoryPicks),
-                        ChipTextPath = "Name",
-                        ChipBrushPath = "Brush",
-                        ChipSelectedPath = "IsSelected",
-                        ChipCommandPath = nameof(ToggleCategoryCommand)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "（还没有分类：到「分类管理」页新建）",
-                        VisibleWhen = "!" + nameof(HasCategoryPicks)
-                    },
-                    new DetailField
-                    {
-                        Label = "集合",
-                        Kind = FieldKind.Chips,
-                        OptionsPath = nameof(CollectionPicks),
-                        ChipTextPath = "Name",
-                        ChipBrushPath = "Brush",
-                        ChipSelectedPath = "IsSelected",
-                        ChipCommandPath = nameof(ToggleCollectionCommand)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "（还没有集合：到「集合管理」页新建）",
-                        VisibleWhen = "!" + nameof(HasCollectionPicks)
-                    },
-                    // ===== 评分：一排 1~5 小按钮（点一下即时落库；要 0 分用图标组的「点踩」） =====
-                    new DetailField
-                    {
-                        Label = "评分",
-                        Kind = FieldKind.Chips,
-                        OptionsPath = nameof(RatingPicks),
-                        ChipTextPath = "Name",
-                        ChipSelectedPath = "IsSelected",
-                        ChipCommandPath = nameof(SetRatingCommand)
-                    },
+                    // ===== 封面 / 歌词文件感知（只读）：同目录找 cover/folder/front 图片、同名 .lrc =====
+                    new DetailField { Label = "封面文件", ValuePath = nameof(MusicCoverInfo), Kind = FieldKind.Text, Selectable = true, Inline = true, VisibleWhen = nameof(IsMusicType) },
+                    new DetailField { Label = "歌词文件", ValuePath = nameof(MusicLyricsInfo), Kind = FieldKind.Text, Selectable = true, Inline = true, VisibleWhen = nameof(IsMusicType) },
                     new DetailField
                     {
                         Label = "描述",

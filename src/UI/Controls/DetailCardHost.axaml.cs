@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using NewToys.Shared.Details;
 
@@ -31,6 +32,16 @@ public partial class DetailCardHost : UserControl
     public DetailCardHost()
     {
         InitializeComponent();
+        // 点击卡片非输入区（空白 / 提示文字 / 色片…）→ 焦点收到宿主上 = 输入框失焦提交（OnBlur 语义）。
+        // 点在 TextBox / ComboBox 上时跳过，让它们自己拿焦点；隧道路由先于子控件触发，不影响点击本身。
+        Focusable = true;
+        AddHandler(PointerPressedEvent, OnCardPointerPressed, RoutingStrategies.Tunnel);
+    }
+
+    private void OnCardPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is TextBox or ComboBox) return;
+        Focus();
     }
 
     public DetailCardDescriptor? Card

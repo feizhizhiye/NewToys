@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -28,6 +29,12 @@ public partial class AssetAllViewModel
     [ObservableProperty] private string _editMusicGenre = "";
     [ObservableProperty] private string _musicStatusText = "";
 
+    /// <summary>封面文件感知（只读）：同目录找 cover/folder/front 图片；找不到给「未找到」文案。</summary>
+    [ObservableProperty] private string _musicCoverInfo = "";
+
+    /// <summary>歌词文件感知（只读）：音频同名 .lrc 是否存在。</summary>
+    [ObservableProperty] private string _musicLyricsInfo = "";
+
     /// <summary>联网查回来的封面（点保存才写进文件）。</summary>
     private byte[]? _pendingMusicCover;
 
@@ -55,6 +62,8 @@ public partial class AssetAllViewModel
         EditMusicYear = "";
         EditMusicGenre = "";
         MusicStatusText = "";
+        MusicCoverInfo = "";
+        MusicLyricsInfo = "";
         _pendingMusicCover = null;
 
         var row = MusicRow;
@@ -67,6 +76,34 @@ public partial class AssetAllViewModel
             MusicStatusText = "文件不在磁盘上（先「🔎 校验文件」）。";
             return;
         }
+
+        // ===== 封面 / 歌词文件感知（只读，不碰文件内容）：同目录图片 + 同名 .lrc =====
+        try
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            {
+                MusicCoverInfo = Directory.EnumerateFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
+                    .Where(f =>
+                    {
+                        var ext = Path.GetExtension(f).ToLowerInvariant();
+                        return ext is ".jpg" or ".jpeg" or ".png" or ".webp";
+                    })
+                    .Select(Path.GetFileName)
+                    .FirstOrDefault(n =>
+                        n.Contains("cover", StringComparison.OrdinalIgnoreCase) ||
+                        n.StartsWith("folder", StringComparison.OrdinalIgnoreCase) ||
+                        n.Contains("front", StringComparison.OrdinalIgnoreCase))
+                    ?? "未找到（同目录无 cover / folder / front 图片）";
+            }
+            else
+            {
+                MusicCoverInfo = "未找到";
+            }
+            var lrc = Path.ChangeExtension(path, ".lrc");
+            MusicLyricsInfo = File.Exists(lrc) ? Path.GetFileName(lrc) : "未找到（无同名 .lrc）";
+        }
+        catch { MusicCoverInfo = "无法读取目录"; MusicLyricsInfo = "无法读取目录"; }
 
         if (!_musicTags.TryRead(path, out var tags, out var error))
         {

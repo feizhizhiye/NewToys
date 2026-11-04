@@ -149,6 +149,10 @@ public sealed class SelectFieldRow : DetailFieldRow
 {
     public SelectFieldRow(DetailField field, object? source) : base(field, source) { }
 
+    /// <summary>行内排版（Inline=true）：一行「标签：下拉」，短选项省竖向空间。</summary>
+    public bool IsInline => Field.Inline;
+
+
     private List<DetailOption> _options = new();
     public List<DetailOption> Options { get => _options; private set => SetProperty(ref _options, value); }
 
@@ -212,6 +216,9 @@ public sealed class SelectFieldRow : DetailFieldRow
 public sealed class IndexSelectFieldRow : DetailFieldRow
 {
     public IndexSelectFieldRow(DetailField field, object? source) : base(field, source) { }
+
+    /// <summary>行内排版（Inline=true）：一行「标签：下拉」，短选项省竖向空间。</summary>
+    public bool IsInline => Field.Inline;
 
     private List<string> _options = new();
     public List<string> Options { get => _options; private set => SetProperty(ref _options, value); }

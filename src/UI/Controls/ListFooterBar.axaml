@@ -4,8 +4,7 @@
   <!--
     NT-063 · 列表页底栏（UI 壳，为 NT-064 分页预留插槽）。
 
-    · 内容物（2026-10-16 用户定稿）：共 N 条 / 已选 M（左）＋
-      共 N 页 · 到首页 · 前一页 · 1 2 3 4 5（当前页强调色）· 后一页 · 尾页 · 跳转到[ ] · 每页[25/50/100/500]
+    · 内容物（2026-11-04 精简文案）：N 条 / 已选 M（左）＋ N 页 · « ‹ 1 2 3 4 5（当前页强调色）› » · Go[ ] · 每页[25/50/100/500]
     · 🔴 **默认不显示**：由宿主页把本控件的 IsVisible 绑到 VM 的 `HasFooterContent`
       （列表内容高度 > 视口高度 或 有多页时才 true）⇒ 只有列表超出页面底部，底栏才出现
     · 🔴 库内 XAML ⛔ 不许写死色值：一律 DynamicResource 引主题键 / 复用应用级样式类
@@ -65,7 +64,7 @@
         <Button x:Name="LastButton" Classes="ghost" Width="22" Height="22" Padding="0,0,0,4" FontSize="12"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 Content="»" ToolTip.Tip="最后一页" />
-        <TextBlock Text="跳转到" Classes="hint-text" VerticalAlignment="Center" Margin="0,0,4,0" />
+        <TextBlock Text="Go" Classes="hint-text" VerticalAlignment="Center" Margin="0,0,4,0" />
         <TextBox x:Name="JumpBox" Width="32" Height="22" MinWidth="0" MinHeight="0"
                  Padding="4,1" FontSize="12"
                  VerticalAlignment="Center" VerticalContentAlignment="Center"
@@ -75,7 +74,6 @@
                  BorderThickness="1" CornerRadius="3"
                  Foreground="{DynamicResource PrimaryTextBrush}"
                  ToolTip.Tip="输入页码后回车直达" />
-        <TextBlock Text="页" Classes="hint-text" VerticalAlignment="Center" Margin="4,0,0,0" />
       </StackPanel>
 
       <!--  右：每页条数（25 / 50 / 100 / 500 / 全部，选择即落盘 + 重取；选「全部」= 不分页，全选即全量）。
@@ -92,7 +90,6 @@
                   BorderThickness="1"
                   Foreground="{DynamicResource PrimaryTextBrush}"
                   ToolTip.Tip="每页条数（选「全部」= 不分页）" />
-        <TextBlock Text="条" Classes="hint-text" VerticalAlignment="Center" />
       </StackPanel>
     </Grid>
   </Border>

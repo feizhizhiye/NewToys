@@ -1,5 +1,7 @@
 ﻿# NewToys UI 规范
 
+> v4.30 · 2026-11-04 · **底栏文案精简 + 页根外缘清零补漏** —— `ListFooterBar` 文案收短：`共 N 条 → N 条`、`已选 M（当前页）→ 已选 M`、`共 N 页 → N 页`、`跳转到[ ] 页 → Go[ ]`、`每页[ ] 条 → 每页[ ]`（28px 高 + 与详情列抢宽，省字就是省宽）。补上轮漏扫的 3 个页根 `Margin="8"`（`AssetBrowse` / `CrawlPanel` / `ScriptInfo`；前两个不在文件前 20 行，靠扫描脚本漏掉），`AssetBrowse` 左树改由自己 `Margin="8,8,6,8"` 留白。§2.1 / §6.8 同步。
+
 > v4.29 · 2026-11-04 · **两卡内边距收口（详情卡 8 / 页根 0）** —— 详情列与主显示区已靠底色差分开，卡内不再用留白分段：`DetailCardHost` 内容 `Margin 12,12,4,12 → 8,8,4,8`、节间距与动作区间距 10 → 8、字段缩进 15 → 12（右侧 14+4 滚动条走廊不变）；`Border.detail-card` 内边距 12 → 8；余下 7 个页根 `Margin="8"` 全部归 0（`BackupCalendar` / `BackupMail` / `AssetTasks` / `RuleEditor` / `VideoPreview` / `Hosts` / `WebHttp`），全仓页根统一 0，`RowSpacing 10 → 8`。§2.1 / §6.7 / §13.1 同步。
 
 > v4.28 · 2026-11-04 · **只保留两张卡（结构级简化）** —— 用户定调「只允许主显示区使用卡片」。色阶砍到 **2 档**（暗 `#161616` 卡外 / `#1E1E1E` 卡内，差 8；亮 `#ECEDEF` / `#FFFFFF`）：窗口里只有**主显示区**（内容列整块，含工具条）和**右侧详情列**是卡，其余 chrome（标题栏 / 左菜单 / 版本行 / 状态栏）全部平铺同一个面；卡内工具条 · 表头 · 行区 · 底栏 · 内容共用同一档，**不再用色阶划分**。`Border.card`（16 处页内卡片）改为**透明无圆角**，`Border.main-card` 是唯一有面的容器（圆角 + `ClipToBounds`，⛔ 不挂 BoxShadow）；表头靠 1px `HairlineBrush` 区分列标题与数据。页面根 `Margin 12 → 8`、卡外距 4~6。`lint.py` 新增 `CARD_LAYER`（卡内同档整体跳过），`MIN_DELTA_DARK` 6 / 浅 8。着色结论「最少 2 档」。§3 / §13 同步。
@@ -365,6 +367,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 - **三段 `*,Auto,Auto`** = 左计数 `*` ／ 分页链 ／ 「每页」组；**分页链靠右紧挨「每页」**（⛔ 不做"整条居中"浮层）；左列是 `*` ⇒ 窄空间优先牺牲左计数。
 - 页码按钮 `Padding=(0,3,0,0)`、箭头 `Padding="0,0,0,4"` = **光学居中**（数字无降部偏上 ~2px、箭头偏下 ~2px）。
+- 文案精简（2026-11-04）：`N 条` / `已选 M` / `N 页` / `Go[ ]` / `每页[ ]` —— 底栏只有 28px 高、且常与详情列抢宽，⛔ 不写「共…条」「跳转到…页」这类可省的词。
 - 页大小下拉 `Width=78`（64 会切掉「全部」的「部」字）。
 - 28px 底栏内的 `TextBox` / `ComboBox` 必须显式 `MinWidth=0 MinHeight=0`（隐式样式 `MinHeight=28` 会压掉 `Height=22`，控件撑满整条并把顶边线压断）。
 - 输入框边框用 `InputBorderBrush`（窗口内部唯一保留的描边，见 §12.4）。

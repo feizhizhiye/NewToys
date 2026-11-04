@@ -20,7 +20,7 @@ namespace NewToys.UI.Controls;
 /// <para>
 /// 🔴 内部一律 **code-behind 按属性直配**（⛔ 不用祖先绑定，见 axaml 顶部注释）；
 /// 分页命令 / 页大小 / 页码直达经宿主（<c>ListPageSkeleton</c>）转发进来。
-/// 布局（2026-10-16 用户定稿）：左计数，中「共 N 页 « ‹ 1 2 3 4 5 › » 跳转到[ ]」，
+/// 布局（2026-10-16 用户定稿）：左计数，中「N 页 « ‹ 1 2 3 4 5 › » Go[ ]」，
 /// 右「每页 [25/50/100/500]」；当前页码按钮用 <c>primary</c> 强调色。
 /// </para>
 /// </summary>
@@ -59,7 +59,7 @@ public partial class ListFooterBar : UserControl
         JumpBox.Text = "";
     }
 
-    /// <summary>列表总条数（「共 N 条」）。</summary>
+    /// <summary>列表总条数（「N 条」）。</summary>
     public static readonly StyledProperty<int> TotalCountProperty =
         AvaloniaProperty.Register<ListFooterBar, int>(nameof(TotalCount));
 
@@ -99,7 +99,7 @@ public partial class ListFooterBar : UserControl
     public static readonly StyledProperty<bool> ShowPagingProperty =
         AvaloniaProperty.Register<ListFooterBar, bool>(nameof(ShowPaging));
 
-    /// <summary>总页数（「共 N 页」+ 页码按钮组渲染用）。</summary>
+    /// <summary>总页数（「N 页」+ 页码按钮组渲染用）。</summary>
     public static readonly StyledProperty<int> PageCountProperty =
         AvaloniaProperty.Register<ListFooterBar, int>(nameof(PageCount));
 
@@ -107,7 +107,7 @@ public partial class ListFooterBar : UserControl
     public static readonly StyledProperty<int> CurrentPageProperty =
         AvaloniaProperty.Register<ListFooterBar, int>(nameof(CurrentPage));
 
-    /// <summary>页码直达命令（页码按钮 / 「跳转到」输入框；参数 = 页码）。</summary>
+    /// <summary>页码直达命令（页码按钮 / 「Go」输入框；参数 = 页码）。</summary>
     public static readonly StyledProperty<ICommand?> JumpToPageCommandProperty =
         AvaloniaProperty.Register<ListFooterBar, ICommand?>(nameof(JumpToPageCommand));
 
@@ -210,17 +210,15 @@ public partial class ListFooterBar : UserControl
     {
         if (TotalTextBlock is null || PagingGroup is null) return;   // XAML 未加载 ⇒ 跳过（⛔ 不 NRE）
 
-        TotalTextBlock.Text = string.Format(CultureInfo.CurrentCulture, "共 {0} 条", TotalCount);
+        TotalTextBlock.Text = string.Format(CultureInfo.CurrentCulture, "{0} 条", TotalCount);
 
         var hasSel = SelectedCount > 0;
         SelectedTextBlock.IsVisible = hasSel;
-        // 分页中注明「当前页」口径（验收标准⑤：批量操作只作用于当前页选中项）
-        SelectedTextBlock.Text = HasPaging
-            ? string.Format(CultureInfo.CurrentCulture, "已选 {0}（当前页）", SelectedCount)
-            : string.Format(CultureInfo.CurrentCulture, "已选 {0}", SelectedCount);
+        // 口径不变：分页时选中的只是**当前页**（批量操作只作用于当前页）；括号说明省掉以让出宽度
+        SelectedTextBlock.Text = string.Format(CultureInfo.CurrentCulture, "已选 {0}", SelectedCount);
 
         PagingGroup.IsVisible = HasPaging;
-        PageCountText.Text = PageCount > 0 ? string.Format(CultureInfo.CurrentCulture, "共 {0} 页", PageCount) : "";
+        PageCountText.Text = PageCount > 0 ? string.Format(CultureInfo.CurrentCulture, "{0} 页", PageCount) : "";
         FirstButton.Command = FirstCommand;
         PrevButton.Command = PrevCommand;
         NextButton.Command = NextCommand;

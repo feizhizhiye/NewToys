@@ -4,7 +4,7 @@
              xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.ScriptManager.Views.CollectionView">
   <!--  集合页：单层骨架（ui.md §13 范本）—— 主显示区只有「成员表」一块 + 右侧详情列（IDetailCardSource）。
-        外缘 0：工具条 / 表头 / 行区 / 状态栏直接相接，靠 ToolbarBrush(3) → ListHeaderBrush(4) → ListBodyBrush(1) 拉开档位差。
+        外缘 0：工具条 / 表头 / 行区 / 状态栏直接相接，靠各区域的档位差拉开（档位只在 `App.Theme.cs` 的 RegionLayers 定义）。
         集合选择 / 分组 / 类型三个下拉在工具条里，⛔ 不再单独占一栏。  -->
   <v:ListPageSkeleton IsEmpty="{Binding !HasMembers}"
                       EmptyMessage="没有可显示的条目。先去「脚本库」扫描 / 导入脚本，或在工具条切「📦 归档」外的下拉看全部。">

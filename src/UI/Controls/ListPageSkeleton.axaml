@@ -27,7 +27,7 @@
     <ContentControl x:Name="TopAreaHost" Grid.Row="0"/>
 
     <!--  ② 列表区：一块铺满的面（⛔ 不套卡片 —— 圆角在铺满时会在四角切出缺口），
-         底色 = `ListBodyBrush`（1 档；表头 4 档 / 工具条 3 档，档位见 `App.Theme.cs` 的 RegionLayers）。  -->
+         底色 = `ListBodyBrush`（档位见 `App.Theme.cs` 的 RegionLayers）。  -->
     <Border Grid.Row="1" Background="{DynamicResource ListBodyBrush}" Padding="0">
       <Grid RowDefinitions="Auto,Auto,*">
         <ContentControl x:Name="HeaderAreaHost" Grid.Row="0"/>

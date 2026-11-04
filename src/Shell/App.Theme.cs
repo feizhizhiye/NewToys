@@ -40,7 +40,7 @@ public partial class App : Application
     private const string DarkBg0 = "#161616";
     private const string DarkBg1 = "#1E1E1E";
     private const string DarkBg2 = "#2A2A2A";
-    private const string DarkBg3 = "#333333";
+    private const string DarkBg3 = "#313131";
     private const string DarkBg4 = "#3C3C3C";
     private const string DarkBorderStrong = "#4A4A4A";
     private const string DarkInput = "#2A2A2A";
@@ -49,13 +49,21 @@ public partial class App : Application
     private const string DarkInk2 = "#6B6B6B";
     private const string DarkDanger = "#F85149";
 
-    private const string LightBg0 = "#ECEDEF";
-    private const string LightBg1 = "#FFFFFF";
-    private const string LightBg2 = "#E2E4E7";
-    private const string LightBg3 = "#D8DBE0";
-    private const string LightBg4 = "#CFD3D8";
+    // 亮色 = 「白 chrome + 浅灰卡」：卡外（标题栏 / 左菜单 / 版本行 / 状态栏）纯白，
+    // 卡内（主显示区 / 详情列及其工具条·表头·底栏）一档浅灰 ⇒ 卡靠底色浮在白底上。
+    // ⚠️ 档位是 `layers = { bg0, bg1, bg2, bg3, bg4 }`，**1 档 = bg0、2 档 = bg1**，别按序号错位。
+    private const string LightBg0 = "#FFFFFF";
+    private const string LightBg1 = "#E9EBEF";
+    // 🔴 亮色档差要比暗色**大得多**才「看起来一样」：人眼在亮区对微小亮度差不敏感（暗色 8~12 灰阶
+    // 就是 36~40% 相对差，亮色同样 8~12 只有 4~5%）。故卡内外 22、行区与卡面 18 —— 约等于暗色
+    // 「22 ⇄ 30 ⇄ 42」在感知上的对应值。⛔ 别按暗色的绝对灰阶照抄。
+    private const string LightBg2 = "#D7DAE0";
+    private const string LightBg3 = "#C9CDD4";
+    private const string LightBg4 = "#BBC0C8";
     private const string LightBorderStrong = "#C8CCD2";
-    private const string LightInput = "#FFFFFF";
+    // 控件描边（按钮 / 输入框共用）：浅色下 ⛔ 不用纯白 —— 白色描边压在 #E2E4E7 面板上是「高光」方向，
+    // 比底色更抢眼（看着就是一圈白框）；取比面板深一档的淡灰才是「淡而可见」。
+    private const string LightInput = "#D5D8DD";
     private const string LightInk0 = "#1F1F1F";
     // 浅色下二级 / 三级文字压深一档：原来的 #8A8A8F 在白底上只有 3.5:1，12~13px 中文整片发虚
     private const string LightInk1 = "#5F5F66";
@@ -68,10 +76,11 @@ public partial class App : Application
     /// <summary>
     /// 区域 → 色档（1 = 卡外平铺底，2 = 卡内卡片面）。**颜色分配的单一事实源**。
     /// <para>
-    /// 窗口里只有两块是「卡」（主显示区 + 详情列）：卡内所有面共用 2 档、卡外 chrome 共用 1 档 ⇒
-    /// 卡内的相邻对（工具条 ⇄ 表头 ⇄ 行区 ⇄ 底栏 ⇄ 详情列）**本来就是同一个面**，同档是设计意图，
-    /// <c>lint.py</c> 用 <c>CARD_LAYER</c> 整体跳过；卡外只保留三对同面（标题栏 ⇄ 侧栏、侧栏 ⇄ 版本行、
-    /// 版本行 ⇄ 状态栏）在 <see cref="RegionAdjacency"/> 里标「允许同档」。
+    /// 窗口里只有两块是「卡」（主显示区 + 详情列）：卡内工具条 / 表头 / 底栏 / 内容底共用 2 档，
+    /// 卡外 chrome 共用 1 档 ⇒ 这些相邻对同档是设计意图，<c>lint.py</c> 用 <c>CARD_LAYER</c> 整体跳过；
+    /// 🔴 **唯一例外 = 列表行区**（3 档）：行区与表头同档时亮色下整片浅灰糊成一块，表格看不出边界
+    /// （暗色靠深灰还能分辨 ⇒ 这一档在暗色下只差 7 灰阶，观感几乎不变）。
+    /// 卡外只保留三对同面（标题栏 ⇄ 侧栏、侧栏 ⇄ 版本行、版本行 ⇄ 状态栏）在 <see cref="RegionAdjacency"/> 里标「允许同档」。
     /// 所以改颜色只改这张表（改档位），<see cref="RegionAdjacency"/> 是配套的「谁跟谁相接」。
     /// </para>
     /// 🔴 格式被 <c>lint.py --only regions</c> 解析：一行一条 <c>("键", 档),</c>，⛔ 别换写法、⛔ 别加注释在同一条里。
@@ -84,7 +93,9 @@ public partial class App : Application
         ("SiderFootBrush", 1),
         ("ToolbarBrush", 2),
         ("ListHeaderBrush", 2),
-        ("ListBodyBrush", 2),
+        // 行区独立一档（2026-11-04 实机）：行区与表头 / 工具条同为 2 档时，亮色下整片浅灰糊在一起
+        // （暗色靠大面积深灰尚能分辨，亮色直接看不出表格边界）。⛔ 再并回 2 档。
+        ("ListBodyBrush", 3),
         ("ContentBrush", 2),
         ("ContentBareBrush", 2),
         ("FooterBarBrush", 2),
@@ -119,7 +130,7 @@ public partial class App : Application
         ("ListHeaderBrush", "StatusBarBrush"),      // 自定义列表页：表头下方直接状态栏
         ("ListBodyBrush", "FooterBarBrush"),
         ("ListBodyBrush", "StatusBarBrush"),        // 无底栏的列表页
-        ("ListBodyBrush", "DetailCardBrush"),       // 行区 ⇄ 右侧详情列（卡内同面）
+        ("ListBodyBrush", "DetailCardBrush"),       // 行区 ⇄ 右侧详情列（行区独立 3 档，故这条有真实色差）
         ("ContentBrush", "FooterBarBrush"),
         ("ContentBrush", "StatusBarBrush"),         // 无底栏的页面
         ("ContentBrush", "DetailCardBrush"),        // 右侧详情列 / 页内详情卡（卡内同面）
@@ -284,13 +295,17 @@ public partial class App : Application
         S("SiderHoverBrush", dark ? Blend(Colors.White, bg0, 0.08) : Blend(Colors.Black, bg0, 0.05));
         // 卡内悬停 / 按下：比卡面再提一点，落在卡片面上的控件才看得出来
         S("CardHoverBrush", dark ? Blend(Colors.White, bg1, 0.08) : Blend(Colors.Black, bg1, 0.05));
+        // 列表行悬停：行区自成一档（3 档），与卡面差 10 ⇒ 通用的 CardHoverBrush 落在行区上几乎看不出变化，
+        // 行区单独一档「提到卡面色」——行浮起来，而不是像按钮那样按下去。
+        S("ListRowHoverBrush", Blend(Colors.White, bg2, dark ? 0.10 : 0.55));
 
         // —— 字 ——
         S("PrimaryTextBrush", ink0);
         S("SecondaryTextBrush", ink1);
         S("PlaceholderTextBrush", ink2);
-        S("SiderTextBrush", Colors.White);
-        S("SiderIconActiveBrush", Colors.White);
+        // 侧栏文字：亮色下侧栏是**白底**，白字会直接消失 ⇒ 跟主文字色走
+        S("SiderTextBrush", dark ? Colors.White : ink0);
+        S("SiderIconActiveBrush", dark ? Colors.White : ink0);
         S("SiderIconBrush", ink1);
         S("OnColorSecondaryTextBrush", Color.FromArgb(OnColorSecondaryAlpha, 255, 255, 255));
 
@@ -304,8 +319,14 @@ public partial class App : Application
 
         // —— 线与滚动条 ——
         S("InputBorderBrush", input);
+        // 🔴 控件描边「淡化」必须盖两类键：本项目显式引用 InputBorderBrush 的那些**加** Fluent 模板
+        //    自带的资源键 —— 裸 TextBox / ComboBox / Button（没写 BorderBrush 的）走的是后者，
+        //    只改前者会有「一部分控件淡了、一部分还是原色」的割裂感。
+        S("TextControlBorderBrush", input);
+        S("ComboBoxBorderBrush", input);
+        S("ButtonBorderBrush", input);
         // 表头下沿的 1px：卡内表头与行区同色，只能靠这条极淡线把「列标题」和「数据」分开
-        S("HairlineBrush", Color.Parse(dark ? "#2C2C2C" : "#E2E3E6"));
+        S("HairlineBrush", Color.Parse(dark ? "#2C2C2C" : "#C6CBD3"));
         S("ScrollThumbBrush", strong);
         S("ScrollThumbHoverBrush", accentColor);
         S("WindowBorderBrush", strong);
@@ -382,6 +403,8 @@ public partial class App : Application
         }
         // 面板 / 按钮常体并入同一阶梯（否则与表头落在同一个系统灰上，行区与表头又糊成一片）
         S("PanelBrush", fluentLayers[2]);
+        // 列表行悬停：与自制皮肤同一口径 —— 行区（3 档）提到卡面色，而不是用只对卡面有效的 CardHoverBrush
+        S("ListRowHoverBrush", Blend(toward, fluentLayers[2], 0.12));
 
         // 字
         F("PrimaryTextBrush", "SystemControlForegroundBaseHighBrush");
@@ -427,7 +450,17 @@ public partial class App : Application
         F("AccentTextBrush", "SystemControlForegroundChromeWhiteBrush");
 
         // 线
-        F("InputBorderBrush", "TextControlBorderBrush");
+        // 🔴 原生皮肤下 ⛔ 不直接用 Fluent 的 `TextControlBorderBrush`：它偏重（暗色约 #585858、
+        //    亮色约 #8A8A8A），和「自制皮肤」同一位置差一档以上 ⇒ 换皮肤时边框粗细观感突变。
+        //    改为「按内容底混 12% 的白/黑」，与区域阶梯同一套派生规则。
+        //    ⚠️ 混合量放常量里，⛔ 别在 Blend 里写字面量 —— `lint.py` 靠 `Blend(toward, baseCol, X)`
+        //    的正则顺序抓区域阶梯，多一个字面量就多一档，档位会整体错位。
+        const double EdgeMix = 0.12;
+        var edge = Blend(toward, baseCol, EdgeMix);
+        S("InputBorderBrush", edge);
+        S("TextControlBorderBrush", edge);
+        S("ComboBoxBorderBrush", edge);
+        S("ButtonBorderBrush", edge);
         // 表头下沿的 1px（与自制皮肤同一个用途：卡内表头与行区同色）
         S("HairlineBrush", Blend(toward, baseCol, 0.10));
         F("ScrollThumbBrush", "SystemControlForegroundBaseMediumLowBrush");

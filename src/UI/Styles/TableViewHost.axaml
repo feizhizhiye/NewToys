@@ -27,9 +27,21 @@
     <Setter Property="Padding" Value="0"/>
   </Style>
 
-  <!--  选中 / 悬停底色：覆盖主题的 TableViewRowBackground*（那是 Fluent 强调色，不是本项目的语义键）  -->
+  <!--  🔴 TableView 自身的背景必须让位给下层的 `ListBodyBrush`：Fluent 模板给的是系统 Chrome 刷子
+        （亮色 #F2F2F2），比卡面还浅 ⇒ 行区看起来和左菜单 / 标题栏一模一样，区域表里分配给行区的
+        档位等于没生效（2026-11-04 截图像素实测：表头 #E6E6E6、行区 #F2F2F2、菜单 #F2F2F2）。
+        行容器的常态背景同样置空 —— 主题若给行铺了底，也会盖掉行区底色。  -->
+  <Style Selector="TableView">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="TableView TableViewRow /template/ Border#Border">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <!--  选中 / 悬停底色：覆盖主题的 TableViewRowBackground*（那是 Fluent 强调色，不是本项目的语义键）。
+        悬停用 `ListRowHoverBrush`（行区自成一档，通用 CardHoverBrush 是按卡面算的，落在行区上看不出变化）。  -->
   <Style Selector="TableView TableViewRow:pointerover /template/ Border#Border">
-    <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource ListRowHoverBrush}"/>
   </Style>
   <Style Selector="TableView TableViewRow:selected /template/ Border#Border">
     <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>

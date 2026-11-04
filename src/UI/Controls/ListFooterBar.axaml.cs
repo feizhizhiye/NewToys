@@ -323,19 +323,19 @@ public partial class ListFooterBar : UserControl
             var b = new Button
             {
                 Content = page.ToString(CultureInfo.CurrentCulture),
-                Height = 22,
+                Height = 20,
                 MinWidth = 22,
-                // 版式：内边距归零 + 内容双向居中 ⇒ 数字在盒子里几何居中（⛔ 不再用上下 padding 做光学补偿，
-                // 那一套只管字符箭头，换成数字按钮后就是「数字偏下」）。
+                // 版式：内边距归零 + 内容双向居中 ⇒ 数字在分段盒里几何居中。
                 Padding = new Thickness(0),
                 FontSize = 12,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
                 HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                // 显式给 Center：padding 的光学居中靠"内容在内容区居中"这条前提，⛔ 不赌默认值
                 VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                Classes = { page == cur ? "primary" : "ghost" },
+                // 连体按钮带：直角 + 右侧 1px 分隔线（样式类 footer-seg 给），当前页整块强调色
+                Classes = { "footer-seg" },
                 Command = cmd is null ? null : new RelayCommand<object?>(_ => cmd.Execute(page)),
             };
+            if (page == cur) b.Classes.Add("active");
             PageButtonsHost.Children.Add(b);
         }
     }

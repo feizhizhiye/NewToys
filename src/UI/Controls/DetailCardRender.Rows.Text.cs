@@ -25,6 +25,8 @@ public sealed class TextFieldRow : DetailFieldRow
     public bool IsEditable => !Field.Selectable;
     public bool MultiLine => Field.MultiLine;
     public bool Mono => Field.Mono;
+    /// <summary>行内排版（<see cref="DetailField.Inline"/>）：模板据此切换「上下两行 / 一行标签：值」。</summary>
+    public bool IsInline => Field.Inline;
     public char PasswordChar => Field.Password ? '●' : '\0';
     public double BoxMinHeight => Field.MultiLine ? (Field.Rows > 0 ? Field.Rows : 52) : 0;
     public string? Placeholder => Field.Placeholder;

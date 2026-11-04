@@ -1,5 +1,7 @@
 ﻿# NewToys UI 规范
 
+> v4.34 · 2026-11-05 · **Text 行内排版（`Inline` 修饰位）+ 详情卡动作去 emoji** —— `DetailField.Inline`（仅 `FieldKind.Text`）：一行「标签：值」而非上下两行，值 12 比标签 14 小一号；可编辑时同行渲染紧凑输入框，提交语义与常规排版完全一致（同一个 `TextFieldRow` 行对象 + 模板内双排版，⛔ 不新增 Kind）。适用「类型 / 大小 / 修改时间」这类**短且固定**的信息（首用：资产详情卡）。同批：详情卡 `DetailAction` 全部统一 ghost + `IconKey`（文案不带 emoji）。§7.3f 同步。
+
 > v4.33 · 2026-11-04 · **通用动作图标矢量化（NT-047 第一批）** —— 新增 14 个动作几何（`IconOpen`/`IconEdit`/`IconCopy`/`IconImport`/`IconExport`/`IconArrowUp`/`IconArrowDown`/`IconStop`/`IconPause`/`IconEraser`/`IconCheckAll`/`IconUncheckAll`/`IconClose`/`IconReset`），`IconTabClose`+`IconWinClose` 合并进 `IconClose`；工具条 / 右键菜单 / 页面按钮 / 详情卡动作四条通道全部改走 `IconKey` 或 `{m:Glyph*}`（`NewToys.UI/Markup`），文案里的 emoji 前缀去掉。新增 `Path.icon-fg` —— 描边绑宿主 `Foreground`，禁用态自动变灰。§5 改为「一键一义」词表。
 
 > v4.32 · 2026-11-04 · **选中数接进状态栏（新契约）** —— 新增 `Shared/Services/ISelectionStatusProvider`（`SelectedCount` + 继承 `INotifyPropertyChanged`，页面 VM 派生自 `ObservableObject` ⇒ 加个接口名即可，不写事件）；`ShellPageBinder` 探测并监听属性变更，`ShellViewModel` 出 `SelectionText` / `HasSelection`，`ShellView` 状态栏改 `Grid *,Auto`（左 = 原有状态文本 / 可点跳转，右 = `已选 N`，0 条不占位）。实现方 = 全部资产 / 资产浏览 / 视频列表 / 批量处理（四个多选列表页）。§6.8 / §10.4 口径同步：底栏管「总量 · 页数」，状态栏管「选中数」。
@@ -501,6 +503,13 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 语义：`null` = 恒可见（既有卡零影响）；非空 = **整节连抬头一起**按路径显隐。与 `IsExpandedPath` 的分工：可见性决定「存不存在」，展开态决定「展开还是收起」。
 - 用途：只在某种模式下才有意义的节（批量队列的「画面 / 音轨 / 码率与体积」= 仅 `EditIsTranscode`）。⛔ 别拿它当「收起」用 —— 收起走 `IsExpandedPath`。
 - 🔴 已登记进 `lint.py --only detail-paths` 的 `$pathProps`：`VisiblePath = "..."` 的字符串路径会被静态校验，`nameof` 那批靠编译器。
+
+### 7.3f Text 行内排版（`Inline` 修饰位，2026-11-05）
+
+- 件：`DetailField.Inline`（`Shared`，**仅 `FieldKind.Text`**）+ `TextFieldRow.IsInline` + `DetailCardHost.axaml` 的 Text 模板内**双排版**（`Panel`：常规 `!IsInline` / 行内 `IsInline`，二者互斥可见）。
+- 布局：一行 `Grid ColumnDefinitions="Auto,*"` = 左「标签：」（field-label 14 SemiBold + 全角冒号）+ 右值；**值 12**（比标签小一号，三级字号的「值」档）。可编辑（无 `Selectable`）时右侧是紧凑输入框（`MinHeight=0`），提交语义与常规排版完全一致（同挂 `OnTextLostFocus`）。
+- 用途：「类型 / 大小 / 修改时间 / 存储源」这类**短且固定**的事实；长内容（文件路径）⛔ 不用（换行后会与标签挤在一行里读不清）。首用：`AssetAllViewModel.Detail.cs`。
+- ⛔ 不新增 Kind（遵循「优先修饰位」 doctrine，2026-11-05 用户确认走框架层）。
 
 ### 7.4 迁移页三件事（缺一不可）
 

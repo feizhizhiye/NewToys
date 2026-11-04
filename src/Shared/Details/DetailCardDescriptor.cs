@@ -321,6 +321,13 @@ public sealed class DetailField
     /// <summary>只读可复制（<c>SelectableTextBlock</c>）。只读文本一律「Text + Selectable」。</summary>
     public bool Selectable { get; set; }
 
+    /// <summary>
+    /// 行内排版（**仅 <see cref="FieldKind.Text"/>**）：一行「标签：值」而非「标签 / 值」上下两行，
+    /// 给「类型 / 大小 / 修改时间」这类**短且固定**的信息用（300px 窄栏省竖向空间）。
+    /// <para>值字号比标签小一号（12 vs 14）；不给 <see cref="Selectable"/> 则同行渲染紧凑输入框。</para>
+    /// </summary>
+    public bool Inline { get; set; }
+
     /// <summary>密码框。</summary>
     public bool Password { get; set; }
 }

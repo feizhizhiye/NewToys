@@ -108,15 +108,25 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool HasCategoryPicks => CategoryPicks.Count > 0;
     public bool HasCollectionPicks => CollectionPicks.Count > 0;
 
-    /// <summary>点一下色片 = 打上 / 取消（⛔ 不立即落库，等「保存」）。</summary>
+    /// <summary>点一下色片 = 打上 / 取消（⛔ 不立即落库，等「保存」）；动作回显到状态栏。</summary>
     [RelayCommand]
-    private void ToggleTag(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
+    private void ToggleTag(PickItem? item) => TogglePick("标签", TagPicks, item);
 
     [RelayCommand]
-    private void ToggleCategory(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
+    private void ToggleCategory(PickItem? item) => TogglePick("分类", CategoryPicks, item);
 
     [RelayCommand]
-    private void ToggleCollection(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
+    private void ToggleCollection(PickItem? item) => TogglePick("集合", CollectionPicks, item);
+
+    private void TogglePick(string noun, ObservableCollection<PickItem> picks, PickItem? item)
+    {
+        if (item == null) return;
+        item.IsSelected = !item.IsSelected;
+        var n = picks.Count(p => p.IsSelected);
+        StatusText = item.IsSelected
+            ? $"已勾上{noun}「{item.Name}」（共 {n} 项，点「保存」落库）"
+            : $"已去掉{noun}「{item.Name}」（剩 {n} 项，点「保存」落库）";
+    }
 
     // ===== 详情卡**图标动作组**（收藏 / 评分 ±1 / 保存 / 刷新 / 删除） =====
     // 🔴 与「保存」的分工：收藏 / 评分是**单项即时生效即落盘**（点一下就写库，⛔ 不用再点保存）；

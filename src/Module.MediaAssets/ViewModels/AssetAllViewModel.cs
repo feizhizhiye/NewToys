@@ -64,6 +64,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>跨模块消息通道（本页 → 视频工具投递待导入的视频路径）。</summary>
     private readonly IModuleBus? _bus;
 
+    /// <summary>「更多」节的展开态落盘用（基类的 <c>_cols</c> 是 private，这里自存一份 DI 注入的引用）。</summary>
+    private readonly IColumnLayoutService? _layoutCols;
+
     /// <summary>应用级配置（只读：取 <c>StoreDirectory</c> 当导入/导出默认目录）。</summary>
     private readonly IAppConfigService? _app;
 
@@ -88,8 +91,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [ObservableProperty] private AssetRow? _selected;
     [ObservableProperty] private string _searchText = "";
 
-    /// <summary>详情卡的显示名输入框（双向绑；**失焦**保存，⛔ 卡内不放按钮）。</summary>
-    [ObservableProperty] private string _detailDisplayName = "";
+    /// <summary>详情卡的「文件名」编辑框（双向绑；**失焦**只写编辑态，点「应用到文件」才真改磁盘）。</summary>
+    [ObservableProperty] private string _editFileName = "";
 
     // ==================== 筛选条下拉 ====================
 
@@ -344,6 +347,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         _assets = assets;
         _scan = scan;
+        _layoutCols = cols;
         _app = app;
         _tagSvc = tagSvc!;
         _catSvc = catSvc!;
@@ -361,6 +365,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _musicTags = musicTags;
 
         LoadLayout();                       // 列显隐 + 详情栏开合（基类）
+        IsMetaSectionExpanded = _layoutCols?.LoadFlag(PageKey, "metaSection", false) == true;   // 「更多」节开合
         BuildStaticOptions();               // 类型 / 状态（固定值；设 FilterType ⇒ 触发类型列默认 + 状态栏前缀）
         Reload();                           // 存储源 / 标签下拉要读库 → 放在读库之后
         LoadDetail(null);

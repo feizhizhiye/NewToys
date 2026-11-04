@@ -39,20 +39,26 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         EmptyText = "在左侧列表里选中一个资产，这里显示它的详情。",
         Sections =
         {
+            // ===== 节 1：基本信息 —— 短且固定的事实用行内「标签：值」；文件名可编辑（应用到文件才落盘） =====
             new DetailSection
             {
                 Fields =
                 {
-                    // ===== 顶部：文件名（磁盘上的真名，只读；要改库里的显示名用卡底部的输入框） =====
+                    new DetailField { Label = "名称", ValuePath = "DetailRow.Name", Kind = FieldKind.Text, Selectable = true },
+                    // ===== 文件名输入框（第 2 行）：改完点卡底「应用到文件」才真改磁盘文件 =====
                     new DetailField
                     {
                         Label = "文件名",
-                        ValuePath = "DetailRow.FileName",
+                        ValuePath = nameof(EditFileName),
                         Kind = FieldKind.Text,
-                        Selectable = true,
-                        Mono = true
+                        Commit = EditCommitMode.OnBlur,
+                        Mono = true,
+                        Placeholder = "含扩展名"
                     },
-                    new DetailField { Label = "类型", ValuePath = "DetailRow.TypeText", Kind = FieldKind.Text, Selectable = true },
+                    new DetailField { Label = "类型", ValuePath = "DetailRow.TypeText", Kind = FieldKind.Text, Selectable = true, Inline = true },
+                    new DetailField { Label = "大小", ValuePath = "DetailRow.SizeText", Kind = FieldKind.Text, Selectable = true, Inline = true },
+                    new DetailField { Label = "修改时间", ValuePath = "DetailRow.ModifiedText", Kind = FieldKind.Text, Selectable = true, Inline = true },
+                    new DetailField { Label = "存储源", ValuePath = "DetailRow.StorageName", Kind = FieldKind.Text, Selectable = true, Inline = true },
                     // 状态：**单选下拉**（预设三档；改完点「保存」落库）
                     new DetailField
                     {
@@ -61,23 +67,15 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         OptionsPath = nameof(StatusChoices),
                         IndexPath = nameof(EditStatusIndex)
                     },
-                    new DetailField { Label = "大小", ValuePath = "DetailRow.SizeText", Kind = FieldKind.Text, Selectable = true },
-                    new DetailField { Label = "修改时间", ValuePath = "DetailRow.ModifiedText", Kind = FieldKind.Text, Selectable = true },
-                    new DetailField { Label = "存储源", ValuePath = "DetailRow.StorageName", Kind = FieldKind.Text, Selectable = true },
-                    new DetailField
-                    {
-                        Label = "文件路径",
-                        ValuePath = "DetailRow.FilePath",
-                        Kind = FieldKind.Text,
-                        Selectable = true
-                    },
-                    // ===== v3.69：视频专属字段（仅筛选类型 = 视频时显示；列同理）=====
+                    new DetailField { Label = "文件路径", ValuePath = "DetailRow.FilePath", Kind = FieldKind.Text, Selectable = true },
+                    // ===== 视频专属字段（仅筛选类型 = 视频时显示）=====
                     new DetailField
                     {
                         Label = "时长",
                         ValuePath = "DetailRow.DurationText",
                         Kind = FieldKind.Text,
                         Selectable = true,
+                        Inline = true,
                         VisibleWhen = nameof(IsVideoType)
                     },
                     new DetailField
@@ -86,6 +84,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         ValuePath = "DetailRow.ResolutionText",
                         Kind = FieldKind.Text,
                         Selectable = true,
+                        Inline = true,
                         VisibleWhen = nameof(IsVideoType)
                     },
                     new DetailField
@@ -94,121 +93,16 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         ValuePath = "DetailRow.CodecText",
                         Kind = FieldKind.Text,
                         Selectable = true,
+                        Inline = true,
                         VisibleWhen = nameof(IsVideoType)
                     },
-                    // ===== 音乐专属字段（仅筛选类型 = 音乐时显示）：改完点「写入文件」才落盘 =====
-                    new DetailField
-                    {
-                        Kind = FieldKind.Divider,
-                        VisibleWhen = nameof(IsMusicType)
-                    },
-                    new DetailField
-                    {
-                        Label = "🎵 标题（标签，不改进库的显示名）",
-                        Hint = "这 5 项归「🎵 写入标签」管（写进音频文件）；「💾 保存」不覆盖它们",
-                        ValuePath = nameof(EditMusicTitle),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        VisibleWhen = nameof(IsMusicType)
-                    },
-                    new DetailField
-                    {
-                        Label = "艺术家",
-                        ValuePath = nameof(EditMusicArtist),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        VisibleWhen = nameof(IsMusicType)
-                    },
-                    new DetailField
-                    {
-                        Label = "专辑",
-                        ValuePath = nameof(EditMusicAlbum),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        VisibleWhen = nameof(IsMusicType)
-                    },
-                    new DetailField
-                    {
-                        Label = "年份（4 位）",
-                        ValuePath = nameof(EditMusicYear),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        VisibleWhen = nameof(IsMusicType)
-                    },
-                    new DetailField
-                    {
-                        Label = "流派",
-                        ValuePath = nameof(EditMusicGenre),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        VisibleWhen = nameof(IsMusicType)
-                    },
-                    new DetailField
-                    {
-                        Label = "标签状态",
-                        Hint = "联网补全只填编辑框，点「🎵 写入标签」才落盘",
-                        ValuePath = nameof(MusicStatusText),
-                        Kind = FieldKind.Text,
-                        Selectable = true,
-                        VisibleWhen = nameof(IsMusicType)
-                    },
-                    // ⛔ 已删：原「重命名 / 移动 / 复制 / 删除磁盘文件在 落地」这句提示 —— 那些操作早已落地，
-                    //    提示留着只是噪声（样板：固定项区只留**事实**，不放实现进度）。
-                    // ===== 三组 chips（标签 / 分类 / 集合）：点一下打上 / 取消，每项带一个颜色块 =====
-                    new DetailField
-                    {
-                        Label = "标签",
-                        Hint = "点一下打上 / 取消 · 按适用类型分组，只列本类型的",
-                        Kind = FieldKind.Chips,
-                        OptionsPath = nameof(TagPicks),
-                        ChipTextPath = "Name",
-                        ChipBrushPath = "Brush",
-                        ChipSelectedPath = "IsSelected",
-                        ChipGroupPath = "Group",
-                        ChipCommandPath = nameof(ToggleTagCommand)
-                    },
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "（还没有标签：到「标签管理」页新建，或右键「🏷 加标签…」）",
-                        VisibleWhen = "!" + nameof(HasTagPicks)
+                        Hint = "⚠ 这个文件在磁盘上找不到了（最近一次扫描没见到它）。",
+                        VisibleWhen = "DetailRow.IsMissing"
                     },
-                    new DetailField
-                    {
-                        Label = "分类",
-                        Hint = "点一下加 / 去掉",
-                        Kind = FieldKind.Chips,
-                        OptionsPath = nameof(CategoryPicks),
-                        ChipTextPath = "Name",
-                        ChipBrushPath = "Brush",
-                        ChipSelectedPath = "IsSelected",
-                        ChipCommandPath = nameof(ToggleCategoryCommand)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "（还没有分类：到「分类管理」页新建）",
-                        VisibleWhen = "!" + nameof(HasCategoryPicks)
-                    },
-                    new DetailField
-                    {
-                        Label = "集合",
-                        Hint = "点一下加 / 去掉 · ⚡ 智能集合不参与手工设置",
-                        Kind = FieldKind.Chips,
-                        OptionsPath = nameof(CollectionPicks),
-                        ChipTextPath = "Name",
-                        ChipBrushPath = "Brush",
-                        ChipSelectedPath = "IsSelected",
-                        ChipCommandPath = nameof(ToggleCollectionCommand)
-                    },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "（还没有集合：到「集合管理」页新建）",
-                        VisibleWhen = "!" + nameof(HasCollectionPicks)
-                    },
-                    // ===== 样板顺序：**固定只读项 → 标签 / 分类 / 集合 → 动作按钮组 → 评分 → 描述** =====
-                    // ===== 图标动作组（高频动作收成一行，⛔ 不要一排撑满宽度的文字按钮） =====
+                    // ===== 图标动作组（高频动作收成一行；收藏 / 评分即时落库，保存 = 卡内编辑统一落库） =====
                     new DetailField
                     {
                         Kind = FieldKind.IconBar,
@@ -240,7 +134,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                             new DetailIconAction
                             {
                                 IconKey = "IconSave",
-                                ToolTip = "保存：把显示名 / 描述 / 状态 / 标签 / 分类 / 集合写进资产库（⛔ 不动磁盘文件）",
+                                ToolTip = "保存：把描述 / 状态 / 标签 / 分类 / 集合写进资产库（⛔ 不动磁盘文件）",
                                 CommandPath = nameof(SaveAssetDetailCommand),
                                 IsEnabledPath = nameof(HasSelection)
                             },
@@ -268,8 +162,79 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                                 IsDanger = true
                             }
                         }
+                    }
+                }
+            },
+            // ===== 节 2「更多」：可折叠（开合落盘记住）—— 音乐标签 / 三组 chips / 评分 / 描述 / 关联 =====
+            new DetailSection
+            {
+                Header = "更多",
+                IsExpandedPath = nameof(IsMetaSectionExpanded),
+                Fields =
+                {
+                    // ===== 音乐专属字段（行内编辑）：改完点卡底「🎵 写入标签」才落盘 =====
+                    new DetailField { Label = "标题", ValuePath = nameof(EditMusicTitle), Kind = FieldKind.Text, Inline = true, Commit = EditCommitMode.OnBlur, VisibleWhen = nameof(IsMusicType) },
+                    new DetailField { Label = "艺术家", ValuePath = nameof(EditMusicArtist), Kind = FieldKind.Text, Inline = true, Commit = EditCommitMode.OnBlur, VisibleWhen = nameof(IsMusicType) },
+                    new DetailField { Label = "专辑", ValuePath = nameof(EditMusicAlbum), Kind = FieldKind.Text, Inline = true, Commit = EditCommitMode.OnBlur, VisibleWhen = nameof(IsMusicType) },
+                    new DetailField { Label = "年份", ValuePath = nameof(EditMusicYear), Kind = FieldKind.Text, Inline = true, Commit = EditCommitMode.OnBlur, VisibleWhen = nameof(IsMusicType) },
+                    new DetailField { Label = "流派", ValuePath = nameof(EditMusicGenre), Kind = FieldKind.Text, Inline = true, Commit = EditCommitMode.OnBlur, VisibleWhen = nameof(IsMusicType) },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        ValuePath = nameof(MusicStatusText),
+                        VisibleWhen = nameof(IsMusicType)
                     },
-                    // ===== 评分：一排 1~5 小按钮（点一下**即时落盘**；要 0 分用按钮组的「👎 点踩」） =====
+                    // ===== 三组 chips（标签 / 分类 / 集合）：点一下打上 / 取消（编辑态，「保存」落库） =====
+                    new DetailField
+                    {
+                        Label = "标签",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(TagPicks),
+                        ChipTextPath = "Name",
+                        ChipBrushPath = "Brush",
+                        ChipSelectedPath = "IsSelected",
+                        ChipGroupPath = "Group",
+                        ChipCommandPath = nameof(ToggleTagCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有标签：到「标签管理」页新建，或右键「加标签…」）",
+                        VisibleWhen = "!" + nameof(HasTagPicks)
+                    },
+                    new DetailField
+                    {
+                        Label = "分类",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(CategoryPicks),
+                        ChipTextPath = "Name",
+                        ChipBrushPath = "Brush",
+                        ChipSelectedPath = "IsSelected",
+                        ChipCommandPath = nameof(ToggleCategoryCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有分类：到「分类管理」页新建）",
+                        VisibleWhen = "!" + nameof(HasCategoryPicks)
+                    },
+                    new DetailField
+                    {
+                        Label = "集合",
+                        Kind = FieldKind.Chips,
+                        OptionsPath = nameof(CollectionPicks),
+                        ChipTextPath = "Name",
+                        ChipBrushPath = "Brush",
+                        ChipSelectedPath = "IsSelected",
+                        ChipCommandPath = nameof(ToggleCollectionCommand)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（还没有集合：到「集合管理」页新建）",
+                        VisibleWhen = "!" + nameof(HasCollectionPicks)
+                    },
+                    // ===== 评分：一排 1~5 小按钮（点一下即时落库；要 0 分用图标组的「点踩」） =====
                     new DetailField
                     {
                         Label = "评分",
@@ -289,9 +254,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Rows = 52,
                         Placeholder = "随手记点什么（可留空）"
                     },
-                    // ⛔ 原「移动到 / 复制到（目标存储源）」整块已删：
-                    //    这两个是**低频的重操作**，详情卡样板只留「查看 + 改元数据」，不再摆两个物理量操作入口。
-                    new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
                         Label = "关联（字幕 / 封面 / 版本…）",
@@ -303,86 +265,60 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "（暂无关联；关联的增删在本轮之后落地）",
+                        Hint = "（暂无关联）",
                         VisibleWhen = "!" + nameof(HasRelations)
-                    },
-                    // ⛔ 原「文件位置」List 已删：它与上面的「文件路径」是同一份信息（磁盘路径），
-                    //    只读展示一次就够（详情卡样板：去重 + 直接读取的信息一律只读）。
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "⚠ 这个文件在磁盘上找不到了（最近一次扫描没见到它）。",
-                        VisibleWhen = "DetailRow.IsMissing"
-                    },
-                    new DetailField { Kind = FieldKind.Divider },
-                    new DetailField
-                    {
-                        Kind = FieldKind.Hint,
-                        Hint = "操作日志（谁在什么时候改了什么）的入口会在这里给出。"
-                    },
-                    // ===== 卡底部：改名输入框（⛔ 只改库里的显示名；真改磁盘文件名走下面的「应用到文件」） =====
-                    new DetailField { Kind = FieldKind.Divider },
-                    new DetailField
-                    {
-                        Label = "显示名（只改库里的名字，⛔ 不动磁盘文件；改完点「保存」）",
-                        ValuePath = nameof(DetailDisplayName),
-                        Kind = FieldKind.Text,
-                        Commit = EditCommitMode.OnBlur,
-                        Placeholder = "留空 = 用扫描时得到的标题"
                     }
                 }
             }
         },
         Actions =
         {
-            // ⛔ 「保存」「移入回收站」已上提到**顶部图标动作组**，这里不再重复。
-            // 批量口径：选了多个资产时，这里出现「一起加标签 / 一起加集合」（单条走下面的色片）
+            // 卡内动作统一 ghost + 图标（⛔ 文案不带 emoji）；批量口径：多选时出现「加标签 / 加集合」
             new DetailAction
             {
-                Text = "🏷 加标签",
-                Classes = "ghost",
+                Text = "加标签", IconKey = "IconPlus", Classes = "ghost",
                 ToolTip = "给选中的多个资产一起加标签（多选弹层：可搜索 / 多选 / 新建；只加不减）",
                 IsVisiblePath = nameof(HasManySelected),
                 Command = AddTagToCheckedCommand
             },
             new DetailAction
             {
-                Text = "📖 加集合",
-                Classes = "ghost",
-                ToolTip = "把选中的多个资产一起加进集合（⚡ 智能集合不能手工加）",
+                Text = "加集合", IconKey = "IconCopy", Classes = "ghost",
+                ToolTip = "把选中的多个资产一起加进集合（智能集合不能手工加）",
                 IsVisiblePath = nameof(HasManySelected),
                 Command = AddToCollectionCheckedCommand
             },
             new DetailAction
             {
-                Text = "应用到文件", IconKey = "IconSave",
-                Classes = "ghost",
-                ToolTip = "把名字**真写到磁盘文件上**（物理重命名：走任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）",
+                Text = "应用到文件", IconKey = "IconEdit", Classes = "ghost",
+                ToolTip = "把详情卡「文件名」里的新名字**真写到磁盘文件上**（物理重命名：任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）",
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = ApplyToFileCommand
             },
             new DetailAction
             {
-                Text = "🌐 联网补全",
-                Classes = "ghost",
-                ToolTip = "按标题 + 艺术家查 MusicBrainz，取回专辑 / 年份 / 流派 / 封面并填进上面的编辑框（⛔ 此时还没写文件）",
+                Text = "联网补全", IconKey = "IconWeb", Classes = "ghost",
+                ToolTip = "按标题 + 艺术家查 MusicBrainz，取回专辑 / 年份 / 流派 / 封面并填进编辑框（此时还没写文件）",
                 IsVisiblePath = nameof(IsMusicType),
                 Command = FetchMusicOnlineCommand
             },
             new DetailAction
             {
-                Text = "🎵 写入标签",
-                Classes = "primary",
-                ToolTip = "把上面的音乐标签（含封面）写进文件的 ID3 / FLAC / MP4 标签（⛔ 不动音频数据）",
+                Text = "写入标签", IconKey = "IconSave", Classes = "ghost",
+                ToolTip = "把音乐标签（含封面）写进文件的 ID3 / FLAC / MP4 标签（⛔ 不动音频数据）",
                 IsVisiblePath = nameof(IsMusicType),
                 Command = SaveMusicTagsCommand
             },
-            // ⛔ 「📁 移动到此源」「复制到此源」已删：物理搬运归任务中心 / 后续入口，
-            //    详情卡样板只保留「↗ 应用到文件」这一个**写磁盘**的显式动作。
         }
     };
 
     public event EventHandler? DetailChanged;
+
+    /// <summary>「更多」节的展开态（开合落盘，重启后恢复上次的开合）。</summary>
+    [ObservableProperty] private bool _isMetaSectionExpanded;
+
+    partial void OnIsMetaSectionExpandedChanged(bool value)
+        => _layoutCols?.SaveFlag(PageKey, "metaSection", value);
 
     /// <summary>
     /// 工具条末位的详情开关调这个（⛔ 别绑基类的 <c>ToggleDetailCommand</c> —— 它只翻
@@ -395,6 +331,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (IsDetailVisible) EnsureDetailSelection();
         SaveDetailFlag();
         RaiseDetailChanged();
+        StatusText = IsDetailVisible
+            ? (Selected == null ? "详情卡已展开（还没选中资产）。" : $"详情卡已展开：{Selected.Name}")
+            : "详情卡已收起。";
     }
 
     /// <summary>接口实现：展开详情（Shell 切回本标签、恢复上次开合状态时调）。</summary>
@@ -404,6 +343,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         IsDetailVisible = true;
         SaveDetailFlag();
         RaiseDetailChanged();
+        StatusText = Selected == null ? "详情卡已展开（还没选中资产）。" : $"详情卡已展开：{Selected.Name}";
     }
 
     /// <summary>接口实现：开合切换（与 <see cref="ToggleDetailPanel"/> 同一份逻辑）。</summary>
@@ -431,9 +371,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         {
             Locations.Clear();
             var target = row;
-            DetailDisplayName = target == null
-                ? ""
-                : target.DisplayName ?? target.Title ?? target.Name;
+            EditFileName = target?.FileName ?? "";
             EditRating = target?.Rating ?? 0;
             EditDescription = target?.Description ?? "";
             // 状态下拉：索引 ↔ 状态 key（取不到就落到第 0 项「正常」）
@@ -446,27 +384,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 foreach (var l in _assets.ListLocations(target.Id)) Locations.Add(l);
         }
         finally { _loadingDetail = false; }
-    }
-
-    /// <summary>
-    /// 保存显示名（详情卡改名框**失焦**时由 View 调）：只写 <c>display_name</c>，
-    /// ⛔ **绝不动磁盘文件名**（物理改名是显式操作，由文件操作服务负责）。
-    /// </summary>
-    [RelayCommand]
-    private void SaveDisplayName()
-    {
-        if (_loadingDetail || Selected == null) return;
-
-        var name = (DetailDisplayName ?? "").Trim();
-        _assets.SetDisplayName(Selected.Id, name.Length == 0 ? null : name);
-
-        Selected.DisplayName = name.Length == 0 ? null : name;
-        Selected.Name = name.Length == 0 ? (Selected.Title ?? $"资产 #{Selected.Id}") : name;
-
-        RefreshView();   // 显示名变了 ⇒ 按当前排序重取（选中项按 Id 认领，⛔ 不跳走）
-        StatusText = name.Length == 0
-            ? "已清除显示名（回退到标题）。"
-            : $"已把显示名改为「{name}」（⛔ 未动磁盘文件）。";
     }
 
     // ==================== 筛选条下拉的构建 ====================

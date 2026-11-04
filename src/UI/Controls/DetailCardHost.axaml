@@ -121,36 +121,73 @@
       </Button>
     </DataTemplate>
 
-    <!--  ===== Kind ① Text（单行 / 多行 / 只读可复制 / 密码）  =====  -->
+    <!--  ===== Kind ① Text（单行 / 多行 / 只读可复制 / 密码 / 行内）  =====
+          行内（Inline=true）：一行「标签：值」，值 12px 比标签 14 小一号 —— 短且固定的信息省竖向空间；
+          可编辑时同行渲染紧凑输入框。提交语义（LostFocus / 即时写回）与常规排版完全一致。  -->
     <DataTemplate DataType="c:TextFieldRow">
-      <StackPanel Spacing="4" IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
-        <SelectableTextBlock
-            Classes="field-label"
-            IsVisible="{Binding HasLabel}"
-            Text="{Binding Label}"
-            TextWrapping="Wrap" />
-        <!--  OnBlur 语义：模板里挂 LostFocus，值的写回在 code-behind 的 OnTextLostFocus 里做 -->
-        <TextBox
-            AcceptsReturn="{Binding MultiLine}"
-            Classes.code="{Binding Mono}"
-            IsVisible="{Binding IsEditable}"
-            LostFocus="OnTextLostFocus"
-            MinHeight="{Binding BoxMinHeight}"
-            PasswordChar="{Binding PasswordChar}"
-            PlaceholderText="{Binding Placeholder}"
-            Text="{Binding Text, Mode=TwoWay}"
-            TextWrapping="Wrap" />
-        <SelectableTextBlock
-            Classes="field-value"
-            IsVisible="{Binding IsSelectable}"
-            Text="{Binding Text}"
-            TextWrapping="Wrap" />
-        <SelectableTextBlock
-            Classes="hint-text"
-            IsVisible="{Binding HasHint}"
-            Text="{Binding Hint}"
-            TextWrapping="Wrap" />
-      </StackPanel>
+      <Panel IsVisible="{Binding IsVisible}" IsEnabled="{Binding IsEnabled}">
+        <!--  常规排版：标签 / 输入框或值 / 提示 上下两行  -->
+        <StackPanel Spacing="4" IsVisible="{Binding !IsInline}">
+          <SelectableTextBlock
+              Classes="field-label"
+              IsVisible="{Binding HasLabel}"
+              Text="{Binding Label}"
+              TextWrapping="Wrap" />
+          <!--  OnBlur 语义：模板里挂 LostFocus，值的写回在 code-behind 的 OnTextLostFocus 里做 -->
+          <TextBox
+              AcceptsReturn="{Binding MultiLine}"
+              Classes.code="{Binding Mono}"
+              IsVisible="{Binding IsEditable}"
+              LostFocus="OnTextLostFocus"
+              MinHeight="{Binding BoxMinHeight}"
+              PasswordChar="{Binding PasswordChar}"
+              PlaceholderText="{Binding Placeholder}"
+              Text="{Binding Text, Mode=TwoWay}"
+              TextWrapping="Wrap" />
+          <SelectableTextBlock
+              Classes="field-value"
+              IsVisible="{Binding IsSelectable}"
+              Text="{Binding Text}"
+              TextWrapping="Wrap" />
+          <SelectableTextBlock
+              Classes="hint-text"
+              IsVisible="{Binding HasHint}"
+              Text="{Binding Hint}"
+              TextWrapping="Wrap" />
+        </StackPanel>
+        <!--  行内排版：一行「标签：值」  -->
+        <StackPanel IsVisible="{Binding IsInline}">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="3">
+            <StackPanel IsVisible="{Binding HasLabel}" Orientation="Horizontal" VerticalAlignment="Center">
+              <SelectableTextBlock Classes="field-label" Text="{Binding Label}" />
+              <TextBlock Classes="field-label" Text="：" />
+            </StackPanel>
+            <TextBox
+                Grid.Column="1"
+                Classes.code="{Binding Mono}"
+                IsVisible="{Binding IsEditable}"
+                LostFocus="OnTextLostFocus"
+                MinHeight="0"
+                PlaceholderText="{Binding Placeholder}"
+                Text="{Binding Text, Mode=TwoWay}"
+                VerticalAlignment="Center" />
+            <SelectableTextBlock
+                Grid.Column="1"
+                Classes="field-value"
+                FontSize="12"
+                IsVisible="{Binding IsSelectable}"
+                Text="{Binding Text}"
+                TextWrapping="Wrap"
+                VerticalAlignment="Center" />
+          </Grid>
+          <SelectableTextBlock
+              Classes="hint-text"
+              Margin="0,2,0,0"
+              IsVisible="{Binding HasHint}"
+              Text="{Binding Hint}"
+              TextWrapping="Wrap" />
+        </StackPanel>
+      </Panel>
     </DataTemplate>
 
     <!--  ===== Kind ①-b Pair（成对输入：宽 × 高）  =====  -->

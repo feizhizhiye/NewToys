@@ -27,8 +27,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 {
 
     /// <summary>
-    /// 详情卡「保存」：一次把**显示名 / 评分 / 描述 / 标签 / 分类 / 集合**全部落库，并写一条 `operation_logs`。
-    /// ⛔ 不动磁盘文件（物理重命名是 的「↗ 应用到文件」）。
+    /// 详情卡「保存」：一次把**评分 / 描述 / 状态 / 标签 / 分类 / 集合**全部落库，并写一条 `operation_logs`。
+    /// ⛔ 不动磁盘文件（物理重命名是卡底的「应用到文件」）。
     /// </summary>
     [RelayCommand]
     private void SaveAssetDetail()
@@ -36,12 +36,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (_loadingDetail || Selected == null) { StatusText = "先在左侧选中一个资产。"; return; }
 
         var row = Selected;
-        var before = $"{{\"name\":\"{row.Name}\",\"rating\":{row.Rating}}}";
-
-        var name = (DetailDisplayName ?? "").Trim();
-        _assets.SetDisplayName(row.Id, name.Length == 0 ? null : name);
-        row.DisplayName = name.Length == 0 ? null : name;
-        row.Name = name.Length == 0 ? (row.Title ?? $"资产 #{row.Id}") : name;
+        var before = $"{{\"rating\":{row.Rating},\"status\":\"{row.Status}\"}}";
 
         _assets.SetRatingAndDescription(row.Id, EditRating, string.IsNullOrWhiteSpace(EditDescription) ? null : EditDescription);
         row.Rating = EditRating;
@@ -62,8 +57,8 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         _catSvc.SetAssetCategories(row.Id, catIds);
         _colSvc.SetAssetCollections(row.Id, colIds);
 
-        _opLog.Log("display_name", "asset", row.Id, beforeJson: before,
-            afterJson: $"{{\"name\":\"{row.Name}\",\"rating\":{EditRating},\"tags\":{tagIds.Count},\"categories\":{catIds.Count},\"collections\":{colIds.Count}}}");
+        _opLog.Log("metadata", "asset", row.Id, beforeJson: before,
+            afterJson: $"{{\"rating\":{EditRating},\"tags\":{tagIds.Count},\"categories\":{catIds.Count},\"collections\":{colIds.Count}}}");
 
         RefreshView();   // 标签/分类/集合变了 ⇒ 按当前筛重排重取（选中项按 Id 认领，⛔ 不跳走）
 
@@ -78,19 +73,19 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             RaiseDetailChanged();
         }
 
-        var stuck = fresh != null && !string.Equals(fresh.Name, row.Name, StringComparison.Ordinal);
-        // 音乐资产的 5 个标签框（标题/艺术家/专辑/年份/流派）归「🎵 写入标签」管，保存不覆盖 —— 必须在这里说破，否则看起来像"保存没生效"
+        var stuck = fresh != null && fresh.Rating != EditRating;
+        // 音乐资产的 5 个标签框（标题/艺术家/专辑/年份/流派）归「写入标签」管，保存不覆盖
         var musicHint = string.Equals(row.Type, AssetTypes.Music, StringComparison.OrdinalIgnoreCase)
-            ? " 音乐的标题 / 艺术家 / 专辑 / 年份 / 流派请点下方「🎵 写入标签」落盘。"
+            ? " 音乐标签（标题 / 艺术家 / 专辑 / 年份 / 流派）请点「写入标签」落盘。"
             : "";
         StatusText = stuck
-            ? "⚠ 显示名没写进资产库（库不可用 / 被占用？）—— 点「重读」后再试一次。"
-            : $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。{musicHint}";
+            ? "⚠ 评分没写进资产库（库不可用 / 被占用？）—— 点「重读」后再试一次。"
+            : $"已保存「{row.Name}」的评分 / 描述 / 状态 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。{musicHint}";
     }
 
     /// <summary>
-    /// 详情卡「↗ 应用到文件」：⚠️ 与「保存」完全不同 ——
-    /// 「保存」只写**库里的显示名**（⛔ 不动磁盘）；这个才是**把名字真写到磁盘文件上**。
+    /// 详情卡「应用到文件」：⚠️ 与「保存」完全不同 ——
+    /// 「保存」只写**库里的元数据**（⛔ 不动磁盘）；这个才是**把「文件名」框里的新名字真写到磁盘文件上**。
     /// <para>物理操作 → 走任务队列 + 日志先行；同名冲突按「追加序号」处理（⛔ 不覆盖，覆盖会丢文件）。</para>
     /// </summary>
     [RelayCommand]
@@ -104,13 +99,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (!IsDbAvailable) { StatusText = "资产库不可用。"; return; }
 
         var current = Path.GetFileName(loc.Path);
-        var suggested = row.DisplayName ?? row.Title ?? Path.GetFileNameWithoutExtension(current);
-        var newName = await DialogHooks.InputAsync(
-            $"把磁盘文件改成什么名字？\n当前：{current}\n（这是**真改磁盘文件名**；只改库里的显示名请用「保存」）",
-            suggested).ConfigureAwait(true);
-        if (string.IsNullOrWhiteSpace(newName)) { StatusText = "已取消（没改磁盘文件）。"; return; }
+        var name = (EditFileName ?? "").Trim();
+        if (name.Length == 0) { StatusText = "先在详情卡「文件名」里填新名字（含扩展名）。"; return; }
+        if (string.Equals(name, current, StringComparison.Ordinal))
+        { StatusText = "文件名没变（在详情卡「文件名」里改一个新名字再应用）。"; return; }
 
-        var name = newName.Trim();
         _fileOps.Queue.Enqueue($"重命名 {current}", async (ct, p) =>
         {
             await Task.Run(() =>
@@ -124,7 +117,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             try { Dispatcher.UIThread.Post(Reload); } catch { /* 已关闭 */ }
         });
 
-        StatusText = $"已把「{current}」的重命名排进任务队列（进度看「任务中心」）。";
+        StatusText = $"已把「{current}」→「{name}」的重命名排进任务队列（进度看「任务中心」）。";
     }
 
     /// <summary>详情卡「移入回收站」= **软删除**（只改 `status`，⛔ 不删行、⛔ 不动磁盘文件）。</summary>

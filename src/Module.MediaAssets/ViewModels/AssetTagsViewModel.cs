@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -82,7 +82,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     {
         new()
         {
-            Text = "➕ 新建标签",
+            Text = "＋ 新建标签",
             Classes = "ghost",
             CommandPath = nameof(NewTagCommand),
             ToolTip = "新建一个标签（重名会被拒）"
@@ -102,7 +102,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         },
         new()
         {
-            Text = "🧹 清理未使用",
+            Text = "🧹 清未使用",
             CommandPath = nameof(DeleteUnusedCommand),
             ToolTip = "删掉使用数为 0 的标签（二次确认）"
         },
@@ -559,7 +559,8 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
                     // 色板：只有色块、点一下即改（命令参数取候选项的 Hex，不是整项）
                     new DetailField
                     {
-                        Label = "颜色（点一下即改，立即落库）",
+                        Label = "颜色",
+                        Hint = "点一下即改，立即落库",
                         Kind = FieldKind.Chips,
                         OptionsPath = nameof(Palette),
                         ChipTextPath = "",
@@ -590,7 +591,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
             },
             new DetailAction
             {
-                Text = "🎬 视频 → 资产浏览",
+                Text = "🎬 用资产浏览",
                 Classes = "ghost",
                 ToolTip = "在「资产浏览」里以缩略图卡看这个标签下的视频（结果集模式：不按目录，只这一批）",
                 IsVisiblePath = nameof(HasTaggedVideos),
@@ -598,7 +599,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
             },
             new DetailAction
             {
-                Text = "🖼 图片 → 图片查看",
+                Text = "🖼 用图片查看",
                 Classes = "ghost",
                 ToolTip = "把这个标签下的图片整批交给「图片查看」，左右翻页只在这批图里转",
                 IsVisiblePath = nameof(HasTaggedImages),
@@ -606,7 +607,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
             },
             new DetailAction
             {
-                Text = "🎵 音乐 → 音乐播放",
+                Text = "🎵 用音乐播放",
                 Classes = "ghost",
                 ToolTip = "把这个标签下的音乐按列表顺序交给「音乐播放」并立即开播",
                 IsVisiblePath = nameof(HasTaggedMusic),

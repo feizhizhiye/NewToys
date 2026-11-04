@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Shell.Views.AboutSettingsView">
   <!--
@@ -19,7 +19,7 @@
             FontWeight="Bold"
             Foreground="{DynamicResource PrimaryTextBrush}"
             Text="NewToys" />
-        <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Text="{Binding Version}" />
+        <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource AccentInkBrush}" Text="{Binding Version}" />
         <TextBlock
             Foreground="{DynamicResource SecondaryTextBrush}"
             Text="个人高强度使用工具集 · 跨平台（Windows / macOS / Linux）"
@@ -76,7 +76,7 @@
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock
               VerticalAlignment="Center"
-              FontSize="13"
+              FontSize="14"
               FontWeight="SemiBold"
               Foreground="{DynamicResource PrimaryTextBrush}"
               Text="组件版本" />
@@ -170,7 +170,7 @@
     <Border Classes="card">
       <StackPanel Spacing="8">
         <TextBlock
-            FontSize="13"
+            FontSize="14"
             FontWeight="SemiBold"
             Foreground="{DynamicResource PrimaryTextBrush}"
             Text="增加功能" />
@@ -183,7 +183,7 @@
           <Button
               Classes="ghost"
               Command="{Binding OpenModulesFolderCommand}"
-              Content="📁 打开模块文件夹"
+              Content="📂 模块目录"
               ToolTip.Tip="在文件管理器里打开 &lt;程序目录&gt;\Modules\，可直接往里复制 DLL" />
         </StackPanel>
         <TextBlock Classes="hint-text" Text="{Binding StatusText, StringFormat='状态：{0}'}" />

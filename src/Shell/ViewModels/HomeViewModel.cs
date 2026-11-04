@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -20,44 +20,37 @@ public class QuickBtn
     public string Title { get; set; } = "";
     public string Subtitle { get; set; } = "";
     public string Icon { get; set; } = "🌐";
-    public string Color { get; set; } = "#07C160";
     public ICommand RunCommand { get; set; } = null!;
 }
 
 /// <summary>
 /// 首页「常用功能」墙里的一张卡（v3.19）。
 /// <para>
-/// 细节调整：尾部追加一张**「显示更多」卡**（<see cref="IsMore"/> = true）——
+/// 细节调整：尾部追加一张**「更多」卡**（<see cref="IsMore"/> = true）——
 /// 它与收藏按钮**同容器同流转**（同一个 <c>WrapPanel</c>）、恒排最后，点开把**功能清单就地展开**在下方
 /// （⛔ 不再跳独立页）。故命令与命令参数下沉到卡片自身（收藏卡 → 导航；更多卡 → 折叠切换）。
 /// </para>
 /// </summary>
 public partial class FavCard : ObservableObject
 {
-    /// <summary>目标功能 Key（「显示更多」卡为空）。</summary>
+    /// <summary>目标功能 Key（「更多」卡为空）。</summary>
     public string Key { get; set; } = "";
 
     /// <summary>悬停提示（收藏卡 = 菜单项简介）。</summary>
     public string Desc { get; set; } = "";
 
-    /// <summary>图标（收藏卡 = 菜单项 emoji；「显示更多」卡 = ＋ / －）。</summary>
+    /// <summary>图标（收藏卡 = 菜单项 emoji；「更多」卡 = ＋ / －）。</summary>
     public string Icon { get; set; } = "";
 
-    /// <summary>所属模块分组的 key（<c>pc</c> / <c>web</c> / <c>video</c> / <c>assets</c>）。</summary>
-    public string GroupKey { get; set; } = "";
-
-    /// <summary>按钮底色（<c>#RRGGBB</c>）：同一模块 = 同一颜色，⛔ 不随"取消固定后其余卡片前移"而变。</summary>
-    public string Color { get; set; } = "#07C160";
-
-    /// <summary>是否尾部「显示更多 / 收起」卡（⛔ 不是收藏项：右键菜单与「取消固定」都不适用）。</summary>
+    /// <summary>是否尾部「更多 / 收起」卡（⛔ 不是收藏项：右键菜单与「取消固定」都不适用）。</summary>
     public bool IsMore { get; set; }
 
-    /// <summary>点击执行（收藏卡 = 导航命令；「显示更多」卡 = 折叠切换命令）。</summary>
+    /// <summary>点击执行（收藏卡 = 导航命令；「更多」卡 = 折叠切换命令）。</summary>
     public ICommand? Command { get; set; }
 
     public object? CommandParameter { get; set; }
 
-    /// <summary>按钮文字（「显示更多」卡要随展开态变），故可观察。</summary>
+    /// <summary>按钮文字（「更多」卡要随展开态变），故可观察。</summary>
     [ObservableProperty] private string _title = "";
 }
 
@@ -74,10 +67,10 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
     public ObservableCollection<FavCard> Favorites { get; } = new();
     public ObservableCollection<QuickBtn> QuickButtons { get; } = new();
 
-    /// <summary>真实收藏数 &gt; 0（不含尾部「显示更多」卡）—— 空态提示用。</summary>
+    /// <summary>真实收藏数 &gt; 0（不含尾部「更多」卡）—— 空态提示用。</summary>
     private bool _hasFavorites;
 
-    /// <summary>收藏卡尾部「显示更多 / 收起」卡：**恒在最后**（每次重建收藏都重新追加）。</summary>
+    /// <summary>收藏卡尾部「更多 / 收起」卡：**恒在最后**（每次重建收藏都重新追加）。</summary>
     private readonly FavCard _moreCard = new() { IsMore = true, Icon = "＋" };
 
     private Control? _functionList;
@@ -85,13 +78,13 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
     // ==================== 内嵌功能清单（v3.66：细节调整） ====================
 
     /// <summary>
-    /// 功能清单是否已就地展开（收藏卡尾部「显示更多」切换）。
-    /// ⚠️ 展开后一键操作区随页面滚动、折叠时钉在窗口底部 —— 见 HomeView 的 Grid 布局与 MinHeight。
+    /// 功能清单是否已就地展开（收藏卡尾部「更多」切换）。
+    /// ⚠️ 展开后只有内容区滚动，底部一键按钮条恒定贴底 —— 见 HomeView 的 `Grid RowDefinitions="*,Auto"`。
     /// </summary>
     [ObservableProperty] private bool _isFunctionListOpen;
 
     /// <summary>
-    /// 内嵌的**功能清单**视图（复用 <see cref="AllFunctionsView"/>：同一份"全集"卡片墙，
+    /// 内嵌的**功能清单**视图（复用 <see cref="AllFunctionsView"/>：同一份"全集"分节列表，
     /// 右键仍然可固定 / 取消固定到本页收藏卡）。⛔ 不复刻一份 XAML。
     /// </summary>
     public Control? FunctionListContent => _functionList ??= BuildFunctionList();
@@ -146,7 +139,7 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
             _fav.Unpin(k);
             BuildFavorites();
         });
-        // 尾部「显示更多」：**就地展开 / 收起**功能清单（v3.66：⛔ 不再跳独立页）。
+        // 尾部「更多」：**就地展开 / 收起**功能清单（v3.66：⛔ 不再跳独立页）。
         _moreCard.Command = ToggleFunctionListCommand;
 
         // 收藏夹变化（来自内嵌功能清单右键固定/取消）→ 实时刷新首页卡片。
@@ -167,10 +160,10 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
         SyncMoreCard();
     }
 
-    /// <summary>把「显示更多」卡的文案与图标同步成当前展开态。</summary>
+    /// <summary>把「更多」卡的文案与图标同步成当前展开态。</summary>
     private void SyncMoreCard()
     {
-        _moreCard.Title = IsFunctionListOpen ? "收起" : "显示更多";
+        _moreCard.Title = IsFunctionListOpen ? "收起" : "更多";
         _moreCard.Icon = IsFunctionListOpen ? "－" : "＋";
         _moreCard.Desc = IsFunctionListOpen
             ? "收起功能清单"
@@ -192,8 +185,6 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
                 Desc = item.Desc,
                 Key = item.Key,
                 Icon = item.Icon,
-                GroupKey = item.GroupKey,
-                Color = ColorOfGroup(item.GroupKey),
                 Command = NavigateCommand,
                 CommandParameter = item.Key
             });
@@ -201,28 +192,15 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
         }
         _hasFavorites = count > 0;
 
-        // 尾部「显示更多」卡 —— 与收藏按钮**同一个 WrapPanel**（同流转、自动换行）、**恒在最后**。
+        // 尾部「更多」卡 —— 与收藏按钮**同一个 WrapPanel**（同流转、自动换行）、**恒在最后**。
         SyncMoreCard();
         Favorites.Add(_moreCard);
 
         OnPropertyChanged(nameof(HasFavorites));
     }
 
-    /// <summary>常用功能是否为空（空态提示用）；⛔ 不含尾部「显示更多」卡。</summary>
+    /// <summary>常用功能是否为空（空态提示用）；⛔ 不含尾部「更多」卡。</summary>
     public bool HasFavorites => _hasFavorites;
-
-    /// <summary>
-    /// 按所属模块给按钮一个底色（同一模块 = 同一颜色，稳定不跳变）。
-    /// 颜色取自 <see cref="AccentPalette"/> 的同族色号，保证与主题色卡同源。
-    /// </summary>
-    private static string ColorOfGroup(string groupKey) => (groupKey ?? "").Trim().ToLowerInvariant() switch
-    {
-        "script" => "#2E9FFF",
-        "web" => "#00ACC1",
-        "video" => "#7C4DFF",
-        "settings" => "#FF8F00",
-        _ => AccentPalette.Default.Color
-    };
 
     private void BuildContent()
     {
@@ -235,7 +213,6 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
             Title = cfg.Browser1.Name,
             Subtitle = "自定义网址列表",
             Icon = "🌐",
-            Color = "#07C160",
             RunCommand = new RelayCommand(() => RunBrowser(cfg.Browser1))
         });
         QuickButtons.Add(new QuickBtn
@@ -243,7 +220,6 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
             Title = cfg.Browser2.Name,
             Subtitle = "工作/学习独立配置",
             Icon = "🌐",
-            Color = "#07C160",
             RunCommand = new RelayCommand(() => RunBrowser(cfg.Browser2))
         });
         QuickButtons.Add(new QuickBtn
@@ -252,7 +228,6 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
             Title = cfg.Programs.FirstOrDefault()?.Name is { Length: > 0 } n ? n : "批量打开软件",
             Subtitle = "常用软件一键启动",
             Icon = "📦",
-            Color = "#07C160",
             RunCommand = new RelayCommand(RunPrograms)
         });
     }

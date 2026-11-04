@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -192,7 +192,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     public bool HasSelectedRows => SelectedRows.Count > 0;
 
     /// <summary>「展开 / 折叠」单键文案：还有已读取的层级折叠着 ⇒ 显示「展开全部」。</summary>
-    public string ExpandAllText => AnyExpandableCollapsed() ? "↕ 展开全部" : "↕ 折叠全部";
+    public string ExpandAllText => AnyExpandableCollapsed() ? "↕ 展开" : "↕ 收起";
 
     /// <summary>树空着且没开筛选 ⇒ 「没有可浏览的磁盘」。</summary>
     public bool ShowNoDiskHint => !OnlyLibrary && TreeNodes.Count == 0;

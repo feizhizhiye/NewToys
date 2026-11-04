@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.BackupCenter.Views.BackupArchivesView">
@@ -42,11 +42,11 @@
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
               <MenuItem Header="↩ 还原…" Command="{Binding BeginRestoreCommand}" IsEnabled="{Binding HasSelection}"/>
-              <MenuItem Header="📋 复制 SHA256" Command="{Binding CopyShaCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="📋 复制哈希" Command="{Binding CopyShaCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
               <MenuItem Header="🗑 删除包" Command="{Binding DeleteArchiveCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
-              <MenuItem Header="🔄 重新扫描" Command="{Binding RefreshCommand}"/>
+              <MenuItem Header="🔄 重扫" Command="{Binding RefreshCommand}"/>
             </ContextMenu>
           </v:TableViewHost.ContextMenu>
         </v:TableViewHost>
@@ -85,7 +85,7 @@
 
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,6,0,0">
             <Button Classes="ghost" Content="取消" Command="{Binding CancelRestoreCommand}"/>
-            <Button Classes="primary" Content="↩ 开始还原" Command="{Binding ConfirmRestoreCommand}"/>
+            <Button Classes="primary" Content="↩ 还原" Command="{Binding ConfirmRestoreCommand}"/>
           </StackPanel>
         </StackPanel>
       </Border>

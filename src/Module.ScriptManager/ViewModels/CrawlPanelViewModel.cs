@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -177,7 +177,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         },
         new()
         {
-            Text = "📋 复制诊断",
+            Text = "📋 复制",
             Classes = "ghost",
             CommandPath = nameof(CopyDiagCommand),
             ToolTip = "把 脚本 / 网址 / 每列命中与错误 / 前 5 行 打包进剪贴板（给 AI 复盘）"

@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.UI.Controls"
              x:Class="NewToys.Reading.Views.SettingsReadingView">
@@ -40,7 +40,7 @@
       </StackPanel>
 
       <Button Classes="ghost"
-              Content="🧹 清空正文缓存"
+              Content="🧹 清正文缓存"
               HorizontalAlignment="Left"
               Command="{Binding ClearCacheCommand}"
               ToolTip.Tip="改完替换规则、或想让章节重新抓时点这里"/>
@@ -136,9 +136,9 @@
       </StackPanel>
 
       <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Classes="ghost" Content="📥 导入样式文件" Command="{Binding ImportStyleCommand}"
+        <Button Classes="ghost" Content="📥 导入样式" Command="{Binding ImportStyleCommand}"
                 ToolTip.Tip="选一个样式 JSON 文件并套用（缺的项保持原值）"/>
-        <Button Classes="ghost" Content="📤 导出当前样式" Command="{Binding ExportStyleCommand}"
+        <Button Classes="ghost" Content="📤 导出样式" Command="{Binding ExportStyleCommand}"
                 ToolTip.Tip="把当前排版导成一个样式 JSON 文件"/>
       </StackPanel>
 

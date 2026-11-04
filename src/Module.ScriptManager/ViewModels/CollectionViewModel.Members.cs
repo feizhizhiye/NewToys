@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -49,7 +49,6 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         _loading = true;
 
         var keepId = SelectedCollection?.Id;
-        var keyword = (CollectionSearch ?? "").Trim();
         var kindFilter = SelectedKindFilter?.Value ?? "";
         var group = SelectedGroup?.Value ?? "";
 
@@ -69,7 +68,6 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
         var rows = _store.Data.Collections
             .Where(c => kindFilter.Length == 0 || ScriptCollectionKind.Normalize(c.Kind) == kindFilter)
-            .Where(c => keyword.Length == 0 || Matches(c, keyword))
             .Where(c => group != "pinned" || c.Pinned)
             .OrderBy(InUseRank)                                // 使用中的集合排最后（置顶 / 归档都优先不了）
             .ThenBy(c => c.Archived)                           // 归档的排最后（仍可见，方便取消归档）
@@ -95,7 +93,6 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         SelectedCollection = Collections.FirstOrDefault(r => r.Id == keepId) ?? Collections.FirstOrDefault();
         _loading = false;
 
-        OnPropertyChanged(nameof(HasCollections));
         OnPropertyChanged(nameof(HasSelectedCollection));
         OnPropertyChanged(nameof(CollectionHint));
     }
@@ -106,15 +103,10 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     /// </summary>
     public void RefreshUsageState() => RefreshCollections();
 
-    private static bool Matches(ScriptCollection c, string keyword)
-        => (c.Name ?? "").Contains(keyword, StringComparison.CurrentCultureIgnoreCase)
-           || (c.Description ?? "").Contains(keyword, StringComparison.CurrentCultureIgnoreCase)
-           || (c.Tags ?? new List<string>()).Any(t => t.Contains(keyword, StringComparison.CurrentCultureIgnoreCase));
-
     private static DateTime SafeDate(string? iso)
         => DateTime.TryParse(iso, out var dt) ? dt : DateTime.MinValue;
 
-    /// <summary>重建右栏成员表：候选池（按集合 kind 过滤）+ 是否属于当前集合（D13）。</summary>
+    /// <summary>重建成员表：候选池（按集合 kind 过滤）+ 是否属于当前集合（D13）。</summary>
     private void LoadMemberTable()
     {
         if (_store == null) return;
@@ -262,7 +254,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
         _store.Save();
 
-        // 左栏行同步（⛔ 不整表重建，免得丢选中）
+        // 集合行同步（⛔ 不整表重建，免得丢选中）
         SelectedCollection.Name = col.Name;
         SelectedCollection.Kind = col.Kind;
         SelectedCollection.Icon = col.Icon;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -53,7 +53,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         },
         new()
         {
-            Text = "➕ 加入资产库", CommandPath = nameof(AddToLibraryCommand), IsEnabledPath = "!" + nameof(IsBusy),
+            Text = "＋ 入库", CommandPath = nameof(AddToLibraryCommand), IsEnabledPath = "!" + nameof(IsBusy),
             ShowToolTipOnDisabled = true,
             ToolTip = "把选中的文件 / 文件夹（或当前目录）加入资产库：文件只索引自身，文件夹递归扫描"
         },
@@ -113,7 +113,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "📁 这是一个文件夹：双击进入，右键可把整棵目录加入资产库。",
+                        Hint = "📂 这是一个文件夹：双击进入，右键可把整棵目录加入资产库。",
                         VisibleWhen = nameof(DetailIsFolder)
                     },
                     new DetailField
@@ -140,12 +140,12 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             },
             new DetailAction
             {
-                Text = "📁 打开所在文件夹", Classes = "ghost", Command = OpenFolderSelectedCommand,
+                Text = "📂 所在目录", Classes = "ghost", Command = OpenFolderSelectedCommand,
                 IsVisiblePath = nameof(ShowDetailBody), ToolTip = "在资源管理器里定位它"
             },
             new DetailAction
             {
-                Text = "➕ 加入资产库", Classes = "ghost", Command = AddToLibraryCommand,
+                Text = "＋ 入库", Classes = "ghost", Command = AddToLibraryCommand,
                 IsVisiblePath = "!DetailIsInLibrary", ToolTip = "把这一项加入资产库（文件夹会递归扫描）"
             }
         }

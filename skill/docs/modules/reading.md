@@ -106,6 +106,7 @@ ExploreView ──────► ExploreViewModel ────► CrawlService.
 - **切分顺序**：先剥 `@js:` / `<js>`（之后整段是 JS）→ `{{}}` → `||` → `&&` → `##`。`##` 后两段是「正则 / 替换串」，⛔ 不参与规则切分。
 - **JS 层**（`RuleEvaluator.Js.cs`）：`@js:` 的前半段照常求值，结果作为 JS 变量 `result`；执行完取最后表达式值（undefined 时回退取 `result`）。
   🔴 桥的边界只有 **string 进 / string 出**（元素集走 JSON 索引数组、连接走 JSON 快照），JS 侧重载与对象包装全在 prelude 里做 —— ⛔ 不直接暴露 CLR 对象。
+  🔵 **Jint 4.17 支持到 ES2025**（3.x 只到 ES2021）：书源脚本可零改动用可选链 `?.`、空值合并 `??`、`Array.at(-1)`、`Object.hasOwn` 等新语法；写书源/排查「旧语法跑不通」时可优先换新语法试。
 - **请求层**：`HttpClient`（跟随重定向 / 自动解压）、`User-Agent` 与超时来自设置、失败重试 1 次（404/403 不重试）、并发门 `SemaphoreSlim`。
 - 🔴 **正文清洗**：`ruleContent.content` 常写成 `…@html`，拿回来带标签 ⇒ `StripMarkup` 去标签、块级收尾转换行、解 HTML 实体后再交给 `TextViewer`。
 - **发现页**与**搜索**共用 `ParseItems`（同一套「书单 → 每条目内求值」），区别只在地址来源（`exploreUrl` 的分类 vs `searchUrl` 的模板）与规则（`ruleExplore` 逐字段退回 `ruleSearch`）。

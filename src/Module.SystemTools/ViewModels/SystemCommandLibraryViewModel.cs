@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -474,7 +474,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
     {
         new()
         {
-            Text = "➕ 新增", Classes = "ghost",
+            Text = "＋ 新增", Classes = "ghost",
             CommandPath = nameof(AddCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = "新增一条命令条目（在右栏详情卡里填名称 / 命令）"

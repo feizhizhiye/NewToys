@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.ScriptManager.Views.RuleCatalogView">
@@ -9,7 +9,7 @@
     故骨架的 HeaderArea 不填。
   -->
   <v:ListPageSkeleton EmptyMessage="还没有规则集。点「➕ 新建规则集」建一个。"
-                      EmptyActionText="➕ 新建规则集"
+                      EmptyActionText="＋ 新建规则集"
                       EmptyActionCommand="{Binding NewRuleSetCommand}"
                       IsEmpty="{Binding !HasItems}">
 

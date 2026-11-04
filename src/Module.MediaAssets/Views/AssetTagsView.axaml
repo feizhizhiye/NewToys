@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetTagsView">
@@ -12,7 +12,7 @@
        🔴 Columns 的声明顺序必须与 VM 的 ColumnLayout 一致。
   -->
   <v:ListPageSkeleton EmptyMessage="没有可显示的标签。点「➕ 新建标签」建第一个。"
-                      EmptyActionText="➕ 新建标签"
+                      EmptyActionText="＋ 新建标签"
                       EmptyActionCommand="{Binding NewTagCommand}"
                       IsEmpty="{Binding !HasItems}">
 
@@ -20,9 +20,9 @@
     <v:ListPageSkeleton.TopArea>
     <Border Classes="filter-bar">
       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
-        <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
+        <TextBlock Text="{Binding FilterSummary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <TextBlock Text="左键表头排序；右键表头选列 / 筛选" FontSize="11" VerticalAlignment="Center"
+        <TextBlock Text="左键表头排序；右键表头选列 / 筛选" FontSize="12" VerticalAlignment="Center"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
       </WrapPanel>
     </Border>
@@ -67,7 +67,7 @@
           <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；菜单顶部「▤ 列」「🔎 筛选」由页面给，DataContext 由控件同步  -->
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+              <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
                 <MenuItem.ItemContainerTheme>
                   <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                     <Setter Property="Header" Value="{Binding Label}"/>

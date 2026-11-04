@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -373,7 +373,7 @@ public partial class HostsViewModel
             },
             new DetailAction
             {
-                Text = "➕ 新增",
+                Text = "＋ 新增",
                 Classes = "ghost",
                 ToolTip = "用上面的 IP / 主机名 / 注释新增一条（左栏追加到草稿末尾，右栏加到方案末尾）",
                 Command = AddEntryCommand

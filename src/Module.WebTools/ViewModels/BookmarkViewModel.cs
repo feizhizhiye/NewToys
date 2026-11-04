@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -54,7 +54,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     {
         new() { Text = "📥 导入书签", Classes = "ghost", CommandPath = nameof(ImportBookmarksCommand), ToolTip = "选择浏览器导出的书签 HTML 文件（保留文件夹层级）" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索标题 / 网址 / 分组…", ValuePath = nameof(SearchText) },
-        new() { Text = "➕ 新建", CommandPath = nameof(NewBookmarkCommand), ToolTip = "新网址落在当前选中的文件夹下" },
+        new() { Text = "＋ 新建", CommandPath = nameof(NewBookmarkCommand), ToolTip = "新网址落在当前选中的文件夹下" },
         new() { Text = "🔗 检测全部", CommandPath = nameof(CheckAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new() { Text = "🚀 批量打开", CommandPath = nameof(OpenBatchCommand) },
         new() { Text = "🔄 重读收藏", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地收藏库（⛔ 不联网、不导浏览器）" },
@@ -323,7 +323,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             },
             new DetailAction
             {
-                Text = "📌 写入浏览器配置",
+                Text = "📌 写入配置",
                 Classes = "ghost",
                 ToolTip = "把该网址追加进「打开方式」所选浏览器的网址列表（追加 + 去重）",
                 IsVisiblePath = nameof(IsItemSelected),
@@ -397,7 +397,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             },
             new DetailAction
             {
-                Text = "📋 复制全部网址",
+                Text = "📋 复制全部",
                 Classes = "ghost",
                 ToolTip = "把这个文件夹下（含子文件夹）的所有网址一行一个复制到剪贴板",
                 IsVisiblePath = nameof(IsFolderSelected),

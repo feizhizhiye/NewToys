@@ -57,11 +57,11 @@
 | **条目条滚动** | 换图 / 换屏 / 点条目 | 当前条目**滚到条目条正中**；整条放得下时不滚动、按顺序从头排 | 横向溢出时不出滚动条（`HorizontalScrollBarVisibility=Hidden`）；条高 20px 项高；在条上滚轮 = 翻图 / 换屏（⛔ 不横向滚动） |
 | **条目条分节** | 同目录图片 / 压缩包条目 ≥ 20 张时自动出现 | 节大小按总数自适应（≈ 10 节，10 的倍数，最小 10 张）：条目条上每隔一节画竖线 + 范围（`1–10`）；条头「节」下拉选一节 = 直接跳到该节第一张 | 同目录与压缩包**都分节**；节下拉随当前图自动指到所在节；分屏翻屏时节下拉跟着屏走 |
 | **长文本指引** | 打开 / 拖入 / 最近点 `.txt .md .markdown .log` | 不装载，状态栏报「长文本阅读已并入『网络阅读』—— 到那边点『📂 本地 TXT』打开」 | 🔴 阅读器壳 / 目录 / 书签 / 听书都在「网络阅读」模块（NT-144 批 3） |
-| **图片翻页** | 点顶部条目条 / 工具条「←」「→」/ ←→ | 换成同一批里的那张图 | 工具条只放箭头图标（`←` `→`，⛔ 不用播放键那种实心三角，⛔ 不带文字，说明靠悬停提示）；来源三种：**同目录图片**（按文件名排序，自动带出）、**压缩包内图片**、**外部投递的一批图**（`ModuleTopics.ImageOpen` ← 媒体资产「标签详情卡 → 🖼 图片」：翻页集**就是**这批图，⛔ 不再扫同目录混进没被选中的图）；序号显示「第 N / M 张」（分屏时「第 a–b / M 张」）；只有 1 张时⛔ 不显示条带 |
+| **图片翻页** | 点顶部条目条 / 工具条「←」「→」/ ←→ | 换成同一批里的那张图 | 工具条只放箭头图标（`←` `→`，⛔ 不用播放键那种实心三角，⛔ 不带文字，说明靠悬停提示）；来源三种：**同目录图片**（按文件名排序，自动带出）、**压缩包内图片**、**外部投递的一批图**（`ModuleTopics.ImageOpen` ← 媒体资产「标签详情卡 → 🖼 图片」：翻页集**就是**这批图，⛔ 不再扫同目录混进没被选中的图）；序号显示「N/M」（分屏时「a–b/M」，⛔ 不加「第…张」前缀 —— 位置本身已说明是图片序号）；只有 1 张时⛔ 不显示条带 |
 | **大压缩包** | 打开 `.zip` / `.cbz` | 状态栏先报「正在读取压缩包…」，读到后列出条目并显示第一张 | zip 家族只读**中央目录**（不解压任何数据）；rar / 7z 无等价 API，仍按条目顺序扫 |
 | 音乐播放 | 打开音乐 / 拖入多首 / 拖入 m3u·m3u8 | 自动播第一首；底部条控制 | 🔴 **打开单首时会先问一句「把同一文件夹里另外 N 首也加进播放列表？」**（`DialogHooks.ConfirmAsync`，同目录音频按文件名排序并入，当前曲目定为起始项；选取消就只放这一首；⛔ 拖入多首 / 走「媒体资产 → ▶ 播放」/ m3u 这条路不问）；🔴 **切走页面 ⛔ 不停播**（`AudioPlayer` 卸载时只停轮询表、不 Stop），切回来界面照旧刷新、播完照常续播；列表重建与「续播」互不打架：`RestoreAudioPlaylist` 见到 `Host.Audio` 有待播内容且后端非 `Stopped` 就直接返回，⛔ 不重建列表；真正换文件（`Open` 打开非音频）前才 `Host.Audio.Stop()`；播放列表文件先展开成音频列表，路径失效的条目跳过；**关闭标签页即停播**（`ViewerViewModel.Dispose` → 先存续播快照再 `Stop`；文本 / 图片页的 VM 被关掉时⛔ 不掐音乐），重开音频页回到同一首 + 同一位置 + 同一模式与音量（**暂停态**，⛔ 自动播） |
-| 播放器界面 | — | 顶栏「曲名 / 艺术家·专辑 / 技术信息」+ 左侧大封面（260×260）+ 右侧**居中歌词**（当前行加粗高亮，走到中线后跟随滚动）+ 底部控制条（上一首 / 播放 / 下一首 / 进度 / 时间 / 模式 / 音色 / 音量）；**播放列表 = 右侧悬浮层**（工具条「☰ 列表」开合，默认收起，点条目切歌，层内 ✕ 收起，每行右侧显示该曲**时长**）；**音色 = 底部音色键弹出的菜单**（点键即展开，点外即收） | 底栏按钮 **22px**（`Padding="10,0"`，⛔ 再撑高）；按钮**一律纯图标**（`◄◄` `►`/`❚❚` `►►`）并显式 `Horizontal/VerticalContentAlignment=Center`，含义进 `ToolTip` + `AutomationProperties.Name`；🔴 **图标只用非 emoji 码位** —— `⏮ ⏭ ▶ ⏸ 🔁` 会被 Segoe UI Emoji 接管渲染成彩色方块（与主题冲突）；🔴 **两个 Slider ⛔ 设 Height / MinHeight**（模板被压扁 ⇒ 轨道与按钮错位，见 `ui.md` §9-15），只写 `VerticalAlignment=Center`；进度/时长文字 `VerticalAlignment=Center`；技术信息 = `格式 · 采样率 · 码率 · 声道`（TagLibSharp 读 `TagLib.Properties`，读不到只留扩展名）；歌词行字号 14 / 译文 12，居中排版；封面下方 **260×48 分频柱**（32 段竖条，对数分频 60 Hz~16 kHz，33 ms 刷新）：只在播放时出现，暂停 / 停止 / 后端不支持频谱即整块收起（⛔ 留空框）；封面取不到时显示音符占位（⛔ 空白边框） |
-| 播放列表 | 工具条「☰ 列表」（仅音频页可用） | 右侧悬浮层：曲名·艺术家 + 右侧时长（`mm:ss`，超 1 小时 `h:mm:ss`，未知留空） | 行模板是两列 Grid（`*,Auto`）；开关按钮在**工具条**而不是播放器顶栏（顶栏只留曲目信息）；音色是底部键弹出的菜单，与列表互不干扰（点菜单外即收） |
+| 播放器界面 | — | **悬浮曲目条**（曲名 / 艺术家·专辑 / 技术信息，浮在主显示区左上角；**透明背景、无边框无阴影**，与主显示区不区分，⛔ 不再占顶部一整行） + 大封面 + **居中歌词**（当前行加粗高亮，走到中线后跟随滚动）+ 底部控制条（上一首 / 播放 / 下一首 / 进度 / 时间 / 模式 / 音色 / 音量）；**布局三档**（工具条「◫ 左右 / ▭ 封面 / ⊟ 上下」下拉，与图片分屏同一套交互）：左右分屏（封面 ｜ 歌词，默认）/ **只显示封面**（歌词收起，封面放到最大）/ **上下分屏**（封面在上、歌词在下）；**主显示区动效**（工具条「✦ 动效」）= 盖一层动态几何图案（三层旋转多边形 + 顶点连线 + 中心呼吸圆 + 向外扩散脉冲环，30 fps）；**播放列表 = 右侧悬浮层**（工具条「☰ 列表」开合，默认收起，点条目切歌，层内 ✕ 收起，每行右侧显示该曲**时长**）；**音色 = 底部音色键弹出的菜单**（点键即展开，点外即收） | 底栏按钮 **22px**（`Padding="10,0"`，⛔ 再撑高）；按钮**一律纯图标**（`◄◄` `►`/`❚❚` `►►`）并显式 `Horizontal/VerticalContentAlignment=Center`，含义进 `ToolTip` + `AutomationProperties.Name`；🔴 **图标只用非 emoji 码位** —— `⏮ ⏭ ▶ ⏸ 🔁` 会被 Segoe UI Emoji 接管渲染成彩色方块（与主题冲突）；🔴 **两个 Slider ⛔ 设 Height / MinHeight**（模板被压扁 ⇒ 轨道与按钮错位，见 `ui.md` §9-15），只写 `VerticalAlignment=Center`；进度/时长文字 `VerticalAlignment=Center`；技术信息 = `格式 · 采样率 · 码率 · 声道`（TagLibSharp 读 `TagLib.Properties`，读不到只留扩展名）；歌词行字号 14 / 译文 12，居中排版；🔴 **封面边长按布局与可用空间算**（`UpdateCoverSize`：左右 130~320、只封面 150~460、上下 110~260），⛔ 写死 260（上下分屏时会把歌词挤没）；封面下方分频柱（32 段竖条，对数分频 60 Hz~16 kHz，33 ms 刷新；宽高随封面缩放）：只在播放时出现，暂停 / 停止 / 后端不支持频谱即整块收起（⛔ 留空框）；封面取不到时显示音符占位（⛔ 空白边框） |
+| 播放列表 | 工具条「☰ 列表」（仅音频页可用） | 右侧悬浮层：曲名·艺术家 + 右侧时长（`mm:ss`，超 1 小时 `h:mm:ss`，未知留空） | 行模板是两列 Grid（`*,Auto`）；开关按钮在**工具条**而不是播放器里（曲目信息是浮在主显示区上的曲目条）；音色是底部键弹出的菜单，与列表互不干扰（点菜单外即收） |
 | 音量 / 静音 | 点底部「音量」键 | 一下静音（音量滑到 0），再一下回到**静音前**的音量 | 静音态键面变「静音」、提示变「恢复上次音量」；拖滑杆离开 0 即视为取消静音 |
 | 音色 | 点底部音色键 | 键下方弹出菜单，列出 5 档（关闭 / 低音增强 / 流行 / 人声 / 古典），点一项立即生效并收起菜单，当前项带单选勾 | 每次展开重建菜单项（以 `IAudioTone.CurrentPresetKey` 为准，⛔ 缓存项防漂移）；键面写**当前预设名**，直通态写「音色」（写「关闭」看不出这键在选音色）；能力 != 契约：后端实现 `IAudioTone` 才出现该键（`NullAudioPlayback` 不实现 ⇒ 自动隐藏）；播放中即时生效（滤波系数整体替换），⛔ 需重开文件；曲线 = 级联 biquad（RBJ：LowShelf / Peaking / HighShelf），⛔ 依赖 `NAudio.Dsp` |
 | 歌词滚动 | 随播放自动；滚轮 / 拖滚动条可手动查看 | **当前行落在视口垂直中线**，行与行之间按播放时间线性插值滚动（40 ms 一帧） | 🔴 偏移夹在 `≥0`：开头几行没排满一屏时列表不动，高亮行从上往下逐行走，走到中线后列表才开始滚；⛔ 用 `BringIntoView()`（一到行首就跳居中，顿挫得像卡死）；暂停 / 停止即停表；**手动查看**：滚轮或在滚动条上按下即暂停跟随，停手 **3 秒**（`_lyricResumeTimer`）自动拉回当前行；只在命中 `ScrollBar` 时算手动（点歌词正文不算），换曲 / 切页即恢复跟随；贴边滚动条**不留白缝**（Shell 的 `WM_NCHITTEST` 钩子让控件优先，见 `ui.md` §9-16） |
@@ -86,7 +86,8 @@ ViewerPageBase（Module.Viewer/Views，文本 / 图片 / 音频三页共用）
                                ├─ KindOf(path) 扩展名分派
                                ├─ TextViewer（短文本 / 源码 / HTML）
                                ├─ ImageViewer（图片 / 压缩包内图片，支持流加载；自带右键菜单 + 信息浮层）
-                               └─ AudioPlayer（播放列表 + 控制条 + 歌词）
+                               ├─ AudioPlayer（播放列表 + 控制条 + 歌词；主显示区布局三档）
+                               └─ GeometryVisual（动态几何图案，自绘 + 30 fps 表；AudioPlayer 的动效层）
 ArchiveImageService   打开压缩包会话（zip 走 ZipArchive 中央目录，rar/7z 走 SharpCompress），条目读进内存流
 AudioLibraryService   TagLib 读标签 / 封面 / 同名 lrc
 NAudioPlayback        IAudioPlayback 的 Windows 实现（MF 解码 + WaveOut 输出）
@@ -95,6 +96,8 @@ ViewerSettingsService config\viewer.json 唯一写入点
 
 - **连线方式**：VM 发事件（`OpenRequested`（载荷 `IReadOnlyList<string>?`，`null` = 弹选择器）/ `ArchiveNavigateRequested`），View 订阅后操作控件；VM ⛔ 不 new 控件。
 - 🔴 **跨页跳转 = `ModuleBus` 投递 + `NavigateTo`**：`ViewerOpenRequest` 带目标 `Scope`，收到请求的页先比对范围，不匹配直接忽略（三页共用一个主题，靠载荷分流）。投递前无订阅者则进信箱，目标页构造时 `TakeAll` 取走 ⇒ 两条路径都不丢。
+- 🔴 **音频主显示区布局 = 固定「两行两列」+ 只改两块的 `Row`/`Column`/`Span`**（`AudioPlayer.ApplyLayout`，三档 `AudioStageLayout`；XAML 里 `MainGrid` 就是 `RowDefinitions="*,*"` + `ColumnDefinitions="*,1.1*"`）：⛔ **运行时替换 `RowDefinitions` / `ColumnDefinitions`** —— 换完旧索引还在（如 `LyricPane` 的 `Column=1` 撞上只剩 1 列）会让 Grid 取定义越界、**整个软件直接崩**（2026-11-04 实测）；⛔ 不建第二套 XAML、⛔ 不换控件（换了要重挂歌词 / 封面）；封面边长随布局与可用空间 `UpdateCoverSize` 重算（内部 `_sizing` 防重入），分频柱宽高跟着封面走。
+- 🔴 **动效层开关只切 `IsVisible` + 起停表**：`GeometryVisual` 不可见 / 离开视觉树即停表（切页回来由 `AudioPlayer.AttachedToVisualTree` 重新起），⛔ 后台空转；配色取 `Background`/`Foreground` 主题键，代码里⛔ 写死色值。
 - 🔴 **音频走 `Shared/Services/IAudioPlayback` 契约**：`NewToys.UI` ⛔ 不引 NAudio；控件靠宿主注入，换后端（libvlc / mpv）只换 `NAudioPlayback`。
 - 🔴 **图片缩放改 `Image.Width/Height`，不用 `RenderTransform`**：占位尺寸不变则 `ScrollViewer.Extent` 不跟，放大后拖不到边缘。
 - 🔴 **旋转用「外层 `Panel` 按旋转后外框占位 + 内层 `Image` 自转」**：90°/270° 时外框宽高互换、内层保持未旋转尺寸绕中心转 ⇒ 布局尺寸与 `Extent` 都对（Avalonia 12 没有 `LayoutTransformControl`，只给 `Image` 加 `RenderTransform` 会裁切 / 拖不到边）。
@@ -125,6 +128,7 @@ ViewerSettingsService config\viewer.json 唯一写入点
 - 🔴 **三页 XAML 必须是同一份内容**：`ViewerPageBase` 按 `x:Name`（`Host` / `RecentList` / `ArchiveList` / `SectionBox` / `SplitGrid` / `HistoryPanel`）取控件；少一个就抛「ViewerPage 的 XAML 缺少名为 X 的控件」。改一页必须同步另两页。
 - 🔴 **XAML 里引用的事件处理必须是 `protected`**：处理器写在基类，XAML 编译生成的调用落在子类 partial 里，`private` 编译不过（`OnArchiveSelected` / `OnSectionSelected` / `OnRecentSelected`）。
 - 🔴 **条目条里的 `ComboBox` 必须显式 `Height="22" MinHeight="0"`**：隐式样式 `MinHeight=28` 会把 22px 的条撑高，条带跟着变胖。
+- 🔴 **条目条（`ArchiveList`）必须用横向 `VirtualizingStackPanel`，⛔ 别退回 `StackPanel`**：横向 `StackPanel` 不虚拟化，几千张的漫画包会一次性实例化几千个 `ListBoxItem` 容器，切标签页再切回时 Avalonia 摘除→重挂视觉树触发全量重新 Measure/Arrange，实测卡顿 >1 秒。虚拟化后只实例化可见条目，切回重排成本从 O(几千) 降到 O(可见数)。
 - ~~🔴 `ViewerHost` 不能放在 `Module.Viewer` 里~~ **已作废（2026-11-04）**：渲染器族已整体下沉到 `Module.Viewer/Controls/`；批 3 后 `ReaderShell` / `TxtBookService` 迁入「网络阅读」，`src/UI` 渲染器清零。
 - 🔴 **降采样解码必须先探测原始尺寸**：`Bitmap.DecodeToWidth/Height(stream, n)` 是解码期缩放（省内存的唯一手段），但**目标尺寸大于原图时会放大** ⇒ 小图反而多吃内存。所以先走 `ImageHeader.TryReadSize`（只读文件头，png / jpeg / gif / bmp / webp）拿原始宽高，超限才降采样；探测不出来就整图解码。
 - 🔴 **解码边长上限 = 视口物理像素宽 × 2**（夹 `1200 ~ 4096`；分屏每格 `480 ~ 2048`）。超过屏幕精度的像素只是白占内存（漫画包四格全尺寸能吃掉几百 MB）。信息卡里「尺寸」仍报**原始**像素，「解码尺寸」另起一行说明降过采样。

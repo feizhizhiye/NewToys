@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -33,7 +33,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
     // ==================== 声明式工具条 ====================
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "➕ 新建规则集", Classes = "ghost", CommandPath = nameof(NewRuleSetCommand) },
+        new() { Text = "＋ 新建规则集", Classes = "ghost", CommandPath = nameof(NewRuleSetCommand) },
         // 站点探测（输入主页地址 → 试各预设的探测路径 → 推荐预设；🔴 只推荐不代选）
         new()
         {

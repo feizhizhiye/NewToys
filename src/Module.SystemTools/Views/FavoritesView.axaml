@@ -9,8 +9,7 @@
   <Grid RowDefinitions="Auto,Auto,*">
 
     <!--  说明条  -->
-    <Border Grid.Row="0" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10"
-            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+    <Border Grid.Row="0" Background="{DynamicResource ContentHeaderBrush}" Padding="24,10">
       <TextBlock Text="{Binding Hint}" FontSize="12" TextWrapping="Wrap"
                  VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
     </Border>
@@ -46,7 +45,7 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <TextBlock Text="{Binding DataFileHint}" FontSize="11" Margin="8" TextWrapping="Wrap"
+        <TextBlock Text="{Binding DataFileHint}" FontSize="12" Margin="8" TextWrapping="Wrap"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
       </StackPanel>
     </ScrollViewer>

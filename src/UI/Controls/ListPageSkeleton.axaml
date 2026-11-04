@@ -26,8 +26,9 @@
     <!--  ① 顶工具条 / 筛选区（code-behind 填 TopArea）  -->
     <ContentControl x:Name="TopAreaHost" Grid.Row="0"/>
 
-    <!--  ② 列表区（card：表头 / 空行 / 列表 + 空态同格）  -->
-    <Border Grid.Row="1" Classes="card" Padding="0">
+    <!--  ② 列表区：一块铺满的面（⛔ 不套卡片 —— 圆角在铺满时会在四角切出缺口），
+         底色 = `ListBodyBrush`（1 档；表头 4 档 / 工具条 3 档，档位见 `App.Theme.cs` 的 RegionLayers）。  -->
+    <Border Grid.Row="1" Background="{DynamicResource ListBodyBrush}" Padding="0">
       <Grid RowDefinitions="Auto,Auto,*">
         <ContentControl x:Name="HeaderAreaHost" Grid.Row="0"/>
         <ContentControl x:Name="ListAreaHost" Grid.Row="2"/>

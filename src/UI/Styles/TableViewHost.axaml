@@ -58,12 +58,10 @@
     <Setter Property="Padding" Value="8,0"/>
   </Style>
 
-  <!--  表头条：主题用 Fluent 的灰色 Chrome 笔刷 + 无分隔线；换成本项目的 SubSiderHeaderBrush + 1px 底边，
+  <!--  表头条：主题用 Fluent 的灰色 Chrome 笔刷 + 无分隔线；换成本项目的 ListHeaderBrush + 1px 底边，
        与其它列表页的 Border.list-header 视觉一致。  -->
   <Style Selector="TableView ScrollViewer /template/ DockPanel#ContentPanel > Border">
-    <Setter Property="Background" Value="{DynamicResource SubSiderHeaderBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="Background" Value="{DynamicResource ListHeaderBrush}"/>
   </Style>
 
   <!--  垂直滚动条从表头下沿开始：主题把滚动条铺在整个 ScrollViewer 上（含表头行），

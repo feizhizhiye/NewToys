@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetTrashView">
@@ -10,16 +10,16 @@
     （🔴 Columns 声明顺序必须与之一致），故骨架的 HeaderArea 不填。
   -->
   <v:ListPageSkeleton EmptyMessage="没有可显示的资产。删除的资产会先放到回收站，可以在这儿恢复。"
-                      EmptyActionText="🔄 重读回收站"
+                      EmptyActionText="🔄 重读"
                       EmptyActionCommand="{Binding RefreshTrashCommand}"
                       IsEmpty="{Binding !HasItems}">
 
     <v:ListPageSkeleton.TopArea>
     <Border Classes="filter-bar">
       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
-        <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
+        <TextBlock Text="{Binding FilterSummary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <TextBlock Text="左键表头排序；右键表头选列 / 筛选" FontSize="11" VerticalAlignment="Center"
+        <TextBlock Text="左键表头排序；右键表头选列 / 筛选" FontSize="12" VerticalAlignment="Center"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
       </WrapPanel>
     </Border>
@@ -48,9 +48,9 @@
 
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="♻ 恢复" Command="{Binding RestoreCommand}"
+              <MenuItem Header="↩ 恢复" Command="{Binding RestoreCommand}"
                         ToolTip.Tip="改回「正常」状态（库操作，磁盘文件没动）"/>
-              <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderCommand}"/>
+              <MenuItem Header="📂 所在目录" Command="{Binding OpenFolderCommand}"/>
               <Separator/>
               <MenuItem Header="🗑 永久删除" Command="{Binding PurgeSelectedCommand}"
                         ToolTip.Tip="真删磁盘文件（二次确认；无法还原）"/>

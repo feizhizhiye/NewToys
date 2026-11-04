@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.SettingsMediaAssetsView">
@@ -53,7 +53,7 @@
             Classes="primary"
             HorizontalAlignment="Left"
             Command="{Binding SaveTextSettingsCommand}"
-            Content="💾 保存忽略规则"
+            Content="💾 保存规则"
             ToolTip.Tip="把上面的忽略规则 / 命名模板 / 冲突策略一次写全（即时生效项无需保存）" />
       </StackPanel>
     </StackPanel>
@@ -104,11 +104,11 @@
           <TextBlock Classes="field-label" Text="缩略图目录（留空 = 默认）" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBox Width="320" PlaceholderText="留空 = cache\assets\thumbs" Text="{Binding ThumbsDirectory, Mode=TwoWay}" />
-            <Button Classes="ghost" Content="📂 选目录…" Click="OnPickThumbsDirClick" />
+            <Button Classes="ghost" Content="📂 选目录" Click="OnPickThumbsDirClick" />
             <Button
                 Classes="ghost"
                 Command="{Binding ResetDefaultsCommand}"
-                Content="↺ 用默认"
+                Content="↺ 默认"
                 ToolTip.Tip="全部恢复默认设置" />
           </StackPanel>
           <TextBlock
@@ -158,7 +158,7 @@
             Classes="primary"
             HorizontalAlignment="Left"
             Command="{Binding SaveTextSettingsCommand}"
-            Content="💾 保存模板与规则" />
+            Content="💾 保存模板" />
       </StackPanel>
     </StackPanel>
 
@@ -180,7 +180,7 @@
             Classes="ghost"
             HorizontalAlignment="Left"
             Command="{Binding CleanupTrashNowCommand}"
-            Content="🧹 立即清理过期回收站"
+            Content="🧹 清理回收站"
             ToolTip.Tip="把超过保留天数的资产排进永久删除队列（二次确认）" />
       </StackPanel>
     </StackPanel>
@@ -212,7 +212,6 @@
             TextWrapping="Wrap"
             Text="列表的 JSON 导入 / 导出、「导出用户数据」的文件选择器都会定位到这个目录。" />
 
-        <Border Classes="divider-line" />
 
         <!--  用户手动数据（标签 / 分类 / 集合 / 关联）—— 它们落在本模块库 store\assets\assets.db，
               导出成 config\media-assets-user-data.json 才能进「数据管理」的备份（R1 缓解）。  -->
@@ -222,12 +221,12 @@
             <Button
                 Classes="primary"
                 Command="{Binding ExportUserDataCommand}"
-                Content="📤 导出用户数据"
+                Content="📤 导出数据"
                 ToolTip.Tip="写到 config\media-assets-user-data.json（随「数据管理」备份一起走）" />
             <Button
                 Classes="ghost"
                 Click="OnRestoreUserDataClick"
-                Content="📥 恢复用户数据…"
+                Content="📥 恢复数据"
                 ToolTip.Tip="选一个导出的 json 合并恢复（缺的才建，⛔ 不覆盖）" />
           </StackPanel>
           <TextBlock

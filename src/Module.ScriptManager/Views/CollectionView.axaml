@@ -2,119 +2,52 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.ScriptManager.Views.CollectionView">
-  <!--  NT-068 S4 集合页：主从两栏 —— 左 240px 集合列表 + 右成员表（选中行 + 右键「加入 / 移出本集合」，即时生效）。
-        详情卡走标准右侧声明式卡（IDetailCardSource），与全应用一致。  -->
-  <Grid ColumnDefinitions="240,*" Margin="12">
-
-    <!--  ==================== 左栏：集合列表  ====================  -->
-    <Border Grid.Column="0" Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="4">
-      <Grid RowDefinitions="Auto,Auto,*" Margin="8">
-
-        <TextBox Grid.Row="0" PlaceholderText="搜索集合…" MinWidth="0" MinHeight="0"
-                 Text="{Binding CollectionSearch, Mode=TwoWay}"/>
-
-        <StackPanel Grid.Row="1" Spacing="4" Margin="0,6,0,0">
-          <ComboBox ItemsSource="{Binding GroupOptions}" SelectedItem="{Binding SelectedGroup, Mode=TwoWay}"
-                    HorizontalAlignment="Stretch" MinWidth="0">
-            <ComboBox.ItemTemplate>
+  <!--  集合页：单层骨架（ui.md §13 范本）—— 主显示区只有「成员表」一块 + 右侧详情列（IDetailCardSource）。
+        外缘 0：工具条 / 表头 / 行区 / 状态栏直接相接，靠 ToolbarBrush(3) → ListHeaderBrush(4) → ListBodyBrush(1) 拉开档位差。
+        集合选择 / 分组 / 类型三个下拉在工具条里，⛔ 不再单独占一栏。  -->
+  <v:ListPageSkeleton IsEmpty="{Binding !HasMembers}"
+                      EmptyMessage="没有可显示的条目。先去「脚本库」扫描 / 导入脚本，或在工具条切「📦 归档」外的下拉看全部。">
+    <v:ListPageSkeleton.ListArea>
+      <v:TableViewHost x:Name="MemberList" ItemsSource="{Binding Members}"
+                       SelectedItem="{Binding SelectedMember, Mode=TwoWay}"
+                       SelectionMode="Single">
+        <v:TableViewHost.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="↩ 加入 / 移出本集合" Command="{Binding ToggleMembershipCommand}"
+                      ToolTip.Tip="对选中行生效：未加入 ⇒ 加入；已加入 ⇒ 移出"/>
+          </ContextMenu>
+        </v:TableViewHost.ContextMenu>
+        <v:TableViewHost.Columns>
+          <TableViewColumn Width="0.9*">
+            <TableViewColumn.CellTemplate>
               <DataTemplate>
-                <TextBlock Text="{Binding Label}"/>
+                <TextBlock Classes="list-cell" Text="{Binding StateText}"
+                           ToolTip.Tip="{Binding Reason}"/>
               </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-          <ComboBox ItemsSource="{Binding KindFilterOptions}" SelectedItem="{Binding SelectedKindFilter, Mode=TwoWay}"
-                    HorizontalAlignment="Stretch" MinWidth="0">
-            <ComboBox.ItemTemplate>
+            </TableViewColumn.CellTemplate>
+          </TableViewColumn>
+
+          <TableViewColumn Width="3*">
+            <TableViewColumn.CellTemplate>
               <DataTemplate>
-                <TextBlock Text="{Binding Label}"/>
+                <TextBlock Classes="list-cell primary" Text="{Binding Title}"
+                           TextTrimming="CharacterEllipsis"/>
               </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-        </StackPanel>
+            </TableViewColumn.CellTemplate>
+          </TableViewColumn>
 
-        <ListBox Grid.Row="2" Margin="0,6,0,0" ItemsSource="{Binding Collections}"
-                 SelectedItem="{Binding SelectedCollection, Mode=TwoWay}"
-                 ContextRequested="OnCollectionListContextRequested">
-          <!--  NT-082：右键 = 对这个集合的整体动作（⛔ 与右栏成员勾选无关）；
-                右键命中的行由 code-behind 先选中，菜单项作用于「当前集合」。  -->
-          <ListBox.ContextMenu>
-            <ContextMenu>
-              <MenuItem Header="{Binding SendToPageMenuText}"
-                        Command="{Binding SendToPageCommand}"
-                        ToolTip.Tip="按集合类别跳到信息面板 / 脚本库 / 命令库 / 软件包，并选中这个集合"/>
-            </ContextMenu>
-          </ListBox.ContextMenu>
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,2">
-                <TextBlock Grid.Column="0" Text="{Binding Icon}" Width="22" VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="1" Spacing="1">
-                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <TextBlock Text="{Binding SubText}" Classes="hint-text"/>
-                    <!--  NT-072：其他页面（信息面板 / 脚本库 / 命令库）正在使用的集合 —— 标「在用」  -->
-                    <TextBlock Text="{Binding InUseMark}" Classes="accent" VerticalAlignment="Center"
-                               ToolTip.Tip="{Binding InUseTip}"/>
-                  </StackPanel>
-                </StackPanel>
-                <!--  NT-073：种类徽标 —— 与筛选下拉 / 详情卡「类别」同一套文案  -->
-                <TextBlock Grid.Column="2" Text="{Binding KindText}" Classes="accent" Margin="6,0,0,0"
-                           VerticalAlignment="Center" FontSize="11"/>
-                <TextBlock Grid.Column="3" Text="{Binding PinMark}" Classes="accent" Margin="6,0,0,0" VerticalAlignment="Center"
-                           ToolTip.Tip="★ 置顶：分组下拉选「置顶」时可单独筛出，信息面板的集合下拉里也排最前（详情卡「置顶」勾选框切换）"/>
-              </Grid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-      </Grid>
-    </Border>
+          <TableViewColumn Width="1*" Binding="{Binding RoleText}"/>
 
-    <!--  ==================== 右栏：成员表（全库清单 + 是否已加入）  ====================  -->
-    <v:ListPageSkeleton Grid.Column="1" Margin="8,0,0,0" IsEmpty="{Binding !HasMembers}"
-                        EmptyMessage="没有可显示的条目。先去「脚本库」扫描 / 导入脚本，或在工具条切「📦 归档」外的下拉看全部。">
-      <v:ListPageSkeleton.ListArea>
-        <v:TableViewHost x:Name="MemberList" ItemsSource="{Binding Members}"
-                         SelectedItem="{Binding SelectedMember, Mode=TwoWay}"
-                         SelectionMode="Single">
-          <v:TableViewHost.ContextMenu>
-            <ContextMenu>
-              <MenuItem Header="↩ 加入 / 移出本集合" Command="{Binding ToggleMembershipCommand}"
-                        ToolTip.Tip="对选中行生效：未加入 ⇒ 加入；已加入 ⇒ 移出"/>
-            </ContextMenu>
-          </v:TableViewHost.ContextMenu>
-          <v:TableViewHost.Columns>
-            <TableViewColumn Width="0.9*">
-              <TableViewColumn.CellTemplate>
-                <DataTemplate>
-                  <TextBlock Classes="list-cell" Text="{Binding StateText}"
-                             ToolTip.Tip="{Binding Reason}"/>
-                </DataTemplate>
-              </TableViewColumn.CellTemplate>
-            </TableViewColumn>
-
-            <TableViewColumn Width="3*">
-              <TableViewColumn.CellTemplate>
-                <DataTemplate>
-                  <TextBlock Classes="list-cell primary" Text="{Binding Title}"
-                             TextTrimming="CharacterEllipsis"/>
-                </DataTemplate>
-              </TableViewColumn.CellTemplate>
-            </TableViewColumn>
-
-            <TableViewColumn Width="1*" Binding="{Binding RoleText}"/>
-
-            <TableViewColumn Width="4*">
-              <TableViewColumn.CellTemplate>
-                <DataTemplate>
-                  <TextBlock Classes="list-cell" Text="{Binding Target}"
-                             TextTrimming="CharacterEllipsis"/>
-                </DataTemplate>
-              </TableViewColumn.CellTemplate>
-            </TableViewColumn>
-          </v:TableViewHost.Columns>
-        </v:TableViewHost>
-      </v:ListPageSkeleton.ListArea>
-    </v:ListPageSkeleton>
-  </Grid>
+          <TableViewColumn Width="4*">
+            <TableViewColumn.CellTemplate>
+              <DataTemplate>
+                <TextBlock Classes="list-cell" Text="{Binding Target}"
+                           TextTrimming="CharacterEllipsis"/>
+              </DataTemplate>
+            </TableViewColumn.CellTemplate>
+          </TableViewColumn>
+        </v:TableViewHost.Columns>
+      </v:TableViewHost>
+    </v:ListPageSkeleton.ListArea>
+  </v:ListPageSkeleton>
 </UserControl>

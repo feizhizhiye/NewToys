@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -74,34 +74,71 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     public string SplitModeText => !IsSplit ? "▭ 单张"
         : SplitRows <= 1 ? "◫ 左右"
         : SplitColumns <= 1 ? "⊟ 上下"
-        : "▦ 2×2";
+        : "▦ 四格";
 
     /// <summary>分屏菜单的四个选项（每项一个独立命令，避免菜单项带参数）。</summary>
     private IReadOnlyList<ToolbarMenuItemDescriptor> SplitMenuItems => new[]
     {
         new ToolbarMenuItemDescriptor
         {
-            Text = "▭ 单张（不分屏）",
+            Text = "▭ 单张",
             CommandPath = nameof(SplitOneCommand),
             ToolTip = "一屏一张，恢复缩放 / 旋转",
         },
         new ToolbarMenuItemDescriptor
         {
-            Text = "◫ 左右分屏（一屏 2 张）",
+            Text = "◫ 左右",
             CommandPath = nameof(SplitSideBySideCommand),
             ToolTip = "左右并排看两张，翻页一次换一屏",
         },
         new ToolbarMenuItemDescriptor
         {
-            Text = "⊟ 上下分屏（一屏 2 张）",
+            Text = "⊟ 上下",
             CommandPath = nameof(SplitStackedCommand),
             ToolTip = "上下排列看两张，翻页一次换一屏",
         },
         new ToolbarMenuItemDescriptor
         {
-            Text = "▦ 2 × 2 四格（一屏 4 张）",
+            Text = "▦ 四格",
             CommandPath = nameof(SplitQuadCommand),
             ToolTip = "四格看四张，双击任意一格 = 单图看这张",
+        },
+    };
+
+    /// <summary>音乐页主显示区布局（左右分屏 / 只显示封面 / 上下分屏）。</summary>
+    [ObservableProperty] private AudioStageLayout _audioLayout = AudioStageLayout.Side;
+
+    /// <summary>音乐页主显示区是否显示动态几何图案（工具条「✦ 动效」）。</summary>
+    [ObservableProperty] private bool _isGeometryOn;
+
+    /// <summary>工具条音频布局按钮的文案（点按钮展开三档菜单）。</summary>
+    public string AudioLayoutText => AudioLayout switch
+    {
+        AudioStageLayout.CoverOnly => "▭ 封面",
+        AudioStageLayout.Stacked => "⊟ 上下",
+        _ => "◫ 左右",
+    };
+
+    /// <summary>音频布局菜单的三个选项（每项一个独立命令，避免菜单项带参数）。</summary>
+    private IReadOnlyList<ToolbarMenuItemDescriptor> AudioLayoutMenuItems => new[]
+    {
+        new ToolbarMenuItemDescriptor
+        {
+            Text = "◫ 左右",
+            CommandPath = nameof(AudioLayoutSideCommand),
+            ToolTip = "封面在左、歌词在右",
+        },
+        new ToolbarMenuItemDescriptor
+        {
+            Text = "▭ 仅封面",
+            CommandPath = nameof(AudioLayoutCoverCommand),
+            ToolTip = "封面放到最大，歌词收起",
+        },
+        new ToolbarMenuItemDescriptor
+        {
+            Text = "⊟ 上下",
+            CommandPath = nameof(AudioLayoutStackedCommand),
+            ToolTip = "封面在上、歌词在下",
         },
     };
 
@@ -232,6 +269,12 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
     /// <summary>播放列表开合（音频页）。</summary>
     public event EventHandler? PlaylistToggleRequested;
+
+    /// <summary>音乐页主显示区布局变了（View 据此重排封面 / 歌词）。</summary>
+    public event EventHandler? AudioLayoutChanged;
+
+    /// <summary>音乐页动效开关变了（View 据此开 / 关动态几何图案）。</summary>
+    public event EventHandler? GeometryChanged;
 
     /// <summary>「媒体资产 → ▶ 播放」要求开播一批曲目（参数 = 按顺序排好的绝对路径）。</summary>
     public event EventHandler<IReadOnlyList<string>>? AudioPlayRequested;
@@ -395,15 +438,15 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         }
 
         IsArchive = ArchiveEntries.Count > 0;
-        ArchiveInfo = ArchiveEntries.Count == 0 ? "" : $"第 {index + 1} / {ArchiveEntries.Count} 张";
+        ArchiveInfo = ArchiveEntries.Count == 0 ? "" : $"{index + 1}/{ArchiveEntries.Count}";
         OnPropertyChanged(nameof(HasSections));
     }
 
     /// <summary>更新压缩包内序号显示。</summary>
     public void UpdateArchiveIndex(int index)
-        => ArchiveInfo = ArchiveEntries.Count == 0 ? "" : $"第 {index + 1} / {ArchiveEntries.Count} 张";
+        => ArchiveInfo = ArchiveEntries.Count == 0 ? "" : $"{index + 1}/{ArchiveEntries.Count}";
 
-    /// <summary>分屏时显示整屏范围（「第 5–8 / 120 张」）。</summary>
+    /// <summary>分屏时显示整屏范围（「5–8/120」）。</summary>
     public void SetArchiveRange(int start, int count)
     {
         if (ArchiveEntries.Count == 0) { ArchiveInfo = ""; return; }
@@ -411,8 +454,8 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         var first = Math.Clamp(start, 0, ArchiveEntries.Count - 1);
         var last = Math.Min(first + Math.Max(count, 1), ArchiveEntries.Count) - 1;
         ArchiveInfo = last <= first
-            ? $"第 {first + 1} / {ArchiveEntries.Count} 张"
-            : $"第 {first + 1}–{last + 1} / {ArchiveEntries.Count} 张";
+            ? $"{first + 1}/{ArchiveEntries.Count}"
+            : $"{first + 1}–{last + 1}/{ArchiveEntries.Count}";
     }
 
     /// <summary>翻到同一批图片里的另一张（同目录 / 压缩包内）：只刷新标题，⛔ 不写「最近打开」。</summary>
@@ -689,6 +732,24 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     [RelayCommand]
     private void TogglePlaylist() => PlaylistToggleRequested?.Invoke(this, EventArgs.Empty);
 
+    // ---------- 音频页主显示区 ----------
+
+    /// <summary>布局菜单「左右分屏」。</summary>
+    [RelayCommand]
+    private void AudioLayoutSide() => AudioLayout = AudioStageLayout.Side;
+
+    /// <summary>布局菜单「只显示封面」。</summary>
+    [RelayCommand]
+    private void AudioLayoutCover() => AudioLayout = AudioStageLayout.CoverOnly;
+
+    /// <summary>布局菜单「上下分屏」。</summary>
+    [RelayCommand]
+    private void AudioLayoutStacked() => AudioLayout = AudioStageLayout.Stacked;
+
+    /// <summary>工具条「✦ 动效」：主显示区开 / 关动态几何图案。</summary>
+    [RelayCommand]
+    private void ToggleGeometry() => IsGeometryOn = !IsGeometryOn;
+
     // ---------- 工具条 ----------
 
     /// <summary>工具条按页面范围裁剪：⛔ 不给文本页放「缩放」，⛔ 不给音频页放「章节规则」。</summary>
@@ -803,6 +864,25 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
             {
                 items.Add(new()
                 {
+                    // 点击展开三档布局菜单（与图片分屏同一套交互：⛔ 不排一排图标按钮）
+                    TextPath = nameof(AudioLayoutText),
+                    Items = AudioLayoutMenuItems,
+                    IsEnabledPath = nameof(IsAudio),
+                    ShowToolTipOnDisabled = true,
+                    ToolTip = "封面 / 歌词布局：左右分屏 / 只显示封面 / 上下分屏",
+                });
+                items.Add(new()
+                {
+                    Text = "✦ 动效",
+                    AltText = "✦ 收起动效",
+                    AltTextPath = nameof(IsGeometryOn),
+                    CommandPath = nameof(ToggleGeometryCommand),
+                    IsEnabledPath = nameof(IsAudio),
+                    ShowToolTipOnDisabled = true,
+                    ToolTip = "在主显示区显示动态几何图案（再点一次收起）",
+                });
+                items.Add(new()
+                {
                     Text = "☰ 列表",
                     CommandPath = nameof(TogglePlaylistCommand),
                     IsEnabledPath = nameof(IsAudio),
@@ -855,4 +935,12 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         SyncSplitMode();
         SplitChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    partial void OnAudioLayoutChanged(AudioStageLayout value)
+    {
+        OnPropertyChanged(nameof(AudioLayoutText));
+        AudioLayoutChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    partial void OnIsGeometryOnChanged(bool value) => GeometryChanged?.Invoke(this, EventArgs.Empty);
 }

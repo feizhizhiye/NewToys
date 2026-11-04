@@ -1,146 +1,124 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Shell.Views.HomeView">
   <!--
-    v3.19 / NT-009（需求 §6.1）：欢迎卡 + 常用功能 + 「一键操作」。
-    🔴 v3.66 / NT-062 细节调整（用户 2026-10-16）：
-      ① 「显示更多」从**独立按钮**改为收藏墙里的一张卡 —— 与收藏按钮**同一个 WrapPanel**、恒排最后；
-      ② 点它 = **把功能清单就地展开**在收藏卡下方（⛔ 不再跳独立页）；
-      ③ 布局：整页一个 ScrollViewer，内层 Grid = 「内容 | 一键操作」，并给 Grid 设
-         `MinHeight = 视口高` —— 折叠态内容不满一屏 ⇒ 一键操作**钉在窗口底部**；
-         展开功能清单后内容超高 ⇒ 一键操作**随内容向下滚动**（用户要求的两种状态）。
-           ⚠️ 不能用 `RowDefinitions="*,Auto"` 直接实现：ScrollViewer 在滚动方向上以 ∞ 测量，
-             `*` 会退化成 Auto ⇒ 一键操作不会贴底。故用 MinHeight 兜（视口高取自身 Bounds）。
+    布局契约（需求 §6.1）：四行固定分区，页面本身不整体滚动。
+      Row0 欢迎卡           —— 固定
+      Row1 常用功能（收藏墙） —— 固定
+      Row2 功能清单         —— 唯一滚动区（`*` 占满剩余高度，滚动发生在 AllFunctionsView 内部）
+      Row3 一键按钮条        —— 恒定贴底
+    展开 / 收起功能清单只改 Row2 的内容，**不推走**上面两块、也不顶动下面的按钮条。
+    收藏按钮墙与一键按钮同一套外观（`fav-btn accent`）；一键按钮的设置在「设置 → 一键按钮」，
+    本页只留一个齿轮入口，与三个按钮同行、贴右上角。
   -->
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-    <Grid
-        RowDefinitions="*,Auto"
-        MinHeight="{Binding $parent[ScrollViewer].Bounds.Height}">
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
 
-      <!--  ==================== 欢迎卡 + 常用功能（含尾部「显示更多」）+ 内嵌功能清单  ====================  -->
-      <StackPanel Grid.Row="0" Margin="36,28,36,16" Spacing="24">
-        <!-- 欢迎卡 -->
-        <Border Classes="card" Padding="28">
-          <StackPanel>
-            <TextBlock Text="欢迎使用 NewToys" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-            <TextBlock Text="个人高强度使用工具集 · Avalonia 12 + CommunityToolkit.Mvvm + .NET 10" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" TextWrapping="Wrap"/>
-            <TextBlock Text="这里是你的常用功能区，点按钮直达对应页面；末尾「＋ 显示更多」就地展开功能清单（全部模块与功能），在清单里右键可固定 / 取消固定。右键收藏按钮可「✕ 取消固定」。底部三个一键按钮的设置统一在应用级设置页的「一键按钮」节里。"
-                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0"/>
-          </StackPanel>
-        </Border>
+    <!--  ==================== Row0：欢迎卡（固定）  ====================  -->
+    <Border Grid.Row="0" Classes="card" Padding="24" Margin="36,24,36,0">
+      <StackPanel>
+        <TextBlock Text="欢迎使用 NewToys" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+        <TextBlock Text="个人高强度使用工具集 · Avalonia 12 + CommunityToolkit.Mvvm + .NET 10" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14" TextWrapping="Wrap"/>
+        <TextBlock Text="这里是你的常用功能区，点按钮直达对应页面；末尾「＋ 更多」在下方就地展开功能清单（按模块分节，可折叠），在清单里右键可固定 / 取消固定。右键收藏按钮可「✕ 取消固定」。底部三个一键按钮的设置统一在应用级设置页的「一键按钮」节里。"
+                   Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14" TextWrapping="Wrap" Margin="0,4,0,0"/>
+      </StackPanel>
+    </Border>
 
-        <!--  常用功能：收藏按钮墙（v3.19 / NT-009 统一用主题强调色，去模块多色）。右键菜单在 code-behind 现场构造。  -->
-        <StackPanel>
-          <StackPanel Orientation="Horizontal" Spacing="4">
-            <!--  NT-045：★ 字符 → 矢量 `IconStar`（Lucide star），颜色走 `Path.icon-accent` 类  -->
-            <Path
-              Width="18"
-              Height="18"
-              Classes="icon-accent"
-              VerticalAlignment="Center"
-              Stretch="Uniform"
-              Data="{StaticResource IconStar}" />
-            <TextBlock Text="常用功能  " FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
-            <TextBlock Text="点击按钮进入页面；右键「✕ 取消固定」移出" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
-          </StackPanel>
-
-          <TextBlock Classes="empty-hint" Margin="8,8" Text="还没有固定任何功能 —— 点末尾的「＋ 显示更多」展开功能清单，右键一个功能选「📌 固定到首页」。"
-                     IsVisible="{Binding !HasFavorites}"/>
-
-          <!--  🔴 v3.66：收藏卡 + 尾部「显示更多」卡**同容器同流转**（项内自带命令与参数；
-                「显示更多」卡由 VM 恒追加在集合末尾，⛔ 不在这里另起一个按钮）。  -->
-          <ItemsControl ItemsSource="{Binding Favorites}" Margin="0,6,0,0">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <WrapPanel Orientation="Horizontal"/>
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <!--  只有名称 + 图标，点了就走；右键菜单在 code-behind 现场构造
-                      （ContextMenu 挂在独立弹出树里，模板内声明取不到页面 VM，见规范 3.6）。
-                      v3.19 / NT-009：用 .fav-btn.accent（透明底 + 强调色描边，悬停 / 按下变强调色实心）。  -->
-                <Button Classes="fav-btn accent"
-                        Command="{Binding Command}"
-                        CommandParameter="{Binding CommandParameter}"
-                        ContextRequested="OnFavContextRequested"
-                        ToolTip.Tip="{Binding Desc}">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                  </StackPanel>
-                </Button>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-
-          <!--  v3.66：内嵌**功能清单**（复用 AllFunctionsView 本体：右键可固定 / 取消固定）。
-                🔴 折叠态不创建布局开销由 IsVisible 承担；展开后它属于可滚动区，一键操作随之向下走。  -->
-          <ContentControl
-              Margin="0,10,0,0"
-              Content="{Binding FunctionListContent}"
-              IsVisible="{Binding IsFunctionListOpen}" />
-        </StackPanel>
+    <!--  ==================== Row1：常用功能 / 收藏墙（固定）  ====================  -->
+    <StackPanel Grid.Row="1" Margin="36,16,36,0">
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <Path
+          Width="18"
+          Height="18"
+          Classes="icon-accent"
+          VerticalAlignment="Center"
+          Stretch="Uniform"
+          Data="{StaticResource IconStar}" />
+        <TextBlock Text="常用功能  " FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+        <TextBlock Text="点击按钮进入页面；右键「✕ 取消固定」移出" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
       </StackPanel>
 
-      <!--  ==================== 一键操作：折叠态钉在窗口底部；内容超高时随页面滚动（需求 §6.1）  ====================  -->
-      <Border Grid.Row="1" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="24,12,24,16">
-        <StackPanel>
-          <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-            <!--  NT-045：⚡ 字符 → 矢量 `IconZap`  -->
-            <Path
-              Grid.Column="0"
-              Width="18"
-              Height="18"
-              Classes="icon-primary"
-              VerticalAlignment="Center"
-              Stretch="Uniform"
-              Data="{StaticResource IconZap}" />
-            <TextBlock Grid.Column="1" Text="一键操作" FontSize="16" FontWeight="SemiBold"
-                       Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-            <!--  三个按钮的设置**统一在一页**（应用级设置页 →「一键按钮」节），这里只留一个齿轮图标入口。
-                 NT-045：`⚙` 字符 → 矢量 `IconGear`。  -->
-            <Button Grid.Column="3" Classes="ghost" Padding="10,5" MinWidth="36"
-                    Command="{Binding NavigateCommand}" CommandParameter="settings-launch"
-                    ToolTip.Tip="一键按钮设置：改按钮名称、浏览器程序与参数、网址清单、批量启动的软件清单">
-              <Path
-                Width="16"
-                Height="16"
-                Classes="icon-primary"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Stretch="Uniform"
-                Data="{StaticResource IconGear}" />
+      <TextBlock Classes="empty-hint" Margin="8,8" Text="还没有固定任何功能 —— 点末尾的「＋ 更多」展开功能清单，右键一个功能选「📌 固定到首页」。"
+                 IsVisible="{Binding !HasFavorites}"/>
+
+      <!--  收藏卡 + 尾部「更多」卡同容器同流转（「更多」卡由 VM 恒追加在集合末尾）  -->
+      <ItemsControl ItemsSource="{Binding Favorites}" Margin="0,6,0,0">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel Orientation="Horizontal"/>
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <!--  右键菜单在 code-behind 现场构造（ContextMenu 挂在独立弹出树，模板内声明取不到页面 VM）  -->
+            <Button Classes="fav-btn accent"
+                    Command="{Binding Command}"
+                    CommandParameter="{Binding CommandParameter}"
+                    ContextRequested="OnFavContextRequested"
+                    ToolTip.Tip="{Binding Desc}">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
             </Button>
-          </Grid>
-          <Grid ColumnDefinitions="*,*,*" Margin="0,8,0,0">
-            <ItemsControl Grid.ColumnSpan="3" ItemsSource="{Binding QuickButtons}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <UniformGrid Rows="1" Columns="3"/>
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Button Margin="6" HorizontalAlignment="Stretch" Height="76" Padding="20,0"
-                          HorizontalContentAlignment="Left" Background="{Binding Color}"
-                          CornerRadius="8" BorderThickness="0"
-                          Command="{Binding RunCommand}"
-                          ToolTip.Tip="点击执行；设置请用右上角「⚙ 一键按钮设置」">
-                    <StackPanel Orientation="Horizontal">
-                      <TextBlock Text="{Binding Icon}" FontSize="26" VerticalAlignment="Center" Foreground="White"/>
-                      <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Foreground="White"/>
-                        <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="#B0FFFFFF"/>
-                      </StackPanel>
-                    </StackPanel>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </Grid>
-        </StackPanel>
-      </Border>
-    </Grid>
-  </ScrollViewer>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+    <!--  ==================== Row2：功能清单（唯一滚动区）  ====================  -->
+    <ContentControl Grid.Row="2"
+                    Margin="36,12,36,0"
+                    Content="{Binding FunctionListContent}"
+                    IsVisible="{Binding IsFunctionListOpen}" />
+
+    <!--  ==================== Row3：一键操作条（恒定贴底）  ====================  -->
+    <Border Grid.Row="3" Background="{DynamicResource ContentHeaderBrush}" Padding="24,8,24,10">
+      <Grid ColumnDefinitions="*,*,*,Auto">
+        <ItemsControl Grid.ColumnSpan="3" ItemsSource="{Binding QuickButtons}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Rows="1" Columns="3"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <!--  与收藏按钮同一套外观（fav-btn accent）；文字颜色**继承**按钮前景色，
+                    悬停变实心时自动转成 AccentTextBrush，副标题用透明度区分层级。  -->
+              <Button Classes="fav-btn accent"
+                      Height="44"
+                      Margin="6,0"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Left"
+                      Padding="14,0"
+                      Command="{Binding RunCommand}"
+                      ToolTip.Tip="点击执行；设置请用右侧齿轮">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{Binding Icon}" FontSize="16" VerticalAlignment="Center"/>
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Subtitle}" FontSize="12" Opacity="0.75"/>
+                  </StackPanel>
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!--  一键按钮设置入口：缩小到 24，与三个按钮同行、贴右上角  -->
+        <Button Grid.Column="3" Classes="ghost" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
+                VerticalAlignment="Top"
+                Command="{Binding NavigateCommand}" CommandParameter="settings-launch"
+                ToolTip.Tip="一键按钮设置：改按钮名称、浏览器程序与参数、网址清单、批量启动的软件清单">
+          <Path
+            Width="14"
+            Height="14"
+            Classes="icon-primary"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Stretch="Uniform"
+            Data="{StaticResource IconGear}" />
+        </Button>
+      </Grid>
+    </Border>
+  </Grid>
 </UserControl>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -171,7 +171,7 @@ public sealed partial class InfoSectionViewModel : ObservableObject
     public string EmptyBodyText => HasColumns ? "这次没有采集到行。" : "还没有列，先刷新一次。";
 
     /// <summary>「展开全部 / 收起」按钮文案。</summary>
-    public string ShowAllText => ShowAll ? "⌃ 只看前 20 行" : $"⌄ 展开全部（{_all.Count} 行）";
+    public string ShowAllText => ShowAll ? "⌃ 收起" : $"⌄ 展开（{_all.Count} 行）";
 
     /// <summary>全部行（只读，页面统计 / 复制用）。</summary>
     public IReadOnlyList<SysInfoRow> AllRows => _all;

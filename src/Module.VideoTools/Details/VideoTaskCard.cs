@@ -1,4 +1,4 @@
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using NewToys.Shared.Details;
 
 namespace NewToys.VideoTools.Details;
@@ -429,7 +429,7 @@ public static class VideoTaskCard
                 // ===== ⑥ 输出文件 =====
                 new DetailSection
                 {
-                    Header = "📁 输出文件",
+                    Header = "📂 输出文件",
                     Fields =
                     {
                         new DetailField
@@ -467,7 +467,7 @@ public static class VideoTaskCard
                         new DetailField
                         {
                             Kind = FieldKind.Hint,
-                            Hint = "✎ 已手改：运行时以这里为准（工具条上「↺ 重置为自动」可撤销）。",
+                            Hint = "✏ 已手改：运行时以这里为准（工具条上「↺ 重置为自动」可撤销）。",
                             VisibleWhen = IsArgsEdited
                         }
                     }
@@ -509,7 +509,7 @@ public static class VideoTaskCard
         if (commands.PickOutput != null)
             card.Actions.Add(new DetailAction
             {
-                Text = "📂 选择输出文件…",
+                Text = "📂 选输出",
                 Classes = "ghost",
                 ToolTip = "挑一个输出文件；留空 = 按预设自动命名（⛔ 绝不覆盖已有文件）",
                 Command = commands.PickOutput
@@ -518,7 +518,7 @@ public static class VideoTaskCard
         if (commands.PickSubtitle != null)
             card.Actions.Add(new DetailAction
             {
-                Text = "📝 选择字幕文件…",
+                Text = "📝 选字幕",
                 Classes = "ghost",
                 IsVisiblePath = EditIsTranscode,
                 ToolTip = "挑一个 .srt / .ass 字幕，再把「字幕方式」选成软字幕或硬字幕",
@@ -547,7 +547,7 @@ public static class VideoTaskCard
         if (commands.PickAudio != null)
             card.Actions.Add(new DetailAction
             {
-                Text = "🎵 选择音频文件…",
+                Text = "🎵 选音频",
                 Classes = "ghost",
                 IsVisiblePath = EditIsTranscode,
                 ToolTip = "先把「音频」选成「替换音轨」，再挑一个 mp3 / m4a / wav",

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -242,7 +242,7 @@ public partial class SettingsSectionHost : UserControl
     private void UpdateToggleAllText()
     {
         if (ToggleAllButton is null) return;
-        ToggleAllButton.Content = Items.Any(s => s.IsExpanded) ? "全部收起" : "全部展开";
+        ToggleAllButton.Content = Items.Any(s => s.IsExpanded) ? "↕ 全收起" : "↕ 全展开";
     }
 
     /// <summary><see cref="Sticky"/>=false ⇒ 浮层（含「全部收起」）整块不参与。</summary>

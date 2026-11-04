@@ -168,6 +168,23 @@ $staticChecks = @(
         Fail = @('\[ERROR\]\s*([1-9]\d*) 条')
         Warn = @('\[WARN\]\s*([1-9]\d*) 条')
     }
+    # 区域色差（R-04 相邻区域同档 / R-05 键漏登记相邻对）：
+    # 窗口内部不画边框，区域边界只靠底色差 ⇒ 撞档等于接缝消失，必须阻断。
+    [pscustomobject]@{
+        Name = '区域色差（相邻区域不同档）'
+        Only = 'regions'
+        Fail = @('\[ERROR\]\s*([1-9]\d*)\s*条')
+        Warn = @()
+    }
+    # 区域色差（页面级 · 两套皮肤真实灰度）：
+    # 档位不同不等于看着不同 —— Fluent 皮肤的 4 个系统刷子实际只给出 2 档。这里逐页还原区域链，
+    # 按 NewToys 色值与 Fluent 阶梯两种口径算灰度差（下限 10），并核对每条接缝都登记在相邻表里。
+    [pscustomobject]@{
+        Name = '区域色差（页面级 · 两套皮肤）'
+        Only = 'regionpages'
+        Fail = @('\[ERROR\]\s*([1-9]\d*)\s*条')
+        Warn = @()
+    }
 )
 
 if ($RunStatic) {

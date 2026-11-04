@@ -21,11 +21,14 @@ public class ThemeService : IThemeService
     private ThemeMode _mode = ThemeMode.Dark;   // 默认深色（读不到配置 / 配置损坏时也回退到这里）
     private bool _systemDark = true;            // 跟随系统时用；默认按"系统是深色"起步，Shell 启动时会立刻覆盖
     private string _accentId = AccentPalette.Default.Id;
+    // 默认原生 Fluent 皮肤：它的明暗层次比自制色阶更细（同一档背景能分出标题条 / 面板 / 悬浮三层）
+    private ThemeSkin _skin = ThemeSkin.Fluent;
 
     public event Action? ThemeChanged;
 
     public ThemeMode Mode => _mode;
     public string AccentId => _accentId;
+    public ThemeSkin Skin => _skin;
     public bool SystemDark
     {
         get => _systemDark;
@@ -97,11 +100,19 @@ public class ThemeService : IThemeService
             {
                 _accentId = AccentPalette.Find(accentNode.GetValue<string>()).Id;   // Find 自带回退，废弃 id 也安全
             }
+
+            if (root.TryGetPropertyValue("Skin", out var skinNode) && skinNode is not null
+                && skinNode.GetValueKind() == JsonValueKind.String
+                && Enum.TryParse<ThemeSkin>(skinNode.GetValue<string>(), ignoreCase: true, out var skin))
+            {
+                _skin = skin;
+            }
         }
         catch
         {
             _mode = ThemeMode.Dark;
             _accentId = AccentPalette.Default.Id;
+            _skin = ThemeSkin.Fluent;
         }
     }
 
@@ -114,6 +125,7 @@ public class ThemeService : IThemeService
             {
                 ["Mode"] = _mode.ToString(),
                 ["AccentId"] = _accentId,
+                ["Skin"] = _skin.ToString(),
                 ["IsDark"] = IsDark,
             });
         }
@@ -144,6 +156,14 @@ public class ThemeService : IThemeService
         var id = AccentPalette.Find(accentId).Id;
         if (string.Equals(_accentId, id, StringComparison.Ordinal)) return;
         _accentId = id;
+        Save();
+        ThemeChanged?.Invoke();
+    }
+
+    public void SetSkin(ThemeSkin skin)
+    {
+        if (_skin == skin) return;
+        _skin = skin;
         Save();
         ThemeChanged?.Invoke();
     }

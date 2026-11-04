@@ -117,6 +117,8 @@ public abstract class ViewerPageBase : UserControl
             _vm.ArchiveNavigateRequested -= OnArchiveNavigate;
             _vm.AudioPlayRequested -= OnAudioPlayRequested;
             _vm.PlaylistToggleRequested -= OnPlaylistToggle;
+            _vm.AudioLayoutChanged -= OnAudioLayoutChanged;
+            _vm.GeometryChanged -= OnGeometryChanged;
             _vm.ImageSetRequested -= OnImageSetRequested;
             _vm.SplitChanged -= OnSplitChanged;
             _vm.SavingAudioSnapshot = null;
@@ -136,6 +138,8 @@ public abstract class ViewerPageBase : UserControl
         _vm.ArchiveNavigateRequested += OnArchiveNavigate;
         _vm.AudioPlayRequested += OnAudioPlayRequested;
         _vm.PlaylistToggleRequested += OnPlaylistToggle;
+        _vm.AudioLayoutChanged += OnAudioLayoutChanged;
+        _vm.GeometryChanged += OnGeometryChanged;
         _vm.ImageSetRequested += OnImageSetRequested;
         _vm.SplitChanged += OnSplitChanged;
 
@@ -816,7 +820,7 @@ public abstract class ViewerPageBase : UserControl
             var indexLabel = new TextBlock
             {
                 Text = (global + 1).ToString(),
-                FontSize = 11,
+                FontSize = 12,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom,
                 Margin = new Thickness(0, 0, 6, 4),
@@ -1022,6 +1026,10 @@ public abstract class ViewerPageBase : UserControl
         player.ModeValue = mode;
         if (resumeSeconds > 1) player.SeekTo(TimeSpan.FromSeconds(resumeSeconds));
 
+        // 布局与动效是页级偏好（关掉文件 / 切页都保留），新建控件后补一次
+        player.SetLayout(_vm.AudioLayout);
+        player.SetGeometry(_vm.IsGeometryOn);
+
         ResetEntries();
         _vm.OnOpened(paths[first], ViewerKind.Audio, tracks.Count + " 首");
         SaveAudioPlaylist();
@@ -1134,6 +1142,18 @@ public abstract class ViewerPageBase : UserControl
     private void OnPlaybackEnded(object? sender, EventArgs e) => Host.Audio?.HandlePlaybackEnded();
 
     private void OnPlaylistToggle(object? sender, EventArgs e) => Host.Audio?.TogglePlaylist();
+
+    /// <summary>工具条「封面 / 歌词布局」：把 VM 的档位下发给音频控件。</summary>
+    private void OnAudioLayoutChanged(object? sender, EventArgs e)
+    {
+        if (_vm is not null) Host.Audio?.SetLayout(_vm.AudioLayout);
+    }
+
+    /// <summary>工具条「✦ 动效」：开 / 关主显示区的动态几何图案。</summary>
+    private void OnGeometryChanged(object? sender, EventArgs e)
+    {
+        if (_vm is not null) Host.Audio?.SetGeometry(_vm.IsGeometryOn);
+    }
 
     // ==================== 关闭 / 缩放 / 排版 ====================
 

@@ -5,9 +5,9 @@
   <!--
     NT-054 · 详情卡声明式渲染器（需求 §4.5.1 / 规范 §3.6「详情卡声明式渲染」）。
 
-    🔴 职责：把 `DetailCardDescriptor` 渲染成「340px 宽、可滚动、有空态 / 示例态」的详情卡，
+    🔴 职责：把 `DetailCardDescriptor` 渲染成「300px 宽、可滚动、有空态 / 示例态」的详情卡，
        **外壳只实现一次**，页面不再各写一份（债 B13「详情面板上提」的 Shell 侧）。
-    🔴 承载者：Shell 右详情列（`ShellView.axaml` 的 `DetailPanel`）——它给 340px 宽 + 背景 + 左边线，
+    🔴 承载者：Shell 右详情列（`ShellView.axaml` 的 `DetailPanel`）——它给 300px 宽 + 背景，
        本控件给「覆盖式滚动条右侧留位 / Padding / 空态 / 示例态」。
     🔴 字段模板：**8 种 Kind**（Text / Check / Select / Number / Chips / Hint / Divider / List）+ 分区 + 动作，
        按**行对象类型**隐式匹配（行对象由 `DetailCardRender.cs` 从描述符翻译而来）→ 模板里**零字符串路径**。
@@ -18,9 +18,10 @@
   -->
   <UserControl.DataTemplates>
     <!--  ===== 分区：标题（可折叠按钮）+ 标题勾选框 + 字段列表  =====
-          层级（三级字重/字号单调递减，⛔ 别让标题与值同号）：
-            分区标题 13 SemiBold 主色 ＞ 字段值 12 主色 ＞ 字段标签 / 提示 11 次要色。
-          树状感靠「左侧引导线 + 内容缩进 15」表达，⛔ 不靠加框（340px 放不下）。  -->
+          层级：分区标题 16 SemiBold 主色 ＞ 字段标签 14 SemiBold 次要色 ＞ 字段值 12 主色 ＞ 说明 12 次要色。
+          ⚠️ 节与标签、标签与值都必须**差 ≥2px**（16 / 14 / 12），只靠字重 / 颜色在 300px 窄栏里分不出「这是新的一节」。
+          ⚠️ 字段标签是这一段的「小标题」，字号必须**大于**它下面那行值 —— 反过来（值大标签小）会读成一张糊掉的表。
+          树状感靠「左侧引导线 + 内容缩进 15」表达，⛔ 不靠加框（300px 放不下）。  -->
     <DataTemplate DataType="c:DetailSectionRender">
       <StackPanel Spacing="8" IsVisible="{Binding IsVisible}">
         <!--  ⚠️ 标题行自带上下 Margin：分区间距 10 只够展开态（标题→内容），
@@ -47,13 +48,19 @@
                   Data="{DynamicResource IconChevronRight}"
                   IsVisible="{Binding !IsExpanded}"
                   Stretch="Uniform" />
-              <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
+              <TextBlock
+                  Text="{Binding Header}"
+                  VerticalAlignment="Center"
+                  FontSize="16"
+                  FontWeight="SemiBold"
+                  Foreground="{DynamicResource PrimaryTextBrush}" />
             </StackPanel>
           </Button>
           <SelectableTextBlock
               Grid.Column="0"
               Classes="section-title"
-              FontSize="12"
+              FontSize="16"
+              FontWeight="SemiBold"
               Foreground="{DynamicResource PrimaryTextBrush}"
               Text="{Binding Header}"
               VerticalAlignment="Center"
@@ -69,12 +76,6 @@
         </Grid>
 
         <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding IsExpanded}">
-          <Border
-              Width="1"
-              Margin="0,2,0,2"
-              Background="{DynamicResource DividerBrush}"
-              IsVisible="{Binding HasHeader}"
-              Opacity="0.7" />
           <StackPanel
               Grid.Column="1"
               Margin="15,0,0,0"
@@ -283,7 +284,7 @@
                               IsVisible="{Binding HasBrush}"
                               VerticalAlignment="Center" />
                           <TextBlock
-                              FontSize="11"
+                              FontSize="12"
                               Text="{Binding Text}"
                               IsVisible="{Binding HasText}"
                               VerticalAlignment="Center" />
@@ -366,7 +367,6 @@
 
     <!--  ===== Kind ⑦ Divider（分隔线）  =====  -->
     <DataTemplate DataType="c:DividerFieldRow">
-      <Border Classes="divider-line" IsVisible="{Binding IsVisible}" />
     </DataTemplate>
 
     <!--  ===== Kind ⑧ List（只读列表：键值行 / 对比行）  =====
@@ -414,7 +414,7 @@
                   <TextBlock
                       Grid.Column="3"
                       Classes="field-value"
-                      Foreground="{DynamicResource AccentBrush}"
+                      Foreground="{DynamicResource AccentInkBrush}"
                       IsVisible="{Binding HasSub}"
                       Text="{Binding Sub}"
                       VerticalAlignment="Center" />
@@ -517,7 +517,7 @@
           IsVisible="{Binding ShowBody}"
           Spacing="10">
         <ItemsControl ItemsSource="{Binding Sections}" />
-        <!--  动作 = **一行按钮组**（WrapPanel）：按钮按选中项状态显隐，宽 340 放不下就自动换行。
+        <!--  动作 = **一行按钮组**（WrapPanel）：按钮按选中项状态显隐，宽 300 放不下就自动换行。
               ⛔ 原来是竖向 StackPanel（一个按钮占一行）⇒ 6 个按钮把详情信息顶出可视区。  -->
         <ItemsControl ItemsSource="{Binding Actions}" IsVisible="{Binding HasActions}">
           <ItemsControl.ItemsPanel>

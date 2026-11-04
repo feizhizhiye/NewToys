@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -43,7 +43,7 @@ public partial class PingViewModel : ListPageViewModelBase, IDetailPanelProvider
         new() { Text = "📥 导入文件", Classes = "ghost", CommandPath = nameof(ImportTargetsCommand), ToolTip = "选择一行一个主机的文本文件" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索主机…", ValuePath = nameof(SearchText) },
         // 原 Label「右键列表项：…」删除（工具条⛔ 不放说明文字）—— 右键能力本来就写在各右键菜单项上。
-        new() { Text = "➕ 新建", CommandPath = nameof(NewTargetCommand) },
+        new() { Text = "＋ 新建", CommandPath = nameof(NewTargetCommand) },
         new() { Text = "📡 批量 Ping", CommandPath = nameof(PingAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new() { Text = "🔄 重读目标", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的目标清单（⛔ 不发起 Ping）" },
         new() { Kind = ToolbarItemKind.Combo, Width = 200, ItemsPath = nameof(DnsPresets), SelectedItemPath = nameof(SelectedDns), ToolTip = "切换 DNS：批量 Ping 与未单独设置 DNS 的目标都按此解析" }

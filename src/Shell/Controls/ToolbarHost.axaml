@@ -45,6 +45,15 @@
       <Setter Property="VerticalContentAlignment" Value="Center"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
+    <!--  详情开关是**浮在工具条上的窄条**（18px），不套 `ghost` 的底 + 描边，
+          否则一个带框小方块压在右上角很突兀；只保留悬停反馈。  -->
+    <Style Selector="Button#DetailToggle">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="Button#DetailToggle:pointerover">
+      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    </Style>
   </UserControl.Styles>
 
   <!--

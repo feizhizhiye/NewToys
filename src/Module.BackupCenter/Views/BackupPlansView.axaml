@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.BackupCenter.Views.BackupPlansView">
@@ -9,7 +9,7 @@
   -->
   <Grid>
     <v:ListPageSkeleton EmptyMessage="还没有备份任务。点「➕ 新建任务」选几个目录，就能生成一个加密归档包。"
-                        EmptyActionText="➕ 新建任务"
+                        EmptyActionText="＋ 新建任务"
                         EmptyActionCommand="{Binding NewPlanCommand}"
                         IsEmpty="{Binding !HasItems}">
 
@@ -95,8 +95,8 @@
                   </ListBox.ItemTemplate>
                 </ListBox>
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
-                  <Button Classes="ghost" Content="➕ 添加目录" Command="{Binding AddSourceFolderCommand}"/>
-                  <Button Classes="ghost" Content="➖ 移除选中" Command="{Binding RemoveSourceFolderCommand}"/>
+                  <Button Classes="ghost" Content="＋ 目录" Command="{Binding AddSourceFolderCommand}"/>
+                  <Button Classes="ghost" Content="－ 移除" Command="{Binding RemoveSourceFolderCommand}"/>
                 </StackPanel>
               </StackPanel>
 

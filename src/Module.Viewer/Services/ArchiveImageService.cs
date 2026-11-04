@@ -33,19 +33,30 @@ public sealed class ArchiveImageEntry
 /// </summary>
 public sealed class ArchiveImageSession : IDisposable
 {
+    /// <summary>顺序格式（rar / 7z）取图结果的缓存字节上限：超过就整清（solid 包顺序翻页时避免反复从头解压）。</summary>
+    private const long SequentialCacheLimitBytes = 512L * 1024 * 1024;
+
     private readonly string _path;
     private readonly ZipArchive? _zip;
     private readonly Dictionary<string, ZipArchiveEntry>? _zipMap;
+
+    /// <summary>顺序格式是否固实（solid）压缩：固实包取第 N 张必须从头解压到 N，缓存沿途结果才有收益。</summary>
+    private readonly bool _isSolid;
+
+    /// <summary>顺序格式取图结果的 LRU 缓存（仅 solid 包启用）：键 = 条目 Key，值 = 解压出的原始字节。</summary>
+    private readonly Dictionary<string, byte[]> _seqCache = new();
+    private long _seqCacheBytes;
 
     /// <summary>串行化「从包里取一张图」。ZipArchive 的条目流共享底层流，并发读取会错位；顺序格式则要反复扫包。</summary>
     private readonly object _openGate = new();
 
     internal ArchiveImageSession(string path, ZipArchive? zip, Dictionary<string, ZipArchiveEntry>? zipMap,
-        IReadOnlyList<ArchiveImageEntry> entries)
+        IReadOnlyList<ArchiveImageEntry> entries, bool isSolid = false)
     {
         _path = path;
         _zip = zip;
         _zipMap = zipMap;
+        _isSolid = isSolid;
         Entries = entries;
     }
 
@@ -73,6 +84,12 @@ public sealed class ArchiveImageSession : IDisposable
                     return CopyToMemory(raw, entry.Length);
                 }
 
+                // solid 包：先查沿途缓存（顺序翻页时，前面已解出的图直接命中，避免从头再解）。
+                if (_isSolid && _seqCache.TryGetValue(key, out var cached))
+                {
+                    return new MemoryStream(cached, writable: false);
+                }
+
                 return ReadSequential(key, out error);
             }
         }
@@ -92,14 +109,27 @@ public sealed class ArchiveImageSession : IDisposable
             using var stream = File.OpenRead(_path);
             using var reader = ReaderFactory.Open(stream);
 
+            // solid 包：从头解到目标这一路上的图片条目全部缓存（解压代价已付出，结果别浪费），
+            // 顺序翻页时下一张直接命中缓存。非 solid 包 MoveToNextEntry 是纯 seek 跳过，无需缓存。
+            var cacheAlong = _isSolid;
+
             while (reader.MoveToNextEntry())
             {
                 var entry = reader.Entry;
                 if (entry.IsDirectory) continue;
-                if (!string.Equals(Normalize(entry.Key), key, StringComparison.Ordinal)) continue;
+
+                var normalized = Normalize(entry.Key);
+                var isImage = ArchiveImageService.IsImageEntry(normalized);
+                var isTarget = string.Equals(normalized, key, StringComparison.Ordinal);
+
+                if (!isImage && !isTarget) continue;   // 既不是图片、也不是目标（防御）→ 跳过
 
                 using var source = reader.OpenEntryStream();
-                return CopyToMemory(source, entry.Size);
+                var buffer = CopyToBytes(source, entry.Size);
+
+                if (isTarget) return new MemoryStream(buffer, writable: false);
+
+                if (cacheAlong && isImage) CacheSequential(normalized, buffer);
             }
 
             error = "压缩包里找不到：" + key;
@@ -110,6 +140,24 @@ public sealed class ArchiveImageSession : IDisposable
             error = "解出图片失败：" + ex.Message;
             return null;
         }
+    }
+
+    /// <summary>把解压出的图片字节塞进 LRU 缓存；超上限时整清（solid 包翻页场景，清空重来成本可接受）。</summary>
+    private void CacheSequential(string key, byte[] buffer)
+    {
+        _seqCache[key] = buffer;
+        _seqCacheBytes += buffer.LongLength;
+        if (_seqCacheBytes > SequentialCacheLimitBytes)
+        {
+            _seqCache.Clear();
+            _seqCacheBytes = 0;
+        }
+    }
+
+    private static byte[] CopyToBytes(Stream source, long hint)
+    {
+        using var ms = CopyToMemory(source, hint);
+        return ms.ToArray();
     }
 
     private static MemoryStream CopyToMemory(Stream source, long hint)
@@ -225,6 +273,7 @@ public sealed class ArchiveImageService
             using var reader = ReaderFactory.Open(stream);
 
             var entries = new List<ArchiveImageEntry>();
+            var isSolid = false;
             while (reader.MoveToNextEntry())
             {
                 var entry = reader.Entry;
@@ -233,11 +282,12 @@ public sealed class ArchiveImageService
                 var key = ArchiveImageSession.Normalize(entry.Key);
                 if (string.IsNullOrWhiteSpace(key) || !IsImageEntry(key)) continue;
 
+                if (!isSolid) isSolid = entry.IsSolid;   // 包是否固实（首个图片条目即可判定）
                 entries.Add(new ArchiveImageEntry { Key = key, Name = Path.GetFileName(key), Size = entry.Size });
             }
 
             entries.Sort((a, b) => string.Compare(a.Key, b.Key, StringComparison.OrdinalIgnoreCase));
-            return new ArchiveImageSession(path, zip: null, zipMap: null, entries);
+            return new ArchiveImageSession(path, zip: null, zipMap: null, entries, isSolid);
         }
         catch (Exception ex)
         {

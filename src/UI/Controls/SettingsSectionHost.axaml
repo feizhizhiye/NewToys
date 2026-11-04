@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.UI.Controls"
              x:Class="NewToys.UI.Controls.SettingsSectionHost">
@@ -45,14 +45,14 @@
             Grid.Column="1"
             Margin="8,0,0,0"
             VerticalAlignment="Center"
-            FontSize="14"
+            FontSize="16"
             Text="{Binding Icon}" />
         <TextBlock
             Grid.Column="2"
             Margin="6,0,0,0"
             VerticalAlignment="Center"
             Classes="sec-title"
-            FontSize="13"
+            FontSize="14"
             FontWeight="SemiBold"
             Text="{Binding Title}" />
         <TextBlock
@@ -73,8 +73,8 @@
       <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
     </Style>
 
-    <!--  抬头 = 卡片标题栏（独立底色 + 下边框）⇒ 与正文行区分开。
-          底色用 `ContentHeaderBrush`（暗色 #1F1F1F / 亮色 #FFF）—— 与卡片底 `PanelBrush` 正好差一档。  -->
+    <!--  抬头 = 卡片标题栏（独立底色，⛔ 无下边框）⇒ 与正文行区分开。
+          底色用 `ContentHeaderBrush` —— 与卡片底 `PanelBrush` 正好差一档。  -->
     <Style Selector="Button.sec-head">
       <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}" />
       <Setter Property="CornerRadius" Value="8" />
@@ -108,7 +108,7 @@
         x:Name="SectionScroll"
         HorizontalScrollBarVisibility="Disabled"
         VerticalScrollBarVisibility="Auto">
-      <ItemsControl x:Name="SectionList" Margin="12">
+      <ItemsControl x:Name="SectionList" Margin="8">
         <ItemsControl.ItemTemplate>
           <DataTemplate>
             <!--  一个节点 = 一张卡片；`card` 铺底、内边距 0（抬头自己带内边距）  -->
@@ -122,12 +122,6 @@
                       Content="{Binding}"
                       ContentTemplate="{StaticResource SectionHeaderContent}"
                       ToolTip.Tip="{Binding Desc}" />
-                  <!--  展开时抬头与正文之间一条分隔线（收起时不画，卡片就是一颗圆角小条）  -->
-                  <Border
-                      Height="1"
-                      VerticalAlignment="Bottom"
-                      Background="{DynamicResource DividerBrush}"
-                      IsVisible="{Binding IsExpanded}" />
                 </Grid>
 
                 <!--  节**自己的工具条** = 抬头下方、正文之上。外层 `IsExpanded` ⇒ 收起时跟收起；
@@ -162,8 +156,6 @@
         Margin="12,12,22,0"
         VerticalAlignment="Top"
         Background="{DynamicResource PanelBrush}"
-        BorderBrush="{DynamicResource DividerBrush}"
-        BorderThickness="0,0,0,1"
         CornerRadius="0,0,8,8"
         IsVisible="False">
       <Grid ColumnDefinitions="*,Auto">

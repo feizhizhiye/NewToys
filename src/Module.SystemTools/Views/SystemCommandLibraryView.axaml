@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.SystemTools.Views.SystemCommandLibraryView">
@@ -11,7 +11,7 @@
     故骨架的 HeaderArea 不填。
   -->
   <v:ListPageSkeleton EmptyMessage="还没有命令条目。首次运行会播种一批 Windows 常用命令 / 快捷设置 / winget 命令；也可以点「➕ 新增」自己加。"
-                      EmptyActionText="➕ 新增"
+                      EmptyActionText="＋ 新增"
                       EmptyActionCommand="{Binding AddCommand}"
                       IsEmpty="{Binding !HasItems}">
 
@@ -32,7 +32,7 @@
             <Separator/>
             <MenuItem Header="✏ 编辑（显示详情栏）" Command="{Binding OpenDetailPanelCommand}"/>
             <Separator/>
-            <MenuItem Header="➕ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
+            <MenuItem Header="＋ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
             <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding HasSelection}"/>
           </ContextMenu>
         </v:TableViewHost.ContextMenu>

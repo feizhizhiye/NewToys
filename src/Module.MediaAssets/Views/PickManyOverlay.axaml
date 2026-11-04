@@ -16,8 +16,6 @@
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="1"
             CornerRadius="8"
             BoxShadow="0 8 32 0 #66000000"
             Padding="18">
@@ -40,7 +38,7 @@
         </Grid>
 
         <!--  候选列表（勾选 = 这次要加）  -->
-        <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="4">
+        <Border Grid.Row="2" CornerRadius="4">
           <ListBox ItemsSource="{Binding Items}" Background="Transparent" BorderThickness="0" Padding="0,2">
             <ListBox.Styles>
               <Style Selector="ListBoxItem">
@@ -59,10 +57,10 @@
                   <TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="12" MaxLines="1"
                              TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                              Foreground="{DynamicResource PrimaryTextBrush}"/>
-                  <TextBlock Grid.Column="3" Text="{Binding GroupText}" FontSize="11" MaxLines="1"
+                  <TextBlock Grid.Column="3" Text="{Binding GroupText}" FontSize="12" MaxLines="1"
                              VerticalAlignment="Center"
                              Foreground="{DynamicResource SecondaryTextBrush}"/>
-                  <TextBlock Grid.Column="4" Text="{Binding Note}" FontSize="11" MaxLines="1"
+                  <TextBlock Grid.Column="4" Text="{Binding Note}" FontSize="12" MaxLines="1"
                              VerticalAlignment="Center" Margin="6,0,0,0"
                              Foreground="{DynamicResource SecondaryTextBrush}"/>
                 </Grid>

@@ -18,8 +18,6 @@
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="1"
             CornerRadius="8"
             BoxShadow="0 8 32 0 #66000000"
             Padding="18">
@@ -97,7 +95,7 @@
         </StackPanel>
 
         <!--  ==================== 预览表 ====================  -->
-        <Border Grid.Row="3" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="4">
+        <Border Grid.Row="3" CornerRadius="4">
           <Grid RowDefinitions="Auto,*">
             <Border Grid.Row="0" Background="{DynamicResource ContentHeaderBrush}" Padding="8,4">
               <Grid ColumnDefinitions="*,Auto,*,*">
@@ -141,7 +139,7 @@
                                Text="{Binding NewName}" FontSize="12" MaxLines="1"
                                TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding NewName}"/>
                     <TextBlock Grid.Column="3" Classes="row-note" Classes.problem="{Binding IsProblem}"
-                               Text="{Binding Note}" FontSize="11" MaxLines="1" Margin="8,0,0,0"
+                               Text="{Binding Note}" FontSize="12" MaxLines="1" Margin="8,0,0,0"
                                TextTrimming="CharacterEllipsis"/>
                   </Grid>
                 </DataTemplate>

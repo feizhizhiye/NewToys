@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetCollectionsView">
@@ -10,16 +10,16 @@
     🔴 Columns 的声明顺序必须与 VM 的 ColumnLayout 一致。
   -->
   <v:ListPageSkeleton EmptyMessage="还没有集合。点「➕ 新建集合」开一个手动集合。"
-                      EmptyActionText="➕ 新建集合"
+                      EmptyActionText="＋ 新建集合"
                       EmptyActionCommand="{Binding NewCollectionCommand}"
                       IsEmpty="{Binding !HasItems}">
 
     <v:ListPageSkeleton.TopArea>
       <Border Classes="filter-bar">
         <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
-          <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
+          <TextBlock Text="{Binding FilterSummary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"
                      Foreground="{DynamicResource SecondaryTextBrush}"/>
-          <TextBlock Text="左键表头排序；右键表头选列 / 筛选；成员与顺序在右侧详情卡" FontSize="11"
+          <TextBlock Text="左键表头排序；右键表头选列 / 筛选；成员与顺序在右侧详情卡" FontSize="12"
                      VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
         </WrapPanel>
       </Border>
@@ -36,7 +36,7 @@
               <DataTemplate>
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                   <Border Width="3" Height="14" CornerRadius="2" Background="{Binding AccentBrush}"/>
-                  <TextBlock Text="{Binding TypeIcon}" FontSize="11" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding TypeIcon}" FontSize="12" VerticalAlignment="Center"/>
                   <TextBlock Classes="list-cell primary" Text="{Binding Name}"
                              Foreground="{DynamicResource PrimaryTextBrush}"/>
                 </StackPanel>
@@ -51,7 +51,7 @@
 
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+            <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
               <MenuItem.ItemContainerTheme>
                 <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                   <Setter Property="Header" Value="{Binding Label}"/>
@@ -61,7 +61,7 @@
             </MenuItem>
             <Separator/>
             <MenuItem Header="✏ 重命名…" Command="{Binding RenameCollectionCommand}"/>
-            <MenuItem Header="➕ 新建智能集合…" Command="{Binding NewSmartCommand}"/>
+            <MenuItem Header="＋ 新建智能集合…" Command="{Binding NewSmartCommand}"/>
             <Separator/>
             <MenuItem Header="🗑 删除集合" Command="{Binding DeleteCollectionCommand}"/>
           </ContextMenu>

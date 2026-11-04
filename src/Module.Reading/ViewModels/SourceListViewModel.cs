@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -931,7 +931,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "✎ 编辑",
+            Text = "✏ 编辑",
             CommandPath = "OpenEditorCommand",
             IsEnabledPath = "HasSelection",
             ShowToolTipOnDisabled = true,

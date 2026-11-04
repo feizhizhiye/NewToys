@@ -49,8 +49,6 @@
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
               Background="{DynamicResource PanelBrush}"
-              BorderBrush="{DynamicResource DividerBrush}"
-              BorderThickness="1"
               CornerRadius="6"
               BoxShadow="0 8 32 0 #66000000"
               Padding="16">

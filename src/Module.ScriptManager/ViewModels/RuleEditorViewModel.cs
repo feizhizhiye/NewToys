@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -90,7 +90,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         new() { Text = "🌐 抓页", Classes = "ghost", CommandPath = nameof(FetchHtmlCommand),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "抓起始网址并落共享 HTML（试跑推荐的前提：候选脚本对同一份 HTML 求值）" },
-        new() { Text = "🔍 试跑推荐", Classes = "ghost", CommandPath = nameof(RecommendCommand),
+        new() { Text = "🔍 推荐", Classes = "ghost", CommandPath = nameof(RecommendCommand),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "把当前槽位的候选脚本对同一份 HTML 全求值，按条数 / 字段完整度排序" },
         new() { Text = "▶ 跑这段", Classes = "ghost", CommandPath = nameof(RunSegmentCommand),

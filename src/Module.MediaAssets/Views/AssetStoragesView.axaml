@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetStoragesView">
@@ -8,7 +8,7 @@
     故骨架的 HeaderArea 不填。
   -->
   <v:ListPageSkeleton EmptyMessage="没有可显示的存储源。点「➕ 添加存储源」把要扫描的目录登记进来。"
-                      EmptyActionText="➕ 添加存储源"
+                      EmptyActionText="＋ 存储源"
                       EmptyActionCommand="{Binding AddStorageCommand}"
                       IsEmpty="{Binding !HasItems}">
 
@@ -16,11 +16,11 @@
     <v:ListPageSkeleton.TopArea>
     <Border Classes="filter-bar">
       <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
-        <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
+        <TextBlock Text="{Binding FilterSummary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <TextBlock Text="左键表头排序；右键表头选列 / 筛选" FontSize="11" VerticalAlignment="Center"
+        <TextBlock Text="左键表头排序；右键表头选列 / 筛选" FontSize="12" VerticalAlignment="Center"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <TextBlock Text="一个文件只归属它上一级文件夹的源（父子源按缩进分层）" FontSize="11" VerticalAlignment="Center"
+        <TextBlock Text="一个文件只归属它上一级文件夹的源（父子源按缩进分层）" FontSize="12" VerticalAlignment="Center"
                    Margin="12,0,0,0" Foreground="{DynamicResource SecondaryTextBrush}"/>
       </WrapPanel>
     </Border>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -62,8 +62,8 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         ToolTip = "从 json 文件导入本页清单（合并 / 整页替换）",
         Items = new ToolbarMenuItemDescriptor[]
         {
-            new() { Text = "🔀 合并导入（按 Id 去重，同 Id 覆盖）", CommandPath = nameof(ImportPageMergeCommand) },
-            new() { Text = "♻ 整页替换（先清空本页再导入）", CommandPath = nameof(ImportPageReplaceCommand) },
+            new() { Text = "🔀 合并导入", CommandPath = nameof(ImportPageMergeCommand) },
+            new() { Text = "↩ 整页替换", CommandPath = nameof(ImportPageReplaceCommand) },
         }
     };
 
@@ -133,7 +133,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
             {
                 items.Add(new()
                 {
-                    Text = "➕ 加入库",
+                    Text = "＋ 加入库",
                     Classes = "ghost",
                     CommandPath = nameof(AddScanCandidatesCommand),
                     ToolTip = "把勾选的新文件建成条目（已入库 / 不可采集的不会重复添加）"

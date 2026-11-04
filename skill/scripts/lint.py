@@ -79,6 +79,10 @@ def check_axaml(all_: bool) -> None:
         t = read(p)
         brush.update(re.findall(r'x:Key="(\w*Brush)"', t))
         brush.update(re.findall(r'S\("(\w*Brush)"', t))
+        # 区域键在 App.Theme.cs 里由 RegionLayers 表驱动赋值（不是逐个 S("…") 调用）
+        m = re.search(r"RegionLayers\s*=\s*\{(.*?)\n    \};", t, re.S)
+        if m:
+            brush.update(re.findall(r'\(\s*"(\w*Brush)"\s*,\s*\d+\s*\)', m.group(1)))
 
     axamls = [p for p in SRC.rglob("*.axaml") if p.is_file()]
     print(f"\n[主题键] 白名单 {len(brush)} 个 *Brush 键")
@@ -151,7 +155,7 @@ MARKUP = {
     "Binding", "StaticResource", "DynamicResource", "Key", "Class", "Style", "AvaloniaProperty",
 }
 
-FONT_WHITELIST = {"11", "12", "13", "14", "15", "16", "18", "22", "26", "28", "32"}
+FONT_WHITELIST = {"10", "12", "14", "16", "22", "28", "32"}
 
 
 def check_props(all_: bool) -> None:
@@ -549,6 +553,63 @@ def check_comments(all_: bool) -> None:
     print("      C-03 只出排行不告警（审美判据做 lint 会烂成噪音）。")
 
 
+# ---------------------------------------------------------------- 8) 区域色差（相邻撞档）
+
+def check_regions(all_: bool) -> None:
+    h("NewToys 区域色差自检")
+    theme = SRC / "Shell" / "App.Theme.cs"
+    if not theme.exists():
+        print("[FAIL] 找不到 src/Shell/App.Theme.cs")
+        return
+
+    txt = read(theme)
+    m = re.search(r"RegionLayers\s*=\s*\{(.*?)\n    \};", txt, re.S)
+    a = re.search(r"RegionAdjacency\s*=\s*\{(.*?)\n    \};", txt, re.S)
+    if not m or not a:
+        print("[ERROR] 1 条  —— App.Theme.cs 里找不到 RegionLayers / RegionAdjacency 表"
+              "（区域颜色的唯一事实源丢了，相邻色差无从核对）")
+        return
+
+    layers: dict[str, int] = {}
+    errors: list[str] = []
+    for key, n in re.findall(r'\(\s*"(\w+)"\s*,\s*(\d+)\s*\)', m.group(1)):
+        if key in layers:
+            errors.append(f'R-01  RegionLayers 里 "{key}" 重复登记')
+        layers[key] = int(n)
+
+    pairs = re.findall(r'\(\s*"(\w+)"\s*,\s*"(\w+)"\s*\)', a.group(1))
+
+    for key, n in layers.items():
+        if not 1 <= n <= 5:
+            errors.append(f'R-02  "{key}" 档位 {n} 越界 —— 窗口内部只有 5 档面（1~5）')
+
+    used: set[str] = set()
+    for x, y in pairs:
+        used.update((x, y))
+        if x not in layers or y not in layers:
+            errors.append(f'R-03  相邻对 "{x}" ↔ "{y}" 里的键没在 RegionLayers 登记')
+            continue
+        if layers[x] == layers[y]:
+            if layers[x] == CARD_LAYER or frozenset((x, y)) in SAME_LAYER_OK:
+                continue
+            errors.append(f'R-04  "{x}" 与 "{y}" 都落在 {layers[x]} 档 —— 直接相接却同色，接缝会消失')
+
+    for key in layers:
+        if key not in used:
+            errors.append(f'R-05  "{key}" 没登记任何相邻对 —— 等于没被检查（补一条边或从表里删掉）')
+
+    print(f"区域 {len(layers)} 个 / 相邻对 {len(pairs)} 对（其中允许同档 {len(SAME_LAYER_OK)} 对）；档位分布 "
+          + " / ".join(f"{n} 档 {sum(1 for v in layers.values() if v == n)} 个" for n in range(1, 6)))
+    if not errors:
+        print("[OK] 0 条 —— 所有直接相接的区域都不同档（同材质相接的几对已登记为允许同档）")
+        return
+    print(f"[ERROR] {len(errors)} 条")
+    for e in (errors if all_ else errors[:30]):
+        print(f"  {e}")
+    if not all_ and len(errors) > 30:
+        print(f"  …（还有 {len(errors) - 30} 条，加 -All 看全部）")
+
+
 # ---------------------------------------------------------------- 7) 页面契约
 
 CLASS_RE = re.compile(r"(?m)^\s*(?:public|internal)\s+(?:sealed\s+|abstract\s+|partial\s+|static\s+)*class\s+([A-Za-z_]\w*)")
@@ -623,6 +684,171 @@ def check_view_pairs(all_: bool) -> None:
 
 # ---------------------------------------------------------------- 入口
 
+# ---------------------------------------------------------------- 8) 区域色差（页面级）
+
+# 相邻区域灰度差下限：深色下大面积纯色块直接相邻，5 灰阶就能看出边界；
+# 浅色是白底 + 低饱和，8 以下整片糊。两套皮肤分别核。
+MIN_DELTA_DARK = 6.0
+MIN_DELTA_LIGHT = 8.0
+FLUENT_SLACK = 2.0    # Fluent 皮肤走 Blend 取整，允许 2 的误差
+
+# 卡内统一档位：窗口里只有「主显示区 + 详情列」两张卡，卡内所有面共用一个档位。
+# 卡内相邻对同档是设计意图（一张卡内部本来就不该有色阶），R-04 与着色都整体跳过。
+CARD_LAYER = 2
+
+# 卡外还允许同档的几对：三块 chrome 本来就是同一个平铺面（标题栏 / 侧栏 / 版本行 / 状态栏）。
+SAME_LAYER_OK = {
+    frozenset(("TitleBarBrush", "SiderBrush")),
+    frozenset(("TitleBarBrush", "ContentBareBrush")),
+    frozenset(("SiderBrush", "SiderFootBrush")),
+    frozenset(("SiderFootBrush", "StatusBarBrush")),
+}
+
+
+def _gray(hexv: str) -> float:
+    h = hexv.lstrip("#")
+    return 0.299 * int(h[0:2], 16) + 0.587 * int(h[2:4], 16) + 0.114 * int(h[4:6], 16)
+
+
+def _fluent_layers(steps: list[float], base: float, dark: bool) -> list[float]:
+    """Fluent 皮肤的区域档 = 底色按 steps 向白（暗底）或向黑（亮底）递进混色，与 App.Theme.cs 同公式。"""
+    return [base] + [base + (255 - base) * s if dark else base * (1 - s) for s in steps]
+
+
+def _fluent_delta(steps: list[float], lo: int, hi: int, dark: bool = True) -> float:
+    """两档在 Fluent 皮肤下的最坏灰度差（底色未知 ⇒ 在暗底 / 亮底区间内扫描取最小）。"""
+    rng = range(16, 81) if dark else range(200, 256)
+    return min(abs(_fluent_layers(steps, b, dark)[hi - 1] - _fluent_layers(steps, b, dark)[lo - 1])
+               for b in rng)
+
+
+def _page_chain(p: Path, detail_vms: set[str]) -> tuple[list[str], bool] | None:
+    t = strip_comments(read(p), axaml=True)
+    has_toolbar = 'Classes="toolbar"' in t or "ToolbarHost" in t
+    has_header = "TableViewHost" in t or "ListHeaderBrush" in t or 'Classes="list-header"' in t
+    has_body = "ListPageSkeleton" in t or "ListBodyBrush" in t
+    has_footer = "ListFooterBar" in t
+    if not (has_toolbar or has_header or has_body):
+        return None                                # 设置页 / 卡片页，不走列表骨架
+    chain = ["TitleBarBrush"]
+    if has_toolbar:
+        chain.append("ToolbarBrush")
+    if has_header:
+        chain.append("ListHeaderBrush")
+    if has_body:
+        chain.append("ListBodyBrush")
+    if has_footer:
+        chain.append("FooterBarBrush")
+    if not has_body and not has_header:
+        # 工具条与状态栏之间永远隔着内容区（页面自己画的 View / 播放器 / 设置节），
+        # 由 Shell 的 `.content-area` 上色：有工具条 = ContentBrush，否则 ContentBareBrush。
+        chain.append("ContentBrush" if has_toolbar else "ContentBareBrush")
+    chain.append("StatusBarBrush")
+    detail = (p.stem + "Model") in detail_vms or p.stem in detail_vms
+    return chain, detail
+
+
+def check_region_pages(all_: bool) -> None:
+    theme = read(SRC / "Shell" / "App.Theme.cs")
+    ml = re.search(r"RegionLayers\s*=\s*\{(.*?)\n    \};", theme, re.S)
+    ma = re.search(r"RegionAdjacency\s*=\s*\{(.*?)\n    \};", theme, re.S)
+    if not (ml and ma):
+        print("[ERROR] 1 条  —— App.Theme.cs 里找不到 RegionLayers / RegionAdjacency 表")
+        return
+
+    layers = {k: int(v) for k, v in re.findall(r'\("(\w+)",\s*(\d)\)', ml.group(1))}
+    pairs = re.findall(r'\("(\w+)",\s*"(\w+)"\)', ma.group(1))
+    pal: dict[bool, list[float] | None] = {}
+    for name, dark in (("Dark", True), ("Light", False)):
+        found = re.findall(rf'private const string {name}Bg(\d) = "(#[0-9A-Fa-f]{{6}})";', theme)
+        pal[dark] = [_gray(v) for _, v in sorted(found)] if len(found) >= 4 else None
+    steps = [float(x) for x in re.findall(r"Blend\(toward, baseCol, ([0-9.]+)\)", theme)]
+
+    errors: list[str] = []
+
+    # ① 档位组合 ⇄ 真实灰度差（两套皮肤各算一遍；Fluent 底色未知 ⇒ 全底色扫描取最坏）
+    combos = sorted({(min(layers[a], layers[b]), max(layers[a], layers[b]))
+                     for a, b in pairs if a in layers and b in layers})
+    combos = [c for c in combos if c[0] != c[1]]
+    for lo, hi in combos:
+        for dark in (True, False):
+            p = pal[dark]
+            limit = MIN_DELTA_DARK if dark else MIN_DELTA_LIGHT
+            if p and abs(p[hi - 1] - p[lo - 1]) < limit:
+                errors.append(f'R-10  {lo} 档 ⇄ {hi} 档 在 {"暗" if dark else "亮"}色 NewToys 下灰度差 '
+                              f'{abs(p[hi - 1] - p[lo - 1]):.0f} < {limit:.0f}')
+        if len(steps) >= 3:
+            for dark in (True, False):
+                limit = (MIN_DELTA_DARK if dark else MIN_DELTA_LIGHT) - FLUENT_SLACK
+                worst = _fluent_delta(steps, lo, hi, dark)
+                if worst < limit:
+                    errors.append(f'R-11  {lo} 档 ⇄ {hi} 档 在 Fluent {"暗" if dark else "亮"}色下最坏灰度差 '
+                                  f'{worst:.0f} < {limit:.0f}')
+
+    # ② 页面级：把每个 View 的纵向区域链还原出来，逐对查登记与色差
+    detail_vms: set[str] = set()
+    for f in walk((".cs",)):
+        t = read(f)
+        if "IDetailCardSource" not in t:
+            continue
+        m = re.search(r"partial class (\w+)", t)
+        if m:
+            detail_vms.add(m.group(1))
+
+    views = [p for p in walk((".axaml",)) if p.name.endswith("View.axaml")]
+    pages = 0
+    for v in views:
+        r = _page_chain(v, detail_vms)
+        if r is None:
+            continue
+        chain, has_detail = r
+        pages += 1
+        for x, y in zip(chain, chain[1:]):
+            if not any({x, y} == {a, b} for a, b in pairs):
+                errors.append(f'R-12  {rel(v)}："{x}" ↔ "{y}" 没登记相邻对（这条接缝不会被任何检查覆盖）')
+        if has_detail and chain.count("ListBodyBrush"):
+            if not any({a, b} == {"ListBodyBrush", "DetailCardBrush"} for a, b in pairs):
+                errors.append(f'R-13  {rel(v)}：行区 ↔ 右侧详情列没登记相邻对')
+
+    # ③ 档数够不够：相邻图做贪心着色，给出「最少需要几档」
+    adj: dict[str, set[str]] = {}
+    for a, b in pairs:
+        if frozenset((a, b)) in SAME_LAYER_OK:
+            continue
+        if layers.get(a) == layers.get(b) == CARD_LAYER:
+            continue
+        adj.setdefault(a, set()).add(b)
+        adj.setdefault(b, set()).add(a)
+    color: dict[str, int] = {}
+    for k in sorted(adj, key=lambda k: -len(adj[k])):
+        used = {color[n] for n in adj[k] if n in color}
+        c = 1
+        while c in used:
+            c += 1
+        color[k] = c
+    need = max(color.values()) if color else 0
+
+    print(f"区域 {len(layers)} 个 / 相邻对 {len(pairs)} 对 / 扫描 {len(views)} 个 View（列表页 {pages} 个）")
+    for lo, hi in combos:
+        p = pal[True]
+        nv = f'{abs(p[hi - 1] - p[lo - 1]):.0f}' if p else "?"
+        fl = (f'{min(_fluent_delta(steps, lo, hi), _fluent_delta(steps, lo, hi, dark=False)):.0f}'
+              if len(steps) >= 3 else "?")
+        print(f"  {lo} 档 ⇄ {hi} 档：NewToys 灰差 {nv} / Fluent 最坏 {fl}"
+              f"（下限 深 {MIN_DELTA_DARK:.0f} / 浅 {MIN_DELTA_LIGHT:.0f}）")
+    used = max(layers.values()) if layers else 0
+    print(f"  相邻图最少需要 {need} 档，现用 {used} 档 ⇒ {'够' if need <= used else '不够，需加档'}")
+
+    if not errors:
+        print("[OK] 0 条 —— 每页相邻区域都有色差，且接缝都被相邻表覆盖")
+        return
+    print(f"[ERROR] {len(errors)} 条")
+    for e in (errors if all_ else errors[:30]):
+        print(f"  {e}")
+    if not all_ and len(errors) > 30:
+        print(f"  …（还有 {len(errors) - 30} 条，加 -All 看全部）")
+
+
 CHECKS = {
     "axaml": check_axaml,
     "props": check_props,
@@ -631,6 +857,8 @@ CHECKS = {
     "video-card": check_video_card,
     "comments": check_comments,
     "view-pairs": check_view_pairs,
+    "regions": check_regions,
+    "regionpages": check_region_pages,
 }
 
 

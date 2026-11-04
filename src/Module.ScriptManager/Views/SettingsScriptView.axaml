@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.UI.Controls"
              x:Class="NewToys.ScriptManager.Views.SettingsScriptView">
@@ -23,8 +23,8 @@
                 Width="360"
                 PlaceholderText="留空 = 默认脚本目录"
                 Text="{Binding ScriptsFolder, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
-            <Button Classes="ghost" Content="📂 选目录…" Command="{Binding PickScriptsFolderCommand}" />
-            <Button Classes="ghost" Content="↺ 用默认" Command="{Binding ResetScriptsFolderCommand}" />
+            <Button Classes="ghost" Content="📂 选目录" Command="{Binding PickScriptsFolderCommand}" />
+            <Button Classes="ghost" Content="↺ 默认" Command="{Binding ResetScriptsFolderCommand}" />
           </StackPanel>
           <TextBlock
               Classes="hint-text"

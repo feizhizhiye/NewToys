@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -47,11 +47,11 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// </summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📂 打开配置目录", CommandPath = nameof(OpenConfigDirCommand),
+        new() { Text = "📂 配置目录", CommandPath = nameof(OpenConfigDirCommand),
                 ToolTip = "打开本配置档的 config 目录（launch.json / theme.json / 模块设置等；可整体备份）" },
         new() { Text = "💾 保存", Classes = "ghost", CommandPath = nameof(SaveCommand),
                 IsEnabledPath = nameof(CanSavePath), ToolTipPath = nameof(SaveTip), ShowToolTipOnDisabled = true },
-        new() { Text = "📂 浏览…", CommandPath = nameof(PickPathCommand),
+        new() { Text = "📂 选目录", CommandPath = nameof(PickPathCommand),
                 IsEnabledPath = nameof(CanSavePath), ToolTipPath = nameof(BrowseTip), ShowToolTipOnDisabled = true },
         new() { Text = "↗ 打开位置", CommandPath = nameof(OpenCommand),
                 IsEnabledPath = nameof(IsPathRowSelected), ToolTipPath = nameof(OpenTip), ShowToolTipOnDisabled = true },

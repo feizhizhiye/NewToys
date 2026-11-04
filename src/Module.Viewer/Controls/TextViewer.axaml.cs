@@ -62,7 +62,7 @@ public partial class TextViewer : UserControl
     /// <summary>字号 / 行距倍数 / 页边距（由宿主的设置下发）。</summary>
     public void ApplyTypography(double fontSize, double lineSpacing, double padding)
     {
-        Body.FontSize = fontSize <= 0 ? 15 : fontSize;
+        Body.FontSize = fontSize <= 0 ? 16 : fontSize;
         Body.LineHeight = Math.Round(Body.FontSize * (lineSpacing <= 0 ? 1.7 : lineSpacing));
         var pad = padding < 0 ? 32 : padding;
         Pad.Padding = new Avalonia.Thickness(pad, 24);

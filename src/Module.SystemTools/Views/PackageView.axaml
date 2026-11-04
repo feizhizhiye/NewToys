@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.SystemTools.Views.PackageView">
@@ -44,7 +44,7 @@
                 <Separator/>
                 <MenuItem Header="仅看已安装" Command="{Binding ToggleInstalledOnlyCommand}"
                           ToolTip.Tip="只留本机已安装的"/>
-                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
                   <MenuItem.ItemContainerTheme>
                     <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                       <Setter Property="Header" Value="{Binding Label}"/>
@@ -60,7 +60,7 @@
                 <MenuItem Header="🔒 锁定版本（暂停更新）" Command="{Binding PinCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <MenuItem Header="🔒 解除锁定" Command="{Binding UnpinCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <Separator/>
-                <MenuItem Header="🔎 读取详情" Command="{Binding LoadDetailCommand}"/>
+                <MenuItem Header="🔍 读取详情" Command="{Binding LoadDetailCommand}"/>
                 <MenuItem Header="📋 复制 Id" Command="{Binding CopyIdCommand}"/>
                 <MenuItem Header="🌐 打开主页" Command="{Binding OpenHomepageCommand}"/>
                 <MenuItem Header="🔗 在 winget.run 查看" Command="{Binding OpenInWingetRunCommand}"/>

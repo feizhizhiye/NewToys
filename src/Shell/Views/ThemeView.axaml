@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Shell.Views.ThemeView">
   <!--
@@ -13,7 +13,7 @@
     <Grid ColumnDefinitions="*,Auto">
       <TextBlock
           Grid.Column="0"
-          FontSize="13"
+          FontSize="14"
           FontWeight="SemiBold"
           Foreground="{DynamicResource PrimaryTextBrush}"
           Text="主题模式" />
@@ -21,31 +21,46 @@
           Grid.Column="1"
           Classes="ghost"
           Command="{Binding ResetThemeCommand}"
-          Content="↺ 恢复默认"
-          ToolTip.Tip="深色 + 微信绿（同样立即生效）"
+          Content="↺ 还原"
+          ToolTip.Tip="深色 + 微信绿 + 原生 Fluent 配色（同样立即生效）"
           VerticalAlignment="Center" />
     </Grid>
 
     <StackPanel Spacing="8">
       <RadioButton GroupName="theme-mode" IsChecked="{Binding IsDarkMode, Mode=TwoWay}">
-        <TextBlock Text="🌙 深色（默认）" FontSize="13" />
+        <TextBlock Text="🌙 深色（默认）" FontSize="14" />
       </RadioButton>
       <RadioButton GroupName="theme-mode" IsChecked="{Binding IsLightMode, Mode=TwoWay}">
-        <TextBlock Text="☀ 浅色" FontSize="13" />
+        <TextBlock Text="☀ 浅色" FontSize="14" />
       </RadioButton>
       <RadioButton GroupName="theme-mode" IsChecked="{Binding IsSystemMode, Mode=TwoWay}">
-        <TextBlock Text="🖥 跟随系统" FontSize="13" />
+        <TextBlock Text="🖥 跟随系统" FontSize="14" />
       </RadioButton>
     </StackPanel>
 
     <TextBlock Classes="hint-text" Text="「跟随系统」会读取 Windows 的应用模式，系统切换明暗时本体也会跟着变。" />
 
     <TextBlock
-        FontSize="13"
+        FontSize="14"
+        FontWeight="SemiBold"
+        Foreground="{DynamicResource PrimaryTextBrush}"
+        Text="配色皮肤" />
+    <TextBlock Classes="hint-text" Text="两套皮肤给的是同一批语义色键：布局、密度、尺寸完全不变，只有颜色与圆角的来源不同。切换即时生效，用于对照自制配色与原生 Fluent 的观感差异。" />
+    <StackPanel Spacing="8">
+      <RadioButton GroupName="theme-skin" IsChecked="{Binding IsFluentSkin, Mode=TwoWay}">
+        <TextBlock Text="原生 Fluent 配色（默认）" FontSize="14" />
+      </RadioButton>
+      <RadioButton GroupName="theme-skin" IsChecked="{Binding IsCustomSkin, Mode=TwoWay}">
+        <TextBlock Text="自制配色" FontSize="14" />
+      </RadioButton>
+    </StackPanel>
+
+    <TextBlock
+        FontSize="14"
         FontWeight="SemiBold"
         Foreground="{DynamicResource PrimaryTextBrush}"
         Text="强调色" />
-    <TextBlock Classes="hint-text" Text="影响主按钮、选中项、输入框聚焦边框等，选中即时生效。" />
+    <TextBlock Classes="hint-text" Text="影响主按钮、选中项、单选 / 复选、开关、滑块与输入框聚焦等全部强调元素（含原生 Fluent 控件），选中即时生效。" />
 
     <ListBox
         Background="Transparent"
@@ -67,12 +82,12 @@
                 Width="18"
                 Height="18"
                 Background="{Binding Swatch}"
-                BorderBrush="{DynamicResource DividerBrush}"
+                BorderBrush="{DynamicResource InputBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="9"
                 VerticalAlignment="Center" />
             <TextBlock
-                FontSize="13"
+                FontSize="14"
                 Text="{Binding Name}"
                 VerticalAlignment="Center" />
           </StackPanel>

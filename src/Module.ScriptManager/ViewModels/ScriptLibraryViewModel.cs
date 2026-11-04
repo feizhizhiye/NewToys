@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -62,7 +62,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
             {
                 new ToolbarMenuItemDescriptor
                 {
-                    Text = "📁 文件夹…",
+                    Text = "📂 文件夹…",
                     CommandPath = nameof(ImportScriptFolderCommand),
                     ToolTip = "选一个目录，把它里的脚本全部建成条目"
                 },
@@ -90,7 +90,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
         {
             // 手动扫描（⛔ 不自动登记）—— 候选面板的动作项随后出现在工具条右侧
             Kind = ToolbarItemKind.Button,
-            Text = "🔍 扫描目录",
+            Text = "🔍 扫描",
             Classes = "ghost",
             CommandPath = nameof(ScanFolderCommand),
             ToolTip = "扫描脚本目录（含子目录）：列出新文件 / 已入库 / 不可采集，勾选后点「➕ 加入库」（不会自动登记）"
@@ -203,7 +203,8 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
                         // 改名：这一列（设置 / 脚本 / 定时任务）叫**功能**；「分类」给了下面的后缀/宿主列
                         new DetailField
                         {
-                            Label = "功能（点一下打上 / 再点取消）",
+                            Label = "功能",
+                            Hint = "点一下打上 / 再点取消",
                             Kind = FieldKind.Chips,
                             OptionsPath = nameof(CategoryPicks),
                             ChipTextPath = nameof(CategoryPick.Name),

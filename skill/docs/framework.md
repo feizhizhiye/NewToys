@@ -1,5 +1,6 @@
-# NewToys 框架层（Framework）
+﻿# NewToys 框架层（Framework）
 
+> v4.10 · 2026-11-04 · **NT-145 结案**：启动性能议题确认「到此为止」，诊断卡标记 ✅ 已结案（不执行）。§3.5 结论维持「配置 json 不是瓶颈、Debug 热启动 775~826ms、2-3s 是冷启动环境开销、改 `src/` 省不掉」；⛔ 未动 `src/`。
 > v4.8 · 2026-11-03 · **§4.2 分组表改 AUTO 块** —— 分组 / Key / Order / 图标 全部由 `docs-sync.py --fix` 按 `RegisterModule` 生成（AUTO 块内 ⛔ 手改）；宿组 `system` 行由脚本固定输出。理由：机器事实与人写的说明混在一张表 ⇒ 必然人肉同步。⛔ 未动 `src/`。
 > v4.7 · 2026-11-01 · **查看器框架层新增点登记** —— §11 登记 NT-124：`NewToys.UI/Viewers/`（渲染器族）+ `Shared/Services/IViewerRegistry`（认领契约）+ 新模块 `Module.Viewer` 薄壳。🔴 三条新增点均属框架层，**须用户确认后才可动手**；V2 音视频另需媒体后端拍板。
 > v4.6 · 2026-10-30 · **设置页「滚动自动展开」整体移除** —— 一节开没开**只由点击决定**；`SettingsSection` 删 `UserCollapsed` / `CollapsedByAll`，三层优先级压回两层（点 / 外部寻址）。
@@ -262,6 +263,78 @@ public interface IModule {
 - **技术栈取数**：`TechStackProbe.Collect()`（`Shell/ViewModels/TechStackProbe.cs`）扫程序目录 + `Modules\` 的 `*.deps.json`，只保留**各项目直接引用**的包（`targets.dependencies` 反推被依赖集合，全量减被依赖者），`Avalonia.*` 家族折叠成一行「Avalonia」+ 版本 +「合并 N 个包」。同名多版本取最高；**传递依赖不展示**（用户明确：只列直接引用）。🔴 反推时只统计 **package 条目**的 dependencies —— 项目自身条目（`Shell/1.0.0`）的 dependencies 就是全部直接引用，算进来差集恒为空。⛔ 不读 `Directory.Packages.props`（发布后不存在）；⛔ 别改成白名单硬编码（新增包会漏）。
 - 🔴 `Reloaded` 事件签名 = `event Action<(int Added, int Skipped, int Failed)>?` —— 裸 `Action?` 承载不了「本次新增 / 跳过 / 失败」计数（NT-052 对验收标准的细化）。
 
+### 3.5 启动性能：链路、打点、实测与结案（2026-11-04）
+
+> 🔴 **本节是「启动慢」类问题的唯一入口**。读完即可下结论，⛔ 不要再重新摸底、不要再试 §3.5.5 的方向。任务路由见 `index.md §三`。
+> **结论先行**：配置 json 不是瓶颈（<30ms）；Debug 热启动 775~826ms；用户体感 2-3s 的差额是**新编译产物首次冷启动**（冷读 DLL + 杀毒实时扫描 + JIT），改 `src/` 省不掉；热启动再压收益 <150ms 且风险高 ⇒ **结案**。
+> ⚠️ **本议题 2026-11-04 当天已做过完整实测闭环（临时打点 + 多次 build，代码已还原）**：模块扫描内 `Assembly.LoadFrom` 1189ms 占 97%，`GetTypes` 28ms / `CreateInstance` 1ms / `Register` 1ms 可忽略；热启动 `LoadFrom` 仅 2ms；**并行加载无效**（1203 vs 1222ms，CLR loader lock 串行）；**R2R 试点否决**（`Module.MediaAssets.dll` 839KB → 2268KB 且带 26 个依赖，对磁盘冷读是负优化）。结论：启动慢 = CLR 加载模块 DLL 的固有磁盘 IO，**Debug 版日常用根本不慢**。⛔ 不要重做这些实验。
+
+#### 3.5.1 当前实现的完整链路（代码位置）
+
+| 段 | 代码 | 计时 |
+|---|---|---|
+| `Main` → `BuildAvaloniaApp()`（`UsePlatformDetect` / `WithInterFont` / `LogToTrace`） | `Shell/Program.cs:9-16` | ❌ **未计时** |
+| CLR 加载 / Avalonia 平台后端（Win32 + Skia 原生库） | 运行时隐式 | ❌ **未计时** |
+| `App.Initialize()` = `AvaloniaXamlLoader.Load(this)`；`App.axaml` 65KB / 830 行（资源字典 + FluentTheme + 2 个 `StyleInclude`） | `Shell/App.axaml.cs:40-43` | ❌ **未计时** |
+| `OnFrameworkInitializationCompleted()` 进入；`swStartup` 在 `:55` 才起 | `Shell/App.axaml.cs:45` | ✅ 计时起点 |
+| DI 注册 → 模块扫描 → 容器构建 → 模块菜单初始化 → 主窗口构造 → 窗口显示（8 个 `Mark()`） | `App.axaml.cs:59-251`（`:168/:170/:175/:193/:202/:257`） | ✅ |
+| `Show()` 后 `DispatcherPriority.Background`：配置整理 → 库 schema → 模块 `InitializeDeferred` | `App.axaml.cs:261-267` → `ModuleLoader.cs:106-148` | ✅ 另记一行 |
+
+**配置为何不慢**：`ConfigStoreService` 构造（`Core/Services/ConfigStoreService.cs:55-63`）只算路径、不碰磁盘；一次性迁移 / 清壳走 `:72-83` 的 `InitializeDeferred()`，排在首帧之后；`ShellConfigStore` 首次读盘前才兜一次 `EnsureShellMigrated()`。打点里 `DI注册 1 → 容器构建 +9 → 菜单初始化 +20ms` 即配置全部成本。⛔ 硬编码一份预设配置最多省 <30ms，还会破坏多配置隔离 / 备份导入 / 用户设置。
+
+#### 3.5.2 打点与日志（唯一事实源）
+
+- 写入：`Shell/App.Profile.cs` 的 `WriteStartupLog()`（追加当天文件、写盘失败静默）；路径 `%LOCALAPPDATA%\NewToys\profiles\<配置名>\logs\startup-yyyyMMdd.log`（`NEWTOYS_HOME` 可改根）。
+- 两行格式：`启动打点（累计毫秒）：DI注册 1 → 模块扫描 14 → 容器构建 23 → 模块菜单初始化 42 → 主窗口构造 452 → 窗口显示 775` ／ `模块延迟初始化 98ms（首帧之后）`。
+- ⚠️ **Debug 与 Release 共用同一个 logs 目录且日志里没有产物标识** ⇒ 两种形态的记录混在一起（2026-11-04 连续四轮误判的根因）。
+
+#### 3.5.3 双轨加载与实测（2026-11-04，同一台机器）
+
+| 形态 | 模块来源 | `Modules\` | 模块扫描 | 窗口显示 |
+|---|---|---|---|---|
+| Debug（用户日常双击的 `artifacts/bin/Shell/Debug/net10.0/NewToys.exe`） | `App.axaml.cs:335` `#if DEBUG` 显式 `typeof` 清单（**已硬编码**） | **空目录** ⇒ `ScanModulesDirectory()` 一个 DLL 都不加载 | 11~14 ms | 775~826 ms |
+| Release（`artifacts/release/NewToys.exe`） | `Modules\` 下 8 个 `Module.*.dll` → `Assembly.LoadFrom` + `GetTypes()` | 8 个模块 DLL + 3 个框架 DLL | 2.5~3.4 s（冷） | 3.2~4.5 s |
+
+- 目录事实：Debug 程序目录 85 文件 / 153MB（PDB 占 103MB）、66 个 DLL / 51MB；Release 目录 151MB。
+- 历史优化（§3.3）：模块扫描必须过滤 `Module.*.dll` —— 全量扫 49 个 DLL 一次吃掉 2173ms，过滤后 9~11ms。
+- ⚠️ **冷/热判据（§3.3）**：新编译产物第一次启动必然慢（冷读 + 杀毒实时扫描 + JIT）；判断优化是否生效要么连跑两次取第二次，要么看分项打点。⛔ 单次日志不能当结论。
+- 用户体感 2-3s = 冷启动开销（未计时区与打点区一起变慢），与 775ms 热启动基线不矛盾。
+- **历史实测闭环（2026-11-04 当天，临时打点已还原，⛔ 不要重做）**：
+  - 模块扫描内部分项：`LoadFrom` 1189ms（97%）、`GetTypes` 28ms、`CreateInstance` 1ms、`Register` 1ms；热启动 `LoadFrom` 仅 2ms ⇒ 瓶颈是**磁盘冷读模块 DLL**，不是反射 / 不是清单形态。
+  - **并行加载无效**：1203ms vs 1222ms（CLR loader lock 串行）。
+  - **R2R 试点否决**：`Module.MediaAssets.dll` 839KB → 2268KB（2.7 倍）且带 26 个依赖，对冷读是负优化；R2R 只对「首次开页 JIT」有意义，对启动 IO 无效。
+  - 附带修复：Release 模块=类库默认不复制 NuGet 依赖，已在 `Shell.csproj` 补 6 个 `PackageReference`（NAudio / SharpCompress / TagLibSharp / MailKit / AngleSharp / Jint），依赖随主程序复制到根目录。
+  - 当时用户曾选「R2R 主程序 + 模块反射预筛」，但上面实测已否决其对启动的收益 ⇒ **该方向不再推进**。
+
+#### 3.5.4 收益预估与优势（方案 NT-145）
+
+| 动作 | 预计节省 | 置信度 |
+|---|---|---|
+| 补全链路打点（NT-145） | **0 ms**（纯日志） | 确定 |
+| 硬编码配置预设 | <30 ms | 确定 |
+| 模块清单硬编码（Debug） | 0 ms | 确定（已是） |
+| 热启动继续压 Avalonia 首帧（主窗口构造 ~450ms + 窗口显示 ~345ms） | <150 ms，风险高 | 高（§3.3 结案） |
+| 冷启动差额 1.2~2.2s | 改 `src/` 省不掉 | 高 |
+| 并行加载 8 个模块 DLL | **0 ms**（实测 1203 vs 1222ms，CLR loader lock 串行） | 确定（已实测） |
+| R2R 发布 | **负优化**（839KB→2268KB + 26 依赖，冷读更慢） | 确定（已试点否决） |
+| 环境层（Defender 排除程序目录 / 预热文件缓存） | 1~2 s（**未验证**） | 低，⛔ 不在 NT-145 范围 |
+
+优势（NT-145）：① 零行为风险；② 复用现有日志与 `WriteStartupLog`，零新依赖、零新文件；③ 区分冷/热 + Debug/Release，终结日志混读；④ 给后续优化一个可复现基线与验收口径；⑤ 把已排除项固化成禁试清单，省掉后续会话的重复摸底。
+
+#### 3.5.5 ⛔ 不得再试清单（结案）
+
+1. ⛔ **硬编码预设配置 json**：<30ms，且破坏多配置隔离 / 备份导入 / 用户设置。
+2. ⛔ **再把模块清单硬编码**：Debug 已是显式 `typeof` 清单；Release 的慢来自冷读 DLL，不是清单形态。
+3. ⛔ **凭感觉删 `WithInterFont()` / 砍 `App.axaml` 资源字典 / 延后 `StyleInclude`**：无数据支撑，可能白改一轮；真要做先跑 NT-145 拿分段数据。
+4. ⛔ **为提速直接换 Release**：其 `Modules\` 8 个 DLL 冷启动更慢；要换须另立卡先解决 Release 扫描，不与本议题混。
+5. ⛔ **把 `InitializeDeferred` 挪到 `Task.Run`**：Sqlite / 配置 store 非线程安全（§3.3 已定）。
+6. ⛔ **用单次启动日志下结论**：必须连跑两次取第二次。
+7. ⛔ **并行加载模块 DLL / R2R 发布 / 再做模块扫描内部分项打点**：当天已实测并还原，0 收益或负优化（见本节头部与 §3.5.3）。
+8. ⛔ **把 Release 扫描慢归咎于「清单没硬编码」**：实测 `LoadFrom` 占 97%，根因是磁盘冷读，换静态清单 / `GetType(全名)` 都动不了它。
+9. ⛔ **为「启动快」再引入 publish 流程 / 改构建产物形态**：R2R 试点已否决，且违背「一个 NT = 一次 build」的现有交付口径。
+
+> **NT-145 已于 2026-11-04 用户确认「结案吧」后标记 ✅ 已结案**（不执行）。本节结论即「到此为止」，不达成上述任一新证据前不再新增启动优化工作项。
+
 ---
 
 ## §4 菜单注册与导航
@@ -345,7 +418,7 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 | 节锚点 Key | 标题 | Order | 分类 | 内容 |
 |---|---|---|---|---|
 | `settings-general` | 启动与退出 | 0 | `General` | 开机启动 / 托盘 / 关闭按钮行为 |
-| `settings-theme` | 主题外观 | 1 | `Theme` | 明暗模式 / 强调色 |
+| `settings-theme` | 主题外观 | 1 | `Theme` | 明暗模式 / **配色皮肤（自制 · 原生 Fluent）** / 强调色 |
 | `settings-launch` | 一键按钮 | 3 | `Launch` | 首页三个一键按钮的配置 |
 | `settings-path` | 路径与配置 | 2 | `Environment` | 运行环境路径 + 多配置档（分类列区分行） |
 | `settings-dns` | 加密 DNS | 4 | `Network` | 加密 DNS / 网络 |
@@ -353,13 +426,20 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 | `settings-update` | **版本与更新** | 8 | `Update` | 版本号 / 版本文件地址 / 检查更新 / **组件版本** / 技术栈 / 重载模块 + 打开模块文件夹 |
 
 - 🔴 **所有 Key ⛔ 不改**：首页跳转 / 收藏白名单 / 托盘「打开设置」都按 Key 寻址。
+- **主题状态**（明暗 `Mode` / 强调色 `AccentId` / 皮肤 `Skin`）落 `shell.json` 的 `theme` 节：`Core.ThemeService` 只持有状态与落盘（**不引用 Avalonia**），配色由 `Shell/App.Theme.cs` 订阅 `ThemeChanged` 重建资源字典。皮肤切换只换同一批语义键的取值，⛔ 不影响布局。
+- 🔴 **原生 Fluent 皮肤取色必须显式传变体**：`ApplyTheme` 刚设完 `RequestedThemeVariant`，`Application.ActualThemeVariant` 要等样式重估才刷新，此时无参 `TryFindResource` 会拿到上一个明暗的取值（表现：整片「只有明色」，切深色不生效）⇒ `FillFluent` 一律 `TryFindResource(key, variant, out _)`。
+- 🔴 **侧栏文字按明暗分两套键**：Fluent **浅色**下 `ChromeMedium` 是浅灰底，再配 `ChromeWhite` 文字会整片糊掉；浅色改用 `ForegroundBaseHigh` / `ForegroundBaseMedium`。
+- 🔴 **强调色分两个键**：`AccentBrush` = **填充 / 描边**；`AccentInkBrush` = **文字 / 图标**（自制皮肤浅色下压深 45%）。把背景强调色当文字色用，深色下就是「激活项文字糊在激活底色里」——XAML 里 `Foreground` / `Stroke` 一律用 `AccentInkBrush`。
+- 🔴 **默认皮肤 = `Fluent`**（用户拍板：原生明暗层次更细）。`App.Theme.cs` 的 `FillFluent` 里，**强调色系 6 个键一律自己派生、不映射 Fluent 的 `SystemControl*Accent*`** —— 否则原生皮肤一换，用户选的强调色就整片失效（状态栏却还写着「已立即生效」）。
+- 🔴 **Fluent 控件的强调色走调色板，不走 `DynamicResource`**：单选圆点 / 复选勾 / 开关滑块 / 列表选中条 / Slider / ProgressBar 都只认 `FluentTheme.Palettes[variant].Accent`（官方入口 `ColorPaletteResources.Accent`）⇒ `ApplyTheme` 里由 `ApplyFluentAccent()` 统一写入。⛔ 别再逐个控件重写模板（漏一个就是两套强调色并存，2026-11-04 实测：设置页色卡选中条 + 单选圆点都是蓝的）。
+- ⚠️ `ColorPaletteResources` 还带整套调色板（`AltHigh` / `BaseHigh` / `ChromeLow` / `RegionColor` 等）⇒ 将来做「自定义配色方案」就从这里扩，比逐键覆盖稳。
 - 「通用」已拆成 `settings-general` / `-update` / `-theme` **三节共用一个 VM**。
 - 🔴 **v3.67：「更新」+「关于」合并 = 「版本与更新」**（8 节 → 7 节，用户拍板）—— Key 用原来的 `settings-update`；
   `settings-about` 退成**别名**（`SettingsViewModel.ResolveKey` + `ShellViewModel.SettingsSectionKeys`，旧链接仍能打开，
   ⛔ 不再注册菜单、⛔ 不再是一个节点）。该节由 `UpdateAboutView`（**拼装壳**）装 `UpdateView` + `AboutSettingsView`，
   子 View 的 DataContext 由 `Init(...)` 分别赋（⛔ 靠继承只能给到一个）；节上有**两个 VM** ⇒ `SettingsSection.ViewModels`
   是列表，状态栏 / 工具条契约按列表逐个聚合。
-- 功能清单**不是独立页**（⛔ 不注册菜单 Key）：`AllFunctionsView` / `AllFunctionsViewModel` 由首页收藏卡尾部「显示更多」就地展开（`HomeViewModel.BuildFunctionList` 现装配）。
+- 功能清单**不是独立页**（⛔ 不注册菜单 Key）：`AllFunctionsView` / `AllFunctionsViewModel` 由首页收藏卡尾部「＋ 更多」就地展开（`HomeViewModel.BuildFunctionList` 现装配）。
 
 **页面结构机制**（`SettingsView.axaml(.cs)`）
 
@@ -373,13 +453,13 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
   放里面只能靠 `RenderTransform` 反补 `Offset` 把位置"推算"出来，实测出「滚到顶残留空白浮层 / 顶部抬头被裁一半 /
   抬头与正文错位」。覆盖层由布局自己定位（`VerticalAlignment=Top` + code-behind 按卡片算左右 Margin），零补偿数学；
   代价 = 浮层上的滚轮要转发给 `SectionScroll`（`PointerWheelChanged`，漏了就"鼠标停顶部滚不动"）。
-- 节点抬头有**独立底色**（`Button.sec-head` → `ContentHeaderBrush` + 展开时下边框 `DividerBrush`）⇒ 抬头与正文一眼分开；
+- 节点抬头有**独立底色**（`Button.sec-head` → `ContentHeaderBrush`，⛔ 无下边框）⇒ 抬头与正文一眼分开；
   磁吸浮层里的抬头另走 `Button.sec-head.stuck`（透明底，底色由浮层 Border 给）。
 - 🔴 **v3.69：浮层顶部留白 = `clamp(12 - Offset.Y, 0, 12)`**，且 **`Offset.Y <= 0.5`（真·顶部）时浮层一律不挂**
   （`default(Row)` 直接喂 `ApplyStuckHeader`）。原判定只看 `Top < -0.5`，高 DPI / 边距取整下首节点会被误判成"钉住"
   ⇒ 顶部残留一条 `ContentHeaderBrush` 底色的抬头，看着像"标题栏没留空白"（用户实测）。留白跟卡片走还顺带消掉了
   "滚过 12px 时浮层咔一下跳上去"的突变。⛔ 别把顶部留白改回常量 0。
-- 浮层右上「全部收起 / 全部展开」`FontSize=13` + `Padding=10,4`（v3.69 放大；11 号字用户看不清）。
+- 浮层右上「全部收起 / 全部展开」`FontSize=14` + `Padding=10,4`（放大过两轮：11 → 13 → 14，11 号字用户看不清）。
 - 每节内含工具条（`HasToolbar` 门控，`ToolbarHost` 挂在节抬头下方）；⛔ **工具条不上抛页顶**；节 View **⛔ 带内层 `ScrollViewer`**（会出现双滚动条 + 磁吸失效）。
 - 切节 ⇒ `ActiveSection` 变 ⇒ `SectionChanged` ⇒ Shell 重绑工具条 / 状态栏 / 详情卡（漏了就"画得出来、点不动"）。
 - 🔴 **滚动 ⛔ 不改任何节的展开状态**：一节开没开**只由点击决定**（点抬头 / 「全部收起」）。早先做过"滚到哪节自动展开哪节"，实测与用户意图冲突（想看最下面一节，滚一下上面几节全被弹开）⇒ 已整体移除，⛔ 别再恢复。
@@ -396,7 +476,7 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 
 - 🔴 **v3.69：激活色整套已删**（用户："激活色始终不可见"）——`SettingsSection.IsActive` 属性、`Button.sec-head.active`、
   `Button.settings-nav.active`、"被钉住的那节上激活色"的 View 逻辑全部撤销。**"当前在哪一节"只由顶栏表达**：
-  顶栏底色 `PanelBrush`（卡片同档）+ 下边框 `DividerBrush` + 上两角不圆（`CornerRadius="0,0,8,8"`）。
+  顶栏底色 `PanelBrush`（卡片同档）+ 上两角不圆（`CornerRadius="0,0,8,8"`），⛔ 无下边框。
   ⛔ 别再引入 active 态；`SettingsViewModel.ActiveSection` 仍归左树 / 状态栏用，与视觉无关。
 - 🔴 定位必须**两阶段**：先展开/折叠 → 等 `LayoutUpdated` → 再算 offset（`TranslatePoint(→SectionScroll).Y + Offset.Y`），
   最多重试 8 次收敛；⛔ 同步一次算完（高度还在变，算出来必错）。
@@ -437,15 +517,18 @@ void RegisterFunction<TView>(string moduleKey, string key, string title, string 
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| 展开 / 收起 | 首页收藏卡尾部「显示更多」 | 就地展开全量功能卡片墙，右键「📌 固定到首页」 | 只存在于首页内；⛔ 没有菜单 Key、⛔ 不进标签栏；「🔄 重载模块」在「版本与更新」节的关于部分 |
+| 展开 / 收起 | 首页收藏卡尾部「＋ 更多」 | 就地展开全量功能**列表**（一行一项 = 图标 · 名称 · 简介），右键「📌 固定到首页」 | 只存在于首页内；⛔ 没有菜单 Key、⛔ 不进标签栏；「🔄 重载模块」在「版本与更新」节的关于部分 |
+| 按模块折叠 | 点模块标题行 / 顶部「↕ 全展开 · ↕ 全收起」 | 每节独立折叠（默认**全部展开**），标题行显示 `▾ 模块名 · 功能数`，收起后整节只剩一行 | 折叠状态不落盘（每次展开清单回到全展开）；滚动条在**清单内部**（`AllFunctionsView` 自带 `ScrollViewer`） |
 
 **首页 `home`**
 
 | 操作 | 触发 | 结果 | 约束 |
 |---|---|---|---|
-| 一键按钮 | 点一键卡 | 按 `config\launch.json` 启动 | 配置来自「设置 → 一键按钮」 |
+| 布局 | — | `Grid RowDefinitions="Auto,Auto,*,Auto"` 四行分区：Row0 欢迎卡**固定** · Row1 收藏墙**固定** · Row2 功能清单**唯一滚动区** · Row3 一键按钮条**恒贴底** | 展开 / 收起清单只换 Row2 内容，⛔ 不推走上面两块、⛔ 不顶动底栏；⛔ 用整页 ScrollViewer |
+| 一键按钮 | 点一键卡 | 按 `config\launch.json` 启动 | 配置来自「设置 → 一键按钮」；外观与收藏按钮同一套 `fav-btn accent`（透明底 + 强调色描边，悬停变实心），高 44；⛔ 硬编码底色 |
+| 一键按钮设置 | 行右端小齿轮（24×24） | 跳 `settings-launch` | 与三个按钮**同一行**、贴右上角；⛔ 不单占一行标题（原「⚡ 一键操作」标题行已删） |
 | 收藏 | 功能项 ★ | 写 `config\favorites.json`（即时） | — |
-| 显示更多 | 收藏卡尾部 | 就地展开功能清单 | ⛔ 不跳页 |
+| ＋ 更多 | 收藏卡尾部 | 就地展开功能清单 | ⛔ 不跳页 |
 | 标签行为 | — | `CanClose=false`（其余同普通标签） | 零标签兜底回首页（见 §4.3） |
 
 **坑点**
@@ -553,7 +636,7 @@ public interface IDetailCardSource
 
 | 件 | 位置 | 说明 |
 |---|---|---|
-| `DialogCardHost.axaml(.cs)` | `Shell/Controls/` | 全窗口遮罩（`LoadingOverlayBrush`）+ 居中卡片（`PanelBrush` 底 / `DividerBrush` 1px / 圆角 8 / 投影）；挂在 `ShellView` 最外层 Grid 顶层 |
+| `DialogCardHost.axaml(.cs)` | `Shell/Controls/` | 全窗口遮罩（`LoadingOverlayBrush`）+ 居中卡片（`PanelBrush` 底 / 圆角 8 / 投影，⛔ 无描边）；挂在 `ShellView` 最外层 Grid 顶层 |
 | 宿主注入 | `Shell/App.axaml.cs` | `DialogHooks.ConfirmHandler` → `ConfirmAsync(msg)`、`InputHandler` → `InputAsync(title, initial)`，内部取 `(_mainWindow as ShellView)?.DialogCards`；`DetailCardHooks.ConfirmHandler` 转接不变 |
 | 调用方 | 全部页面 | `DialogHooks.ConfirmAsync` / `InputAsync`（Core 静态钩子）+ `DataView`（导入/备份确认走 `MessageAsync` / `NotifyAsync`）+ 检查更新提示 |
 
@@ -787,6 +870,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 
 | NT | 内容 | 状态 |
 |---|---|---|
+| NT-145 | **启动链路打点补全（诊断卡）**：打点起点前移到 `Program.Main`、日志标 Debug/Release·冷/热；**本身提速 0ms**，只为终结日志混读。现状与「不得再试」清单见 **§3.5** | ✅ 已结案（2026-11-04 用户确认；框架层须用户确认故未执行；卡：`backlog/framework/NT-145.md`） |
 | NT-047 | **数据驱动图标矢量化**：二级功能菜单 34 项 `icon` / 首页一键按钮 / 模块页内数据行（⛔ 静态装饰 emoji 不动） | 📝 草稿（**用户 2026-10-19：暂时不做**） |
 | NT-079 | **可成长性**：模块开关 / 命令面板 / 采集器骨架生成 | 📝 草稿 |
 | NT-081 | **跨平台中立化（远期）**：RID 条件化 ✔ + Windows-only P/Invoke 守卫收口 ✔（守卫层）+ 进程底座 `IProcessRunner`（Shared 契约 / Core 实现 / Shell 单例；三类进程用法分立见 §6.7）✔ + 解析分层（`FixedWidthTable` 通用机械 / `TsvRows` 机读 / winget 启发式留模块）✔ + apt 只读适配器 `AptPackageService`（按平台二选一注册，页面零改动）✔；⛳ 未做：Linux 实机验证（无环境）/ P/Invoke 物理集中 / apt 写操作（需 sudo）。约束见 **§2.1** | 🔄 执行中（步骤 1~5 已实施 2026-10-19，待本地 build；卡：`backlog/framework/NT-081.md`） |

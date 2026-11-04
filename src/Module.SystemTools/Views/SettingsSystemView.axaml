@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.UI.Controls"
              x:Class="NewToys.SystemTools.Views.SettingsSystemView">
@@ -32,7 +32,7 @@
         <TextBlock Classes="field-label" Text="命令条目清单"/>
         <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding DataFilePath}"/>
       </StackPanel>
-      <Button Classes="ghost" Content="📂 打开数据目录" Command="{Binding OpenFolderCommand}"/>
+      <Button Classes="ghost" Content="📂 数据目录" Command="{Binding OpenFolderCommand}"/>
       <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StatusText}"/>
       <TextBlock Classes="hint-text" TextWrapping="Wrap"
                  Text="🔴 系统工具的条目是本模块自己的清单（NT-091 从脚本中心平移而来），与脚本中心的库是两份数据，改一边不影响另一边。"/>

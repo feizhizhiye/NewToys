@@ -3,41 +3,31 @@
              xmlns:local="using:NewToys.Viewer.Controls"
              x:Class="NewToys.Viewer.Controls.AudioPlayer">
   <!--
-    本地音乐播放器（查看器内）：大封面 + 居中歌词 + 底部控制条；播放列表是右侧悬浮层（默认收起），音色是底部音色键弹出的菜单。
+    本地音乐播放器（查看器内）：居中歌词 + 封面 + 悬浮曲目条；播放列表是右侧悬浮层（默认收起），音色是底部音色键弹出的菜单。
     🔴 所有播放能力走注入的 IAudioPlayback（UI 库 ⛔ 不引 NAudio）；本控件只做界面与轮询刷新。
     🔴 Slider ⛔ 设 Height / MinHeight：Fluent 模板被压扁后轨道与按钮视觉错位（看着就是「不居中」）。
     🔴 图标只用非 emoji 码位：⏮ ⏭ ▶ 🔁 会被 Segoe UI Emoji 接管，渲染成彩色方块。
+    🔴 主显示区布局（左右 / 只封面 / 上下）由代码改 MainGrid 的行列 + 两块的 Grid.Row/Column，⛔ 别再建第二套 XAML。
   -->
-  <Grid RowDefinitions="Auto,*,Auto">
+  <Grid RowDefinitions="*,Auto">
 
-    <!-- 顶部：曲名 / 艺术家·专辑 / 技术信息（播放列表开关在工具条） -->
-    <Border Grid.Row="0"
-            Padding="14,8"
-            Background="{DynamicResource ContentHeaderBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="0,0,0,1">
-      <StackPanel VerticalAlignment="Center" Spacing="2">
-        <TextBlock x:Name="TitleText"
-                   FontSize="15"
-                   FontWeight="SemiBold"
-                   TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="ArtistText"
-                   Classes="hint-text"
-                   TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="TechText"
-                   Classes="hint-text"
-                   TextTrimming="CharacterEllipsis" />
-      </StackPanel>
-    </Border>
+    <!--  主显示区：封面 / 歌词（布局由代码切换）+ 悬浮曲目条 + 动效层 + 播放列表浮层  -->
+    <Grid Grid.Row="0">
 
-    <!-- 主体：封面 ｜ 歌词；播放列表浮在右侧 -->
-    <Grid Grid.Row="1">
+      <!--  🔴 行列定义**固定**两行两列（Side 用 RowSpan 铺满、Stacked 用一行一格）：
+            运行时不替换定义集合 —— 替换会让残留的 Grid.Row/Column 索引越界直接崩。  -->
+      <Grid x:Name="MainGrid" RowDefinitions="*,*" ColumnDefinitions="*,1.1*">
 
-      <Grid ColumnDefinitions="*,1.1*">
-
-        <!-- 左：大封面 + 分频柱（封面下方，未播放时收起） -->
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-          <Border Width="260"
+        <!--  封面 + 分频柱（分频柱未播放时收起）  -->
+        <StackPanel x:Name="CoverPane"
+                    Grid.Row="0"
+                    Grid.RowSpan="2"
+                    Grid.Column="0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="10">
+          <Border x:Name="CoverBox"
+                  Width="260"
                   Height="260"
                   CornerRadius="6"
                   ClipToBounds="True"
@@ -57,14 +47,15 @@
                               Width="260"
                               Height="48"
                               IsVisible="False"
-                              Foreground="{DynamicResource AccentBrush}" />
+                              Foreground="{DynamicResource AccentInkBrush}" />
         </StackPanel>
 
-        <!-- 右：歌词（居中，当前行高亮 + 走到中线后跟随滚动） -->
-        <Border Grid.Column="1"
-                Background="{DynamicResource ContentHeaderBrush}"
-                BorderBrush="{DynamicResource DividerBrush}"
-                BorderThickness="1,0,0,0">
+        <!--  歌词（居中，当前行高亮 + 走到中线后跟随滚动）  -->
+        <Border x:Name="LyricPane"
+                Grid.Row="0"
+                Grid.RowSpan="2"
+                Grid.Column="1"
+                Background="{DynamicResource ContentHeaderBrush}">
           <!--
             贴右边不留白：滚动条落在系统拉伸热区里也能抓（Shell 的 WM_NCHITTEST 钩子让控件优先，
             见 ShellView.Win32.cs 的 HitTestEdgeControl）。
@@ -75,7 +66,37 @@
         </Border>
       </Grid>
 
-      <!-- 播放列表悬浮层：贴右侧浮在内容之上，点条目即切歌 -->
+      <!--  动效层：工具条「✦ 动效」开启时盖住主显示区（播放列表仍可浮在上面）  -->
+      <local:GeometryVisual x:Name="GeometryStage"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            IsVisible="False"
+                            Background="{DynamicResource ContentBrush}"
+                            Foreground="{DynamicResource AccentInkBrush}" />
+
+      <!--  曲目条：悬浮在主显示区上方（⛔ 不再占一整行，取消顶部区域）  -->
+      <Border x:Name="TitleOverlay"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Top"
+              MaxWidth="360"
+              Margin="14,12,12,0"
+              Background="Transparent"
+              BorderThickness="0">
+        <StackPanel VerticalAlignment="Center" Spacing="2">
+          <TextBlock x:Name="TitleText"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="ArtistText"
+                     Classes="hint-text"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="TechText"
+                     Classes="hint-text"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Border>
+
+      <!--  播放列表悬浮层：贴右侧浮在内容之上，点条目即切歌  -->
       <Border x:Name="PlaylistPanel"
               HorizontalAlignment="Right"
               VerticalAlignment="Stretch"
@@ -83,8 +104,6 @@
               Margin="0,8,10,8"
               IsVisible="False"
               Background="{DynamicResource PanelBrush}"
-              BorderBrush="{DynamicResource DividerBrush}"
-              BorderThickness="1"
               CornerRadius="6"
               BoxShadow="0 8 24 0 #55000000">
         <Grid RowDefinitions="Auto,*">
@@ -97,7 +116,7 @@
                     Width="24"
                     Height="24"
                     Padding="0"
-                    FontSize="11"
+                    FontSize="12"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     AutomationProperties.Name="收起播放列表"
@@ -131,12 +150,10 @@
       </Border>
     </Grid>
 
-    <!-- 底部：控制条（按钮一律图标 + ToolTip，⛔ 不带文字） -->
-    <Border Grid.Row="2"
+    <!--  底部：控制条（按钮一律图标 + ToolTip，⛔ 不带文字）  -->
+    <Border Grid.Row="1"
             Padding="10,0"
-            Background="{DynamicResource ContentHeaderBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="0,1,0,0">
+            Background="{DynamicResource ContentHeaderBrush}">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <StackPanel Grid.Column="0"
                     Orientation="Horizontal"
@@ -146,7 +163,7 @@
                   Height="22"
                   Padding="0"
                   Classes="ghost"
-                  FontSize="11"
+                  FontSize="12"
                   HorizontalContentAlignment="Center"
                   VerticalContentAlignment="Center"
                   AutomationProperties.Name="上一首"
@@ -158,7 +175,7 @@
                   Height="22"
                   Padding="0"
                   Classes="primary"
-                  FontSize="11"
+                  FontSize="12"
                   HorizontalContentAlignment="Center"
                   VerticalContentAlignment="Center"
                   AutomationProperties.Name="播放"
@@ -169,7 +186,7 @@
                   Height="22"
                   Padding="0"
                   Classes="ghost"
-                  FontSize="11"
+                  FontSize="12"
                   HorizontalContentAlignment="Center"
                   VerticalContentAlignment="Center"
                   AutomationProperties.Name="下一首"
@@ -202,7 +219,7 @@
                   MinWidth="34"
                   Padding="5,0"
                   Classes="ghost"
-                  FontSize="11"
+                  FontSize="12"
                   HorizontalContentAlignment="Center"
                   VerticalContentAlignment="Center"
                   AutomationProperties.Name="播放模式"
@@ -214,7 +231,7 @@
                   MinWidth="34"
                   Padding="5,0"
                   Classes="ghost"
-                  FontSize="11"
+                  FontSize="12"
                   IsVisible="False"
                   HorizontalContentAlignment="Center"
                   VerticalContentAlignment="Center"
@@ -227,7 +244,7 @@
                   MinWidth="34"
                   Padding="5,0"
                   Classes="ghost"
-                  FontSize="11"
+                  FontSize="12"
                   HorizontalContentAlignment="Center"
                   VerticalContentAlignment="Center"
                   AutomationProperties.Name="音量"

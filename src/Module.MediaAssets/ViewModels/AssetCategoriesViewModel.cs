@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -71,14 +71,14 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPa
     {
         new()
         {
-            Text = "➕ 新建分类",
+            Text = "＋ 新建分类",
             Classes = "ghost",
             CommandPath = nameof(NewRootCommand),
             ToolTip = "新建一个**根**分类（子分类在详情卡里挂父级，或选中后点「➕ 子分类」）"
         },
         new()
         {
-            Text = "➕ 子分类",
+            Text = "＋ 子分类",
             CommandPath = nameof(NewChildCommand),
             IsEnabledPath = nameof(HasSelection),
             ShowToolTipOnDisabled = true,
@@ -508,7 +508,8 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPa
                     },
                     new DetailField
                     {
-                        Label = "父分类（点一下即改挂，立即生效）",
+                        Label = "父分类",
+                        Hint = "点一下即改挂，立即生效",
                         Kind = FieldKind.Chips,
                         OptionsPath = nameof(ParentCandidates),
                         ChipTextPath = "Name",
@@ -524,7 +525,8 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPa
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
-                        Label = "成员（点一下打开；完整列表走「全部资产」）",
+                        Label = "成员",
+                        Hint = "点一下打开 · 完整列表走「全部资产」",
                         Kind = FieldKind.List,
                         OptionsPath = nameof(DetailMembers),
                         ItemTextPath = "Name",
@@ -543,7 +545,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPa
         {
             new DetailAction
             {
-                Text = "📂 在全部资产中查看",
+                Text = "📂 全部资产",
                 ToolTip = "跳到「全部资产」并按本分类过滤（能排序 / 批量操作 / 导出）",
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = OpenCategoryInAssetsCommand

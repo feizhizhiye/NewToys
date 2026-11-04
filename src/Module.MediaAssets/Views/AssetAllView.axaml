@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              xmlns:views="using:NewToys.MediaAssets.Views"
@@ -75,12 +75,10 @@
       <Setter Property="Height" Value="22"/>
     </Style>
 
-    <!--  表头条：主题用 Fluent 的灰色 Chrome 笔刷 + 无分隔线；换成本项目的 SubSiderHeaderBrush + 1px 底边，
+    <!--  表头条：主题用 Fluent 的灰色 Chrome 笔刷 + 无分隔线；换成本项目的 ListHeaderBrush + 1px 底边，
          与其它列表页的 Border.list-header 视觉一致。  -->
     <Style Selector="TableView ScrollViewer /template/ DockPanel#ContentPanel > Border">
-      <Setter Property="Background" Value="{DynamicResource SubSiderHeaderBrush}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+      <Setter Property="Background" Value="{DynamicResource ListHeaderBrush}"/>
     </Style>
 
     <!--  垂直滚动条从表头下沿开始：主题把滚动条铺在整个 ScrollViewer 上（含表头行），
@@ -121,20 +119,20 @@
             ⚠️ 列间距用 Grid.ColumnSpacing（= §4.10.4 对横向流式容器的同一条要求），⛔ 不给每个 combo 写右 Margin。  -->
       <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="5">
         <!--  combo 尺寸压到最窄窗口（960 + 详情栏展开）也放得下一行。  -->
-        <ComboBox Grid.Column="0" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+        <ComboBox Grid.Column="0" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
                   HorizontalAlignment="Left"
                   ToolTip.Tip="按类型筛选（视频 / 音乐 / 书籍 / 图片 / 文档）"
                   ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding FilterType, Mode=TwoWay}"/>
-        <ComboBox Grid.Column="1" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+        <ComboBox Grid.Column="1" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
                   HorizontalAlignment="Left"
                   IsEnabled="{Binding CanFilterByStorageOrTag}"
                   ToolTip.Tip="按存储源筛选（扫描预览态不可用：预览行还没入库）"
                   ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding FilterStorage, Mode=TwoWay}"/>
-        <ComboBox Grid.Column="2" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+        <ComboBox Grid.Column="2" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
                   HorizontalAlignment="Left"
                   ToolTip.Tip="按状态筛选（正常 / 已丢失 / 回收站 / 已归档）"
                   ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding FilterStatus, Mode=TwoWay}"/>
-          <ComboBox Grid.Column="3" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="11"
+          <ComboBox Grid.Column="3" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
                     HorizontalAlignment="Left"
                     IsEnabled="{Binding CanFilterByStorageOrTag}"
                     ToolTip.Tip="按标签筛选（扫描预览态不可用：预览行还没有标签）"
@@ -226,12 +224,12 @@
               <Separator/>
               <MenuItem Header="📂 打开" Command="{Binding OpenFileCommand}"
                         ToolTip.Tip="用系统默认程序打开（视频=播放 / 书=阅读 / 图=看图）"/>
-              <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderCommand}"
+              <MenuItem Header="📂 所在目录" Command="{Binding OpenFolderCommand}"
                         ToolTip.Tip="在资源管理器里选中这个文件"/>
               <MenuItem Header="➡ 发送到视频工具" Command="{Binding SendToVideoToolsCommand}"
                         ToolTip.Tip="把选中的视频送到「视频工具 → 视频列表」页，接着定剪辑 / 转码参数（非视频自动跳过）"/>
               <!--  批量重命名：多选后按规则改（≥2 个才可用；单选用详情卡的「↗ 应用到文件」）  -->
-              <MenuItem Header="✏ 批量重命名…" Command="{Binding BatchRenameSelectedCommand}"
+              <MenuItem Header="✏ 重命名" Command="{Binding BatchRenameSelectedCommand}"
                         ToolTip.Tip="选中 ≥2 个后按规则改名（查找替换 / 前缀后缀 / 编号 / 大小写），先看预览再确认"/>
               <!--  加标签 / 加集合：只在右键（工具条不再放），支持一次选多个一起加  -->
               <MenuItem Header="🏷 加标签…" Command="{Binding AddTagToCheckedCommand}"

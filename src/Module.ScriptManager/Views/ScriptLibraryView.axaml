@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.ScriptManager.Views.ScriptLibraryView">
@@ -15,8 +15,7 @@
     <!--  ==================== 扫描候选面板（有扫描结果才展开）  ====================  -->
     <v:ListPageSkeleton.TopArea>
       <Border IsVisible="{Binding HasScanResult}"
-              BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
-              Padding="8,6,8,8" Margin="0,0,0,6">
+              Padding="0,0,0,6">
         <StackPanel Spacing="4">
           <TextBlock Text="扫描候选：勾选新文件后点工具条「➕ 加入库」（已入库 / 不可采集不可勾）"
                      Classes="hint-text"/>

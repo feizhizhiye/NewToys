@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -87,7 +87,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     {
         new()
         {
-            Text = "➕ 添加存储源",
+            Text = "＋ 存储源",
             Classes = "ghost",
             CommandPath = nameof(AddStorageCommand),
             IsEnabledPath = nameof(IsDbAvailable),
@@ -102,7 +102,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         },
         new()
         {
-            Text = "🔍 扫描选中",
+            Text = "🔍 扫描",
             CommandPath = nameof(ScanSelectedCommand),
             IsEnabledPath = nameof(CanScanSelected),
             ShowToolTipOnDisabled = true,
@@ -110,7 +110,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         },
         new()
         {
-            Text = "🔍 扫描全部",
+            Text = "🔍 全扫",
             CommandPath = nameof(ScanAllCommand),
             IsEnabledPath = nameof(IsDbAvailable),
             ToolTip = "所有存储源扫一遍（离线的自动跳过）"
@@ -125,7 +125,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         // 🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库 + 逐个体探测在线状态
         new()
         {
-            Text = "🔄 重读存储源",
+            Text = "🔄 重读",
             CommandPath = nameof(RefreshStoragesCommand),
             ToolTip = "重新读取存储源表，并逐个探测根目录是否可访问（在线 / 离线）"
         }

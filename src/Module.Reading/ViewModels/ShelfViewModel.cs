@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -467,14 +467,14 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "🔄 刷新书架",
+            Text = "🔄 刷新",
             CommandPath = "ReloadCommand",
             ToolTip = "只重新读本地书架（不发网络请求）",
         },
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "🆕 批量更新",
+            Text = "＋ 批量更新",
             CommandPath = "BatchUpdateCommand",
             IsEnabledPath = "IsNotUpdating",
             ShowToolTipOnDisabled = true,
@@ -501,7 +501,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "📁 分组",
+            Text = "📂 分组",
             CommandPath = "SetGroupCommand",
             IsEnabledPath = "HasSelection",
             ShowToolTipOnDisabled = true,

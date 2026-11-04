@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
 using Avalonia.Controls;      // ← TryFindResource 是这里的扩展方法（挂在 IResourceHost 上）
@@ -52,6 +52,31 @@ public partial class AllFunctionsViewModel : ViewModelBase
         BuildGroups();
     }
 
+    /// <summary>左侧摘要：模块数 / 功能数（构建完清单后通知一次）。</summary>
+    public string SummaryText => $"全部功能 · {Groups.Count} 个模块 / {Groups.Sum(g => g.Items.Count)} 项";
+
+    /// <summary>当前是否所有模块都展开 —— 只决定右上角按钮的文案。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ToggleAllText))]
+    private bool _allExpanded = true;
+
+    public string ToggleAllText => AllExpanded ? "↕ 全收起" : "↕ 全展开";
+
+    /// <summary>一次展开 / 折叠所有模块节（默认展开，按钮一键收起后只剩模块标题，最省纵向空间）。</summary>
+    [RelayCommand]
+    private void ToggleAll()
+    {
+        AllExpanded = !AllExpanded;
+        foreach (var g in Groups) g.IsExpanded = AllExpanded;
+    }
+
+    /// <summary>点模块标题：展开 / 折叠该节。</summary>
+    [RelayCommand]
+    private void ToggleGroup(FunctionGroup? group)
+    {
+        if (group != null) group.IsExpanded = !group.IsExpanded;
+    }
+
     private void BuildGroups()
     {
         Groups.Clear();
@@ -66,6 +91,7 @@ public partial class AllFunctionsViewModel : ViewModelBase
             }
             Groups.Add(fg);
         }
+        OnPropertyChanged(nameof(SummaryText));
     }
 
     public void RefreshFavorites()
@@ -96,16 +122,24 @@ public partial class AllFunctionsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 模块分组（图标 + 名称 + 若干功能项）。
-    /// <para>v3.2：一级分组图标改为矢量几何键，这里解析成 <see cref="Geometry"/>；取不到则回退文本。</para>
+    /// 模块分组（图标 + 名称 + 若干功能项），**可折叠**（像设置页的节：点标题展开 / 收起）。
+    /// <para>图标是矢量几何键，这里解析成 <see cref="Geometry"/>；取不到则回退文本。</para>
     /// </summary>
-    public class FunctionGroup
+    public partial class FunctionGroup : ObservableObject
     {
         public string Title { get; }
         public string Icon { get; }
         public Geometry? IconGeometry { get; init; }
         public bool HasVectorIcon => IconGeometry != null;
         public ObservableCollection<FunctionItem> Items { get; }
+
+        /// <summary>本模块是否展开（默认展开，可单独收起，也可用顶部按钮全部收起）。</summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(Glyph))]
+        private bool _isExpanded = true;
+
+        /// <summary>折叠箭头：展开 ▾ / 折叠 ▸。</summary>
+        public string Glyph => IsExpanded ? "▾" : "▸";
 
         public FunctionGroup(string title, string icon)
         {

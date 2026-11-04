@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              xmlns:views="using:NewToys.MediaAssets.Views"
@@ -31,7 +31,7 @@
     </Style>
     <Style Selector="Button.tree-row.selected">
       <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
-      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
@@ -61,7 +61,7 @@
 
     <Style Selector="Button.crumb">
       <Setter Property="Padding" Value="4,1"/>
-      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontSize" Value="12"/>
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="CornerRadius" Value="4"/>
       <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
@@ -73,7 +73,7 @@
     <!--  筛选按钮激活态：只换描边 / 文字色，⛔ 不给文案加 `✓` 之类前缀（会撑宽导致换行）。  -->
     <Style Selector="Button.ghost.active">
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
     </Style>
     <Style Selector="Button.ghost.active:pointerover">
       <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
@@ -83,8 +83,6 @@
       <Setter Property="CornerRadius" Value="6"/>
       <Setter Property="Padding" Value="6"/>
       <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-      <Setter Property="BorderThickness" Value="1"/>
     </Style>
 
     <!--
@@ -120,13 +118,12 @@
     </Style>
   </UserControl.Styles>
 
-  <Grid ColumnDefinitions="Auto,*" Margin="12">
+  <Grid ColumnDefinitions="Auto,*" Margin="8">
 
     <!--  ==================== 左：目录树（可整体收起）  ====================  -->
-    <Border Grid.Column="0" Width="240" Margin="0,0,8,0"
+    <Border Grid.Column="0" Width="240" Margin="0,0,6,0"
             IsVisible="{Binding IsTreeVisible}"
-            Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="1" CornerRadius="8" Padding="8">
+            Padding="0,0,6,0">
       <Grid RowDefinitions="Auto,*">
         <!--  两个动作必须并排一行（240px 树宽内）：文案已收短，沿用 `ghost` 默认字号 / 内边距即可不换行。  -->
         <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
@@ -146,7 +143,7 @@
                    ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="➕ 加入资产库" Command="{Binding AddContextNodeToLibraryCommand}"
+                <MenuItem Header="＋ 入库" Command="{Binding AddContextNodeToLibraryCommand}"
                           IsEnabled="{Binding CanAddContextNodeToLibrary}"
                           ToolTip.Tip="把右键的这个目录递归加入资产库（所在目录已在库里 ⇒ 整行不标灰，菜单项不可用）"/>
                 <MenuItem Header="🔄 重新扫描此目录" Command="{Binding RescanContextNodeCommand}"
@@ -155,7 +152,7 @@
                 <Separator/>
                 <MenuItem Header="✏ 重命名目录源…" Command="{Binding RenameContextNodeStorageCommand}"
                           ToolTip.Tip="只改库里的显示名（「全部资产」的「存储源」列），⛔ 不动磁盘目录名"/>
-                <MenuItem Header="🗄 目录源类型" IsEnabled="{Binding CanOperateContextStorage}"
+                <MenuItem Header="📂 目录源类型" IsEnabled="{Binding CanOperateContextStorage}"
                           ToolTip.Tip="{Binding ContextStorageSummary}">
                   <MenuItem Header="本地磁盘" ToggleType="Radio" GroupName="StorageType"
                             IsChecked="{Binding IsContextStorageLocal, Mode=OneWay}"
@@ -185,13 +182,13 @@
                         Command="{Binding $parent[UserControl].DataContext.SelectNodeCommand}"
                         CommandParameter="{Binding}">
                   <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="{Binding Arrow}" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Arrow}" FontSize="12" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding HintText}" FontSize="11" VerticalAlignment="Center"
+                    <TextBlock Text="{Binding HintText}" FontSize="12" VerticalAlignment="Center"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
-                    <TextBlock Text="{Binding CountText}" FontSize="11" VerticalAlignment="Center"
+                    <TextBlock Text="{Binding CountText}" FontSize="12" VerticalAlignment="Center"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
-                    <TextBlock Text="{Binding PendingText}" FontSize="11" VerticalAlignment="Center"
+                    <TextBlock Text="{Binding PendingText}" FontSize="12" VerticalAlignment="Center"
                                IsVisible="{Binding HasPending}"
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                ToolTip.Tip="这个目录里有还没加入资产库的文件 —— 右键「🔄 重新扫描此目录」补进来"/>
@@ -239,7 +236,7 @@
                           IsEnabled="{Binding IsNavigable}"
                           Command="{Binding $parent[UserControl].DataContext.GoCrumbCommand}"
                           CommandParameter="{Binding}"/>
-                  <TextBlock Text="›" FontSize="11" VerticalAlignment="Center"
+                  <TextBlock Text="›" FontSize="12" VerticalAlignment="Center"
                              Foreground="{DynamicResource SecondaryTextBrush}"/>
                 </StackPanel>
               </DataTemplate>
@@ -327,23 +324,23 @@
             </ListBox.ItemsPanel>
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="➕ 加入资产库" Command="{Binding AddToLibraryCommand}"
+                <MenuItem Header="＋ 入库" Command="{Binding AddToLibraryCommand}"
                           ToolTip.Tip="把选中的文件 / 文件夹加入资产库（文件夹递归扫描）；已在库里的自动跳过"/>
                 <Separator/>
                 <MenuItem Header="📂 打开" Command="{Binding OpenSelectedCommand}"
                           ToolTip.Tip="用系统默认程序打开（文件夹 = 进入）；也可以双击卡片"/>
-                <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderSelectedCommand}"
+                <MenuItem Header="📂 所在目录" Command="{Binding OpenFolderSelectedCommand}"
                           ToolTip.Tip="在资源管理器里定位它（未入库的项也能用）"/>
                 <MenuItem Header="➡ 发送到视频列表" Command="{Binding SendToVideoToolsCommand}"
                           ToolTip.Tip="把选中的视频送去「视频工具 → 视频列表」（非视频自动跳过；未入库的也能发）"/>
                 <Separator/>
                 <MenuItem Header="✏ 重命名…" Command="{Binding RenameSelectedCommand}"
                           ToolTip.Tip="真改磁盘文件名（走任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）"/>
-                <MenuItem Header="✏ 批量重命名…" Command="{Binding BatchRenameSelectedCommand}"
+                <MenuItem Header="✏ 重命名" Command="{Binding BatchRenameSelectedCommand}"
                           ToolTip.Tip="选中 ≥2 个已入库文件后按规则改名（查找替换 / 前缀后缀 / 编号 / 大小写），先看预览再确认"/>
-                <MenuItem Header="🗑 移入回收站" Command="{Binding TrashSelectedCommand}"
+                <MenuItem Header="🗑 移回收站" Command="{Binding TrashSelectedCommand}"
                           ToolTip.Tip="只改库里的状态，⛔ 不动磁盘文件；回收站里能恢复"/>
-                <MenuItem Header="⤫ 从库移除" Command="{Binding RemoveFromLibraryCommand}"
+                <MenuItem Header="🗑 移除" Command="{Binding RemoveFromLibraryCommand}"
                           ToolTip.Tip="只删索引（文件留着）；清理重复行的正确手段"/>
                 <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"
                           ToolTip.Tip="永久删除磁盘文件：不进回收站、不可还原"/>
@@ -367,7 +364,7 @@
                           <Path Data="{DynamicResource IconMediaAssets}" Width="26" Height="26"
                                 Stretch="Uniform" Stroke="{DynamicResource SecondaryTextBrush}"
                                 StrokeThickness="1.2" HorizontalAlignment="Center"/>
-                          <TextBlock Text="{Binding TypeText}" FontSize="11" HorizontalAlignment="Center"
+                          <TextBlock Text="{Binding TypeText}" FontSize="12" HorizontalAlignment="Center"
                                      Foreground="{DynamicResource SecondaryTextBrush}"/>
                         </StackPanel>
                         <Image Source="{Binding Thumb}" Stretch="UniformToFill" IsVisible="{Binding HasThumb}"/>
@@ -376,7 +373,7 @@
                     <TextBlock Text="{Binding Name}" FontSize="12" MaxLines="1"
                                TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource PrimaryTextBrush}"/>
-                    <TextBlock Text="{Binding SubText}" FontSize="11" MaxLines="1"
+                    <TextBlock Text="{Binding SubText}" FontSize="12" MaxLines="1"
                                TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource SecondaryTextBrush}"/>
                   </StackPanel>
@@ -391,16 +388,16 @@
                    ItemsSource="{Binding DetailSource}">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="➕ 加入资产库" Command="{Binding AddToLibraryCommand}"/>
+                <MenuItem Header="＋ 入库" Command="{Binding AddToLibraryCommand}"/>
                 <Separator/>
                 <MenuItem Header="📂 打开" Command="{Binding OpenSelectedCommand}"/>
-                <MenuItem Header="📁 打开所在文件夹" Command="{Binding OpenFolderSelectedCommand}"/>
+                <MenuItem Header="📂 所在目录" Command="{Binding OpenFolderSelectedCommand}"/>
                 <MenuItem Header="➡ 发送到视频列表" Command="{Binding SendToVideoToolsCommand}"/>
                 <Separator/>
                 <MenuItem Header="✏ 重命名…" Command="{Binding RenameSelectedCommand}"/>
-                <MenuItem Header="✏ 批量重命名…" Command="{Binding BatchRenameSelectedCommand}"/>
-                <MenuItem Header="🗑 移入回收站" Command="{Binding TrashSelectedCommand}"/>
-                <MenuItem Header="⤫ 从库移除" Command="{Binding RemoveFromLibraryCommand}"/>
+                <MenuItem Header="✏ 重命名" Command="{Binding BatchRenameSelectedCommand}"/>
+                <MenuItem Header="🗑 移回收站" Command="{Binding TrashSelectedCommand}"/>
+                <MenuItem Header="🗑 移除" Command="{Binding RemoveFromLibraryCommand}"/>
                 <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"/>
                 <Separator/>
                 <MenuItem Header="☑ 全选当前页" Command="{Binding SelectAllCommand}"/>

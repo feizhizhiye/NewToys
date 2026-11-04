@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -23,7 +23,7 @@ namespace NewToys.ScriptManager.ViewModels;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🔴 <b>成员关系存在条目侧</b>（<see cref="ScriptItem.Collections"/>）：右栏是「全库清单 + 勾选」——
+/// 🔴 <b>成员关系存在条目侧</b>（<see cref="ScriptItem.Collections"/>）：成员表是「全库清单 + 勾选」——
 /// 勾 = 在集合内、取消勾 = 移出，<b>即时生效、无保存按钮</b>。⛔ 集合侧不存成员 id 列表。
 /// </para>
 /// <para>
@@ -61,16 +61,13 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         RefreshCollections();
     }
 
-    // ==================== 左栏：集合列表 ====================
+    // ==================== 集合列表（工具条下拉） ====================
 
     public ObservableCollection<CollectionRow> Collections { get; } = new();
 
     [ObservableProperty] private CollectionRow? _selectedCollection;
 
-    /// <summary>左栏搜索（名称 / 描述 / 标签）。</summary>
-    [ObservableProperty] private string _collectionSearch = "";
-
-    /// <summary>左栏分组：全部 / 置顶 / 最近使用。</summary>
+    /// <summary>分组：全部 / 置顶 / 最近使用。</summary>
     public ObservableCollection<CollectionFilterOption> GroupOptions { get; } = new(new[]
     {
         new CollectionFilterOption { Label = "全部", Value = "" },
@@ -80,7 +77,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
     [ObservableProperty] private CollectionFilterOption? _selectedGroup;
 
-    /// <summary>左栏类型筛选（集合类别）。v3.81：加回「软件包」（包清单，发送到软件包页显示）。</summary>
+    /// <summary>类别筛选（集合类别）。v3.81：加回「软件包」（包清单，发送到软件包页显示）。</summary>
     public ObservableCollection<CollectionFilterOption> KindFilterOptions { get; } = new(new[]
     {
         new CollectionFilterOption { Label = "全部类型", Value = "" },
@@ -93,9 +90,6 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
 
     [ObservableProperty] private CollectionFilterOption? _selectedKindFilter;
 
-    public bool HasCollections => Collections.Count > 0;
-
-    partial void OnCollectionSearchChanged(string value) => RefreshCollections();
     partial void OnSelectedGroupChanged(CollectionFilterOption? value) => RefreshCollections();
     partial void OnSelectedKindFilterChanged(CollectionFilterOption? value) => RefreshCollections();
 
@@ -122,7 +116,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         }
     }
 
-    // ==================== 右栏：成员表 ====================
+    // ==================== 成员表 ====================
 
     public ObservableCollection<MemberRow> Members { get; } = new();
 
@@ -159,7 +153,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     /// <summary>库的脚本根目录（只对 kind=script 有意义，空 = 全局脚本目录）。</summary>
     [ObservableProperty] private string _editRootPath = "";
 
-    /// <summary>★ 置顶（左栏五角星 / 信息面板集合下拉排最前）。</summary>
+    /// <summary>★ 置顶（集合下拉后缀 ★ / 信息面板集合下拉排最前）。</summary>
     [ObservableProperty] private bool _editPinned;
 
     /// <summary>

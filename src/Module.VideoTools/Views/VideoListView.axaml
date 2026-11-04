@@ -1,4 +1,4 @@
-<UserControl
+﻿<UserControl
     x:Class="NewToys.VideoTools.Views.VideoListView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -121,7 +121,7 @@
                                 IsVisible="{Binding IsCreatedVisible}" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
-                                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                                <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
                                   <MenuItem.ItemContainerTheme>
                                     <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                                       <Setter Property="Header" Value="{Binding Label}"/>
@@ -239,17 +239,17 @@
                                 <Separator />
                                 <MenuItem
                                     Command="{Binding SendToBatchCommand}"
-                                    Header="➡ 发送到批量处理"
+                                    Header="➡ 发批处理"
                                     IsEnabled="{Binding HasSelectedRows}" />
                                 <Separator />
                                 <MenuItem Command="{Binding SelectAllCommand}" Header="☑ 全选" />
                                 <MenuItem Command="{Binding InvertSelectionCommand}" Header="🔄 反选" />
                                 <MenuItem Command="{Binding SelectNoneCommand}" Header="☐ 取消选择" />
                                 <Separator />
-                                <MenuItem Command="{Binding LoadMediaInfoCommand}" Header="🔎 读取媒体信息（ffprobe）" />
+                                <MenuItem Command="{Binding LoadMediaInfoCommand}" Header="🔍 读取媒体信息（ffprobe）" />
                                 <MenuItem
                                     Command="{Binding LoadAllMediaInfoCommand}"
-                                    Header="🔎 读取全部媒体信息（多线程）"
+                                    Header="🔍 读取全部媒体信息（多线程）"
                                     IsEnabled="{Binding IsNotBusy}" />
                                 <Separator />
                                 <MenuItem Command="{Binding RenameCommand}" Header="✏ 重命名…" />

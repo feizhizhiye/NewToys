@@ -17,6 +17,19 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Viewer.Controls;
 
+/// <summary>音乐页主显示区布局（工具条「封面 / 歌词布局」三档）。</summary>
+public enum AudioStageLayout
+{
+    /// <summary>左右分屏：封面在左、歌词在右（默认）。</summary>
+    Side = 0,
+
+    /// <summary>只显示封面（歌词收起，封面放到最大）。</summary>
+    CoverOnly = 1,
+
+    /// <summary>上下分屏：封面在上、歌词在下。</summary>
+    Stacked = 2,
+}
+
 /// <summary>
 /// 查看器内的本地音乐播放器：播放列表 + 控制条 + LRC 歌词。
 /// <para>
@@ -48,6 +61,9 @@ public partial class AudioPlayer : UserControl
     private bool _lyricFollow = true;
     private PlayMode _mode = PlayMode.Order;
     private Bitmap? _cover;
+    private AudioStageLayout _layout = AudioStageLayout.Side;
+    private bool _geometryOn;
+    private bool _sizing;
 
     public AudioPlayer()
     {
@@ -90,8 +106,13 @@ public partial class AudioPlayer : UserControl
         AttachedToVisualTree += (_, _) =>
         {
             if (Playback?.State == AudioPlayState.Playing) EnsureTimer();
+            if (_geometryOn) GeometryStage.Start();
             ScrollLyrics();
         };
+
+        // 主显示区尺寸变了 ⇒ 重算封面边长（上下分屏时封面必须让出一半高度给歌词）
+        MainGrid.SizeChanged += (_, _) => UpdateCoverSize();
+        ApplyLayout();
     }
 
     private enum PlayMode
@@ -675,6 +696,101 @@ public partial class AudioPlayer : UserControl
 
     /// <summary>播放列表开合（工具条按钮调用）。</summary>
     public void TogglePlaylist() => PlaylistPanel.IsVisible = !PlaylistPanel.IsVisible;
+
+    // ==================== 主显示区布局 / 动效 ====================
+
+    /// <summary>当前布局（左右 / 只封面 / 上下）。</summary>
+    public AudioStageLayout Layout => _layout;
+
+    /// <summary>切换主显示区布局（工具条菜单调用）：只改两块的 Row/Column/Span，⛔ 不换控件、⛔ 不换行列定义。</summary>
+    public void SetLayout(AudioStageLayout layout)
+    {
+        if (_layout == layout) return;
+        _layout = layout;
+        ApplyLayout();
+    }
+
+    /// <summary>开 / 关动态几何图案（工具条按钮调用）。</summary>
+    public void SetGeometry(bool on)
+    {
+        if (_geometryOn == on) return;
+        _geometryOn = on;
+        GeometryStage.IsVisible = on;
+        if (on) GeometryStage.Start();
+        else GeometryStage.Stop();
+    }
+
+    private void ApplyLayout()
+    {
+        // 🔴 行列定义恒为「两行两列」，只改两块的 Row/Column/Span：
+        //    运行时替换 RowDefinitions/ColumnDefinitions 会让残留索引越界（AVLN 直接崩）。
+        switch (_layout)
+        {
+            case AudioStageLayout.CoverOnly:
+                Place(CoverPane, 0, 0, rowSpan: 2, columnSpan: 2);
+                Place(LyricPane, 0, 0, rowSpan: 2, columnSpan: 1);
+                LyricPane.IsVisible = false;
+                break;
+
+            case AudioStageLayout.Stacked:
+                Place(CoverPane, 0, 0, rowSpan: 1, columnSpan: 2);
+                Place(LyricPane, 1, 0, rowSpan: 1, columnSpan: 2);
+                LyricPane.BorderThickness = new Thickness(0, 1, 0, 0);
+                LyricPane.IsVisible = true;
+                break;
+
+            default:
+                Place(CoverPane, 0, 0, rowSpan: 2, columnSpan: 1);
+                Place(LyricPane, 0, 1, rowSpan: 2, columnSpan: 1);
+                LyricPane.BorderThickness = new Thickness(1, 0, 0, 0);
+                LyricPane.IsVisible = true;
+                break;
+        }
+
+        UpdateCoverSize();
+
+        // 视口尺寸变了 ⇒ 歌词目标偏移要按新高度重算（暂停时没有 40 ms 表兜底，必须显式补一次）
+        Dispatcher.UIThread.Post(ScrollLyrics);
+    }
+
+    private static void Place(Control control, int row, int column, int rowSpan = 1, int columnSpan = 1)
+    {
+        Grid.SetRow(control, row);
+        Grid.SetColumn(control, column);
+        Grid.SetRowSpan(control, rowSpan);
+        Grid.SetColumnSpan(control, columnSpan);
+    }
+
+    /// <summary>按当前布局与可用空间给封面定边长（⛔ 写死一种尺寸：上下分屏时 260 会把歌词挤没）。</summary>
+    private void UpdateCoverSize()
+    {
+        // 改宽高会触发重排 ⇒ 报 SizeChanged 再回到这里；值没变时 Avalonia 不会重排，这里再加一道防重入。
+        if (_sizing) return;
+
+        var width = MainGrid.Bounds.Width;
+        var height = MainGrid.Bounds.Height;
+        if (!(width > 40) || !(height > 40)) return;   // 顺带滤掉未布局时的 0 / NaN
+
+        var size = _layout switch
+        {
+            AudioStageLayout.CoverOnly => Math.Clamp(Math.Min(width * 0.62, height - 96), 150, 460),
+            AudioStageLayout.Stacked => Math.Clamp(Math.Min(width * 0.42, height * 0.38), 110, 260),
+            _ => Math.Clamp(Math.Min(width * 0.36, height - 96), 130, 320),
+        };
+
+        _sizing = true;
+        try
+        {
+            CoverBox.Width = size;
+            CoverBox.Height = size;
+            Spectrum.Width = size;
+            Spectrum.Height = Math.Max(28, size * 0.18);
+        }
+        finally
+        {
+            _sizing = false;
+        }
+    }
 
     private void OnClosePlaylist(object? sender, RoutedEventArgs e) => PlaylistPanel.IsVisible = false;
 

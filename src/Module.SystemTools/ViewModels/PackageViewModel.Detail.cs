@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -177,7 +177,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             },
             new DetailAction
             {
-                Text = "🔎 详情",
+                Text = "🔍 详情",
                 Classes = "ghost",
                 ToolTip = "向源查询这个包的详细信息（发布者 / 协议 / 主页 / 描述）",
                 IsVisiblePath = nameof(HasSelection),

@@ -36,13 +36,13 @@
 
 **文档版本**（下表由 `python skill/scripts/docs-sync.py --fix` 读各文档头部生成，⛔ 不要手改块内）：
 
-<!-- AUTO:ledger.docversions -->
+<!-- AUTO:ledger.docversions -->
 | 文档 | 当前版本 |
 |---|---|
 | 需求规格 | v3.106 |
 | 需求摘要 | v1.0 |
-| framework | v4.8 |
-| ui | v4.13 |
+| framework | v4.10 |
+| ui | v4.28 |
 | 协作手册 | v3.26 |
 | 软件说明书 | v1.2 |
 | 模块 md | —（见各文件头） |
@@ -65,8 +65,9 @@
 - **运行期热加载**（Modules + 刷新按钮）：✅ 已实装（NT-005，v3.37 验收）—— `Core/Services/ModuleLoader.cs` 走 collectible `AssemblyLoadContext`。
 
 ### 2.2 UI
-- 三栏 `60,140,*` → **标题栏 40px（含标签页）+ 左树 180 / 折叠 48 + 主内容区 + 右详情 340 + 底部状态栏 26px**。
+- 三栏 `60,140,*` → **标题栏 40px（含标签页）+ 左树 150 / 折叠 48 + 主内容区 + 右详情 300 + 底部状态栏 26px**。
 - 明暗主题全局切换，键一律 `*Brush`（条数以 `lint.py` 白名单为准，⛔ 文档不写死数量），默认深色。
+- **配色皮肤（2026-11-04 已实施，⏳ 待 build 验收）**：`settings-theme` 增「自制 / 原生 Fluent」两档，状态落 `shell.json` 的 `theme.Skin`（`IThemeService.Skin`）。两套皮肤产出**同一批语义键** ⇒ 布局 / 密度 / 尺寸不变，只换配色与圆角（`RadiusCard` / `RadiusControl` / `RadiusSmall` 三档）。全库色值收敛为 `App.Theme.cs` 的一张色阶表（`Bg0~Bg3` / `Ink0~2` / `Danger` / 品牌红，深色 12 + 浅色 10 个值），`HomeView` 最后一处写死色已清除；查看器图片序号改为 `N/M`。
 - **视觉规范**：共享样式已按 **v3.12 密度基线**收紧（表格行高 28、卡片内边距 12、工具条 12,6、筛选条 12,4）；**框架层图标已全矢量**（`Path` + `App.axaml` 的 `Icon*` 键：一级菜单 / 标题栏 / 标签页 / 左树，NT-035 / NT-045 / NT-046）；⚠️ **数据驱动图标**（二级菜单 / 首页一键按钮 / 模块页内数据行）仍是字符串 → 技术债 NT-047。
 
 ### 2.3 页面全景
@@ -128,6 +129,7 @@
 
 | NT | 标题 | 优先级 | 状态 | 详情 |
 |---|---|---|---|---|
+| NT-145 | **启动链路打点补全（诊断卡）**（用户「每次启动 2-3s，是不是每次读配置 json，能否硬编码预设一份」）：四轮摸底结论 —— 配置读取 <30ms、Debug 模块清单已硬编码（扫描 11~14ms）、Debug 热启动 775~826ms、体感差额 = 新编译产物首次冷启动（冷读 + 杀毒 + JIT）；`framework.md §3.5` 已结案并蒸馏现状。本卡只把打点起点前移到 `Program.Main`、日志标 Debug/Release·冷/热，**本身提速 0ms**；⛔ 不重复当日已实测否决的并行加载 / R2R / 模块扫描分项打点；⛔ 不改配置读取 / 模块加载顺序 / 延迟初始化线程模型。🔴 框架层须用户确认，**默认不执行** | P2 | 📝 草稿（2026-11-04：仅出方案 + 蒸馏，⛔ 未改 `src/`） | backlog/framework/NT-145.md |
 | NT-136 | **图片查看：分屏网格 + 条目条滚动/降高 + 历史收进工具条**（用户「工具条加分屏、一页看两张，或者能一次切换更多张；下面的图片目录增加滚动，逻辑同标签栏，降低目录栏高度；历史记录收进工具条点击展开」）：① 工具条 `SplitButton`「▦ 分屏」+ 下拉选一屏 2/3/4 张，`SplitGrid` 动态铺格、按屏对齐、翻页换整屏；点格选中 / 双击退分屏单图；② 条目条横向可滚（滚轮 = 换图，隐藏滚动条，选中项滚入可见）并把项高压到 20px；③ 空态「最近打开」条撤掉，改工具条「🕘 历史」页内浮层（点开、可清空、选完自动收）；④ 分屏下缩放按钮置灰。🔴 **未动框架层**（全在 `Module.Viewer`） | P1 | ✔ **已实施（2026-11-02，待用户本地 build）** —— 改 `Views/{ViewerImageView,ViewerTextView,ViewerAudioView}.axaml`（三份逐字一致）、`Views/ViewerPageBase`、`ViewModels/ViewerViewModel`；文档 `modules/viewer.md` + 说明书 §4.8 双写 | backlog/viewer/NT-136.md |
 | NT-135 | **查看器拆成三页：文本阅读 / 图片查看 / 音频播放**（用户「查看器能否增加这三种查看器的页」+ 定调「三页取代统一页、类型不符自动切页打开」）：① 菜单三项 `viewer-text` / `viewer-image` / `viewer-audio`，撤销 `viewer-main`；② 页面逻辑抽 `Views/ViewerPageBase`，三个 View 只做 `InitializeComponent()` + `InitPage()`，三份 XAML 同内容；③ `ViewerViewModel.Scope` 定范围，工具条与最近打开按范围裁剪；④ 类型不符 → `ModuleBus` 投 `viewer.openfiles` + `NavigateTo` 自动跳页并打开（信箱 / 订阅双路）；⑤ 音频页听歌可与文本页看书并行。🔴 **未动框架层**（`ModuleTopics` 不新增，主题常量落在 `Module.Viewer/Services/ViewerTopics.cs`） | P1 | ✔ **已实施（2026-11-02，待用户本地 build）** —— 新增 `ViewModels/{ViewerScope,ViewerPageViewModels}`、`Services/ViewerTopics`、`Views/{ViewerPageBase,ViewerTextView,ViewerImageView,ViewerAudioView}`；改 `ViewModels/ViewerViewModel`、`ViewerModule`；删 `Views/ViewerView` | backlog/viewer/NT-135.md |
 | NT-137 | **媒体资产：分类 / 集合同构列表页 + 推荐标签 + 音乐播放联动 + 音乐标签编辑**（用户「分类管理和集合管理能否像标签管理一样采用相同布局，为视频、音乐等生成一些常用标签；如何从资产模块导出播放列表到音频播放，是否扩充播放器或改名音乐播放器；联网改音乐属性该放播放器还是资产模块；歌词显示与简单翻译，不做桌面歌词」）：① 分类 / 集合从「左树 + 右成员表」改成与标签页**同构列表页**（分类层级靠路径列 + 缩进，改父级走详情卡 chips；集合成员与 ⬆⬇ 在详情卡）；② `🌱 推荐标签`（20 个，幂等；首次建库自动种一次）；③ 资产工具条 `▶ 播放`（→ `viewer.audioplay`）+ `🎵 导出播放列表`（.m3u8，相对路径）；④ 查看器音频页改名「音乐播放」（Key 不变）+ m3u 导入 + 播放列表记忆；⑤ 双语歌词（文件内双行 / `.zh.lrc` 外置）；⑥ 音乐标签编辑 + MusicBrainz 联网补全（`MusicTagService`，TagLibSharp）。🔴 动框架层：`Shared/Services/IModuleBus.cs` 加 `AudioPlay`、`NewToys.UI/Viewers/AudioPlayer` 加 `TranslationLoader` / `CurrentIndex` / 双语 `SetLyrics`。⛔ 未改菜单 Key | P1 | ✔ **已实施（2026-11-03，待用户本地 build）** —— 新增 `Services/MusicTagService.cs`、`ViewModels/AssetAllViewModel.{Playlist,Music}.cs`；重写 `AssetCategoriesViewModel` + `AssetCategoriesView.axaml`、`AssetCollectionsViewModel` + `AssetCollectionsView.axaml`；改 `CategoryNode` / `CategoryService` / `TagService` / `MediaAssetsSettings` / `AssetTagsViewModel` / `AssetAllViewModel(.Detail)` / `MediaAssetsModule` / `Module.MediaAssets.csproj` / `IModuleBus` / `AudioPlayer` / `ViewerModule` / `ViewerSettingsService` / `AudioLibraryService` / `ViewerViewModel` / `ViewerPageBase` | backlog/media-assets/NT-137.md |
@@ -174,7 +176,7 @@
 | NT-023 | 框架：MenuService 跨组延迟补登 + Settings 必备化 + 启动健全性检查 / 无模块降级 | P1 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
 | NT-024 | 多实例：`--profile` 启动参数 + 每配置单例 + 切换新语义（不写全局默认）+「设为默认」/「🚀 新开」+ 标题带配置名 | P1 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
 | NT-025 | 窗口：自绘缩放抓取区（四边 5px/四角 10px，BeginResizeDrag 八向）+ 分屏贴靠验证 + bounds 按配置记忆 | P1 | ✔ 已完成（已验收） | 🗑 已归档（卡已删，内容已蒸馏进文档） |
-| NT-026 | 媒体资产：多库融合（工作副本模型 = 打开库 A → 再打开库 B → 💾 保存；「减」= 勾选后删除；合并走 `ATTACH DATABASE`） | P1 | ✔ 已完成（已验收） | backlog/media-assets/NT-026.md |
+| NT-026 | 媒体资产：多库融合（工作副本模型 = 打开库 A → 再打开库 B → 💾 保存；「减」= 勾选后删除；合并走 `ATTACH DATABASE`） | P1 | ✔ 已完成（已验收） | 🗑 已蒸馏（卡已删 → `modules/media-assets.md` §2.5 §3 §5） |
 | NT-027 | 视频工具精简：删视频库(.db) / 标签 / 收藏页 → 收窄为「简易查看器 + 送批量任务」（含旧表一次性清理） | P0 | ✔ 已完成（已验收） | 🗑 已蒸馏（卡已删 → `modules/video-tools.md` §3.8） |
 | NT-028 | 示例数据 + 详情卡默认示例态（批次 1~4 已落：视频两页 / `assets-all` / PcTools 4 页 / WebTools 4 页 / `settings-path`；批次 5 类型页随 NT-017；含框架层 `ListPageViewModelBase` 授权改动） | P1 | ✔ 已完成（已验收） | 🗑 已作废（卡已删） |
 | NT-029 | 回收站显示删除时间（NT-019 偏差②闭合） | P1 | ✔ 已完成（已验收） | backlog/media-assets/NT-029.md |

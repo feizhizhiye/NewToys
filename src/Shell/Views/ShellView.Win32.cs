@@ -580,11 +580,17 @@ public partial class ShellView
             var size = view.ClientSize;
             if (point.X < size.Width - EdgeResizeBandDip && point.Y < size.Height - EdgeResizeBandDip) return false;
 
-            if (view.GetVisualAt(point) is not { } hit) return false;
-            if (hit is not ScrollBar && hit.FindAncestorOfType<ScrollBar>() is null) return false;
-
-            handled = true;
-            return true;
+            // 🔴 用 GetVisualsAt（全部命中）而非 GetVisualAt（仅最浅一个）：滚动条是 ScrollViewer 的
+            //    兄弟节点，不在内容命中的祖先链上，最浅命中往往只是内容容器 → 单点判定会漏掉滚动条。
+            foreach (var hit in view.GetVisualsAt(point))
+            {
+                if (hit is ScrollBar || hit.FindAncestorOfType<ScrollBar>() is not null)
+                {
+                    handled = true;
+                    return true;
+                }
+            }
+            return false;
         }
         catch { return false; }   // 钩子里抛异常会卡死消息循环 ⇒ 失败一律不干预
     }

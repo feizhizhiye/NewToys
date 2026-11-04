@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -61,14 +61,14 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
     {
         new() { Text = "📦 备份当前", CommandPath = nameof(BackupNowCommand),
                 ToolTip = "把当前系统 hosts 整份复制到备份目录（只读也能备份）" },
-        new() { Text = "♻ 还原", CommandPath = nameof(RestoreCommand), IsEnabledPath = nameof(CanRestore),
+        new() { Text = "↩ 还原", CommandPath = nameof(RestoreCommand), IsEnabledPath = nameof(CanRestore),
                 ToolTip = "把系统 hosts 整份换回左栏选中的那份备份（还原前会再备份当前文件）" },
         new() { Text = "🗑 删备份", Classes = "ghost", CommandPath = nameof(DeleteBackupCommand), IsEnabledPath = nameof(CanRestore),
                 ToolTip = "只删备份文件，⛔ 不动系统 hosts" },
         new() { Text = "📄 文本", AltText = "📋 条目", AltTextPath = nameof(IsTextView),
                 CommandPath = nameof(ToggleTextViewCommand),
                 ToolTip = "左栏在「条目列表」和「原文全文」之间切换（文本视图可直接改整份文件）" },
-        new() { Text = "🧹 清除受管块", Classes = "ghost", CommandPath = nameof(ClearManagedCommand),
+        new() { Text = "🧹 清受管块", Classes = "ghost", CommandPath = nameof(ClearManagedCommand),
                 IsEnabledPath = nameof(CanEditTarget),
                 ToolTip = "从草稿里删掉本程序写的那一段（用户自己写的行保留），仍需点「✅ 写入」才落盘" },
         new() { Text = "📂 备份目录", Classes = "ghost", CommandPath = nameof(OpenBackupFolderCommand),
@@ -76,7 +76,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
         new() { Text = "🔍 检测", AltText = "⏹ 停止", AltTextPath = nameof(IsChecking),
                 CommandPath = nameof(CheckCommand), IsEnabledPath = nameof(HasProfileSelection),
                 ToolTip = "逐条检测右栏方案：本机 DNS 与映射 IP 是否一致 + 目标端口是否可达（可取消），并跑静态安全规则" },
-        new() { Text = "➕ 新建方案", Classes = "ghost", CommandPath = nameof(NewProfileCommand) },
+        new() { Text = "＋ 新建方案", Classes = "ghost", CommandPath = nameof(NewProfileCommand) },
         new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand),
                 ToolTip = "重读系统 hosts 与方案清单（丢弃左栏未写入的改动）" }
     };

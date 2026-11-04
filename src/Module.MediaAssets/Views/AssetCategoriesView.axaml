@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.MediaAssets.Views.AssetCategoriesView">
@@ -10,16 +10,16 @@
     🔴 Columns 的声明顺序必须与 VM 的 ColumnLayout 一致。
   -->
   <v:ListPageSkeleton EmptyMessage="还没有分类。点「➕ 新建分类」开一个根分类。"
-                      EmptyActionText="➕ 新建分类"
+                      EmptyActionText="＋ 新建分类"
                       EmptyActionCommand="{Binding NewRootCommand}"
                       IsEmpty="{Binding !HasItems}">
 
     <v:ListPageSkeleton.TopArea>
       <Border Classes="filter-bar">
         <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
-          <TextBlock Text="{Binding FilterSummary}" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"
+          <TextBlock Text="{Binding FilterSummary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"
                      Foreground="{DynamicResource SecondaryTextBrush}"/>
-          <TextBlock Text="左键表头排序；右键表头选列 / 筛选；改父级在右侧详情卡点 chips" FontSize="11"
+          <TextBlock Text="左键表头排序；右键表头选列 / 筛选；改父级在右侧详情卡点 chips" FontSize="12"
                      VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
         </WrapPanel>
       </Border>
@@ -52,7 +52,7 @@
 
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+            <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
               <MenuItem.ItemContainerTheme>
                 <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                   <Setter Property="Header" Value="{Binding Label}"/>
@@ -61,7 +61,7 @@
               </MenuItem.ItemContainerTheme>
             </MenuItem>
             <Separator/>
-            <MenuItem Header="➕ 子分类…" Command="{Binding NewChildCommand}"/>
+            <MenuItem Header="＋ 子分类…" Command="{Binding NewChildCommand}"/>
             <MenuItem Header="✏ 重命名…" Command="{Binding RenameCategoryCommand}"/>
             <MenuItem Header="⬆ 移到根分类" Command="{Binding MoveToRootCommand}"/>
             <Separator/>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -91,7 +91,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         new() { Kind = ToolbarItemKind.Separator },
         new()
         {
-            Text = "🔄 全部刷新", Classes = "ghost",
+            Text = "🔄 刷新", Classes = "ghost",
             CommandPath = nameof(RefreshAllCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = "刷新当前集合里全部未折叠的节",

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -149,7 +149,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
             //（回车 / 失焦自动提交仍保留，见 OnEditNameChanged）。
             new DetailAction
             {
-                Text = "✏ 应用新文件名",
+                Text = "✏ 应用名称",
                 Classes = "ghost",
                 ToolTip = "把「文件名」框里的内容提交到磁盘（回车场景：失焦已自动提交，这里手动补一次）",
                 Command = SaveNameCommand

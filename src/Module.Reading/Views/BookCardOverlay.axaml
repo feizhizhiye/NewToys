@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.Reading.Views.BookCardOverlay"
              IsVisible="{Binding IsCardOpen}">
@@ -16,8 +16,6 @@
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="1"
             CornerRadius="8"
             BoxShadow="0 8 32 0 #66000000"
             Padding="20">
@@ -31,9 +29,7 @@
                   Margin="0,0,14,0"
                   CornerRadius="4"
                   ClipToBounds="True"
-                  Background="{DynamicResource ContentHeaderBrush}"
-                  BorderBrush="{DynamicResource DividerBrush}"
-                  BorderThickness="1">
+                  Background="{DynamicResource ContentHeaderBrush}">
             <Panel>
               <Image Source="{Binding CardCover}" Stretch="UniformToFill" IsVisible="{Binding HasCardCover}"/>
               <TextBlock Text="{Binding CardCoverInitial}"
@@ -60,8 +56,6 @@
           </StackPanel>
         </DockPanel>
 
-        <Border Grid.Row="1" Height="1" Margin="0,14" Background="{DynamicResource DividerBrush}"/>
-
         <!--  简介（可能很长 ⇒ 只在这里滚动）  -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
           <StackPanel Spacing="6">
@@ -79,7 +73,7 @@
           <Button Classes="ghost" Width="88" Content="关闭" Command="{Binding CloseCardCommand}"/>
           <Button Classes="ghost" Content="＋ 书架" Command="{Binding AddCardToShelfCommand}"
                   ToolTip.Tip="把这本书加入书架"/>
-          <Button Classes="primary" Width="116" Content="📖 开始阅读" Command="{Binding ReadCardBookCommand}"/>
+          <Button Classes="primary" Width="116" Content="📖 阅读" Command="{Binding ReadCardBookCommand}"/>
         </StackPanel>
       </Grid>
     </Border>

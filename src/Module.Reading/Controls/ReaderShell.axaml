@@ -10,8 +10,6 @@
 
     <Border Grid.Row="0"
             Background="{DynamicResource ContentHeaderBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="0,0,0,1"
             Padding="8,4">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <Button Grid.Column="0"
@@ -61,9 +59,7 @@
             HorizontalAlignment="Left"
             Width="280"
             IsVisible="False"
-            Background="{DynamicResource ContentHeaderBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="0,0,1,0">
+            Background="{DynamicResource ContentHeaderBrush}">
       <Grid RowDefinitions="Auto,*,Auto">
         <TextBox x:Name="TocFilter"
                  Margin="8"
@@ -87,9 +83,7 @@
             HorizontalAlignment="Right"
             Width="320"
             IsVisible="False"
-            Background="{DynamicResource ContentHeaderBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="1,0,0,0">
+            Background="{DynamicResource ContentHeaderBrush}">
       <Grid RowDefinitions="Auto,*,Auto" Margin="10">
         <TextBlock Text="书签" FontWeight="SemiBold" Margin="0,0,0,8" />
         <ListBox x:Name="BookmarkList"
@@ -110,9 +104,7 @@
             HorizontalAlignment="Right"
             Width="360"
             IsVisible="False"
-            Background="{DynamicResource ContentHeaderBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="1,0,0,0">
+            Background="{DynamicResource ContentHeaderBrush}">
       <Grid RowDefinitions="Auto,*,Auto" Margin="10">
         <Grid ColumnDefinitions="*,Auto">
           <TextBox x:Name="SearchBox" PlaceholderText="全书搜索" KeyDown="OnSearchKeyDown" />
@@ -141,10 +133,8 @@
             HorizontalAlignment="Right"
             Width="300"
             IsVisible="False"
-            Background="{DynamicResource ContentHeaderBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="1,0,0,0">
-      <StackPanel Margin="12" Spacing="6">
+            Background="{DynamicResource ContentHeaderBrush}">
+      <StackPanel Margin="8" Spacing="6">
         <TextBlock Text="排版" FontWeight="SemiBold" />
 
         <TextBlock Classes="hint-text" Text="字号" />

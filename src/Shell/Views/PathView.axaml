@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.Shell.Views.PathView">
@@ -29,7 +29,7 @@
             <v:TableViewHost.ContextMenu>
               <ContextMenu>
                 <Separator/>
-                <MenuItem Header="📂 浏览…" Command="{Binding PickPathCommand}" IsEnabled="{Binding CanSavePath}"/>
+                <MenuItem Header="📂 选目录" Command="{Binding PickPathCommand}" IsEnabled="{Binding CanSavePath}"/>
                 <MenuItem Header="↗ 打开位置" Command="{Binding OpenCommand}" CommandParameter="{Binding Selected}"
                           IsEnabled="{Binding IsPathRowSelected}"/>
                 <Separator/>
@@ -43,7 +43,7 @@
                 <MenuItem Header="🗑 删除" Command="{Binding DeleteProfileCommand}" IsEnabled="{Binding CanDeleteProfile}"/>
                 <Separator/>
                 <MenuItem Header="＋ 新建配置" Command="{Binding NewProfileCommand}"/>
-                <MenuItem Header="📂 打开配置目录" Command="{Binding OpenConfigDirCommand}"/>
+                <MenuItem Header="📂 配置目录" Command="{Binding OpenConfigDirCommand}"/>
               </ContextMenu>
             </v:TableViewHost.ContextMenu>
 
@@ -79,7 +79,7 @@
                   <DataTemplate>
                     <WrapPanel Orientation="Horizontal" ItemSpacing="4" LineSpacing="4" Margin="8,2"
                                VerticalAlignment="Center">
-                      <Button Classes="ghost small" Content="📂 浏览" IsVisible="{Binding IsPathRow}"
+                      <Button Classes="ghost small" Content="📂 选择" IsVisible="{Binding IsPathRow}"
                               IsEnabled="{Binding IsEditable}"
                               Command="{Binding $parent[UserControl].DataContext.PickRowPathCommand}"
                               CommandParameter="{Binding}"

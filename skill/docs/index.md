@@ -28,7 +28,7 @@
 
 ## 二、模块清单
 
-<!-- AUTO:index.modules -->
+<!-- AUTO:index.modules -->
 | 模块 | 程序集 | 模块键 | 页数 | 文档 |
 |---|---|---|---|---|
 | 脚本管理器 | `Module.ScriptManager` | `script` | 6 + 1 | `modules/script-manager.md` |
@@ -92,6 +92,7 @@
 | 改配置 / 路径 / 多配置 | `framework.md` §7 |
 | **回答「这功能怎么用 / 在哪点」** | **`NewToys-软件说明书.md` §四（功能清单）+ §五（典型场景）**；⛔ 别去读需求规格 |
 | **改用户可见的用法 / 新增操作路径** | 说明书 §四 §五 → `modules/<模块>.md` §2.5（补契约行） |
+| **启动慢 / 启动提速 / 怀疑配置 json** | **`framework.md §3.5`（唯一入口 · 已结案）**：链路 / 打点 / 冷·热实测 / 收益预估 / ⛔ 不得再试清单；只读这一节，⛔ 不重新摸底、⛔ 不再试已排除方向（当日已实测否决并行加载 / R2R / 分项打点）；诊断卡 `backlog/framework/NT-145.md`（📝 草稿，默认不执行） |
 | 编译报错 | `framework.md` 附录 A → `modules/<模块>.md` §5 |
 | 交付 / 验收 | `framework.md` §9；`pwsh skill/scripts/accept.ps1`（纯静态检查，不含构建） |
 

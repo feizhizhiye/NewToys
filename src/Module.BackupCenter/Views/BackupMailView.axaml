@@ -1,11 +1,11 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.BackupCenter.Views.BackupMailView">
   <!--
     「备份中心 → 备份邮件」（`backup-mail`）：IMAP 邮箱管理器 + 备份邮件搜索 / 下载 / 还原。
     🔴 列表先读本地缓存（mail_index），点「⟳ 同步」才连服务器；打开邮件不改已读状态。
   -->
-  <Grid RowDefinitions="Auto,*,Auto" Margin="12">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="8">
 
     <!--  ==================== 工具条 ====================  -->
     <Border Grid.Row="0" Classes="card" Padding="12,8">
@@ -65,7 +65,7 @@
               <StackPanel Spacing="8">
                 <TextBlock Classes="hint-text" Text="{Binding DetailBackupInfo}" TextWrapping="Wrap"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button Classes="primary" Content="📥 下载并还原" Command="{Binding RestoreCommand}"/>
+                  <Button Classes="primary" Content="📥 下载还原" Command="{Binding RestoreCommand}"/>
                   <ComboBox Width="120" ItemsSource="{Binding PolicyOptions}" SelectedItem="{Binding RestorePolicy}"/>
                   <TextBlock Classes="hint-text" VerticalAlignment="Center" Text="目标已存在时"/>
                 </StackPanel>
@@ -88,7 +88,7 @@
                 </ListBox.ItemTemplate>
               </ListBox>
               <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Classes="ghost" Content="⬇ 保存附件到…" Command="{Binding SaveAttachmentCommand}"/>
+                <Button Classes="ghost" Content="⬇ 存附件" Command="{Binding SaveAttachmentCommand}"/>
               </StackPanel>
             </StackPanel>
 
@@ -97,7 +97,7 @@
             <SelectableTextBlock Text="{Binding DetailBody}" TextWrapping="Wrap"/>
 
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button Classes="ghost" Content="🗑 删除这封邮件" Command="{Binding DeleteMailCommand}"/>
+              <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteMailCommand}"/>
             </StackPanel>
 
             <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding HintText}"/>

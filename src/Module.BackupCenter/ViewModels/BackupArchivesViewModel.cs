@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -407,7 +407,7 @@ public partial class BackupArchivesViewModel : ListPageViewModelBase, IDetailPan
     {
         new()
         {
-            Text = "🔄 重新扫描", Classes = "ghost",
+            Text = "🔄 重扫", Classes = "ghost",
             CommandPath = nameof(RefreshCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = "按包目录对账清单：补新包（算 SHA256）、剔掉已删除的记录"
@@ -428,7 +428,7 @@ public partial class BackupArchivesViewModel : ListPageViewModelBase, IDetailPan
         },
         new()
         {
-            Text = "📋 复制 SHA256", Classes = "ghost",
+            Text = "📋 复制哈希", Classes = "ghost",
             CommandPath = nameof(CopyShaCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "复制整包校验值"

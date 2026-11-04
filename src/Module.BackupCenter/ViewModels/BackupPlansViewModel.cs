@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -764,7 +764,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
     {
         new()
         {
-            Text = "➕ 新建任务", Classes = "ghost",
+            Text = "＋ 新建任务", Classes = "ghost",
             CommandPath = nameof(NewPlanCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = "新建一个备份任务：源目录 → 加密归档"

@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.Reading.Views.ShelfView">
@@ -85,8 +85,8 @@
               <MenuItem Header="🔔 只看有更新" Command="{Binding FilterWithUpdatesCommand}"/>
               <Separator/>
               <MenuItem Header="📖 继续阅读" Command="{Binding ReadCommand}" IsEnabled="{Binding HasSelection}"/>
-              <MenuItem Header="🆕 更新这本" Command="{Binding UpdateOneCommand}" IsEnabled="{Binding IsNotUpdating}"/>
-              <MenuItem Header="📁 设置分组" Command="{Binding SetGroupCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="＋ 更新这本" Command="{Binding UpdateOneCommand}" IsEnabled="{Binding IsNotUpdating}"/>
+              <MenuItem Header="📂 设置分组" Command="{Binding SetGroupCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
               <MenuItem Header="🗑 移出书架" Command="{Binding RemoveCommand}" IsEnabled="{Binding HasSelection}"/>
             </ContextMenu>

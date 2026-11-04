@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -62,14 +62,14 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailP
     {
         new()
         {
-            Text = "➕ 新建集合",
+            Text = "＋ 新建集合",
             Classes = "ghost",
             CommandPath = nameof(NewCollectionCommand),
             ToolTip = "新建一个手动集合（成员自己往里加、可排顺序）"
         },
         new()
         {
-            Text = "➕ 智能集合",
+            Text = "＋ 集合",
             CommandPath = nameof(NewSmartCommand),
             ToolTip = "新建一个智能集合（本轮只存规则文本，规则求值未实装）"
         },
@@ -513,7 +513,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailP
             },
             new DetailAction
             {
-                Text = "⛔ 移出选中",
+                Text = "🗑 移出",
                 Classes = "danger-btn",
                 ToolTip = "把选中成员移出本集合（⛔ 不删资产）",
                 IsVisiblePath = nameof(ShowDetailBody),

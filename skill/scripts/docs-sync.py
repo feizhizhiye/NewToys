@@ -380,7 +380,15 @@ def check_cards() -> None:
         cards = sorted(d.glob("NT-*.md"))
         if not cards:
             continue
-        accepted = [c for c in cards if "已验收" in read(c)]
+        # 已验收判定：只读「状态」行（⛔ 不读全文，避免正文里的「验收标准」「待 build 验收」误判）
+        ACCEPTED_RE = re.compile(r"已验收|build\s*通过|构建验收通过")
+        accepted = []
+        for c in cards:
+            for line in read(c).splitlines():
+                if "状态" in line and ("：" in line or ":" in line):
+                    if ACCEPTED_RE.search(line):
+                        accepted.append(c)
+                    break
         n = len(cards) - len(accepted)
         flag = "⚠" if len(accepted) > 5 else " "
         print(f"   {flag} backlog/{d.name:<16} 卡 {len(cards):>2} ｜ 已验收 {len(accepted):>2} ｜ 未验收 {n:>2}")

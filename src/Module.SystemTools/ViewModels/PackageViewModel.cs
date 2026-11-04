@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -168,14 +168,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         new() { Kind = ToolbarItemKind.Separator },
         new()
         {
-            Text = "🔄 重新加载",
+            Text = "🔄 重载",
             CommandPath = nameof(RefreshCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = CmdListInstalled + " / " + CmdListUpgrades + " / " + CmdSearch + "（按当前列表重跑）"
         },
         new()
         {
-            Text = "🔃 刷新索引",
+            Text = "🔄 刷新索引",
             Classes = "ghost",
             CommandPath = nameof(RefreshIndexCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
@@ -200,7 +200,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         },
         new()
         {
-            Text = "⬆⬆ 全部升级",
+            Text = "⬆ 全部升级",
             CommandPath = nameof(UpgradeAllCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = CmdUpgradeAll.Replace("{exe}", "winget") + ArgSilent

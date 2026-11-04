@@ -1,6 +1,6 @@
 ---
 name: newtoys
-description: NewToys 项目（.NET 10 + Avalonia 12.1.4 Windows 桌面工具管理器）协作技能，跨 AI 中立载体，供 WorkBuddy 与 Hermes(DeepSeek Harness) 等可读本地文件的 AI 客户端按路由表使用。涉及任意模块（ScriptManager / WebTools / VideoTools / MediaAssets / 应用级设置）改动、页面/列表页/设置页、主题样式、编译报错、文档台账——动手前先读仓库根 AGENTS.md，再按 skill/docs/index.md 定位。触发词：NewToys、src/、模块文档、framework.md、ui.md、需求规格、Backlog、任务卡、立项、build.ps1、accept.ps1。
+description: NewToys 项目（.NET 10 + Avalonia 12.1.5 Windows 桌面工具管理器）协作技能，跨 AI 中立载体，供 WorkBuddy 与 Hermes(DeepSeek Harness) 等可读本地文件的 AI 客户端按路由表使用。涉及任意模块（ScriptManager / WebTools / VideoTools / MediaAssets / SystemTools / BackupCenter / Viewer / Reading / 应用级设置）改动、页面/列表页/设置页、主题样式、编译报错、文档台账——动手前先读仓库根 AGENTS.md，再按 skill/docs/index.md 定位。触发词：NewToys、src/、模块文档、framework.md、ui.md、需求规格、Backlog、任务卡、立项、build.ps1、accept.ps1。
 agent_created: true
 ---
 

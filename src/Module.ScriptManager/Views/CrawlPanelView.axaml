@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.ScriptManager.Views.CrawlPanelView">
@@ -43,8 +43,6 @@
 
     <!--  节容器：底部一条分隔线  -->
     <Style Selector="Border.section">
-      <Setter Property="BorderThickness" Value="0,0,0,1"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
       <Setter Property="Padding" Value="0,4"/>
       <Setter Property="Background" Value="Transparent"/>
     </Style>
@@ -64,7 +62,7 @@
     </Style>
   </UserControl.Styles>
 
-  <Grid RowDefinitions="*,Auto" Margin="12">
+  <Grid RowDefinitions="*,Auto" Margin="8">
 
     <!--  ==================== 主体：四节  ====================  -->
     <Border Grid.Row="0" Classes="card" Padding="0">
@@ -85,21 +83,21 @@
                       <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold"
                                  VerticalAlignment="Center" Text="{Binding Title}"/>
 
-                      <TextBlock Grid.Column="2" Classes="hint-text" FontSize="11" Margin="0,0,8,0"
+                      <TextBlock Grid.Column="2" Classes="hint-text" FontSize="12" Margin="0,0,8,0"
                                  VerticalAlignment="Center" Text="{Binding CountText}"/>
 
                       <!--  ⟳ 重跑（⛔ 只有目录节能跑；命令挂在节对象上）  -->
                       <Button Grid.Column="3" Classes="ghost" Content="⟳" Width="24" Height="22" Padding="0"
-                              FontSize="13" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                              FontSize="14" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                               ToolTip.Tip="重跑这一节（目录 = 重新抓取；试下载 = 再跑一次）"
                               Command="{Binding RefreshCommand}" IsVisible="{Binding !IsProgress}"/>
 
                       <Button Grid.Column="4" Classes="ghost" Content="⌄" Width="24" Height="22" Padding="0"
-                              FontSize="13" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                              FontSize="14" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                               ToolTip.Tip="折叠 / 展开这一节"
                               Command="{Binding ToggleCommand}" IsVisible="{Binding IsExpanded}"/>
                       <Button Grid.Column="4" Classes="ghost" Content="›" Width="24" Height="22" Padding="0"
-                              FontSize="13" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                              FontSize="14" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                               ToolTip.Tip="折叠 / 展开这一节"
                               Command="{Binding ToggleCommand}" IsVisible="{Binding !IsExpanded}"/>
                     </Grid>
@@ -125,7 +123,7 @@
                                   <MenuItem Header="☑ 全选 / 取消勾选" Command="{Binding ToggleAllLinksCommand}"/>
                                   <Separator/>
                                   <MenuItem Header="🧪 试下载" Command="{Binding TryDownloadCommand}"/>
-                                  <MenuItem Header="📋 复制诊断" Command="{Binding CopyDiagCommand}"/>
+                                  <MenuItem Header="📋 复制" Command="{Binding CopyDiagCommand}"/>
                                 </ContextMenu>
                               </Border.ContextMenu>
                               <v:DynamicColumnGrid
@@ -161,8 +159,7 @@
                         </ItemsControl>
 
                         <!--  正文预览（形态 = text 时才有；前 600 字）  -->
-                        <Border Classes="section" BorderThickness="1" CornerRadius="3" Padding="8"
-                                BorderBrush="{DynamicResource DividerBrush}"
+                        <Border Classes="section" CornerRadius="3" Padding="8"
                                 IsVisible="{Binding Trial.HasText}">
                           <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding Trial.TextPreview}"/>
                         </Border>
@@ -217,7 +214,7 @@
                                 <ContextMenu>
                                   <MenuItem Header="📂 打开目录" Command="{Binding OpenDirCommand}"/>
                                   <MenuItem Header="📄 打开日志" Command="{Binding OpenLogCommand}"/>
-                                  <MenuItem Header="📋 复制诊断" Command="{Binding CopyDiagCommand}"/>
+                                  <MenuItem Header="📋 复制" Command="{Binding CopyDiagCommand}"/>
                                 </ContextMenu>
                               </Border.ContextMenu>
                               <Grid ColumnDefinitions="110,*,170">

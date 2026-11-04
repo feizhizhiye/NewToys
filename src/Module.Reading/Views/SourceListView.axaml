@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              x:Class="NewToys.Reading.Views.SourceListView">
@@ -77,7 +77,7 @@
               <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
               <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
               <Separator/>
-              <MenuItem Header="📁 改分组…" Command="{Binding ChangeGroupCommand}" IsEnabled="{Binding CanAct}"
+              <MenuItem Header="📂 改分组…" Command="{Binding ChangeGroupCommand}" IsEnabled="{Binding CanAct}"
                         ToolTip.Tip="把选中书源改成同一个分组（留空 = 未分组）；分组改名 / 归并都走这条"/>
               <MenuItem Header="🔬 校验书源…" Command="{Binding OpenCheckCommand}"/>
               <MenuItem Header="🗑 删除全部失效" Command="{Binding DeleteDeadCommand}"/>
@@ -105,8 +105,6 @@
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
               Background="{DynamicResource PanelBrush}"
-              BorderBrush="{DynamicResource DividerBrush}"
-              BorderThickness="1"
               CornerRadius="8"
               BoxShadow="0 8 32 0 #40000000">
         <DockPanel LastChildFill="True" Margin="16">
@@ -144,8 +142,6 @@
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
               Background="{DynamicResource PanelBrush}"
-              BorderBrush="{DynamicResource DividerBrush}"
-              BorderThickness="1"
               CornerRadius="8"
               BoxShadow="0 8 32 0 #40000000">
         <DockPanel LastChildFill="True" Margin="16">
@@ -157,7 +153,7 @@
           <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,10">
             <Button DockPanel.Dock="Right"
                     Classes="primary"
-                    Content="▶ 开始试跑"
+                    Content="▶ 试跑"
                     Margin="8,0,0,0"
                     Command="{Binding RunDebugCommand}"/>
             <TextBox Text="{Binding DebugKeyword, Mode=TwoWay}"
@@ -211,8 +207,6 @@
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
               Background="{DynamicResource PanelBrush}"
-              BorderBrush="{DynamicResource DividerBrush}"
-              BorderThickness="1"
               CornerRadius="8"
               BoxShadow="0 8 32 0 #40000000">
         <DockPanel LastChildFill="True" Margin="16">
@@ -230,7 +224,7 @@
           <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,10">
             <Button DockPanel.Dock="Right"
                     Classes="primary"
-                    Content="🔬 开始校验"
+                    Content="🔬 校验"
                     Margin="8,0,0,0"
                     IsEnabled="{Binding !IsChecking}"
                     Command="{Binding RunCheckCommand}"/>
@@ -257,7 +251,7 @@
                          VerticalAlignment="Center"/>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                 <Button Classes="ghost" Content="只看失效" Command="{Binding FilterFailedCommand}"/>
-                <Button Classes="danger-btn" Content="🗑 删除失效" Command="{Binding DeleteDeadCommand}"/>
+                <Button Classes="danger-btn" Content="🗑 删失效" Command="{Binding DeleteDeadCommand}"/>
                 <Button Classes="ghost" Content="关闭" Command="{Binding CloseCheckCommand}"/>
               </StackPanel>
             </Grid>

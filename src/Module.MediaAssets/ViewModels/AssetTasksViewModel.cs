@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -39,20 +39,20 @@ public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IT
     {
         new()
         {
-            Text = "✖ 取消选中任务",
+            Text = "✕ 取消选中",
             CommandPath = nameof(CancelTaskCommand),
             CommandArgPath = nameof(SelectedTask),
             ToolTip = "取消选中的那件任务（排队中的直接取消；正在跑的会请求取消）"
         },
         new()
         {
-            Text = "⛔ 全部取消",
+            Text = "✕ 全部取消",
             CommandPath = nameof(CancelAllTasksCommand),
             ToolTip = "取消所有**排队中**的任务"
         },
         new()
         {
-            Text = "🧹 清理已结束",
+            Text = "🧹 清已结束",
             CommandPath = nameof(ClearFinishedCommand),
             ToolTip = "清掉已完成 / 失败 / 已取消的历史项（⛔ 不动排队中与在跑的）"
         },

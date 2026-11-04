@@ -332,7 +332,7 @@
         <!--  NT-045：无状态**装饰**图标（首页 ★ / ⚡ / ⚙ 这类不参与 hover / active 的）—— 允许用类给死颜色。
               ⚠️ 有状态的图标（标题栏 / 标签 / 左树）一律走各自按钮的后代选择器，⛔ 别用这两个类。  -->
         <Style Selector="Path.icon-accent">
-            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Stroke" Value="{DynamicResource AccentInkBrush}"/>
             <Setter Property="StrokeThickness" Value="1.5"/>
             <Setter Property="StrokeLineCap" Value="Round"/>
             <Setter Property="StrokeJoin" Value="Round"/>
@@ -375,7 +375,7 @@
             <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="Padding" Value="8,0,28,0"/>
             <!--  v3.22：字号 = 13，与左侧二级菜单（Button.tree-row.sub）同大  -->
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
             <!--  32px 标题栏：标签项上下 Margin 各 2 ⇒ 可用 28（原 30 是为 40px 栏配的，改 32 后会被裁 2px）  -->
             <Setter Property="MinHeight" Value="28"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -386,7 +386,7 @@
         </Style>
         <!--  激活标签：**文字用强调色**（v3.22 简化：激活 = 强调色条 + 强调色字，没有底色）  -->
         <Style Selector="Border.tab-item.active Button.tab-btn">
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
 
@@ -479,7 +479,7 @@
             <Setter Property="StrokeLineCap" Value="Round"/>
         </Style>
         <Style Selector="Button.tab-new:pointerover Path">
-            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Stroke" Value="{DynamicResource AccentInkBrush}"/>
         </Style>
 
         <!--  左树行：一级 = 图标 + **加粗**；行高 30（v3.12 由 32 收紧）、缩进由子级 ItemsControl 的 Margin 给（每级 16）
@@ -492,28 +492,40 @@
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="Height" Value="30"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button.tree-row:pointerover">
-            <Setter Property="Background" Value="{DynamicResource ContentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SiderHoverBrush}"/>
         </Style>
+        <!--  🔴 激活态**按层级用不同形状**（2026-11-04）：此前一级 / 二级都用 `CardSelectedBrush` 药丸，
+              两行同时激活时只有字体粗细之差，一眼分不出"节"和"项"。
+              现在：一级 = 左侧 3px 强调竖条（无底色，像"分组旗标"）；二级 = 铺底药丸（像"被选中的行"）。  -->
         <Style Selector="Button.tree-row.active">
-            <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
+            <Setter Property="BorderThickness" Value="3,0,0,0"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Padding" Value="5,0"/>
         </Style>
 
         <!--  二级行（.sub）：常规字重 + 次要色，与一级区分（v3.4）。
-             ⚠️ 定义在 .active 之后，保证二级激活时仍取强调色。  -->
+             ⚠️ 定义在 .active 之后：竖条 / 圆角 / 内边距都要在这里**显式还原**，
+                否则二级会继承一级激活态的 3px 左边框（缩进 16 + 边框 3 ⇒ 两行文字对不齐）。  -->
         <Style Selector="Button.tree-row.sub">
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,0"/>
         </Style>
         <Style Selector="Button.tree-row.sub.active">
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
         </Style>
 
         <!--  一级分组/首页的**矢量图标**颜色（v3.5）。
@@ -526,7 +538,7 @@
             <Setter Property="StrokeJoin" Value="Round"/>
         </Style>
         <Style Selector="Button.tree-row.active Path">
-            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Stroke" Value="{DynamicResource AccentInkBrush}"/>
         </Style>
 
         <!--  左树折叠态（48px）：只留一级图标，隐藏标题 / 子级
@@ -548,8 +560,18 @@
             <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
             <Setter Property="Padding" Value="0,0,8,0"/>
         </Style>
+        <!--  滚动区外框：右侧 0 —— 滚动条走廊由 `ScrollViewer.tree-scroll` 自己的右内边距给，
+              外框再留 8 就会让滚动条离面板边 16px（看着浮在中间、旁边一条空缝）。  -->
+        <!--  🔴 `Border.main-card` = 窗口里**唯一允许「有面」的容器**（主显示区一张、详情列一张）。
+             ⛔ 不挂 BoxShadow：常驻大面的模糊每帧重绘，才是真正的性能开销（浮层才用阴影）。
+             圆角靠 ClipToBounds 裁掉内部直角子元素（工具条 / 表头 / 行区），⛔ 不要在卡内再套卡。  -->
+        <Style Selector="Border.main-card">
+            <Setter Property="Background" Value="{DynamicResource ContentBrush}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}"/>
+            <Setter Property="ClipToBounds" Value="True"/>
+        </Style>
         <Style Selector="Border.tree-scroll-host">
-            <Setter Property="Padding" Value="8,8"/>
+            <Setter Property="Padding" Value="8,8,0,8"/>
         </Style>
         <!--  🔴 折叠态（48px）三件套，缺一条图标就不居中（2026-10-21 实机截图确认）：
               ① 隐藏竖向滚动条（浮层条会压在图标上，看着就是一根拖拽条）——用 Hidden 不用 Disabled，滚轮照常；
@@ -615,16 +637,42 @@
         <Style Selector="Button.primary:pointerover">
             <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
         </Style>
+        <!--  次级按钮 = 有面的按钮（不是纯文字）：底色比所在 chrome 面高一档 + 1px 弱描边，
+              一眼能认出是「可点的东西」。悬停 / 按下走 Bg3 / 选中色。
+              ⚠️ 放在工具条 / 卡片里都成立：PanelBrush 与两者的底始终差一档。  -->
         <Style Selector="Button.ghost">
-            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
         </Style>
         <Style Selector="Button.ghost:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+        <Style Selector="Button.ghost:pressed">
+            <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+        </Style>
+
+        <!--  列表行（功能清单 / 任何「一行一项」的紧凑列表）：透明底、26 高、整行可点、悬停才出色。
+              与列表页密度基线 28 对齐，功能清单再略紧一档（26），展开后一屏能看更多。  -->
+        <Style Selector="Button.list-row">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.list-row:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+        <Style Selector="Button.list-row:pressed">
+            <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
         </Style>
 
         <!--  应用级设置页的**节抬头按钮**（v3.65 / NT-062，需求 §4.9.2：一页多节）。
@@ -648,7 +696,7 @@
               ⚠️ 只给**工具条**用（详情卡 / 页面级主按钮仍用 `primary` 实心）。  -->
         <Style Selector="Button.primary-outline">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="CornerRadius" Value="6"/>
@@ -665,12 +713,12 @@
         </Style>
         <!--  视频列表「📂 导入」拆分按钮：沿用 ghost 外观，主钮 + 下拉两半都透明、悬停同卡片色  -->
         <Style Selector="SplitButton.ghost">
-            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
         </Style>
         <Style Selector="SplitButton.ghost:pointerover">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
@@ -686,10 +734,11 @@
         <Style Selector="SplitButton.ghost:pointerover /template/ Button#PART_PrimaryButton">
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
-        <!--  v3.12 密度：卡片圆角 8、内边距 14 → 12  -->
+        <!--  🔴 `Border.card` 现在**没有任何面**（透明、无圆角）：窗口里只有主显示区和详情列是卡，
+             页内分组一律靠「小标题 + 间距」表达。保留这个类和 Padding 是为了 16 处既有页面不必改结构；
+             ⛔ 别把 Background / CornerRadius 加回来 —— 那就是「卡片套卡片」。  -->
         <Style Selector="Border.card">
-            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Padding" Value="12"/>
         </Style>
 
@@ -719,7 +768,7 @@
 
         <!--  收藏按钮墙（首页常用功能 / ScriptManager 收藏夹）：一排按钮，点即执行  -->
         <Style Selector="Button.fav-btn">
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Padding" Value="16,9"/>
             <Setter Property="Margin" Value="6"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -732,7 +781,7 @@
                 直接改基础 .fav-btn 会把首页一起带偏，所以这个变体只给收藏夹页用。  -->
         <Style Selector="Button.fav-btn.accent">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
@@ -752,12 +801,10 @@
               「配置 · 版本」贴左、齿轮贴右，两边不再空一大截。
               折叠态（48）反过来要**对称 12** ⇒ 24 宽的齿轮正好居中。  -->
         <Style Selector="Border.tree-version">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-            <Setter Property="BorderThickness" Value="0,1,0,0"/>
+            <Setter Property="Background" Value="{DynamicResource SiderFootBrush}"/>
             <Setter Property="Padding" Value="2,0,0,0"/>
-            <!--  🔴 2026-10-21：24 → 26，与底部状态栏（`Border.status-bar` = 26）等高 ——
-                  左树底边线与状态栏上边线必须落在同一条水平线上。⛔ 两处改一处必须同步改另一处。  -->
+            <!--  🔴 2026-10-21：24 → 26，与底部状态栏（`Border.status-bar` = 26）等高。
+                  ⛔ 两处改一处必须同步改另一处。  -->
             <Setter Property="Height" Value="26"/>
         </Style>
         <Style Selector="Border.tree-panel.collapsed Border.tree-version">
@@ -791,7 +838,7 @@
             <Setter Property="StrokeJoin" Value="Round"/>
         </Style>
         <Style Selector="Button.tree-gear:pointerover Path">
-            <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Stroke" Value="{DynamicResource AccentInkBrush}"/>
         </Style>
 
         <!--  底部状态栏的**可点击态**（v3.65 / NT-062）：⚠ 一行带跳转目标时用它包住文字。
@@ -809,11 +856,19 @@
             <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
         </Style>
 
+        <!--  内容区底（颜色分配见 `App.Theme.cs` 的 `RegionLayers` / `RegionAdjacency`）：
+              有工具条 ⇒ 1 档（工具条 3 档压在它上面）；
+              没工具条 ⇒ 3 档，否则标题栏（1 档）直接压在 1 档内容上，接缝就没了。  -->
+        <Style Selector="ContentControl.content-area">
+            <Setter Property="Background" Value="{DynamicResource ContentBareBrush}"/>
+        </Style>
+        <Style Selector="ContentControl.content-area.toolbar">
+            <Setter Property="Background" Value="{DynamicResource ContentBrush}"/>
+        </Style>
+
         <!--  底部状态栏（v3.9）：横贯「内容区 + 详情区」，由 Shell 统一承载（内容来自 IStatusProvider）。  -->
         <Style Selector="Border.status-bar">
-            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-            <Setter Property="BorderThickness" Value="0,1,0,0"/>
+            <Setter Property="Background" Value="{DynamicResource StatusBarBrush}"/>
             <Setter Property="Padding" Value="16,0"/>
             <Setter Property="Height" Value="26"/>
         </Style>

@@ -7,7 +7,7 @@
     和主窗口割裂；且 Shell/DataView 各写了一份（视觉漂移）。现在统一收编到这一层：
 
     结构 = 全窗口遮罩（LoadingOverlayBrush）+ 居中卡片：
-      · 卡片底 = PanelBrush / 1px DividerBrush 描边 / 圆角 8（与 Border.card 一致）/ 投影；
+      · 卡片底 = PanelBrush / 圆角 8（与 Border.card 一致）/ 投影（无描边，靠底色 + 投影浮起）；
       · 标题行 = 强调色圆底白符号（三角=确认 / i=提示 / 铅笔=输入）+ 标题；
       · 消息区带滚动（长消息不顶破窗口）；输入卡片多一个 TextBox；
       · 按钮沿用全局 primary / ghost 样式。
@@ -29,8 +29,6 @@
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Background="{DynamicResource PanelBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="1"
             CornerRadius="8"
             BoxShadow="0 8 32 0 #66000000"
             Padding="20"
@@ -54,7 +52,7 @@
                   StrokeJoin="Round" />
           </Border>
           <TextBlock x:Name="CardTitle"
-                     FontSize="13"
+                     FontSize="14"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource PrimaryTextBrush}"
                      VerticalAlignment="Center" />
@@ -65,14 +63,14 @@
                       MaxHeight="320"
                       HorizontalScrollBarVisibility="Disabled">
           <TextBlock x:Name="CardMessage"
-                     FontSize="13"
+                     FontSize="14"
                      TextWrapping="Wrap"
                      Foreground="{DynamicResource PrimaryTextBrush}" />
         </ScrollViewer>
 
         <!--  输入框：仅输入卡片可见  -->
         <TextBox x:Name="CardInput"
-                 FontSize="13"
+                 FontSize="14"
                  MinWidth="0"
                  MinHeight="0"
                  IsVisible="False"

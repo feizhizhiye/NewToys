@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="using:NewToys.UI.Controls"
         xmlns:b="using:NewToys.Shell.Behaviors">
 
   <!--  =====================================================================
@@ -15,12 +16,10 @@
         （否则换主题后写死的那个控件不跟着变）。
         ===================================================================== -->
 
-  <!--  ① 工具条：列表页顶部那条（背景 + 底部分隔线 + 内边距），页面里套 WrapPanel 即可  -->
+  <!--  ① 工具条：列表页顶部那条（背景 + 内边距），页面里套 WrapPanel 即可  -->
   <Style Selector="Border.toolbar">
-    <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource ToolbarBrush}"/>
     <Setter Property="Padding" Value="6,6"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="BorderThickness" Value="0,0,0,1"/>
   </Style>
 
   <!--  ② 页面右上角「状态行」：所有页面都有的那一行文字  -->
@@ -28,7 +27,7 @@
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
   <Style Selector="TextBlock.info-text">
     <Setter Property="FontSize" Value="12"/>
@@ -38,12 +37,12 @@
 
   <!--  ③ 提示 / 说明文字（说明条、字段下方的灰色小字、底部数据文件提示）  -->
   <Style Selector="TextBlock.hint-text">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
   </Style>
   <Style Selector="TextBlock.empty-hint">
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="14"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
   </Style>
@@ -55,7 +54,7 @@
   </Style>
 
   <Style Selector="TextBlock.section-title">
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="14"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
   </Style>
@@ -65,7 +64,7 @@
     <Setter Property="Spacing" Value="2"/>
   </Style>
   <Style Selector="TextBlock.field-label">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
   </Style>
   <Style Selector="TextBlock.field-value">
@@ -74,15 +73,25 @@
     <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
   </Style>
 
+  <!--  ④-b 详情卡内三级字号（节 ＞ 标签 ＞ 值，全部取自 §2.3 的 12 / 14 / 16）：
+        节标题 16 SemiBold 主色（`DetailCardHost` 自带）＞ 字段标签 14 SemiBold 次要色 ＞ 值 12 主色。
+        标签是这一段的「小标题」，**必须比它下面那行值大**（且差 ≥2px）；与值同号时整张卡会糊成一片。
+        ⚠️ 只覆盖卡内 —— 设置页 / 预览页的 `.field-value` 仍是 12（那些是紧凑信息行，放大就挤）。  -->
+  <Style Selector="ui|DetailCardHost TextBlock.field-label">
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
   <!--  ⑤ 右侧详情卡（宽度 / 外边距 / 圆角统一；收起时整列不占位）
        v3.12 密度：内边距 14 → 12。
-       ⚠️ **宽度 340 是硬约定（需求 §4.5），别动**；滚动条是覆盖式的、需要右侧留位的那两页
+       ⚠️ **宽度 300 是全局约定（需求 §4.5），只在这里和 `ShellView` 的 `DetailPanel` 两处各出现一次**；
+          滚动条是覆盖式的、需要右侧留位的那两页
           （video-cut / video-batch）在**本页 XAML 里覆盖 Padding**，不要改这里 —— 会波及 12 个列表页。  -->
   <Style Selector="Border.detail-card">
-    <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Background" Value="{DynamicResource DetailCardBrush}"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}"/>
     <Setter Property="Padding" Value="12"/>
-    <Setter Property="Width" Value="340"/>
+    <Setter Property="Width" Value="300"/>
     <Setter Property="Margin" Value="8,0,0,0"/>
   </Style>
 
@@ -95,23 +104,21 @@
     <Setter Property="MaxDropDownHeight" Value="260"/>
   </Style>
 
-  <!--  ⑥ 分隔线  -->
-  <Style Selector="Border.divider-line">
-    <Setter Property="Height" Value="1"/>
-    <Setter Property="Background" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="Margin" Value="0,4"/>
-  </Style>
-
-  <!--  ⑦ 行内小按钮（列表行里的「▶ 运行」之类）与小号按钮  -->
+  <!--  ⑦ 行内小按钮（列表行里的「▶ 运行」之类）与小号按钮：
+        行内不给实底（会和行 hover / 选中底打架），改给 1px 弱描边 —— 有轮廓就够认出是按钮。  -->
   <Style Selector="Button.row-btn">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="Padding" Value="10,3"/>
     <Setter Property="Margin" Value="12,0"/>
     <Setter Property="HorizontalAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}"/>
   </Style>
   <Style Selector="Button.small">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="Padding" Value="8,4"/>
   </Style>
 
@@ -124,7 +131,7 @@
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
     <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}"/>
     <Setter Property="Padding" Value="8,0"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
@@ -137,7 +144,7 @@
   </Style>
   <Style Selector="Button.col-header:pointerover">
     <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
 
   <!--  ⑨ 详情栏开关（v3.12：**从表头右缘挪到工具条末位**）
@@ -147,7 +154,7 @@
         现做法：工具条右侧（`Grid ColumnDefinitions="*,Auto"` 的右列）放一个**常驻**小按钮，
         图标 ❯ = 展开右侧详情、❮ = 收起 —— 一眼知道当前是哪种。  -->
   <Style Selector="Button.detail-toggle">
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="14"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="Margin" Value="0"/>
     <Setter Property="Width" Value="26"/>
@@ -159,23 +166,23 @@
     <Setter Property="VerticalContentAlignment" Value="Center"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
   </Style>
   <Style Selector="Button.detail-toggle:pointerover">
     <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
 
-  <!--  ⑩ 表头容器（高度固定 32，内部按钮靠 ⑧ 撑满 —— 点击区 = 整格；v3.12 由 36 收紧）  -->
+  <!--  ⑩ 表头容器（高度固定 32，内部按钮靠 ⑧ 撑满 —— 点击区 = 整格；v3.12 由 36 收紧）
+       表头底 = `ListHeaderBrush`（区域表里最亮的一档），⛔ 不再画 1px 底边。  -->
   <Style Selector="Border.list-header">
-    <Setter Property="Background" Value="{DynamicResource SubSiderHeaderBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="Background" Value="{DynamicResource ListHeaderBrush}"/>
     <Setter Property="Height" Value="32"/>
+    <!--  🔴 卡内表头与行区同色（同一个卡片面）⇒ 只剩这条 1px 极淡线区分「列标题」与「数据」。
+         ⛔ 别再加深/加粗：它不是分隔线，是「表头存在」的唯一证据。  -->
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HairlineBrush}"/>
   </Style>
 
   <!--  ⑪ 表格单元格：默认次要色；加 .primary / .accent 切换字的颜色。
@@ -194,7 +201,7 @@
     <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
   </Style>
   <Style Selector="TextBlock.list-cell.accent">
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
 
   <!--  ⑪-2 标签色片（v3.20 视频工具 tags；⛔ 颜色不在这里——原来自数据色板 Module.VideoTools/Services/TagPalette.cs，
@@ -202,7 +209,7 @@
        ⚠️ v3.32：视频工具的标签功能已移除（需求 §6.4.6），这几条样式当前**无引用**（死代码）；
        暂留 —— 媒体资产的标签页（NT-018）若复用同款 chip 可直接用，届时由数据侧提供 Brush。  -->
   <Style Selector="Border.tag-chip">
-    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}"/>
     <Setter Property="Padding" Value="6,1"/>
     <Setter Property="Margin" Value="0,0,4,2"/>
     <Setter Property="BorderThickness" Value="1"/>
@@ -210,7 +217,7 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style Selector="TextBlock.tag-chip-text">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <!--  .off = 详情卡「标签选择器」里**还没打上**的一枚（整枚淡显；⛔ 不改绑来的颜色数据）  -->
@@ -236,17 +243,17 @@
     <Setter Property="Padding" Value="0"/>
     <Setter Property="MinWidth" Value="0"/>
     <Setter Property="MinHeight" Value="0"/>
-    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="HorizontalAlignment" Value="Left"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="14"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
   </Style>
   <Style Selector="Button.section-toggle:pointerover">
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
   <!--  折叠箭头：Path 走 Stroke、不继承 Foreground（App.axaml 的既有约定）→ 由样式给颜色与粗细  -->
   <Style Selector="Button.section-toggle Path">
@@ -256,37 +263,35 @@
     <Setter Property="StrokeJoin" Value="Round"/>
   </Style>
   <Style Selector="Button.section-toggle:pointerover Path">
-    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Stroke" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
 
-  <!--  chips（Kind=Chips 的集合编辑器）：选中 = 强调色描边 + 强调色文字  -->
+  <!--  chips（Kind=Chips 的集合编辑器）：选中 = 强调色底 + 强调色文字；未选中只靠悬停底色示意  -->
   <Style Selector="Button.chip-toggle">
     <Setter Property="Padding" Value="8,3"/>
-    <Setter Property="CornerRadius" Value="6"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
   </Style>
   <Style Selector="Button.chip-toggle:pointerover">
-    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
   <Style Selector="Button.chip-toggle.selected">
-    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
 
   <!--  chips 的**色块模式**（NT-054 v3.33 / 描述符 ChipBrushPath 非空）：chip 内是「色块 + 可选文字」，
-        未选中时也要显边框（色块本身要看得见轮廓），选中态沿用 .selected 的强调色边框。  -->
+        色块样本必须看得见轮廓 —— 这是**内容轮廓**不是区域分界，用 InputBorderBrush 弱线。  -->
   <Style Selector="Button.chip-toggle.swatch">
     <Setter Property="Padding" Value="4,3"/>
     <Setter Property="MinWidth" Value="0"/>
   </Style>
   <Style Selector="Button.chip-toggle.swatch Border">
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
   </Style>
 
   <!--  ===== 详情卡「图标动作组」（NT-058 / FieldKind.IconBar） =====
@@ -297,7 +302,7 @@
   <Style Selector="Button.icon-btn">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="MinWidth" Value="32"/>
     <Setter Property="MinHeight" Value="32"/>
@@ -321,17 +326,16 @@
     <Setter Property="Stroke" Value="{DynamicResource PrimaryTextBrush}"/>
   </Style>
   <Style Selector="Button.icon-btn.active Path">
-    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Stroke" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
   <Style Selector="Button.icon-btn.icon-danger Path">
     <Setter Property="Stroke" Value="{DynamicResource DangerBrush}"/>
   </Style>
-  <!--  组内分隔：1px 竖线（与卡内 Divider 同色，高度跟着按钮行 20px）  -->
+  <!--  组内分隔：不再画竖线，靠 Margin 留白分组  -->
   <Style Selector="Border.icon-sep">
-    <Setter Property="Width" Value="1"/>
+    <Setter Property="Width" Value="6"/>
     <Setter Property="Height" Value="20"/>
-    <Setter Property="Margin" Value="2,0"/>
-    <Setter Property="Background" Value="{DynamicResource DividerBrush}"/>
+    <Setter Property="Background" Value="Transparent"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
 
@@ -344,7 +348,7 @@
     <Setter Property="Padding" Value="0"/>
     <Setter Property="MinWidth" Value="0"/>
     <Setter Property="MinHeight" Value="0"/>
-    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}"/>
     <Setter Property="FontWeight" Value="Normal"/>
     <Setter Property="HorizontalAlignment" Value="Stretch"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -360,8 +364,6 @@
   <!--  ⑬ 筛选条：多项筛选那一行的容器与其中的控件  -->
   <Style Selector="Border.filter-bar">
     <Setter Property="Background" Value="{DynamicResource ContentHeaderBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="Padding" Value="12,4"/>
   </Style>
   <Style Selector="ComboBox.filter-combo">
@@ -376,20 +378,21 @@
     <Setter Property="Margin" Value="0,0,4,0"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
+  <!--  筛选条按钮与工具条按钮同一口径：有面（Bg2 底 + 1px 弱描边），悬停 Bg3。
+        ⛔ 别退回纯透明 —— 一行字排在那儿，分不出哪个能点。  -->
   <Style Selector="Button.filter-btn">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="Padding" Value="7,3"/>
     <Setter Property="Margin" Value="0,0,6,0"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
-    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}"/>
     <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
   </Style>
   <Style Selector="Button.filter-btn:pointerover">
     <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
   </Style>
 
   <!--  ⑭ 进度条（转码 / 剪切任务跑起来时显示百分比）  -->
@@ -397,20 +400,20 @@
     <Setter Property="Height" Value="6"/>
     <Setter Property="MinWidth" Value="60"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
     <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
   </Style>
 
   <!--  ⑮ 状态徽章（任务的「等待 / 运行中 / 完成 / 失败」）  -->
   <Style Selector="Border.badge">
-    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSmall}"/>
     <Setter Property="Padding" Value="6,2"/>
     <Setter Property="HorizontalAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style Selector="TextBlock.badge-text">
-    <Setter Property="FontSize" Value="11"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
 
   <!--  ⑯（NT-055 收尾后**已删除**）原「列表页导入 / 导出组」`StackPanel.io-bar` + `Button.io-btn`：
@@ -419,9 +422,9 @@
   <!--  danger 语义（红）的破坏性按钮（如「🧹 清空本页」，v3.19 / NT-006）：
         ⛔ 只给"会丢数据"的动作（清空 / 永久删除）用，别当普通按钮的默认样式。  -->
   <Style Selector="Button.danger-btn">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="Padding" Value="10,4"/>
-    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
     <Setter Property="Background" Value="Transparent"/>
@@ -435,18 +438,18 @@
 
   <!--  源选择按钮（v3.19 / NT-008）：源下拉框改按钮；选中态（.selected）用强调色实心。  -->
   <Style Selector="Button.src-btn">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="Padding" Value="10,4"/>
-    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}"/>
+    <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/>
-    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style Selector="Button.src-btn:pointerover">
-    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}"/>
   </Style>
   <Style Selector="Button.src-btn.selected">
     <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>

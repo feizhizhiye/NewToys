@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:NewToys.Reading.Controls"
              x:Class="NewToys.Reading.Views.ReaderView">
@@ -77,15 +77,13 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Background="{DynamicResource PanelBrush}"
-                BorderBrush="{DynamicResource DividerBrush}"
-                BorderThickness="1"
                 CornerRadius="8"
                 BoxShadow="0 8 32 0 #66000000"
                 Padding="20">
           <DockPanel LastChildFill="True">
 
             <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,12">
-              <TextBlock DockPanel.Dock="Left" Text="换源" FontSize="13" FontWeight="SemiBold"
+              <TextBlock DockPanel.Dock="Left" Text="换源" FontSize="14" FontWeight="SemiBold"
                          Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
               <TextBlock DockPanel.Dock="Right" Classes="hint-text" Text="{Binding BookName}"
                          VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -128,8 +126,6 @@
     <Border Grid.Row="3"
             IsVisible="{Binding IsListening}"
             Background="{DynamicResource ContentHeaderBrush}"
-            BorderBrush="{DynamicResource DividerBrush}"
-            BorderThickness="0,1,0,0"
             Padding="12,6">
       <DockPanel LastChildFill="False">
         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -159,20 +155,18 @@
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
               Background="{DynamicResource PanelBrush}"
-              BorderBrush="{DynamicResource DividerBrush}"
-              BorderThickness="1"
               CornerRadius="8"
               Padding="20"
               BoxShadow="0 8 32 0 #40000000">
         <StackPanel Spacing="10">
           <TextBlock Text="整本下载"
-                     FontSize="13"
+                     FontSize="14"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource PrimaryTextBrush}"/>
           <TextBlock Classes="hint-text" Text="{Binding DownloadPhase}" TextWrapping="Wrap"/>
           <ProgressBar Value="{Binding DownloadProgress}" Minimum="0" Maximum="100" Height="6"/>
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button Classes="ghost" Content="✖ 取消" Command="{Binding CancelDownloadCommand}"
+            <Button Classes="ghost" Content="✕ 取消" Command="{Binding CancelDownloadCommand}"
                     IsEnabled="{Binding IsDownloading}"/>
             <Button Classes="primary" Content="关闭" Command="{Binding CloseDownloadCommand}"
                     IsEnabled="{Binding !IsDownloading}"/>

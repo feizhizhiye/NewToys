@@ -77,6 +77,8 @@ public partial class GeneralViewModel : ObservableObject, IStatusProvider
     [ObservableProperty] private bool _isDarkMode;
     [ObservableProperty] private bool _isLightMode;
     [ObservableProperty] private bool _isSystemMode;
+    [ObservableProperty] private bool _isCustomSkin;
+    [ObservableProperty] private bool _isFluentSkin;
     [ObservableProperty] private AccentOption? _selectedAccent;
 
     /// <summary>强调色色卡数据源（直接取自 <see cref="AccentPalette"/>，与 Shell 注入用的是同一份表）。</summary>
@@ -258,6 +260,7 @@ public partial class GeneralViewModel : ObservableObject, IStatusProvider
     private void Load()
     {
         ApplyMode(_theme?.Mode ?? ThemeMode.Dark);
+        ApplySkin(_theme?.Skin ?? ThemeSkin.Fluent);
         var current = AccentPalette.Find(_theme?.AccentId).Id;
         _syncing = true;
         SelectedAccent = Accents.FirstOrDefault(a => a.Id == current) ?? Accents.FirstOrDefault();
@@ -268,6 +271,8 @@ public partial class GeneralViewModel : ObservableObject, IStatusProvider
     partial void OnIsDarkModeChanged(bool value) { if (value) SetMode(ThemeMode.Dark); }
     partial void OnIsLightModeChanged(bool value) { if (value) SetMode(ThemeMode.Light); }
     partial void OnIsSystemModeChanged(bool value) { if (value) SetMode(ThemeMode.System); }
+    partial void OnIsCustomSkinChanged(bool value) { if (value) SetSkin(ThemeSkin.NewToys); }
+    partial void OnIsFluentSkinChanged(bool value) { if (value) SetSkin(ThemeSkin.Fluent); }
 
     private void SetMode(ThemeMode mode)
     {
@@ -286,6 +291,22 @@ public partial class GeneralViewModel : ObservableObject, IStatusProvider
         _syncing = false;
     }
 
+    private void SetSkin(ThemeSkin skin)
+    {
+        if (_syncing) return;
+        _theme?.SetSkin(skin);      // 立即落盘 + 广播，Shell 收到后按新皮肤重刷资源字典
+        ApplySkin(skin);
+        RefreshStatus();
+    }
+
+    private void ApplySkin(ThemeSkin skin)
+    {
+        _syncing = true;
+        IsCustomSkin = skin == ThemeSkin.NewToys;
+        IsFluentSkin = skin == ThemeSkin.Fluent;
+        _syncing = false;
+    }
+
     partial void OnSelectedAccentChanged(AccentOption? value)
     {
         if (_syncing || value == null) return;
@@ -293,14 +314,16 @@ public partial class GeneralViewModel : ObservableObject, IStatusProvider
         RefreshStatus();
     }
 
-    /// <summary>↺ 恢复默认：深色 + 微信绿（同样立即生效）。</summary>
+    /// <summary>↺ 恢复默认：深色 + 微信绿 + 原生 Fluent 皮肤（同样立即生效）。</summary>
     [RelayCommand]
     private void ResetTheme()
     {
         _theme?.SetMode(ThemeMode.Dark);                  // 工程约定：默认深色
         _theme?.SetAccent(AccentPalette.Default.Id);       // 默认微信绿
+        _theme?.SetSkin(ThemeSkin.Fluent);                 // 默认原生 Fluent（明暗层次更细）
 
         ApplyMode(ThemeMode.Dark);
+        ApplySkin(ThemeSkin.Fluent);
         _syncing = true;
         SelectedAccent = Accents.FirstOrDefault(a => a.Id == AccentPalette.Default.Id);
         _syncing = false;
@@ -311,7 +334,8 @@ public partial class GeneralViewModel : ObservableObject, IStatusProvider
     {
         var mode = IsDarkMode ? "深色" : IsLightMode ? "浅色" : "跟随系统";
         var accentName = SelectedAccent?.Name ?? AccentPalette.Find(_theme?.AccentId).Name;
-        StatusText = $"{prefix ?? "当前"}：{mode} · 强调色 {accentName} —— 已立即生效并写入 theme.json";
+        var skin = IsFluentSkin ? "原生 Fluent" : "自制";
+        StatusText = $"{prefix ?? "当前"}：{mode} · 配色 {skin} · 强调色 {accentName} —— 已立即生效并写入 shell.json";
     }
 
     // ==================== 关于：预留动作（原 AboutViewModel） ====================

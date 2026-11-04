@@ -1,4 +1,4 @@
-<UserControl
+﻿<UserControl
     x:Class="NewToys.VideoTools.Views.VideoBatchView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -102,7 +102,7 @@
                                 IsVisible="{Binding IsFinishedVisible}" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
-                                <MenuItem Header="🔎 筛选" ItemsSource="{Binding QuickFilters}">
+                                <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
                                   <MenuItem.ItemContainerTheme>
                                     <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                                       <Setter Property="Header" Value="{Binding Label}"/>
@@ -289,8 +289,8 @@
                     <!--  ==================== 下区：已完成（跑成功的结果）  ====================  -->
                     <Border
                         Grid.Row="1"
-                        BorderBrush="{DynamicResource DividerBrush}"
-                        BorderThickness="0,1,0,0"
+                        Background="{DynamicResource ContentHeaderBrush}"
+                        CornerRadius="6"
                         IsVisible="{Binding HasFinished}">
                         <Grid RowDefinitions="Auto,Auto,Auto">
                             <Border Grid.Row="0" Height="28" Padding="10,0">

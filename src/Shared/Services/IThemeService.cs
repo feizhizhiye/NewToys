@@ -13,6 +13,21 @@ public enum ThemeMode
 }
 
 /// <summary>
+/// 配色来源（皮肤）。
+/// - <see cref="NewToys"/>：本应用自有的中性色阶 + 强调色派生（默认）。
+/// - <see cref="Fluent"/>：同一批语义键全部指到 Avalonia Fluent 主题自带的资源，用于和原生观感对照。
+/// <para>
+/// 皮肤只决定「24+ 个语义色键各自取什么颜色」，以及三档圆角；**不改布局与密度**，
+/// 这样两种皮肤的差异只来自配色气质，可以直接对比。
+/// </para>
+/// </summary>
+public enum ThemeSkin
+{
+    NewToys = 0,
+    Fluent = 1,
+}
+
+/// <summary>
 /// 明暗主题 + 强调色。持久化到 <c>&lt;应用根&gt;\config\theme.json</c>。
 /// ⚠️ 本接口位于 <c>Core</c>（**不引用 Avalonia**），所以它只保存状态、不碰界面：
 /// - 「跟随系统」需要的操作系统状态由 **Shell 层**读出来后写进 <see cref="SystemDark"/>；
@@ -32,6 +47,12 @@ public interface IThemeService
 
     /// <summary>强调色预设 id（见 <see cref="AccentPalette"/>）。</summary>
     string AccentId { get; }
+
+    /// <summary>配色来源（见 <see cref="ThemeSkin"/>）。只影响语义色键的取值与三档圆角，不影响布局。</summary>
+    ThemeSkin Skin { get; }
+
+    /// <summary>设置配色来源并立即持久化。</summary>
+    void SetSkin(ThemeSkin skin);
 
     /// <summary>设置模式并立即持久化（触发的刷新通过 <see cref="ThemeChanged"/> 广播）。</summary>
     void SetMode(ThemeMode mode);

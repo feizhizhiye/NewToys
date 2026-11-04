@@ -38,7 +38,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
         _store.Save();
         RefreshCollections();
         SelectedCollection = Collections.FirstOrDefault(r => r.Id == col.Id);
-        StatusText = "已新建集合，在右栏勾选成员（即时生效）。";
+        StatusText = "已新建集合，在成员表选中条目右键加入（即时生效）。";
     }
 
     [RelayCommand]
@@ -174,7 +174,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         if (_store == null || SelectedCollection == null)
         {
-            StatusText = "先在左栏选一个集合。";
+            StatusText = "先在工具条「集合」下拉里选一个集合。";
             return;
         }
 

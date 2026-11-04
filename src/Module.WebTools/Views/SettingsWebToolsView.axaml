@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.UI.Controls"
              x:Class="NewToys.WebTools.Views.SettingsWebToolsView">
@@ -31,7 +31,7 @@
                 Text="{Binding DefaultUserAgent, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
             <Button
                 Classes="ghost"
-                Content="↺ 恢复内置"
+                Content="↺ 恢复"
                 Command="{Binding ResetUserAgentCommand}" />
           </StackPanel>
           <TextBlock
@@ -95,7 +95,7 @@
       </ListBox>
 
       <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Classes="ghost" Content="➕ 新建" Command="{Binding AddHostSourceCommand}"
+        <Button Classes="ghost" Content="＋ 新建" Command="{Binding AddHostSourceCommand}"
                 ToolTip.Tip="新建一个开源 hosts 项目源" />
         <Button Classes="ghost" Content="✏ 编辑" Command="{Binding EditHostSourceCommand}"
                 IsEnabled="{Binding HasHostSourceSelection}"
@@ -103,7 +103,7 @@
         <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteHostSourceCommand}"
                 IsEnabled="{Binding HasHostSourceSelection}"
                 ToolTip.Tip="只删源清单，已拉取的方案不受影响" />
-        <Button Classes="ghost" Content="⬇ 测试拉取" Command="{Binding TestHostSourceCommand}"
+        <Button Classes="ghost" Content="⬇ 试拉" Command="{Binding TestHostSourceCommand}"
                 IsEnabled="{Binding HasHostSourceSelection}"
                 ToolTip.Tip="按地址逐个试一次，报条目数（⛔ 不写方案、不动系统 hosts）" />
       </StackPanel>
@@ -118,7 +118,6 @@
             Classes="hint-text"
             TextWrapping="Wrap"
             Text="网址收藏 / 网络 Ping / Hosts 方案的清单数据不在本文件里 —— 它们落本模块库 store\web\web.db 的 web_docs 表（bookmarks / ping-targets / hosts-profiles / hosts-sources），由各自页面维护；系统 hosts 的备份在 store\web\hosts-backup\ 下。" />
-        <Border Classes="divider-line" />
         <TextBlock Classes="field-label" Text="设置文件" />
         <TextBlock
             FontFamily="Consolas"

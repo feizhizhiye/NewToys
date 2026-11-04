@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -67,7 +67,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         new()
         {
-            Text = "♻ 恢复",
+            Text = "↩ 恢复",
             Classes = "ghost",
             CommandPath = nameof(RestoreCommand),
             IsEnabledPath = nameof(HasSelection),
@@ -83,7 +83,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
         },
         new()
         {
-            Text = "🗑 永久删除选中",
+            Text = "🗑 永久删除",
             Classes = "danger-btn",
             CommandPath = nameof(PurgeSelectedCommand),
             IsEnabledPath = nameof(HasSelection),
@@ -100,7 +100,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
         // 🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库
         new()
         {
-            Text = "🔄 重读回收站",
+            Text = "🔄 重读",
             CommandPath = nameof(RefreshTrashCommand),
             ToolTip = "重新读取资产库里的回收站状态行（⛔ 不扫盘）"
         },
@@ -407,7 +407,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
         {
             new DetailAction
             {
-                Text = "♻ 恢复",
+                Text = "↩ 恢复",
                 Classes = "primary",
                 ToolTip = "改回「正常」状态（⛔ 只改库里的状态，磁盘文件本来就还在）",
                 IsVisiblePath = nameof(ShowDetailBody),

@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.WebTools.Views.HostsView">
   <!--
@@ -8,7 +8,7 @@
     ③ 底栏：应用与写入按钮
     🔴 左栏改动是内存草稿，「✅ 写入系统 hosts」才落盘（二次确认 + 自动备份）。
   -->
-  <Grid Margin="12" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+  <Grid Margin="8" RowDefinitions="Auto,*,Auto" RowSpacing="10">
 
     <!--  ① 信息条  -->
     <Border Grid.Row="0" Classes="card" Padding="12,8">
@@ -71,7 +71,7 @@
                 <MenuItem Header="⏸ 禁用选中" Command="{Binding DisableSelectedCommand}"/>
                 <Separator/>
                 <MenuItem Header="📦 备份当前" Command="{Binding BackupNowCommand}"/>
-                <MenuItem Header="🧹 清除受管块" Command="{Binding ClearManagedCommand}"/>
+                <MenuItem Header="🧹 清受管块" Command="{Binding ClearManagedCommand}"/>
                 <Separator/>
                 <MenuItem Header="✅ 写入系统 hosts" Command="{Binding WriteCommand}"/>
               </ContextMenu>
@@ -80,7 +80,7 @@
               <DataTemplate>
                 <Grid ColumnDefinitions="26,140,*,132" Height="28">
                   <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Mark}"
-                             Foreground="{DynamicResource AccentBrush}"/>
+                             Foreground="{DynamicResource AccentInkBrush}"/>
                   <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Ip}" FontFamily="Consolas"/>
                   <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Host}" FontFamily="Consolas"/>
                   <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StatusColumnText}"
@@ -160,7 +160,7 @@
                 <MenuItem Header="✅ 启用选中" Command="{Binding EnableSelectedCommand}"/>
                 <MenuItem Header="⏸ 禁用选中" Command="{Binding DisableSelectedCommand}"/>
                 <Separator/>
-                <MenuItem Header="⬅ 应用到左侧" Command="{Binding ApplyToTargetCommand}"/>
+                <MenuItem Header="⬅ 应用" Command="{Binding ApplyToTargetCommand}"/>
                 <MenuItem Header="🔍 检测可用性" Command="{Binding CheckCommand}"/>
                 <Separator/>
                 <MenuItem Header="💾 保存方案" Command="{Binding SaveProfileCommand}"/>
@@ -171,7 +171,7 @@
               <DataTemplate>
                 <Grid ColumnDefinitions="26,140,*,132" Height="28">
                   <TextBlock Grid.Column="0" Classes="list-cell" Text="{Binding Mark}"
-                             Foreground="{DynamicResource AccentBrush}"/>
+                             Foreground="{DynamicResource AccentInkBrush}"/>
                   <TextBlock Grid.Column="1" Classes="list-cell" Text="{Binding Ip}" FontFamily="Consolas"/>
                   <TextBlock Grid.Column="2" Classes="list-cell" Text="{Binding Host}" FontFamily="Consolas"/>
                   <TextBlock Grid.Column="3" Classes="list-cell" Text="{Binding StatusColumnText}"
@@ -191,7 +191,7 @@
     <!--  ③ 底栏：应用 + 写入  -->
     <Border Grid.Row="2" Classes="card" Padding="12,8">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-        <Button Grid.Column="1" Classes="ghost" Content="⬅ 应用到左侧"
+        <Button Grid.Column="1" Classes="ghost" Content="⬅ 应用"
                 Command="{Binding ApplyToTargetCommand}"
                 IsEnabled="{Binding CanApplyToTarget}"
                 ToolTip.Tip="把右栏方案的启用条目写进左栏草稿的受管块（⛔ 先不落盘）"/>

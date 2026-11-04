@@ -1,10 +1,20 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.UI.Controls.ListFooterBar">
+  <UserControl.Styles>
+    <!--  翻页箭头：Path 走 Stroke、不继承 Foreground ⇒ 颜色与粗细必须由样式给（⛔ 不写本地 Stroke，否则压过禁用态）。  -->
+    <Style Selector="Button.footer-nav Path">
+      <Setter Property="Stroke" Value="{DynamicResource SecondaryTextBrush}" />
+      <Setter Property="StrokeThickness" Value="1.6" />
+      <Setter Property="StrokeLineCap" Value="Round" />
+      <Setter Property="StrokeJoin" Value="Round" />
+    </Style>
+  </UserControl.Styles>
   <!--
     NT-063 · 列表页底栏（UI 壳，为 NT-064 分页预留插槽）。
 
-    · 内容物（2026-11-04 精简文案）：N 条 / 已选 M（左）＋ N 页 · « ‹ 1 2 3 4 5（当前页强调色）› » · Go[ ] · 每页[25/50/100/500]
+    · 内容物（2026-11-04 精简文案）：N 条 · N 页（左）＋ 矢量箭头 1 2 3 4 5（当前页强调色）＋ Go[ ]（右）＋ 每页[25/50/100/500]
+    · 「已选 M」⛔ 不在底栏 —— 改由 Shell 底部状态栏承载（选中口径 = 当前页）
     · 🔴 **默认不显示**：由宿主页把本控件的 IsVisible 绑到 VM 的 `HasFooterContent`
       （列表内容高度 > 视口高度 或 有多页时才 true）⇒ 只有列表超出页面底部，底栏才出现
     · 🔴 库内 XAML ⛔ 不许写死色值：一律 DynamicResource 引主题键 / 复用应用级样式类
@@ -39,36 +49,48 @@
           Height="28">
     <Grid ColumnDefinitions="*,Auto,Auto">
 
-      <!--  左：计数（选中数为 0 时「已选 M」整行不占位；空间不足时本列先被压没 ⇒ 优先牺牲计数）  -->
+      <!--  左：计数（条数 · 页数；空间不足时本列先被压没 ⇒ 优先牺牲计数）  -->
       <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
         <TextBlock x:Name="TotalTextBlock" Classes="hint-text" VerticalAlignment="Center" />
-        <TextBlock x:Name="SelectedTextBlock" Classes="hint-text" VerticalAlignment="Center" />
+        <StackPanel x:Name="PageInfoGroup" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <TextBlock Text="·" Classes="hint-text" VerticalAlignment="Center" />
+          <TextBlock x:Name="PageCountText" Classes="hint-text" VerticalAlignment="Center" />
+        </StackPanel>
       </StackPanel>
 
-      <!--  中：分页跳转链 —— 靠右，紧挨「每页」组（单页 / 分页挂起时整组不占位）  -->
+      <!--  中：翻页链 —— 靠右，紧挨「每页」组（单页 / 分页挂起时整组不占位）。
+            箭头一律矢量图标（⛔ 不用 « ‹ › » 字符：字形盒不匀、宽度对不齐），18px 宽 + 图标居中。  -->
       <StackPanel Grid.Column="1" x:Name="PagingGroup" Orientation="Horizontal" Spacing="2"
                   VerticalAlignment="Center">
-        <TextBlock x:Name="PageCountText" Classes="hint-text" VerticalAlignment="Center" Margin="0,0,6,0" />
-        <Button x:Name="FirstButton" Classes="ghost" Width="22" Height="22" Padding="0,0,0,4" FontSize="12"
+        <Button x:Name="FirstButton" Classes="ghost footer-nav" Width="18" Height="22" Padding="0"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                Content="«" ToolTip.Tip="第一页" />
-        <Button x:Name="PrevButton" Classes="ghost" Width="22" Height="22" Padding="0,0,0,4" FontSize="12"
+                ToolTip.Tip="第一页">
+          <Path Width="12" Height="12" Data="{DynamicResource IconChevronsLeft}" Stretch="Uniform" />
+        </Button>
+        <Button x:Name="PrevButton" Classes="ghost footer-nav" Width="18" Height="22" Padding="0"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                Content="‹" ToolTip.Tip="上一页" />
+                ToolTip.Tip="上一页">
+          <Path Width="12" Height="12" Data="{DynamicResource IconChevronLeft}" Stretch="Uniform" />
+        </Button>
         <!--  页码按钮（1 2 3 …，当前页 primary 强调色；按 PageCount 动态构建）  -->
         <StackPanel x:Name="PageButtonsHost" Orientation="Horizontal" Spacing="2"
-                    VerticalAlignment="Center" Margin="2,0,2,1" />
-        <Button x:Name="NextButton" Classes="ghost" Width="22" Height="22" Padding="0,0,0,4" FontSize="12"
+                    VerticalAlignment="Center" Margin="2,0,2,0" />
+        <Button x:Name="NextButton" Classes="ghost footer-nav" Width="18" Height="22" Padding="0"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                Content="›" ToolTip.Tip="下一页" />
-        <Button x:Name="LastButton" Classes="ghost" Width="22" Height="22" Padding="0,0,0,4" FontSize="12"
+                ToolTip.Tip="下一页">
+          <Path Width="12" Height="12" Data="{DynamicResource IconChevronRight}" Stretch="Uniform" />
+        </Button>
+        <Button x:Name="LastButton" Classes="ghost footer-nav" Width="18" Height="22" Padding="0"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                Content="»" ToolTip.Tip="最后一页" />
-        <TextBlock Text="Go" Classes="hint-text" VerticalAlignment="Center" Margin="0,0,4,0" />
-        <TextBox x:Name="JumpBox" Width="32" Height="22" MinWidth="0" MinHeight="0"
+                ToolTip.Tip="最后一页">
+          <Path Width="12" Height="12" Data="{DynamicResource IconChevronsRight}" Stretch="Uniform" />
+        </Button>
+        <TextBox x:Name="JumpBox" Width="34" Height="22" MinWidth="0" MinHeight="0"
+                 Margin="6,0,0,0"
                  Padding="4,1" FontSize="12"
                  VerticalAlignment="Center" VerticalContentAlignment="Center"
                  TextAlignment="Center"
+                 PlaceholderText="Go"
                  Background="{DynamicResource ContentBrush}"
                  BorderBrush="{DynamicResource InputBorderBrush}"
                  BorderThickness="1" CornerRadius="3"

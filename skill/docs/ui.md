@@ -1,5 +1,7 @@
 ﻿# NewToys UI 规范
 
+> v4.31 · 2026-11-04 · **底栏二轮：页码串换矢量图标 + 已选移出** —— 翻页箭头 `« ‹ › »` 字符换成 `Path`（新增 `IconChevronLeft` / `IconChevronsLeft` / `IconChevronsRight` 三个 24 网格描边几何），按钮 22 → **18 宽**、页码按钮 26 → **22**，全部 `Padding=0` + 双向居中（取消原「箭头下内边距 4 / 页码上内边距 3」的光学补偿）；`N 页` 从左列并入 `N 条 · N 页`（原来贴在分页链头上、与条数挤成"1234条12页"）；跳转框改 `PlaceholderText="Go"` + 失焦即清空；**「已选 M」从底栏删除**（待接状态栏）。§6.8 同步。
+
 > v4.30 · 2026-11-04 · **底栏文案精简 + 页根外缘清零补漏** —— `ListFooterBar` 文案收短：`共 N 条 → N 条`、`已选 M（当前页）→ 已选 M`、`共 N 页 → N 页`、`跳转到[ ] 页 → Go[ ]`、`每页[ ] 条 → 每页[ ]`（28px 高 + 与详情列抢宽，省字就是省宽）。补上轮漏扫的 3 个页根 `Margin="8"`（`AssetBrowse` / `CrawlPanel` / `ScriptInfo`；前两个不在文件前 20 行，靠扫描脚本漏掉），`AssetBrowse` 左树改由自己 `Margin="8,8,6,8"` 留白。§2.1 / §6.8 同步。
 
 > v4.29 · 2026-11-04 · **两卡内边距收口（详情卡 8 / 页根 0）** —— 详情列与主显示区已靠底色差分开，卡内不再用留白分段：`DetailCardHost` 内容 `Margin 12,12,4,12 → 8,8,4,8`、节间距与动作区间距 10 → 8、字段缩进 15 → 12（右侧 14+4 滚动条走廊不变）；`Border.detail-card` 内边距 12 → 8；余下 7 个页根 `Margin="8"` 全部归 0（`BackupCalendar` / `BackupMail` / `AssetTasks` / `RuleEditor` / `VideoPreview` / `Hosts` / `WebHttp`），全仓页根统一 0，`RowSpacing 10 → 8`。§2.1 / §6.7 / §13.1 同步。
@@ -366,8 +368,10 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 ### 6.8 底栏 `ListFooterBar`
 
 - **三段 `*,Auto,Auto`** = 左计数 `*` ／ 分页链 ／ 「每页」组；**分页链靠右紧挨「每页」**（⛔ 不做"整条居中"浮层）；左列是 `*` ⇒ 窄空间优先牺牲左计数。
-- 页码按钮 `Padding=(0,3,0,0)`、箭头 `Padding="0,0,0,4"` = **光学居中**（数字无降部偏上 ~2px、箭头偏下 ~2px）。
-- 文案精简（2026-11-04）：`N 条` / `已选 M` / `N 页` / `Go[ ]` / `每页[ ]` —— 底栏只有 28px 高、且常与详情列抢宽，⛔ 不写「共…条」「跳转到…页」这类可省的词。
+- 翻页箭头**一律矢量 `Path`**（`IconChevronLeft` / `IconChevronsLeft` / `IconChevronRight` / `IconChevronsRight`，18px 宽按钮 + 12px 图标），⛔ 不用 `« ‹ › »` 字符（字形盒不匀、宽度对不齐）；描边色由 `Button.footer-nav Path` 样式给。
+- 按钮盒 `Padding=0` + 双向 `Center` ⇒ 图标与页码数字都**几何居中**（⛔ 再用上下 padding 做光学补偿：那套只对字符箭头成立，换成数字后就是"数字偏下"）。页码按钮 `MinWidth=22`。
+- 文案精简（2026-11-04）：左 `N 条 · N 页`、右 `Go[ ]`（水印，失焦即清空）、`每页[ ]` —— 底栏只有 28px 高、且常与详情列抢宽，⛔ 不写「共…条」「跳转到…页」这类可省的词。
+- 🔴 **「已选 M」⛔ 不在底栏**（2026-11-04 用户定调）：底栏只放"总量 / 翻页 / 每页"三件事；选中数进 Shell 底部状态栏（选中口径仍是当前页）。
 - 页大小下拉 `Width=78`（64 会切掉「全部」的「部」字）。
 - 28px 底栏内的 `TextBox` / `ComboBox` 必须显式 `MinWidth=0 MinHeight=0`（隐式样式 `MinHeight=28` 会压掉 `Height=22`，控件撑满整条并把顶边线压断）。
 - 输入框边框用 `InputBorderBrush`（窗口内部唯一保留的描边，见 §12.4）。

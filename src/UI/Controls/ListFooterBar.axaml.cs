@@ -44,8 +44,10 @@ public partial class ListFooterBar : UserControl
                 PageSize = c.Value;
         };
 
-        // 「跳转到」输入框：回车直达（数字不合法就当没输入）
+        // 跳页输入框：回车直达（数字不合法就当没输入）
         JumpBox.AddHandler(KeyDownEvent, OnJumpBoxKeyDown, RoutingStrategies.Tunnel | RoutingStrategies.Bubble);
+        // 失焦即回到水印（「Go」）：本框只做一次性跳转，⛔ 不留残值让下一眼以为还有待提交的页码
+        JumpBox.LostFocus += (_, _) => JumpBox.Text = "";
     }
 
     private void OnJumpBoxKeyDown(object? sender, KeyEventArgs e)
@@ -63,7 +65,7 @@ public partial class ListFooterBar : UserControl
     public static readonly StyledProperty<int> TotalCountProperty =
         AvaloniaProperty.Register<ListFooterBar, int>(nameof(TotalCount));
 
-    /// <summary>当前选中条数（「已选 M」；0 时不显示该行）。</summary>
+    /// <summary>当前选中条数（底栏⛔ 不再渲染「已选 M」，本属性留给状态栏 / 批量命令口径）。</summary>
     public static readonly StyledProperty<int> SelectedCountProperty =
         AvaloniaProperty.Register<ListFooterBar, int>(nameof(SelectedCount));
 
@@ -208,17 +210,16 @@ public partial class ListFooterBar : UserControl
     /// </summary>
     private void Apply()
     {
-        if (TotalTextBlock is null || PagingGroup is null) return;   // XAML 未加载 ⇒ 跳过（⛔ 不 NRE）
+        if (TotalTextBlock is null || PagingGroup is null || PageInfoGroup is null || PageCountText is null)
+            return;   // XAML 未加载 ⇒ 跳过（⛔ 不 NRE）
 
         TotalTextBlock.Text = string.Format(CultureInfo.CurrentCulture, "{0} 条", TotalCount);
 
-        var hasSel = SelectedCount > 0;
-        SelectedTextBlock.IsVisible = hasSel;
-        // 口径不变：分页时选中的只是**当前页**（批量操作只作用于当前页）；括号说明省掉以让出宽度
-        SelectedTextBlock.Text = string.Format(CultureInfo.CurrentCulture, "已选 {0}", SelectedCount);
+        var hasPageInfo = PageCount > 0;
+        PageInfoGroup.IsVisible = hasPageInfo;
+        PageCountText.Text = hasPageInfo ? string.Format(CultureInfo.CurrentCulture, "{0} 页", PageCount) : "";
 
         PagingGroup.IsVisible = HasPaging;
-        PageCountText.Text = PageCount > 0 ? string.Format(CultureInfo.CurrentCulture, "{0} 页", PageCount) : "";
         FirstButton.Command = FirstCommand;
         PrevButton.Command = PrevCommand;
         NextButton.Command = NextCommand;
@@ -323,10 +324,10 @@ public partial class ListFooterBar : UserControl
             {
                 Content = page.ToString(CultureInfo.CurrentCulture),
                 Height = 22,
-                MinWidth = 26,
-                // 版式：左右内边距归零 ⇒ 各页码按钮盒宽一致（1 与 12 同宽）；
-                // 上内边距 3 = **光学居中**（数字无降部，墨迹中心比盒中心高 ~2px；箭头反向偏下 ~2px，改在 axaml 给下内边距 4）。
-                Padding = new Thickness(0, 3, 0, 0),
+                MinWidth = 22,
+                // 版式：内边距归零 + 内容双向居中 ⇒ 数字在盒子里几何居中（⛔ 不再用上下 padding 做光学补偿，
+                // 那一套只管字符箭头，换成数字按钮后就是「数字偏下」）。
+                Padding = new Thickness(0),
                 FontSize = 12,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
                 HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,

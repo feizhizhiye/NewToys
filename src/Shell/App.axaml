@@ -79,6 +79,9 @@
                  （见 backlog/NT-046.md）。两个键留备后续可折叠区块，⛔ 不要因为"没人用"就删（要用直接绑）。  -->
         <StreamGeometry x:Key="IconChevronDown">M6,9 L12,15 L18,9</StreamGeometry>
         <StreamGeometry x:Key="IconChevronRight">M9,18 L15,12 L9,6</StreamGeometry>
+        <StreamGeometry x:Key="IconChevronLeft">M15,18 L9,12 L15,6</StreamGeometry>
+        <StreamGeometry x:Key="IconChevronsLeft">M11,17 L6,12 L11,7 M18,17 L13,12 L18,7</StreamGeometry>
+        <StreamGeometry x:Key="IconChevronsRight">M13,17 L18,12 L13,7 M6,17 L11,12 L6,7</StreamGeometry>
 
         <!--  标题栏：设置搜索（Lucide `search` = 圆 + 斜柄，24 网格描边型；v3.66 / NT-062）。
               用法 = 标题栏右侧一个 `Button.title-btn`，点击弹出输入框、回车跳转并展开命中的设置节。  -->

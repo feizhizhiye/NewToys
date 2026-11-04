@@ -8,7 +8,7 @@
     ③ 底栏：应用与写入按钮
     🔴 左栏改动是内存草稿，「✅ 写入系统 hosts」才落盘（二次确认 + 自动备份）。
   -->
-  <Grid Margin="8" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
 
     <!--  ① 信息条  -->
     <Border Grid.Row="0" Classes="card" Padding="12,8">

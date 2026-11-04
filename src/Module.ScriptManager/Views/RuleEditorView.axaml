@@ -6,7 +6,7 @@
         左 = 五段槽位 + 试跑推荐 ／ 中 = HTML 源码（查找 / 🎯 定位命中）／ 右 = 选中段脚本的表达式检验 + 错误回显
         🔴 工具条走 Shell 统一承载（VM 实现 IToolbarSource）⇒ 页内 ⛔ 不写 Border.toolbar；
         🔴 状态文本走底部状态栏（IStatusProvider）⇒ 页内 ⛔ 不自带状态行。  -->
-  <Grid Margin="8">
+  <Grid>
 
     <Grid ColumnDefinitions="330,Auto,*,Auto,420">
 

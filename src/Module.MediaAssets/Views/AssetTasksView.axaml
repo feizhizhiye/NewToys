@@ -8,7 +8,7 @@
     ⚠️ 本页**不是** ListPageViewModelBase：三块数据来源不同、列也不同，用固定列宽的 ColumnGrid 直渲。
     ⛔ 不实现 IDetailPanelProvider（没有右详情列）。
   -->
-  <Grid RowDefinitions="Auto,*" Margin="8">
+  <Grid RowDefinitions="Auto,*">
 
     <!--  ==================== 工具条  ====================
           NT-055 三轮（需求 §4.8.5）：工具条**已改由 Shell 统一渲染**（页面 VM 的 `Toolbar` 描述符），

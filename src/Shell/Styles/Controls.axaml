@@ -83,14 +83,14 @@
   </Style>
 
   <!--  ⑤ 右侧详情卡（宽度 / 外边距 / 圆角统一；收起时整列不占位）
-       v3.12 密度：内边距 14 → 12。
+       内边距 8：详情列与主显示区已用底色差分开，卡内不再靠留白分段。
        ⚠️ **宽度 300 是全局约定（需求 §4.5），只在这里和 `ShellView` 的 `DetailPanel` 两处各出现一次**；
           滚动条是覆盖式的、需要右侧留位的那两页
           （video-cut / video-batch）在**本页 XAML 里覆盖 Padding**，不要改这里 —— 会波及 12 个列表页。  -->
   <Style Selector="Border.detail-card">
     <Setter Property="Background" Value="{DynamicResource DetailCardBrush}"/>
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}"/>
-    <Setter Property="Padding" Value="12"/>
+    <Setter Property="Padding" Value="8"/>
     <Setter Property="Width" Value="300"/>
     <Setter Property="Margin" Value="8,0,0,0"/>
   </Style>

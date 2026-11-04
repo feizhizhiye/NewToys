@@ -6,7 +6,7 @@
         v3.31 / NT-054：**详情卡已迁到 Shell 的声明式渲染**（`IDetailCardSource` + `DetailCardHost`）⇒
         本页只剩「预览列」一列；卡片的声明在 `VideoPreviewViewModel.BuildCard()` 里，⛔ 不再页内自绘。 -->
 
-  <Grid RowDefinitions="Auto,*" Margin="8">
+  <Grid RowDefinitions="Auto,*">
 
     <!--  ==================== 工具条：**所有**动作按钮都在这里（含详情开关）  ==================== -->
 

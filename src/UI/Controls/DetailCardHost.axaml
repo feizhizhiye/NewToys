@@ -78,7 +78,7 @@
         <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding IsExpanded}">
           <StackPanel
               Grid.Column="1"
-              Margin="15,0,0,0"
+              Margin="10,0,0,0"
               Spacing="8">
             <ItemsControl ItemsSource="{Binding Fields}">
               <ItemsControl.ItemsPanel>
@@ -506,7 +506,7 @@
       Padding="0,0,14,0"
       VerticalScrollBarVisibility="Auto"
       DataContext="{Binding $parent[c:DetailCardHost].Renderer}">
-    <StackPanel Margin="12,12,4,12" Spacing="10">
+    <StackPanel Margin="8,8,4,8" Spacing="8">
       <!--  空态：没选中项时给一句引导（⛔ 不留白）  -->
       <SelectableTextBlock
           Classes="hint-text"
@@ -515,7 +515,7 @@
           TextWrapping="Wrap" />
       <StackPanel
           IsVisible="{Binding ShowBody}"
-          Spacing="10">
+          Spacing="8">
         <ItemsControl ItemsSource="{Binding Sections}" />
         <!--  动作 = **一行按钮组**（WrapPanel）：按钮按选中项状态显隐，宽 300 放不下就自动换行。
               ⛔ 原来是竖向 StackPanel（一个按钮占一行）⇒ 6 个按钮把详情信息顶出可视区。  -->

@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="NewToys.WebTools.Views.WebHttpView">
   <!--  v3.19 / NT-001：HTTP 测试页实装 —— 方法 + URL + 请求头/请求体 → 发送 → 状态码 / 耗时 / 响应头 / 响应体。  -->
-  <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="8">
+  <Grid RowDefinitions="Auto,Auto,Auto,*">
 
     <!--  请求行  -->
     <Border Grid.Row="0" Classes="toolbar">

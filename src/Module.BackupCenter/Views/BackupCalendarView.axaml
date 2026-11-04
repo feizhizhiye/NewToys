@@ -7,7 +7,7 @@
     右列 = 选中那天的待办 / 归档包 / 运行记录。
     ⚠️ 待办只是备忘，⛔ 不触发自动备份。
   -->
-  <Grid Margin="8" RowDefinitions="Auto,*" RowSpacing="10">
+  <Grid RowDefinitions="Auto,*" RowSpacing="8">
 
     <!--  ==================== 顶部：月份导航 + 目录  ====================  -->
     <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">

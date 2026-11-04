@@ -256,7 +256,7 @@
 3.2 🔴 **改父级的候选必须剔除自己与整棵子树**：`Move` 服务层会拦，但候选里留着就会让用户点了没反应；`SubtreeIds` 已带自环保护。
 3.3 🔴 **`MusicTagService` 写标签是同步文件 IO**：文件被播放器 / 杀软占用时 `TagLib.File.Save()` 会抛 ⇒ 必须 `try/catch` 转成状态栏文案，⛔ 让异常冒到 UI。
 3.4 **MusicBrainz 必须带可识别 UA 且限速 ~1 req/s**：一次联网只发一个 GET + 最多两次封面 GET；⛔ 批量循环查询（会被 503）。
-4. 回收站曾缺「删除时间」列（NT-029 已修）；移动 / 复制无 UI 入口（NT-030 已补）。
+4. 回收站曾缺「删除时间」列（NT-029 已修）：`AssetRow.UpdatedAt` + `AssetService.QueryRows` 末尾追加 `a.updated_at`（列索引 14，⛔ 不动 0~13）；移动 / 复制的 UI 入口 NT-030 曾补（现已删，见第 5 条），当时的两条约束仍有效：目标只能是已登记存储源根（`IsInside` 防穿越）+ 详情卡 ComboBox 用 `SelectedValueBinding`（⛔ WPF 专有 `SelectedValuePath` 在 Avalonia 会 AVLN2000）。
 5. 收藏 / 评分 **即时落盘**（⛔ 不走「保存」）；「移动到 / 复制到（目标存储源）」整块已删（低频重操作不进卡）。
 6. 资产详情卡 chips 的 `OptionsPath` 必须是常驻集合实例，否则 ComboBox 回写会抹掉页面值（见 `../ui.md` §7.2）。
 7. `AssetTasksView` **不是标准列表页**（三块堆叠 + `ScrollViewer`）⇒ ⛔ 不套 `ListPageSkeleton`。

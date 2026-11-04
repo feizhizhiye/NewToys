@@ -32,7 +32,7 @@ namespace NewToys.MediaAssets.ViewModels;
 /// 与「全部资产」分工：那边按**元数据**找（搜索 / 标签 / 筛选），这里按**磁盘位置**翻。
 /// </para>
 /// </summary>
-public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
+public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource, ISelectionStatusProvider
 {
     private readonly AssetService _assets = null!;
     private readonly AssetBrowseService _browse = null!;

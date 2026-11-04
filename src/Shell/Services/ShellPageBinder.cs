@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using NewToys.Shared.Services;
 using NewToys.Shell.ViewModels;
 
@@ -24,6 +25,7 @@ internal sealed class ShellPageBinder
     private IHistoryProvider? _history;
     private IStatusProvider? _status;
     private IStatusActionProvider? _action;
+    private ISelectionStatusProvider? _selection;
 
     /// <summary>当前标签就是应用级设置页（复合 VM：切节要重绑契约）。</summary>
     private SettingsViewModel? _settings;
@@ -57,6 +59,8 @@ internal sealed class ShellPageBinder
         _owner.DetailCardSource = null;
         _owner.IsDetailCardActive = false;
         _owner.StatusBarText = "";
+        _owner.SelectionText = "";
+        _owner.HasSelection = false;
         _owner.RefreshStatusAction();
 
         // 应用级设置页是**复合 VM**：它把契约转发给当前节，切节时发 SectionChanged ⇒ 这里重探一遍
@@ -99,6 +103,15 @@ internal sealed class ShellPageBinder
 
         _action = tab?.ViewModel as IStatusActionProvider;
         _owner.RefreshStatusAction();
+
+        // 选中数走**属性变更**而不是专用事件：页面 VM 都派生自 ObservableObject，
+        // 选中变化时本就会 OnPropertyChanged(nameof(SelectedCount))（多选列表页的既有写法）。
+        if (tab?.ViewModel is ISelectionStatusProvider sel)
+        {
+            _selection = sel;
+            sel.PropertyChanged += OnSelectionPropertyChanged;
+            RefreshSelection();
+        }
     }
 
     private void Unbind()
@@ -106,6 +119,7 @@ internal sealed class ShellPageBinder
         if (_detail != null) { _detail.DetailChanged -= OnDetailChanged; _detail = null; }
         if (_history != null) { _history.StatePushed -= OnStatePushed; _history = null; }
         if (_status != null) { _status.StatusChanged -= OnStatusChanged; _status = null; }
+        if (_selection != null) { _selection.PropertyChanged -= OnSelectionPropertyChanged; _selection = null; }
         if (_settings != null) { _settings.SectionChanged -= OnSettingsSectionChanged; _settings = null; }
         _action = null;
     }
@@ -124,6 +138,21 @@ internal sealed class ShellPageBinder
     {
         _owner.StatusBarText = _status?.StatusText ?? "";
         _owner.RefreshStatusAction();   // 状态文本与「可点击目标」同生同灭
+    }
+
+    /// <summary>页面选中数变了 → 刷新状态栏右端的「已选 N」。</summary>
+    private void OnSelectionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.PropertyName)
+            || e.PropertyName == nameof(ISelectionStatusProvider.SelectedCount))
+            RefreshSelection();
+    }
+
+    private void RefreshSelection()
+    {
+        var count = _selection?.SelectedCount ?? 0;
+        _owner.HasSelection = count > 0;
+        _owner.SelectionText = count > 0 ? $"已选 {count}" : "";
     }
 
     private void OnDetailChanged(object? sender, EventArgs e)

@@ -1,5 +1,7 @@
 ﻿# NewToys UI 规范
 
+> v4.32 · 2026-11-04 · **选中数接进状态栏（新契约）** —— 新增 `Shared/Services/ISelectionStatusProvider`（`SelectedCount` + 继承 `INotifyPropertyChanged`，页面 VM 派生自 `ObservableObject` ⇒ 加个接口名即可，不写事件）；`ShellPageBinder` 探测并监听属性变更，`ShellViewModel` 出 `SelectionText` / `HasSelection`，`ShellView` 状态栏改 `Grid *,Auto`（左 = 原有状态文本 / 可点跳转，右 = `已选 N`，0 条不占位）。实现方 = 全部资产 / 资产浏览 / 视频列表 / 批量处理（四个多选列表页）。§6.8 / §10.4 口径同步：底栏管「总量 · 页数」，状态栏管「选中数」。
+
 > v4.31 · 2026-11-04 · **底栏二轮：页码串换矢量图标 + 已选移出** —— 翻页箭头 `« ‹ › »` 字符换成 `Path`（新增 `IconChevronLeft` / `IconChevronsLeft` / `IconChevronsRight` 三个 24 网格描边几何），按钮 22 → **18 宽**、页码按钮 26 → **22**，全部 `Padding=0` + 双向居中（取消原「箭头下内边距 4 / 页码上内边距 3」的光学补偿）；`N 页` 从左列并入 `N 条 · N 页`（原来贴在分页链头上、与条数挤成"1234条12页"）；跳转框改 `PlaceholderText="Go"` + 失焦即清空；**「已选 M」从底栏删除**（待接状态栏）。§6.8 同步。
 
 > v4.30 · 2026-11-04 · **底栏文案精简 + 页根外缘清零补漏** —— `ListFooterBar` 文案收短：`共 N 条 → N 条`、`已选 M（当前页）→ 已选 M`、`共 N 页 → N 页`、`跳转到[ ] 页 → Go[ ]`、`每页[ ] 条 → 每页[ ]`（28px 高 + 与详情列抢宽，省字就是省宽）。补上轮漏扫的 3 个页根 `Margin="8"`（`AssetBrowse` / `CrawlPanel` / `ScriptInfo`；前两个不在文件前 20 行，靠扫描脚本漏掉），`AssetBrowse` 左树改由自己 `Margin="8,8,6,8"` 留白。§2.1 / §6.8 同步。
@@ -400,7 +402,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - `SelectedItem` 只服务**详情卡**（单一侧别）；多选快照单独一份，⛔ 两者混用。
 - 多栏 / 多个列表 **互斥**：一侧开始多选即清空另一侧（详情卡只认一侧）。
 - 右键语义：点在**已选中**行 ⇒ 保持整批（批量命令吃整批）；点在未选中行 ⇒ 改为单选它。
-- 计数写**列表内计数文本**（「共 N 行 · 已选 M」），⛔ 进状态栏（§10.4）。
+- 计数分两处（2026-11-04 定调）：**总量 / 页数**写列表底栏（`N 条 · N 页`），**选中数**写 Shell 状态栏右端（`已选 N`，经 `ISelectionStatusProvider`）；⛔ 两处都写、⛔ 同一串里堆两个计数。
 - 批量动作 **一次** 生效 / 一次确认（§10.2），⛔ 逐行弹窗；批量命令只吃**条目行**，空行 / 注释行自动跳过并给提示。
 
 ### 6.11 筛选栏下拉的展开位置
@@ -638,7 +640,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - `⚠` 前缀 = 出错 / 需要注意（v3.65 / NT-061 起统一）。
 - 执行中：相关命令 `IsEnabledPath = "!" + nameof(IsBusy)` 全禁用，防重入。
 - 按钮为何灰：`ShowToolTipOnDisabled = true` + 写清前置条件的 ToolTip，⛔ 让用户猜。
-- 状态栏 ⛔ 放计数指示（「已勾选 N 个」这类）——勾选状态在行上一眼可见。
+- 状态栏只放**常驻状态**：当前页的业务消息（`StatusText`，左）+ 选中数（`已选 N`，右）；⛔ 放总量 / 页数这类底栏已有的一次性指示。
 
 ### 10.5 两级重载
 

@@ -44,7 +44,7 @@ namespace NewToys.VideoTools.ViewModels;
 /// </para>
 /// <para><b>没有「保存」按钮</b>：这里没有任何"设置项"，全是动作按钮（规范 3.5）。</para>
 /// </summary>
-public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
+public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource, ISelectionStatusProvider
 {
     // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================
 

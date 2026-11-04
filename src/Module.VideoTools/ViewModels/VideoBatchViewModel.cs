@@ -33,7 +33,7 @@ namespace NewToys.VideoTools.ViewModels;
 /// 运行按类型分派：剪辑 → <c>BuildCutArgs</c>，转码 → <c>BuildTranscodeArgs</c>，统一走 <c>RunAsync</c>。
 /// </para>
 /// </summary>
-public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
+public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource, ISelectionStatusProvider
 {
     // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================
 

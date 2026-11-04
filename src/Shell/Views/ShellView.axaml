@@ -559,20 +559,30 @@
                     v3.65 / NT-062：当前页给了 `IStatusActionProvider` 目标时，这一行**可点击跳转**
                     （典型 = 外部程序缺失 `⚠ 未找到 ffmpeg` → 一点跳到「运行环境」节）；⛔ 无目标时仍是纯文本。  -->
               <Border Grid.Row="1" Classes="status-bar">
-                <Panel>
-                  <Button
-                      Classes="status-action"
-                      IsVisible="{Binding HasStatusAction}"
-                      Command="{Binding InvokeStatusActionCommand}"
-                      ToolTip.Tip="{Binding StatusActionTip}">
-                    <TextBlock Classes="status-bar-text" Classes.error="{Binding IsStatusError}" Text="{Binding StatusBarText}" />
-                  </Button>
+                <Grid ColumnDefinitions="*,Auto">
+                  <Panel Grid.Column="0">
+                    <Button
+                        Classes="status-action"
+                        IsVisible="{Binding HasStatusAction}"
+                        Command="{Binding InvokeStatusActionCommand}"
+                        ToolTip.Tip="{Binding StatusActionTip}">
+                      <TextBlock Classes="status-bar-text" Classes.error="{Binding IsStatusError}" Text="{Binding StatusBarText}" />
+                    </Button>
+                    <TextBlock
+                        Classes="status-bar-text"
+                        Classes.error="{Binding IsStatusError}"
+                        IsVisible="{Binding !HasStatusAction}"
+                        Text="{Binding StatusBarText}" />
+                  </Panel>
+                  <!--  右端常驻选中数（`ISelectionStatusProvider`；无选中整段不占位 ⇒ 不挤压左边状态文本）。
+                        与状态文本分开的理由：文本会被业务消息反复覆盖，选中数是常驻状态。  -->
                   <TextBlock
+                      Grid.Column="1"
                       Classes="status-bar-text"
-                      Classes.error="{Binding IsStatusError}"
-                      IsVisible="{Binding !HasStatusAction}"
-                      Text="{Binding StatusBarText}" />
-                </Panel>
+                      Margin="12,0,0,0"
+                      IsVisible="{Binding HasSelection}"
+                      Text="{Binding SelectionText}" />
+                </Grid>
               </Border>
             </Grid>
         </Grid>

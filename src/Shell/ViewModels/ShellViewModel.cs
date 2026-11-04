@@ -123,6 +123,15 @@ public partial class ShellViewModel : ViewModelBase
     /// <summary>状态栏点击提示（tooltip；没有目标时为空）。</summary>
     public string StatusActionTip => _binder.StatusActionTip;
 
+    /// <summary>
+    /// 状态栏右端的「已选 N」：来自当前页的 <see cref="ISelectionStatusProvider"/>；
+    /// 页面没接契约 / 选中为 0 ⇒ <see cref="HasSelection"/> 为 false，整段不占位。
+    /// </summary>
+    [ObservableProperty] private string _selectionText = "";
+
+    /// <summary>状态栏是否显示「已选 N」那一段。</summary>
+    [ObservableProperty] private bool _hasSelection;
+
     /// <summary>重算「状态栏可点击跳转」的两个派生属性（绑定器每次重绑后回调）。</summary>
     internal void RefreshStatusAction()
     {

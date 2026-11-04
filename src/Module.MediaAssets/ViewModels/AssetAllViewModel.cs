@@ -41,7 +41,7 @@ namespace NewToys.MediaAssets.ViewModels;
 /// </list>
 /// </para>
 /// </summary>
-public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
+public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource, ISelectionStatusProvider
 {
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
     private readonly AssetService _assets = null!;

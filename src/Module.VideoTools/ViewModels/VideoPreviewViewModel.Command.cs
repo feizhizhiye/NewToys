@@ -111,7 +111,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     partial void OnTrialFileChanged(string value)
     {
         OnPropertyChanged(nameof(HasTrial));
-        NotifyToolbarChanged();   // 「▶ 播放小样」的显隐跟着小样走
+        NotifyToolbarChanged();   // 「播放小样」的显隐跟着小样走
     }
 
     partial void OnTrialImageChanged(Bitmap? value) => OnPropertyChanged(nameof(HasTrialImage));
@@ -183,7 +183,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
             TrialFile = outFile;
             await LoadTrialFrameAsync(ffmpeg, outFile);
-            StatusText = $"试跑成功（{size / 1024.0:0} KB / {len:0.#} 秒）—— 右栏是小样画面，点「▶ 播放小样」可带声音看。";
+            StatusText = $"试跑成功（{size / 1024.0:0} KB / {len:0.#} 秒）—— 右栏是小样画面，点「播放小样」可带声音看。";
         }
         catch (Exception ex)
         {

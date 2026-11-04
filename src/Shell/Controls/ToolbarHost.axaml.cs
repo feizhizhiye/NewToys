@@ -10,6 +10,9 @@ using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Controls.Shapes;
+using Avalonia.Media;
+using Path = Avalonia.Controls.Shapes.Path;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 
@@ -436,12 +439,14 @@ public partial class ToolbarHost : UserControl
         return toggle;
     }
 
-    /// <summary>按钮 / 标签的内容：静态文案 / 动态文案 / 双文案互斥切换。</summary>
+    /// <summary>按钮 / 标签的内容：图标（可选）+ 静态文案 / 动态文案 / 双文案互斥切换。</summary>
     private Control BuildContent(ToolbarItemDescriptor d, object src)
     {
         // 纯图标按钮靠 GlyphSize 放大字形（按钮高度 / 内边距仍由本宿主统一样式给）。
         // ⚠️ 不写 GlyphSize 时**不设** FontSize：让内容继续继承宿主样式，其它页面零变化。
         var glyph = d.GlyphSize;
+
+        Control body;
 
         if (d.AltText != null && d.AltTextPath != null)
         {
@@ -453,24 +458,77 @@ public partial class ToolbarHost : UserControl
             var panel = new Panel();
             panel.Children.Add(main);
             panel.Children.Add(alt);
-            return panel;
+            body = panel;
         }
-
-        if (d.TextPath != null)
+        else if (d.TextPath != null)
         {
             var tb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
             if (glyph is { } g2) tb.FontSize = g2;
             // 🔴 必须显式给 Source：ToolbarHost ⛔ 没有 DataContext（与 Flyout 同一坑），
-            //    漏了 Source ⇒ 绑定取不到值 ⇒ 按钮渲染成**空白无字**（v3.60 视频列表两按钮丢字就是这个根因）。
+            //    漏了 Source ⇒ 绑定取不到值 ⇒ 按钮渲染成**空白无字**。
             var binding = new Binding(d.TextPath) { Source = src };
             if (d.TextFormat != null) binding.StringFormat = d.TextFormat;
             tb.Bind(TextBlock.TextProperty, binding);
-            return tb;
+            body = tb;
+        }
+        else
+        {
+            var plain = new TextBlock { Text = d.Text ?? "", VerticalAlignment = VerticalAlignment.Center };
+            if (glyph is { } g3) plain.FontSize = g3;
+            body = plain;
         }
 
-        var plain = new TextBlock { Text = d.Text ?? "", VerticalAlignment = VerticalAlignment.Center };
-        if (glyph is { } g3) plain.FontSize = g3;
-        return plain;
+        var icon = BuildIconSlot(d, src, glyph ?? 13);
+        if (icon is null) return body;
+
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 5,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        row.Children.Add(icon);
+        row.Children.Add(body);
+        return row;
+    }
+
+    /// <summary>图标位：有 <c>IconKey</c> 才建；<c>AltText</c> 切换时一对图标互斥显示。</summary>
+    private Control? BuildIconSlot(ToolbarItemDescriptor d, object src, double size)
+    {
+        var primary = CreateGlyph(d.IconKey, size);
+        if (d.AltText == null || d.AltTextPath == null || d.AltIconKey == null) return primary;
+
+        var alt = CreateGlyph(d.AltIconKey, size);
+        if (alt is null) return primary;
+
+        var slot = new Panel();
+        if (primary is not null)
+        {
+            primary.IsVisible = false;
+            Bind(primary, Visual.IsVisibleProperty, src, "!" + d.AltTextPath);
+            slot.Children.Add(primary);
+        }
+        Bind(alt, Visual.IsVisibleProperty, src, d.AltTextPath);
+        slot.Children.Add(alt);
+        return slot;
+    }
+
+    /// <summary>按几何键建一个描边图标；键不存在返回 <c>null</c>（无图标，静默跳过）。</summary>
+    private static Path? CreateGlyph(string? key, double size)
+    {
+        if (key is null) return null;
+        if (Application.Current?.TryFindResource(key, out var value) != true || value is not Geometry geometry) return null;
+
+        var path = new Path
+        {
+            Data = geometry,
+            Width = size,
+            Height = size,
+            Stretch = Stretch.Uniform,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        path.Classes.Add("icon-fg");
+        return path;
     }
 
     private static FlyoutBase BuildFlyout(IReadOnlyList<ToolbarMenuItemDescriptor> items, object src)
@@ -478,7 +536,7 @@ public partial class ToolbarHost : UserControl
         var menu = new MenuFlyout();
         foreach (var mi in items)
         {
-            var item = new MenuItem { Header = mi.Text };
+            var item = new MenuItem { Header = mi.Text, Icon = CreateGlyph(mi.IconKey, 14) };
             if (mi.ToolTip != null) ToolTip.SetTip(item, mi.ToolTip);
             if (mi.ToolTipPath != null)
                 item.Bind(ToolTip.TipProperty, new Binding(mi.ToolTipPath) { Source = src });

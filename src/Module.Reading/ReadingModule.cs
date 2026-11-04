@@ -72,7 +72,7 @@ public class ReadingModule : IModule
         // Order 56 = 查看器（55）之后、备份中心（60）之前；图标 IconReading 定义在 Shell/App.axaml。
         menu.RegisterModule(GroupKey, "网络阅读", "IconReading", 56);
 
-        menu.RegisterFunction<Views.SourceListView>(GroupKey, "reading-sources", "书源", "📚", 1,
+        menu.RegisterFunction<Views.SourceListView>(GroupKey, "reading-sources", "书源", "📖", 1,
             "导入 legado 书源、按名称搜索、启用停用与导出；每条源标注「可用 / 需 WebView / 不完整」");
 
         menu.RegisterFunction<Views.ExploreView>(GroupKey, "reading-explore", "发现", "🧭", 2,

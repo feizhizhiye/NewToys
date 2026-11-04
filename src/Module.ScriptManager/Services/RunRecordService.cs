@@ -12,7 +12,7 @@ using NewToys.ScriptManager.Models;
 namespace NewToys.ScriptManager.Services;
 
 /// <summary>
-/// 运行记录：每次「▶ 跑这段」落一条
+/// 运行记录：每次「跑这段」落一条
 /// <c>runs\&lt;脚本&gt;\&lt;时间戳&gt;_&lt;URL哈希&gt;\</c>（<c>result.json</c> + <c>page.html</c> + <c>diag.txt</c>）。
 /// <para>
 /// 🔴 每脚本只保留最近 <see cref="KeepRuns"/> 条（目录名时间戳前缀 ⇒ 字典序 = 时间序）；

@@ -489,7 +489,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
 
     // ==================== 多选 / 分组管理 ====================
 
-    /// <summary>「☑ 全选当前结果」：选中筛选后列表里的全部行（⛔ 只作用于看得见的那些）。</summary>
+    /// <summary>「全选当前结果」：选中筛选后列表里的全部行（⛔ 只作用于看得见的那些）。</summary>
     [RelayCommand]
     private void SelectAllVisible()
     {
@@ -503,7 +503,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         StatusText = all ? "已取消选择。" : $"已选中 {BatchSelection.Count} 条（当前筛选结果）。";
     }
 
-    /// <summary>「☐ 取消选择」。</summary>
+    /// <summary>「取消选择」。</summary>
     [RelayCommand]
     private void SelectNone()
     {
@@ -555,7 +555,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
     }
 
     /// <summary>
-    /// 「🗑 删除失效」：删掉所有校验失败 / 无结果的源（跨分组，先确认条数）。
+    /// 「删除失效」：删掉所有校验失败 / 无结果的源（跨分组，先确认条数）。
     /// </summary>
     [RelayCommand]
     private async Task DeleteDeadAsync()
@@ -565,7 +565,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         var dead = _all.Where(r => r.Source.IsDead).ToList();
         if (dead.Count == 0)
         {
-            StatusText = "没有失效书源 —— 先点「🔬 校验」跑一次才知道哪些该删。";
+            StatusText = "没有失效书源 —— 先点「🧪 校验」跑一次才知道哪些该删。";
             return;
         }
 
@@ -582,7 +582,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         StatusText = $"已删除 {deleted} 条失效书源";
     }
 
-    /// <summary>「🗑 删除非文本源」：清掉库里遗留的图片 / 音频 / 视频源（新导入的已在导入时跳过）。</summary>
+    /// <summary>「删除非文本源」：清掉库里遗留的图片 / 音频 / 视频源（新导入的已在导入时跳过）。</summary>
     [RelayCommand]
     private async Task DeleteUnsupportedAsync()
     {
@@ -852,7 +852,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         }
     }
 
-    /// <summary>「只看失效」：把校验筛选切到失败（配合「☑ 全选」= 批量删掉）。</summary>
+    /// <summary>「只看失效」：把校验筛选切到失败（配合「全选」= 批量删掉）。</summary>
     [RelayCommand]
     private void FilterFailed()
     {
@@ -864,7 +864,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
 
     private string BuildStatus()
     {
-        if (_all.Count == 0) return "还没有书源 —— 点工具条「📥 导入书源」选一个 legado 书源 JSON。";
+        if (_all.Count == 0) return "还没有书源 —— 点工具条「导入书源」选一个 legado 书源 JSON。";
 
         var ready = _all.Count(r => r.Source.Capability == SourceCapability.Ready);
         var webView = _all.Count(r => r.Source.Capability == SourceCapability.NeedsWebView);
@@ -887,7 +887,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "📥 导入书源",
+            Text = "导入书源", IconKey = "IconImport",
             Classes = "primary",
             CommandPath = "ImportCommand",
             ToolTip = "导入 legado 书源 JSON（顶层数组或 {bookSources:[…]} 都认）",
@@ -904,7 +904,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "✅ 启用",
+            Text = "启用", IconKey = "IconCheckAll",
             CommandPath = "EnableCommand",
             IsEnabledPath = "CanAct",
             ShowToolTipOnDisabled = true,
@@ -913,7 +913,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "⏸ 停用",
+            Text = "停用", IconKey = "IconPause",
             CommandPath = "DisableCommand",
             IsEnabledPath = "CanAct",
             ShowToolTipOnDisabled = true,
@@ -922,7 +922,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "📤 导出",
+            Text = "导出", IconKey = "IconExport",
             CommandPath = "ExportCommand",
             IsEnabledPath = "CanAct",
             ShowToolTipOnDisabled = true,
@@ -931,7 +931,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "✏ 编辑",
+            Text = "编辑", IconKey = "IconEdit",
             CommandPath = "OpenEditorCommand",
             IsEnabledPath = "HasSelection",
             ShowToolTipOnDisabled = true,
@@ -940,7 +940,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "▶ 试跑",
+            Text = "试跑", IconKey = "IconPlay",
             CommandPath = "OpenDebugCommand",
             IsEnabledPath = "HasSelection",
             ShowToolTipOnDisabled = true,
@@ -949,14 +949,14 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "🔬 校验",
+            Text = "🧪 校验",
             CommandPath = "OpenCheckCommand",
             ToolTip = "给一批书源各跑一次搜索，结论写进「校验」列；跑完可一键删失效源",
         },
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "🗑 删除",
+            Text = "删除", IconKey = "IconTrash",
             Classes = "danger-btn",
             CommandPath = "DeleteCommand",
             IsEnabledPath = "CanAct",
@@ -1024,7 +1024,7 @@ public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelPr
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在左侧选中一条书源，或点工具条「📥 导入书源」。导入后每条源会标出「可用 / 需 WebView / 不完整」。",
+        EmptyText = "在左侧选中一条书源，或点工具条「导入书源」。导入后每条源会标出「可用 / 需 WebView / 不完整」。",
         Sections =
         {
             new DetailSection

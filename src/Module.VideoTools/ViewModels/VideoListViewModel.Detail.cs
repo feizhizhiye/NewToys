@@ -71,7 +71,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
                 {
                     new DetailField
                     {
-                        Label = "文件名（可改 · 失焦即提交；也可用下方「✏ 应用新文件名」）",
+                        Label = "文件名（可改 · 失焦即提交；也可用下方「应用新文件名」）",
                         ValuePath = nameof(EditName),
                         Kind = FieldKind.Text,
                         Commit = EditCommitMode.OnBlur
@@ -149,7 +149,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
             //（回车 / 失焦自动提交仍保留，见 OnEditNameChanged）。
             new DetailAction
             {
-                Text = "✏ 应用名称",
+                Text = "应用名称", IconKey = "IconEdit",
                 Classes = "ghost",
                 ToolTip = "把「文件名」框里的内容提交到磁盘（回车场景：失焦已自动提交，这里手动补一次）",
                 Command = SaveNameCommand

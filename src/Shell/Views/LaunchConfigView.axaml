@@ -1,5 +1,6 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Shell.Views.LaunchConfigView">
   <!--  🔴 本页是设置页的一个节内容，**不许再套内层 ScrollViewer**（会吃掉滚轮，整页滚不动）。
         字段一律「标签 + 输入框」同行（Grid Auto/*），纵排会在大屏上拉出很长的空行。  -->
@@ -10,9 +11,9 @@
 
     <!--  操作行：保存 = 唯一落盘入口；还原默认只预填输入框。与内容同列左对齐（右对齐会飘到全屏边缘）。  -->
     <StackPanel Orientation="Horizontal" Spacing="8">
-      <Button Classes="primary" Content="💾 保存" Command="{Binding SaveCommand}" Padding="12,6"
+      <Button Classes="primary" Content="{m:GlyphText IconSave, '保存'}" Command="{Binding SaveCommand}" Padding="12,6"
               ToolTip.Tip="改动只在本页暂存，点保存才落盘"/>
-      <Button Classes="ghost" Content="↺ 还原" Command="{Binding RestoreDefaultsCommand}" Padding="10,5"
+      <Button Classes="ghost" Content="{m:GlyphText IconReset, '还原'}" Command="{Binding RestoreDefaultsCommand}" Padding="10,5"
               ToolTip.Tip="仅把默认示例填进输入框，点保存才生效"/>
     </StackPanel>
 

@@ -151,7 +151,7 @@ public partial class VideoListView : UserControl
         }
     }
 
-    /// <summary>Ctrl+A：交给 VM 的全选命令（与右键「☑ 全选」同一入口）。</summary>
+    /// <summary>Ctrl+A：交给 VM 的全选命令（与右键「全选」同一入口）。</summary>
     private void OnListKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.A || !e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;

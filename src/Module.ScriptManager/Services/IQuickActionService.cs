@@ -78,7 +78,7 @@ public interface IQuickActionService
     /// <returns>(新增, 更新, 跳过/无效)；<c>Skipped=-1</c> 表示 json 解析失败。</returns>
     (int Added, int Updated, int Skipped) ImportPage(string page, string json, bool replace);
 
-    /// <summary>清空某页**全部条目**并落盘（v3.19「🧹 清空本页」= 真删除，）。</summary>
+    /// <summary>清空某页**全部条目**并落盘（v3.19「清空本页」= 真删除，）。</summary>
     void ClearPage(string page);
 
     /// <summary>
@@ -100,7 +100,7 @@ public interface IQuickActionService
 
     /// <summary>
     /// <b>手动扫描</b>（§三.6）：把目录里的脚本列成候选（三态：新文件 / 已入库 / 不可采集）。
-    /// <para>⛔ 只列不建 —— 入库动作由界面的「➕ 加入库」触发（用户拍板「用户自己扫描」）。</para>
+    /// <para>⛔ 只列不建 —— 入库动作由界面的「加入库」触发（用户拍板「用户自己扫描」）。</para>
     /// </summary>
     IReadOnlyList<ScriptCandidate> Scan(string directory, bool includeSubFolders);
 }

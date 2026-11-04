@@ -42,7 +42,7 @@ public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableO
 
     /// <summary>
     /// 是否收藏（库列 <c>assets.is_favorite</c>，由 <c>AssetDatabase</c> 的 <c>EnsureColumn</c> 补）。
-    /// 详情卡图标组的「★ 收藏」按钮直接改它（⛔ 不走保存：即时生效即落盘）。
+    /// 详情卡图标组的「收藏」按钮直接改它（⛔ 不走保存：即时生效即落盘）。
     /// </summary>
     public bool IsFavorite { get; set; }
 

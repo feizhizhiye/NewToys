@@ -235,7 +235,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         }
         else if (Sections.Count == 0)
         {
-            EmptyMessage = "这个集合还没有采集器。到「集合」页勾选条目，或在脚本库「🔍 扫描目录」入库。";
+            EmptyMessage = "这个集合还没有采集器。到「集合」页勾选条目，或在脚本库「扫描目录」入库。";
             EmptyActionText = "🗂 去添加";
         }
         else

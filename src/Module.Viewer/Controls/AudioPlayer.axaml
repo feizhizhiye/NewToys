@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:NewToys.Viewer.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Viewer.Controls.AudioPlayer">
   <!--
     本地音乐播放器（查看器内）：居中歌词 + 封面 + 悬浮曲目条；播放列表是右侧悬浮层（默认收起），音色是底部音色键弹出的菜单。
@@ -121,8 +122,7 @@
                     VerticalContentAlignment="Center"
                     AutomationProperties.Name="收起播放列表"
                     Click="OnClosePlaylist"
-                    Content="✕"
-                    ToolTip.Tip="收起播放列表" />
+                    Content="{m:GlyphText IconClose}" ToolTip.Tip="收起播放列表" />
           </Grid>
 
           <ScrollViewer Grid.Row="1" Padding="0,0,0,6">

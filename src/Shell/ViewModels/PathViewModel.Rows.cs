@@ -31,7 +31,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         if (_cfg == null) return;
 
         // 下面两者是**跨模块共用的全局项** ⇒ 保持应用级、⛔ 不下沉。
-        //   ffmpeg：媒体资产（缩略图抽帧）与视频工具都用同一份；外部播放器：视频列表「▶ 播放」用。
+        //   ffmpeg：媒体资产（缩略图抽帧）与视频工具都用同一份；外部播放器：视频列表「播放」用。
         Items.Add(new PathSettingItem
         {
             Key = "FfmpegPath", Name = "ffmpeg 路径", Kind = PathItemKind.File, DefaultValue = "ffmpeg",
@@ -41,7 +41,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         Items.Add(new PathSettingItem
         {
             Key = "PlayerPath", Name = "外部播放器路径", Kind = PathItemKind.File,
-            Description = "视频「▶ 播放」用它打开；留空 = 系统默认关联程序",
+            Description = "视频「播放」用它打开；留空 = 系统默认关联程序",
             Value = _cfg.PlayerPath
         });
         // 三个解释器路径**回迁应用级**（判据 = 语义：「怎么跑外部程序」= 运行环境 ⇒ 应用级路由，

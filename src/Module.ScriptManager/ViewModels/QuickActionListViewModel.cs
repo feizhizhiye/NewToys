@@ -37,7 +37,7 @@ public class ActionKindOption
 /// <summary>
 /// 「脚本管理器」里两个<b>同类列表页</b>（「脚本库」与「命令库」）共用的 ViewModel。
 /// <para>
-/// 两页的布局 / 交互<b>完全一致</b>（规范 3.6）：左「可排序表头 + 列表 + 行内「▶ 运行」」，右「选中项属性卡」，
+/// 两页的布局 / 交互<b>完全一致</b>（规范 3.6）：左「可排序表头 + 列表 + 行内「运行」」，右「选中项属性卡」，
 /// 列表上挂右键菜单（运行 / 收藏 / 复制命令 / 删除）。差别只有三点，由派生类给出：
 /// ① <see cref="PageKind"/>：本页显示哪一批条目（**每页一份清单文件**，见 <c>FilePath</c>）；
 /// ② <see cref="ColumnLayoutKey"/>：列显隐偏好落 <c>config\columnlayout.json</c> 时用的页键；
@@ -145,7 +145,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         new("Action", "操作", "1.5*", sortable: false),
     };
 
-    // ==================== 属性卡的编辑缓冲（多字段文本表单 → 显式「💾 保存」，规范 3.5） ====================
+    // ==================== 属性卡的编辑缓冲（多字段文本表单 → 显式「保存」，规范 3.5） ====================
 
     [ObservableProperty] private string _editTitle = "";
     [ObservableProperty] private string _editCategory = "";

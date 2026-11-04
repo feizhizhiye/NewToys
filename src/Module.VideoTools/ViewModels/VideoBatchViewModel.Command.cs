@@ -111,7 +111,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         IsCutSectionExpanded = EditIsCut;
         IsTranscodeSectionExpanded = EditIsTranscode;
         RefreshCommand();
-        StatusText = $"「{fresh.Name}」已改为「{kind}」任务 —— 参数回到该类型的默认值，改完点「💾 保存修改」。";
+        StatusText = $"「{fresh.Name}」已改为「{kind}」任务 —— 参数回到该类型的默认值，改完点「保存修改」。";
     }
 
     // ==================== 详情卡折叠态（与「视频预览」页同名同义，两页可照抄同一段 XAML） ====================
@@ -370,7 +370,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     /// <summary>
     /// 💾 保存命令：只把「⌨ ffmpeg 参数」框里的内容写回选中任务的 <c>RawArgs</c>（⛔ 不动其它编辑缓冲）。
-    /// <para>与工具条「💾 保存修改」的分工：那个是全量提交（顺手把命令一起写回），这个是改完参数串就地落一次。</para>
+    /// <para>与工具条「保存修改」的分工：那个是全量提交（顺手把命令一起写回），这个是改完参数串就地落一次。</para>
     /// </summary>
     [RelayCommand]
     private void SaveCommandLine()

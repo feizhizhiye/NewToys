@@ -253,7 +253,7 @@ public partial class BackupMailViewModel : ObservableObject
             var (files, error) = await _imap.DownloadAttachmentAsync(mail.Mailbox, mail.Uid, attachment.FileName, target, cts.Token)
                 .ConfigureAwait(true);
             if (files.Count == 0) { StatusText = "⚠ " + (string.IsNullOrEmpty(error) ? "没下到附件。" : error); return; }
-            StatusText = "✅ 已保存：" + files[0];
+            StatusText = "已保存：" + files[0];
         }
         catch (Exception ex) { StatusText = "⚠ 下载失败：" + ex.Message; }
         finally { IsBusy = false; BusyPhase = ""; }
@@ -373,7 +373,7 @@ public partial class BackupMailViewModel : ObservableObject
     {
         var gate = _imap.CanReceive();
         HintText = gate.Ok
-            ? "选一封邮件看详情；带「备份」标记的可以直接「📥 下载并还原」。（读信/下载都不会把邮件标成已读）"
+            ? "选一封邮件看详情；带「备份」标记的可以直接「下载并还原」。（读信/下载都不会把邮件标成已读）"
             : "🔒 " + gate.Reason;
     }
 }

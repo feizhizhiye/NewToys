@@ -3,7 +3,7 @@ namespace NewToys.Shared.Services;
 /// <summary>
 /// 模块热加载契约（方案 A 2026-10-15 用户拍板）。
 /// <para>
-/// 背景：「🔄 重载模块」原在标题栏（第三个按钮），用户判定非常用 ⇒ 移入**功能清单页**「增加功能」操作区。
+/// 背景：「重载模块」原在标题栏（第三个按钮），用户判定非常用 ⇒ 移入**功能清单页**「增加功能」操作区。
 /// 设置页 VM 与 <c>BuildTree()</c>（Shell 私有）之间不宜直接耦合
 /// ⇒「Shared/Core 服务做事 + 事件通知 Shell 收尾」是唯一干净解（事件模式先例：<see cref="INavigationService.Navigated"/>）。
 /// </para>

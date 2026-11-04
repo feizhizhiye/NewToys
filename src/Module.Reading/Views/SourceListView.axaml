@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Reading.Views.SourceListView">
   <!--
     网络阅读 → 书源（`reading-sources`）：分段筛选条 + 书源清单（多选）+ 声明式工具条 + 详情卡。
@@ -9,7 +10,7 @@
     🔴 多选的真相在 VM 的 BatchSelection（绑 TableView.SelectedItems）；⛔ 别在 code-behind 里另存一份。
   -->
   <Grid>
-    <v:ListPageSkeleton EmptyMessage="还没有书源 —— 点工具条「📥 导入书源」选一个 legado 书源 JSON。"
+    <v:ListPageSkeleton EmptyMessage="还没有书源 —— 点工具条「导入书源」选一个 legado 书源 JSON。"
                         IsEmpty="{Binding !HasItems}">
 
       <v:ListPageSkeleton.TopArea>
@@ -73,23 +74,23 @@
 
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="☑ 全选当前结果" Command="{Binding SelectAllVisibleCommand}"/>
-              <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
-              <MenuItem Header="⇄ 反选" Command="{Binding InvertSelectionCommand}"/>
+              <MenuItem Header="全选当前结果" Icon="{m:Glyph IconCheckAll}" Command="{Binding SelectAllVisibleCommand}"/>
+              <MenuItem Header="取消选择" Icon="{m:Glyph IconUncheckAll}" Command="{Binding SelectNoneCommand}"/>
+              <MenuItem Header="反选" Icon="{m:Glyph IconInvert}" Command="{Binding InvertSelectionCommand}"/>
               <Separator/>
-              <MenuItem Header="📂 改分组…" Command="{Binding ChangeGroupCommand}" IsEnabled="{Binding CanAct}"
+              <MenuItem Header="改分组…" Icon="{m:Glyph IconOpen}" Command="{Binding ChangeGroupCommand}" IsEnabled="{Binding CanAct}"
                         ToolTip.Tip="把选中书源改成同一个分组（留空 = 未分组）；分组改名 / 归并都走这条"/>
-              <MenuItem Header="🔬 校验书源…" Command="{Binding OpenCheckCommand}"/>
-              <MenuItem Header="🗑 删除全部失效" Command="{Binding DeleteDeadCommand}"/>
-              <MenuItem Header="🗑 删除非文本源" Command="{Binding DeleteUnsupportedCommand}"
+              <MenuItem Header="🧪 校验书源…" Command="{Binding OpenCheckCommand}"/>
+              <MenuItem Header="删除全部失效" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteDeadCommand}"/>
+              <MenuItem Header="删除非文本源" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteUnsupportedCommand}"
                         ToolTip.Tip="清掉库里遗留的图片 / 音频 / 视频源（本软件只支持文本源）"/>
               <Separator/>
-              <MenuItem Header="🔍 用这个源搜索" Command="{Binding OpenSearchCommand}" IsEnabled="{Binding HasSelection}"/>
-              <MenuItem Header="✅ 启用" Command="{Binding EnableCommand}" IsEnabled="{Binding CanAct}"/>
-              <MenuItem Header="⏸ 停用" Command="{Binding DisableCommand}" IsEnabled="{Binding CanAct}"/>
-              <MenuItem Header="📤 导出" Command="{Binding ExportCommand}" IsEnabled="{Binding CanAct}"/>
+              <MenuItem Header="用这个源搜索" Icon="{m:Glyph IconSearch}" Command="{Binding OpenSearchCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="启用" Icon="{m:Glyph IconCheckAll}" Command="{Binding EnableCommand}" IsEnabled="{Binding CanAct}"/>
+              <MenuItem Header="停用" Icon="{m:Glyph IconPause}" Command="{Binding DisableCommand}" IsEnabled="{Binding CanAct}"/>
+              <MenuItem Header="导出" Icon="{m:Glyph IconExport}" Command="{Binding ExportCommand}" IsEnabled="{Binding CanAct}"/>
               <Separator/>
-              <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanAct}"/>
+              <MenuItem Header="删除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanAct}"/>
             </ContextMenu>
           </v:TableViewHost.ContextMenu>
         </v:TableViewHost>
@@ -117,7 +118,7 @@
             <TextBlock Classes="hint-text" Text="{Binding EditorStatus}" TextWrapping="Wrap"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
               <Button Classes="ghost" Content="关闭" Command="{Binding CloseEditorCommand}"/>
-              <Button Classes="primary" Content="💾 保存" Command="{Binding SaveEditorCommand}"
+              <Button Classes="primary" Content="{m:GlyphText IconSave, '保存'}" Command="{Binding SaveEditorCommand}"
                       ToolTip.Tip="校验通过才写库"/>
             </StackPanel>
           </StackPanel>
@@ -153,8 +154,7 @@
           <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,10">
             <Button DockPanel.Dock="Right"
                     Classes="primary"
-                    Content="▶ 试跑"
-                    Margin="8,0,0,0"
+                    Content="{m:GlyphText IconPlay, '试跑'}" Margin="8,0,0,0"
                     Command="{Binding RunDebugCommand}"/>
             <TextBox Text="{Binding DebugKeyword, Mode=TwoWay}"
                      PlaceholderText="输一个书名或作者，回车即试跑"
@@ -224,7 +224,7 @@
           <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,10">
             <Button DockPanel.Dock="Right"
                     Classes="primary"
-                    Content="🔬 校验"
+                    Content="🧪 校验"
                     Margin="8,0,0,0"
                     IsEnabled="{Binding !IsChecking}"
                     Command="{Binding RunCheckCommand}"/>
@@ -251,7 +251,7 @@
                          VerticalAlignment="Center"/>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                 <Button Classes="ghost" Content="只看失效" Command="{Binding FilterFailedCommand}"/>
-                <Button Classes="danger-btn" Content="🗑 删失效" Command="{Binding DeleteDeadCommand}"/>
+                <Button Classes="danger-btn" Content="{m:GlyphText IconTrash, '删失效'}" Command="{Binding DeleteDeadCommand}"/>
                 <Button Classes="ghost" Content="关闭" Command="{Binding CloseCheckCommand}"/>
               </StackPanel>
             </Grid>

@@ -194,7 +194,7 @@ public partial class BackupArchivesViewModel : ListPageViewModelBase, IDetailPan
     private async Task CopyShaAsync()
     {
         var rec = Selected;
-        if (rec is null || string.IsNullOrEmpty(rec.Sha256)) { StatusText = "这个包还没有 SHA256（点「🔄 重新扫描」补算）。"; return; }
+        if (rec is null || string.IsNullOrEmpty(rec.Sha256)) { StatusText = "这个包还没有 SHA256（点「重新扫描」补算）。"; return; }
         var win = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
         if (win?.Clipboard is null) { StatusText = "剪贴板不可用。"; return; }
         try
@@ -374,7 +374,7 @@ public partial class BackupArchivesViewModel : ListPageViewModelBase, IDetailPan
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在左侧选中一个包查看明细；「↩ 还原」会解到临时目录校验条目名后再搬到目标目录。",
+        EmptyText = "在左侧选中一个包查看明细；「还原」会解到临时目录校验条目名后再搬到目标目录。",
         Sections =
         {
             new DetailSection
@@ -407,28 +407,28 @@ public partial class BackupArchivesViewModel : ListPageViewModelBase, IDetailPan
     {
         new()
         {
-            Text = "🔄 重扫", Classes = "ghost",
+            Text = "重扫", IconKey = "IconRefresh", Classes = "ghost",
             CommandPath = nameof(RefreshCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = "按包目录对账清单：补新包（算 SHA256）、剔掉已删除的记录"
         },
         new()
         {
-            Text = "↩ 还原", Classes = "primary",
+            Text = "还原", IconKey = "IconReset", Classes = "primary",
             CommandPath = nameof(BeginRestoreCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "把选中的包还原到指定目录（同名冲突按你选的策略处理）"
         },
         new()
         {
-            Text = "🗑 删除包", Classes = "danger-btn",
+            Text = "删除包", IconKey = "IconTrash", Classes = "danger-btn",
             CommandPath = nameof(DeleteArchiveCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "直接从磁盘删掉这个包（不可恢复）"
         },
         new()
         {
-            Text = "📋 复制哈希", Classes = "ghost",
+            Text = "复制哈希", IconKey = "IconCopy", Classes = "ghost",
             CommandPath = nameof(CopyShaCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "复制整包校验值"
@@ -443,7 +443,7 @@ public partial class BackupArchivesViewModel : ListPageViewModelBase, IDetailPan
         },
         new()
         {
-            Text = "📂 包目录", Classes = "ghost",
+            Text = "包目录", IconKey = "IconOpen", Classes = "ghost",
             CommandPath = nameof(OpenArchiveDirCommand),
             ToolTip = "打开归档包所在目录"
         },

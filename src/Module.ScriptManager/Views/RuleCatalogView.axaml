@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.ScriptManager.Views.RuleCatalogView">
   <!--
     「抓取规则」的规则目录页（页 Key 仍为 web-scrape）：本页只管目录（.py 文件），
@@ -8,7 +9,7 @@
     列表本体 = <v:TableViewHost>：列显隐 / 排序键按 VM 的 ColumnLayout 对齐（🔴 声明顺序必须一致），
     故骨架的 HeaderArea 不填。
   -->
-  <v:ListPageSkeleton EmptyMessage="还没有规则集。点「➕ 新建规则集」建一个。"
+  <v:ListPageSkeleton EmptyMessage="还没有规则集。点「新建规则集」建一个。"
                       EmptyActionText="＋ 新建规则集"
                       EmptyActionCommand="{Binding NewRuleSetCommand}"
                       IsEmpty="{Binding !HasItems}">
@@ -36,17 +37,17 @@
 
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="✏ 编辑规则" Command="{Binding EditRuleSetCommand}"/>
-            <MenuItem Header="✓ 切换启用" Command="{Binding ToggleEnabledCommand}"/>
+            <MenuItem Header="编辑规则" Icon="{m:Glyph IconEdit}" Command="{Binding EditRuleSetCommand}"/>
+            <MenuItem Header="切换启用" Icon="{m:Glyph IconCheckAll}" Command="{Binding ToggleEnabledCommand}"/>
             <Separator/>
-            <MenuItem Header="📝 打开文件" Command="{Binding OpenFileCommand}"/>
-            <MenuItem Header="📂 打开目录" Command="{Binding OpenFolderCommand}"/>
+            <MenuItem Header="打开文件" Icon="{m:Glyph IconEdit}" Command="{Binding OpenFileCommand}"/>
+            <MenuItem Header="打开目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFolderCommand}"/>
             <Separator/>
-            <MenuItem Header="📂 运行记录" Command="{Binding OpenRunsFolderCommand}"/>
-            <MenuItem Header="📤 导出 CSV" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding HasRun}"/>
-            <MenuItem Header="📤 导出 JSON" Command="{Binding ExportJsonCommand}" IsEnabled="{Binding HasRun}"/>
+            <MenuItem Header="运行记录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenRunsFolderCommand}"/>
+            <MenuItem Header="导出 CSV" Icon="{m:Glyph IconExport}" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding HasRun}"/>
+            <MenuItem Header="导出 JSON" Icon="{m:Glyph IconExport}" Command="{Binding ExportJsonCommand}" IsEnabled="{Binding HasRun}"/>
             <Separator/>
-            <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}"/>
+            <MenuItem Header="删除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCommand}"/>
           </ContextMenu>
         </v:TableViewHost.ContextMenu>
       </v:TableViewHost>

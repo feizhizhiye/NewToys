@@ -106,26 +106,26 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         {
             new DetailAction
             {
-                Text = "💾 保存参数",
+                Text = "保存参数", IconKey = "IconSave",
                 Classes = "primary",
                 ToolTip = "把上面的采集参数与本视图的列宽写进 script.json",
                 Command = SaveSectionSettingsCommand
             },
             new DetailAction
             {
-                Text = "⬆ 上移", Classes = "ghost",
+                Text = "上移", IconKey = "IconArrowUp", Classes = "ghost",
                 ToolTip = "在当前视图里把这一节往前挪",
                 Command = MoveSectionUpCommand
             },
             new DetailAction
             {
-                Text = "⬇ 下移", Classes = "ghost",
+                Text = "下移", IconKey = "IconArrowDown", Classes = "ghost",
                 ToolTip = "在当前视图里把这一节往后挪",
                 Command = MoveSectionDownCommand
             },
             new DetailAction
             {
-                Text = "📂 脚本目录", Classes = "ghost",
+                Text = "脚本目录", IconKey = "IconOpen", Classes = "ghost",
                 ToolTip = "打开脚本目录",
                 Command = OpenScriptDirCommand
             }

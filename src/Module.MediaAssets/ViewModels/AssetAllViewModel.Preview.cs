@@ -49,7 +49,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             // ⛔ 不带 ConfigureAwait(false)：LoadDraft 要改列表集合，必须在 UI 线程上做
             var rows = await _scan.PreviewAsync(dir, Recursive, progress, CancellationToken.None);
             LoadDraft(rows);
-            StatusText = $"预览到 {TotalCount} 个：点「💾 加入库」保存，或「🧹 清除列表」换文件夹重扫。";
+            StatusText = $"预览到 {TotalCount} 个：点「加入库」保存，或「清除列表」换文件夹重扫。";
         }
         catch (Exception ex) { StatusText = "预览失败：" + ex.Message; }
         finally { IsBusy = false; }
@@ -84,7 +84,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             catch { /* 单个文件读不了 → 跳过 */ }
         }
         LoadDraft(rows);
-        StatusText = $"预览到 {TotalCount} 个文件：点「💾 加入库」保存，或「🧹 清除列表」放弃。";
+        StatusText = $"预览到 {TotalCount} 个文件：点「加入库」保存，或「清除列表」放弃。";
         return Task.CompletedTask;
     }
 
@@ -132,11 +132,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             return;
         }
 
-        // 库视图 = 只清**当前显示**（数据仍在库里，「🔄 重读资产库」即找回）—— 对齐视频列表的同名按钮（§6.4.11）
+        // 库视图 = 只清**当前显示**（数据仍在库里，「重读资产库」即找回）—— 对齐视频列表的同名按钮（§6.4.11）
         Items.Clear();
         Selected = null;
         OnPropertyChanged(nameof(HasItems));
-        StatusText = "已清空列表显示（数据仍在库里，点「🔄 重读」找回）。";
+        StatusText = "已清空列表显示（数据仍在库里，点「重读」找回）。";
     }
 
     /// <summary>库文件全路径（右键「🗄 打开库文件」的 ToolTip 用）。</summary>

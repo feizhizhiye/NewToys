@@ -96,7 +96,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 「📂 打开库所在文件夹」：在资源管理器打开 db 所在目录（**路径形式**，⛔ 不指向具体文件）。
+    /// 「打开库所在文件夹」：在资源管理器打开 db 所在目录（**路径形式**，⛔ 不指向具体文件）。
     /// 🔴 2026-10-16 用户定稿：原「🔎 打开当前库文件」用系统默认程序直接开 .db ——
     /// 没装 DB Browser 之类的工具必然报「打不开」；改成开所在目录，用户在里面手动选。
     /// </summary>
@@ -147,7 +147,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (!PendingFolders.Contains(dir)) PendingFolders.Add(dir);
 
         OnPropertyChanged(nameof(HasPendingFolders));
-        StatusText = $"已登记「{name}」（共 {PendingFolders.Count} 个待扫）——继续添加，然后点「🔄 扫描全部」。";
+        StatusText = $"已登记「{name}」（共 {PendingFolders.Count} 个待扫）——继续添加，然后点「扫描全部」。";
     }
 
 }

@@ -127,7 +127,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
         Selected = null;
         RebuildQuickFilters();
         ApplyView();
-        StatusText = $"已清除列表（{n} 个条目）；视频文件没动 —— 点「📂 导入」重新载入。";
+        StatusText = $"已清除列表（{n} 个条目）；视频文件没动 —— 点「导入」重新载入。";
     }
 
 }

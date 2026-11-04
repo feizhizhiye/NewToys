@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.MediaAssets.Views.AssetTagsView">
   <!--
     「标签管理」页：表格（名称 / 命名空间 / 颜色 / 使用数 / 创建时间）+ 详情卡（由 **Shell** 承载）。
@@ -11,7 +12,7 @@
        ⇒ 列显隐 / 表头文案 / 排序键由控件按 VM 的 ColumnLayout 自动对齐，XAML ⛔ 不再写 IsXxxVisible 绑定。
        🔴 Columns 的声明顺序必须与 VM 的 ColumnLayout 一致。
   -->
-  <v:ListPageSkeleton EmptyMessage="没有可显示的标签。点「➕ 新建标签」建第一个。"
+  <v:ListPageSkeleton EmptyMessage="没有可显示的标签。点「新建标签」建第一个。"
                       EmptyActionText="＋ 新建标签"
                       EmptyActionCommand="{Binding NewTagCommand}"
                       IsEmpty="{Binding !HasItems}">
@@ -67,7 +68,7 @@
           <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；菜单顶部「▤ 列」「🔎 筛选」由页面给，DataContext 由控件同步  -->
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
+              <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
                 <MenuItem.ItemContainerTheme>
                   <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                     <Setter Property="Header" Value="{Binding Label}"/>
@@ -76,11 +77,11 @@
                 </MenuItem.ItemContainerTheme>
               </MenuItem>
               <Separator/>
-              <MenuItem Header="✏ 重命名…" Command="{Binding RenameTagCommand}"/>
+              <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameTagCommand}"/>
               <MenuItem Header="🎨 改颜色…" Command="{Binding ChangeColorCommand}" ToolTip.Tip="输入 #RRGGBB；也可以在详情卡点色板"/>
               <MenuItem Header="🔗 合并到…" Command="{Binding MergeTagCommand}" ToolTip.Tip="把当前标签的资产转给另一个标签，然后删掉自己"/>
               <Separator/>
-              <MenuItem Header="🗑 删除标签" Command="{Binding DeleteTagCommand}"/>
+              <MenuItem Header="删除标签" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteTagCommand}"/>
             </ContextMenu>
           </v:TableViewHost.ContextMenu>
         </v:TableViewHost>

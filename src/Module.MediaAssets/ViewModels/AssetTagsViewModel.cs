@@ -47,7 +47,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
     [ObservableProperty] private TagRow? _selected;
     [ObservableProperty] private string _searchText = "";
 
-    // ===== 详情卡编辑字段（「💾 保存」才落库） =====
+    // ===== 详情卡编辑字段（「保存」才落库） =====
     [ObservableProperty] private string _editName = "";
     [ObservableProperty] private string _editNamespace = "";
     [ObservableProperty] private string _editColor = "";
@@ -96,20 +96,20 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         },
         new()
         {
-            Text = "🌱 推荐标签",
+            Text = "🏷 推荐标签",
             CommandPath = nameof(SeedRecommendedTagsCommand),
             ToolTip = "一键种入常用标签（按类型分批：视频 / 音乐 / 图片 / 文档；已有的跳过，⛔ 不动资产）"
         },
         new()
         {
-            Text = "🧹 清未使用",
+            Text = "清未使用", IconKey = "IconEraser",
             CommandPath = nameof(DeleteUnusedCommand),
             ToolTip = "删掉使用数为 0 的标签（二次确认）"
         },
         // 🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库
         new()
         {
-            Text = "🔄 重读标签",
+            Text = "重读标签", IconKey = "IconRefresh",
             CommandPath = nameof(RefreshTagsCommand),
             ToolTip = "重新读取标签表（⛔ 不扫盘）"
         },
@@ -228,7 +228,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
 
     private string StatusSummary()
         => IsDbAvailable
-            ? $"共 {Items.Count} 个标签" + (Items.Count == 0 ? "（点「➕ 新建标签」开一个）" : "")
+            ? $"共 {Items.Count} 个标签" + (Items.Count == 0 ? "（点「新建标签」开一个）" : "")
             : "资产库不可用（数据库打不开）—— 本页只读，不会崩。";
 
     private void ApplyView()
@@ -275,7 +275,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
 
     // ==================== 逻辑操作（一律写 operation_logs） ====================
 
-    /// <summary>新建标签（工具条「➕ 新建标签」）。</summary>
+    /// <summary>新建标签（工具条「新建标签」）。</summary>
     [RelayCommand]
     private async Task NewTagAsync()
     {
@@ -491,7 +491,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         StatusText = $"已把 {paths.Count} 首交给「音乐播放」。";
     }
 
-    /// <summary>详情卡「💾 保存」：把名称 / 类型 / 颜色一次落库。</summary>
+    /// <summary>详情卡「保存」：把名称 / 类型 / 颜色一次落库。</summary>
     [RelayCommand]
     private void SaveDetail()
     {
@@ -583,7 +583,7 @@ public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelPro
         {
             new DetailAction
             {
-                Text = "💾 保存",
+                Text = "保存", IconKey = "IconSave",
                 Classes = "primary",
                 ToolTip = "把名称 / 命名空间 / 颜色写进标签库（⛔ 不动磁盘文件）",
                 IsVisiblePath = nameof(ShowDetailBody),

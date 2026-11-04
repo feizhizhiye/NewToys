@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="using:NewToys.Reading.Views"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Reading.Views.ExploreView">
   <!--
     网络阅读 → 发现（`reading-explore`）：左「书源 → 分类」树 + 右书单行列表。
@@ -22,15 +23,15 @@
     <Border Grid.Row="0" Background="{DynamicResource ContentHeaderBrush}" Padding="12,8">
       <DockPanel LastChildFill="False">
         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Button Classes="ghost" Content="🔄 重读" Command="{Binding ReloadSourcesCommand}"/>
-          <Button Classes="ghost" Content="✕ 取消" Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}"/>
+          <Button Classes="ghost" Content="{m:GlyphText IconRefresh, '重读'}" Command="{Binding ReloadSourcesCommand}"/>
+          <Button Classes="ghost" Content="{m:GlyphText IconClose, '取消'}" Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}"/>
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                     IsVisible="{Binding CanPage}">
           <Button Classes="ghost" Content="◀" Command="{Binding PrevPageCommand}" IsEnabled="{Binding CanPrevPage}"/>
           <TextBlock Classes="hint-text" Text="{Binding PageText}" VerticalAlignment="Center"/>
-          <Button Classes="ghost" Content="▶" Command="{Binding NextPageCommand}"/>
+          <Button Classes="ghost" Content="{m:GlyphText IconPlay}" Command="{Binding NextPageCommand}"/>
         </StackPanel>
       </DockPanel>
     </Border>

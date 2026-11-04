@@ -67,7 +67,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             }
 
             RefreshView();
-            StatusText = $"已生成 {added} 个转码任务（预设：{preset.Name}）；可逐条改参数，再点「▶▶ 批量运行」。";
+            StatusText = $"已生成 {added} 个转码任务（预设：{preset.Name}）；可逐条改参数，再点「▶ 批量运行」。";
         }
         catch (Exception ex) { StatusText = "生成任务失败：" + ex.Message; }
         finally { IsBusy = false; }
@@ -106,7 +106,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             }
 
             RefreshView();
-            StatusText = $"已生成 {added} 个剪辑任务；进详情卡填区间（默认整段），再点「▶▶ 批量运行」。";
+            StatusText = $"已生成 {added} 个剪辑任务；进详情卡填区间（默认整段），再点「▶ 批量运行」。";
         }
         catch (Exception ex) { StatusText = "生成任务失败：" + ex.Message; }
         finally { IsBusy = false; }
@@ -121,7 +121,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         var rows = SelectionList();
         if (rows.Count == 0 || _store == null) { StatusText = "先选中要删除的任务。"; return; }
-        if (IsRunning) { StatusText = "正在跑任务 —— 先「⏹ 停止」再删。"; return; }
+        if (IsRunning) { StatusText = "正在跑任务 —— 先「停止」再删。"; return; }
 
         foreach (var t in rows)
         {

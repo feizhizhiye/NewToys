@@ -90,7 +90,7 @@ public enum EditCommitMode
     OnBlur,
 
     /// <summary>
-    /// 需工具条「💾 保存修改」显式提交（批量队列参数 / 命令）。
+    /// 需工具条「保存修改」显式提交（批量队列参数 / 命令）。
     /// <para>
     /// 渲染器把值写回**页面 VM 的编辑态属性**（草稿，如 <c>EditDescription</c>）；
     /// **落盘**由页面工具条的保存命令负责 —— 描述符不参与刷新（需求 §4.5.1「刷新契约」）。
@@ -376,6 +376,9 @@ public sealed class DetailAction
 {
     /// <summary>按钮文案。</summary>
     public string? Text { get; set; }
+
+    /// <summary>图标资源键（<c>App.axaml</c> 的 <c>Icon*</c>）；null = 只显示文字。</summary>
+    public string? IconKey { get; set; }
 
     /// <summary>要执行的命令（页面 VM 上的 <c>ICommand</c>）。</summary>
     public ICommand? Command { get; set; }

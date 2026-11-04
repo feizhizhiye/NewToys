@@ -25,7 +25,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 {
 
     /// <summary>
-    /// 「⬇ 安装选中」：把勾选的包**逐条串行**安装（winget 自身会争用源，⛔ 不并行）。
+    /// 「安装选中」：把勾选的包**逐条串行**安装（winget 自身会争用源，⛔ 不并行）。
     /// <para>单条失败不影响其余（失败隔离）；结束汇总成功 / 失败明细。已安装的包 winget 会自行跳过。</para>
     /// </summary>
     [RelayCommand]
@@ -63,7 +63,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     }
 
     /// <summary>
-    /// 「⬆ 升级选中」：勾选的包里**有可升级版本**的逐条升级；没有的跳过并计数（⛔ 不拿没有新版本的包去试）。
+    /// 「升级选中」：勾选的包里**有可升级版本**的逐条升级；没有的跳过并计数（⛔ 不拿没有新版本的包去试）。
     /// </summary>
     [RelayCommand]
     private async Task UpgradeCheckedAsync()
@@ -108,7 +108,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     // ==================== 导入 / 导出（v3.19：换机恢复） ====================
 
     /// <summary>
-    /// 📤 导出当前列表为 json（建议先点「📥 已安装」再导）。
+    /// 📤 导出当前列表为 json（建议先点「已安装」再导）。
     /// <para>选择器走 <see cref="DialogHooks"/>（VM ⛔ 不引 Avalonia UI 类型）；
     /// ⛔ 别回到 <c>PackageView.axaml.cs</c> 挂 TopLevel / StorageProvider。</para>
     /// </summary>
@@ -126,7 +126,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         catch (Exception ex) { StatusText = "导出失败：" + ex.Message; }
     }
 
-    /// <summary>📥 导入导出的 json → 生成 winget 批量安装脚本(.bat)（同「📤 导出」搬进 VM）。</summary>
+    /// <summary>📥 导入导出的 json → 生成 winget 批量安装脚本(.bat)（同「导出」搬进 VM）。</summary>
     [RelayCommand]
     private async Task ImportPackagesAsync()
     {
@@ -152,7 +152,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
     }
 
-    /// <summary>📤 导出：把当前列表导成 json（换机恢复用；只留 Id / Name / Version）。建议先在「📥 已安装」后再导。</summary>
+    /// <summary>📤 导出：把当前列表导成 json（换机恢复用；只留 Id / Name / Version）。建议先在「已安装」后再导。</summary>
     public string ExportPackagesJson()
     {
         var list = _all.Where(p => !string.IsNullOrWhiteSpace(p.Id))

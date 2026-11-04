@@ -64,7 +64,6 @@
         <StreamGeometry x:Key="IconWinMinimize">M2,8 H14</StreamGeometry>
         <StreamGeometry x:Key="IconWinMaximize">M4.5,4.5 H19.5 V19.5 H4.5 Z</StreamGeometry>
         <StreamGeometry x:Key="IconWinRestore">M9,4.5 H19.5 V15 M4.5,9 H15 V19.5 H4.5 Z</StreamGeometry>
-        <StreamGeometry x:Key="IconWinClose">M6,6 L18,18 M18,6 L6,18</StreamGeometry>
         <!--  全屏 / 退出全屏（NT-046 改型）：**两个斜对箭头** —— 朝外 = 进入全屏，朝内 = 退出全屏
               （Lucide `maximize-2` / `minimize-2`，ISC）。原「四角括弧」已弃用（用户要求两个箭头样式）。  -->
         <StreamGeometry x:Key="IconFullScreen">M15,3 H21 V9 M21,3 L14,10 M9,21 H3 V15 M3,21 L10,14</StreamGeometry>
@@ -72,7 +71,6 @@
 
         <!--  标签：新建（＋）/ 关闭（✕）  -->
         <StreamGeometry x:Key="IconPlus">M12,5 V19 M5,12 H19</StreamGeometry>
-        <StreamGeometry x:Key="IconTabClose">M7,7 L17,17 M17,7 L7,17</StreamGeometry>
 
         <!--  左树展开指示：展开（▾）/ 折叠（▸）
               ⚠️ NT-046 起**当前无引用** —— 左树只有一级有图标，行首展开箭头已按用户要求去掉
@@ -104,6 +102,41 @@
         <StreamGeometry x:Key="IconSave">M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7 M7 3v4a1 1 0 0 0 1 1h7</StreamGeometry>
         <!--  删除（垃圾桶）  -->
         <StreamGeometry x:Key="IconTrash">M10 11v6 M14 11v6 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2</StreamGeometry>
+
+        <!--  ==================== 通用动作图标（工具条 / 右键菜单共用一套词表） ====================
+              工具条项走 <c>ToolbarItemDescriptor.IconKey</c>、菜单项走 <c>{icons:Glyph IconXxx}</c>，
+              两边取的都是这里的键 ⇒ 同一动作全模块同一个形状。
+              ⚠️ 只用「语义唯一」的图标：一个键只表达一件事（例：IconRefresh 只做刷新，⛔ 不兼重置）。  -->
+        <!--  打开 / 选择目录 / 定位（文件夹）  -->
+        <StreamGeometry x:Key="IconOpen">M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z</StreamGeometry>
+        <!--  编辑 / 重命名（铅笔）  -->
+        <StreamGeometry x:Key="IconEdit">M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z M15 5l4 4</StreamGeometry>
+        <!--  复制（双页）  -->
+        <StreamGeometry x:Key="IconCopy">M20 8h-6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2z M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2</StreamGeometry>
+        <!--  导入（箭头入栈）  -->
+        <StreamGeometry x:Key="IconImport">M12 3v12 M7 10l5 5 5-5 M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4</StreamGeometry>
+        <!--  导出（箭头出栈）  -->
+        <StreamGeometry x:Key="IconExport">M12 15V3 M17 8l-5-5-5 5 M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4</StreamGeometry>
+        <!--  上移 / 升序（单箭头，⛔ 不兼「导入 / 升级」）  -->
+        <StreamGeometry x:Key="IconArrowUp">M12 19V5 M5 12l7-7 7 7</StreamGeometry>
+        <!--  下移 / 降序  -->
+        <StreamGeometry x:Key="IconArrowDown">M12 5v14 M19 12l-7 7-7-7</StreamGeometry>
+        <!--  停止（实心方块；⛔ 用描边矩形拼，见 NT-046 零宽高坑）  -->
+        <StreamGeometry x:Key="IconStop">M6,6 H18 V18 H6 Z</StreamGeometry>
+        <!--  暂停（双竖条）  -->
+        <StreamGeometry x:Key="IconPause">M8,5 H10 V19 H8 Z M14,5 H16 V19 H14 Z</StreamGeometry>
+        <!--  清空 / 清理（橡皮）  -->
+        <StreamGeometry x:Key="IconEraser">M21 21H8a2 2 0 0 1-1.42-.587l-3.994-4a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.828 0l5.994 6a2 2 0 0 1 0 2.828L12 21 M22 21H7</StreamGeometry>
+        <!--  全选（勾选框）  -->
+        <StreamGeometry x:Key="IconCheckAll">M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11</StreamGeometry>
+        <!--  全不选（空框）  -->
+        <StreamGeometry x:Key="IconUncheckAll">M5,5 H19 V19 H5 Z</StreamGeometry>
+        <!--  关闭 / 取消（叉；标签页关闭、窗口关闭、菜单取消共用）  -->
+        <StreamGeometry x:Key="IconClose">M6,6 L18,18 M18,6 L6,18</StreamGeometry>
+        <!--  重置 / 还原默认（逆时针回转箭头）  -->
+        <StreamGeometry x:Key="IconReset">M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5</StreamGeometry>
+        <!--  反选（左右双向箭头，与「全选 / 全不选」成一组）  -->
+        <StreamGeometry x:Key="IconInvert">M8 3 4 7l4 4 M4 7h16 M16 21l4-4-4-4 M20 17H4</StreamGeometry>
 
         <!--
             v3.22：「裸按钮」主题 —— 只有内容、没有 Fluent 的任何状态绘制。
@@ -347,6 +380,26 @@
             <Setter Property="StrokeJoin" Value="Round"/>
         </Style>
 
+        <!--  工具条 / 菜单里的动作图标：描边色**跟随宿主文字色** ⇒ 禁用态自动变灰、主题切换自动跟随。
+              ⛔ 给这两个 Path 写本地 Stroke（本地值压过样式，灰化就失效）。  -->
+        <Style Selector="Button Path.icon-fg">
+            <Setter Property="Stroke" Value="{Binding $parent[Button].Foreground}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
+        </Style>
+        <Style Selector="MenuItem Path.icon-fg">
+            <Setter Property="Stroke" Value="{Binding $parent[MenuItem].Foreground}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
+        </Style>
+        <Style Selector="Path.icon-fg">
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
+        </Style>
+
         <!--  标签项容器：激活态 = 强调色派生底 + 下方 2px 强调色指示条。
              ⚠️ v3.4：标签栏在标题栏内（底色 = ContentBrush 跟随主题），文字/底色一律用主题色系。  -->
         <!--  v3.22：不再有"下方指示条"（BorderThickness 归 0）—— 那条线被误认成阴影；激活只看文字颜色。  -->
@@ -544,6 +597,18 @@
             <Setter Property="Stroke" Value="{DynamicResource AccentInkBrush}"/>
         </Style>
 
+        <!--  一级行尾的展开指示（`Panel.tree-chevron`）：形状 / 尺寸 / 切换都在 XAML 里（两个 `Path` 按
+             几何实际比例 12×6、6×12 配 `Stretch=Fill`，垂直位置由 Panel 的 `VerticalAlignment` 定）。
+             这里只管**外边距**：默认留 4px；折叠菜单栏（48px）时归零并透明 —— 那时只留图标，
+             箭头再占 12px 会把一级图标挤出内容宽。  -->
+        <Style Selector="Button.tree-row Panel.tree-chevron">
+            <Setter Property="Margin" Value="4,0,0,0"/>
+        </Style>
+        <Style Selector="Border.tree-panel.collapsed Panel.tree-chevron">
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Opacity" Value="0"/>
+        </Style>
+
         <!--  左树折叠态（48px）：只留一级图标，隐藏标题 / 子级
               ⚠️ NT-046：行首展开箭头已去掉 → 原 `Panel.tree-glyph` 的折叠态隐藏样式一并删除。  -->
         <Style Selector="Border.tree-panel.collapsed TextBlock.tree-title">
@@ -714,7 +779,7 @@
             <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
         </Style>
-        <!--  视频列表「📂 导入」拆分按钮：沿用 ghost 外观，主钮 + 下拉两半都透明、悬停同卡片色  -->
+        <!--  视频列表「导入」拆分按钮：沿用 ghost 外观，主钮 + 下拉两半都透明、悬停同卡片色  -->
         <Style Selector="SplitButton.ghost">
             <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>

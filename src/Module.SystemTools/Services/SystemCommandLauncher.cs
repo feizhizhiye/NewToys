@@ -37,7 +37,7 @@ public sealed class SystemCommandLauncher : ISystemCommandLauncher
     {
         if (item is null) return (false, "未选择项目。");
         if (!OperatingSystem.IsWindows())
-            return (false, "提权运行（UAC）目前只在 Windows 上可用 —— 可先「📋 复制命令」自己在提权终端里跑。");
+            return (false, "提权运行（UAC）目前只在 Windows 上可用 —— 可先「复制命令」自己在提权终端里跑。");
 
         var cmd = (item.Command ?? "").Trim();
         if (cmd.Length == 0) return (false, "这条还没有命令内容。");
@@ -131,7 +131,7 @@ public sealed class SystemCommandLauncher : ISystemCommandLauncher
     /// 「打开一个窗口」类命令：判定 + 用 ShellExecute 直接打开，**不等待窗口关闭**。
     /// <para>🔴 为什么必须单独走这条路：`cmd /c diskmgmt.msc` 里 cmd 会**一直等到 mmc 关闭**，
     /// 捕获式执行（<c>ScriptRunner.RunCommandAsync</c>）就卡在 <c>WaitForExit</c>；
-    /// 而「▶ 运行」绑的是同一个 <c>AsyncRelayCommand</c>（默认不并发）⇒ 窗口开着期间**全表按钮变灰**，
+    /// 而「运行」绑的是同一个 <c>AsyncRelayCommand</c>（默认不并发）⇒ 窗口开着期间**全表按钮变灰**，
     /// 超时后还会 <c>Kill(entireProcessTree)</c> 把用户刚打开的窗口杀掉。</para>
     /// <para>判定只覆盖「起窗口」的形态（<c>start …</c> / <c>*.msc</c> / <c>*.cpl</c> / <c>ms-settings:</c> /
     /// <c>explorer</c> / <c>taskmgr</c> / <c>control</c> / <c>regedit</c> / <c>msconfig</c>）；其余命令照旧捕获输出。</para>

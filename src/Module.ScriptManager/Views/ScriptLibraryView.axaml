@@ -1,14 +1,15 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.ScriptManager.Views.ScriptLibraryView">
   <!--
     「脚本库」页：三列布局（左树 | 列表 | 详情，列表列内含扫描面板）。
     列表本体 = <v:TableViewHost>：列显隐 / 排序键按 VM 的 ColumnLayout 对齐（🔴 声明顺序必须一致），
     故骨架的 HeaderArea 不填。
   -->
-  <v:ListPageSkeleton EmptyMessage="没有可显示的脚本条目。点「📂 导入」把脚本文件建成条目。"
-                      EmptyActionText="📂 导入"
+  <v:ListPageSkeleton EmptyMessage="没有可显示的脚本条目。点「导入」把脚本文件建成条目。"
+                      EmptyActionText="导入"
                       EmptyActionCommand="{Binding ImportScriptFolderCommand}"
                       IsEmpty="{Binding !HasItems}">
 
@@ -17,7 +18,7 @@
       <Border IsVisible="{Binding HasScanResult}"
               Padding="0,0,0,6">
         <StackPanel Spacing="4">
-          <TextBlock Text="扫描候选：勾选新文件后点工具条「➕ 加入库」（已入库 / 不可采集不可勾）"
+          <TextBlock Text="扫描候选：勾选新文件后点工具条「加入库」（已入库 / 不可采集不可勾）"
                      Classes="hint-text"/>
           <ScrollViewer MaxHeight="180">
             <ItemsControl ItemsSource="{Binding ScanCandidates}">
@@ -47,20 +48,20 @@
             <!-- 右键 =「选中项更多功能」的主入口（作用对象 = 当前选中行）  -->
             <v:TableViewHost.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
+                <MenuItem Header="运行" Icon="{m:Glyph IconPlay}" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
                           IsEnabled="{Binding IsNotBusy}"/>
-                <MenuItem Header="📝 编辑（记事本）" Command="{Binding EditWithNotepadCommand}" IsEnabled="{Binding CanEditScript}"/>
+                <MenuItem Header="编辑（记事本）" Icon="{m:Glyph IconEdit}" Command="{Binding EditWithNotepadCommand}" IsEnabled="{Binding CanEditScript}"/>
                 <MenuItem Header="🧰 打开方式…" Command="{Binding OpenWithCommand}" IsEnabled="{Binding CanEditScript}"/>
                 <Separator/>
-                <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
+                <MenuItem Header="保存修改" Icon="{m:Glyph IconSave}" Command="{Binding SaveCommand}" IsEnabled="{Binding HasSelection}"/>
                 <Separator/>
                 <MenuItem Header="{Binding FavoriteMenuLabel}" Command="{Binding ToggleFavoriteCommand}"/>
-                <MenuItem Header="📋 复制命令" Command="{Binding CopyCommand}"/>
+                <MenuItem Header="复制命令" Icon="{m:Glyph IconCopy}" Command="{Binding CopyCommand}"/>
                 <Separator/>
-                <!-- 本页 = 脚本索引库 ⇒ ⛔ 不在这里「新增脚本」（新增只走工具条「📂 导入」）。
+                <!-- 本页 = 脚本索引库 ⇒ ⛔ 不在这里「新增脚本」（新增只走工具条「导入」）。
                      删除分两路：右键 = 连磁盘文件一起删（二次确认）；详情卡图标组的 🗑 = 只从清单移除。 -->
-                <MenuItem Header="🔥 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}" IsEnabled="{Binding !IsBusy}"/>
-                <MenuItem Header="🗑 从列表移除" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="从磁盘删除…" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteFromDiskCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="从列表移除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"/>
               </ContextMenu>
             </v:TableViewHost.ContextMenu>
 
@@ -88,12 +89,11 @@
                 </TableViewColumn.CellTemplate>
               </TableViewColumn>
 
-              <!--  行内「▶ 运行」：每行可直接运行（命令取自页面 VM，故走 $parent[UserControl]）  -->
+              <!--  行内「运行」：每行可直接运行（命令取自页面 VM，故走 $parent[UserControl]）  -->
               <TableViewColumn Width="1.5*" Header="操作">
                 <TableViewColumn.CellTemplate>
                   <DataTemplate>
-                    <Button Classes="ghost row-btn" Content="▶ 运行"
-                            Command="{Binding $parent[UserControl].DataContext.RunCommand}"
+                    <Button Classes="ghost row-btn" Content="{m:GlyphText IconPlay, '运行'}" Command="{Binding $parent[UserControl].DataContext.RunCommand}"
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
                             ToolTip.Tip="按条目类型运行：命令行命令 / 脚本文件（.py / .ps1 / .bat）"/>

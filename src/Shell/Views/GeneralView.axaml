@@ -1,5 +1,6 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Shell.Views.GeneralView">
   <!--
     v3.66 / NT-062 第五轮：「通用」节拆成三个节（用户要求"拆开、删除通用"）——
@@ -23,9 +24,9 @@
     <TextBlock Classes="hint-text" Text="{Binding TrayHint}" />
 
     <StackPanel Orientation="Horizontal" Spacing="6">
-      <Button Classes="ghost" Content="📂 启动项" Command="{Binding OpenStartupSettingsCommand}"
+      <Button Classes="ghost" Content="{m:GlyphText IconOpen, '启动项'}" Command="{Binding OpenStartupSettingsCommand}"
               ToolTip.Tip="打开任务管理器的「启动」页，可自行核对 / 禁用" />
-      <Button Classes="ghost" Content="🔄 重读" Command="{Binding RefreshStartupCommand}"
+      <Button Classes="ghost" Content="{m:GlyphText IconRefresh, '重读'}" Command="{Binding RefreshStartupCommand}"
               ToolTip.Tip="重新读一次注册表，看开机启动项到底在不在" />
     </StackPanel>
   </StackPanel>

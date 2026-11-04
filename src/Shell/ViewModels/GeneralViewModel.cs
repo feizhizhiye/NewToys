@@ -47,7 +47,7 @@ public partial class GeneralViewModel : ObservableObject, IStatusProvider
     [ObservableProperty] private bool _checkUpdateOnStartup = true;
     [ObservableProperty] private bool _closeToTray;
 
-    /// <summary>更新检查用的版本文件地址（自由文本 → 需点「💾 保存」，规范 3.5）。</summary>
+    /// <summary>更新检查用的版本文件地址（自由文本 → 需点「保存」，规范 3.5）。</summary>
     [ObservableProperty] private string _updateUrl = "";
 
     [ObservableProperty] private string _statusText = "";

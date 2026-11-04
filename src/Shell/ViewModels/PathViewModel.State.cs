@@ -47,30 +47,30 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// </summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📂 配置目录", CommandPath = nameof(OpenConfigDirCommand),
+        new() { Text = "配置目录", IconKey = "IconOpen", CommandPath = nameof(OpenConfigDirCommand),
                 ToolTip = "打开本配置档的 config 目录（launch.json / theme.json / 模块设置等；可整体备份）" },
-        new() { Text = "💾 保存", Classes = "ghost", CommandPath = nameof(SaveCommand),
+        new() { Text = "保存", IconKey = "IconSave", Classes = "ghost", CommandPath = nameof(SaveCommand),
                 IsEnabledPath = nameof(CanSavePath), ToolTipPath = nameof(SaveTip), ShowToolTipOnDisabled = true },
-        new() { Text = "📂 选目录", CommandPath = nameof(PickPathCommand),
+        new() { Text = "选目录", IconKey = "IconOpen", CommandPath = nameof(PickPathCommand),
                 IsEnabledPath = nameof(CanSavePath), ToolTipPath = nameof(BrowseTip), ShowToolTipOnDisabled = true },
-        new() { Text = "↗ 打开位置", CommandPath = nameof(OpenCommand),
+        new() { Text = "打开位置", IconKey = "IconOpen", CommandPath = nameof(OpenCommand),
                 IsEnabledPath = nameof(IsPathRowSelected), ToolTipPath = nameof(OpenTip), ShowToolTipOnDisabled = true },
-        new() { Text = "↩ 还原默认", CommandPath = nameof(RestoreDefaultCommand),
+        new() { Text = "还原默认", IconKey = "IconReset", CommandPath = nameof(RestoreDefaultCommand),
                 IsEnabledPath = nameof(CanSavePath), ToolTipPath = nameof(RestoreTip), ShowToolTipOnDisabled = true },
 
         new() { Kind = ToolbarItemKind.Separator },
 
         new() { Text = "＋ 新建配置", CommandPath = nameof(NewProfileCommand),
                 ToolTip = "新建一套独立的 config / data / logs（切换过去后从空白开始）" },
-        new() { Text = "⇄ 切换", CommandPath = nameof(SwitchProfileCommand),
+        new() { Text = "切换", IconKey = "IconInvert", CommandPath = nameof(SwitchProfileCommand),
                 IsEnabledPath = nameof(CanSwitchProfile), ToolTipPath = nameof(SwitchTip), ShowToolTipOnDisabled = true },
         new() { Text = "🚀 新开", CommandPath = nameof(LaunchProfileNewCommand),
                 IsEnabledPath = nameof(CanSwitchProfile), ToolTipPath = nameof(LaunchTip), ShowToolTipOnDisabled = true },
-        new() { Text = "⭐ 设为默认", CommandPath = nameof(SetProfileDefaultCommand),
+        new() { Text = "设为默认", IconKey = "IconStar", CommandPath = nameof(SetProfileDefaultCommand),
                 IsEnabledPath = nameof(IsProfileRowSelected), ToolTipPath = nameof(DefaultTip), ShowToolTipOnDisabled = true },
-        new() { Text = "✏ 重命名", CommandPath = nameof(RenameProfileCommand),
+        new() { Text = "重命名", IconKey = "IconEdit", CommandPath = nameof(RenameProfileCommand),
                 IsEnabledPath = nameof(IsProfileRowSelected), ToolTipPath = nameof(RenameTip), ShowToolTipOnDisabled = true },
-        new() { Text = "🗑 删除", Classes = "danger-btn", CommandPath = nameof(DeleteProfileCommand),
+        new() { Text = "删除", IconKey = "IconTrash", Classes = "danger-btn", CommandPath = nameof(DeleteProfileCommand),
                 IsEnabledPath = nameof(CanDeleteProfile), ToolTipPath = nameof(DeleteTip), ShowToolTipOnDisabled = true },
         // 原 Label「「路径」行改默认路径；「配置」行管多套数据」删除（工具条⛔ 不放说明文字）——
         //        表头「分类」列已经把两类行分开，各行自带说明（StringFormat 那条坑见工程规范）。
@@ -78,7 +78,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
 
     // ==================== 编辑缓冲 ====================
 
-    /// <summary>「当前值」编辑缓冲里正在编辑的值（点「💾 保存」才写回对象并落盘）。</summary>
+    /// <summary>「当前值」编辑缓冲里正在编辑的值（点「保存」才写回对象并落盘）。</summary>
     [ObservableProperty] private string _editValue = "";
 
     partial void OnSelectedChanged(PathSettingItem? value)
@@ -94,7 +94,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     partial void OnEditValueChanged(string value)
     {
         // 绑定到 TextBox 时不要反过来打扰输入；这里只是把"是否改过"反映到提示上
-        if (!_syncing) StatusText = "改完点「💾 保存」写入 app.json。";
+        if (!_syncing) StatusText = "改完点「保存」写入 app.json。";
     }
 
     // ==================== 构造 ====================

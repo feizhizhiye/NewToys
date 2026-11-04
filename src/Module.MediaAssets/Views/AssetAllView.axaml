@@ -1,8 +1,9 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              xmlns:views="using:NewToys.MediaAssets.Views"
              xmlns:ui="using:NewToys.UI.Behaviors"
+             xmlns:m="using:NewToys.UI.Markup"
              ui:FilterDropDownAlign.Attach="True"
              x:Class="NewToys.MediaAssets.Views.AssetAllView">
   <!--
@@ -89,8 +90,8 @@
   </UserControl.Styles>
 
   <Panel>
-  <v:ListPageSkeleton EmptyMessage="没有可显示的资产。点「📥 导入」把导出的 json 合并进库，或用「📁 扫描」扫一个目录。"
-                      EmptyActionText="📥 导入"
+  <v:ListPageSkeleton EmptyMessage="没有可显示的资产。点「导入」把导出的 json 合并进库，或用「📁 扫描」扫一个目录。"
+                      EmptyActionText="导入"
                       EmptyActionCommand="{Binding ImportAssetsCommand}"
                       IsEmpty="{Binding !HasItems}"
                       ShowFooter="{Binding HasFooterContent}"
@@ -222,29 +223,29 @@
                           Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Bitrate"/>
               </MenuItem>
               <Separator/>
-              <MenuItem Header="📂 打开" Command="{Binding OpenFileCommand}"
+              <MenuItem Header="打开" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFileCommand}"
                         ToolTip.Tip="用系统默认程序打开（视频=播放 / 书=阅读 / 图=看图）"/>
-              <MenuItem Header="📂 所在目录" Command="{Binding OpenFolderCommand}"
+              <MenuItem Header="所在目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFolderCommand}"
                         ToolTip.Tip="在资源管理器里选中这个文件"/>
               <MenuItem Header="➡ 发送到视频工具" Command="{Binding SendToVideoToolsCommand}"
                         ToolTip.Tip="把选中的视频送到「视频工具 → 视频列表」页，接着定剪辑 / 转码参数（非视频自动跳过）"/>
               <!--  批量重命名：多选后按规则改（≥2 个才可用；单选用详情卡的「↗ 应用到文件」）  -->
-              <MenuItem Header="✏ 重命名" Command="{Binding BatchRenameSelectedCommand}"
+              <MenuItem Header="重命名" Icon="{m:Glyph IconEdit}" Command="{Binding BatchRenameSelectedCommand}"
                         ToolTip.Tip="选中 ≥2 个后按规则改名（查找替换 / 前缀后缀 / 编号 / 大小写），先看预览再确认"/>
               <!--  加标签 / 加集合：只在右键（工具条不再放），支持一次选多个一起加  -->
               <MenuItem Header="🏷 加标签…" Command="{Binding AddTagToCheckedCommand}"
                         ToolTip.Tip="给选中的资产加标签：弹层里可搜索 / 多选 / 新建（只加不减，取消请到详情卡点色片）"/>
-              <MenuItem Header="📚 加集合…" Command="{Binding AddToCollectionCheckedCommand}"
+              <MenuItem Header="📖 加集合…" Command="{Binding AddToCollectionCheckedCommand}"
                         ToolTip.Tip="把选中的资产加进集合：智能集合成员由规则决定，不能手工加"/>
               <Separator/>
               <!--  **唯一**直接物理删磁盘文件的入口（破坏性最大 ⇒ 故意只放右键、还要二次确认 + 走任务队列）；  -->
-              <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"
+              <MenuItem Header="从磁盘删除…" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteFromDiskCommand}"
                         ToolTip.Tip="永久删除磁盘文件：不进回收站、不可还原，库里的文件索引一起删。选中多条 = 批量删除（逐个确认清单一次给出）"/>
               <Separator/>
-              <MenuItem Header="☑ 全选当前页" Command="{Binding SelectAllCommand}"
+              <MenuItem Header="全选当前页" Icon="{m:Glyph IconCheckAll}" Command="{Binding SelectAllCommand}"
                         ToolTip.Tip="选中当前页所有行（等价 Ctrl+A）"/>
-              <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
-              <MenuItem Header="⇄ 反选当前页" Command="{Binding InvertSelectionCommand}"/>
+              <MenuItem Header="取消选择" Icon="{m:Glyph IconUncheckAll}" Command="{Binding SelectNoneCommand}"/>
+              <MenuItem Header="反选当前页" Icon="{m:Glyph IconInvert}" Command="{Binding InvertSelectionCommand}"/>
             </ContextMenu>
           </TableView.ContextMenu>
         </TableView>

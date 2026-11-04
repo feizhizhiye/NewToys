@@ -68,7 +68,7 @@
                             Stretch="Uniform"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Data="{StaticResource IconTabClose}" />
+                            Data="{StaticResource IconClose}" />
                     </Button>
                 </Grid>
             </Border>
@@ -108,7 +108,7 @@
                 <!--  NT-045：图标**一律矢量 `Path` + `App.axaml` 的 `Icon*` 几何键**（24×24 网格），
                      粗细 / 端帽 / 拐角 / 颜色全由 `Button.title-btn Path` 样式给，XAML 里只写 Data + 尺寸。
                      折叠按钮的图案 = 面板 + 左栏（Lucide `panel-left`）。
-                     NT-052：「🔄 重载模块」按钮已移入**功能清单页**「增加功能」操作区（标题栏 3→2 按钮）。  -->
+                     NT-052：「重载模块」按钮已移入**功能清单页**「增加功能」操作区（标题栏 3→2 按钮）。  -->
                 <StackPanel
                     Grid.Column="0"
                     Margin="4,0"
@@ -191,7 +191,7 @@
                 <!--  右：窗口按钮  -->
                 <!--  NT-045 统一：窗口按钮图标**一律矢量 `Path` + `App.axaml` 的 `Icon*` 几何键**
                      （最小化 `IconWinMinimize` / 最大化 `IconWinMaximize` / 还原 `IconWinRestore` /
-                      关闭 `IconWinClose` / 全屏 `IconFullScreen` / 退出全屏 `IconExitFullScreen`），
+                      关闭 `IconClose` / 全屏 `IconFullScreen` / 退出全屏 `IconExitFullScreen`），
                      形状与 WinUI `Symbol` 同款但**不再依赖 `Segoe MDL2 Assets` 图标字体**。
                      ⛔ 不再用 `Rectangle` 画横线、`Border` 拼方框、`TextBlock` 字形 —— 框架层只剩一种载体。
                      颜色由 `Button.win-btn Path` 样式给（关闭悬停转白由 `.close:pointerover Path` 给）。
@@ -363,7 +363,7 @@
                             Width="16"
                             Height="16"
                             Stretch="Uniform"
-                            Data="{StaticResource IconWinClose}" />
+                            Data="{StaticResource IconClose}" />
                     </Button>
                 </StackPanel>
             </Grid>
@@ -406,13 +406,12 @@
                                           Command="{Binding $parent[Window].DataContext.TreeClickCommand}"
                                           CommandParameter="{Binding}"
                                           ToolTip.Tip="{Binding Title}">
-                                          <Grid ColumnDefinitions="Auto,*">
+                                          <Grid ColumnDefinitions="Auto,*,Auto">
                                               <!--  一级图标 = 矢量（`VectorIcon` 由 VM 按几何键解析）。颜色由样式给
                                                    （`Button.tree-row Path` / `.active Path`）→ 折叠态也能显主题色。
                                                    ⛔ 不再有 emoji 回退：键名必须在 `App.axaml` 定义。
-                                                   🔴 NT-046：行首**展开箭头已去掉** —— 左树只有一级有图标，
-                                                      行首再占 12px 会让一级 / 二级行不对齐（`IconChevronDown/Right`
-                                                      两个键留在资源库里备后续可折叠区块用）。  -->
+                                                   🔴 行首⛔ 不放展开箭头 —— 左树只有一级有图标，行首再占 12px
+                                                      会让一级 / 二级行对不齐；展开指示一律放行尾（第三列）。  -->
                                               <Path
                                                   Grid.Column="0"
                                                   Width="16"
@@ -427,6 +426,30 @@
                                                   VerticalAlignment="Center"
                                                   Classes="tree-title"
                                                   Text="{Binding Title}" />
+                                              <!--  行尾展开指示：收起 → 右箭头、展开 → 下箭头（`IsVisible` 切换），
+                                                   点一下立刻翻转 = 点击反馈。
+                                                   用 Panel 套一层绑 `IsGroup`：首页是叶子（`IsExpanded` 恒 true）不该出箭头。
+                                                   🔴 两个箭头都**按几何实际比例**给尺寸 + `Stretch=Fill`：
+                                                       `IconChevronDown` = 12×6（y 9~15）、`IconChevronRight` = 6×12（x 9~15），
+                                                       尺寸与内容相等 ⇒ 不吃 `Stretch=Uniform` 的居中分配，垂直位置不会偏。  -->
+                                              <Panel
+                                                  Grid.Column="2"
+                                                  VerticalAlignment="Center"
+                                                  Classes="tree-chevron"
+                                                  IsVisible="{Binding IsGroup}">
+                                                  <Path
+                                                      Width="12"
+                                                      Height="6"
+                                                      Data="{StaticResource IconChevronDown}"
+                                                      IsVisible="{Binding IsExpanded}"
+                                                      Stretch="Fill" />
+                                                  <Path
+                                                      Width="6"
+                                                      Height="12"
+                                                      Data="{StaticResource IconChevronRight}"
+                                                      IsVisible="{Binding !IsExpanded}"
+                                                      Stretch="Fill" />
+                                              </Panel>
                                           </Grid>
                                       </Button>
                                       <!--  二级：功能叶子（缩进 + 次要色，无图标）  -->

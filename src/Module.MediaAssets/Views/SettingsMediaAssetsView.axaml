@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.MediaAssets.Views.SettingsMediaAssetsView">
   <!--
     「媒体资产」模块设置页（NT-021，自注册进 settings 分组，Order 100）。
@@ -53,8 +54,7 @@
             Classes="primary"
             HorizontalAlignment="Left"
             Command="{Binding SaveTextSettingsCommand}"
-            Content="💾 保存规则"
-            ToolTip.Tip="把上面的忽略规则 / 命名模板 / 冲突策略一次写全（即时生效项无需保存）" />
+            Content="{m:GlyphText IconSave, '保存规则'}" ToolTip.Tip="把上面的忽略规则 / 命名模板 / 冲突策略一次写全（即时生效项无需保存）" />
       </StackPanel>
     </StackPanel>
 
@@ -104,12 +104,11 @@
           <TextBlock Classes="field-label" Text="缩略图目录（留空 = 默认）" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBox Width="320" PlaceholderText="留空 = cache\assets\thumbs" Text="{Binding ThumbsDirectory, Mode=TwoWay}" />
-            <Button Classes="ghost" Content="📂 选目录" Click="OnPickThumbsDirClick" />
+            <Button Classes="ghost" Content="{m:GlyphText IconOpen, '选目录'}" Click="OnPickThumbsDirClick" />
             <Button
                 Classes="ghost"
                 Command="{Binding ResetDefaultsCommand}"
-                Content="↺ 默认"
-                ToolTip.Tip="全部恢复默认设置" />
+                Content="{m:GlyphText IconReset, '默认'}" ToolTip.Tip="全部恢复默认设置" />
           </StackPanel>
           <TextBlock
               Classes="hint-text"
@@ -158,7 +157,7 @@
             Classes="primary"
             HorizontalAlignment="Left"
             Command="{Binding SaveTextSettingsCommand}"
-            Content="💾 保存模板" />
+            Content="{m:GlyphText IconSave, '保存模板'}" />
       </StackPanel>
     </StackPanel>
 
@@ -180,8 +179,7 @@
             Classes="ghost"
             HorizontalAlignment="Left"
             Command="{Binding CleanupTrashNowCommand}"
-            Content="🧹 清理回收站"
-            ToolTip.Tip="把超过保留天数的资产排进永久删除队列（二次确认）" />
+            Content="{m:GlyphText IconEraser, '清理回收站'}" ToolTip.Tip="把超过保留天数的资产排进永久删除队列（二次确认）" />
       </StackPanel>
     </StackPanel>
 
@@ -221,13 +219,11 @@
             <Button
                 Classes="primary"
                 Command="{Binding ExportUserDataCommand}"
-                Content="📤 导出数据"
-                ToolTip.Tip="写到 config\media-assets-user-data.json（随「数据管理」备份一起走）" />
+                Content="{m:GlyphText IconExport, '导出数据'}" ToolTip.Tip="写到 config\media-assets-user-data.json（随「数据管理」备份一起走）" />
             <Button
                 Classes="ghost"
                 Click="OnRestoreUserDataClick"
-                Content="📥 恢复数据"
-                ToolTip.Tip="选一个导出的 json 合并恢复（缺的才建，⛔ 不覆盖）" />
+                Content="{m:GlyphText IconImport, '恢复数据'}" ToolTip.Tip="选一个导出的 json 合并恢复（缺的才建，⛔ 不覆盖）" />
           </StackPanel>
           <TextBlock
               FontFamily="Consolas"

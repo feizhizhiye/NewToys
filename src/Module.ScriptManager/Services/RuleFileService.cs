@@ -249,7 +249,7 @@ public sealed class RuleFileService
         var safeName = (name ?? "").Replace("\"", "\\\"");
         var safeBase = (baseUrl ?? "").Replace("\"", "\\\"");
         return
-$@"# NewToys 规则集（一条规则集 = 一个 .py 文件；可手改，改完回软件点「🔄 重读」）
+$@"# NewToys 规则集（一条规则集 = 一个 .py 文件；可手改，改完回软件点「重读」）
 # name: {name}
 # base: {baseUrl}
 # encoding: utf8

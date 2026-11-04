@@ -52,12 +52,12 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📥 导入书签", Classes = "ghost", CommandPath = nameof(ImportBookmarksCommand), ToolTip = "选择浏览器导出的书签 HTML 文件（保留文件夹层级）" },
+        new() { Text = "导入书签", IconKey = "IconImport", Classes = "ghost", CommandPath = nameof(ImportBookmarksCommand), ToolTip = "选择浏览器导出的书签 HTML 文件（保留文件夹层级）" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索标题 / 网址 / 分组…", ValuePath = nameof(SearchText) },
         new() { Text = "＋ 新建", CommandPath = nameof(NewBookmarkCommand), ToolTip = "新网址落在当前选中的文件夹下" },
         new() { Text = "🔗 检测全部", CommandPath = nameof(CheckAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
         new() { Text = "🚀 批量打开", CommandPath = nameof(OpenBatchCommand) },
-        new() { Text = "🔄 重读收藏", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地收藏库（⛔ 不联网、不导浏览器）" },
+        new() { Text = "重读收藏", IconKey = "IconRefresh", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地收藏库（⛔ 不联网、不导浏览器）" },
         new()
         {
             Kind = ToolbarItemKind.Combo,
@@ -189,7 +189,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 行右键「✏ 编辑」：展开详情栏 + 通知 Shell（⛔ 直接绑基类 <c>ShowDetailCommand</c> 只改内存标志、右列不动），
+    /// 行右键「编辑」：展开详情栏 + 通知 Shell（⛔ 直接绑基类 <c>ShowDetailCommand</c> 只改内存标志、右列不动），
     /// 并给一句状态提示 —— 详情栏本来就开着时也有可见反馈。
     /// </summary>
     [RelayCommand]
@@ -201,10 +201,10 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
 
         StatusText = (IsFolderSelected, wasOpen) switch
         {
-            (true, true) => "在右侧详情卡改「名称」，再点「💾 保存改名」。",
-            (true, false) => "已展开右侧详情卡：改「名称」后点「💾 保存改名」。",
-            (false, true) => "在右侧详情卡改标题 / 网址 / 分组 / 备注，再点「💾 保存」。",
-            _ => "已展开右侧详情卡：改完点「💾 保存」。"
+            (true, true) => "在右侧详情卡改「名称」，再点「保存改名」。",
+            (true, false) => "已展开右侧详情卡：改「名称」后点「保存改名」。",
+            (false, true) => "在右侧详情卡改标题 / 网址 / 分组 / 备注，再点「保存」。",
+            _ => "已展开右侧详情卡：改完点「保存」。"
         };
     }
 
@@ -291,7 +291,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         {
             new DetailAction
             {
-                Text = "💾 保存",
+                Text = "保存", IconKey = "IconSave",
                 Classes = "primary",
                 ToolTip = "把当前内容写回收藏库",
                 IsVisiblePath = nameof(IsItemSelected),
@@ -307,7 +307,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             },
             new DetailAction
             {
-                Text = "📋 复制网址",
+                Text = "复制网址", IconKey = "IconCopy",
                 Classes = "ghost",
                 ToolTip = "把这条网址的网址复制到剪贴板",
                 IsVisiblePath = nameof(IsItemSelected),
@@ -332,7 +332,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             },
             new DetailAction
             {
-                Text = "🗑 删除",
+                Text = "删除", IconKey = "IconTrash",
                 Classes = "ghost",
                 ToolTip = "删除这条网址",
                 IsVisiblePath = nameof(IsItemSelected),
@@ -358,7 +358,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
                         ValuePath = nameof(FolderNameDraft),
                         Kind = FieldKind.Text,
                         Commit = EditCommitMode.OnBlur,
-                        Placeholder = "本层文件夹名（改完点「💾 保存改名」）"
+                        Placeholder = "本层文件夹名（改完点「保存改名」）"
                     },
                     new DetailField
                     {
@@ -381,7 +381,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         {
             new DetailAction
             {
-                Text = "💾 保存改名",
+                Text = "保存改名", IconKey = "IconSave",
                 Classes = "primary",
                 ToolTip = "改本层文件夹名 —— 子文件夹与其中的网址一起跟着换路径",
                 IsVisiblePath = nameof(IsFolderSelected),
@@ -397,7 +397,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
             },
             new DetailAction
             {
-                Text = "📋 复制全部",
+                Text = "复制全部", IconKey = "IconCopy",
                 Classes = "ghost",
                 ToolTip = "把这个文件夹下（含子文件夹）的所有网址一行一个复制到剪贴板",
                 IsVisiblePath = nameof(IsFolderSelected),
@@ -568,7 +568,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>文件夹卡「名称」输入框的草稿；换选中行时用当前文件夹名重置。</summary>
     [ObservableProperty] private string _folderNameDraft = "";
 
-    /// <summary>详情卡「💾 保存改名」：改本层目录名 ⇒ 整棵子树换路径前缀（子文件夹 / 网址一起走）。</summary>
+    /// <summary>详情卡「保存改名」：改本层目录名 ⇒ 整棵子树换路径前缀（子文件夹 / 网址一起走）。</summary>
     [RelayCommand(CanExecute = nameof(IsFolderSelected))]
     private async Task RenameFolderAsync()
     {
@@ -781,7 +781,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         RebuildMoveTargets();
 
         if (_multiSelected.Count > 1)
-            StatusText = $"已选 {_multiSelected.Count} 条网址（右键「📁 移动到」/「🗑 删除」可整批处理）。";
+            StatusText = $"已选 {_multiSelected.Count} 条网址（右键「📁 移动到」/「删除」可整批处理）。";
     }
 
     /// <summary>回填多选高亮用：当前可见行里对应已选书签的节点。</summary>
@@ -873,7 +873,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         return CopyTextAsync((item.Url ?? "").Trim(), "网址");
     }
 
-    /// <summary>文件夹行的「📋 复制全部网址」：子树网址一行一个进剪贴板（粘去别的工具批量用）。</summary>
+    /// <summary>文件夹行的「复制全部网址」：子树网址一行一个进剪贴板（粘去别的工具批量用）。</summary>
     [RelayCommand(CanExecute = nameof(IsFolderSelected))]
     private Task CopyFolderUrlsAsync()
     {
@@ -886,7 +886,7 @@ public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProv
         return CopyTextAsync(string.Join(Environment.NewLine, urls), $"「{node.DisplayName}」下 {urls.Count} 个网址");
     }
 
-    /// <summary>右键「📋 复制网址」：按选中类型分流 —— 文件夹 = 子树全部网址，书签 = 单条网址。</summary>
+    /// <summary>右键「复制网址」：按选中类型分流 —— 文件夹 = 子树全部网址，书签 = 单条网址。</summary>
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private Task CopySelectedAsync() => IsFolderSelected ? CopyFolderUrlsAsync() : CopyUrlAsync();
 

@@ -162,7 +162,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     {
         get
         {
-            if (!HasSource) return "（先点「📂 选择视频」挑一个文件）";
+            if (!HasSource) return "（先点「选择视频」挑一个文件）";
             if (!EditIsCut && !EditIsTranscode) return "（至少勾选一种任务类型：剪辑 / 转码）";
 
             var ffmpeg = FfmpegService.ResolveFfmpeg(_cfg?.FfmpegPath);

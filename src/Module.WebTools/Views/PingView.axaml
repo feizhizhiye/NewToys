@@ -2,12 +2,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              xmlns:conv="using:Avalonia.Data.Converters"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.WebTools.Views.PingView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。
         NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。  -->
-  <v:ListPageSkeleton EmptyMessage="没有可显示的目标。点「📥 导入文件」选一行一个主机的文本文件，或「➕ 新建」。"
-                      EmptyActionText="📥 导入文件"
+  <v:ListPageSkeleton EmptyMessage="没有可显示的目标。点「导入文件」选一行一个主机的文本文件，或「新建」。"
+                      EmptyActionText="导入文件"
                       EmptyActionCommand="{Binding ImportTargetsCommand}"
                       IsEmpty="{Binding !HasItems}">
 
@@ -36,10 +37,10 @@
                 <Separator/>
                 <MenuItem Header="📡 Ping" Command="{Binding PingCommand}"/>
                 <MenuItem Header="🔖 发送到网址收藏" Command="{Binding SendToBookmarkCommand}"/>
-                <MenuItem Header="🕷 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
+                <MenuItem Header="🌐 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
                 <Separator/>
-                <MenuItem Header="✏ 编辑" Command="{Binding OpenDetailPanelCommand}"/>
-                <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}"/>
+                <MenuItem Header="编辑" Icon="{m:Glyph IconEdit}" Command="{Binding OpenDetailPanelCommand}"/>
+                <MenuItem Header="删除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCommand}"/>
               </ContextMenu>
             </v:TableViewHost.ContextMenu>
           </v:TableViewHost>

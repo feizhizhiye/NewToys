@@ -77,7 +77,7 @@ public partial class AssetBrowseViewModel
     }
 
     /// <summary>
-    /// 树节点右键「➕ 加入资产库」：只认右键瞄准的那个目录。
+    /// 树节点右键「加入资产库」：只认右键瞄准的那个目录。
     /// <para>🔴 ⛔ 不改选中、⛔ 不导航 —— 右键只负责瞄准（资源管理器里右键同样不跳转目录）。</para>
     /// </summary>
     [RelayCommand]
@@ -94,7 +94,7 @@ public partial class AssetBrowseViewModel
     }
 
     /// <summary>
-    /// 树节点右键「🔄 重新扫描此目录」：把右键目录里**还没入库**的文件补进来。
+    /// 树节点右键「重新扫描此目录」：把右键目录里**还没入库**的文件补进来。
     /// <para>走的还是入库那条链路（<see cref="AssetLibraryAddService.AddFolderAsync"/> 按路径去重）——
     /// 对已在库的目录就是一次增量重扫，⛔ 不会重复索引已入库的文件。</para>
     /// </summary>
@@ -115,7 +115,7 @@ public partial class AssetBrowseViewModel
     }
 
     /// <summary>
-    /// 左树右键「✏ 重命名目录源」：只改库里这个目录对应的源名（「全部资产」的「存储源」列用这个名字）。
+    /// 左树右键「重命名目录源」：只改库里这个目录对应的源名（「全部资产」的「存储源」列用这个名字）。
     /// <para>⛔ 不改磁盘目录名、⛔ 不动 `root_path` —— 想改磁盘上的文件夹名请用系统的资源管理器。</para>
     /// </summary>
     [RelayCommand]
@@ -128,7 +128,7 @@ public partial class AssetBrowseViewModel
         var storage = _assets.FindStorageByRoot(node.AbsPath);
         if (storage == null)
         {
-            StatusText = $"「{node.Name}」本身没有登记成存储源 —— 先「➕ 加入资产库」，再给它改名。";
+            StatusText = $"「{node.Name}」本身没有登记成存储源 —— 先「加入资产库」，再给它改名。";
             return;
         }
 
@@ -141,7 +141,7 @@ public partial class AssetBrowseViewModel
     }
 
     /// <summary>
-    /// 树节点右键「🗑 移出资产库」：把该目录对应的存储源（含其文件位置索引）移除，⛔ 不动磁盘文件。
+    /// 树节点右键「移出资产库」：把该目录对应的存储源（含其文件位置索引）移除，⛔ 不动磁盘文件。
     /// <para>取代原「存储源」页的「移除存储源」——目录级的库操作现在都在这里。</para>
     /// </summary>
     [RelayCommand]
@@ -170,7 +170,7 @@ public partial class AssetBrowseViewModel
     }
 
     /// <summary>
-    /// 「🔄 扫描全部已入库」：把所有已登记目录扫一遍（增量）。
+    /// 「扫描全部已入库」：把所有已登记目录扫一遍（增量）。
     /// <para>取代原「存储源」页的「扫描全部」；进度进任务中心，可取消。</para>
     /// </summary>
     [RelayCommand]
@@ -208,7 +208,7 @@ public partial class AssetBrowseViewModel
 
     public bool IsContextStorageNas => _contextStorage?.Type == StorageTypes.Nas;
 
-    /// <summary>「⬆ 上线 / ⬇ 下线」菜单文案：在线时给下线。</summary>
+    /// <summary>「上线 / ⬇ 下线」菜单文案：在线时给下线。</summary>
     public string ContextOnlineMenuText => _contextStorage is { Online: true } ? "⬇ 下线（扫描跳过它）" : "⬆ 上线";
 
     /// <summary>右键目录源的类型 / 在线状态摘要（菜单标题右侧提示用）。</summary>
@@ -249,7 +249,7 @@ public partial class AssetBrowseViewModel
     }
 
     /// <summary>
-    /// 右键「⬆ 上线 / ⬇ 下线」：只写 <c>storages.online</c>。
+    /// 右键「上线 / ⬇ 下线」：只写 <c>storages.online</c>。
     /// <para>下线 = 扫描跳过它（其下位置 ⛔ 不会被标成丢失）；上线前先探根目录，读不到要求确认（强制上线后扫描仍会失败）。</para>
     /// </summary>
     [RelayCommand]
@@ -270,7 +270,7 @@ public partial class AssetBrowseViewModel
 
         _assets.SetStorageOnline(storage.Id, next);
         StatusText = next
-            ? $"「{storage.Name}」已上线 —— 点「🔄 重新扫描此目录」校准其下文件状态。"
+            ? $"「{storage.Name}」已上线 —— 点「重新扫描此目录」校准其下文件状态。"
             : $"「{storage.Name}」已下线 —— 扫描将跳过它（⛔ 不会把它下面的文件标成丢失）。";
         RefreshContextStorage();
         Reload(restoreLastFolder: false);

@@ -31,7 +31,7 @@ public sealed class WebTransferService
 
     private string? _pendingRuleSet;
 
-    /// <summary>投递「要打开哪条规则集」（目录页点「✏ 编辑规则」时用）。</summary>
+    /// <summary>投递「要打开哪条规则集」（目录页点「编辑规则」时用）。</summary>
     public void PushRuleSet(string? name) => _pendingRuleSet = string.IsNullOrWhiteSpace(name) ? null : name;
 
     /// <summary>取走待打开的规则集名（取走即清空）。</summary>

@@ -99,11 +99,26 @@
           Classes.ghost="{Binding IsGhost}"
           Classes.primary="{Binding IsPrimary}"
           Command="{Binding Command}"
-          Content="{Binding Text}"
           HorizontalAlignment="{Binding Alignment}"
           IsEnabled="{Binding IsEnabled}"
           IsVisible="{Binding IsVisible}"
-          ToolTip.Tip="{Binding ToolTip}" />
+          ToolTip.Tip="{Binding ToolTip}">
+        <StackPanel
+            HorizontalAlignment="Center"
+            Orientation="Horizontal"
+            Spacing="5"
+            VerticalAlignment="Center">
+          <Path
+              Classes="icon-fg"
+              Data="{Binding Icon}"
+              Height="13"
+              IsVisible="{Binding HasIcon}"
+              Stretch="Uniform"
+              VerticalAlignment="Center"
+              Width="13" />
+          <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
     </DataTemplate>
 
     <!--  ===== Kind ① Text（单行 / 多行 / 只读可复制 / 密码）  =====  -->

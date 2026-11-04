@@ -93,7 +93,7 @@ public class ScriptManagerModule : IModule
 
         // 🔴 抓取三页从「网络工具」迁入本组（Key `web-scrape` / `web-rule-editor` / `web-crawl`
         // 与标题一律 ⛔ 不改 —— 页键落 columnlayout.json，改了用户列偏好失效）。
-        menu.RegisterFunction<Views.RuleCatalogView>("script", "web-scrape", "抓取规则", "🕷", 5, "管理抓取规则集（一条规则集 = 一个 .py 文件）");
+        menu.RegisterFunction<Views.RuleCatalogView>("script", "web-scrape", "抓取规则", "🌐", 5, "管理抓取规则集（一条规则集 = 一个 .py 文件）");
         menu.RegisterFunction<Views.RuleEditorView>("script", "web-rule-editor", "调试集合", "🧩", 6, "把段脚本装配成流水线：五段槽位 + 试跑推荐 + 表达式检验");
         menu.RegisterFunction<Views.CrawlPanelView>("script", "web-crawl", "运行结果", "🕸", 7,
             "跑抓取脚本看目录条目：动态列 + 双击下钻 + 下载，④ 节可回看最近 10 次运行（目录 / 日志 / 诊断）");

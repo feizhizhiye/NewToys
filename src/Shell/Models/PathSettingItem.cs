@@ -86,7 +86,7 @@ public partial class PathSettingItem : ObservableObject
     /// <summary>配置行的状态文字（详情卡用）。</summary>
     public string ProfileStateText => IsActiveProfile ? "当前窗口正在使用" : "未使用（可切换 / 新开 / 删除）";
 
-    /// <summary>默认值（「↩ 还原默认」预填用；空串表示"留空即用系统默认"）。</summary>
+    /// <summary>默认值（「还原默认」预填用；空串表示"留空即用系统默认"）。</summary>
     public string DefaultValue { get; set; } = "";
 
     /// <summary>当前值。</summary>

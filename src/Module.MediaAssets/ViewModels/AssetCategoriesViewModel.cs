@@ -74,7 +74,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPa
             Text = "＋ 新建分类",
             Classes = "ghost",
             CommandPath = nameof(NewRootCommand),
-            ToolTip = "新建一个**根**分类（子分类在详情卡里挂父级，或选中后点「➕ 子分类」）"
+            ToolTip = "新建一个**根**分类（子分类在详情卡里挂父级，或选中后点「子分类」）"
         },
         new()
         {
@@ -93,7 +93,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPa
         },
         new()
         {
-            Text = "🔄 重读分类",
+            Text = "重读分类", IconKey = "IconRefresh",
             CommandPath = nameof(RefreshCategoriesCommand),
             ToolTip = "重新读取分类表（⛔ 不扫盘）"
         },
@@ -246,7 +246,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPa
 
     private string StatusSummary()
         => IsDbAvailable
-            ? $"共 {Items.Count} 个分类" + (Items.Count == 0 ? "（点「➕ 新建分类」开一个）" : "")
+            ? $"共 {Items.Count} 个分类" + (Items.Count == 0 ? "（点「新建分类」开一个）" : "")
             : "资产库不可用（数据库打不开）—— 本页只读，不会崩。";
 
     private void ApplyView()
@@ -458,7 +458,7 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPa
                 row.ParentId == c.Id));
     }
 
-    /// <summary>详情卡「💾 保存」：只保存名称（父级走 chips 立即生效）。</summary>
+    /// <summary>详情卡「保存」：只保存名称（父级走 chips 立即生效）。</summary>
     [RelayCommand]
     private void SaveDetail()
     {
@@ -545,14 +545,14 @@ public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPa
         {
             new DetailAction
             {
-                Text = "📂 全部资产",
+                Text = "全部资产", IconKey = "IconOpen",
                 ToolTip = "跳到「全部资产」并按本分类过滤（能排序 / 批量操作 / 导出）",
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = OpenCategoryInAssetsCommand
             },
             new DetailAction
             {
-                Text = "💾 保存",
+                Text = "保存", IconKey = "IconSave",
                 Classes = "primary",
                 ToolTip = "把名称写进分类库（⛔ 不动磁盘文件）",
                 IsVisiblePath = nameof(ShowDetailBody),

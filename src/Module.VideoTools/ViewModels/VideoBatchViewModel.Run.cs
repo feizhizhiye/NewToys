@@ -27,7 +27,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     /// <summary>
     /// 🧹 清空队列：内存队列清空**并写进库**（库里那条文档一起删）。
     /// <para>必须落盘：软件启动时会自动恢复上次的队列，只清内存的话重开就全回来了。
-    /// 想再要回来用导出的 JSON 走「📥 导入任务」；磁盘上的源 / 输出文件一个都不动。</para>
+    /// 想再要回来用导出的 JSON 走「导入任务」；磁盘上的源 / 输出文件一个都不动。</para>
     /// </summary>
     [RelayCommand]
     private async Task ClearCacheAsync()
@@ -36,7 +36,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
         var n = ItemsRaw.Count();
         if (n == 0) { StatusText = "队列已经是空的。"; return; }
-        if (IsRunning) { StatusText = "正在跑任务 —— 先「⏹ 停止」再清空。"; return; }
+        if (IsRunning) { StatusText = "正在跑任务 —— 先「停止」再清空。"; return; }
 
         var msg = $"清空队列里的 {n} 个任务？（重开软件也不会再回来）" + Environment.NewLine
                 + "⛔ 磁盘上的源文件 / 已生成的视频一个都不删。";
@@ -65,15 +65,15 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
     private async Task RunTasksAsync(List<VideoTaskBase> targets)
     {
         if (_store == null) return;
-        if (IsRunning) { StatusText = "已经在跑了，先「⏹ 停止」再开始。"; return; }
+        if (IsRunning) { StatusText = "已经在跑了，先「停止」再开始。"; return; }
 
         // 🔴 已完成的任务**不再执行**（`Status` 就是运行记录）：重新开始只续跑没完成的。
-        //    想重跑某条 ⇒ 选中它右键「↺ 重新排队」（清掉状态 = 明确表示要再跑一次）。
+        //    想重跑某条 ⇒ 选中它右键「重新排队」（清掉状态 = 明确表示要再跑一次）。
         targets = targets.Where(t => t.Status != VideoTaskStatus.Done
                                      && t.Status != VideoTaskStatus.Skipped).ToList();
         if (targets.Count == 0)
         {
-            StatusText = "没有要跑的任务 —— 已完成的不重复跑；想重跑先选中它右键「↺ 重新排队」。";
+            StatusText = "没有要跑的任务 —— 已完成的不重复跑；想重跑先选中它右键「重新排队」。";
             return;
         }
 
@@ -153,7 +153,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             }
 
             StatusText = _runCts.IsCancellationRequested
-                ? $"已停止：本轮完成 {okCount}/{targets.Count} —— 剩下没跑完的留着，再点「▶▶ 批量运行」只跑它们（已完成的不会重跑）。"
+                ? $"已停止：本轮完成 {okCount}/{targets.Count} —— 剩下没跑完的留着，再点「▶ 批量运行」只跑它们（已完成的不会重跑）。"
                 : $"批量处理完成：{okCount}/{targets.Count} 成功（完成时间 / 耗时已记进列表）。";
         }
         catch (Exception ex)

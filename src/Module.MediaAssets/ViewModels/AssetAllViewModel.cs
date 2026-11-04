@@ -239,7 +239,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             if (!preview.HasAssetTables)
             {
                 StatusText = $"「{Path.GetFileName(dbPath)}」不是媒体资产库（找不到 assets 等表）——" +
-                             "导入只支持媒体资产库的 .db；json 列表请选「📥 导入」。";
+                             "导入只支持媒体资产库的 .db；json 列表请选「导入」。";
                 return;
             }
 
@@ -303,7 +303,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 「🗑 移入回收站」：选中行批量软删除（进回收站可恢复；⛔ 不动磁盘）。
+    /// 「移入回收站」：选中行批量软删除（进回收站可恢复；⛔ 不动磁盘）。
     /// </summary>
     [RelayCommand]
     private async Task TrashCheckedAsync()
@@ -447,7 +447,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     protected string StatusSummary()
     {
         if (IsDraft)
-            return $"{StatusPrefix}预览结果 {TotalCount} 个（⛔ 还没入库，点「💾 加入库」保存）";
+            return $"{StatusPrefix}预览结果 {TotalCount} 个（⛔ 还没入库，点「加入库」保存）";
 
         // 查询被 catch 吞掉时总数与列表会不一致（总数有值、列表空）⇒ 必须把原因摆到状态栏
         var err = _assets?.LastQueryError ?? "";
@@ -457,7 +457,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             return $"{StatusPrefix}资产库不可用（数据库打不开）——本页只读，不会崩。";
 
         return $"{StatusPrefix}共 {TotalCount} 个资产"
-               + (TotalCount == 0 ? "（点「📂 导入」添加存储源或文件）" : "")
+               + (TotalCount == 0 ? "（点「导入」添加存储源或文件）" : "")
                + TableFilterHint()
                + (PagingEnabled && PageCount > 1 ? $"（{PageText}）" : "");
     }
@@ -584,7 +584,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// </summary>
     [ObservableProperty] private string _importPath = "";
 
-    /// <summary>「➕ 登记文件夹」攒下来的待扫目录（登记**不**扫描，等「🔄 扫描全部」一起扫）。</summary>
+    /// <summary>「登记文件夹」攒下来的待扫目录（登记**不**扫描，等「扫描全部」一起扫）。</summary>
     public ObservableCollection<string> PendingFolders { get; } = new();
 
     public bool HasPendingFolders => PendingFolders.Count > 0;

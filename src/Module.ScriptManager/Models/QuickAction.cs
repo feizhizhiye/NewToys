@@ -112,7 +112,7 @@ public partial class QuickAction : ObservableObject
     /// </summary>
     [ObservableProperty] private string _shell = QuickActionShell.Auto;
 
-    /// <summary>列表「★」列的显示文本（收藏即 ★）。派生自 <see cref="IsFavorite"/>，不写盘。</summary>
+    /// <summary>列表「」列的显示文本（收藏即 ★）。派生自 <see cref="IsFavorite"/>，不写盘。</summary>
     [JsonIgnore]
     public string FavoriteMark => IsFavorite ? "★" : "";
 

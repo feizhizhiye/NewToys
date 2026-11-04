@@ -13,7 +13,7 @@ namespace NewToys.MediaAssets.ViewModels;
 /// 「全部资产」详情卡里的**音乐属性**：标题 / 艺术家 / 专辑 / 年份 / 流派 + 封面。
 /// <list type="bullet">
 ///   <item>编辑与写回文件都归资产库（查看器的音乐页只读，⛔ 不改文件）。</item>
-///   <item>联网补全走 MusicBrainz + Cover Art Archive；查到的内容先填进编辑框，点「💾 写入文件」才落盘。</item>
+///   <item>联网补全走 MusicBrainz + Cover Art Archive；查到的内容先填进编辑框，点「写入文件」才落盘。</item>
 /// </list>
 /// </summary>
 public partial class AssetAllViewModel
@@ -83,7 +83,7 @@ public partial class AssetAllViewModel
         MusicStatusText = tags.Cover is { Length: > 0 } ? "已读取标签（含封面）。" : "已读取标签（无封面）。";
     }
 
-    /// <summary>「💾 写入文件」：把编辑框内容（含联网取到的封面）写回音乐文件的标签。</summary>
+    /// <summary>「写入文件」：把编辑框内容（含联网取到的封面）写回音乐文件的标签。</summary>
     [RelayCommand]
     private void SaveMusicTags()
     {
@@ -130,7 +130,7 @@ public partial class AssetAllViewModel
         _musicCts?.Cancel();
         _musicCts = new CancellationTokenSource();
         MusicStatusText = "正在联网查询…";
-        StatusText = "正在联网查询 " + title;
+        StatusText = "正在联网查询" + title;
 
         var (tags, message) = await _musicTags.FetchOnlineAsync(title, EditMusicArtist, _musicCts.Token)
             .ConfigureAwait(true);
@@ -149,7 +149,7 @@ public partial class AssetAllViewModel
         if (!string.IsNullOrWhiteSpace(tags.Genre)) EditMusicGenre = tags.Genre;
         if (tags.Cover is { Length: > 0 }) _pendingMusicCover = tags.Cover;
 
-        MusicStatusText = message + " —— 确认无误后点「💾 写入文件」。";
+        MusicStatusText = message + " —— 确认无误后点「写入文件」。";
         StatusText = MusicStatusText;
     }
 }

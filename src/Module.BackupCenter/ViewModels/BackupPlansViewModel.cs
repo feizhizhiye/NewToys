@@ -252,7 +252,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
         EditMailDeliver = false;
         EditorSources.Clear();
         IsEditorOpen = true;
-        StatusText = "新建任务：填名称、加源目录，然后「💾 保存」。";
+        StatusText = "新建任务：填名称、加源目录，然后「保存」。";
     }
 
     [RelayCommand]
@@ -625,7 +625,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
                 Text = $"{run.StartedAt:MM-dd HH:mm} · {run.Status}",
                 Detail = string.IsNullOrWhiteSpace(run.ArchiveFile) ? run.Message : run.ArchiveFile + " · " + run.Message
             });
-        if (RunLines.Count == 0) RunLines.Add(new TextLine { Text = "还没跑过", Detail = "点工具条「▶ 立即备份」" });
+        if (RunLines.Count == 0) RunLines.Add(new TextLine { Text = "还没跑过", Detail = "点工具条「立即备份」" });
     }
 
     private static string SafeFileName(string name)
@@ -701,7 +701,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
     private DetailCardDescriptor BuildCard() => new()
     {
         BodyVisiblePath = nameof(ShowDetailBody),
-        EmptyText = "在左侧选中一个任务，或点工具条「➕ 新建任务」。一个任务 = 若干源目录 → 一个加密归档包。",
+        EmptyText = "在左侧选中一个任务，或点工具条「新建任务」。一个任务 = 若干源目录 → 一个加密归档包。",
         Sections =
         {
             new DetailSection
@@ -771,35 +771,35 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
         },
         new()
         {
-            Text = "✏ 编辑", Classes = "ghost",
+            Text = "编辑", IconKey = "IconEdit", Classes = "ghost",
             CommandPath = nameof(EditPlanCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "编辑选中任务（名称 / 源目录 / 排除规则 / 保留份数 / 备注）"
         },
         new()
         {
-            Text = "▶ 立即备份", Classes = "primary",
+            Text = "立即备份", IconKey = "IconPlay", Classes = "primary",
             CommandPath = nameof(RunBackupCommand),
             IsEnabledPath = nameof(IsNotBusy),
             ToolTip = "马上跑一次：7z 加密归档 → 登记包清单 → 按份数轮转"
         },
         new()
         {
-            Text = "⏹ 取消", Classes = "ghost",
+            Text = "取消", IconKey = "IconStop", Classes = "ghost",
             CommandPath = nameof(CancelRunCommand),
             IsVisiblePath = nameof(IsBusy),
             ToolTip = "中止本次备份（会杀 7z 进程并清理半成品包）"
         },
         new()
         {
-            Text = "📋 复制密码", Classes = "ghost",
+            Text = "复制密码", IconKey = "IconCopy", Classes = "ghost",
             CommandPath = nameof(CopyPasswordCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "复制选中任务的包密码（只显示指纹，密码本体在密码库里）"
         },
         new()
         {
-            Text = "🗑 删除任务", Classes = "danger-btn",
+            Text = "删除任务", IconKey = "IconTrash", Classes = "danger-btn",
             CommandPath = nameof(DeletePlanCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "删除任务配置与它的包密码（⛔ 不删已生成的归档包）"
@@ -814,7 +814,7 @@ public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelP
         },
         new()
         {
-            Text = "📂 包目录", Classes = "ghost",
+            Text = "包目录", IconKey = "IconOpen", Classes = "ghost",
             CommandPath = nameof(OpenArchiveDirCommand),
             ToolTip = "打开归档包所在目录"
         },

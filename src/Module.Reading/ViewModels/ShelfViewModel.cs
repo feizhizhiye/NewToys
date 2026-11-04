@@ -338,7 +338,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
     private CancellationTokenSource? _updateCts;
 
     /// <summary>
-    /// 「🔄 批量更新」：把**当前筛选结果**里的书逐本回源站抓详情 + 目录，比章数得出「多了几章」。
+    /// 「批量更新」：把**当前筛选结果**里的书逐本回源站抓详情 + 目录，比章数得出「多了几章」。
     /// <para>🔴 首次检查只建基线；单本失败不中断整批，失败原因进「更新」列。</para>
     /// </summary>
     [RelayCommand]
@@ -353,7 +353,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         await RunUpdateAsync(service, books).ConfigureAwait(true);
     }
 
-    /// <summary>右键「🔄 更新这本」：只跑当前选中那本。</summary>
+    /// <summary>右键「更新这本」：只跑当前选中那本。</summary>
     [RelayCommand]
     private async Task UpdateOneAsync()
     {
@@ -467,7 +467,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "🔄 刷新",
+            Text = "刷新", IconKey = "IconRefresh",
             CommandPath = "ReloadCommand",
             ToolTip = "只重新读本地书架（不发网络请求）",
         },
@@ -501,7 +501,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "📂 分组",
+            Text = "分组", IconKey = "IconOpen",
             CommandPath = "SetGroupCommand",
             IsEnabledPath = "HasSelection",
             ShowToolTipOnDisabled = true,
@@ -510,7 +510,7 @@ public partial class ShelfViewModel : ListPageViewModelBase, IDetailPanelProvide
         new()
         {
             Kind = ToolbarItemKind.Button,
-            Text = "🗑 移出书架",
+            Text = "移出书架", IconKey = "IconTrash",
             Classes = "danger-btn",
             CommandPath = "RemoveCommand",
             IsEnabledPath = "HasSelection",

@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.ScriptManager.Views.CrawlPanelView">
   <!--
     「网络工具 → 爬虫面板」（web-crawl，NT-086 批 D）。
@@ -56,7 +57,7 @@
     <Style Selector="Border.info-row:pointerover">
       <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
     </Style>
-    <!--  已勾选（= 「⬇ 下载」范围）：行底色即状态，⛔ 不用行首勾选框  -->
+    <!--  已勾选（= 「下载」范围）：行底色即状态，⛔ 不用行首勾选框  -->
     <Style Selector="Border.info-row.selected">
       <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
     </Style>
@@ -92,7 +93,7 @@
                               ToolTip.Tip="重跑这一节（目录 = 重新抓取；试下载 = 再跑一次）"
                               Command="{Binding RefreshCommand}" IsVisible="{Binding !IsProgress}"/>
 
-                      <Button Grid.Column="4" Classes="ghost" Content="⌄" Width="24" Height="22" Padding="0"
+                      <Button Grid.Column="4" Classes="ghost" Content="▾" Width="24" Height="22" Padding="0"
                               FontSize="14" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                               ToolTip.Tip="折叠 / 展开这一节"
                               Command="{Binding ToggleCommand}" IsVisible="{Binding IsExpanded}"/>
@@ -105,7 +106,7 @@
 
                   <StackPanel IsVisible="{Binding IsExpanded}" Spacing="0">
 
-                    <!--  ① 链接·目录（行内勾选 = 「⬇ 下载」的作用域；单击行切换，⛔ 不再有勾选框列）  -->
+                    <!--  ① 链接·目录（行内勾选 = 「下载」的作用域；单击行切换，⛔ 不再有勾选框列）  -->
                     <StackPanel IsVisible="{Binding IsLinks}" Spacing="0">
                       <Border Classes="list-header" Margin="0,4,0,0">
                         <v:DynamicColumnGrid ColumnSpecs="{Binding ColumnSpecs}"
@@ -120,10 +121,10 @@
                                     PointerPressed="OnRowPointerPressed">
                               <Border.ContextMenu>
                                 <ContextMenu>
-                                  <MenuItem Header="☑ 全选 / 取消勾选" Command="{Binding ToggleAllLinksCommand}"/>
+                                  <MenuItem Header="全选 / 取消勾选" Icon="{m:Glyph IconCheckAll}" Command="{Binding ToggleAllLinksCommand}"/>
                                   <Separator/>
                                   <MenuItem Header="🧪 试下载" Command="{Binding TryDownloadCommand}"/>
-                                  <MenuItem Header="📋 复制" Command="{Binding CopyDiagCommand}"/>
+                                  <MenuItem Header="复制" Icon="{m:Glyph IconCopy}" Command="{Binding CopyDiagCommand}"/>
                                 </ContextMenu>
                               </Border.ContextMenu>
                               <v:DynamicColumnGrid
@@ -212,9 +213,9 @@
                             <Border Classes="info-row" DoubleTapped="OnHistoryDoubleTapped">
                               <Border.ContextMenu>
                                 <ContextMenu>
-                                  <MenuItem Header="📂 打开目录" Command="{Binding OpenDirCommand}"/>
+                                  <MenuItem Header="打开目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenDirCommand}"/>
                                   <MenuItem Header="📄 打开日志" Command="{Binding OpenLogCommand}"/>
-                                  <MenuItem Header="📋 复制" Command="{Binding CopyDiagCommand}"/>
+                                  <MenuItem Header="复制" Icon="{m:Glyph IconCopy}" Command="{Binding CopyDiagCommand}"/>
                                 </ContextMenu>
                               </Border.ContextMenu>
                               <Grid ColumnDefinitions="110,*,170">

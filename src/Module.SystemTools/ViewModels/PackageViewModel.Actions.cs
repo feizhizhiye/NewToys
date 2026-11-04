@@ -33,7 +33,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (p == null || _pkg == null || IsBusy) return;
 
         // 🔴 装完刷新会整表重建，`p` 就成了**游离实例**（已不在 Packages 里）⇒ 详情卡要手动回写。
-        //    这里记住它在 _all 里的新实例，刷新后把「已安装」抄回 p 并发通知（否则按钮仍显示「⬇ 安装」）。
+        //    这里记住它在 _all 里的新实例，刷新后把「已安装」抄回 p 并发通知（否则按钮仍显示「安装」）。
         var wantedId = p.Id;
         try
         {

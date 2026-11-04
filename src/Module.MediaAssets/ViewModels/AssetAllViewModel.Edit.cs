@@ -27,7 +27,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 {
 
     /// <summary>
-    /// 详情卡「💾 保存」：一次把**显示名 / 评分 / 描述 / 标签 / 分类 / 集合**全部落库，并写一条 `operation_logs`。
+    /// 详情卡「保存」：一次把**显示名 / 评分 / 描述 / 标签 / 分类 / 集合**全部落库，并写一条 `operation_logs`。
     /// ⛔ 不动磁盘文件（物理重命名是 的「↗ 应用到文件」）。
     /// </summary>
     [RelayCommand]
@@ -80,12 +80,12 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
         var stuck = fresh != null && !string.Equals(fresh.Name, row.Name, StringComparison.Ordinal);
         StatusText = stuck
-            ? "⚠ 显示名没写进资产库（库不可用 / 被占用？）—— 点「🔄 重读」后再试一次。"
+            ? "⚠ 显示名没写进资产库（库不可用 / 被占用？）—— 点「重读」后再试一次。"
             : $"已保存「{row.Name}」的显示名 / 评分 / 描述 / 标签 / 分类 / 集合（⛔ 未动磁盘文件）。";
     }
 
     /// <summary>
-    /// 详情卡「↗ 应用到文件」：⚠️ 与「💾 保存」完全不同 ——
+    /// 详情卡「↗ 应用到文件」：⚠️ 与「保存」完全不同 ——
     /// 「保存」只写**库里的显示名**（⛔ 不动磁盘）；这个才是**把名字真写到磁盘文件上**。
     /// <para>物理操作 → 走任务队列 + 日志先行；同名冲突按「追加序号」处理（⛔ 不覆盖，覆盖会丢文件）。</para>
     /// </summary>
@@ -102,7 +102,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         var current = Path.GetFileName(loc.Path);
         var suggested = row.DisplayName ?? row.Title ?? Path.GetFileNameWithoutExtension(current);
         var newName = await DialogHooks.InputAsync(
-            $"把磁盘文件改成什么名字？\n当前：{current}\n（这是**真改磁盘文件名**；只改库里的显示名请用「💾 保存」）",
+            $"把磁盘文件改成什么名字？\n当前：{current}\n（这是**真改磁盘文件名**；只改库里的显示名请用「保存」）",
             suggested).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(newName)) { StatusText = "已取消（没改磁盘文件）。"; return; }
 
@@ -123,7 +123,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = $"已把「{current}」的重命名排进任务队列（进度看「任务中心」）。";
     }
 
-    /// <summary>详情卡「🗑 移入回收站」= **软删除**（只改 `status`，⛔ 不删行、⛔ 不动磁盘文件）。</summary>
+    /// <summary>详情卡「移入回收站」= **软删除**（只改 `status`，⛔ 不删行、⛔ 不动磁盘文件）。</summary>
     [RelayCommand]
     private async Task MoveToTrashAsync()
     {
@@ -146,7 +146,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// ① 不进详情卡 / 不上工具条，**只在行右键菜单里**；② 二次确认（文案写明删几个、哪几个、"不进回收站、不可还原"）；
     /// ③ 真删走**任务队列**（任务中心可见、可取消；一条失败不影响其余）。
     /// </para>
-    /// <para>只想从库里移除（文件留着）→ 用「⤫ 从库移除」；只想标记 → 详情卡「🗑 移入回收站」。</para>
+    /// <para>只想从库里移除（文件留着）→ 用「⤫ 从库移除」；只想标记 → 详情卡「移入回收站」。</para>
     /// </summary>
     [RelayCommand]
     private async Task DeleteFromDiskAsync()
@@ -184,7 +184,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 "· 不进系统回收站、无法还原；\n" +
                 "· 库里对应的文件位置记录一起删掉（资产还有其它位置的，资产本体保留）；\n" +
                 "· 只想从库里移除、文件留着 ⇒ 用「⤫ 从库移除」；\n" +
-                "· 只想打标记 ⇒ 详情卡「🗑 移入回收站」。").ConfigureAwait(true))
+                "· 只想打标记 ⇒ 详情卡「移入回收站」。").ConfigureAwait(true))
         { StatusText = "已取消。"; return; }
 
         var title = targets.Count == 1

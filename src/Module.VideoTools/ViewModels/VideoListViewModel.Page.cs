@@ -52,10 +52,10 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
             var carried = ImportVideoFiles(incoming);
             StatusText = $"已从资产库接收 {incoming.Count} 个视频（追加到当前列表"
                          + (carried > 0 ? $"，其中 {carried} 个直接带上了媒体信息" : "，媒体信息需自行读取")
-                         + "；想扫描别的目录点「📂 导入」）。";
+                         + "；想扫描别的目录点「导入」）。";
         }
         else if (string.IsNullOrWhiteSpace(Folder))
-            StatusText = "点「📂 导入」选一个视频目录（每次都手动选，不与设置绑定）；扫描后可从表头看到分辨率 / 编码 / 码率 / 时长。";
+            StatusText = "点「导入」选一个视频目录（每次都手动选，不与设置绑定）；扫描后可从表头看到分辨率 / 编码 / 码率 / 时长。";
         else if (!Directory.Exists(Folder))
             StatusText = $"上次的目录已经不在了：{Folder} —— 重新选一个。";
         else _ = ScanAsync();

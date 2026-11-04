@@ -4,7 +4,7 @@
   <!--
     「系统工具 → 收藏夹」（`script-favorites`，NT-091 自脚本中心平移）。
     形态 = **按钮墙**；操作逻辑与首页「常用功能」按钮一致：
-    左键点击执行 · 右键菜单「▶ 运行 / ✕ 移出收藏夹」（⛔ 不再用行内 ✕ 按钮）。
+    左键点击执行 · 右键菜单「运行 / ✕ 移出收藏夹」（⛔ 不再用行内 ✕ 按钮）。
   -->
   <Grid RowDefinitions="Auto,Auto,*">
 
@@ -22,7 +22,7 @@
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
       <StackPanel Margin="16" Spacing="12">
 
-        <TextBlock Text="还没有收藏任何项 —— 去「命令库」里选中一条，点工具条的「★ 收藏」。"
+        <TextBlock Text="还没有收藏任何项 —— 去「命令库」里选中一条，点工具条的「收藏」。"
                    IsVisible="{Binding IsEmpty}" Margin="8" TextWrapping="Wrap"
                    Foreground="{DynamicResource SecondaryTextBrush}"/>
 

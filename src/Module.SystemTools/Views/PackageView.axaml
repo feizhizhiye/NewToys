@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.SystemTools.Views.PackageView">
   <!--
     「软件包」页（winget）：列表 + 分页底栏（详情卡由 Shell 承载）。
@@ -10,8 +11,8 @@
     ⚠️ 批量安装 / 升级 / 卸载的作用域 = **列表选中行**（Ctrl / Shift 多选），
        全选 / 取消 / 反选与「仅看已安装」「筛选」在行右键菜单顶部。
   -->
-  <v:ListPageSkeleton EmptyMessage="列表里没有包。点「📋 已安装」加载本机已安装的包，或在上面输入关键字搜索。"
-                      EmptyActionText="📥 已安装"
+  <v:ListPageSkeleton EmptyMessage="列表里没有包。点「已安装」加载本机已安装的包，或在上面输入关键字搜索。"
+                      EmptyActionText="已安装"
                       EmptyActionCommand="{Binding LoadInstalledCommand}"
                       IsEmpty="{Binding !HasItems}"
                       ShowFooter="{Binding HasFooterContent}"
@@ -38,13 +39,13 @@
                  查（▤ 详情栏 / 🔎 详情 / 🌐 主页 / 🔗 在线索引）/ 增（⬇ 安装）/ 改（⬆ 升级 / 🔒 锁定）/ 删（🗑 卸载）。 -->
             <v:TableViewHost.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="☑ 全选当前页" Command="{Binding ToggleAllCommand}"/>
-                <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
-                <MenuItem Header="⇄ 反选当前页" Command="{Binding InvertSelectionCommand}"/>
+                <MenuItem Header="全选当前页" Icon="{m:Glyph IconCheckAll}" Command="{Binding ToggleAllCommand}"/>
+                <MenuItem Header="取消选择" Icon="{m:Glyph IconUncheckAll}" Command="{Binding SelectNoneCommand}"/>
+                <MenuItem Header="反选当前页" Icon="{m:Glyph IconInvert}" Command="{Binding InvertSelectionCommand}"/>
                 <Separator/>
                 <MenuItem Header="仅看已安装" Command="{Binding ToggleInstalledOnlyCommand}"
                           ToolTip.Tip="只留本机已安装的"/>
-                <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
+                <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
                   <MenuItem.ItemContainerTheme>
                     <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                       <Setter Property="Header" Value="{Binding Label}"/>
@@ -53,15 +54,15 @@
                   </MenuItem.ItemContainerTheme>
                 </MenuItem>
                 <Separator/>
-                <MenuItem Header="⬇ 安装" Command="{Binding InstallCommand}" IsEnabled="{Binding !IsBusy}"/>
-                <MenuItem Header="⬆ 升级到最新" Command="{Binding UpgradeCommand}" IsEnabled="{Binding !IsBusy}"/>
-                <MenuItem Header="🗑 卸载…" Command="{Binding UninstallCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="安装" Icon="{m:Glyph IconArrowDown}" Command="{Binding InstallCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="升级到最新" Icon="{m:Glyph IconArrowUp}" Command="{Binding UpgradeCommand}" IsEnabled="{Binding !IsBusy}"/>
+                <MenuItem Header="卸载…" Icon="{m:Glyph IconTrash}" Command="{Binding UninstallCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <Separator/>
                 <MenuItem Header="🔒 锁定版本（暂停更新）" Command="{Binding PinCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <MenuItem Header="🔒 解除锁定" Command="{Binding UnpinCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <Separator/>
-                <MenuItem Header="🔍 读取详情" Command="{Binding LoadDetailCommand}"/>
-                <MenuItem Header="📋 复制 Id" Command="{Binding CopyIdCommand}"/>
+                <MenuItem Header="读取详情" Icon="{m:Glyph IconSearch}" Command="{Binding LoadDetailCommand}"/>
+                <MenuItem Header="复制 Id" Icon="{m:Glyph IconCopy}" Command="{Binding CopyIdCommand}"/>
                 <MenuItem Header="🌐 打开主页" Command="{Binding OpenHomepageCommand}"/>
                 <MenuItem Header="🔗 在 winget.run 查看" Command="{Binding OpenInWingetRunCommand}"/>
               </ContextMenu>

@@ -21,7 +21,7 @@ namespace NewToys.WebTools.ViewModels;
 /// 与右「来源」（拉取的方案）并排对照，详情卡做条目级增删改，工具条管备份 / 还原 / 写入。
 /// <para>
 /// 🔴 左侧可编辑内容是**内存草稿** <c>_draftText</c>（全文）：条目行编辑与文本视图改的都是它，
-/// 点「✅ 写入系统 hosts」才落盘（一次二次确认 + 一次备份）；备份快照只读。
+/// 点「写入系统 hosts」才落盘（一次二次确认 + 一次备份）；备份快照只读。
 /// </para>
 /// <para>🔴 备份只针对系统 hosts 原文（整份），⛔ 不备份拉取来的方案。</para>
 /// </summary>
@@ -61,23 +61,23 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
     {
         new() { Text = "📦 备份当前", CommandPath = nameof(BackupNowCommand),
                 ToolTip = "把当前系统 hosts 整份复制到备份目录（只读也能备份）" },
-        new() { Text = "↩ 还原", CommandPath = nameof(RestoreCommand), IsEnabledPath = nameof(CanRestore),
+        new() { Text = "还原", IconKey = "IconReset", CommandPath = nameof(RestoreCommand), IsEnabledPath = nameof(CanRestore),
                 ToolTip = "把系统 hosts 整份换回左栏选中的那份备份（还原前会再备份当前文件）" },
-        new() { Text = "🗑 删备份", Classes = "ghost", CommandPath = nameof(DeleteBackupCommand), IsEnabledPath = nameof(CanRestore),
+        new() { Text = "删备份", IconKey = "IconTrash", Classes = "ghost", CommandPath = nameof(DeleteBackupCommand), IsEnabledPath = nameof(CanRestore),
                 ToolTip = "只删备份文件，⛔ 不动系统 hosts" },
         new() { Text = "📄 文本", AltText = "📋 条目", AltTextPath = nameof(IsTextView),
                 CommandPath = nameof(ToggleTextViewCommand),
                 ToolTip = "左栏在「条目列表」和「原文全文」之间切换（文本视图可直接改整份文件）" },
-        new() { Text = "🧹 清受管块", Classes = "ghost", CommandPath = nameof(ClearManagedCommand),
+        new() { Text = "清受管块", IconKey = "IconEraser", Classes = "ghost", CommandPath = nameof(ClearManagedCommand),
                 IsEnabledPath = nameof(CanEditTarget),
-                ToolTip = "从草稿里删掉本程序写的那一段（用户自己写的行保留），仍需点「✅ 写入」才落盘" },
-        new() { Text = "📂 备份目录", Classes = "ghost", CommandPath = nameof(OpenBackupFolderCommand),
+                ToolTip = "从草稿里删掉本程序写的那一段（用户自己写的行保留），仍需点「写入」才落盘" },
+        new() { Text = "备份目录", IconKey = "IconOpen", Classes = "ghost", CommandPath = nameof(OpenBackupFolderCommand),
                 ToolTip = "打开 hosts 备份所在文件夹" },
-        new() { Text = "🔍 检测", AltText = "⏹ 停止", AltTextPath = nameof(IsChecking),
+        new() { Text = "检测", IconKey = "IconSearch", AltText = "停止", AltIconKey = "IconStop", AltTextPath = nameof(IsChecking),
                 CommandPath = nameof(CheckCommand), IsEnabledPath = nameof(HasProfileSelection),
                 ToolTip = "逐条检测右栏方案：本机 DNS 与映射 IP 是否一致 + 目标端口是否可达（可取消），并跑静态安全规则" },
         new() { Text = "＋ 新建方案", Classes = "ghost", CommandPath = nameof(NewProfileCommand) },
-        new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand),
+        new() { Text = "重读", IconKey = "IconRefresh", CommandPath = nameof(RefreshCommand),
                 ToolTip = "重读系统 hosts 与方案清单（丢弃左栏未写入的改动）" }
     };
 
@@ -258,7 +258,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
         : "没有可显示的条目（切「📄 文本」看原文）";
 
     public string EmptyRightHint => Profiles.Count == 0
-        ? "还没有方案：在右栏顶部选一个源，点「⬇ 拉取」。"
+        ? "还没有方案：在右栏顶部选一个源，点「拉取」。"
         : "这个方案没有条目";
 
     // ==================== 属性联动 ====================
@@ -293,7 +293,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
 
     partial void OnIsDirtyChanged(bool value) => OnPropertyChanged(nameof(WriteButtonText));
 
-    public string WriteButtonText => IsDirty ? "✅ 写入系统 hosts（有改动）" : "✅ 写入系统 hosts";
+    public string WriteButtonText => IsDirty ? "写入系统 hosts（有改动）" : "写入系统 hosts";
 
     partial void OnCanWriteSystemChanged(bool value) => OnPropertyChanged(nameof(CanEditTarget));
 
@@ -528,7 +528,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
         _draftText = HostsService.StripManagedBlock(_draftText);
         IsDirty = true;
         RefreshRows();
-        StatusText = "已从草稿移除受管块（点「✅ 写入系统 hosts」才落盘）。";
+        StatusText = "已从草稿移除受管块（点「写入系统 hosts」才落盘）。";
     }
 
     /// <summary>把右栏方案（启用条目）写进左栏草稿的受管块。</summary>
@@ -547,7 +547,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
 
         IsDirty = true;
         RefreshRows();
-        StatusText = $"已把「{profile.Name}」写入左侧草稿（受管块 {enabled.Count} 条），点「✅ 写入系统 hosts」落盘。";
+        StatusText = $"已把「{profile.Name}」写入左侧草稿（受管块 {enabled.Count} 条），点「写入系统 hosts」落盘。";
     }
 
     /// <summary>草稿写盘（二次确认 + 自动备份）。</summary>
@@ -634,7 +634,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
         OnPropertyChanged(nameof(HasProfiles));
         SelectedProfile = p;
         await PersistAsync();
-        StatusText = "已新建空方案：在右栏详情卡点「➕ 新增条目」。";
+        StatusText = "已新建空方案：在右栏详情卡点「新增条目」。";
     }
 
     [RelayCommand]
@@ -732,7 +732,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
 
             OnPropertyChanged(nameof(HasProfiles));
             SelectedProfile = target;
-            StatusText = result.Message + "（已写入右栏，点「⬅ 应用到左侧」+「✅ 写入系统 hosts」才动系统文件）";
+            StatusText = result.Message + "（已写入右栏，点「⬅ 应用到左侧」+「写入系统 hosts」才动系统文件）";
         }
         finally { IsBusy = false; }
     }
@@ -761,7 +761,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
             };
 
             var total = profile.Entries.Count(e => e.Enabled);
-            StatusText = $"正在检测「{profile.Name}」的 {total} 条启用条目…（点「⏹ 停止」可取消）";
+            StatusText = $"正在检测「{profile.Name}」的 {total} 条启用条目…（点「停止」可取消）";
 
             var progress = new Progress<int>(n => StatusText = $"检测中 {n}/{total}…");
             await _check.CheckAsync(profile.Entries, options, progress, _checkCts.Token);
@@ -822,7 +822,7 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
 
             var probes = rows.Select(r => new HostsEntry { Ip = r.Ip, Host = r.Host, Enabled = true }).ToList();
             var total = probes.Count;
-            StatusText = $"正在检测选中的 {total} 条…（点「⏹ 停止」可取消）";
+            StatusText = $"正在检测选中的 {total} 条…（点「停止」可取消）";
 
             var progress = new Progress<int>(n => StatusText = $"检测选中 {n}/{total}…");
             await _check.CheckAsync(probes, options, progress, _checkCts.Token);
@@ -903,12 +903,12 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
                 line.Enabled = enabled;
                 changed++;
             }
-            if (changed == 0) { StatusText = "⚠ 选中的行在草稿里已不存在，请「🔄 重读」。"; return; }
+            if (changed == 0) { StatusText = "⚠ 选中的行在草稿里已不存在，请「重读」。"; return; }
 
             _draftText = HostsService.RenderLines(all);
             IsDirty = true;
             RefreshRows();
-            StatusText = $"已{verb}草稿里 {changed} 条（点「✅ 写入系统 hosts」落盘）。";
+            StatusText = $"已{verb}草稿里 {changed} 条（点「写入系统 hosts」落盘）。";
             return;
         }
 
@@ -924,8 +924,8 @@ public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolba
         }
         RefreshRows();
         StatusText = count == 0
-            ? "⚠ 选中的条目已不在方案里，请「🔄 重读」。"
-            : $"已{verb}右栏 {count} 条（点「💾 保存方案」落库）。";
+            ? "⚠ 选中的条目已不在方案里，请「重读」。"
+            : $"已{verb}右栏 {count} 条（点「保存方案」落库）。";
     }
 
     private static string BuildCheckReport(HostsProfile profile)

@@ -189,7 +189,7 @@ public partial class SettingsBackupViewModel : ObservableObject
         }
 
         LoadMailSettings();
-        MailStatusText = "已保存邮件配置。" + (mail.IsConfigured ? "点「🔌 测试连接」验证一下。" : "");
+        MailStatusText = "已保存邮件配置。" + (mail.IsConfigured ? "点「📡 测试连接」验证一下。" : "");
     }
 
     [RelayCommand]
@@ -256,7 +256,7 @@ public partial class SettingsBackupViewModel : ObservableObject
         MasterInput = "";
         MasterConfirmInput = "";
         RefreshVaultState();
-        StatusText = "✅ 主密码已设置，密码库已解锁。🔴 主密码丢了，包密码就再也取不回来。";
+        StatusText = "主密码已设置，密码库已解锁。🔴 主密码丢了，包密码就再也取不回来。";
     }
 
     [RelayCommand]
@@ -271,7 +271,7 @@ public partial class SettingsBackupViewModel : ObservableObject
         }
         MasterInput = "";
         RefreshVaultState();
-        StatusText = "✅ 密码库已解锁（本次会话有效）。";
+        StatusText = "密码库已解锁（本次会话有效）。";
     }
 
     [RelayCommand]
@@ -300,7 +300,7 @@ public partial class SettingsBackupViewModel : ObservableObject
         NewMasterInput = "";
         NewMasterConfirmInput = "";
         RefreshVaultState();
-        StatusText = "✅ 主密码已更换，库里的条目已用新密码重新加密。";
+        StatusText = "主密码已更换，库里的条目已用新密码重新加密。";
     }
 
     // ==================== 保留份数 / 目录 ====================

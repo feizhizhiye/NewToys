@@ -1,16 +1,17 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.MediaAssets.Views.AssetTrashView">
   <!--
     「回收站」页：`assets.status='trashed'` 的资产表格（右详情卡由 **Shell** 承载，⛔ 本页不自带右栏）。
-    ⚠️ 「♻ 恢复」= 只改库状态（逻辑操作）；「🗑 永久删除 / 清空」= 真删磁盘 + 删索引（物理操作 → 任务中心可见）。
+    ⚠️ 「♻ 恢复」= 只改库状态（逻辑操作）；「永久删除 / 清空」= 真删磁盘 + 删索引（物理操作 → 任务中心可见）。
 
     列表本体 = <v:TableViewHost>：表头自带、列宽可拖、行回收；列显隐 / 排序键按 VM 的 ColumnLayout 对齐
     （🔴 Columns 声明顺序必须与之一致），故骨架的 HeaderArea 不填。
   -->
   <v:ListPageSkeleton EmptyMessage="没有可显示的资产。删除的资产会先放到回收站，可以在这儿恢复。"
-                      EmptyActionText="🔄 重读"
+                      EmptyActionText="重读"
                       EmptyActionCommand="{Binding RefreshTrashCommand}"
                       IsEmpty="{Binding !HasItems}">
 
@@ -48,11 +49,11 @@
 
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="↩ 恢复" Command="{Binding RestoreCommand}"
+              <MenuItem Header="恢复" Icon="{m:Glyph IconReset}" Command="{Binding RestoreCommand}"
                         ToolTip.Tip="改回「正常」状态（库操作，磁盘文件没动）"/>
-              <MenuItem Header="📂 所在目录" Command="{Binding OpenFolderCommand}"/>
+              <MenuItem Header="所在目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFolderCommand}"/>
               <Separator/>
-              <MenuItem Header="🗑 永久删除" Command="{Binding PurgeSelectedCommand}"
+              <MenuItem Header="永久删除" Icon="{m:Glyph IconTrash}" Command="{Binding PurgeSelectedCommand}"
                         ToolTip.Tip="真删磁盘文件（二次确认；无法还原）"/>
             </ContextMenu>
           </v:TableViewHost.ContextMenu>

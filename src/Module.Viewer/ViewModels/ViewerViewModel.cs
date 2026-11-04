@@ -151,10 +151,10 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// <summary>空态提示（按范围区分）。</summary>
     public string ScopeHint => Scope switch
     {
-        ViewerScope.Text => "拖入源码 / 短文本 / HTML 或点「📂 打开」；长文本阅读（txt / md）已并入「网络阅读」。",
-        ViewerScope.Image => "拖入图片（png / jpg / webp …）或压缩包（zip / rar / 7z），也可点「📂 打开」。",
-        ViewerScope.Audio => "拖入音频（mp3 / flac / m4a …，可一次多个）或播放列表（m3u / m3u8），也可点「📂 打开」；按列表顺序播放。",
-        _ => "拖入文件或点「📂 打开」开始。",
+        ViewerScope.Text => "拖入源码 / 短文本 / HTML 或点「打开」；长文本阅读（txt / md）已并入「网络阅读」。",
+        ViewerScope.Image => "拖入图片（png / jpg / webp …）或压缩包（zip / rar / 7z），也可点「打开」。",
+        ViewerScope.Audio => "拖入音频（mp3 / flac / m4a …，可一次多个）或播放列表（m3u / m3u8），也可点「打开」；按列表顺序播放。",
+        _ => "拖入文件或点「打开」开始。",
     };
 
     /// <summary>设计期用。</summary>
@@ -495,7 +495,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
         {
             _settings.FontSize = FontSize + delta;
             OnPropertyChanged(nameof(FontSize));
-            StatusText = "字号 " + FontSize.ToString("0");
+            StatusText = "字号" + FontSize.ToString("0");
             TypographyChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex) { StatusText = "⚠ 保存字号失败：" + ex.Message; }
@@ -761,7 +761,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
             {
                 new()
                 {
-                    Text = "📂 打开",
+                    Text = "打开", IconKey = "IconOpen",
                     Classes = "primary",
                     CommandPath = nameof(OpenCommand),
                     ToolTip = "选择要查看的文件（也可直接把文件拖进窗口）",
@@ -832,7 +832,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 });
                 items.Add(new()
                 {
-                    Text = "←",
+                    Text = "", IconKey = "IconChevronLeft",
                     Width = 34,
                     GlyphSize = 14,
                     CommandPath = nameof(PrevImageCommand),
@@ -883,7 +883,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
                 });
                 items.Add(new()
                 {
-                    Text = "☰ 列表",
+                    Text = "▤ 列表",
                     CommandPath = nameof(TogglePlaylistCommand),
                     IsEnabledPath = nameof(IsAudio),
                     ShowToolTipOnDisabled = true,
@@ -893,7 +893,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
 
             items.Add(new()
             {
-                Text = "✕ 关闭",
+                Text = "关闭", IconKey = "IconClose",
                 CommandPath = nameof(CloseCommand),
                 IsEnabledPath = nameof(HasContent),
                 ToolTip = "关闭当前文件（回到空态）",

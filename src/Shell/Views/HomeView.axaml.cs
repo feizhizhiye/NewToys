@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using NewToys.Shared.Services;
+using NewToys.UI.Markup;
 using NewToys.Shell.ViewModels;
 
 namespace NewToys.Shell.Views;
@@ -39,7 +40,7 @@ public partial class HomeView : UserControl
     private void OnFavoritesChanged() => _vm?.BuildFavorites();
 
     /// <summary>
-    /// 常用功能按钮右键 = 「▶ 打开 / ✕ 取消固定」—— 与「脚本管理器 → 收藏夹」按钮墙完全一致的交互。
+    /// 常用功能按钮右键 = 「打开 / ✕ 取消固定」—— 与「脚本管理器 → 收藏夹」按钮墙完全一致的交互。
     /// <para>
     /// 为什么在 code-behind 里现构造菜单：<c>ContextMenu</c> 挂在**独立的弹出树**上，
     /// 模板里声明的菜单取不到页面 VM，<c>$parent[UserControl]</c> 这类绑定在弹出树里会断链（规范 3.6）。
@@ -56,9 +57,9 @@ public partial class HomeView : UserControl
         if (card.IsMore) { e.Handled = true; return; }
 
         var menu = new ContextMenu { DataContext = vm };
-        menu.Items.Add(new MenuItem { Header = "▶ 打开", Command = vm.NavigateCommand, CommandParameter = card.Key });
+        menu.Items.Add(new MenuItem { Header = "打开", Icon = Glyph.Create("IconPlay", 14), Command = vm.NavigateCommand, CommandParameter = card.Key });
         menu.Items.Add(new Separator());
-        menu.Items.Add(new MenuItem { Header = "✕ 取消固定", Command = vm.UnpinCommand, CommandParameter = card.Key });
+        menu.Items.Add(new MenuItem { Header = "取消固定", Icon = Glyph.Create("IconClose", 14), Command = vm.UnpinCommand, CommandParameter = card.Key });
 
         menu.Open(button);   // Open(control) 内部会把菜单挂到这颗按钮上并设置 PlacementTarget
         e.Handled = true;

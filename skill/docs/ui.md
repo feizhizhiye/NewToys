@@ -1,5 +1,7 @@
 ﻿# NewToys UI 规范
 
+> v4.33 · 2026-11-04 · **通用动作图标矢量化（NT-047 第一批）** —— 新增 14 个动作几何（`IconOpen`/`IconEdit`/`IconCopy`/`IconImport`/`IconExport`/`IconArrowUp`/`IconArrowDown`/`IconStop`/`IconPause`/`IconEraser`/`IconCheckAll`/`IconUncheckAll`/`IconClose`/`IconReset`），`IconTabClose`+`IconWinClose` 合并进 `IconClose`；工具条 / 右键菜单 / 页面按钮 / 详情卡动作四条通道全部改走 `IconKey` 或 `{m:Glyph*}`（`NewToys.UI/Markup`），文案里的 emoji 前缀去掉。新增 `Path.icon-fg` —— 描边绑宿主 `Foreground`，禁用态自动变灰。§5 改为「一键一义」词表。
+
 > v4.32 · 2026-11-04 · **选中数接进状态栏（新契约）** —— 新增 `Shared/Services/ISelectionStatusProvider`（`SelectedCount` + 继承 `INotifyPropertyChanged`，页面 VM 派生自 `ObservableObject` ⇒ 加个接口名即可，不写事件）；`ShellPageBinder` 探测并监听属性变更，`ShellViewModel` 出 `SelectionText` / `HasSelection`，`ShellView` 状态栏改 `Grid *,Auto`（左 = 原有状态文本 / 可点跳转，右 = `已选 N`，0 条不占位）。实现方 = 全部资产 / 资产浏览 / 视频列表 / 批量处理（四个多选列表页）。§6.8 / §10.4 口径同步：底栏管「总量 · 页数」，状态栏管「选中数」。
 
 > v4.31 · 2026-11-04 · **底栏二轮：页码串换矢量图标 + 已选移出** —— 翻页箭头 `« ‹ › »` 字符换成 `Path`（新增 `IconChevronLeft` / `IconChevronsLeft` / `IconChevronsRight` 三个 24 网格描边几何），按钮 22 → **18 宽**、页码按钮 26 → **22**，全部 `Padding=0` + 双向居中（取消原「箭头下内边距 4 / 页码上内边距 3」的光学补偿）；`N 页` 从左列并入 `N 条 · N 页`（原来贴在分页链头上、与条数挤成"1234条12页"）；跳转框改 `PlaceholderText="Go"` + 失焦即清空；**「已选 M」从底栏删除**（待接状态栏）。§6.8 同步。
@@ -277,17 +279,29 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 ## §5 图标
 
-> **当前状态**：**框架层（一级菜单 / 首页 / 标题栏 / 标签页 / 左树）= 矢量**；**二级菜单不显示图标**；⚠️ **数据驱动图标**（二级功能菜单 `icon` / 首页一键按钮 / 模块页内数据行）仍是 emoji → 技术债 **NT-047**（⛔ 静态装饰 emoji 不动）。
+> **当前状态**：**框架层（一级菜单 / 首页 / 标题栏 / 标签页 / 左树）= 矢量**；**工具条 / 右键菜单 / 页面按钮的 21 个通用动作 = 矢量**（`IconKey` + `{m:Glyph*}`）；**二级菜单不显示图标**；⛔ **领域标识与状态**（🎵 🎬 📖 🧪 📡 🛡 ✅ ❌ ⚠）仍用字符 —— 它们不是「动作」，彩色有辨识价值，也不会有禁用态。
 
 - **定义**：`Shell/App.axaml` 的 `<Application.Resources>` 里 `<StreamGeometry x:Key="IconXxx">路径数据</StreamGeometry>`（24×24 网格、**描边型**）。
 - **渲染**：`<Path Data="{Binding VectorIcon}" Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="1.5" Stretch="Uniform" Width="16" Height="16"/>`。⚠️ 描边型**不要**用填充型的 `PathIcon`。
-- **键名规范** `Icon<用途>`。已定义（完整清单以 `App.axaml` 为准）：`IconHome`/`IconPc`/`IconWeb`/`IconVideo`/`IconSettings`/`IconMediaAssets`/`IconMenuPanel`/`IconRefresh`/`IconPuzzle`/`IconWinMinimize`/`IconWinMaximize`/`IconWinRestore`/`IconWinClose`/`IconFullScreen`/`IconExitFullScreen`/`IconTabClose`/`IconPlus`/`IconChevronDown`/`IconChevronRight`/`IconStar`/`IconZap`/`IconGear`。
-- 🔴 **Shell 框架层图标只用 `Path`**：⛔ 图标字体 / 字符 / emoji / `Rectangle` 拼几何；粗细 / 端帽 / 拐角 / 颜色一律由按钮的**后代选择器样式**给，⛔ XAML 写本地 `Stroke`（本地值会压过 `:pointerover` / `.active`）。
+- 🔴 **三种用法，别各写一套**：
+
+| 位置 | 写法 |
+|---|---|
+| 工具条项 | `new() { Text = "重扫", IconKey = "IconRefresh" }`（`ToolbarItemDescriptor` / `ToolbarMenuItemDescriptor`；`Text` 里**不写** emoji） |
+| 右键菜单项 | `<MenuItem Header="重扫" Icon="{m:Glyph IconRefresh}" …/>`（`xmlns:m="using:NewToys.UI.Markup"`） |
+| 页面按钮 | `<Button Content="{m:GlyphText IconOpen, '选择目录'}" …/>`（纯图标按钮省第二个参数） |
+| 详情卡动作 | `DetailAction { Text = "保存", IconKey = "IconSave" }` |
+
+- **颜色**：以上位置的 `Path` 一律带 `icon-fg` 类 —— `Button Path.icon-fg` / `MenuItem Path.icon-fg` 把描边绑到宿主 `Foreground`，**禁用态自动变灰、主题切换自动跟随**。⛔ 写本地 `Stroke`（本地值压过样式，灰化失效）。
+- **通用动作词表（22 个，语义唯一）**：`IconPlus` `IconOpen` `IconSave` `IconTrash` `IconEdit` `IconSearch` `IconRefresh` `IconReset` `IconCopy` `IconImport` `IconExport` `IconArrowUp` `IconArrowDown` `IconPlay` `IconStop` `IconPause` `IconEraser` `IconCheckAll` `IconUncheckAll` `IconInvert` `IconClose` `IconStar`。
+  - 🔴 **一键一义**：`IconRefresh` 只做刷新（⛔ 兼重置 → `IconReset`）；`IconArrowUp/Down` 只做排序位移（⛔ 兼导入导出 / 升级）；`IconClose` 只做关闭取消。
+  - 新增动作先看这 21 个能不能覆盖，覆盖不了才加键；**不为单个页面造键**（页面专属的用字符）。
+- **键名规范** `Icon<用途>`。其余已定义（完整清单以 `App.axaml` 为准）：`IconHome`/`IconPc`/`IconWeb`/`IconVideo`/`IconSettings`/`IconMediaAssets`/`IconSystem`/`IconBackup`/`IconViewer`/`IconReading`/`IconMenuPanel`/`IconPuzzle`/`IconWinMinimize`/`IconWinMaximize`/`IconWinRestore`/`IconFullScreen`/`IconExitFullScreen`/`IconChevronDown`/`IconChevronRight`/`IconChevronLeft`/`IconChevronsLeft`/`IconChevronsRight`/`IconZap`/`IconGear`/`IconThumbUp`/`IconThumbDown`/`IconPlay`。
+- 🔴 **Shell 框架层图标只用 `Path`**：⛔ 图标字体 / 字符 / emoji / `Rectangle` 拼几何；粗细 / 端帽 / 拐角 / 颜色一律由按钮的**后代选择器样式**给。
 - 🔴 **`Stretch="Uniform"` 两坑**：几何必须有**非零宽高**（`M4,12 H20` 零高度包围盒会退化成「一个点」）；**扁几何**（横杠 / 线）顶边对齐偏上 ~7px ⇒ 线类用 `Stretch="None"` + 16×16 坐标（唯一例外 `IconWinMinimize` = `M2,8 H14`）。
-- **取不到键要回退**：VM 解析失败返回 `null` → XAML 用 `IsVisible="{Binding HasVectorIcon}"` 在「矢量 / emoji」间切换（⛔ 不能让未知键显示成 `IconXxx` 文本）。
-- 尺寸基线：一级菜单 / 首页 / 标题栏 **16px**｜树节点 14px｜标签页 14px｜标签关闭 10px。
+- **取不到键要回退**：VM 解析失败返回 `null` → XAML 用 `IsVisible="{Binding HasVectorIcon}"` 在「矢量 / emoji」间切换（⛔ 不能让未知键显示成 `IconXxx` 文本）。`{m:Glyph}` 键不存在时**只剩空白**，不抛。
+- 尺寸基线：一级菜单 / 首页 / 标题栏 **16px**｜树节点 14px｜标签页 14px｜标签关闭 10px｜**工具条 / 菜单 / 按钮 13~14px**。
 - 状态图标（最大化/还原、全屏/退出）用**两个 `Path` 叠放 + `IsVisible`** 切换，切换在 code-behind（`ShellView.UpdateMaxIcon()`）。
-- `IconChevronDown/Right` 目前无引用（左树展开箭头已去掉），留备后续可折叠区块，⛔ 别因"没人用"删除。
 - **来源**：公开线性图标集（Lucide / Feather，MIT）取路径数据，只取数据不引依赖。
 - 无状态装饰图标（首页 ★ / ⚡ / ⚙ 这类不参与状态的）可用 `Path.icon-accent` / `Path.icon-primary` 类给死色。
 

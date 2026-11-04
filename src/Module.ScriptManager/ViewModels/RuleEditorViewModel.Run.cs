@@ -44,7 +44,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
             SelectedSlot = slot;
         }
 
-        StatusText = "已带入「" + name + "」→ " + stage + " 段。点「🌐 抓页」后再「🔍 试跑推荐」。";
+        StatusText = "已带入「" + name + "」→ " + stage + " 段。点「🌐 抓页」后再「试跑推荐」。";
     }
 
     // ==================== 抓取 / 跑 / 推荐 ====================
@@ -57,7 +57,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         try
         {
             IsBusy = true;
-            StatusText = "正在抓取 " + StartUrl + " ……";
+            StatusText = "正在抓取" + StartUrl + " ……";
             var (ok, html, error) = await _run.FetchIntoAsync(StartUrl, Encoding, _run.DebugHtmlPath).ConfigureAwait(true);
             if (!ok) { StatusText = "⚠ " + error; return; }
 
@@ -101,7 +101,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
 
     /// <summary>
     /// 试跑推荐：当前槽位的**全部候选**对同一份 HTML 求值 → 排序展示。
-    /// ⛔ 只推荐不代选（用户点「✅ 用它」才写进槽位）。
+    /// ⛔ 只推荐不代选（用户点「用它」才写进槽位）。
     /// </summary>
     [RelayCommand]
     private async Task RecommendAsync()
@@ -113,14 +113,14 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         var names = slot.Options.Where(o => o.Value.Length > 0).Select(o => o.Value).ToList();
         if (names.Count == 0)
         {
-            StatusText = "这个段位没有候选脚本（脚本头要写 # role: " + slot.Key + "）。";
+            StatusText = "这个段位没有候选脚本（脚本头要写 # role:" + slot.Key + "）。";
             return;
         }
 
         try
         {
             IsBusy = true;
-            StatusText = "正在对 " + names.Count + " 个候选求值……";
+            StatusText = "正在对" + names.Count + " 个候选求值……";
             var list = await _run.RunProbeAsync(
                 _run.DebugHtmlPath,
                 StartUrl,

@@ -102,7 +102,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     }
 
     /// <summary>
-    /// 右键菜单「📤 发送到{目标页}」的动态文案（微调）：按选中集合的类别实时变
+    /// 右键菜单「发送到{目标页}」的动态文案（微调）：按选中集合的类别实时变
     /// （信息面板 / 脚本库 / 命令库 / 软件包）；未选中时落信息面板（点击后命令会提示先选集合）。
     /// </summary>
     public string SendToPageMenuText

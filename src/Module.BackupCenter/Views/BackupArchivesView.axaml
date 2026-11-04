@@ -1,13 +1,14 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.BackupCenter.Views.BackupArchivesView">
   <!--
     「备份中心 → 备份包」（`backup-archives`）：本地包清单 + 还原弹层。
     还原目标 / 冲突策略只在弹层里填，⛔ 不在列表行内联编辑。
   -->
   <Grid>
-    <v:ListPageSkeleton EmptyMessage="还没有归档包。到「备份任务」页选中任务点「▶ 立即备份」，包会出现在这里。"
+    <v:ListPageSkeleton EmptyMessage="还没有归档包。到「备份任务」页选中任务点「立即备份」，包会出现在这里。"
                         IsEmpty="{Binding !HasItems}">
 
       <v:ListPageSkeleton.TopArea>
@@ -41,12 +42,12 @@
 
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="↩ 还原…" Command="{Binding BeginRestoreCommand}" IsEnabled="{Binding HasSelection}"/>
-              <MenuItem Header="📋 复制哈希" Command="{Binding CopyShaCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="还原…" Icon="{m:Glyph IconReset}" Command="{Binding BeginRestoreCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="复制哈希" Icon="{m:Glyph IconCopy}" Command="{Binding CopyShaCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
-              <MenuItem Header="🗑 删除包" Command="{Binding DeleteArchiveCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="删除包" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteArchiveCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
-              <MenuItem Header="🔄 重扫" Command="{Binding RefreshCommand}"/>
+              <MenuItem Header="重扫" Icon="{m:Glyph IconRefresh}" Command="{Binding RefreshCommand}"/>
             </ContextMenu>
           </v:TableViewHost.ContextMenu>
         </v:TableViewHost>
@@ -65,7 +66,7 @@
             <TextBlock Classes="field-label" Text="还原到"/>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBox Width="380" Text="{Binding RestoreTargetDir}" PlaceholderText="选择目标目录…"/>
-              <Button Classes="ghost" Content="📂 选择" Command="{Binding PickRestoreFolderCommand}"/>
+              <Button Classes="ghost" Content="{m:GlyphText IconOpen, '选择'}" Command="{Binding PickRestoreFolderCommand}"/>
             </StackPanel>
           </StackPanel>
 
@@ -85,7 +86,7 @@
 
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,6,0,0">
             <Button Classes="ghost" Content="取消" Command="{Binding CancelRestoreCommand}"/>
-            <Button Classes="primary" Content="↩ 还原" Command="{Binding ConfirmRestoreCommand}"/>
+            <Button Classes="primary" Content="{m:GlyphText IconReset, '还原'}" Command="{Binding ConfirmRestoreCommand}"/>
           </StackPanel>
         </StackPanel>
       </Border>

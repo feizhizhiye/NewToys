@@ -27,7 +27,7 @@ public partial class AssetBrowseViewModel
 
     private ResultSetRequest? _resultSet;
 
-    /// <summary>是否处于结果集模式（左树隐藏、工具条出现「✕ 退出结果集」）。</summary>
+    /// <summary>是否处于结果集模式（左树隐藏、工具条出现「退出结果集」）。</summary>
     public bool IsResultSetMode => _resultSet != null;
 
     /// <summary>结果集标题（如 <c>标签「科幻」· 视频</c>）；目录模式下为空串。</summary>
@@ -52,7 +52,7 @@ public partial class AssetBrowseViewModel
         OnPropertyChanged(nameof(ResultSetTitle));
 
         ResetToFirstPage();         // 第一页时它自己会调 RefreshView → ApplyView
-        StatusText = $"{req.Title}：结果集模式（左树已收起，点「✕ 退出结果集」回到目录浏览）。";
+        StatusText = $"{req.Title}：结果集模式（左树已收起，点「退出结果集」回到目录浏览）。";
     }
 
     /// <summary>清掉结果集状态（⛔ 不刷列表；调用方负责后续取数）。</summary>

@@ -17,7 +17,7 @@ namespace NewToys.Shell.ViewModels;
 /// </para>
 /// <para>
 /// 🔴 入口 = 首页收藏卡尾部「显示更多」就地展开（<c>HomeViewModel</c> 用 <c>GetRequiredService</c> 现行装配）；
-/// 本类不注册菜单项、不进标签栏。页内「🔄 重载模块」在「版本与更新」的关于部分。
+/// 本类不注册菜单项、不进标签栏。页内「重载模块」在「版本与更新」的关于部分。
 /// </para>
 /// </summary>
 public partial class AllFunctionsViewModel : ViewModelBase

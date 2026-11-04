@@ -73,7 +73,7 @@ public class VideoTaskStore
         _docs = new JsonDocStore(db, "video");
         // 打开软件即恢复上次的队列：任务清单是「工作现场」而不是临时缓存（用户关掉软件后
         // 攒了半天的 20 条任务必须还在）。上次没跑完的「运行中」条目由 LoadFromFile 标成失败。
-        // 想清空就点「🧹 清除缓存」—— 那条会连库里的文档一起删，重开不会自己长回来。
+        // 想清空就点「清除缓存」—— 那条会连库里的文档一起删，重开不会自己长回来。
         LoadFromFile();
     }
 
@@ -141,7 +141,7 @@ public class VideoTaskStore
 
     /// <summary>清掉页面上的这条队列（两类一起清，**并落盘**）；返回清掉条数。
     /// <para>必须落盘：<see cref="VideoTaskStore"/> 构造时会自动恢复，若只清内存，重开软件旧任务就全回来了
-    /// —— 那是「我明明清空了」的另一半。想再要回来用导出的 JSON 走「📥 导入任务」。</para>
+    /// —— 那是「我明明清空了」的另一半。想再要回来用导出的 JSON 走「导入任务」。</para>
     /// </summary>
     public int ClearCache()
     {

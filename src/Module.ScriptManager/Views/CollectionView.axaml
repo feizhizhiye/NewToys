@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.ScriptManager.Views.CollectionView">
   <!--  集合页：单层骨架（ui.md §13 范本）—— 主显示区只有「成员表」一块 + 右侧详情列（IDetailCardSource）。
         外缘 0：工具条 / 表头 / 行区 / 状态栏直接相接，靠 ToolbarBrush(3) → ListHeaderBrush(4) → ListBodyBrush(1) 拉开档位差。
@@ -13,7 +14,7 @@
                        SelectionMode="Single">
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="↩ 加入 / 移出本集合" Command="{Binding ToggleMembershipCommand}"
+            <MenuItem Header="加入 / 移出本集合" Icon="{m:Glyph IconReset}" Command="{Binding ToggleMembershipCommand}"
                       ToolTip.Tip="对选中行生效：未加入 ⇒ 加入；已加入 ⇒ 移出"/>
           </ContextMenu>
         </v:TableViewHost.ContextMenu>

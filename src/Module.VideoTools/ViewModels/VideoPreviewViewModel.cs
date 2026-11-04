@@ -71,17 +71,17 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     public IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📂 选择视频", Classes = "ghost", CommandPath = nameof(PickSourceCommand), ToolTip = "挑一个视频文件载入编辑器（这一页一次只编一个任务；载入后自动预览）" },
-        new() { Text = "▶ 播放预览", AltText = "⏸ 停止", AltTextPath = nameof(IsPlaying), CommandPath = nameof(TogglePlayCommand), ToolTip = "类播放器：点一下自动逐帧播放预览（抽帧模拟），再点停止；也可直接拖动下面「预览位置」条手动快览" },
+        new() { Text = "选择视频", IconKey = "IconOpen", Classes = "ghost", CommandPath = nameof(PickSourceCommand), ToolTip = "挑一个视频文件载入编辑器（这一页一次只编一个任务；载入后自动预览）" },
+        new() { Text = "播放预览", IconKey = "IconPlay", AltText = "停止", AltIconKey = "IconStop", AltTextPath = nameof(IsPlaying), CommandPath = nameof(TogglePlayCommand), ToolTip = "类播放器：点一下自动逐帧播放预览（抽帧模拟），再点停止；也可直接拖动下面「预览位置」条手动快览" },
         new() { Text = "🧪 试跑", CommandPath = nameof(RunTrialCommand), IsEnabledPath = nameof(CanTrial), ToolTip = "用当前全部参数（含手改命令）从「预览位置」起真转 5 秒到临时目录 —— 先验证参数和画面，再发给批处理" },
-        new() { Text = "▶ 播放小样", CommandPath = nameof(PlayTrialCommand), IsVisiblePath = nameof(HasTrial), ToolTip = "用外部播放器 / ffplay 打开刚试跑出来的小样（带声音、真流畅）" },
+        new() { Text = "播放小样", IconKey = "IconPlay", CommandPath = nameof(PlayTrialCommand), IsVisiblePath = nameof(HasTrial), ToolTip = "用外部播放器 / ffplay 打开刚试跑出来的小样（带声音、真流畅）" },
         new() { Text = "↻ 90°", CommandPath = nameof(RotatePreviewCwCommand), IsEnabledPath = nameof(HasSource), ToolTip = "预览画面顺时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步" },
-        new() { Text = "↺ 90°", CommandPath = nameof(RotatePreviewCcwCommand), IsEnabledPath = nameof(HasSource), ToolTip = "预览画面逆时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步" },
+        new() { Text = "90°", IconKey = "IconReset", CommandPath = nameof(RotatePreviewCcwCommand), IsEnabledPath = nameof(HasSource), ToolTip = "预览画面逆时针旋转 90°（纯视觉）；命令卡「旋转」字段会同步" },
         new() { Text = "➡ 发批处理", CommandPath = nameof(SendToBatchCommand), ToolTip = "把当前这一条任务加入「批量处理」的队列（不立刻运行）" },
-        new() { Text = "💾 保存回任务", CommandPath = nameof(SaveBackToTaskCommand), IsVisiblePath = nameof(IsEditingBatchTask), ToolTip = "把当前参数写回「批量处理」里那条任务（保队列位置、不新增一条）" },
-        new() { Text = "↺ 区间重置", CommandPath = nameof(ResetRangeCommand), ToolTip = "开始归零、结束留空 = 整段" },
-        new() { Text = "📋 复制命令", CommandPath = nameof(CopyCommandLineCommand) },
-        new() { Text = "↺ 重置为自动", CommandPath = nameof(ResetCommandCommand), IsVisiblePath = nameof(IsArgsEdited), ToolTip = "丢弃手改的命令，恢复成由参数自动生成" },
+        new() { Text = "保存回任务", IconKey = "IconSave", CommandPath = nameof(SaveBackToTaskCommand), IsVisiblePath = nameof(IsEditingBatchTask), ToolTip = "把当前参数写回「批量处理」里那条任务（保队列位置、不新增一条）" },
+        new() { Text = "区间重置", IconKey = "IconReset", CommandPath = nameof(ResetRangeCommand), ToolTip = "开始归零、结束留空 = 整段" },
+        new() { Text = "复制命令", IconKey = "IconCopy", CommandPath = nameof(CopyCommandLineCommand) },
+        new() { Text = "重置为自动", IconKey = "IconReset", CommandPath = nameof(ResetCommandCommand), IsVisiblePath = nameof(IsArgsEdited), ToolTip = "丢弃手改的命令，恢复成由参数自动生成" },
     };
 
     private const string PageKey = "video-cut";
@@ -116,7 +116,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
 
     // ==================== 状态栏（v3.9：Shell 底部状态栏契约） ====================
 
-    private string _statusText = "点「📂 选择视频」挑一个文件 → 拖三条时间条定区间 → 在右侧详情卡里配参数 → 「➡ 发送到批处理」。";
+    private string _statusText = "点「选择视频」挑一个文件 → 拖三条时间条定区间 → 在右侧详情卡里配参数 → 「➡ 发送到批处理」。";
     public event EventHandler? StatusChanged;
 
     /// <summary>

@@ -57,18 +57,18 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             ShowToolTipOnDisabled = true,
             ToolTip = "把选中的文件 / 文件夹（或当前目录）加入资产库：文件只索引自身，文件夹递归扫描"
         },
-        new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "重新读取索引（⛔ 不扫盘，目录内容本来就是实时的）" },
+        new() { Text = "重读", IconKey = "IconRefresh", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "重新读取索引（⛔ 不扫盘，目录内容本来就是实时的）" },
         new() { Kind = ToolbarItemKind.Separator },
         new()
         {
-            Text = "↥ 上一级", CommandPath = nameof(GoUpCommand), IsEnabledPath = nameof(CanGoUp),
+            Text = "上一级", IconKey = "IconArrowUp", CommandPath = nameof(GoUpCommand), IsEnabledPath = nameof(CanGoUp),
             ShowToolTipOnDisabled = true, ToolTip = "回到上一层目录"
         },
         new() { Text = "◧ 目录树", CommandPath = nameof(ToggleTreeCommand), ToolTip = "显示 / 收起左侧目录树（腾出列表宽度）" },
         // 结果集模式（标签 → 视频）才有：回到目录浏览
         new()
         {
-            Text = "✕ 退出结果集", CommandPath = nameof(ExitResultSetCommand),
+            Text = "退出结果集", IconKey = "IconClose", CommandPath = nameof(ExitResultSetCommand),
             IsVisiblePath = nameof(IsResultSetMode),
             ToolTip = "这批资产是「按标签筛出来的结果」而不是某个目录：点这里回到目录浏览"
         },
@@ -113,13 +113,13 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "📂 这是一个文件夹：双击进入，右键可把整棵目录加入资产库。",
+                        Hint = "这是一个文件夹：双击进入，右键可把整棵目录加入资产库。",
                         VisibleWhen = nameof(DetailIsFolder)
                     },
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "⚠ 这一项还没加入资产库（列表里标灰）：能打开 / 定位，库操作请先「➕ 加入资产库」。",
+                        Hint = "⚠ 这一项还没加入资产库（列表里标灰）：能打开 / 定位，库操作请先「加入资产库」。",
                         VisibleWhen = "!DetailIsInLibrary"
                     },
                     new DetailField
@@ -135,12 +135,12 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         {
             new DetailAction
             {
-                Text = "📂 打开", Classes = "primary", Command = OpenSelectedCommand,
+                Text = "打开", IconKey = "IconOpen", Classes = "primary", Command = OpenSelectedCommand,
                 IsVisiblePath = nameof(ShowDetailBody), ToolTip = "用系统默认程序打开（文件夹 = 进入）；也可以双击"
             },
             new DetailAction
             {
-                Text = "📂 所在目录", Classes = "ghost", Command = OpenFolderSelectedCommand,
+                Text = "所在目录", IconKey = "IconOpen", Classes = "ghost", Command = OpenFolderSelectedCommand,
                 IsVisiblePath = nameof(ShowDetailBody), ToolTip = "在资源管理器里定位它"
             },
             new DetailAction
@@ -286,7 +286,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
         if (!Selected.InLibrary)
         {
-            StatusText = $"⚠「{Selected.Name}」还没加入资产库：先右键「➕ 加入资产库」再重命名。";
+            StatusText = $"⚠「{Selected.Name}」还没加入资产库：先右键「加入资产库」再重命名。";
             return;
         }
 
@@ -437,7 +437,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
 
         StatusText = BatchTiles().Count == 0
             ? "先选中要操作的项。"
-            : $"⚠ 选中的项都还没加入资产库，不能「{action}」—— 先右键「➕ 加入资产库」。";
+            : $"⚠ 选中的项都还没加入资产库，不能「{action}」—— 先右键「加入资产库」。";
     }
 
     /// <summary>位置行 → <see cref="FileLocation"/>（只带物理操作需要的字段）。</summary>

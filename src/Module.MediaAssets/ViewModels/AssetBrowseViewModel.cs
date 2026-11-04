@@ -277,7 +277,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
     {
         ViewModes.Clear();
         ViewModes.Add(new ChoiceItem("▦ 图标卡", "tiles"));
-        ViewModes.Add(new ChoiceItem("☰ 详细信息", "details"));
+        ViewModes.Add(new ChoiceItem("▤ 详细信息", "details"));
 
         IconSizes.Clear();
         foreach (var size in IconSizeChoices)
@@ -491,7 +491,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
             foreach (var d in content.Dirs) node.Children.Add(MakeNode(d.Path, node.Depth + 1));
 
             // 只在**已经和库有关**的目录上提示待加入：完全没入库的目录一律不飘红，
-            // 否则整棵树每个目录都挂着 ⟳N（它们本来就是要用「➕ 加入资产库」的）。
+            // 否则整棵树每个目录都挂着 ⟳N（它们本来就是要用「加入资产库」的）。
             if (node.InLibrary || node.HasLibraryContent)
                 node.PendingCount = CountPending(content.Files);
         }
@@ -746,7 +746,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         if (quiet) return;
         StatusText = TreeNodes.Count > 0
             ? $"只显示已加入资产库的目录（{roots.Count} 个存储源）。"
-            : "还没有加入资产库的目录 —— 关掉筛选，右键一个磁盘目录选「➕ 加入资产库」。";
+            : "还没有加入资产库的目录 —— 关掉筛选，右键一个磁盘目录选「加入资产库」。";
     }
 
     private void BuildCrumbs()

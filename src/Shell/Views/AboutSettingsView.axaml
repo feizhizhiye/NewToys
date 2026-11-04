@@ -1,5 +1,6 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Shell.Views.AboutSettingsView">
   <!--
     应用级设置页「关于」节（需求 §4.9.2 / §6.5）：版本 / 技术栈 / **组件版本** / 🔄 重载模块。
@@ -84,8 +85,7 @@
               Grid.Column="1"
               Classes="ghost"
               Command="{Binding RefreshVersionsCommand}"
-              Content="🔄 刷新"
-              ToolTip.Tip="重新读取当前已加载的程序集版本" />
+              Content="{m:GlyphText IconRefresh, '刷新'}" ToolTip.Tip="重新读取当前已加载的程序集版本" />
         </Grid>
 
         <TextBlock
@@ -178,13 +178,11 @@
           <Button
               Classes="ghost"
               Command="{Binding ReloadModulesCommand}"
-              Content="🔄 重载模块"
-              ToolTip.Tip="重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）" />
+              Content="{m:GlyphText IconRefresh, '重载模块'}" ToolTip.Tip="重扫 Modules\ 目录，把新放的模块 DLL 装进来（只新增；移除模块要重启）" />
           <Button
               Classes="ghost"
               Command="{Binding OpenModulesFolderCommand}"
-              Content="📂 模块目录"
-              ToolTip.Tip="在文件管理器里打开 &lt;程序目录&gt;\Modules\，可直接往里复制 DLL" />
+              Content="{m:GlyphText IconOpen, '模块目录'}" ToolTip.Tip="在文件管理器里打开 &lt;程序目录&gt;\Modules\，可直接往里复制 DLL" />
         </StackPanel>
         <TextBlock Classes="hint-text" Text="{Binding StatusText, StringFormat='状态：{0}'}" />
       </StackPanel>

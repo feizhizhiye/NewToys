@@ -60,7 +60,7 @@ public partial class SettingsSystemViewModel : ObservableObject, IStatusProvider
         try
         {
             _settings.CommandTimeoutSeconds = v;
-            StatusText = "已保存：命令超时 " + v + " 秒。";
+            StatusText = "已保存：命令超时" + v + " 秒。";
         }
         catch (Exception ex)
         {

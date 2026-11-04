@@ -64,13 +64,22 @@ public sealed class ToolbarItemDescriptor
     /// <summary>静态文案（含图标，如 <c>🔄 重读</c>）。</summary>
     public string? Text { get; init; }
 
+    /// <summary>
+    /// 图标几何键（如 <c>IconRefresh</c>），渲染在文案左侧 ⇒ <see cref="Text"/> 里<b>不再写 emoji</b>。
+    /// 键取 <c>Shell/App.axaml</c> 的通用动作词表；键不存在 = 无图标，静默跳过（与左树同一口径）。
+    /// </summary>
+    public string? IconKey { get; init; }
+
+    /// <summary>备用文案的图标键（与 <see cref="AltText"/> 成对，如「运行」↔「停止」）。</summary>
+    public string? AltIconKey { get; init; }
+
     /// <summary>动态文案：绑 VM 上的属性（与 <see cref="TextFormat"/> 组合成 <c>StringFormat</c>）。</summary>
     public string? TextPath { get; init; }
 
     /// <summary>动态文案格式，如 <c>➡ 批量处理 ({0})</c>。</summary>
     public string? TextFormat { get; init; }
 
-    /// <summary>备用文案（与 <see cref="Text"/> 互斥显示；如「▶ 播放预览」↔「⏸ 停止」）。</summary>
+    /// <summary>备用文案（与 <see cref="Text"/> 互斥显示；如「播放预览」↔「停止」）。</summary>
     public string? AltText { get; init; }
 
     /// <summary>备用文案何时显示（绑 VM 上的 bool 属性；真 = 显示 <see cref="AltText"/>）。</summary>
@@ -176,6 +185,9 @@ public sealed class ToolbarMenuItemDescriptor
 {
     /// <summary>菜单文字。</summary>
     public string Text { get; init; } = "";
+
+    /// <summary>图标几何键（如 <c>IconTrash</c>）；<see cref="Text"/> 里不再写 emoji。</summary>
+    public string? IconKey { get; init; }
 
     /// <summary>命令（绑 VM 上的 <c>ICommand</c> 属性）。</summary>
     public string? CommandPath { get; init; }

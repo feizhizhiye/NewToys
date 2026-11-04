@@ -214,7 +214,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         _all.Add(item);
         ApplyFilter();
         Selected = item;
-        StatusText = "已新增一条 —— 在右栏填名称 / 命令，▶ 运行试试。";
+        StatusText = "已新增一条 —— 在右栏填名称 / 命令，运行试试。";
     }
 
     [RelayCommand]
@@ -251,7 +251,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         if (item.NeedAdmin)
         {
             // 补充（用户 2026-10-23：勾了需要管理员的也能直接运行）：弹 UAC，提权后在可见窗口里执行。
-            // 想手动跑还有「📋 复制命令」（工具条 / 行右键）。
+            // 想手动跑还有「复制命令」（工具条 / 行右键）。
             if (_launcher is null) { StatusText = "提权运行不可用（DI 未注册）。"; return; }
             var (_, msg) = _launcher.RunElevated(item);
             StatusText = msg;
@@ -437,7 +437,7 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         return new DetailCardDescriptor
         {
             BodyVisiblePath = nameof(ShowDetailBody),
-            EmptyText = "在左侧列表里选中一条，或点工具条「➕ 新增」。首次运行会播种一批 Windows 常用命令 / 快捷设置 / winget 命令；选中后点列表里的「▶」即执行。",
+            EmptyText = "在左侧列表里选中一条，或点工具条「新增」。首次运行会播种一批 Windows 常用命令 / 快捷设置 / winget 命令；选中后点列表里的「」即执行。",
             Sections =
             {
                 new DetailSection
@@ -457,8 +457,8 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
                         },
                         new DetailField { Label = "简介", ValuePath = nameof(EditDescription), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, MultiLine = true, Rows = 52 },
                         new DetailField { Label = "命令", ValuePath = nameof(EditCommand), Kind = FieldKind.Text, Commit = EditCommitMode.OnBlur, Mono = true, MultiLine = true, Rows = 84 },
-                        new DetailField { Kind = FieldKind.Hint, Hint = "例：`start ms-settings:display` 打开「显示」设置；`control` 打开控制面板。▶ = 交给 Core 的执行器跑这条命令。" },
-                        new DetailField { Label = "需要管理员权限（▶ 运行 = 弹 UAC，提权后在 Windows 终端里执行）", ValuePath = nameof(EditNeedAdmin), Kind = FieldKind.Check },
+                        new DetailField { Kind = FieldKind.Hint, Hint = "例：`start ms-settings:display` 打开「显示」设置；`control` 打开控制面板。= 交给 Core 的执行器跑这条命令。" },
+                        new DetailField { Label = "需要管理员权限（运行 = 弹 UAC，提权后在 Windows 终端里执行）", ValuePath = nameof(EditNeedAdmin), Kind = FieldKind.Check },
                         new DetailField { Label = "隐藏终端窗口（GUI 启动类）", ValuePath = nameof(EditRunHidden), Kind = FieldKind.Check },
                         new DetailField { Kind = FieldKind.Divider },
                         new DetailField { Kind = FieldKind.Hint, ValuePath = nameof(DataFileHint) }
@@ -481,28 +481,28 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         },
         new()
         {
-            Text = "🗑 删除", Classes = "ghost",
+            Text = "删除", IconKey = "IconTrash", Classes = "ghost",
             CommandPath = nameof(DeleteCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "删除选中条目（二次确认；只删清单，不碰系统）"
         },
         new()
         {
-            Text = "★ 收藏", Classes = "ghost",
+            Text = "收藏", IconKey = "IconStar", Classes = "ghost",
             CommandPath = nameof(ToggleFavoriteCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "收藏 / 取消收藏选中项 —— 收藏夹页（模块下第一个页面）同步显示"
         },
         new()
         {
-            Text = "▶ 运行", Classes = "ghost",
+            Text = "运行", IconKey = "IconPlay", Classes = "ghost",
             CommandPath = nameof(RunCommand),
             IsEnabledPath = nameof(IsNotBusy),
             ToolTip = "运行选中条目；需要管理员的项弹 UAC 提权执行（优先 Windows 终端，跑完不自动关）"
         },
         new()
         {
-            Text = "📋 复制命令", Classes = "ghost",
+            Text = "复制命令", IconKey = "IconCopy", Classes = "ghost",
             CommandPath = nameof(CopyCommand),
             IsEnabledPath = nameof(HasSelection),
             ToolTip = "复制选中条目的命令文本"
@@ -517,13 +517,13 @@ public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDet
         },
         new()
         {
-            Text = "📤 导出", Classes = "ghost",
+            Text = "导出", IconKey = "IconExport", Classes = "ghost",
             CommandPath = nameof(ExportCommand),
             ToolTip = "把全部条目导出到数据文件同目录的 commands-export.json"
         },
         new()
         {
-            Text = "📥 导入", Classes = "ghost",
+            Text = "导入", IconKey = "IconImport", Classes = "ghost",
             CommandPath = nameof(ImportCommand),
             ToolTip = "从同一个 commands-export.json 按 Id 合并导入"
         },

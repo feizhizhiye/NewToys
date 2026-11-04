@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:NewToys.Reading.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Reading.Views.ReaderView">
   <!--
     网络阅读 → 阅读（`reading-read`）：桌面 legado 的阅读器。
@@ -24,11 +25,11 @@
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Button Classes="primary" Content="📂 本地 TXT" Command="{Binding OpenLocalTxtCommand}"
+          <Button Classes="primary" Content="{m:GlyphText IconOpen, '本地 TXT'}" Command="{Binding OpenLocalTxtCommand}"
                   ToolTip.Tip="打开本地 txt 文件：自动识别章节，目录 / 书签 / 搜索 / 听书照常，进度按文件路径记忆"/>
           <Button Classes="ghost" Content="＋ 书架" Command="{Binding AddToShelfCommand}" ToolTip.Tip="把这本书加进书架"/>
           <Button Classes="ghost" Content="🔀 换源" Command="{Binding SwitchSourceAsyncCommand}" ToolTip.Tip="多源比对这本书，选最优源续读"/>
-          <Button Classes="ghost" Content="⬇ 下载" Command="{Binding DownloadBookCommand}"
+          <Button Classes="ghost" Content="{m:GlyphText IconArrowDown, '下载'}" Command="{Binding DownloadBookCommand}"
                   ToolTip.Tip="整本下载：全部章节抓下来合成一份 TXT（已缓存的章节不再请求）"/>
           <Button Classes="ghost" Content="🎧 听书" Command="{Binding StartListenCommand}"
                   IsVisible="{Binding !IsListening}"
@@ -64,7 +65,7 @@
           <TextBlock Classes="section-title" HorizontalAlignment="Center"
                      Text="从书架或发现页打开一本书"/>
           <TextBlock Classes="hint-text" HorizontalAlignment="Center"
-                     Text="或点顶部「📂 本地 TXT」直接读本地文件；本地 PDF / EPUB 支持规划中"/>
+                     Text="或点顶部「本地 TXT」直接读本地文件；本地 PDF / EPUB 支持规划中"/>
         </StackPanel>
       </Border>
 
@@ -87,7 +88,7 @@
                          Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
               <TextBlock DockPanel.Dock="Right" Classes="hint-text" Text="{Binding BookName}"
                          VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-              <Button DockPanel.Dock="Right" Classes="ghost" Content="✕" Command="{Binding CloseSwitchCommand}"
+              <Button DockPanel.Dock="Right" Classes="ghost" Content="{m:GlyphText IconClose}" Command="{Binding CloseSwitchCommand}"
                       ToolTip.Tip="收起换源" Margin="8,0,0,0"/>
             </DockPanel>
 
@@ -129,9 +130,9 @@
             Padding="12,6">
       <DockPanel LastChildFill="False">
         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Button Classes="ghost" Content="⏸ 暂停" Command="{Binding ToggleListenPauseCommand}"
+          <Button Classes="ghost" Content="{m:GlyphText IconPause, '暂停'}" Command="{Binding ToggleListenPauseCommand}"
                   IsVisible="{Binding !IsListenPaused}" ToolTip.Tip="读完当前这句就停住"/>
-          <Button Classes="ghost" Content="▶ 继续" Command="{Binding ToggleListenPauseCommand}"
+          <Button Classes="ghost" Content="{m:GlyphText IconPlay, '继续'}" Command="{Binding ToggleListenPauseCommand}"
                   IsVisible="{Binding IsListenPaused}"/>
           <TextBlock Classes="hint-text" Text="{Binding ListenStatus}" VerticalAlignment="Center"/>
         </StackPanel>
@@ -142,7 +143,7 @@
           <TextBlock Classes="list-cell primary" Width="28" TextAlignment="Center"
                      Text="{Binding TtsRate}" VerticalAlignment="Center"/>
           <Button Classes="ghost" Content="＋" Command="{Binding TtsFasterCommand}" ToolTip.Tip="读快一点（从当前句重起）"/>
-          <Button Classes="ghost" Content="⏹ 停止" Command="{Binding StopListenCommand}"/>
+          <Button Classes="ghost" Content="{m:GlyphText IconStop, '停止'}" Command="{Binding StopListenCommand}"/>
         </StackPanel>
       </DockPanel>
     </Border>
@@ -166,7 +167,7 @@
           <TextBlock Classes="hint-text" Text="{Binding DownloadPhase}" TextWrapping="Wrap"/>
           <ProgressBar Value="{Binding DownloadProgress}" Minimum="0" Maximum="100" Height="6"/>
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button Classes="ghost" Content="✕ 取消" Command="{Binding CancelDownloadCommand}"
+            <Button Classes="ghost" Content="{m:GlyphText IconClose, '取消'}" Command="{Binding CancelDownloadCommand}"
                     IsEnabled="{Binding IsDownloading}"/>
             <Button Classes="primary" Content="关闭" Command="{Binding CloseDownloadCommand}"
                     IsEnabled="{Binding !IsDownloading}"/>

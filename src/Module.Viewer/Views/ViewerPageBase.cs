@@ -358,7 +358,7 @@ public abstract class ViewerPageBase : UserControl
 
         if (kind == ViewerKind.None && ViewerHost.IsLongFormText(path))
         {
-            _vm.OnOpenFailed("长文本阅读已并入「网络阅读」—— 到那边点「📂 本地 TXT」打开。");
+            _vm.OnOpenFailed("长文本阅读已并入「网络阅读」—— 到那边点「本地 TXT」打开。");
             return;
         }
 

@@ -1,13 +1,14 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.MediaAssets.Views.AssetStoragesView">
   <!--
     「存储源」页：表格（名称 / 根路径 / 类型 / 状态 / 文件数 / 最近扫描）+ 详情卡（由 **Shell** 承载）。
     列表本体 = <v:TableViewHost>：列显隐 / 排序键按 VM 的 ColumnLayout 自动对齐（🔴 声明顺序必须一致），
     故骨架的 HeaderArea 不填。
   -->
-  <v:ListPageSkeleton EmptyMessage="没有可显示的存储源。点「➕ 添加存储源」把要扫描的目录登记进来。"
+  <v:ListPageSkeleton EmptyMessage="没有可显示的存储源。点「添加存储源」把要扫描的目录登记进来。"
                       EmptyActionText="＋ 存储源"
                       EmptyActionCommand="{Binding AddStorageCommand}"
                       IsEmpty="{Binding !HasItems}">
@@ -52,17 +53,17 @@
           <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；DataContext 由控件同步  -->
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="🔍 重新扫描" Command="{Binding ScanSelectedCommand}"
+              <MenuItem Header="重新扫描" Icon="{m:Glyph IconSearch}" Command="{Binding ScanSelectedCommand}"
                         ToolTip.Tip="把这个存储源再扫一遍（进度在「任务中心」看）"/>
               <Separator/>
-              <MenuItem Header="✏ 重命名…" Command="{Binding RenameStorageCommand}"
+              <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameStorageCommand}"
                         ToolTip.Tip="只改库里的名称，⛔ 不动磁盘"/>
               <MenuItem Header="🔁 切换类型" Command="{Binding CycleTypeCommand}"
                         ToolTip.Tip="本地 → 移动 → NAS 循环"/>
-              <MenuItem Header="⬆ 上线 / ⬇ 下线" Command="{Binding ToggleOnlineCommand}"
+              <MenuItem Header="上线 / 下线" Icon="{m:Glyph IconArrowUp}" Command="{Binding ToggleOnlineCommand}"
                         ToolTip.Tip="下线 = 扫描跳过它（其下文件不会被标成丢失）"/>
               <Separator/>
-              <MenuItem Header="🗑 移除存储源…" Command="{Binding RemoveStorageCommand}"
+              <MenuItem Header="移除存储源…" Icon="{m:Glyph IconTrash}" Command="{Binding RemoveStorageCommand}"
                         ToolTip.Tip="只删索引，⛔ 不删磁盘文件"/>
             </ContextMenu>
           </v:TableViewHost.ContextMenu>

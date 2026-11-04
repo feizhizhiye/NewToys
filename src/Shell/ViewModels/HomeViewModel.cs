@@ -131,7 +131,7 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
             var shell = sp.GetRequiredService<ShellViewModel>();
             shell.OpenTabCommand.Execute(k);
         });
-        // 右键「✕ 取消固定」：与「脚本管理器 → 收藏夹」按钮墙同一个操作逻辑
+        // 右键「取消固定」：与「脚本管理器 → 收藏夹」按钮墙同一个操作逻辑
         // （收藏 = IFavoritesService 单一真相源，取消后首页与功能清单页同时更新）。
         UnpinCommand = new RelayCommand<string?>(k =>
         {
@@ -149,7 +149,7 @@ public partial class HomeViewModel : ViewModelBase, IStatusProvider
 
     public ICommand NavigateCommand { get; }
 
-    /// <summary>右键菜单里的「✕ 取消固定」（参数 = 功能 key）。</summary>
+    /// <summary>右键菜单里的「取消固定」（参数 = 功能 key）。</summary>
     public ICommand UnpinCommand { get; }
 
     /// <summary>展开 / 收起内嵌的功能清单（按钮文字与图标跟着切）；由 <c>[RelayCommand]</c> 生成命令属性。</summary>

@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.WebTools.Views.BookmarkView">
   <!--
     整页一棵树：文件夹行 / 书签行同列表混排，缩进 16px/级。
@@ -23,8 +24,8 @@
     </Style>
   </UserControl.Styles>
 
-  <v:ListPageSkeleton EmptyMessage="没有可显示的网址。点「📥 导入书签」选浏览器导出的 HTML 文件。"
-                      EmptyActionText="📥 导入书签"
+  <v:ListPageSkeleton EmptyMessage="没有可显示的网址。点「导入书签」选浏览器导出的 HTML 文件。"
+                      EmptyActionText="导入书签"
                       EmptyActionCommand="{Binding ImportBookmarksCommand}"
                       IsEmpty="{Binding !HasItems}">
 
@@ -66,10 +67,10 @@
             <MenuItem Header="🔗 联通检测" Command="{Binding CheckCommand}"/>
             <MenuItem Header="📌 加入 / 移出批量打开" Command="{Binding ToggleBatchCommand}"/>
             <MenuItem Header="🌐 打开" Command="{Binding OpenCommand}"/>
-            <MenuItem Header="📋 复制网址" Command="{Binding CopySelectedCommand}"/>
-            <MenuItem Header="🕷 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
+            <MenuItem Header="复制网址" Icon="{m:Glyph IconCopy}" Command="{Binding CopySelectedCommand}"/>
+            <MenuItem Header="🌐 发送到网页抓取" Command="{Binding SendToScrapeCommand}"/>
             <!--  移动到其他文件夹节点：单选 = 该条，Ctrl/Shift 多选 = 整批；目标列表由 VM 按树重建  -->
-            <MenuItem Header="📂 移动到" IsEnabled="{Binding CanMove}" ItemsSource="{Binding MoveTargets}"
+            <MenuItem Header="移动到" Icon="{m:Glyph IconOpen}" IsEnabled="{Binding CanMove}" ItemsSource="{Binding MoveTargets}"
                       ToolTip.Tip="单选移动这一条；Ctrl/Shift 多选后即整批移动">
               <MenuItem.ItemContainerTheme>
                 <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
@@ -80,8 +81,8 @@
               </MenuItem.ItemContainerTheme>
             </MenuItem>
             <Separator/>
-            <MenuItem Header="✏ 编辑" Command="{Binding EditSelectedCommand}" ToolTip.Tip="展开右侧详情卡修改这一条"/>
-            <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" ToolTip.Tip="多选后 = 整批删除（文件夹行不参与）"/>
+            <MenuItem Header="编辑" Icon="{m:Glyph IconEdit}" Command="{Binding EditSelectedCommand}" ToolTip.Tip="展开右侧详情卡修改这一条"/>
+            <MenuItem Header="删除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCommand}" ToolTip.Tip="多选后 = 整批删除（文件夹行不参与）"/>
           </ContextMenu>
         </v:TableViewHost.ContextMenu>
       </v:TableViewHost>

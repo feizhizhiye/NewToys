@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.MediaAssets.Views.AssetCollectionsView">
   <!--
     「集合管理」页：与「标签管理」同构的表格页（名称 / 类型 / 成员数 / 创建时间）+ 详情卡（Shell 承载）。
@@ -9,7 +10,7 @@
        ⇒ 骨架的 HeaderArea 不填，XAML ⛔ 不写 IsXxxVisible 绑定。
     🔴 Columns 的声明顺序必须与 VM 的 ColumnLayout 一致。
   -->
-  <v:ListPageSkeleton EmptyMessage="还没有集合。点「➕ 新建集合」开一个手动集合。"
+  <v:ListPageSkeleton EmptyMessage="还没有集合。点「新建集合」开一个手动集合。"
                       EmptyActionText="＋ 新建集合"
                       EmptyActionCommand="{Binding NewCollectionCommand}"
                       IsEmpty="{Binding !HasItems}">
@@ -51,7 +52,7 @@
 
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
+            <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
               <MenuItem.ItemContainerTheme>
                 <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                   <Setter Property="Header" Value="{Binding Label}"/>
@@ -60,10 +61,10 @@
               </MenuItem.ItemContainerTheme>
             </MenuItem>
             <Separator/>
-            <MenuItem Header="✏ 重命名…" Command="{Binding RenameCollectionCommand}"/>
+            <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameCollectionCommand}"/>
             <MenuItem Header="＋ 新建智能集合…" Command="{Binding NewSmartCommand}"/>
             <Separator/>
-            <MenuItem Header="🗑 删除集合" Command="{Binding DeleteCollectionCommand}"/>
+            <MenuItem Header="删除集合" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCollectionCommand}"/>
           </ContextMenu>
         </v:TableViewHost.ContextMenu>
       </v:TableViewHost>

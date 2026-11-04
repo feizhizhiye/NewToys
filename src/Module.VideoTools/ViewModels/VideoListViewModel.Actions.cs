@@ -73,7 +73,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
 
         if (added == 0)
         {
-            StatusText = "没有可导入的视频文件（仅支持 " + string.Join(" / ", VideoScanner.Extensions) + "）。";
+            StatusText = "没有可导入的视频文件（仅支持" + string.Join(" / ", VideoScanner.Extensions) + "）。";
             return 0;
         }
 

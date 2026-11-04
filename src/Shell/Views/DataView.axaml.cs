@@ -266,7 +266,7 @@ public partial class DataView : UserControl
             var manifest = backup.ReadManifest(path);
             if (manifest == null)
             {
-                await ShowMessageAsync("无法恢复", "这个文件里没有 manifest.json —— 不是 NewToys 的备份包（旧格式请用「📂 导入旧格式」）。");
+                await ShowMessageAsync("无法恢复", "这个文件里没有 manifest.json —— 不是 NewToys 的备份包（旧格式请用「导入旧格式」）。");
                 return;
             }
 

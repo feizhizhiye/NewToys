@@ -61,7 +61,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     // ==================== v3.34：详情卡编辑（显示名 / 评分 / 描述 / 标签 / 分类 / 集合） ====================
 
-    /// <summary>详情卡的标签色片（点一下即选；「💾 保存」统一落库）。</summary>
+    /// <summary>详情卡的标签色片（点一下即选；「保存」统一落库）。</summary>
     public ObservableCollection<PickItem> TagPicks { get; } = new();
 
     /// <summary>详情卡的分类色片。</summary>
@@ -108,7 +108,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     public bool HasCategoryPicks => CategoryPicks.Count > 0;
     public bool HasCollectionPicks => CollectionPicks.Count > 0;
 
-    /// <summary>点一下色片 = 打上 / 取消（⛔ 不立即落库，等「💾 保存」）。</summary>
+    /// <summary>点一下色片 = 打上 / 取消（⛔ 不立即落库，等「保存」）。</summary>
     [RelayCommand]
     private void ToggleTag(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
 
@@ -119,10 +119,10 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     private void ToggleCollection(PickItem? item) { if (item != null) item.IsSelected = !item.IsSelected; }
 
     // ===== 详情卡**图标动作组**（收藏 / 评分 ±1 / 保存 / 刷新 / 删除） =====
-    // 🔴 与「💾 保存」的分工：收藏 / 评分是**单项即时生效即落盘**（点一下就写库，⛔ 不用再点保存）；
+    // 🔴 与「保存」的分工：收藏 / 评分是**单项即时生效即落盘**（点一下就写库，⛔ 不用再点保存）；
     //    显示名 / 描述 / 标签 / 分类 / 集合仍是**编辑态 + 显式保存**（多字段表单）。
 
-    /// <summary>「★ 收藏」：切换收藏（即时落盘）。</summary>
+    /// <summary>「收藏」：切换收藏（即时落盘）。</summary>
     [RelayCommand]
     private void ToggleFavorite()
     {

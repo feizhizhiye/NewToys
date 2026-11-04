@@ -152,7 +152,7 @@ public partial class AssetService
     }
 
     /// <summary>
-    /// 改**收藏**（详情卡图标组的「★」；即时生效即落盘，⛔ 不走「保存」、⛔ 不动磁盘）。
+    /// 改**收藏**（详情卡图标组的「」；即时生效即落盘，⛔ 不走「保存」、⛔ 不动磁盘）。
     /// </summary>
     public bool SetFavorite(long assetId, bool favorite)
     {

@@ -30,7 +30,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         {
             var text = _files.Read(slot.ScriptName);
             _files.Write(slot.ScriptName, ReplaceRulesBlock(text, _allCommands));
-            StatusText = "已保存到 " + slot.ScriptName + ".py";
+            StatusText = "已保存到" + slot.ScriptName + ".py";
         }
         catch (Exception ex) { StatusText = "⚠ 保存失败：" + FirstLine(ex.Message); }
     }
@@ -46,7 +46,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         ApplyFilter();
         SelectedCommand = cmd;
         NotifyEmpty();
-        StatusText = "已加一条命令，改完记得「💾 保存」。";
+        StatusText = "已加一条命令，改完记得「保存」。";
     }
 
     [RelayCommand]

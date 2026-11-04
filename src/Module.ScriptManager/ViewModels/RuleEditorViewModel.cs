@@ -90,10 +90,10 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
         new() { Text = "🌐 抓页", Classes = "ghost", CommandPath = nameof(FetchHtmlCommand),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "抓起始网址并落共享 HTML（试跑推荐的前提：候选脚本对同一份 HTML 求值）" },
-        new() { Text = "🔍 推荐", Classes = "ghost", CommandPath = nameof(RecommendCommand),
+        new() { Text = "推荐", IconKey = "IconSearch", Classes = "ghost", CommandPath = nameof(RecommendCommand),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "把当前槽位的候选脚本对同一份 HTML 全求值，按条数 / 字段完整度排序" },
-        new() { Text = "▶ 跑这段", Classes = "ghost", CommandPath = nameof(RunSegmentCommand),
+        new() { Text = "跑这段", IconKey = "IconPlay", Classes = "ghost", CommandPath = nameof(RunSegmentCommand),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "跑当前槽位选中的脚本，回填命中数 / 预览 / 错误" },
         new()
@@ -104,9 +104,9 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
             ToolTip = "载入已保存的流水线（flows\\<名>.json）"
         },
         new() { Kind = ToolbarItemKind.TextField, Width = 120, Placeholder = "流水线名…", ValuePath = nameof(FlowName) },
-        new() { Text = "💾 保存流水线", Classes = "ghost", CommandPath = nameof(SaveFlowCommand),
+        new() { Text = "保存流水线", IconKey = "IconSave", Classes = "ghost", CommandPath = nameof(SaveFlowCommand),
                 ToolTip = "把五段槽位写成 flows\\<名>.json" },
-        new() { Text = "🗑 删流水线", Classes = "ghost", CommandPath = nameof(DeleteFlowCommand),
+        new() { Text = "删流水线", IconKey = "IconTrash", Classes = "ghost", CommandPath = nameof(DeleteFlowCommand),
                 ToolTip = "删除工具条下拉里选中的流水线" },
         new() { Text = "◀ 返回目录", Classes = "ghost", CommandPath = nameof(BackToCatalogCommand),
                 ToolTip = "回「抓取规则」目录页" }

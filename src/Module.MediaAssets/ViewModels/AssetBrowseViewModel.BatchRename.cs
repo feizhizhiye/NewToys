@@ -28,7 +28,7 @@ public partial class AssetBrowseViewModel
         if (tiles.Count < 2)
         {
             if (tiles.Count == 0) { WarnNoLibrarySelection("批量重命名"); return; }
-            StatusText = "批量重命名要选中至少 2 个已入库文件（只改一个请用「✏ 重命名…」）。";
+            StatusText = "批量重命名要选中至少 2 个已入库文件（只改一个请用「重命名…」）。";
             return;
         }
 

@@ -36,7 +36,7 @@ public partial class VideoBatchViewModel
 
     /// <summary>
     /// 本页详情卡：结构 / 字段 / 文案全部来自 <see cref="VideoTaskCard"/>（与「视频预览」页同一份），
-    /// 这里只声明本页的差异 —— 显式提交（工具条「💾 保存修改」生效）、多一节「📄 任务状态」。
+    /// 这里只声明本页的差异 —— 显式提交（工具条「保存修改」生效）、多一节「📄 任务状态」。
     /// </summary>
     public DetailCardDescriptor? Card => _card ??= VideoTaskCard.Build(
         new VideoCardCommands
@@ -49,7 +49,7 @@ public partial class VideoBatchViewModel
             SaveCommandLine = SaveCommandLineCommand
         },
         explicitCommit: true,
-        emptyText: "在左侧选中一个任务：这里可以改它的参数（剪辑 = 区间 / 预设；转码 = 预设 / 编码器 / 码率 / 画面 / 音轨），改完点工具条上的「💾 保存修改」。",
+        emptyText: "在左侧选中一个任务：这里可以改它的参数（剪辑 = 区间 / 预设；转码 = 预设 / 编码器 / 码率 / 画面 / 音轨），改完点工具条上的「保存修改」。",
         includeTaskState: true);
 
     /// <summary>台头「类型 / 文件」那一行（两页共用同一张卡，属性名也必须一致）。</summary>

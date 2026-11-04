@@ -65,7 +65,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
             DetectCrop = DetectCropCommand
         },
         explicitCommit: false,
-        emptyText: "先点「📂 选择视频」挑一个文件：这里可以调剪辑区间、转码预设、画面 / 音轨 / 码率，边调边看上面的命令。",
+        emptyText: "先点「选择视频」挑一个文件：这里可以调剪辑区间、转码预设、画面 / 音轨 / 码率，边调边看上面的命令。",
         includeTaskState: false);
 
     /// <summary>台头「类型 / 文件」那一行（两页共用同一张卡，属性名也必须一致）。</summary>

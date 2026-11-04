@@ -1,5 +1,6 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Shell.Views.ThemeView">
   <!--
     v3.66 / NT-062 第五轮：从原「通用」节拆出来的**主题外观**节（节锚点 `settings-theme`，
@@ -21,8 +22,7 @@
           Grid.Column="1"
           Classes="ghost"
           Command="{Binding ResetThemeCommand}"
-          Content="↺ 还原"
-          ToolTip.Tip="深色 + 微信绿 + 原生 Fluent 配色（同样立即生效）"
+          Content="{m:GlyphText IconReset, '还原'}" ToolTip.Tip="深色 + 微信绿 + 原生 Fluent 配色（同样立即生效）"
           VerticalAlignment="Center" />
     </Grid>
 

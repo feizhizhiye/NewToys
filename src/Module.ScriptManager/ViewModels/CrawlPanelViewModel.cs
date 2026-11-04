@@ -161,7 +161,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         },
         new()
         {
-            Text = "⬇ 下载",
+            Text = "下载", IconKey = "IconArrowDown",
             Classes = "primary",
             CommandPath = nameof(StartDownloadCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
@@ -169,7 +169,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         },
         new()
         {
-            Text = "⏹ 取消",
+            Text = "取消", IconKey = "IconStop",
             Classes = "ghost",
             CommandPath = nameof(CancelDownloadCommand),
             IsEnabledPath = nameof(IsBusy),
@@ -177,7 +177,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         },
         new()
         {
-            Text = "📋 复制",
+            Text = "复制", IconKey = "IconCopy",
             Classes = "ghost",
             CommandPath = nameof(CopyDiagCommand),
             ToolTip = "把 脚本 / 网址 / 每列命中与错误 / 前 5 行 打包进剪贴板（给 AI 复盘）"
@@ -229,7 +229,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         _preview.ToggleCommand = ToggleSectionCommand;
         Sections.Add(_preview);
         _progress = new CrawlSection("progress", "③ 下载进度",
-            "勾选几行 →「⬇ 下载」；一行都不勾 = 链式模式。产物落 downloads\\<脚本>\\<条目>\\。");
+            "勾选几行 →「下载」；一行都不勾 = 链式模式。产物落 downloads\\<脚本>\\<条目>\\。");
         _progress.RefreshCommand = RefreshSectionCommand;
         _progress.ToggleCommand = ToggleSectionCommand;
         Sections.Add(_progress);
@@ -248,7 +248,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
 
         StatusText = ScriptOptions.Count == 0
             ? "rules 目录里还没有脚本 —— 去「抓取规则」页新建，或等首次运行播种预设。"
-            : "选脚本 → 填起始网址 →「🔗 抓链接」→ 勾行 →「⬇ 下载」。";
+            : "选脚本 → 填起始网址 →「🔗 抓链接」→ 勾行 →「下载」。";
     }
 
     /// <summary>「入口脚本 ▾」数据源（Label = 规则集名）。</summary>

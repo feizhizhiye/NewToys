@@ -39,26 +39,26 @@ public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IT
     {
         new()
         {
-            Text = "✕ 取消选中",
+            Text = "取消选中", IconKey = "IconClose",
             CommandPath = nameof(CancelTaskCommand),
             CommandArgPath = nameof(SelectedTask),
             ToolTip = "取消选中的那件任务（排队中的直接取消；正在跑的会请求取消）"
         },
         new()
         {
-            Text = "✕ 全部取消",
+            Text = "全部取消", IconKey = "IconClose",
             CommandPath = nameof(CancelAllTasksCommand),
             ToolTip = "取消所有**排队中**的任务"
         },
         new()
         {
-            Text = "🧹 清已结束",
+            Text = "清已结束", IconKey = "IconEraser",
             CommandPath = nameof(ClearFinishedCommand),
             ToolTip = "清掉已完成 / 失败 / 已取消的历史项（⛔ 不动排队中与在跑的）"
         },
         new()
         {
-            Text = "🔄 重读任务",
+            Text = "重读任务", IconKey = "IconRefresh",
             CommandPath = nameof(RefreshTasksCommand),
             ToolTip = "重新读取任务队列 / 扫描记录 / 操作日志（⛔ 不扫盘）"
         },
@@ -130,7 +130,7 @@ public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IT
         => $"队列 {Tasks.Count} 项（{(Tasks.Any(t => t.Status == TaskStatuses.Running) ? "有任务在跑" : "空闲")}）"
            + $"｜扫描记录 {ScanJobs.Count} 条｜操作日志 {Logs.Count} 条";
 
-    /// <summary>重读三块（工具条「🔄 重读任务」）。</summary>
+    /// <summary>重读三块（工具条「重读任务」）。</summary>
     [RelayCommand]
     private void RefreshTasks()
     {

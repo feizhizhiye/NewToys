@@ -142,7 +142,7 @@ public partial class HostsViewModel
             _draftText = HostsService.RenderLines(all);
             IsDirty = true;
             RefreshRows();
-            StatusText = $"已改草稿第 {row.No} 行（点「✅ 写入系统 hosts」落盘）。";
+            StatusText = $"已改草稿第 {row.No} 行（点「写入系统 hosts」落盘）。";
             return;
         }
 
@@ -154,7 +154,7 @@ public partial class HostsViewModel
         entry.Comment = EditComment.Trim();
         entry.Enabled = EditEnabled;
         RefreshRows();
-        StatusText = "已改右栏条目（点「💾 保存方案」落库）。";
+        StatusText = "已改右栏条目（点「保存方案」落库）。";
     }
 
     [RelayCommand]
@@ -170,13 +170,13 @@ public partial class HostsViewModel
             _draftText = _draftText.TrimEnd('\n') + "\n" + HostsText.RenderEntry(ip, host, EditComment, EditEnabled);
             IsDirty = true;
             RefreshRows();
-            StatusText = "已往草稿末尾加一条（点「✅ 写入系统 hosts」落盘）。";
+            StatusText = "已往草稿末尾加一条（点「写入系统 hosts」落盘）。";
             return;
         }
 
         SelectedProfile.Entries.Add(new HostsEntry { Ip = ip, Host = host, Comment = EditComment.Trim(), Enabled = EditEnabled });
         RefreshRows();
-        StatusText = "已往右栏加一条（点「💾 保存方案」落库）。";
+        StatusText = "已往右栏加一条（点「保存方案」落库）。";
     }
 
     [RelayCommand]
@@ -191,7 +191,7 @@ public partial class HostsViewModel
             var row = SelectedSystemRow;
             if (row is null) return;
 
-            var ok = await DialogHooks.ConfirmAsync($"从草稿里删除第 {row.No} 行？\n（点「✅ 写入系统 hosts」才落盘）");
+            var ok = await DialogHooks.ConfirmAsync($"从草稿里删除第 {row.No} 行？\n（点「写入系统 hosts」才落盘）");
             if (!ok) return;
 
             var all = HostsService.ParseLines(_draftText);
@@ -213,7 +213,7 @@ public partial class HostsViewModel
         var no = SelectedProfileRow?.No ?? 0;
         SelectedProfile.Entries.Remove(entry);
         RefreshRows();
-        StatusText = $"已删除右栏第 {no} 条（点「💾 保存方案」落库）。";
+        StatusText = $"已删除右栏第 {no} 条（点「保存方案」落库）。";
     }
 
     [RelayCommand]
@@ -329,7 +329,7 @@ public partial class HostsViewModel
                     new DetailField
                     {
                         Kind = FieldKind.Hint,
-                        Hint = "检测结果（右栏方案，点工具条「🔍 检测」刷新）：",
+                        Hint = "检测结果（右栏方案，点工具条「检测」刷新）：",
                         VisibleWhen = nameof(HasCheckReport)
                     },
                     new DetailField
@@ -364,7 +364,7 @@ public partial class HostsViewModel
         {
             new DetailAction
             {
-                Text = "💾 保存条目",
+                Text = "保存条目", IconKey = "IconSave",
                 Classes = "primary",
                 ToolTip = "把上面的改动写回选中行（左栏 = 草稿，右栏 = 方案）",
                 IsVisiblePath = nameof(HasSelection),
@@ -380,7 +380,7 @@ public partial class HostsViewModel
             },
             new DetailAction
             {
-                Text = "🗑 删除",
+                Text = "删除", IconKey = "IconTrash",
                 Classes = "ghost",
                 ToolTip = "删除选中行",
                 IsVisiblePath = nameof(HasSelection),
@@ -397,14 +397,14 @@ public partial class HostsViewModel
             },
             new DetailAction
             {
-                Text = "📥 导入文件",
+                Text = "导入文件", IconKey = "IconImport",
                 Classes = "ghost",
                 ToolTip = "把本地 hosts 文本导入右栏当前方案（只读也能导入）",
                 Command = ImportFileCommand
             },
             new DetailAction
             {
-                Text = "📤 导出方案",
+                Text = "导出方案", IconKey = "IconExport",
                 Classes = "ghost",
                 ToolTip = "把右栏当前方案导出成一份 hosts 文本",
                 IsVisiblePath = nameof(HasProfileSelection),
@@ -412,7 +412,7 @@ public partial class HostsViewModel
             },
             new DetailAction
             {
-                Text = "💾 保存方案",
+                Text = "保存方案", IconKey = "IconSave",
                 Classes = "ghost",
                 ToolTip = "把右栏条目落库（左栏草稿不受影响）",
                 IsVisiblePath = nameof(HasProfileSelection),
@@ -420,7 +420,7 @@ public partial class HostsViewModel
             },
             new DetailAction
             {
-                Text = "🗑 删除方案",
+                Text = "删除方案", IconKey = "IconTrash",
                 Classes = "ghost",
                 ToolTip = "删除右栏这个方案（⛔ 不动系统 hosts）",
                 IsVisiblePath = nameof(HasProfileSelection),

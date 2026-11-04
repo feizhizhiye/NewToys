@@ -23,7 +23,7 @@ namespace NewToys.MediaAssets.ViewModels;
 /// <para>
 /// ⚠️ 分清两层：
 /// <list type="bullet">
-///   <item><b>软删除 / 恢复</b>（「🗑 移入回收站」/「♻ 恢复」）= **只改库状态**，逻辑操作，⛔ 不走任务队列；</item>
+///   <item><b>软删除 / 恢复</b>（「移入回收站」/「♻ 恢复」）= **只改库状态**，逻辑操作，⛔ 不走任务队列；</item>
 ///   <item><b>永久删除 / 清空</b> = **真删磁盘文件**，物理操作 → 走任务队列 + 日志先行 + 二次确认。</item>
 /// </list>
 /// </para>
@@ -67,7 +67,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
     {
         new()
         {
-            Text = "↩ 恢复",
+            Text = "恢复", IconKey = "IconReset",
             Classes = "ghost",
             CommandPath = nameof(RestoreCommand),
             IsEnabledPath = nameof(HasSelection),
@@ -83,7 +83,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
         },
         new()
         {
-            Text = "🗑 永久删除",
+            Text = "永久删除", IconKey = "IconTrash",
             Classes = "danger-btn",
             CommandPath = nameof(PurgeSelectedCommand),
             IsEnabledPath = nameof(HasSelection),
@@ -92,7 +92,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
         },
         new()
         {
-            Text = "🧹 清空回收站",
+            Text = "清空回收站", IconKey = "IconEraser",
             Classes = "danger-btn",
             CommandPath = nameof(EmptyTrashCommand),
             ToolTip = "把回收站里所有资产永久删除（二次确认）"
@@ -100,7 +100,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
         // 🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库
         new()
         {
-            Text = "🔄 重读",
+            Text = "重读", IconKey = "IconRefresh",
             CommandPath = nameof(RefreshTrashCommand),
             ToolTip = "重新读取资产库里的回收站状态行（⛔ 不扫盘）"
         },
@@ -407,7 +407,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
         {
             new DetailAction
             {
-                Text = "↩ 恢复",
+                Text = "恢复", IconKey = "IconReset",
                 Classes = "primary",
                 ToolTip = "改回「正常」状态（⛔ 只改库里的状态，磁盘文件本来就还在）",
                 IsVisiblePath = nameof(ShowDetailBody),
@@ -415,7 +415,7 @@ public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelPr
             },
             new DetailAction
             {
-                Text = "🗑 永久删除",
+                Text = "永久删除", IconKey = "IconTrash",
                 Classes = "danger-btn",
                 ToolTip = "真删磁盘文件 + 删索引行（二次确认；⛔ 不进回收站、无法还原）",
                 IsVisiblePath = nameof(ShowDetailBody),

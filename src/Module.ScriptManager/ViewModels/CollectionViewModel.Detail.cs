@@ -68,7 +68,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
                     new DetailField
                     {
                         Label = "置顶", ValuePath = nameof(EditPinned), Kind = FieldKind.Check,
-                        Hint = "★ 标记：工具条「分组」下拉选「置顶」时可单独筛出，信息面板的集合下拉里也排最前"
+                        Hint = "标记：工具条「分组」下拉选「置顶」时可单独筛出，信息面板的集合下拉里也排最前"
                     },
                     new DetailField
                     {
@@ -157,12 +157,12 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
         new() { Text = "＋ 新建集合", Classes = "ghost", CommandPath = nameof(NewCollectionCommand), ToolTip = "新建一个空集合，然后在成员表选中条目右键加入" },
-        new() { Text = "📋 复制", Classes = "ghost", CommandPath = nameof(DuplicateCollectionCommand) },
-        new() { Text = "🗑 删除", Classes = "danger-btn", CommandPath = nameof(DeleteCollectionCommand), ToolTip = "只有「在用」的集合不能删（默认库一直算在用）；其余可删" },
+        new() { Text = "复制", IconKey = "IconCopy", Classes = "ghost", CommandPath = nameof(DuplicateCollectionCommand) },
+        new() { Text = "删除", IconKey = "IconTrash", Classes = "danger-btn", CommandPath = nameof(DeleteCollectionCommand), ToolTip = "只有「在用」的集合不能删（默认库一直算在用）；其余可删" },
         new() { Text = "📦 归档", Classes = "ghost", CommandPath = nameof(ArchiveCollectionCommand), ToolTip = "归档后默认不显示，可从「全部」里找回" },
-        new() { Text = "🔍 扫描", Classes = "ghost", CommandPath = nameof(ScanIntoCollectionCommand), ToolTip = "扫描脚本目录，把新脚本入库并加入当前集合" },
-        new() { Text = "📤 发送", Classes = "ghost", CommandPath = nameof(SendToPageCommand), ToolTip = "按集合类别跳到对应页面并选中这个集合（信息面板 / 脚本库 / 命令库 / 软件包）" },
-        new() { Text = "📤 导出", Classes = "ghost", CommandPath = nameof(ExportCommand), ToolTip = "把集合定义导出为 json" },
+        new() { Text = "扫描", IconKey = "IconSearch", Classes = "ghost", CommandPath = nameof(ScanIntoCollectionCommand), ToolTip = "扫描脚本目录，把新脚本入库并加入当前集合" },
+        new() { Text = "发送", IconKey = "IconExport", Classes = "ghost", CommandPath = nameof(SendToPageCommand), ToolTip = "按集合类别跳到对应页面并选中这个集合（信息面板 / 脚本库 / 命令库 / 软件包）" },
+        new() { Text = "导出", IconKey = "IconExport", Classes = "ghost", CommandPath = nameof(ExportCommand), ToolTip = "把集合定义导出为 json" },
 
         // 集合 / 分组 / 类型 = 筛选类 ↓：按 ui.md §8.2 顺序铁律放在第一个 Separator 之后（⛔ 不插在入口动作与搜索框之间）。
         new() { Kind = ToolbarItemKind.Separator },

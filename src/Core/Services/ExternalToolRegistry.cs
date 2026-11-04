@@ -29,7 +29,7 @@ public class ExternalToolRegistry : IExternalToolRegistry
     {
         new("FfmpegPath", "ffmpeg", "媒体资产抽帧 / 视频工具媒体信息", true,
             new[] { "ffmpeg" }),
-        new("PlayerPath", "外部播放器", "视频列表「▶ 播放」", false,
+        new("PlayerPath", "外部播放器", "视频列表「播放」", false,
             Array.Empty<string>()),   // 留空 = 系统关联程序，恒可用
         new("PythonPath", "Python 解释器", "「设置与脚本」的 .py", false,
             new[] { "python", "python3" }),

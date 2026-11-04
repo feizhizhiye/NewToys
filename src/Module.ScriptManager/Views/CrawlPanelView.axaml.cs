@@ -16,7 +16,7 @@ public partial class CrawlPanelView : UserControl
         InitializeComponent();
     }
 
-    /// <summary>单击目录行 = 勾选 / 取消勾选（「⬇ 下载」的作用域）；双击同一次点击会各切一次，净效果为不变。</summary>
+    /// <summary>单击目录行 = 勾选 / 取消勾选（「下载」的作用域）；双击同一次点击会各切一次，净效果为不变。</summary>
     private void OnRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Border { DataContext: CrawlEntry entry }) return;

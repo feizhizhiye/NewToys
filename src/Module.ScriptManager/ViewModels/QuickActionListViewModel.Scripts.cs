@@ -82,7 +82,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     /// <summary>脚本字段下方的提示（解释器怎么挑 + 脚本目录在哪）。</summary>
     public string ScriptHint =>
-        $"脚本文件 = 脚本目录里的 .py / .ps1 / .bat（填相对文件名即可，目录在「设置 → 脚本管理器设置」里改，工具条那个框也能直接改）；工具条「📥 导入脚本」可批量导入。\n脚本目录：{ScriptsDirectory}" +
+        $"脚本文件 = 脚本目录里的 .py / .ps1 / .bat（填相对文件名即可，目录在「设置 → 脚本管理器设置」里改，工具条那个框也能直接改）；工具条「导入脚本」可批量导入。\n脚本目录：{ScriptsDirectory}" +
         (IsDefaultScriptFolder ? "（默认值）\n" : "\n") +
         "解释器留「自动」即可：.py→python、.ps1→pwsh（没配则退回 5.1）、.bat/.cmd→cmd；三个解释器路径在「设置 → 脚本管理器设置」里配，留空 = 用系统默认。";
 

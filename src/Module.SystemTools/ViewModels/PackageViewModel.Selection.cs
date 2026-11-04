@@ -38,7 +38,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         if (!ok || detail == null) { StatusText = msg; return; }
 
         if (!string.IsNullOrWhiteSpace(detail.Name)) p.Name = detail.Name;
-        // ⛔ 不覆盖 Version：winget show 的 Version 是「最新可用版」——覆盖已安装项会把「⬆ 升级到 X」错显成「已安装」
+        // ⛔ 不覆盖 Version：winget show 的 Version 是「最新可用版」——覆盖已安装项会把「升级到 X」错显成「已安装」
         //    （v3.19：修的 bug：点一下详情，状态就从"升级"变"已安装"）。只在原本为空时才补。
         if (string.IsNullOrWhiteSpace(p.Version) && !string.IsNullOrWhiteSpace(detail.Version)) p.Version = detail.Version;
         p.Publisher = detail.Publisher;
@@ -88,7 +88,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         OnPropertyChanged(nameof(CanUpgradeSelected));
     }
 
-    /// <summary>右键「☑ 全选」：选中当前页全部行（不在当前页的保持原样）。</summary>
+    /// <summary>右键「全选」：选中当前页全部行（不在当前页的保持原样）。</summary>
     [RelayCommand]
     private void ToggleAll()
     {
@@ -100,7 +100,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         StatusText = all ? "已取消选择。" : $"已选中当前页 {Packages.Count} 条。";
     }
 
-    /// <summary>右键「☐ 取消选择」。</summary>
+    /// <summary>右键「取消选择」。</summary>
     [RelayCommand]
     private void SelectNone()
     {

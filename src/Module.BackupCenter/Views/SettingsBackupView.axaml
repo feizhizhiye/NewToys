@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.BackupCenter.Views.SettingsBackupView">
   <!--
     「备份中心设置」（`settings-backup`）：归档引擎 / 主密码 / 保留份数与目录 / 文件位置。
@@ -43,7 +44,7 @@
         <TextBox PasswordChar="●" Text="{Binding OldMasterInput}" PlaceholderText="旧主密码"/>
         <TextBox PasswordChar="●" Text="{Binding NewMasterInput}" PlaceholderText="新主密码"/>
         <TextBox PasswordChar="●" Text="{Binding NewMasterConfirmInput}" PlaceholderText="再输一次新主密码"/>
-        <Button Classes="ghost" HorizontalAlignment="Left" Content="💾 改主密码" Command="{Binding ChangeMasterCommand}"/>
+        <Button Classes="ghost" HorizontalAlignment="Left" Content="{m:GlyphText IconSave, '改主密码'}" Command="{Binding ChangeMasterCommand}"/>
         <TextBlock Classes="hint-text" TextWrapping="Wrap"
                    Text="改主密码会用新密码把库里所有条目重新加密一次；已经生成的归档包⛔ 不受影响（它们用各自的包密码）。"/>
       </StackPanel>
@@ -55,7 +56,7 @@
         <TextBlock Classes="field-label" Text="新建任务的默认保留份数"/>
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBox Width="120" Text="{Binding KeepText}"/>
-          <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveKeepCommand}"/>
+          <Button Classes="ghost" Content="{m:GlyphText IconSave, '保存'}" Command="{Binding SaveKeepCommand}"/>
         </StackPanel>
         <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="1~999；只影响新建任务的初值，单个任务的份数在任务里改。"/>
       </StackPanel>
@@ -64,11 +65,11 @@
         <TextBlock Classes="field-label" Text="默认备份目录"/>
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBox Width="380" Text="{Binding ArchiveDirText}"/>
-          <Button Classes="ghost" Content="📂 选择" Command="{Binding BrowseArchiveDirCommand}"/>
-          <Button Classes="ghost" Content="↗ 打开" Command="{Binding OpenBackupDirCommand}"/>
+          <Button Classes="ghost" Content="{m:GlyphText IconOpen, '选择'}" Command="{Binding BrowseArchiveDirCommand}"/>
+          <Button Classes="ghost" Content="{m:GlyphText IconOpen, '打开'}" Command="{Binding OpenBackupDirCommand}"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button Classes="ghost" Content="💾 保存" Command="{Binding SaveArchiveDirCommand}"/>
+          <Button Classes="ghost" Content="{m:GlyphText IconSave, '保存'}" Command="{Binding SaveArchiveDirCommand}"/>
           <Button Classes="ghost" Content="恢复默认" Command="{Binding ResetArchiveDirCommand}"/>
         </StackPanel>
         <TextBlock Classes="hint-text" TextWrapping="Wrap"
@@ -119,8 +120,8 @@
       <StackPanel Orientation="Horizontal" Spacing="8">
         <TextBox Width="320" PasswordChar="●" Text="{Binding AuthCodeInput}"
                  PlaceholderText="{Binding AuthCodePlaceholder}"/>
-        <Button Classes="ghost" Content="💾 存密码" Command="{Binding SaveMailCommand}"/>
-        <Button Classes="ghost" Content="🗑 清授权码" Command="{Binding ClearAuthCommand}"/>
+        <Button Classes="ghost" Content="{m:GlyphText IconSave, '存密码'}" Command="{Binding SaveMailCommand}"/>
+        <Button Classes="ghost" Content="{m:GlyphText IconTrash, '清授权码'}" Command="{Binding ClearAuthCommand}"/>
       </StackPanel>
       <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding AuthStateText}"/>
       <TextBlock Classes="hint-text" TextWrapping="Wrap"
@@ -137,15 +138,15 @@
       <TextBlock Classes="field-label" Text="待发目录"/>
       <StackPanel Orientation="Horizontal" Spacing="8">
         <TextBox Width="380" Text="{Binding OutboxDirText}"/>
-        <Button Classes="ghost" Content="📂 选择" Command="{Binding BrowseOutboxDirCommand}"/>
-        <Button Classes="ghost" Content="↗ 打开" Command="{Binding OpenOutboxDirCommand}"/>
+        <Button Classes="ghost" Content="{m:GlyphText IconOpen, '选择'}" Command="{Binding BrowseOutboxDirCommand}"/>
+        <Button Classes="ghost" Content="{m:GlyphText IconOpen, '打开'}" Command="{Binding OpenOutboxDirCommand}"/>
       </StackPanel>
       <TextBlock Classes="hint-text" TextWrapping="Wrap"
                  Text="分卷先落这里再发信；发完保留 3 天（留出复查 / 重发的窗口），到期自动清理。⛔ 与「默认备份目录」是两套规则：那里按保留份数轮转，这里发完即清。"/>
 
       <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Classes="ghost" Content="🔌 测连接" Command="{Binding TestMailCommand}"/>
-        <Button Classes="ghost" Content="🧹 清理分卷" Command="{Binding PurgeOutboxCommand}"/>
+        <Button Classes="ghost" Content="📡 测连接" Command="{Binding TestMailCommand}"/>
+        <Button Classes="ghost" Content="{m:GlyphText IconEraser, '清理分卷'}" Command="{Binding PurgeOutboxCommand}"/>
       </StackPanel>
       <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding MailStatusText}"/>
     </StackPanel>
@@ -166,7 +167,7 @@
         <TextBlock Classes="field-label" Text="还原暂存目录（可随时清理）"/>
         <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StagingRoot}"/>
       </StackPanel>
-      <Button Classes="ghost" HorizontalAlignment="Left" Content="📂 数据目录" Command="{Binding OpenDataDirCommand}"/>
+      <Button Classes="ghost" HorizontalAlignment="Left" Content="{m:GlyphText IconOpen, '数据目录'}" Command="{Binding OpenDataDirCommand}"/>
       <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding StatusText}"/>
     </StackPanel>
   </UserControl.Resources>

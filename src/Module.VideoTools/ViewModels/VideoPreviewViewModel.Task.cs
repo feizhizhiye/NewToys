@@ -138,7 +138,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     [RelayCommand]
     private void SendToBatch()
     {
-        if (!HasSource || !File.Exists(SourcePath)) { StatusText = "先点「📂 选择视频」挑一个文件。"; return; }
+        if (!HasSource || !File.Exists(SourcePath)) { StatusText = "先点「选择视频」挑一个文件。"; return; }
         if (!EditIsCut && !EditIsTranscode) { StatusText = "至少勾选一种任务类型（剪辑 / 转码）。"; return; }
         if (_store == null) { StatusText = "任务服务未就绪。"; return; }
 

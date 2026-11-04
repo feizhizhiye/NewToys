@@ -1,5 +1,6 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Shell.Views.UpdateView">
   <!--
     v3.66 / NT-062 第五轮：从原「通用」节拆出来的**更新**节（节锚点 `settings-update`）。
@@ -16,8 +17,8 @@
     </StackPanel>
 
     <StackPanel Orientation="Horizontal" Spacing="6">
-      <Button Classes="primary" Content="💾 保存" Command="{Binding SaveUpdateUrlCommand}" />
-      <Button Classes="ghost" Content="🔍 检查更新" Command="{Binding CheckUpdateCommand}"
+      <Button Classes="primary" Content="{m:GlyphText IconSave, '保存'}" Command="{Binding SaveUpdateUrlCommand}" />
+      <Button Classes="ghost" Content="{m:GlyphText IconSearch, '检查更新'}" Command="{Binding CheckUpdateCommand}"
               IsEnabled="{Binding IsNotBusy}"
               ToolTip.Tip="只做提示：不会下载、不会替换自身；没填地址就不检查" />
     </StackPanel>

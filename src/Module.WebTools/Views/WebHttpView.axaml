@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.WebTools.Views.WebHttpView">
   <!--  v3.19 / NT-001：HTTP 测试页实装 —— 方法 + URL + 请求头/请求体 → 发送 → 状态码 / 耗时 / 响应头 / 响应体。  -->
   <Grid RowDefinitions="Auto,Auto,Auto,*">
@@ -11,9 +12,9 @@
                   ItemsSource="{Binding Methods}" SelectedItem="{Binding Method, Mode=TwoWay}"/>
         <TextBox Grid.Column="1" Margin="0,0,8,0" PlaceholderText="https://api.example.com/v1/test"
                  Text="{Binding Url, Mode=TwoWay}"/>
-        <Button Grid.Column="2" Classes="primary" Content="▶ 发送" Margin="0,0,8,0"
+        <Button Grid.Column="2" Classes="primary" Content="{m:GlyphText IconPlay, '发送'}" Margin="0,0,8,0"
                 Command="{Binding SendCommand}" IsEnabled="{Binding IsNotBusy}"/>
-        <Button Grid.Column="3" Classes="ghost" Content="🗑 清空" Command="{Binding ClearCommand}"/>
+        <Button Grid.Column="3" Classes="ghost" Content="{m:GlyphText IconTrash, '清空'}" Command="{Binding ClearCommand}"/>
       </Grid>
     </Border>
 
@@ -53,7 +54,7 @@
         </ScrollViewer>
         <TextBlock Grid.Row="1" Classes="empty-hint" TextWrapping="Wrap"
                    IsVisible="{Binding !HasResponse}"
-                   Text="填好 URL 点「▶ 发送」，状态码 / 耗时 / 响应头 / 响应体会显示在这里。请求头一行一个「Key: Value」；请求体填 JSON 文本即可。"/>
+                   Text="填好 URL 点「发送」，状态码 / 耗时 / 响应头 / 响应体会显示在这里。请求头一行一个「Key: Value」；请求体填 JSON 文本即可。"/>
       </Grid>
     </Border>
   </Grid>

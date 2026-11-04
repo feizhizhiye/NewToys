@@ -124,8 +124,8 @@ public partial class AssetMergeService
 
     /// <summary>
     /// 把另一个资产库的资产**读成预览行**（⛔ 不写当前库、⛔ 不改源库）——
-    /// 2026-10-16 用户定稿：「📥 导入」= 把 db/json 加载到列表显示（草稿态），
-    /// 写入与否由用户点「💾 加入库」决定。独立只读连接打开（⛔ 不 ATTACH 主库连接）。
+    /// 2026-10-16 用户定稿：「导入」= 把 db/json 加载到列表显示（草稿态），
+    /// 写入与否由用户点「加入库」决定。独立只读连接打开（⛔ 不 ATTACH 主库连接）。
     /// </summary>
     public (bool Ok, string Message, List<AssetRow> Rows) ReadAssets(string dbPath)
     {

@@ -58,7 +58,7 @@ public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IT
     {
         var first = (SelectedCommand?.Preview ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries)
                         .FirstOrDefault()?.Trim() ?? "";
-        if (first.Length == 0) { StatusText = "先跑一次「▶ 跑这段」，选中命令要有命中结果。"; return; }
+        if (first.Length == 0) { StatusText = "先跑一次「跑这段」，选中命令要有命中结果。"; return; }
         if (first.Length > 200) first = first[..200];
 
         FindText = first;

@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.SystemTools.Views.SystemCommandLibraryView">
   <!--
     「系统工具 → 命令库」（`script-commands`）：布局与功能对齐脚本库。
@@ -10,7 +11,7 @@
     列表本体 = <v:TableViewHost>：列显隐 / 排序键按 VM 的 ColumnLayout 对齐（🔴 声明顺序必须一致），
     故骨架的 HeaderArea 不填。
   -->
-  <v:ListPageSkeleton EmptyMessage="还没有命令条目。首次运行会播种一批 Windows 常用命令 / 快捷设置 / winget 命令；也可以点「➕ 新增」自己加。"
+  <v:ListPageSkeleton EmptyMessage="还没有命令条目。首次运行会播种一批 Windows 常用命令 / 快捷设置 / winget 命令；也可以点「新增」自己加。"
                       EmptyActionText="＋ 新增"
                       EmptyActionCommand="{Binding AddCommand}"
                       IsEmpty="{Binding !HasItems}">
@@ -24,16 +25,16 @@
         <!-- 右键 = 「选中项更多功能」的主入口（作用对象 = 当前选中行） -->
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="▶ 运行" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
+            <MenuItem Header="运行" Icon="{m:Glyph IconPlay}" Command="{Binding RunCommand}" CommandParameter="{Binding Selected}"
                       IsEnabled="{Binding IsNotBusy}"/>
             <Separator/>
-            <MenuItem Header="★ 收藏 / 取消收藏" Command="{Binding ToggleFavoriteCommand}"/>
-            <MenuItem Header="📋 复制命令" Command="{Binding CopyCommand}" CommandParameter="{Binding Selected.Command}"/>
+            <MenuItem Header="收藏 / 取消收藏" Icon="{m:Glyph IconStar}" Command="{Binding ToggleFavoriteCommand}"/>
+            <MenuItem Header="复制命令" Icon="{m:Glyph IconCopy}" Command="{Binding CopyCommand}" CommandParameter="{Binding Selected.Command}"/>
             <Separator/>
-            <MenuItem Header="✏ 编辑（显示详情栏）" Command="{Binding OpenDetailPanelCommand}"/>
+            <MenuItem Header="编辑（显示详情栏）" Icon="{m:Glyph IconEdit}" Command="{Binding OpenDetailPanelCommand}"/>
             <Separator/>
             <MenuItem Header="＋ 新增" Command="{Binding AddCommand}" IsEnabled="{Binding !IsBusy}"/>
-            <MenuItem Header="🗑 删除" Command="{Binding DeleteCommand}" IsEnabled="{Binding HasSelection}"/>
+            <MenuItem Header="删除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCommand}" IsEnabled="{Binding HasSelection}"/>
           </ContextMenu>
         </v:TableViewHost.ContextMenu>
 
@@ -51,12 +52,11 @@
           <TableViewColumn Width="*" Binding="{Binding Description}"/>
           <TableViewColumn Width="90" Binding="{Binding FavoriteMark}" HorizontalContentAlignment="Center"/>
 
-          <!--  行内「▶ 运行」：命令取自页面 VM，故走 $parent[UserControl]  -->
+          <!--  行内「运行」：命令取自页面 VM，故走 $parent[UserControl]  -->
           <TableViewColumn Width="96" Header="操作">
             <TableViewColumn.CellTemplate>
               <DataTemplate>
-                <Button Classes="ghost row-btn" Content="▶ 运行"
-                        Command="{Binding $parent[UserControl].DataContext.RunCommand}"
+                <Button Classes="ghost row-btn" Content="{m:GlyphText IconPlay, '运行'}" Command="{Binding $parent[UserControl].DataContext.RunCommand}"
                         CommandParameter="{Binding}"
                         IsEnabled="{Binding $parent[UserControl].DataContext.IsNotBusy}"
                         ToolTip.Tip="按条目类型运行：命令行命令（需要管理员的项只复制命令）"/>

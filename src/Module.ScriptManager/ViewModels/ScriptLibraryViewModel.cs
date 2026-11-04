@@ -37,13 +37,13 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
     protected override string ExportSuggestedName => "script-library-export.json";
 
     /// <summary>
-    /// 本页最前已经有了「📂 导入」（脚本文件）⇒ 共用的「📥 导入」（json 清单）退到「📤 导出」前面，
+    /// 本页最前已经有了「导入」（脚本文件）⇒ 共用的「导入」（json 清单）退到「导出」前面，
     /// ⛔ 不让两个导入挨在一起。
     /// </summary>
     protected override bool JsonImportFirst => false;
 
     /// <summary>
-    /// 本页专属的工具条项（插在搜索框之前）：「📂 导入」（一个按钮 + 下拉：**导入文件 / 导入文件夹**两路）
+    /// 本页专属的工具条项（插在搜索框之前）：「导入」（一个按钮 + 下拉：**导入文件 / 导入文件夹**两路）
     /// + 脚本目录框（**v3.64：可编辑**：回车 / 失焦都提交，交模块设置服务落盘；
     /// 唯一写入点仍是「设置 → 脚本管理器设置」那个模块设置页）。
     /// </summary>
@@ -52,9 +52,9 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
     {
         new()
         {
-            // 与视频列表「📂 导入」**同一口径**：SplitButton（主钮 = 选文件夹，右侧箭头 = 两路菜单）。
+            // 与视频列表「导入」**同一口径**：SplitButton（主钮 = 选文件夹，右侧箭头 = 两路菜单）。
             Kind = ToolbarItemKind.SplitButton,
-            Text = "📂 导入",   // v3.63：与「📥 导入」（json 清单，排在导出前面）靠图标 + 悬停提示区分
+            Text = "导入", IconKey = "IconOpen",   // v3.63：与「导入」（json 清单，排在导出前面）靠图标 + 悬停提示区分
             Classes = "ghost",
             CommandPath = nameof(ImportScriptFolderCommand),
             ToolTip = "把脚本文件建成条目：直接点 = 选文件夹（含子目录），右侧箭头 = 选文件夹 / 选文件；已存在的会跳过",
@@ -62,7 +62,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
             {
                 new ToolbarMenuItemDescriptor
                 {
-                    Text = "📂 文件夹…",
+                    Text = "文件夹…", IconKey = "IconOpen",
                     CommandPath = nameof(ImportScriptFolderCommand),
                     ToolTip = "选一个目录，把它里的脚本全部建成条目"
                 },
@@ -90,10 +90,10 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
         {
             // 手动扫描（⛔ 不自动登记）—— 候选面板的动作项随后出现在工具条右侧
             Kind = ToolbarItemKind.Button,
-            Text = "🔍 扫描",
+            Text = "扫描", IconKey = "IconSearch",
             Classes = "ghost",
             CommandPath = nameof(ScanFolderCommand),
-            ToolTip = "扫描脚本目录（含子目录）：列出新文件 / 已入库 / 不可采集，勾选后点「➕ 加入库」（不会自动登记）"
+            ToolTip = "扫描脚本目录（含子目录）：列出新文件 / 已入库 / 不可采集，勾选后点「加入库」（不会自动登记）"
         }
     };
 
@@ -146,7 +146,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
     /// <summary>
     /// 🔥 **从磁盘删除**（列表右键）：先删脚本文件本身，再把这条从清单里移除。
     /// <para>
-    /// 与详情卡图标组的「🗑」分工：**图标组只动清单（⛔ 不碰磁盘）**；右键这一路是**真删文件**，不可撤销。
+    /// 与详情卡图标组的「」分工：**图标组只动清单（⛔ 不碰磁盘）**；右键这一路是**真删文件**，不可撤销。
     /// 本页本质是**脚本索引库**，操作逻辑与资产库一致 ⇒ 破坏性动作放右键、放二次确认。
     /// </para>
     /// </summary>
@@ -185,7 +185,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
         var card = new DetailCardDescriptor
         {
             BodyVisiblePath = nameof(ShowDetailBody),
-            EmptyText = "在左侧列表里选中一条，可在这里看它的脚本文件 / 解释器并改名称 / 简介 / 分类；下面的图标按钮依次是「运行 / 收藏 / 保存 / 从列表移除」。本页是**脚本索引库**：新增条目靠工具条「📂 导入」，⛔ 不在这里新建脚本。",
+            EmptyText = "在左侧列表里选中一条，可在这里看它的脚本文件 / 解释器并改名称 / 简介 / 分类；下面的图标按钮依次是「运行 / 收藏 / 保存 / 从列表移除」。本页是**脚本索引库**：新增条目靠工具条「导入」，⛔ 不在这里新建脚本。",
             Sections =
             {
                 new DetailSection
@@ -245,7 +245,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
                         new DetailField
                         {
                             Kind = FieldKind.Hint,
-                            Hint = "▶ 运行 = 用 cmd 执行这条命令；勾选「需要管理员权限」时会弹 UAC（输出见新开的命令行窗口）。成功 / 失败原因显示在顶部状态行。",
+                            Hint = "运行 = 用 cmd 执行这条命令；勾选「需要管理员权限」时会弹 UAC（输出见新开的命令行窗口）。成功 / 失败原因显示在顶部状态行。",
                             VisibleWhen = nameof(IsCommandKind)
                         },
                         new DetailField
@@ -291,7 +291,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
             }
         };
         // 🔴 卡内动作不再用一排文字按钮 —— 运行 / 收藏 / 保存 / 删除合成字段区末尾的**图标动作组**；
-        //    「📂 选脚本文件」按钮删除（脚本文件字段手写相对文件名即可，批量添加走工具条「📥 导入脚本」）。
+        //    「选脚本文件」按钮删除（脚本文件字段手写相对文件名即可，批量添加走工具条「导入脚本」）。
         return card;
     }
 

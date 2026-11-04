@@ -62,7 +62,7 @@ public class MediaAssetsSettings
     /// <summary>回收站保留天数（超过即「过期」）。</summary>
     public int TrashRetentionDays { get; set; } = 30;
 
-    /// <summary>到期自动清理（开启后：启动时 + 手动点「🧹 立即清理」都会把过期资产永久删除）。默认关（破坏性操作要用户显式开）。</summary>
+    /// <summary>到期自动清理（开启后：启动时 + 手动点「立即清理」都会把过期资产永久删除）。默认关（破坏性操作要用户显式开）。</summary>
     public bool AutoCleanupTrash { get; set; }
 
     // ==================== 物理操作 ====================

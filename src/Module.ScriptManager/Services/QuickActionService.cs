@@ -244,7 +244,7 @@ public class QuickActionService : IQuickActionService
         return (added, updated, skipped);
     }
 
-    /// <summary>清空某页**全部条目**并落盘（v3.19：「🧹 清空本页」= 真删除，会写空列表进 json）。</summary>
+    /// <summary>清空某页**全部条目**并落盘（v3.19：「清空本页」= 真删除，会写空列表进 json）。</summary>
     public void ClearPage(string page)
     {
         if (page == QuickActionPage.Quick) _quick.Clear();
@@ -572,7 +572,7 @@ public class QuickActionService : IQuickActionService
     {
         // 归属只由「所在页 + 执行类型」决定（⛔ 不看 ScriptFile 是否已填）：
         // ① Move() 把有脚本文件的条目移到命令库时 Kind 仍是 Script ⇒ 只看 Kind 会被打回脚本库；
-        // ② 用户点「➕ 新增」刚建的脚本条目还没填文件 ⇒ 看 ScriptFile 会当场跳去命令库。
+        // ② 用户点「新增」刚建的脚本条目还没填文件 ⇒ 看 ScriptFile 会当场跳去命令库。
         var isScript = q.Page != QuickActionPage.Quick
                        && string.Equals(q.Kind, QuickActionKind.Script, StringComparison.OrdinalIgnoreCase);
 

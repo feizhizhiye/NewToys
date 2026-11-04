@@ -102,7 +102,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         },
         new()
         {
-            Text = "🔍 扫描",
+            Text = "扫描", IconKey = "IconSearch",
             CommandPath = nameof(ScanSelectedCommand),
             IsEnabledPath = nameof(CanScanSelected),
             ShowToolTipOnDisabled = true,
@@ -110,14 +110,14 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         },
         new()
         {
-            Text = "🔍 全扫",
+            Text = "全扫", IconKey = "IconSearch",
             CommandPath = nameof(ScanAllCommand),
             IsEnabledPath = nameof(IsDbAvailable),
             ToolTip = "所有存储源扫一遍（离线的自动跳过）"
         },
         new()
         {
-            Text = "🧹 合并重复",
+            Text = "合并重复", IconKey = "IconEraser",
             CommandPath = nameof(MergeDuplicatesCommand),
             IsEnabledPath = nameof(IsDbAvailable),
             ToolTip = "同一文件因登记了父子目录而在库里有好几条资产时，并成一条（⛔ 不动磁盘文件）"
@@ -125,7 +125,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         // 🔄 命名规则（需求 §4.8 硬规则 10）：重读 = 读数据库 + 逐个体探测在线状态
         new()
         {
-            Text = "🔄 重读",
+            Text = "重读", IconKey = "IconRefresh",
             CommandPath = nameof(RefreshStoragesCommand),
             ToolTip = "重新读取存储源表，并逐个探测根目录是否可访问（在线 / 离线）"
         }
@@ -283,7 +283,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
 
     private string StatusSummary()
         => IsDbAvailable
-            ? $"共 {Items.Count} 个存储源" + (Items.Count == 0 ? "（点「➕ 添加存储源」登记一个目录）" : "")
+            ? $"共 {Items.Count} 个存储源" + (Items.Count == 0 ? "（点「添加存储源」登记一个目录）" : "")
             : "资产库不可用（数据库打不开）—— 本页只读，不会崩。";
 
     private void ApplyView()
@@ -334,7 +334,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
 
     // ==================== 添加 / 编辑 / 移除（逻辑操作，⛔ 不动磁盘） ====================
 
-    /// <summary>「➕ 添加存储源」：View 选完目录后调这里——登记即可（⛔ 不扫描，扫描是显式动作）。</summary>
+    /// <summary>「添加存储源」：View 选完目录后调这里——登记即可（⛔ 不扫描，扫描是显式动作）。</summary>
     public void AddStorage(string dir)
     {
         if (string.IsNullOrWhiteSpace(dir)) return;
@@ -364,7 +364,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
                 ? $"（它在「{overlap.Other.Name}」之下，作为子源存在：父源扫描时各自的文件夹各归各的源）"
                 : $"（它包含已登记的「{overlap.Other.Name}」，扫这个源时会连带把子文件夹登记成子源）";
         StatusText = id > 0
-            ? $"已登记「{name}」{note}——点「🔍 扫描选中」把它扫进库（或先「✏ 重命名」改个名字）。"
+            ? $"已登记「{name}」{note}——点「扫描选中」把它扫进库（或先「重命名」改个名字）。"
             : "登记失败（数据库不可用？）。";
     }
 
@@ -418,7 +418,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         _storages.SetOnline(row.Id, next);
         Reload();
         StatusText = next
-            ? $"「{row.Name}」已标记为在线——点「🔍 扫描选中」校准其下文件状态。"
+            ? $"「{row.Name}」已标记为在线——点「扫描选中」校准其下文件状态。"
             : $"「{row.Name}」已标记为离线——扫描将跳过它（⛔ 不会把它下面的文件标成丢失）。";
     }
 
@@ -442,7 +442,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
 
     // ==================== 扫描（走任务队列 → 跳任务中心看进度） ====================
 
-    /// <summary>「🔍 扫描选中」：把选中存储源扫一遍（直接入库），进度在「任务中心」看。</summary>
+    /// <summary>「扫描选中」：把选中存储源扫一遍（直接入库），进度在「任务中心」看。</summary>
     [RelayCommand]
     private void ScanSelected()
     {
@@ -456,7 +456,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         {
             if (!StorageService.ProbeOnline(row.RootPath))
             {
-                StatusText = $"「{row.Name}」当前离线且根目录读不到（{row.RootPath}）——先插上硬盘 / 连上 NAS，或点「⬆ 上线」强制标记。";
+                StatusText = $"「{row.Name}」当前离线且根目录读不到（{row.RootPath}）——先插上硬盘 / 连上 NAS，或点「上线」强制标记。";
                 return;
             }
             _storages.SetOnline(row.Id, true);
@@ -468,7 +468,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
         _nav?.NavigateTo("assets-tasks");
     }
 
-    /// <summary>「🔍 扫描全部」：所有存储源扫一遍（在线的才会真正遍历；离线的跳过）。</summary>
+    /// <summary>「扫描全部」：所有存储源扫一遍（在线的才会真正遍历；离线的跳过）。</summary>
     [RelayCommand]
     private void ScanAll()
     {
@@ -495,7 +495,7 @@ public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPane
     }
 
     /// <summary>
-    /// 「🧹 合并重复」：同一物理路径挂在多条资产下（登记过父子目录导致）→ 并成一条，⛔ 不动磁盘。
+    /// 「合并重复」：同一物理路径挂在多条资产下（登记过父子目录导致）→ 并成一条，⛔ 不动磁盘。
     /// <para>合并后保留的一条继承其余资产的标签 / 分类 / 集合 / 关联与全部文件位置。</para>
     /// </summary>
     [RelayCommand]

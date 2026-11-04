@@ -35,7 +35,7 @@ public partial class AssetService
     }
 
     /// <summary>
-    /// 「💾 加入库」：把**预览扫描**出来的内存行批量落库（一个事务，全部成功或全部不写）。
+    /// 「加入库」：把**预览扫描**出来的内存行批量落库（一个事务，全部成功或全部不写）。
     /// <para>
     /// 行可能来自多个目录（预览一个目录 / 多选文件都走这里）→ 按所在目录分组，
     /// 各自登记或复用存储源（<c>root_path</c> 去重）。⛔ 只建索引，⛔ 不碰磁盘文件。
@@ -91,7 +91,7 @@ public partial class AssetService
                     known.Add(storage);          // 同批后续目录若在它之下 → 复用，⛔ 不再建源
                 }
 
-                // 同一存储源内「路径」只许入库一次：重复点「💾 加入库」/ 重复扫描预览 ⛔ 不再产生重复资产。
+                // 同一存储源内「路径」只许入库一次：重复点「加入库」/ 重复扫描预览 ⛔ 不再产生重复资产。
                 // 只在已有存储源上读一次本源的路径集合（新源必然为空，⛔ 别为此多跑一次查询）。
                 var existingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (!storageIsNew)

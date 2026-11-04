@@ -44,7 +44,7 @@
 
           <TextBlock Grid.Row="0" Classes="empty-hint" HorizontalAlignment="Center"
                      VerticalAlignment="Center" IsVisible="{Binding !HasSource}"
-                     Text="点「📂 选择视频」挑一个文件；也可以从「视频列表」页多选后点「✂ 视频预览·剪辑」把文件送过来（会自动预览）。"/>
+                     Text="点「选择视频」挑一个文件；也可以从「视频列表」页多选后点「✂ 视频预览·剪辑」把文件送过来（会自动预览）。"/>
 
           <!--
               三条时间条：预览位置 / 开始 / 结束（始终显示；开始/结束仅在勾选「剪辑」时可操作，未勾选灰显但仍占位）
@@ -60,7 +60,7 @@
               <Slider Grid.Column="1" Minimum="0" Maximum="{Binding TimelineMax}"
                       Value="{Binding PreviewTime, Mode=TwoWay}"
                       TickFrequency="0.5" IsSnapToTickEnabled="False" VerticalAlignment="Center"
-                      ToolTip.Tip="拖动：移动即抽这一帧（拖动中会丢帧，只认最后位置）；点「▶ 播放预览」可自动逐帧播放"/>
+                      ToolTip.Tip="拖动：移动即抽这一帧（拖动中会丢帧，只认最后位置）；点「播放预览」可自动逐帧播放"/>
               <TextBlock Grid.Column="2" Classes="field-value" HorizontalAlignment="Right"
                          VerticalAlignment="Center" Text="{Binding PreviewTimeDisplay}"/>
             </Grid>

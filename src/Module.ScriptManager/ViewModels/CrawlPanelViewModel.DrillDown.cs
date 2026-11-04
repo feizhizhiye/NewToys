@@ -47,8 +47,8 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
                 SelectedContentScript = ContentOptions.FirstOrDefault(o => o.Value == flow.Content) ?? SelectedContentScript;
 
             StatusText = flow.Toc.Length == 0
-                ? $"流水线「{flow.Name}」没配目录段 ⇒ 链式模式：清空勾选，直接「⬇ 下载」从起始网址边跑边累积。"
-                : $"已按流水线「{flow.Name}」填好入口 / content 脚本。勾行 →「⬇ 下载」。";
+                ? $"流水线「{flow.Name}」没配目录段 ⇒ 链式模式：清空勾选，直接「下载」从起始网址边跑边累积。"
+                : $"已按流水线「{flow.Name}」填好入口 / content 脚本。勾行 →「下载」。";
         }
         catch (Exception ex) { StatusText = "⚠ 读流水线失败：" + FirstLine(ex.Message); }
     }

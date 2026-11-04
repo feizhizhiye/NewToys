@@ -149,7 +149,7 @@ public partial class VideoBatchView : UserControl
         }
     }
 
-    /// <summary>Ctrl+A：交给 VM 的全选命令（与右键「☑ 全选」同一入口）。</summary>
+    /// <summary>Ctrl+A：交给 VM 的全选命令（与右键「全选」同一入口）。</summary>
     private void OnTaskListKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.A || !e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
@@ -199,7 +199,7 @@ public partial class VideoBatchView : UserControl
         if (FinishedList?.ContextMenu is { } fmenu) fmenu.DataContext = DataContext;
         if (HeaderGrid?.ContextMenu is { } hmenu) hmenu.DataContext = DataContext;
 
-        // 平台文件选择器只能在 View 层用（VM 不引 Avalonia）：本页把「📂 选择输出文件」等真实实现
+        // 平台文件选择器只能在 View 层用（VM 不引 Avalonia）：本页把「选择输出文件」等真实实现
         // 注入给声明式卡的动作。每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
         if (DataContext is VideoBatchViewModel vmb)
         {
@@ -279,7 +279,7 @@ public partial class VideoBatchView : UserControl
             // 挑完默认按软字幕（最省事），用户再改成硬字幕也行
             if (string.Equals(vm.EditSubtitleMode, SubtitleModes.None, StringComparison.OrdinalIgnoreCase))
                 vm.EditSubtitleMode = SubtitleModes.Soft;
-            vm.StatusText = "已选择字幕：" + System.IO.Path.GetFileName(path) + "（记得点「💾 保存修改」）";
+            vm.StatusText = "已选择字幕：" + System.IO.Path.GetFileName(path) + "（记得点「保存修改」）";
         }
         catch (Exception ex)
         {
@@ -317,7 +317,7 @@ public partial class VideoBatchView : UserControl
             vm.EditAudioPath = path;
             if (string.Equals(vm.EditAudioMode, AudioModes.Keep, StringComparison.OrdinalIgnoreCase))
                 vm.EditAudioMode = AudioModes.Replace;
-            vm.StatusText = "已选择音频：" + System.IO.Path.GetFileName(path) + "（记得点「💾 保存修改」）";
+            vm.StatusText = "已选择音频：" + System.IO.Path.GetFileName(path) + "（记得点「保存修改」）";
         }
         catch (Exception ex)
         {

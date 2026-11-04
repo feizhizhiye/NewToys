@@ -123,7 +123,7 @@ public partial class ViewerHost : UserControl
         if (kind == ViewerKind.None)
         {
             error = IsLongFormText(path)
-                ? "长文本阅读已并入「网络阅读」—— 到那边点「📂 本地 TXT」打开。"
+                ? "长文本阅读已并入「网络阅读」—— 到那边点「本地 TXT」打开。"
                 : "不支持的类型：" + Path.GetExtension(path);
             return false;
         }

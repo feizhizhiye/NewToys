@@ -53,7 +53,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         await PreviewFilesAsync(files).ConfigureAwait(false);
     }
 
-    /// <summary>「➕ 登记」：选一个目录加进待扫列表（⛔ 不扫描，等「🔄 扫描全部」）。</summary>
+    /// <summary>「登记」：选一个目录加进待扫列表（⛔ 不扫描，等「扫描全部」）。</summary>
     [RelayCommand]
     private async Task RegisterFolderAsync()
     {
@@ -86,7 +86,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 「📤 导出」：按所选格式导出 —— .json = 当前列表（含标签 / 分类 / 集合的名字）；
+    /// 「导出」：按所选格式导出 —— .json = 当前列表（含标签 / 分类 / 集合的名字）；
     /// .db = **整个资产库**另存（备份 / 交付用，复用「💿 另存为…」同一命令）。
     /// </summary>
     [RelayCommand]
@@ -109,9 +109,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     }
 
     /// <summary>
-    /// 「📥 导入」：json 列表 → **草稿态预览**（要不要进库由「💾 加入库」决定，与扫描预览同语义）；
+    /// 「导入」：json 列表 → **草稿态预览**（要不要进库由「加入库」决定，与扫描预览同语义）；
     /// <c>*.db</c> → 直接转「并入」（本身就是一个完整资产库，⛔ 不该先当草稿再手动入库：
-    /// 那样既要多点一次「💾 加入库」，又会丢掉库里的评分 / 描述 / 标签）。
+    /// 那样既要多点一次「加入库」，又会丢掉库里的评分 / 描述 / 标签）。
     /// </summary>
     [RelayCommand]
     private async Task ImportAssetsAsync()
@@ -135,7 +135,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
             LoadDraft(rows);
             StatusText = $"已导入预览 {rows.Count} 条（从「{Path.GetFileName(src)}」，⛔ 未入库）：" +
-                         "点「💾 加入库」写入资产库，或「🧹 清除列表」放弃。";
+                         "点「加入库」写入资产库，或「清除列表」放弃。";
         }
         catch (Exception ex) { StatusText = "导入失败：" + ex.Message; }
     }

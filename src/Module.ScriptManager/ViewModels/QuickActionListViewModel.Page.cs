@@ -202,7 +202,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// </summary>
     private void FillEditors(QuickAction? value)
     {
-        // 点「💾 保存」才写回对象并落盘
+        // 点「保存」才写回对象并落盘
         EditTitle = value?.Title ?? "";
         EditCategory = value?.Category ?? "";
         EditDescription = value?.Description ?? "";

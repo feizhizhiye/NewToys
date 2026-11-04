@@ -29,7 +29,7 @@ public sealed class VideoCardCommands
 /// 收成一份，两页只提供差异项：
 /// </para>
 /// <list type="bullet">
-/// <item>提交时机（批量走「💾 保存修改」，预览失焦即生效）</item>
+/// <item>提交时机（批量走「保存修改」，预览失焦即生效）</item>
 /// <item>批量页多一个「📄 任务状态」节</item>
 /// <item>空态文案</item>
 /// </list>
@@ -49,7 +49,7 @@ public static class VideoTaskCard
     /// </summary>
     /// <param name="commands">卡内动作（<c>null</c> 的按钮不渲染）。</param>
     /// <param name="explicitCommit">
-    /// <c>true</c> = 输入框改动只留在缓冲里、由工具条「💾 保存修改」统一落库（批量页）；
+    /// <c>true</c> = 输入框改动只留在缓冲里、由工具条「保存修改」统一落库（批量页）；
     /// <c>false</c> = 失焦即生效（预览页）。
     /// </param>
     /// <param name="emptyText">右侧没选中任何内容时的提示。</param>
@@ -467,7 +467,7 @@ public static class VideoTaskCard
                         new DetailField
                         {
                             Kind = FieldKind.Hint,
-                            Hint = "✏ 已手改：运行时以这里为准（工具条上「↺ 重置为自动」可撤销）。",
+                            Hint = "已手改：运行时以这里为准（工具条上「重置为自动」可撤销）。",
                             VisibleWhen = IsArgsEdited
                         }
                     }
@@ -509,7 +509,7 @@ public static class VideoTaskCard
         if (commands.PickOutput != null)
             card.Actions.Add(new DetailAction
             {
-                Text = "📂 选输出",
+                Text = "选输出", IconKey = "IconOpen",
                 Classes = "ghost",
                 ToolTip = "挑一个输出文件；留空 = 按预设自动命名（⛔ 绝不覆盖已有文件）",
                 Command = commands.PickOutput
@@ -518,7 +518,7 @@ public static class VideoTaskCard
         if (commands.PickSubtitle != null)
             card.Actions.Add(new DetailAction
             {
-                Text = "📝 选字幕",
+                Text = "选字幕", IconKey = "IconEdit",
                 Classes = "ghost",
                 IsVisiblePath = EditIsTranscode,
                 ToolTip = "挑一个 .srt / .ass 字幕，再把「字幕方式」选成软字幕或硬字幕",
@@ -557,9 +557,9 @@ public static class VideoTaskCard
         if (commands.SaveCommandLine != null)
             card.Actions.Add(new DetailAction
             {
-                Text = "💾 保存命令",
+                Text = "保存命令", IconKey = "IconSave",
                 Classes = "ghost",
-                ToolTip = "把「⌨ ffmpeg 参数」框里的内容直接写回选中的任务（跑的时候以它为准）；取消手改用工具条「↺ 重置为自动」",
+                ToolTip = "把「⌨ ffmpeg 参数」框里的内容直接写回选中的任务（跑的时候以它为准）；取消手改用工具条「重置为自动」",
                 Command = commands.SaveCommandLine
             });
 

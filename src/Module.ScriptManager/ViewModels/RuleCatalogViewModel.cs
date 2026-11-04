@@ -42,10 +42,10 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             Placeholder = "站点网址…",
             ValuePath = nameof(ProbeUrl),
             EnterCommandPath = nameof(ProbeSiteCommand),
-            ToolTip = "站点主页地址（如 example.com，可省略 https:/）。「🔍 探测」按站点根路径试各预设的探测路径，以「能解析出条目」为准（⛔ 不看 200）"
+            ToolTip = "站点主页地址（如 example.com，可省略 https:/）。「探测」按站点根路径试各预设的探测路径，以「能解析出条目」为准（⛔ 不看 200）"
         },
-        new() { Text = "🔍 探测", CommandPath = nameof(ProbeSiteCommand), IsEnabledPath = "!" + nameof(IsBusy) },
-        // 从预设创建（选中即创建；⛔ 不覆盖同名，先「🔍 探测」看适合哪种）
+        new() { Text = "探测", IconKey = "IconSearch", CommandPath = nameof(ProbeSiteCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        // 从预设创建（选中即创建；⛔ 不覆盖同名，先「探测」看适合哪种）
         new()
         {
             Kind = ToolbarItemKind.Combo,
@@ -53,7 +53,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             ItemsPath = nameof(PresetOptions),
             DisplayPath = nameof(CategoryOption.Label),
             SelectedItemPath = nameof(SelectedPreset),
-            ToolTip = "选一个预设即按它新建规则集（⛔ 不覆盖同名）；先「🔍 探测」看站点适合哪种预设"
+            ToolTip = "选一个预设即按它新建规则集（⛔ 不覆盖同名）；先「探测」看站点适合哪种预设"
         },
         // 分类筛选下拉 —— 按文件里实际出现的值动态生成（⛔ 不硬编码五档）
         new()
@@ -66,8 +66,8 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             ToolTip = "按分类筛选（分类值来自各规则文件的 # category:，按实际出现的值动态生成）"
         },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索名称 / 域名…", ValuePath = nameof(SearchText) },
-        new() { Text = "✓ 切换启用", CommandPath = nameof(ToggleEnabledCommand), IsEnabledPath = "!" + nameof(IsBusy) },
-        new() { Text = "🔄 重读规则", CommandPath = nameof(RefreshCommand), ToolTip = "重新扫一遍规则目录（⛔ 不运行任何规则集）" }
+        new() { Text = "切换启用", IconKey = "IconCheckAll", CommandPath = nameof(ToggleEnabledCommand), IsEnabledPath = "!" + nameof(IsBusy) },
+        new() { Text = "重读规则", IconKey = "IconRefresh", CommandPath = nameof(RefreshCommand), ToolTip = "重新扫一遍规则目录（⛔ 不运行任何规则集）" }
     };
 
     private readonly RuleCatalogService _catalog = null!;
@@ -222,7 +222,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             },
             new DetailAction
             {
-                Text = "📝 打开文件",
+                Text = "打开文件", IconKey = "IconEdit",
                 Classes = "ghost",
                 ToolTip = "用记事本打开 .py 规则文件（⛔ 不用「运行方式」，避免双击就执行）",
                 IsVisiblePath = nameof(ShowDetailBody),
@@ -230,7 +230,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             },
             new DetailAction
             {
-                Text = "📂 打开目录",
+                Text = "打开目录", IconKey = "IconOpen",
                 Classes = "ghost",
                 ToolTip = "在资源管理器里打开规则目录",
                 IsVisiblePath = nameof(ShowDetailBody),
@@ -238,7 +238,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             },
             new DetailAction
             {
-                Text = "📂 运行记录",
+                Text = "运行记录", IconKey = "IconOpen",
                 Classes = "ghost",
                 ToolTip = "打开该规则集的运行记录目录（runs\\<名>\\，保留最近 10 次；导出在右键菜单）",
                 IsVisiblePath = nameof(ShowDetailBody),
@@ -246,7 +246,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             },
             new DetailAction
             {
-                Text = "🗑 删除",
+                Text = "删除", IconKey = "IconTrash",
                 Classes = "ghost",
                 ToolTip = "删除这条规则集的文件（不可恢复）",
                 IsVisiblePath = nameof(ShowDetailBody),
@@ -507,7 +507,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
             {
                 UseShellExecute = false
             });
-            StatusText = "已用记事本打开，改完回来点「🔄 重读规则」。";
+            StatusText = "已用记事本打开，改完回来点「重读规则」。";
         }
         catch (Exception ex) { StatusText = "⚠ 打不开文件：" + ex.Message; }
     }
@@ -533,7 +533,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
         var dir = _records.ScriptDir(Selected.Name);
         if (!Directory.Exists(dir))
         {
-            StatusText = "还没运行过这个规则集 —— 点「🧩 调试集合」→「▶ 跑这段」跑一次就有记录。";
+            StatusText = "还没运行过这个规则集 —— 点「🧩 调试集合」→「跑这段」跑一次就有记录。";
             return;
         }
 
@@ -552,7 +552,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
         if (Selected == null) return;
 
         var rec = _records.Latest(Selected.Name);
-        if (rec is null) { StatusText = "还没运行过这个规则集 —— 先「▶ 跑这段」跑一次再导出。"; return; }
+        if (rec is null) { StatusText = "还没运行过这个规则集 —— 先「跑这段」跑一次再导出。"; return; }
 
         var path = PickSaveFile is null
             ? null
@@ -576,7 +576,7 @@ public partial class RuleCatalogViewModel : ListPageViewModelBase, IDetailPanelP
         if (Selected == null) return;
 
         var rec = _records.Latest(Selected.Name);
-        if (rec is null) { StatusText = "还没运行过这个规则集 —— 先「▶ 跑这段」跑一次再导出。"; return; }
+        if (rec is null) { StatusText = "还没运行过这个规则集 —— 先「跑这段」跑一次再导出。"; return; }
 
         var src = Path.Combine(rec.Dir, "result.json");
         if (!File.Exists(src)) { StatusText = "⚠ 记录文件不在（可能被手工删过）：" + rec.Dir; return; }

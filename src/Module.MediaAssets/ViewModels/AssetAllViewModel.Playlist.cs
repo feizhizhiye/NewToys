@@ -14,7 +14,7 @@ namespace NewToys.MediaAssets.ViewModels;
 /// <summary>
 /// 「全部资产」→ 音乐播放的两条出口：
 /// <list type="bullet">
-///   <item>「▶ 播放」把选中的音乐按**当前列表顺序**交给「查看器 → 音乐播放」并立即开播（走 <see cref="IModuleBus"/>）。</item>
+///   <item>「播放」把选中的音乐按**当前列表顺序**交给「查看器 → 音乐播放」并立即开播（走 <see cref="IModuleBus"/>）。</item>
 ///   <item>「🎵 导出播放列表」写一份 <c>.m3u8</c>（相对路径 + EXTINF），第三方播放器也能吃。</item>
 /// </list>
 /// </summary>
@@ -37,7 +37,7 @@ public partial class AssetAllViewModel
             .DistinctBy(r => r.FilePath, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    /// <summary>「▶ 播放」：选中音乐 → 查看器音乐播放（顺序 = 当前列表顺序）。</summary>
+    /// <summary>「播放」：选中音乐 → 查看器音乐播放（顺序 = 当前列表顺序）。</summary>
     [RelayCommand]
     private void PlaySelectedInPlayer()
     {

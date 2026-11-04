@@ -56,7 +56,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     {
         if (QuickFilters.Count > 0) return;
         QuickFilters.Add(new FilterQuickItem { Label = "＋ 添加筛选列…", Command = AddFilterCommand });
-        QuickFilters.Add(new FilterQuickItem { Label = "🧹 清空筛选（全部列）", Command = ClearFiltersCommand });
+        QuickFilters.Add(new FilterQuickItem { Label = "清空筛选（全部列）", Command = ClearFiltersCommand });
         QuickFilters.Add(new FilterQuickItem { Label = "（本页暂无分类筛选）" });
         OnPropertyChanged(nameof(HasQuickFilters));
     }
@@ -65,7 +65,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     private void AddStandardQuickFilters()
     {
         QuickFilters.Add(new FilterQuickItem { Label = "＋ 添加筛选列…", Command = AddFilterCommand });
-        QuickFilters.Add(new FilterQuickItem { Label = "🧹 清空筛选（全部列）", Command = ClearFiltersCommand });
+        QuickFilters.Add(new FilterQuickItem { Label = "清空筛选（全部列）", Command = ClearFiltersCommand });
     }
 
     /// <summary>

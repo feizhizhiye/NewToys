@@ -70,23 +70,23 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📂 添加文件", Classes = "ghost", CommandPath = nameof(PickFilesCommand), ToolTip = "按左边选的类型建任务；只是建任务，不立刻跑" },
+        new() { Text = "添加文件", IconKey = "IconOpen", Classes = "ghost", CommandPath = nameof(PickFilesCommand), ToolTip = "按左边选的类型建任务；只是建任务，不立刻跑" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "按文件名 / 输出过滤…", ValuePath = nameof(SearchText) },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Text = "▶ 批量运行", Classes = "ghost", CommandPath = nameof(RunAllCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "按列表顺序依次处理（已完成的不重复跑），跑完自动探测输出文件" },
-        new() { Text = "▶ 只跑选中", CommandPath = nameof(RunSelectedCommand), IsEnabledPath = nameof(CanActOnSelection), ToolTip = "处理选中行（可多选）—— 已完成的任务不会再跑，想重跑先右键「↺ 重新排队」" },
-        new() { Text = "⏹ 停止", CommandPath = nameof(StopCommand), IsEnabledPath = nameof(IsRunning) },
+        new() { Text = "批量运行", IconKey = "IconPlay", Classes = "ghost", CommandPath = nameof(RunAllCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "按列表顺序依次处理（已完成的不重复跑），跑完自动探测输出文件" },
+        new() { Text = "只跑选中", IconKey = "IconPlay", CommandPath = nameof(RunSelectedCommand), IsEnabledPath = nameof(CanActOnSelection), ToolTip = "处理选中行（可多选）—— 已完成的任务不会再跑，想重跑先右键「重新排队」" },
+        new() { Text = "停止", IconKey = "IconStop", CommandPath = nameof(StopCommand), IsEnabledPath = nameof(IsRunning) },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Text = "💾 保存修改", CommandPath = nameof(SaveCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把详情卡里改的参数写回选中的任务" },
-        new() { Text = "🗑 删除", CommandPath = nameof(DeleteCommand), IsEnabledPath = nameof(CanActOnSelection) },
-        new() { Text = "📂 输出目录", CommandPath = nameof(OpenOutputFolderCommand), IsEnabledPath = nameof(CanActOnSelection) },
-        new() { Text = "📋 复制命令", CommandPath = nameof(CopyCommandLineCommand), IsEnabledPath = nameof(HasSelection) },
-        new() { Text = "↺ 重置为自动", CommandPath = nameof(ResetCommandCommand), IsEnabledPath = nameof(IsArgsEdited), IsVisiblePath = nameof(IsArgsEdited), ToolTip = "丢弃手改的命令，恢复成由参数自动生成" },
+        new() { Text = "保存修改", IconKey = "IconSave", CommandPath = nameof(SaveCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把详情卡里改的参数写回选中的任务" },
+        new() { Text = "删除", IconKey = "IconTrash", CommandPath = nameof(DeleteCommand), IsEnabledPath = nameof(CanActOnSelection) },
+        new() { Text = "输出目录", IconKey = "IconOpen", CommandPath = nameof(OpenOutputFolderCommand), IsEnabledPath = nameof(CanActOnSelection) },
+        new() { Text = "复制命令", IconKey = "IconCopy", CommandPath = nameof(CopyCommandLineCommand), IsEnabledPath = nameof(HasSelection) },
+        new() { Text = "重置为自动", IconKey = "IconReset", CommandPath = nameof(ResetCommandCommand), IsEnabledPath = nameof(IsArgsEdited), IsVisiblePath = nameof(IsArgsEdited), ToolTip = "丢弃手改的命令，恢复成由参数自动生成" },
         new() { Kind = ToolbarItemKind.Separator },
-        new() { Text = "📤 导出任务", CommandPath = nameof(ExportTasksCommand), ToolTip = "把当前队列（剪辑 + 转码）导出成 JSON 文件，可用外部脚本批量加工后再导入" },
-        new() { Text = "📥 导入任务", CommandPath = nameof(ImportTasksCommand), ToolTip = "从导出的 JSON 里追加任务进当前队列（不覆盖已有）" },
-        new() { Text = "🧹 清已结束", CommandPath = nameof(ClearFinishedCommand), IsEnabledPath = nameof(IsNotBusy) },
-        new() { Text = "🧹 清空队列", CommandPath = nameof(ClearCacheCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "清掉整条队列并写进库（重开软件不会再冒出来）；磁盘上的源 / 输出文件一个都不动" },
+        new() { Text = "导出任务", IconKey = "IconExport", CommandPath = nameof(ExportTasksCommand), ToolTip = "把当前队列（剪辑 + 转码）导出成 JSON 文件，可用外部脚本批量加工后再导入" },
+        new() { Text = "导入任务", IconKey = "IconImport", CommandPath = nameof(ImportTasksCommand), ToolTip = "从导出的 JSON 里追加任务进当前队列（不覆盖已有）" },
+        new() { Text = "清已结束", IconKey = "IconEraser", CommandPath = nameof(ClearFinishedCommand), IsEnabledPath = nameof(IsNotBusy) },
+        new() { Text = "清空队列", IconKey = "IconEraser", CommandPath = nameof(ClearCacheCommand), IsEnabledPath = nameof(IsNotBusy), ToolTip = "清掉整条队列并写进库（重开软件不会再冒出来）；磁盘上的源 / 输出文件一个都不动" },
         new() { Kind = ToolbarItemKind.Separator },
         new() { Text = "🎬 预览编辑", Classes = "ghost", CommandPath = nameof(SendToPreviewCommand), IsEnabledPath = nameof(HasSelection), ToolTip = "把选中的任务（连全部参数）送进「视频预览」页，边看画面边改；改完用那边的「✔ 保存回任务」写回本队列（不新增一条）" },
     };
@@ -317,7 +317,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
         RefreshCommand();
     }
 
-    /// <summary>🖼 探测选中任务的黑边：结果只填编辑缓冲，点「💾 保存」才写回任务。</summary>
+    /// <summary>🖼 探测选中任务的黑边：结果只填编辑缓冲，点「保存」才写回任务。</summary>
     [RelayCommand]
     private async Task DetectCropAsync()
     {
@@ -347,7 +347,7 @@ public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelPr
             EditCropX = cx;
             EditCropY = cy;
             StatusText = w > 0 && h > 0
-                ? $"探测到有效画面 {w}×{h} @ ({cx}, {cy}) —— 别忘了点「💾 保存」。"
+                ? $"探测到有效画面 {w}×{h} @ ({cx}, {cy}) —— 别忘了点「保存」。"
                 : "⚠ 探测结果异常（0×0）—— 裁剪值保持不变。";
         }
         catch (Exception ex)

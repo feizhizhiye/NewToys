@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.Viewer.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Viewer.Views.ViewerImageView">
   <!--
     查看器页内容（文档查看 / 图片查看 / 音乐播放三页**共用同一份 XAML**）：
@@ -116,8 +117,7 @@
             <Button Classes="ghost"
                     FontSize="12"
                     Padding="6,2"
-                    Content="✕"
-                    Command="{Binding ToggleHistoryCommand}" />
+                    Content="{m:GlyphText IconClose}" Command="{Binding ToggleHistoryCommand}" />
           </StackPanel>
         </Grid>
 

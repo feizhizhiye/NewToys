@@ -1,6 +1,7 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.ScriptManager.Views.ScriptInfoView">
   <!--
     「脚本管理器 → 信息面板」（NT-068 S5/S6；原 NT-067 的 manifest 驱动模型已废弃）。
@@ -97,11 +98,11 @@
                       <!--  右键这一节 ⇒ 详情卡按这一节渲染（NT-069）  -->
                       <Border.ContextMenu>
                         <ContextMenu>
-                          <MenuItem Header="⚙ 显示这一节的详情 / 设置" Command="{Binding OpenDetailCommand}"/>
+                          <MenuItem Header="显示这一节的详情 / 设置" Icon="{m:Glyph IconGear}" Command="{Binding OpenDetailCommand}"/>
                           <MenuItem Header="⟳ 只刷新这一节" Command="{Binding RefreshCommand}"
                                     IsEnabled="{Binding CanRefresh}"/>
                           <Separator/>
-                          <MenuItem Header="⌄ 折叠 / 展开" Command="{Binding ToggleCollapseCommand}"/>
+                          <MenuItem Header="▾ 折叠 / 展开" Command="{Binding ToggleCollapseCommand}"/>
                         </ContextMenu>
                       </Border.ContextMenu>
                       <Grid ColumnDefinitions="Auto,*,Auto,Auto">
@@ -125,7 +126,7 @@
                                 FontSize="14" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                 ToolTip.Tip="只刷新这一节" Command="{Binding RefreshCommand}"
                                 IsEnabled="{Binding CanRefresh}"/>
-                        <Button Grid.Column="3" Classes="ghost" Content="⌄" Width="24" Height="22" Padding="0"
+                        <Button Grid.Column="3" Classes="ghost" Content="▾" Width="24" Height="22" Padding="0"
                                 FontSize="14" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                 ToolTip.Tip="折叠 / 展开这一节" Command="{Binding ToggleCollapseCommand}"
                                 IsVisible="{Binding IsExpanded}"/>

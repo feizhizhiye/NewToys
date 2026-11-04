@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.MediaAssets.Views.AssetCategoriesView">
   <!--
     「分类管理」页：与「标签管理」同构的表格页（名称 / 路径 / 成员数 / 排序 / 创建时间）+ 详情卡（Shell 承载）。
@@ -9,7 +10,7 @@
        ⇒ 骨架的 HeaderArea 不填，XAML ⛔ 不写 IsXxxVisible 绑定。
     🔴 Columns 的声明顺序必须与 VM 的 ColumnLayout 一致。
   -->
-  <v:ListPageSkeleton EmptyMessage="还没有分类。点「➕ 新建分类」开一个根分类。"
+  <v:ListPageSkeleton EmptyMessage="还没有分类。点「新建分类」开一个根分类。"
                       EmptyActionText="＋ 新建分类"
                       EmptyActionCommand="{Binding NewRootCommand}"
                       IsEmpty="{Binding !HasItems}">
@@ -52,7 +53,7 @@
 
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
+            <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
               <MenuItem.ItemContainerTheme>
                 <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                   <Setter Property="Header" Value="{Binding Label}"/>
@@ -62,10 +63,10 @@
             </MenuItem>
             <Separator/>
             <MenuItem Header="＋ 子分类…" Command="{Binding NewChildCommand}"/>
-            <MenuItem Header="✏ 重命名…" Command="{Binding RenameCategoryCommand}"/>
-            <MenuItem Header="⬆ 移到根分类" Command="{Binding MoveToRootCommand}"/>
+            <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameCategoryCommand}"/>
+            <MenuItem Header="移到根分类" Icon="{m:Glyph IconArrowUp}" Command="{Binding MoveToRootCommand}"/>
             <Separator/>
-            <MenuItem Header="🗑 删除分类（含子树）" Command="{Binding DeleteCategoryCommand}"/>
+            <MenuItem Header="删除分类（含子树）" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteCategoryCommand}"/>
           </ContextMenu>
         </v:TableViewHost.ContextMenu>
       </v:TableViewHost>

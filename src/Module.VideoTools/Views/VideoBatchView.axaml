@@ -1,13 +1,14 @@
-﻿<UserControl
+<UserControl
     x:Class="NewToys.VideoTools.Views.VideoBatchView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:v="using:NewToys.UI.Controls">
+    xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup">
     <!--  v3.29 / NT-054：**详情卡已迁到 Shell 的声明式渲染**（`IDetailCardSource` + `DetailCardHost`）⇒
           本页只剩「列表列」一列；卡片的声明在 `VideoBatchViewModel.BuildCard()` 里，⛔ 不再页内自绘。
           NT-063 P1：改用列表页骨架 <v:ListPageSkeleton>（card / 空态 / 底栏由骨架提供；⛔ 行模板自写）。  -->
-    <v:ListPageSkeleton EmptyMessage="队列是空的。点「📥 导入任务」从导出的 JSON 追加任务。"
-                        EmptyActionText="📥 导入任务"
+    <v:ListPageSkeleton EmptyMessage="队列是空的。点「导入任务」从导出的 JSON 追加任务。"
+                        EmptyActionText="导入任务"
                         EmptyActionCommand="{Binding ImportTasksCommand}"
                         IsEmpty="{Binding !HasItems}">
 
@@ -102,7 +103,7 @@
                                 IsVisible="{Binding IsFinishedVisible}" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
-                                <MenuItem Header="🔍 筛选" ItemsSource="{Binding QuickFilters}">
+                                <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
                                   <MenuItem.ItemContainerTheme>
                                     <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                                       <Setter Property="Header" Value="{Binding Label}"/>
@@ -195,25 +196,22 @@
                         SelectionMode="Multiple">
                         <ListBox.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Command="{Binding SelectAllCommand}" Header="☑ 全选（当前列表）" />
-                                <MenuItem Command="{Binding SelectNoneCommand}" Header="☐ 取消选择" />
-                                <MenuItem Command="{Binding InvertSelectionCommand}" Header="🔄 反选" />
+                                <MenuItem Command="{Binding SelectAllCommand}" Header="全选（当前列表）" Icon="{m:Glyph IconCheckAll}" />
+                                <MenuItem Command="{Binding SelectNoneCommand}" Header="取消选择" Icon="{m:Glyph IconUncheckAll}" />
+                                <MenuItem Command="{Binding InvertSelectionCommand}" Header="反选" Icon="{m:Glyph IconInvert}" />
                                 <Separator />
-                                <MenuItem Command="{Binding SaveCommand}" Header="💾 保存修改" />
+                                <MenuItem Command="{Binding SaveCommand}" Header="保存修改" Icon="{m:Glyph IconSave}" />
                                 <MenuItem
                                     Command="{Binding RunSelectedCommand}"
-                                    Header="▶ 只跑选中"
-                                    IsEnabled="{Binding CanActOnSelection}" />
+                                    Header="只跑选中" Icon="{m:Glyph IconPlay}" IsEnabled="{Binding CanActOnSelection}" />
                                 <MenuItem
                                     Command="{Binding RequeueSelectedCommand}"
-                                    Header="↺ 重新排队（清状态再跑）"
-                                    IsEnabled="{Binding CanActOnSelection}" />
+                                    Header="重新排队（清状态再跑）" Icon="{m:Glyph IconReset}" IsEnabled="{Binding CanActOnSelection}" />
                                 <Separator />
                                 <MenuItem
                                     Command="{Binding DeleteCommand}"
-                                    Header="🗑 删除任务"
-                                    IsEnabled="{Binding CanActOnSelection}" />
-                                <MenuItem Command="{Binding OpenOutputFolderCommand}" Header="📂 打开输出目录" />
+                                    Header="删除任务" Icon="{m:Glyph IconTrash}" IsEnabled="{Binding CanActOnSelection}" />
+                                <MenuItem Command="{Binding OpenOutputFolderCommand}" Header="打开输出目录" Icon="{m:Glyph IconOpen}" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
 
@@ -321,11 +319,11 @@
                                 SelectionMode="Single">
                                 <ListBox.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Command="{Binding PlayOutputCommand}" Header="▶ 播放输出文件" />
-                                        <MenuItem Command="{Binding RevealOutputCommand}" Header="📂 在资源管理器中定位" />
-                                        <MenuItem Command="{Binding OpenOutputFolderCommand}" Header="📂 打开输出目录" />
+                                        <MenuItem Command="{Binding PlayOutputCommand}" Header="播放输出文件" Icon="{m:Glyph IconPlay}" />
+                                        <MenuItem Command="{Binding RevealOutputCommand}" Header="在资源管理器中定位" Icon="{m:Glyph IconOpen}" />
+                                        <MenuItem Command="{Binding OpenOutputFolderCommand}" Header="打开输出目录" Icon="{m:Glyph IconOpen}" />
                                         <Separator />
-                                        <MenuItem Command="{Binding DeleteFinishedCommand}" Header="🗑 从队列删除（不动文件）" />
+                                        <MenuItem Command="{Binding DeleteFinishedCommand}" Header="从队列删除（不动文件）" Icon="{m:Glyph IconTrash}" />
                                     </ContextMenu>
                                 </ListBox.ContextMenu>
                                 <ListBox.ItemTemplate>

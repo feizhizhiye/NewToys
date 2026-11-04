@@ -27,7 +27,7 @@ public readonly record struct ScriptCandidate(string FullPath, string RelativePa
 /// <b>手动扫描</b>（§三.6）：把脚本目录里的脚本列成候选，⛔ 不自动入库。
 /// </summary>
 /// <remarks>
-/// 用户拍板「用户自己扫描」⇒ 扫描只产出候选列表，入库动作由界面上的「➕ 加入库」触发。
+/// 用户拍板「用户自己扫描」⇒ 扫描只产出候选列表，入库动作由界面上的「加入库」触发。
 /// </remarks>
 public static class ScriptScanner
 {

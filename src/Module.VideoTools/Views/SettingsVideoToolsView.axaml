@@ -61,7 +61,7 @@
         </StackPanel>
 
         <StackPanel Classes="field">
-          <TextBlock Classes="field-label" Text="外部播放器（视频列表「▶ 播放」）" />
+          <TextBlock Classes="field-label" Text="外部播放器（视频列表「播放」）" />
           <TextBlock
               Classes="field-value"
               TextWrapping="Wrap"

@@ -18,7 +18,7 @@ namespace NewToys.BackupCenter.ViewModels;
 /// 数据全部来自 SQLite（<c>archives</c> 看历史产物、<c>runs</c> 看失败、<c>todos</c> 看待办），⛔ 不再读 JSON。
 /// </para>
 /// <para>
-/// ⚠️ 待办只是备忘，⛔ 不会自动触发备份（定时任务属 v2）；做完请到「备份任务」页手动点「▶ 立即备份」。
+/// ⚠️ 待办只是备忘，⛔ 不会自动触发备份（定时任务属 v2）；做完请到「备份任务」页手动点「立即备份」。
 /// </para>
 /// </summary>
 public partial class BackupCalendarViewModel : ObservableObject
@@ -56,7 +56,7 @@ public partial class BackupCalendarViewModel : ObservableObject
         _month = new DateTime(today.Year, today.Month, 1);
         BuildMonth();
         SelectedDay = Days.FirstOrDefault(d => d.Date == today) ?? Days.FirstOrDefault();
-        StatusText = "共 " + _catalog.Items.Count + " 个归档包 · "
+        StatusText = "共" + _catalog.Items.Count + " 个归档包 · "
                      + _runLog.Items.Count + " 条运行记录 · "
                      + _todos.ReadAll().Count + " 条待办";
     }

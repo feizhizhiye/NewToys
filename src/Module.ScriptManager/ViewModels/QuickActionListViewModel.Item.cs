@@ -50,7 +50,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         item.LibraryRoot = _store.RootOf(colId);
     }
 
-    /// <summary>新增：先清掉过滤（保证新项一定可见），追加一条并选中它，改好后点「💾 保存」。</summary>
+    /// <summary>新增：先清掉过滤（保证新项一定可见），追加一条并选中它，改好后点「保存」。</summary>
     [RelayCommand]
     private void Add()
     {
@@ -67,7 +67,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         RebuildCategories();
         ApplyView();
         Selected = Items.FirstOrDefault(i => ReferenceEquals(i, item)) ?? item;
-        StatusText = $"已在「{PageDisplayName}」新增一条「{item.Title}」，请在右侧改名 / 选类型 / 填命令或脚本文件后点「💾 保存」。";
+        StatusText = $"已在「{PageDisplayName}」新增一条「{item.Title}」，请在右侧改名 / 选类型 / 填命令或脚本文件后点「保存」。";
     }
 
     /// <summary>保存：把编辑缓冲写回选中对象并落盘。</summary>

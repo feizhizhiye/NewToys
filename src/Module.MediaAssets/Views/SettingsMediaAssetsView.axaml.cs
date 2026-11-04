@@ -33,7 +33,7 @@ public partial class SettingsMediaAssetsView : UserControl
             Content = (Control)Resources[key]!,
         });
 
-    /// <summary>「📂 选目录…」：选缩略图目录（⛔ 不建目录——生成缩略图时才建）。</summary>
+    /// <summary>「选目录…」：选缩略图目录（⛔ 不建目录——生成缩略图时才建）。</summary>
     private async void OnPickThumbsDirClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not SettingsMediaAssetsViewModel vm) return;
@@ -52,7 +52,7 @@ public partial class SettingsMediaAssetsView : UserControl
         vm.SetThumbsDirectory(path);
     }
 
-    /// <summary>「📥 恢复用户数据…」：选一个导出的 json → 合并恢复（VM 做合并，这里只选文件）。</summary>
+    /// <summary>「恢复用户数据…」：选一个导出的 json → 合并恢复（VM 做合并，这里只选文件）。</summary>
     private async void OnRestoreUserDataClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not SettingsMediaAssetsViewModel vm) return;

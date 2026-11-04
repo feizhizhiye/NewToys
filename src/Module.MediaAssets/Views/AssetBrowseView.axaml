@@ -1,7 +1,8 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
              xmlns:views="using:NewToys.MediaAssets.Views"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.MediaAssets.Views.AssetBrowseView">
   <!--
     「资产浏览」页（需求 §6.6.1）—— 资源管理器形态：左目录树 + 右「图标卡 / 详细信息」双视图。
@@ -9,7 +10,7 @@
     🔴 与「全部资产」的分工：那边按**元数据**找（搜索 / 标签 / 筛选），这里按**磁盘位置**翻。
     🔴 数据来源 = **磁盘实时枚举**：树是盘符 / 共享根 + 逐层子目录（展开才读，⛔ 不递归），
        右侧是当前目录的真实内容（子目录 + 全部文件）；索引只用来叠加「是否已入库」。
-       未入库的条目**标灰但仍可打开 / 定位**，库操作点了会给提醒（先「➕ 加入资产库」）。
+       未入库的条目**标灰但仍可打开 / 定位**，库操作点了会给提醒（先「加入资产库」）。
     🔴 树是**自绘**（ListBox + Button.tree-row + 按 Depth 扁平化，⛔ 不用 TreeView）—— 与分类页同一套路。
     🔴 树的**顶级是盘符 / 共享根**（资源管理器口径：源不占层级）——建树在 AssetBrowseService。
     🔴 右列沿用列表页骨架（顶区 / 表头 / 列表 / 空态 / 底栏）；两套视图共用 VM 的 Items，
@@ -146,13 +147,13 @@
                 <MenuItem Header="＋ 入库" Command="{Binding AddContextNodeToLibraryCommand}"
                           IsEnabled="{Binding CanAddContextNodeToLibrary}"
                           ToolTip.Tip="把右键的这个目录递归加入资产库（所在目录已在库里 ⇒ 整行不标灰，菜单项不可用）"/>
-                <MenuItem Header="🔄 重新扫描此目录" Command="{Binding RescanContextNodeCommand}"
+                <MenuItem Header="重新扫描此目录" Icon="{m:Glyph IconRefresh}" Command="{Binding RescanContextNodeCommand}"
                           IsEnabled="{Binding CanRescanContextNode}"
                           ToolTip.Tip="把这个目录里还没入库的文件补进来（已入库的按路径去重，不会重复索引）"/>
                 <Separator/>
-                <MenuItem Header="✏ 重命名目录源…" Command="{Binding RenameContextNodeStorageCommand}"
+                <MenuItem Header="重命名目录源…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameContextNodeStorageCommand}"
                           ToolTip.Tip="只改库里的显示名（「全部资产」的「存储源」列），⛔ 不动磁盘目录名"/>
-                <MenuItem Header="📂 目录源类型" IsEnabled="{Binding CanOperateContextStorage}"
+                <MenuItem Header="目录源类型" Icon="{m:Glyph IconOpen}" IsEnabled="{Binding CanOperateContextStorage}"
                           ToolTip.Tip="{Binding ContextStorageSummary}">
                   <MenuItem Header="本地磁盘" ToggleType="Radio" GroupName="StorageType"
                             IsChecked="{Binding IsContextStorageLocal, Mode=OneWay}"
@@ -167,9 +168,9 @@
                 <MenuItem Header="{Binding ContextOnlineMenuText}" Command="{Binding ToggleContextStorageOnlineCommand}"
                           IsEnabled="{Binding CanOperateContextStorage}"
                           ToolTip.Tip="下线 = 扫描跳过它（其下文件不会被标成丢失）；重新上线后再扫描即校准"/>
-                <MenuItem Header="🗑 移出资产库…" Command="{Binding RemoveContextNodeFromLibraryCommand}"
+                <MenuItem Header="移出资产库…" Icon="{m:Glyph IconTrash}" Command="{Binding RemoveContextNodeFromLibraryCommand}"
                           ToolTip.Tip="只删这个目录的索引（文件位置），⛔ 不动磁盘文件"/>
-                <MenuItem Header="🔄 扫描全部已入库" Command="{Binding ScanAllLibraryCommand}"
+                <MenuItem Header="扫描全部已入库" Icon="{m:Glyph IconRefresh}" Command="{Binding ScanAllLibraryCommand}"
                           ToolTip.Tip="把所有已登记目录扫一遍（增量，进度在任务中心）"/>
               </ContextMenu>
             </ListBox.ContextMenu>
@@ -191,7 +192,7 @@
                     <TextBlock Text="{Binding PendingText}" FontSize="12" VerticalAlignment="Center"
                                IsVisible="{Binding HasPending}"
                                Foreground="{DynamicResource SecondaryTextBrush}"
-                               ToolTip.Tip="这个目录里有还没加入资产库的文件 —— 右键「🔄 重新扫描此目录」补进来"/>
+                               ToolTip.Tip="这个目录里有还没加入资产库的文件 —— 右键「重新扫描此目录」补进来"/>
                   </StackPanel>
                 </Button>
               </DataTemplate>
@@ -327,27 +328,27 @@
                 <MenuItem Header="＋ 入库" Command="{Binding AddToLibraryCommand}"
                           ToolTip.Tip="把选中的文件 / 文件夹加入资产库（文件夹递归扫描）；已在库里的自动跳过"/>
                 <Separator/>
-                <MenuItem Header="📂 打开" Command="{Binding OpenSelectedCommand}"
+                <MenuItem Header="打开" Icon="{m:Glyph IconOpen}" Command="{Binding OpenSelectedCommand}"
                           ToolTip.Tip="用系统默认程序打开（文件夹 = 进入）；也可以双击卡片"/>
-                <MenuItem Header="📂 所在目录" Command="{Binding OpenFolderSelectedCommand}"
+                <MenuItem Header="所在目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFolderSelectedCommand}"
                           ToolTip.Tip="在资源管理器里定位它（未入库的项也能用）"/>
                 <MenuItem Header="➡ 发送到视频列表" Command="{Binding SendToVideoToolsCommand}"
                           ToolTip.Tip="把选中的视频送去「视频工具 → 视频列表」（非视频自动跳过；未入库的也能发）"/>
                 <Separator/>
-                <MenuItem Header="✏ 重命名…" Command="{Binding RenameSelectedCommand}"
+                <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameSelectedCommand}"
                           ToolTip.Tip="真改磁盘文件名（走任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）"/>
-                <MenuItem Header="✏ 重命名" Command="{Binding BatchRenameSelectedCommand}"
+                <MenuItem Header="重命名" Icon="{m:Glyph IconEdit}" Command="{Binding BatchRenameSelectedCommand}"
                           ToolTip.Tip="选中 ≥2 个已入库文件后按规则改名（查找替换 / 前缀后缀 / 编号 / 大小写），先看预览再确认"/>
-                <MenuItem Header="🗑 移回收站" Command="{Binding TrashSelectedCommand}"
+                <MenuItem Header="移回收站" Icon="{m:Glyph IconTrash}" Command="{Binding TrashSelectedCommand}"
                           ToolTip.Tip="只改库里的状态，⛔ 不动磁盘文件；回收站里能恢复"/>
-                <MenuItem Header="🗑 移除" Command="{Binding RemoveFromLibraryCommand}"
+                <MenuItem Header="移除" Icon="{m:Glyph IconTrash}" Command="{Binding RemoveFromLibraryCommand}"
                           ToolTip.Tip="只删索引（文件留着）；清理重复行的正确手段"/>
-                <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"
+                <MenuItem Header="从磁盘删除…" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteFromDiskCommand}"
                           ToolTip.Tip="永久删除磁盘文件：不进回收站、不可还原"/>
                 <Separator/>
-                <MenuItem Header="☑ 全选当前页" Command="{Binding SelectAllCommand}"/>
-                <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
-                <MenuItem Header="⇄ 反选当前页" Command="{Binding InvertSelectionCommand}"/>
+                <MenuItem Header="全选当前页" Icon="{m:Glyph IconCheckAll}" Command="{Binding SelectAllCommand}"/>
+                <MenuItem Header="取消选择" Icon="{m:Glyph IconUncheckAll}" Command="{Binding SelectNoneCommand}"/>
+                <MenuItem Header="反选当前页" Icon="{m:Glyph IconInvert}" Command="{Binding InvertSelectionCommand}"/>
               </ContextMenu>
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
@@ -390,19 +391,19 @@
               <ContextMenu>
                 <MenuItem Header="＋ 入库" Command="{Binding AddToLibraryCommand}"/>
                 <Separator/>
-                <MenuItem Header="📂 打开" Command="{Binding OpenSelectedCommand}"/>
-                <MenuItem Header="📂 所在目录" Command="{Binding OpenFolderSelectedCommand}"/>
+                <MenuItem Header="打开" Icon="{m:Glyph IconOpen}" Command="{Binding OpenSelectedCommand}"/>
+                <MenuItem Header="所在目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFolderSelectedCommand}"/>
                 <MenuItem Header="➡ 发送到视频列表" Command="{Binding SendToVideoToolsCommand}"/>
                 <Separator/>
-                <MenuItem Header="✏ 重命名…" Command="{Binding RenameSelectedCommand}"/>
-                <MenuItem Header="✏ 重命名" Command="{Binding BatchRenameSelectedCommand}"/>
-                <MenuItem Header="🗑 移回收站" Command="{Binding TrashSelectedCommand}"/>
-                <MenuItem Header="🗑 移除" Command="{Binding RemoveFromLibraryCommand}"/>
-                <MenuItem Header="⛔ 从磁盘删除…" Command="{Binding DeleteFromDiskCommand}"/>
+                <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameSelectedCommand}"/>
+                <MenuItem Header="重命名" Icon="{m:Glyph IconEdit}" Command="{Binding BatchRenameSelectedCommand}"/>
+                <MenuItem Header="移回收站" Icon="{m:Glyph IconTrash}" Command="{Binding TrashSelectedCommand}"/>
+                <MenuItem Header="移除" Icon="{m:Glyph IconTrash}" Command="{Binding RemoveFromLibraryCommand}"/>
+                <MenuItem Header="从磁盘删除…" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteFromDiskCommand}"/>
                 <Separator/>
-                <MenuItem Header="☑ 全选当前页" Command="{Binding SelectAllCommand}"/>
-                <MenuItem Header="☐ 取消选择" Command="{Binding SelectNoneCommand}"/>
-                <MenuItem Header="⇄ 反选当前页" Command="{Binding InvertSelectionCommand}"/>
+                <MenuItem Header="全选当前页" Icon="{m:Glyph IconCheckAll}" Command="{Binding SelectAllCommand}"/>
+                <MenuItem Header="取消选择" Icon="{m:Glyph IconUncheckAll}" Command="{Binding SelectNoneCommand}"/>
+                <MenuItem Header="反选当前页" Icon="{m:Glyph IconInvert}" Command="{Binding InvertSelectionCommand}"/>
               </ContextMenu>
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>

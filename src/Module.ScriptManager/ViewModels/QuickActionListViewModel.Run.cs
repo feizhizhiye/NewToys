@@ -26,7 +26,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     // ==================== 运行 ====================
 
     /// <summary>
-    /// 运行一条命令（行内「▶ 运行」传本行、详情卡与右键菜单传当前选中项）。
+    /// 运行一条命令（行内「运行」传本行、详情卡与右键菜单传当前选中项）。
     /// <para>命令经可见终端窗口执行（优先 pwsh，需要管理员权限的走 UAC 提权，窗口同样可见）。
     /// 输出直接显示在弹出的窗口里，状态行只回报「已打开窗口运行」。</para>
     /// </summary>
@@ -78,7 +78,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// </para>
     /// <para>
     /// ⚠️ 导入后**清掉搜索 / 分类 / 表头筛选**并选中第一条新增 —— 否则新条目可能被当前筛选挡住，
-    /// 看起来像"导入没生效"（与「➕ 新增」同一口径）。
+    /// 看起来像"导入没生效"（与「新增」同一口径）。
     /// </para>
     /// </summary>
     /// <returns>(新增几条, 跳过几条)。</returns>
@@ -175,7 +175,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     /// <summary>
     /// 夹在「搜索框」与「导入 / 导出」之间的**页专属**项（默认空）：
-    /// 「脚本库」页放「📥 导入脚本」按钮 + 脚本目录只读框；「命令库」页没有。
+    /// 「脚本库」页放「导入脚本」按钮 + 脚本目录只读框；「命令库」页没有。
     /// </summary>
     protected virtual IEnumerable<ToolbarItemDescriptor> ToolbarExtras => Array.Empty<ToolbarItemDescriptor>();
 
@@ -215,7 +215,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         var bad = ScanCandidates.Count(c => c.State == ScriptCandidate.StateIneligible);
         StatusText = ScanCandidates.Count == 0
             ? $"「{dir}」里没有 {string.Join(" / ", ScriptExtensions)} 这类脚本文件。"
-            : $"扫描完成：新文件 {newCount} · 已入库 {known} · 不可采集 {bad}（勾选后点「➕ 加入库」）";
+            : $"扫描完成：新文件 {newCount} · 已入库 {known} · 不可采集 {bad}（勾选后点「加入库」）";
     }
 
 }

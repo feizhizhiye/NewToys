@@ -47,7 +47,7 @@ public partial class ScanService
     public ScanService(AssetService assets) => _assets = assets;
 
     /// <summary>
-    /// **预览扫描**（v3.29，用户要的操作逻辑：先扫出来看看 → 满意再「💾 加入库」、不满意「🧹 清除列表」换文件夹重来）。
+    /// **预览扫描**（v3.29，用户要的操作逻辑：先扫出来看看 → 满意再「加入库」、不满意「清除列表」换文件夹重来）。
     /// <para>
     /// 🔴 与 <see cref="ScanAsync"/> 的根本差别：**一个字节都不写库**（⛔ 不建 assets / file_locations、
     /// ⛔ 不算任何哈希）→ 纯元数据遍历，最快，且随时可以丢弃。落库由 <c>AssetService.CommitRows</c> 显式做。

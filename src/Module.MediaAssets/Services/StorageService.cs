@@ -38,7 +38,7 @@ public class StorageService
     }
 
     /// <summary>
-    /// 重读全部存储源并**逐个体探测在线状态**（页面打开 / 「🔄 重读存储源」时调）。
+    /// 重读全部存储源并**逐个体探测在线状态**（页面打开 / 「重读存储源」时调）。
     /// 探测结果与库里的 <c>online</c> 不一致时写回（移动硬盘拔了/插了都要能看出来）。
     /// </summary>
     public List<StorageRow> ListRows()

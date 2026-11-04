@@ -17,7 +17,7 @@ public partial class BookmarkView : UserControl
     private BookmarkNode? _anchor;
 
     /// <summary>
-    /// ⚠️ 页内工具条由 **Shell 承载** ⇒「📥 导入书签」的文件选择器改由
+    /// ⚠️ 页内工具条由 **Shell 承载** ⇒「导入书签」的文件选择器改由
     /// <c>BookmarkViewModel.ImportBookmarksCommand</c> 经 <c>Core.DialogHooks</c> 触发（VM ⛔ 不引 Avalonia UI），
     /// 这里只留列表的展开 / 折叠 + 多选交互。
     /// </summary>
@@ -153,7 +153,7 @@ public partial class BookmarkView : UserControl
 
     /// <summary>
     /// 右键先校正选中：点击**未被选中**的行 ⇒ 改为单选它；点在**已选中**的行上 ⇒ 保持当前多选，
-    /// 让「📁 移动到」/「🗑 删除」对整批生效（列表右键默认不动选中项）。
+    /// 让「📁 移动到」/「删除」对整批生效（列表右键默认不动选中项）。
     /// </summary>
     private void OnRowContextRequested(object? sender, ContextRequestedEventArgs e)
     {

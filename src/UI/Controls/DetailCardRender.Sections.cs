@@ -217,6 +217,19 @@ public sealed class DetailActionRender : ObservableObject
 
     public ICommand? Command => _command;
     public string? Text => Descriptor.Text;
+
+    /// <summary>动作图标；无键或键不存在 ⇒ null（按钮只显示文字）。</summary>
+    public Avalonia.Media.Geometry? Icon => Resolve(Descriptor.IconKey);
+
+    public bool HasIcon => Icon is not null;
+
+    private static Avalonia.Media.Geometry? Resolve(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        var app = Avalonia.Application.Current;
+        if (app is null) return null;
+        return app.TryFindResource(key!, out var value) && value is Avalonia.Media.Geometry g ? g : null;
+    }
     public string? ToolTip => Descriptor.ToolTip;
     public bool IsPrimary => string.Equals(Descriptor.Classes, "primary", StringComparison.OrdinalIgnoreCase);
     public bool IsGhost => string.Equals(Descriptor.Classes, "ghost", StringComparison.OrdinalIgnoreCase);

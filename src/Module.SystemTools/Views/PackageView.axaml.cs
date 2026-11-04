@@ -13,7 +13,7 @@ public partial class PackageView : UserControl
 
         // （需求 §4.8.5）：「搜索框回车 = 联网搜索」由描述符的 `EnterCommandPath` 承担
         //（Shell 的 ToolbarHost 统一渲染）—— ⛔ 不在本层接线。
-        // 「📤 导出 / 📥 导入」的 Click 接线同理，已搬进 VM（走 DialogHooks 弹选择器）。
+        // 「导出 / 📥 导入」的 Click 接线同理，已搬进 VM（走 DialogHooks 弹选择器）。
 
         // 底栏显隐的另一半口径 = 列表内容是否超出视口（没翻页需求但滚起来了 ⇒ 也要出计数）。
         LayoutUpdated += (_, _) => ReportListOverflow();

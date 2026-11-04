@@ -27,11 +27,11 @@ namespace NewToys.Shell.ViewModels;
 /// 工具条由 Shell 声明式承载（/ 需求 §4.8.5），本页只输出描述符。
 /// 🔴 v3.66：细节调整：**本页详情卡已删除**（⛔ 不再实现 <c>IDetailPanelProvider</c> /
 /// <c>IDetailCardSource</c>）—— 设置页是**一页多节**（节 = 竖向折叠块），右详情列在同页里无处安放；
-/// 全应用口径 = 设置页不分左右栏。列表本体、右键菜单、工具条（含「💾 保存」）全部保留。
+/// 全应用口径 = 设置页不分左右栏。列表本体、右键菜单、工具条（含「保存」）全部保留。
 /// </para>
 /// <para>
-/// 本页**保留「💾 保存」**（规范 3.5 的分界）：路径是自由文本的复杂输入，边打边落盘没有意义，
-/// 也可能把半截路径写进配置。例外是「📂 浏览…」选出来的路径 —— 那是明确的动作，**选完立即生效**。
+/// 本页**保留「保存」**（规范 3.5 的分界）：路径是自由文本的复杂输入，边打边落盘没有意义，
+/// 也可能把半截路径写进配置。例外是「浏览…」选出来的路径 —— 那是明确的动作，**选完立即生效**。
 /// </para>
 /// <para>
 /// ⚠️ v1.34 曾去掉"视频库默认目录"；v3.15 重新引入为**「导入导出默认目录」**（全局，覆盖视频库 .db 与
@@ -111,13 +111,13 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     /// <summary>选中的配置行就是**本窗口正在使用**的那个。</summary>
     private bool IsActiveProfileRow => Selected?.IsProfileRow == true && Selected.IsActiveProfile;
 
-    /// <summary>「💾 保存 / 📂 浏览 / ↩ 还原默认」可用（路径行且非只读展示项）。</summary>
+    /// <summary>「保存 / 📂 浏览 / ↩ 还原默认」可用（路径行且非只读展示项）。</summary>
     public bool CanSavePath => IsPathRowSelected && Selected!.IsEditable;
 
     /// <summary>「⇄ 切换 / 🚀 新开」可用（配置行且不是当前配置 —— 同一配置只允许一个窗口）。</summary>
     public bool CanSwitchProfile => IsProfileRowSelected && !IsActiveProfileRow;
 
-    /// <summary>「🗑 删除」可用（配置行且不是当前配置）。</summary>
+    /// <summary>「删除」可用（配置行且不是当前配置）。</summary>
     public bool CanDeleteProfile => IsProfileRowSelected && !IsActiveProfileRow;
 
     // —— 工具条悬停提示：可用时说明语义，置灰时说明**为什么**不可用（需求 §4.9.1 第 2 条） ——
@@ -143,7 +143,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         : PathReason;
 
     public string RestoreTip => CanSavePath
-        ? "恢复成该路径的默认值（只填进输入框，仍需点「💾 保存」）"
+        ? "恢复成该路径的默认值（只填进输入框，仍需点「保存」）"
         : PathReason;
 
     public string SwitchTip => CanSwitchProfile

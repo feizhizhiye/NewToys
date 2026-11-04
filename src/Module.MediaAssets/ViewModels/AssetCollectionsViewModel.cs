@@ -16,7 +16,7 @@ namespace NewToys.MediaAssets.ViewModels;
 
 /// <summary>
 /// 「集合管理」页：与标签 / 分类页同构的**列表页**（名称 / 类型 / 成员数 / 创建时间）+ 详情卡。
-/// <para>成员顺序 = <c>collection_assets.sort_order</c>：详情卡里点一行选中成员，再用「⬆ 上移 / ⬇ 下移」写库
+/// <para>成员顺序 = <c>collection_assets.sort_order</c>：详情卡里点一行选中成员，再用「上移 / ⬇ 下移」写库
 /// （⛔ 未做鼠标拖放）。智能集合的成员由规则决定，⛔ 不许手工增删 / 排序。</para>
 /// <para>⚠️ 智能集合（`rule_json`）本轮只区分类型 / 图标与存规则文本，**规则求值未实装**。</para>
 /// </summary>
@@ -82,7 +82,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailP
         },
         new()
         {
-            Text = "🔄 重读集合",
+            Text = "重读集合", IconKey = "IconRefresh",
             CommandPath = nameof(RefreshCollectionsCommand),
             ToolTip = "重新读取集合表（⛔ 不扫盘）"
         },
@@ -137,7 +137,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailP
         ? "在列表里选中一个集合，这里显示它的成员。"
         : Selected.IsSmart
             ? $"⚡ 智能集合：成员由规则决定（{Selected.RuleJson ?? "未填规则"}）—— 本轮只存规则，规则求值未实装。"
-            : "📦 手动集合：成员顺序 = 「⬆ 上移 / ⬇ 下移」写下的 sort_order。";
+            : "📦 手动集合：成员顺序 = 「上移 / ⬇ 下移」写下的 sort_order。";
 
     public CollectionRow? DetailCollection => Selected;
     public AssetMember? DetailMember => SelectedMember;
@@ -186,7 +186,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailP
 
     private string StatusSummary()
         => IsDbAvailable
-            ? $"共 {Items.Count} 个集合" + (Items.Count == 0 ? "（点「➕ 新建集合」开一个）" : "")
+            ? $"共 {Items.Count} 个集合" + (Items.Count == 0 ? "（点「新建集合」开一个）" : "")
             : "资产库不可用（数据库打不开）—— 本页只读，不会崩。";
 
     private void ApplyView()
@@ -408,7 +408,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailP
         finally { _loadingDetail = false; }
     }
 
-    /// <summary>详情卡「💾 保存」：名称 + 说明一起落库。</summary>
+    /// <summary>详情卡「保存」：名称 + 说明一起落库。</summary>
     [RelayCommand]
     private void SaveDetail()
     {
@@ -492,28 +492,28 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailP
         {
             new DetailAction
             {
-                Text = "⬆ 上移",
+                Text = "上移", IconKey = "IconArrowUp",
                 ToolTip = "把选中的成员上移一位（写 sort_order）",
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = MoveUpCommand
             },
             new DetailAction
             {
-                Text = "⬇ 下移",
+                Text = "下移", IconKey = "IconArrowDown",
                 ToolTip = "把选中的成员下移一位",
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = MoveDownCommand
             },
             new DetailAction
             {
-                Text = "📂 打开选中",
+                Text = "打开选中", IconKey = "IconOpen",
                 ToolTip = "跳「全部资产」并打开选中的成员",
                 IsVisiblePath = nameof(ShowDetailBody),
                 Command = OpenSelectedMemberCommand
             },
             new DetailAction
             {
-                Text = "🗑 移出",
+                Text = "移出", IconKey = "IconTrash",
                 Classes = "danger-btn",
                 ToolTip = "把选中成员移出本集合（⛔ 不删资产）",
                 IsVisiblePath = nameof(ShowDetailBody),
@@ -521,7 +521,7 @@ public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailP
             },
             new DetailAction
             {
-                Text = "💾 保存",
+                Text = "保存", IconKey = "IconSave",
                 Classes = "primary",
                 ToolTip = "把名称 / 说明写进集合库（⛔ 不动磁盘文件）",
                 IsVisiblePath = nameof(ShowDetailBody),

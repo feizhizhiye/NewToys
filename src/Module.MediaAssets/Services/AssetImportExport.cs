@@ -189,7 +189,7 @@ public class AssetImportExport
 
     /// <summary>
     /// **只解析**一段 JSON 成预览行（⛔ 不写库、⛔ 不去重）——2026-10-16 用户定稿：
-    /// 「📥 导入」= 把 db/json 的内容**加载到列表显示**（草稿态预览），写入由「💾 加入库」决定。
+    /// 「导入」= 把 db/json 的内容**加载到列表显示**（草稿态预览），写入由「加入库」决定。
     /// 返回（成功 / 消息 / 行）；解析失败 / 格式不对 ⇒ Ok=false 且消息说清原因（⛔ 不吞异常返回空）。
     /// </summary>
     public (bool Ok, string Message, List<AssetRow> Rows) Parse(string json)

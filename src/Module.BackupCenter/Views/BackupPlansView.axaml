@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.BackupCenter.Views.BackupPlansView">
   <!--
     「备份中心 → 备份任务」（`backup-plans`）：任务清单 + 声明式工具条 + 详情卡 + 编辑弹层。
@@ -8,7 +9,7 @@
     🔴 颜色一律 DynamicResource 主题语义键（⛔ 不写死色值）。
   -->
   <Grid>
-    <v:ListPageSkeleton EmptyMessage="还没有备份任务。点「➕ 新建任务」选几个目录，就能生成一个加密归档包。"
+    <v:ListPageSkeleton EmptyMessage="还没有备份任务。点「新建任务」选几个目录，就能生成一个加密归档包。"
                         EmptyActionText="＋ 新建任务"
                         EmptyActionCommand="{Binding NewPlanCommand}"
                         IsEmpty="{Binding !HasItems}">
@@ -50,13 +51,13 @@
 
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="▶ 立即备份" Command="{Binding RunBackupCommand}" IsEnabled="{Binding IsNotBusy}"/>
-              <MenuItem Header="✏ 编辑任务" Command="{Binding EditPlanCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="立即备份" Icon="{m:Glyph IconPlay}" Command="{Binding RunBackupCommand}" IsEnabled="{Binding IsNotBusy}"/>
+              <MenuItem Header="编辑任务" Icon="{m:Glyph IconEdit}" Command="{Binding EditPlanCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
-              <MenuItem Header="📋 复制包密码" Command="{Binding CopyPasswordCommand}" IsEnabled="{Binding HasSelection}"/>
-              <MenuItem Header="🔄 重生成包密码" Command="{Binding RegeneratePasswordCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="复制包密码" Icon="{m:Glyph IconCopy}" Command="{Binding CopyPasswordCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="重生成包密码" Icon="{m:Glyph IconRefresh}" Command="{Binding RegeneratePasswordCommand}" IsEnabled="{Binding HasSelection}"/>
               <Separator/>
-              <MenuItem Header="🗑 删除任务" Command="{Binding DeletePlanCommand}" IsEnabled="{Binding HasSelection}"/>
+              <MenuItem Header="删除任务" Icon="{m:Glyph IconTrash}" Command="{Binding DeletePlanCommand}" IsEnabled="{Binding HasSelection}"/>
             </ContextMenu>
           </v:TableViewHost.ContextMenu>
         </v:TableViewHost>
@@ -74,7 +75,7 @@
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
                       Spacing="8" Margin="0,14,0,0">
             <Button Classes="ghost" Content="取消" Command="{Binding CloseEditorCommand}"/>
-            <Button Classes="primary" Content="💾 保存" Command="{Binding SaveEditorCommand}"/>
+            <Button Classes="primary" Content="{m:GlyphText IconSave, '保存'}" Command="{Binding SaveEditorCommand}"/>
           </StackPanel>
 
           <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">

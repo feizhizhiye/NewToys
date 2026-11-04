@@ -59,16 +59,16 @@ public sealed partial class CrawlEntry : ObservableObject
     /// <summary>这一行的 title（没有 url 时的展示兜底）。</summary>
     public string Title { get; }
 
-    /// <summary>是否在「⬇ 下载」范围内（单击行切换，行底色即状态）。</summary>
+    /// <summary>是否在「下载」范围内（单击行切换，行底色即状态）。</summary>
     [ObservableProperty] private bool _isSelected;
 
     /// <summary>行右键「🧪 试下载」（🔴 每项自带命令：菜单在弹出树里取不到页面 VM 的命令）。</summary>
     public ICommand? TryDownloadCommand { get; set; }
 
-    /// <summary>行右键「📋 复制诊断」（同上）。</summary>
+    /// <summary>行右键「复制诊断」（同上）。</summary>
     public ICommand? CopyDiagCommand { get; set; }
 
-    /// <summary>行右键「☑ 全选 / 取消勾选」（同上）。</summary>
+    /// <summary>行右键「全选 / 取消勾选」（同上）。</summary>
     public ICommand? ToggleAllLinksCommand { get; set; }
 }
 

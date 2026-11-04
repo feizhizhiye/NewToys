@@ -72,7 +72,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     [ObservableProperty] private string _sourceName = "";
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _busyPhase = "";
-    [ObservableProperty] private string _statusText = "从书架或发现页打开一本书，或「📂 本地 TXT」直接读本地文件";
+    [ObservableProperty] private string _statusText = "从书架或发现页打开一本书，或「本地 TXT」直接读本地文件";
     [ObservableProperty] private string _errorText = "";
 
     /// <summary>换源浮层是否展开（顶栏「🔀 换源」弹出；选一个源 / 关闭收起）。</summary>
@@ -96,7 +96,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     /// <summary>听书进行中（正文下方控制栏的显示开关）。</summary>
     [ObservableProperty] private bool _isListening;
 
-    /// <summary>听书已暂停（控制栏在「⏸ 暂停 / ▶ 继续」之间切换）。</summary>
+    /// <summary>听书已暂停（控制栏在「暂停 / ▶ 继续」之间切换）。</summary>
     [ObservableProperty] private bool _isListenPaused;
 
     /// <summary>听书进度读数（「第 12/158 句」）。</summary>
@@ -480,7 +480,7 @@ public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDispo
     // ==================== 本地 TXT ====================
 
     /// <summary>
-    /// 「📂 本地 TXT」：读文件（BOM → 严格 UTF-8 → GB18030）→ 切章 → 落盘索引书 → 交给壳。
+    /// 「本地 TXT」：读文件（BOM → 严格 UTF-8 → GB18030）→ 切章 → 落盘索引书 → 交给壳。
     /// <para>🔴 落盘根 = <c>store/reading/local/&lt;hash&gt;/</c>，hash 含大小与修改时间 ⇒ 文件没变就复用。</para>
     /// </summary>
     [RelayCommand]

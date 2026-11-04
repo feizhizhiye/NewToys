@@ -32,7 +32,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         StatusText = $"已保存「{item.Name}」→ {item.ValueDisplay}（下一轮启动 / 调用即生效）";
     }
 
-    /// <summary>↩ 还原默认：只**预填**默认值，还要点「💾 保存」才生效（规范 3.5）。</summary>
+    /// <summary>↩ 还原默认：只**预填**默认值，还要点「保存」才生效（规范 3.5）。</summary>
     [RelayCommand]
     private void RestoreDefault()
     {
@@ -42,15 +42,15 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
 
         EditValue = item.DefaultValue;
         StatusText = item.DefaultValue.Length > 0
-            ? $"已预填默认值「{item.DefaultValue}」，点「💾 保存」生效。"
-            : "默认值就是留空（用系统默认），点「💾 保存」生效。";
+            ? $"已预填默认值「{item.DefaultValue}」，点「保存」生效。"
+            : "默认值就是留空（用系统默认），点「保存」生效。";
     }
 
-    /// <summary>工具条 / 右键菜单的「📂 浏览…」：作用于当前选中项。</summary>
+    /// <summary>工具条 / 右键菜单的「浏览…」：作用于当前选中项。</summary>
     [RelayCommand]
     private async Task PickPathAsync() => await BrowseAsync(Selected);
 
-    /// <summary>行内「📂 浏览」：作用于这一行（⛔ 不必先选中）。</summary>
+    /// <summary>行内「浏览」：作用于这一行（⛔ 不必先选中）。</summary>
     [RelayCommand]
     private async Task PickRowPathAsync(PathSettingItem? row) => await BrowseAsync(row ?? Selected);
 
@@ -83,7 +83,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
     }
 
     /// <summary>
-    /// 「📂 浏览…」选完之后调用：选路径是**明确的动作** → 立即生效并落盘
+    /// 「浏览…」选完之后调用：选路径是**明确的动作** → 立即生效并落盘
     /// （不用再点保存；这也避免了"选了却没生效"的困惑）。
     /// </summary>
     public void ApplyPickedValue(PathSettingItem item, string path)

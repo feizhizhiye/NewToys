@@ -220,7 +220,7 @@ public sealed class ShelfBook
         get
         {
             if (!string.IsNullOrWhiteSpace(UpdateNote)) return UpdateNote;
-            if (CheckedAt is null) return "还没检查过 —— 点「🔄 批量更新」抓一次源站目录";
+            if (CheckedAt is null) return "还没检查过 —— 点「批量更新」抓一次源站目录";
 
             var latest = string.IsNullOrWhiteSpace(LatestChapter) ? "" : $"最新：{LatestChapter}";
             var count = ChapterCount > 0 ? $"共 {ChapterCount} 章" : "";

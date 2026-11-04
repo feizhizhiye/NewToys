@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.Shell.Views.PathView">
   <!--  v3.7 三列布局：根 Grid 只分「列表列 | 详情列」；状态行 / 工具条 / 筛选条**都收进列表列**，
         详情卡在右列、从页面顶到底（加上左树就是三列）。
@@ -29,21 +30,21 @@
             <v:TableViewHost.ContextMenu>
               <ContextMenu>
                 <Separator/>
-                <MenuItem Header="📂 选目录" Command="{Binding PickPathCommand}" IsEnabled="{Binding CanSavePath}"/>
-                <MenuItem Header="↗ 打开位置" Command="{Binding OpenCommand}" CommandParameter="{Binding Selected}"
+                <MenuItem Header="选目录" Icon="{m:Glyph IconOpen}" Command="{Binding PickPathCommand}" IsEnabled="{Binding CanSavePath}"/>
+                <MenuItem Header="打开位置" Icon="{m:Glyph IconOpen}" Command="{Binding OpenCommand}" CommandParameter="{Binding Selected}"
                           IsEnabled="{Binding IsPathRowSelected}"/>
                 <Separator/>
-                <MenuItem Header="💾 保存修改" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSavePath}"/>
-                <MenuItem Header="↩ 还原默认" Command="{Binding RestoreDefaultCommand}" IsEnabled="{Binding CanSavePath}"/>
+                <MenuItem Header="保存修改" Icon="{m:Glyph IconSave}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSavePath}"/>
+                <MenuItem Header="还原默认" Icon="{m:Glyph IconReset}" Command="{Binding RestoreDefaultCommand}" IsEnabled="{Binding CanSavePath}"/>
                 <Separator/>
-                <MenuItem Header="⇄ 切换到此配置" Command="{Binding SwitchProfileCommand}" IsEnabled="{Binding CanSwitchProfile}"/>
+                <MenuItem Header="切换到此配置" Icon="{m:Glyph IconInvert}" Command="{Binding SwitchProfileCommand}" IsEnabled="{Binding CanSwitchProfile}"/>
                 <MenuItem Header="🚀 新开一个窗口" Command="{Binding LaunchProfileNewCommand}" IsEnabled="{Binding CanSwitchProfile}"/>
-                <MenuItem Header="⭐ 设为默认" Command="{Binding SetProfileDefaultCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
-                <MenuItem Header="✏ 重命名" Command="{Binding RenameProfileCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
-                <MenuItem Header="🗑 删除" Command="{Binding DeleteProfileCommand}" IsEnabled="{Binding CanDeleteProfile}"/>
+                <MenuItem Header="设为默认" Icon="{m:Glyph IconStar}" Command="{Binding SetProfileDefaultCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
+                <MenuItem Header="重命名" Icon="{m:Glyph IconEdit}" Command="{Binding RenameProfileCommand}" IsEnabled="{Binding IsProfileRowSelected}"/>
+                <MenuItem Header="删除" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteProfileCommand}" IsEnabled="{Binding CanDeleteProfile}"/>
                 <Separator/>
                 <MenuItem Header="＋ 新建配置" Command="{Binding NewProfileCommand}"/>
-                <MenuItem Header="📂 配置目录" Command="{Binding OpenConfigDirCommand}"/>
+                <MenuItem Header="配置目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenConfigDirCommand}"/>
               </ContextMenu>
             </v:TableViewHost.ContextMenu>
 
@@ -79,27 +80,26 @@
                   <DataTemplate>
                     <WrapPanel Orientation="Horizontal" ItemSpacing="4" LineSpacing="4" Margin="8,2"
                                VerticalAlignment="Center">
-                      <Button Classes="ghost small" Content="📂 选择" IsVisible="{Binding IsPathRow}"
+                      <Button Classes="ghost small" Content="{m:GlyphText IconOpen, '选择'}" IsVisible="{Binding IsPathRow}"
                               IsEnabled="{Binding IsEditable}"
                               Command="{Binding $parent[UserControl].DataContext.PickRowPathCommand}"
                               CommandParameter="{Binding}"
                               ToolTip.Tip="选文件 / 选目录（选完立即生效）"/>
-                      <Button Classes="ghost small" Content="↗"
-                              Command="{Binding $parent[UserControl].DataContext.OpenCommand}"
+                      <Button Classes="ghost small" Content="{m:GlyphText IconOpen}" Command="{Binding $parent[UserControl].DataContext.OpenCommand}"
                               CommandParameter="{Binding}" ToolTip.Tip="{Binding OpenTargetTip}"/>
-                      <Button Classes="ghost small" Content="⇄" IsVisible="{Binding IsProfileRow}"
+                      <Button Classes="ghost small" Content="{m:GlyphText IconInvert}" IsVisible="{Binding IsProfileRow}"
                               Command="{Binding $parent[UserControl].DataContext.SwitchProfileCommand}"
                               CommandParameter="{Binding}" ToolTip.Tip="切换到此配置（本窗口重启）"/>
                       <Button Classes="ghost small" Content="🚀" IsVisible="{Binding IsProfileRow}"
                               Command="{Binding $parent[UserControl].DataContext.LaunchProfileNewCommand}"
                               CommandParameter="{Binding}" ToolTip.Tip="以该配置新开一个窗口"/>
-                      <Button Classes="ghost small" Content="⭐" IsVisible="{Binding IsProfileRow}"
+                      <Button Classes="ghost small" Content="{m:GlyphText IconStar}" IsVisible="{Binding IsProfileRow}"
                               Command="{Binding $parent[UserControl].DataContext.SetProfileDefaultCommand}"
                               CommandParameter="{Binding}" ToolTip.Tip="设为全局默认（以后不带参数启动用它）"/>
-                      <Button Classes="ghost small" Content="✏" IsVisible="{Binding IsProfileRow}"
+                      <Button Classes="ghost small" Content="{m:GlyphText IconEdit}" IsVisible="{Binding IsProfileRow}"
                               Command="{Binding $parent[UserControl].DataContext.RenameProfileCommand}"
                               CommandParameter="{Binding}" ToolTip.Tip="重命名该配置"/>
-                      <Button Classes="ghost small" Content="🗑" IsVisible="{Binding IsProfileRow}"
+                      <Button Classes="ghost small" Content="{m:GlyphText IconTrash}" IsVisible="{Binding IsProfileRow}"
                               Command="{Binding $parent[UserControl].DataContext.DeleteProfileCommand}"
                               CommandParameter="{Binding}" ToolTip.Tip="删除该配置的全部数据（不能删当前配置）"/>
                     </WrapPanel>

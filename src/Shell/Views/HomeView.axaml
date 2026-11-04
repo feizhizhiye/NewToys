@@ -18,7 +18,7 @@
       <StackPanel>
         <TextBlock Text="欢迎使用 NewToys" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
         <TextBlock Text="个人高强度使用工具集 · Avalonia 12 + CommunityToolkit.Mvvm + .NET 10" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14" TextWrapping="Wrap"/>
-        <TextBlock Text="这里是你的常用功能区，点按钮直达对应页面；末尾「＋ 更多」在下方就地展开功能清单（按模块分节，可折叠），在清单里右键可固定 / 取消固定。右键收藏按钮可「✕ 取消固定」。底部三个一键按钮的设置统一在应用级设置页的「一键按钮」节里。"
+        <TextBlock Text="这里是你的常用功能区，点按钮直达对应页面；末尾「＋ 更多」在下方就地展开功能清单（按模块分节，可折叠），在清单里右键可固定 / 取消固定。右键收藏按钮可「取消固定」。底部三个一键按钮的设置统一在应用级设置页的「一键按钮」节里。"
                    Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14" TextWrapping="Wrap" Margin="0,4,0,0"/>
       </StackPanel>
     </Border>
@@ -34,7 +34,7 @@
           Stretch="Uniform"
           Data="{StaticResource IconStar}" />
         <TextBlock Text="常用功能  " FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
-        <TextBlock Text="点击按钮进入页面；右键「✕ 取消固定」移出" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+        <TextBlock Text="点击按钮进入页面；右键「取消固定」移出" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
       </StackPanel>
 
       <TextBlock Classes="empty-hint" Margin="8,8" Text="还没有固定任何功能 —— 点末尾的「＋ 更多」展开功能清单，右键一个功能选「📌 固定到首页」。"

@@ -14,7 +14,7 @@
                 VerticalAlignment="Center">
       <TextBlock Classes="hint-text"
                  MaxWidth="460"
-                 Text="拖入文件，或点上方「📂 打开」选择要查看的文件"
+                 Text="拖入文件，或点上方「打开」选择要查看的文件"
                  TextAlignment="Center"
                  TextWrapping="Wrap" />
       <TextBlock x:Name="EmptyDetail"

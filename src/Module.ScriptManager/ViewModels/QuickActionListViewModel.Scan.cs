@@ -47,23 +47,23 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     protected virtual IEnumerable<ToolbarItemDescriptor> ToolbarTailExtras => Array.Empty<ToolbarItemDescriptor>();
 
     /// <summary>
-    /// 共用的「📥 导入」（json 清单）放哪儿 —— **true = 排最前**（「导入 → 输入框 → 搜索」三件套，
-    /// 「命令库」页走这条）；**false = 排在「📤 导出」前面**（「脚本库」页：最前已经有一个「📂 导入」脚本文件了，
+    /// 共用的「导入」（json 清单）放哪儿 —— **true = 排最前**（「导入 → 输入框 → 搜索」三件套，
+    /// 「命令库」页走这条）；**false = 排在「导出」前面**（「脚本库」页：最前已经有一个「导入」脚本文件了，
     /// 两个导入挨在一起会分不清）。
     /// </summary>
     protected virtual bool JsonImportFirst => true;
 
-    /// <summary>共用的「📥 导入」按钮（从 json 文件导入本页清单：合并 / 整页替换两路菜单）。</summary>
+    /// <summary>共用的「导入」按钮（从 json 文件导入本页清单：合并 / 整页替换两路菜单）。</summary>
     private static ToolbarItemDescriptor JsonImportItem => new()
     {
-        // 与「📤 导出」同一口径（emoji + 一个词），⛔ 不再写「导入清单」这类后缀
-        Text = "📥 导入",
+        // 与「导出」同一口径（emoji + 一个词），⛔ 不再写「导入清单」这类后缀
+        Text = "导入", IconKey = "IconImport",
         Classes = "ghost",
         ToolTip = "从 json 文件导入本页清单（合并 / 整页替换）",
         Items = new ToolbarMenuItemDescriptor[]
         {
             new() { Text = "🔀 合并导入", CommandPath = nameof(ImportPageMergeCommand) },
-            new() { Text = "↩ 整页替换", CommandPath = nameof(ImportPageReplaceCommand) },
+            new() { Text = "整页替换", IconKey = "IconReset", CommandPath = nameof(ImportPageReplaceCommand) },
         }
     };
 
@@ -93,13 +93,13 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
                 });
                 items.Add(new()
                 {
-                    Text = "📥 导入库", Classes = "ghost",
+                    Text = "导入库", IconKey = "IconImport", Classes = "ghost",
                     CommandPath = nameof(ImportLibraryCommand),
                     ToolTip = "导入库包：json 索引包（只导索引）/ zip 全量包（连脚本文件）"
                 });
                 items.Add(new()
                 {
-                    Text = "📤 导出库", Classes = "ghost",
+                    Text = "导出库", IconKey = "IconExport", Classes = "ghost",
                     CommandPath = nameof(ExportLibraryCommand),
                     ToolTip = "导出当前库为索引包（json）"
                 });
@@ -140,28 +140,28 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
                 });
                 items.Add(new()
                 {
-                    Text = "✕ 收起",
+                    Text = "收起", IconKey = "IconClose",
                     Classes = "ghost",
                     CommandPath = nameof(CloseScanCommand),
                     ToolTip = "收起扫描结果面板"
                 });
             }
 
-            // 不排在最前的页 ⇒ 「📥 导入」插到「📤 导出」前面
+            // 不排在最前的页 ⇒ 「导入」插到「导出」前面
             if (!JsonImportFirst) items.Add(JsonImportItem);
 
             items.AddRange(new ToolbarItemDescriptor[]
             {
                 new()
                 {
-                    Text = "📤 导出",
+                    Text = "导出", IconKey = "IconExport",
                     Classes = "ghost",
                     CommandPath = nameof(ExportPageCommand),
                     ToolTip = "把本页全条目导出为 json 文件"
                 },
                 new()
                 {
-                    Text = "🧹 清空本页",
+                    Text = "清空本页", IconKey = "IconEraser",
                     Classes = "danger-btn",
                     CommandPath = nameof(ClearPageCommand),
                     IsEnabledPath = "!" + nameof(IsBusy),
@@ -211,10 +211,10 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     // ==================== 整页导入 / 导出（v3.19；收尾后控件样式由 Shell 的 ToolbarHost 统一） ====================
 
-    /// <summary>导出本页**全条目** json 文本（供 View「📤 导出」存盘）。</summary>
+    /// <summary>导出本页**全条目** json 文本（供 View「导出」存盘）。</summary>
     public string ExportPageJson() => _svc?.ExportPage(_pageKind) ?? "[]";
 
-    /// <summary>导入本页（View「📥 导入」读文件后调用）；<paramref name="replace"/>=true 整页替换、false 合并。</summary>
+    /// <summary>导入本页（View「导入」读文件后调用）；<paramref name="replace"/>=true 整页替换、false 合并。</summary>
     public string ImportPageJson(string json, bool replace)
     {
         if (_svc == null) return "服务不可用。";
@@ -243,7 +243,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         if (count == 0) { StatusText = $"「{PageDisplayName}」已经是空的。"; return; }
 
         var ok = await DialogHooks.ConfirmAsync(
-            $"确定清空「{PageDisplayName}」全部 {count} 条吗？\n会写入 {FilePath}（真删除，不可撤销；建议先「📤 导出」备份）。").ConfigureAwait(true);
+            $"确定清空「{PageDisplayName}」全部 {count} 条吗？\n会写入 {FilePath}（真删除，不可撤销；建议先「导出」备份）。").ConfigureAwait(true);
         if (!ok) { StatusText = "已取消清空。"; return; }
 
         IsBusy = true;

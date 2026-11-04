@@ -48,7 +48,7 @@ public partial class PackageInfo : ObservableObject
                               && !string.Equals(Available, Version, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// 可以真的点「⬆ 升级」= **已安装**且有可用更新（未安装的包没有升级语义）。
+    /// 可以真的点「升级」= **已安装**且有可用更新（未安装的包没有升级语义）。
     /// <para>详情卡的升级按钮绑这个：已安装但已是最新 ⇒ 置灰，并给「已是最新版」的理由。</para>
     /// </summary>
     public bool CanUpgrade => IsInstalled && HasUpgrade;

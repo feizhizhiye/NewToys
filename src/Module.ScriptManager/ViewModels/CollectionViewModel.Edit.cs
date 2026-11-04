@@ -166,7 +166,7 @@ public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelPr
     }
 
     /// <summary>
-    /// 「📤 发送到对应页面」：按集合类别决定目标页（信息面板 / 脚本库 / 命令库 / 软件包），
+    /// 「发送到对应页面」：按集合类别决定目标页（信息面板 / 脚本库 / 命令库 / 软件包），
     /// 先记下「在用」集合再跳过去 —— 目标页构造时按 <c>LastCollectionIdByKind</c> 自动选中同一个集合。
     /// </summary>
     [RelayCommand]

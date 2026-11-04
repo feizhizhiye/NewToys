@@ -40,12 +40,12 @@ public partial class PingViewModel : ListPageViewModelBase, IDetailPanelProvider
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Text = "📥 导入文件", Classes = "ghost", CommandPath = nameof(ImportTargetsCommand), ToolTip = "选择一行一个主机的文本文件" },
+        new() { Text = "导入文件", IconKey = "IconImport", Classes = "ghost", CommandPath = nameof(ImportTargetsCommand), ToolTip = "选择一行一个主机的文本文件" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索主机…", ValuePath = nameof(SearchText) },
         // 原 Label「右键列表项：…」删除（工具条⛔ 不放说明文字）—— 右键能力本来就写在各右键菜单项上。
         new() { Text = "＋ 新建", CommandPath = nameof(NewTargetCommand) },
         new() { Text = "📡 批量 Ping", CommandPath = nameof(PingAllCommand), IsEnabledPath = "!" + nameof(IsBusy) },
-        new() { Text = "🔄 重读目标", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的目标清单（⛔ 不发起 Ping）" },
+        new() { Text = "重读目标", IconKey = "IconRefresh", CommandPath = nameof(RefreshCommand), ToolTip = "重新读一遍本地的目标清单（⛔ 不发起 Ping）" },
         new() { Kind = ToolbarItemKind.Combo, Width = 200, ItemsPath = nameof(DnsPresets), SelectedItemPath = nameof(SelectedDns), ToolTip = "切换 DNS：批量 Ping 与未单独设置 DNS 的目标都按此解析" }
     };
 
@@ -236,7 +236,7 @@ public partial class PingViewModel : ListPageViewModelBase, IDetailPanelProvider
             },
             new DetailAction
             {
-                Text = "💾 保存",
+                Text = "保存", IconKey = "IconSave",
                 Classes = "ghost",
                 ToolTip = "把当前内容写回目标清单",
                 IsVisiblePath = nameof(ShowDetailBody),
@@ -244,7 +244,7 @@ public partial class PingViewModel : ListPageViewModelBase, IDetailPanelProvider
             },
             new DetailAction
             {
-                Text = "🗑 删除",
+                Text = "删除", IconKey = "IconTrash",
                 Classes = "ghost",
                 ToolTip = "删除这个目标",
                 IsVisiblePath = nameof(ShowDetailBody),

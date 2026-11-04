@@ -1,6 +1,7 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="using:NewToys.UI.Controls"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.WebTools.Views.SettingsWebToolsView">
   <!--
     「网页工具」模块设置页（v3.64 / NT-061，自注册进 settings 分组，Key = settings-web-tools / Order 130）。
@@ -31,8 +32,7 @@
                 Text="{Binding DefaultUserAgent, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
             <Button
                 Classes="ghost"
-                Content="↺ 恢复"
-                Command="{Binding ResetUserAgentCommand}" />
+                Content="{m:GlyphText IconReset, '恢复'}" Command="{Binding ResetUserAgentCommand}" />
           </StackPanel>
           <TextBlock
               Classes="hint-text"
@@ -78,7 +78,7 @@
       <TextBlock
           Classes="hint-text"
           TextWrapping="Wrap"
-          Text="「Hosts 管理」页右侧「⬇ 拉取」用的就是这里列出的开源 hosts 项目。预设源也可以删（删了不会自己回来）；新建的源填名称 + 地址，多个地址用空格分隔（第一个是主地址，其余是镜像，按顺序试）。" />
+          Text="「Hosts 管理」页右侧「拉取」用的就是这里列出的开源 hosts 项目。预设源也可以删（删了不会自己回来）；新建的源填名称 + 地址，多个地址用空格分隔（第一个是主地址，其余是镜像，按顺序试）。" />
 
       <ListBox Height="170" MinWidth="0"
                ItemsSource="{Binding HostSources}"
@@ -97,19 +97,19 @@
       <StackPanel Orientation="Horizontal" Spacing="8">
         <Button Classes="ghost" Content="＋ 新建" Command="{Binding AddHostSourceCommand}"
                 ToolTip.Tip="新建一个开源 hosts 项目源" />
-        <Button Classes="ghost" Content="✏ 编辑" Command="{Binding EditHostSourceCommand}"
+        <Button Classes="ghost" Content="{m:GlyphText IconEdit, '编辑'}" Command="{Binding EditHostSourceCommand}"
                 IsEnabled="{Binding HasHostSourceSelection}"
                 ToolTip.Tip="改名称 / 地址（预设源也能改）" />
-        <Button Classes="ghost" Content="🗑 删除" Command="{Binding DeleteHostSourceCommand}"
+        <Button Classes="ghost" Content="{m:GlyphText IconTrash, '删除'}" Command="{Binding DeleteHostSourceCommand}"
                 IsEnabled="{Binding HasHostSourceSelection}"
                 ToolTip.Tip="只删源清单，已拉取的方案不受影响" />
-        <Button Classes="ghost" Content="⬇ 试拉" Command="{Binding TestHostSourceCommand}"
+        <Button Classes="ghost" Content="{m:GlyphText IconArrowDown, '试拉'}" Command="{Binding TestHostSourceCommand}"
                 IsEnabled="{Binding HasHostSourceSelection}"
                 ToolTip.Tip="按地址逐个试一次，报条目数（⛔ 不写方案、不动系统 hosts）" />
       </StackPanel>
 
       <TextBlock Classes="hint-text" TextWrapping="Wrap" Text="{Binding HostSourceHint}" />
-      <TextBlock Classes="hint-text" Text="还没有源：点「➕ 新建」填名称和地址。" IsVisible="{Binding !HasHostSources}" />
+      <TextBlock Classes="hint-text" Text="还没有源：点「新建」填名称和地址。" IsVisible="{Binding !HasHostSources}" />
     </StackPanel>
 
     <StackPanel x:Key="Sec1" Spacing="10">

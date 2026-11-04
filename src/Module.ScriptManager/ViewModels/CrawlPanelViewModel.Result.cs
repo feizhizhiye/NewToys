@@ -43,7 +43,7 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
         var sw = Stopwatch.StartNew();
         try
         {
-            StatusText = "正在抓取 " + url + " ……";
+            StatusText = "正在抓取" + url + " ……";
             var (_, enc) = _files.ReadMeta(script);
             var (ok, _, error) = await _run.FetchIntoAsync(url, enc, _run.CrawlHtmlPath).ConfigureAwait(true);
             if (!ok)
@@ -79,8 +79,8 @@ public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IT
             _links.CountText = result.Total + " 条";
 
             StatusText = bad > 0
-                ? $"「{script}」跑完：{result.Total} 条（{bad} 列出错 —— 看节体或「📋 复制诊断」）。"
-                : $"「{script}」跑完：{result.Total} 条。勾选行 →「⬇ 下载」，或双击 url 行下钻。";
+                ? $"「{script}」跑完：{result.Total} 条（{bad} 列出错 —— 看节体或「复制诊断」）。"
+                : $"「{script}」跑完：{result.Total} 条。勾选行 →「下载」，或双击 url 行下钻。";
         }
         catch (Exception ex)
         {

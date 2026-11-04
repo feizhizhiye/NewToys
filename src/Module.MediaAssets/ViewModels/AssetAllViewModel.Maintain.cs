@@ -24,7 +24,7 @@ public partial class AssetAllViewModel
     // ==================== ① 重复数据（同一物理路径 → 多条资产） ====================
 
     /// <summary>
-    /// 「🔍 查重合并」：先报组数，确认后把「同一物理路径挂在多条资产下」的记录并成一条。
+    /// 「查重合并」：先报组数，确认后把「同一物理路径挂在多条资产下」的记录并成一条。
     /// <para>只认**完全相同的物理路径**（忽略大小写 / 分隔符）；不同路径的真副本要手工处理。</para>
     /// </summary>
     [RelayCommand]
@@ -94,7 +94,7 @@ public partial class AssetAllViewModel
         }
 
         var dupHint = _assets.CountDuplicatePaths() > 0
-            ? "\n\n⚠ 库里还有同路径重复 —— 那种情况先用「🔍 查重合并」，它能保住标签 / 评分 / 描述。"
+            ? "\n\n⚠ 库里还有同路径重复 —— 那种情况先用「查重合并」，它能保住标签 / 评分 / 描述。"
             : "";
 
         if (!await DialogHooks.ConfirmAsync(

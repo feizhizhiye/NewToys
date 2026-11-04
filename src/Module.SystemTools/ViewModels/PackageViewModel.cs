@@ -40,7 +40,7 @@ public class PackageExportItem
 /// <c>config\package.json</c>（由 <see cref="IPackageSettingsService"/> 落盘）。
 /// / v3.80：源的**增删 / 切换**全要 UAC ⇒ 归「命令库 → winget 源」集合的命令；本页只管"查包"。
 /// **勾一下源就立刻生效** —— 勾上但系统里没有的源（如默认未启用的 <c>msstore</c>）
-/// 会标「（未启用）」，勾它立刻跑 <c>winget source enable</c>（⛔ 工具条不再有「✅ 生效」按钮）。
+/// 会标「（未启用）」，勾它立刻跑 <c>winget source enable</c>（⛔ 工具条不再有「生效」按钮）。
 /// 本页进入时读一次源列表，因此设置页改完再回到本页即生效（页面每次导航都会重建 VM，见规范 6.5）。
 /// </para>
 /// <para>
@@ -155,9 +155,9 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             EnterCommandPath = nameof(SearchCommand),
             ToolTip = CmdSearch
         },
-        new() { Text = "🔍 搜索", Classes = "ghost", CommandPath = nameof(SearchCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = CmdSearch },
-        new() { Text = "📋 已安装", CommandPath = nameof(LoadInstalledCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = CmdListInstalled },
-        new() { Text = "⬆ 可升级", CommandPath = nameof(LoadUpgradesCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = CmdListUpgrades },
+        new() { Text = "搜索", IconKey = "IconSearch", Classes = "ghost", CommandPath = nameof(SearchCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = CmdSearch },
+        new() { Text = "已安装", IconKey = "IconCopy", CommandPath = nameof(LoadInstalledCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = CmdListInstalled },
+        new() { Text = "可升级", IconKey = "IconArrowUp", CommandPath = nameof(LoadUpgradesCommand), IsEnabledPath = "!" + nameof(IsBusy), ToolTip = CmdListUpgrades },
         new()
         {
             Text = "🔒 已锁定",
@@ -168,14 +168,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         new() { Kind = ToolbarItemKind.Separator },
         new()
         {
-            Text = "🔄 重载",
+            Text = "重载", IconKey = "IconRefresh",
             CommandPath = nameof(RefreshCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = CmdListInstalled + " / " + CmdListUpgrades + " / " + CmdSearch + "（按当前列表重跑）"
         },
         new()
         {
-            Text = "🔄 刷新索引",
+            Text = "刷新索引", IconKey = "IconRefresh",
             Classes = "ghost",
             CommandPath = nameof(RefreshIndexCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
@@ -184,7 +184,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         new() { Kind = ToolbarItemKind.Separator },
         new()
         {
-            Text = "⬇ 安装选中",
+            Text = "安装选中", IconKey = "IconArrowDown",
             CommandPath = nameof(InstallCheckedCommand),
             IsEnabledPath = nameof(CanRunBatch),
             ShowToolTipOnDisabled = true,
@@ -192,7 +192,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         },
         new()
         {
-            Text = "⬆ 升级选中",
+            Text = "升级选中", IconKey = "IconArrowUp",
             CommandPath = nameof(UpgradeCheckedCommand),
             IsEnabledPath = nameof(CanRunBatch),
             ShowToolTipOnDisabled = true,
@@ -200,14 +200,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         },
         new()
         {
-            Text = "⬆ 全部升级",
+            Text = "全部升级", IconKey = "IconArrowUp",
             CommandPath = nameof(UpgradeAllCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = CmdUpgradeAll.Replace("{exe}", "winget") + ArgSilent
         },
         new()
         {
-            Text = "🗑 卸载选中",
+            Text = "卸载选中", IconKey = "IconTrash",
             Classes = "danger-btn",
             CommandPath = nameof(UninstallCheckedCommand),
             IsEnabledPath = nameof(CanRunBatch),
@@ -219,14 +219,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         new() { Kind = ToolbarItemKind.Toggle, Text = "静默安装", ValuePath = nameof(SilentInstall), ToolTip = ArgSilent.Trim() + "（追加到 install / upgrade 末尾；商店源不支持，会自动跳过）" },
         new()
         {
-            Text = "📤 导出",
+            Text = "导出", IconKey = "IconExport",
             Classes = "ghost",
             CommandPath = nameof(ExportPackagesCommand),
-            ToolTip = "把当前列表（建议先点「📋 已安装」）导成 json，供新系统恢复"
+            ToolTip = "把当前列表（建议先点「已安装」）导成 json，供新系统恢复"
         },
         new()
         {
-            Text = "📥 导入",
+            Text = "导入", IconKey = "IconImport",
             Classes = "ghost",
             CommandPath = nameof(ImportPackagesCommand),
             ToolTip = "选一个导出的 json，生成 winget 批量安装脚本(.bat)，到新系统运行即可恢复"
@@ -239,7 +239,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     [ObservableProperty] private string _supportText = "正在检测包管理器……";
     [ObservableProperty] private bool _isBusy;
     // StatusText 已提到 ListPageViewModelBase（由 Shell 底部状态栏统一显示），这里不再自己声明。
-    [ObservableProperty] private string _modeText = "尚未加载 —— 点「📥 已安装」或直接联网搜索";
+    [ObservableProperty] private string _modeText = "尚未加载 —— 点「已安装」或直接联网搜索";
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _installedOnly;
 

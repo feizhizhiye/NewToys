@@ -22,11 +22,11 @@ public partial class VideoPreviewView : UserControl
     {
         InitializeComponent();
         // 选源文件 / 输出文件都要走平台选择器 —— VM 不引用 Avalonia 的 UI 类型，所以在这一层选完交给 VM。
-        // ⚠️ 「📂 选择输出文件」是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
+        // ⚠️ 「选择输出文件」是声明式卡的 Actions 项，命令由本页在 OnDataContextChanged 里注入（见下）。
     }
 
     /// <summary>
-    /// 把「📂 选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
+    /// 把「选择输出文件」的真实实现（要 TopLevel / StorageProvider）注入给声明式卡的动作。
     /// 每次 DataContext 变化重挂一次，幂等 —— 命令内部只认最新 VM。
     /// </summary>
     protected override void OnDataContextChanged(EventArgs e)
@@ -60,7 +60,7 @@ public partial class VideoPreviewView : UserControl
     private async System.Threading.Tasks.Task PickOutputFileAsync()
     {
         if (DataContext is not VideoPreviewViewModel vm) return;
-        if (string.IsNullOrWhiteSpace(vm.SourcePath)) { vm.StatusText = "先点「📂 选择视频」挑一个文件。"; return; }
+        if (string.IsNullOrWhiteSpace(vm.SourcePath)) { vm.StatusText = "先点「选择视频」挑一个文件。"; return; }
 
         try
         {

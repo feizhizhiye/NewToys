@@ -77,7 +77,7 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
             ItemsPath = nameof(Collections),
             DisplayPath = nameof(InfoCollectionOption.Display),
             SelectedItemPath = nameof(SelectedCollection),
-            ToolTip = "集合：一次显示一个（★置顶 → 最近使用 → 名称）",
+            ToolTip = "集合：一次显示一个（置顶 → 最近使用 → 名称）",
         },
         new()
         {
@@ -91,14 +91,14 @@ public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelPr
         new() { Kind = ToolbarItemKind.Separator },
         new()
         {
-            Text = "🔄 刷新", Classes = "ghost",
+            Text = "刷新", IconKey = "IconRefresh", Classes = "ghost",
             CommandPath = nameof(RefreshAllCommand),
             IsEnabledPath = "!" + nameof(IsBusy),
             ToolTip = "刷新当前集合里全部未折叠的节",
         },
         new()
         {
-            Text = "📂 脚本目录", Classes = "ghost",
+            Text = "脚本目录", IconKey = "IconOpen", Classes = "ghost",
             CommandPath = nameof(OpenScriptDirCommand),
             ToolTip = "打开脚本目录（内置采集脚本在 sysinfo\\ 下）",
         },

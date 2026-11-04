@@ -104,7 +104,7 @@
     <Setter Property="MaxDropDownHeight" Value="260"/>
   </Style>
 
-  <!--  ⑦ 行内小按钮（列表行里的「▶ 运行」之类）与小号按钮：
+  <!--  ⑦ 行内小按钮（列表行里的「运行」之类）与小号按钮：
         行内不给实底（会和行 hover / 选中底打架），改给 1px 弱描边 —— 有轮廓就够认出是按钮。  -->
   <Style Selector="Button.row-btn">
     <Setter Property="FontSize" Value="12"/>
@@ -419,7 +419,7 @@
   <!--  ⑯（NT-055 收尾后**已删除**）原「列表页导入 / 导出组」`StackPanel.io-bar` + `Button.io-btn`：
         工具条改由 Shell 的 `ToolbarHost` 统一渲染后，导入 / 导出就是**工具条里的普通按钮**（`ghost`），
         尺寸与配色都由 `ToolbarHost` 一处给（需求 §4.10.4）⇒ 这组样式已无引用，删除。⛔ 别再加回来。  -->
-  <!--  danger 语义（红）的破坏性按钮（如「🧹 清空本页」，v3.19 / NT-006）：
+  <!--  danger 语义（红）的破坏性按钮（如「清空本页」，v3.19 / NT-006）：
         ⛔ 只给"会丢数据"的动作（清空 / 永久删除）用，别当普通按钮的默认样式。  -->
   <Style Selector="Button.danger-btn">
     <Setter Property="FontSize" Value="12"/>

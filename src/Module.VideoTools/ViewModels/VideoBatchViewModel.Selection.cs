@@ -23,7 +23,7 @@ public partial class VideoBatchViewModel
 
     public int SelectedCount => SelectedRows.Count;
 
-    /// <summary>「▶ 只跑选中 / 🗑 删除 / 📂 输出目录」的启用条件。</summary>
+    /// <summary>「只跑选中 / 🗑 删除 / 📂 输出目录」的启用条件。</summary>
     public bool HasSelectedRows => SelectedRows.Count > 0;
 
     /// <summary>
@@ -87,7 +87,7 @@ public partial class VideoBatchViewModel
         RaiseSelectionSync();
     }
 
-    /// <summary>右键「☑ 全选」：只选当前列表（上区）里的。</summary>
+    /// <summary>右键「全选」：只选当前列表（上区）里的。</summary>
     [RelayCommand]
     private void SelectAll()
     {
@@ -100,7 +100,7 @@ public partial class VideoBatchViewModel
         StatusText = $"已全选 {Items.Count} 个任务。";
     }
 
-    /// <summary>右键「☐ 取消选择」：清空选中（详情卡保留当前行，避免右栏突然空白）。</summary>
+    /// <summary>右键「取消选择」：清空选中（详情卡保留当前行，避免右栏突然空白）。</summary>
     [RelayCommand]
     private void SelectNone()
     {
@@ -110,7 +110,7 @@ public partial class VideoBatchViewModel
         StatusText = "已取消选择。";
     }
 
-    /// <summary>右键「🔄 反选」：当前列表里没选中的变成选中。</summary>
+    /// <summary>右键「反选」：当前列表里没选中的变成选中。</summary>
     [RelayCommand]
     private void InvertSelection()
     {
@@ -133,7 +133,7 @@ public partial class VideoBatchViewModel
     {
         var rows = SelectionList();
         if (rows.Count == 0) { StatusText = "先选中要重新排队的任务。"; return; }
-        if (IsRunning) { StatusText = "正在跑任务 —— 先「⏹ 停止」再改状态。"; return; }
+        if (IsRunning) { StatusText = "正在跑任务 —— 先「停止」再改状态。"; return; }
 
         var n = 0;
         foreach (var t in rows)

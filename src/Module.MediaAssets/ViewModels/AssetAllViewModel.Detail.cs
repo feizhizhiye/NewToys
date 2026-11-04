@@ -53,7 +53,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Mono = true
                     },
                     new DetailField { Label = "类型", ValuePath = "DetailRow.TypeText", Kind = FieldKind.Text, Selectable = true },
-                    // 状态：**单选下拉**（预设三档；改完点「💾 保存」落库）
+                    // 状态：**单选下拉**（预设三档；改完点「保存」落库）
                     new DetailField
                     {
                         Label = "状态",
@@ -96,7 +96,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Selectable = true,
                         VisibleWhen = nameof(IsVideoType)
                     },
-                    // ===== 音乐专属字段（仅筛选类型 = 音乐时显示）：改完点「💾 写入文件」才落盘 =====
+                    // ===== 音乐专属字段（仅筛选类型 = 音乐时显示）：改完点「写入文件」才落盘 =====
                     new DetailField
                     {
                         Kind = FieldKind.Divider,
@@ -145,7 +145,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     new DetailField
                     {
                         Label = "标签状态",
-                        Hint = "联网补全只填编辑框，点「💾 写入文件」才落盘",
+                        Hint = "联网补全只填编辑框，点「写入文件」才落盘",
                         ValuePath = nameof(MusicStatusText),
                         Kind = FieldKind.Text,
                         Selectable = true,
@@ -323,7 +323,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     new DetailField { Kind = FieldKind.Divider },
                     new DetailField
                     {
-                        Label = "显示名（只改库里的名字，⛔ 不动磁盘文件；改完点「💾 保存」）",
+                        Label = "显示名（只改库里的名字，⛔ 不动磁盘文件；改完点「保存」）",
                         ValuePath = nameof(DetailDisplayName),
                         Kind = FieldKind.Text,
                         Commit = EditCommitMode.OnBlur,
@@ -334,7 +334,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         },
         Actions =
         {
-            // ⛔ 「💾 保存」「🗑 移入回收站」已上提到**顶部图标动作组**，这里不再重复。
+            // ⛔ 「保存」「移入回收站」已上提到**顶部图标动作组**，这里不再重复。
             // 批量口径：选了多个资产时，这里出现「一起加标签 / 一起加集合」（单条走下面的色片）
             new DetailAction
             {
@@ -346,7 +346,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             },
             new DetailAction
             {
-                Text = "📚 加集合",
+                Text = "📖 加集合",
                 Classes = "ghost",
                 ToolTip = "把选中的多个资产一起加进集合（⚡ 智能集合不能手工加）",
                 IsVisiblePath = nameof(HasManySelected),
@@ -354,7 +354,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             },
             new DetailAction
             {
-                Text = "↗ 应用到文件",
+                Text = "应用到文件", IconKey = "IconSave",
                 Classes = "ghost",
                 ToolTip = "把名字**真写到磁盘文件上**（物理重命名：走任务队列 + 日志先行；同名冲突按「追加序号」，⛔ 不覆盖）",
                 IsVisiblePath = nameof(ShowDetailBody),
@@ -376,7 +376,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                 IsVisiblePath = nameof(IsMusicType),
                 Command = SaveMusicTagsCommand
             },
-            // ⛔ 「📁 移动到此源」「📋 复制到此源」已删：物理搬运归任务中心 / 后续入口，
+            // ⛔ 「📁 移动到此源」「复制到此源」已删：物理搬运归任务中心 / 后续入口，
             //    详情卡样板只保留「↗ 应用到文件」这一个**写磁盘**的显式动作。
         }
     };
@@ -581,61 +581,61 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
-        new() { Kind = ToolbarItemKind.SplitButton, Text = "📂 扫描", CommandPath = nameof(ScanFolderCommand),
+        new() { Kind = ToolbarItemKind.SplitButton, Text = "扫描", IconKey = "IconOpen", CommandPath = nameof(ScanFolderCommand),
                 IsEnabledPath = "!" + nameof(IsBusy), ToolTip = "扫目录 / 扫文件到列表（⛔ 只进内存、不入库）",
                 Items = new ToolbarMenuItemDescriptor[]
                 {
-                    new() { Text = "📂 文件夹…", CommandPath = nameof(ScanFolderCommand), ToolTip = "扫一个目录到列表（⛔ 只进内存、不入库）" },
+                    new() { Text = "文件夹…", IconKey = "IconOpen", CommandPath = nameof(ScanFolderCommand), ToolTip = "扫一个目录到列表（⛔ 只进内存、不入库）" },
                     new() { Text = "📄 文件…", CommandPath = nameof(ScanFilesCommand), ToolTip = "只扫选中的几个文件（⛔ 只进内存、不入库）" },
                 } },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "路径（回车预览）", ValuePath = nameof(ImportPath),
                 EnterCommandPath = nameof(PreviewPathCommand), ToolTip = "填文件夹路径，回车即预览扫描（也可用左侧「📁 扫描」选目录）" },
         new() { Kind = ToolbarItemKind.TextField, Width = 88, Placeholder = "搜索…", ValuePath = nameof(SearchText), ToolTip = "按名称 / 路径 / 标签搜索（空格分词，多个词要同时命中）" },
         new() { Text = "＋ 登记", CommandPath = nameof(RegisterFolderCommand), IsEnabledPath = "!" + nameof(IsBusy),
-                ToolTip = "加入待扫文件夹列表（⛔ 不扫描），攒几个后点「🔄 扫描全部」" },
-        new() { Text = "🔄 扫描", CommandPath = nameof(ScanAllCommand), IsEnabledPath = "!" + nameof(IsBusy),
+                ToolTip = "加入待扫文件夹列表（⛔ 不扫描），攒几个后点「扫描全部」" },
+        new() { Text = "扫描", IconKey = "IconRefresh", CommandPath = nameof(ScanAllCommand), IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "把所有已登记的存储源扫一遍，直接入库" },
-        new() { Text = "🔬 校验", CommandPath = nameof(VerifyFilesCommand), IsEnabledPath = "!" + nameof(IsBusy),
+        new() { Text = "🧪 校验", CommandPath = nameof(VerifyFilesCommand), IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "逐条查磁盘：文件已不在的标为「已丢失」，回来的恢复「正常」（⛔ 不改磁盘、不删记录）" },
-        new() { Kind = ToolbarItemKind.SplitButton, Text = "▶ 播放", CommandPath = nameof(PlaySelectedInPlayerCommand),
+        new() { Kind = ToolbarItemKind.SplitButton, Text = "播放", IconKey = "IconPlay", CommandPath = nameof(PlaySelectedInPlayerCommand),
                 IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
                 ToolTip = "把选中的音乐交给「查看器 → 音乐播放」并立即开播（顺序 = 当前列表顺序）",
                 Items = new ToolbarMenuItemDescriptor[]
                 {
-                    new() { Text = "▶ 按序播放", CommandPath = nameof(PlaySelectedInPlayerCommand), ToolTip = "在「音乐播放」里按当前列表顺序播" },
+                    new() { Text = "按序播放", IconKey = "IconPlay", CommandPath = nameof(PlaySelectedInPlayerCommand), ToolTip = "在「音乐播放」里按当前列表顺序播" },
                     new() { Text = "🎵 导出列表", CommandPath = nameof(ExportPlaylistCommand), ToolTip = "写一份 m3u8（默认相对路径），第三方播放器也能吃" },
                 } },
-        new() { Text = "🗑 移回收站", CommandPath = nameof(TrashCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
+        new() { Text = "移回收站", IconKey = "IconTrash", CommandPath = nameof(TrashCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
                 ToolTip = "先选中行，再点这里移入回收站（只改库状态，磁盘文件不动；可恢复）" },
-        new() { Text = "🗑 移除", CommandPath = nameof(RemoveCheckedFromLibraryCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
+        new() { Text = "移除", IconKey = "IconTrash", CommandPath = nameof(RemoveCheckedFromLibraryCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
                 ToolTip = "选中后点这里：只删库存记录（含文件位置），⛔ 磁盘文件一个都不动 —— 清理重复行的正确手段" },
-        new() { Text = "📊 读媒体信息", CommandPath = nameof(ReadMediaInfoCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
+        new() { Text = "📄 读媒体信息", CommandPath = nameof(ReadMediaInfoCheckedCommand), IsEnabledPath = nameof(HasSelectedRows), ShowToolTipOnDisabled = true,
                 ToolTip = "选中后点这里：给还没读过的视频 / 图片跑 ffprobe 补时长 / 分辨率 / 编码（走任务队列，可取消）" },
-        new() { Text = "✏ 重命名", CommandPath = nameof(BatchRenameSelectedCommand), IsEnabledPath = nameof(CanBatchRename), ShowToolTipOnDisabled = true,
+        new() { Text = "重命名", IconKey = "IconEdit", CommandPath = nameof(BatchRenameSelectedCommand), IsEnabledPath = nameof(CanBatchRename), ShowToolTipOnDisabled = true,
                 ToolTip = "选中 ≥2 个后点这里：按规则（查找替换 / 前缀后缀 / 编号 / 大小写）批量改磁盘文件名，先看预览再确认" },
-        new() { Text = "🔍 查重", CommandPath = nameof(MergeDuplicateAssetsCommand), IsEnabledPath = nameof(IsDbAvailable),
+        new() { Text = "查重", IconKey = "IconSearch", CommandPath = nameof(MergeDuplicateAssetsCommand), IsEnabledPath = nameof(IsDbAvailable),
                 ToolTip = "把「同一个物理文件被多条资产重复收录」的组并成一条（标签 / 评分 / 关联都保住；⛔ 磁盘文件不动）" },
-        new() { Text = "💾 加入库", CommandPath = nameof(CommitDraftCommand), IsEnabledPath = nameof(IsDraft),
+        new() { Text = "加入库", IconKey = "IconSave", CommandPath = nameof(CommitDraftCommand), IsEnabledPath = nameof(IsDraft),
                 ToolTip = "把当前预览结果写入资产库（⛔ 不动磁盘文件）" },
-        new() { Text = "🧹 清除列表", CommandPath = nameof(ClearListCommand),
+        new() { Text = "清除列表", IconKey = "IconEraser", CommandPath = nameof(ClearListCommand),
                 ToolTip = "草稿态：丢弃预览结果；库视图：清空当前显示（数据仍在库里，刷新即找回）" },
         new() { Kind = ToolbarItemKind.Toggle, Text = "含子目录", ValuePath = nameof(Recursive), ToolTip = "关掉就只扫当前这一层" },
-        new() { Text = "🔄 重读", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy),
+        new() { Text = "重读", IconKey = "IconRefresh", CommandPath = nameof(RefreshCommand), IsEnabledPath = "!" + nameof(IsBusy),
                 ToolTip = "重新读取资产库（⛔ 不扫描磁盘）" },
-        new() { Kind = ToolbarItemKind.SplitButton, Text = "📂 并入", CommandPath = nameof(MergeDbCommand), IsEnabledPath = nameof(IsDbAvailable),
+        new() { Kind = ToolbarItemKind.SplitButton, Text = "并入", IconKey = "IconOpen", CommandPath = nameof(MergeDbCommand), IsEnabledPath = nameof(IsDbAvailable),
                 ToolTip = "把另一个资产库（*.db）合并进当前库（按路径/内容去重；源库只读；进度看任务中心）",
                 Items = new ToolbarMenuItemDescriptor[]
                 {
-                    new() { Text = "📂 库目录", CommandPath = nameof(OpenDbFileCommand), ToolTipPath = nameof(DatabasePath),
+                    new() { Text = "库目录", IconKey = "IconOpen", CommandPath = nameof(OpenDbFileCommand), ToolTipPath = nameof(DatabasePath),
                             ToolTip = "在资源管理器打开库所在目录（路径形式；⛔ 不直接开 .db 文件，避免没装查看工具时打不开）" },
                 } },
-        new() { Text = "💾 另存为…", CommandPath = nameof(PickSaveLibraryAsCommand), IsEnabledPath = nameof(IsDbAvailable),
+        new() { Text = "另存为…", IconKey = "IconSave", CommandPath = nameof(PickSaveLibraryAsCommand), IsEnabledPath = nameof(IsDbAvailable),
                 ToolTip = "把当前资产库另存成一个 .db（备份 / 交付用）" },
-        new() { Text = "📤 导出", CommandPath = nameof(ExportAssetsCommand),
+        new() { Text = "导出", IconKey = "IconExport", CommandPath = nameof(ExportAssetsCommand),
                 ToolTip = "导出当前列表：.json = 列表（含标签 / 分类 / 集合名字）；.db = 整个资产库另存（备份 / 交付）" },
-        new() { Text = "📥 导入", CommandPath = nameof(ImportAssetsCommand),
-                ToolTip = "把 json 列表 / 资产库（*.db）加载到列表**预览**（⛔ 不写库）；看完点「💾 加入库」才写入" },
-        new() { Text = "🧠 存为集合", IsEnabled = false, ToolTip = "智能集合需要规则求值（未实装）" },
+        new() { Text = "导入", IconKey = "IconImport", CommandPath = nameof(ImportAssetsCommand),
+                ToolTip = "把 json 列表 / 资产库（*.db）加载到列表**预览**（⛔ 不写库）；看完点「加入库」才写入" },
+        new() { Text = "📌 存为集合", IsEnabled = false, ToolTip = "智能集合需要规则求值（未实装）" },
     };
 
 }

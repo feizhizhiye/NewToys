@@ -159,7 +159,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             // —— 一条动作组合：安装 / 升级按「是否已安装」二选一，Pin 按「是否已 Pin」二选一 ——
             new DetailAction
             {
-                Text = "⬇ 安装",
+                Text = "安装", IconKey = "IconArrowDown",
                 Classes = "primary",
                 ToolTip = "安装这个包（用当前包管理器后端）",
                 IsVisiblePath = nameof(ShowInstallAction),
@@ -168,7 +168,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             },
             new DetailAction
             {
-                Text = "⬆ 升级",
+                Text = "升级", IconKey = "IconArrowUp",
                 Classes = "primary",
                 ToolTip = "升级到最新版（已是最新版时置灰）",
                 IsVisiblePath = nameof(ShowUpgradeAction),
@@ -177,7 +177,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             },
             new DetailAction
             {
-                Text = "🔍 详情",
+                Text = "详情", IconKey = "IconSearch",
                 Classes = "ghost",
                 ToolTip = "向源查询这个包的详细信息（发布者 / 协议 / 主页 / 描述）",
                 IsVisiblePath = nameof(HasSelection),
@@ -203,14 +203,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
             },
             new DetailAction
             {
-                Text = "🗑 卸载",
+                Text = "卸载", IconKey = "IconTrash",
                 Classes = "ghost",
                 ToolTip = "卸载这个包（不可撤销，会再确认一次）",
                 IsVisiblePath = nameof(ShowUninstallAction),
                 IsEnabledPath = "!" + nameof(IsBusy),
                 Command = UninstallCommand
             },
-            // 2026-10-17：「📋 复制信息」删除 —— 详情卡内所有文字本身就可复制（SelectableTextBlock），
+            // 2026-10-17：「复制信息」删除 —— 详情卡内所有文字本身就可复制（SelectableTextBlock），
             //              再给一个"复制整卡"按钮是重复入口。
             new DetailAction
             {

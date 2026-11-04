@@ -80,7 +80,7 @@ public partial class AssetAllViewModel
         RaiseSelectionSync();
     }
 
-    /// <summary>右键「☑ 全选当前页」：只选当前页（与勾选时代的分页口径一致）。</summary>
+    /// <summary>右键「全选当前页」：只选当前页（与勾选时代的分页口径一致）。</summary>
     [RelayCommand]
     private void SelectAll()
     {
@@ -93,7 +93,7 @@ public partial class AssetAllViewModel
         StatusText = $"已全选当前页 {Items.Count} 条。";
     }
 
-    /// <summary>右键「☐ 取消选择」：清空选中（详情卡保留当前行，避免右栏突然空白）。</summary>
+    /// <summary>右键「取消选择」：清空选中（详情卡保留当前行，避免右栏突然空白）。</summary>
     [RelayCommand]
     private void SelectNone()
     {

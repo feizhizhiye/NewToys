@@ -1,12 +1,13 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:m="using:NewToys.UI.Markup"
              x:Class="NewToys.WebTools.Views.HostsView">
   <!--
     Hosts 管理页（Key web-hosts）= 双列表工作台。
     ① 信息条（路径 / 文件信息 / 受管块 / 权限 / 差异汇总）
     ② 左「目标」（当前系统 hosts 或备份快照，可切文本视图）| 右「来源」（拉取的方案）
     ③ 底栏：应用与写入按钮
-    🔴 左栏改动是内存草稿，「✅ 写入系统 hosts」才落盘（二次确认 + 自动备份）。
+    🔴 左栏改动是内存草稿，「写入系统 hosts」才落盘（二次确认 + 自动备份）。
   -->
   <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
 
@@ -67,13 +68,13 @@
               <ContextMenu>
                 <MenuItem Header="🧪 检测选中" Command="{Binding CheckSelectedCommand}"
                           ToolTip.Tip="只测选中行（未多选 = 检测右栏整份方案）"/>
-                <MenuItem Header="✅ 启用选中" Command="{Binding EnableSelectedCommand}"/>
-                <MenuItem Header="⏸ 禁用选中" Command="{Binding DisableSelectedCommand}"/>
+                <MenuItem Header="启用选中" Icon="{m:Glyph IconCheckAll}" Command="{Binding EnableSelectedCommand}"/>
+                <MenuItem Header="禁用选中" Icon="{m:Glyph IconPause}" Command="{Binding DisableSelectedCommand}"/>
                 <Separator/>
                 <MenuItem Header="📦 备份当前" Command="{Binding BackupNowCommand}"/>
-                <MenuItem Header="🧹 清受管块" Command="{Binding ClearManagedCommand}"/>
+                <MenuItem Header="清受管块" Icon="{m:Glyph IconEraser}" Command="{Binding ClearManagedCommand}"/>
                 <Separator/>
-                <MenuItem Header="✅ 写入系统 hosts" Command="{Binding WriteCommand}"/>
+                <MenuItem Header="写入系统 hosts" Icon="{m:Glyph IconCheckAll}" Command="{Binding WriteCommand}"/>
               </ContextMenu>
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
@@ -130,7 +131,7 @@
                 </DataTemplate>
               </ComboBox.ItemTemplate>
             </ComboBox>
-            <Button Classes="ghost" Content="⬇ 拉取" Command="{Binding FetchSourceCommand}"
+            <Button Classes="ghost" Content="{m:GlyphText IconArrowDown, '拉取'}" Command="{Binding FetchSourceCommand}"
                     IsEnabled="{Binding !IsBusy}"
                     ToolTip.Tip="按源的地址逐个试，拉到一份映射集写进右栏方案（⛔ 不自动写系统 hosts）"/>
             <CheckBox Content="差异" IsChecked="{Binding RightDiffOnly, Mode=TwoWay}" VerticalAlignment="Center"/>
@@ -157,14 +158,14 @@
               <ContextMenu>
                 <MenuItem Header="🧪 检测选中" Command="{Binding CheckSelectedCommand}"
                           ToolTip.Tip="只测选中行（未多选 = 检测右栏整份方案）"/>
-                <MenuItem Header="✅ 启用选中" Command="{Binding EnableSelectedCommand}"/>
-                <MenuItem Header="⏸ 禁用选中" Command="{Binding DisableSelectedCommand}"/>
+                <MenuItem Header="启用选中" Icon="{m:Glyph IconCheckAll}" Command="{Binding EnableSelectedCommand}"/>
+                <MenuItem Header="禁用选中" Icon="{m:Glyph IconPause}" Command="{Binding DisableSelectedCommand}"/>
                 <Separator/>
-                <MenuItem Header="⬅ 应用" Command="{Binding ApplyToTargetCommand}"/>
-                <MenuItem Header="🔍 检测可用性" Command="{Binding CheckCommand}"/>
+                <MenuItem Header="应用" Icon="{m:Glyph IconChevronLeft}" Command="{Binding ApplyToTargetCommand}"/>
+                <MenuItem Header="检测可用性" Icon="{m:Glyph IconSearch}" Command="{Binding CheckCommand}"/>
                 <Separator/>
-                <MenuItem Header="💾 保存方案" Command="{Binding SaveProfileCommand}"/>
-                <MenuItem Header="🗑 删除方案" Command="{Binding DeleteProfileCommand}"/>
+                <MenuItem Header="保存方案" Icon="{m:Glyph IconSave}" Command="{Binding SaveProfileCommand}"/>
+                <MenuItem Header="删除方案" Icon="{m:Glyph IconTrash}" Command="{Binding DeleteProfileCommand}"/>
               </ContextMenu>
             </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
@@ -191,8 +192,7 @@
     <!--  ③ 底栏：应用 + 写入  -->
     <Border Grid.Row="2" Classes="card" Padding="12,8">
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-        <Button Grid.Column="1" Classes="ghost" Content="⬅ 应用"
-                Command="{Binding ApplyToTargetCommand}"
+        <Button Grid.Column="1" Classes="ghost" Content="{m:GlyphText IconChevronLeft, '应用'}" Command="{Binding ApplyToTargetCommand}"
                 IsEnabled="{Binding CanApplyToTarget}"
                 ToolTip.Tip="把右栏方案的启用条目写进左栏草稿的受管块（⛔ 先不落盘）"/>
         <Button Grid.Column="2" Classes="primary" Content="{Binding WriteButtonText}"

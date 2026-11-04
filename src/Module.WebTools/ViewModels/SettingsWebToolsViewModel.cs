@@ -58,7 +58,7 @@ public partial class SettingsWebToolsViewModel : ObservableObject, IStatusProvid
 
     public bool HasHostSourceSelection => SelectedHostSource != null;
 
-    public string HostSourceHint => SelectedHostSource?.Hint ?? "还没有源：点「➕ 新建」填名称 + 地址（多个地址用空格分隔）。";
+    public string HostSourceHint => SelectedHostSource?.Hint ?? "还没有源：点「新建」填名称 + 地址（多个地址用空格分隔）。";
 
     partial void OnSelectedHostSourceChanged(HostsSource? value)
     {
@@ -76,7 +76,7 @@ public partial class SettingsWebToolsViewModel : ObservableObject, IStatusProvid
         OnPropertyChanged(nameof(HostSourceHint));
     }
 
-    /// <summary>新建一个源（预设 / 自定义同格式；⛔ 不校验地址可达性，用「⬇ 测试」验）。</summary>
+    /// <summary>新建一个源（预设 / 自定义同格式；⛔ 不校验地址可达性，用「测试」验）。</summary>
     [RelayCommand]
     private async Task AddHostSourceAsync()
     {
@@ -95,7 +95,7 @@ public partial class SettingsWebToolsViewModel : ObservableObject, IStatusProvid
         _hostSources.Save(HostSources);
         SelectedHostSource = source;
         OnPropertyChanged(nameof(HasHostSources));
-        StatusText = $"已添加源「{source.Name}」（{source.Urls.Count} 个地址）。去「Hosts 管理」页点「⬇ 拉取」验证。";
+        StatusText = $"已添加源「{source.Name}」（{source.Urls.Count} 个地址）。去「Hosts 管理」页点「拉取」验证。";
     }
 
     /// <summary>改名称 / 地址（预设源也能改，改完仍是预设的「≥20 条」判定口径）。</summary>

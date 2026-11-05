@@ -68,6 +68,25 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                         Inline = true
                     },
                     new DetailField { Label = "文件路径", ValuePath = "DetailRow.FilePath", Kind = FieldKind.Text, Selectable = true },
+                    // ===== 只读上下文：更新时间为空时改给说明，⛔ 留空白行 =====
+                    new DetailField { Label = "库内名称", ValuePath = "DetailRow.Name", Kind = FieldKind.Text, Selectable = true, Inline = true },
+                    new DetailField { Label = "资产 Id", ValuePath = "DetailRow.Id", Kind = FieldKind.Text, Selectable = true, Inline = true },
+                    new DetailField { Label = "原始文件名", ValuePath = "DetailRow.FileName", Kind = FieldKind.Text, Selectable = true, Inline = true },
+                    new DetailField
+                    {
+                        Label = "最近更新",
+                        ValuePath = "DetailRow.UpdatedAtText",
+                        Kind = FieldKind.Text,
+                        Selectable = true,
+                        Inline = true,
+                        VisibleWhen = nameof(HasUpdatedAt)
+                    },
+                    new DetailField
+                    {
+                        Kind = FieldKind.Hint,
+                        Hint = "（这条资产还没记录更新时间）",
+                        VisibleWhen = "!" + nameof(HasUpdatedAt)
+                    },
                     // ===== 视频专属字段（仅筛选类型 = 视频时显示）=====
                     new DetailField
                     {
@@ -317,6 +336,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
 
     public event EventHandler? DetailChanged;
 
+    /// <summary>选中资产是否记录了更新时间（空值不显示字段，改给一句说明）。</summary>
+    public bool HasUpdatedAt => !string.IsNullOrWhiteSpace(Selected?.UpdatedAt);
+
     /// <summary>「更多」节的展开态（开合落盘，重启后恢复上次的开合）。</summary>
     [ObservableProperty] private bool _isMetaSectionExpanded;
 
@@ -359,6 +381,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     partial void OnSelectedChanged(AssetRow? value)
     {
         OnPropertyChanged(nameof(DetailRow));
+        OnPropertyChanged(nameof(HasUpdatedAt));
         LoadDetail(value);
         LoadMusicTags();
         OnPropertyChanged(nameof(HasMusicSelection));

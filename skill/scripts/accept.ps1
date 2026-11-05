@@ -37,8 +37,8 @@ param(
     [switch]$All,
     # 只输出一行结论（完整表格强制写入 artifacts/accept-report.md）—— 省 AI 读取成本
     [switch]$Brief,
-    # 只跑某一项：all（默认）| static 静态检查 | docs 文档一致性 | fix 文档一致性并修复 | scope 改动范围
-    [ValidateSet('all', 'static', 'docs', 'fix', 'scope')]
+    # 只跑某一项：all（默认）| static 静态检查 | docs 文档一致性 | fix 文档一致性并修复 | scope 改动范围 | family 同族页矩阵
+    [ValidateSet('all', 'static', 'docs', 'fix', 'scope', 'family')]
     [string]$Only = 'all',
     # 强制弹交互菜单（终端里无参数运行时也会自动弹）
     [switch]$Menu,
@@ -105,7 +105,7 @@ if ($Menu -or ($script:IsInteractive -and $explicitParams.Count -eq 0)) {
 }
 if ($Brief) { $Report = $true }
 
-$RunStatic = (-not $SkipStatic) -and ($Only -in @('all', 'static'))
+$RunStatic = (-not $SkipStatic) -and ($Only -in @('all', 'static', 'family'))
 $RunDocs   = (-not $SkipStatic) -and ($Only -in @('all', 'docs', 'fix'))
 $RunScope  = ($Only -in @('all', 'scope'))
 
@@ -185,6 +185,13 @@ $staticChecks = @(
         Fail = @('\[ERROR\]\s*([1-9]\d*)\s*条')
         Warn = @()
     }
+    # 同族页矩阵：范本 §八 的四段声明 ⇄ 工作区真实代码，清单漏登记 ⇒ WARN，声明不符 ⇒ 阻断。
+    [pscustomobject]@{
+        Name = '同族页矩阵对账（范本 §八 ⇄ src）'
+        Only = 'family'
+        Fail = @('\[ERROR\]\s*([1-9]\d*)\s*条')
+        Warn = @('\[WARN\]\s*([1-9]\d*)\s*条')
+    }
 )
 
 if ($RunStatic) {
@@ -193,6 +200,7 @@ if ($RunStatic) {
     $pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
 
     foreach ($c in $staticChecks) {
+        if ($Only -eq 'family' -and $c.Only -ne 'family') { continue }
         if (-not (Test-Path $lintPy)) {
             Add-Row '静态检查' $c.Name 'SKIP' 'lint.py 不存在'
             Write-Host ("  [SKIP] {0} —— skill/scripts/lint.py 不存在" -f $c.Name) -ForegroundColor DarkYellow

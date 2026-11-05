@@ -1,6 +1,6 @@
 # NewToys 列表页范本 · 全部资产（`assets-all`）
 
-> v1.1 · 2026-11-05 · **表格实现已统一**：`assets-all` 改用 `TableViewHost`，不再自绘表头 / 列宽 / 右键菜单；§2.2 §三 §六 同步。把散在 `ui.md` / `framework.md` / `modules/media-assets.md` / 软件说明书 的规范，按一个真实页面实例化，供后续扩展复用。
+> v1.2 · 2026-11-05 · **新增 §八 同族页矩阵**：把 21 页的四段齐全度变成机器清单，由 `lint.py --only family` 与 `accept.ps1` 第 10 项对账。v1.1：表格实现已统一（全部资产改用 `TableViewHost`，不再自绘表头 / 列宽 / 右键菜单；§2.2 §三 §六 同步）。把散在 `ui.md` / `framework.md` / `modules/media-assets.md` / 软件说明书 的规范，按一个真实页面实例化，供后续扩展复用。
 > 🔴 本文**不重复规范正文**：每条只给「现状事实 + 唯一源指针 + 本页取舍 + 验收点」。冲突时以 `src/` 源码为准，并回写对应唯一源。
 > 读法：新建 / 扩展标准列表页、推广分页与筛选条、加详情卡字段之前先读本文；实现取值仍回 `ui.md`。
 
@@ -66,7 +66,7 @@
 ### 2.4 详情卡
 
 - VM 实现 `IDetailCardSource.Card`（`BuildCard()` 返回 `DetailCardDescriptor`，**C# 对象字面量**，⛔ 运行时 JSON / XAML 加载），Shell `DetailCardHost` 统一渲染；外壳 300px / 覆盖式滚动条 / 空态只实现一次。
-- 本页结构：基本信息节（文件名可编辑 + 只读扩展名后缀 / 类型·大小·修改时间·存储源用 `Inline` 行内「标签：值」/ 状态下拉 / 文件路径 / 视频专属三列 `VisibleWhen=IsVideoType` / 丢失警告 Hint）→ 三组 `Chips`（标签 / 分类 / 集合，带色块 + 空候选 Hint）→ `IconBar`（收藏 / 评分即时写库 · 保存 · 读媒体信息…）。
+- 本页结构：基本信息节（文件名可编辑 + 只读扩展名后缀 / 类型·大小·修改时间·存储源用 `Inline` 行内「标签：值」/ 状态下拉 / 文件路径 / **只读上下文四行** = 库内名称·资产 Id·原始文件名·最近更新，全取自现有 `AssetRow`；最近更新为空时整行隐藏并给一句 Hint，⛔ 留空白行 / 视频专属三列 `VisibleWhen=IsVideoType` / 丢失警告 Hint）→ 三组 `Chips`（标签 / 分类 / 集合，带色块 + 空候选 Hint）→ `IconBar`（收藏 / 评分即时写库 · 保存 · 读媒体信息…）。
 - 路径一律 `nameof(VM 属性)`；只有跨对象路径（`"DetailRow.TypeText"`）才用字符串。`OptionsPath` 指向的集合必须是稳定实例；空候选不回写。
 - 提交语义：收藏 / 评分**即时写库**；描述 / 状态 / 三组 chips 进编辑态草稿，点「💾 保存」统一落库（⛔ 不动磁盘）；文件名 `OnBlur` 进编辑态，点「应用到文件」才真改磁盘。
 - 保存后从库读回重填卡并按 `Id` 认领选中行，⛔ 不让详情卡跳走。
@@ -131,3 +131,52 @@
 - [ ] 改用户可见交互已双写 §2.5 + 说明书；增删模块 / 页面后跑 `python skill/scripts/docs-sync.py --fix`（AUTO 块⛔ 手改）。
 - [ ] `pwsh skill/scripts/accept.ps1`（FAIL 0）；`pwsh -File .\scripts\build.ps1` 由用户本地执行；实机冒烟（筛选 / 分页 / 详情卡 / 多选）。
 - [ ] 按 `ui.md` §12 人工扫一遍「该不该加元素 / 文案」（Lint 抓不到）。
+
+## 八、同族页矩阵（机器对账）
+
+一行一页，覆盖当前全部 `ListPageSkeleton` / `TableViewHost` 列表页（21 页）。列 ①~④ = §二 的四段；`✓` = 工作区代码里有，`—` = 没有并在末列写明原因。**只记事实 + 唯一源指针**，⛔ 不复述规范正文；`lint.py --only family` 逐页复算本表，是矩阵不漂移的唯一保障。
+
+| 页面 Key | 骨架 / 源文件 | ① 筛选条 | ② 表头行区 | ③ 底栏分页 | ④ 详情卡 | 不适用原因与取舍 |
+|---|---|---|---|---|---|---|
+| `assets-all` | `TableViewHost` · `Views/AssetAllView.axaml` | ✓ | ✓ | ✓ | ✓ | 范本页，四段齐全 |
+| `assets-browse` | 自绘表头 · `Views/AssetBrowseView.axaml` | — | — | ✓ | ✓ | 表头走 `HeaderArea` 自绘（磁贴 / 详细视图双形态）；按目录翻查，⛔ 不挂全局筛选条；目录走服务端分页 |
+| `assets-tags` | `TableViewHost` · `Views/AssetTagsView.axaml` | — | ✓ | — | ✓ | 标签总量受控、全量内存列表；搜索走工具条，⛔ 不挂空筛选条 / 不硬凑底栏 |
+| `assets-categories` | `TableViewHost` · `Views/AssetCategoriesView.axaml` | — | ✓ | — | ✓ | 分类数受控、全量内存列表；同上 |
+| `assets-collections` | `TableViewHost` · `Views/AssetCollectionsView.axaml` | — | ✓ | — | ✓ | 集合数受控、全量内存列表；同上 |
+| `assets-storages` | `TableViewHost` · `Views/AssetStoragesView.axaml` | — | ✓ | — | ✓ | 存储源数受控、全量内存列表；同上 |
+| `assets-trash` | `TableViewHost` · `Views/AssetTrashView.axaml` | — | ✓ | — | ✓ | 回收站按条件全量列出；同上 |
+| `backup-plans` | `TableViewHost` · `Views/BackupPlansView.axaml` | — | ✓ | — | ✓ | 计划数受控、全量内存列表；同上 |
+| `backup-archives` | `TableViewHost` · `Views/BackupArchivesView.axaml` | — | ✓ | — | ✓ | 归档包按任务分组，⛔ 不分页 |
+| `reading-shelf` | `TableViewHost` · `Views/ShelfView.axaml` | ✓ | ✓ | — | ✓ | 筛选条挂状态 / 分组维度；书架本地收藏行数受控，⛔ 不分页 |
+| `reading-sources` | `TableViewHost` · `Views/SourceListView.axaml` | ✓ | ✓ | — | ✓ | 筛选条挂书源分组维度；书源数受控，⛔ 不分页 |
+| `script-collections` | `TableViewHost` · `Views/CollectionView.axaml` | — | ✓ | — | ✓ | 成员随集合切换、全量内存列表，⛔ 不分页 |
+| `web-scrape` | `TableViewHost` · `Views/RuleCatalogView.axaml` | — | ✓ | — | ✓ | 规则集数量少、全量加载；同上 |
+| `script-library` | `TableViewHost` · `Views/ScriptLibraryView.axaml` | — | ✓ | — | ✓ | 脚本库全量加载；详情卡由基类 `QuickActionListViewModel` 实现 `IDetailCardSource` |
+| `script-packages` | `TableViewHost` · `Views/PackageView.axaml` | — | ✓ | ✓ | ✓ | ① 只有 `QuickItemsSource` 快捷项（仅看已安装），⛔ 无 `FieldsContent` 维度条；winget 结果集必须服务端分页 |
+| `script-commands` | `TableViewHost` · `Views/SystemCommandLibraryView.axaml` | — | ✓ | — | ✓ | 命令条目少、全量加载；同上 |
+| `video-batch` | 自绘表头 · `Views/VideoBatchView.axaml` | — | — | — | ✓ | 任务队列用自绘 `HeaderArea` 分组表头；① 只有快捷项；队列全量内存，⛔ 不分页 |
+| `video-list` | 自绘表头 · `Views/VideoListView.axaml` | — | — | — | ✓ | 表头自绘；① 只有快捷项；导入结果集全量内存，⛔ 不分页 |
+| `web-bookmark` | `TableViewHost` · `Views/BookmarkView.axaml` | — | ✓ | — | ✓ | 书签按文件夹浏览，⛔ 不分页 |
+| `web-ping` | `TableViewHost` · `Views/PingView.axaml` | — | ✓ | — | ✓ | 目标列表行数受控；同上 |
+| `settings-path` | `TableViewHost` · `Views/PathView.axaml` | — | ✓ | — | — | 设置页一页多节、右详情列在同页里无处安放 ⇒ `PathViewModel` 明确不实现 `IDetailCardSource` |
+
+### 8.1 识别口径（先拿 3 页样本校准，再全量开）
+
+| 段 | 代码事实 | 校准结论 |
+|---|---|---|
+| ① 筛选条 | XAML 出现 `FilterBar.FieldsContent` 内容槽 | 样本 `assets-all` / `reading-sources` / `reading-shelf` 三页全中；只挂 `QuickItemsSource` 的 `FilterBar` 是快捷项，⛔ 不算维度条 |
+| ② 表头行区 | XAML 出现 `<v:TableViewHost`（含派生类） | 18 页；`ListPageSkeleton.HeaderArea` 自绘表头的 3 页另记「自绘」 |
+| ③ 底栏分页 | `ListPageSkeleton` 标签下发 `ShowFooter` + `TotalCount` + `PageSize` 三个参数 | 3 页（`assets-all` / `assets-browse` / `script-packages`）；⛔ 不是 `ListFooterBar` 标签本身 |
+| ④ 详情卡 | 页面 VM 的类声明或其基类实现 `IDetailCardSource` | 20 页；`settings-path` 的 VM 不实现 |
+
+Key 来源：菜单 `RegisterFunction` 的 key；`assets-storages` 取 `AssetStoragesViewModel.PageKey`（未挂菜单），`settings-path` 取设置节注册 key。矩阵 ⛔ 不给页面 XAML 加自定义标记属性（会污染 21 页并多一次 build），也 ⛔ 不把「四段齐全」当所有页的及格线 —— 无筛选维度的页不挂空条、无分页需求的页不硬凑底栏。
+
+### 8.2 三条对账规则
+
+| 规则 | 触发 | 结果 |
+|---|---|---|
+| F-01 | 矩阵登记 ✓ 但代码里检不出（含源文件已删 / 改路径） | `[ERROR]` 阻断 |
+| F-02 | 代码里存在列表骨架页但矩阵没登记（新增页 / 改造页忘同步） | `[WARN]` 防漂移 |
+| F-03 | 矩阵登记 — 但代码里有（声明与实现不符） | `[ERROR]` 阻断 |
+
+`accept.ps1` 第 10 项跑 `--only family`；单独复核用 `python skill/scripts/lint.py --only family` 或 `pwsh skill/scripts/accept.ps1 -Only family`。

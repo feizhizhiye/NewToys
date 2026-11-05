@@ -7,6 +7,7 @@
 ⛔ 只报告，不修改任何文件，恒以 0 退出（自检是参考，不是门禁）。
 用法：python skill/scripts/lint.py [--only KEY] [--all]
      KEY = axaml | props | techstack | detail-paths | video-card | comments | view-pairs
+           | regions | regionpages | family
 """
 from __future__ import annotations
 
@@ -849,6 +850,110 @@ def check_region_pages(all_: bool) -> None:
         print(f"  …（还有 {len(errors) - 30} 条，加 -All 看全部）")
 
 
+# ---------------------------------------------------------------- 10) 同族页矩阵对账
+
+FAMILY_DOC = ROOT / "skill" / "docs" / "NewToys-列表页范本-全部资产.md"
+FAMILY_VIEW_RE = re.compile(r"`Views/(\w+)\.axaml`")
+FAMILY_CLASS_RE = re.compile(
+    r"^\s*(?:public|internal)\s+(?:sealed\s+|abstract\s+|partial\s+)*class\s+(\w+)([^{]*)\{",
+    re.M)
+FAMILY_LABELS = ("①", "②", "③", "④")
+
+
+def _family_detail_vms() -> set[str]:
+    """实现 IDetailCardSource 的 VM，含从基类继承的接口实现。"""
+    decls: list[tuple[str, str]] = []
+    for p in walk((".cs",)):
+        for m in FAMILY_CLASS_RE.finditer(strip_comments(read(p))):
+            decls.append((m.group(1), m.group(2)))
+    vms = {n for n, bases in decls if "IDetailCardSource" in bases}
+    for _ in range(3):
+        more = {n for n, bases in decls
+                if n not in vms and any(b in vms for b in re.findall(r"\b\w+ViewModel\b", bases))}
+        if not more:
+            break
+        vms |= more
+    return vms
+
+
+def _family_facts(p: Path, vms: set[str]) -> tuple[list[bool], bool]:
+    """四段代码事实 + 是否列表骨架页；先剥 XAML 注释，避免注释里的标签名假命中。"""
+    t = strip_comments(read(p), axaml=True)
+    fields = [
+        "FilterBar.FieldsContent" in t,
+        bool(re.search(r"<[A-Za-z0-9_.]*:?TableViewHost\b", t)),
+        "ShowFooter=" in t and "TotalCount=" in t and "PageSize=" in t,
+        p.stem[:-4] + "ViewModel" in vms,
+    ]
+    return fields, ("ListPageSkeleton" in t or fields[1])
+
+
+def _family_matrix() -> tuple[dict[str, tuple[str, list[bool]]], str | None]:
+    """解析范本 §八：View stem → (页面 Key, 四段声明)。8.1 / 8.2 的小表没有源文件指针，自动跳过。"""
+    if not FAMILY_DOC.is_file():
+        return {}, "找不到范本 NewToys-列表页范本-全部资产.md"
+    parts = read(FAMILY_DOC).split("## 八、同族页矩阵", 1)
+    if len(parts) < 2:
+        return {}, "范本缺 §八 同族页矩阵"
+    rows: dict[str, tuple[str, list[bool]]] = {}
+    for line in parts[1].splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 7:
+            continue
+        m = FAMILY_VIEW_RE.search(cells[1])
+        if not m:
+            continue
+        rows[m.group(1)] = (cells[0].strip("`"), [c == "✓" for c in cells[2:6]])
+    return rows, None
+
+
+def check_family(all_: bool) -> None:
+    h("NewToys 同族页矩阵对账")
+    print(f"仓库根: {ROOT}")
+    vms = _family_detail_vms()
+    matrix, err = _family_matrix()
+    if err:
+        print(f"[ERROR] 1 条  —— {err}")
+        return
+
+    views = {p.stem: p for p in walk((".axaml",)) if p.parent.name == "Views"}
+    errors: list[str] = []
+    warns: list[str] = []
+    facts_by_view = {stem: _family_facts(p, vms) for stem, p in views.items()}
+
+    for stem, (key, marks) in matrix.items():
+        p = views.get(stem)
+        if p is None:
+            errors.append(f"F-01  {key}  矩阵登记的 Views/{stem}.axaml 在 src/ 里找不到")
+            continue
+        facts = facts_by_view[stem][0]
+        for i, label in enumerate(FAMILY_LABELS):
+            if marks[i] and not facts[i]:
+                errors.append(f"F-01  {key}  {label} 矩阵登记 ✓，代码里检不出")
+            elif not marks[i] and facts[i]:
+                errors.append(f"F-03  {key}  {label} 矩阵登记 —，代码里检出了")
+
+    for stem, (_facts, is_list) in facts_by_view.items():
+        if is_list and stem not in matrix:
+            warns.append(f"F-02  Views/{stem}.axaml 是列表骨架页，矩阵漏登记")
+
+    n_list = sum(1 for _f, ok in facts_by_view.values() if ok)
+    print(f"矩阵 {len(matrix)} 页 / 列表骨架页 {n_list} 页 / 详情卡 VM {len(vms)} 个")
+    print("\n=== 汇总 ===")
+    if errors:
+        print(f"[ERROR] {len(errors)} 条")
+        for e in (errors if all_ else errors[:30]):
+            print(f"  {e}")
+    if warns:
+        print(f"[WARN] {len(warns)} 条")
+        for w in (warns if all_ else warns[:30]):
+            print(f"  {w}")
+    if not errors and not warns:
+        print("[OK] 0 条 —— 矩阵 ⇄ 代码四段一致，列表骨架页全部登记")
+
+
 CHECKS = {
     "axaml": check_axaml,
     "props": check_props,
@@ -859,6 +964,7 @@ CHECKS = {
     "view-pairs": check_view_pairs,
     "regions": check_regions,
     "regionpages": check_region_pages,
+    "family": check_family,
 }
 
 

@@ -528,6 +528,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 布局：一行 `Grid ColumnDefinitions="Auto,*,Auto"` = 左「标签：」（field-label 14 SemiBold + 全角冒号）+ 右值 + 末列只读后缀（未配后缀时宽 0）；**值 12**（比标签小一号，三级字号的「值」档）。可编辑（无 `Selectable`）时右侧是紧凑输入框（`MinHeight=0`），提交语义与常规排版完全一致（同挂 `OnTextLostFocus`）。
 - 用途：「类型 / 大小 / 修改时间 / 存储源」这类**短且固定**的事实；长内容（文件路径）⛔ 不用（换行后会与标签挤在一行里读不清）。首用：`AssetAllViewModel.Detail.cs`。
 - ⛔ 不新增 Kind（遵循「优先修饰位」 doctrine，2026-11-05 用户确认走框架层）。
+- 🔴 **卡内标签字号别只靠祖先选择器**：`ui|DetailCardHost TextBlock.field-label` 对 DataTemplate 里的 `SelectableTextBlock` 不稳定 ⇒ Inline 三套模板（Text / Select / IndexSelect）的标签与全角冒号都显式 `FontSize=14 FontWeight=SemiBold`，值侧（含下拉 `ComboBox`）显式 `FontSize=12`；`Shell/Styles/Controls.axaml` 另补 `SelectableTextBlock.field-label` 覆盖常规排版。⛔ 卡内 12/14 混用 ⇒ 三级层级糊成一片。
 
 ### 7.3g 输入框只读后缀（`SuffixPath` 修饰位，2026-11-05）
 

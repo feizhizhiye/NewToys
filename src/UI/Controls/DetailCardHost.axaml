@@ -170,8 +170,8 @@
         <StackPanel IsVisible="{Binding IsInline}">
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="3">
             <StackPanel IsVisible="{Binding HasLabel}" Orientation="Horizontal" VerticalAlignment="Center">
-              <SelectableTextBlock Classes="field-label" Text="{Binding Label}" />
-              <TextBlock Classes="field-label" Text="：" />
+              <SelectableTextBlock Classes="field-label" FontSize="14" FontWeight="SemiBold" Text="{Binding Label}" />
+              <TextBlock Classes="field-label" FontSize="14" FontWeight="SemiBold" Text="：" />
             </StackPanel>
             <TextBox
                 Grid.Column="1"
@@ -287,12 +287,13 @@
         <StackPanel IsVisible="{Binding IsInline}">
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="3">
             <StackPanel IsVisible="{Binding HasLabel}" Orientation="Horizontal" VerticalAlignment="Center">
-              <SelectableTextBlock Classes="field-label" Text="{Binding Label}" />
-              <TextBlock Classes="field-label" Text="：" />
+              <SelectableTextBlock Classes="field-label" FontSize="14" FontWeight="SemiBold" Text="{Binding Label}" />
+              <TextBlock Classes="field-label" FontSize="14" FontWeight="SemiBold" Text="：" />
             </StackPanel>
             <ComboBox
                 Grid.Column="1"
                 HorizontalAlignment="Stretch"
+                FontSize="12"
                 ItemsSource="{Binding Options}"
                 MinHeight="0"
                 PlaceholderText="{Binding Placeholder}"
@@ -605,12 +606,13 @@
         <StackPanel IsVisible="{Binding IsInline}">
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="3">
             <StackPanel IsVisible="{Binding HasLabel}" Orientation="Horizontal" VerticalAlignment="Center">
-              <SelectableTextBlock Classes="field-label" Text="{Binding Label}" />
-              <TextBlock Classes="field-label" Text="：" />
+              <SelectableTextBlock Classes="field-label" FontSize="14" FontWeight="SemiBold" Text="{Binding Label}" />
+              <TextBlock Classes="field-label" FontSize="14" FontWeight="SemiBold" Text="：" />
             </StackPanel>
             <ComboBox
                 Grid.Column="1"
                 HorizontalAlignment="Stretch"
+                FontSize="12"
                 ItemsSource="{Binding Options}"
                 MinHeight="0"
                 SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}"

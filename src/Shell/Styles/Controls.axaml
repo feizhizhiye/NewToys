@@ -81,6 +81,11 @@
     <Setter Property="FontSize" Value="14"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
+  <Style Selector="ui|DetailCardHost SelectableTextBlock.field-label">
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+  </Style>
 
   <!--  ⑤ 右侧详情卡（宽度 / 外边距 / 圆角统一；收起时整列不占位）
        内边距 8：详情列与主显示区已用底色差分开，卡内不再靠留白分段。

@@ -8,23 +8,7 @@ using Avalonia.Interactivity;
 
 namespace NewToys.Shell.Behaviors;
 
-/// <summary>
-/// 给 <see cref="TextBox"/> 统一挂上「剪切 / 复制 / 粘贴 / 全选」右键菜单（v3.19：需求 §4.10.4）。
-/// <para>
-/// ⚠️ 本类**不能是 static class**：附加属性的 owner 要作为 <c>RegisterAttached</c> 的类型参数，
-/// 而 C# 规定静态类型不能用作类型参数（CS0718）—— 所以是普通类，成员仍全为 static。
-/// </para>
-/// <para>
-/// Avalonia 的 TextBox 默认**没有**右键编辑菜单（键盘 Ctrl+X / C / V 仍可用），这里补上；
-/// 通过 <c>Controls.axaml</c> 里 <c>&lt;Style Selector="TextBox"&gt;</c> 设 <c>Attach=True</c> 全局生效，
-/// 菜单外观走 Fluent 默认 <see cref="ContextMenu"/>（随明暗主题，符合整体配色）。
-/// </para>
-/// <para>
-/// 剪贴板操作用 <see cref="IClipboard"/>（<c>SetTextAsync</c>/<c>TryGetTextAsync</c> 扩展自
-/// <c>Avalonia.Input.Platform</c>）+ <see cref="TextBox.SelectedText"/>/<see cref="TextBox.CaretIndex"/>，
-/// 不依赖 TextBox 是否暴露 Copy/Cut/Paste 方法。
-/// </para>
-/// </summary>
+/// <summary>给 TextBox 统一挂上「剪切 / 复制 / 粘贴 / 全选」右键菜单（：需求 §4.10.4）。（WHY: SHL-009）</summary>
 public class TextBoxMenu
 {
     /// <summary>挂载开关：在样式里设 True 即给该 TextBox 加右键编辑菜单。</summary>

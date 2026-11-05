@@ -8,18 +8,7 @@ using Avalonia.Media;
 
 namespace NewToys.Shell.Controls;
 
-/// <summary>
-/// 全局弹出卡片层：确认框 / 提示框 / 输入框的唯一呈现器（替代原独立系统 Window）。
-/// <para>
-/// 调用方（⛔ 页面不得自造弹窗）：① <c>App.axaml.cs</c> 给 <c>Core.DialogHooks</c> 的
-/// <c>ConfirmHandler / InputHandler</c> 做宿主实现 ⇒ 所有模块的 <c>DialogHooks.ConfirmAsync</c>
-/// 自动落到这里；② <c>DataView</c> 的导入/备份确认；③ 启动检查更新的提示。
-/// </para>
-/// <para>
-/// 🔴 未展示时整层 <c>IsVisible=False</c> ⇒ 不吃命中测试，缩放热区 / 标题栏按钮照常。
-/// 🔴 钩子没接上时调用方一律按「用户取消」处理（与旧 Window 实现同口径）。
-/// </para>
-/// </summary>
+/// <summary>全局弹出卡片层：确认框 / 提示框 / 输入框的唯一呈现器（替代原独立系统 Window）。（WHY: SHL-010）</summary>
 public partial class DialogCardHost : UserControl
 {
     /// <summary>卡片类型：图标 / 按钮组合 / 返回值语义都不同。</summary>

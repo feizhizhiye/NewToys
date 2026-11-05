@@ -52,6 +52,8 @@ SIG_LINE = re.compile(r"^\s*///\s*<(?:param|returns|typeparam|exception|value)\b
 CREF = re.compile(r'<see\s+cref="([^"]+)"\s*/>')
 DATE = re.compile(r"20\d{2}-\d{2}-\d{2}")
 VERSION = re.compile(r"v\d+\.\d+(?:\.\d+)?|NT-\d{3}\b")
+# 裸语义版本（12.1.3）一律降成 12.1.x：文档里的具体版本号会和 props 对账冲突，且是时间点事实。
+BARE_VERSION = re.compile(r"(?<![\w.§])(\d+)\.(\d+)\.\d+(?![\w.])")
 NARRATIVE = re.compile(r"用户拍板|第\s*\d+\s*种|此前是|以前是|曾经是|早先是|实测[三四五六七八九十]轮")
 WHY_HINT = re.compile(
     r"🔴|⚠|⛔|必须|不许|否则|契约|一律|不要|注意|因为|为什么|坑|禁止|避免|兜底|根因|只有|⛔|不许|⛔|不参与|不抛|不做|不会|无法"
@@ -82,6 +84,7 @@ def clean_contract(line: str) -> str:
     s = re.sub(r"；\s*20\d{2}-\d{2}-\d{2}[^；。）]*", "", s)
     s = re.sub(r"（[^）]*20\d{2}-\d{2}-\d{2}[^）]*）", "", s)
     s = VERSION.sub("", s)
+    s = BARE_VERSION.sub(r"\1.\2.x", s)
     s = DATE.sub("", s)
     s = re.sub(r"（\s*(?:增|新增)[^）]*）", "", s)
     s = re.sub(r"（\s*[；;，,、]*\s*）", "", s)
@@ -98,6 +101,7 @@ def clean_why(line: str) -> str:
     s = CREF.sub(r"`\1`", s)
     s = s.replace("**", "")
     s = VERSION.sub("", s)
+    s = BARE_VERSION.sub(r"\1.\2.x", s)
     s = DATE.sub("", s)
     s = re.sub(r"\s{2,}", " ", s).strip()
     return s

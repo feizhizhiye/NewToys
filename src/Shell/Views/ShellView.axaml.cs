@@ -13,24 +13,7 @@ using NewToys.Shell.ViewModels;
 
 namespace NewToys.Shell.Views;
 
-/// <summary>
-/// 主窗口（v3.6：标题栏（含标签栏）/ 左树 / 内容区 / 右详情）。
-/// <para>
-/// 标签栏与左树是**纯数据驱动**（ItemsControl + 绑定），code-behind 只剩这几件事：
-/// ① 关闭拦截（「关闭到托盘」）；② 窗口按钮；③ 标题栏拖拽 + 双击最大化；
-/// ④ 标签页区域滚轮切换标签；⑤ 切换后把当前标签**滚进视野**（v3.6）；
-/// ⑥ 窗口缩放抓取区 + 大小 / 位置记忆（v3.26）；
-/// ⑦ DWM 圆角 / 矩形区域压制（三保险）+ 零内缩（消灭 ≈8px 非客户区边框）+ 接管窗口过程做「转发后置」压制
-/// —— 贴靠资格由官方 `WindowDecorations="Full"` 自带（手工补 `WS_CAPTION` 的 `ApplySnapEligibleStyles` 已删，）；
-/// —— `WM_NCCALCSIZE` 零内缩是**Windows 独有的例外**（钩子只在 Windows 装得上，Linux 自然不走）；
-/// —— 🔴 2026-10-15 定案：**官方 CSD 路线 + 这一处零内缩**（跨平台只有官方 CSD 能对接，需求 §4.1.1）。
-/// ⑧ 全屏按钮 + <c>F11</c> / <c>Esc</c>。
-/// </para>
-/// <para>
-/// 🔴 ⑦ 的全部实现（DllImport / Win32 结构 / 钩子 / 贴靠纠偏）在 **`ShellView.Win32.cs`**（partial，2026-10-21 收敛）：
-/// 本文件只留业务逻辑与它们的调用点，⛔ 别把 Win32 那段搬回来。
-/// </para>
-/// </summary>
+/// <summary>主窗口（：标题栏（含标签栏）/ 左树 / 内容区 / 右详情）。（WHY: SHL-055）</summary>
 public partial class ShellView : Window
 {
     private ShellViewModel? _vm;
@@ -50,12 +33,7 @@ public partial class ShellView : Window
     /// </summary>
     public bool ForceClose { get; set; }
 
-    /// <summary>
-    /// 全局弹出卡片层（确认 / 提示 / 输入的唯一呈现器）。
-    /// 🔴 **⛔ 不在 XAML 里声明**：XAML 引用该 UserControl 会连带整个窗口的 x:Name 回填失败
-    /// （运行时表现 = 启动即崩在 OnLoaded 的 BtnMin，2026-10-20 实测；IL 侧 29 个 stfld 都在、
-    /// 树却拿不到字段）⇒ 由构造末尾**代码挂到根 Grid**，叠在最顶层、不占布局。
-    /// </summary>
+    /// <summary>全局弹出卡片层（确认 / 提示 / 输入的唯一呈现器）。（WHY: SHL-056）</summary>
     public DialogCardHost? DialogCards { get; private set; }
 
     public ShellView()
@@ -285,17 +263,7 @@ public partial class ShellView : Window
 
     // ==================== 窗口外框（需求 §4.1.1 ③） ====================
 
-    /// <summary>
-    /// 同步窗口外框的两个状态：**最大化**（收掉外框）与**激活 / 失焦**（切淡色）。
-    /// <para>
-    /// 🔴 这里**只切 Classes**，厚度与颜色一律由 `App.axaml` 的 `Border.window-frame` 样式给 ——
-    /// 在代码里直接写 `BorderBrush` 会变成本地值，压死样式里的状态切换，且主题切换后不会跟着变。
-    /// </para>
-    /// <para>
-    /// ⚠️ `IsActive` 走 `OnPropertyChanged`（与 `WindowState` 同一套路，见 <see cref="OnPropertyChanged"/>）；
-    ///    若本地实测该属性在 Win32 不触发，退路是订阅 <c>Activated</c> / <c>Deactivated</c> 事件。
-    /// </para>
-    /// </summary>
+    /// <summary>同步窗口外框的两个状态：最大化（收掉外框）与激活 / 失焦（切淡色）。（WHY: SHL-057）</summary>
     private void UpdateWindowFrame()
     {
         if (WindowFrameBorder == null) return;
@@ -449,24 +417,11 @@ public partial class ShellView : Window
 
     // ==================== 全屏（需求 §4.1） ====================
 
-    /// <summary>
-    /// 全屏开关。12.1.3 **没有** `ToggleFullScreen` / `ExitFullScreen`（已核实）→ 自己切 `WindowState`。
-    /// <para>
-    /// ⚠️ 退出一律回 `Normal`（⛔ 不回 `Maximized`）：进全屏前的旧状态Avalonia 自己会记，
-    ///    我们额外记住反而会和它打架。
-    /// </para>
-    /// </summary>
+    /// <summary>全屏开关。12.1.x 没有 ToggleFullScreen / ExitFullScreen（已核实）→ 自己切 WindowState。（WHY: SHL-058）</summary>
     private void ToggleFullScreen()
         => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
 
-    /// <summary>
-    /// `F11` 切换全屏；`Esc` **仅在全屏态下**退出（⛔ 平时不吞 Esc —— 页面里的取消 / 关闭浮层要用它）。
-    /// <para>
-    /// `Ctrl+,` = 打开**应用级设置页**（需求 §4.3 / §4.9.2）。
-    /// 🔴 折叠左树后版本行的齿轮仍在，`Ctrl+,` 是它的备用入口（约定俗成的设置快捷键）。
-    /// ⚠️ 走隧道路由（Tunnel）⇒ 即使焦点在页内输入框也照样命中；判定用 `KeyModifiers` 而不是 `KeyGesture`。
-    /// </para>
-    /// </summary>
+    /// <summary>F11 切换全屏；Esc 仅在全屏态下退出（⛔ 平时不吞 Esc —— 页面里的取消 / 关闭浮层要用它）。（WHY: SHL-059）</summary>
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.F11)
@@ -486,12 +441,7 @@ public partial class ShellView : Window
         }
     }
 
-    /// <summary>
-    /// 搜索框挂上视觉树：**清空上次状态 + 聚焦 + 全选**（弹出即可直接打字）。
-    /// <para>⚠️ 弹窗内容在**弹出树**里、不在本窗口的 NameScope ⇒ 不给它 `x:Name`，一律从 `sender` 取。</para>
-    /// <para>🔴 弹出内容在**弹出树**里 ⇒ 绑定的 `DataContext` 未必继承到本窗口；这里兜底补一次
-    /// （补不上 ⇒ 结果列表静默空白，且不报错）。</para>
-    /// </summary>
+    /// <summary>搜索框挂上视觉树：清空上次状态 + 聚焦 + 全选（弹出即可直接打字）。（WHY: SHL-060）</summary>
     private void OnSearchBoxAttached(object? sender, VisualTreeAttachmentEventArgs e)
     {
         if (sender is not TextBox tb) return;

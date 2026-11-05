@@ -11,21 +11,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// 通用设置页（v1.35：**四项系统级行为全部真正生效**；合并「主题外观」「关于」两页为四节）。
-/// <list type="bullet">
-///   <item><b>开机时启动</b>：写 / 删 <c>HKCU\…\Run</c> 里的启动项（<see cref="StartupService"/>），勾选即改注册表；</item>
-///   <item><b>启动时最小化到托盘</b>：由 Shell 在启动时读本开关决定是否显示主窗口（改了下次启动生效）；</item>
-///   <item><b>关闭按钮最小化到托盘</b>：主窗口 <c>OnClosing</c> 每次关闭时实时读本开关 → <b>立即生效</b>；</item>
-///   <item><b>启动时检查更新</b>：启动时 GET 一个纯文本版本地址（<c>app.json</c> 的 <c>UpdateUrl</c>），只提示不自动更新；</item>
-///   <item><b>主题外观</b>：明暗模式 + 强调色，点一下立即生效（原 ThemeViewModel，并入）；</item>
-///   <item><b>关于</b>：版本号 / 技术栈（原 AboutViewModel，并入）。</item>
-/// </list>
-/// <para>
-/// ⚠️ 诚实边界（规范 0.3）：没配更新地址就是「未配置」，页面照实写，不假装检查过；
-/// 托盘 / 最小化这类**要下一次启动才看得到**的，也在界面上标注清楚。
-/// </para>
-/// </summary>
+/// <summary>通用设置页（：四项系统级行为全部真正生效；合并「主题外观」「关于」两页为四节）。（WHY: SHL-034）</summary>
 public partial class GeneralViewModel : ObservableObject, IStatusProvider
 {
     private readonly ILaunchConfigService? _launch;

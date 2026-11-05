@@ -43,12 +43,7 @@ public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvide
         StatusText = _externalWarn ?? $"运行环境已探测：{all.Count} 个外部程序均可解析（留空 = 用系统默认）。";
     }
 
-    /// <summary>
-    /// 「Python 共享环境」行的说明文案：一句话说清现在用的是哪个解释器、共享 venv 建没建。
-    /// <para>
-    /// 🔴 未装 Python ⛔ 不阻断任何功能 —— 只有"跑 .py 脚本 / 抓取规则"才需要它，本行只是**如实告知**。
-    /// </para>
-    /// </summary>
+    /// <summary>「Python 共享环境」行的说明文案：一句话说清现在用的是哪个解释器、共享 venv 建没建。（WHY: SHL-039）</summary>
     private string PythonEnvText()
     {
         if (_py == null) return "运行时服务未注册（配置错误）";

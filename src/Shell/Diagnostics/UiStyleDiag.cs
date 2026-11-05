@@ -12,23 +12,7 @@ using Avalonia.VisualTree;
 
 namespace NewToys.Shell.Diagnostics;
 
-/// <summary>
-/// 🩺 一次性 UI 样式自检（临时诊断，定位「页面样式没生效」这类问题用）。
-/// <para>
-/// 背景：屏幕上出现过「内容区文字纯黑、按钮没有按钮样子、面板/分隔线全丢，而侧栏样式正常」的现象。
-/// 这类问题只看截图无法区分三种成因：
-/// ① <c>StyleInclude</c> 没加载；② 应用级样式根本没作用到页面控件；
-/// ③ 模块程序集与 Shell 不是同一份 Avalonia（历史上的「两份副本」事故）。
-/// </para>
-/// <para>
-/// 本类把这三条都写成一行行事实，落到 <c>%LocalAppData%\NewToys\logs\ui-diag.log</c>：
-/// 启动时记一次全局状态，之后**每次切换内容区**记一次「这一页到底吃到了什么样式」。
-/// 查询本身全部包在 try/catch 里 —— 诊断代码绝不能把主流程弄崩。
-/// </para>
-/// <para>
-/// ⚠️ 定位完就可以整文件删除（调用点只有 <c>ShellView.axaml.cs</c> 的两处）。
-/// </para>
-/// </summary>
+/// <summary>🩺 一次性 UI 样式自检（临时诊断，定位「页面样式没生效」这类问题用）。（WHY: SHL-017）</summary>
 public static class UiStyleDiag
 {
     private static string? _logPath;

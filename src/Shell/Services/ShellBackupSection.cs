@@ -7,16 +7,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.Services;
 
-/// <summary>
-/// <b>设置节</b>：<c>&lt;配置根&gt;\config\**\*.json</c> —— <c>shell.json</c> + <c>modules\&lt;模块&gt;.json</c>。
-/// <para>
-/// 这是「设置备份」入口的**主体**（框架与模块设置都在 <c>config</c> 下，一层递归就够，不必按模块拆节）。
-/// 恢复 = 覆盖原文件，覆盖前先把现有配置整体归档到 <c>config\.bak-&lt;时间戳&gt;\</c>。
-/// </para>
-/// <para>
-/// 🔴 <c>store\</c>（模块库）与 <c>cache\</c>（缩略图）**不在**本节里 —— 它们属 <c>DataBackupSection</c>，默认不勾。
-/// </para>
-/// </summary>
+/// <summary>设置节：&lt;配置根&gt;\config\\*.json —— shell.json + modules\&lt;模块&gt;.json。（WHY: SHL-025）</summary>
 public sealed class ShellBackupSection : IBackupSection
 {
     private readonly ConfigStoreService _store;

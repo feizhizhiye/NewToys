@@ -23,13 +23,7 @@ public sealed class LoadedComponentItem
     public string Note { get; init; } = "";
 }
 
-/// <summary>
-/// 「组件版本」的取数器：读当前进程已加载的程序集，不加载任何新程序集、不读磁盘。
-/// <para>
-/// 分组口径：外壳 = 入口程序集 <c>NewToys</c> + <c>NewToys.*</c>（Shared / Core / UI）；
-/// 模块 = <c>Module.*</c>。热加载进来的模块同样在 <see cref="AppDomain.GetAssemblies"/> 里，自然会被统计到。
-/// </para>
-/// </summary>
+/// <summary>「组件版本」的取数器：读当前进程已加载的程序集，不加载任何新程序集、不读磁盘。</summary>
 public static class LoadedComponentProbe
 {
     public static (IReadOnlyList<LoadedComponentItem> Shell, IReadOnlyList<LoadedComponentItem> Modules) Collect()

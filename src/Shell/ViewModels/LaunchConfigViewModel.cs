@@ -9,22 +9,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// 「一键按钮」页 —— 首页「⚡ 一键操作」三个按钮的**全部设置都在这一页**。
-/// <para>
-/// 三个按钮分别是：浏览器 1 批量开网址、浏览器 2 批量开网址、批量打开软件。
-/// 首页上不再给每个按钮挂 ⚙（v1.19 起改成一个「⚙ 一键按钮设置」入口），
-/// 因为"三个按钮的配置本来就是一件事，拆到三处只会互相打架"。
-/// </para>
-/// <para>
-/// <b>本页保留「保存」按钮</b>：多字段 + 多行自由文本属"复杂输入"（规范 3.7），
-/// 边打边落盘既无意义也可能写进半截路径。「还原默认」只把默认值**填进输入框**，仍需保存才落盘。
-/// </para>
-/// <para>
-/// ⚠️ 保存时**在原对象上改**（<c>_launch.Config</c>），不新建 <see cref="LaunchConfig"/> ——
-/// 否则会把「通用设置」页维护的四个开关（开机启动 / 最小化 / 关闭到托盘 / 更新检查）冲掉。
-/// </para>
-/// </summary>
+/// <summary>「一键按钮」页 —— 首页「⚡ 一键操作」三个按钮的全部设置都在这一页。（WHY: SHL-036）</summary>
 public partial class LaunchConfigViewModel : ObservableObject, IStatusProvider
 {
     private readonly ILaunchConfigService? _launch;

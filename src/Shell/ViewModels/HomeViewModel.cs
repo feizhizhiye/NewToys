@@ -23,14 +23,7 @@ public class QuickBtn
     public ICommand RunCommand { get; set; } = null!;
 }
 
-/// <summary>
-/// 首页「常用功能」墙里的一张卡（v3.19）。
-/// <para>
-/// 细节调整：尾部追加一张**「更多」卡**（<see cref="IsMore"/> = true）——
-/// 它与收藏按钮**同容器同流转**（同一个 <c>WrapPanel</c>）、恒排最后，点开把**功能清单就地展开**在下方
-/// （⛔ 不再跳独立页）。故命令与命令参数下沉到卡片自身（收藏卡 → 导航；更多卡 → 折叠切换）。
-/// </para>
-/// </summary>
+/// <summary>首页「常用功能」墙里的一张卡。（WHY: SHL-035）</summary>
 public partial class FavCard : ObservableObject
 {
     /// <summary>目标功能 Key（「更多」卡为空）。</summary>

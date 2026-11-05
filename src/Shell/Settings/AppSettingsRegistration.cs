@@ -4,24 +4,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.Settings;
 
-/// <summary>
-/// 应用级设置的菜单注册：原 <c>Module.Settings</c> 的框架职责收归 Shell ——
-/// 它本就是框架组件（只是名字里带「Module」），撤销该程序集后由这里注册。
-/// <para>
-/// 细节调整（用户 2026-10-16 反馈）：**「设置」一级菜单项已删除** ——
-/// 应用级设置是**一个整页**（六个节），模块设置各自归到**所属模块的一级菜单下**（见各模块 <c>Initialize</c>）。
-/// </para>
-/// <para>
-/// 🔴 应用级设置页的入口 = 左树底部**版本行的设置齿轮** + `Ctrl+,` + 首页「一键操作」的 `⚙`
-/// （跳 `settings-launch`，归一成页 Key `settings`）。
-/// </para>
-/// <para>
-/// 但各**节锚点 Key** 仍必须注册：<c>ShellViewModel.OpenTab</c> 靠
-/// <c>IMenuService.FindItem</c> 解析（首页收藏卡 / 默认收藏种子 <c>settings-dns</c> / <c>settings-general</c>），
-/// ⛔ 不注册这些入口会静默失效。故把它们挂在一个 <c>IsHome</c> 的**不渲染宿主分组**上：
-/// 左树（<c>BuildTree</c>）与首页模块计数都按 <c>!IsHome</c> 过滤 ⇒ 它不出现在任何菜单里。
-/// </para>
-/// </summary>
+/// <summary>应用级设置的菜单注册：原 Module.Settings 的框架职责收归 Shell —— 它本就是框架组件（只是名字里带「Module」），撤销该程序集后由这里注册。（WHY: SHL-029）</summary>
 internal static class AppSettingsRegistration
 {
     /// <summary>不渲染宿主分组键：<c>IsHome=true</c> ⇒ 左树 / 首页计数 / 功能清单页都跳过它。</summary>

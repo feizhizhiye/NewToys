@@ -14,37 +14,7 @@ using NewToys.Shell.Views;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// 应用级设置页（v3.65，需求 §4.9.2 / §6.5）：**一页多节**的复合 VM。
-/// <para>
-/// 七个节 = 启动与退出 / 主题外观 / 一键按钮 / 运行环境 / 网络 / 数据 / 版本与更新，整体竖向排列成一棵**树**（手风琴）：
-/// 每个节 = **一个节点**（抬头 = ⌄/› + 图标 + 标题 + 一句话说明，点一下开 / 收；正文 = 该节的 View），
-/// 整页一起滚动；页面**没有标题栏** —— 当前节点的抬头由 View 用**浮层**钉在页面顶部（磁吸 / sticky），
-/// 一节开不开**只由点击决定**（滚动 ⛔ 不改展开状态，见 <c>SettingsView.axaml.cs</c>）。
-/// </para>
-/// <para>
-/// 🔴 v3.66：细节调整（用户 2026-10-16 验收前反馈，多轮）：
-/// <list type="number">
-///   <item>**树状滚动 + 节点抬头磁吸**：⛔ 无标题栏、⛔ 无分栏、⛔ 无节导航栏；
-///         滚动判定（磁吸 / Push / 滚到即展开）全在 View 的 code-behind；</item>
-///   <item>**详情卡契约取消**（⛔ 不再实现 <c>IDetailPanelProvider</c> / <c>IDetailCardSource</c>）——
-///         一页多节里的"当前节"没有唯一值，右详情列无处安放；</item>
-///   <item>状态栏**跨节聚合**：`⚠` 优先且跨全部节，否则取第一个**已展开**节的非空；
-///         🔴 第五轮起**工具条不再上抛**（原走 <c>IToolbarOwner</c> ⇒ 顶到页面顶部）——
-///         改为**在节内渲染**：节点抬头下方由 <c>SettingsView</c> 挂 <c>ToolbarHost</c>
-///         （<see cref="SettingsSection.HasToolbar"/> 门控，用户要求"放回本节内容顶部"）；</item>
-///   <item>**页内搜索整体删除**（页面标题栏与搜索框都撤了）⇒ 搜索入口 = 标题栏窗口按钮组左侧的搜索按钮；
-///         🔴 搜索**不再只搜本页的节** —— 统一走 <c>ShellViewModel</c> 的索引（菜单项 + 本节清单），
-///         命中本节清单的项 ⇒ <c>OpenTab(节锚点)</c> 归一成本页并展开该节（本页不再有自己的搜索入口）。</item>
-///   <item>**「通用」节点拆成三个**（启动与退出 / 更新检查 / 主题外观 ⛔ 不塞回一页，
-///         用户要求"拆开、删除通用"）：节锚点 = `settings-general`（启动与退出，⛔ Key 不变）+
-///         新增 `settings-update` / `settings-theme`；三个节**共用同一个 <c>GeneralViewModel</c>**。</item>
-/// </list>
-/// </para>
-/// <para>
-/// ⚠️ 本页**只做**「树节点开收 + 各节 View 承载 + 契约聚合」；⛔ 不承载任何设置项逻辑（逻辑在节自己的 VM 里）。
-/// </para>
-/// </summary>
+/// <summary>应用级设置页（，需求 §4.9.2 / §6.5）：一页多节的复合 VM。（WHY: SHL-040）</summary>
 public partial class SettingsViewModel : ObservableObject, IStatusProvider, IStatusActionProvider
 {
     private readonly IServiceProvider _sp;
@@ -119,15 +89,7 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
 
     // ==================== 节构建 ====================
 
-    /// <summary>
-    /// 装配七个节：每个节 = 「DI 取 View + 取 VM + 把 VM 设成 View 的 DataContext」。
-    /// ⚠️ 必须先给 View 设 DataContext 再挂进内容区（DataContext 是继承属性）—— 与 Shell 的
-    /// <c>HomeView</c> 同一约定。
-    /// <para>🔴 v3.66 第五轮：原「通用」节的**三组设置拆成三个节**，三节**共用一个 <c>GeneralViewModel</c>**
-    /// （数据同源、只是显示位置分开）⇒ 拆的是 View，⛔ 不是 VM。</para>
-    /// <para>🔴 v3.67：「更新」+「关于」**合并**成「版本与更新」（8 节 → 7 节，用户拍板）——
-    /// 该节由 <see cref="UpdateAboutView"/> 拼装两个子 View，<c>ViewModels</c> 有两个（状态栏 / 工具条都要聚合到）。</para>
-    /// </summary>
+    /// <summary>装配七个节：每个节 = 「DI 取 View + 取 VM + 把 VM 设成 View 的 DataContext」。（WHY: SHL-041）</summary>
     private void BuildSections()
     {
         // 「启动与退出 / 主题外观 / 版本与更新」三节共用这一个 VM（原「通用」页的 VM）
@@ -214,13 +176,7 @@ public partial class SettingsViewModel : ObservableObject, IStatusProvider, ISta
 
     // ==================== 折叠（动作在 UI 库骨架里，本 VM 只收结果） ====================
 
-    /// <summary>
-    /// 用户折叠 / 展开后由 <c>SettingsView</c> 转进来（宿主的 <c>SectionToggled</c>）：
-    /// 展开的那节 = 当前节；并**重新发一次** <see cref="SectionChanged"/> ——
-    /// 状态栏按"哪几节展开"聚合，折叠也要刷新。
-    /// <para>⚠️ 折叠动作本身（"全部收起"文案、滚到视口顶部）全在
-    /// <c>NewToys.UI.Controls.SettingsSectionHost</c>，⛔ 本 VM 不再重复实现。</para>
-    /// </summary>
+    /// <summary>用户折叠 / 展开后由 SettingsView 转进来（宿主的 SectionToggled）： 展开的那节 = 当前节；并重新发一次 SectionChanged —— 状态栏按"哪几节展开"聚合，折叠也要刷新。（WHY: SHL-042）</summary>
     /// <param name="section">变化的节；<c>null</c> = 「全部收起 / 全部展开」整批变化。</param>
     public void NotifySectionsToggled(SettingsSection? section)
     {

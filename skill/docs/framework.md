@@ -1624,6 +1624,344 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 
 <!-- WHY-DISTILL:core:end -->
 
+### A.4 代码 WHY 蒸馏 · Shell 批（方案1 · anchors）
+
+<!-- WHY-DISTILL:shell:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:SHL-001 -->
+- **SHL-001** · `src/Shell/App.Crash.cs`
+  - ⚠️ 只记录、不改行为：Handled 保持原样（该崩还是崩），不把程序留在半坏状态里假装没事。
+
+<!-- ANCHOR:SHL-002 -->
+- **SHL-002** · `src/Shell/App.Theme.cs`
+  - 窗口里只有两块是「卡」（主显示区 + 详情列）：卡内工具条 / 表头 / 底栏 / 内容底共用 2 档，
+  - 🔴 唯一例外 = 列表行区（3 档）：行区与表头同档时亮色下整片浅灰糊成一块，表格看不出边界
+  - 🔴 格式被 lint.py --only regions 解析：一行一条 ("键", 档),，⛔ 别换写法、⛔ 别加注释在同一条里。
+
+<!-- ANCHOR:SHL-003 -->
+- **SHL-003** · `src/Shell/App.Theme.cs`
+  - 布局变了（新增一条横条 / 挪走一个面板）就补一条边，否则新接缝不会被检查到。
+
+<!-- ANCHOR:SHL-004 -->
+- **SHL-004** · `src/Shell/App.Theme.cs`
+  - 为什么放在 Shell：IPlatformSettings 是 Avalonia 类型，而 Core 不引用 Avalonia，
+
+<!-- ANCHOR:SHL-006 -->
+- **SHL-006** · `src/Shell/App.Theme.cs`
+  - 为什么必须走这里：Fluent 的控件模板（RadioButton 圆点、CheckBox 勾、ToggleSwitch 滑块、
+
+<!-- ANCHOR:SHL-007 -->
+- **SHL-007** · `src/Shell/App.Tray.cs`
+  - ⚠️ 托盘是 Avalonia 的原生控件，必须落在 Shell 这一层（Core 不引用 Avalonia）。
+
+<!-- ANCHOR:SHL-008 -->
+- **SHL-008** · `src/Shell/App.Tray.cs`
+  - 底色取当前强调色（⛔ 不写死），换主题 / 换强调色图标跟着变。
+  - ⛔ 改这里的圆角 / N 笔画比例，必须同步 Resources/app.ico 的形状口径，否则三处会走形。
+
+<!-- ANCHOR:SHL-009 -->
+- **SHL-009** · `src/Shell/Behaviors/TextBoxContextMenu.cs`
+  - ⚠️ 本类不能是 static class：附加属性的 owner 要作为 RegisterAttached 的类型参数，
+
+<!-- ANCHOR:SHL-010 -->
+- **SHL-010** · `src/Shell/Controls/DialogCardHost.axaml.cs`
+  - 调用方（⛔ 页面不得自造弹窗）：① App.axaml.cs 给 Core.DialogHooks 的
+  - 🔴 未展示时整层 IsVisible=False ⇒ 不吃命中测试，缩放热区 / 标题栏按钮照常。
+  - 🔴 钩子没接上时调用方一律按「用户取消」处理（与旧 Window 实现同口径）。
+
+<!-- ANCHOR:SHL-011 -->
+- **SHL-011** · `src/Shell/Controls/ToolbarHost.axaml.cs`
+  - ② 详情开关浮层（右上角、⛔ 不占独立列，但容量计算给它留安全区）。
+  - 🔴 折叠算法由「全部资产」页（AssetAllView.axaml.cs）原样搬迁，两条防抖必须保留：
+  - 项宽首帧缓存一次、容量幂等短路 —— 否则切标签 / 拉窗口时工具条会抖。
+
+<!-- ANCHOR:SHL-013 -->
+- **SHL-013** · `src/Shell/Controls/ToolbarHost.axaml.cs`
+  - ⛔ 不用 ComboBox：Avalonia 的 ComboBox 选完就自动收起，做不了「勾多个」。
+  - 这里用普通 Button + Flyout：浮层里的按钮⛔ 不会自动关闭浮层 ⇒ 可以连着勾。
+
+<!-- ANCHOR:SHL-014 -->
+- **SHL-014** · `src/Shell/Controls/ToolbarHost.axaml.cs`
+  - 🔴 为什么不会布局循环 / 抖动：项宽只在首次布局后测一次并缓存，之后只按"容器宽 + 缓存宽"纯计算
+
+<!-- ANCHOR:SHL-015 -->
+- **SHL-015** · `src/Shell/Converters/ScrollThumbRatioConverter.cs`
+  - ⚠️ 为什么不用 ScaleTransform 缩 Thumb：那只改渲染不改布局，滑块会「居中缩」——
+
+<!-- ANCHOR:SHL-016 -->
+- **SHL-016** · `src/Shell/Converters/VerticalDirectionConverter.cs`
+  - 🔴 Track 的垂直方向默认是「值增大 ⇒ 滑块向上」，与滚动条「值增大 ⇒ 内容下滚 / 滑块下移」相反，
+  - 必须反转；水平方向默认已是从左往右，不能反转。
+
+<!-- ANCHOR:SHL-017 -->
+- **SHL-017** · `src/Shell/Diagnostics/UiStyleDiag.cs`
+  - 这类问题只看截图无法区分三种成因：
+  - ⚠️ 定位完就可以整文件删除（调用点只有 ShellView.axaml.cs 的两处）。
+
+<!-- ANCHOR:SHL-018 -->
+- **SHL-018** · `src/Shell/Models/PathSettingItem.cs`
+  - 🔴 分类是开放集合：以后若要「指定某个功能默认使用哪个 json / 配置」，只加一个枚举值
+  - （如 `功能绑定`）+ 该分类的行与工具即可，⛔ 不再新开页面 —— 这是合并两页的根本理由。
+
+<!-- ANCHOR:SHL-019 -->
+- **SHL-019** · `src/Shell/Models/PathSettingItem.cs`
+  - 「配置」页并入本表：配置行也用它，靠 `Category` 区分，⛔ 不搞两套行类型。
+
+<!-- ANCHOR:SHL-020 -->
+- **SHL-020** · `src/Shell/Models/SearchTarget.cs`
+  - ⛔ 不搜模块私有内容（资产名 / 脚本名）。
+  - 设置节来自 `SettingsViewModel.Catalog`）⇒ 热加载模块后自动生效，⛔ 无静态缓存。
+
+<!-- ANCHOR:SHL-021 -->
+- **SHL-021** · `src/Shell/Models/TreeMenuItem.cs`
+  - ⚠️ 当前不参与渲染：删掉了视图里的 emoji 回退分支，又去掉了行首展开箭头，
+  - 一/二级行的图标位置都只认 `VectorIcon`。保留字段是因为模块注册仍带 icon 值
+
+<!-- ANCHOR:SHL-022 -->
+- **SHL-022** · `src/Shell/Services/DataBackupSection.cs`
+  - 🔴 导出必须走 VACUUM INTO：库开了 WAL，直接 File.Copy 会漏掉还没落盘的 -wal 事务，
+  - 🔴 恢复落到新文件：store\restore-&lt;时间戳&gt;\&lt;库键&gt;\&lt;库键&gt;.db —— ⛔ 不覆盖当前库
+
+<!-- ANCHOR:SHL-023 -->
+- **SHL-023** · `src/Shell/Services/DataBackupSection.cs`
+  - Shell 只读这个字段，⛔ 不引 Module.MediaAssets（Release 下 Shell 不引任何模块）。
+  - 恢复同样落到 store\restore-&lt;时间戳&gt;\thumbs\ —— ⛔ 不覆盖当前缩略图目录。
+
+<!-- ANCHOR:SHL-024 -->
+- **SHL-024** · `src/Shell/Services/EnvBackupSection.cs`
+  - 🔴 语义上是机器级（含绝对路径），所以 `DefaultSelected` = false
+  - ⚠️ 覆盖值（命令行 / NEWTOYS_* 环境变量）⛔ 不进备份 —— 只备文件本身。
+
+<!-- ANCHOR:SHL-025 -->
+- **SHL-025** · `src/Shell/Services/ShellBackupSection.cs`
+  - 🔴 store\（模块库）与 cache\（缩略图）不在本节里 —— 它们属 DataBackupSection，默认不勾。
+
+<!-- ANCHOR:SHL-026 -->
+- **SHL-026** · `src/Shell/Services/ShellPageBinder.cs`
+  - 独立成类的理由：契约探测与订阅生命周期（切标签、设置页切节、页面自报状态变化）
+
+<!-- ANCHOR:SHL-027 -->
+- **SHL-027** · `src/Shell/Services/WindowBoundsService.cs`
+  - ⚠️ 按配置隔离（路径取 `ConfigStoreService.ConfigDir`）——多实例各记各的，
+  - 本服务只做 JSON 读写；「夹进屏幕工作区」这类判定留在窗口侧（Screens 是 Avalonia API，只有 Shell 引）。
+
+<!-- ANCHOR:SHL-029 -->
+- **SHL-029** · `src/Shell/Settings/AppSettingsRegistration.cs`
+  - 🔴 应用级设置页的入口 = 左树底部版本行的设置齿轮 + `Ctrl+,` + 首页「一键操作」的 `⚙`
+  - 但各节锚点 Key 仍必须注册：ShellViewModel.OpenTab 靠
+  - ⛔ 不注册这些入口会静默失效。故把它们挂在一个 IsHome 的不渲染宿主分组上：
+
+<!-- ANCHOR:SHL-030 -->
+- **SHL-030** · `src/Shell/ViewModels/AboutSettingsViewModel.cs`
+  - 🔴 本节没有节锚点菜单 Key（需求表格里是"—（页内可点）"）⇒ 只能从设置页的节导航进入，
+  - ⛔ 不进 settings 分组、⛔ 不可被 OpenTab 外部寻址。
+
+<!-- ANCHOR:SHL-031 -->
+- **SHL-031** · `src/Shell/ViewModels/AllFunctionsViewModel.cs`
+  - 🔴 入口 = 首页收藏卡尾部「显示更多」就地展开（HomeViewModel 用 GetRequiredService 现行装配）；
+
+<!-- ANCHOR:SHL-032 -->
+- **SHL-032** · `src/Shell/ViewModels/DataViewModel.cs`
+  - 🔴 真正的打包 / 恢复逻辑在 Core.Services.BackupService，本 VM 不碰磁盘 ——
+
+<!-- ANCHOR:SHL-033 -->
+- **SHL-033** · `src/Shell/ViewModels/DnsViewModel.cs`
+  - 自定义 URL 是文本框，但只有一项、且改完立刻能"测试解析"验证，因此同样即时写盘（不为它单独设保存按钮）。
+
+<!-- ANCHOR:SHL-034 -->
+- **SHL-034** · `src/Shell/ViewModels/GeneralViewModel.cs`
+  - ⚠️ 诚实边界（规范 0.3）：没配更新地址就是「未配置」，页面照实写，不假装检查过；
+
+<!-- ANCHOR:SHL-035 -->
+- **SHL-035** · `src/Shell/ViewModels/HomeViewModel.cs`
+  - （⛔ 不再跳独立页）。故命令与命令参数下沉到卡片自身（收藏卡 → 导航；更多卡 → 折叠切换）。
+
+<!-- ANCHOR:SHL-036 -->
+- **SHL-036** · `src/Shell/ViewModels/LaunchConfigViewModel.cs`
+  - 因为"三个按钮的配置本来就是一件事，拆到三处只会互相打架"。
+  - ⚠️ 保存时在原对象上改（_launch.Config），不新建 `LaunchConfig` ——
+  - 否则会把「通用设置」页维护的四个开关（开机启动 / 最小化 / 关闭到托盘 / 更新检查）冲掉。
+
+<!-- ANCHOR:SHL-038 -->
+- **SHL-038** · `src/Shell/ViewModels/PathViewModel.cs`
+  - 🔴 分类决定"哪些工具可用"：路径专属工具在选中配置行时置灰并给出原因提示，反之亦然；
+  - 🔴 ：细节调整：本页详情卡已删除（⛔ 不再实现 IDetailPanelProvider /
+  - ⚠️ 曾去掉"视频库默认目录"； 重新引入为「导入导出默认目录」（全局，覆盖视频库 .db 与
+
+<!-- ANCHOR:SHL-039 -->
+- **SHL-039** · `src/Shell/ViewModels/PathViewModel.Probe.cs`
+  - 🔴 未装 Python ⛔ 不阻断任何功能 —— 只有"跑 .py 脚本 / 抓取规则"才需要它，本行只是如实告知。
+
+<!-- ANCHOR:SHL-040 -->
+- **SHL-040** · `src/Shell/ViewModels/SettingsViewModel.cs`
+  - 一节开不开只由点击决定（滚动 ⛔ 不改展开状态，见 SettingsView.axaml.cs）。
+  - 🔴 ：细节调整（用户 验收前反馈，多轮）：
+  - 树状滚动 + 节点抬头磁吸：⛔ 无标题栏、⛔ 无分栏、⛔ 无节导航栏；
+  - 详情卡契约取消（⛔ 不再实现 IDetailPanelProvider / IDetailCardSource）——
+  - 状态栏跨节聚合：`⚠` 优先且跨全部节，否则取第一个已展开节的非空；
+  - 🔴 第五轮起工具条不再上抛（原走 IToolbarOwner ⇒ 顶到页面顶部）——
+
+<!-- ANCHOR:SHL-041 -->
+- **SHL-041** · `src/Shell/ViewModels/SettingsViewModel.cs`
+  - ⚠️ 必须先给 View 设 DataContext 再挂进内容区（DataContext 是继承属性）—— 与 Shell 的
+  - 🔴 第五轮：原「通用」节的三组设置拆成三个节，三节共用一个 GeneralViewModel
+  - （数据同源、只是显示位置分开）⇒ 拆的是 View，⛔ 不是 VM。
+
+<!-- ANCHOR:SHL-042 -->
+- **SHL-042** · `src/Shell/ViewModels/SettingsViewModel.cs`
+  - ⚠️ 折叠动作本身（"全部收起"文案、滚到视口顶部）全在
+  - NewToys.UI.Controls.SettingsSectionHost，⛔ 本 VM 不再重复实现。
+
+<!-- ANCHOR:SHL-043 -->
+- **SHL-043** · `src/Shell/ViewModels/ShellViewModel.cs`
+  - UI 契约：标签 VM 可选实现 `IDetailPanelProvider`（右详情面板）/
+
+<!-- ANCHOR:SHL-044 -->
+- **SHL-044** · `src/Shell/ViewModels/ShellViewModel.cs`
+  - 再在已打开（或新建）的设置页上激活对应节 —— 切节⛔ 不新开标签页（需求 §4.9.2 第 1 条）。
+
+<!-- ANCHOR:SHL-045 -->
+- **SHL-045** · `src/Shell/ViewModels/ShellViewModel.Search.cs`
+  - ⛔ 不取 MenuService 的 `_pending` 暂存区，那些还没落进任何分组、导航过去也解析不到）；
+
+<!-- ANCHOR:SHL-046 -->
+- **SHL-046** · `src/Shell/ViewModels/ShellViewModel.Tree.cs`
+  - 规范 §3.7：只做「新增」（移除模块要重启）；单个 DLL 失败被隔离（⛔ 不拖垮宿主）；
+  - 已构建的 DI 容器无法追加服务 → 热加载模块的 RegisterServices 跳过，优先页面型模块。
+
+<!-- ANCHOR:SHL-047 -->
+- **SHL-047** · `src/Shell/ViewModels/ShellViewModel.Tree.cs`
+  - ⛔ 但不收起其它已经展开的一级 —— 用户手动展开的分组要保留。
+  - 折叠态下什么都不做（二级本来就不显示），一级高亮交给 `UpdateTreeActive`；
+
+<!-- ANCHOR:SHL-048 -->
+- **SHL-048** · `src/Shell/ViewModels/ShellViewModel.Tree.cs`
+  - 取不到（旧的 emoji / 未知键）返回 null → UI 回退成文本图标，不会崩。
+  - ⚠️ Avalonia 12 的 ResourceNodeExtensions.TryFindResource 是 Try 模式（out 参数），
+
+<!-- ANCHOR:SHL-050 -->
+- **SHL-050** · `src/Shell/ViewModels/TechStackProbe.cs`
+  - 为什么读 deps.json 而不是 Directory.Packages.props：props 是构建期文件、发布后不随包；
+  - ⇒ 必须合并根目录与 Modules\ 的清单。
+
+<!-- ANCHOR:SHL-052 -->
+- **SHL-052** · `src/Shell/Views/DataView.axaml.cs`
+  - 🔴 本页只做三件事：把节清单灌进 VM / 弹文件选择器 / 转交 `BackupService`。
+  - 打包、版本校验、路径防御全在服务里 —— ⛔ 别在这里再写一份读盘逻辑（历史上
+
+<!-- ANCHOR:SHL-053 -->
+- **SHL-053** · `src/Shell/Views/HomeView.axaml.cs`
+  - 为什么在 code-behind 里现构造菜单：ContextMenu 挂在独立的弹出树上，
+  - （裸写 MenuItem 不会再撞名：应用侧菜单模型已改名 AppMenuItem。）
+
+<!-- ANCHOR:SHL-054 -->
+- **SHL-054** · `src/Shell/Views/SettingsView.axaml.cs`
+  - 🔴 （）：折叠 / 磁吸 / 滚动定位整体搬进 UI 库 `NewToys.UI.Controls.SettingsSectionHost`
+  - 状态栏聚合与当前节（状态栏按"哪几节展开"算，⛔ 不能只靠节自己）。
+  - ⚠️ 视口相关的数学全在宿主里，⛔ 本页不再有任何 Offset 补偿。
+
+<!-- ANCHOR:SHL-055 -->
+- **SHL-055** · `src/Shell/Views/ShellView.axaml.cs`
+  - —— 🔴 定案：官方 CSD 路线 + 这一处零内缩（跨平台只有官方 CSD 能对接，需求 §4.1.1）。
+  - 🔴 ⑦ 的全部实现（DllImport / Win32 结构 / 钩子 / 贴靠纠偏）在 `ShellView.Win32.cs`（partial， 收敛）：
+  - 本文件只留业务逻辑与它们的调用点，⛔ 别把 Win32 那段搬回来。
+
+<!-- ANCHOR:SHL-056 -->
+- **SHL-056** · `src/Shell/Views/ShellView.axaml.cs`
+  - 🔴 ⛔ 不在 XAML 里声明：XAML 引用该 UserControl 会连带整个窗口的 x:Name 回填失败
+
+<!-- ANCHOR:SHL-057 -->
+- **SHL-057** · `src/Shell/Views/ShellView.axaml.cs`
+  - 🔴 这里只切 Classes，厚度与颜色一律由 `App.axaml` 的 `Border.window-frame` 样式给 ——
+  - 在代码里直接写 `BorderBrush` 会变成本地值，压死样式里的状态切换，且主题切换后不会跟着变。
+  - ⚠️ `IsActive` 走 `OnPropertyChanged`（与 `WindowState` 同一套路，见 `OnPropertyChanged`）；
+
+<!-- ANCHOR:SHL-058 -->
+- **SHL-058** · `src/Shell/Views/ShellView.axaml.cs`
+  - ⚠️ 退出一律回 `Normal`（⛔ 不回 `Maximized`）：进全屏前的旧状态Avalonia 自己会记，
+
+<!-- ANCHOR:SHL-059 -->
+- **SHL-059** · `src/Shell/Views/ShellView.axaml.cs`
+  - 🔴 折叠左树后版本行的齿轮仍在，`Ctrl+,` 是它的备用入口（约定俗成的设置快捷键）。
+  - ⚠️ 走隧道路由（Tunnel）⇒ 即使焦点在页内输入框也照样命中；判定用 `KeyModifiers` 而不是 `KeyGesture`。
+
+<!-- ANCHOR:SHL-060 -->
+- **SHL-060** · `src/Shell/Views/ShellView.axaml.cs`
+  - ⚠️ 弹窗内容在弹出树里、不在本窗口的 NameScope ⇒ 不给它 `x:Name`，一律从 `sender` 取。
+  - 🔴 弹出内容在弹出树里 ⇒ 绑定的 `DataContext` 未必继承到本窗口；这里兜底补一次
+
+<!-- ANCHOR:SHL-061 -->
+- **SHL-061** · `src/Shell/Views/ShellView.Win32.cs`
+  - DWM 圆角压制 + 矩形窗口区域兜底、官方 WndProc 钩子（零内缩 + 方角同步 + 贴靠几何纠偏）。
+  - 🔴 平台纪律（framework.md §2.1）：每个入口首行都是
+  - ⛔ 别把这里的 DllImport 或 Win32 结构搬回主文件，也别在别处新开第二份。
+
+<!-- ANCHOR:SHL-062 -->
+- **SHL-062** · `src/Shell/Views/ShellView.Win32.cs`
+  - 🔴 版本事实（ 用本地 avalonia.win32\12.1.x 二进制核实，⛔ 别再照抄旧源码结论）：
+  - 12.1.x 只有 UpdateWindowCornerPreference + SetWindowCornerPreference，
+  - 🔴 两个调用纪律（来自 Win32Properties.cs 静态构造里的 Changed.AddClassHandler）：
+  - ① 只在 属性真的变化 时下发 → ⛔ 别在构造期先调一次「占位」，否则 OnOpened 再设同值
+
+<!-- ANCHOR:SHL-063 -->
+- **SHL-063** · `src/Shell/Views/ShellView.Win32.cs`
+  - 🔴 为什么需要这个标记：`WINDOWPLACEMENT.showCmd` 在全屏时未必是 `SW_SHOWMAXIMIZED`
+  - （12.1.x 的全屏是「无边框 + 铺满屏」），但同样必须清掉矩形窗口区域 ——
+  - 否则 `SetWindowRgn` 会沿用进全屏前的旧尺寸 → 内容被裁掉一大块。
+
+<!-- ANCHOR:SHL-064 -->
+- **SHL-064** · `src/Shell/Views/ShellView.Win32.cs`
+  - ⚠️ 想再复核时把它改 false 即可（等价于把 `ApplySquareRegion` 两处调用都注掉）。
+
+<!-- ANCHOR:SHL-065 -->
+- **SHL-065** · `src/Shell/Views/ShellView.Win32.cs`
+  - 🔴 为什么需要它：corner preference 在本窗口上试了 5 轮都没稳定生效（普通窗 / 分屏仍圆角；
+  - 而「最大化没圆角」是 Win11 的固有行为，⛔ 不能算我们的功劳）。
+  - MS 文档《应用圆角》明确：使用了「窗口区域」的应用，系统不会对其应用圆角 →
+  - ⚠️ 最大化 / 全屏必须清掉 region（传 NULL）—— 否则矩形区域会跟最大化几何打架（露边 / 裁内容）。
+
+<!-- ANCHOR:SHL-066 -->
+- **SHL-066** · `src/Shell/Views/ShellView.Win32.cs`
+  - 🔴 为什么单独拆出来：Avalonia 12.1.x 的 ShowWindow → ExtendClientArea() →
+  - （窗口状态变化 / 全屏 / 贴靠都会触发）→ 必须在它处理完之后再压一次（见 `PostChromeReassert`）。
+  - ⛔ 从窗口过程里调的这个版本绝不能带 SWP_FRAMECHANGED：消息处理中再发消息会递归。
+
+<!-- ANCHOR:SHL-067 -->
+- **SHL-067** · `src/Shell/Views/ShellView.Win32.cs`
+  - 🔴 为什么必须留 ①（ 实测规律）：贴靠第 1 次缝小(~1px)、第 2 次变大(~8px) —— 8px 正是
+  - 回写了几何、赢过系统给的贴靠矩形 ⇒ 只有让客户区与外框同尺寸，两边的记账才会一致。
+  - 🔴 为什么改走官方钩子（12.1.x 的 Win32Properties.AddWndProcHookCallback，取代自写子类化）：
+  - 🔴 历史留档（⛔ 别再加回来）：
+  - ⚠️ 的 `FixTiledGeometry` 形似但判据明确（只认 tile 矩形），不是它的复活。
+  - ⚠️ 装不上就什么都不做 —— 这类代码出错的代价是"窗口完全不响应消息"，失败路径必须保守。
+
+<!-- ANCHOR:SHL-068 -->
+- **SHL-068** · `src/Shell/Views/ShellView.Win32.cs`
+  - 根因：系统算贴靠矩形时按「外框 = 客户区 + 边框（本机 8px/边）」换算 —— 对普通窗口成立
+  - 为什么不是「去掉零内缩」：去掉就等于恢复那圈 ≈8px 非客户区，贴靠态系统不画 → 露缝（ 的原始问题）。
+  - 为什么不是「事后按屏幕自检纠偏」（已删）：那是无判据的强行 SetWindowPos；
+
+<!-- ANCHOR:SHL-069 -->
+- **SHL-069** · `src/Shell/Views/ShellView.Win32.cs`
+  - 🔴 零内缩的实现随之简化：手搓版要「抄下系统外框 → 转发给 Avalonia → 再把 rgrc[0] 写回原值」，
+  - 🔴 定案：「贴靠偏宽」不是 DWM 记账延迟，而是系统给贴靠矩形做「外框 = 客户区 + 边框」
+  - 修法 = `FixTiledGeometry`（只认 tile 矩形，其余一律不碰）。两条死路已实测排除：
+  - ⚠️ 最大化不拦截：最大化时外框本来就比屏幕大一圈（边框被甩到屏幕外），
+
+<!-- ANCHOR:SHL-070 -->
+- **SHL-070** · `src/Shell/Views/ShellView.Win32.cs`
+  - 🔴 为什么要 Post：官方钩子在框架之前调用，而 `ReassertWindowChrome` 必须在框架之后
+  - ⚠️ 标志执行完才复位：重置过程（SetWindowRgn）会同步再触发同类消息，提前复位会自激成环。
+
+<!-- ANCHOR:SHL-071 -->
+- **SHL-071** · `src/Shell/Views/UpdateAboutView.axaml.cs`
+  - 🔴 两个子 View 的 DataContext 必须分别赋（`Init`）—— 外层 DataContext 只有一个，
+
+<!-- WHY-DISTILL:shell:end -->
+
 
 ### 11.3 横展审计：静默失败 / UI 线程阻塞（2026-10-27）
 

@@ -120,12 +120,7 @@ public partial class ShellViewModel : ViewModelBase
             : $"共 {hits.Count} 项 · ↑↓ 选择 · 回车打开";
     }
 
-    /// <summary>
-    /// 构建搜索索引：① 菜单项（<see cref="IMenuService.Groups"/> 里的**已注册**项 ——
-    /// ⛔ 不取 <c>MenuService</c> 的 `_pending` 暂存区，那些还没落进任何分组、导航过去也解析不到）；
-    /// ② 应用级设置页的节（<see cref="SettingsViewModel.Catalog"/>）。
-    /// <para>两者 Key 有重叠（`settings-general` …）⇒ 后者**覆盖**前者：用户看到的是节标题，不是菜单注册标题。</para>
-    /// </summary>
+    /// <summary>构建搜索索引：① 菜单项（IMenuService.Groups 里的已注册项 ——。（WHY: SHL-045）</summary>
     private List<SearchTarget> BuildSearchIndex()
     {
         var map = new Dictionary<string, SearchTarget>(StringComparer.Ordinal);

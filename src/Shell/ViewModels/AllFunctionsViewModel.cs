@@ -10,16 +10,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// 功能清单视图（**首页内嵌**，⛔ 不是独立页）：按模块列出全部二级功能（图标 + 名称 + 简介），点击卡片直接跳转。
-/// <para>
-/// 每个功能卡片支持**右键 → 固定 / 取消固定到首页收藏夹**，固定状态实时同步（经 <see cref="IFavoritesService.Changed"/>）。
-/// </para>
-/// <para>
-/// 🔴 入口 = 首页收藏卡尾部「显示更多」就地展开（<c>HomeViewModel</c> 用 <c>GetRequiredService</c> 现行装配）；
-/// 本类不注册菜单项、不进标签栏。页内「重载模块」在「版本与更新」的关于部分。
-/// </para>
-/// </summary>
+/// <summary>功能清单视图（首页内嵌，⛔ 不是独立页）：按模块列出全部二级功能（图标 + 名称 + 简介），点击卡片直接跳转。（WHY: SHL-031）</summary>
 public partial class AllFunctionsViewModel : ViewModelBase
 {
     private readonly IMenuService _menu;

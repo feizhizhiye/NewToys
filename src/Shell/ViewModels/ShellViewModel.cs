@@ -16,18 +16,7 @@ using NewToys.Shell.Views;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// Shell 根视图模型。
-/// <para>
-/// 由 v1.35 的「三栏 + CurrentGroup/CurrentItem/CurrentContent」改为「标签页驱动」：
-/// 一个标签页 = 一个缓存的 View + 一份 VM + 一个历史栈。
-/// 打开页面的唯一入口 = <see cref="OpenTab"/>（菜单点击、树节点、标题栏 ⚙、标签栏 ＋ 都走它）。
-/// </para>
-/// <para>
-/// UI 契约：标签 VM 可选实现 <see cref="IDetailPanelProvider"/>（右详情面板）/
-/// <see cref="IHistoryProvider"/>（历史栈），Shell 在切换标签时探测并消费。
-/// </para>
-/// </summary>
+/// <summary>Shell 根视图模型。（WHY: SHL-043）</summary>
 public partial class ShellViewModel : ViewModelBase
 {
     /// <summary>壳级状态（左树折叠态 / 分组展开态）在 config\columnlayout.json 里的归属页 Key。</summary>
@@ -228,13 +217,7 @@ public partial class ShellViewModel : ViewModelBase
 
     // ==================== 标签页：打开 / 激活 / 关闭 / 刷新 ====================
 
-    /// <summary>
-    /// 打开或激活某个 key 的标签页（单例）。找不到 key → 忽略并记一行状态，不抛（§5.5）。
-    /// <para>
-    /// 五个**设置节锚点 Key** 先归一成页 Key <see cref="SettingsKey"/>，
-    /// 再在已打开（或新建）的设置页上激活对应节 —— **切节⛔ 不新开标签页**（需求 §4.9.2 第 1 条）。
-    /// </para>
-    /// </summary>
+    /// <summary>打开或激活某个 key 的标签页（单例）。找不到 key → 忽略并记一行状态，不抛（§5.5）。（WHY: SHL-044）</summary>
     [RelayCommand]
     private void OpenTab(string? key)
     {

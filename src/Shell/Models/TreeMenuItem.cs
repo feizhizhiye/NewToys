@@ -16,12 +16,7 @@ public partial class TreeMenuItem : ObservableObject
 
     public string Title { get; init; } = "";
 
-    /// <summary>图标文本（历史字段：v3.2 前用 emoji 占位；一级图标已全走 <see cref="VectorIcon"/>）。</summary>
-    /// <remarks>
-    /// ⚠️ 当前**不参与渲染**：删掉了视图里的 emoji 回退分支，又去掉了行首展开箭头，
-    /// 一/二级行的图标位置都只认 <see cref="VectorIcon"/>。保留字段是因为模块注册仍带 icon 值
-    /// （数据驱动图标属技术债，见《工程规范》§2 末条）。
-    /// </remarks>
+    /// <summary>图标文本（历史字段： 前用 emoji 占位；一级图标已全走 VectorIcon）。（WHY: SHL-021）</summary>
     public string Icon { get; init; } = "";
 
     /// <summary>矢量图标（v3.2）：一级菜单/首页用；为 null 时不显示图标（已无文本回退）。</summary>

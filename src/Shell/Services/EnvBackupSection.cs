@@ -8,15 +8,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.Services;
 
-/// <summary>
-/// <b>本机环境节</b>：<c>%LOCALAPPDATA%\NewToys\env.json</c> —— 解释器 / ffmpeg / 播放器 / 更新地址 / 加密 DNS。
-/// <para>
-/// 🔴 语义上是**机器级**（含绝对路径），所以 <see cref="DefaultSelected"/> = false
-/// （默认只备份设置；换机器才需要勾它）；<see cref="IsMachineBound"/> = true ⇒ 恢复时界面会提示
-/// 「这些路径可能在本机失效，需在设置里复核」。
-/// </para>
-/// <para>⚠️ 覆盖值（命令行 / <c>NEWTOYS_*</c> 环境变量）⛔ 不进备份 —— 只备文件本身。</para>
-/// </summary>
+/// <summary>本机环境节：%LOCALAPPDATA%\NewToys\env.json —— 解释器 / ffmpeg / 播放器 / 更新地址 / 加密 DNS。（WHY: SHL-024）</summary>
 public sealed class EnvBackupSection : IBackupSection
 {
     private const string EntryName = "env.json";

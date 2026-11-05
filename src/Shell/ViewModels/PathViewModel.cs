@@ -15,29 +15,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// 应用级设置页的「运行环境」节（原「设置 → 路径与配置」，v3.53：是**设置总表**）：
-/// 一张列表按**分类列**承载两类行 —— `路径`（`app.json` 的运行环境路径，可编辑）
-/// 与 `配置`（`profiles\` 下多套独立 config/store/cache/logs）。
-/// <para>
-/// 🔴 分类决定"哪些工具可用"：路径专属工具在选中配置行时**置灰并给出原因提示**，反之亦然；
-/// 与分类无关的工具（📂 打开配置目录 / ＋ 新建配置）恒可用。
-/// </para>
-/// <para>
-/// 工具条由 Shell 声明式承载（/ 需求 §4.8.5），本页只输出描述符。
-/// 🔴 v3.66：细节调整：**本页详情卡已删除**（⛔ 不再实现 <c>IDetailPanelProvider</c> /
-/// <c>IDetailCardSource</c>）—— 设置页是**一页多节**（节 = 竖向折叠块），右详情列在同页里无处安放；
-/// 全应用口径 = 设置页不分左右栏。列表本体、右键菜单、工具条（含「保存」）全部保留。
-/// </para>
-/// <para>
-/// 本页**保留「保存」**（规范 3.5 的分界）：路径是自由文本的复杂输入，边打边落盘没有意义，
-/// 也可能把半截路径写进配置。例外是「浏览…」选出来的路径 —— 那是明确的动作，**选完立即生效**。
-/// </para>
-/// <para>
-/// ⚠️ v1.34 曾去掉"视频库默认目录"；v3.15 重新引入为**「导入导出默认目录」**（全局，覆盖视频库 .db 与
-/// 批量任务 .json 的导入/导出对话框定位），不回写扫描目录，不影响"每次手动选目录"的扫描逻辑。
-/// </para>
-/// </summary>
+/// <summary>应用级设置页的「运行环境」节（原「设置 → 路径与配置」，：是设置总表）： 一张列表按分类列承载两类行 —— 路径（app.json 的运行环境路径，可编辑） 与 配置（profiles\ 下多套独立 config/store/cache/logs）。（WHY: SHL-038）</summary>
 public partial class PathViewModel : ListPageViewModelBase, IStatusActionProvider
 {
     private readonly IAppConfigService? _cfg;

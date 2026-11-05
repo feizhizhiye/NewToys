@@ -5,17 +5,7 @@ using NewToys.Shell.ViewModels;
 
 namespace NewToys.Shell.Services;
 
-/// <summary>
-/// 当前标签页的 **UI 契约绑定**：详情面板 / 历史栈 / 状态栏 / 声明式工具条。
-/// <para>
-/// 独立成类的理由：契约探测与订阅生命周期（切标签、设置页切节、页面自报状态变化）
-/// 和 Shell 的标签管理是两件事，混在 <see cref="ShellViewModel"/> 里会让那个类继续膨胀。
-/// </para>
-/// <para>
-/// 每次 <see cref="Bind"/> 都**先解绑再重探**（旧订阅不摘会泄漏）；探测结果写回宿主 VM 的
-/// 展示属性（IsDetailPanelVisible / ToolbarSource / StatusBarText …），宿主的 XAML 只认那些属性。
-/// </para>
-/// </summary>
+/// <summary>当前标签页的 UI 契约绑定：详情面板 / 历史栈 / 状态栏 / 声明式工具条。（WHY: SHL-026）</summary>
 internal sealed class ShellPageBinder
 {
     private readonly ShellViewModel _owner;

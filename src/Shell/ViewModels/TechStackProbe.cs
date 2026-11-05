@@ -17,18 +17,7 @@ public sealed class TechLibraryItem
     public string Note { get; init; } = "";
 }
 
-/// <summary>
-/// 「技术栈」取数器：解析程序目录（含 <c>Modules\</c>）下的 <c>*.deps.json</c>。
-/// <para>
-/// 只取各项目<b>直接引用</b>的包（由 <c>targets</c> 的 <c>dependencies</c> 反推被依赖集合，全量减去被依赖者），
-/// <c>Avalonia.*</c> 家族折叠成一行 —— 传递依赖不展示。
-/// </para>
-/// <para>
-/// 为什么读 deps.json 而不是 <c>Directory.Packages.props</c>：props 是构建期文件、发布后不随包；
-/// deps.json 是 .NET 生成的运行时依赖清单，模块私有依赖（Jint / AngleSharp）只出现在模块的 deps 里
-/// ⇒ 必须合并根目录与 <c>Modules\</c> 的清单。
-/// </para>
-/// </summary>
+/// <summary>「技术栈」取数器：解析程序目录（含 Modules\）下的 *.deps.json。（WHY: SHL-050）</summary>
 public static class TechStackProbe
 {
     private const string AvaloniaFamily = "Avalonia";

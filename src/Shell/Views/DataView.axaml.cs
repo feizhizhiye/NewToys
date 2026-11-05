@@ -15,14 +15,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.Views;
 
-/// <summary>
-/// 「设置 → 数据」节的 code-behind。
-/// <para>
-/// 🔴 本页只做三件事：把节清单灌进 VM / 弹文件选择器 / 转交 <see cref="BackupService"/>。
-/// 打包、版本校验、路径防御全在服务里 —— ⛔ 别在这里再写一份读盘逻辑（历史上
-/// DataView 自己拼过一份 json 备份，和 ConfigStoreService 那份格式还不同，两套代码互相不认识）。
-/// </para>
-/// </summary>
+/// <summary>「设置 → 数据」节的 code-behind。（WHY: SHL-052）</summary>
 public partial class DataView : UserControl
 {
     /// <summary>勾选了数据节且合计超过这个体积 ⇒ 导出前先确认（卡内拍板「过百 MB 先问一句」）。</summary>

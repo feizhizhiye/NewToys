@@ -36,13 +36,7 @@ public partial class App : Application
     private const string TrayHomeKey = "home";
     private const string TraySettingsKey = "settings-path";
 
-    /// <summary>
-    /// 建托盘图标并挂上菜单（左键切窗口；右键五项：显示 / 隐藏、首页、设置、用另一个配置打开、退出）。
-    /// <para>
-    /// ⚠️ 托盘是 Avalonia 的原生控件，必须落在 Shell 这一层（<c>Core</c> 不引用 Avalonia）。
-    /// 图标走 <see cref="CreateAppIcon"/>（与窗口图标**同源同一份**，不依赖打包资源）。
-    /// </para>
-    /// </summary>
+    /// <summary>建托盘图标并挂上菜单（左键切窗口；右键五项：显示 / 隐藏、首页、设置、用另一个配置打开、退出）。（WHY: SHL-007）</summary>
     /// <returns>托盘是否创建成功（失败时「最小化到托盘 / 关闭到托盘」会退化成普通最小化，并如实提示）。</returns>
     private bool SetupTrayIcon(Window win)
     {
@@ -177,12 +171,7 @@ public partial class App : Application
         return item;
     }
 
-    /// <summary>
-    /// **唯一的应用图标工厂**（/ 需求 §4.6.1）：窗口标题栏图标与托盘图标**用同一份**，
-    /// 形状与 <c>Resources/app.ico</c>（exe 图标，由 <c>&lt;ApplicationIcon&gt;</c> 编进 exe）一致；
-    /// 底色取**当前强调色**（⛔ 不写死），换主题 / 换强调色图标跟着变。
-    /// <para>⛔ 改这里的圆角 / N 笔画比例，必须同步 <c>Resources/app.ico</c> 的形状口径，否则三处会走形。</para>
-    /// </summary>
+    /// <summary>唯一的应用图标工厂（/ 需求 §4.6.1）：窗口标题栏图标与托盘图标用同一份， 形状与 Resources/app.ico（exe 图标，由 &lt;ApplicationIcon&gt; 编进 exe）一致；（WHY: SHL-008）</summary>
     private static WindowIcon? CreateAppIcon(Color accent)
     {
         try

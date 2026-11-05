@@ -9,17 +9,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// 应用级设置页 · **关于**节：版本 / 组件版本 / 🔄 重载模块。
-/// <para>
-/// 🔴 本节**没有节锚点菜单 Key**（需求表格里是"—（页内可点）"）⇒ 只能从设置页的节导航进入，
-/// ⛔ 不进 <c>settings</c> 分组、⛔ 不可被 <c>OpenTab</c> 外部寻址。
-/// </para>
-/// <para>
-/// 「重载模块」走 <see cref="IModuleReloadService"/>，左树重建与底栏计数仍由 Shell 订阅 <c>Reloaded</c> 完成；
-/// 重载后组件版本列表自动重取（热加载进来的模块要立刻出现在列表里）。
-/// </para>
-/// </summary>
+/// <summary>应用级设置页 · 关于节：版本 / 组件版本 / 🔄 重载模块。（WHY: SHL-030）</summary>
 public partial class AboutSettingsViewModel : ObservableObject, IStatusProvider
 {
     private readonly IModuleReloadService _reload;

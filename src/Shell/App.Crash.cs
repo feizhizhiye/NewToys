@@ -29,17 +29,7 @@ public partial class App : Application
 
     private static bool _crashHooked;
 
-    /// <summary>
-    /// 挂上三道「最后的防线」，把 UI 线程 / 后台线程 / 未观察 Task 上的未处理异常
-    /// 追加写到 <c>&lt;应用根&gt;\logs\crash-yyyyMMdd.log</c>。
-    /// <para>
-    /// Why：模块页里的绑定失败、异步回调异常默认只进 Debug 输出（Release 下根本看不到），
-    /// 表现成「页面突然乱了 / 卡住 / 直接退出」却拿不到堆栈。落盘之后，把那个 log 发出来即可定位。
-    /// </para>
-    /// <para>
-    /// ⚠️ 只记录、不改行为：<c>Handled</c> 保持原样（该崩还是崩），不把程序留在半坏状态里假装没事。
-    /// </para>
-    /// </summary>
+    /// <summary>挂上三道「最后的防线」，把 UI 线程 / 后台线程 / 未观察 Task 上的未处理异常 追加写到 &lt;应用根&gt;\logs\crash-yyyyMMdd.log。（WHY: SHL-001）</summary>
     private static void InstallCrashHandlers()
     {
         if (_crashHooked) return;

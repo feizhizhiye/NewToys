@@ -9,14 +9,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// 加密 DNS（DoH）页。
-/// <para>
-/// **开关 / 下拉即时生效，本页没有"应用"按钮**：写的是 <see cref="IAppConfigService"/>，
-/// 而 <c>EncryptedDnsService</c> 每次建连都现场读配置，所以改完下一次请求就换了解析方式。
-/// </para>
-/// 自定义 URL 是文本框，但只有一项、且改完立刻能"测试解析"验证，因此同样即时写盘（不为它单独设保存按钮）。
-/// </summary>
+/// <summary>加密 DNS（DoH）页。（WHY: SHL-033）</summary>
 public partial class DnsViewModel : ObservableObject, IStatusProvider
 {
     private readonly IAppConfigService? _cfg;

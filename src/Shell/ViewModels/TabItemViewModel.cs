@@ -3,13 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// 一个打开的标签页（v3.1 仿浏览器导航模型）= 一个缓存的 View 实例 + 一份 VM + 一个历史栈。
-/// <para>
-/// 单例语义：同一 <see cref="Key"/> 只允许一个标签页存在（工具类应用，非文档编辑器）。
-/// 首页标签 <see cref="CanClose"/>=false（不可关闭），但**与其他标签一样常驻标签栏**（v3.69：不再隐藏）。
-/// </para>
-/// </summary>
+/// <summary>一个打开的标签页（ 仿浏览器导航模型）= 一个缓存的 View 实例 + 一份 VM + 一个历史栈。</summary>
 public partial class TabItemViewModel : ObservableObject
 {
     /// <summary>菜单 key（如 <c>script-packages</c>）；首页为 <c>home</c>。</summary>

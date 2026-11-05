@@ -66,18 +66,7 @@ public partial class App : Application
     /// <summary>标题栏关闭按钮悬停红（Windows 通行的窗口语义色，不随主题变）。</summary>
     private const string BrandCloseHover = "#E81123";
 
-    /// <summary>
-    /// 区域 → 色档（1 = 卡外平铺底，2 = 卡内卡片面）。**颜色分配的单一事实源**。
-    /// <para>
-    /// 窗口里只有两块是「卡」（主显示区 + 详情列）：卡内工具条 / 表头 / 底栏 / 内容底共用 2 档，
-    /// 卡外 chrome 共用 1 档 ⇒ 这些相邻对同档是设计意图，<c>lint.py</c> 用 <c>CARD_LAYER</c> 整体跳过；
-    /// 🔴 **唯一例外 = 列表行区**（3 档）：行区与表头同档时亮色下整片浅灰糊成一块，表格看不出边界
-    /// （暗色靠深灰还能分辨 ⇒ 这一档在暗色下只差 7 灰阶，观感几乎不变）。
-    /// 卡外只保留三对同面（标题栏 ⇄ 侧栏、侧栏 ⇄ 版本行、版本行 ⇄ 状态栏）在 <see cref="RegionAdjacency"/> 里标「允许同档」。
-    /// 所以改颜色只改这张表（改档位），<see cref="RegionAdjacency"/> 是配套的「谁跟谁相接」。
-    /// </para>
-    /// 🔴 格式被 <c>lint.py --only regions</c> 解析：一行一条 <c>("键", 档),</c>，⛔ 别换写法、⛔ 别加注释在同一条里。
-    /// </summary>
+    /// <summary>区域 → 色档（1 = 卡外平铺底，2 = 卡内卡片面）。颜色分配的单一事实源。（WHY: SHL-002）</summary>
     internal static readonly (string Key, int Layer)[] RegionLayers =
     {
         ("WindowBackdropBrush", 1),
@@ -96,13 +85,7 @@ public partial class App : Application
         ("DetailCardBrush", 2),
     };
 
-    /// <summary>
-    /// 直接相接的区域对 —— 两端**必须不同档**。<c>lint.py --only regions</c> 逐对核对。
-    /// <para>
-    /// 布局变了（新增一条横条 / 挪走一个面板）就补一条边，否则新接缝不会被检查到。
-    /// <see cref="RegionLayers"/> 里每个键至少要出现在一条边上（漏登记的键等同没检查）。
-    /// </para>
-    /// </summary>
+    /// <summary>直接相接的区域对 —— 两端必须不同档。lint.py --only regions 逐对核对。（WHY: SHL-003）</summary>
     internal static readonly (string A, string B)[] RegionAdjacency =
     {
         ("TitleBarBrush", "SiderBrush"),            // 都是 chrome 平铺面（允许同档）
@@ -142,15 +125,7 @@ public partial class App : Application
     /// <summary>加载遮罩：内容底色 + 50% 透明度。</summary>
     private const byte OverlayAlpha = 0x80;
 
-    /// <summary>
-    /// 把「跟随系统」所需的系统明暗状态喂给 <see cref="IThemeService"/>。
-    /// <para>
-    /// 为什么放在 Shell：<c>IPlatformSettings</c> 是 Avalonia 类型，而 <c>Core</c> 不引用 Avalonia，
-    /// 所以由这一层读、由 <see cref="IThemeService.SystemDark"/> 收。
-    /// 事件可能从**非 UI 线程**触发，改状态要 <c>Post</c> 回 UI 线程（随后 <c>ApplyTheme</c> 会动资源字典）。
-    /// </para>
-    /// 平台不支持时静默放弃：System 模式退化为「系统状态固定为默认深色」，不影响其余功能。
-    /// </summary>
+    /// <summary>把「跟随系统」所需的系统明暗状态喂给 IThemeService。（WHY: SHL-004）</summary>
     private void WatchSystemTheme(IThemeService theme)
     {
         try
@@ -169,12 +144,7 @@ public partial class App : Application
         catch { /* 平台无此能力（或早期版本 API 差异）时忽略 */ }
     }
 
-    /// <summary>
-    /// 按当前主题状态重建资源字典。**幂等**：随时可重复调用。
-    /// 一套语义键 + 两个取值来源（皮肤）：<see cref="ThemeSkin.NewToys"/> 走自有色阶，
-    /// <see cref="ThemeSkin.Fluent"/> 全部指到 Fluent 主题自带资源。两套给的是**同一批键**，
-    /// 所以布局、密度、控件尺寸完全一致，差异只来自配色与圆角。
-    /// </summary>
+    /// <summary>按当前主题状态重建资源字典。幂等：随时可重复调用。</summary>
     private void ApplyTheme(IThemeService theme)
     {
         var dark = theme.IsDark;
@@ -209,15 +179,7 @@ public partial class App : Application
         RefreshAppIcon();
     }
 
-    /// <summary>
-    /// 把强调色写进 <c>FluentTheme</c> 的调色板（官方入口 = <c>ColorPaletteResources.Accent</c>）。
-    /// <para>
-    /// 为什么必须走这里：Fluent 的控件模板（RadioButton 圆点、CheckBox 勾、ToggleSwitch 滑块、
-    /// ListBoxItem 选中条、Slider、ProgressBar）都从调色板的 Accent 派生颜色，
-    /// <c>DynamicResource AccentBrush</c> 管不到它们。逐个控件重写模板既脆弱又漏项。
-    /// </para>
-    /// 失败时静默：拿不到 FluentTheme（换主题包 / 测试宿主）就只是退回各自的默认强调色，不影响启动。
-    /// </summary>
+    /// <summary>把强调色写进 FluentTheme 的调色板（官方入口 = ColorPaletteResources.Accent）。（WHY: SHL-006）</summary>
     private void ApplyFluentAccent(AccentPreset accent)
     {
         try

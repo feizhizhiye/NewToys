@@ -15,14 +15,7 @@ public enum PathItemKind
     ReadOnly
 }
 
-/// <summary>
-/// 行分类（v3.53，需求 §4.9.1）：「设置 → 路径与配置」是一张**设置总表**，
-/// 用分类列区分行类型、并据此决定"哪些工具可用"。
-/// <para>
-/// 🔴 分类是**开放集合**：以后若要「指定某个功能默认使用哪个 json / 配置」，只加一个枚举值
-/// （如 `功能绑定`）+ 该分类的行与工具即可，⛔ 不再新开页面 —— 这是合并两页的根本理由。
-/// </para>
-/// </summary>
+/// <summary>行分类（，需求 §4.9.1）：「设置 → 路径与配置」是一张设置总表， 用分类列区分行类型、并据此决定"哪些工具可用"。（WHY: SHL-018）</summary>
 public enum SettingCategory
 {
     /// <summary>路径项：<c>app.json</c> 里的运行环境路径（ffmpeg / 播放器 / 解释器…；脚本目录已下沉到模块设置）。</summary>
@@ -32,17 +25,7 @@ public enum SettingCategory
     Profile
 }
 
-/// <summary>
-/// 「设置 → 路径与配置」列表里的一行（v3.53：承载**两类**行）。
-/// <para>
-/// 本页原先是一张"若干 TextBox + 一个💾 保存"的表单，v1.34 起改成与其他列表页一致的
-/// **列表 + 详情**布局（左可排序表头、右详情卡、表头右侧小按钮展开详情）：
-/// 路径项会越来越多（解释器、脚本目录、缓存库…），表单式排版只会越来越长。
-/// </para>
-/// <para>
-/// 「配置」页并入本表：配置行也用它，靠 <see cref="Category"/> 区分，⛔ 不搞两套行类型。
-/// </para>
-/// </summary>
+/// <summary>「设置 → 路径与配置」列表里的一行（：承载两类行）。（WHY: SHL-019）</summary>
 public partial class PathSettingItem : ObservableObject
 {
     /// <summary>稳定键（写回 <c>app.json</c> 时按它分派），如 <c>FfmpegPath</c>。</summary>

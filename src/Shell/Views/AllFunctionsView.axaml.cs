@@ -40,13 +40,7 @@ public partial class AllFunctionsView : UserControl
 
     private void OnFavoritesChanged() => _vm?.RefreshFavorites();
 
-    /// <summary>
-    /// 卡片右键 → 弹出「固定 / 取消固定到首页收藏夹」。
-    /// <para>
-    /// 用 <c>PointerPressed</c>（右键）而非纯 XAML <c>ContextMenu</c>：菜单挂在独立弹出树，不继承宿主
-    /// <c>DataContext</c>，这里在 code-behind 直接把 VM 的命令与当前卡片的 Key 挂上，最稳。
-    /// </para>
-    /// </summary>
+    /// <summary>卡片右键 → 弹出「固定 / 取消固定到首页收藏夹」。</summary>
     private void OnCardPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Button btn) return;

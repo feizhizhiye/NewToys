@@ -6,17 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace NewToys.Shell.ViewModels;
 
-/// <summary>
-/// 「设置 → 数据」节：备份节清单 + 勾选状态 + 配置文件清单。
-/// <para>
-/// 🔴 真正的打包 / 恢复逻辑在 <c>Core.Services.BackupService</c>，本 VM **不碰磁盘** —— 
-/// 勾选状态与大小只用于界面展示；导出 / 恢复由 code-behind 走文件选择器后调用服务。
-/// </para>
-/// <para>
-/// 「设置备份 / 数据备份」两个入口 = 同一份节清单的不同默认勾选（<c>IBackupSection.DefaultSelected</c>）：
-/// 设置节（<c>shell</c> / <c>module.*</c>）默认勾、数据节与 <c>env</c> 默认不勾。
-/// </para>
-/// </summary>
+/// <summary>「设置 → 数据」节：备份节清单 + 勾选状态 + 配置文件清单。（WHY: SHL-032）</summary>
 public partial class DataViewModel : ObservableObject, NewToys.Shared.Services.IStatusProvider
 {
     /// <summary>可备份的节（顺序由服务排好）。</summary>

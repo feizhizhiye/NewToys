@@ -92,14 +92,7 @@ public partial class ShellViewModel : ViewModelBase
         OpenTab(node.Key);
     }
 
-    /// <summary>
-    /// 模块热加载完成（入口已由标题栏移入**功能清单页**「增加功能」操作区）：
-    /// 重建左树 + 底栏消息（文案与旧标题栏按钮逐字一致）。
-    /// <para>
-    /// 规范 §3.7：只做「新增」（移除模块要重启）；单个 DLL 失败被隔离（⛔ 不拖垮宿主）；
-    /// 已构建的 DI 容器无法追加服务 → 热加载模块的 RegisterServices 跳过，优先页面型模块。
-    /// </para>
-    /// </summary>
+    /// <summary>模块热加载完成（入口已由标题栏移入功能清单页「增加功能」操作区）： 重建左树 + 底栏消息（文案与旧标题栏按钮逐字一致）。（WHY: SHL-046）</summary>
     private void OnModulesReloaded((int Added, int Skipped, int Failed) result)
     {
         BuildTree();   // 左树重建：新增 / 移除的模块菜单反映出来
@@ -168,15 +161,7 @@ public partial class ShellViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// 自动导航：切标签时**确保当前页所属的一级分组是展开的**，
-    /// ⛔ 但**不收起其它已经展开的一级** —— 用户手动展开的分组要保留。
-    /// <list type="bullet">
-    /// <item>**折叠态**下什么都不做（二级本来就不显示），一级高亮交给 <see cref="UpdateTreeActive"/>；</item>
-    /// <item>切到**首页**（不属于任何一级分组）→ 同样不动展开态；</item>
-    /// <item>展开态**落盘**（它是用户状态，不是派生状态）。</item>
-    /// </list>
-    /// </summary>
+    /// <summary>自动导航：切标签时确保当前页所属的一级分组是展开的，。（WHY: SHL-047）</summary>
     private void EnsureActiveGroupExpanded(TabItemViewModel? tab)
     {
         if (IsTreeCollapsed) return;
@@ -194,12 +179,7 @@ public partial class ShellViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// 把菜单里的图标键解析成 <see cref="Geometry"/>。
-    /// 取不到（旧的 emoji / 未知键）返回 null → UI 回退成文本图标，不会崩。
-    /// <para>⚠️ Avalonia 12 的 <c>ResourceNodeExtensions.TryFindResource</c> 是 Try 模式（<c>out</c> 参数），
-    /// 不是直接返回值 —— 别写成 <c>FindResource(key)</c>。</para>
-    /// </summary>
+    /// <summary>把菜单里的图标键解析成 Geometry。（WHY: SHL-048）</summary>
     private static Geometry? ResolveIcon(string? key)
     {
         if (string.IsNullOrWhiteSpace(key)) return null;

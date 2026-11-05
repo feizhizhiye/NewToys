@@ -18,13 +18,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.Controls;
 
-/// <summary>
-/// 工具条宿主（需求 §4.8.5）：把 <see cref="IToolbarSource"/> 的**描述符**渲染成真实工具条。
-/// <para>职责两件：① 按容器宽度**自动折叠**（两行放得下就全显示，放不下才把尾部收进「⋯」）；
-/// ② **详情开关浮层**（右上角、⛔ 不占独立列，但容量计算给它留安全区）。</para>
-/// <para>🔴 折叠算法由「全部资产」页（<c>AssetAllView.axaml.cs</c>）**原样搬迁**，两条防抖必须保留：
-/// 项宽**首帧缓存一次**、容量**幂等短路** —— 否则切标签 / 拉窗口时工具条会抖。</para>
-/// </summary>
+/// <summary>工具条宿主（需求 §4.8.5）：把 IToolbarSource 的描述符渲染成真实工具条。（WHY: SHL-011）</summary>
 public partial class ToolbarHost : UserControl
 {
     /// <summary>页面 VM（= 描述符里所有路径的解析根）。</summary>
@@ -280,12 +274,7 @@ public partial class ToolbarHost : UserControl
         return cb;
     }
 
-    /// <summary>
-    /// 多选 / 单选按钮组（<c>ChipGroup</c>；v3.54：补迁 <c>script-packages</c> 时新增）：
-    /// 按 <c>ItemsPath</c> 生成一排按钮（样式类 = 页面里「源」按钮用的 <c>src-btn</c>），
-    /// 每项文案取 <c>DisplayPath</c>、高亮跟随数据项的 <c>SelectedPath</c>，
-    /// 点击把**数据项本身**当参数执行 <c>CommandPath</c>。
-    /// </summary>
+    /// <summary>多选 / 单选按钮组（ChipGroup；：补迁 script-packages 时新增）： 按 ItemsPath 生成一排按钮（样式类 = 页面里「源」按钮用的 src-btn）， 每项文案取 DisplayPath、高亮跟随数据项的 SelectedPath， 点击把数据项本身当参数执行 CommandPath。</summary>
     private Control BuildChipGroup(ToolbarItemDescriptor d, object src)
     {
         var items = new ItemsControl { VerticalAlignment = VerticalAlignment.Center };
@@ -352,14 +341,7 @@ public partial class ToolbarHost : UserControl
         return tb;
     }
 
-    /// <summary>
-    /// **多选下拉**（<c>MultiCombo</c>；v3.77）：按钮显示汇总文案 + 点开浮层，浮层里每行一个勾选项，
-    /// 勾选状态**双向绑数据项上的 bool**（<c>SelectedPath</c>），右侧 ✓ 跟随它；点击后执行 <c>CommandPath</c>（参数 = 数据项）。
-    /// <para>
-    /// ⛔ 不用 <c>ComboBox</c>：Avalonia 的 ComboBox 选完就自动收起，做不了「勾多个」。
-    /// 这里用普通 <c>Button</c> + <c>Flyout</c>：浮层里的按钮⛔ 不会自动关闭浮层 ⇒ 可以连着勾。
-    /// </para>
-    /// </summary>
+    /// <summary>多选下拉（MultiCombo；）：按钮显示汇总文案 + 点开浮层，浮层里每行一个勾选项， 勾选状态双向绑数据项上的 bool（SelectedPath），右侧 ✓ 跟随它；点击后执行 CommandPath（参数 = 数据项）。（WHY: SHL-013）</summary>
     private Control BuildMultiCombo(ToolbarItemDescriptor d, object src)
     {
         var btn = new Button { VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
@@ -622,12 +604,7 @@ public partial class ToolbarHost : UserControl
     /// <summary>浮层占位宽（不显示 = 0）：⛔ 它**不占列**，但第一行要给它留安全区。</summary>
     private double ToggleReserve => DetailToggle.IsVisible ? Math.Max(20, DetailToggle.Bounds.Width) : 0;
 
-    /// <summary>
-    /// 按容器宽度重排：**两行内放得下就全显示，放不下才把序列尾部几项收进「⋯」**。
-    /// <para>约定：<c>ItemsPanel</c> 的**最后一个**子元素就是「⋯」；其余按加入顺序 = **优先级顺序**。</para>
-    /// <para>🔴 为什么不会布局循环 / 抖动：项宽**只在首次布局后测一次并缓存**，之后只按"容器宽 + 缓存宽"纯计算
-    /// ⇒ 折叠结果**不反过来影响计算输入**（容器宽由窗口决定，与内容无关）。</para>
-    /// </summary>
+    /// <summary>按容器宽度重排：两行内放得下就全显示，放不下才把序列尾部几项收进「⋯」。（WHY: SHL-014）</summary>
     private void ApplyLayout()
     {
         if (ItemsPanel is null) return;

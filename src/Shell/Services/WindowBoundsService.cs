@@ -4,30 +4,14 @@ using NewToys.Core.Services;
 
 namespace NewToys.Shell.Services;
 
-/// <summary>
-/// 主窗口大小 / 位置的记忆（v3.26，需求 §四）：落 <c>config\window.json</c>。
-/// <para>
-/// ⚠️ 按**配置**隔离（路径取 <see cref="ConfigStoreService.ConfigDir"/>）——多实例各记各的，
-/// 「一半屏放本窗口」的分屏位置重启不丢。
-/// </para>
-/// <para>
-/// 本服务只做 JSON 读写；「夹进屏幕工作区」这类判定留在窗口侧（<c>Screens</c> 是 Avalonia API，只有 Shell 引）。
-/// </para>
-/// </summary>
+/// <summary>主窗口大小 / 位置的记忆（，需求 §四）：落 config\window.json。（WHY: SHL-027）</summary>
 public class WindowBoundsService
 {
     private readonly ShellConfigStore _shell;
 
     public WindowBoundsService(ShellConfigStore shell) => _shell = shell;
 
-    /// <summary>
-    /// 窗口边界。
-    /// ⚠️ v3.29 起单位统一为**外框物理像素**（X / Y / Width / Height 都是 <c>GetWindowRect</c> 那一套）：
-    /// 存取一律走外框 + 用 <c>SetWindowPos</c> 直接设外框 = 绕开 Avalonia 的「外框 = 客户区 + 边框」换算
-    /// → 闭合且稳定（若存 <c>ClientSize</c>，恢复时会被再套一圈边框、**窗口每次启动都变大**）。
-    /// 口径与「客户区是否被内缩」（官方 CSD / 早期零内缩）无关 —— 进出的都是外框。
-    /// <see cref="State"/> 存字符串。
-    /// </summary>
+    /// <summary>⚠️ 起单位统一为外框物理像素（X / Y / Width / Height 都是 GetWindowRect 那一套）： 存取一律走外框 + 用 SetWindowPos 直接设外框 = 绕开 Avalonia 的「外框 = 客户区 + 边框」换算 → 闭合且稳定（若存 ClientSize，恢复时会被再套一圈边框、窗口每次启动都变大）。</summary>
     public sealed class WindowBounds
     {
         public double X { get; set; }

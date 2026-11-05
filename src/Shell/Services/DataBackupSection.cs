@@ -10,23 +10,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shell.Services;
 
-/// <summary>
-/// <b>数据节 · 模块数据库</b>：<c>store\&lt;库键&gt;\&lt;库键&gt;.db</c> 全部库文件的一致快照。
-/// <para>
-/// 🔴 导出**必须**走 <c>VACUUM INTO</c>：库开了 WAL，直接 <c>File.Copy</c> 会漏掉还没落盘的 <c>-wal</c> 事务，
-/// 恢复出来是"少一截"的库。
-/// </para>
-/// <para>
-/// 🔴 恢复**落到新文件**：<c>store\restore-&lt;时间戳&gt;\&lt;库键&gt;\&lt;库键&gt;.db</c> —— ⛔ 不覆盖当前库
-/// （当前库还被进程持有，覆盖 = 让正在跑的页面全部指向一份半截数据）。
-/// 用户要拿它当当前库，自己替换 / 换配置档。
-/// </para>
-/// <para>
-/// 本类刻意只按<b>文件</b>处理（扫 <c>store\</c> 下的 <c>*.db</c>，跳过 <c>legacy\</c> 归档与 <c>restore-*</c> 副本）
-/// —— Shell 不引任何模块程序集，不能依赖各模块的库类型。
-/// </para>
-/// <para>默认不勾：库可能几十上百 MB，绝大多数「备份设置」的场景不需要它。</para>
-/// </summary>
+/// <summary>数据节 · 模块数据库：store\&lt;库键&gt;\&lt;库键&gt;.db 全部库文件的一致快照。（WHY: SHL-022）</summary>
 public sealed class DataDbBackupSection : IBackupSection
 {
     private readonly ConfigStoreService _store;
@@ -167,14 +151,7 @@ public sealed class DataDbBackupSection : IBackupSection
     }
 }
 
-/// <summary>
-/// <b>数据节 · 缩略图</b>：<c>cache\assets\thumbs</c>（设置里改过目录则用改过的）。
-/// <para>
-/// 目录来源：<c>config\modules\media-assets.json</c> 的 <c>ThumbsDirectory</c>（空 = <c>cache\assets\thumbs</c>）。
-/// Shell 只读这个字段，⛔ 不引 <c>Module.MediaAssets</c>（Release 下 Shell 不引任何模块）。
-/// </para>
-/// <para>恢复同样落到 <c>store\restore-&lt;时间戳&gt;\thumbs\</c> —— ⛔ 不覆盖当前缩略图目录。</para>
-/// </summary>
+/// <summary>数据节 · 缩略图：cache\assets\thumbs（设置里改过目录则用改过的）。（WHY: SHL-023）</summary>
 public sealed class DataThumbsBackupSection : IBackupSection
 {
     private readonly ConfigStoreService _store;

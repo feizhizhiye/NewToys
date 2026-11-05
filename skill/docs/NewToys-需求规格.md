@@ -1184,7 +1184,7 @@ Module.*（功能模块，只引 Shared + Core）
 >
 > 两页 VM 必须提供**同名编辑属性**（`EditIsCut` / `EditIsTranscode` / `EditCutPresetId` / `EditCutCrf` / `EditTranscodePresetId` / `EditTranscodeCrf` / `SelectedEncoder` / `TranscodePresets` / `DetailTitle` …）。
 >
-> 🔴 **防复发机制**：`skill/scripts/lint.py --only video-card`（已进 `accept.ps1`）= ① 只允许 `VideoTaskCard.cs` 出现 `new DetailCardDescriptor`（别处再写一份卡 → ERROR）；② 卡里引用的每个属性名必须在两页 VM 里都存在（`BatchOnlyPrefixes` 里的前缀只查批量页）。⛔ 靠人记「改一处同步另一处」已被证明会漂移。
+> 🔴 **防复发机制**：`skill/scripts/lint.py --only video-card`（已进 `accept.py`）= ① 只允许 `VideoTaskCard.cs` 出现 `new DetailCardDescriptor`（别处再写一份卡 → ERROR）；② 卡里引用的每个属性名必须在两页 VM 里都存在（`BatchOnlyPrefixes` 里的前缀只查批量页）。⛔ 靠人记「改一处同步另一处」已被证明会漂移。
 
 > **复杂任务：预览后编辑并回写**（2026-10-30）：批量页选中任务 → 工具条 `🎬 预览编辑` → `VideoTaskStore.AttachPreviewTarget(task)` 把**整条任务（含全部参数）**交给「视频预览」页；预览页 `ConsumePending` 取件后灌进编辑缓冲（⛔ 不是只传源路径的旧通道 `EnqueueForCut`），并显示「正在编辑批量任务 X」；改完点预览页工具条 `✔ 保存回任务` → `VideoTaskStore.Replace(原, 新)` **保队列位置、不新增一条**（点 `➡ 发送到批处理` 则是另存为新任务）。简单任务仍在批量页卡里直接改，不必来回切页。
 

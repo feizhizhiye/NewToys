@@ -1,6 +1,6 @@
 # NewToys 列表页范本 · 全部资产（`assets-all`）
 
-> v1.2 · 2026-11-05 · **新增 §八 同族页矩阵**：把 21 页的四段齐全度变成机器清单，由 `lint.py --only family` 与 `accept.ps1` 第 10 项对账。v1.1：表格实现已统一（全部资产改用 `TableViewHost`，不再自绘表头 / 列宽 / 右键菜单；§2.2 §三 §六 同步）。把散在 `ui.md` / `framework.md` / `modules/media-assets.md` / 软件说明书 的规范，按一个真实页面实例化，供后续扩展复用。
+> v1.2 · 2026-11-05 · **新增 §八 同族页矩阵**：把 21 页的四段齐全度变成机器清单，由 `lint.py --only family` 与 `accept.py` 第 10 项对账。v1.1：表格实现已统一（全部资产改用 `TableViewHost`，不再自绘表头 / 列宽 / 右键菜单；§2.2 §三 §六 同步）。把散在 `ui.md` / `framework.md` / `modules/media-assets.md` / 软件说明书 的规范，按一个真实页面实例化，供后续扩展复用。
 > 🔴 本文**不重复规范正文**：每条只给「现状事实 + 唯一源指针 + 本页取舍 + 验收点」。冲突时以 `src/` 源码为准，并回写对应唯一源。
 > 读法：新建 / 扩展标准列表页、推广分页与筛选条、加详情卡字段之前先读本文；实现取值仍回 `ui.md`。
 
@@ -122,14 +122,14 @@
 | 推广分页到其它页 | VM 继承分页契约 + `ListPageSkeleton` 下发参数 + 服务端 SQL | 落入 `Shared` / `Shell` / `NewToys.UI` ⇒ **框架层，先展示方案等确认** | §2.5 + 说明书 |
 | 改控件本身（`FilterBar` / `TableViewHost` / `ListFooterBar` / `DetailCardHost`） | `src/UI/Controls/` | 框架层 `NewToys.UI`，⛔ 先展示「改哪个文件 / 加什么契约 / 谁受影响 / 为何绕不开」再动手；改 `TableViewHost` 影响全部列表页 | `ui.md` §6.3c 等对应节 |
 
-**批次纪律**：一个 NT = 一次用户本地 `pwsh -File .\scripts\build.ps1`；样式 / 文案 / 绑定微调攒批，⛔ 中途要 build；AI 只跑 `pwsh skill/scripts/accept.ps1`（纯静态）。版本走 git commit，⛔ 不写 md 日志。
+**批次纪律**：一个 NT = 一次用户本地 `pwsh -File .\scripts\build.ps1`；样式 / 文案 / 绑定微调攒批，⛔ 中途要 build；AI 只跑 `python skill/scripts/accept.py`（纯静态）。版本走 git commit，⛔ 不写 md 日志。
 
 ## 七、交付自检
 
 - [ ] 改动只落 `src/` 与授权的 `skill/`；框架层改动已先展示方案并经确认。
 - [ ] 改 `.axaml` 同步改 `.axaml.cs`；`UserControl` 显式构造；跨程序集 xmlns 用 `using:`；颜色全 `DynamicResource`。
 - [ ] 改用户可见交互已双写 §2.5 + 说明书；增删模块 / 页面后跑 `python skill/scripts/docs-sync.py --fix`（AUTO 块⛔ 手改）。
-- [ ] `pwsh skill/scripts/accept.ps1`（FAIL 0）；`pwsh -File .\scripts\build.ps1` 由用户本地执行；实机冒烟（筛选 / 分页 / 详情卡 / 多选）。
+- [ ] `python skill/scripts/accept.py`（FAIL 0）；`pwsh -File .\scripts\build.ps1` 由用户本地执行；实机冒烟（筛选 / 分页 / 详情卡 / 多选）。
 - [ ] 按 `ui.md` §12 人工扫一遍「该不该加元素 / 文案」（Lint 抓不到）。
 
 ## 八、同族页矩阵（机器对账）
@@ -179,4 +179,4 @@ Key 来源：菜单 `RegisterFunction` 的 key；`assets-storages` 取 `AssetSto
 | F-02 | 代码里存在列表骨架页但矩阵没登记（新增页 / 改造页忘同步） | `[WARN]` 防漂移 |
 | F-03 | 矩阵登记 — 但代码里有（声明与实现不符） | `[ERROR]` 阻断 |
 
-`accept.ps1` 第 10 项跑 `--only family`；单独复核用 `python skill/scripts/lint.py --only family` 或 `pwsh skill/scripts/accept.ps1 -Only family`。
+`accept.py` 第 10 项跑 `--only family`；单独复核用 `python skill/scripts/lint.py --only family` 或 `python skill/scripts/accept.py --only family`。

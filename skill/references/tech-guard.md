@@ -5,7 +5,7 @@
 > **定位**：本文件是**技术栈硬伤的唯一源**；`G-xx` 与 `scripts/lint.py --only techstack` 的规则**一一对应**（改这张表必须同步改脚本，反之亦然）。
 > ✅ §七 重叠**已收敛**：`references/newtoys-spec.md` §七 现只做引用，本文件 = 唯一源。
 > 🔴 **升级 Avalonia / .NET 后必须复核本文件**：标「版本相关 = 是」的条目会随升级失效甚至反转，不复核这里就会变成谎言。
-> 🔴 本文件**不替代编译器**。静态检查（`skill/scripts/accept.ps1` 一键编排，纯静态、不含构建）只是「编译前抓常见硬伤」，最终门禁仍是用户本地 `pwsh -File .\scripts\build.ps1`。
+> 🔴 本文件**不替代编译器**。静态检查（`skill/scripts/accept.py` 一键编排，纯静态、不含构建）只是「编译前抓常见硬伤」，最终门禁仍是用户本地 `pwsh -File .\scripts\build.ps1`。
 
 ---
 
@@ -77,6 +77,7 @@
 | `skill/scripts/lint.py --only props` | XAML **属性名存在性**（逐个到 Avalonia ref 程序集核对 + 本仓自定义属性豁免），专治 Avalonia ≠ WPF 名字差异：`SelectedValuePath` / `SelectedValue` / `StrokeLineJoin`（Avalonia 叫 `StrokeJoin`）/ `Watermark`（→ `PlaceholderText`）/ `DisplayMemberPath` / `SharedSizeGroup` / `ValidatesOnExceptions` / `IsCheckable`。另：勾选按钮 ⛔ 无 `IsCheckable`（用 `ToggleType=CheckBox`），`IsChecked` 本项目约定须 `Mode=OneWay`。**字号白名单**：所有 `.axaml` 的 `FontSize` 值必须落在 **11/12/13/14/15/16/18/22/26/28/32**（唯一源 `ui.md` §2.3），`≤10` 与白名单外（12.5 / 17 / 19 …）一律报出 |
 | `skill/scripts/lint.py --only comments` | 注释健康度 **C-01 ~ C-06**（见 §3.1）+ **View 类名唯一性**（C-05 是唯一能提前拦住「反射导航静默错页」的检查） |
 | `skill/scripts/lint.py --only view-pairs` | 页面契约 **P-01 / P-02**：`Views/` 下 `XxxView` 在本程序集找不到 `XxxViewModel`（豁免标记 `// lint:view-no-vm`，用于设置节子视图）；`RegisterFunction<TView>` 的泛型实参不是 `*View` 命名或 `src/` 里没有该 View 类（类型存在性已由编译器保证，这里只补「必须是真 View」）。两者都表现为「编译通过、运行期无异常，只是页面空白 / 菜单项打不开」 |
+| `skill/scripts/lint.py --only scripts` | **S-01 工具脚本语言统一**：`skill/scripts/` 下出现 `.ps1 / .bat / .cmd` 即 ERROR。AI 侧静态工具只许 `.py`（`accept.py` / `lint.py` / `docs-sync.py` / `ctx.py`）；操作类 `.ps1` 归仓库根 `scripts/`，`src/**/defaults/**` 的产品内置脚本不在此约束内。目录职责与执行权限唯一源 =《AI协作手册》【脚本目录与执行权限】 |
 
 ### 3.1 注释健康度（`lint.py --only comments` · C-01 ~ C-06）
 

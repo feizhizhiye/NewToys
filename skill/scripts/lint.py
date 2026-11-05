@@ -7,7 +7,7 @@
 ⛔ 只报告，不修改任何文件，恒以 0 退出（自检是参考，不是门禁）。
 用法：python skill/scripts/lint.py [--only KEY] [--all]
      KEY = axaml | props | techstack | detail-paths | video-card | comments | view-pairs
-           | regions | regionpages | family
+           | regions | regionpages | family | scripts
 """
 from __future__ import annotations
 
@@ -954,6 +954,31 @@ def check_family(all_: bool) -> None:
         print("[OK] 0 条 —— 矩阵 ⇄ 代码四段一致，列表骨架页全部登记")
 
 
+# ---------------------------------------------------------------- 11) 工具脚本语言 / 落点
+
+BLOCKED_SCRIPT_EXT = {".ps1", ".bat", ".cmd"}
+
+
+def check_scripts(all_: bool) -> None:
+    h("S-01 工具脚本语言统一（skill/scripts 仅 .py）")
+    d = ROOT / "skill" / "scripts"
+    errs: list[tuple[str, str]] = []
+    if d.is_dir():
+        for p in sorted(d.iterdir()):
+            if p.is_file() and p.suffix.lower() in BLOCKED_SCRIPT_EXT:
+                errs.append((p.name, "skill/scripts/ 只放 .py；操作类 .ps1 归仓库根 scripts/"))
+    print("\n=== 汇总 ===")
+    if errs:
+        print(f"\n[ERROR] {len(errs)} 条（AI 侧工具脚本必须单一解释器）：")
+        for name, msg in errs:
+            print(f"  [S-01] {name}  {msg}")
+    else:
+        print("\n[ERROR] 0 条 ✅")
+    print("[WARN] 0 条 ✅")
+    print("提示：skill/docs/ 正文的示例脚本片段不受此规则约束；"
+          "src/**/defaults/** 是产品内置脚本，不属操作脚本。")
+
+
 CHECKS = {
     "axaml": check_axaml,
     "props": check_props,
@@ -965,6 +990,7 @@ CHECKS = {
     "regions": check_regions,
     "regionpages": check_region_pages,
     "family": check_family,
+    "scripts": check_scripts,
 }
 
 

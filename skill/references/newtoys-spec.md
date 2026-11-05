@@ -2,7 +2,7 @@
 
 > 与 NewToys 项目绑定；通用协作纪律见 `collab-method.md`。
 > v1.5 · 2026-10-17
-> v1.5：**与代码对齐 + 文档搬家**（NT-062~068）—— ① §一 补 `NewToys.UI` 程序集 + 数据落点改 `<应用根>\profiles\<配置>\`、`app.json` / `active-profile.txt` 在应用根；② §五 补底栏 28px 口径；③ §六 补 5 条踩过的硬约束（Avalonia 控件显式构造 / 跨程序集 `xmlns` / 菜单 Key 不改 / zip 白名单顺序 / 随包 `.ps1` BOM）+ 交付自检改 `accept.ps1`；④ §七 规则号订正 `G-01~G-11 + G-14`；⑤ 权威文档路径 `src/docs/` → **`skill/docs/`**（文档整体搬入 skill 封装，原 `src/docs/` 已删）。
+> v1.5：**与代码对齐 + 文档搬家**（NT-062~068）—— ① §一 补 `NewToys.UI` 程序集 + 数据落点改 `<应用根>\profiles\<配置>\`、`app.json` / `active-profile.txt` 在应用根；② §五 补底栏 28px 口径；③ §六 补 5 条踩过的硬约束（Avalonia 控件显式构造 / 跨程序集 `xmlns` / 菜单 Key 不改 / zip 白名单顺序 / 随包 `.ps1` BOM）+ 交付自检改 `accept.py`；④ §七 规则号订正 `G-01~G-11 + G-14`；⑤ 权威文档路径 `src/docs/` → **`skill/docs/`**（文档整体搬入 skill 封装，原 `src/docs/` 已删）。
 > v1.4：术语标准化（工作项 / 任务卡 / 立项 / 就绪闸门 DoR / 完成定义 DoD / 技术债 …）+ 主题键 32→34；🔴 术语唯一定义处 = 《AI协作手册》【术语对照】，本文件只引用、不另立。
 > v1.3：§七 新增「Avalonia ≠ WPF 的 XAML 属性名」坑 + 指向 `scripts/lint.py --only props`。
 > v1.2：铁律 1 加例外——`scripts/` 构建脚本经用户明确授权可改（2026-10-13，Settings 物理必备改造，NT-023）。
@@ -112,7 +112,7 @@
 🔴 **本节已收敛，⛔ 不在此重复维护**：Avalonia / 分析器 / API 层面的**技术栈硬伤清单**（含「只有编译器能抓」的那批：CA1416 / CS0507 / CS0272 / CS0759 / CS8087 / MVVMTK0034 / AVLN2000 / NETSDK1022 等）+ 静态检测规则 **G-01~G-11 + G-14~G-17**（G-12 / G-13 未启用，编号留空以防历史引用错位），唯一源 = **`skill/references/tech-guard.md`**（另含「只有跑起来才能抓」的窗口装饰 / 贴靠 / SQLite 清单）。
 
 - 配套脚本 `skill/scripts/lint.py --only techstack`（`-All` 看 WARN 明细；规则 ID 与 tech-guard.md 一一对应）。
-- 🔴 交付前一律跑**静态验收**：`pwsh skill/scripts/accept.ps1`（= `lint.py` 的 6 个子检查 + 改动范围；退出码 0/1）。**该脚本纯静态，⛔ 不含构建 / 测试 / 产物核对 / 冒烟** —— 编译验证始终是用户本地 `build.ps1`。⛔ 不再分条手跑各检查。
+- 🔴 交付前一律跑**静态验收**：`python skill/scripts/accept.py`（= `lint.py` 的 6 个子检查 + 改动范围；退出码 0/1）。**该脚本纯静态，⛔ 不含构建 / 测试 / 产物核对 / 冒烟** —— 编译验证始终是用户本地 `build.ps1`。⛔ 不再分条手跑各检查。
 - ⛔ 升级 Avalonia / .NET 后必须复核 tech-guard.md（标「版本相关」的条目会失效甚至反转）。
 - 编译器仍是唯一可信门禁：用户本地 `pwsh -File .\scripts\build.ps1`。
 
@@ -124,4 +124,4 @@
 
 ## 八、触发词
 
-NewToys、src/、视频工具、脚本管理器 ScriptManager、WebTools、MediaAssets、应用级设置、需求规格、framework.md、ui.md、模块文档、Backlog、任务卡、立项、build.ps1、accept.ps1、skill/docs
+NewToys、src/、视频工具、脚本管理器 ScriptManager、WebTools、MediaAssets、应用级设置、需求规格、framework.md、ui.md、模块文档、Backlog、任务卡、立项、build.ps1、accept.py、skill/docs

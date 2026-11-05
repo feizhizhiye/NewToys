@@ -14,6 +14,6 @@ agent_created: true
 2. `skill/SKILL.md`（中立导航 + 客户端接入表）
 3. `skill/docs/index.md`（文档地图 + 模块清单）+ `skill/docs/NewToys-项目状态与路线图.md`「一、当前基线」
 4. 按任务读 `skill/docs/framework.md` / `skill/docs/ui.md` / `skill/docs/modules/<模块>.md` 对应节
-5. 交付前 `pwsh skill/scripts/accept.ps1`（静态验收，不含构建）
+5. 交付前 `python skill/scripts/accept.py`（静态验收，不含构建）
 
 🔴 权威源 = `skill/docs/`（index / framework / ui / modules / 需求规格 / 台账 / 手册）+ `src/` 源码；**规划 / 执行双模式**唯一定义处 = `skill/docs/NewToys-AI协作手册.md`。冲突以源码为准。

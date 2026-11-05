@@ -32,7 +32,7 @@
 > v4.24 · 2026-11-04 · **列表行区独立成 3 档** —— 行区与表头 / 工具条同为 2 档时，亮色下（`#E2E4E7` 一片）表格边界直接消失（用户实机截图）；暗色靠大面积深灰还能分辨。`ListBodyBrush` 2 → 3（亮 `LightBg3` `#D8DBE0` → `#D2D6DB`，与 2 档差 14；暗 `DarkBg3` `#333333` → `#313131`，与 2 档只差 7 ⇒ 暗色观感几乎不变）。§3 区域表同步；`RegionLayers` 注释改写「卡内同面」的例外。
 > v4.23 · 2026-11-04 · **§13 列表页范本定稿** —— 外缘由「12 一次」改判为「默认 12、**密集列表页取 0**」：`CollectionView` 去掉 `Margin` + 页内把 `Border.card` 的 `CornerRadius` 压 0 ⇒ 工具条 / 表头 / 行区 / 状态栏四段直接相接，只靠区域底色差分；新列表页照抄，⛔ 再包 `Margin="12"`。
 > v4.22 · 2026-11-04 · **新增 §13 主显示区骨架（单层分区）** —— 把查看器 `ViewerHost` 的「一块整面」定为样板：外缘 12 只给一次、容器**两层封顶**（连续两层带 `Background` 即违规）、间距只留 8 / 12（微元素 4，`Spacing` 与子 `Margin` 二选一）、第三级分类一律进筛选条不做左栏。反例 `CollectionView` 的 12+8+8 三层内缩与 4/6/8 三套间距一并登记。
-> v4.21 · 2026-11-04 · **区域颜色编号化 + 相邻色差脚本化** —— 颜色分配从「各键各挑一档」改为**一张编号表**：`App.Theme.cs` 的 `RegionLayers`（区域 → 1~4 档）是唯一事实源，`RegionAdjacency`（谁跟谁直接相接）配合；主显示区按有无工具条切 `ContentBrush`(1) / `ContentBareBrush`(3)（`Classes.toolbar` 绑定 `IsToolbarActive`），否则无工具条的页面标题栏(1) 会直接压 1 档内容。`DetailPanelBrush` 并入 `DetailCardBrush`(4)（右侧详情列与页内详情卡是同一块面，内部不再分档）。新增静态检查 `lint.py --only regions`（R-02 档位越界 / R-04 相邻同档 / R-05 键漏登记相邻对）并接入 `accept.ps1` ⇒ 「相邻区域一定有色差」从此可被脚本拦住，不靠肉眼。
+> v4.21 · 2026-11-04 · **区域颜色编号化 + 相邻色差脚本化** —— 颜色分配从「各键各挑一档」改为**一张编号表**：`App.Theme.cs` 的 `RegionLayers`（区域 → 1~4 档）是唯一事实源，`RegionAdjacency`（谁跟谁直接相接）配合；主显示区按有无工具条切 `ContentBrush`(1) / `ContentBareBrush`(3)（`Classes.toolbar` 绑定 `IsToolbarActive`），否则无工具条的页面标题栏(1) 会直接压 1 档内容。`DetailPanelBrush` 并入 `DetailCardBrush`(4)（右侧详情列与页内详情卡是同一块面，内部不再分档）。新增静态检查 `lint.py --only regions`（R-02 档位越界 / R-04 相邻同档 / R-05 键漏登记相邻对）并接入 `accept.py` ⇒ 「相邻区域一定有色差」从此可被脚本拦住，不靠肉眼。
 > v4.21 · 2026-11-04 · **控件描边淡化** —— `LightInput` 纯白 `#FFFFFF` → `#D5D8DD`（白描边在 `#E2E4E7` 面板上是高光方向，比底色更抢眼）；同时把三个 Fluent 模板键（`TextControlBorderBrush` / `ComboBoxBorderBrush` / `ButtonBorderBrush`）在两套皮肤里都覆盖成同一档，裸 `TextBox` / `ComboBox` / `Button` 才会跟着淡；原生皮肤 `InputBorderBrush` 不再引用 Fluent 的 `TextControlBorderBrush`（偏重），改为按内容底混 12%。§12.4 新增「线的对比度 = 淡而可见」。暗色不变。
 > v4.20 · 2026-11-04 · **相邻区域必须有色差 + 详情卡层级反转** —— 4 档色阶不变、零新色值，新增 8 个**区域映射键**（`TitleBarBrush` / `ToolbarBrush` / `ListHeaderBrush` / `FooterBarBrush` / `StatusBarBrush` / `SiderBrush` / `SiderFootBrush` / `DetailPanelBrush`）：原来标题栏·工具条·表头同挂 `ContentHeaderBrush`、状态栏·分页底栏同挂 `PanelBrush` ⇒ 接缝两边一模一样；现按「标题栏→工具条→表头→内容→底栏→状态栏」链**一档一色**依次排布，菜单/版本行/详情面板同链处理；§3 补区域链与撞档规则。详情卡字号改为「节 16 ＞ 标签 14 SemiBold ＞ 值 12」（原「节 14 ＞ 值 14 ＞ 标签 12」会读成没有表头的表）；`Label = "X（说明）"` 一律拆成 `Label` + `Hint`（括号里是说明，跟正文同号就抢层级），`MediaAssets` 3 处 / `Categories` 2 处 / `Tags` 1 处 / `ScriptLibrary` 1 处已拆。
 > v4.19 · 2026-11-04 · **四色分区 + 按钮有面 + 详情卡三级字号** —— 色阶重排、相邻档差拉到 ≥10（暗 `#141414/#1E1E1E/#292929/#383838`，亮 `#FFFFFF/#F1F2F5/#E6E8EC/#D8DBE0`；`DarkInput` 并到 Bg1、`LightInput` 并到 Bg0）；`ghost` / `filter-btn` / `src-btn` 由透明底改为 `PanelBrush` 底 + 1px 描边（`row-btn` 只加描边），`SplitButton.ghost` 同步，`Button#DetailToggle` 在 `ToolbarHost` 内压回透明；树节点 hover `ContentBrush` → `CardHoverBrush`；详情卡分区标题 12 → **14 SemiBold 主色**、卡内字段值 12 → **14**（`ui|DetailCardHost` 作用域，卡外不变）；左树 `Border.tree-scroll-host` 右侧 padding 8 → 0（滚动条贴面板边）。
@@ -45,7 +45,7 @@
 > v4.12 · 2026-11-03 · **控件前缀标签清零** —— §12.1 第 1 条由「按钮前 / 旁」扩为「**控件**前 / 旁」（按钮 · 下拉 · 文本框一体），新增「下拉首项已含维度名 ⇒ ⛔ 前缀标签」「文本框用 `PlaceholderText`、设置页 `field-label` 只写名词」；§2.1 第 2 条补筛选条 ⛔ 前缀标签；§12.2 表加「控件前缀标签 = 不许有」。落地删 3 页 6 处（`ShelfView` 分组 / 更新、`SourceListView` 类型 / 分组 / 校验、`AssetAllView` 筛选）。
 > v4.11 · 2026-11-03 · **按钮旁说明文字清零** —— §12.1 由「三条减法」扩为**四条**，新增「按钮前 / 旁 ⛔ 常驻说明文字」硬规则（例外仅破坏性警告与空态）；落地删 7 处（`AboutSettingsView` 重载模块、`DnsView` 测试解析、`UpdateView` 检查更新、`LaunchConfigView` 保存暂存、`HostsView` 底部应用链、`BackupCalendarView` 加待办、`SettingsMediaAssetsView` 用户数据导出），语义改挂 `ToolTip`；§12.9 自检补 1.1。
 > v4.10 · 2026-11-03 · **§12 落地检验** —— 布局级 emoji 换 `Path`（`LaunchConfigView` 3 处）；`WebHttpView` 响应状态、`BookCardOverlay`「简介」去掉 `section-title`（状态值 / 小标签不是节）；UI 文案中点 `·` 清理 9 处（编号用全角冒号、并列提示用 `；`、括号内用 `，`）；圆角补「微元素 2~3 / 正圆 = 边长÷2」并修 2 处（首页按钮卡 10→8、日历圆点 1→3）；§2.3 例外白名单补首页卡片 15/26。
-> v4.9 · 2026-11-03 · **左树层级归一 + 字号 Lint 落地** —— 左树一级 15→**13 SemiBold**（`App.axaml` 的 `.tree-row` 样式 14→13、`ShellView` 删本地 15）、二级 13→**12 次要色**；代码里 3 处非标字号归位（`12.5`→12、两处 `10`→11/12）；`lint.py --only props` 新增**字号白名单**核对（白名单外 / ≤10 直接报，已进 `accept.ps1`）；§2.3 补规则 8、9。
+> v4.9 · 2026-11-03 · **左树层级归一 + 字号 Lint 落地** —— 左树一级 15→**13 SemiBold**（`App.axaml` 的 `.tree-row` 样式 14→13、`ShellView` 删本地 15）、二级 13→**12 次要色**；代码里 3 处非标字号归位（`12.5`→12、两处 `10`→11/12）；`lint.py --only props` 新增**字号白名单**核对（白名单外 / ≤10 直接报，已进 `accept.py`）；§2.3 补规则 8、9。
 > v4.8 · 2026-11-03 · **字号归一（全仓 31 处 + 新增 §2.3 文字角色表）** —— 区块标题统一 **13 SemiBold**（全局 `.section-title` 12→13、节抬头与各页手写 14→13）；详情卡窄栏降一档（分区标题 13→12，使详情卡轻于标签页 13）；`10px` 全部升 11（13 处，低于下限）；§7 / §11 / §12.3 / §12.9 同步；§12.7 补「分组门槛（节 vs 项）」。
 > v4.7 · 2026-11-03 · **新增 §12 视觉克制与判断清单** —— 「该不该加」的八条判断（减法 / 文案 / 字号 / 边框圆角阴影 / 动画 / 对齐 / 减少判断 / 状态可达性）+ 交付自检；**不可静态检测**，人工扫。同时给出与 §2 §3 §7 的取值边界（字号池、圆角档、1px 而非 0.5px）。
 > v4.6 · 2026-10-30 · **骨架行为订正**：`SettingsSectionHost` 滚动 ⛔ 不改展开状态（「滚动自动展开」已移除），§11.2 与 §11 骨架表格同步。
@@ -154,7 +154,7 @@
 6. 每屏 `SemiBold` **≤3 处** —— 加粗用滥即失去区分力。
 7. **例外白名单**（不参与上表，逐处登记）：左下角版本号 `10`、功能清单 `Glyph` 图标 `10`、关于页产品名 `22`、首页欢迎标题 `28`、书封 / 播放器大字 `32`、阅读正文（用户可调，`ViewerHost.ApplyTextOptions` 下发，宿主的 `15` 只是默认值）。
 8. **左树 = 导航，不是内容**：一级（模块组）＝ `body` **14 SemiBold 主色 + 16 图标**；二级（功能页）＝ **14 Regular 次要色 + 缩进 16**。两级**同字号**，靠字重 + 颜色 + 缩进分层（与标签页同级）；⛔ 靠字号差分层。**激活态按形状再分一层**：一级 = 左侧 3px 强调竖条（透明底），二级 = 铺底药丸 —— 只靠字重差，两行同时激活时仍然分不出节与项（见 §3 表）。
-9. 🔴 **Lint 已拦**：`lint.py --only props` 逐个核对 `.axaml` 的 `FontSize` 值，白名单 `{10,12,14,16,22,28,32}` 之外直接报出（已进 `accept.ps1`）。要新增字号，先改本节并说明现有三档为什么不够，⛔ 页面里就地挑一个顺眼的值。
+9. 🔴 **Lint 已拦**：`lint.py --only props` 逐个核对 `.axaml` 的 `FontSize` 值，白名单 `{10,12,14,16,22,28,32}` 之外直接报出（已进 `accept.py`）。要新增字号，先改本节并说明现有三档为什么不够，⛔ 页面里就地挑一个顺眼的值。
 
 ---
 
@@ -189,7 +189,7 @@
 - ✅ **相邻色差有脚本兜底（两级）**：
   - **键级** `lint.py --only regions`（R-02 档位越界 / R-04 相邻同档 / R-05 键漏登记相邻对）—— **卡内相邻对由 `CARD_LAYER` 整体跳过**，卡外只剩 4 对同面走 `SAME_LAYER_OK`；
   - **页面级** `lint.py --only regionpages`（R-10 两档真实灰度差不足 / R-11 Fluent 皮肤下差不足 / R-12 页面出现未登记的接缝 / R-13 行区⇄详情列没登记）—— 逐页还原「标题栏 → 工具条 → 表头 → 行区 → 底栏 → 状态栏」区域链，按 NewToys 色值与 Fluent 明度阶梯两种口径算灰度（下限 10），并给相邻图着色、回答「4 档够不够」。
-  - 两者都接进 `accept.ps1`。新增/挪动区域 = 同时改 `RegionLayers` 与 `RegionAdjacency`，漏改会被拦；⚠️ **档位不同 ≠ 看着不同**（Fluent 皮肤的系统刷子挤在同一灰度，就是靠页面级这一项抓出来的）—— 所以 Fluent 皮肤不直接用系统刷子，改为按底色 5% / 10% / 15% 向白（暗）或向黑（亮）自建三档。
+  - 两者都接进 `accept.py`。新增/挪动区域 = 同时改 `RegionLayers` 与 `RegionAdjacency`，漏改会被拦；⚠️ **档位不同 ≠ 看着不同**（Fluent 皮肤的系统刷子挤在同一灰度，就是靠页面级这一项抓出来的）—— 所以 Fluent 皮肤不直接用系统刷子，改为按底色 5% / 10% / 15% 向白（暗）或向黑（亮）自建三档。
   状态：`CardSelectedBrush`（选中）/`LoadingOverlayBrush`（遮罩）/`SiderHoverBrush`（侧栏悬停，按侧栏底算）/`AccentBrush`（**只做填充**）/`AccentInkBrush`（**强调色文字 / 图标**）/`AccentHoverBrush`/`DangerBrush`；
   文字：`PrimaryTextBrush`/`SecondaryTextBrush`/**`PlaceholderTextBrush`**（输入框水印）；
   线：`InputBorderBrush`（输入框 / 控件轮廓）、**`HairlineBrush`**（表头下沿 1px，卡内唯一的分隔线）、`ScrollThumbBrush`、`ScrollThumbHoverBrush`、`WindowBorderBrush`、`WindowBorderInactiveBrush`、`TitleBarCloseHoverBrush`（**完整清单以源码为准**）。
@@ -653,7 +653,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 14. 🔴 **`Track.IsDirectionReversed` 必须按方向给（竖向 `true` / 横向 `false`）**：`Track` 垂直方向默认「值增大 ⇒ 滑块**上**移」，与滚动条语义相反 ⇒ 现象是「滑块初始停在最下、往下滚反而向上爬」。`ScrollBar` 自身没有这个属性，所以模板里走 `VerticalDirectionConverter` 从 `Orientation` 转：`IsDirectionReversed="{TemplateBinding Orientation, Converter={StaticResource VerticalReversed}}"`，⛔ 别无脑 `IsDirectionReversed="True"`（会把横向滚动条反过来）。
 15. 🔴 **`Slider` ⛔ 设 `Height` / `MinHeight`**（2026-11-03 实锤，与本文件第 13 条同源）：Fluent 模板的轨道高度按 `Track` + `Thumb` 自然尺寸算，硬压 20/22 会把轨道挤到控件下沿、thumb 相对轨道飘起 —— 夹在一排 22px 按钮中间时，看着就只是「**进度条没跟按钮对齐**」，很容易误判成容器对齐问题。
     - ✅ 正解：Slider **只写 `VerticalAlignment="Center"`**，高度交给模板；要紧凑就压**容器**（`Padding` 收 0、行间用负 `Margin`，见 `VideoPreviewView` 三条时间条的 `Margin="0,-14,0,0"`）。
-    - ✅ 静态可查：`python skill/scripts/lint.py --only props` 的「硬压 Slider 高度」计数（已接入 `accept.ps1`，非 0 即 FAIL）。
+    - ✅ 静态可查：`python skill/scripts/lint.py --only props` 的「硬压 Slider 高度」计数（已接入 `accept.py`，非 0 即 FAIL）。
 16. 🔴 **贴客户区右（下）缘的覆盖式滚动条会被窗口 resize 命中区吃掉**（2026-11-03 实锤，`AudioPlayer` 歌词区）：窗口开了 `ExtendClientAreaToDecorationsHint`，系统边框仍有 8~12px 属 `WM_NCHITTEST` 的 `HTRIGHT` / `HTBOTTOMRIGHT`，**优先级高于任何控件**；滚动条是 8px 覆盖层、贴着客户区边缘 ⇒ 整条落在 resize 带里，表现是「滚轮能动，按住滑块却变成拉窗口」。
     - ✅ 正解（2026-11-04 定案）：**`ShellView.Win32.cs` 的 `HitTestEdgeControl`** —— 官方 WndProc 钩子里拦 `WM_NCHITTEST`，点落在边缘 16 DIP 带内且视觉命中 `ScrollBar`（含 Thumb 祖先）⇒ `handled=true` 返回 `HTCLIENT`（控件优先）；其余一律不干预（贴靠 / 圆角 / 拉边框原样）。**页面侧零处理、零留白**，所有贴边滚动条全局受益。
     - ⛔ 旧思路作废：「滚动区 `Margin` 右留走廊」—— 缝宽 ≥ 系统边框才有用，视觉割裂，且每个页面都得留一遍。

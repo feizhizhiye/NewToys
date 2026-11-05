@@ -27,6 +27,14 @@
 · NewToys-项目状态与路线图.md —— STATUS + **Backlog**：基线 + **工作项台账索引**（任务卡见 `skill/docs/backlog/&lt;模块&gt;/`）+ 已完成。
 · 本文件 —— **AI 协作手册（Playbook）**：只读本文件即可开工，细则引用上述文档，⛔ 不在此复述；🔴 流程与术语唯一定义处。
 
+【脚本目录与执行权限】🔴 **唯一定义处**（其他文档 / 入口只引用本节）
+· `skill/scripts/` = AI 侧静态工具，**只许 .py**：`accept.py`（一键验收）/ `lint.py`（子检查）/ `docs-sync.py`（AUTO 块）/ `ctx.py`（上下文打包）。纯静态，⛔ 不含构建 / 测试 / 产物核对 / 冒烟。
+· `scripts/`（仓库根）= **面向人工操作的仓库级脚本**：build / run / pack / publish / release / clean / export / env。默认 AI ⛔ 不执行；唯一例外 = 用户在当前会话显式下达的一次性指令（如「这轮你跑一次 build」），只对这一次生效，⛔ 不设可复用的「临时授权状态」。
+· `src/**/defaults/**` = **产品内置脚本**（sysinfo 采集器 / 示例 / 环境脚本），是产品数据、路径被代码引用，⛔ 不因「ps1 统一放根目录」而搬动。
+· `var/` = 用户自用脚本，AI 不主动管理。
+· 约束落地：`lint.py --only scripts`（S-01）扫到 `skill/scripts/` 下 `.ps1/.bat/.cmd` 即 ERROR，已并入 `accept.py` 第 11 项；改 `scripts/` 属授权区改动（改动范围检查认这五个区），⛔ 不等于获得执行权。
+· 一次 build 原则见 E 节：默认仍由用户本地执行，AI 只在上述显式指令下例外一次。
+
 【研发流程】🔴 **本文件是工作流唯一定义处**，其他文档 / 入口只引用本节，不另写一份
 = 需求提出 → 立项 → 建工作项 + 写任务卡 → 就绪闸门（DoR）→ 实施 → 完成定义（DoD）→ 验收 → 归档。
 A. 规划期（Planning，默认，只写文档，可多轮）：
@@ -36,7 +44,7 @@ A. 规划期（Planning，默认，只写文档，可多轮）：
    ⛔ 规划期**绝不改 `src/` 代码**，无论讨论几轮。
 B. 实施期（Implementation，显式触发才碰代码）：
    ④ 仅当用户发「**执行全部就绪待办**」/「执行 NT-xxx」时进入；筛 `✅ 就绪` 且依赖已完成的条目，按 依赖→优先级 排序；
-   ⑤ 逐条按 `NT-xxx.md` 任务卡 + `modules/<模块>.md` + `framework.md` / `ui.md` 改 src/ → 静态检查（`skill/scripts/accept.ps1` 一键过 7 项检查 + 文档一致性对账，**纯静态、不含构建**）→ 标 `🔄 执行中` → 落地标 `✔ 已完成（待验收）` + git commit + 回写《状态与路线图》+ 任务卡追加「执行记录」。
+   ⑤ 逐条按 `NT-xxx.md` 任务卡 + `modules/<模块>.md` + `framework.md` / `ui.md` 改 src/ → 静态检查（`skill/scripts/accept.py` 一键过 11 项检查 + 文档一致性对账，**纯静态、不含构建**）→ 标 `🔄 执行中` → 落地标 `✔ 已完成（待验收）` + git commit + 回写《状态与路线图》+ 任务卡追加「执行记录」。
    🔴 遇 5 种阻塞情形之一立即停并报，不偷偷跳过、不扩范围。
 C. 状态机（单个工作项）：
    📝 草稿 Draft（细节未展开，**不执行**）→ ✅ 就绪 Ready（过 DoR，可批量跑）→ 🔄 执行中 In Progress → ✔ 已完成 Done（待验收）→ 用户验收后 Accepted：台账翻 ✔、任务卡进入滑动窗口。
@@ -47,11 +55,11 @@ D. 归档策略（**2026-10-18 修订，滑动窗口**）：
    ④ 被后续工作项**整体取代 / 明确作废**的卡直接删除，台账行标 `🗑 已作废（卡已删）`。台账工作项行**始终保留**，只翻状态。
    ⑤ ⛔ 已废止：2026-10-14「全量保留」、2026-10-17「默认保留 + 仅删作废卡」、更早「只留最近 3 个」。
 E. 批次与验收闸门（2026-10-19 起，🔴 最高优先级之一）：
-   ① **一次 build 原则**：一个工作项（NT）的交付 = **一次**用户本地 `pwsh -File .\scripts\build.ps1`；AI 侧只跑 `accept.ps1`（纯静态检查 + 改动范围）。⛔ 中途为「改个样式 / 改段文案 / 修个绑定」单独要求用户 build——把同批改动全部做完再一起验。
+   ① **一次 build 原则**：一个工作项（NT）的交付 = **一次**用户本地 `pwsh -File .\scripts\build.ps1`；AI 侧只跑 `accept.py`（纯静态检查 + 改动范围）。⛔ 中途为「改个样式 / 改段文案 / 修个绑定」单独要求用户 build——把同批改动全部做完再一起验。
    ② **攒批实施**：实施期把同一批 `✅ 就绪` 卡按「同程序集 / 同改动面」分组，一组做完再发**一次** build；跨组（落入 Shared/Shell 导致整体重编）时合并为一次验收。
    ③ **工作项粒度**：只按「用户可感知的功能单元」新开 NT。样式微调 / 文案 / 布局几像素 / 上一轮返工 → **并入当前进行中的卡**或当轮直接修，⛔ 不新开 NT（修复类一律当前会话修到闭环）。
    ④ **卡内累积**：一个 NT 可含多个子步骤（清单式验收标准），⛔ 不为每步拆一张卡；批次完成后在卡「执行记录」一次回填 commit + 验收结论。
-   ⑤ 单次 build 仍是**用户执行**，AI 只跑 `accept.ps1` 静态检查自检（skill/ 下脚本⛔ 不含构建能力）。
+   ⑤ 单次 build 仍是**用户执行**，AI 只跑 `accept.py` 静态检查自检（skill/ 下脚本⛔ 不含构建能力）。
 🔴 Spec-first：需求未进《需求规格》不动代码；工作项未 `✅ 就绪` 不批量开工；未经用户验收不得标最终完成。
 ⚠️ 「睡觉让 AI 跑」= 睡前开会话发「执行全部就绪待办」，agent 循环跑完就绪项；⛔ 不用 automation 定时触发。
 
@@ -117,11 +125,11 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 · 改跨页投递：取件点是不是在 `OnAttachedToVisualTree`（`OnDataContextChanged` 在标签页已存在时不触发）？
 · 改标签/树/导航：OpenTab 做了单例判定？首页 CanClose=false？关闭最后一个自动回首页？Shell 订阅 IDetailPanelProvider/IHistoryProvider 前解绑旧 Tab？
 · 🔴 新增 / 改 `.axaml` 属性：跑 `python skill/scripts/lint.py --only props` —— **Avalonia ≠ WPF 的属性名差异**（实测踩过 `SelectedValuePath` / `StrokeLineJoin`，编译期直接 AVLN2000）；⛔ 别凭记忆写，脚本会到 Avalonia ref 程序集里核对名字。
-· 🔴 **技术栈硬伤**（Avalonia / 分析器 / API / 架构边界）：唯一源 = `skill/references/tech-guard.md` —— §一 = 静态可检测规则 G-01~G-11 + G-14（G-12/13 未启用），§二 = 只有编译器或只有跑起来才能抓的清单，§五 = **按错误码索引**的编译错误速查。交付前跑 `skill/scripts/accept.ps1`（含该检查；`-All` 看 WARN 明细。该脚本**纯静态、不含构建**）。
+· 🔴 **技术栈硬伤**（Avalonia / 分析器 / API / 架构边界）：唯一源 = `skill/references/tech-guard.md` —— §一 = 静态可检测规则 G-01~G-11 + G-14（G-12/13 未启用），§二 = 只有编译器或只有跑起来才能抓的清单，§五 = **按错误码索引**的编译错误速查。交付前跑 `skill/scripts/accept.py`（含该检查；`-All` 看 WARN 明细。该脚本**纯静态、不含构建**）。
 · 🔴 **回填纪律**：本轮只要出现本地编译失败，修复后**必须把「错误码 + 根因 + 一行修法」追加进 tech-guard.md §五** —— AI 不代跑编译，编译期知识只能从你这边回流；不回填 = 同一个坑反复踩。
 
 [5] 交付
-① 变更清单（增/改/删逐条一句话）+ 前置基线 + **唯一一条**用户侧验证命令（一批改动只跑一次 `pwsh -File .\scripts\build.ps1`；⛔ 不列多轮 build）。AI 自检用 `pwsh skill/scripts/accept.ps1`（纯静态检查，不构建）。
+① 变更清单（增/改/删逐条一句话）+ 前置基线 + **唯一一条**用户侧验证命令（一批改动只跑一次 `pwsh -File .\scripts\build.ps1`；⛔ 不列多轮 build）。AI 自检用 `python skill/scripts/accept.py`（纯静态检查，不构建）。
 ② 直接写工作区，用 read/ls 确认落盘；不列下载链接、不打 zip、不做 sources md 快照。
 ③ 实施期每完成一条工作项 → 在《状态与路线图》三、翻 `✔ 已完成（待验收）`，并在 `skill/docs/backlog/<模块>/NT-xxx.md` 追加「执行记录」；功能级交付 git commit（<type>: <简述>）；纯修报错不回写台账。⛔ 不写 md 日志——版本记录一律走 git。
 ④ ⛔ 不逐次改文档：需求/规范/协作手册是指导性文件，只在其内容真的过时/与代码冲突时才改；各文档独立升版本（不齐步）。
@@ -149,7 +157,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
    - …
    待拍板：<编号选项；无则写「无」>
    起步动作：`python skill/scripts/ctx.py --task <feature|ui|interaction|fix|usage|verify|card> --module <模块>`
-   ⛔ 不要重读全量文档；先跑 `pwsh skill/scripts/accept.ps1 -Brief` 看现状。
+   ⛔ 不要重读全量文档；先跑 `python skill/scripts/accept.py --brief` 看现状。
    ```
 
    三条硬约束：
@@ -168,7 +176,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 ☐ 设置落 config\、模块只读？      ☐ 模块 DLL 无拷贝、OutDir 直出？
 ☐ 未谎报编译、写清用户命令？      ☐ 台账按功能级更新、版本号独立？
 ☐ 待回选 / 拍板的回复用了编号段落？☐ 会话过长已提醒开新会话**并附续接包**？
-☐ 跑过静态验收 `skill/scripts/accept.ps1`（8 项静态检查 + 文档一致性对账 + 改动范围）？
+☐ 跑过静态验收 `skill/scripts/accept.py`（11 项静态检查 + 文档一致性对账 + 改动范围）？
 ☐ 本次改动已攒成**一次 build**、未中途要求用户重建？卡未因微调而新开？
 ☐ 本轮编译报错已回填 tech-guard.md §五？
 
@@ -197,7 +205,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 | 草稿闸门 | **就绪闸门（DoR · Definition of Ready）** | 进入实施前必须满足的**准入**清单 |
 | 验收标准 | **验收标准（Acceptance Criteria）** | 任务卡里那条可勾选的清单 |
 | （缺对应说法） | **完成定义（DoD · Definition of Done）** | 交付前必须满足的**准出**清单 = 本文件 [6] 自检 |
-| 静态自检 | **静态检查（Lint / Pre-commit Check）** | `skill/scripts/check*.ps1` |
+| 静态自检 | **静态检查（Lint / Pre-commit Check）** | `python skill/scripts/accept.py`（编排 `lint.py` 的 11 项子检查） |
 | 需本地验证点 | **手工回归清单（Manual QA Checklist）** | 编译不了 → 交给用户实机过的那几条 |
 | 批次 | **变更集（Change Set）** | 一次交付里的一批改动 |
 | 验收 | **验收（Acceptance）** | 用户实机确认，通过后翻 Accepted |

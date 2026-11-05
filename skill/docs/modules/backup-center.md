@@ -3,7 +3,7 @@
 > **程序集**：`src/Module.BackupCenter`（`NewToys.BackupCenter`，产物 `Module.BackupCenter.dll`）
 > **模块键**：`backup` ｜ **一级菜单**：Order **60** · 图标 `IconBackup`（StreamGeometry）
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：✅ 已实施（NT-117 + NT-119 本地闭环 + NT-118 邮件投递 + NT-120 备份邮件页）｜⏳ 待用户本地 `accept.ps1` 验收；WebDAV 通道属 v2
+> **状态**：✅ 已实施（NT-117 + NT-119 本地闭环 + NT-118 邮件投递 + NT-120 备份邮件页）｜⏳ 待用户本地 `accept.py` 验收；WebDAV 通道属 v2
 > **最后校对**：2026-10-28
 
 ---

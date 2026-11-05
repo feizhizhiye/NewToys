@@ -3,7 +3,7 @@
 > **程序集**：`src/Module.SystemTools`（`NewToys.SystemTools`，产物 `Module.SystemTools.dll`）
 > **模块键**：`system-tools`（🔴 组键，非页 Key；⛔ 不是 `system` —— 那是 Shell 保留的宿主分组）｜ **一级菜单**：Order **25** · 图标 `IconSystem`（StreamGeometry，NT-091 加进 `App.axaml`）
 > **上级文档**：框架层 `../framework.md` ｜ UI 规范 `../ui.md` ｜ 台账 `../NewToys-项目状态与路线图.md`
-> **状态**：✅ 已实施（NT-091 建模块 · NT-096 收编软件包 · **NT-097 页面重构**）｜⏳ 待用户本地 `accept.ps1` 验收
+> **状态**：✅ 已实施（NT-091 建模块 · NT-096 收编软件包 · **NT-097 页面重构**）｜⏳ 待用户本地 `accept.py` 验收
 > **最后校对**：2026-10-23
 
 ---

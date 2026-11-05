@@ -4,18 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.MediaAssets.Models;
 
-/// <summary>
-/// 「资产浏览」左树的节点 = 磁盘上的一个**绝对目录**（资源管理器形态：盘符 → 逐层目录）。
-/// <para>
-/// 🔴 树是**自绘**（<c>ListBox</c> + 按钮行，按 <see cref="Depth"/> 扁平化）：⛔ 不用 <c>TreeView</c>，
-/// 与分类页同一套路。
-/// </para>
-/// <para>
-/// 🔴 **子目录懒加载**：节点首次展开才枚举磁盘（<see cref="IsLoaded"/>），⛔ 不在进页面时递归扫全盘。
-/// <see cref="InLibrary"/> 只看路径是否落在某个已登记存储源之内（操作判定用）；着色另看
-/// <see cref="HasLibraryContent"/> —— 未登记目录里只要有已入库文件就不标灰。
-/// </para>
-/// </summary>
+/// <summary>「资产浏览」左树的节点 = 磁盘上的一个绝对目录（资源管理器形态：盘符 → 逐层目录）。（WHY: MA-004）</summary>
 public partial class AssetDirNode : ObservableObject
 {
     /// <summary>绝对目录路径（建树 / 分桶 / 持久化的唯一键，比较时忽略大小写）。</summary>

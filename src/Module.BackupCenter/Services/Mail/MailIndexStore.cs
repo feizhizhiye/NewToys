@@ -5,14 +5,7 @@ using NewToys.BackupCenter.Models;
 
 namespace NewToys.BackupCenter.Services.Mail;
 
-/// <summary>
-/// 服务器邮件头的本地缓存（<c>mail_index</c>）。
-/// <para>
-/// 为什么要缓存：搜索每次都全量拉 IMAP 会几十秒起步；这里的策略是**只增量拉新的 UID**，
-/// 搜索先查本地 SQL，用户点「搜索服务器」时才去拉更多。
-/// </para>
-/// <para>只缓存邮件头（主题 / 发件人 / 日期 / 大小 / 附件数），正文与附件按需现取。</para>
-/// </summary>
+/// <summary>服务器邮件头的本地缓存（mail_index）。（WHY: BC-010）</summary>
 public sealed class MailIndexStore
 {
     private readonly BackupDb _db;

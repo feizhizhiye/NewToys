@@ -9,13 +9,7 @@ using NewToys.Viewer.Controls;
 
 namespace NewToys.Viewer.Services;
 
-/// <summary>
-/// 音频标签读取（标题 / 艺术家 / 专辑 / 时长 / 封面）。
-/// <para>
-/// 🔴 只读标签，⛔ 不回写文件 —— 标签编辑属于「媒体资产」的活，查看器只看不改。
-/// </para>
-/// <para>🔴 读不到标签不算失败：退回文件名 + 时长 0，播放照常。</para>
-/// </summary>
+/// <summary>音频标签读取（标题 / 艺术家 / 专辑 / 时长 / 封面）。（WHY: VW-012）</summary>
 public sealed class AudioLibraryService
 {
     /// <summary>把一个音频文件读成播放列表条目。</summary>
@@ -99,12 +93,7 @@ public sealed class AudioLibraryService
     public IReadOnlyList<AudioTrackItem> ReadMany(IEnumerable<string> paths)
         => paths.Where(p => !string.IsNullOrWhiteSpace(p)).Select(Read).ToList();
 
-    /// <summary>
-    /// 找封面：① 内嵌标签（已在 <see cref="Read"/> 里取过，这里只管磁盘上的）→
-    /// ② 同目录「同名图」→ ②b 宽松同名（歌曲名多带「歌手 - 」前缀 / 轨道号，图名只有歌名）→
-    /// ③ 同目录固定名（cover / folder / front / album…）→ ④ 上一级目录的固定名。
-    /// <para>🔴 只读、⛔ 联网、⛔ 写回文件 —— 在线抓封面归媒体资产的标签服务。</para>
-    /// </summary>
+    /// <summary>找封面：① 内嵌标签（已在 Read 里取过，这里只管磁盘上的）→ ② 同目录「同名图」→ ②b 宽松同名（歌曲名多带「歌手 - 」前缀 / 轨道号，图名只有歌名）→ ③ 同目录固定名（cover / folder / front / album…）→ ④ 上一级目录的固定名。（WHY: VW-013）</summary>
     private byte[]? CoverFromDisk(string audioPath)
     {
         var folder = Path.GetDirectoryName(audioPath);
@@ -127,12 +116,7 @@ public sealed class AudioLibraryService
         return image is null ? null : TryReadBytes(image);
     }
 
-    /// <summary>
-    /// 宽松同名匹配：把文件名切成词（去括号内容 / 轨道号 / 分隔符 → 小写），
-    /// 图名词集合被歌名词集合包含（或反之）即命中，覆盖率 = 较短一侧的字符数。
-    /// <para>例：<c>周杰伦 - 稻香.mp3</c> ⇄ <c>稻香.jpg</c>、<c>01 稻香.flac</c> ⇄ <c>稻香 (Live).jpg</c>。</para>
-    /// <para>🔴 至少 2 个字符才认，否则 <c>a.jpg</c> 这种会乱配。</para>
-    /// </summary>
+    /// <summary>宽松同名匹配：把文件名切成词（去括号内容 / 轨道号 / 分隔符 → 小写）， 图名词集合被歌名词集合包含（或反之）即命中，覆盖率 = 较短一侧的字符数。（WHY: VW-014）</summary>
     private string? FindLooseCover(string folder, string baseName)
     {
         var key = folder + "|" + baseName;

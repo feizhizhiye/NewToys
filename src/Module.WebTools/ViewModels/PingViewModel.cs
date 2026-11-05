@@ -17,13 +17,7 @@ using NewToys.WebTools.Services;
 
 namespace NewToys.WebTools.ViewModels;
 
-/// <summary>
-/// 网络 Ping 页（列表 + 详情）。
-/// <para>
-/// 支持：导入目标文件、全局 / 逐条「切换 DNS 进行解析 + ICMP」、批量 ping、表头排序、
-/// 右键「发送到书签 / 网页抓取」跨页传 URL。列显隐 / 详情开合偏好落 <c>config\columnlayout.json</c>。
-/// </para>
-/// </summary>
+/// <summary>网络 Ping 页（列表 + 详情）。</summary>
 public partial class PingViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================

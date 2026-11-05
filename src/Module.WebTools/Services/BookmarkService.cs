@@ -13,12 +13,7 @@ using NewToys.WebTools.Models;
 
 namespace NewToys.WebTools.Services;
 
-/// <summary>
-/// 书签持久化与导入：数据落**本模块库 <c>web_docs</c> 的 <c>bookmarks</c> 文档**（旧
-/// <c>config\bookmarks.json</c> 由 <see cref="WebToolsSchemaContributor"/> 一次性搬入并改名 <c>.legacy</c>）。
-/// <para>导入浏览器书签：用 <see cref="AngleSharp"/> 解析 Netscape 书签 HTML（<c>&lt;A HREF&gt;</c> + 文件夹 <c>&lt;H3&gt;</c>）。</para>
-/// <para>联通检测：发一个带超时的 HTTP 请求，反馈状态码 / 超时 / 异常。</para>
-/// </summary>
+/// <summary>书签持久化与导入：数据落本模块库 web_docs 的 bookmarks 文档（旧 config\bookmarks.json 由 WebToolsSchemaContributor 一次性搬入并改名 .legacy）。</summary>
 public class BookmarkService
 {
     private readonly ConfigStoreService _cfg;
@@ -56,12 +51,7 @@ public class BookmarkService
         catch { /* 保存失败不打断 UI */ }
     }
 
-    /// <summary>解析浏览器导出的书签 HTML，返回新增条目（已按 URL 去重，跳过 JS/空链接）。</summary>
-    /// <remarks>
-    /// 文件夹用**全路径**记到 <see cref="BookmarkItem.Folder"/>（<c>/</c> 分隔），页面据此派生树。
-    /// 🔴 ⛔ 按「遍历到 H3 就改当前文件夹」的写法：浏览器导出里 <c>H3</c> 可能在紧邻的 <c>&lt;DT&gt;</c>，
-    /// 也可能与 <c>&lt;DL&gt;</c> 同在一个 <c>&lt;DT&gt;</c> 里，顺序不可靠 ⇒ 只认 <c>&lt;A&gt;</c> 的祖先链。
-    /// </remarks>
+    /// <summary>解析浏览器导出的书签 HTML，返回新增条目（已按 URL 去重，跳过 JS/空链接）。（WHY: WT-003）</summary>
     public BookmarkImportResult ImportHtml(string html, IReadOnlyList<BookmarkItem> existing)
     {
         var parser = new HtmlParser();

@@ -21,16 +21,7 @@ public sealed class TxtChapterRule
     public override string ToString() => Name;
 }
 
-/// <summary>
-/// 本地文本读取与章节切分：编码嗅探 → 章节规则匹配 → 切片。
-/// <para>
-/// 🔴 章节是「整本书字符串上的区间」，不复制正文 —— 一本 5MB 的 txt 切成 3000 章也只占一份字符串。
-/// </para>
-/// <para>
-/// 🔴 规则按顺序试，第一个命中的规则胜出；全部不命中时按约 3000 字等长切块（尽量落在空行处），
-/// ⛔ 不要「识别不到就整本一章」—— 那样目录和进度都废了。
-/// </para>
-/// </summary>
+/// <summary>本地文本读取与章节切分：编码嗅探 → 章节规则匹配 → 切片。（WHY: RD-030）</summary>
 public sealed class TxtBookService
 {
     private static bool _encodingReady;

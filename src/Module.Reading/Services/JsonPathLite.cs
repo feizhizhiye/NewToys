@@ -6,15 +6,7 @@ using System.Text.Json;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 极简 JSONPath 子集（<c>@json:</c> 规则的求值器）。
-/// <para>
-/// 支持：<c>$.a.b</c>、<c>$.a[0]</c>、<c>$.a[*].b</c>、<c>$..b</c>（递归下降）、<c>['a']</c>。
-/// 过滤表达式（<c>[?(@.x)]</c>）不支持 —— 遇到即返回空，调用方按「选择器未命中」报。
-/// </para>
-/// <para>属性取值**自动展开数组**（<c>$.data.list.name</c> 在 list 为数组时逐元素取 name），
-/// 这是书源里最常见的省略写法。</para>
-/// </summary>
+/// <summary>极简 JSONPath 子集（@json: 规则的求值器）。</summary>
 public static class JsonPathLite
 {
     private enum TokenKind { Property, Index, Wildcard, Recursive }

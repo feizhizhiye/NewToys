@@ -10,18 +10,7 @@ using NewToys.Shared.Details;
 using NewToys.Shared.Models;
 using NewToys.Shared.Services;
 namespace NewToys.ScriptManager.ViewModels;
-/// <summary>
-/// 「脚本管理器 → 脚本库」页：一张<b>脚本文件</b>清单（规范的列表页布局，见 3.6）。
-/// <para>
-/// 页面逻辑（列表 / 排序 / 列显隐 / 运行 / 增删改查 / 收藏）全部在基类 <see cref="QuickActionListViewModel"/> 里，
-/// 本类只声明「显示哪一批条目」（<see cref="QuickActionPage.Shortcuts"/>）与「列显隐落盘键」。
-/// </para>
-/// <para>
-/// 与「命令库」页的分工（v1.33）：这里放<b>有脚本文件的脚本</b>（<see cref="QuickActionKind.Script"/>，
-/// 指向脚本目录下的 .py / .ps1 / .bat，解释器路径在「设置 → 路径配置」配）；
-/// 一行的<b>命令行命令</b>放「命令库」页。
-/// </para>
-/// </summary>
+/// <summary>「脚本管理器 → 脚本库」页：一张脚本文件清单（规范的列表页布局，见 3.6）。</summary>
 
 public partial class ScriptLibraryViewModel : QuickActionListViewModel
 {
@@ -143,13 +132,7 @@ public partial class ScriptLibraryViewModel : QuickActionListViewModel
         // 有结果时结论已经写进 StatusText（ImportScriptFiles 内部负责）
     }
 
-    /// <summary>
-    /// 🔥 **从磁盘删除**（列表右键）：先删脚本文件本身，再把这条从清单里移除。
-    /// <para>
-    /// 与详情卡图标组的「」分工：**图标组只动清单（⛔ 不碰磁盘）**；右键这一路是**真删文件**，不可撤销。
-    /// 本页本质是**脚本索引库**，操作逻辑与资产库一致 ⇒ 破坏性动作放右键、放二次确认。
-    /// </para>
-    /// </summary>
+    /// <summary>🔥 从磁盘删除（列表右键）：先删脚本文件本身，再把这条从清单里移除。（WHY: SM-070）</summary>
 
     [RelayCommand]
 

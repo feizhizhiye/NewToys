@@ -4,18 +4,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.BackupCenter.Services;
 
-/// <summary>
-/// 备份中心自有库（<c>store\backup\backup.db</c>）：任务清单 / 归档包清单 / 运行记录 / 待办 / 密码库条目。
-/// <para>
-/// 为什么进 SQLite 而不是继续用四个 JSON：日历页要按天聚合「哪天备份了几次」，
-/// 那是 SQL 的一句 <c>GROUP BY strftime</c>；JSON 只能每次全量读进内存再 LINQ。
-/// </para>
-/// <para>
-/// 早期的 <c>plans.json / catalog.json / runs.json / vault.json</c>（<c>config\backup\</c>）由各服务
-/// 在首次加载时**一次性**导入，导入后写 <c>meta</c> 标记（<c>migrated.&lt;名字&gt;</c>）；
-/// ⛔ 不删旧文件 —— 迁移出错时还能手工翻查。
-/// </para>
-/// </summary>
+/// <summary>备份中心自有库（store\backup\backup.db）：任务清单 / 归档包清单 / 运行记录 / 待办 / 密码库条目。（WHY: BC-004）</summary>
 public sealed class BackupDb : SqliteDatabase
 {
     /// <summary>库键 = <c>store\</c> 下的子目录名。</summary>

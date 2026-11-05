@@ -3,15 +3,7 @@ using Xunit;
 
 namespace NewToys.Tests;
 
-/// <summary>
-/// 备份恢复的**路径防御**回归测试（<see cref="BackupPaths.IsSafeRelativePath"/>）。
-/// <para>
-/// 这是「外部 zip → 本地磁盘」的唯一闸门：判错等于把 <c>../</c> 穿越或绝对路径直接落到用户盘上。
-/// 顺序也是契约的一部分 —— 先拒穿越、再跳归档产物；反过来做，<c>../evil.ps1</c> 会被
-/// 「跳过后缀」的分支静默放过。
-/// </para>
-/// <para>⛔ 本文件只测纯函数：不写盘。</para>
-/// </summary>
+/// <summary>备份恢复的路径防御回归测试（BackupPaths.IsSafeRelativePath）。（WHY: TS-001）</summary>
 public class BackupPathsTests
 {
     // ==================== 正常路径 ====================

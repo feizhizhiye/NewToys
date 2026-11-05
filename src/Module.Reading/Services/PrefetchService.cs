@@ -6,15 +6,7 @@ using NewToys.Reading.Models;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 阅读时向后预抓若干章（legado 的「预下载」）：当前章读起来的同时，后台把后面几章抓进正文缓存，
-/// 翻页时直接命中缓存，不用等网络。
-/// <para>
-/// 🔴 不依赖「缓存正文」开关：那个开关管的是「每章读完是否顺手存」，预下载是用户显式要的「先存这几章」，
-/// 所以这里自己写缓存。
-/// </para>
-/// <para>串行抓（一次一章）：预取是背景活，⛔ 不和用户正在读的那一章抢并发。</para>
-/// </summary>
+/// <summary>阅读时向后预抓若干章（legado 的「预下载」）：当前章读起来的同时，后台把后面几章抓进正文缓存， 翻页时直接命中缓存，不用等网络。（WHY: RD-013）</summary>
 public sealed class PrefetchService
 {
     private readonly CrawlService _crawl;

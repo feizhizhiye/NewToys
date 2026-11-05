@@ -21,16 +21,7 @@ public sealed class ArchiveImageEntry
     public override string ToString() => Name;
 }
 
-/// <summary>
-/// 一次打开的压缩包图片会话：条目列表与取图共用同一份已打开的归档。
-/// <para>
-/// 🔴 zip / cbz 走 <see cref="ZipArchive"/>：只读中央目录，不解压任何数据，2 GB 包也能秒开；
-/// 取单张按条目名直接定位（O(1)）。rar / 7z / cbr 没有等价的中央目录 API，退回 SharpCompress 顺序扫。
-/// </para>
-/// <para>
-/// 🔴 会话持有文件句柄：宿主换文件 / 关闭页面时必须 <see cref="Dispose"/>，⛔ 不要跨打开缓存条目对象。
-/// </para>
-/// </summary>
+/// <summary>一次打开的压缩包图片会话：条目列表与取图共用同一份已打开的归档。（WHY: VW-010）</summary>
 public sealed class ArchiveImageSession : IDisposable
 {
     /// <summary>顺序格式（rar / 7z）取图结果的缓存字节上限：超过就整清（solid 包顺序翻页时避免反复从头解压）。</summary>
@@ -178,16 +169,7 @@ public sealed class ArchiveImageSession : IDisposable
     }
 }
 
-/// <summary>
-/// 压缩包内图片读取（zip / rar / 7z / cbz / cbr）。
-/// <para>
-/// 🔴 只读、只列图片；⛔ 不解压到磁盘、⛔ 不支持加密包（遇到给出明确原因）。
-/// </para>
-/// <para>
-/// 🔴 打开开销决定体验：<see cref="ZipArchive"/> 读中央目录（zip 家族），其余格式用 SharpCompress 顺序扫。
-/// 返回的 <see cref="ArchiveImageSession"/> 必须由调用方持有并释放，⛔ 不要每翻一张重开归档。
-/// </para>
-/// </summary>
+/// <summary>压缩包内图片读取（zip / rar / 7z / cbz / cbr）。（WHY: VW-011）</summary>
 public sealed class ArchiveImageService
 {
     private static readonly string[] ImageExtensions =

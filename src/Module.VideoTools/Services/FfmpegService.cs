@@ -11,17 +11,7 @@ using NewToys.VideoTools.Models;
 
 namespace NewToys.VideoTools.Services;
 
-/// <summary>
-/// ffmpeg / ffprobe 的调用封装（剪切与转码两页共用）。
-/// <para>
-/// 设计原则与 <see cref="VideoScanner"/> 一致：**不碰 UI、不改模型**，只负责"跑命令行 + 把结果返回"，
-/// 由 ViewModel 在 UI 线程上更新任务状态 —— 这样批量运行时多个任务互不干扰。
-/// </para>
-/// <para>
-/// ⚠️ 诚实边界：ffmpeg 没配好（PATH 里没有 / 路径不对）时返回明确的错误信息，
-/// 页面照实显示"找不到 ffmpeg —— 去「设置 → 路径配置」里指定"，绝不假装跑过。
-/// </para>
-/// </summary>
+/// <summary>ffmpeg / ffprobe 的调用封装（剪切与转码两页共用）。（WHY: VT-012）</summary>
 public static partial class FfmpegService
 {
     /// <summary>

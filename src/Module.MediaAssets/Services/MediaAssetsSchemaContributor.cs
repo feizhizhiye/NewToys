@@ -4,14 +4,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 媒体资产在自有库（<c>store\assets\assets.db</c>）里的 schema 贡献者。
-/// <para>
-/// 本模块的建表逻辑（幂等 <c>CREATE IF NOT EXISTS</c> + 只加可空列的 <c>ALTER TABLE ADD COLUMN</c>）
-/// 一直写在 <see cref="AssetDatabase"/> 的构造里。本类不改写 DDL，只负责**让它在 schema 阶段被构造**——
-/// 这样「库一打开 ⇒ 资产的 13 张表都在」，不依赖用户先点开资产页。
-/// </para>
-/// </summary>
+/// <summary>媒体资产在自有库（store\assets\assets.db）里的 schema 贡献者。</summary>
 public sealed class MediaAssetsSchemaContributor : ILibrarySchemaContributor
 {
     /// <summary>模块键（版本记录键 <c>schema.media-assets</c>）。</summary>

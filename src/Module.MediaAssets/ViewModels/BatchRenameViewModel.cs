@@ -67,17 +67,7 @@ public sealed partial class BatchRenameRow : ObservableObject
     private bool _skip;
 }
 
-/// <summary>
-/// 批量重命名弹层的 VM：**规则 → 预览 → 逐个落盘**。
-/// <para>
-/// 两个页面（全部资产 / 资产浏览）各持有一个实例，弹层控件 <c>BatchRenameOverlay</c> 的 DataContext 就是它。
-/// 预览在这一层算完（含重名避让），落盘仍走 <see cref="FileOperationService.Rename"/> —— 日志先行、
-/// 库里的 <c>file_locations.path</c> 同步、同名冲突策略全部复用同一条通路，⛔ 不另开写盘口子。
-/// </para>
-/// <para>
-/// 🔴 预览是**唯一**的判断依据：确认按钮只在「没有红行」时可点；红行 = 空名 / 非法字符 / 重名且策略是跳过。
-/// </para>
-/// </summary>
+/// <summary>批量重命名弹层的 VM：规则 → 预览 → 逐个落盘。（WHY: MA-077）</summary>
 public sealed partial class BatchRenameViewModel : ObservableObject
 {
     private readonly RenameRules _rules = new();

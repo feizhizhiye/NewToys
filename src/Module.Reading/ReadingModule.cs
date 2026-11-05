@@ -6,15 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Reading;
 
-/// <summary>
-/// **网络阅读**模块（菜单组键 <c>reading</c>）：桌面 legado —— 导入书源、搜索 / 发现、书架、
-/// 阅读器（索引书渲染 / 目录 / 书签 / 搜索 / 排版 / 听书）、本地 TXT 导入。
-/// <para>
-/// 依赖只有 Shared / Core / UI：⛔ 不引 Shell，⛔ 不引别的模块（阅读器壳住在本模块
-/// <c>Controls/ReaderShell</c>，查看器 / 其它模块要用阅读能力走各自的实现）。
-/// </para>
-/// <para>库 = <c>store\reading\reading.db</c>；设置 = <c>config\reading.json</c>（设置页与阅读页共同写入）。</para>
-/// </summary>
+/// <summary>网络阅读模块（菜单组键 reading）：桌面 legado —— 导入书源、搜索 / 发现、书架、 阅读器（索引书渲染 / 目录 / 书签 / 搜索 / 排版 / 听书）、本地 TXT 导入。（WHY: RD-004）</summary>
 public class ReadingModule : IModule
 {
     /// <summary>菜单组键（页 Key 前缀 <c>reading-</c>）。</summary>

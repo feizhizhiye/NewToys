@@ -61,12 +61,6 @@ public class VideoToolsModule : IModule
             "并发数与 ffmpeg / 播放器 / 导入导出目录（后三项是全局项，本页只展示）");
     }
 
-    /// <summary>
-    /// 旧表清理 + 建表搬到 <see cref="Services.VideoToolsSchemaContributor"/>（schema 统一入口）。
-    /// <para>
-    /// 为什么搬：⛔ 破坏性 DROP 不能放在每次启动都跑的路径里（无护栏），
-    /// 统一入口按「缓存版本号变化才清一次」执行，并且排在建表之前。
-    /// </para>
-    /// </summary>
+    /// <summary>旧表清理 + 建表搬到 Services.VideoToolsSchemaContributor（schema 统一入口）。（WHY: VT-027）</summary>
     public void InitializeDeferred(IServiceProvider services) { }
 }

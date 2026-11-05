@@ -5,17 +5,7 @@ using NewToys.Reading.Models;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 书源能力判定（**静态**，不发请求）。
-/// <para>判据只看三段（搜索 / 目录 / 正文）的规则字段：</para>
-/// <list type="number">
-///   <item>三段里有必填字段为空 ⇒ <see cref="SourceCapability.Incomplete"/>（连规则都不全，谈不上跑）；</item>
-///   <item>三段任一用到 <c>webview</c> / <c>startBrowserAwait</c> ⇒ <see cref="SourceCapability.NeedsWebView"/>
-///     （桌面端没有 WebView，也没有「唤起浏览器等用户操作」这回事）；</item>
-///   <item>否则 ⇒ <see cref="SourceCapability.Ready"/>。含 <c>@js:</c> 片段**仍算可用** —— JS 兼容层已就位，
-///     只在原因里附一句「含 JS」提示。</item>
-/// </list>
-/// </summary>
+/// <summary>书源能力判定（静态，不发请求）。（WHY: RD-025）</summary>
 public static class SourceAnalyzer
 {
     private static readonly string[] WebViewMarkers = { "webview", "startbrowserawait" };

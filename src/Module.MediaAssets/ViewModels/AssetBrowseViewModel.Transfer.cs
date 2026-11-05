@@ -7,12 +7,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「资产浏览」→ 视频工具的交接：把选中的视频交给「视频工具 → 视频列表」页。
-/// <para>走 <see cref="IModuleBus"/>（模块禁互引），投递完顺带导航过去。</para>
-/// <para>⚠️ 取 <see cref="SelectedTiles"/> 而不是 <c>SelectedRows</c>：后者只装**已入库**项，
-/// 而本页的未入库文件同样能打开，也应该能送去视频工具。</para>
-/// </summary>
+/// <summary>「资产浏览」→ 视频工具的交接：把选中的视频交给「视频工具 → 视频列表」页。（WHY: MA-070）</summary>
 public partial class AssetBrowseViewModel
 {
     /// <summary>视频扩展名白名单（与视频列表页的扫描口径一致）。</summary>

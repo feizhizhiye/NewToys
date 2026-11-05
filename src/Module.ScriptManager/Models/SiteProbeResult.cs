@@ -31,12 +31,7 @@ public sealed class SiteProbeHit
     public bool Ok => Count > 0;
 }
 
-/// <summary>
-/// 站点探测的汇总：每候选一命中 + 推荐。
-/// <para>
-/// 🔴 **只推荐不代选**：<see cref="Best"/> 只是建议，⛔ 不自动创建 / 不自动选中任何预设。
-/// </para>
-/// </summary>
+/// <summary>站点探测的汇总：每候选一命中 + 推荐。（WHY: SM-019）</summary>
 public sealed class SiteProbeResult
 {
     /// <summary>运行时错误（Python 不可用 / 网址无法识别等；空 = 探测正常完成）。</summary>

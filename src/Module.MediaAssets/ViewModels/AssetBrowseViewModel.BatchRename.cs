@@ -6,13 +6,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「资产浏览」的批量重命名入口（文件右键 → 规则对话框）。
-/// <para>
-/// 候选口径与其它库操作一致：<see cref="LibraryFileTiles"/>（已入库的文件）；未入库项与文件夹不参与，
-/// 数量差在弹层里明说「已跳过 N 个」——⛔ 不静默丢。
-/// </para>
-/// </summary>
+/// <summary>「资产浏览」的批量重命名入口（文件右键 → 规则对话框）。（WHY: MA-065）</summary>
 public partial class AssetBrowseViewModel
 {
     /// <summary>批量重命名弹层的 VM（规则 / 预览 / 落盘）。</summary>

@@ -6,20 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.VideoTools.Services;
 
-/// <summary>
-/// 视频文件本身的两个"改 / 删"操作（右键菜单里的 CRUD 部分）。
-/// <para>
-/// 要不要确认、新名字填什么，交给宿主注入的 <see cref="DialogHooks"/>（Core 里的公共钩子）——
-/// <c>Core</c> / 模块都不引用 Avalonia，也不引用 Shell，只能这样把"弹窗"外抛
-/// （与 <c>PackageManagerService.ConfirmHandler</c> 同款思路，见规范 §9）。
-/// 钩子没接上时**一律按"用户取消"处理**：宁可什么都不做，也不能在没有确认的情况下动用户的文件。
-/// </para>
-/// <para>
-/// **磁盘动作全部下沉到 <see cref="IFileOperationService"/>**（Core）——
-/// 这里只剩「弹窗 + 校验 + 文案」。以前这一层自带一份 <c>SHFileOperationW</c> 互操作，
-/// 和媒体资产各写一遍，现已删掉，回收站只有一份实现。
-/// </para>
-/// </summary>
+/// <summary>视频文件本身的两个"改 / 删"操作（右键菜单里的 CRUD 部分）。（WHY: VT-020）</summary>
 public static class VideoFileService
 {
     /// <summary>共享磁盘动作服务（DI 未初始化时为 <c>null</c>，此时一律按失败处理、⛔ 不直接动盘）。</summary>

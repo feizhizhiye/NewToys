@@ -12,13 +12,7 @@ using NewToys.MediaAssets.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「全部资产」的**库维护**动作：清重复、从库移除、读媒体信息。
-/// <para>
-/// 三者都只在**索引层**动手（<c>assets</c> / <c>file_locations</c>），磁盘文件一个都不碰 ——
-/// 物理删除仍然只有行右键的「⛔ 从磁盘删除…」一条路。
-/// </para>
-/// </summary>
+/// <summary>「全部资产」的库维护动作：清重复、从库移除、读媒体信息。（WHY: MA-059）</summary>
 public partial class AssetAllViewModel
 {
     // ==================== ① 重复数据（同一物理路径 → 多条资产） ====================
@@ -75,14 +69,7 @@ public partial class AssetAllViewModel
 
     // ==================== ② 从库移除（只删索引） ====================
 
-    /// <summary>
-    /// 「⤫ 从库移除」：把勾选的资产**连同它们的文件位置记录**从库里删掉，⛔ 不碰磁盘。
-    /// <para>
-    /// 这是清理「不同路径的重复副本」的正确手段 —— 走「移入回收站」要先把文件搬进系统回收站，
-    /// 走「从磁盘删除」会真删文件，两者都不该用来整理索引。
-    /// </para>
-    /// <para>⚠️ 文件仍在已登记存储源的目录里 ⇒ 下次扫描会再次入库；要彻底不再回来，去「存储源」页删掉多余的嵌套目录源。</para>
-    /// </summary>
+    /// <summary>「⤫ 从库移除」：把勾选的资产连同它们的文件位置记录从库里删掉，⛔ 不碰磁盘。（WHY: MA-060）</summary>
     [RelayCommand]
     private async Task RemoveCheckedFromLibraryAsync()
     {
@@ -250,13 +237,7 @@ public partial class AssetAllViewModel
 
     // ==================== ④ 校验文件是否还在磁盘上 ====================
 
-    /// <summary>
-    /// 「🔎 校验文件」：逐条查磁盘上还有没有这个文件，把结果回写成位置状态（不在 → 已丢失；回来 → 正常），再刷新列表。
-    /// <para>
-    /// 给「用资源管理器删 / 挪了文件，库里状态还是正常」的情况用 —— 扫描只在**存储源范围内**判缺失，
-    /// 源外登记的位置、以及很久没再扫描的存储源都不会被更新。
-    /// </para>
-    /// </summary>
+    /// <summary>「🔎 校验文件」：逐条查磁盘上还有没有这个文件，把结果回写成位置状态（不在 → 已丢失；回来 → 正常），再刷新列表。（WHY: MA-061）</summary>
     [RelayCommand]
     private async Task VerifyFilesAsync()
     {

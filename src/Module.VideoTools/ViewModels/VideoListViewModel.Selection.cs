@@ -7,14 +7,7 @@ using NewToys.VideoTools.Models;
 
 namespace NewToys.VideoTools.ViewModels;
 
-/// <summary>
-/// 视频列表的选中模型 —— **唯一真相在 VM**（<see cref="SelectedRows"/>），View 只负责回填高亮。
-/// <para>
-/// 交互口径与「媒体资产 → 全部资产」一致：无修饰键 = 单选替换、`Ctrl` 增选 / 取消、`Shift` 连选、`Ctrl+A` 全选；
-/// 修饰键接管在 <c>VideoListView.axaml.cs</c> 的**隧道**阶段完成（ListBox 默认在 Multiple 下单击是「追加」）。
-/// </para>
-/// <para>选中只在**当前列表**有效（翻页 / 重扫后按路径认领）。</para>
-/// </summary>
+/// <summary>视频列表的选中模型 —— 唯一真相在 VM（SelectedRows），View 只负责回填高亮。</summary>
 public partial class VideoListViewModel
 {
     /// <summary>当前选中行（多选口径；单选时只有一条）。批量动作的对象 = 这里。</summary>

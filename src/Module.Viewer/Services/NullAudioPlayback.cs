@@ -3,13 +3,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Viewer.Services;
 
-/// <summary>
-/// 无音频后端（非 Windows 平台顶替 <see cref="NAudioPlayback"/>）。
-/// <para>
-/// 🔴 作用有两条：① 让「跨平台中立」在类型层成立（非 Windows 也能编译 / 装配）；
-/// ② 用户点音频文件时给出**明确原因**而不是静默无声。
-/// </para>
-/// </summary>
+/// <summary>无音频后端（非 Windows 平台顶替 NAudioPlayback）。（WHY: VW-016）</summary>
 public sealed class NullAudioPlayback : IAudioPlayback
 {
     /// <summary>恒为停止。</summary>

@@ -18,16 +18,7 @@ using ReaderTypography = NewToys.Reading.Controls.ReaderTypography;
 
 namespace NewToys.Reading.ViewModels;
 
-/// <summary>
-/// 「网络阅读 → 阅读」页（<c>reading-read</c>）：桌面 legado 的阅读器 —— 正文渲染交给
-/// <see cref="Controls.ReaderShell"/>（索引书模式），本 VM 管「选书 / 抓取 / 换源 / 下载 / 听书」。
-/// <para>入口：书架「继续阅读」、发现页「读这本书」，都靠 <see cref="ReadingSession.PendingBook"/> 带一本书进来。</para>
-/// <para>
-/// 🔴 章导航 / 目录 / 书签 / 搜索 / 排版都在壳里，壳只发事件不落盘：
-/// 进度 → <see cref="ProgressStore"/>（本地文件按绝对路径记，章节键 = <c>#序号</c>）；
-/// 排版 → <see cref="ReadingSettingsService"/>；书签 → 书目录的 <c>bookmarks.json</c>。
-/// </para>
-/// </summary>
+/// <summary>「网络阅读 → 阅读」页（reading-read）：桌面 legado 的阅读器 —— 正文渲染交给 Controls.ReaderShell（索引书模式），本 VM 管「选书 / 抓取 / 换源 / 下载 / 听书」。（WHY: RD-031）</summary>
 public partial class ReaderViewModel : ObservableObject, IStatusProvider, IDisposable
 {
     private readonly SourceStore _store;

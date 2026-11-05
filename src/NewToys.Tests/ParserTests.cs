@@ -5,16 +5,7 @@ using Xunit;
 
 namespace NewToys.Tests;
 
-/// <summary>
-/// 包管理器**输出解析**的回归测试（分层后的纯函数）。
-/// <para>
-/// 这些函数是「外部命令输出 → 行模型」的唯一通道，改一行正则就会静默改变全页数据；
-/// 以往只能靠打开软件肉眼看列表，这里固化成断言。
-/// </para>
-/// <para>
-/// ⛔ 本文件只测**纯函数**：不碰 Avalonia、不碰文件系统、不 new VM。
-/// </para>
-/// </summary>
+/// <summary>包管理器输出解析的回归测试（分层后的纯函数）。（WHY: TS-006）</summary>
 public class ParserTests
 {
     // ==================== TsvRows：机读输出（dpkg-query / snap / flatpak） ====================

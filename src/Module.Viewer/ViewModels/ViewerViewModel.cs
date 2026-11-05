@@ -12,22 +12,7 @@ using NewToys.Viewer.Services;
 
 namespace NewToys.Viewer.ViewModels;
 
-/// <summary>
-/// 查看器页 VM：只管「打开哪个文件 / 最近打开 / 排版参数 / 状态文案」。
-/// <para>
-/// 🔴 真正的装载与渲染在 <c>NewToys.Viewer.Controls.ViewerHost</c>（View 持有它），VM 通过
-/// <see cref="OpenRequested"/> 请求 View 打开 —— VM ⛔ 不 new 控件、⛔ 不碰 StorageProvider，
-/// 与项目既有约定一致（选择器 / 控件操作归 View）。
-/// </para>
-/// <para>
-/// 🔴 压缩包遍历 / 音频标签 / 播放后端都走注入的服务；VM 只做状态与命令编排。
-/// 长文本阅读（txt / 网文）不在本模块 —— 已并入「网络阅读」。
-/// </para>
-/// <para>
-/// 🔴 <see cref="Scope"/> 决定本页收哪类文件：不匹配时 <see cref="TryRouteElsewhere"/> 会投递给
-/// 目标页并切过去（<c>viewer-text</c> / <c>viewer-image</c> / <c>viewer-audio</c>），本页不装载。
-/// </para>
-/// </summary>
+/// <summary>查看器页 VM：只管「打开哪个文件 / 最近打开 / 排版参数 / 状态文案」。（WHY: VW-021）</summary>
 public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolbarSource, IDisposable
 {
     private readonly ViewerSettingsService _settings;
@@ -540,13 +525,7 @@ public partial class ViewerViewModel : ObservableObject, IStatusProvider, IToolb
     /// </summary>
     public Action? SavingAudioSnapshot { get; set; }
 
-    /// <summary>
-    /// 标签页被关掉（Shell 释放 VM）⇒ 音乐**立刻停**。
-    /// <para>
-    /// 🔴 只有「音乐播放页」的 VM 才停播：文本 / 图片页也共用同一个播放单例，它们被关掉时⛔ 别把正在放的歌掐掉。
-    /// </para>
-    /// <para>🔴 切到别的功能页不会释放 VM，音乐照常继续（后台播放口径）。</para>
-    /// </summary>
+    /// <summary>标签页被关掉（Shell 释放 VM）⇒ 音乐立刻停。（WHY: VW-022）</summary>
     public void Dispose()
     {
         if (Scope != ViewerScope.Audio) return;

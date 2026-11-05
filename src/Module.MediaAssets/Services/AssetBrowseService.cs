@@ -22,16 +22,7 @@ public sealed class BrowseDirContent
     public List<FsEntry> Files { get; } = new();
 }
 
-/// <summary>
-/// 「资产浏览」页的磁盘访问层：**资源管理器口径** —— 树 = 盘符 / 共享根 + 逐层子目录（懒加载），
-/// 右侧列表 = 该目录的实时内容。索引（<see cref="AssetService.LoadBrowseEntries"/>）只用来给条目
-/// **叠加「是否已入库」**与标签 / 元数据，⛔ 不再决定能看到什么。
-/// <para>
-/// 🔴 两条硬约束：
-/// ① **只枚举一层**：展开节点才读它的直接子目录，⛔ 不递归（整盘递归会把界面拖死）；
-/// ② **异常不外抛**：权限不足 / 盘符掉线 / NAS 超时一律降级成「不可访问 + 空列表」。
-/// </para>
-/// </summary>
+/// <summary>「资产浏览」页的磁盘访问层：资源管理器口径 —— 树 = 盘符 / 共享根 + 逐层子目录（懒加载）， 右侧列表 = 该目录的实时内容。索引（AssetService.LoadBrowseEntries）只用来给条目 叠加「是否已入库」与标签 / 元数据，⛔ 不再决定能看到什么。（WHY: MA-012）</summary>
 public class AssetBrowseService
 {
     /// <summary>「（根目录）」显示名：详情卡里相对目录为空时的兜底文案。</summary>

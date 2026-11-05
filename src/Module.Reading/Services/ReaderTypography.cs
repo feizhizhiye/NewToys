@@ -4,13 +4,7 @@ using System.Text;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 正文排版：把抓回来的纯文本按「首行缩进 + 段间距」重排。
-/// <para>
-/// 🔴 只吐字符串给 <c>TextViewer</c>（它就是一个 <c>SelectableTextBlock</c>，
-/// 没有段落级样式）⇒ 缩进 = 段首补全角空格，段间距 = 段间多插空行。⛔ 不为此改 NewToys.UI。
-/// </para>
-/// </summary>
+/// <summary>正文排版：把抓回来的纯文本按「首行缩进 + 段间距」重排。（WHY: RD-015）</summary>
 public static class ReaderTypography
 {
     /// <summary>全角空格：中文排版的首行缩进单位（半角空格在等宽判断里宽度不稳）。</summary>

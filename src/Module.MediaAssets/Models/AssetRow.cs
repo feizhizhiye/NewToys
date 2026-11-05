@@ -3,21 +3,7 @@ using NewToys.Shared.Formatting;
 
 namespace NewToys.MediaAssets.Models;
 
-/// <summary>
-/// 「资产列表」的一行 = **资产 + 它的主文件位置 + 组织信息**（标签 / 分类 / 集合的显示串）。
-/// <para>
-/// 为什么要单独一行模型：`assets` 表里**没有**文件名 / 大小 / 路径（一个资产可有多份位置，
-/// 见 <see cref="FileLocation"/>），列表页却要显示它们 —— 由数据层一次查询拼好，
-/// ⛔ 别在 VM 里对每个资产再查一次位置（N+1，500 行就是 500 次查询）。
-/// </para>
-/// <para>
-/// 🔴 **列键 ≠ 属性名的列，必须在 <c>ViewModel</c> 的 <c>FieldText</c> 里显式映射**（v3.15 教训：
-/// 基类靠**反射取同名属性**，取不到就返回 null → 该条筛选**静默失效**、不报错）：
-/// <c>Tags</c>→<see cref="TagsText"/>、<c>Categories</c>→<see cref="CategoriesText"/>、
-/// <c>Collections</c>→<see cref="CollectionsText"/>、<c>Modified</c>→<see cref="ModifiedText"/>、
-/// <c>Storage</c>→<see cref="StorageName"/>。
-/// </para>
-/// </summary>
+/// <summary>「资产列表」的一行 = 资产 + 它的主文件位置 + 组织信息（标签 / 分类 / 集合的显示串）。（WHY: MA-005）</summary>
 public partial class AssetRow : CommunityToolkit.Mvvm.ComponentModel.ObservableObject
 {
     /// <summary>

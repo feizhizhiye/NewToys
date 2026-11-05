@@ -15,14 +15,7 @@ public enum RuleValueKind
     Json = 3,
 }
 
-/// <summary>
-/// 求值结果的联合体。
-/// <para>
-/// 🔴 为什么必须分态：书单 / 目录这类规则要拿到**节点集**，后续字段规则在**每个节点内**分别求值；
-/// 压成 <c>List&lt;string&gt;</c> 就只能按索引回填，条目错位（既有抓取引擎的返工根因）。
-/// </para>
-/// <para>JSON 源同理会拿到**元素集**，后续 <c>@json:$.xxx</c> 相对该元素求值。</para>
-/// </summary>
+/// <summary>求值结果的联合体。（WHY: RD-023）</summary>
 public sealed class RuleValue
 {
     public static readonly RuleValue Empty = new();

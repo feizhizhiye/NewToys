@@ -11,12 +11,7 @@ using NewToys.VideoTools.ViewModels;
 
 namespace NewToys.VideoTools.Views;
 
-/// <summary>
-/// 视频列表页 code-behind：只做 **View 才做得了的事**
-/// （给 ContextMenu 补 DataContext、多选的修饰键接管）。
-/// <para>🔴 选中真相在 VM（<c>SelectedRows</c>）：本类只把鼠标行为翻译成 <c>SelectedItems</c> 的变化，
-/// 再把结果回填给 VM；VM 侧改了选中（全选 / 反选 / 认领）走 <c>SelectionSyncRequested</c> 反向回填。</para>
-/// </summary>
+/// <summary>视频列表页 code-behind：只做 View 才做得了的事 （给 ContextMenu 补 DataContext、多选的修饰键接管）。（WHY: VT-041）</summary>
 public partial class VideoListView : UserControl
 {
     private VideoListViewModel? _vm;
@@ -38,12 +33,7 @@ public partial class VideoListView : UserControl
         VideoList.SelectionChanged += OnListSelectionChanged;
     }
 
-    /// <summary>
-    /// 🔴 右键**必须在按压阶段**定行：<c>ContextRequested</c> 常被菜单自己先吃掉，
-    /// 结果菜单项读的 <c>Selected</c> 还是上一条/为空 —— 表现为「右键删除点了没反应」。
-    /// <para>命中行已在选中集里 ⇒ 保留多选（菜单里的批量项照样作用于整批）；
-    /// 否则按资源管理器语义替换为该行。</para>
-    /// </summary>
+    /// <summary>🔴 右键必须在按压阶段定行：ContextRequested 常被菜单自己先吃掉， 结果菜单项读的 Selected 还是上一条/为空 —— 表现为「右键删除点了没反应」。（WHY: VT-042）</summary>
     private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_vm == null) return;

@@ -36,16 +36,7 @@ public sealed class SourceSearchResult
     public string Summary => Error is null ? $"{Source.Name}：{Items.Count} 条" : $"{Source.Name}：{Error.Message}";
 }
 
-/// <summary>
-/// 四段抓取管线：搜索 → 详情 → 目录 → 正文。
-/// <para>
-/// 每段都把「哪一步、哪条规则、什么原因」记进 <see cref="StepError"/>，⛔ 不只是"失败了"。
-/// </para>
-/// <para>
-/// 请求层：跟随重定向 / 超时 / 失败重试 1 次 / 并发上限（设置项，默认 3）/ 全程可取消；
-/// 编码嗅探 = 响应头 charset → BOM → 严格 UTF-8 → GB18030。
-/// </para>
-/// </summary>
+/// <summary>四段抓取管线：搜索 → 详情 → 目录 → 正文。（WHY: RD-007）</summary>
 public sealed class CrawlService : IDisposable
 {
     /// <summary>目录最多跟多少页（防死循环）。</summary>
@@ -130,12 +121,7 @@ public sealed class CrawlService : IDisposable
         return ParseItems(source, ctx, source.Search, "ruleSearch");
     }
 
-    /// <summary>
-    /// 把一页列表解析成条目（搜索与发现共用）。
-    /// <para>🔴 条目字段在**每个条目自己的节点 / JSON 元素内**求值，⛔ 不对整页求值再按索引拼。</para>
-    /// <para><paramref name="fallback"/> 只在 <paramref name="rule"/> 的**对应字段为空**时逐字段补位
-    /// （发现页常见写法：<c>ruleExplore</c> 只给 <c>bookList</c>，其余靠 <c>ruleSearch</c>）。</para>
-    /// </summary>
+    /// <summary>把一页列表解析成条目（搜索与发现共用）。（WHY: RD-008）</summary>
     private StepResult<IReadOnlyList<SearchItem>> ParseItems(
         BookSource source, RuleContext ctx, SearchRule? rule, string ruleOwner, SearchRule? fallback = null)
     {
@@ -184,13 +170,7 @@ public sealed class CrawlService : IDisposable
 
     // ==================== 发现页 ====================
 
-    /// <summary>
-    /// 解析 <c>exploreUrl</c> 的分类表。
-    /// <para>🔴 分隔符有**两种**：<c>&amp;&amp;</c> 与换行（真实书源里换行占多数）。只认 <c>&amp;&amp;</c>
-    /// ⇒ 整张表被并成一条、地址里混进「分类名::」，请求出去必然 404，页面永远是空的。</para>
-    /// <para>🔴 每一项的尾巴 <c>, {"method":"POST","body":"…"}</c> 是**这一项自己的请求配置**，⛔ 不能丢。</para>
-    /// <para>🔴 整段 <c>@js:</c> 动态生成分类表：执行 JS 得到「分类::地址」列表串，再走同一套切分；失败则跳过该段。</para>
-    /// </summary>
+    /// <summary>解析 exploreUrl 的分类表。（WHY: RD-009）</summary>
     public IReadOnlyList<ExploreCategory> ParseExploreCategories(BookSource source)
     {
         var raw = source.ExploreUrl;
@@ -271,12 +251,8 @@ public sealed class CrawlService : IDisposable
         return ParseItems(source, ctx, source.Explore, "ruleExplore", source.Search);
     }
 
-    /// <summary>多源并发搜索（并发上限来自设置，默认 3；<paramref name="progress"/> 报「已完成 / 总数」）。</summary>
+    /// <summary>多源并发搜索（并发上限来自设置，默认 3；<paramref name="progress"/> 报「已完成 / 总数」）。（WHY: RD-010）</summary>
     /// <param name="onSourceDone">
-    /// 每完成**一个源**就回调一次（成功或失败都报）。界面靠它**逐源上屏**——
-    /// ⛔ 不攒到 <c>Task.WhenAll</c> 再一次性给：源多 / 站点慢时，整批等最慢的那个，
-    /// 用户看到的就是「一直在搜索、一条结果都没有」。
-    /// </param>
     public async Task<IReadOnlyList<SourceSearchResult>> SearchManyAsync(
         IReadOnlyList<BookSource> sources, string key, int page, CancellationToken ct,
         IProgress<(int Done, int Total)>? progress = null,
@@ -731,12 +707,7 @@ public sealed class CrawlService : IDisposable
                || text.Contains("gb2312", StringComparison.OrdinalIgnoreCase)
                || text.Contains("gb18030", StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>
-    /// 把规则里的地址拼成绝对地址：<c>/search?q=…</c> 以书源地址的主机为基准，
-    /// <c>//host/path</c> 补协议，已经是绝对地址的原样返回。
-    /// <para>🔴 全程按**字符串**拼，⛔ 不走 <see cref="Uri"/> 合并 —— 规则地址里常带 <c>{{page}}</c>
-    /// 这类未插值占位（分类解析阶段就调用），Uri 规范化会失败或改写原串。</para>
-    /// </summary>
+    /// <summary>把规则里的地址拼成绝对地址：/search?q=… 以书源地址的主机为基准， //host/path 补协议，已经是绝对地址的原样返回。（WHY: RD-011）</summary>
     private static string ResolveUrl(string? baseUrl, string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return value;

@@ -6,18 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.BackupCenter.Services;
 
-/// <summary>
-/// 备份中心的设置与路径（本模块配置的**唯一写入点**）。
-/// <para>
-/// 选项经 <see cref="IOptionsStore"/> 落 <c>config\backup-center.json</c>；
-/// 任务 / 包清单 / 运行记录 / 待办 / 密码库落 SQLite 库 <c>store\backup\backup.db</c>；
-/// 归档包落「默认备份目录」（未指定 = <c>%USERPROFILE%\NewToys\Backup</c>）；解包暂存落 <c>cache\backup\staging</c>（可重建）。
-/// </para>
-/// <para>
-/// 🔴 7z 路径**不在这里存**：它是「本机怎么跑外部程序」，属应用级运行环境（<c>env.json</c>，
-/// 唯一写入点 =「设置 → 运行环境」）。本类只做转发，避免同一份值存两处。
-/// </para>
-/// </summary>
+/// <summary>备份中心的设置与路径（本模块配置的唯一写入点）。（WHY: BC-005）</summary>
 public sealed class BackupSettingsService
 {
     /// <summary><see cref="IOptionsStore"/> 的分区名。</summary>
@@ -100,13 +89,7 @@ public sealed class BackupSettingsService
         set => Write(KeyArchiveDir, string.IsNullOrWhiteSpace(value) ? null : value!.Trim());
     }
 
-    /// <summary>
-    /// 「默认备份目录」的出厂值：<c>%USERPROFILE%\NewToys\Backup</c>。
-    /// <para>
-    /// 刻意**不进配置档目录**：<c>…\profiles\&lt;配置&gt;\store\backup\archives</c> 太深，
-    /// 用户想手动瞄一眼 / 拖个文件进去得点好几层；这里放在用户目录下一层。
-    /// </para>
-    /// </summary>
+    /// <summary>「默认备份目录」的出厂值：%USERPROFILE%\NewToys\Backup。</summary>
     public string DefaultBackupDir
     {
         get

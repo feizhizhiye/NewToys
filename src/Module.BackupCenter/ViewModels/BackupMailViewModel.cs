@@ -14,14 +14,7 @@ using NewToys.Core.Services;
 
 namespace NewToys.BackupCenter.ViewModels;
 
-/// <summary>
-/// 「备份中心 → 备份邮件」页（<c>backup-mail</c>）：IMAP 收信，当**邮箱管理器**用（用户定调：收全部邮件），
-/// 同时承担备份邮件的搜索与一键还原。
-/// <para>
-/// 列表先读本地缓存（<c>mail_index</c>）⇒ 没网也能翻历史；点「⟳ 同步」才连服务器拉新邮件。
-/// </para>
-/// <para>🔴 打开邮件 / 下载附件全程 <c>BODY.PEEK</c>，⛔ 不改动邮件的已读状态。</para>
-/// </summary>
+/// <summary>「备份中心 → 备份邮件」页（backup-mail）：IMAP 收信，当邮箱管理器用（用户定调：收全部邮件）， 同时承担备份邮件的搜索与一键还原。（WHY: BC-017）</summary>
 public partial class BackupMailViewModel : ObservableObject
 {
     private readonly ImapMailService _imap;

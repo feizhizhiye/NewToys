@@ -4,17 +4,7 @@ using System.Threading;
 
 namespace NewToys.VideoTools.Services;
 
-/// <summary>
-/// 批量运行期间**阻止系统进入睡眠 / 休眠**（批量转码可能连续跑几十分钟，人不在电脑前）。
-/// <para>
-/// 「系统必需」这个需求挂在**调用 <c>SetThreadExecutionState</c> 的那条线程**上，所以专门起一条后台线程把它挂住，
-/// <see cref="Dispose"/> 时才清标志并退出线程 —— 用 UI 线程调会在 await 之后因线程切换而失效。
-/// </para>
-/// <para>
-/// 非 Windows 平台返回 <c>null</c>（不引用任何平台 API，调用方 <c>using var scope = KeepAwakeScope.Acquire();</c> 即可）。
-/// 只拦睡眠，不拦熄屏（熄屏不影响转码，也没必要把人叫回来）。
-/// </para>
-/// </summary>
+/// <summary>批量运行期间阻止系统进入睡眠 / 休眠（批量转码可能连续跑几十分钟，人不在电脑前）。</summary>
 internal sealed class KeepAwakeScope : IDisposable
 {
     private const uint EsContinuous = 0x8000_0000;

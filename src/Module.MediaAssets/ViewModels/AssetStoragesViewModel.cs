@@ -16,18 +16,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「存储源」页：local / removable / nas 的登记 / 编辑 / 移除（⛔ 只移索引）+ 扫描入口。
-/// <para>
-/// 三个要点：
-/// <list type="number">
-///   <item>**离线语义**：页面每次重读都逐个体探测根目录可访问性并写回 <c>online</c>；
-///         离线存储源在扫描时被跳过，其下 file_locations ⛔ 不被标 missing（重新上线 + 扫描即恢复）；</item>
-///   <item>**移除只删索引**：二次确认里给明"将删除 N 个文件位置（资产记录保留）"，⛔ 绝不碰磁盘文件；</item>
-///   <item>**扫描走任务队列**：入队后跳「任务中心」看进度 / 取消；队列跑完（变为空闲）自动回读统计。</item>
-/// </list>
-/// </para>
-/// </summary>
+/// <summary>「存储源」页：local / removable / nas 的登记 / 编辑 / 移除（⛔ 只移索引）+ 扫描入口。（WHY: MA-073）</summary>
 public partial class AssetStoragesViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly AssetService _assets = null!;

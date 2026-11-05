@@ -4,18 +4,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets;
 
-/// <summary>
-/// 媒体资产模块（需求 §6.6）：把本地视频 / 音乐 / 文档 / 书籍 / 图片等文件索引进 SQLite，
-/// 并在库里完成标签、分类、集合、关联与重命名 / 移动 / 复制 / 删除管理的**通用文件资产库**。
-/// <para>
-/// 数据落本模块自有库 <c>store\assets\assets.db</c>（13 张表），⛔ 与其它模块共库；
-/// 与「设置 → 数据管理」的区别：那边管配置文件，这边管**用户文件本体**（只建索引 + 显式物理操作）。
-/// </para>
-/// <para>
-/// ⚠️ 本模块的设置页 <c>settings-media-assets</c> 由本模块 <c>Initialize</c> **自注册**进**本模块分组**
-/// （跨组注册由框架**延迟补登**保障，规范 §3.2）——已落地：View/VM 均在本模块（⛔ 不依赖框架程序集）。
-/// </para>
-/// </summary>
+/// <summary>媒体资产模块（需求 §6.6）：把本地视频 / 音乐 / 文档 / 书籍 / 图片等文件索引进 SQLite， 并在库里完成标签、分类、集合、关联与重命名 / 移动 / 复制 / 删除管理的通用文件资产库。（WHY: MA-001）</summary>
 public class MediaAssetsModule : IModule
 {
     /// <summary>一级分组 key（同时是菜单一级的标识与左树分组键）。</summary>
@@ -113,13 +102,7 @@ public class MediaAssetsModule : IModule
         // 已整体搬到 InitializeDeferred（首帧之后）。上面的菜单注册全部保留在首帧前。
     }
 
-    /// <summary>
-    /// （启动提速）：模块设置读取 + 扫描器接线 + 回收站到期清理入队 —— 首帧之后执行。
-    /// <para>
-    /// ⚠️ 顺序不变：<c>ApplySettings</c> 仍要在用户第一次点「扫描」之前生效。
-    /// 延迟层排在首帧渲染之后，而窗口可交互也在首帧之后 —— 实际不会漏。
-    /// </para>
-    /// </summary>
+    /// <summary>（启动提速）：模块设置读取 + 扫描器接线 + 回收站到期清理入队 —— 首帧之后执行。（WHY: MA-002）</summary>
     public void InitializeDeferred(IServiceProvider services)
     {
         // ===== 把模块设置接到扫描器（忽略规则 / 采样大小）+ 元数据 / 缩略图增强回调 =====

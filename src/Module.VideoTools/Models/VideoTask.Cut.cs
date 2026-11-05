@@ -8,13 +8,7 @@ using NewToys.VideoTools.Services;
 namespace NewToys.VideoTools.Models;
 
 
-/// <summary>
-/// 一条<b>剪切任务</b>：从源视频里切出 [开始, 结束) 这一段。
-/// <para>
-/// 默认 <c>-c copy</c>（不重新编码，秒出、无损）；勾了「重新编码」才走编码（首尾不在关键帧上时必须重编码才准）。
-/// </para>
-/// </summary>
-/// <summary>剪切预设下拉项。</summary>
+/// <summary>一条剪切任务：从源视频里切出 [开始, 结束) 这一段。（WHY: VT-008）</summary>
 public sealed class CutPresetOption
 {
     public string Id { get; set; } = "";

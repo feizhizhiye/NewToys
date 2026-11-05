@@ -7,18 +7,7 @@ using Avalonia.Media.Imaging;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 「资产浏览」的缩略图缓存：**只在浏览时读缓存目录**（⛔ 不在浏览过程中现场生成，生成走工具条的显式命令）。
-/// <para>
-/// 两条硬约束：
-/// ① **LRU 上限 300 张** + 按当前图标尺寸解码（<see cref="Bitmap.DecodeToWidth"/>）——
-///    5000 张原图全解码必炸内存；
-/// ② **并发闸 4**：一个目录几百项时后台同时解码几十张会抢满 IO 与线程池。
-/// </para>
-/// <para>🔴 被淘汰的位图**只丢引用、不 Dispose**：它可能正被界面某个 Image 持有，
-/// 直接 Dispose 会在下一帧渲染时炸掉（Skia 访问已释放的位图）。交给 GC 回收，宁可慢一点。
-/// </para>
-/// </summary>
+/// <summary>「资产浏览」的缩略图缓存：只在浏览时读缓存目录（⛔ 不在浏览过程中现场生成，生成走工具条的显式命令）。（WHY: MA-032）</summary>
 public class AssetThumbCache
 {
     private const int MaxEntries = 300;

@@ -310,3 +310,365 @@
 | NT-116 | **资产浏览改真资源管理器**（磁盘实时枚举 + 懒加载树 + 未入库标灰 + 右键加入资产库 + 缩略图按可视区懒解码 + 图片原生缩略图） | ✅ 已交付（2026-10-28；需求 §6.6.1 / v3.100） |
 | NT-115 | **资产浏览页** `assets-browse`（左目录树 + 图标卡 / 详细双视图，缩略图首次接 UI） | ✅ 已交付（2026-10-27；需求 §6.6.1；数据源口径已被 NT-116 反转） |
 | NT-138 | **扫描提速 + 存储源页并入资产浏览页** | ✅ 已实施（2026-11-03，待 build；见卡内验收） |
+
+## 附录 · 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:modules-media-assets:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:MA-001 -->
+- **MA-001** · `src/Module.MediaAssets/MediaAssetsModule.cs`
+  - 数据落本模块自有库 store\assets\assets.db（13 张表），⛔ 与其它模块共库；
+  - ⚠️ 本模块的设置页 settings-media-assets 由本模块 Initialize 自注册进本模块分组
+  - （跨组注册由框架延迟补登保障，规范 §3.2）——已落地：View/VM 均在本模块（⛔ 不依赖框架程序集）。
+
+<!-- ANCHOR:MA-002 -->
+- **MA-002** · `src/Module.MediaAssets/MediaAssetsModule.cs`
+  - ⚠️ 顺序不变：ApplySettings 仍要在用户第一次点「扫描」之前生效。
+  - 延迟层排在首帧渲染之后，而窗口可交互也在首帧之后 —— 实际不会漏。
+
+<!-- ANCHOR:MA-003 -->
+- **MA-003** · `src/Module.MediaAssets/Models/AssetConstants.cs`
+  - 避免「视频标签」和「音乐标签」挤在一排互相干扰；标签管理页按类型排序分组。
+  - ⚠️ 库里的历史值可能是任意文本（老的命名空间）⇒ 读出来原样显示，编辑时收敛到这 6 个值。
+
+<!-- ANCHOR:MA-004 -->
+- **MA-004** · `src/Module.MediaAssets/Models/AssetDirNode.cs`
+  - 🔴 树是自绘（ListBox + 按钮行，按 `Depth` 扁平化）：⛔ 不用 TreeView，
+  - 🔴 子目录懒加载：节点首次展开才枚举磁盘（`IsLoaded`），⛔ 不在进页面时递归扫全盘。
+
+<!-- ANCHOR:MA-005 -->
+- **MA-005** · `src/Module.MediaAssets/Models/AssetRow.cs`
+  - 为什么要单独一行模型：`assets` 表里没有文件名 / 大小 / 路径（一个资产可有多份位置，
+  - ⛔ 别在 VM 里对每个资产再查一次位置（N+1，500 行就是 500 次查询）。
+  - 🔴 列键 ≠ 属性名的列，必须在 ViewModel 的 FieldText 里显式映射（ 教训：
+
+<!-- ANCHOR:MA-006 -->
+- **MA-006** · `src/Module.MediaAssets/Models/AssetTile.cs`
+  - 🔴 与索引的关系是叠加而不是来源：目录内容一律来自实时枚举，`InLibrary` 表示
+  - Id = 0 的合成行填 `Row`，这样卡片模板与详情卡 ⛔ 不需要到处判空。
+  - 解码失败 / 缓存缺失 → 保持 null，界面按「类型占位」显示（⛔ 不抛、⛔ 不弹窗）。
+
+<!-- ANCHOR:MA-008 -->
+- **MA-008** · `src/Module.MediaAssets/Models/FilterOption.cs`
+  - 为什么不用元组：ComboBox 要 DisplayMemberPath 绑具名属性，元组只有 Item1/Item2，
+
+<!-- ANCHOR:MA-009 -->
+- **MA-009** · `src/Module.MediaAssets/Models/MediaAssetsSettings.cs`
+  - ⚠️ 模型放在本模块而不是 Shared：读者（扫描 / 元数据 / 缩略图服务）与写者（本模块设置页）
+
+<!-- ANCHOR:MA-010 -->
+- **MA-010** · `src/Module.MediaAssets/Models/RenameRules.cs`
+  - 「为什么改成了这个名字」；⛔ 不按开关先后、⛔ 不叠加多轮。
+
+<!-- ANCHOR:MA-011 -->
+- **MA-011** · `src/Module.MediaAssets/Models/StorageSource.cs`
+  - ⚠️ 类名叫 StorageSource 而不是 Storage：后者会与 Avalonia 的
+  - 移除存储源只移索引，⛔ 不删磁盘文件（需求 §6.6）。
+
+<!-- ANCHOR:MA-012 -->
+- **MA-012** · `src/Module.MediaAssets/Services/AssetBrowseService.cs`
+  - 🔴 两条硬约束：
+  - ① 只枚举一层：展开节点才读它的直接子目录，⛔ 不递归（整盘递归会把界面拖死）；
+  - ② 异常不外抛：权限不足 / 盘符掉线 / NAS 超时一律降级成「不可访问 + 空列表」。
+
+<!-- ANCHOR:MA-013 -->
+- **MA-013** · `src/Module.MediaAssets/Services/AssetDatabase.cs`
+  - 落本模块自有库 store\assets\assets.db（见 `AssetsDb`）—— ⛔ 与视频 / 网络 / 脚本模块共库。
+  - （CREATE TABLE IF NOT EXISTS）+ 老库补列（ALTER TABLE ADD COLUMN，⛔ 只加可空列）；
+  - 库不可用（`SqliteDatabase.IsAvailable` = false）时不抛，各页面自行降级提示。
+
+<!-- ANCHOR:MA-014 -->
+- **MA-014** · `src/Module.MediaAssets/Services/AssetImportExport.cs`
+  - 🔴 导入 = 追加合并（⛔ 不静默覆盖）：按绝对路径去重（已有 → 跳过），新的按所在目录
+
+<!-- ANCHOR:MA-015 -->
+- **MA-015** · `src/Module.MediaAssets/Services/AssetLibraryAddService.cs`
+  - 🔴 两条与嵌套目录相关的硬规则：
+  - ② 子孙已登记（目标目录里含别的存储源）⇒ 那部分文件跳过，⛔ 不重复索引，也不为父目录另建重叠源。
+  - ⛔ 一律只写索引，不动磁盘文件；大批量走调用方的任务队列（本服务只提供可取消的异步方法）。
+
+<!-- ANCHOR:MA-016 -->
+- **MA-016** · `src/Module.MediaAssets/Services/AssetMergeService.cs`
+  - 🔴 实现要点：
+  - ① 源库只读——ATTACH 挂载后只 SELECT，⛔ 绝不写 src.*（源文件一个字节都不改）；
+  - ② ATTACH 必须在事务外（SQLite 不允许事务中 ATTACH）→ 顺序 = ATTACH → BEGIN → 合并 → COMMIT → DETACH；
+  - ③ 一个事务：全部成功或全部不写（⛔ 不写一半）；
+
+<!-- ANCHOR:MA-018 -->
+- **MA-018** · `src/Module.MediaAssets/Services/AssetNavigationStore.cs`
+  - 目标页在 OnAttachedToVisualTree（🔴 不是 `OnDataContextChanged`，规范 §4.8 硬规则 8）
+  - 调 `Take` 取件；取完即清空（⛔ 不重复消费）。
+
+<!-- ANCHOR:MA-019 -->
+- **MA-019** · `src/Module.MediaAssets/Services/AssetsDb.cs`
+  - 🔴 一个模块一个库：13 张资产表只在资产库里，⛔ 与视频 / 网络 / 脚本模块共库。
+
+<!-- ANCHOR:MA-020 -->
+- **MA-020** · `src/Module.MediaAssets/Services/AssetService.Browse.cs`
+  - 🔴 目录数据一律取库里的索引，⛔ 不实时枚举磁盘：NAS / 移动盘离线时枚举会卡死界面，索引即真相。
+  - 文件位置状态为 deleted（永久删除 / 已从库移除）不参与；missing 仍列出（界面上标灰）。
+  - 资产本体进了回收站（assets.status='trashed'）也不参与 —— 回收站的资产不进目录树。
+
+<!-- ANCHOR:MA-021 -->
+- **MA-021** · `src/Module.MediaAssets/Services/AssetService.Commit.cs`
+  - 各自登记或复用存储源（root_path 去重）。⛔ 只建索引，⛔ 不碰磁盘文件。
+
+<!-- ANCHOR:MA-022 -->
+- **MA-022** · `src/Module.MediaAssets/Services/AssetService.cs`
+  - ⛔ 全程参数化 SQL，⛔ 不拼字符串（路径里可能有引号）。
+
+<!-- ANCHOR:MA-023 -->
+- **MA-023** · `src/Module.MediaAssets/Services/AssetService.Dedup.cs`
+  - 扫描匹配只在当前存储源的索引内做（⛔ 跨源），于是同一文件落成两条资产、两条位置。
+  - ⚠️ 合并只认物理路径完全相同（忽略大小写 / 分隔符）的位置；映射盘与 UNC 双写法指向同一份文件时路径不同，需手动移除其中一个源。
+
+<!-- ANCHOR:MA-024 -->
+- **MA-024** · `src/Module.MediaAssets/Services/AssetService.Dedup.cs`
+  - 🔴 口径必须与 `CountDuplicatePaths` 一致：含回收站资产的组也参与合并。
+
+<!-- ANCHOR:MA-025 -->
+- **MA-025** · `src/Module.MediaAssets/Services/AssetService.Dedup.cs`
+  - 没有此类源时返回空表 —— 常规库零额外开销（不会多读一行）。
+  - ⛔ 只取子源、不取父源：父源临时离线时，子源扫描不该把它下面的位置抢走。
+
+<!-- ANCHOR:MA-026 -->
+- **MA-026** · `src/Module.MediaAssets/Services/AssetService.Dedup.cs`
+  - 扫到时应改归它自己的目录源，⛔ 别再建一条资产。
+
+<!-- ANCHOR:MA-027 -->
+- **MA-027** · `src/Module.MediaAssets/Services/AssetService.Org.cs`
+  - <paramref name="linkTable"/> 必须有 asset_id 与 {tag|category|collection}_id 两列。
+  - <paramref name="ids">分页：只查这些资产的映射（⛔ 不拉全表 —— 全量映射是分页最贵的隐藏消耗）；
+
+<!-- ANCHOR:MA-028 -->
+- **MA-028** · `src/Module.MediaAssets/Services/AssetService.Query.cs`
+  - ⛔ 为什么不在 VM 里对每个资产再查位置：那是 N+1（500 行 = 500 次查询）。这里主位置用
+
+<!-- ANCHOR:MA-029 -->
+- **MA-029** · `src/Module.MediaAssets/Services/AssetService.Query.cs`
+  - 🔴 WHERE 只准在 `BuildWhere` 里写一份 —— 两份漂移 = 总数与列表对不上。
+
+<!-- ANCHOR:MA-030 -->
+- **MA-030** · `src/Module.MediaAssets/Services/AssetService.Query.cs`
+  - 三级兜底必须用 COALESCE：SQLite 的 IFNULL 只收两个参数，
+
+<!-- ANCHOR:MA-032 -->
+- **MA-032** · `src/Module.MediaAssets/Services/AssetThumbCache.cs`
+  - 🔴 被淘汰的位图只丢引用、不 Dispose：它可能正被界面某个 Image 持有，
+
+<!-- ANCHOR:MA-033 -->
+- **MA-033** · `src/Module.MediaAssets/Services/FileOperationService.cs`
+  - 🔴 日志先行（需求 §6.6 核心流程）：operation_logs(pending) → 动磁盘 → 更新 file_locations
+  - 🔴 防穿越：重命名只允许改文件名（⛔ 不许含路径分隔符）；移动 / 复制要求目标目录落在
+  - 已登记存储源的根内 —— 否则拒绝（不猜、不越界写盘）。
+  - ⛔ 失败不自动回滚磁盘：失败态写进日志，提示用户手动补偿；数据库没跟上时下次扫描按 hash / inode 校准。
+  - ⛔ 删除默认送系统回收站（SHFileOperationW，视频工具 VideoFileService 先例）；
+  - 只有「永久删除」才真删，且必须二次确认（由调用方做）。
+
+<!-- ANCHOR:MA-034 -->
+- **MA-034** · `src/Module.MediaAssets/Services/FileOperationService.cs`
+  - ⚠️ 走任务队列 → 任务中心可见、可取消；⛔ 不静默删。
+
+<!-- ANCHOR:MA-036 -->
+- **MA-036** · `src/Module.MediaAssets/Services/MediaAssetsSettingsIO.cs`
+  - 单例；`Settings` 是活实例（消费者每次读最新值，⛔ 不各存一份快照）。
+
+<!-- ANCHOR:MA-038 -->
+- **MA-038** · `src/Module.MediaAssets/Services/MetadataService.cs`
+  - ⚠️ 只做最小实现：音乐 / 书籍 / 文档本轮只落基础文件信息（ mutagen / exif / PDF 解析等
+  - 第三方库 ⛔ 不擅引——先问用户）。结果写进 assets.metadata_json（按类型分键，⛔ 不覆盖别的类型的键）。
+
+<!-- ANCHOR:MA-040 -->
+- **MA-040** · `src/Module.MediaAssets/Services/MusicTagService.cs`
+  - 🔴 写操作只改标签，⛔ 不动音频数据；播放器只读不写（编辑归资产库，见「查看器 → 音乐播放」的只读契约）。
+  - 所以一次查询只发一个 GET，⛔ 不并发轰炸。
+
+<!-- ANCHOR:MA-041 -->
+- **MA-041** · `src/Module.MediaAssets/Services/OperationLogService.cs`
+  - ⛔ 库不可用时全部方法静默降级（返回 0 / 空列表），⛔ 不抛。
+
+<!-- ANCHOR:MA-042 -->
+- **MA-042** · `src/Module.MediaAssets/Services/ScanService.cs`
+  - 🔴 性能策略（ 重写，实测教训：第一版扫一个目录几分钟不动、硬盘狂响）
+  - —— 否则算了也没处匹配。首次扫描因此完全不读文件内容（纯元数据遍历）；
+  - 新文件⛔ 不算完整内容哈希（那会把每个文件整读一遍，是之前慢的根因）。
+  - ⛔ 不 per-file SELECT（1 万文件 = 4 万次查询 → 4 次）；
+  - 只记 id、批量 UPDATE last_seen_at，⛔ 不逐条写。
+  - ⚠️ 已知降级：首次入库的位置没有 quick_hash → 之后若文件被移动且 mtime 也变了，
+
+<!-- ANCHOR:MA-043 -->
+- **MA-043** · `src/Module.MediaAssets/Services/ScanService.cs`
+  - 🔴 与 `ScanAsync` 的根本差别：一个字节都不写库（⛔ 不建 assets / file_locations、
+  - ⛔ 不算任何哈希）→ 纯元数据遍历，最快，且随时可以丢弃。落库由 AssetService.CommitRows 显式做。
+
+<!-- ANCHOR:MA-044 -->
+- **MA-044** · `src/Module.MediaAssets/Services/ScanService.cs`
+  - 🔴 元数据与缩略图属于「读文件 + 起 ffprobe/ffmpeg 进程」，同步跑会把扫描拖成几分钟（用户实测）。
+
+<!-- ANCHOR:MA-045 -->
+- **MA-045** · `src/Module.MediaAssets/Services/ScanService.Index.cs`
+  - 🔴 与 `ScanAsync` 的关键差别：不做 missing 校准 —— 用户只选了几个文件，
+
+<!-- ANCHOR:MA-046 -->
+- **MA-046** · `src/Module.MediaAssets/Services/ScanService.Storage.cs`
+  - 🔴 为什么不整棵子树挂在一个源上：同一批文件若既被父源又被子目录源持有，列表里会出现重复行，
+  - 且无法按文件夹分辨来源。规则统一为「一个文件只属于它上一级文件夹对应的源」。
+  - 🔴 速度三件事（缺一个都会退化成「扫一个目录几分钟」）：
+  - ② 新目录的源直接 INSERT（`AssetService.InsertStorageFast`），⛔ 不走会全表查的 Upsert；
+
+<!-- ANCHOR:MA-047 -->
+- **MA-047** · `src/Module.MediaAssets/Services/ScanService.Util.cs`
+  - ⚠️ 用 EnumerateFileSystemInfos 一次拿全部条目（含已缓存的 Length / LastWriteTime / Attributes）：
+
+<!-- ANCHOR:MA-048 -->
+- **MA-048** · `src/Module.MediaAssets/Services/StorageService.cs`
+  - 数据查询一律走 `AssetService`（数据层唯一入口），本类只做"页面要的组装"：
+  - ① 根目录可访问性探测（⛔ 不抛异常，读不到 = 离线）；② 探测结果写回 storages.online。
+  - 🔴 离线语义（需求 §6.6 外部变更）：移动硬盘 / NAS 拔掉 → online=0 →
+  - `ScanService` 扫描时跳过它，其下 file_locations ⛔ 不会被标 missing；
+
+<!-- ANCHOR:MA-049 -->
+- **MA-049** · `src/Module.MediaAssets/Services/TaskQueue.cs`
+  - ⛔ 不做持久化：任务队列是运行态，进程退出即清（长期记录在 scan_jobs / operation_logs）。
+
+<!-- ANCHOR:MA-050 -->
+- **MA-050** · `src/Module.MediaAssets/Services/TaskQueue.cs`
+  - 继承 ObservableObject：状态 / 进度是边跑边变的，用普通属性则列表行不会刷新
+
+<!-- ANCHOR:MA-051 -->
+- **MA-051** · `src/Module.MediaAssets/Services/ThumbnailService.cs`
+  - 🔴 两条硬经验（视频工具先例）：
+  - 可能正占着旧文件，直接写会失败；② ⛔ 不放大小图（scale='min(SIZE,iw)':-2 只缩不放）。
+
+<!-- ANCHOR:MA-052 -->
+- **MA-052** · `src/Module.MediaAssets/Services/ThumbnailService.cs`
+  - 🔴 图片不再走 ffmpeg：一次子进程启动 + JPEG 编码要 80~150ms，而 Skia 解码缩放只要几毫秒
+  - 那会把缩略图变成平台相关代码，与「新代码必须平台中立」冲突，且收益远小于图片这一档。
+
+<!-- ANCHOR:MA-053 -->
+- **MA-053** · `src/Module.MediaAssets/Services/UserDataExport.cs`
+  - 🔴 结构自描述、⛔ 不依赖内部 id：分类的父子用名字、集合成员用文件路径、关联用两端路径；
+  - 恢复时按 name/path 重建映射。恢复 = 合并（⛔ 不静默覆盖已有的同名项；缺的才建）。
+
+<!-- ANCHOR:MA-055 -->
+- **MA-055** · `src/Module.MediaAssets/ViewModels/AssetAllViewModel.cs`
+  - 🔴 ：5 个类型页（视频 / 音乐 / 书籍 / 图片 / 文档）已合并进本页 ——
+  - 本页是索引视图：显示名这类逻辑改动直接改库；重命名 / 移动 / 删除磁盘文件由文件操作服务负责，本页一个都不做。
+  - → 页面 XAML 里 ⛔ 不再自带右栏（否则会出现两个详情卡）。
+  - 列键与行模型属性名不一致的列，必须在 `FieldText` 里显式映射 ——
+
+<!-- ANCHOR:MA-056 -->
+- **MA-056** · `src/Module.MediaAssets/ViewModels/AssetAllViewModel.cs`
+  - 🔴 ⛔ 不落盘（SetColumnVisible 只改内存）；用户右键改过的偏好（落盘的那些键）
+
+<!-- ANCHOR:MA-057 -->
+- **MA-057** · `src/Module.MediaAssets/ViewModels/AssetAllViewModel.cs`
+  - 🔴 ⛔ 不能拿落盘的列布局当「用户设过」的依据 —— 基类 SaveVisibility 是全量落盘：
+  - 类型切换会永久失效（现象：快照里有的列一律不动，只有快照之后新增的列能切）。
+
+<!-- ANCHOR:MA-058 -->
+- **MA-058** · `src/Module.MediaAssets/ViewModels/AssetAllViewModel.Edit.cs`
+  - 🔴 三重防误触（这是索引库里破坏性最大的操作，故意把点击成本做高）：
+
+<!-- ANCHOR:MA-059 -->
+- **MA-059** · `src/Module.MediaAssets/ViewModels/AssetAllViewModel.Maintain.cs`
+  - 物理删除仍然只有行右键的「⛔ 从磁盘删除…」一条路。
+
+<!-- ANCHOR:MA-060 -->
+- **MA-060** · `src/Module.MediaAssets/ViewModels/AssetAllViewModel.Maintain.cs`
+  - ⚠️ 文件仍在已登记存储源的目录里 ⇒ 下次扫描会再次入库；要彻底不再回来，去「存储源」页删掉多余的嵌套目录源。
+
+<!-- ANCHOR:MA-061 -->
+- **MA-061** · `src/Module.MediaAssets/ViewModels/AssetAllViewModel.Maintain.cs`
+  - 源外登记的位置、以及很久没再扫描的存储源都不会被更新。
+
+<!-- ANCHOR:MA-062 -->
+- **MA-062** · `src/Module.MediaAssets/ViewModels/AssetAllViewModel.Music.cs`
+  - 编辑与写回文件都归资产库（查看器的音乐页只读，⛔ 不改文件）。
+
+<!-- ANCHOR:MA-065 -->
+- **MA-065** · `src/Module.MediaAssets/ViewModels/AssetBrowseViewModel.BatchRename.cs`
+  - 候选口径与其它库操作一致：`LibraryFileTiles`（已入库的文件）；未入库项与文件夹不参与，
+  - 数量差在弹层里明说「已跳过 N 个」——⛔ 不静默丢。
+
+<!-- ANCHOR:MA-066 -->
+- **MA-066** · `src/Module.MediaAssets/ViewModels/AssetBrowseViewModel.cs`
+  - 🔴 数据来源：磁盘实时枚举为主，索引只做叠加。
+
+<!-- ANCHOR:MA-067 -->
+- **MA-067** · `src/Module.MediaAssets/ViewModels/AssetBrowseViewModel.cs`
+  - 🔴 几百项的目录别一次全解：屏幕只显示十几张，其余解码纯属白读磁盘。
+  - 🔴 只解码已缓存的图；缓存缺失的那部分交给 `RequestThumbGeneration` 现做 ——
+  - 于是滚动时缩略图是「一路滚一路长出来」，⛔ 不是进目录时等一次性批处理。
+
+<!-- ANCHOR:MA-068 -->
+- **MA-068** · `src/Module.MediaAssets/ViewModels/AssetBrowseViewModel.Library.cs`
+  - 🔴 语义（资源管理器口径 + 库的边界）：
+  - · 文件 ⇒ 只索引它自己（所在目录没登记就登记该目录，⛔ 不登记盘符根）；
+  - · 文件夹 ⇒ 递归扫描该目录（已在某存储源之内 ⇒ 归那个源，⛔ 不另建重叠源）；
+
+<!-- ANCHOR:MA-069 -->
+- **MA-069** · `src/Module.MediaAssets/ViewModels/AssetBrowseViewModel.ResultSet.cs`
+  - 🔴 只换列表来源与左树显隐，翻页 / 缩略图 / 类型筛选 / 搜索 / 排序 / 详情卡全部复用目录模式的实现
+  - —— 否则「按标签浏览」会变成第二套浏览页，两套交互迟早漂移。
+
+<!-- ANCHOR:MA-070 -->
+- **MA-070** · `src/Module.MediaAssets/ViewModels/AssetBrowseViewModel.Transfer.cs`
+  - ⚠️ 取 `SelectedTiles` 而不是 SelectedRows：后者只装已入库项，
+
+<!-- ANCHOR:MA-072 -->
+- **MA-072** · `src/Module.MediaAssets/ViewModels/AssetCollectionsViewModel.cs`
+  - （⛔ 未做鼠标拖放）。智能集合的成员由规则决定，⛔ 不许手工增删 / 排序。
+  - ⚠️ 智能集合（`rule_json`）本轮只区分类型 / 图标与存规则文本，规则求值未实装。
+
+<!-- ANCHOR:MA-073 -->
+- **MA-073** · `src/Module.MediaAssets/ViewModels/AssetStoragesViewModel.cs`
+  - 离线存储源在扫描时被跳过，其下 file_locations ⛔ 不被标 missing（重新上线 + 扫描即恢复）；
+  - 移除只删索引：二次确认里给明"将删除 N 个文件位置（资产记录保留）"，⛔ 绝不碰磁盘文件；
+
+<!-- ANCHOR:MA-074 -->
+- **MA-074** · `src/Module.MediaAssets/ViewModels/AssetTagsViewModel.cs`
+  - （reversible=1）—— ⛔ 不走任务队列（那是物理操作，）。
+  - ⚠️ 标签是用户手动数据（R1 例外）：重建库会丢，靠 的「导出用户数据」兜底。
+
+<!-- ANCHOR:MA-075 -->
+- **MA-075** · `src/Module.MediaAssets/ViewModels/AssetTasksViewModel.cs`
+  - ⚠️ 队列不持久化（进程退出即清，需求 §6.6）：长期记录在 `scan_jobs` / `operation_logs`，就是这页的后两块。
+  - 🔴 `TaskQueue.Changed` 是后台线程抛的 → 必须 `Dispatcher.UIThread.Post` 切回 UI 再重建列表。
+
+<!-- ANCHOR:MA-076 -->
+- **MA-076** · `src/Module.MediaAssets/ViewModels/AssetTrashViewModel.cs`
+  - ⚠️ 分清两层：
+  - 软删除 / 恢复（「移入回收站」/「♻ 恢复」）= 只改库状态，逻辑操作，⛔ 不走任务队列；
+
+<!-- ANCHOR:MA-077 -->
+- **MA-077** · `src/Module.MediaAssets/ViewModels/BatchRenameViewModel.cs`
+  - 库里的 file_locations.path 同步、同名冲突策略全部复用同一条通路，⛔ 不另开写盘口子。
+  - 🔴 预览是唯一的判断依据：确认按钮只在「没有红行」时可点；红行 = 空名 / 非法字符 / 重名且策略是跳过。
+
+<!-- ANCHOR:MA-078 -->
+- **MA-078** · `src/Module.MediaAssets/ViewModels/PickManyViewModel.cs`
+  - 🔴 语义是只加不减：勾上 = 给所有目标加这个标签 / 集合；不勾 = 不动（⛔ 不会顺手把别人已有的删掉）。
+  - ⛔ 不弹输入框让用户手打标签名：手打必然拼错、看不到已有标签、也没法一次加多个。
+  - 新建仍然保留输入框（这是唯一必须手打的地方，且只影响一个名字）。
+
+<!-- ANCHOR:MA-079 -->
+- **MA-079** · `src/Module.MediaAssets/ViewModels/SettingsMediaAssetsViewModel.cs`
+  - ⛔ 无保存按钮）；忽略规则 / 命名模板等多行文本 = 显式 💾 保存（一次写全，避免每敲一个字都落盘）。
+
+<!-- ANCHOR:MA-080 -->
+- **MA-080** · `src/Module.MediaAssets/Views/AssetAllView.axaml.cs`
+  - 🔴 选中真相在 VM（SelectedRows）：本类只负责把鼠标行为翻译成
+
+<!-- ANCHOR:MA-081 -->
+- **MA-081** · `src/Module.MediaAssets/Views/AssetAllView.axaml.cs`
+  - 🔴 右键：命中行不在当前多选里 ⇒ 单选替换成这一行（资源管理器语义，否则「从磁盘删除」会删掉
+
+<!-- ANCHOR:MA-082 -->
+- **MA-082** · `src/Module.MediaAssets/Views/AssetBrowseView.axaml.cs`
+  - 🔴 选中真相在 VM（SelectedRows）：本类只把鼠标行为翻译成 SelectedItems 变化再回填；
+
+<!-- WHY-DISTILL:modules-media-assets:end -->

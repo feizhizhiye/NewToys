@@ -5,25 +5,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 随包<b>示例</b>的播种器：示例脚本文件（.ps1 / .py / .bat / 采集器模板）+ 示例命令（Windows 设置项 / 管理工具）。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 定位：v3.66 配置整改第 ④ 条「示例走『随包 defaults + Seeder』」—— 示例只是<b>第一次运行的一次性礼物</b>，
-/// 与 <see cref="BuiltinCollectorSeeder"/>（内置采集器，永远保活）刻意区分：
-/// </para>
-/// <list type="bullet">
-///   <item>文件：<c>defaults\scripts\*</c> → <c>&lt;脚本目录&gt;\examples\</c>（只加不覆盖）；</item>
-///   <item>条目：<c>role=script</c>（3 个示例脚本）/ <c>role=collector</c>（采集器模板）/ <c>role=command</c>（示例命令）；</item>
-///   <item>🔴 <b>只播种一次</b>：<c>examples\.seeded</c> 标记存在 ⇒ 整体跳过。用户删掉的示例<b>不会复活</b> ——
-///   这正是示例与内置采集器的分野（内置采集器缺了就补回，示例删了就是删了）。</item>
-/// </list>
-/// <para>
-/// ⛔ 不建集合：脚本 / 命令由 <see cref="ScriptStoreService.SyncBuiltinCollections"/> 自动进「脚本库」「命令库」；
-/// 采集器模板要进信息面板就由用户在集合页勾进任意 <c>kind=info</c> 的集合（⛔ 不自作主张塞进「系统信息」）。
-/// </para>
-/// </remarks>
+/// <summary>随包示例的播种器：示例脚本文件（.ps1 / .py / .bat / 采集器模板）+ 示例命令（Windows 设置项 / 管理工具）。（WHY: SM-027）</summary>
 public static class ExampleSeeder
 {
     /// <summary>示例脚本子目录名（<c>&lt;脚本目录&gt;\examples</c>）。</summary>

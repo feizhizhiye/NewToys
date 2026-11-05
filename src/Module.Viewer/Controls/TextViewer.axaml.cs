@@ -6,16 +6,7 @@ using Avalonia.Media;
 
 namespace NewToys.Viewer.Controls;
 
-/// <summary>
-/// 文本渲染器：整篇文本 + 垂直滚动，记录阅读进度（0~1）。
-/// <para>
-/// 🔴 只负责「显示与进度」，文件读取也在本类（<see cref="Load"/>）—— 宿主拿到路径即可用，
-/// 不必在 VM 里再搬一遍文本。
-/// </para>
-/// <para>
-/// 编码：有 BOM 按 BOM；否则先试严格 UTF-8，失败回落 GB18030（中文老站点 / 老 TXT 常见）。
-/// </para>
-/// </summary>
+/// <summary>文本渲染器：整篇文本 + 垂直滚动，记录阅读进度（0~1）。（WHY: VW-008）</summary>
 public partial class TextViewer : UserControl
 {
     private static bool _encodingReady;

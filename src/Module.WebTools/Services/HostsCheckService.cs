@@ -17,15 +17,7 @@ public class HostsCheckOptions
     public int Concurrency { get; init; } = 8;
 }
 
-/// <summary>
-/// hosts 检测：① 条目**可用性**（本机 DNS 解析 vs 映射 IP + TCP 连通 + 时延）；
-/// ② **静态安全**规则；③ 源**失效**判定（跌一半）。
-/// <para>
-/// 🔴 能力边界：⛔ 不联网查 IP 信誉 / ASN、⛔ 不做投毒判定 —— 「安全」= 一眼能看出的静态风险，
-/// 文案里必须说清这一点（⛔ 别写成「已验证安全」）。
-/// </para>
-/// <para>并发上限由设置页给（默认 8），全程可取消；只检测 <see cref="HostsEntry.Enabled"/> 的条目。</para>
-/// </summary>
+/// <summary>hosts 检测：① 条目可用性（本机 DNS 解析 vs 映射 IP + TCP 连通 + 时延）；（WHY: WT-005）</summary>
 public class HostsCheckService
 {
     /// <summary>并发检测一遍（结果直接写回 <paramref name="entries"/> 的条目上）。</summary>

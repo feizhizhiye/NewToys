@@ -21,17 +21,7 @@ using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「资产浏览」页（需求 §6.6.1）—— **资源管理器形态**：左目录树 → 右「图标卡 / 详细信息」双视图 → 双击打开。
-/// <para>
-/// 🔴 数据来源：**磁盘实时枚举**为主，索引只做叠加。
-/// 目录树 = 盘符 / 共享根 + 逐层子目录（展开时懒加载）；右侧 = 该目录的真实内容（子目录 + 全部文件）。
-/// 索引命中 ⇒ 这一项「已入库」（有缩略图、可做库操作）；没命中 ⇒ 标灰但仍能打开 / 定位。
-/// </para>
-/// <para>
-/// 与「全部资产」分工：那边按**元数据**找（搜索 / 标签 / 筛选），这里按**磁盘位置**翻。
-/// </para>
-/// </summary>
+/// <summary>「资产浏览」页（需求 §6.6.1）—— 资源管理器形态：左目录树 → 右「图标卡 / 详细信息」双视图 → 双击打开。（WHY: MA-066）</summary>
 public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource, ISelectionStatusProvider
 {
     private readonly AssetService _assets = null!;
@@ -1216,12 +1206,7 @@ public partial class AssetBrowseViewModel : ListPageViewModelBase, IDetailPanelP
         return _thumbCts.Token;
     }
 
-    /// <summary>
-    /// 可视区变化：给真正看得见的那一段补缩略图（上下各预取一屏）。
-    /// <para>🔴 几百项的目录别一次全解：屏幕只显示十几张，其余解码纯属白读磁盘。</para>
-    /// <para>🔴 只解码**已缓存**的图；缓存缺失的那部分交给 <see cref="RequestThumbGeneration"/> 现做 ——
-    /// 于是滚动时缩略图是「一路滚一路长出来」，⛔ 不是进目录时等一次性批处理。</para>
-    /// </summary>
+    /// <summary>可视区变化：给真正看得见的那一段补缩略图（上下各预取一屏）。（WHY: MA-067）</summary>
     public void ReportViewport(double offsetY, double viewportHeight, double extentHeight)
     {
         if (!IsTileView || Items.Count == 0 || extentHeight <= 0 || viewportHeight <= 0) return;

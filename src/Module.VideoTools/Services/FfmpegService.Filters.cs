@@ -170,13 +170,7 @@ public static partial class FfmpegService
         }
     }
 
-    /// <summary>
-    /// 硬字幕滤镜：<c>subtitles='路径':force_style='FontSize=22,MarginV=24'</c>。
-    /// <para>
-    /// 🔴 路径必须转成 <c>/</c> 并把 <c>:</c> 转义成 <c>:</c>（前面加反斜杠）—— filtergraph 用 <c>:</c> 分参数，
-    /// 不转义时 <c>C:\...</c> 会被截成两段；整个值再用单引号包住，逗号才不会被当成滤镜分隔符。
-    /// </para>
-    /// </summary>
+    /// <summary>硬字幕滤镜：subtitles='路径':force_style='FontSize=22,MarginV=24'。（WHY: VT-013）</summary>
     public static string SubtitlesFilter(TranscodeTask task)
     {
         var path = (task.SubtitlePath ?? "").Trim().Replace('\\', '/').Replace(":", "\\:").Replace("'", "\\'");

@@ -14,31 +14,13 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 抓取 + 跑规则。
-/// <para>
-/// 🔴 <b>C# 不做任何规则解析</b>：把 HTML 存成文件，交给 Python（<see cref="IPythonRuntime"/>）跑
-/// <c>RULES</c>，C# 只负责"取 HTML / 送路径 / 解析返回的 JSON"。
-/// </para>
-/// <para>
-/// 缓存：<c>&lt;CacheDir&gt;\script\page\&lt;规则集名&gt;\page.html</c>（单文件覆盖）——
-/// 调试时反复跑命令 **不再重复发请求**。
-/// </para>
-/// </summary>
+/// <summary>抓取 + 跑规则。（WHY: SM-043）</summary>
 public sealed partial class RuleRunService
 {
     private readonly IPythonRuntime _py;
     private readonly RuleFileService _files;
     private readonly ConfigStoreService _cfg;
-    /// <summary>
-    /// 抓取默认项（UA / 超时）的取值处。
-    /// <para>
-    /// 🔴 设置页「网络工具设置」仍留在网络工具模块（菜单 Key `settings-web-tools` ⛔ 不改），
-    /// 它把值写进 <c>config\web-tools.json</c>；而抓取服务现在归脚本中心（模块禁互引 ⛔ 不能引用
-    /// <c>IWebToolsSettingsService</c>）⇒ 这里经 **Core 的 <see cref="IOptionsStore"/>** 只读同一份文件，
-    /// 键名 / 默认值与设置页保持逐字一致。设置拆分后再归位到 <c>config\script-manager.json</c>。
-    /// </para>
-    /// </summary>
+    /// <summary>抓取默认项（UA / 超时）的取值处。（WHY: SM-044）</summary>
     private readonly IOptionsStore? _opts;
 
     private static bool _encodingReady;

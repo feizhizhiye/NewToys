@@ -9,14 +9,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 缩略图生成：视频抽帧 / 图片缩放，落 <c>cache\assets\thumbs\{sha1(path)}.jpg</c>（复用视频工具约定）。
-/// <para>
-/// 🔴 两条硬经验（视频工具先例）：
-/// ① 先写 <c>.tmp.jpg</c> 再 <see cref="File.Move(string,string, bool)"/> 替换 —— 收藏页 / 列表的 Bitmap
-///    可能正占着旧文件，直接写会失败；② ⛔ 不放大小图（<c>scale='min(SIZE,iw)':-2</c> 只缩不放）。
-/// </para>
-/// </summary>
+/// <summary>缩略图生成：视频抽帧 / 图片缩放，落 cache\assets\thumbs\{sha1(path)}.jpg（复用视频工具约定）。（WHY: MA-051）</summary>
 public class ThumbnailService
 {
     private readonly MediaAssetsSettingsIO _io;
@@ -38,15 +31,7 @@ public class ThumbnailService
         return Path.Combine(ThumbsDirectory, hash + ".jpg");
     }
 
-    /// <summary>
-    /// 给一个文件位置生成缩略图（视频 → ffmpeg 抽帧；图片 → **原生解码缩放**）。
-    /// 返回（成功 / 消息 / 缩略图路径）。
-    /// <para>
-    /// 🔴 图片不再走 ffmpeg：一次子进程启动 + JPEG 编码要 80~150ms，而 Skia 解码缩放只要几毫秒
-    /// （本机 CPU，无需外部进程）。视频仍用 ffmpeg —— 原生解码要靠平台 API（Windows = Media Foundation），
-    /// 那会把缩略图变成平台相关代码，与「新代码必须平台中立」冲突，且收益远小于图片这一档。
-    /// </para>
-    /// </summary>
+    /// <summary>给一个文件位置生成缩略图（视频 → ffmpeg 抽帧；图片 → 原生解码缩放）。（WHY: MA-052）</summary>
     public async Task<(bool Ok, string Message, string? ThumbPath)> GenerateAsync(FileLocation loc, CancellationToken ct)
     {
         if (loc == null || string.IsNullOrEmpty(loc.Path)) return (false, "参数不对。", null);

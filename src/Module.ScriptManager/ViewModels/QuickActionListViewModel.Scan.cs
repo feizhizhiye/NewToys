@@ -67,13 +67,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
         }
     };
 
-    /// <summary>
-    /// 工具条（/ 需求 §4.8.5）：页面⛔ 不再自写 <c>Border.toolbar</c>，改由 Shell 渲染本描述符。
-    /// <para>
-    /// 顺序按「全部资产」同一口径：**入口动作（<see cref="ToolbarExtras"/>）→ 输入框 → 搜索框**，
-    /// 页专属项在前，共用搜索框紧随其后，末尾是共用的「导入 / 导出 + 清空本页」。
-    /// </para>
-    /// </summary>
+    /// <summary>工具条（/ 需求 §4.8.5）：页面⛔ 不再自写 Border.toolbar，改由 Shell 渲染本描述符。</summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar
     {
         get

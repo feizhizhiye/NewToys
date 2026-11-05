@@ -4,14 +4,7 @@ using System.IO;
 
 namespace NewToys.Viewer.Controls;
 
-/// <summary>
-/// 图片头部尺寸探测：只读文件头拿原始像素尺寸，**不解码像素**。
-/// <para>
-/// 🔴 用途只有一个：决定是否走降采样解码（<c>Bitmap.DecodeToWidth</c>）——
-/// 该 API 在目标尺寸大于原图时**会放大**，所以必须先知道原图多宽，否则小图反而被放大吃更多内存。
-/// </para>
-/// <para>支持 png / jpeg / gif / bmp / webp；探测失败返回 <c>false</c>，调用方退回整图解码。</para>
-/// </summary>
+/// <summary>图片头部尺寸探测：只读文件头拿原始像素尺寸，不解码像素。（WHY: VW-004）</summary>
 public static class ImageHeader
 {
     /// <summary>读取图片原始像素尺寸（读完把流位置复位到读之前；不可寻址的流不探测）。</summary>

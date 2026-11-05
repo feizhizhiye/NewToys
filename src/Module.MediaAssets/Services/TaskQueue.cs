@@ -9,13 +9,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 媒体资产的**串行任务队列**（需求 §6.6 任务中心）：一次只跑一件（磁盘 IO 任务并行只会互相拖慢），
-/// 支持取消 / 进度文本 / 失败隔离（一件失败不影响后续），供「任务中心」页展示、扫描 / 物理操作入队。
-/// <para>
-/// ⛔ 不做持久化：任务队列是**运行态**，进程退出即清（长期记录在 <c>scan_jobs</c> / <c>operation_logs</c>）。
-/// </para>
-/// </summary>
+/// <summary>媒体资产的串行任务队列（需求 §6.6 任务中心）：一次只跑一件（磁盘 IO 任务并行只会互相拖慢）， 支持取消 / 进度文本 / 失败隔离（一件失败不影响后续），供「任务中心」页展示、扫描 / 物理操作入队。（WHY: MA-049）</summary>
 public class TaskQueue
 {
     private readonly List<TaskItem> _items = new();
@@ -190,13 +184,7 @@ public class TaskQueue
     private void Raise() => Changed?.Invoke(this, EventArgs.Empty);
 }
 
-/// <summary>
-/// 队列里的一项（任务中心页一行）。
-/// <para>
-/// 继承 <c>ObservableObject</c>：状态 / 进度是**边跑边变**的，用普通属性则列表行不会刷新
-/// （页面靠 <see cref="TaskQueue.Changed"/> 只能整表重建，滚动位置与选中都会丢）。
-/// </para>
-/// </summary>
+/// <summary>队列里的一项（任务中心页一行）。（WHY: MA-050）</summary>
 public partial class TaskItem : ObservableObject
 {
     public string Key { get; set; } = "";

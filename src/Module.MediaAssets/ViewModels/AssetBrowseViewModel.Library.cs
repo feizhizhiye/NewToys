@@ -12,15 +12,7 @@ using NewToys.MediaAssets.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「资产浏览」的入库动作：把磁盘上的文件 / 文件夹加进资产库。
-/// <para>
-/// 🔴 语义（资源管理器口径 + 库的边界）：
-/// · **文件** ⇒ 只索引它自己（所在目录没登记就登记该目录，⛔ 不登记盘符根）；
-/// · **文件夹** ⇒ 递归扫描该目录（已在某存储源之内 ⇒ 归那个源，⛔ 不另建重叠源）；
-/// · 没有选中项时 = 把**当前目录**加入资产库。
-/// </para>
-/// </summary>
+/// <summary>「资产浏览」的入库动作：把磁盘上的文件 / 文件夹加进资产库。（WHY: MA-068）</summary>
 public partial class AssetBrowseViewModel
 {
     /// <summary>➕ 加入资产库（选中项优先，其次当前目录）。</summary>

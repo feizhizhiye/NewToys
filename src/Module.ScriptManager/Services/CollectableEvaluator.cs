@@ -5,21 +5,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// <b>可采集判定</b>（§三.5）：一条条目能不能当采集器用。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 判定是<b>派生</b>的（每次加载 / 扫描重算），但结果落盘 ——
-/// <see cref="ScriptItem.CollectableSource"/> 记来源：<c>auto</c> = 本类算的，<c>user</c> = 用户手动覆盖过。
-/// 用户覆盖优先，⛔ 不被自动规则推翻。
-/// </para>
-/// <para>
-/// ⚠️ 黑名单按<b>子串</b>匹配（卡面口径「含 start / explorer / …」）。
-/// 副作用是 <c>Restart-*</c> 这类也命中 —— 这符合"宁可误判为不可采集"的取向：
-/// 用户真要采集，可在集合成员选择器里手动打开（<c>collectableSource=user</c>）。
-/// </para>
-/// </remarks>
+/// <summary>可采集判定（§三.5）：一条条目能不能当采集器用。（WHY: SM-022）</summary>
 public static class CollectableEvaluator
 {
     /// <summary>有副作用 / 需要交互的命令关键字（命中即不可采集）。</summary>
@@ -40,9 +26,7 @@ public static class CollectableEvaluator
         return Path.IsPathRooted(expanded) ? expanded : Path.Combine(scriptsDirectory ?? "", expanded);
     }
 
-    /// <summary>
-    /// 判定一条条目是否可采集。
-    /// </summary>
+    /// <summary>判定一条条目是否可采集。</summary>
     /// <param name="item">条目。</param>
     /// <param name="scriptsDirectory">脚本目录（<see cref="ScriptItem.Target"/> 为相对路径时的基准）。</param>
     /// <returns>(可采集, 不可采集原因)；原因仅在不可采集时非空。</returns>

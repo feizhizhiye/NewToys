@@ -20,22 +20,7 @@ using NewToys.ScriptManager.Services;
 
 namespace NewToys.ScriptManager.ViewModels;
 
-/// <summary>
-/// 爬虫面板（<c>web-crawl</c>，+ ）：跑一个抓取脚本 → 目录节看条目 → 试下载 / 批量下载。
-/// <para>
-/// 🔴 四节：① 链接·目录（动态列 + 双击 url 下钻 + 行勾选 + 右键试下载/诊断）；
-/// ② 试下载预览（单条跑 content 段，⛔ 不落最终产物）；③ 下载进度（批量 + 取消）；
-/// ④ 运行记录（历史 run + 打开目录 / 日志 / 复制诊断）。
-/// </para>
-/// <para>
-/// 🔴 下载 = <see cref="DownloadService"/> 内置（并发 / 限速 / 去重 / 续跑 / 取消），⛔ 不脚本化；
-/// 脚本只负责「一页能取出什么」。「内容脚本 ▾」= 流水线的 content 槽位（调试集合页里配好的那个）。
-/// </para>
-/// <para>
-/// 🔴 链式模式：一行都不勾 + 起始网址有值 ⇒ 从起始网址起 content + next 逐页跟进，
-/// rows 出来的子条目入队，目录边跑边累积（① 节空时才往里灌，⛔ 不冲掉抓链接的结果）。
-/// </para>
-/// </summary>
+/// <summary>爬虫面板（web-crawl，+ ）：跑一个抓取脚本 → 目录节看条目 → 试下载 / 批量下载。（WHY: SM-060）</summary>
 public partial class CrawlPanelViewModel : ObservableObject, IStatusProvider, IToolbarSource
 {
     private readonly RuleFileService _files = null!;

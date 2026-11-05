@@ -77,18 +77,7 @@ public readonly record struct TargetProfile(
     }
 }
 
-/// <summary>
-/// 转码前的**静态收益判定**：只读源属性 + 目标参数，不预编码、不碰磁盘、不碰 UI。
-/// <para>
-/// 核心指标是 <b>bpp</b>（每像素比特 = 视频码率 ÷ (宽 × 高 × 帧率)）：它把码率 / 分辨率 / 帧率 / 编码族
-/// 折算到同一个尺度上，跨分辨率可比。每种编码族有一个「视觉透明线」（见 <see cref="LineOf"/>）——
-/// 源 bpp 低于这条线时，说明源已经被压到该族极限，再转只会重新分配比特、体积不会降，甚至变大。
-/// </para>
-/// <para>
-/// ⚠️ 这是<b>方向判断</b>而非体积预测：CRF 编码的实际体积取决于画面复杂度，无法静态算准，
-/// 所以结论一律给区间口径（预计省幅 ±15%），并保留 <see cref="TranscodeVerdict.Unknown"/> 这一档。
-/// </para>
-/// </summary>
+/// <summary>转码前的静态收益判定：只读源属性 + 目标参数，不预编码、不碰磁盘、不碰 UI。（WHY: VT-018）</summary>
 public static class TranscodeAdvisor
 {
     /// <summary>x264 的视觉透明线（1080p30 约 6 Mbps）。</summary>
@@ -128,9 +117,7 @@ public static class TranscodeAdvisor
         return 1.0;
     }
 
-    /// <summary>
-    /// 判定一次转码值不值得跑。
-    /// </summary>
+    /// <summary>判定一次转码值不值得跑。</summary>
     /// <param name="src">源画像（ffprobe）。</param>
     /// <param name="dst">目标画像（预设 + 任务参数）。</param>
     /// <param name="minSavingPercent">省幅门槛（%），来自设置。</param>

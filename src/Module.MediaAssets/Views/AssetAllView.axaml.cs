@@ -9,13 +9,7 @@ using NewToys.MediaAssets.ViewModels;
 
 namespace NewToys.MediaAssets.Views;
 
-/// <summary>
-/// 「全部资产」页的 code-behind：只做**View 才做得了的事**
-/// （多选的修饰键接管、列表溢出测量、列显隐兜底）。
-/// <para>🔴 选中真相在 VM（<c>SelectedRows</c>）：本类只负责把鼠标行为翻译成
-/// <c>SelectedItems</c> 的变化，再把结果回填给 VM；VM 侧改了选中（全选 / 反选 / 重建认领）
-/// 走 <c>SelectionSyncRequested</c> 事件反向回填。</para>
-/// </summary>
+/// <summary>「全部资产」页的 code-behind：只做View 才做得了的事 （多选的修饰键接管、列表溢出测量、列显隐兜底）。（WHY: MA-080）</summary>
 public partial class AssetAllView : UserControl
 {
     private AssetAllViewModel? _vm;
@@ -112,14 +106,7 @@ public partial class AssetAllView : UserControl
 
     // ==================== 选中（Ctrl 增选 / Shift 连选 / Ctrl+A 全选） ====================
 
-    /// <summary>
-    /// 鼠标点行：无修饰键 = 只选这一行；`Ctrl` = 切换该行；`Shift` = 从基准行连选；
-    /// `Ctrl+Shift` = 追加连选。
-    /// <para>
-    /// 🔴 右键：命中行**不在**当前多选里 ⇒ 单选替换成这一行（资源管理器语义，否则「从磁盘删除」会删掉
-    /// 上一批选中、而不是你右键的那行）；命中行已在多选里 ⇒ 保留整批，让批量菜单作用于整批。
-    /// </para>
-    /// </summary>
+    /// <summary>鼠标点行：无修饰键 = 只选这一行；Ctrl = 切换该行；Shift = 从基准行连选；（WHY: MA-081）</summary>
     private void OnListPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_vm == null) return;

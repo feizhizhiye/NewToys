@@ -8,22 +8,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 规则集文件读写：**一条规则集 = 一个 <c>.py</c> 文件**，落
-/// <c>&lt;StoreDir&gt;\script\rules\</c>（模块独有目录，用户数据）。
-/// <para>
-/// 文件头用注释块写元数据 —— C# 侧<b>只按行读这些键</b>，⛔ 不解析 Python 语法（真正的执行在 Python 侧）：
-/// <list type="bullet">
-///   <item>标量键：<c>name / base / encoding / desc / category / role / works / artifact /
-///         concurrency / delay-ms / timeout / max-pages / max-items</c>（重复取第一个）。</item>
-///   <item>多行键：<c>ua</c>（UA 池）/ <c>header</c>（请求头），每行一个值。</item>
-///   <item>数字键脏值（非数字 / 越界）⇒ **回落缺省 + 记一条 <see cref="RuleSetMeta.HeaderWarnings"/>**。</item>
-/// </list>
-/// </para>
-/// <para>
-/// 🔴 类名刻意不叫 <c>ScrapeService</c>（旧实现已删）—— 见 命名表。
-/// </para>
-/// </summary>
+/// <summary>规则集文件读写：一条规则集 = 一个 .py 文件，落 &lt;StoreDir&gt;\script\rules\（模块独有目录，用户数据）。（WHY: SM-042）</summary>
 public sealed class RuleFileService
 {
     /// <summary>规则文件扩展名。</summary>

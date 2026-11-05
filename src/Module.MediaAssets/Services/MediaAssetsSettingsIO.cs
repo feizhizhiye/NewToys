@@ -6,13 +6,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 媒体资产设置的读写：落 <c>&lt;应用根&gt;\config\media-assets.json</c>。
-/// <para>
-/// 单例；<see cref="Settings"/> 是**活实例**（消费者每次读最新值，⛔ 不各存一份快照）。
-/// 设置页 <c>Save</c> 后由调用方把新值应用到 <see cref="ScanService"/>（忽略规则 / 采样大小）。
-/// </para>
-/// </summary>
+/// <summary>媒体资产设置的读写：落 &lt;应用根&gt;\config\media-assets.json。（WHY: MA-036）</summary>
 public class MediaAssetsSettingsIO
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };

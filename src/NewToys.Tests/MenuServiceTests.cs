@@ -13,14 +13,7 @@ namespace NewToys.Tests.Fixtures.Menu
 
 namespace NewToys.Tests
 {
-    /// <summary>
-    /// <see cref="MenuService"/> 的回归测试。
-    /// <para>
-    /// 菜单项是「页 Key → 视图名 → 反射解析」这条链的源头：ViewTypeName 写错 ⇒ 运行期不抛异常，
-    /// 只表现为「菜单项点了没反应 / 页面空白」。视图名改由泛型参数决定（<c>typeof(TView).Name</c>），
-    /// 这里守住它取到的就是简单类名、以及跨组注册的暂存-补登语义。
-    /// </para>
-    /// </summary>
+    /// <summary>MenuService 的回归测试。（WHY: TS-004）</summary>
     public class MenuServiceTests
     {
         private const string Group = "test-group";

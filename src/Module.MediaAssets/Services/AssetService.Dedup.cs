@@ -6,16 +6,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 存储源重叠检测 + 重复资产合并。
-/// <para>
-/// 重复的来源：两条登记的根目录互相包含（父目录源 + 它的子目录源）时，同一物理文件会被两个源各扫一遍；
-/// 扫描匹配只在**当前存储源的索引**内做（⛔ 跨源），于是同一文件落成两条资产、两条位置。
-/// 本类只做两件补救：登记时拒掉重叠的源（<see cref="FindOverlappingStorage"/>）、
-/// 把已经落成多条资产的同一路径并回一条（<see cref="MergeDuplicatePaths"/>）。
-/// </para>
-/// <para>⚠️ 合并只认**物理路径完全相同**（忽略大小写 / 分隔符）的位置；映射盘与 UNC 双写法指向同一份文件时路径不同，需手动移除其中一个源。</para>
-/// </summary>
+/// <summary>存储源重叠检测 + 重复资产合并。（WHY: MA-023）</summary>
 public partial class AssetService
 {
     /// <summary>路径比较键：统一分隔符、去尾部反斜杠、忽略大小写（Windows 语义）。盘根 <c>C:\</c> 保留尾分隔符。</summary>
@@ -124,15 +115,7 @@ public partial class AssetService
     /// <summary>上一次 <see cref="MergeDuplicatePaths"/> 的失败原因（空 = 没失败）；VM 用它把「为什么没合并」说出来。</summary>
     public string LastDedupError { get; private set; } = "";
 
-    /// <summary>
-    /// 合并「同一物理路径挂在多条资产下」的重复：每组保留一条资产（active 优先、id 最小），
-    /// 其余资产的文件位置与标签 / 分类 / 集合 / 关联全部重挂过去后删除，🔴 **磁盘文件一个都不动**。
-    /// <para>
-    /// 🔴 口径必须与 <see cref="CountDuplicatePaths"/> 一致：**含回收站资产的组也参与合并**。
-    /// 若跳过这类组，就会出现「点一次报 N 组、点完还报 N 组」—— 计数看得到、合并永远碰不到。
-    /// 组内排序已保证 active 优先，所以保留的一定是在用那条，回收站记录只贡献挂接后被删掉。
-    /// </para>
-    /// </summary>
+    /// <summary>合并「同一物理路径挂在多条资产下」的重复：每组保留一条资产（active 优先、id 最小）， 其余资产的文件位置与标签 / 分类 / 集合 / 关联全部重挂过去后删除，🔴 磁盘文件一个都不动。（WHY: MA-024）</summary>
     public DuplicateMergeResult MergeDuplicatePaths()
     {
         LastDedupError = "";
@@ -262,12 +245,7 @@ public partial class AssetService
 
     // ==================== 扫描用：重叠源的既有位置 ====================
 
-    /// <summary>
-    /// 把**登记在当前存储源之下**的其它源（子目录源）的位置读成「完整路径 → 位置」表：
-    /// 父源扫描时先认领这些位置，⛔ 不再为同一个物理文件新建资产。
-    /// <para>没有此类源时返回空表 —— 常规库零额外开销（不会多读一行）。</para>
-    /// <para>⛔ 只取子源、不取父源：父源临时离线时，子源扫描不该把它下面的位置抢走。</para>
-    /// </summary>
+    /// <summary>把登记在当前存储源之下的其它源（子目录源）的位置读成「完整路径 → 位置」表： 父源扫描时先认领这些位置，⛔ 不再为同一个物理文件新建资产。（WHY: MA-025）</summary>
     public Dictionary<string, FileLocation> LoadOverlappingLocations(StorageSource storage)
     {
         var map = new Dictionary<string, FileLocation>(StringComparer.Ordinal);
@@ -292,13 +270,7 @@ public partial class AssetService
         return map;
     }
 
-    /// <summary>
-    /// 该目录**整棵子树**相关的既有位置：自身、所有祖先源、所有子孙源（按路径索引）。
-    /// <para>
-    /// 扫描时拿它做「同一路径已有位置」的认领 —— 历史数据可能把这批文件挂在祖先源下，
-    /// 扫到时应改归它自己的目录源，⛔ 别再建一条资产。
-    /// </para>
-    /// </summary>
+    /// <summary>该目录整棵子树相关的既有位置：自身、所有祖先源、所有子孙源（按路径索引）。（WHY: MA-026）</summary>
     public Dictionary<string, FileLocation> LoadSubtreeLocations(StorageSource storage)
     {
         var map = new Dictionary<string, FileLocation>(StringComparer.Ordinal);

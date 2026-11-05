@@ -6,13 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.VideoTools.Services;
 
-/// <summary>
-/// <see cref="IVideoToolsSettingsService"/> 的实现（v3.64）：落 <c>config\video-tools.json</c>。
-/// <para>
-/// <b>一次性迁移</b>：并发数的旧位置是 <c>app.json</c> 的 <c>MaxConcurrency</c>（无界面、只能手改文件）。
-/// 首次运行本服务时把它搬进 <c>video-tools.json</c>（⛔ 不丢配置）；<c>app.json</c> 那个字段之后不再被读写。
-/// </para>
-/// </summary>
+/// <summary>IVideoToolsSettingsService 的实现：落 config\video-tools.json。（WHY: VT-026）</summary>
 public class VideoToolsSettingsService : IVideoToolsSettingsService
 {
     /// <summary>模块分区名 = 配置文件名基名（<c>config\video-tools.json</c>）。</summary>

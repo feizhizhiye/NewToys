@@ -6,18 +6,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 规则目录的元数据与迁移：
-/// <list type="bullet">
-///   <item>把磁盘上的 <c>.py</c>（<see cref="RuleFileService.Scan"/>）与 <c>web_docs</c> 里的
-///         启用状态 / 最近运行合并成列表行。</item>
-///   <item>旧 <c>scrape-tasks</c> 一次性转成规则文件（只转一次，<c>LegacyMigrated</c> 标记兜住重复）。</item>
-/// </list>
-/// <para>
-/// 🔴 元数据落 <c>web_docs</c> 文档 <c>rule-meta</c>（**不是** <c>config\</c> 下的文件）；
-/// 规则内容本身不在这里 —— 那是 <see cref="RuleFileService"/> 的活。
-/// </para>
-/// </summary>
+/// <summary>规则目录的元数据与迁移： <list type="bullet"> 把磁盘上的 .py（RuleFileService.Scan）与 web_docs 里的 启用状态 / 最近运行合并成列表行。（WHY: SM-041）</summary>
 public sealed class RuleCatalogService
 {
     /// <summary>元数据文档名。</summary>

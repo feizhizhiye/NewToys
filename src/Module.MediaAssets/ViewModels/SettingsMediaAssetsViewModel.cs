@@ -24,14 +24,7 @@ public sealed class ChoiceOption
     public override string ToString() => Label;
 }
 
-/// <summary>
-/// 「媒体资产」模块设置页：View/VM 归 <c>Module.MediaAssets</c>，由
-/// <c>MediaAssetsModule.Initialize</c> 自行注册进**本模块分组**（Order 99，本组末位）。
-/// <para>
-/// 两类生效方式（规范 §4.9）：开关 / 数值 / 路径 = **即时生效**（改即写 <c>config\media-assets.json</c>，
-/// ⛔ 无保存按钮）；忽略规则 / 命名模板等多行文本 = **显式 💾 保存**（一次写全，避免每敲一个字都落盘）。
-/// </para>
-/// </summary>
+/// <summary>「媒体资产」模块设置页：View/VM 归 Module.MediaAssets，由 MediaAssetsModule.Initialize 自行注册进本模块分组（Order 99，本组末位）。（WHY: MA-079）</summary>
 public partial class SettingsMediaAssetsViewModel : ObservableObject, IStatusProvider
 {
     private readonly MediaAssetsSettingsIO _io = null!;

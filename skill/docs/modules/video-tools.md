@@ -280,3 +280,153 @@
 | NT | 内容 | 状态 |
 |---|---|---|
 | — | 本模块暂无未结项 | — |
+
+## 附录 · 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:modules-video-tools:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:VT-001 -->
+- **VT-001** · `src/Module.VideoTools/Controls/TimelineTrack.cs`
+  - 🔴 颜色一律由外部用 XAML DynamicResource 传进来，
+  - 控件内⛔ 不写死色值；主题切换时 Brush 对象被替换 → `AffectsRender{T}` 自动重绘。
+  - 🔴 拖动改写 `Position` 必须用 SetCurrentValue：直接 SetValue 会把
+
+<!-- ANCHOR:VT-002 -->
+- **VT-002** · `src/Module.VideoTools/Details/VideoTaskCard.cs`
+  - 🔴 约束：两页 VM 必须提供这里出现的同名属性（ValuePath / VisibleWhen /
+  - ⛔ 不靠人记。
+
+<!-- ANCHOR:VT-006 -->
+- **VT-006** · `src/Module.VideoTools/Models/VideoTask.cs`
+  - ⚠️ 类名不能叫 TaskStatus：项目开了隐式 using，System.Threading.Tasks.TaskStatus
+
+<!-- ANCHOR:VT-008 -->
+- **VT-008** · `src/Module.VideoTools/Models/VideoTask.Cut.cs`
+  - 默认 -c copy（不重新编码，秒出、无损）；勾了「重新编码」才走编码（首尾不在关键帧上时必须重编码才准）。
+
+<!-- ANCHOR:VT-010 -->
+- **VT-010** · `src/Module.VideoTools/Models/VideoTask.Transcode.cs`
+  - ⚠️ `VideoTaskBase.OutputSize` 是基类里的 [ObservableProperty]，
+
+<!-- ANCHOR:VT-011 -->
+- **VT-011** · `src/Module.VideoTools/Services/CommandLint.cs`
+  - 只做「已知冲突」白名单 —— ⛔ 不做完整 ffmpeg 语法解析（那是不可能维护的）。
+  - 目标是「用户手改命令后的常见踩坑，在点运行之前就看得见」。
+
+<!-- ANCHOR:VT-012 -->
+- **VT-012** · `src/Module.VideoTools/Services/FfmpegService.cs`
+  - ⚠️ 诚实边界：ffmpeg 没配好（PATH 里没有 / 路径不对）时返回明确的错误信息，
+
+<!-- ANCHOR:VT-013 -->
+- **VT-013** · `src/Module.VideoTools/Services/FfmpegService.Filters.cs`
+  - 🔴 路径必须转成 / 并把 : 转义成 :（前面加反斜杠）—— filtergraph 用 : 分参数，
+  - 不转义时 C:\... 会被截成两段；整个值再用单引号包住，逗号才不会被当成滤镜分隔符。
+
+<!-- ANCHOR:VT-015 -->
+- **VT-015** · `src/Module.VideoTools/Services/FfmpegService.Run.cs`
+  - 🔴 只认 out_time_us（微秒，单位明确）与 out_time（时间码）——
+
+<!-- ANCHOR:VT-016 -->
+- **VT-016** · `src/Module.VideoTools/Services/IVideoToolsSettingsService.cs`
+  - ⚠️ ffmpeg / 外部播放器 / 导入导出目录是全局项（「设置 → 路径与配置」，app.json）：
+  - 媒体资产模块也在用同一份 ⇒ ⛔ 不下沉、⛔ 不另存一份（与 §4.9「复用全局项」同一条规则）。
+
+<!-- ANCHOR:VT-018 -->
+- **VT-018** · `src/Module.VideoTools/Services/TranscodeAdvisor.cs`
+  - 源 bpp 低于这条线时，说明源已经被压到该族极限，再转只会重新分配比特、体积不会降，甚至变大。
+  - ⚠️ 这是方向判断而非体积预测：CRF 编码的实际体积取决于画面复杂度，无法静态算准，
+  - 所以结论一律给区间口径（预计省幅 ±15%），并保留 `TranscodeVerdict.Unknown` 这一档。
+
+<!-- ANCHOR:VT-020 -->
+- **VT-020** · `src/Module.VideoTools/Services/VideoFileService.cs`
+  - 要不要确认、新名字填什么，交给宿主注入的 `DialogHooks`（Core 里的公共钩子）——
+  - 钩子没接上时一律按"用户取消"处理：宁可什么都不做，也不能在没有确认的情况下动用户的文件。
+  - 和媒体资产各写一遍，现已删掉，回收站只有一份实现。
+
+<!-- ANCHOR:VT-021 -->
+- **VT-021** · `src/Module.VideoTools/Services/VideoMediaIndex.cs`
+  - 为什么值得缓存：ffprobe 每个文件要起一次进程，几百个文件就是几百次进程启动，很慢；
+  - 只有没缓存过或文件已被改动（大小 / 修改时间对不上）的才真去跑 ffprobe，
+
+<!-- ANCHOR:VT-023 -->
+- **VT-023** · `src/Module.VideoTools/Services/VideoScanner.cs`
+  - 拿到就直接套用，⛔ 不再为同一批文件重跑 ffprobe；解析不出（空的 / 老数据没读过）返回 null，
+
+<!-- ANCHOR:VT-024 -->
+- **VT-024** · `src/Module.VideoTools/Services/VideoTaskStore.cs`
+  - 落本模块库 video.db 的 video_docs 表（文档名 tasks；⛔ 不写 config\video-tasks.json）。
+
+<!-- ANCHOR:VT-025 -->
+- **VT-025** · `src/Module.VideoTools/Services/VideoToolsSchemaContributor.cs`
+  - 🔴 这段 DROP 必须带护栏：无护栏的破坏性 DDL 迟早会误伤（表名写错就是清空数据）⇒
+
+<!-- ANCHOR:VT-026 -->
+- **VT-026** · `src/Module.VideoTools/Services/VideoToolsSettingsService.cs`
+  - 首次运行本服务时把它搬进 video-tools.json（⛔ 不丢配置）；app.json 那个字段之后不再被读写。
+
+<!-- ANCHOR:VT-027 -->
+- **VT-027** · `src/Module.VideoTools/VideoToolsModule.cs`
+  - 为什么搬：⛔ 破坏性 DROP 不能放在每次启动都跑的路径里（无护栏），
+
+<!-- ANCHOR:VT-028 -->
+- **VT-028** · `src/Module.VideoTools/ViewModels/SettingsVideoToolsViewModel.cs`
+  - 这里只展示、⛔ 不另存一份（§4.9「复用全局项」）。
+
+<!-- ANCHOR:VT-029 -->
+- **VT-029** · `src/Module.VideoTools/ViewModels/VideoBatchViewModel.cs`
+  - ⛔ 不改 `VideoTaskStore` 的存储结构（它仍分两个集合落盘）。
+
+<!-- ANCHOR:VT-030 -->
+- **VT-030** · `src/Module.VideoTools/ViewModels/VideoBatchViewModel.Finished.cs`
+  - 不是两套查询，⛔ 别在别处再算一遍。
+
+<!-- ANCHOR:VT-032 -->
+- **VT-032** · `src/Module.VideoTools/ViewModels/VideoListViewModel.Actions.cs`
+  - （用户再点「🔎 读取信息」）。⛔ 不在导入时同步跑 ffprobe：几十个文件会把界面卡住。
+
+<!-- ANCHOR:VT-034 -->
+- **VT-034** · `src/Module.VideoTools/ViewModels/VideoListViewModel.Page.cs`
+  - ⛔ 填充编辑缓冲（切选中项）时也会走到这里，所以先跟当前选中项比一次名字：
+  - 没变就直接返回，⛔ 不去碰磁盘。
+
+<!-- ANCHOR:VT-037 -->
+- **VT-037** · `src/Module.VideoTools/ViewModels/VideoPreviewViewModel.cs`
+  - ⚠️ 详情卡结构与「批量处理」页一致（需求 §6.4.1 / 规范 §3.9）：分区按 ffmpeg 命令书写顺序
+  - （剪辑 → 转码 → 输出 → 命令）；两个分区的勾选框就在标题行上；⛔ 详情卡里不放任何操作按钮，全在工具条。
+  - ⚠️ 不是列表页：不继承 ListPageViewModelBase，改 ObservableObject, IStatusProvider
+  - 预览为什么用 -ss 前置快速定位：ffmpeg 配合 -ss 走关键帧搜索几乎瞬间完成；
+  - 🔴 命令可编辑：自动生成值 `CommandPreview` 与手改值 `EditArgs` 分离 ——
+  - 手改后参数变化不覆盖手改，⛔ 手改后的命令必须原样执行。
+
+<!-- ANCHOR:VT-038 -->
+- **VT-038** · `src/Module.VideoTools/ViewModels/VideoPreviewViewModel.cs`
+  - ⚠️ setter 必须是 public：View（文件选择器失败提示等）会直接给它赋值，
+
+<!-- ANCHOR:VT-039 -->
+- **VT-039** · `src/Module.VideoTools/ViewModels/VideoPreviewViewModel.Detail.cs`
+  - ⚠️ 必须恒大于 Minimum=0：时长未知时若直接把 Maximum 绑到 Duration，
+
+<!-- ANCHOR:VT-040 -->
+- **VT-040** · `src/Module.VideoTools/Views/VideoBatchView.axaml.cs`
+  - ⚠️ 基类 Visual.OnAttachedToVisualTree 是 protected，这里必须写 protected override，
+  - 写成 public override → CS0507「无法更改访问修饰符」。
+
+<!-- ANCHOR:VT-041 -->
+- **VT-041** · `src/Module.VideoTools/Views/VideoListView.axaml.cs`
+  - 🔴 选中真相在 VM（SelectedRows）：本类只把鼠标行为翻译成 SelectedItems 的变化，
+
+<!-- ANCHOR:VT-042 -->
+- **VT-042** · `src/Module.VideoTools/Views/VideoListView.axaml.cs`
+  - 否则按资源管理器语义替换为该行。
+
+<!-- ANCHOR:VT-044 -->
+- **VT-044** · `src/Module.VideoTools/Views/VideoPreviewView.axaml.cs`
+  - DataContext 没变，OnDataContextChanged 不会再触发，于是送过来的文件一直没人取，
+  - 表现就是「必须刷新页面才看到预览」。OnAttachedToVisualTree 每次进页面都会跑，取一次即清空，重复调安全。
+  - ⚠️ 基类 Visual.OnAttachedToVisualTree 是 protected，这里必须写 protected override，
+  - 写成 public override → CS0507「无法更改访问修饰符」。
+
+<!-- WHY-DISTILL:modules-video-tools:end -->

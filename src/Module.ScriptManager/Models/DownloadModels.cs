@@ -5,12 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.ScriptManager.Models;
 
-/// <summary>
-/// 期②下载的字段求值结果：<see cref="RuleRunService"/> 的 <c>mode=step</c> 回包。
-/// <para>
-/// 🔴 与 <see cref="CrawlResult"/> 的分工：那个按索引合成行表（面板列表用），这个回**全量值**（下载落盘用，⛔ 不截断）。
-/// </para>
-/// </summary>
+/// <summary>期②下载的字段求值结果：RuleRunService 的 mode=step 回包。（WHY: SM-006）</summary>
 public sealed class StepResult
 {
     /// <summary>字段名 → 全部值（求值成功的）。</summary>

@@ -10,13 +10,7 @@ using NewToys.MediaAssets.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「全部资产」详情卡里的**音乐属性**：标题 / 艺术家 / 专辑 / 年份 / 流派 + 封面。
-/// <list type="bullet">
-///   <item>编辑与写回文件都归资产库（查看器的音乐页只读，⛔ 不改文件）。</item>
-///   <item>联网补全走 MusicBrainz + Cover Art Archive；查到的内容先填进编辑框，点「写入文件」才落盘。</item>
-/// </list>
-/// </summary>
+/// <summary>「全部资产」详情卡里的音乐属性：标题 / 艺术家 / 专辑 / 年份 / 流派 + 封面。（WHY: MA-062）</summary>
 public partial class AssetAllViewModel
 {
     private readonly MusicTagService? _musicTags;

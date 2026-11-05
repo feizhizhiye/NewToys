@@ -10,18 +10,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.SystemTools.Services;
 
-/// <summary>
-/// <see cref="IPackageManagerService"/> 的 **apt/dpkg 后端**（结构验证适配器）。
-/// <para>
-/// 目的：证明「换后端 = 加一个适配器 + 命令模板，**页面 / VM 零改动**」——
-/// 页面只认 <see cref="IPackageManagerService"/>，Shell 按平台二选一注册（见 <c>ScriptManagerModule</c>）。
-/// </para>
-/// <para>
-/// 范围（刻意克制，YAGNI）：只读清单（dpkg-query 机读 TSV + <c>apt list --upgradable</c> +
-/// sources.list 直读 + <c>apt-mark showhold</c>）。**写操作未实装** —— 按既定结论
-/// （写操作⛔ 不脚本化：提权 sudo vs UAC、交互确认、失败原因都会退化），留给命令库条目。
-/// </para>
-/// </summary>
+/// <summary>IPackageManagerService 的 apt/dpkg 后端（结构验证适配器）。（WHY: ST-005）</summary>
 public sealed class AptPackageService : IPackageManagerService
 {
     private readonly IProcessRunner _runner;

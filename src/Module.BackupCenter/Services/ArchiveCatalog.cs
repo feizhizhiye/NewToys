@@ -8,13 +8,7 @@ using NewToys.BackupCenter.Models;
 
 namespace NewToys.BackupCenter.Services;
 
-/// <summary>
-/// 归档包清单（SQLite <c>backup.db</c> 的 <c>archives</c> 表）。
-/// <para>
-/// 记录与磁盘**双向对齐**：<see cref="SyncWithDisk"/> 把目录里没登记过的 <c>.7z</c> 补进来（顺便算 SHA256），
-/// 把文件已不存在的记录剔掉 —— 用户手工删包 / 拷包进来都能反映出来。
-/// </para>
-/// </summary>
+/// <summary>归档包清单（SQLite backup.db 的 archives 表）。</summary>
 public sealed class ArchiveCatalog
 {
     private const string LegacyMigration = "catalog-json";

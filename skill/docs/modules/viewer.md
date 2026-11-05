@@ -156,3 +156,137 @@ ViewerSettingsService config\viewer.json 唯一写入点
 - **文档查看**（`viewer-text` 页的既定方向，NT-144 批 3 改名占位）：PDF（需 PDFium 系原生库，先拍板「解析/渲染引擎算后端依赖」的口径）→ EPUB → MOBI；EPUB 建议走「网络阅读」书架路线（解析成章节文本，复用排版 / 听书）。
 - 与 `Module.MediaAssets` 详情卡接线：「用查看器打开」按钮。
 - 视频内嵌（已明确暂不做）。
+
+## 附录 · 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:modules-viewer:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:VW-001 -->
+- **VW-001** · `src/Module.Viewer/Controls/AudioPlayer.axaml.cs`
+  - 🔴 播放能力由宿主注入 `IAudioPlayback`（UI 库 ⛔ 不引 NAudio / 平台库）；
+  - 🔴 歌词是「行内高亮 + 自动滚动」，⛔ 不做逐字卡拉OK（需要逐字时间轴，LRC 不提供）。
+
+<!-- ANCHOR:VW-002 -->
+- **VW-002** · `src/Module.Viewer/Controls/AudioPlayer.axaml.cs`
+  - <paramref name="staticText"/> = 无时间轴的整段歌词（内嵌 USLT）：逐行平铺，⛔ 不高亮不滚动。
+
+<!-- ANCHOR:VW-003 -->
+- **VW-003** · `src/Module.Viewer/Controls/GeometryVisual.cs`
+  - 🔴 配色只取 `TemplatedControl.Foreground`（图案色）与 `TemplatedControl.Background`（底），
+  - 由 axaml 用主题键传入；代码里⛔ 不写死色值。
+  - 🔴 动效由 `DispatcherTimer` 驱动（30 fps）：控件不可见 / 离开视觉树即停表，⛔ 后台空转。
+
+<!-- ANCHOR:VW-004 -->
+- **VW-004** · `src/Module.Viewer/Controls/ImageHeader.cs`
+  - 🔴 用途只有一个：决定是否走降采样解码（Bitmap.DecodeToWidth）——
+  - 该 API 在目标尺寸大于原图时会放大，所以必须先知道原图多宽，否则小图反而被放大吃更多内存。
+
+<!-- ANCHOR:VW-005 -->
+- **VW-005** · `src/Module.Viewer/Controls/ImageViewer.axaml.cs`
+  - 🔴 缩放直接改 `Image.Width` / Height（不是 RenderTransform）——
+  - 只有占位尺寸变了，`ScrollViewer.Extent` 才会跟上，放大后能拖到边缘。
+  - 🔴 不解码降采样（Avalonia `Bitmap` 没有公开的「限定像素尺寸」重载）——
+
+<!-- ANCHOR:VW-006 -->
+- **VW-006** · `src/Module.Viewer/Controls/ImageViewer.axaml.cs`
+  - 🔴 装载期间必须先把滚动条置 Disabled：换图那一帧 Extent 还没稳定，
+  - 🔴 _loadToken：连按翻页时旧回调直接丢弃，⛔ 别让它把新图的缩放改回去。
+
+<!-- ANCHOR:VW-007 -->
+- **VW-007** · `src/Module.Viewer/Controls/SpectrumBars.cs`
+  - 🔴 数据来自 `IAudioSpectrum`（宿主注入），本类⛔ 不认 NAudio、⛔ 不做 FFT ——
+  - 🔴 未播放 / 无数据源时整块隐藏（`Visual.IsVisible`），⛔ 留空框。
+  - 柱体颜色走 `TemplatedControl.Foreground`（axaml 里用主题键传入，⛔ 代码里写死色值）。
+
+<!-- ANCHOR:VW-008 -->
+- **VW-008** · `src/Module.Viewer/Controls/TextViewer.axaml.cs`
+  - 🔴 只负责「显示与进度」，文件读取也在本类（`Load`）—— 宿主拿到路径即可用，
+  - 编码：有 BOM 按 BOM；否则先试严格 UTF-8，失败回落 GB18030（中文老站点 / 老 TXT 常见）。
+
+<!-- ANCHOR:VW-009 -->
+- **VW-009** · `src/Module.Viewer/Controls/ViewerHost.axaml.cs`
+  - 🔴 文档定位：本外壳只管「短文本 / 源码 / HTML / 图片 / 音频」的显示；
+  - 🔴 消费方只需 `Open`；媒体资产 / 视频工具将来要「用查看器打开」，
+  - 直接 new 本控件放进自己的面板即可，⛔ 不必依赖 Module.Viewer。
+  - ⛔ 本类不写文件、不碰配置 —— 最近打开 / 位置记忆 / 压缩包遍历由宿主（Module.Viewer）负责。
+
+<!-- ANCHOR:VW-010 -->
+- **VW-010** · `src/Module.Viewer/Services/ArchiveImageService.cs`
+  - 🔴 zip / cbz 走 `ZipArchive`：只读中央目录，不解压任何数据，2 GB 包也能秒开；
+  - 🔴 会话持有文件句柄：宿主换文件 / 关闭页面时必须 `Dispose`，⛔ 不要跨打开缓存条目对象。
+
+<!-- ANCHOR:VW-011 -->
+- **VW-011** · `src/Module.Viewer/Services/ArchiveImageService.cs`
+  - 🔴 只读、只列图片；⛔ 不解压到磁盘、⛔ 不支持加密包（遇到给出明确原因）。
+  - 🔴 打开开销决定体验：`ZipArchive` 读中央目录（zip 家族），其余格式用 SharpCompress 顺序扫。
+  - 返回的 `ArchiveImageSession` 必须由调用方持有并释放，⛔ 不要每翻一张重开归档。
+
+<!-- ANCHOR:VW-012 -->
+- **VW-012** · `src/Module.Viewer/Services/AudioLibraryService.cs`
+  - 🔴 只读标签，⛔ 不回写文件 —— 标签编辑属于「媒体资产」的活，查看器只看不改。
+  - 🔴 读不到标签不算失败：退回文件名 + 时长 0，播放照常。
+
+<!-- ANCHOR:VW-013 -->
+- **VW-013** · `src/Module.Viewer/Services/AudioLibraryService.cs`
+  - 🔴 只读、⛔ 联网、⛔ 写回文件 —— 在线抓封面归媒体资产的标签服务。
+
+<!-- ANCHOR:VW-014 -->
+- **VW-014** · `src/Module.Viewer/Services/AudioLibraryService.cs`
+  - 🔴 至少 2 个字符才认，否则 a.jpg 这种会乱配。
+
+<!-- ANCHOR:VW-015 -->
+- **VW-015** · `src/Module.Viewer/Services/NAudioPlayback.cs`
+  - 🔴 解码优先 `MediaFoundationReader`（mp3 / m4a / aac / wma / flac，Win10 自带解码器），
+  - 失败回退 `AudioFileReader`（wav / aiff / mp3）—— 后者是纯托管路径，覆盖面兜底。
+  - 🔴 `IAudioPlayback` 是跨平台契约，本类是 Windows 平台底座（`[SupportedOSPlatform]`）：
+  - 🔴 本类同时实现 `IAudioSpectrum`：采样链上挂一层旁路（`SpectrumTap`）抄一份样本，
+  - FFT 与分频都在这里算完 —— 界面只拿 32 个 0~1 的数，⛔ 让 UI 库认识 NAudio。
+
+<!-- ANCHOR:VW-016 -->
+- **VW-016** · `src/Module.Viewer/Services/NullAudioPlayback.cs`
+  - 🔴 作用有两条：① 让「跨平台中立」在类型层成立（非 Windows 也能编译 / 装配）；
+
+<!-- ANCHOR:VW-017 -->
+- **VW-017** · `src/Module.Viewer/Services/ViewerSettingsService.cs`
+  - 🔴 位置键 = 路径|文件大小|最后修改时间，⛔ 不用纯路径 —— 同名文件互相覆盖、
+
+<!-- ANCHOR:VW-018 -->
+- **VW-018** · `src/Module.Viewer/Services/ViewerTopics.cs`
+  - 🔴 ⛔ 不往 ModuleTopics 里加 —— 那层只放跨模块主题；同模块三页共用一个通道，
+
+<!-- ANCHOR:VW-019 -->
+- **VW-019** · `src/Module.Viewer/ViewerModule.cs`
+  - 🔴 渲染器（短文本 / 图片 / 音频外壳）全部在本模块 Controls/；
+  - 🔴 依赖只有 Shared / Core / UI：⛔ 不引 Shell、⛔ 不引其它模块。设置落 config\viewer.json
+
+<!-- ANCHOR:VW-020 -->
+- **VW-020** · `src/Module.Viewer/ViewModels/ViewerScope.cs`
+  - 范围只用于入口分流，⛔ 不影响渲染器 —— 三类内容仍由 NewToys.Viewer.Controls.ViewerHost 统一装。
+
+<!-- ANCHOR:VW-021 -->
+- **VW-021** · `src/Module.Viewer/ViewModels/ViewerViewModel.cs`
+  - 🔴 真正的装载与渲染在 NewToys.Viewer.Controls.ViewerHost（View 持有它），VM 通过
+  - `OpenRequested` 请求 View 打开 —— VM ⛔ 不 new 控件、⛔ 不碰 StorageProvider，
+  - 🔴 压缩包遍历 / 音频标签 / 播放后端都走注入的服务；VM 只做状态与命令编排。
+  - 🔴 `Scope` 决定本页收哪类文件：不匹配时 `TryRouteElsewhere` 会投递给
+
+<!-- ANCHOR:VW-022 -->
+- **VW-022** · `src/Module.Viewer/ViewModels/ViewerViewModel.cs`
+  - 🔴 只有「音乐播放页」的 VM 才停播：文本 / 图片页也共用同一个播放单例，它们被关掉时⛔ 别把正在放的歌掐掉。
+  - 🔴 切到别的功能页不会释放 VM，音乐照常继续（后台播放口径）。
+
+<!-- ANCHOR:VW-023 -->
+- **VW-023** · `src/Module.Viewer/Views/ViewerPageBase.cs`
+  - 🔴 子类 XAML 必须给这些元件起同名：Host / RecentList / ArchiveList /
+  - 🔴 本类不做范围判断 —— 收不收这个文件由 `ViewerViewModel.TryRouteElsewhere` 决定，
+
+<!-- ANCHOR:VW-024 -->
+- **VW-024** · `src/Module.Viewer/Views/ViewerPageBase.cs`
+  - 🔴 容器要等布局才生成（换过 ItemsSource 更是如此）：拿不到容器或滚动量还没实测出来就等下一帧再试，
+  - ⛔ 别用 BringIntoView —— 它只会贴着边缘滚，激活项永远卡在边上。
+  - 🔴 定位策略：条目没铺满条目条 ⇒ 保持从头顺序排列（Offset = 0）；
+
+<!-- WHY-DISTILL:modules-viewer:end -->

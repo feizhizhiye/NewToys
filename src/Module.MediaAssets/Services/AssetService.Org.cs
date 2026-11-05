@@ -14,12 +14,7 @@ namespace NewToys.MediaAssets.Services;
 public partial class AssetService
 {
 
-    /// <summary>
-    /// 取「资产 id → 逗号分隔的名字串」（标签 / 分类 / 集合通用）。
-    /// <paramref name="linkTable"/> 必须有 <c>asset_id</c> 与 <c>{tag|category|collection}_id</c> 两列。
-    /// <paramref name="ids">分页：只查这些资产的映射（⛔ 不拉全表 —— 全量映射是分页最贵的隐藏消耗）；
-    /// <c>null</c> = 全量（非分页调用方用）。</paramref>
-    /// </summary>
+    /// <summary>取「资产 id → 逗号分隔的名字串」（标签 / 分类 / 集合通用）。（WHY: MA-027）</summary>
     private Dictionary<long, string> LoadNameMap(string linkTable, string nameTable, IReadOnlyCollection<long>? ids = null)
     {
         var map = new Dictionary<long, string>();

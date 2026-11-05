@@ -17,14 +17,7 @@ namespace NewToys.BackupCenter.Services.Mail;
 /// <summary>一封邮件的正文与附件清单（详情面板用）。</summary>
 public sealed record MailDetail(string Subject, string From, DateTime Date, string BodyText, List<MailAttachment> Attachments, string IndexNo);
 
-/// <summary>
-/// IMAP 收信：邮箱管理器（全量邮件列表）+ 备份邮件下载。
-/// <para>
-/// 🔴 取信一律走 <c>GetMessageAsync(uid, ct)</c>（MailKit 内部用 <c>BODY.PEEK[]</c>，⛔ 不会把邮件标已读），
-/// ⛔ 不用会把邮件标已读的重载 —— 用户不希望打开页面就改掉邮箱状态。
-/// </para>
-/// <para>连接按「一次操作一条」用完即断：IMAP 空闲连接会被服务器掐，长连接反而要处理重连与 NOOP 心跳。</para>
-/// </summary>
+/// <summary>IMAP 收信：邮箱管理器（全量邮件列表）+ 备份邮件下载。（WHY: BC-009）</summary>
 public sealed class ImapMailService
 {
     /// <summary>一次同步最多拉多少封（首次同步别把几万封邮件全拉下来）。</summary>

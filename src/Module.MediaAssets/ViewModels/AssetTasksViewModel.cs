@@ -13,13 +13,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「任务中心」页：三块 —— ① 运行态任务队列（可取消）② 最近扫描任务（可重扫）③ 操作日志。
-/// <para>
-/// ⚠️ 队列**不持久化**（进程退出即清，需求 §6.6）：长期记录在 `scan_jobs` / `operation_logs`，就是这页的后两块。
-/// </para>
-/// <para>🔴 <see cref="TaskQueue.Changed"/> 是**后台线程**抛的 → 必须 `Dispatcher.UIThread.Post` 切回 UI 再重建列表。</para>
-/// </summary>
+/// <summary>「任务中心」页：三块 —— ① 运行态任务队列（可取消）② 最近扫描任务（可重扫）③ 操作日志。（WHY: MA-075）</summary>
 public partial class AssetTasksViewModel : ObservableObject, IStatusProvider, IToolbarSource, IDisposable
 {
     // ==================== 声明式工具条（/ 需求 §4.8.5） ====================

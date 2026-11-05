@@ -12,22 +12,7 @@ namespace NewToys.ScriptManager.Services;
 /// <param name="Value">属性值（统一按字符串存，界面按列渲染）。</param>
 public readonly record struct ScriptObservation(string RowKey, string Attr, string Value);
 
-/// <summary>
-/// 观测表 <c>pc_observations</c> + <c>pc_runs</c>（§三.3 建；落本模块库 <c>store\script\script.db</c>）。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 🔴 连接一律向本模块库 <see cref="ScriptDb"/> 要，⛔ 不自建连接串。建表在
-/// <see cref="ScriptManagerSchemaContributor"/>（schema 统一入口），本类只读写。
-/// </para>
-/// <para>
-/// 连接生命周期 = <b>每次操作短连接</b>（SQLite 连接便宜，省掉线程 / 生命周期管理）。
-/// 并发由 <c>busy_timeout</c> 兜底；写线程只有采集定时器，量级很低。
-/// </para>
-/// <para>
-/// ⚠️ 观测与条目<b>必须分表</b>：每次刷新写新行，进 <c>script.json</c> 会把它撑爆。
-/// </para>
-/// </remarks>
+/// <summary>观测表 pc_observations + pc_runs（§三.3 建；落本模块库 store\script\script.db）。（WHY: SM-047）</summary>
 public sealed class ScriptDatabase
 {
     private readonly SqliteDatabase _db;
@@ -174,14 +159,7 @@ public sealed class ScriptDatabase
         tx.Commit();
     }
 
-    /// <summary>
-    /// 保留策略（§三.10）：
-    /// <list type="bullet">
-    ///   <item><c>latest</c>：删同条目的旧观测，只留 <paramref name="currentRunId"/> 这一批（只读条目强制本模式）；</item>
-    ///   <item><c>count</c>：只留最近 <c>retentionN</c> 次 run 的观测；</item>
-    ///   <item><c>days</c>：删 <c>captured_at</c> 早于 N 天的观测。</item>
-    /// </list>
-    /// </summary>
+    /// <summary>保留策略（§三.10）： <list type="bullet"> latest：删同条目的旧观测，只留 <paramref name="currentRunId"/> 这一批（只读条目强制本模式）；</summary>
     private static void PruneCore(SqliteConnection conn, SqliteTransaction tx, string itemId, string? currentRunId, ScriptItem? item)
     {
         var mode = ScriptRetentionMode.Normalize(item?.RetentionMode);

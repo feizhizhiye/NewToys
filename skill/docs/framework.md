@@ -905,7 +905,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 - `C-05` **两个程序集同名 View 类 = ERROR** —— 反射导航靠类名找页，重名会静默错页，这是唯一能提前拦它的检查
 - `C-07` 已治理程序集里 ≥6 行 `///` 长段 · `A-01` `WHY: <ID>` ⇄ 文档 `<!-- ANCHOR:<ID> -->` 双向对账 = **WARN**
 
-**方案1 全量瘦身与分流（2026-11-05，用户确认破「改到哪清哪」）**：短契约（≤5 行 `///`）全留；长段（≥6 行）由 `skill/scripts/comment-slim.py --batch <批次> --apply` 压成 1 行契约 + `WHY: <ID>`，高信号 WHY 正文蒸馏进附录 A.2 / `ui.md` §9 / `modules/<模块>.md` §5，D 类叙事删；机器标记 20 条（4 `lint:view-no-vm` + 16 `inheritdoc`）必留。按 Shared → Core → Shell → UI → Module.* 分批，`lint.py` 的 `SLIMMED_ASSEMBLIES` 是已治理程序集白名单，未治理批次不报 C-07。完整判据 = `tech-guard.md` §3.1。
+**方案1 全量瘦身与分流（2026-11-05，用户确认破「改到哪清哪」）**：短契约（≤5 行 `///`）全留；长段（≥6 行）由 `skill/scripts/comment-slim.py --batch <批次> --apply` 压成 1 行契约 + `WHY: <ID>`，高信号 WHY 正文蒸馏进附录 A.2~A.5 / `ui.md` §14 / `modules/<模块>.md` 附录，D 类叙事删；机器标记 20 条（4 `lint:view-no-vm` + 16 `inheritdoc`）必留。按 Shared → Core → Shell → UI → Module.* 分批，`lint.py` 的 `SLIMMED_ASSEMBLIES` 是已治理程序集白名单，未治理批次不报 C-07。完整判据 = `tech-guard.md` §3.1。
 - `C-03` 仅出注释率 Top5 排行，**不告警**（model / 接口类的属性注释就是契约，审美判据做 lint 必然烂成噪音）
 
 **生成侧契约 + 自动门禁（2026-11-05，用户授权）**：三分法只判「已有注释往哪去」；**写新代码该写什么** = `tech-guard.md` §3.1.1（信息优先交类型 / 命名 / 测试 / 文档，注释只留别的载体拿不到的那句；标记只认 `WHY: <ID>` / `SAFETY:` / `TODO:`）。增量门禁 `skill/scripts/comment-gate.py` 只判 `git diff` 新增行（M-01 叙事 / M-02 新增长段 / M-03 缺 ANCHOR / M-04 标记不合规），违规**非零退出**；自动触发 = `.githooks/pre-commit`（`git config core.hooksPath .githooks` 启用一次）+ `.github/workflows/comment-gate.yml`（PR / push）。职责边界：`lint.py --only comments` 全量自检恒 0 退出、只报告；门禁才阻断，存量不由门禁消化。
@@ -1961,6 +1961,46 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
   - 🔴 两个子 View 的 DataContext 必须分别赋（`Init`）—— 外层 DataContext 只有一个，
 
 <!-- WHY-DISTILL:shell:end -->
+
+### A.5 代码 WHY 蒸馏 · NewToys.Tests（方案1 · anchors）
+
+<!-- WHY-DISTILL:tests:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:TS-001 -->
+- **TS-001** · `src/NewToys.Tests/BackupPathsTests.cs`
+  - 顺序也是契约的一部分 —— 先拒穿越、再跳归档产物；反过来做，../evil.ps1 会被
+  - ⛔ 本文件只测纯函数：不写盘。
+
+<!-- ANCHOR:TS-002 -->
+- **TS-002** · `src/NewToys.Tests/FfmpegArgsTests.cs`
+  - 这些参数是「详情卡字段 → 真正跑的那条命令」的唯一通道。拼错不会报错，
+
+<!-- ANCHOR:TS-003 -->
+- **TS-003** · `src/NewToys.Tests/ListPageBaseTests.cs`
+  - 三条都写在注释里（现已搬进本文件断言），但注释不会在改代码时报警 —— 这里会。
+  - ⛔ 只测纯逻辑：不碰 Avalonia、不碰文件系统、不 new 任何 View。
+
+<!-- ANCHOR:TS-004 -->
+- **TS-004** · `src/NewToys.Tests/MenuServiceTests.cs`
+  - 菜单项是「页 Key → 视图名 → 反射解析」这条链的源头：ViewTypeName 写错 ⇒ 运行期不抛异常，
+
+<!-- ANCHOR:TS-006 -->
+- **TS-006** · `src/NewToys.Tests/ParserTests.cs`
+  - ⛔ 本文件只测纯函数：不碰 Avalonia、不碰文件系统、不 new VM。
+
+<!-- ANCHOR:TS-007 -->
+- **TS-007** · `src/NewToys.Tests/RuleEvaluatorTests.cs`
+  - 🔴 规则写错在运行期不报错，只表现为「这个字段空 / 这一条源跑不通」—— 所以每种语法元件都要独立断言。
+
+<!-- ANCHOR:TS-008 -->
+- **TS-008** · `src/NewToys.Tests/SysInfoOutputParserTests.cs`
+  - 这是「信息展示」页的数据入口，解析走样不会抛异常，只会表现为「这一节突然空了」或列名变成
+
+<!-- WHY-DISTILL:tests:end -->
+
 
 
 ### 11.3 横展审计：静默失败 / UI 线程阻塞（2026-10-27）

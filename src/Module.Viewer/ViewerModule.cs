@@ -6,18 +6,7 @@ using NewToys.Viewer.Services;
 
 namespace NewToys.Viewer;
 
-/// <summary>
-/// **查看器**模块（菜单组键 <c>viewer</c>，Order 55）：为本软件提供基础的「打开并显示」能力。
-/// <para>
-/// 🔴 渲染器（短文本 / 图片 / 音频外壳）全部在本模块 <c>Controls/</c>；
-/// 长文本阅读（ReaderShell）住「网络阅读」模块，本模块的文本页只做「文档查看」（源码 / 短文本 / HTML；
-/// PDF / EPUB / MOBI 支持另行立项）。
-/// </para>
-/// <para>
-/// 🔴 依赖只有 Shared / Core / UI：⛔ 不引 Shell、⛔ 不引其它模块。设置落 <c>config\viewer.json</c>
-/// （经 Core 的 <c>IOptionsStore</c>），本模块只读、唯一写入点 = <see cref="ViewerSettingsService"/>。
-/// </para>
-/// </summary>
+/// <summary>查看器模块（菜单组键 viewer，Order 55）：为本软件提供基础的「打开并显示」能力。（WHY: VW-019）</summary>
 public class ViewerModule : IModule
 {
     /// <summary>菜单组键（页 Key 前缀 <c>viewer-</c>）。</summary>

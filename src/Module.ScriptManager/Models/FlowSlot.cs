@@ -3,13 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.ScriptManager.Models;
 
-/// <summary>
-/// 调试集合页的一段槽位：段名 + 下拉候选（按 <c># role:</c> 过滤）+ 当前选中脚本。
-/// <para>
-/// 🔴 <b>槽位一律可选、允许留空跳过</b>（<c>toc</c> 留空 = 链式模式），⛔ 不强制每段都有脚本。
-/// <c>save</c> 是内置下载器，⛔ 不为下载写脚本（并发 / 限速 / 去重 / 续跑 / 取消 / 进度）。
-/// </para>
-/// </summary>
+/// <summary>调试集合页的一段槽位：段名 + 下拉候选（按 # role: 过滤）+ 当前选中脚本。（WHY: SM-008）</summary>
 public partial class FlowSlot : ObservableObject
 {
     /// <summary>段位键：<c>entry / pick / toc / content / save</c>。</summary>

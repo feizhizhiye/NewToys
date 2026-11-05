@@ -28,12 +28,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
     public int ImportVideoFiles(IEnumerable<string> paths)
         => ImportVideoFiles(paths.Select(p => (Path: p, MetaJson: "")).ToList());
 
-    /// <summary>
-    /// 📂 导入 / 资产库投递：把一批「路径 + 资产库元数据」**追加**进列表（不扫描整目录；同路径去重），
-    /// 返回**带上了媒体信息**的条数。
-    /// <para>元数据顺序：资产库带来的 <c>metadata_json</c>（资产页已经 ffprobe 过）→ 本地 video.db 缓存 → 都没有就留空
-    /// （用户再点「🔎 读取信息」）。⛔ 不在导入时同步跑 ffprobe：几十个文件会把界面卡住。</para>
-    /// </summary>
+    /// <summary>📂 导入 / 资产库投递：把一批「路径 + 资产库元数据」追加进列表（不扫描整目录；同路径去重）， 返回带上了媒体信息的条数。（WHY: VT-032）</summary>
     public int ImportVideoFiles(IReadOnlyList<(string Path, string MetaJson)> entries)
     {
         var existing = new HashSet<string>(_all.Select(v => v.FullPath), StringComparer.OrdinalIgnoreCase);

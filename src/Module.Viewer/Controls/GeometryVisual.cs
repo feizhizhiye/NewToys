@@ -6,14 +6,7 @@ using Avalonia.Threading;
 
 namespace NewToys.Viewer.Controls;
 
-/// <summary>
-/// 动态几何图案（自绘）：多层旋转多边形 + 顶点连线 + 中心呼吸圆 + 向外扩散的脉冲环。
-/// <para>
-/// 🔴 配色只取 <see cref="TemplatedControl.Foreground"/>（图案色）与 <see cref="TemplatedControl.Background"/>（底），
-/// 由 axaml 用主题键传入；代码里⛔ 不写死色值。
-/// </para>
-/// <para>🔴 动效由 <see cref="DispatcherTimer"/> 驱动（30 fps）：控件不可见 / 离开视觉树即停表，⛔ 后台空转。</para>
-/// </summary>
+/// <summary>动态几何图案（自绘）：多层旋转多边形 + 顶点连线 + 中心呼吸圆 + 向外扩散的脉冲环。（WHY: VW-003）</summary>
 public sealed class GeometryVisual : TemplatedControl
 {
     private const double FrameMs = 33;

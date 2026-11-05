@@ -6,21 +6,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 内置采集器 + 内置集合的<b>播种器</b>（§三.12，取代 的 <c>SysInfoSeeder</c>）。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 三件事，全部**幂等 + 只加不改**（用户删掉的脚本不会被复活、改名过的条目不会被覆盖）：
-/// <list type="number">
-///   <item>随包脚本 <c>defaults\sysinfo\*.ps1</c> → <c>&lt;脚本目录&gt;\sysinfo\</c>（只复制缺失的）；</item>
-///   <item>这 6 个脚本登记成 <c>role=collector</c> 的条目（<c>readonly=true</c> / <c>capture=true</c> / <c>latest</c>）；</item>
-///   <item>建一个 <c>kind=info</c> 的内置集合「系统信息」装它们 —— 否则首次运行信息面板是空的（卡面 §三.7 只列了
-///   <c>脚本库</c> / <c>命令库</c> 两个内置集合，这里补一个 info 类的，属加法）。</item>
-/// </list>
-/// </para>
-/// <para>🔴 <c>sysinfo.manifest.json</c> 已废弃：本类<b>不读不写不删</b>那个文件（S8）。</para>
-/// </remarks>
+/// <summary>内置采集器 + 内置集合的播种器（§三.12，取代 的 SysInfoSeeder）。（WHY: SM-021）</summary>
 public static class BuiltinCollectorSeeder
 {
     /// <summary>脚本子目录名（<c>&lt;脚本目录&gt;\sysinfo</c>）。</summary>

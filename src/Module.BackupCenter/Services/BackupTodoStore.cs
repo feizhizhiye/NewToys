@@ -4,13 +4,7 @@ using NewToys.BackupCenter.Models;
 
 namespace NewToys.BackupCenter.Services;
 
-/// <summary>
-/// 备份日历的待办（SQLite <c>backup.db</c> 的 <c>todos</c> 表）。
-/// <para>
-/// 只是「哪天打算备份」的备忘，⛔ 不触发自动备份（定时执行属 v2）；
-/// 勾完成 / 取消完成就地改 <c>done_at</c>。
-/// </para>
-/// </summary>
+/// <summary>备份日历的待办（SQLite backup.db 的 todos 表）。（WHY: BC-007）</summary>
 public sealed class BackupTodoStore
 {
     private readonly BackupDb _db;

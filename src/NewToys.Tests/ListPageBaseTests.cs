@@ -7,21 +7,7 @@ using Xunit;
 
 namespace NewToys.Tests;
 
-/// <summary>
-/// <see cref="ListPageViewModelBase"/> 的**纯逻辑**回归测试。
-/// <para>
-/// 这个基类被 14 个列表页共用，历史上出过两次线上崩溃 / 一次数据错位：
-/// <list type="bullet">
-///   <item>「全部」页大小（<c>int.MaxValue</c>）算总页数整数溢出成负数 ⇒ 页码链全乱；</item>
-///   <item>软件包页（预设 20/50/100）读到通用页（预设 25/50/100/500）落盘的 25，下拉候选被换 ⇒ 进程崩溃；</item>
-///   <item>隐藏列从规格串里删掉而不是写 0 ⇒ 表头与行列索引错位。</item>
-/// </list>
-/// 三条都写在注释里（现已搬进本文件断言），但注释不会在改代码时报警 —— 这里会。
-/// </para>
-/// <para>
-/// ⛔ 只测纯逻辑：不碰 Avalonia、不碰文件系统、不 new 任何 View。
-/// </para>
-/// </summary>
+/// <summary>ListPageViewModelBase 的纯逻辑回归测试。（WHY: TS-003）</summary>
 public class ListPageBaseTests
 {
     // ==================== 测试替身 ====================

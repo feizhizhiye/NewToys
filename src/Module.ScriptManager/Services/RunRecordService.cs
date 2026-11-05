@@ -11,14 +11,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 运行记录：每次「跑这段」落一条
-/// <c>runs\&lt;脚本&gt;\&lt;时间戳&gt;_&lt;URL哈希&gt;\</c>（<c>result.json</c> + <c>page.html</c> + <c>diag.txt</c>）。
-/// <para>
-/// 🔴 每脚本只保留最近 <see cref="KeepRuns"/> 条（目录名时间戳前缀 ⇒ 字典序 = 时间序）；
-/// 🔴 <c>runs\</c> ⛔ 不进备份（可重建）；试跑推荐 ⛔ 不记（那是 N 个候选的横向比较，不是一次运行）。
-/// </para>
-/// </summary>
+/// <summary>运行记录：每次「跑这段」落一条 runs\&lt;脚本&gt;\&lt;时间戳&gt;_&lt;URL哈希&gt;\（result.json + page.html + diag.txt）。（WHY: SM-046）</summary>
 public sealed class RunRecordService
 {
     /// <summary>每脚本保留的最近运行条数。</summary>

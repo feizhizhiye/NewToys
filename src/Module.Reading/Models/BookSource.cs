@@ -44,14 +44,7 @@ public enum SourceCheckState
     Skipped = 4,
 }
 
-/// <summary>
-/// legado 书源（一条 = 一个站点）。
-/// <para>
-/// 🔴 字段名按 legado 的 JSON 契约映射，⛔ 不做 Kotlin 源码移植（GPL-3.0 与本项目 MIT 不兼容）；
-/// 只保留本软件用得到的部分，其余字段反序列化时忽略。
-/// </para>
-/// <para><see cref="RawJson"/> 保留导入时的原始对象，规则细节演进时不必重新导入。</para>
-/// </summary>
+/// <summary>legado 书源（一条 = 一个站点）。（WHY: RD-002）</summary>
 public sealed class BookSource
 {
     [JsonPropertyName("bookSourceUrl")]

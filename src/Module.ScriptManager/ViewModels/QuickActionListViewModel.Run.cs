@@ -67,20 +67,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
 
     private static string ScriptExtensionsList => string.Join(" / ", ScriptExtensions);
 
-    /// <summary>
-    /// 📥 导入**一批脚本文件**（工具条「导入文件 / 导入文件夹」两路共用）。
-    /// <para>
-    /// 规则（都写进状态行，绝不"悄悄跳过"）：
-    /// ① 只收 <see cref="ScriptExtensions"/> 里的扩展名；
-    /// ② 清单里已有的（按脚本文件名字比对）**跳过**，不重复建；
-    /// ③ 落在脚本目录内的存**相对文件名**、目录外的存绝对路径（路径一律以**配置的脚本目录**为准）；
-    /// ④ 名称取文件名（去扩展名）、分类填「导入」，方便之后批量改。
-    /// </para>
-    /// <para>
-    /// ⚠️ 导入后**清掉搜索 / 分类 / 表头筛选**并选中第一条新增 —— 否则新条目可能被当前筛选挡住，
-    /// 看起来像"导入没生效"（与「新增」同一口径）。
-    /// </para>
-    /// </summary>
+    /// <summary>📥 导入一批脚本文件（工具条「导入文件 / 导入文件夹」两路共用）。（WHY: SM-064）</summary>
     /// <returns>(新增几条, 跳过几条)。</returns>
     public (int Added, int Skipped) ImportScriptFiles(IEnumerable<string> files)
     {

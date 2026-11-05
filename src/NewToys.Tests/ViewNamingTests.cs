@@ -3,13 +3,7 @@ using Xunit;
 
 namespace NewToys.Tests;
 
-/// <summary>
-/// <see cref="ViewNaming"/> 的回归测试：页面解析与静态检查共用这套约定。
-/// <para>
-/// 约定一旦漂移，表现是「页面打得开、整页空白、无异常」，编译期和运行期都不报错，
-/// 因此这里把边界（无 View 后缀 / 空串 / 命名空间不合规）逐条钉死。
-/// </para>
-/// </summary>
+/// <summary>ViewNaming 的回归测试：页面解析与静态检查共用这套约定。</summary>
 public class ViewNamingTests
 {
     [Theory]

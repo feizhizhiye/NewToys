@@ -20,13 +20,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.BackupCenter.ViewModels;
 
-/// <summary>
-/// 「备份中心 → 备份包」页（<c>backup-archives</c>）：本地包清单 + 还原 + 删除。
-/// <para>
-/// 清单与磁盘对账（<c>catalog.json</c> ↔ 包目录里的 <c>.7z</c>）；还原必须先解锁密码库，
-/// 解包走暂存目录 + 条目名校验，目标同名按用户选定的策略处理（默认跳过）。
-/// </para>
-/// </summary>
+/// <summary>「备份中心 → 备份包」页（backup-archives）：本地包清单 + 还原 + 删除。（WHY: BC-015）</summary>
 public partial class BackupArchivesViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly ArchiveCatalog _catalog = null!;

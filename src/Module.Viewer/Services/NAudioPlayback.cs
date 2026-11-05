@@ -7,21 +7,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Viewer.Services;
 
-/// <summary>
-/// 音频播放后端（NAudio）：Media Foundation 解码 + WaveOut 输出。
-/// <para>
-/// 🔴 解码优先 <see cref="MediaFoundationReader"/>（mp3 / m4a / aac / wma / flac，Win10 自带解码器），
-/// 失败回退 <see cref="AudioFileReader"/>（wav / aiff / mp3）—— 后者是纯托管路径，覆盖面兜底。
-/// </para>
-/// <para>
-/// 🔴 <see cref="IAudioPlayback"/> 是跨平台契约，本类是 **Windows 平台底座**（`[SupportedOSPlatform]`）：
-/// 非 Windows 由 <see cref="NullAudioPlayback"/> 顶替，换后端（mpv / libvlc）只换这个类。
-/// </para>
-/// <para>
-/// 🔴 本类同时实现 <see cref="IAudioSpectrum"/>：采样链上挂一层旁路（`SpectrumTap`）抄一份样本，
-/// FFT 与分频都在这里算完 —— 界面只拿 32 个 0~1 的数，⛔ 让 UI 库认识 NAudio。
-/// </para>
-/// </summary>
+/// <summary>音频播放后端（NAudio）：Media Foundation 解码 + WaveOut 输出。（WHY: VW-015）</summary>
 [SupportedOSPlatform("windows")]
 public sealed class NAudioPlayback : IAudioPlayback, IAudioSpectrum, IAudioTone
 {

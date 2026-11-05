@@ -238,3 +238,72 @@
 | NT-086 | 期①批次：**A** 目录页分类/说明 ✅ → **B** 脚本头 ✅ → **C** 调试集合重构 ✅ → **E** 预设库 + 探测 ✅ → **F** 三操作符 ✅ → **G** runs 落盘/导出 ✅ → **D** 面板页 `web-crawl` ✅（**期①全部已实施**） | ✅ **已验收 2026-10-20**（build 通过） |
 | NT-087 | 期②：试下载（单条预览）+ 批量下载（`downloads\`）+ `next` 分页 + 链式模式 + 并发/间隔 + 失败策略 + 可取消 | ✅ **已验收 2026-10-20**（build 通过） |
 | — | `flows\` 是否进备份（当前 ⛔ 不在 `RulesBackupSection` 里） | 📌 待拍板 |
+
+## 附录 · 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:modules-web-tools:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:WT-001 -->
+- **WT-001** · `src/Module.WebTools/Models/BookmarkNode.cs`
+  - ⛔ 不持久化、⛔ 不进 web_docs。
+  - 🔴 页面按「缩进列 + 扁平集合」渲染（不是 TreeView）：展开态由 `IsExpanded` 记在节点上，
+
+<!-- ANCHOR:WT-003 -->
+- **WT-003** · `src/Module.WebTools/Services/BookmarkService.cs`
+  - 🔴 ⛔ 按「遍历到 H3 就改当前文件夹」的写法：浏览器导出里 H3 可能在紧邻的 &lt;DT&gt;，
+
+<!-- ANCHOR:WT-004 -->
+- **WT-004** · `src/Module.WebTools/Services/DnsResolver.cs`
+  - 配置的 DNS，无法逐请求指定服务器。本类用原生 UDP 拼一个最小 DNS 报文、自己解析回答段，
+
+<!-- ANCHOR:WT-005 -->
+- **WT-005** · `src/Module.WebTools/Services/HostsCheckService.cs`
+  - 🔴 能力边界：⛔ 不联网查 IP 信誉 / ASN、⛔ 不做投毒判定 —— 「安全」= 一眼能看出的静态风险，
+  - 文案里必须说清这一点（⛔ 别写成「已验证安全」）。
+
+<!-- ANCHOR:WT-006 -->
+- **WT-006** · `src/Module.WebTools/Services/HostsService.cs`
+  - 用户自己写在其它的行原样保留（⛔ 不做全文覆盖）。
+  - 🔴 备份纪律：任何写系统 hosts 的动作（应用 / 手动保存 / 清除受管块 / 还原）先备份当前原文，
+
+<!-- ANCHOR:WT-007 -->
+- **WT-007** · `src/Module.WebTools/Services/HostsSourceService.cs`
+  - 🔴 为什么落库而不落 config\web-tools.json：那份配置的唯一写入点是设置页，而源管理入口在方案页 ——
+  - 🔴 预设只在首次播种（config\hosts-sources.seeded 标记）：用户删掉某源后不再复活。
+  - 预设地址在实施期逐个实测过（HTTP 200 + 可解析条目 ≥ 20）—— ⛔ 别凭记忆加地址。
+
+<!-- ANCHOR:WT-009 -->
+- **WT-009** · `src/Module.WebTools/Services/IHostsPlatform.cs`
+  - 🔴 唯一实现是 Windows（本期交付环境）；其它平台返回「不支持」而不是编译失败 —— 契约见
+  - framework.md §2.1「平台中立」：页面 / 业务逻辑只认本接口，⛔ 不直接写死 drivers\etc\hosts。
+
+<!-- ANCHOR:WT-010 -->
+- **WT-010** · `src/Module.WebTools/Services/IWebToolsSettingsService.cs`
+  - ⛔ 不要硬编码在 ScrapeService）。
+  - ⚠️ 书签 / Ping / Hosts 的清单数据不在本文件（它们是数据，落本模块库 web_docs，由页面自身维护）；
+
+<!-- ANCHOR:WT-011 -->
+- **WT-011** · `src/Module.WebTools/Services/PingService.cs`
+  - 目标清单落本模块库 web_docs 的 ping-targets 文档（⛔ 不再写 config\ping-targets.json）。
+
+<!-- ANCHOR:WT-012 -->
+- **WT-012** · `src/Module.WebTools/Services/WebToolsSchemaContributor.cs`
+  - 把 config\ 下 4 个旧 JSON 一次性搬进表，旧文件改名 .legacy（⛔ 不删）。
+
+<!-- ANCHOR:WT-014 -->
+- **WT-014** · `src/Module.WebTools/ViewModels/BookmarkViewModel.cs`
+  - 🔴 树⛔ 用 TreeView：它会把整行（含网址 / 状态列）随层级右移，与表头必然错位。
+
+<!-- ANCHOR:WT-015 -->
+- **WT-015** · `src/Module.WebTools/ViewModels/HostsViewModel.cs`
+  - 🔴 左侧可编辑内容是内存草稿 _draftText（全文）：条目行编辑与文本视图改的都是它，
+  - 🔴 备份只针对系统 hosts 原文（整份），⛔ 不备份拉取来的方案。
+
+<!-- ANCHOR:WT-017 -->
+- **WT-017** · `src/Module.WebTools/ViewModels/SettingsWebToolsViewModel.cs`
+  - ⛔ 不要硬编码在 ScrapeService）。生效方式（规范 §4.9）：失焦即落盘，⛔ 无保存按钮。
+
+<!-- WHY-DISTILL:modules-web-tools:end -->

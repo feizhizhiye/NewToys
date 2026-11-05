@@ -21,37 +21,15 @@ public sealed class VideoCardCommands
     public ICommand? SaveCommandLine { get; init; }
 }
 
-/// <summary>
-/// 视频剪辑 / 转码<b>详情卡的唯一来源</b>。
-/// <para>
-/// Why：预览页与批量页本该是同一张卡（同一批参数、同一套文案），此前两页各写一份
-/// <c>BuildCard()</c>，改一处忘另一处就出现「同一功能两副面孔」。这里把节 / 字段 / 文案 / 显隐
-/// 收成一份，两页只提供差异项：
-/// </para>
-/// <list type="bullet">
-/// <item>提交时机（批量走「保存修改」，预览失焦即生效）</item>
-/// <item>批量页多一个「📄 任务状态」节</item>
-/// <item>空态文案</item>
-/// </list>
-/// <para>
-/// 🔴 约束：两页 VM 必须提供这里出现的<b>同名属性</b>（<c>ValuePath</c> / <c>VisibleWhen</c> /
-/// <c>OptionsPath</c> / <c>IndexPath</c>）。由 <c>skill/scripts/check-video-card.ps1</c> 静态校验，
-/// ⛔ 不靠人记。
-/// </para>
-/// </summary>
+/// <summary>视频剪辑 / 转码详情卡的唯一来源。（WHY: VT-002）</summary>
 public static class VideoTaskCard
 {
     /// <summary>详情卡里会引用到、但只有批量页有的路径前缀（其余路径两页都必须有）。</summary>
     public static readonly string[] BatchOnlyPrefixes = { "DetailTask" };
 
-    /// <summary>
-    /// 建卡。
-    /// </summary>
+    /// <summary>true = 输入框改动只留在缓冲里、由工具条「保存修改」统一落库（批量页）；</summary>
     /// <param name="commands">卡内动作（<c>null</c> 的按钮不渲染）。</param>
     /// <param name="explicitCommit">
-    /// <c>true</c> = 输入框改动只留在缓冲里、由工具条「保存修改」统一落库（批量页）；
-    /// <c>false</c> = 失焦即生效（预览页）。
-    /// </param>
     /// <param name="emptyText">右侧没选中任何内容时的提示。</param>
     /// <param name="includeTaskState">是否追加「📄 任务状态」节（仅批量页）。</param>
     public static DetailCardDescriptor Build(

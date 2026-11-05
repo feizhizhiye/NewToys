@@ -12,19 +12,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 期②下载器：对目录条目跑 <c>content</c> 段 → 按产物形态落盘。
-/// <para>
-/// 🔴 <b>内置</b>（并发 / 限速 / 去重 / 续跑 / 命名 / 取消）—— ⛔ 不脚本化：脚本只负责「这一页能取出什么」。
-/// </para>
-/// <para>
-/// 🔴 产物形态优先级链：<c>content</c> 返回 ＞ <c># artifact:</c> ＞ 分类缺省猜测 ＞ none。
-/// 下载行为由 <c>content</c> 返回形态决定，⛔ 不由分类直接决定。
-/// </para>
-/// <para>
-/// 🔴 试下载与批量下载共用同一条 content 管线（<see cref="RunItemAsync"/>）—— ⛔ 不写两套。
-/// </para>
-/// </summary>
+/// <summary>期②下载器：对目录条目跑 content 段 → 按产物形态落盘。（WHY: SM-025）</summary>
 public sealed partial class DownloadService
 {
     /// <summary><c># max-pages</c> 缺省上限（防「下一页」永动机；0 = 不设上限时兜底）。</summary>

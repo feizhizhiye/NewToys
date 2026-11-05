@@ -6,18 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.VideoTools.Services;
 
-/// <summary>
-/// 视频工具在自有库（<c>store\video\video.db</c>）里的 schema 贡献者。
-/// <list type="bullet">
-///   <item><b>一次性清旧表</b>：v3.32 起本模块不再用 <c>video_catalog / video_tags / video_favorites</c>。</item>
-///   <item><b>建媒体索引表</b>：由 <see cref="VideoMediaIndex"/> 构造完成（本类只负责「确保它被构造」）。</item>
-///   <item><b>建任务缓存文档表</b>（第二批）：<c>video_docs</c> + 旧 <c>video-tasks.json</c> 一次性入表。</item>
-/// </list>
-/// <para>
-/// 🔴 这段 DROP 必须带护栏：无护栏的破坏性 DDL 迟早会误伤（表名写错就是清空数据）⇒
-/// 改成「缓存版本号变化才清」，与模块自身的 <c>SchemaVersion</c> 解耦（清缓存不等于 schema 升级）。
-/// </para>
-/// </summary>
+/// <summary>视频工具在自有库（store\video\video.db）里的 schema 贡献者。（WHY: VT-025）</summary>
 public sealed class VideoToolsSchemaContributor : ILibrarySchemaContributor
 {
     /// <summary>模块键（版本记录键 <c>schema.video-tools</c>）。</summary>

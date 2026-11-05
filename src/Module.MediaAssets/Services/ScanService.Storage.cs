@@ -10,20 +10,7 @@ namespace NewToys.MediaAssets.Services;
 
 public partial class ScanService
 {
-    /// <summary>
-    /// 扫单个存储源：递归遍历其根，**按文件所在目录就地归属存储源**（目录没有源就登记一个）→
-    /// 批量落库 → 收尾一次性校准 missing / 扫描时刻。
-    /// <para>
-    /// 🔴 <b>为什么不整棵子树挂在一个源上</b>：同一批文件若既被父源又被子目录源持有，列表里会出现重复行，
-    /// 且无法按文件夹分辨来源。规则统一为「一个文件只属于它**上一级文件夹**对应的源」。
-    /// </para>
-    /// <para>
-    /// 🔴 <b>速度三件事</b>（缺一个都会退化成「扫一个目录几分钟」）：
-    /// ① 子树内所有源的位置**一次查完**分桶（<see cref="AssetService.ListLocationsForStorages"/>），换目录不查库；
-    /// ② 新目录的源直接 INSERT（<see cref="AssetService.InsertStorageFast"/>），⛔ 不走会全表查的 Upsert；
-    /// ③ 元数据 / 缩略图**不在扫描里做** —— 新位置交给 <see cref="OnNewLocations"/> 由后台任务慢慢补。
-    /// </para>
-    /// </summary>
+    /// <summary>扫单个存储源：递归遍历其根，按文件所在目录就地归属存储源（目录没有源就登记一个）→ 批量落库 → 收尾一次性校准 missing / 扫描时刻。（WHY: MA-046）</summary>
     private async Task ScanOneStorageAsync(StorageSource storage, ScanJob job, IProgress<string>? progress,
                                            CancellationToken ct)
     {

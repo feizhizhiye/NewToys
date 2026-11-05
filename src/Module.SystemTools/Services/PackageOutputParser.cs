@@ -5,38 +5,10 @@ using System.Text.RegularExpressions;
 
 namespace NewToys.SystemTools.Services;
 
-/// <summary>
-/// winget 命令行输出的解析器（**纯函数**，不碰进程、不碰 UI）。
-/// <para>
-/// 分层：固定列宽表格的**通用机械**（清洗 / 显示宽度 / 切片 / 溢出回填 /
-/// 噪行过滤）已抽到 <see cref="FixedWidthTable"/>；本文件只留 winget **固有启发式**：
-/// 本地化表头别名、续行合并、pin 兜底、<c>show</c> 的标签-值解析。机读 TSV 后端走 <see cref="TsvRows"/>。
-/// </para>
-/// <para>
-/// 核心思路：winget 的表格是**固定列宽**（每列宽度 = 表头与全部单元格里最宽者），
-/// 所以「**用表头里各列标签的起始下标切片**」最稳 ——
-/// 远好过"按两个以上空格 split"：后者会被包名里的连续空格、以及被截断成 `…` 的长名称搞崩。
-/// </para>
-/// <para>
-/// ⚠️ <b>表头是本地化的</b>（v1.33 修正的认知）：中文 Windows 上 <c>winget list</c> 打印的是
-/// <c>名称 / ID / 版本 / 可用</c>，<c>source list</c> 是 <c>名称 / 参数 / 显式</c>，
-/// <c>pin list</c> 是 <c>… / 包钉类型</c>。旧版只认英文标签 → 找不到表头 → 一行都解析不出来
-/// （表现：列表页**空白**）。现在所有标签都按「英文 + 中文别名」映射到**规范名**再切片。
-/// </para>
-/// <para>
-/// 会被滤掉的行：① ANSI 颜色转义；② 进度条 / 转轮（含 <c>\r</c>、<c>\b</c> 与 <c>█ ▒ ░ \) | / -</c> 填充）；
-/// ③ 分隔线（整行只有 <c>-</c>）；④ 表头之上的提示行（"已配置的源需要更新"之类）。
-/// </para>
-/// </summary>
+/// <summary>winget 命令行输出的解析器（纯函数，不碰进程、不碰 UI）。（WHY: ST-015）</summary>
 internal static class PackageOutputParser
 {
-    /// <summary>
-    /// 表格列标签：**规范名 + 该列在输出里可能出现的写法**（英文 + 简体中文）。
-    /// <para>
-    /// 顺序无关（切列时按实际起始下标排序），但同一规范名只取首次命中；
-    /// 别名里最长的要放在前面（如 <c>Last Updated</c> 先于任何短词），避免被短别名截断。
-    /// </para>
-    /// </summary>
+    /// <summary>表格列标签：规范名 + 该列在输出里可能出现的写法（英文 + 简体中文）。（WHY: ST-016）</summary>
     private static readonly (string Canonical, string[] Aliases)[] LabelDefs =
     {
         ("Name",        new[] { "Name", "名称" }),
@@ -67,13 +39,7 @@ internal static class PackageOutputParser
         return map;
     }
 
-    /// <summary>
-    /// 认识但**不装进模型**的 <c>winget show</c> 字段。
-    /// <para>
-    /// 这些行必须显式「终结上一个字段」，否则会被当成上一条多行值的续行 ——
-    /// 例如 <c>发布服务器 URL: …</c> 会粘进「发布者」里（v1.33 前就是这个毛病）。
-    /// </para>
-    /// </summary>
+    /// <summary>认识但不装进模型的 winget show 字段。（WHY: ST-017）</summary>
     private static readonly HashSet<string> IgnoredLabels = new(StringComparer.Ordinal)
     {
         "发布服务器 URL", "发布服务器支持 URL", "作者", "绰号", "版权", "版权所有",
@@ -86,15 +52,9 @@ internal static class PackageOutputParser
     /// <summary>去掉 ANSI 转义、统一换行、去掉退格符 —— 后续一律按 <c>\n</c> 切行。</summary>
     public static string Clean(string? raw) => FixedWidthTable.Clean(raw);
 
-    /// <summary>
-    /// 解析一段包管理器表格输出。
-    /// </summary>
+    /// <summary>解析一段包管理器表格输出。</summary>
     /// <param name="raw">原始 stdout。</param>
     /// <param name="requiredHeaderLabels">
-    /// 判定"这一行是表头"所需的**规范列名**（全部命中才算）。
-    /// 例：<c>list</c> / <c>search</c> 用 <c>Name+Id</c>；<c>source list</c> 用 <c>Name+Argument</c>。
-    /// （规范名与输出语言无关，调用方不必关心中文还是英文表头。）
-    /// </param>
     /// <returns>每行一个字典（**规范列名** → 单元格文本），保持输出顺序。</returns>
     public static List<Dictionary<string, string>> ParseTable(string? raw, params string[] requiredHeaderLabels)
     {
@@ -191,25 +151,11 @@ internal static class PackageOutputParser
     private static List<(string Label, int StartW)> FindLabels(string line)
         => FixedWidthTable.FindColumns(line, LabelRegex, AliasToCanonical);
 
-    /// <summary>
-    /// 从任意输出里粗暴地捞出"长得像包 Id"的记号（含点号且无空格）。
-    /// <para>
-    /// 用于 <c>winget pin list</c>：不同 winget 版本那张表的列头差异较大，
-    /// 而包 Id 的形状非常稳定（<c>Publisher.Package</c>），所以直接按形状捞最省事、也最不容易漏。
-    /// </para>
-    /// </summary>
+    /// <summary>从任意输出里粗暴地捞出"长得像包 Id"的记号（含点号且无空格）。</summary>
     public static List<string> ParsePackageIds(string? raw)
         => ParsePins(raw).Select(p => p.Id).ToList();
 
-    /// <summary>
-    /// 解析 <c>winget pin list</c>：按**表头切片**取 Id 与版本。
-    /// <para>
-    /// 🔴 老实现 <see cref="ParsePackageIds"/> 是"扫所有带点号的词" ⇒ 版本号（<c>24.08</c>、<c>1.2.3</c>）
-    /// 长得跟包 Id 一样，会被当成 Id 混进来（表现：列表里多出一堆"版本号行"，Id 列还串了位）。
-    /// 现在走 <see cref="ParseTable"/>（规范列名 <c>Id</c> / <c>Version</c>），只在表头认不出时才兜底，
-    /// 且兜底里**按形状排除纯版本号**。
-    /// </para>
-    /// </summary>
+    /// <summary>解析 winget pin list：按表头切片取 Id 与版本。（WHY: ST-020）</summary>
     public static List<(string Id, string Version)> ParsePins(string? raw)
     {
         var list = new List<(string Id, string Version)>();

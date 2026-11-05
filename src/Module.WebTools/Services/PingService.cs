@@ -22,16 +22,7 @@ public readonly struct PingResult
     public long RoundtripMs { get; init; }
 }
 
-/// <summary>
-/// Ping 服务：解析（可选**指定 DNS 服务器**）+ ICMP 回显。
-/// <para>
-/// 「切换 DNS 进行 ping」：若主机是域名，先用 <see cref="DnsResolver"/> 向**指定 DNS 服务器**解析 A 记录，
-/// 再对解析出的 IP 发 ICMP；若未指定 DNS 则回退系统解析。主机已是 IP 时直接 ping。
-/// </para>
-/// <para>
-/// 目标清单落**本模块库 <c>web_docs</c> 的 <c>ping-targets</c> 文档**（⛔ 不再写 <c>config\ping-targets.json</c>）。
-/// </para>
-/// </summary>
+/// <summary>Ping 服务：解析（可选指定 DNS 服务器）+ ICMP 回显。（WHY: WT-011）</summary>
 public class PingService
 {
     private readonly ConfigStoreService _cfg;

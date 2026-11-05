@@ -40,10 +40,10 @@ MODULE_PREFIX = {
     "NewToys.Tests": "TS",
 }
 MODULE_DOC = {
-    "media-assets": "media-assets", "script-manager": "script-manager",
-    "video-tools": "video-tools", "reading": "reading", "viewer": "viewer",
-    "web-tools": "web-tools", "backup-center": "backup-center",
-    "system-tools": "system-tools",
+    "mediaassets": "media-assets", "scriptmanager": "script-manager",
+    "videotools": "video-tools", "reading": "reading", "viewer": "viewer",
+    "webtools": "web-tools", "backupcenter": "backup-center",
+    "systemtools": "system-tools",
 }
 
 XML_TAGS = re.compile(r"</?(?:summary|para|remarks|example|b|i|c|list|item|code)\s*/?>")
@@ -142,9 +142,12 @@ def split_block(lines: list[str]) -> tuple[list[str], str, list[str], list[str]]
 
 def doc_target(batch: str, assembly: str) -> tuple[pathlib.Path, str, str]:
     if batch == "modules":
+        if assembly == "NewToys.Tests":
+            # 测试工程不是业务模块，没有 modules/*.md ⇒ WHY 蒸馏进 framework.md（标记 WHY-DISTILL:tests）
+            return DOCS / "framework.md", "TS", "tests"
         key = assembly.removeprefix("Module.").lower()
         stem = MODULE_DOC.get(key, key)
-        return DOCS / "modules" / f"{stem}.md", MODULE_PREFIX.get(assembly, "MOD"), f"modules-{key}"
+        return DOCS / "modules" / f"{stem}.md", MODULE_PREFIX.get(assembly, "MOD"), f"modules-{stem}"
     cfg = BATCHES[batch]
     return DOCS / cfg["doc"], cfg["prefix"], batch
 
@@ -182,6 +185,7 @@ def main() -> None:
     files.sort()
 
     per_doc: dict[pathlib.Path, list[tuple[str, str, list[str]]]] = {}
+    doc_keys: dict[pathlib.Path, str] = {}
     counters = {"blocks": 0, "slim": 0, "whitelist": 0, "kept": 0, "removed_lines": 0, "why_lines": 0}
     seq: dict[str, int] = {}
 
@@ -215,7 +219,14 @@ def main() -> None:
 
             indent = re.match(r"^\s*", block[0]).group(0)
             body, contract, why, sig = split_block(block)
+            if len(block) - 1 - len(sig) <= 0:
+                # 已经是「1 行 summary + 成员级契约行」，再压不会变短 ⇒ 原样保留（避免无意义改写与编号漂移）
+                counters["kept"] += 1
+                out += block
+                i = j
+                continue
             doc, prefix, key = doc_target(batch, p.relative_to(SRC).parts[0])
+            doc_keys.setdefault(doc, key)
             seq[prefix] = seq.get(prefix, 0) + 1
             anchor = f"{prefix}-{seq[prefix]:03d}"
             if contract and not re.search(r"[。；;!?]$", contract):
@@ -244,12 +255,13 @@ def main() -> None:
     for doc, entries in sorted(per_doc.items()):
         print(f"  → {doc.relative_to(ROOT)} : {len(entries)} 个 anchor")
         if args.apply:
+            k = doc_keys[doc]
             text, bom, nl = read_text(doc)
-            section = distill_section(batch, entries)
+            section = distill_section(k, entries)
             if nl == "\n":
                 section = section.replace("\r\n", "\n")
-            start = MARKER_LINE.format(batch=batch)
-            end = MARKER_END.format(batch=batch)
+            start = MARKER_LINE.format(batch=k)
+            end = MARKER_END.format(batch=k)
             if start in text and end in text:
                 head, rest = text.split(start, 1)
                 _, tail = rest.split(end, 1)

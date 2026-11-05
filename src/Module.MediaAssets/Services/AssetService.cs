@@ -11,15 +11,7 @@ using NewToys.Shared.Models;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 资产库的数据访问入口（需求 §6.6）：存储源 / 资产 / 文件位置的读写 + **扫描匹配**所需的查询 + 扫描任务记录。
-/// <para>
-/// 匹配顺序（<see cref="FindMatch"/>）：① 存储源+相对路径 → ② quick_hash+size（同内容换路径 = 移动）→
-/// ③ inode+device（仅本地）→ ④ 调用方算完完整 hash 后再走 <see cref="FindLocationByHash"/>。
-/// ⛔ 全程参数化 SQL，⛔ 不拼字符串（路径里可能有引号）。
-/// </para>
-/// <para>物理操作（重命名 / 移动 / 复制 / 删除）与操作日志在 ；本类只做数据层。</para>
-/// </summary>
+/// <summary>资产库的数据访问入口（需求 §6.6）：存储源 / 资产 / 文件位置的读写 + 扫描匹配所需的查询 + 扫描任务记录。（WHY: MA-022）</summary>
 public partial class AssetService
 {
     private readonly AssetDatabase _db;

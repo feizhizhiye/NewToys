@@ -8,16 +8,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Viewer.Services;
 
-/// <summary>
-/// 查看器设置与记忆：落 <c>config\viewer.json</c>（经 Core 的 <see cref="IOptionsStore"/>）。
-/// <para>
-/// 三件事：排版参数（字号 / 行距 / 页边距）、最近打开（≤20）、按文件记忆阅读位置。
-/// </para>
-/// <para>
-/// 🔴 位置键 = <c>路径|文件大小|最后修改时间</c>，⛔ 不用纯路径 —— 同名文件互相覆盖、
-/// 文件被替换后还会把旧进度套上去。
-/// </para>
-/// </summary>
+/// <summary>查看器设置与记忆：落 config\viewer.json（经 Core 的 IOptionsStore）。（WHY: VW-017）</summary>
 public sealed class ViewerSettingsService
 {
     private const string Module = "viewer";

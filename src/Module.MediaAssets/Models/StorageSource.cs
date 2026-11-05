@@ -2,14 +2,7 @@ using System;
 
 namespace NewToys.MediaAssets.Models;
 
-/// <summary>
-/// 存储源（`storages`）：扫描的根，如某个本地磁盘目录 / 移动硬盘 / NAS 挂载点。
-/// <para>
-/// ⚠️ 类名叫 <c>StorageSource</c> 而不是 <c>Storage</c>：后者会与 Avalonia 的
-/// <c>Avalonia.Platform.Storage</c>（命名空间）在同一文件里撞名（存储源页要选目录）。
-/// </para>
-/// <para>**移除存储源只移索引，⛔ 不删磁盘文件**（需求 §6.6）。</para>
-/// </summary>
+/// <summary>存储源（storages）：扫描的根，如某个本地磁盘目录 / 移动硬盘 / NAS 挂载点。（WHY: MA-011）</summary>
 public class StorageSource
 {
     public long Id { get; set; }

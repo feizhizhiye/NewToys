@@ -14,12 +14,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「集合管理」页：与标签 / 分类页同构的**列表页**（名称 / 类型 / 成员数 / 创建时间）+ 详情卡。
-/// <para>成员顺序 = <c>collection_assets.sort_order</c>：详情卡里点一行选中成员，再用「上移 / ⬇ 下移」写库
-/// （⛔ 未做鼠标拖放）。智能集合的成员由规则决定，⛔ 不许手工增删 / 排序。</para>
-/// <para>⚠️ 智能集合（`rule_json`）本轮只区分类型 / 图标与存规则文本，**规则求值未实装**。</para>
-/// </summary>
+/// <summary>「集合管理」页：与标签 / 分类页同构的列表页（名称 / 类型 / 成员数 / 创建时间）+ 详情卡。（WHY: MA-072）</summary>
 public partial class AssetCollectionsViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly CollectionService _cols = null!;

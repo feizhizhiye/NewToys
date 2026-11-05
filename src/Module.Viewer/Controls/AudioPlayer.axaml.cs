@@ -30,14 +30,7 @@ public enum AudioStageLayout
     Stacked = 2,
 }
 
-/// <summary>
-/// 查看器内的本地音乐播放器：播放列表 + 控制条 + LRC 歌词。
-/// <para>
-/// 🔴 播放能力由宿主注入 <see cref="IAudioPlayback"/>（UI 库 ⛔ 不引 NAudio / 平台库）；
-/// 本控件只做界面、轮询位置、解析歌词。
-/// </para>
-/// <para>🔴 歌词是「行内高亮 + 自动滚动」，⛔ 不做逐字卡拉OK（需要逐字时间轴，LRC 不提供）。</para>
-/// </summary>
+/// <summary>查看器内的本地音乐播放器：播放列表 + 控制条 + LRC 歌词。（WHY: VW-001）</summary>
 public partial class AudioPlayer : UserControl
 {
     private static readonly Regex TimeTag = new(@"\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]", RegexOptions.Compiled);
@@ -345,12 +338,7 @@ public partial class AudioPlayer : UserControl
     /// <summary>当前音量 0~100。</summary>
     public int Volume => (int)Math.Round(VolumeSlider.Value);
 
-    /// <summary>
-    /// 载入歌词。
-    /// <para><paramref name="raw"/> = 原文 LRC；<paramref name="translation"/> = 译文 LRC（时间戳对齐，可空）。</para>
-    /// <para>双行歌词（同一时间戳重复写原文 + 译文）也会被识别：第 2 行起当作译文。</para>
-    /// <para><paramref name="staticText"/> = 无时间轴的整段歌词（内嵌 USLT）：逐行平铺，⛔ 不高亮不滚动。</para>
-    /// </summary>
+    /// <summary><paramref name="raw"/> = 原文 LRC；<paramref name="translation"/> = 译文 LRC（时间戳对齐，可空）。（WHY: VW-002）</summary>
     public void SetLyrics(string? raw, string? translation = null, bool staticText = false)
     {
         _lyrics.Clear();

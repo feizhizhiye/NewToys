@@ -7,14 +7,7 @@ using Xunit;
 
 namespace NewToys.Tests;
 
-/// <summary>
-/// ffmpeg **命令行拼装**的回归测试（纯静态函数，不执行 ffmpeg、不碰磁盘）。
-/// <para>
-/// 这些参数是「详情卡字段 → 真正跑的那条命令」的唯一通道。拼错不会报错，
-/// 只会静默产出坏文件（奇数宽高被编码器拒、copy 预设带滤镜无效、软字幕塞进 mp4…），
-/// 以往只能跑一遍真转码才发现，这里固化成断言。
-/// </para>
-/// </summary>
+/// <summary>ffmpeg 命令行拼装的回归测试（纯静态函数，不执行 ffmpeg、不碰磁盘）。（WHY: TS-002）</summary>
 public class FfmpegArgsTests
 {
     private static TranscodeTask NewTask(string presetId = "h265") => new() { PresetId = presetId };

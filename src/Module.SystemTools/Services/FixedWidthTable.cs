@@ -5,17 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace NewToys.SystemTools.Services;
 
-/// <summary>
-/// **固定列宽表格**的通用解析机械（与具体包管理器无关）。
-/// <para>
-/// 适用后端：winget / flatpak <c>--columns</c> / snap list 之类「按列对齐、表头在上」的人读输出。
-/// 机读输出（TSV / JSON）⛔ 不走这里，见 <see cref="TsvRows"/>。
-/// </para>
-/// <para>
-/// 🔴 按**显示宽度**切片（不是字符下标）：数据行里有中文 ⇒ 汉字占 2 列，
-/// 按字符下标切会把后面几列整体左移（winget 实测：版本列里出现 Id 的字母）。
-/// </para>
-/// </summary>
+/// <summary>固定列宽表格的通用解析机械（与具体包管理器无关）。（WHY: ST-006）</summary>
 internal static class FixedWidthTable
 {
     private static readonly Regex Ansi = new(@"\x1B\[[0-9;?]*[A-Za-z]", RegexOptions.Compiled);
@@ -165,14 +155,7 @@ internal static class FixedWidthTable
         return row;
     }
 
-    /// <summary>
-    /// 单元格**溢出回填**：列宽是固定的，内容超长时后端不会截断，而是**顶满后挤进下一列**
-    /// （winget 实测：Id 比 Id 列宽 1 ⇒ 版本列变成 <c>e 8000.836.2153.0</c>）。
-    /// <para>
-    /// 判据（四条同时成立才搬）：① 本列内容顶满列宽；② 本列末尾不是空白；③ 下一列开头不是空白（没被空格分隔）；
-    /// ④ 下一列里还有空格 ⇒ 把**第一个空格之前的那段**还给本列（剩下的才是本列真正的值）。
-    /// </para>
-    /// </summary>
+    /// <summary>单元格溢出回填：列宽是固定的，内容超长时后端不会截断，而是顶满后挤进下一列 （winget 实测：Id 比 Id 列宽 1 ⇒ 版本列变成 e 8000.836.2153.0）。</summary>
     private static void ReflowOverflow(string[] cells, List<(string Label, int StartW)> columns)
     {
         for (var c = 0; c + 1 < cells.Length; c++)
@@ -192,15 +175,7 @@ internal static class FixedWidthTable
         }
     }
 
-    /// <summary>
-    /// **通用**固定列宽表格解析（适合不折行的后端：flatpak / snap …）。
-    /// <para>
-    /// 表头定位：行内出现 <paramref name="aliasToCanonical"/> 的别名、且覆盖全部
-    /// <paramref name="requiredCanonical"/> 规范名，才算表头行。首列为空的行丢弃（残行）。
-    /// </para>
-    /// <para>⚠️ 会**自动换行折叠长名称**的后端（winget）⛔ 不用本方法 —— 那种续行合并是
-    /// winget 固有启发式，见 <c>PackageOutputParser.ParseTable</c>。</para>
-    /// </summary>
+    /// <summary>通用固定列宽表格解析（适合不折行的后端：flatpak / snap …）。（WHY: ST-008）</summary>
     public static List<Dictionary<string, string>> Parse(
         string? raw, IReadOnlyDictionary<string, string> aliasToCanonical, params string[] requiredCanonical)
     {

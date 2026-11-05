@@ -5,21 +5,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 「环境维护」内置集合的播种器（批 3 · 2026-10-19 用户定调）。
-/// <para>
-/// <b>为什么放集合里</b>：环境准备脚本（建 Python venv / 装依赖）本来就是"软件自己的维护脚本"，
-/// 塞进脚本管理器的**集合列表**后：① 不用记路径，点一下就跑；② 复用现有的运行 / 输出捕获 / 超时；
-/// ③ 以后加 ffmpeg 检查、winget 源导出之类，全是这个集合的成员，不新增概念。
-/// </para>
-/// <para>
-/// <b>与 <see cref="ExampleSeeder"/> 的分工</b>：示例脚本是"教学材料"，环境脚本是"真在用的工具"，
-/// 所以分开两个随包目录（<c>defaults\env-scripts\</c> vs <c>defaults\scripts\</c>）、两个目标目录。
-/// </para>
-/// <para>
-/// 🔴 **只播种一次**（<c>.seeded</c> 标记）：用户删掉集合 / 改坏脚本是他的意图，下次启动 ⛔ 不复活、⛔ 不覆盖。
-/// </para>
-/// </summary>
+/// <summary>「环境维护」内置集合的播种器。（WHY: SM-026）</summary>
 public static class EnvScriptsSeeder
 {
     /// <summary>随包源目录名（<c>&lt;程序目录&gt;\defaults\env-scripts</c>）。</summary>

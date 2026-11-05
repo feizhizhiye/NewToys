@@ -5,13 +5,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「全部资产」的批量重命名入口：**多选 + 规则对话框**（⛔ 不做逐个弹输入框）。
-/// <para>
-/// 与详情卡「↗ 应用到文件」的分工：那边一次改一个（手输名字），这里按规则批量改；落盘通路完全相同
-/// （<c>FileOperationService.Rename</c>：日志先行 + 库里路径同步 + 同名冲突策略）。
-/// </para>
-/// </summary>
+/// <summary>「全部资产」的批量重命名入口：多选 + 规则对话框（⛔ 不做逐个弹输入框）。</summary>
 public partial class AssetAllViewModel
 {
     /// <summary>批量重命名弹层的 VM（规则 / 预览 / 落盘）。</summary>

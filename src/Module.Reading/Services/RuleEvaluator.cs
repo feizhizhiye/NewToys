@@ -8,18 +8,7 @@ using AngleSharp.Dom;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 书源规则求值器：把一个字段规则（字符串）在给定上下文里算出**值**。
-/// <para>
-/// 支持的语法元件（本批次）：<c>class.x</c> / <c>tag.y</c> / <c>id.z</c> / <c>.x</c> / 裸标签、
-/// 属性 <c>text</c> / <c>ownText</c> / <c>html</c> / <c>href</c> / <c>src</c> / <c>content</c>、
-/// 索引 <c>.N</c> / <c>!N</c>、<c>@css:</c> / <c>@json:</c> 前缀、<c>||</c> / <c>&amp;&amp;</c> / <c>##</c>、
-/// <c>{{}}</c> 插值、<c>@put:</c> / <c>@get:</c>。
-/// </para>
-/// <para>
-/// 🔴 未知前缀（<c>@XPath:</c> 等）与 JS 片段只**废掉当前字段并记错误**，⛔ 不抛异常、⛔ 不牵连同一条源的其它字段。
-/// </para>
-/// </summary>
+/// <summary>书源规则求值器：把一个字段规则（字符串）在给定上下文里算出值。（WHY: RD-018）</summary>
 public sealed partial class RuleEvaluator
 {
     /// <summary>求值。</summary>

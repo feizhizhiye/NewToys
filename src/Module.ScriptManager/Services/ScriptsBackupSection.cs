@@ -9,20 +9,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// <b>数据节 · 脚本实体文件</b>（批次 C）：脚本管理器采集的 <c>.ps1 / .py / …</c> 本体。
-/// <para>
-/// 🔴 为什么由**本模块**注册：脚本目录 = 「默认脚本目录（`IQuickActionService.ScriptsDirectory`）+
-/// 各库的 <c>RootPath</c>」两段解析，这段知识只有脚本管理器有；框架层（Shell）⛔ 不引模块，
-/// 所以数据节按 <see cref="IBackupSection"/> 契约由模块自己提供 —— 与模块设置节的注册通道同一套。
-/// </para>
-/// <para>
-/// 内容布局：<c>&lt;别名&gt;/&lt;相对路径&gt;</c>，别名 = 「默认」或集合名（非法字符换成 <c>_</c>）；
-/// 另外写一份 <c>_roots.txt</c> 列出「别名 → 原始目录」，恢复出来能对得上来源。
-/// </para>
-/// <para>恢复落到 <c>store\restore-&lt;时间戳&gt;\scripts\&lt;别名&gt;\…</c> —— ⛔ 不覆盖原脚本目录。</para>
-/// <para>默认不勾：脚本目录可能装着几百个文件，且多数人「备份设置」不需要它。</para>
-/// </summary>
+/// <summary>数据节 · 脚本实体文件（批次 C）：脚本管理器采集的 .ps1 / .py / … 本体。（WHY: SM-052）</summary>
 public sealed class ScriptsBackupSection : IBackupSection
 {
     private const string DefaultAlias = "默认";

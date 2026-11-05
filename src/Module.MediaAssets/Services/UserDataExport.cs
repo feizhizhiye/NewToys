@@ -52,17 +52,7 @@ public sealed class RelationJson
     public string Type { get; set; } = RelationTypes.RelatedTo;
 }
 
-/// <summary>
-/// **用户手动数据**的导出 / 恢复（R1 缓解）：标签 / 分类 / 集合 / 关联 4 类。
-/// <para>
-/// 用途：这 4 类是用户手工维护的（标签 / 分类 / 集合 / 关联）——
-/// 删库重建就会全丢。导出成 <c>config\media-assets-user-data.json</c> 就能进「数据管理」的备份。
-/// </para>
-/// <para>
-/// 🔴 结构**自描述、⛔ 不依赖内部 id**：分类的父子用名字、集合成员用文件路径、关联用两端路径；
-/// 恢复时按 name/path 重建映射。恢复 = **合并**（⛔ 不静默覆盖已有的同名项；缺的才建）。
-/// </para>
-/// </summary>
+/// <summary>用户手动数据的导出 / 恢复（R1 缓解）：标签 / 分类 / 集合 / 关联 4 类。（WHY: MA-053）</summary>
 public class UserDataExport
 {
     public const string FormatName = "newtoys-media-assets-user-data";

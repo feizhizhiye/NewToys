@@ -8,13 +8,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 流水线配置的读写：一个 flow = 一个 <c>flows\&lt;名&gt;.json</c>。
-/// <para>
-/// 🔴 <b>不开 DB 表</b>：flow 是「段名 → 脚本名」的轻量映射，随 rules 一起被人肉看懂 / 手改 / 拷走，
-/// 落 JSON 与「脚本即资产」的范式一致（DB 用来存 runs 之类的大批量数据）。
-/// </para>
-/// </summary>
+/// <summary>流水线配置的读写：一个 flow = 一个 flows\&lt;名&gt;.json。（WHY: SM-028）</summary>
 public sealed class FlowService
 {
     private readonly ConfigStoreService _cfg;

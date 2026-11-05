@@ -12,15 +12,7 @@ using NewToys.VideoTools.Models;
 
 namespace NewToys.VideoTools.Services;
 
-/// <summary>
-/// 视频列表的目录扫描与媒体信息探测。
-/// <para>
-/// 扫描**只读文件系统元信息**（名称 / 大小 / 修改时间），保证几百个文件的目录也是瞬间出列表；
-/// 时长 / 分辨率 / 编码 / 码率走 ffprobe，由调用方决定单个读还是并发批量读
-/// （<see cref="ProbeAsync"/> 本身**不碰 UI、不改模型**，只把结果返回 —— 这样多任务并发调用是线程安全的，
-/// 界面更新统一由 ViewModel 在 UI 线程上做）。
-/// </para>
-/// </summary>
+/// <summary>视频列表的目录扫描与媒体信息探测。</summary>
 public static class VideoScanner
 {
     /// <summary>认得的视频扩展名（小写，带点）。</summary>
@@ -227,12 +219,7 @@ public static class VideoScanner
         }
     }
 
-    /// <summary>
-    /// 解析**媒体资产**随路带来的 <c>metadata_json</c>（键 = 资产库那边 ffprobe 写入的那几个：
-    /// <c>duration_seconds</c> / <c>width</c> / <c>height</c> / <c>video_codec</c> / <c>bit_rate</c> / <c>fps</c>）。
-    /// <para>拿到就直接套用，⛔ 不再为同一批文件重跑 ffprobe；解析不出（空的 / 老数据没读过）返回 null，
-    /// 调用方按原样走缓存或手动读取。</para>
-    /// </summary>
+    /// <summary>解析媒体资产随路带来的 metadata_json（键 = 资产库那边 ffprobe 写入的那几个： duration_seconds / width / height / video_codec / bit_rate / fps）。（WHY: VT-023）</summary>
     public static VideoMediaInfo? TryParseAssetMeta(string? json)
     {
         if (string.IsNullOrWhiteSpace(json) || json == "{}") return null;

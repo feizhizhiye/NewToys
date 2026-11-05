@@ -6,18 +6,7 @@ using NewToys.SystemTools.Models;
 
 namespace NewToys.SystemTools.Services;
 
-/// <summary>
-/// 包管理器命令行封装（当前后端为 winget，未来可扩展为 apt 等）。
-/// <para>
-/// 定位：本工程是**带 GUI 的脚本管理器**（见规范 1.1），所以这里的做法是
-/// 「**调用系统已有命令行工具 + 把它的输出解析成模型**」，而不是去 P/Invoke 平台原生包管理 API。
-/// 好处：行为与用户在终端里敲 <c>winget</c> 完全一致、不需要管理员权限、升级 winget 本体即升级能力。
-/// </para>
-/// <para>
-/// 线程：所有方法都是真异步（`Process` 的流读取），**不阻塞 UI 线程**；调用方在 UI 线程 await 即可。
-/// 非 Windows 平台 <see cref="IsSupported"/> 为 false，各方法返回失败消息而不抛异常。
-/// </para>
-/// </summary>
+/// <summary>包管理器命令行封装（当前后端为 winget，未来可扩展为 apt 等）。（WHY: ST-009）</summary>
 public interface IPackageManagerService
 {
     /// <summary>当前平台是否支持（仅 Windows / winget）。</summary>

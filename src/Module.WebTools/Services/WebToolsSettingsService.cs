@@ -6,12 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.WebTools.Services;
 
-/// <summary>
-/// <see cref="IWebToolsSettingsService"/> 的实现（v3.64）：落 <c>config\web-tools.json</c>。
-/// <para>
-/// 首次运行把两个默认值**播种**进文件（让配置看得见、可手改），之后以文件里的值为准。
-/// </para>
-/// </summary>
+/// <summary>IWebToolsSettingsService 的实现：落 config\web-tools.json。</summary>
 public class WebToolsSettingsService : IWebToolsSettingsService
 {
     /// <summary>模块分区名 = 配置文件名基名（<c>config\web-tools.json</c>）。</summary>

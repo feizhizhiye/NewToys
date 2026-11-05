@@ -2,15 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 正文净化规则（legado 的「替换净化」）：每行 <c>正则##替换</c>，只写正则 = 删除命中内容。
-/// <para>
-/// 🔴 与书源自带的 <c>ruleContent.replaceRule</c> 是**两套东西**：书源内联规则跟着源走（导入进来就带，语法是三段
-/// <c>规则##正则##替换</c>），这里的是**本机全局规则**（两段 <c>正则##替换</c>），对任何源的正文都生效，
-/// 用来清广告 / 拼音 / 站点口号这类共性问题。
-/// </para>
-/// <para>单条规则写错只废这一条（正则编译失败被吞掉），⛔ 不让整章正文失败。</para>
-/// </summary>
+/// <summary>正文净化规则（legado 的「替换净化」）：每行 正则##替换，只写正则 = 删除命中内容。（WHY: RD-016）</summary>
 public static class ReplaceRuleService
 {
     /// <summary>按行应用规则；<paramref name="rules"/> 为空原样返回。</summary>

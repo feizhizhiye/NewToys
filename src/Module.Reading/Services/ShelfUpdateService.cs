@@ -41,13 +41,7 @@ public sealed class ShelfUpdateResult
         : Note;
 }
 
-/// <summary>
-/// 书架批量更新（legado 的「更新书架」）：回源站抓每本书的**详情 + 目录**，
-/// 用目录章数跟上次的基线比，把「多了几章 / 最新一章叫什么」写回 <c>shelf</c>。
-/// <para>🔴 只抓两段（详情 + 目录），⛔ 不抓正文 —— 更新只是「知不知道有新章」，正文留给阅读页按需抓。</para>
-/// <para>🔴 首次检查只建基线（<c>new_count = 0</c>）：没有上次的章数就没法判断「多了几章」。</para>
-/// <para>🔴 单本失败不中断整批：失败只记原因，且**保留已有的章数基线**（否则一次失败就把对比基准冲掉）。</para>
-/// </summary>
+/// <summary>书架批量更新（legado 的「更新书架」）：回源站抓每本书的详情 + 目录， 用目录章数跟上次的基线比，把「多了几章 / 最新一章叫什么」写回 shelf。（WHY: RD-024）</summary>
 public sealed class ShelfUpdateService
 {
     private readonly CrawlService _crawl;

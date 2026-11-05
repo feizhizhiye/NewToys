@@ -5,15 +5,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 「资产浏览」页的数据源：**按文件位置建行**（同一资产在多个目录各出现一次 = 正确语义），
-/// 目录路径取自 <c>file_locations.relative_path</c>（老数据为空时用 <c>path</c> 减 <c>storages.root_path</c> 兜底）。
-/// <para>
-/// 🔴 目录数据**一律取库里的索引**，⛔ 不实时枚举磁盘：NAS / 移动盘离线时枚举会卡死界面，索引即真相。
-/// </para>
-/// <para>文件位置状态为 <c>deleted</c>（永久删除 / 已从库移除）不参与；<c>missing</c> 仍列出（界面上标灰）。
-/// 资产本体进了回收站（<c>assets.status='trashed'</c>）也不参与 —— 回收站的资产不进目录树。</para>
-/// </summary>
+/// <summary>「资产浏览」页的数据源：按文件位置建行（同一资产在多个目录各出现一次 = 正确语义）， 目录路径取自 file_locations.relative_path（老数据为空时用 path 减 storages.root_path 兜底）。（WHY: MA-020）</summary>
 public sealed record BrowseEntry(AssetRow Row, long LocationId, string Dir);
 
 public partial class AssetService

@@ -3,18 +3,7 @@ using System.IO;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 随包<b>预设规则集</b>的播种器：
-/// <c>&lt;程序目录&gt;\defaults\presets\*.py</c> → <c>&lt;StoreDir&gt;\script\rules\</c>（只加不覆盖）。
-/// <para>
-/// 🔴 **只播种一次**（<c>rules\.seeded</c> 标记）：用户删掉的预设<b>不会复活</b> ——
-/// 与 <c>Module.ScriptManager</c> 的 <c>ExampleSeeder</c> 同一套语义。
-/// </para>
-/// <para>
-/// ⚠️ 播种进来的预设就是**普通规则文件**：目录页直接列得出、改得动、删得掉；
-/// 「从预设创建」是另复制一份（⛔ 不动原文件）。
-/// </para>
-/// </summary>
+/// <summary>随包预设规则集的播种器： &lt;程序目录&gt;\defaults\presets\*.py → &lt;StoreDir&gt;\script\rules\（只加不覆盖）。（WHY: SM-035）</summary>
 public static class PresetSeeder
 {
     /// <summary>随包源目录名（<c>&lt;程序目录&gt;\defaults\presets</c>）。</summary>

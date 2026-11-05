@@ -36,12 +36,7 @@ public sealed class SourceCheckRow
     };
 }
 
-/// <summary>
-/// 书源校验（legado 的「校验书源」）：拿一个关键词对一批源各跑一次**搜索段**，
-/// 把结论落库（通过 / 无结果 / 失败），用来一次性筛掉失效源。
-/// <para>🔴 只跑搜索段：整条四段管线 × 几百个源会跑到几分钟，且「搜不到书」已足够判死一个源。</para>
-/// <para>🔴 只读探测：⛔ 不写书架 / 进度 / 正文缓存，只写 <c>book_sources</c> 的三列校验结果。</para>
-/// </summary>
+/// <summary>书源校验（legado 的「校验书源」）：拿一个关键词对一批源各跑一次搜索段， 把结论落库（通过 / 无结果 / 失败），用来一次性筛掉失效源。（WHY: RD-026）</summary>
 public sealed class SourceCheckService
 {
     private readonly CrawlService _crawl;

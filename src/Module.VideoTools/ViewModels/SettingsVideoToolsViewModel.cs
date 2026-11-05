@@ -7,15 +7,7 @@ using NewToys.VideoTools.Services;
 
 namespace NewToys.VideoTools.ViewModels;
 
-/// <summary>
-/// 「视频工具」模块设置页（v3.64，需求 §4.9）：View/VM 归 <c>Module.VideoTools</c>，
-/// 由 <c>VideoToolsModule.Initialize</c> 自注册进**本模块分组 <c>video</c>**（Key <c>settings-video-tools</c>，Order 100）。
-/// <para>
-/// 本模块**独有的**可配项 = 并发数（ffprobe 媒体信息 / 批处理），落 <c>config\video-tools.json</c>；
-/// <c>ffmpeg</c> / 外部播放器 / 导入导出目录是**全局项**（「设置 → 路径与配置」）—— 媒体资产模块也在用同一份，
-/// 这里**只展示、⛔ 不另存一份**（§4.9「复用全局项」）。
-/// </para>
-/// </summary>
+/// <summary>「视频工具」模块设置页（，需求 §4.9）：View/VM 归 Module.VideoTools， 由 VideoToolsModule.Initialize 自注册进本模块分组 video（Key settings-video-tools，Order 100）。（WHY: VT-028）</summary>
 public partial class SettingsVideoToolsViewModel : ObservableObject, IStatusProvider
 {
     private readonly IVideoToolsSettingsService _settings = null!;

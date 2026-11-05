@@ -3,14 +3,7 @@ using NewToys.SystemTools.Models;
 
 namespace NewToys.SystemTools.Services;
 
-/// <summary>
-/// 「软件包管理」模块的设置存取。
-/// <para>
-/// **唯一落点**：<c>&lt;应用根&gt;\config\package.json</c>（默认 <c>%LocalAppData%\NewToys\config\</c>）。
-/// 之所以必须是 <c>config\</c> 下：① 只有这里的 <c>*.json</c> 会被「设置 → 数据管理」的
-/// 备份 / 导入覆盖；② 模块只**读**这里的值，不自己另存一份，避免双真相源。
-/// </para>
-/// </summary>
+/// <summary>「软件包管理」模块的设置存取。（WHY: ST-010）</summary>
 public interface IPackageSettingsService
 {
     PackageSettings Settings { get; }

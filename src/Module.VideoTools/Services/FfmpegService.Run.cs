@@ -14,11 +14,7 @@ namespace NewToys.VideoTools.Services;
 public static partial class FfmpegService
 {
 
-    /// <summary>
-    /// 跑一条 ffmpeg 命令，并把进度（0~100）回调出去。
-    /// <para>进度靠 <c>-progress pipe:1</c> 输出的 <c>out_time_ms</c> 除以总时长算出来 ——
-    /// 这是 ffmpeg 官方给的机器可读进度，比抓 stderr 的刷新行稳。</para>
-    /// </summary>
+    /// <summary>跑一条 ffmpeg 命令，并把进度（0~100）回调出去。</summary>
     /// <returns>(是否成功, 说明, 输出文件大小)。</returns>
     public static async Task<(bool Ok, string Message, long OutputSize)> RunAsync(
         string ffmpeg, List<string> args, string output, double totalSeconds,
@@ -178,12 +174,7 @@ public static partial class FfmpegService
 
     // ==================== 进度解析 ====================
 
-    /// <summary>
-    /// 从 <c>-progress</c> 的一行里读出「已输出秒数」。
-    /// <para>🔴 只认 <c>out_time_us</c>（微秒，单位明确）与 <c>out_time</c>（时间码）——
-    /// <c>out_time_ms</c> 在不少 ffmpeg 版本里实际输出的是**微秒**（历史 bug），按毫秒解释会算错 1000 倍，
-    /// 所以直接跳过。</para>
-    /// </summary>
+    /// <summary>从 -progress 的一行里读出「已输出秒数」。（WHY: VT-015）</summary>
     private static bool TryReadProgressSeconds(string line, out double seconds)
     {
         seconds = 0;

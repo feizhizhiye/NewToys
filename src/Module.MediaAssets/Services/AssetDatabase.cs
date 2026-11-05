@@ -4,17 +4,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 媒体资产库的表结构（**13 张表 + 10 条索引**，需求 §6.6 数据模型）。
-/// <para>
-/// 落本模块自有库 <c>store\assets\assets.db</c>（见 <see cref="AssetsDb"/>）—— ⛔ 与视频 / 网络 / 脚本模块共库。
-/// </para>
-/// <para>
-/// 构造时跑 <see cref="SqliteDatabase.ApplySchema"/>：需要升级就先快照，再幂等建表
-/// （<c>CREATE TABLE IF NOT EXISTS</c>）+ 老库补列（<c>ALTER TABLE ADD COLUMN</c>，⛔ 只加可空列）；
-/// 库不可用（<see cref="SqliteDatabase.IsAvailable"/> = false）时**不抛**，各页面自行降级提示。
-/// </para>
-/// </summary>
+/// <summary>媒体资产库的表结构（13 张表 + 10 条索引，需求 §6.6 数据模型）。（WHY: MA-013）</summary>
 public class AssetDatabase
 {
     private readonly SqliteDatabase _db;

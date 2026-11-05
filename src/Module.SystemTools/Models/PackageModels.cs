@@ -3,17 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.SystemTools.Models;
 
-/// <summary>
-/// 一条软件包记录 —— 「搜索结果 / 已安装 / 可升级」三种列表**共用同一个模型**。
-/// <para>
-/// 为什么共用：列表页的表头排序、右键菜单、右侧详情三处都只认它，各写一份必然漂移
-/// （见规范 3.8「列表页布局规范」）。
-/// </para>
-/// <para>
-/// 继承 <see cref="ObservableObject"/> —— 详情卡绑 <c>Selected.Publisher</c> 等，
-/// 「🔎 读取详情」回填字段后**必须通知 UI 才会补充显示**（改了不刷新 = 详情不补充）。
-/// </para>
-/// </summary>
+/// <summary>一条软件包记录 —— 「搜索结果 / 已安装 / 可升级」三种列表共用同一个模型。（WHY: ST-001）</summary>
 public partial class PackageInfo : ObservableObject
 {
     [ObservableProperty] private string _name = "";
@@ -116,18 +106,7 @@ public class PackageSourceInfo
     public string TypeText => Type.Length == 0 ? "—" : Type;
 }
 
-/// <summary>
-/// 「软件包管理」模块的**应用级设置**，落 <c>&lt;应用根&gt;\config\package.json</c>。
-/// <para>
-/// ⚠️ 这是"设置里的数据"：它由设置页维护，但只有 <c>config\</c> 下的文件
-/// 才能被「数据管理」页备份 / 导入 —— 所以**不要**把源设置散落到模块自己的目录里
-/// （见规范 3.9「设置数据可备份，模块只读设置」）。
-/// </para>
-/// <para>
-/// ⚠️ 🔴 **⛔ 不存源相关偏好**（defaultSource / 源分类 / 源定义快照这类字段别再回来）。
-/// 源是系统 winget 的东西，增删 / 切换一律走「命令库」里的命令条目；本文件只剩安装偏好与排序。
-/// </para>
-/// </summary>
+/// <summary>「软件包管理」模块的应用级设置，落 &lt;应用根&gt;\config\package.json。（WHY: ST-002）</summary>
 public class PackageSettings
 {
     /// <summary>安装 / 升级时追加 <c>--silent</c>（不弹安装器交互）。</summary>
@@ -140,17 +119,7 @@ public class PackageSettings
     public bool SortDescending { get; set; }
 }
 
-/// <summary>
-/// winget **内置源**常量（v3.80 精简）。
-/// <para>
-/// 🔴 只留「商店源」判定：商店包（<c>msstore</c>，Id 形如 <c>9NBLGGH4NNS1</c>）走 Microsoft Store 安装通道，
-/// ⛔ 不吃 <c>--silent</c>。
-/// </para>
-/// <para>
-/// 🔴 源的增删 / 切换已**移出本应用**（系统 winget 配置，全要 UAC）⇒ 分类 / 互斥 / 定义快照 / 镜像地址
-/// 这些常量一并删除；要改源请用「命令库 → winget 源」集合里的命令。
-/// </para>
-/// </summary>
+/// <summary>winget 内置源常量（ 精简）。（WHY: ST-003）</summary>
 public static class PackageSources
 {
     /// <summary>商店源名（<c>msstore</c>）。</summary>

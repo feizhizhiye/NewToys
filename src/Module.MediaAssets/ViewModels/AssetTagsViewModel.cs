@@ -14,14 +14,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「标签管理」页：标签列表 + 详情卡（用了该标签的资产）。
-/// <para>
-/// 逻辑操作（新建 / 改名 / 改色 / 合并 / 删除 / 清理未使用）**直接改库**并写 <c>operation_logs</c>
-/// （<c>reversible=1</c>）—— ⛔ 不走任务队列（那是物理操作，）。
-/// </para>
-/// <para>⚠️ 标签是用户手动数据（R1 例外）：重建库会丢，靠 的「导出用户数据」兜底。</para>
-/// </summary>
+/// <summary>「标签管理」页：标签列表 + 详情卡（用了该标签的资产）。（WHY: MA-074）</summary>
 public partial class AssetTagsViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly TagService _tags = null!;

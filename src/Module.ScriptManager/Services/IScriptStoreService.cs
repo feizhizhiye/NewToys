@@ -3,20 +3,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// <c>config\script\script.json</c> 的读写契约（§三.4）：<b>手工数据</b>（集合 / 条目 / 标签 / 视图）
-/// 的<b>唯一写入点</b>。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 🔴 落位由本服务决定，⛔ 不改 <c>Core</c> 的 <c>ConfigStoreService</c> / <c>IOptionsStore</c>：
-/// 模块设置走 <c>config\script-manager.json</c>（<c>IOptionsStore.Validate</c> 禁路径分隔符，
-/// 塞不进子目录），手工数据走本服务在 <c>config</c> 下自建的子目录 <c>script\</c>。
-/// </para>
-/// <para>
-/// 🔴 <b>写入一律原子</b>（临时文件 + 替换），⛔ 不再出现"全量重写无保护"（旧 <c>QuickActionService.Persist</c> 的做法）。
-/// </para>
-/// </remarks>
+/// <summary>config\script\script.json 的读写契约（§三.4）：手工数据（集合 / 条目 / 标签 / 视图） 的唯一写入点。（WHY: SM-034）</summary>
 public interface IScriptStoreService
 {
     /// <summary>手工数据的旧目录 = <c>&lt;配置根&gt;\config\script</c>（数据已进模块库，这里只剩迁移痕迹）。</summary>

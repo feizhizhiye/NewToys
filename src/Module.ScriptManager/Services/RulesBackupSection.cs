@@ -6,16 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// <b>数据节 · 抓取规则</b>：<c>&lt;StoreDir&gt;\script\rules\*.py</c> 本体。
-/// <para>
-/// 🔴 为什么**默认勾选**且必须由本模块注册：规则是「唯一无法重建的资产」（缓存 HTML 可重建、
-/// 库里的元数据可重建，唯有用户手写的表达式丢了就没了）；而规则目录的位置只有 RuleFileService 知道，
-/// 框架层 ⛔ 不引模块 ⇒ 按 <see cref="IBackupSection"/> 契约由模块自己提供（与脚本文件节同一套通道）。
-/// </para>
-/// <para>只备 <c>rules\</c>，⛔ 不备 <c>cache\</c>（抓下来的 HTML 随时能重抓）。</para>
-/// <para>恢复落到 <c>store\restore-&lt;时间戳&gt;\web-rules\</c> —— ⛔ 不覆盖现有规则目录。</para>
-/// </summary>
+/// <summary>数据节 · 抓取规则：&lt;StoreDir&gt;\script\rules\*.py 本体。（WHY: SM-045）</summary>
 public sealed class RulesBackupSection : IBackupSection
 {
     private readonly RuleFileService _files;

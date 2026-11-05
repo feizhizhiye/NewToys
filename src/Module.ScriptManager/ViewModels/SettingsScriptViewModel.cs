@@ -8,24 +8,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.ScriptManager.ViewModels;
 
-/// <summary>
-/// 「脚本管理器」模块设置页（v3.64，需求 §4.9）：View/VM 归 <c>Module.ScriptManager</c>，
-/// 由 <c>ScriptManagerModule.Initialize</c> 自注册进**本模块分组 <c>pc</c>**（Key <c>settings-script</c>，Order 100）。
-/// <para>
-/// 内容 = 本模块的**脚本目录**（<c>config\script-manager.json</c>）——「脚本库」页工具条那个框只是同一份值的另一个视图。
-/// </para>
-/// <para>
-/// 🔴 v3.65：三个解释器路径（pwsh / python / powershell 5.1）**已回迁应用级**
-/// （「设置 → 路径与配置」页，<c>app.json</c>），⛔ 本页不再有那三行。
-/// </para>
-/// <para>
-/// 🔴 （2026-10-22 用户定调）：「软件源」节已随软件包页**迁出本页**（源 = 系统 winget 配置，
-/// 与软件包 / 命令库同属系统工具域）；系统工具设置页后来也不再列它（同日返工），本页只剩脚本目录。
-/// </para>
-/// <para>
-/// 生效方式（规范 §4.9）：路径 = **即时生效**（失焦即落盘，⛔ 无保存按钮）；无效路径 ⇒ 底栏红字 + ⛔ 不写盘。
-/// </para>
-/// </summary>
+/// <summary>「脚本管理器」模块设置页（，需求 §4.9）：View/VM 归 Module.ScriptManager， 由 ScriptManagerModule.Initialize 自注册进本模块分组 pc（Key settings-script，Order 100）。（WHY: SM-071）</summary>
 public partial class SettingsScriptViewModel : ObservableObject, IStatusProvider
 {
     private readonly IScriptManagerSettingsService _settings = null!;

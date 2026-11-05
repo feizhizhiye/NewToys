@@ -11,20 +11,7 @@ using NewToys.WebTools.Models;
 
 namespace NewToys.WebTools.Services;
 
-/// <summary>
-/// hosts 方案管理：多套方案落**本模块库 <c>web_docs</c> 的 <c>hosts-profiles</c> 文档**
-/// （⛔ 不再写 <c>config\hosts-profiles.json</c>）。
-/// <para>
-/// <b>切到系统 hosts</b>：在系统 hosts 里维护一段
-/// <c># === NewToys hosts start === … end ===</c> 的受管块，应用某方案时只替换这段块，
-/// 用户自己写在其它的行原样保留（⛔ 不做全文覆盖）。
-/// </para>
-/// <para>
-/// 🔴 <b>备份纪律</b>：任何写系统 hosts 的动作（应用 / 手动保存 / 清除受管块 / 还原）**先备份当前原文**，
-/// 备份失败就放弃写入；备份存**完整文件**而不是受管块（还原 = 整份回写，语义最稳）。
-/// </para>
-/// <para><b>网络导入</b>：下载一份 hosts 文本（普通 hosts 或 Netscape 书签都按行解析），解析成条目。</para>
-/// </summary>
+/// <summary>hosts 方案管理：多套方案落本模块库 web_docs 的 hosts-profiles 文档 （⛔ 不再写 config\hosts-profiles.json）。（WHY: WT-006）</summary>
 public class HostsService
 {
     /// <summary>受管块起始标记。</summary>

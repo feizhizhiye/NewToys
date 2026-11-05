@@ -176,12 +176,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
     /// <summary>命令参数加引号（包 Id 允许含空格 / 括号 —— 见 <c>IdLike</c>）；顺手去掉双引号防拼接被破。</summary>
     private static string QuoteArg(string s) => "\"" + (s ?? "").Replace("\"", "") + "\"";
 
-    /// <summary>
-    /// 后端可执行文件的**绝对路径**。
-    /// <para>🔴 不能只写 <c>winget</c>：它是 **App Execution Alias**（<c>WindowsApps\winget.exe</c> 是 0 字节重解析点），
-    /// <c>UseShellExecute=false</c> 的进程创建不解析别名 ⇒ 必须自己按 PATH 找出真实路径（<c>PackageManagerService.ResolveExe</c>
-    /// 就是为这个存在的，它 private ⇒ 这里在模块内重一份）。</para>
-    /// </summary>
+    /// <summary>后端可执行文件的绝对路径。（WHY: ST-029）</summary>
     private string? _backendExe;
 
     private string BackendExe

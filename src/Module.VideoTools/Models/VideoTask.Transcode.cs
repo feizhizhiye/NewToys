@@ -9,13 +9,7 @@ using NewToys.VideoTools.Services;
 namespace NewToys.VideoTools.Models;
 
 
-/// <summary>
-/// 一条<b>转码任务</b>：源 → 目标（按预设）。
-/// <para>
-/// <b>前后对比</b>就落在这条记录上：源信息（<c>Source*</c>）在加任务时用 ffprobe 填一次，
-/// 跑完再探测输出文件填 <c>Output*</c>，详情卡里并排显示"前 → 后"。
-/// </para>
-/// </summary>
+/// <summary>一条转码任务：源 → 目标（按预设）。</summary>
 public partial class TranscodeTask : VideoTaskBase
 {
     /// <summary>预设 id（<see cref="TranscodePreset.Id"/>）—— 决定**编码族**与默认容器。v3.19 默认改 H.265。</summary>
@@ -542,12 +536,7 @@ public partial class TranscodeTask : VideoTaskBase
 
     partial void OnSourceSizeChanged(long value) => OnPropertyChanged(nameof(SavingDisplay));
 
-    /// <summary>
-    /// 「输出大小变了」的回调。
-    /// <para>⚠️ <see cref="VideoTaskBase.OutputSize"/> 是<b>基类</b>里的 <c>[ObservableProperty]</c>，
-    /// 所以它的分部方法 <c>OnOutputSizeChanged</c> 只能在基类里声明（写在这里会 CS0759：找不到定义声明）。
-    /// 基类那边会转调这个虚方法，让派生类照样能补发自己的派生属性通知。</para>
-    /// </summary>
+    /// <summary>「输出大小变了」的回调。（WHY: VT-010）</summary>
     protected override void NotifyOutputSizeChanged() => OnPropertyChanged(nameof(SavingDisplay));
 }
 

@@ -3,17 +3,7 @@ using NewToys.Core.Services;   // QuickActionShell（解释器 / 宿主常量已
 
 namespace NewToys.ScriptManager.Models;
 
-/// <summary>
-/// <b>集合类别</b>（<see cref="ScriptCollection.Kind"/> 的合法取值，§三.0）。
-/// <para>决定集合归属哪一页：<c>script</c> / <c>command</c> / <c>info</c> / <c>package</c>。</para>
-/// <para>
-/// 🔴 v3.81（用户定调）：**加回 <c>package</c> 一档** —— 它不是「用集合冒充 winget 查询结果」，
-/// 而是**包清单**：成员是 <see cref="ScriptItemRole.Package"/> 条目（Target = 包 Id），
-/// 发送到软件包页按清单显示安装状态。定位是**跨包管理器的架构预设**：
-/// 将来 apt / flatpak / snap 各有后端，集合按后端归类，页面上再把成员命令绑定成按钮。
-/// </para>
-/// <para>⚠️ 与条目角色 <see cref="ScriptItemRole"/> 是<b>两套枚举</b>，⛔ 不要混用。</para>
-/// </summary>
+/// <summary>集合类别（ScriptCollection.Kind 的合法取值，§三.0）。（WHY: SM-013）</summary>
 public static class ScriptCollectionKind
 {
     public const string Script = "script";
@@ -130,13 +120,7 @@ public static class ScriptCollectableSource
     public static string Normalize(string? source) => source == User ? User : Auto;
 }
 
-/// <summary>
-/// <c>config\script\script.json</c> 的根结构（§三.4）。
-/// <para>
-/// 这里放的是<b>手工数据</b>：集合 / 条目 / 标签 / 视图 / 上次选中的集合 —— 可手改、可备份、可 diff。
-/// 观测快照与运行日志是"会长大要查询"的数据，进 <c>store\script\script.db</c>（见 <c>ScriptDatabase</c>）。
-/// </para>
-/// </summary>
+/// <summary>config\script\script.json 的根结构（§三.4）。</summary>
 public class ScriptStoreRoot
 {
     /// <summary>结构版本（当前 = 1）。加载时低于当前值的做就地补字段，不迁移文件。</summary>
@@ -160,13 +144,7 @@ public class ScriptStoreRoot
     public Dictionary<string, string> LastCollectionIdByKind { get; set; } = new();
 }
 
-/// <summary>
-/// 一个<b>集合</b> = 一组条目的容器（需求 §6.2.5）。
-/// <para>
-/// 集合不持有成员 id 列表 —— 成员关系写成 <see cref="ScriptItem.Collections"/>（条目侧多对多），
-/// 这样删集合不会留下悬空引用。
-/// </para>
-/// </summary>
+/// <summary>一个集合 = 一组条目的容器（需求 §6.2.5）。（WHY: SM-015）</summary>
 public class ScriptCollection
 {
     public string Id { get; set; } = "";
@@ -214,12 +192,7 @@ public class ScriptCollection
     public string RootPath { get; set; } = "";
 }
 
-/// <summary>
-/// 一条<b>条目</b>：脚本文件 / 命令行命令 / 内置采集器 / 软件包。
-/// <para>
-/// 采集器不是独立类型 —— 它只是 <see cref="Capture"/> 为真的条目（脚本与命令都能当采集器）。
-/// </para>
-/// </summary>
+/// <summary>一条条目：脚本文件 / 命令行命令 / 内置采集器 / 软件包。</summary>
 public class ScriptItem
 {
     public string Id { get; set; } = "";
@@ -344,14 +317,7 @@ public class ScriptView
     /// <summary>已折叠的节（采集器 item id）。</summary>
     public List<string> Collapsed { get; set; } = new();
 
-    /// <summary>
-    /// <b>逐节的列显示覆盖</b>（视图级，）：键 = 采集器 item id。
-    /// <para>
-    /// 🔴 只存「覆盖」⛔ 不复制列 schema —— 列能力归 <see cref="ScriptItem.Columns"/>，
-    /// 脚本后来新增的 key 默认可见，不会因为视图没登记就消失。
-    /// </para>
-    /// <para>只在 <see cref="ScriptViewLayout.Sectioned"/> 布局下生效；<c>merged</c> 共用视图列，逐节覆盖无意义。</para>
-    /// </summary>
+    /// <summary>逐节的列显示覆盖（视图级，）：键 = 采集器 item id。（WHY: SM-017）</summary>
     public List<SectionViewColumns> SectionColumns { get; set; } = new();
 
     /// <summary>节的显示顺序（采集器 item id）；空 = 按集合成员顺序。</summary>
@@ -364,14 +330,7 @@ public class ScriptView
     public int RefreshSeconds { get; set; }
 }
 
-/// <summary>
-/// 一个视图里**某一节**的列显示覆盖。
-/// <para>
-/// 三个容器都只存「与脚本 schema 不同的地方」：不在 <see cref="Hidden"/> 里的 key 就按脚本默认显示；
-/// <see cref="Titles"/> / <see cref="Widths"/> 没登记的 key 就用脚本给的默认标题 / 宽度。
-/// </para>
-/// <para>🔴 由此实现「同一个脚本在 A 集合显示 abc、在 B 集合显示 bcd」——差异落在视图，⛔ 不改脚本本体。</para>
-/// </summary>
+/// <summary>一个视图里某一节的列显示覆盖。（WHY: SM-018）</summary>
 public class SectionViewColumns
 {
     /// <summary>采集器 item id（= <see cref="ScriptItem.Id"/>）。</summary>

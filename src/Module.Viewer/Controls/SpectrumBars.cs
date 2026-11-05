@@ -6,15 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Viewer.Controls;
 
-/// <summary>
-/// 分频柱（自绘）：等高竖条，柱高 = 频段能量。
-/// <para>
-/// 🔴 数据来自 <see cref="IAudioSpectrum"/>（宿主注入），本类⛔ 不认 NAudio、⛔ 不做 FFT ——
-/// 只负责「拿一帧 → 画」。
-/// </para>
-/// <para>🔴 未播放 / 无数据源时整块隐藏（<see cref="Visual.IsVisible"/>），⛔ 留空框。</para>
-/// <para>柱体颜色走 <see cref="TemplatedControl.Foreground"/>（axaml 里用主题键传入，⛔ 代码里写死色值）。</para>
-/// </summary>
+/// <summary>分频柱（自绘）：等高竖条，柱高 = 频段能量。（WHY: VW-007）</summary>
 public sealed class SpectrumBars : TemplatedControl
 {
     private readonly float[] _bands = new float[32];

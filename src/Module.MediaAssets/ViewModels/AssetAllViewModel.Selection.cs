@@ -7,14 +7,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「全部资产」的选中模型 —— **唯一真相在 VM**（<see cref="SelectedRows"/>），View 只负责回填高亮。
-/// <para>
-/// 交互口径与资源管理器一致：无修饰键 = 单选替换、`Ctrl` 增选 / 取消、`Shift` 连选、`Ctrl+A` 全选；
-/// 修饰键接管在 <c>AssetAllView.axaml.cs</c> 的**隧道**阶段完成（ListBox 的默认逻辑不认修饰键）。
-/// </para>
-/// <para>分页口径沿用勾选时代：选中**只在当前页**有效（翻页 / 刷新即清）。</para>
-/// </summary>
+/// <summary>「全部资产」的选中模型 —— 唯一真相在 VM（SelectedRows），View 只负责回填高亮。</summary>
 public partial class AssetAllViewModel
 {
     /// <summary>当前选中行（多选口径；单选时只有一条）。批量动作的对象 = 这里。</summary>

@@ -10,15 +10,7 @@ using NewToys.VideoTools.Models;
 
 namespace NewToys.VideoTools.Controls;
 
-/// <summary>
-/// 时间轴轨道：「预览位置」那条滑条的替代品 —— 一条**能看见剪辑区间**的轨道。
-/// <para>点一下 / 按住拖动 = 移动预览位置（等价拖滑条）。区间块按真实比例铺满整条轨道，
-/// 多段剪切时逐段画色块，一眼看清剪掉的是哪几段。开始 / 结束的微调仍由下面两条滑条负责。</para>
-/// <para>🔴 颜色一律由外部用 XAML <c>DynamicResource</c> 传进来，
-/// 控件内⛔ 不写死色值；主题切换时 Brush 对象被替换 → <see cref="AffectsRender{T}"/> 自动重绘。</para>
-/// <para>🔴 拖动改写 <see cref="Position"/> 必须用 <c>SetCurrentValue</c>：直接 <c>SetValue</c> 会把
-/// VM 那边的 TwoWay 绑定**整条断掉**（拖一次之后滑条再也不跟数据走）。</para>
-/// </summary>
+/// <summary>时间轴轨道：「预览位置」那条滑条的替代品 —— 一条能看见剪辑区间的轨道。（WHY: VT-001）</summary>
 public sealed class TimelineTrack : Control
 {
     /// <summary>左右内缩：和下面两条 Slider 的轨道端点对齐（Fluent thumb 半径 ≈ 10）。</summary>

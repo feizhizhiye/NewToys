@@ -5,14 +5,7 @@ using Xunit;
 
 namespace NewToys.Tests;
 
-/// <summary>
-/// <see cref="SysInfoOutputParser"/> 的回归测试：脚本 / 命令的 stdout → 行数组。
-/// <para>
-/// 这是「信息展示」页的数据入口，解析走样不会抛异常，只会表现为「这一节突然空了」或列名变成
-/// <c>列1 / 列2</c>。四种 <c>parseMode</c> 各自有历史包袱（旧 <c>values</c> 形态、csv 引号、
-/// regex 尚未定义 pattern ⇒ 按 line 走），这里逐条钉死。
-/// </para>
-/// </summary>
+/// <summary>SysInfoOutputParser 的回归测试：脚本 / 命令的 stdout → 行数组。（WHY: TS-008）</summary>
 public class SysInfoOutputParserTests
 {
     // ==================== json ====================

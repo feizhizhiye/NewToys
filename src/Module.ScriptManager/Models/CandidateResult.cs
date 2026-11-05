@@ -3,14 +3,7 @@ using System.Linq;
 
 namespace NewToys.ScriptManager.Models;
 
-/// <summary>
-/// 试跑推荐的一条结果：候选脚本对<b>同一份 HTML</b> 求值后的
-/// 条数 / 字段完整度 / 错误。
-/// <para>
-/// 🔴 排序判据：<b>条数 &gt; 0</b> 优先，其次按「必填字段非空率」降序（同一份 HTML ⇒ 可比）。
-/// 条数取 <c>url</c> 字段的命中数（段间契约要求入口 / 中间段输出含 url），没有 url 时取最大字段命中数。
-/// </para>
-/// </summary>
+/// <summary>试跑推荐的一条结果：候选脚本对同一份 HTML 求值后的 条数 / 字段完整度 / 错误。（WHY: SM-001）</summary>
 public class CandidateResult
 {
     /// <summary>脚本名（= 文件名去 <c>.py</c>）。</summary>

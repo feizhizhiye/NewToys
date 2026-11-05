@@ -21,22 +21,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.ScriptManager.ViewModels;
 
-/// <summary>
-/// 「脚本管理器 → 信息面板」页（/S6；取代 的 manifest 驱动模型）。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 🔴 <b>一次只显示一个集合</b>：顶部只有一个「集合 ▾」选择框（工具条 <see cref="ToolbarItemKind.Combo"/>），
-/// 切集合 = 整屏换（浏览器开一个页面的心智）。⛔ 不做 Chip 条 / 横向按钮墙 / 多集合并存（用户 2026-10-17 否决）。
-/// </para>
-/// <para>
-/// 节 = 采集器（<c>capture=true</c> + <c>collectable=true</c> 的条目），节体用**这一采集器自己的列**
-/// （<see cref="ScriptItem.Columns"/>，首次成功采集时按输出属性生成，§三.13）。
-/// </para>
-/// <para>
-/// 分节模式<b>关分页</b>：底栏只给摘要（本次耗时 · 节数 · 总行数）。
-/// </para>
-/// </remarks>
+/// <summary>「脚本管理器 → 信息面板」页（/S6；取代 的 manifest 驱动模型）。（WHY: SM-068）</summary>
 public partial class ScriptInfoViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     /// <summary>节数上限（§三.8）。</summary>

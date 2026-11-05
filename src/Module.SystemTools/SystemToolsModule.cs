@@ -7,16 +7,7 @@ using NewToys.SystemTools.ViewModels;
 
 namespace NewToys.SystemTools;
 
-/// <summary>
-/// **系统工具**模块（菜单组键 `system-tools`，Order 25，）：<b>当前操作系统的常用设置与快速命令</b>
-/// —— 收藏夹 / 命令库（对标脚本库布局 + 随包预设）+ 软件包（winget）+ 本模块设置。
-/// <para>🔴 组键**不是** `system` —— 那是 Shell 的隐藏宿主组（应用级设置锚点 + 功能清单），同名会把
-/// 那 8 个页面渲染进本组（见 <see cref="Initialize"/> 注释）。</para>
-/// <para>
-/// 🔴 依赖只有 Shared / Core / UI：⛔ 不引 Shell、⛔ 不引其它模块；执行一律走 Core 的
-/// <c>ScriptRunner</c>，⛔ 不自己起进程跑脚本。
-/// </para>
-/// </summary>
+/// <summary>系统工具模块（菜单组键 system-tools，Order 25，）：当前操作系统的常用设置与快速命令 —— 收藏夹 / 命令库（对标脚本库布局 + 随包预设）+ 软件包（winget）+ 本模块设置。（WHY: ST-027）</summary>
 public class SystemToolsModule : IModule
 {
     public void RegisterServices(IServiceCollection services)

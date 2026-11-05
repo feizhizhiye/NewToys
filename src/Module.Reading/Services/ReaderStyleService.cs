@@ -7,15 +7,7 @@ using NewToys.Reading.Models;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 阅读样式的**导入 / 导出 / 预设**：一份 <see cref="ReaderStyle"/> 就是一个可交换的排版快照。
-/// <para>
-/// 落点与「网络阅读设置」、阅读页顶栏是同一处（<c>config\reading.json</c>）⇒ 导入 = 逐项写设置，⛔ 不另存一份。
-/// </para>
-/// <para>
-/// 文件 = <c>.json</c>，容错：字段缺失 / 大小写不敏感 / 带注释都能读；认不出的字段忽略（手写文件只写两三项也生效）。
-/// </para>
-/// </summary>
+/// <summary>阅读样式的导入 / 导出 / 预设：一份 ReaderStyle 就是一个可交换的排版快照。（WHY: RD-014）</summary>
 public sealed class ReaderStyleService
 {
     private static readonly JsonSerializerOptions ReadOptions = new()

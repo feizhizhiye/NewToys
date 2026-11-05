@@ -6,18 +6,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 存储源服务：在线探测 + 统计编排。
-/// <para>
-/// 数据查询一律走 <see cref="AssetService"/>（数据层唯一入口），本类只做"页面要的组装"：
-/// ① 根目录可访问性探测（⛔ 不抛异常，读不到 = 离线）；② 探测结果写回 <c>storages.online</c>。
-/// </para>
-/// <para>
-/// 🔴 **离线语义**（需求 §6.6 外部变更）：移动硬盘 / NAS 拔掉 → <c>online=0</c> →
-/// <see cref="ScanService"/> 扫描时**跳过**它，其下 file_locations ⛔ 不会被标 missing；
-/// 重新上线（根目录又可访问）+ 扫描 → 位置状态恢复正常。
-/// </para>
-/// </summary>
+/// <summary>存储源服务：在线探测 + 统计编排。（WHY: MA-048）</summary>
 public class StorageService
 {
     private readonly AssetService _assets;

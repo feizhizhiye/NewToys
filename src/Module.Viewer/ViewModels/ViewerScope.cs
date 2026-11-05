@@ -1,11 +1,6 @@
 namespace NewToys.Viewer.ViewModels;
 
-/// <summary>
-/// 查看器页的范围：一页只处理一类内容（菜单分「文档查看 / 图片查看 / 音乐播放」三页）。
-/// <para>
-/// 范围只用于**入口分流**，⛔ 不影响渲染器 —— 三类内容仍由 <c>NewToys.Viewer.Controls.ViewerHost</c> 统一装。
-/// </para>
-/// </summary>
+/// <summary>查看器页的范围：一页只处理一类内容（菜单分「文档查看 / 图片查看 / 音乐播放」三页）。（WHY: VW-020）</summary>
 public enum ViewerScope
 {
     /// <summary>不限（设计期预览用；运行时不出这种页）。</summary>

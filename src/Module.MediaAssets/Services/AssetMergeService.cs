@@ -42,16 +42,7 @@ public sealed class MergeResult
     public int SkippedAssets { get; init; }
 }
 
-/// <summary>
-/// 多库融合：把另一个资产库 <c>*.db</c> **合并进当前库**（工作副本 = 当前库；⛔ 不改源库）。
-/// <para>
-/// 🔴 实现要点：
-/// ① <b>源库只读</b>——<c>ATTACH</c> 挂载后只 <c>SELECT</c>，⛔ 绝不写 src.*（源文件一个字节都不改）；
-/// ② <b>ATTACH 必须在事务外</b>（SQLite 不允许事务中 ATTACH）→ 顺序 = ATTACH → BEGIN → 合并 → COMMIT → DETACH；
-/// ③ <b>一个事务</b>：全部成功或全部不写（⛔ 不写一半）；
-/// ④ 幂等：重复并入同一个库第二次不产生孤儿资产——零文件位置的重复资产（含其标签 / 分类 / 集合挂接 / 关联）在事务内一并清除；位置按 storage+relative_path / hash+size 去重。
-/// </para>
-/// </summary>
+/// <summary>多库融合：把另一个资产库 *.db 合并进当前库（工作副本 = 当前库；⛔ 不改源库）。（WHY: MA-016）</summary>
 public partial class AssetMergeService
 {
     /// <summary>合并涉及的表（缺表 → 跳过该表并记账；老库可能没有新表）。</summary>

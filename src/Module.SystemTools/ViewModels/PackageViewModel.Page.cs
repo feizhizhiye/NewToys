@@ -320,14 +320,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     partial void OnInstalledOnlyChanged(bool value) => ApplyView();
 
-    /// <summary>
-    /// 📌 Pin 列表（v3.22，需求 §6.2.3）：跑 `winget pin list`，把结果**并入 `winget list` 的已安装列表**一起显示。
-    /// <list type="bullet">
-    ///   <item>不在已安装列表上时，先跑一次 <see cref="LoadInstalledAsync"/>（拿 `winget list` 当底子）；</item>
-    ///   <item>pin 项已在列表里 → 贴 📌（`IsPinned = true`）；不在 → 追加成一行（pin list 只给包名，版本/名称可能空）。</item>
-    /// </list>
-    /// ⛔ 本页**没有「仅看 Pin」勾选框**（v3.22 去掉：过滤语义说不清，改成"把 pin 项加进列表"这个真命令）。
-    /// </summary>
+    /// <summary>📌 Pin 列表（，需求 §6.2.3）：跑 winget pin list，把结果并入 winget list 的已安装列表一起显示。（WHY: ST-033）</summary>
     [RelayCommand]
     private async Task LoadPinnedAsync()
     {

@@ -14,20 +14,7 @@ using Avalonia.Threading;
 
 namespace NewToys.Reading.Controls;
 
-/// <summary>
-/// 文本阅读器壳：目录抽屉 + 章内滚动 + 书签触发 + 全书搜索 + 排版下发。
-/// <para>
-/// 🔴 只吃「索引书」（<c>index.json + chapters/NNNN.txt</c>，见 <see cref="LoadIndex"/>）——
-/// 章内容按需从文件读，⛔ 全量进内存（几千章会吃掉几百 MB）。
-/// </para>
-/// <para>
-/// 🔴 本控件⛔ 不联网、⛔ 不写配置 —— 编码嗅探 / 章节规则 / 书签持久化全在宿主（<c>Module.Reading</c>）。
-/// </para>
-/// <para>
-/// 🔴 「章」是唯一的进度单位：切章只换正文，章内用滚动比例记位置；
-/// 这样一本几 MB 的 txt 也不用一次性塞进视觉树。
-/// </para>
-/// </summary>
+/// <summary>文本阅读器壳：目录抽屉 + 章内滚动 + 书签触发 + 全书搜索 + 排版下发。（WHY: RD-001）</summary>
 public partial class ReaderShell : UserControl
 {
     private static readonly string[] ThemeNames = { "跟随主题", "米黄护眼", "淡绿", "夜间" };

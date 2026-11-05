@@ -21,29 +21,7 @@ using NewToys.VideoTools.Services;
 
 namespace NewToys.VideoTools.ViewModels;
 
-/// <summary>
-/// 视频列表页 —— 一个「比资源管理器显示更多信息的视频查看器」，用来快速判断哪些片子该剪辑 / 该转码。
-/// <para>
-/// 布局遵循规范 <b>3.6 列表页</b>（与「PC 工具箱 → 软件包管理」同款）：左侧可排序表头 + 列表、
-/// 右侧选中项详情、列表挂右键菜单；表头最右侧还有一个无文字小按钮，点一下展开详情（并自动选中第一项）。
-/// 列显隐 / 详情开合 / 排序 / 多项筛选全部继承自 <see cref="ListPageViewModelBase"/>（v1.35 收口）。
-/// </para>
-/// <para>
-/// <b>目录每次手动选</b>（v1.34）：本页与设置彻底解绑 —— 不再有"视频库默认目录"，也不回写 <c>app.json</c>
-/// （视频 / 音乐这类库常常分散在好几个文件夹，写死一个默认目录只会误导）。只在**本次程序运行内**记住上次选的目录。
-/// </para>
-/// <para>
-/// <b>多选</b>：与「媒体资产 → 全部资产」同一套（原生多选，无修饰键 = 单选 / `Ctrl` 增选 / `Shift` 连选 /
-/// `Ctrl+A` 全选），选中一批后「➡ 发送到批量处理」建任务 —— 任务清单由单例 <see cref="VideoTaskStore"/>
-/// 持有，切页不丢。
-/// </para>
-/// <para>
-/// <b>媒体信息</b>（分辨率 / 编码 / 码率 / 时长）走 ffprobe：
-/// ① 扫描目录时先用 SQLite 缓存（<c>store\video\video.db</c>）把已知信息填上，零成本；
-/// ② 没缓存的点「🔎 读取全部」并发批量探测（并发度取「设置 → 通用」里的最大并发数），读完写回缓存。
-/// </para>
-/// <para><b>没有「保存」按钮</b>：这里没有任何"设置项"，全是动作按钮（规范 3.5）。</para>
-/// </summary>
+/// <summary>视频列表页 —— 一个「比资源管理器显示更多信息的视频查看器」，用来快速判断哪些片子该剪辑 / 该转码。</summary>
 public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource, ISelectionStatusProvider
 {
     // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================

@@ -5,17 +5,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.WebTools.Services;
 
-/// <summary>
-/// 网络工具在自有库（<c>store\web\web.db</c>）里的 schema 贡献者。
-/// <list type="bullet">
-///   <item>建 <c>web_docs</c>（书签 / ping 目标 / 抓取任务 / hosts 方案四份文档，见 <see cref="JsonDocStore"/>）。</item>
-///   <item>把 <c>config\</c> 下 4 个旧 JSON 一次性搬进表，旧文件改名 <c>.legacy</c>（⛔ 不删）。</item>
-/// </list>
-/// <para>
-/// 文档名沿用旧文件名基名（<c>bookmarks</c> / <c>ping-targets</c> / <c>scrape-tasks</c> / <c>hosts-profiles</c>）——
-/// 排障时「文件叫什么、表里就叫什么」，不用再查一张映射表。
-/// </para>
-/// </summary>
+/// <summary>网络工具在自有库（store\web\web.db）里的 schema 贡献者。（WHY: WT-012）</summary>
 public sealed class WebToolsSchemaContributor : ILibrarySchemaContributor
 {
     /// <summary>书签文档名。</summary>

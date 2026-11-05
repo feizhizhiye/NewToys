@@ -147,3 +147,169 @@
 | NT-091 | 本模块建档与四页落地 | ✅ 已验收（2026-10-22 编译通过） |
 | NT-096 | 软件包页迁入本模块（定位收紧）；「软件源」设置节**同日返工删除** | ✅ 已实施（⏳ 待 build 验收） |
 | NT-097 | 页面重构：删快捷命令页 / 命令库对标脚本库 / 随包预设 / 收藏夹置首 | ✅ 已实施（⏳ 待 build 验收） |
+
+## 附录 · 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:modules-system-tools:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:ST-001 -->
+- **ST-001** · `src/Module.SystemTools/Models/PackageModels.cs`
+  - 为什么共用：列表页的表头排序、右键菜单、右侧详情三处都只认它，各写一份必然漂移
+  - 「🔎 读取详情」回填字段后必须通知 UI 才会补充显示（改了不刷新 = 详情不补充）。
+
+<!-- ANCHOR:ST-002 -->
+- **ST-002** · `src/Module.SystemTools/Models/PackageModels.cs`
+  - ⚠️ 这是"设置里的数据"：它由设置页维护，但只有 config\ 下的文件
+  - 才能被「数据管理」页备份 / 导入 —— 所以不要把源设置散落到模块自己的目录里
+  - ⚠️ 🔴 ⛔ 不存源相关偏好（defaultSource / 源分类 / 源定义快照这类字段别再回来）。
+  - 源是系统 winget 的东西，增删 / 切换一律走「命令库」里的命令条目；本文件只剩安装偏好与排序。
+
+<!-- ANCHOR:ST-003 -->
+- **ST-003** · `src/Module.SystemTools/Models/PackageModels.cs`
+  - 🔴 只留「商店源」判定：商店包（msstore，Id 形如 9NBLGGH4NNS1）走 Microsoft Store 安装通道，
+  - ⛔ 不吃 --silent。
+  - 🔴 源的增删 / 切换已移出本应用（系统 winget 配置，全要 UAC）⇒ 分类 / 互斥 / 定义快照 / 镜像地址
+
+<!-- ANCHOR:ST-004 -->
+- **ST-004** · `src/Module.SystemTools/Models/SystemCommand.cs`
+  - 🔴 与 ScriptManager 的条目模型是两套（模块禁互引 ⇒ 各持一份）：本模块条目落
+  - config\system\commands.json，⛔ 不共用 script 的存储，也不带集合 / 采集器 / 保留策略那些字段。
+
+<!-- ANCHOR:ST-005 -->
+- **ST-005** · `src/Module.SystemTools/Services/AptPackageService.cs`
+  - （写操作⛔ 不脚本化：提权 sudo vs UAC、交互确认、失败原因都会退化），留给命令库条目。
+
+<!-- ANCHOR:ST-006 -->
+- **ST-006** · `src/Module.SystemTools/Services/FixedWidthTable.cs`
+  - 机读输出（TSV / JSON）⛔ 不走这里，见 `TsvRows`。
+  - 🔴 按显示宽度切片（不是字符下标）：数据行里有中文 ⇒ 汉字占 2 列，
+
+<!-- ANCHOR:ST-008 -->
+- **ST-008** · `src/Module.SystemTools/Services/FixedWidthTable.cs`
+  - ⚠️ 会自动换行折叠长名称的后端（winget）⛔ 不用本方法 —— 那种续行合并是
+
+<!-- ANCHOR:ST-009 -->
+- **ST-009** · `src/Module.SystemTools/Services/IPackageManagerService.cs`
+  - 非 Windows 平台 `IsSupported` 为 false，各方法返回失败消息而不抛异常。
+
+<!-- ANCHOR:ST-010 -->
+- **ST-010** · `src/Module.SystemTools/Services/IPackageSettingsService.cs`
+  - 之所以必须是 config\ 下：① 只有这里的 *.json 会被「设置 → 数据管理」的
+  - 备份 / 导入覆盖；② 模块只读这里的值，不自己另存一份，避免双真相源。
+
+<!-- ANCHOR:ST-011 -->
+- **ST-011** · `src/Module.SystemTools/Services/ISystemCommandLauncher.cs`
+  - 🔴 与 Core ScriptRunner 的分工：那条路 = 隐藏 + 重定向 + 捕获输出（⛔ 提权不在其契约内，
+  - 见 IProcessRunner 文档「不在本契约内的两类」）；本路 = 可见窗口 + Verb=runas，
+
+<!-- ANCHOR:ST-012 -->
+- **ST-012** · `src/Module.SystemTools/Services/PackageManagerService.cs`
+  - ② 一律以非交互方式调用（协议自动接受 + --disable-interactivity），否则会卡在 Y/N 提示上；
+  - ③ 写操作（安装 / 卸载 / pin）不做超时静默重试，失败就把 winget 的原始错误原样抛给界面。
+
+<!-- ANCHOR:ST-013 -->
+- **ST-013** · `src/Module.SystemTools/Services/PackageManagerService.cs`
+  - ⚠️ 必须允许反斜杠：MSI/ARP 安装的条目 Id 形如
+  - 🔴 ：实测再修正（winget 1.29 真实 winget list 输出）：合法 Id 远不止"点分命名"——
+
+<!-- ANCHOR:ST-014 -->
+- **ST-014** · `src/Module.SystemTools/Services/PackageManagerService.cs`
+  - 钩子没接上时返回 false —— 宁可什么都不做，也不能在用户没确认的情况下卸载软件。
+
+<!-- ANCHOR:ST-015 -->
+- **ST-015** · `src/Module.SystemTools/Services/PackageOutputParser.cs`
+  - 本地化表头别名、续行合并、pin 兜底、show 的标签-值解析。机读 TSV 后端走 `TsvRows`。
+  - ⚠️ 表头是本地化的（ 修正的认知）：中文 Windows 上 winget list 打印的是
+  - ③ 分隔线（整行只有 -）；④ 表头之上的提示行（"已配置的源需要更新"之类）。
+
+<!-- ANCHOR:ST-016 -->
+- **ST-016** · `src/Module.SystemTools/Services/PackageOutputParser.cs`
+  - 别名里最长的要放在前面（如 Last Updated 先于任何短词），避免被短别名截断。
+
+<!-- ANCHOR:ST-017 -->
+- **ST-017** · `src/Module.SystemTools/Services/PackageOutputParser.cs`
+  - 这些行必须显式「终结上一个字段」，否则会被当成上一条多行值的续行 ——
+
+<!-- ANCHOR:ST-020 -->
+- **ST-020** · `src/Module.SystemTools/Services/PackageOutputParser.cs`
+  - 🔴 老实现 `ParsePackageIds` 是"扫所有带点号的词" ⇒ 版本号（24.08、1.2.x）
+  - 现在走 `ParseTable`（规范列名 Id / Version），只在表头认不出时才兜底，
+  - 且兜底里按形状排除纯版本号。
+
+<!-- ANCHOR:ST-021 -->
+- **ST-021** · `src/Module.SystemTools/Services/PackageSettingsService.cs`
+  - （升级前用户的源设置不丢），之后 `Save` 一律写新文件名。
+
+<!-- ANCHOR:ST-022 -->
+- **ST-022** · `src/Module.SystemTools/Services/SystemCommandLauncher.cs`
+  - 🔴 wt 用法 = 官方「向默认 shell 传命令」口径：wt.exe &lt;命令行&gt;（在默认配置文件的标签页里跑）——
+  - locale 无关，⛔ 不用 -p 配置文件名（中文系统里叫「命令提示符」，写死就废）。
+  - ⚠️ wt 把 ; 当标签页分隔符：命令里含分号会多开标签页（预设无分号；用户自建条目注意）。
+  - 🔴 Shell 口径与捕获路（ScriptRunner）一致：auto / pwsh = pwsh 7
+
+<!-- ANCHOR:ST-023 -->
+- **ST-023** · `src/Module.SystemTools/Services/SystemCommandLauncher.cs`
+  - 🔴 为什么必须单独走这条路：`cmd /c diskmgmt.msc` 里 cmd 会一直等到 mmc 关闭，
+
+<!-- ANCHOR:ST-024 -->
+- **ST-024** · `src/Module.SystemTools/Services/SystemCommandSeeder.cs`
+  - 🔴 只播种一次：config\system\commands.seeded 标记存在 ⇒ 整体跳过 —— 用户删掉的预设
+  - 不会复活（与 ExampleSeeder 同一口径）。按 `SystemCommand.Id` 只加不改：
+  - 🔴 全部预设 Shell = "cmd"：reg / netsh / winget / start / .cpl / .msc
+  - 需要管理员的项 `SystemCommand.NeedAdmin` = true ⇒ App ⛔ 不代跑，只复制命令供用户在提权终端自跑。
+
+<!-- ANCHOR:ST-025 -->
+- **ST-025** · `src/Module.SystemTools/Services/TsvRows.cs`
+  - —— 命令自己吐带分隔符的机读数据，⛔ 不碰固定列宽、⛔ 不关心中文表头。
+
+<!-- ANCHOR:ST-027 -->
+- **ST-027** · `src/Module.SystemTools/SystemToolsModule.cs`
+  - 🔴 组键不是 `system` —— 那是 Shell 的隐藏宿主组（应用级设置锚点 + 功能清单），同名会把
+  - 🔴 依赖只有 Shared / Core / UI：⛔ 不引 Shell、⛔ 不引其它模块；执行一律走 Core 的
+  - ScriptRunner，⛔ 不自己起进程跑脚本。
+
+<!-- ANCHOR:ST-028 -->
+- **ST-028** · `src/Module.SystemTools/ViewModels/FavoritesViewModel.cs`
+  - 🔴 数据源换了（拍板 2）：这里展示的是本模块命令条目里 `IsFavorite` 的那些，
+  - 落 `config\system\commands.json`。⛔ 不是 Core 的 `IFavoritesService`（那份是首页卡片的「菜单功能 key」收藏）。
+
+<!-- ANCHOR:ST-029 -->
+- **ST-029** · `src/Module.SystemTools/ViewModels/PackageViewModel.Actions.cs`
+  - 🔴 不能只写 winget：它是 App Execution Alias（WindowsApps\winget.exe 是 0 字节重解析点），
+  - UseShellExecute=false 的进程创建不解析别名 ⇒ 必须自己按 PATH 找出真实路径（PackageManagerService.ResolveExe
+
+<!-- ANCHOR:ST-030 -->
+- **ST-030** · `src/Module.SystemTools/ViewModels/PackageViewModel.cs`
+  - 会标「（未启用）」，勾它立刻跑 winget source enable（⛔ 工具条不再有「生效」按钮）。
+  - ⚠️ 刻意不订阅 `IPackageSettingsService.Changed`：那个服务是单例，
+
+<!-- ANCHOR:ST-031 -->
+- **ST-031** · `src/Module.SystemTools/ViewModels/PackageViewModel.cs`
+  - 🔴 动词层：按钮文案一律用通用动词（列出 / 搜索 / 升级 / 锁定 / 卸载 …），
+  - ⛔ 不出现后端名 —— 换后端时按钮文案一个字都不用改。
+  - 🔴 反转：ToolTip 一律给真实 winget 命令（用户定调）—— 用户要看的是"到底跑了什么"。
+
+<!-- ANCHOR:ST-032 -->
+- **ST-032** · `src/Module.SystemTools/ViewModels/PackageViewModel.Detail.cs`
+  - 🔴 用户口径：只读信息一律只读 + 可复制；已安装的包不再给「安装」（由
+
+<!-- ANCHOR:ST-033 -->
+- **ST-033** · `src/Module.SystemTools/ViewModels/PackageViewModel.Page.cs`
+  - ⛔ 本页没有「仅看 Pin」勾选框（ 去掉：过滤语义说不清，改成"把 pin 项加进列表"这个真命令）。
+
+<!-- ANCHOR:ST-034 -->
+- **ST-034** · `src/Module.SystemTools/ViewModels/SettingsSystemViewModel.cs`
+  - 🔴 写入一律经 `ISystemToolsSettingsService`（Core 的 IOptionsStore，落 config\system.json）；
+  - 🔴 「软件源（winget）」节删除（用户 ：「系统工具模块下有软件设置页的节，没必要」）。
+  - 源 = 系统 winget 自己的配置，要改直接 winget source …；本页 ⛔ 不再陈列命令清单。
+
+<!-- ANCHOR:ST-035 -->
+- **ST-035** · `src/Module.SystemTools/ViewModels/SystemCommandLibraryViewModel.cs`
+  - 🔴 类名必须与 View 成对：SystemCommandLibraryView ↔ `SystemCommandLibraryViewModel`
+  - 🔴 继承 `ListPageViewModelBase`（Shared）⇒ 与脚本库同一套列显隐 / 表头排序 /
+  - 🔴 执行一律走 Core 的 ScriptRunner，⛔ 不自己起进程；需要管理员的项只复制命令。
+
+<!-- WHY-DISTILL:modules-system-tools:end -->

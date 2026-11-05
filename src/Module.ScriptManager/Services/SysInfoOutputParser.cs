@@ -19,20 +19,7 @@ public sealed class ParsedInfoRow
         = Array.Empty<KeyValuePair<string, string>>();
 }
 
-/// <summary>
-/// 采集输出 → 行数组的宽松解析器（§三.11 / §三.13）。
-/// </summary>
-/// <remarks>
-/// <para>支持 4 种 <see cref="ScriptParseMode"/>：</para>
-/// <list type="number">
-///   <item><c>json</c>（默认）：<c>{ "rows": [ { "key": "...", "status": "ok", "attrs": { "项目": "...", "值": "..." } } ] }</c>；
-///   兼容 的旧形态 <c>values: [...]</c>（此时属性名退化成 <c>列1…列N</c>，⚠️ 建议改写成 <c>attrs</c>）；</item>
-///   <item><c>line</c>：每行一个值 → 属性名固定 <see cref="LineAttr"/>；</item>
-///   <item><c>csv</c>：首行 = 属性名，其后每行 = 一行数据（逗号分隔，支持双引号包裹）；</item>
-///   <item><c>regex</c>：⚠️ 本期<b>未定义 pattern 字段</b>（卡面没定落点）⇒ 按 <c>line</c> 处理，等 pattern 落位后另立卡。</item>
-/// </list>
-/// <para>宽松规则：非数组 / 非对象的行丢弃；解析不了 ⇒ 整批失败（不产生任何行，不污染列 schema）。</para>
-/// </remarks>
+/// <summary>采集输出 → 行数组的宽松解析器（§三.11 / §三.13）。（WHY: SM-056）</summary>
 public static class SysInfoOutputParser
 {
     /// <summary><c>line</c> 模式下的属性名（= 列 key）。</summary>
@@ -41,9 +28,7 @@ public static class SysInfoOutputParser
     /// <summary>旧 <c>values</c> 数组的属性名前缀（<c>列1</c> / <c>列2</c> …）。</summary>
     public const string LegacyAttrPrefix = "列";
 
-    /// <summary>
-    /// 解析一次输出。
-    /// </summary>
+    /// <summary>解析一次输出。</summary>
     /// <param name="stdout">进程 stdout。</param>
     /// <param name="parseMode">取值见 <see cref="ScriptParseMode"/>（空 = json）。</param>
     /// <param name="rows">解析结果（失败时为空表）。</param>

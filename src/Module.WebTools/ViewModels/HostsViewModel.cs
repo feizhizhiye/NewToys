@@ -16,15 +16,7 @@ using NewToys.WebTools.Services;
 
 namespace NewToys.WebTools.ViewModels;
 
-/// <summary>
-/// hosts 管理页（<c>web-hosts</c>）= **双列表工作台**：左「目标」（当前系统 hosts 或某份备份）
-/// 与右「来源」（拉取的方案）并排对照，详情卡做条目级增删改，工具条管备份 / 还原 / 写入。
-/// <para>
-/// 🔴 左侧可编辑内容是**内存草稿** <c>_draftText</c>（全文）：条目行编辑与文本视图改的都是它，
-/// 点「写入系统 hosts」才落盘（一次二次确认 + 一次备份）；备份快照只读。
-/// </para>
-/// <para>🔴 备份只针对系统 hosts 原文（整份），⛔ 不备份拉取来的方案。</para>
-/// </summary>
+/// <summary>hosts 管理页（web-hosts）= 双列表工作台：左「目标」（当前系统 hosts 或某份备份） 与右「来源」（拉取的方案）并排对照，详情卡做条目级增删改，工具条管备份 / 还原 / 写入。（WHY: WT-015）</summary>
 public partial class HostsViewModel : ObservableObject, IStatusProvider, IToolbarSource, IDetailPanelProvider, IDetailCardSource
 {
     private readonly HostsService _svc = null!;

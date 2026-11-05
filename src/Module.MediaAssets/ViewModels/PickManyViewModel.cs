@@ -49,17 +49,7 @@ public sealed partial class PickManyItem : ObservableObject
     public string Note => Blocked ? "智能集合，不能手工加" : Already ? "已有" : "";
 }
 
-/// <summary>
-/// 「批量加标签 / 加集合」的多选弹层 VM。
-/// <para>
-/// 🔴 语义是**只加不减**：勾上 = 给所有目标加这个标签 / 集合；不勾 = 不动（⛔ 不会顺手把别人已有的删掉）。
-/// 要取消某个标签，去详情卡点色片（那才是「设置成什么」的语义）。
-/// </para>
-/// <para>
-/// ⛔ 不弹输入框让用户手打标签名：手打必然拼错、看不到已有标签、也没法一次加多个。
-/// 新建仍然保留输入框（这是唯一必须手打的地方，且只影响一个名字）。
-/// </para>
-/// </summary>
+/// <summary>「批量加标签 / 加集合」的多选弹层 VM。（WHY: MA-078）</summary>
 public sealed partial class PickManyViewModel : ObservableObject
 {
     /// <summary>这次是加标签还是加集合。</summary>

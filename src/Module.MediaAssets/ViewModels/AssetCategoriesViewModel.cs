@@ -14,12 +14,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「分类管理」页：与标签页同构的**列表页**（名称 / 路径 / 成员数 / 排序 / 创建时间）+ 详情卡。
-/// <para>分类是树，列表用「路径」列 + 首列缩进表达层级；改挂父级走详情卡的「父分类」chips
-/// （<c>CategoryService.Move</c> 自带防环）。成员浏览跳「全部资产」按该分类过滤。</para>
-/// <para>逻辑操作（新建 / 改名 / 改挂 / 删除子树 / 摘出成员）直接改库并写 <c>operation_logs</c>。</para>
-/// </summary>
+/// <summary>「分类管理」页：与标签页同构的列表页（名称 / 路径 / 成员数 / 排序 / 创建时间）+ 详情卡。</summary>
 public partial class AssetCategoriesViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly CategoryService _cats = null!;

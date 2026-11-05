@@ -20,31 +20,7 @@ using NewToys.VideoTools.Services;
 
 namespace NewToys.VideoTools.ViewModels;
 
-/// <summary>
-/// 「视频工具 → 视频预览」页（v3.12 由「命令生成」页更名；View / VM 类名与文件名同步改为
-/// <c>VideoPreviewView</c> / <c>VideoPreviewViewModel</c>，**菜单 key 仍是 <c>video-cut</c>** —— 它落
-/// config\columnlayout.json 的页键，改名会让已有用户的详情栏开合 / 列显隐偏好失效）。
-/// <para>
-/// 一句话职责：**边看边制定一个任务的 ffmpeg 命令**。选文件 → 预览 / 拖三条时间条定区间 → 在详情卡里配参数
-/// → 看（或改）命令 → 「➡ 发送到批处理」入队。真正「跑」由「批量处理」页负责。
-/// </para>
-/// <para>
-/// ⚠️ **详情卡结构与「批量处理」页一致**（需求 §6.4.1 / 规范 §3.9）：分区按 ffmpeg 命令书写顺序
-/// （剪辑 → 转码 → 输出 → 命令）；两个分区的**勾选框就在标题行上**；⛔ 详情卡里不放任何操作按钮，全在工具条。
-/// </para>
-/// <para>
-/// ⚠️ **不是列表页**：不继承 <c>ListPageViewModelBase</c>，改 <c>ObservableObject, IStatusProvider</c>
-/// （状态文本交给 Shell 底部状态栏）。
-/// </para>
-/// <para>
-/// 预览为什么用 <c>-ss</c> 前置快速定位：ffmpeg 配合 <c>-ss</c> 走关键帧搜索几乎瞬间完成；
-/// 精确解码到随机时间点在长视频上会明显卡顿（<c>FfmpegService.ExtractFrameAsync</c>）。
-/// </para>
-/// <para>
-/// 🔴 **命令可编辑**：自动生成值 <see cref="CommandPreview"/> 与手改值 <see cref="EditArgs"/> 分离 ——
-/// 手改后参数变化**不覆盖**手改，⛔ 手改后的命令必须**原样执行**。
-/// </para>
-/// </summary>
+/// <summary>「视频工具 → 视频预览」页（ 由「命令生成」页更名；View / VM 类名与文件名同步改为 VideoPreviewView / VideoPreviewViewModel，菜单 key 仍是 video-cut —— 它落 config\columnlayout.json 的页键，改名会让已有用户的详情栏开合 / 列显隐偏好失效）。（WHY: VT-037）</summary>
 public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, IDetailPanelProvider, IDetailCardSource, IToolbarSource
 {
     // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================
@@ -119,17 +95,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     private string _statusText = "点「选择视频」挑一个文件 → 拖三条时间条定区间 → 在右侧详情卡里配参数 → 「➡ 发送到批处理」。";
     public event EventHandler? StatusChanged;
 
-    /// <summary>
-    /// 状态栏文本（v3.16 §6.4.2）：**已载入视频时，每一行都带「当前文件」前缀** ——
-    /// 动作反馈（复制 / 发送 / 播放…）⛔ 不许把"现在预览的是哪个文件"冲掉。
-    /// <para>
-    /// 写进来的是**动作消息**（各处照旧 `StatusText = "…"`），读出去的是拼好前缀的那一行；
-    /// 未载入文件时前缀为空串，原样输出消息（不出现"未载入 · …"这种废话）。
-    /// </para>
-    /// </summary>
-    /// ⚠️ setter 必须是 **public**：View（文件选择器失败提示等）会直接给它赋值，
-    /// 写成 `private set` → 调用方报 CS0272「set 访问器不可访问」。
-    /// </summary>
+    /// <summary>状态栏文本（ §6.4.2）：已载入视频时，每一行都带「当前文件」前缀 —— 动作反馈（复制 / 发送 / 播放…）⛔ 不许把"现在预览的是哪个文件"冲掉。（WHY: VT-038）</summary>
     public string StatusText
     {
         get => _statusText;

@@ -5,20 +5,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// <b>视图级列投影</b>：把「脚本的列能力」投影成「某个视图里这一节实际显示哪些列」。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 归属：<see cref="ScriptItem.Columns"/> = 能力（有哪些 key、默认标题、默认宽度）；
-/// <see cref="ScriptView.SectionColumns"/> = 显示方式（隐藏哪些、标题叫什么、多宽）。
-/// </para>
-/// <para>
-/// 🔴 由此「一个脚本在 A 集合显示 abc、在 B 集合显示 bcd」成立，且脚本本体只有一份。
-/// 投影结果一律是**新建的 <see cref="ScriptColumn"/> 副本**，⛔ 不把视图差异写回脚本 schema。
-/// </para>
-/// <para>只在 <see cref="ScriptViewLayout.Sectioned"/> 下生效；<c>merged</c> 布局逐节覆盖无意义（返回脚本默认）。</para>
-/// </remarks>
+/// <summary>视图级列投影：把「脚本的列能力」投影成「某个视图里这一节实际显示哪些列」。（WHY: SM-058）</summary>
 public static class ViewColumnProjection
 {
     private static readonly StringComparer KeyComparer = StringComparer.OrdinalIgnoreCase;

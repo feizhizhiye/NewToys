@@ -7,15 +7,7 @@ using System.Threading.Tasks;
 
 namespace NewToys.WebTools.Services;
 
-/// <summary>
-/// 极简 DNS 解析器：向**指定 DNS 服务器**发一个 A 记录查询，返回解析出的 IPv4 地址。
-/// <para>
-/// 作用：网络 Ping 页要「切换 DNS 服务器进行解析」——而 .NET 的 <see cref="System.Net.Dns"/> 只能用系统
-/// 配置的 DNS，无法逐请求指定服务器。本类用原生 UDP 拼一个最小 DNS 报文、自己解析回答段，
-/// 因而对「解析用哪个 DNS」完全可控（零第三方依赖）。
-/// </para>
-/// <para>只支持 A（IPv4）记录；失败返回空列表。</para>
-/// </summary>
+/// <summary>极简 DNS 解析器：向指定 DNS 服务器发一个 A 记录查询，返回解析出的 IPv4 地址。（WHY: WT-004）</summary>
 public sealed class DnsResolver
 {
     /// <summary>向 <paramref name="dnsServer"/> 解析 <paramref name="name"/> 的 A 记录；超时返回空列表。</summary>

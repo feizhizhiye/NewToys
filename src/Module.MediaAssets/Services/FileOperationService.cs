@@ -23,20 +23,7 @@ public enum ConflictPolicy
     Overwrite
 }
 
-/// <summary>
-/// 物理文件操作：重命名 / 移动 / 复制 / 删除 —— **这是全模块唯一动磁盘的地方**。
-/// <para>
-/// 🔴 <b>日志先行</b>（需求 §6.6 核心流程）：<c>operation_logs(pending)</c> → 动磁盘 → 更新 <c>file_locations</c>
-/// → 校验文件是否真在 → 改 <c>success</c> / <c>failed</c>（失败留 <c>before_json</c>）。
-/// </para>
-/// <para>
-/// 🔴 <b>防穿越</b>：重命名只允许**改文件名**（⛔ 不许含路径分隔符）；移动 / 复制要求目标目录落在
-/// **已登记存储源**的根内 —— 否则拒绝（不猜、不越界写盘）。
-/// </para>
-/// <para>⛔ <b>失败不自动回滚磁盘</b>：失败态写进日志，提示用户手动补偿；数据库没跟上时下次扫描按 hash / inode 校准。</para>
-/// <para>⛔ 删除默认**送系统回收站**（<c>SHFileOperationW</c>，视频工具 <c>VideoFileService</c> 先例）；
-/// 只有「永久删除」才真删，且必须二次确认（由调用方做）。</para>
-/// </summary>
+/// <summary>物理文件操作：重命名 / 移动 / 复制 / 删除 —— 这是全模块唯一动磁盘的地方。（WHY: MA-033）</summary>
 public class FileOperationService
 {
     private readonly AssetService _assets;
@@ -271,13 +258,7 @@ public class FileOperationService
         return (true, "已永久删除（不进回收站，无法还原）。");
     }
 
-    /// <summary>
-    /// 把「回收站里超过保留天数」的资产排进**永久删除**队列（真删磁盘 + 删索引行）。
-    /// <para>
-    /// 调用方：① 设置页「立即清理」（用户显式点）；② 模块启动时（设置了「到期自动清理」才跑）。
-    /// ⚠️ 走任务队列 → 任务中心可见、可取消；⛔ 不静默删。
-    /// </para>
-    /// </summary>
+    /// <summary>把「回收站里超过保留天数」的资产排进永久删除队列（真删磁盘 + 删索引行）。（WHY: MA-034）</summary>
     /// <returns>入队的资产数（0 = 没有到期的）。</returns>
     public int EnqueueExpiredTrashPurge(int retentionDays)
     {

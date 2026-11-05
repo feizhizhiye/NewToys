@@ -20,14 +20,7 @@ public partial class AssetService
     /// </summary>
     public string LastQueryError { get; private set; } = "";
 
-    /// <summary>
-    /// 一次查询拼出列表页的行（**资产 + 主位置 + 存储源名**），再把标签 / 分类 / 集合**批量**补齐。
-    /// <para>
-    /// ⛔ 为什么不在 VM 里对每个资产再查位置：那是 N+1（500 行 = 500 次查询）。这里主位置用
-    /// <c>LEFT JOIN (子查询取 is_primary 优先的第一条)</c> 一次带出；三类组织信息各用**一条**查询
-    /// 拉回全部映射再拼，总查询数恒定 = 4。
-    /// </para>
-    /// </summary>
+    /// <summary>一次查询拼出列表页的行（资产 + 主位置 + 存储源名），再把标签 / 分类 / 集合批量补齐。（WHY: MA-028）</summary>
     public List<AssetRow> QueryRows(string? type = null, bool includeTrashed = false, int limit = 500)
     {
         var rows = new List<AssetRow>();
@@ -100,10 +93,7 @@ public partial class AssetService
 
     // ==================== 分页查询（列表与计数共用同一套 WHERE） ====================
 
-    /// <summary>
-    /// 分页查询条件（列表 <see cref="QueryPage"/> 与计数 <see cref="CountAssets"/> 传同一个对象）。
-    /// <para>🔴 WHERE 只准在 <see cref="BuildWhere"/> 里写一份 —— 两份漂移 = 总数与列表对不上。</para>
-    /// </summary>
+    /// <summary>分页查询条件（列表 QueryPage 与计数 CountAssets 传同一个对象）。（WHY: MA-029）</summary>
     /// <param name="Search">关键字（名称 / 路径 / 标签 包含，忽略大小写）。</param>
     /// <param name="Type">类型原始值（video / music / …）。</param>
     /// <param name="Status">状态原始值（active / archived / missing / trashed）。</param>
@@ -126,12 +116,7 @@ public partial class AssetService
         int Offset = 0,
         int Limit = DefaultPageSize);
 
-    /// <summary>SQL 侧共用的列表达式（🔴 筛选 / 排序 / 关键字共用同一份定义，⛔ 不各写一遍）。</summary>
-    /// <remarks>
-    /// 三级兜底必须用 <c>COALESCE</c>：SQLite 的 <c>IFNULL</c> **只收两个参数**，
-    /// 写成 <c>IFNULL(a,b,c)</c> 会让整条 SELECT 抛 "wrong number of arguments"，
-    /// 而 <c>QueryPage</c> 的 catch 吞掉异常 ⇒ 页码/总数正常但列表恒空。
-    /// </remarks>
+    /// <summary>SQL 侧共用的列表达式（🔴 筛选 / 排序 / 关键字共用同一份定义，⛔ 不各写一遍）。（WHY: MA-030）</summary>
     private const string NameExpr = "COALESCE(NULLIF(a.display_name,''), NULLIF(a.title,''), '资产 #' || a.id)";
     // 🔴 分组聚合的三列必须走「内层排序 + 外层 group_concat」，而外层只能引用**内层的输出列名**：
     //    内层 `SELECT n.name` 的输出列叫 `name`，外层写 `group_concat(n.name, …)` 会让 SQLite 抛
@@ -486,12 +471,7 @@ public partial class AssetService
             => !string.IsNullOrEmpty(value) && value.Contains(token, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// 把 <c>metadata_json</c> 里的视频元数据填进 <see cref="AssetRow"/> 的视频专属字段。
-    /// <para>逐行独立解析、吞掉一切异常（JSON 损坏 / 缺键 / 类型不符都不影响列表其余行）。
-    /// 键名沿用 <see cref="MetadataService"/> 的写入：<c>duration_seconds</c> / <c>width</c> / <c>height</c> / <c>video_codec</c> / <c>bit_rate</c>。
-    /// 顺带把原始 JSON 挂到 <see cref="AssetRow.MetadataJson"/>（转给视频工具时随行带走，对方不必再探测）。</para>
-    /// </summary>
+    /// <summary>把 metadata_json 里的视频元数据填进 AssetRow 的视频专属字段。</summary>
     private static void ApplyVideoMeta(AssetRow row, string json)
     {
         if (!string.IsNullOrWhiteSpace(json)) row.MetadataJson = json;

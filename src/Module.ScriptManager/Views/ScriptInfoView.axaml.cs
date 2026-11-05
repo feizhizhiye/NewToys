@@ -8,14 +8,7 @@ using NewToys.ScriptManager.ViewModels;
 
 namespace NewToys.ScriptManager.Views;
 
-/// <summary>
-/// 信息面板：节列表 + 节内行点选 + 定时刷新生命周期。
-/// </summary>
-/// <remarks>
-/// 🔴 行用 <c>ItemsControl</c> + <c>PointerPressed</c> 而不是 <c>ListBox</c>：
-/// 每节一个 <c>ListBox</c> 会在 <c>ScrollViewer</c> 里再套一层滚动区（嵌套滚动 = 滚不动 / 抢滚轮），
-/// 所以整页只有一个 <c>ScrollViewer</c>，选中由这里手动落到 VM。
-/// </remarks>
+/// <summary>信息面板：节列表 + 节内行点选 + 定时刷新生命周期。（WHY: SM-072）</summary>
 public partial class ScriptInfoView : UserControl
 {
     public ScriptInfoView()

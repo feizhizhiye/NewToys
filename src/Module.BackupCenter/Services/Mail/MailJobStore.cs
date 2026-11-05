@@ -5,12 +5,7 @@ using NewToys.BackupCenter.Models;
 
 namespace NewToys.BackupCenter.Services.Mail;
 
-/// <summary>
-/// 邮件投递与邮箱缓存的落库层（<c>backup.db</c> 的 <c>mail_seq</c> / <c>mail_job</c> / <c>mail_part</c> / <c>mail_index</c>）。
-/// <para>
-/// 🔴 **先落库后发信**：发信过程中崩溃 / 断电时，凭索引号与分卷清单还能找回哪几卷已发、哪几卷没发。
-/// </para>
-/// </summary>
+/// <summary>邮件投递与邮箱缓存的落库层（backup.db 的 mail_seq / mail_job / mail_part / mail_index）。（WHY: BC-011）</summary>
 public sealed class MailJobStore
 {
     private readonly BackupDb _db;

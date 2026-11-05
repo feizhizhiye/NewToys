@@ -5,14 +5,7 @@ using NewToys.BackupCenter.Models;
 
 namespace NewToys.BackupCenter.Services.Mail;
 
-/// <summary>
-/// 待发目录的清理：投递成功后本地分卷保留 <see cref="BackupSettingsService.MailBufferDays"/> 天，到期由这里删掉。
-/// <para>
-/// 为什么要缓冲而不是发完就删：邮件到没到服务器只有服务端知道，刚发完就删本地等于把「唯一可复核的副本」交出去；
-/// 留三天足够用户发现「邮箱里没收到 / 附件打不开」并重投。
-/// </para>
-/// <para>⛔ 只删状态为 <c>sent</c> 的记录；<c>failed</c> / <c>pending</c> 的分卷一律保留（那是等着重投或人工处理的）。</para>
-/// </summary>
+/// <summary>待发目录的清理：投递成功后本地分卷保留 BackupSettingsService.MailBufferDays 天，到期由这里删掉。（WHY: BC-012）</summary>
 public sealed class OutboxService
 {
     private readonly MailJobStore _jobs;

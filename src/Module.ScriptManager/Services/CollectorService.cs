@@ -42,16 +42,7 @@ public sealed class CollectOutcome
     public bool Ok => !Canceled && Error == null;
 }
 
-/// <summary>
-/// <b>采集器执行</b>：跑一个条目（脚本或命令）→ 解析输出 → 写观测库 → 生成列 schema。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 采集器不是独立类型 —— 只要 <c>capture=true</c> + <c>collectable=true</c> 的条目都能当采集器，
-/// 脚本与命令的唯一差别是执行方式（<see cref="ScriptRunner.RunAsync"/> vs <see cref="ScriptRunner.RunCommandAsync"/>）。
-/// </para>
-/// <para>⚠️ 观测库失败（打不开 / 锁住）**不影响界面出数据**：本次结果照常返回，只把错误放进 <see cref="CollectOutcome.StorageError"/>。</para>
-/// </remarks>
+/// <summary>采集器执行：跑一个条目（脚本或命令）→ 解析输出 → 写观测库 → 生成列 schema。（WHY: SM-024）</summary>
 public sealed class CollectorService
 {
     /// <summary>自动刷新最小间隔（秒）。</summary>

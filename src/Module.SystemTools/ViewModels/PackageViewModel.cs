@@ -29,25 +29,7 @@ public class PackageExportItem
     public string Version { get; set; } = "";
 }
 
-/// <summary>
-/// 软件包页。
-/// <para>
-/// 布局遵循规范 <b>3.8 列表页规范</b>：左边「可排序表头的列表」，右边「选中项的详情列」，
-/// 列表上挂右键菜单（安装 / 升级 / 卸载 / Pin / 取消 Pin / 复制 Id / 读取详情 / 打开主页）。
-/// </para>
-/// <para>
-/// <b>本页没有任何「保存」按钮</b>（规范 3.7）：源、静默安装、排序列都是点一下就生效并写
-/// <c>config\package.json</c>（由 <see cref="IPackageSettingsService"/> 落盘）。
-/// / v3.80：源的**增删 / 切换**全要 UAC ⇒ 归「命令库 → winget 源」集合的命令；本页只管"查包"。
-/// **勾一下源就立刻生效** —— 勾上但系统里没有的源（如默认未启用的 <c>msstore</c>）
-/// 会标「（未启用）」，勾它立刻跑 <c>winget source enable</c>（⛔ 工具条不再有「生效」按钮）。
-/// 本页进入时读一次源列表，因此设置页改完再回到本页即生效（页面每次导航都会重建 VM，见规范 6.5）。
-/// </para>
-/// <para>
-/// ⚠️ 刻意<b>不订阅</b> <see cref="IPackageSettingsService.Changed"/>：那个服务是单例，
-/// 页面 VM 是瞬态，订阅了就会把每次进入页面的 VM 都挂在单例上（内存泄漏 + 重复回调）。
-/// </para>
-/// </summary>
+/// <summary>布局遵循规范 3.8 列表页规范：左边「可排序表头的列表」，右边「选中项的详情列」， 列表上挂右键菜单（安装 / 升级 / 卸载 / Pin / 取消 Pin / 复制 Id / 读取详情 / 打开主页）。（WHY: ST-030）</summary>
 public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private enum ListMode { None, Search, Installed, Upgrades, Pinned }
@@ -131,16 +113,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     public ObservableCollection<PackageInfo> Packages { get; } = new();
 
-    /// <summary>
-    /// 工具条（/ 需求 §4.8.5：**由 Shell 统一渲染**，页面⛔ 不再自写 <c>Border.toolbar</c>）。
-    /// 顺序 = 折叠顺序的**反序**（越靠前越不易被折进「⋯」）。
-    /// <para>
-    /// 🔴 2026-10-17 动词层：**按钮文案**一律用通用动词（列出 / 搜索 / 升级 / 锁定 / 卸载 …），
-    /// ⛔ 不出现后端名 —— 换后端时按钮文案一个字都不用改。
-    /// 🔴 反转：**ToolTip 一律给真实 winget 命令**（用户定调）—— 用户要看的是"到底跑了什么"。
-    /// 分组顺序 = 查看（源 / 搜索 / 三种列表）→ 刷新 → 写操作 → 偏好 → 导入导出。
-    /// </para>
-    /// </summary>
+    /// <summary>工具条（/ 需求 §4.8.5：由 Shell 统一渲染，页面⛔ 不再自写 Border.toolbar）。（WHY: ST-031）</summary>
     public override IReadOnlyList<ToolbarItemDescriptor>? Toolbar => new ToolbarItemDescriptor[]
     {
         // 🔴 v3.80：源选择框**已删除**（用户定调）—— 源是系统 winget 的配置，增删 / 切换全要 UAC，

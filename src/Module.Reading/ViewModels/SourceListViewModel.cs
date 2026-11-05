@@ -44,12 +44,7 @@ public sealed class SourceRow
     public bool IsEnabled => Source.Enabled;
 }
 
-/// <summary>
-/// 「网络阅读 → 书源」页（<c>reading-sources</c>）：书源清单 + 导入导出 + 详情卡。
-/// <para>
-/// 状态列是**导入时静态判定**的三档（可用 / 需 WebView / 不完整），⛔ 不发请求 —— 用户先看清哪些源现在能跑。
-/// </para>
-/// </summary>
+/// <summary>「网络阅读 → 书源」页（reading-sources）：书源清单 + 导入导出 + 详情卡。（WHY: RD-032）</summary>
 public partial class SourceListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private const string AllGroups = "全部分组";

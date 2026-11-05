@@ -2,12 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 音乐外挂封面 / 歌词文件探测（只读，⛔ 不写文件）。
-/// 匹配规则与查看器播放器（AudioLibraryService）保持一致：
-/// <para>封面：同名图 → 宽松同名（词集互相包含）→ 固定名（cover/folder/front/album…）→ 上一级目录固定名。</para>
-/// <para>歌词：同名 .lrc → 「标题 - 艺术家.lrc / 艺术家 - 标题.lrc / 标题.lrc」→ 译文（.zh/.trans/.translation/.cn.lrc）。</para>
-/// </summary>
+/// <summary>音乐外挂封面 / 歌词文件探测（只读，⛔ 不写文件）。</summary>
 internal static class MusicFileProbe
 {
     public static readonly string[] CoverExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".bmp" };

@@ -21,15 +21,7 @@ public sealed class ImageInfoRow
     public string Value { get; init; } = "";
 }
 
-/// <summary>
-/// 图片渲染器：缩放 / 平移 / 1:1 与适应窗口。
-/// <para>
-/// 🔴 缩放直接改 <see cref="Image.Width"/> / <c>Height</c>（不是 <c>RenderTransform</c>）——
-/// 只有占位尺寸变了，<see cref="ScrollViewer.Extent"/> 才会跟上，放大后能拖到边缘。
-/// </para>
-/// <para>🔴 不解码降采样（Avalonia <see cref="Bitmap"/> 没有公开的「限定像素尺寸」重载）——
-/// 超大图首帧会卡一下，V1 接受；要优化就另起后台线程解码成小图再换源。</para>
-/// </summary>
+/// <summary>图片渲染器：缩放 / 平移 / 1:1 与适应窗口。（WHY: VW-005）</summary>
 public partial class ImageViewer : UserControl
 {
     /// <summary>解码尺寸下限（像素）：小屏 / 折叠态也别解得太糊。</summary>
@@ -125,12 +117,7 @@ public partial class ImageViewer : UserControl
         }
     }
 
-    /// <summary>
-    /// 显示新位图：换源 → 按视口适应 → 下一轮再兜底算一次并恢复滚动条。
-    /// <para>🔴 装载期间必须先把滚动条置 <c>Disabled</c>：换图那一帧 <c>Extent</c> 还没稳定，
-    /// <c>Auto</c> 会让竖直滚动条闪一下（用户实测「切图时右上角闪一下」）。</para>
-    /// <para>🔴 <c>_loadToken</c>：连按翻页时旧回调直接丢弃，⛔ 别让它把新图的缩放改回去。</para>
-    /// </summary>
+    /// <summary>显示新位图：换源 → 按视口适应 → 下一轮再兜底算一次并恢复滚动条。（WHY: VW-006）</summary>
     private void ApplyNewBitmap(Bitmap bmp)
     {
         var token = ++_loadToken;

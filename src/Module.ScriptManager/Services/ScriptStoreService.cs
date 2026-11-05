@@ -9,21 +9,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// <see cref="IScriptStoreService"/> 实现：手工数据落**本模块库的 <c>script_docs</c> 表**
-///（⛔ 不再写 <c>config\script\script.json</c>），写入即一条 upsert。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 🔴 落点在库里而不是 <c>config\</c>：集合 / 条目 / 视图是**功能数据**，与观测表同库
-/// （一个配置档 = 一个库）。旧 <c>script.json</c> 由 <see cref="ScriptManagerSchemaContributor"/> 在启动时
-/// 一次性搬进表并改名 <c>.legacy</c>（⛔ 不删）。
-/// </para>
-/// <para>
-/// ⚠️ <see cref="ConfigDir"/> / <see cref="FilePath"/> 保留只为**界面展示与排障**（状态栏会打印落盘位置），
-/// ⛔ 不再用于读写。
-/// </para>
-/// </remarks>
+/// <summary>IScriptStoreService 实现：手工数据落本模块库的 script_docs 表 （⛔ 不再写 config\script\script.json），写入即一条 upsert。（WHY: SM-055）</summary>
 public class ScriptStoreService : IScriptStoreService
 {
     private static readonly JsonSerializerOptions JsonOpts = new()

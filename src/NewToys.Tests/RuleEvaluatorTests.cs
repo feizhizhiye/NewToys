@@ -5,14 +5,7 @@ using Xunit;
 
 namespace NewToys.Tests;
 
-/// <summary>
-/// 书源规则求值器（<see cref="RuleEvaluator"/>）的单元测试。
-/// <para>
-/// 🔴 规则写错在运行期**不报错**，只表现为「这个字段空 / 这一条源跑不通」—— 所以每种语法元件都要独立断言。
-/// 用例覆盖：选择器四写法 / 六种属性 / 两种索引 / 两种前缀 / <c>||</c> <c>&amp;&amp;</c> <c>##</c> /
-/// <c>{{}}</c> / <c>@put</c> <c>@get</c> / JSON 路径 / 三条真实书源规则片段。
-/// </para>
-/// </summary>
+/// <summary>书源规则求值器（RuleEvaluator）的单元测试。（WHY: TS-007）</summary>
 public class RuleEvaluatorTests
 {
     private const string DetailUrl = "https://example.com/book/1.html";

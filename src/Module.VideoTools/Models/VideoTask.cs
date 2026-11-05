@@ -7,13 +7,7 @@ using NewToys.VideoTools.Services;
 
 namespace NewToys.VideoTools.Models;
 
-/// <summary>
-/// 任务的运行状态（剪切 / 转码两页共用）。
-/// <para>
-/// ⚠️ 类名**不能**叫 <c>TaskStatus</c>：项目开了隐式 using，<c>System.Threading.Tasks.TaskStatus</c>
-/// 也在作用域里，同名会到处 CS0104（"不明确的引用"）。命名铁律：模型名避开 BCL 公开类型名。
-/// </para>
-/// </summary>
+/// <summary>任务的运行状态（剪切 / 转码两页共用）。（WHY: VT-006）</summary>
 public static class VideoTaskStatus
 {
     /// <summary>排队等待（还没跑）。</summary>
@@ -37,13 +31,7 @@ public static class VideoTaskStatus
     public static bool IsFinished(string? s) => s is Done or Failed or Canceled or Skipped;
 }
 
-/// <summary>
-/// 剪切 / 转码任务的公共字段。
-/// <para>
-/// 任务<b>只是"待办清单"</b>（参数 + 状态），真正的活由 <c>FfmpegService</c> 去跑；
-/// 任务清单落 <c>config\video-tasks.json</c>，所以关掉软件再回来还在（会被「设置 → 数据管理」一起备份）。
-/// </para>
-/// </summary>
+/// <summary>剪切 / 转码任务的公共字段。</summary>
 public abstract partial class VideoTaskBase : ObservableObject
 {
     /// <summary>稳定标识（新建时生成）。</summary>

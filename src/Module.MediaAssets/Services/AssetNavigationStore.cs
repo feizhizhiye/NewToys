@@ -6,24 +6,13 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 「按条件铺一整套结果」的请求（标签详情卡 → 资产浏览页）：页面不再按目录枚举，
-/// 改用索引里符合 <c>TagName</c> + <c>Type</c> 的资产，页内提示用 <c>Title</c>。
-/// </summary>
+/// <summary>「按条件铺一整套结果」的请求（标签详情卡 → 资产浏览页）：页面不再按目录枚举， 改用索引里符合 TagName + Type 的资产，页内提示用 Title。</summary>
 /// <param name="Title">页内提示文案（例：<c>标签「科幻」· 视频</c>）。</param>
 /// <param name="TagName">标签名（按名字过滤，与「全部资产」页标签下拉同一口径）。</param>
 /// <param name="Type">资产类型原始值（<c>video</c> / <c>image</c> / <c>music</c>…）；<c>null</c> = 不限类型。</param>
 public sealed record ResultSetRequest(string Title, string? TagName, string? Type);
 
-/// <summary>
-/// 跨页投递：模块内**单例**，仿视频工具 <c>VideoTaskStore</c> 的做法。
-/// <para>
-/// 场景：在「标签管理」详情卡里点某个资产 → 想跳到它所在的页并选中它。<see cref="Request"/> 登记，
-/// 目标页在 <c>OnAttachedToVisualTree</c>（🔴 **不是** `OnDataContextChanged`，规范 §4.8 硬规则 8）
-/// 调 <see cref="Take"/> 取件；取完即清空（⛔ 不重复消费）。
-/// </para>
-/// <para>也承担「跳到某页（不选资产）」——合并 / 扫描任务入队后跳「任务中心」看进度。</para>
-/// </summary>
+/// <summary>跨页投递：模块内单例，仿视频工具 VideoTaskStore 的做法。（WHY: MA-018）</summary>
 public class AssetNavigationStore
 {
     private readonly INavigationService? _nav;

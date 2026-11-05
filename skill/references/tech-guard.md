@@ -111,7 +111,7 @@
 
 **方案1 · 全量瘦身与分流**（判据 = 长段，⛔ 不是「全清注释」）：
 
-- 短契约（连续 `///` ≤5 行）**全留**；长段（≥6 行）由 `skill/scripts/comment-slim.py --batch <shared|core|shell|ui|modules> --apply` 压成 1 行契约 + `WHY: <ID>`，高信号 WHY 行蒸馏到 `framework.md` 附录 A.2 / `ui.md` §9 / `modules/<模块>.md` §5 的 `<!-- WHY-DISTILL:<batch> -->` 块，D 类叙事删。
+- 短契约（连续 `///` ≤5 行）**全留**；长段（≥6 行）由 `skill/scripts/comment-slim.py --batch <shared|core|shell|ui|modules> --apply` 压成 1 行契约 + `WHY: <ID>`，高信号 WHY 行蒸馏到 `framework.md` 附录 A.2~A.5 / `ui.md` §14 / `modules/<模块>.md` 附录的 `<!-- WHY-DISTILL:<batch> -->` 块，D 类叙事删。
 - 机器标记 **20 条必留**：4 条 `// lint:view-no-vm` + 16 条 `/// <inheritdoc>`；脚本与 C-07 都豁免。
 - `lint.py` 的 `SLIMMED_ASSEMBLIES` = 已治理程序集白名单，每完成一批追加一个，未治理批次不报 C-07（分批跨会话时中间状态不炸验收）。
 - anchors 双向对账（A-01）：代码 `WHY: <ID>` 必须在文档有 `<!-- ANCHOR:<ID> -->`，反之亦然。
@@ -123,7 +123,7 @@
 | 信息 | 唯一载体 | 规则 |
 |---|---|---|
 | 契约（参数语义 / 单位 / 异常 / 生命周期） | `/// <summary>` + 类型/成员命名 + 测试名 | ≤5 行；命名与测试已自解释时**可不写** |
-| 背景 / 设计取舍 / 踩坑 | `skill/docs/` 一处（`framework.md` §11 / 附录 A.2、`ui.md` §9、`modules/*.md` §5） | 代码只留 `WHY: <ID>`；文档必须有 `<!-- ANCHOR:ID -->` |
+| 背景 / 设计取舍 / 踩坑 | `skill/docs/` 一处（`framework.md` 附录 A.2~A.5、`ui.md` §14、`modules/*.md` 附录） | 代码只留 `WHY: <ID>`；文档必须有 `<!-- ANCHOR:ID -->` |
 | 不安全操作的前置条件 / 不变量 | `// SAFETY: …` | 就地留，≥6 字；⛔ 不蒸馏（与代码同生命周期） |
 | 未完成事项 | `// TODO: …` | 必须带触发条件，≥8 字 |
 | 版本 / 轮次 / 历史 / 任务编号 | git log + `framework.md` §11.2 | ⛔ 不写进注释 |

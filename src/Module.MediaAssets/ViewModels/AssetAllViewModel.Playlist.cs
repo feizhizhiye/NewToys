@@ -11,13 +11,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「全部资产」→ 音乐播放的两条出口：
-/// <list type="bullet">
-///   <item>「播放」把选中的音乐按**当前列表顺序**交给「查看器 → 音乐播放」并立即开播（走 <see cref="IModuleBus"/>）。</item>
-///   <item>「🎵 导出播放列表」写一份 <c>.m3u8</c>（相对路径 + EXTINF），第三方播放器也能吃。</item>
-/// </list>
-/// </summary>
+/// <summary>「全部资产」→ 音乐播放的两条出口： <list type="bullet"> 「播放」把选中的音乐按当前列表顺序交给「查看器 → 音乐播放」并立即开播（走 IModuleBus）。</summary>
 public partial class AssetAllViewModel
 {
     /// <summary>

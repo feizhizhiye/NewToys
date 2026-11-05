@@ -17,19 +17,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.ScriptManager.ViewModels;
 
-/// <summary>
-/// 「脚本管理器 → 集合」页（§三.7）：<b>主从两栏</b> —— 左 280px 集合列表 + 右成员表；
-/// 详情卡走标准右侧声明式卡（<see cref="IDetailCardSource"/>，与全应用一致）。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 🔴 <b>成员关系存在条目侧</b>（<see cref="ScriptItem.Collections"/>）：成员表是「全库清单 + 勾选」——
-/// 勾 = 在集合内、取消勾 = 移出，<b>即时生效、无保存按钮</b>。⛔ 集合侧不存成员 id 列表。
-/// </para>
-/// <para>
-/// ⛔ 本期不做层级分组（几十个集合靠「搜索 + 分组下拉 + 类型 / 标签筛选」扛，卡 §三.7）。
-/// </para>
-/// </remarks>
+/// <summary>「脚本管理器 → 集合」页（§三.7）：主从两栏 —— 左 280px 集合列表 + 右成员表；（WHY: SM-059）</summary>
 public partial class CollectionViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly IScriptStoreService? _store;

@@ -10,33 +10,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 扫描服务（需求 §6.6 核心流程·扫描）：目录遍历 → 忽略规则 → 分级匹配 → 建 / 更新资产与位置 →
-/// 本次未出现的旧位置标 <c>missing</c>（⛔ 不删资产）。
-/// <para>
-/// <b>🔴 性能策略（v3.29 重写，实测教训：第一版扫一个目录几分钟不动、硬盘狂响）</b>
-/// <list type="number">
-///   <item><b>零 IO 优先</b>：① 存储源+相对路径 → ② size + mtime，两级都**不读文件内容**；</item>
-///   <item><b>quick_hash（读前 N MB）只在"库里存在同大小且已有 quick_hash 的位置"时才算</b>
-///         —— 否则算了也没处匹配。**首次扫描因此完全不读文件内容**（纯元数据遍历）；</item>
-///   <item><b>新文件⛔ 不算完整内容哈希</b>（那会把每个文件整读一遍，是之前慢的根因）。
-///         完整哈希与元数据一起交给任务队列的「补全哈希」任务；需要立即算可开
-///         <see cref="ComputeFullHashForNewFiles"/>；</item>
-///   <item><b>匹配全在内存做</b>：扫描前把该存储源的现有位置**一次**读进 <see cref="StorageIndex"/>，
-///         ⛔ 不 per-file SELECT（1 万文件 = 4 万次查询 → 4 次）；</item>
-///   <item><b>批量落库</b>：新位置攒够 <see cref="BatchSize"/> 条用一个事务提交；没变化的位置
-///         只记 id、批量 <c>UPDATE last_seen_at</c>，⛔ 不逐条写。</item>
-/// </list>
-/// </para>
-/// <para>
-/// ⚠️ <b>已知降级</b>：首次入库的位置没有 quick_hash → 之后若文件被移动**且** mtime 也变了，
-/// ①② 都不命中，会当成新资产（旧的留 missing）。内容完全一样的重复由将来「补全哈希」校准。
-/// </para>
-/// <para>
-/// ⚠️ 元数据 / 缩略图**不在本项**：本类只留 <see cref="OnNewLocations"/> 回调（新位置批量交出去），
-/// 由模块接到后台任务队列慢慢补 —— 扫描自己 ⛔ 不读文件内容、不起 ffprobe/ffmpeg。
-/// </para>
-/// </summary>
+/// <summary>扫描服务（需求 §6.6 核心流程·扫描）：目录遍历 → 忽略规则 → 分级匹配 → 建 / 更新资产与位置 → 本次未出现的旧位置标 missing（⛔ 不删资产）。（WHY: MA-042）</summary>
 public partial class ScanService
 {
     private readonly AssetService _assets;
@@ -46,13 +20,7 @@ public partial class ScanService
 
     public ScanService(AssetService assets) => _assets = assets;
 
-    /// <summary>
-    /// **预览扫描**（v3.29，用户要的操作逻辑：先扫出来看看 → 满意再「加入库」、不满意「清除列表」换文件夹重来）。
-    /// <para>
-    /// 🔴 与 <see cref="ScanAsync"/> 的根本差别：**一个字节都不写库**（⛔ 不建 assets / file_locations、
-    /// ⛔ 不算任何哈希）→ 纯元数据遍历，最快，且随时可以丢弃。落库由 <c>AssetService.CommitRows</c> 显式做。
-    /// </para>
-    /// </summary>
+    /// <summary>预览扫描（，用户要的操作逻辑：先扫出来看看 → 满意再「加入库」、不满意「清除列表」换文件夹重来）。（WHY: MA-043）</summary>
     public Task<List<AssetRow>> PreviewAsync(string rootPath, bool recursive,
                                              IProgress<string>? progress, CancellationToken ct)
         => Task.Run(() =>
@@ -120,13 +88,7 @@ public partial class ScanService
     /// <summary>忽略临时文件（<c>~$*</c> Office 临时副本等；用户可配）。</summary>
     public bool IgnoreTempFiles { get; private set; } = true;
 
-    /// <summary>
-    /// 新入库的位置**批量回调**（扫描不做任何读文件内容 / 起进程的事）。
-    /// <para>
-    /// 🔴 元数据与缩略图属于「读文件 + 起 ffprobe/ffmpeg 进程」，同步跑会把扫描拖成几分钟（用户实测）。
-    /// 现在只把新位置丢给这里，由模块接到任务队列后台补；缩略图另外按「浏览页滚动到才生成」走。
-    /// </para>
-    /// </summary>
+    /// <summary>新入库的位置批量回调（扫描不做任何读文件内容 / 起进程的事）。（WHY: MA-044）</summary>
     public Action<IReadOnlyList<FileLocation>>? OnNewLocations { get; set; }
 
     /// <summary>

@@ -32,12 +32,7 @@ public sealed class BookDownloadResult
     public bool IsComplete => Failures.Count == 0 && Downloaded == Total;
 }
 
-/// <summary>
-/// 全书下载 + 合并成一本（legado 的「缓存全书」+ 导出）：
-/// 逐章抓正文（命中正文缓存的不再请求）→ 按「书名 / 作者 / 每章标题 + 正文」拼成一整份文本。
-/// <para>章节之间用固定的分隔线，导入别的阅读器时也认得出来。</para>
-/// <para>🔴 取消只停后续章节，已经抓到的照常合并 —— ⛔ 不要因为用户中途取消就把成果丢掉。</para>
-/// </summary>
+/// <summary>全书下载 + 合并成一本（legado 的「缓存全书」+ 导出）： 逐章抓正文（命中正文缓存的不再请求）→ 按「书名 / 作者 / 每章标题 + 正文」拼成一整份文本。（WHY: RD-005）</summary>
 public sealed class BookDownloadService
 {
     private readonly CrawlService _crawl;

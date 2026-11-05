@@ -3,19 +3,7 @@ using System.Collections.Generic;
 
 namespace NewToys.ScriptManager.Models;
 
-/// <summary>
-/// 流水线（flow）配置—— 五段槽位各挂一个脚本名，落
-/// <c>&lt;StoreDir&gt;\script\flows\&lt;名&gt;.json</c>（⛔ 不开 DB 表）。
-/// <para>
-/// 🔴 <b>段位</b>：<c>probe</c>（内置）→ <c>entry</c> → <c>pick</c> → <c>toc</c> → <c>content</c> → <c>save</c>（内置）。
-/// 只有 <c>entry / pick / toc / content</c> 需要用户选脚本：<c>pick</c> 默认人工点选、
-/// <c>toc</c> 留空 = <b>链式模式</b>（<c>content</c> + next 逐页跟进，目录边跑边累积）。
-/// </para>
-/// <para>
-/// 🔴 产物形态优先级链：<c>content</c> 返回 ＞ <c># artifact:</c> ＞ 分类缺省猜测 ＞ none。
-/// 分类只做展示分组，⛔ 不驱动 UI 行为。
-/// </para>
-/// </summary>
+/// <summary>流水线（flow）配置—— 五段槽位各挂一个脚本名，落 &lt;StoreDir&gt;\script\flows\&lt;名&gt;.json（⛔ 不开 DB 表）。（WHY: SM-007）</summary>
 public class FlowConfig
 {
     /// <summary>流水线名（= 文件名去掉 <c>.json</c>）。</summary>

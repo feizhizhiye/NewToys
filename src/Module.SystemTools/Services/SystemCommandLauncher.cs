@@ -9,24 +9,7 @@ using NewToys.SystemTools.Models;
 
 namespace NewToys.SystemTools.Services;
 
-/// <summary>
-/// <see cref="ISystemCommandLauncher"/> 实现：<b>优先 Windows Terminal</b>（用户 2026-10-23：要在 Windows 终端里执行），
-/// 本机没装 WT 才回退系统终端（conhost）。
-/// <para>
-/// 提权方式 = <c>UseShellExecute=true</c> + <c>Verb="runas"</c> ⇒ 弹 UAC；整个 wt / cmd 进程提权，
-/// 其标签页里执行的命令同样是提权的。窗口 / 标签页<b>跑完不自动关</b>（留着读结果）。
-/// </para>
-/// <para>
-/// 🔴 wt 用法 = 官方「向默认 shell 传命令」口径：<c>wt.exe &lt;命令行&gt;</c>（在默认配置文件的标签页里跑）——
-/// locale 无关，⛔ 不用 <c>-p 配置文件名</c>（中文系统里叫「命令提示符」，写死就废）。
-/// ⚠️ wt 把 <c>;</c> 当标签页分隔符：命令里含分号会多开标签页（预设无分号；用户自建条目注意）。
-/// </para>
-/// <para>
-/// 🔴 Shell 口径与捕获路（<c>ScriptRunner</c>）一致：<b>auto / pwsh = pwsh 7</b>
-/// （配置路径 → <c>Program Files\PowerShell\7</c> → PATH；<c>-EncodedCommand</c> base64 传参避开引号 / &amp; / | 被二次解析）；
-/// <b>cmd = cmd /k</b>（reg / netsh / winget / start / .cpl 用它最稳，预设全部是它）。
-/// </para>
-/// </summary>
+/// <summary>ISystemCommandLauncher 实现：优先 Windows Terminal， 本机没装 WT 才回退系统终端（conhost）。（WHY: ST-022）</summary>
 public sealed class SystemCommandLauncher : ISystemCommandLauncher
 {
     private readonly IAppConfigService? _cfg;
@@ -127,15 +110,7 @@ public sealed class SystemCommandLauncher : ISystemCommandLauncher
         return true;
     }
 
-    /// <summary>
-    /// 「打开一个窗口」类命令：判定 + 用 ShellExecute 直接打开，**不等待窗口关闭**。
-    /// <para>🔴 为什么必须单独走这条路：`cmd /c diskmgmt.msc` 里 cmd 会**一直等到 mmc 关闭**，
-    /// 捕获式执行（<c>ScriptRunner.RunCommandAsync</c>）就卡在 <c>WaitForExit</c>；
-    /// 而「运行」绑的是同一个 <c>AsyncRelayCommand</c>（默认不并发）⇒ 窗口开着期间**全表按钮变灰**，
-    /// 超时后还会 <c>Kill(entireProcessTree)</c> 把用户刚打开的窗口杀掉。</para>
-    /// <para>判定只覆盖「起窗口」的形态（<c>start …</c> / <c>*.msc</c> / <c>*.cpl</c> / <c>ms-settings:</c> /
-    /// <c>explorer</c> / <c>taskmgr</c> / <c>control</c> / <c>regedit</c> / <c>msconfig</c>）；其余命令照旧捕获输出。</para>
-    /// </summary>
+    /// <summary>「打开一个窗口」类命令：判定 + 用 ShellExecute 直接打开，不等待窗口关闭。（WHY: ST-023）</summary>
     /// <returns>命中返回 true（<paramref name="message"/> 为状态栏文案）；未命中返回 false，调用方走捕获式执行。</returns>
     public static bool TryStartWindowCommand(string? command, out string message)
     {

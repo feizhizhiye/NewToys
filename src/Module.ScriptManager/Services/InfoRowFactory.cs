@@ -7,18 +7,7 @@ using NewToys.UI.Controls;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 「属性值 → <see cref="SysInfoRow"/>」的**只读呈现内核**（/ §三.13）。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 采集器（信息面板分节）与<b>只读列表</b>（S7：软件包页的只读呈现）共用这一份构造逻辑：
-/// 列 schema（<see cref="ScriptColumn"/>）决定列序 / 标题 / 显隐 / 宽度，属性名决定取值。
-/// </para>
-/// <para>
-/// 🔴 就地改值（<see cref="Apply"/>）—— 刷新时复用行对象 ⇒ 选中项 / 详情卡不丢、列表不闪。
-/// </para>
-/// </remarks>
+/// <summary>「属性值 → SysInfoRow」的只读呈现内核（/ §三.13）。（WHY: SM-029）</summary>
 public static class InfoRowFactory
 {
     /// <summary>建一行（列顺序 = <paramref name="columns"/> 顺序；缺的属性补空串）。</summary>
@@ -84,13 +73,7 @@ public static class InfoRowFactory
     public static string Title(ScriptColumn col)
         => string.IsNullOrWhiteSpace(col.Title) ? col.Key : col.Title;
 
-    /// <summary>
-    /// 列宽规格串（表头与行共用同一份）：隐藏列写 <c>0</c>（列索引保持不动 ⇒ 永不错位）。
-    /// <para>
-    /// 🔴 空宽默认给 <c>*</c>（等分星号），⛔ 不给 <c>Auto</c>：每行是**独立 Grid**，
-    /// Auto 宽度各算各的 ⇒ 表头与各行、行与行之间列宽对不齐；星号在同一可用宽度下等分才对得上。
-    /// </para>
-    /// </summary>
+    /// <summary>列宽规格串（表头与行共用同一份）：隐藏列写 0（列索引保持不动 ⇒ 永不错位）。（WHY: SM-030）</summary>
     public static string Specs(IReadOnlyList<ScriptColumn> columns)
     {
         if (columns.Count == 0) return "";

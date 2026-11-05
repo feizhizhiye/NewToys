@@ -6,21 +6,7 @@ using NewToys.VideoTools.Models;
 
 namespace NewToys.VideoTools.Services;
 
-/// <summary>
-/// 视频媒体信息的 <b>SQLite 缓存</b>（表 <c>video_media</c>，库文件 <c>&lt;配置根&gt;\store\video\video.db</c>）。
-/// <para>
-/// 为什么值得缓存：ffprobe 每个文件要起一次进程，几百个文件就是几百次进程启动，很慢；
-/// 而"这个文件的分辨率 / 编码 / 码率"只要文件没被改动就永远不变。
-/// 所以：扫描目录时先用 <see cref="TryApplyCached"/> 把已知的填进去（零成本），
-/// 只有**没缓存过**或**文件已被改动**（大小 / 修改时间对不上）的才真去跑 ffprobe，
-/// 读完再 <see cref="Upsert"/> 回库里。
-/// </para>
-/// <para>
-/// 缓存整体是懒加载的（第一次用才读全表），单表几十万行也不是问题。
-/// 库 / 表不可用时 <see cref="IsAvailable"/> 为 false，此时各方法**退化成"永远不命中 / 不报错"**，
-/// 页面照常能用，只是少了加速。
-/// </para>
-/// </summary>
+/// <summary>视频媒体信息的 SQLite 缓存（表 video_media，库文件 &lt;配置根&gt;\store\video\video.db）。（WHY: VT-021）</summary>
 public class VideoMediaIndex
 {
     private const string Table = "video_media";

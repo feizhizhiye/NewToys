@@ -15,13 +15,7 @@ public sealed record ArchiveOutcome(bool Ok, bool Canceled, string Message, int 
 /// <summary>还原结果。</summary>
 public sealed record RestoreOutcome(bool Ok, bool Canceled, int Restored, int Skipped, string Message);
 
-/// <summary>
-/// 7z 封装：建包（AES-256 + 头部加密）与还原（先解到暂存目录 → 校验条目名 → 按冲突策略落盘）。
-/// <para>
-/// 密码只能走命令行 <c>-p</c>（7z 不支持 stdin / 密码文件）⇒ 同机其他用户可看到进程命令行；
-/// 缓解手段 = 包级独立密码 + 密码库加密 + 界面与日志⛔ 不回显命令原文。
-/// </para>
-/// </summary>
+/// <summary>7z 封装：建包（AES-256 + 头部加密）与还原（先解到暂存目录 → 校验条目名 → 按冲突策略落盘）。（WHY: BC-002）</summary>
 public sealed class ArchiveService
 {
     /// <summary>大包压缩/解压的上限（超时即杀进程树，防挂死）。</summary>
@@ -40,13 +34,7 @@ public sealed class ArchiveService
     public static IReadOnlyList<string> CollectExisting(IEnumerable<string> sources)
         => sources.Where(s => !string.IsNullOrWhiteSpace(s) && (Directory.Exists(s) || File.Exists(s))).ToList();
 
-    /// <summary>
-    /// 建一个加密归档。<paramref name="phase"/> 收到的是**阶段文案**（7z 不流式回报百分比）。
-    /// <para>
-    /// <paramref name="volumeBytes"/> &gt; 0 时 7z 按该大小**分卷**（产出 <c>包名.7z.001/.002…</c>）；
-    /// 🔴 分卷只能在压缩时决定（<c>-v</c>），事后无法切分 —— 邮件投递必须走这里。
-    /// </para>
-    /// </summary>
+    /// <summary>建一个加密归档。<paramref name="phase"/> 收到的是阶段文案（7z 不流式回报百分比）。（WHY: BC-003）</summary>
     public async Task<ArchiveOutcome> CreateAsync(
         string sevenZip, BackupPlan plan, string archiveFile, string password,
         IProgress<string>? phase, CancellationToken ct, long volumeBytes = 0)

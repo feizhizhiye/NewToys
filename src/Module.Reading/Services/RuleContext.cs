@@ -5,17 +5,7 @@ using AngleSharp.Dom;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 一次规则求值的上下文：**根**（文档节点 / 条目节点 / JSON 元素）+ 变量表 + <c>@put</c> 字典。
-/// <para>
-/// 🔴 条目字段（书名 / 作者 / 章节名）必须用<b>条目自己的节点</b>当根 —— 见
-/// <see cref="ForElement"/> / <see cref="ForJson"/>；⛔ 不许拿整页求值再按索引拼。
-/// </para>
-/// <para>
-/// 🔴 变量表 / <c>@put</c> 字典 / 告警列表在派生上下文之间**共享同一份引用**：
-/// 同一条规则里 <c>@put</c> 写的值要能被后续字段读到，告警也要汇总回最外层。
-/// </para>
-/// </summary>
+/// <summary>一次规则求值的上下文：根（文档节点 / 条目节点 / JSON 元素）+ 变量表 + @put 字典。（WHY: RD-017）</summary>
 public sealed class RuleContext
 {
     private readonly Dictionary<string, string> _store;

@@ -37,13 +37,7 @@ public sealed class ImportResult
     }
 }
 
-/// <summary>
-/// legado 书源 JSON 导入 / 导出。
-/// <para>
-/// 兼容两种形态：**顶层数组**（<c>[{…},{…}]</c>）与 <c>{"bookSources":[…]}</c>。
-/// 重复导入按 <c>bookSourceUrl</c> 幂等更新，⛔ 不产生副本。
-/// </para>
-/// </summary>
+/// <summary>legado 书源 JSON 导入 / 导出。（WHY: RD-027）</summary>
 public sealed class SourceImportService
 {
     private readonly SourceStore _store;

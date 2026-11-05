@@ -2,13 +2,7 @@ using System;
 
 namespace NewToys.MediaAssets.Models;
 
-/// <summary>
-/// 媒体资产模块设置：落 <c>&lt;应用根&gt;\config\media-assets.json</c>。
-/// <para>
-/// ⚠️ 模型放在**本模块**而不是 Shared：读者（扫描 / 元数据 / 缩略图服务）与写者（本模块设置页）
-/// 都在 <c>Module.MediaAssets</c> 内，没有跨模块共用 → 按规范 §3.4「被两模块共用时才放 Shared」。
-/// </para>
-/// </summary>
+/// <summary>媒体资产模块设置：落 &lt;应用根&gt;\config\media-assets.json。（WHY: MA-009）</summary>
 public class MediaAssetsSettings
 {
     // ==================== 扫描 ====================

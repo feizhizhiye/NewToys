@@ -8,20 +8,7 @@ using Microsoft.Data.Sqlite;
 
 namespace NewToys.BackupCenter.Services;
 
-/// <summary>
-/// 主密码密码库：包密码与投递凭据的**唯一保存处**（SQLite <c>backup.db</c> 的 <c>vault_meta</c> / <c>vault_items</c> 表）。
-/// <para>
-/// 主密码本身⛔ 不落盘：只存 PBKDF2-SHA256（30 万次）派生的盐，以及用派生密钥做的
-/// AES-GCM 校验块；每条目各自一个 nonce，密钥只在解锁后存在于内存。
-/// </para>
-/// <para>
-/// 连续解锁失败 5 次后本会话锁库（重启程序才重试），避免在线暴力猜主密码。
-/// </para>
-/// <para>
-/// 🔴 条目是**密文进库**（<c>blob</c> = base64(nonce|cipher|tag)）：库文件被人拷走时看不到密码，
-/// 也没有主密码可派生密钥 —— 与归档包的加密目标一致（防的是"文件到了别人手上"）。
-/// </para>
-/// </summary>
+/// <summary>主密码密码库：包密码与投递凭据的唯一保存处（SQLite backup.db 的 vault_meta / vault_items 表）。（WHY: BC-014）</summary>
 public sealed class VaultService
 {
     private const int DefaultIterations = 300_000;

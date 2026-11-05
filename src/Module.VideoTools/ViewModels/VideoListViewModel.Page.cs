@@ -157,12 +157,7 @@ public partial class VideoListViewModel : ListPageViewModelBase, IDetailPanelPro
 
     partial void OnSearchTextChanged(string value) => ApplyView();
 
-    /// <summary>
-    /// 「失焦即提交」的文件名（需求 §6.4.7）：声明式卡的输入框失焦时把文本写回 <see cref="EditName"/>，
-    /// 这里再落盘 —— 等价于迁移前 code-behind 的 <c>NameBox.LostFocus → SaveNameCommand</c>。
-    /// <para>⛔ 填充编辑缓冲（切选中项）时也会走到这里，所以先跟当前选中项比一次名字：
-    /// 没变就直接返回，⛔ 不去碰磁盘。</para>
-    /// </summary>
+    /// <summary>「失焦即提交」的文件名（需求 §6.4.7）：声明式卡的输入框失焦时把文本写回 EditName， 这里再落盘 —— 等价于迁移前 code-behind 的 NameBox.LostFocus → SaveNameCommand。（WHY: VT-034）</summary>
     partial void OnEditNameChanged(string value)
     {
         if (Selected == null) return;

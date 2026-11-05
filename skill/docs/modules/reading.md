@@ -236,3 +236,160 @@ SettingsReadingView ► SettingsReadingViewModel ► ReadingSettingsService（�
 - **`java.*` 未覆盖的少数派**：~~`t2s` 繁转简~~ ✅ 已实施（NT-129，`TraditionalToSimplified` 内置映射）；`java.webview` / `startBrowserAwait` 桌面端不实现（这类源已判「需 WebView」）。
 - ~~发现页 `@js:` 动态分类~~ ✅ 已实施（NT-129）：`ParseExploreCategories` 改实例方法，`@js:` 段执行 JS 生成分类表。
 
+## 附录 · 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:modules-reading:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:RD-001 -->
+- **RD-001** · `src/Module.Reading/Controls/ReaderShell.axaml.cs`
+  - 🔴 只吃「索引书」（index.json + chapters/NNNN.txt，见 `LoadIndex`）——
+  - 章内容按需从文件读，⛔ 全量进内存（几千章会吃掉几百 MB）。
+  - 🔴 本控件⛔ 不联网、⛔ 不写配置 —— 编码嗅探 / 章节规则 / 书签持久化全在宿主（Module.Reading）。
+  - 🔴 「章」是唯一的进度单位：切章只换正文，章内用滚动比例记位置；
+
+<!-- ANCHOR:RD-002 -->
+- **RD-002** · `src/Module.Reading/Models/BookSource.cs`
+  - 🔴 字段名按 legado 的 JSON 契约映射，⛔ 不做 Kotlin 源码移植（GPL-3.0 与本项目 MIT 不兼容）；
+
+<!-- ANCHOR:RD-003 -->
+- **RD-003** · `src/Module.Reading/Models/ReaderStyle.cs`
+  - 🔴 字段为 null = 「这一项不参与导入」，保留用户当前值 —— 手写的样式文件只写两三项也能用。
+
+<!-- ANCHOR:RD-004 -->
+- **RD-004** · `src/Module.Reading/ReadingModule.cs`
+  - 依赖只有 Shared / Core / UI：⛔ 不引 Shell，⛔ 不引别的模块（阅读器壳住在本模块
+
+<!-- ANCHOR:RD-005 -->
+- **RD-005** · `src/Module.Reading/Services/BookDownloadService.cs`
+  - 🔴 取消只停后续章节，已经抓到的照常合并 —— ⛔ 不要因为用户中途取消就把成果丢掉。
+
+<!-- ANCHOR:RD-006 -->
+- **RD-006** · `src/Module.Reading/Services/BookIndexWriter.cs`
+  - 正文来源 = 正文缓存（`ContentCacheStore`）：抓过的章直接落盘，⛔ 不联网补抓 ——
+
+<!-- ANCHOR:RD-007 -->
+- **RD-007** · `src/Module.Reading/Services/CrawlService.cs`
+  - 每段都把「哪一步、哪条规则、什么原因」记进 `StepError`，⛔ 不只是"失败了"。
+
+<!-- ANCHOR:RD-008 -->
+- **RD-008** · `src/Module.Reading/Services/CrawlService.cs`
+  - 🔴 条目字段在每个条目自己的节点 / JSON 元素内求值，⛔ 不对整页求值再按索引拼。
+
+<!-- ANCHOR:RD-009 -->
+- **RD-009** · `src/Module.Reading/Services/CrawlService.cs`
+  - 🔴 分隔符有两种：&amp;&amp; 与换行（真实书源里换行占多数）。只认 &amp;&amp;
+  - 🔴 每一项的尾巴 , {"method":"POST","body":"…"} 是这一项自己的请求配置，⛔ 不能丢。
+  - 🔴 整段 @js: 动态生成分类表：执行 JS 得到「分类::地址」列表串，再走同一套切分；失败则跳过该段。
+
+<!-- ANCHOR:RD-010 -->
+- **RD-010** · `src/Module.Reading/Services/CrawlService.cs`
+  - ⛔ 不攒到 Task.WhenAll 再一次性给：源多 / 站点慢时，整批等最慢的那个，
+
+<!-- ANCHOR:RD-011 -->
+- **RD-011** · `src/Module.Reading/Services/CrawlService.cs`
+  - 🔴 全程按字符串拼，⛔ 不走 `Uri` 合并 —— 规则地址里常带 {{page}}
+
+<!-- ANCHOR:RD-013 -->
+- **RD-013** · `src/Module.Reading/Services/PrefetchService.cs`
+  - 🔴 不依赖「缓存正文」开关：那个开关管的是「每章读完是否顺手存」，预下载是用户显式要的「先存这几章」，
+  - 串行抓（一次一章）：预取是背景活，⛔ 不和用户正在读的那一章抢并发。
+
+<!-- ANCHOR:RD-014 -->
+- **RD-014** · `src/Module.Reading/Services/ReaderStyleService.cs`
+  - 落点与「网络阅读设置」、阅读页顶栏是同一处（config\reading.json）⇒ 导入 = 逐项写设置，⛔ 不另存一份。
+
+<!-- ANCHOR:RD-015 -->
+- **RD-015** · `src/Module.Reading/Services/ReaderTypography.cs`
+  - 🔴 只吐字符串给 TextViewer（它就是一个 SelectableTextBlock，
+  - 没有段落级样式）⇒ 缩进 = 段首补全角空格，段间距 = 段间多插空行。⛔ 不为此改 NewToys.UI。
+
+<!-- ANCHOR:RD-016 -->
+- **RD-016** · `src/Module.Reading/Services/ReplaceRuleService.cs`
+  - 🔴 与书源自带的 ruleContent.replaceRule 是两套东西：书源内联规则跟着源走（导入进来就带，语法是三段
+  - 单条规则写错只废这一条（正则编译失败被吞掉），⛔ 不让整章正文失败。
+
+<!-- ANCHOR:RD-017 -->
+- **RD-017** · `src/Module.Reading/Services/RuleContext.cs`
+  - 🔴 条目字段（书名 / 作者 / 章节名）必须用条目自己的节点当根 —— 见
+  - `ForElement` / `ForJson`；⛔ 不许拿整页求值再按索引拼。
+  - 🔴 变量表 / @put 字典 / 告警列表在派生上下文之间共享同一份引用：
+
+<!-- ANCHOR:RD-018 -->
+- **RD-018** · `src/Module.Reading/Services/RuleEvaluator.cs`
+  - 🔴 未知前缀（@XPath: 等）与 JS 片段只废掉当前字段并记错误，⛔ 不抛异常、⛔ 不牵连同一条源的其它字段。
+
+<!-- ANCHOR:RD-019 -->
+- **RD-019** · `src/Module.Reading/Services/RuleEvaluator.Js.cs`
+  - 🔴 桥的边界只有 string 进 / string 出（见 `JsBridge`）：元素集走 JSON 索引数组、
+  - 连接走 JSON 快照。Jint 的 interop 参数推断各版本差异大，统一 string 是唯一不会踩坑的接缝。
+  - 🔴 一次求值一个 `Engine`，用完丢弃 —— 书源之间不会因全局变量串味；异常一律包死转成
+  - `RuleContext.Errors` 的一行，⛔ 不冒到界面。
+
+<!-- ANCHOR:RD-020 -->
+- **RD-020** · `src/Module.Reading/Services/RuleEvaluator.Syntax.cs`
+  - 🔴 切分顺序 = {{}} → || → && → ##。其中 ## 后两段是
+  - 正则 / 替换串，⛔ 不参与规则切分（写成先剥 ## 再拆 &amp;&amp; 结果等价，
+  - 且能避免把替换串里的 &amp;&amp; 当链）。
+  - 🔴 @js: / &lt;js&gt; 片段不参与任何切分 —— 那里的 || 是 JS 逻辑或。
+
+<!-- ANCHOR:RD-021 -->
+- **RD-021** · `src/Module.Reading/Services/RuleEvaluator.Syntax.cs`
+  - 🔴 @js: 之后是整段 JS，不参与 || / &amp;&amp; / ## 切分（那里是 JS 逻辑或）；
+
+<!-- ANCHOR:RD-022 -->
+- **RD-022** · `src/Module.Reading/Services/RuleEvaluator.Syntax.cs`
+  - 🔴 ! 是「排除」不是「倒数」—— 倒数用负数（!-1 排除最后一个）。
+
+<!-- ANCHOR:RD-023 -->
+- **RD-023** · `src/Module.Reading/Services/RuleValue.cs`
+  - 🔴 为什么必须分态：书单 / 目录这类规则要拿到节点集，后续字段规则在每个节点内分别求值；
+  - 压成 List&lt;string&gt; 就只能按索引回填，条目错位（既有抓取引擎的返工根因）。
+
+<!-- ANCHOR:RD-024 -->
+- **RD-024** · `src/Module.Reading/Services/ShelfUpdateService.cs`
+  - 🔴 只抓两段（详情 + 目录），⛔ 不抓正文 —— 更新只是「知不知道有新章」，正文留给阅读页按需抓。
+  - 🔴 首次检查只建基线（new_count = 0）：没有上次的章数就没法判断「多了几章」。
+  - 🔴 单本失败不中断整批：失败只记原因，且保留已有的章数基线（否则一次失败就把对比基准冲掉）。
+
+<!-- ANCHOR:RD-025 -->
+- **RD-025** · `src/Module.Reading/Services/SourceAnalyzer.cs`
+  - 否则 ⇒ `SourceCapability.Ready`。含 @js: 片段仍算可用 —— JS 兼容层已就位，
+
+<!-- ANCHOR:RD-026 -->
+- **RD-026** · `src/Module.Reading/Services/SourceCheckService.cs`
+  - 🔴 只跑搜索段：整条四段管线 × 几百个源会跑到几分钟，且「搜不到书」已足够判死一个源。
+  - 🔴 只读探测：⛔ 不写书架 / 进度 / 正文缓存，只写 book_sources 的三列校验结果。
+
+<!-- ANCHOR:RD-027 -->
+- **RD-027** · `src/Module.Reading/Services/SourceImportService.cs`
+  - 重复导入按 bookSourceUrl 幂等更新，⛔ 不产生副本。
+
+<!-- ANCHOR:RD-028 -->
+- **RD-028** · `src/Module.Reading/Services/SourceStore.cs`
+  - 🔴 url 是主键 ⇒ 重复导入按 url 更新，⛔ 不产生副本。
+  - 库不可用时全部方法安静返回（空列表 / 0 条），⛔ 不抛 —— 页面按「库里没有书源」渲染。
+
+<!-- ANCHOR:RD-029 -->
+- **RD-029** · `src/Module.Reading/Services/TtsService.cs`
+  - 🔴 只能走 COM 后期绑定：本模块 TFM 是 net10.0，System.Speech 只支持 -windows。
+  - 🔴 暂停 / 停止都在句子边界生效（同步 Speak 无法中途打断）⇒ 句子必须切得够细，
+  - 否则按一次暂停要等十几秒。
+
+<!-- ANCHOR:RD-030 -->
+- **RD-030** · `src/Module.Reading/Services/TxtBookService.cs`
+  - 🔴 章节是「整本书字符串上的区间」，不复制正文 —— 一本 5MB 的 txt 切成 3000 章也只占一份字符串。
+  - 🔴 规则按顺序试，第一个命中的规则胜出；全部不命中时按约 3000 字等长切块（尽量落在空行处），
+  - ⛔ 不要「识别不到就整本一章」—— 那样目录和进度都废了。
+
+<!-- ANCHOR:RD-031 -->
+- **RD-031** · `src/Module.Reading/ViewModels/ReaderViewModel.cs`
+  - 🔴 章导航 / 目录 / 书签 / 搜索 / 排版都在壳里，壳只发事件不落盘：
+
+<!-- ANCHOR:RD-032 -->
+- **RD-032** · `src/Module.Reading/ViewModels/SourceListViewModel.cs`
+  - 状态列是导入时静态判定的三档（可用 / 需 WebView / 不完整），⛔ 不发请求 —— 用户先看清哪些源现在能跑。
+
+<!-- WHY-DISTILL:modules-reading:end -->

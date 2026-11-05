@@ -8,12 +8,7 @@ using NewToys.VideoTools.Models;
 
 namespace NewToys.VideoTools.ViewModels;
 
-/// <summary>
-/// 批量处理页的「已完成」分区：跑成功的任务沉到列表下方独立一块，
-/// 上面那块只剩待处理 / 运行中 / 失败 —— 一眼能看出「还有多少没跑完」。
-/// <para>两个分区由 <c>RefreshView</c> 一次填充（同一份排序 / 筛选结果按状态分流），
-/// 不是两套查询，⛔ 别在别处再算一遍。</para>
-/// </summary>
+/// <summary>批量处理页的「已完成」分区：跑成功的任务沉到列表下方独立一块， 上面那块只剩待处理 / 运行中 / 失败 —— 一眼能看出「还有多少没跑完」。（WHY: VT-030）</summary>
 public partial class VideoBatchViewModel
 {
     /// <summary>已完成（<see cref="VideoTaskStatus.Done"/>）的任务，按当前排序排在下面那块。</summary>

@@ -73,14 +73,7 @@ public static class RelationTypes
     public const string RelatedTo = "related_to";
 }
 
-/// <summary>
-/// 标签的**适用类型**（存 <c>tags.namespace</c> 列，取代自由文本「命名空间」）。
-/// <para>
-/// 口径统一：标签只分「通用」+ 五种资产类型。详情卡按当前资产的类型只显示「通用 + 本类型」的标签，
-/// 避免「视频标签」和「音乐标签」挤在一排互相干扰；标签管理页按类型排序分组。
-/// </para>
-/// <para>⚠️ 库里的历史值可能是任意文本（老的命名空间）⇒ 读出来原样显示，编辑时收敛到这 6 个值。</para>
-/// </summary>
+/// <summary>标签的适用类型（存 tags.namespace 列，取代自由文本「命名空间」）。（WHY: MA-003）</summary>
 public static class TagTypes
 {
     /// <summary>不限类型（默认）。</summary>

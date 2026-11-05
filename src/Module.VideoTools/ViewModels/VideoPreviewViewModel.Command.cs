@@ -26,15 +26,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// <summary>当前自动生成的参数文本（与手改文本比较的基准）。</summary>
     private string AutoArgsText => string.Join(" ", BuildAutoArgs());
 
-    /// <summary>
-    /// 按当前「任务类型 + 参数」拼出 ffmpeg 参数列表（⛔ **不含**输出路径 —— 由 <see cref="ResolveOutput"/> 统一补在末尾）。
-    /// <para>三种情况：
-    /// <list type="bullet">
-    /// <item>只剪辑 → <see cref="FfmpegService.BuildCutArgs(CutTask, string?)"/></item>
-    /// <item>只转码 → <see cref="FfmpegService.BuildTranscodeArgs(TranscodeTask, string?)"/>（不带区间）</item>
-    /// <item>剪辑+转码 → 转码参数 + 区间（<see cref="TranscodeTask.TrimStart"/> / <see cref="TranscodeTask.TrimEnd"/>）</item>
-    /// </list></para>
-    /// </summary>
+    /// <summary>按当前「任务类型 + 参数」拼出 ffmpeg 参数列表（⛔ 不含输出路径 —— 由 ResolveOutput 统一补在末尾）。</summary>
     private List<string> BuildAutoArgs()
     {
         if (EditIsTranscode)

@@ -21,20 +21,7 @@ public enum ViewerKind
     Audio = 3,
 }
 
-/// <summary>
-/// 查看器外壳：按扩展名选渲染器并装载，记录阅读进度。
-/// <para>
-/// 🔴 文档定位：本外壳只管「短文本 / 源码 / HTML / 图片 / 音频」的显示；
-/// 长文本阅读（txt / 网文，含目录 / 书签 / 听书）在「网络阅读」模块（<c>Module.Reading</c> 的 ReaderShell）。
-/// </para>
-/// <para>
-/// 🔴 消费方只需 <see cref="Open"/>；媒体资产 / 视频工具将来要「用查看器打开」，
-/// 直接 new 本控件放进自己的面板即可，⛔ 不必依赖 <c>Module.Viewer</c>。
-/// </para>
-/// <para>
-/// ⛔ 本类不写文件、不碰配置 —— 最近打开 / 位置记忆 / 压缩包遍历由宿主（<c>Module.Viewer</c>）负责。
-/// </para>
-/// </summary>
+/// <summary>查看器外壳：按扩展名选渲染器并装载，记录阅读进度。（WHY: VW-009）</summary>
 public partial class ViewerHost : UserControl
 {
     private static readonly string[] TextExtensions =

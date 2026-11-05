@@ -4,10 +4,7 @@ using NewToys.Shared.Formatting;
 
 namespace NewToys.VideoTools.Models;
 
-/// <summary>
-/// ffprobe 探测出来的一条媒体信息（纯数据，不含 UI / 不含路径）。
-/// <para>由 <c>VideoScanner.ProbeAsync</c> 产出，既是给界面填列的来源，也是写进 SQLite 索引的内容。</para>
-/// </summary>
+/// <summary>ffprobe 探测出来的一条媒体信息（纯数据，不含 UI / 不含路径）。</summary>
 /// <param name="Duration">时长（秒）。</param>
 /// <param name="Width">视频宽（像素）。</param>
 /// <param name="Height">视频高（像素）。</param>
@@ -21,18 +18,7 @@ public sealed record VideoMediaInfo(
     double? Fps = null, string? ContainerFormat = null, string? AudioCodec = null,
     long? AudioBitRate = null, int? AudioStreams = null);
 
-/// <summary>
-/// 视频列表的一行（= 磁盘上的一个视频文件）。
-/// <para>
-/// <see cref="Name"/> / <see cref="SizeBytes"/> / <see cref="Modified"/> 是扫描目录就能拿到的；
-/// 时长 / 分辨率 / 编码 / 码率要跑一次 ffprobe（<c>VideoScanner.ProbeAsync</c>），
-/// 探测结果会缓存进 <c>store\video\video.db</c>（<c>VideoMediaIndex</c>），下次扫同一个目录直接命中、不再跑 ffprobe。
-/// </para>
-/// <para>
-/// 本类型是 <see cref="ObservableObject"/>：批量探测时结果**逐个异步到达**，让行自己刷新，
-/// 而不是每来一条就重建整个列表（几百个文件重建一次会很卡）。
-/// </para>
-/// </summary>
+/// <summary>视频列表的一行（= 磁盘上的一个视频文件）。</summary>
 public partial class VideoItem : ObservableObject
 {
     // ==================== 扫描目录即可得（不可变，一次性赋值） ====================

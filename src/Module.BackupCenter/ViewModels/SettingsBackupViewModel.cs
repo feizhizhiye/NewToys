@@ -13,13 +13,7 @@ using NewToys.Core.Services;
 
 namespace NewToys.BackupCenter.ViewModels;
 
-/// <summary>
-/// 「备份中心设置」页（<c>settings-backup</c>）：主密码密码库、保留份数与目录、邮件投递、文件位置。
-/// <para>
-/// 主密码⛔ 不落盘：这里只管设置 / 解锁 / 改密码 / 锁库，密码库本体由 <see cref="VaultService"/> 封装。
-/// </para>
-/// <para>7z 路径不在这里 —— 它属应用级运行环境（「设置 → 运行环境」），⛔ 同一份值存两处。</para>
-/// </summary>
+/// <summary>「备份中心设置」页（settings-backup）：主密码密码库、保留份数与目录、邮件投递、文件位置。（WHY: BC-019）</summary>
 public partial class SettingsBackupViewModel : ObservableObject
 {
     private readonly BackupSettingsService _settings;

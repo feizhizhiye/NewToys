@@ -17,13 +17,7 @@ public static class QuickActionPage
     public const string Quick = "quick";
 }
 
-/// <summary>
-/// 条目**执行类型**（<see cref="QuickAction.Kind"/> 的合法取值）。
-/// <para>
-/// 两页的分工就落在这里：「命令库」放<b>命令行命令</b>（<see cref="Command"/>，一行命令直接跑）；
-/// 「脚本库」放<b>脚本文件</b>（<see cref="Script"/>，引用脚本目录下的 .py / .ps1 / .bat）。
-/// </para>
-/// </summary>
+/// <summary>条目执行类型（QuickAction.Kind 的合法取值）。</summary>
 public static class QuickActionKind
 {
     /// <summary>命令行命令：直接执行 <see cref="QuickAction.Command"/>。</summary>
@@ -33,29 +27,7 @@ public static class QuickActionKind
     public const string Script = "script";
 }
 
-/// <summary>
-/// 「脚本库」/「命令库」里的一条项目：一条<b>系统设置项</b>（注册表开关 / 电源计划 / 控制面板入口 …）
-/// 或一段常用<b>脚本</b>。
-/// <para>
-/// ⚠️ 这里的「设置」指 <b>操作系统设置</b>，<b>不是本软件自己的设置项</b>（那种在「设置」模块里）。
-/// 两者在本模型里统一成「要跑的东西 + 元信息」，贴合本工程「个人工具 ≈ 带 GUI 的脚本管理器」的定位。
-/// </para>
-/// <para>
-/// <b>归属</b>由 <see cref="Page"/> 决定：<see cref="QuickActionPage.Shortcuts"/> 出现在「脚本库」页、
-/// <see cref="QuickActionPage.Quick"/> 出现在「命令库」页。两页**各有一份清单文件**（v1.34）：
-/// 「脚本库」=<c>config\script\script.json</c>、「命令库」=<c>config\script\script.json</c>；
-/// 收藏（<see cref="IsFavorite"/>）是同一条记录上的标记 —— 单一真相源，收藏夹页据此汇总两页的收藏项。
-/// </para>
-/// <para>
-/// <b>怎么跑</b>由 <see cref="Kind"/> 决定：命令行命令直接执行 <see cref="Command"/>；
-/// 脚本文件执行脚本目录下的 <see cref="ScriptFile"/>（解释器按 <see cref="Interpreter"/> 或扩展名挑）。
-/// <see cref="NeedAdmin"/> 为真时统一走 UAC 提权。
-/// </para>
-/// <para>
-/// ⛔ 默认清单<b>既不写死在代码里、也不随程序预置</b>（v3.60 §三）：<c>config\script\script.json</c> /
-/// <c>config\script\script.json</c> 首次运行就是**空清单**，条目全部由用户导入 / 新建（见 <c>QuickActionService</c>）。
-/// </para>
-/// </summary>
+/// <summary>「脚本库」/「命令库」里的一条项目：一条系统设置项（注册表开关 / 电源计划 / 控制面板入口 …） 或一段常用脚本。（WHY: SM-011）</summary>
 public partial class QuickAction : ObservableObject
 {
     /// <summary>稳定标识（新建时生成；收藏夹按它引用，改名不受影响）。</summary>

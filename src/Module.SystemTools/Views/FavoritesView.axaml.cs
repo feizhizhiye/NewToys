@@ -11,13 +11,7 @@ public partial class FavoritesView : UserControl
 {
     public FavoritesView() => InitializeComponent();
 
-    /// <summary>
-    /// 收藏按钮右键 = 「运行 / ✕ 移出收藏夹」，与首页「常用功能」按钮同一套操作逻辑。
-    /// <para>
-    /// <c>ContextMenu</c> 挂独立弹出树，模板里声明的菜单取不到页面 VM，
-    /// 故在此现构造 <see cref="MenuItem"/> 并写死命令与参数。
-    /// </para>
-    /// </summary>
+    /// <summary>收藏按钮右键 = 「运行 / ✕ 移出收藏夹」，与首页「常用功能」按钮同一套操作逻辑。</summary>
     private void OnItemContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         if (sender is not Control button) return;

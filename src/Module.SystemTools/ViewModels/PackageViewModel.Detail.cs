@@ -46,13 +46,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
 
     private DetailCardDescriptor? _card;
 
-    /// <summary>
-    /// 本页详情卡描述符（**C# 对象字面量**，⛔ 不做运行时 JSON / XAML 加载）。
-    /// <para>结构 = 只读信息（名称 / Id / 版本 / 状态 / 源 / 发布者 / 协议 / 安装位置 / 主页 / 描述，**全部只读可选中复制**）
-    /// + 动作组合（安装 · 升级 · 详情 · 锁定/解除锁定 · 卸载 · 打开主页，**一行按钮组**，按选中项状态显隐）。</para>
-    /// <para>🔴 2026-10-17 用户口径：只读信息一律只读 + 可复制；**已安装的包不再给「安装」**（由
-    /// <see cref="PackageInfo.IsInstalled"/> 驱动），Pin 只留一个三态按钮（未 Pin / 已 Pin 二选一显示）。</para>
-    /// </summary>
+    /// <summary>本页详情卡描述符（C# 对象字面量，⛔ 不做运行时 JSON / XAML 加载）。（WHY: ST-032）</summary>
     public DetailCardDescriptor? Card => _card ??= BuildCard();
 
     private DetailCardDescriptor BuildCard() => new()

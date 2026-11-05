@@ -8,16 +8,7 @@ using System.Threading.Tasks;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 音乐文件标签（ID3v2 / FLAC / MP4）的**读写**与**联网补全**。
-/// <para>
-/// 🔴 写操作只改标签，⛔ 不动音频数据；播放器只读不写（编辑归资产库，见「查看器 → 音乐播放」的只读契约）。
-/// </para>
-/// <para>
-/// 联网源：MusicBrainz 查元数据 + Cover Art Archive 取封面。两家都免费但要 UA、限速 ~1 请求/秒，
-/// 所以一次查询只发一个 GET，⛔ 不并发轰炸。
-/// </para>
-/// </summary>
+/// <summary>音乐文件标签（ID3v2 / FLAC / MP4）的读写与联网补全。（WHY: MA-040）</summary>
 public class MusicTagService
 {
     /// <summary>一首歌的可编辑标签。</summary>

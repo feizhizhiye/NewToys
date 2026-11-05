@@ -6,16 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 规则文本的**切分**（不碰文档）：<c>{{}}</c> 插值、<c>||</c> 并列、<c>&&</c> 节点链、
-/// <c>##</c> 正则替换、<c>@</c> 步骤、选择器归一化。
-/// <para>
-/// 🔴 切分顺序 = <c>{{}}</c> → <c>||</c> → <c>&&</c> → <c>##</c>。其中 <c>##</c> 后两段是
-/// <b>正则 / 替换串</b>，⛔ 不参与规则切分（写成先剥 <c>##</c> 再拆 <c>&amp;&amp;</c> 结果等价，
-/// 且能避免把替换串里的 <c>&amp;&amp;</c> 当链）。
-/// </para>
-/// <para>🔴 <c>@js:</c> / <c>&lt;js&gt;</c> 片段**不参与任何切分** —— 那里的 <c>||</c> 是 JS 逻辑或。</para>
-/// </summary>
+/// <summary>规则文本的切分（不碰文档）：{{}} 插值、|| 并列、&& 节点链、 ## 正则替换、@ 步骤、选择器归一化。（WHY: RD-020）</summary>
 public static class RuleSyntax
 {
     /// <summary>规则里是否含 JS 片段（判定书源档位、以及在成段切分时避免误拆 JS 逻辑符）。</summary>
@@ -36,14 +27,7 @@ public static class RuleSyntax
         return false;
     }
 
-    /// <summary>
-    /// 把规则拆成「选择器头」和「JS 代码」两段。
-    /// <para>
-    /// 🔴 <c>@js:</c> 之后是**整段 JS**，不参与 <c>||</c> / <c>&amp;&amp;</c> / <c>##</c> 切分（那里是 JS 逻辑或）；
-    /// <c>&lt;js&gt;…&lt;/js&gt;</c> 同义。两处标记取**最靠前**的一个。
-    /// </para>
-    /// <para>返回的 <c>Code</c> 为 null ⇒ 规则不含 JS，走原链路。</para>
-    /// </summary>
+    /// <summary>把规则拆成「选择器头」和「JS 代码」两段。（WHY: RD-021）</summary>
     public static (string Head, string? Code) SplitJs(string rule)
     {
         if (string.IsNullOrEmpty(rule)) return (rule, null);
@@ -247,15 +231,7 @@ public static class RuleSyntax
     private static readonly Regex IndexMark = new(
         @"^(?<sel>.+?)(?<mark>[!:])(?<list>-?\d+(?::-?\d+)*)$", RegexOptions.Compiled);
 
-    /// <summary>
-    /// 解析选择器步骤的索引尾：
-    /// <list type="bullet">
-    ///   <item><c>class.x.0</c> ⇒ 取第 1 个；<c>class.x.-1</c> ⇒ 取最后一个；</item>
-    ///   <item><c>class.x!0</c> ⇒ **排除**第 1 个；<c>class.x!0:1:2</c> ⇒ 排除前 3 个（跳过表头的常见写法）；</item>
-    ///   <item><c>class.x:1:2</c> ⇒ 只取第 2、3 个。</item>
-    /// </list>
-    /// 🔴 <c>!</c> 是「排除」不是「倒数」—— 倒数用负数（<c>!-1</c> 排除最后一个）。
-    /// </summary>
+    /// <summary>解析选择器步骤的索引尾： <list type="bullet"> class.x.0 ⇒ 取第 1 个；class.x.-1 ⇒ 取最后一个；（WHY: RD-022）</summary>
     public static SelectorStep ParseSelector(string step)
     {
         var text = step.Trim();

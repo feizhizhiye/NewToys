@@ -51,14 +51,7 @@ public abstract partial class QuickActionListViewModel : ListPageViewModelBase, 
     /// <summary>构造本页的详情卡描述符（子类实现）。</summary>
     protected abstract DetailCardDescriptor BuildCard();
 
-    /// <summary>
-    /// 详情卡的**图标动作组**（/ <see cref="FieldKind.IconBar"/>）：运行 / 收藏 / 保存 / 删除
-    /// 合成**一行 32×32 小图标按钮**（⛔ 不要四个撑满宽度的文字按钮）。
-    /// <para>
-    /// 两页**完全一致** ⇒ 基类给一份，子类把它插进字段区末尾。
-    /// 收藏 = 「未收藏 / 已收藏」两个**互斥**图标（靠 <c>IsActivePath</c> 走强调色表达状态，⛔ 无文字）。
-    /// </para>
-    /// </summary>
+    /// <summary>详情卡的图标动作组（/ FieldKind.IconBar）：运行 / 收藏 / 保存 / 删除 合成一行 32×32 小图标按钮（⛔ 不要四个撑满宽度的文字按钮）。（WHY: SM-063）</summary>
     protected DetailField BuildActionBar() => new()
     {
         Kind = FieldKind.IconBar,

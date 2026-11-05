@@ -11,14 +11,7 @@ using NewToys.WebTools.Services;
 
 namespace NewToys.WebTools.ViewModels;
 
-/// <summary>
-/// 「网页工具」模块设置页（v3.64，需求 §4.9）：View/VM 归 <c>Module.WebTools</c>，
-/// 由 <c>WebToolsModule.Initialize</c> 自注册进**本模块分组 <c>web</c>**（Key <c>settings-web-tools</c>，Order 100）。
-/// <para>
-/// 内容 = 网页抓取的**默认 UA + 单次抓取超时**（落 <c>config\web-tools.json</c>，可手改、可备份；
-/// ⛔ 不要硬编码在 <c>ScrapeService</c>）。生效方式（规范 §4.9）：失焦即落盘，⛔ 无保存按钮。
-/// </para>
-/// </summary>
+/// <summary>「网页工具」模块设置页（，需求 §4.9）：View/VM 归 Module.WebTools， 由 WebToolsModule.Initialize 自注册进本模块分组 web（Key settings-web-tools，Order 100）。（WHY: WT-017）</summary>
 public partial class SettingsWebToolsViewModel : ObservableObject, IStatusProvider
 {
     private readonly IWebToolsSettingsService _settings = null!;

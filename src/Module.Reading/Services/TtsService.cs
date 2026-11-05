@@ -10,13 +10,7 @@ namespace NewToys.Reading.Services;
 /// <summary>朗读进度：正在读第几句（0 基）/ 共几句。</summary>
 public sealed record TtsProgress(int Index, int Count);
 
-/// <summary>
-/// 听书：把一章正文切成句子，交给系统语音（Windows 自带 SAPI <c>SAPI.SpVoice</c>）逐句朗读。
-/// <para>🔴 只能走 COM 后期绑定：本模块 TFM 是 <c>net10.0</c>，<c>System.Speech</c> 只支持 <c>-windows</c>。</para>
-/// <para>🔴 暂停 / 停止都在**句子边界**生效（同步 Speak 无法中途打断）⇒ 句子必须切得够细，
-/// 否则按一次暂停要等十几秒。</para>
-/// <para>非 Windows / 没装语音 ⇒ <see cref="IsAvailable"/> 变 false 并给 <see cref="UnavailableReason"/>，页面据此提示。</para>
-/// </summary>
+/// <summary>听书：把一章正文切成句子，交给系统语音（Windows 自带 SAPI SAPI.SpVoice）逐句朗读。（WHY: RD-029）</summary>
 public sealed class TtsService : IDisposable
 {
     private object? _voice;

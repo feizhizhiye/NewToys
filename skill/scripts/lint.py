@@ -470,8 +470,12 @@ MAX_BLOCK = 6
 # 方案1 · 注释长段治理：<=5 行短契约保留，>=6 行 /// 块必须压缩 + WHY 蒸馏。
 # SLIMMED_ASSEMBLIES 是「已治理程序集」白名单，每完成一批追加一个，未治理批次不报 C-07。
 DOC_BLOCK_MAX = 6
-SLIMMED_ASSEMBLIES = ("Shared", "Core", "Shell", "UI")
+SLIMMED_ASSEMBLIES = ("Shared", "Core", "Shell", "UI", "Module.BackupCenter", "Module.MediaAssets",
+                      "Module.Reading", "Module.ScriptManager", "Module.SystemTools", "Module.VideoTools",
+                      "Module.Viewer", "Module.WebTools", "NewToys.Tests")
 DOC_MARKERS = ("inheritdoc", "lint:")
+# 成员级契约行（<param>/<returns>…）是签名说明，不是散文，C-07 不计入长段
+DOC_SIG = re.compile(r"^\s*///\s*<(?:param|returns|typeparam|exception|value)\b")
 ANCHOR_SRC = re.compile(r"WHY:\s*([A-Z]+-\d{3})")
 ANCHOR_DOC = re.compile(r"<!--\s*ANCHOR:([A-Z]+-\d{3})\s*-->")
 
@@ -556,17 +560,19 @@ def check_comments(all_: bool) -> None:
                     start = i
                 buf.append(ln)
             else:
-                if len(buf) >= DOC_BLOCK_MAX and not any(m in " ".join(buf) for m in DOC_MARKERS):
+                n = sum(1 for x in buf if not DOC_SIG.match(x))
+                if n >= DOC_BLOCK_MAX and not any(m in " ".join(buf) for m in DOC_MARKERS):
                     add("C-07", "WARN", f"{rel(f)}:{start}",
-                        f"/// 长段 {len(buf)} 行（方案1 上限 5）—— 压成契约 + WHY 蒸馏")
+                        f"/// 长段 {n} 行（方案1 上限 5）—— 压成契约 + WHY 蒸馏")
                 buf = []
-        if len(buf) >= DOC_BLOCK_MAX and not any(m in " ".join(buf) for m in DOC_MARKERS):
+        n = sum(1 for x in buf if not DOC_SIG.match(x))
+        if n >= DOC_BLOCK_MAX and not any(m in " ".join(buf) for m in DOC_MARKERS):
             add("C-07", "WARN", f"{rel(f)}:{start}",
-                f"/// 长段 {len(buf)} 行（方案1 上限 5）—— 压成契约 + WHY 蒸馏")
+                f"/// 长段 {n} 行（方案1 上限 5）—— 压成契约 + WHY 蒸馏")
 
     # A-01：anchors 双向对账（代码 WHY: ID ⇄ 文档 <!-- ANCHOR:ID -->）
     src_ids: set[str] = set()
-    for f in targets:
+    for f in walk((".cs",)):
         src_ids.update(ANCHOR_SRC.findall(read(f)))
     doc_ids: set[str] = set()
     for p in (ROOT / "skill" / "docs").rglob("*.md"):

@@ -12,13 +12,7 @@ using NewToys.MediaAssets.ViewModels;
 
 namespace NewToys.MediaAssets.Views;
 
-/// <summary>
-/// 「资产浏览」页 code-behind：只做 View 才做得了的事 ——
-/// 表头拖拽 / 测宽转发、两套视图的修饰键多选、双击打开、键盘（Enter / Delete / Ctrl+A）、
-/// 弹出菜单 DataContext、以及底栏显隐的「内容是否超出视口」量测。
-/// <para>🔴 选中真相在 VM（<c>SelectedRows</c>）：本类只把鼠标行为翻译成 <c>SelectedItems</c> 变化再回填；
-/// VM 侧改选中（全选 / 反选 / 视图切换重建）走 <c>SelectionSyncRequested</c> 反向回填。</para>
-/// </summary>
+/// <summary>「资产浏览」页 code-behind：只做 View 才做得了的事 —— 表头拖拽 / 测宽转发、两套视图的修饰键多选、双击打开、键盘（Enter / Delete / Ctrl+A）、 弹出菜单 DataContext、以及底栏显隐的「内容是否超出视口」量测。（WHY: MA-082）</summary>
 public partial class AssetBrowseView : UserControl
 {
     /// <summary>双击判定窗口（毫秒）—— 同一卡片两次按下且间隔小于它算双击。</summary>

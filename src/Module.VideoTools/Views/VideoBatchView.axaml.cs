@@ -209,14 +209,7 @@ public partial class VideoBatchView : UserControl
         }
     }
 
-    /// <summary>
-    /// 🔴 **取件点必须在这里，不能只在 <see cref="OnDataContextChanged"/>**（需求 §4.8 硬规则 8）。
-    /// <para>标签页**已存在**时从「视频列表」跳过来，Shell 只是把缓存的 View 重新挂回内容区 ——
-    /// <c>DataContext</c> 没变，<c>OnDataContextChanged</c> **不再触发**，送过来的文件就没人建任务。
-    /// <c>TakePendingCut/TakePendingTranscode</c> 取一次即清空，重复调安全。</para>
-    /// <para>⚠️ 基类 <c>Visual.OnAttachedToVisualTree</c> 是 **protected**，这里必须写 <c>protected override</c>，
-    /// 写成 <c>public override</c> → <b>CS0507「无法更改访问修饰符」</b>。</para>
-    /// </summary>
+    /// <summary>🔴 取件点必须在这里，不能只在 OnDataContextChanged（需求 §4.8 硬规则 8）。（WHY: VT-040）</summary>
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);

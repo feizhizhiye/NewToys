@@ -11,17 +11,7 @@ using NewToys.VideoTools.Models;
 
 namespace NewToys.VideoTools.Services;
 
-/// <summary>
-/// 剪切 / 转码两页的<b>任务清单</b>（单例，跨页面 / 跨会话保留）。
-/// <para>
-/// Why：这两页的本质就是「先攒一批任务，再批量跑」（用户可能扫完目录挑 20 个文件、一个一个调完参数再跑），
-/// 页面 VM 是**瞬态**的（每次导航都重建，见规范 6.5），任务若挂在 VM 上，切走一次就全没了。
-/// </para>
-/// <para>
-/// 落本模块库 <c>video.db</c> 的 <c>video_docs</c> 表（文档名 <c>tasks</c>；⛔ 不写 <c>config\video-tasks.json</c>）。
-/// 它跟随配置档 —— 换配置就是另一套任务缓存，与视频库本身一致。
-/// </para>
-/// </summary>
+/// <summary>剪切 / 转码两页的任务清单（单例，跨页面 / 跨会话保留）。（WHY: VT-024）</summary>
 public class VideoTaskStore
 {
     private static readonly JsonSerializerOptions JsonOpts = new()

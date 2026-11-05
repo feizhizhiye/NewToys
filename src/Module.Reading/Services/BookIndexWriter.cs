@@ -10,16 +10,7 @@ using NewToys.Reading.Models;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 「索引书」落盘：把一本书导成阅读页可直接读的目录 + 逐章正文 ——
-/// <c>store/reading/books/&lt;bookId&gt;/index.json</c>（书目 + 章节清单）+ <c>chapters/NNNN.txt</c>（清洗后正文，UTF-8）；
-/// 本地 TXT / MD 走 <see cref="ExportLocalText"/> 落到 <c>store/reading/local/</c>。
-/// <para>
-/// 正文来源 = 正文缓存（<see cref="ContentCacheStore"/>）：抓过的章直接落盘，⛔ 不联网补抓 ——
-/// 缺章由阅读页翻到时补写（<see cref="WriteChapter"/>）或整本下载后再导一次。
-/// 阅读页只认这两个东西 ⇒ 天然离线、重启续读。
-/// </para>
-/// </summary>
+/// <summary>「索引书」落盘：把一本书导成阅读页可直接读的目录 + 逐章正文 —— store/reading/books/&lt;bookId&gt;/index.json（书目 + 章节清单）+ chapters/NNNN.txt（清洗后正文，UTF-8）；（WHY: RD-006）</summary>
 public sealed class BookIndexWriter
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };

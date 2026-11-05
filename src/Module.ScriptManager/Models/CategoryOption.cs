@@ -1,12 +1,6 @@
 namespace NewToys.ScriptManager.Models;
 
-/// <summary>
-/// 工具条「分类 ▾」里的一项：显示标签 + 文件里的原始分类值。
-/// <para>
-/// 下拉**按文件里实际出现的值动态生成**（⛔ 不硬编码五档）；已知五档显示中文标签，
-/// 未知值原样显示。<c>Value</c> 为空串 = 「全部分类」。
-/// </para>
-/// </summary>
+/// <summary>工具条「分类 ▾」里的一项：显示标签 + 文件里的原始分类值。（WHY: SM-002）</summary>
 public sealed class CategoryOption
 {
     /// <summary>下拉里显示的文案。</summary>

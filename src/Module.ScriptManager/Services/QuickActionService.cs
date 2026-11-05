@@ -13,29 +13,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// <see cref="IQuickActionService"/> 实现：<b>两页共用一份手工数据</b>（起）。
-/// <para>
-/// 「脚本库」与「命令库」都读写 <c>&lt;配置根&gt;\config\script\script.json</c>，
-/// 用条目角色 <c>role</c>（<c>script</c> / <c>command</c> / <c>collector</c>）区分归属；
-/// 本服务是这份文件的<b>适配器</b>：把 <see cref="ScriptItem"/> 投影成 <see cref="QuickAction"/> 给库页用，
-/// 再把库页的改动 upsert 回仓储。
-/// </para>
-/// <para>
-/// <b>命令内容不写死在代码里，也不随程序预置</b>（v3.60 §3.6）：<b>干净启动</b> —— 两个配置文件
-/// 首次运行落盘成**空清单**，条目全部由用户自己导入 / 新建。软件只提供**默认路径**
-/// （<see cref="ScriptsDirectory"/> 这类常量），⛔ 不再读 <c>defaults\*.default.json</c> 播种。
-/// </para>
-/// <para>
-/// 🔴 <b>不做旧数据迁移</b>（用户 2026-10-17「无所谓老用户」）：
-/// <c>pc-scripts.json</c> / <c>pc-quick.json</c> / <c>quickactions.json</c> 一律<b>静默忽略</b>
-/// （不读、不写、不删，文件留在原地）。
-/// </para>
-/// <para>
-/// 删除等破坏性操作的二次确认通过静态钩子 <see cref="ConfirmHandler"/> 外抛 —— <c>Core</c> 不引用 Avalonia，
-/// 由宿主（<c>App.axaml.cs</c>）接到模态框上，与 <see cref="PackageManagerService"/> 同款做法。
-/// </para>
-/// </summary>
+/// <summary>IQuickActionService 实现：两页共用一份手工数据（起）。（WHY: SM-036）</summary>
 public class QuickActionService : IQuickActionService
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
@@ -297,15 +275,7 @@ public class QuickActionService : IQuickActionService
             ? $"已请求以管理员身份打开窗口运行「{item.Title}」：请在 UAC 弹窗确认，结果见新打开的窗口。"
             : $"已打开终端窗口运行「{item.Title}」：结果见弹出的窗口（关闭即可结束）。";
 
-    /// <summary>
-    /// 把一条项目翻译成"要启动的宿主 exe + 它的参数 + 工作目录"。
-    /// <list type="bullet">
-    /// <item><see cref="QuickActionKind.Command"/>：优先 pwsh（<c>-NoExit -EncodedCommand</c> 跑原始命令、窗口留着），
-    /// 拿不到 pwsh 就 <c>cmd /k</c>；命令本身原样透传，不做引号转义（用 base64 避开特殊字符）。</item>
-    /// <item><see cref="QuickActionKind.Script"/>：**运行如双击**（v3.19，需求 §6.2.2）—— 直接用系统文件关联
-    /// 启动脚本文件（<c>UseShellExecute</c>），像在资源管理器里双击它；工作目录取脚本所在目录（相对路径才好使）。</item>
-    /// </list>
-    /// </summary>
+    /// <summary>把一条项目翻译成"要启动的宿主 exe + 它的参数 + 工作目录"。（WHY: SM-037）</summary>
     private (bool Ok, string Exe, string Args, string WorkDir, string Error) BuildRunPlan(QuickAction item)
     {
         var kind = string.IsNullOrWhiteSpace(item.Kind) ? QuickActionKind.Command : item.Kind;
@@ -397,12 +367,7 @@ public class QuickActionService : IQuickActionService
         }
     }
 
-    /// <summary>
-    /// 包一层 pwsh 脚本：先回显命令本身（形如 <c>PS> &lt;命令&gt;</c>）再执行，
-    /// 让可见终端里的显示像用户手动输入命令一样完整（v3.19，需求 §6.2.1）。
-    /// <para>用户命令用 here-string 字面量（<c>@' … '@</c>）装，避开引号 / <c>$</c> / 反引杠被 pwsh 二次解析；
-    /// 唯一禁忌是命令里出现**单独一行且内容恰为 <c>'@</c>**（会提前终结 here-string），真实命令不会触发。</para>
-    /// </summary>
+    /// <summary>包一层 pwsh 脚本：先回显命令本身（形如 PS> &lt;命令&gt;）再执行， 让可见终端里的显示像用户手动输入命令一样完整（，需求 §6.2.1）。（WHY: SM-038）</summary>
     private static string BuildEchoScript(string cmd)
     {
         var sb = new StringBuilder();
@@ -491,13 +456,7 @@ public class QuickActionService : IQuickActionService
         Changed?.Invoke();
     }
 
-    /// <summary>
-    /// 从 <c>script.json</c> 投影出两个库页的内存镜像（切库）。
-    /// <para>
-    /// 🔴 旧的两份 JSON（<c>pc-scripts.json</c> / <c>pc-quick.json</c>）与更早的 <c>quickactions.json</c>
-    /// <b>静默忽略</b>：不读、不写、不删（卡 §四「不做旧数据迁移」）。
-    /// </para>
-    /// </summary>
+    /// <summary>从 script.json 投影出两个库页的内存镜像（切库）。（WHY: SM-039）</summary>
     /// <returns>恒为 <c>false</c>：判定结果的变化由 <see cref="Load"/> 自己落盘。</returns>
     private bool Load()
     {
@@ -591,12 +550,7 @@ public class QuickActionService : IQuickActionService
         CollectableEvaluator.Apply(si, ScriptsDirectory);
     }
 
-    /// <summary>
-    /// 确保脚本目录存在（<see cref="ScriptsDirectory"/>）。
-    /// <para>
-    /// §一 / ⛔ <b>不再复制示例脚本</b> —— 软件只提供默认路径，脚本内容由用户自己放 / 导入。
-    /// </para>
-    /// </summary>
+    /// <summary>确保脚本目录存在（ScriptsDirectory）。（WHY: SM-040）</summary>
     private void EnsureScriptsDirectory()
     {
         try

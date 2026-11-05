@@ -5,13 +5,7 @@ using System.Threading.Tasks;
 
 namespace NewToys.WebTools.Services;
 
-/// <summary>
-/// 平台底座：系统 hosts 位置与 DNS 缓存刷新。
-/// <para>
-/// 🔴 唯一实现是 Windows（本期交付环境）；其它平台返回「不支持」而不是编译失败 —— 契约见
-/// <c>framework.md</c> §2.1「平台中立」：页面 / 业务逻辑只认本接口，⛔ 不直接写死 <c>drivers\etc\hosts</c>。
-/// </para>
-/// </summary>
+/// <summary>平台底座：系统 hosts 位置与 DNS 缓存刷新。（WHY: WT-009）</summary>
 public interface IHostsPlatform
 {
     /// <summary>本平台是否支持改系统 hosts。</summary>

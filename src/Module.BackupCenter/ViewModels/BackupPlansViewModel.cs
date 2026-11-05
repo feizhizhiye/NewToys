@@ -62,13 +62,7 @@ public sealed class PlanRow
     public string PasswordText { get; }
 }
 
-/// <summary>
-/// 「备份中心 → 备份任务」页（<c>backup-plans</c>）：任务清单 + 工具条 + 详情卡 + 编辑弹层。
-/// <para>
-/// 立即备份的完整链路 = 探测 7z → 从密码库取包密码（没有就现场生成并入库）→ 7z 建包 → 登记包清单 → 按份数轮转。
-/// 密码库未设置 / 未解锁时一律拒跑并给出方向（⛔ 不偷偷用空密码建包）。
-/// </para>
-/// </summary>
+/// <summary>「备份中心 → 备份任务」页（backup-plans）：任务清单 + 工具条 + 详情卡 + 编辑弹层。（WHY: BC-018）</summary>
 public partial class BackupPlansViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly BackupPlanStore _store = null!;

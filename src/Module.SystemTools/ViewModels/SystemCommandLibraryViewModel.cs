@@ -17,21 +17,7 @@ using NewToys.SystemTools.Services;
 
 namespace NewToys.SystemTools.ViewModels;
 
-/// <summary>
-/// 「系统工具 → 命令库」页（<c>script-commands</c>，对标脚本库重做）：一张<b>只产生副作用</b>的命令行清单
-/// （Windows 设置面板 / 控制面板 / 管理工具 / 快捷设置 / winget）。
-/// <para>
-/// 🔴 类名必须与 View 成对：<c>SystemCommandLibraryView</c> ↔ <see cref="SystemCommandLibraryViewModel"/>
-/// （Shell 按「XxxView → XxxViewModel」约定反查 VM，名字对不上 ⇒ DataContext = null ⇒ 整页绑定静默失效）。
-/// 平移时类名没跟着改（旧名 <c>SystemCommandListViewModel</c>）⇒ 命令库页自此不渲染，改名修复。
-/// </para>
-/// <para>
-/// 🔴 继承 <see cref="ListPageViewModelBase"/>（Shared）⇒ 与脚本库<b>同一套</b>列显隐 / 表头排序 /
-/// 多项筛选 / 声明式工具条 / 详情栏开合（偏好落 <c>config\columnlayout.json</c>，页键仍是 <c>script-commands</c>）。
-/// 早期精简版（固定四列 + 页内工具条 + 无详情卡）已废除。
-/// </para>
-/// <para>🔴 执行一律走 Core 的 <c>ScriptRunner</c>，⛔ 不自己起进程；需要管理员的项只复制命令。</para>
-/// </summary>
+/// <summary>「系统工具 → 命令库」页（script-commands，对标脚本库重做）：一张只产生副作用的命令行清单 （Windows 设置面板 / 控制面板 / 管理工具 / 快捷设置 / winget）。（WHY: ST-035）</summary>
 public partial class SystemCommandLibraryViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     // 🔴 有设计期 / 无 DI 兜底构造 ⇒ 用 null! 消 CS8618；使用点均已 null 安全。

@@ -6,13 +6,7 @@ using NewToys.ScriptManager.Services;
 
 namespace NewToys.ScriptManager.Models;
 
-/// <summary>
-/// 集合页<b>集合下拉</b>的一项（§三.7）：集合本身 + 成员数等派生显示值。
-/// </summary>
-/// <remarks>
-/// ⚠️ 名字叫 <c>CollectionRow</c> 而不是 <c>ScriptCollection</c> —— 后者是落盘模型（<c>script.json</c>），
-/// 这个是界面行，带 <see cref="MemberCount"/> / <see cref="Pinned"/> 这类展示状态。
-/// </remarks>
+/// <summary>集合页集合下拉的一项（§三.7）：集合本身 + 成员数等派生显示值。（WHY: SM-004）</summary>
 public partial class CollectionRow : ObservableObject
 {
     public CollectionRow(ScriptCollection c)
@@ -110,13 +104,7 @@ public partial class CollectionRow : ObservableObject
     partial void OnIsInUseChanged(bool value) => OnPropertyChanged(nameof(DisplayLabel));
 }
 
-/// <summary>
-/// 集合页<b>成员表</b>的一行 = 全库条目 + 「是否属于当前集合」的勾选（§三.7）。
-/// </summary>
-/// <remarks>
-/// 布局是「全库清单 + 勾选」而不是「先挑条目再加」：勾 = 在集合内，取消勾 = 移出，
-/// 即时生效、无保存按钮（卡 §三.7）。
-/// </remarks>
+/// <summary>集合页成员表的一行 = 全库条目 + 「是否属于当前集合」的勾选（§三.7）。</summary>
 public partial class MemberRow : ObservableObject
 {
     public MemberRow(ScriptItem item, bool isMember)

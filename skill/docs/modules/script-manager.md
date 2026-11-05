@@ -332,3 +332,314 @@
 | — | 跨平台包管理（Debian/Ubuntu 的 apt 等）：**另开独立软件包页**（`IPackageManagerService` 保持中立，新增实现 + 新页面 + 新菜单 Key），⛔ 不在现有「软件包」页里切后端 | 📝 未立项 |
 
 > 已验收淘汰的卡见 `../backlog/script-manager/`（≤5 张滑动窗口）。
+
+## 附录 · 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:modules-script-manager:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:SM-001 -->
+- **SM-001** · `src/Module.ScriptManager/Models/CandidateResult.cs`
+  - 🔴 排序判据：条数 &gt; 0 优先，其次按「必填字段非空率」降序（同一份 HTML ⇒ 可比）。
+  - 条数取 url 字段的命中数（段间契约要求入口 / 中间段输出含 url），没有 url 时取最大字段命中数。
+
+<!-- ANCHOR:SM-002 -->
+- **SM-002** · `src/Module.ScriptManager/Models/CategoryOption.cs`
+  - 下拉按文件里实际出现的值动态生成（⛔ 不硬编码五档）；已知五档显示中文标签，
+
+<!-- ANCHOR:SM-003 -->
+- **SM-003** · `src/Module.ScriptManager/Models/CategoryPick.cs`
+  - 🔴 与资产库的 PickItem 同构但故意不共用：跨模块引用 ⛔（模块禁互引），
+
+<!-- ANCHOR:SM-004 -->
+- **SM-004** · `src/Module.ScriptManager/Models/CollectionRow.cs`
+  - ⚠️ 名字叫 CollectionRow 而不是 ScriptCollection —— 后者是落盘模型（script.json），
+
+<!-- ANCHOR:SM-006 -->
+- **SM-006** · `src/Module.ScriptManager/Models/DownloadModels.cs`
+  - 🔴 与 `CrawlResult` 的分工：那个按索引合成行表（面板列表用），这个回全量值（下载落盘用，⛔ 不截断）。
+
+<!-- ANCHOR:SM-007 -->
+- **SM-007** · `src/Module.ScriptManager/Models/FlowConfig.cs`
+  - 🔴 段位：probe（内置）→ entry → pick → toc → content → save（内置）。
+  - 只有 entry / pick / toc / content 需要用户选脚本：pick 默认人工点选、
+  - 🔴 产物形态优先级链：content 返回 ＞ # artifact: ＞ 分类缺省猜测 ＞ none。
+  - 分类只做展示分组，⛔ 不驱动 UI 行为。
+
+<!-- ANCHOR:SM-008 -->
+- **SM-008** · `src/Module.ScriptManager/Models/FlowSlot.cs`
+  - 🔴 槽位一律可选、允许留空跳过（toc 留空 = 链式模式），⛔ 不强制每段都有脚本。
+  - save 是内置下载器，⛔ 不为下载写脚本（并发 / 限速 / 去重 / 续跑 / 取消 / 进度）。
+
+<!-- ANCHOR:SM-009 -->
+- **SM-009** · `src/Module.ScriptManager/Models/PresetInfo.cs`
+  - 「从预设创建」= 把预设文件复制成一条新规则集（⛔ 不覆盖同名）。
+  - 🔴 `ProbePaths` 是站点根的相对路径（探测用）；空 = 兜底预设（任意页面都能用，⛔ 不探测）。
+
+<!-- ANCHOR:SM-011 -->
+- **SM-011** · `src/Module.ScriptManager/Models/QuickAction.cs`
+  - ⚠️ 这里的「设置」指 操作系统设置，不是本软件自己的设置项（那种在「设置」模块里）。
+  - ⛔ 默认清单既不写死在代码里、也不随程序预置（ §三）：config\script\script.json /
+
+<!-- ANCHOR:SM-012 -->
+- **SM-012** · `src/Module.ScriptManager/Models/RuleSetMeta.cs`
+  - 🔴 类名刻意不叫 ScrapeTask（旧模型已删）—— 见 命名表，避免与旧实现混淆。
+  - ⛔ 不解析 Python 语法。
+
+<!-- ANCHOR:SM-013 -->
+- **SM-013** · `src/Module.ScriptManager/Models/ScriptStore.cs`
+  - 🔴 （用户定调）：加回 package 一档 —— 它不是「用集合冒充 winget 查询结果」，
+  - ⚠️ 与条目角色 `ScriptItemRole` 是两套枚举，⛔ 不要混用。
+
+<!-- ANCHOR:SM-015 -->
+- **SM-015** · `src/Module.ScriptManager/Models/ScriptStore.cs`
+  - 这样删集合不会留下悬空引用。
+
+<!-- ANCHOR:SM-017 -->
+- **SM-017** · `src/Module.ScriptManager/Models/ScriptStore.cs`
+  - 🔴 只存「覆盖」⛔ 不复制列 schema —— 列能力归 `ScriptItem.Columns`，
+  - 脚本后来新增的 key 默认可见，不会因为视图没登记就消失。
+
+<!-- ANCHOR:SM-018 -->
+- **SM-018** · `src/Module.ScriptManager/Models/ScriptStore.cs`
+  - 🔴 由此实现「同一个脚本在 A 集合显示 abc、在 B 集合显示 bcd」——差异落在视图，⛔ 不改脚本本体。
+
+<!-- ANCHOR:SM-019 -->
+- **SM-019** · `src/Module.ScriptManager/Models/SiteProbeResult.cs`
+  - 🔴 只推荐不代选：`Best` 只是建议，⛔ 不自动创建 / 不自动选中任何预设。
+
+<!-- ANCHOR:SM-020 -->
+- **SM-020** · `src/Module.ScriptManager/ScriptManagerModule.cs`
+  - 库坏 / 目录只读都不该拦住整个应用（⛔ 不抛），页面按空数据处理。
+
+<!-- ANCHOR:SM-021 -->
+- **SM-021** · `src/Module.ScriptManager/Services/BuiltinCollectorSeeder.cs`
+  - 三件事，全部幂等 + 只加不改（用户删掉的脚本不会被复活、改名过的条目不会被覆盖）：
+  - 建一个 kind=info 的内置集合「系统信息」装它们 —— 否则首次运行信息面板是空的（卡面 §三.7 只列了
+  - 🔴 sysinfo.manifest.json 已废弃：本类不读不写不删那个文件（S8）。
+
+<!-- ANCHOR:SM-022 -->
+- **SM-022** · `src/Module.ScriptManager/Services/CollectableEvaluator.cs`
+  - 用户覆盖优先，⛔ 不被自动规则推翻。
+  - ⚠️ 黑名单按子串匹配（卡面口径「含 start / explorer / …」）。
+
+<!-- ANCHOR:SM-024 -->
+- **SM-024** · `src/Module.ScriptManager/Services/CollectorService.cs`
+  - ⚠️ 观测库失败（打不开 / 锁住）不影响界面出数据：本次结果照常返回，只把错误放进 `CollectOutcome.StorageError`。
+
+<!-- ANCHOR:SM-025 -->
+- **SM-025** · `src/Module.ScriptManager/Services/DownloadService.cs`
+  - 🔴 内置（并发 / 限速 / 去重 / 续跑 / 命名 / 取消）—— ⛔ 不脚本化：脚本只负责「这一页能取出什么」。
+  - 🔴 产物形态优先级链：content 返回 ＞ # artifact: ＞ 分类缺省猜测 ＞ none。
+  - 下载行为由 content 返回形态决定，⛔ 不由分类直接决定。
+  - 🔴 试下载与批量下载共用同一条 content 管线（`RunItemAsync`）—— ⛔ 不写两套。
+
+<!-- ANCHOR:SM-026 -->
+- **SM-026** · `src/Module.ScriptManager/Services/EnvScriptsSeeder.cs`
+  - 为什么放集合里：环境准备脚本（建 Python venv / 装依赖）本来就是"软件自己的维护脚本"，
+  - 🔴 只播种一次（.seeded 标记）：用户删掉集合 / 改坏脚本是他的意图，下次启动 ⛔ 不复活、⛔ 不覆盖。
+
+<!-- ANCHOR:SM-027 -->
+- **SM-027** · `src/Module.ScriptManager/Services/ExampleSeeder.cs`
+  - 🔴 只播种一次：examples\.seeded 标记存在 ⇒ 整体跳过。用户删掉的示例不会复活 ——
+  - ⛔ 不建集合：脚本 / 命令由 `ScriptStoreService.SyncBuiltinCollections` 自动进「脚本库」「命令库」；
+  - 采集器模板要进信息面板就由用户在集合页勾进任意 kind=info 的集合（⛔ 不自作主张塞进「系统信息」）。
+
+<!-- ANCHOR:SM-028 -->
+- **SM-028** · `src/Module.ScriptManager/Services/FlowService.cs`
+  - 🔴 不开 DB 表：flow 是「段名 → 脚本名」的轻量映射，随 rules 一起被人肉看懂 / 手改 / 拷走，
+
+<!-- ANCHOR:SM-029 -->
+- **SM-029** · `src/Module.ScriptManager/Services/InfoRowFactory.cs`
+  - 🔴 就地改值（`Apply`）—— 刷新时复用行对象 ⇒ 选中项 / 详情卡不丢、列表不闪。
+
+<!-- ANCHOR:SM-030 -->
+- **SM-030** · `src/Module.ScriptManager/Services/InfoRowFactory.cs`
+  - 🔴 空宽默认给 *（等分星号），⛔ 不给 Auto：每行是独立 Grid，
+
+<!-- ANCHOR:SM-031 -->
+- **SM-031** · `src/Module.ScriptManager/Services/IQuickActionService.cs`
+  - 一律归「命令库」。服务在加载时做一次归一化，各页面保存时也会自动把不合规的条目移过去。
+
+<!-- ANCHOR:SM-033 -->
+- **SM-033** · `src/Module.ScriptManager/Services/IScriptManagerSettingsService.cs`
+  - 🔴 ：三个解释器路径（pwsh / python / powershell 5.1）已回迁应用级
+  - （app.json，判据 =「运行环境」是应用级路由）⇒ 本契约只剩脚本目录一项。
+  - 🔴 所有 Set* 都返回状态文案（成功 / 失败都直接给状态栏用）：路径不存在 ⇒ 返回 ⚠ … 且
+  - 不写盘、保持上一个有效值（需求 §3.5）；失败文案必须以 ⚠ 开头，Shell 底栏据此显示红字。
+
+<!-- ANCHOR:SM-034 -->
+- **SM-034** · `src/Module.ScriptManager/Services/IScriptStoreService.cs`
+  - 🔴 落位由本服务决定，⛔ 不改 Core 的 ConfigStoreService / IOptionsStore：
+  - 🔴 写入一律原子（临时文件 + 替换），⛔ 不再出现"全量重写无保护"（旧 QuickActionService.Persist 的做法）。
+
+<!-- ANCHOR:SM-035 -->
+- **SM-035** · `src/Module.ScriptManager/Services/PresetSeeder.cs`
+  - 🔴 只播种一次（rules\.seeded 标记）：用户删掉的预设不会复活 ——
+  - ⚠️ 播种进来的预设就是普通规则文件：目录页直接列得出、改得动、删得掉；
+  - 「从预设创建」是另复制一份（⛔ 不动原文件）。
+
+<!-- ANCHOR:SM-036 -->
+- **SM-036** · `src/Module.ScriptManager/Services/QuickActionService.cs`
+  - （`ScriptsDirectory` 这类常量），⛔ 不再读 defaults\*.default.json 播种。
+  - 🔴 不做旧数据迁移（用户 「无所谓老用户」）：
+  - pc-scripts.json / pc-quick.json / quickactions.json 一律静默忽略
+
+<!-- ANCHOR:SM-037 -->
+- **SM-037** · `src/Module.ScriptManager/Services/QuickActionService.cs`
+  - 拿不到 pwsh 就 cmd /k；命令本身原样透传，不做引号转义（用 base64 避开特殊字符）。
+
+<!-- ANCHOR:SM-038 -->
+- **SM-038** · `src/Module.ScriptManager/Services/QuickActionService.cs`
+  - 唯一禁忌是命令里出现单独一行且内容恰为 '@（会提前终结 here-string），真实命令不会触发。
+
+<!-- ANCHOR:SM-039 -->
+- **SM-039** · `src/Module.ScriptManager/Services/QuickActionService.cs`
+  - 🔴 旧的两份 JSON（pc-scripts.json / pc-quick.json）与更早的 quickactions.json
+  - 静默忽略：不读、不写、不删（卡 §四「不做旧数据迁移」）。
+
+<!-- ANCHOR:SM-040 -->
+- **SM-040** · `src/Module.ScriptManager/Services/QuickActionService.cs`
+  - §一 / ⛔ 不再复制示例脚本 —— 软件只提供默认路径，脚本内容由用户自己放 / 导入。
+
+<!-- ANCHOR:SM-041 -->
+- **SM-041** · `src/Module.ScriptManager/Services/RuleCatalogService.cs`
+  - 🔴 元数据落 web_docs 文档 rule-meta（不是 config\ 下的文件）；
+
+<!-- ANCHOR:SM-042 -->
+- **SM-042** · `src/Module.ScriptManager/Services/RuleFileService.cs`
+  - 文件头用注释块写元数据 —— C# 侧只按行读这些键，⛔ 不解析 Python 语法（真正的执行在 Python 侧）：
+  - 🔴 类名刻意不叫 ScrapeService（旧实现已删）—— 见 命名表。
+
+<!-- ANCHOR:SM-043 -->
+- **SM-043** · `src/Module.ScriptManager/Services/RuleRunService.cs`
+  - 🔴 C# 不做任何规则解析：把 HTML 存成文件，交给 Python（`IPythonRuntime`）跑
+
+<!-- ANCHOR:SM-044 -->
+- **SM-044** · `src/Module.ScriptManager/Services/RuleRunService.cs`
+  - 🔴 设置页「网络工具设置」仍留在网络工具模块（菜单 Key `settings-web-tools` ⛔ 不改），
+  - 它把值写进 config\web-tools.json；而抓取服务现在归脚本中心（模块禁互引 ⛔ 不能引用
+
+<!-- ANCHOR:SM-045 -->
+- **SM-045** · `src/Module.ScriptManager/Services/RulesBackupSection.cs`
+  - 🔴 为什么默认勾选且必须由本模块注册：规则是「唯一无法重建的资产」（缓存 HTML 可重建、
+  - 库里的元数据可重建，唯有用户手写的表达式丢了就没了）；而规则目录的位置只有 RuleFileService 知道，
+  - 框架层 ⛔ 不引模块 ⇒ 按 `IBackupSection` 契约由模块自己提供（与脚本文件节同一套通道）。
+  - 只备 rules\，⛔ 不备 cache\（抓下来的 HTML 随时能重抓）。
+  - 恢复落到 store\restore-&lt;时间戳&gt;\web-rules\ —— ⛔ 不覆盖现有规则目录。
+
+<!-- ANCHOR:SM-046 -->
+- **SM-046** · `src/Module.ScriptManager/Services/RunRecordService.cs`
+  - 🔴 每脚本只保留最近 `KeepRuns` 条（目录名时间戳前缀 ⇒ 字典序 = 时间序）；
+  - 🔴 runs\ ⛔ 不进备份（可重建）；试跑推荐 ⛔ 不记（那是 N 个候选的横向比较，不是一次运行）。
+
+<!-- ANCHOR:SM-047 -->
+- **SM-047** · `src/Module.ScriptManager/Services/ScriptDatabase.cs`
+  - 🔴 连接一律向本模块库 `ScriptDb` 要，⛔ 不自建连接串。建表在
+  - 并发由 busy_timeout 兜底；写线程只有采集定时器，量级很低。
+  - ⚠️ 观测与条目必须分表：每次刷新写新行，进 script.json 会把它撑爆。
+
+<!-- ANCHOR:SM-049 -->
+- **SM-049** · `src/Module.ScriptManager/Services/ScriptManagerSchemaContributor.cs`
+  - 建表：pc_observations / pc_runs（历史前缀 pc_，⛔ 不改名：改要迁移数据）
+
+<!-- ANCHOR:SM-050 -->
+- **SM-050** · `src/Module.ScriptManager/Services/ScriptManagerSettingsService.cs`
+  - 还没该键就搬过来（⛔ 不丢用户配置）。
+  - 🔴 反向迁移（）：三个解释器路径在 曾下沉到本模块，判定它们属
+  - （⛔ 只在 app.json 对应字段为空时搬，用户在新页改过的一律不覆盖）；本文件里遗留的三个键
+
+<!-- ANCHOR:SM-052 -->
+- **SM-052** · `src/Module.ScriptManager/Services/ScriptsBackupSection.cs`
+  - 🔴 为什么由本模块注册：脚本目录 = 「默认脚本目录（`IQuickActionService.ScriptsDirectory`）+
+  - 各库的 RootPath」两段解析，这段知识只有脚本管理器有；框架层（Shell）⛔ 不引模块，
+  - 所以数据节按 `IBackupSection` 契约由模块自己提供 —— 与模块设置节的注册通道同一套。
+  - 恢复落到 store\restore-&lt;时间戳&gt;\scripts\&lt;别名&gt;\… —— ⛔ 不覆盖原脚本目录。
+
+<!-- ANCHOR:SM-055 -->
+- **SM-055** · `src/Module.ScriptManager/Services/ScriptStoreService.cs`
+  - 🔴 落点在库里而不是 config\：集合 / 条目 / 视图是功能数据，与观测表同库
+  - 一次性搬进表并改名 .legacy（⛔ 不删）。
+  - ⚠️ `ConfigDir` / `FilePath` 保留只为界面展示与排障（状态栏会打印落盘位置），
+  - ⛔ 不再用于读写。
+
+<!-- ANCHOR:SM-056 -->
+- **SM-056** · `src/Module.ScriptManager/Services/SysInfoOutputParser.cs`
+  - 兼容 的旧形态 values: [...]（此时属性名退化成 列1…列N，⚠️ 建议改写成 attrs）；
+  - regex：⚠️ 本期未定义 pattern 字段（卡面没定落点）⇒ 按 line 处理，等 pattern 落位后另立卡。
+
+<!-- ANCHOR:SM-058 -->
+- **SM-058** · `src/Module.ScriptManager/Services/ViewColumnProjection.cs`
+  - 🔴 由此「一个脚本在 A 集合显示 abc、在 B 集合显示 bcd」成立，且脚本本体只有一份。
+  - 投影结果一律是新建的 `ScriptColumn` 副本，⛔ 不把视图差异写回脚本 schema。
+
+<!-- ANCHOR:SM-059 -->
+- **SM-059** · `src/Module.ScriptManager/ViewModels/CollectionViewModel.cs`
+  - 🔴 成员关系存在条目侧（`ScriptItem.Collections`）：成员表是「全库清单 + 勾选」——
+  - 勾 = 在集合内、取消勾 = 移出，即时生效、无保存按钮。⛔ 集合侧不存成员 id 列表。
+  - ⛔ 本期不做层级分组（几十个集合靠「搜索 + 分组下拉 + 类型 / 标签筛选」扛，卡 §三.7）。
+
+<!-- ANCHOR:SM-060 -->
+- **SM-060** · `src/Module.ScriptManager/ViewModels/CrawlPanelViewModel.cs`
+  - 🔴 四节：① 链接·目录（动态列 + 双击 url 下钻 + 行勾选 + 右键试下载/诊断）；
+  - ② 试下载预览（单条跑 content 段，⛔ 不落最终产物）；③ 下载进度（批量 + 取消）；
+  - 🔴 下载 = `DownloadService` 内置（并发 / 限速 / 去重 / 续跑 / 取消），⛔ 不脚本化；
+  - 🔴 链式模式：一行都不勾 + 起始网址有值 ⇒ 从起始网址起 content + next 逐页跟进，
+  - rows 出来的子条目入队，目录边跑边累积（① 节空时才往里灌，⛔ 不冲掉抓链接的结果）。
+
+<!-- ANCHOR:SM-061 -->
+- **SM-061** · `src/Module.ScriptManager/ViewModels/InfoSectionViewModel.cs`
+  - 🔴 状态着色只能绑 bool 具名属性（XAML 绑不了枚举比较）：`IsOk` / `IsWarn` /
+
+<!-- ANCHOR:SM-062 -->
+- **SM-062** · `src/Module.ScriptManager/ViewModels/QuickActionListViewModel.cs`
+  - 列表上挂右键菜单（运行 / 收藏 / 复制命令 / 删除）。差别只有三点，由派生类给出：
+  - ⚠️ 这里的「设置」是操作系统设置项，不是本软件自己的设置（后者在「设置」模块，见规范 3.9）。
+
+<!-- ANCHOR:SM-063 -->
+- **SM-063** · `src/Module.ScriptManager/ViewModels/QuickActionListViewModel.Detail.cs`
+  - 收藏 = 「未收藏 / 已收藏」两个互斥图标（靠 IsActivePath 走强调色表达状态，⛔ 无文字）。
+
+<!-- ANCHOR:SM-064 -->
+- **SM-064** · `src/Module.ScriptManager/ViewModels/QuickActionListViewModel.Run.cs`
+  - ③ 落在脚本目录内的存相对文件名、目录外的存绝对路径（路径一律以配置的脚本目录为准）；
+  - ⚠️ 导入后清掉搜索 / 分类 / 表头筛选并选中第一条新增 —— 否则新条目可能被当前筛选挡住，
+
+<!-- ANCHOR:SM-066 -->
+- **SM-066** · `src/Module.ScriptManager/ViewModels/RuleCatalogViewModel.cs`
+  - 🔴 本页只管目录：列出 &lt;StoreDir&gt;\script\rules\*.py，做新建 / 删除 / 启停 / 重读。
+  - 规则的编辑与调试在另一页（`web-rule-editor`「规则编辑器」，批 C）—— 本页 ⛔ 不放命令列表与 HTML 面板。
+  - 🔴 类名刻意不叫 ScrapeViewModel（旧实现已删）；页 Key 仍是 web-scrape（落 columnlayout，⛔ 不能改）。
+
+<!-- ANCHOR:SM-067 -->
+- **SM-067** · `src/Module.ScriptManager/ViewModels/RuleEditorViewModel.cs`
+  - 🔴 范式：脚本从「一个 .py = 一个站点」降为「一个 .py = 一段」，本页把段装成 flow，
+  - 跑通后交给面板批量下载。本页 ⛔ 不做批量下载。
+  - 🔴 槽位一律可选、可留空（toc 留空 = 链式模式）；save 是内置下载器，⛔ 不为下载写脚本。
+  - 🔴 段间契约：入口 / 中间段输出必须含 url；缺了要显式报出来，⛔ 不静默。
+  - 🔴 错误回显：Python 侧的 error / traceback 必须搬到界面上，⛔ 禁止静默显示「0 条」。
+
+<!-- ANCHOR:SM-068 -->
+- **SM-068** · `src/Module.ScriptManager/ViewModels/ScriptInfoViewModel.cs`
+  - 🔴 一次只显示一个集合：顶部只有一个「集合 ▾」选择框（工具条 `ToolbarItemKind.Combo`），
+  - 切集合 = 整屏换（浏览器开一个页面的心智）。⛔ 不做 Chip 条 / 横向按钮墙 / 多集合并存（用户 否决）。
+
+<!-- ANCHOR:SM-070 -->
+- **SM-070** · `src/Module.ScriptManager/ViewModels/ScriptLibraryViewModel.cs`
+  - 与详情卡图标组的「」分工：图标组只动清单（⛔ 不碰磁盘）；右键这一路是真删文件，不可撤销。
+
+<!-- ANCHOR:SM-071 -->
+- **SM-071** · `src/Module.ScriptManager/ViewModels/SettingsScriptViewModel.cs`
+  - 🔴 ：三个解释器路径（pwsh / python / powershell 5.1）已回迁应用级
+  - （「设置 → 路径与配置」页，app.json），⛔ 本页不再有那三行。
+  - 🔴 （ 用户定调）：「软件源」节已随软件包页迁出本页（源 = 系统 winget 配置，
+  - 生效方式（规范 §4.9）：路径 = 即时生效（失焦即落盘，⛔ 无保存按钮）；无效路径 ⇒ 底栏红字 + ⛔ 不写盘。
+
+<!-- ANCHOR:SM-072 -->
+- **SM-072** · `src/Module.ScriptManager/Views/ScriptInfoView.axaml.cs`
+  - 🔴 行用 ItemsControl + PointerPressed 而不是 ListBox：
+  - 所以整页只有一个 ScrollViewer，选中由这里手动落到 VM。
+
+<!-- WHY-DISTILL:modules-script-manager:end -->

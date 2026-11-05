@@ -31,14 +31,7 @@ public partial class ScanService
 
     // ==================== 内部：遍历 / 忽略 / 哈希 ====================
 
-    /// <summary>
-    /// 手写遍历（⛔ 不用 <c>Directory.EnumerateFiles(..., AllDirectories)</c>：它遇到**一个**没权限的
-    /// 子目录就整体抛异常，整次扫描会断）。这里逐目录 try-catch：读不了的目录跳过，其余照常。
-    /// <para>
-    /// ⚠️ 用 <c>EnumerateFileSystemInfos</c> 一次拿**全部条目**（含已缓存的 Length / LastWriteTime / Attributes）：
-    /// 比 <c>GetFileSystemEntries</c> + 每个文件再 <c>new FileInfo</c> 少一轮 stat 系统调用（大目录上很明显）。
-    /// </para>
-    /// </summary>
+    /// <summary>手写遍历（⛔ 不用 Directory.EnumerateFiles(..., AllDirectories)：它遇到一个没权限的 子目录就整体抛异常，整次扫描会断）。这里逐目录 try-catch：读不了的目录跳过，其余照常。（WHY: MA-047）</summary>
     private IEnumerable<FileSystemInfo> EnumerateInfos(string root, CancellationToken ct, bool recursive = true)
     {
         var stack = new Stack<string>();

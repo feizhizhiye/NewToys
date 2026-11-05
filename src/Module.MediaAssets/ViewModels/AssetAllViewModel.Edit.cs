@@ -137,15 +137,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         StatusText = $"已把「{row.Name}」移入回收站（磁盘文件没动）。";
     }
 
-    /// <summary>
-    /// 列表右键「⛔ 从磁盘删除」：**本程序唯一**直接删磁盘文件的入口（批量口径 = 当前选中行）。
-    /// <para>
-    /// 🔴 三重防误触（这是索引库里**破坏性最大**的操作，故意把点击成本做高）：
-    /// ① 不进详情卡 / 不上工具条，**只在行右键菜单里**；② 二次确认（文案写明删几个、哪几个、"不进回收站、不可还原"）；
-    /// ③ 真删走**任务队列**（任务中心可见、可取消；一条失败不影响其余）。
-    /// </para>
-    /// <para>只想从库里移除（文件留着）→ 用「⤫ 从库移除」；只想标记 → 详情卡「移入回收站」。</para>
-    /// </summary>
+    /// <summary>列表右键「⛔ 从磁盘删除」：本程序唯一直接删磁盘文件的入口（批量口径 = 当前选中行）。（WHY: MA-058）</summary>
     [RelayCommand]
     private async Task DeleteFromDiskAsync()
     {

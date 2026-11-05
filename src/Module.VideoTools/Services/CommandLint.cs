@@ -22,14 +22,7 @@ public sealed record LintExtra(
     double TargetSizeMb = 0,
     double Duration = 0);
 
-/// <summary>
-/// **ffmpeg 参数预检**：纯静态分析，不跑 ffmpeg、不碰 UI。
-/// <para>
-/// 只做「已知冲突」白名单 —— ⛔ 不做完整 ffmpeg 语法解析（那是不可能维护的）。
-/// 目标是「用户手改命令后的常见踩坑，在点运行之前就看得见」。
-/// </para>
-/// <para>两页（视频预览 / 批量处理）共用，输入永远是「同一套 Build 函数产出的参数列表」。</para>
-/// </summary>
+/// <summary>ffmpeg 参数预检：纯静态分析，不跑 ffmpeg、不碰 UI。（WHY: VT-011）</summary>
 public static class CommandLint
 {
     private static readonly string[] CodecFlags = { "-c", "-codec", "-c:v", "-vcodec", "-codec:v" };

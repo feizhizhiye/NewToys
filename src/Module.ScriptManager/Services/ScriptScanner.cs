@@ -6,9 +6,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 扫描目录得到的一条<b>候选</b>（§三.6）。
-/// </summary>
+/// <summary>扫描目录得到的一条候选（§三.6）。</summary>
 /// <param name="FullPath">磁盘全路径。</param>
 /// <param name="RelativePath">相对脚本目录的路径（入库时写进 <see cref="ScriptItem.Target"/>）。</param>
 /// <param name="State">三态：<c>new</c> / <c>existing</c> / <c>ineligible</c>。</param>
@@ -23,12 +21,7 @@ public readonly record struct ScriptCandidate(string FullPath, string RelativePa
     public bool Selectable => State == StateNew;
 }
 
-/// <summary>
-/// <b>手动扫描</b>（§三.6）：把脚本目录里的脚本列成候选，⛔ 不自动入库。
-/// </summary>
-/// <remarks>
-/// 用户拍板「用户自己扫描」⇒ 扫描只产出候选列表，入库动作由界面上的「加入库」触发。
-/// </remarks>
+/// <summary>手动扫描（§三.6）：把脚本目录里的脚本列成候选，⛔ 不自动入库。</summary>
 public static class ScriptScanner
 {
     /// <summary>扫描目录里的脚本文件。</summary>

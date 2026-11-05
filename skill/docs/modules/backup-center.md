@@ -167,3 +167,88 @@
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 
 - v2 候选：WebDAV 通道（`IBackupTarget` 抽象位留着，⛔ 本期不做）、定时任务（计划触发器，可直接复用 `todos` 的到期数据）、增量 / 断点续传（7z `-u` 语义有限，需另设计）、VSS 快照（现在遇独占文件只跳过）、邮箱服务端容量自动清理（现由用户手动删信）。
+
+## 附录 · 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:modules-backup-center:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:BC-002 -->
+- **BC-002** · `src/Module.BackupCenter/Services/ArchiveService.cs`
+  - 缓解手段 = 包级独立密码 + 密码库加密 + 界面与日志⛔ 不回显命令原文。
+
+<!-- ANCHOR:BC-003 -->
+- **BC-003** · `src/Module.BackupCenter/Services/ArchiveService.cs`
+  - 🔴 分卷只能在压缩时决定（-v），事后无法切分 —— 邮件投递必须走这里。
+
+<!-- ANCHOR:BC-004 -->
+- **BC-004** · `src/Module.BackupCenter/Services/BackupDb.cs`
+  - 为什么进 SQLite 而不是继续用四个 JSON：日历页要按天聚合「哪天备份了几次」，
+  - ⛔ 不删旧文件 —— 迁移出错时还能手工翻查。
+
+<!-- ANCHOR:BC-005 -->
+- **BC-005** · `src/Module.BackupCenter/Services/BackupSettingsService.cs`
+  - 🔴 7z 路径不在这里存：它是「本机怎么跑外部程序」，属应用级运行环境（env.json，
+  - 唯一写入点 =「设置 → 运行环境」）。本类只做转发，避免同一份值存两处。
+
+<!-- ANCHOR:BC-007 -->
+- **BC-007** · `src/Module.BackupCenter/Services/BackupTodoStore.cs`
+  - 只是「哪天打算备份」的备忘，⛔ 不触发自动备份（定时执行属 v2）；
+
+<!-- ANCHOR:BC-008 -->
+- **BC-008** · `src/Module.BackupCenter/Services/Mail/BackupMailService.cs`
+  - 🔴 顺序是硬要求：领索引号 → 归档（带 -v 分卷）→ 算每卷 SHA256 → 先落库 → 7z t 自检 → 逐封发送。
+
+<!-- ANCHOR:BC-009 -->
+- **BC-009** · `src/Module.BackupCenter/Services/Mail/ImapMailService.cs`
+  - 🔴 取信一律走 GetMessageAsync(uid, ct)（MailKit 内部用 BODY.PEEK[]，⛔ 不会把邮件标已读），
+  - ⛔ 不用会把邮件标已读的重载 —— 用户不希望打开页面就改掉邮箱状态。
+
+<!-- ANCHOR:BC-010 -->
+- **BC-010** · `src/Module.BackupCenter/Services/Mail/MailIndexStore.cs`
+  - 为什么要缓存：搜索每次都全量拉 IMAP 会几十秒起步；这里的策略是只增量拉新的 UID，
+
+<!-- ANCHOR:BC-011 -->
+- **BC-011** · `src/Module.BackupCenter/Services/Mail/MailJobStore.cs`
+  - 🔴 先落库后发信：发信过程中崩溃 / 断电时，凭索引号与分卷清单还能找回哪几卷已发、哪几卷没发。
+
+<!-- ANCHOR:BC-012 -->
+- **BC-012** · `src/Module.BackupCenter/Services/Mail/OutboxService.cs`
+  - 为什么要缓冲而不是发完就删：邮件到没到服务器只有服务端知道，刚发完就删本地等于把「唯一可复核的副本」交出去；
+  - ⛔ 只删状态为 sent 的记录；failed / pending 的分卷一律保留（那是等着重投或人工处理的）。
+
+<!-- ANCHOR:BC-013 -->
+- **BC-013** · `src/Module.BackupCenter/Services/SevenZipLocator.cs`
+  - 顺序：用户显式指定（配了但文件不在 ⇒ 直接判不可用，⛔ 不偷偷换别的）→ 常见安装位 → PATH 里的 7z。
+
+<!-- ANCHOR:BC-014 -->
+- **BC-014** · `src/Module.BackupCenter/Services/VaultService.cs`
+  - 主密码本身⛔ 不落盘：只存 PBKDF2-SHA256（30 万次）派生的盐，以及用派生密钥做的
+  - 连续解锁失败 5 次后本会话锁库（重启程序才重试），避免在线暴力猜主密码。
+  - 🔴 条目是密文进库（blob = base64(nonce|cipher|tag)）：库文件被人拷走时看不到密码，
+
+<!-- ANCHOR:BC-015 -->
+- **BC-015** · `src/Module.BackupCenter/ViewModels/BackupArchivesViewModel.cs`
+  - 清单与磁盘对账（catalog.json ↔ 包目录里的 .7z）；还原必须先解锁密码库，
+
+<!-- ANCHOR:BC-016 -->
+- **BC-016** · `src/Module.BackupCenter/ViewModels/BackupCalendarViewModel.cs`
+  - 数据全部来自 SQLite（archives 看历史产物、runs 看失败、todos 看待办），⛔ 不再读 JSON。
+  - ⚠️ 待办只是备忘，⛔ 不会自动触发备份（定时任务属 v2）；做完请到「备份任务」页手动点「立即备份」。
+
+<!-- ANCHOR:BC-017 -->
+- **BC-017** · `src/Module.BackupCenter/ViewModels/BackupMailViewModel.cs`
+  - 🔴 打开邮件 / 下载附件全程 BODY.PEEK，⛔ 不改动邮件的已读状态。
+
+<!-- ANCHOR:BC-018 -->
+- **BC-018** · `src/Module.BackupCenter/ViewModels/BackupPlansViewModel.cs`
+  - 密码库未设置 / 未解锁时一律拒跑并给出方向（⛔ 不偷偷用空密码建包）。
+
+<!-- ANCHOR:BC-019 -->
+- **BC-019** · `src/Module.BackupCenter/ViewModels/SettingsBackupViewModel.cs`
+  - 主密码⛔ 不落盘：这里只管设置 / 解锁 / 改密码 / 锁库，密码库本体由 `VaultService` 封装。
+  - 7z 路径不在这里 —— 它属应用级运行环境（「设置 → 运行环境」），⛔ 同一份值存两处。
+
+<!-- WHY-DISTILL:modules-backup-center:end -->

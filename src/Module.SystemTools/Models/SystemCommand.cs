@@ -3,14 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace NewToys.SystemTools.Models;
 
-/// <summary>
-/// 系统工具里的一条 <b>命令条目</b>：执行完<b>只产生副作用、不产出数据</b>的那一类
-/// （打开设置面板 / 开关注册表 / 跑一条命令行命令）。
-/// <para>
-/// 🔴 与 ScriptManager 的条目模型是<b>两套</b>（模块禁互引 ⇒ 各持一份）：本模块条目落
-/// <c>config\system\commands.json</c>，⛔ 不共用 script 的存储，也不带集合 / 采集器 / 保留策略那些字段。
-/// </para>
-/// </summary>
+/// <summary>系统工具里的一条 命令条目：执行完只产生副作用、不产出数据的那一类 （打开设置面板 / 开关注册表 / 跑一条命令行命令）。（WHY: ST-004）</summary>
 public sealed partial class SystemCommand : ObservableObject
 {
     /// <summary>稳定标识（导入 / 去重 / 迁移判重用）。</summary>

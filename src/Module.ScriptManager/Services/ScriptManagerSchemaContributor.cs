@@ -4,14 +4,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 脚本管理器在自有库（<c>store\script\script.db</c>）里的建表。
-/// <list type="bullet">
-///   <item><b>建表</b>：<c>pc_observations</c> / <c>pc_runs</c>（历史前缀 <c>pc_</c>，⛔ 不改名：改要迁移数据）
-///     + <c>script_docs</c>（脚本手工数据的文档表）。</item>
-///   <item><b>老 JSON 合并</b>：<c>config\script\script.json</c> → <c>script_docs</c>（幂等）。</item>
-/// </list>
-/// </summary>
+/// <summary>脚本管理器在自有库（store\script\script.db）里的建表。（WHY: SM-049）</summary>
 public sealed class ScriptManagerSchemaContributor : ILibrarySchemaContributor
 {
     /// <summary>模块键（版本记录键 <c>schema.script-manager</c>）。</summary>

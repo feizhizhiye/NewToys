@@ -34,29 +34,7 @@ public class ActionKindOption
     public string Value { get; set; } = "";
 }
 
-/// <summary>
-/// 「脚本管理器」里两个<b>同类列表页</b>（「脚本库」与「命令库」）共用的 ViewModel。
-/// <para>
-/// 两页的布局 / 交互<b>完全一致</b>（规范 3.6）：左「可排序表头 + 列表 + 行内「运行」」，右「选中项属性卡」，
-/// 列表上挂右键菜单（运行 / 收藏 / 复制命令 / 删除）。差别只有三点，由派生类给出：
-/// ① <see cref="PageKind"/>：本页显示哪一批条目（**每页一份清单文件**，见 <c>FilePath</c>）；
-/// ② <see cref="ColumnLayoutKey"/>：列显隐偏好落 <c>config\columnlayout.json</c> 时用的页键；
-/// ③ 页面名字 <see cref="PageDisplayName"/>（提示文案用）。
-/// <b>新增项的默认类型</b>由 <see cref="PageKind"/> 推出（见 <c>IQuickActionService.Add</c>）：
-/// 「命令库」= 命令行命令、「脚本库」= 脚本文件（v1.33）。
-/// </para>
-/// <para>
-/// 列显隐 / 详情栏开合 / 排序 / 多项筛选继承自 <see cref="ListPageViewModelBase"/>（v1.35 收口），
-/// 本类只留「两页共有的业务」：分类过滤、运行、增删改查、属性卡编辑缓冲。
-/// </para>
-/// <para>
-/// ⚠️ 这里的「设置」是<b>操作系统设置项</b>，不是本软件自己的设置（后者在「设置」模块，见规范 3.9）。
-/// </para>
-/// <para>
-/// 收藏 = 每条 <see cref="QuickAction.IsFavorite"/> 上的标记（单一真相源），
-/// 「收藏夹」页读的是同一批对象，因此这里右键收藏后那边天然一致。
-/// </para>
-/// </summary>
+/// <summary>「脚本管理器」里两个同类列表页（「脚本库」与「命令库」）共用的 ViewModel。（WHY: SM-062）</summary>
 public abstract partial class QuickActionListViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly IQuickActionService? _svc;

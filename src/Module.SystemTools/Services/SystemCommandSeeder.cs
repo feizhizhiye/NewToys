@@ -12,20 +12,7 @@ namespace NewToys.SystemTools.Services;
 internal sealed record PresetCommand(
     string Id, string Title, string Category, string Description, string Command, bool NeedAdmin = false);
 
-/// <summary>
-/// 命令库<b>随包预设</b>的播种器（/ 需求 §6.7 v3.90）：Windows 常用命令（设置面板 / 控制面板 /
-/// 管理工具）+ 快捷设置（原 <c>system-quick</c> 十项，已补全缺 <c>/d</c> 取值的 reg 命令）+ winget 命令。
-/// <para>
-/// 🔴 <b>只播种一次</b>：<c>config\system\commands.seeded</c> 标记存在 ⇒ 整体跳过 —— 用户删掉的预设
-/// <b>不会复活</b>（与 <c>ExampleSeeder</c> 同一口径）。按 <see cref="SystemCommand.Id"/> <b>只加不改</b>：
-/// 用户改过标题 / 命令的预设不被覆盖。
-/// </para>
-/// <para>
-/// 🔴 全部预设 <c>Shell = "cmd"</c>：<c>reg</c> / <c>netsh</c> / <c>winget</c> / <c>start</c> / <c>.cpl</c> / <c>.msc</c>
-/// 在 <c>cmd /c</c> 下行为最稳（pwsh 会把逗号当数组运算符、对引号转义更敏感）。
-/// 需要管理员的项 <see cref="SystemCommand.NeedAdmin"/> = true ⇒ App ⛔ 不代跑，只复制命令供用户在提权终端自跑。
-/// </para>
-/// </summary>
+/// <summary>命令库随包预设的播种器（/ 需求 §6.7 ）：Windows 常用命令（设置面板 / 控制面板 / 管理工具）+ 快捷设置（原 system-quick 十项，已补全缺 /d 取值的 reg 命令）+ winget 命令。（WHY: ST-024）</summary>
 public static class SystemCommandSeeder
 {
     /// <summary>播种完成标记（内容 = 程序集版本）。存在 ⇒ 本次及以后都不再播种。</summary>

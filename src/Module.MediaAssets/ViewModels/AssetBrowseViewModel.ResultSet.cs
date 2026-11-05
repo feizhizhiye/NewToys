@@ -7,16 +7,7 @@ using NewToys.MediaAssets.Services;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「资产浏览」页的**索引结果集模式**：不枚举目录，改用索引里符合条件的一批资产铺成缩略图卡。
-/// <para>
-/// 入口 = 标签详情卡的「🎬 视频 → 资产浏览」：投递 <see cref="ResultSetRequest"/>，本页挂上树时取件后进入本模式。
-/// </para>
-/// <para>
-/// 🔴 只换**列表来源**与左树显隐，翻页 / 缩略图 / 类型筛选 / 搜索 / 排序 / 详情卡全部复用目录模式的实现
-/// —— 否则「按标签浏览」会变成第二套浏览页，两套交互迟早漂移。
-/// </para>
-/// </summary>
+/// <summary>「资产浏览」页的索引结果集模式：不枚举目录，改用索引里符合条件的一批资产铺成缩略图卡。（WHY: MA-069）</summary>
 public partial class AssetBrowseViewModel
 {
     /// <summary>本页在菜单里的键（结果集请求按它配对）。</summary>

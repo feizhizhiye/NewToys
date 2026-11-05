@@ -10,15 +10,7 @@ namespace NewToys.MediaAssets.Services;
 /// <summary>「加入资产库」的结果（状态栏文案 + 计数）。</summary>
 public sealed record AddToLibraryResult(int Added, int Skipped, string Message);
 
-/// <summary>
-/// 「资产浏览」的**入库入口**：把磁盘上的文件 / 文件夹加进资产库。
-/// <para>
-/// 🔴 两条与嵌套目录相关的硬规则：
-/// ① **祖先已登记**（目标在某存储源之内）⇒ 不另建源，文件归到那个源（<see cref="AssetService.CommitRows"/> 自己会做）；
-/// ② **子孙已登记**（目标目录里含别的存储源）⇒ 那部分文件**跳过**，⛔ 不重复索引，也不为父目录另建重叠源。
-/// </para>
-/// <para>⛔ 一律只写索引，不动磁盘文件；大批量走调用方的任务队列（本服务只提供可取消的异步方法）。</para>
-/// </summary>
+/// <summary>「资产浏览」的入库入口：把磁盘上的文件 / 文件夹加进资产库。（WHY: MA-015）</summary>
 public class AssetLibraryAddService
 {
     private readonly AssetService _assets;

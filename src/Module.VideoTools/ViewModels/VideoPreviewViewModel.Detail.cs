@@ -151,12 +151,7 @@ public partial class VideoPreviewViewModel : ObservableObject, IStatusProvider, 
     /// <summary>时长是否已知（未知就不显示时间条 —— 没时长没得拖）。</summary>
     public bool HasDuration => Duration > 0;
 
-    /// <summary>
-    /// 时间条的 <c>Maximum</c>。
-    /// <para>⚠️ **必须恒大于** <c>Minimum=0</c>：时长未知时若直接把 <c>Maximum</c> 绑到 <c>Duration</c>，
-    /// 就得到 <c>Maximum == Minimum == 0</c>，Slider 内部按 <c>(Value-Min)/(Max-Min)</c> 取值 → <c>0/0</c> = <b>NaN</b>，
-    /// Avalonia 布局拿到 NaN 会整趟算不过去（表现成「整页样式失效」）。所以给个占位 1。</para>
-    /// </summary>
+    /// <summary>时间条的 Maximum。（WHY: VT-039）</summary>
     public double TimelineMax => Duration > 0 ? Duration : 1;
 
     partial void OnSourcePathChanged(string value)

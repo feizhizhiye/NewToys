@@ -2,13 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace NewToys.Reading.Models;
 
-/// <summary>
-/// 阅读样式：排版参数的一份**可交换快照**（内置预设 / 导出文件 / 导入文件都是这个形状）。
-/// <para>
-/// 🔴 字段为 <c>null</c> = 「这一项不参与导入」，保留用户当前值 —— 手写的样式文件只写两三项也能用。
-/// 预设与导出文件则每格都填，导入即整体覆盖。
-/// </para>
-/// </summary>
+/// <summary>阅读样式：排版参数的一份可交换快照（内置预设 / 导出文件 / 导入文件都是这个形状）。（WHY: RD-003）</summary>
 public sealed class ReaderStyle
 {
     /// <summary>样式名（预设 / 导出文件都带；导入后显示在状态栏）。</summary>

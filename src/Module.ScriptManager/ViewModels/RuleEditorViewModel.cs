@@ -18,23 +18,7 @@ using NewToys.ScriptManager.Views;
 
 namespace NewToys.ScriptManager.ViewModels;
 
-/// <summary>
-/// 调试集合（<c>web-rule-editor</c>，重构）—— **装配流水线**的页：
-/// 左 = 五段槽位 + 试跑推荐 ／ 中 = HTML 源码（查找 / 定位命中）／ 右 = 选中段脚本的表达式检验。
-/// <para>
-/// 🔴 范式：脚本从「一个 <c>.py</c> = 一个站点」降为「一个 <c>.py</c> = **一段**」，本页把段装成 flow，
-/// 跑通后交给面板批量下载。**本页 ⛔ 不做批量下载**。
-/// </para>
-/// <para>
-/// 🔴 槽位一律**可选、可留空**（<c>toc</c> 留空 = 链式模式）；<c>save</c> 是内置下载器，⛔ 不为下载写脚本。
-/// </para>
-/// <para>
-/// 🔴 段间契约：入口 / 中间段输出**必须含 <c>url</c>**；缺了要显式报出来，⛔ 不静默。
-/// </para>
-/// <para>
-/// 🔴 错误回显：Python 侧的 error / traceback 必须搬到界面上，⛔ 禁止静默显示「0 条」。
-/// </para>
-/// </summary>
+/// <summary>调试集合（web-rule-editor，重构）—— 装配流水线的页： 左 = 五段槽位 + 试跑推荐 ／ 中 = HTML 源码（查找 / 定位命中）／ 右 = 选中段脚本的表达式检验。（WHY: SM-067）</summary>
 public partial class RuleEditorViewModel : ObservableObject, IStatusProvider, IToolbarSource, IDetailPanelProvider
 {
     private readonly RuleFileService _files = null!;

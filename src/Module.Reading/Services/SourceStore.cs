@@ -8,13 +8,7 @@ using NewToys.Reading.Models;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 书源库读写（<c>book_sources</c> 表）。
-/// <para>
-/// 🔴 <c>url</c> 是主键 ⇒ 重复导入按 url <b>更新</b>，⛔ 不产生副本。
-/// </para>
-/// <para>库不可用时全部方法安静返回（空列表 / 0 条），⛔ 不抛 —— 页面按「库里没有书源」渲染。</para>
-/// </summary>
+/// <summary>书源库读写（book_sources 表）。（WHY: RD-028）</summary>
 public sealed class SourceStore
 {
     private const string Columns = "url,name,group_name,source_type,enabled,rules_json,last_used_at,check_state,check_note,checked_at";

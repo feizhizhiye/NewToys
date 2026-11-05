@@ -5,20 +5,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// <see cref="IScriptManagerSettingsService"/> 的实现（v3.64）：把本模块的选项存进
-/// <c>config\script-manager.json</c>（经 Core 的 <see cref="IOptionsStore"/>，KV + 按模块分区）。
-/// <para>
-/// <b>一次性迁移</b>：脚本目录的旧位置是 <c>app.json</c>，首次运行只要 <c>script-manager.json</c>
-/// 还没该键就搬过来（⛔ 不丢用户配置）。
-/// </para>
-/// <para>
-/// 🔴 <b>反向迁移</b>（v3.65）：三个解释器路径在 曾下沉到本模块，判定它们属
-/// 「运行环境」= 应用级 ⇒ **回迁 <c>app.json</c>**。首次运行把 <c>script-manager.json</c> 里的旧值搬回去
-/// （⛔ 只在 <c>app.json</c> 对应字段为空时搬，用户在新页改过的一律不覆盖）；本文件里遗留的三个键
-/// <b>不再被读写</b>，下次写盘时会自然保留（无害）。
-/// </para>
-/// </summary>
+/// <summary>IScriptManagerSettingsService 的实现：把本模块的选项存进 config\script-manager.json（经 Core 的 IOptionsStore，KV + 按模块分区）。（WHY: SM-050）</summary>
 public class ScriptManagerSettingsService : IScriptManagerSettingsService
 {
     /// <summary>模块分区名 = 配置文件名基名（<c>config\script-manager.json</c>）。</summary>
@@ -146,13 +133,7 @@ public class ScriptManagerSettingsService : IScriptManagerSettingsService
             : $"{label}已保存：{v} · 写入 {Module}.json，立即生效。";
     }
 
-    /// <summary>
-    /// 双向一次性迁移（构造函数里跑一次，失败不阻断启动）：
-    /// <list type="number">
-    ///   <item>**正向**：<c>app.json</c> 的脚本目录 → <c>script-manager.json</c>（脚本目录仍归本模块）；</item>
-    ///   <item>**反向**：<c>script-manager.json</c> 的三个解释器路径 → <c>app.json</c>（回迁应用级）。</item>
-    /// </list>
-    /// </summary>
+    /// <summary>双向一次性迁移（构造函数里跑一次，失败不阻断启动）： <list type="number"> 正向：app.json 的脚本目录 → script-manager.json（脚本目录仍归本模块）；</summary>
     private void MigrateLegacyOnce(IAppConfigService? legacy)
     {
         if (legacy == null) return;

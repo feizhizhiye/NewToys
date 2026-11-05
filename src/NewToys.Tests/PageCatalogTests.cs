@@ -23,14 +23,7 @@ namespace NewToys.Tests.Fixtures.Other
 
 namespace NewToys.Tests
 {
-    /// <summary>
-    /// <see cref="PageCatalog"/> 的回归测试。
-    /// <para>
-    /// 它替掉了两处「每次导航全量扫已加载程序集」的实现（`NavigationService` / `ShellViewModel`），
-    /// 一旦索引语义走样，表现是「某些页面点开是空白 / 点开是别的页面」，编译期与运行期都不报错。
-    /// 因此这里钉住三条：按简单类名命中、同名返回全部候选、<c>Invalidate</c> 后可重建。
-    /// </para>
-    /// </summary>
+    /// <summary>PageCatalog 的回归测试。</summary>
     public class PageCatalogTests
     {
         [Fact]

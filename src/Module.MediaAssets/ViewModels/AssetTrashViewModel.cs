@@ -18,16 +18,7 @@ using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「回收站」页：`assets.status='trashed'` 的资产列表。
-/// <para>
-/// ⚠️ 分清两层：
-/// <list type="bullet">
-///   <item><b>软删除 / 恢复</b>（「移入回收站」/「♻ 恢复」）= **只改库状态**，逻辑操作，⛔ 不走任务队列；</item>
-///   <item><b>永久删除 / 清空</b> = **真删磁盘文件**，物理操作 → 走任务队列 + 日志先行 + 二次确认。</item>
-/// </list>
-/// </para>
-/// </summary>
+/// <summary>「回收站」页：assets.status='trashed' 的资产列表。（WHY: MA-076）</summary>
 public partial class AssetTrashViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     private readonly AssetService _assets = null!;

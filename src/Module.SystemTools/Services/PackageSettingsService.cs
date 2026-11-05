@@ -6,18 +6,7 @@ using NewToys.SystemTools.Models;
 
 namespace NewToys.SystemTools.Services;
 
-/// <summary>
-/// <see cref="IPackageSettingsService"/> 实现：落到 <c>&lt;应用根&gt;\config\package.json</c>。
-/// <para>
-/// 落点刻意选在 <c>config\</c>：这样「设置 → 数据管理」的备份 / 导入（<see cref="ConfigStoreService"/>）
-/// 天然覆盖它 —— 这就是「设置里的数据可以备份」的落地方式；模块（PC 工具箱 → 软件包管理）
-/// 只通过本服务**读**设置，不自己另存一份。
-/// </para>
-/// <para>
-/// 兼容迁移：若 <c>package.json</c> 尚不存在但旧版 <c>winget.json</c> 存在，会先读旧文件
-/// （升级前用户的源设置不丢），之后 <see cref="Save"/> 一律写新文件名。
-/// </para>
-/// </summary>
+/// <summary>IPackageSettingsService 实现：落到 &lt;应用根&gt;\config\package.json。（WHY: ST-021）</summary>
 public class PackageSettingsService : IPackageSettingsService
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };

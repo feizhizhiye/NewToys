@@ -12,13 +12,7 @@ using SmtpClient = MailKit.Net.Smtp.SmtpClient;
 
 namespace NewToys.BackupCenter.Services.Mail;
 
-/// <summary>
-/// 邮件投递：把加密包切成若干分卷、登记索引号、逐封发到邮箱。
-/// <para>
-/// 🔴 **顺序是硬要求**：领索引号 → 归档（带 <c>-v</c> 分卷）→ 算每卷 SHA256 → **先落库** → <c>7z t</c> 自检 → 逐封发送。
-/// 任何一步失败都不进入下一步，本地分卷不删（等用户重投或人工处理）。
-/// </para>
-/// </summary>
+/// <summary>邮件投递：把加密包切成若干分卷、登记索引号、逐封发到邮箱。（WHY: BC-008）</summary>
 public sealed class BackupMailService
 {
     /// <summary>同一批分卷之间的发送间隔（服务器有频率限制，连发容易被判成垃圾邮件）。</summary>

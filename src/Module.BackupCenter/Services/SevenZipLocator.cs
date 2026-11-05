@@ -12,13 +12,7 @@ namespace NewToys.BackupCenter.Services;
 /// <summary>7z 探测结果。</summary>
 public sealed record SevenZipStatus(bool Found, string Path, string Version, string Message);
 
-/// <summary>
-/// 找 7z 可执行文件并读版本号。
-/// <para>
-/// 顺序：用户显式指定（配了但文件不在 ⇒ 直接判不可用，⛔ 不偷偷换别的）→ 常见安装位 → <c>PATH</c> 里的 <c>7z</c>。
-/// 只起一次进程读版本文本（<c>7z</c> 不带参数打印横幅），结果缓存到 <see cref="Reset"/> 或下次显式探测。
-/// </para>
-/// </summary>
+/// <summary>找 7z 可执行文件并读版本号。（WHY: BC-013）</summary>
 public sealed class SevenZipLocator
 {
     private static readonly Regex VersionRe = new(@"7-Zip\s+([0-9][0-9.]*)", RegexOptions.Compiled);

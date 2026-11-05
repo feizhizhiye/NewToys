@@ -23,24 +23,7 @@ using FileOperationService = NewToys.MediaAssets.Services.FileOperationService;
 
 namespace NewToys.MediaAssets.ViewModels;
 
-/// <summary>
-/// 「全部资产」页—— 本模块的**样板列表页**：标签 / 集合 / 存储源 / 任务 / 回收站页都照这个
-/// 模式复刻（列显隐 / 排序 / 筛选由基类承载，详情面板由 **Shell** 承载）。
-/// <para>
-/// 🔴 v3.69：5 个类型页（视频 / 音乐 / 书籍 / 图片 / 文档）已**合并进本页** ——
-/// 由筛选栏的**类型控件**驱动列表数据 / 列集合 / 详情卡字段集 / 状态栏前缀（需求 §6.6「类型切换」）。
-/// </para>
-/// <para>
-/// 三个要点：
-/// <list type="number">
-///   <item>本页是**索引视图**：显示名这类逻辑改动直接改库；**重命名 / 移动 / 删除磁盘文件**由文件操作服务负责，本页一个都不做。</item>
-///   <item>详情面板实现 <see cref="IDetailPanelProvider"/>，<see cref="DetailContent"/> 返回 <c>AssetDetailView</c>
-///        → 页面 XAML 里 **⛔ 不再自带右栏**（否则会出现两个详情卡）。</item>
-///   <item>列键与行模型属性名**不一致**的列，必须在 <see cref="FieldText"/> 里显式映射 ——
-///        基类只做反射取同名属性，取不到则该条筛选**静默失效**（v3.15 教训）。</item>
-/// </list>
-/// </para>
-/// </summary>
+/// <summary>「全部资产」页—— 本模块的样板列表页：标签 / 集合 / 存储源 / 任务 / 回收站页都照这个 模式复刻（列显隐 / 排序 / 筛选由基类承载，详情面板由 Shell 承载）。（WHY: MA-055）</summary>
 public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource, ISelectionStatusProvider
 {
     // 只由 DI 注入（保留无参构造供设计期 / DI 未注册时兜底）→ 用 null! 抑制 CS8618
@@ -399,13 +382,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// <summary>当前筛选类型 = 视频：驱动详情卡的视频专属字段（列显隐见 <see cref="ApplyTypeColumnDefaults"/>）。</summary>
     public bool IsVideoType => string.Equals(FilterType?.Value, AssetTypes.Video, StringComparison.Ordinal);
 
-    /// <summary>
-    /// 类型驱动的列默认显隐（「全部资产」页的专属列切表头）：
-    /// 视频 = 时长 / 分辨率 / 编码 / 码率；音乐 = 时长 / 码率；图片 = 分辨率；
-    /// 书籍 / 文档 / 其它 / 全部类型 = 四列全收起。
-    /// <para>🔴 ⛔ **不落盘**（<c>SetColumnVisible</c> 只改内存）；用户右键改过的偏好（落盘的那些键）
-    /// **不被覆盖** —— 需求 §6.6「二者不互相覆盖」。</para>
-    /// </summary>
+    /// <summary>类型驱动的列默认显隐（「全部资产」页的专属列切表头）： 视频 = 时长 / 分辨率 / 编码 / 码率；音乐 = 时长 / 码率；图片 = 分辨率；（WHY: MA-056）</summary>
     private void ApplyTypeColumnDefaults()
     {
         var type = FilterType?.Value;
@@ -425,12 +402,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         SetColumnVisible(key, visible);
     }
 
-    /// <summary>
-    /// 「▤ 列」菜单的勾选 = 用户显式偏好：记进 <see cref="_userColumnKeys"/> 后交给基类的切换命令。
-    /// <para>🔴 ⛔ 不能拿落盘的列布局当「用户设过」的依据 —— 基类 <c>SaveVisibility</c> 是**全量落盘**：
-    /// 用户点过任意一列，就会把当时所有列的显隐一起写进配置。若以落盘快照为准则，
-    /// 类型切换会永久失效（现象：快照里有的列一律不动，只有快照之后新增的列能切）。</para>
-    /// </summary>
+    /// <summary>「▤ 列」菜单的勾选 = 用户显式偏好：记进 _userColumnKeys 后交给基类的切换命令。（WHY: MA-057）</summary>
     [RelayCommand]
     private void ToggleAssetColumn(string? key)
     {

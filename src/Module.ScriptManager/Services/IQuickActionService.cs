@@ -6,25 +6,7 @@ using NewToys.ScriptManager.Models;
 
 namespace NewToys.ScriptManager.Services;
 
-/// <summary>
-/// 「脚本管理器 → 脚本库 / 命令库」的存取 + 执行。
-/// <para>
-/// <b>两个页面 = 两个配置文件</b>（v1.34 拆分，单一职责、便于手改、不易因格式出错）：
-/// <list type="bullet">
-///   <item>「脚本库」→ <c>&lt;应用根&gt;\config\script\script.json</c>：**有脚本文件的脚本**（.py / .ps1 / .bat）。</item>
-///   <item>「命令库」→ <c>&lt;应用根&gt;\config\script\script.json</c>：**命令行命令**（<c>ms-settings:</c> / <c>reg</c> / <c>ipconfig</c>…）。</item>
-/// </list>
-/// 两个文件同属 <c>config\</c>，会被「设置 → 数据管理」一起备份 / 导入。
-/// </para>
-/// <para>
-/// <b>归属铁律</b>：「脚本库」只放**有脚本文件的脚本**；只要没指定脚本文件（也就不可能跑起来），
-/// 一律归「命令库」。服务在加载时做一次归一化，各页面保存时也会自动把不合规的条目移过去。
-/// </para>
-/// <para>
-/// 「收藏」不是第三份清单：它就是每条 <see cref="QuickAction.IsFavorite"/> 上的标记（单一真相源），
-/// 因此「收藏夹」页天然汇总两页的收藏项。
-/// </para>
-/// </summary>
+/// <summary>「脚本管理器 → 脚本库 / 命令库」的存取 + 执行。（WHY: SM-031）</summary>
 public interface IQuickActionService
 {
     /// <summary>全部项目（两页合计），顺序 = 脚本库在前、命令库在后。</summary>
@@ -81,12 +63,7 @@ public interface IQuickActionService
     /// <summary>清空某页**全部条目**并落盘（v3.19「清空本页」= 真删除，）。</summary>
     void ClearPage(string page);
 
-    /// <summary>
-    /// 运行一条项目：命令行命令直接执行；脚本文件按扩展名 / <see cref="QuickAction.Interpreter"/> 挑解释器
-    /// （python / pwsh / powershell 5.1 / cmd，路径见「设置 → 路径配置」），统一经 <c>cmd</c> 跑；
-    /// <see cref="QuickAction.NeedAdmin"/> 为真时用 UAC 提权（提权后新开一个控制台窗口，输出直接可见）。
-    /// <para>普通情况下隐藏窗口并捕获输出，返回「是否成功 + 可读的结果 / 失败原因」，供页面状态行显示。</para>
-    /// </summary>
+    /// <summary>运行一条项目：命令行命令直接执行；脚本文件按扩展名 / QuickAction.Interpreter 挑解释器 （python / pwsh / powershell 5.1 / cmd，路径见「设置 → 路径配置」），统一经 cmd 跑；</summary>
     Task<(bool Ok, string Message)> RunAsync(QuickAction item, CancellationToken ct = default);
 
     /// <summary>数据变化通知（列表 / 收藏夹刷新用）。</summary>

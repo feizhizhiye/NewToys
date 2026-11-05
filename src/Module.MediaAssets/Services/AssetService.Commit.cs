@@ -34,13 +34,7 @@ public partial class AssetService
         catch { /* 忽略 */ }
     }
 
-    /// <summary>
-    /// 「加入库」：把**预览扫描**出来的内存行批量落库（一个事务，全部成功或全部不写）。
-    /// <para>
-    /// 行可能来自多个目录（预览一个目录 / 多选文件都走这里）→ 按所在目录分组，
-    /// 各自登记或复用存储源（<c>root_path</c> 去重）。⛔ 只建索引，⛔ 不碰磁盘文件。
-    /// </para>
-    /// </summary>
+    /// <summary>「加入库」：把预览扫描出来的内存行批量落库（一个事务，全部成功或全部不写）。（WHY: MA-021）</summary>
     public int CommitRows(IReadOnlyList<AssetRow> rows)
     {
         if (!IsAvailable || rows.Count == 0) return 0;

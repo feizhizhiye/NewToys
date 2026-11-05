@@ -11,19 +11,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.SystemTools.Services;
 
-/// <summary>
-/// <see cref="IPackageManagerService"/> 的实现：当前后端把 winget 当**命令行**用。
-/// <para>
-/// 设计要点（见规范 1.1「带 GUI 的脚本管理器」）：
-/// ① 只读操作用「固定列宽表格解析」（<see cref="PackageOutputParser"/>），不走 PowerShell 中间层；
-/// ② 一律以**非交互**方式调用（协议自动接受 + <c>--disable-interactivity</c>），否则会卡在 Y/N 提示上；
-/// ③ 写操作（安装 / 卸载 / pin）**不做超时静默重试**，失败就把 winget 的原始错误原样抛给界面。
-/// </para>
-/// <para>
-/// 后续若要在 Debian 等平台支持 apt，可在此类内按 <see cref="IsSupported"/> / 运行平台分支，
-/// 或新增实现并替换 DI 注册 —— 接口层（<see cref="IPackageManagerService"/>）保持中立。
-/// </para>
-/// </summary>
+/// <summary>IPackageManagerService 的实现：当前后端把 winget 当命令行用。（WHY: ST-012）</summary>
 public class PackageManagerService : IPackageManagerService
 {
     private static string? _exePath;
@@ -32,22 +20,7 @@ public class PackageManagerService : IPackageManagerService
     /// <summary>进程执行本体走统一底座（编码 / 超时 / 取消杀进程树）。</summary>
     public PackageManagerService(IProcessRunner runner) => _runner = runner;
 
-    /// <summary>
-    /// 包 Id 的形状，用来滤掉表格尾部的"统计行"。
-    /// <para>
-    /// ⚠️ 必须允许**反斜杠**：MSI/ARP 安装的条目 Id 形如
-    /// <c>ARP\Machine\X86\AMD_Chipset_IODrivers</c>、<c>MSIX\Microsoft.AV1VideoExtension_…</c>，
-    /// 旧正则不认 <c>\</c> 会把这类已安装条目整批丢掉（v1.33 修正，也是"列表少东西"的原因之一）。
-    /// </para>
-    /// <para>
-    /// 🔴 v3.37：实测再修正（winget 1.29 真实 <c>winget list</c> 输出）：合法 Id 远不止"点分命名"——
-    /// 实测存在 <b>带空格</b>的 <c>ARP\Machine\X64\Steam App 570</c>、<b>带花括号</b>的
-    /// <c>ARP\Machine\X86\{{GUID}}</c>、乃至 <b>带中文</b>的 <c>ARP\Machine\X86\天翼云盘</c>，
-    /// 旧白名单把它们全误杀了。现将空格 / 花括号 / 方括号 / 圆括号 / 中文块加入白名单；
-    /// 统计行 / 提示行（如 <c>winget upgrade</c> 尾部的"1 程序包拥有阻止升级的包钉。使用 'winget pin'…"）
-    /// 都是**短行或含句子标点**（<c>'</c> <c>。</c> 等不在白名单）→ 仍被滤掉。
-    /// </para>
-    /// </summary>
+    /// <summary>包 Id 的形状，用来滤掉表格尾部的"统计行"。（WHY: ST-013）</summary>
     private static readonly Regex IdLike = new(@"^[A-Za-z0-9\u4e00-\u9fff][A-Za-z0-9._+\\\-{}\[\]() \u4e00-\u9fff]*$", RegexOptions.Compiled);
 
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(180);
@@ -280,14 +253,7 @@ public class PackageManagerService : IPackageManagerService
             : (false, Explain(r, $"取消 Pin {id} 失败"));
     }
 
-    /// <summary>
-    /// 不可逆操作（卸载 / 删源）前的二次确认 —— 规范 3.7 的第三个分界。
-    /// <para>
-    /// 本服务从 Core 下放到模块后，**Shell 不能再直接给它接钩子**（Release 下 Shell 不引模块）
-    /// ⇒ 改走 Core 的公共钩子 <see cref="DialogHooks.ConfirmAsync"/>（Shell 已注入同一套模态框）。
-    /// **钩子没接上时返回 false** —— 宁可什么都不做，也不能在用户没确认的情况下卸载软件。
-    /// </para>
-    /// </summary>
+    /// <summary>不可逆操作（卸载 / 删源）前的二次确认 —— 规范 3.7 的第三个分界。（WHY: ST-014）</summary>
     private static Task<bool> ConfirmAsync(string message)
         => DialogHooks.ConfirmAsync(message);
 

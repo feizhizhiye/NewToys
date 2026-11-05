@@ -11,17 +11,7 @@ using Jint;
 
 namespace NewToys.Reading.Services;
 
-/// <summary>
-/// 求值器的 JS 兼栈层：<c>@js:</c> / <c>&lt;js&gt;</c> 片段 + <c>java.*</c> 桥。
-/// <para>
-/// 🔴 桥的边界只有 <b>string 进 / string 出</b>（见 <see cref="JsBridge"/>）：元素集走 JSON 索引数组、
-/// 连接走 JSON 快照。Jint 的 interop 参数推断各版本差异大，统一 string 是唯一不会踩坑的接缝。
-/// </para>
-/// <para>
-/// 🔴 一次求值一个 <see cref="Engine"/>，用完丢弃 —— 书源之间不会因全局变量串味；异常一律包死转成
-/// <see cref="RuleContext.Errors"/> 的一行，⛔ 不冒到界面。
-/// </para>
-/// </summary>
+/// <summary>求值器的 JS 兼栈层：@js: / &lt;js&gt; 片段 + java.* 桥。（WHY: RD-019）</summary>
 public sealed partial class RuleEvaluator
 {
     private readonly Func<string, string, string, string>? _fetch;

@@ -21,18 +21,7 @@ using NewToys.WebTools.Services;
 
 namespace NewToys.WebTools.ViewModels;
 
-/// <summary>
-/// 网址收藏页：整页一棵树（文件夹行 + 书签行同列表混排，缩进表示层级）+ 右侧详情卡。
-/// <para>
-/// 功能：导入浏览器书签（AngleSharp 解析 Netscape HTML，保留文件夹层级）、展开 / 折叠、
-/// 联通检测、批量打开、跨页发送到网页抓取、按所选浏览器配置打开。
-/// 列显隐 / 详情开合偏好落 <c>config\columnlayout.json</c>。
-/// </para>
-/// <para>
-/// 🔴 树⛔ 用 <c>TreeView</c>：它会把整行（含网址 / 状态列）随层级右移，与表头必然错位。
-/// 这里按先序把可见节点拍平进 <see cref="VisibleNodes"/>，缩进只作用第一列的占位 Border。
-/// </para>
-/// </summary>
+/// <summary>网址收藏页：整页一棵树（文件夹行 + 书签行同列表混排，缩进表示层级）+ 右侧详情卡。（WHY: WT-014）</summary>
 public partial class BookmarkViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource
 {
     // ==================== 声明式工具条（Shell 承载） ====================

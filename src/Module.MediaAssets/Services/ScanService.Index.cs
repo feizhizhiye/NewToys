@@ -13,13 +13,7 @@ namespace NewToys.MediaAssets.Services;
 public partial class ScanService
 {
 
-    /// <summary>
-    /// 导入**指定的一批文件**（工具条「📄 导入文件」）：按所在目录各自登记 / 复用存储源后逐个入库。
-    /// <para>
-    /// 🔴 与 <see cref="ScanAsync"/> 的关键差别：**不做 missing 校准** —— 用户只选了几个文件，
-    /// 同目录的其它文件没被选上，不能把它们判成「丢失」。
-    /// </para>
-    /// </summary>
+    /// <summary>导入指定的一批文件（工具条「📄 导入文件」）：按所在目录各自登记 / 复用存储源后逐个入库。（WHY: MA-045）</summary>
     public async Task<ScanJob> IndexFilesAsync(IReadOnlyList<string> files,
                                                IProgress<string>? progress,
                                                CancellationToken ct)

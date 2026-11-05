@@ -1,12 +1,6 @@
 namespace NewToys.MediaAssets.Models;
 
-/// <summary>
-/// 文件位置一行（`file_locations`）：一个资产可有多份拷贝 / 多个路径。
-/// <para>
-/// 匹配（需求 §6.6 核心流程）按 ① <see cref="StorageId"/>+<see cref="RelativePath"/> →
-/// ② <see cref="Hash"/>+<see cref="Size"/> → ③ <see cref="Inode"/>+<see cref="Device"/>（仅本地）依次进行。
-/// </para>
-/// </summary>
+/// <summary>文件位置一行（file_locations）：一个资产可有多份拷贝 / 多个路径。</summary>
 public class FileLocation
 {
     public long Id { get; set; }

@@ -4,18 +4,7 @@ using NewToys.MediaAssets.Models;
 
 namespace NewToys.MediaAssets.Services;
 
-/// <summary>
-/// 操作日志（`operation_logs`，）—— 模块内**唯一**写日志的入口。
-/// <para>
-/// <b>两种用法</b>：
-/// <list type="number">
-///   <item><b>逻辑操作</b>（改库，不动磁盘）：直接 <see cref="Log"/> 一条 <c>success</c>，<c>reversible=1</c>；</item>
-///   <item><b>物理操作</b>（动磁盘）：<see cref="Begin"/> 写 <c>pending</c> → 做磁盘动作 → <see cref="Finish"/> 改
-///        <c>success</c> / <c>failed</c>（失败留 <c>before_json</c>，需求 §6.6「日志先行」）。</item>
-/// </list>
-/// </para>
-/// <para>⛔ 库不可用时全部方法静默降级（返回 0 / 空列表），⛔ 不抛。</para>
-/// </summary>
+/// <summary>操作日志（operation_logs，）—— 模块内唯一写日志的入口。（WHY: MA-041）</summary>
 public class OperationLogService
 {
     private readonly AssetDatabase _db;

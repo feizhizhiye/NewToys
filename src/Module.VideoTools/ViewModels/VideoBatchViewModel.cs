@@ -21,18 +21,7 @@ using NewToys.VideoTools.Services;
 
 namespace NewToys.VideoTools.ViewModels;
 
-/// <summary>
-/// 「视频工具 → 批量处理」页（v3.8）。
-/// <para>
-/// **列表是「剪辑 + 转码」混排的统一队列** —— 两类任务的公共基类是
-/// <see cref="VideoTaskBase"/>（状态 / 进度 / 文件名 / 输出大小都在它上面），所以直接把
-/// <c>CutTasks</c> 与 <c>TranscodeTasks</c> 合并进同一个 <see cref="Items"/> 即可，
-/// ⛔ **不改 `VideoTaskStore` 的存储结构**（它仍分两个集合落盘）。
-/// </para>
-/// <para>
-/// 运行按类型分派：剪辑 → <c>BuildCutArgs</c>，转码 → <c>BuildTranscodeArgs</c>，统一走 <c>RunAsync</c>。
-/// </para>
-/// </summary>
+/// <summary>「视频工具 → 批量处理」页。（WHY: VT-029）</summary>
 public partial class VideoBatchViewModel : ListPageViewModelBase, IDetailPanelProvider, IDetailCardSource, ISelectionStatusProvider
 {
     // ==================== 声明式工具条 + 选择器命令（/ 需求 §4.8.5） ====================

@@ -37,14 +37,7 @@ public sealed class AssetJsonFile
     public List<AssetJsonItem> Items { get; set; } = new();
 }
 
-/// <summary>
-/// 资产列表的 JSON 导入 / 导出（R1 缓解的一部分）。
-/// <para>
-/// 🔴 **导入 = 追加合并**（⛔ 不静默覆盖）：按绝对路径去重（已有 → 跳过），新的按所在目录
-/// 登记 / 复用存储源后入库（复用 <see cref="AssetService.CommitRows"/> 的事务），再补
-/// 评分 / 描述 / 标签 / 分类 / 集合（组织信息按名字 get-or-create）。
-/// </para>
-/// </summary>
+/// <summary>资产列表的 JSON 导入 / 导出（R1 缓解的一部分）。（WHY: MA-014）</summary>
 public class AssetImportExport
 {
     public const string FormatName = "newtoys-media-assets-list";

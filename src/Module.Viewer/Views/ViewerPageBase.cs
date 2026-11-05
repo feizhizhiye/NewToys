@@ -20,18 +20,7 @@ using NewToys.Viewer.ViewModels;
 
 namespace NewToys.Viewer.Views;
 
-/// <summary>
-/// 查看器页的公共逻辑（文本 / 图片 / 音频三页共用一份）：控件操作与文件选择都在这里，
-/// VM ⛔ 不碰 StorageProvider、⛔ 不 new 控件。
-/// <para>
-/// 🔴 子类 XAML 必须给这些元件起同名：<c>Host</c> / <c>RecentList</c> / <c>ArchiveList</c> /
-/// <c>HistoryPanel</c> / <c>SplitGrid</c> / <c>SectionBox</c>。基类按名字取控件（XAML 生成的字段在子类里，基类拿不到）。
-/// </para>
-/// <para>
-/// 🔴 本类不做范围判断 —— 收不收这个文件由 <see cref="ViewerViewModel.TryRouteElsewhere"/> 决定，
-/// 不属于本页的文件会转去目标页。长文本阅读（txt / md / log）已并入「网络阅读」，本页打开时给指引提示。
-/// </para>
-/// </summary>
+/// <summary>查看器页的公共逻辑（文本 / 图片 / 音频三页共用一份）：控件操作与文件选择都在这里， VM ⛔ 不碰 StorageProvider、⛔ 不 new 控件。（WHY: VW-023）</summary>
 public abstract class ViewerPageBase : UserControl
 {
     private ViewerViewModel? _vm;
@@ -496,13 +485,7 @@ public abstract class ViewerPageBase : UserControl
         return Math.Clamp(size, 10, SectionSize);
     }
 
-    /// <summary>
-    /// 把条目条滚到第 <paramref name="index"/> 条。
-    /// <para>🔴 容器要等布局才生成（换过 ItemsSource 更是如此）：拿不到容器或滚动量还没实测出来就等下一帧再试，
-    /// ⛔ 别用 <c>BringIntoView</c> —— 它只会贴着边缘滚，激活项永远卡在边上。</para>
-    /// <para>🔴 定位策略：条目**没铺满**条目条 ⇒ 保持从头顺序排列（<c>Offset = 0</c>）；
-    /// **铺满或超出** ⇒ 把当前条滚到**正中**（贴边滚动的 BringIntoView 会让激活项永远卡在边缘，看不出前后关系）。</para>
-    /// </summary>
+    /// <summary>把条目条滚到第 <paramref name="index"/> 条。（WHY: VW-024）</summary>
     private void ScrollEntryIntoView(int index)
     {
         if (index < 0) return;

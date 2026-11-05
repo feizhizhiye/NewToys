@@ -14,15 +14,7 @@ public enum BookmarkNodeKind
     Bookmark
 }
 
-/// <summary>
-/// 书签树的**视图节点**：由扁平列表按 <see cref="BookmarkItem.Folder"/>（<c>/</c> 分隔全路径）**派生**，
-/// ⛔ 不持久化、⛔ 不进 <c>web_docs</c>。
-/// <para>
-/// 🔴 页面按「缩进列 + 扁平集合」渲染（不是 <c>TreeView</c>）：展开态由 <see cref="IsExpanded"/> 记在节点上，
-/// 页面 VM 只把**当前可见**的节点按先序塞进 <c>VisibleNodes</c>。这样整个行宽仍由列规格串决定 ⇒
-/// 网址列 / 状态列与表头严格对齐（<c>TreeView</c> 的层级自动缩进会把整行右移，列必然错位）。
-/// </para>
-/// </summary>
+/// <summary>书签树的视图节点：由扁平列表按 BookmarkItem.Folder（/ 分隔全路径）派生，。（WHY: WT-001）</summary>
 public partial class BookmarkNode : ObservableObject
 {
     /// <summary>节点类型。</summary>

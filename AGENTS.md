@@ -99,6 +99,6 @@ NewToys = 带 GUI 的 Windows 桌面工具管理器（脚本管理器定位，�
 - [ ] 已用 `python skill/scripts/ctx.py --task <feature|ui|interaction|fix|usage|verify|card> --module <模块>` 一次性拿到本次基线（⛔ 不逐份 Read 文档；需要更多用 `--doc <文件> --section <节号>` 精读）
 - [ ] 已定位本次任务对应的 `modules/<模块>.md` / `ui.md` / `framework.md` 章节（定向读，⛔ 不整读）
 - [ ] 动手前已给变更声明（文件清单 + 验收标准 + 风险/待拍板点）
-- [ ] 交付前跑**静态验收** `pwsh skill/scripts/accept.ps1`（= 9 项静态检查 + 文档一致性对账 + 改动范围；退出码 0/1。详见《AI协作手册》[4][6]）。⛔ 该脚本不含构建，编译由用户本地 `scripts/build.ps1` 执行
+- [ ] 交付前跑**静态验收** `pwsh skill/scripts/accept.ps1`（= 10 项静态检查 + 文档一致性对账 + 改动范围；退出码 0/1。详见《AI协作手册》[4][6]）。⛔ 该脚本不含构建，编译由用户本地 `scripts/build.ps1` 执行
 - [ ] 本批改动已攒成**一次 build**，未中途要求用户重建；未因样式/文案微调新开 NT
 - [ ] 交付时同步更新 `modules/<模块>.md`（功能 / 逻辑 / 坑点变了才改）

@@ -271,11 +271,12 @@
 3.2 🔴 **改父级的候选必须剔除自己与整棵子树**：`Move` 服务层会拦，但候选里留着就会让用户点了没反应；`SubtreeIds` 已带自环保护。
 3.3 🔴 **`MusicTagService` 写标签是同步文件 IO**：文件被播放器 / 杀软占用时 `TagLib.File.Save()` 会抛 ⇒ 必须 `try/catch` 转成状态栏文案，⛔ 让异常冒到 UI。
 3.4 **MusicBrainz 必须带可识别 UA 且限速 ~1 req/s**：一次联网只发一个 GET + 最多两次封面 GET；⛔ 批量循环查询（会被 503）。
+3.5 **资产 → 播放器只有一条通道**：`ModuleTopics.AudioPlay`（载荷路径数组）与 `ViewerTopics.OpenFiles`（载荷 `ViewerOpenRequest`）互不相干，⛔ 别并成一条总线；译文文件约定经 `TranslationLoader` 委托注入 `AudioPlayer`，UI 库 ⛔ 不引模块服务。
 4. 回收站曾缺「删除时间」列（NT-029 已修）：`AssetRow.UpdatedAt` + `AssetService.QueryRows` 末尾追加 `a.updated_at`（列索引 14，⛔ 不动 0~13）；移动 / 复制的 UI 入口 NT-030 曾补（现已删，见第 5 条），当时的两条约束仍有效：目标只能是已登记存储源根（`IsInside` 防穿越）+ 详情卡 ComboBox 用 `SelectedValueBinding`（⛔ WPF 专有 `SelectedValuePath` 在 Avalonia 会 AVLN2000）。
 5. 收藏 / 评分 **即时落盘**（⛔ 不走「保存」）；「移动到 / 复制到（目标存储源）」整块已删（低频重操作不进卡）。
 6. 资产详情卡 chips 的 `OptionsPath` 必须是常驻集合实例，否则 ComboBox 回写会抹掉页面值（见 `../ui.md` §7.2）。
 7. `AssetTasksView` **不是标准列表页**（三块堆叠 + `ScrollViewer`）⇒ ⛔ 不套 `ListPageSkeleton`。
-8. 空态引导只覆盖资产列表类页（`assets-all` 等）；`assets-categories` / `assets-collections` 数据源是左树 + 成员列表，**无空态也无 `HasItems`**（NT-060 遗留，未补）。
+8. 空态引导只覆盖资产列表类页（`assets-all` 等）；`assets-categories` / `assets-collections` 自 NT-137 起已是同构列表页，**仍无空态也无 `HasItems`**（NT-060 遗留，未补）。
 9. 🔴 **右键「📂 打开 / 📁 打开所在文件夹」⛔ 不许在 UI 线程直接 `File.Exists` + `Process.Start`**：两者都要碰目标文件所在卷，机械硬盘休眠唤醒要数秒、网络盘还要等超时 ⇒ 整窗卡死，用户会以为「比资源管理器慢」。资源管理器双击快是因为它不做前置存在性检查、且关联处理器已在 shell 进程内热加载。现在统一走 `AssetAllViewModel.FileOps.cs::RunOffUiThread`（线程池 + `Dispatcher.UIThread.Post` 回投文案）。
 10. 🔴 **`TagsExpr` / `CategoriesExpr` / `CollectionsExpr` 内层必须 `SELECT n.name AS name`**：外层 `group_concat` 只能引用内层**输出列名**（`name`），写成 `group_concat(n.name, …)` 会让 SQLite 抛 `no such column: n.name`。这三个表达式只出现在 **WHERE（搜索）/ ORDER BY（按那三列排序）/ 表头筛选**，不在 `QueryPage` 的 SELECT 里 ⇒ 列表本身照常显示，但**任何关键字搜索恒返回 0 行、按标签/分类/集合排序恒空**，且异常被 `catch` 吞成空页（2026-10-27 修；`LastQueryError` 现在会上状态栏 `⚠`）。
 11. 🔴 **存储源 = 目录；一个文件只属于它上一级文件夹的源**（2026-11-03 口径**反转**，取代旧版「归覆盖它的祖先源 / 拒绝父子源」）：

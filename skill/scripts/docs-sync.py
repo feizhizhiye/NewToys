@@ -17,7 +17,8 @@ AUTO 块（机器事实由脚本生成，块外是人写的判断；⛔ 不要�
 检查项
     keys    菜单 Key：代码 ⇄ modules/<模块>.md ⇄ 软件说明书
     menu    模块清单四方：代码 RegisterModule / RegisterFunction ⇄ framework §4.2 ⇄ index §二 ⇄ 台账基线 ⇄ 模块 md 头部（键 / 显示名 / Order / 图标 / 页数）
-    paths   文档里的路径引用（``Xxx/Yyy.cs``）在 src 是否存在
+    paths   文档里的路径引用（``Xxx/Yyy.cs``）在 src 是否存在；``Xxx.cs:12-16`` 的行号是否越界
+    rules   tech-guard 的 G 编号 ⇄ lint.py 实现；lint.py 检查项 ⇄ accept.py 登记
     cards   backlog 每目录卡数（>5 且含已验收卡 ⇒ 应淘汰）、模块 md §2.5 存在性
     ledger  NT 编号：卡文件 ⇄ 台账 / framework §11.2 索引
 """
@@ -28,24 +29,17 @@ import re
 import sys
 from pathlib import Path
 
+import facts
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-ROOT = Path(__file__).resolve().parents[2]
-DOCS = ROOT / "skill" / "docs"
-SRC = ROOT / "src"
+ROOT = facts.ROOT
+DOCS = facts.DOCS
+SRC = facts.SRC
 
-# src/Module.Xxx → modules/xxx-yyy.md
-MODULE_DIR = {
-    "Module.ScriptManager": "script-manager",
-    "Module.MediaAssets": "media-assets",
-    "Module.VideoTools": "video-tools",
-    "Module.WebTools": "web-tools",
-    "Module.SystemTools": "system-tools",
-    "Module.BackupCenter": "backup-center",
-    "Module.Viewer": "viewer",
-    "Module.Reading": "reading",
-}
+# 由 src/Module.* 目录自举；⛔ 不再手写模块清单
+MODULE_DIR = facts.module_dirs()
 
 RE_REG_FN = re.compile(r'RegisterFunction\s*<[^>]*>\s*\(\s*([^,()]+),\s*"([a-z0-9-]+)"\s*,\s*"([^"]+)"')
 RE_PAGE_KEY = re.compile(r'override\s+string\s+PageKey\s*=>\s*"([a-z0-9-]+)"')
@@ -58,6 +52,7 @@ RE_GROUPKEY = re.compile(r'const\s+string\s+GroupKey\s*=\s*"([a-z0-9-]+)"')
 RE_MD_PAGES = re.compile(r"##\s*2\.\s*当前功能（(\d+)\s*页(?:\s*\+\s*(\d+)\s*设置页)?）")
 RE_MD_HEAD = re.compile(r"模块键\*\*：`([a-z0-9-]+)`.*?Order\s*\*{0,2}(\d+)\*{0,2}.*?图标\s*`([A-Za-z]+)`")
 RE_PATH_TOK = re.compile(r"`([A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)+\.(?:cs|axaml))`")
+RE_PATH_LINE = re.compile(r"`([A-Za-z0-9_.\-/]+\.(?:cs|axaml)):(\d+)(?:-(\d+))?`")
 
 ERRORS: list[str] = []
 WARNS: list[str] = []
@@ -92,6 +87,17 @@ AUTO_TARGETS = (
     ("framework.md", AUTO_FW),
     ("NewToys-项目状态与路线图.md", AUTO_LEDGER),
     ("NewToys-项目状态与路线图.md", AUTO_DOCVERS),
+    ("NewToys-需求摘要.md", "versions.line"),
+    ("NewToys-需求规格.md", "versions.table"),
+    ("skill/SKILL.md", "checks.list"),
+    ("AGENTS.md", "checks.list"),
+    ("NewToys-机器事实.md", "facts.versions"),
+    ("NewToys-机器事实.md", "facts.regions"),
+    ("NewToys-机器事实.md", "facts.brushes"),
+    ("NewToys-机器事实.md", "facts.interfaces"),
+    ("NewToys-机器事实.md", "facts.topics"),
+    ("NewToys-机器事实.md", "facts.outline"),
+    ("NewToys-机器事实.md", "facts.cards"),
 )
 HOST_GROUP = ("宿主分组（**不渲染**）", "`system`", "999", "`IconSettings`")
 # 台账「文档版本」行：只列**头部自报版本**的文档；⛔ 不手写版本号
@@ -147,8 +153,31 @@ def doc_rows() -> list[list[str]]:
     return rows
 
 
+def _esc(s: str) -> str:
+    return s.replace("|", "\\|")
+
+
+def _version_table() -> str:
+    rows = [[f"`{k}`", f"`{v}`"] for k, v in sorted(facts.package_versions().items())]
+    if facts.target_framework():
+        rows.insert(0, ["`.NET`", f"`{facts.target_framework()}`"])
+    return _table(["组件", "版本"], rows)
+
+
+def _checks_list() -> str:
+    return "\n".join(f"- {kind} · {label} · `--only {k}`"
+                     for kind, k, label in facts.check_items())
+
+
+def _facts_regions() -> str:
+    layers = facts.region_layers()
+    rows = [[f"`{k}`", str(v)] for k, v in sorted(layers.items(), key=lambda x: (x[1], x[0]))]
+    pairs = [[f"`{a}`", f"`{b}`"] for a, b in facts.region_adjacency()]
+    return _table(["区域键", "档位"], rows) + "\n\n" + _table(["相邻 A", "相邻 B"], pairs)
+
+
 def expected_blocks() -> dict[str, str]:
-    """按 src 现状生成三处 AUTO 块的期望内容（纯机器事实，⛔ 不含状态 / 说明）。"""
+    """按 src 现状生成 AUTO 块的期望内容（纯机器事实，⛔ 不含状态 / 说明）。"""
     groups = code_groups()
     ordered = sorted((g for g in groups.values() if g["key"]), key=lambda g: g["order"])
     asm = {doc: d for d, doc in MODULE_DIR.items()}
@@ -174,6 +203,24 @@ def expected_blocks() -> dict[str, str]:
                 f"**{sum(g['settings'] for g in ordered)}**"]],
         ),
         AUTO_DOCVERS: _table(["文档", "当前版本"], doc_rows()),
+        "versions.line": facts.stack_line() + "。版本只在 `src/Directory.Packages.props`。",
+        "versions.table": _version_table(),
+        "checks.list": _checks_list(),
+        "facts.versions": _version_table(),
+        "facts.regions": _facts_regions(),
+        "facts.brushes": "、".join(f"`{k}`" for k in sorted(facts.brush_keys())),
+        "facts.interfaces": _table(
+            ["接口", "文件", "实现"],
+            [[f"`{a}`", f"`{b}`", f"`{c}`"] for a, b, c in facts.service_interfaces()]),
+        "facts.topics": _table(
+            ["常量", "主题字符串", "定义处"],
+            [[f"`{a}`", f"`{b}`", f"`{c}`"] for a, b, c in facts.bus_topics()]),
+        "facts.outline": _table(
+            ["节号", "标题"],
+            [[f"`{n}`", _esc(t)] for n, t in facts.spec_outline()]),
+        "facts.cards": _table(
+            ["卡", "模块", "标题"],
+            [[f"`{n}`", m, _esc(t)] for n, m, t in facts.cards_index()]),
     }
 
 
@@ -195,11 +242,16 @@ def newline_of(text: str) -> str:
     return "\r\n" if text.count("\r\n") > text.count("\n") // 2 else "\n"
 
 
+def target_path(spec: str) -> Path:
+    """短名 → skill/docs/；含 `/` 或 `AGENTS.md` → 仓库根相对路径。"""
+    return ROOT / spec if "/" in spec or spec == "AGENTS.md" else DOCS / spec
+
+
 def check_auto(fix: bool) -> None:
     print("── 1b AUTO 块 ⇄ src（模块 / 程序集 / 页数 / Order / 图标）──")
     exp = expected_blocks()
     for fname, bid in AUTO_TARGETS:
-        p = DOCS / fname
+        p = target_path(fname)
         raw = read_raw(p)
         if not raw:
             ERRORS.append(f"读不到 {fname}")
@@ -221,55 +273,12 @@ def check_auto(fix: bool) -> None:
         print(f"   {fname:<28} AUTO:{bid:<18} 已重写")
 
 
-def code_keys() -> tuple[dict[str, set[str]], dict[str, str]]:
-    """返回 ({模块: {页 Key}}, {页 Key: 中文标题})。"""
-    out: dict[str, set[str]] = {}
-    titles: dict[str, str] = {}
-    for d, name in MODULE_DIR.items():
-        base = SRC / d
-        if not base.exists():
-            continue
-        keys: set[str] = set()
-        for p in base.rglob("*.cs"):
-            t = read(p)
-            for _mod, k, title in RE_REG_FN.findall(t):
-                keys.add(k)
-                titles.setdefault(k, title)
-            keys.update(RE_PAGE_KEY.findall(t))
-        out[name] = keys
-    return out, titles
+def code_keys():
+    return facts.code_keys()
 
 
-def code_groups() -> dict[str, dict]:
-    """返回 {模块文档名: {key, title, icon, order, pages, settings}}，全部从代码扫出。"""
-    groups: dict[str, dict] = {}
-    for d, name in MODULE_DIR.items():
-        base = SRC / d
-        if not base.exists():
-            continue
-        gk = ""
-        reg: tuple[str, str, str, int] | None = None
-        pages = settings = 0
-        for p in base.rglob("*.cs"):
-            t = read(p)
-            gk = gk or (m.group(1) if (m := RE_GROUPKEY.search(t)) else "")
-            for lit, var, title, icon, order in RE_REG_MOD.findall(t):
-                reg = (lit or var, title, icon, int(order))
-            for mod, k, _title in RE_REG_FN.findall(t):
-                if k.startswith("settings-"):
-                    settings += 1
-                else:
-                    pages += 1
-        if reg:
-            groups[name] = {
-                "key": gk or (reg[0] if reg[0] != "GroupKey" else ""),
-                "title": reg[1],
-                "icon": reg[2],
-                "order": reg[3],
-                "pages": pages,
-                "settings": settings,
-            }
-    return groups
+def code_groups():
+    return facts.code_groups()
 
 
 def md_keys(md: Path) -> set[str]:
@@ -352,22 +361,104 @@ def check_paths() -> None:
     print("── 1c 文档路径引用 ⇄ src 实际文件 ──")
     src_paths = [p.as_posix() for p in SRC.rglob("*")
                  if p.is_file() and not any(x in p.parts for x in ("bin", "obj"))]
-    live, old = [], []
+    live, old, line_bad = [], [], []
     for md in sorted(DOCS.rglob("*.md")):
         rel = md.relative_to(DOCS).as_posix()
         seen = set()
-        for tok in RE_PATH_TOK.findall(read(md)):
+        text = read(md)
+        for tok in RE_PATH_TOK.findall(text):
             if tok in seen or ".." in tok or "Xxx" in tok or tok.startswith("/") or "/" not in tok:
                 continue
             seen.add(tok)
             if not any(s.endswith("/" + tok) for s in src_paths):
                 (old if rel.startswith("backlog/") else live).append(f"{rel} → `{tok}`")
+        # 行号引用（如 `App.axaml.cs:335`）：只对正文文档校，历史卡不追
+        if not rel.startswith("backlog/"):
+            for tok, lo, hi in RE_PATH_LINE.findall(text):
+                hit = next((s for s in src_paths if s.endswith("/" + tok)), None)
+                ref = f"{tok}:{lo}" + (f"-{hi}" if hi else "")
+                if not hit:
+                    line_bad.append(f"{rel} → `{ref}` 文件不存在")
+                    continue
+                n = len(read(Path(hit)).splitlines())
+                if int(hi or lo) > n:
+                    line_bad.append(f"{rel} → `{ref}` 超出该文件 {n} 行")
     for line in live:
         ERRORS.append(f"路径失效（正文文档）：{line}")
     if old:
         WARNS.append(f"backlog 历史卡引用已失效路径 {len(old)} 处（卡是历史工作稿，淘汰时一并消失，无需修）"
                      + "：" + ", ".join(o.split(" → ")[0] for o in old[:6]) + (" …" if len(old) > 6 else ""))
-    print(f"   正文文档失效 {len(live)} 处 ｜ backlog 历史卡 {len(old)} 处")
+    if line_bad:
+        WARNS.append(f"正文文档行号引用失效 {len(line_bad)} 处：" + "；".join(line_bad[:5])
+                     + (" …" if len(line_bad) > 5 else ""))
+    print(f"   正文文档失效 {len(live)} 处 ｜ backlog 历史卡 {len(old)} 处 ｜ 行号 {len(line_bad)} 处")
+
+
+def check_rules() -> None:
+    print("── 1d 规则编号 / 检查项对账 ──")
+    guard = read(ROOT / "skill" / "references" / "tech-guard.md")
+    lint_txt = read(ROOT / "skill" / "scripts" / "lint.py")
+    acc_txt = read(ROOT / "skill" / "scripts" / "accept.py")
+    ids_doc = set(re.findall(r"\|\s*\*\*(G-\d+)\*\*\s*\|", guard))
+    ids_code = set(re.findall(r'"(G-\d+)"', lint_txt))
+    miss, extra = sorted(ids_doc - ids_code), sorted(ids_code - ids_doc)
+    if miss:
+        WARNS.append(f"tech-guard 有、lint.py 未实现：{', '.join(miss)}")
+    if extra:
+        WARNS.append(f"lint.py 有、tech-guard 未登记：{', '.join(extra)}")
+    checks = set(re.findall(r'^\s*"([\w-]+)":\s*check_', lint_txt, re.M))
+    static = set(re.findall(r'^\s*\("[^"]+",\s*"([\w-]+)"\),', acc_txt, re.M))
+    gap = sorted(checks - static)
+    if gap:
+        WARNS.append(f"lint.py 检查项未接入 accept.py：{', '.join(gap)}")
+    print(f"   G 规则 文档 {len(ids_doc)} / 代码 {len(ids_code)} ｜ lint 检查项 {len(checks)} / accept 登记 {len(static)}")
+
+
+VER_ALIAS = {
+    "MEDI": "Microsoft.Extensions.DependencyInjection",
+    "CT.Mvvm": "CommunityToolkit.Mvvm",
+}
+RE_VER = re.compile(r"(Avalonia|CommunityToolkit\.Mvvm|Microsoft\.Data\.Sqlite|"
+                    r"Microsoft\.Extensions\.DependencyInjection|MEDI|CT\.Mvvm)\s*(\d+\.\d+\.\d+)")
+
+
+def check_versions() -> None:
+    print("── 1e 文档版本串 ⇄ Directory.Packages.props ──")
+    want = facts.package_versions()
+    bad: list[str] = []
+    files = [ROOT / "AGENTS.md"] + sorted((ROOT / "skill").rglob("*.md"))
+    for p in files:
+        if "backlog" in p.parts:
+            continue
+        rel = p.relative_to(ROOT).as_posix()
+        for name, ver in RE_VER.findall(read(p)):
+            key = VER_ALIAS.get(name, name)
+            if key in want and ver != want[key]:
+                bad.append(f"{rel} → {name} {ver}（应为 {want[key]}）")
+    for b in bad:
+        ERRORS.append(f"文档版本与 props 不符：{b}")
+    print(f"   docs 版本串漂移 {len(bad)} 处")
+
+
+def check_routes() -> None:
+    print("── 1f ctx.py 任务路由节号存在性 ──")
+    import ctx
+    misses: list[str] = []
+    mods = sorted(set(facts.module_dirs().values()))
+    for task, plan in sorted(ctx.RECIPES.items()):
+        for fname, sels in plan:
+            for mod in (mods if fname == ":module" else [None]):
+                p = ctx.resolve(fname, mod)
+                if not p or not p.exists():
+                    continue
+                text = ctx.read(p)
+                for sel in sels:
+                    if not ctx.pick(text, sel):
+                        misses.append(f"{task} → {fname}:{sel}" + (f" [{mod}]" if mod else ""))
+    if misses:
+        WARNS.append(f"ctx.py RECIPES 取不到节 {len(misses)} 处：" + "；".join(misses[:6])
+                     + (" …" if len(misses) > 6 else ""))
+    print(f"   路由节号失效 {len(misses)} 处")
 
 
 def check_cards() -> None:
@@ -433,6 +524,7 @@ def check_ledger() -> None:
 
 
 CHECKS = {"keys": check_keys, "menu": check_menu, "paths": check_paths,
+          "rules": check_rules, "versions": check_versions, "routes": check_routes,
           "cards": check_cards, "ledger": check_ledger}
 
 

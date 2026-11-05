@@ -7,7 +7,7 @@
 ⛔ 只报告，不修改任何文件，恒以 0 退出（自检是参考，不是门禁）。
 用法：python skill/scripts/lint.py [--only KEY] [--all]
      KEY = axaml | props | techstack | detail-paths | video-card | comments | view-pairs
-           | regions | regionpages | family | scripts
+           | regions | regionpages | family | scripts | conventions
 """
 from __future__ import annotations
 
@@ -16,6 +16,8 @@ import re
 import sys
 import xml.parsers.expat as expat
 from pathlib import Path
+
+import facts
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
@@ -695,15 +697,8 @@ FLUENT_SLACK = 2.0    # Fluent 皮肤走 Blend 取整，允许 2 的误差
 
 # 卡内统一档位：窗口里只有「主显示区 + 详情列」两张卡，卡内所有面共用一个档位。
 # 卡内相邻对同档是设计意图（一张卡内部本来就不该有色阶），R-04 与着色都整体跳过。
-CARD_LAYER = 2
-
-# 卡外还允许同档的几对：三块 chrome 本来就是同一个平铺面（标题栏 / 侧栏 / 版本行 / 状态栏）。
-SAME_LAYER_OK = {
-    frozenset(("TitleBarBrush", "SiderBrush")),
-    frozenset(("TitleBarBrush", "ContentBareBrush")),
-    frozenset(("SiderBrush", "SiderFootBrush")),
-    frozenset(("SiderFootBrush", "StatusBarBrush")),
-}
+CARD_LAYER = facts.card_layer()
+SAME_LAYER_OK = facts.same_layer_ok()
 
 
 def _gray(hexv: str) -> float:
@@ -979,6 +974,50 @@ def check_scripts(all_: bool) -> None:
           "src/**/defaults/** 是产品内置脚本，不属操作脚本。")
 
 
+# ---------------------------------------------------------------- 12) 代码约定
+RE_BUS_CALL = re.compile(r'\.(?:Post|Take|TakeAll|Subscribe|PendingCount)\s*\(\s*"([^"]+)"')
+
+
+def check_conventions(all_: bool) -> None:
+    h("NewToys 代码约定自检")
+    warns: list[str] = []
+    topics = {v for _n, v, _f in facts.bus_topics()}
+
+    for p in walk((".cs",)):
+        path = rel(p)
+        t = strip_comments(read(p))
+        if p.name != "IModuleBus.cs" and not p.name.endswith("Topics.cs"):
+            for topic in RE_BUS_CALL.findall(t):
+                if topic not in topics and re.fullmatch(r"[a-z]+\.[a-z0-9.-]+", topic):
+                    warns.append(f"V-10  {path}: 主题字面量 `{topic}` —— 一律引用 Topics 常量")
+        fk = {m[1] for m in facts.RE_REG_FN.findall(t)}
+        pk = set(facts.RE_PAGE_KEY.findall(t))
+        if fk and pk and fk != pk:
+            warns.append(f"V-11  {path}: RegisterFunction {sorted(fk)} ⇄ PageKey {sorted(pk)} 不一致")
+        if path.startswith("Module."):
+            m = re.search(r"^namespace\s+(NewToys(?:\.\w+)+)", t, re.M)
+            if m:
+                stem = path.split("/", 1)[0].split(".", 1)[1]
+                if m.group(1).split(".")[1] != stem:
+                    warns.append(f"V-13  {path}: namespace `{m.group(1)}` 与程序集 `{stem}` 不符")
+
+    # 只查随包脚本：scripts/ 下的构建脚本由 pwsh 执行（默认 UTF-8），不受 PS 5.1 ANSI 读取影响
+    for p in SRC.rglob("*.ps1"):
+        if not p.is_file() or "bin" in p.parts or "obj" in p.parts:
+            continue
+        if not p.read_bytes().startswith(b"\xef\xbb\xbf"):
+            warns.append(f"V-12  {p.relative_to(ROOT).as_posix()}: 随包 .ps1 缺 UTF-8 BOM（PS 5.1 按 ANSI 读中文会乱码）")
+
+    if not warns:
+        print("[WARN] 0 条 ✅")
+        return
+    print(f"[WARN] {len(warns)} 条")
+    for w in (warns if all_ else warns[:30]):
+        print("  " + w)
+    if not all_ and len(warns) > 30:
+        print(f"  …（还有 {len(warns) - 30} 条，加 -All 看全部）")
+
+
 CHECKS = {
     "axaml": check_axaml,
     "props": check_props,
@@ -991,10 +1030,44 @@ CHECKS = {
     "regionpages": check_region_pages,
     "family": check_family,
     "scripts": check_scripts,
+    "conventions": check_conventions,
+}
+
+# 汇总行 → 结构化计数。与 accept.py 的旧正则等价，但由本脚本自己产出，
+# 使调用方不再依赖中文措辞。改汇总格式必须同步改这张表，否则 stale 会置位。
+META_RULES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "axaml": ((r"XML 不合法 \.axaml\s*:\s*([1-9]\d*)", r"缺 \.axaml\.cs 配对\s*:\s*([1-9]\d*)"),
+              (r"白名单外的 \*Brush 引用",)),
+    "props": ((r"疑似 WPF 专有 / 拼错\s*:\s*([1-9]\d*)", r"硬压 Slider 高度\s*:\s*([1-9]\d*)"), ()),
+    "techstack": ((r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
+    "detail-paths": ((), (r"\[WARN\]\s*([1-9]\d*)\s*条绑定路径",)),
+    "video-card": ((r"\[ERROR\]\s*([1-9]\d*)\s*条",), ()),
+    "comments": ((r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
+    "view-pairs": ((r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
+    "regions": ((r"\[ERROR\]\s*([1-9]\d*)\s*条",), ()),
+    "regionpages": ((r"\[ERROR\]\s*([1-9]\d*)\s*条",), ()),
+    "family": ((r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
+    "scripts": ((r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
+    "conventions": ((), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
 }
 
 
+def meta_of(key: str, out: str) -> dict:
+    fails, warns = META_RULES.get(key, ((), ()))
+    f = sum(len(re.findall(p, out)) for p in fails)
+    w = sum(len(re.findall(p, out)) for p in warns)
+    # 输出里明明报了正数条数，却一个规则都没匹配上 ⇒ 汇总格式已变，判定口径失效
+    stale = bool(re.search(r"\[(?:ERROR|WARN)\]\s+[1-9]\d*\s*条", out)) and f == 0 and w == 0
+    m = re.search(r"\[WARN\]\s+(\d+)\s*条", out)
+    return {"key": key, "fail": f, "warn": w,
+            "warn_count": int(m.group(1)) if m else 0, "stale": stale}
+
+
 def main() -> int:
+    import io
+    import json
+    from contextlib import redirect_stdout
+
     ap = argparse.ArgumentParser(description="NewToys 静态检查")
     ap.add_argument("--only", choices=sorted(CHECKS), help="只跑一项")
     ap.add_argument("--all", action="store_true", help="列出全部 WARN 明细")
@@ -1008,7 +1081,12 @@ def main() -> int:
 
     keys = [args.only] if args.only else list(CHECKS)
     for k in keys:
-        CHECKS[k](args.all)
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            CHECKS[k](args.all)
+        text = buf.getvalue()
+        sys.stdout.write(text)
+        print("__LINT_META__ " + json.dumps(meta_of(k, text), ensure_ascii=False))
         if len(keys) > 1:
             print()
     return 0

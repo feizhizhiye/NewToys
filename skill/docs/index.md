@@ -79,7 +79,7 @@
 | 任务 | 读什么 |
 |---|---|
 | **会话开始 / 要读多份文档** | **`python skill/scripts/ctx.py --task <feature\|ui\|interaction\|fix\|usage\|verify\|card> --module <模块>`**（一次打包铁律 + 模块行 + 相关章节 + 任务卡；⛔ 逐份 Read）；精读单节 = `--doc <文件> --section <节号>` |
-| 文档与代码是否漂移 / 该淘汰哪张卡 | `python skill/scripts/docs-sync.py`（**AUTO 块**：index §二 / framework §4.2 / 台账 §一文档版本 与 §2.3 由 `--fix` 生成 · 菜单 Key · 路径引用 · 卡窗口 · NT 编号；默认只读，已并入 `accept.py`） |
+| 文档与代码是否漂移 / 该淘汰哪张卡 | `python skill/scripts/docs-sync.py`（AUTO 块清单见 `NewToys-机器事实.md` 与本文件 §三；`--fix` 按 `src/` 重生成 · 菜单 Key · 路径与行号 · 版本串 · 规则编号 · 路由节号 · 卡窗口 · NT 编号；默认只读，已并入 `accept.py`） |
 | **建立全局 / 判断边界与功能范围** | **`NewToys-需求摘要.md`**（150 行）→ 不够再按它 §九 定位原文 |
 | 改某模块的一个页面 | `modules/<模块>.md` §2.5（操作逻辑）→ §3（实现）→ `ui.md`（列表页 / 详情卡 / 工具条对应节） |
 | 改交互行为 / 确认弹窗 / 状态反馈 | `ui.md` §10 → `modules/<模块>.md` §2.5 |

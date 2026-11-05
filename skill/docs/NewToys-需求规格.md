@@ -1,4 +1,4 @@
-﻿# NewToys 需求规格（宪法 + 框架规格）
+# NewToys 需求规格（宪法 + 框架规格）
 
 > v3.106 · 2026-11-03 · 项目唯一权威规格
 > ⛔ **只保留最近三次变更**；更早的逐次记录看 `git log`（本文自带版本号仅作需求演进索引）。
@@ -170,13 +170,35 @@ Module.*（功能模块，只引 Shared + Core）
 
 ### 3.2 技术栈（锁定，禁止擅升擅降）
 
+<!-- AUTO:versions.table -->
+
 | 组件 | 版本 |
 |---|---|
-| .NET | net10.0 |
-| Avalonia | 12.1.5 |
-| CommunityToolkit.Mvvm | 8.4.2 |
-| Microsoft.Extensions.DependencyInjection | 10.0.14 |
-| Microsoft.Data.Sqlite | 10.0.14 |
+| `.NET` | `net10.0` |
+| `AngleSharp` | `1.9.1` |
+| `Avalonia` | `12.1.5` |
+| `Avalonia.Desktop` | `12.1.5` |
+| `Avalonia.Fonts.Inter` | `12.1.5` |
+| `Avalonia.Themes.Fluent` | `12.1.5` |
+| `CommunityToolkit.Mvvm` | `8.4.2` |
+| `Jint` | `4.17.0` |
+| `MailKit` | `4.18.2` |
+| `Microsoft.Data.Sqlite` | `10.0.14` |
+| `Microsoft.Extensions.Configuration` | `10.0.14` |
+| `Microsoft.Extensions.Configuration.Json` | `10.0.14` |
+| `Microsoft.Extensions.DependencyInjection` | `10.0.14` |
+| `Microsoft.Extensions.DependencyInjection.Abstractions` | `10.0.14` |
+| `Microsoft.Extensions.Logging` | `10.0.14` |
+| `Microsoft.Extensions.Logging.Console` | `10.0.14` |
+| `Microsoft.Extensions.Options` | `10.0.14` |
+| `Microsoft.Extensions.Options.ConfigurationExtensions` | `10.0.14` |
+| `Microsoft.NET.Test.Sdk` | `18.11.0` |
+| `NAudio` | `3.3.0` |
+| `SharpCompress` | `1.0.0` |
+| `TagLibSharp` | `2.3.0` |
+| `xunit` | `2.9.3` |
+| `xunit.runner.visualstudio` | `3.1.5` |
+<!-- /AUTO:versions.table -->
 
 - **禁止引入任何第三方 UI 组件库**（Material / Suki / FluentAvalonia / Semi 等）。
 - **禁止引入第三方图标字体 / 图标包**；图标以 Avalonia 内置 `Geometry` 路径数据为**最终方案**（只可手工摘取公开图标集如 Lucide / Feather 的路径数据）。

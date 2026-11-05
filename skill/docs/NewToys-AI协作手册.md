@@ -96,7 +96,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 范围清楚再编码；小改动（单文件、纯文案/配色）可口头一句带过。
 
 [3] 编码速记（跨章节高频易错；细则见 [0] 表指向的章节）
-· 栈锁 .NET10/Avalonia12.1.5/CT.Mvvm8.4.2/MEDI10.0.14；禁第三方 UI 库；禁第三方图标字体/包；包版本只在 Directory.Packages.props。
+· 栈锁见 `docs/NewToys-机器事实.md`（由 `Directory.Packages.props` 生成）；禁第三方 UI 库；禁第三方图标字体/包；包版本只在 Directory.Packages.props。
 · 分层单向 Shared←Core←Shell←Module.*；模块禁引 Shell、禁互引；Shared/Core 不引 Avalonia。
 · 框架层(Shared/Core/Shell)冻结，新功能只在 Module.*；改框架层先问。
 · 命名空间 NewToys.<模块>.Views/.ViewModels（无 .Module 段）；View 与 VM 成对。

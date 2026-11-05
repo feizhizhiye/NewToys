@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -33,32 +34,26 @@ LINT_PY = SKILL_SCRIPTS / "lint.py"
 SYNC_PY = SKILL_SCRIPTS / "docs-sync.py"
 REPORT = ROOT / "artifacts" / "accept-report.md"
 
-# 每项 = (显示名, lint.py 的 --only 键, FAIL 正则, WARN 正则)
-# FAIL 命中即阻断；WARN 只提示。正则匹配的是子检查输出的中文汇总行。
-STATIC: list[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = [
-    ("AXAML 合法性 / 配对 / 主题键", "axaml",
-     (r"XML 不合法 \.axaml\s*:\s*([1-9]\d*)", r"缺 \.axaml\.cs 配对\s*:\s*([1-9]\d*)"),
-     (r"白名单外的 \*Brush 引用",)),
-    ("XAML 属性名（Avalonia ≠ WPF）", "props",
-     (r"疑似 WPF 专有 / 拼错\s*:\s*([1-9]\d*)", r"硬压 Slider 高度\s*:\s*([1-9]\d*)"), ()),
-    ("技术栈硬伤（G-01~G-11 + G-14~G-17）", "techstack",
-     (r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
-    ("详情卡绑定路径", "detail-paths", (), (r"\[WARN\]\s*([1-9]\d*)\s*条绑定路径",)),
-    ("视频详情卡同源（预览 = 批量）", "video-card",
-     (r"\[ERROR\]\s*([1-9]\d*)\s*条",), ()),
-    ("注释健康度 / View 类名唯一性", "comments",
-     (r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
-    ("页面契约（View ↔ ViewModel / 菜单注册）", "view-pairs",
-     (r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
-    ("区域色差（相邻区域不同档）", "regions",
-     (r"\[ERROR\]\s*([1-9]\d*)\s*条",), ()),
-    ("区域色差（页面级 · 两套皮肤）", "regionpages",
-     (r"\[ERROR\]\s*([1-9]\d*)\s*条",), ()),
-    ("同族页矩阵对账（范本 §八 ⇄ src）", "family",
-     (r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
-    ("工具脚本语言统一（skill/scripts 仅 .py）", "scripts",
-     (r"\[ERROR\]\s*([1-9]\d*)\s*条",), (r"\[WARN\]\s*([1-9]\d*)\s*条",)),
+# 每项 = (显示名, lint.py 的 --only 键)。计数读 lint.py 产出的 __LINT_META__ 行，
+# ⛔ 不再用中文汇总行正则 —— 措辞一改就会静默假 PASS。
+STATIC: list[tuple[str, str]] = [
+    ("AXAML 合法性 / 配对 / 主题键", "axaml"),
+    ("XAML 属性名（Avalonia ≠ WPF）", "props"),
+    ("技术栈硬伤（G-01~G-11 + G-14~G-17）", "techstack"),
+    ("详情卡绑定路径", "detail-paths"),
+    ("视频详情卡同源（预览 = 批量）", "video-card"),
+    ("注释健康度 / View 类名唯一性", "comments"),
+    ("页面契约（View ↔ ViewModel / 菜单注册）", "view-pairs"),
+    ("区域色差（相邻区域不同档）", "regions"),
+    ("区域色差（页面级 · 两套皮肤）", "regionpages"),
+    ("同族页矩阵对账（范本 §八 ⇄ src）", "family"),
+    ("工具脚本语言统一（skill/scripts 仅 .py）", "scripts"),
+    ("代码约定（主题字面量 / 页 Key / BOM / namespace）", "conventions"),
 ]
+
+# 存量告警基线（P0 实测）。超过基线 = 新引入告警 ⇒ 阻断；存量不追溯。
+WARN_BASELINE = {"techstack": 7, "comments": 6}
+DOCS_WARN_BASELINE = 1
 
 MENU = [
     ("1", dict(only="all", report=True, brief=False), "全部检查（静态 + 文档一致性 + 改动范围），完整表格"),
@@ -151,17 +146,38 @@ def _run(opts: dict) -> tuple[list[dict], int]:
             print("\n──── 1. 静态检查 ────")
         if not LINT_PY.is_file():
             _add(rows, "静态检查", "全部", "SKIP", "lint.py 不存在")
-        for name, key, fails, warns in STATIC:
+        for name, key in STATIC:
             if only in ("family", "scripts") and key != only:
                 continue
             if not LINT_PY.is_file():
                 _add(rows, "静态检查", name, "SKIP", "lint.py 不存在")
                 continue
             raw = _py_run(LINT_PY, "--only", key, *(["--all"] if all_ else []))
-            f = sum(len(re.findall(p, raw)) for p in fails)
-            w = sum(len(re.findall(p, raw)) for p in warns)
+            m = re.search(r"^__LINT_META__ (\{.*\})$", raw, re.M)
+            if not m:
+                _add(rows, "静态检查", name, "FAIL", "缺 __LINT_META__（判定口径失效，⛔ 不判 PASS）", raw)
+                if not brief:
+                    print(f"  [FAIL] {name} —— 缺 __LINT_META__（判定口径失效）")
+                continue
+            try:
+                meta = json.loads(m.group(1))
+                f, w = int(meta["fail"]), int(meta["warn"])
+            except (ValueError, KeyError, TypeError):
+                _add(rows, "静态检查", name, "FAIL", "__LINT_META__ 解析失败", raw)
+                if not brief:
+                    print(f"  [FAIL] {name} —— __LINT_META__ 解析失败")
+                continue
+            note = ""
+            if meta.get("stale"):
+                f += 1
+                note = " · 汇总格式变化，判定口径失效"
+            wc = int(meta.get("warn_count", 0))
+            base = WARN_BASELINE.get(key, 0)
+            if wc > base:
+                f += 1
+                note += f" · 告警 {wc} 条超基线 {base}"
             status = "FAIL" if f else ("WARN" if w else "PASS")
-            _add(rows, "静态检查", name, status, f"{f} 阻断 / {w} 告警", raw)
+            _add(rows, "静态检查", name, status, f"{f} 阻断 / {w} 告警{note}", raw)
             if not brief:
                 print(f"  [{status}] {name} —— {f} 阻断 / {w} 告警")
                 if status != "PASS":
@@ -179,6 +195,8 @@ def _run(opts: dict) -> tuple[list[dict], int]:
         raw = _py_run(SYNC_PY, *(["--fix"] if only == "fix" else []))
         m = re.search(r"结果：ERROR\s*(\d+)\s*｜\s*WARN\s*(\d+)", raw)
         se, sw = (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+        if sw > DOCS_WARN_BASELINE:
+            se += 1
         status = "FAIL" if se else ("WARN" if sw else "PASS")
         _add(rows, "文档一致性", "文档 ⇄ src（AUTO 块 / 页数 / 路径）", status,
              f"{se} 阻断 / {sw} 告警", raw)
@@ -207,11 +225,11 @@ def _run(opts: dict) -> tuple[list[dict], int]:
                         p = p.split(" -> ")[-1].strip().strip('"')
                     changed.append(p)
             outside = [p for p in changed if not re.match(
-                r"^(src/|skill/|scripts/|var/|AGENTS\.md$)", p)]
+                r"^(src/|skill/|scripts/|AGENTS\.md$)", p)]
             if outside:
                 _add(rows, "铁律1", "src/ 之外的改动", "WARN", f"{len(outside)} 处越界", "\n".join(outside))
                 if not brief:
-                    print(f"  [WARN] src/ 之外有 {len(outside)} 处改动（授权区：src/ skill/ scripts/ var/ AGENTS.md）：")
+                    print(f"  [WARN] src/ 之外有 {len(outside)} 处改动（授权区：src/ skill/ scripts/ AGENTS.md）：")
                     for p in outside[:10]:
                         print(f"        {p}")
             else:

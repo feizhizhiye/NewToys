@@ -1,6 +1,6 @@
 # NewToys 技术栈硬伤清单（tech-guard）
 
-> **版本锚点**：.NET 10 / Avalonia **12.1.4** / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0
+> **版本锚点**：见 `skill/docs/NewToys-机器事实.md`（由 `src/Directory.Packages.props` 生成）。⛔ 不在此手写版本号，升级后由 `docs-sync.py --only versions` 核对。
 > **口径**：硬伤 = **框架 / 版本层面**的坑（Avalonia ≠ WPF、分析器行为、API 缺失、Win32 与客户区扩展的平台差异）。业务需求不在此。
 > **定位**：本文件是**技术栈硬伤的唯一源**；`G-xx` 与 `scripts/lint.py --only techstack` 的规则**一一对应**（改这张表必须同步改脚本，反之亦然）。
 > ✅ §七 重叠**已收敛**：`references/newtoys-spec.md` §七 现只做引用，本文件 = 唯一源。

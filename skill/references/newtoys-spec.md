@@ -15,7 +15,7 @@
 - 程序集：`NewToys.Shared/Core`、`NewToys`(=Shell→NewToys.exe)、**`NewToys.UI`（控件库，NT-063）**、`Module.<名>`、**`NewToys.Tests`（单元测试，非交付、不进 `Modules\`）**；命名空间一律 `NewToys.*`
 - 分层单向：`Shared ← Core ← Shell ← Module.*`；模块禁引 Shell、禁互引；`Shared/Core` 不引 Avalonia
 - **`NewToys.UI` 引 Shared + Avalonia，⛔ 不引 Core / Shell**；被所有模块引用 ⇒ 改一次 = 全模块重编 ⇒ 只放**写完即冻结的稳定控件**；主题刷子留 Shell（`App.axaml` 的 `*Brush` 语义键 ⛔ 不搬；数量以 `lint.py` 白名单为准），UI 内 XAML 只 `DynamicResource`
-- 栈：.NET 10 / Avalonia 12.1.4 / CommunityToolkit.Mvvm 8.4.2 / MEDI 9.0.0 / Microsoft.Data.Sqlite 9.0.0；版本只在 `src/Directory.Packages.props`
+- 栈：见 `skill/docs/NewToys-机器事实.md`（由 `src/Directory.Packages.props` 生成）；⛔ 不在此手写版本号，版本只在 `src/Directory.Packages.props`
 - 编译绑定关闭 → XAML 不写 `x:DataType`；禁第三方 UI 库 / 图标字体
 - 数据落 `<应用根>\profiles\<配置>\{config,data,logs}`；**`active-profile.txt` 与 `app.json` 在应用根**（应用级，不随配置走，NT-062）；`NEWTOYS_HOME` 可整根切换；**`ConfigStoreService` = 路径唯一决定者**；路径一律 `Path.Combine`
 - SQLite 入口 `Core/Services/SqliteDatabase.cs`：**一个模块一个库** = `<应用根>\profiles\<配置>\store\<库键>\<库键>.db`（`store` 非 `config`；可重建内容在 `cache\`）；各模块派生 `XxxDb` 注册为单例；失败不抛（IsAvailable/LastError）

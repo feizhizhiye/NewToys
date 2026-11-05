@@ -23,23 +23,30 @@ import re
 import sys
 from pathlib import Path
 
+import facts
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-ROOT = Path(__file__).resolve().parents[2]
-DOCS = ROOT / "skill" / "docs"
+ROOT = facts.ROOT
+DOCS = facts.DOCS
 
-# ---------------------------------------------------------------- 模块别名
-MODULES = {
-    "script": "script-manager", "script-manager": "script-manager", "脚本中心": "script-manager",
-    "assets": "media-assets", "media-assets": "media-assets", "媒体资产": "media-assets",
-    "video": "video-tools", "video-tools": "video-tools", "视频工具": "video-tools",
-    "web": "web-tools", "web-tools": "web-tools", "网络工具": "web-tools",
-    "system-tools": "system-tools", "sys": "system-tools", "系统工具": "system-tools",
-    "backup": "backup-center", "backup-center": "backup-center", "备份中心": "backup-center",
-    "viewer": "viewer", "查看器": "viewer",
-    "reading": "reading", "网络阅读": "reading",
+# 中文 / 短名别名是人工知识；规范名一律由 src/Module.* 自举
+MODULE_ALIASES = {
+    "script-manager": ("script", "脚本中心"),
+    "media-assets": ("assets", "媒体资产"),
+    "video-tools": ("video", "视频工具"),
+    "web-tools": ("web", "网络工具"),
+    "system-tools": ("sys", "系统工具"),
+    "backup-center": ("backup", "备份中心"),
+    "viewer": ("查看器",),
+    "reading": ("网络阅读",),
 }
+MODULES: dict[str, str] = {}
+for _asm, _doc in facts.module_dirs().items():
+    MODULES[_doc] = _doc
+    for _alias in MODULE_ALIASES.get(_doc, ()):
+        MODULES[_alias] = _doc
 
 BASE = [
     ("AGENTS.md", ["铁律"]),

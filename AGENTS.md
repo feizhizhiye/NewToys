@@ -1,4 +1,4 @@
-﻿# AGENTS.md — NewToys 项目协作入口
+# AGENTS.md — NewToys 项目协作入口
 
 > v2.6 · 2026-11-04：区域档位 **5 → 4 档**（用户定的六条带：标题栏1 / 左菜单2 / 版本行1 / 工具条3 / 状态栏3 / 详情卡2，表头·行区·底栏·内容底由相邻关系唯一推出 = 4 / 1 / 4 / 1，无工具条的内容底 = 4）⇒ 第 5 档留在常量表但无区域使用；`lint.py` 页面链补「工具条与状态栏之间的内容区」一段，删掉两条假接缝（工具条⇄状态栏、标题栏⇄行区）并补四条真接缝；着色结论「相邻图最少需要 4 档」。`ui.md` §3 / §13 同步。
 > v2.5 · 2026-11-04：静态验收 8 → **9 项** —— 新增 `lint.py --only regionpages`（R-10 两档真实灰度差不足 / R-11 Fluent 皮肤下差不足 / R-12 页面出现未登记的接缝 / R-13 行区⇄详情列没登记）：逐页还原「标题栏 → 工具条 → 表头 → 行区 → 底栏 → 状态栏」区域链，按 NewToys 色值与 Fluent 明度阶梯两种口径算灰度（下限 10），并给相邻图着色回答「几档够」。**档位不同 ≠ 看着不同** —— Fluent 皮肤的 4 个系统刷子实际只有 2 档，就是靠这一项抓出来的。同批：区域档位重排为 **5 档**（4 档在「工具条/表头/底栏右端接详情列」这类横向接缝下无解），新增 `ListBodyBrush`（列表行区独立成 2 档，⛔ 再蹭 `PanelBrush`），`ui.md` §3 / §13 同步。
@@ -89,10 +89,35 @@ NewToys = 带 GUI 的 Windows 桌面工具管理器（脚本管理器定位，�
 
 - 变更清单（增/改/删逐条一句话）+ 前置基线 + 用户本地验证命令。
 - **改用户可见交互必须双写**：`modules/<模块>.md` §2.5（契约）+ `NewToys-软件说明书.md` §四/§五（用户语言）；⛔ 只改一处视为交付未完成。落点与格式见 `skill/docs/index.md` §四。
-- 🔴 **AUTO 块只由脚本写**：`index.md` §二 / `framework.md` §4.2 / 台账 §一「文档版本」与 §2.3 的 `<!-- AUTO:… -->` 块内是机器事实（键 / 显示名 / Order / 图标 / 页数 / 各文档版本），**增删模块或页面、改文档版本后跑 `python skill/scripts/docs-sync.py --fix`**，⛔ 不手改块内；状态 / 原因 / 说明写在块外。`accept.py` 会跑同一份检查，块与 `src/` 不一致即 FAIL。
+- 🔴 **AUTO 块只由脚本写**：`index.md` §二 / `framework.md` §4.2 / 台账 / 需求摘要 / 需求规格 / 本文件「静态检查项」/`skill/SKILL.md` 目录段 / **`docs/NewToys-机器事实.md` 全文** 的 `<!-- AUTO:… -->` 块内是机器事实（模块 / 页 / 版本 / 区域 / 主题键 / 契约 / 检查项 / 卡索引），**改 `src/` 或检查项后跑 `python skill/scripts/docs-sync.py --fix`**，⛔ 不手改块内；状态 / 原因 / 说明写在块外。`accept.py` 会跑同一份检查，块与 `src/` 不一致即 FAIL。
 - 直接写工作区，用 read/ls 确认落盘；⛔ 不打 zip、不列下载链接、不做 sources md 快照。
 - 功能级交付 git commit（`<type>: 简述`）；纯修报错不回写台账。
 - 🔴 **会话交接**：提醒开新会话时（约 20 轮 / 一个工作项交付完毕），**必须同时给出可直接粘贴的续接包**（固定字段：任务 / 阶段 / 已落盘 / 未完成 / 关键上下文 / 待拍板 / 起步动作），用户复制后开新会话即可无损接续。⛔ 只提醒不给包 = 交付未完成。格式与三条硬约束见《AI协作手册》[5] ⑨。
+
+## 静态检查项（AUTO · 由 `docs-sync.py --fix` 生成，⛔ 不手改块内）
+
+<!-- AUTO:checks.list -->
+- 静态检查 · AXAML 合法性 / 配对 / 主题键 · `--only axaml`
+- 静态检查 · XAML 属性名（Avalonia ≠ WPF） · `--only props`
+- 静态检查 · 技术栈硬伤（G-01~G-11 + G-14~G-17） · `--only techstack`
+- 静态检查 · 详情卡绑定路径 · `--only detail-paths`
+- 静态检查 · 视频详情卡同源（预览 = 批量） · `--only video-card`
+- 静态检查 · 注释健康度 / View 类名唯一性 · `--only comments`
+- 静态检查 · 页面契约（View ↔ ViewModel / 菜单注册） · `--only view-pairs`
+- 静态检查 · 区域色差（相邻区域不同档） · `--only regions`
+- 静态检查 · 区域色差（页面级 · 两套皮肤） · `--only regionpages`
+- 静态检查 · 同族页矩阵对账（范本 §八 ⇄ src） · `--only family`
+- 静态检查 · 工具脚本语言统一（skill/scripts 仅 .py） · `--only scripts`
+- 静态检查 · 代码约定（主题字面量 / 页 Key / BOM / namespace） · `--only conventions`
+- 文档一致性 · keys · `--only keys`
+- 文档一致性 · menu · `--only menu`
+- 文档一致性 · paths · `--only paths`
+- 文档一致性 · rules · `--only rules`
+- 文档一致性 · versions · `--only versions`
+- 文档一致性 · routes · `--only routes`
+- 文档一致性 · cards · `--only cards`
+- 文档一致性 · ledger · `--only ledger`
+<!-- /AUTO:checks.list -->
 
 ## 会话启动 checklist
 

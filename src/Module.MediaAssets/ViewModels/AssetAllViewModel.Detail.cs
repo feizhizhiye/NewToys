@@ -71,7 +71,6 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
                     // ===== 只读上下文：更新时间为空时改给说明，⛔ 留空白行 =====
                     new DetailField { Label = "库内名称", ValuePath = "DetailRow.Name", Kind = FieldKind.Text, Selectable = true, Inline = true },
                     new DetailField { Label = "资产 Id", ValuePath = "DetailRow.Id", Kind = FieldKind.Text, Selectable = true, Inline = true },
-                    new DetailField { Label = "原始文件名", ValuePath = "DetailRow.FileName", Kind = FieldKind.Text, Selectable = true, Inline = true },
                     new DetailField
                     {
                         Label = "最近更新",

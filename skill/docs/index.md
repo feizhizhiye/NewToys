@@ -97,7 +97,7 @@
 | **改用户可见的用法 / 新增操作路径** | 说明书 §四 §五 → `modules/<模块>.md` §2.5（补契约行） |
 | **启动慢 / 启动提速 / 怀疑配置 json** | **`framework.md §3.5`（唯一入口 · 已结案）**：链路 / 打点 / 冷·热实测 / 收益预估 / ⛔ 不得再试清单；只读这一节，⛔ 不重新摸底、⛔ 不再试已排除方向（当日已实测否决并行加载 / R2R / 分项打点）；诊断卡 `backlog/framework/NT-145.md`（📝 草稿，默认不执行） |
 | 编译报错 | `framework.md` 附录 A → `modules/<模块>.md` §5 |
-| **写新代码时注释怎么写 / 门禁为何拦我** | **`tech-guard.md` §3.1.1（生成侧最小注释契约 + M-01~M-04 门禁规则）** → `framework.md` §11.1；本地预检 `python skill/scripts/comment-gate.py --working`，自动门禁 = `.githooks/pre-commit` + `.github/workflows/comment-gate.yml` |
+| **写新代码时注释怎么写 / 门禁为何拦我** | **`tech-guard.md` §3.1.1（生成侧最小注释契约 + M-01~M-04 门禁规则）** → `framework.md` §11.1；本地预检 `python skill/scripts/comment-gate.py --working`，自动门禁 = `.githooks/pre-commit` + `.github/workflows/comment-gate.yml`（新克隆先启用一次：`git config core.hooksPath .githooks`） |
 | 工具脚本语言 / 落点是否合规 | `python skill/scripts/lint.py --only scripts`（S-01：`skill/scripts/` 只许 `.py`；三类脚本目录的职责与执行权限见《AI协作手册》【脚本目录与执行权限】） |
 | 交付 / 验收 | `framework.md` §9；`python skill/scripts/accept.py`（纯静态检查，不含构建） |
 

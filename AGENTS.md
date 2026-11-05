@@ -77,7 +77,7 @@ NewToys = 带 GUI 的 Windows 桌面工具管理器（脚本管理器定位，�
 
 🔴 **跨平台中立（2026-10-19）**：本期**不做**跨平台（交付仍是 Windows 10 LTSC），但**新增模块 / 新增后端 / 任何新代码必须平台中立** —— 三层分工（页面一份 · 后端适配器 · 平台底座）、包管理器取数分级（**只有 winget 需要复杂解析**，其余走机读输出 + 一份通用 TSV 解析）、写操作 ⛔ 不脚本化。唯一源 = **`skill/docs/framework.md` §2.1**（六条硬约束逐条自检）。
 
-🔴 **注释三分法（2026-10-25 起）**：**契约**留 `/// <summary>` · **约束**变 lint 规则 · **意图**（为什么 / 踩过什么坑）进文档一处 · **叙事**（`vX.Y`、`第 N 轮`、`原来是 / 后来改成`）**一律删** —— 那是 git log 的职责。新增注释 ⛔ 不写版本前缀与历史叙述；规则唯一源 = `skill/references/tech-guard.md` §3.1，检查 = `skill/scripts/lint.py --only comments`（已进 `accept.py`）。**写新代码前另读 §3.1.1 生成侧最小注释契约**（信息优先交类型 / 命名 / 测试 / 文档，注释只留别的载体拿不到的那句；标记只认 `WHY: <ID>` / `SAFETY:` / `TODO:`）；增量门禁 = `skill/scripts/comment-gate.py`，由 `.githooks/pre-commit` 与 `.github/workflows/comment-gate.yml` 自动阻断，⛔ 不靠 AI 自觉。**存量已清零（2026-10-25：C-01 版本前缀 / C-02 长注释块 / C-04 历史叙事 / C-06 NT 编号全部归 0，WARN 240 → 0）**；此后新增注释按「改到哪清哪」守，⛔ 别攒到再一键批量删。
+🔴 **注释三分法（2026-10-25 起）**：**契约**留 `/// <summary>` · **约束**变 lint 规则 · **意图**（为什么 / 踩过什么坑）进文档一处 · **叙事**（`vX.Y`、`第 N 轮`、`原来是 / 后来改成`）**一律删** —— 那是 git log 的职责。新增注释 ⛔ 不写版本前缀与历史叙述；规则唯一源 = `skill/references/tech-guard.md` §3.1，检查 = `skill/scripts/lint.py --only comments`（已进 `accept.py`）。**写新代码前另读 §3.1.1 生成侧最小注释契约**（信息优先交类型 / 命名 / 测试 / 文档，注释只留别的载体拿不到的那句；标记只认 `WHY: <ID>` / `SAFETY:` / `TODO:`）；增量门禁 = `skill/scripts/comment-gate.py`，由 `.githooks/pre-commit`（新克隆启用一次：`git config core.hooksPath .githooks`）与 `.github/workflows/comment-gate.yml` 自动阻断，⛔ 不靠 AI 自觉。**存量已清零（2026-10-25：C-01 版本前缀 / C-02 长注释块 / C-04 历史叙事 / C-06 NT 编号全部归 0，WARN 240 → 0）**；此后新增注释按「改到哪清哪」守，⛔ 别攒到再一键批量删。
 
 🔴 **不在此重复正文**：命名空间 / View-VM 成对 / 主题键 / 密度基线 / 列表页约定 / 分析器坑等，唯一源 = `skill/references/newtoys-spec.md`（§一 项目事实 · §五 密度基线 · §六 高频硬约束 · §七 分析器坑）。
 

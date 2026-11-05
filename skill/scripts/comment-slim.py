@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """方案1 · src 注释瘦身：短契约保留，长段分流（压缩 / WHY 蒸馏 / 删叙事）。
 
-判据（与 lint.py --only comments 的 C-07 对齐）：
-  * 连续 `///` 块 <= 5 行 = 短契约，原样保留；
-  * 连续 `///` 块 >= 6 行 = 长段，压成 1 行 `/// <summary>…（WHY: ID）</summary>`；
+判据（与 lint.py --only comments 的 C-07、comment-gate.py 的 M-02 同口径）：
+  * 连续 `///` 块里的散文件数 <= 5 = 短契约，原样保留；
+  * 散文件数 >= 6 = 长段，压成 1 行 `/// <summary>…（WHY: ID）</summary>`；
+  * 成员级契约行（`<param>` / `<returns>` / `<typeparam>` / `<exception>` / `<value>`）不算散文件数，原样保留；
   * 长段里的高信号 WHY 行蒸馏进权威文档，用 `<!-- ANCHOR:ID -->` 标记，代码与文档双向对账；
   * 含机器标记（inheritdoc / lint:）的块走白名单，绝不改。
 
@@ -211,7 +212,7 @@ def main() -> None:
                 out += block
                 i = j
                 continue
-            if len(block) < MIN_BLOCK:
+            if sum(1 for x in block if not SIG_LINE.match(x)) < MIN_BLOCK:
                 counters["kept"] += 1
                 out += block
                 i = j

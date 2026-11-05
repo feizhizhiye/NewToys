@@ -532,7 +532,8 @@ public class TableViewHost : TableView
         if (!_rowItemsCaptured)
         {
             _rowMenuItems.Clear();
-            foreach (var item in menu.Items) _rowMenuItems.Add(item);
+            foreach (var item in menu.Items)
+                if (item is not null) _rowMenuItems.Add(item);
             _rowItemsCaptured = true;
         }
 

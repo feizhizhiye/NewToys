@@ -39,7 +39,7 @@ NewToys 是**个人自用工具集**，开源是为了分享与可复用。接�
 
 ```powershell
 pwsh -File .\scripts\build.ps1            # Debug 构建（唯一编译入口）
-python skill/scripts/accept.py             # 静态验收：11 项静态检查 + 改动范围（不含构建）
+python skill/scripts/accept.py             # 静态验收：AUTO 清单里的静态检查 + 文档一致性 + 改动范围（不含构建）
 ```
 
 `accept.py` 只做静态检查（skill/ 下脚本不构建），编译始终看 `build.ps1`。脚本退出码 0 = 通过、1 = 失败。PR 里请贴上**静态验收结果汇总段**。

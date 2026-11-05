@@ -22,6 +22,17 @@ public partial class AssetAllView
     private Point _lastRightPress;
     private TableViewColumn? _menuColumn;
     private readonly Dictionary<TableViewColumn, GridLength> _defaultWidths = new();
+    private MenuItem? _columnMenuItem;
+    private readonly List<object> _columnChildren = new();
+
+    /// <summary>表头模式把「▤ 列」的子项平铺到顶层；下次打开前先还回容器，避免第二次打开变空。</summary>
+    private void RestoreColumnChildren()
+    {
+        if (_columnMenuItem is null || _columnChildren.Count == 0) return;
+        _columnMenuItem.Items.Clear();
+        foreach (var child in _columnChildren) _columnMenuItem.Items.Add(child);
+        _columnChildren.Clear();
+    }
 
     private void EnsureMenuHooked()
     {
@@ -101,6 +112,7 @@ public partial class AssetAllView
             _rowItemsCaptured = true;
         }
 
+        RestoreColumnChildren();
         menu.Items.Clear();
         if (!_headerMode)
         {
@@ -118,7 +130,15 @@ public partial class AssetAllView
         menu.Items.Add(reset);
         menu.Items.Add(new Separator());
 
-        if (_rowMenuItems.Count > 0) menu.Items.Add(_rowMenuItems[0]);
+        // 列显隐平铺在顶层（与 TableViewHost 口径一致），⛔ 不再套一层「▤ 列」子菜单。
+        _columnMenuItem = _rowMenuItems.Count > 0 ? _rowMenuItems[0] as MenuItem : null;
+        if (_columnMenuItem is not null)
+        {
+            foreach (var child in _columnMenuItem.Items)
+                if (child is not null) _columnChildren.Add(child);
+            _columnMenuItem.Items.Clear();
+            foreach (var child in _columnChildren) menu.Items.Add(child);
+        }
     }
 
     /// <summary>只调命中列：表头文字宽 + 内边距，封顶 320px（⛔ 不按全文测宽、不批量调全部列）。</summary>

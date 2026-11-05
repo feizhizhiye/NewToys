@@ -22,7 +22,7 @@ namespace NewToys.UI.Controls;
 /// <list type="bullet">
 ///   <item>列显隐 / 表头文案 / 排序键全部从 <see cref="ListPageViewModelBase.ColumnLayout"/> 推出来，
 ///         XAML ⛔ 不用再写 <c>IsXxxVisible</c> 绑定与 <c>SortCommand</c> + <c>CommandParameter</c>；</item>
-///   <item>列宽拖拽、表头点击排序、右键「▤ 列」菜单、<see cref="Control.ContextMenu"/> 的 DataContext 同步都在本类里；</item>
+///   <item>列宽拖拽、表头点击排序、表头右键列菜单、<see cref="Control.ContextMenu"/> 的 DataContext 同步都在本类里；</item>
 ///   <item>密度与配色（行 28 / 字 12 / 语义色选中）在 <c>Styles/TableViewHost.axaml</c>，按类型选择器只作用本控件。</item>
 /// </list>
 /// </para>
@@ -39,8 +39,18 @@ public class TableViewHost : TableView
 {
     private ListPageViewModelBase? _vm;
 
-    /// <summary>自动插入右键菜单顶部的「▤ 列」项与分隔符（重开菜单时先摘掉，避免越积越多）。</summary>
-    private readonly List<object> _autoMenuItems = new();
+    /// <summary>表头右键菜单（列宽 / 列显隐 / 筛选），由控件统一生成，页面不声明。</summary>
+    private readonly ContextMenu _headerMenu = new();
+
+    /// <summary>页面在 XAML 里声明的行右键菜单；右键落在表头时临时换掉 <c>ContextMenu</c>，用完切回。</summary>
+    private ContextMenu? _rowMenu;
+
+    private Point _lastRightPress;
+    private bool _rightPressPending;
+    private TableViewColumn? _menuColumn;
+
+    /// <summary>列的初始宽度（XAML 声明值），供「恢复本页默认列宽」写回。</summary>
+    private readonly Dictionary<TableViewColumn, GridLength> _defaultWidths = new();
 
     /// <summary>
     /// 🔴 必须按基类取主题：Avalonia 用自己的类型找 ControlTheme、不沿继承链回溯，
@@ -61,6 +71,11 @@ public class TableViewHost : TableView
         AddHandler(PointerPressedEvent, OnResizePressed, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, OnResizeMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, OnResizeReleased, RoutingStrategies.Tunnel);
+
+        // 表头右键与行右键按落点分流：右键按下阶段就换菜单，ContextRequested 时框架读到的已是正确菜单。
+        AddHandler(PointerPressedEvent, OnRightPressRecorded, RoutingStrategies.Tunnel);
+        AddHandler(ContextRequestedEvent, OnContextRequestedPreview, RoutingStrategies.Tunnel);
+        _headerMenu.Opening += OnMenuOpening;
 
         LayoutUpdated += (_, _) =>
         {
@@ -94,19 +109,17 @@ public class TableViewHost : TableView
         base.OnPropertyChanged(change);
 
         if (change.Property != ContextMenuProperty) return;
+        if (change.NewValue is not ContextMenu menu) return;
 
-        if (change.OldValue is ContextMenu old) old.Opening -= OnMenuOpening;
-        if (change.NewValue is ContextMenu menu)
-        {
-            menu.DataContext = DataContext;
-            menu.Opening += OnMenuOpening;
-        }
+        menu.DataContext = DataContext;
+        if (!ReferenceEquals(menu, _headerMenu)) _rowMenu = menu;
     }
 
     /// <summary>⚠️ ContextMenu 在独立弹出树上，DataContext 不随宿主继承（规范 §3.8）。</summary>
     private void SyncContextMenu(object? dataContext)
     {
         if (ContextMenu is { } menu) menu.DataContext = dataContext;
+        _headerMenu.DataContext = dataContext;
     }
 
     /// <summary>
@@ -129,6 +142,7 @@ public class TableViewHost : TableView
         {
             cols[i].Bind(TableViewColumn.IsVisibleProperty,
                 new Binding("Is" + layout[i].Key + "Visible") { Source = _vm, Mode = BindingMode.OneWay });
+            if (!_defaultWidths.ContainsKey(cols[i])) _defaultWidths[cols[i]] = cols[i].Width;
         }
 
         ApplyHeaders();
@@ -445,30 +459,68 @@ public class TableViewHost : TableView
         return width;
     }
 
-    // ==================== 右键「▤ 列」（按 VM 的列元数据自动生成） ====================
+    // ==================== 表头右键（列宽 / 列显隐 / 筛选） ====================
+
+    /// <summary>右键按下即按落点切换菜单：表头 → 列菜单，行区 / 空白 → 页面声明的行菜单。</summary>
+    private void OnRightPressRecorded(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed) return;
+
+        _lastRightPress = e.GetPosition(this);
+        _rightPressPending = true;
+        _menuColumn = ColumnAt(_lastRightPress);
+        ContextMenu = _menuColumn is not null ? _headerMenu : _rowMenu;
+    }
+
+    /// <summary>键盘触发（Shift+F10 / 菜单键）没有 PointerPressed ⇒ 一律回到行菜单。</summary>
+    private void OnContextRequestedPreview(object? sender, ContextRequestedEventArgs e)
+    {
+        if (_rightPressPending)
+        {
+            _rightPressPending = false;
+            return;
+        }
+        _menuColumn = null;
+        ContextMenu = _rowMenu;
+    }
+
+    /// <summary>坐标命中表头：表头背景透明，靠 e.Source 找祖先会漏掉文字以外的空白区。</summary>
+    private TableViewColumn? ColumnAt(Point point)
+    {
+        foreach (var header in this.GetVisualDescendants().OfType<TableViewColumnHeader>())
+        {
+            if (header.Column is not { IsVisible: true } column) continue;
+            if (header.TranslatePoint(new Point(0, 0), this) is not { } origin) continue;
+            if (new Rect(origin, header.Bounds.Size).Contains(point)) return column;
+        }
+        return null;
+    }
 
     private void OnMenuOpening(object? sender, CancelEventArgs e)
     {
         if (sender is ContextMenu menu) menu.DataContext = DataContext;
-        EnsureColumnMenu();
+        if (ReferenceEquals(sender, _headerMenu)) BuildHeaderMenu();
     }
 
     /// <summary>
-    /// 右键菜单顶部插「▤ 列」：勾选 = 显隐，命令走 VM 的 <c>ToggleColumnCommand</c>（结果落
-    /// <c>config\columnlayout.json</c>）。首列是标识列（名称），固定显示。
-    /// <para>每次打开重建：列标题会随排序箭头变化，且 VM 可能在别处改过显隐。</para>
+    /// 每次打开重建列菜单：列标题随排序箭头变化、显隐可能在别处改过、快捷筛选项会重建。
+    /// 三段口径对齐资源管理器：列宽 → 列显隐 → 筛选；行菜单 ⛔ 不再插「▤ 列」。
     /// </summary>
-    private void EnsureColumnMenu()
+    private void BuildHeaderMenu()
     {
-        if (ContextMenu is not { } menu || _vm is null) return;
+        _headerMenu.Items.Clear();
+        if (_vm is null) return;
 
-        foreach (var old in _autoMenuItems) menu.Items.Remove(old);
-        _autoMenuItems.Clear();
+        var fit = new MenuItem { Header = "↔ 本列按表头文字适配", IsEnabled = _menuColumn is not null };
+        fit.Click += (_, _) => FitColumnToHeader();
+        _headerMenu.Items.Add(fit);
+
+        var reset = new MenuItem { Header = "⟲ 恢复本页默认列宽" };
+        reset.Click += (_, _) => ResetColumnWidths();
+        _headerMenu.Items.Add(reset);
+        _headerMenu.Items.Add(new Separator());
 
         var layout = _vm.ColumnLayout;
-        if (layout.Count == 0) return;
-
-        var parent = new MenuItem { Header = "▤ 列" };
         for (var i = 0; i < layout.Count; i++)
         {
             var column = layout[i];
@@ -480,6 +532,8 @@ public class TableViewHost : TableView
                 IsEnabled = i > 0
             };
 
+            if (i == 0) ToolTip.SetTip(item, "标识列固定显示，不可隐藏");
+
             item.Bind(MenuItem.IsCheckedProperty,
                 new Binding("Is" + column.Key + "Visible") { Source = _vm, Mode = BindingMode.OneWay });
 
@@ -487,13 +541,36 @@ public class TableViewHost : TableView
                 item.Bind(MenuItem.CommandProperty,
                     new Binding(nameof(ListPageViewModelBase.ToggleColumnCommand)) { Source = _vm });
 
-            parent.Items.Add(item);
+            _headerMenu.Items.Add(item);
         }
 
-        var separator = new Separator();
-        menu.Items.Insert(0, parent);
-        menu.Items.Insert(1, separator);
-        _autoMenuItems.Add(parent);
-        _autoMenuItems.Add(separator);
+        if (_vm.QuickFilters.Count == 0) return;
+
+        _headerMenu.Items.Add(new Separator());
+        var filter = new MenuItem { Header = "🔎 筛选" };
+        foreach (var quick in _vm.QuickFilters)
+            filter.Items.Add(new MenuItem
+            {
+                Header = quick.Label,
+                Command = quick.Command,
+                IsEnabled = quick.Command is not null
+            });
+        _headerMenu.Items.Add(filter);
+    }
+
+    /// <summary>按表头文字宽设像素列宽；⛔ 不按全文测宽（长内容会把其他列挤到 0）。</summary>
+    private void FitColumnToHeader()
+    {
+        if (_menuColumn is null) return;
+        var width = Math.Ceiling(MinWidthOf(_menuColumn));
+        if (width > 0) _menuColumn.Width = new GridLength(width, GridUnitType.Pixel);
+    }
+
+    private void ResetColumnWidths()
+    {
+        var cols = Columns;
+        if (cols is null) return;
+        foreach (var column in cols)
+            if (_defaultWidths.TryGetValue(column, out var width)) column.Width = width;
     }
 }

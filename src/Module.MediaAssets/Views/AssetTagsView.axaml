@@ -65,18 +65,9 @@
             <TableViewColumn Width="1.4*" Binding="{Binding CreatedText}"/>
           </v:TableViewHost.Columns>
 
-          <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；菜单顶部「▤ 列」「🔎 筛选」由页面给，DataContext 由控件同步  -->
+          <!--  行右键 = 针对单条的动作（§4.8 硬规则 9）；表头右键的列宽 / 列显隐 / 筛选由 TableViewHost 统一给  -->
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
-                <MenuItem.ItemContainerTheme>
-                  <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                    <Setter Property="Header" Value="{Binding Label}"/>
-                    <Setter Property="Command" Value="{Binding Command}"/>
-                  </ControlTheme>
-                </MenuItem.ItemContainerTheme>
-              </MenuItem>
-              <Separator/>
               <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameTagCommand}"/>
               <MenuItem Icon="🎨" Header="改颜色…" Command="{Binding ChangeColorCommand}" ToolTip.Tip="输入 #RRGGBB；也可以在详情卡点色板"/>
               <MenuItem Icon="🔗" Header="合并到…" Command="{Binding MergeTagCommand}" ToolTip.Tip="把当前标签的资产转给另一个标签，然后删掉自己"/>

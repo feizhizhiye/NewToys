@@ -357,7 +357,7 @@ def check_techstack(all_: bool) -> None:
             for rid, _l, loc, msg in warns:
                 print(f"  [{rid}] {loc}  {msg}")
         else:
-            print(f"[WARN] {len(warns)} 条（明细加 -All 查看）")
+            print(f"[WARN] {len(warns)} 条（明细加 --all 查看）")
     else:
         print("[WARN] 0 条 ✅")
     print("\n提示：规则出处 skill/references/tech-guard.md；本脚本只抓常见硬伤，完整编译由用户本地 build.ps1 验证。")
@@ -411,7 +411,7 @@ def check_detail_paths(all_: bool) -> None:
     for loc, path in findings[:limit]:
         print(f"  {loc}  →  {path}")
     if limit < len(findings):
-        print(f"  …另有 {len(findings) - limit} 条，加 -All 看全。")
+        print(f"  …另有 {len(findings) - limit} 条，加 --all 看全。")
 
 
 # ---------------------------------------------------------------- 5) 视频详情卡同源
@@ -458,7 +458,7 @@ def check_video_card(all_: bool) -> None:
     for e in (errors if all_ else errors[:30]):
         print(f"  {e}")
     if not all_ and len(errors) > 30:
-        print(f"  …（还有 {len(errors) - 30} 条，加 -All 看全部）")
+        print(f"  …（还有 {len(errors) - 30} 条，加 --all 看全部）")
 
 
 # ---------------------------------------------------------------- 6) 注释健康度 / View 类名唯一性
@@ -584,7 +584,7 @@ def check_regions(all_: bool) -> None:
 
     for key, n in layers.items():
         if not 1 <= n <= 5:
-            errors.append(f'R-02  "{key}" 档位 {n} 越界 —— 窗口内部只有 5 档面（1~5）')
+            errors.append(f'R-02  "{key}" 档位 {n} 越界 —— 色阶常量表只有 5 档面（1~5），区域实际只用 1~3 档')
 
     used: set[str] = set()
     for x, y in pairs:
@@ -610,7 +610,7 @@ def check_regions(all_: bool) -> None:
     for e in (errors if all_ else errors[:30]):
         print(f"  {e}")
     if not all_ and len(errors) > 30:
-        print(f"  …（还有 {len(errors) - 30} 条，加 -All 看全部）")
+        print(f"  …（还有 {len(errors) - 30} 条，加 --all 看全部）")
 
 
 # ---------------------------------------------------------------- 7) 页面契约
@@ -681,7 +681,7 @@ def check_view_pairs(all_: bool) -> None:
         for rid, _l, loc, msg in errors[: len(errors) if all_ else 30]:
             print(f"  {rid}  {loc}  {msg}")
         if not all_ and len(errors) > 30:
-            print(f"  …另有 {len(errors) - 30} 条，加 -All 看全。")
+            print(f"  …另有 {len(errors) - 30} 条，加 --all 看全。")
     print("\n提示：P-01 / P-02 都是 ERROR —— 命名对不上时页面不报错，只是空白或打不开。")
 
 
@@ -842,7 +842,7 @@ def check_region_pages(all_: bool) -> None:
     for e in (errors if all_ else errors[:30]):
         print(f"  {e}")
     if not all_ and len(errors) > 30:
-        print(f"  …（还有 {len(errors) - 30} 条，加 -All 看全部）")
+        print(f"  …（还有 {len(errors) - 30} 条，加 --all 看全部）")
 
 
 # ---------------------------------------------------------------- 10) 同族页矩阵对账
@@ -1015,7 +1015,7 @@ def check_conventions(all_: bool) -> None:
     for w in (warns if all_ else warns[:30]):
         print("  " + w)
     if not all_ and len(warns) > 30:
-        print(f"  …（还有 {len(warns) - 30} 条，加 -All 看全部）")
+        print(f"  …（还有 {len(warns) - 30} 条，加 --all 看全部）")
 
 
 CHECKS = {

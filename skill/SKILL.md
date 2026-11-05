@@ -20,7 +20,7 @@ agent_created: true
 
 ## 读取顺序
 
-1. **一次打包（首选）**：`python skill/scripts/ctx.py --task <feature|ui|interaction|fix|usage|verify|card> --module <模块>` —— 输出铁律 + 模块行 + 基线 + 该任务相关章节 + 任务卡。⛔ 不要逐份 Read 文档
+1. **一次打包（首选）**：`python skill/scripts/ctx.py --task <auto|feature|ui|interaction|fix|usage|verify|card> --module <模块>` —— 输出铁律 + 模块行 + 基线 + 该任务相关章节 + 任务卡。⛔ 不要逐份 Read 文档
 2. 打包里缺的 → 按 `docs/index.md` §三 定位，用 `ctx.py --doc <文件> --section <节号>` 精读单节
 3. 涉及功能 / 边界 → **`docs/NewToys-需求摘要.md`**（150 行常读基线；原文 1331 行只按它的定位表 grep）
 4. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型速记）
@@ -33,13 +33,13 @@ agent_created: true
 - `references/collab-method.md` —— 通用协作方法论（跨项目母本；**§七 回复格式（编号段落）与会话成本管控 · 长会话提醒** —— 每次回复前对照）
 - `references/newtoys-spec.md` —— NewToys 特定约束（项目事实 / 密度基线 / 高频坑 / 主题键清单见 `docs/NewToys-机器事实.md` / 任务型→章节 / 文档路由）
 - `references/tech-guard.md` —— 技术栈硬伤唯一源（`G-01`~`G-11` + `G-14`~`G-17`，与 `lint.py --only techstack` 一一对应）
-- **`scripts/accept.py` —— 🔴 静态验收入口**：串起全部静态检查（见下方 AUTO 清单）+ 文档一致性 + 改动范围，输出结论与退出码（0 = 通过 / 1 有 FAIL）。🔴 **不含构建 / 测试 / 产物核对 / 冒烟** —— skill/ 下脚本只做静态检查，编译一律走用户本地 `scripts/build.ps1`。手动用：终端里不带参数直接跑会弹**交互菜单**（全部 / 只静态 / 只文档 / 文档修复 / 只范围；跑完停住等按键，R 回菜单）；单项 = `-Only all|static|docs|fix|scope`；AI 一律 `-Brief`（一行结论，不弹菜单不等待）。
+- **`scripts/accept.py` —— 🔴 静态验收入口**：串起全部静态检查（见下方 AUTO 清单）+ 文档一致性 + 改动范围，输出结论与退出码（0 = 通过 / 1 有 FAIL）。🔴 **不含构建 / 测试 / 产物核对 / 冒烟** —— skill/ 下脚本只做静态检查，编译一律走用户本地 `scripts/build.ps1`。手动用：终端里不带参数直接跑会弹**交互菜单**（全部 / 只静态 / 只文档 / 文档修复 / 只范围；跑完停住等按键，R 回菜单）；单项 = `-Only all|static|docs|fix|scope|family|scripts`；AI 可直接不带参数跑（非交互终端不弹菜单），或 `-Brief` 取一行结论。
 - `scripts/lint.py` —— 静态自检实现；全部检查项见下方 AUTO 清单
 - **`scripts/ctx.py` —— 🔴 上下文打包（省 token 首选）**：`python skill/scripts/ctx.py --task ui --module viewer` 一次输出该任务需要的文档段落（铁律 + 模块行 + 相关章节 + 任务卡），**替代逐份 Read 文档**；`--doc ui.md --section 12` 精读单节；`--list` 看任务类型。
-- **`scripts/docs-sync.py` —— 文档同步检查 / 生成**：`menu`（四处 AUTO 块 ⇄ 代码 `RegisterModule` / `RegisterFunction` + 模块 md 头部与页数）、`keys`（代码 ⇄ 模块 md ⇄ 说明书）、`paths`（文档路径引用 ⇄ src）、`cards`（每目录卡数 / §2.5 存在性）、`ledger`（NT 编号）。默认只读，`--only <key>`（全部键见下方 AUTO 清单）；**`--fix` 只重写 `<!-- AUTO:… -->` 块内部**（index §二 / framework §4.2 / 台账 §一文档版本 与 §2.3），块外手写内容不动。
+- **`scripts/docs-sync.py` —— 文档同步检查 / 生成**：`menu`（四处 AUTO 块 ⇄ 代码 `RegisterModule` / `RegisterFunction` + 模块 md 头部与页数）、`keys`（代码 ⇄ 模块 md ⇄ 说明书）、`paths`（文档路径引用 ⇄ src）、`cards`（每目录卡数 / §2.5 存在性）、`ledger`（NT 编号）。默认只读，`--only <key>`（全部键见下方 AUTO 清单）；**`--fix` 只重写 `<!-- AUTO:… -->` 块内部**（清单唯一源 = `scripts/docs-sync.py` 的 `AUTO_TARGETS`，⛔ 不在正文枚举 / 写死数量），块外手写内容不动。
 - `scripts/lint.py --only props` —— XAML 属性名核对（每个属性名到 Avalonia ref 程序集搜存在性；专治 Avalonia ≠ WPF 的名字差异）
-- `scripts/lint.py --only techstack` —— 技术栈硬伤 `G-01`~`G-11` + `G-14`~`G-17`（ERROR / WARN 分级；`-All` 看 WARN 明细）
-- `scripts/lint.py --only detail-paths` —— 声明式详情卡的字符串绑定路径首段是否存在（`-All` 看全）
+- `scripts/lint.py --only techstack` —— 技术栈硬伤 `G-01`~`G-11` + `G-14`~`G-17`（ERROR / WARN 分级；`--all` 看 WARN 明细）
+- `scripts/lint.py --only detail-paths` —— 声明式详情卡的字符串绑定路径首段是否存在（`--all` 看全）
 - `docs/` —— 🔴 **权威文档（自封装）**：
   - `index.md` 文档地图（**先读**）
   - `framework.md` 框架层工程规范 + **跨模块待办** ｜ `ui.md` UI 工程规范

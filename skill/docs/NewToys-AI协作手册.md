@@ -32,7 +32,7 @@
 · `scripts/`（仓库根）= **面向人工操作的仓库级脚本**：build / run / pack / publish / release / clean / export / env。默认 AI ⛔ 不执行；唯一例外 = 用户在当前会话显式下达的一次性指令（如「这轮你跑一次 build」），只对这一次生效，⛔ 不设可复用的「临时授权状态」。
 · `src/**/defaults/**` = **产品内置脚本**（sysinfo 采集器 / 示例 / 环境脚本），是产品数据、路径被代码引用，⛔ 不因「ps1 统一放根目录」而搬动。
 · `var/` = 用户自用脚本，AI 不主动管理。
-· 约束落地：`lint.py --only scripts`（S-01）扫到 `skill/scripts/` 下 `.ps1/.bat/.cmd` 即 ERROR，已并入 `accept.py` 第 11 项；改 `scripts/` 属授权区改动（改动范围检查认这五个区），⛔ 不等于获得执行权。
+· 约束落地：`lint.py --only scripts`（S-01）扫到 `skill/scripts/` 下 `.ps1/.bat/.cmd` 即 ERROR，已并入 `accept.py` 静态检查清单；改 `scripts/` 属授权区改动（改动范围检查认这五个区），⛔ 不等于获得执行权。
 · 一次 build 原则见 E 节：默认仍由用户本地执行，AI 只在上述显式指令下例外一次。
 
 【研发流程】🔴 **本文件是工作流唯一定义处**，其他文档 / 入口只引用本节，不另写一份
@@ -44,7 +44,7 @@ A. 规划期（Planning，默认，只写文档，可多轮）：
    ⛔ 规划期**绝不改 `src/` 代码**，无论讨论几轮。
 B. 实施期（Implementation，显式触发才碰代码）：
    ④ 仅当用户发「**执行全部就绪待办**」/「执行 NT-xxx」时进入；筛 `✅ 就绪` 且依赖已完成的条目，按 依赖→优先级 排序；
-   ⑤ 逐条按 `NT-xxx.md` 任务卡 + `modules/<模块>.md` + `framework.md` / `ui.md` 改 src/ → 静态检查（`skill/scripts/accept.py` 一键过 11 项检查 + 文档一致性对账，**纯静态、不含构建**）→ 标 `🔄 执行中` → 落地标 `✔ 已完成（待验收）` + git commit + 回写《状态与路线图》+ 任务卡追加「执行记录」。
+   ⑤ 逐条按 `NT-xxx.md` 任务卡 + `modules/<模块>.md` + `framework.md` / `ui.md` 改 src/ → 静态检查（`skill/scripts/accept.py` 一键过 AUTO 清单里的静态检查 + 文档一致性对账（⛔ 不写死项数），**纯静态、不含构建**）→ 标 `🔄 执行中` → 落地标 `✔ 已完成（待验收）` + git commit + 回写《状态与路线图》+ 任务卡追加「执行记录」。
    🔴 遇 5 种阻塞情形之一立即停并报，不偷偷跳过、不扩范围。
 C. 状态机（单个工作项）：
    📝 草稿 Draft（细节未展开，**不执行**）→ ✅ 就绪 Ready（过 DoR，可批量跑）→ 🔄 执行中 In Progress → ✔ 已完成 Done（待验收）→ 用户验收后 Accepted：台账翻 ✔、任务卡进入滑动窗口。
@@ -176,7 +176,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 ☐ 设置落 config\、模块只读？      ☐ 模块 DLL 无拷贝、OutDir 直出？
 ☐ 未谎报编译、写清用户命令？      ☐ 台账按功能级更新、版本号独立？
 ☐ 待回选 / 拍板的回复用了编号段落？☐ 会话过长已提醒开新会话**并附续接包**？
-☐ 跑过静态验收 `skill/scripts/accept.py`（11 项静态检查 + 文档一致性对账 + 改动范围）？
+☐ 跑过静态验收 `skill/scripts/accept.py`（AUTO 清单里的静态检查 + 文档一致性对账 + 改动范围）？
 ☐ 本次改动已攒成**一次 build**、未中途要求用户重建？卡未因微调而新开？
 ☐ 本轮编译报错已回填 tech-guard.md §五？
 
@@ -205,7 +205,7 @@ grep/read 目标文件 + 相邻同型文件（照抄其风格）；只读相关�
 | 草稿闸门 | **就绪闸门（DoR · Definition of Ready）** | 进入实施前必须满足的**准入**清单 |
 | 验收标准 | **验收标准（Acceptance Criteria）** | 任务卡里那条可勾选的清单 |
 | （缺对应说法） | **完成定义（DoD · Definition of Done）** | 交付前必须满足的**准出**清单 = 本文件 [6] 自检 |
-| 静态自检 | **静态检查（Lint / Pre-commit Check）** | `python skill/scripts/accept.py`（编排 `lint.py` 的 11 项子检查） |
+| 静态自检 | **静态检查（Lint / Pre-commit Check）** | `python skill/scripts/accept.py`（编排静态检查项 AUTO 清单里的 `lint.py` 子检查） |
 | 需本地验证点 | **手工回归清单（Manual QA Checklist）** | 编译不了 → 交给用户实机过的那几条 |
 | 批次 | **变更集（Change Set）** | 一次交付里的一批改动 |
 | 验收 | **验收（Acceptance）** | 用户实机确认，通过后翻 Accepted |

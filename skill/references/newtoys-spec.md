@@ -111,8 +111,8 @@
 
 🔴 **本节已收敛，⛔ 不在此重复维护**：Avalonia / 分析器 / API 层面的**技术栈硬伤清单**（含「只有编译器能抓」的那批：CA1416 / CS0507 / CS0272 / CS0759 / CS8087 / MVVMTK0034 / AVLN2000 / NETSDK1022 等）+ 静态检测规则 **G-01~G-11 + G-14~G-17**（G-12 / G-13 未启用，编号留空以防历史引用错位），唯一源 = **`skill/references/tech-guard.md`**（另含「只有跑起来才能抓」的窗口装饰 / 贴靠 / SQLite 清单）。
 
-- 配套脚本 `skill/scripts/lint.py --only techstack`（`-All` 看 WARN 明细；规则 ID 与 tech-guard.md 一一对应）。
-- 🔴 交付前一律跑**静态验收**：`python skill/scripts/accept.py`（= `lint.py` 的 6 个子检查 + 改动范围；退出码 0/1）。**该脚本纯静态，⛔ 不含构建 / 测试 / 产物核对 / 冒烟** —— 编译验证始终是用户本地 `build.ps1`。⛔ 不再分条手跑各检查。
+- 配套脚本 `skill/scripts/lint.py --only techstack`（`--all` 看 WARN 明细；规则 ID 与 tech-guard.md 一一对应）。
+- 🔴 交付前一律跑**静态验收**：`python skill/scripts/accept.py`（= 静态检查项 AUTO 清单里的子检查 + 文档一致性对账 + 改动范围；⛔ 正文不写死项数；退出码 0/1）。**该脚本纯静态，⛔ 不含构建 / 测试 / 产物核对 / 冒烟** —— 编译验证始终是用户本地 `build.ps1`。⛔ 不再分条手跑各检查。
 - ⛔ 升级 Avalonia / .NET 后必须复核 tech-guard.md（标「版本相关」的条目会失效甚至反转）。
 - 编译器仍是唯一可信门禁：用户本地 `pwsh -File .\scripts\build.ps1`。
 

@@ -91,8 +91,11 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     [ObservableProperty] private AssetRow? _selected;
     [ObservableProperty] private string _searchText = "";
 
-    /// <summary>详情卡的「文件名」编辑框（双向绑；**失焦**只写编辑态，点「应用到文件」才真改磁盘）。</summary>
+    /// <summary>详情卡「文件名」框里的主名（⛔ 不含扩展名；失焦只写编辑态，点「应用到文件」才真改磁盘）。</summary>
     [ObservableProperty] private string _editFileName = "";
+
+    /// <summary>详情卡「文件名」框右侧的只读后缀（扩展名，含点）。</summary>
+    [ObservableProperty] private string _editFileExtension = "";
 
     // ==================== 筛选条下拉 ====================
 
@@ -368,7 +371,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         IsMetaSectionExpanded = _layoutCols?.LoadFlag(PageKey, "metaSection", false) == true;   // 「更多」节开合
         BuildStaticOptions();               // 类型 / 状态（固定值；设 FilterType ⇒ 触发类型列默认 + 状态栏前缀）
         Reload();                           // 存储源 / 标签下拉要读库 → 放在读库之后
-        LoadDetail(null);
+        LoadDetail(Selected);               // ⛔ 不能传 null：Reload 可能已认领首行，清掉编辑态会让详情卡空文件名
 
         _booted = true;                     // ctor 期间的筛选默认值不触发重取（Reload 已统一加载）
         StatusText = StatusSummary();

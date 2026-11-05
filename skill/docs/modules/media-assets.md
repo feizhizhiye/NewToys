@@ -63,10 +63,11 @@
 | 多选 | 鼠标 / 键盘：无修饰键=只选该行、`Ctrl`=增选/取消、`Shift`=从基准行连选、`Ctrl+Shift`=追加连选、`Ctrl+A`=全选当前页 | 选中真相在 VM `SelectedRows`；View 只回填 `SelectedItems` | 🔴 Avalonia 的 `Multiple` 单击默认是「追加」⇒ code-behind 在**隧道**阶段接管，无修饰键也自己处理（替换语义）；⛔ 无勾选列、⛔ 两套状态；分页口径 = 只在当前页有效；**右键命中未选中的行 ⇒ 单选替换成该行**（资源管理器语义），命中已选中行 ⇒ 保留整批（批量菜单作用于整批） |
 | 全选 / 反选 / 清空 | 列表右键尾部三项 | 改当前页选中集 | 与 `Ctrl+A` 同一入口（`SelectAllCommand`）；详情卡跟随最后点击行 |
 | ⛔ 从磁盘删除 | 行右键「⛔ 从磁盘删除…」 | 二次确认（列出文件清单 / 条数）→ 任务队列逐个删 → 删索引 | **唯一物理删除入口**，**支持批量**（对象 = 当前选中行，无位置登记的跳过并报数）；单条失败不影响其余，进度与失败看任务中心；详情卡 IconBar 的 🗑 只做软删 |
-| 批量重命名 | 工具条 / 行右键「✏ 批量重命名…」 | 弹层里组合规则（查找替换（正则可选）/ 前缀 / 后缀 / 编号（起始·步长·位数·连接符·落点）/ 大小写 / 是否改扩展名）→ 两列预览（原名 → 新名，冲突行标红）→ 逐个 `FileOperationService.Rename` | 入口要求**选中 ≥2 行**（单选走详情卡「应用到文件」：卡内第 2 行「文件名」改好再点）；规则顺序固定 = 查找替换 → 大小写 → 前缀 / 编号 / 后缀组装（`Models/RenameRules.cs`，纯文本变换，⛔ 不碰磁盘）；默认**保留原扩展名**、撞名**自动加序号**（可选「跳过冲突」）；红行（空名 / 非法字符 / 跳过策略下的重名）⇒「应用」禁用；落盘复用 `Rename`（日志先行 + `file_locations.path` 同步 + 每条一条 `operation_logs`，末尾再加一条 `rename_batch` 摘要）；⛔ 不做批量撤销；没登记位置的、磁盘上已不在的按「跳过」计并报数 |
+| 批量重命名 | 工具条 / 行右键「✏ 批量重命名…」 | 弹层里组合规则（查找替换（正则可选）/ 前缀 / 后缀 / 编号（起始·步长·位数·连接符·落点）/ 大小写 / 是否改扩展名）→ 两列预览（原名 → 新名，冲突行标红）→ 逐个 `FileOperationService.Rename` | 入口要求**选中 ≥2 行**（单选走详情卡「应用到文件」：框里改主名后点，扩展名自动拼回）；规则顺序固定 = 查找替换 → 大小写 → 前缀 / 编号 / 后缀组装（`Models/RenameRules.cs`，纯文本变换，⛔ 不碰磁盘）；默认**保留原扩展名**、撞名**自动加序号**（可选「跳过冲突」）；红行（空名 / 非法字符 / 跳过策略下的重名）⇒「应用」禁用；落盘复用 `Rename`（日志先行 + `file_locations.path` 同步 + 每条一条 `operation_logs`，末尾再加一条 `rename_batch` 摘要）；⛔ 不做批量撤销；没登记位置的、磁盘上已不在的按「跳过」计并报数 |
 | 加标签 / 加集合 | 行右键「🏷 加标签…」/「📚 加集合…」（⛔ 工具条不再放） | 多选弹层（`PickManyViewModel` / `PickManyOverlay`）：可搜索、可多选勾选、可新建（唯一需要手打的地方），确认后给**所有选中**资产加上 | 语义**只加不减**（不勾 = 不动，⛔ 不会顺手删别人已有的；取消请到详情卡点色片）；「已有」项照常列出并标注；⚡ 智能集合显示为不可勾；原来「弹输入框手打标签名」的做法已废弃（看不到已有标签、拼错、一次只能加一个）；详情卡在选中多个时也出「加标签」「加集合」两个动作（`HasManySelected`，样式与其余动作统一为 ghost + 图标） |
 | 筛选联动 | 筛选栏「类型」下拉 | 改了类型 ⇒ 「存储源」「标签」两个下拉立刻只剩**该类型下真的有资产**的选项（`ListStorageOptionsForType` / `ListTagOptionsForType`） | 之前是固定全量：选了「音乐」还列出只有视频的盘 / 标签 ⇒ 选了必然空，不符合直觉。当前选中的选项若被筛掉 ⇒ 自动落回「全部」 |
-| 详情卡保存 | 详情卡 IconBar「保存」 | 评分 / 描述 / 状态 / 标签 / 分类 / 集合一次落库，然后**从库里读回来**重填详情卡 | 写库是短连接 + 静默 catch ⇒ 保存后重新按 Id 认领行并 `LoadDetail`（卡上显示的一定是库里的值）；评分没写进去会在状态栏明确报「没写进资产库」而不是假报成功（显示名机制已取消，名字口径 = 文件名） |
+| 详情卡保存 | 详情卡 IconBar「保存」 | 评分 / 描述 / 状态 / 标签 / 分类 / 集合一次落库，然后**从库里读回来**重填详情卡 | 写库是短连接 + 静默 catch ⇒ 保存后重新按 Id 认领行并 `LoadDetail`（卡上显示的一定是库里的值）；评分没写进去会在状态栏明确报「没写进资产库」而不是假报成功（显示名机制已取消，名字口径 = 文件名主名 + 扩展名后缀） |
+| 详情卡文件名 | 选中一行 → 详情卡第 1 行「文件名」框 | 框内只放主名（与列表「名称」一致），扩展名作为只读后缀贴在框右；点卡底「应用到文件」时拼回「主名 + 扩展名」再改磁盘 | 后缀只读，单条⛔ 不改扩展名；框内只进编辑态（失焦不落盘）；主名为空 ⇒ 状态栏提示，不排队 |
 | 打开 / 定位 | 行右键「📂 打开」「📁 打开所在文件夹」 | 系统关联打开 / 资源管理器定位 | 状态栏先显示「正在打开/正在定位…」（慢盘唤醒期间有反馈、窗口不卡）；失败 ⇒ 状态栏 `⚠` |
 | 发送到视频工具 | 行右键「➡ 发送到视频工具」 | 把选中行里的**视频**按路径去重后投递给「视频工具 → 视频列表」页（`IModuleBus` 主题 `video.import`，载荷 = `(路径, metadata_json)`），随后自动导航过去 | 只挑 `Type == video` 的行，非视频跳过并在状态栏报数（「另有 N 个非视频已跳过」）；无选中 / 全非视频 ⇒ 只给提示、不跳页；**库里已读到的媒体信息随行带走**（对方不再重跑 ffprobe，没读过的字段留空）；跨模块通道见 `../framework.md` §6.8 |
 | ▶ 播放 | 工具条「▶ 播放」主键 / 子项「播放选中（音乐）」 | 把勾选行里的**音乐**按**当前列表顺序**投给「查看器 → 音乐播放」（`IModuleBus` 主题 `viewer.audioplay`，载荷 = 路径数组，第一首开播），随后导航过去 | 只收可播扩展名（mp3 / flac / wav / m4a / aac / wma / ogg / opus / aiff，与 `ViewerHost` 的音频集合**必须一致**）；无勾选 ⇒ 禁用；全非音频 ⇒ 只给提示、不跳页 |
@@ -236,6 +237,17 @@
 | `config\media-assets.json` | 设置（元数据 / 缩略图 / 扫描）+ 资产浏览偏好（`BrowseViewMode` / `BrowseIconSize` / `LastBrowseFolder`；经 `MediaAssetsSettingsIO` 唯一写入通道，不另开文件） | ✅ |
 | `config\columnlayout.json` | 列显隐 / 列宽 / 详情栏开合（`assets-all` 与 `assets-browse` **各一个页键**） | — |
 
+### 3.3 详情卡文件名（主名 + 只读后缀）
+
+| 环节 | 落点 | 口径 |
+|---|---|---|
+| 声明 | `ViewModels/AssetAllViewModel.Detail.cs` | `DetailField{ ValuePath = EditFileName, SuffixPath = EditFileExtension, Mono = true }`；契约见 `../ui.md` §7.3g |
+| 读入 | `LoadDetail` | `Path.GetFileNameWithoutExtension` / `Path.GetExtension` 拆 `AssetRow.FileName` ⇒ 框内主名（与列表「名称」一致）、框右 `.mkv` 只读 |
+| 写出 | `AssetAllViewModel.Edit.cs::ApplyToFileAsync` | 拼 `EditFileName.Trim() + EditFileExtension` 再走 `FileOperationService.Rename`；后缀⛔ 不参与 `ValuePath` 写回 |
+| 初始化 | `AssetAllViewModel` 构造函数 | `Reload()` 之后必须 `LoadDetail(Selected)`，⛔ 传 null（见坑点 25） |
+
+后缀只读 ⇒ 单条入口⛔ 不改扩展名（批量重命名「保留扩展名」开关仍可改）。框内改动只进编辑态，失焦不落盘。
+
 ## 4. 关键文件
 
 | 关注点 | 文件 |
@@ -245,7 +257,7 @@
 | 资产浏览页（树 + 双视图 + 缩略图） | `Views/AssetBrowseView.axaml(+.cs)` + `ViewModels/AssetBrowseViewModel*.cs` + `Models/AssetDirNode.cs` / `AssetTile.cs` / `BrowseParts.cs`；磁盘枚举与入库在 `Services/AssetBrowseService.cs` / `Services/AssetLibraryAddService.cs` |
 | 两页共用列定义 | `Models/AssetColumns.cs`（⛔ 各页别再各写一份） |
 | 磁盘操作 | `Services/FileOperationService.cs` + `Models/OperationLog.cs` |
-| 详情卡样板顺序 | 文件名（只读）→ 固定只读项 → 标签(分组)/分类/集合 chips → **IconBar** → 评分 chips → 描述 → 关联/提示 → 底部改名框 |
+| 详情卡结构 | 声明式卡（`AssetAllViewModel.Detail.cs::BuildCard`）；第 1 行「文件名」= 主名输入框 + 框右只读扩展名，短事实走 `Inline` 行内式，音乐字段 / 描述 / 关联收进可展开「更多」节。⛔ 顺序以 `BuildCard` 为准 |
 
 ## 5. 坑点（🔴 实测过）
 
@@ -282,6 +294,8 @@
 22. 🔴 **「最近扫描」⛔ 不能按 `scan_jobs` 查**：一次「扫描全部」只建**一条** job（`storage_id` 为 NULL），按 job 查会把没单独扫过的源全显示成「从未扫描」（用户实测报障）。现在扫到哪个源就写 `storages.last_scan_at`（`AssetService.SetStorageLastScan`），列优先读它、老库回退 job。扫描是按目录切源的，所以收尾时对**子树内每个源**都要写一次（`ScanService.SubtreeStorages`）。
 23. 🔴 **扫描里 ⛔ 不许读元数据 / 生成缩略图**（用户实测「扫描太慢」的根因）：`FlushNew` 曾经每 200 个新文件就 `GetAwaiter().GetResult()` 等一批 ffprobe / ffmpeg 跑完 —— 几百个视频 = 几分钟，遍历只占小头。现在扫描只写索引，新位置交给 `ScanService.OnNewLocations` → 模块接到 `TaskQueue` **后台**补元数据（开关 `AutoExtractMetadata`）；缩略图只在**浏览页滚动到可视区**时按需生成（开关 `AutoGenerateThumbnails`）。配套三处提速：① 子树内所有源的位置一次 `ListLocationsForStorages` 查完分桶，换目录不查库；② 新目录的源走 `InsertStorageFast`（⛔ 不用会全表查的 `UpsertStorage`）；③ 收尾的 missing 校准 + 最近扫描合成一个事务（`FinishStorageScans`）。
 24. NT-114 · 选中真相 = `SelectedRows`（列表原生 Ctrl/Shift 多选，⛔ 勾选列 / 「多选」开关）；`⤫ 从库移除` 只删索引（磁盘零操作）、`🔍 查重合并` 只认完全相同的物理路径、`📊 读媒体信息` 走 `MetadataService` 手动补读；关键文件 `AssetAllViewModel.Selection.cs` / `AssetService`。
+
+25. 🔴 **详情卡编辑态（`EditFileName` / `EditFileExtension` / 评分 / 标签 chips…）与 `Selected` 是两套数据**：只读字段直接绑 `DetailRow.*`（= `Selected`），编辑字段只在 `OnSelectedChanged → LoadDetail` 里填。构造函数原先在 `Reload()` 之后调 `LoadDetail(null)` ⇒ 首行已被认领但编辑态被清空，表现为**初次打开页面文件名框空、后缀也不显示，点一行才恢复**（去掉「含扩展名」水印后才显眼）。修法 = ctor 末尾改 `LoadDetail(Selected)`；任何「初始化时清空编辑态」都要先看 `Selected` 是否已被认领。数据流见 §3.3。
 
 ## 6. 待办（≤5，跨模块见 `framework.md` §11）
 

@@ -31,6 +31,10 @@ public sealed class TextFieldRow : DetailFieldRow
     public double BoxMinHeight => Field.MultiLine ? (Field.Rows > 0 ? Field.Rows : 52) : 0;
     public string? Placeholder => Field.Placeholder;
 
+    /// <summary>输入框右侧只读后缀（取 <see cref="DetailField.SuffixPath"/>）。</summary>
+    public string Suffix => _suffix ?? "";
+    public bool HasSuffix => Suffix.Length > 0;
+
     /// <summary>OnBlur 语义：值的写回交给 <c>LostFocus</c>（模板里挂 <c>OnTextLostFocus</c>）。</summary>
     public bool CommitOnBlur => CommitMode == EditCommitMode.OnBlur;
 
@@ -51,9 +55,17 @@ public sealed class TextFieldRow : DetailFieldRow
         if (CommitOnBlur) DetailPath.Write(Source, Field.ValuePath, _text);
     }
 
+    private string? _suffix = "";
+
     // ⛔ null 归一成空串：VM 值为 null 时反复在 null ⇄ "" 之间推送会让空输入框闪（Avalonia 重新排版文本）。
     protected override void RefreshCore()
-        => SetProperty(ref _text, DetailPath.Resolve(Source, Field.ValuePath)?.ToString() ?? "", nameof(Text));
+    {
+        SetProperty(ref _text, DetailPath.Resolve(Source, Field.ValuePath)?.ToString() ?? "", nameof(Text));
+        var suffix = string.IsNullOrEmpty(Field.SuffixPath)
+            ? ""
+            : DetailPath.Resolve(Source, Field.SuffixPath!)?.ToString() ?? "";
+        if (SetProperty(ref _suffix, suffix, nameof(Suffix))) OnPropertyChanged(nameof(HasSuffix));
+    }
 }
 
 /// <summary>

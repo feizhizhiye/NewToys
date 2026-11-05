@@ -1,5 +1,7 @@
 ﻿# NewToys UI 规范
 
+> v4.35 · 2026-11-05 · **详情卡输入框后缀（`SuffixPath` 新契约）** —— `DetailField.SuffixPath`（仅 `FieldKind.Text`）+ `TextFieldRow.Suffix / HasSuffix` + `DetailCardHost.axaml` Text 模板两种排版各增一列只读后缀（12 等宽次要色）；`Inline` 排版列定义随之变 `Auto,*,Auto`。值随 `RefreshCore()` 重解析，未配 = 不显示 ⇒ 既有卡零影响。首用：全部资产详情卡「文件名」框（框内主名 + 框右扩展名）。§7.3f / §7.3g 同步。
+
 > v4.34 · 2026-11-05 · **Text 行内排版（`Inline` 修饰位）+ 详情卡动作去 emoji** —— `DetailField.Inline`（仅 `FieldKind.Text`）：一行「标签：值」而非上下两行，值 12 比标签 14 小一号；可编辑时同行渲染紧凑输入框，提交语义与常规排版完全一致（同一个 `TextFieldRow` 行对象 + 模板内双排版，⛔ 不新增 Kind）。适用「类型 / 大小 / 修改时间」这类**短且固定**的信息（首用：资产详情卡）。同批：详情卡 `DetailAction` 全部统一 ghost + `IconKey`（文案不带 emoji）。§7.3f 同步。
 
 > v4.33 · 2026-11-04 · **通用动作图标矢量化（NT-047 第一批）** —— 新增 14 个动作几何（`IconOpen`/`IconEdit`/`IconCopy`/`IconImport`/`IconExport`/`IconArrowUp`/`IconArrowDown`/`IconStop`/`IconPause`/`IconEraser`/`IconCheckAll`/`IconUncheckAll`/`IconClose`/`IconReset`），`IconTabClose`+`IconWinClose` 合并进 `IconClose`；工具条 / 右键菜单 / 页面按钮 / 详情卡动作四条通道全部改走 `IconKey` 或 `{m:Glyph*}`（`NewToys.UI/Markup`），文案里的 emoji 前缀去掉。新增 `Path.icon-fg` —— 描边绑宿主 `Foreground`，禁用态自动变灰。§5 改为「一键一义」词表。
@@ -507,9 +509,18 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 ### 7.3f Text 行内排版（`Inline` 修饰位，2026-11-05）
 
 - 件：`DetailField.Inline`（`Shared`，**仅 `FieldKind.Text`**）+ `TextFieldRow.IsInline` + `DetailCardHost.axaml` 的 Text 模板内**双排版**（`Panel`：常规 `!IsInline` / 行内 `IsInline`，二者互斥可见）。
-- 布局：一行 `Grid ColumnDefinitions="Auto,*"` = 左「标签：」（field-label 14 SemiBold + 全角冒号）+ 右值；**值 12**（比标签小一号，三级字号的「值」档）。可编辑（无 `Selectable`）时右侧是紧凑输入框（`MinHeight=0`），提交语义与常规排版完全一致（同挂 `OnTextLostFocus`）。
+- 布局：一行 `Grid ColumnDefinitions="Auto,*,Auto"` = 左「标签：」（field-label 14 SemiBold + 全角冒号）+ 右值 + 末列只读后缀（未配后缀时宽 0）；**值 12**（比标签小一号，三级字号的「值」档）。可编辑（无 `Selectable`）时右侧是紧凑输入框（`MinHeight=0`），提交语义与常规排版完全一致（同挂 `OnTextLostFocus`）。
 - 用途：「类型 / 大小 / 修改时间 / 存储源」这类**短且固定**的事实；长内容（文件路径）⛔ 不用（换行后会与标签挤在一行里读不清）。首用：`AssetAllViewModel.Detail.cs`。
 - ⛔ 不新增 Kind（遵循「优先修饰位」 doctrine，2026-11-05 用户确认走框架层）。
+
+### 7.3g 输入框只读后缀（`SuffixPath` 修饰位，2026-11-05）
+
+- 件：`DetailField.SuffixPath`（`Shared`，仅 `FieldKind.Text`）+ `TextFieldRow.Suffix / HasSuffix`（`UI`）+ `DetailCardHost.axaml` Text 模板两种排版各一列 `TextBlock`。
+- 布局：常规排版 `Grid "*,Auto"` 包住 `TextBox`，后缀在右列（`Margin=6,0,0,0`）；行内排版第 3 列。后缀 = 12 等宽 + `SecondaryTextBrush`，`HasSuffix=false` 时不占位。
+- 刷新：`SuffixPath` 在 `RefreshCore()` 里重解析 ⇒ VM 只要 `OnPropertyChanged(<后缀属性>)` 即可；未配 `SuffixPath` = 恒不显示（既有卡零影响）。
+- 用途：把**不可编辑的尾部**从输入框里拆出来（扩展名 / 单位）。后缀⛔ 不参与 `ValuePath` 写回，提交时由 VM 自己拼回完整值。首用：`AssetAllViewModel` 的「文件名」（框内主名 + 框右 `.mkv`，点「应用到文件」时拼回）。
+- 🔴 `.code` 样式选择器是 `TextBox.code`，挂在后缀 `TextBlock` 上**不生效** ⇒ 后缀要显式 `FontFamily="Consolas"`，否则与输入框字体不一致。
+- 🔴 **VM 编辑态与选中项是两套数据**：页面构造 / 恢复详情栏时要按当前 `Selected` 重填可编辑字段，⛔ 用 `null` 清空 —— 否则 `DetailRow.*` 看着正常、只有编辑框（含后缀）空，点一行才恢复（实测坑，见 `modules/media-assets.md` §5 坑点 25）。
 
 ### 7.4 迁移页三件事（缺一不可）
 

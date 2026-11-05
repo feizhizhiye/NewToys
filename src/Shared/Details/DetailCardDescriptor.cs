@@ -186,6 +186,9 @@ public sealed class DetailField
     /// <summary>输入框占位文案（<see cref="FieldKind.Text"/> / <see cref="FieldKind.Select"/>）。</summary>
     public string? Placeholder { get; set; }
 
+    /// <summary>输入框右侧只读后缀的取值路径（<see cref="FieldKind.Text"/>；随行刷新，空值不显示）。</summary>
+    public string? SuffixPath { get; set; }
+
     // ===== Pair 专用（成对输入：宽 × 高） =====
 
     /// <summary>右侧输入框的绑定路径（<see cref="FieldKind.Pair"/>；左框仍用 <see cref="ValuePath"/>）。</summary>

@@ -134,16 +134,27 @@
               Text="{Binding Label}"
               TextWrapping="Wrap" />
           <!--  OnBlur 语义：模板里挂 LostFocus，值的写回在 code-behind 的 OnTextLostFocus 里做 -->
-          <TextBox
-              AcceptsReturn="{Binding MultiLine}"
-              Classes.code="{Binding Mono}"
-              IsVisible="{Binding IsEditable}"
-              LostFocus="OnTextLostFocus"
-              MinHeight="{Binding BoxMinHeight}"
-              PasswordChar="{Binding PasswordChar}"
-              PlaceholderText="{Binding Placeholder}"
-              Text="{Binding Text, Mode=TwoWay}"
-              TextWrapping="Wrap" />
+          <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsEditable}">
+            <TextBox
+                Grid.Column="0"
+                AcceptsReturn="{Binding MultiLine}"
+                Classes.code="{Binding Mono}"
+                LostFocus="OnTextLostFocus"
+                MinHeight="{Binding BoxMinHeight}"
+                PasswordChar="{Binding PasswordChar}"
+                PlaceholderText="{Binding Placeholder}"
+                Text="{Binding Text, Mode=TwoWay}"
+                TextWrapping="Wrap" />
+            <TextBlock
+                Grid.Column="1"
+                FontFamily="Consolas"
+                FontSize="12"
+                Foreground="{DynamicResource SecondaryTextBrush}"
+                IsVisible="{Binding HasSuffix}"
+                Margin="6,0,0,0"
+                Text="{Binding Suffix}"
+                VerticalAlignment="Center" />
+          </Grid>
           <SelectableTextBlock
               Classes="field-value"
               IsVisible="{Binding IsSelectable}"
@@ -157,7 +168,7 @@
         </StackPanel>
         <!--  行内排版：一行「标签：值」  -->
         <StackPanel IsVisible="{Binding IsInline}">
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="3">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="3">
             <StackPanel IsVisible="{Binding HasLabel}" Orientation="Horizontal" VerticalAlignment="Center">
               <SelectableTextBlock Classes="field-label" Text="{Binding Label}" />
               <TextBlock Classes="field-label" Text="：" />
@@ -178,6 +189,14 @@
                 IsVisible="{Binding IsSelectable}"
                 Text="{Binding Text}"
                 TextWrapping="Wrap"
+                VerticalAlignment="Center" />
+            <TextBlock
+                Grid.Column="2"
+                FontFamily="Consolas"
+                FontSize="12"
+                Foreground="{DynamicResource SecondaryTextBrush}"
+                IsVisible="{Binding HasSuffix}"
+                Text="{Binding Suffix}"
                 VerticalAlignment="Center" />
           </Grid>
           <SelectableTextBlock

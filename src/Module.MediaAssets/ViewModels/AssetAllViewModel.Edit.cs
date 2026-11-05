@@ -99,8 +99,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         if (!IsDbAvailable) { StatusText = "资产库不可用。"; return; }
 
         var current = Path.GetFileName(loc.Path);
-        var name = (EditFileName ?? "").Trim();
-        if (name.Length == 0) { StatusText = "先在详情卡「文件名」里填新名字（含扩展名）。"; return; }
+        var stem = (EditFileName ?? "").Trim();
+        if (stem.Length == 0) { StatusText = "先在详情卡「文件名」里填新名字。"; return; }
+        var name = stem + EditFileExtension;
         if (string.Equals(name, current, StringComparison.Ordinal))
         { StatusText = "文件名没变（在详情卡「文件名」里改一个新名字再应用）。"; return; }
 

@@ -36,13 +36,13 @@
 
 **文档版本**（下表由 `python skill/scripts/docs-sync.py --fix` 读各文档头部生成，⛔ 不要手改块内）：
 
-<!-- AUTO:ledger.docversions -->
+<!-- AUTO:ledger.docversions -->
 | 文档 | 当前版本 |
 |---|---|
 | 需求规格 | v3.106 |
 | 需求摘要 | v1.0 |
 | framework | v4.10 |
-| ui | v4.34 |
+| ui | v4.35 |
 | 协作手册 | v3.26 |
 | 软件说明书 | v1.2 |
 | 模块 md | —（见各文件头） |

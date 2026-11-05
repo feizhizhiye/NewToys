@@ -44,16 +44,15 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
             {
                 Fields =
                 {
-                    // ===== 文件名输入框（第 1 行）：改完点卡底「应用到文件」才真改磁盘文件 =====
-                    // ⛔ 不再有「名称」只读行 —— 与文件名重复（显示口径统一 = 文件名）。
+                    // 文件名：框内只放主名，扩展名以只读后缀贴在框右；点卡底「应用到文件」才真改磁盘。
                     new DetailField
                     {
                         Label = "文件名",
                         ValuePath = nameof(EditFileName),
+                        SuffixPath = nameof(EditFileExtension),
                         Kind = FieldKind.Text,
                         Commit = EditCommitMode.OnBlur,
-                        Mono = true,
-                        Placeholder = "含扩展名"
+                        Mono = true
                     },
                     new DetailField { Label = "类型", ValuePath = "DetailRow.TypeText", Kind = FieldKind.Text, Selectable = true, Inline = true },
                     new DetailField { Label = "大小", ValuePath = "DetailRow.SizeText", Kind = FieldKind.Text, Selectable = true, Inline = true },
@@ -375,7 +374,9 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
         {
             Locations.Clear();
             var target = row;
-            EditFileName = target?.FileName ?? "";
+            var fileName = target?.FileName ?? "";
+            EditFileName = Path.GetFileNameWithoutExtension(fileName);
+            EditFileExtension = Path.GetExtension(fileName);
             EditRating = target?.Rating ?? 0;
             EditDescription = target?.Description ?? "";
             // 状态下拉：索引 ↔ 状态 key（取不到就落到第 0 项「正常」）

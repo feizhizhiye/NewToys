@@ -7,66 +7,13 @@
              ui:FilterDropDownAlign.Attach="True"
              x:Class="NewToys.MediaAssets.Views.AssetAllView">
   <!--
-    「全部资产」样板列表页。
-    🔴 与旧列表页（Ping / 视频列表）最大的不同：**本页没有右栏详情卡** —— 详情面板改由 **Shell**
-       承载（VM 实现 IDetailPanelProvider，详情卡已改由 Shell 声明式渲染（NT-054））。
-       ⛔ 若本页再自带一栏，右列会出现两个详情卡（Shell 一个、页面一个）。
-
-    列表页骨架 <v:ListPageSkeleton>（四段：顶区 = 筛选条 / 列表区 / 空态 / 底栏）—— card 容器、空态块、
-    底栏壳由骨架统一提供（⛔ 行模板仍本页自写）。
-
-    ⚠️ 列表本体已换 **Avalonia 12.1 核心控件 TableView**（列宽拖拽 / 行与单元格回收由框架提供）。
-       表头由 TableView 自带且粘顶（主题里表头在 ScrollContentPresenter 之外），因此骨架的 HeaderArea 留空；
-       列显隐仍由 VM 下发（IsXxxVisible），在 code-behind 里按索引绑定到对应的 TableViewColumn。
+    「全部资产」列表页。
+    🔴 本页不带右栏详情卡 —— 详情面板由 Shell 承载（VM 实现 IDetailPanelProvider）。
+    列表本体 = <v:TableViewHost>（原生 TableView 的项目派生类）：列显隐 / 表头排序 / 列宽拖拽 /
+    表头⇄行右键菜单由控件统一提供，本页只声明列模板与行功能菜单。
   -->
 
-  <UserControl.Resources>
-    <!--  🔴 主题给的是 6,9,6,12 —— 表头外层 Border 和每一行都吃这份 padding，
-         不覆盖的话表头再设 MinHeight 也压不矮（高 = 内容 + 9 + 12）。密度由行/单元格自己兜。  -->
-    <Thickness x:Key="TableViewRowPadding">0</Thickness>
-    <!--  单元格内边距同理：主题的 TableViewCellPadding 带垂直份量，会把行撑高并把文字顶到上方  -->
-    <Thickness x:Key="TableViewCellPadding">8,0</Thickness>
-    <!--  🔴 列宽拖拽把手（resizer）的命中区：主题是 0,-9,-6,-12，**下边多出 12px**，
-         且表头 ClipToBounds=False ⇒ 那根 1px 竖线会戳进表头下面第一行（肉眼像「表头没画完」）。
-         只留右侧 -6（让竖线正好压在列边界上），上下不再外扩。  -->
-    <Thickness x:Key="TableViewColumnResizerMargin">0,0,-6,0</Thickness>
-  </UserControl.Resources>
-
   <UserControl.Styles>
-    <!--  与 ListBox.list-page 的密度基线对齐（行 28 / 字 12 / 表头 SemiBold 次要色）：
-         TableView 默认继承主题的 13px 与主色前景，不覆盖就会比其它列表页「字大一档」。  -->
-    <Style Selector="TableViewRow">
-      <Setter Property="MinHeight" Value="28"/>
-      <Setter Property="Padding" Value="0"/>
-    </Style>
-    <!--  选中 / 悬停底色：覆盖主题的 TableViewRowBackground*（那是 Fluent 强调色，不是本项目的语义键）  -->
-    <Style Selector="TableViewRow:pointerover /template/ Border#Border">
-      <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
-    </Style>
-    <Style Selector="TableViewRow:selected /template/ Border#Border">
-      <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
-    </Style>
-    <Style Selector="TableViewRow:selected:pointerover /template/ Border#Border">
-      <Setter Property="Background" Value="{DynamicResource CardSelectedBrush}"/>
-    </Style>
-    <Style Selector="TableViewCell">
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
-      <!--  行高 28 由行兜底后，单元格内容必须自己垂直居中（默认 Top，会顶着上沿）  -->
-      <Setter Property="VerticalContentAlignment" Value="Center"/>
-    </Style>
-    <Style Selector="TableViewColumnHeader">
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <!--  Transparent 才会参与命中测试：表头空白处也能点中（排序激活区 = 整列头，⛔ 只有文字能点是错的）  -->
-      <Setter Property="Background" Value="Transparent"/>
-      <!--  表头压矮：默认主题按 32 走，这里给 28 的基线与 8/0 内边距（与单元格 8,0 对齐，否则表头字比行字偏左）  -->
-      <Setter Property="MinHeight" Value="28"/>
-      <Setter Property="Padding" Value="8,0"/>
-    </Style>
-
     <!--  筛选栏压矮：只覆盖本页（全局 filter-bar / filter-combo 仍是 12,4 + MinHeight 28）  -->
     <Style Selector="Border.filter-bar">
       <Setter Property="Padding" Value="8,2"/>
@@ -76,17 +23,6 @@
       <Setter Property="Height" Value="22"/>
     </Style>
 
-    <!--  表头条：主题用 Fluent 的灰色 Chrome 笔刷 + 无分隔线；换成本项目的 ListHeaderBrush + 1px 底边，
-         与其它列表页的 Border.list-header 视觉一致。  -->
-    <Style Selector="TableView ScrollViewer /template/ DockPanel#ContentPanel > Border">
-      <Setter Property="Background" Value="{DynamicResource ListHeaderBrush}"/>
-    </Style>
-
-    <!--  垂直滚动条从表头下沿开始：主题把滚动条铺在整个 ScrollViewer 上（含表头行），
-         这里按表头高度下移 28，避免滚动条顶到表格最上沿。  -->
-    <Style Selector="TableView ScrollViewer /template/ ScrollBar#PART_VerticalScrollBar">
-      <Setter Property="Margin" Value="0,28,0,0"/>
-    </Style>
   </UserControl.Styles>
 
   <Panel>
@@ -109,44 +45,44 @@
                       PageSizes="{Binding PageSizeChoices}"
                       PageSize="{Binding PageSize, Mode=TwoWay}">
 
-    <!--  ==================== ② 筛选条（改任一条件即时重算：VM 的 OnFilterXxxChanged → ApplyView）  ====================  -->
+    <!--  ② 筛选条：常用下拉 + 一键复位（复位行为由 FilterBar.ResetFieldsOnClear 统一提供）。  -->
     <v:ListPageSkeleton.TopArea>
-    <v:FilterBar>
-      <v:FilterBar.FieldsContent>
-<Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="5">
-        <!--  combo 尺寸压到最窄窗口（960 + 详情栏展开）也放得下一行。  -->
-        <ComboBox Grid.Column="0" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
-                  HorizontalAlignment="Left"
-                  ToolTip.Tip="按类型筛选（视频 / 音乐 / 书籍 / 图片 / 文档）"
-                  ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding FilterType, Mode=TwoWay}"/>
-        <ComboBox Grid.Column="1" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
-                  HorizontalAlignment="Left"
-                  IsEnabled="{Binding CanFilterByStorageOrTag}"
-                  ToolTip.Tip="按存储源筛选（扫描预览态不可用：预览行还没入库）"
-                  ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding FilterStorage, Mode=TwoWay}"/>
-        <ComboBox Grid.Column="2" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
-                  HorizontalAlignment="Left"
-                  ToolTip.Tip="按状态筛选（正常 / 已丢失 / 回收站 / 已归档）"
-                  ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding FilterStatus, Mode=TwoWay}"/>
-          <ComboBox Grid.Column="3" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
-                    HorizontalAlignment="Left"
-                    IsEnabled="{Binding CanFilterByStorageOrTag}"
-                    ToolTip.Tip="按标签筛选（扫描预览态不可用：预览行还没有标签）"
-                    ItemsSource="{Binding TagOptions}" SelectedItem="{Binding FilterTag, Mode=TwoWay}"/>
-      </Grid>
-      </v:FilterBar.FieldsContent>
-    </v:FilterBar>
+      <v:FilterBar ResetFieldsOnClear="True" ClearCommand="{Binding ClearFiltersCommand}">
+        <v:FilterBar.FieldsContent>
+          <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="5">
+            <!--  combo 尺寸压到最窄窗口（960 + 详情栏展开）也放得下一行。  -->
+            <ComboBox Grid.Column="0" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
+                      HorizontalAlignment="Left"
+                      ToolTip.Tip="按类型筛选（视频 / 音乐 / 书籍 / 图片 / 文档）"
+                      ItemsSource="{Binding TypeOptions}" SelectedItem="{Binding FilterType, Mode=TwoWay}"/>
+            <ComboBox Grid.Column="1" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
+                      HorizontalAlignment="Left"
+                      IsEnabled="{Binding CanFilterByStorageOrTag}"
+                      ToolTip.Tip="按存储源筛选（扫描预览态不可用：预览行还没入库）"
+                      ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding FilterStorage, Mode=TwoWay}"/>
+            <ComboBox Grid.Column="2" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
+                      HorizontalAlignment="Left"
+                      ToolTip.Tip="按状态筛选（正常 / 已丢失 / 回收站 / 已归档）"
+                      ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding FilterStatus, Mode=TwoWay}"/>
+            <ComboBox Grid.Column="3" Classes="filter-combo" MinWidth="0" MaxWidth="120" Padding="4,1" FontSize="12"
+                      HorizontalAlignment="Left"
+                      IsEnabled="{Binding CanFilterByStorageOrTag}"
+                      ToolTip.Tip="按标签筛选（扫描预览态不可用：预览行还没有标签）"
+                      ItemsSource="{Binding TagOptions}" SelectedItem="{Binding FilterTag, Mode=TwoWay}"/>
+          </Grid>
+        </v:FilterBar.FieldsContent>
+      </v:FilterBar>
     </v:ListPageSkeleton.TopArea>
 
-    <!--  ==================== ③ 列表本体（表头由 TableView 自带，故骨架 HeaderArea 不填）  ====================  -->
+    <!--  ==================== ③ 列表本体（表头由 TableViewHost 自带，骨架 HeaderArea 不填）  ====================  -->
     <v:ListPageSkeleton.ListArea>
         <!--  多选走列表原生选中：Ctrl 增选 / Shift 连选 / Ctrl+A 全选（code-behind 隧道接管）；
              无修饰键点击 = 单选替换（与资源管理器一致）。
-             列显隐由 VM 的 IsXxxVisible 下发（code-behind 按索引绑定），⛔ 别在 XAML 里写死 IsVisible。  -->
-        <TableView x:Name="AssetList" Classes="list-page"
-                   SelectionMode="Multiple"
-                   ItemsSource="{Binding Items}">
-          <TableView.Columns>
+             列显隐 / 表头文案 / 排序键由 TableViewHost 按 VM 的 ColumnLayout 对齐，⛔ XAML 里不写 IsVisible。  -->
+        <v:TableViewHost x:Name="AssetList" Classes="list-page"
+                         SelectionMode="Multiple"
+                         ItemsSource="{Binding Items}">
+          <v:TableViewHost.Columns>
             <TableViewColumn Width="2*" Header="名称">
               
               <TableViewColumn.CellTemplate>
@@ -181,44 +117,15 @@
             <TableViewColumn Width="60" Binding="{Binding CodecText}" Header="编码" HorizontalContentAlignment="Center"/>
 
             <TableViewColumn Width="76" Binding="{Binding BitRateText}" Header="码率" HorizontalContentAlignment="Center"/>
-          </TableView.Columns>
+          </v:TableViewHost.Columns>
 
           <!--
-            行右键菜单 = **针对单条**的动作（§4.8 硬规则 9）：打开 / 定位 / 打开库文件。
+            行右键菜单 = **针对单条**的动作（§4.8 硬规则 9）：打开 / 定位 / 批量操作。
             ⛔ 这些⛔ 不上工具条（工具条只放页面级功能：扫描 / 筛选 / 入库 / 清除…）。
-            ⚠️ ContextMenu 在独立弹出树 → DataContext 由 code-behind 手工同步（硬规则 3）。
-            ⚠️ 列显隐菜单原先挂表头，TableView 表头无独立控件可挂 ⇒ 并入本菜单顶部。
+            表头右键（列宽自适应 / 恢复默认 / 列显隐）由 TableViewHost 统一生成，本页不声明。
           -->
-          <TableView.ContextMenu>
+          <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Icon="▤" Header="列">
-                <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
-                          IsChecked="{Binding IsNameVisible, Mode=OneWay}"
-                          ToolTip.Tip="标识列固定显示，不可隐藏"/>
-                <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Type"/>
-                <MenuItem Header="标签" ToggleType="CheckBox" IsChecked="{Binding IsTagsVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Tags"/>
-                <MenuItem Header="分类" ToggleType="CheckBox" IsChecked="{Binding IsCategoriesVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Categories"/>
-                <MenuItem Header="集合" ToggleType="CheckBox" IsChecked="{Binding IsCollectionsVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Collections"/>
-                <MenuItem Header="大小" ToggleType="CheckBox" IsChecked="{Binding IsSizeVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Size"/>
-                <MenuItem Header="修改时间" ToggleType="CheckBox" IsChecked="{Binding IsModifiedVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Modified"/>
-                <MenuItem Header="存储源" ToggleType="CheckBox" IsChecked="{Binding IsStorageVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Storage"/>
-                <MenuItem Header="时长" ToggleType="CheckBox" IsChecked="{Binding IsDurationVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Duration"/>
-                <MenuItem Header="分辨率" ToggleType="CheckBox" IsChecked="{Binding IsResolutionVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Resolution"/>
-                <MenuItem Header="编码" ToggleType="CheckBox" IsChecked="{Binding IsCodecVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Codec"/>
-                <MenuItem Header="码率" ToggleType="CheckBox" IsChecked="{Binding IsBitrateVisible, Mode=OneWay}"
-                          Command="{Binding ToggleAssetColumnCommand}" CommandParameter="Bitrate"/>
-              </MenuItem>
-              <Separator/>
               <MenuItem Header="打开" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFileCommand}"
                         ToolTip.Tip="用系统默认程序打开（视频=播放 / 书=阅读 / 图=看图）"/>
               <MenuItem Header="所在目录" Icon="{m:Glyph IconOpen}" Command="{Binding OpenFolderCommand}"
@@ -243,8 +150,8 @@
               <MenuItem Header="取消选择" Icon="{m:Glyph IconUncheckAll}" Command="{Binding SelectNoneCommand}"/>
               <MenuItem Header="反选当前页" Icon="{m:Glyph IconInvert}" Command="{Binding InvertSelectionCommand}"/>
             </ContextMenu>
-          </TableView.ContextMenu>
-        </TableView>
+          </v:TableViewHost.ContextMenu>
+        </v:TableViewHost>
     </v:ListPageSkeleton.ListArea>
   </v:ListPageSkeleton>
 

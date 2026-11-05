@@ -475,7 +475,7 @@ public partial class AssetAllViewModel : ListPageViewModelBase, IDetailPanelProv
     /// 否则它和四个下拉是「且」叠加，用户看到空列表时无从判断是谁在筛。
     /// </summary>
     private string TableFilterHint()
-        => ActiveFilterCount == 0 ? "" : $"（表头筛选 {ActiveFilterCount} 条生效）";
+        => ActiveFilterCount == 0 ? "" : $"（筛选 {ActiveFilterCount} 条生效）";
 
     // ==================== 加载 ====================
 

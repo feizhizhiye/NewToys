@@ -1,5 +1,7 @@
 ﻿# NewToys UI 规范
 
+> v4.36 · 2026-11-05 · **列表页表格实现统一** —— `assets-all` 从裸 `TableView` 迁入 `TableViewHost`（§6.3c 默认写法），删掉页内表头排序 / 列宽拖拽 / 表头文案 / 列显隐绑定 / 表头右键分部类共约 500 行重复实现；局部表格样式让位给全局 `Styles/TableViewHost.axaml`（表头 `Bold`、悬停 `ListRowHoverBrush`）。页内只保留多选隧道接管与列显隐兜底。§6.9 分页页数口径同步为 3 页。
+
 > v4.35 · 2026-11-05 · **详情卡输入框后缀（`SuffixPath` 新契约）** —— `DetailField.SuffixPath`（仅 `FieldKind.Text`）+ `TextFieldRow.Suffix / HasSuffix` + `DetailCardHost.axaml` Text 模板两种排版各增一列只读后缀（12 等宽次要色）；`Inline` 排版列定义随之变 `Auto,*,Auto`。值随 `RefreshCore()` 重解析，未配 = 不显示 ⇒ 既有卡零影响。首用：全部资产详情卡「文件名」框（框内主名 + 框右扩展名）。§7.3f / §7.3g 同步。
 
 > v4.34 · 2026-11-05 · **Text 行内排版（`Inline` 修饰位）+ 详情卡动作去 emoji** —— `DetailField.Inline`（仅 `FieldKind.Text`）：一行「标签：值」而非上下两行，值 12 比标签 14 小一号；可编辑时同行渲染紧凑输入框，提交语义与常规排版完全一致（同一个 `TextFieldRow` 行对象 + 模板内双排版，⛔ 不新增 Kind）。适用「类型 / 大小 / 修改时间」这类**短且固定**的信息（首用：资产详情卡）。同批：详情卡 `DetailAction` 全部统一 ghost + `IconKey`（文案不带 emoji）。§7.3f 同步。
@@ -329,6 +331,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 件：`ListPageSkeleton.axaml(.cs)` + `EmptyStateBlock.axaml(.cs)` + `ListFooterBar.axaml(.cs)`，经 `xmlns:v="using:NewToys.UI.Controls"` 使用。
 - **四段容器**：顶工具条区（`TopArea`，Auto 行，没有则高 0）/ 列表区（`HeaderArea` 表头 + `ListArea` 列表，card 内同格）/ 空态区（`EmptyStateBlock`，与 `ListArea` 同格，`IsVisible` 绑 `IsEmpty`）/ 底栏区（`ListFooterBar`，`ShowFooter` 绑 VM `HasFooterContent`，默认 false）。
 - 页面写法（样板 = `AssetAllView`）：根元素换成 `<v:ListPageSkeleton EmptyMessage="…" EmptyActionText="…" EmptyActionCommand="{Binding …}" IsEmpty="{Binding !HasItems}">`，原 card / 表头 Border / 空态 StackPanel 拆进三个属性元素内容；⛔ 行模板仍各页自写（骨架不吞）。
+- 📐 该样板的四段解剖 / 样式取值 / 操作逻辑 / 扩展落点 = `NewToys-列表页范本-全部资产.md`；**实现取值仍以本文件为唯一源**，范本只做实例化与指针。
 - 🔴 **`x:Name` 在属性元素内容里照样注册 namescope** ⇒ 表头 / 列表的 code-behind 接线原样可用。
 - ⛔ 不切的两类：`AssetTasksView`（三块堆叠 + ScrollViewer，非标准列表页）、视频 / 媒体工具的强定制页。
 
@@ -366,6 +369,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 
 - 组件：`src/UI/Controls/TableViewHost.cs`（继承 `Avalonia.Controls.TableView`）+ `src/UI/Styles/TableViewHost.axaml`（密度 / 配色，按类型选择器只作用本控件；`App.axaml` 用 `StyleInclude` 引入，并在 `Application.Resources` 里压平 `TableViewRowPadding` / `TableViewCellPadding` / `TableViewColumnResizerMargin`）。
 - 页面写法：`<v:ListPageSkeleton.ListArea>` 里放 `<v:TableViewHost ItemsSource=… SelectedItem=… SelectionMode="Single">`，列用 `<v:TableViewHost.Columns>` 内联 `TableViewColumn`（`Width` + `Binding` 或 `CellTemplate`）。**骨架的 `HeaderArea` 不填**（表头由 TableView 自带且粘顶）。
+- 🔴 **全部列表页已统一到本控件**（含 `assets-all`）：该页原裸用 `TableView` 并在页内重复实现表头排序 / 列宽拖拽 / 表头文案 / 列显隐 / 表头右键，现已全部删除。页内只保留两处特例 —— 多选隧道接管（本控件不接管选中）、列显隐兜底（`TableViewColumn` 不在可视树，OneWay 绑定通知不可靠）。
 - 🔴 **列顺序铁律**：XAML 里列的声明顺序必须与 VM 的 `ListPageViewModelBase.ColumnLayout` 完全一致（显隐 / 表头文案 / 排序键都按下标对齐）。
 - 控件自动完成：① 按 `ColumnLayout[i].Key` 绑定 `Is{Key}Visible`（列显隐）；② 表头文案 = `ListColumn.Header` + 排序箭头（读基类 `SortColumnKey` / `IsSortDescending`，⛔ 不再绑各页 `XxxHeader`）；③ 点表头 → `SortCommand(key)`；④ 拖列边界改列宽（相邻列互补、下限 = 表头文字宽）；⑤ **表头右键**自动生成「列宽 + 列显隐」菜单，**行右键** ⛔ 不插列项；⑥ `ContextMenu.DataContext` 自动同步（行菜单 + 表头菜单都要）。
 - 🔴 **右键按落点分流（资源管理器口径）**：`PointerPressed` Tunnel 阶段按坐标命中 `TableViewColumnHeader`（表头背景透明，⛔ 不能靠 `e.Source` 找祖先）→ 表头就在 `ContextMenu.Opening` 里把菜单项重建成列菜单，行区 / 空白 / 键盘触发还原页面原始功能项。表头两段 = ① `↔ 本列宽度自适应` / `⟲ 恢复本页默认列宽` ② 全量列显隐勾选（首列标识列置灰 + 提示）；⛔ 表头不放筛选与行功能。⛔ 不复活「自动调整全部列宽」：单列自适应按表头文字 + 示例值取大并封顶 320px。
@@ -376,9 +380,11 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 ### 6.3d 通用筛选条 `FilterBar`（NT-148）
 
 - 组件：`src/UI/Controls/FilterBar.axaml(.cs)`，挂 `ListPageSkeleton.TopArea`；沿用「全部资产」页口径 —— `Border.filter-bar`、一行等分下拉、`filter-combo` + `FilterDropDownAlign`、⛔ 无滚动条。
-- 两种用法：① 页面自有多下拉 → 写进 `FieldsContent` 内容槽（绑定 / 命令原样保留，**VM 零改动**）；② 快捷筛选 → 只绑 `QuickItemsSource="{Binding QuickFilters}"` + `Summary` + `ClearCommand`，控件生成 chips（无命令的占位项跳过、点中项加粗、`INotifyCollectionChanged` 自动刷新）。
+- 两种用法：① 页面自有多下拉 → 写进 `FieldsContent` 内容槽（绑定 / 命令原样保留，**VM 零改动**）；② 快捷筛选 → 绑 `QuickItemsSource` + `Summary` + `ClearCommand`，控件把快捷项渲染成**一个下拉**：首项「全部」（选中 = 执行 `ClearCommand`）+ 各分类值（选中 = 执行该项 `Command`）。基类两个动作项（「＋ 添加筛选列…」「清空筛选（全部列）」）按 Label 前缀剔除，无命令的占位项跳过；无分类值时下拉隐藏，`INotifyCollectionChanged` 自动刷新。
 - 🔴 **右键菜单 ⛔ 不放筛选**：表头右键只管列，行右键只管功能（§10.1）。「仅看已安装」这类开关并入 `QuickFilters` 走筛选条。
 - 🔴 内容槽与属性绑定一律 code-behind 按 `Source=this` 赋值（⛔ 祖先绑定 ⇒ 静默空内容，见 `ListPageSkeleton.axaml` 注释）。
+- `ResetFieldsOnClear="True"`（默认 `false`）= 一键复位常用下拉：`🧹 清空` 把 `FieldsContent` 里 `ComboBox.filter-combo` 的 `SelectedItem` 复位到 `ItemsSource[0]`（「全部」恒为首项），再执行 `ClearCommand`；复位走 `SetCurrentValue` 保留页面 TwoWay 绑定（⛔ 直接赋值会顶掉绑定）。未传 `ClearCommand` 时按钮仍显示。下拉必须带 `filter-combo` 类才被识别。
+- 覆盖范围：`assets-all` / `reading-sources` / `shelf` 用内容槽下拉 + `ResetFieldsOnClear`；`package` / `video-list` / `video-batch` 用快捷筛选下拉（`package` 的 `ClearCommand` 走 `ResetPackageFiltersCommand`，连「仅看已安装」开关一起复位）；`assets-tags` / `assets-categories` / `assets-collections` / `assets-trash` 无可筛维度 ⇒ **不挂筛选条**，找东西走工具条搜索。⛔ `assets-storages` 提示条、`assets-browse` 面包屑同理不挂。
 - 已迁入的 3 条自绘筛选条：`assets-all`（4 下拉）/ `reading-sources`（3 下拉 + 只看失效）/ `assets-trash`（摘要）。页面专属联动（下拉内容随类型变、重建抑制）仍留在各自 VM。
 - 「恢复默认列宽」：`ColumnGrid` 页走基类 `ResetColumnWidthsCommand`；`TableViewHost` 页由控件自己按缓存宽度写回。
 
@@ -426,7 +432,7 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - `WHERE` 只写一份，计数与取页共用同一条件对象（两份漂移 ⇒ 总数与行数对不上）。
 - 底栏**默认隐藏**，行数超出页底才显示；批量操作**只作用于当前页选中项**。
 - 页大小落 `shell` 分区（`shell.json`），⛔ 不落 `columnlayout.json`。
-- 现状：仅「全部资产」与「软件包」两页走底栏分页，其余列表页仍是内存切片 + 滚动（量级小，暂无推广需求；原推广卡 NT-065 已作废）。
+- 现状：`PagingEnabled=true` 共 3 页 —— 「全部资产」/「资产浏览」/「软件包」；其余列表页仍是内存切片 + 滚动（量级小，暂无推广需求；原推广卡 NT-065 已作废）。
 
 ### 6.10 多选（Ctrl / Shift / Ctrl+A）
 

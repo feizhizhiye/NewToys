@@ -31,6 +31,65 @@ public class MusicTagService
         public byte[]? Cover { get; set; }
     }
 
+    private static readonly Encoding Gb18030 = CreateGb18030();
+
+    private static Encoding CreateGb18030()
+    {
+        try
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            return Encoding.GetEncoding("GB18030");
+        }
+        catch { return Encoding.UTF8; }
+    }
+
+    /// <summary>还原「帧头标 Latin1、实际是 GBK 字节」的中文标签文本；其它文本原样返回。</summary>
+    private static string RepairMojibake(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+
+        var bytes = new byte[text.Length];
+        var hasHighByte = false;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c > 0xFF) return text!;
+            bytes[i] = (byte)c;
+            if (c >= 0x80) hasHighByte = true;
+        }
+        if (!hasHighByte) return text!;
+
+        try
+        {
+            var repaired = Gb18030.GetString(bytes);
+            var hasEastAsian = false;
+            foreach (var c in repaired)
+            {
+                if (c == '\uFFFD'
+                    || (c < 0x20 && c != '\t' && c != '\n' && c != '\r')
+                    || (c >= 0x7F && c < 0xA0)) return text!;
+                if (c >= '\u2E80' && c <= '\u9FFF') hasEastAsian = true;
+            }
+            return hasEastAsian ? repaired : text!;
+        }
+        catch { return text!; }
+    }
+
+    /// <summary>写回前把 ID3v2 标签统一为 v2.3 + UTF-16 文本帧。</summary>
+    private static void NormalizeId3v2TextEncoding(TagLib.File file, string path)
+    {
+        var isMp3 = path.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase);
+        if (!isMp3 && (file.TagTypes & TagLib.TagTypes.Id3v2) == 0) return;
+
+        var id3 = file.GetTag(TagLib.TagTypes.Id3v2, true) as TagLib.Id3v2.Tag;
+        if (id3 is null) return;
+
+        id3.Version = 3;
+        foreach (var frame in id3.GetFrames())
+            if (frame is TagLib.Id3v2.TextInformationFrame textFrame)
+                textFrame.TextEncoding = TagLib.StringType.UTF16;
+    }
+
     private static readonly HttpClient Http = CreateClient();
 
     private static HttpClient CreateClient()
@@ -58,11 +117,11 @@ public class MusicTagService
 
             tags = new MusicTags
             {
-                Title = tag.Title ?? "",
-                Artist = tag.FirstPerformer ?? tag.FirstAlbumArtist ?? "",
-                Album = tag.Album ?? "",
+                Title = RepairMojibake(tag.Title),
+                Artist = RepairMojibake(tag.FirstPerformer ?? tag.FirstAlbumArtist ?? ""),
+                Album = RepairMojibake(tag.Album),
                 Year = tag.Year > 0 ? tag.Year.ToString() : "",
-                Genre = tag.FirstGenre ?? "",
+                Genre = RepairMojibake(tag.FirstGenre),
             };
 
             var pictures = tag.Pictures;
@@ -90,6 +149,7 @@ public class MusicTagService
         try
         {
             using var file = TagLib.File.Create(path);
+            NormalizeId3v2TextEncoding(file, path);
             var tag = file.Tag;
 
             if (!string.IsNullOrWhiteSpace(tags.Title)) tag.Title = tags.Title.Trim();

@@ -267,6 +267,14 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         StatusText = InstalledOnly ? "仅看已安装（搜索结果里只留本机已装的）。" : "已取消「仅看已安装」。";
     }
 
+    /// <summary>筛选条「🧹 清空」：连「仅看已安装」开关一起复位（基类 ClearFilters 只管条件行）。</summary>
+    [RelayCommand]
+    private void ResetPackageFilters()
+    {
+        InstalledOnly = false;
+        ClearFiltersCommand.Execute(null);
+    }
+
     partial void OnSilentInstallChanged(bool value)
     {
         if (_syncing || _settings == null) return;

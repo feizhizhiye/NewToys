@@ -13,7 +13,12 @@
     <Grid ColumnDefinitions="*,Auto">
       <ContentControl x:Name="FieldsHost" Grid.Column="0" VerticalAlignment="Center"/>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0">
-        <StackPanel x:Name="QuickPanel" Orientation="Horizontal" Spacing="4"/>
+        <ComboBox x:Name="QuickCombo" Classes="filter-combo" MinWidth="120" MinHeight="0" Height="22"
+                  FontSize="12" Padding="4,1" VerticalAlignment="Center" IsVisible="False">
+          <ComboBox.ItemTemplate>
+            <DataTemplate><TextBlock Text="{Binding Label}" FontSize="12"/></DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
         <Button x:Name="ClearButton" Classes="ghost" Content="🧹 清空" FontSize="12"
                 Padding="6,1" MinWidth="0" MinHeight="0"/>
         <TextBlock x:Name="SummaryText" FontSize="12" VerticalAlignment="Center"

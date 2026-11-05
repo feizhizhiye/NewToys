@@ -27,9 +27,9 @@ public sealed class AudioLibraryService
         {
             using var file = TagLib.File.Create(path);
 
-            var title = string.IsNullOrWhiteSpace(file.Tag.Title) ? name : file.Tag.Title;
-            var artist = file.Tag.FirstPerformer ?? file.Tag.FirstAlbumArtist ?? "";
-            var album = file.Tag.Album ?? "";
+            var title = string.IsNullOrWhiteSpace(file.Tag.Title) ? name : RepairMojibake(file.Tag.Title);
+            var artist = RepairMojibake(file.Tag.FirstPerformer ?? file.Tag.FirstAlbumArtist ?? "");
+            var album = RepairMojibake(file.Tag.Album);
 
             byte[]? cover = null;
             var pictures = file.Tag.Pictures;
@@ -286,13 +286,13 @@ public sealed class AudioLibraryService
         {
             file = TagLib.File.Create(audioPath);
 
-            if (!string.IsNullOrWhiteSpace(file.Tag.Lyrics)) return (file.Tag.Lyrics, false);
+            if (!string.IsNullOrWhiteSpace(file.Tag.Lyrics)) return (RepairMojibake(file.Tag.Lyrics), false);
 
-            var title = file.Tag.Title;
+            var title = RepairMojibake(file.Tag.Title);
             if (string.IsNullOrWhiteSpace(title)) return (null, true);
 
             var folder = Path.GetDirectoryName(audioPath) ?? "";
-            var artist = file.Tag.FirstPerformer ?? file.Tag.FirstAlbumArtist;
+            var artist = RepairMojibake(file.Tag.FirstPerformer ?? file.Tag.FirstAlbumArtist);
 
             var candidates = new List<string>(3);
             if (!string.IsNullOrWhiteSpace(artist))
@@ -353,6 +353,38 @@ public sealed class AudioLibraryService
             return Encoding.GetEncoding("GB18030");
         }
         catch { return Encoding.UTF8; }
+    }
+
+    /// <summary>还原「帧头标 Latin1、实际是 GBK 字节」的中文标签文本；其它文本原样返回。</summary>
+    public static string RepairMojibake(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+
+        var bytes = new byte[text.Length];
+        var hasHighByte = false;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c > 0xFF) return text!;
+            bytes[i] = (byte)c;
+            if (c >= 0x80) hasHighByte = true;
+        }
+        if (!hasHighByte) return text!;
+
+        try
+        {
+            var repaired = Gb18030.GetString(bytes);
+            var hasEastAsian = false;
+            foreach (var c in repaired)
+            {
+                if (c == '\uFFFD'
+                    || (c < 0x20 && c != '\t' && c != '\n' && c != '\r')
+                    || (c >= 0x7F && c < 0xA0)) return text!;
+                if (c >= '\u2E80' && c <= '\u9FFF') hasEastAsian = true;
+            }
+            return hasEastAsian ? repaired : text!;
+        }
+        catch { return text!; }
     }
 
     /// <summary>

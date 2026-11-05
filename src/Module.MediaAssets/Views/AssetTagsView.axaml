@@ -18,11 +18,7 @@
                       IsEmpty="{Binding !HasItems}">
 
     <!--  ==================== ② 筛选条 ====================  -->
-    <v:ListPageSkeleton.TopArea>
-    <v:FilterBar QuickItemsSource="{Binding QuickFilters}"
-                 Summary="{Binding FilterSummary}"
-                 ClearCommand="{Binding ClearFiltersCommand}"/>
-    </v:ListPageSkeleton.TopArea>
+    <!--  本页没有可用的筛选维度 ⇒ 不挂筛选条；找东西走工具条搜索。  -->
 
     <!--  ==================== ③ 列表本体  ====================  -->
     <v:ListPageSkeleton.ListArea>

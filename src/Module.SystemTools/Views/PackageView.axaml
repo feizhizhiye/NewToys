@@ -32,7 +32,7 @@
     <v:ListPageSkeleton.TopArea>
     <v:FilterBar QuickItemsSource="{Binding QuickFilters}"
                  Summary="{Binding FilterSummary}"
-                 ClearCommand="{Binding ClearFiltersCommand}"/>
+                 ClearCommand="{Binding ResetPackageFiltersCommand}"/>
     </v:ListPageSkeleton.TopArea>
     <v:ListPageSkeleton.ListArea>
           <v:TableViewHost x:Name="PkgList"

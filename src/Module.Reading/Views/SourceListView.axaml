@@ -14,19 +14,19 @@
                         IsEmpty="{Binding !HasItems}">
 
     <v:ListPageSkeleton.TopArea>
-    <v:FilterBar>
+    <v:FilterBar ResetFieldsOnClear="True" ClearCommand="{Binding ClearFiltersCommand}">
       <v:FilterBar.FieldsContent>
 <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
-              <ComboBox Grid.Column="0" Width="104"
+              <ComboBox Grid.Column="0" Classes="filter-combo" Width="104"
                         ItemsSource="{Binding TypeOptions}"
                         SelectedItem="{Binding TypeFilter, Mode=TwoWay}"/>
 
-              <ComboBox Grid.Column="1" Width="150" Margin="10,0,0,0"
+              <ComboBox Grid.Column="1" Classes="filter-combo" Width="150" Margin="10,0,0,0"
                         ItemsSource="{Binding GroupOptions}"
                         SelectedItem="{Binding GroupFilter, Mode=TwoWay}"/>
 
               <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0">
-                <ComboBox Width="110"
+                <ComboBox Classes="filter-combo" Width="110"
                           ItemsSource="{Binding CheckOptions}"
                           SelectedItem="{Binding CheckFilter, Mode=TwoWay}"/>
                 <Button Classes="ghost" Content="只看失效" Command="{Binding FilterFailedCommand}"

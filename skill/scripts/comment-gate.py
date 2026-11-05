@@ -25,6 +25,8 @@ DOCS = ROOT / "skill" / "docs"
 
 DOC_BLOCK_MAX = 6
 DOC_MARKERS = ("inheritdoc", "lint:")
+# 成员级契约行（<param>/<returns>…）是签名说明，不是散文，M-02 不计入长段（与 lint.py C-07 同口径）
+DOC_SIG = re.compile(r"^\s*///\s*<(?:param|returns|typeparam|exception|value)\b")
 
 RE_VERSION = re.compile(r"^\s*//[/!]?\s*(?:v?\d+\.\d+|NT-\d+\s+v?\d+\.\d+|第\s*\d+\s*轮)")
 RE_HISTORY = re.compile(r"原来是|此前是|以前是|曾经是|早先是")
@@ -119,9 +121,10 @@ def check(path: str, lines: set[int], anchors: set[str], full: bool) -> list[tup
         start = 0
 
         def flush() -> None:
-            if len(run) >= DOC_BLOCK_MAX and not any(mk in " ".join(run) for mk in DOC_MARKERS):
+            n = sum(1 for x in run if not DOC_SIG.match(x))
+            if n >= DOC_BLOCK_MAX and not any(mk in " ".join(run) for mk in DOC_MARKERS):
                 bad.append(("M-02", start,
-                            f"新增 /// 长段 {len(run)} 行（上限 5）—— 压成 1 行契约 + WHY: <ID>"))
+                            f"新增 /// 长段 {n} 行（上限 5）—— 压成 1 行契约 + WHY: <ID>"))
             run.clear()
 
         for i, ln in enumerate(src, 1):

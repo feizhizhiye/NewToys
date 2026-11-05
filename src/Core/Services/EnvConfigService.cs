@@ -6,23 +6,7 @@ using System.Text.Json.Serialization;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// <b>L0 机器环境配置</b>：<c>%LOCALAPPDATA%\NewToys\env.json</c> 的**唯一读写入口**。
-/// <para>
-/// 语义：这里是「本机怎么跑外部程序」，**跟随机器、⛔ 不随配置档切换**
-/// （换配置只隔离 <c>config / data / logs</c>，ffmpeg / 解释器路径不该跟着变）。
-/// ⛔ 这些键不放进 <c>app.json</c>：那是配置档内参数，混在一起会被切配置带走。
-/// </para>
-/// <para>
-/// 🔴 覆盖链（读）：命令行 <c>--python</c> / <c>--pwsh</c> / <c>--ffmpeg</c> ＞ 环境变量
-/// <c>NEWTOYS_PYTHON</c> / <c>NEWTOYS_PWSH</c> / <c>NEWTOYS_FFMPEG</c> / <c>NEWTOYS_PLAYER</c> ＞
-/// <c>env.json</c> ＞ 内置默认值（<c>ffmpeg</c> 走 PATH）。
-/// <b>写</b>只写 <c>env.json</c>（覆盖值不进文件 —— 否则"临时覆盖"会变成永久设置）。
-/// </para>
-/// <para>
-/// ⚠️ 只有 Core 读写本文件；模块一律经 <c>IAppConfigService</c>，⛔ 模块不该知道文件名。
-/// </para>
-/// </summary>
+/// <summary>L0 机器环境配置：%LOCALAPPDATA%\NewToys\env.json 的唯一读写入口。（WHY: CR-022）</summary>
 public sealed class EnvConfigService
 {
     private static readonly JsonSerializerOptions JsonOpts = new()

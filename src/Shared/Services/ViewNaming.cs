@@ -2,14 +2,7 @@ using System;
 
 namespace NewToys.Shared.Services;
 
-/// <summary>
-/// 页面 View ↔ ViewModel 的命名约定（唯一实现处）。
-/// <para>
-/// 约定：<c>XxxView</c> ↔ <c>XxxViewModel</c>；命名空间 <c>...\Views</c> ↔ <c>...\ViewModels</c>。
-/// 解析与静态检查必须共用本类，⛔ 不要各自写一份字符串处理 —— 两处规则一旦漂移，
-/// 表现是「页面打得开但整页空白、无任何异常」，编译期与运行期都不报错。
-/// </para>
-/// </summary>
+/// <summary>页面 View ↔ ViewModel 的命名约定（唯一实现处）。（WHY: SH-060）</summary>
 public static class ViewNaming
 {
     /// <summary>由 View 类名推导 ViewModel 类名：带 <c>View</c> 后缀则替换为 <c>ViewModel</c>，否则直接追加。</summary>

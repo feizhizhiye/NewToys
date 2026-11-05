@@ -65,13 +65,7 @@ public sealed class PyEnvStatus
     public string Message { get; set; } = "";
 }
 
-/// <summary>
-/// Python 运行时底座：探测解释器 / 长驻 worker / 超时杀进程树 / traceback 回传。
-/// <para>
-/// 🔴 <b>跨模块共用</b>（网络工具的规则集、脚本管理器的 .py 命令）⇒ 接口在 Shared、实现在 Core。
-/// 🔴 <b>⛔ 不引 pythonnet</b>：子进程 + 行分隔 JSON（stdin/stdout），保持平台中立（framework.md §2.1）。
-/// </para>
-/// </summary>
+/// <summary>Python 运行时底座：探测解释器 / 长驻 worker / 超时杀进程树 / traceback 回传。（WHY: SH-052）</summary>
 public interface IPythonRuntime
 {
     /// <summary>共享工具根（<c>%LOCALAPPDATA%\NewToys\tools\py</c>）：venv、worker 脚本都落在这里。</summary>

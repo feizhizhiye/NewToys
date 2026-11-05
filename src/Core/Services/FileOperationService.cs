@@ -5,14 +5,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// <see cref="IFileOperationService"/> 的唯一实现 —— **纯磁盘动作**。
-/// <para>
-/// 迁移来源：媒体资产 <c>Module.MediaAssets/Services/FileOperationService</c> 里的磁盘部分
-/// + 视频工具 <c>VideoFileService</c> 里的 <c>SHFileOperationW</c> 块（两处各写过一遍，现已合一）。
-/// 库表记账 / 弹窗确认**留在原模块**，这里不认识任何数据库。
-/// </para>
-/// </summary>
+/// <summary>IFileOperationService 的唯一实现 —— 纯磁盘动作。</summary>
 public sealed class FileOperationService : IFileOperationService
 {
     public bool IsRecycleBinSupported => OperatingSystem.IsWindows();

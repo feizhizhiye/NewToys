@@ -6,34 +6,7 @@ using System.Text.Json.Nodes;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// 框架级偏好（<c>profiles\&lt;配置&gt;\config\shell.json</c>）的**唯一读写入口**。
-/// <para>
-/// 5 份原本各占一个文件的框架偏好，合并成一个文件、按**节**分组：
-/// <code>
-/// {
-///   "theme":        { "Mode": "Dark", "AccentId": "blue", "IsDark": true },
-///   "window":       { "X": 275, "Y": 100, "Width": 1296, "Height": 808, "State": "Normal" },
-///   "favorites":    { "Keys": [ "script-info", "web-scrape" ] },
-///   "columnLayout": { "asset-all": { "Name": true } },
-///   "ui":           { "list-page-size": "25" }
-/// }
-/// </code>
-/// </para>
-/// <para>
-/// 设计取舍：
-/// <list type="bullet">
-///   <item><b>整节读写</b>（<see cref="Get"/> / <see cref="Set"/>）：调用方拿到的是自己的节，互不干扰；</item>
-///   <item><b>单进程缓存 + 写穿</b>：首次访问读盘，之后以内存为准（和老的每文件实现一致）；</item>
-///   <item><b>原子写 + 空即删</b>：委托 <see cref="AtomicJsonFile"/>；文档空了就删文件；</item>
-///   <item><b>坏文件先归档</b>：解析失败改名 <c>shell.json.bak-&lt;时间戳&gt;</c> 再用空文档接手（⛔ 不静默丢）。</item>
-/// </list>
-/// </para>
-/// <para>
-/// ⚠️ 只服务**框架层**（主题 / 窗口 / 收藏 / 列宽 / 页码大小）。模块设置仍走 <see cref="IOptionsStore"/>
-/// 的独立文件（<c>config\&lt;模块&gt;.json</c>），⛔ 不要往这里塞模块的东西。
-/// </para>
-/// </summary>
+/// <summary>框架级偏好（profiles\&lt;配置&gt;\config\shell.json）的唯一读写入口。（WHY: CR-046）</summary>
 public sealed class ShellConfigStore
 {
     private static readonly JsonSerializerOptions WriteOpts = new()

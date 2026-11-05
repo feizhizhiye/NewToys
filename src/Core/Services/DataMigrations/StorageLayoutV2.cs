@@ -8,22 +8,7 @@ using Microsoft.Data.Sqlite;
 
 namespace NewToys.Core.Services.DataMigrations;
 
-/// <summary>
-/// 存储分层迁移（一次性，幂等）：<c>data\</c> → <c>store\</c> + <c>cache\</c>，并把老的单一总库
-/// <c>store\newtoys.db</c> 拆成每模块一个库文件（<c>store\&lt;库键&gt;\&lt;库键&gt;.db</c>）。
-/// <para>
-/// 🔴 目录改名用 <see cref="Directory.Move(string, string)"/>：同一配置档内换名 = 秒级 rename，⛔ 不复制数据。
-/// 拆库才需要真正读一遍行（<c>ATTACH</c> + <c>INSERT INTO … SELECT</c>），每库一个事务。
-/// </para>
-/// <para>
-/// 🔴 老库**只改名不删**：搬完落到 <c>store\legacy\newtoys-v1.db</c>，装回旧版本 / 手工核对都靠它。
-/// 完成标记 <c>store\.layout-v2.done</c> —— 有标记就整段跳过，所以中途崩了下次启动会接着做。
-/// </para>
-/// <para>
-/// ⚠️ 这里内置 4 个库的表名归属：迁移是**一次性的历史动作**，需要静态清单才能在不依赖模块加载顺序的前提下搬数据。
-/// 新增表不需要改这里（新表随建表发生在各自的库里）。
-/// </para>
-/// </summary>
+/// <summary>存储分层迁移（一次性，幂等）：data\ → store\ + cache\，并把老的单一总库 store\newtoys.db 拆成每模块一个库文件（store\&lt;库键&gt;\&lt;库键&gt;.db）。（WHY: CR-017）</summary>
 public static class StorageLayoutV2
 {
     private const string MarkerFile = ".layout-v2.done";
@@ -104,14 +89,7 @@ public static class StorageLayoutV2
         }
     }
 
-    /// <summary>
-    /// 把**配置里的旧绝对路径**（<c>&lt;配置根&gt;\data\…</c>）改成新位置（<c>store\</c> / <c>cache\</c>）。
-    /// <para>
-    /// 目录整体改名不会顺手改用户录入的绝对路径（<c>scriptsFolder</c> / <c>thumbsDirectory</c> 等），
-    /// 这类值迁移后就指向不存在的目录 ⇒ 扫描 / 缩略图失效。只改「映射后的目录确实存在」的值；
-    /// 其余（别的机器、离线移动盘）原样保留。
-    /// </para>
-    /// </summary>
+    /// <summary>把配置里的旧绝对路径（&lt;配置根&gt;\data\…）改成新位置（store\ / cache\）。（WHY: CR-018）</summary>
     private static void RewriteLegacyConfigPaths(ConfigStoreService cfg)
     {
         string marker;
@@ -274,13 +252,7 @@ public static class StorageLayoutV2
         catch { return false; }
     }
 
-    /// <summary>
-    /// 把旧总库里的表按归属复制进各模块库。
-    /// <para>
-    /// 🔴 以**新库**为主连接、<c>ATTACH</c> 旧库来读：这样 DDL 与索引天然建在新库里，
-    /// 不需要给每条语句手工加 schema 前缀（反过来做会把索引建回旧库）。
-    /// </para>
-    /// </summary>
+    /// <summary>把旧总库里的表按归属复制进各模块库。（WHY: CR-019）</summary>
     private static void SplitDatabase(string legacyDb, string storeDir, string archiveDir)
     {
         foreach (var (key, file, tables) in Libraries)

@@ -10,25 +10,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Shared.Models;
 
-/// <summary>
-/// 「列表页」ViewModel 的公共基类：把<b>五个列表页重复过五遍</b>的那套逻辑收在一处
-/// （列显隐 + 详情栏开合 + 排序状态 + 多项筛选），派生类只留自己独有的部分。
-/// <para>
-/// <b>派生类要做什么</b>：
-/// <list type="number">
-///   <item>给出 <see cref="PageKey"/>（列显隐偏好落 <c>config\columnlayout.json</c> 的页键）与 <see cref="Columns"/>（列元数据）；</item>
-///   <item>构造函数里调一次 <see cref="LoadLayout"/>（<see cref="Columns"/> 之后），把上次的偏好读回来；</item>
-///   <item>实现 <see cref="RefreshView"/> —— 基类在「排序列变了 / 筛选条件变了」时调它；</item>
-///   <item>为每个可隐藏的列写一个直通属性 <c>public bool IsXxxVisible =&gt; Vis("Xxx");</c>（XAML 只能绑具名属性，绑不了字典）；</item>
-///   <item>要用筛选就实现 <see cref="FieldText"/>（可选再实现 <see cref="FieldNumber"/>）。</item>
-/// </list>
-/// </para>
-/// <para>
-/// ⚠️ 为什么列可见性用「具名属性 + 字典」两套表示：字典用来落盘与算列宽规格，
-/// 具名属性只给 XAML 绑 <c>IsVisible</c>；<see cref="ToggleColumn"/> 翻转后会主动
-/// 为 <c>"Is" + key + "Visible"</c> 发一次通知，所以列键必须与该属性名对得上。
-/// </para>
-/// </summary>
+/// <summary>「列表页」ViewModel 的公共基类：把五个列表页重复过五遍的那套逻辑收在一处 （列显隐 + 详情栏开合 + 排序状态 + 多项筛选），派生类只留自己独有的部分。（WHY: SH-017）</summary>
 public abstract partial class ListPageViewModelBase : ObservableObject, IStatusProvider, IToolbarSource, IDisposable
 {
     private readonly IColumnLayoutService? _cols;
@@ -72,17 +54,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// <summary>构造期标志：抑制 <see cref="OnPageSizeChanged"/> 的写盘 / 重取副作用。</summary>
     private bool _initializing;
 
-    /// <summary>
-    /// 把落盘的页大小收成本页预设里的值（🔴 2026-10-19 修「软件包页默认 25 / 选 50 崩溃」）。
-    /// <para>
-    /// 页大小落盘是**全局一份**（<c>shell.json</c> 的 <c>ui.list-page-size</c>），但各页的预设不同
-    /// （通用 25/50/100/500/全部，软件包 20/50/100/全部）⇒ 换到预设不同的页时会读到"不属于本页"的值，
-    /// 底栏会把该值补进下拉并成为默认项（用户看到"默认 25"），此时再点选任一预设项，
-    /// 候选项集合变化 ⇒ 下拉 <c>ItemsSource</c> 被换掉，正在提交选中的弹层项索引越界 ⇒ 进程崩溃。
-    /// 这里在构造期直接收成本页预设的第一档（找不到才保留原值）。
-    /// </para>
-    /// <para>⚠️ 这是**构造期**的虚属性调用：派生 <c>override PageSizeChoices</c> 只许返回 static 只读数组。</para>
-    /// </summary>
+    /// <summary>把落盘的页大小收成本页预设里的值。（WHY: SH-018）</summary>
     private void SnapPageSizeToChoices()
     {
         var choices = PageSizeChoices;
@@ -92,14 +64,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
 
     // ==================== 底部状态栏（v3.9：提到基类，Shell 统一承载） ====================
 
-    /// <summary>
-    /// 页面状态文本。
-    /// <para>
-    /// ⚠️ v3.9 起**提到基类**：各列表页**不要再自己声明** <c>[ObservableProperty] private string _statusText</c>
-    /// （同名会隐藏基类属性、且事件不会触发）—— 页面里继续正常写 <c>StatusText = "…"</c> 即可。
-    /// </para>
-    /// <para>Shell 的底部状态栏通过 <see cref="IStatusProvider"/> 消费它。</para>
-    /// </summary>
+    /// <summary>⚠️ 起提到基类：各列表页不要再自己声明 [ObservableProperty] private string _statusText （同名会隐藏基类属性、且事件不会触发）—— 页面里继续正常写 StatusText = "…" 即可。</summary>
     [ObservableProperty] private string _statusText = "就绪";
 
     /// <summary>状态文本变化 → 通知 Shell 刷新底栏。</summary>
@@ -107,12 +72,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
 
     // ==================== 声明式工具条（v3.53：提到基类，Shell 统一承载） ====================
 
-    /// <summary>
-    /// 工具条内容（需求 §4.8.5）。**默认 <c>null</c> = 本页没有声明式工具条**（Shell ⛔ 不留空行，
-    /// 页面继续用页内自绘工具条）；迁到 Shell 承载的页只需 <c>override</c> 本属性给出描述符列表。
-    /// <para>🔴 与 <see cref="IStatusProvider"/> 同一套路：一次在基类实现，覆盖全部列表页。</para>
-    /// <para>⚠️ 页面 <c>override</c> 后**必须删掉页内的 <c>Border.toolbar</c>**，否则会出现两条工具条。</para>
-    /// </summary>
+    /// <summary>工具条内容（需求 §4.8.5）。默认 null = 本页没有声明式工具条（Shell ⛔ 不留空行， 页面继续用页内自绘工具条）；迁到 Shell 承载的页只需 override 本属性给出描述符列表。（WHY: SH-020）</summary>
     public virtual IReadOnlyList<ToolbarItemDescriptor>? Toolbar => null;
 
     /// <summary>工具条构成变化时通知 Shell 重建（工具条静态的页用不着；给"项随状态增删"的页备用）。</summary>
@@ -179,13 +139,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// <summary>是否显示底栏页码跳组（分页启用 + 未挂起 + 真的有多页；单页 ⛔ 不显示按钮）。</summary>
     public bool HasPaging => PagingEnabled && !IsPagingSuspended && PageCount > 1;
 
-    /// <summary>
-    /// 底栏显隐（宿主绑 <c>ListPageSkeleton.ShowFooter</c>）：<b>列表未超出页面底部不显示</b>。
-    /// 口径 = 分页启用 +（有多页要翻 或 宿主量到内容超出视口）。
-    /// <para>🔴 修订：⛔ 不再要求「未挂起」—— 草稿态（扫描预览）列表同样会超出视口，
-    /// 那时底栏只出计数（共 N 条 / 已选 M），翻页按钮组仍由 <see cref="HasPaging"/> 把守
-    /// （挂起 或 单页 ⇒ 不显示跳转按钮，内存预览数据翻页无意义）。</para>
-    /// </summary>
+    /// <summary>底栏显隐（宿主绑 ListPageSkeleton.ShowFooter）：列表未超出页面底部不显示。（WHY: SH-021）</summary>
     public bool HasFooterContent => PagingEnabled && (PageCount > 1 || _contentOverflow);
 
     private bool _contentOverflow;
@@ -288,15 +242,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// <summary>排序列 / 筛选条件变化后重算列表（派生类的 ApplyView / ApplyFilters）。</summary>
     protected abstract void RefreshView();
 
-    /// <summary>
-    /// 取某行某列的文本（给筛选用）。
-    /// <para>
-    /// <b>默认实现 = 反射取同名属性</b>：列键（<c>"Name"</c>/<c>"Url"</c>…）通常就是模型上的属性名，
-    /// 于是新列表页只要继承基类就自动能筛选，不必再写一遍取值 switch；
-    /// 列键与属性名不一致时返回 <c>null</c>，<see cref="ApplyFilters"/> 会把这条条件当"不生效"跳过（不会误筛掉行）。
-    /// 需要更精确的值（派生显示串 / 数值）时由派生类重写。
-    /// </para>
-    /// </summary>
+    /// <summary>取某行某列的文本（给筛选用）。（WHY: SH-022）</summary>
     protected virtual string? FieldText(object row, string columnKey)
     {
         if (row == null || string.IsNullOrEmpty(columnKey)) return null;

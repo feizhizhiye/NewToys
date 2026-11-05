@@ -55,20 +55,7 @@ public sealed class ProcessRunResult
     public string? Error { get; init; }
 }
 
-/// <summary>
-/// 「跑外部工具并拿回文本」的统一底座（平台中立）。
-/// <para>
-/// 语义：隐藏窗口 + 重定向 stdout/stderr + **显式 UTF-8** + 超时 / 取消**杀进程树**。
-/// 先起读取任务再等待（避免输出超过管道缓冲把子进程卡死）；
-/// **进程退出后输出读取只再等一个很短宽限期**（孙进程占着管道也不许无限等，见 `ProcessRunner.OutputDrainGrace`）。
-/// </para>
-/// <para>
-/// 🔴 不在本契约内的两类（刻意保留现状，⛔ 不一刀切合并）：① **平台能力**（打开文件夹 / 文件 / URL，
-/// <c>UseShellExecute=true</c>）——VM 层直接用 BCL，换平台时改的是"explorer → xdg-open"这一处；
-/// ② **可见控制台 / 提权**（<c>Verb=runas</c>，窗口留着给用户看）——见 <c>QuickActionService.StartVisible</c>
-/// 与 定调（winget 源命令走命令库 + UAC）。
-/// </para>
-/// </summary>
+/// <summary>「跑外部工具并拿回文本」的统一底座（平台中立）。（WHY: SH-050）</summary>
 public interface IProcessRunner
 {
     /// <summary>跑一个外部工具并等待结束；<paramref name="timeout"/> 到时杀进程树。</summary>

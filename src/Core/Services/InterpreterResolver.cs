@@ -5,18 +5,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// 「脚本 → (解释器 exe, 参数)」的唯一解析处（§二.1）。
-/// <para>
-/// 为什么单独抽出来：<c>QuickActionService</c> 只**开可见窗口**跑脚本（不捕获输出），本页要的是
-/// 「静默跑 + 拿回文本」；两者共用同一套解释器路径来源，所以把路径解析独立成 static 工具类
-/// （<c>QuickActionService</c> 本期**不改**，留给后续复用 —— 见卡 §四「不做」）。
-/// </para>
-/// <para>
-/// 路径来源 = 应用级配置（<c>app.json</c> 的「运行环境」：<c>PwshPath</c> / <c>PythonPath</c> /
-/// <c>PowerShell51Path</c>）；没配就探常见安装位、再退回 PATH。
-/// </para>
-/// </summary>
+/// <summary>「脚本 → (解释器 exe, 参数)」的唯一解析处（§二.1）。（WHY: CR-025）</summary>
 public static class InterpreterResolver
 {
     /// <summary>pwsh 的常见安装位（没配路径时按顺序探）。</summary>
@@ -26,13 +15,7 @@ public static class InterpreterResolver
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "PowerShell", "7", "pwsh.exe"),
     };
 
-    /// <summary>
-    /// 解析解释器。<paramref name="interpreter"/> 取 <see cref="ScriptInterpreter"/> 的常量（空 = Auto，按扩展名判）。
-    /// </summary>
-    /// <param name="interpreter">解释器常量；空串 = <see cref="ScriptInterpreter.Auto"/>。</param>
-    /// <param name="scriptPath">脚本绝对路径（Auto 模式按扩展名挑）。</param>
-    /// <param name="cfg">应用级配置（可为 null ⇒ 全部按「探安装位 / PATH」处理）。</param>
-    /// <returns>Exe 为 null ⇒ 本机找不到可用的解释器（Error 给原因）。</returns>
+    /// <summary>解析解释器。<paramref name="interpreter"/> 取 ScriptInterpreter 的常量（空 = Auto，按扩展名判）。</summary>
     public static (string? Exe, string Args, string? Error) Resolve(
         string? interpreter, string scriptPath, IAppConfigService? cfg)
     {
@@ -113,14 +96,7 @@ public static class InterpreterResolver
     }
 }
 
-/// <summary>
-/// 脚本文件用哪个解释器（<c>QuickAction.Interpreter</c> 的取值）。
-/// <para>
-/// <see cref="Auto"/>（空串）= 按扩展名自动：<c>.py</c>→python、<c>.ps1</c>→pwsh（没配就退回 5.1）、
-/// <c>.bat/.cmd</c>→cmd。各解释器的**路径**在「设置 → 路径配置」里配，留空 = 用系统 PATH 里的。
-/// </para>
-/// </summary>
-/// <remarks>随 <see cref="InterpreterResolver"/> 从 <c>NewToys.ScriptManager.Models</c> 上提 Core（Core ⛔ 反向依赖模块）。</remarks>
+/// <summary>脚本文件用哪个解释器（QuickAction.Interpreter 的取值）。（WHY: CR-027）</summary>
 public static class ScriptInterpreter
 {
     /// <summary>按扩展名自动挑（默认）。</summary>
@@ -137,14 +113,7 @@ public static class ScriptInterpreter
     public const string Cmd = "cmd";
 }
 
-/// <summary>
-/// 命令行的**宿主 / 窗口行为**（<c>QuickAction.Shell</c> 的取值，v3.19）。
-/// <para>
-/// <see cref="Auto"/>（默认）= 当前智能行为：有输出的命令用 pwsh 弹可见终端并回显命令、GUI 启动类命令静默；
-/// 显式 <see cref="Cmd"/> / <see cref="Pwsh"/> 覆盖 Auto，强制用哪个宿主跑。
-/// </para>
-/// </summary>
-/// <remarks>随 <see cref="InterpreterResolver"/> 从 <c>NewToys.ScriptManager.Models</c> 上提 Core。</remarks>
+/// <summary>命令行的宿主 / 窗口行为（QuickAction.Shell 的取值，）。</summary>
 public static class QuickActionShell
 {
     /// <summary>自动：有输出→pwsh 可见终端（回显命令）；GUI 启动类→cmd 静默。默认。</summary>

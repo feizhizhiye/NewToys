@@ -3,24 +3,7 @@ using System.Text.Json;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// <b>内容型 JSON 文档表</b>：把散在 <c>config\*.json</c> 的「功能数据」
-/// （书签 / ping 目标 / 抓取任务 / hosts 方案 / 视频任务队列 / 脚本手工数据）收进模块库。
-/// <para>
-/// 表结构 = <c>&lt;前缀&gt;_docs(name TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL)</c>：
-/// 一条文档一行，<c>payload</c> 存**整份 JSON 原文**。
-/// </para>
-/// <para>
-/// 🔴 为什么不拆成关系表：这些结构都是「整份读、整份写」的文档（脚本库还带三层嵌套：集合 → 视图 → 逐节列覆盖），
-/// 拆表要把读方的模型全改成 SQL 投影，收益只有「人能用 sqlite 查一查」，风险远大于收益。
-/// 本类保证的是卡片要的两件事：**文件不再散在 config\ 里**、**同一份数据只有一个写入点**。
-/// 真要按字段查询时，SQLite 的 <c>json_extract(payload,'$.x')</c> 直接可用（JSON1 默认编译进来）。
-/// </para>
-/// <para>
-/// 表名前缀纪律（framework §7）：模块只能用自己的前缀（<c>script_ / web_ / video_ / asset_</c>）。
-/// DDL **不在这里执行** —— 由各模块的 <c>ILibrarySchemaContributor</c> 统一建（建表只有一个入口）。
-/// </para>
-/// </summary>
+/// <summary>内容型 JSON 文档表：把散在 config\*.json 的「功能数据」 （书签 / ping 目标 / 抓取任务 / hosts 方案 / 视频任务队列 / 脚本手工数据）收进模块库。（WHY: CR-029）</summary>
 public sealed class JsonDocStore
 {
     private readonly SqliteDatabase _db;
@@ -54,13 +37,7 @@ public sealed class JsonDocStore
         );
         """;
 
-    /// <summary>
-    /// 建表（幂等）。**正常路径由模块的 schema 贡献者在启动时调**，保证「不打开这页表也在」。
-    /// <para>
-    /// 读取方在第一次访问时也会懒补一次（<see cref="LoadRaw"/> 等内部调）——
-    /// 防的是「服务在 schema 阶段之前就被解析」的时序问题（只会多跑一次幂等 DDL，不会盖数据）。
-    /// </para>
-    /// </summary>
+    /// <summary>建表（幂等）。正常路径由模块的 schema 贡献者在启动时调，保证「不打开这页表也在」。（WHY: CR-030）</summary>
     public bool EnsureSchema()
     {
         if (_ensured) return true;

@@ -3,18 +3,7 @@ using System.IO;
 
 namespace NewToys.Core.Services.DataMigrations;
 
-/// <summary>
-/// <b>旧 JSON 文件 → 文档表</b> 的一次性搬运。
-/// <list type="bullet">
-///   <item>只在「目标文档还不存在 且 源文件存在」时搬（幂等：重复启动不重复搬）；</item>
-///   <item>搬成功后把源文件改名 <c>.json.legacy</c>（⛔ 不删 —— 用户数据永远留一份可手工考回的原文）；</item>
-///   <item>目标文档已有 ⇒ 直接改名留档（说明上次已搬过）；</item>
-///   <item>解析不了 / 读到一半失败 ⇒ **不动源文件**，下次启动重试。</item>
-/// </list>
-/// <para>
-/// ⚠️ 「源文件不存在」完全正常（用户从没用过那页），静默跳过。
-/// </para>
-/// </summary>
+/// <summary>旧 JSON 文件 → 文档表 的一次性搬运。（WHY: CR-016）</summary>
 public static class JsonDocMigration
 {
     /// <summary>搬运一份文件。返回是否发生了变化（搬了 / 留档了）。</summary>

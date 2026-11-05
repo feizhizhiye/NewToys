@@ -3,15 +3,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// <see cref="ILaunchConfigService"/> 实现（v3.66：2026-10-18）：**已并入 <c>app.json</c>**，
-/// 本类退化为 <see cref="IAppConfigService"/> 的薄转接层 —— 目的是**保住调用方签名不变**
-/// （<c>GeneralViewModel</c> / <c>HomeViewModel</c> / <c>LaunchConfigViewModel</c> / <c>ShellView</c> 全都不用改）。
-/// <para>
-/// 🔴 为什么不再自己写文件：同一个文件两个写入方 = 读-改-写互相覆盖（谁后保存谁赢）。
-/// <c>app.json</c> 的唯一写入方必须是 <see cref="AppConfigService"/>。
-/// </para>
-/// </summary>
+/// <summary>ILaunchConfigService 实现：已并入 app.json， 本类退化为 IAppConfigService 的薄转接层 —— 目的是保住调用方签名不变 （GeneralViewModel / HomeViewModel / LaunchConfigViewModel / ShellView 全都不用改）。（WHY: CR-032）</summary>
 public class LaunchConfigService : ILaunchConfigService
 {
     private readonly IAppConfigService _app;

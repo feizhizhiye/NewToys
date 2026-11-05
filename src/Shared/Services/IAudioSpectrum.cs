@@ -1,16 +1,6 @@
 namespace NewToys.Shared.Services;
 
-/// <summary>
-/// 频谱数据源（可选能力）：播放后端在实现 <see cref="IAudioPlayback"/> 之余**额外**实现本接口，
-/// 界面据此绘制分频柱；不实现则界面隐藏频谱区。
-/// <para>
-/// 🔴 与 <see cref="IAudioPlayback"/> 分开的原因：频谱是锦上添花，⛔ 不该逼所有后端（含
-/// <c>NullAudioPlayback</c>）都去背 FFT 与 PCM 旁路。
-/// </para>
-/// <para>
-/// 🔴 界面线程会按帧（≤30 fps）调用 <see cref="ReadSpectrum"/>：实现方内部自加锁，⛔ 阻塞音频线程。
-/// </para>
-/// </summary>
+/// <summary>频谱数据源（可选能力）：播放后端在实现 IAudioPlayback 之余额外实现本接口， 界面据此绘制分频柱；不实现则界面隐藏频谱区。（WHY: SH-029）</summary>
 public interface IAudioSpectrum
 {
     /// <summary>建议的频段数（界面按此分配柱宽）。</summary>

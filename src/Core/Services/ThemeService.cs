@@ -5,15 +5,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// 主题状态（用户选定模式 + 强调色）的持有者与持久化实现。
-/// <para>
-/// ⚠️ 本类在 <c>Core</c>，**不引用 Avalonia**：所以它只管状态与 <c>theme.json</c>，
-/// 真正的「把颜色刷上窗口」由 Shell 的 <c>App.ApplyTheme()</c> 订阅 <see cref="ThemeChanged"/> 完成。
-/// 「跟随系统」所需的操作系统状态也由 Shell 读 <c>Application.PlatformSettings</c> 后写进
-/// <see cref="SystemDark"/>（见 <c>App.WatchSystemTheme</c>）。
-/// </para>
-/// </summary>
+/// <summary>主题状态（用户选定模式 + 强调色）的持有者与持久化实现。（WHY: CR-052）</summary>
 public class ThemeService : IThemeService
 {
     private readonly ConfigStoreService _cfg;
@@ -62,13 +54,7 @@ public class ThemeService : IThemeService
 
     // ==================== 持久化 ====================
 
-    /// <summary>
-    /// 读 <c>shell.json</c> 的 <c>theme</c> 节（前是独立的 <c>theme.json</c>，迁移由
-    /// <see cref="ConfigStoreService"/> 一次性完成）。两种格式都认：
-    /// - 现格式：<c>{ "Mode": "System", "AccentId": "blue", "IsDark": true }</c>；
-    /// - **旧格式**（v1.18 之前只有 <c>{ "IsDark": true }</c>）→ 映射成 Dark / Light，老用户的偏好不丢。
-    /// 任何异常（节不存在 / 值非法）都静默回退默认值，绝不让主题读取把启动搞崩。
-    /// </summary>
+    /// <summary>读 shell.json 的 theme 节（前是独立的 theme.json，迁移由 ConfigStoreService 一次性完成）。两种格式都认： - 现格式：{ "Mode": "System", "AccentId": "blue", "IsDark": true }；（WHY: CR-053）</summary>
     public void Load()
     {
         try

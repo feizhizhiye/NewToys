@@ -26,36 +26,14 @@ public enum ToolbarItemKind
     /// <summary>竖分隔线（分组用）。</summary>
     Separator,
 
-    /// <summary>
-    /// 单选 / 多选**按钮组**（如「软件包管理」页的「源」按钮）：按 <see cref="ToolbarItemDescriptor.ItemsPath"/>
-    /// 生成一排按钮，每项文案取 <see cref="ToolbarItemDescriptor.DisplayPath"/>、高亮跟随数据项上的
-    /// <see cref="ToolbarItemDescriptor.SelectedPath"/>，点击把**数据项本身**当参数执行
-    /// <see cref="ToolbarItemDescriptor.CommandPath"/>。
-    /// <para>v3.54：补迁 <c>script-packages</c> 时新增（既有页不受影响）。</para>
-    /// </summary>
+    /// <summary>单选 / 多选按钮组（如「软件包管理」页的「源」按钮）：按 ToolbarItemDescriptor.ItemsPath 生成一排按钮，每项文案取 ToolbarItemDescriptor.DisplayPath、高亮跟随数据项上的 ToolbarItemDescriptor.SelectedPath，点击把数据项本身当参数执行 ToolbarItemDescriptor.…。</summary>
     ChipGroup,
 
-    /// <summary>
-    /// **多选下拉**（v3.77：2026-10-19 用户定调：软件包的「源」要能多选）：
-    /// 按钮上显示汇总文案（<see cref="ToolbarItemDescriptor.TextPath"/>，如 <c>winget, msstore</c>），
-    /// 点开是浮层，每行一个可勾选项（文案取 <see cref="ToolbarItemDescriptor.DisplayPath"/>），
-    /// 勾选状态**双向绑数据项上的** <see cref="ToolbarItemDescriptor.SelectedPath"/>（bool），右侧显示 ✓。
-    /// <para>
-    /// 🔴 宿主只负责「勾 ↔ 数据项 bool」的双向绑定；点击后**照常执行**
-    /// <see cref="ToolbarItemDescriptor.CommandPath"/>（参数 = 数据项本身）⇒ VM 的命令里⛔ 不要再翻 bool（会翻两次）。
-    /// </para>
-    /// </summary>
+    /// <summary>按钮上显示汇总文案（ToolbarItemDescriptor.TextPath，如 winget, msstore）， 点开是浮层，每行一个可勾选项（文案取 ToolbarItemDescriptor.DisplayPath）， 勾选状态双向绑数据项上的 ToolbarItemDescriptor.SelectedPath（bool），右侧显示 ✓。（WHY: SH-025）</summary>
     MultiCombo
 }
 
-/// <summary>
-/// 工具条里的**一项**（v3.53）—— 纯数据（⛔ 不引 Avalonia），命令用 BCL <see cref="System.Windows.Input.ICommand"/>。
-/// <para>
-/// 所有 <c>*Path</c> 都是**相对页面 VM** 的属性名（与 详情卡描述符同一口径；
-/// 描述符只描述"长什么样、绑什么"，渲染在 <c>Shell/Controls/ToolbarHost</c>）。
-/// </para>
-/// <para>🔴 加新 Kind 是**加法**：确实需要新交互时才加（配一个渲染分支），不影响既有页。</para>
-/// </summary>
+/// <summary>工具条里的一项—— 纯数据（⛔ 不引 Avalonia），命令用 BCL System.Windows.Input.ICommand。（WHY: SH-026）</summary>
 public sealed class ToolbarItemDescriptor
 {
     /// <summary>项类型。</summary>
@@ -132,14 +110,7 @@ public sealed class ToolbarItemDescriptor
     /// <summary>只读（纯展示，如「脚本目录」）。</summary>
     public bool IsReadOnly { get; init; }
 
-    /// <summary>
-    /// 「空闲态水印化」（v3.68：用户定调）：失焦时框里只留 <see cref="Placeholder"/>，聚焦才露出真实值。
-    /// <para>
-    /// 与 <see cref="IsReadOnly"/> 无关：只读框靠 <c>Tag</c> 暂存真实值（原有机制），可编辑框靠
-    /// **临时解挂 TwoWay 绑定**实现（⛔ 不能直接改 <c>Text</c>，会写回 VM）。用于「常态不必看值、
-    /// 点进去才编辑」的框（样板 = 脚本库的「脚本目录」）。
-    /// </para>
-    /// </summary>
+    /// <summary>「空闲态水印化」（：用户定调）：失焦时框里只留 Placeholder，聚焦才露出真实值。（WHY: SH-027）</summary>
     public bool PlaceholderWhenIdle { get; init; }
 
     /// <summary>回车即执行的命令（绑 VM 上的 <c>ICommand</c> 属性）。</summary>

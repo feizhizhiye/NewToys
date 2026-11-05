@@ -900,10 +900,15 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | C 意图 | 为什么这样设计、踩过什么坑、代价是什么 | 文档一处（本节 / `modules/*.md` §5），代码留稳定 ID |
 | D 叙事 | 哪一版、第几轮、原来是 A 后来改 B | **删**（git log / git blame 的职责） |
 
-**已上线机制**：`skill/scripts/lint.py --only comments`（已接入 `accept.py` 静态检查第 5 项）
+**已上线机制**：`skill/scripts/lint.py --only comments`（已接入 `accept.py` 静态检查清单）
 - `C-01` 版本/轮次前缀行 · `C-02` ≥6 行注释块 · `C-04` 历史叙事词 = **WARN**（不阻断）
 - `C-05` **两个程序集同名 View 类 = ERROR** —— 反射导航靠类名找页，重名会静默错页，这是唯一能提前拦它的检查
+- `C-07` 已治理程序集里 ≥6 行 `///` 长段 · `A-01` `WHY: <ID>` ⇄ 文档 `<!-- ANCHOR:<ID> -->` 双向对账 = **WARN**
+
+**方案1 全量瘦身与分流（2026-11-05，用户确认破「改到哪清哪」）**：短契约（≤5 行 `///`）全留；长段（≥6 行）由 `skill/scripts/comment-slim.py --batch <批次> --apply` 压成 1 行契约 + `WHY: <ID>`，高信号 WHY 正文蒸馏进附录 A.2 / `ui.md` §9 / `modules/<模块>.md` §5，D 类叙事删；机器标记 20 条（4 `lint:view-no-vm` + 16 `inheritdoc`）必留。按 Shared → Core → Shell → UI → Module.* 分批，`lint.py` 的 `SLIMMED_ASSEMBLIES` 是已治理程序集白名单，未治理批次不报 C-07。完整判据 = `tech-guard.md` §3.1。
 - `C-03` 仅出注释率 Top5 排行，**不告警**（model / 接口类的属性注释就是契约，审美判据做 lint 必然烂成噪音）
+
+**生成侧契约 + 自动门禁（2026-11-05，用户授权）**：三分法只判「已有注释往哪去」；**写新代码该写什么** = `tech-guard.md` §3.1.1（信息优先交类型 / 命名 / 测试 / 文档，注释只留别的载体拿不到的那句；标记只认 `WHY: <ID>` / `SAFETY:` / `TODO:`）。增量门禁 `skill/scripts/comment-gate.py` 只判 `git diff` 新增行（M-01 叙事 / M-02 新增长段 / M-03 缺 ANCHOR / M-04 标记不合规），违规**非零退出**；自动触发 = `.githooks/pre-commit`（`git config core.hooksPath .githooks` 启用一次）+ `.github/workflows/comment-gate.yml`（PR / push）。职责边界：`lint.py --only comments` 全量自检恒 0 退出、只报告；门禁才阻断，存量不由门禁消化。
 
 **存量处置原则**：⛔ 不清零、⛔ 不排一次性清洗批次（600+ 处无功能改动混进一次 build，出错无法定位）。
 按「改到哪清到哪」消化；lint 只保证**新增代码不再产生**。已清理样板：`Core/Services/ModuleLoader.cs`、`Shell/ViewModels/ShellViewModel.cs`。
@@ -1106,6 +1111,519 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 | 窗口不能拖边框缩放 | — | 走官方 CSD（见 `ui.md` §4） |
 
 > 模块专属编译坑见各 `modules/<模块>.md` §5 坑点。
+
+### A.2 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:shared:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:SH-001 -->
+- **SH-001** · `src/Shared/Details/DetailCardDescriptor.cs`
+  - 🔴 加新 Kind 是「加法」：新需求优先用「现有 Kind + 修饰位」表达；确实需要新交互时才加一个枚举值
+
+<!-- ANCHOR:SH-003 -->
+- **SH-003** · `src/Shared/Details/DetailCardDescriptor.cs`
+  - 溢出自动换行（WrapPanel）。只固定视觉样式，⛔ 不固定排列。
+
+<!-- ANCHOR:SH-004 -->
+- **SH-004** · `src/Shared/Details/DetailCardDescriptor.cs`
+  - 典型用途：信息面板改表格表头名称（每列一行）。⛔ 不做增删行（那是 Chips 的事）。
+
+<!-- ANCHOR:SH-005 -->
+- **SH-005** · `src/Shared/Details/DetailCardDescriptor.cs`
+  - 落盘由页面工具条的保存命令负责 —— 描述符不参与刷新（需求 §4.5.1「刷新契约」）。
+
+<!-- ANCHOR:SH-006 -->
+- **SH-006** · `src/Shared/Details/DetailCardDescriptor.cs`
+  - 🔴 走 C# 对象字面量声明（⛔ 不做运行时 JSON / XAML 加载）—— 享受编译期检查 + IDE 补全。
+  - ⚠️ 绑定路径（ValuePath / VisibleWhen …）是字符串：属性改名不报错、只是白板，
+  - 所以必须跑 skill/scripts/check-detail-paths.ps1 做静态兜底。
+
+<!-- ANCHOR:SH-007 -->
+- **SH-007** · `src/Shared/Details/DetailCardDescriptor.cs`
+  - 路径一律相对卡片 DataContext（= 页面 VM），支持 "!" 前缀取反，支持 "A.B" 多级（如 DetailRow.TypeText）。
+
+<!-- ANCHOR:SH-008 -->
+- **SH-008** · `src/Shared/Details/DetailCardDescriptor.cs`
+  - 🔴 全部走路径字符串（相对卡片 DataContext = 页面 VM），由 Shell 渲染层解析成强类型属性 —— 与
+  - ⚠️ 纯图标没有文字 ⇒ `ToolTip` 必填（悬停讲语义，否则用户猜不出按钮是干什么的）。
+
+<!-- ANCHOR:SH-009 -->
+- **SH-009** · `src/Shared/Models/FilterClause.cs`
+  - 值留空的条件不生效（这样"先加条件后填值"不会瞬间把列表筛空），
+  - 否则按文本比（忽略大小写）。这样「大小 &gt; 100」不会变成字符串比较的怪结果。
+
+<!-- ANCHOR:SH-010 -->
+- **SH-010** · `src/Shared/Models/IModule.cs`
+  - 🔴 （启动提速）：重活不许写这里 —— 建库/清库、读配置文件、
+  - 种子播种（Seeder）、扫描磁盘、批量更新任务入队，一律放 `InitializeDeferred`。
+
+<!-- ANCHOR:SH-011 -->
+- **SH-011** · `src/Shared/Models/IModule.cs`
+  - ⚠️ 契约：实现内部必须自己 try/catch 兜住（数据层不可用不许拦启动）；
+
+<!-- ANCHOR:SH-012 -->
+- **SH-012** · `src/Shared/Models/ListColumn.cs`
+  - 只描述列本身（键 / 标题 / 宽度 / 是否可排序），不参与排序逻辑、也不存可见性状态 ——
+
+<!-- ANCHOR:SH-013 -->
+- **SH-013** · `src/Shared/Models/ListColumn.cs`
+  - 唯一用途 = 列宽判定的依据：示例文本宽 ≤ 表头文字宽 → 该列锁成表头宽（不可拖、不自动调）；否则不锁。
+  - §4.8.1 / ⛔ 不再当作「示例行 / 水印行」显示（干净启动：列表没数据就是空态引导）。
+  - ⛔ 绝不按真实行逐行测宽（虚拟化只 measure 可见行 → 滚动会让最大内容宽变化 → 列宽抖动）。
+
+<!-- ANCHOR:SH-014 -->
+- **SH-014** · `src/Shared/Models/ListPageViewModelBase.Columns.cs`
+  - 🔴 必须合并写（先读回本页已有的键，再覆盖列键）：SavePage 是整页替换，
+
+<!-- ANCHOR:SH-017 -->
+- **SH-017** · `src/Shared/Models/ListPageViewModelBase.cs`
+  - ⚠️ 为什么列可见性用「具名属性 + 字典」两套表示：字典用来落盘与算列宽规格，
+  - 为 "Is" + key + "Visible" 发一次通知，所以列键必须与该属性名对得上。
+
+<!-- ANCHOR:SH-018 -->
+- **SH-018** · `src/Shared/Models/ListPageViewModelBase.cs`
+  - ⚠️ 这是构造期的虚属性调用：派生 override PageSizeChoices 只许返回 static 只读数组。
+
+<!-- ANCHOR:SH-020 -->
+- **SH-020** · `src/Shared/Models/ListPageViewModelBase.cs`
+  - 🔴 与 `IStatusProvider` 同一套路：一次在基类实现，覆盖全部列表页。
+  - ⚠️ 页面 override 后必须删掉页内的 Border.toolbar，否则会出现两条工具条。
+
+<!-- ANCHOR:SH-021 -->
+- **SH-021** · `src/Shared/Models/ListPageViewModelBase.cs`
+  - 🔴 修订：⛔ 不再要求「未挂起」—— 草稿态（扫描预览）列表同样会超出视口，
+
+<!-- ANCHOR:SH-022 -->
+- **SH-022** · `src/Shared/Models/ListPageViewModelBase.cs`
+  - 列键与属性名不一致时返回 null，`ApplyFilters` 会把这条条件当"不生效"跳过（不会误筛掉行）。
+
+<!-- ANCHOR:SH-023 -->
+- **SH-023** · `src/Shared/Models/SettingsCategory.cs`
+  - 「设置」组分区一律看本枚举。
+  - 🔴 默认值 = `None`（普通功能项）⇒ 既有的 RegisterFunction 调用
+  - 外观 / 顺序零变化，无需逐处补参数；只有设置项才需要显式标注。
+
+<!-- ANCHOR:SH-025 -->
+- **SH-025** · `src/Shared/Models/ToolbarItemDescriptor.cs`
+  - 🔴 宿主只负责「勾 ↔ 数据项 bool」的双向绑定；点击后照常执行
+  - `ToolbarItemDescriptor.CommandPath`（参数 = 数据项本身）⇒ VM 的命令里⛔ 不要再翻 bool（会翻两次）。
+
+<!-- ANCHOR:SH-026 -->
+- **SH-026** · `src/Shared/Models/ToolbarItemDescriptor.cs`
+  - 🔴 加新 Kind 是加法：确实需要新交互时才加（配一个渲染分支），不影响既有页。
+
+<!-- ANCHOR:SH-027 -->
+- **SH-027** · `src/Shared/Models/ToolbarItemDescriptor.cs`
+  - 临时解挂 TwoWay 绑定实现（⛔ 不能直接改 Text，会写回 VM）。用于「常态不必看值、
+
+<!-- ANCHOR:SH-028 -->
+- **SH-028** · `src/Shared/Services/IAudioPlayback.cs`
+  - 🔴 引擎实现住在 Core（Windows 后端），界面控件住在 NewToys.UI 并由宿主注入本接口 ——
+  - NewToys.UI ⛔ 不引 NAudio / 平台库，换后端（mpv / libvlc）只换实现。
+  - 🔴 所有成员都按「可被 UI 线程随时调用」设计；实现方内部自行切线程，⛔ 不让调用方 await。
+
+<!-- ANCHOR:SH-029 -->
+- **SH-029** · `src/Shared/Services/IAudioSpectrum.cs`
+  - 🔴 与 `IAudioPlayback` 分开的原因：频谱是锦上添花，⛔ 不该逼所有后端（含
+  - 🔴 界面线程会按帧（≤30 fps）调用 `ReadSpectrum`：实现方内部自加锁，⛔ 阻塞音频线程。
+
+<!-- ANCHOR:SH-030 -->
+- **SH-030** · `src/Shared/Services/IAudioTone.cs`
+  - 🔴 与 `IAudioPlayback` 分开：不是每个后端都做得出滤波（NullAudioPlayback 就不做），
+  - 界面按 Playback as IAudioTone 判断 —— 拿不到就不显示音色键，⛔ 改 `IAudioPlayback` 逼所有后端实现。
+
+<!-- ANCHOR:SH-032 -->
+- **SH-032** · `src/Shared/Services/IBackupSection.cs`
+  - 🔴 容器是 zip（System.IO.Compression，⛔ 不引第三方压缩库）：
+  - 🔴 每个节自己写一个内层 zip：`ExportTo` 收到的流是外层 zip 里
+  - ⚠️ 实现放哪：框架节在 Shell（ShellBackupSection / EnvBackupSection /
+
+<!-- ANCHOR:SH-033 -->
+- **SH-033** · `src/Shared/Services/IBackupSection.cs`
+  - 🔴 校验顺序固定（历史坑）：先判 .. / 绝对路径（拒绝）→ 再跳过
+
+<!-- ANCHOR:SH-034 -->
+- **SH-034** · `src/Shared/Services/IColumnLayoutService.cs`
+  - ⚠️ 同一个文件里存两类东西：① 列显隐（`LoadPage` / `SavePage`，键 = 列键）；
+  - ② 面板开合等页面级开关（`LoadFlag` / `SaveFlag`，内部用保留前缀避免撞键）。
+
+<!-- ANCHOR:SH-035 -->
+- **SH-035** · `src/Shared/Services/IDetailCardSource.cs`
+  - ⛔ 不再取 `IDetailPanelProvider.DetailContent`（那条老路保留给尚未迁移的页）；
+  - 🔴 描述符走 C# 对象字面量（⛔ 不做运行时 JSON / XAML 加载）；绑定路径是字符串，
+  - 必须跑 skill/scripts/check-detail-paths.ps1 做静态兜底。
+
+<!-- ANCHOR:SH-037 -->
+- **SH-037** · `src/Shared/Services/IExternalToolRegistry.cs`
+  - ⛔ 不在页面里散落特判；实现放 Core（可读 IAppConfigService + PATH）。
+  - 🔴 惰性探测：⛔ 不在启动时全量探测（拖慢启动）—— 只判"文件存在 + 可执行"，
+  - ⛔ 不起进程跑 --version；结果缓存，`ProbeAll` 时才真正解析。
+
+<!-- ANCHOR:SH-038 -->
+- **SH-038** · `src/Shared/Services/IFavoritesService.cs`
+  - 之所以必须是 config\ 下：① 只有这里的 *.json 会被「设置 → 数据管理」的备份 / 导入覆盖；
+  - ② 首页与「设置 → 功能清单」都只通过本服务读写，不各自保存一份，避免双真相源。
+  - 收藏项只存功能 key（如 script-info），标题 / 图标 / 简介一律到 `IMenuService` 现取，
+
+<!-- ANCHOR:SH-039 -->
+- **SH-039** · `src/Shared/Services/IFileOperationService.cs`
+  - 定位：只做「磁盘上发生了什么」，⛔ 不认识任何数据库、⛔ 不弹窗、⛔ 不写业务日志。
+  - 🔴 行为约定（所有实现必须一致）：
+  - 只有 `PermanentDelete` 才真删（调用方负责二次确认）；③ 失败不自动回滚，
+  - 把原因原样带回给调用方；④ 路径校验一律 Path.GetFullPath 后再比，⛔ 不做字符串前缀判断。
+
+<!-- ANCHOR:SH-040 -->
+- **SH-040** · `src/Shared/Services/IHistoryProvider.cs`
+  - ⚠️ 本轮（）只定义契约、无页面实现 → 标题栏前进/后退按钮一律灰显。
+
+<!-- ANCHOR:SH-041 -->
+- **SH-041** · `src/Shared/Services/ILibrarySchemaContributor.cs`
+  - 🔴 一个模块 = 一个库文件（store\&lt;库键&gt;\&lt;库键&gt;.db），库之间不共享连接、不跨库查询。
+  - 🔴 契约：`EnsureSchema` 必须幂等（CREATE IF NOT EXISTS + 只加可空列的
+  - ALTER TABLE ADD COLUMN），且可在任意启动次数下重复执行；⛔ 不许在这里做破坏性 DDL
+  - （`DROP` 只允许针对本模块的可重建缓存表，并且必须带版本护栏）。
+  - ⚠️ 本接口不带 SqliteConnection 参数：`Shared` 不引 `Microsoft.Data.Sqlite`。
+
+<!-- ANCHOR:SH-042 -->
+- **SH-042** · `src/Shared/Services/IMenuService.cs`
+  - <paramref name="category"/> = 显式分类（需求 §4.9.2）：设置项必须标；
+  - 视图类型由 <typeparamref name="TView"/> 决定（取 typeof(TView).Name）—— ⛔ 不接受字符串：
+
+<!-- ANCHOR:SH-043 -->
+- **SH-043** · `src/Shared/Services/IModuleBus.cs`
+  - 投递与接收不要求同时存在，两条路径都覆盖才不会丢消息：
+
+<!-- ANCHOR:SH-044 -->
+- **SH-044** · `src/Shared/Services/IModuleBus.cs`
+  - 🔴 <paramref name="handler"/> 必须是 <paramref name="owner"/> 的实例方法，⛔ 别传捕获变量的 lambda
+
+<!-- ANCHOR:SH-046 -->
+- **SH-046** · `src/Shared/Services/IModuleReloadService.cs`
+  - 单个 DLL 失败被隔离；已构建的 DI 容器无法追加服务 ⇒ 热加载模块的 RegisterServices 跳过，优先页面型模块。
+
+<!-- ANCHOR:SH-047 -->
+- **SH-047** · `src/Shared/Services/IOptionsStore.cs`
+  - 模块只调本接口 —— ⛔ 不碰文件、不知道底下是 json 还是 SQLite。默认实现落
+  - 值一律是 string（调用方自己序列化简单类型）—— 这样换 SQLite 时表结构就是
+  - module / key / value / updated_at，⛔ 不必为每种类型单独建列。
+
+<!-- ANCHOR:SH-048 -->
+- **SH-048** · `src/Shared/Services/IOptionsStore.cs`
+  - ⚠️ 写失败（无权限 / 路径非法 / 磁盘满）不吞异常 —— 抛出后由调用方（模块设置服务）
+
+<!-- ANCHOR:SH-049 -->
+- **SH-049** · `src/Shared/Services/IPageCatalog.cs`
+  - 🔴 存在的理由：页面由菜单项上的字符串 ViewTypeName 驱动，解析只能靠反射。
+  - 本契约把扫描收成一份带缓存的索引，模块热加载后由调用方 `Invalidate`。
+  - ⛔ 实现不得依赖 Avalonia：Core 层据此服务，判断「是不是控件」由调用方自行过滤。
+
+<!-- ANCHOR:SH-050 -->
+- **SH-050** · `src/Shared/Services/IProcessRunner.cs`
+  - 先起读取任务再等待（避免输出超过管道缓冲把子进程卡死）；
+  - 进程退出后输出读取只再等一个很短宽限期（孙进程占着管道也不许无限等，见 `ProcessRunner.OutputDrainGrace`）。
+  - 🔴 不在本契约内的两类（刻意保留现状，⛔ 不一刀切合并）：① 平台能力（打开文件夹 / 文件 / URL，
+
+<!-- ANCHOR:SH-051 -->
+- **SH-051** · `src/Shared/Services/IProfileService.cs`
+  - ⚠️ 切换配置 = 重启应用：配置在启动时就被大量单例服务读进内存了，热切换改动面大、且极易
+
+<!-- ANCHOR:SH-052 -->
+- **SH-052** · `src/Shared/Services/IPythonRuntime.cs`
+  - 🔴 跨模块共用（网络工具的规则集、脚本管理器的 .py 命令）⇒ 接口在 Shared、实现在 Core。
+  - 🔴 ⛔ 不引 pythonnet：子进程 + 行分隔 JSON（stdin/stdout），保持平台中立（framework.md §2.1）。
+
+<!-- ANCHOR:SH-053 -->
+- **SH-053** · `src/Shared/Services/ISelectionStatusProvider.cs`
+  - 与 `IStatusProvider` 分开的原因：状态文本会被业务消息（「⚠ 查询失败…」/「已复制 3 项」）
+  - 🔴 只有多选列表页需要实现（当前 = 全部资产 / 资产浏览 / 视频列表 / 批量处理）；
+  - ⚠️ 继承 `INotifyPropertyChanged` 是为了少写代码：页面 VM 都派生自
+
+<!-- ANCHOR:SH-054 -->
+- **SH-054** · `src/Shared/Services/IStatusActionProvider.cs`
+  - （典型 = 外部程序缺失时 `⚠ 未找到 ffmpeg` → 一点跳到「运行环境」节）。
+  - ⚠️ 只在前缀是 `⚠`（= 警示态）时才应该给 `StatusActionKey`：
+  - 普通成功文案不给跳转，避免状态栏到处可点、语义变糊。
+
+<!-- ANCHOR:SH-055 -->
+- **SH-055** · `src/Shared/Services/IStatusProvider.cs`
+  - ⚠️ 列表页由 ListPageViewModelBase 统一实现（一次覆盖全部列表页）；
+
+<!-- ANCHOR:SH-057 -->
+- **SH-057** · `src/Shared/Services/IThemeService.cs`
+  - ⚠️ 本接口位于 Core（不引用 Avalonia），所以它只保存状态、不碰界面：
+
+<!-- ANCHOR:SH-058 -->
+- **SH-058** · `src/Shared/Services/IToolbarSource.cs`
+  - 🔴 与 IStatusProvider（底部状态栏）、IDetailCardSource（右详情卡）同一套路：
+  - 没有实现就是"本页没有工具条"（Shell ⛔ 不留空行；页面继续用自己的页内工具条）。
+  - 🔴 页面⛔ 不得再自写 Border.toolbar：两处同时渲染会出现两条工具条（§4.8.5 逐页 opt-in）。
+
+<!-- ANCHOR:SH-059 -->
+- **SH-059** · `src/Shared/Services/IToolbarSource.cs`
+  - 🔴 为什么必须有这一层：`ToolbarItemDescriptor` 里的 CommandPath / IsEnabledPath
+  - 否则沿用当前页 VM 自己（普通页零改动）。
+
+<!-- ANCHOR:SH-060 -->
+- **SH-060** · `src/Shared/Services/ViewNaming.cs`
+  - 解析与静态检查必须共用本类，⛔ 不要各自写一份字符串处理 —— 两处规则一旦漂移，
+
+<!-- WHY-DISTILL:shared:end -->
+
+### A.3 代码 WHY 蒸馏 · Core 批（方案1 · anchors）
+
+<!-- WHY-DISTILL:core:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:CR-001 -->
+- **CR-001** · `src/Core/Services/AppConfigService.cs`
+  - 只填空字段（env.json 已有值 ⇒ 用户数据优先，⛔ 不覆盖）；
+
+<!-- ANCHOR:CR-002 -->
+- **CR-002** · `src/Core/Services/AppConfigService.cs`
+  - ⛔ 模块 json 还没有这个键时不动 —— 那是迁移还没发生，清了就真丢路径。
+
+<!-- ANCHOR:CR-003 -->
+- **CR-003** · `src/Core/Services/AppConfigService.cs`
+  - ⛔ 只在新位置还没有该文件时搬一次（已有 ⇒ 一律不覆盖，用户数据优先）；
+  - ⛔ 复制不移除老文件（保守，留作回退），老文件不再被读写；
+
+<!-- ANCHOR:CR-004 -->
+- **CR-004** · `src/Core/Services/AppConfigService.cs`
+  - ⛔ 只在 app.json 里还没有 Launch 时才搬（已有 ⇒ 用户数据优先）；
+
+<!-- ANCHOR:CR-005 -->
+- **CR-005** · `src/Core/Services/AtomicJsonFile.cs`
+  - 进程崩溃 / 断电只会留下临时文件，⛔ 不会得到半截正式文件（旧的 File.WriteAllText 会）。
+  - 删除目标文件（读方一律把「文件不存在」当默认值）。这样配置目录只留下用户真正改过的东西，
+  - 不会攒出一堆 2 字节的 []。
+  - 🔴 只给「配置 / 小型状态」用，⛔ 不要用它写导出文件（用户选了路径，删空文件会让人以为导出失败）。
+
+<!-- ANCHOR:CR-006 -->
+- **CR-006** · `src/Core/Services/BackupService.cs`
+  - 🔴 三条铁律：
+  - 只 zip 不 JSON —— db / 缩略图无法进 JSON，且 zip 才支持「只恢复其中一节」；
+  - 恢复不覆盖数据 —— 设置节覆盖原文件（先归档 .bak-&lt;时间戳&gt;），数据节一律恢复到新文件（批次 B）。
+  - ⚠️ 旧格式（v1 单 JSON 的 Files[]）只保留只读导入，⛔ 本服务不再产出该格式。
+
+<!-- ANCHOR:CR-007 -->
+- **CR-007** · `src/Core/Services/ColumnLayoutService.cs`
+  - ⚠️ 这里不走规范 3.9 的「模块只读设置」约束 —— 列显隐是纯 UI 偏好（不是应用设置），
+
+<!-- ANCHOR:CR-008 -->
+- **CR-008** · `src/Core/Services/ConfigStoreService.cs`
+  - 否则切换配置时会把自己也换掉）。
+  - ⚠️ 全工程的服务都只向本类要路径（`ConfigDir` / `StoreDir` /
+  - 环境变量 NEWTOYS_HOME 可把整个应用根换掉（测试 / 便携版），且不做迁移。
+
+<!-- ANCHOR:CR-009 -->
+- **CR-009** · `src/Core/Services/ConfigStoreService.cs`
+  - ⚠️ 必须早于第一次读 shell.json：`ShellConfigStore` 缓存整份文档，
+  - <returns>本次是否真的合并了东西（调用方据此决定要不要丢弃缓存）。</returns>
+
+<!-- ANCHOR:CR-010 -->
+- **CR-010** · `src/Core/Services/ConfigStoreService.cs`
+  - ⛔ 不覆盖：目标已有同名文件 ⇒ 旧文件改名 .legacy 留档（用户数据优先）；
+
+<!-- ANCHOR:CR-011 -->
+- **CR-011** · `src/Core/Services/ConfigStoreService.cs`
+  - ⚠️ 跳过以 . 开头的目录 / 文件（.bak-&lt;时间戳&gt; 归档、临时文件）；单文件失败不阻断启动。
+
+<!-- ANCHOR:CR-012 -->
+- **CR-012** · `src/Core/Services/ConfigStoreService.cs`
+  - 只在 shell.json 不存在时执行（幂等）；搬完把旧文件改名 .legacy（⛔ 不删）。
+  - ⚠️ 曾把 shell.json 改名成 ui.json；本迁移正好把 ui.json 收回
+
+<!-- ANCHOR:CR-014 -->
+- **CR-014** · `src/Core/Services/ConfigStoreService.cs`
+  - ⚠️ 迁移失败绝不删数据：退回旧结构继续跑，并在「设置 → 配置」提示；
+
+<!-- ANCHOR:CR-015 -->
+- **CR-015** · `src/Core/Services/ConfigStoreService.cs`
+  - files[{path,content}]（x DataView 自己拼的）—— 用户手里的历史备份不该因为改名而导不进。
+
+<!-- ANCHOR:CR-016 -->
+- **CR-016** · `src/Core/Services/DataMigrations/JsonDocMigration.cs`
+  - 搬成功后把源文件改名 .json.legacy（⛔ 不删 —— 用户数据永远留一份可手工考回的原文）；
+  - ⚠️ 「源文件不存在」完全正常（用户从没用过那页），静默跳过。
+
+<!-- ANCHOR:CR-017 -->
+- **CR-017** · `src/Core/Services/DataMigrations/StorageLayoutV2.cs`
+  - 🔴 目录改名用 `Directory.Move(string, string)`：同一配置档内换名 = 秒级 rename，⛔ 不复制数据。
+  - 🔴 老库只改名不删：搬完落到 store\legacy\newtoys-v1.db，装回旧版本 / 手工核对都靠它。
+  - ⚠️ 这里内置 4 个库的表名归属：迁移是一次性的历史动作，需要静态清单才能在不依赖模块加载顺序的前提下搬数据。
+
+<!-- ANCHOR:CR-018 -->
+- **CR-018** · `src/Core/Services/DataMigrations/StorageLayoutV2.cs`
+  - 目录整体改名不会顺手改用户录入的绝对路径（scriptsFolder / thumbsDirectory 等），
+
+<!-- ANCHOR:CR-019 -->
+- **CR-019** · `src/Core/Services/DataMigrations/StorageLayoutV2.cs`
+  - 🔴 以新库为主连接、ATTACH 旧库来读：这样 DDL 与索引天然建在新库里，
+
+<!-- ANCHOR:CR-020 -->
+- **CR-020** · `src/Core/Services/DialogHooks.cs`
+  - ⛔ 钩子没接上时必须按"用户没同意"处理（`ConfirmAsync` 返回 false、
+  - `InputAsync` 返回 null）：宁可什么都不做，也不能在没有确认的情况下动用户的东西。
+
+<!-- ANCHOR:CR-021 -->
+- **CR-021** · `src/Core/Services/EncryptedDnsService.cs`
+  - - 解析 DoH 端点自身的域名必须用系统 DNS（bootstrap），否则递归。
+  - 并且一律 `ConfigureAwait(false)`；绝不在这里碰界面。
+
+<!-- ANCHOR:CR-022 -->
+- **CR-022** · `src/Core/Services/EnvConfigService.cs`
+  - 语义：这里是「本机怎么跑外部程序」，跟随机器、⛔ 不随配置档切换
+  - ⛔ 这些键不放进 app.json：那是配置档内参数，混在一起会被切配置带走。
+  - 🔴 覆盖链（读）：命令行 --python / --pwsh / --ffmpeg ＞ 环境变量
+  - 写只写 env.json（覆盖值不进文件 —— 否则"临时覆盖"会变成永久设置）。
+  - ⚠️ 只有 Core 读写本文件；模块一律经 IAppConfigService，⛔ 模块不该知道文件名。
+
+<!-- ANCHOR:CR-023 -->
+- **CR-023** · `src/Core/Services/ExternalToolRegistry.cs`
+  - ⛔ 不起进程跑 --version（规范：探测只判"文件存在 + 可执行"，避免拖启动 / 弹窗）。
+
+<!-- ANCHOR:CR-025 -->
+- **CR-025** · `src/Core/Services/InterpreterResolver.cs`
+  - 为什么单独抽出来：QuickActionService 只开可见窗口跑脚本（不捕获输出），本页要的是
+  - （QuickActionService 本期不改，留给后续复用 —— 见卡 §四「不做」）。
+
+<!-- ANCHOR:CR-027 -->
+- **CR-027** · `src/Core/Services/InterpreterResolver.cs`
+  - 随 `InterpreterResolver` 从 NewToys.ScriptManager.Models 上提 Core（Core ⛔ 反向依赖模块）。
+
+<!-- ANCHOR:CR-029 -->
+- **CR-029** · `src/Core/Services/JsonDocStore.cs`
+  - 🔴 为什么不拆成关系表：这些结构都是「整份读、整份写」的文档（脚本库还带三层嵌套：集合 → 视图 → 逐节列覆盖），
+  - 拆表要把读方的模型全改成 SQL 投影，收益只有「人能用 sqlite 查一查」，风险远大于收益。
+  - 本类保证的是卡片要的两件事：文件不再散在 config\ 里、同一份数据只有一个写入点。
+  - DDL 不在这里执行 —— 由各模块的 ILibrarySchemaContributor 统一建（建表只有一个入口）。
+
+<!-- ANCHOR:CR-030 -->
+- **CR-030** · `src/Core/Services/JsonDocStore.cs`
+  - 防的是「服务在 schema 阶段之前就被解析」的时序问题（只会多跑一次幂等 DDL，不会盖数据）。
+
+<!-- ANCHOR:CR-031 -->
+- **CR-031** · `src/Core/Services/JsonOptionsStore.cs`
+  - 换配置天然读到另一份，⛔ 不加 profile 列 / 不加 profile 字段。
+  - 手改友好：文件用缩进 + 不转义中文（路径里的中文不会变成 \uXXXX）；
+  - 文件解析失败先另存 &lt;module&gt;.json.bak-&lt;时间戳&gt; 再用空表接手（⛔ 不静默丢内容）。
+
+<!-- ANCHOR:CR-032 -->
+- **CR-032** · `src/Core/Services/LaunchConfigService.cs`
+  - 🔴 为什么不再自己写文件：同一个文件两个写入方 = 读-改-写互相覆盖（谁后保存谁赢）。
+  - app.json 的唯一写入方必须是 `AppConfigService`。
+
+<!-- ANCHOR:CR-033 -->
+- **CR-033** · `src/Core/Services/LibrarySchemaService.cs`
+  - 语义：单模块失败只记日志、⛔ 不阻断其它模块；库里版本高于代码版本（= 用旧版软件打开新版库）
+
+<!-- ANCHOR:CR-035 -->
+- **CR-035** · `src/Core/Services/ModuleLoader.cs`
+  - 🔴 这里只应剩菜单注册与轻量接线。重活（建库 / 读配置 / 播种 / 扫描）走
+
+<!-- ANCHOR:CR-036 -->
+- **CR-036** · `src/Core/Services/ModuleLoader.cs`
+  - —— 首帧已经画完，窗口不会被这些 IO 挡住。
+  - ⚠️ 必须跑在 UI 线程：各模块的服务（Sqlite / 配置 store）都不是线程安全的，
+
+<!-- ANCHOR:CR-037 -->
+- **CR-037** · `src/Core/Services/ModuleLoader.cs`
+  - ⚠️ 路径必须用 `AppContext.BaseDirectory` 拼绝对路径——
+
+<!-- ANCHOR:CR-038 -->
+- **CR-038** · `src/Core/Services/ModuleLoader.cs`
+  - 🔴 四条硬约束：
+  - ① 只认 Module.&lt;名&gt;.dll，⛔ 跳过已加载同名 ⇒ 本版只做「新增」，移除模块要重启；
+  - ② 每个 DLL 用独立 collectible ALC，依赖一律转交默认 ALC —— 否则 IModule
+  - ③ 容器已 BuildServiceProvider() ⇒ 无法再追加服务，RegisterServices 跳过
+  - ④ 单个 DLL 失败被 try-catch 隔离（⛔ 不拖垮宿主）；⛔ 只读本地目录、不联网；
+
+<!-- ANCHOR:CR-039 -->
+- **CR-039** · `src/Core/Services/PageCatalog.cs`
+  - 因此「同名类型取第一个」的结果与逐次扫描完全一致，⛔ 不改变既有页面解析结果。
+
+<!-- ANCHOR:CR-041 -->
+- **CR-041** · `src/Core/Services/ProcessRunner.cs`
+  - 🔴 孙进程（`ms-settings:` / `.cpl` / `.msc` / `start xxx` 起的 GUI 程序）会继承并长期占住 stdout/stderr 管道，
+  - 超过这个宽限一律收尾，用已经读到的内容返回。
+
+<!-- ANCHOR:CR-042 -->
+- **CR-042** · `src/Core/Services/ProfileService.cs`
+  - 本类在 Core，⛔ 不引用 Avalonia —— 重启走 `Process` + `Environment.Exit(int)`。
+
+<!-- ANCHOR:CR-043 -->
+- **CR-043** · `src/Core/Services/PythonRuntime.cs`
+  - <br/>环境：优先共享 venv %LOCALAPPDATA%\NewToys\tools\py\venv，否则用「运行环境 → Python 解释器」或 PATH 里的 python/python3。
+  - 🔴 三个必踩的坑（已处理，改代码前先读）：① -u 不加则 Python 块缓冲，实时输出全废；
+  - ② Windows 管道默认 GBK ⇒ 两侧都显式 UTF-8；③ worker 里响应必须写 sys.__stdout__（脚本的 stdout 被重定向了）。
+
+<!-- ANCHOR:CR-044 -->
+- **CR-044** · `src/Core/Services/PythonRuntime.cs`
+  - 🔴 刻意不用 AppRoot：程序可能装在只读目录（Program Files），运行期写
+
+<!-- ANCHOR:CR-045 -->
+- **CR-045** · `src/Core/Services/ScriptRunner.cs`
+  - 🔴 本类从 Module.ScriptManager 上提 NewToys.Core —— system 系统工具模块
+  - （收藏夹 / 快捷命令）要执行条目，而模块禁互引（§3.1），执行契约只能放框架层。
+  - QuickActionShell 同批上提（否则 Core 会反向依赖模块）。
+  - 🔴 与 QuickActionService 的根本差别：这里 UseShellExecute=false + 重定向 stdout/stderr，
+  - 🔴 命令（role=command 的采集器）走 `RunCommandAsync`：复用同一套捕获逻辑，
+  - ⛔ 不复用 QuickActionService.BuildRunPlan（那个是可见窗口给用户看的）。
+
+<!-- ANCHOR:CR-046 -->
+- **CR-046** · `src/Core/Services/ShellConfigStore.cs`
+  - 坏文件先归档：解析失败改名 shell.json.bak-&lt;时间戳&gt; 再用空文档接手（⛔ 不静默丢）。
+  - ⚠️ 只服务框架层（主题 / 窗口 / 收藏 / 列宽 / 页码大小）。模块设置仍走 `IOptionsStore`
+  - 的独立文件（config\&lt;模块&gt;.json），⛔ 不要往这里塞模块的东西。
+
+<!-- ANCHOR:CR-047 -->
+- **CR-047** · `src/Core/Services/SqliteDatabase.cs`
+  - 为什么放 store\ 而不是 config\：config\ 是「人手能看懂能改的 json」，
+  - ⚠️ 取连接用 `Open`，用完即 Dispose（连接池由 Microsoft.Data.Sqlite 自己管）。
+  - 单库写入很轻（只在 UI 线程上按批落库），不做跨线程互斥；busy_timeout 兜住偶发争用。
+
+<!-- ANCHOR:CR-048 -->
+- **CR-048** · `src/Core/Services/SqliteDatabase.cs`
+  - 🔴 快照只在「版本要变」时做：每次启动都 VACUUM 会白白写几十 MB。
+  - 库版本高于代码版本（旧软件打开新库）⇒ ⛔ 不执行 DDL、⛔ 不改版本号。
+  - ⛔ 不抛：任何失败都归成 `SchemaOutcome.Failed`，由调用方汇总。
+
+<!-- ANCHOR:CR-049 -->
+- **CR-049** · `src/Core/Services/SqliteDatabase.cs`
+  - 🔴 用 VACUUM INTO 而不是 `System.IO.File` 复制：WAL 模式下未 checkpoint 的事务
+  - <returns>快照全路径（失败 ⇒ null，⛔ 不抛）。</returns>
+
+<!-- ANCHOR:CR-050 -->
+- **CR-050** · `src/Core/Services/SqliteDatabase.cs`
+  - 🔴 全工程唯一的「把库写成另一个 .db」实现：备份数据节与资产页「另存库文件」都走它。
+  - ⚠️ 目标文件必须不存在（SQLite 限制）—— 调用方自己决定要不要先删 / 改名。
+  - <returns>成功 true；失败 false 且 <paramref name="error"/> 给出原因（⛔ 不抛）。</returns>
+
+<!-- ANCHOR:CR-051 -->
+- **CR-051** · `src/Core/Services/StartupService.cs`
+  - 为什么用注册表而不是往「启动」文件夹里放快捷方式：建 .lnk 要走 COM（WScript.Shell），
+  - ⛔ 非 Windows 平台一律返回「不支持」，并如实告知 —— 绝不假装生效（规范 0.3：界面不得虚报状态）。
+
+<!-- ANCHOR:CR-052 -->
+- **CR-052** · `src/Core/Services/ThemeService.cs`
+  - ⚠️ 本类在 Core，不引用 Avalonia：所以它只管状态与 theme.json，
+
+<!-- ANCHOR:CR-053 -->
+- **CR-053** · `src/Core/Services/ThemeService.cs`
+  - - 旧格式（ 之前只有 { "IsDark": true }）→ 映射成 Dark / Light，老用户的偏好不丢。
+
+<!-- ANCHOR:CR-054 -->
+- **CR-054** · `src/Core/Services/UpdateService.cs`
+  - ⛔ 诚实边界：
+  - 本程序不会自己下载 / 覆盖自己 —— 只提示有新版本，更新仍由用户手动完成；
+
+<!-- WHY-DISTILL:core:end -->
+
 
 ### 11.3 横展审计：静默失败 / UI 线程阻塞（2026-10-27）
 

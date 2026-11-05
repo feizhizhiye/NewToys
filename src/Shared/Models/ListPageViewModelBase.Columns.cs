@@ -41,12 +41,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         NotifyColumnsChanged();
     }
 
-    /// <summary>
-    /// 落盘本页列显隐。
-    /// <para>🔴 必须**合并写**（先读回本页已有的键，再覆盖列键）：<c>SavePage</c> 是整页替换，
-    /// 若只传列键，同一页里的页面级开关（详情栏的 <c>__detail</c> 等）会被一起抹掉 ——
-    /// 现象就是「点过一次列显隐，下次进页面详情栏开合状态丢了」。</para>
-    /// </summary>
+    /// <summary>落盘本页列显隐。（WHY: SH-014）</summary>
     private void SaveVisibility()
     {
         if (_cols == null) return;
@@ -96,12 +91,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     /// </summary>
     private readonly Dictionary<string, double> _lockedWidths = new();
 
-    /// <summary>
-    /// 按「示例值宽 ≤ 表头宽」把列锁成表头宽（不可拖、不自动调）。
-    /// 由 View 的 <c>ColumnGrid.HeaderMeasured</c> 事件转调（首次布局后一次性）。
-    /// <para>锁定的宽度**不小于 <see cref="MinLockedWidth"/>** —— 表头文字很短的列也要留出空间，
-    /// 让**边界把手始终显示、能拖**（用户要求：最小列宽也要能拖）。</para>
-    /// </summary>
+    /// <summary>按「示例值宽 ≤ 表头宽」把列锁成表头宽（不可拖、不自动调）。</summary>
     public void LockColumnsBySample(IReadOnlyList<double>? headerWidths, IReadOnlyList<double>? sampleWidths)
     {
         if (headerWidths == null) return;
@@ -153,12 +143,7 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
     private bool IsLocked(int index)
         => index >= 0 && index < Columns.Count && _lockedWidths.ContainsKey(Columns[index].Key);
 
-    /// <summary>
-    /// 拖动表头列边界 / 双击自适应 → 改这一列的像素宽（由 <c>ColumnGrid</c> 直接调 DataContext）。
-    /// <para>索引越界 / 同一列自己拖自己 → 忽略；改完只发 <see cref="VisibleColumnSpecs"/> 通知，
-    /// 表头与所有行同规格重建（列索引永不错位）。</para>
-    /// <para>被锁成「表头宽」的列同样可拖：一旦手调就解除锁定（手动宽优先，后续测量不再把它锁回去）。</para>
-    /// </summary>
+    /// <summary>拖动表头列边界 / 双击自适应 → 改这一列的像素宽（由 ColumnGrid 直接调 DataContext）。</summary>
     public void ResizeColumns(int leftIndex, double leftWidthPx, int rightIndex, double rightWidthPx)
     {
         if (leftIndex < 0 || rightIndex != leftIndex + 1) return;

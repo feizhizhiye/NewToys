@@ -44,22 +44,7 @@ public sealed record BackupExportResult(string Path, long Bytes, IReadOnlyList<s
 /// <summary>恢复结果。</summary>
 public sealed record BackupRestoreResult(int Ok, int Skipped, IReadOnlyList<string> Notes);
 
-/// <summary>
-/// 备份 / 恢复的**唯一入口**（需求 §3.5）。
-/// <para>
-/// 容器 = 一个 zip：<c>manifest.json</c> + 每个节一个 <c>&lt;id&gt;.zip</c>（内层 zip，见
-/// <see cref="IBackupSection"/>）。节由 DI 收集（框架节在 Shell，模块节在各自 <c>Module.*</c> 里注册）。
-/// </para>
-/// <para>
-/// 🔴 三条铁律：
-/// <list type="number">
-///   <item>**只 zip 不 JSON** —— db / 缩略图无法进 JSON，且 zip 才支持「只恢复其中一节」；</item>
-///   <item>**恢复前校验** —— <c>manifest.app</c> 主版本不一致 ⇒ 拒绝；节的 <c>schema</c> 高于当前 ⇒ 跳过该节并提示升级；</item>
-///   <item>**恢复不覆盖数据** —— 设置节覆盖原文件（先归档 <c>.bak-&lt;时间戳&gt;</c>），数据节一律恢复到新文件（批次 B）。</item>
-/// </list>
-/// </para>
-/// <para>⚠️ 旧格式（v1 单 JSON 的 <c>Files[]</c>）只保留**只读导入**，⛔ 本服务不再产出该格式。</para>
-/// </summary>
+/// <summary>备份 / 恢复的唯一入口（需求 §3.5）。（WHY: CR-006）</summary>
 public sealed class BackupService
 {
     /// <summary>zip 容器格式版本。</summary>

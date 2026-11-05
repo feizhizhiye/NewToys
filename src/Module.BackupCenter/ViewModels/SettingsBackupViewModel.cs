@@ -175,7 +175,7 @@ public partial class SettingsBackupViewModel : ObservableObject
         _settings.SaveMailSettings(mail);
         if (_settings.LastError != null) { MailStatusText = "⚠ 保存失败：" + _settings.LastError; return; }
 
-        // 授权码：只有用户这次输了新值才写（空 = 保留库里原来的）
+        // 授权码：只有用户这次输了新值才写（空 = 保留已存值）
         var auth = (AuthCodeInput ?? "").Trim();
         if (auth.Length > 0)
         {

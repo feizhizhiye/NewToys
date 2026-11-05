@@ -5,17 +5,7 @@ using Microsoft.Win32;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// 「开机时启动 NewToys」的<b>真实实现</b>（v1.35）：写 / 删 Windows 当前用户的
-/// <c>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</c> 开机启动项。
-/// <para>
-/// 为什么用注册表而不是往「启动」文件夹里放快捷方式：建 .lnk 要走 COM（WScript.Shell），
-/// 在 .NET 上既不稳又多一层依赖；注册表一行字符串就能表达，且**不需要管理员权限**（HKCU）。
-/// </para>
-/// <para>
-/// ⛔ 非 Windows 平台一律返回「不支持」，并如实告知 —— 绝不假装生效（规范 0.3：界面不得虚报状态）。
-/// </para>
-/// </summary>
+/// <summary>「开机时启动 NewToys」的真实实现：写 / 删 Windows 当前用户的 HKCU\Software\Microsoft\Windows\CurrentVersion\Run 开机启动项。（WHY: CR-051）</summary>
 public class StartupService
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";

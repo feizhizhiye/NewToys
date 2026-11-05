@@ -5,15 +5,7 @@ using System.IO.Compression;
 
 namespace NewToys.Shared.Services;
 
-/// <summary>
-/// 备份节的**归属层级**：决定它落在哪个入口的默认勾选里。
-/// <list type="bullet">
-///   <item><see cref="Env"/> —— 机器级（绝对路径 / 外部程序），跨机恢复有副作用 ⇒ 默认不勾；</item>
-///   <item><see cref="Shell"/> —— 框架偏好（<c>config\shell.json</c>）⇒ 默认勾；</item>
-///   <item><see cref="Module"/> —— 模块设置（<c>config\modules\&lt;模块&gt;.json</c>）⇒ 默认勾；</item>
-///   <item><see cref="Data"/> —— 数据（库 / 缩略图 / 脚本文件），可能几百 MB ⇒ 默认不勾。</item>
-/// </list>
-/// </summary>
+/// <summary>备份节的归属层级：决定它落在哪个入口的默认勾选里。</summary>
 public enum BackupScope
 {
     Env,
@@ -22,24 +14,7 @@ public enum BackupScope
     Data,
 }
 
-/// <summary>
-/// 一份可**独立打包 / 独立恢复**的备份节（需求 §3.5）。
-/// <para>
-/// 🔴 容器是 zip（<c>System.IO.Compression</c>，⛔ 不引第三方压缩库）：
-/// db / 缩略图放不进 JSON，zip 还能做到「只恢复其中一节」。
-/// </para>
-/// <para>
-/// 🔴 **每个节自己写一个内层 zip**：<see cref="ExportTo"/> 收到的流是外层 zip 里
-/// <c>&lt;id&gt;.zip</c> 这个 entry 的流；<see cref="RestoreFrom"/> 收到的 entry 也是它。
-/// 这样「一节 = 多个文件 / 一整个目录」和「一节 = 单个文件」用的是同一套实现，
-/// 不必给接口加目录级 API。外层用 <see cref="CompressionLevel.NoCompression"/>，压缩交给节自己决定。
-/// </para>
-/// <para>
-/// ⚠️ 实现放哪：框架节在 Shell（<c>ShellBackupSection</c> / <c>EnvBackupSection</c> /
-/// <c>DataBackupSection</c>），模块节在各自 <c>Module.*</c> 里 —— 模块只引 Shared，
-/// 经 <c>RegisterServices</c> 注册 <c>services.AddSingleton&lt;IBackupSection, XxxBackupSection&gt;()</c>。
-/// </para>
-/// </summary>
+/// <summary>一份可独立打包 / 独立恢复的备份节（需求 §3.5）。（WHY: SH-032）</summary>
 public interface IBackupSection
 {
     /// <summary>节 ID（zip 内 entry 前缀 / manifest 里的键）。发布后⛔ 不改：<c>shell</c> / <c>env</c> / <c>module.&lt;模块键&gt;</c> / <c>data.db</c>。</summary>
@@ -77,14 +52,7 @@ public interface IBackupSection
     (int Ok, int Skipped) RestoreFrom(ZipArchiveEntry entry);
 }
 
-/// <summary>
-/// 备份节的公共小工具：路径防御 + 内层 zip 的读写。
-/// <para>
-/// 🔴 **校验顺序固定**（历史坑）：先判 <c>..</c> / 绝对路径（**拒绝**）→ 再跳过
-/// <c>.seeded</c> / <c>.bak</c> / <c>.legacy</c> 这类归档产物。顺序反了，<c>../evil.ps1</c>
-/// 会被「跳过后缀」的逻辑静默放过。
-/// </para>
-/// </summary>
+/// <summary>备份节的公共小工具：路径防御 + 内层 zip 的读写。（WHY: SH-033）</summary>
 public static class BackupPaths
 {
     /// <summary>相对路径是否可安全落到目标目录内（见类型注释里的顺序要求）。</summary>

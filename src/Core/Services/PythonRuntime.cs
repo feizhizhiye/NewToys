@@ -10,18 +10,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// Python 运行时实现。
-/// <para>
-/// <b>形态</b>：长驻 worker 子进程 + stdin/stdout **行分隔 JSON**；冷启动一次，之后每任务毫秒级。
-/// <br/>**环境**：优先共享 venv <c>%LOCALAPPDATA%\NewToys\tools\py\venv</c>，否则用「运行环境 → Python 解释器」或 PATH 里的 <c>python</c>/<c>python3</c>。
-/// <br/>**并发**：单 worker 串行（<see cref="SemaphoreSlim"/>），跨任务不并行 —— 规则集执行本来就是串行的。
-/// </para>
-/// <para>
-/// 🔴 三个必踩的坑（已处理，改代码前先读）：① <c>-u</c> 不加则 Python 块缓冲，实时输出全废；
-/// ② Windows 管道默认 GBK ⇒ 两侧都显式 UTF-8；③ worker 里响应必须写 <c>sys.__stdout__</c>（脚本的 stdout 被重定向了）。
-/// </para>
-/// </summary>
+/// <summary>Python 运行时实现。（WHY: CR-043）</summary>
 public sealed class PythonRuntime : IPythonRuntime
 {
     private readonly EnvConfigService _env;
@@ -53,13 +42,7 @@ public sealed class PythonRuntime : IPythonRuntime
 
     // ==================== 路径 ====================
 
-    /// <summary>
-    /// 共享工具根：<c>%LOCALAPPDATA%\NewToys\tools\py</c>（与 <c>env.json</c> 同级）。
-    /// <para>
-    /// 🔴 刻意<b>不</b>用 <c>AppRoot</c>：程序可能装在只读目录（Program Files），运行期写
-    /// <c>py_worker.py</c> 会直接失败；且 venv 体积大、属用户级数据，跟着 env.json 走边界更清楚。
-    /// </para>
-    /// </summary>
+    /// <summary>共享工具根：%LOCALAPPDATA%\NewToys\tools\py（与 env.json 同级）。（WHY: CR-044）</summary>
     public string ToolsRoot
     {
         get

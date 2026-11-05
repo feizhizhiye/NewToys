@@ -6,13 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// <see cref="IPageCatalog"/> 默认实现：首次访问时把已加载程序集的类型按简单类名建索引，之后命中字典。
-/// <para>
-/// 索引顺序 = <see cref="AppDomain.GetAssemblies"/> 顺序 + 各程序集 <c>GetTypes()</c> 顺序，
-/// 因此「同名类型取第一个」的结果与逐次扫描完全一致，⛔ 不改变既有页面解析结果。
-/// </para>
-/// </summary>
+/// <summary>IPageCatalog 默认实现：首次访问时把已加载程序集的类型按简单类名建索引，之后命中字典。（WHY: CR-039）</summary>
 public sealed class PageCatalog : IPageCatalog
 {
     private readonly object _gate = new();

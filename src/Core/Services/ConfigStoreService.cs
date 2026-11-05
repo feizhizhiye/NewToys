@@ -17,21 +17,7 @@ public class ConfigFileEntry
     [JsonIgnore] public string? Content { get; set; }
 }
 
-/// <summary>
-/// 「应用根 → 配置（profile）→ config/store/cache/logs」路径的唯一决定者。
-/// <para>
-/// 支持**多配置**：<c>&lt;应用根&gt;\profiles\&lt;配置名&gt;\{config,store,cache,logs}</c>；
-/// 当前配置名写在 <c>&lt;应用根&gt;\active-profile.txt</c>（**故意放在 profiles 之外** ——
-/// 否则切换配置时会把自己也换掉）。
-/// </para>
-/// <para>
-/// ⚠️ 全工程的服务都只向本类要路径（<see cref="ConfigDir"/> / <see cref="StoreDir"/> /
-/// <see cref="CacheDir"/> / <see cref="LogsDirectory"/>），所以「换配置」只需改变这里的计算 —— 不必逐个服务改造。
-/// </para>
-/// <para>
-/// 环境变量 <c>NEWTOYS_HOME</c> 可把**整个应用根**换掉（测试 / 便携版），且不做迁移。
-/// </para>
-/// </summary>
+/// <summary>「应用根 → 配置（profile）→ config/store/cache/logs」路径的唯一决定者。（WHY: CR-008）</summary>
 public class ConfigStoreService
 {
     private const string ProfilesFolderName = "profiles";
@@ -84,15 +70,7 @@ public class ConfigStoreService
 
     private bool _shellMigrated;
 
-    /// <summary>
-    /// 把 5 份框架级小文件并进 <c>shell.json</c>（幂等，只跑一次）。
-    /// <para>
-    /// ⚠️ 必须**早于第一次读 shell.json**：<see cref="ShellConfigStore"/> 缓存整份文档，
-    /// 迁移排在它后面会导致缓存里没有搬过来的节，下一次保存就把那几节从磁盘上抹掉。
-    /// 所以 <see cref="ShellConfigStore"/> 读盘前也会调这里一次。
-    /// </para>
-    /// </summary>
-    /// <returns>本次是否真的合并了东西（调用方据此决定要不要丢弃缓存）。</returns>
+    /// <summary>把 5 份框架级小文件并进 shell.json（幂等，只跑一次）。（WHY: CR-009）</summary>
     public bool EnsureShellMigrated()
     {
         if (_shellMigrated) return false;
@@ -108,14 +86,7 @@ public class ConfigStoreService
         "package",
     };
 
-    /// <summary>
-    /// 一次性迁移：<c>config\&lt;模块&gt;.json</c> → <c>config\modules\&lt;模块&gt;.json</c>。
-    /// <list type="bullet">
-    ///   <item>幂等：源文件不存在就跳过（搬过一次之后永远不走）；</item>
-    ///   <item>⛔ 不覆盖：目标已有同名文件 ⇒ 旧文件改名 <c>.legacy</c> 留档（用户数据优先）；</item>
-    ///   <item>纯移动，不改内容 —— 目录整理不该有任何解析风险。</item>
-    /// </list>
-    /// </summary>
+    /// <summary>一次性迁移：config\&lt;模块&gt;.json → config\modules\&lt;模块&gt;.json。（WHY: CR-010）</summary>
     private void MigrateModuleConfigFiles()
     {
         try
@@ -146,14 +117,7 @@ public class ConfigStoreService
         }
     }
 
-    /// <summary>
-    /// 清掉**等价于默认值**的配置文件（内容只有 <c>{}</c> / <c>[]</c> / <c>null</c> / 空串）。
-    /// <para>
-    /// 依据：全工程读配置的统一约定是「文件不存在 ⇒ 用默认值」，所以这类文件删掉**语义完全等价**，
-    /// 只是把 2 字节的空壳从配置目录里清掉（`hosts-profiles.json` / `scrape-tasks.json` 这类）。
-    /// </para>
-    /// <para>⚠️ 跳过以 <c>.</c> 开头的目录 / 文件（<c>.bak-&lt;时间戳&gt;</c> 归档、临时文件）；单文件失败不阻断启动。</para>
-    /// </summary>
+    /// <summary>清掉等价于默认值的配置文件（内容只有 {} / [] / null / 空串）。（WHY: CR-011）</summary>
     private void PruneEmptyConfigFiles()
     {
         try
@@ -183,19 +147,7 @@ public class ConfigStoreService
         }
     }
 
-    /// <summary>
-    /// 一次性迁移：把 5 份框架级小文件并进 <c>shell.json</c>（每份一个节）。
-    /// <para>
-    /// 只在 <c>shell.json</c> **不存在**时执行（幂等）；搬完把旧文件改名 <c>.legacy</c>（⛔ 不删）。
-    /// 迁移只做「读文件 → 放进节」，**不认识任何字段名** —— 字段解析留给各自读方
-    /// （<c>ThemeService</c> / <c>WindowBoundsService</c> / <c>FavoritesService</c> / <c>ColumnLayoutService</c> /
-    /// <c>JsonOptionsStore</c> 的 <c>ui</c> 分区）。
-    /// </para>
-    /// <para>
-    /// ⚠️ v3.66 曾把 <c>shell.json</c> 改名成 <c>ui.json</c>；本迁移正好把 <c>ui.json</c> 收回
-    /// <c>shell.json</c> 的 <c>ui</c> 节，所以**旧的改名逻辑已删除**——留着它每次启动都会把新 shell.json 改走。
-    /// </para>
-    /// </summary>
+    /// <summary>一次性迁移：把 5 份框架级小文件并进 shell.json（每份一个节）。（WHY: CR-012）</summary>
     private bool MigrateLegacyShellFiles()
     {
         try
@@ -340,13 +292,7 @@ public class ConfigStoreService
     /// </summary>
     public string CacheDir => EnsureDir("cache");
 
-    /// <summary>
-    /// &lt;配置根&gt;\config\modules —— **模块设置**的统一落点。
-    /// <para>
-    /// 语义分层：<c>shell.json</c> = 框架偏好、<c>modules\&lt;模块&gt;.json</c> = 模块设置。
-    /// 「设置 → 数据管理」的备份 / 导入按 <c>config</c> 递归收集 <c>*.json</c>，所以子目录天然被覆盖。
-    /// </para>
-    /// </summary>
+    /// <summary>&lt;配置根&gt;\config\modules —— 模块设置的统一落点。</summary>
     public string ModulesConfigDir => EnsureModulesDir();
 
     private string EnsureModulesDir()
@@ -431,14 +377,7 @@ public class ConfigStoreService
         return root;
     }
 
-    /// <summary>
-    /// 决定本次用哪个配置目录；并在**首次升级**那一次，把旧的
-    /// <c>&lt;应用根&gt;\config|data|logs</c> 整体搬进 <c>profiles\default\</c>。
-    /// <para>
-    /// ⚠️ 迁移失败**绝不删数据**：退回旧结构继续跑，并在「设置 → 配置」提示；
-    /// 且**不创建 `profiles\` 目录**，以便下次启动重试（自愈）。
-    /// </para>
-    /// </summary>
+    /// <summary>决定本次用哪个配置目录；并在首次升级那一次，把旧的 &lt;应用根&gt;\config|data|logs 整体搬进 profiles\default\。（WHY: CR-014）</summary>
     private string ResolveProfileRoot(string appRoot)
     {
         var profilesRoot = Path.Combine(appRoot, ProfilesFolderName);
@@ -529,14 +468,7 @@ public class ConfigStoreService
         return JsonSerializer.Serialize(pkg, new JsonSerializerOptions { WriteIndented = true });
     }
 
-    /// <summary>
-    /// 导入 **v1 旧格式**（单 JSON）备份 —— 只保留**只读兼容**，新备份走
-    /// <see cref="BackupService"/> 的 zip 分节格式。
-    /// <para>
-    /// 两种旧写法都认：<c>Files[{RelativePath,Content}]</c>（本类早期导出）与
-    /// <c>files[{path,content}]</c>（v3.6x DataView 自己拼的）—— 用户手里的历史备份不该因为改名而导不进。
-    /// </para>
-    /// </summary>
+    /// <summary>导入 v1 旧格式（单 JSON）备份 —— 只保留只读兼容，新备份走 BackupService 的 zip 分节格式。（WHY: CR-015）</summary>
     public (int ok, int skipped, string? backupDir) ImportBackup(string json)
     {
         using var doc = JsonDocument.Parse(json);

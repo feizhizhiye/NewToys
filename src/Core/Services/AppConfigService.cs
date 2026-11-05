@@ -66,15 +66,7 @@ public class AppConfigService : IAppConfigService
         CleanupMovedFieldsOnce();
     }
 
-    /// <summary>
-    /// 一次性下沉：<c>app.json</c> 里的**机器级**项（解释器 / ffmpeg / 播放器 / 更新地址 / DNS）
-    /// → <c>%LOCALAPPDATA%\NewToys\env.json</c>。
-    /// <list type="bullet">
-    ///   <item>只填空字段（env.json 已有值 ⇒ 用户数据优先，⛔ 不覆盖）；</item>
-    ///   <item>搬完把 <c>app.json</c> 里的旧键清空并立即保存 ⇒ 文件里不再挂第二份真相；</item>
-    ///   <item>失败不阻断启动 —— 本次按默认值跑，旧值留在 app.json 里下次重试。</item>
-    /// </list>
-    /// </summary>
+    /// <summary>一次性下沉：app.json 里的机器级项（解释器 / ffmpeg / 播放器 / 更新地址 / DNS） → %LOCALAPPDATA%\NewToys\env.json。（WHY: CR-001）</summary>
     private void MigrateMachineFieldsOnce()
     {
         try
@@ -111,12 +103,7 @@ public class AppConfigService : IAppConfigService
         }
     }
 
-    /// <summary>
-    /// 一次性收尾（v3.66）：<c>ScriptFolder</c> 已下沉到 <c>config\script-manager.json</c>。
-    /// 只要模块 json 里已经有 <c>scriptsFolder</c>，就把 app.json 里的旧值清空 ⇒ 下次保存即从文件里消失
-    /// （配合 <c>[JsonIgnore(WhenWritingDefault)]</c>，app.json 不再挂废弃键）。
-    /// <para>⛔ 模块 json 还没有这个键时**不动** —— 那是迁移还没发生，清了就真丢路径。</para>
-    /// </summary>
+    /// <summary>一次性收尾：ScriptFolder 已下沉到 config\script-manager.json。（WHY: CR-002）</summary>
     private void CleanupMovedFieldsOnce()
     {
         try
@@ -148,15 +135,7 @@ public class AppConfigService : IAppConfigService
     /// <summary>v3.65：<c>app.json</c> 由旧位置上提到应用根时留下的说明（null = 没发生迁移）。供设置页 / 排障展示。</summary>
     public string? LegacyMigrationNote { get; private set; }
 
-    /// <summary>
-    /// 一次性迁移（v3.65）：把 <c>&lt;配置根&gt;\config\app.json</c> 复制到 <c>&lt;应用根&gt;\app.json</c>。
-    /// <list type="bullet">
-    ///   <item>⛔ 只在**新位置还没有**该文件时搬一次（已有 ⇒ 一律不覆盖，用户数据优先）；</item>
-    ///   <item>⛔ **复制不移除**老文件（保守，留作回退），老文件不再被读写；</item>
-    ///   <item>多配置档：只取**当前活动档**为准（其余档的老文件留在原地不动）；</item>
-    ///   <item>失败不阻断启动 —— 本次按新位置默认值跑。</item>
-    /// </list>
-    /// </summary>
+    /// <summary>一次性迁移：把 &lt;配置根&gt;\config\app.json 复制到 &lt;应用根&gt;\app.json。（WHY: CR-003）</summary>
     private void MigrateLegacyOnce()
     {
         try
@@ -213,14 +192,7 @@ public class AppConfigService : IAppConfigService
     /// </summary>
     public LaunchConfig Launch { get => _data.Launch; set { _data.Launch = value ?? new LaunchConfig(); Save(); } }
 
-    /// <summary>
-    /// 一次性迁移（v3.66）：<c>&lt;配置根&gt;\config\launch.json</c> → <c>app.json</c> 的 <c>Launch</c> 节点。
-    /// <list type="bullet">
-    ///   <item>⛔ 只在 <c>app.json</c> 里**还没有** <c>Launch</c> 时才搬（已有 ⇒ 用户数据优先）；</item>
-    ///   <item>搬完**删除旧文件**（内容已并入；整目录备份在 <c>NewToys_backup_*.zip</c>）；</item>
-    ///   <item>失败不阻断启动 —— 本次按默认值跑，旧文件留着下次重试。</item>
-    /// </list>
-    /// </summary>
+    /// <summary>一次性迁移：&lt;配置根&gt;\config\launch.json → app.json 的 Launch 节点。（WHY: CR-004）</summary>
     private void MigrateLaunchOnce()
     {
         try

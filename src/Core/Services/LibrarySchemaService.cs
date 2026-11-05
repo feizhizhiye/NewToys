@@ -7,18 +7,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// 模块自有库建表的**唯一入口**：容器里所有 <see cref="ILibrarySchemaContributor"/> 按 <c>ModuleKey</c>
-/// 排序依次跑 schema，汇总每个模块的结果（版本记账 / 升级前快照由各库自己的 <c>ApplySchema</c> 完成）。
-/// <para>
-/// 调用时机：`ModuleLoader.InitializeAllDeferred` 的第一步（首帧之后、各模块重活之前）——
-/// 这样任何页面的首次查询都能看到完整的表。
-/// </para>
-/// <para>
-/// 语义：单模块失败只记日志、⛔ 不阻断其它模块；库里版本高于代码版本（= 用旧版软件打开新版库）
-/// **不回写版本号**，只记 <see cref="AheadModules"/>，由调用方决定是否提示。
-/// </para>
-/// </summary>
+/// <summary>模块自有库建表的唯一入口：容器里所有 ILibrarySchemaContributor 按 ModuleKey 排序依次跑 schema，汇总每个模块的结果（版本记账 / 升级前快照由各库自己的 ApplySchema 完成）。（WHY: CR-033）</summary>
 public sealed class LibrarySchemaService
 {
     private readonly ConfigStoreService _cfg;

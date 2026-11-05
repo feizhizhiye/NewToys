@@ -45,18 +45,7 @@ public sealed class FilterOperatorItem
     };
 }
 
-/// <summary>
-/// <b>一条</b>筛选条件（「多项筛选」的最小单位）：<b>哪一列 + 怎么比 + 比什么</b>。
-/// <para>
-/// 多条条件之间是「<b>且</b>」：全部满足的行才显示。
-/// 值<b>留空的条件不生效</b>（这样"先加条件后填值"不会瞬间把列表筛空），
-/// 「为空 / 不为空」两个运算符不需要值，加上即生效。
-/// </para>
-/// <para>
-/// 比较规则：列能给出数值（<c>FieldNumber</c>）且值也能解析成数字 → <b>按数字比</b>；
-/// 否则按文本比（忽略大小写）。这样「大小 &gt; 100」不会变成字符串比较的怪结果。
-/// </para>
-/// </summary>
+/// <summary>一条筛选条件（「多项筛选」的最小单位）：哪一列 + 怎么比 + 比什么。（WHY: SH-009）</summary>
 public partial class FilterClause : ObservableObject
 {
     [ObservableProperty] private ListColumn? _column;

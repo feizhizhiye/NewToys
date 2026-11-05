@@ -5,22 +5,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// 模块自有 SQLite 库的入口：**一个模块一个库文件**，落 <c>&lt;配置根&gt;\store\&lt;库键&gt;\&lt;库键&gt;.db</c>。
-/// <para>
-/// 为什么放 <c>store\</c> 而不是 <c>config\</c>：<c>config\</c> 是「人手能看懂能改的 json」，
-/// 而这里的表是程序写的数据（部分不可重建，如标签 / 分类 / 集合）——
-/// 目录语义按「能不能删」分家：<c>store\</c> 删了就丢、<c>cache\</c> 随便删。
-/// </para>
-/// <para>
-/// 本类只做四件事：定位库文件、建库、发连接、**按模块版本记账**（见 <see cref="ApplySchema"/>）。
-/// 它**不认识任何业务表**，因此新增数据表不需要动它。
-/// </para>
-/// <para>
-/// ⚠️ 取连接用 <see cref="Open"/>，用完即 <c>Dispose</c>（连接池由 Microsoft.Data.Sqlite 自己管）。
-/// 单库写入很轻（只在 UI 线程上按批落库），不做跨线程互斥；<c>busy_timeout</c> 兜住偶发争用。
-/// </para>
-/// </summary>
+/// <summary>模块自有 SQLite 库的入口：一个模块一个库文件，落 &lt;配置根&gt;\store\&lt;库键&gt;\&lt;库键&gt;.db。（WHY: CR-047）</summary>
 public class SqliteDatabase
 {
     private readonly ConfigStoreService _store;
@@ -86,18 +71,7 @@ public class SqliteDatabase
         }
     }
 
-    /// <summary>
-    /// 按模块版本记账地跑一次 schema：读 <c>meta.schema.&lt;模块键&gt;</c> → 需要升级时先
-    /// <c>VACUUM INTO cache\db-backups\</c> 留快照 → 执行 <paramref name="ensureTables"/> → 回写版本。
-    /// <para>
-    /// 🔴 快照只在「版本要变」时做：每次启动都 VACUUM 会白白写几十 MB。
-    /// 库版本高于代码版本（旧软件打开新库）⇒ ⛔ 不执行 DDL、⛔ 不改版本号。
-    /// </para>
-    /// <para>⛔ 不抛：任何失败都归成 <see cref="SchemaOutcome.Failed"/>，由调用方汇总。</para>
-    /// </summary>
-    /// <param name="moduleKey">模块键（版本记录键后缀）。</param>
-    /// <param name="version">代码里的目标版本。</param>
-    /// <param name="ensureTables">幂等 DDL（<c>CREATE IF NOT EXISTS</c> / <c>ALTER ADD COLUMN</c>）。</param>
+    /// <summary>按模块版本记账地跑一次 schema：读 meta.schema.&lt;模块键&gt; → 需要升级时先 VACUUM INTO cache\db-backups\ 留快照 → 执行 <paramref name="ensureTables"/> → 回写版本。（WHY: CR-048）</summary>
     public SchemaOutcome ApplySchema(string moduleKey, int version, Action ensureTables)
     {
         if (!IsAvailable) return SchemaOutcome.Failed;
@@ -198,16 +172,7 @@ public class SqliteDatabase
         return conn;
     }
 
-    /// <summary>
-    /// 把当前库**完整快照**到 <paramref name="directory"/> 下的一个新文件。
-    /// <para>
-    /// 🔴 用 <c>VACUUM INTO</c> 而不是 <see cref="System.IO.File"/> 复制：WAL 模式下未 checkpoint 的事务
-    /// 还在 <c>-wal</c> 里，直接拷 <c>.db</c> 拿到的是**旧快照**（甚至半截）。<c>VACUUM INTO</c> 由 SQLite 保证一致性。
-    /// </para>
-    /// </summary>
-    /// <param name="directory">目标目录（不存在则建）。</param>
-    /// <param name="prefix">文件名前缀。</param>
-    /// <returns>快照全路径（失败 ⇒ null，⛔ 不抛）。</returns>
+    /// <summary>把当前库完整快照到 <paramref name="directory"/> 下的一个新文件。（WHY: CR-049）</summary>
     public string? VacuumInto(string directory, string prefix = "pre-migrate")
     {
         if (!IsAvailable) return null;
@@ -229,14 +194,7 @@ public class SqliteDatabase
         }
     }
 
-    /// <summary>
-    /// 把当前库**在线另存**到指定文件（`VACUUM INTO`，一致快照、不锁库）。
-    /// <para>
-    /// 🔴 全工程唯一的「把库写成另一个 .db」实现：备份数据节与资产页「另存库文件」都走它。
-    /// </para>
-    /// <para>⚠️ 目标文件**必须不存在**（SQLite 限制）—— 调用方自己决定要不要先删 / 改名。</para>
-    /// </summary>
-    /// <returns>成功 true；失败 false 且 <paramref name="error"/> 给出原因（⛔ 不抛）。</returns>
+    /// <summary>把当前库在线另存到指定文件（VACUUM INTO，一致快照、不锁库）。（WHY: CR-050）</summary>
     public bool VacuumIntoFile(string targetPath, out string error)
     {
         error = "";

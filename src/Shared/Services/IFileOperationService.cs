@@ -24,20 +24,7 @@ public readonly record struct FileOpResult(bool Ok, string Message, string? Path
     public static FileOpResult Success(string message, string? path) => new(true, message, path);
 }
 
-/// <summary>
-/// **跨模块共用的文件系统动作**（复制 / 移动 / 改名 / 删除）。
-/// <para>
-/// 定位：只做「磁盘上发生了什么」，⛔ 不认识任何数据库、⛔ 不弹窗、⛔ 不写业务日志。
-/// 模块自己负责「先确认 / 后记账」——例如媒体资产在 <c>FileOperationService</c> 里包一层
-/// <c>operation_logs</c>，视频工具在 <c>VideoFileService</c> 里包一层 <c>DialogHooks</c> 确认框。
-/// </para>
-/// <para>
-/// 🔴 行为约定（所有实现必须一致）：
-/// ① <b>改名只改文件名</b>，含路径分隔符直接拒绝；② <b>删除默认送系统回收站</b>，
-/// 只有 <see cref="PermanentDelete"/> 才真删（调用方负责二次确认）；③ 失败**不自动回滚**，
-/// 把原因原样带回给调用方；④ 路径校验一律 <c>Path.GetFullPath</c> 后再比，⛔ 不做字符串前缀判断。
-/// </para>
-/// </summary>
+/// <summary>跨模块共用的文件系统动作（复制 / 移动 / 改名 / 删除）。（WHY: SH-039）</summary>
 public interface IFileOperationService
 {
     /// <summary>当前平台是否支持「移入回收站」（目前只有 Windows）。</summary>

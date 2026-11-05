@@ -4,18 +4,7 @@ using System.Windows.Input;
 
 namespace NewToys.Shared.Details;
 
-/// <summary>
-/// 字段 Kind（**11 种**，需求 §4.5.1；2026-10-19 增 <see cref="EditableList"/>；2026-10-24 增 <see cref="Pair"/>）。
-/// <para>
-/// 🔴 **加新 Kind 是「加法」**：新需求优先用「现有 Kind + 修饰位」表达；确实需要新交互时才加一个枚举值
-/// （配一个 <c>DataTemplate</c>），不影响既有卡。
-/// </para>
-/// <para>
-/// ⚠️ <see cref="List"/> 是**用户拍板新增的第 8 种** —— 详情卡里的「只读列表」
-/// （VideoBatch 的「处理前 → 处理后」、资产卡的「关联 / 文件位置」）其余 7 种 Kind 都表达不了，
-/// 而它不是"新交互"而是既有形态 ⇒ 补一个 Kind 比让整卡走 <see cref="DetailCardDescriptor.Custom"/> 更划算。
-/// </para>
-/// </summary>
+/// <summary>字段 Kind（11 种，需求 §4.5.1）。（WHY: SH-001）</summary>
 public enum FieldKind
 {
     /// <summary>单行 / 多行文本；只读时配 <see cref="DetailField.Selectable"/>，密码框配 <see cref="DetailField.Password"/>。</summary>
@@ -33,14 +22,7 @@ public enum FieldKind
     /// <summary>集合编辑器（chips：点一下打上 / 取消）。</summary>
     Chips,
 
-    /// <summary>
-    /// **成对输入**（2026-10-24 新增）：一行里两个输入框，中间一个固定符号（默认 <c>×</c>）。
-    /// <para>
-    /// 给「宽 × 高」这类**天然成对**的数值用（分辨率 / 尺寸上下限）—— 拆成上下两行会让
-    /// 用户看不出这两个数是一件事。取数见 <see cref="DetailField.ValuePath"/>（左）+
-    /// <see cref="DetailField.SecondValuePath"/>（右）。
-    /// </para>
-    /// </summary>
+    /// <summary>成对输入：一行里两个输入框，中间一个固定符号（默认 ×）。</summary>
     Pair,
 
     /// <summary>纯提示文字（含空态提示）。</summary>
@@ -55,25 +37,10 @@ public enum FieldKind
     /// </summary>
     List,
 
-    /// <summary>
-    /// **图标动作组**：一行方形小图标按钮（32×32），给「收藏 / 点赞 / 点踩 / 保存 / 刷新 / 删除」
-    /// 这类**高频、语义靠图标就够**的动作用，替掉一排撑满宽度的文字按钮。
-    /// <para>
-    /// 成员见 <see cref="DetailField.IconActions"/>（列表 → 顺序即渲染顺序、数量不限、可出现多次）；
-    /// 溢出自动换行（WrapPanel）。**只固定视觉样式**，⛔ 不固定排列。
-    /// </para>
-    /// </summary>
+    /// <summary>图标动作组：一行方形小图标按钮（32×32），给「收藏 / 点赞 / 点踩 / 保存 / 刷新 / 删除」 这类高频、语义靠图标就够的动作用，替掉一排撑满宽度的文字按钮。（WHY: SH-003）</summary>
     IconBar,
 
-    /// <summary>
-    /// **可编辑列表**（2026-10-19）：每行 = 只读左标签 + 一个可编辑文本框，**失焦提交**。
-    /// <para>
-    /// 数据源复用 <see cref="DetailField.OptionsPath"/>；<see cref="DetailField.ItemLabelPath"/> = 左标签，
-    /// <see cref="DetailField.ItemTextPath"/> = **可编辑文本（双向写回候选项）**，
-    /// <see cref="DetailField.ItemCommandPath"/> = 提交命令（参数 = 候选项本身，页面 VM 负责落盘 / 重投影）。
-    /// </para>
-    /// <para>典型用途：信息面板改表格表头名称（每列一行）。⛔ 不做增删行（那是 Chips 的事）。</para>
-    /// </summary>
+    /// <summary>可编辑列表：每行 = 只读左标签 + 一个可编辑文本框，失焦提交。（WHY: SH-004）</summary>
     EditableList
 }
 
@@ -89,25 +56,11 @@ public enum EditCommitMode
     /// <summary>失焦提交（改名框、参数框）。</summary>
     OnBlur,
 
-    /// <summary>
-    /// 需工具条「保存修改」显式提交（批量队列参数 / 命令）。
-    /// <para>
-    /// 渲染器把值写回**页面 VM 的编辑态属性**（草稿，如 <c>EditDescription</c>）；
-    /// **落盘**由页面工具条的保存命令负责 —— 描述符不参与刷新（需求 §4.5.1「刷新契约」）。
-    /// </para>
-    /// </summary>
+    /// <summary>需工具条「保存修改」显式提交（批量队列参数 / 命令）。（WHY: SH-005）</summary>
     Explicit
 }
 
-/// <summary>
-/// 详情卡描述符：**声明式**描述一张详情卡的「三区模型」= <see cref="Sections"/>（Fields 区）
-/// + <see cref="Actions"/>（动作区）+ <see cref="Custom"/>（逃生舱）。
-/// <para>
-/// 🔴 走 **C# 对象字面量**声明（⛔ 不做运行时 JSON / XAML 加载）—— 享受编译期检查 + IDE 补全。
-/// ⚠️ 绑定路径（<c>ValuePath</c> / <c>VisibleWhen</c> …）是**字符串**：属性改名不报错、只是白板，
-/// 所以必须跑 <c>skill/scripts/check-detail-paths.ps1</c> 做静态兜底。
-/// </para>
-/// </summary>
+/// <summary>详情卡描述符：声明式描述一张详情卡的「三区模型」= Sections（Fields 区） + Actions（动作区）+ Custom（逃生舱）。（WHY: SH-006）</summary>
 public sealed class DetailCardDescriptor
 {
     /// <summary>Fields 区：分区列表（每区 = 可选标题 + 可选标题勾选框 + 可折叠 + 若干字段）。</summary>
@@ -157,12 +110,7 @@ public sealed class DetailSection
     public List<DetailField> Fields { get; } = new();
 }
 
-/// <summary>
-/// 详情卡的一个**声明式字段行**。
-/// <para>
-/// 路径一律**相对卡片 DataContext**（= 页面 VM），支持 <c>"!"</c> 前缀取反，支持 <c>"A.B"</c> 多级（如 <c>DetailRow.TypeText</c>）。
-/// </para>
-/// </summary>
+/// <summary>详情卡的一个声明式字段行。（WHY: SH-007）</summary>
 public sealed class DetailField
 {
     /// <summary>字段小标签（<c>field-label</c> 文案）；<see cref="FieldKind.Divider"/> / <see cref="FieldKind.Hint"/> 不用。</summary>
@@ -335,16 +283,7 @@ public sealed class DetailField
     public bool Password { get; set; }
 }
 
-/// <summary>
-/// 图标动作组（<see cref="FieldKind.IconBar"/>）里的**一个图标按钮**。
-/// <para>
-/// 🔴 全部走**路径字符串**（相对卡片 DataContext = 页面 VM），由 Shell 渲染层解析成强类型属性 —— 与
-/// <see cref="DetailAction"/> 同一口径（其余 Kind 的路径也是这么解析的）。
-/// </para>
-/// <para>
-/// ⚠️ 纯图标没有文字 ⇒ <see cref="ToolTip"/> **必填**（悬停讲语义，否则用户猜不出按钮是干什么的）。
-/// </para>
-/// </summary>
+/// <summary>图标动作组（FieldKind.IconBar）里的一个图标按钮。（WHY: SH-008）</summary>
 public sealed class DetailIconAction
 {
     /// <summary>

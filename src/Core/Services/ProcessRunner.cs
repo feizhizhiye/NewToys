@@ -8,22 +8,10 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// <see cref="IProcessRunner"/> 实现。
-/// <para>
-/// 隐藏 + 重定向；stdout 严格 UTF-8 / stderr 宽容；先起**增量读取**任务再 <c>WaitForExitAsync</c>；
-/// 超时或取消 ⇒ <c>Kill(entireProcessTree: true)</c>；<c>finally</c> 必 Dispose。
-/// </para>
-/// <para>无状态 ⇒ 单例 / 瞬态皆可（Shell 注册为单例）。</para>
-/// </summary>
+/// <summary>IProcessRunner 实现。</summary>
 public sealed class ProcessRunner : IProcessRunner
 {
-    /// <summary>
-    /// 进程退出后，等输出读完的宽限期。
-    /// <para>🔴 孙进程（`ms-settings:` / `.cpl` / `.msc` / `start xxx` 起的 GUI 程序）会**继承并长期占住** stdout/stderr 管道，
-    /// 等 EOF 会永久挂住，调用方的 `await`（以及 `AsyncRelayCommand.IsRunning` / `IsBusy`）就再也回不来。
-    /// 超过这个宽限一律收尾，用已经读到的内容返回。</para>
-    /// </summary>
+    /// <summary>进程退出后，等输出读完的宽限期。（WHY: CR-041）</summary>
     private static readonly TimeSpan OutputDrainGrace = TimeSpan.FromMilliseconds(500);
 
     public async Task<ProcessRunResult> RunAsync(ProcessRunRequest request, TimeSpan timeout, CancellationToken ct = default)

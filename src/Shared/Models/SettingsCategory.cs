@@ -1,17 +1,6 @@
 namespace NewToys.Shared.Models;
 
-/// <summary>
-/// 菜单项 / 设置项的**显式分类**（v3.65，需求 §4.9.2 第 4 条）。
-/// <para>
-/// 取代 v3.62 之前"0~99 = 框架设置 / 100+ = 模块设置"的 **Order 段位隐式约定** ——
-/// <see cref="AppMenuItem.Order"/> 从此**只作组内排序**，判"框架设置 / 模块设置"、搜索分组、
-/// 「设置」组分区一律看本枚举。
-/// </para>
-/// <para>
-/// 🔴 默认值 = <see cref="None"/>（普通功能项）⇒ 既有的 <c>RegisterFunction</c> 调用
-/// **外观 / 顺序零变化**，无需逐处补参数；只有设置项才需要显式标注。
-/// </para>
-/// </summary>
+/// <summary>菜单项 / 设置项的显式分类（，需求 §4.9.2 第 4 条）。（WHY: SH-023）</summary>
 public enum SettingsCategory
 {
     /// <summary>不是设置项（普通功能页）。默认值 —— 非设置项的分组走它。</summary>

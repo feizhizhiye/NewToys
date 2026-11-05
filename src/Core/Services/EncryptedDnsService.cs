@@ -8,16 +8,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services
 {
-    /// <summary>
-    /// 加密 DNS（DoH）实现：用 **JSON 接口**（`?name=x&amp;type=A` + `Accept: application/dns-json`）查 A/AAAA，
-    /// 并把它接到 <see cref="SocketsHttpHandler.ConnectCallback"/> 上——于是本软件发出的 HTTP 请求在**建连之前**
-    /// 的域名解析走的是加密 DNS（系统 DNS、浏览器都不受影响）。
-    /// 几个关键点：
-    /// - 解析 DoH 端点**自身**的域名必须用系统 DNS（bootstrap），否则递归。
-    /// - `ConnectCallback` 跑在**线程池线程**上，里面只能做纯后台的事（这里只查 DNS + 连 socket），
-    ///   并且一律 `ConfigureAwait(false)`；绝不在这里碰界面。
-    /// - 带 TTL 的缓存（上限 5 分钟），`ClearCache()` 供「清除 DNS 缓存」调用。
-    /// </summary>
+    /// <summary>加密 DNS（DoH）实现：用 JSON 接口（?name=x&amp;type=A + Accept: application/dns-json）查 A/AAAA， 并把它接到 SocketsHttpHandler.ConnectCallback 上——于是本软件发出的 HTTP 请求在建连之前 的域名解析走的是加密 DNS（系统 DNS、浏览器都不受影响）。（WHY: CR-021）</summary>
     public class EncryptedDnsService : IEncryptedDnsService
     {
         private const int MaxCacheSeconds = 300;

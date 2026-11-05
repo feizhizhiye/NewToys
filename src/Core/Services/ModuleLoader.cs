@@ -10,15 +10,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// 模块加载器：**必载清单 + 目录扫描**两步——
-/// <list type="bullet">
-///   <item><b>必载清单</b>：由调用方传入，先于目录扫描加载（Release 下为空 —— 应用级设置已归 Shell 自带）；
-///         Debug 同时把功能模块也放进清单（程序集延迟加载，纯扫描一个都扫不到 →「左侧菜单全空」）。</item>
-///   <item><b>目录扫描</b>：随后扫 <c>&lt;程序目录&gt;\Modules\</c> 下的 DLL 补功能模块，
-///         跳过已加载同名（Shared/Core、以及清单里已加载的模块由此跳过）。</item>
-/// </list>
-/// </summary>
+/// <summary>模块加载器：必载清单 + 目录扫描两步—— <list type="bullet"> 必载清单：由调用方传入，先于目录扫描加载（Release 下为空 —— 应用级设置已归 Shell 自带）；</summary>
 public static class ModuleLoader
 {
     private static readonly List<IModule> _modules = new();
@@ -61,13 +53,7 @@ public static class ModuleLoader
         return _modules;
     }
 
-    /// <summary>
-    /// 在 ServiceProvider 构建完成后、**首帧之前**调用；单个模块初始化失败不影响其它模块。
-    /// <para>
-    /// 🔴 这里只应剩菜单注册与轻量接线。重活（建库 / 读配置 / 播种 / 扫描）走
-    /// <see cref="InitializeAllDeferred"/>，由宿主在 <c>Window.Show()</c> 之后驱动。
-    /// </para>
-    /// </summary>
+    /// <summary>在 ServiceProvider 构建完成后、首帧之前调用；单个模块初始化失败不影响其它模块。（WHY: CR-035）</summary>
     public static void InitializeAll(IServiceProvider sp)
     {
         foreach (var m in _modules)
@@ -90,19 +76,7 @@ public static class ModuleLoader
                 $"[NewToys] 健全性检查：{ms.PendingCount} 个跨组菜单项的目标分组始终未注册（分组 key 打错？），这些项不显示。");
     }
 
-    /// <summary>
-    /// 首帧之后执行的重活：数据库打开与清理、配置读取、种子播种、
-    /// 扫描器接线、过期数据清理入队。
-    /// <para>
-    /// 调用时机 = 宿主 <c>Window.Show()</c> 之后、<c>DispatcherPriority.Background</c> 队列
-    /// —— 首帧已经画完，窗口不会被这些 IO 挡住。
-    /// </para>
-    /// <para>
-    /// ⚠️ 必须跑在 **UI 线程**：各模块的服务（Sqlite / 配置 store）都不是线程安全的，
-    /// 换后台线程会和"用户已经点开页面"的读取撞车。
-    /// </para>
-    /// </summary>
-    /// <returns>实际执行耗时（毫秒）—— 宿主写启动日志用。</returns>
+    /// <summary>首帧之后执行的重活：数据库打开与清理、配置读取、种子播种、 扫描器接线、过期数据清理入队。（WHY: CR-036）</summary>
     public static long InitializeAllDeferred(IServiceProvider sp)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -147,12 +121,7 @@ public static class ModuleLoader
         return sw.ElapsedMilliseconds;
     }
 
-    /// <summary>
-    /// Release 目录扫描：只扫 <c>&lt;程序目录&gt;\Modules\</c>（比扫程序目录全部 DLL 省一大截），
-    /// 没有 Modules 目录时兜底程序目录本身。
-    /// ⚠️ 路径必须用 <see cref="AppContext.BaseDirectory"/> 拼<b>绝对路径</b>——
-    ///    写相对 ".\Modules" 会在快捷方式启动时崩 "directory was not found"。
-    /// </summary>
+    /// <summary>Release 目录扫描：只扫 &lt;程序目录&gt;\Modules\（比扫程序目录全部 DLL 省一大截）， 没有 Modules 目录时兜底程序目录本身。（WHY: CR-037）</summary>
     private static List<Type> ScanModulesDirectory()
     {
         var result = new List<Type>();
@@ -195,20 +164,7 @@ public static class ModuleLoader
 
     // ==================== 运行期热加载 ====================
 
-    /// <summary>
-    /// 热加载：重扫 <c>&lt;程序目录&gt;\Modules\</c>，把**新**的模块 DLL 装进来（注册菜单）。
-    /// <para>
-    /// 🔴 四条硬约束：
-    /// ① 只认 <c>Module.&lt;名&gt;.dll</c>，⛔ 跳过已加载同名 ⇒ 本版**只做「新增」**，移除模块要重启；
-    /// ② 每个 DLL 用**独立 collectible ALC**，依赖一律转交默认 ALC —— 否则 <c>IModule</c>
-    ///    会成为两个不同的类型标识，强转必失败、菜单全空；
-    /// ③ 容器已 <c>BuildServiceProvider()</c> ⇒ **无法再追加服务**，<c>RegisterServices</c> 跳过
-    ///    （只适合页面型模块：页面 VM 走 <c>ActivatorUtilities</c> 现造，只依赖已注册的框架服务）；
-    /// ④ 单个 DLL 失败被 try-catch 隔离（⛔ 不拖垮宿主）；⛔ 只读本地目录、不联网；
-    ///    collectible 只是"允许"卸载，加载后**不主动 Unload**（类型被菜单引用着，随进程释放）。
-    /// </para>
-    /// </summary>
-    /// <returns>新增 N / 跳过 M / 失败 K。</returns>
+    /// <summary>热加载：重扫 &lt;程序目录&gt;\Modules\，把新的模块 DLL 装进来（注册菜单）。（WHY: CR-038）</summary>
     public static (int Added, int Skipped, int Failed) HotReload(IServiceProvider sp)
     {
         var added = 0;

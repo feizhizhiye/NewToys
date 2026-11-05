@@ -2,17 +2,7 @@ using System.Collections.Generic;
 
 namespace NewToys.Shared.Services;
 
-/// <summary>
-/// 列表页「布局偏好」的持久化契约（规范 3.8 的右键表头增删列 + 详情栏开合）。
-/// <para>
-/// 落在 <c>config\columnlayout.json</c>（与应用其它设置同一目录，因此会被「设置 → 数据管理」一起备份）。
-/// 存的是「页面 → 键 → 布尔值」，与任何具体列表页解耦，新增列表页零改造即可复用。
-/// </para>
-/// <para>
-/// ⚠️ 同一个文件里存两类东西：① **列显隐**（<see cref="LoadPage"/> / <see cref="SavePage"/>，键 = 列键）；
-/// ② **面板开合**等页面级开关（<see cref="LoadFlag"/> / <see cref="SaveFlag"/>，内部用保留前缀避免撞键）。
-/// </para>
-/// </summary>
+/// <summary>列表页「布局偏好」的持久化契约（规范 3.8 的右键表头增删列 + 详情栏开合）。（WHY: SH-034）</summary>
 public interface IColumnLayoutService
 {
     /// <summary>页面级开关名：「右侧详情栏是否展开」（各列表页共用此名字，取值互相独立）。</summary>

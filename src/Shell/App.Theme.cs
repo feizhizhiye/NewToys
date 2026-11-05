@@ -26,17 +26,10 @@ namespace NewToys.Shell;
 
 public partial class App : Application
 {
-    // ==================== 色值唯一来源 ====================
-    // 🔴 全应用的颜色**只在这里出现一次**：一张中性色阶 + 若干语义色。
-    //    其它任何 XAML / C# 一律走 *Brush 语义键，⛔ 不要再出现 #RRGGBB。
-    //    色阶含义（**两档，只区分「卡内 / 卡外」**，⛔ 不要再插中间档）：
-    //      Bg0 平铺底（窗口根 · 标题栏 · 左菜单 · 版本行 · 状态栏 —— 所有 chrome 共用一个面）
-    //      / Bg1 卡片面（主显示区 · 详情列：窗口里**只有这两块是卡**）。
-    //    🔴 主次不靠色阶抢，靠「唯一凸起的面 + 留白」：卡外比卡内暗 8，视觉重量自然落在内容上。
-    //      用 4 档灰去划分区域边界会退化成「拼贴色块」—— 色差小就糊、大就像贴纸，中间值不稳定（实测三轮）。
-    //    具体谁落哪档只看 `RegionLayers`，⛔ 别按这里的措辞硬背。
-    //    Bg2 起是**控件层**（输入框 / 按钮面 / 浮层），不参与区域分档。
-    //              Ink0 主文字 → Ink1 次文字 → Ink2 三级（水印）。
+    // 🔴 色值唯一来源：颜色只在这里出现一次，其余 XAML / C# 一律走 *Brush 语义键。
+    // 区域档位只看 `RegionLayers`；Bg2 起是控件层（输入框 / 按钮面 / 浮层），不参与区域分档。
+    // ⚠️ 区域不靠多档灰划分（色差小就糊、大就像贴纸）；档位口径见 ui.md §3。
+    // Ink0 主文字 → Ink1 次文字 → Ink2 三级（水印）。
     private const string DarkBg0 = "#161616";
     private const string DarkBg1 = "#1E1E1E";
     private const string DarkBg2 = "#2A2A2A";
@@ -65,7 +58,7 @@ public partial class App : Application
     // 比底色更抢眼（看着就是一圈白框）；取比面板深一档的淡灰才是「淡而可见」。
     private const string LightInput = "#D5D8DD";
     private const string LightInk0 = "#1F1F1F";
-    // 浅色下二级 / 三级文字压深一档：原来的 #8A8A8F 在白底上只有 3.5:1，12~13px 中文整片发虚
+    // 浅色下二级 / 三级文字压深一档：#8A8A8F 在白底上只有 3.5:1，12~13px 中文整片发虚
     private const string LightInk1 = "#5F5F66";
     private const string LightInk2 = "#8E8E96";
     private const string LightDanger = "#D93026";
@@ -449,12 +442,8 @@ public partial class App : Application
         S("AccentHoverBrush", Color.Parse(accent.HoverColor));
         F("AccentTextBrush", "SystemControlForegroundChromeWhiteBrush");
 
-        // 线
-        // 🔴 原生皮肤下 ⛔ 不直接用 Fluent 的 `TextControlBorderBrush`：它偏重（暗色约 #585858、
-        //    亮色约 #8A8A8A），和「自制皮肤」同一位置差一档以上 ⇒ 换皮肤时边框粗细观感突变。
-        //    改为「按内容底混 12% 的白/黑」，与区域阶梯同一套派生规则。
-        //    ⚠️ 混合量放常量里，⛔ 别在 Blend 里写字面量 —— `lint.py` 靠 `Blend(toward, baseCol, X)`
-        //    的正则顺序抓区域阶梯，多一个字面量就多一档，档位会整体错位。
+        // 线：🔴 原生皮肤下 ⛔ 不直接用 Fluent 的 `TextControlBorderBrush`（偏重，换皮肤时边框观感突变）；按内容底混 12% 白/黑。
+        // ⚠️ 混合量放常量：`lint.py` 靠 `Blend(toward, baseCol, X)` 正则顺序抓档位，多一个字面量就整体错位。
         const double EdgeMix = 0.12;
         var edge = Blend(toward, baseCol, EdgeMix);
         S("InputBorderBrush", edge);

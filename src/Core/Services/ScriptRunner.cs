@@ -67,29 +67,7 @@ public sealed class ScriptRunResult
     public string? Error { get; init; }
 }
 
-/// <summary>
-/// 「跑脚本 / 跑命令并拿回文本」的**唯一入口**（§二.1 / §三.11）。
-/// </summary>
-/// <remarks>
-/// <para>
-/// 🔴 本类从 <c>Module.ScriptManager</c> 上提 <c>NewToys.Core</c> —— system 系统工具模块
-/// （收藏夹 / 快捷命令）要执行条目，而**模块禁互引**（§3.1），执行契约只能放框架层。
-/// 行为零变化，纯搬家；<c>InterpreterResolver</c> 与解释器常量 <c>ScriptInterpreter</c> /
-/// <c>QuickActionShell</c> 同批上提（否则 Core 会反向依赖模块）。
-/// </para>
-/// <para>
-/// 🔴 与 <c>QuickActionService</c> 的根本差别：这里 <c>UseShellExecute=false</c> + 重定向 stdout/stderr，
-/// 进程隐藏、输出捕获、可超时 / 可取消 —— 供信息面板把输出当数据解析。
-/// </para>
-/// <para>
-/// 🔴 命令（<c>role=command</c> 的采集器）走 <see cref="RunCommandAsync"/>：<b>复用同一套捕获逻辑</b>，
-/// ⛔ 不复用 <c>QuickActionService.BuildRunPlan</c>（那个是可见窗口给用户看的）。
-/// </para>
-/// <para>
-/// 🔴 进程执行本体在 起下沉 <see cref="IProcessRunner"/>（Core）：编码 / 超时 / 杀进程树
-/// 与 <c>PackageManagerService</c> 共用一份；本类只留脚本特有部分（解释器解析、环境变量、结果语义）。
-/// </para>
-/// </remarks>
+/// <summary>「跑脚本 / 跑命令并拿回文本」的唯一入口（§二.1 / §三.11）。（WHY: CR-045）</summary>
 public sealed class ScriptRunner
 {
     private readonly IAppConfigService? _cfg;

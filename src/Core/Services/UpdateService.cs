@@ -8,22 +8,7 @@ using System.Threading.Tasks;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// 「启动时检查更新」的<b>真实实现</b>（v1.35）。
-/// <para>
-/// 做法极简、可验证：GET 一个**纯文本版本地址**（<c>IAppConfigService.UpdateUrl</c>，例如
-/// 一个 raw 文件或对象存储里的 <c>version.txt</c>），取回文本里第一个形如 <c>1.20261010.00.10</c>
-/// 的版本号，与本程序版本比较；比本程序新 → 回报「有新版本」。
-/// </para>
-/// <para>
-/// ⛔ 诚实边界：
-/// <list type="bullet">
-///   <item>没配地址 → 直接跳过并如实说「未配置更新地址」，<b>不假装检查过</b>；</item>
-///   <item>本程序<b>不会自己下载 / 覆盖自己</b> —— 只提示有新版本，更新仍由用户手动完成；</item>
-///   <item>任何网络异常都吞掉并返回失败原因，绝不阻塞启动（超时 8 秒）。</item>
-/// </list>
-/// </para>
-/// </summary>
+/// <summary>「启动时检查更新」的真实实现。（WHY: CR-054）</summary>
 public class UpdateService
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(8);
@@ -54,9 +39,7 @@ public class UpdateService
         }
     }
 
-    /// <summary>
-    /// 检查一次更新。
-    /// </summary>
+    /// <summary>检查一次更新。</summary>
     /// <param name="url">纯文本版本地址；空 = 未配置（跳过）。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>(是否有新版本, 远端版本号, 说明)。</returns>

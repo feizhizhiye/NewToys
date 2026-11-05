@@ -8,19 +8,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// <see cref="IOptionsStore"/> 的 json 实现（v3.60 §3.5）：每个 module 一个
-/// <c>&lt;配置根&gt;\config\&lt;module&gt;.json</c>，内容是**扁平的** <c>{ "key": "value" }</c>。
-/// <list type="bullet">
-///   <item><b>profile 隔离</b>：路径取自 <see cref="ConfigStoreService.ConfigDir"/>（= <c>profiles\&lt;当前配置&gt;\config</c>），
-///   换配置天然读到另一份，⛔ 不加 profile 列 / 不加 profile 字段。</item>
-///   <item><b>单例 + 内存缓存 + 写穿</b>：首次访问才读盘；<see cref="Set"/> / <see cref="Remove"/> 立即落盘。</item>
-///   <item><b>失败不吞异常</b>：写盘失败 → 内存回滚到上一个有效值后抛出，由模块设置服务转成状态栏红字（需求 §3.5）。</item>
-///   <item><b>手改友好</b>：文件用缩进 + 不转义中文（路径里的中文不会变成 <c>\uXXXX</c>）；
-///   读的时候数字 / 布尔 / 对象按原文本收下（手改时 <c>"pageSize": 30</c> 不用加引号）；
-///   文件解析失败先另存 <c>&lt;module&gt;.json.bak-&lt;时间戳&gt;</c> 再用空表接手（⛔ 不静默丢内容）。</item>
-/// </list>
-/// </summary>
+/// <summary>IOptionsStore 的 json 实现（ §3.5）：每个 module 一个 &lt;配置根&gt;\config\&lt;module&gt;.json，内容是扁平的 { "key": "value" }。（WHY: CR-031）</summary>
 public class JsonOptionsStore : IOptionsStore
 {
     /// <summary>读盘策略：容忍尾逗号 + <c>//</c> 注释（手改留下的）。</summary>

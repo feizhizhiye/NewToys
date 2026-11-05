@@ -13,14 +13,7 @@ public enum AudioPlayState
     Paused = 2,
 }
 
-/// <summary>
-/// 音频播放后端契约。
-/// <para>
-/// 🔴 引擎实现住在 <c>Core</c>（Windows 后端），界面控件住在 <c>NewToys.UI</c> 并由宿主注入本接口 ——
-/// <c>NewToys.UI</c> ⛔ 不引 NAudio / 平台库，换后端（mpv / libvlc）只换实现。
-/// </para>
-/// <para>🔴 所有成员都按「可被 UI 线程随时调用」设计；实现方内部自行切线程，⛔ 不让调用方 await。</para>
-/// </summary>
+/// <summary>音频播放后端契约。（WHY: SH-028）</summary>
 public interface IAudioPlayback : IDisposable
 {
     /// <summary>当前状态。</summary>

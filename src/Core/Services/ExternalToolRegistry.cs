@@ -6,18 +6,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// <see cref="IExternalToolRegistry"/> 实现（v3.65，需求 §4.9.2 第 5 条）。
-/// <para>
-/// 判据：用户**显式配了**值 → 只认那个文件（<see cref="File.Exists(string)"/>，不解析相对名）；
-/// **留空** → 走"系统默认"：先探常见安装位，再按 <c>PATH</c> 找可执行名。
-/// 播放器 / Windows PowerShell 5.1 的"系统默认"= 系统关联程序 / 系统自带 ⇒ 视为总是可用。
-/// </para>
-/// <para>
-/// ⛔ 不起进程跑 <c>--version</c>（规范：探测只判"文件存在 + 可执行"，避免拖启动 / 弹窗）。
-/// 结果**缓存一次**；<see cref="IAppConfigService"/> 的值改了要重启或重新进「运行环境」节才复探（够用且便宜）。
-/// </para>
-/// </summary>
+/// <summary>IExternalToolRegistry 实现（，需求 §4.9.2 第 5 条）。（WHY: CR-023）</summary>
 public class ExternalToolRegistry : IExternalToolRegistry
 {
     /// <summary>一个外部程序的静态清单项（键 / 显示名 / 被谁用 / 是否硬依赖 / 留空时的候选可执行名）。</summary>

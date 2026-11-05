@@ -7,12 +7,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.Core.Services;
 
-/// <summary>
-/// <see cref="IProfileService"/> 的实现：包一层 <see cref="ConfigStoreService"/> 的配置目录 API。
-/// <para>v3.26 起切换**不写指针**：切换 = 以目标配置起新进程并退出自己（显式传 <c>--profile</c>）；
-/// 写全局默认（<c>active-profile.txt</c>）只走 <see cref="SetAsDefault"/> 与首次迁移。</para>
-/// <para>本类在 <c>Core</c>，⛔ 不引用 Avalonia —— 重启走 <see cref="Process"/> + <see cref="Environment.Exit(int)"/>。</para>
-/// </summary>
+/// <summary>IProfileService 的实现：包一层 ConfigStoreService 的配置目录 API。（WHY: CR-042）</summary>
 public class ProfileService : IProfileService
 {
     private readonly ConfigStoreService _cfg;

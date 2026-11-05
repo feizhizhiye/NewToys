@@ -37,18 +37,7 @@ public sealed class ExternalToolStatus
         : $"{DisplayName} 路径不存在";
 }
 
-/// <summary>
-/// 「外部程序注册表」契约（v3.65，需求 §4.9.2 第 5 条）。
-/// <para>
-/// 清单（键 / 显示名 / 默认候选 / 是否硬依赖 / 被谁使用）**只在这里定义一处**，
-/// ⛔ 不在页面里散落特判；实现放 Core（可读 <c>IAppConfigService</c> + PATH）。
-/// </para>
-/// <para>
-/// 🔴 **惰性探测**：⛔ 不在启动时全量探测（拖慢启动）—— 只判"文件存在 + 可执行"，
-/// ⛔ 不起进程跑 <c>--version</c>；结果缓存，<see cref="ProbeAll"/> 时才真正解析。
-/// 调用时机 = 进入「运行环境」节 / 某个功能首次真要用到它。
-/// </para>
-/// </summary>
+/// <summary>「外部程序注册表」契约（，需求 §4.9.2 第 5 条）。（WHY: SH-037）</summary>
 public interface IExternalToolRegistry
 {
     /// <summary>探测全部外部程序（结果缓存；⛔ 首次调用是唯一一次真实解析）。</summary>

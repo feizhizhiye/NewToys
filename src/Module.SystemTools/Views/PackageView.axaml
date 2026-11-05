@@ -9,7 +9,7 @@
     故骨架的 HeaderArea 不填。
 
     ⚠️ 批量安装 / 升级 / 卸载的作用域 = **列表选中行**（Ctrl / Shift 多选），
-       全选 / 取消 / 反选留在行右键；列宽 / 列显隐 / 「仅看已安装」「筛选」在表头右键（控件统一生成）。
+       全选 / 取消 / 反选与「仅看已安装」「筛选」在行右键菜单顶部；表头右键只管列宽与列显隐。
   -->
   <v:ListPageSkeleton EmptyMessage="列表里没有包。点「已安装」加载本机已安装的包，或在上面输入关键字搜索。"
                       EmptyActionText="已安装"
@@ -42,6 +42,17 @@
                 <MenuItem Header="全选当前页" Icon="{m:Glyph IconCheckAll}" Command="{Binding ToggleAllCommand}"/>
                 <MenuItem Header="取消选择" Icon="{m:Glyph IconUncheckAll}" Command="{Binding SelectNoneCommand}"/>
                 <MenuItem Header="反选当前页" Icon="{m:Glyph IconInvert}" Command="{Binding InvertSelectionCommand}"/>
+                <Separator/>
+                <MenuItem Header="仅看已安装" Command="{Binding ToggleInstalledOnlyCommand}"
+                          ToolTip.Tip="只留本机已安装的"/>
+                <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
+                  <MenuItem.ItemContainerTheme>
+                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                      <Setter Property="Header" Value="{Binding Label}"/>
+                      <Setter Property="Command" Value="{Binding Command}"/>
+                    </ControlTheme>
+                  </MenuItem.ItemContainerTheme>
+                </MenuItem>
                 <Separator/>
                 <MenuItem Header="安装" Icon="{m:Glyph IconArrowDown}" Command="{Binding InstallCommand}" IsEnabled="{Binding !IsBusy}"/>
                 <MenuItem Header="升级到最新" Icon="{m:Glyph IconArrowUp}" Command="{Binding UpgradeCommand}" IsEnabled="{Binding !IsBusy}"/>

@@ -53,6 +53,15 @@
 
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
+            <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
+              <MenuItem.ItemContainerTheme>
+                <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                  <Setter Property="Header" Value="{Binding Label}"/>
+                  <Setter Property="Command" Value="{Binding Command}"/>
+                </ControlTheme>
+              </MenuItem.ItemContainerTheme>
+            </MenuItem>
+            <Separator/>
             <MenuItem Icon="＋" Header="子分类…" Command="{Binding NewChildCommand}"/>
             <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameCategoryCommand}"/>
             <MenuItem Header="移到根分类" Icon="{m:Glyph IconArrowUp}" Command="{Binding MoveToRootCommand}"/>

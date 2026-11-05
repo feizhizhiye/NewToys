@@ -39,18 +39,20 @@ public class TableViewHost : TableView
 {
     private ListPageViewModelBase? _vm;
 
-    /// <summary>表头右键菜单（列宽 / 列显隐 / 筛选），由控件统一生成，页面不声明。</summary>
-    private readonly ContextMenu _headerMenu = new();
-
-    /// <summary>页面在 XAML 里声明的行右键菜单；右键落在表头时临时换掉 <c>ContextMenu</c>，用完切回。</summary>
-    private ContextMenu? _rowMenu;
-
     private Point _lastRightPress;
     private bool _rightPressPending;
+    private bool _headerMode;
     private TableViewColumn? _menuColumn;
+
+    /// <summary>页面行菜单的原始项：表头模式清空 <c>Items</c> 后要原样还回去。</summary>
+    private readonly List<object> _rowMenuItems = new();
+    private bool _rowItemsCaptured;
 
     /// <summary>列的初始宽度（XAML 声明值），供「恢复本页默认列宽」写回。</summary>
     private readonly Dictionary<TableViewColumn, GridLength> _defaultWidths = new();
+
+    /// <summary>单列自适应的宽度上限，避免长路径示例值把其他列挤到 0。</summary>
+    private const double MaxAutoFitWidth = 320;
 
     /// <summary>
     /// 🔴 必须按基类取主题：Avalonia 用自己的类型找 ControlTheme、不沿继承链回溯，
@@ -72,10 +74,9 @@ public class TableViewHost : TableView
         AddHandler(PointerMovedEvent, OnResizeMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, OnResizeReleased, RoutingStrategies.Tunnel);
 
-        // 表头右键与行右键按落点分流：右键按下阶段就换菜单，ContextRequested 时框架读到的已是正确菜单。
+        // 右键按下只记落点；菜单内容在 ContextMenu.Opening 时按落点重建（框架打开时序不影响结果）。
         AddHandler(PointerPressedEvent, OnRightPressRecorded, RoutingStrategies.Tunnel);
         AddHandler(ContextRequestedEvent, OnContextRequestedPreview, RoutingStrategies.Tunnel);
-        _headerMenu.Opening += OnMenuOpening;
 
         LayoutUpdated += (_, _) =>
         {
@@ -109,17 +110,20 @@ public class TableViewHost : TableView
         base.OnPropertyChanged(change);
 
         if (change.Property != ContextMenuProperty) return;
-        if (change.NewValue is not ContextMenu menu) return;
 
-        menu.DataContext = DataContext;
-        if (!ReferenceEquals(menu, _headerMenu)) _rowMenu = menu;
+        if (change.OldValue is ContextMenu old) old.Opening -= OnMenuOpening;
+        if (change.NewValue is ContextMenu menu)
+        {
+            menu.DataContext = DataContext;
+            menu.Opening += OnMenuOpening;
+            _rowItemsCaptured = false;
+        }
     }
 
     /// <summary>⚠️ ContextMenu 在独立弹出树上，DataContext 不随宿主继承（规范 §3.8）。</summary>
     private void SyncContextMenu(object? dataContext)
     {
         if (ContextMenu is { } menu) menu.DataContext = dataContext;
-        _headerMenu.DataContext = dataContext;
     }
 
     /// <summary>
@@ -459,17 +463,21 @@ public class TableViewHost : TableView
         return width;
     }
 
-    // ==================== 表头右键（列宽 / 列显隐 / 筛选） ====================
+    // ==================== 表头右键（列宽 / 列显隐） ====================
 
-    /// <summary>右键按下即按落点切换菜单：表头 → 列菜单，行区 / 空白 → 页面声明的行菜单。</summary>
+    /// <summary>右键按下只记落点与命中列；⛔ 不碰 ContextMenu 属性（框架何时读它不可控）。</summary>
     private void OnRightPressRecorded(object? sender, PointerPressedEventArgs e)
     {
-        if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed) return;
+        if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+        {
+            _headerMode = false;
+            _menuColumn = null;
+            return;
+        }
 
         _lastRightPress = e.GetPosition(this);
         _rightPressPending = true;
-        _menuColumn = ColumnAt(_lastRightPress);
-        ContextMenu = _menuColumn is not null ? _headerMenu : _rowMenu;
+        _headerMode = TryHitHeader(_lastRightPress, out _menuColumn);
     }
 
     /// <summary>键盘触发（Shift+F10 / 菜单键）没有 PointerPressed ⇒ 一律回到行菜单。</summary>
@@ -478,47 +486,74 @@ public class TableViewHost : TableView
         if (_rightPressPending)
         {
             _rightPressPending = false;
+            // 再算一次：按压时列头可能尚未完成布局，菜单打开前重算更准。
+            _headerMode = TryHitHeader(_lastRightPress, out _menuColumn);
             return;
         }
+        _headerMode = false;
         _menuColumn = null;
-        ContextMenu = _rowMenu;
-    }
-
-    /// <summary>坐标命中表头：表头背景透明，靠 e.Source 找祖先会漏掉文字以外的空白区。</summary>
-    private TableViewColumn? ColumnAt(Point point)
-    {
-        foreach (var header in this.GetVisualDescendants().OfType<TableViewColumnHeader>())
-        {
-            if (header.Column is not { IsVisible: true } column) continue;
-            if (header.TranslatePoint(new Point(0, 0), this) is not { } origin) continue;
-            if (new Rect(origin, header.Bounds.Size).Contains(point)) return column;
-        }
-        return null;
-    }
-
-    private void OnMenuOpening(object? sender, CancelEventArgs e)
-    {
-        if (sender is ContextMenu menu) menu.DataContext = DataContext;
-        if (ReferenceEquals(sender, _headerMenu)) BuildHeaderMenu();
     }
 
     /// <summary>
-    /// 每次打开重建列菜单：列标题随排序箭头变化、显隐可能在别处改过、快捷筛选项会重建。
-    /// 三段口径对齐资源管理器：列宽 → 列显隐 → 筛选；行菜单 ⛔ 不再插「▤ 列」。
+    /// 表头行命中：取所有列头的包围盒（列间空隙 / 最右空白也算表头），表头背景透明，
+    /// ⛔ 靠 e.Source 找祖先会漏掉文字以外的空白区。
     /// </summary>
-    private void BuildHeaderMenu()
+    private bool TryHitHeader(Point point, out TableViewColumn? column)
     {
-        _headerMenu.Items.Clear();
+        column = null;
+        var left = double.PositiveInfinity;
+        var top = double.PositiveInfinity;
+        var right = double.NegativeInfinity;
+        var bottom = double.NegativeInfinity;
+
+        foreach (var header in this.GetVisualDescendants().OfType<TableViewColumnHeader>())
+        {
+            if (header.Column is not { IsVisible: true }) continue;
+            if (header.TranslatePoint(new Point(0, 0), this) is not { } origin) continue;
+
+            var rect = new Rect(origin, header.Bounds.Size);
+            left = Math.Min(left, rect.X);
+            top = Math.Min(top, rect.Y);
+            right = Math.Max(right, rect.Right);
+            bottom = Math.Max(bottom, rect.Bottom);
+            if (rect.Contains(point)) column = header.Column;
+        }
+
+        if (double.IsInfinity(left)) return false;
+        return new Rect(left, top, right - left, bottom - top).Contains(point);
+    }
+
+    /// <summary>菜单打开的最后一刻按落点重建内容：表头 = 列宽 + 列显隐，行区 = 页面原始功能项。</summary>
+    private void OnMenuOpening(object? sender, CancelEventArgs e)
+    {
+        if (sender is not ContextMenu menu) return;
+        menu.DataContext = DataContext;
+
+        if (!_rowItemsCaptured)
+        {
+            _rowMenuItems.Clear();
+            foreach (var item in menu.Items) _rowMenuItems.Add(item);
+            _rowItemsCaptured = true;
+        }
+
+        menu.Items.Clear();
+        if (_headerMode) BuildHeaderItems(menu);
+        else foreach (var item in _rowMenuItems) menu.Items.Add(item);
+    }
+
+    /// <summary>两段口径：列宽自适应 / 恢复默认 → 列显隐勾选（首列标识列置灰）。⛔ 不放筛选与行功能。</summary>
+    private void BuildHeaderItems(ContextMenu menu)
+    {
         if (_vm is null) return;
 
-        var fit = new MenuItem { Header = "↔ 本列按表头文字适配", IsEnabled = _menuColumn is not null };
-        fit.Click += (_, _) => FitColumnToHeader();
-        _headerMenu.Items.Add(fit);
+        var fit = new MenuItem { Header = "↔ 本列宽度自适应", IsEnabled = _menuColumn is not null };
+        fit.Click += (_, _) => AutoFitColumn();
+        menu.Items.Add(fit);
 
         var reset = new MenuItem { Header = "⟲ 恢复本页默认列宽" };
         reset.Click += (_, _) => ResetColumnWidths();
-        _headerMenu.Items.Add(reset);
-        _headerMenu.Items.Add(new Separator());
+        menu.Items.Add(reset);
+        menu.Items.Add(new Separator());
 
         var layout = _vm.ColumnLayout;
         for (var i = 0; i < layout.Count; i++)
@@ -541,28 +576,26 @@ public class TableViewHost : TableView
                 item.Bind(MenuItem.CommandProperty,
                     new Binding(nameof(ListPageViewModelBase.ToggleColumnCommand)) { Source = _vm });
 
-            _headerMenu.Items.Add(item);
+            menu.Items.Add(item);
         }
-
-        if (_vm.QuickFilters.Count == 0) return;
-
-        _headerMenu.Items.Add(new Separator());
-        var filter = new MenuItem { Header = "🔎 筛选" };
-        foreach (var quick in _vm.QuickFilters)
-            filter.Items.Add(new MenuItem
-            {
-                Header = quick.Label,
-                Command = quick.Command,
-                IsEnabled = quick.Command is not null
-            });
-        _headerMenu.Items.Add(filter);
     }
 
-    /// <summary>按表头文字宽设像素列宽；⛔ 不按全文测宽（长内容会把其他列挤到 0）。</summary>
-    private void FitColumnToHeader()
+    /// <summary>只调右键命中的一列：表头文字宽与示例值宽取大，封顶 320px（⛔ 不全文测宽、不批量调全部列）。</summary>
+    private void AutoFitColumn()
     {
-        if (_menuColumn is null) return;
-        var width = Math.Ceiling(MinWidthOf(_menuColumn));
+        if (_menuColumn is null || _vm is null) return;
+
+        var width = MinWidthOf(_menuColumn);
+        var index = IndexOf(_menuColumn);
+        var samples = _vm.SampleSpecs.Split(';');
+        if (index >= 0 && index < samples.Length && samples[index].Length > 0)
+        {
+            var probe = new TextBlock { Text = samples[index], FontSize = 12 };
+            probe.Measure(Size.Infinity);
+            width = Math.Max(width, probe.DesiredSize.Width + 18);
+        }
+
+        width = Math.Min(Math.Ceiling(width), MaxAutoFitWidth);
         if (width > 0) _menuColumn.Width = new GridLength(width, GridUnitType.Pixel);
     }
 

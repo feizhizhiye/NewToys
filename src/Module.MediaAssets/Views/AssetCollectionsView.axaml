@@ -52,6 +52,15 @@
 
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
+            <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
+              <MenuItem.ItemContainerTheme>
+                <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                  <Setter Property="Header" Value="{Binding Label}"/>
+                  <Setter Property="Command" Value="{Binding Command}"/>
+                </ControlTheme>
+              </MenuItem.ItemContainerTheme>
+            </MenuItem>
+            <Separator/>
             <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameCollectionCommand}"/>
             <MenuItem Icon="＋" Header="新建智能集合…" Command="{Binding NewSmartCommand}"/>
             <Separator/>

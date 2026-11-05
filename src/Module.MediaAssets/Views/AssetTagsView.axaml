@@ -19,14 +19,9 @@
 
     <!--  ==================== ② 筛选条 ====================  -->
     <v:ListPageSkeleton.TopArea>
-    <Border Classes="filter-bar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
-        <TextBlock Text="{Binding FilterSummary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <TextBlock Text="左键表头排序；右键表头选列 / 筛选" FontSize="12" VerticalAlignment="Center"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-      </WrapPanel>
-    </Border>
+    <v:FilterBar QuickItemsSource="{Binding QuickFilters}"
+                 Summary="{Binding FilterSummary}"
+                 ClearCommand="{Binding ClearFiltersCommand}"/>
     </v:ListPageSkeleton.TopArea>
 
     <!--  ==================== ③ 列表本体  ====================  -->
@@ -68,15 +63,6 @@
           <!--  行右键 = 针对单条的动作 + 页内筛选项（§4.8 硬规则 9）；表头右键的列宽 / 列显隐由 TableViewHost 统一给  -->
           <v:TableViewHost.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
-                <MenuItem.ItemContainerTheme>
-                  <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                    <Setter Property="Header" Value="{Binding Label}"/>
-                    <Setter Property="Command" Value="{Binding Command}"/>
-                  </ControlTheme>
-                </MenuItem.ItemContainerTheme>
-              </MenuItem>
-              <Separator/>
               <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameTagCommand}"/>
               <MenuItem Icon="🎨" Header="改颜色…" Command="{Binding ChangeColorCommand}" ToolTip.Tip="输入 #RRGGBB；也可以在详情卡点色板"/>
               <MenuItem Icon="🔗" Header="合并到…" Command="{Binding MergeTagCommand}" ToolTip.Tip="把当前标签的资产转给另一个标签，然后删掉自己"/>

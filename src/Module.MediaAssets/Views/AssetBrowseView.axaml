@@ -281,6 +281,10 @@
 
             <v:ColumnGrid.ContextMenu>
               <ContextMenu>
+                <MenuItem Header="⟲ 恢复默认列宽" Command="{Binding ResetColumnWidthsCommand}"/>
+                <MenuItem Header="↔ 本列宽度自适应" IsEnabled="False"
+                          ToolTip.Tip="双击列边界可按本列内容自适应列宽"/>
+                <Separator/>
                 <MenuItem Header="名称" IsEnabled="False" ToggleType="CheckBox"
                           IsChecked="{Binding IsNameVisible, Mode=OneWay}" ToolTip.Tip="标识列固定显示，不可隐藏"/>
                 <MenuItem Header="类型" ToggleType="CheckBox" IsChecked="{Binding IsTypeVisible, Mode=OneWay}"

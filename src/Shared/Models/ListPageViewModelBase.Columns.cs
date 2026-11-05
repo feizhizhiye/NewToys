@@ -199,6 +199,16 @@ public abstract partial class ListPageViewModelBase : ObservableObject, IStatusP
         }
     }
 
+    /// <summary>清掉手动 / 锁定列宽，回到列元数据里的星号宽度（表头右键「恢复默认列宽」）。</summary>
+    [RelayCommand]
+    private void ResetColumnWidths()
+    {
+        _manualWidths.Clear();
+        _lockedWidths.Clear();
+        OnPropertyChanged(nameof(VisibleColumnSpecs));
+        OnPropertyChanged(nameof(LockedColumnMask));
+    }
+
     /// <summary>右键表头勾选 / 取消勾选某列（增删表头项）；结果落 <c>config\columnlayout.json</c>。标识列（名称）不可隐藏。</summary>
     [RelayCommand]
     private void ToggleColumn(string? key)

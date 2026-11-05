@@ -36,7 +36,7 @@
 
 **文档版本**（下表由 `python skill/scripts/docs-sync.py --fix` 读各文档头部生成，⛔ 不要手改块内）：
 
-<!-- AUTO:ledger.docversions -->
+<!-- AUTO:ledger.docversions -->
 | 文档 | 当前版本 |
 |---|---|
 | 需求规格 | v3.106 |
@@ -129,6 +129,7 @@
 
 | NT | 标题 | 优先级 | 状态 | 详情 |
 |---|---|---|---|---|
+| NT-148 | **通用筛选条 FilterBar + 右键筛选全清**（用户「右键里的筛选功能全部删除，封装一个筛选条」→「按全部资产页的筛选条样式，直接扩展」）：新增 `NewToys.UI/Controls/FilterBar`（内容槽 + 快捷 chips + 清空 + 命中数，沿用 `filter-bar` 一行等分口径）；6 页删右键「筛选」并挂筛选条，`PackageView`「仅看已安装」并入 `QuickFilters`；`assets-all` / `reading-sources` / `assets-trash` 三条自绘筛选条迁入内容槽；2.1 补 `AssetAllView` / `AssetBrowseView` 表头右键（列显隐 + 列宽自适应 / 恢复默认）；基类加 `ResetColumnWidthsCommand`。🔴 框架层新增 1 控件 + Shared 1 命令（方案已确认） | P1 | ✔ **已完成（2026-11-05 静态检查 PASS，待用户本地 build）** | backlog/framework/NT-148.md |
 | NT-147 | **表头右键 / 行右键职责分离（资源管理器口径）**（用户「参考 windows 的资源管理器的逻辑改吧」）：`TableViewHost` 按右键落点切换菜单 —— 表头 = 列宽（本列宽度自适应 / 恢复默认）+ 列显隐（标识列置灰）；行区 = 页面功能项 + 筛选项。行菜单不再自动插「▤ 列」；筛选项留在行菜单，控件在 `Opening` 时按落点重建菜单内容。⛔ 不复活「自动调整全部列宽」；⛔ 不做列重排 / 列像素对话框。🔴 动 `NewToys.UI`（方案已展示并经用户确认） | P1 | ✔ **已完成（2026-11-05 静态检查 PASS 7 / FAIL 0，待用户本地 build）** | backlog/framework/NT-147.md |
 | NT-146 | **图标体系精简 + 通用动作矢量化**（用户「整理下项目里所使用的图标，评估能否进一步精简」→ 拍板档 1+档 2）：盘点 35 个框架几何 + 约 129 种字符图标 / 560 处动作载体；新增 14 个动作几何、`IconTabClose`+`IconWinClose` 并入 `IconClose`；`ToolbarItemDescriptor` / `ToolbarMenuItemDescriptor` / `DetailAction` 三处加 `IconKey`；新增 `NewToys.UI/Markup` 的 `{m:Glyph}` / `{m:GlyphText}` 与 `Path.icon-fg` 样式（描边绑宿主 `Foreground` ⇒ 禁用态自动变灰）；工具条 / 右键菜单 / 页面按钮 / 详情卡动作四通道去 emoji 前缀（约 435 处）+ 文案引用同步；「一键一义」21 词表写进 `ui.md` §5。**未做**：领域标识与状态 emoji 保留 | P1 | ✔ **已完成（已验收 · 2026-11-05 核对 src 实现）** | backlog/framework/NT-146.md |
 | NT-145 | **启动链路打点补全（诊断卡）**（用户「每次启动 2-3s，是不是每次读配置 json，能否硬编码预设一份」）：四轮摸底结论 —— 配置读取 <30ms、Debug 模块清单已硬编码（扫描 11~14ms）、Debug 热启动 775~826ms、体感差额 = 新编译产物首次冷启动（冷读 + 杀毒 + JIT）；`framework.md §3.5` 已结案并蒸馏现状。本卡只把打点起点前移到 `Program.Main`、日志标 Debug/Release·冷/热，**本身提速 0ms**；⛔ 不重复当日已实测否决的并行加载 / R2R / 模块扫描分项打点；⛔ 不改配置读取 / 模块加载顺序 / 延迟初始化线程模型。🔴 框架层须用户确认，**默认不执行** | P2 | 📝 草稿（2026-11-04：仅出方案 + 蒸馏，⛔ 未改 `src/`） | backlog/framework/NT-145.md |

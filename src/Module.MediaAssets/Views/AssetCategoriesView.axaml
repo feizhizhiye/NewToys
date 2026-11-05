@@ -16,14 +16,9 @@
                       IsEmpty="{Binding !HasItems}">
 
     <v:ListPageSkeleton.TopArea>
-      <Border Classes="filter-bar">
-        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
-          <TextBlock Text="{Binding FilterSummary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"
-                     Foreground="{DynamicResource SecondaryTextBrush}"/>
-          <TextBlock Text="左键表头排序；右键表头选列 / 筛选；改父级在右侧详情卡点 chips" FontSize="12"
-                     VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/>
-        </WrapPanel>
-      </Border>
+    <v:FilterBar QuickItemsSource="{Binding QuickFilters}"
+                 Summary="{Binding FilterSummary}"
+                 ClearCommand="{Binding ClearFiltersCommand}"/>
     </v:ListPageSkeleton.TopArea>
 
     <v:ListPageSkeleton.ListArea>
@@ -53,15 +48,6 @@
 
         <v:TableViewHost.ContextMenu>
           <ContextMenu>
-            <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
-              <MenuItem.ItemContainerTheme>
-                <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                  <Setter Property="Header" Value="{Binding Label}"/>
-                  <Setter Property="Command" Value="{Binding Command}"/>
-                </ControlTheme>
-              </MenuItem.ItemContainerTheme>
-            </MenuItem>
-            <Separator/>
             <MenuItem Icon="＋" Header="子分类…" Command="{Binding NewChildCommand}"/>
             <MenuItem Header="重命名…" Icon="{m:Glyph IconEdit}" Command="{Binding RenameCategoryCommand}"/>
             <MenuItem Header="移到根分类" Icon="{m:Glyph IconArrowUp}" Command="{Binding MoveToRootCommand}"/>

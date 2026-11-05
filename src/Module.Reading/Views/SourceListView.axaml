@@ -13,11 +13,10 @@
     <v:ListPageSkeleton EmptyMessage="还没有书源 —— 点工具条「导入书源」选一个 legado 书源 JSON。"
                         IsEmpty="{Binding !HasItems}">
 
-      <v:ListPageSkeleton.TopArea>
-        <StackPanel Spacing="6" Margin="0,0,0,8">
-          <!--  筛选条：类型 / 分组 / 校验（互不影响，全部为 AND）  -->
-          <Border Classes="card" Padding="10,6">
-            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+    <v:ListPageSkeleton.TopArea>
+    <v:FilterBar>
+      <v:FilterBar.FieldsContent>
+<Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
               <ComboBox Grid.Column="0" Width="104"
                         ItemsSource="{Binding TypeOptions}"
                         SelectedItem="{Binding TypeFilter, Mode=TwoWay}"/>
@@ -39,13 +38,9 @@
                          Text="{Binding FilterSummary}"
                          VerticalAlignment="Center"/>
             </Grid>
-          </Border>
-
-          <Border Background="{DynamicResource ContentHeaderBrush}" Padding="12,6" IsVisible="{Binding IsBusy}">
-            <TextBlock Classes="hint-text" Text="正在导入书源…"/>
-          </Border>
-        </StackPanel>
-      </v:ListPageSkeleton.TopArea>
+      </v:FilterBar.FieldsContent>
+    </v:FilterBar>
+    </v:ListPageSkeleton.TopArea>
 
       <v:ListPageSkeleton.ListArea>
         <v:TableViewHost x:Name="SourceList"

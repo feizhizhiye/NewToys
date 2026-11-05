@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NewToys.UI.Controls.FilterBar">
+  <!--
+    通用筛选条：沿用「全部资产」页的 filter-bar 口径（一行、等分下拉、无滚动条）。
+    · FieldsContent：页面自有的下拉 / 条件控件（内容槽，绑定不动 ⇒ VM 零改动）。
+    · QuickItemsSource：ListPageViewModelBase.QuickFilters 生成的快捷项 chips。
+    · ClearCommand / Summary：清空命令与命中摘要。
+    🔴 内容槽与三个属性绑定一律在 code-behind 里按 Source=this 赋值（⛔ 不用祖先绑定，
+       参照 ListPageSkeleton 的静默空内容事故）。
+  -->
+  <Border Classes="filter-bar" Padding="4,2">
+    <Grid ColumnDefinitions="*,Auto">
+      <ContentControl x:Name="FieldsHost" Grid.Column="0" VerticalAlignment="Center"/>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0">
+        <StackPanel x:Name="QuickPanel" Orientation="Horizontal" Spacing="4"/>
+        <Button x:Name="ClearButton" Classes="ghost" Content="🧹 清空" FontSize="12"
+                Padding="6,1" MinWidth="0" MinHeight="0"/>
+        <TextBlock x:Name="SummaryText" FontSize="12" VerticalAlignment="Center"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

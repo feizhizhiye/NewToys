@@ -49,6 +49,7 @@ public partial class AssetAllView : UserControl
         LayoutUpdated += (_, _) =>
         {
             EnableColumnResizerHitAreas();   // 表头模板重建后重新放开固定列的把手（幂等）
+            EnsureMenuHooked();              // 表头 / 行右键菜单按落点分流
             ReportListOverflow();
         };
     }

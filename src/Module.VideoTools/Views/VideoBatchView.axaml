@@ -13,6 +13,11 @@
                         IsEmpty="{Binding !HasItems}">
 
         <!--  ==================== 列表本体（本页无筛选条 ⇒ TopArea 留空）  ====================  -->
+    <v:ListPageSkeleton.TopArea>
+    <v:FilterBar QuickItemsSource="{Binding QuickFilters}"
+                 Summary="{Binding FilterSummary}"
+                 ClearCommand="{Binding ClearFiltersCommand}"/>
+    </v:ListPageSkeleton.TopArea>
         <v:ListPageSkeleton.HeaderArea>
             <Border Classes="list-header">
                         <!--  v3.20 §6.4.15：IsResizable = 表头列边界可拖动手动调列宽（事件在 code-behind 转给 VM）  -->
@@ -103,14 +108,6 @@
                                 IsVisible="{Binding IsFinishedVisible}" />
                             <v:ColumnGrid.ContextMenu>
                                 <ContextMenu>
-                                <MenuItem Header="筛选" Icon="{m:Glyph IconSearch}" ItemsSource="{Binding QuickFilters}">
-                                  <MenuItem.ItemContainerTheme>
-                                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                      <Setter Property="Header" Value="{Binding Label}"/>
-                                      <Setter Property="Command" Value="{Binding Command}"/>
-                                    </ControlTheme>
-                                  </MenuItem.ItemContainerTheme>
-                                </MenuItem>
                                     <Separator />
                                     <MenuItem
                                         Command="{Binding ToggleColumnCommand}"

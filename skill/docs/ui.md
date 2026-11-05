@@ -369,10 +369,19 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 - 🔴 **列顺序铁律**：XAML 里列的声明顺序必须与 VM 的 `ListPageViewModelBase.ColumnLayout` 完全一致（显隐 / 表头文案 / 排序键都按下标对齐）。
 - 控件自动完成：① 按 `ColumnLayout[i].Key` 绑定 `Is{Key}Visible`（列显隐）；② 表头文案 = `ListColumn.Header` + 排序箭头（读基类 `SortColumnKey` / `IsSortDescending`，⛔ 不再绑各页 `XxxHeader`）；③ 点表头 → `SortCommand(key)`；④ 拖列边界改列宽（相邻列互补、下限 = 表头文字宽）；⑤ **表头右键**自动生成「列宽 + 列显隐」菜单，**行右键** ⛔ 不插列项；⑥ `ContextMenu.DataContext` 自动同步（行菜单 + 表头菜单都要）。
 - 🔴 **右键按落点分流（资源管理器口径）**：`PointerPressed` Tunnel 阶段按坐标命中 `TableViewColumnHeader`（表头背景透明，⛔ 不能靠 `e.Source` 找祖先）→ 表头就在 `ContextMenu.Opening` 里把菜单项重建成列菜单，行区 / 空白 / 键盘触发还原页面原始功能项。表头两段 = ① `↔ 本列宽度自适应` / `⟲ 恢复本页默认列宽` ② 全量列显隐勾选（首列标识列置灰 + 提示）；⛔ 表头不放筛选与行功能。⛔ 不复活「自动调整全部列宽」：单列自适应按表头文字 + 示例值取大并封顶 320px。
-- 页面仍需自写的：`CellTemplate`（每列内容）、行右键菜单（单条动作 + 页内筛选项）、行内按钮（`$parent[UserControl].DataContext.XxxCommand`，⛔ 不用 `$parent[ListBox]`）。
+- 页面仍需自写的：`CellTemplate`（每列内容）、行右键菜单（只放单条动作；筛选统一走顶区 `FilterBar`）、行内按钮（`$parent[UserControl].DataContext.XxxCommand`，⛔ 不用 `$parent[ListBox]`）。
 - 自备表头控件（如软件包页的三态 `CheckBox`）在 code-behind 里写 `Columns[0].Header = <Control>`；控件认「Header 是 Control」就跳过文案覆盖。
 - 🔴 **TableView 的底必须透明**（2026-11-04 实测）：Fluent 模板给 TableView 自身和每行的 `Border#Border` 铺了系统 Chrome 刷子（亮色 `#F2F2F2`），会整块盖掉骨架铺的 `ListBodyBrush` ⇒ 行区与左菜单 / 标题栏同色、区域档位形同虚设。`TableViewHost.axaml` 里两条 `Background=Transparent`（控件 + 行模板）⛔ 不能删。
 - 仍在用 `ColumnGrid` 的场景：非列表页的固定表头（信息面板 / 爬虫面板 / 规则编辑 / 任务中心）与尚未迁移的磁贴式列表（`AssetBrowseView` / `VideoBatchView` / `VideoListView`）。
+### 6.3d 通用筛选条 `FilterBar`（NT-148）
+
+- 组件：`src/UI/Controls/FilterBar.axaml(.cs)`，挂 `ListPageSkeleton.TopArea`；沿用「全部资产」页口径 —— `Border.filter-bar`、一行等分下拉、`filter-combo` + `FilterDropDownAlign`、⛔ 无滚动条。
+- 两种用法：① 页面自有多下拉 → 写进 `FieldsContent` 内容槽（绑定 / 命令原样保留，**VM 零改动**）；② 快捷筛选 → 只绑 `QuickItemsSource="{Binding QuickFilters}"` + `Summary` + `ClearCommand`，控件生成 chips（无命令的占位项跳过、点中项加粗、`INotifyCollectionChanged` 自动刷新）。
+- 🔴 **右键菜单 ⛔ 不放筛选**：表头右键只管列，行右键只管功能（§10.1）。「仅看已安装」这类开关并入 `QuickFilters` 走筛选条。
+- 🔴 内容槽与属性绑定一律 code-behind 按 `Source=this` 赋值（⛔ 祖先绑定 ⇒ 静默空内容，见 `ListPageSkeleton.axaml` 注释）。
+- 已迁入的 3 条自绘筛选条：`assets-all`（4 下拉）/ `reading-sources`（3 下拉 + 只看失效）/ `assets-trash`（摘要）。页面专属联动（下拉内容随类型变、重建抑制）仍留在各自 VM。
+- 「恢复默认列宽」：`ColumnGrid` 页走基类 `ResetColumnWidthsCommand`；`TableViewHost` 页由控件自己按缓存宽度写回。
+
 
 ### 6.4 列宽锁定（示例值唯一用途）
 
@@ -656,10 +665,11 @@ WindowDecorationsTheme="{DynamicResource {x:Type chrome:WindowDrawnDecorations}}
 |---|---|---|
 | 动**一条** | 行右键菜单 | 菜单项作用对象 = 当前选中行（`CommandParameter="{Binding Selected}"` + code-behind `ContextRequested` 选行） |
 | 动**整页** | 工具条 | 批量 / 页面级动作；⛔ 不放单条动作 |
-| 查看态 | 表头右键 | 列显隐 / 筛选 / 「仅看已安装」这类视图开关 |
+| 查看态 | 表头右键 | 列显隐 / 列宽自适应（⛔ 不放筛选） |
+| 筛选 | 顶区筛选条 | 快捷 chips / 页面自有多下拉 / 清空 / 命中数 |
 | 勾选态 | 表头 `☑` 右键 | 全选 / 取消选择 / 反选 |
 
-- 🔴 **表头右键与行右键分工（资源管理器口径）**：表头右键 = 列宽 / 列显隐两段；行右键 = 作用于选中行的功能动作 + 页内筛选项，⛔ 两者互不串项。`TableViewHost` 按落点在 `Opening` 时重建菜单内容（细则 §6.3c）。
+- 🔴 **表头右键与行右键分工（资源管理器口径）**：表头右键 = 列宽 / 列显隐两段；行右键 = 只作用于选中行的功能动作；筛选统一在顶区 `FilterBar`，⛔ 两者互不串项。`TableViewHost` 按落点在 `Opening` 时重建菜单内容（细则 §6.3c）。
 
 - 工具条顺序铁律：**入口动作 → 输入框 → 搜索框 → 页专属尾项 → 📥 导入 → 📤 导出 → 🧹 清空**（见 §8）。
 - 右键菜单在**弹出树**上，DataContext 不继承 ⇒ 菜单在 XAML 里声明时必须 code-behind 补 `menu.DataContext = DataContext`；动态构造的菜单（如收藏夹按钮墙）直接 `new MenuItem` 并写死命令。

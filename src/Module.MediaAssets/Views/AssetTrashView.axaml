@@ -16,14 +16,7 @@
                       IsEmpty="{Binding !HasItems}">
 
     <v:ListPageSkeleton.TopArea>
-    <Border Classes="filter-bar">
-      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" LineSpacing="4">
-        <TextBlock Text="{Binding FilterSummary}" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-        <TextBlock Text="左键表头排序；右键表头选列 / 筛选" FontSize="12" VerticalAlignment="Center"
-                   Foreground="{DynamicResource SecondaryTextBrush}"/>
-      </WrapPanel>
-    </Border>
+    <v:FilterBar Summary="{Binding FilterSummary}"/>
     </v:ListPageSkeleton.TopArea>
 
     <v:ListPageSkeleton.ListArea>

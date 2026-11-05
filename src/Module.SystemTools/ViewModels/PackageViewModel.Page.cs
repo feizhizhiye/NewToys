@@ -36,6 +36,7 @@ public partial class PackageViewModel : ListPageViewModelBase, IDetailPanelProvi
         _cols = cols;
 
         LoadLayout();                     // 列显隐 + 详情栏开合（基类）
+        QuickFilters.Insert(0, new FilterQuickItem { Label = "仅看已安装", Command = ToggleInstalledOnlyCommand });
         BatchSelection.CollectionChanged += (_, _) => NotifyBatchChanged();   // 控件侧多选 → 批量按钮可用态
         _syncing = true;
         var s = settings.Settings;

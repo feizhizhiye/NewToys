@@ -16,30 +16,7 @@ using NewToys.UI.Settings;
 
 namespace NewToys.UI.Controls;
 
-/// <summary>
-/// 设置页骨架：<b>应用级设置页 + 4 个模块设置页共用</b>。
-/// <para>
-/// 整页是一棵"树"（手风琴）：每个节 = 抬头 + 正文，整体参与滚动；<see cref="Sticky"/>=true 时
-/// 抬头滚出顶沿由**覆盖层浮层**钉在顶部（含 Push），并可「全部收起」。
-/// </para>
-/// <para>
-/// 🔴 本控件承载**全部视口相关逻辑**（折叠 / 磁吸 / Push / 定位收敛），
-/// ⛔ VM 不认识视口。折叠意图通过 <see cref="SectionToggled"/> 抛给宿主页（应用级设置页用它刷新状态栏聚合），
-/// 模块设置页**零订阅**也能正常工作。
-/// </para>
-/// <para>
-/// 🔴 **滚动只滚动，⛔ 不改任何节的展开状态**：用户滚到哪节都不会被"擅自弹开"，
-/// 一节开没开**只由点击**（抬头 /「全部收起」）决定。
-/// </para>
-/// <para>
-/// 🔴 两种用法：
-/// <list type="bullet">
-///   <item>**应用级** = 代码构节 + <c>ItemsSource</c> 绑定 + <c>ToolbarTemplate</c>（节内工具条）；</item>
-///   <item>**模块级** = XAML 用属性元素 <c>&lt;ui:SettingsSectionHost.Sections&gt;</c> 列出各节 + <c>Sticky="False"</c>
-///         （⛔ 别把 <see cref="Sections"/> 标 <c>[Content]</c>：会抢掉 <c>UserControl.Content</c> ⇒ AVLN3000）。</item>
-/// </list>
-/// </para>
-/// </summary>
+/// <summary>设置页骨架：应用级设置页 + 4 个模块设置页共用。（WHY: UI-014）</summary>
 public partial class SettingsSectionHost : UserControl
 {
     /// <summary>防重入：展开会改布局、改 <c>Offset</c> 又会触发属性通知。</summary>
@@ -130,14 +107,7 @@ public partial class SettingsSectionHost : UserControl
         set => SetValue(ToolbarTemplateProperty, value);
     }
 
-    /// <summary>
-    /// 节集合（模块设置页在 XAML 里用**属性元素**写：<c>&lt;ui:SettingsSectionHost.Sections&gt;</c>）。
-    /// <para>
-    /// 🔴 **⛔ 不要给本属性加 <c>[Content]</c>**：会抢掉 `UserControl.Content`，本控件自己的 axaml 根
-    /// `<Panel x:Name="PageRoot">` 就会被当成"一个节"塞进来 ⇒ 编译报
-    /// <c>AVLN3000: Unable to find suitable setter or adder for property Sections … for argument Panel</c>。
-    /// </para>
-    /// </summary>
+    /// <summary>节集合（模块设置页在 XAML 里用属性元素写：&lt;ui:SettingsSectionHost.Sections&gt;）。（WHY: UI-015）</summary>
     public ObservableCollection<SettingsSection> Sections { get; } = new();
 
     /// <summary>任一节折叠 / 展开（含「全部收起」）后触发；<c>null</c> = 整批变化。</summary>
@@ -207,18 +177,7 @@ public partial class SettingsSectionHost : UserControl
         SyncContentDataContext();
     }
 
-    /// <summary>
-    /// 给**没有自己 DataContext** 的节内容补上页面的 DataContext。
-    /// <para>
-    /// 🔴 为什么必须补：节内容的父级是 <c>ContentControl</c>，它的 DataContext = **节模型**（要解析
-    /// <c>{Binding Content}</c>）⇒ 模块设置页在 XAML 里写的 <c>StackPanel</c> 会**继承到节模型**，
-    /// 页面上 <c>{Binding 某个设置项}</c> 全部落空（静默空白）。
-    /// </para>
-    /// <para>
-    /// ⚠️ 应用级设置页的节 View 在构建时**已显式设了自己的 VM** ⇒ 这里跳过（<c>DataContext: null</c> 才补），
-    /// 不会把节的 VM 冲成页面 VM。
-    /// </para>
-    /// </summary>
+    /// <summary>给没有自己 DataContext 的节内容补上页面的 DataContext。（WHY: UI-016）</summary>
     private void SyncContentDataContext()
     {
         if (DataContext is not { } vm) return;

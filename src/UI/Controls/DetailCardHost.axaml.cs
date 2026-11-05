@@ -6,13 +6,7 @@ using NewToys.Shared.Details;
 
 namespace NewToys.UI.Controls;
 
-/// <summary>
-/// 详情卡声明式宿主（L1）：输入 <see cref="Card"/>（描述符）+ <see cref="Source"/>（页面 VM），
-/// 产出 <see cref="Renderer"/>（渲染对象），由本控件的 XAML 用 7 个字段 <c>DataTemplate</c> 渲染。
-/// <para>
-/// 🔴 <see cref="Source"/> 必须是**页面 VM 本身**（不是描述符、也不是选中项）—— 描述符里的所有路径都相对它解析。
-/// </para>
-/// </summary>
+/// <summary>详情卡声明式宿主（L1）：输入 Card（描述符）+ Source（页面 VM）， 产出 Renderer（渲染对象），由本控件的 XAML 用 7 个字段 DataTemplate 渲染。（WHY: UI-004）</summary>
 public partial class DetailCardHost : UserControl
 {
     /// <summary>卡片描述符（null = 什么都不渲染）。</summary>

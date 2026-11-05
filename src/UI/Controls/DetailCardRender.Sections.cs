@@ -16,13 +16,7 @@ using NewToys.Shared.Details;
 namespace NewToys.UI.Controls;
 
 
-/// <summary>
-/// <see cref="FieldKind.IconBar"/> 里的一个图标按钮。
-/// <para>
-/// 图标由 <c>App.axaml</c> 的 <c>Icon*</c> <c>StreamGeometry</c> **按资源键**解析成 <see cref="Avalonia.Media.Geometry"/>
-/// （模板里 <c>Path.Data</c> 直接绑它 —— XAML 写不出动态资源键，所以这一步只能在 C# 侧做）。
-/// </para>
-/// </summary>
+/// <summary>FieldKind.IconBar 里的一个图标按钮。</summary>
 public sealed class DetailIconActionRender : ObservableObject
 {
     private readonly DetailIconAction _d;

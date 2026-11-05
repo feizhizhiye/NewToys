@@ -6,13 +6,7 @@ using Avalonia.VisualTree;
 
 namespace NewToys.UI.Behaviors;
 
-/// <summary>
-/// 让筛选栏下拉（样式类 <c>filter-combo</c> 的 <see cref="ComboBox"/>）的弹出列表**贴住框左边缘**向下展开。
-/// <para>🔴 主题模板给的是 <c>Placement=Bottom</c>（水平居中）⇒ 候选文字比筛选框宽时向两侧同时伸出，
-/// 换一次条件（选项长短变化）列表就左右乱跳。这里写的是 <see cref="Popup"/> **实例**的本地值 ——
-/// 优先级高于模板里的字面值，⛔ 靠 XAML 样式改不动模板目标。</para>
-/// <para>用法：在页面根节点设 <c>ui:FilterDropDownAlign.Attach="True"</c>，页内所有 <c>filter-combo</c> 一并生效。</para>
-/// </summary>
+/// <summary>让筛选栏下拉（样式类 filter-combo 的 ComboBox）的弹出列表贴住框左边缘向下展开。（WHY: UI-001）</summary>
 public class FilterDropDownAlign
 {
     /// <summary>挂载开关：在页面根节点设 True 即校正该页所有筛选下拉的展开位置。</summary>

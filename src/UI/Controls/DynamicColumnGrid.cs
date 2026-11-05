@@ -74,33 +74,7 @@ public sealed partial class SysInfoHeaderCell : ObservableObject
     public ICommand? SortCommand { get; set; }
 }
 
-/// <summary>
-/// **动态列**容器（§三.5 / 决策 D1；UI 库改名）：把「列宽规格串 + 单元格集合」
-/// 渲染成一格一行。
-/// <para>
-/// 🔴 为什么需要它：<c>Shared/ListPageViewModelBase</c> 的列机制是「<c>Columns</c> 元数据 + 每列一个具名
-/// <c>IsXxxVisible</c> 属性 + XAML 静态列」（XAML 绑不了字典），而信息面板 / 爬虫面板的列数由
-/// 运行时的列 schema 决定、运行时可变 ⇒ 静态列不可行。框架层冻结（不改 Shared），所以在 UI 库提供
-/// 本控件：<see cref="ColumnSpecs"/> 解析成 <see cref="Grid.ColumnDefinitions"/>，
-/// 每个单元格 / 表头按钮按 <c>Grid.Column</c> 落位。
-/// </para>
-/// <para>
-/// 两种用法（同一控件，互斥）：
-/// <list type="bullet">
-///   <item><see cref="HeaderCells"/> 非空 → 渲染一行 <c>Button.col-header</c>（点 = 排序，参数 = 列键）；</item>
-///   <item><see cref="Cells"/> 非空 → 渲染一行 <c>TextBlock.list-cell</c>（第 1 列带 <c>accent</c>）。</item>
-/// </list>
-/// 文本 / 可见性走**绑定**（单元格对象是可观察的）⇒ 定时刷新就地改值时不重建可视树，界面不闪。
-/// </para>
-/// <para>
-/// ⚠️ 与 <c>UI/Controls/ColumnGrid</c> 的分工：那个是「列宽可拖动 + 示例值锁宽」的表头栅格（框架内已有列机制用）；
-/// 本控件只做「任意列数 + 规格串 → 网格」的渲染，不接拖拽。
-/// </para>
-/// <para>
-/// 🔴 样式类 <c>col-header</c> / <c>list-cell</c> / <c>accent</c> 定义在 Shell <c>App.axaml</c>（运行时解析）——
-/// UI 库 ⛔ 不自带这些样式、⛔ 不写死色值。
-/// </para>
-/// </summary>
+/// <summary>动态列容器（§三.5 / 决策 D1；UI 库改名）：把「列宽规格串 + 单元格集合」 渲染成一格一行。（WHY: UI-008）</summary>
 public class DynamicColumnGrid : Grid
 {
     /// <summary>列宽规格串（可绑定）：<c>"140,2*,3*"</c>，隐藏列写 <c>0</c>（与 <c>ColumnGrid</c> 同一口径）。</summary>

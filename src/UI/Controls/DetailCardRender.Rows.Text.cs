@@ -68,13 +68,7 @@ public sealed class TextFieldRow : DetailFieldRow
     }
 }
 
-/// <summary>
-/// <see cref="FieldKind.Pair"/>：**成对输入**（2026-10-24）—— 一行两个输入框 + 中间固定符号。
-/// <para>
-/// 左框写 <c>ValuePath</c>、右框写 <c>SecondValuePath</c>；提交语义与 <see cref="TextFieldRow"/> 一致
-/// （<c>OnBlur</c> 走模板的 <c>LostFocus</c>，其余即时写回）。
-/// </para>
-/// </summary>
+/// <summary>FieldKind.Pair：成对输入—— 一行两个输入框 + 中间固定符号。</summary>
 public sealed class PairFieldRow : DetailFieldRow
 {
     public PairFieldRow(DetailField field, object? source) : base(field, source) { }

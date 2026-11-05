@@ -11,19 +11,7 @@ using NewToys.Shared.Models;
 
 namespace NewToys.UI.Controls;
 
-/// <summary>
-/// 列表页底栏（UI 壳）：计数 + 分页跳转链。
-/// <para>
-/// 🔴 显隐由**宿主页**决定：把本控件的 <see cref="Visual.IsVisible"/> 绑到 VM 的
-/// <c>HasFooterContent</c>（列表超出页面底部 或 有多页才 true）—— 控件自己不判断高度。
-/// </para>
-/// <para>
-/// 🔴 内部一律 **code-behind 按属性直配**（⛔ 不用祖先绑定，见 axaml 顶部注释）；
-/// 分页命令 / 页大小 / 页码直达经宿主（<c>ListPageSkeleton</c>）转发进来。
-/// 布局（2026-10-16 用户定稿）：左计数，中「N 页 « ‹ 1 2 3 4 5 › » Go[ ]」，
-/// 右「每页 [25/50/100/500]」；当前页码按钮用 <c>primary</c> 强调色。
-/// </para>
-/// </summary>
+/// <summary>列表页底栏（UI 壳）：计数 + 分页跳转链。（WHY: UI-010）</summary>
 public partial class ListFooterBar : UserControl
 {
     /// <summary>
@@ -230,27 +218,13 @@ public partial class ListFooterBar : UserControl
         RenderPageButtons();
     }
 
-    /// <summary>
-    /// 页大小下拉的一个选项。用<b>带 Label 的包装类型</b>而不是裸 int：
-    /// 下拉要显示「全部」（= <see cref="ListPageViewModelBase.AllPageSize"/> 哨兵值），
-    /// 而 Avalonia 的 ComboBox 默认用 <c>ToString()</c> 渲染 ⇒ 覆盖它即可，
-    /// ⛔ 不必引 ItemTemplate / Converter（跨程序集 StaticResource 解析失败是**静默空白**，更难查）。
-    /// </summary>
+    /// <summary>页大小下拉的一个选项。用带 Label 的包装类型而不是裸 int： 下拉要显示「全部」（= ListPageViewModelBase.AllPageSize 哨兵值）， 而 Avalonia 的 ComboBox 默认用 ToString() 渲染 ⇒ 覆盖它即可，。（WHY: UI-011）</summary>
     private sealed record PageSizeChoice(int Value, string Label)
     {
         public override string ToString() => Label;
     }
 
-    /// <summary>
-    /// 页大小下拉的**唯一**数据源（恒定实例，内容就地增删改）。
-    /// <para>
-    /// 🔴 2026-10-19 崩溃修复：⛔ **不许在运行时换 <c>PageSizeCombo.ItemsSource</c>** ——
-    /// 下拉展开、用户点选某一项的那一刻，若候选项集合被整体替换（如"当前值不在预设 ⇒ 补进下拉"
-    /// 的 25 被移除），Avalonia 会用旧选中索引去新集合取项 ⇒
-    /// <c>ArgumentOutOfRangeException</c>（<c>ItemsSourceView.GetAt</c> ← <c>ListBoxItem.OnPointerReleased</c>）
-    /// 且无人能用 try/catch 拦住（在输入事件栈里）⇒ 整个进程退出。用户实锤：软件包页选「50」直接闪退。
-    /// </para>
-    /// </summary>
+    /// <summary>页大小下拉的唯一数据源（恒定实例，内容就地增删改）。（WHY: UI-012）</summary>
     private readonly System.Collections.ObjectModel.ObservableCollection<PageSizeChoice> _pageSizeItems = new();
 
     private void SyncPageSizeCombo()

@@ -8,18 +8,7 @@ using NewToys.Shared.Services;
 
 namespace NewToys.UI.Settings;
 
-/// <summary>
-/// 设置页里的**一个节**（从 <c>Shell.Models</c> 上移进 UI 库，应用级设置页与各模块设置页共用）。
-/// <para>
-/// <see cref="Key"/> = **节锚点**（原菜单 Key，⛔ 一经发布不改）；<see cref="Content"/> = 节的 View（XAML 内容属性，
-/// 模块页可直接写 <c>&lt;ui:SettingsSection&gt;…&lt;/ui:SettingsSection&gt;</c>），
-/// <see cref="ViewModels"/> = 对应 VM（状态栏 / 工具条契约聚合用，可多个）。
-/// </para>
-/// <para>
-/// 🔴 折叠 / 磁吸 / 滚动定位全部在 <see cref="NewToys.UI.Controls.SettingsSectionHost"/>，
-/// ⛔ 不在本模型里 —— 本模型只存**状态**（<see cref="IsExpanded"/>）。
-/// </para>
-/// </summary>
+/// <summary>设置页里的一个节（从 Shell.Models 上移进 UI 库，应用级设置页与各模块设置页共用）。（WHY: UI-024）</summary>
 public partial class SettingsSection : ObservableObject
 {
     /// <summary>节锚点 Key（`settings-general` … ；模块页可留空 = 不参与外部寻址）。</summary>

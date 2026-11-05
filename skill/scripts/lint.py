@@ -470,7 +470,7 @@ MAX_BLOCK = 6
 # 方案1 · 注释长段治理：<=5 行短契约保留，>=6 行 /// 块必须压缩 + WHY 蒸馏。
 # SLIMMED_ASSEMBLIES 是「已治理程序集」白名单，每完成一批追加一个，未治理批次不报 C-07。
 DOC_BLOCK_MAX = 6
-SLIMMED_ASSEMBLIES = ("Shared", "Core", "Shell")
+SLIMMED_ASSEMBLIES = ("Shared", "Core", "Shell", "UI")
 DOC_MARKERS = ("inheritdoc", "lint:")
 ANCHOR_SRC = re.compile(r"WHY:\s*([A-Z]+-\d{3})")
 ANCHOR_DOC = re.compile(r"<!--\s*ANCHOR:([A-Z]+-\d{3})\s*-->")

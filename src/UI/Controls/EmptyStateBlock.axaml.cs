@@ -4,13 +4,7 @@ using Avalonia.Controls;
 
 namespace NewToys.UI.Controls;
 
-/// <summary>
-/// 空态块（口径）：说明文案 + 复用本页现有命令的入口。
-/// <para>
-/// 由宿主页经 <see cref="Message"/> / <see cref="ActionText"/> / <see cref="ActionCommand"/> 下发；
-/// <see cref="ActionText"/> 为空时按钮不占位（纯文案空态）。
-/// </para>
-/// </summary>
+/// <summary>空态块（口径）：说明文案 + 复用本页现有命令的入口。</summary>
 public partial class EmptyStateBlock : UserControl
 {
     /// <summary>

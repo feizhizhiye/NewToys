@@ -15,26 +15,7 @@ using NewToys.Shared.Models;
 
 namespace NewToys.UI.Controls;
 
-/// <summary>
-/// 列表页的表格本体：原生 <see cref="TableView"/> + 本项目约定。
-/// <para>
-/// 用一个控件替代「ListBox + ColumnGrid 自绘表头 + 各页 code-behind 接线」，页面只需声明列与单元格模板：
-/// <list type="bullet">
-///   <item>列显隐 / 表头文案 / 排序键全部从 <see cref="ListPageViewModelBase.ColumnLayout"/> 推出来，
-///         XAML ⛔ 不用再写 <c>IsXxxVisible</c> 绑定与 <c>SortCommand</c> + <c>CommandParameter</c>；</item>
-///   <item>列宽拖拽、表头点击排序、表头右键列菜单、<see cref="Control.ContextMenu"/> 的 DataContext 同步都在本类里；</item>
-///   <item>密度与配色（行 28 / 字 12 / 语义色选中）在 <c>Styles/TableViewHost.axaml</c>，按类型选择器只作用本控件。</item>
-/// </list>
-/// </para>
-/// <para>
-/// 🔴 列顺序铁律：XAML 里 <c>TableViewHost.Columns</c> 的声明顺序必须与 VM 的
-/// <see cref="ListPageViewModelBase.ColumnLayout"/> 完全一致 —— 显隐 / 表头 / 排序键都按下标对齐。
-/// </para>
-/// <para>
-/// 🔴 选择语义按页各自声明（<c>SelectionMode</c> + <c>SelectedItem</c> 绑定）；
-/// 需要 VM 侧维护多选集合的页（全部资产）仍用各自的 code-behind，本类不接管选中。
-/// </para>
-/// </summary>
+/// <summary>列表页的表格本体：原生 TableView + 本项目约定。（WHY: UI-017）</summary>
 public class TableViewHost : TableView
 {
     private ListPageViewModelBase? _vm;
@@ -126,14 +107,7 @@ public class TableViewHost : TableView
         if (ContextMenu is { } menu) menu.DataContext = dataContext;
     }
 
-    /// <summary>
-    /// 把 VM 的列元数据套到 <see cref="TableView.Columns"/> 上：按下标绑定
-    /// <c>Is{Key}Visible</c>（显隐）+ 重算表头文案（<see cref="ApplyHeaders"/>）。
-    /// <para>⛔ 不能用祖先 / <c>$parent</c> 绑定：<see cref="TableViewColumn"/> 不在可视树里、没有 DataContext，
-    /// 解析不到是静默失败（表现 = 表头空白 / 隐藏列不生效），只能显式给 Source。</para>
-    /// <para>表头文案**不绑**各页的 <c>XxxHeader</c> 属性：不是每个页 VM 都有（主从页的表头原本手写在 XAML 里），
-    /// 绑定缺失属性会得到空表头。文案统一由列元数据 + 排序箭头拼，排序态由基类只读属性给出。</para>
-    /// </summary>
+    /// <summary>把 VM 的列元数据套到 TableView.Columns 上：按下标绑定 Is{Key}Visible（显隐）+ 重算表头文案（ApplyHeaders）。（WHY: UI-018）</summary>
     private void SyncColumns()
     {
         var cols = Columns;
@@ -188,12 +162,7 @@ public class TableViewHost : TableView
 
     // ==================== 表头：点击排序 ====================
 
-    /// <summary>
-    /// 点表头 → 交给 VM 的 <c>SortCommand</c>（同列再点反向，VM 负责重排 + 刷箭头）。
-    /// <para>🔴 用**坐标命中**而不是 <c>e.Source</c> 找祖先：表头模板背景是透明 / null，
-    /// 文字以外的空白区不参与命中测试，事件根本不会带上 header —— 那样只有点到字才有反应。</para>
-    /// <para>右边缘留给列宽拖拽，所以落点太靠右时不排序。</para>
-    /// </summary>
+    /// <summary>点表头 → 交给 VM 的 SortCommand（同列再点反向，VM 负责重排 + 刷箭头）。（WHY: UI-019）</summary>
     private void OnHeaderPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_vm is null) return;
@@ -254,16 +223,7 @@ public class TableViewHost : TableView
     private IPointer? _resizePointer;
     private bool _resizeFrozen;
 
-    /// <summary>
-    /// 🔴 拖拽全程**不吃 Thumb 的 delta**：内置 <c>TableViewColumnHeader.OnResizerDragDelta</c> 每帧算
-    /// <c>ActualWidth + delta</c>，而把手会随列宽一起移动 ⇒ 指针只推一点、宽度变了把手又移动、delta 再叠一次
-    /// （正反馈，实测轻推一下列宽就跳一大截）。
-    /// 这里改成：按下列边界时拦掉内置拖拽（<c>e.Handled = true</c>），之后用**指针在控件内的绝对 X**
-    /// 减起始 X 得位移 —— 与把手自身位置无关。
-    /// <para>🔴 **按「边界」命中，不是按「可拖列的右缘」**：固定列（类型 / 大小 / 修改时间 …）也有边界，
-    /// 拖它就等于调**相邻那个可变列**（自己不动）；否则两侧都是固定列的列会彻底拖不动。</para>
-    /// <para>宽度守恒：两边都可拖 ⇒ 一增一减；只有一边可拖 ⇒ 只改那一边。</para>
-    /// </summary>
+    /// <summary>🔴 拖拽全程不吃 Thumb 的 delta：内置 TableViewColumnHeader.OnResizerDragDelta 每帧算 ActualWidth + delta，而把手会随列宽一起移动 ⇒ 指针只推一点、宽度变了把手又移动、delta 再叠一次 （正反馈，实测轻推一下列宽就跳一大截）。（WHY: UI-020）</summary>
     private bool TryBeginColumnResize(PointerPressedEventArgs e)
     {
         var point = e.GetPosition(this);

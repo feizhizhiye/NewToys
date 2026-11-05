@@ -53,14 +53,7 @@ public sealed class ListFieldRow : DetailFieldRow
     }
 }
 
-/// <summary>
-/// <see cref="FieldKind.EditableList"/>：**可编辑列表**（每行 = 只读左标签 + 可编辑文本框，失焦提交）。
-/// <para>
-/// 取数：<see cref="DetailField.OptionsPath"/>（候选集合）+ <see cref="DetailField.ItemLabelPath"/>（左标签）
-/// + <see cref="DetailField.ItemTextPath"/>（可编辑文本，双向写回候选项）。
-/// 提交时执行 <see cref="DetailField.ItemCommandPath"/>（参数 = 候选项本身），落盘 / 重投影由页面 VM 负责。
-/// </para>
-/// </summary>
+/// <summary>FieldKind.EditableList：可编辑列表（每行 = 只读左标签 + 可编辑文本框，失焦提交）。</summary>
 public sealed class EditableListFieldRow : DetailFieldRow
 {
     private INotifyCollectionChanged? _watched;

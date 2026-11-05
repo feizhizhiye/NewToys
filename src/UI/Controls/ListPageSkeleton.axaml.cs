@@ -5,23 +5,7 @@ using Avalonia.Controls;
 
 namespace NewToys.UI.Controls;
 
-/// <summary>
-/// 列表页骨架：四段容器 —— 顶工具条区 / 列表区 / 空态区 / 底栏区。
-/// <para>
-/// 页面把自己的内容填进三个内容槽：
-/// <list type="bullet">
-///   <item><see cref="TopArea"/>：工具条 / 筛选条（可空）；</item>
-///   <item><see cref="HeaderArea"/>：表头（<c>Border.list-header</c> + <c>ColumnGrid</c>，含列显隐右键菜单）；</item>
-///   <item><see cref="ListArea"/>：列表本体（<c>ListBox</c>，行模板各页自写）。</item>
-/// </list>
-/// 空态区与 <see cref="ListArea"/> 同格：<see cref="IsEmpty"/> 绑宿主 VM 的 <c>!HasItems</c>，
-/// 文案 / 入口命令经 <see cref="EmptyMessage"/> / <see cref="EmptyActionText"/> / <see cref="EmptyActionCommand"/> 下发。
-/// </para>
-/// <para>
-/// 底栏 = <see cref="ListFooterBar"/>（UI 壳）：<see cref="ShowFooter"/> 由宿主绑 VM 的
-/// <c>HasFooterContent</c>（列表超出页面底部才 true，接入前无该属性 ⇒ 不显示）。
-/// </para>
-/// </summary>
+/// <summary>列表页骨架：四段容器 —— 顶工具条区 / 列表区 / 空态区 / 底栏区。</summary>
 public partial class ListPageSkeleton : UserControl
 {
     /// <summary>

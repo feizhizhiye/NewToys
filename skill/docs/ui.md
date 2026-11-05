@@ -991,3 +991,105 @@ Grid（铺满）
 4. 第三级分类还能不能改成筛选条下拉？（能改就改）
 
 > **可 Lint 方向（未实现）**：`lint.py` 扫 `.axaml`，报「父子节点同方向同时带 `Margin`」与「`Margin` / `Padding` 出现 6 / 10 / 16」。4 与 2 属微元素，不拦。
+
+## §14 代码 WHY 蒸馏（方案1 · anchors）
+
+<!-- WHY-DISTILL:ui:start -->
+
+> 由 `skill/scripts/comment-slim.py` 生成（方案1 · 白名单与锚点口径见 `tech-guard.md` §3.1）。
+> 代码里只留 1 行契约 + `WHY: <ID>`；此处是 ID 对应的 WHY 正文。`lint.py --only comments` 双向对账。
+
+<!-- ANCHOR:UI-001 -->
+- **UI-001** · `src/UI/Behaviors/FilterDropDownAlign.cs`
+  - 🔴 主题模板给的是 Placement=Bottom（水平居中）⇒ 候选文字比筛选框宽时向两侧同时伸出，
+  - 优先级高于模板里的字面值，⛔ 靠 XAML 样式改不动模板目标。
+
+<!-- ANCHOR:UI-002 -->
+- **UI-002** · `src/UI/Controls/ColumnGrid.cs`
+  - ⚠️ 为什么需要这个控件（规范 3.8.x）：
+  - ⚠️ 每次赋值都新建一个 `ColumnDefinitions` 实例：同一个实例不能被多个 Grid 共用。
+  - Grid.Column + 1」。这不是锦上添花，而是必须：
+  - 📌 本控件只有这一份（收进 NewToys.UI 控件库）：此前因「模块禁互引 + 模块禁引 Shell
+
+<!-- ANCHOR:UI-003 -->
+- **UI-003** · `src/UI/Controls/DetailCardHooks.cs`
+  - 🔴 为什么需要它：详情卡渲染层随控件库搬进 NewToys.UI 后 ⛔ 不引 Core / Shell，
+  - ⚠️ 未注入时的兜底 = false（按「用户取消」处理，与 DialogHooks 口径一致）——
+  - 宁可危险动作点了没反应，也⛔ 不许未经确认就执行。
+
+<!-- ANCHOR:UI-004 -->
+- **UI-004** · `src/UI/Controls/DetailCardHost.axaml.cs`
+  - 🔴 `Source` 必须是页面 VM 本身（不是描述符、也不是选中项）—— 描述符里的所有路径都相对它解析。
+
+<!-- ANCHOR:UI-008 -->
+- **UI-008** · `src/UI/Controls/DynamicColumnGrid.cs`
+  - 🔴 为什么需要它：Shared/ListPageViewModelBase 的列机制是「Columns 元数据 + 每列一个具名
+  - ⚠️ 与 UI/Controls/ColumnGrid 的分工：那个是「列宽可拖动 + 示例值锁宽」的表头栅格（框架内已有列机制用）；
+  - 🔴 样式类 col-header / list-cell / accent 定义在 Shell App.axaml（运行时解析）——
+  - UI 库 ⛔ 不自带这些样式、⛔ 不写死色值。
+
+<!-- ANCHOR:UI-010 -->
+- **UI-010** · `src/UI/Controls/ListFooterBar.axaml.cs`
+  - 🔴 显隐由宿主页决定：把本控件的 `Visual.IsVisible` 绑到 VM 的
+  - 🔴 内部一律 code-behind 按属性直配（⛔ 不用祖先绑定，见 axaml 顶部注释）；
+
+<!-- ANCHOR:UI-011 -->
+- **UI-011** · `src/UI/Controls/ListFooterBar.axaml.cs`
+  - ⛔ 不必引 ItemTemplate / Converter（跨程序集 StaticResource 解析失败是静默空白，更难查）。
+
+<!-- ANCHOR:UI-012 -->
+- **UI-012** · `src/UI/Controls/ListFooterBar.axaml.cs`
+  - 🔴 崩溃修复：⛔ 不许在运行时换 PageSizeCombo.ItemsSource ——
+
+<!-- ANCHOR:UI-014 -->
+- **UI-014** · `src/UI/Controls/SettingsSectionHost.axaml.cs`
+  - 🔴 本控件承载全部视口相关逻辑（折叠 / 磁吸 / Push / 定位收敛），
+  - ⛔ VM 不认识视口。折叠意图通过 `SectionToggled` 抛给宿主页（应用级设置页用它刷新状态栏聚合），
+  - 🔴 滚动只滚动，⛔ 不改任何节的展开状态：用户滚到哪节都不会被"擅自弹开"，
+  - 🔴 两种用法：
+  - （⛔ 别把 `Sections` 标 [Content]：会抢掉 UserControl.Content ⇒ AVLN3000）。
+
+<!-- ANCHOR:UI-015 -->
+- **UI-015** · `src/UI/Controls/SettingsSectionHost.axaml.cs`
+  - 🔴 ⛔ 不要给本属性加 [Content]：会抢掉 `UserControl.Content`，本控件自己的 axaml 根
+
+<!-- ANCHOR:UI-016 -->
+- **UI-016** · `src/UI/Controls/SettingsSectionHost.axaml.cs`
+  - 🔴 为什么必须补：节内容的父级是 ContentControl，它的 DataContext = 节模型（要解析
+  - ⚠️ 应用级设置页的节 View 在构建时已显式设了自己的 VM ⇒ 这里跳过（DataContext: null 才补），
+  - 不会把节的 VM 冲成页面 VM。
+
+<!-- ANCHOR:UI-017 -->
+- **UI-017** · `src/UI/Controls/TableViewHost.cs`
+  - XAML ⛔ 不用再写 IsXxxVisible 绑定与 SortCommand + CommandParameter；
+  - 🔴 列顺序铁律：XAML 里 TableViewHost.Columns 的声明顺序必须与 VM 的
+  - 🔴 选择语义按页各自声明（SelectionMode + SelectedItem 绑定）；
+
+<!-- ANCHOR:UI-018 -->
+- **UI-018** · `src/UI/Controls/TableViewHost.cs`
+  - ⛔ 不能用祖先 / $parent 绑定：`TableViewColumn` 不在可视树里、没有 DataContext，
+
+<!-- ANCHOR:UI-019 -->
+- **UI-019** · `src/UI/Controls/TableViewHost.cs`
+  - 🔴 用坐标命中而不是 e.Source 找祖先：表头模板背景是透明 / null，
+  - 文字以外的空白区不参与命中测试，事件根本不会带上 header —— 那样只有点到字才有反应。
+
+<!-- ANCHOR:UI-020 -->
+- **UI-020** · `src/UI/Controls/TableViewHost.cs`
+  - 🔴 按「边界」命中，不是按「可拖列的右缘」：固定列（类型 / 大小 / 修改时间 …）也有边界，
+  - 拖它就等于调相邻那个可变列（自己不动）；否则两侧都是固定列的列会彻底拖不动。
+  - 宽度守恒：两边都可拖 ⇒ 一增一减；只有一边可拖 ⇒ 只改那一边。
+
+<!-- ANCHOR:UI-023 -->
+- **UI-023** · `src/UI/Services/WebTransferService.cs`
+  - 🔴 抓取三页从网络工具迁入脚本中心 ⇒「书签 / Ping → 抓取」变成跨模块传参；
+  - 而模块禁互引、Shared/Core/Shell ⛔ 不动 ⇒ 落 `NewToys.UI`（两个模块都引它），
+
+<!-- ANCHOR:UI-024 -->
+- **UI-024** · `src/UI/Settings/SettingsSection.cs`
+  - `Key` = 节锚点（原菜单 Key，⛔ 一经发布不改）；`Content` = 节的 View（XAML 内容属性，
+  - `ViewModels` = 对应 VM（状态栏 / 工具条契约聚合用，可多个）。
+  - 🔴 折叠 / 磁吸 / 滚动定位全部在 `NewToys.UI.Controls.SettingsSectionHost`，
+  - ⛔ 不在本模型里 —— 本模型只存状态（`IsExpanded`）。
+
+<!-- WHY-DISTILL:ui:end -->

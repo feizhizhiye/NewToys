@@ -9,13 +9,7 @@ using Path = Avalonia.Controls.Shapes.Path;
 
 namespace NewToys.UI.Markup;
 
-/// <summary>
-/// 把 <c>Shell/App.axaml</c> 的 <c>Icon*</c> 几何键变成图标控件。
-/// 用于 <c>MenuItem.Icon</c> 这类 <see cref="object"/> 位，一行写完不撑结构。
-/// </summary>
-/// <example>
-/// <code>&lt;MenuItem Header="打开" Icon="{m:Glyph IconOpen}" /&gt;</code>
-/// </example>
+/// <summary>把 Shell/App.axaml 的 Icon* 几何键变成图标控件。</summary>
 public sealed class GlyphExtension : MarkupExtension
 {
     public GlyphExtension()
@@ -34,13 +28,7 @@ public sealed class GlyphExtension : MarkupExtension
         (object?)Glyph.Create(Key, Size) ?? new TextBlock();
 }
 
-/// <summary>
-/// 图标 + 文字合成一个内容控件，给 <c>Button.Content</c> / <c>MenuItem.Header</c> 这类
-/// 只能写一处内容的位置用（按钮本身没有独立图标位）。
-/// </summary>
-/// <example>
-/// <code>&lt;Button Content="{m:GlyphText IconOpen, '选择目录'}" /&gt;</code>
-/// </example>
+/// <summary>图标 + 文字合成一个内容控件，给 Button.Content / MenuItem.Header 这类 只能写一处内容的位置用（按钮本身没有独立图标位）。</summary>
 public sealed class GlyphTextExtension : MarkupExtension
 {
     public GlyphTextExtension()

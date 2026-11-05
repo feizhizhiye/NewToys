@@ -10,38 +10,7 @@ using NewToys.Shared.Models;
 
 namespace NewToys.UI.Controls;
 
-/// <summary>
-/// 列表页的「列显隐」Grid：把**可绑定的列宽规格串**解析成 <see cref="Grid.ColumnDefinitions"/>。
-/// <para>
-/// ⚠️ **为什么需要这个控件**（规范 3.8.5）：
-/// <c>Grid.ColumnDefinitions</c> 是 **CLR 属性**，Avalonia 的 XAML 编译器**不允许**在它上面写
-/// <c>{Binding}</c> —— 会直接报
-/// <c>AVLN3000: Unable to find suitable setter or adder for property ColumnDefinitions ... for argument ReflectionBinding</c>。
-/// 所以「列显隐」不能绑 <c>ColumnDefinitions</c>，只能改成「绑一个字符串规格 → 控件自己解析」。
-/// </para>
-/// <para>
-/// <b>规格串规则</b>：逗号分隔，<b>可见列写它的宽度</b>（星号如 <c>3*</c> / 手调像素如 <c>180</c>）、<b>隐藏列写 <c>0</c></b>。
-/// 用 <c>0</c> 而不是「真删列」，是为了让<b>列索引保持不动</b> ——
-/// 表头与行模板永远共用同一份列定义（规范 3.8.2 对齐铁律①）。
-/// </para>
-/// <para>
-/// ⚠️ 每次赋值都<b>新建</b>一个 <see cref="ColumnDefinitions"/> 实例：同一个实例不能被多个 Grid 共用。
-/// </para>
-/// <para>
-/// 🛡️ <b>列数防线</b>：本控件保证「<see cref="Grid.ColumnDefinitions"/>.Count 永远 ≥ 子元素用到的最大
-/// <c>Grid.Column</c> + 1」。这不是锦上添花，而是**必须**：
-/// 行模板里的规格串来自 <c>{Binding $parent[ListBox].DataContext.VisibleColumnSpecs}</c>，
-/// 在 <c>VirtualizingStackPanel.RealizeElements</c> 里容器可能先被 measure、绑定后到；
-/// 那一刻若列数是 0，Avalonia 的 Grid 会走 <c>MeasureCell</c> → <c>_cells[cell]</c> 越界，
-/// 抛 <c>ArgumentOutOfRangeException</c> 把整次布局打断（页面画一半 / 卡住 / 进程退出）。
-/// 真实崩溃栈：
-/// <c>Grid.MeasureCell → Grid.MeasureCellsGroup → Grid.MeasureOverride → VirtualizingStackPanel.RealizeElements</c>。
-/// </para>
-/// <para>
-/// 📌 本控件**只有这一份**（收进 <c>NewToys.UI</c> 控件库）：此前因「模块禁互引 + 模块禁引 Shell
-/// + Shared/Core 不引 Avalonia」而在 4 个模块与 Shell 各存一份副本（五份、2086 行、已开始漂移）。
-/// </para>
-/// </summary>
+/// <summary>列表页的「列显隐」Grid：把可绑定的列宽规格串解析成 Grid.ColumnDefinitions。（WHY: UI-002）</summary>
 public class ColumnGrid : Grid
 {
     /// <summary>列宽规格串（可绑定）。例：<c>"3*,4*,0,1.6*"</c> 表示第 3 列已隐藏。</summary>

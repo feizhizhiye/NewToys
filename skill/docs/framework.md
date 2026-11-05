@@ -870,6 +870,7 @@ AI 只读 `src/`，⛔ 不读 `artifacts/ bin/ obj/ .vs/`。
 
 | NT | 内容 | 状态 |
 |---|---|---|
+| NT-149 | **同族页能力矩阵 + 静态验收第 10 项**：范本新增 §八 矩阵（四段齐全度，一行一页）；`lint.py --only family` + `accept.ps1` 第 10 项三条对账规则；不动 `src/`、零 build、标记只落文档 | ✅ 就绪（2026-11-05 立项；卡：`backlog/framework/NT-149.md`） |
 | NT-148 | **通用筛选条 FilterBar**：`NewToys.UI/Controls/FilterBar`（内容槽 + Quick chips + 清空 + 摘要）；6 页右键筛选全删、改挂顶区筛选条；3 条自绘筛选条迁入；`AssetAll` / `AssetBrowse` 表头右键补齐；Shared 基类加 `ResetColumnWidthsCommand` | ✔ 已完成（2026-11-05 静态检查 PASS，待用户本地 build；卡：`backlog/framework/NT-148.md`） |
 | NT-147 | **表头右键 / 行右键职责分离（资源管理器口径）**：`NewToys.UI/Controls/TableViewHost` 在 `ContextMenu.Opening` 按落点重建菜单内容 —— 表头两段（列宽 / 列显隐）由控件统一生成，行菜单保留页面功能项与筛选项；17 个表格页一致，自绘 `ColumnGrid` 旧页本就分菜单故不改 | ✔ 已完成（2026-11-05 静态检查 PASS，待用户本地 build；卡：`backlog/framework/NT-147.md`） |
 | NT-145 | **启动链路打点补全（诊断卡）**：打点起点前移到 `Program.Main`、日志标 Debug/Release·冷/热；**本身提速 0ms**，只为终结日志混读。现状与「不得再试」清单见 **§3.5** | ✅ 已结案（2026-11-04 用户确认；框架层须用户确认故未执行；卡：`backlog/framework/NT-145.md`） |

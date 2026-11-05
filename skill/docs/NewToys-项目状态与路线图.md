@@ -36,7 +36,7 @@
 
 **文档版本**（下表由 `python skill/scripts/docs-sync.py --fix` 读各文档头部生成，⛔ 不要手改块内）：
 
-<!-- AUTO:ledger.docversions -->
+<!-- AUTO:ledger.docversions -->
 | 文档 | 当前版本 |
 |---|---|
 | 需求规格 | v3.106 |
@@ -129,6 +129,8 @@
 
 | NT | 标题 | 优先级 | 状态 | 详情 |
 |---|---|---|---|---|
+| NT-150 | **全部资产：详情卡字段补齐**（用户 2026-11-05 拍板「5+3」方向 3）：`BuildCard()` 补 ≥3 个只读展示字段，数据源限现有 `AssetRow` / `DetailRow` 属性；⛔ 不新增数据库列 / `FieldKind` / `DetailCardRender`；路径一律 `nameof`，沿用 `Inline` 行内口径与三种提交语义；双写 §2.5 + 说明书。🔴 **未动框架层**（全在 `Module.MediaAssets`）。字段清单为假设，实施期按可用属性核定 | P1 | ✅ **就绪（2026-11-05 立项，过 DoR）** | backlog/media-assets/NT-150.md |
+| NT-149 | **同族页能力矩阵 + 静态验收第 10 项**（用户 2026-11-05 拍板「5+3」方向 5）：范本 v1.1→v1.2 新增 §八「同族页矩阵」（一行一页登记四段齐全度 + 不适用原因）；`lint.py` 新增 `--only family` + `accept.ps1` 加第 10 项，三条对账规则（登记缺代码 FAIL / 代码齐全漏登记 WARN / 声明不符 FAIL）；先拿 3 页样本校准识别口径。🔴 **零 `src/` 改动 ⇒ 零 build**，只跑静态验收；标记只落文档，⛔ 不给页面加标记属性 | P1 | ✅ **就绪（2026-11-05 立项，过 DoR）** | backlog/framework/NT-149.md |
 | NT-148 | **通用筛选条 FilterBar + 右键筛选全清**（用户「右键里的筛选功能全部删除，封装一个筛选条」→「按全部资产页的筛选条样式，直接扩展」）：新增 `NewToys.UI/Controls/FilterBar`（内容槽 + 快捷 chips + 清空 + 命中数，沿用 `filter-bar` 一行等分口径）；6 页删右键「筛选」并挂筛选条，`PackageView`「仅看已安装」并入 `QuickFilters`；`assets-all` / `reading-sources` / `assets-trash` 三条自绘筛选条迁入内容槽；2.1 补 `AssetAllView` / `AssetBrowseView` 表头右键（列显隐 + 列宽自适应 / 恢复默认）；基类加 `ResetColumnWidthsCommand`。🔴 框架层新增 1 控件 + Shared 1 命令（方案已确认） | P1 | ✔ **已完成（2026-11-05 静态检查 PASS，待用户本地 build）** | backlog/framework/NT-148.md |
 | NT-147 | **表头右键 / 行右键职责分离（资源管理器口径）**（用户「参考 windows 的资源管理器的逻辑改吧」）：`TableViewHost` 按右键落点切换菜单 —— 表头 = 列宽（本列宽度自适应 / 恢复默认）+ 列显隐（标识列置灰）；行区 = 页面功能项 + 筛选项。行菜单不再自动插「▤ 列」；筛选项留在行菜单，控件在 `Opening` 时按落点重建菜单内容。⛔ 不复活「自动调整全部列宽」；⛔ 不做列重排 / 列像素对话框。🔴 动 `NewToys.UI`（方案已展示并经用户确认） | P1 | ✔ **已完成（2026-11-05 静态检查 PASS 7 / FAIL 0，待用户本地 build）** | backlog/framework/NT-147.md |
 | NT-146 | **图标体系精简 + 通用动作矢量化**（用户「整理下项目里所使用的图标，评估能否进一步精简」→ 拍板档 1+档 2）：盘点 35 个框架几何 + 约 129 种字符图标 / 560 处动作载体；新增 14 个动作几何、`IconTabClose`+`IconWinClose` 并入 `IconClose`；`ToolbarItemDescriptor` / `ToolbarMenuItemDescriptor` / `DetailAction` 三处加 `IconKey`；新增 `NewToys.UI/Markup` 的 `{m:Glyph}` / `{m:GlyphText}` 与 `Path.icon-fg` 样式（描边绑宿主 `Foreground` ⇒ 禁用态自动变灰）；工具条 / 右键菜单 / 页面按钮 / 详情卡动作四通道去 emoji 前缀（约 435 处）+ 文案引用同步；「一键一义」21 词表写进 `ui.md` §5。**未做**：领域标识与状态 emoji 保留 | P1 | ✔ **已完成（已验收 · 2026-11-05 核对 src 实现）** | backlog/framework/NT-146.md |

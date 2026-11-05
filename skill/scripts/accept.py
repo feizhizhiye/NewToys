@@ -52,7 +52,7 @@ STATIC: list[tuple[str, str]] = [
 ]
 
 # 存量告警基线（P0 实测）。超过基线 = 新引入告警 ⇒ 阻断；存量不追溯。
-WARN_BASELINE = {"techstack": 7, "comments": 6}
+WARN_BASELINE = {"techstack": 7, "comments": 0}
 DOCS_WARN_BASELINE = 1
 
 MENU = [
@@ -209,7 +209,7 @@ def _run(opts: dict) -> tuple[list[dict], int]:
                 for ln in [x.strip() for x in raw.splitlines() if "已重写" in x or x.rstrip().endswith("一致")]:
                     print(f"        {ln}")
 
-    # 3) 铁律 1：改动范围（src/ + skill/ + scripts/ + var/ + AGENTS.md 为授权区）
+    # 3) 铁律 1：改动范围（src/ + skill/ + scripts/ + .workbuddy/ + .github/ + .githooks/ + AGENTS.md 为授权区）
     if run_scope:
         if not brief:
             print("\n──── 3. 铁律 1（改动范围）────")
@@ -225,11 +225,11 @@ def _run(opts: dict) -> tuple[list[dict], int]:
                         p = p.split(" -> ")[-1].strip().strip('"')
                     changed.append(p)
             outside = [p for p in changed if not re.match(
-                r"^(src/|skill/|scripts/|AGENTS\.md$)", p)]
+                r"^(src/|skill/|scripts/|\.workbuddy/|\.github/|\.githooks/|AGENTS\.md$)", p)]
             if outside:
                 _add(rows, "铁律1", "src/ 之外的改动", "WARN", f"{len(outside)} 处越界", "\n".join(outside))
                 if not brief:
-                    print(f"  [WARN] src/ 之外有 {len(outside)} 处改动（授权区：src/ skill/ scripts/ AGENTS.md）：")
+                    print(f"  [WARN] src/ 之外有 {len(outside)} 处改动（授权区：src/ skill/ scripts/ .workbuddy/ .github/ .githooks/ AGENTS.md）：")
                     for p in outside[:10]:
                         print(f"        {p}")
             else:

@@ -467,6 +467,14 @@ RE_VERSION = re.compile(r"^\s*//+\s*(v\d+\.\d+|NT-\d{3}\s*[:：]?\s*v\d+\.\d+|�
 RE_HISTORY = re.compile(r"原来|此前是|以前是|曾经是|早先是")
 MAX_BLOCK = 6
 
+# 方案1 · 注释长段治理：<=5 行短契约保留，>=6 行 /// 块必须压缩 + WHY 蒸馏。
+# SLIMMED_ASSEMBLIES 是「已治理程序集」白名单，每完成一批追加一个，未治理批次不报 C-07。
+DOC_BLOCK_MAX = 6
+SLIMMED_ASSEMBLIES = ("Shared", "Core")
+DOC_MARKERS = ("inheritdoc", "lint:")
+ANCHOR_SRC = re.compile(r"WHY:\s*([A-Z]+-\d{3})")
+ANCHOR_DOC = re.compile(r"<!--\s*ANCHOR:([A-Z]+-\d{3})\s*-->")
+
 
 def check_comments(all_: bool) -> None:
     h("NewToys 注释健康度自检")
@@ -532,6 +540,42 @@ def check_comments(all_: bool) -> None:
             where = " / ".join(rel(x) for x in files)
             add("C-05", "ERROR", f"{rel(files[0])}:1", f"View 类名重复：{nm} —— {where}")
 
+    # C-07：已治理程序集里不许再出现 >=6 行 /// 长段（机器标记白名单豁免）
+    for f in targets:
+        try:
+            asm = f.relative_to(SRC).parts[0]
+        except ValueError:
+            continue
+        if asm not in SLIMMED_ASSEMBLIES:
+            continue
+        buf: list[str] = []
+        start = 0
+        for i, ln in enumerate(read(f).split("\n"), 1):
+            if re.match(r"^\s*///", ln):
+                if not buf:
+                    start = i
+                buf.append(ln)
+            else:
+                if len(buf) >= DOC_BLOCK_MAX and not any(m in " ".join(buf) for m in DOC_MARKERS):
+                    add("C-07", "WARN", f"{rel(f)}:{start}",
+                        f"/// 长段 {len(buf)} 行（方案1 上限 5）—— 压成契约 + WHY 蒸馏")
+                buf = []
+        if len(buf) >= DOC_BLOCK_MAX and not any(m in " ".join(buf) for m in DOC_MARKERS):
+            add("C-07", "WARN", f"{rel(f)}:{start}",
+                f"/// 长段 {len(buf)} 行（方案1 上限 5）—— 压成契约 + WHY 蒸馏")
+
+    # A-01：anchors 双向对账（代码 WHY: ID ⇄ 文档 <!-- ANCHOR:ID -->）
+    src_ids: set[str] = set()
+    for f in targets:
+        src_ids.update(ANCHOR_SRC.findall(read(f)))
+    doc_ids: set[str] = set()
+    for p in (ROOT / "skill" / "docs").rglob("*.md"):
+        doc_ids.update(ANCHOR_DOC.findall(p.read_text(encoding="utf-8-sig", errors="ignore")))
+    for aid in sorted(src_ids - doc_ids):
+        add("A-01", "WARN", "src", f"WHY: {aid} 在文档里没有 ANCHOR —— WHY 正文丢了")
+    for aid in sorted(doc_ids - src_ids):
+        add("A-01", "WARN", "skill/docs", f"ANCHOR:{aid} 在代码里没有 WHY 引用 —— 孤儿锚点")
+
     print("\n[注释率 Top5]")
     for ratio, c, t, r in sorted(stats, reverse=True)[:5]:
         print(f"  {ratio:6.0%}  {c:5}/{t:<5}  {r}")
@@ -552,7 +596,7 @@ def check_comments(all_: bool) -> None:
             print(f"  {rid}（{len(group)} 条）")
             for _r, _l, loc, msg in group:
                 print(f"    {loc}  {msg}")
-    print("\n提示：C-01/C-02/C-04/C-06 是 WARN（不阻断），C-05 是 ERROR（View 重名会静默错页）。")
+    print("\n提示：C-01/C-02/C-04/C-06/C-07/A-01 是 WARN（不阻断），C-05 是 ERROR（View 重名会静默错页）。")
     print("      C-03 只出排行不告警（审美判据做 lint 会烂成噪音）。")
 
 

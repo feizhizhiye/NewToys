@@ -1,0 +1,48 @@
+name: comment-gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/**/*.cs'
+      - 'skill/docs/**/*.md'
+      - 'skill/scripts/comment-gate.py'
+      - '.github/workflows/comment-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**/*.cs'
+      - 'skill/docs/**/*.md'
+      - 'skill/scripts/comment-gate.py'
+      - '.github/workflows/comment-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 注释契约门禁（PR 区间）
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+          python skill/scripts/comment-gate.py --base "origin/${{ github.base_ref }}"
+
+      - name: 注释契约门禁（push 区间）
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          BASE="$BEFORE"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="HEAD^"
+          fi
+          python skill/scripts/comment-gate.py --base "$BASE"

@@ -101,11 +101,52 @@
 | `C-04` | 注释行含 `原来` / `此前是` / `以前是` / `曾经是` / `早先是` | WARN | 历史叙事，描述过去状态；⛔ 不收「改为 / 改成」（正常语义里也会出现，误报率高） |
 | `C-05` | 两个程序集里有**同名 View 类** | **ERROR** | `NavigationService` 按 `ViewTypeName` 字符串遍历程序集找同名类、`FirstOrDefault` 命中即用 ⇒ 重名时先加载者获胜，表现「点开是另一个页面」，编译期不报错、运行期无异常 |
 | `C-06` | 注释行出现 `NT-xxx` 任务编号 | WARN | 编号属 D 类叙事：它指向一张会被滑动窗口淘汰的卡，读者看到的只是编号。**编号→结论的唯一索引 = `framework.md` §11.2**（2026-10-25 已把存量 1121 处一次清空） |
+| `C-07` | 已治理程序集里出现 ≥6 行连续 `///` 块 | WARN | 方案1 长段上限 5 行：压成 1 行契约 + `WHY: <ID>`，WHY 正文蒸馏进文档。机器标记与未治理程序集走白名单 |
+| `A-01` | 代码 `WHY: <ID>` ⇄ 文档 `<!-- ANCHOR:<ID> -->` 不一一对应 | WARN | 防蒸馏正文丢失 / 孤儿锚点 |
 
 ```
 实测基线（2026-10-25 首跑）：C-01 172 / C-02 16 / C-04 55 / C-05 0；同日清空 NT 编号后 C-06 = 0
-当前（2026-10-25 收尾）：C-01 / C-02 / C-04 / C-05 / C-06 **全 0** —— 存量清零，此后只靠「改到哪清哪」保持，⛔ 别再一键批量删
+当前（2026-11-05）：C-01 ~ C-07 / A-01 **全 0** —— 存量清零 + 方案1 长段治理落地，此后靠 C-07 / A-01 守，⛔ 别再攒长段
 ```
+
+**方案1 · 全量瘦身与分流**（判据 = 长段，⛔ 不是「全清注释」）：
+
+- 短契约（连续 `///` ≤5 行）**全留**；长段（≥6 行）由 `skill/scripts/comment-slim.py --batch <shared|core|shell|ui|modules> --apply` 压成 1 行契约 + `WHY: <ID>`，高信号 WHY 行蒸馏到 `framework.md` 附录 A.2 / `ui.md` §9 / `modules/<模块>.md` §5 的 `<!-- WHY-DISTILL:<batch> -->` 块，D 类叙事删。
+- 机器标记 **20 条必留**：4 条 `// lint:view-no-vm` + 16 条 `/// <inheritdoc>`；脚本与 C-07 都豁免。
+- `lint.py` 的 `SLIMMED_ASSEMBLIES` = 已治理程序集白名单，每完成一批追加一个，未治理批次不报 C-07（分批跨会话时中间状态不炸验收）。
+- anchors 双向对账（A-01）：代码 `WHY: <ID>` 必须在文档有 `<!-- ANCHOR:<ID> -->`，反之亦然。
+
+### 3.1.1 生成侧最小注释契约（写新代码时必守）
+
+三分法判「已有注释往哪去」，本节判「新代码该写什么」。面向 AI 与人的**最小产出**，⛔ 不要求多写注释：信息优先交给类型、命名、测试与文档，注释只留调用方必须知道且别处拿不到的那一句。
+
+| 信息 | 唯一载体 | 规则 |
+|---|---|---|
+| 契约（参数语义 / 单位 / 异常 / 生命周期） | `/// <summary>` + 类型/成员命名 + 测试名 | ≤5 行；命名与测试已自解释时**可不写** |
+| 背景 / 设计取舍 / 踩坑 | `skill/docs/` 一处（`framework.md` §11 / 附录 A.2、`ui.md` §9、`modules/*.md` §5） | 代码只留 `WHY: <ID>`；文档必须有 `<!-- ANCHOR:ID -->` |
+| 不安全操作的前置条件 / 不变量 | `// SAFETY: …` | 就地留，≥6 字；⛔ 不蒸馏（与代码同生命周期） |
+| 未完成事项 | `// TODO: …` | 必须带触发条件，≥8 字 |
+| 版本 / 轮次 / 历史 / 任务编号 | git log + `framework.md` §11.2 | ⛔ 不写进注释 |
+
+**标记表**：代码里只认 `WHY: <ID>` / `SAFETY:` / `TODO:` 三种，外加机器标记（`inheritdoc` / `lint:`）。⛔ 禁用 `FIXME` / `HACK` / `NOTE` —— 无法机器判定归属，一律腐化成叙事。
+
+**门禁（增量 · 阻断式）** = `skill/scripts/comment-gate.py`，只判 `git diff` 的**新增行**，存量不动：
+
+| ID | 判据 | 为什么 |
+|---|---|---|
+| `M-01` | 新增注释行含版本/轮次前缀、历史叙事词、`NT-xxx` | D 类叙事，git log 已记录 |
+| `M-02` | 连续**新增** `///` ≥6 行 | 长段必须压成 1 行契约 + `WHY: <ID>`；改存量长段里的一行不算 |
+| `M-03` | `WHY: <ID>` 在 `skill/docs/` 没有 `ANCHOR` | 防蒸馏正文丢失（= A-01 的阻断版） |
+| `M-04` | `SAFETY:`/`TODO:` 缺有效说明，或出现表外标记 | 保证标记可被检索、有触发条件 |
+
+```powershell
+python skill/scripts/comment-gate.py --working               # 本地预检：HEAD -> 工作区
+python skill/scripts/comment-gate.py --all                   # 全量诊断（跳过 M-02）
+git config core.hooksPath .githooks                          # 一次性启用 pre-commit
+```
+
+自动门禁两处：`.githooks/pre-commit`（暂存区 `--cached`）、`.github/workflows/comment-gate.yml`（PR 用 `--base origin/<base_ref>`，push 用 `--base HEAD^`）。
+职责边界：`lint.py --only comments` 是**全量自检**，恒 0 退出、只报告；`comment-gate.py` 是**增量门禁**，违规非零退出。两者规则同源，但存量只由前者慢慢消化。
 
 
 ---
@@ -117,9 +158,10 @@ python skill/scripts/lint.py                        # 全量 7 项
 python skill/scripts/lint.py --only props
 python skill/scripts/lint.py --only techstack --all   # 加 --all 看 WARN 明细
 python skill/scripts/lint.py --only comments --all    # 加 --all 看注释明细（C-01/C-02/C-04）
+python skill/scripts/comment-gate.py --working       # 增量门禁（违规非零退出，见 §3.1.1）
 ```
 
-四条都**只报告、不改文件、不以非零码退出**（自检是参考，不是门禁）；最终以用户本地 `pwsh -File .\scripts\build.ps1` 为准。
+`lint.py` 四条都**只报告、不改文件、不以非零码退出**（自检是参考，不是门禁）；阻断由 `comment-gate.py` / pre-commit / CI 负责。最终以用户本地 `pwsh -File .\scripts\build.ps1` 为准。
 注释类 WARN **不要求清零**：目标是「新增代码不再产生」，存量按「改到哪清到哪」消化。
 
 ---

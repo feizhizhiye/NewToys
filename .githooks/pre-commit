@@ -1,0 +1,4 @@
+#!/bin/sh
+# 注释契约门禁 · 只拦暂存区里新增的注释行（存量不受影响）
+# 启用（仓库根执行一次）：git config core.hooksPath .githooks
+python skill/scripts/comment-gate.py --cached || exit 1

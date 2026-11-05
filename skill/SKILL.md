@@ -23,7 +23,7 @@ agent_created: true
 1. **一次打包（首选）**：`python skill/scripts/ctx.py --task <auto|feature|ui|interaction|fix|usage|verify|card> --module <模块>` —— 输出铁律 + 模块行 + 基线 + 该任务相关章节 + 任务卡。⛔ 不要逐份 Read 文档
 2. 打包里缺的 → 按 `docs/index.md` §三 定位，用 `ctx.py --doc <文件> --section <节号>` 精读单节
 3. 涉及功能 / 边界 → **`docs/NewToys-需求摘要.md`**（150 行常读基线；原文 1331 行只按它的定位表 grep）
-4. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型速记）
+4. `references/collab-method.md`（通用纪律）→ `references/newtoys-spec.md`（项目约束 + 任务型速记）；**写新代码前读 `references/tech-guard.md` §3.1.1**（生成侧最小注释契约 + M-01~M-04 增量门禁，入口 `scripts/comment-gate.py`，由 `.githooks/pre-commit` 与 `.github/workflows/comment-gate.yml` 自动阻断）
 5. 按任务读 **`docs/framework.md`**（框架层）/ **`docs/ui.md`**（UI）/ **`docs/modules/<模块>.md`**（改哪个模块读哪个）对应节
 6. 术语 / 流程有疑问 → `docs/NewToys-AI协作手册.md`【术语对照】【研发流程】
 7. **交付前自检：`python skill/scripts/accept.py`**（= 静态检查（见下方 AUTO 清单）+ 文档一致性对账 + 改动范围；退出码 0/1）。该脚本**纯静态**，编译与运行由用户本地 `scripts/build.ps1` / `run.ps1` 执行
